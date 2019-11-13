@@ -1,0 +1,24 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: rabbitmq-service-nodeport
+  namespace: drone
+spec:
+  type: NodePort
+  selector:
+    app: rabbitmq
+  ports:
+    - name: http
+      protocol: TCP
+      port: 80
+      targetPort: 80
+    - name: rabbit-manage
+      nodePort: 31000
+      port: 15672
+      protocol: TCP
+      targetPort: 15672
+    - name: rabbit-fed
+      nodePort: 31001
+      port: 31001
+      protocol: TCP
+      targetPort: 31001

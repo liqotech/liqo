@@ -1,0 +1,358 @@
+{
+    "apps": [
+        "app0",
+        "app1",
+        "app2",
+        "app3",
+        "app4",
+        "app5"
+    ],
+    "functions": [
+        "f9",
+        "f7",
+        "f2",
+        "f1",
+        "f4",
+        "f6",
+        "f5",
+        "f3",
+        "f8"
+    ],
+    "components": [
+        "c4",
+        "c1",
+        "c3",
+        "c2",
+        "c5",
+        "c6"
+    ],
+    "resources": [
+        "memory",
+        "bandwidth",
+        "cpu"
+    ],
+    "nodes": [
+        "node0",
+        "node1",
+        "node2",
+        "node3"
+    ],
+    "consumption": {
+        "f1": {
+            "cpu": 3,
+            "memory": 512,
+            "bandwidth": 128
+        },
+        "f2": {
+            "cpu": 1,
+            "memory": 256,
+            "bandwidth": 256
+        },
+        "f3": {
+            "cpu": 1,
+            "memory": 512,
+            "bandwidth": 128
+        },
+        "f4": {
+            "cpu": 2,
+            "memory": 1024,
+            "bandwidth": 256
+        },
+        "f5": {
+            "cpu": 1,
+            "memory": 256,
+            "bandwidth": 512
+        },
+        "f6": {
+            "cpu": 3,
+            "memory": 768,
+            "bandwidth": 256
+        },
+        "f7": {
+            "cpu": 2,
+            "memory": 1024,
+            "bandwidth": 512
+        },
+        "f8": {
+            "cpu": 1,
+            "memory": 256,
+            "bandwidth": 128
+        },
+        "f9": {
+            "cpu": 1,
+            "memory": 512,
+            "bandwidth": 256
+        }
+    },
+    "app_descriptions": {
+        "app0": {
+            "base-node": "node2",
+            "components": [
+                "c3",
+                "c2",
+                "c6"
+            ],
+            "constraints": {
+                "placement": {}
+            }
+        },
+        "app1": {
+            "base-node": "node0",
+            "components": [
+                "c4",
+                "c3",
+                "c5"
+            ],
+            "constraints": {
+                "placement": {}
+            }
+        },
+        "app2": {
+            "base-node": "node2",
+            "components": [
+                "c2",
+                "c6"
+            ],
+            "constraints": {
+                "placement": {}
+            }
+        },
+        "app3": {
+            "base-node": "node0",
+            "components": [
+                "c2",
+                "c5",
+                "c6"
+            ],
+            "constraints": {
+                "placement": {}
+            }
+        },
+        "app4": {
+            "base-node": "node2",
+            "components": [
+                "c4",
+                "c2",
+                "c5"
+            ],
+            "constraints": {
+                "placement": {}
+            }
+        },
+        "app5": {
+            "base-node": "node0",
+            "components": [
+                "c4",
+                "c1",
+                "c3",
+                "c2",
+                "c5"
+            ],
+            "constraints": {
+                "placement": {}
+            }
+        },
+        "app6": {
+            "base-node": "node1",
+            "components": [
+                "c5",
+                "c4"
+            ],
+            "constraints": {
+                "placement": {}
+            }
+        },
+        "app7": {
+            "base-node": "node4",
+            "components": [
+                "c3"
+            ],
+            "constraints": {
+                "placement": {}
+            }
+        },
+        "app8": {
+            "base-node": "node0",
+            "components": [
+                "c5",
+                "c1",
+                "c3"
+            ],
+            "constraints": {
+                "placement": {}
+            }
+        },
+        "app9": {
+            "base-node": "node1",
+            "components": [
+                "c5",
+                "c2",
+                "c6"
+            ],
+            "constraints": {
+                "placement": {}
+            }
+        },
+        "app10": {
+            "base-node": "node6",
+            "components": [
+                "c5",
+                "c4"
+            ],
+            "constraints": {
+                "placement": {}
+            }
+        },
+        "app11": {
+            "base-node": "node9",
+            "components": [
+                "c4",
+                "c3",
+                "c2"
+            ],
+            "constraints": {
+                "placement": {}
+            }
+        },
+        "app12": {
+            "base-node": "node3",
+            "components": [
+                "c2"
+            ],
+            "constraints": {
+                "placement": {}
+            }
+        },
+        "app13": {
+            "base-node": "node5",
+            "components": [
+                "c4",
+                "c3",
+                "c2"
+            ],
+            "constraints": {
+                "placement": {}
+            }
+        },
+        "app14": {
+            "base-node": "node0",
+            "components": [
+                "c4",
+                "c3",
+                "c2"
+            ],
+            "constraints": {
+                "placement": {}
+            }
+        },
+        "app15": {
+            "base-node": "node5",
+            "components": [
+                "c5",
+                "c1"
+            ],
+            "constraints": {
+                "placement": {}
+            }
+        },
+        "app16": {
+            "base-node": "node8",
+            "components": [
+                "c5",
+                "c3",
+                "c2",
+                "c6"
+            ],
+            "constraints": {
+                "placement": {}
+            }
+        },
+        "app17": {
+            "base-node": "node7",
+            "components": [
+                "c5",
+                "c6"
+            ],
+            "constraints": {
+                "placement": {}
+            }
+        },
+        "app18": {
+            "base-node": "node1",
+            "components": [
+                "c1",
+                "c4",
+                "c3",
+                "c2",
+                "c6"
+            ],
+            "constraints": {
+                "placement": {}
+            }
+        },
+        "app19": {
+            "base-node": "node2",
+            "components": [
+                "c5",
+                "c1",
+                "c3",
+                "c6"
+            ],
+            "constraints": {
+                "placement": {}
+            }
+        }
+    },
+    "available_resources": {
+        "node0": {
+            "memory": 2048,
+            "bandwidth": 1024,
+            "cpu": 4
+        },
+        "node1": {
+            "memory": 2048,
+            "bandwidth": 1024,
+            "cpu": 4
+        },
+        "node2": {
+            "memory": 8192,
+            "bandwidth": 4096,
+            "cpu": 16
+        },
+        "node3": {
+            "memory": 2048,
+            "bandwidth": 1024,
+            "cpu": 4
+        }
+    },
+    "implementations": {
+        "c1": [
+            "f1",
+            "f2",
+            "f3"
+        ],
+        "c2": [
+            "f3",
+            "f4"
+        ],
+        "c3": [
+            "f2",
+            "f4",
+            "f5"
+        ],
+        "c4": [
+            "f2",
+            "f6"
+        ],
+        "c5": [
+            "f4",
+            "f7",
+            "f8"
+        ],
+        "c6": [
+            "f1",
+            "f8",
+            "f9"
+        ]
+    }
+}

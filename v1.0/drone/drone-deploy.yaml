@@ -1,0 +1,21 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: drone-agent
+  namespace: drone
+spec:
+  selector:
+    matchLabels:
+      run: drone-agent
+  template:
+    metadata:
+      labels:
+        run: drone-agent
+    spec:
+      containers:
+        - name: drone-agent
+          image: andreamora/drone-agent:first
+          imagePullPolicy: IfNotPresent
+          command: ["/bin/sh","-c"]
+          args: ["python3 ./main.py {NAME} -p -l DEBUG -d config/config.ini"]
+      restartPolicy: Always # possible values Always, OnFailure, and Never. The default value is Always.

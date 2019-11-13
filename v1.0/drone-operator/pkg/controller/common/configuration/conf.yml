@@ -1,0 +1,30 @@
+# RabbitMq Configuration
+rabbit:
+  broker_address: "localhost"
+  broker_port: "5672"
+  v_host: ""
+  username: "drone"
+  password: "drone"
+  queue_resources: "resources-advertisement"
+  queue_adv_route: "app-advertisement"
+  queue_user_req: "user_request"
+  queue_result: "offloading-solution"
+  queue_adv_ctrl: "app-advertisement-ctrl"
+  queue_adv_drone: "app-advertisement-drone"
+  queue_ack_deploy: "ack-deploy"
+
+# Parameters for RabbitMQ federation
+federation:
+  exchange_name: "drone-exchange"
+  set_name: "drone"
+  policy_name: "federate-drone"
+  pattern: ".*drone.*"
+
+# Parameter for Kubernetes
+kubernetes:
+  namespace: "default"
+  cluster_name: "cluster1"
+
+# Parameter folders
+folder:
+  yaml_folder: "yaml_files/"

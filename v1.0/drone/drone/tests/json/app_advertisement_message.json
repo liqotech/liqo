@@ -1,0 +1,18 @@
+{
+  "name": "myapp",
+  "type": "ADD",
+  "components": [
+    {
+      "name": "myc",
+      "nodes-blacklist": null,
+      "nodes-whitelist": null,
+      "function": {
+        "image": "a-docker-image",
+        "resources": {
+          "cpu": 1,
+          "memory": 512
+        }
+      }
+    }
+  ]
+}

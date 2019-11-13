@@ -1,0 +1,38 @@
+kind: ConfigMap
+apiVersion: v1
+metadata:
+  name: drone-operator-configmap
+  namespace: drone
+data:
+  # Configuration values can be set as key-value properties or set
+  conf.yaml: |
+    # RabbitMq Configuration
+    rabbit:
+      broker_address: "rabbitmq-service"
+      broker_port: "5672"
+      v_host: ""
+      username: "guest"
+      password: "guest"
+      queue_resources: "resources-advertisement"
+      queue_adv_route: "app-advertisement"
+      queue_user_req: "user_request"
+      queue_result: "offloading-solution"
+      queue_adv_ctrl: "app-advertisement-ctrl"
+      queue_adv_drone: "app-advertisement-drone"
+      queue_ack_deploy: "ack-deploy"
+
+    # Parameters for RabbitMQ federation
+    federation:
+      exchange_name: "drone-exchange"
+      set_name: "drone"
+      policy_name: "federate-drone"
+      pattern: ".*drone.*"
+
+    # Parameter for Kubernetes
+    kubernetes:
+      namespace: "demo"
+      cluster_name: {NAME}
+
+    # Parameter folders
+    folder:
+      yaml_folder: "yaml_files/"

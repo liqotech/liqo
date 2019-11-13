@@ -1,0 +1,56 @@
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: drone-reader
+  namespace: drone
+rules:
+  - apiGroups: [""]
+    resources: ["pods","nodes","nodes/status"]
+    verbs: ["get", "watch", "list"]
+---
+kind: ClusterRoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: drone-reader-binding
+  namespace: drone
+subjects:
+  - kind: ServiceAccount
+    name: default
+    namespace: drone
+roleRef:
+  kind: ClusterRole
+  name: drone-reader
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: drone-daemon-resources
+  namespace: drone
+spec:
+  selector:
+    matchLabels:
+      run: drone-daemon-resources
+  template:
+    metadata:
+      labels:
+        run: drone-daemon-resources
+    spec:
+      # Add the ConfigMap as a volume to the Pod
+      volumes:
+        # `name` here must match the name specified in the volume mount
+        - name: drone-resources-configmap-volume
+          # Populate the volume with config map data
+          configMap:
+            # `name` here must match the name specified in the ConfigMap's YAML
+            name: drone-resources-configmap
+      containers:
+        - name: drone-daemon-resources
+          image: andreamora/drone-daemon-resources:first
+          imagePullPolicy: IfNotPresent
+          tty: true # for format and color log
+          volumeMounts:
+            # `name` here must match the name from the volumes section of this pod
+            - name: drone-resources-configmap-volume
+              mountPath: /etc/config
+      restartPolicy: Always # possible values Always, OnFailure, and Never. The default value is Always.

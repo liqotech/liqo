@@ -1,0 +1,11 @@
+kind: RoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: drone-operator
+subjects:
+- kind: ServiceAccount
+  name: drone-operator
+roleRef:
+  kind: Role
+  name: drone-operator
+  apiGroup: rbac.authorization.k8s.io

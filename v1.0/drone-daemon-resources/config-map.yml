@@ -1,0 +1,29 @@
+kind: ConfigMap
+apiVersion: v1
+metadata:
+  name: drone-resources-configmap
+  namespace: drone
+data:
+  # Configuration values can be set as key-value properties or set
+  conf.yaml: |
+    # RabbitMq Configuration
+    rabbit:
+      broker_address: "rabbitmq-service"
+      broker_port: "5672"
+      v_host: ""
+      username: "drone"
+      password: "drone"
+      queue_resources: "resources-advertisement"
+
+    # Parameters for RabbitMQ federation
+    federation:
+      exchange_name: "drone-exchange"
+
+    # Parameter for Kubernetes
+    kubernetes:
+      namespace: "demo"
+      cluster_name: "cluster1"
+
+    # Parameter for Resources (scale is percentage for reduce resources)
+    resources:
+      scale: 100

@@ -1,0 +1,44 @@
+{
+    "apps": [
+    ],
+    "functions": [
+    ],
+    "components": [
+    ],
+    "resources": [
+        "bandwidth",
+        "memory",
+        "cpu"
+    ],
+    "nodes": [
+        "cluster0",
+        "cluster1",
+        "cluster2"
+    ],
+    "consumption": {
+
+    },
+    "app_descriptions": {
+
+    },
+    "available_resources": {
+        "cluster0": {
+            "bandwidth": 1024,
+            "memory": 2048,
+            "cpu": 4
+        },
+        "cluster1": {
+            "bandwidth": 1024,
+            "memory": 2048,
+            "cpu": 4
+        },
+        "cluster2": {
+            "bandwidth": 4096,
+            "memory": 8192,
+            "cpu": 16
+        }
+    },
+    "implementations": {
+
+    }
+}
