@@ -1,0 +1,110 @@
+
+---
+apiVersion: apiextensions.k8s.io/v1beta1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.2.4
+  creationTimestamp: null
+  name: advertisers.advertisement.drone.com
+spec:
+  group: advertisement.drone.com
+  names:
+    kind: Advertiser
+    listKind: AdvertiserList
+    plural: advertisers
+    singular: advertiser
+  scope: Namespaced
+  validation:
+    openAPIV3Schema:
+      description: Advertiser is the Schema for the advertisers API
+      properties:
+        apiVersion:
+          description: 'APIVersion defines the versioned schema of this representation
+            of an object. Servers should convert recognized schemas to the latest
+            internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
+          type: string
+        kind:
+          description: 'Kind is a string value representing the REST resource this
+            object represents. Servers may infer this from the endpoint the client
+            submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
+          type: string
+        metadata:
+          type: object
+        spec:
+          description: AdvertiserSpec defines the desired state of Advertiser
+          properties:
+            availability:
+              properties:
+                cpu:
+                  type: string
+                cpuPrice:
+                  type: string
+                ram:
+                  type: string
+                ramPricePerMB:
+                  type: string
+              required:
+              - cpu
+              - cpuPrice
+              - ram
+              - ramPricePerMB
+              type: object
+            clusterId:
+              description: Foo is an example field of Advertiser. Edit Advertiser_types.go
+                to remove/update
+              type: string
+            resources:
+              items:
+                properties:
+                  image:
+                    description: Describe a container image
+                    properties:
+                      names:
+                        description: Names by which this image is known. e.g. ["k8s.gcr.io/hyperkube:v1.0.7",
+                          "dockerhub.io/google_containers/hyperkube:v1.0.7"]
+                        items:
+                          type: string
+                        type: array
+                      sizeBytes:
+                        description: The size of the image in bytes.
+                        format: int64
+                        type: integer
+                    required:
+                    - names
+                    type: object
+                  price:
+                    type: string
+                required:
+                - image
+                - price
+                type: object
+              type: array
+            timestamp:
+              format: date-time
+              type: string
+            validity:
+              format: date-time
+              type: string
+          required:
+          - availability
+          - clusterId
+          - resources
+          - timestamp
+          - validity
+          type: object
+        status:
+          description: AdvertiserStatus defines the observed state of Advertiser
+          type: object
+      type: object
+  version: v1beta1
+  versions:
+  - name: v1beta1
+    served: true
+    storage: true
+status:
+  acceptedNames:
+    kind: ""
+    plural: ""
+  conditions: []
+  storedVersions: []

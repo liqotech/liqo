@@ -1,0 +1,50 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  creationTimestamp: null
+  labels:
+    run: vkubelet
+  name: vkubelet
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      run: vkubelet
+  strategy: {}
+  template:
+    metadata:
+      creationTimestamp: null
+      labels:
+        run: vkubelet
+    spec:
+      serviceAccountName: virtual-kubelet
+      containers:
+      - image: dronev2/virtual-kubelet
+        name: vkubelet
+        command: ["/usr/bin/virtual-kubelet"]
+        args: ["--provider", "kubernetes",
+	       "--provider-config", "/app/config/vkubelet-cfg.json",
+               "--kubeconfig", "/app/kubeconfig/origin",
+               "--log-level", "debug"]
+        resources: {}
+        volumeMounts:
+          - name: provider-config
+            mountPath: /app/config/vkubelet-cfg.json
+            subPath: vkubelet-cfg.json
+          - name: remote-config
+            mountPath: /app/kubeconfig/remote
+            subPath: remote
+          - name: origin-config
+            mountPath: /app/kubeconfig/origin
+            subPath: origin
+      volumes:
+        - name: provider-config
+          configMap:
+            name: vk-config
+        - name: remote-config
+          configMap:
+            name: remote-kubeconfig 
+        - name: origin-config
+          configMap:
+            name: origin-kubeconfig 
+status: {}

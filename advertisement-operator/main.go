@@ -17,6 +17,11 @@ package main
 
 import (
 	"flag"
+	//"github.com/pkg/errors"
+	//"k8s.io/apimachinery/pkg/api/resource"
+	//"k8s.io/client-go/kubernetes"
+	//"k8s.io/client-go/rest"
+	//"k8s.io/client-go/tools/clientcmd"
 	"os"
 
 	advertisementv1beta1 "github.com/netgroup-polito/dronev2/advertisement-operator/api/v1beta1"
@@ -79,4 +84,82 @@ func main() {
 		setupLog.Error(err, "problem running manager")
 		os.Exit(1)
 	}
+
+	//go generateAdvertisement()
 }
+
+
+/*type KubernetesConfig struct { //nolint:golint
+	RemoteKubeConfigPath string `json:"remoteKubeconfig,omitempty"`
+	CPU    string `json:"cpu,omitempty"`
+	Memory string `json:"memory,omitempty"`
+	Pods   string `json:"pods,omitempty"`
+	Namespace string `json:"namespace,omitempty"`
+}
+
+func generateAdvertisement() error{
+	fmt.Println("Generating advertisement message")
+
+	config := KubernetesConfig{
+		RemoteKubeConfigPath: "~/.kube/config_remote",
+		CPU:                  "2",
+		Memory:               "10Gi",
+		Pods:                 "10",
+		Namespace:            "drone-v2",
+	}
+
+	remoteClient, err := newClient(config.RemoteKubeConfigPath)
+	if err != nil {
+		return err
+	}
+
+
+	images := []Resource{
+		{
+			Name: "apache",
+			Price: *resource.NewQuantity(0.5, resource.DecimalSI),
+		},
+	}
+
+	freeResources := advertisementv1beta1.FreeResource{
+		Cpu: *resource.NewQuantity(int64(runtime2.NumCPU()), resource.DecimalSI),
+		CpuPrice: *resource.NewQuantity(0.0012, resource.DecimalSI),
+		Ram: *resource.NewQuantity(2000, resource.DecimalSI),
+		RamPrice: *resource.NewQuantity(0.23, resource.DecimalSI),
+	}
+
+	adv := advertisementv1beta1.AdvertiserSpec{
+		ClusterId:"cluster1",
+		Resources: images,
+		Availability: freeResources,
+	}
+
+	remoteClient
+
+}
+
+func newClient(configPath string) (*kubernetes.Clientset, error) {
+	var config *rest.Config
+
+	// Check if the kubeConfig file exists.
+	if _, err := os.Stat(configPath); !os.IsNotExist(err) {
+		// Get the kubeconfig from the filepath.
+		config, err = clientcmd.BuildConfigFromFlags("", configPath)
+		if err != nil {
+			return nil, errors.Wrap(err, "error building client config")
+		}
+	} else {
+		// Set to in-cluster config.
+		config, err = rest.InClusterConfig()
+		if err != nil {
+			return nil, errors.Wrap(err, "error building in cluster config")
+		}
+	}
+
+	if masterURI := os.Getenv("MASTER_URI"); masterURI != "" {
+		config.Host = masterURI
+	}
+
+
+	return kubernetes.NewForConfig(config)
+}*/

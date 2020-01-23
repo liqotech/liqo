@@ -16,11 +16,25 @@ limitations under the License.
 package v1beta1
 
 import (
+	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 // EDIT THIS FILE!  THIS IS SCAFFOLDING FOR YOU TO OWN!
 // NOTE: json tags are required.  Any new fields you add must have json tags for the fields to be serialized.
+
+type Resource struct {
+	Image corev1.ContainerImage `json:"image"`
+	Price resource.Quantity     `json:"price"`
+}
+
+type FreeResource struct {
+	Cpu      resource.Quantity `json:"cpu"`
+	CpuPrice resource.Quantity `json:"cpuPrice"`
+	Ram      resource.Quantity `json:"ram"`
+	RamPrice resource.Quantity `json:"ramPricePerMB"`
+}
 
 // AdvertiserSpec defines the desired state of Advertiser
 type AdvertiserSpec struct {
@@ -28,7 +42,11 @@ type AdvertiserSpec struct {
 	// Important: Run "make" to regenerate code after modifying this file
 
 	// Foo is an example field of Advertiser. Edit Advertiser_types.go to remove/update
-	Foo string `json:"foo,omitempty"`
+	ClusterId    string       `json:"clusterId"`
+	Resources    []Resource   `json:"resources"`
+	Availability FreeResource `json:"availability"`
+	Timestamp    metav1.Time  `json:"timestamp"`
+	Validity     metav1.Time  `json:"validity"`
 }
 
 // AdvertiserStatus defines the observed state of Advertiser
