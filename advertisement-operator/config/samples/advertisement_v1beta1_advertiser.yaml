@@ -1,0 +1,7 @@
+apiVersion: advertisement.drone.com/v1beta1
+kind: Advertiser
+metadata:
+  name: advertiser-sample
+spec:
+  # Add fields here
+  foo: bar

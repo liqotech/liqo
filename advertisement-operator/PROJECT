@@ -1,0 +1,7 @@
+domain: drone.com
+repo: github.com/netgroup-polito/dronev2/advertisement-operator
+resources:
+- group: advertisement
+  kind: Advertiser
+  version: v1beta1
+version: "2"
