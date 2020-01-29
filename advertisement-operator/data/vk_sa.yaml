@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: virtual-kubelet
+  namespace: default
+  labels:
+    k8s-app: virtual-kubelet

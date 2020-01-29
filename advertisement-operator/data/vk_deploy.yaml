@@ -5,6 +5,7 @@ metadata:
   labels:
     run: vkubelet
   name: vkubelet
+  namespace: default
 spec:
   replicas: 1
   selector:
@@ -23,9 +24,8 @@ spec:
         name: vkubelet
         command: ["/usr/bin/virtual-kubelet"]
         args: ["--provider", "kubernetes",
-	       "--provider-config", "/app/config/vkubelet-cfg.json",
-               "--kubeconfig", "/app/kubeconfig/origin",
-               "--log-level", "debug"]
+	           "--provider-config", "/app/config/vkubelet-cfg.json",
+               "--disable-taint"]
         resources: {}
         volumeMounts:
           - name: provider-config
@@ -34,17 +34,11 @@ spec:
           - name: remote-config
             mountPath: /app/kubeconfig/remote
             subPath: remote
-          - name: origin-config
-            mountPath: /app/kubeconfig/origin
-            subPath: origin
       volumes:
         - name: provider-config
           configMap:
             name: vk-config
         - name: remote-config
           configMap:
-            name: remote-kubeconfig 
-        - name: origin-config
-          configMap:
-            name: origin-kubeconfig 
+            name: remote-kubeconfig
 status: {}
