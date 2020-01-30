@@ -11,6 +11,6 @@ data:
         "namespace": "drone-v2",
         "cpu": "2",
         "memory": "32Gi",
-        "pods": "128"
+        "pods": "16"
       }
     }

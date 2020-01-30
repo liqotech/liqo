@@ -16,26 +16,35 @@ limitations under the License.
 package main
 
 import (
+	"context"
 	"flag"
-	//"github.com/pkg/errors"
-	//"k8s.io/apimachinery/pkg/api/resource"
-	//"k8s.io/client-go/kubernetes"
-	//"k8s.io/client-go/rest"
-	//"k8s.io/client-go/tools/clientcmd"
 	"os"
+	//"runtime"
+	//"time"
+
+	"github.com/docker/docker/api/types"
+	dockerclient "github.com/docker/docker/client"
+
+	"github.com/pkg/errors"
+	//"k8s.io/apimachinery/pkg/api/resource"
+	//metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	k8sruntime "k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/client-go/kubernetes"
+	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
+	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
+	"k8s.io/client-go/rest"
+	"k8s.io/client-go/tools/clientcmd"
+	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
 	advertisementv1beta1 "github.com/netgroup-polito/dronev2/advertisement-operator/api/v1beta1"
 	"github.com/netgroup-polito/dronev2/advertisement-operator/controllers"
-	"k8s.io/apimachinery/pkg/runtime"
-	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
-	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
-	ctrl "sigs.k8s.io/controller-runtime"
-	"sigs.k8s.io/controller-runtime/pkg/log/zap"
+
 	// +kubebuilder:scaffold:imports
 )
 
 var (
-	scheme   = runtime.NewScheme()
+	scheme   = k8sruntime.NewScheme()
 	setupLog = ctrl.Log.WithName("setup")
 )
 
@@ -88,54 +97,58 @@ func main() {
 	//go generateAdvertisement()
 }
 
-
-/*type KubernetesConfig struct { //nolint:golint
-	RemoteKubeConfigPath string `json:"remoteKubeconfig,omitempty"`
-	CPU    string `json:"cpu,omitempty"`
-	Memory string `json:"memory,omitempty"`
-	Pods   string `json:"pods,omitempty"`
-	Namespace string `json:"namespace,omitempty"`
-}
-
-func generateAdvertisement() error{
-	fmt.Println("Generating advertisement message")
-
-	config := KubernetesConfig{
-		RemoteKubeConfigPath: "~/.kube/config_remote",
-		CPU:                  "2",
-		Memory:               "10Gi",
-		Pods:                 "10",
-		Namespace:            "drone-v2",
-	}
-
-	remoteClient, err := newClient(config.RemoteKubeConfigPath)
-	if err != nil {
-		return err
-	}
-
-
-	images := []Resource{
-		{
-			Name: "apache",
-			Price: *resource.NewQuantity(0.5, resource.DecimalSI),
-		},
-	}
+/*func generateAdvertisement() error{
 
 	freeResources := advertisementv1beta1.FreeResource{
-		Cpu: *resource.NewQuantity(int64(runtime2.NumCPU()), resource.DecimalSI),
+		Cpu: *resource.NewQuantity(int64(runtime.NumCPU()), resource.DecimalSI),
 		CpuPrice: *resource.NewQuantity(0.0012, resource.DecimalSI),
 		Ram: *resource.NewQuantity(2000, resource.DecimalSI),
 		RamPrice: *resource.NewQuantity(0.23, resource.DecimalSI),
 	}
 
-	adv := advertisementv1beta1.AdvertiserSpec{
-		ClusterId:"cluster1",
-		Resources: images,
-		Availability: freeResources,
+	adv := advertisementv1beta1.Advertiser{
+		TypeMeta:   metav1.TypeMeta{},
+		ObjectMeta: metav1.ObjectMeta{},
+		Spec:       advertisementv1beta1.AdvertiserSpec{
+			ClusterId:	  "cluster1",
+			Resources: 	  getDockerImages(),
+			Availability: freeResources,
+			Timestamp:    metav1.NewTime(time.Now()),
+			Validity:     metav1.NewTime(time.Now().Add(30 * time.Minute)),
+		},
 	}
 
-	remoteClient
+	println(adv)
 
+	return nil
+	//apiextension.Clientset{}
+	//remoteClient, err := newClient("./data/foreignKubeconfig")
+	//	if err != nil {
+	//		return err
+	//	}
+
+}
+*/
+func getDockerImages() []advertisementv1beta1.Resource {
+	cli, err := dockerclient.NewClientWithOpts(dockerclient.FromEnv)
+	if err != nil {
+		panic(err)
+	}
+
+	dockerImages, err := cli.ImageList(context.Background(), types.ImageListOptions{})
+	if err != nil {
+		panic(err)
+	}
+
+	images := make([]advertisementv1beta1.Resource, len(dockerImages))
+
+	/*for i := 0 ; i < len(dockerImages) ; i++ {
+		images[i].Image.Names = append(images[i].Image.Names, dockerImages[i].ID)
+		images[i].Image.SizeBytes = dockerImages[i].Size
+		images[i].Price = *resource.NewQuantity(0.5, resource.DecimalSI)
+	}
+*/
+	return images
 }
 
 func newClient(configPath string) (*kubernetes.Clientset, error) {
@@ -162,4 +175,4 @@ func newClient(configPath string) (*kubernetes.Clientset, error) {
 
 
 	return kubernetes.NewForConfig(config)
-}*/
+}

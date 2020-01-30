@@ -25,7 +25,8 @@ spec:
         command: ["/usr/bin/virtual-kubelet"]
         args: ["--provider", "kubernetes",
 	           "--provider-config", "/app/config/vkubelet-cfg.json",
-               "--disable-taint"]
+               "--disable-taint",
+               "--log-level", "debug"]
         resources: {}
         volumeMounts:
           - name: provider-config
