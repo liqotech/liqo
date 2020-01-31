@@ -7,9 +7,9 @@ metadata:
   name: manager-role
 rules:
 - apiGroups:
-  - advertisement.drone.com
+  - protocol.drone.com
   resources:
-  - advertisers
+  - advertisements
   verbs:
   - create
   - delete
@@ -19,9 +19,9 @@ rules:
   - update
   - watch
 - apiGroups:
-  - advertisement.drone.com
+  - protocol.drone.com
   resources:
-  - advertisers/status
+  - advertisements/status
   verbs:
   - get
   - patch

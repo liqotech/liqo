@@ -6,18 +6,20 @@ metadata:
   annotations:
     controller-gen.kubebuilder.io/version: v0.2.4
   creationTimestamp: null
-  name: advertisers.advertisement.drone.com
+  name: advertisements.protocol.drone.com
 spec:
-  group: advertisement.drone.com
+  group: protocol.drone.com
   names:
-    kind: Advertiser
-    listKind: AdvertiserList
-    plural: advertisers
-    singular: advertiser
+    kind: Advertisement
+    listKind: AdvertisementList
+    plural: advertisements
+    shortNames:
+    - adv
+    singular: advertisement
   scope: Namespaced
   validation:
     openAPIV3Schema:
-      description: Advertiser is the Schema for the advertisers API
+      description: Advertisement is the Schema for the advertisements API
       properties:
         apiVersion:
           description: 'APIVersion defines the versioned schema of this representation
@@ -32,7 +34,7 @@ spec:
         metadata:
           type: object
         spec:
-          description: AdvertiserSpec defines the desired state of Advertiser
+          description: AdvertisementSpec defines the desired state of Advertisement
           properties:
             availability:
               properties:
@@ -51,8 +53,6 @@ spec:
               - ramPricePerMB
               type: object
             clusterId:
-              description: Foo is an example field of Advertiser. Edit Advertiser_types.go
-                to remove/update
               type: string
             resources:
               items:
@@ -94,7 +94,15 @@ spec:
           - validity
           type: object
         status:
-          description: AdvertiserStatus defines the observed state of Advertiser
+          description: AdvertisementStatus defines the observed state of Advertisement
+          properties:
+            phase:
+              description: 'INSERT ADDITIONAL STATUS FIELD - define observed state
+                of cluster Important: Run "make" to regenerate code after modifying
+                this file'
+              type: string
+          required:
+          - phase
           type: object
       type: object
   version: v1beta1

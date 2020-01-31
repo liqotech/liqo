@@ -1,7 +1,7 @@
-apiVersion: advertisement.drone.com/v1beta1
-kind: Advertiser
+apiVersion: protocol.drone.com/v1beta1
+kind: Advertisement
 metadata:
-  name: advertiser-sample
+  name: advertisement-sample
 spec:
   # Add fields here
   clusterId: "cluster1"
@@ -21,4 +21,3 @@ spec:
     ramPricePerMB: "0.05m"
   timestamp: 2019-12-30T13:30:59Z
   validity: 2019-12-30T13:50:59Z
-
