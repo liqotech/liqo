@@ -1,8 +1,8 @@
 package main
 
 import (
-	"drone_daemon_resources/configuration"
-	"drone_daemon_resources/messaging"
+	"github.com/netgroup-polito/dronev2/v1.0/drone-daemon-resources/configuration"
+	"github.com/netgroup-polito/dronev2/v1.0/drone-daemon-resources/messaging"
 	"encoding/json"
 	"flag"
 	log "github.com/sirupsen/logrus"
