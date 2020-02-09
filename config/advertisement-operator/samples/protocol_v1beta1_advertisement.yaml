@@ -1,0 +1,22 @@
+apiVersion: protocol.drone.com/v1beta1
+kind: Advertisement
+metadata:
+  name: advertisement-sample
+spec:
+  clusterId: "cluster1"
+  images:
+    - names:
+        - "nginx"
+    - names:
+        - "mongodb"
+  availability:
+    cpu: "2"
+    memory: "2Gi"
+    pods: "100"
+  prices:
+    cpu: "1"
+    memory: "2"
+    nginx: "20"
+    mongodb: "50"
+  timestamp: 2019-12-30T13:30:59Z
+  validity: 2019-12-30T13:50:59Z

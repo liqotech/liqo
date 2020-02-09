@@ -19,24 +19,24 @@ test: generate fmt vet manifests
 
 # Build manager binary
 manager: generate fmt vet
-	go build -o bin/manager main.go
+	go build -o bin/manager ./cmd/advertisement-operator/main.go
 
 # Run against the configured Kubernetes cluster in ~/.kube/config
 run: generate fmt vet manifests
-	go run ./main.go
+	go run ./cmd/advertisement-operator/main.go
 
 # Install CRDs into a cluster
 install: manifests
-	kustomize build config/crd | kubectl apply -f -
+	kustomize build config/advertisement-operator/crd | kubectl apply -f -
 
 # Uninstall CRDs from a cluster
 uninstall: manifests
-	kustomize build config/crd | kubectl delete -f -
+	kustomize build config/advertisement-operator/crd | kubectl delete -f -
 
 # Deploy controller in the configured Kubernetes cluster in ~/.kube/config
 deploy: manifests
-	cd config/manager && kustomize edit set image controller=${IMG}
-	kustomize build config/default | kubectl apply -f -
+	cd config/advertisement-operator/manager && kustomize edit set image controller=${IMG}
+	kustomize build config/advertisement-operator/default | kubectl apply -f -
 
 # Generate manifests e.g. CRD, RBAC etc.
 manifests: controller-gen
@@ -56,7 +56,7 @@ generate: controller-gen
 
 # Build the docker image
 docker-build: test
-	docker build . -t ${IMG}
+	docker build -f build/advertisement-operator/Dockerfile . -t ${IMG}
 
 # Push the docker image
 docker-push:

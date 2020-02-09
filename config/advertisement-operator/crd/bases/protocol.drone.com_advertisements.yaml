@@ -37,49 +37,35 @@ spec:
           description: AdvertisementSpec defines the desired state of Advertisement
           properties:
             availability:
-              properties:
-                cpu:
-                  type: string
-                cpuPrice:
-                  type: string
-                ram:
-                  type: string
-                ramPricePerMB:
-                  type: string
-              required:
-              - cpu
-              - cpuPrice
-              - ram
-              - ramPricePerMB
+              additionalProperties:
+                type: string
+              description: ResourceList is a set of (resource name, quantity) pairs.
               type: object
             clusterId:
               type: string
-            resources:
+            images:
               items:
+                description: Describe a container image
                 properties:
-                  image:
-                    description: Describe a container image
-                    properties:
-                      names:
-                        description: Names by which this image is known. e.g. ["k8s.gcr.io/hyperkube:v1.0.7",
-                          "dockerhub.io/google_containers/hyperkube:v1.0.7"]
-                        items:
-                          type: string
-                        type: array
-                      sizeBytes:
-                        description: The size of the image in bytes.
-                        format: int64
-                        type: integer
-                    required:
-                    - names
-                    type: object
-                  price:
-                    type: string
+                  names:
+                    description: Names by which this image is known. e.g. ["k8s.gcr.io/hyperkube:v1.0.7",
+                      "dockerhub.io/google_containers/hyperkube:v1.0.7"]
+                    items:
+                      type: string
+                    type: array
+                  sizeBytes:
+                    description: The size of the image in bytes.
+                    format: int64
+                    type: integer
                 required:
-                - image
-                - price
+                - names
                 type: object
               type: array
+            prices:
+              additionalProperties:
+                type: string
+              description: ResourceList is a set of (resource name, quantity) pairs.
+              type: object
             timestamp:
               format: date-time
               type: string
@@ -89,7 +75,8 @@ spec:
           required:
           - availability
           - clusterId
-          - resources
+          - images
+          - prices
           - timestamp
           - validity
           type: object
@@ -97,9 +84,6 @@ spec:
           description: AdvertisementStatus defines the observed state of Advertisement
           properties:
             phase:
-              description: 'INSERT ADDITIONAL STATUS FIELD - define observed state
-                of cluster Important: Run "make" to regenerate code after modifying
-                this file'
               type: string
           required:
           - phase

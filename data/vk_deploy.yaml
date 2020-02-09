@@ -24,7 +24,7 @@ spec:
         name: vkubelet
         command: ["/usr/bin/virtual-kubelet"]
         args: ["--provider", "kubernetes",
-	       "--provider-config", "/app/config/vkubelet-cfg.json",
+	           "--provider-config", "/app/config/vkubelet-cfg.json",
                "--disable-taint",
                "--log-level", "debug"]
         resources: {}

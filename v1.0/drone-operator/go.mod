@@ -1,7 +1,6 @@
 module drone-operator/drone-operator
 
 require (
-	github.com/NYTimes/gziphandler v1.0.1 // indirect
 	github.com/go-openapi/spec v0.19.0
 	github.com/operator-framework/operator-sdk v0.11.1-0.20191021213754-e7135197e816
 	github.com/prometheus/common v0.2.0
@@ -36,3 +35,5 @@ replace (
 )
 
 replace github.com/operator-framework/operator-sdk => github.com/operator-framework/operator-sdk v0.10.0
+
+go 1.13

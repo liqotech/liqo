@@ -1,5 +1,5 @@
 domain: drone.com
-repo: github.com/netgroup-polito/dronev2/advertisement-operator
+repo: github.com/netgroup-polito/dronev2
 resources:
 - group: protocol
   kind: Advertisement

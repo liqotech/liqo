@@ -33,6 +33,17 @@ jobs:
         dockerfile: build/virtual-kubelet/Dockerfile 
         password: ${{ secrets.DOCKER_PASSWORD }}
       if: github.ref == 'refs/heads/master'
+    - name: Build docker container
+      run: docker build -f build/advertisement-operator/Dockerfile .
+      if: github.ref != 'refs/heads/master'
+      - name: Push image on repo
+        uses: HurricanKai/Publish-Docker-Github-Action@master
+        with:
+          name: dronev2/advertisement-operator
+          username: ${{ secrets.DOCKER_USERNAME }}
+          dockerfile: build/advertisement-operator/Dockerfile
+          password: ${{ secrets.DOCKER_PASSWORD }}
+        if: github.ref == 'refs/heads/master'
     - uses: 8398a7/action-slack@v2
       with:
         status: ${{ job.status }}
@@ -41,3 +52,11 @@ jobs:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # required
         SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK }} # required
       if: always() && github.ref == 'refs/heads/master' # Pick up events even if the job fails or is canceled.
+    - name: Push image on repo
+      uses: HurricanKai/Publish-Docker-Github-Action@master
+      with:
+        name: dronev2/advertisement-operator
+        username: ${{ secrets.DOCKER_USERNAME }}
+        dockerfile: build/advertisement-operator/Dockerfile
+        password: ${{ secrets.DOCKER_PASSWORD }}
+      if: github.ref == 'refs/heads/master'
