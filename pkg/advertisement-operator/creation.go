@@ -172,10 +172,11 @@ func CreateOrUpdate(c client.Client, ctx context.Context, log logr.Logger, objec
 			}
 		}
 	case protocolv1beta1.Advertisement:
+		var adv protocolv1beta1.Advertisement
 		err := c.Get(ctx, types.NamespacedName{
 			Namespace: obj.Namespace,
 			Name:      obj.Name,
-		}, new(protocolv1beta1.Advertisement))
+		}, &adv)
 		if err != nil {
 			err = c.Create(ctx, &obj, &client.CreateOptions{})
 			if err != nil && !errors.IsAlreadyExists(err) {
@@ -183,6 +184,7 @@ func CreateOrUpdate(c client.Client, ctx context.Context, log logr.Logger, objec
 				return err
 			}
 		} else {
+			obj.SetResourceVersion(adv.ResourceVersion)
 			err = c.Update(ctx, &obj, &client.UpdateOptions{})
 			if err != nil {
 				log.Error(err, "unable to update advertisement")
