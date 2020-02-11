@@ -4,6 +4,7 @@ jobs:
 
   build:
     name: Build
+    if: github.event.pull_request.draft == true
     runs-on: ubuntu-latest
     steps:
     - name: Set up Go 1.13
