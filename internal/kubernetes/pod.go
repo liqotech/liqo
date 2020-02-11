@@ -36,12 +36,18 @@ func (p *KubernetesProvider) CreatePod(ctx context.Context, pod *v1.Pod) error {
 		return nil
 	}
 
-	//key, err := buildKey(pod)
-	//if err != nil {
-	//	return err
-	//}
-	//
-	//now := metav1.NewTime(time.Now())
+	// check if namespace exists on remote
+	_, err := p.client.CoreV1().Namespaces().Get(pod.Namespace, metav1.GetOptions{})
+	if err != nil{
+		// namespace doesn't exist on remote cluster
+		namespace := new(v1.Namespace)
+		namespace.SetName(pod.Namespace)
+		_, err = p.client.CoreV1().Namespaces().Create(namespace)
+		if err != nil{
+			return errors.Wrap(err, "Unable to create namespace")
+		}
+	}
+
 	podTranslated := F2HTranslate(pod)
 
 	podServer, err := p.client.CoreV1().Pods(p.config.Namespace).Create(podTranslated)

@@ -14,7 +14,7 @@ func H2FTranslate(podRemoteIn *v1.Pod) (podOriginOut *v1.Pod) {
 	podOriginOut = podRemoteIn.DeepCopy()
 	podOriginOut.SetUID(types.UID(podRemoteIn.Annotations["origin_uuid"]))
 	podOriginOut.SetResourceVersion(podRemoteIn.Annotations["origin_resourceVersion"])
-	t, err := time.Parse(time.RFC3339, podRemoteIn.Annotations["origin_creationTimestamp"],)
+	t, err := time.Parse("2006-01-02 15:04:05 -0700 MST", podRemoteIn.Annotations["origin_creationTimestamp"],)
 	if podRemoteIn.DeletionGracePeriodSeconds != nil {
 		metav1.SetMetaDataAnnotation(&podOriginOut.ObjectMeta,"remote_deletionPeriodSeconds", string(*podRemoteIn.DeletionGracePeriodSeconds))
 		podOriginOut.DeletionGracePeriodSeconds = nil
