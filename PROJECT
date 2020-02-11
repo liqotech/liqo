@@ -1,7 +1,0 @@
-domain: drone.com
-repo: github.com/netgroup-polito/dronev2
-resources:
-- group: protocol
-  kind: Advertisement
-  version: v1beta1
-version: "2"
