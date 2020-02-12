@@ -1,10 +1,10 @@
 package main
 
 import (
-	"github.com/netgroup-polito/dronev2/v1.0/drone-daemon-resources/configuration"
-	"github.com/netgroup-polito/dronev2/v1.0/drone-daemon-resources/messaging"
 	"encoding/json"
 	"flag"
+	"github.com/netgroup-polito/dronev2/v1.0/drone-daemon-resources/configuration"
+	"github.com/netgroup-polito/dronev2/v1.0/drone-daemon-resources/messaging"
 	log "github.com/sirupsen/logrus"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
@@ -149,11 +149,11 @@ func main() {
 
 	// Init rabbitMq connection, channel and queue
 	rabbit = messaging.InitRabbitMq(configurationEnv.RabbitConf.QueueResources,
-									configurationEnv.RabbitConf.BrokerAddress,
-									configurationEnv.RabbitConf.BrokerPort,
-									configurationEnv.RabbitConf.VirtualHost,
-									configurationEnv.RabbitConf.Username,
-									configurationEnv.RabbitConf.Password)
+		configurationEnv.RabbitConf.BrokerAddress,
+		configurationEnv.RabbitConf.BrokerPort,
+		configurationEnv.RabbitConf.VirtualHost,
+		configurationEnv.RabbitConf.Username,
+		configurationEnv.RabbitConf.Password)
 
 	// Sent first resources
 	err = createAndSendMessage(clientSet)
@@ -235,8 +235,8 @@ func createAndSendMessage(clientSet *kubernetes.Clientset) error {
 	}
 
 	// Calculate cpu and memory free and scale
-	var memory = ((float64(totalClusterResources.Memory.Value()) - float64(clusterUsed.Memory.Value())) / 1024 / 1024)*(float64(configurationEnv.Resources.Scale)/100)
-	var cpu = ((float64(totalClusterResources.CPU.MilliValue()) - float64(clusterUsed.CPU.MilliValue())) / 1000)*(float64(configurationEnv.Resources.Scale)/100)
+	var memory = ((float64(totalClusterResources.Memory.Value()) - float64(clusterUsed.Memory.Value())) / 1024 / 1024) * (float64(configurationEnv.Resources.Scale) / 100)
+	var cpu = ((float64(totalClusterResources.CPU.MilliValue()) - float64(clusterUsed.CPU.MilliValue())) / 1000) * (float64(configurationEnv.Resources.Scale) / 100)
 
 	// Create new message
 	message := messaging.NewResourceMessage(configurationEnv.Kubernetes.ClusterName, memory, cpu)

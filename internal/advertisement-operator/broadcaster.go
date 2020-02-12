@@ -190,7 +190,6 @@ func newCRDClient(configPath string) (client.Client, error) {
 		return nil, err
 	}
 
-
 	scheme := k8sruntime.NewScheme()
 	_ = clientgoscheme.AddToScheme(scheme)
 	_ = protocolv1beta1.AddToScheme(scheme)
@@ -201,7 +200,6 @@ func newCRDClient(configPath string) (client.Client, error) {
 	if err != nil {
 		return nil, err
 	}
-
 
 	return remoteClient, nil
 }

@@ -11,8 +11,8 @@ import (
 	"time"
 
 	"github.com/netgroup-polito/dronev2/internal/errdefs"
-	"github.com/netgroup-polito/dronev2/internal/node/api"
 	"github.com/netgroup-polito/dronev2/internal/log"
+	"github.com/netgroup-polito/dronev2/internal/node/api"
 	"github.com/netgroup-polito/dronev2/internal/trace"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"

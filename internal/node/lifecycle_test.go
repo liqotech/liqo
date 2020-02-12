@@ -7,11 +7,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
 	"github.com/netgroup-polito/dronev2/internal/errdefs"
 	"github.com/netgroup-polito/dronev2/internal/log"
 	logruslogger "github.com/netgroup-polito/dronev2/internal/log/logrus"
+	"github.com/pkg/errors"
+	"github.com/sirupsen/logrus"
 	"gotest.tools/assert"
 	is "gotest.tools/assert/cmp"
 	corev1 "k8s.io/api/core/v1"

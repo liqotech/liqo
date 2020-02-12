@@ -5,27 +5,18 @@ go 1.13
 require (
 	contrib.go.opencensus.io/exporter/jaeger v0.1.0
 	contrib.go.opencensus.io/exporter/ocagent v0.4.12
-	github.com/Microsoft/hcsshim v0.8.6 // indirect
 	github.com/certifi/gocertifi v0.0.0-20200104152315-a6d78f326758 // indirect
 	github.com/cloudflare/cfssl v1.4.1 // indirect
 	github.com/cloudflare/redoctober v0.0.0-20200117180338-34d894fcc2a1 // indirect
-	github.com/codedellemc/goscaleio v0.0.0-20170830184815-20e2ce2cf885 // indirect
 	github.com/coreos/bbolt v1.3.3 // indirect
 	github.com/coreos/etcd v3.3.18+incompatible // indirect
-	github.com/coreos/rkt v1.30.0 // indirect
 	github.com/cpuguy83/go-md2man/v2 v2.0.0 // indirect
-	github.com/d2g/dhcp4 v0.0.0-20170904100407-a1d1b6c41b1c // indirect
-	github.com/d2g/dhcp4client v0.0.0-20170829104524-6e570ed0a266 // indirect
 	github.com/daaku/go.zipexe v1.0.1 // indirect
 	github.com/docker/docker v0.7.3-0.20190327010347-be7ac8be2ae0
-	github.com/docker/spdystream v0.0.0-20170912183627-bc6354cbbc29 // indirect
-	github.com/elazarl/goproxy v0.0.0-20190421051319-9d40249d3c2f // indirect
-	github.com/elazarl/goproxy/ext v0.0.0-20190711103511-473e67f1d7d2 // indirect
 	github.com/fatih/color v1.9.0 // indirect
 	github.com/getsentry/raven-go v0.2.0 // indirect
 	github.com/go-logr/logr v0.1.0
 	github.com/go-sql-driver/mysql v1.5.0 // indirect
-	github.com/gogo/googleapis v1.1.0 // indirect
 	github.com/gogo/protobuf v1.3.1 // indirect
 	github.com/golang/groupcache v0.0.0-20200121045136-8c9f03a8e57e // indirect
 	github.com/golang/mock v1.4.0 // indirect
@@ -39,31 +30,21 @@ require (
 	github.com/gorilla/websocket v1.4.1 // indirect
 	github.com/grpc-ecosystem/go-grpc-middleware v1.1.0 // indirect
 	github.com/grpc-ecosystem/grpc-gateway v1.12.2 // indirect
-	github.com/heketi/rest v0.0.0-20180404230133-aa6a65207413 // indirect
-	github.com/heketi/utils v0.0.0-20170317161834-435bc5bdfa64 // indirect
 	github.com/jirfag/go-printf-func-name v0.0.0-20200119135958-7558a9eaa5af // indirect
 	github.com/json-iterator/go v1.1.9 // indirect
-	github.com/jteeuwen/go-bindata v0.0.0-20151023091102-a0ff2567cfb7 // indirect
-	github.com/kardianos/osext v0.0.0-20150410034420-8fef92e41e22 // indirect
-	github.com/konsorten/go-windows-terminal-sequences v1.0.2 // indirect
-	github.com/kr/fs v0.0.0-20131111012553-2788f0dbd169 // indirect
 	github.com/lib/pq v1.3.0 // indirect
-	github.com/lyft/protoc-gen-validate v0.0.13 // indirect
 	github.com/mattn/go-isatty v0.0.12 // indirect
 	github.com/mattn/go-runewidth v0.0.8 // indirect
 	github.com/mattn/go-sqlite3 v2.0.2+incompatible // indirect
-	github.com/mholt/caddy v0.0.0-20180213163048-2de495001514 // indirect
 	github.com/mitchellh/go-homedir v1.1.0
 	github.com/olekukonko/tablewriter v0.0.4 // indirect
 	github.com/onsi/ginkgo v1.11.0
 	github.com/onsi/gomega v1.8.1
 	github.com/pelletier/go-toml v1.6.0 // indirect
 	github.com/pkg/errors v0.9.1
-	github.com/pkg/sftp v0.0.0-20160930220758-4d0e916071f6 // indirect
 	github.com/prometheus/client_golang v1.3.0
 	github.com/prometheus/common v0.9.1 // indirect
 	github.com/securego/gosec v0.0.0-20200121091311-459e2d3e91bd // indirect
-	github.com/sigma/go-inotify v0.0.0-20181102212354-c87b6cf5033d // indirect
 	github.com/sirupsen/logrus v1.4.2
 	github.com/spf13/cast v1.3.1 // indirect
 	github.com/spf13/cobra v0.0.5
@@ -73,9 +54,8 @@ require (
 	github.com/tmc/grpc-websocket-proxy v0.0.0-20200122045848-3419fae592fc // indirect
 	github.com/tommy-muehle/go-mnd v1.2.0 // indirect
 	github.com/urfave/cli v1.22.2 // indirect
-	github.com/vmware/photon-controller-go-sdk v0.0.0-20170310013346-4a435daef6cc // indirect
+	github.com/virtual-kubelet/virtual-kubelet v1.2.1
 	github.com/weppos/publicsuffix-go v0.10.0 // indirect
-	github.com/xanzy/go-cloudstack v0.0.0-20160728180336-1e2cbf647e57 // indirect
 	github.com/zmap/zlint v1.1.0 // indirect
 	go.etcd.io/etcd v3.3.18+incompatible // indirect
 	go.opencensus.io v0.22.0

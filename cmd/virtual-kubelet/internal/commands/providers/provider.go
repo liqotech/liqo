@@ -18,8 +18,8 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/spf13/cobra"
 	"github.com/netgroup-polito/dronev2/cmd/virtual-kubelet/internal/provider"
+	"github.com/spf13/cobra"
 )
 
 // NewCommand creates a new providers subcommand

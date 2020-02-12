@@ -5,10 +5,10 @@ import (
 	"sync"
 	"time"
 
-	"github.com/pkg/errors"
 	"github.com/netgroup-polito/dronev2/internal/errdefs"
 	"github.com/netgroup-polito/dronev2/internal/log"
 	"github.com/netgroup-polito/dronev2/internal/trace"
+	"github.com/pkg/errors"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"

@@ -47,8 +47,7 @@ func (p *KubernetesProvider) CreatePod(ctx context.Context, pod *v1.Pod) error {
 			return errors.Wrap(err, "Unable to create namespace")
 		}
 	}
-
-	podTranslated := F2HTranslate(pod)
+	podTranslated := H2FTranslate(pod)
 
 	podServer, err := p.client.CoreV1().Pods(p.config.Namespace).Create(podTranslated)
 	if err != nil {
@@ -70,12 +69,12 @@ func (p *KubernetesProvider) UpdatePod(ctx context.Context, pod *v1.Pod) error {
 
 	log.G(ctx).Infof("receive UpdatePod %q", pod.Name)
 
-	podTranslated := F2HTranslate(pod)
+	podTranslated := H2FTranslate(pod)
 	poUpdated, err := p.client.CoreV1().Pods(p.config.Namespace).Get(podTranslated.Name, metav1.GetOptions{})
 	if err != nil {
 		return errors.Wrap(err, "Unable to create pod")
 	}
-	podInverse := H2FTranslate(poUpdated)
+	podInverse := F2HTranslate(poUpdated, p.config.RemoteNewPodCidr)
 	p.notifier(podInverse)
 
 	return nil
@@ -142,7 +141,7 @@ func (p *KubernetesProvider) GetPod(ctx context.Context, namespace, name string)
 		}
 		return nil, errors.Wrap(err, "Unable to get pod")
 	}
-	podInverted := H2FTranslate(podServer)
+	podInverted := F2HTranslate(podServer, p.config.RemoteNewPodCidr)
 	return podInverted, nil
 }
 
@@ -225,7 +224,7 @@ func (p *KubernetesProvider) GetPods(ctx context.Context) ([]*v1.Pod, error) {
 	var podsHomeOut []*v1.Pod
 
 	for _, pod := range podsForeignIn.Items {
-		podsHomeOut = append(podsHomeOut, F2HTranslate(&pod))
+		podsHomeOut = append(podsHomeOut, H2FTranslate(&pod))
 	}
 
 	return podsHomeOut, nil

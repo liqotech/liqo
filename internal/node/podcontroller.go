@@ -22,11 +22,11 @@ import (
 	"time"
 
 	"github.com/google/go-cmp/cmp"
-	pkgerrors "github.com/pkg/errors"
 	"github.com/netgroup-polito/dronev2/internal/errdefs"
 	"github.com/netgroup-polito/dronev2/internal/log"
 	"github.com/netgroup-polito/dronev2/internal/manager"
 	"github.com/netgroup-polito/dronev2/internal/trace"
+	pkgerrors "github.com/pkg/errors"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	corev1informers "k8s.io/client-go/informers/core/v1"

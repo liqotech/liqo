@@ -22,9 +22,9 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/pkg/errors"
 	"github.com/netgroup-polito/dronev2/internal/errdefs"
 	"github.com/netgroup-polito/dronev2/internal/log"
+	"github.com/pkg/errors"
 	octrace "go.opencensus.io/trace"
 	"go.opencensus.io/zpages"
 )

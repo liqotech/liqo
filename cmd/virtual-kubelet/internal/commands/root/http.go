@@ -23,10 +23,10 @@ import (
 	"net/http"
 	"os"
 
-	"github.com/pkg/errors"
 	"github.com/netgroup-polito/dronev2/cmd/virtual-kubelet/internal/provider"
-	"github.com/netgroup-polito/dronev2/internal/node/api"
 	"github.com/netgroup-polito/dronev2/internal/log"
+	"github.com/netgroup-polito/dronev2/internal/node/api"
+	"github.com/pkg/errors"
 )
 
 // AcceptedCiphers is the list of accepted TLS ciphers, with known weak ciphers elided

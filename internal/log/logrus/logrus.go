@@ -18,8 +18,8 @@
 package logrus
 
 import (
-	"github.com/sirupsen/logrus"
 	"github.com/netgroup-polito/dronev2/internal/log"
+	"github.com/sirupsen/logrus"
 )
 
 // Adapter implements the `log.Logger` interface for logrus

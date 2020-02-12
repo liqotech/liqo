@@ -1,0 +1,10 @@
+{
+  "virtual-kubelet": {
+    "remoteKubeconfig" : "/home/aldo/go/src/github.com/netgroup-polito/dronev2/ci/kube_config_remote",
+    "namespace": "default",
+    "cpu": "2",
+    "memory": "32Gi",
+    "pods": "128",
+    "remoteNewPodCidr": "172.48.0.0/16"
+  }
+}

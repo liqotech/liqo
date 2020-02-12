@@ -5,34 +5,40 @@ import (
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
+	"strings"
 	"time"
 
 )
 
 
-func H2FTranslate(podRemoteIn *v1.Pod) (podOriginOut *v1.Pod) {
-	podOriginOut = podRemoteIn.DeepCopy()
-	podOriginOut.SetUID(types.UID(podRemoteIn.Annotations["origin_uuid"]))
-	podOriginOut.SetResourceVersion(podRemoteIn.Annotations["origin_resourceVersion"])
-	t, err := time.Parse("2006-01-02 15:04:05 -0700 MST", podRemoteIn.Annotations["origin_creationTimestamp"],)
-	if podRemoteIn.DeletionGracePeriodSeconds != nil {
-		metav1.SetMetaDataAnnotation(&podOriginOut.ObjectMeta,"remote_deletionPeriodSeconds", string(*podRemoteIn.DeletionGracePeriodSeconds))
-		podOriginOut.DeletionGracePeriodSeconds = nil
+func F2HTranslate(podForeignIn *v1.Pod, newCidr string) (podHomeOut *v1.Pod) {
+	podHomeOut = podForeignIn.DeepCopy()
+	podHomeOut.SetUID(types.UID(podForeignIn.Annotations["home_uuid"]))
+	podHomeOut.SetResourceVersion(podForeignIn.Annotations["home_resourceVersion"])
+	t, err := time.Parse("2006-01-02 15:04:05 -0700 MST", podForeignIn.Annotations["home_creationTimestamp"],)
+	if podForeignIn.DeletionGracePeriodSeconds != nil {
+		metav1.SetMetaDataAnnotation(&podHomeOut.ObjectMeta,"foreign_deletionPeriodSeconds", string(*podForeignIn.DeletionGracePeriodSeconds))
+		podHomeOut.DeletionGracePeriodSeconds = nil
 	}
 
 	if err != nil {
 		fmt.Errorf("Unable to parse time")
 	}
-	podOriginOut.SetCreationTimestamp(metav1.NewTime(t))
-	podOriginOut.Spec.NodeName =   podRemoteIn.Annotations["origin_nodename"]
-	delete(podOriginOut.Annotations, "origin_creationTimestamp")
-	delete(podOriginOut.Annotations, "origin_resourceVersion")
-	delete(podOriginOut.Annotations, "origin_uuid")
-	delete(podOriginOut.Annotations, "origin_nodename")
-	return podOriginOut
+	if podHomeOut.Status.PodIP != "" {
+		newIp := changePodIp(newCidr, podHomeOut.Status.PodIP)
+		podHomeOut.Status.PodIP = newIp
+		podHomeOut.Status.PodIPs[0].IP = newIp
+	}
+	podHomeOut.SetCreationTimestamp(metav1.NewTime(t))
+	podHomeOut.Spec.NodeName =   podForeignIn.Annotations["home_nodename"]
+	delete(podHomeOut.Annotations, "home_creationTimestamp")
+	delete(podHomeOut.Annotations, "home_resourceVersion")
+	delete(podHomeOut.Annotations, "home_uuid")
+	delete(podHomeOut.Annotations, "home_nodename")
+	return podHomeOut
 }
 
-func F2HTranslate(pod *v1.Pod) *v1.Pod {
+func H2FTranslate(pod *v1.Pod) *v1.Pod {
 	// create an empty ObjectMeta for the output pod, copying only "Name" and "Namespace" fields
 	objectMeta := metav1.ObjectMeta{
 		Name:                       pod.ObjectMeta.Name,
@@ -52,10 +58,10 @@ func F2HTranslate(pod *v1.Pod) *v1.Pod {
 		Containers:                    containers,
 	}
 
-	metav1.SetMetaDataAnnotation(&objectMeta,"origin_nodename", pod.Spec.NodeName)
-	metav1.SetMetaDataAnnotation(&objectMeta,"origin_resourceVersion", pod.ResourceVersion)
-	metav1.SetMetaDataAnnotation(&objectMeta,"origin_uuid", string(pod.UID))
-	metav1.SetMetaDataAnnotation(&objectMeta,"origin_creationTimestamp", pod.CreationTimestamp.String())
+	metav1.SetMetaDataAnnotation(&objectMeta,"home_nodename", pod.Spec.NodeName)
+	metav1.SetMetaDataAnnotation(&objectMeta,"home_resourceVersion", pod.ResourceVersion)
+	metav1.SetMetaDataAnnotation(&objectMeta,"home_uuid", string(pod.UID))
+	metav1.SetMetaDataAnnotation(&objectMeta,"home_creationTimestamp", pod.CreationTimestamp.String())
 
 	return &v1.Pod{
 		TypeMeta:   pod.TypeMeta,
@@ -63,4 +69,27 @@ func F2HTranslate(pod *v1.Pod) *v1.Pod {
 		Spec:       podSpec,
 		Status:     pod.Status,
 	}
+}
+
+func changePodIp(newPodCidr string, oldPodIp string) (newPodIp string) {
+	//the last two slices are the suffix of the newPodIp
+	oldPodIpTokenized := strings.Split(oldPodIp, ".")
+	newPodCidrTokenized := strings.Split(newPodCidr, "/")
+	//the first two slices are the prefix of the newPodIP
+	ipFromPodCidrTokenized := strings.Split(newPodCidrTokenized[0], ".")
+	//used to build the new IP
+	var newPodIpBuilder strings.Builder
+	for i, s := range ipFromPodCidrTokenized {
+		if i < 2 {
+			newPodIpBuilder.WriteString(s)
+			newPodIpBuilder.WriteString(".")
+		}
+	}
+	for i, s := range oldPodIpTokenized {
+		if i > 1 && i < 4 {
+			newPodIpBuilder.WriteString(s)
+			newPodIpBuilder.WriteString(".")
+		}
+	}
+	return strings.TrimSuffix(newPodIpBuilder.String(), ".")
 }

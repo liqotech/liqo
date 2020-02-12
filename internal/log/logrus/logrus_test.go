@@ -17,8 +17,8 @@ package logrus
 import (
 	"testing"
 
-	"github.com/sirupsen/logrus"
 	"github.com/netgroup-polito/dronev2/internal/log"
+	"github.com/sirupsen/logrus"
 )
 
 func TestImplementsLoggerInterface(t *testing.T) {

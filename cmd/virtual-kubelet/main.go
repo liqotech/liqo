@@ -22,9 +22,6 @@ import (
 	"strings"
 	"syscall"
 
-	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
-	"github.com/spf13/cobra"
 	"github.com/netgroup-polito/dronev2/cmd/virtual-kubelet/internal/commands/providers"
 	"github.com/netgroup-polito/dronev2/cmd/virtual-kubelet/internal/commands/root"
 	"github.com/netgroup-polito/dronev2/cmd/virtual-kubelet/internal/commands/version"
@@ -33,6 +30,9 @@ import (
 	logruslogger "github.com/netgroup-polito/dronev2/internal/log/logrus"
 	"github.com/netgroup-polito/dronev2/internal/trace"
 	"github.com/netgroup-polito/dronev2/internal/trace/opencensus"
+	"github.com/pkg/errors"
+	"github.com/sirupsen/logrus"
+	"github.com/spf13/cobra"
 )
 
 var (
