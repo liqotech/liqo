@@ -50,6 +50,6 @@ jobs:
         status: ${{ job.status }}
         author_name: Integration Test # default: 8398a7@action-slack
       env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # required
+        GITHUB_TOKEN: ${{ secrets.CI_TOKEN }} # required
         SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK }} # required
       if: always() && github.ref == 'refs/heads/master' # Pick up events even if the job fails or is canceled.
