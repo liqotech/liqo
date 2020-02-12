@@ -1,8 +1,6 @@
 name: Move assigned pull requests into To do
 
-on:
-  pull_request:
-    types: [opened, edited]
+on: [pull_request]
 
 jobs:
   automate-project-columns:
@@ -12,11 +10,11 @@ jobs:
         with:
           project: Main Board
           column: In Progress
-          repo-token: ${{ secrets.GITHUB_TOKEN }}
-        if: github.event.pull_request.draft == true || startWith(github.ref,'\[WIP\]') == true
+          repo-token: ${{ secrets.CI_TOKEN }}
+        if: github.event.pull_request.draft == true || startsWith(github.event.pull_request.title,'WIP:') == true
       - uses: alex-page/github-project-automation-plus@v0.1.0
         with:
           project: Main Board
           column: Review
-          repo-token: ${{ secrets.GITHUB_TOKEN }}
-        if: github.event.pull_request.draft != true && startWith(github.ref,'\[WIP\]') != true
+          repo-token: ${{ secrets.CI_TOKEN }}
+        if: github.event.pull_request.draft != true && startsWith(github.event.pull_request.title,'WIP:') != true
