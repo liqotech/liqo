@@ -16,6 +16,8 @@ limitations under the License.
 package main
 
 import (
+	"context"
+	"errors"
 	"flag"
 	"os"
 
@@ -27,6 +29,7 @@ import (
 
 	protocolv1beta1 "github.com/netgroup-polito/dronev2/api/v1beta1"
 	"github.com/netgroup-polito/dronev2/internal/advertisement-operator"
+	pkg "github.com/netgroup-polito/dronev2/pkg/advertisement-operator"
 	// +kubebuilder:scaffold:imports
 )
 
@@ -43,12 +46,18 @@ func init() {
 }
 
 func main() {
-	var metricsAddr string
+	var metricsAddr, foreignKubeconfig string
 	var enableLeaderElection bool
 	flag.StringVar(&metricsAddr, "metrics-addr", ":8080", "The address the metric endpoint binds to.")
 	flag.BoolVar(&enableLeaderElection, "enable-leader-election", false,
 		"Enable leader election for controller manager. Enabling this will ensure there is only one active controller manager.")
+	flag.StringVar(&foreignKubeconfig, "foreign-kubeconfig", "", "The kubeconfig of the foreign cluster.")
 	flag.Parse()
+
+	if foreignKubeconfig == "" {
+		setupLog.Error(errors.New("Foreign kubeconfig not provided"), "")
+		os.Exit(1)
+	}
 
 	ctrl.SetLogger(zap.New(func(o *zap.Options) {
 		o.Development = true
@@ -75,7 +84,11 @@ func main() {
 	}
 	// +kubebuilder:scaffold:builder
 
-	go advertisement_operator.GenerateAdvertisement(mgr.GetClient())
+	err = pkg.CreateFromFile(mgr.GetClient(), context.Background(), setupLog, foreignKubeconfig)
+	if err != nil {
+		setupLog.Error(err, "Unable to create configMap for foreign kubeconfig")
+	}
+	go advertisement_operator.GenerateAdvertisement(mgr.GetClient(), foreignKubeconfig)
 
 	setupLog.Info("starting manager")
 	if err := mgr.Start(ctrl.SetupSignalHandler()); err != nil {

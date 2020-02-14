@@ -87,10 +87,6 @@ func (r *AdvertisementReconciler) Reconcile(req ctrl.Request) (ctrl.Result, erro
 	}
 
 	// create resources necessary to run virtual-kubelet deployment
-	err = advertisement_operator.CreateFromYaml(r.Client, ctx, log, "./data/foreignKubeconfig_cm.yaml", "ConfigMap")
-	if err != nil {
-		return ctrl.Result{}, err
-	}
 	err = advertisement_operator.CreateFromYaml(r.Client, ctx, log, "./data/vk_sa.yaml", "ServiceAccount")
 	if err != nil {
 		return ctrl.Result{}, err

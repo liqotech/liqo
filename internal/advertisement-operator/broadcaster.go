@@ -25,12 +25,12 @@ import (
 )
 
 // generate an advertisement message every 10 minutes and post it to remote clusters
-func GenerateAdvertisement(client client.Client) {
+func GenerateAdvertisement(client client.Client, foreignKubeconfigPath string) {
 	//TODO: recovering logic if errors occurs
 
 	log := ctrl.Log.WithName("advertisement-broadcaster")
 
-	remoteClient, err := newCRDClient("./data/foreignKubeconfig")
+	remoteClient, err := newCRDClient(foreignKubeconfigPath)
 	if err != nil {
 		log.Error(err, "Unable to create client to remote cluster")
 	}
@@ -54,7 +54,6 @@ func GenerateAdvertisement(client client.Client) {
 
 // create advertisement message
 func CreateAdvertisement(nodes []v1.Node) protocolv1beta1.Advertisement {
-
 
 	availability, images := GetClusterResources(nodes)
 	prices := ComputePrices(images)
@@ -190,7 +189,6 @@ func newCRDClient(configPath string) (client.Client, error) {
 		return nil, err
 	}
 
-
 	scheme := k8sruntime.NewScheme()
 	_ = clientgoscheme.AddToScheme(scheme)
 	_ = protocolv1beta1.AddToScheme(scheme)
@@ -201,7 +199,6 @@ func newCRDClient(configPath string) (client.Client, error) {
 	if err != nil {
 		return nil, err
 	}
-
 
 	return remoteClient, nil
 }
