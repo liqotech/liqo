@@ -1,24 +1,6 @@
 name: Go
 on: [push]
 jobs:
-  kind:
-    name: kind
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@master
-      - uses: engineerd/setup-kind@v0.3.0
-        with:
-          version: "v0.7.0"
-          name: "origin"
-      - uses: engineerd/setup-kind@v0.3.0
-        with:
-          version: "v0.7.0"
-          name: "remote"
-      - name: Testing
-        run: |
-          kubectl cluster-info --context kind-origin
-          kubectl cluster-info --context kind-remote
-          kubectl get pods -n kube-system
   build:
     name: Build
     if: github.event.pull_request.draft == false
@@ -40,27 +22,43 @@ jobs:
         fi
     - name: Run Tests
       run: go test ./...
-    - name: Build docker container
+    - uses: actions/checkout@master
+    - uses: engineerd/setup-kind@v0.3.0
+      with:
+        version: "v0.7.0"
+        name: "origin"
+    - uses: engineerd/setup-kind@v0.3.0
+      with:
+        version: "v0.7.0"
+        name: "remote"
+    - name: Testing
+      run: |
+        kubectl cluster-info --context kind-origin
+        kubectl cluster-info --context kind-remote
+        kubectl kustomize config/advertisement-operator/crd | kubectl apply -f - --context kind-origin
+        kubectl kustomize config/advertisement-operator/crd | kubectl apply -f - --context kind-remote
+        kubectl apply -f test/integration/samples/
+    - name: Build Virtual Kubelet Docker image
       run: docker build -f build/virtual-kubelet/Dockerfile .
       if: github.ref != 'refs/heads/master'
-    - name: Push virtual-kibelet image on repo
+    - name: Push virtual-kubelet image on repo
       uses: HurricanKai/Publish-Docker-Github-Action@master
       with:
         name: dronev2/virtual-kubelet
         username: ${{ secrets.DOCKER_USERNAME }}
-        dockerfile: build/virtual-kubelet/Dockerfile 
+        dockerfile: build/virtual-kubelet/Dockerfile
         password: ${{ secrets.DOCKER_PASSWORD }}
       if: github.ref == 'refs/heads/master'
-    - name: Build docker container
+    - name: Build Advertisement Operator Docker image
       run: docker build -f build/advertisement-operator/Dockerfile .
       if: github.ref != 'refs/heads/master'
     - name: Push advertisement-operator image on repo
       uses: HurricanKai/Publish-Docker-Github-Action@master
       with:
-          name: dronev2/advertisement-operator
-          username: ${{ secrets.DOCKER_USERNAME }}
-          dockerfile: build/advertisement-operator/Dockerfile
-          password: ${{ secrets.DOCKER_PASSWORD }}
+        name: dronev2/advertisement-operator
+        username: ${{ secrets.DOCKER_USERNAME }}
+        dockerfile: build/advertisement-operator/Dockerfile
+        password: ${{ secrets.DOCKER_PASSWORD }}
       if: github.ref == 'refs/heads/master'
     - uses: 8398a7/action-slack@v2
       with:

@@ -1,4 +1,4 @@
-apiVersion: protocol.drone.com/v1beta1
+apiVersion: protocol.drone.com/v1alpha1
 kind: Advertisement
 metadata:
   name: advertisement-sample
