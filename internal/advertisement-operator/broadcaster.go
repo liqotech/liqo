@@ -36,7 +36,14 @@ func GenerateAdvertisement(client client.Client) {
 	}
 
 	for {
-		adv := createAdvertisement(client)
+		var nodes v1.NodeList
+		err := client.List(context.Background(), &nodes)
+		if err != nil {
+			//TODO
+		}
+		//TODO: filter nodes (e.g. prune all virtual-kubelet)
+
+		adv := CreateAdvertisement(nodes.Items)
 		err = advertisement_operator.CreateOrUpdate(remoteClient, context.Background(), log, adv)
 		if err != nil {
 			log.Error(err, "Unable to create advertisement on remote cluster")
@@ -46,18 +53,11 @@ func GenerateAdvertisement(client client.Client) {
 }
 
 // create advertisement message
-func createAdvertisement(client client.Client) protocolv1beta1.Advertisement {
+func CreateAdvertisement(nodes []v1.Node) protocolv1beta1.Advertisement {
 
-	var nodes v1.NodeList
-	err := client.List(context.Background(), &nodes)
-	if err != nil {
-		//TODO
-	}
 
-	//TODO: filter nodes (e.g. prune all virtual-kubelet)
-
-	availability, images := getClusterResources(nodes.Items)
-	prices := computePrices(images)
+	availability, images := GetClusterResources(nodes)
+	prices := ComputePrices(images)
 
 	adv := protocolv1beta1.Advertisement{
 		ObjectMeta: metav1.ObjectMeta{
@@ -77,7 +77,7 @@ func createAdvertisement(client client.Client) protocolv1beta1.Advertisement {
 }
 
 // get cluster resources (cpu, ram and pods) and images
-func getClusterResources(nodes []v1.Node) (v1.ResourceList, []v1.ContainerImage) {
+func GetClusterResources(nodes []v1.Node) (v1.ResourceList, []v1.ContainerImage) {
 	cpu := resource.Quantity{}
 	ram := resource.Quantity{}
 	pods := resource.Quantity{}
@@ -101,7 +101,7 @@ func getClusterResources(nodes []v1.Node) (v1.ResourceList, []v1.ContainerImage)
 }
 
 // create prices resource for advertisement
-func computePrices(images []v1.ContainerImage) v1.ResourceList {
+func ComputePrices(images []v1.ContainerImage) v1.ResourceList {
 	//TODO: logic to set prices
 	prices := v1.ResourceList{}
 	prices[v1.ResourceCPU] = *resource.NewQuantity(1, resource.DecimalSI)
@@ -124,7 +124,7 @@ func createAdvertisementWithAllSystemResources() protocolv1beta1.Advertisement {
 	freeResources[v1.ResourceCPU] = *resource.NewQuantity(int64(runtime.NumCPU()), resource.DecimalSI)
 	freeResources[v1.ResourceMemory] = *resource.NewQuantity(int64(m.Sys-m.Alloc), resource.BinarySI)
 	images := getDockerImages()
-	prices := computePrices(images)
+	prices := ComputePrices(images)
 	adv := protocolv1beta1.Advertisement{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "adv-sample",
@@ -190,6 +190,7 @@ func newCRDClient(configPath string) (client.Client, error) {
 		return nil, err
 	}
 
+
 	scheme := k8sruntime.NewScheme()
 	_ = clientgoscheme.AddToScheme(scheme)
 	_ = protocolv1beta1.AddToScheme(scheme)
@@ -200,6 +201,7 @@ func newCRDClient(configPath string) (client.Client, error) {
 	if err != nil {
 		return nil, err
 	}
+
 
 	return remoteClient, nil
 }
