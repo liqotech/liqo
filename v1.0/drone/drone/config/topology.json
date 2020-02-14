@@ -1,5 +1,0 @@
-{
-    "cluster0": ["cluster1", "cluster2"],
-    "cluster1": ["cluster0", "cluster2"],
-    "cluster2": ["cluster0", "cluster1"]
-}
