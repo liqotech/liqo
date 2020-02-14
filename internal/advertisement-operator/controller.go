@@ -76,7 +76,8 @@ func (r *AdvertisementReconciler) Reconcile(req ctrl.Request) (ctrl.Result, erro
 		   "namespace": "drone-v2",
 		   "cpu": "` + adv.Spec.Availability.Cpu().String() + `",
 		   "memory": "` + adv.Spec.Availability.Memory().String() + `",
-		   "pods": "` + adv.Spec.Availability.Pods().String() + `"
+		   "pods": "` + adv.Spec.Availability.Pods().String() + `",
+		   "remoteNewPodCidr": "172.48.0.0/16"
 		 }
 		}`},
 	}
