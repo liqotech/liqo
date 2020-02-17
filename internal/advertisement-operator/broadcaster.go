@@ -2,8 +2,6 @@ package advertisement_operator
 
 import (
 	"context"
-	"github.com/netgroup-polito/dronev2/pkg/advertisement-operator"
-	"os"
 	"runtime"
 	"time"
 
@@ -13,41 +11,48 @@ import (
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	k8sruntime "k8s.io/apimachinery/pkg/runtime"
-	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
-	"k8s.io/client-go/rest"
-	"k8s.io/client-go/tools/clientcmd"
 
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	protocolv1beta1 "github.com/netgroup-polito/dronev2/api/v1beta1"
+	pkg "github.com/netgroup-polito/dronev2/pkg/advertisement-operator"
 )
 
 // generate an advertisement message every 10 minutes and post it to remote clusters
-func GenerateAdvertisement(client client.Client, foreignKubeconfigPath string) {
+// parameters
+// - localClient: a client to the local kubernetes
+// - foreignKubeconfigPath: the path to a kubeconfig file. If set, this file is used to create a client to the foreign cluster
+// - configMapName: the name of the configMap containing the kubeconfig to the foreign cluster. If foreignKubeconfigPath is set it is ignored
+//					IMPORTANT: the data in the configMap must be named "remote"
+func GenerateAdvertisement(localClient client.Client, foreignKubeconfigPath string, configMapName string) {
 	//TODO: recovering logic if errors occurs
 
-	log := ctrl.Log.WithName("advertisement-broadcaster")
+	// give time to the cache to be started
+	time.Sleep(5*time.Second)
 
-	remoteClient, err := newCRDClient(foreignKubeconfigPath)
+	log := ctrl.Log.WithName("advertisement-broadcaster")
+	log.Info("starting broadcaster")
+	remoteClient, err := pkg.NewCRDClient(foreignKubeconfigPath, configMapName, localClient)
 	if err != nil {
 		log.Error(err, "Unable to create client to remote cluster")
 	}
+	log.Info("created client to remote cluster" )
 
 	for {
 		var nodes v1.NodeList
-		err := client.List(context.Background(), &nodes)
+		err := localClient.List(context.Background(), &nodes)
 		if err != nil {
-			//TODO
+			log.Error(err, "Unable to list nodes")
 		}
 		//TODO: filter nodes (e.g. prune all virtual-kubelet)
 
 		adv := CreateAdvertisement(nodes.Items)
-		err = advertisement_operator.CreateOrUpdate(remoteClient, context.Background(), log, adv)
+		err = pkg.CreateOrUpdate(remoteClient, context.Background(), log, adv)
 		if err != nil {
 			log.Error(err, "Unable to create advertisement on remote cluster")
 		}
+		log.Info("correctly created advertisement on remote cluster" )
 		time.Sleep(10 * time.Minute)
 	}
 }
@@ -172,33 +177,4 @@ func getDockerImages() []v1.ContainerImage {
 	}
 
 	return images
-}
-
-// create a client to a cluster given its kubeconfig
-func newCRDClient(configPath string) (client.Client, error) {
-	var config *rest.Config
-
-	// Check if the kubeConfig file exists.
-	if _, err := os.Stat(configPath); !os.IsNotExist(err) {
-		// Get the kubeconfig from the filepath.
-		config, err = clientcmd.BuildConfigFromFlags("", configPath)
-		if err != nil {
-			return nil, err
-		}
-	} else {
-		return nil, err
-	}
-
-	scheme := k8sruntime.NewScheme()
-	_ = clientgoscheme.AddToScheme(scheme)
-	_ = protocolv1beta1.AddToScheme(scheme)
-
-	remoteClient, err := client.New(config, client.Options{
-		Scheme: scheme,
-	})
-	if err != nil {
-		return nil, err
-	}
-
-	return remoteClient, nil
 }

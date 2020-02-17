@@ -210,7 +210,7 @@ func CreateFromFile(c client.Client, ctx context.Context, log logr.Logger, filen
 
 	remoteKubeConfig := v1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      "remote-kubeconfig",
+			Name:      "foreign-kubeconfig",
 			Namespace: "default",
 		},
 		Data: map[string]string{

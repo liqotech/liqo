@@ -72,7 +72,7 @@ func (r *AdvertisementReconciler) Reconcile(req ctrl.Request) (ctrl.Result, erro
 			"vkubelet-cfg.json": `
 		{
 		 "virtual-kubelet": {
-		   "remoteKubeconfig" : "/app/kubeconfig/remote",
+		   "remoteKubeconfig": "/app/kubeconfig/remote",
 		   "namespace": "drone-v2",
 		   "cpu": "` + adv.Spec.Availability.Cpu().String() + `",
 		   "memory": "` + adv.Spec.Availability.Memory().String() + `",
@@ -99,6 +99,8 @@ func (r *AdvertisementReconciler) Reconcile(req ctrl.Request) (ctrl.Result, erro
 	if err != nil {
 		return ctrl.Result{}, err
 	}
+
+	log.Info("launching virtual-kubelet")
 
 	return ctrl.Result{}, nil
 }

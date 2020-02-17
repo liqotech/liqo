@@ -21,6 +21,3 @@ bin
 *.swp
 *.swo
 *~
-
-## yaml files for the virtual-kubelet
-data

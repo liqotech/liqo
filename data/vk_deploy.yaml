@@ -41,5 +41,5 @@ spec:
             name: vk-config
         - name: remote-config
           configMap:
-            name: remote-kubeconfig
+            name: foreign-kubeconfig
 status: {}
