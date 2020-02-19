@@ -31,7 +31,7 @@ func createFakeResources() ([]v1.Node, []v1.ContainerImage, resource.Quantity) {
 
 		nodes[i] = v1.Node{
 			Status: v1.NodeStatus{
-				Capacity: resources,
+				Allocatable: resources,
 				Images:   im,
 			},
 		}
@@ -83,7 +83,7 @@ func TestCreateAdvertisement(t *testing.T) {
 	assert.NotEmpty(t, adv.Spec.ClusterId)
 	assert.NotEmpty(t, adv.Spec.Timestamp)
 	assert.NotEmpty(t, adv.Spec.Validity)
-	assert.Equal(t, adv.Name, "fake-cluster")
+	assert.Equal(t, adv.Name, "advertisement-fake-cluster")
 	assert.Equal(t, images, adv.Spec.Images)
 	assert.Equal(t, availability, adv.Spec.Availability)
 	assert.Empty(t, adv.Status, "Status should not be set")

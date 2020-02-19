@@ -1,0 +1,29 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  creationTimestamp: null
+  labels:
+    run: advertisement-operator
+  name: advertisement-operator
+  namespace: default
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      run: advertisement-operator
+  strategy: {}
+  template:
+    metadata:
+      creationTimestamp: null
+      labels:
+        run: advertisement-operator
+    spec:
+      serviceAccountName: virtual-kubelet
+      containers:
+      - image: dronev2/advertisement-operator
+        name: advertisement-operator
+        command: ["/usr/bin/advertisement-operator"]
+        args: ["--cluster-id", ""]
+        resources: {}
+status: {}
+

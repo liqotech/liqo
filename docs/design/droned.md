@@ -22,11 +22,13 @@ To modify the Advertisement you need to
 3. run `make -f scripts/advertisement-operator/Makefile`; this will regenerate the code for the new version of Advertisement
 
 ### Run instructions
-1. create a configMap with name **foreign-kubeconfig** containing the kubeconfig of the foreign cluster. (in _data_ folder there is a file _data/foreignKubeconfig_cm.yaml_ already set up, you only need to insert your kubeconfig)
+1. create a configMap for every foreign cluster you want to communicate with. 
+Each configMap must have name **foreign-kubeconfig-<foreign_cluster_id>** and contain the kubeconfig of the foreign cluster.
+(in _data_ folder there is a file _data/foreignKubeconfig_cm.yaml_ already set up, you only need to insert the foreign kubeconfig and cluster_id)
 2. apply it to the cluster `kubectl apply -f data/foreignKubeconfig_cm.yaml`
 3. run `make install -f scripts/advertisement-operator/Makefile` on both your home cluster and foreign one. This will install the CRD Advertisement
 4. run the operator
-    - outside a cluster `go build cmd/advertisement-operator/main.go`
-    - inside a cluster `kubectl apply -f data/adv_deploy.yaml`
-5. an Advertisement CR will be created on foreign cluster (you can check with `kubectl get adv`)
-6. if you want to create an Advertisement on home cluster you can use the sample by running `kubectl apply -f config/advertisement-operator/samples/protocol_v1beta1_advertisement.yaml`
+    - outside a cluster: `go build cmd/advertisement-operator/main.go --cluster-id <cluster_id>`, where <cluster-id> is the cluster ID of your home cluster
+    - inside a cluster: put your cluster ID in the `args` field of the file _data/adv_deploy.yaml_ and run `kubectl apply -f data/adv_deploy.yaml`
+5. an Advertisement CR will be created on each foreign cluster (you can check with `kubectl get adv`)
+6. repeat all the steps on your foreign cluster so that it starts sending its Advertisements to home cluster
