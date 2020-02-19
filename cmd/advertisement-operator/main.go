@@ -16,12 +16,14 @@ limitations under the License.
 package main
 
 import (
+	"errors"
 	"flag"
 	"os"
 
 	"k8s.io/apimachinery/pkg/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
+
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
@@ -43,18 +45,23 @@ func init() {
 }
 
 func main() {
-	var metricsAddr, foreignKubeconfig, configMapName string
+	var metricsAddr, foreignKubeconfig, clusterId string
 	var enableLeaderElection bool
 	flag.StringVar(&metricsAddr, "metrics-addr", ":8080", "The address the metric endpoint binds to.")
 	flag.BoolVar(&enableLeaderElection, "enable-leader-election", false,
 		"Enable leader election for controller manager. Enabling this will ensure there is only one active controller manager.")
 	flag.StringVar(&foreignKubeconfig, "foreign-kubeconfig", "", "The path to the kubeconfig of the foreign cluster.")
-	flag.StringVar(&configMapName, "configMap-name", "foreign-kubeconfig", "The name of the configMap which contains the kubeconfig of the foreign cluster")
+	flag.StringVar(&clusterId, "cluster-id", "", "The cluster ID of your cluster")
 	flag.Parse()
 
 	ctrl.SetLogger(zap.New(func(o *zap.Options) {
 		o.Development = true
 	}))
+
+	if clusterId == ""{
+		setupLog.Error(errors.New("Cluster ID must be provided "), "")
+		os.Exit(1)
+	}
 
 	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
 		Scheme:             scheme,
@@ -77,7 +84,7 @@ func main() {
 	}
 	// +kubebuilder:scaffold:builder
 
-	go advertisement_operator.GenerateAdvertisement(mgr.GetClient(), foreignKubeconfig, configMapName)
+	go advertisement_operator.StartBroadcaster(mgr.GetClient(), clusterId)
 
 	setupLog.Info("starting manager")
 	if err := mgr.Start(ctrl.SetupSignalHandler()); err != nil {

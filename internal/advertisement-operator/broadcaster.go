@@ -3,7 +3,10 @@ package advertisement_operator
 import (
 	"context"
 	"runtime"
+	"strings"
 	"time"
+
+	"github.com/go-logr/logr"
 
 	dockertypes "github.com/docker/docker/api/types"
 	dockerclient "github.com/docker/docker/client"
@@ -19,46 +22,83 @@ import (
 	pkg "github.com/netgroup-polito/dronev2/pkg/advertisement-operator"
 )
 
+var(
+	log logr.Logger
+)
+
+func StartBroadcaster(localClient client.Client, clusterId string){
+	log = ctrl.Log.WithName("advertisement-broadcaster")
+	log.Info("starting broadcaster")
+
+	// give time to the cache to be started
+	time.Sleep(5 * time.Second)
+
+	// get configMaps containing the kubeconfig of the foreign clusters
+	var configMaps v1.ConfigMapList
+	err := localClient.List(context.Background(), &configMaps)
+	if err != nil {
+		log.Error(err, "Unable to list configMaps")
+		return
+	}
+	for _, cm := range configMaps.Items{
+		if strings.HasPrefix(cm.Name, "foreign-kubeconfig") {
+			go GenerateAdvertisement(localClient, "", cm.DeepCopy(), clusterId)
+		}
+	}
+}
+
+
 // generate an advertisement message every 10 minutes and post it to remote clusters
 // parameters
 // - localClient: a client to the local kubernetes
 // - foreignKubeconfigPath: the path to a kubeconfig file. If set, this file is used to create a client to the foreign cluster
 // - configMapName: the name of the configMap containing the kubeconfig to the foreign cluster. If foreignKubeconfigPath is set it is ignored
 //					IMPORTANT: the data in the configMap must be named "remote"
-func GenerateAdvertisement(localClient client.Client, foreignKubeconfigPath string, configMapName string) {
+func GenerateAdvertisement(localClient client.Client, foreignKubeconfigPath string, cm *v1.ConfigMap, clusterId string) {
 	//TODO: recovering logic if errors occurs
 
-	// give time to the cache to be started
-	time.Sleep(5*time.Second)
-
-	log := ctrl.Log.WithName("advertisement-broadcaster")
-	log.Info("starting broadcaster")
-	remoteClient, err := pkg.NewCRDClient(foreignKubeconfigPath, configMapName, localClient)
-	if err != nil {
-		log.Error(err, "Unable to create client to remote cluster")
+	var remoteClient client.Client
+	var err error
+	var retry int
+	remoteClusterId := cm.Name[len("foreign-kubeconfig-"):]
+	for retry = 0; retry < 3; retry++ {
+		remoteClient, err = pkg.NewCRDClient(foreignKubeconfigPath, cm)
+		if err != nil {
+			log.Error(err, "Unable to create client to remote cluster " + remoteClusterId + ". Retry in 1 minute")
+			time.Sleep(1 * time.Minute)
+		} else {
+			break
+		}
 	}
-	log.Info("created client to remote cluster" )
+	if retry == 3 {
+		log.Error(err, "Failed to create client to remote cluster " + remoteClusterId)
+		return
+	} else {
+		log.Info("created client to remote cluster " + remoteClusterId)
+	}
 
 	for {
 		var nodes v1.NodeList
-		err := localClient.List(context.Background(), &nodes)
+		err := localClient.List(context.Background(), &nodes, client.MatchingLabels{"type" : "virtual-node"})
 		if err != nil {
 			log.Error(err, "Unable to list nodes")
+			return
 		}
 		//TODO: filter nodes (e.g. prune all virtual-kubelet)
 
-		adv := CreateAdvertisement(nodes.Items)
+		adv := CreateAdvertisement(nodes.Items, clusterId)
 		err = pkg.CreateOrUpdate(remoteClient, context.Background(), log, adv)
 		if err != nil {
-			log.Error(err, "Unable to create advertisement on remote cluster")
+			log.Error(err, "Unable to create advertisement on remote cluster " + remoteClusterId)
+		} else {
+			log.Info("correctly created advertisement on remote cluster " + remoteClusterId)
 		}
-		log.Info("correctly created advertisement on remote cluster" )
 		time.Sleep(10 * time.Minute)
 	}
 }
 
 // create advertisement message
-func CreateAdvertisement(nodes []v1.Node) protocolv1beta1.Advertisement {
+func CreateAdvertisement(nodes []v1.Node, clusterId string) protocolv1beta1.Advertisement {
 
 	availability, images := GetClusterResources(nodes)
 	prices := ComputePrices(images)
@@ -69,7 +109,7 @@ func CreateAdvertisement(nodes []v1.Node) protocolv1beta1.Advertisement {
 			Namespace: "default",
 		},
 		Spec: protocolv1beta1.AdvertisementSpec{
-			ClusterId:    "cluster1",
+			ClusterId:    clusterId,
 			Images:       images,
 			Availability: availability,
 			Prices:       prices,
@@ -88,9 +128,9 @@ func GetClusterResources(nodes []v1.Node) (v1.ResourceList, []v1.ContainerImage)
 	images := make([]v1.ContainerImage, 0)
 
 	for _, node := range nodes {
-		cpu.Add(*node.Status.Capacity.Cpu())
-		ram.Add(*node.Status.Capacity.Memory())
-		pods.Add(*node.Status.Capacity.Pods())
+		cpu.Add(*node.Status.Allocatable.Cpu())
+		ram.Add(*node.Status.Allocatable.Memory())
+		pods.Add(*node.Status.Allocatable.Pods())
 
 		//TODO: filter images
 		for _, image := range node.Status.Images {
