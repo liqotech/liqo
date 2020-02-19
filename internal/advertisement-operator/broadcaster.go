@@ -113,11 +113,22 @@ func CreateAdvertisement(nodes []v1.Node, clusterId string) protocolv1beta1.Adve
 			Images:       images,
 			Availability: availability,
 			Prices:       prices,
-			Timestamp:    metav1.NewTime(time.Now()),
-			Validity:     metav1.NewTime(time.Now().Add(30 * time.Minute)),
+			Network: protocolv1beta1.NetworkInfo{
+				PodCIDR:            nodes[0].Spec.PodCIDR, //TODO: which node podCIDR? All?
+				GatewayIP:          GetGateway(nodes),
+				SupportedProtocols: nil,
+			},
+			Timestamp:  metav1.NewTime(time.Now()),
+			TimeToLive: metav1.NewTime(time.Now().Add(30 * time.Minute)),
 		},
 	}
 	return adv
+}
+
+func GetGateway(nodes []v1.Node) string {
+	//TODO: implement
+
+	return nodes[0].Status.Addresses[0].Address
 }
 
 // get cluster resources (cpu, ram and pods) and images
@@ -180,7 +191,7 @@ func createAdvertisementWithAllSystemResources() protocolv1beta1.Advertisement {
 			Availability: freeResources,
 			Prices:       prices,
 			Timestamp:    metav1.NewTime(time.Now()),
-			Validity:     metav1.NewTime(time.Now().Add(30 * time.Minute)),
+			TimeToLive:   metav1.NewTime(time.Now().Add(30 * time.Minute)),
 		},
 	}
 	return adv

@@ -20,22 +20,35 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
+type NetworkInfo struct {
+	PodCIDR   string `json:"podCIDR"`
+	GatewayIP string `json:"gatewayIP"`
+	// +optional
+	SupportedProtocols []string `json:"supportedProtocols,omitempty"`
+}
+
 // AdvertisementSpec defines the desired state of Advertisement
 type AdvertisementSpec struct {
-	ClusterId    string                  `json:"clusterId"`
-	Images       []corev1.ContainerImage `json:"images"`
+	ClusterId string `json:"clusterId"`
+	// +optional
+	Images       []corev1.ContainerImage `json:"images,omitempty"`
 	Availability corev1.ResourceList     `json:"availability"`
 	Prices       corev1.ResourceList     `json:"prices"`
+	Network      NetworkInfo             `json:"network"`
 	Timestamp    metav1.Time             `json:"timestamp"`
-	Validity     metav1.Time             `json:"validity"`
+	TimeToLive   metav1.Time             `json:"timeToLive"`
 }
 
 // AdvertisementStatus defines the observed state of Advertisement
 type AdvertisementStatus struct {
-	Phase string `json:"phase"`
+	AdvertisementStatus string      `json:"advertisementStatus"`
+	ForeignNetwork      NetworkInfo `json:"foreignNetwork"`
+	// +optional
+	ObservedGeneration int64 `json:"observedGeneration,omitempty"`
 }
 
 // +kubebuilder:object:root=true
+// +kubebuilder:subresource:status
 // +kubebuilder:resource:shortName="adv"
 
 // Advertisement is the Schema for the advertisements API

@@ -58,7 +58,7 @@ func main() {
 		o.Development = true
 	}))
 
-	if clusterId == ""{
+	if clusterId == "" {
 		setupLog.Error(errors.New("Cluster ID must be provided "), "")
 		os.Exit(1)
 	}

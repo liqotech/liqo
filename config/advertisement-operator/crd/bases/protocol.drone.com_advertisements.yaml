@@ -17,6 +17,8 @@ spec:
     - adv
     singular: advertisement
   scope: Namespaced
+  subresources:
+    status: {}
   validation:
     openAPIV3Schema:
       description: Advertisement is the Schema for the advertisements API
@@ -61,32 +63,64 @@ spec:
                 - names
                 type: object
               type: array
+            network:
+              properties:
+                gatewayIP:
+                  type: string
+                podCIDR:
+                  type: string
+                supportedProtocols:
+                  items:
+                    type: string
+                  type: array
+              required:
+              - gatewayIP
+              - podCIDR
+              type: object
             prices:
               additionalProperties:
                 type: string
               description: ResourceList is a set of (resource name, quantity) pairs.
               type: object
-            timestamp:
+            timeToLive:
               format: date-time
               type: string
-            validity:
+            timestamp:
               format: date-time
               type: string
           required:
           - availability
           - clusterId
-          - images
+          - network
           - prices
+          - timeToLive
           - timestamp
-          - validity
           type: object
         status:
           description: AdvertisementStatus defines the observed state of Advertisement
           properties:
-            phase:
+            advertisementStatus:
               type: string
+            foreignNetwork:
+              properties:
+                gatewayIP:
+                  type: string
+                podCIDR:
+                  type: string
+                supportedProtocols:
+                  items:
+                    type: string
+                  type: array
+              required:
+              - gatewayIP
+              - podCIDR
+              type: object
+            observedGeneration:
+              format: int64
+              type: integer
           required:
-          - phase
+          - advertisementStatus
+          - foreignNetwork
           type: object
       type: object
   version: v1beta1

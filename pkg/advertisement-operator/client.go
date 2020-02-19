@@ -35,8 +35,8 @@ func GetConfig(path string, cm *v1.ConfigMap) (*rest.Config, error) {
 		kubeconfigGetter := GetKubeconfigFromConfigMap(*cm)
 		config, err = clientcmd.BuildConfigFromKubeconfigGetter("", kubeconfigGetter)
 		if err != nil {
-				return nil, err
-			}
+			return nil, err
+		}
 	} else if path != "" {
 		if _, err := os.Stat(path); !os.IsNotExist(err) {
 			// Get the kubeconfig from the filepath.

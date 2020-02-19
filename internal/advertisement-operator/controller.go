@@ -55,9 +55,20 @@ func (r *AdvertisementReconciler) Reconcile(req ctrl.Request) (ctrl.Result, erro
 		return ctrl.Result{}, client.IgnoreNotFound(err)
 	}
 
+	// The metadata.generation value is incremented for all changes, except for changes to .metadata or .status
+	// if metadata.generation is not incremented there's no need to reconcile
+	if adv.Status.ObservedGeneration == adv.ObjectMeta.Generation {
+		return ctrl.Result{}, client.IgnoreNotFound(nil)
+	}
+
 	// filter advertisements and create a virtual-kubelet only for the good ones
 	adv = checkAdvertisement(adv)
-	if adv.Status.Phase != "ACCEPTED" {
+	if err := r.Status().Update(ctx, &adv); err != nil {
+		log.Error(err, "unable to update Advertisement status")
+		return ctrl.Result{}, err
+	}
+
+	if adv.Status.AdvertisementStatus != "ACCEPTED" {
 		return ctrl.Result{}, errors.NewBadRequest("advertisement ignored")
 	}
 
@@ -135,6 +146,12 @@ func (r *AdvertisementReconciler) SetupWithManager(mgr ctrl.Manager) error {
 // check if the advertisement is interesting and set its status accordingly
 func checkAdvertisement(adv protocolv1beta1.Advertisement) protocolv1beta1.Advertisement {
 	//TODO: implement logic
-	adv.Status.Phase = "ACCEPTED"
+	adv.Status.AdvertisementStatus = "ACCEPTED"
+	adv.Status.ForeignNetwork = protocolv1beta1.NetworkInfo{
+		PodCIDR:            "",
+		GatewayIP:          "",
+		SupportedProtocols: nil,
+	}
+	adv.Status.ObservedGeneration = adv.ObjectMeta.Generation
 	return adv
 }

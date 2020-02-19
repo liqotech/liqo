@@ -30,9 +30,13 @@ func createFakeResources() ([]v1.Node, []v1.ContainerImage, resource.Quantity) {
 		images[i] = im[0]
 
 		nodes[i] = v1.Node{
+			Spec: v1.NodeSpec{
+				PodCIDR: fmt.Sprintf("%d.%d.%d.%d/%d", i, i, i, i, 16),
+			},
 			Status: v1.NodeStatus{
 				Allocatable: resources,
-				Images:   im,
+				Images:      im,
+				Addresses:   []v1.NodeAddress{{Type: v1.NodeExternalIP, Address: fmt.Sprintf("%d.%d.%d.%d", i, i, i, i)}},
 			},
 		}
 	}
@@ -82,9 +86,11 @@ func TestCreateAdvertisement(t *testing.T) {
 	assert.Empty(t, adv.ResourceVersion)
 	assert.NotEmpty(t, adv.Spec.ClusterId)
 	assert.NotEmpty(t, adv.Spec.Timestamp)
-	assert.NotEmpty(t, adv.Spec.Validity)
+	assert.NotEmpty(t, adv.Spec.TimeToLive)
 	assert.Equal(t, adv.Name, "advertisement-fake-cluster")
 	assert.Equal(t, images, adv.Spec.Images)
 	assert.Equal(t, availability, adv.Spec.Availability)
+	assert.Equal(t, nodes[0].Spec.PodCIDR, adv.Spec.Network.PodCIDR)
+	assert.Equal(t, advertisement_operator.GetGateway(nodes), adv.Spec.Network.GatewayIP)
 	assert.Empty(t, adv.Status, "Status should not be set")
 }
