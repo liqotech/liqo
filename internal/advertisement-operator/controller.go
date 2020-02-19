@@ -31,7 +31,6 @@ import (
 
 	protocolv1beta1 "github.com/netgroup-polito/dronev2/api/v1beta1"
 	pkg "github.com/netgroup-polito/dronev2/pkg/advertisement-operator"
-
 )
 
 // AdvertisementReconciler reconciles a Advertisement object
@@ -104,7 +103,7 @@ func (r *AdvertisementReconciler) Reconcile(req ctrl.Request) (ctrl.Result, erro
 
 	for _, v := range deploy.Spec.Template.Spec.Volumes {
 		if v.Name == "provider-config" {
-			v.ConfigMap.Name = "vk-config"
+			v.ConfigMap.Name = "vk-config-" + adv.Spec.ClusterId
 		} else if v.Name == "remote-config" {
 			v.ConfigMap.Name = "foreign-kubeconfig-" + adv.Spec.ClusterId
 		}

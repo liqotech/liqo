@@ -9,14 +9,13 @@ import (
 	"testing"
 )
 
-
-func createFakeResources() ([]v1.Node, []v1.ContainerImage, resource.Quantity){
+func createFakeResources() ([]v1.Node, []v1.ContainerImage, resource.Quantity) {
 	nodes := make([]v1.Node, 10)
 	images := make([]v1.ContainerImage, 10)
 
 	sum := resource.Quantity{}
 
-	for i := 0 ; i < len(nodes) ; i++ {
+	for i := 0; i < len(nodes); i++ {
 		resources := v1.ResourceList{}
 		q := *resource.NewQuantity(int64(i), resource.DecimalSI)
 		resources[v1.ResourceCPU] = q
@@ -32,8 +31,8 @@ func createFakeResources() ([]v1.Node, []v1.ContainerImage, resource.Quantity){
 
 		nodes[i] = v1.Node{
 			Status: v1.NodeStatus{
-				Capacity:        resources,
-				Images:          im,
+				Capacity: resources,
+				Images:   im,
 			},
 		}
 	}
@@ -61,10 +60,10 @@ func TestComputePrices(t *testing.T) {
 	keys2 := make([]string, len(prices))
 
 	for key, _ := range prices {
-		keys1 = append (keys1, key.String())
+		keys1 = append(keys1, key.String())
 	}
 	for _, im := range images {
-		keys2 = append (keys2, im.Names[0])
+		keys2 = append(keys2, im.Names[0])
 	}
 	keys2 = append(keys2, "cpu")
 	keys2 = append(keys2, "memory")
@@ -76,7 +75,7 @@ func TestCreateAdvertisement(t *testing.T) {
 
 	nodes, images, _ := createFakeResources()
 	availability, _ := advertisement_operator.GetClusterResources(nodes)
-	adv := advertisement_operator.CreateAdvertisement(nodes)
+	adv := advertisement_operator.CreateAdvertisement(nodes, "fake-cluster")
 
 	assert.NotEmpty(t, adv.Name, "Name should be provided")
 	assert.NotEmpty(t, adv.Namespace, "Namespace should be set")
@@ -84,6 +83,7 @@ func TestCreateAdvertisement(t *testing.T) {
 	assert.NotEmpty(t, adv.Spec.ClusterId)
 	assert.NotEmpty(t, adv.Spec.Timestamp)
 	assert.NotEmpty(t, adv.Spec.Validity)
+	assert.Equal(t, adv.Name, "fake-cluster")
 	assert.Equal(t, images, adv.Spec.Images)
 	assert.Equal(t, availability, adv.Spec.Availability)
 	assert.Empty(t, adv.Status, "Status should not be set")

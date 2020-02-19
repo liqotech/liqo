@@ -14,6 +14,7 @@ import (
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/labels"
 
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -22,11 +23,11 @@ import (
 	pkg "github.com/netgroup-polito/dronev2/pkg/advertisement-operator"
 )
 
-var(
+var (
 	log logr.Logger
 )
 
-func StartBroadcaster(localClient client.Client, clusterId string){
+func StartBroadcaster(localClient client.Client, clusterId string) {
 	log = ctrl.Log.WithName("advertisement-broadcaster")
 	log.Info("starting broadcaster")
 
@@ -40,13 +41,12 @@ func StartBroadcaster(localClient client.Client, clusterId string){
 		log.Error(err, "Unable to list configMaps")
 		return
 	}
-	for _, cm := range configMaps.Items{
+	for _, cm := range configMaps.Items {
 		if strings.HasPrefix(cm.Name, "foreign-kubeconfig") {
 			go GenerateAdvertisement(localClient, "", cm.DeepCopy(), clusterId)
 		}
 	}
 }
-
 
 // generate an advertisement message every 10 minutes and post it to remote clusters
 // parameters
@@ -64,14 +64,14 @@ func GenerateAdvertisement(localClient client.Client, foreignKubeconfigPath stri
 	for retry = 0; retry < 3; retry++ {
 		remoteClient, err = pkg.NewCRDClient(foreignKubeconfigPath, cm)
 		if err != nil {
-			log.Error(err, "Unable to create client to remote cluster " + remoteClusterId + ". Retry in 1 minute")
+			log.Error(err, "Unable to create client to remote cluster "+remoteClusterId+". Retry in 1 minute")
 			time.Sleep(1 * time.Minute)
 		} else {
 			break
 		}
 	}
 	if retry == 3 {
-		log.Error(err, "Failed to create client to remote cluster " + remoteClusterId)
+		log.Error(err, "Failed to create client to remote cluster "+remoteClusterId)
 		return
 	} else {
 		log.Info("created client to remote cluster " + remoteClusterId)
@@ -79,17 +79,17 @@ func GenerateAdvertisement(localClient client.Client, foreignKubeconfigPath stri
 
 	for {
 		var nodes v1.NodeList
-		err := localClient.List(context.Background(), &nodes, client.MatchingLabels{"type" : "virtual-node"})
+		selector, err := labels.Parse("type != virtual-node")
+		err = localClient.List(context.Background(), &nodes, client.MatchingLabelsSelector{Selector: selector})
 		if err != nil {
 			log.Error(err, "Unable to list nodes")
 			return
 		}
-		//TODO: filter nodes (e.g. prune all virtual-kubelet)
 
 		adv := CreateAdvertisement(nodes.Items, clusterId)
 		err = pkg.CreateOrUpdate(remoteClient, context.Background(), log, adv)
 		if err != nil {
-			log.Error(err, "Unable to create advertisement on remote cluster " + remoteClusterId)
+			log.Error(err, "Unable to create advertisement on remote cluster "+remoteClusterId)
 		} else {
 			log.Info("correctly created advertisement on remote cluster " + remoteClusterId)
 		}
@@ -105,7 +105,7 @@ func CreateAdvertisement(nodes []v1.Node, clusterId string) protocolv1beta1.Adve
 
 	adv := protocolv1beta1.Advertisement{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      "adv-sample",
+			Name:      "advertisement-" + clusterId,
 			Namespace: "default",
 		},
 		Spec: protocolv1beta1.AdvertisementSpec{
