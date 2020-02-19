@@ -17,10 +17,10 @@ package advertisement_operator
 
 import (
 	"context"
-	"github.com/netgroup-polito/dronev2/pkg/advertisement-operator"
 
 	"github.com/go-logr/logr"
 
+	appsv1 "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -30,6 +30,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	protocolv1beta1 "github.com/netgroup-polito/dronev2/api/v1beta1"
+	pkg "github.com/netgroup-polito/dronev2/pkg/advertisement-operator"
+
 )
 
 // AdvertisementReconciler reconciles a Advertisement object
@@ -49,10 +51,8 @@ func (r *AdvertisementReconciler) Reconcile(req ctrl.Request) (ctrl.Result, erro
 	// get advertisement
 	var adv protocolv1beta1.Advertisement
 	if err := r.Get(ctx, req.NamespacedName, &adv); err != nil {
-		log.Error(err, "unable to fetch Advertisement")
-		// we'll ignore not-found errors, since they can't be fixed by an immediate
-		// requeue (we'll need to wait for a new notification), and we can get them
-		// on deleted requests.
+		// reconcile was triggered by a delete request
+		log.Info("Advertisement " + req.Name + " deleted")
 		return ctrl.Result{}, client.IgnoreNotFound(err)
 	}
 
@@ -65,7 +65,7 @@ func (r *AdvertisementReconciler) Reconcile(req ctrl.Request) (ctrl.Result, erro
 	// create configuration for virtual-kubelet with data from adv
 	vkConfig := v1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      "vk-config",
+			Name:      "vk-config-" + adv.Spec.ClusterId,
 			Namespace: "default",
 		},
 		Data: map[string]string{
@@ -81,26 +81,48 @@ func (r *AdvertisementReconciler) Reconcile(req ctrl.Request) (ctrl.Result, erro
 		 }
 		}`},
 	}
-	err := advertisement_operator.CreateOrUpdate(r.Client, ctx, log, vkConfig)
+	err := pkg.CreateOrUpdate(r.Client, ctx, log, vkConfig)
 	if err != nil {
 		return ctrl.Result{}, err
 	}
 
 	// create resources necessary to run virtual-kubelet deployment
-	err = advertisement_operator.CreateFromYaml(r.Client, ctx, log, "./data/vk_sa.yaml", "ServiceAccount")
+	sa, err := pkg.CreateFromYaml(r.Client, ctx, log, "./data/vk_sa.yaml", "ServiceAccount")
 	if err != nil {
 		return ctrl.Result{}, err
 	}
-	err = advertisement_operator.CreateFromYaml(r.Client, ctx, log, "./data/vk_crb.yaml", "ClusterRoleBinding")
+	crb, err := pkg.CreateFromYaml(r.Client, ctx, log, "./data/vk_crb.yaml", "ClusterRoleBinding")
 	if err != nil {
 		return ctrl.Result{}, err
 	}
-	err = advertisement_operator.CreateFromYaml(r.Client, ctx, log, "./data/vk_deploy.yaml", "Deployment")
+	obj, err := pkg.CreateFromYaml(r.Client, ctx, log, "./data/vk_deploy.yaml", "Deployment")
+	if err != nil {
+		return ctrl.Result{}, err
+	}
+	deploy := obj.(appsv1.Deployment)
+	deploy.Name = "vkubelet-" + adv.Spec.ClusterId
+
+	for _, v := range deploy.Spec.Template.Spec.Volumes {
+		if v.Name == "provider-config" {
+			v.ConfigMap.Name = "vk-config"
+		} else if v.Name == "remote-config" {
+			v.ConfigMap.Name = "foreign-kubeconfig-" + adv.Spec.ClusterId
+		}
+	}
+	err = pkg.CreateOrUpdate(r.Client, ctx, log, sa)
+	if err != nil {
+		return ctrl.Result{}, err
+	}
+	err = pkg.CreateOrUpdate(r.Client, ctx, log, crb)
+	if err != nil {
+		return ctrl.Result{}, err
+	}
+	err = pkg.CreateOrUpdate(r.Client, ctx, log, deploy)
 	if err != nil {
 		return ctrl.Result{}, err
 	}
 
-	log.Info("launching virtual-kubelet")
+	log.Info("launching virtual-kubelet for cluster " + adv.Spec.ClusterId)
 
 	return ctrl.Result{}, nil
 }

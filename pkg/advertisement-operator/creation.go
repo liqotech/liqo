@@ -21,12 +21,12 @@ import (
 
 // create a k8s resource of a certain kind from a yaml file
 // it is equivalent to "kubectl apply -f *.yaml"
-func CreateFromYaml(c client.Client, ctx context.Context, log logr.Logger, filename string, kind string) error {
+func CreateFromYaml(c client.Client, ctx context.Context, log logr.Logger, filename string, kind string) (interface{}, error) {
 
 	text, err := ioutil.ReadFile(filename)
 	if err != nil {
 		log.Error(err, "unable to read file"+filename)
-		return err
+		return nil, err
 	}
 
 	switch kind {
@@ -35,47 +35,45 @@ func CreateFromYaml(c client.Client, ctx context.Context, log logr.Logger, filen
 		err = yaml.Unmarshal(text, &pod)
 		if err != nil {
 			log.Error(err, "unable to unmarshal yaml file"+filename)
-			return err
+			return nil, err
 		}
-		err = CreateOrUpdate(c, ctx, log, pod)
+		return pod, nil
 	case "Deployment":
 		var deploy appsv1.Deployment
 		err = yaml.Unmarshal(text, &deploy)
 		if err != nil {
 			log.Error(err, "unable to unmarshal yaml file"+filename)
-			return err
+			return nil, err
 		}
-		err = CreateOrUpdate(c, ctx, log, deploy)
+		return deploy, nil
 	case "ConfigMap":
 		var cm v1.ConfigMap
 		err = yaml.Unmarshal(text, &cm)
 		if err != nil {
 			log.Error(err, "unable to unmarshal yaml file"+filename)
-			return err
+			return nil, err
 		}
-		err = CreateOrUpdate(c, ctx, log, cm)
+		return cm, nil
 	case "ServiceAccount":
 		var sa v1.ServiceAccount
 		err = yaml.Unmarshal(text, &sa)
 		if err != nil {
 			log.Error(err, "unable to unmarshal yaml file"+filename)
-			return err
+			return nil, err
 		}
-		err = CreateOrUpdate(c, ctx, log, sa)
+		return sa, nil
 	case "ClusterRoleBinding":
 		var crb rbacv1.ClusterRoleBinding
 		err = yaml.Unmarshal(text, &crb)
 		if err != nil {
 			log.Error(err, "unable to unmarshal yaml file"+filename)
-			return err
+			return nil, err
 		}
-		err = CreateOrUpdate(c, ctx, log, crb)
+		return crb, nil
 	default:
 		log.Error(err, "invalid kind")
-		return err
+		return nil, err
 	}
-
-	return nil
 }
 
 // create a k8s resource or update it if already exists
