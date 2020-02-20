@@ -7,22 +7,20 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"strings"
 	"time"
-
 )
-
 
 func F2HTranslate(podForeignIn *v1.Pod, newCidr string) (podHomeOut *v1.Pod) {
 	podHomeOut = podForeignIn.DeepCopy()
 	podHomeOut.SetUID(types.UID(podForeignIn.Annotations["home_uuid"]))
 	podHomeOut.SetResourceVersion(podForeignIn.Annotations["home_resourceVersion"])
-	t, err := time.Parse("2006-01-02 15:04:05 -0700 MST", podForeignIn.Annotations["home_creationTimestamp"],)
+	t, err := time.Parse("2006-01-02 15:04:05 -0700 MST", podForeignIn.Annotations["home_creationTimestamp"])
 	if podForeignIn.DeletionGracePeriodSeconds != nil {
-		metav1.SetMetaDataAnnotation(&podHomeOut.ObjectMeta,"foreign_deletionPeriodSeconds", string(*podForeignIn.DeletionGracePeriodSeconds))
+		metav1.SetMetaDataAnnotation(&podHomeOut.ObjectMeta, "foreign_deletionPeriodSeconds", string(*podForeignIn.DeletionGracePeriodSeconds))
 		podHomeOut.DeletionGracePeriodSeconds = nil
 	}
 
 	if err != nil {
-		fmt.Errorf("Unable to parse time")
+		_ = fmt.Errorf("Unable to parse time")
 	}
 	if podHomeOut.Status.PodIP != "" {
 		newIp := changePodIp(newCidr, podHomeOut.Status.PodIP)
@@ -30,7 +28,7 @@ func F2HTranslate(podForeignIn *v1.Pod, newCidr string) (podHomeOut *v1.Pod) {
 		podHomeOut.Status.PodIPs[0].IP = newIp
 	}
 	podHomeOut.SetCreationTimestamp(metav1.NewTime(t))
-	podHomeOut.Spec.NodeName =   podForeignIn.Annotations["home_nodename"]
+	podHomeOut.Spec.NodeName = podForeignIn.Annotations["home_nodename"]
 	delete(podHomeOut.Annotations, "home_creationTimestamp")
 	delete(podHomeOut.Annotations, "home_resourceVersion")
 	delete(podHomeOut.Annotations, "home_uuid")
@@ -41,27 +39,27 @@ func F2HTranslate(podForeignIn *v1.Pod, newCidr string) (podHomeOut *v1.Pod) {
 func H2FTranslate(pod *v1.Pod) *v1.Pod {
 	// create an empty ObjectMeta for the output pod, copying only "Name" and "Namespace" fields
 	objectMeta := metav1.ObjectMeta{
-		Name:                       pod.ObjectMeta.Name,
-		Namespace:                  pod.ObjectMeta.Namespace,
-		Labels: pod.Labels,
+		Name:      pod.ObjectMeta.Name,
+		Namespace: pod.ObjectMeta.Namespace,
+		Labels:    pod.Labels,
 	}
 
 	// copy all containers from input pod
 	containers := make([]v1.Container, len(pod.Spec.Containers))
-	for i:=0 ; i < len(pod.Spec.Containers) ; i++ {
+	for i := 0; i < len(pod.Spec.Containers); i++ {
 		containers[i].Name = pod.Spec.Containers[i].Name
 		containers[i].Image = pod.Spec.Containers[i].Image
 	}
 
 	// create an empty Spec for the output pod, copying only "Containers" field
 	podSpec := v1.PodSpec{
-		Containers:                    containers,
+		Containers: containers,
 	}
 
-	metav1.SetMetaDataAnnotation(&objectMeta,"home_nodename", pod.Spec.NodeName)
-	metav1.SetMetaDataAnnotation(&objectMeta,"home_resourceVersion", pod.ResourceVersion)
-	metav1.SetMetaDataAnnotation(&objectMeta,"home_uuid", string(pod.UID))
-	metav1.SetMetaDataAnnotation(&objectMeta,"home_creationTimestamp", pod.CreationTimestamp.String())
+	metav1.SetMetaDataAnnotation(&objectMeta, "home_nodename", pod.Spec.NodeName)
+	metav1.SetMetaDataAnnotation(&objectMeta, "home_resourceVersion", pod.ResourceVersion)
+	metav1.SetMetaDataAnnotation(&objectMeta, "home_uuid", string(pod.UID))
+	metav1.SetMetaDataAnnotation(&objectMeta, "home_creationTimestamp", pod.CreationTimestamp.String())
 
 	return &v1.Pod{
 		TypeMeta:   pod.TypeMeta,

@@ -93,7 +93,7 @@ func NewKubernetesProviderKubernetesConfig(config KubernetesConfig, nodeName, op
 	// Create first namespace
 	_, err = client.CoreV1().Namespaces().Create(ns)
 	if err != nil && !kerror.IsAlreadyExists(err) {
-		fmt.Errorf("Failed tp create a namespace")
+		_ = fmt.Errorf("Failed tp create a namespace")
 		return nil, err
 	}
 
@@ -120,7 +120,7 @@ func (p *KubernetesProvider) PodWatcher() error {
 		for event := range watch.ResultChan() {
 			p2, ok := event.Object.(*v1.Pod)
 			if !ok {
-				fmt.Errorf("unexpected type")
+				_ = fmt.Errorf("unexpected type")
 			}
 			p.notifier(F2HTranslate(p2, p.config.RemoteNewPodCidr))
 		}
