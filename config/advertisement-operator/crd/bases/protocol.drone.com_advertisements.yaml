@@ -123,9 +123,9 @@ spec:
           - foreignNetwork
           type: object
       type: object
-  version: v1beta1
+  version: v1
   versions:
-  - name: v1beta1
+  - name: v1
     served: true
     storage: true
 status:

@@ -19,7 +19,7 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	protocolv1beta1 "github.com/netgroup-polito/dronev2/api/v1beta1"
+	protocolv1 "github.com/netgroup-polito/dronev2/api/v1"
 	pkg "github.com/netgroup-polito/dronev2/pkg/advertisement-operator"
 )
 
@@ -98,22 +98,22 @@ func GenerateAdvertisement(localClient client.Client, foreignKubeconfigPath stri
 }
 
 // create advertisement message
-func CreateAdvertisement(nodes []v1.Node, clusterId string) protocolv1beta1.Advertisement {
+func CreateAdvertisement(nodes []v1.Node, clusterId string) protocolv1.Advertisement {
 
 	availability, images := GetClusterResources(nodes)
 	prices := ComputePrices(images)
 
-	adv := protocolv1beta1.Advertisement{
+	adv := protocolv1.Advertisement{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "advertisement-" + clusterId,
 			Namespace: "default",
 		},
-		Spec: protocolv1beta1.AdvertisementSpec{
+		Spec: protocolv1.AdvertisementSpec{
 			ClusterId:    clusterId,
 			Images:       images,
 			Availability: availability,
 			Prices:       prices,
-			Network: protocolv1beta1.NetworkInfo{
+			Network: protocolv1.NetworkInfo{
 				PodCIDR:            nodes[0].Spec.PodCIDR, //TODO: which node podCIDR? All?
 				GatewayIP:          GetGateway(nodes),
 				SupportedProtocols: nil,
@@ -170,7 +170,7 @@ func ComputePrices(images []v1.ContainerImage) v1.ResourceList {
 }
 
 // create advertisement with all system resources
-func createAdvertisementWithAllSystemResources() protocolv1beta1.Advertisement {
+func createAdvertisementWithAllSystemResources() protocolv1.Advertisement {
 	var m runtime.MemStats
 	runtime.ReadMemStats(&m)
 
@@ -180,12 +180,12 @@ func createAdvertisementWithAllSystemResources() protocolv1beta1.Advertisement {
 	freeResources[v1.ResourceMemory] = *resource.NewQuantity(int64(m.Sys-m.Alloc), resource.BinarySI)
 	images := getDockerImages()
 	prices := ComputePrices(images)
-	adv := protocolv1beta1.Advertisement{
+	adv := protocolv1.Advertisement{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "adv-sample",
 			Namespace: "default",
 		},
-		Spec: protocolv1beta1.AdvertisementSpec{
+		Spec: protocolv1.AdvertisementSpec{
 			ClusterId:    "cluster1",
 			Images:       images,
 			Availability: freeResources,

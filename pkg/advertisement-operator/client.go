@@ -3,7 +3,7 @@ package advertisement_operator
 import (
 	"os"
 
-	protocolv1beta1 "github.com/netgroup-polito/dronev2/api/v1beta1"
+	protocolv1 "github.com/netgroup-polito/dronev2/api/v1"
 
 	v1 "k8s.io/api/core/v1"
 	k8sruntime "k8s.io/apimachinery/pkg/runtime"
@@ -68,7 +68,7 @@ func NewCRDClient(path string, cm *v1.ConfigMap) (client.Client, error) {
 
 	scheme := k8sruntime.NewScheme()
 	_ = clientgoscheme.AddToScheme(scheme)
-	_ = protocolv1beta1.AddToScheme(scheme)
+	_ = protocolv1.AddToScheme(scheme)
 
 	remoteClient, err := client.New(config, client.Options{
 		Scheme: scheme,

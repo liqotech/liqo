@@ -29,7 +29,7 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	protocolv1beta1 "github.com/netgroup-polito/dronev2/api/v1beta1"
+	protocolv1 "github.com/netgroup-polito/dronev2/api/v1"
 	pkg "github.com/netgroup-polito/dronev2/pkg/advertisement-operator"
 )
 
@@ -48,7 +48,7 @@ func (r *AdvertisementReconciler) Reconcile(req ctrl.Request) (ctrl.Result, erro
 	log := r.Log.WithValues("advertisement-controller", req.NamespacedName)
 
 	// get advertisement
-	var adv protocolv1beta1.Advertisement
+	var adv protocolv1.Advertisement
 	if err := r.Get(ctx, req.NamespacedName, &adv); err != nil {
 		// reconcile was triggered by a delete request
 		log.Info("Advertisement " + req.Name + " deleted")
@@ -139,15 +139,15 @@ func (r *AdvertisementReconciler) Reconcile(req ctrl.Request) (ctrl.Result, erro
 
 func (r *AdvertisementReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
-		For(&protocolv1beta1.Advertisement{}).
+		For(&protocolv1.Advertisement{}).
 		Complete(r)
 }
 
 // check if the advertisement is interesting and set its status accordingly
-func checkAdvertisement(adv protocolv1beta1.Advertisement) protocolv1beta1.Advertisement {
+func checkAdvertisement(adv protocolv1.Advertisement) protocolv1.Advertisement {
 	//TODO: implement logic
 	adv.Status.AdvertisementStatus = "ACCEPTED"
-	adv.Status.ForeignNetwork = protocolv1beta1.NetworkInfo{
+	adv.Status.ForeignNetwork = protocolv1.NetworkInfo{
 		PodCIDR:            "",
 		GatewayIP:          "",
 		SupportedProtocols: nil,

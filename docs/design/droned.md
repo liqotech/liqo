@@ -17,7 +17,7 @@
 
 ### CRD generation
 To modify the Advertisement you need to
-1. open the file _api/v1beta1/advertisement_types.go_. Here you have all the `struct` types related to the Advertisement CRD
+1. open the file _api/v1/advertisement_types.go_. Here you have all the `struct` types related to the Advertisement CRD
 2. add/modify/delete the fields of `AdvertisementSpec` and/or `AdvertisementStatus`
 3. run `make -f scripts/advertisement-operator/Makefile`; this will regenerate the code for the new version of Advertisement
 

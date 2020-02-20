@@ -6,7 +6,7 @@ import (
 
 	"github.com/go-logr/logr"
 
-	protocolv1beta1 "github.com/netgroup-polito/dronev2/api/v1beta1"
+	protocolv1 "github.com/netgroup-polito/dronev2/api/v1"
 
 	appsv1 "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
@@ -170,8 +170,8 @@ func CreateOrUpdate(c client.Client, ctx context.Context, log logr.Logger, objec
 				return err
 			}
 		}
-	case protocolv1beta1.Advertisement:
-		var adv protocolv1beta1.Advertisement
+	case protocolv1.Advertisement:
+		var adv protocolv1.Advertisement
 		err := c.Get(ctx, types.NamespacedName{
 			Namespace: obj.Namespace,
 			Name:      obj.Name,
