@@ -51,9 +51,27 @@ func H2FTranslate(pod *v1.Pod) *v1.Pod {
 		containers[i].Image = pod.Spec.Containers[i].Image
 	}
 
+	affinity := v1.Affinity{
+		NodeAffinity: &v1.NodeAffinity{
+			RequiredDuringSchedulingIgnoredDuringExecution: &v1.NodeSelector{
+				NodeSelectorTerms: []v1.NodeSelectorTerm{
+					v1.NodeSelectorTerm{
+						MatchExpressions: []v1.NodeSelectorRequirement{
+							v1.NodeSelectorRequirement{
+								Key:      "type",
+								Operator: v1.NodeSelectorOpNotIn,
+								Values:   []string{"virtual-node"},
+							},
+						},
+					},
+				},
+			},
+		},
+	}
 	// create an empty Spec for the output pod, copying only "Containers" field
 	podSpec := v1.PodSpec{
 		Containers: containers,
+		Affinity:   affinity.DeepCopy(),
 	}
 
 	metav1.SetMetaDataAnnotation(&objectMeta, "home_nodename", pod.Spec.NodeName)

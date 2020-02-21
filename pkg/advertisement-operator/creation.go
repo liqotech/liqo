@@ -2,9 +2,8 @@ package advertisement_operator
 
 import (
 	"context"
-	"io/ioutil"
-
 	"github.com/go-logr/logr"
+	"io/ioutil"
 
 	protocolv1 "github.com/netgroup-polito/dronev2/api/v1"
 
@@ -14,6 +13,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/utils/pointer"
 
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/yaml"
@@ -74,6 +74,86 @@ func CreateFromYaml(c client.Client, ctx context.Context, log logr.Logger, filen
 		log.Error(err, "invalid kind")
 		return nil, err
 	}
+}
+
+// create deployment for a virtual-kubelet
+func CreateVkDeployment(adv protocolv1.Advertisement) appsv1.Deployment {
+
+	command := make([]string, 1)
+	command[0] = "/usr/bin/virtual-kubelet"
+	args := make([]string, 5)
+	args[0] = "--provider"
+	args[1] = "kubernetes"
+	args[2] = "--provider-config"
+	args[3] = "/app/config/vkubelet-cfg.json"
+	args[4] = "--disable-taint"
+
+	volumes := make([]v1.Volume, 2)
+	volumes[0] = v1.Volume{
+		Name: "provider-config",
+		VolumeSource: v1.VolumeSource{
+			ConfigMap: &v1.ConfigMapVolumeSource{
+				LocalObjectReference: v1.LocalObjectReference{Name: "vk-config-" + adv.Spec.ClusterId},
+			},
+		},
+	}
+	volumes[1] = v1.Volume{
+		Name: "remote-kubeconfig",
+		VolumeSource: v1.VolumeSource{
+			ConfigMap: &v1.ConfigMapVolumeSource{
+				LocalObjectReference: v1.LocalObjectReference{Name: "foreign-kubeconfig-" + adv.Spec.ClusterId},
+			},
+		},
+	}
+
+	volumeMounts := make([]v1.VolumeMount, 2)
+	volumeMounts[0] = v1.VolumeMount{
+		Name:      "provider-config",
+		MountPath: "/app/config/vkubelet-cfg.json",
+		SubPath:   "vkubelet-cfg.json",
+	}
+	volumeMounts[1] = v1.VolumeMount{
+		Name:      "remote-kubeconfig",
+		MountPath: "/app/kubeconfig/remote",
+		SubPath:   "remote",
+	}
+
+	deploy := appsv1.Deployment{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "vkubelet-" + adv.Spec.ClusterId,
+			Namespace: "default",
+		},
+		Spec: appsv1.DeploymentSpec{
+			Replicas: pointer.Int32Ptr(1),
+			Selector: &metav1.LabelSelector{
+				MatchLabels: map[string]string{
+					"app": "virtual-kubelet",
+				},
+			},
+			Template: v1.PodTemplateSpec{
+				ObjectMeta: metav1.ObjectMeta{
+					Labels: map[string]string{
+						"app": "virtual-kubelet",
+					},
+				},
+				Spec: v1.PodSpec{
+					Volumes: volumes,
+					Containers: []v1.Container{
+						{
+							Name:         "virtual-kubelet",
+							Image:        "dronev2/virtual-kubelet",
+							Command:      command,
+							Args:         args,
+							VolumeMounts: volumeMounts,
+						},
+					},
+					ServiceAccountName: "virtual-kubelet",
+				},
+			},
+		},
+	}
+
+	return deploy
 }
 
 // create a k8s resource or update it if already exists

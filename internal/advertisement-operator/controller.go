@@ -20,7 +20,6 @@ import (
 
 	"github.com/go-logr/logr"
 
-	appsv1 "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -96,37 +95,7 @@ func (r *AdvertisementReconciler) Reconcile(req ctrl.Request) (ctrl.Result, erro
 		return ctrl.Result{}, err
 	}
 
-	// create resources necessary to run virtual-kubelet deployment
-	sa, err := pkg.CreateFromYaml(r.Client, ctx, log, "./data/vk_sa.yaml", "ServiceAccount")
-	if err != nil {
-		return ctrl.Result{}, err
-	}
-	crb, err := pkg.CreateFromYaml(r.Client, ctx, log, "./data/vk_crb.yaml", "ClusterRoleBinding")
-	if err != nil {
-		return ctrl.Result{}, err
-	}
-	obj, err := pkg.CreateFromYaml(r.Client, ctx, log, "./data/vk_deploy.yaml", "Deployment")
-	if err != nil {
-		return ctrl.Result{}, err
-	}
-	deploy := obj.(appsv1.Deployment)
-	deploy.Name = "vkubelet-" + adv.Spec.ClusterId
-
-	for _, v := range deploy.Spec.Template.Spec.Volumes {
-		if v.Name == "provider-config" {
-			v.ConfigMap.Name = "vk-config-" + adv.Spec.ClusterId
-		} else if v.Name == "remote-config" {
-			v.ConfigMap.Name = "foreign-kubeconfig-" + adv.Spec.ClusterId
-		}
-	}
-	err = pkg.CreateOrUpdate(r.Client, ctx, log, sa)
-	if err != nil {
-		return ctrl.Result{}, err
-	}
-	err = pkg.CreateOrUpdate(r.Client, ctx, log, crb)
-	if err != nil {
-		return ctrl.Result{}, err
-	}
+	deploy := pkg.CreateVkDeployment(adv)
 	err = pkg.CreateOrUpdate(r.Client, ctx, log, deploy)
 	if err != nil {
 		return ctrl.Result{}, err
