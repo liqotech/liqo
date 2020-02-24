@@ -17,9 +17,8 @@ package main
 
 import (
 	"flag"
+	"github.com/netgroup-polito/dronev2/api/tunnel-endpoint/v1"
 	"os"
-
-	dronetv1 "github.com/netgroup-polito/dronev2/api/v1"
 
 	"github.com/netgroup-polito/dronev2/internal/tunnel-operator"
 
@@ -39,7 +38,7 @@ var (
 func init() {
 	_ = clientgoscheme.AddToScheme(scheme)
 
-	_ = dronetv1.AddToScheme(scheme)
+	_ = v1.AddToScheme(scheme)
 	// +kubebuilder:scaffold:scheme
 }
 
@@ -66,12 +65,12 @@ func main() {
 		os.Exit(1)
 	}
 
-	if err = (&controllers.EndpointReconciler{
+	if err = (&controllers.TunnelController{
 		Client: mgr.GetClient(),
-		Log:    ctrl.Log.WithName("controllers").WithName("Endpoint"),
+		Log:    ctrl.Log.WithName("controllers").WithName("TunnelEndpoint"),
 		Scheme: mgr.GetScheme(),
 	}).SetupWithManager(mgr); err != nil {
-		setupLog.Error(err, "unable to create controller", "controller", "Endpoint")
+		setupLog.Error(err, "unable to create controller", "controller", "TunnelEndpoint")
 		os.Exit(1)
 	}
 	// +kubebuilder:scaffold:builder

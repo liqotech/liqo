@@ -22,16 +22,16 @@ manager: generate fmt vet
 	go build -o bin/manager main.go
 
 # Run against the configured Kubernetes cluster in ~/.kube/config
-run: generate fmt vet manifests
+run: generate manifests
 	go run ./cmd/tunnel-operator/main.go
 
 # Install CRDs into a cluster
-install: manifests
+install:
 	kubectl kustomize config/tunnel-operator/crd | kubectl apply -f -
 
 # Uninstall CRDs from a cluster
 uninstall: manifests
-	kustomize build config/tunnel-operator/crd | kubectl delete -f -
+	kubectl kustomize config/tunnel-operator/crd | kubectl delete -f -
 
 # Deploy controller in the configured Kubernetes cluster in ~/.kube/config
 deploy: manifests
@@ -41,7 +41,10 @@ deploy: manifests
 # Generate manifests e.g. CRD, RBAC etc.
 manifests: controller-gen
     #$(CONTROLLER_GEN) $(CRD_OPTIONS) rbac:roleName=manager-role webhook paths="./..." output:crd:artifacts:config=config/tunnel-operator/crd/bases output:rbac:artifacts:config=config/tunnel-operator/rbac
-	$(CONTROLLER_GEN) $(CRD_OPTIONS) paths="./..." output:crd:artifacts:config=config/tunnel-operator/crd/bases
+	$(CONTROLLER_GEN) $(CRD_OPTIONS) paths="./api/tunnel-endpoint/v1" crd:crdVersions=v1beta1 crd:trivialVersions=false output:crd:artifacts:config=config/tunnel-operator/crd/bases
+	rm config/tunnel-operator/crd/bases/dronet.drone.com_endpoints.yaml
+	mv config/dronet.drone.com_endpoints.yaml config/tunnel-operator/crd/bases/dronet.drone.com_endpoints.yaml
+
 # Run go fmt against code
 fmt:
 	go fmt ./...

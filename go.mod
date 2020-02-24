@@ -55,7 +55,8 @@ require (
 	github.com/tmc/grpc-websocket-proxy v0.0.0-20200122045848-3419fae592fc // indirect
 	github.com/tommy-muehle/go-mnd v1.2.0 // indirect
 	github.com/urfave/cli v1.22.2 // indirect
-	github.com/virtual-kubelet/virtual-kubelet v1.2.1
+	github.com/virtual-kubelet/virtual-kubelet v1.2.1 // indirect
+	github.com/vishvananda/netlink v1.0.0
 	github.com/weppos/publicsuffix-go v0.10.0 // indirect
 	github.com/zmap/zlint v1.1.0 // indirect
 	go.etcd.io/etcd v3.3.18+incompatible // indirect

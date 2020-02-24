@@ -22,41 +22,46 @@ import (
 // EDIT THIS FILE!  THIS IS SCAFFOLDING FOR YOU TO OWN!
 // NOTE: json tags are required.  Any new fields you add must have json tags for the fields to be serialized.
 
-// EndpointSpec defines the desired state of Endpoint
-type EndpointSpec struct {
+// TunnelEndpointSpec defines the desired state of TunnelEndpoint
+type TunnelEndpointSpec struct {
 	// INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
 	// Important: Run "make" to regenerate code after modifying this file
 
-	// Foo is an example field of Endpoint. Edit Endpoint_types.go to remove/update
-	Foo string `json:"foo,omitempty"`
+	// Foo is an example field of TunnelEndpoint. Edit TunnelEndpoint_types.go to remove/update
+	ClusterID       string `json:"clusterID,omitempty"`
+	PodCIDR         string `json:"podCIDR,omitempty"`
+	RemappedPodCIDR string `json:"remappedPodCIDR,omitempty"`
+	GatewayPublicIP string `json:"gatewayPublicIP,omitempty"`
+	TunnelPrivateIP string `json:"tunnelPrivateIP,omitempty"`
+	NATEnabled      bool   `json:"NAT,omitempty"`
 }
 
-// EndpointStatus defines the observed state of Endpoint
-type EndpointStatus struct {
+// TunnelEndpointStatus defines the observed state of TunnelEndpoint
+type TunnelEndpointStatus struct {
 	// INSERT ADDITIONAL STATUS FIELD - define observed state of cluster
 	// Important: Run "make" to regenerate code after modifying this file
 }
 
 // +kubebuilder:object:root=true
 
-// Endpoint is the Schema for the endpoints API
-type Endpoint struct {
+// TunnelEndpoint is the Schema for the endpoints API
+type TunnelEndpoint struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
-	Spec   EndpointSpec   `json:"spec,omitempty"`
-	Status EndpointStatus `json:"status,omitempty"`
+	Spec   TunnelEndpointSpec   `json:"spec,omitempty"`
+	Status TunnelEndpointStatus `json:"status,omitempty"`
 }
 
 // +kubebuilder:object:root=true
 
-// EndpointList contains a list of Endpoint
-type EndpointList struct {
+// TunnelEndpointList contains a list of TunnelEndpoint
+type TunnelEndpointList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`
-	Items           []Endpoint `json:"items"`
+	Items           []TunnelEndpoint `json:"items"`
 }
 
 func init() {
-	SchemeBuilder.Register(&Endpoint{}, &EndpointList{})
+	SchemeBuilder.Register(&TunnelEndpoint{}, &TunnelEndpointList{})
 }
