@@ -40,9 +40,11 @@ type TunnelEndpointSpec struct {
 type TunnelEndpointStatus struct {
 	// INSERT ADDITIONAL STATUS FIELD - define observed state of cluster
 	// Important: Run "make" to regenerate code after modifying this file
+	EndpointNodeIP	string `json:"endpointNodeIP,omitempty"`
 }
 
 // +kubebuilder:object:root=true
+// +kubebuilder:subresource:status
 
 // TunnelEndpoint is the Schema for the endpoints API
 type TunnelEndpoint struct {

@@ -1,4 +1,4 @@
-package tunnel_operator
+package dronet_operator
 
 import (
 	"fmt"

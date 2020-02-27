@@ -1,6 +1,6 @@
 
 # Image URL to use all building/pushing image targets
-IMG ?= controller:latest
+IMG ?= dronet:latest
 # Produce CRDs that work back to Kubernetes 1.11 (no version conversion)
 CRD_OPTIONS ?= "crd:trivialVersions=true"
 
@@ -23,27 +23,26 @@ manager: generate fmt vet
 
 # Run against the configured Kubernetes cluster in ~/.kube/config
 run: generate manifests
-	go run ./cmd/tunnel-operator/main.go
+	go run ./cmd/dronet-operator/main.go
 
 # Install CRDs into a cluster
 install:
-	kubectl kustomize config/tunnel-operator/crd | kubectl apply -f -
+	kubectl kustomize config/dronet-operator/crd | kubectl apply -f -
 
 # Uninstall CRDs from a cluster
-uninstall: manifests
-	kubectl kustomize config/tunnel-operator/crd | kubectl delete -f -
+uninstall:
+	kubectl kustomize config/dronet-operator/crd | kubectl delete -f -
 
 # Deploy controller in the configured Kubernetes cluster in ~/.kube/config
 deploy: manifests
 	cd config/manager && kustomize edit set image controller=${IMG}
-	kustomize build config/tunnel-operator/default | kubectl apply -f -
+	kustomize build config/dronet-operator/default | kubectl apply -f -
 
 # Generate manifests e.g. CRD, RBAC etc.
 manifests: controller-gen
-    #$(CONTROLLER_GEN) $(CRD_OPTIONS) rbac:roleName=manager-role webhook paths="./..." output:crd:artifacts:config=config/tunnel-operator/crd/bases output:rbac:artifacts:config=config/tunnel-operator/rbac
-	$(CONTROLLER_GEN) $(CRD_OPTIONS) paths="./api/tunnel-endpoint/v1" crd:crdVersions=v1beta1 crd:trivialVersions=false output:crd:artifacts:config=config/tunnel-operator/crd/bases
-	rm config/tunnel-operator/crd/bases/dronet.drone.com_endpoints.yaml
-	mv config/dronet.drone.com_endpoints.yaml config/tunnel-operator/crd/bases/dronet.drone.com_endpoints.yaml
+    #$(CONTROLLER_GEN) $(CRD_OPTIONS) rbac:roleName=manager-role webhook paths="./..." output:crd:artifacts:config=config/dronet-operator/crd/bases output:rbac:artifacts:config=config/dronet-operator/rbac
+	$(CONTROLLER_GEN) $(CRD_OPTIONS) paths="./api/tunnel-endpoint/v1" crd:crdVersions=v1beta1 crd:trivialVersions=false output:crd:artifacts:config=config/dronet-operator/crd/bases
+	rm config/dronet.drone.com_tunnelendpoints.yaml
 
 # Run go fmt against code
 fmt:
@@ -58,8 +57,8 @@ generate: controller-gen
 	$(CONTROLLER_GEN) object:headerFile=./hack/boilerplate.go.txt paths="./..."
 
 # Build the docker image
-docker-build: test
-	docker build ./build/tunnel-operator -t ${IMG}
+docker-build:
+	docker build -f build/dronet-operator/Dockerfile . -t ${IMG}
 
 # Push the docker image
 docker-push:

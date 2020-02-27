@@ -61,14 +61,14 @@ jobs:
         password: ${{ secrets.DOCKER_PASSWORD }}
       if: github.ref == 'refs/heads/master'
     - name: Build Tunnel Operator Docker image
-      run: docker build -f build/tunnel-operator/Dockerfile .
+      run: docker build -f build/dronet-operator/Dockerfile .
       if: github.ref != 'refs/heads/master'
-    - name: Push tunnel-operator image on repo
+    - name: Push dronet-operator image on repo
       uses: HurricanKai/Publish-Docker-Github-Action@master
       with:
-        name: dronev2/tunnel-operator
+        name: dronev2/dronet-operator
         username: ${{ secrets.DOCKER_USERNAME }}
-        dockerfile: build/tunnel-operator/Dockerfile
+        dockerfile: build/dronet-operator/Dockerfile
         password: ${{ secrets.DOCKER_PASSWORD }}
       if: github.ref == 'refs/heads/master'
     - uses: 8398a7/action-slack@v2

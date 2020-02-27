@@ -1,0 +1,45 @@
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  creationTimestamp: null
+  labels:
+    run: route-operator
+  name: route-operator
+  namespace: dronet
+spec:
+  selector:
+    matchLabels:
+      run: route-operator
+  strategy: {}
+  template:
+    metadata:
+      creationTimestamp: null
+      labels:
+        run: route-operator
+    spec:
+      serviceAccountName: route-operator-service-account
+      containers:
+        - image: dronev2/dronet-operator
+          name: route-operator
+          command: ["/usr/bin/route-operator"]
+          args: ["-run-as-route-operator=true"]
+          resources: {}
+          securityContext:
+            privileged: true
+          env:
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: POD_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            - name: POD_IP
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.podIP
+      hostNetwork: true
+      hostPID: true
+      restartPolicy: Always
+status: {}
