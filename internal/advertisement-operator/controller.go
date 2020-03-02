@@ -80,7 +80,7 @@ func (r *AdvertisementReconciler) Reconcile(req ctrl.Request) (ctrl.Result, erro
 		Data: map[string]string{
 			"vkubelet-cfg.json": `
 		{
-		 "virtual-kubelet": {
+		 "vk-` + adv.Spec.ClusterId + `": {
 		   "remoteKubeconfig": "/app/kubeconfig/remote",
 		   "namespace": "drone-v2",
 		   "cpu": "` + adv.Spec.Availability.Cpu().String() + `",

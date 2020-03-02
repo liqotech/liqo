@@ -81,12 +81,14 @@ func CreateVkDeployment(adv protocolv1.Advertisement) appsv1.Deployment {
 
 	command := make([]string, 1)
 	command[0] = "/usr/bin/virtual-kubelet"
-	args := make([]string, 5)
+	args := make([]string, 7)
 	args[0] = "--provider"
 	args[1] = "kubernetes"
 	args[2] = "--provider-config"
 	args[3] = "/app/config/vkubelet-cfg.json"
 	args[4] = "--disable-taint"
+	args[5] = "--nodename"
+	args[6] = "vk-" + adv.Spec.ClusterId
 
 	volumes := make([]v1.Volume, 2)
 	volumes[0] = v1.Volume{
