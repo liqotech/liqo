@@ -27,7 +27,7 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
-	protocolv1 "github.com/netgroup-polito/dronev2/api/v1"
+	protocolv1 "github.com/netgroup-polito/dronev2/api/advertisement-operator/v1"
 	"github.com/netgroup-polito/dronev2/internal/advertisement-operator"
 	// +kubebuilder:scaffold:imports
 )
@@ -84,7 +84,7 @@ func main() {
 	}
 	// +kubebuilder:scaffold:builder
 
-	go advertisement_operator.StartBroadcaster(mgr.GetClient(), clusterId)
+	go advertisement_operator.StartBroadcaster(mgr, clusterId)
 
 	setupLog.Info("starting manager")
 	if err := mgr.Start(ctrl.SetupSignalHandler()); err != nil {

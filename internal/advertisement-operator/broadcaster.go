@@ -3,6 +3,7 @@ package advertisement_operator
 import (
 	"context"
 	"runtime"
+
 	"strings"
 	"time"
 
@@ -18,8 +19,9 @@ import (
 
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/manager"
 
-	protocolv1 "github.com/netgroup-polito/dronev2/api/v1"
+	protocolv1 "github.com/netgroup-polito/dronev2/api/advertisement-operator/v1"
 	pkg "github.com/netgroup-polito/dronev2/pkg/advertisement-operator"
 )
 
@@ -27,10 +29,11 @@ var (
 	log logr.Logger
 )
 
-func StartBroadcaster(localClient client.Client, clusterId string) {
+func StartBroadcaster(localManager manager.Manager, clusterId string) {
 	log = ctrl.Log.WithName("advertisement-broadcaster")
 	log.Info("starting broadcaster")
 
+	localClient := localManager.GetClient()
 	// give time to the cache to be started
 	time.Sleep(5 * time.Second)
 

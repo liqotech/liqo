@@ -28,7 +28,7 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	protocolv1 "github.com/netgroup-polito/dronev2/api/v1"
+	protocolv1 "github.com/netgroup-polito/dronev2/api/advertisement-operator/v1"
 	pkg "github.com/netgroup-polito/dronev2/pkg/advertisement-operator"
 )
 
