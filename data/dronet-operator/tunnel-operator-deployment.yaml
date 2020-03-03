@@ -21,6 +21,7 @@ spec:
       serviceAccountName: tunnel-operator-service-account
       containers:
         - image: dronev2/tunnel-operator
+          imagePullPolicy: Always
           name: tunnel-operator
           command: ["/usr/bin/dronet-operator"]
           resources: {}

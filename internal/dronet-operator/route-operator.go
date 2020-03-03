@@ -100,8 +100,8 @@ func (r *RouteController) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 			if err != nil {
 				log.Error(err, "unable to instantiate the route")
 				return ctrl.Result{}, nil
+				r.RoutesMap[req.NamespacedName.String()] = route
 			}
-			r.RoutesMap[req.NamespacedName.String()] = route
 		}
 
 	}

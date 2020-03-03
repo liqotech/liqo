@@ -20,6 +20,7 @@ spec:
       serviceAccountName: route-operator-service-account
       containers:
         - image: dronev2/dronet-operator
+          imagePullPolicy: Always
           name: route-operator
           command: ["/usr/bin/route-operator"]
           args: ["-run-as-route-operator=true"]
