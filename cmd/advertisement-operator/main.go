@@ -45,11 +45,12 @@ func init() {
 }
 
 func main() {
-	var metricsAddr, foreignKubeconfig, clusterId string
+	var metricsAddr, localKubeconfig, foreignKubeconfig, clusterId string
 	var enableLeaderElection bool
 	flag.StringVar(&metricsAddr, "metrics-addr", ":8080", "The address the metric endpoint binds to.")
 	flag.BoolVar(&enableLeaderElection, "enable-leader-election", false,
 		"Enable leader election for controller manager. Enabling this will ensure there is only one active controller manager.")
+	flag.StringVar(&localKubeconfig, "local-kubeconfig", "", "The path to the kubeconfig of your local cluster.")
 	flag.StringVar(&foreignKubeconfig, "foreign-kubeconfig", "", "The path to the kubeconfig of the foreign cluster.")
 	flag.StringVar(&clusterId, "cluster-id", "", "The cluster ID of your cluster")
 	flag.Parse()
@@ -84,7 +85,8 @@ func main() {
 	}
 	// +kubebuilder:scaffold:builder
 
-	go advertisement_operator.StartBroadcaster(mgr, clusterId)
+
+	go advertisement_operator.StartBroadcaster(clusterId, localKubeconfig, foreignKubeconfig)
 
 	setupLog.Info("starting manager")
 	if err := mgr.Start(ctrl.SetupSignalHandler()); err != nil {

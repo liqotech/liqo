@@ -2,51 +2,52 @@ package advertisement_operator
 
 import (
 	"context"
-	"runtime"
-
 	"strings"
 	"time"
 
 	"github.com/go-logr/logr"
 
-	dockertypes "github.com/docker/docker/api/types"
-	dockerclient "github.com/docker/docker/client"
+	protocolv1 "github.com/netgroup-polito/dronev2/api/advertisement-operator/v1"
+	pkg "github.com/netgroup-polito/dronev2/pkg/advertisement-operator"
 
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/labels"
-
+	"k8s.io/client-go/kubernetes"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/manager"
-
-	protocolv1 "github.com/netgroup-polito/dronev2/api/advertisement-operator/v1"
-	pkg "github.com/netgroup-polito/dronev2/pkg/advertisement-operator"
 )
 
 var (
 	log logr.Logger
 )
 
-func StartBroadcaster(localManager manager.Manager, clusterId string) {
+// start the broadcaster which sends Advertisement messages
+// it reads the ConfigMaps to get the kubeconfigs to the remote clusters and create a client for each of them
+// parameters
+// - clusterId: the cluster ID of your cluster (must be a UUID)
+// - localKubeconfig: the path to the kubeconfig of the local cluster. Set it only when you are debugging and need to launch the program as a process and not inside Kubernetes
+// - foreignKubeconfig: the path to the kubeconfig of the foreign cluster. Set it only when you are debugging and need to launch the program as a process and not inside Kubernetes
+func StartBroadcaster(clusterId string, localKubeconfig string, foreignKubeconfig string) {
 	log = ctrl.Log.WithName("advertisement-broadcaster")
 	log.Info("starting broadcaster")
 
-	localClient := localManager.GetClient()
-	// give time to the cache to be started
-	time.Sleep(5 * time.Second)
+	// get a client to the local cluster
+	localClient, err := pkg.NewK8sClient(localKubeconfig, nil)
+	if err != nil {
+		log.Error(err, "Unable to create client to local cluster")
+		return
+	}
 
 	// get configMaps containing the kubeconfig of the foreign clusters
-	var configMaps v1.ConfigMapList
-	err := localClient.List(context.Background(), &configMaps)
+	configMaps, err := localClient.CoreV1().ConfigMaps("default").List(metav1.ListOptions{})
 	if err != nil {
 		log.Error(err, "Unable to list configMaps")
 		return
 	}
 	for _, cm := range configMaps.Items {
 		if strings.HasPrefix(cm.Name, "foreign-kubeconfig") {
-			go GenerateAdvertisement(localClient, "", cm.DeepCopy(), clusterId)
+			go GenerateAdvertisement(localClient, foreignKubeconfig, cm.DeepCopy(), clusterId)
 		}
 	}
 }
@@ -54,36 +55,36 @@ func StartBroadcaster(localManager manager.Manager, clusterId string) {
 // generate an advertisement message every 10 minutes and post it to remote clusters
 // parameters
 // - localClient: a client to the local kubernetes
-// - foreignKubeconfigPath: the path to a kubeconfig file. If set, this file is used to create a client to the foreign cluster
-// - configMapName: the name of the configMap containing the kubeconfig to the foreign cluster. If foreignKubeconfigPath is set it is ignored
-//					IMPORTANT: the data in the configMap must be named "remote"
-func GenerateAdvertisement(localClient client.Client, foreignKubeconfigPath string, cm *v1.ConfigMap, clusterId string) {
+// - foreignKubeconfigPath: the path to a kubeconfig file. If set, this file is used to create a client to the foreign cluster. Set it only for debugging purposes
+// - cm: the configMap containing the kubeconfig to the foreign cluster. IMPORTANT: the data in the configMap must be named "remote"
+func GenerateAdvertisement(localClient *kubernetes.Clientset, foreignKubeconfigPath string, cm *v1.ConfigMap, clusterId string) {
 	//TODO: recovering logic if errors occurs
 
 	var remoteClient client.Client
 	var err error
 	var retry int
-	remoteClusterId := cm.Name[len("foreign-kubeconfig-"):]
+	// extract the foreign cluster id from the configMap
+	foreignClusterId := cm.Name[len("foreign-kubeconfig-"):]
+
+	// create a CRDclient to the foreign cluster
 	for retry = 0; retry < 3; retry++ {
 		remoteClient, err = pkg.NewCRDClient(foreignKubeconfigPath, cm)
 		if err != nil {
-			log.Error(err, "Unable to create client to remote cluster "+remoteClusterId+". Retry in 1 minute")
+			log.Error(err, "Unable to create client to remote cluster "+foreignClusterId+". Retry in 1 minute")
 			time.Sleep(1 * time.Minute)
 		} else {
 			break
 		}
 	}
 	if retry == 3 {
-		log.Error(err, "Failed to create client to remote cluster "+remoteClusterId)
+		log.Error(err, "Failed to create client to remote cluster "+foreignClusterId)
 		return
 	} else {
-		log.Info("created client to remote cluster " + remoteClusterId)
+		log.Info("created client to remote cluster " + foreignClusterId)
 	}
 
 	for {
-		var nodes v1.NodeList
-		selector, err := labels.Parse("type != virtual-node")
-		err = localClient.List(context.Background(), &nodes, client.MatchingLabelsSelector{Selector: selector})
+		nodes, err := localClient.CoreV1().Nodes().List(metav1.ListOptions{LabelSelector: "type != virtual-node"})
 		if err != nil {
 			log.Error(err, "Unable to list nodes")
 			return
@@ -92,9 +93,9 @@ func GenerateAdvertisement(localClient client.Client, foreignKubeconfigPath stri
 		adv := CreateAdvertisement(nodes.Items, clusterId)
 		err = pkg.CreateOrUpdate(remoteClient, context.Background(), log, adv)
 		if err != nil {
-			log.Error(err, "Unable to create advertisement on remote cluster "+remoteClusterId)
+			log.Error(err, "Unable to create advertisement on remote cluster "+foreignClusterId)
 		} else {
-			log.Info("correctly created advertisement on remote cluster " + remoteClusterId)
+			log.Info("correctly created advertisement on remote cluster " + foreignClusterId)
 		}
 		time.Sleep(10 * time.Minute)
 	}
@@ -117,7 +118,7 @@ func CreateAdvertisement(nodes []v1.Node, clusterId string) protocolv1.Advertise
 			Availability: availability,
 			Prices:       prices,
 			Network: protocolv1.NetworkInfo{
-				PodCIDR:            nodes[0].Spec.PodCIDR, //TODO: which node podCIDR? All?
+				PodCIDR:            GetPodCIDR(nodes),
 				GatewayIP:          GetGateway(nodes),
 				SupportedProtocols: nil,
 			},
@@ -126,6 +127,12 @@ func CreateAdvertisement(nodes []v1.Node, clusterId string) protocolv1.Advertise
 		},
 	}
 	return adv
+}
+
+func GetPodCIDR(nodes []v1.Node) string {
+	//TODO: implement
+
+	return nodes[0].Spec.PodCIDR
 }
 
 func GetGateway(nodes []v1.Node) string {
@@ -170,65 +177,4 @@ func ComputePrices(images []v1.ContainerImage) v1.ResourceList {
 		}
 	}
 	return prices
-}
-
-// create advertisement with all system resources
-func createAdvertisementWithAllSystemResources() protocolv1.Advertisement {
-	var m runtime.MemStats
-	runtime.ReadMemStats(&m)
-
-	freeResources := v1.ResourceList{}
-
-	freeResources[v1.ResourceCPU] = *resource.NewQuantity(int64(runtime.NumCPU()), resource.DecimalSI)
-	freeResources[v1.ResourceMemory] = *resource.NewQuantity(int64(m.Sys-m.Alloc), resource.BinarySI)
-	images := getDockerImages()
-	prices := ComputePrices(images)
-	adv := protocolv1.Advertisement{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "adv-sample",
-			Namespace: "default",
-		},
-		Spec: protocolv1.AdvertisementSpec{
-			ClusterId:    "cluster1",
-			Images:       images,
-			Availability: freeResources,
-			Prices:       prices,
-			Timestamp:    metav1.NewTime(time.Now()),
-			TimeToLive:   metav1.NewTime(time.Now().Add(30 * time.Minute)),
-		},
-	}
-	return adv
-}
-
-// get all local docker images
-func getDockerImages() []v1.ContainerImage {
-	cli, err := dockerclient.NewClientWithOpts(dockerclient.FromEnv)
-	if err != nil {
-		panic(err)
-	}
-
-	dockerImages, err := cli.ImageList(context.Background(), dockertypes.ImageListOptions{})
-	if err != nil {
-		panic(err)
-	}
-
-	//TODO: logic to decide which images will be in the advertisement and to set the price
-
-	// remove docker images without a name
-	for i := 0; i < len(dockerImages); i++ {
-		if dockerImages[i].RepoTags == nil {
-			dockerImages[i] = dockerImages[len(dockerImages)-1]
-			//dockerImages[len(dockerImages)-1] = nil
-			dockerImages = dockerImages[:len(dockerImages)-1]
-		}
-	}
-
-	images := make([]v1.ContainerImage, len(dockerImages))
-
-	for i := 0; i < len(dockerImages); i++ {
-		images[i].Names = append(images[i].Names, dockerImages[i].RepoTags[0])
-		images[i].SizeBytes = dockerImages[i].Size
-	}
-
-	return images
 }
