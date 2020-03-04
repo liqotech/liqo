@@ -24,7 +24,14 @@ type NetworkInfo struct {
 	PodCIDR   string `json:"podCIDR"`
 	GatewayIP string `json:"gatewayIP"`
 	// +optional
+	GatewayPrivateIP string `json:"gatewayPrivateIP"`
+	// +optional
 	SupportedProtocols []string `json:"supportedProtocols,omitempty"`
+}
+
+type NamespacedName struct {
+	Namespace string `json:"namespace"`
+	Name      string `json:"name"`
 }
 
 // AdvertisementSpec defines the desired state of Advertisement
@@ -43,6 +50,8 @@ type AdvertisementSpec struct {
 type AdvertisementStatus struct {
 	AdvertisementStatus string      `json:"advertisementStatus"`
 	ForeignNetwork      NetworkInfo `json:"foreignNetwork"`
+	//the tunnelEndpoint associated with the foreign cluster
+	TunnelEndpointKey	NamespacedName `json:"tunnelEndpointKey"`
 	// +optional
 	ObservedGeneration int64 `json:"observedGeneration,omitempty"`
 }

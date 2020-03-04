@@ -1,0 +1,45 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  creationTimestamp: null
+  labels:
+    run: tunnelendpointcreator-operator
+  name: tunnelendpointcreator-operator
+  namespace: dronet
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      run: tunnelendpointcreator-operator
+  strategy: {}
+  template:
+    metadata:
+      creationTimestamp: null
+      labels:
+        run: tunnelendpointcreator-operator
+    spec:
+      serviceAccountName: tunnelendpointcreator-operator-service-account
+      containers:
+        - image: dronev2/advertisement-operator
+          imagePullPolicy: Always
+          name: tunnelendpointcreator-operator
+          command: ["/usr/bin/advertisement-operator"]
+          args: ["--cluster-id", "", "--run-as-tunnel-endpoint-creator=true"]
+          resources: {}
+          securityContext:
+            privileged: true
+          env:
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: POD_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            - name: POD_IP
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.podIP
+      restartPolicy: Always
+status: {}

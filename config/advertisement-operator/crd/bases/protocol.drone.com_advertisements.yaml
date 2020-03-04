@@ -67,6 +67,8 @@ spec:
               properties:
                 gatewayIP:
                   type: string
+                gatewayPrivateIP:
+                  type: string
                 podCIDR:
                   type: string
                 supportedProtocols:
@@ -105,6 +107,8 @@ spec:
               properties:
                 gatewayIP:
                   type: string
+                gatewayPrivateIP:
+                  type: string
                 podCIDR:
                   type: string
                 supportedProtocols:
@@ -118,9 +122,21 @@ spec:
             observedGeneration:
               format: int64
               type: integer
+            tunnelEndpointKey:
+              description: the tunnelEndpoint associated with the foreign cluster
+              properties:
+                name:
+                  type: string
+                namespace:
+                  type: string
+              required:
+              - name
+              - namespace
+              type: object
           required:
           - advertisementStatus
           - foreignNetwork
+          - tunnelEndpointKey
           type: object
       type: object
   version: v1

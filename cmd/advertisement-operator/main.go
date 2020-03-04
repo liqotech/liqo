@@ -18,6 +18,7 @@ package main
 import (
 	"errors"
 	"flag"
+	"k8s.io/apimachinery/pkg/types"
 	"os"
 
 	"k8s.io/apimachinery/pkg/runtime"
@@ -28,6 +29,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
 	protocolv1 "github.com/netgroup-polito/dronev2/api/advertisement-operator/v1"
+	dronetv1 "github.com/netgroup-polito/dronev2/api/tunnel-endpoint/v1"
 	"github.com/netgroup-polito/dronev2/internal/advertisement-operator"
 	// +kubebuilder:scaffold:imports
 )
@@ -41,11 +43,14 @@ func init() {
 	_ = clientgoscheme.AddToScheme(scheme)
 
 	_ = protocolv1.AddToScheme(scheme)
+
+	_ = dronetv1.AddToScheme(scheme)
 	// +kubebuilder:scaffold:scheme
 }
 
 func main() {
 	var metricsAddr, localKubeconfig, foreignKubeconfig, clusterId string
+	var runsAsTunnelEndpointCreator bool
 	var enableLeaderElection bool
 	flag.StringVar(&metricsAddr, "metrics-addr", ":8080", "The address the metric endpoint binds to.")
 	flag.BoolVar(&enableLeaderElection, "enable-leader-election", false,
@@ -53,6 +58,8 @@ func main() {
 	flag.StringVar(&localKubeconfig, "local-kubeconfig", "", "The path to the kubeconfig of your local cluster.")
 	flag.StringVar(&foreignKubeconfig, "foreign-kubeconfig", "", "The path to the kubeconfig of the foreign cluster.")
 	flag.StringVar(&clusterId, "cluster-id", "", "The cluster ID of your cluster")
+	flag.BoolVar(&runsAsTunnelEndpointCreator, "run-as-tunnel-endpoint-creator", false,
+		"Runs the controller as TunnelEndpointCreator, the default value is false and will run as Advertisement-Operator")
 	flag.Parse()
 
 	ctrl.SetLogger(zap.New(func(o *zap.Options) {
@@ -75,22 +82,41 @@ func main() {
 		os.Exit(1)
 	}
 
-	if err = (&advertisement_operator.AdvertisementReconciler{
-		Client: mgr.GetClient(),
-		Log:    ctrl.Log.WithName("controllers").WithName("Advertisement"),
-		Scheme: mgr.GetScheme(),
-	}).SetupWithManager(mgr); err != nil {
-		setupLog.Error(err, "unable to create controller", "controller", "Advertisement")
-		os.Exit(1)
+	if !runsAsTunnelEndpointCreator{
+		if err = (&advertisement_operator.AdvertisementReconciler{
+			Client: mgr.GetClient(),
+			Log:    ctrl.Log.WithName("controllers").WithName("Advertisement"),
+			Scheme: mgr.GetScheme(),
+		}).SetupWithManager(mgr); err != nil {
+			setupLog.Error(err, "unable to create controller", "controller", "Advertisement")
+			os.Exit(1)
+		}
+		// +kubebuilder:scaffold:builder
+
+
+		go advertisement_operator.StartBroadcaster(clusterId, localKubeconfig, foreignKubeconfig)
+
+		setupLog.Info("starting manager as advertisement-operator")
+		if err := mgr.Start(ctrl.SetupSignalHandler()); err != nil {
+			setupLog.Error(err, "problem running manager")
+			os.Exit(1)
+		}
+	}else {
+		if err = (&advertisement_operator.TunnelEndpointCreator{
+			Client: mgr.GetClient(),
+			Log:    ctrl.Log.WithName("controllers").WithName("TunnelEndpointCreator"),
+			Scheme: mgr.GetScheme(),
+			TunnelEndpointMap: make(map[string]types.NamespacedName),
+		}).SetupWithManager(mgr); err != nil {
+			setupLog.Error(err, "unable to create controller", "controller", "TunnelEndpointCreator")
+			os.Exit(1)
+		}
+
+		setupLog.Info("starting manager as tunnelEndpointCreator-operator")
+		if err := mgr.Start(ctrl.SetupSignalHandler()); err != nil {
+			setupLog.Error(err, "problem running manager")
+			os.Exit(1)
+		}
 	}
-	// +kubebuilder:scaffold:builder
 
-
-	go advertisement_operator.StartBroadcaster(clusterId, localKubeconfig, foreignKubeconfig)
-
-	setupLog.Info("starting manager")
-	if err := mgr.Start(ctrl.SetupSignalHandler()); err != nil {
-		setupLog.Error(err, "problem running manager")
-		os.Exit(1)
-	}
 }
