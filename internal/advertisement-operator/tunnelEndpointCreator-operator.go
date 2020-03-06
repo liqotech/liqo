@@ -267,7 +267,7 @@ func (r *TunnelEndpointCreator) deleteTunEndpoint(advKey types.NamespacedName) e
 				log.Info("failed to delete tunnelEndopoint", "name", tunEndpoint.Name)
 				return err
 			}
-		} else if err.Error() == "notFound" {
+		} else if apierrors.IsNotFound(err) {
 			log.Info("the required tunnelEndpoint CR is not found", "key", tunEndpointKey.String())
 			//remove the entry from the map
 			delete(r.TunnelEndpointMap, advKey.String())
