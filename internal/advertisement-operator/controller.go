@@ -17,8 +17,6 @@ package advertisement_operator
 
 import (
 	"context"
-	"strings"
-
 	"github.com/go-logr/logr"
 
 	v1 "k8s.io/api/core/v1"
@@ -71,8 +69,7 @@ func (r *AdvertisementReconciler) Reconcile(req ctrl.Request) (ctrl.Result, erro
 	if adv.Status.AdvertisementStatus != "ACCEPTED" {
 		return ctrl.Result{}, errors.NewBadRequest("advertisement ignored")
 	}
-	token := strings.Split(adv.Spec.Network.PodCIDR, ".")
-	podCIDR := token[0] + "." + token[1] + "." + "0" + "." + "0/16"
+
 	// create configuration for virtual-kubelet with data from adv
 	vkConfig := v1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
@@ -88,7 +85,7 @@ func (r *AdvertisementReconciler) Reconcile(req ctrl.Request) (ctrl.Result, erro
 		   "cpu": "` + adv.Spec.Availability.Cpu().String() + `",
 		   "memory": "` + adv.Spec.Availability.Memory().String() + `",
 		   "pods": "` + adv.Spec.Availability.Pods().String() + `",
-		   "remoteNewPodCidr": "` + podCIDR + `"
+		   "remoteNewPodCidr": "` + adv.Spec.Network.PodCIDR + `"
 		 }
 		}`},
 	}

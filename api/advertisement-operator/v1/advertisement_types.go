@@ -23,7 +23,6 @@ import (
 type NetworkInfo struct {
 	PodCIDR   string `json:"podCIDR"`
 	GatewayIP string `json:"gatewayIP"`
-	// +optional
 	GatewayPrivateIP string `json:"gatewayPrivateIP"`
 	// +optional
 	SupportedProtocols []string `json:"supportedProtocols,omitempty"`

@@ -120,6 +120,7 @@ func CreateAdvertisement(nodes []v1.Node, clusterId string) protocolv1.Advertise
 			Network: protocolv1.NetworkInfo{
 				PodCIDR:            GetPodCIDR(nodes),
 				GatewayIP:          GetGateway(nodes),
+				GatewayPrivateIP:   GetGatewayPrivateIP(),
 				SupportedProtocols: nil,
 			},
 			Timestamp:  metav1.NewTime(time.Now()),
@@ -131,14 +132,21 @@ func CreateAdvertisement(nodes []v1.Node, clusterId string) protocolv1.Advertise
 
 func GetPodCIDR(nodes []v1.Node) string {
 	//TODO: implement
-
-	return nodes[0].Spec.PodCIDR
+	token := strings.Split(nodes[0].Spec.PodCIDR, ".")
+	podCIDR := token[0] + "." + token[1] + "." + "0" + "." + "0/16"
+	return podCIDR
 }
 
 func GetGateway(nodes []v1.Node) string {
 	//TODO: implement
 
 	return nodes[0].Status.Addresses[0].Address
+}
+
+func GetGatewayPrivateIP() string {
+	//TODO: implement
+
+	return ""
 }
 
 // get cluster resources (cpu, ram and pods) and images
