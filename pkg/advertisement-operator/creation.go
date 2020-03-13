@@ -124,6 +124,7 @@ func CreateVkDeployment(adv protocolv1.Advertisement) appsv1.Deployment {
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "vkubelet-" + adv.Spec.ClusterId,
 			Namespace: "default",
+			OwnerReferences: GetOwnerReference(adv),
 		},
 		Spec: appsv1.DeploymentSpec{
 			Replicas: pointer.Int32Ptr(1),

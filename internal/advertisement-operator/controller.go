@@ -75,6 +75,7 @@ func (r *AdvertisementReconciler) Reconcile(req ctrl.Request) (ctrl.Result, erro
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "vk-config-" + adv.Spec.ClusterId,
 			Namespace: "default",
+			OwnerReferences: pkg.GetOwnerReference(adv),
 		},
 		Data: map[string]string{
 			"vkubelet-cfg.json": `
