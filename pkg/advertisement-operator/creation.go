@@ -120,6 +120,24 @@ func CreateVkDeployment(adv protocolv1.Advertisement) appsv1.Deployment {
 		SubPath:   "remote",
 	}
 
+	affinity := v1.Affinity{
+		NodeAffinity: &v1.NodeAffinity{
+			RequiredDuringSchedulingIgnoredDuringExecution: &v1.NodeSelector{
+				NodeSelectorTerms: []v1.NodeSelectorTerm{
+					v1.NodeSelectorTerm{
+						MatchExpressions: []v1.NodeSelectorRequirement{
+							v1.NodeSelectorRequirement{
+								Key:      "type",
+								Operator: v1.NodeSelectorOpNotIn,
+								Values:   []string{"virtual-node"},
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+
 	deploy := appsv1.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "vkubelet-" + adv.Spec.ClusterId,
@@ -151,6 +169,7 @@ func CreateVkDeployment(adv protocolv1.Advertisement) appsv1.Deployment {
 						},
 					},
 					ServiceAccountName: "virtual-kubelet",
+					Affinity: affinity.DeepCopy(),
 				},
 			},
 		},
