@@ -178,7 +178,7 @@ func ComputePrices(images []v1.ContainerImage) v1.ResourceList {
 	//TODO: logic to set prices
 	prices := v1.ResourceList{}
 	prices[v1.ResourceCPU] = *resource.NewQuantity(1, resource.DecimalSI)
-	prices[v1.ResourceMemory] = *resource.NewQuantity(2, resource.DecimalSI)
+	prices[v1.ResourceMemory] = resource.MustParse("2Gi")
 	for _, image := range images {
 		for _, name := range image.Names {
 			prices[v1.ResourceName(name)] = *resource.NewQuantity(5, resource.DecimalSI)
