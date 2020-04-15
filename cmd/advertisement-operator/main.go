@@ -50,16 +50,18 @@ func init() {
 
 func main() {
 	var metricsAddr, localKubeconfig, foreignKubeconfig, clusterId string
+	var gatewayIP, gatewayPrivateIP string
 	var runsAsTunnelEndpointCreator bool
 	var enableLeaderElection bool
+
 	flag.StringVar(&metricsAddr, "metrics-addr", ":8080", "The address the metric endpoint binds to.")
-	flag.BoolVar(&enableLeaderElection, "enable-leader-election", false,
-		"Enable leader election for controller manager. Enabling this will ensure there is only one active controller manager.")
+	flag.BoolVar(&enableLeaderElection, "enable-leader-election", false, "Enable leader election for controller manager. Enabling this will ensure there is only one active controller manager.")
 	flag.StringVar(&localKubeconfig, "local-kubeconfig", "", "The path to the kubeconfig of your local cluster.")
 	flag.StringVar(&foreignKubeconfig, "foreign-kubeconfig", "", "The path to the kubeconfig of the foreign cluster.")
 	flag.StringVar(&clusterId, "cluster-id", "", "The cluster ID of your cluster")
-	flag.BoolVar(&runsAsTunnelEndpointCreator, "run-as-tunnel-endpoint-creator", false,
-		"Runs the controller as TunnelEndpointCreator, the default value is false and will run as Advertisement-Operator")
+	flag.StringVar(&gatewayIP, "gateway-ip", "", "The IP address of the gateway node")
+	flag.StringVar(&gatewayPrivateIP, "gateway-private-ip", "", "The private IP address of the gateway node")
+	flag.BoolVar(&runsAsTunnelEndpointCreator, "run-as-tunnel-endpoint-creator", false, "Runs the controller as TunnelEndpointCreator, the default value is false and will run as Advertisement-Operator")
 	flag.Parse()
 
 	ctrl.SetLogger(zap.New(func(o *zap.Options) {
@@ -87,6 +89,7 @@ func main() {
 			Client: mgr.GetClient(),
 			Log:    ctrl.Log.WithName("controllers").WithName("Advertisement"),
 			Scheme: mgr.GetScheme(),
+			EventsRecorder:     mgr.GetEventRecorderFor("AdvertisementOperator"),
 		}).SetupWithManager(mgr); err != nil {
 			setupLog.Error(err, "unable to create controller", "controller", "Advertisement")
 			os.Exit(1)
@@ -94,7 +97,7 @@ func main() {
 		// +kubebuilder:scaffold:builder
 
 
-		go advertisement_operator.StartBroadcaster(clusterId, localKubeconfig, foreignKubeconfig)
+		go advertisement_operator.StartBroadcaster(clusterId, localKubeconfig, foreignKubeconfig, gatewayIP, gatewayPrivateIP)
 
 		setupLog.Info("starting manager as advertisement-operator")
 		if err := mgr.Start(ctrl.SetupSignalHandler()); err != nil {

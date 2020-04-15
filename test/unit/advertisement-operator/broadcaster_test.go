@@ -79,7 +79,7 @@ func TestCreateAdvertisement(t *testing.T) {
 
 	nodes, images, _ := createFakeResources()
 	availability, _ := advertisement_operator.GetClusterResources(nodes)
-	adv := advertisement_operator.CreateAdvertisement(nodes, "fake-cluster")
+	adv := advertisement_operator.CreateAdvertisement(nodes, "fake-cluster", "1.2.3.4", "10.0.0.1")
 
 	assert.NotEmpty(t, adv.Name, "Name should be provided")
 	assert.NotEmpty(t, adv.Namespace, "Namespace should be set")
@@ -91,6 +91,7 @@ func TestCreateAdvertisement(t *testing.T) {
 	assert.Equal(t, images, adv.Spec.Images)
 	assert.Equal(t, availability, adv.Spec.Availability)
 	assert.Equal(t, nodes[0].Spec.PodCIDR, adv.Spec.Network.PodCIDR)
-	assert.Equal(t, advertisement_operator.GetGateway(nodes), adv.Spec.Network.GatewayIP)
+	assert.Equal(t, "1.2.3.4", adv.Spec.Network.GatewayIP)
+	assert.Equal(t, "10.0.0.1", adv.Spec.Network.GatewayPrivateIP)
 	assert.Empty(t, adv.Status, "Status should not be set")
 }

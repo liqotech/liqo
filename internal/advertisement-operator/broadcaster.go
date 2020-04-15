@@ -28,7 +28,9 @@ var (
 // - clusterId: the cluster ID of your cluster (must be a UUID)
 // - localKubeconfig: the path to the kubeconfig of the local cluster. Set it only when you are debugging and need to launch the program as a process and not inside Kubernetes
 // - foreignKubeconfig: the path to the kubeconfig of the foreign cluster. Set it only when you are debugging and need to launch the program as a process and not inside Kubernetes
-func StartBroadcaster(clusterId string, localKubeconfig string, foreignKubeconfig string) {
+// - gatewayIP: the IP address of the gateway node
+// - gatewayPrivateIP: the private IP address of the gateway node
+func StartBroadcaster(clusterId string, localKubeconfig string, foreignKubeconfig string, gatewayIP string, gatewayPrivateIP string) {
 	log = ctrl.Log.WithName("advertisement-broadcaster")
 	log.Info("starting broadcaster")
 
@@ -47,7 +49,7 @@ func StartBroadcaster(clusterId string, localKubeconfig string, foreignKubeconfi
 	}
 	for _, cm := range configMaps.Items {
 		if strings.HasPrefix(cm.Name, "foreign-kubeconfig") {
-			go GenerateAdvertisement(localClient, foreignKubeconfig, cm.DeepCopy(), clusterId)
+			go GenerateAdvertisement(localClient, foreignKubeconfig, cm.DeepCopy(), clusterId, gatewayIP, gatewayPrivateIP)
 		}
 	}
 }
@@ -57,7 +59,7 @@ func StartBroadcaster(clusterId string, localKubeconfig string, foreignKubeconfi
 // - localClient: a client to the local kubernetes
 // - foreignKubeconfigPath: the path to a kubeconfig file. If set, this file is used to create a client to the foreign cluster. Set it only for debugging purposes
 // - cm: the configMap containing the kubeconfig to the foreign cluster. IMPORTANT: the data in the configMap must be named "remote"
-func GenerateAdvertisement(localClient *kubernetes.Clientset, foreignKubeconfigPath string, cm *v1.ConfigMap, clusterId string) {
+func GenerateAdvertisement(localClient *kubernetes.Clientset, foreignKubeconfigPath string, cm *v1.ConfigMap, clusterId string, gatewayIP string, gatewayPrivateIP string) {
 	//TODO: recovering logic if errors occurs
 
 	var remoteClient client.Client
@@ -90,7 +92,7 @@ func GenerateAdvertisement(localClient *kubernetes.Clientset, foreignKubeconfigP
 			return
 		}
 
-		adv := CreateAdvertisement(nodes.Items, clusterId)
+		adv := CreateAdvertisement(nodes.Items, clusterId, gatewayIP, gatewayPrivateIP)
 		err = pkg.CreateOrUpdate(remoteClient, context.Background(), log, adv)
 		if err != nil {
 			log.Error(err, "Unable to create advertisement on remote cluster "+foreignClusterId)
@@ -102,7 +104,7 @@ func GenerateAdvertisement(localClient *kubernetes.Clientset, foreignKubeconfigP
 }
 
 // create advertisement message
-func CreateAdvertisement(nodes []v1.Node, clusterId string) protocolv1.Advertisement {
+func CreateAdvertisement(nodes []v1.Node, clusterId string, gatewayIP string, gatewayPrivateIp string) protocolv1.Advertisement {
 
 	availability, images := GetClusterResources(nodes)
 	prices := ComputePrices(images)
@@ -119,8 +121,8 @@ func CreateAdvertisement(nodes []v1.Node, clusterId string) protocolv1.Advertise
 			Prices:       prices,
 			Network: protocolv1.NetworkInfo{
 				PodCIDR:            GetPodCIDR(nodes),
-				GatewayIP:          GetGateway(nodes),
-				GatewayPrivateIP:   GetGatewayPrivateIP(),
+				GatewayIP:          gatewayIP,
+				GatewayPrivateIP:   gatewayPrivateIp,
 				SupportedProtocols: nil,
 			},
 			Timestamp:  metav1.NewTime(time.Now()),
@@ -131,15 +133,12 @@ func CreateAdvertisement(nodes []v1.Node, clusterId string) protocolv1.Advertise
 }
 
 func GetPodCIDR(nodes []v1.Node) string {
-	//TODO: implement
 	token := strings.Split(nodes[0].Spec.PodCIDR, ".")
 	podCIDR := token[0] + "." + token[1] + "." + "0" + "." + "0/16"
 	return podCIDR
 }
 
 func GetGateway(nodes []v1.Node) string {
-	//TODO: implement
-
 	return nodes[0].Status.Addresses[0].Address
 }
 

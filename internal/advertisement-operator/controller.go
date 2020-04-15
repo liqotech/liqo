@@ -18,6 +18,8 @@ package advertisement_operator
 import (
 	"context"
 	"github.com/go-logr/logr"
+	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/client-go/tools/record"
 
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -36,10 +38,13 @@ type AdvertisementReconciler struct {
 	client.Client
 	Log    logr.Logger
 	Scheme *runtime.Scheme
+	EventsRecorder  record.EventRecorder
 }
 
 // +kubebuilder:rbac:groups=protocol.drone.com,resources=advertisements,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=protocol.drone.com,resources=advertisements/status,verbs=get;update;patch
+// +kubebuilder:rbac:groups=core,resources=events,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=core,resources=events/status,verbs=get
 
 func (r *AdvertisementReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 	ctx := context.Background()
@@ -56,15 +61,16 @@ func (r *AdvertisementReconciler) Reconcile(req ctrl.Request) (ctrl.Result, erro
 	// The metadata.generation value is incremented for all changes, except for changes to .metadata or .status
 	// if metadata.generation is not incremented there's no need to reconcile
 	if adv.Status.ObservedGeneration == adv.ObjectMeta.Generation {
-		return ctrl.Result{}, client.IgnoreNotFound(nil)
+		return ctrl.Result{}, nil
 	}
 
-	// filter advertisements and create a virtual-kubelet only for the good ones
-	adv = checkAdvertisement(adv)
-	if err := r.Status().Update(ctx, &adv); err != nil {
-		log.Error(err, "unable to update Advertisement status")
+	// get nodes of the local cluster
+	nodes, err := GetNodes(r.Client, ctx, log)
+	if err != nil{
 		return ctrl.Result{}, err
 	}
+	// filter advertisements and create a virtual-kubelet only for the good ones
+	checkAdvertisement(r, ctx, log, &adv, nodes)
 
 	if adv.Status.AdvertisementStatus != "ACCEPTED" {
 		return ctrl.Result{}, errors.NewBadRequest("advertisement ignored")
@@ -90,7 +96,7 @@ func (r *AdvertisementReconciler) Reconcile(req ctrl.Request) (ctrl.Result, erro
 		 }
 		}`},
 	}
-	err := pkg.CreateOrUpdate(r.Client, ctx, log, vkConfig)
+	err = pkg.CreateOrUpdate(r.Client, ctx, log, vkConfig)
 	if err != nil {
 		return ctrl.Result{}, err
 	}
@@ -112,15 +118,41 @@ func (r *AdvertisementReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		Complete(r)
 }
 
+func GetNodes(c client.Client , ctx context.Context, log logr.Logger) ([]v1.Node, error) {
+	var nodes v1.NodeList
+
+	selector, err := labels.Parse("type != virtual-node")
+	if err = c.List(ctx, &nodes, client.MatchingLabelsSelector{selector}) ; err != nil {
+		log.Error(err, "Unable to list nodes")
+		return nil, err
+	}
+	return nodes.Items, nil
+}
+
 // check if the advertisement is interesting and set its status accordingly
-func checkAdvertisement(adv protocolv1.Advertisement) protocolv1.Advertisement {
+func checkAdvertisement(r *AdvertisementReconciler, ctx context.Context, log logr.Logger,
+	adv *protocolv1.Advertisement, nodes []v1.Node) {
+
 	//TODO: implement logic
 	adv.Status.AdvertisementStatus = "ACCEPTED"
+
+	recordEvent(r, log, "Advertisement " + adv.Name + " accepted", "Normal", "AdvertisementAccepted", adv)
 	adv.Status.ForeignNetwork = protocolv1.NetworkInfo{
-		PodCIDR:            "",
-		GatewayIP:          "",
-		SupportedProtocols: nil,
+		PodCIDR:            GetPodCIDR(nodes),
 	}
 	adv.Status.ObservedGeneration = adv.ObjectMeta.Generation
-	return adv
+	if err := r.Status().Update(ctx, adv); err != nil {
+		log.Error(err, "unable to update Advertisement status")
+	}
+	return
+}
+
+func recordEvent(r *AdvertisementReconciler, log logr.Logger,
+	msg string, eventType string, eventReason string,
+	adv *protocolv1.Advertisement) {
+
+	log.Info(msg)
+	r.EventsRecorder.Event(adv, eventType, eventReason, msg)
+
+	return
 }

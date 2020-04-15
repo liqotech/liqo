@@ -163,6 +163,7 @@ func CreateVkDeployment(adv protocolv1.Advertisement) appsv1.Deployment {
 						{
 							Name:         "virtual-kubelet",
 							Image:        "dronev2/virtual-kubelet",
+							ImagePullPolicy: v1.PullAlways,
 							Command:      command,
 							Args:         args,
 							VolumeMounts: volumeMounts,
