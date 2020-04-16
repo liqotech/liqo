@@ -99,6 +99,11 @@ func (r *TunnelController) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 		err = r.Client.Status().Update(ctx, &endpoint)
 		if err != nil {
 			log.Error(err, "unable to update status field: tunnelIfaceIndex")
+			//if the operator fails to update the status then we also remove the tunnel
+			if err = dronet_operator.DeleteIFaceByIndex(iFaceIndex); err !=nil{
+				log.Error(err, "unable to remove the tunnel interface")
+			}
+			return ctrl.Result{}, err
 		}
 	}
 

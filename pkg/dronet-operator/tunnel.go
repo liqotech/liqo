@@ -77,7 +77,7 @@ func GetLocalTunnelPrivateIPToString() (string, error) {
 	return ipAddress, nil
 }
 
-func InstallGreTunnel(endpoint *v1.TunnelEndpoint) (int, string, error ){
+func InstallGreTunnel(endpoint *v1.TunnelEndpoint) (int, string, error) {
 	//TODO configure the name according to the max length permitted by the kernel
 	name := tunnelNamePrefix
 	//get the local ip address and use it as local ip for the gre tunnel
@@ -134,15 +134,20 @@ func InstallGreTunnel(endpoint *v1.TunnelEndpoint) (int, string, error ){
 
 //this function is called to remove the gre tunnel external resource
 //when the Custorm Resource is deleted. It has to be idempotent
-func RemoveGreTunnel(endpoint *v1.TunnelEndpoint) (error){
+func RemoveGreTunnel(endpoint *v1.TunnelEndpoint) error {
 	//check if the interface index is set
 	if endpoint.Status.TunnelIFaceIndex == 0 {
 		log.Info("no tunnel installed. Do nothing")
 		return nil
-	}else{
+	} else {
 		existingIface, err := netlink.LinkByIndex(endpoint.Status.TunnelIFaceIndex)
+
 		if err != nil {
-			log.Error(err, "unable to rertrieve tunnel interface")
+			if err.Error() == "Link not found" {
+				log.Error(err, "Interface not found")
+				return nil
+			}
+			log.Error(err, "unable to retrieve tunnel interface")
 			return err
 		}
 		//Remove the existing gre interface
@@ -152,4 +157,19 @@ func RemoveGreTunnel(endpoint *v1.TunnelEndpoint) (error){
 		}
 	}
 	return nil
+}
+
+func DeleteIFaceByIndex(ifaceIndex int) error {
+	var err error = nil
+	existingIface, err := netlink.LinkByIndex(ifaceIndex)
+	if err != nil {
+		log.Error(err, "unable to retrieve tunnel interface")
+		return err
+	}
+	//Remove the existing gre interface
+	if err = netlink.LinkDel(existingIface); err != nil {
+		log.Error(err, "unable to delete the tunnel after the tunnelEndpoint CR has been removed")
+		return err
+	}
+	return err
 }
