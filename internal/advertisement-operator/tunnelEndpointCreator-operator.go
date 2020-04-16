@@ -219,10 +219,8 @@ func (r *TunnelEndpointCreator) createTunEndpoint(adv *protocolv1.Advertisement,
 		Spec: dronetv1.TunnelEndpointSpec{
 			ClusterID:       adv.Spec.ClusterId,
 			PodCIDR:         adv.Spec.Network.PodCIDR,
-			RemappedPodCIDR: "",
 			TunnelPublicIP:  adv.Spec.Network.GatewayIP,
 			TunnelPrivateIP: adv.Spec.Network.GatewayPrivateIP,
-			NATEnabled:      false,
 		},
 		Status: dronetv1.TunnelEndpointStatus{},
 	}
