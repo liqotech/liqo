@@ -102,8 +102,6 @@ func main() {
 			Log:           ctrl.Log.WithName("controllers").WithName("TunnelEndpoint"),
 			Scheme:        mgr.GetScheme(),
 			RouteOperator: runAsRouteOperator,
-			ClientSet:     clientset,
-			EndpointMap:   make(map[string]int),
 		}).SetupWithManager(mgr); err != nil {
 			setupLog.Error(err, "unable to create controller", "controller", "TunnelEndpoint")
 			os.Exit(1)

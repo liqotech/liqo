@@ -36,28 +36,32 @@ spec:
         spec:
           description: TunnelEndpointSpec defines the desired state of TunnelEndpoint
           properties:
-            NAT:
-              type: boolean
             clusterID:
-              description: Foo is an example field of TunnelEndpoint. Edit TunnelEndpoint_types.go
-                to remove/update
-              type: string
-            gatewayPublicIP:
               type: string
             podCIDR:
               type: string
-            remappedPodCIDR:
-              type: string
             tunnelPrivateIP:
+              type: string
+            tunnelPublicIP:
               type: string
           type: object
         status:
           description: TunnelEndpointStatus defines the observed state of TunnelEndpoint
           properties:
-            endpointNodeIP:
+            NAT:
+              type: boolean
+            localTunnelPrivateIP:
+              type: string
+            localTunnelPublicIP:
+              type: string
+            remappedPodCIDR:
               description: 'INSERT ADDITIONAL STATUS FIELD - define observed state
                 of cluster Important: Run "make" to regenerate code after modifying
                 this file'
+              type: string
+            tunnelIFaceIndex:
+              type: integer
+            tunnelIFaceName:
               type: string
           type: object
       type: object

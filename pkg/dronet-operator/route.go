@@ -11,18 +11,18 @@ import (
 )
 
 func AddRoute(dst *net.IPNet, gw net.IP, linkIndex int) (netlink.Route, error) {
-	route := netlink.Route{ LinkIndex: linkIndex, Dst: dst, Gw: gw, Flags: unix.RTNH_F_ONLINK}
+	route := netlink.Route{LinkIndex: linkIndex, Dst: dst, Gw: gw, Flags: unix.RTNH_F_ONLINK}
 	if err := netlink.RouteAdd(&route); err != nil {
-		return  route, err
+		return route, err
 	}
 	return route, nil
 }
 
 //get the ip of the vxlan interface added by the flannel cni. this ip is
 //the ip of the node where the tunnel operator runs
-func GetGateway() ( int, net.IP, error) {
+func GetGateway() (int, net.IP, error) {
 	var gw net.IP
-	iface, err := net.InterfaceByName("flannel.1")
+	iface, err := net.InterfaceByName("wlp1s0")
 	if err != nil {
 		return 0, gw, nil
 	}
@@ -35,38 +35,35 @@ func GetGateway() ( int, net.IP, error) {
 	return iface.Index, gw, nil
 }
 
-func DelRoute (route netlink.Route) error {
+func DelRoute(route netlink.Route) error {
 	//try to remove all the routes for that ip
-		err := netlink.RouteDel(&route)
-		if err != nil {
-			klog.V(6).Info("unable to remove the route" + route.String())
-			return err
-		}
+	err := netlink.RouteDel(&route)
+	if err != nil {
+		klog.V(6).Info("unable to remove the route" + route.String())
+		return err
+	}
 	return nil
 }
 
- func StringtoIPNet(ipNet string) (net.IP, error) {
- 	ip, _, err := net.ParseCIDR(ipNet)
- 	if err != nil {
- 		return nil, err
+func StringtoIPNet(ipNet string) (net.IP, error) {
+	ip, _, err := net.ParseCIDR(ipNet)
+	if err != nil {
+		return nil, err
 	}
 	return ip, nil
 }
 
-func ValidateCRAndReturn(endpoint *v1.TunnelEndpoint) (podCIDR *net.IPNet, endNodeIP net.IP, err error){
-	endpointIP := endpoint.Status.EndpointNodeIP
-	if endpointIP == ""{
+func ValidateCRAndReturn(endpoint *v1.TunnelEndpoint) (podCIDR *net.IPNet, endNodeIP net.IP, err error) {
+	endpointIP := endpoint.Status.LocalTunnelPublicIP
+	if endpointIP == "" {
 		err = errors.New("the endpoint ip is not set yet, unable to instantiate the route")
 		return
 	}
 	endNodeIP = net.ParseIP(endpointIP)
 
 	var remPodCIDR string
-	if(endpoint.Spec.NATEnabled){
-		remPodCIDR = endpoint.Spec.RemappedPodCIDR
-	}else{
-		remPodCIDR = endpoint.Spec.PodCIDR
-	}
+
+	remPodCIDR = endpoint.Spec.PodCIDR
 	_, podCIDR, err = net.ParseCIDR(remPodCIDR)
 	if err != nil {
 		return

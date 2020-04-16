@@ -19,9 +19,7 @@ import (
 	"github.com/go-logr/logr"
 	"github.com/netgroup-polito/dronev2/api/tunnel-endpoint/v1"
 	dronet_operator "github.com/netgroup-polito/dronev2/pkg/dronet-operator"
-	"github.com/vishvananda/netlink"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/client-go/kubernetes"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
@@ -31,10 +29,7 @@ type TunnelController struct {
 	client.Client
 	Log           logr.Logger
 	Scheme        *runtime.Scheme
-	clientset     kubernetes.Clientset
 	RouteOperator bool
-	ClientSet     *kubernetes.Clientset
-	EndpointMap   map[string]int
 }
 
 // +kubebuilder:rbac:groups=dronet.drone.com,resources=tunnelendpoints,verbs=get;list;watch;create;update;patch;delete
@@ -44,50 +39,94 @@ func (r *TunnelController) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 	ctx := context.Background()
 	log := r.Log.WithValues("endpoint", req.NamespacedName)
 	var endpoint v1.TunnelEndpoint
+	//name of our finalizer
+	tunnelEndpointFinalizer := "tunnelEndpointFinalizer.dronet.drone.com"
 
-		if err := r.Get(ctx, req.NamespacedName, &endpoint); err != nil {
-			val, found := r.EndpointMap[req.NamespacedName.String()];
-			if client.IgnoreNotFound(err) == nil && found{
-				existingIface, err := netlink.LinkByIndex(val)
-				if err != nil {
-					log.Error(err, "unable to delete the tunnel after the tunnelEndpoint CR has been removet")
-				}
-				//Remove the existing gre interface
-				if err = netlink.LinkDel(existingIface); err != nil {
-					log.Error(err, "unable to delete the tunnel after the tunnelEndpoint CR has been removet")
-				}
-
+	if err := r.Get(ctx, req.NamespacedName, &endpoint); err != nil {
+		log.Error(err, "unable to fetch endpoint, probably it has been deleted")
+		return ctrl.Result{}, client.IgnoreNotFound(err)
+	}
+	// examine DeletionTimestamp to determine if object is under deletion
+	if endpoint.ObjectMeta.DeletionTimestamp.IsZero() {
+		if !containsString(endpoint.ObjectMeta.Finalizers, tunnelEndpointFinalizer) {
+			// The object is not being deleted, so if it does not have our finalizer,
+			// then lets add the finalizer and update the object. This is equivalent
+			// registering our finalizer.
+			endpoint.ObjectMeta.Finalizers = append(endpoint.Finalizers, tunnelEndpointFinalizer)
+			if err := r.Update(ctx, &endpoint); err != nil {
+				log.Error(err, "unable to update endpoint")
+				return ctrl.Result{}, err
 			}
-
-			log.Error(err, "unable to fetch endpoint")
-			return ctrl.Result{}, client.IgnoreNotFound(err)
-
 		}
-		_, gatewayHostIP, err := dronet_operator.GetGateway()
-		if err != nil {
-			log.Error(err, "unable to get the gatewayHostIP")
-		}
-
-		//update the status of the endpoint custom resource
-		//and install the tunnel only
-		if(endpoint.Status.EndpointNodeIP != gatewayHostIP.String()){
-			endpoint.Status.EndpointNodeIP = gatewayHostIP.String()
-			err := r.Client.Status().Update(ctx, &endpoint)
-			if err != nil {
-				log.Error(err, "unable to update status field: gatewayHostIP")
+	} else {
+		//the object is being deleted
+		if containsString(endpoint.Finalizers, tunnelEndpointFinalizer) {
+			if err := dronet_operator.RemoveGreTunnel(&endpoint); err != nil {
+				return ctrl.Result{}, err
 			}
-			ifaceIndex, err := dronet_operator.InstallGreTunnel(&endpoint)
-			if err != nil {
-				log.Error(err, "unable to create the gre tunnel")
+			log.Info("tunnel iface removed")
+			//remove the finalizer from the list and update it.
+			endpoint.Finalizers = removeString(endpoint.Finalizers, tunnelEndpointFinalizer)
+			if err := r.Update(ctx, &endpoint); err != nil {
+				return ctrl.Result{}, err
 			}
-			r.EndpointMap[req.NamespacedName.String()] = ifaceIndex
 		}
-
 		return ctrl.Result{}, nil
+	}
+
+	//update the status of the endpoint custom resource
+	//and install the tunnel only
+	//check if the CR is newly created
+	if endpoint.Status.TunnelIFaceIndex == 0 && endpoint.Status.TunnelIFaceName == "" && endpoint.Status.LocalTunnelPrivateIP == "" && endpoint.Status.LocalTunnelPublicIP == "" {
+		iFaceIndex, iFaceName, err := dronet_operator.InstallGreTunnel(&endpoint)
+		if err != nil {
+			log.Error(err, "unable to create the gre tunnel")
+			return ctrl.Result{}, err
+		}
+		//update the status of CR
+		localTunnelPublicIP, err := dronet_operator.GetLocalTunnelPublicIPToString()
+		if err != nil {
+			log.Error(err, "unable to get localTunnelPublicIP")
+		}
+		localTunnelPrivateIP, err := dronet_operator.GetLocalTunnelPrivateIPToString()
+		if err != nil {
+			log.Error(err, "unable to get localTunnelPrivateIP")
+		}
+		endpoint.Status.TunnelIFaceName = iFaceName
+		endpoint.Status.TunnelIFaceIndex = iFaceIndex
+		endpoint.Status.LocalTunnelPrivateIP = localTunnelPrivateIP
+		endpoint.Status.LocalTunnelPublicIP = localTunnelPublicIP
+		err = r.Client.Status().Update(ctx, &endpoint)
+		if err != nil {
+			log.Error(err, "unable to update status field: tunnelIfaceIndex")
+		}
+	}
+
+	return ctrl.Result{}, nil
 }
 
 func (r *TunnelController) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&v1.TunnelEndpoint{}).
 		Complete(r)
+}
+
+// Helper functions to check and remove string from a slice of strings.
+func containsString(slice []string, s string) bool {
+	for _, item := range slice {
+		if item == s {
+			return true
+		}
+	}
+	return false
+}
+
+func removeString(slice []string, s string) (result []string) {
+	for _, item := range slice {
+		if item == s {
+			continue
+		}
+		result = append(result, item)
+	}
+	return
 }

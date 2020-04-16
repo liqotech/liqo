@@ -27,20 +27,22 @@ type TunnelEndpointSpec struct {
 	// INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
 	// Important: Run "make" to regenerate code after modifying this file
 
-	// Foo is an example field of TunnelEndpoint. Edit TunnelEndpoint_types.go to remove/update
 	ClusterID       string `json:"clusterID,omitempty"`
 	PodCIDR         string `json:"podCIDR,omitempty"`
-	RemappedPodCIDR string `json:"remappedPodCIDR,omitempty"`
-	GatewayPublicIP string `json:"gatewayPublicIP,omitempty"`
+	TunnelPublicIP  string `json:"tunnelPublicIP,omitempty"`
 	TunnelPrivateIP string `json:"tunnelPrivateIP,omitempty"`
-	NATEnabled      bool   `json:"NAT,omitempty"`
 }
 
 // TunnelEndpointStatus defines the observed state of TunnelEndpoint
 type TunnelEndpointStatus struct {
 	// INSERT ADDITIONAL STATUS FIELD - define observed state of cluster
 	// Important: Run "make" to regenerate code after modifying this file
-	EndpointNodeIP	string `json:"endpointNodeIP,omitempty"`
+	RemappedPodCIDR     string `json:"remappedPodCIDR,omitempty"`
+	NATEnabled          bool   `json:"NAT,omitempty"`
+	LocalTunnelPublicIP string `json:"localTunnelPublicIP,omitempty"`
+	LocalTunnelPrivateIP string `json:"localTunnelPrivateIP,omitempty"`
+	TunnelIFaceIndex    int    `json:"tunnelIFaceIndex,omitempty"`
+	TunnelIFaceName     string `json:"tunnelIFaceName,omitempty"`
 }
 
 // +kubebuilder:object:root=true

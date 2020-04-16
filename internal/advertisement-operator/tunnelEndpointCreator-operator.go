@@ -136,7 +136,7 @@ func (r *TunnelEndpointCreator) getTunEndPerADV(adv *protocolv1.Advertisement) (
 }
 
 func (r *TunnelEndpointCreator) isTunEndpointUpdated(adv *protocolv1.Advertisement, tunEndpoint *dronetv1.TunnelEndpoint) bool {
-	if adv.Spec.ClusterId == tunEndpoint.Spec.ClusterID && adv.Spec.Network.PodCIDR == tunEndpoint.Spec.PodCIDR && adv.Spec.Network.GatewayIP == tunEndpoint.Spec.GatewayPublicIP && adv.Spec.Network.GatewayPrivateIP == tunEndpoint.Spec.TunnelPrivateIP {
+	if adv.Spec.ClusterId == tunEndpoint.Spec.ClusterID && adv.Spec.Network.PodCIDR == tunEndpoint.Spec.PodCIDR && adv.Spec.Network.GatewayIP == tunEndpoint.Spec.TunnelPublicIP && adv.Spec.Network.GatewayPrivateIP == tunEndpoint.Spec.TunnelPrivateIP {
 		return true
 	} else {
 		return false
@@ -175,7 +175,7 @@ func (r *TunnelEndpointCreator) updateTunEndpoint(adv *protocolv1.Advertisement,
 	log := r.Log.WithValues("tunnelEndpointCreator-controller", funcName)
 	tunEndpoint.Spec.ClusterID = adv.Spec.ClusterId
 	tunEndpoint.Spec.PodCIDR = adv.Spec.Network.PodCIDR
-	tunEndpoint.Spec.GatewayPublicIP = adv.Spec.Network.GatewayIP
+	tunEndpoint.Spec.TunnelPublicIP = adv.Spec.Network.GatewayIP
 	tunEndpoint.Spec.TunnelPrivateIP = adv.Spec.Network.GatewayPrivateIP
 	err := r.Update(ctx, tunEndpoint)
 	if err == nil {
@@ -220,7 +220,7 @@ func (r *TunnelEndpointCreator) createTunEndpoint(adv *protocolv1.Advertisement,
 			ClusterID:       adv.Spec.ClusterId,
 			PodCIDR:         adv.Spec.Network.PodCIDR,
 			RemappedPodCIDR: "",
-			GatewayPublicIP: adv.Spec.Network.GatewayIP,
+			TunnelPublicIP:  adv.Spec.Network.GatewayIP,
 			TunnelPrivateIP: adv.Spec.Network.GatewayPrivateIP,
 			NATEnabled:      false,
 		},
