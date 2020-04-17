@@ -27,10 +27,10 @@ type TunnelEndpointSpec struct {
 	// INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
 	// Important: Run "make" to regenerate code after modifying this file
 
-	ClusterID       string `json:"clusterID,omitempty"`
-	PodCIDR         string `json:"podCIDR,omitempty"`
-	TunnelPublicIP  string `json:"tunnelPublicIP,omitempty"`
-	TunnelPrivateIP string `json:"tunnelPrivateIP,omitempty"`
+	ClusterID       string `json:"clusterID"`
+	PodCIDR         string `json:"podCIDR"`
+	TunnelPublicIP  string `json:"tunnelPublicIP"`
+	TunnelPrivateIP string `json:"tunnelPrivateIP"`
 }
 
 // TunnelEndpointStatus defines the observed state of TunnelEndpoint
@@ -39,6 +39,8 @@ type TunnelEndpointStatus struct {
 	// Important: Run "make" to regenerate code after modifying this file
 	RemappedPodCIDR     string `json:"remappedPodCIDR,omitempty"`
 	NATEnabled          bool   `json:"NAT,omitempty"`
+	RemoteTunnelPublicIP string `json:"remoteTunnelPublicIP,omitempty"`
+	RemoteTunnelPrivateIP string `json:"remoteTunnelPrivateIP,omitempty"`
 	LocalTunnelPublicIP string `json:"localTunnelPublicIP,omitempty"`
 	LocalTunnelPrivateIP string `json:"localTunnelPrivateIP,omitempty"`
 	TunnelIFaceIndex    int    `json:"tunnelIFaceIndex,omitempty"`

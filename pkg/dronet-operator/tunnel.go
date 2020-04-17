@@ -112,23 +112,6 @@ func InstallGreTunnel(endpoint *v1.TunnelEndpoint) (int, string, error) {
 	if err = gretunnel.setUp(); err != nil {
 		return 0, "", err
 	}
-	//dst := &net.IPNet{
-	//	IP:   net.ParseIP(endpoint.Spec.TunnelPrivateIP),
-	//	Mask: net.CIDRMask(32, 32),
-	//}
-	//route := netlink.Route{LinkIndex: gretunnel.link.Attrs().Index, Dst: dst}
-	//if err := netlink.RouteAdd(&route); err != nil {
-	//	return 0, err
-	//}
-	//dst, _, err = ValidateCRAndReturn(endpoint)
-	//if err != nil{
-	//	return 0, err
-	//}
-	//route = netlink.Route{LinkIndex: gretunnel.link.Attrs().Index, Dst: dst}
-	//if err := netlink.RouteAdd(&route); err != nil {
-	//	return 0, err
-	//}
-
 	return gretunnel.link.Index, gretunnel.link.Name, nil
 }
 
@@ -140,7 +123,7 @@ func RemoveGreTunnel(endpoint *v1.TunnelEndpoint) error {
 		log.Info("no tunnel installed. Do nothing")
 		return nil
 	} else {
-		existingIface, err := netlink.LinkByIndex(endpoint.Status.TunnelIFaceIndex)
+		existingIface, err := GetIfaceByIndex(endpoint.Status.TunnelIFaceIndex)
 
 		if err != nil {
 			if err.Error() == "Link not found" {
@@ -172,4 +155,14 @@ func DeleteIFaceByIndex(ifaceIndex int) error {
 		return err
 	}
 	return err
+}
+
+func GetIfaceByIndex (iFaceIndex int) (netlink.Link, error) {
+	existingIface, err := netlink.LinkByIndex(iFaceIndex)
+
+	if err != nil {
+		log.Error(err, "unable to retrieve tunnel interface")
+		return existingIface, err
+	}
+	return existingIface, err
 }

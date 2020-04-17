@@ -96,6 +96,8 @@ func (r *TunnelController) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 		endpoint.Status.TunnelIFaceIndex = iFaceIndex
 		endpoint.Status.LocalTunnelPrivateIP = localTunnelPrivateIP
 		endpoint.Status.LocalTunnelPublicIP = localTunnelPublicIP
+		endpoint.Status.RemoteTunnelPrivateIP = endpoint.Spec.TunnelPrivateIP
+		endpoint.Status.RemoteTunnelPublicIP = endpoint.Spec.TunnelPublicIP
 		err = r.Client.Status().Update(ctx, &endpoint)
 		if err != nil {
 			log.Error(err, "unable to update status field: tunnelIfaceIndex")
@@ -105,6 +107,36 @@ func (r *TunnelController) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 			}
 			return ctrl.Result{}, err
 		}
+	}else {
+		//get tunnel addresses for the tunnel link
+		if endpoint.Status.RemoteTunnelPrivateIP != endpoint.Spec.TunnelPrivateIP || endpoint.Status.RemoteTunnelPublicIP != endpoint.Spec.TunnelPublicIP {
+			//remove the external resource
+			if err := dronet_operator.RemoveGreTunnel(&endpoint); err !=nil{
+				log.Error(err, "unable to remove the tunnel interface")
+				return ctrl.Result{}, err
+			}
+			//create new external resource
+			iFaceIndex, iFaceName, err := dronet_operator.InstallGreTunnel(&endpoint)
+			if err != nil {
+				log.Error(err, "unable to create the gre tunnel")
+				return ctrl.Result{}, err
+			}
+			endpoint.Status.TunnelIFaceName = iFaceName
+			endpoint.Status.TunnelIFaceIndex = iFaceIndex
+			endpoint.Status.RemoteTunnelPrivateIP = endpoint.Spec.TunnelPrivateIP
+			endpoint.Status.RemoteTunnelPublicIP = endpoint.Spec.TunnelPublicIP
+			err = r.Client.Status().Update(ctx, &endpoint)
+			if err != nil {
+				log.Error(err, "unable to update status field: tunnelIfaceIndex")
+				//if the operator fails to update the status then we also remove the tunnel
+				if err = dronet_operator.DeleteIFaceByIndex(iFaceIndex); err !=nil{
+					log.Error(err, "unable to remove the tunnel interface")
+				}
+				return ctrl.Result{}, err
+			}
+		}
+
+
 	}
 
 	return ctrl.Result{}, nil
