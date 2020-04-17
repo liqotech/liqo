@@ -47,6 +47,13 @@ func StartBroadcaster(clusterId string, localKubeconfig string, foreignKubeconfi
 		log.Error(err, "Unable to list configMaps")
 		return
 	}
+
+	// when debugging use the foreignKubeconfig
+	if foreignKubeconfig != "" {
+		GenerateAdvertisement(localClient, foreignKubeconfig, nil, clusterId, gatewayIP, gatewayPrivateIP)
+	}
+
+	// during operation the foreignKubeconfigs are taken from the ConfigMaps
 	for _, cm := range configMaps.Items {
 		if strings.HasPrefix(cm.Name, "foreign-kubeconfig") {
 			go GenerateAdvertisement(localClient, foreignKubeconfig, cm.DeepCopy(), clusterId, gatewayIP, gatewayPrivateIP)
@@ -65,9 +72,12 @@ func GenerateAdvertisement(localClient *kubernetes.Clientset, foreignKubeconfigP
 	var remoteClient client.Client
 	var err error
 	var retry int
-	// extract the foreign cluster id from the configMap
-	foreignClusterId := cm.Name[len("foreign-kubeconfig-"):]
+	var foreignClusterId string
 
+	// extract the foreign cluster id from the configMap
+	if cm != nil {
+		foreignClusterId = cm.Name[len("foreign-kubeconfig-"):]
+	}
 	// create a CRDclient to the foreign cluster
 	for retry = 0; retry < 3; retry++ {
 		remoteClient, err = pkg.NewCRDClient(foreignKubeconfigPath, cm)
@@ -133,8 +143,13 @@ func CreateAdvertisement(nodes []v1.Node, clusterId string, gatewayIP string, ga
 }
 
 func GetPodCIDR(nodes []v1.Node) string {
+	var podCIDR string
 	token := strings.Split(nodes[0].Spec.PodCIDR, ".")
-	podCIDR := token[0] + "." + token[1] + "." + "0" + "." + "0/16"
+	if len(token) >= 2 {
+		podCIDR = token[0] + "." + token[1] + "." + "0" + "." + "0/16"
+	} else{
+		podCIDR = "172.17.0.0/16"
+	}
 	return podCIDR
 }
 

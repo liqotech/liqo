@@ -55,21 +55,21 @@ spec:
           - "$(GATEWAY_IP)"
           - "--gateway-private-ip"
           - "$(GATEWAY_PRIVATE_IP)"
-          env:
-            - name: CLUSTER_ID
-              valueFrom:
-                configMapKeyRef:
-                  name: adv-operator-config
-                  key: clusterId
-            - name: GATEWAY_IP
-              valueFrom:
-                configMapKeyRef:
-                  name: adv-operator-config
-                  key: gatewayIP
-            - name: GATEWAY_PRIVATE_IP
-              valueFrom:
-                configMapKeyRef:
-                  name: adv-operator-config
-                  key: gatewayPrivateIP
+        env:
+          - name: CLUSTER_ID
+            valueFrom:
+              configMapKeyRef:
+                name: adv-operator-config
+                key: clusterId
+          - name: LOCAL_TUNNEL_PUBLIC_IP
+            valueFrom:
+              configMapKeyRef:
+                name: adv-operator-config
+                key: gatewayIP
+          - name: LOCAL_TUNNEL_PRIVATE_IP
+            valueFrom:
+              configMapKeyRef:
+                name: adv-operator-config
+                key: gatewayPrivateIP
 status: {}
 
