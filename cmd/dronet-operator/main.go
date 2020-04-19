@@ -18,6 +18,7 @@ package main
 import (
 	"flag"
 	"github.com/netgroup-polito/dronev2/api/tunnel-endpoint/v1"
+	dronet_operator "github.com/netgroup-polito/dronev2/pkg/dronet-operator"
 	"github.com/vishvananda/netlink"
 	"k8s.io/client-go/kubernetes"
 	"os"
@@ -35,6 +36,12 @@ import (
 var (
 	scheme   = runtime.NewScheme()
 	setupLog = ctrl.Log.WithName("setup")
+	vxlanNetwork = "192.168.200.0/24"
+	vxlanTestIP = "192.168.200.2/24"
+	vxlanDeviceName = "dronet"
+	vxlanLocalIP = "192.168.43.96"
+	vxlanMTU = 1450
+
 )
 
 func init() {
@@ -80,6 +87,12 @@ func main() {
 
 	// +kubebuilder:scaffold:builder
 	if runAsRouteOperator {
+
+		err = dronet_operator.CreateVxLANInterface(clientset)
+		if err != nil{
+			setupLog.Error(err, "an error occurred while creating vxlan interface")
+		}
+
 		if err = (&controllers.RouteController{
 			Client:        mgr.GetClient(),
 			Log:           ctrl.Log.WithName("controllers").WithName("Route"),

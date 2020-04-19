@@ -1,6 +1,6 @@
 
 # Image URL to use all building/pushing image targets
-IMG ?= dronet:latest
+IMG ?= aldokcl/dronet:development
 # Produce CRDs that work back to Kubernetes 1.11 (no version conversion)
 CRD_OPTIONS ?= "crd:trivialVersions=true"
 
@@ -41,7 +41,8 @@ deploy: manifests
 # Generate manifests e.g. CRD, RBAC etc.
 manifests: controller-gen
     #$(CONTROLLER_GEN) $(CRD_OPTIONS) rbac:roleName=manager-role webhook paths="./..." output:crd:artifacts:config=config/dronet-operator/crd/bases output:rbac:artifacts:config=config/dronet-operator/rbac
-	$(CONTROLLER_GEN) $(CRD_OPTIONS) paths="./api/tunnel-endpoint/v1" crd:crdVersions=v1beta1 crd:trivialVersions=false output:crd:artifacts:config=config/dronet-operator/crd/bases
+	#$(CONTROLLER_GEN) $(CRD_OPTIONS) paths="./internal/dronet-operator/route-operator.go" rbac:roleName=manager-role crd:crdVersions=v1beta1 crd:trivialVersions=false output:crd:artifacts:config=config/dronet-operator/crd/bases output:rbac:artifacts:config=config/dronet-operator/rbac
+	$(CONTROLLER_GEN) $(CRD_OPTIONS) paths="./api/tunnel-endpoint/v1" rbac:roleName=manager-role crd:crdVersions=v1beta1 crd:trivialVersions=false output:crd:artifacts:config=config/dronet-operator/crd/bases output:rbac:artifacts:config=config/dronet-operator/rbac
 	rm config/dronet.drone.com_tunnelendpoints.yaml
 
 # Run go fmt against code
@@ -61,7 +62,7 @@ docker-build:
 	docker build -f build/dronet-operator/Dockerfile . -t ${IMG}
 
 # Push the docker image
-docker-push:
+docker-push: docker-build
 	docker push ${IMG}
 
 # find or download controller-gen
