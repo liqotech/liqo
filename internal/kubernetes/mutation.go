@@ -44,6 +44,25 @@ func H2FTranslate(pod *v1.Pod) *v1.Pod {
 		Labels:    pod.Labels,
 	}
 
+	// copy all containers from input pod
+	containers := make([]v1.Container, len(pod.Spec.Containers))
+	for i := 0; i < len(pod.Spec.Containers); i++ {
+		containers[i] = v1.Container{
+			Name:                     pod.Spec.Containers[i].Name,
+			Image:                    pod.Spec.Containers[i].Image,
+			Command:                  pod.Spec.Containers[i].Command,
+			Args:                     pod.Spec.Containers[i].Args,
+			WorkingDir:               pod.Spec.Containers[i].WorkingDir,
+			Ports:                    pod.Spec.Containers[i].Ports,
+			Env:                      pod.Spec.Containers[i].Env,
+			Resources:                pod.Spec.Containers[i].Resources,
+			LivenessProbe:            pod.Spec.Containers[i].LivenessProbe,
+			ReadinessProbe:           pod.Spec.Containers[i].ReadinessProbe,
+			StartupProbe:             pod.Spec.Containers[i].StartupProbe,
+			SecurityContext:          pod.Spec.Containers[i].SecurityContext,
+		}
+	}
+
 	affinity := v1.Affinity{
 		NodeAffinity: &v1.NodeAffinity{
 			RequiredDuringSchedulingIgnoredDuringExecution: &v1.NodeSelector{
@@ -63,8 +82,9 @@ func H2FTranslate(pod *v1.Pod) *v1.Pod {
 	}
 	// create an empty Spec for the output pod, copying only "Containers" field
 	podSpec := v1.PodSpec{
-		Containers: pod.Spec.Containers,
+		Containers: containers,
 		Affinity:   affinity.DeepCopy(),
+		//TODO: check if we need other fields
 	}
 
 	metav1.SetMetaDataAnnotation(&objectMeta, "home_nodename", pod.Spec.NodeName)
