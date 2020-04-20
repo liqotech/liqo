@@ -44,13 +44,6 @@ func H2FTranslate(pod *v1.Pod) *v1.Pod {
 		Labels:    pod.Labels,
 	}
 
-	// copy all containers from input pod
-	containers := make([]v1.Container, len(pod.Spec.Containers))
-	for i := 0; i < len(pod.Spec.Containers); i++ {
-		containers[i].Name = pod.Spec.Containers[i].Name
-		containers[i].Image = pod.Spec.Containers[i].Image
-	}
-
 	affinity := v1.Affinity{
 		NodeAffinity: &v1.NodeAffinity{
 			RequiredDuringSchedulingIgnoredDuringExecution: &v1.NodeSelector{
@@ -70,7 +63,7 @@ func H2FTranslate(pod *v1.Pod) *v1.Pod {
 	}
 	// create an empty Spec for the output pod, copying only "Containers" field
 	podSpec := v1.PodSpec{
-		Containers: containers,
+		Containers: pod.Spec.Containers,
 		Affinity:   affinity.DeepCopy(),
 	}
 
