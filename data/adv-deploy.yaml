@@ -44,6 +44,15 @@ spec:
         run: advertisement-operator
     spec:
       serviceAccountName: virtual-kubelet
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+              - matchExpressions:
+                  - key: type
+                    operator: NotIn
+                    values:
+                      - virtual-node
       containers:
       - image: dronev2/advertisement-operator
         name: advertisement-operator
@@ -52,9 +61,9 @@ spec:
           - "--cluster-id"
           - "$(CLUSTER_ID)"
           - "--gateway-ip"
-          - "$(GATEWAY_IP)"
+          - "$(LOCAL_TUNNEL_PUBLIC_IP)"
           - "--gateway-private-ip"
-          - "$(GATEWAY_PRIVATE_IP)"
+          - "$(LOCAL_TUNNEL_PRIVATE_IP)"
         env:
           - name: CLUSTER_ID
             valueFrom:
