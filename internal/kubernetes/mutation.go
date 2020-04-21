@@ -23,7 +23,7 @@ func F2HTranslate(podForeignIn *v1.Pod, newCidr string) (podHomeOut *v1.Pod) {
 		_ = fmt.Errorf("Unable to parse time")
 	}
 	if podHomeOut.Status.PodIP != "" {
-		newIp := changePodIp(newCidr, podHomeOut.Status.PodIP)
+		newIp := ChangePodIp(newCidr, podHomeOut.Status.PodIP)
 		podHomeOut.Status.PodIP = newIp
 		podHomeOut.Status.PodIPs[0].IP = newIp
 	}
@@ -100,7 +100,7 @@ func H2FTranslate(pod *v1.Pod) *v1.Pod {
 	}
 }
 
-func changePodIp(newPodCidr string, oldPodIp string) (newPodIp string) {
+func ChangePodIp(newPodCidr string, oldPodIp string) (newPodIp string) {
 	//the last two slices are the suffix of the newPodIp
 	oldPodIpTokenized := strings.Split(oldPodIp, ".")
 	newPodCidrTokenized := strings.Split(newPodCidr, "/")
