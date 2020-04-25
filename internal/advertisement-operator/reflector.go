@@ -47,7 +47,11 @@ func StartReflector(log logr.Logger, namespace string, adv protocolv1.Advertisem
 					Labels:                     svc.Labels,
 					Annotations:                nil,
 				},
-				Spec:       svc.Spec,
+				Spec:       corev1.ServiceSpec{
+					Ports:                    svc.Spec.Ports,
+					Selector:                 svc.Spec.Selector,
+					Type:                     svc.Spec.Type,
+				},
 			}
 
 			// send svc to foreign
