@@ -10,6 +10,7 @@ import (
 	"k8s.io/klog"
 	"net"
 	"os"
+	"strings"
 )
 
 func getPodIP() (net.IP, error) {
@@ -21,6 +22,14 @@ func getPodIP() (net.IP, error) {
 		return nil, errors.New("pod IP is not yet set")
 	}
 	return net.ParseIP(ipAddress), nil
+}
+
+func GetNodeName() (string, error){
+	nodeName, isSet := os.LookupEnv("NODE_NAME")
+	if isSet == false {
+		return nodeName, errdefs.NotFound("NODE_NAME has not been set. check you manifest file")
+	}
+	return nodeName, nil
 }
 
 func getInternalIPOfNode(node corev1.Node) (string, error) {
@@ -51,7 +60,7 @@ func getOverlayCIDR() (*net.IPNet, error) {
 	return vxlanNet, nil
 }
 
-func isGatewayNode(clientset *kubernetes.Clientset) (bool, error) {
+func IsGatewayNode(clientset *kubernetes.Clientset) (bool, error) {
 	isGatewayNode := false
 	//retrieve the node which is labeled as the gateway
 	nodesList, err := clientset.CoreV1().Nodes().List(metav1.ListOptions{LabelSelector: "dronet.drone.com/gateway == true"})
@@ -79,7 +88,31 @@ func isGatewayNode(clientset *kubernetes.Clientset) (bool, error) {
 		return isGatewayNode, nil
 	}
 }
-
+func GetGatewayVxlanIP (clientset *kubernetes.Clientset) (string, error){
+	var gatewayVxlanIP string
+	//retrieve the node which is labeled as the gateway
+	nodesList, err := clientset.CoreV1().Nodes().List(metav1.ListOptions{LabelSelector: "dronet.drone.com/gateway == true"})
+	if err != nil {
+		logger.Error(err, "Unable to list nodes with labbel 'dronet.drone.com/gateway=true'")
+		return gatewayVxlanIP, fmt.Errorf("Unable to list nodes with labbel 'dronet.drone.com/gateway=true': %v", err)
+	}
+	if len(nodesList.Items) != 1 {
+		klog.V(4).Infof("number of gateway nodes found: %d", len(nodesList.Items))
+		return gatewayVxlanIP, errdefs.NotFound("no gateway node has been found")
+	}
+	internalIP, err := getInternalIPOfNode(nodesList.Items[0])
+	if err != nil {
+		return gatewayVxlanIP, fmt.Errorf("unable to get internal ip of the gateway node: %v", err)
+	}
+	vxlanCIDR := "192.168.200.0"
+	//derive IP for the vxlan device
+	//take the last octet of the podIP
+	//TODO: use & and | operators with masks
+	temp := strings.Split(internalIP, ".")
+	temp1 := strings.Split(vxlanCIDR, ".")
+	gatewayVxlanIP = temp1[0] + "." + temp1[1] + "." + temp1[2] + "." + temp[3]
+	return gatewayVxlanIP, nil
+}
 func getRemoteVTEPS(clientset *kubernetes.Clientset) ([]string, error) {
 	var remoteVTEP []string
 	nodesList, err := clientset.CoreV1().Nodes().List(metav1.ListOptions{LabelSelector: "type != virtual-node"})
@@ -105,3 +138,5 @@ func getRemoteVTEPS(clientset *kubernetes.Clientset) ([]string, error) {
 	}
 	return remoteVTEP, nil
 }
+
+

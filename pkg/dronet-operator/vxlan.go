@@ -144,7 +144,7 @@ func (device *VxlanDevice) DeleteVxLanIface() error {
 }
 
 func (vxlan *VxlanDevice) AddFDB(n Neighbor) error {
-	klog.V(4).Infof("calling AddFDB: %v, %v", n.IP, n.MAC)
+	klog.V(4).Infof("calling AppendFDB: %v, %v", n.IP, n.MAC)
 	return netlink.NeighAppend(&netlink.Neigh{
 		LinkIndex:    vxlan.Link.Index,
 		State:        netlink.NUD_PERMANENT | netlink.NUD_NOARP,
