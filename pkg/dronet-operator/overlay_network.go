@@ -134,9 +134,9 @@ func getDefaultIfaceMTU()(int, error){
 	return defualtIface.Attrs().MTU, nil
 }
 
-//the config file is expected to reside in /etc/kube-drone/dronet
+//the config file is expected to reside in /etc/kube-drone/dronet/vxlan-net-conf.json
 func ReadVxlanNetConfig(defaultConfig VxlanNetConfig)(VxlanNetConfig, error){
-	pathToConfigFile := "./example.json" //path where we expect the configuration file
+	pathToConfigFile := "/etc/kube-dronet/dronet/vxlan-net-conf.json" //path where we expect the configuration file
 
 	var config VxlanNetConfig
 	//check if the file exists

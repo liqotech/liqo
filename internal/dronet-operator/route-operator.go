@@ -418,6 +418,19 @@ func (r *RouteController) deleteAllRoutes() {
 		}
 	}
 }
+//this function deletes the vxlan interface in host where the route operator is running
+func (r *RouteController) deleteVxlanIFace(){
+	logger := r.Log.WithName("DeleteVxlanIFace")
+	//first get the iface index
+	iface, err := netlink.LinkByName(r.VxlanIfaceName)
+	if err != nil{
+		logger.Error(err, "an error occurred while removing vxlan interface", "ifaceName", r.VxlanIfaceName)
+	}
+	err = dronetOperator.DeleteIFaceByIndex(iface.Attrs().Index)
+	if err != nil{
+		logger.Error(err, "an error occurred while removing vxlan interface", "ifaceName", r.VxlanIfaceName)
+	}
+}
 
 // SetupSignalHandlerForRouteOperator registers for SIGTERM, SIGINT. A stop channel is returned
 // which is closed on one of these signals.
@@ -432,6 +445,7 @@ func (r *RouteController) SetupSignalHandlerForRouteOperator()(stopCh <-chan str
 		logger.Info("received ", "signal", sig.String())
 		r.DeleteAllIPTablesChains()
 		r.deleteAllRoutes()
+		r.deleteVxlanIFace()
 		<-c
 		close(stop)
 	}(r)
