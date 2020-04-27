@@ -5,6 +5,7 @@ import (
 	protocolv1 "github.com/netgroup-polito/dronev2/api/advertisement-operator/v1"
 	pkg "github.com/netgroup-polito/dronev2/pkg/advertisement-operator"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/api/discovery/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"strings"
 )
@@ -14,7 +15,7 @@ func StartReflector(log logr.Logger, namespace string, adv protocolv1.Advertisem
 	log.Info("starting reflector")
 
 	// create a client to the local cluster
-	localClient, err := pkg.NewK8sClient("", nil)
+	localClient, err := pkg.NewK8sClient("/home/francesco/kind/kubeconfig-cluster1", nil)
 	if err != nil {
 		log.Error(err, "Unable to create client to local cluster")
 		return
@@ -26,7 +27,7 @@ func StartReflector(log logr.Logger, namespace string, adv protocolv1.Advertisem
 		log.Error(err, "Unable to get ConfigMap foreign-kubeconfig-"+adv.Spec.ClusterId)
 		return
 	}
-	remoteClient, err := pkg.NewK8sClient("", cm)
+	remoteClient, err := pkg.NewK8sClient("/home/francesco/kind/kubeconfig-cluster2", cm)
 
 	// create a local service watcher in the given namespace
 	svcWatch, err := localClient.CoreV1().Services(namespace).Watch(metav1.ListOptions{})
@@ -68,26 +69,69 @@ func StartReflector(log logr.Logger, namespace string, adv protocolv1.Advertisem
 			if err != nil {
 				log.Error(err, "Unable to get local endpoints "+svc.Name)
 			}
-			endpointsRemote, err := remoteClient.CoreV1().Endpoints(namespace).Get(svc.Name, metav1.GetOptions{})
+
+			endpointsRemote, err := remoteClient.DiscoveryV1beta1().EndpointSlices(namespace).Get(svc.Name, metav1.GetOptions{})
 			if err != nil {
 				log.Error(err, "Unable to get endpoints "+svcRemote.Name+" on cluster "+adv.Spec.ClusterId)
 			}
-			if endpointsRemote.Subsets == nil {
-				endpointsRemote.Subsets = make([]corev1.EndpointSubset, len(endpoints.Subsets))
+
+			epSlice:= v1beta1.EndpointSlice{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      svc.Name,
+					Namespace: svc.Namespace,
+					Labels: map[string]string{
+						"endpointslice.kubernetes.io/managed-by" : "vk",
+						"kubernetes.io/service-name": svc.Name,
+					},
+				},
+				AddressType: v1beta1.AddressTypeIPv4,
+				Endpoints: []v1beta1.Endpoint{
+					{
+						Addresses:  nil,
+						Conditions: v1beta1.EndpointConditions{},
+						Hostname:   nil,
+						TargetRef:  nil,
+						Topology:   nil,
+					},
+				},
+				Ports: []v1beta1.EndpointPort{
+					{
+						Name:        nil,
+						Protocol:    nil,
+						Port:        nil,
+						AppProtocol: nil,
+					},
+				},
 			}
 
 			// add local endpoints to remote
-			for i, ep := range endpoints.Subsets {
-				for j, addr := range ep.Addresses {
+			for _, ep := range endpoints.Subsets {
+				for _, addr := range ep.Addresses {
 					// filter remote ep
 					if !strings.HasPrefix(*addr.NodeName, "vk") {
-						endpointsRemote.Subsets[i] = ep
-						endpointsRemote.Subsets[i].Addresses[j].NodeName = nil
+						e := v1beta1.Endpoint{
+							Addresses:  []string{
+								addr.IP,
+							},
+							Conditions: v1beta1.EndpointConditions{},
+							Hostname:   &addr.Hostname,
+							TargetRef:  addr.TargetRef,
+							Topology:   nil,
+						}
+						epSlice.Endpoints = append(epSlice.Endpoints, e)
+
+						port := v1beta1.EndpointPort{
+							Name:        &ep.Ports[0].Name,
+							Protocol:    &ep.Ports[0].Protocol,
+							Port:        &ep.Ports[0].Port,
+							AppProtocol: nil,
+						}
+						epSlice.Ports = append(epSlice.Ports, port)
 					}
 				}
 			}
 
-			_, err = remoteClient.CoreV1().Endpoints(namespace).Update(endpointsRemote)
+			_, err = remoteClient.DiscoveryV1beta1().EndpointSlices(namespace).Create(&epSlice)
 			if err != nil {
 				log.Error(err, "Unable to update endpoints "+endpointsRemote.Name+" on cluster "+adv.Spec.ClusterId)
 			} else {
