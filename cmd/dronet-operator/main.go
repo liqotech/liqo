@@ -19,11 +19,12 @@ import (
 	"flag"
 	"fmt"
 	"github.com/netgroup-polito/dronev2/api/tunnel-endpoint/v1"
-	dronet_operator "github.com/netgroup-polito/dronev2/pkg/dronet-operator"
+	dronetOperator "github.com/netgroup-polito/dronev2/pkg/dronet-operator"
 	"github.com/vishvananda/netlink"
 	"k8s.io/client-go/kubernetes"
 	"os"
 	"os/signal"
+	"strconv"
 	"syscall"
 
 	"github.com/netgroup-polito/dronev2/internal/dronet-operator"
@@ -37,14 +38,15 @@ import (
 )
 
 var (
-	scheme          = runtime.NewScheme()
-	setupLog        = ctrl.Log.WithName("setup")
-	vxlanNetwork    = "192.168.200.0/24"
-	vxlanTestIP     = "192.168.200.2/24"
-	vxlanDeviceName = "dronet"
-	vxlanLocalIP    = "192.168.43.96"
-	vxlanMTU        = 1450
-	vxlanPort       = 4789
+	scheme   = runtime.NewScheme()
+	setupLog = ctrl.Log.WithName("setup")
+
+	defaultConfig = dronetOperator.VxlanNetConfig{
+		Network:    "192.168.200.0/24",
+		DeviceName: "dronet",
+		Port:       "4789", //IANA assigned
+		Vni:        "200",
+	}
 )
 
 func init() {
@@ -83,36 +85,51 @@ func main() {
 
 	// creates the in-cluster config or uses the .kube/config file
 	config := ctrl.GetConfigOrDie()
+
 	clientset, err := kubernetes.NewForConfig(config)
 	if err != nil {
 		panic(err.Error())
 	}
-
+	clientset.CoreV1().Nodes()
 	// +kubebuilder:scaffold:builder
 	if runAsRouteOperator {
 
-		err = dronet_operator.CreateVxLANInterface(clientset)
+		vxlanConfig, err := dronetOperator.ReadVxlanNetConfig(defaultConfig)
+		if err != nil {
+			setupLog.Error(err, "an error occured while getting the vxlan network configuration")
+		}
+		vxlanPort, err := strconv.Atoi(vxlanConfig.Port)
+		if err != nil {
+			setupLog.Error(err, "unable to convert vxlan port "+vxlanConfig.Port+" from string to int.")
+		}
+		err = dronetOperator.CreateVxLANInterface(clientset, vxlanConfig)
 		if err != nil {
 			setupLog.Error(err, "an error occurred while creating vxlan interface")
 		}
-		//Enable loose mode reverse path filtering on the vxlan interface
-		err = dronet_operator.Enable_rp_filter()
+		//Enable loose mode reverse path filtering on the vxlan interfaces
+		err = dronetOperator.Enable_rp_filter()
 		if err != nil {
 			setupLog.Error(err, "an error occured while enablig loose mode reverse path filtering")
 			os.Exit(3)
 		}
-		isGatewayNode, err := dronet_operator.IsGatewayNode(clientset)
+		isGatewayNode, err := dronetOperator.IsGatewayNode(clientset)
 		if err != nil {
 			setupLog.Error(err, "an error occured while checking if the node is the gatewaynode")
 			os.Exit(2)
 		}
 		//get node name
-		nodeName, err := dronet_operator.GetNodeName()
+		nodeName, err := dronetOperator.GetNodeName()
 		if err != nil {
 			setupLog.Error(err, "an error occured while retrieving node name")
 			os.Exit(4)
 		}
-		gatewayVxlanIP, err := dronet_operator.GetGatewayVxlanIP(clientset)
+		//get node name
+		podCIDR, err := dronetOperator.GetClusterPodCIDR()
+		if err != nil {
+			setupLog.Error(err, "an error occured while retrieving cluster pod cidr")
+			os.Exit(6)
+		}
+		gatewayVxlanIP, err := dronetOperator.GetGatewayVxlanIP(clientset)
 		if err != nil {
 			setupLog.Error(err, "unable to derive gatewayVxlanIP")
 			os.Exit(5)
@@ -125,14 +142,15 @@ func main() {
 			ClientSet:                          clientset,
 			RoutesPerRemoteCluster:             make(map[string][]netlink.Route),
 			IsGateway:                          isGatewayNode,
-			VxlanNetwork:                       vxlanNetwork,
-			VxlanIfaceName:                     vxlanDeviceName,
+			VxlanNetwork:                       vxlanConfig.Network,
+			VxlanIfaceName:                     vxlanConfig.DeviceName,
 			VxlanPort:                          vxlanPort,
-			IPTablesRuleSpecsReferencingChains: make(map[string]dronet_operator.IPtableRule),
-			IPTablesChains:                     make(map[string]dronet_operator.IPTableChain),
-			IPtablesRuleSpecsPerRemoteCluster:  make(map[string][]dronet_operator.IPtableRule),
+			IPTablesRuleSpecsReferencingChains: make(map[string]dronetOperator.IPtableRule),
+			IPTablesChains:                     make(map[string]dronetOperator.IPTableChain),
+			IPtablesRuleSpecsPerRemoteCluster:  make(map[string][]dronetOperator.IPtableRule),
 			NodeName:                           nodeName,
 			GatewayVxlanIP:                     gatewayVxlanIP,
+			ClusterPodCIDR:                     podCIDR,
 		}
 		if err = r.SetupWithManager(mgr); err != nil {
 			setupLog.Error(err, "unable to create controller", "controller", "Route")
@@ -154,7 +172,6 @@ func main() {
 			os.Exit(1)
 		}
 		setupLog.Info("Starting manager as Tunnel-Operator")
-		setupLog.Info("Starting manager as Route-Operator")
 		if err := mgr.Start(ctrl.SetupSignalHandler()); err != nil {
 			setupLog.Error(err, "problem running manager")
 			os.Exit(1)

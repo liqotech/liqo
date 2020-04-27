@@ -32,6 +32,14 @@ func GetNodeName() (string, error){
 	return nodeName, nil
 }
 
+func GetClusterPodCIDR() (string, error){
+	podCIDR, isSet := os.LookupEnv("POD_CIDR")
+	if isSet == false {
+		return podCIDR, errdefs.NotFound("POD_CIDR has not been set. check you manifest file")
+	}
+	return podCIDR, nil
+}
+
 func getInternalIPOfNode(node corev1.Node) (string, error) {
 	var internalIp string
 	for _, address := range node.Status.Addresses {
@@ -139,4 +147,22 @@ func getRemoteVTEPS(clientset *kubernetes.Clientset) ([]string, error) {
 	return remoteVTEP, nil
 }
 
-
+// Helper functions to check if a string is contained in a slice of strings.
+func ContainsString(slice []string, s string) bool {
+	for _, item := range slice {
+		if item == s {
+			return true
+		}
+	}
+	return false
+}
+// Helper functions to check and remove string from a slice of strings.
+func RemoveString(slice []string, s string) (result []string) {
+	for _, item := range slice {
+		if item == s {
+			continue
+		}
+		result = append(result, item)
+	}
+	return
+}

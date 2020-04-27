@@ -1,51 +1,64 @@
 package dronet_operator
 
 import (
+	"encoding/json"
+	"errors"
 	"fmt"
 	"github.com/vishvananda/netlink"
 	"io/ioutil"
 	"k8s.io/client-go/kubernetes"
 	"net"
+	"os"
+	"strconv"
 	"strings"
 )
 
-var (
-	mtu             int = 1500
-	VxLANOverhead   int = 50
-	vxlanDeviceName     = "dronet"
-	vni             int = 200
-	vxlanPort           = 4789
+const (
+	vxlanOverhead int = 50
 )
 
-func CreateVxLANInterface(clientset *kubernetes.Clientset) error {
-	mtu := 1500
+type VxlanNetConfig struct {
+	Network    string `json: "Network"`
+	DeviceName string `json:"DeviceName"`
+	Port       string `json:"Port"`
+	Vni        string `json:"Vni"`
+}
 
+func CreateVxLANInterface(clientset *kubernetes.Clientset, vxlanConfig VxlanNetConfig) error {
 	podIPAddr, err := getPodIP()
 	if err != nil {
 		return err
 	}
-	if err != nil {
+	token := strings.Split(vxlanConfig.Network, "/")
+	vxlanNet := token[0]
+
+	//get the mtu of the default interface
+	mtu, err := getDefaultIfaceMTU()
+	if err != nil{
 		return err
 	}
-	/*	vxlanCIDR, err := getOverlayCIDR()
-		if err != nil{
-			return err
-		}*/
-	vxlanCIDR := "192.168.200.0"
+
 	//derive IP for the vxlan device
 	//take the last octet of the podIP
 	//TODO: use & and | operators with masks
 	temp := strings.Split(podIPAddr.String(), ".")
-	temp1 := strings.Split(vxlanCIDR, ".")
+	temp1 := strings.Split(vxlanNet, ".")
 	vxlanIPString := temp1[0] + "." + temp1[1] + "." + temp1[2] + "." + temp[3]
 	vxlanIP := net.ParseIP(vxlanIPString)
 
-	//TODO: Derive the MTU based on the default outgoing interface
-	vxlanMTU := mtu - VxLANOverhead
+	vxlanMTU := mtu - vxlanOverhead
+	vni, err := strconv.Atoi(vxlanConfig.Vni)
+	if err != nil{
+		return fmt.Errorf("unable to convert vxlan vni \"%s\" from string to int: %v", vxlanConfig.Vni, err)
+	}
+	port, err := strconv.Atoi(vxlanConfig.Port)
+	if err != nil{
+		return fmt.Errorf("unable to convert vxlan port \"%s\" from string to int: %v", vxlanConfig.Port, err)
+	}
 	attr := &VxlanDeviceAttrs{
-		Vni:      200,
-		Name:     vxlanDeviceName,
-		VtepPort: vxlanPort,
+		Vni:      uint32(vni),
+		Name:     vxlanConfig.DeviceName,
+		VtepPort: port,
 		VtepAddr: podIPAddr,
 		Mtu:      vxlanMTU,
 	}
@@ -97,4 +110,51 @@ func Enable_rp_filter() error {
 		}
 	}
 	return nil
+}
+
+func getDefaultIfaceMTU()(int, error){
+	//search for the default route and return the link associated to the route
+	//we consider only the ipv4 routes
+	mtu := 0
+	routes, err := netlink.RouteList(nil, netlink.FAMILY_V4)
+	if err != nil {
+		return mtu, fmt.Errorf("unable to list routes while trying to identify default interface for the host: %v", err)
+	}
+	var route netlink.Route
+	for _, route = range routes{
+		if route.Dst == nil{
+			break
+		}
+	}
+	//get default link
+	defualtIface, err := netlink.LinkByIndex(route.LinkIndex)
+	if err != nil{
+		return mtu, fmt.Errorf("unable to retrieve link with index %d :%v", route.LinkIndex, err)
+	}
+	return defualtIface.Attrs().MTU, nil
+}
+
+//the config file is expected to reside in /etc/kube-drone/dronet
+func ReadVxlanNetConfig(defaultConfig VxlanNetConfig)(VxlanNetConfig, error){
+	pathToConfigFile := "./example.json" //path where we expect the configuration file
+
+	var config VxlanNetConfig
+	//check if the file exists
+	if _, err := os.Stat(pathToConfigFile); err == nil {
+		data, err := ioutil.ReadFile(pathToConfigFile)
+		//TODO: add debugging info
+		if err != nil {
+			return config, fmt.Errorf("an erro occured while reading \"%s\" configuration file: %v",pathToConfigFile, err)
+		}
+		err = json.Unmarshal(data, &config)
+		if err != nil{
+			return config, fmt.Errorf("an error occured while unmarshalling \"%s\" configuration file: %v",pathToConfigFile, err)
+		}
+		if config.Network == "" || config.Port == "" || config.DeviceName == "" || config.Vni == "" {
+			return config, errors.New("some configuration fields are missing in \"" + pathToConfigFile + "\", please check your configuration.")
+		}
+		return config, nil
+	} else {
+		return defaultConfig, nil
+	}
 }

@@ -20,7 +20,7 @@ import (
 	"github.com/coreos/go-iptables/iptables"
 	"github.com/go-logr/logr"
 	"github.com/netgroup-polito/dronev2/api/tunnel-endpoint/v1"
-	dronet_operator "github.com/netgroup-polito/dronev2/pkg/dronet-operator"
+	dronetOperator "github.com/netgroup-polito/dronev2/pkg/dronet-operator"
 	"github.com/vishvananda/netlink"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/kubernetes"
@@ -34,7 +34,6 @@ var (
 	dronetPostroutingChain = "DRONET-POSTROUTING"
 	dronetForwardingChain  = "DRONET-FORWARD"
 	dronetInputChain       = "DRONET-INPUT"
-	ipTablesChains         = []string{dronetInputChain, dronetPostroutingChain, dronetForwardingChain}
 	natTable               = "nat"
 	filterTable            = "filter"
 )
@@ -54,14 +53,15 @@ type RouteController struct {
 	GatewayVxlanIP string
 	VxlanIfaceName string
 	VxlanPort      int
+	ClusterPodCIDR string
 	//here we save only the rules that reference the custom chains added by us
 	//we need them at deletion time
-	IPTablesRuleSpecsReferencingChains map[string]dronet_operator.IPtableRule //using a map to avoid duplicate entries. the key is the rulespec
+	IPTablesRuleSpecsReferencingChains map[string]dronetOperator.IPtableRule //using a map to avoid duplicate entries. the key is the rulespec
 	//here we save the custom iptables chains, this chains are added at startup time so there should not be duplicates
 	//but we use a map to avoid them in case the operator crashes and then is restarted by kubernetes
-	IPTablesChains map[string]dronet_operator.IPTableChain
+	IPTablesChains map[string]dronetOperator.IPTableChain
 	//for each cluster identified by clusterID we save all the rulespecs needed to ensure communication with its pods
-	IPtablesRuleSpecsPerRemoteCluster map[string][]dronet_operator.IPtableRule
+	IPtablesRuleSpecsPerRemoteCluster map[string][]dronetOperator.IPtableRule
 	//here we save routes associated to each remote cluster
 	RoutesPerRemoteCluster map[string][]netlink.Route
 }
@@ -84,7 +84,7 @@ func (r *RouteController) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 
 	// examine DeletionTimestamp to determine if object is under deletion
 	if endpoint.ObjectMeta.DeletionTimestamp.IsZero() {
-		if !containsString(endpoint.ObjectMeta.Finalizers, routeOperatorFinalizer) {
+		if !dronetOperator.ContainsString(endpoint.ObjectMeta.Finalizers, routeOperatorFinalizer) {
 			// The object is not being deleted, so if it does not have our finalizer,
 			// then lets add the finalizer and update the object. This is equivalent
 			// registering our finalizer.
@@ -96,7 +96,7 @@ func (r *RouteController) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 		}
 	} else {
 		//the object is being deleted
-		if containsString(endpoint.Finalizers, routeOperatorFinalizer) {
+		if dronetOperator.ContainsString(endpoint.Finalizers, routeOperatorFinalizer) {
 			if err := r.deleteIPTablesRulespecForRemoteCluster(&endpoint); err != nil {
 				log.Error(err, "error while deleting rulespec from iptables")
 				return ctrl.Result{}, err
@@ -106,7 +106,7 @@ func (r *RouteController) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 				return ctrl.Result{}, err
 			}
 			//remove the finalizer from the list and update it.
-			endpoint.Finalizers = removeString(endpoint.Finalizers, routeOperatorFinalizer)
+			endpoint.Finalizers = dronetOperator.RemoveString(endpoint.Finalizers, routeOperatorFinalizer)
 			if err := r.Update(ctx, &endpoint); err != nil {
 				log.Error(err, "unable to update")
 				return ctrl.Result{}, err
@@ -124,7 +124,7 @@ func (r *RouteController) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 		return ctrl.Result{}, err
 	}
 
-	if dronet_operator.ValidateCRAndReturn(&endpoint){
+	if dronetOperator.ValidateCRAndReturn(&endpoint){
 		err := r.InsertRoutesPerCluster(&endpoint)
 		if err != nil{
 			log.Error(err,"unable to insert routes",)
@@ -149,56 +149,56 @@ func (r *RouteController) createAndInsertIPTablesChains() error {
 	}
 
 	//creating DRONET-POSTROUTING chain
-	if err = dronet_operator.CreateIptablesChainsIfNotExist(ipt, natTable, dronetPostroutingChain); err != nil {
+	if err = dronetOperator.CreateIptablesChainsIfNotExist(ipt, natTable, dronetPostroutingChain); err != nil {
 		return err
 	}
-	r.IPTablesChains[dronetPostroutingChain] = dronet_operator.IPTableChain{
+	r.IPTablesChains[dronetPostroutingChain] = dronetOperator.IPTableChain{
 		Table: natTable,
 		Name:  dronetPostroutingChain,
 	}
 	//installing rulespec which forwards all traffic to DRONET-POSTROUTING chain
 	forwardToDronetPostroutingRuleSpec := []string{"-j", dronetPostroutingChain}
-	if err = dronet_operator.InsertIptablesRulespecIfNotExists(ipt, natTable, "POSTROUTING", forwardToDronetPostroutingRuleSpec); err != nil {
+	if err = dronetOperator.InsertIptablesRulespecIfNotExists(ipt, natTable, "POSTROUTING", forwardToDronetPostroutingRuleSpec); err != nil {
 		return err
 	}
 	//add it to iptables rulespec if it does not exist in the map
-	r.IPTablesRuleSpecsReferencingChains[strings.Join(forwardToDronetPostroutingRuleSpec, " ")] = dronet_operator.IPtableRule{
+	r.IPTablesRuleSpecsReferencingChains[strings.Join(forwardToDronetPostroutingRuleSpec, " ")] = dronetOperator.IPtableRule{
 		Table:    natTable,
 		Chain:    "POSTROUTING",
 		RuleSpec: forwardToDronetPostroutingRuleSpec,
 	}
 	//creating DRONET-FORWARD chain
-	if err = dronet_operator.CreateIptablesChainsIfNotExist(ipt, filterTable, dronetForwardingChain); err != nil {
+	if err = dronetOperator.CreateIptablesChainsIfNotExist(ipt, filterTable, dronetForwardingChain); err != nil {
 		return err
 	}
-	r.IPTablesChains[dronetForwardingChain] = dronet_operator.IPTableChain{
+	r.IPTablesChains[dronetForwardingChain] = dronetOperator.IPTableChain{
 		Table: filterTable,
 		Name:  dronetForwardingChain,
 	}
 	//installing rulespec which forwards all traffic to DRONET-FORWARD chain
 	forwardToDronetForwardRuleSpec := []string{"-j", dronetForwardingChain}
-	if err = dronet_operator.InsertIptablesRulespecIfNotExists(ipt, filterTable, "FORWARD", forwardToDronetForwardRuleSpec); err != nil {
+	if err = dronetOperator.InsertIptablesRulespecIfNotExists(ipt, filterTable, "FORWARD", forwardToDronetForwardRuleSpec); err != nil {
 		return err
 	}
-	r.IPTablesRuleSpecsReferencingChains[strings.Join(forwardToDronetForwardRuleSpec, " ")] = dronet_operator.IPtableRule{
+	r.IPTablesRuleSpecsReferencingChains[strings.Join(forwardToDronetForwardRuleSpec, " ")] = dronetOperator.IPtableRule{
 		Table:    filterTable,
 		Chain:    "FORWARD",
 		RuleSpec: forwardToDronetForwardRuleSpec,
 	}
 	//creating DRONET-INPUT chain
-	if err = dronet_operator.CreateIptablesChainsIfNotExist(ipt, filterTable, dronetInputChain); err != nil {
+	if err = dronetOperator.CreateIptablesChainsIfNotExist(ipt, filterTable, dronetInputChain); err != nil {
 		return err
 	}
-	r.IPTablesChains[dronetInputChain] = dronet_operator.IPTableChain{
+	r.IPTablesChains[dronetInputChain] = dronetOperator.IPTableChain{
 		Table: filterTable,
 		Name:  dronetInputChain,
 	}
 	//installing rulespec which forwards all udp incoming traffic to DRONET-INPUT chain
 	forwardToDronetInputSpec := []string{"-p", "udp", "-m", "udp", "-j", dronetInputChain}
-	if err = dronet_operator.InsertIptablesRulespecIfNotExists(ipt, filterTable, "INPUT", forwardToDronetInputSpec); err != nil {
+	if err = dronetOperator.InsertIptablesRulespecIfNotExists(ipt, filterTable, "INPUT", forwardToDronetInputSpec); err != nil {
 		return err
 	}
-	r.IPTablesRuleSpecsReferencingChains[strings.Join(forwardToDronetInputSpec, " ")] = dronet_operator.IPtableRule{
+	r.IPTablesRuleSpecsReferencingChains[strings.Join(forwardToDronetInputSpec, " ")] = dronetOperator.IPtableRule{
 		Table:    filterTable,
 		Chain:    "INPUT",
 		RuleSpec: forwardToDronetInputSpec,
@@ -221,18 +221,18 @@ func (r *RouteController) addIPTablesRulespecForRemoteCluster(endpoint *v1.Tunne
 	} else {
 		remotePodCIDR = endpoint.Spec.PodCIDR
 	}
-	var ruleSpecs []dronet_operator.IPtableRule
+	var ruleSpecs []dronetOperator.IPtableRule
 	ipt, err := iptables.New()
 	if err != nil {
 		return fmt.Errorf("unable to initialize iptables: %v. check if the ipatable are present in the system", err)
 	}
 
 	//do not nat the traffic directed to the remote pods
-	ruleSpec := []string{"-d", remotePodCIDR, "-j", "ACCEPT"}
+	ruleSpec := []string{"-s", r.ClusterPodCIDR, "-d", remotePodCIDR, "-j", "ACCEPT"}
 	if err = ipt.AppendUnique(natTable, dronetPostroutingChain, ruleSpec...); err != nil {
 		return fmt.Errorf("unable to insert iptable rule \"%s\" in %s table, %s chain: %v", ruleSpec, natTable, dronetPostroutingChain, err)
 	}
-	ruleSpecs = append(ruleSpecs, dronet_operator.IPtableRule{
+	ruleSpecs = append(ruleSpecs, dronetOperator.IPtableRule{
 		Table:    natTable,
 		Chain:    dronetPostroutingChain,
 		RuleSpec: ruleSpec,
@@ -242,9 +242,19 @@ func (r *RouteController) addIPTablesRulespecForRemoteCluster(endpoint *v1.Tunne
 	if err = ipt.AppendUnique(filterTable, dronetForwardingChain, ruleSpec...); err != nil {
 		return fmt.Errorf("unable to insert iptable rule \"%s\" in %s table, %s chain: %v", ruleSpec, filterTable, dronetForwardingChain, err)
 	}
-	ruleSpecs = append(ruleSpecs, dronet_operator.IPtableRule{
+	ruleSpecs = append(ruleSpecs, dronetOperator.IPtableRule{
 		Table:    filterTable,
 		Chain:    dronetForwardingChain,
+		RuleSpec: ruleSpec,
+	})
+	//this rules are needed in an environment where strictly policies are applied for the input chain
+	ruleSpec = []string{"-s", r.ClusterPodCIDR, "-d", remotePodCIDR, "-j", "ACCEPT"}
+	if err = ipt.AppendUnique(filterTable, dronetInputChain, ruleSpec...); err != nil {
+		return fmt.Errorf("unable to insert iptable rule \"%s\" in %s table, %s chain: %v", ruleSpec, filterTable, dronetInputChain, err)
+	}
+	ruleSpecs = append(ruleSpecs, dronetOperator.IPtableRule{
+		Table:    filterTable,
+		Chain:    dronetInputChain,
 		RuleSpec: ruleSpec,
 	})
 	if r.IsGateway {
@@ -255,7 +265,7 @@ func (r *RouteController) addIPTablesRulespecForRemoteCluster(endpoint *v1.Tunne
 		if err = ipt.Append(natTable, dronetPostroutingChain, ruleSpec...); err != nil {
 			return fmt.Errorf("unable to insert iptable rule \"%s\" in %s table, %s chain: %v", ruleSpec, natTable, dronetPostroutingChain, err)
 		}
-		ruleSpecs = append(ruleSpecs, dronet_operator.IPtableRule{
+		ruleSpecs = append(ruleSpecs, dronetOperator.IPtableRule{
 			Table:    natTable,
 			Chain:    dronetPostroutingChain,
 			RuleSpec: ruleSpec,
@@ -346,24 +356,24 @@ func (r *RouteController) InsertRoutesPerCluster(endpoint *v1.TunnelEndpoint) er
 	}
 	var routes []netlink.Route
 	if r.IsGateway{
-		route, err := dronet_operator.AddRoute(remoteTunnelPrivateIPNet, localTunnelPrivateIP, endpoint.Status.TunnelIFaceName, false)
+		route, err := dronetOperator.AddRoute(remoteTunnelPrivateIPNet, localTunnelPrivateIP, endpoint.Status.TunnelIFaceName, false)
 		if err != nil{
 			return err
 		}
 		routes = append(routes, route)
-		route, err = dronet_operator.AddRoute(remotePodIPNet, endpoint.Status.RemoteTunnelPrivateIP, endpoint.Status.TunnelIFaceName, true)
+		route, err = dronetOperator.AddRoute(remotePodIPNet, endpoint.Status.RemoteTunnelPrivateIP, endpoint.Status.TunnelIFaceName, true)
 		if err != nil{
 			return err
 		}
 		routes = append(routes, route)
 		r.RoutesPerRemoteCluster[endpoint.Spec.ClusterID] = routes
 	}else{
-		route, err := dronet_operator.AddRoute(remotePodIPNet, r.GatewayVxlanIP, r.VxlanIfaceName, false)
+		route, err := dronetOperator.AddRoute(remotePodIPNet, r.GatewayVxlanIP, r.VxlanIfaceName, false)
 		if err != nil{
 			return err
 		}
 		routes = append(routes, route)
-		route, err = dronet_operator.AddRoute(remoteTunnelPrivateIPNet, r.GatewayVxlanIP, r.VxlanIfaceName, false)
+		route, err = dronetOperator.AddRoute(remoteTunnelPrivateIPNet, r.GatewayVxlanIP, r.VxlanIfaceName, false)
 		if err != nil{
 			return err
 		}
@@ -375,7 +385,7 @@ func (r *RouteController) InsertRoutesPerCluster(endpoint *v1.TunnelEndpoint) er
 
 func (r *RouteController) deleteRoutesPerCluster(endpoint *v1.TunnelEndpoint) error{
 	for _, route := range r.RoutesPerRemoteCluster[endpoint.Spec.ClusterID]{
-		err := dronet_operator.DelRoute(route)
+		err := dronetOperator.DelRoute(route)
 		if err != nil{
 			return err
 		}

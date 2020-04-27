@@ -18,7 +18,7 @@ import (
 	"context"
 	"github.com/go-logr/logr"
 	"github.com/netgroup-polito/dronev2/api/tunnel-endpoint/v1"
-	dronet_operator "github.com/netgroup-polito/dronev2/pkg/dronet-operator"
+	dronetOperator "github.com/netgroup-polito/dronev2/pkg/dronet-operator"
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -48,7 +48,7 @@ func (r *TunnelController) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 	}
 	// examine DeletionTimestamp to determine if object is under deletion
 	if endpoint.ObjectMeta.DeletionTimestamp.IsZero() {
-		if !containsString(endpoint.ObjectMeta.Finalizers, tunnelEndpointFinalizer) {
+		if !dronetOperator.ContainsString(endpoint.ObjectMeta.Finalizers, tunnelEndpointFinalizer) {
 			// The object is not being deleted, so if it does not have our finalizer,
 			// then lets add the finalizer and update the object. This is equivalent
 			// registering our finalizer.
@@ -60,13 +60,13 @@ func (r *TunnelController) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 		}
 	} else {
 		//the object is being deleted
-		if containsString(endpoint.Finalizers, tunnelEndpointFinalizer) {
-			if err := dronet_operator.RemoveGreTunnel(&endpoint); err != nil {
+		if dronetOperator.ContainsString(endpoint.Finalizers, tunnelEndpointFinalizer) {
+			if err := dronetOperator.RemoveGreTunnel(&endpoint); err != nil {
 				return ctrl.Result{}, err
 			}
 			log.Info("tunnel iface removed")
 			//remove the finalizer from the list and update it.
-			endpoint.Finalizers = removeString(endpoint.Finalizers, tunnelEndpointFinalizer)
+			endpoint.Finalizers = dronetOperator.RemoveString(endpoint.Finalizers, tunnelEndpointFinalizer)
 			if err := r.Update(ctx, &endpoint); err != nil {
 				return ctrl.Result{}, err
 			}
@@ -78,17 +78,18 @@ func (r *TunnelController) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 	//and install the tunnel only
 	//check if the CR is newly created
 	if endpoint.Status.TunnelIFaceIndex == 0 && endpoint.Status.TunnelIFaceName == "" && endpoint.Status.LocalTunnelPrivateIP == "" && endpoint.Status.LocalTunnelPublicIP == "" {
-		iFaceIndex, iFaceName, err := dronet_operator.InstallGreTunnel(&endpoint)
+		iFaceIndex, iFaceName, err := dronetOperator.InstallGreTunnel(&endpoint)
 		if err != nil {
 			log.Error(err, "unable to create the gre tunnel")
 			return ctrl.Result{}, err
 		}
+		log.Info("installed gretunel with index: " + iFaceName)
 		//update the status of CR
-		localTunnelPublicIP, err := dronet_operator.GetLocalTunnelPublicIPToString()
+		localTunnelPublicIP, err := dronetOperator.GetLocalTunnelPublicIPToString()
 		if err != nil {
 			log.Error(err, "unable to get localTunnelPublicIP")
 		}
-		localTunnelPrivateIP, err := dronet_operator.GetLocalTunnelPrivateIPToString()
+		localTunnelPrivateIP, err := dronetOperator.GetLocalTunnelPrivateIPToString()
 		if err != nil {
 			log.Error(err, "unable to get localTunnelPrivateIP")
 		}
@@ -100,23 +101,19 @@ func (r *TunnelController) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 		endpoint.Status.RemoteTunnelPublicIP = endpoint.Spec.TunnelPublicIP
 		err = r.Client.Status().Update(ctx, &endpoint)
 		if err != nil {
-			log.Error(err, "unable to update status field: tunnelIfaceIndex")
-			//if the operator fails to update the status then we also remove the tunnel
-			if err = dronet_operator.DeleteIFaceByIndex(iFaceIndex); err !=nil{
-				log.Error(err, "unable to remove the tunnel interface")
-			}
 			return ctrl.Result{}, err
 		}
 	}else {
 		//get tunnel addresses for the tunnel link
 		if endpoint.Status.RemoteTunnelPrivateIP != endpoint.Spec.TunnelPrivateIP || endpoint.Status.RemoteTunnelPublicIP != endpoint.Spec.TunnelPublicIP {
 			//remove the external resource
-			if err := dronet_operator.RemoveGreTunnel(&endpoint); err !=nil{
+			if err := dronetOperator.RemoveGreTunnel(&endpoint); err !=nil{
 				log.Error(err, "unable to remove the tunnel interface")
 				return ctrl.Result{}, err
 			}
+
 			//create new external resource
-			iFaceIndex, iFaceName, err := dronet_operator.InstallGreTunnel(&endpoint)
+			iFaceIndex, iFaceName, err := dronetOperator.InstallGreTunnel(&endpoint)
 			if err != nil {
 				log.Error(err, "unable to create the gre tunnel")
 				return ctrl.Result{}, err
@@ -129,7 +126,7 @@ func (r *TunnelController) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 			if err != nil {
 				log.Error(err, "unable to update status field: tunnelIfaceIndex")
 				//if the operator fails to update the status then we also remove the tunnel
-				if err = dronet_operator.DeleteIFaceByIndex(iFaceIndex); err !=nil{
+				if err = dronetOperator.DeleteIFaceByIndex(iFaceIndex); err !=nil{
 					log.Error(err, "unable to remove the tunnel interface")
 				}
 				return ctrl.Result{}, err
@@ -148,22 +145,3 @@ func (r *TunnelController) SetupWithManager(mgr ctrl.Manager) error {
 		Complete(r)
 }
 
-// Helper functions to check and remove string from a slice of strings.
-func containsString(slice []string, s string) bool {
-	for _, item := range slice {
-		if item == s {
-			return true
-		}
-	}
-	return false
-}
-
-func removeString(slice []string, s string) (result []string) {
-	for _, item := range slice {
-		if item == s {
-			continue
-		}
-		result = append(result, item)
-	}
-	return
-}
