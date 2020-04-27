@@ -96,7 +96,7 @@ func IsGatewayNode(clientset *kubernetes.Clientset) (bool, error) {
 		return isGatewayNode, nil
 	}
 }
-func GetGatewayVxlanIP (clientset *kubernetes.Clientset) (string, error){
+func GetGatewayVxlanIP (clientset *kubernetes.Clientset, vxlanConfig VxlanNetConfig) (string, error){
 	var gatewayVxlanIP string
 	//retrieve the node which is labeled as the gateway
 	nodesList, err := clientset.CoreV1().Nodes().List(metav1.ListOptions{LabelSelector: "dronet.drone.com/gateway == true"})
@@ -112,12 +112,13 @@ func GetGatewayVxlanIP (clientset *kubernetes.Clientset) (string, error){
 	if err != nil {
 		return gatewayVxlanIP, fmt.Errorf("unable to get internal ip of the gateway node: %v", err)
 	}
-	vxlanCIDR := "192.168.200.0"
+	token := strings.Split(vxlanConfig.Network, "/")
+	vxlanNet := token[0]
 	//derive IP for the vxlan device
 	//take the last octet of the podIP
 	//TODO: use & and | operators with masks
 	temp := strings.Split(internalIP, ".")
-	temp1 := strings.Split(vxlanCIDR, ".")
+	temp1 := strings.Split(vxlanNet, ".")
 	gatewayVxlanIP = temp1[0] + "." + temp1[1] + "." + temp1[2] + "." + temp[3]
 	return gatewayVxlanIP, nil
 }

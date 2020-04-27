@@ -87,7 +87,6 @@ func main() {
 	if err != nil {
 		panic(err.Error())
 	}
-	clientset.CoreV1().Nodes()
 	// +kubebuilder:scaffold:builder
 	if runAsRouteOperator {
 
@@ -126,7 +125,7 @@ func main() {
 			setupLog.Error(err, "an error occured while retrieving cluster pod cidr")
 			os.Exit(6)
 		}
-		gatewayVxlanIP, err := dronetOperator.GetGatewayVxlanIP(clientset)
+		gatewayVxlanIP, err := dronetOperator.GetGatewayVxlanIP(clientset, vxlanConfig)
 		if err != nil {
 			setupLog.Error(err, "unable to derive gatewayVxlanIP")
 			os.Exit(5)
