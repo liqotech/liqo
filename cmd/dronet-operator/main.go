@@ -19,15 +19,12 @@ import (
 	"flag"
 	"fmt"
 	"github.com/netgroup-polito/dronev2/api/tunnel-endpoint/v1"
+	"github.com/netgroup-polito/dronev2/internal/dronet-operator"
 	dronetOperator "github.com/netgroup-polito/dronev2/pkg/dronet-operator"
 	"github.com/vishvananda/netlink"
 	"k8s.io/client-go/kubernetes"
 	"os"
-	"os/signal"
 	"strconv"
-	"syscall"
-
-	"github.com/netgroup-polito/dronev2/internal/dronet-operator"
 
 	"k8s.io/apimachinery/pkg/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
@@ -157,7 +154,7 @@ func main() {
 			os.Exit(1)
 		}
 		setupLog.Info("Starting manager as Route-Operator")
-		if err := mgr.Start(ctrl.SetupSignalHandler()); err != nil {
+		if err := mgr.Start(r.SetupSignalHandlerForRouteOperator()); err != nil {
 			setupLog.Error(err, "problem running manager")
 			os.Exit(1)
 		}
@@ -177,25 +174,8 @@ func main() {
 			os.Exit(1)
 		}
 	}
+
+	fmt.Println("exiting")
 }
 
-var shutdownSignals = []os.Signal{os.Interrupt, syscall.SIGTERM}
 
-// SetupSignalHandler registers for SIGTERM, SIGINT. A stop channel is returned
-// which is closed on one of these signals. If a second signal is caught, the program
-// is terminated with exit code 1.
-func SetupSignalHandler(r *controllers.RouteController) (stopCh <-chan struct{}) {
-	fmt.Printf("Entering signal handler")
-	stop := make(chan struct{})
-	c := make(chan os.Signal, 2)
-	signal.Notify(c, shutdownSignals...)
-	go func() {
-		<-c
-		close(stop)
-		<-c
-		os.Exit(1) // second signal. Exit directly.
-	}()
-	fmt.Printf("signal intercepded")
-	r.DeleteAllIPTablesChains()
-	return stop
-}

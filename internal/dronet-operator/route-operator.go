@@ -24,10 +24,13 @@ import (
 	"github.com/vishvananda/netlink"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/kubernetes"
+	"os"
+	"os/signal"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"strconv"
 	"strings"
+	"syscall"
 )
 
 var (
@@ -36,6 +39,7 @@ var (
 	dronetInputChain       = "DRONET-INPUT"
 	natTable               = "nat"
 	filterTable            = "filter"
+	shutdownSignals        = []os.Signal{os.Interrupt, syscall.SIGTERM}
 )
 
 // RouteController reconciles a TunnelEndpoint object
@@ -75,7 +79,7 @@ func (r *RouteController) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 	log := r.Log.WithValues("endpoint", req.NamespacedName)
 	var endpoint v1.TunnelEndpoint
 	//name of our finalizer
-	routeOperatorFinalizer := "routeOperator-" + r.NodeName+ "-Finalizer.dronet.drone.com"
+	routeOperatorFinalizer := "routeOperator-" + r.NodeName + "-Finalizer.dronet.drone.com"
 
 	if err := r.Get(ctx, req.NamespacedName, &endpoint); err != nil {
 		log.Error(err, "unable to fetch endpoint")
@@ -101,7 +105,7 @@ func (r *RouteController) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 				log.Error(err, "error while deleting rulespec from iptables")
 				return ctrl.Result{}, err
 			}
-			if err := r.deleteRoutesPerCluster(&endpoint); err != nil{
+			if err := r.deleteRoutesPerCluster(&endpoint); err != nil {
 				log.Error(err, "error while deleting routes")
 				return ctrl.Result{}, err
 			}
@@ -124,13 +128,13 @@ func (r *RouteController) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 		return ctrl.Result{}, err
 	}
 
-	if dronetOperator.ValidateCRAndReturn(&endpoint){
+	if dronetOperator.ValidateCRAndReturn(&endpoint) {
 		err := r.InsertRoutesPerCluster(&endpoint)
-		if err != nil{
-			log.Error(err,"unable to insert routes",)
+		if err != nil {
+			log.Error(err, "unable to insert routes")
 			return ctrl.Result{}, err
 		}
-	}else{
+	} else {
 		return ctrl.Result{}, nil
 	}
 	return ctrl.Result{}, nil
@@ -303,10 +307,15 @@ func (r *RouteController) deleteIPTablesRulespecForRemoteCluster(endpoint *v1.Tu
 }
 
 //this function is called when the route-operator program is closed
-func (r *RouteController) DeleteAllIPTablesChains() error {
+//the errors are not checked because the function is called at exit time
+//it cleans up all the possible resources
+//a log message is emitted if in case of error
+//only if the iptables binaries are missing an error is returned
+func (r *RouteController) DeleteAllIPTablesChains(){
+	logger := r.Log.WithName("DeleteAllIPTablesChains")
 	ipt, err := iptables.New()
 	if err != nil {
-		return fmt.Errorf("unable to initialize iptables: %v. check if the ipatable are present in the system", err)
+		logger.Error(err,"unable to initialize iptables.check if the ipatable are present in the system",)
 	}
 	//first all the iptables chains are flushed
 	for _, chain := range r.IPTablesChains {
@@ -315,7 +324,7 @@ func (r *RouteController) DeleteAllIPTablesChains() error {
 			if ok && e.IsNotExist() {
 				continue
 			} else if !ok {
-				return fmt.Errorf("unable to clear %s chain in %s table: %v", chain.Name, chain.Table, err)
+				logger.Error(err,"unable to clear: ","chain", chain.Name, "in table", chain.Table)
 			}
 
 		}
@@ -327,7 +336,7 @@ func (r *RouteController) DeleteAllIPTablesChains() error {
 			if ok && e.IsNotExist() {
 				continue
 			} else if !ok {
-				return fmt.Errorf("unable to delete rule \"%s\" belonging to %s chain in %s table: %v", strings.Join(rulespec.RuleSpec, ""), rulespec.Chain, rulespec.Table, err)
+				logger.Error(err, "unable to delete: ", "rule", strings.Join(rulespec.RuleSpec, ""),"in chain", rulespec.Chain,"in table", rulespec.Table)
 			}
 		}
 	}
@@ -338,43 +347,42 @@ func (r *RouteController) DeleteAllIPTablesChains() error {
 			if ok && e.IsNotExist() {
 				continue
 			} else if !ok {
-				return fmt.Errorf("unable to delete %s chain in %s table: %v", chain.Name, chain.Table, err)
+				logger.Error(err,"unable to delete ", "chain", chain.Name, "in table", chain.Table)
 			}
 		}
 	}
-	return nil
 }
 
 func (r *RouteController) InsertRoutesPerCluster(endpoint *v1.TunnelEndpoint) error {
 	remoteTunnelPrivateIPNet := endpoint.Status.RemoteTunnelPrivateIP + "/32"
 	var remotePodIPNet string
 	localTunnelPrivateIP := endpoint.Status.LocalTunnelPrivateIP
-	if endpoint.Status.NATEnabled{
+	if endpoint.Status.NATEnabled {
 		remotePodIPNet = endpoint.Status.RemappedPodCIDR
-	}else{
+	} else {
 		remotePodIPNet = endpoint.Spec.PodCIDR
 	}
 	var routes []netlink.Route
-	if r.IsGateway{
+	if r.IsGateway {
 		route, err := dronetOperator.AddRoute(remoteTunnelPrivateIPNet, localTunnelPrivateIP, endpoint.Status.TunnelIFaceName, false)
-		if err != nil{
+		if err != nil {
 			return err
 		}
 		routes = append(routes, route)
 		route, err = dronetOperator.AddRoute(remotePodIPNet, endpoint.Status.RemoteTunnelPrivateIP, endpoint.Status.TunnelIFaceName, true)
-		if err != nil{
+		if err != nil {
 			return err
 		}
 		routes = append(routes, route)
 		r.RoutesPerRemoteCluster[endpoint.Spec.ClusterID] = routes
-	}else{
+	} else {
 		route, err := dronetOperator.AddRoute(remotePodIPNet, r.GatewayVxlanIP, r.VxlanIfaceName, false)
-		if err != nil{
+		if err != nil {
 			return err
 		}
 		routes = append(routes, route)
 		route, err = dronetOperator.AddRoute(remoteTunnelPrivateIPNet, r.GatewayVxlanIP, r.VxlanIfaceName, false)
-		if err != nil{
+		if err != nil {
 			return err
 		}
 		routes = append(routes, route)
@@ -383,10 +391,11 @@ func (r *RouteController) InsertRoutesPerCluster(endpoint *v1.TunnelEndpoint) er
 	return nil
 }
 
-func (r *RouteController) deleteRoutesPerCluster(endpoint *v1.TunnelEndpoint) error{
-	for _, route := range r.RoutesPerRemoteCluster[endpoint.Spec.ClusterID]{
+//used to remove the routes when a tunnelEndpoint CR is removed
+func (r *RouteController) deleteRoutesPerCluster(endpoint *v1.TunnelEndpoint) error {
+	for _, route := range r.RoutesPerRemoteCluster[endpoint.Spec.ClusterID] {
 		err := dronetOperator.DelRoute(route)
-		if err != nil{
+		if err != nil {
 			return err
 		}
 	}
@@ -394,6 +403,39 @@ func (r *RouteController) deleteRoutesPerCluster(endpoint *v1.TunnelEndpoint) er
 	//this is safe to do even if the key does not exist
 	delete(r.RoutesPerRemoteCluster, endpoint.Spec.ClusterID)
 	return nil
+}
+
+func (r *RouteController) deleteAllRoutes() {
+	logger := r.Log.WithName("DeleteAllRoutes")
+	//the errors are not checked because the function is called at exit time
+	//it cleans up all the possible resources
+	//a log message is emitted if in case of error
+	for _, cluster := range r.RoutesPerRemoteCluster {
+		for _, route := range cluster {
+			if err := dronetOperator.DelRoute(route); err != nil{
+				logger.Error(err,"an error occurred while deleting", "route", route.String())
+			}
+		}
+	}
+}
+
+// SetupSignalHandlerForRouteOperator registers for SIGTERM, SIGINT. A stop channel is returned
+// which is closed on one of these signals.
+func (r *RouteController) SetupSignalHandlerForRouteOperator()(stopCh <-chan struct{}) {
+	logger := r.Log.WithValues("Route Operator Signal Handler", r.NodeName)
+	fmt.Printf("Entering signal handler")
+	stop := make(chan struct{})
+	c := make(chan os.Signal, 1)
+	signal.Notify(c, shutdownSignals...)
+	go func(r *RouteController) {
+		sig := <-c
+		logger.Info("received ", "signal", sig.String())
+		r.DeleteAllIPTablesChains()
+		r.deleteAllRoutes()
+		<-c
+		close(stop)
+	}(r)
+	return stop
 }
 func (r *RouteController) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
