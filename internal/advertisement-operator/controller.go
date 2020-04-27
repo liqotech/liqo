@@ -58,7 +58,9 @@ func (r *AdvertisementReconciler) Reconcile(req ctrl.Request) (ctrl.Result, erro
 		return ctrl.Result{}, client.IgnoreNotFound(err)
 	}
 
-	StartReflector(log, "drone-v2", adv)
+	namespace := "drone-" + adv.Spec.ClusterId
+
+	StartReflector(log, namespace, adv)
 	// The metadata.generation value is incremented for all changes, except for changes to .metadata or .status
 	// if metadata.generation is not incremented there's no need to reconcile
 	if adv.Status.ObservedGeneration == adv.ObjectMeta.Generation {
@@ -89,7 +91,7 @@ func (r *AdvertisementReconciler) Reconcile(req ctrl.Request) (ctrl.Result, erro
 		{
 		 "vk-` + adv.Spec.ClusterId + `": {
 		   "remoteKubeconfig": "/app/kubeconfig/remote",
-		   "namespace": "drone-v2",
+		   "namespace": "` + namespace +`",
 		   "cpu": "` + adv.Spec.Availability.Cpu().String() + `",
 		   "memory": "` + adv.Spec.Availability.Memory().String() + `",
 		   "pods": "` + adv.Spec.Availability.Pods().String() + `",
