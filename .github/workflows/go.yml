@@ -33,6 +33,7 @@ jobs:
         username: ${{ secrets.DOCKER_USERNAME }}
         dockerfile: build/virtual-kubelet/Dockerfile
         password: ${{ secrets.DOCKER_PASSWORD }}
+        tags: "latest,stable,${{ steps.get_version.outputs.VERSION }}"
       if: github.ref == 'refs/heads/master'
     - name: Build Advertisement Operator Docker image
       run: docker build -f build/advertisement-operator/Dockerfile .
@@ -44,6 +45,7 @@ jobs:
         username: ${{ secrets.DOCKER_USERNAME }}
         dockerfile: build/advertisement-operator/Dockerfile
         password: ${{ secrets.DOCKER_PASSWORD }}
+        tags: "latest,stable,${{ steps.get_version.outputs.VERSION }}"
       if: github.ref == 'refs/heads/master'
     - name: Build Tunnel Operator Docker image
       run: docker build -f build/dronet-operator/Dockerfile .
@@ -55,6 +57,7 @@ jobs:
         username: ${{ secrets.DOCKER_USERNAME }}
         dockerfile: build/dronet-operator/Dockerfile
         password: ${{ secrets.DOCKER_PASSWORD }}
+        tags: "latest,stable,${{ steps.get_version.outputs.VERSION }}"
       if: github.ref == 'refs/heads/master'
     - uses: 8398a7/action-slack@v2
       with:
