@@ -1,9 +1,9 @@
 #!/bin/bash
 
-localIP=10.0.4.6  # modify with the IP address of your local machine
-clusterNum=2      # choose the number of kind clusters you want to create
+#modify with the IP address of your local machine
+localIP=10.0.4.6
+clusterNum=2
 
-# create kind cluster and its config file
 configKindCluster(){
   i=$1
   port=$((30000+"$i"))
@@ -13,10 +13,11 @@ apiVersion: kind.x-k8s.io/v1alpha4
 networking:
   apiServerAddress: "$localIP"
   apiServerPort: $port
+  podSubnet: "10.${i}00.0.0/16"
+  serviceSubnet: "10.9$i.0.0/12"
 EOF
-  kind create cluster --name cluster"$i" --kubeconfig kubeconfig-cluster"$i" --config cluster"$i"-config.yaml --wait 1m
+  kind create cluster --name cluster"$i" --kubeconfig kubeconfig-cluster"$i" --config cluster"$i"-config.yaml --wait 2m
 }
-
 
 #delete all clusters
 for ((i=1;i<=clusterNum;i++)); do
@@ -25,7 +26,7 @@ done
 
 # create clusters
 for ((i=1;i<=clusterNum;i++)); do
-  configKindCluster $i &    # delete & to run sequentially
+  configKindCluster $i
   pids[${i}]=$!
 done
 
@@ -43,6 +44,7 @@ for ((i=1;i<=clusterNum;i++)); do
       continue
     fi
     id=cluster${j}
+    #kubectl config view --flatten --minify >>kubeconfig-${id}
     kubectl create configmap foreign-kubeconfig-${id} --from-file=remote=kubeconfig-${id}
   done
 done
@@ -50,9 +52,14 @@ done
 # create advertisement-operator deployment
 for ((i=1;i<=clusterNum;i++)); do
   export KUBECONFIG=kubeconfig-cluster${i}
-  sed -i -e "s/clusterX/cluster$i/g" adv-deploy.yaml
+  sed -i -e "s/clusterX/cluster$i/g" adv-operator_cm.yaml
+  sed -i -e "s/0.0.0.0/172.17.0.$i/g" adv-operator_cm.yaml
+  sed -i -e "s/1.2.3.4/192.168.0.$i/g" adv-operator_cm.yaml
+  kubectl apply -f adv-operator_cm.yaml
+  sed -i -e "s/cluster$i/clusterX/g" adv-operator_cm.yaml
+  sed -i -e "s/172.17.0.$i/0.0.0.0/g" adv-operator_cm.yaml
+  sed -i -e "s/192.168.0.$i/1.2.3.4/g" adv-operator_cm.yaml
   kubectl apply -f adv-deploy.yaml
-  sed -i -e "s/cluster$i/clusterX/g" adv-deploy.yaml
 done
 
 exit 0

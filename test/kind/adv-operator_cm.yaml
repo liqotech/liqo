@@ -1,0 +1,9 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: adv-operator-config
+  namespace: default
+data:
+  clusterId: clusterX
+  gatewayIP: 0.0.0.0
+  gatewayPrivateIP: 1.2.3.4
