@@ -4,6 +4,6 @@ metadata:
   name: adv-operator-config
   namespace: default
 data:
-  clusterId: clusterX
-  gatewayIP: 0.0.0.0
-  gatewayPrivateIP: 1.2.3.4
+  clusterId: clusterX         # your cluster id
+  gatewayIP: 0.0.0.0          # your gateway IP address
+  gatewayPrivateIP: 1.2.3.4   # your gateway private IP address
