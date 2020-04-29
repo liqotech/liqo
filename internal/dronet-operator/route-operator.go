@@ -39,7 +39,7 @@ var (
 	dronetInputChain       = "DRONET-INPUT"
 	natTable               = "nat"
 	filterTable            = "filter"
-	shutdownSignals        = []os.Signal{os.Interrupt, syscall.SIGTERM}
+	shutdownSignals        = []os.Signal{os.Interrupt, syscall.SIGTERM, syscall.SIGKILL}
 )
 
 // RouteController reconciles a TunnelEndpoint object

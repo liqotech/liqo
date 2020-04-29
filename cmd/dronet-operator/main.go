@@ -158,17 +158,18 @@ func main() {
 			os.Exit(1)
 		}
 	} else {
-		if err = (&controllers.TunnelController{
-			Client:        mgr.GetClient(),
-			Log:           ctrl.Log.WithName("controllers").WithName("TunnelEndpoint"),
-			Scheme:        mgr.GetScheme(),
-			RouteOperator: runAsRouteOperator,
-		}).SetupWithManager(mgr); err != nil {
+		r := &controllers.TunnelController{
+			Client:                       mgr.GetClient(),
+			Log:                          ctrl.Log.WithName("controllers").WithName("TunnelEndpoint"),
+			Scheme:                       mgr.GetScheme(),
+			TunnelIFacesPerRemoteCluster: make(map[string]int),
+		}
+		if err = r.SetupWithManager(mgr); err != nil {
 			setupLog.Error(err, "unable to create controller", "controller", "TunnelEndpoint")
 			os.Exit(1)
 		}
 		setupLog.Info("Starting manager as Tunnel-Operator")
-		if err := mgr.Start(ctrl.SetupSignalHandler()); err != nil {
+		if err := mgr.Start(r.SetupSignalHandlerForTunnelOperator()); err != nil {
 			setupLog.Error(err, "problem running manager")
 			os.Exit(1)
 		}
@@ -176,5 +177,3 @@ func main() {
 
 	fmt.Println("exiting")
 }
-
-

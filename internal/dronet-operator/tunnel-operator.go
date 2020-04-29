@@ -19,7 +19,10 @@ import (
 	"github.com/go-logr/logr"
 	"github.com/netgroup-polito/dronev2/api/tunnel-endpoint/v1"
 	dronetOperator "github.com/netgroup-polito/dronev2/pkg/dronet-operator"
+	"github.com/vishvananda/netlink"
 	"k8s.io/apimachinery/pkg/runtime"
+	"os"
+	"os/signal"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
@@ -27,9 +30,9 @@ import (
 // TunnelController reconciles a TunnelEndpoint object
 type TunnelController struct {
 	client.Client
-	Log           logr.Logger
-	Scheme        *runtime.Scheme
-	RouteOperator bool
+	Log                          logr.Logger
+	Scheme                       *runtime.Scheme
+	TunnelIFacesPerRemoteCluster map[string]int
 }
 
 // +kubebuilder:rbac:groups=dronet.drone.com,resources=tunnelendpoints,verbs=get;list;watch;create;update;patch;delete
@@ -64,6 +67,8 @@ func (r *TunnelController) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 			if err := dronetOperator.RemoveGreTunnel(&endpoint); err != nil {
 				return ctrl.Result{}, err
 			}
+			//safe to do, even if the key does not exist in the map
+			delete(r.TunnelIFacesPerRemoteCluster, endpoint.Spec.ClusterID)
 			log.Info("tunnel iface removed")
 			//remove the finalizer from the list and update it.
 			endpoint.Finalizers = dronetOperator.RemoveString(endpoint.Finalizers, tunnelEndpointFinalizer)
@@ -83,6 +88,9 @@ func (r *TunnelController) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 			log.Error(err, "unable to create the gre tunnel")
 			return ctrl.Result{}, err
 		}
+		log.Info("gre tunnel installed", "index", iFaceIndex, "name", iFaceName)
+		//save the IFace index in the map
+		r.TunnelIFacesPerRemoteCluster[endpoint.Spec.ClusterID] = iFaceIndex
 		log.Info("installed gretunel with index: " + iFaceName)
 		//update the status of CR
 		localTunnelPublicIP, err := dronetOperator.GetLocalTunnelPublicIPToString()
@@ -103,11 +111,26 @@ func (r *TunnelController) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 		if err != nil {
 			return ctrl.Result{}, err
 		}
-	}else {
-		//get tunnel addresses for the tunnel link
+	} else {
+		//if the the CR is already initialized check if the tunnel interface exists
+		_, err := netlink.LinkByIndex(endpoint.Status.TunnelIFaceIndex)
+		if err != nil && err.Error() == "Link not found"{
+			//reset status of CR and update it if the tunnel iface does not exist
+			//this is needed if the operator crashes and is restarted, so it checks if
+			//all the existing CR are configured
+			endpoint.Status.TunnelIFaceName = ""
+			endpoint.Status.TunnelIFaceIndex = 0
+			endpoint.Status.LocalTunnelPrivateIP = ""
+			endpoint.Status.LocalTunnelPublicIP = ""
+			err = r.Client.Status().Update(ctx, &endpoint)
+			//
+			if err != nil {
+				return ctrl.Result{}, err
+			}
+		}
 		if endpoint.Status.RemoteTunnelPrivateIP != endpoint.Spec.TunnelPrivateIP || endpoint.Status.RemoteTunnelPublicIP != endpoint.Spec.TunnelPublicIP {
 			//remove the external resource
-			if err := dronetOperator.RemoveGreTunnel(&endpoint); err !=nil{
+			if err := dronetOperator.RemoveGreTunnel(&endpoint); err != nil {
 				log.Error(err, "unable to remove the tunnel interface")
 				return ctrl.Result{}, err
 			}
@@ -125,18 +148,51 @@ func (r *TunnelController) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 			err = r.Client.Status().Update(ctx, &endpoint)
 			if err != nil {
 				log.Error(err, "unable to update status field: tunnelIfaceIndex")
-				//if the operator fails to update the status then we also remove the tunnel
-				if err = dronetOperator.DeleteIFaceByIndex(iFaceIndex); err !=nil{
-					log.Error(err, "unable to remove the tunnel interface")
-				}
 				return ctrl.Result{}, err
 			}
 		}
 
-
 	}
+	//save the IFace index in the map
+	//we come here only if the tunnel is installed and the CR status has been updated
+	r.TunnelIFacesPerRemoteCluster[endpoint.Spec.ClusterID] = endpoint.Status.TunnelIFaceIndex
 
 	return ctrl.Result{}, nil
+}
+
+//used to remove all the tunnel interfaces when the controller is closed
+//it does not return an error, but just logs them, cause we can not recover from
+//them at exit time
+func (r *TunnelController) RemoveAllTunnels() {
+	logger := r.Log.WithName("RemoveAllTunnels")
+	for _, ifaceIndex := range r.TunnelIFacesPerRemoteCluster {
+		existingIface, err := netlink.LinkByIndex(ifaceIndex)
+		if err == nil {
+			//Remove the existing gre interface
+			if err = netlink.LinkDel(existingIface); err != nil {
+				logger.Error(err, "unable to delete the iface:", "ifaceIndex", ifaceIndex, "ifaceName", existingIface.Attrs().Name)
+			}
+		} else {
+			logger.Error(err, "unable to retrive the iface:", "index", ifaceIndex)
+		}
+	}
+}
+
+// SetupSignalHandlerForRouteOperator registers for SIGTERM, SIGINT, SIGKILL. A stop channel is returned
+// which is closed on one of these signals.
+func (r *TunnelController) SetupSignalHandlerForTunnelOperator() (stopCh <-chan struct{}) {
+	logger := r.Log.WithName("Tunnel Operator Signal Handler")
+	stop := make(chan struct{})
+	c := make(chan os.Signal, 1)
+	signal.Notify(c, shutdownSignals...)
+	go func(r *TunnelController) {
+		sig := <-c
+		logger.Info("received ", "signal", sig.String())
+		r.RemoveAllTunnels()
+		<-c
+		close(stop)
+	}(r)
+	return stop
 }
 
 func (r *TunnelController) SetupWithManager(mgr ctrl.Manager) error {
@@ -144,4 +200,3 @@ func (r *TunnelController) SetupWithManager(mgr ctrl.Manager) error {
 		For(&v1.TunnelEndpoint{}).
 		Complete(r)
 }
-
