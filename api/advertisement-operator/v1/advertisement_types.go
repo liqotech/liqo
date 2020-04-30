@@ -21,8 +21,8 @@ import (
 )
 
 type NetworkInfo struct {
-	PodCIDR   string `json:"podCIDR"`
-	GatewayIP string `json:"gatewayIP"`
+	PodCIDR          string `json:"podCIDR"`
+	GatewayIP        string `json:"gatewayIP"`
 	GatewayPrivateIP string `json:"gatewayPrivateIP"`
 	// +optional
 	SupportedProtocols []string `json:"supportedProtocols,omitempty"`
@@ -37,20 +37,30 @@ type NamespacedName struct {
 type AdvertisementSpec struct {
 	ClusterId string `json:"clusterId"`
 	// +optional
-	Images       []corev1.ContainerImage `json:"images,omitempty"`
-	Availability corev1.ResourceList     `json:"availability"`
-	Prices       corev1.ResourceList     `json:"prices"`
-	Network      NetworkInfo             `json:"network"`
-	Timestamp    metav1.Time             `json:"timestamp"`
-	TimeToLive   metav1.Time             `json:"timeToLive"`
+	Images        []corev1.ContainerImage                     `json:"images,omitempty"`
+	Availability  corev1.ResourceList                         `json:"availability"`
+	LimitRange    corev1.LimitRangeSpec                       `json:"limitRange,omitempty"`
+	ResourceQuota corev1.ResourceQuotaSpec                    `json:"resourceQuota,omitempty"`
+	Neighbors     map[corev1.ResourceName]corev1.ResourceList `json:"neighbors,omitempty"`
+	Properties    map[corev1.ResourceName]string              `json:"properties,omitempty"`
+	// +optional
+	Prices     corev1.ResourceList `json:"prices,omitempty"`
+	Network    NetworkInfo         `json:"network"`
+	Timestamp  metav1.Time         `json:"timestamp"`
+	TimeToLive metav1.Time         `json:"timeToLive"`
 }
 
 // AdvertisementStatus defines the observed state of Advertisement
 type AdvertisementStatus struct {
 	AdvertisementStatus string      `json:"advertisementStatus"`
 	ForeignNetwork      NetworkInfo `json:"foreignNetwork"`
+	NatEnabled          bool        `json:"natEnabled,omitempty"`
+	// +optional
+	LocalRemappedPodCIDR string `json:"localRemappedPodCIDR,omitempty"`
+	// +optional
+	RemoteRemappedPodCIDR string `json:"remoteRemappedPodCIDR,omitempty"`
 	//the tunnelEndpoint associated with the foreign cluster
-	TunnelEndpointKey	NamespacedName `json:"tunnelEndpointKey"`
+	TunnelEndpointKey NamespacedName `json:"tunnelEndpointKey"`
 	// +optional
 	ObservedGeneration int64 `json:"observedGeneration,omitempty"`
 }

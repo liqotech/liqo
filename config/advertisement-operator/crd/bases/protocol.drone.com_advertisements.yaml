@@ -63,6 +63,65 @@ spec:
                 - names
                 type: object
               type: array
+            limitRange:
+              description: LimitRangeSpec defines a min/max usage limit for resources
+                that match on kind.
+              properties:
+                limits:
+                  description: Limits is the list of LimitRangeItem objects that are
+                    enforced.
+                  items:
+                    description: LimitRangeItem defines a min/max usage limit for
+                      any resource that matches on kind.
+                    properties:
+                      default:
+                        additionalProperties:
+                          type: string
+                        description: Default resource requirement limit value by resource
+                          name if resource limit is omitted.
+                        type: object
+                      defaultRequest:
+                        additionalProperties:
+                          type: string
+                        description: DefaultRequest is the default resource requirement
+                          request value by resource name if resource request is omitted.
+                        type: object
+                      max:
+                        additionalProperties:
+                          type: string
+                        description: Max usage constraints on this kind by resource
+                          name.
+                        type: object
+                      maxLimitRequestRatio:
+                        additionalProperties:
+                          type: string
+                        description: MaxLimitRequestRatio if specified, the named
+                          resource must have a request and limit that are both non-zero
+                          where limit divided by request is less than or equal to
+                          the enumerated value; this represents the max burst for
+                          the named resource.
+                        type: object
+                      min:
+                        additionalProperties:
+                          type: string
+                        description: Min usage constraints on this kind by resource
+                          name.
+                        type: object
+                      type:
+                        description: Type of resource that this limit applies to.
+                        type: string
+                    type: object
+                  type: array
+              required:
+              - limits
+              type: object
+            neighbors:
+              additionalProperties:
+                additionalProperties:
+                  type: string
+                description: ResourceList is a set of (resource name, quantity) pairs.
+                type: object
+              type: object
             network:
               properties:
                 gatewayIP:
@@ -77,12 +136,74 @@ spec:
                   type: array
               required:
               - gatewayIP
+              - gatewayPrivateIP
               - podCIDR
               type: object
             prices:
               additionalProperties:
                 type: string
               description: ResourceList is a set of (resource name, quantity) pairs.
+              type: object
+            properties:
+              additionalProperties:
+                type: string
+              type: object
+            resourceQuota:
+              description: ResourceQuotaSpec defines the desired hard limits to enforce
+                for Quota.
+              properties:
+                hard:
+                  additionalProperties:
+                    type: string
+                  description: 'hard is the set of desired hard limits for each named
+                    resource. More info: https://kubernetes.io/docs/concepts/policy/resource-quotas/'
+                  type: object
+                scopeSelector:
+                  description: scopeSelector is also a collection of filters like
+                    scopes that must match each object tracked by a quota but expressed
+                    using ScopeSelectorOperator in combination with possible values.
+                    For a resource to match, both scopes AND scopeSelector (if specified
+                    in spec), must be matched.
+                  properties:
+                    matchExpressions:
+                      description: A list of scope selector requirements by scope
+                        of the resources.
+                      items:
+                        description: A scoped-resource selector requirement is a selector
+                          that contains values, a scope name, and an operator that
+                          relates the scope name and values.
+                        properties:
+                          operator:
+                            description: Represents a scope's relationship to a set
+                              of values. Valid operators are In, NotIn, Exists, DoesNotExist.
+                            type: string
+                          scopeName:
+                            description: The name of the scope that the selector applies
+                              to.
+                            type: string
+                          values:
+                            description: An array of string values. If the operator
+                              is In or NotIn, the values array must be non-empty.
+                              If the operator is Exists or DoesNotExist, the values
+                              array must be empty. This array is replaced during a
+                              strategic merge patch.
+                            items:
+                              type: string
+                            type: array
+                        required:
+                        - operator
+                        - scopeName
+                        type: object
+                      type: array
+                  type: object
+                scopes:
+                  description: A collection of filters that must match each object
+                    tracked by a quota. If not specified, the quota matches all objects.
+                  items:
+                    description: A ResourceQuotaScope defines a filter that must match
+                      each object tracked by a quota
+                    type: string
+                  type: array
               type: object
             timeToLive:
               format: date-time
@@ -94,7 +215,6 @@ spec:
           - availability
           - clusterId
           - network
-          - prices
           - timeToLive
           - timestamp
           type: object
@@ -117,11 +237,18 @@ spec:
                   type: array
               required:
               - gatewayIP
+              - gatewayPrivateIP
               - podCIDR
               type: object
+            localRemappedPodCIDR:
+              type: string
+            natEnabled:
+              type: boolean
             observedGeneration:
               format: int64
               type: integer
+            remoteRemappedPodCIDR:
+              type: string
             tunnelEndpointKey:
               description: the tunnelEndpoint associated with the foreign cluster
               properties:

@@ -21,6 +21,7 @@ package v1
 
 import (
 	corev1 "k8s.io/api/core/v1"
+	resource "k8s.io/apimachinery/pkg/api/resource"
 	runtime "k8s.io/apimachinery/pkg/runtime"
 )
 
@@ -98,6 +99,32 @@ func (in *AdvertisementSpec) DeepCopyInto(out *AdvertisementSpec) {
 		*out = make(corev1.ResourceList, len(*in))
 		for key, val := range *in {
 			(*out)[key] = val.DeepCopy()
+		}
+	}
+	in.LimitRange.DeepCopyInto(&out.LimitRange)
+	in.ResourceQuota.DeepCopyInto(&out.ResourceQuota)
+	if in.Neighbors != nil {
+		in, out := &in.Neighbors, &out.Neighbors
+		*out = make(map[corev1.ResourceName]corev1.ResourceList, len(*in))
+		for key, val := range *in {
+			var outVal map[corev1.ResourceName]resource.Quantity
+			if val == nil {
+				(*out)[key] = nil
+			} else {
+				in, out := &val, &outVal
+				*out = make(corev1.ResourceList, len(*in))
+				for key, val := range *in {
+					(*out)[key] = val.DeepCopy()
+				}
+			}
+			(*out)[key] = outVal
+		}
+	}
+	if in.Properties != nil {
+		in, out := &in.Properties, &out.Properties
+		*out = make(map[corev1.ResourceName]string, len(*in))
+		for key, val := range *in {
+			(*out)[key] = val
 		}
 	}
 	if in.Prices != nil {
