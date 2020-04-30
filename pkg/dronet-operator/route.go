@@ -2,7 +2,6 @@ package dronet_operator
 
 import (
 	"fmt"
-	v1 "github.com/netgroup-polito/dronev2/api/tunnel-endpoint/v1"
 	"github.com/vishvananda/netlink"
 	"golang.org/x/sys/unix"
 	"net"
@@ -119,19 +118,4 @@ func StringtoIPNet(ipNet string) (net.IP, error) {
 	}
 	return ip, nil
 }
-//checks if all the values need to install routes have ben set in the CR status
-func ValidateCRAndReturn(endpoint *v1.TunnelEndpoint) (bool) {
-	isReady := true
-	if endpoint.Status.NATEnabled{
-		if endpoint.Status.RemappedPodCIDR == ""{
-			isReady = false
-		}
-	}
-	if endpoint.Status.RemoteTunnelPrivateIP == "" || endpoint.Status.RemoteTunnelPublicIP == ""{
-		isReady = false
-	}
-	if endpoint.Status.LocalTunnelPrivateIP == "" || endpoint.Status.LocalTunnelPublicIP == "" {
-		isReady = false
-	}
-	return isReady
-}
+

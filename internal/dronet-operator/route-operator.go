@@ -22,6 +22,7 @@ import (
 	"github.com/netgroup-polito/dronev2/api/tunnel-endpoint/v1"
 	dronetOperator "github.com/netgroup-polito/dronev2/pkg/dronet-operator"
 	"github.com/vishvananda/netlink"
+	k8sApiErrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/kubernetes"
 	"os"
@@ -94,6 +95,15 @@ func (r *RouteController) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 			// registering our finalizer.
 			endpoint.ObjectMeta.Finalizers = append(endpoint.Finalizers, routeOperatorFinalizer)
 			if err := r.Update(ctx, &endpoint); err != nil {
+				//while updating we check if the a resource version conflict happened
+				//which means the version of the object we have is outdated.
+				//a solution could be to return an error and requeue the object for later process
+				//but if the object has been changed by another instance of the controller running in
+				//another host it already has been put in the working queue so decide to forget the
+				//current version and process the next item in the queue assured that we handle the object later
+				if k8sApiErrors.IsConflict(err) {
+					return ctrl.Result{}, nil
+				}
 				log.Error(err, "unable to update endpoint")
 				return ctrl.Result{}, err
 			}
@@ -112,25 +122,27 @@ func (r *RouteController) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 			//remove the finalizer from the list and update it.
 			endpoint.Finalizers = dronetOperator.RemoveString(endpoint.Finalizers, routeOperatorFinalizer)
 			if err := r.Update(ctx, &endpoint); err != nil {
+				if k8sApiErrors.IsConflict(err) {
+					return ctrl.Result{}, nil
+				}
 				log.Error(err, "unable to update")
 				return ctrl.Result{}, err
 			}
 		}
 		return ctrl.Result{}, nil
 	}
-	if err := r.createAndInsertIPTablesChains(); err != nil {
-		log.Error(err, "unable to create iptables chains")
-		return ctrl.Result{}, err
-	}
-
-	if err := r.addIPTablesRulespecForRemoteCluster(&endpoint); err != nil {
-		log.Error(err, "unable to insert ruleSpec")
-		return ctrl.Result{}, err
-	}
-
-	if dronetOperator.ValidateCRAndReturn(&endpoint) {
-		err := r.InsertRoutesPerCluster(&endpoint)
-		if err != nil {
+	//install iptables rules and routes only if the Endpoint CR has been processed by tunnel operator first
+	//
+	if r.ValidateCRAndReturn(&endpoint) {
+		if err := r.createAndInsertIPTablesChains(); err != nil {
+			log.Error(err, "unable to create iptables chains")
+			return ctrl.Result{}, err
+		}
+		if err := r.addIPTablesRulespecForRemoteCluster(&endpoint); err != nil {
+			log.Error(err, "unable to insert ruleSpec")
+			return ctrl.Result{}, err
+		}
+		if err := r.InsertRoutesPerCluster(&endpoint); err != nil {
 			log.Error(err, "unable to insert routes")
 			return ctrl.Result{}, err
 		}
@@ -311,11 +323,11 @@ func (r *RouteController) deleteIPTablesRulespecForRemoteCluster(endpoint *v1.Tu
 //it cleans up all the possible resources
 //a log message is emitted if in case of error
 //only if the iptables binaries are missing an error is returned
-func (r *RouteController) DeleteAllIPTablesChains(){
+func (r *RouteController) DeleteAllIPTablesChains() {
 	logger := r.Log.WithName("DeleteAllIPTablesChains")
 	ipt, err := iptables.New()
 	if err != nil {
-		logger.Error(err,"unable to initialize iptables.check if the ipatable are present in the system",)
+		logger.Error(err, "unable to initialize iptables.check if the ipatable are present in the system")
 	}
 	//first all the iptables chains are flushed
 	for _, chain := range r.IPTablesChains {
@@ -324,7 +336,7 @@ func (r *RouteController) DeleteAllIPTablesChains(){
 			if ok && e.IsNotExist() {
 				continue
 			} else if !ok {
-				logger.Error(err,"unable to clear: ","chain", chain.Name, "in table", chain.Table)
+				logger.Error(err, "unable to clear: ", "chain", chain.Name, "in table", chain.Table)
 			}
 
 		}
@@ -336,7 +348,7 @@ func (r *RouteController) DeleteAllIPTablesChains(){
 			if ok && e.IsNotExist() {
 				continue
 			} else if !ok {
-				logger.Error(err, "unable to delete: ", "rule", strings.Join(rulespec.RuleSpec, ""),"in chain", rulespec.Chain,"in table", rulespec.Table)
+				logger.Error(err, "unable to delete: ", "rule", strings.Join(rulespec.RuleSpec, ""), "in chain", rulespec.Chain, "in table", rulespec.Table)
 			}
 		}
 	}
@@ -347,7 +359,7 @@ func (r *RouteController) DeleteAllIPTablesChains(){
 			if ok && e.IsNotExist() {
 				continue
 			} else if !ok {
-				logger.Error(err,"unable to delete ", "chain", chain.Name, "in table", chain.Table)
+				logger.Error(err, "unable to delete ", "chain", chain.Name, "in table", chain.Table)
 			}
 		}
 	}
@@ -412,29 +424,30 @@ func (r *RouteController) deleteAllRoutes() {
 	//a log message is emitted if in case of error
 	for _, cluster := range r.RoutesPerRemoteCluster {
 		for _, route := range cluster {
-			if err := dronetOperator.DelRoute(route); err != nil{
-				logger.Error(err,"an error occurred while deleting", "route", route.String())
+			if err := dronetOperator.DelRoute(route); err != nil {
+				logger.Error(err, "an error occurred while deleting", "route", route.String())
 			}
 		}
 	}
 }
+
 //this function deletes the vxlan interface in host where the route operator is running
-func (r *RouteController) deleteVxlanIFace(){
+func (r *RouteController) deleteVxlanIFace() {
 	logger := r.Log.WithName("DeleteVxlanIFace")
 	//first get the iface index
 	iface, err := netlink.LinkByName(r.VxlanIfaceName)
-	if err != nil{
+	if err != nil {
 		logger.Error(err, "an error occurred while removing vxlan interface", "ifaceName", r.VxlanIfaceName)
 	}
 	err = dronetOperator.DeleteIFaceByIndex(iface.Attrs().Index)
-	if err != nil{
+	if err != nil {
 		logger.Error(err, "an error occurred while removing vxlan interface", "ifaceName", r.VxlanIfaceName)
 	}
 }
 
 // SetupSignalHandlerForRouteOperator registers for SIGTERM, SIGINT. A stop channel is returned
 // which is closed on one of these signals.
-func (r *RouteController) SetupSignalHandlerForRouteOperator()(stopCh <-chan struct{}) {
+func (r *RouteController) SetupSignalHandlerForRouteOperator() (stopCh <-chan struct{}) {
 	logger := r.Log.WithValues("Route Operator Signal Handler", r.NodeName)
 	fmt.Printf("Entering signal handler")
 	stop := make(chan struct{})
@@ -450,6 +463,30 @@ func (r *RouteController) SetupSignalHandlerForRouteOperator()(stopCh <-chan str
 		close(stop)
 	}(r)
 	return stop
+}
+
+//checks if all the values need to install routes have ben set in the CR status
+func (r *RouteController)ValidateCRAndReturn(endpoint *v1.TunnelEndpoint) (bool) {
+	isReady := true
+	if endpoint.Status.NATEnabled{
+		if endpoint.Status.RemappedPodCIDR == ""{
+			isReady = false
+		}
+	}
+	//check if the tunnel interface is installed but only if the route operator is running on the gatewayhost
+	if endpoint.Status.TunnelIFaceIndex != 0 && r.IsGateway{
+		_, err := netlink.LinkByIndex(endpoint.Status.TunnelIFaceIndex)
+		if err != nil{
+			isReady = false
+		}
+	}
+	if endpoint.Status.RemoteTunnelPrivateIP == "" || endpoint.Status.RemoteTunnelPublicIP == ""{
+		isReady = false
+	}
+	if endpoint.Status.LocalTunnelPrivateIP == "" || endpoint.Status.LocalTunnelPublicIP == "" {
+		isReady = false
+	}
+	return isReady
 }
 func (r *RouteController) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
