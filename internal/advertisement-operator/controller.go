@@ -18,27 +18,28 @@ package advertisement_operator
 import (
 	"context"
 	"github.com/go-logr/logr"
-	"k8s.io/apimachinery/pkg/labels"
-	"k8s.io/client-go/tools/record"
-
+	pkg "github.com/netgroup-polito/dronev2/pkg/advertisement-operator"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
-
+	"k8s.io/client-go/tools/record"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"time"
 
 	protocolv1 "github.com/netgroup-polito/dronev2/api/advertisement-operator/v1"
-	pkg "github.com/netgroup-polito/dronev2/pkg/advertisement-operator"
 )
 
 // AdvertisementReconciler reconciles a Advertisement object
 type AdvertisementReconciler struct {
 	client.Client
-	Log    logr.Logger
-	Scheme *runtime.Scheme
-	EventsRecorder  record.EventRecorder
+	Log              logr.Logger
+	Scheme           *runtime.Scheme
+	EventsRecorder   record.EventRecorder
+	GatewayIP        string
+	GatewayPrivateIP string
 }
 
 // +kubebuilder:rbac:groups=protocol.drone.com,resources=advertisements,verbs=get;list;watch;create;update;patch;delete
@@ -69,7 +70,7 @@ func (r *AdvertisementReconciler) Reconcile(req ctrl.Request) (ctrl.Result, erro
 
 	// get nodes of the local cluster
 	nodes, err := GetNodes(r.Client, ctx, log)
-	if err != nil{
+	if err != nil {
 		return ctrl.Result{}, err
 	}
 	// filter advertisements and create a virtual-kubelet only for the good ones
@@ -79,38 +80,10 @@ func (r *AdvertisementReconciler) Reconcile(req ctrl.Request) (ctrl.Result, erro
 		return ctrl.Result{}, errors.NewBadRequest("advertisement ignored")
 	}
 
-	// create configuration for virtual-kubelet with data from adv
-	vkConfig := v1.ConfigMap{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "vk-config-" + adv.Spec.ClusterId,
-			Namespace: "default",
-			OwnerReferences: pkg.GetOwnerReference(adv),
-		},
-		Data: map[string]string{
-			"vkubelet-cfg.json": `
-		{
-		 "vk-` + adv.Spec.ClusterId + `": {
-		   "remoteKubeconfig": "/app/kubeconfig/remote",
-		   "namespace": "` + namespace +`",
-		   "cpu": "` + adv.Spec.Availability.Cpu().String() + `",
-		   "memory": "` + adv.Spec.Availability.Memory().String() + `",
-		   "pods": "` + adv.Spec.Availability.Pods().String() + `",
-		   "remoteNewPodCidr": "` + adv.Spec.Network.PodCIDR + `"
-		 }
-		}`},
-	}
-	err = pkg.CreateOrUpdate(r.Client, ctx, log, vkConfig)
+	err = createVirtualKubelet(r.Client, ctx, log, namespace, adv)
 	if err != nil {
 		return ctrl.Result{}, err
 	}
-
-	deploy := pkg.CreateVkDeployment(adv)
-	err = pkg.CreateOrUpdate(r.Client, ctx, log, deploy)
-	if err != nil {
-		return ctrl.Result{}, err
-	}
-
-	log.Info("launching virtual-kubelet for cluster " + adv.Spec.ClusterId)
 
 	// start the reflector only if this is the first time we receive this advertisement
 	if adv.Generation == 1 {
@@ -125,11 +98,11 @@ func (r *AdvertisementReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		Complete(r)
 }
 
-func GetNodes(c client.Client , ctx context.Context, log logr.Logger) ([]v1.Node, error) {
+func GetNodes(c client.Client, ctx context.Context, log logr.Logger) ([]v1.Node, error) {
 	var nodes v1.NodeList
 
 	selector, err := labels.Parse("type != virtual-node")
-	if err = c.List(ctx, &nodes, client.MatchingLabelsSelector{Selector:selector}) ; err != nil {
+	if err = c.List(ctx, &nodes, client.MatchingLabelsSelector{Selector: selector}); err != nil {
 		log.Error(err, "Unable to list nodes")
 		return nil, err
 	}
@@ -144,15 +117,65 @@ func checkAdvertisement(r *AdvertisementReconciler, ctx context.Context, log log
 	adv.Status.AdvertisementStatus = "ACCEPTED"
 	metav1.SetMetaDataAnnotation(&adv.ObjectMeta, "advertisementStatus", "accepted")
 
-	recordEvent(r, log, "Advertisement " + adv.Name + " accepted", "Normal", "AdvertisementAccepted", adv)
+	recordEvent(r, log, "Advertisement "+adv.Name+" accepted", "Normal", "AdvertisementAccepted", adv)
 	adv.Status.ForeignNetwork = protocolv1.NetworkInfo{
-		PodCIDR:            GetPodCIDR(nodes),
+		PodCIDR:          GetPodCIDR(nodes),
+		GatewayIP:        r.GatewayIP,
+		GatewayPrivateIP: r.GatewayPrivateIP,
 	}
 	adv.Status.ObservedGeneration = adv.ObjectMeta.Generation
 	if err := r.Status().Update(ctx, adv); err != nil {
 		log.Error(err, "unable to update Advertisement status")
 	}
 	return
+}
+
+func createVirtualKubelet(c client.Client, ctx context.Context, log logr.Logger, namespace string, adv protocolv1.Advertisement) error {
+
+	// check if the network module has established connection
+	if adv.Status.NatEnabled == true {
+		for {
+			if adv.Status.LocalRemappedPodCIDR != "" && adv.Status.RemoteRemappedPodCIDR != "" {
+				adv.Spec.Network.PodCIDR = adv.Status.RemoteRemappedPodCIDR
+				break
+			}
+			time.Sleep(10 * time.Second)
+		}
+	}
+
+	// create configuration for virtual-kubelet with data from adv
+	vkConfig := v1.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:            "vk-config-" + adv.Spec.ClusterId,
+			Namespace:       "default",
+			OwnerReferences: pkg.GetOwnerReference(adv),
+		},
+		Data: map[string]string{
+			"vkubelet-cfg.json": `
+		{
+		 "vk-` + adv.Spec.ClusterId + `": {
+		   "remoteKubeconfig": "/app/kubeconfig/remote",
+		   "namespace": "` + namespace + `",
+		   "cpu": "` + adv.Spec.Availability.Cpu().String() + `",
+		   "memory": "` + adv.Spec.Availability.Memory().String() + `",
+		   "pods": "` + adv.Spec.Availability.Pods().String() + `",
+		   "remoteNewPodCidr": "` + adv.Spec.Network.PodCIDR + `"
+		 }
+		}`},
+	}
+	err := pkg.CreateOrUpdate(c, ctx, log, vkConfig)
+	if err != nil {
+		return err
+	}
+
+	deploy := pkg.CreateVkDeployment(adv)
+	err = pkg.CreateOrUpdate(c, ctx, log, deploy)
+	if err != nil {
+		return err
+	}
+
+	log.Info("launching virtual-kubelet for cluster " + adv.Spec.ClusterId)
+	return nil
 }
 
 func recordEvent(r *AdvertisementReconciler, log logr.Logger,

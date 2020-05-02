@@ -96,6 +96,8 @@ func main() {
 			Log:    ctrl.Log.WithName("controllers").WithName("Advertisement"),
 			Scheme: mgr.GetScheme(),
 			EventsRecorder:     mgr.GetEventRecorderFor("AdvertisementOperator"),
+			GatewayIP: gatewayIP,
+			GatewayPrivateIP: gatewayPrivateIP,
 		}).SetupWithManager(mgr); err != nil {
 			setupLog.Error(err, "unable to create controller", "controller", "Advertisement")
 			os.Exit(1)
