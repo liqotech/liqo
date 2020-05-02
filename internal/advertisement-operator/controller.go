@@ -125,7 +125,7 @@ func GetNodes(c client.Client , ctx context.Context, log logr.Logger) ([]v1.Node
 	var nodes v1.NodeList
 
 	selector, err := labels.Parse("type != virtual-node")
-	if err = c.List(ctx, &nodes, client.MatchingLabelsSelector{selector}) ; err != nil {
+	if err = c.List(ctx, &nodes, client.MatchingLabelsSelector{Selector:selector}) ; err != nil {
 		log.Error(err, "Unable to list nodes")
 		return nil, err
 	}
@@ -138,6 +138,7 @@ func checkAdvertisement(r *AdvertisementReconciler, ctx context.Context, log log
 
 	//TODO: implement logic
 	adv.Status.AdvertisementStatus = "ACCEPTED"
+	metav1.SetMetaDataAnnotation(&adv.ObjectMeta, "advertisementStatus", "accepted")
 
 	recordEvent(r, log, "Advertisement " + adv.Name + " accepted", "Normal", "AdvertisementAccepted", adv)
 	adv.Status.ForeignNetwork = protocolv1.NetworkInfo{
