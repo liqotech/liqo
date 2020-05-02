@@ -1,9 +1,5 @@
 #!/bin/bash
 
-#modify with the IP address of your local machine, DO NOT use the localhost
-localIP=10.0.4.6
-clusterNum=2
-
 configKindCluster(){
   i=$1
   port=$((30000+"$i"))
@@ -18,6 +14,16 @@ networking:
 EOF
   kind create cluster --name cluster"$i" --kubeconfig kubeconfig-cluster"$i" --config cluster"$i"-config.yaml --wait 2m
 }
+
+if [ $# -ne 1 ]
+then
+  echo "please, provide your local IP address"
+  exit 1
+fi
+
+# do not set localhost, use your local IP address
+localIP=$1
+clusterNum=2
 
 #delete all clusters
 for ((i=1;i<=clusterNum;i++)); do
@@ -39,6 +45,7 @@ done
 for ((i=1;i<=clusterNum;i++)); do
   export KUBECONFIG=kubeconfig-cluster${i}
   kubectl apply -f adv-crd.yaml
+  kubectl apply -f sn-crd.yaml
   for ((j=1;j<=clusterNum;j++)); do
     if [ $i -eq $j ] ; then
       continue
@@ -61,6 +68,7 @@ for ((i=1;i<=clusterNum;i++)); do
   sed -i -e "s/192.168.0.$i/1.2.3.4/g" adv-operator_cm.yaml
   kubectl apply -f adv-deploy.yaml
   kubectl apply -f broadcaster-deploy.yaml
+  kubectl apply -f sn-deploy.yaml
 done
 
 exit 0

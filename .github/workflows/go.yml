@@ -82,6 +82,18 @@ jobs:
         password: ${{ secrets.DOCKER_PASSWORD }}
         tags: "latest,${{ github.sha }}"
       if: github.ref == 'refs/heads/master'
+    - name: Build SchedulingNode-operator Docker image
+      run: docker build -f build/schedulingNode-operator/Dockerfile .
+      if: github.ref != 'refs/heads/master'
+    - name: Push SchedulingNode-operator image on repo
+      uses: HurricanKai/Publish-Docker-Github-Action@master
+      with:
+        name: dronev2/schedulingNode-operator
+        username: ${{ secrets.DOCKER_USERNAME }}
+        dockerfile: build/schedulingNode-operator/Dockerfile
+        password: ${{ secrets.DOCKER_PASSWORD }}
+        tags: "latest,stable,${{ steps.get_version.outputs.VERSION }}"
+      if: github.ref == 'refs/heads/master'
     - uses: 8398a7/action-slack@v2
       with:
         status: ${{ job.status }}
