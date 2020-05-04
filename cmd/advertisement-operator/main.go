@@ -73,6 +73,12 @@ func main() {
 		os.Exit(1)
 	}
 
+	if localKubeconfig != "" {
+		if err := os.Setenv("KUBECONFIG", localKubeconfig); err != nil {
+			os.Exit(1)
+		}
+	}
+
 	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
 		Scheme:             scheme,
 		MetricsBindAddress: metricsAddr,
