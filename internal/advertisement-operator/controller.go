@@ -60,7 +60,6 @@ func (r *AdvertisementReconciler) Reconcile(req ctrl.Request) (ctrl.Result, erro
 
 	namespace := "drone-" + adv.Spec.ClusterId
 
-	StartReflector(namespace, adv)
 	// The metadata.generation value is incremented for all changes, except for changes to .metadata or .status
 	// if metadata.generation is not incremented there's no need to reconcile
 	if adv.Status.ObservedGeneration == adv.ObjectMeta.Generation {
@@ -112,6 +111,10 @@ func (r *AdvertisementReconciler) Reconcile(req ctrl.Request) (ctrl.Result, erro
 
 	log.Info("launching virtual-kubelet for cluster " + adv.Spec.ClusterId)
 
+	// start the reflector only if this is the first time we receive this advertisement
+	if adv.Generation == 1 {
+		StartReflector(namespace, adv)
+	}
 	return ctrl.Result{}, nil
 }
 

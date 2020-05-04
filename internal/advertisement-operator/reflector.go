@@ -11,7 +11,6 @@ import (
 	"k8s.io/client-go/kubernetes"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"strings"
-	"sync"
 )
 
 func StartReflector(namespace string, adv protocolv1.Advertisement) {
@@ -38,9 +37,8 @@ func StartReflector(namespace string, adv protocolv1.Advertisement) {
 	// create a local service watcher in the given namespace
 	go watchServices(log, localClient,remoteClient,namespace,adv)
     //go watchEP(localClient,remoteClient,namespace,adv)
+    return
 }
-
-var mutex sync.Mutex
 
 func watchServices(log logr.Logger, localClient *kubernetes.Clientset,remoteClient *kubernetes.Clientset, namespace string, adv protocolv1.Advertisement){
 	svcWatch, err := localClient.CoreV1().Services(namespace).Watch(metav1.ListOptions{})
@@ -48,7 +46,7 @@ func watchServices(log logr.Logger, localClient *kubernetes.Clientset,remoteClie
 		log.Error(err, "cannot watch services in namespace "+namespace)
 	}
 
-	mutex.Lock()
+	//mutex.Lock()
 	for event := range svcWatch.ResultChan() {
 		svc, ok := event.Object.(*corev1.Service)
 		if !ok {
@@ -65,6 +63,7 @@ func watchServices(log logr.Logger, localClient *kubernetes.Clientset,remoteClie
 				} else {
 					log.Info("correctly created service " + svc.Name + " on cluster " + adv.Spec.ClusterId)
 				}
+				addEndpoints(localClient, remoteClient, svc, adv.Spec.ClusterId)
 			}
 		case watch.Modified:
 			if err = UpdateService(remoteClient, svc); err != nil{
@@ -81,7 +80,78 @@ func watchServices(log logr.Logger, localClient *kubernetes.Clientset,remoteClie
 		}
 
 	}
-	mutex.Unlock()
+	//mutex.Unlock()
+}
+
+func CreateService(c *kubernetes.Clientset, svc *corev1.Service) error {
+	// translate svc
+	svcRemote := corev1.Service{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:        svc.Name,
+			Namespace:   svc.Namespace,
+			Labels:      svc.Labels,
+			Annotations: nil,
+		},
+		Spec: corev1.ServiceSpec{
+			Ports:    svc.Spec.Ports,
+			Selector: svc.Spec.Selector,
+			Type:     svc.Spec.Type,
+		},
+	}
+
+	_, err := c.CoreV1().Services(svc.Namespace).Create(&svcRemote)
+	return err
+}
+
+func UpdateService(c *kubernetes.Clientset, svc *corev1.Service) error{
+	servicePre, err := c.CoreV1().Services(svc.Namespace).Get(svc.Name, metav1.GetOptions{})
+	if err != nil {
+		log.Info("Remote svc "+svc.Name + " doesn't exist")
+		return err
+	}
+
+	servicePost := svc.DeepCopy()
+	svc.SetResourceVersion(servicePre.ResourceVersion)
+	_, err = c.CoreV1().Services(svc.Namespace).Update(servicePost)
+	return err
+}
+
+func DeleteService(c *kubernetes.Clientset, svc *corev1.Service) error{
+	err := c.CoreV1().Services(svc.Namespace).Delete(svc.Name, &metav1.DeleteOptions{})
+	return err
+}
+
+func addEndpoints(localClient *kubernetes.Clientset, remoteClient *kubernetes.Clientset, svc *corev1.Service, clusterId string){
+	// get local and remote endpoints
+	endpoints, err := localClient.CoreV1().Endpoints(svc.Namespace).Get(svc.Name, metav1.GetOptions{})
+	if err != nil {
+		log.Error(err, "Unable to get local endpoints "+svc.Name)
+	}
+	endpointsRemote, err := remoteClient.CoreV1().Endpoints(svc.Namespace).Get(svc.Name, metav1.GetOptions{})
+	if err != nil {
+		log.Error(err, "Unable to get endpoints "+svc.Name+" on cluster "+clusterId)
+	}
+	if endpointsRemote.Subsets == nil {
+		endpointsRemote.Subsets = make([]corev1.EndpointSubset, len(endpoints.Subsets))
+	}
+
+	// add local endpoints to remote
+	for i, ep := range endpoints.Subsets {
+		for j, addr := range ep.Addresses {
+			// filter remote ep
+			if !strings.HasPrefix(*addr.NodeName, "vk") {
+				endpointsRemote.Subsets[i] = ep
+				endpointsRemote.Subsets[i].Addresses[j].NodeName = nil
+			}
+		}
+	}
+
+	_, err = remoteClient.CoreV1().Endpoints(svc.Namespace).Update(endpointsRemote)
+	if err != nil {
+		log.Error(err, "Unable to update endpoints "+endpointsRemote.Name+" on cluster "+clusterId)
+	} else {
+		log.Info("Correctly updated endpoints " + endpointsRemote.Name + " on cluster " + clusterId)
+	}
 }
 
 func watchEP(localClient *kubernetes.Clientset,remoteClient *kubernetes.Clientset, namespace string, adv protocolv1.Advertisement){
@@ -130,7 +200,6 @@ func watchEP(localClient *kubernetes.Clientset,remoteClient *kubernetes.Clientse
 	}
 }
 
-
 func generateEP(localEndpoints *corev1.Endpoints, endpointsRemote *corev1.Endpoints) (*corev1.Endpoints){
 	new := false
 	if endpointsRemote == nil {
@@ -173,44 +242,6 @@ func generateEP(localEndpoints *corev1.Endpoints, endpointsRemote *corev1.Endpoi
 		return nil
 	}
 	return endpointsRemote
-}
-
-func CreateService(c *kubernetes.Clientset, svc *corev1.Service) error {
-	// translate svc
-	svcRemote := corev1.Service{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:        svc.Name,
-			Namespace:   svc.Namespace,
-			Labels:      svc.Labels,
-			Annotations: nil,
-		},
-		Spec: corev1.ServiceSpec{
-			Ports:    svc.Spec.Ports,
-			Selector: svc.Spec.Selector,
-			Type:     svc.Spec.Type,
-		},
-	}
-
-	_, err := c.CoreV1().Services(svc.Namespace).Create(&svcRemote)
-	return err
-}
-
-func UpdateService(c *kubernetes.Clientset, svc *corev1.Service) error{
-	servicePre, err := c.CoreV1().Services(svc.Namespace).Get(svc.Name, metav1.GetOptions{})
-	if err != nil {
-		log.Info("Remote svc "+svc.Name + " doesn't exist")
-		return err
-	}
-
-	servicePost := svc.DeepCopy()
-	svc.SetResourceVersion(servicePre.ResourceVersion)
-	_, err = c.CoreV1().Services(svc.Namespace).Update(servicePost)
-	return err
-}
-
-func DeleteService(c *kubernetes.Clientset, svc *corev1.Service) error{
-	err := c.CoreV1().Services(svc.Namespace).Delete(svc.Name, &metav1.DeleteOptions{})
-	return err
 }
 
 func generateSlice(endpoints *corev1.Endpoints, svc *corev1.Service) (*v1beta1.EndpointSlice){
