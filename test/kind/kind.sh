@@ -1,6 +1,6 @@
 #!/bin/bash
 
-#modify with the IP address of your local machine
+#modify with the IP address of your local machine, DO NOT use the localhost
 localIP=10.0.4.6
 clusterNum=2
 
