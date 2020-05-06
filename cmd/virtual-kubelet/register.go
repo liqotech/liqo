@@ -18,14 +18,16 @@ func registerMock(s *provider.Store) {
 	})
 }
 
-func registerKubernetes(s *provider.Store) {
-	s.Register("kubernetes", func(cfg provider.InitConfig) (provider.Provider, error) { //nolint:errcheck
+func registerKubernetes(s *provider.Store) error {
+	return s.Register("kubernetes", func(cfg provider.InitConfig) (provider.Provider, error) { //nolint:errcheck
 		return kubernetes.NewKubernetesProvider(
-			cfg.ConfigPath,
 			cfg.NodeName,
+			cfg.ClusterId,
 			cfg.OperatingSystem,
 			cfg.InternalIP,
 			cfg.DaemonPort,
+			cfg.ConfigPath,
+			cfg.RemoteKubeConfig,
 		)
 	})
 }

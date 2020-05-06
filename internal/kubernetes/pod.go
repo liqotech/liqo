@@ -48,7 +48,7 @@ func (p *KubernetesProvider) CreatePod(ctx context.Context, pod *v1.Pod) error {
 	}
 	podTranslated := H2FTranslate(pod)
 
-	podServer, err := p.client.CoreV1().Pods(p.config.Namespace).Create(podTranslated)
+	podServer, err := p.client.CoreV1().Pods(p.providerNamespace).Create(podTranslated)
 	if err != nil {
 		return errors.Wrap(err, "Unable to create pod")
 	}
@@ -69,7 +69,7 @@ func (p *KubernetesProvider) UpdatePod(ctx context.Context, pod *v1.Pod) error {
 	log.G(ctx).Infof("receive UpdatePod %q", pod.Name)
 
 	podTranslated := H2FTranslate(pod)
-	poUpdated, err := p.client.CoreV1().Pods(p.config.Namespace).Get(podTranslated.Name, metav1.GetOptions{})
+	poUpdated, err := p.client.CoreV1().Pods(p.providerNamespace).Get(podTranslated.Name, metav1.GetOptions{})
 	if err != nil {
 		return errors.Wrap(err, "Unable to create pod")
 	}
@@ -89,8 +89,8 @@ func (p *KubernetesProvider) DeletePod(ctx context.Context, pod *v1.Pod) (err er
 
 	log.G(ctx).Infof("receive DeletePod %q", pod.Name)
 	opts := &metav1.DeleteOptions{}
-	//pR, err := p.client.CoreV1().Pods(p.config.Namespace).Get(pod.Name,metav1.GetOptions{})
-	err = p.client.CoreV1().Pods(p.config.Namespace).Delete(pod.Name,opts)
+	//pR, err := p.client.CoreV1().Pods(p.providerNamespace).Get(pod.Name,metav1.GetOptions{})
+	err = p.client.CoreV1().Pods(p.providerNamespace).Delete(pod.Name,opts)
 	if err != nil {
 		return errors.Wrap(err, "Unable to delete pod")
 	}
@@ -133,7 +133,7 @@ func (p *KubernetesProvider) GetPod(ctx context.Context, namespace, name string)
 
 	log.G(ctx).Infof("receive GetPod %q", name)
 	opts := metav1.GetOptions{}
-	podServer, err := p.client.CoreV1().Pods(p.config.Namespace).Get(name,opts)
+	podServer, err := p.client.CoreV1().Pods(p.providerNamespace).Get(name,opts)
 	if err != nil {
 		if kerror.IsNotFound(err) {
 			return nil, errdefs.NotFoundf("pod \"%s/%s\" is not known to the provider", namespace, name)
@@ -152,7 +152,7 @@ func (p *KubernetesProvider) GetPodStatus(ctx context.Context, namespace, name s
 
 	// Add namespace and name as attributes to the current span.
 	ctx = addAttributes(ctx, span, namespaceKey, namespace, nameKey, name)
-	podForeignIn, err := p.client.CoreV1().Pods(p.config.Namespace).Get(name,metav1.GetOptions{})
+	podForeignIn, err := p.client.CoreV1().Pods(p.providerNamespace).Get(name,metav1.GetOptions{})
     if err != nil {
     	return nil,errors.Wrap(err,"error getting status")
 	}
@@ -217,11 +217,15 @@ func (p *KubernetesProvider) GetPods(ctx context.Context) ([]*v1.Pod, error) {
 
 	log.G(ctx).Info("receive GetPods")
 
-	podsForeignIn, err := p.client.CoreV1().Pods(p.config.Namespace).List(metav1.ListOptions{})
+	if p.client == nil {
+		return nil, nil
+	}
+
+	podsForeignIn, err := p.client.CoreV1().Pods(p.providerNamespace).List(metav1.ListOptions{})
 
 	if err != nil {
 		if kerror.IsNotFound(err) {
-			return nil, errdefs.NotFoundf("pods in \"%s\" is not known to the provider", p.config.Namespace)
+			return nil, errdefs.NotFoundf("pods in \"%s\" is not known to the provider", p.providerNamespace)
 		}
 		return nil, errors.Wrap(err, "Unable to get pods")
 	}
@@ -255,10 +259,10 @@ func (p *KubernetesProvider) GetStatsSummary(ctx context.Context) (*stats.Summar
 	}
 
 	// Populate the Summary object with dummy stats for each pod known by this provider.
-	pods, err := p.client.CoreV1().Pods(p.config.Namespace).List(metav1.ListOptions{})
+	pods, err := p.client.CoreV1().Pods(p.providerNamespace).List(metav1.ListOptions{})
 	if err != nil {
 		if kerror.IsNotFound(err) {
-			return nil, errdefs.NotFoundf("pods in \"%s\" is not known to the provider", p.config.Namespace)
+			return nil, errdefs.NotFoundf("pods in \"%s\" is not known to the provider", p.providerNamespace)
 		}
 		return nil, errors.Wrap(err, "Unable to get pods")
 	}
@@ -321,7 +325,7 @@ func (p *KubernetesProvider) GetStatsSummary(ctx context.Context) (*stats.Summar
 	return res, nil
 }
 
-// NotifyPods is called to set a pod notifier callback function. This should be called before any operations are done
+// NotifyPods is called to set a pod notifier callback function. This should be called before any operations are ready
 // within the provider.
 func (p *KubernetesProvider) NotifyPods(ctx context.Context, notifier func(*v1.Pod)) {
 	p.notifier = notifier

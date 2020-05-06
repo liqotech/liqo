@@ -64,7 +64,7 @@ func installFlags(flags *pflag.FlagSet, c *Opts) {
 	flags.StringVar(&c.NodeName, "nodename", c.NodeName, "kubernetes node name")
 	flags.StringVar(&c.OperatingSystem, "os", c.OperatingSystem, "Operating System (Linux/Windows)")
 	flags.StringVar(&c.Provider, "provider", c.Provider, "cloud provider")
-	flags.StringVar(&c.ProviderConfigPath, "provider-config", c.ProviderConfigPath, "cloud provider configuration file")
+	flags.StringVar(&c.ProviderConfigPath, "provider-config", c.ProviderConfigPath, "cloud provider kubeconfig")
 	flags.StringVar(&c.MetricsAddr, "metrics-addr", c.MetricsAddr, "address to listen for metrics/stats requests")
 
 	flags.StringVar(&c.TaintKey, "taint", c.TaintKey, "Set node taint key")
@@ -82,6 +82,7 @@ func installFlags(flags *pflag.FlagSet, c *Opts) {
 	flags.DurationVar(&c.InformerResyncPeriod, "full-resync-period", c.InformerResyncPeriod, "how often to perform a full resync of pods between kubernetes and the provider")
 	flags.DurationVar(&c.StartupTimeout, "startup-timeout", c.StartupTimeout, "How long to wait for the virtual-kubelet to start")
 
+	flags.StringVar(&c.ClusterId, "cluster-id", c.ClusterId, "The Id of the foreign cluster")
 	flagset := flag.NewFlagSet("klog", flag.PanicOnError)
 	klog.InitFlags(flagset)
 	flagset.VisitAll(func(f *flag.Flag) {

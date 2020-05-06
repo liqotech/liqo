@@ -69,6 +69,8 @@ type InitConfig struct {
 	DaemonPort        int32
 	KubeClusterDomain string
 	ResourceManager   *manager.ResourceManager
+	ClusterId string
+	RemoteKubeConfig string
 }
 
 type InitFunc func(InitConfig) (Provider, error)

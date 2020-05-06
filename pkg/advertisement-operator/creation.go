@@ -79,64 +79,72 @@ func CreateFromYaml(c client.Client, ctx context.Context, log logr.Logger, filen
 // create deployment for a virtual-kubelet
 func CreateVkDeployment(adv protocolv1.Advertisement) appsv1.Deployment {
 
-	command := make([]string, 1)
-	command[0] = "/usr/bin/virtual-kubelet"
-	args := make([]string, 7)
-	args[0] = "--provider"
-	args[1] = "kubernetes"
-	args[2] = "--provider-config"
-	args[3] = "/app/config/vkubelet-cfg.json"
-	args[4] = "--disable-taint"
-	args[5] = "--nodename"
-	args[6] = "vk-" + adv.Spec.ClusterId
+	command := []string{
+		"/usr/bin/virtual-kubelet",
+	}
 
-	volumes := make([]v1.Volume, 3)
-	volumes[0] = v1.Volume{
-		Name: "provider-config",
-		VolumeSource: v1.VolumeSource{
-			ConfigMap: &v1.ConfigMapVolumeSource{
-				LocalObjectReference: v1.LocalObjectReference{Name: "vk-config-" + adv.Spec.ClusterId},
+	args := []string{
+		"--cluster-id",
+		adv.Spec.ClusterId,
+		"--provider",
+		"kubernetes",
+		"--provider-config",
+		"/app/kubeconfig/remote",
+		"--disable-taint",
+		"--nodename",
+		"vk-" + adv.Spec.ClusterId,
+	}
+
+	volumes := []v1.Volume{
+		{
+			Name: "provider-config",
+			VolumeSource: v1.VolumeSource{
+				ConfigMap: &v1.ConfigMapVolumeSource{
+					LocalObjectReference: v1.LocalObjectReference{Name: "vk-config-" + adv.Spec.ClusterId},
+				},
+			},
+		},
+		{
+			Name: "remote-kubeconfig",
+			VolumeSource: v1.VolumeSource{
+				ConfigMap: &v1.ConfigMapVolumeSource{
+					LocalObjectReference: v1.LocalObjectReference{Name: "foreign-kubeconfig-" + adv.Spec.ClusterId},
+				},
+			},
+		},
+		{
+			Name: "virtual-kubelet-crt",
+			VolumeSource : v1.VolumeSource{
+				EmptyDir: &v1.EmptyDirVolumeSource{},
 			},
 		},
 	}
-	volumes[1] = v1.Volume{
-		Name: "remote-kubeconfig",
-		VolumeSource: v1.VolumeSource{
-			ConfigMap: &v1.ConfigMapVolumeSource{
-				LocalObjectReference: v1.LocalObjectReference{Name: "foreign-kubeconfig-" + adv.Spec.ClusterId},
-			},
-		},
-	}
-	volumes[2] = v1.Volume{
-		Name: "virtual-kubelet-crt",
-		VolumeSource : v1.VolumeSource{
-			EmptyDir: &v1.EmptyDirVolumeSource{},
-		},
-	}
 
-	volumeMounts := make([]v1.VolumeMount, 3)
-	volumeMounts[0] = v1.VolumeMount{
-		Name:      "provider-config",
-		MountPath: "/app/config/vkubelet-cfg.json",
-		SubPath:   "vkubelet-cfg.json",
-	}
-	volumeMounts[1] = v1.VolumeMount{
-		Name:      "remote-kubeconfig",
-		MountPath: "/app/kubeconfig/remote",
-		SubPath:   "remote",
-	}
-	volumeMounts[2] = v1.VolumeMount{
-		Name:      "virtual-kubelet-crt",
-		MountPath: "/etc/virtual-kubelet/certs",
+
+	volumeMounts := []v1.VolumeMount{
+		{
+			Name:      "provider-config",
+			MountPath: "/app/config/vkubelet-cfg.json",
+			SubPath:   "vkubelet-cfg.json",
+		},
+		{
+			Name:      "remote-kubeconfig",
+			MountPath: "/app/kubeconfig/remote",
+			SubPath:   "remote",
+		},
+		{
+			Name:      "virtual-kubelet-crt",
+			MountPath: "/etc/virtual-kubelet/certs",
+		},
 	}
 
 	affinity := v1.Affinity{
 		NodeAffinity: &v1.NodeAffinity{
 			RequiredDuringSchedulingIgnoredDuringExecution: &v1.NodeSelector{
 				NodeSelectorTerms: []v1.NodeSelectorTerm{
-					v1.NodeSelectorTerm{
+					{
 						MatchExpressions: []v1.NodeSelectorRequirement{
-							v1.NodeSelectorRequirement{
+							{
 								Key:      "type",
 								Operator: v1.NodeSelectorOpNotIn,
 								Values:   []string{"virtual-node"},

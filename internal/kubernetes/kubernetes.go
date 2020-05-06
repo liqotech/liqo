@@ -1,21 +1,24 @@
 package kubernetes
 
 import (
-	"encoding/json"
-	"fmt"
+	protocolv1 "github.com/netgroup-polito/dronev2/api/advertisement-operator/v1"
+	"github.com/netgroup-polito/dronev2/internal/node"
 	"github.com/pkg/errors"
-	"io/ioutil"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/kubernetes"
+	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 	"os"
-	"regexp"
+	manager2 "sigs.k8s.io/controller-runtime/pkg/manager"
 	"time"
 
 	v1 "k8s.io/api/core/v1"
-	kerror "k8s.io/apimachinery/pkg/api/errors"
-	"k8s.io/apimachinery/pkg/api/resource"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	ctrl "sigs.k8s.io/controller-runtime"
+)
+
+var (
+	defaultMetricsAddr = ":8080"
 )
 
 const (
@@ -42,15 +45,22 @@ var (
 
 // KubernetesProvider implements the virtual-kubelet provider interface and stores pods in memory.
 type KubernetesProvider struct { // nolint:golint]
+	manager manager2.Manager
 	client             *kubernetes.Clientset
-	restConfig		   *rest.Config
 	nodeName           string
 	operatingSystem    string
 	internalIP         string
 	daemonEndpointPort int32
-	config             KubernetesConfig
 	startTime          time.Time
 	notifier           func(*v1.Pod)
+	clusterId string
+	initialized	bool
+	nodeController *node.NodeController
+	providerKubeconfig string
+	restConfig		   *rest.Config
+	providerNamespace string
+	RemotePodCidr string
+	config KubernetesConfig //TODO: To remove
 }
 
 // KubernetesConfig contains a kubernetes virtual-kubelet's configurable parameters.
@@ -64,83 +74,42 @@ type KubernetesConfig struct { //nolint:golint
 }
 
 // NewKubernetesProviderKubernetesConfig creates a new KubernetesV0Provider. Kubernetes legacy provider does not implement the new asynchronous podnotifier interface
-func NewKubernetesProviderKubernetesConfig(config KubernetesConfig, nodeName, operatingSystem string, internalIP string, daemonEndpointPort int32) (*KubernetesProvider, error) {
-	//set defaults
-	if config.CPU == "" {
-		config.CPU = defaultCPUCapacity
-	}
-	if config.Memory == "" {
-		config.Memory = defaultMemoryCapacity
-	}
-	if config.Pods == "" {
-		config.Pods = defaultPodCapacity
-	}
-	if config.Namespace == "" {
-		config.Namespace = defaultNamespace
-	}
-	if config.RemoteKubeConfigPath == "" {
-		config.RemoteKubeConfigPath = os.Getenv("KUBECONFIG_REMOTE")
-	}
+func NewKubernetesProvider(nodeName, clusterId, operatingSystem string, internalIP string, daemonEndpointPort int32, kubeconfig, remoteKubeConfig string) (*KubernetesProvider, error) {
 
-	client, restConfig, err := newClient(config.RemoteKubeConfigPath)
+	scheme := runtime.NewScheme()
+	_ = protocolv1.AddToScheme(scheme)
+	_ = clientgoscheme.AddToScheme(scheme)
+
+	kc, err := newKubeconfig(kubeconfig)
 	if err != nil {
 		return nil, err
 	}
-	ns := &v1.Namespace{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: "drone-v2",
-		},
-	}
-	// Create first namespace
-	_, err = client.CoreV1().Namespaces().Create(ns)
-	if err != nil && !kerror.IsAlreadyExists(err) {
-		_ = fmt.Errorf("Failed tp create a namespace")
+
+	mgr, err := ctrl.NewManager(kc, ctrl.Options{
+		Scheme:             scheme,
+		MetricsBindAddress: defaultMetricsAddr,
+		LeaderElection:     false,
+		Port:               9443,
+	})
+	if err != nil {
 		return nil, err
 	}
 
 	provider := KubernetesProvider{
-		client:             client,
 		nodeName:           nodeName,
 		operatingSystem:    operatingSystem,
 		internalIP:         internalIP,
 		daemonEndpointPort: daemonEndpointPort,
-		config:             config,
 		startTime:          time.Now(),
-		restConfig:         restConfig,
+		manager:			mgr,
+		clusterId: clusterId,
+		providerKubeconfig: remoteKubeConfig,
 	}
-	provider.PodWatcher()
 
 	return &provider, nil
 }
 
-func (p *KubernetesProvider) PodWatcher() error {
-	watch, err := p.client.CoreV1().Pods(p.config.Namespace).Watch(metav1.ListOptions{})
-	if err != nil {
-		errors.Wrap(err, err.Error())
-	}
-	go func() {
-		for event := range watch.ResultChan() {
-			p2, ok := event.Object.(*v1.Pod)
-			if !ok {
-				_ = fmt.Errorf("unexpected type")
-			}
-			p.notifier(F2HTranslate(p2, p.config.RemoteNewPodCidr))
-		}
-	}()
-	return nil
-}
-
-// NewKubernetesProvider creates a new KubernetesProvider, which implements the PodNotifier interface
-func NewKubernetesProvider(providerConfig, nodeName, operatingSystem string, internalIP string, daemonEndpointPort int32) (*KubernetesProvider, error) {
-	config, err := loadConfig(providerConfig, nodeName)
-	if err != nil {
-		return nil, err
-	}
-
-	return NewKubernetesProviderKubernetesConfig(config, nodeName, operatingSystem, internalIP, daemonEndpointPort)
-}
-
-func newClient(configPath string) (*kubernetes.Clientset, *rest.Config , error) {
+func newKubeconfig(configPath string) (*rest.Config, error) {
 	var config *rest.Config
 
 	// Check if the kubeConfig file exists.
@@ -148,82 +117,31 @@ func newClient(configPath string) (*kubernetes.Clientset, *rest.Config , error) 
 		// Get the kubeconfig from the filepath.
 		config, err = clientcmd.BuildConfigFromFlags("", configPath)
 		if err != nil {
-			return nil,nil, errors.Wrap(err, "error building client config")
+			return nil, errors.Wrap(err, "error building client config")
 		}
 	} else {
 		// Set to in-cluster config.
 		config, err = rest.InClusterConfig()
 		if err != nil {
-			return nil,nil, errors.Wrap(err, "error building in cluster config")
+			return nil, errors.Wrap(err, "error building in cluster config")
 		}
-	}
-
-	if masterURI := os.Getenv("MASTER_URI"); masterURI != "" {
-		config.Host = masterURI
-	}
-	client, err := kubernetes.NewForConfig(config)
-	return  client,config,err
-}
-
-// loadConfig loads the given json configuration files.
-func loadConfig(providerConfig, nodeName string) (config KubernetesConfig, err error) {
-	//regular expression which checks if the input CIDR has a correct format
-	cidrRegEx := "^([0-9]{1,3}\\.){3}[0-9]{1,3}(\\/([0-9]|[1-2][0-9]|3[0-2]))$"
-	data, err := ioutil.ReadFile(providerConfig)
-	if err != nil {
-		return config, err
-	}
-	configMap := map[string]KubernetesConfig{}
-	err = json.Unmarshal(data, &configMap)
-	if err != nil {
-		return config, err
-	}
-	if _, exist := configMap[nodeName]; exist {
-		config = configMap[nodeName]
-		if config.CPU == "" {
-			config.CPU = defaultCPUCapacity
-		}
-		if config.Memory == "" {
-			config.Memory = defaultMemoryCapacity
-		}
-		if config.Pods == "" {
-			config.Pods = defaultPodCapacity
-		}
-		if config.Namespace == "" {
-			config.Namespace = defaultNamespace
-		}
-
-		if config.RemoteKubeConfigPath == "" {
-			config.RemoteKubeConfigPath = os.Getenv("KUBECONFIG_REMOTE")
-		}
-		if config.RemoteNewPodCidr == "" {
-			return config, fmt.Errorf("RemoteNewPodCidr is not defined #{config.RemoteNewPodCidr")
-		}
-	}
-
-	if _, err = resource.ParseQuantity(config.CPU); err != nil {
-		return config, fmt.Errorf("Invalid CPU value %v", config.CPU)
-	}
-	if _, err = resource.ParseQuantity(config.Memory); err != nil {
-		return config, fmt.Errorf("Invalid memory value %v", config.Memory)
-	}
-	if _, err = resource.ParseQuantity(config.Pods); err != nil {
-		return config, fmt.Errorf("Invalid pods value %v", config.Pods)
-	}
-	if !fileExists(config.RemoteKubeConfigPath) {
-		return config, fmt.Errorf("Remote Kubeconfig file not found %v", config.RemoteKubeConfigPath)
-	}
-	if matched, _ := regexp.MatchString(cidrRegEx, config.RemoteNewPodCidr); matched != true {
-		return config, fmt.Errorf("Wrong format of RemoteNewPodCidr #{config.RemoteNewPodCidr}")
 	}
 
 	return config, nil
 }
 
-func fileExists(filename string) bool {
-	info, err := os.Stat(filename)
-	if os.IsNotExist(err) {
-		return false
+func newClient(configPath string) (*kubernetes.Clientset, *rest.Config , error) {
+	config, err := newKubeconfig(configPath)
+	if err != nil {
+		return nil, nil, err
 	}
-	return !info.IsDir()
+
+	if masterURI := os.Getenv("MASTER_URI"); masterURI != "" {
+		config.Host = masterURI
+	}
+
+	client, err := kubernetes.NewForConfig(config)
+	return  client, config, err
 }
+
+

@@ -18,6 +18,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"sync"
 	"time"
 
 	"github.com/netgroup-polito/dronev2/internal/log"
@@ -155,6 +156,8 @@ type NodeController struct { // nolint: golint
 	chStatusUpdate chan *corev1.Node
 
 	nodeStatusUpdateErrorHandler ErrorHandler
+
+	statusUpdateMutex sync.Mutex
 
 	chReady chan struct{}
 }
@@ -326,7 +329,17 @@ func (n *NodeController) updateLease(ctx context.Context) error {
 	return nil
 }
 
+func (n *NodeController) UpdateNodeFromOutside(ctx context.Context, skipErrorCb bool, no *corev1.Node) error {
+
+	n.n = no
+
+	return n.updateStatus(ctx, skipErrorCb)
+}
+
 func (n *NodeController) updateStatus(ctx context.Context, skipErrorCb bool) error {
+	n.statusUpdateMutex.Lock()
+	defer n.statusUpdateMutex.Unlock()
+
 	updateNodeStatusHeartbeat(n.n)
 
 	node, err := updateNodeStatus(ctx, n.nodes, n.n)
@@ -451,7 +464,7 @@ func preparePatchBytesforNodeStatus(nodeName types.NodeName, oldNode *corev1.Nod
 // If you use this function, it is up to you to synchronize this with other operations.
 // This reduces the time to second-level precision.
 func updateNodeStatus(ctx context.Context, nodes v1.NodeInterface, n *corev1.Node) (_ *corev1.Node, retErr error) {
-	ctx, span := trace.StartSpan(ctx, "UpdateNodeStatus")
+	ctx, span := trace.StartSpan(ctx, "updateNodeStatus")
 	defer func() {
 		span.End()
 		span.SetStatus(retErr)

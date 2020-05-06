@@ -85,6 +85,8 @@ type Opts struct {
 	// Startup Timeout is how long to wait for the kubelet to start
 	StartupTimeout time.Duration
 
+	ClusterId string
+
 	Version string
 }
 

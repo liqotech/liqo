@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/netgroup-polito/dronev2/internal/node"
 	"io"
 	"io/ioutil"
 	"math/rand"
@@ -51,6 +52,7 @@ type MockProvider struct { // nolint:golint
 	config             MockConfig
 	startTime          time.Time
 	notifier           func(*v1.Pod)
+	nodeController 	*node.NodeController
 }
 
 // MockConfig contains a mock virtual-kubelet's configurable parameters.

@@ -58,7 +58,6 @@ func main() {
 	opts.Version = strings.Join([]string{k8sVersion, "vk", buildVersion}, "-")
 
 	s := provider.NewStore()
-	registerKubernetes(s)
 
 	rootCmd := root.NewCommand(ctx, filepath.Base(os.Args[0]), s, opts)
 	rootCmd.AddCommand(version.NewCommand(buildVersion, buildTime), providers.NewCommand(s))
@@ -86,6 +85,10 @@ func main() {
 			logrus.SetLevel(lvl)
 		}
 		return nil
+	}
+
+	if err := registerKubernetes(s); err != nil {
+		log.G(ctx).Fatal(err)
 	}
 
 	if err := rootCmd.Execute(); err != nil && errors.Cause(err) != context.Canceled {

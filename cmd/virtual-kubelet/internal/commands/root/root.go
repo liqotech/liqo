@@ -16,11 +16,13 @@ package root
 
 import (
 	"context"
+	"k8s.io/klog"
 	"os"
 	"path"
 
 	"github.com/netgroup-polito/dronev2/cmd/virtual-kubelet/internal/provider"
 	"github.com/netgroup-polito/dronev2/internal/errdefs"
+	k "github.com/netgroup-polito/dronev2/internal/kubernetes"
 	"github.com/netgroup-polito/dronev2/internal/log"
 	"github.com/netgroup-polito/dronev2/internal/manager"
 	"github.com/netgroup-polito/dronev2/internal/node"
@@ -116,13 +118,15 @@ func runRootCommand(ctx context.Context, s *provider.Store, c Opts) error {
 	}
 
 	initConfig := provider.InitConfig{
-		ConfigPath:        c.ProviderConfigPath,
+		ConfigPath:        c.KubeConfigPath,
 		NodeName:          c.NodeName,
 		OperatingSystem:   c.OperatingSystem,
 		ResourceManager:   rm,
 		DaemonPort:        int32(c.ListenPort),
 		InternalIP:        os.Getenv("VKUBELET_POD_IP"),
 		KubeClusterDomain: c.KubeClusterDomain,
+		ClusterId: c.ClusterId,
+		RemoteKubeConfig: c.ProviderConfigPath,
 	}
 
 	pInit := s.Get(c.Provider)
@@ -169,9 +173,14 @@ func runRootCommand(ctx context.Context, s *provider.Store, c Opts) error {
 			return nil
 		}),
 	)
-	if err != nil {
-		log.G(ctx).Fatal(err)
+
+	var ready chan bool
+	if ready, err = k.NewVirtualNodeReconciler(p.(*k.KubernetesProvider), nodeRunner); err != nil {
+		klog.Error(err, "unable to create controller",)
+		os.Exit(1)
 	}
+
+	<- ready
 
 	eb := record.NewBroadcaster()
 	eb.StartLogging(log.G(ctx).Infof)
@@ -226,6 +235,8 @@ func runRootCommand(ctx context.Context, s *provider.Store, c Opts) error {
 		}
 	}()
 
+	nodeRunner.Ready()
+
 	log.G(ctx).Info("Initialized")
 
 	<-ctx.Done()
@@ -256,3 +267,4 @@ func newClient(configPath string) (*kubernetes.Clientset, error) {
 
 	return kubernetes.NewForConfig(config)
 }
+
