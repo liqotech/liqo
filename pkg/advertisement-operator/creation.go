@@ -90,7 +90,7 @@ func CreateVkDeployment(adv protocolv1.Advertisement) appsv1.Deployment {
 	args[5] = "--nodename"
 	args[6] = "vk-" + adv.Spec.ClusterId
 
-	volumes := make([]v1.Volume, 2)
+	volumes := make([]v1.Volume, 3)
 	volumes[0] = v1.Volume{
 		Name: "provider-config",
 		VolumeSource: v1.VolumeSource{
@@ -107,8 +107,14 @@ func CreateVkDeployment(adv protocolv1.Advertisement) appsv1.Deployment {
 			},
 		},
 	}
+	volumes[2] = v1.Volume{
+		Name: "virtual-kubelet-crt",
+		VolumeSource : v1.VolumeSource{
+			EmptyDir: &v1.EmptyDirVolumeSource{},
+		},
+	}
 
-	volumeMounts := make([]v1.VolumeMount, 2)
+	volumeMounts := make([]v1.VolumeMount, 3)
 	volumeMounts[0] = v1.VolumeMount{
 		Name:      "provider-config",
 		MountPath: "/app/config/vkubelet-cfg.json",
@@ -118,6 +124,10 @@ func CreateVkDeployment(adv protocolv1.Advertisement) appsv1.Deployment {
 		Name:      "remote-kubeconfig",
 		MountPath: "/app/kubeconfig/remote",
 		SubPath:   "remote",
+	}
+	volumeMounts[2] = v1.VolumeMount{
+		Name:      "virtual-kubelet-crt",
+		MountPath: "/etc/virtual-kubelet/certs",
 	}
 
 	affinity := v1.Affinity{
@@ -159,6 +169,34 @@ func CreateVkDeployment(adv protocolv1.Advertisement) appsv1.Deployment {
 				},
 				Spec: v1.PodSpec{
 					Volumes: volumes,
+					InitContainers: []v1.Container{
+						{
+							Name: "crt-generator",
+							Image: "dronev2/init-vkubelet",
+							Command: []string{
+								"/usr/bin/local/kubelet-setup.sh",
+							},
+							Env: []v1.EnvVar{
+								{
+									Name: "POD_IP",
+									ValueFrom: &v1.EnvVarSource{FieldRef: &v1.ObjectFieldSelector{FieldPath: "status.podIP", APIVersion: "v1"}},
+								},
+								{
+									Name: "POD_NAME",
+									ValueFrom: &v1.EnvVarSource{FieldRef: &v1.ObjectFieldSelector{FieldPath: "metadata.name", APIVersion: "v1"}},
+								},
+							},
+							Args: []string{
+								"/etc/virtual-kubelet/certs",
+							},
+							VolumeMounts: []v1.VolumeMount{
+								{
+									Name:      "virtual-kubelet-crt",
+									MountPath: "/etc/virtual-kubelet/certs",
+								},
+							},
+						},
+					},
 					Containers: []v1.Container{
 						{
 							Name:         "virtual-kubelet",
@@ -167,6 +205,20 @@ func CreateVkDeployment(adv protocolv1.Advertisement) appsv1.Deployment {
 							Command:      command,
 							Args:         args,
 							VolumeMounts: volumeMounts,
+							Env: []v1.EnvVar{
+								{
+									Name: "APISERVER_CERT_LOCATION",
+									Value: "/etc/virtual-kubelet/certs/server.crt",
+								},
+								{
+								    Name: "APISERVER_KEY_LOCATION",
+								    Value: "/etc/virtual-kubelet/certs/server-key.pem",
+								},
+								{
+									Name: "VKUBELET_POD_IP",
+									ValueFrom: &v1.EnvVarSource{FieldRef: &v1.ObjectFieldSelector{FieldPath: "status.podIP", APIVersion: "v1"}},
+								},
+							},
 						},
 					},
 					ServiceAccountName: "virtual-kubelet",

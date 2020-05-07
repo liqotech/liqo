@@ -35,6 +35,17 @@ jobs:
         password: ${{ secrets.DOCKER_PASSWORD }}
         tags: "latest,stable,${{ steps.get_version.outputs.VERSION }}"
       if: github.ref == 'refs/heads/master'
+    - name: Build virtual-kubelet initContainer image on repo
+      run: docker build -f build/virtual-kubelet/Dockerfile.initContainer .
+      if: github.ref != 'refs/heads/master'
+    - name: Push virtual-kubelet initContainer image on repo
+      uses: HurricanKai/Publish-Docker-Github-Action@master
+      with:
+        name: dronev2/init-vkubelet
+        username: ${{ secrets.DOCKER_USERNAME }}
+        dockerfile: build/virtual-kubelet/Dockerfile.initContainer
+        password: ${{ secrets.DOCKER_PASSWORD }}
+      if: github.ref == 'refs/heads/master'
     - name: Build Advertisement Operator Docker image
       run: docker build -f build/advertisement-operator/Dockerfile .
       if: github.ref != 'refs/heads/master'

@@ -43,6 +43,7 @@ var (
 // KubernetesProvider implements the virtual-kubelet provider interface and stores pods in memory.
 type KubernetesProvider struct { // nolint:golint]
 	client             *kubernetes.Clientset
+	restConfig		   *rest.Config
 	nodeName           string
 	operatingSystem    string
 	internalIP         string
@@ -81,7 +82,7 @@ func NewKubernetesProviderKubernetesConfig(config KubernetesConfig, nodeName, op
 		config.RemoteKubeConfigPath = os.Getenv("KUBECONFIG_REMOTE")
 	}
 
-	client, err := newClient(config.RemoteKubeConfigPath)
+	client, restConfig, err := newClient(config.RemoteKubeConfigPath)
 	if err != nil {
 		return nil, err
 	}
@@ -105,6 +106,7 @@ func NewKubernetesProviderKubernetesConfig(config KubernetesConfig, nodeName, op
 		daemonEndpointPort: daemonEndpointPort,
 		config:             config,
 		startTime:          time.Now(),
+		restConfig:         restConfig,
 	}
 	provider.PodWatcher()
 
@@ -138,7 +140,7 @@ func NewKubernetesProvider(providerConfig, nodeName, operatingSystem string, int
 	return NewKubernetesProviderKubernetesConfig(config, nodeName, operatingSystem, internalIP, daemonEndpointPort)
 }
 
-func newClient(configPath string) (*kubernetes.Clientset, error) {
+func newClient(configPath string) (*kubernetes.Clientset, *rest.Config , error) {
 	var config *rest.Config
 
 	// Check if the kubeConfig file exists.
@@ -146,21 +148,21 @@ func newClient(configPath string) (*kubernetes.Clientset, error) {
 		// Get the kubeconfig from the filepath.
 		config, err = clientcmd.BuildConfigFromFlags("", configPath)
 		if err != nil {
-			return nil, errors.Wrap(err, "error building client config")
+			return nil,nil, errors.Wrap(err, "error building client config")
 		}
 	} else {
 		// Set to in-cluster config.
 		config, err = rest.InClusterConfig()
 		if err != nil {
-			return nil, errors.Wrap(err, "error building in cluster config")
+			return nil,nil, errors.Wrap(err, "error building in cluster config")
 		}
 	}
 
 	if masterURI := os.Getenv("MASTER_URI"); masterURI != "" {
 		config.Host = masterURI
 	}
-
-	return kubernetes.NewForConfig(config)
+	client, err := kubernetes.NewForConfig(config)
+	return  client,config,err
 }
 
 // loadConfig loads the given json configuration files.

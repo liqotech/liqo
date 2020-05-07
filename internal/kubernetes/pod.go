@@ -1,22 +1,21 @@
 package kubernetes
 
 import (
-	"bytes"
 	"context"
 	"fmt"
-	"github.com/pkg/errors"
 	"github.com/netgroup-polito/dronev2/internal/errdefs"
 	"github.com/netgroup-polito/dronev2/internal/log"
 	"github.com/netgroup-polito/dronev2/internal/node/api"
 	"github.com/netgroup-polito/dronev2/internal/trace"
+	"github.com/pkg/errors"
 	"io"
-	"io/ioutil"
 	v1 "k8s.io/api/core/v1"
 	kerror "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/kubernetes/scheme"
+	"k8s.io/client-go/tools/remotecommand"
 	stats "k8s.io/kubernetes/pkg/kubelet/apis/stats/v1alpha1"
 	"math/rand"
-	"strings"
 	"time"
 )
 
@@ -145,47 +144,6 @@ func (p *KubernetesProvider) GetPod(ctx context.Context, namespace, name string)
 	return podInverted, nil
 }
 
-// GetContainerLogs retrieves the logs of a container by name from the provider.
-func (p *KubernetesProvider) GetContainerLogs(ctx context.Context, namespace, podName, containerName string, opts api.ContainerLogOpts) (io.ReadCloser, error) {
-	ctx, span := trace.StartSpan(ctx, "GetContainerLogs")
-	defer span.End()
-	follow := false
-	log.G(ctx).Infof("receive GetContainerLogs %q", podName)
-	// Add pod and container attributes to the current span.
-	ctx = addAttributes(ctx, span, namespaceKey, namespace, nameKey, podName, containerNameKey, containerName)
-	if opts.Tail != 0 {
-		follow = true
-	}
-	limitBytes := int64(opts.LimitBytes)
-	v := &v1.PodLogOptions{
-		Container: containerName,
-		Follow: follow,
-		LimitBytes: &limitBytes,
-	}
-	t := p.client.CoreV1().Pods(namespace).GetLogs(podName,v)
-	podLogs, err := t.Stream()
-	if err != nil {
-		return nil, errors.Wrap(err,"error in opening stream")
-	}
-
-	buf := new(bytes.Buffer)
-	_, err = io.Copy(buf, podLogs)
-	if err != nil {
-		return nil, errors.Wrap(err,"error in opening stream")
-	}
-	str := buf.String()
-
-	defer podLogs.Close()
-	return ioutil.NopCloser(strings.NewReader(str)), nil
-}
-
-// RunInContainer executes a command in a container in the pod, copying data
-// between in/out/err and the container's stdin/stdout/stderr.
-func (p *KubernetesProvider) RunInContainer(ctx context.Context, namespace, name, container string, cmd []string, attach api.AttachIO) error {
-	log.G(context.TODO()).Infof("receive ExecInContainer %q", container)
-	return nil
-}
-
 // GetPodStatus returns the status of a pod by name that is "running".
 // returns nil if a pod by that name is not found.
 func (p *KubernetesProvider) GetPodStatus(ctx context.Context, namespace, name string) (*v1.PodStatus, error) {
@@ -194,15 +152,62 @@ func (p *KubernetesProvider) GetPodStatus(ctx context.Context, namespace, name s
 
 	// Add namespace and name as attributes to the current span.
 	ctx = addAttributes(ctx, span, namespaceKey, namespace, nameKey, name)
-
+	podForeignIn, err := p.client.CoreV1().Pods(p.config.Namespace).Get(name,metav1.GetOptions{})
+    if err != nil {
+    	return nil,errors.Wrap(err,"error getting status")
+	}
+	podOutput := F2HTranslate(podForeignIn,p.config.RemoteNewPodCidr)
 	log.G(ctx).Infof("receive GetPodStatus %q", name)
+	return &podOutput.Status,nil
+}
 
-	pod, err := p.GetPod(ctx, namespace, name)
+// RunInContainer executes a command in a container in the pod, copying data
+// between in/out/err and the container's stdin/stdout/stderr.
+func (p *KubernetesProvider) RunInContainer(ctx context.Context, namespace string, podName string, containerName string, cmd []string, attach api.AttachIO) error {
+	req := p.client.CoreV1().RESTClient().
+		Post().
+		Namespace(namespace).
+		Resource("pods").
+		Name(podName).
+		SubResource("exec").
+		VersionedParams(&v1.PodExecOptions{
+			Container: containerName,
+			Command:   cmd,
+			Stdin:     true,
+			Stdout:    true,
+			Stderr:    true,
+			TTY:       true,
+		}, scheme.ParameterCodec)
+
+	exec, err := remotecommand.NewSPDYExecutor(p.restConfig, "POST", req.URL())
 	if err != nil {
-		return nil, err
+		return fmt.Errorf("could not make remote command: %v", err)
 	}
 
-	return &pod.Status, nil
+	err = exec.Stream(remotecommand.StreamOptions{
+		Stdin:  attach.Stdin(),
+		Stdout: attach.Stdout(),
+		Stderr: attach.Stderr(),
+		Tty:    attach.TTY(),
+	})
+	if err != nil {
+		return fmt.Errorf("streaming error: %v", err)
+	}
+
+	return nil
+}
+
+// GetContainerLogs retrieves the logs of a container by name from the provider.
+func (p *KubernetesProvider) GetContainerLogs(ctx context.Context, namespace string, podName string, containerName string, opts api.ContainerLogOpts) (io.ReadCloser, error) {
+	options := &v1.PodLogOptions{
+		Container: containerName,
+	}
+	logs := p.client.CoreV1().Pods(namespace).GetLogs(podName, options)
+	stream, err := logs.Stream()
+	if err != nil {
+		return nil, fmt.Errorf("could not get stream from logs request: %v", err)
+	}
+	return stream, nil
 }
 
 // GetPods returns a list of all pods known to be "running".
@@ -229,7 +234,6 @@ func (p *KubernetesProvider) GetPods(ctx context.Context) ([]*v1.Pod, error) {
 
 	return podsHomeOut, nil
 }
-
 
 
 // GetStatsSummary returns dummy stats for all pods known by this provider.
