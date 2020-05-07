@@ -55,6 +55,7 @@ func (r *AdvertisementReconciler) Reconcile(req ctrl.Request) (ctrl.Result, erro
 	if err := r.Get(ctx, req.NamespacedName, &adv); err != nil {
 		// reconcile was triggered by a delete request
 		log.Info("Advertisement " + req.Name + " deleted")
+		StopReflector(req.Name)
 		return ctrl.Result{}, client.IgnoreNotFound(err)
 	}
 
