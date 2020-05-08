@@ -1,6 +1,7 @@
 package advertisement_operator
 
 import (
+	metricsclient "k8s.io/metrics/pkg/client/clientset/versioned"
 	"os"
 
 	protocolv1 "github.com/netgroup-polito/dronev2/api/advertisement-operator/v1"
@@ -78,6 +79,14 @@ func NewCRDClient(path string, cm *v1.ConfigMap) (client.Client, error) {
 	}
 
 	return remoteClient, nil
+}
+
+func NewMetricsClient(path string, cm *v1.ConfigMap) (*metricsclient.Clientset, error){
+	config, err := GetConfig(path, cm)
+	if err != nil {
+		return nil, err
+	}
+	return metricsclient.NewForConfig(config)
 }
 
 // extract kubeconfig from a configMap.

@@ -4,6 +4,8 @@ import (
 	"context"
 	"k8s.io/apimachinery/pkg/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
+	"k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/fields"
 	"strings"
 	"sync"
 	"time"
@@ -13,10 +15,11 @@ import (
 	protocolv1 "github.com/netgroup-polito/dronev2/api/advertisement-operator/v1"
 	pkg "github.com/netgroup-polito/dronev2/pkg/advertisement-operator"
 
-	v1 "k8s.io/api/core/v1"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
+	resourcehelper "k8s.io/kubectl/pkg/util/resource"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
@@ -132,7 +135,7 @@ func GenerateAdvertisement(wg *sync.WaitGroup, localClient *kubernetes.Clientset
 }
 
 // create advertisement message
-func CreateAdvertisement(nodes []v1.Node, clusterId string, gatewayIP string, gatewayPrivateIp string) protocolv1.Advertisement {
+func CreateAdvertisement(nodes []corev1.Node, clusterId string, gatewayIP string, gatewayPrivateIp string) protocolv1.Advertisement {
 
 	availability, images := GetClusterResources(nodes)
 	prices := ComputePrices(images)
@@ -163,7 +166,7 @@ func CreateAdvertisement(nodes []v1.Node, clusterId string, gatewayIP string, ga
 	return adv
 }
 
-func GetPodCIDR(nodes []v1.Node) string {
+func GetPodCIDR(nodes []corev1.Node) string {
 	var podCIDR string
 	token := strings.Split(nodes[0].Spec.PodCIDR, ".")
 	if len(token) >= 2 {
@@ -174,7 +177,7 @@ func GetPodCIDR(nodes []v1.Node) string {
 	return podCIDR
 }
 
-func GetGateway(nodes []v1.Node) string {
+func GetGateway(nodes []corev1.Node) string {
 	return nodes[0].Status.Addresses[0].Address
 }
 
@@ -184,12 +187,55 @@ func GetGatewayPrivateIP() string {
 	return ""
 }
 
+func getPodsTotalRequestsAndLimits(podList *corev1.PodList) (reqs map[corev1.ResourceName]resource.Quantity, limits map[corev1.ResourceName]resource.Quantity) {
+	reqs, limits = map[corev1.ResourceName]resource.Quantity{}, map[corev1.ResourceName]resource.Quantity{}
+	for _, pod := range podList.Items {
+		podReqs, podLimits := resourcehelper.PodRequestsAndLimits(&pod)
+		for podReqName, podReqValue := range podReqs {
+			if value, ok := reqs[podReqName]; !ok {
+				reqs[podReqName] = podReqValue.DeepCopy()
+			} else {
+				value.Add(podReqValue)
+				reqs[podReqName] = value
+			}
+		}
+		for podLimitName, podLimitValue := range podLimits {
+			if value, ok := limits[podLimitName]; !ok {
+				limits[podLimitName] = podLimitValue.DeepCopy()
+			} else {
+				value.Add(podLimitValue)
+				limits[podLimitName] = value
+			}
+		}
+	}
+	return
+}
+
+func A(c *kubernetes.Clientset, namespace string, name string) (string, error){
+	fieldSelector, err := fields.ParseSelector("spec.nodeName=" + name + ",status.phase!=" + string(corev1.PodSucceeded) + ",status.phase!=" + string(corev1.PodFailed))
+	if err != nil {
+		return "", err
+	}
+	nodeNonTerminatedPodsList, err := c.CoreV1().Pods(namespace).List(metav1.ListOptions{FieldSelector: fieldSelector.String()})
+	if err != nil {
+		if !errors.IsForbidden(err) {
+			return "", err
+		}
+
+	}
+	reqs, limits := getPodsTotalRequestsAndLimits(nodeNonTerminatedPodsList)
+	cpuReqs, cpuLimits, memoryReqs, memoryLimits, ephemeralstorageReqs, ephemeralstorageLimits :=
+		reqs[corev1.ResourceCPU], limits[corev1.ResourceCPU], reqs[corev1.ResourceMemory], limits[corev1.ResourceMemory], reqs[corev1.ResourceEphemeralStorage], limits[corev1.ResourceEphemeralStorage]
+
+}
+
 // get cluster resources (cpu, ram and pods) and images
-func GetClusterResources(nodes []v1.Node) (v1.ResourceList, []v1.ContainerImage) {
+func GetClusterResources(nodes []corev1.Node) (corev1.ResourceList, []corev1.ContainerImage) {
 	cpu := resource.Quantity{}
 	ram := resource.Quantity{}
 	pods := resource.Quantity{}
-	images := make([]v1.ContainerImage, 0)
+	images := make([]corev1.ContainerImage, 0)
+
 
 	for _, node := range nodes {
 		cpu.Add(*node.Status.Allocatable.Cpu())
@@ -201,22 +247,22 @@ func GetClusterResources(nodes []v1.Node) (v1.ResourceList, []v1.ContainerImage)
 			images = append(images, image)
 		}
 	}
-	availability := v1.ResourceList{}
-	availability[v1.ResourceCPU] = cpu
-	availability[v1.ResourceMemory] = ram
-	availability[v1.ResourcePods] = pods
+	availability := corev1.ResourceList{}
+	availability[corev1.ResourceCPU] = cpu
+	availability[corev1.ResourceMemory] = ram
+	availability[corev1.ResourcePods] = pods
 	return availability, images
 }
 
 // create prices resource for advertisement
-func ComputePrices(images []v1.ContainerImage) v1.ResourceList {
+func ComputePrices(images []corev1.ContainerImage) corev1.ResourceList {
 	//TODO: logic to set prices
-	prices := v1.ResourceList{}
-	prices[v1.ResourceCPU] = *resource.NewQuantity(1, resource.DecimalSI)
-	prices[v1.ResourceMemory] = resource.MustParse("2Gi")
+	prices := corev1.ResourceList{}
+	prices[corev1.ResourceCPU] = *resource.NewQuantity(1, resource.DecimalSI)
+	prices[corev1.ResourceMemory] = resource.MustParse("2Gi")
 	for _, image := range images {
 		for _, name := range image.Names {
-			prices[v1.ResourceName(name)] = *resource.NewQuantity(5, resource.DecimalSI)
+			prices[corev1.ResourceName(name)] = *resource.NewQuantity(5, resource.DecimalSI)
 		}
 	}
 	return prices
