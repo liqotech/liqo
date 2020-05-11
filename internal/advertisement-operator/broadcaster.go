@@ -2,6 +2,8 @@ package advertisement_operator
 
 import (
 	"context"
+	"k8s.io/apimachinery/pkg/runtime"
+	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	"strings"
 	"time"
 
@@ -41,6 +43,8 @@ func StartBroadcaster(clusterId string, localKubeconfig string, foreignKubeconfi
 		return
 	}
 
+	localCRDClient, err := pkg.NewCRDClient(localKubeconfig, nil)
+
 	// get configMaps containing the kubeconfig of the foreign clusters
 	configMaps, err := localClient.CoreV1().ConfigMaps("default").List(metav1.ListOptions{})
 	if err != nil {
@@ -48,15 +52,15 @@ func StartBroadcaster(clusterId string, localKubeconfig string, foreignKubeconfi
 		return
 	}
 
-	// when debugging use the foreignKubeconfig
+	//when debugging use the foreignKubeconfig
 	if foreignKubeconfig != "" {
-		GenerateAdvertisement(localClient, foreignKubeconfig, nil, clusterId, gatewayIP, gatewayPrivateIP)
+		GenerateAdvertisement(localClient, localCRDClient, foreignKubeconfig, nil, clusterId, gatewayIP, gatewayPrivateIP)
 	}
 
 	// during operation the foreignKubeconfigs are taken from the ConfigMaps
 	for _, cm := range configMaps.Items {
 		if strings.HasPrefix(cm.Name, "foreign-kubeconfig") {
-			go GenerateAdvertisement(localClient, foreignKubeconfig, cm.DeepCopy(), clusterId, gatewayIP, gatewayPrivateIP)
+			go GenerateAdvertisement(localClient, localCRDClient, foreignKubeconfig, cm.DeepCopy(), clusterId, gatewayIP, gatewayPrivateIP)
 		}
 	}
 }
@@ -64,9 +68,10 @@ func StartBroadcaster(clusterId string, localKubeconfig string, foreignKubeconfi
 // generate an advertisement message every 10 minutes and post it to remote clusters
 // parameters
 // - localClient: a client to the local kubernetes
+// - localCRDClient: a CRD client to the local kubernetes
 // - foreignKubeconfigPath: the path to a kubeconfig file. If set, this file is used to create a client to the foreign cluster. Set it only for debugging purposes
 // - cm: the configMap containing the kubeconfig to the foreign cluster. IMPORTANT: the data in the configMap must be named "remote"
-func GenerateAdvertisement(localClient *kubernetes.Clientset, foreignKubeconfigPath string, cm *v1.ConfigMap, clusterId string, gatewayIP string, gatewayPrivateIP string) {
+func GenerateAdvertisement(localClient *kubernetes.Clientset, localCRDClient client.Client, foreignKubeconfigPath string, cm *v1.ConfigMap, clusterId string, gatewayIP string, gatewayPrivateIP string) {
 	//TODO: recovering logic if errors occurs
 
 	var remoteClient client.Client
@@ -108,6 +113,10 @@ func GenerateAdvertisement(localClient *kubernetes.Clientset, foreignKubeconfigP
 			log.Error(err, "Unable to create advertisement on remote cluster "+foreignClusterId)
 		} else {
 			log.Info("correctly created advertisement on remote cluster " + foreignClusterId)
+			scheme := runtime.NewScheme()
+			_ = clientgoscheme.AddToScheme(scheme)
+			_ = protocolv1.AddToScheme(scheme)
+			WatchAdvertisement(localCRDClient, scheme, foreignKubeconfigPath, cm, foreignClusterId)
 		}
 		time.Sleep(10 * time.Minute)
 	}
