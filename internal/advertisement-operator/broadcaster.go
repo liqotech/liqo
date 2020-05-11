@@ -2,10 +2,10 @@ package advertisement_operator
 
 import (
 	"context"
-	"k8s.io/apimachinery/pkg/runtime"
-	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/fields"
+	"k8s.io/apimachinery/pkg/runtime"
+	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	"strings"
 	"sync"
 	"time"
@@ -78,7 +78,7 @@ func StartBroadcaster(clusterId string, localKubeconfig string, foreignKubeconfi
 // - localCRDClient: a CRD client to the local kubernetes
 // - foreignKubeconfigPath: the path to a kubeconfig file. If set, this file is used to create a client to the foreign cluster. Set it only for debugging purposes
 // - cm: the configMap containing the kubeconfig to the foreign cluster. IMPORTANT: the data in the configMap must be named "remote"
-func GenerateAdvertisement(wg *sync.WaitGroup, localClient *kubernetes.Clientset, localCRDClient client.Client, foreignKubeconfigPath string, cm *v1.ConfigMap, clusterId string, gatewayIP string, gatewayPrivateIP string) {
+func GenerateAdvertisement(wg *sync.WaitGroup, localClient *kubernetes.Clientset, localCRDClient client.Client, foreignKubeconfigPath string, cm *corev1.ConfigMap, clusterId string, gatewayIP string, gatewayPrivateIP string) {
 	//TODO: recovering logic if errors occurs
 
 	var remoteClient client.Client
@@ -110,14 +110,14 @@ func GenerateAdvertisement(wg *sync.WaitGroup, localClient *kubernetes.Clientset
 	}
 
 	for {
-		nodes, err := localClient.CoreV1().Nodes().List(metav1.ListOptions{LabelSelector: "type != virtual-node"})
-		if err != nil {
-			log.Error(err, "Unable to list nodes")
-			return
-		}
 
-		adv := CreateAdvertisement(nodes.Items, clusterId, gatewayIP, gatewayPrivateIP)
-		err = pkg.CreateOrUpdate(remoteClient, context.Background(), log, adv)
+		adv, err := CreateAdvertisement(localClient, clusterId, gatewayIP, gatewayPrivateIP)
+		if err != nil {
+			log.Error(err, "Could not create Advertisement, retry in 1 minute")
+			time.Sleep(1 * time.Minute)
+			continue
+		}
+		err = pkg.CreateOrUpdate(remoteClient, context.Background(), log, *adv)
 		if err != nil {
 			log.Error(err, "Unable to create advertisement on remote cluster "+foreignClusterId)
 		} else {
@@ -135,10 +135,27 @@ func GenerateAdvertisement(wg *sync.WaitGroup, localClient *kubernetes.Clientset
 }
 
 // create advertisement message
-func CreateAdvertisement(nodes []corev1.Node, clusterId string, gatewayIP string, gatewayPrivateIp string) protocolv1.Advertisement {
+func CreateAdvertisement(c *kubernetes.Clientset, clusterId string, gatewayIP string, gatewayPrivateIp string) (*protocolv1.Advertisement, error) {
 
-	availability, images := GetClusterResources(nodes)
+	// get physical and virtual nodes in the cluster
+	physicalNodes, err := c.CoreV1().Nodes().List(metav1.ListOptions{LabelSelector: "type != virtual-node"})
+	if err != nil {
+		return nil, err
+	}
+	virtualNodes, err := c.CoreV1().Nodes().List(metav1.ListOptions{LabelSelector: "type = virtual-node"})
+	if err != nil {
+		return nil, err
+	}
+
+	// get available resources, images and limits
+	availability, images, limits := ComputeAnnouncedResources(c, physicalNodes)
 	prices := ComputePrices(images)
+
+	// use virtual nodes to build neighbours
+	neighbours := make(map[corev1.ResourceName]corev1.ResourceList, 0)
+	for _, vnode := range virtualNodes.Items {
+		neighbours[corev1.ResourceName(strings.TrimPrefix(vnode.Name, "vk-"))] = vnode.Status.Allocatable
+	}
 
 	adv := protocolv1.Advertisement{
 		ObjectMeta: metav1.ObjectMeta{
@@ -147,14 +164,30 @@ func CreateAdvertisement(nodes []corev1.Node, clusterId string, gatewayIP string
 		},
 		Spec: protocolv1.AdvertisementSpec{
 			ClusterId:    clusterId,
-			Images:       images,
 			Availability: availability,
-			LimitRange: v1.LimitRangeSpec{
-				Limits: []v1.LimitRangeItem{},
+			Images:       images,
+			LimitRange: corev1.LimitRangeSpec{
+				Limits: []corev1.LimitRangeItem{
+					{
+						Type:                 "",
+						Max:                  limits,
+						Min:                  nil,
+						Default:              nil,
+						DefaultRequest:       nil,
+						MaxLimitRequestRatio: nil,
+					},
+				},
 			},
-			Prices:       prices,
+			ResourceQuota: corev1.ResourceQuotaSpec{
+				Hard:          availability,
+				Scopes:        nil,
+				ScopeSelector: nil,
+			},
+			Neighbors:  neighbours,
+			Properties: nil,
+			Prices:     prices,
 			Network: protocolv1.NetworkInfo{
-				PodCIDR:            GetPodCIDR(nodes),
+				PodCIDR:            GetPodCIDR(physicalNodes.Items),
 				GatewayIP:          gatewayIP,
 				GatewayPrivateIP:   gatewayPrivateIp,
 				SupportedProtocols: nil,
@@ -163,7 +196,7 @@ func CreateAdvertisement(nodes []corev1.Node, clusterId string, gatewayIP string
 			TimeToLive: metav1.NewTime(time.Now().Add(30 * time.Minute)),
 		},
 	}
-	return adv
+	return adv.DeepCopy(), nil
 }
 
 func GetPodCIDR(nodes []corev1.Node) string {
@@ -185,6 +218,30 @@ func GetGatewayPrivateIP() string {
 	//TODO: implement
 
 	return ""
+}
+
+// get resources used by pods on physical nodes
+func GetAllPodsResources(c *kubernetes.Clientset) (requests corev1.ResourceList, limits corev1.ResourceList, err error) {
+	fieldSelector, err := fields.ParseSelector("status.phase!=" + string(corev1.PodSucceeded) + ",status.phase!=" + string(corev1.PodFailed))
+	if err != nil {
+		return nil, nil, err
+	}
+	nodeNonTerminatedPodsList, err := c.CoreV1().Pods("").List(metav1.ListOptions{FieldSelector: fieldSelector.String()})
+	if err != nil {
+		if !errors.IsForbidden(err) {
+			return nil, nil, err
+		}
+
+	}
+
+	// remove pods on virtual nodes
+	for i, pod := range nodeNonTerminatedPodsList.Items {
+		if strings.HasPrefix(pod.Spec.NodeName, "vk-") {
+			nodeNonTerminatedPodsList.Items[i] = corev1.Pod{}
+		}
+	}
+	requests, limits = getPodsTotalRequestsAndLimits(nodeNonTerminatedPodsList)
+	return requests, limits, nil
 }
 
 func getPodsTotalRequestsAndLimits(podList *corev1.PodList) (reqs map[corev1.ResourceName]resource.Quantity, limits map[corev1.ResourceName]resource.Quantity) {
@@ -211,47 +268,69 @@ func getPodsTotalRequestsAndLimits(podList *corev1.PodList) (reqs map[corev1.Res
 	return
 }
 
-func A(c *kubernetes.Clientset, namespace string, name string) (string, error){
-	fieldSelector, err := fields.ParseSelector("spec.nodeName=" + name + ",status.phase!=" + string(corev1.PodSucceeded) + ",status.phase!=" + string(corev1.PodFailed))
-	if err != nil {
-		return "", err
-	}
-	nodeNonTerminatedPodsList, err := c.CoreV1().Pods(namespace).List(metav1.ListOptions{FieldSelector: fieldSelector.String()})
-	if err != nil {
-		if !errors.IsForbidden(err) {
-			return "", err
-		}
-
-	}
-	reqs, limits := getPodsTotalRequestsAndLimits(nodeNonTerminatedPodsList)
-	cpuReqs, cpuLimits, memoryReqs, memoryLimits, ephemeralstorageReqs, ephemeralstorageLimits :=
-		reqs[corev1.ResourceCPU], limits[corev1.ResourceCPU], reqs[corev1.ResourceMemory], limits[corev1.ResourceMemory], reqs[corev1.ResourceEphemeralStorage], limits[corev1.ResourceEphemeralStorage]
-
-}
-
 // get cluster resources (cpu, ram and pods) and images
 func GetClusterResources(nodes []corev1.Node) (corev1.ResourceList, []corev1.ContainerImage) {
 	cpu := resource.Quantity{}
 	ram := resource.Quantity{}
 	pods := resource.Quantity{}
-	images := make([]corev1.ContainerImage, 0)
-
+	clusterImages := make([]corev1.ContainerImage, 0)
 
 	for _, node := range nodes {
 		cpu.Add(*node.Status.Allocatable.Cpu())
 		ram.Add(*node.Status.Allocatable.Memory())
 		pods.Add(*node.Status.Allocatable.Pods())
 
-		//TODO: filter images
-		for _, image := range node.Status.Images {
-			images = append(images, image)
+		nodeImages := GetNodeImages(node)
+		for _, image := range nodeImages {
+			clusterImages = append(clusterImages, image)
 		}
 	}
 	availability := corev1.ResourceList{}
 	availability[corev1.ResourceCPU] = cpu
 	availability[corev1.ResourceMemory] = ram
 	availability[corev1.ResourcePods] = pods
-	return availability, images
+	return availability, clusterImages
+}
+
+func GetNodeImages(node corev1.Node) []corev1.ContainerImage {
+	images := make([]corev1.ContainerImage, 0)
+
+	for _, image := range node.Status.Images {
+		for _, name := range image.Names {
+			// TODO: policy to decide which images to announce
+			if !strings.Contains(name, "k8s") {
+				images = append(images, image)
+			}
+		}
+	}
+
+	return images
+}
+
+// create announced resources for advertisement
+func ComputeAnnouncedResources(c *kubernetes.Clientset, physicalNodes *corev1.NodeList) (availability corev1.ResourceList, images []corev1.ContainerImage, limits corev1.ResourceList) {
+	// get allocatable resources in all the physical nodes
+	allocatable, images := GetClusterResources(physicalNodes.Items)
+	// get used resources by pods in the cluster
+	reqs, limits, err := GetAllPodsResources(c)
+	if err != nil {
+		log.Error(err, "Unable to get used resources")
+	}
+	// subtract used resources from available ones to have available resources
+	cpu := allocatable.Cpu().DeepCopy()
+	cpu.Sub(reqs.Cpu().DeepCopy())
+	mem := allocatable.Memory().DeepCopy()
+	mem.Sub(reqs.Memory().DeepCopy())
+
+	// TODO: policy to decide how many resources to announce
+	cpu.Set(cpu.Value() / 2)
+	mem.Set(mem.Value() / 2)
+	availability = corev1.ResourceList{
+		corev1.ResourceCPU:    cpu,
+		corev1.ResourceMemory: mem,
+	}
+
+	return availability, images, limits
 }
 
 // create prices resource for advertisement
@@ -259,7 +338,7 @@ func ComputePrices(images []corev1.ContainerImage) corev1.ResourceList {
 	//TODO: logic to set prices
 	prices := corev1.ResourceList{}
 	prices[corev1.ResourceCPU] = *resource.NewQuantity(1, resource.DecimalSI)
-	prices[corev1.ResourceMemory] = resource.MustParse("2Gi")
+	prices[corev1.ResourceMemory] = resource.MustParse("2m")
 	for _, image := range images {
 		for _, name := range image.Names {
 			prices[corev1.ResourceName(name)] = *resource.NewQuantity(5, resource.DecimalSI)

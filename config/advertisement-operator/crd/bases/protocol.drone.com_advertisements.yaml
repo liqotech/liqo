@@ -212,7 +212,6 @@ spec:
               format: date-time
               type: string
           required:
-          - availability
           - clusterId
           - network
           - timeToLive

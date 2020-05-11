@@ -114,12 +114,11 @@ func CreateVkDeployment(adv *protocolv1.Advertisement, nameSA string) appsv1.Dep
 		},
 		{
 			Name: "virtual-kubelet-crt",
-			VolumeSource : v1.VolumeSource{
+			VolumeSource: v1.VolumeSource{
 				EmptyDir: &v1.EmptyDirVolumeSource{},
 			},
 		},
 	}
-
 
 	volumeMounts := []v1.VolumeMount{
 		{
@@ -180,18 +179,18 @@ func CreateVkDeployment(adv *protocolv1.Advertisement, nameSA string) appsv1.Dep
 					Volumes: volumes,
 					InitContainers: []v1.Container{
 						{
-							Name: "crt-generator",
+							Name:  "crt-generator",
 							Image: "dronev2/init-vkubelet",
 							Command: []string{
 								"/usr/bin/local/kubelet-setup.sh",
 							},
 							Env: []v1.EnvVar{
 								{
-									Name: "POD_IP",
+									Name:      "POD_IP",
 									ValueFrom: &v1.EnvVarSource{FieldRef: &v1.ObjectFieldSelector{FieldPath: "status.podIP", APIVersion: "v1"}},
 								},
 								{
-									Name: "POD_NAME",
+									Name:      "POD_NAME",
 									ValueFrom: &v1.EnvVarSource{FieldRef: &v1.ObjectFieldSelector{FieldPath: "metadata.name", APIVersion: "v1"}},
 								},
 							},
@@ -211,20 +210,20 @@ func CreateVkDeployment(adv *protocolv1.Advertisement, nameSA string) appsv1.Dep
 							Name:            "virtual-kubelet",
 							Image:           "dronev2/virtual-kubelet",
 							ImagePullPolicy: v1.PullAlways,
-							Command:      command,
-							Args:         args,
-							VolumeMounts: volumeMounts,
+							Command:         command,
+							Args:            args,
+							VolumeMounts:    volumeMounts,
 							Env: []v1.EnvVar{
 								{
-									Name: "APISERVER_CERT_LOCATION",
+									Name:  "APISERVER_CERT_LOCATION",
 									Value: "/etc/virtual-kubelet/certs/server.crt",
 								},
 								{
-								    Name: "APISERVER_KEY_LOCATION",
-								    Value: "/etc/virtual-kubelet/certs/server-key.pem",
+									Name:  "APISERVER_KEY_LOCATION",
+									Value: "/etc/virtual-kubelet/certs/server-key.pem",
 								},
 								{
-									Name: "VKUBELET_POD_IP",
+									Name:      "VKUBELET_POD_IP",
 									ValueFrom: &v1.EnvVarSource{FieldRef: &v1.ObjectFieldSelector{FieldPath: "status.podIP", APIVersion: "v1"}},
 								},
 							},

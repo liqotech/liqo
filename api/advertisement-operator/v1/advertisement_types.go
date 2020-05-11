@@ -38,7 +38,7 @@ type AdvertisementSpec struct {
 	ClusterId string `json:"clusterId"`
 	// +optional
 	Images        []corev1.ContainerImage                     `json:"images,omitempty"`
-	Availability  corev1.ResourceList                         `json:"availability"`
+	Availability  corev1.ResourceList                         `json:"availability,omitempty"`
 	LimitRange    corev1.LimitRangeSpec                       `json:"limitRange,omitempty"`
 	ResourceQuota corev1.ResourceQuotaSpec                    `json:"resourceQuota,omitempty"`
 	Neighbors     map[corev1.ResourceName]corev1.ResourceList `json:"neighbors,omitempty"`

@@ -81,7 +81,7 @@ func NewCRDClient(path string, cm *v1.ConfigMap) (client.Client, error) {
 	return remoteClient, nil
 }
 
-func NewMetricsClient(path string, cm *v1.ConfigMap) (*metricsclient.Clientset, error){
+func NewMetricsClient(path string, cm *v1.ConfigMap) (*metricsclient.Clientset, error) {
 	config, err := GetConfig(path, cm)
 	if err != nil {
 		return nil, err
