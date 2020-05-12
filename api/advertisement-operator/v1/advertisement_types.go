@@ -54,7 +54,7 @@ type AdvertisementSpec struct {
 type AdvertisementStatus struct {
 	AdvertisementStatus string      `json:"advertisementStatus"`
 	ForeignNetwork      NetworkInfo `json:"foreignNetwork"`
-	NatEnabled          bool        `json:"natEnabled,omitempty"`
+	VkCreated           bool        `json:"vkCreated"`
 	// +optional
 	LocalRemappedPodCIDR string `json:"localRemappedPodCIDR,omitempty"`
 	// +optional

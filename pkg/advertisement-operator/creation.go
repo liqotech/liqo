@@ -77,7 +77,7 @@ func CreateFromYaml(c client.Client, ctx context.Context, log logr.Logger, filen
 }
 
 // create deployment for a virtual-kubelet
-func CreateVkDeployment(adv protocolv1.Advertisement) appsv1.Deployment {
+func CreateVkDeployment(adv *protocolv1.Advertisement) appsv1.Deployment {
 
 	command := []string{
 		"/usr/bin/virtual-kubelet",
@@ -158,9 +158,9 @@ func CreateVkDeployment(adv protocolv1.Advertisement) appsv1.Deployment {
 
 	deploy := appsv1.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      "vkubelet-" + adv.Spec.ClusterId,
-			Namespace: "default",
-			OwnerReferences: GetOwnerReference(adv),
+			Name:            "vkubelet-" + adv.Spec.ClusterId,
+			Namespace:       "default",
+			OwnerReferences: GetOwnerReference(*adv),
 		},
 		Spec: appsv1.DeploymentSpec{
 			Replicas: pointer.Int32Ptr(1),
@@ -207,8 +207,8 @@ func CreateVkDeployment(adv protocolv1.Advertisement) appsv1.Deployment {
 					},
 					Containers: []v1.Container{
 						{
-							Name:         "virtual-kubelet",
-							Image:        "dronev2/virtual-kubelet",
+							Name:            "virtual-kubelet",
+							Image:           "dronev2/virtual-kubelet",
 							ImagePullPolicy: v1.PullAlways,
 							Command:      command,
 							Args:         args,
@@ -230,7 +230,7 @@ func CreateVkDeployment(adv protocolv1.Advertisement) appsv1.Deployment {
 						},
 					},
 					ServiceAccountName: "virtual-kubelet",
-					Affinity: affinity.DeepCopy(),
+					Affinity:           affinity.DeepCopy(),
 				},
 			},
 		},

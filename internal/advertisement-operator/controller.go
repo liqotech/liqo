@@ -18,6 +18,7 @@ package advertisement_operator
 import (
 	"context"
 	"github.com/go-logr/logr"
+	protocolv1 "github.com/netgroup-polito/dronev2/api/advertisement-operator/v1"
 	pkg "github.com/netgroup-polito/dronev2/pkg/advertisement-operator"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -27,9 +28,6 @@ import (
 	"k8s.io/client-go/tools/record"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"time"
-
-	protocolv1 "github.com/netgroup-polito/dronev2/api/advertisement-operator/v1"
 )
 
 // AdvertisementReconciler reconciles a Advertisement object
@@ -80,9 +78,11 @@ func (r *AdvertisementReconciler) Reconcile(req ctrl.Request) (ctrl.Result, erro
 		return ctrl.Result{}, errors.NewBadRequest("advertisement ignored")
 	}
 
-	err = createVirtualKubelet(r.Client, ctx, log, namespace, adv)
-	if err != nil {
-		return ctrl.Result{}, err
+	if adv.Status.VkCreated == false {
+		err = createVirtualKubelet(r, ctx, log, namespace, &adv)
+		if err != nil {
+			return ctrl.Result{}, err
+		}
 	}
 
 	// start the reflector only if this is the first time we receive this advertisement
@@ -130,25 +130,15 @@ func checkAdvertisement(r *AdvertisementReconciler, ctx context.Context, log log
 	return
 }
 
-func createVirtualKubelet(c client.Client, ctx context.Context, log logr.Logger, namespace string, adv protocolv1.Advertisement) error {
+func createVirtualKubelet(r *AdvertisementReconciler, ctx context.Context, log logr.Logger, namespace string, adv *protocolv1.Advertisement) error {
 
-	// check if the network module has established connection
-	if adv.Status.NatEnabled == true {
-		for {
-			if adv.Status.LocalRemappedPodCIDR != "" && adv.Status.RemoteRemappedPodCIDR != "" {
-				adv.Spec.Network.PodCIDR = adv.Status.RemoteRemappedPodCIDR
-				break
-			}
-			time.Sleep(10 * time.Second)
-		}
-	}
-
+	// TODO: useless with vk update
 	// create configuration for virtual-kubelet with data from adv
 	vkConfig := v1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:            "vk-config-" + adv.Spec.ClusterId,
 			Namespace:       "default",
-			OwnerReferences: pkg.GetOwnerReference(adv),
+			OwnerReferences: pkg.GetOwnerReference(*adv),
 		},
 		Data: map[string]string{
 			"vkubelet-cfg.json": `
@@ -163,18 +153,22 @@ func createVirtualKubelet(c client.Client, ctx context.Context, log logr.Logger,
 		 }
 		}`},
 	}
-	err := pkg.CreateOrUpdate(c, ctx, log, vkConfig)
+	err := pkg.CreateOrUpdate(r.Client, ctx, log, vkConfig)
 	if err != nil {
 		return err
 	}
 
 	deploy := pkg.CreateVkDeployment(adv)
-	err = pkg.CreateOrUpdate(c, ctx, log, deploy)
+	err = pkg.CreateOrUpdate(r.Client, ctx, log, deploy)
 	if err != nil {
 		return err
 	}
 
-	log.Info("launching virtual-kubelet for cluster " + adv.Spec.ClusterId)
+	recordEvent(r, log, "launching virtual-kubelet for cluster "+adv.Spec.ClusterId, "Normal", "VkCreated", adv)
+	adv.Status.VkCreated = true
+	if err := r.Status().Update(ctx, adv); err != nil {
+		log.Error(err, "unable to update Advertisement status")
+	}
 	return nil
 }
 

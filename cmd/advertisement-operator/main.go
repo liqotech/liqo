@@ -90,13 +90,13 @@ func main() {
 		os.Exit(1)
 	}
 
-	if !runsAsTunnelEndpointCreator{
+	if !runsAsTunnelEndpointCreator {
 		if err = (&advertisement_operator.AdvertisementReconciler{
-			Client: mgr.GetClient(),
-			Log:    ctrl.Log.WithName("controllers").WithName("Advertisement"),
-			Scheme: mgr.GetScheme(),
-			EventsRecorder:     mgr.GetEventRecorderFor("AdvertisementOperator"),
-			GatewayIP: gatewayIP,
+			Client:           mgr.GetClient(),
+			Log:              ctrl.Log.WithName("controllers").WithName("Advertisement"),
+			Scheme:           mgr.GetScheme(),
+			EventsRecorder:   mgr.GetEventRecorderFor("AdvertisementOperator"),
+			GatewayIP:        gatewayIP,
 			GatewayPrivateIP: gatewayPrivateIP,
 		}).SetupWithManager(mgr); err != nil {
 			setupLog.Error(err, "unable to create controller", "controller", "Advertisement")
@@ -104,19 +104,16 @@ func main() {
 		}
 		// +kubebuilder:scaffold:builder
 
-
-		go advertisement_operator.StartBroadcaster(clusterId, localKubeconfig, foreignKubeconfig, gatewayIP, gatewayPrivateIP)
-
 		setupLog.Info("starting manager as advertisement-operator")
 		if err := mgr.Start(ctrl.SetupSignalHandler()); err != nil {
 			setupLog.Error(err, "problem running manager")
 			os.Exit(1)
 		}
-	}else {
+	} else {
 		if err = (&advertisement_operator.TunnelEndpointCreator{
-			Client: mgr.GetClient(),
-			Log:    ctrl.Log.WithName("controllers").WithName("TunnelEndpointCreator"),
-			Scheme: mgr.GetScheme(),
+			Client:            mgr.GetClient(),
+			Log:               ctrl.Log.WithName("controllers").WithName("TunnelEndpointCreator"),
+			Scheme:            mgr.GetScheme(),
 			TunnelEndpointMap: make(map[string]types.NamespacedName),
 		}).SetupWithManager(mgr); err != nil {
 			setupLog.Error(err, "unable to create controller", "controller", "TunnelEndpointCreator")

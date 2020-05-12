@@ -242,8 +242,6 @@ spec:
               type: object
             localRemappedPodCIDR:
               type: string
-            natEnabled:
-              type: boolean
             observedGeneration:
               format: int64
               type: integer
@@ -260,10 +258,13 @@ spec:
               - name
               - namespace
               type: object
+            vkCreated:
+              type: boolean
           required:
           - advertisementStatus
           - foreignNetwork
           - tunnelEndpointKey
+          - vkCreated
           type: object
       type: object
   version: v1
