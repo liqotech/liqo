@@ -77,7 +77,7 @@ func CreateFromYaml(c client.Client, ctx context.Context, log logr.Logger, filen
 }
 
 // create deployment for a virtual-kubelet
-func CreateVkDeployment(adv *protocolv1.Advertisement) appsv1.Deployment {
+func CreateVkDeployment(adv *protocolv1.Advertisement, nameSA string) appsv1.Deployment {
 
 	command := []string{
 		"/usr/bin/virtual-kubelet",
@@ -173,6 +173,7 @@ func CreateVkDeployment(adv *protocolv1.Advertisement) appsv1.Deployment {
 				ObjectMeta: metav1.ObjectMeta{
 					Labels: map[string]string{
 						"app": "virtual-kubelet",
+						"cluster": adv.Spec.ClusterId,
 					},
 				},
 				Spec: v1.PodSpec{
@@ -229,8 +230,8 @@ func CreateVkDeployment(adv *protocolv1.Advertisement) appsv1.Deployment {
 							},
 						},
 					},
-					ServiceAccountName: "virtual-kubelet",
-					Affinity:           affinity.DeepCopy(),
+					ServiceAccountName: nameSA,
+					Affinity: affinity.DeepCopy(),
 				},
 			},
 		},

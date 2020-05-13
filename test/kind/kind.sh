@@ -11,6 +11,9 @@ networking:
   apiServerPort: $port
   podSubnet: "10.${i}00.0.0/16"
   serviceSubnet: "10.9$i.0.0/12"
+nodes:
+  - role: control-plane
+    image: kindest/node:v1.18.2
 EOF
   kind create cluster --name cluster"$i" --kubeconfig kubeconfig-cluster"$i" --config cluster"$i"-config.yaml --wait 2m
 }

@@ -18,6 +18,8 @@ package advertisement_operator
 import (
 	"context"
 	"github.com/go-logr/logr"
+	rbacv1 "k8s.io/api/rbac/v1"
+
 	protocolv1 "github.com/netgroup-polito/dronev2/api/advertisement-operator/v1"
 	pkg "github.com/netgroup-polito/dronev2/pkg/advertisement-operator"
 	v1 "k8s.io/api/core/v1"
@@ -28,6 +30,7 @@ import (
 	"k8s.io/client-go/tools/record"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+
 )
 
 // AdvertisementReconciler reconciles a Advertisement object
@@ -38,6 +41,7 @@ type AdvertisementReconciler struct {
 	EventsRecorder   record.EventRecorder
 	GatewayIP        string
 	GatewayPrivateIP string
+	KubeletNamespace string
 }
 
 // +kubebuilder:rbac:groups=protocol.drone.com,resources=advertisements,verbs=get;list;watch;create;update;patch;delete
@@ -57,8 +61,6 @@ func (r *AdvertisementReconciler) Reconcile(req ctrl.Request) (ctrl.Result, erro
 		StopReflector(req.Name)
 		return ctrl.Result{}, client.IgnoreNotFound(err)
 	}
-
-	namespace := "drone-" + adv.Spec.ClusterId
 
 	// The metadata.generation value is incremented for all changes, except for changes to .metadata or .status
 	// if metadata.generation is not incremented there's no need to reconcile
@@ -84,12 +86,14 @@ func (r *AdvertisementReconciler) Reconcile(req ctrl.Request) (ctrl.Result, erro
 	}
 
 	if adv.Status.VkCreated == false {
-		err = createVirtualKubelet(r, ctx, log, namespace, &adv)
+		err := createVirtualKubelet(r, ctx, log, &adv)
 		if err != nil {
 			return ctrl.Result{}, err
 		}
 	}
 
+	log.Info("launching virtual-kubelet for cluster " + adv.Spec.ClusterId)
+	namespace := "drone-" + adv.Spec.ClusterId
 	// start the reflector only if this is the first time we receive this advertisement
 	if adv.Generation == 1 {
 		StartReflector(namespace, adv)
@@ -135,35 +139,41 @@ func checkAdvertisement(r *AdvertisementReconciler, ctx context.Context, log log
 	return
 }
 
-func createVirtualKubelet(r *AdvertisementReconciler, ctx context.Context, log logr.Logger, namespace string, adv *protocolv1.Advertisement) error {
+func createVirtualKubelet(r *AdvertisementReconciler, ctx context.Context, log logr.Logger, adv *protocolv1.Advertisement) error {
 
-	// TODO: useless with vk update
-	// create configuration for virtual-kubelet with data from adv
-	vkConfig := v1.ConfigMap{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:            "vk-config-" + adv.Spec.ClusterId,
-			Namespace:       "default",
+	// Create the base resources
+	vkSa := v1.ServiceAccount{
+		TypeMeta:                     metav1.TypeMeta{},
+		ObjectMeta:                   metav1.ObjectMeta{
+			Name:      "vkubelet-" + adv.Spec.ClusterId,
+			Namespace: r.KubeletNamespace,
 			OwnerReferences: pkg.GetOwnerReference(*adv),
 		},
-		Data: map[string]string{
-			"vkubelet-cfg.json": `
-		{
-		 "vk-` + adv.Spec.ClusterId + `": {
-		   "remoteKubeconfig": "/app/kubeconfig/remote",
-		   "namespace": "` + namespace + `",
-		   "cpu": "` + adv.Spec.Availability.Cpu().String() + `",
-		   "memory": "` + adv.Spec.Availability.Memory().String() + `",
-		   "pods": "` + adv.Spec.Availability.Pods().String() + `",
-		   "remoteNewPodCidr": "` + adv.Spec.Network.PodCIDR + `"
-		 }
-		}`},
 	}
-	err := pkg.CreateOrUpdate(r.Client, ctx, log, vkConfig)
+	err := pkg.CreateOrUpdate(r.Client, ctx, log, vkSa)
 	if err != nil {
 		return err
 	}
-
-	deploy := pkg.CreateVkDeployment(adv)
+	vkCrb := rbacv1.ClusterRoleBinding{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "vkubelet-" + adv.Spec.ClusterId,
+			OwnerReferences: pkg.GetOwnerReference(*adv),
+		},
+		Subjects:  []rbacv1.Subject{
+			{Kind: "ServiceAccount", APIGroup: "", Name: "vkubelet-" + adv.Spec.ClusterId, Namespace: r.KubeletNamespace},
+		} ,
+		RoleRef:    rbacv1.RoleRef{
+			APIGroup: "rbac.authorization.k8s.io",
+			Kind:     "ClusterRole",
+			Name:     "cluster-admin",
+		},
+	}
+	err = pkg.CreateOrUpdate(r.Client, ctx, log, vkCrb)
+	if err != nil {
+		return err
+	}
+	// Create the virtual Kubelet
+	deploy := pkg.CreateVkDeployment(adv, vkSa.Name)
 	err = pkg.CreateOrUpdate(r.Client, ctx, log, deploy)
 	if err != nil {
 		return err

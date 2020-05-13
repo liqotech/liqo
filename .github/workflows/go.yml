@@ -1,9 +1,49 @@
 name: Go
 on: [push]
 jobs:
-  build:
-    name: Build
-    if: github.event.pull_request.draft == false
+   build:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        component:
+        - virtual-kubelet
+        - dronet-operator
+        - advertisement-broadcaster
+        - advertisement-operator
+        - init-vkubelet
+        - schedulingnode-operator
+    steps:
+      - name: Check out code into the Go module directory
+        uses: actions/checkout@v1
+      - name: Push virtual-kubelet image on repo
+        uses: elgohr/Publish-Docker-Github-Action@master
+        with:
+          name: dronev2/${{ matrix.component }}
+          username: ${{ secrets.DOCKER_USERNAME }}
+          dockerfile: build/${{ matrix.component }}/Dockerfile
+          password: ${{ secrets.DOCKER_PASSWORD }}
+          tags: "latest,${{ github.sha }}"
+        if: github.ref == 'refs/heads/master'
+      - name: Push virtual-kubelet image on repo
+        uses: elgohr/Publish-Docker-Github-Action@master
+        with:
+          name: dronev2/${{ matrix.component }}-ci
+          username: ${{ secrets.DOCKER_USERNAME }}
+          dockerfile: build/${{ matrix.component }}/Dockerfile
+          password: ${{ secrets.DOCKER_PASSWORD }}
+          tags: "${{ github.sha }}"
+        if: github.ref != 'refs/heads/master'
+      - uses: 8398a7/action-slack@v2
+        with:
+          status: ${{ job.status }}
+          author_name: Integration Test # default: 8398a7@action-slack
+        env:
+          GITHUB_TOKEN: ${{ secrets.CI_TOKEN }} # required
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK }} # required
+        if: always() && github.ref == 'refs/heads/master' # Pick up events even if the job fails or is canceled.
+   test:
+    name: Test Launch
     runs-on: ubuntu-latest
     steps:
     - name: Set up Go 1.13
@@ -22,78 +62,6 @@ jobs:
         fi
     - name: Run Tests
       run: go test ./...
-    - uses: actions/checkout@master
-    - name: Build Virtual Kubelet Docker image
-      run: docker build -f build/virtual-kubelet/Dockerfile .
-      if: github.ref != 'refs/heads/master'
-    - name: Push virtual-kubelet image on repo
-      uses: HurricanKai/Publish-Docker-Github-Action@master
-      with:
-        name: dronev2/virtual-kubelet
-        username: ${{ secrets.DOCKER_USERNAME }}
-        dockerfile: build/virtual-kubelet/Dockerfile
-        password: ${{ secrets.DOCKER_PASSWORD }}
-        tags: "latest,${{ github.sha }}"
-      if: github.ref == 'refs/heads/master'
-    - name: Build virtual-kubelet initContainer image on repo
-      run: docker build -f build/virtual-kubelet/Dockerfile.initContainer .
-      if: github.ref != 'refs/heads/master'
-    - name: Push virtual-kubelet initContainer image on repo
-      uses: HurricanKai/Publish-Docker-Github-Action@master
-      with:
-        name: dronev2/init-vkubelet
-        username: ${{ secrets.DOCKER_USERNAME }}
-        dockerfile: build/virtual-kubelet/Dockerfile.initContainer
-        password: ${{ secrets.DOCKER_PASSWORD }}
-      if: github.ref == 'refs/heads/master'
-    - name: Build Advertisement Operator Docker image
-      run: docker build -f build/advertisement-operator/Dockerfile .
-      if: github.ref != 'refs/heads/master'
-    - name: Push advertisement-operator image on repo
-      uses: HurricanKai/Publish-Docker-Github-Action@master
-      with:
-        name: dronev2/advertisement-operator
-        username: ${{ secrets.DOCKER_USERNAME }}
-        dockerfile: build/advertisement-operator/Dockerfile
-        password: ${{ secrets.DOCKER_PASSWORD }}
-        tags: "latest,${{ github.sha }}"
-      if: github.ref == 'refs/heads/master'
-    - name: Build Advertisement Broadcaster Docker image
-      run: docker build -f build/advertisement-broadcaster/Dockerfile .
-      if: github.ref != 'refs/heads/master'
-    - name: Push advertisement-broadcaster image on repo
-      uses: HurricanKai/Publish-Docker-Github-Action@master
-      with:
-        name: dronev2/advertisement-broadcaster
-        username: ${{ secrets.DOCKER_USERNAME }}
-        dockerfile: build/advertisement-broadcaster/Dockerfile
-        password: ${{ secrets.DOCKER_PASSWORD }}
-        tags: "latest,stable,${{ steps.get_version.outputs.VERSION }}"
-      if: github.ref == 'refs/heads/master'
-    - name: Build Tunnel Operator Docker image
-      run: docker build -f build/dronet-operator/Dockerfile .
-      if: github.ref != 'refs/heads/master'
-    - name: Push dronet-operator image on repo
-      uses: HurricanKai/Publish-Docker-Github-Action@master
-      with:
-        name: dronev2/dronet-operator
-        username: ${{ secrets.DOCKER_USERNAME }}
-        dockerfile: build/dronet-operator/Dockerfile
-        password: ${{ secrets.DOCKER_PASSWORD }}
-        tags: "latest,${{ github.sha }}"
-      if: github.ref == 'refs/heads/master'
-    - name: Build SchedulingNode-operator Docker image
-      run: docker build -f build/schedulingNode-operator/Dockerfile .
-      if: github.ref != 'refs/heads/master'
-    - name: Push SchedulingNode-operator image on repo
-      uses: HurricanKai/Publish-Docker-Github-Action@master
-      with:
-        name: dronev2/schedulingNode-operator
-        username: ${{ secrets.DOCKER_USERNAME }}
-        dockerfile: build/schedulingNode-operator/Dockerfile
-        password: ${{ secrets.DOCKER_PASSWORD }}
-        tags: "latest,stable,${{ steps.get_version.outputs.VERSION }}"
-      if: github.ref == 'refs/heads/master'
     - uses: 8398a7/action-slack@v2
       with:
         status: ${{ job.status }}

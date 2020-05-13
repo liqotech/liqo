@@ -53,6 +53,7 @@ func main() {
 	var gatewayIP, gatewayPrivateIP string
 	var runsAsTunnelEndpointCreator bool
 	var enableLeaderElection bool
+	var kubeletNamespace string
 
 	flag.StringVar(&metricsAddr, "metrics-addr", ":8080", "The address the metric endpoint binds to.")
 	flag.BoolVar(&enableLeaderElection, "enable-leader-election", false, "Enable leader election for controller manager. Enabling this will ensure there is only one active controller manager.")
@@ -61,6 +62,7 @@ func main() {
 	flag.StringVar(&clusterId, "cluster-id", "", "The cluster ID of your cluster")
 	flag.StringVar(&gatewayIP, "gateway-ip", "", "The IP address of the gateway node")
 	flag.StringVar(&gatewayPrivateIP, "gateway-private-ip", "", "The private IP address of the gateway node")
+	flag.StringVar(&kubeletNamespace, "kubelet-namespace", "default", "Name of the namespace where Virtual kubelets will be spawned ( the namespace is default if not specified otherwise)")
 	flag.BoolVar(&runsAsTunnelEndpointCreator, "run-as-tunnel-endpoint-creator", false, "Runs the controller as TunnelEndpointCreator, the default value is false and will run as Advertisement-Operator")
 	flag.Parse()
 
@@ -92,6 +94,7 @@ func main() {
 
 	if !runsAsTunnelEndpointCreator {
 		if err = (&advertisement_operator.AdvertisementReconciler{
+			KubeletNamespace: kubeletNamespace,
 			Client:           mgr.GetClient(),
 			Log:              ctrl.Log.WithName("controllers").WithName("Advertisement"),
 			Scheme:           mgr.GetScheme(),

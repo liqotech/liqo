@@ -48,7 +48,7 @@ func (p *KubernetesProvider) CreatePod(ctx context.Context, pod *v1.Pod) error {
 	}
 	podTranslated := H2FTranslate(pod)
 
-	podServer, err := p.client.CoreV1().Pods(p.providerNamespace).Create(podTranslated)
+	podServer, err := p.client.CoreV1().Pods(pod.Namespace).Create(podTranslated)
 	if err != nil {
 		return errors.Wrap(err, "Unable to create pod")
 	}
