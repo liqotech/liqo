@@ -49,6 +49,11 @@ func (r *TunnelController) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 		log.Error(err, "unable to fetch endpoint, probably it has been deleted")
 		return ctrl.Result{}, client.IgnoreNotFound(err)
 	}
+	//if the endpoint CR is not processed then return
+	if endpoint.Status.Phase != "Processed" && endpoint.Status.Phase != "Ready"{
+		log.Info("tunnelEndpoint is not ready ", "name", endpoint.Name, "phase", endpoint.Status.Phase)
+		return ctrl.Result{}, nil
+	}
 	// examine DeletionTimestamp to determine if object is under deletion
 	if endpoint.ObjectMeta.DeletionTimestamp.IsZero() {
 		if !dronetOperator.ContainsString(endpoint.ObjectMeta.Finalizers, tunnelEndpointFinalizer) {
@@ -82,7 +87,7 @@ func (r *TunnelController) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 	//update the status of the endpoint custom resource
 	//and install the tunnel only
 	//check if the CR is newly created
-	if endpoint.Status.TunnelIFaceIndex == 0 && endpoint.Status.TunnelIFaceName == "" && endpoint.Status.LocalTunnelPrivateIP == "" && endpoint.Status.LocalTunnelPublicIP == "" {
+	if endpoint.Status.Phase == "Processed" {
 		iFaceIndex, iFaceName, err := dronetOperator.InstallGreTunnel(&endpoint)
 		if err != nil {
 			log.Error(err, "unable to create the gre tunnel")
@@ -107,14 +112,15 @@ func (r *TunnelController) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 		endpoint.Status.LocalTunnelPublicIP = localTunnelPublicIP
 		endpoint.Status.RemoteTunnelPrivateIP = endpoint.Spec.TunnelPrivateIP
 		endpoint.Status.RemoteTunnelPublicIP = endpoint.Spec.TunnelPublicIP
+		endpoint.Status.Phase = "Ready"
 		err = r.Client.Status().Update(ctx, &endpoint)
 		if err != nil {
 			return ctrl.Result{}, err
 		}
-	} else {
+	} else if endpoint.Status.Phase == "Ready" {
 		//if the the CR is already initialized check if the tunnel interface exists
 		_, err := netlink.LinkByIndex(endpoint.Status.TunnelIFaceIndex)
-		if err != nil && err.Error() == "Link not found"{
+		if err != nil && err.Error() == "Link not found" {
 			//reset status of CR and update it if the tunnel iface does not exist
 			//this is needed if the operator crashes and is restarted, so it checks if
 			//all the existing CR are configured
@@ -152,6 +158,8 @@ func (r *TunnelController) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 			}
 		}
 
+	} else {
+		return ctrl.Result{}, nil
 	}
 	//save the IFace index in the map
 	//we come here only if the tunnel is installed and the CR status has been updated

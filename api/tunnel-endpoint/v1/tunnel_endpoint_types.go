@@ -36,15 +36,17 @@ type TunnelEndpointSpec struct {
 // TunnelEndpointStatus defines the observed state of TunnelEndpoint
 type TunnelEndpointStatus struct {
 	// INSERT ADDITIONAL STATUS FIELD - define observed state of cluster
-	// Important: Run "make" to regenerate code after modifying this file
-	RemappedPodCIDR     string `json:"remappedPodCIDR,omitempty"`
-	NATEnabled          bool   `json:"NAT,omitempty"`
-	RemoteTunnelPublicIP string `json:"remoteTunnelPublicIP,omitempty"`
+	// Important: Run "make" to regenerate code after modifying this file\
+	Phase                 string `json:"phase,omitempty"` //two phases: New, Processed
+	LocalRemappedPodCIDR  string `json:"localRemappedPodCIDR,omitempty"`
+	RemoteRemappedPodCIDR string `json:"remoteRemappedPodCIDR,omitempty"`
+	NATEnabled            bool   `json:"NAT,omitempty"`
+	RemoteTunnelPublicIP  string `json:"remoteTunnelPublicIP,omitempty"`
 	RemoteTunnelPrivateIP string `json:"remoteTunnelPrivateIP,omitempty"`
-	LocalTunnelPublicIP string `json:"localTunnelPublicIP,omitempty"`
-	LocalTunnelPrivateIP string `json:"localTunnelPrivateIP,omitempty"`
-	TunnelIFaceIndex    int    `json:"tunnelIFaceIndex,omitempty"`
-	TunnelIFaceName     string `json:"tunnelIFaceName,omitempty"`
+	LocalTunnelPublicIP   string `json:"localTunnelPublicIP,omitempty"`
+	LocalTunnelPrivateIP  string `json:"localTunnelPrivateIP,omitempty"`
+	TunnelIFaceIndex      int    `json:"tunnelIFaceIndex,omitempty"`
+	TunnelIFaceName       string `json:"tunnelIFaceName,omitempty"`
 }
 
 // +kubebuilder:object:root=true

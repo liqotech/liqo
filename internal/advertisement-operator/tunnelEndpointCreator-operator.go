@@ -18,11 +18,13 @@ package advertisement_operator
 import (
 	"context"
 	"fmt"
+	"github.com/apparentlymart/go-cidr/cidr"
 	"github.com/go-logr/logr"
 	dronetOperator "github.com/netgroup-polito/dronev2/pkg/dronet-operator"
 	"github.com/pkg/errors"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
+	"net"
 	"os"
 
 	"k8s.io/apimachinery/pkg/runtime"
@@ -37,6 +39,7 @@ import (
 
 const (
 	tunEndpointNameSuffix = "-tunendpoint"
+	defualtPodCIDRValue   = "None"
 )
 
 // AdvertisementReconciler reconciles a Advertisement object
@@ -44,6 +47,8 @@ type TunnelEndpointCreator struct {
 	client.Client
 	Log               logr.Logger
 	Scheme            *runtime.Scheme
+	UsedSubnets       map[string]*net.IPNet
+	FreeSubnets       map[string]*net.IPNet
 	TunnelEndpointMap map[string]types.NamespacedName
 }
 
@@ -82,9 +87,10 @@ func (r *TunnelEndpointCreator) Reconcile(req ctrl.Request) (ctrl.Result, error)
 				if apierrors.IsConflict(err) {
 					return ctrl.Result{}, nil
 				}
-				log.Error(err, "unable to update adv", adv.Name)
+				log.Error(err, "unable to update adv", "adv", adv.Name)
 				return ctrl.Result{}, err
 			}
+			return ctrl.Result{}, nil
 		}
 	} else {
 		//the object is being deleted
@@ -110,6 +116,10 @@ func (r *TunnelEndpointCreator) Reconcile(req ctrl.Request) (ctrl.Result, error)
 	if err != nil {
 		log.Error(err, "error while creating endpoint")
 		return ctrl.Result{}, err
+	}
+	err = r.updateTunEndpoint(&adv)
+	if err != nil {
+		log.Error(err, "unable to update tunelEndpointCR")
 	}
 	return ctrl.Result{}, nil
 }
@@ -191,7 +201,7 @@ func (r *TunnelEndpointCreator) createOrUpdateTunEndpoint(adv *protocolv1.Advert
 		if equal {
 			return nil
 		} else {
-			err := r.updateTunEndpoint(adv, advKey, tunEndpoint)
+			err := r.updateTunEndpoint(adv)
 			if err == nil {
 				return nil
 			} else {
@@ -210,34 +220,83 @@ func (r *TunnelEndpointCreator) createOrUpdateTunEndpoint(adv *protocolv1.Advert
 	}
 }
 
-func (r *TunnelEndpointCreator) updateTunEndpoint(adv *protocolv1.Advertisement, advKey types.NamespacedName, tunEndpoint *dronetv1.TunnelEndpoint) error {
-	funcName := "updateTunEndpoint"
+func (r *TunnelEndpointCreator) updateTunEndpoint(adv *protocolv1.Advertisement) error {
+	//funcName := "updateTunEndpoint"
 	ctx := context.Background()
-	log := r.Log.WithValues("tunnelEndpointCreator-controller", funcName)
-	tunEndpoint.Spec.ClusterID = adv.Spec.ClusterId
-	tunEndpoint.Spec.PodCIDR = adv.Spec.Network.PodCIDR
-	tunEndpoint.Spec.TunnelPublicIP = adv.Spec.Network.GatewayIP
-	tunEndpoint.Spec.TunnelPrivateIP = adv.Spec.Network.GatewayPrivateIP
-	err := r.Update(ctx, tunEndpoint)
-	if err == nil {
-		log.Info("updated the custom resource", "clusterId", adv.Spec.ClusterId, "podCIDR", adv.Spec.Network.PodCIDR, "gatewayPublicIP", adv.Spec.Network.GatewayIP, "tunnelPrivateIP", adv.Spec.Network.GatewayPrivateIP)
-		adv.Status.TunnelEndpointKey = protocolv1.NamespacedName{
-			Namespace: tunEndpoint.Namespace,
-			Name:      tunEndpoint.Name,
+	//log := r.Log.WithValues("tunnelEndpointCreator-controller", funcName)
+	var tunEndpoint dronetv1.TunnelEndpoint
+	var remoteRemappedPodCIDR string
+	//build the key used to retrieve the tunnelEndpoint CR
+	tunEndKey := types.NamespacedName{
+		Namespace: adv.Namespace,
+		Name:      adv.Spec.ClusterId + tunEndpointNameSuffix,
+	}
+	//retrieve the tunnelEndpoint CR
+	err := r.Get(ctx, tunEndKey, &tunEndpoint)
+	//if the tunEndpoint CR can not be retrieved then return the error
+	//if this come here it means that the CR has been created because the function is called only if the create process goes well
+	if err != nil {
+		return err
+	}
+
+	if tunEndpoint.Status.Phase == "" {
+		//TODO: implement the IPAM algorithm
+		//check if the PodCidr of the remote cluster overlaps with any of the subnets on the local cluster
+		_, subnet, err := net.ParseCIDR(adv.Spec.Network.PodCIDR)
+		if err != nil {
+			return fmt.Errorf("an error occured while parsing podCidr %s from adv %s :%v", adv.Spec.Network.PodCIDR, adv.Name, err)
 		}
-		err := r.Client.Status().Update(ctx, adv)
-		if err == nil {
-			log.Info("updated the status of ADV custom resource", "tunnelEndpointKey.Namespace", tunEndpoint.Namespace, "tunnelEndpointKey.Name", tunEndpoint.Name)
-			//add the value to the map
-			r.TunnelEndpointMap[advKey.String()] = types.NamespacedName(adv.Status.TunnelEndpointKey)
-			return nil
-		} else {
-			log.Info("failed to update the status of ADV custom resource", "tunnelEndpointKey.Namespace", tunEndpoint.Namespace, "tunnelEndpointKey.Name", tunEndpoint.Name)
+		subnet, isNewSub, err := r.checkSubnet(subnet)
+		if err != nil {
 			return err
 		}
+		if isNewSub {
+			remoteRemappedPodCIDR = subnet.String()
+			//update adv status
+			adv.Status.RemoteRemappedPodCIDR = remoteRemappedPodCIDR
+			err := r.Status().Update(ctx, adv)
+			if err != nil {
+				return err
+			}
+			//update tunEndpoint status
+			tunEndpoint.Status.RemoteRemappedPodCIDR = remoteRemappedPodCIDR
+			tunEndpoint.Status.Phase = "New"
+			err = r.Status().Update(ctx, &tunEndpoint)
+			if err != nil {
+				return err
+			}
+		} else {
+			//update adv status
+			adv.Status.RemoteRemappedPodCIDR = defualtPodCIDRValue
+			err := r.Status().Update(ctx, adv)
+			if err != nil {
+				return err
+			}
+			//update tunEndpoint status
+			tunEndpoint.Status.RemoteRemappedPodCIDR = defualtPodCIDRValue
+			tunEndpoint.Status.Phase = "New"
+			err = r.Status().Update(ctx, &tunEndpoint)
+			if err != nil {
+				return err
+			}
+		}
+		//update IPAM
+		r.updateIPAM(subnet)
+		return nil
+	} else if tunEndpoint.Status.Phase == "New" {
+		if adv.Status.LocalRemappedPodCIDR == "" {
+			return nil
+		}else {
+			tunEndpoint.Status.LocalRemappedPodCIDR = adv.Status.LocalRemappedPodCIDR
+			tunEndpoint.Status.Phase = "Processed"
+			err = r.Status().Update(ctx, &tunEndpoint)
+			if err != nil {
+				return err
+			}
+		}
+		return nil
 	} else {
-		log.Info("failed to update the custom resource", "clusterId", adv.Spec.ClusterId, "podCIDR", adv.Spec.Network.PodCIDR, "gatewayPublicIP", adv.Spec.Network.GatewayIP, "tunnelPrivateIP", adv.Spec.Network.GatewayPrivateIP)
-		return err
+		return nil
 	}
 }
 
@@ -256,20 +315,19 @@ func (r *TunnelEndpointCreator) createTunEndpoint(adv *protocolv1.Advertisement)
 	//build the key used to retrieve the tunnelEndpoint CR
 	tunEndKey := types.NamespacedName{
 		Namespace: adv.Namespace,
-		Name:      adv.Name + tunEndpointNameSuffix,
+		Name:      adv.Spec.ClusterId + tunEndpointNameSuffix,
 	}
 	//retrieve the tunnelEndpoint CR
 	err := r.Get(ctx, tunEndKey, &tunEndpoint)
 	//if the CR exist then do nothing and return
-	if err == nil{
+	if err == nil {
 		return nil
-	} else if apierrors.IsNotFound(err){
+	} else if apierrors.IsNotFound(err) {
 		//if tunnelEndpoint referenced by the key does not exist then we create it
-		//TODO: implement the IPAM algorithm
 		tunEndpoint := &dronetv1.TunnelEndpoint{
 			ObjectMeta: v1.ObjectMeta{
 				//the name is derived from the clusterID
-				Name: adv.Name + tunEndpointNameSuffix,
+				Name: adv.Spec.ClusterId + tunEndpointNameSuffix,
 				//the namespace is read from the Environment variable passe to the pod
 				Namespace: adv.Namespace,
 			},
@@ -288,8 +346,103 @@ func (r *TunnelEndpointCreator) createTunEndpoint(adv *protocolv1.Advertisement)
 		}
 		log.Info("created the custom resource", "name", tunEndpoint.Name, "namespace", tunEndpoint.Namespace, "clusterId", adv.Spec.ClusterId, "podCIDR", adv.Spec.Network.PodCIDR, "gatewayPublicIP", adv.Spec.Network.GatewayIP, "tunnelPrivateIP", adv.Spec.Network.GatewayPrivateIP)
 		return nil
-	}else {
+	} else {
 		return err
+	}
+}
+
+func (r *TunnelEndpointCreator) InitIPAM() error {
+	//TODO: remove the hardcoded value of the CIDRBlock
+	CIDRBlock := "10.0.0.0/16"
+	//the first /16 subnet in 10/8 cidr block
+	_, subnet, err := net.ParseCIDR("10.0.0.0/16")
+	if err != nil {
+		r.Log.Error(err, "unable to parse the first subnet %s :%v", CIDRBlock, err)
+		return err
+	}
+	//first we get podCIDR and clusterCIDR
+	podCIDR, err := dronetOperator.GetClusterPodCIDR()
+	if err != nil {
+		r.Log.Error(err, "unable to retrieve podCIDR from environment variable")
+		return err
+	}
+	clusterCIDR, err := dronetOperator.GetClusterCIDR()
+	if err != nil {
+		r.Log.Error(err, "unable to retrieve clusterCIDR from environment variable")
+		return err
+	}
+	//we parse podCIDR and clusterCIDR
+	_, clusterNet, err := net.ParseCIDR(clusterCIDR)
+	if err != nil {
+		return fmt.Errorf("an error occured while parsing clusterCIDR %s :%v", clusterCIDR, err)
+	}
+	_, podNet, err := net.ParseCIDR(podCIDR)
+	if err != nil {
+		return fmt.Errorf("an error occured while parsing podCIDR %s :%v", podCIDR, err)
+	}
+	//The first subnet /16 is added to the freeSubnets
+	r.FreeSubnets[subnet.String()] = subnet
+	//here we divide the CIDRBlock 10.0.0.0/8 in 256 /16 subnets
+	for i := 0; i < 255; i++ {
+		subnet, _ = cidr.NextSubnet(subnet, 16)
+		r.FreeSubnets[subnet.String()] = subnet
+	}
+	//clusterCIDR and podCIDR are added to the usedSubnets
+	r.UsedSubnets[clusterNet.String()] = clusterNet
+	r.UsedSubnets[podNet.String()] = podNet
+
+	//we move all the subnets that have conflicts with the podCidr and clusterCidr from freeSubnets to usedSubnets
+	for _, net := range r.FreeSubnets {
+		if bool := dronetOperator.VerifyNoOverlap(r.UsedSubnets, net); bool {
+			if _, ok := r.UsedSubnets[net.String()]; !ok {
+				r.UsedSubnets[net.String()] = net
+				delete(r.FreeSubnets, net.String())
+			} else {
+				delete(r.FreeSubnets, net.String())
+			}
+		}
+	}
+	return nil
+}
+
+func (r *TunnelEndpointCreator) getNextSubnetAvail() (*net.IPNet, error) {
+	if len(r.FreeSubnets) == 0 {
+		return nil, fmt.Errorf("no more available subnets to allocate")
+	}
+	var availableSubnet *net.IPNet
+	for _, subnet := range r.FreeSubnets {
+		availableSubnet = subnet
+		break
+	}
+	return availableSubnet, nil
+}
+
+func (r *TunnelEndpointCreator) checkSubnet(network *net.IPNet) (*net.IPNet, bool, error) {
+	//check if the given network has conflicts with any of the used subnets
+	if flag := dronetOperator.VerifyNoOverlap(r.UsedSubnets, network); flag {
+		//if there are conflicts then get a free subnet from the pool and return it
+		//return also a "true" value for the bool
+		if subnet, err := r.getNextSubnetAvail(); err != nil {
+			return nil, false, err
+		} else {
+			return subnet, true, nil
+		}
+	}
+	return network, false, nil
+}
+
+//add the network to the usedSubnets and remove of the subnets in free subnets that overlap with the network
+func (r *TunnelEndpointCreator) updateIPAM(network *net.IPNet) {
+	r.UsedSubnets[network.String()] = network
+	for _, net := range r.FreeSubnets {
+		if bool := dronetOperator.VerifyNoOverlap(r.UsedSubnets, net); bool {
+			if _, ok := r.UsedSubnets[net.String()]; !ok {
+				r.UsedSubnets[net.String()] = net
+				delete(r.FreeSubnets, net.String())
+			} else {
+				delete(r.FreeSubnets, net.String())
+			}
+		}
 	}
 }
 
@@ -299,21 +452,21 @@ func (r *TunnelEndpointCreator) deleteTunEndpoint(adv *protocolv1.Advertisement)
 	//build the key used to retrieve the tunnelEndpoint CR
 	tunEndKey := types.NamespacedName{
 		Namespace: adv.Namespace,
-		Name:      adv.Name + tunEndpointNameSuffix,
+		Name:      adv.Spec.ClusterId + tunEndpointNameSuffix,
 	}
 	//retrieve the tunnelEndpoint CR
 	err := r.Get(ctx, tunEndKey, &tunEndpoint)
 	//if the CR exist then do nothing and return
-	if err == nil{
+	if err == nil {
 		err := r.Delete(ctx, &tunEndpoint)
-		if err != nil{
+		if err != nil {
 			return fmt.Errorf("unable to delete endpoint %s in namespace %s : %v", tunEndpoint.Name, tunEndpoint.Namespace, err)
-		}else{
+		} else {
 			return nil
 		}
-	} else if apierrors.IsNotFound(err){
+	} else if apierrors.IsNotFound(err) {
 		return nil
-	}else {
+	} else {
 		return fmt.Errorf("unable to get endpoint with key %s: %v", tunEndKey.String(), err)
 	}
 }

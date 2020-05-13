@@ -2,6 +2,7 @@ package dronet_operator
 
 import (
 	"fmt"
+	cidr "github.com/apparentlymart/go-cidr/cidr"
 	"github.com/netgroup-polito/dronev2/internal/errdefs"
 	"golang.org/x/tools/go/ssa/interp/testdata/src/errors"
 	corev1 "k8s.io/api/core/v1"
@@ -24,7 +25,7 @@ func getPodIP() (net.IP, error) {
 	return net.ParseIP(ipAddress), nil
 }
 
-func GetNodeName() (string, error){
+func GetNodeName() (string, error) {
 	nodeName, isSet := os.LookupEnv("NODE_NAME")
 	if isSet == false {
 		return nodeName, errdefs.NotFound("NODE_NAME has not been set. check you manifest file")
@@ -32,12 +33,20 @@ func GetNodeName() (string, error){
 	return nodeName, nil
 }
 
-func GetClusterPodCIDR() (string, error){
+func GetClusterPodCIDR() (string, error) {
 	podCIDR, isSet := os.LookupEnv("POD_CIDR")
 	if isSet == false {
 		return podCIDR, errdefs.NotFound("POD_CIDR has not been set. check you manifest file")
 	}
 	return podCIDR, nil
+}
+
+func GetClusterCIDR() (string, error) {
+	clusterCIDR, isSet := os.LookupEnv("CLUSTER_CIDR")
+	if isSet == false {
+		return clusterCIDR, errdefs.NotFound("CLUSTER_CIDR has not been set. check you manifest file")
+	}
+	return clusterCIDR, nil
 }
 
 func getInternalIPOfNode(node corev1.Node) (string, error) {
@@ -96,7 +105,7 @@ func IsGatewayNode(clientset *kubernetes.Clientset) (bool, error) {
 		return isGatewayNode, nil
 	}
 }
-func GetGatewayVxlanIP (clientset *kubernetes.Clientset, vxlanConfig VxlanNetConfig) (string, error){
+func GetGatewayVxlanIP(clientset *kubernetes.Clientset, vxlanConfig VxlanNetConfig) (string, error) {
 	var gatewayVxlanIP string
 	//retrieve the node which is labeled as the gateway
 	nodesList, err := clientset.CoreV1().Nodes().List(metav1.ListOptions{LabelSelector: "dronet.drone.com/gateway == true"})
@@ -157,6 +166,7 @@ func ContainsString(slice []string, s string) bool {
 	}
 	return false
 }
+
 // Helper functions to check and remove string from a slice of strings.
 func RemoveString(slice []string, s string) (result []string) {
 	for _, item := range slice {
@@ -166,4 +176,16 @@ func RemoveString(slice []string, s string) (result []string) {
 		result = append(result, item)
 	}
 	return
+}
+
+func VerifyNoOverlap(subnets map[string]*net.IPNet, newNet *net.IPNet) bool {
+	firstLastIP := make([][]net.IP, 1)
+	first, last := cidr.AddressRange(newNet)
+	firstLastIP[0] = []net.IP{first, last}
+	for _, value := range subnets {
+		if value.Contains(firstLastIP[0][0]) || value.Contains(firstLastIP[0][1]) {
+			return true
+		}
+	}
+	return false
 }

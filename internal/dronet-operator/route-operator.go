@@ -36,6 +36,7 @@ import (
 
 var (
 	dronetPostroutingChain = "DRONET-POSTROUTING"
+	dronetPreroutingChain  = "DRONET-PREROUTING"
 	dronetForwardingChain  = "DRONET-FORWARD"
 	dronetInputChain       = "DRONET-INPUT"
 	natTable               = "nat"
@@ -86,7 +87,11 @@ func (r *RouteController) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 		log.Error(err, "unable to fetch endpoint")
 		return ctrl.Result{}, client.IgnoreNotFound(err)
 	}
-
+	//check if the instance is ready if not return
+	if endpoint.Status.Phase != "Ready"{
+		log.Info("tunnelEndpoint is not ready ", "name", endpoint.Name, "phase", endpoint.Status.Phase)
+		return ctrl.Result{}, nil
+	}
 	// examine DeletionTimestamp to determine if object is under deletion
 	if endpoint.ObjectMeta.DeletionTimestamp.IsZero() {
 		if !dronetOperator.ContainsString(endpoint.ObjectMeta.Finalizers, routeOperatorFinalizer) {
@@ -131,8 +136,7 @@ func (r *RouteController) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 		}
 		return ctrl.Result{}, nil
 	}
-	//install iptables rules and routes only if the Endpoint CR has been processed by tunnel operator first
-	//
+
 	if r.ValidateCRAndReturn(&endpoint) {
 		if err := r.createAndInsertIPTablesChains(); err != nil {
 			log.Error(err, "unable to create iptables chains")
@@ -183,6 +187,25 @@ func (r *RouteController) createAndInsertIPTablesChains() error {
 		Chain:    "POSTROUTING",
 		RuleSpec: forwardToDronetPostroutingRuleSpec,
 	}
+	//creating DRONET-PREROUTING chain
+	if err = dronetOperator.CreateIptablesChainsIfNotExist(ipt, natTable, dronetPreroutingChain); err != nil {
+		return err
+	}
+	r.IPTablesChains[dronetPostroutingChain] = dronetOperator.IPTableChain{
+		Table: natTable,
+		Name:  dronetPreroutingChain,
+	}
+	//installing rulespec which forwards all traffic to DRONET-PREROUTING chain
+	forwardToDronetPreroutingRuleSpec := []string{"-j", dronetPreroutingChain}
+	if err = dronetOperator.InsertIptablesRulespecIfNotExists(ipt, natTable, "PREROUTING", forwardToDronetPreroutingRuleSpec); err != nil {
+		return err
+	}
+	//add it to iptables rulespec if it does not exist in the map
+	r.IPTablesRuleSpecsReferencingChains[strings.Join(forwardToDronetPreroutingRuleSpec, " ")] = dronetOperator.IPtableRule{
+		Table:    natTable,
+		Chain:    "PREROUTING",
+		RuleSpec: forwardToDronetPreroutingRuleSpec,
+	}
 	//creating DRONET-FORWARD chain
 	if err = dronetOperator.CreateIptablesChainsIfNotExist(ipt, filterTable, dronetForwardingChain); err != nil {
 		return err
@@ -232,8 +255,8 @@ func (r *RouteController) createAndInsertIPTablesChains() error {
 
 func (r *RouteController) addIPTablesRulespecForRemoteCluster(endpoint *v1.TunnelEndpoint) error {
 	var remotePodCIDR string
-	if endpoint.Status.NATEnabled {
-		remotePodCIDR = endpoint.Status.RemappedPodCIDR
+	if endpoint.Status.RemoteRemappedPodCIDR != "None" && endpoint.Status.RemoteRemappedPodCIDR != "" {
+		remotePodCIDR = endpoint.Status.RemoteRemappedPodCIDR
 	} else {
 		remotePodCIDR = endpoint.Spec.PodCIDR
 	}
@@ -286,8 +309,32 @@ func (r *RouteController) addIPTablesRulespecForRemoteCluster(endpoint *v1.Tunne
 			Chain:    dronetPostroutingChain,
 			RuleSpec: ruleSpec,
 		})
+		r.IPtablesRuleSpecsPerRemoteCluster[endpoint.Spec.ClusterID] = ruleSpecs
+		//if we have been remapped by the remote cluster then insert the iptables rule to masquerade the source ip
+		if endpoint.Status.LocalRemappedPodCIDR != "None" {
+			ruleSpec = []string{"-s", r.ClusterPodCIDR, "-d", remotePodCIDR, "-j", "NETMAP", "--to", endpoint.Status.LocalRemappedPodCIDR}
+			if err = dronetOperator.InsertIptablesRulespecIfNotExists(ipt, natTable, dronetPostroutingChain, ruleSpec ); err != nil {
+				return fmt.Errorf("unable to insert iptable rule \"%s\" in %s table, %s chain: %v", ruleSpec, natTable, dronetPostroutingChain, err)
+			}
+			ruleSpecs = append(ruleSpecs, dronetOperator.IPtableRule{
+				Table:    natTable,
+				Chain:    dronetPostroutingChain,
+				RuleSpec: ruleSpec,
+			})
+			r.IPtablesRuleSpecsPerRemoteCluster[endpoint.Spec.ClusterID] = ruleSpecs
+
+			ruleSpec = []string{"-d", endpoint.Status.LocalRemappedPodCIDR, "-i", endpoint.Status.TunnelIFaceName, "-j", "NETMAP", "--to", r.ClusterPodCIDR}
+			if err = ipt.AppendUnique(natTable, dronetPreroutingChain, ruleSpec...); err != nil {
+				return fmt.Errorf("unable to insert iptable rule \"%s\" in %s table, %s chain: %v", ruleSpec, natTable, dronetPreroutingChain, err)
+			}
+			ruleSpecs = append(ruleSpecs, dronetOperator.IPtableRule{
+				Table:    natTable,
+				Chain:    dronetPreroutingChain,
+				RuleSpec: ruleSpec,
+			})
+			r.IPtablesRuleSpecsPerRemoteCluster[endpoint.Spec.ClusterID] = ruleSpecs
+		}
 	}
-	r.IPtablesRuleSpecsPerRemoteCluster[endpoint.Spec.ClusterID] = ruleSpecs
 	return nil
 }
 
@@ -367,12 +414,12 @@ func (r *RouteController) DeleteAllIPTablesChains() {
 
 func (r *RouteController) InsertRoutesPerCluster(endpoint *v1.TunnelEndpoint) error {
 	remoteTunnelPrivateIPNet := endpoint.Status.RemoteTunnelPrivateIP + "/32"
-	var remotePodIPNet string
+	var remotePodCIDR string
 	localTunnelPrivateIP := endpoint.Status.LocalTunnelPrivateIP
-	if endpoint.Status.NATEnabled {
-		remotePodIPNet = endpoint.Status.RemappedPodCIDR
+	if endpoint.Status.RemoteRemappedPodCIDR != "None" && endpoint.Status.RemoteRemappedPodCIDR != "" {
+		remotePodCIDR = endpoint.Status.RemoteRemappedPodCIDR
 	} else {
-		remotePodIPNet = endpoint.Spec.PodCIDR
+		remotePodCIDR = endpoint.Spec.PodCIDR
 	}
 	var routes []netlink.Route
 	if r.IsGateway {
@@ -381,14 +428,14 @@ func (r *RouteController) InsertRoutesPerCluster(endpoint *v1.TunnelEndpoint) er
 			return err
 		}
 		routes = append(routes, route)
-		route, err = dronetOperator.AddRoute(remotePodIPNet, endpoint.Status.RemoteTunnelPrivateIP, endpoint.Status.TunnelIFaceName, true)
+		route, err = dronetOperator.AddRoute(remotePodCIDR, endpoint.Status.RemoteTunnelPrivateIP, endpoint.Status.TunnelIFaceName, true)
 		if err != nil {
 			return err
 		}
 		routes = append(routes, route)
 		r.RoutesPerRemoteCluster[endpoint.Spec.ClusterID] = routes
 	} else {
-		route, err := dronetOperator.AddRoute(remotePodIPNet, r.GatewayVxlanIP, r.VxlanIfaceName, false)
+		route, err := dronetOperator.AddRoute(remotePodCIDR, r.GatewayVxlanIP, r.VxlanIfaceName, false)
 		if err != nil {
 			return err
 		}
@@ -466,21 +513,16 @@ func (r *RouteController) SetupSignalHandlerForRouteOperator() (stopCh <-chan st
 }
 
 //checks if all the values need to install routes have ben set in the CR status
-func (r *RouteController)ValidateCRAndReturn(endpoint *v1.TunnelEndpoint) (bool) {
+func (r *RouteController) ValidateCRAndReturn(endpoint *v1.TunnelEndpoint) bool {
 	isReady := true
-	if endpoint.Status.NATEnabled{
-		if endpoint.Status.RemappedPodCIDR == ""{
-			isReady = false
-		}
-	}
 	//check if the tunnel interface is installed but only if the route operator is running on the gatewayhost
-	if endpoint.Status.TunnelIFaceIndex != 0 && r.IsGateway{
+	if endpoint.Status.TunnelIFaceIndex != 0 && r.IsGateway {
 		_, err := netlink.LinkByIndex(endpoint.Status.TunnelIFaceIndex)
-		if err != nil{
+		if err != nil {
 			isReady = false
 		}
 	}
-	if endpoint.Status.RemoteTunnelPrivateIP == "" || endpoint.Status.RemoteTunnelPublicIP == ""{
+	if endpoint.Status.RemoteTunnelPrivateIP == "" || endpoint.Status.RemoteTunnelPublicIP == "" {
 		isReady = false
 	}
 	if endpoint.Status.LocalTunnelPrivateIP == "" || endpoint.Status.LocalTunnelPublicIP == "" {

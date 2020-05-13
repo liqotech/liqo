@@ -55,14 +55,18 @@ spec:
           properties:
             NAT:
               type: boolean
+            localRemappedPodCIDR:
+              type: string
             localTunnelPrivateIP:
               type: string
             localTunnelPublicIP:
               type: string
-            remappedPodCIDR:
+            phase:
               description: 'INSERT ADDITIONAL STATUS FIELD - define observed state
                 of cluster Important: Run "make" to regenerate code after modifying
-                this file'
+                this file\'
+              type: string
+            remoteRemappedPodCIDR:
               type: string
             remoteTunnelPrivateIP:
               type: string
