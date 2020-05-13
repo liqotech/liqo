@@ -146,6 +146,9 @@ func CreateAdvertisement(nodes []v1.Node, clusterId string, gatewayIP string, ga
 			ClusterId:    clusterId,
 			Images:       images,
 			Availability: availability,
+			LimitRange: v1.LimitRangeSpec{
+				Limits: []v1.LimitRangeItem{},
+			},
 			Prices:       prices,
 			Network: protocolv1.NetworkInfo{
 				PodCIDR:            GetPodCIDR(nodes),

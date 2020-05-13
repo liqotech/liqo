@@ -192,7 +192,11 @@ func (r *VirtualNodeReconciler) updateFromAdv(ctx context.Context, adv advv1.Adv
 		no.Status.Images = append(no.Status.Images, i)
 	}
 
-	no.Spec.PodCIDR = adv.Status.ForeignNetwork.PodCIDR
+	if adv.Status.RemoteRemappedPodCIDR != "" && adv.Status.RemoteRemappedPodCIDR != "None" {
+		no.Spec.PodCIDR = adv.Status.RemoteRemappedPodCIDR
+	} else if adv.Status.RemoteRemappedPodCIDR == "None" {
+		no.Spec.PodCIDR = adv.Spec.Network.PodCIDR
+	}
 
 	return r.nodeController.UpdateNodeFromOutside(ctx, false, &no)
 }
