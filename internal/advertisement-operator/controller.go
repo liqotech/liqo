@@ -78,6 +78,11 @@ func (r *AdvertisementReconciler) Reconcile(req ctrl.Request) (ctrl.Result, erro
 		return ctrl.Result{}, errors.NewBadRequest("advertisement ignored")
 	}
 
+	if adv.Status.RemoteRemappedPodCIDR == "" {
+		r.Log.Info("advertisement not complete, remoteRemappedPodCIRD not set yet")
+		return ctrl.Result{}, nil
+	}
+
 	if adv.Status.VkCreated == false {
 		err = createVirtualKubelet(r, ctx, log, namespace, &adv)
 		if err != nil {

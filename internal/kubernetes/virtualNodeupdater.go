@@ -113,7 +113,7 @@ func (r *VirtualNodeReconciler) SetupWithManager(mgr ctrl.Manager) error {
 func (r *VirtualNodeReconciler) initVirtualKubelet(adv advv1.Advertisement) error {
 
 	klog.Info("vk initializing")
-	r.provider.RemotePodCidr = adv.Status.RemoteRemappedPodCIDR
+	r.provider.RemappedPodCidr = adv.Status.RemoteRemappedPodCIDR
 	r.provider.providerNamespace = defaultNamespace
 
 	c, restConfig, err := newClient(r.provider.providerKubeconfig)
@@ -136,6 +136,12 @@ func (r *VirtualNodeReconciler) initVirtualKubelet(adv advv1.Advertisement) erro
 		return err
 	}
 
+	if adv.Status.RemoteRemappedPodCIDR != "None" {
+		r.provider.RemappedPodCidr = adv.Status.RemoteRemappedPodCIDR
+	} else {
+		r.provider.RemappedPodCidr = adv.Spec.Network.PodCIDR
+	}
+
 	watch, err := r.provider.client.CoreV1().Pods(r.provider.providerNamespace).Watch(metav1.ListOptions{})
 	if err != nil {
 		_ = errors.Wrap(err, err.Error())
@@ -144,9 +150,9 @@ func (r *VirtualNodeReconciler) initVirtualKubelet(adv advv1.Advertisement) erro
 		for e := range watch.ResultChan() {
 			p2, ok := e.Object.(*v1.Pod)
 			if !ok {
-				_ = fmt.Errorf("unexpected type")
+				klog.Error("unexpected type")
 			}
-			r.provider.notifier(F2HTranslate(p2, r.provider.RemotePodCidr))
+			r.provider.notifier(F2HTranslate(p2, r.provider.RemappedPodCidr))
 		}
 	}()
 
@@ -190,12 +196,6 @@ func (r *VirtualNodeReconciler) updateFromAdv(ctx context.Context, adv advv1.Adv
 	no.Status.Images = []v1.ContainerImage{}
 	for _, i := range adv.Spec.Images {
 		no.Status.Images = append(no.Status.Images, i)
-	}
-
-	if adv.Status.RemoteRemappedPodCIDR != "" && adv.Status.RemoteRemappedPodCIDR != "None" {
-		no.Spec.PodCIDR = adv.Status.RemoteRemappedPodCIDR
-	} else if adv.Status.RemoteRemappedPodCIDR == "None" {
-		no.Spec.PodCIDR = adv.Spec.Network.PodCIDR
 	}
 
 	return r.nodeController.UpdateNodeFromOutside(ctx, false, &no)

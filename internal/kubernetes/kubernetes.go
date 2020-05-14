@@ -53,14 +53,14 @@ type KubernetesProvider struct { // nolint:golint]
 	daemonEndpointPort int32
 	startTime          time.Time
 	notifier           func(*v1.Pod)
-	clusterId string
-	initialized	bool
-	nodeController *node.NodeController
+	clusterId          string
+	initialized        bool
+	nodeController     *node.NodeController
 	providerKubeconfig string
-	restConfig		   *rest.Config
-	providerNamespace string
-	RemotePodCidr string
-	config KubernetesConfig //TODO: To remove
+	restConfig         *rest.Config
+	providerNamespace  string
+	RemappedPodCidr    string
+	config             KubernetesConfig //TODO: To remove
 }
 
 // KubernetesConfig contains a kubernetes virtual-kubelet's configurable parameters.

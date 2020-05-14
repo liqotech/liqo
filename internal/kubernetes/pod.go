@@ -73,7 +73,7 @@ func (p *KubernetesProvider) UpdatePod(ctx context.Context, pod *v1.Pod) error {
 	if err != nil {
 		return errors.Wrap(err, "Unable to create pod")
 	}
-	podInverse := F2HTranslate(poUpdated, p.config.RemoteNewPodCidr)
+	podInverse := F2HTranslate(poUpdated, p.RemappedPodCidr)
 	p.notifier(podInverse)
 
 	return nil
@@ -140,7 +140,7 @@ func (p *KubernetesProvider) GetPod(ctx context.Context, namespace, name string)
 		}
 		return nil, errors.Wrap(err, "Unable to get pod")
 	}
-	podInverted := F2HTranslate(podServer, p.config.RemoteNewPodCidr)
+	podInverted := F2HTranslate(podServer, p.RemappedPodCidr)
 	return podInverted, nil
 }
 
@@ -156,7 +156,7 @@ func (p *KubernetesProvider) GetPodStatus(ctx context.Context, namespace, name s
     if err != nil {
     	return nil,errors.Wrap(err,"error getting status")
 	}
-	podOutput := F2HTranslate(podForeignIn,p.config.RemoteNewPodCidr)
+	podOutput := F2HTranslate(podForeignIn,p.RemappedPodCidr)
 	log.G(ctx).Infof("receive GetPodStatus %q", name)
 	return &podOutput.Status,nil
 }
