@@ -60,6 +60,7 @@ for ((i=1;i<=clusterNum;i++)); do
   sed -i -e "s/172.17.0.$i/0.0.0.0/g" adv-operator_cm.yaml
   sed -i -e "s/192.168.0.$i/1.2.3.4/g" adv-operator_cm.yaml
   kubectl apply -f adv-deploy.yaml
+  kubectl apply -f broadcaster-deploy.yaml
 done
 
 exit 0
