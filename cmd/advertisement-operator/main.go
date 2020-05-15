@@ -54,6 +54,7 @@ func main() {
 	var runsAsTunnelEndpointCreator bool
 	var enableLeaderElection bool
 	var kubeletNamespace string
+	var runsInKindEnv bool
 
 	flag.StringVar(&metricsAddr, "metrics-addr", ":8080", "The address the metric endpoint binds to.")
 	flag.BoolVar(&enableLeaderElection, "enable-leader-election", false, "Enable leader election for controller manager. Enabling this will ensure there is only one active controller manager.")
@@ -64,6 +65,7 @@ func main() {
 	flag.StringVar(&gatewayPrivateIP, "gateway-private-ip", "", "The private IP address of the gateway node")
 	flag.StringVar(&kubeletNamespace, "kubelet-namespace", "default", "Name of the namespace where Virtual kubelets will be spawned ( the namespace is default if not specified otherwise)")
 	flag.BoolVar(&runsAsTunnelEndpointCreator, "run-as-tunnel-endpoint-creator", false, "Runs the controller as TunnelEndpointCreator, the default value is false and will run as Advertisement-Operator")
+	flag.BoolVar(&runsInKindEnv, "run-in-kind", false, "The cluster in which the controller runs is managed by kind")
 	flag.Parse()
 
 	ctrl.SetLogger(zap.New(func(o *zap.Options) {
@@ -101,6 +103,7 @@ func main() {
 			EventsRecorder:   mgr.GetEventRecorderFor("AdvertisementOperator"),
 			GatewayIP:        gatewayIP,
 			GatewayPrivateIP: gatewayPrivateIP,
+			KindEnvironment:  runsInKindEnv,
 		}).SetupWithManager(mgr); err != nil {
 			setupLog.Error(err, "unable to create controller", "controller", "Advertisement")
 			os.Exit(1)

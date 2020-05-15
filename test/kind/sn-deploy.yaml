@@ -45,7 +45,7 @@ spec:
     spec:
       serviceAccountName: sn-operator
       containers:
-      - image: dronev2/schedulingNode-operator
+      - image: dronev2/schedulingnode-operator
         name: schedulingnode-operator
         command: ["/usr/bin/schedulingNode-operator"]
 status: {}

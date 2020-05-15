@@ -18,11 +18,10 @@ package advertisement_operator
 import (
 	"context"
 	"github.com/go-logr/logr"
-	rbacv1 "k8s.io/api/rbac/v1"
-
 	protocolv1 "github.com/netgroup-polito/dronev2/api/advertisement-operator/v1"
 	pkg "github.com/netgroup-polito/dronev2/pkg/advertisement-operator"
 	v1 "k8s.io/api/core/v1"
+	rbacv1 "k8s.io/api/rbac/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
@@ -30,7 +29,6 @@ import (
 	"k8s.io/client-go/tools/record"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-
 )
 
 // AdvertisementReconciler reconciles a Advertisement object
@@ -42,6 +40,7 @@ type AdvertisementReconciler struct {
 	GatewayIP        string
 	GatewayPrivateIP string
 	KubeletNamespace string
+	KindEnvironment  bool
 }
 
 // +kubebuilder:rbac:groups=protocol.drone.com,resources=advertisements,verbs=get;list;watch;create;update;patch;delete
@@ -80,7 +79,7 @@ func (r *AdvertisementReconciler) Reconcile(req ctrl.Request) (ctrl.Result, erro
 		return ctrl.Result{}, errors.NewBadRequest("advertisement ignored")
 	}
 
-	if adv.Status.RemoteRemappedPodCIDR == "" {
+	if !r.KindEnvironment && adv.Status.RemoteRemappedPodCIDR == "" {
 		r.Log.Info("advertisement not complete, remoteRemappedPodCIRD not set yet")
 		return ctrl.Result{}, nil
 	}

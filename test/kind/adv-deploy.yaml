@@ -62,6 +62,7 @@ spec:
           - "$(LOCAL_TUNNEL_PUBLIC_IP)"
           - "--gateway-private-ip"
           - "$(LOCAL_TUNNEL_PRIVATE_IP)"
+          - "--run-in-kind"
         env:
           - name: CLUSTER_ID
             valueFrom:
