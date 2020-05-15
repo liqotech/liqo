@@ -29,7 +29,7 @@ const osLabel = "beta.kubernetes.io/os"
 
 // NodeFromProvider builds a kubernetes node object from a provider
 // This is a temporary solution until node stuff actually split off from the provider interface itself.
-func NodeFromProvider(ctx context.Context, name string, taint *v1.Taint, p provider.Provider, version string) *v1.Node {
+func NodeFromProvider(ctx context.Context, name string, taint *v1.Taint, p provider.Provider, version string, refs []metav1.OwnerReference) *v1.Node {
 	taints := make([]v1.Taint, 0)
 
 	if taint != nil {
@@ -54,6 +54,9 @@ func NodeFromProvider(ctx context.Context, name string, taint *v1.Taint, p provi
 				KubeletVersion: version,
 			},
 		},
+	}
+	if len(refs) > 0 {
+		node.SetOwnerReferences(refs)
 	}
 
 	p.ConfigureNode(ctx, node)

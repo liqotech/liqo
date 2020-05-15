@@ -4,7 +4,6 @@ import (
 	"context"
 	"go.opencensus.io/trace"
 	v1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -13,8 +12,8 @@ func (p *KubernetesProvider) ConfigureNode(ctx context.Context, n *v1.Node) {
 	ctx, span := trace.StartSpan(ctx, "kubernetes.ConfigureNode") //nolint:ineffassign
 	defer span.End()
 
-	n.Status.Capacity = p.capacity()
-	n.Status.Allocatable = p.capacity()
+	n.Status.Capacity = v1.ResourceList{}
+	n.Status.Allocatable = v1.ResourceList{}
 	n.Status.Conditions = p.nodeConditions()
 	n.Status.Addresses = p.nodeAddresses()
 	n.Status.DaemonEndpoints = p.nodeDaemonEndpoints()
@@ -26,20 +25,6 @@ func (p *KubernetesProvider) ConfigureNode(ctx context.Context, n *v1.Node) {
 	n.Status.NodeInfo.Architecture = "amd64"
 	n.ObjectMeta.Labels["alpha.service-controller.kubernetes.io/exclude-balancer"] = "true"
 	n.Labels["type"] = "virtual-node"
-}
-
-// Capacity returns a resource list containing the capacity limits.
-func (p *KubernetesProvider) capacity() v1.ResourceList {
-
-	if p.initialized == false {
-		return v1.ResourceList{}
-	}
-
-	return v1.ResourceList{
-		"cpu":    resource.MustParse(p.config.CPU),
-		"memory": resource.MustParse(p.config.Memory),
-		"pods":   resource.MustParse(p.config.Pods),
-	}
 }
 
 // NodeConditions returns a list of conditions (Ready, OutOfDisk, etc), for updates to the node status

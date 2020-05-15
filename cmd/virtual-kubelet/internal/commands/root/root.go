@@ -19,6 +19,7 @@ import (
 	"k8s.io/klog"
 	"os"
 	"path"
+	"strings"
 
 	"github.com/netgroup-polito/dronev2/cmd/virtual-kubelet/internal/provider"
 	"github.com/netgroup-polito/dronev2/internal/errdefs"
@@ -122,7 +123,7 @@ func runRootCommand(ctx context.Context, s *provider.Store, c Opts) error {
 		NodeName:          c.NodeName,
 		OperatingSystem:   c.OperatingSystem,
 		ResourceManager:   rm,
-		DaemonPort:        int32(c.ListenPort),
+		DaemonPort:        c.ListenPort,
 		InternalIP:        os.Getenv("VKUBELET_POD_IP"),
 		KubeClusterDomain: c.KubeClusterDomain,
 		ClusterId: c.ClusterId,
@@ -151,27 +152,35 @@ func runRootCommand(ctx context.Context, s *provider.Store, c Opts) error {
 		leaseClient = client.CoordinationV1beta1().Leases(corev1.NamespaceNodeLease)
 	}
 
-	pNode := NodeFromProvider(ctx, c.NodeName, taint, p, c.Version)
+	deployName := strings.Join([]string{"vkubelet", c.ClusterId}, "-")
+	refs := createOwnerReference(client, deployName, c.KubeletNamespace)
+
+	pNode := NodeFromProvider(ctx, c.NodeName, taint, p, c.Version, refs)
 	nodeRunner, err := node.NewNodeController(
 		node.NaiveNodeProvider{},
 		pNode,
 		client.CoreV1().Nodes(),
 		node.WithNodeEnableLeaseV1Beta1(leaseClient, nil),
-		node.WithNodeStatusUpdateErrorHandler(func(ctx context.Context, err error) error {
-			if !k8serrors.IsNotFound(err) {
+		node.WithNodeStatusUpdateErrorHandler(
+			func(ctx context.Context, err error) error {
+				if !k8serrors.IsNotFound(err) {
 				return err
 			}
+				log.G(ctx).Debug("node not found")
+				newNode := pNode.DeepCopy()
+				newNode.ResourceVersion = ""
 
-			log.G(ctx).Debug("node not found")
-			newNode := pNode.DeepCopy()
-			newNode.ResourceVersion = ""
-			_, err = client.CoreV1().Nodes().Create(newNode)
-			if err != nil {
+				if len(refs) > 0 {
+					newNode.SetOwnerReferences(refs)
+				}
+
+				_, err = client.CoreV1().Nodes().Create(newNode)
+				if err != nil {
 				return err
 			}
-			log.G(ctx).Debug("created new node")
-			return nil
-		}),
+				log.G(ctx).Debug("created new node")
+				return nil
+				}),
 	)
 
 	var ready chan bool
@@ -266,5 +275,27 @@ func newClient(configPath string) (*kubernetes.Clientset, error) {
 	}
 
 	return kubernetes.NewForConfig(config)
+}
+
+func createOwnerReference(c *kubernetes.Clientset, deployName, namespace string) []metav1.OwnerReference {
+
+	if d, err := c.AppsV1().Deployments(namespace).Get(deployName, metav1.GetOptions{
+		TypeMeta: metav1.TypeMeta{Kind: "Deployment", APIVersion:metav1.SchemeGroupVersion.Version},
+	}); err != nil {
+		if k8serrors.IsNotFound(err) {
+			klog.Info("deployment not found")
+		}
+
+		return []metav1.OwnerReference{}
+	} else {
+		return []metav1.OwnerReference{
+			{
+				APIVersion: corev1.SchemeGroupVersion.Version,
+				Kind:       "Deployment",
+				Name:       deployName,
+				UID:        d.GetUID(),
+			},
+		}
+	}
 }
 

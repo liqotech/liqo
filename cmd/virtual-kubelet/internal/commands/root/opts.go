@@ -38,6 +38,7 @@ const (
 
 	DefaultTaintEffect = string(corev1.TaintEffectNoSchedule)
 	DefaultTaintKey    = "virtual-kubelet.io/provider"
+	DefaultKubeletNamespace = "default"
 )
 
 // Opts stores all the options for configuring the root virtual-kubelet command.
@@ -86,6 +87,7 @@ type Opts struct {
 	StartupTimeout time.Duration
 
 	ClusterId string
+	KubeletNamespace string
 
 	Version string
 }
@@ -143,7 +145,9 @@ func SetDefaultOpts(c *Opts) error {
 	if c.TaintEffect == "" {
 		c.TaintEffect = DefaultTaintEffect
 	}
-
+	if c.KubeletNamespace == "" {
+		c.KubeletNamespace = DefaultKubeletNamespace
+ 	}
 	if c.KubeConfigPath == "" {
 		c.KubeConfigPath = os.Getenv("KUBECONFIG")
 		if c.KubeConfigPath == "" {

@@ -22,26 +22,10 @@ var (
 )
 
 const (
-	// Provider configuration defaults.
-	defaultCPUCapacity    = "20"
-	defaultMemoryCapacity = "100Gi"
-	defaultPodCapacity    = "20"
 	defaultNamespace      = "drone-v2"
-
-	// Values used in tracing as attribute keys.
 	namespaceKey     = "namespace"
 	nameKey          = "name"
-	containerNameKey = "containerName"
 )
-
-// See: https://github.com/virtual-kubelet/virtual-kubelet/issues/632
-/*
-var (
-	_ providers.Provider           = (*KubernetesV0Provider)(nil)
-	_ providers.PodMetricsProvider = (*KubernetesV0Provider)(nil)
-	_ node.PodNotifier         = (*KubernetesProvider)(nil)
-)
-*/
 
 // KubernetesProvider implements the virtual-kubelet provider interface and stores pods in memory.
 type KubernetesProvider struct { // nolint:golint]
@@ -60,17 +44,6 @@ type KubernetesProvider struct { // nolint:golint]
 	restConfig         *rest.Config
 	providerNamespace  string
 	RemappedPodCidr    string
-	config             KubernetesConfig //TODO: To remove
-}
-
-// KubernetesConfig contains a kubernetes virtual-kubelet's configurable parameters.
-type KubernetesConfig struct { //nolint:golint
-	RemoteKubeConfigPath string `json:"remoteKubeconfig,omitempty"`
-	CPU                  string `json:"cpu,omitempty"`
-	Memory               string `json:"memory,omitempty"`
-	Pods                 string `json:"pods,omitempty"`
-	Namespace            string `json:"namespace,omitempty"`
-	RemoteNewPodCidr     string `json:"remoteNewPodCidr,omitempty"`
 }
 
 // NewKubernetesProviderKubernetesConfig creates a new KubernetesV0Provider. Kubernetes legacy provider does not implement the new asynchronous podnotifier interface

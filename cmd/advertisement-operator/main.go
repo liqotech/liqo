@@ -34,6 +34,11 @@ import (
 	// +kubebuilder:scaffold:imports
 )
 
+const (
+	defaultNamespace = "default"
+	defaultMetricsaddr = ":8080"
+)
+
 var (
 	scheme   = runtime.NewScheme()
 	setupLog = ctrl.Log.WithName("setup")
@@ -56,14 +61,15 @@ func main() {
 	var kubeletNamespace string
 	var runsInKindEnv bool
 
-	flag.StringVar(&metricsAddr, "metrics-addr", ":8080", "The address the metric endpoint binds to.")
+	flag.StringVar(&metricsAddr, "metrics-addr", defaultMetricsaddr, "The address the metric endpoint binds to.")
 	flag.BoolVar(&enableLeaderElection, "enable-leader-election", false, "Enable leader election for controller manager. Enabling this will ensure there is only one active controller manager.")
 	flag.StringVar(&localKubeconfig, "local-kubeconfig", "", "The path to the kubeconfig of your local cluster.")
 	flag.StringVar(&foreignKubeconfig, "foreign-kubeconfig", "", "The path to the kubeconfig of the foreign cluster.")
 	flag.StringVar(&clusterId, "cluster-id", "", "The cluster ID of your cluster")
 	flag.StringVar(&gatewayIP, "gateway-ip", "", "The IP address of the gateway node")
 	flag.StringVar(&gatewayPrivateIP, "gateway-private-ip", "", "The private IP address of the gateway node")
-	flag.StringVar(&kubeletNamespace, "kubelet-namespace", "default", "Name of the namespace where Virtual kubelets will be spawned ( the namespace is default if not specified otherwise)")
+	flag.StringVar(&kubeletNamespace, "kubelet-namespace", defaultNamespace, "Name of the namespace where Virtual kubelets will be spawned ( the namespace is default if not specified otherwise)")
+
 	flag.BoolVar(&runsAsTunnelEndpointCreator, "run-as-tunnel-endpoint-creator", false, "Runs the controller as TunnelEndpointCreator, the default value is false and will run as Advertisement-Operator")
 	flag.BoolVar(&runsInKindEnv, "run-in-kind", false, "The cluster in which the controller runs is managed by kind")
 	flag.Parse()

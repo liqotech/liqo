@@ -172,7 +172,7 @@ func createVirtualKubelet(r *AdvertisementReconciler, ctx context.Context, log l
 		return err
 	}
 	// Create the virtual Kubelet
-	deploy := pkg.CreateVkDeployment(adv, vkSa.Name)
+	deploy := pkg.CreateVkDeployment(adv, vkSa.Name, r.KubeletNamespace)
 	err = pkg.CreateOrUpdate(r.Client, ctx, log, deploy)
 	if err != nil {
 		return err
