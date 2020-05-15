@@ -1,0 +1,16 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: discovery-config
+  namespace: default
+data:
+  name: MyLiqo                      # service name
+  service: _liqo._tcp               # service type
+  domain: local.                    # service domain
+  port: '1234'                      # service port
+
+  waitTime: '2'                     # wait response time
+  updateTime: '3'                   # time between queries
+
+  enableDiscovery: 'true'           # enable service discovery
+  enableAdvertisement: 'true'       # enable service advertisement

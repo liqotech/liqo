@@ -1,0 +1,48 @@
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: discovery
+  namespace: default
+  labels:
+    k8s-app: discovery
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: discovery
+  namespace: default
+subjects:
+  - kind: ServiceAccount
+    name: discovery
+    namespace: default
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: cluster-admin
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    run: discovery
+  name: discovery
+  namespace: default
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      run: discovery
+  template:
+    metadata:
+      labels:
+        run: discovery
+    spec:
+      serviceAccountName: discovery
+      containers:
+        - image: 'aleoli/prova:discovery'
+          name: discovery
+          imagePullPolicy: Always
+      hostNetwork: true
