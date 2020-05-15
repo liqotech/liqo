@@ -2,7 +2,6 @@ package advertisement_operator
 
 import (
 	"context"
-	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
@@ -110,13 +109,37 @@ func GenerateAdvertisement(wg *sync.WaitGroup, localClient *kubernetes.Clientset
 	}
 
 	for {
-
-		adv, err := CreateAdvertisement(localClient, clusterId, gatewayIP, gatewayPrivateIP)
+		// get physical and virtual nodes in the cluster
+		physicalNodes, err := localClient.CoreV1().Nodes().List(metav1.ListOptions{LabelSelector: "type != virtual-node"})
 		if err != nil {
-			log.Error(err, "Could not create Advertisement, retry in 1 minute")
+			log.Error(err, "Could not get physical nodes, retry in 1 minute")
 			time.Sleep(1 * time.Minute)
 			continue
 		}
+		virtualNodes, err := localClient.CoreV1().Nodes().List(metav1.ListOptions{LabelSelector: "type = virtual-node"})
+		if err != nil {
+			log.Error(err, "Could not get virtual nodes, retry in 1 minute")
+			time.Sleep(1 * time.Minute)
+			continue
+		}
+		// get resources used by pods in the cluster
+		fieldSelector, err := fields.ParseSelector("status.phase!=" + string(corev1.PodSucceeded) + ",status.phase!=" + string(corev1.PodFailed))
+		if err != nil {
+			log.Error(err, "Could not parse field selector")
+			continue
+		}
+		nodeNonTerminatedPodsList, err := localClient.CoreV1().Pods("").List(metav1.ListOptions{FieldSelector: fieldSelector.String()})
+		if err != nil {
+			log.Error(err, "Could not list pods, retry in 1 minute")
+			time.Sleep(1 * time.Minute)
+			continue
+		}
+		reqs, limits := GetAllPodsResources(nodeNonTerminatedPodsList)
+		// compute announced resources
+		availability, images := ComputeAnnouncedResources(physicalNodes, reqs)
+
+
+		adv := CreateAdvertisement(clusterId, gatewayIP, gatewayPrivateIP, physicalNodes, virtualNodes, availability, images, limits)
 		err = pkg.CreateOrUpdate(remoteClient, context.Background(), log, *adv)
 		if err != nil {
 			log.Error(err, "Unable to create advertisement on remote cluster "+foreignClusterId)
@@ -135,22 +158,12 @@ func GenerateAdvertisement(wg *sync.WaitGroup, localClient *kubernetes.Clientset
 }
 
 // create advertisement message
-func CreateAdvertisement(c *kubernetes.Clientset, clusterId string, gatewayIP string, gatewayPrivateIp string) (*protocolv1.Advertisement, error) {
+func CreateAdvertisement(clusterId string, gatewayIP string, gatewayPrivateIp string,
+	physicalNodes *corev1.NodeList, virtualNodes *corev1.NodeList,
+	availability corev1.ResourceList, images []corev1.ContainerImage, limits corev1.ResourceList) *protocolv1.Advertisement {
 
-	// get physical and virtual nodes in the cluster
-	physicalNodes, err := c.CoreV1().Nodes().List(metav1.ListOptions{LabelSelector: "type != virtual-node"})
-	if err != nil {
-		return nil, err
-	}
-	virtualNodes, err := c.CoreV1().Nodes().List(metav1.ListOptions{LabelSelector: "type = virtual-node"})
-	if err != nil {
-		return nil, err
-	}
-
-	// get available resources, images and limits
-	availability, images, limits := ComputeAnnouncedResources(c, physicalNodes)
+	// set prices field
 	prices := ComputePrices(images)
-
 	// use virtual nodes to build neighbours
 	neighbours := make(map[corev1.ResourceName]corev1.ResourceList, 0)
 	for _, vnode := range virtualNodes.Items {
@@ -196,7 +209,7 @@ func CreateAdvertisement(c *kubernetes.Clientset, clusterId string, gatewayIP st
 			TimeToLive: metav1.NewTime(time.Now().Add(30 * time.Minute)),
 		},
 	}
-	return adv.DeepCopy(), nil
+	return adv.DeepCopy()
 }
 
 func GetPodCIDR(nodes []corev1.Node) string {
@@ -221,19 +234,7 @@ func GetGatewayPrivateIP() string {
 }
 
 // get resources used by pods on physical nodes
-func GetAllPodsResources(c *kubernetes.Clientset) (requests corev1.ResourceList, limits corev1.ResourceList, err error) {
-	fieldSelector, err := fields.ParseSelector("status.phase!=" + string(corev1.PodSucceeded) + ",status.phase!=" + string(corev1.PodFailed))
-	if err != nil {
-		return nil, nil, err
-	}
-	nodeNonTerminatedPodsList, err := c.CoreV1().Pods("").List(metav1.ListOptions{FieldSelector: fieldSelector.String()})
-	if err != nil {
-		if !errors.IsForbidden(err) {
-			return nil, nil, err
-		}
-
-	}
-
+func GetAllPodsResources(nodeNonTerminatedPodsList *corev1.PodList) (requests corev1.ResourceList, limits corev1.ResourceList) {
 	// remove pods on virtual nodes
 	for i, pod := range nodeNonTerminatedPodsList.Items {
 		if strings.HasPrefix(pod.Spec.NodeName, "vk-") {
@@ -241,7 +242,7 @@ func GetAllPodsResources(c *kubernetes.Clientset) (requests corev1.ResourceList,
 		}
 	}
 	requests, limits = getPodsTotalRequestsAndLimits(nodeNonTerminatedPodsList)
-	return requests, limits, nil
+	return requests, limits
 }
 
 func getPodsTotalRequestsAndLimits(podList *corev1.PodList) (reqs map[corev1.ResourceName]resource.Quantity, limits map[corev1.ResourceName]resource.Quantity) {
@@ -308,14 +309,10 @@ func GetNodeImages(node corev1.Node) []corev1.ContainerImage {
 }
 
 // create announced resources for advertisement
-func ComputeAnnouncedResources(c *kubernetes.Clientset, physicalNodes *corev1.NodeList) (availability corev1.ResourceList, images []corev1.ContainerImage, limits corev1.ResourceList) {
+func ComputeAnnouncedResources(physicalNodes *corev1.NodeList, reqs corev1.ResourceList) (availability corev1.ResourceList, images []corev1.ContainerImage) {
 	// get allocatable resources in all the physical nodes
 	allocatable, images := GetClusterResources(physicalNodes.Items)
-	// get used resources by pods in the cluster
-	reqs, limits, err := GetAllPodsResources(c)
-	if err != nil {
-		log.Error(err, "Unable to get used resources")
-	}
+
 	// subtract used resources from available ones to have available resources
 	cpu := allocatable.Cpu().DeepCopy()
 	cpu.Sub(reqs.Cpu().DeepCopy())
@@ -330,7 +327,7 @@ func ComputeAnnouncedResources(c *kubernetes.Clientset, physicalNodes *corev1.No
 		corev1.ResourceMemory: mem,
 	}
 
-	return availability, images, limits
+	return availability, images
 }
 
 // create prices resource for advertisement
