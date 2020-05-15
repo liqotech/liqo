@@ -12,6 +12,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
+      - name: Install dependencies
+        run: sudo apt-get -y install gcc tar wget libgtk-3-dev libappindicator3-dev libwebkit2gtk-4.0-dev build-essential
       - name: golangci-lint
         uses: golangci/golangci-lint-action@v1
         with:

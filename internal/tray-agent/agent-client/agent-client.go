@@ -1,7 +1,7 @@
 /*
  Package agent_client provides functions to interact with the kubernetes cluster with Liqo
  running on it
- */
+*/
 package agent_client
 
 import (
@@ -25,15 +25,16 @@ import (
 //
 // It returns the address of a string containing the value of $LIQO_KCONFIG
 func AcquireConfig() *string {
-	liqoPath := filepath.Join(os.Getenv("HOME"), "liqo")
-	if err := os.Setenv("LIQO_PATH", liqoPath); err != nil{
+	//liqoPath := filepath.Join(os.Getenv("HOME"), "liqo")
+	liqoPath := "/liqo"
+	if err := os.Setenv("LIQO_PATH", liqoPath); err != nil {
 		os.Exit(1)
 	}
-	kubeconfig := flag.String("kubeconfig", filepath.Join(liqoPath, "liqo-kubeconfig"),
+	kubeconfig := flag.String("kubeconfig", filepath.Join(liqoPath, "Konfig.liqo"),
 		"[OPT] absolute path to the kubeconfig file."+
-		" Default = $HOME/.kube/config")
+			" Default = /liqo/Konfig.liqo")
 	flag.Parse()
-	if err := os.Setenv("LIQO_KCONFIG", *kubeconfig); err != nil{
+	if err := os.Setenv("LIQO_KCONFIG", *kubeconfig); err != nil {
 		os.Exit(1)
 	}
 	return kubeconfig
@@ -41,9 +42,9 @@ func AcquireConfig() *string {
 
 // CreateClient creates a client to a k8s cluster, using a kubeconfig file whose location is passed as parameter
 // or retrieved from $LIQO_KCONFIG
-func CreateClient(kubeconfPath *string) (client.Client, error) {
-	if kubeconfPath != nil {
-		return advop.NewCRDClient(*kubeconfPath, nil)
+func CreateClient(kubeconfigPath *string) (client.Client, error) {
+	if kubeconfigPath != nil {
+		return advop.NewCRDClient(*kubeconfigPath, nil)
 	} else {
 		path, pres := os.LookupEnv("LIQO_KCONFIG")
 		if pres {
@@ -66,16 +67,22 @@ func ListAdvertisements(c *client.Client) (advDescriptionList []string, err erro
 	for i, adv := range advList.Items {
 
 		str := strings.Builder{}
-		prices := adv.Spec.Prices
-		CpuPrice := prices["cpu"]
-		MemPrice := prices["memory"]
-		str.WriteString(fmt.Sprintf("%d-\t%v\n", i+1, adv.Name))
-		str.WriteString(fmt.Sprintf("ClusterID: %v\nAvailable Resources:\n", adv.Spec.ClusterId))
-		str.WriteString(fmt.Sprintf("\t-cpu = %v [price %v]\n", adv.Spec.Availability.Cpu(), CpuPrice.String()))
-		str.WriteString(fmt.Sprintf("\t-memory = %v [price %v]\n", adv.Spec.Availability.Memory(), MemPrice.String()))
-		str.WriteString(fmt.Sprintf("\t-pods = %v\n", adv.Spec.Availability.Pods()))
-		str.WriteString(fmt.Sprintf("STATUS: %v", adv.Status.AdvertisementStatus))
+		str.WriteString(fmt.Sprintf("❨%02d❩ ⟹\t%s",i+1,DescribeAdvertisement(&adv)))
 		advDescriptionList = append(advDescriptionList, str.String())
 	}
 	return advDescriptionList, nil
+}
+
+func DescribeAdvertisement(adv *v1.Advertisement) string{
+	str := strings.Builder{}
+	prices := adv.Spec.Prices
+	CpuPrice := prices["cpu"]
+	MemPrice := prices["memory"]
+	str.WriteString(fmt.Sprintf("%v\n",adv.Name))
+	str.WriteString(fmt.Sprintf("\t• ClusterID: %v\n\t• Available Resources:\n", adv.Spec.ClusterId))
+	str.WriteString(fmt.Sprintf("\t\t-cpu = %v [price %v]\n", adv.Spec.ResourceQuota.Hard.Cpu(), CpuPrice.String()))
+	str.WriteString(fmt.Sprintf("\t\t-memory = %v [price %v]\n", adv.Spec.ResourceQuota.Hard.Memory(), MemPrice.String()))
+	str.WriteString(fmt.Sprintf("\t\t-pods = %v\n", adv.Spec.ResourceQuota.Hard.Pods()))
+	str.WriteString(fmt.Sprintf("\t• STATUS: %v", adv.Status.AdvertisementStatus))
+	return str.String()
 }

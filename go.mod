@@ -14,6 +14,7 @@ require (
 	github.com/daaku/go.zipexe v1.0.1 // indirect
 	github.com/docker/docker v0.7.3-0.20190327010347-be7ac8be2ae0
 	github.com/fatih/color v1.9.0 // indirect
+	github.com/gen2brain/beeep v0.0.0-20200420150314-13046a26d502
 	github.com/getlantern/systray v0.0.0-20200324212034-d3ab4fd25d99
 	github.com/getsentry/raven-go v0.2.0 // indirect
 	github.com/go-logr/logr v0.1.0
@@ -42,6 +43,7 @@ require (
 	github.com/olekukonko/tablewriter v0.0.4 // indirect
 	github.com/onsi/ginkgo v1.11.0
 	github.com/onsi/gomega v1.8.1
+	github.com/ozgio/strutil v0.3.0
 	github.com/pelletier/go-toml v1.6.0 // indirect
 	github.com/pkg/errors v0.9.1
 	github.com/prometheus/client_golang v1.3.0
