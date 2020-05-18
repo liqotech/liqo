@@ -12,7 +12,7 @@ data:
   waitTime: '2'                     # wait response time
   updateTime: '3'                   # time between queries
 
-  enableDiscovery: 'false'          # enable service discovery
-  enableAdvertisement: 'true'       # enable service advertisement
+  enableDiscovery: 'true'           # enable service discovery
+  enableAdvertisement: 'false'      # enable service advertisement
 
-  autoFederation: 'false'           # enable automatic federation process
+  autoFederation: 'true'            # enable automatic federation process

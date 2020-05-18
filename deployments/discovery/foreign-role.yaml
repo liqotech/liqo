@@ -6,12 +6,13 @@ metadata:
   name: foreign-unauth
 rules:
   - apiGroups:
-      - ""
+      - "discovery.drone.com"
     resources:
-      - pods
+      - federationrequests
     verbs:
       - get
-      - list
+      - create
+      - delete
 
 ---
 apiVersion: v1

@@ -1,17 +1,15 @@
 apiVersion: apiextensions.k8s.io/v1beta1
 kind: CustomResourceDefinition
 metadata:
-  name: foreignclusters.discovery.drone.com
+  name: federationrequests.discovery.drone.com
 spec:
   group: discovery.drone.com
   names:
-    kind: ForeignCluster
-    singular: foreigncluster
-    plural: foreignclusters
+    kind: FederationRequest
+    singular: federationrequest
+    plural: federationrequests
     shortNames:
-      - fc
-      - foreign
-      - foreign-cluster
+      - fr
   scope: Namespaced
   versions:
     - name: v1
@@ -34,12 +32,8 @@ spec:
           type: object
         spec:
           properties:
-            clusterID:
-              type: string
-              description: Foreign Cluster ID
             kubeConfig:
               type: string
-              description: Public KubeConfig file base64-encoded
+              description: KubeConfig file base64-encoded with permission to create Advertisements
           required:
-            - clusterID
             - kubeConfig

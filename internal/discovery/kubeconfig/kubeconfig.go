@@ -1,63 +1,34 @@
-package discovery
+package kubeconfig
 
 import (
 	b64 "encoding/base64"
-	"github.com/netgroup-polito/dronev2/internal/discovery/kubeconfig"
 	"gopkg.in/yaml.v2"
 	apiv1 "k8s.io/api/core/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"log"
+	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/rest"
+	"k8s.io/client-go/tools/clientcmd"
 	"os"
+	"path/filepath"
 )
 
-func init() {
-	dc := GetDiscoveryConfig()
-	if dc.EnableAdvertisement {
-		clientset, err := NewK8sClient()
-		if err != nil {
-			log.Println(err.Error())
-			os.Exit(1)
-		}
-
-		cm, err := clientset.CoreV1().ConfigMaps(apiv1.NamespaceDefault).Get("credentials-provider-static-content", v1.GetOptions{})
-		if err != nil {
-			log.Println(err.Error())
-			os.Exit(1)
-		}
-		cm.Data["config.yaml"], err = kubeconfig.CreateKubeConfig("unauth-user")
-		if err != nil {
-			log.Println(err.Error())
-			os.Exit(1)
-		}
-		_, err = clientset.CoreV1().ConfigMaps(apiv1.NamespaceDefault).Update(cm)
-		if err != nil {
-			log.Println(err.Error())
-			os.Exit(1)
-		}
-	}
-}
-
-// create kubeconfig with no permission for foreign cluster
-func CreateKubeConfig() string {
+func CreateKubeConfig(serviceAccountName string) (string, error) {
 	clientset, _ := NewK8sClient()
-	serviceAccount, err := clientset.CoreV1().ServiceAccounts(apiv1.NamespaceDefault).Get("unauth-user", v1.GetOptions{})
+	serviceAccount, err := clientset.CoreV1().ServiceAccounts(apiv1.NamespaceDefault).Get(serviceAccountName, v1.GetOptions{})
 	if err != nil {
-		log.Println(err.Error())
-		os.Exit(1)
+		return "", err
 	}
 
 	secret, err := clientset.CoreV1().Secrets(apiv1.NamespaceDefault).Get(serviceAccount.Secrets[0].Name, v1.GetOptions{})
 	if err != nil {
-		log.Println(err.Error())
-		os.Exit(1)
+		return "", err
 	}
 
 	nodes, err := clientset.CoreV1().Nodes().List(v1.ListOptions{
 		LabelSelector: "node-role.kubernetes.io/master=true",
 	})
 	if err != nil {
-		log.Println(err.Error())
-		os.Exit(1)
+		return "", err
 	}
 
 	token := string(secret.Data["token"])
@@ -69,7 +40,7 @@ func CreateKubeConfig() string {
 		"kind":       "Config",
 		"users": []interface{}{
 			map[string]interface{}{
-				"name": "unauth-user",
+				"name": serviceAccountName,
 				"user": map[string]interface{}{
 					"token": token,
 				},
@@ -88,13 +59,29 @@ func CreateKubeConfig() string {
 			map[string]interface{}{
 				"context": map[string]interface{}{
 					"cluster": "service-cluster",
-					"user":    "unauth-user",
+					"user":    serviceAccountName,
 				},
-				"name": "unauth-user-context",
+				"name": serviceAccountName + "-context",
 			},
 		},
-		"current-context": "unauth-user-context",
+		"current-context": serviceAccountName + "-context",
 	}
 	bytes, _ := yaml.Marshal(tmp)
-	return string(bytes)
+	return string(bytes), nil
+}
+
+func NewConfig() (*rest.Config, error) {
+	config, err := rest.InClusterConfig()
+	if err != nil {
+		return clientcmd.BuildConfigFromFlags("", filepath.Join(os.Getenv("HOME"), ".kube", "config"))
+	}
+	return config, err
+}
+
+func NewK8sClient() (*kubernetes.Clientset, error) {
+	config, err := NewConfig()
+	if err != nil {
+		return nil, err
+	}
+	return kubernetes.NewForConfig(config)
 }

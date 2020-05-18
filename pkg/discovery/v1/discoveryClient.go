@@ -12,6 +12,7 @@ import (
 
 type V1Interface interface {
 	ForeignClusters(namespace string) ForeignClusterInterface
+	FederationRequests(namespace string) FederationRequestInterface
 }
 
 type V1Client struct {
@@ -43,6 +44,13 @@ func NewForConfig(c *rest.Config) (*V1Client, error) {
 
 func (c *V1Client) ForeignClusters(namespace string) ForeignClusterInterface {
 	return &foreignClusterClient{
+		restClient: c.restClient,
+		ns:         namespace,
+	}
+}
+
+func (c *V1Client) FederationRequests(namespace string) FederationRequestInterface {
+	return &federationRequestClient{
 		restClient: c.restClient,
 		ns:         namespace,
 	}

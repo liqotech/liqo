@@ -16,6 +16,10 @@ import (
 	"net/http"
 )
 
+var (
+	discoveryConfig *Config
+)
+
 func UpdateForeign(data []map[string]interface{}) {
 	for _, txtData := range data {
 		resp, err := http.Get(txtData["url"].(string))
@@ -56,6 +60,11 @@ func CreateForeignIfNotExists(config []byte) (*v1.ForeignCluster, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	if discoveryConfig == nil {
+		discoveryConfig = GetDiscoveryConfig()
+	}
+
 	fc, err := client.ForeignClusters(apiv1.NamespaceDefault).Get(clusterID, metav1.GetOptions{})
 	if err != nil && k8sErrors.IsNotFound(err) {
 		// does not exists yet
@@ -66,10 +75,12 @@ func CreateForeignIfNotExists(config []byte) (*v1.ForeignCluster, error) {
 			Spec: v1.ForeignClusterSpec{
 				ClusterID:  clusterID,
 				KubeConfig: b64.StdEncoding.EncodeToString(config),
+				Federate:   discoveryConfig.AutoFederation,
 			},
 		}
 		return client.ForeignClusters(apiv1.NamespaceDefault).Create(&fc)
 	}
+
 	return fc, nil
 }
 

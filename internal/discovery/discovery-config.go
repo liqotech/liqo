@@ -19,11 +19,13 @@ type Config struct {
 	UpdateTime int `json:"updateTime"`
 
 	EnableDiscovery     bool `json:"enableDiscovery"`
-	EnableAdvertisement bool `json:"EnableAdvertisement"`
+	EnableAdvertisement bool `json:"enableAdvertisement"`
+
+	AutoFederation bool `json:"autoFederation"`
 }
 
-func GetDiscoveryConfig() Config {
-	dc := Config{}
+func GetDiscoveryConfig() *Config {
+	dc := &Config{}
 
 	client, err := NewK8sClient()
 	if err != nil {
@@ -52,6 +54,8 @@ func GetDiscoveryConfig() Config {
 
 	dc.EnableDiscovery = config["enableDiscovery"] == "true"
 	dc.EnableAdvertisement = config["enableAdvertisement"] == "true"
+
+	dc.AutoFederation = config["autoFederation"] == "true"
 
 	if dc.EnableAdvertisement {
 		dc.TxtData = GetTxtData()

@@ -42,7 +42,7 @@ spec:
     spec:
       serviceAccountName: discovery
       containers:
-        - image: 'aleoli/prova:discovery'
+        - image: dronev2/discovery
           name: discovery
           imagePullPolicy: Always
       hostNetwork: true
