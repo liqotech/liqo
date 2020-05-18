@@ -91,7 +91,7 @@ func CreateVkDeployment(adv *protocolv1.Advertisement, nameSA, vkNamespace strin
 		"--disable-taint",
 		"--nodename",
 		"vk-" + adv.Spec.ClusterId,
-		"--vk-namespace",
+		"--kubelet-namespace",
 		vkNamespace,
 	}
 

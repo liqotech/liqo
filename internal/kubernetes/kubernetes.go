@@ -17,14 +17,11 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 )
 
-var (
-	defaultMetricsAddr = ":8080"
-)
-
 const (
 	defaultNamespace      = "drone-v2"
 	namespaceKey     = "namespace"
 	nameKey          = "name"
+	defaultMetricsAddr = ":8080"
 )
 
 // KubernetesProvider implements the virtual-kubelet provider interface and stores pods in memory.
