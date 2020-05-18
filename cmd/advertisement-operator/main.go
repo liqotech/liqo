@@ -110,6 +110,7 @@ func main() {
 		GatewayIP:        gatewayIP,
 		GatewayPrivateIP: gatewayPrivateIP,
 		KindEnvironment:  runsInKindEnv,
+		KubeletNamespace: kubeletNamespace,
 		VKImage: kubeletImage,
 		InitVKImage: initKubeletImage,
 	}).SetupWithManager(mgr); err != nil {

@@ -68,6 +68,7 @@ type AdvertisementStatus struct {
 // +kubebuilder:object:root=true
 // +kubebuilder:subresource:status
 // +kubebuilder:resource:shortName="adv"
+// +kubebuilder:resource:scope=Cluster
 
 // Advertisement is the Schema for the advertisements API
 type Advertisement struct {
