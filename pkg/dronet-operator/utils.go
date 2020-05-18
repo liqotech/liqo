@@ -147,7 +147,7 @@ func getRemoteVTEPS(clientset *kubernetes.Clientset) ([]string, error) {
 	for _, node := range nodesList.Items {
 		internalIP, err := getInternalIPOfNode(node)
 		if err != nil {
-			//log the error but don't exit
+			//Log the error but don't exit
 			logger.Error(err, "unable to get internal ip of the node named -> %s", node.Name)
 		}
 		if internalIP != podIP.String() {

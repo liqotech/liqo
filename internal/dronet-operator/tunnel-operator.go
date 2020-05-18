@@ -117,7 +117,7 @@ func (r *TunnelController) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 		if err != nil {
 			return ctrl.Result{}, err
 		}
-	} else if endpoint.Status.Phase == "Ready" {
+	} else if endpoint.Status.Phase == "NotToRun" { //in a future PR this section will be removed
 		//if the the CR is already initialized check if the tunnel interface exists
 		_, err := netlink.LinkByIndex(endpoint.Status.TunnelIFaceIndex)
 		if err != nil && err.Error() == "Link not found" {
@@ -147,8 +147,18 @@ func (r *TunnelController) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 				log.Error(err, "unable to create the gre tunnel")
 				return ctrl.Result{}, err
 			}
+			localTunnelPublicIP, err := dronetOperator.GetLocalTunnelPublicIPToString()
+			if err != nil {
+				log.Error(err, "unable to get localTunnelPublicIP")
+			}
+			localTunnelPrivateIP, err := dronetOperator.GetLocalTunnelPrivateIPToString()
+			if err != nil {
+				log.Error(err, "unable to get localTunnelPrivateIP")
+			}
 			endpoint.Status.TunnelIFaceName = iFaceName
 			endpoint.Status.TunnelIFaceIndex = iFaceIndex
+			endpoint.Status.LocalTunnelPrivateIP = localTunnelPrivateIP
+			endpoint.Status.LocalTunnelPublicIP = localTunnelPublicIP
 			endpoint.Status.RemoteTunnelPrivateIP = endpoint.Spec.TunnelPrivateIP
 			endpoint.Status.RemoteTunnelPublicIP = endpoint.Spec.TunnelPublicIP
 			err = r.Client.Status().Update(ctx, &endpoint)

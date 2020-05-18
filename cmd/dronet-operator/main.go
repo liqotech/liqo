@@ -17,12 +17,14 @@ package main
 
 import (
 	"flag"
-	"fmt"
+	protocolv1 "github.com/netgroup-polito/dronev2/api/advertisement-operator/v1"
 	"github.com/netgroup-polito/dronev2/api/tunnel-endpoint/v1"
 	"github.com/netgroup-polito/dronev2/internal/dronet-operator"
 	dronetOperator "github.com/netgroup-polito/dronev2/pkg/dronet-operator"
 	"github.com/vishvananda/netlink"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes"
+	"net"
 	"os"
 	"strconv"
 
@@ -50,6 +52,8 @@ func init() {
 	_ = clientgoscheme.AddToScheme(scheme)
 
 	_ = v1.AddToScheme(scheme)
+
+	_ = protocolv1.AddToScheme(scheme)
 	// +kubebuilder:scaffold:scheme
 }
 
@@ -57,12 +61,14 @@ func main() {
 	var metricsAddr string
 	var enableLeaderElection bool
 	var runAsRouteOperator bool
+	var runAs string
 
 	flag.StringVar(&metricsAddr, "metrics-addr", ":0", "The address the metric endpoint binds to.")
 	flag.BoolVar(&enableLeaderElection, "enable-leader-election", false,
 		"Enable leader election for controller manager. Enabling this will ensure there is only one active controller manager.")
 	flag.BoolVar(&runAsRouteOperator, "run-as-route-operator", false,
 		"Runs the controller as Route-Operator, the default value is false and will run as Tunnel-Operator")
+	flag.StringVar(&runAs, "run-as", "tunnel-operator", "The accepted values are: tunnel-operator, route-operator, tunnelEndpointCreator-operator. The default value is \"tunnel-operator\"")
 	flag.Parse()
 
 	ctrl.SetLogger(zap.New(func(o *zap.Options) {
@@ -88,8 +94,8 @@ func main() {
 		panic(err.Error())
 	}
 	// +kubebuilder:scaffold:builder
-	if runAsRouteOperator {
-
+	switch runAs {
+	case "route-operator":
 		vxlanConfig, err := dronetOperator.ReadVxlanNetConfig(defaultConfig)
 		if err != nil {
 			setupLog.Error(err, "an error occured while getting the vxlan network configuration")
@@ -157,7 +163,8 @@ func main() {
 			setupLog.Error(err, "problem running manager")
 			os.Exit(1)
 		}
-	} else {
+
+	case "tunnel-operator":
 		r := &controllers.TunnelController{
 			Client:                       mgr.GetClient(),
 			Log:                          ctrl.Log.WithName("controllers").WithName("TunnelEndpoint"),
@@ -173,7 +180,36 @@ func main() {
 			setupLog.Error(err, "problem running manager")
 			os.Exit(1)
 		}
+
+	case "tunnelEndpointCreator-operator":
+		r := &controllers.TunnelEndpointCreator{
+			Client: mgr.GetClient(),
+			Log:    ctrl.Log.WithName("controllers").WithName("TunnelEndpointCreator"),
+			Scheme: mgr.GetScheme(),
+			TunnelEndpointMap: make(map[string]types.NamespacedName),
+			UsedSubnets: make(map[string]*net.IPNet),
+			FreeSubnets: make(map[string]*net.IPNet),
+			IPManager: dronetOperator.IpManager{
+				UsedSubnets:      make(map[string]*net.IPNet),
+				FreeSubnets:      make(map[string]*net.IPNet),
+				SubnetPerCluster: make(map[string]*net.IPNet),
+				Log:              ctrl.Log.WithName("IPAM"),
+			},
+		}
+		if err := r.IPManager.Init();err != nil{
+			setupLog.Error(err, "unable to initialize ipam")
+			os.Exit(2)
+		}
+		if err = r.SetupWithManager(mgr); err != nil {
+			setupLog.Error(err, "unable to create controller", "controller", "TunnelEndpointCreator")
+			os.Exit(1)
+		}
+
+		setupLog.Info("starting manager as tunnelEndpointCreator-operator")
+		if err := mgr.Start(ctrl.SetupSignalHandler()); err != nil {
+			setupLog.Error(err, "problem running manager")
+			os.Exit(1)
+		}
 	}
 
-	fmt.Println("exiting")
 }

@@ -18,7 +18,6 @@ package main
 import (
 	"errors"
 	"flag"
-	"k8s.io/apimachinery/pkg/types"
 	"os"
 
 	"k8s.io/apimachinery/pkg/runtime"
@@ -58,7 +57,6 @@ func init() {
 func main() {
 	var metricsAddr, localKubeconfig, foreignKubeconfig, clusterId string
 	var gatewayIP, gatewayPrivateIP string
-	var runsAsTunnelEndpointCreator bool
 	var enableLeaderElection bool
 	var kubeletNamespace string
 	var kubeletImage string
@@ -96,7 +94,7 @@ func main() {
 
 	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
 		Scheme:             scheme,
-		MetricsBindAddress: metricsAddr,
+		MetricsBindAddress: "0",
 		LeaderElection:     enableLeaderElection,
 		Port:               9443,
 	})
@@ -105,45 +103,26 @@ func main() {
 		os.Exit(1)
 	}
 
-	if !runsAsTunnelEndpointCreator {
-		if err = (&advertisement_operator.AdvertisementReconciler{
-			KubeletNamespace: kubeletNamespace,
-			Client:           mgr.GetClient(),
-			Log:              ctrl.Log.WithName("controllers").WithName("Advertisement"),
-			Scheme:           mgr.GetScheme(),
-			EventsRecorder:   mgr.GetEventRecorderFor("AdvertisementOperator"),
-			GatewayIP:        gatewayIP,
-			GatewayPrivateIP: gatewayPrivateIP,
-			KindEnvironment:  runsInKindEnv,
-			VKImage: kubeletImage,
-			InitVKImage: initKubeletImage,
-		}).SetupWithManager(mgr); err != nil {
-			setupLog.Error(err, "unable to create controller", "controller", "Advertisement")
-			os.Exit(1)
-		}
-		// +kubebuilder:scaffold:builder
+	if err = (&advertisement_operator.AdvertisementReconciler{
+		Client:           mgr.GetClient(),
+		Log:              ctrl.Log.WithName("controllers").WithName("Advertisement"),
+		Scheme:           mgr.GetScheme(),
+		EventsRecorder:   mgr.GetEventRecorderFor("AdvertisementOperator"),
+		GatewayIP:        gatewayIP,
+		GatewayPrivateIP: gatewayPrivateIP,
+		KindEnvironment:  runsInKindEnv,
+		VKImage: kubeletImage,
+		InitVKImage: initKubeletImage,
+	}).SetupWithManager(mgr); err != nil {
+		setupLog.Error(err, "unable to create controller", "controller", "Advertisement")
+		os.Exit(1)
+	}
+	// +kubebuilder:scaffold:builder
 
-		setupLog.Info("starting manager as advertisement-operator")
-		if err := mgr.Start(ctrl.SetupSignalHandler()); err != nil {
-			setupLog.Error(err, "problem running manager")
-			os.Exit(1)
-		}
-	} else {
-		if err = (&advertisement_operator.TunnelEndpointCreator{
-			Client:            mgr.GetClient(),
-			Log:               ctrl.Log.WithName("controllers").WithName("TunnelEndpointCreator"),
-			Scheme:            mgr.GetScheme(),
-			TunnelEndpointMap: make(map[string]types.NamespacedName),
-		}).SetupWithManager(mgr); err != nil {
-			setupLog.Error(err, "unable to create controller", "controller", "TunnelEndpointCreator")
-			os.Exit(1)
-		}
-
-		setupLog.Info("starting manager as tunnelEndpointCreator-operator")
-		if err := mgr.Start(ctrl.SetupSignalHandler()); err != nil {
-			setupLog.Error(err, "problem running manager")
-			os.Exit(1)
-		}
+	setupLog.Info("starting manager as advertisement-operator")
+	if err := mgr.Start(ctrl.SetupSignalHandler()); err != nil {
+		setupLog.Error(err, "problem running manager")
+		os.Exit(1)
 	}
 
 }
