@@ -71,6 +71,7 @@ type InitConfig struct {
 	ResourceManager   *manager.ResourceManager
 	ClusterId string
 	RemoteKubeConfig string
+	HomeClusterId string
 }
 
 type InitFunc func(InitConfig) (Provider, error)

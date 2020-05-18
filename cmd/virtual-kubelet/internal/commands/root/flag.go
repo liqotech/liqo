@@ -84,7 +84,7 @@ func installFlags(flags *pflag.FlagSet, c *Opts) {
 
 	flags.StringVar(&c.ClusterId, "cluster-id", c.ClusterId, "The Id of the foreign cluster")
 	flags.StringVar(&c.KubeletNamespace, "kubelet-namespace", c.KubeletNamespace, "The namespace of the virtual kubelet")
-
+	flags.StringVar(&c.HomeClusterId, "home-cluster-id", c.HomeClusterId, "The Id of the home cluster")
 
 	flagset := flag.NewFlagSet("klog", flag.PanicOnError)
 	klog.InitFlags(flagset)

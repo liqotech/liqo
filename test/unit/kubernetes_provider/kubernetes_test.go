@@ -21,7 +21,7 @@ func TestH2FCreation(t *testing.T) {
 		},
 		Status: v1.PodStatus{},
 	}
-	pForeign := provider.H2FTranslate(pHome)
+	pForeign := provider.H2FTranslate(pHome, "")
 	assert.Empty(t, pForeign.UID, "The UID of translated pod should be null")
 	assert.Empty(t, pForeign.Spec.NodeName, "The node name should not be set")
 	assert.Equal(t, string(pHome.UID), pForeign.GetAnnotations()["home_uuid"])
@@ -59,7 +59,7 @@ func TestF2HCreation(t *testing.T) {
 	newForeignPodCidr := "172.42.0.0/16"
 	expectedPodIP := "172.42.1.2"
 
-	pHome := provider.F2HTranslate(pForeign, newForeignPodCidr)
+	pHome := provider.F2HTranslate(pForeign, newForeignPodCidr, "")
 	assert.Equal(t, pHome.UID, types.UID(pForeign.GetAnnotations()["home_uuid"]))
 	assert.Equal(t, pHome.Status.PodIP, expectedPodIP)
 }

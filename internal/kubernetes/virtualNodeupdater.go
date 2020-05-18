@@ -2,7 +2,6 @@ package kubernetes
 
 import (
 	"context"
-	"fmt"
 	"github.com/go-logr/logr"
 	advv1 "github.com/netgroup-polito/dronev2/api/advertisement-operator/v1"
 	"github.com/netgroup-polito/dronev2/internal/node"
@@ -12,6 +11,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/klog"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -108,13 +108,11 @@ func (r *VirtualNodeReconciler) SetupWithManager(mgr ctrl.Manager) error {
 
 // Initialization of the Virtual kubelet, that implies:
 // * clientProvider initialization
-// * namespace creation
 // * podWatcher launch
 func (r *VirtualNodeReconciler) initVirtualKubelet(adv advv1.Advertisement) error {
 
 	klog.Info("vk initializing")
 	r.provider.RemappedPodCidr = adv.Status.RemoteRemappedPodCIDR
-	r.provider.providerNamespace = defaultNamespace
 
 	c, restConfig, err := newClient(r.provider.providerKubeconfig)
 	r.provider.restConfig = restConfig
@@ -122,19 +120,9 @@ func (r *VirtualNodeReconciler) initVirtualKubelet(adv advv1.Advertisement) erro
 	if err != nil {
 		return err
 	}
-	r.provider.client = c
+	r.provider.foreignClient = c
 
-	ns := &v1.Namespace{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: r.provider.providerNamespace,
-		},
-	}
-
-	_, err = r.provider.client.CoreV1().Namespaces().Create(ns)
-	if err != nil && !kerror.IsAlreadyExists(err) {
-		_ = fmt.Errorf("namespace creation failed")
-		return err
-	}
+	r.provider.StartReflector()
 
 	if adv.Status.RemoteRemappedPodCIDR != "None" {
 		r.provider.RemappedPodCidr = adv.Status.RemoteRemappedPodCIDR
@@ -142,23 +130,34 @@ func (r *VirtualNodeReconciler) initVirtualKubelet(adv advv1.Advertisement) erro
 		r.provider.RemappedPodCidr = adv.Spec.Network.PodCIDR
 	}
 
-	watch, err := r.provider.client.CoreV1().Pods(r.provider.providerNamespace).Watch(metav1.ListOptions{})
+	r.provider.RemappedPodCidr = "10.200.0.0/16"
+
+	w, err := r.provider.foreignClient.CoreV1().Pods("").Watch(metav1.ListOptions{})
 	if err != nil {
 		_ = errors.Wrap(err, err.Error())
 	}
-	go func() {
-		for e := range watch.ResultChan() {
+
+	go r.provider.watchForeignPods(w)
+	r.ready <- true
+
+	return nil
+}
+
+func (p* KubernetesProvider) watchForeignPods(w watch.Interface) {
+	for {
+		select {
+		case <- p.foreignPodWatcherStop:
+			w.Stop()
+			return
+		case e := <- w.ResultChan():
 			p2, ok := e.Object.(*v1.Pod)
 			if !ok {
 				klog.Error("unexpected type")
 			}
-			r.provider.notifier(F2HTranslate(p2, r.provider.RemappedPodCidr))
+			denattedNS := p.DeNatNamespace(p2.Namespace)
+			p.notifier(F2HTranslate(p2, p.RemappedPodCidr, denattedNS))
 		}
-	}()
-
-	r.ready <- true
-
-	return nil
+	}
 }
 
 // updateFromAdv gets and  advertisement and updates the node status accordingly

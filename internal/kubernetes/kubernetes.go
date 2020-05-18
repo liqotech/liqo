@@ -1,6 +1,7 @@
 package kubernetes
 
 import (
+	"github.com/go-logr/logr"
 	protocolv1 "github.com/netgroup-polito/dronev2/api/advertisement-operator/v1"
 	"github.com/netgroup-polito/dronev2/internal/node"
 	"github.com/pkg/errors"
@@ -18,7 +19,6 @@ import (
 )
 
 const (
-	defaultNamespace      = "drone-v2"
 	namespaceKey     = "namespace"
 	nameKey          = "name"
 	defaultMetricsAddr = ":8080"
@@ -26,8 +26,12 @@ const (
 
 // KubernetesProvider implements the virtual-kubelet provider interface and stores pods in memory.
 type KubernetesProvider struct { // nolint:golint]
-	manager manager2.Manager
-	client             *kubernetes.Clientset
+	*Reflector
+
+	manager            manager2.Manager
+	foreignClient      *kubernetes.Clientset
+	homeClient         *kubernetes.Clientset
+
 	nodeName           string
 	operatingSystem    string
 	internalIP         string
@@ -35,16 +39,23 @@ type KubernetesProvider struct { // nolint:golint]
 	startTime          time.Time
 	notifier           func(*v1.Pod)
 	clusterId          string
+	homeClusterID 	   string
 	initialized        bool
 	nodeController     *node.NodeController
 	providerKubeconfig string
 	restConfig         *rest.Config
-	providerNamespace  string
 	RemappedPodCidr    string
+
+	namespaceNatting map[string]string
+	namespaceDeNatting map[string]string
+
+	foreignPodWatcherStop chan bool
+
+	log logr.Logger
 }
 
 // NewKubernetesProviderKubernetesConfig creates a new KubernetesV0Provider. Kubernetes legacy provider does not implement the new asynchronous podnotifier interface
-func NewKubernetesProvider(nodeName, clusterId, operatingSystem string, internalIP string, daemonEndpointPort int32, kubeconfig, remoteKubeConfig string) (*KubernetesProvider, error) {
+func NewKubernetesProvider(nodeName, clusterId, homeClusterId, operatingSystem string, internalIP string, daemonEndpointPort int32, kubeconfig, remoteKubeConfig string) (*KubernetesProvider, error) {
 
 	scheme := runtime.NewScheme()
 	_ = protocolv1.AddToScheme(scheme)
@@ -65,7 +76,13 @@ func NewKubernetesProvider(nodeName, clusterId, operatingSystem string, internal
 		return nil, err
 	}
 
+	c, _, err := newClient(kubeconfig)
+	if err != nil {
+		return nil, err
+	}
+
 	provider := KubernetesProvider{
+		Reflector: &Reflector{},
 		nodeName:           nodeName,
 		operatingSystem:    operatingSystem,
 		internalIP:         internalIP,
@@ -73,7 +90,12 @@ func NewKubernetesProvider(nodeName, clusterId, operatingSystem string, internal
 		startTime:          time.Now(),
 		manager:			mgr,
 		clusterId: clusterId,
+		homeClusterID:homeClusterId,
 		providerKubeconfig: remoteKubeConfig,
+		homeClient: c,
+		namespaceNatting: map[string]string{},
+		namespaceDeNatting: map[string]string{},
+		foreignPodWatcherStop: make(chan bool, 1),
 	}
 
 	return &provider, nil

@@ -59,7 +59,6 @@ func (r *AdvertisementReconciler) Reconcile(req ctrl.Request) (ctrl.Result, erro
 	if err := r.Get(ctx, req.NamespacedName, &adv); err != nil {
 		// reconcile was triggered by a delete request
 		log.Info("Advertisement " + req.Name + " deleted")
-		StopReflector(req.Name)
 		return ctrl.Result{}, client.IgnoreNotFound(err)
 	}
 
@@ -94,11 +93,7 @@ func (r *AdvertisementReconciler) Reconcile(req ctrl.Request) (ctrl.Result, erro
 	}
 
 	log.Info("launching virtual-kubelet for cluster " + adv.Spec.ClusterId)
-	namespace := "drone-" + adv.Spec.ClusterId
-	// start the reflector only if this is the first time we receive this advertisement
-	if adv.Generation == 1 {
-		StartReflector(namespace, adv)
-	}
+
 	return ctrl.Result{}, nil
 }
 

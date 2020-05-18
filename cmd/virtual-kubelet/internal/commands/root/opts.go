@@ -87,6 +87,7 @@ type Opts struct {
 	StartupTimeout time.Duration
 
 	ClusterId string
+	HomeClusterId string
 	KubeletNamespace string
 
 	Version string

@@ -127,6 +127,7 @@ func runRootCommand(ctx context.Context, s *provider.Store, c Opts) error {
 		InternalIP:        os.Getenv("VKUBELET_POD_IP"),
 		KubeClusterDomain: c.KubeClusterDomain,
 		ClusterId: c.ClusterId,
+		HomeClusterId: c.HomeClusterId,
 		RemoteKubeConfig: c.ProviderConfigPath,
 	}
 

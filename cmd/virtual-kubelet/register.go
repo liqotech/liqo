@@ -23,6 +23,7 @@ func registerKubernetes(s *provider.Store) error {
 		return kubernetes.NewKubernetesProvider(
 			cfg.NodeName,
 			cfg.ClusterId,
+			cfg.HomeClusterId,
 			cfg.OperatingSystem,
 			cfg.InternalIP,
 			cfg.DaemonPort,

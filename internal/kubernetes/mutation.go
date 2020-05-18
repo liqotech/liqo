@@ -9,8 +9,9 @@ import (
 	"time"
 )
 
-func F2HTranslate(podForeignIn *v1.Pod, newCidr string) (podHomeOut *v1.Pod) {
+func F2HTranslate(podForeignIn *v1.Pod, newCidr, namespace string) (podHomeOut *v1.Pod) {
 	podHomeOut = podForeignIn.DeepCopy()
+	podHomeOut.SetNamespace(namespace)
 	podHomeOut.SetUID(types.UID(podForeignIn.Annotations["home_uuid"]))
 	podHomeOut.SetResourceVersion(podForeignIn.Annotations["home_resourceVersion"])
 	t, err := time.Parse("2006-01-02 15:04:05 -0700 MST", podForeignIn.Annotations["home_creationTimestamp"])
@@ -20,7 +21,7 @@ func F2HTranslate(podForeignIn *v1.Pod, newCidr string) (podHomeOut *v1.Pod) {
 	}
 
 	if err != nil {
-		_ = fmt.Errorf("Unable to parse time")
+		_ = fmt.Errorf("unable to parse time")
 	}
 	if podHomeOut.Status.PodIP != "" {
 		newIp := ChangePodIp(newCidr, podHomeOut.Status.PodIP)
@@ -36,11 +37,11 @@ func F2HTranslate(podForeignIn *v1.Pod, newCidr string) (podHomeOut *v1.Pod) {
 	return podHomeOut
 }
 
-func H2FTranslate(pod *v1.Pod) *v1.Pod {
+func H2FTranslate(pod *v1.Pod, nattedNS string) *v1.Pod {
 	// create an empty ObjectMeta for the output pod, copying only "Name" and "Namespace" fields
 	objectMeta := metav1.ObjectMeta{
 		Name:      pod.ObjectMeta.Name,
-		Namespace: pod.ObjectMeta.Namespace,
+		Namespace: nattedNS,
 		Labels:    pod.Labels,
 	}
 
