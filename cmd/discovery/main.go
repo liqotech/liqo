@@ -2,6 +2,7 @@ package main
 
 import (
 	"github.com/netgroup-polito/dronev2/internal/discovery"
+	foreign_cluster_operator "github.com/netgroup-polito/dronev2/internal/discovery/foreign-cluster-operator"
 	"log"
 	"os"
 	"os/signal"
@@ -16,6 +17,9 @@ func main() {
 	signal.Notify(sig, os.Interrupt, syscall.SIGINT)
 
 	discovery.StartDiscovery()
+
+	log.Println("Starting ForeignCluster operator")
+	go foreign_cluster_operator.StartOperator()
 
 	<-sig
 }

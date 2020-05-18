@@ -9,7 +9,6 @@ import (
 	apiv1 "k8s.io/api/core/v1"
 	k8sErrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 	clientcmdapi "k8s.io/client-go/tools/clientcmd/api"
@@ -34,20 +33,6 @@ func UpdateForeign(data []map[string]interface{}) {
 		if err != nil {
 			log.Println(err.Error())
 			continue
-		}
-
-		// TODO: delete these lines
-		// test kubeconfig
-		clusterID, _ := GetClusterID(config)
-		clientConfig, _ := LoadConfig(clusterID)
-		client, _ := kubernetes.NewForConfig(clientConfig)
-		pods, err := client.CoreV1().Pods(apiv1.NamespaceDefault).List(metav1.ListOptions{})
-		if err != nil {
-			log.Println(err.Error())
-			continue
-		}
-		for _, pod := range pods.Items {
-			log.Println(pod.Name)
 		}
 	}
 }
@@ -94,12 +79,5 @@ func LoadConfig(clusterID string) (*rest.Config, error) {
 	if err != nil {
 		return nil, err
 	}
-	bytes, err := b64.StdEncoding.DecodeString(fc.Spec.KubeConfig)
-	if err != nil {
-		return nil, err
-	}
-	kubeconfig := func() (*clientcmdapi.Config, error) {
-		return clientcmd.Load(bytes)
-	}
-	return clientcmd.BuildConfigFromKubeconfigGetter("", kubeconfig)
+	return fc.GetConfig()
 }
