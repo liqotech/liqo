@@ -41,6 +41,8 @@ type AdvertisementReconciler struct {
 	GatewayPrivateIP string
 	KubeletNamespace string
 	KindEnvironment  bool
+	VKImage string
+	InitVKImage string
 }
 
 // +kubebuilder:rbac:groups=protocol.drone.com,resources=advertisements,verbs=get;list;watch;create;update;patch;delete
@@ -172,7 +174,7 @@ func createVirtualKubelet(r *AdvertisementReconciler, ctx context.Context, log l
 		return err
 	}
 	// Create the virtual Kubelet
-	deploy := pkg.CreateVkDeployment(adv, vkSa.Name, r.KubeletNamespace)
+	deploy := pkg.CreateVkDeployment(adv, vkSa.Name, r.KubeletNamespace, r.VKImage, r.InitVKImage)
 	err = pkg.CreateOrUpdate(r.Client, ctx, log, deploy)
 	if err != nil {
 		return err

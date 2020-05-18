@@ -77,7 +77,7 @@ func CreateFromYaml(c client.Client, ctx context.Context, log logr.Logger, filen
 }
 
 // create deployment for a virtual-kubelet
-func CreateVkDeployment(adv *protocolv1.Advertisement, nameSA, vkNamespace string) appsv1.Deployment {
+func CreateVkDeployment(adv *protocolv1.Advertisement, nameSA, vkNamespace, vkImage, initVKImage string) appsv1.Deployment {
 
 	command := []string{
 		"/usr/bin/virtual-kubelet",
@@ -167,7 +167,7 @@ func CreateVkDeployment(adv *protocolv1.Advertisement, nameSA, vkNamespace strin
 					InitContainers: []v1.Container{
 						{
 							Name: "crt-generator",
-							Image: "dronev2/init-vkubelet",
+							Image: initVKImage,
 							Command: []string{
 								"/usr/bin/local/kubelet-setup.sh",
 							},
@@ -195,7 +195,7 @@ func CreateVkDeployment(adv *protocolv1.Advertisement, nameSA, vkNamespace strin
 					Containers: []v1.Container{
 						{
 							Name:            "virtual-kubelet",
-							Image:           "dronev2/virtual-kubelet",
+							Image:           vkImage,
 							ImagePullPolicy: v1.PullAlways,
 							Command:      command,
 							Args:         args,
