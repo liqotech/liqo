@@ -136,9 +136,10 @@ func main() {
 			setupLog.Error(err, "unable to derive gatewayVxlanIP")
 			os.Exit(5)
 		}
+
 		r := &controllers.RouteController{
 			Client:                             mgr.GetClient(),
-			Log:                                ctrl.Log.WithName("controllers").WithName("Route"),
+			Log:                                ctrl.Log.WithName("route-operator"),
 			Scheme:                             mgr.GetScheme(),
 			RouteOperator:                      runAsRouteOperator,
 			ClientSet:                          clientset,
