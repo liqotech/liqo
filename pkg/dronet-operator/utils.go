@@ -14,6 +14,11 @@ import (
 	"strings"
 )
 
+const (
+	RouteOpLabelKey = "rouOp"
+	TunOpLabelKey   = "tunOp"
+)
+
 func getPodIP() (net.IP, error) {
 	ipAddress, isSet := os.LookupEnv("POD_IP")
 	if isSet == false {
@@ -188,4 +193,12 @@ func VerifyNoOverlap(subnets map[string]*net.IPNet, newNet *net.IPNet) bool {
 		}
 	}
 	return false
+}
+
+func SetLabelHandler(labelKey, labelValue string, mapToUpdate map[string]string) map[string]string {
+	if mapToUpdate == nil {
+		mapToUpdate = make(map[string]string)
+	}
+	mapToUpdate[labelKey] = labelValue
+	return mapToUpdate
 }

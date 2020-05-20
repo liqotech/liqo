@@ -50,7 +50,7 @@ func (r *TunnelController) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 		return ctrl.Result{}, client.IgnoreNotFound(err)
 	}
 	//if the endpoint CR is not processed then return
-	if endpoint.Status.Phase != "Processed" && endpoint.Status.Phase != "Ready"{
+	if endpoint.Status.Phase != "Processed" && endpoint.Status.Phase != "Ready" {
 		log.Info("tunnelEndpoint is not ready ", "name", endpoint.Name, "phase", endpoint.Status.Phase)
 		return ctrl.Result{}, nil
 	}
@@ -117,55 +117,12 @@ func (r *TunnelController) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 		if err != nil {
 			return ctrl.Result{}, err
 		}
-	} else if endpoint.Status.Phase == "NotToRun" { //in a future PR this section will be removed
-		//if the the CR is already initialized check if the tunnel interface exists
-		_, err := netlink.LinkByIndex(endpoint.Status.TunnelIFaceIndex)
-		if err != nil && err.Error() == "Link not found" {
-			//reset status of CR and update it if the tunnel iface does not exist
-			//this is needed if the operator crashes and is restarted, so it checks if
-			//all the existing CR are configured
-			endpoint.Status.TunnelIFaceName = ""
-			endpoint.Status.TunnelIFaceIndex = 0
-			endpoint.Status.LocalTunnelPrivateIP = ""
-			endpoint.Status.LocalTunnelPublicIP = ""
-			err = r.Client.Status().Update(ctx, &endpoint)
-			//
-			if err != nil {
-				return ctrl.Result{}, err
-			}
-		}
-		if endpoint.Status.RemoteTunnelPrivateIP != endpoint.Spec.TunnelPrivateIP || endpoint.Status.RemoteTunnelPublicIP != endpoint.Spec.TunnelPublicIP {
-			//remove the external resource
-			if err := dronetOperator.RemoveGreTunnel(&endpoint); err != nil {
-				log.Error(err, "unable to remove the tunnel interface")
-				return ctrl.Result{}, err
-			}
-
-			//create new external resource
-			iFaceIndex, iFaceName, err := dronetOperator.InstallGreTunnel(&endpoint)
-			if err != nil {
-				log.Error(err, "unable to create the gre tunnel")
-				return ctrl.Result{}, err
-			}
-			localTunnelPublicIP, err := dronetOperator.GetLocalTunnelPublicIPToString()
-			if err != nil {
-				log.Error(err, "unable to get localTunnelPublicIP")
-			}
-			localTunnelPrivateIP, err := dronetOperator.GetLocalTunnelPrivateIPToString()
-			if err != nil {
-				log.Error(err, "unable to get localTunnelPrivateIP")
-			}
-			endpoint.Status.TunnelIFaceName = iFaceName
-			endpoint.Status.TunnelIFaceIndex = iFaceIndex
-			endpoint.Status.LocalTunnelPrivateIP = localTunnelPrivateIP
-			endpoint.Status.LocalTunnelPublicIP = localTunnelPublicIP
-			endpoint.Status.RemoteTunnelPrivateIP = endpoint.Spec.TunnelPrivateIP
-			endpoint.Status.RemoteTunnelPublicIP = endpoint.Spec.TunnelPublicIP
-			err = r.Client.Status().Update(ctx, &endpoint)
-			if err != nil {
-				log.Error(err, "unable to update status field: tunnelIfaceIndex")
-				return ctrl.Result{}, err
-			}
+	} else if endpoint.Status.Phase == "Ready" {
+		//set the label that the resource have been processed by tunnel-operator
+		endpoint.ObjectMeta.SetLabels(dronetOperator.SetLabelHandler(dronetOperator.TunOpLabelKey, "ready", endpoint.ObjectMeta.GetLabels()))
+		err := r.Client.Update(ctx, &endpoint)
+		if err != nil {
+			return ctrl.Result{}, err
 		}
 
 	} else {
