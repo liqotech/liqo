@@ -62,19 +62,15 @@ func (r *AdvertisementReconciler) Reconcile(req ctrl.Request) (ctrl.Result, erro
 		return ctrl.Result{}, client.IgnoreNotFound(err)
 	}
 
-	// The metadata.generation value is incremented for all changes, except for changes to .metadata or .status
-	// if metadata.generation is not incremented there's no need to reconcile
-	if adv.Status.ObservedGeneration == adv.ObjectMeta.Generation {
-		return ctrl.Result{}, nil
-	}
-
-	// get nodes of the local cluster
-	nodes, err := GetNodes(r.Client, ctx, log)
-	if err != nil {
-		return ctrl.Result{}, err
-	}
 	// filter advertisements and create a virtual-kubelet only for the good ones
-	checkAdvertisement(r, ctx, log, &adv, nodes)
+	if adv.Status.AdvertisementStatus == "" {
+		// get nodes of the local cluster
+		nodes, err := GetNodes(r.Client, ctx, log)
+		if err != nil {
+			return ctrl.Result{}, err
+		}
+		checkAdvertisement(r, ctx, log, &adv, nodes)
+	}
 
 	if adv.Status.AdvertisementStatus != "ACCEPTED" {
 		return ctrl.Result{}, errors.NewBadRequest("advertisement ignored")
