@@ -15,14 +15,12 @@ type ForeignClusterInterface interface {
 
 type foreignClusterClient struct {
 	restClient rest.Interface
-	ns         string
 }
 
 func (c *foreignClusterClient) List(opts metav1.ListOptions) (*v1.ForeignClusterList, error) {
 	result := v1.ForeignClusterList{}
 	err := c.restClient.
 		Get().
-		Namespace(c.ns).
 		Resource("foreignclusters").
 		VersionedParams(&opts, scheme.ParameterCodec).
 		Do().
@@ -34,7 +32,6 @@ func (c *foreignClusterClient) Get(name string, opts metav1.GetOptions) (*v1.For
 	result := v1.ForeignCluster{}
 	err := c.restClient.
 		Get().
-		Namespace(c.ns).
 		Resource("foreignclusters").
 		Name(name).
 		VersionedParams(&opts, scheme.ParameterCodec).
@@ -47,7 +44,6 @@ func (c *foreignClusterClient) Create(project *v1.ForeignCluster) (*v1.ForeignCl
 	result := v1.ForeignCluster{}
 	err := c.restClient.
 		Post().
-		Namespace(c.ns).
 		Resource("foreignclusters").
 		Body(project).
 		Do().

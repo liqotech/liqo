@@ -3,7 +3,6 @@ package discovery
 import (
 	"context"
 	"github.com/grandcat/zeroconf"
-	"log"
 	"math"
 	"net"
 	"os"
@@ -19,7 +18,8 @@ func StartResolver(service string, domain string, waitTime int, updateTime int) 
 func Resolve(service string, domain string, waitTime int) {
 	resolver, err := zeroconf.NewResolver(zeroconf.SelectIPTraffic(zeroconf.IPv4))
 	if err != nil {
-		log.Fatalln(err.Error())
+		Log.Error(err, err.Error())
+		os.Exit(1)
 	}
 
 	entries := make(chan *zeroconf.ServiceEntry)
@@ -46,17 +46,18 @@ func Resolve(service string, domain string, waitTime int) {
 
 	err = resolver.Browse(ctx, service, domain, entries)
 	if err != nil {
-		log.Fatalln(err.Error())
+		Log.Error(err, err.Error())
+		os.Exit(1)
 	}
 
 	<-ctx.Done()
 }
 
-func GetIPs() map[string]bool {
+func getIPs() map[string]bool {
 	myIps := map[string]bool{}
 	ifaces, err := net.Interfaces()
 	if err != nil {
-		log.Println(err.Error())
+		Log.Error(err, err.Error())
 		os.Exit(1)
 	}
 	for _, i := range ifaces {
@@ -81,9 +82,9 @@ func GetIPs() map[string]bool {
 }
 
 func isForeign(foreignIps []net.IP) bool {
-	myIps := GetIPs()
+	myIps := getIPs()
 	for _, fIp := range foreignIps {
-		log.Println(fIp)
+		Log.Info("Received packet from " + fIp.String())
 		if myIps[fIp.String()] {
 			return false
 		}

@@ -6,28 +6,32 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/serializer"
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
-	"log"
 	"os"
+	ctrl "sigs.k8s.io/controller-runtime"
 )
 
-type V1Interface interface {
-	ForeignClusters(namespace string) ForeignClusterInterface
-	FederationRequests(namespace string) FederationRequestInterface
+var (
+	Log = ctrl.Log.WithName("discoveryV1Client")
+)
+
+type DiscoveryV1Interface interface {
+	ForeignClusters() ForeignClusterInterface
+	FederationRequests() FederationRequestInterface
 }
 
-type V1Client struct {
+type DiscoveryV1Client struct {
 	restClient rest.Interface
 }
 
 func init() {
 	err := v1.AddToScheme(scheme.Scheme)
 	if err != nil {
-		log.Println(err.Error())
+		Log.Error(err, err.Error())
 		os.Exit(1)
 	}
 }
 
-func NewForConfig(c *rest.Config) (*V1Client, error) {
+func NewForConfig(c *rest.Config) (*DiscoveryV1Client, error) {
 	config := *c
 	config.ContentConfig.GroupVersion = &schema.GroupVersion{Group: v1.GroupVersion.Group, Version: v1.GroupVersion.Version}
 	config.APIPath = "/apis"
@@ -39,19 +43,17 @@ func NewForConfig(c *rest.Config) (*V1Client, error) {
 		return nil, err
 	}
 
-	return &V1Client{restClient: client}, nil
+	return &DiscoveryV1Client{restClient: client}, nil
 }
 
-func (c *V1Client) ForeignClusters(namespace string) ForeignClusterInterface {
+func (c *DiscoveryV1Client) ForeignClusters() ForeignClusterInterface {
 	return &foreignClusterClient{
 		restClient: c.restClient,
-		ns:         namespace,
 	}
 }
 
-func (c *V1Client) FederationRequests(namespace string) FederationRequestInterface {
+func (c *DiscoveryV1Client) FederationRequests() FederationRequestInterface {
 	return &federationRequestClient{
 		restClient: c.restClient,
-		ns:         namespace,
 	}
 }

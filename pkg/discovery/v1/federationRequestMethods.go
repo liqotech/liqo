@@ -15,14 +15,12 @@ type FederationRequestInterface interface {
 
 type federationRequestClient struct {
 	restClient rest.Interface
-	ns         string
 }
 
 func (c *federationRequestClient) List(opts metav1.ListOptions) (*v1.FederationRequestList, error) {
 	result := v1.FederationRequestList{}
 	err := c.restClient.
 		Get().
-		Namespace(c.ns).
 		Resource("federationrequests").
 		VersionedParams(&opts, scheme.ParameterCodec).
 		Do().
@@ -34,7 +32,6 @@ func (c *federationRequestClient) Get(name string, opts metav1.GetOptions) (*v1.
 	result := v1.FederationRequest{}
 	err := c.restClient.
 		Get().
-		Namespace(c.ns).
 		Resource("federationrequests").
 		Name(name).
 		VersionedParams(&opts, scheme.ParameterCodec).
@@ -47,7 +44,6 @@ func (c *federationRequestClient) Create(project *v1.FederationRequest) (*v1.Fed
 	result := v1.FederationRequest{}
 	err := c.restClient.
 		Post().
-		Namespace(c.ns).
 		Resource("federationrequests").
 		Body(project).
 		Do().

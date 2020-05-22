@@ -38,6 +38,7 @@ type FederationRequestStatus struct {
 }
 
 // +kubebuilder:object:root=true
+// +kubebuilder:resource:scope=Cluster
 
 // FederationRequest is the Schema for the FederationRequests API
 type FederationRequest struct {

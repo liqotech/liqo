@@ -2,7 +2,6 @@ package discovery
 
 import (
 	"github.com/grandcat/zeroconf"
-	"log"
 	"math/rand"
 	"net"
 	"os"
@@ -17,7 +16,7 @@ func Register(name string, service string, domain string, port int, txt []string
 	// random string needed because equal names are discarded
 	server, err = zeroconf.Register(name+"_"+RandomString(8), service, domain, port, txt, GetInterfaces())
 	if err != nil {
-		log.Println(err.Error())
+		Log.Error(err, err.Error())
 		os.Exit(1)
 	}
 	defer server.Shutdown()
@@ -30,8 +29,7 @@ func SetText(txt []string) {
 }
 
 func RandomString(nChars uint) string {
-	const charset = "abcdefghijklmnopqrstuvwxyz" +
-		"ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
+	const charset = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
 	seededRand := rand.New(rand.NewSource(time.Now().UnixNano()))
 	b := make([]byte, nChars)
 	for i := range b {

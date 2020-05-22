@@ -40,6 +40,7 @@ type ForeignClusterStatus struct {
 }
 
 // +kubebuilder:object:root=true
+// +kubebuilder:resource:scope=Cluster
 
 // ForeignCluster is the Schema for the foreignclusters API
 type ForeignCluster struct {

@@ -3,10 +3,10 @@ package discovery
 import (
 	b64 "encoding/base64"
 	"encoding/json"
-	apiv1 "k8s.io/api/core/v1"
+	"github.com/netgroup-polito/dronev2/internal/discovery/clients"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"log"
 	"os"
+	"path"
 	"strconv"
 )
 
@@ -36,20 +36,24 @@ func Decode(data string) (map[string]interface{}, error) {
 }
 
 func GetTxtData() TxtData {
-	localClient, _ := NewK8sClient()
+	localClient, _ := clients.NewK8sClient()
 
-	service, err := localClient.CoreV1().Services(apiv1.NamespaceDefault).Get("credentials-provider", v1.GetOptions{})
+	service, err := localClient.CoreV1().Services(Namespace).Get("credentials-provider", v1.GetOptions{})
 	if err != nil {
-		log.Println(err, "Unable to create client to local cluster")
+		Log.Error(err, err.Error())
 		os.Exit(1)
 	}
 
-	nl, _ := localClient.CoreV1().Nodes().List(v1.ListOptions{})
+	nl, err := localClient.CoreV1().Nodes().List(v1.ListOptions{})
+	if err != nil {
+		Log.Error(err, err.Error())
+		os.Exit(1)
+	}
 	node := nl.Items[0].Status.Addresses[0].Address
 
 	port := service.Spec.Ports[0].NodePort
 	// TODO: add support for https
-	url := "http://" + node + ":" + strconv.Itoa(int(port)) + "/config.yaml"
+	url := "http://" + path.Join(node+":"+strconv.Itoa(int(port)), "config.yaml")
 
 	return TxtData{
 		Url: url,

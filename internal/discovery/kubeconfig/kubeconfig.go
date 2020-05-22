@@ -2,24 +2,20 @@ package kubeconfig
 
 import (
 	b64 "encoding/base64"
+	"github.com/netgroup-polito/dronev2/internal/discovery/clients"
 	"gopkg.in/yaml.v2"
-	apiv1 "k8s.io/api/core/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/rest"
-	"k8s.io/client-go/tools/clientcmd"
-	"os"
-	"path/filepath"
 )
 
-func CreateKubeConfig(serviceAccountName string) (string, error) {
-	clientset, _ := NewK8sClient()
-	serviceAccount, err := clientset.CoreV1().ServiceAccounts(apiv1.NamespaceDefault).Get(serviceAccountName, v1.GetOptions{})
+// this function creates a kube-config file for a specified ServiceAccount
+func CreateKubeConfig(serviceAccountName string, namespace string) (string, error) {
+	clientset, _ := clients.NewK8sClient()
+	serviceAccount, err := clientset.CoreV1().ServiceAccounts(namespace).Get(serviceAccountName, v1.GetOptions{})
 	if err != nil {
 		return "", err
 	}
 
-	secret, err := clientset.CoreV1().Secrets(apiv1.NamespaceDefault).Get(serviceAccount.Secrets[0].Name, v1.GetOptions{})
+	secret, err := clientset.CoreV1().Secrets(namespace).Get(serviceAccount.Secrets[0].Name, v1.GetOptions{})
 	if err != nil {
 		return "", err
 	}
@@ -68,20 +64,4 @@ func CreateKubeConfig(serviceAccountName string) (string, error) {
 	}
 	bytes, _ := yaml.Marshal(tmp)
 	return string(bytes), nil
-}
-
-func NewConfig() (*rest.Config, error) {
-	config, err := rest.InClusterConfig()
-	if err != nil {
-		return clientcmd.BuildConfigFromFlags("", filepath.Join(os.Getenv("HOME"), ".kube", "config"))
-	}
-	return config, err
-}
-
-func NewK8sClient() (*kubernetes.Clientset, error) {
-	config, err := NewConfig()
-	if err != nil {
-		return nil, err
-	}
-	return kubernetes.NewForConfig(config)
 }

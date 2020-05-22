@@ -12,7 +12,7 @@ spec:
       - fc
       - foreign
       - foreign-cluster
-  scope: Namespaced
+  scope: Cluster
   versions:
     - name: v1
       served: true

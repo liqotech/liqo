@@ -1,8 +1,9 @@
 package discovery
 
 import (
+	"errors"
+	"github.com/netgroup-polito/dronev2/internal/discovery/clients"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"log"
 	"os"
 	"strconv"
 )
@@ -27,28 +28,32 @@ type Config struct {
 func GetDiscoveryConfig() *Config {
 	dc := &Config{}
 
-	client, err := NewK8sClient()
+	client, err := clients.NewK8sClient()
 	if err != nil {
-		log.Println(err.Error())
+		Log.Error(err, err.Error())
 		os.Exit(1)
 	}
 
-	configMap, err := client.CoreV1().ConfigMaps("default").Get("discovery-config", metav1.GetOptions{})
+	configMap, err := client.CoreV1().ConfigMaps(Namespace).Get("discovery-config", metav1.GetOptions{})
 	if err != nil {
-		log.Println(err.Error())
+		Log.Error(err, err.Error())
 		os.Exit(1)
 	}
 
 	config := configMap.Data
 
-	// TODO: check if config has required fields
+	err = checkConfig(config)
+	if err != nil {
+		Log.Error(err, err.Error())
+		os.Exit(1)
+	}
 
 	dc.Name = config["name"]
 	dc.Service = config["service"]
 	dc.Domain = config["domain"]
 	dc.Port, err = strconv.Atoi(config["port"])
 	if err != nil {
-		log.Println(err, "Unable to get configMap")
+		Log.Error(err, err.Error())
 		os.Exit(1)
 	}
 
@@ -63,14 +68,24 @@ func GetDiscoveryConfig() *Config {
 
 	dc.WaitTime, err = strconv.Atoi(config["waitTime"]) // wait response time
 	if err != nil {
-		log.Println(err.Error())
+		Log.Error(err, err.Error())
 		os.Exit(1)
 	}
 	dc.UpdateTime, err = strconv.Atoi(config["updateTime"]) // time between update queries
 	if err != nil {
-		log.Println(err.Error())
+		Log.Error(err, err.Error())
 		os.Exit(1)
 	}
 
 	return dc
+}
+
+func checkConfig(config map[string]string) error {
+	reqFields := []string{"name", "service", "domain", "port", "enableDiscovery", "enableAdvertisement", "autoFederation", "waitTime", "updateTime"}
+	for _, f := range reqFields {
+		if config[f] == "" {
+			return errors.New("Missing required field " + f)
+		}
+	}
+	return nil
 }
