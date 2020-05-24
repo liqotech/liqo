@@ -18,9 +18,9 @@ var (
 	discoveryConfig *Config
 )
 
-func UpdateForeign(data []map[string]interface{}) {
+func UpdateForeign(data []*TxtData) {
 	for _, txtData := range data {
-		resp, err := http.Get(txtData["url"].(string))
+		resp, err := http.Get(txtData.Url)
 		if err != nil {
 			Log.Error(err, err.Error())
 			continue

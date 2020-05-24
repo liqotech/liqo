@@ -54,13 +54,7 @@ func GetInterfaces() []net.Interface {
 		sel := false
 		for _, addr := range addrs {
 			if !strings.Contains(addr.String(), "10.") {
-				var ip net.IP
-				switch v := addr.(type) {
-				case *net.IPNet:
-					ip = v.IP
-				case *net.IPAddr:
-					ip = v.IP
-				}
+				ip := getIP(addr)
 				if ip != nil && ip.To4() != nil {
 					sel = true
 				}

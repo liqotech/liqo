@@ -22,17 +22,17 @@ func (txtData TxtData) Encode() (string, error) {
 	return b64.StdEncoding.EncodeToString(bytes), nil
 }
 
-func Decode(data string) (map[string]interface{}, error) {
+func Decode(data string) (*TxtData, error) {
 	bytes, err := b64.StdEncoding.DecodeString(data)
 	if err != nil {
 		return nil, err
 	}
-	var res = map[string]interface{}{}
+	var res = TxtData{}
 	err = json.Unmarshal(bytes, &res)
 	if err != nil {
 		return nil, err
 	}
-	return res, nil
+	return &res, nil
 }
 
 func GetTxtData() TxtData {

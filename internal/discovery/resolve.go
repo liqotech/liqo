@@ -24,7 +24,7 @@ func Resolve(service string, domain string, waitTime int) {
 
 	entries := make(chan *zeroconf.ServiceEntry)
 	go func(results <-chan *zeroconf.ServiceEntry) {
-		var res []map[string]interface{}
+		var res []*TxtData
 		for entry := range results {
 			if isForeign(entry.AddrIPv4) {
 				if txtData, err := Decode(entry.Text[0]); err == nil {
@@ -66,13 +66,7 @@ func getIPs() map[string]bool {
 			continue
 		}
 		for _, addr := range addrs {
-			var ip net.IP
-			switch v := addr.(type) {
-			case *net.IPNet:
-				ip = v.IP
-			case *net.IPAddr:
-				ip = v.IP
-			}
+			ip := getIP(addr)
 			if ip != nil {
 				myIps[ip.String()] = true
 			}
@@ -90,4 +84,15 @@ func isForeign(foreignIps []net.IP) bool {
 		}
 	}
 	return true
+}
+
+func getIP(addr net.Addr) net.IP {
+	var ip net.IP
+	switch v := addr.(type) {
+	case *net.IPNet:
+		ip = v.IP
+	case *net.IPAddr:
+		ip = v.IP
+	}
+	return ip
 }
