@@ -297,7 +297,7 @@ func (p *KubernetesProvider) GetStatsSummary(ctx context.Context) (*stats.Summar
 	}
 
 	// Populate the Summary object with dummy stats for each pod known by this provider.
-	// TODO: modity the namespace we list the pods from
+	// TODO: implement a mechanism similar to the reflectionController that allows watching only "our" remote ns
 	pods, err := p.foreignClient.CoreV1().Pods("").List(metav1.ListOptions{})
 	if err != nil {
 		if kerror.IsNotFound(err) {

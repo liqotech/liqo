@@ -36,9 +36,10 @@ const (
 	DefaultKubeNamespace        = corev1.NamespaceAll
 	DefaultKubeClusterDomain    = "cluster.local"
 
-	DefaultTaintEffect = string(corev1.TaintEffectNoSchedule)
-	DefaultTaintKey    = "virtual-kubelet.io/provider"
+	DefaultTaintEffect      = string(corev1.TaintEffectNoSchedule)
+	DefaultTaintKey         = "virtual-kubelet.io/provider"
 	DefaultKubeletNamespace = "default"
+	DefaultHomeClusterId    = "cluster1"
 )
 
 // Opts stores all the options for configuring the root virtual-kubelet command.
@@ -157,6 +158,10 @@ func SetDefaultOpts(c *Opts) error {
 				c.KubeConfigPath = filepath.Join(home, ".kube", "config")
 			}
 		}
+	}
+	// This is a workaround, when the cluster-id mechanism will be implemented, this parameter will be fetched accordingly
+	if c.HomeClusterId == "" {
+		c.HomeClusterId = DefaultHomeClusterId
 	}
 
 	return nil

@@ -175,7 +175,7 @@ func (p* KubernetesProvider) controlLoop() {
 					// we launch a goroutine that waits one second, then pushes the event again
 					// in the channel
 					go func(e watch.Event, ch chan watch.Event) {
-						time.Sleep(1000 * time.Millisecond)
+						time.Sleep(time.Second)
 						ch <- e
 					}(e, p.epEvent)
 				} else {

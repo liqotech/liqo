@@ -130,8 +130,6 @@ func (r *VirtualNodeReconciler) initVirtualKubelet(adv advv1.Advertisement) erro
 		r.provider.RemappedPodCidr = adv.Spec.Network.PodCIDR
 	}
 
-	r.provider.RemappedPodCidr = "10.200.0.0/16"
-
 	w, err := r.provider.foreignClient.CoreV1().Pods("").Watch(metav1.ListOptions{})
 	if err != nil {
 		_ = errors.Wrap(err, err.Error())
