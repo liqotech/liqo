@@ -13,9 +13,28 @@ jobs:
           fetch-depth: 0
           token: ${{ secrets.CI_TOKEN }}
       - name: Automatic Rebase
-        uses: cirrus-actions/rebase@1.2
+        uses: cirrus-actions/rebase@1.3
         env:
           GITHUB_TOKEN: ${{ secrets.CI_TOKEN }}
+
+      - name: Create comment (Success)
+        uses: peter-evans/create-or-update-comment@v1
+        with:
+          issue-number: ${{ github.event.issue.id }}
+          body: |
+            Rebase successful!
+          reactions: '+1'
+        if:  job.status == 'success'
+
+      - name: Create comment (Failure)
+        uses: peter-evans/create-or-update-comment@v1
+        with:
+          issue-number: ${{ github.event.issue.id }}
+          body: |
+            Rebase failed!
+          reactions: '-1'
+        if:  job.status != 'success' and always()
+
   always_job:
     name: Always run job
     runs-on: ubuntu-latest
