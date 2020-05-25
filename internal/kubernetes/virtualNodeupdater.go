@@ -185,7 +185,7 @@ func (r *VirtualNodeReconciler) updateFromAdv(ctx context.Context, adv advv1.Adv
 	if no.Status.Allocatable == nil {
 		no.Status.Allocatable = v1.ResourceList{}
 	}
-	for k, v := range adv.Spec.Availability {
+	for k, v := range adv.Spec.ResourceQuota.Hard {
 		no.Status.Capacity[k] = v
 		no.Status.Allocatable[k] = v
 	}

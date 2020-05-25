@@ -4,7 +4,7 @@ apiVersion: apiextensions.k8s.io/v1beta1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: v0.2.4
+    controller-gen.kubebuilder.io/version: v0.2.5
   creationTimestamp: null
   name: advertisements.protocol.drone.com
 spec:
@@ -13,10 +13,8 @@ spec:
     kind: Advertisement
     listKind: AdvertisementList
     plural: advertisements
-    shortNames:
-    - adv
     singular: advertisement
-  scope: Namespaced
+  scope: Cluster
   subresources:
     status: {}
   validation:
@@ -38,11 +36,6 @@ spec:
         spec:
           description: AdvertisementSpec defines the desired state of Advertisement
           properties:
-            availability:
-              additionalProperties:
-                type: string
-              description: ResourceList is a set of (resource name, quantity) pairs.
-              type: object
             clusterId:
               type: string
             images:
@@ -60,12 +53,97 @@ spec:
                     format: int64
                     type: integer
                 required:
-                - names
+                  - names
                 type: object
               type: array
+            limitRange:
+              description: LimitRangeSpec defines a min/max usage limit for resources
+                that match on kind.
+              properties:
+                limits:
+                  description: Limits is the list of LimitRangeItem objects that are
+                    enforced.
+                  items:
+                    description: LimitRangeItem defines a min/max usage limit for
+                      any resource that matches on kind.
+                    properties:
+                      default:
+                        additionalProperties:
+                          anyOf:
+                            - type: integer
+                            - type: string
+                          pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                          x-kubernetes-int-or-string: true
+                        description: Default resource requirement limit value by resource
+                          name if resource limit is omitted.
+                        type: object
+                      defaultRequest:
+                        additionalProperties:
+                          anyOf:
+                            - type: integer
+                            - type: string
+                          pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                          x-kubernetes-int-or-string: true
+                        description: DefaultRequest is the default resource requirement
+                          request value by resource name if resource request is omitted.
+                        type: object
+                      max:
+                        additionalProperties:
+                          anyOf:
+                            - type: integer
+                            - type: string
+                          pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                          x-kubernetes-int-or-string: true
+                        description: Max usage constraints on this kind by resource
+                          name.
+                        type: object
+                      maxLimitRequestRatio:
+                        additionalProperties:
+                          anyOf:
+                            - type: integer
+                            - type: string
+                          pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                          x-kubernetes-int-or-string: true
+                        description: MaxLimitRequestRatio if specified, the named
+                          resource must have a request and limit that are both non-zero
+                          where limit divided by request is less than or equal to
+                          the enumerated value; this represents the max burst for
+                          the named resource.
+                        type: object
+                      min:
+                        additionalProperties:
+                          anyOf:
+                            - type: integer
+                            - type: string
+                          pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                          x-kubernetes-int-or-string: true
+                        description: Min usage constraints on this kind by resource
+                          name.
+                        type: object
+                      type:
+                        description: Type of resource that this limit applies to.
+                        type: string
+                    type: object
+                  type: array
+              required:
+                - limits
+              type: object
+            neighbors:
+              additionalProperties:
+                additionalProperties:
+                  anyOf:
+                    - type: integer
+                    - type: string
+                  pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                  x-kubernetes-int-or-string: true
+                description: ResourceList is a set of (resource name, quantity) pairs.
+                type: object
+              type: object
             network:
               properties:
                 gatewayIP:
+                  type: string
+                gatewayPrivateIP:
                   type: string
                 podCIDR:
                   type: string
@@ -74,13 +152,83 @@ spec:
                     type: string
                   type: array
               required:
-              - gatewayIP
-              - podCIDR
+                - gatewayIP
+                - gatewayPrivateIP
+                - podCIDR
               type: object
             prices:
               additionalProperties:
-                type: string
+                anyOf:
+                  - type: integer
+                  - type: string
+                pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                x-kubernetes-int-or-string: true
               description: ResourceList is a set of (resource name, quantity) pairs.
+              type: object
+            properties:
+              additionalProperties:
+                type: string
+              type: object
+            resourceQuota:
+              description: ResourceQuotaSpec defines the desired hard limits to enforce
+                for Quota.
+              properties:
+                hard:
+                  additionalProperties:
+                    anyOf:
+                      - type: integer
+                      - type: string
+                    pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                    x-kubernetes-int-or-string: true
+                  description: 'hard is the set of desired hard limits for each named
+                    resource. More info: https://kubernetes.io/docs/concepts/policy/resource-quotas/'
+                  type: object
+                scopeSelector:
+                  description: scopeSelector is also a collection of filters like
+                    scopes that must match each object tracked by a quota but expressed
+                    using ScopeSelectorOperator in combination with possible values.
+                    For a resource to match, both scopes AND scopeSelector (if specified
+                    in spec), must be matched.
+                  properties:
+                    matchExpressions:
+                      description: A list of scope selector requirements by scope
+                        of the resources.
+                      items:
+                        description: A scoped-resource selector requirement is a selector
+                          that contains values, a scope name, and an operator that
+                          relates the scope name and values.
+                        properties:
+                          operator:
+                            description: Represents a scope's relationship to a set
+                              of values. Valid operators are In, NotIn, Exists, DoesNotExist.
+                            type: string
+                          scopeName:
+                            description: The name of the scope that the selector applies
+                              to.
+                            type: string
+                          values:
+                            description: An array of string values. If the operator
+                              is In or NotIn, the values array must be non-empty.
+                              If the operator is Exists or DoesNotExist, the values
+                              array must be empty. This array is replaced during a
+                              strategic merge patch.
+                            items:
+                              type: string
+                            type: array
+                        required:
+                          - operator
+                          - scopeName
+                        type: object
+                      type: array
+                  type: object
+                scopes:
+                  description: A collection of filters that must match each object
+                    tracked by a quota. If not specified, the quota matches all objects.
+                  items:
+                    description: A ResourceQuotaScope defines a filter that must match
+                      each object tracked by a quota
+                    type: string
+                  type: array
               type: object
             timeToLive:
               format: date-time
@@ -89,12 +237,10 @@ spec:
               format: date-time
               type: string
           required:
-          - availability
-          - clusterId
-          - network
-          - prices
-          - timeToLive
-          - timestamp
+            - clusterId
+            - network
+            - timeToLive
+            - timestamp
           type: object
         status:
           description: AdvertisementStatus defines the observed state of Advertisement
@@ -105,6 +251,8 @@ spec:
               properties:
                 gatewayIP:
                   type: string
+                gatewayPrivateIP:
+                  type: string
                 podCIDR:
                   type: string
                 supportedProtocols:
@@ -112,22 +260,42 @@ spec:
                     type: string
                   type: array
               required:
-              - gatewayIP
-              - podCIDR
+                - gatewayIP
+                - gatewayPrivateIP
+                - podCIDR
               type: object
+            localRemappedPodCIDR:
+              type: string
             observedGeneration:
               format: int64
               type: integer
+            remoteRemappedPodCIDR:
+              type: string
+            tunnelEndpointKey:
+              description: the tunnelEndpoint associated with the foreign cluster
+              properties:
+                name:
+                  type: string
+                namespace:
+                  type: string
+              required:
+                - name
+                - namespace
+              type: object
+            vkCreated:
+              type: boolean
           required:
-          - advertisementStatus
-          - foreignNetwork
+            - advertisementStatus
+            - foreignNetwork
+            - tunnelEndpointKey
+            - vkCreated
           type: object
       type: object
   version: v1
   versions:
-  - name: v1
-    served: true
-    storage: true
+    - name: v1
+      served: true
+      storage: true
 status:
   acceptedNames:
     kind: ""

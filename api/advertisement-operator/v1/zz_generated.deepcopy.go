@@ -94,13 +94,6 @@ func (in *AdvertisementSpec) DeepCopyInto(out *AdvertisementSpec) {
 			(*in)[i].DeepCopyInto(&(*out)[i])
 		}
 	}
-	if in.Availability != nil {
-		in, out := &in.Availability, &out.Availability
-		*out = make(corev1.ResourceList, len(*in))
-		for key, val := range *in {
-			(*out)[key] = val.DeepCopy()
-		}
-	}
 	in.LimitRange.DeepCopyInto(&out.LimitRange)
 	in.ResourceQuota.DeepCopyInto(&out.ResourceQuota)
 	if in.Neighbors != nil {

@@ -138,7 +138,6 @@ func GenerateAdvertisement(wg *sync.WaitGroup, localClient *kubernetes.Clientset
 		// compute announced resources
 		availability, images := ComputeAnnouncedResources(physicalNodes, reqs)
 
-
 		adv := CreateAdvertisement(clusterId, gatewayIP, gatewayPrivateIP, physicalNodes, virtualNodes, availability, images, limits)
 		err = pkg.CreateOrUpdate(remoteClient, context.Background(), log, *adv)
 		if err != nil {
@@ -176,9 +175,8 @@ func CreateAdvertisement(clusterId string, gatewayIP string, gatewayPrivateIp st
 			Namespace: "default",
 		},
 		Spec: protocolv1.AdvertisementSpec{
-			ClusterId:    clusterId,
-			Availability: availability,
-			Images:       images,
+			ClusterId: clusterId,
+			Images:    images,
 			LimitRange: corev1.LimitRangeSpec{
 				Limits: []corev1.LimitRangeItem{
 					{
@@ -318,13 +316,16 @@ func ComputeAnnouncedResources(physicalNodes *corev1.NodeList, reqs corev1.Resou
 	cpu.Sub(reqs.Cpu().DeepCopy())
 	mem := allocatable.Memory().DeepCopy()
 	mem.Sub(reqs.Memory().DeepCopy())
+	pods := allocatable.Pods().DeepCopy()
 
 	// TODO: policy to decide how many resources to announce
 	cpu.Set(cpu.Value() / 2)
 	mem.Set(mem.Value() / 2)
+	pods.Set(pods.Value() / 2)
 	availability = corev1.ResourceList{
 		corev1.ResourceCPU:    cpu,
 		corev1.ResourceMemory: mem,
+		corev1.ResourcePods:   pods,
 	}
 
 	return availability, images
