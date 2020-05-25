@@ -13,17 +13,25 @@ import (
 func WatchResources(clientSet clientv1alpha1.NamespacedCRDClientInterface,
 	resource, namespace string,
 	resyncPeriod time.Duration,
-	handlers cache.ResourceEventHandlerFuncs) (cache.Store, chan struct{}) {
+	handlers cache.ResourceEventHandlerFuncs,
+	lo metav1.ListOptions) (cache.Store, chan struct{}) {
+
+	listFunc := func(ls metav1.ListOptions) (result runtime.Object, err error) {
+		ls = lo
+		return clientSet.Resource(resource).Namespace(namespace).List(ls)
+	}
+
+	watchFunc := func(ls metav1.ListOptions) (watch.Interface, error) {
+		ls = lo
+		return clientSet.Resource(resource).Namespace(namespace).Watch(ls)
+	}
+
 	store, controller := cache.NewInformer(
 		&cache.ListWatch{
-			ListFunc: func(lo metav1.ListOptions) (result runtime.Object, err error) {
-				return clientSet.NamespacedCRDClient(namespace).List(resource, lo)
-			},
-			WatchFunc: func(lo metav1.ListOptions) (watch.Interface, error) {
-				return clientSet.NamespacedCRDClient(namespace).Watch(resource, lo)
-			},
+			ListFunc: listFunc,
+			WatchFunc: watchFunc,
 		},
-		reflect.New(clientv1alpha1.Registry[resource]).Interface().(runtime.Object),
+		reflect.New(clientv1alpha1.Registry[resource].SingularType).Interface().(runtime.Object),
 		resyncPeriod,
 		handlers,
 	)

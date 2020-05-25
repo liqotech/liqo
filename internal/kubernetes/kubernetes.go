@@ -3,14 +3,13 @@ package kubernetes
 import (
 	"github.com/go-logr/logr"
 	protocolv1 "github.com/netgroup-polito/dronev2/api/advertisement-operator/v1"
+	nattingv1 "github.com/netgroup-polito/dronev2/api/namespaceNattingTable/v1"
 	"github.com/netgroup-polito/dronev2/internal/node"
-	"github.com/pkg/errors"
+	"github.com/netgroup-polito/dronev2/pkg/crdClient/v1alpha1"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/client-go/kubernetes"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
-	"k8s.io/client-go/tools/clientcmd"
-	"os"
 	manager2 "sigs.k8s.io/controller-runtime/pkg/manager"
 	"time"
 
@@ -28,9 +27,10 @@ const (
 type KubernetesProvider struct { // nolint:golint]
 	*Reflector
 
-	manager            manager2.Manager
-	foreignClient      *kubernetes.Clientset
-	homeClient         *kubernetes.Clientset
+	ntCache       *namespaceNTCache
+	manager       manager2.Manager
+	foreignClient *v1alpha1.CRDClient
+	homeClient    *v1alpha1.CRDClient
 
 	nodeName           string
 	operatingSystem    string
@@ -46,9 +46,6 @@ type KubernetesProvider struct { // nolint:golint]
 	restConfig         *rest.Config
 	RemappedPodCidr    string
 
-	namespaceNatting map[string]string
-	namespaceDeNatting map[string]string
-
 	foreignPodWatcherStop chan bool
 
 	log logr.Logger
@@ -56,18 +53,65 @@ type KubernetesProvider struct { // nolint:golint]
 
 // NewKubernetesProviderKubernetesConfig creates a new KubernetesV0Provider. Kubernetes legacy provider does not implement the new asynchronous podnotifier interface
 func NewKubernetesProvider(nodeName, clusterId, homeClusterId, operatingSystem string, internalIP string, daemonEndpointPort int32, kubeconfig, remoteKubeConfig string) (*KubernetesProvider, error) {
+	var err error
 
-	scheme := runtime.NewScheme()
-	_ = protocolv1.AddToScheme(scheme)
-	_ = clientgoscheme.AddToScheme(scheme)
+	if err = nattingv1.AddToScheme(clientgoscheme.Scheme); err != nil {
+		return nil, err
+	}
 
-	kc, err := newKubeconfig(kubeconfig)
+	mgr, err := newControllerManager(kubeconfig)
+	if err != nil {
+		return nil, err
+	}
+
+	client, err := nattingv1.CreateClient(kubeconfig)
+	if err != nil {
+		return nil, err
+	}
+
+	restConfig, err := v1alpha1.NewKubeconfig(remoteKubeConfig, &schema.GroupVersion{})
+	if err != nil {
+		return nil, err
+	}
+
+	foreignClient, err := v1alpha1.NewFromConfig(restConfig)
+	if err != nil {
+		return nil, err
+	}
+
+	provider := KubernetesProvider{
+		Reflector:          &Reflector{},
+		ntCache:            &namespaceNTCache{nattingTableName: clusterId},
+		nodeName:           nodeName,
+		operatingSystem:    operatingSystem,
+		internalIP:         internalIP,
+		daemonEndpointPort: daemonEndpointPort,
+		startTime:          time.Now(),
+		manager:            mgr,
+		foreignClusterId:   clusterId,
+		homeClusterID:      homeClusterId,
+		providerKubeconfig: remoteKubeConfig,
+		homeClient:         client,
+		foreignPodWatcherStop: make(chan bool, 1),
+		restConfig: restConfig,
+		foreignClient: foreignClient,
+	}
+
+	return &provider, nil
+}
+
+func newControllerManager(configPath string) (manager2.Manager, error) {
+	sc := runtime.NewScheme()
+	_ = protocolv1.AddToScheme(sc)
+	_ = clientgoscheme.AddToScheme(sc)
+
+	kc, err := v1alpha1.NewKubeconfig(configPath, &protocolv1.GroupVersion)
 	if err != nil {
 		return nil, err
 	}
 
 	mgr, err := ctrl.NewManager(kc, ctrl.Options{
-		Scheme:             scheme,
+		Scheme:             sc,
 		MetricsBindAddress: defaultMetricsAddr,
 		LeaderElection:     false,
 		Port:               9443,
@@ -76,64 +120,17 @@ func NewKubernetesProvider(nodeName, clusterId, homeClusterId, operatingSystem s
 		return nil, err
 	}
 
-	c, _, err := newClient(kubeconfig)
-	if err != nil {
-		return nil, err
-	}
-
-	provider := KubernetesProvider{
-		Reflector:             &Reflector{},
-		nodeName:              nodeName,
-		operatingSystem:       operatingSystem,
-		internalIP:            internalIP,
-		daemonEndpointPort:    daemonEndpointPort,
-		startTime:             time.Now(),
-		manager:               mgr,
-		foreignClusterId:      clusterId,
-		homeClusterID:         homeClusterId,
-		providerKubeconfig:    remoteKubeConfig,
-		homeClient:            c,
-		namespaceNatting:      map[string]string{},
-		namespaceDeNatting:    map[string]string{},
-		foreignPodWatcherStop: make(chan bool, 1),
-	}
-
-	return &provider, nil
+	return mgr, nil
 }
 
-func newKubeconfig(configPath string) (*rest.Config, error) {
-	var config *rest.Config
+func (p *KubernetesProvider) ConfigureReflection() error {
+	p.startNattingCache(p.homeClient)
 
-	// Check if the kubeConfig file exists.
-	if _, err := os.Stat(configPath); !os.IsNotExist(err) {
-		// Get the kubeconfig from the filepath.
-		config, err = clientcmd.BuildConfigFromFlags("", configPath)
-		if err != nil {
-			return nil, errors.Wrap(err, "error building client config")
-		}
-	} else {
-		// Set to in-cluster config.
-		config, err = rest.InClusterConfig()
-		if err != nil {
-			return nil, errors.Wrap(err, "error building in cluster config")
-		}
+	if err := p.createNattingTable(p.foreignClusterId); err != nil {
+		return err
 	}
 
-	return config, nil
+	p.ntCache.WaitNamespaceNattingTableSync()
+
+	return nil
 }
-
-func newClient(configPath string) (*kubernetes.Clientset, *rest.Config , error) {
-	config, err := newKubeconfig(configPath)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	if masterURI := os.Getenv("MASTER_URI"); masterURI != "" {
-		config.Host = masterURI
-	}
-
-	client, err := kubernetes.NewForConfig(config)
-	return  client, config, err
-}
-
-

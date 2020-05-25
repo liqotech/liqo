@@ -5,13 +5,11 @@ import (
 	"github.com/go-logr/logr"
 	advv1 "github.com/netgroup-polito/dronev2/api/advertisement-operator/v1"
 	"github.com/netgroup-polito/dronev2/internal/node"
-	"github.com/pkg/errors"
 	v1 "k8s.io/api/core/v1"
 	kerror "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/klog"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -110,19 +108,7 @@ func (r *VirtualNodeReconciler) SetupWithManager(mgr ctrl.Manager) error {
 // * clientProvider initialization
 // * podWatcher launch
 func (r *VirtualNodeReconciler) initVirtualKubelet(adv advv1.Advertisement) error {
-
 	klog.Info("vk initializing")
-	r.provider.RemappedPodCidr = adv.Status.RemoteRemappedPodCIDR
-
-	c, restConfig, err := newClient(r.provider.providerKubeconfig)
-	r.provider.restConfig = restConfig
-
-	if err != nil {
-		return err
-	}
-	r.provider.foreignClient = c
-
-	r.provider.StartReflector()
 
 	if adv.Status.RemoteRemappedPodCIDR != "None" {
 		r.provider.RemappedPodCidr = adv.Status.RemoteRemappedPodCIDR
@@ -130,36 +116,9 @@ func (r *VirtualNodeReconciler) initVirtualKubelet(adv advv1.Advertisement) erro
 		r.provider.RemappedPodCidr = adv.Spec.Network.PodCIDR
 	}
 
-	w, err := r.provider.foreignClient.CoreV1().Pods("").Watch(metav1.ListOptions{})
-	if err != nil {
-		_ = errors.Wrap(err, err.Error())
-	}
-
-	go r.provider.watchForeignPods(w)
 	r.ready <- true
 
 	return nil
-}
-
-func (p* KubernetesProvider) watchForeignPods(w watch.Interface) {
-	for {
-		select {
-		case <- p.foreignPodWatcherStop:
-			w.Stop()
-			return
-		case e := <- w.ResultChan():
-			p2, ok := e.Object.(*v1.Pod)
-			if !ok {
-				klog.Error("unexpected type")
-			}
-			denattedNS := p.DeNatNamespace(p2.Namespace)
-			if denattedNS == "" {
-				break
-			}
-
-			p.notifier(F2HTranslate(p2, p.RemappedPodCidr, denattedNS))
-		}
-	}
 }
 
 // updateFromAdv gets and  advertisement and updates the node status accordingly

@@ -348,6 +348,10 @@ func (p *MockProvider) ConfigureNode(ctx context.Context, n *v1.Node) {
 	n.ObjectMeta.Labels["alpha.service-controller.kubernetes.io/exclude-balancer"] = "true"
 }
 
+func (p *MockProvider) ConfigureReflection() error {
+	panic("to be implemented")
+}
+
 // Capacity returns a resource list containing the capacity limits.
 func (p *MockProvider) capacity() v1.ResourceList {
 	return v1.ResourceList{

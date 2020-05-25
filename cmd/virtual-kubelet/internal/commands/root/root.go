@@ -232,6 +232,10 @@ func runRootCommand(ctx context.Context, s *provider.Store, c Opts) error {
 		}
 	}()
 
+	if err := p.ConfigureReflection(); err != nil {
+		return err
+	}
+
 	if c.StartupTimeout > 0 {
 		ctx, cancel := context.WithTimeout(ctx, c.StartupTimeout)
 		log.G(ctx).Info("Waiting for pod controller / VK to be ready")

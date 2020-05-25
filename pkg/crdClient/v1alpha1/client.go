@@ -11,7 +11,7 @@ import (
 )
 
 type NamespacedCRDClientInterface interface {
-	NamespacedCRDClient(namespace string) CrdClientInterface
+	Resource(resource string) CrdClientInterface
 }
 
 type CRDClient struct {
@@ -21,7 +21,7 @@ type CRDClient struct {
 	config *rest.Config
 }
 
-func NewKubeconfig(configPath string, gv schema.GroupVersion) (*rest.Config, error) {
+func NewKubeconfig(configPath string, gv *schema.GroupVersion) (*rest.Config, error) {
 	var config *rest.Config
 
 	// Check if the kubeConfig file exists.
@@ -39,7 +39,7 @@ func NewKubeconfig(configPath string, gv schema.GroupVersion) (*rest.Config, err
 		}
 	}
 
-	config.ContentConfig.GroupVersion = &schema.GroupVersion{gv.Group, gv.Version}
+	config.ContentConfig.GroupVersion = gv
 	config.APIPath = "/apis"
 	config.NegotiatedSerializer = scheme.Codecs.WithoutConversion()
 	config.UserAgent = rest.DefaultKubernetesUserAgent()
@@ -62,10 +62,11 @@ func NewFromConfig(config *rest.Config) (*CRDClient, error) {
 	return &CRDClient{crdClient: crdClient, client:client, config:config}, nil
 }
 
-func (c *CRDClient) NamespacedCRDClient(namespace string) CrdClientInterface {
+func (c *CRDClient) Resource(api string) CrdClientInterface {
 	return &Client{
 		Client: c.crdClient,
-		ns:     namespace,
+		api: api,
+		resource: Registry[api],
 	}
 }
 

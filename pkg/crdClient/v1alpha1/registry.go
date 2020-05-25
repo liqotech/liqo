@@ -5,8 +5,16 @@ import (
 	"reflect"
 )
 
-var Registry = make(map[string]reflect.Type)
+type RegistryType struct {
+	SingularType reflect.Type
+	PluralType   reflect.Type
+}
 
-func AddToRegistry(name string, o runtime.Object) {
-	Registry[name] = reflect.TypeOf(o).Elem()
+var Registry = make(map[string]RegistryType)
+
+func AddToRegistry(api string, singular, plural runtime.Object) {
+	Registry[api] = RegistryType{
+		SingularType: reflect.TypeOf(singular).Elem(),
+		PluralType:   reflect.TypeOf(plural).Elem(),
+	}
 }

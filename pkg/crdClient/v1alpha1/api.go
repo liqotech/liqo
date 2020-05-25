@@ -11,22 +11,30 @@ import (
 )
 
 type CrdClientInterface interface {
-	List(resources string, opts metav1.ListOptions) (runtime.Object, error)
-	Get(resources, resource, name string, opts metav1.GetOptions) (runtime.Object, error)
-	Create(resources, resource string, obj runtime.Object, opts metav1.CreateOptions) (runtime.Object, error)
-	Watch(resources string, opts metav1.ListOptions) (watch.Interface, error)
-	Update(resources, resource, name string, obj runtime.Object, opts metav1.UpdateOptions) (runtime.Object, error)
-	Delete(resource, name string, opts metav1.DeleteOptions) error
+	Namespace(namespace string) CrdClientInterface
+	List(opts metav1.ListOptions) (runtime.Object, error)
+	Get(name string, opts metav1.GetOptions) (runtime.Object, error)
+	Create(obj runtime.Object, opts metav1.CreateOptions) (runtime.Object, error)
+	Watch(opts metav1.ListOptions) (watch.Interface, error)
+	Update(name string, obj runtime.Object, opts metav1.UpdateOptions) (runtime.Object, error)
+	Delete(name string, opts metav1.DeleteOptions) error
 }
 
 type Client struct {
 	Client rest.Interface
 
+	api string
+	resource RegistryType
 	ns string
 }
 
-func (c *Client) Get(resources, resource, name string, opts metav1.GetOptions) (runtime.Object, error) {
-	result := reflect.New(Registry[resource]).Interface()
+func (c *Client) Namespace(namespace string) CrdClientInterface {
+	c.ns = namespace
+	return c
+}
+
+func (c *Client) Get(name string, opts metav1.GetOptions) (runtime.Object, error) {
+	result := reflect.New(c.resource.SingularType).Interface()
 	var namespaced bool
 	if c.ns != "" {
 		namespaced = true
@@ -34,7 +42,7 @@ func (c *Client) Get(resources, resource, name string, opts metav1.GetOptions) (
 
 	err := c.Client.
 		Get().
-		Resource(resources).
+		Resource(c.api).
 		VersionedParams(&opts, scheme.ParameterCodec).
 		NamespaceIfScoped(c.ns, namespaced).
 		Name(name).
@@ -45,8 +53,8 @@ func (c *Client) Get(resources, resource, name string, opts metav1.GetOptions) (
 }
 
 
-func (c *Client) List(resources string, opts metav1.ListOptions) (runtime.Object, error) {
-	result := reflect.New(Registry[resources]).Interface()
+func (c *Client) List(opts metav1.ListOptions) (runtime.Object, error) {
+	result := reflect.New(c.resource.PluralType).Interface()
 	var namespaced bool
 	if c.ns != "" {
 		namespaced = true
@@ -54,7 +62,7 @@ func (c *Client) List(resources string, opts metav1.ListOptions) (runtime.Object
 
 	err := c.Client.
 		Get().
-		Resource(resources).
+		Resource(c.api).
 		VersionedParams(&opts, scheme.ParameterCodec).
 		NamespaceIfScoped(c.ns, namespaced).
 		Do().
@@ -63,7 +71,7 @@ func (c *Client) List(resources string, opts metav1.ListOptions) (runtime.Object
 	return result.(runtime.Object), err
 }
 
-func (c *Client) Watch(resources string, opts metav1.ListOptions) (watch.Interface, error) {
+func (c *Client) Watch(opts metav1.ListOptions) (watch.Interface, error) {
 	var timeout time.Duration
 	if opts.TimeoutSeconds != nil {
 		timeout = time.Duration(*opts.TimeoutSeconds) * time.Second
@@ -77,15 +85,15 @@ func (c *Client) Watch(resources string, opts metav1.ListOptions) (watch.Interfa
 
 	return c.Client.
 		Get().
-		Resource(resources).
+		Resource(c.api).
 		VersionedParams(&opts, scheme.ParameterCodec).
 		NamespaceIfScoped(c.ns, namespaced).
 		Timeout(timeout).
 		Watch()
 }
 
-func (c *Client) Create(resources, resource string, obj runtime.Object, opts metav1.CreateOptions) (runtime.Object, error) {
-	result := reflect.New(Registry[resource]).Interface()
+func (c *Client) Create(obj runtime.Object, opts metav1.CreateOptions) (runtime.Object, error) {
+	result := reflect.New(c.resource.SingularType).Interface()
 
 	var namespaced bool
 	if c.ns != "" {
@@ -94,7 +102,7 @@ func (c *Client) Create(resources, resource string, obj runtime.Object, opts met
 
 	err := c.Client.
 		Post().
-		Resource(resources).
+		Resource(c.api).
 		VersionedParams(&opts, scheme.ParameterCodec).
 		NamespaceIfScoped(c.ns, namespaced).
 		Body(obj).
@@ -105,7 +113,7 @@ func (c *Client) Create(resources, resource string, obj runtime.Object, opts met
 }
 
 
-func (c *Client) Delete(resources, name string, opts metav1.DeleteOptions) error {
+func (c *Client) Delete(name string, opts metav1.DeleteOptions) error {
 	var namespaced bool
 	if c.ns != "" {
 		namespaced = true
@@ -113,7 +121,7 @@ func (c *Client) Delete(resources, name string, opts metav1.DeleteOptions) error
 
 	return c.Client.
 		Delete().
-		Resource(resources).
+		Resource(c.api).
 		VersionedParams(&opts, scheme.ParameterCodec).
 		NamespaceIfScoped(c.ns, namespaced).
 		Name(name).
@@ -122,8 +130,8 @@ func (c *Client) Delete(resources, name string, opts metav1.DeleteOptions) error
 		Error()
 }
 
-func (c *Client) Update(resources, resource, name string, obj runtime.Object, opts metav1.UpdateOptions) (runtime.Object, error) {
-	result := reflect.New(Registry[resource]).Interface()
+func (c *Client) Update(name string, obj runtime.Object, opts metav1.UpdateOptions) (runtime.Object, error) {
+	result := reflect.New(c.resource.SingularType).Interface()
 
 	var namespaced bool
 	if c.ns != "" {
@@ -131,8 +139,7 @@ func (c *Client) Update(resources, resource, name string, obj runtime.Object, op
 	}
 
 	err := c.Client.Put().
-		Namespace(c.ns).
-		Resource(resources).
+		Resource(c.api).
 		VersionedParams(&opts, scheme.ParameterCodec).
 		NamespaceIfScoped(c.ns, namespaced).
 		Name(name).

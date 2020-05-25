@@ -12,11 +12,12 @@ import (
 	v1 "k8s.io/api/core/v1"
 	kerror "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/tools/remotecommand"
+	"k8s.io/klog"
 	stats "k8s.io/kubernetes/pkg/kubelet/apis/stats/v1alpha1"
 	"math/rand"
-	"strings"
 	"time"
 )
 
@@ -41,23 +42,20 @@ func (p *KubernetesProvider) CreatePod(ctx context.Context, pod *v1.Pod) error {
 		return nil
 	}
 
-	nattedNS := p.NatNamespace(pod.Namespace, true)
-
-	if err := p.CreateNamespaceIfNotExisting(nattedNS); err != nil {
+	nattedNS, err := p.NatNamespace(pod.Namespace)
+	if err != nil {
 		return err
 	}
 
 	podTranslated := H2FTranslate(pod, nattedNS)
 
-	podServer, err := p.foreignClient.CoreV1().Pods(podTranslated.Namespace).Create(podTranslated)
+	podServer, err := p.foreignClient.Client().CoreV1().Pods(podTranslated.Namespace).Create(podTranslated)
 	if err != nil {
 		return errors.Wrap(err, "Unable to create pod")
 	}
 	log.G(ctx).Info("Pod", podServer.Name, "successfully created on remote cluster")
 	// Here we have to change the view of the remote POD to show it as a local one
 	p.notifier(pod)
-
-	p.publishPod(pod)
 
 	return nil
 }
@@ -74,14 +72,14 @@ func (p *KubernetesProvider) UpdatePod(ctx context.Context, pod *v1.Pod) error {
 	if pod == nil {
 		return errors.New("pod cannot be nil")
 	}
-	nattedNS := p.NatNamespace(pod.Namespace, false)
-	if nattedNS == "" {
-		return nil
+	nattedNS, err := p.NatNamespace(pod.Namespace)
+	if err != nil {
+		return err
 	}
 
 	podTranslated := H2FTranslate(pod, nattedNS)
 
-	poUpdated, err := p.foreignClient.CoreV1().Pods(nattedNS).Get(podTranslated.Name, metav1.GetOptions{})
+	poUpdated, err := p.foreignClient.Client().CoreV1().Pods(nattedNS).Get(podTranslated.Name, metav1.GetOptions{})
 	if err != nil {
 		return errors.Wrap(err, "Unable to create pod")
 	}
@@ -102,12 +100,12 @@ func (p *KubernetesProvider) DeletePod(ctx context.Context, pod *v1.Pod) (err er
 	log.G(ctx).Infof("receive DeletePod %q", pod.Name)
 	opts := &metav1.DeleteOptions{}
 
-	nattedNS := p.NatNamespace(pod.Namespace, false)
-	if nattedNS == "" {
-		return errors.New("cannot delete pod belonging to a non-natted namespace")
+	nattedNS, err := p.NatNamespace(pod.Namespace)
+	if err != nil {
+		return err
 	}
 
-	err = p.foreignClient.CoreV1().Pods(nattedNS).Delete(pod.Name,opts)
+	err = p.foreignClient.Client().CoreV1().Pods(nattedNS).Delete(pod.Name,opts)
 	if err != nil {
 		return errors.Wrap(err, "Unable to delete pod")
 	}
@@ -132,7 +130,6 @@ func (p *KubernetesProvider) DeletePod(ctx context.Context, pod *v1.Pod) (err er
 		}
 	}
 
-	p.deletePod(pod)
 	p.notifier(pod)
 
 	return nil
@@ -152,13 +149,12 @@ func (p *KubernetesProvider) GetPod(ctx context.Context, namespace, name string)
 	log.G(ctx).Infof("receive GetPod %q", name)
 	opts := metav1.GetOptions{}
 
-	nattedNS := p.NatNamespace(namespace, false)
-
-	if nattedNS == "" {
-		return nil, nil
+	nattedNS, err := p.NatNamespace(namespace)
+	if err != nil {
+		return nil, err
 	}
 
-	podServer, err := p.foreignClient.CoreV1().Pods(nattedNS).Get(name,opts)
+	podServer, err := p.foreignClient.Client().CoreV1().Pods(nattedNS).Get(name,opts)
 	if err != nil {
 		if kerror.IsNotFound(err) {
 			return nil, errdefs.NotFoundf("pod \"%s/%s\" is not known to the provider", namespace, name)
@@ -179,13 +175,13 @@ func (p *KubernetesProvider) GetPodStatus(ctx context.Context, namespace, name s
 	// Add namespace and name as attributes to the current span.
 	ctx = addAttributes(ctx, span, namespaceKey, namespace, nameKey, name)
 
-	nattedNS := p.NatNamespace(namespace, false)
+	nattedNS, err := p.NatNamespace(namespace)
 
-	if nattedNS == "" {
+	if err != nil {
 		return nil, nil
 	}
 
-	podForeignIn, err := p.foreignClient.CoreV1().Pods(nattedNS).Get(name,metav1.GetOptions{})
+	podForeignIn, err := p.foreignClient.Client().CoreV1().Pods(nattedNS).Get(name,metav1.GetOptions{})
     if err != nil {
     	return nil,errors.Wrap(err,"error getting status")
 	}
@@ -198,9 +194,12 @@ func (p *KubernetesProvider) GetPodStatus(ctx context.Context, namespace, name s
 // between in/out/err and the container's stdin/stdout/stderr.
 func (p *KubernetesProvider) RunInContainer(ctx context.Context, namespace string, podName string, containerName string, cmd []string, attach api.AttachIO) error {
 
-	nattedNS := p.NatNamespace(namespace, false)
+	nattedNS, err := p.NatNamespace(namespace)
+	if err != nil {
+		return err
+	}
 
-	req := p.foreignClient.CoreV1().RESTClient().
+	req := p.foreignClient.Client().CoreV1().RESTClient().
 		Post().
 		Namespace(nattedNS).
 		Resource("pods").
@@ -235,12 +234,15 @@ func (p *KubernetesProvider) RunInContainer(ctx context.Context, namespace strin
 
 // GetContainerLogs retrieves the logs of a container by name from the provider.
 func (p *KubernetesProvider) GetContainerLogs(ctx context.Context, namespace string, podName string, containerName string, opts api.ContainerLogOpts) (io.ReadCloser, error) {
-	nattedNS := p.NatNamespace(namespace, false)
+	nattedNS, err := p.NatNamespace(namespace)
+	if err != nil {
+		return nil, err
+	}
 
 	options := &v1.PodLogOptions{
 		Container: containerName,
 	}
-	logs := p.foreignClient.CoreV1().Pods(nattedNS).GetLogs(podName, options)
+	logs := p.foreignClient.Client().CoreV1().Pods(nattedNS).GetLogs(podName, options)
 	stream, err := logs.Stream()
 	if err != nil {
 		return nil, fmt.Errorf("could not get stream from logs request: %v", err)
@@ -261,8 +263,13 @@ func (p *KubernetesProvider) GetPods(ctx context.Context) ([]*v1.Pod, error) {
 
 	var podsHomeOut []*v1.Pod
 
-	for k, v := range p.namespaceNatting {
-		podsForeignIn, err := p.foreignClient.CoreV1().Pods(v).List(metav1.ListOptions{})
+	nt, err := p.ntCache.getNattingTable(p.foreignClusterId)
+	if err != nil {
+		return nil, err
+	}
+
+	for k, v := range nt.Spec.NattingTable {
+		podsForeignIn, err := p.foreignClient.Client().CoreV1().Pods(v).List(metav1.ListOptions{})
 		if p == nil {
 			continue
 		}
@@ -302,8 +309,7 @@ func (p *KubernetesProvider) GetStatsSummary(ctx context.Context) (*stats.Summar
 	}
 
 	// Populate the Summary object with dummy stats for each pod known by this provider.
-	// TODO: implement a mechanism similar to the reflectionController that allows watching only "our" remote ns
-	pods, err := p.foreignClient.CoreV1().Pods("").List(metav1.ListOptions{})
+	pods, err := p.foreignClient.Client().CoreV1().Pods("").List(metav1.ListOptions{})
 	if err != nil {
 		if kerror.IsNotFound(err) {
 			return nil, errdefs.NotFoundf("pods in \"%s\" is not known to the provider", "")
@@ -389,41 +395,24 @@ func addAttributes(ctx context.Context, span trace.Span, attrs ...string) contex
 	return ctx
 }
 
-func (p *KubernetesProvider) CreateNamespaceIfNotExisting(name string) error {
-
-	ns := &v1.Namespace{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: name,
-		},
-	}
-
-	_, err := p.foreignClient.CoreV1().Namespaces().Create(ns)
-	if err != nil && !kerror.IsAlreadyExists(err) {
-		return err
-	}
-
-	return nil
-}
-
-func (p *KubernetesProvider) NatNamespace(name string, create bool) string {
-	var ok bool
-	var ns string
-
-	if ns, ok = p.namespaceNatting[name]; !ok {
-		if create {
-			ns = strings.Join([]string{p.homeClusterID, name}, "-")
-			p.namespaceNatting[name] = ns
-			p.namespaceDeNatting[ns] = name
+func (p* KubernetesProvider) watchForeignPods(watcher watch.Interface, stop chan struct{}) {
+	for {
+		select {
+		case <- stop:
+			watcher.Stop()
+			p.powg.Done()
+			return
+		case e := <- watcher.ResultChan():
+			p2, ok := e.Object.(*v1.Pod)
+			if !ok {
+				klog.Error("unexpected type")
+				break
+			}
+			denattedNS, err := p.DeNatNamespace(p2.Namespace)
+			if err != nil {
+				p.log.Error(err, "natting error in watchForeignPods")
+			}
+			p.notifier(F2HTranslate(p2, p.RemappedPodCidr, denattedNS))
 		}
-	}
-
-	return ns
-}
-
-func (p *KubernetesProvider) DeNatNamespace(name string) string {
-	if ns, ok := p.namespaceDeNatting[name]; !ok {
-		return ""
-	} else {
-		return ns
 	}
 }
