@@ -8,28 +8,27 @@ import (
 )
 
 // configure ConfigMap served from credentials-provider to foreign "client" clusters
-func SetupConfigmap() {
-	dc := GetDiscoveryConfig()
-	if dc.EnableAdvertisement {
+func (discovery *DiscoveryCtrl) SetupConfigmap() {
+	if discovery.config.EnableAdvertisement {
 		clientset, err := clients.NewK8sClient()
 		if err != nil {
-			Log.Error(err, err.Error())
+			discovery.Log.Error(err, err.Error())
 			os.Exit(1)
 		}
 
-		cm, err := clientset.CoreV1().ConfigMaps(Namespace).Get("credentials-provider-static-content", v1.GetOptions{})
+		cm, err := clientset.CoreV1().ConfigMaps(discovery.Namespace).Get("credentials-provider-static-content", v1.GetOptions{})
 		if err != nil {
-			Log.Error(err, err.Error())
+			discovery.Log.Error(err, err.Error())
 			os.Exit(1)
 		}
-		cm.Data["config.yaml"], err = kubeconfig.CreateKubeConfig("unauth-user", Namespace)
+		cm.Data["config.yaml"], err = kubeconfig.CreateKubeConfig("unauth-user", discovery.Namespace)
 		if err != nil {
-			Log.Error(err, err.Error())
+			discovery.Log.Error(err, err.Error())
 			os.Exit(1)
 		}
-		_, err = clientset.CoreV1().ConfigMaps(Namespace).Update(cm)
+		_, err = clientset.CoreV1().ConfigMaps(discovery.Namespace).Update(cm)
 		if err != nil {
-			Log.Error(err, err.Error())
+			discovery.Log.Error(err, err.Error())
 			os.Exit(1)
 		}
 	}

@@ -9,16 +9,16 @@ import (
 	"time"
 )
 
-func StartResolver(service string, domain string, waitTime int, updateTime int) {
+func (discovery *DiscoveryCtrl) StartResolver(service string, domain string, waitTime int, updateTime int) {
 	for range time.Tick(time.Second * time.Duration(updateTime)) {
-		Resolve(service, domain, int(math.Max(float64(waitTime), 1)))
+		discovery.Resolve(service, domain, int(math.Max(float64(waitTime), 1)))
 	}
 }
 
-func Resolve(service string, domain string, waitTime int) {
+func (discovery *DiscoveryCtrl) Resolve(service string, domain string, waitTime int) {
 	resolver, err := zeroconf.NewResolver(zeroconf.SelectIPTraffic(zeroconf.IPv4))
 	if err != nil {
-		Log.Error(err, err.Error())
+		discovery.Log.Error(err, err.Error())
 		os.Exit(1)
 	}
 
@@ -26,13 +26,15 @@ func Resolve(service string, domain string, waitTime int) {
 	go func(results <-chan *zeroconf.ServiceEntry) {
 		var res []*TxtData
 		for entry := range results {
-			if isForeign(entry.AddrIPv4) {
-				if txtData, err := Decode(entry.Text[0]); err == nil {
+			if discovery.isForeign(entry.AddrIPv4) {
+				if txtData, err := Decode(entry.Text); err == nil {
 					res = append(res, txtData)
+				} else {
+					discovery.Log.Error(err, err.Error())
 				}
 			}
 		}
-		UpdateForeign(res)
+		discovery.UpdateForeign(res)
 	}(entries)
 
 	var ctx context.Context = nil
@@ -46,18 +48,18 @@ func Resolve(service string, domain string, waitTime int) {
 
 	err = resolver.Browse(ctx, service, domain, entries)
 	if err != nil {
-		Log.Error(err, err.Error())
+		discovery.Log.Error(err, err.Error())
 		os.Exit(1)
 	}
 
 	<-ctx.Done()
 }
 
-func getIPs() map[string]bool {
+func (discovery *DiscoveryCtrl) getIPs() map[string]bool {
 	myIps := map[string]bool{}
 	ifaces, err := net.Interfaces()
 	if err != nil {
-		Log.Error(err, err.Error())
+		discovery.Log.Error(err, err.Error())
 		os.Exit(1)
 	}
 	for _, i := range ifaces {
@@ -75,10 +77,10 @@ func getIPs() map[string]bool {
 	return myIps
 }
 
-func isForeign(foreignIps []net.IP) bool {
-	myIps := getIPs()
+func (discovery *DiscoveryCtrl) isForeign(foreignIps []net.IP) bool {
+	myIps := discovery.getIPs()
 	for _, fIp := range foreignIps {
-		Log.Info("Received packet from " + fIp.String())
+		discovery.Log.Info("Received packet from " + fIp.String())
 		if myIps[fIp.String()] {
 			return false
 		}

@@ -20,9 +20,8 @@ import (
 	"context"
 	b64 "encoding/base64"
 	"github.com/go-logr/logr"
-	"github.com/netgroup-polito/dronev2/internal/discovery"
-	"github.com/netgroup-polito/dronev2/internal/discovery/clients"
 	"github.com/netgroup-polito/dronev2/internal/discovery/kubeconfig"
+	"github.com/netgroup-polito/dronev2/pkg/clusterID"
 	v1 "github.com/netgroup-polito/dronev2/pkg/discovery/v1"
 	apiv1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
@@ -42,6 +41,11 @@ type ForeignClusterReconciler struct {
 	client.Client
 	Log    logr.Logger
 	Scheme *runtime.Scheme
+
+	Namespace       string
+	client          *kubernetes.Clientset
+	discoveryClient *v1.DiscoveryV1Client
+	clusterID       *clusterID.ClusterID
 }
 
 // +kubebuilder:rbac:groups=discovery.drone.com,resources=foreignclusters,verbs=get;list;watch;create;update;patch;delete
@@ -51,8 +55,7 @@ func (r *ForeignClusterReconciler) Reconcile(req ctrl.Request) (ctrl.Result, err
 	_ = context.Background()
 	_ = r.Log.WithValues("foreigncluster", req.NamespacedName)
 
-	discoveryClient, _ := clients.NewDiscoveryClient()
-	fc, err := discoveryClient.ForeignClusters().Get(req.Name, metav1.GetOptions{})
+	fc, err := r.discoveryClient.ForeignClusters().Get(req.Name, metav1.GetOptions{})
 	if err != nil {
 		// TODO: has been removed
 		return ctrl.Result{}, err
@@ -64,7 +67,7 @@ func (r *ForeignClusterReconciler) Reconcile(req ctrl.Request) (ctrl.Result, err
 			r.Log.Error(err, err.Error())
 			return ctrl.Result{}, err
 		}
-		_, err = createFederationRequestIfNotExists(req.Name, fc, foreignConfig)
+		_, err = r.createFederationRequestIfNotExists(req.Name, fc, foreignConfig)
 		if err != nil {
 			r.Log.Error(err, err.Error())
 			return ctrl.Result{}, err
@@ -80,18 +83,18 @@ func (r *ForeignClusterReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		Complete(r)
 }
 
-func createFederationRequestIfNotExists(clusterID string, owner *discoveryv1.ForeignCluster, foreignConfig *rest.Config) (*discoveryv1.FederationRequest, error) {
-	discoveryClient, _ := v1.NewForConfig(foreignConfig)
+func (r *ForeignClusterReconciler) createFederationRequestIfNotExists(clusterID string, owner *discoveryv1.ForeignCluster, foreignConfig *rest.Config) (*discoveryv1.FederationRequest, error) {
+	foreignDiscoveryClient, _ := v1.NewForConfig(foreignConfig)
 
-	// get config to sent to foreign cluster
-	fConfig, err := getForeignConfig(clusterID, owner)
-
-	localClusterID, err := kubeconfig.GetLocalClusterID()
+	// get config to send to foreign cluster
+	fConfig, err := r.getForeignConfig(clusterID, owner)
 	if err != nil {
 		return nil, err
 	}
 
-	fr, err := discoveryClient.FederationRequests().Get(localClusterID, metav1.GetOptions{})
+	localClusterID := r.clusterID.GetClusterID()
+
+	fr, err := foreignDiscoveryClient.FederationRequests().Get(localClusterID, metav1.GetOptions{})
 	if err != nil {
 		if errors.IsNotFound(err) {
 			// does not exist
@@ -100,10 +103,11 @@ func createFederationRequestIfNotExists(clusterID string, owner *discoveryv1.For
 					Name: localClusterID,
 				},
 				Spec: discoveryv1.FederationRequestSpec{
+					ClusterID:  localClusterID,
 					KubeConfig: fConfig,
 				},
 			}
-			return discoveryClient.FederationRequests().Create(&fr)
+			return foreignDiscoveryClient.FederationRequests().Create(&fr)
 		}
 		// other errors
 		return nil, err
@@ -113,23 +117,22 @@ func createFederationRequestIfNotExists(clusterID string, owner *discoveryv1.For
 }
 
 // this function return a kube-config file to send to foreign cluster and crate everything needed for it
-func getForeignConfig(clusterID string, owner *discoveryv1.ForeignCluster) (string, error) {
-	clientK8s, _ := clients.NewK8sClient()
-	_, err := createClusterRoleIfNotExists(clientK8s, clusterID, owner)
+func (r *ForeignClusterReconciler) getForeignConfig(clusterID string, owner *discoveryv1.ForeignCluster) (string, error) {
+	_, err := r.createClusterRoleIfNotExists(clusterID, owner)
 	if err != nil {
 		return "", err
 	}
-	sa, err := createServiceAccountIfNotExists(clientK8s, clusterID, owner)
+	sa, err := r.createServiceAccountIfNotExists(clusterID, owner)
 	if err != nil {
 		return "", err
 	}
-	_, err = createClusterRoleBindingIfNotExists(clientK8s, clusterID, owner)
+	_, err = r.createClusterRoleBindingIfNotExists(clusterID, owner)
 	if err != nil {
 		return "", err
 	}
 	// check if ServiceAccount already has a secret, wait if not
 	if len(sa.Secrets) == 0 {
-		wa, err := clientK8s.CoreV1().ServiceAccounts(discovery.Namespace).Watch(metav1.ListOptions{
+		wa, err := r.client.CoreV1().ServiceAccounts(r.Namespace).Watch(metav1.ListOptions{
 			FieldSelector: "metadata.name=" + clusterID,
 		})
 		if err != nil {
@@ -144,12 +147,12 @@ func getForeignConfig(clusterID string, owner *discoveryv1.ForeignCluster) (stri
 		}
 		wa.Stop()
 	}
-	cnf, err := kubeconfig.CreateKubeConfig(clusterID, discovery.Namespace)
+	cnf, err := kubeconfig.CreateKubeConfig(clusterID, r.Namespace)
 	return b64.StdEncoding.EncodeToString([]byte(cnf)), err
 }
 
-func createClusterRoleIfNotExists(clientK8s *kubernetes.Clientset, clusterID string, owner *discoveryv1.ForeignCluster) (*rbacv1.ClusterRole, error) {
-	role, err := clientK8s.RbacV1().ClusterRoles().Get(clusterID, metav1.GetOptions{})
+func (r *ForeignClusterReconciler) createClusterRoleIfNotExists(clusterID string, owner *discoveryv1.ForeignCluster) (*rbacv1.ClusterRole, error) {
+	role, err := r.client.RbacV1().ClusterRoles().Get(clusterID, metav1.GetOptions{})
 	if err != nil {
 		// does not exist
 		role = &rbacv1.ClusterRole{
@@ -173,14 +176,14 @@ func createClusterRoleIfNotExists(clientK8s *kubernetes.Clientset, clusterID str
 				},
 			},
 		}
-		return clientK8s.RbacV1().ClusterRoles().Create(role)
+		return r.client.RbacV1().ClusterRoles().Create(role)
 	} else {
 		return role, nil
 	}
 }
 
-func createServiceAccountIfNotExists(clientK8s *kubernetes.Clientset, clusterID string, owner *discoveryv1.ForeignCluster) (*apiv1.ServiceAccount, error) {
-	sa, err := clientK8s.CoreV1().ServiceAccounts(discovery.Namespace).Get(clusterID, metav1.GetOptions{})
+func (r *ForeignClusterReconciler) createServiceAccountIfNotExists(clusterID string, owner *discoveryv1.ForeignCluster) (*apiv1.ServiceAccount, error) {
+	sa, err := r.client.CoreV1().ServiceAccounts(r.Namespace).Get(clusterID, metav1.GetOptions{})
 	if err != nil {
 		// does not exist
 		sa = &apiv1.ServiceAccount{
@@ -196,14 +199,14 @@ func createServiceAccountIfNotExists(clientK8s *kubernetes.Clientset, clusterID 
 				},
 			},
 		}
-		return clientK8s.CoreV1().ServiceAccounts(discovery.Namespace).Create(sa)
+		return r.client.CoreV1().ServiceAccounts(r.Namespace).Create(sa)
 	} else {
 		return sa, nil
 	}
 }
 
-func createClusterRoleBindingIfNotExists(clientK8s *kubernetes.Clientset, clusterID string, owner *discoveryv1.ForeignCluster) (*rbacv1.ClusterRoleBinding, error) {
-	rb, err := clientK8s.RbacV1().ClusterRoleBindings().Get(clusterID, metav1.GetOptions{})
+func (r *ForeignClusterReconciler) createClusterRoleBindingIfNotExists(clusterID string, owner *discoveryv1.ForeignCluster) (*rbacv1.ClusterRoleBinding, error) {
+	rb, err := r.client.RbacV1().ClusterRoleBindings().Get(clusterID, metav1.GetOptions{})
 	if err != nil {
 		// does not exist
 		rb = &rbacv1.ClusterRoleBinding{
@@ -222,7 +225,7 @@ func createClusterRoleBindingIfNotExists(clientK8s *kubernetes.Clientset, cluste
 				{
 					Kind:      "ServiceAccount",
 					Name:      clusterID,
-					Namespace: discovery.Namespace,
+					Namespace: r.Namespace,
 				},
 			},
 			RoleRef: rbacv1.RoleRef{
@@ -231,7 +234,7 @@ func createClusterRoleBindingIfNotExists(clientK8s *kubernetes.Clientset, cluste
 				Name:     clusterID,
 			},
 		}
-		return clientK8s.RbacV1().ClusterRoleBindings().Create(rb)
+		return r.client.RbacV1().ClusterRoleBindings().Create(rb)
 	} else {
 		return rb, nil
 	}

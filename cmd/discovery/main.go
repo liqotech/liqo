@@ -5,10 +5,8 @@ import (
 	"github.com/netgroup-polito/dronev2/internal/discovery"
 	foreign_cluster_operator "github.com/netgroup-polito/dronev2/internal/discovery/foreign-cluster-operator"
 	"os"
-	"os/signal"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
-	"syscall"
 )
 
 var (
@@ -25,14 +23,19 @@ func main() {
 
 	ctrl.SetLogger(zap.New(zap.UseDevMode(true)))
 
-	sig := make(chan os.Signal, 1)
-	signal.Notify(sig, os.Interrupt, syscall.SIGTERM)
-	signal.Notify(sig, os.Interrupt, syscall.SIGINT)
+	discoveryCtl, err := discovery.NewDiscoveryCtrl(namespace)
+	if err != nil {
+		mainLog.Error(err, err.Error())
+		os.Exit(1)
+	}
+	err = discoveryCtl.ClusterId.SetupClusterID(namespace)
+	if err != nil {
+		mainLog.Error(err, err.Error())
+		os.Exit(1)
+	}
 
-	discovery.StartDiscovery(namespace)
+	discoveryCtl.StartDiscovery()
 
 	mainLog.Info("Starting ForeignCluster operator")
-	go foreign_cluster_operator.StartOperator()
-
-	<-sig
+	foreign_cluster_operator.StartOperator(namespace)
 }

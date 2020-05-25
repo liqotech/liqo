@@ -2,6 +2,8 @@ package foreign_cluster_operator
 
 import (
 	discoveryv1 "github.com/netgroup-polito/dronev2/api/discovery/v1"
+	"github.com/netgroup-polito/dronev2/internal/discovery/clients"
+	"github.com/netgroup-polito/dronev2/pkg/clusterID"
 	"k8s.io/apimachinery/pkg/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
@@ -20,7 +22,7 @@ func init() {
 	// +kubebuilder:scaffold:scheme
 }
 
-func StartOperator() {
+func StartOperator(namespace string) {
 	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
 		Scheme:           scheme,
 		Port:             9443,
@@ -32,10 +34,30 @@ func StartOperator() {
 		os.Exit(1)
 	}
 
+	client, err := clients.NewK8sClient()
+	if err != nil {
+		log.Error(err, "unable to start manager")
+		os.Exit(1)
+	}
+	discoveryClient, err := clients.NewDiscoveryClient()
+	if err != nil {
+		log.Error(err, "unable to start manager")
+		os.Exit(1)
+	}
+	clusterId, err := clusterID.NewClusterID()
+	if err != nil {
+		log.Error(err, "unable to get clusterID")
+		os.Exit(1)
+	}
+
 	if err = (&ForeignClusterReconciler{
-		Client: mgr.GetClient(),
-		Log:    ctrl.Log.WithName("controllers").WithName("ForeignCluster"),
-		Scheme: mgr.GetScheme(),
+		Client:          mgr.GetClient(),
+		Log:             ctrl.Log.WithName("controllers").WithName("ForeignCluster"),
+		Scheme:          mgr.GetScheme(),
+		Namespace:       namespace,
+		client:          client,
+		discoveryClient: discoveryClient,
+		clusterID:       clusterId,
 	}).SetupWithManager(mgr); err != nil {
 		log.Error(err, "unable to create controller", "controller", "ForeignCluster")
 		os.Exit(1)

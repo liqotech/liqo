@@ -28,6 +28,7 @@ type FederationRequestSpec struct {
 	// INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
 	// Important: Run "make" to regenerate code after modifying this file
 
+	ClusterID  string `json:"clusterID"`
 	KubeConfig string `json:"kubeConfig"`
 }
 

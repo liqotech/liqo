@@ -2,7 +2,6 @@ package discovery
 
 import (
 	"errors"
-	"github.com/netgroup-polito/dronev2/internal/discovery/clients"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"os"
 	"strconv"
@@ -25,18 +24,10 @@ type Config struct {
 	AutoFederation bool `json:"autoFederation"`
 }
 
-func GetDiscoveryConfig() *Config {
-	dc := &Config{}
-
-	client, err := clients.NewK8sClient()
+func (discovery *DiscoveryCtrl) GetDiscoveryConfig() {
+	configMap, err := discovery.client.CoreV1().ConfigMaps(discovery.Namespace).Get("discovery-config", metav1.GetOptions{})
 	if err != nil {
-		Log.Error(err, err.Error())
-		os.Exit(1)
-	}
-
-	configMap, err := client.CoreV1().ConfigMaps(Namespace).Get("discovery-config", metav1.GetOptions{})
-	if err != nil {
-		Log.Error(err, err.Error())
+		discovery.Log.Error(err, err.Error())
 		os.Exit(1)
 	}
 
@@ -44,40 +35,38 @@ func GetDiscoveryConfig() *Config {
 
 	err = checkConfig(config)
 	if err != nil {
-		Log.Error(err, err.Error())
+		discovery.Log.Error(err, err.Error())
 		os.Exit(1)
 	}
 
-	dc.Name = config["name"]
-	dc.Service = config["service"]
-	dc.Domain = config["domain"]
-	dc.Port, err = strconv.Atoi(config["port"])
+	discovery.config.Name = config["name"]
+	discovery.config.Service = config["service"]
+	discovery.config.Domain = config["domain"]
+	discovery.config.Port, err = strconv.Atoi(config["port"])
 	if err != nil {
-		Log.Error(err, err.Error())
+		discovery.Log.Error(err, err.Error())
 		os.Exit(1)
 	}
 
-	dc.EnableDiscovery = config["enableDiscovery"] == "true"
-	dc.EnableAdvertisement = config["enableAdvertisement"] == "true"
+	discovery.config.EnableDiscovery = config["enableDiscovery"] == "true"
+	discovery.config.EnableAdvertisement = config["enableAdvertisement"] == "true"
 
-	dc.AutoFederation = config["autoFederation"] == "true"
+	discovery.config.AutoFederation = config["autoFederation"] == "true"
 
-	if dc.EnableAdvertisement {
-		dc.TxtData = GetTxtData()
+	if discovery.config.EnableAdvertisement {
+		discovery.config.TxtData = discovery.GetTxtData()
 	}
 
-	dc.WaitTime, err = strconv.Atoi(config["waitTime"]) // wait response time
+	discovery.config.WaitTime, err = strconv.Atoi(config["waitTime"]) // wait response time
 	if err != nil {
-		Log.Error(err, err.Error())
+		discovery.Log.Error(err, err.Error())
 		os.Exit(1)
 	}
-	dc.UpdateTime, err = strconv.Atoi(config["updateTime"]) // time between update queries
+	discovery.config.UpdateTime, err = strconv.Atoi(config["updateTime"]) // time between update queries
 	if err != nil {
-		Log.Error(err, err.Error())
+		discovery.Log.Error(err, err.Error())
 		os.Exit(1)
 	}
-
-	return dc
 }
 
 func checkConfig(config map[string]string) error {

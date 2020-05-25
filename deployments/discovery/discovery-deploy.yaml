@@ -45,4 +45,9 @@ spec:
         - image: dronev2/discovery
           name: discovery
           imagePullPolicy: Always
+          env:
+            - name: POD_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
       hostNetwork: true

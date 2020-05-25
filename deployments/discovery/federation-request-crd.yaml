@@ -32,8 +32,12 @@ spec:
           type: object
         spec:
           properties:
+            clusterID:
+              type: string
+              description: Cluster ID
             kubeConfig:
               type: string
               description: KubeConfig file base64-encoded with permission to create Advertisements
           required:
+            - clusterID
             - kubeConfig

@@ -12,21 +12,17 @@ import (
 
 var server *zeroconf.Server
 
-func Register(name string, service string, domain string, port int, txt []string) {
+func (discovery *DiscoveryCtrl) Register(name string, service string, domain string, port int, txt []string) {
 	var err error = nil
 	// random string needed because equal names are discarded
-	server, err = zeroconf.Register(name+"_"+RandomString(8), service, domain, port, txt, GetInterfaces())
+	server, err = zeroconf.Register(name+"_"+RandomString(8), service, domain, port, txt, discovery.GetInterfaces())
 	if err != nil {
-		Log.Error(err, err.Error())
+		discovery.Log.Error(err, err.Error())
 		os.Exit(1)
 	}
 	defer server.Shutdown()
 
 	select {}
-}
-
-func SetText(txt []string) {
-	server.SetText(txt)
 }
 
 func RandomString(nChars uint) string {
@@ -39,13 +35,13 @@ func RandomString(nChars uint) string {
 	return string(b)
 }
 
-func GetInterfaces() []net.Interface {
+func (discovery *DiscoveryCtrl) GetInterfaces() []net.Interface {
 	var interfaces []net.Interface
 	ifaces, err := net.Interfaces()
 	if err != nil {
 		return nil
 	}
-	podNets, err := getPodNets()
+	podNets, err := discovery.getPodNets()
 	if err != nil {
 		return nil
 	}
@@ -78,7 +74,7 @@ func GetInterfaces() []net.Interface {
 	return interfaces
 }
 
-func getPodNets() ([]*net.IPNet, error) {
+func (discovery *DiscoveryCtrl) getPodNets() ([]*net.IPNet, error) {
 	client, err := clients.NewK8sClient()
 	if err != nil {
 		return nil, err
@@ -91,7 +87,7 @@ func getPodNets() ([]*net.IPNet, error) {
 	for _, n := range nodes.Items {
 		_, ipnet, err := net.ParseCIDR(n.Spec.PodCIDR)
 		if err != nil {
-			Log.Error(err, err.Error())
+			discovery.Log.Error(err, err.Error())
 			continue
 		}
 		res = append(res, ipnet)

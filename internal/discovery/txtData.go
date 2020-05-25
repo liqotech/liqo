@@ -3,50 +3,70 @@ package discovery
 import (
 	b64 "encoding/base64"
 	"encoding/json"
+	"errors"
 	"github.com/netgroup-polito/dronev2/internal/discovery/clients"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"os"
 	"path"
 	"strconv"
+	"strings"
 )
 
 type TxtData struct {
+	Config config
+	ID     string
+}
+
+type config struct {
 	Url string `json:"url"`
 }
 
-func (txtData TxtData) Encode() (string, error) {
-	bytes, err := json.Marshal(txtData)
+func (txtData TxtData) Encode() ([]string, error) {
+	bytes, err := json.Marshal(txtData.Config)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
-	return b64.StdEncoding.EncodeToString(bytes), nil
+	res := []string{
+		"config=" + b64.StdEncoding.EncodeToString(bytes),
+		"id=" + txtData.ID,
+	}
+	return res, nil
 }
 
-func Decode(data string) (*TxtData, error) {
-	bytes, err := b64.StdEncoding.DecodeString(data)
-	if err != nil {
-		return nil, err
+func Decode(data []string) (*TxtData, error) {
+	var res = TxtData{Config: config{}}
+	for _, d := range data {
+		if strings.HasPrefix(d, "config=") {
+			bytes, err := b64.StdEncoding.DecodeString(d[len("config="):])
+			if err != nil {
+				return nil, err
+			}
+			err = json.Unmarshal(bytes, &res.Config)
+			if err != nil {
+				return nil, err
+			}
+		} else if strings.HasPrefix(d, "id=") {
+			res.ID = d[len("id="):]
+		}
 	}
-	var res = TxtData{}
-	err = json.Unmarshal(bytes, &res)
-	if err != nil {
-		return nil, err
+	if res.Config.Url == "" || res.ID == "" {
+		return nil, errors.New("TxtData missing required field")
 	}
 	return &res, nil
 }
 
-func GetTxtData() TxtData {
+func (discovery *DiscoveryCtrl) GetTxtData() TxtData {
 	localClient, _ := clients.NewK8sClient()
 
-	service, err := localClient.CoreV1().Services(Namespace).Get("credentials-provider", v1.GetOptions{})
+	service, err := localClient.CoreV1().Services(discovery.Namespace).Get("credentials-provider", v1.GetOptions{})
 	if err != nil {
-		Log.Error(err, err.Error())
+		discovery.Log.Error(err, err.Error())
 		os.Exit(1)
 	}
 
 	nl, err := localClient.CoreV1().Nodes().List(v1.ListOptions{})
 	if err != nil {
-		Log.Error(err, err.Error())
+		discovery.Log.Error(err, err.Error())
 		os.Exit(1)
 	}
 	node := nl.Items[0].Status.Addresses[0].Address
@@ -56,6 +76,7 @@ func GetTxtData() TxtData {
 	url := "http://" + path.Join(node+":"+strconv.Itoa(int(port)), "config.yaml")
 
 	return TxtData{
-		Url: url,
+		Config: config{Url: url},
+		ID:     discovery.ClusterId.GetClusterID(),
 	}
 }
