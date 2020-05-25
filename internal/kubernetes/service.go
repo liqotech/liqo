@@ -28,24 +28,24 @@ func (p *KubernetesProvider) manageSvcEvent(event watch.Event) error {
 			p.log.Info("remote svc " + svc.Name + " doesn't exist: creating it")
 
 			if err = CreateService(p.foreignClient, svc, nattedNS); err != nil {
-				p.log.Error(err, "unable to create service " + svc.Name + " on cluster " + p.clusterId)
+				p.log.Error(err, "unable to create service " + svc.Name + " on cluster " + p.foreignClusterId)
 			} else {
-				p.log.Info("correctly created service " + svc.Name + " on cluster " + p.clusterId)
+				p.log.Info("correctly created service " + svc.Name + " on cluster " + p.foreignClusterId)
 			}
 		}
 
 	case watch.Modified:
 		if err = UpdateService(p.foreignClient, svc, nattedNS); err != nil {
-			p.log.Error(err, "unable to update service " + svc.Name + " on cluster " + p.clusterId)
+			p.log.Error(err, "unable to update service " + svc.Name + " on cluster " + p.foreignClusterId)
 		} else {
-			p.log.Info("correctly updated service " + svc.Name + " on cluster " + p.clusterId)
+			p.log.Info("correctly updated service " + svc.Name + " on cluster " + p.foreignClusterId)
 		}
 
 	case watch.Deleted:
 		if err = DeleteService(p.foreignClient, svc, nattedNS); err != nil {
-			p.log.Error(err, "unable to delete service " + svc.Name + " on cluster " + p.clusterId)
+			p.log.Error(err, "unable to delete service " + svc.Name + " on cluster " + p.foreignClusterId)
 		} else {
-			p.log.Info("correctly deleted service " + svc.Name + " on cluster " + p.clusterId)
+			p.log.Info("correctly deleted service " + svc.Name + " on cluster " + p.foreignClusterId)
 		}
 	}
 

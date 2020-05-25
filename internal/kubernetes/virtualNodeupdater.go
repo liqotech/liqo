@@ -72,7 +72,7 @@ func (r *VirtualNodeReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error)
 func (r *VirtualNodeReconciler) checkAdvFiltering(object metav1.Object) bool {
 
 	clusterId := strings.Replace(object.GetName(), "advertisement-", "", 1)
-	if clusterId == r.provider.clusterId {
+	if clusterId == r.provider.foreignClusterId {
 		return true
 	}
 
@@ -174,7 +174,7 @@ func (r *VirtualNodeReconciler) updateFromAdv(ctx context.Context, adv advv1.Adv
 
 	if r.provider.initialized == false {
 		r.provider.initialized = true
-		if err := r.setAnnotation(ctx, "cluster-id", r.provider.clusterId, &no); err != nil {
+		if err := r.setAnnotation(ctx, "cluster-id", r.provider.foreignClusterId, &no); err != nil {
 			return err
 		}
 	}

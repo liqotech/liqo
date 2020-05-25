@@ -42,7 +42,7 @@ type Reflector struct {
 // and creates a new goroutine running the reflector control loop
 func (p *KubernetesProvider) StartReflector() {
 	p.log = ctrl.Log.WithName("reflector")
-	p.log.Info("starting reflector for cluster " + p.clusterId)
+	p.log.Info("starting reflector for cluster " + p.foreignClusterId)
 
 	p.namespaces.pods = make(map[namespaceRequest]counterStruct)
 
@@ -261,10 +261,10 @@ func eventAggregator(watcher watch.Interface, outChan chan watch.Event, stop cha
 // StopReflector must be called when the virtual kubelet end up: all the channels are correctly closed
 // and the eventAggregator goroutines closing are waited
 func (p *KubernetesProvider) StopReflector() {
-	p.log.Info("stopping reflector for cluster " + p.clusterId)
+	p.log.Info("stopping reflector for cluster " + p.foreignClusterId)
 
 	if p.svcEvent == nil || p.epEvent == nil {
-		p.log.Info("reflector was not active for cluster " + p.clusterId)
+		p.log.Info("reflector was not active for cluster " + p.foreignClusterId)
 		return
 	}
 

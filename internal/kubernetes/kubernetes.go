@@ -38,8 +38,8 @@ type KubernetesProvider struct { // nolint:golint]
 	daemonEndpointPort int32
 	startTime          time.Time
 	notifier           func(*v1.Pod)
-	clusterId          string
-	homeClusterID 	   string
+	foreignClusterId   string
+	homeClusterID      string
 	initialized        bool
 	nodeController     *node.NodeController
 	providerKubeconfig string
@@ -82,19 +82,19 @@ func NewKubernetesProvider(nodeName, clusterId, homeClusterId, operatingSystem s
 	}
 
 	provider := KubernetesProvider{
-		Reflector: &Reflector{},
-		nodeName:           nodeName,
-		operatingSystem:    operatingSystem,
-		internalIP:         internalIP,
-		daemonEndpointPort: daemonEndpointPort,
-		startTime:          time.Now(),
-		manager:			mgr,
-		clusterId: clusterId,
-		homeClusterID:homeClusterId,
-		providerKubeconfig: remoteKubeConfig,
-		homeClient: c,
-		namespaceNatting: map[string]string{},
-		namespaceDeNatting: map[string]string{},
+		Reflector:             &Reflector{},
+		nodeName:              nodeName,
+		operatingSystem:       operatingSystem,
+		internalIP:            internalIP,
+		daemonEndpointPort:    daemonEndpointPort,
+		startTime:             time.Now(),
+		manager:               mgr,
+		foreignClusterId:      clusterId,
+		homeClusterID:         homeClusterId,
+		providerKubeconfig:    remoteKubeConfig,
+		homeClient:            c,
+		namespaceNatting:      map[string]string{},
+		namespaceDeNatting:    map[string]string{},
 		foreignPodWatcherStop: make(chan bool, 1),
 	}
 
