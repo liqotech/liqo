@@ -70,6 +70,7 @@ func (r *AdvertisementReconciler) Reconcile(req ctrl.Request) (ctrl.Result, erro
 			return ctrl.Result{}, err
 		}
 		checkAdvertisement(r, ctx, log, &adv, nodes)
+		return ctrl.Result{}, nil
 	}
 
 	if adv.Status.AdvertisementStatus != "ACCEPTED" {
@@ -86,9 +87,8 @@ func (r *AdvertisementReconciler) Reconcile(req ctrl.Request) (ctrl.Result, erro
 		if err != nil {
 			return ctrl.Result{}, err
 		}
+		return ctrl.Result{}, nil
 	}
-
-	log.Info("launching virtual-kubelet for cluster " + adv.Spec.ClusterId)
 
 	return ctrl.Result{}, nil
 }

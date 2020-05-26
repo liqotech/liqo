@@ -153,6 +153,10 @@ func (p* KubernetesProvider) watchForeignPods(w watch.Interface) {
 				klog.Error("unexpected type")
 			}
 			denattedNS := p.DeNatNamespace(p2.Namespace)
+			if denattedNS == "" {
+				break
+			}
+
 			p.notifier(F2HTranslate(p2, p.RemappedPodCidr, denattedNS))
 		}
 	}
