@@ -93,6 +93,8 @@ func CreateVkDeployment(adv *protocolv1.Advertisement, nameSA, vkNamespace, vkIm
 		"vk-" + adv.Spec.ClusterId,
 		"--kubelet-namespace",
 		vkNamespace,
+		"--provider-config",
+		"/app/kubeconfig/remote",
 	}
 
 	volumes := []v1.Volume{

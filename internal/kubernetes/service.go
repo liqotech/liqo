@@ -66,6 +66,10 @@ func CreateService(c *kubernetes.Clientset, svc *corev1.Service, namespace strin
 			Type:     svc.Spec.Type,
 		},
 	}
+
+	if svcRemote.Labels == nil {
+		svcRemote.Labels = make(map[string]string)
+	}
 	svcRemote.Labels["liqo/reflection"] = "reflected"
 
 	_, err := c.CoreV1().Services(namespace).Create(&svcRemote)
