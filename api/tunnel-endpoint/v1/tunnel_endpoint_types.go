@@ -51,6 +51,7 @@ type TunnelEndpointStatus struct {
 
 // +kubebuilder:object:root=true
 // +kubebuilder:subresource:status
+// +kubebuilder:resource:scope=Cluster
 
 // TunnelEndpoint is the Schema for the endpoints API
 type TunnelEndpoint struct {

@@ -14,7 +14,7 @@ spec:
     listKind: TunnelEndpointList
     plural: tunnelendpoints
     singular: tunnelendpoint
-  scope: Namespaced
+  scope: Cluster
   subresources:
     status: {}
   validation:
