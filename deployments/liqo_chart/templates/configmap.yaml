@@ -1,0 +1,10 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .Values.global.configmapName }}
+data:
+  clusterID: {{ .Values.configmap.clusterID}}
+  podCIDR: {{ .Values.configmap.podCIDR}}
+  serviceCIDR: {{ .Values.configmap.serviceCIDR}}
+  gatewayPrivateIP: {{ .Values.configmap.gatewayPrivateIP}}
+  gatewayIP: {{ .Values.configmap.gatewayIP}}

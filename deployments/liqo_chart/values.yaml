@@ -1,0 +1,37 @@
+# Default values for liqo_chart.
+# This is a YAML-formatted file.
+# Declare variables to be passed into your templates.
+
+configmap:
+  clusterID: "cluster-1"
+  podCIDR: "10.244.0.0/16"
+  serviceCIDR: "10.96.0.0/12"
+  gatewayPrivateIP: "10.244.2.47"
+  gatewayIP: "10.251.0.1"
+
+#configuration values for the adv subchart
+adv_chart:
+  advController:
+    image: "dronev2/advertisement-operator"
+    pullPolicy: "IfNotPresent"
+    foreignClusterID: "cluster-2"
+  broadcaster:
+    image: "dronev2/advertisement-broadcaster"
+    pullPolicy: "IfNotPresent"
+
+#configuration values for the networkModule subchart
+networkModule_chart:
+  routeOperator:
+    image: "dronev2/dronet-operator"
+    pullPolicy: "IfNotPresent"
+  tunnelEndpointOperator:
+    image: "dronev2/dronet-operator"
+    pullPolicy: "IfNotPresent"
+
+#configuration values for the tunnelendpointCreator subchart
+tunnelEndpointCreator_chart:
+  image: "dronev2/dronet-operator"
+  pullPolicy: "IfNotPresent"
+
+global:
+  configmapName: liqo-configmap

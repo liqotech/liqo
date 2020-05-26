@@ -1,0 +1,114 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: tunnelendpointcreator-operator-service-account
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  creationTimestamp: null
+  name: tunnelendpointcreator-manager-role
+rules:
+- apiGroups:
+  - dronet.drone.com
+  resources:
+  - tunnelendpoints
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - dronet.drone.com
+  resources:
+  - tunnelendpoints/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
+  - protocol.drone.com
+  resources:
+  - advertisements
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - protocol.drone.com
+  resources:
+  - advertisements/status
+  verbs:
+  - get
+  - patch
+  - update
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: tunnelendpointcreator-manager-rolebinding
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: tunnelendpointcreator-manager-role
+subjects:
+  - kind: ServiceAccount
+    name: tunnelendpointcreator-operator-service-account
+    namespace: {{ .Release.Namespace }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  creationTimestamp: null
+  labels:
+    run: tunnelendpointcreator-operator
+  name: tunnelendpointcreator-operator
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      run: tunnelendpointcreator-operator
+  strategy: {}
+  template:
+    metadata:
+      creationTimestamp: null
+      labels:
+        run: tunnelendpointcreator-operator
+    spec:
+      serviceAccountName: tunnelendpointcreator-operator-service-account
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+              - matchExpressions:
+                  - key: type
+                    operator: NotIn
+                    values:
+                      - virtual-node
+      containers:
+        - image: {{ .Values.image }}
+          imagePullPolicy: {{ .Values.pullPolicy }}
+          name: tunnelendpointcreator-operator
+          command: ["/usr/bin/dronet-operator"]
+          args:
+            - "-run-as=tunnelEndpointCreator-operator"
+          env:
+            - name: POD_CIDR
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ .Values.global.configmapName }}
+                  key: podCIDR
+            - name: CLUSTER_CIDR
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ .Values.global.configmapName }}
+                  key: serviceCIDR
+      restartPolicy: Always
+status: {}
