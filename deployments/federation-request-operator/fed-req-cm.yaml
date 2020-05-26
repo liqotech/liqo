@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: federation-request-operatorn-cm
+  namespace: default
+data:
+  allowAll: "true"
