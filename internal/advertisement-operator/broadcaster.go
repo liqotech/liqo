@@ -2,9 +2,11 @@ package advertisement_operator
 
 import (
 	"context"
+	"io/ioutil"
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
+	"os"
 	"strings"
 	"sync"
 	"time"
@@ -52,8 +54,22 @@ func StartBroadcaster(clusterId string, localKubeconfig string, foreignKubeconfi
 		return
 	}
 
+	namespace, found := os.LookupEnv("POD_NAMESPACE")
+	if !found {
+		log.Info("POD_NAMESPACE not set")
+		data, err := ioutil.ReadFile("/var/run/secrets/kubernetes.io/serviceaccount/namespace")
+		if err != nil {
+			log.Error(err, "Unable to get namespace")
+			return
+		}
+		if namespace = strings.TrimSpace(string(data)); len(namespace) <= 0 {
+			log.Error(err, "Unable to get namespace")
+			return
+		}
+	}
+
 	// get configMaps containing the kubeconfig of the foreign clusters
-	configMaps, err := localClient.CoreV1().ConfigMaps("default").List(metav1.ListOptions{})
+	configMaps, err := localClient.CoreV1().ConfigMaps(namespace).List(metav1.ListOptions{})
 	if err != nil {
 		log.Error(err, "Unable to list configMaps")
 		return

@@ -80,5 +80,9 @@ spec:
               configMapKeyRef:
                 name: adv-operator-config
                 key: gatewayPrivateIP
+          - name: POD_NAMESPACE
+            valueFrom:
+              fieldRef:
+                fieldPath: metadata.namespace
 status: {}
 

@@ -54,31 +54,35 @@ spec:
                     values:
                       - virtual-node
       containers:
-      - image: dronev2/advertisement-broadcaster
-        name: advertisement-operator
-        command: ["/usr/bin/advertisement-broadcaster"]
-        args:
-          - "--cluster-id"
-          - "$(CLUSTER_ID)"
-          - "--gateway-ip"
-          - "$(LOCAL_TUNNEL_PUBLIC_IP)"
-          - "--gateway-private-ip"
-          - "$(LOCAL_TUNNEL_PRIVATE_IP)"
-        env:
-          - name: CLUSTER_ID
-            valueFrom:
-              configMapKeyRef:
-                name: adv-operator-config
-                key: clusterId
-          - name: LOCAL_TUNNEL_PUBLIC_IP
-            valueFrom:
-              configMapKeyRef:
-                name: adv-operator-config
-                key: gatewayIP
-          - name: LOCAL_TUNNEL_PRIVATE_IP
-            valueFrom:
-              configMapKeyRef:
-                name: adv-operator-config
-                key: gatewayPrivateIP
+        - image: dronev2/advertisement-broadcaster
+          name: advertisement-operator
+          command: ["/usr/bin/advertisement-broadcaster"]
+          args:
+            - "--cluster-id"
+            - "$(CLUSTER_ID)"
+            - "--gateway-ip"
+            - "$(LOCAL_TUNNEL_PUBLIC_IP)"
+            - "--gateway-private-ip"
+            - "$(LOCAL_TUNNEL_PRIVATE_IP)"
+          env:
+            - name: CLUSTER_ID
+              valueFrom:
+                configMapKeyRef:
+                  name: adv-operator-config
+                  key: clusterId
+            - name: LOCAL_TUNNEL_PUBLIC_IP
+              valueFrom:
+                configMapKeyRef:
+                  name: adv-operator-config
+                  key: gatewayIP
+            - name: LOCAL_TUNNEL_PRIVATE_IP
+              valueFrom:
+                configMapKeyRef:
+                  name: adv-operator-config
+                  key: gatewayPrivateIP
+            - name: POD_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
 status: {}
 
