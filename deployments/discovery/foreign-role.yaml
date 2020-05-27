@@ -7,12 +7,15 @@ metadata:
 rules:
   - apiGroups:
       - "discovery.liqo.io"
+      - ""
     resources:
-      - federationrequests
+      - peeringrequests
+      - secrets
     verbs:
       - get
       - create
       - delete
+      - update
 
 ---
 apiVersion: v1

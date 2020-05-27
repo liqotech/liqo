@@ -15,4 +15,4 @@ data:
   enableDiscovery: 'true'           # enable service discovery
   enableAdvertisement: 'false'      # enable service advertisement
 
-  autoFederation: 'true'            # enable automatic federation process
+  autoJoin: 'true'                  # enable automatic join process

@@ -16,7 +16,7 @@ var (
 
 type DiscoveryV1Interface interface {
 	ForeignClusters() ForeignClusterInterface
-	FederationRequests() FederationRequestInterface
+	PeeringRequests() PeeringRequestInterface
 }
 
 type DiscoveryV1Client struct {
@@ -52,8 +52,8 @@ func (c *DiscoveryV1Client) ForeignClusters() ForeignClusterInterface {
 	}
 }
 
-func (c *DiscoveryV1Client) FederationRequests() FederationRequestInterface {
-	return &federationRequestClient{
+func (c *DiscoveryV1Client) PeeringRequests() PeeringRequestInterface {
+	return &peeringRequestClient{
 		restClient: c.restClient,
 	}
 }

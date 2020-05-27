@@ -1,10 +1,11 @@
-package federation_request_admission
+package peering_request_admission
 
 import (
 	"encoding/json"
 	"fmt"
-	discoveryv1 "github.com/netgroup-polito/dronev2/api/discovery/v1"
-	federation_request_operator "github.com/netgroup-polito/dronev2/internal/federation-request-operator"
+	"github.com/go-logr/logr"
+	discoveryv1 "github.com/liqoTech/liqo/api/discovery/v1"
+	"github.com/liqoTech/liqo/internal/peering-request-operator"
 	"io/ioutil"
 	"k8s.io/api/admission/v1beta1"
 	admissionregistrationv1beta1 "k8s.io/api/admissionregistration/v1beta1"
@@ -12,6 +13,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/serializer"
+	"k8s.io/client-go/kubernetes"
 	"k8s.io/kubernetes/pkg/apis/core/v1"
 	"net/http"
 )
@@ -24,6 +26,10 @@ var (
 
 type WebhookServer struct {
 	Server *http.Server
+	Log    logr.Logger
+
+	client    *kubernetes.Clientset
+	Namespace string
 }
 
 func init() {
@@ -34,10 +40,10 @@ func init() {
 
 func (whsvr *WebhookServer) validate(ar *v1beta1.AdmissionReview) *v1beta1.AdmissionResponse {
 
-	fedReq := discoveryv1.FederationRequest{}
+	peerReq := discoveryv1.PeeringRequest{}
 
-	if err := json.Unmarshal(ar.Request.Object.Raw, &fedReq); err != nil {
-		Log.Error(err, err.Error())
+	if err := json.Unmarshal(ar.Request.Object.Raw, &peerReq); err != nil {
+		whsvr.Log.Error(err, err.Error())
 		return &v1beta1.AdmissionResponse{
 			Allowed: false,
 			Result: &metav1.Status{
@@ -46,20 +52,20 @@ func (whsvr *WebhookServer) validate(ar *v1beta1.AdmissionReview) *v1beta1.Admis
 		}
 	}
 
-	Log.Info("FederationRequest " + fedReq.Name + " Received")
+	whsvr.Log.Info("PeeringRequest " + peerReq.Name + " Received")
 
-	conf := federation_request_operator.GetConfig()
+	conf := peering_request_operator.GetConfig(whsvr.client, whsvr.Log, whsvr.Namespace)
 
 	if conf.AllowAll {
 		// allow every request
-		Log.Info("FederationRequest " + fedReq.Name + " Allowed")
+		whsvr.Log.Info("PeeringRequest " + peerReq.Name + " Allowed")
 		return &v1beta1.AdmissionResponse{
 			Allowed: true,
 			Result:  nil,
 		}
 	} else {
-		// TODO: apply policy to accept/reject federation requests
-		Log.Info("FederationRequest " + fedReq.Name + " Denied")
+		// TODO: apply policy to accept/reject peering requests
+		whsvr.Log.Info("PeeringRequest " + peerReq.Name + " Denied")
 		return &v1beta1.AdmissionResponse{
 			Allowed: false,
 			Result: &metav1.Status{
@@ -77,7 +83,7 @@ func (whsvr *WebhookServer) serve(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	if len(body) == 0 {
-		Log.Error(nil, "empty body")
+		whsvr.Log.Error(nil, "empty body")
 		http.Error(w, "empty body", http.StatusBadRequest)
 		return
 	}
@@ -85,7 +91,7 @@ func (whsvr *WebhookServer) serve(w http.ResponseWriter, r *http.Request) {
 	// verify the content type is accurate
 	contentType := r.Header.Get("Content-Type")
 	if contentType != "application/json" {
-		Log.Error(nil, "Content-Type="+contentType+", expect application/json")
+		whsvr.Log.Error(nil, "Content-Type="+contentType+", expect application/json")
 		http.Error(w, "invalid Content-Type, expect `application/json`", http.StatusUnsupportedMediaType)
 		return
 	}
@@ -93,7 +99,7 @@ func (whsvr *WebhookServer) serve(w http.ResponseWriter, r *http.Request) {
 	var admissionResponse *v1beta1.AdmissionResponse
 	ar := v1beta1.AdmissionReview{}
 	if _, _, err := deserializer.Decode(body, nil, &ar); err != nil {
-		Log.Error(err, "Can't decode body: "+err.Error())
+		whsvr.Log.Error(err, "Can't decode body: "+err.Error())
 		admissionResponse = &v1beta1.AdmissionResponse{
 			Result: &metav1.Status{
 				Message: err.Error(),
@@ -118,11 +124,11 @@ func (whsvr *WebhookServer) serve(w http.ResponseWriter, r *http.Request) {
 
 	resp, err := json.Marshal(admissionReview)
 	if err != nil {
-		Log.Error(err, "Can't encode response: "+err.Error())
+		whsvr.Log.Error(err, "Can't encode response: "+err.Error())
 		http.Error(w, fmt.Sprintf("could not encode response: %v", err), http.StatusInternalServerError)
 	}
 	if _, err := w.Write(resp); err != nil {
-		Log.Error(err, "Can't write response: "+err.Error())
+		whsvr.Log.Error(err, "Can't write response: "+err.Error())
 		http.Error(w, fmt.Sprintf("could not write response: %v", err), http.StatusInternalServerError)
 	}
 }

@@ -14,6 +14,7 @@ jobs:
         - init-vkubelet
         - schedulingnode-operator
         - discovery
+        - peering-request-operator
         - tray-agent
         - init-pod-mutator
         - pod-mutator

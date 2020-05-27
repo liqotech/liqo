@@ -17,23 +17,26 @@ limitations under the License.
 package v1
 
 import (
+	"github.com/liqoTech/liqo/pkg/crdClient/v1alpha1"
+	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 // EDIT THIS FILE!  THIS IS SCAFFOLDING FOR YOU TO OWN!
 // NOTE: json tags are required.  Any new fields you add must have json tags for the fields to be serialized.
 
-// FederationRequestSpec defines the desired state of FederationRequest
-type FederationRequestSpec struct {
+// PeeringRequestSpec defines the desired state of PeeringRequest
+type PeeringRequestSpec struct {
 	// INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
 	// Important: Run "make" to regenerate code after modifying this file
 
-	ClusterID  string `json:"clusterID"`
-	KubeConfig string `json:"kubeConfig"`
+	ClusterID     string             `json:"clusterID"`
+	Namespace     string             `json:"namespace"`
+	KubeConfigRef v1.ObjectReference `json:"kubeConfigRef"`
 }
 
-// FederationRequestStatus defines the observed state of FederationRequest
-type FederationRequestStatus struct {
+// PeeringRequestStatus defines the observed state of PeeringRequest
+type PeeringRequestStatus struct {
 	// INSERT ADDITIONAL STATUS FIELD - define observed state of cluster
 	// Important: Run "make" to regenerate code after modifying this file
 }
@@ -41,24 +44,26 @@ type FederationRequestStatus struct {
 // +kubebuilder:object:root=true
 // +kubebuilder:resource:scope=Cluster
 
-// FederationRequest is the Schema for the FederationRequests API
-type FederationRequest struct {
+// PeeringRequest is the Schema for the PeeringRequests API
+type PeeringRequest struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
-	Spec   FederationRequestSpec   `json:"spec,omitempty"`
-	Status FederationRequestStatus `json:"status,omitempty"`
+	Spec   PeeringRequestSpec   `json:"spec,omitempty"`
+	Status PeeringRequestStatus `json:"status,omitempty"`
 }
 
 // +kubebuilder:object:root=true
 
-// FederationRequestList contains a list of FederationRequest
-type FederationRequestList struct {
+// PeeringRequestList contains a list of PeeringRequest
+type PeeringRequestList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`
-	Items           []FederationRequest `json:"items"`
+	Items           []PeeringRequest `json:"items"`
 }
 
 func init() {
-	SchemeBuilder.Register(&FederationRequest{}, &FederationRequestList{})
+	SchemeBuilder.Register(&PeeringRequest{}, &PeeringRequestList{})
+
+	v1alpha1.AddToRegistry("peeringrequests", &PeeringRequest{}, &PeeringRequestList{})
 }
