@@ -22,18 +22,9 @@ jobs:
         with:
           issue-number: ${{ github.event.issue.id }}
           body: |
-            Rebase successful!
+            Rebase status: ${{ job.status  }}!
           reactions: '+1'
-        if:  job.status == 'success'
-
-      - name: Create comment (Failure)
-        uses: peter-evans/create-or-update-comment@v1
-        with:
-          issue-number: ${{ github.event.issue.id }}
-          body: |
-            Rebase failed!
-          reactions: '-1'
-        if:  job.status != 'success' and always()
+        if: always()
 
   always_job:
     name: Always run job

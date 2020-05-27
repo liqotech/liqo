@@ -35,6 +35,10 @@ jobs:
           password: ${{ secrets.DOCKER_PASSWORD }}
           tags: "${{ github.sha }}"
         if: github.ref != 'refs/heads/master'
+   release:
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
       - uses: 8398a7/action-slack@v2
         with:
           status: ${{ job.status }}
