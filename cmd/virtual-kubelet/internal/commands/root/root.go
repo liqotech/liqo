@@ -69,6 +69,14 @@ func runRootCommand(ctx context.Context, s *provider.Store, c Opts) error {
 		return errdefs.InvalidInputf("operating system %q is not supported", c.OperatingSystem)
 	}
 
+	if c.ProviderConfigPath == "" {
+		return errors.New("provider kubeconfig is mandatory")
+	}
+
+	if c.ClusterId == "" {
+		return errors.New("cluster id is mandatory")
+	}
+
 	if c.PodSyncWorkers == 0 {
 		return errdefs.InvalidInput("pod sync workers must be greater than 0")
 	}

@@ -164,9 +164,5 @@ func SetDefaultOpts(c *Opts) error {
 		c.HomeClusterId = DefaultHomeClusterId
 	}
 
-	if c.ProviderConfigPath == "" {
-		return errors.New("provider kubeconfig is mandatory")
-	}
-
 	return nil
 }
