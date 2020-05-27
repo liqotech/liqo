@@ -18,8 +18,8 @@ package foreign_cluster_operator
 
 import (
 	"context"
-	b64 "encoding/base64"
 	"github.com/go-logr/logr"
+	discoveryv1 "github.com/liqoTech/liqo/api/discovery/v1"
 	"github.com/liqoTech/liqo/internal/discovery/kubeconfig"
 	"github.com/liqoTech/liqo/pkg/clusterID"
 	v1 "github.com/liqoTech/liqo/pkg/discovery/v1"
@@ -29,16 +29,11 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/rest"
 	ctrl "sigs.k8s.io/controller-runtime"
-	"sigs.k8s.io/controller-runtime/pkg/client"
-
-	discoveryv1 "github.com/liqoTech/liqo/api/discovery/v1"
 )
 
 // ForeignClusterReconciler reconciles a ForeignCluster object
 type ForeignClusterReconciler struct {
-	client.Client
 	Log    logr.Logger
 	Scheme *runtime.Scheme
 
@@ -61,13 +56,52 @@ func (r *ForeignClusterReconciler) Reconcile(req ctrl.Request) (ctrl.Result, err
 		return ctrl.Result{}, err
 	}
 
-	if fc.Spec.Federate {
-		foreignConfig, err := fc.GetConfig()
+	foreignConfig, err := fc.GetConfig(r.client)
+	if err != nil {
+		r.Log.Error(err, err.Error())
+		return ctrl.Result{}, err
+	}
+	foreignK8sClient, err := kubernetes.NewForConfig(foreignConfig)
+	if err != nil {
+		r.Log.Error(err, err.Error())
+		return ctrl.Result{}, err
+	}
+	foreignDiscoveryClient, err := v1.NewForConfig(foreignConfig)
+	if err != nil {
+		r.Log.Error(err, err.Error())
+		return ctrl.Result{}, err
+	}
+
+	// if join is required (both automatically or by user) and status is not set to joined
+	// create new peering request
+	if fc.Spec.Join && !fc.Status.Joined {
+		// create PeeringRequest
+		pr, err := r.createPeeringRequestIfNotExists(req.Name, fc, foreignDiscoveryClient, foreignK8sClient)
 		if err != nil {
 			r.Log.Error(err, err.Error())
 			return ctrl.Result{}, err
 		}
-		_, err = r.createFederationRequestIfNotExists(req.Name, fc, foreignConfig)
+		fc.Status.Joined = true
+		fc.Status.PeeringRequestName = pr.Name
+		_, err = r.discoveryClient.ForeignClusters().Update(fc, metav1.UpdateOptions{})
+		if err != nil {
+			r.Log.Error(err, err.Error())
+			return ctrl.Result{}, err
+		}
+	}
+
+	// if join is no more required and status is set to joined
+	// delete peering request
+	if !fc.Spec.Join && fc.Status.Joined {
+		// peering request has to be removed
+		err := r.deletePeeringRequest(foreignDiscoveryClient, fc)
+		if err != nil {
+			r.Log.Error(err, err.Error())
+			return ctrl.Result{}, err
+		}
+		fc.Status.Joined = false
+		fc.Status.PeeringRequestName = ""
+		_, err = r.discoveryClient.ForeignClusters().Update(fc, metav1.UpdateOptions{})
 		if err != nil {
 			r.Log.Error(err, err.Error())
 			return ctrl.Result{}, err
@@ -83,9 +117,7 @@ func (r *ForeignClusterReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		Complete(r)
 }
 
-func (r *ForeignClusterReconciler) createFederationRequestIfNotExists(clusterID string, owner *discoveryv1.ForeignCluster, foreignConfig *rest.Config) (*discoveryv1.FederationRequest, error) {
-	foreignDiscoveryClient, _ := v1.NewForConfig(foreignConfig)
-
+func (r *ForeignClusterReconciler) createPeeringRequestIfNotExists(clusterID string, owner *discoveryv1.ForeignCluster, foreignClient *v1.DiscoveryV1Client, foreignK8sClient *kubernetes.Clientset) (*discoveryv1.PeeringRequest, error) {
 	// get config to send to foreign cluster
 	fConfig, err := r.getForeignConfig(clusterID, owner)
 	if err != nil {
@@ -94,26 +126,58 @@ func (r *ForeignClusterReconciler) createFederationRequestIfNotExists(clusterID 
 
 	localClusterID := r.clusterID.GetClusterID()
 
-	fr, err := foreignDiscoveryClient.FederationRequests().Get(localClusterID, metav1.GetOptions{})
+	pr, err := foreignClient.PeeringRequests().Get(localClusterID, metav1.GetOptions{})
 	if err != nil {
 		if errors.IsNotFound(err) {
 			// does not exist
-			fr := discoveryv1.FederationRequest{
+			secret := &apiv1.Secret{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: clusterID,
+				},
+				StringData: map[string]string{
+					"kubeconfig": fConfig,
+				},
+			}
+			secret, err := foreignK8sClient.CoreV1().Secrets(r.Namespace).Create(secret)
+			if err != nil {
+				return nil, err
+			}
+			pr := &discoveryv1.PeeringRequest{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: localClusterID,
 				},
-				Spec: discoveryv1.FederationRequestSpec{
-					ClusterID:  localClusterID,
-					KubeConfig: fConfig,
+				Spec: discoveryv1.PeeringRequestSpec{
+					ClusterID: localClusterID,
+					Namespace: r.Namespace,
+					KubeConfigRef: apiv1.ObjectReference{
+						Kind:       secret.Kind,
+						Namespace:  secret.Namespace,
+						Name:       secret.Name,
+						UID:        secret.UID,
+						APIVersion: secret.APIVersion,
+					},
 				},
 			}
-			return foreignDiscoveryClient.FederationRequests().Create(&fr)
+			pr, err = foreignClient.PeeringRequests().Create(pr)
+			if err != nil {
+				return nil, err
+			}
+			secret.ObjectMeta.OwnerReferences = []metav1.OwnerReference{
+				{
+					APIVersion: pr.APIVersion,
+					Kind:       pr.APIVersion,
+					Name:       pr.Name,
+					UID:        pr.UID,
+				},
+			}
+			_, err = foreignK8sClient.CoreV1().Secrets(r.Namespace).Update(secret)
+			return pr, err
 		}
 		// other errors
 		return nil, err
 	}
 	// already exists
-	return fr, nil
+	return pr, nil
 }
 
 // this function return a kube-config file to send to foreign cluster and crate everything needed for it
@@ -148,7 +212,7 @@ func (r *ForeignClusterReconciler) getForeignConfig(clusterID string, owner *dis
 		wa.Stop()
 	}
 	cnf, err := kubeconfig.CreateKubeConfig(clusterID, r.Namespace)
-	return b64.StdEncoding.EncodeToString([]byte(cnf)), err
+	return cnf, err
 }
 
 func (r *ForeignClusterReconciler) createClusterRoleIfNotExists(clusterID string, owner *discoveryv1.ForeignCluster) (*rbacv1.ClusterRole, error) {
@@ -170,9 +234,9 @@ func (r *ForeignClusterReconciler) createClusterRoleIfNotExists(clusterID string
 			Rules: []rbacv1.PolicyRule{
 				// TODO: set correct access to create advertisements
 				{
-					Verbs:     []string{"get", "list"},
-					APIGroups: []string{""},
-					Resources: []string{"pods"},
+					Verbs:     []string{"get", "list", "create", "delete", "watch"},
+					APIGroups: []string{"protocol.liqo.io"},
+					Resources: []string{"advertisements"},
 				},
 			},
 		}
@@ -238,4 +302,8 @@ func (r *ForeignClusterReconciler) createClusterRoleBindingIfNotExists(clusterID
 	} else {
 		return rb, nil
 	}
+}
+
+func (r *ForeignClusterReconciler) deletePeeringRequest(foreignClient *v1.DiscoveryV1Client, fc *discoveryv1.ForeignCluster) error {
+	return foreignClient.PeeringRequests().Delete(fc.Status.PeeringRequestName, metav1.DeleteOptions{})
 }

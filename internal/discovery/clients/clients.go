@@ -1,6 +1,8 @@
 package clients
 
 import (
+	discoveryv1 "github.com/liqoTech/liqo/api/discovery/v1"
+	"github.com/liqoTech/liqo/pkg/crdClient/v1alpha1"
 	v1 "github.com/liqoTech/liqo/pkg/discovery/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
@@ -26,6 +28,7 @@ func NewK8sClient() (*kubernetes.Clientset, error) {
 	return kubernetes.NewForConfig(config)
 }
 
+// TODO: delete
 func NewDiscoveryClient() (*v1.DiscoveryV1Client, error) {
 	config, err := NewConfig()
 	if err != nil {
@@ -33,4 +36,12 @@ func NewDiscoveryClient() (*v1.DiscoveryV1Client, error) {
 		os.Exit(1)
 	}
 	return v1.NewForConfig(config)
+}
+
+func NewCRDClient() (*v1alpha1.CRDClient, error) {
+	config, err := v1alpha1.NewKubeconfig(filepath.Join(os.Getenv("HOME"), ".kube", "config"), &discoveryv1.GroupVersion)
+	if err != nil {
+		return nil, err
+	}
+	return v1alpha1.NewFromConfig(config)
 }

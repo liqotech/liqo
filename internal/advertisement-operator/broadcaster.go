@@ -2,6 +2,7 @@ package advertisement_operator
 
 import (
 	"context"
+	"github.com/liqoTech/liqo/internal/discovery/clients"
 	"io/ioutil"
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -37,7 +38,7 @@ var (
 // - foreignKubeconfig: the path to the kubeconfig of the foreign cluster. Set it only when you are debugging and need to launch the program as a process and not inside Kubernetes
 // - gatewayIP: the IP address of the gateway node
 // - gatewayPrivateIP: the private IP address of the gateway node
-func StartBroadcaster(clusterId string, localKubeconfig string, foreignKubeconfig string, gatewayIP string, gatewayPrivateIP string) {
+func StartBroadcaster(clusterId string, localKubeconfig string, foreignKubeconfig string, gatewayIP string, gatewayPrivateIP string, peeringRequestName string) {
 	log = ctrl.Log.WithName("advertisement-broadcaster")
 	log.Info("starting broadcaster")
 
@@ -68,23 +69,56 @@ func StartBroadcaster(clusterId string, localKubeconfig string, foreignKubeconfi
 		}
 	}
 
-	// get configMaps containing the kubeconfig of the foreign clusters
-	configMaps, err := localClient.CoreV1().ConfigMaps(namespace).List(metav1.ListOptions{})
-	if err != nil {
-		log.Error(err, "Unable to list configMaps")
-		return
-	}
-
-	var wg sync.WaitGroup
-	// during operation the foreignKubeconfigs are taken from the ConfigMaps
-	for _, cm := range configMaps.Items {
-		if strings.HasPrefix(cm.Name, "foreign-kubeconfig") {
-			wg.Add(1)
-			go GenerateAdvertisement(&wg, localClient, localCRDClient, foreignKubeconfig, cm.DeepCopy(), clusterId, gatewayIP, gatewayPrivateIP)
+	if peeringRequestName == "" {
+		// get configMaps containing the kubeconfig of the foreign clusters
+		configMaps, err := localClient.CoreV1().ConfigMaps(namespace).List(metav1.ListOptions{})
+		if err != nil {
+			log.Error(err, "Unable to list configMaps")
+			return
 		}
-	}
 
-	wg.Wait()
+		var wg sync.WaitGroup
+		// during operation the foreignKubeconfigs are taken from the ConfigMaps
+		for _, cm := range configMaps.Items {
+			if strings.HasPrefix(cm.Name, "foreign-kubeconfig") {
+				wg.Add(1)
+				go GenerateAdvertisement(&wg, localClient, localCRDClient, foreignKubeconfig, cm.DeepCopy(), clusterId, gatewayIP, gatewayPrivateIP)
+			}
+		}
+
+		wg.Wait()
+	} else {
+		// get configuration from PeeringRequest CR
+		clientSet, err := clients.NewDiscoveryClient()
+		if err != nil {
+			log.Error(err, "Unable to create client to local cluster")
+			return
+		}
+		pr, err := clientSet.PeeringRequests().Get(peeringRequestName, metav1.GetOptions{})
+		if err != nil {
+			log.Error(err, "Unable to get PeeringRequest "+peeringRequestName)
+			return
+		}
+
+		// TODO: refactoring, this config map is a workaround
+		secret, err := localClient.CoreV1().Secrets(pr.Spec.KubeConfigRef.Namespace).Get(pr.Spec.KubeConfigRef.Name, metav1.GetOptions{})
+		if err != nil {
+			log.Error(err, "Unable to get PeeringRequest secret")
+		}
+		cm := corev1.ConfigMap{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: "foreign-kubeconfig-" + pr.Name,
+			},
+			Data: map[string]string{
+				"remote": string(secret.Data["kubeconfig"]),
+			},
+		}
+
+		var wg sync.WaitGroup
+		wg.Add(1)
+		GenerateAdvertisement(&wg, localClient, localCRDClient, "", &cm, clusterId, gatewayIP, gatewayPrivateIP)
+		wg.Wait()
+	}
 }
 
 // generate an advertisement message every 10 minutes and post it to remote clusters

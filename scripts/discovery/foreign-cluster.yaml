@@ -1,0 +1,10 @@
+apiVersion: discovery.liqo.io/v1
+kind: ForeignCluster
+metadata:
+  name: foreign-cluster
+spec:
+  clusterID: foreign-cluster
+  kubeConfigRef:
+    name: foreign-config
+    namespace: default
+  join: true

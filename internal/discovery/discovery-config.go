@@ -21,7 +21,7 @@ type Config struct {
 	EnableDiscovery     bool `json:"enableDiscovery"`
 	EnableAdvertisement bool `json:"enableAdvertisement"`
 
-	AutoFederation bool `json:"autoFederation"`
+	AutoJoin bool `json:"autojoin"`
 }
 
 func (discovery *DiscoveryCtrl) GetDiscoveryConfig() {
@@ -51,7 +51,7 @@ func (discovery *DiscoveryCtrl) GetDiscoveryConfig() {
 	discovery.config.EnableDiscovery = config["enableDiscovery"] == "true"
 	discovery.config.EnableAdvertisement = config["enableAdvertisement"] == "true"
 
-	discovery.config.AutoFederation = config["autoFederation"] == "true"
+	discovery.config.AutoJoin = config["autoJoin"] == "true"
 
 	if discovery.config.EnableAdvertisement {
 		discovery.config.TxtData = discovery.GetTxtData()
@@ -70,7 +70,7 @@ func (discovery *DiscoveryCtrl) GetDiscoveryConfig() {
 }
 
 func checkConfig(config map[string]string) error {
-	reqFields := []string{"name", "service", "domain", "port", "enableDiscovery", "enableAdvertisement", "autoFederation", "waitTime", "updateTime"}
+	reqFields := []string{"name", "service", "domain", "port", "enableDiscovery", "enableAdvertisement", "autoJoin", "waitTime", "updateTime"}
 	for _, f := range reqFields {
 		if config[f] == "" {
 			return errors.New("Missing required field " + f)

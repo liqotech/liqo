@@ -18,7 +18,8 @@ type TxtData struct {
 }
 
 type config struct {
-	Url string `json:"url"`
+	Url       string `json:"url"`
+	Namespace string `json:"namespace"`
 }
 
 func (txtData TxtData) Encode() ([]string, error) {
@@ -76,7 +77,10 @@ func (discovery *DiscoveryCtrl) GetTxtData() TxtData {
 	url := "http://" + path.Join(node+":"+strconv.Itoa(int(port)), "config.yaml")
 
 	return TxtData{
-		Config: config{Url: url},
-		ID:     discovery.ClusterId.GetClusterID(),
+		Config: config{
+			Url:       url,
+			Namespace: discovery.Namespace,
+		},
+		ID: discovery.ClusterId.GetClusterID(),
 	}
 }

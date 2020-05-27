@@ -1,15 +1,16 @@
 apiVersion: apiextensions.k8s.io/v1beta1
 kind: CustomResourceDefinition
 metadata:
-  name: federationrequests.discovery.liqo.io
+  name: peeringrequests.discovery.liqo.io
 spec:
   group: discovery.liqo.io
   names:
-    kind: FederationRequest
-    singular: federationrequest
-    plural: federationrequests
+    kind: PeeringRequest
+    singular: peeringrequest
+    plural: peeringrequests
     shortNames:
-      - fr
+      - pr
+      - peer-req
   scope: Cluster
   versions:
     - name: v1
@@ -35,9 +36,8 @@ spec:
             clusterID:
               type: string
               description: Cluster ID
-            kubeConfig:
-              type: string
-              description: KubeConfig file base64-encoded with permission to create Advertisements
+            kubeConfigRef:
+              type: object
+              description: KubeConfig file (with Advertisement creation role) secret reference
           required:
             - clusterID
-            - kubeConfig

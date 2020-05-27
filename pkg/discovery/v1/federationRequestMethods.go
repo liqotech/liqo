@@ -7,32 +7,33 @@ import (
 	"k8s.io/client-go/rest"
 )
 
-type FederationRequestInterface interface {
-	List(opts metav1.ListOptions) (*v1.FederationRequestList, error)
-	Get(name string, options metav1.GetOptions) (*v1.FederationRequest, error)
-	Create(*v1.FederationRequest) (*v1.FederationRequest, error)
+type PeeringRequestInterface interface {
+	List(opts metav1.ListOptions) (*v1.PeeringRequestList, error)
+	Get(name string, options metav1.GetOptions) (*v1.PeeringRequest, error)
+	Create(*v1.PeeringRequest) (*v1.PeeringRequest, error)
+	Delete(name string, opts metav1.DeleteOptions) error
 }
 
-type federationRequestClient struct {
+type peeringRequestClient struct {
 	restClient rest.Interface
 }
 
-func (c *federationRequestClient) List(opts metav1.ListOptions) (*v1.FederationRequestList, error) {
-	result := v1.FederationRequestList{}
+func (c *peeringRequestClient) List(opts metav1.ListOptions) (*v1.PeeringRequestList, error) {
+	result := v1.PeeringRequestList{}
 	err := c.restClient.
 		Get().
-		Resource("federationrequests").
+		Resource("peeringrequests").
 		VersionedParams(&opts, scheme.ParameterCodec).
 		Do().
 		Into(&result)
 	return &result, err
 }
 
-func (c *federationRequestClient) Get(name string, opts metav1.GetOptions) (*v1.FederationRequest, error) {
-	result := v1.FederationRequest{}
+func (c *peeringRequestClient) Get(name string, opts metav1.GetOptions) (*v1.PeeringRequest, error) {
+	result := v1.PeeringRequest{}
 	err := c.restClient.
 		Get().
-		Resource("federationrequests").
+		Resource("peeringrequests").
 		Name(name).
 		VersionedParams(&opts, scheme.ParameterCodec).
 		Do().
@@ -40,13 +41,24 @@ func (c *federationRequestClient) Get(name string, opts metav1.GetOptions) (*v1.
 	return &result, err
 }
 
-func (c *federationRequestClient) Create(project *v1.FederationRequest) (*v1.FederationRequest, error) {
-	result := v1.FederationRequest{}
+func (c *peeringRequestClient) Create(request *v1.PeeringRequest) (*v1.PeeringRequest, error) {
+	result := v1.PeeringRequest{}
 	err := c.restClient.
 		Post().
-		Resource("federationrequests").
-		Body(project).
+		Resource("peeringrequests").
+		Body(request).
 		Do().
 		Into(&result)
 	return &result, err
+}
+
+func (c *peeringRequestClient) Delete(name string, opts metav1.DeleteOptions) error {
+	return c.restClient.
+		Delete().
+		Resource("peeringrequests").
+		VersionedParams(&opts, scheme.ParameterCodec).
+		Name(name).
+		Body(&opts).
+		Do().
+		Error()
 }

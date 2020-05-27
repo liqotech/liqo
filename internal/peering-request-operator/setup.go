@@ -1,4 +1,4 @@
-package foreign_cluster_operator
+package peering_request_operator
 
 import (
 	discoveryv1 "github.com/liqoTech/liqo/api/discovery/v1"
@@ -6,14 +6,12 @@ import (
 	"github.com/liqoTech/liqo/pkg/clusterID"
 	"k8s.io/apimachinery/pkg/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
-	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
 	"os"
 	ctrl "sigs.k8s.io/controller-runtime"
 )
 
 var (
 	scheme = runtime.NewScheme()
-	log    = ctrl.Log.WithName("foreign-cluster-operator-setup")
 )
 
 func init() {
@@ -23,6 +21,8 @@ func init() {
 }
 
 func StartOperator(namespace string) {
+	log := ctrl.Log.WithName("controllers").WithName("PeeringRequest")
+
 	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
 		Scheme:           scheme,
 		Port:             9443,
@@ -44,21 +44,23 @@ func StartOperator(namespace string) {
 		log.Error(err, "unable to start manager")
 		os.Exit(1)
 	}
+
 	clusterId, err := clusterID.NewClusterID()
 	if err != nil {
 		log.Error(err, "unable to get clusterID")
 		os.Exit(1)
 	}
 
-	if err = (&ForeignClusterReconciler{
-		Log:             ctrl.Log.WithName("controllers").WithName("ForeignCluster"),
-		Scheme:          mgr.GetScheme(),
-		Namespace:       namespace,
+	if err = (&PeeringRequestReconciler{
+		Log:    log,
+		Scheme: mgr.GetScheme(),
+
 		client:          client,
 		discoveryClient: discoveryClient,
-		clusterID:       clusterId,
+		Namespace:       namespace,
+		clusterId:       clusterId,
 	}).SetupWithManager(mgr); err != nil {
-		log.Error(err, "unable to create controller", "controller", "ForeignCluster")
+		log.Error(err, "unable to create controller")
 		os.Exit(1)
 	}
 	// +kubebuilder:scaffold:builder

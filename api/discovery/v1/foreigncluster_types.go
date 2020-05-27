@@ -17,6 +17,8 @@ limitations under the License.
 package v1
 
 import (
+	"github.com/liqoTech/liqo/pkg/crdClient/v1alpha1"
+	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -28,15 +30,19 @@ type ForeignClusterSpec struct {
 	// INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
 	// Important: Run "make" to regenerate code after modifying this file
 
-	ClusterID  string `json:"clusterID"`
-	KubeConfig string `json:"kubeConfig"`
-	Federate   bool   `json:"federate"`
+	ClusterID     string             `json:"clusterID"`
+	Namespace     string             `json:"namespace"`
+	KubeConfigRef v1.ObjectReference `json:"kubeConfigRef"`
+	Join          bool               `json:"join"`
 }
 
 // ForeignClusterStatus defines the observed state of ForeignCluster
 type ForeignClusterStatus struct {
 	// INSERT ADDITIONAL STATUS FIELD - define observed state of cluster
 	// Important: Run "make" to regenerate code after modifying this file
+
+	Joined             bool   `json:"joined"`
+	PeeringRequestName string `json:"peering-request-name"`
 }
 
 // +kubebuilder:object:root=true
@@ -62,4 +68,6 @@ type ForeignClusterList struct {
 
 func init() {
 	SchemeBuilder.Register(&ForeignCluster{}, &ForeignClusterList{})
+
+	v1alpha1.AddToRegistry("foreignclusters", &ForeignCluster{}, &ForeignClusterList{})
 }

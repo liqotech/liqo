@@ -37,9 +37,14 @@ spec:
             clusterID:
               type: string
               description: Foreign Cluster ID
-            kubeConfig:
-              type: string
-              description: Public KubeConfig file base64-encoded
+            kubeConfigRef:
+              type: object
+              description: Public KubeConfig file secret reference
+            join:
+              type: boolean
+              description: Enable join process to foreign cluster
           required:
             - clusterID
-            - kubeConfig
+            - join
+        status:
+          type: object

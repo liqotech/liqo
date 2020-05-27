@@ -1,9 +1,10 @@
-package federation_request_operator
+package peering_request_operator
 
 import (
 	"errors"
-	"github.com/netgroup-polito/dronev2/internal/discovery/clients"
+	"github.com/go-logr/logr"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/kubernetes"
 	"os"
 )
 
@@ -11,16 +12,10 @@ type Config struct {
 	AllowAll bool `json:"allowAll"`
 }
 
-func GetConfig() *Config {
+func GetConfig(client *kubernetes.Clientset, Log logr.Logger, namespace string) *Config {
 	conf := &Config{}
 
-	client, err := clients.NewK8sClient()
-	if err != nil {
-		Log.Error(err, err.Error())
-		os.Exit(1)
-	}
-
-	configMap, err := client.CoreV1().ConfigMaps(Namespace).Get("federation-request-operatorn-cm", metav1.GetOptions{})
+	configMap, err := client.CoreV1().ConfigMaps(namespace).Get("peering-request-operatorn-cm", metav1.GetOptions{})
 	if err != nil {
 		Log.Error(err, err.Error())
 		os.Exit(1)
