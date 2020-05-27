@@ -42,7 +42,17 @@ func (r *FederationRequestReconciler) Reconcile(req ctrl.Request) (ctrl.Result, 
 	_ = context.Background()
 	_ = r.Log.WithValues("federationrequest", req.NamespacedName)
 
-	discoveryClient, _ := clients.NewDiscoveryClient()
+	discoveryClient, err := clients.NewDiscoveryClient()
+	if err != nil {
+		Log.Error(err, err.Error())
+		return ctrl.Result{}, err
+	}
+	k8sClient, err := clients.NewK8sClient()
+	if err != nil {
+		Log.Error(err, err.Error())
+		return ctrl.Result{}, err
+	}
+
 	fr, err := discoveryClient.FederationRequests().Get(req.Name, metav1.GetOptions{})
 	if err != nil {
 		// TODO: has been removed
@@ -50,16 +60,23 @@ func (r *FederationRequestReconciler) Reconcile(req ctrl.Request) (ctrl.Result, 
 		return ctrl.Result{}, nil
 	}
 
-	// TODO: build federation
-	Log.Info("Deploy Broadcaster")
 	_, err = clients.NewK8sClient()
 	if err != nil {
 		return ctrl.Result{}, err
 	}
 
-	_ = GetBroadcasterDeployment(fr, "default", Namespace, "nginx:latest")
-
-	// TODO: create/update deployment
+	exists, err := BroadcasterExists(fr, Namespace)
+	if err != nil {
+		return ctrl.Result{}, err
+	}
+	if !exists {
+		Log.Info("Deploy Broadcaster")
+		deploy := GetBroadcasterDeployment(fr, "broadcaster", Namespace, "dronev2/advertisement-broadcaster")
+		_, err = k8sClient.AppsV1().Deployments(Namespace).Create(&deploy)
+		if err != nil {
+			return ctrl.Result{}, err
+		}
+	}
 
 	return ctrl.Result{}, nil
 }

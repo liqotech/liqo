@@ -61,7 +61,8 @@ func (r *ForeignClusterReconciler) Reconcile(req ctrl.Request) (ctrl.Result, err
 		return ctrl.Result{}, err
 	}
 
-	if fc.Spec.Federate {
+	if fc.Spec.Federate && !fc.Status.Federated {
+		// create FederationRequest
 		foreignConfig, err := fc.GetConfig()
 		if err != nil {
 			r.Log.Error(err, err.Error())
@@ -72,6 +73,16 @@ func (r *ForeignClusterReconciler) Reconcile(req ctrl.Request) (ctrl.Result, err
 			r.Log.Error(err, err.Error())
 			return ctrl.Result{}, err
 		}
+		fc.Status.Federated = true
+		_, err = discoveryClient.ForeignClusters().Update(fc, metav1.UpdateOptions{})
+		if err != nil {
+			r.Log.Error(err, err.Error())
+			return ctrl.Result{}, err
+		}
+	}
+	if !fc.Spec.Federate && fc.Status.Federated {
+		// TODO: delete federation request
+		// this cluster can only delete own federation requests
 	}
 
 	return ctrl.Result{}, nil
@@ -170,9 +181,9 @@ func (r *ForeignClusterReconciler) createClusterRoleIfNotExists(clusterID string
 			Rules: []rbacv1.PolicyRule{
 				// TODO: set correct access to create advertisements
 				{
-					Verbs:     []string{"get", "list"},
-					APIGroups: []string{""},
-					Resources: []string{"pods"},
+					Verbs:     []string{"get", "list", "create", "delete"},
+					APIGroups: []string{"protocol.drone.com"},
+					Resources: []string{"advertisements"},
 				},
 			},
 		}

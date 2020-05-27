@@ -43,3 +43,5 @@ spec:
           required:
             - clusterID
             - kubeConfig
+        status:
+          type: object

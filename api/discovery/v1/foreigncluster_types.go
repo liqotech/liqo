@@ -37,6 +37,8 @@ type ForeignClusterSpec struct {
 type ForeignClusterStatus struct {
 	// INSERT ADDITIONAL STATUS FIELD - define observed state of cluster
 	// Important: Run "make" to regenerate code after modifying this file
+
+	Federated bool `json:"federated"`
 }
 
 // +kubebuilder:object:root=true
