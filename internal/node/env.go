@@ -295,19 +295,26 @@ loop:
 func makeEnvironmentMap(ctx context.Context, pod *corev1.Pod, container *corev1.Container, rm *manager.ResourceManager, recorder record.EventRecorder, res map[string]string) error {
 
 	// TODO If pod.Spec.EnableServiceLinks is nil then fail as per 1.14 kubelet.
-	enableServiceLinks := corev1.DefaultEnableServiceLinks
+	/*enableServiceLinks := corev1.DefaultEnableServiceLinks
 	if pod.Spec.EnableServiceLinks != nil {
 		enableServiceLinks = *pod.Spec.EnableServiceLinks
-	}
+	}*/
 
 	// Note that there is a race between Kubelet seeing the pod and kubelet seeing the service.
 	// To avoid this users can: (1) wait between starting a service and starting; or (2) detect
 	// missing service env var and exit and be restarted; or (3) use DNS instead of env vars
 	// and keep trying to resolve the DNS name of the service (recommended).
+
+	// ServiceEnvVarMap has been removed in order to let the remote kubelet
+	// filling of the service env var
+	/*
 	svcEnv, err := getServiceEnvVarMap(rm, pod.Namespace, enableServiceLinks)
+
 	if err != nil {
 		return err
 	}
+	*/
+	svcEnv := map[string]string{}
 
 	// If the variable's Value is set, expand the `$(var)` references to other
 	// variables in the .Value field; the sources of variables are the declared

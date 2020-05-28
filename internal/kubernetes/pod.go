@@ -197,9 +197,12 @@ func (p *KubernetesProvider) GetPodStatus(ctx context.Context, namespace, name s
 // RunInContainer executes a command in a container in the pod, copying data
 // between in/out/err and the container's stdin/stdout/stderr.
 func (p *KubernetesProvider) RunInContainer(ctx context.Context, namespace string, podName string, containerName string, cmd []string, attach api.AttachIO) error {
+
+	nattedNS := p.NatNamespace(namespace, false)
+
 	req := p.foreignClient.CoreV1().RESTClient().
 		Post().
-		Namespace(namespace).
+		Namespace(nattedNS).
 		Resource("pods").
 		Name(podName).
 		SubResource("exec").
@@ -232,10 +235,12 @@ func (p *KubernetesProvider) RunInContainer(ctx context.Context, namespace strin
 
 // GetContainerLogs retrieves the logs of a container by name from the provider.
 func (p *KubernetesProvider) GetContainerLogs(ctx context.Context, namespace string, podName string, containerName string, opts api.ContainerLogOpts) (io.ReadCloser, error) {
+	nattedNS := p.NatNamespace(namespace, false)
+
 	options := &v1.PodLogOptions{
 		Container: containerName,
 	}
-	logs := p.foreignClient.CoreV1().Pods(namespace).GetLogs(podName, options)
+	logs := p.foreignClient.CoreV1().Pods(nattedNS).GetLogs(podName, options)
 	stream, err := logs.Stream()
 	if err != nil {
 		return nil, fmt.Errorf("could not get stream from logs request: %v", err)
