@@ -17,6 +17,7 @@ limitations under the License.
 package v1
 
 import (
+	"github.com/netgroup-polito/dronev2/pkg/crdClient/v1alpha1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -64,4 +65,7 @@ type ForeignClusterList struct {
 
 func init() {
 	SchemeBuilder.Register(&ForeignCluster{}, &ForeignClusterList{})
+
+	v1alpha1.AddToRegistry("foreigncluster", &ForeignCluster{})
+	v1alpha1.AddToRegistry("foreignclusters", &ForeignClusterList{})
 }

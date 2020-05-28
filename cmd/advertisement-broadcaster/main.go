@@ -10,17 +10,19 @@ import (
 func main() {
 	var localKubeconfig, foreignKubeconfig, clusterId string
 	var gatewayIP, gatewayPrivateIP string
+	var federationRequestName string
 
 	flag.StringVar(&localKubeconfig, "local-kubeconfig", "", "The path to the kubeconfig of your local cluster.")
 	flag.StringVar(&foreignKubeconfig, "foreign-kubeconfig", "", "The path to the kubeconfig of the foreign cluster.")
 	flag.StringVar(&clusterId, "cluster-id", "", "The cluster ID of your cluster")
 	flag.StringVar(&gatewayIP, "gateway-ip", "", "The IP address of the gateway node")
 	flag.StringVar(&gatewayPrivateIP, "gateway-private-ip", "", "The private IP address of the gateway node")
+	flag.StringVar(&federationRequestName, "federation-request", "", "Name of FederationRequest CR where get configurations")
 	flag.Parse()
 
 	ctrl.SetLogger(zap.New(func(o *zap.Options) {
 		o.Development = true
 	}))
 
-	advertisement_operator.StartBroadcaster(clusterId, localKubeconfig, foreignKubeconfig, gatewayIP, gatewayPrivateIP)
+	advertisement_operator.StartBroadcaster(clusterId, localKubeconfig, foreignKubeconfig, gatewayIP, gatewayPrivateIP, federationRequestName)
 }

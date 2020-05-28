@@ -2,6 +2,8 @@ package advertisement_operator
 
 import (
 	"context"
+	discoveryv1 "github.com/netgroup-polito/dronev2/api/discovery/v1"
+	"github.com/netgroup-polito/dronev2/internal/discovery/clients"
 	"io/ioutil"
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -37,7 +39,7 @@ var (
 // - foreignKubeconfig: the path to the kubeconfig of the foreign cluster. Set it only when you are debugging and need to launch the program as a process and not inside Kubernetes
 // - gatewayIP: the IP address of the gateway node
 // - gatewayPrivateIP: the private IP address of the gateway node
-func StartBroadcaster(clusterId string, localKubeconfig string, foreignKubeconfig string, gatewayIP string, gatewayPrivateIP string) {
+func StartBroadcaster(clusterId string, localKubeconfig string, foreignKubeconfig string, gatewayIP string, gatewayPrivateIP string, federationRequestName string) {
 	log = ctrl.Log.WithName("advertisement-broadcaster")
 	log.Info("starting broadcaster")
 
@@ -68,23 +70,48 @@ func StartBroadcaster(clusterId string, localKubeconfig string, foreignKubeconfi
 		}
 	}
 
-	// get configMaps containing the kubeconfig of the foreign clusters
-	configMaps, err := localClient.CoreV1().ConfigMaps(namespace).List(metav1.ListOptions{})
-	if err != nil {
-		log.Error(err, "Unable to list configMaps")
-		return
-	}
-
-	var wg sync.WaitGroup
-	// during operation the foreignKubeconfigs are taken from the ConfigMaps
-	for _, cm := range configMaps.Items {
-		if strings.HasPrefix(cm.Name, "foreign-kubeconfig") {
-			wg.Add(1)
-			go GenerateAdvertisement(&wg, localClient, localCRDClient, foreignKubeconfig, cm.DeepCopy(), clusterId, gatewayIP, gatewayPrivateIP)
+	if federationRequestName == "" {
+		// get configMaps containing the kubeconfig of the foreign clusters
+		configMaps, err := localClient.CoreV1().ConfigMaps(namespace).List(metav1.ListOptions{})
+		if err != nil {
+			log.Error(err, "Unable to list configMaps")
+			return
 		}
-	}
 
-	wg.Wait()
+		var wg sync.WaitGroup
+		// during operation the foreignKubeconfigs are taken from the ConfigMaps
+		for _, cm := range configMaps.Items {
+			if strings.HasPrefix(cm.Name, "foreign-kubeconfig") {
+				wg.Add(1)
+				go GenerateAdvertisement(&wg, localClient, localCRDClient, foreignKubeconfig, cm.DeepCopy(), clusterId, gatewayIP, gatewayPrivateIP)
+			}
+		}
+
+		wg.Wait()
+	} else {
+		// get configuration from FederationRequest CR
+		clientSet, err := clients.NewCRDClient()
+		if err != nil {
+			log.Error(err, "Unable to create client to local cluster")
+			return
+		}
+		tmp, err := clientSet.NamespacedCRDClient("").Get("federationrequests", "federationrequest", federationRequestName, metav1.GetOptions{})
+		if err != nil {
+			log.Error(err, "Unable to get FederationRequest "+federationRequestName)
+			return
+		}
+		fr := tmp.(*discoveryv1.FederationRequest)
+
+		// TODO: we have no ConfigMap and no kubeconfig path
+
+		// how to get foreignClient
+		//foreignClient, err := fr.GetConfig()
+
+		var wg sync.WaitGroup
+		wg.Add(1)
+		GenerateAdvertisement(&wg, localClient, localCRDClient, "", nil, fr.Name, gatewayIP, gatewayPrivateIP)
+		wg.Wait()
+	}
 }
 
 // generate an advertisement message every 10 minutes and post it to remote clusters
