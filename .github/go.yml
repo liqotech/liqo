@@ -75,3 +75,19 @@ jobs:
         GITHUB_TOKEN: ${{ secrets.CI_TOKEN }} # required
         SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK }} # required
       if: always() && github.ref == 'refs/heads/master' # Pick up events even if the job fails or is canceled.
+   lint:
+    name: Check Code Format
+    runs-on: ubuntu-latest
+    steps:
+    - name: Set up Go 1.13
+      uses: actions/setup-go@v2
+      with:
+        go-version: 1.13
+      id: go
+    - name: Check out code into the Go module directory
+      uses: actions/checkout@v2
+    - name: Go Fmt Check
+      run: |
+         changed=$(go fmt ./... | wc -l)
+         if [ $changed == 0 ]; then exit 0; else exit 1; fi 
+         

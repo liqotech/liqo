@@ -20,7 +20,7 @@ jobs:
       - name: Create comment (Success)
         uses: peter-evans/create-or-update-comment@v1
         with:
-          issue-number: ${{ github.event.issue.id }}
+          issue-number: ${{ github.event.issue.number }}
           body: |
             Rebase status: ${{ job.status  }}!
           reactions: '+1'

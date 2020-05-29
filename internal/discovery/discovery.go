@@ -5,6 +5,7 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 )
 
+
 var Namespace string = "default"
 var Log = ctrl.Log.WithName("discovery")
 
