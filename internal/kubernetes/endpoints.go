@@ -32,6 +32,18 @@ func (p *KubernetesProvider) updateEndpoints(eps *corev1.Endpoints, namespace st
 		return err
 	}
 
+	for i:=0; i<len(foreignEps.Subsets); i++ {
+		for j := 0; j < len(foreignEps.Subsets[i].Addresses); j ++ {
+			if *foreignEps.Subsets[i].Addresses[j].NodeName == p.homeClusterID {
+				a := foreignEps.Subsets[i].Addresses
+				copy(a[j:], a[j+1:])
+				a[len(a)-1] = corev1.EndpointAddress{}
+				a = a[:len(a)-1]
+				foreignEps.Subsets[i].Addresses = a
+			}
+		}
+	}
+
 	for i:=0; i<len(eps.Subsets); i++ {
 		for _, addr := range eps.Subsets[i].Addresses {
 			if foreignEps.Subsets == nil {
@@ -49,7 +61,7 @@ func (p *KubernetesProvider) updateEndpoints(eps *corev1.Endpoints, namespace st
 			}
 
 			if *addr.NodeName != p.nodeName {
-				addr.NodeName = nil
+				addr.NodeName = &p.homeClusterID
 				addr.TargetRef = nil
 
 				foreignEps.Subsets[i].Addresses = append(foreignEps.Subsets[i].Addresses, addr)
