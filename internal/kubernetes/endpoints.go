@@ -40,6 +40,7 @@ func (p *KubernetesProvider) updateEndpoints(eps *corev1.Endpoints, namespace st
 
 			if len(foreignEps.Subsets) <= i {
 				foreignEps.Subsets = append(foreignEps.Subsets, corev1.EndpointSubset{})
+				foreignEps.Subsets[i].Ports = eps.Subsets[i].Ports
 				foreignEps.Subsets[i].Addresses = make([]corev1.EndpointAddress, 0)
 			}
 

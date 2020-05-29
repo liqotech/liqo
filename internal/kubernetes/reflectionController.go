@@ -154,10 +154,10 @@ func (p* KubernetesProvider) controlLoop() {
 				p.log.Error(err, "error in namespace cardinality increase")
 			}
 
-		case nr := <-p.Reflector.decNs:
+		/*case nr := <-p.Reflector.decNs:
 			if err = p.decreaseNamespace(nr); err != nil {
 				p.log.Error(err, "error in namespace cardinality decrease")
-			}
+			}*/
 
 		case e := <-p.svcEvent:
 			if err = p.manageSvcEvent(e); err != nil {
