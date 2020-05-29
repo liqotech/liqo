@@ -25,9 +25,12 @@ dependencies:
 - name: adv_chart
   version: "0.1.0"
   repository: file://subcharts/adv_chart/
+  condition: adv_chart.enabled
 - name: networkModule_chart
   version: "0.1.0"
   repository: file://subcharts/networkModule_chart/
+  condition: networkModule_chart.enabled
 - name: tunnelEndpointCreator_chart
   version: "0.1.0"
   repository: file://subcharts/tunnelEndpointCreator_chart/
+  condition: tunnelEndpointCreator_chart.enabled

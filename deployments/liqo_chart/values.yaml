@@ -18,6 +18,7 @@ adv_chart:
   broadcaster:
     image: "dronev2/advertisement-broadcaster"
     pullPolicy: "IfNotPresent"
+  enable: true
 
 #configuration values for the networkModule subchart
 networkModule_chart:
@@ -27,11 +28,12 @@ networkModule_chart:
   tunnelEndpointOperator:
     image: "dronev2/dronet-operator"
     pullPolicy: "IfNotPresent"
-
+  enable: true
 #configuration values for the tunnelendpointCreator subchart
 tunnelEndpointCreator_chart:
   image: "dronev2/dronet-operator"
   pullPolicy: "IfNotPresent"
+  enable: true
 
 global:
   configmapName: liqo-configmap
