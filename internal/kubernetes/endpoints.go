@@ -3,9 +3,7 @@ package kubernetes
 import (
 	"errors"
 	corev1 "k8s.io/api/core/v1"
-	k8sApiErrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/watch"
 )
 
@@ -36,8 +34,13 @@ func (p *KubernetesProvider) updateEndpoints(eps *corev1.Endpoints, namespace st
 
 	for i:=0; i<len(eps.Subsets); i++ {
 		for _, addr := range eps.Subsets[i].Addresses {
-			if len(foreignEps.Subsets) == 0 {
-				return k8sApiErrors.NewNotFound(schema.GroupResource{}, "endpoint subset")
+			if foreignEps.Subsets == nil {
+				foreignEps.Subsets = make([]corev1.EndpointSubset, 0)
+			}
+
+			if len(foreignEps.Subsets) <= i {
+				foreignEps.Subsets = append(foreignEps.Subsets, corev1.EndpointSubset{})
+				foreignEps.Subsets[i].Addresses = make([]corev1.EndpointAddress, 0)
 			}
 
 			if addr.NodeName == nil {
