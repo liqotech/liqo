@@ -34,9 +34,9 @@ import (
 )
 
 const (
-	defaultNamespace = "default"
+	defaultNamespace   = "default"
 	defaultMetricsaddr = ":8080"
-	defaultVKImage = "dronev2/virtual-kubelet"
+	defaultVKImage     = "dronev2/virtual-kubelet"
 	defaultInitVKImage = "dronev2/init-vkubelet"
 )
 
@@ -111,8 +111,9 @@ func main() {
 		GatewayPrivateIP: gatewayPrivateIP,
 		KindEnvironment:  runsInKindEnv,
 		KubeletNamespace: kubeletNamespace,
-		VKImage: kubeletImage,
-		InitVKImage: initKubeletImage,
+		VKImage:          kubeletImage,
+		InitVKImage:      initKubeletImage,
+		HomeClusterId:    clusterId,
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "Advertisement")
 		os.Exit(1)

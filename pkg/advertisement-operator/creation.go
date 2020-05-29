@@ -77,7 +77,7 @@ func CreateFromYaml(c client.Client, ctx context.Context, log logr.Logger, filen
 }
 
 // create deployment for a virtual-kubelet
-func CreateVkDeployment(adv *protocolv1.Advertisement, nameSA, vkNamespace, vkImage, initVKImage string) appsv1.Deployment {
+func CreateVkDeployment(adv *protocolv1.Advertisement, nameSA, vkNamespace, vkImage, initVKImage, homeClusterId string) appsv1.Deployment {
 
 	command := []string{
 		"/usr/bin/virtual-kubelet",
@@ -95,6 +95,8 @@ func CreateVkDeployment(adv *protocolv1.Advertisement, nameSA, vkNamespace, vkIm
 		vkNamespace,
 		"--provider-config",
 		"/app/kubeconfig/remote",
+		"--home-cluster-id",
+		homeClusterId,
 	}
 
 	volumes := []v1.Volume{
@@ -160,7 +162,7 @@ func CreateVkDeployment(adv *protocolv1.Advertisement, nameSA, vkNamespace, vkIm
 			Template: v1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
 					Labels: map[string]string{
-						"app": "virtual-kubelet",
+						"app":     "virtual-kubelet",
 						"cluster": adv.Spec.ClusterId,
 					},
 				},
@@ -168,18 +170,18 @@ func CreateVkDeployment(adv *protocolv1.Advertisement, nameSA, vkNamespace, vkIm
 					Volumes: volumes,
 					InitContainers: []v1.Container{
 						{
-							Name: "crt-generator",
+							Name:  "crt-generator",
 							Image: initVKImage,
 							Command: []string{
 								"/usr/bin/local/kubelet-setup.sh",
 							},
 							Env: []v1.EnvVar{
 								{
-									Name: "POD_IP",
+									Name:      "POD_IP",
 									ValueFrom: &v1.EnvVarSource{FieldRef: &v1.ObjectFieldSelector{FieldPath: "status.podIP", APIVersion: "v1"}},
 								},
 								{
-									Name: "POD_NAME",
+									Name:      "POD_NAME",
 									ValueFrom: &v1.EnvVarSource{FieldRef: &v1.ObjectFieldSelector{FieldPath: "metadata.name", APIVersion: "v1"}},
 								},
 							},
@@ -199,27 +201,27 @@ func CreateVkDeployment(adv *protocolv1.Advertisement, nameSA, vkNamespace, vkIm
 							Name:            "virtual-kubelet",
 							Image:           vkImage,
 							ImagePullPolicy: v1.PullAlways,
-							Command:      command,
-							Args:         args,
-							VolumeMounts: volumeMounts,
+							Command:         command,
+							Args:            args,
+							VolumeMounts:    volumeMounts,
 							Env: []v1.EnvVar{
 								{
-									Name: "APISERVER_CERT_LOCATION",
+									Name:  "APISERVER_CERT_LOCATION",
 									Value: "/etc/virtual-kubelet/certs/server.crt",
 								},
 								{
-								    Name: "APISERVER_KEY_LOCATION",
-								    Value: "/etc/virtual-kubelet/certs/server-key.pem",
+									Name:  "APISERVER_KEY_LOCATION",
+									Value: "/etc/virtual-kubelet/certs/server-key.pem",
 								},
 								{
-									Name: "VKUBELET_POD_IP",
+									Name:      "VKUBELET_POD_IP",
 									ValueFrom: &v1.EnvVarSource{FieldRef: &v1.ObjectFieldSelector{FieldPath: "status.podIP", APIVersion: "v1"}},
 								},
 							},
 						},
 					},
 					ServiceAccountName: nameSA,
-					Affinity: affinity.DeepCopy(),
+					Affinity:           affinity.DeepCopy(),
 				},
 			},
 		},
