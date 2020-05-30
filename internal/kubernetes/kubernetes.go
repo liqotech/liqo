@@ -18,8 +18,8 @@ import (
 )
 
 const (
-	namespaceKey     = "namespace"
-	nameKey          = "name"
+	namespaceKey       = "namespace"
+	nameKey            = "name"
 	defaultMetricsAddr = ":8080"
 )
 
@@ -31,6 +31,10 @@ type KubernetesProvider struct { // nolint:golint]
 	manager       manager2.Manager
 	foreignClient *v1alpha1.CRDClient
 	homeClient    *v1alpha1.CRDClient
+
+	manager       manager2.Manager
+	foreignClient *kubernetes.Clientset
+	homeClient    *kubernetes.Clientset
 
 	nodeName           string
 	operatingSystem    string

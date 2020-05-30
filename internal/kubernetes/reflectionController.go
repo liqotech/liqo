@@ -25,12 +25,14 @@ type Reflector struct {
 	svcEvent chan watch.Event
 	repEvent chan watch.Event
 	epEvent chan timestampedEvent
+	cmEvent chan watch.Event
 
 	workers *sync.WaitGroup
 	svcwg   *sync.WaitGroup
 	repwg   *sync.WaitGroup
 	epwg    *sync.WaitGroup
 	powg    *sync.WaitGroup
+	cmwg *sync.WaitGroup
 
 	reflectedNamespaces struct {
 		sync.Mutex
@@ -52,9 +54,11 @@ func (p *KubernetesProvider) StartReflector() {
 
 	p.workers = &sync.WaitGroup{}
 	p.powg = &sync.WaitGroup{}
+	p.cmEvent = make(chan watch.Event, 1)
 	p.epwg = &sync.WaitGroup{}
 	p.svcwg = &sync.WaitGroup{}
 	p.repwg = &sync.WaitGroup{}
+	p.cmwg = &sync.WaitGroup{}
 
 	for i:=0; i<nReflectionWorkers; i++ {
 		p.workers.Add(1)
@@ -104,6 +108,10 @@ func (p* KubernetesProvider) controlLoop() {
 			if err := p.manageRemoteEpEvent(e); err != nil {
 				p.log.Error(err, "error in managing remote ep event")
 			}
+		case e := <-p.cmEvent:
+			if err = p.manageCmEvent(e); err != nil {
+				p.log.Error(err, "error in managing cm event")
+			}
 		}
 	}
 }
@@ -120,6 +128,18 @@ func (p* KubernetesProvider) cleanupNamespace(ns string) error {
 		err = p.foreignClient.Client().CoreV1().Services(ns).Delete(svc.Name, &metav1.DeleteOptions{})
 		if err != nil {
 			p.log.Error(err, "cannot delete remote service")
+		}
+	}
+
+	cms, err := p.foreignClient.CoreV1().ConfigMaps(ns).List(metav1.ListOptions{LabelSelector:reflectedService})
+	if err != nil {
+		return err
+	}
+
+	for _, cm := range cms.Items {
+		err = p.foreignClient.CoreV1().ConfigMaps(ns).Delete(cm.Name, &metav1.DeleteOptions{})
+		if err != nil {
+			p.log.Error(err, "cannot delete remote configMap")
 		}
 	}
 
@@ -207,6 +227,18 @@ func epEventsAggregator(watcher watch.Interface, outChan chan timestampedEvent, 
 	}
 }
 
+func (p *KubernetesProvider) addConfigMapWatcher(namespace string, stop chan bool) error {
+	cmWatch, err := p.homeClient.CoreV1().ConfigMaps(namespace).Watch(metav1.ListOptions{})
+	if err != nil {
+		p.log.Error(err, "cannot watch configMaps in namespace "+namespace)
+		return err
+	}
+
+	p.cmwg.Add(1)
+	go eventAggregator(cmWatch, p.cmEvent, stop, p.cmwg)
+	return nil
+}
+
 // eventAggregator iterates over all the received channels and whenever a new event comes from the input chan,
 // it pushes it to the output chan
 func eventAggregator(watcher watch.Interface, outChan chan watch.Event, stop chan struct{}, wg *sync.WaitGroup) {
@@ -228,7 +260,7 @@ func eventAggregator(watcher watch.Interface, outChan chan watch.Event, stop cha
 func (p *KubernetesProvider) StopReflector() {
 	p.log.Info("stopping reflector for cluster " + p.foreignClusterId)
 
-	if p.svcEvent == nil || p.epEvent == nil {
+	if p.svcEvent == nil || p.epEvent == nil || p.cmEvent == nil {
 		p.log.Info("reflector was not active for cluster " + p.foreignClusterId)
 		return
 	}
@@ -239,6 +271,7 @@ func (p *KubernetesProvider) StopReflector() {
 	p.powg.Wait()
 	p.svcwg.Wait()
 	p.epwg.Wait()
+	p.cmwg.Wait()
 }
 
 func (p *KubernetesProvider) reflectNamespace(namespace string) error {

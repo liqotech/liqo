@@ -83,6 +83,7 @@ func UpdateService(c *kubernetes.Clientset, svc *corev1.Service, namespace strin
 		return err
 	}
 
+	svc.SetNamespace(namespace)
 	svc.SetResourceVersion(serviceOld.ResourceVersion)
 	svc.SetUID(serviceOld.UID)
 	_, err = c.CoreV1().Services(namespace).Update(svc)
