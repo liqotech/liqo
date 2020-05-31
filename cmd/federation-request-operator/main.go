@@ -20,8 +20,10 @@ func main() {
 	mainLog.Info("Starting")
 
 	var namespace string
+	var certPath string
 
 	flag.StringVar(&namespace, "namespace", "default", "Namespace where your configs are stored.")
+	flag.StringVar(&certPath, "cert-path", "", "Certificate files for webhook, needed only if run outside of cluster")
 	flag.Parse()
 
 	ctrl.SetLogger(zap.New(zap.UseDevMode(true)))
@@ -31,7 +33,7 @@ func main() {
 	signal.Notify(sig, os.Interrupt, syscall.SIGINT)
 
 	mainLog.Info("Starting admission webhook")
-	srv := federation_request_admission.StartWebhook()
+	srv := federation_request_admission.StartWebhook(certPath)
 
 	mainLog.Info("Starting federation-request operator")
 	go federation_request_operator.StartOperator(namespace)

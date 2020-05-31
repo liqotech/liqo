@@ -1,0 +1,77 @@
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: federation-request-operator
+  namespace: default
+  labels:
+    k8s-app: federation-request-operator
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: federation-request-operator
+  namespace: default
+subjects:
+  - kind: ServiceAccount
+    name: federation-request-operator
+    namespace: default
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: cluster-admin
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    run: federation-request-operator
+  name: federation-request-operator
+  namespace: default
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      run: federation-request-operator
+  template:
+    metadata:
+      labels:
+        run: federation-request-operator
+    spec:
+      serviceAccountName: federation-request-operator
+      containers:
+        - image: dronev2/federation-request-operator
+          name: federation-request-operator
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 8443
+          args:
+            - "--cert-path"
+            - "/etc/webhook/certs"
+          volumeMounts:
+            - name: webhook-certs
+              mountPath: /etc/webhook/certs
+              readOnly: true
+      volumes:
+        - name: webhook-certs
+          secret:
+            secretName: webhook-certs
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: federation-request-operator
+  namespace: default
+  labels:
+    run: federation-request-operator
+spec:
+  type: ClusterIP
+  selector:
+    run: federation-request-operator
+  ports:
+    - protocol: TCP
+      port: 8443
+      targetPort: 8443

@@ -181,7 +181,7 @@ func (r *ForeignClusterReconciler) createClusterRoleIfNotExists(clusterID string
 			Rules: []rbacv1.PolicyRule{
 				// TODO: set correct access to create advertisements
 				{
-					Verbs:     []string{"get", "list", "create", "delete"},
+					Verbs:     []string{"get", "list", "create", "delete", "watch"},
 					APIGroups: []string{"protocol.drone.com"},
 					Resources: []string{"advertisements"},
 				},

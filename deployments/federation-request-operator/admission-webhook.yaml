@@ -1,0 +1,23 @@
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingWebhookConfiguration
+metadata:
+  name: federation-request-operator
+  labels:
+    app: federation-request-operator
+webhooks:
+  - name: federationrequests.discovery.drone.com
+    clientConfig:
+      service:
+        name: federation-request-operator
+        namespace: default
+        path: "/validate"
+        port: 8443
+      #url: https://192.168.2.100:8443/validate
+      caBundle: LS0tLS1CRUdJTiBDRVJUSUZJQ0FURS0tLS0tCk1JSUJWakNCL3FBREFnRUNBZ0VBTUFvR0NDcUdTTTQ5QkFNQ01DTXhJVEFmQmdOVkJBTU1HR3N6Y3kxelpYSjIKWlhJdFkyRkFNVFU0T1RNNE5EY3hOVEFlRncweU1EQTFNVE14TlRRMU1UVmFGdzB6TURBMU1URXhOVFExTVRWYQpNQ014SVRBZkJnTlZCQU1NR0dzemN5MXpaWEoyWlhJdFkyRkFNVFU0T1RNNE5EY3hOVEJaTUJNR0J5cUdTTTQ5CkFnRUdDQ3FHU000OUF3RUhBMElBQks1S3pBTGxTTkFPSW1ZZ2cxWVhSVXYwb2I3WGhrN2IxZWdGQ1pVN1hjTTgKQ3F3aE5wbVlTcFFSUlJiSTNaOFNRWllKMkxveFRWZXh4dkh2cVI4aUJKbWpJekFoTUE0R0ExVWREd0VCL3dRRQpBd0lDcERBUEJnTlZIUk1CQWY4RUJUQURBUUgvTUFvR0NDcUdTTTQ5QkFNQ0EwY0FNRVFDSUdnN3k4YUtpMkxNClQxNlRXQk1zdnVUbHFTRVhvL290STU5b1VGRWM3d0VIQWlBUFNLOVhJU2hOaTkyS3AxNU9OeWpoQlhpVDA5b04KQVBLWTluNENSZFNXU1E9PQotLS0tLUVORCBDRVJUSUZJQ0FURS0tLS0tCg==
+    rules:
+      - operations: [ "CREATE" ]
+        apiGroups: ["discovery.drone.com"]
+        apiVersions: ["v1"]
+        resources: ["federationrequests"]
+    admissionReviewVersions: ["v1"]
+    sideEffects: None

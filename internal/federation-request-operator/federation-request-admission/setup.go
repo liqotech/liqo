@@ -12,13 +12,14 @@ var (
 	Log = ctrl.Log.WithName("federation-webhook-admission")
 )
 
-func StartWebhook() *WebhookServer {
-	//certFile := "/etc/webhook/certs/cert.pem"
-	//keyFile := "/etc/webhook/certs/key.pem"
-	// TODO: get from secret
-	certFile := "./tmp/certs/cert.pem"
-	keyFile := "./tmp/certs/key.pem"
+func StartWebhook(certPath string) *WebhookServer {
 	port := 8443
+	return startTls(certPath, port)
+}
+
+func startTls(certPath string, port int) *WebhookServer {
+	certFile := certPath + "/cert.pem"
+	keyFile := certPath + "/key.pem"
 
 	pair, err := tls.LoadX509KeyPair(certFile, keyFile)
 	if err != nil {

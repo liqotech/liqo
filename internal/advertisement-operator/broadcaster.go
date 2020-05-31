@@ -2,6 +2,7 @@ package advertisement_operator
 
 import (
 	"context"
+	b64 "encoding/base64"
 	discoveryv1 "github.com/netgroup-polito/dronev2/api/discovery/v1"
 	"github.com/netgroup-polito/dronev2/internal/discovery/clients"
 	"io/ioutil"
@@ -102,14 +103,27 @@ func StartBroadcaster(clusterId string, localKubeconfig string, foreignKubeconfi
 		}
 		fr := tmp.(*discoveryv1.FederationRequest)
 
-		// TODO: we have no ConfigMap and no kubeconfig path
+		// TODO: refactoring, this config map is a workaround
+		remote, err := b64.StdEncoding.DecodeString(fr.Spec.KubeConfig)
+		if err != nil {
+			log.Error(err, "Unable to load remote Kubeconfig")
+			return
+		}
+		cm := corev1.ConfigMap{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: "foreign-kubeconfig-" + fr.Name,
+			},
+			Data: map[string]string{
+				"remote": string(remote),
+			},
+		}
 
 		// how to get foreignClient
 		//foreignClient, err := fr.GetConfig()
 
 		var wg sync.WaitGroup
 		wg.Add(1)
-		GenerateAdvertisement(&wg, localClient, localCRDClient, "", nil, fr.Name, gatewayIP, gatewayPrivateIP)
+		GenerateAdvertisement(&wg, localClient, localCRDClient, "", &cm, fr.Name, gatewayIP, gatewayPrivateIP)
 		wg.Wait()
 	}
 }
