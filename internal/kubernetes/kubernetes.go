@@ -32,10 +32,6 @@ type KubernetesProvider struct { // nolint:golint]
 	foreignClient *v1alpha1.CRDClient
 	homeClient    *v1alpha1.CRDClient
 
-	manager       manager2.Manager
-	foreignClient *kubernetes.Clientset
-	homeClient    *kubernetes.Clientset
-
 	nodeName           string
 	operatingSystem    string
 	internalIP         string
@@ -84,21 +80,21 @@ func NewKubernetesProvider(nodeName, clusterId, homeClusterId, operatingSystem s
 	}
 
 	provider := KubernetesProvider{
-		Reflector:          &Reflector{},
-		ntCache:            &namespaceNTCache{nattingTableName: clusterId},
-		nodeName:           nodeName,
-		operatingSystem:    operatingSystem,
-		internalIP:         internalIP,
-		daemonEndpointPort: daemonEndpointPort,
-		startTime:          time.Now(),
-		manager:            mgr,
-		foreignClusterId:   clusterId,
-		homeClusterID:      homeClusterId,
-		providerKubeconfig: remoteKubeConfig,
-		homeClient:         client,
+		Reflector:             &Reflector{},
+		ntCache:               &namespaceNTCache{nattingTableName: clusterId},
+		nodeName:              nodeName,
+		operatingSystem:       operatingSystem,
+		internalIP:            internalIP,
+		daemonEndpointPort:    daemonEndpointPort,
+		startTime:             time.Now(),
+		manager:               mgr,
+		foreignClusterId:      clusterId,
+		homeClusterID:         homeClusterId,
+		providerKubeconfig:    remoteKubeConfig,
+		homeClient:            client,
 		foreignPodWatcherStop: make(chan bool, 1),
-		restConfig: restConfig,
-		foreignClient: foreignClient,
+		restConfig:            restConfig,
+		foreignClient:         foreignClient,
 	}
 
 	return &provider, nil
