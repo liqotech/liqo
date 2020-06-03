@@ -29,8 +29,8 @@ spec:
                     values:
                       - virtual-node
       containers:
-      - image: {{ .Values.broadcaster.image }}
-        imagePullPolicy: {{ .Values.broadcaster.pullPolicy }}
+      - image: {{ .Values.broadcaster.image.repository }}
+        imagePullPolicy: {{ .Values.broadcaster.image.pullPolicy }}
         name: advertisement-operator
         command: ["/usr/bin/advertisement-broadcaster"]
         args:

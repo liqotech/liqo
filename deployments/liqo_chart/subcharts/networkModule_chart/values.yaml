@@ -3,8 +3,10 @@
 # Declare variables to be passed into your templates.
 
 routeOperator:
-  image: "dronev2/dronet-operator"
-  pullPolicy: "IfNotPresent"
+  image:
+    repository: "dronev2/dronet-operator"
+    pullPolicy: "IfNotPresent"
 tunnelEndpointOperator:
-  image: "dronev2/dronet-operator"
-  pullPolicy: "IfNotPresent"
+  image:
+    repository: "dronev2/dronet-operator"
+    pullPolicy: "IfNotPresent"

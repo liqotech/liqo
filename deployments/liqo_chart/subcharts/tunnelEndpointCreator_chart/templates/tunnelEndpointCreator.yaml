@@ -93,8 +93,8 @@ spec:
                     values:
                       - virtual-node
       containers:
-        - image: {{ .Values.image }}
-          imagePullPolicy: {{ .Values.pullPolicy }}
+        - image: {{ .Values.image.repository }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
           name: tunnelendpointcreator-operator
           command: ["/usr/bin/dronet-operator"]
           args:

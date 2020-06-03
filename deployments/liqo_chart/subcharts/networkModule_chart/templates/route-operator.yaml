@@ -92,8 +92,8 @@ spec:
                       - virtual-node
       serviceAccountName: route-operator-service-account
       containers:
-        - image: {{ .Values.routeOperator.image }}
-          imagePullPolicy: {{ .Values.routeOperator.pullPolicy }}
+        - image: {{ .Values.routeOperator.image.repository }}
+          imagePullPolicy: {{ .Values.routeOperator.image.pullPolicy }}
           name: route-operator
           command: ["/usr/bin/dronet-operator"]
           args: ["-run-as=route-operator"]

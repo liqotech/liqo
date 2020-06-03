@@ -2,5 +2,6 @@
 # This is a YAML-formatted file.
 # Declare variables to be passed into your templates.
 
-image: "dronev2/dronet-operator"
-pullPolicy: "IfNotPresent"
+image:
+  repository: "dronev2/dronet-operator"
+  pullPolicy: "IfNotPresent"

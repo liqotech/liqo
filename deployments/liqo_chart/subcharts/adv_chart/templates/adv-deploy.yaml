@@ -49,8 +49,8 @@ spec:
                       - virtual-node
       serviceAccountName: advertisement-operator
       containers:
-      - image: {{ .Values.advController.image }}
-        imagePullPolicy: {{ .Values.advController.pullPolicy }}
+      - image: {{ .Values.advController.image.repository }}
+        imagePullPolicy: {{ .Values.advController.image.pullPolicy }}
         name: advertisement-operator
         command: ["/usr/bin/advertisement-operator"]
         args:

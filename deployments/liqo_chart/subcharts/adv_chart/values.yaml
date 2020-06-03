@@ -3,10 +3,12 @@
 # Declare variables to be passed into your templates.
 
 advController:
-  image: "dronev2/advertisement-operator"
-  pullPolicy: "IfNotPresent"
+  image:
+    repository: "dronev2/advertisement-operator"
+    pullPolicy: "IfNotPresent"
   foreignClusterID: "clusterID"
 
 broadcaster:
-  image: "dronev2/advertisement-broadcaster"
-  pullPolicy: "IfNotPresent"
+  image:
+    repository: "dronev2/advertisement-broadcaster"
+    pullPolicy: "IfNotPresent"

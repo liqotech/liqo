@@ -67,8 +67,8 @@ spec:
         dronet.drone.com/gateway: "true"
       serviceAccountName: tunnel-operator-service-account
       containers:
-        - image: {{ .Values.tunnelEndpointOperator.image }}
-          imagePullPolicy: {{ .Values.tunnelEndpointOperator.pullPolicy }}
+        - image: {{ .Values.tunnelEndpointOperator.image.repository }}
+          imagePullPolicy: {{ .Values.tunnelEndpointOperator.image.pullPolicy }}
           name: tunnel-operator
           command: ["/usr/bin/dronet-operator"]
           resources: {}
