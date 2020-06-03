@@ -172,10 +172,6 @@ func runRootCommand(ctx context.Context, s *provider.Store, c Opts) error {
 		node.WithNodeEnableLeaseV1Beta1(leaseClient, nil),
 		node.WithNodeStatusUpdateErrorHandler(
 			func(ctx context.Context, err error) error {
-				if !k8serrors.IsNotFound(err) {
-				return err
-			}
-				log.G(ctx).Debug("node not found")
 				newNode := pNode.DeepCopy()
 				newNode.ResourceVersion = ""
 
@@ -183,13 +179,24 @@ func runRootCommand(ctx context.Context, s *provider.Store, c Opts) error {
 					newNode.SetOwnerReferences(refs)
 				}
 
-				_, err = client.CoreV1().Nodes().Create(newNode)
+				oldNode, err := client.CoreV1().Nodes().Get(newNode.Name, metav1.GetOptions{})
+				if err != nil {
+					if !k8serrors.IsNotFound(err) {
+						return err
+					}
+					_, err = client.CoreV1().Nodes().Create(newNode)
+					log.G(ctx).Debug("created new node")
+				} else {
+					newNode.Spec = oldNode.Spec
+					_, err = client.CoreV1().Nodes().Update(newNode)
+					log.G(ctx).Debug("Node updated")
+				}
+
 				if err != nil {
 				return err
 			}
-				log.G(ctx).Debug("created new node")
-				return nil
-				}),
+			return nil
+		}),
 	)
 
 	var ready chan bool
@@ -232,10 +239,6 @@ func runRootCommand(ctx context.Context, s *provider.Store, c Opts) error {
 		}
 	}()
 
-	if err := p.ConfigureReflection(); err != nil {
-		return err
-	}
-
 	if c.StartupTimeout > 0 {
 		ctx, cancel := context.WithTimeout(ctx, c.StartupTimeout)
 		log.G(ctx).Info("Waiting for pod controller / VK to be ready")
@@ -256,6 +259,10 @@ func runRootCommand(ctx context.Context, s *provider.Store, c Opts) error {
 			log.G(ctx).Fatal(err)
 		}
 	}()
+
+	if err := p.ConfigureReflection(); err != nil {
+		return err
+	}
 
 	nodeRunner.Ready()
 
