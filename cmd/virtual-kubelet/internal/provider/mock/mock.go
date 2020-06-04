@@ -52,7 +52,7 @@ type MockProvider struct { // nolint:golint
 	config             MockConfig
 	startTime          time.Time
 	notifier           func(*v1.Pod)
-	nodeController 	*node.NodeController
+	nodeController     *node.NodeController
 }
 
 // MockConfig contains a mock virtual-kubelet's configurable parameters.

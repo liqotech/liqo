@@ -5,11 +5,13 @@ go 1.13
 require (
 	contrib.go.opencensus.io/exporter/jaeger v0.1.0
 	contrib.go.opencensus.io/exporter/ocagent v0.4.12
+	github.com/apparentlymart/go-cidr v1.0.1
 	github.com/certifi/gocertifi v0.0.0-20200104152315-a6d78f326758 // indirect
 	github.com/cloudflare/cfssl v1.4.1 // indirect
 	github.com/cloudflare/redoctober v0.0.0-20200117180338-34d894fcc2a1 // indirect
 	github.com/coreos/bbolt v1.3.3 // indirect
 	github.com/coreos/etcd v3.3.18+incompatible // indirect
+	github.com/coreos/go-iptables v0.4.5
 	github.com/cpuguy83/go-md2man/v2 v2.0.0 // indirect
 	github.com/daaku/go.zipexe v1.0.1 // indirect
 	github.com/docker/docker v0.7.3-0.20190327010347-be7ac8be2ae0
@@ -47,7 +49,7 @@ require (
 	github.com/pelletier/go-toml v1.6.0 // indirect
 	github.com/pkg/errors v0.9.1
 	github.com/prometheus/client_golang v1.3.0
-	github.com/prometheus/common v0.9.1 // indirect
+	github.com/prometheus/common v0.9.1
 	github.com/securego/gosec v0.0.0-20200121091311-459e2d3e91bd // indirect
 	github.com/sirupsen/logrus v1.4.2
 	github.com/spf13/cast v1.3.1 // indirect
@@ -70,9 +72,9 @@ require (
 	go.uber.org/zap v1.13.0 // indirect
 	golang.org/x/crypto v0.0.0-20200117160349-530e935923ad // indirect
 	golang.org/x/net v0.0.0-20200114155413-6afb5195e5aa // indirect
-	golang.org/x/sys v0.0.0-20200122134326-e047566fdf82
+	golang.org/x/sys v0.0.0-20200302150141-5c8b2ff67527
 	golang.org/x/time v0.0.0-20191024005414-555d28b269f0 // indirect
-	golang.org/x/tools v0.0.0-20200123022218-593de606220b // indirect
+	golang.org/x/tools v0.0.0-20200123022218-593de606220b
 	google.golang.org/genproto v0.0.0-20200122232147-0452cf42e150 // indirect
 	google.golang.org/grpc v1.26.0 // indirect
 	gopkg.in/ini.v1 v1.51.1 // indirect

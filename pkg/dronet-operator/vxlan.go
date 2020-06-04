@@ -10,11 +10,11 @@ import (
 )
 
 type VxlanDeviceAttrs struct {
-	Vni       uint32
-	Name      string
-	VtepPort  int
-	VtepAddr  net.IP
-	Mtu 		int
+	Vni      uint32
+	Name     string
+	VtepPort int
+	VtepAddr net.IP
+	Mtu      int
 }
 
 type VxlanDevice struct {
@@ -33,13 +33,13 @@ var (
 func NewVXLANDevice(devAttrs *VxlanDeviceAttrs) (*VxlanDevice, error) {
 	link := &netlink.Vxlan{
 		LinkAttrs: netlink.LinkAttrs{
-			Name: devAttrs.Name,
-			MTU: devAttrs.Mtu,
+			Name:  devAttrs.Name,
+			MTU:   devAttrs.Mtu,
 			Flags: net.FlagUp,
 		},
-		VxlanId:      int(devAttrs.Vni),
-		SrcAddr:      devAttrs.VtepAddr,
-		Port:         devAttrs.VtepPort,
+		VxlanId: int(devAttrs.Vni),
+		SrcAddr: devAttrs.VtepAddr,
+		Port:    devAttrs.VtepPort,
 	}
 
 	link, err := CreateVxLanLink(link)
@@ -116,7 +116,6 @@ func IsVxlanConfigTheSame(new, current netlink.Link) bool {
 	klog.V(4).Infof("the existing interface is already configured")
 	return true
 }
-
 
 func (vxlan *VxlanDevice) ConfigureIPAddress(ipAddress net.IP, mask net.IPMask) error {
 	address := &netlink.Addr{IPNet: &net.IPNet{

@@ -105,7 +105,7 @@ func (p *KubernetesProvider) DeletePod(ctx context.Context, pod *v1.Pod) (err er
 		return err
 	}
 
-	err = p.foreignClient.Client().CoreV1().Pods(nattedNS).Delete(pod.Name,opts)
+	err = p.foreignClient.Client().CoreV1().Pods(nattedNS).Delete(pod.Name, opts)
 	if err != nil {
 		return errors.Wrap(err, "Unable to delete pod")
 	}
@@ -118,7 +118,7 @@ func (p *KubernetesProvider) DeletePod(ctx context.Context, pod *v1.Pod) (err er
 		pod.Status.ContainerStatuses[idx].Ready = false
 		// We fix to now the starting container when reconciliating a container which is
 		if pod.Status.ContainerStatuses[idx].State.Running == nil {
-			pod.Status.ContainerStatuses[idx].State.Running = &v1.ContainerStateRunning{StartedAt:now}
+			pod.Status.ContainerStatuses[idx].State.Running = &v1.ContainerStateRunning{StartedAt: now}
 		}
 		pod.Status.ContainerStatuses[idx].State = v1.ContainerState{
 			Terminated: &v1.ContainerStateTerminated{
@@ -154,7 +154,7 @@ func (p *KubernetesProvider) GetPod(ctx context.Context, namespace, name string)
 		return nil, err
 	}
 
-	podServer, err := p.foreignClient.Client().CoreV1().Pods(nattedNS).Get(name,opts)
+	podServer, err := p.foreignClient.Client().CoreV1().Pods(nattedNS).Get(name, opts)
 	if err != nil {
 		if kerror.IsNotFound(err) {
 			return nil, errdefs.NotFoundf("pod \"%s/%s\" is not known to the provider", namespace, name)
@@ -181,13 +181,13 @@ func (p *KubernetesProvider) GetPodStatus(ctx context.Context, namespace, name s
 		return nil, nil
 	}
 
-	podForeignIn, err := p.foreignClient.Client().CoreV1().Pods(nattedNS).Get(name,metav1.GetOptions{})
-    if err != nil {
-    	return nil,errors.Wrap(err,"error getting status")
+	podForeignIn, err := p.foreignClient.Client().CoreV1().Pods(nattedNS).Get(name, metav1.GetOptions{})
+	if err != nil {
+		return nil, errors.Wrap(err, "error getting status")
 	}
-	podOutput := F2HTranslate(podForeignIn,p.RemappedPodCidr, namespace)
+	podOutput := F2HTranslate(podForeignIn, p.RemappedPodCidr, namespace)
 	log.G(ctx).Infof("receive GetPodStatus %q", name)
-	return &podOutput.Status,nil
+	return &podOutput.Status, nil
 }
 
 // RunInContainer executes a command in a container in the pod, copying data
@@ -288,7 +288,6 @@ func (p *KubernetesProvider) GetPods(ctx context.Context) ([]*v1.Pod, error) {
 
 	return podsHomeOut, nil
 }
-
 
 // GetStatsSummary returns dummy stats for all pods known by this provider.
 func (p *KubernetesProvider) GetStatsSummary(ctx context.Context) (*stats.Summary, error) {
@@ -395,14 +394,14 @@ func addAttributes(ctx context.Context, span trace.Span, attrs ...string) contex
 	return ctx
 }
 
-func (p* KubernetesProvider) watchForeignPods(watcher watch.Interface, stop chan struct{}) {
+func (p *KubernetesProvider) watchForeignPods(watcher watch.Interface, stop chan struct{}) {
 	for {
 		select {
-		case <- stop:
+		case <-stop:
 			watcher.Stop()
 			p.powg.Done()
 			return
-		case e := <- watcher.ResultChan():
+		case e := <-watcher.ResultChan():
 			p2, ok := e.Object.(*v1.Pod)
 			if !ok {
 				klog.Error("unexpected type")

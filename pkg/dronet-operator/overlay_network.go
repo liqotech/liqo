@@ -34,7 +34,7 @@ func CreateVxLANInterface(clientset *kubernetes.Clientset, vxlanConfig VxlanNetC
 
 	//get the mtu of the default interface
 	mtu, err := getDefaultIfaceMTU()
-	if err != nil{
+	if err != nil {
 		return err
 	}
 
@@ -48,11 +48,11 @@ func CreateVxLANInterface(clientset *kubernetes.Clientset, vxlanConfig VxlanNetC
 
 	vxlanMTU := mtu - vxlanOverhead
 	vni, err := strconv.Atoi(vxlanConfig.Vni)
-	if err != nil{
+	if err != nil {
 		return fmt.Errorf("unable to convert vxlan vni \"%s\" from string to int: %v", vxlanConfig.Vni, err)
 	}
 	port, err := strconv.Atoi(vxlanConfig.Port)
-	if err != nil{
+	if err != nil {
 		return fmt.Errorf("unable to convert vxlan port \"%s\" from string to int: %v", vxlanConfig.Port, err)
 	}
 	attr := &VxlanDeviceAttrs{
@@ -112,7 +112,7 @@ func Enable_rp_filter() error {
 	return nil
 }
 
-func getDefaultIfaceMTU()(int, error){
+func getDefaultIfaceMTU() (int, error) {
 	//search for the default route and return the link associated to the route
 	//we consider only the ipv4 routes
 	mtu := 0
@@ -121,21 +121,21 @@ func getDefaultIfaceMTU()(int, error){
 		return mtu, fmt.Errorf("unable to list routes while trying to identify default interface for the host: %v", err)
 	}
 	var route netlink.Route
-	for _, route = range routes{
-		if route.Dst == nil{
+	for _, route = range routes {
+		if route.Dst == nil {
 			break
 		}
 	}
 	//get default link
 	defualtIface, err := netlink.LinkByIndex(route.LinkIndex)
-	if err != nil{
+	if err != nil {
 		return mtu, fmt.Errorf("unable to retrieve link with index %d :%v", route.LinkIndex, err)
 	}
 	return defualtIface.Attrs().MTU, nil
 }
 
 //the config file is expected to reside in /etc/kube-drone/dronet/vxlan-net-conf.json
-func ReadVxlanNetConfig(defaultConfig VxlanNetConfig)(VxlanNetConfig, error){
+func ReadVxlanNetConfig(defaultConfig VxlanNetConfig) (VxlanNetConfig, error) {
 	pathToConfigFile := "/etc/kube-dronet/dronet/vxlan-net-conf.json" //path where we expect the configuration file
 
 	var config VxlanNetConfig
@@ -144,11 +144,11 @@ func ReadVxlanNetConfig(defaultConfig VxlanNetConfig)(VxlanNetConfig, error){
 		data, err := ioutil.ReadFile(pathToConfigFile)
 		//TODO: add debugging info
 		if err != nil {
-			return config, fmt.Errorf("an erro occured while reading \"%s\" configuration file: %v",pathToConfigFile, err)
+			return config, fmt.Errorf("an erro occured while reading \"%s\" configuration file: %v", pathToConfigFile, err)
 		}
 		err = json.Unmarshal(data, &config)
-		if err != nil{
-			return config, fmt.Errorf("an error occured while unmarshalling \"%s\" configuration file: %v",pathToConfigFile, err)
+		if err != nil {
+			return config, fmt.Errorf("an error occured while unmarshalling \"%s\" configuration file: %v", pathToConfigFile, err)
 		}
 		if config.Network == "" || config.Port == "" || config.DeviceName == "" || config.Vni == "" {
 			return config, errors.New("some configuration fields are missing in \"" + pathToConfigFile + "\", please check your configuration.")

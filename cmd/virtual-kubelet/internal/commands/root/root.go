@@ -134,9 +134,9 @@ func runRootCommand(ctx context.Context, s *provider.Store, c Opts) error {
 		DaemonPort:        c.ListenPort,
 		InternalIP:        os.Getenv("VKUBELET_POD_IP"),
 		KubeClusterDomain: c.KubeClusterDomain,
-		ClusterId: c.ClusterId,
-		HomeClusterId: c.HomeClusterId,
-		RemoteKubeConfig: c.ProviderConfigPath,
+		ClusterId:         c.ClusterId,
+		HomeClusterId:     c.HomeClusterId,
+		RemoteKubeConfig:  c.ProviderConfigPath,
 	}
 
 	pInit := s.Get(c.Provider)
@@ -193,19 +193,19 @@ func runRootCommand(ctx context.Context, s *provider.Store, c Opts) error {
 				}
 
 				if err != nil {
-				return err
-			}
-			return nil
-		}),
+					return err
+				}
+				return nil
+			}),
 	)
 
 	var ready chan bool
 	if ready, err = k.NewVirtualNodeReconciler(p.(*k.KubernetesProvider), nodeRunner); err != nil {
-		klog.Error(err, "unable to create controller",)
+		klog.Error(err, "unable to create controller")
 		os.Exit(1)
 	}
 
-	<- ready
+	<-ready
 
 	eb := record.NewBroadcaster()
 	eb.StartLogging(log.G(ctx).Infof)
@@ -300,7 +300,7 @@ func newClient(configPath string) (*kubernetes.Clientset, error) {
 func createOwnerReference(c *kubernetes.Clientset, deployName, namespace string) []metav1.OwnerReference {
 
 	if d, err := c.AppsV1().Deployments(namespace).Get(deployName, metav1.GetOptions{
-		TypeMeta: metav1.TypeMeta{Kind: "Deployment", APIVersion:metav1.SchemeGroupVersion.Version},
+		TypeMeta: metav1.TypeMeta{Kind: "Deployment", APIVersion: metav1.SchemeGroupVersion.Version},
 	}); err != nil {
 		if k8serrors.IsNotFound(err) {
 			klog.Info("deployment not found")
@@ -318,4 +318,3 @@ func createOwnerReference(c *kubernetes.Clientset, deployName, namespace string)
 		}
 	}
 }
-

@@ -87,8 +87,8 @@ type Opts struct {
 	// Startup Timeout is how long to wait for the kubelet to start
 	StartupTimeout time.Duration
 
-	ClusterId string
-	HomeClusterId string
+	ClusterId        string
+	HomeClusterId    string
 	KubeletNamespace string
 
 	Version string
@@ -149,7 +149,7 @@ func SetDefaultOpts(c *Opts) error {
 	}
 	if c.KubeletNamespace == "" {
 		c.KubeletNamespace = DefaultKubeletNamespace
- 	}
+	}
 	if c.KubeConfigPath == "" {
 		c.KubeConfigPath = os.Getenv("KUBECONFIG")
 		if c.KubeConfigPath == "" {

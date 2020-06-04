@@ -308,11 +308,11 @@ func makeEnvironmentMap(ctx context.Context, pod *corev1.Pod, container *corev1.
 	// ServiceEnvVarMap has been removed in order to let the remote kubelet
 	// filling of the service env var
 	/*
-	svcEnv, err := getServiceEnvVarMap(rm, pod.Namespace, enableServiceLinks)
+		svcEnv, err := getServiceEnvVarMap(rm, pod.Namespace, enableServiceLinks)
 
-	if err != nil {
-		return err
-	}
+		if err != nil {
+			return err
+		}
 	*/
 	svcEnv := map[string]string{}
 

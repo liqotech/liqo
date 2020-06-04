@@ -39,11 +39,11 @@ type SchedulingNodeReconciler struct {
 func (r *SchedulingNodeReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 	ctx := context.Background()
 	log := r.Log.WithValues("schedulingnode", req.NamespacedName)
-	
+
 	// get nodes
 	var no corev1.Node
 	if err := r.Get(ctx, req.NamespacedName, &no); err != nil {
-		
+
 		if apierrors.IsNotFound(err) {
 			// reconcile was triggered by a delete request
 			log.Info("Node deleted")
@@ -51,9 +51,9 @@ func (r *SchedulingNodeReconciler) Reconcile(req ctrl.Request) (ctrl.Result, err
 		} else {
 			return ctrl.Result{}, err
 		}
-		
+
 	}
-	
+
 	return ctrl.Result{}, r.CreateOrUpdateFromNode(ctx, no)
 }
 
@@ -61,12 +61,11 @@ func (r *SchedulingNodeReconciler) Reconcile(req ctrl.Request) (ctrl.Result, err
 // + node update,create,delete,patch
 func (r *SchedulingNodeReconciler) SetupWithManager(mgr ctrl.Manager) error {
 
-	
 	if err := ctrl.NewControllerManagedBy(mgr).
 		For(&corev1.Node{}).
 		Complete(r); err != nil {
-			return err
+		return err
 	}
-	
+
 	return nil
 }

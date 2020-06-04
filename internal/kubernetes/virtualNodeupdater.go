@@ -131,7 +131,7 @@ func (r *VirtualNodeReconciler) updateFromAdv(ctx context.Context, adv advv1.Adv
 	}
 
 	var no v1.Node
-	if err := r.Get(ctx, types.NamespacedName{Name:r.provider.nodeName}, &no); err != nil {
+	if err := r.Get(ctx, types.NamespacedName{Name: r.provider.nodeName}, &no); err != nil {
 		return err
 	}
 

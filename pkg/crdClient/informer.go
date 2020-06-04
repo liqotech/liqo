@@ -28,7 +28,7 @@ func WatchResources(clientSet clientv1alpha1.NamespacedCRDClientInterface,
 
 	store, controller := cache.NewInformer(
 		&cache.ListWatch{
-			ListFunc: listFunc,
+			ListFunc:  listFunc,
 			WatchFunc: watchFunc,
 		},
 		reflect.New(clientv1alpha1.Registry[resource].SingularType).Interface().(runtime.Object),

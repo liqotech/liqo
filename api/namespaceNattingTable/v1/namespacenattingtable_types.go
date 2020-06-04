@@ -28,8 +28,8 @@ type NamespaceNattingTableSpec struct {
 	// INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
 	// Important: Run "make" to regenerate code after modifying this file
 
-	ClusterId string `json:"clusterId"`
-	NattingTable map[string]string `json:"nattingTable,omitempty"`
+	ClusterId      string            `json:"clusterId"`
+	NattingTable   map[string]string `json:"nattingTable,omitempty"`
 	DeNattingTable map[string]string `json:"deNattingTable,omitempty"`
 }
 

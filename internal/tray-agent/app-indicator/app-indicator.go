@@ -138,7 +138,7 @@ func (i *Indicator) AddAction(title string, tag string, callback func(args ...in
 	a.SetTitle(title)
 	a.SetTag(tag)
 	if callback != nil {
-		a.Connect(callback,args)
+		a.Connect(callback, args)
 	}
 	a.SetIsVisible(true)
 	i.menu.actionMap[tag] = a
@@ -239,14 +239,14 @@ func (i *Indicator) AddQuick(title string, tag string, callback func(args ...int
 	q.SetTitle(title)
 	q.SetTag(tag)
 	if callback != nil {
-		q.Connect(callback,args)
+		q.Connect(callback, args)
 	}
 	q.SetIsVisible(true)
 	i.quickMap[tag] = q
 	return q
 }
 
-	//Quick returns the *MenuNode of the QUICK with this specific tag. If such QUICK does not exist, present == false
+//Quick returns the *MenuNode of the QUICK with this specific tag. If such QUICK does not exist, present == false
 func (i *Indicator) Quick(tag string) (quick *MenuNode, pres bool) {
 	quick, pres = i.quickMap[tag]
 	return
@@ -307,8 +307,8 @@ func (i *Indicator) SetLabel(label string) {
 
 //todo implement notification logic and settings panel
 //Notify manages Indicator notification logic
-func (i *Indicator) Notify(title string, message string, icoPath string){
-	_ =bip.Notify(title,message,icoPath)
+func (i *Indicator) Notify(title string, message string, icoPath string) {
+	_ = bip.Notify(title, message, icoPath)
 }
 
 // ****** MENUNODE ******
@@ -318,13 +318,13 @@ func (i *Indicator) Notify(title string, message string, icoPath string){
 type MenuNode struct {
 	// the getlantern/systray MenuItem actually allocated on the menu. It contains the ClickedChan channel that responds
 	// to the 'clicked' event
-	item      *systray.MenuItem
+	item *systray.MenuItem
 	// the type of the MenuNode
-	nodeType  NodeType
+	nodeType NodeType
 	// unique tag of the MenuNode that can be used as a key to get access to it, e.g. using (*Indicator)
-	tag       string
+	tag string
 	// parent MenuNode in the menu tree hierarchy
-	parent    *MenuNode
+	parent *MenuNode
 	// nodesList stores the MenuNode children of type LIST. The node uses them to dynamically display to the user
 	// the output of application functions. Use these kind of MenuNodes by calling (*MenuNode).UseListChild() and
 	// (*MenuNode).DisuseListChild() methods:
@@ -337,20 +337,20 @@ type MenuNode struct {
 	listLen int
 	// total number of LIST MenuNode allocated by the father MenuNode since Indicator start.
 	// Some of the LIST nodes may have their content invalid and have to be refreshed by application logic
-	listCap       int
+	listCap int
 	//map that stores ACTION MenuNodes, associating them with their tag. This map is actually used only by the ROOT node.
-	actionMap     map[string]*MenuNode
+	actionMap map[string]*MenuNode
 	//map that stores OPTION MenuNodes, associating them with their tag. These nodes are used to create submenu choices
-	optionMap     map[string]*MenuNode
+	optionMap map[string]*MenuNode
 	//if isVisible==true, the MenuItem of the node is shown in the menu to the user
-	isVisible     bool
+	isVisible bool
 	//if isDeactivated==true, the user cannot interact with the MenuItem
 	isDeactivated bool
 	//if isInvalid==true, the content of the LIST MenuNode is no more up to date and has to be refreshed by application
 	//logic
-	isInvalid     bool
+	isInvalid bool
 	//text prefix that is prepended to the MenuNode title when it is shown in the menu
-	icon          string
+	icon string
 }
 
 //newMenuNode creates a MenuNode of type NodeType
@@ -468,7 +468,6 @@ func (n *MenuNode) Option(tag string) (opt *MenuNode, present bool) {
 func (n *MenuNode) options() map[string]*MenuNode {
 	return n.optionMap
 }
-
 
 //------ GETTERS/SETTERS ------
 

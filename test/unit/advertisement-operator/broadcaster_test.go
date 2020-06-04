@@ -29,7 +29,7 @@ func createFakeResources() (physicalNodes *v1.NodeList, virtualNodes *v1.NodeLis
 		resources[v1.ResourceMemory] = q
 		resources[v1.ResourcePods] = q
 
-		if i % 2 == 0 {
+		if i%2 == 0 {
 			im := make([]v1.ContainerImage, 1)
 			im[0].Names = append(im[0].Names, fmt.Sprint(p))
 			im[0].SizeBytes = int64(p)
@@ -50,7 +50,7 @@ func createFakeResources() (physicalNodes *v1.NodeList, virtualNodes *v1.NodeLis
 		} else {
 			vNodes[v] = v1.Node{
 				ObjectMeta: metav1.ObjectMeta{
-					Labels: map[string]string{"type" : "virtual-node"},
+					Labels: map[string]string{"type": "virtual-node"},
 				},
 				Spec: v1.NodeSpec{
 					PodCIDR: fmt.Sprintf("%d.%d.%d.%d/%d", i, i, i, i, 16),
@@ -65,8 +65,8 @@ func createFakeResources() (physicalNodes *v1.NodeList, virtualNodes *v1.NodeLis
 	}
 
 	pods := make([]v1.Pod, 10)
-	for i := 0; i < 10 ; i++ {
-		if i % 2 == 0 {
+	for i := 0; i < 10; i++ {
+		if i%2 == 0 {
 			pods[i] = v1.Pod{
 				TypeMeta:   metav1.TypeMeta{},
 				ObjectMeta: metav1.ObjectMeta{},
@@ -133,7 +133,7 @@ func TestCreateAdvertisement(t *testing.T) {
 	reqs, limits := advertisement_operator.GetAllPodsResources(pods)
 	availability, _ := advertisement_operator.ComputeAnnouncedResources(pNodes, reqs)
 	neighbours := make(map[v1.ResourceName]v1.ResourceList, 0)
-	for _, vNode := range vNodes.Items{
+	for _, vNode := range vNodes.Items {
 		neighbours[v1.ResourceName(vNode.Name)] = vNode.Status.Allocatable
 	}
 

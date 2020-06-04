@@ -167,7 +167,7 @@ func (r *TunnelEndpointCreator) getTunnelEndpointByName(name string) (tunEndpoin
 	return tunEndpoint, err
 }
 
-func (r *TunnelEndpointCreator) getTunEndPerADV(adv *protocolv1.Advertisement) ( dronetv1.TunnelEndpoint, error) {
+func (r *TunnelEndpointCreator) getTunEndPerADV(adv *protocolv1.Advertisement) (dronetv1.TunnelEndpoint, error) {
 	ctx := context.Background()
 	var tunEndpoint dronetv1.TunnelEndpoint
 	//build the key used to retrieve the tunnelEndpoint CR

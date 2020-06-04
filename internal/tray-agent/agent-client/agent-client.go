@@ -67,18 +67,18 @@ func ListAdvertisements(c *client.Client) (advDescriptionList []string, err erro
 	for i, adv := range advList.Items {
 
 		str := strings.Builder{}
-		str.WriteString(fmt.Sprintf("❨%02d❩ ⟹\t%s",i+1,DescribeAdvertisement(&adv)))
+		str.WriteString(fmt.Sprintf("❨%02d❩ ⟹\t%s", i+1, DescribeAdvertisement(&adv)))
 		advDescriptionList = append(advDescriptionList, str.String())
 	}
 	return advDescriptionList, nil
 }
 
-func DescribeAdvertisement(adv *v1.Advertisement) string{
+func DescribeAdvertisement(adv *v1.Advertisement) string {
 	str := strings.Builder{}
 	prices := adv.Spec.Prices
 	CpuPrice := prices["cpu"]
 	MemPrice := prices["memory"]
-	str.WriteString(fmt.Sprintf("%v\n",adv.Name))
+	str.WriteString(fmt.Sprintf("%v\n", adv.Name))
 	str.WriteString(fmt.Sprintf("\t• ClusterID: %v\n\t• Available Resources:\n", adv.Spec.ClusterId))
 	str.WriteString(fmt.Sprintf("\t\t-cpu = %v [price %v]\n", adv.Spec.ResourceQuota.Hard.Cpu(), CpuPrice.String()))
 	str.WriteString(fmt.Sprintf("\t\t-memory = %v [price %v]\n", adv.Spec.ResourceQuota.Hard.Memory(), MemPrice.String()))

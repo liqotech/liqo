@@ -23,9 +23,9 @@ type CrdClientInterface interface {
 type Client struct {
 	Client rest.Interface
 
-	api string
+	api      string
 	resource RegistryType
-	ns string
+	ns       string
 }
 
 func (c *Client) Namespace(namespace string) CrdClientInterface {
@@ -51,7 +51,6 @@ func (c *Client) Get(name string, opts metav1.GetOptions) (runtime.Object, error
 
 	return result.(runtime.Object), err
 }
-
 
 func (c *Client) List(opts metav1.ListOptions) (runtime.Object, error) {
 	result := reflect.New(c.resource.PluralType).Interface()
@@ -112,7 +111,6 @@ func (c *Client) Create(obj runtime.Object, opts metav1.CreateOptions) (runtime.
 	return result.(runtime.Object), err
 }
 
-
 func (c *Client) Delete(name string, opts metav1.DeleteOptions) error {
 	var namespaced bool
 	if c.ns != "" {
@@ -149,4 +147,3 @@ func (c *Client) Update(name string, obj runtime.Object, opts metav1.UpdateOptio
 
 	return result.(runtime.Object), err
 }
-

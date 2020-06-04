@@ -6,7 +6,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-func GetOwnerReference(object interface{}) []metav1.OwnerReference{
+func GetOwnerReference(object interface{}) []metav1.OwnerReference {
 
 	ownerRef := make([]metav1.OwnerReference, 1)
 

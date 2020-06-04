@@ -14,8 +14,8 @@ import (
 )
 
 type namespaceNTCache struct {
-	Store cache.Store
-	Controller chan struct{}
+	Store            cache.Store
+	Controller       chan struct{}
 	nattingTableName string
 }
 
@@ -30,14 +30,14 @@ func (p *KubernetesProvider) startNattingCache(clientSet v1alpha1.NamespacedCRDC
 			p.StopReflector()
 		},
 	}
-	lo := metav1.ListOptions{FieldSelector:strings.Join([]string{"metadata.name", p.ntCache.nattingTableName}, "=")}
+	lo := metav1.ListOptions{FieldSelector: strings.Join([]string{"metadata.name", p.ntCache.nattingTableName}, "=")}
 
 	p.ntCache.Store, p.ntCache.Controller = crdClient.WatchResources(clientSet,
 		"namespacenattingtables", "",
 		0, ehf, lo)
 }
 
-func (nt* namespaceNTCache) WaitNamespaceNattingTableSync() {
+func (nt *namespaceNTCache) WaitNamespaceNattingTableSync() {
 	cache.WaitForCacheSync(nt.Controller, func() bool {
 		_, exists, _ := nt.Store.GetByKey(nt.nattingTableName)
 
@@ -49,7 +49,7 @@ func (nt* namespaceNTCache) WaitNamespaceNattingTableSync() {
 	})
 }
 
-func (nt* namespaceNTCache) getNattingTable(nattingTableName string) (*nattingv1.NamespaceNattingTable, error) {
+func (nt *namespaceNTCache) getNattingTable(nattingTableName string) (*nattingv1.NamespaceNattingTable, error) {
 	o, exists, err := nt.Store.GetByKey(nattingTableName)
 
 	if err != nil {
@@ -118,7 +118,7 @@ func (p *KubernetesProvider) createNattingTable(name string) error {
 			Name: name,
 		},
 		Spec: nattingv1.NamespaceNattingTableSpec{
-			ClusterId: name,
+			ClusterId:    name,
 			NattingTable: map[string]string{},
 		},
 	}
@@ -180,4 +180,3 @@ func (p *KubernetesProvider) manageReflections(oldObj interface{}, newObj interf
 		}
 	}
 }
-

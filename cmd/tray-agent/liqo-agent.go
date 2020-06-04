@@ -33,17 +33,17 @@ func onReady() {
 
 	AdvClient, err := agent.CreateClient(agent.AcquireConfig())
 	if err != nil {
-		indicator.Notify("Liqo","Agent could not connect to the cluster","")
+		indicator.Notify("Liqo", "Agent could not connect to the cluster", "")
 		return
 	}
 	advAction := indicator.AddAction("Show Advertisements", AShowAdv, nil)
 	advAction.Connect(func(args ...interface{}) {
 		actionShowAdv(args[0].(*client.Client))
-	},&AdvClient)
-/*	sub := indicator.AddAction("Enter Submenu", "A_SUBDEMO", func() {
-		indicator.SelectAction("A_SUBDEMO")
-	})
-	sub.AddOption("sub menu entry", "O_SUB")*/
+	}, &AdvClient)
+	/*	sub := indicator.AddAction("Enter Submenu", "A_SUBDEMO", func() {
+			indicator.SelectAction("A_SUBDEMO")
+		})
+		sub.AddOption("sub menu entry", "O_SUB")*/
 
 }
 
@@ -55,11 +55,11 @@ func actionShowAdv(c *client.Client) {
 	}
 	advList, err := agent.ListAdvertisements(c)
 	if err != nil {
-		liqo.Notify("Liqo","Agent could not connect to the cluster","")
+		liqo.Notify("Liqo", "Agent could not connect to the cluster", "")
 		return
 	} else {
 		app_indicator.GetIndicator().SelectAction(AShowAdv)
-		for _, adv := range advList{
+		for _, adv := range advList {
 			element := act.UseListChild()
 			element.SetTitle(adv)
 		}

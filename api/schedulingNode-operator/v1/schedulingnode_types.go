@@ -26,14 +26,14 @@ import (
 
 // SchedulingNodeSpec defines the desired state of SchedulingNode
 type SchedulingNodeSpec struct {
-	NodeName corev1.ResourceName `json:"nodeName"`
-	NodeType corev1.ResourceName `json:"nodeType"`
+	NodeName      corev1.ResourceName                         `json:"nodeName"`
+	NodeType      corev1.ResourceName                         `json:"nodeType"`
 	Images        []corev1.ContainerImage                     `json:"images,omitempty"`
 	LimitRange    corev1.LimitRangeSpec                       `json:"limitRange,omitempty"`
 	ResourceQuota corev1.ResourceQuotaSpec                    `json:"resourceQuota,omitempty"`
 	Neighbors     map[corev1.ResourceName]corev1.ResourceList `json:"neighbors,omitempty"`
 	Properties    map[corev1.ResourceName]string              `json:"properties,omitempty"`
-	Prices     corev1.ResourceList `json:"prices,omitempty"`
+	Prices        corev1.ResourceList                         `json:"prices,omitempty"`
 }
 
 // SchedulingNodeStatus defines the observed state of SchedulingNode

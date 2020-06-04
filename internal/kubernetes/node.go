@@ -7,7 +7,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-
 func (p *KubernetesProvider) ConfigureNode(ctx context.Context, n *v1.Node) {
 	ctx, span := trace.StartSpan(ctx, "kubernetes.ConfigureNode") //nolint:ineffassign
 	defer span.End()

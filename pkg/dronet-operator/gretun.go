@@ -87,11 +87,9 @@ func (iface *gretunIface) configureIPAddress(ipAddress net.IP, mask net.IPMask) 
 	return nil
 }
 
-
-
-func (iface *gretunIface) setUp () error {
+func (iface *gretunIface) setUp() error {
 	err := netlink.LinkSetUp(iface.link)
-	if err != nil{
+	if err != nil {
 		return fmt.Errorf("unable to bring up the interface (#{iface.link.name}). #{err}")
 	}
 	return nil

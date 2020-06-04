@@ -122,7 +122,7 @@ func (ip IpManager) reserveSubnet(network *net.IPNet, clusterID string) {
 	ip.SubnetPerCluster[clusterID] = network
 }
 
-func (ip IpManager) RemoveReservedSubnet(clusterID string){
+func (ip IpManager) RemoveReservedSubnet(clusterID string) {
 
 	subnet := ip.SubnetPerCluster[clusterID]
 

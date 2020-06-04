@@ -56,7 +56,7 @@ func (p *KubernetesProvider) manageEpEvent(event timestampedEvent) error {
 		}
 
 		// old event
-		if event.ts < t{
+		if event.ts < t {
 			return nil
 		}
 	}
@@ -79,7 +79,7 @@ func (p *KubernetesProvider) manageEpEvent(event timestampedEvent) error {
 func (p *KubernetesProvider) updateEndpoints(eps, foreignEps []corev1.EndpointSubset) []corev1.EndpointSubset {
 	subsets := make([]corev1.EndpointSubset, 0)
 
-	for i:=0; i<len(eps); i++ {
+	for i := 0; i < len(eps); i++ {
 		subsets = append(subsets, corev1.EndpointSubset{})
 		subsets[i].Addresses = make([]corev1.EndpointAddress, 0)
 		subsets[i].Ports = eps[i].Ports

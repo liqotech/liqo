@@ -157,7 +157,7 @@ func DeleteIFaceByIndex(ifaceIndex int) error {
 	return err
 }
 
-func GetIfaceByIndex (iFaceIndex int) (netlink.Link, error) {
+func GetIfaceByIndex(iFaceIndex int) (netlink.Link, error) {
 	existingIface, err := netlink.LinkByIndex(iFaceIndex)
 
 	if err != nil {

@@ -16,7 +16,7 @@ type NamespacedCRDClientInterface interface {
 
 type CRDClient struct {
 	crdClient *rest.RESTClient
-	client *kubernetes.Clientset
+	client    *kubernetes.Clientset
 
 	config *rest.Config
 }
@@ -59,13 +59,13 @@ func NewFromConfig(config *rest.Config) (*CRDClient, error) {
 		return nil, err
 	}
 
-	return &CRDClient{crdClient: crdClient, client:client, config:config}, nil
+	return &CRDClient{crdClient: crdClient, client: client, config: config}, nil
 }
 
 func (c *CRDClient) Resource(api string) CrdClientInterface {
 	return &Client{
-		Client: c.crdClient,
-		api: api,
+		Client:   c.crdClient,
+		api:      api,
 		resource: Registry[api],
 	}
 }

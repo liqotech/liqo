@@ -9,14 +9,13 @@ import (
 	"testing"
 )
 
-
 func TestH2FCreation(t *testing.T) {
 	pHome := &v1.Pod{
 		TypeMeta: metav1.TypeMeta{},
 		ObjectMeta: metav1.ObjectMeta{
 			Name: "toto", Namespace: "test", UID: "0973c9af-35aa-4050-929d-bc8bc3fc3b5a",
 		},
-		Spec:   v1.PodSpec{
+		Spec: v1.PodSpec{
 			NodeName: "trololo",
 		},
 		Status: v1.PodStatus{},
@@ -33,27 +32,27 @@ func TestH2FCreation(t *testing.T) {
 
 func TestF2HCreation(t *testing.T) {
 	annotations := make(map[string]string)
-	annotations["home_nodename"]= "toto"
-	annotations["home_resourceVersion"]= "508"
-	annotations["home_uuid"]= "42131279-7e1a-427e-b521-042326145c59"
-	annotations["home_creationTimestamp"]= "2020-01-15T13:21:18Z"
+	annotations["home_nodename"] = "toto"
+	annotations["home_resourceVersion"] = "508"
+	annotations["home_uuid"] = "42131279-7e1a-427e-b521-042326145c59"
+	annotations["home_creationTimestamp"] = "2020-01-15T13:21:18Z"
 	ForeignObjectMeta := metav1.ObjectMeta{
-		Name:                       "test",
-		Namespace:                  "test",
+		Name:        "test",
+		Namespace:   "test",
 		Annotations: annotations,
 	}
 
 	podIPs := make([]v1.PodIP, 1)
-	podIP := v1.PodIP{IP:"10.16.1.2"}
-	podIPs =append(podIPs,podIP)
+	podIP := v1.PodIP{IP: "10.16.1.2"}
+	podIPs = append(podIPs, podIP)
 	pForeign := &v1.Pod{
-		TypeMeta: metav1.TypeMeta{},
+		TypeMeta:   metav1.TypeMeta{},
 		ObjectMeta: ForeignObjectMeta,
-		Spec:   v1.PodSpec{},
+		Spec:       v1.PodSpec{},
 		Status: v1.PodStatus{
-			PodIP: "10.16.1.2",
+			PodIP:  "10.16.1.2",
 			PodIPs: podIPs,
-	 },
+		},
 	}
 
 	newForeignPodCidr := "172.42.0.0/16"
@@ -63,5 +62,3 @@ func TestF2HCreation(t *testing.T) {
 	assert.Equal(t, pHome.UID, types.UID(pForeign.GetAnnotations()["home_uuid"]))
 	assert.Equal(t, pHome.Status.PodIP, expectedPodIP)
 }
-
-

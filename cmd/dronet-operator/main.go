@@ -184,12 +184,12 @@ func main() {
 
 	case "tunnelEndpointCreator-operator":
 		r := &controllers.TunnelEndpointCreator{
-			Client: mgr.GetClient(),
-			Log:    ctrl.Log.WithName("controllers").WithName("TunnelEndpointCreator"),
-			Scheme: mgr.GetScheme(),
+			Client:            mgr.GetClient(),
+			Log:               ctrl.Log.WithName("controllers").WithName("TunnelEndpointCreator"),
+			Scheme:            mgr.GetScheme(),
 			TunnelEndpointMap: make(map[string]types.NamespacedName),
-			UsedSubnets: make(map[string]*net.IPNet),
-			FreeSubnets: make(map[string]*net.IPNet),
+			UsedSubnets:       make(map[string]*net.IPNet),
+			FreeSubnets:       make(map[string]*net.IPNet),
 			IPManager: dronetOperator.IpManager{
 				UsedSubnets:      make(map[string]*net.IPNet),
 				FreeSubnets:      make(map[string]*net.IPNet),
@@ -197,7 +197,7 @@ func main() {
 				Log:              ctrl.Log.WithName("IPAM"),
 			},
 		}
-		if err := r.IPManager.Init();err != nil{
+		if err := r.IPManager.Init(); err != nil {
 			setupLog.Error(err, "unable to initialize ipam")
 			os.Exit(2)
 		}
