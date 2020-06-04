@@ -2,8 +2,8 @@ FROM golang:1.13 as builder
 
 ENV PATH /go/bin:/usr/local/go/bin:$PATH
 ENV GOPATH /go
-COPY . /go/src/github.com/netgroup-polito/dronev2
-WORKDIR /go/src/github.com/netgroup-polito/dronev2
+COPY . /go/src/github.com/liqoTech/liqo
+WORKDIR /go/src/github.com/liqoTech/liqo
 
 ARG BUILD_TAGS=""
 RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build ./cmd/virtual-kubelet/

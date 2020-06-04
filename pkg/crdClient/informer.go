@@ -1,7 +1,7 @@
 package crdClient
 
 import (
-	clientv1alpha1 "github.com/netgroup-polito/dronev2/pkg/crdClient/v1alpha1"
+	clientv1alpha1 "github.com/liqoTech/liqo/pkg/crdClient/v1alpha1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/watch"

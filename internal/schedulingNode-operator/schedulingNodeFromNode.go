@@ -2,8 +2,8 @@ package schedulingNodeOperator
 
 import (
 	"context"
-	advv1 "github.com/netgroup-polito/dronev2/api/advertisement-operator/v1"
-	"github.com/netgroup-polito/dronev2/api/schedulingNode-operator/v1"
+	advv1 "github.com/liqoTech/liqo/api/advertisement-operator/v1"
+	"github.com/liqoTech/liqo/api/schedulingNode-operator/v1"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/types"

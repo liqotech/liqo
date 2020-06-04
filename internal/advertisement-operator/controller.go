@@ -18,8 +18,8 @@ package advertisement_operator
 import (
 	"context"
 	"github.com/go-logr/logr"
-	protocolv1 "github.com/netgroup-polito/dronev2/api/advertisement-operator/v1"
-	pkg "github.com/netgroup-polito/dronev2/pkg/advertisement-operator"
+	protocolv1 "github.com/liqoTech/liqo/api/advertisement-operator/v1"
+	pkg "github.com/liqoTech/liqo/pkg/advertisement-operator"
 	v1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
 	"k8s.io/apimachinery/pkg/api/errors"

@@ -1,4 +1,4 @@
-package dronet_operator
+package liqonet
 
 import (
 	"encoding/json"

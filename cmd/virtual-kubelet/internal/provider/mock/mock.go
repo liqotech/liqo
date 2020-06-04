@@ -4,17 +4,17 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/netgroup-polito/dronev2/internal/node"
+	"github.com/liqoTech/liqo/internal/node"
 	"io"
 	"io/ioutil"
 	"math/rand"
 	"strings"
 	"time"
 
-	"github.com/netgroup-polito/dronev2/internal/errdefs"
-	"github.com/netgroup-polito/dronev2/internal/log"
-	"github.com/netgroup-polito/dronev2/internal/node/api"
-	"github.com/netgroup-polito/dronev2/internal/trace"
+	"github.com/liqoTech/liqo/internal/errdefs"
+	"github.com/liqoTech/liqo/internal/log"
+	"github.com/liqoTech/liqo/internal/node/api"
+	"github.com/liqoTech/liqo/internal/trace"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -33,7 +33,7 @@ const (
 	containerNameKey = "containerName"
 )
 
-// See: https://github.com/netgroup-polito/dronev2/issues/632
+// See: https://github.com/liqoTech/liqo/issues/632
 /*
 var (
 	_ providers.Provider           = (*MockV0Provider)(nil)

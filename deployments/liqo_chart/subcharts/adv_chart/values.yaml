@@ -4,11 +4,11 @@
 
 advController:
   image:
-    repository: "dronev2/advertisement-operator"
+    repository: "liqo/advertisement-operator"
     pullPolicy: "IfNotPresent"
   foreignClusterID: "clusterID"
 
 broadcaster:
   image:
-    repository: "dronev2/advertisement-broadcaster"
+    repository: "liqo/advertisement-broadcaster"
     pullPolicy: "IfNotPresent"

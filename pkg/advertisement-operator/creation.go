@@ -5,7 +5,7 @@ import (
 	"github.com/go-logr/logr"
 	"io/ioutil"
 
-	protocolv1 "github.com/netgroup-polito/dronev2/api/advertisement-operator/v1"
+	protocolv1 "github.com/liqoTech/liqo/api/advertisement-operator/v1"
 
 	appsv1 "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"

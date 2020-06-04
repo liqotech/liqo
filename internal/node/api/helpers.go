@@ -18,8 +18,8 @@ import (
 	"io"
 	"net/http"
 
-	"github.com/netgroup-polito/dronev2/internal/errdefs"
-	"github.com/netgroup-polito/dronev2/internal/log"
+	"github.com/liqoTech/liqo/internal/errdefs"
+	"github.com/liqoTech/liqo/internal/log"
 )
 
 type handlerFunc func(http.ResponseWriter, *http.Request) error

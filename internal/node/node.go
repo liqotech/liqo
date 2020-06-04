@@ -21,8 +21,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/netgroup-polito/dronev2/internal/log"
-	"github.com/netgroup-polito/dronev2/internal/trace"
+	"github.com/liqoTech/liqo/internal/log"
+	"github.com/liqoTech/liqo/internal/trace"
 	pkgerrors "github.com/pkg/errors"
 	coord "k8s.io/api/coordination/v1beta1"
 	corev1 "k8s.io/api/core/v1"

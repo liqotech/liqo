@@ -54,7 +54,7 @@ spec:
                     values:
                       - virtual-node
       containers:
-        - image: dronev2/advertisement-broadcaster
+        - image: liqo/advertisement-broadcaster
           name: advertisement-operator
           command: ["/usr/bin/advertisement-broadcaster"]
           args:

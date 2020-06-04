@@ -1,9 +1,9 @@
-package dronet_operator
+package liqonet
 
 import (
 	"fmt"
 	cidr "github.com/apparentlymart/go-cidr/cidr"
-	"github.com/netgroup-polito/dronev2/internal/errdefs"
+	"github.com/liqoTech/liqo/internal/errdefs"
 	"golang.org/x/tools/go/ssa/interp/testdata/src/errors"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"

@@ -2,7 +2,7 @@ package advertisement_operator
 
 import (
 	"fmt"
-	"github.com/netgroup-polito/dronev2/internal/advertisement-operator"
+	"github.com/liqoTech/liqo/internal/advertisement-operator"
 	"github.com/stretchr/testify/assert"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"

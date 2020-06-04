@@ -17,8 +17,8 @@ package controllers
 import (
 	"context"
 	"github.com/go-logr/logr"
-	"github.com/netgroup-polito/dronev2/api/tunnel-endpoint/v1"
-	dronetOperator "github.com/netgroup-polito/dronev2/pkg/dronet-operator"
+	"github.com/liqoTech/liqo/api/tunnel-endpoint/v1"
+	dronetOperator "github.com/liqoTech/liqo/pkg/liqonet"
 	"github.com/vishvananda/netlink"
 	"k8s.io/apimachinery/pkg/runtime"
 	"os"

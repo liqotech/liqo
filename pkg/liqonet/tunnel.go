@@ -1,9 +1,9 @@
-package dronet_operator
+package liqonet
 
 import (
 	"errors"
-	"github.com/netgroup-polito/dronev2/api/tunnel-endpoint/v1"
-	"github.com/netgroup-polito/dronev2/internal/errdefs"
+	"github.com/liqoTech/liqo/api/tunnel-endpoint/v1"
+	"github.com/liqoTech/liqo/internal/errdefs"
 	"github.com/prometheus/common/log"
 	"github.com/vishvananda/netlink"
 	"k8s.io/klog"

@@ -42,7 +42,7 @@ spec:
     spec:
       serviceAccountName: discovery
       containers:
-        - image: dronev2/discovery
+        - image: liqo/discovery
           name: discovery
           imagePullPolicy: Always
           env:

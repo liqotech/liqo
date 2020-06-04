@@ -13,12 +13,12 @@ configmap:
 adv_chart:
   advController:
     image:
-      repository: "dronev2/advertisement-operator"
+      repository: "liqo/advertisement-operator"
       pullPolicy: "IfNotPresent"
     foreignClusterID: "cluster-2"
   broadcaster:
     image:
-      repository: "dronev2/advertisement-broadcaster"
+      repository: "liqo/advertisement-broadcaster"
       pullPolicy: "IfNotPresent"
   enable: true
 
@@ -26,25 +26,25 @@ adv_chart:
 networkModule_chart:
   routeOperator:
     image:
-      repository: "dronev2/dronet-operator"
+      repository: "liqo/liqonet"
       pullPolicy: "IfNotPresent"
   tunnelEndpointOperator:
     image:
-      repository: "dronev2/dronet-operator"
+      repository: "liqo/liqonet"
       pullPolicy: "IfNotPresent"
   enable: true
 
 #configuration values for the tunnelendpointCreator subchart
 tunnelEndpointCreator_chart:
   image:
-    repository: "dronev2/dronet-operator"
+    repository: "liqo/liqonet"
     pullPolicy: "IfNotPresent"
   enable: true
 
 #configuration values for the schedulingNode subchart
 schedulingNodeOperator_chart:
   image:
-    repository: "dronev2/schedulingnode-operator"
+    repository: "liqo/schedulingnode-operator"
     pullPolicy: "IfNotPresent"
   enable: true
 

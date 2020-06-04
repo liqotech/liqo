@@ -27,17 +27,17 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
-	protocolv1 "github.com/netgroup-polito/dronev2/api/advertisement-operator/v1"
-	dronetv1 "github.com/netgroup-polito/dronev2/api/tunnel-endpoint/v1"
-	"github.com/netgroup-polito/dronev2/internal/advertisement-operator"
+	protocolv1 "github.com/liqoTech/liqo/api/advertisement-operator/v1"
+	dronetv1 "github.com/liqoTech/liqo/api/tunnel-endpoint/v1"
+	"github.com/liqoTech/liqo/internal/advertisement-operator"
 	// +kubebuilder:scaffold:imports
 )
 
 const (
 	defaultNamespace   = "default"
 	defaultMetricsaddr = ":8080"
-	defaultVKImage     = "dronev2/virtual-kubelet"
-	defaultInitVKImage = "dronev2/init-vkubelet"
+	defaultVKImage     = "liqo/virtual-kubelet"
+	defaultInitVKImage = "liqo/init-vkubelet"
 )
 
 var (

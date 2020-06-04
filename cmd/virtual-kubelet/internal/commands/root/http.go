@@ -23,9 +23,9 @@ import (
 	"net/http"
 	"os"
 
-	"github.com/netgroup-polito/dronev2/cmd/virtual-kubelet/internal/provider"
-	"github.com/netgroup-polito/dronev2/internal/log"
-	"github.com/netgroup-polito/dronev2/internal/node/api"
+	"github.com/liqoTech/liqo/cmd/virtual-kubelet/internal/provider"
+	"github.com/liqoTech/liqo/internal/log"
+	"github.com/liqoTech/liqo/internal/node/api"
 	"github.com/pkg/errors"
 )
 

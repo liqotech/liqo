@@ -2,7 +2,7 @@ package main
 
 import (
 	"flag"
-	advertisement_operator "github.com/netgroup-polito/dronev2/internal/advertisement-operator"
+	advertisement_operator "github.com/liqoTech/liqo/internal/advertisement-operator"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 )

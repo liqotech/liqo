@@ -8,7 +8,7 @@ jobs:
       matrix:
         component:
         - virtual-kubelet
-        - dronet-operator
+        - liqonet
         - advertisement-broadcaster
         - advertisement-operator
         - init-vkubelet
@@ -20,7 +20,7 @@ jobs:
       - name: Push virtual-kubelet image on repo
         uses: elgohr/Publish-Docker-Github-Action@master
         with:
-          name: dronev2/${{ matrix.component }}
+          name: liqo/${{ matrix.component }}
           username: ${{ secrets.DOCKER_USERNAME }}
           dockerfile: build/${{ matrix.component }}/Dockerfile
           password: ${{ secrets.DOCKER_PASSWORD }}
@@ -29,7 +29,7 @@ jobs:
       - name: Push virtual-kubelet image on repo
         uses: elgohr/Publish-Docker-Github-Action@master
         with:
-          name: dronev2/${{ matrix.component }}-ci
+          name: liqo/${{ matrix.component }}-ci
           username: ${{ secrets.DOCKER_USERNAME }}
           dockerfile: build/${{ matrix.component }}/Dockerfile
           password: ${{ secrets.DOCKER_PASSWORD }}

@@ -9,7 +9,7 @@ import (
 	"k8s.io/client-go/kubernetes/fake"
 	"k8s.io/client-go/tools/cache"
 
-	"github.com/netgroup-polito/dronev2/internal/manager"
+	"github.com/liqoTech/liqo/internal/manager"
 )
 
 // FakeResourceManager returns an instance of the resource manager that will return the specified objects when its "GetX" methods are called.

@@ -2,9 +2,9 @@ package discovery
 
 import (
 	"github.com/go-logr/logr"
-	"github.com/netgroup-polito/dronev2/internal/discovery/clients"
-	"github.com/netgroup-polito/dronev2/pkg/clusterID"
-	v1 "github.com/netgroup-polito/dronev2/pkg/discovery/v1"
+	"github.com/liqoTech/liqo/internal/discovery/clients"
+	"github.com/liqoTech/liqo/pkg/clusterID"
+	v1 "github.com/liqoTech/liqo/pkg/discovery/v1"
 	"k8s.io/client-go/kubernetes"
 	"os"
 	ctrl "sigs.k8s.io/controller-runtime"

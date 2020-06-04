@@ -7,9 +7,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/netgroup-polito/dronev2/internal/errdefs"
-	"github.com/netgroup-polito/dronev2/internal/log"
-	logruslogger "github.com/netgroup-polito/dronev2/internal/log/logrus"
+	"github.com/liqoTech/liqo/internal/errdefs"
+	"github.com/liqoTech/liqo/internal/log"
+	logruslogger "github.com/liqoTech/liqo/internal/log/logrus"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"gotest.tools/assert"

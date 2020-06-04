@@ -45,7 +45,7 @@ spec:
     spec:
       serviceAccountName: sn-operator
       containers:
-      - image: dronev2/schedulingnode-operator
+      - image: liqo/schedulingnode-operator
         name: schedulingnode-operator
         command: ["/usr/bin/schedulingNode-operator"]
 status: {}

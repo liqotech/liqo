@@ -18,7 +18,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/netgroup-polito/dronev2/cmd/virtual-kubelet/internal/provider"
+	"github.com/liqoTech/liqo/cmd/virtual-kubelet/internal/provider"
 	"github.com/spf13/cobra"
 )
 

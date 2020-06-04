@@ -32,8 +32,8 @@ import (
 	"k8s.io/kubernetes/pkg/kubelet/envvars"
 	"k8s.io/kubernetes/third_party/forked/golang/expansion"
 
-	"github.com/netgroup-polito/dronev2/internal/log"
-	"github.com/netgroup-polito/dronev2/internal/manager"
+	"github.com/liqoTech/liqo/internal/log"
+	"github.com/liqoTech/liqo/internal/manager"
 )
 
 const (
@@ -437,7 +437,7 @@ loop:
 			continue loop
 		// Handle population from a field (downward API).
 		case env.ValueFrom != nil && env.ValueFrom.FieldRef != nil:
-			// https://github.com/netgroup-polito/dronev2/issues/123
+			// https://github.com/liqoTech/liqo/issues/123
 			vf := env.ValueFrom.FieldRef
 
 			runtimeVal, err := podFieldSelectorRuntimeValue(vf, pod)

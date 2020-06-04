@@ -17,7 +17,7 @@ package trace
 import (
 	"context"
 
-	"github.com/netgroup-polito/dronev2/internal/log"
+	"github.com/liqoTech/liqo/internal/log"
 )
 
 type nopTracer struct{}

@@ -26,9 +26,9 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
-	advv1 "github.com/netgroup-polito/dronev2/api/advertisement-operator/v1"
-	schedulingv1 "github.com/netgroup-polito/dronev2/api/schedulingNode-operator/v1"
-	controllers "github.com/netgroup-polito/dronev2/internal/schedulingNode-operator"
+	advv1 "github.com/liqoTech/liqo/api/advertisement-operator/v1"
+	schedulingv1 "github.com/liqoTech/liqo/api/schedulingNode-operator/v1"
+	controllers "github.com/liqoTech/liqo/internal/schedulingNode-operator"
 	// +kubebuilder:scaffold:imports
 )
 

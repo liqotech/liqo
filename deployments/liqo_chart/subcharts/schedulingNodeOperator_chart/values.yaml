@@ -4,6 +4,6 @@
 
 
 image:
-  repository: "dronev2/schedulingnode-operator"
+  repository: "liqo/schedulingnode-operator"
   pullPolicy: "IfNotPresent"
 

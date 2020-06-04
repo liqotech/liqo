@@ -4,9 +4,9 @@
 
 routeOperator:
   image:
-    repository: "dronev2/dronet-operator"
+    repository: "liqo/liqonet"
     pullPolicy: "IfNotPresent"
 tunnelEndpointOperator:
   image:
-    repository: "dronev2/dronet-operator"
+    repository: "liqo/liqonet"
     pullPolicy: "IfNotPresent"

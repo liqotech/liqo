@@ -1,7 +1,7 @@
 package v1
 
 import (
-	"github.com/netgroup-polito/dronev2/pkg/crdClient/v1alpha1"
+	"github.com/liqoTech/liqo/pkg/crdClient/v1alpha1"
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
 )

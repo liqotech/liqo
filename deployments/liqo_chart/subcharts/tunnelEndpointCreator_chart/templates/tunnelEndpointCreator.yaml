@@ -96,7 +96,7 @@ spec:
         - image: {{ .Values.image.repository }}
           imagePullPolicy: {{ .Values.image.pullPolicy }}
           name: tunnelendpointcreator-operator
-          command: ["/usr/bin/dronet-operator"]
+          command: ["/usr/bin/liqonet"]
           args:
             - "-run-as=tunnelEndpointCreator-operator"
           env:

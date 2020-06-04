@@ -19,7 +19,7 @@ import (
 	"testing"
 	"time"
 
-	testutil "github.com/netgroup-polito/dronev2/internal/test/util"
+	testutil "github.com/liqoTech/liqo/internal/test/util"
 	"gotest.tools/assert"
 	is "gotest.tools/assert/cmp"
 	corev1 "k8s.io/api/core/v1"
