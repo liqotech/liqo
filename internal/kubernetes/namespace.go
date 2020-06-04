@@ -2,9 +2,9 @@ package kubernetes
 
 import (
 	"errors"
-	nattingv1 "github.com/netgroup-polito/dronev2/api/namespaceNattingTable/v1"
-	"github.com/netgroup-polito/dronev2/pkg/crdClient"
-	"github.com/netgroup-polito/dronev2/pkg/crdClient/v1alpha1"
+	nattingv1 "github.com/liqoTech/liqo/api/namespaceNattingTable/v1"
+	"github.com/liqoTech/liqo/pkg/crdClient"
+	"github.com/liqoTech/liqo/pkg/crdClient/v1alpha1"
 	v1 "k8s.io/api/core/v1"
 	kerror "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"

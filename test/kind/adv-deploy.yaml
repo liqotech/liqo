@@ -52,7 +52,7 @@ spec:
                       - virtual-node
       serviceAccountName: advertisement-operator
       containers:
-      - image: dronev2/advertisement-operator
+      - image: liqo/advertisement-operator
         name: advertisement-operator
         command: ["/usr/bin/advertisement-operator"]
         args:

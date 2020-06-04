@@ -2,7 +2,7 @@ package clusterID
 
 import (
 	"github.com/go-logr/logr"
-	"github.com/netgroup-polito/dronev2/internal/discovery/clients"
+	"github.com/liqoTech/liqo/internal/discovery/clients"
 	"io/ioutil"
 	v1 "k8s.io/api/core/v1"
 	k8serror "k8s.io/apimachinery/pkg/api/errors"

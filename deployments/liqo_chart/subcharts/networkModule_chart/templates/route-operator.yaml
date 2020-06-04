@@ -95,7 +95,7 @@ spec:
         - image: {{ .Values.routeOperator.image.repository }}
           imagePullPolicy: {{ .Values.routeOperator.image.pullPolicy }}
           name: route-operator
-          command: ["/usr/bin/dronet-operator"]
+          command: ["/usr/bin/liqonet"]
           args: ["-run-as=route-operator"]
           resources: {}
           securityContext:

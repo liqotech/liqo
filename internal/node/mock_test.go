@@ -6,8 +6,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/netgroup-polito/dronev2/internal/errdefs"
-	"github.com/netgroup-polito/dronev2/internal/log"
+	"github.com/liqoTech/liqo/internal/errdefs"
+	"github.com/liqoTech/liqo/internal/log"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )

@@ -1,7 +1,7 @@
 package kubeconfig
 
 import (
-	"github.com/netgroup-polito/dronev2/internal/discovery/clients"
+	"github.com/liqoTech/liqo/internal/discovery/clients"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	clientcmdlatest "k8s.io/client-go/tools/clientcmd/api/latest"

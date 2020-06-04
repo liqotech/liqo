@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package opencensus implements a github.com/netgroup-polito/dronev2/internal/trace.Tracer
+// Package opencensus implements a github.com/netgroup-polito/liqo/internal/trace.Tracer
 // using opencensus as a backend.
 //
 // Use this by setting `trace.T = Adapter{}`
@@ -23,9 +23,9 @@ import (
 	"fmt"
 	"sync"
 
-	"github.com/netgroup-polito/dronev2/internal/errdefs"
-	"github.com/netgroup-polito/dronev2/internal/log"
-	"github.com/netgroup-polito/dronev2/internal/trace"
+	"github.com/liqoTech/liqo/internal/errdefs"
+	"github.com/liqoTech/liqo/internal/log"
+	"github.com/liqoTech/liqo/internal/trace"
 	octrace "go.opencensus.io/trace"
 )
 

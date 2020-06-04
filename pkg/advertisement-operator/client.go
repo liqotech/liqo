@@ -4,7 +4,7 @@ import (
 	metricsclient "k8s.io/metrics/pkg/client/clientset/versioned"
 	"os"
 
-	protocolv1 "github.com/netgroup-polito/dronev2/api/advertisement-operator/v1"
+	protocolv1 "github.com/liqoTech/liqo/api/advertisement-operator/v1"
 
 	v1 "k8s.io/api/core/v1"
 	k8sruntime "k8s.io/apimachinery/pkg/runtime"

@@ -1,8 +1,8 @@
 package main
 
 import (
-	agent "github.com/netgroup-polito/dronev2/internal/tray-agent/agent-client"
-	"github.com/netgroup-polito/dronev2/internal/tray-agent/app-indicator"
+	agent "github.com/liqoTech/liqo/internal/tray-agent/agent-client"
+	"github.com/liqoTech/liqo/internal/tray-agent/app-indicator"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 

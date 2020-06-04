@@ -24,7 +24,7 @@ import (
 	"fmt"
 	bip "github.com/gen2brain/beeep"
 	"github.com/getlantern/systray"
-	"github.com/netgroup-polito/dronev2/internal/tray-agent/icon"
+	"github.com/liqoTech/liqo/internal/tray-agent/icon"
 	"github.com/ozgio/strutil"
 )
 

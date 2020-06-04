@@ -2,8 +2,8 @@ package main
 
 import (
 	"flag"
-	"github.com/netgroup-polito/dronev2/internal/discovery"
-	foreign_cluster_operator "github.com/netgroup-polito/dronev2/internal/discovery/foreign-cluster-operator"
+	"github.com/liqoTech/liqo/internal/discovery"
+	foreign_cluster_operator "github.com/liqoTech/liqo/internal/discovery/foreign-cluster-operator"
 	"os"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"

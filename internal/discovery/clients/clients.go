@@ -1,7 +1,7 @@
 package clients
 
 import (
-	v1 "github.com/netgroup-polito/dronev2/pkg/discovery/v1"
+	v1 "github.com/liqoTech/liqo/pkg/discovery/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"

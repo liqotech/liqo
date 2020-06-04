@@ -1,9 +1,9 @@
 package main
 
 import (
-	"github.com/netgroup-polito/dronev2/cmd/virtual-kubelet/internal/provider"
-	"github.com/netgroup-polito/dronev2/cmd/virtual-kubelet/internal/provider/mock"
-	"github.com/netgroup-polito/dronev2/internal/kubernetes"
+	"github.com/liqoTech/liqo/cmd/virtual-kubelet/internal/provider"
+	"github.com/liqoTech/liqo/cmd/virtual-kubelet/internal/provider/mock"
+	"github.com/liqoTech/liqo/internal/kubernetes"
 )
 
 func registerMock(s *provider.Store) {

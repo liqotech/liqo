@@ -1,4 +1,4 @@
-![Go](https://github.com/netgroup-polito/dronev2/workflows/Go/badge.svg)
+![Go](https://github.com/liqoTech/liqo/workflows/Go/badge.svg)
 
 # DRONE v2.0 README
 Distributed Resources Offload at Network Edge

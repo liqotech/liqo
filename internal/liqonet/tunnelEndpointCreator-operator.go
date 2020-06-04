@@ -19,7 +19,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/go-logr/logr"
-	dronetOperator "github.com/netgroup-polito/dronev2/pkg/dronet-operator"
+	dronetOperator "github.com/liqoTech/liqo/pkg/liqonet"
 	"github.com/pkg/errors"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -30,8 +30,8 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	protocolv1 "github.com/netgroup-polito/dronev2/api/advertisement-operator/v1"
-	dronetv1 "github.com/netgroup-polito/dronev2/api/tunnel-endpoint/v1"
+	protocolv1 "github.com/liqoTech/liqo/api/advertisement-operator/v1"
+	dronetv1 "github.com/liqoTech/liqo/api/tunnel-endpoint/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 )
 

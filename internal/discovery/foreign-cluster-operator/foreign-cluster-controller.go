@@ -20,9 +20,9 @@ import (
 	"context"
 	b64 "encoding/base64"
 	"github.com/go-logr/logr"
-	"github.com/netgroup-polito/dronev2/internal/discovery/kubeconfig"
-	"github.com/netgroup-polito/dronev2/pkg/clusterID"
-	v1 "github.com/netgroup-polito/dronev2/pkg/discovery/v1"
+	"github.com/liqoTech/liqo/internal/discovery/kubeconfig"
+	"github.com/liqoTech/liqo/pkg/clusterID"
+	v1 "github.com/liqoTech/liqo/pkg/discovery/v1"
 	apiv1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -33,7 +33,7 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	discoveryv1 "github.com/netgroup-polito/dronev2/api/discovery/v1"
+	discoveryv1 "github.com/liqoTech/liqo/api/discovery/v1"
 )
 
 // ForeignClusterReconciler reconciles a ForeignCluster object

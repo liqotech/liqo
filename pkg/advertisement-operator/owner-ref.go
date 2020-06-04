@@ -1,7 +1,7 @@
 package advertisement_operator
 
 import (
-	protocolv1 "github.com/netgroup-polito/dronev2/api/advertisement-operator/v1"
+	protocolv1 "github.com/liqoTech/liqo/api/advertisement-operator/v1"
 	appsv1 "k8s.io/api/apps/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )

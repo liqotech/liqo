@@ -70,7 +70,7 @@ spec:
         - image: {{ .Values.tunnelEndpointOperator.image.repository }}
           imagePullPolicy: {{ .Values.tunnelEndpointOperator.image.pullPolicy }}
           name: tunnel-operator
-          command: ["/usr/bin/dronet-operator"]
+          command: ["/usr/bin/liqonet"]
           resources: {}
           securityContext:
             privileged: true

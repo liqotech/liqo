@@ -1,9 +1,9 @@
 package foreign_cluster_operator
 
 import (
-	discoveryv1 "github.com/netgroup-polito/dronev2/api/discovery/v1"
-	"github.com/netgroup-polito/dronev2/internal/discovery/clients"
-	"github.com/netgroup-polito/dronev2/pkg/clusterID"
+	discoveryv1 "github.com/liqoTech/liqo/api/discovery/v1"
+	"github.com/liqoTech/liqo/internal/discovery/clients"
+	"github.com/liqoTech/liqo/pkg/clusterID"
 	"k8s.io/apimachinery/pkg/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"

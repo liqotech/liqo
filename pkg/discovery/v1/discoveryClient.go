@@ -1,7 +1,7 @@
 package v1
 
 import (
-	v1 "github.com/netgroup-polito/dronev2/api/discovery/v1"
+	v1 "github.com/liqoTech/liqo/api/discovery/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/runtime/serializer"
 	"k8s.io/client-go/kubernetes/scheme"

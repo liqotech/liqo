@@ -15,7 +15,7 @@
 package root
 
 import (
-	"github.com/netgroup-polito/dronev2/internal/errdefs"
+	"github.com/liqoTech/liqo/internal/errdefs"
 	"go.opencensus.io/trace"
 )
 

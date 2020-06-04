@@ -2,7 +2,7 @@ package discovery
 
 import (
 	b64 "encoding/base64"
-	v1 "github.com/netgroup-polito/dronev2/api/discovery/v1"
+	v1 "github.com/liqoTech/liqo/api/discovery/v1"
 	"io/ioutil"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"net/http"

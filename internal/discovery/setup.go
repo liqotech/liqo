@@ -1,8 +1,8 @@
 package discovery
 
 import (
-	"github.com/netgroup-polito/dronev2/internal/discovery/clients"
-	"github.com/netgroup-polito/dronev2/internal/discovery/kubeconfig"
+	"github.com/liqoTech/liqo/internal/discovery/clients"
+	"github.com/liqoTech/liqo/internal/discovery/kubeconfig"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"os"
 )

@@ -1,4 +1,4 @@
-module github.com/netgroup-polito/dronev2
+module github.com/liqoTech/liqo
 
 go 1.13
 

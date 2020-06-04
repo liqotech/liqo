@@ -17,10 +17,10 @@ package main
 
 import (
 	"flag"
-	protocolv1 "github.com/netgroup-polito/dronev2/api/advertisement-operator/v1"
-	"github.com/netgroup-polito/dronev2/api/tunnel-endpoint/v1"
-	"github.com/netgroup-polito/dronev2/internal/dronet-operator"
-	dronetOperator "github.com/netgroup-polito/dronev2/pkg/dronet-operator"
+	protocolv1 "github.com/liqoTech/liqo/api/advertisement-operator/v1"
+	"github.com/liqoTech/liqo/api/tunnel-endpoint/v1"
+	"github.com/liqoTech/liqo/internal/liqonet"
+	"github.com/liqoTech/liqo/pkg/liqonet"
 	"github.com/vishvananda/netlink"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes"
@@ -40,7 +40,7 @@ var (
 	scheme   = runtime.NewScheme()
 	setupLog = ctrl.Log.WithName("setup")
 
-	defaultConfig = dronetOperator.VxlanNetConfig{
+	defaultConfig = liqonet.VxlanNetConfig{
 		Network:    "192.168.200.0/24",
 		DeviceName: "dronet",
 		Port:       "4789", //IANA assigned
@@ -96,7 +96,7 @@ func main() {
 	// +kubebuilder:scaffold:builder
 	switch runAs {
 	case "route-operator":
-		vxlanConfig, err := dronetOperator.ReadVxlanNetConfig(defaultConfig)
+		vxlanConfig, err := liqonet.ReadVxlanNetConfig(defaultConfig)
 		if err != nil {
 			setupLog.Error(err, "an error occured while getting the vxlan network configuration")
 		}
@@ -104,34 +104,34 @@ func main() {
 		if err != nil {
 			setupLog.Error(err, "unable to convert vxlan port "+vxlanConfig.Port+" from string to int.")
 		}
-		err = dronetOperator.CreateVxLANInterface(clientset, vxlanConfig)
+		err = liqonet.CreateVxLANInterface(clientset, vxlanConfig)
 		if err != nil {
 			setupLog.Error(err, "an error occurred while creating vxlan interface")
 		}
 		//Enable loose mode reverse path filtering on the vxlan interfaces
-		err = dronetOperator.Enable_rp_filter()
+		err = liqonet.Enable_rp_filter()
 		if err != nil {
 			setupLog.Error(err, "an error occured while enablig loose mode reverse path filtering")
 			os.Exit(3)
 		}
-		isGatewayNode, err := dronetOperator.IsGatewayNode(clientset)
+		isGatewayNode, err := liqonet.IsGatewayNode(clientset)
 		if err != nil {
 			setupLog.Error(err, "an error occured while checking if the node is the gatewaynode")
 			os.Exit(2)
 		}
 		//get node name
-		nodeName, err := dronetOperator.GetNodeName()
+		nodeName, err := liqonet.GetNodeName()
 		if err != nil {
 			setupLog.Error(err, "an error occured while retrieving node name")
 			os.Exit(4)
 		}
 		//get node name
-		podCIDR, err := dronetOperator.GetClusterPodCIDR()
+		podCIDR, err := liqonet.GetClusterPodCIDR()
 		if err != nil {
 			setupLog.Error(err, "an error occured while retrieving cluster pod cidr")
 			os.Exit(6)
 		}
-		gatewayVxlanIP, err := dronetOperator.GetGatewayVxlanIP(clientset, vxlanConfig)
+		gatewayVxlanIP, err := liqonet.GetGatewayVxlanIP(clientset, vxlanConfig)
 		if err != nil {
 			setupLog.Error(err, "unable to derive gatewayVxlanIP")
 			os.Exit(5)
@@ -148,9 +148,9 @@ func main() {
 			VxlanNetwork:                       vxlanConfig.Network,
 			VxlanIfaceName:                     vxlanConfig.DeviceName,
 			VxlanPort:                          vxlanPort,
-			IPTablesRuleSpecsReferencingChains: make(map[string]dronetOperator.IPtableRule),
-			IPTablesChains:                     make(map[string]dronetOperator.IPTableChain),
-			IPtablesRuleSpecsPerRemoteCluster:  make(map[string][]dronetOperator.IPtableRule),
+			IPTablesRuleSpecsReferencingChains: make(map[string]liqonet.IPtableRule),
+			IPTablesChains:                     make(map[string]liqonet.IPTableChain),
+			IPtablesRuleSpecsPerRemoteCluster:  make(map[string][]liqonet.IPtableRule),
 			NodeName:                           nodeName,
 			GatewayVxlanIP:                     gatewayVxlanIP,
 			ClusterPodCIDR:                     podCIDR,
@@ -190,7 +190,7 @@ func main() {
 			TunnelEndpointMap: make(map[string]types.NamespacedName),
 			UsedSubnets:       make(map[string]*net.IPNet),
 			FreeSubnets:       make(map[string]*net.IPNet),
-			IPManager: dronetOperator.IpManager{
+			IPManager: liqonet.IpManager{
 				UsedSubnets:      make(map[string]*net.IPNet),
 				FreeSubnets:      make(map[string]*net.IPNet),
 				SubnetPerCluster: make(map[string]*net.IPNet),

@@ -22,7 +22,7 @@ package trace
 import (
 	"context"
 
-	"github.com/netgroup-polito/dronev2/internal/log"
+	"github.com/liqoTech/liqo/internal/log"
 )
 
 // Tracer is the interface used for creating a tracing span
@@ -67,7 +67,7 @@ type Span interface {
 
 	// SetStatus sets the final status of the span.
 	// errors passed to this should use interfaces defined in
-	// github.com/netgroup-polito/dronev2/internal/errdefs
+	// github.com/netgroup-polito/liqo/internal/errdefs
 	//
 	// If the error is nil, the span should be considered successful.
 	SetStatus(err error)

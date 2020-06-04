@@ -3,8 +3,8 @@ package kubernetes
 import (
 	"context"
 	"github.com/go-logr/logr"
-	advv1 "github.com/netgroup-polito/dronev2/api/advertisement-operator/v1"
-	"github.com/netgroup-polito/dronev2/internal/node"
+	advv1 "github.com/liqoTech/liqo/api/advertisement-operator/v1"
+	"github.com/liqoTech/liqo/internal/node"
 	v1 "k8s.io/api/core/v1"
 	kerror "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"

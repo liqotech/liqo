@@ -4,7 +4,7 @@ import (
 	b64 "encoding/base64"
 	"encoding/json"
 	"errors"
-	"github.com/netgroup-polito/dronev2/internal/discovery/clients"
+	"github.com/liqoTech/liqo/internal/discovery/clients"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"os"
 	"path"

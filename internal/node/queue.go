@@ -17,8 +17,8 @@ package node
 import (
 	"context"
 
-	"github.com/netgroup-polito/dronev2/internal/log"
-	"github.com/netgroup-polito/dronev2/internal/trace"
+	"github.com/liqoTech/liqo/internal/log"
+	"github.com/liqoTech/liqo/internal/trace"
 	pkgerrors "github.com/pkg/errors"
 	"k8s.io/client-go/util/workqueue"
 )

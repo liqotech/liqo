@@ -3,8 +3,8 @@ package provider
 import (
 	"sync"
 
-	"github.com/netgroup-polito/dronev2/internal/errdefs"
-	"github.com/netgroup-polito/dronev2/internal/manager"
+	"github.com/liqoTech/liqo/internal/errdefs"
+	"github.com/liqoTech/liqo/internal/manager"
 )
 
 // Store is used for registering/fetching providers
