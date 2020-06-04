@@ -42,7 +42,7 @@ func (p *KubernetesProvider) CreatePod(ctx context.Context, pod *v1.Pod) error {
 		return nil
 	}
 
-	nattedNS, err := p.NatNamespace(pod.Namespace)
+	nattedNS, err := p.NatNamespace(pod.Namespace, true)
 	if err != nil {
 		return err
 	}
@@ -72,7 +72,7 @@ func (p *KubernetesProvider) UpdatePod(ctx context.Context, pod *v1.Pod) error {
 	if pod == nil {
 		return errors.New("pod cannot be nil")
 	}
-	nattedNS, err := p.NatNamespace(pod.Namespace)
+	nattedNS, err := p.NatNamespace(pod.Namespace, false)
 	if err != nil {
 		return err
 	}
@@ -100,7 +100,7 @@ func (p *KubernetesProvider) DeletePod(ctx context.Context, pod *v1.Pod) (err er
 	log.G(ctx).Infof("receive DeletePod %q", pod.Name)
 	opts := &metav1.DeleteOptions{}
 
-	nattedNS, err := p.NatNamespace(pod.Namespace)
+	nattedNS, err := p.NatNamespace(pod.Namespace, false)
 	if err != nil {
 		return err
 	}
@@ -149,7 +149,7 @@ func (p *KubernetesProvider) GetPod(ctx context.Context, namespace, name string)
 	log.G(ctx).Infof("receive GetPod %q", name)
 	opts := metav1.GetOptions{}
 
-	nattedNS, err := p.NatNamespace(namespace)
+	nattedNS, err := p.NatNamespace(namespace, false)
 	if err != nil {
 		return nil, err
 	}
@@ -175,7 +175,7 @@ func (p *KubernetesProvider) GetPodStatus(ctx context.Context, namespace, name s
 	// Add namespace and name as attributes to the current span.
 	ctx = addAttributes(ctx, span, namespaceKey, namespace, nameKey, name)
 
-	nattedNS, err := p.NatNamespace(namespace)
+	nattedNS, err := p.NatNamespace(namespace, false)
 
 	if err != nil {
 		return nil, nil
@@ -194,7 +194,7 @@ func (p *KubernetesProvider) GetPodStatus(ctx context.Context, namespace, name s
 // between in/out/err and the container's stdin/stdout/stderr.
 func (p *KubernetesProvider) RunInContainer(ctx context.Context, namespace string, podName string, containerName string, cmd []string, attach api.AttachIO) error {
 
-	nattedNS, err := p.NatNamespace(namespace)
+	nattedNS, err := p.NatNamespace(namespace, false)
 	if err != nil {
 		return err
 	}
@@ -234,7 +234,7 @@ func (p *KubernetesProvider) RunInContainer(ctx context.Context, namespace strin
 
 // GetContainerLogs retrieves the logs of a container by name from the provider.
 func (p *KubernetesProvider) GetContainerLogs(ctx context.Context, namespace string, podName string, containerName string, opts api.ContainerLogOpts) (io.ReadCloser, error) {
-	nattedNS, err := p.NatNamespace(namespace)
+	nattedNS, err := p.NatNamespace(namespace, false)
 	if err != nil {
 		return nil, err
 	}

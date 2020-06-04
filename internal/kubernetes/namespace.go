@@ -62,7 +62,7 @@ func (nt *namespaceNTCache) getNattingTable(nattingTableName string) (*nattingv1
 	return o.(*nattingv1.NamespaceNattingTable), nil
 }
 
-func (p *KubernetesProvider) NatNamespace(namespace string) (string, error) {
+func (p *KubernetesProvider) NatNamespace(namespace string, create bool) (string, error) {
 	nt, exists, err := p.ntCache.Store.GetByKey(p.foreignClusterId)
 	if err != nil {
 		return "", err
@@ -72,9 +72,37 @@ func (p *KubernetesProvider) NatNamespace(namespace string) (string, error) {
 		return "", errors.New("namespacenattingtable not existing")
 	}
 
-	nattedNS, ok := nt.(*nattingv1.NamespaceNattingTable).Spec.NattingTable[namespace]
-	if !ok {
+	nattingTable := nt.(*nattingv1.NamespaceNattingTable)
+	nattedNS, ok := nattingTable.Spec.NattingTable[namespace]
+	if !ok && !create {
 		return "", errors.New("not natted namespaces")
+	}
+
+	if !ok && create {
+		nattedNS = strings.Join([]string{p.homeClusterID, namespace}, "-")
+		if nattingTable.Spec.NattingTable == nil {
+			nattingTable.Spec.NattingTable = make(map[string]string)
+			nattingTable.Spec.DeNattingTable = make(map[string]string)
+		}
+
+		nattingTable.Spec.NattingTable[namespace] = nattedNS
+		nattingTable.Spec.DeNattingTable[nattedNS] = namespace
+
+		_, err := p.homeClient.Resource("namespacenattingtables").Update(nattingTable.Name, nattingTable, metav1.UpdateOptions{})
+		if err != nil {
+			return "", err
+		}
+
+		ns := &v1.Namespace{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: nattedNS,
+			},
+		}
+
+		_, err = p.foreignClient.Client().CoreV1().Namespaces().Create(ns)
+		if err != nil && !kerror.IsAlreadyExists(err) {
+			return "", err
+		}
 	}
 
 	return nattedNS, nil
