@@ -28,6 +28,9 @@ func (p *KubernetesProvider) startNattingCache(clientSet v1alpha1.NamespacedCRDC
 		UpdateFunc: p.manageReflections,
 		DeleteFunc: func(obj interface{}) {
 			p.StopReflector()
+			if err := p.createNattingTable(p.foreignClusterId); err != nil {
+				p.log.Error(err, "cannot create nattingTable")
+			}
 		},
 	}
 	lo := metav1.ListOptions{FieldSelector: strings.Join([]string{"metadata.name", p.ntCache.nattingTableName}, "=")}

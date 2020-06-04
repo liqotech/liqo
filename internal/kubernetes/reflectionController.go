@@ -83,7 +83,6 @@ func (p *KubernetesProvider) controlLoop() {
 	for {
 		select {
 		case <-p.stop:
-			p.closeChannels()
 			p.workers.Done()
 			return
 
@@ -238,7 +237,7 @@ func (p *KubernetesProvider) addSecretWatcher(namespace string, stop chan struct
 	}
 
 	p.secwg.Add(1)
-	go eventAggregator(secWatch, p.secEvent, stop, p.cmwg)
+	go eventAggregator(secWatch, p.secEvent, stop, p.secwg)
 	return nil
 }
 
@@ -292,11 +291,12 @@ func eventAggregator(watcher watch.Interface, outChan chan watch.Event, stop cha
 func (p *KubernetesProvider) StopReflector() {
 	p.log.Info("stopping reflector for cluster " + p.foreignClusterId)
 
-	if p.svcEvent == nil || p.epEvent == nil || p.cmEvent == nil || p.secEvent == nil {
+	if p.svcEvent == nil || p.epEvent == nil || p.repEvent == nil || p.cmEvent == nil || p.secEvent == nil {
 		p.log.Info("reflector was not active for cluster " + p.foreignClusterId)
 		return
 	}
 
+	p.closeChannels()
 	close(p.stop)
 
 	p.workers.Wait()
