@@ -187,8 +187,8 @@ func runRootCommand(ctx context.Context, s *provider.Store, c Opts) error {
 					_, err = client.CoreV1().Nodes().Create(newNode)
 					log.G(ctx).Debug("created new node")
 				} else {
-					newNode.Spec = oldNode.Spec
-					_, err = client.CoreV1().Nodes().Update(newNode)
+					oldNode.Status = newNode.Status
+					_, err = client.CoreV1().Nodes().UpdateStatus(oldNode)
 					log.G(ctx).Debug("Node updated")
 				}
 

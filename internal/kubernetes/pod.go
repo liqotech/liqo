@@ -51,7 +51,7 @@ func (p *KubernetesProvider) CreatePod(ctx context.Context, pod *v1.Pod) error {
 
 	podServer, err := p.foreignClient.Client().CoreV1().Pods(podTranslated.Namespace).Create(podTranslated)
 	if err != nil {
-		return errors.Wrap(err, "Unable to create pod")
+		return err
 	}
 	log.G(ctx).Info("Pod", podServer.Name, "successfully created on remote cluster")
 	// Here we have to change the view of the remote POD to show it as a local one
@@ -81,7 +81,7 @@ func (p *KubernetesProvider) UpdatePod(ctx context.Context, pod *v1.Pod) error {
 
 	poUpdated, err := p.foreignClient.Client().CoreV1().Pods(nattedNS).Get(podTranslated.Name, metav1.GetOptions{})
 	if err != nil {
-		return errors.Wrap(err, "Unable to create pod")
+		return err
 	}
 	podInverse := F2HTranslate(poUpdated, p.RemappedPodCidr, pod.Namespace)
 	p.notifier(podInverse)

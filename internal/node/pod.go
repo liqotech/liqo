@@ -16,13 +16,13 @@ package node
 
 import (
 	"context"
-
 	"github.com/google/go-cmp/cmp"
 	"github.com/liqoTech/liqo/internal/log"
 	"github.com/liqoTech/liqo/internal/trace"
 	pkgerrors "github.com/pkg/errors"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
+	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/util/workqueue"
@@ -108,6 +108,24 @@ func podsEqual(pod1, pod2 *corev1.Pod) bool {
 }
 
 func (pc *PodController) handleProviderError(ctx context.Context, span trace.Span, origErr error, pod *corev1.Pod) {
+
+	// For now this switch case keeps in consideration only the error
+	// of type notFound and handles it properly (by deleting the local pod)
+	// if in further investigations we notice different error types,
+	// the related cases should be added here
+	switch kerrors.ReasonForError(origErr) {
+	case metav1.StatusReasonNotFound:
+		err := pc.client.Pods(pod.Namespace).Delete(pod.Name, &metav1.DeleteOptions{})
+		if err != nil {
+			pc.setProviderFailed(ctx, span, origErr, pod)
+		}
+
+	default:
+		pc.setProviderFailed(ctx, span, origErr, pod)
+	}
+}
+
+func (pc *PodController) setProviderFailed(ctx context.Context, span trace.Span, origErr error, pod *corev1.Pod) {
 	podPhase := corev1.PodPending
 	if pod.Spec.RestartPolicy == corev1.RestartPolicyNever {
 		podPhase = corev1.PodFailed
