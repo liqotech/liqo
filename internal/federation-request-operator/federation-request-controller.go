@@ -19,13 +19,13 @@ package federation_request_operator
 import (
 	"context"
 	"github.com/go-logr/logr"
-	"github.com/netgroup-polito/dronev2/internal/discovery/clients"
+	"github.com/liqoTech/liqo/internal/discovery/clients"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	discoveryv1 "github.com/netgroup-polito/dronev2/api/discovery/v1"
+	discoveryv1 "github.com/liqoTech/liqo/api/discovery/v1"
 )
 
 // FederationRequestReconciler reconciles a FederationRequest object

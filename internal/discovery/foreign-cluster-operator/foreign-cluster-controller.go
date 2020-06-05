@@ -74,7 +74,7 @@ func (r *ForeignClusterReconciler) Reconcile(req ctrl.Request) (ctrl.Result, err
 			return ctrl.Result{}, err
 		}
 		fc.Status.Federated = true
-		_, err = discoveryClient.ForeignClusters().Update(fc, metav1.UpdateOptions{})
+		_, err = r.discoveryClient.ForeignClusters().Update(fc, metav1.UpdateOptions{})
 		if err != nil {
 			r.Log.Error(err, err.Error())
 			return ctrl.Result{}, err

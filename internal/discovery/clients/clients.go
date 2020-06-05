@@ -1,6 +1,8 @@
 package clients
 
 import (
+	discoveryv1 "github.com/liqoTech/liqo/api/discovery/v1"
+	"github.com/liqoTech/liqo/pkg/crdClient/v1alpha1"
 	v1 "github.com/liqoTech/liqo/pkg/discovery/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
@@ -37,7 +39,7 @@ func NewDiscoveryClient() (*v1.DiscoveryV1Client, error) {
 }
 
 func NewCRDClient() (*v1alpha1.CRDClient, error) {
-	config, err := v1alpha1.NewKubeconfig(filepath.Join(os.Getenv("HOME"), ".kube", "config"), discoveryv1.GroupVersion)
+	config, err := v1alpha1.NewKubeconfig(filepath.Join(os.Getenv("HOME"), ".kube", "config"), &discoveryv1.GroupVersion)
 	if err != nil {
 		return nil, err
 	}

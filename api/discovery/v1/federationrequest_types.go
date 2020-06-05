@@ -17,7 +17,7 @@ limitations under the License.
 package v1
 
 import (
-	"github.com/netgroup-polito/dronev2/pkg/crdClient/v1alpha1"
+	"github.com/liqoTech/liqo/pkg/crdClient/v1alpha1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -63,6 +63,5 @@ type FederationRequestList struct {
 func init() {
 	SchemeBuilder.Register(&FederationRequest{}, &FederationRequestList{})
 
-	v1alpha1.AddToRegistry("federationrequest", &FederationRequest{})
-	v1alpha1.AddToRegistry("federationrequests", &FederationRequestList{})
+	v1alpha1.AddToRegistry("federationrequest", &FederationRequest{}, &FederationRequestList{})
 }

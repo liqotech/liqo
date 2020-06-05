@@ -3,8 +3,7 @@ package advertisement_operator
 import (
 	"context"
 	b64 "encoding/base64"
-	discoveryv1 "github.com/netgroup-polito/dronev2/api/discovery/v1"
-	"github.com/netgroup-polito/dronev2/internal/discovery/clients"
+	"github.com/liqoTech/liqo/internal/discovery/clients"
 	"io/ioutil"
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -91,17 +90,16 @@ func StartBroadcaster(clusterId string, localKubeconfig string, foreignKubeconfi
 		wg.Wait()
 	} else {
 		// get configuration from FederationRequest CR
-		clientSet, err := clients.NewCRDClient()
+		clientSet, err := clients.NewDiscoveryClient()
 		if err != nil {
 			log.Error(err, "Unable to create client to local cluster")
 			return
 		}
-		tmp, err := clientSet.NamespacedCRDClient("").Get("federationrequests", "federationrequest", federationRequestName, metav1.GetOptions{})
+		fr, err := clientSet.FederationRequests().Get(federationRequestName, metav1.GetOptions{})
 		if err != nil {
 			log.Error(err, "Unable to get FederationRequest "+federationRequestName)
 			return
 		}
-		fr := tmp.(*discoveryv1.FederationRequest)
 
 		// TODO: refactoring, this config map is a workaround
 		remote, err := b64.StdEncoding.DecodeString(fr.Spec.KubeConfig)

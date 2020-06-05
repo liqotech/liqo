@@ -3,8 +3,8 @@ package main
 import (
 	"context"
 	"flag"
-	federation_request_operator "github.com/netgroup-polito/dronev2/internal/federation-request-operator"
-	federation_request_admission "github.com/netgroup-polito/dronev2/internal/federation-request-operator/federation-request-admission"
+	federation_request_operator "github.com/liqoTech/liqo/internal/federation-request-operator"
+	federation_request_admission "github.com/liqoTech/liqo/internal/federation-request-operator/federation-request-admission"
 	"os"
 	"os/signal"
 	ctrl "sigs.k8s.io/controller-runtime"

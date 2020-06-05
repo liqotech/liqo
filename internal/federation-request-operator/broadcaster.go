@@ -1,8 +1,8 @@
 package federation_request_operator
 
 import (
-	discoveryv1 "github.com/netgroup-polito/dronev2/api/discovery/v1"
-	"github.com/netgroup-polito/dronev2/internal/discovery/clients"
+	discoveryv1 "github.com/liqoTech/liqo/api/discovery/v1"
+	"github.com/liqoTech/liqo/internal/discovery/clients"
 	appsv1 "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"

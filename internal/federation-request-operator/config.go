@@ -2,7 +2,7 @@ package federation_request_operator
 
 import (
 	"errors"
-	"github.com/netgroup-polito/dronev2/internal/discovery/clients"
+	"github.com/liqoTech/liqo/internal/discovery/clients"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"os"
 )

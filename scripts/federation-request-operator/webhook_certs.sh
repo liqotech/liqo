@@ -129,5 +129,5 @@ kubectl create secret generic ${secret} \
 
 
 
-#cp ${tmpdir}/server-cert.pem $GOPATH/src/github.com/netgroup-polito/dronev2/tmp/certs/cert.pem
-#cp ${tmpdir}/server-key.pem $GOPATH/src/github.com/netgroup-polito/dronev2/tmp/certs/key.pem
+#cp ${tmpdir}/server-cert.pem $GOPATH/src/github.com/liqoTech/liqo/tmp/certs/cert.pem
+#cp ${tmpdir}/server-key.pem $GOPATH/src/github.com/liqoTech/liqo/tmp/certs/key.pem

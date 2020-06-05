@@ -1,7 +1,7 @@
 package federation_request_operator
 
 import (
-	discoveryv1 "github.com/netgroup-polito/dronev2/api/discovery/v1"
+	discoveryv1 "github.com/liqoTech/liqo/api/discovery/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	"os"

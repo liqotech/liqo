@@ -3,8 +3,8 @@ package federation_request_admission
 import (
 	"encoding/json"
 	"fmt"
-	discoveryv1 "github.com/netgroup-polito/dronev2/api/discovery/v1"
-	federation_request_operator "github.com/netgroup-polito/dronev2/internal/federation-request-operator"
+	discoveryv1 "github.com/liqoTech/liqo/api/discovery/v1"
+	federation_request_operator "github.com/liqoTech/liqo/internal/federation-request-operator"
 	"io/ioutil"
 	"k8s.io/api/admission/v1beta1"
 	admissionregistrationv1beta1 "k8s.io/api/admissionregistration/v1beta1"
