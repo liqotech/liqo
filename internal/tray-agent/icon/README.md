@@ -1,4 +1,4 @@
-#package icon
+# package icon
 
 This package provides a set of icons that can be displayed in the 
 system tray bar using the **app_indicator/Indicator** type.
@@ -19,7 +19,7 @@ creation process:
 > ./make_icon.sh <image.png> <IcoVarName>
 > ```
 
-####NOTE:
+#### NOTE:
 Given the small size of icon shown in the tray bar, it is advisable to start 
 from a picture of approximately 64x64 px 
 or less, in order to reduce the amount of space.
