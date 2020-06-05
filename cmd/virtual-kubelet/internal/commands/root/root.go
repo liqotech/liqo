@@ -164,8 +164,10 @@ func runRootCommand(ctx context.Context, s *provider.Store, c Opts) error {
 	deployName := strings.Join([]string{"vkubelet", c.ClusterId}, "-")
 	refs := createOwnerReference(client, deployName, c.KubeletNamespace)
 
+	var nodeRunner *node.NodeController
+
 	pNode := NodeFromProvider(ctx, c.NodeName, taint, p, c.Version, refs)
-	nodeRunner, err := node.NewNodeController(
+	nodeRunner, err = node.NewNodeController(
 		node.NaiveNodeProvider{},
 		pNode,
 		client.CoreV1().Nodes(),
@@ -179,25 +181,29 @@ func runRootCommand(ctx context.Context, s *provider.Store, c Opts) error {
 					newNode.SetOwnerReferences(refs)
 				}
 
-				oldNode, err := client.CoreV1().Nodes().Get(newNode.Name, metav1.GetOptions{})
-				if err != nil {
-					if !k8serrors.IsNotFound(err) {
-						return err
+				oldNode, newErr := client.CoreV1().Nodes().Get(newNode.Name, metav1.GetOptions{})
+				if newErr != nil {
+					if !k8serrors.IsNotFound(newErr) {
+						return newErr
 					}
-					_, err = client.CoreV1().Nodes().Create(newNode)
+					_, newErr = client.CoreV1().Nodes().Create(newNode)
 					log.G(ctx).Debug("created new node")
 				} else {
 					oldNode.Status = newNode.Status
-					_, err = client.CoreV1().Nodes().UpdateStatus(oldNode)
+					_, newErr = client.CoreV1().Nodes().UpdateStatus(oldNode)
 					log.G(ctx).Debug("Node updated")
 				}
 
-				if err != nil {
-					return err
+				if newErr != nil {
+					return newErr
 				}
 				return nil
 			}),
 	)
+	if err != nil {
+		klog.Error("cannot create the node controller")
+		os.Exit(1)
+	}
 
 	var ready chan bool
 	if ready, err = k.NewVirtualNodeReconciler(p.(*k.KubernetesProvider), nodeRunner); err != nil {

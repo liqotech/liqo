@@ -94,7 +94,7 @@ func (r *SchedulingNodeReconciler) setNeighborsFromAdv(sn *v1.SchedulingNode, ct
 	}
 
 	if sn.Spec.Neighbors == nil {
-		sn.Spec.Neighbors = make(map[corev1.ResourceName]corev1.ResourceList, 0)
+		sn.Spec.Neighbors = make(map[corev1.ResourceName]corev1.ResourceList)
 	}
 
 	for k, v := range adv.Spec.Neighbors {

@@ -8,7 +8,6 @@ import (
 	v1 "k8s.io/api/core/v1"
 	kerror "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/tools/cache"
 	"strings"
 )
@@ -44,11 +43,7 @@ func (nt *namespaceNTCache) WaitNamespaceNattingTableSync() {
 	cache.WaitForCacheSync(nt.Controller, func() bool {
 		_, exists, _ := nt.Store.GetByKey(nt.nattingTableName)
 
-		if exists {
-			return true
-		}
-
-		return false
+		return exists
 	})
 }
 
@@ -139,9 +134,7 @@ func (p *KubernetesProvider) createNattingTable(name string) error {
 		return err
 	}
 
-	var table runtime.Object
-
-	table = &nattingv1.NamespaceNattingTable{
+	table := &nattingv1.NamespaceNattingTable{
 		TypeMeta: metav1.TypeMeta{
 			Kind: "NamespaceNattingTable",
 		},

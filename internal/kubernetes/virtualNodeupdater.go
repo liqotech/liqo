@@ -70,11 +70,7 @@ func (r *VirtualNodeReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error)
 func (r *VirtualNodeReconciler) checkAdvFiltering(object metav1.Object) bool {
 
 	clusterId := strings.Replace(object.GetName(), "advertisement-", "", 1)
-	if clusterId == r.provider.foreignClusterId {
-		return true
-	}
-
-	return false
+	return clusterId == r.provider.foreignClusterId
 }
 
 func (r *VirtualNodeReconciler) SetupWithManager(mgr ctrl.Manager) error {
@@ -124,7 +120,7 @@ func (r *VirtualNodeReconciler) initVirtualKubelet(adv advv1.Advertisement) erro
 // updateFromAdv gets and  advertisement and updates the node status accordingly
 func (r *VirtualNodeReconciler) updateFromAdv(ctx context.Context, adv advv1.Advertisement) error {
 
-	if r.provider.initialized == false {
+	if !r.provider.initialized {
 		if err := r.initVirtualKubelet(adv); err != nil {
 			return err
 		}
@@ -135,7 +131,7 @@ func (r *VirtualNodeReconciler) updateFromAdv(ctx context.Context, adv advv1.Adv
 		return err
 	}
 
-	if r.provider.initialized == false {
+	if !r.provider.initialized {
 		r.provider.initialized = true
 		if err := r.setAnnotation(ctx, "cluster-id", r.provider.foreignClusterId, &no); err != nil {
 			return err
@@ -154,9 +150,7 @@ func (r *VirtualNodeReconciler) updateFromAdv(ctx context.Context, adv advv1.Adv
 	}
 
 	no.Status.Images = []v1.ContainerImage{}
-	for _, i := range adv.Spec.Images {
-		no.Status.Images = append(no.Status.Images, i)
-	}
+	no.Status.Images = append(no.Status.Images, adv.Spec.Images...)
 
 	return r.nodeController.UpdateNodeFromOutside(ctx, false, &no)
 }

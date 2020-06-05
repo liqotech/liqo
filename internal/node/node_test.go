@@ -248,7 +248,11 @@ func TestUpdateNodeStatus(t *testing.T) {
 	nodes := testclient.NewSimpleClientset().CoreV1().Nodes()
 
 	ctx := context.Background()
-	updated, err := updateNodeStatus(ctx, nodes, n.DeepCopy())
+
+	var err error
+	var updated *corev1.Node
+
+	_, err = updateNodeStatus(ctx, nodes, n.DeepCopy())
 	assert.Equal(t, errors.IsNotFound(err), true, err)
 
 	_, err = nodes.Create(n)
@@ -360,16 +364,17 @@ func TestPingAfterStatusUpdate(t *testing.T) {
 	}
 
 	notifyTimer := time.After(interval * time.Duration(10))
+
 	select {
 	case <-notifyTimer:
 		testP.triggerStatusUpdate(testNodeCopy)
+	default:
+		break
 	}
 
 	endTimer := time.After(interval * time.Duration(10))
-	select {
-	case <-endTimer:
-		break
-	}
+
+	<-endTimer
 
 	assert.Assert(t, testP.maxPingInterval < maxAllowedInterval, "maximum time between node pings (%v) was greater than the maximum expected interval (%v)", testP.maxPingInterval, maxAllowedInterval)
 }

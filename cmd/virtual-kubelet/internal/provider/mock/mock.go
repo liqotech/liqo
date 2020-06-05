@@ -135,7 +135,7 @@ func loadConfig(providerConfig, nodeName string) (config MockConfig, err error) 
 
 // CreatePod accepts a Pod definition and stores it in memory.
 func (p *MockProvider) CreatePod(ctx context.Context, pod *v1.Pod) error {
-	ctx, span := trace.StartSpan(ctx, "CreatePod")
+	_, span := trace.StartSpan(ctx, "CreatePod")
 	defer span.End()
 
 	// Add the pod's coordinates to the current span.
@@ -331,9 +331,6 @@ func (p *MockProvider) GetPods(ctx context.Context) ([]*v1.Pod, error) {
 }
 
 func (p *MockProvider) ConfigureNode(ctx context.Context, n *v1.Node) {
-	ctx, span := trace.StartSpan(ctx, "mock.ConfigureNode") //nolint:ineffassign
-	defer span.End()
-
 	n.Status.Capacity = p.capacity()
 	n.Status.Allocatable = p.capacity()
 	n.Status.Conditions = p.nodeConditions()
@@ -434,7 +431,7 @@ func (p *MockProvider) nodeDaemonEndpoints() v1.NodeDaemonEndpoints {
 // GetStatsSummary returns dummy stats for all pods known by this provider.
 func (p *MockProvider) GetStatsSummary(ctx context.Context) (*stats.Summary, error) {
 	var span trace.Span
-	ctx, span = trace.StartSpan(ctx, "GetStatsSummary") //nolint: ineffassign
+	_, span = trace.StartSpan(ctx, "GetStatsSummary") //nolint: ineffassign
 	defer span.End()
 
 	// Grab the current timestamp so we can report it as the time the stats were generated.
