@@ -395,8 +395,8 @@ func (r *RouteController) deleteIPTablesRulespecForRemoteCluster(endpoint *v1.Tu
 		return fmt.Errorf("unable to initialize iptables: %v. check if the ipatable are present in the system", err)
 	}
 	//retrive the iptables rules for the remote cluster
-	rules := r.IPtablesRuleSpecsPerRemoteCluster[endpoint.Spec.ClusterID]
-	if rules != nil {
+	rules, ok := r.IPtablesRuleSpecsPerRemoteCluster[endpoint.Spec.ClusterID]
+	if ok {
 		for _, rule := range rules {
 			if err = ipt.Delete(rule.Table, rule.Chain, rule.RuleSpec...); err != nil {
 				// if the rule that we are trying to delete does not exist then we are fine and go on

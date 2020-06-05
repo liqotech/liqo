@@ -21,7 +21,7 @@ const (
 
 func getPodIP() (net.IP, error) {
 	ipAddress, isSet := os.LookupEnv("POD_IP")
-	if isSet == false {
+	if !isSet {
 		return nil, errdefs.NotFound("the pod IP is not set")
 	}
 	if ipAddress == "" {
@@ -32,7 +32,7 @@ func getPodIP() (net.IP, error) {
 
 func GetNodeName() (string, error) {
 	nodeName, isSet := os.LookupEnv("NODE_NAME")
-	if isSet == false {
+	if !isSet {
 		return nodeName, errdefs.NotFound("NODE_NAME has not been set. check you manifest file")
 	}
 	return nodeName, nil
@@ -40,7 +40,7 @@ func GetNodeName() (string, error) {
 
 func GetClusterPodCIDR() (string, error) {
 	podCIDR, isSet := os.LookupEnv("POD_CIDR")
-	if isSet == false {
+	if !isSet {
 		return podCIDR, errdefs.NotFound("POD_CIDR has not been set. check you manifest file")
 	}
 	return podCIDR, nil
@@ -48,7 +48,7 @@ func GetClusterPodCIDR() (string, error) {
 
 func GetClusterCIDR() (string, error) {
 	clusterCIDR, isSet := os.LookupEnv("CLUSTER_CIDR")
-	if isSet == false {
+	if !isSet {
 		return clusterCIDR, errdefs.NotFound("CLUSTER_CIDR has not been set. check you manifest file")
 	}
 	return clusterCIDR, nil
@@ -67,19 +67,6 @@ func getInternalIPOfNode(node corev1.Node) (string, error) {
 		return internalIp, errdefs.NotFound("internalIP of the node is not set")
 	}
 	return internalIp, nil
-}
-
-func getOverlayCIDR() (*net.IPNet, error) {
-	//VXLAN_CIDR has to be in the following format: xxx.xxx.xxx.xxx/yy
-	vxlanCidr, isSet := os.LookupEnv("VXLAN_CIDR")
-	if isSet == false {
-		return nil, errdefs.NotFound("VXLAN_CIDR is not set")
-	}
-	_, vxlanNet, err := net.ParseCIDR(vxlanCidr)
-	if err != nil {
-		return nil, fmt.Errorf("unable to convert the VXLAN_CIDR in *IPNet format: %v", err)
-	}
-	return vxlanNet, nil
 }
 
 func IsGatewayNode(clientset *kubernetes.Clientset) (bool, error) {

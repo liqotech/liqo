@@ -6,7 +6,6 @@ import (
 	"github.com/liqoTech/liqo/internal/errdefs"
 	"github.com/prometheus/common/log"
 	"github.com/vishvananda/netlink"
-	"k8s.io/klog"
 	"net"
 	"os"
 )
@@ -16,26 +15,13 @@ const (
 	tunnelTtl        = 255
 )
 
-// Get preferred outbound ip of this machine
-func getOutboundIP() (net.IP, error) {
-	conn, err := net.Dial("udp", "8.8.8.8:80")
-	if err != nil {
-		return nil, err
-	}
-	defer conn.Close()
-
-	localAddr := conn.LocalAddr().(*net.UDPAddr)
-	klog.V(6).Infof("local ip address of host is (%s)", localAddr.IP.String())
-	return localAddr.IP, nil
-}
-
 //Get the LocalTunnelPublicIP which is exported to the pod through an environment
 //variable called LocalTunnelPublicIP. The pod is run with hostNetwork=true so it gets the same IP
 //of the host where it is scheduled. The IP is the same used by the kubelet to register
 //to the API server
 func GetLocalTunnelPublicIP() (net.IP, error) {
 	ipAddress, isSet := os.LookupEnv("LOCAL_TUNNEL_PUBLIC_IP")
-	if isSet == false {
+	if !isSet {
 		return nil, errdefs.NotFound("the pod IP is not set")
 	}
 	if ipAddress == "" {
@@ -46,7 +32,7 @@ func GetLocalTunnelPublicIP() (net.IP, error) {
 
 func GetLocalTunnelPublicIPToString() (string, error) {
 	ipAddress, isSet := os.LookupEnv("LOCAL_TUNNEL_PUBLIC_IP")
-	if isSet == false {
+	if !isSet {
 		return "", errdefs.NotFound("the pod IP is not set")
 	}
 	if ipAddress == "" {
@@ -57,7 +43,7 @@ func GetLocalTunnelPublicIPToString() (string, error) {
 
 func GetLocalTunnelPrivateIP() (net.IP, error) {
 	ipAddress, isSet := os.LookupEnv("LOCAL_TUNNEL_PRIVATE_IP")
-	if isSet == false {
+	if !isSet {
 		return nil, errdefs.NotFound("the pod IP is not set")
 	}
 	if ipAddress == "" {
@@ -68,7 +54,7 @@ func GetLocalTunnelPrivateIP() (net.IP, error) {
 
 func GetLocalTunnelPrivateIPToString() (string, error) {
 	ipAddress, isSet := os.LookupEnv("LOCAL_TUNNEL_PRIVATE_IP")
-	if isSet == false {
+	if !isSet {
 		return "", errdefs.NotFound("the pod IP is not set")
 	}
 	if ipAddress == "" {
@@ -143,7 +129,6 @@ func RemoveGreTunnel(endpoint *v1.TunnelEndpoint) error {
 }
 
 func DeleteIFaceByIndex(ifaceIndex int) error {
-	var err error = nil
 	existingIface, err := netlink.LinkByIndex(ifaceIndex)
 	if err != nil {
 		log.Error(err, "unable to retrieve tunnel interface")
