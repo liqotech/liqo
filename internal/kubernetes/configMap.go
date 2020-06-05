@@ -16,7 +16,7 @@ func (p *KubernetesProvider) manageCmEvent(event watch.Event) error {
 		return errors.New("cannot cast object to configMap")
 	}
 
-	nattedNS, err := p.NatNamespace(cm.Namespace)
+	nattedNS, err := p.NatNamespace(cm.Namespace, false)
 	if err != nil {
 		return err
 	}

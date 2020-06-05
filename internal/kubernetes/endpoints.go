@@ -38,7 +38,7 @@ func (p *KubernetesProvider) manageEpEvent(event timestampedEvent) error {
 		return errors.New("cannot cast object to endpoint")
 	}
 
-	nattedNS, err := p.NatNamespace(endpoints.Namespace)
+	nattedNS, err := p.NatNamespace(endpoints.Namespace, false)
 	if err != nil {
 		return err
 	}

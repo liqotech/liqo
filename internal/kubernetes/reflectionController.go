@@ -21,7 +21,7 @@ type timestampedEvent struct {
 }
 
 type Reflector struct {
-	stop     chan bool
+	stop     chan struct{}
 	svcEvent chan watch.Event
 	repEvent chan watch.Event
 	epEvent  chan timestampedEvent
@@ -49,7 +49,7 @@ func (p *KubernetesProvider) StartReflector() {
 	p.log.Info("starting reflector for cluster " + p.foreignClusterId)
 
 	p.reflectedNamespaces.ns = make(map[string]chan struct{})
-	p.stop = make(chan bool, 1000)
+	p.stop = make(chan struct{}, 1)
 	p.svcEvent = make(chan watch.Event, 1000)
 	p.epEvent = make(chan timestampedEvent, 1000)
 	p.repEvent = make(chan watch.Event, 1000)
@@ -311,7 +311,7 @@ func (p *KubernetesProvider) reflectNamespace(namespace string) error {
 	var nattedNS string
 	var err error
 
-	nattedNS, err = p.NatNamespace(namespace)
+	nattedNS, err = p.NatNamespace(namespace, false)
 	if err != nil {
 		return err
 	}

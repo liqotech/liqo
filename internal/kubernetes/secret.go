@@ -16,7 +16,7 @@ func (p *KubernetesProvider) manageSecEvent(event watch.Event) error {
 		return errors.New("cannot cast object to secret")
 	}
 
-	nattedNS, err := p.NatNamespace(sec.Namespace)
+	nattedNS, err := p.NatNamespace(sec.Namespace, false)
 	if err != nil {
 		return err
 	}
