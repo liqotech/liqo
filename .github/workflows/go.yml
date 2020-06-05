@@ -18,7 +18,7 @@ jobs:
     steps:
       - name: Check out code into the Go module directory
         uses: actions/checkout@v1
-      - name: Push virtual-kubelet image on repo
+      - name: Push ${{ matrix.component }} image on repo
         uses: elgohr/Publish-Docker-Github-Action@master
         with:
           name: liqo/${{ matrix.component }}
@@ -27,7 +27,7 @@ jobs:
           password: ${{ secrets.DOCKER_PASSWORD }}
           tags: "latest,${{ github.sha }}"
         if: github.ref == 'refs/heads/master'
-      - name: Push virtual-kubelet image on repo
+      - name: Push ${{ matrix.component }} image on repo
         uses: elgohr/Publish-Docker-Github-Action@master
         with:
           name: liqo/${{ matrix.component }}-ci

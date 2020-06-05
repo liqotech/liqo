@@ -1,0 +1,40 @@
+api:
+  - api/**/* 
+
+community:
+  - AUTHORS
+  - ./**/*/README.md
+  - LICENSE
+  - README.md
+
+networking:
+  - build/liqonet/**/*
+  - cmd/liqonet/**/*
+  - pkg/liqonet/**/*
+  - internal/liqonet/**/*
+
+virtual-node:
+  - build/virtual-kubelet/**/*
+  - build/init-vkubelet/**/*
+  - cmd/virtual-kubelet/**/*
+  - internal/kubernetes/**/*
+  - internal/errdefs/**/*
+  - internal/manager/**/*
+  - internal/node/**/*
+  - internal/trace/**/*
+  - test/kubernetes_provider/**/*
+
+peering:
+  - build/discovery/**/*
+  - build/advertisement-broadcaster/**/*
+  - build/advertisement-operator/**/*
+  - deployment/advertisemet-operator/
+  - deployment/advertisement-broadcaster/
+  - pkg/adevertisement-operator/**/*
+  - internal/advertisement-operator/**/*
+  - internal/discovery/**/*
+
+ui:
+  - build/tray-agent/**/*
+  - internal/tray-agent/**/*
+  - cmd/tray-agent/**/*
