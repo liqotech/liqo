@@ -18,7 +18,7 @@ const (
 )
 
 type VxlanNetConfig struct {
-	Network    string `json: "Network"`
+	Network    string `json:"Network"`
 	DeviceName string `json:"DeviceName"`
 	Port       string `json:"Port"`
 	Vni        string `json:"Vni"`
@@ -98,7 +98,7 @@ func Enable_rp_filter() error {
 	//list all the network interfaces on the host
 	ifaces_list, err := netlink.LinkList()
 	if err != nil {
-		fmt.Errorf("unable to retrieve the all the network interfaces: %v", err)
+		return fmt.Errorf("unable to retrieve the all the network interfaces: %v", err)
 	}
 	for index := range ifaces_list {
 		if ifaces_list[index].Type() == "vxlan" {

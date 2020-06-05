@@ -6,13 +6,6 @@ import (
 	"strings"
 )
 
-var (
-	chain        = "DRONET-POSTROUTING"
-	forwardChain = "DRONET-FORWARD"
-	table        = "nat"
-	filterTable  = "filter"
-)
-
 type IPtableRule struct {
 	Table    string
 	Chain    string
@@ -24,7 +17,7 @@ type IPTableChain struct {
 	Name  string
 }
 
-//We create to chains in two different tables.
+//We create the chains in two different tables.
 //DRONET-POSTROUTING is created in the nat table
 //DRONET-FORWARD is created in the filter table
 func CreateIptablesChainsIfNotExist(ipt *iptables.IPTables, table string, newChain string) error {
