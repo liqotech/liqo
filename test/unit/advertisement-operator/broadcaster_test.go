@@ -115,7 +115,7 @@ func TestComputePrices(t *testing.T) {
 	keys1 := make([]string, len(prices))
 	keys2 := make([]string, len(prices))
 
-	for key, _ := range prices {
+	for key := range prices {
 		keys1 = append(keys1, key.String())
 	}
 	for _, im := range images {
@@ -132,7 +132,7 @@ func TestCreateAdvertisement(t *testing.T) {
 	pNodes, vNodes, images, _, pods := createFakeResources()
 	reqs, limits := advertisement_operator.GetAllPodsResources(pods)
 	availability, _ := advertisement_operator.ComputeAnnouncedResources(pNodes, reqs)
-	neighbours := make(map[v1.ResourceName]v1.ResourceList, 0)
+	neighbours := make(map[v1.ResourceName]v1.ResourceList)
 	for _, vNode := range vNodes.Items {
 		neighbours[v1.ResourceName(vNode.Name)] = vNode.Status.Allocatable
 	}

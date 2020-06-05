@@ -8,7 +8,7 @@ import (
 )
 
 func (p *KubernetesProvider) ConfigureNode(ctx context.Context, n *v1.Node) {
-	ctx, span := trace.StartSpan(ctx, "kubernetes.ConfigureNode") //nolint:ineffassign
+	_, span := trace.StartSpan(ctx, "kubernetes.ConfigureNode") //nolint:ineffassign
 	defer span.End()
 
 	n.Status.Capacity = v1.ResourceList{}

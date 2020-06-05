@@ -28,13 +28,12 @@ func (p *KubernetesProvider) CreatePod(ctx context.Context, pod *v1.Pod) error {
 	defer span.End()
 
 	// Add the pod's coordinates to the current span.
-	ctx = addAttributes(ctx, span, namespaceKey, pod.Namespace, nameKey, pod.Name)
-
-	log.G(ctx).Infof("receive CreatePod %q", pod.Name)
-
 	if pod == nil {
 		return errors.New("pod cannot be nil")
 	}
+	ctx = addAttributes(ctx, span, namespaceKey, pod.Namespace, nameKey, pod.Name)
+
+	log.G(ctx).Infof("receive CreatePod %q", pod.Name)
 
 	if pod.OwnerReferences != nil && len(pod.OwnerReferences) != 0 && pod.OwnerReferences[0].Kind == "DaemonSet" {
 		msg := fmt.Sprintf("Skip to create DaemonSet pod %q", pod.Name)
@@ -64,14 +63,14 @@ func (p *KubernetesProvider) CreatePod(ctx context.Context, pod *v1.Pod) error {
 func (p *KubernetesProvider) UpdatePod(ctx context.Context, pod *v1.Pod) error {
 	ctx, span := trace.StartSpan(ctx, "UpdatePod")
 
+	if pod == nil {
+		return errors.New("pod cannot be nil")
+	}
 	// Add the pod's coordinates to the current span.
 	ctx = addAttributes(ctx, span, namespaceKey, pod.Namespace, nameKey, pod.Name)
 
 	log.G(ctx).Infof("receive UpdatePod %q", pod.Name)
 
-	if pod == nil {
-		return errors.New("pod cannot be nil")
-	}
 	nattedNS, err := p.NatNamespace(pod.Namespace, false)
 	if err != nil {
 		return err
@@ -269,10 +268,10 @@ func (p *KubernetesProvider) GetPods(ctx context.Context) ([]*v1.Pod, error) {
 	}
 
 	for k, v := range nt.Spec.NattingTable {
-		podsForeignIn, err := p.foreignClient.Client().CoreV1().Pods(v).List(metav1.ListOptions{})
 		if p == nil {
 			continue
 		}
+		podsForeignIn, err := p.foreignClient.Client().CoreV1().Pods(v).List(metav1.ListOptions{})
 
 		if err != nil {
 			if kerror.IsNotFound(err) {
@@ -292,7 +291,7 @@ func (p *KubernetesProvider) GetPods(ctx context.Context) ([]*v1.Pod, error) {
 // GetStatsSummary returns dummy stats for all pods known by this provider.
 func (p *KubernetesProvider) GetStatsSummary(ctx context.Context) (*stats.Summary, error) {
 	var span trace.Span
-	ctx, span = trace.StartSpan(ctx, "GetStatsSummary") //nolint: ineffassign
+	_, span = trace.StartSpan(ctx, "GetStatsSummary") //nolint: ineffassign
 	defer span.End()
 
 	// Grab the current timestamp so we can report it as the time the stats were generated.
