@@ -389,11 +389,8 @@ func (n *MenuNode) Channel() chan struct{} {
 //Connect instantiates a listener for the 'clicked' event of the node
 func (n *MenuNode) Connect(callback func(args ...interface{}), args ...interface{}) {
 	go func() {
-		for {
-			select {
-			case <-n.item.ClickedCh:
-				callback(args...)
-			}
+		for range n.item.ClickedCh {
+			callback(args...)
 		}
 	}()
 }
@@ -401,10 +398,8 @@ func (n *MenuNode) Connect(callback func(args ...interface{}), args ...interface
 //ConnectOnce instantiates a one-time listener for the next 'clicked' event of the node
 func (n *MenuNode) ConnectOnce(callback func(args ...interface{}), args ...interface{}) {
 	go func() {
-		select {
-		case <-n.item.ClickedCh:
-			callback(args...)
-		}
+		<-n.item.ClickedCh
+		callback(args...)
 	}()
 }
 

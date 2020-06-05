@@ -6,7 +6,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-//todo define here constant tags for defined actions
 const (
 	AShowAdv = "A_SHOW_ADV"
 )
@@ -22,7 +21,6 @@ func onReady() {
 	indicator.SetMenuTitle("Liqo Agent")
 	indicator.AddQuick("QUIT", "Q_QUIT", func(args ...interface{}) {
 		app_indicator.Quit()
-		return
 	})
 	indicator.AddQuick("HOME", "Q_HOME", func(args ...interface{}) {
 		indicator.DeselectAction()
@@ -40,10 +38,6 @@ func onReady() {
 	advAction.Connect(func(args ...interface{}) {
 		actionShowAdv(args[0].(*client.Client))
 	}, &AdvClient)
-	/*	sub := indicator.AddAction("Enter Submenu", "A_SUBDEMO", func() {
-			indicator.SelectAction("A_SUBDEMO")
-		})
-		sub.AddOption("sub menu entry", "O_SUB")*/
 
 }
 
