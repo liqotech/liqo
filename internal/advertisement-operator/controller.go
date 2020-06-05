@@ -83,7 +83,7 @@ func (r *AdvertisementReconciler) Reconcile(req ctrl.Request) (ctrl.Result, erro
 		return ctrl.Result{}, nil
 	}
 
-	if adv.Status.VkCreated == false {
+	if !adv.Status.VkCreated {
 		err := createVirtualKubelet(r, ctx, log, &adv)
 		if err != nil {
 			return ctrl.Result{}, err
@@ -104,6 +104,9 @@ func GetNodes(c client.Client, ctx context.Context, log logr.Logger) ([]v1.Node,
 	var nodes v1.NodeList
 
 	selector, err := labels.Parse("type != virtual-node")
+	if err != nil {
+		return nil, err
+	}
 	if err = c.List(ctx, &nodes, client.MatchingLabelsSelector{Selector: selector}); err != nil {
 		log.Error(err, "Unable to list nodes")
 		return nil, err
@@ -129,7 +132,6 @@ func checkAdvertisement(r *AdvertisementReconciler, ctx context.Context, log log
 	if err := r.Status().Update(ctx, adv); err != nil {
 		log.Error(err, "unable to update Advertisement status")
 	}
-	return
 }
 
 func createVirtualKubelet(r *AdvertisementReconciler, ctx context.Context, log logr.Logger, adv *protocolv1.Advertisement) error {
@@ -187,5 +189,4 @@ func recordEvent(r *AdvertisementReconciler, log logr.Logger,
 	log.Info(msg)
 	r.EventsRecorder.Event(adv, eventType, eventReason, msg)
 
-	return
 }

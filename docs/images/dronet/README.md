@@ -1,1 +1,0 @@
-# dronet images

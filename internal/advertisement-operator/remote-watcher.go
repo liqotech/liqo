@@ -68,11 +68,7 @@ func WatchAdvertisement(localCRDClient client.Client, scheme *runtime.Scheme, re
 func checkAdvFiltering(object metav1.Object, watchedClusterId string) bool {
 
 	clusterId := strings.Replace(object.GetName(), "advertisement-", "", 1)
-	if clusterId == watchedClusterId {
-		return true
-	}
-
-	return false
+	return clusterId == watchedClusterId
 }
 
 func (r *AdvertisementWatcher) SetupWithManager(mgr ctrl.Manager) error {
