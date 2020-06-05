@@ -1,7 +1,5 @@
-# droned design
-
-## Advertisement management
-![architecture](../images/droned/Architecture.png)
+# Advertisement management
+![architecture](../images/cluster-peering/Architecture.png)
 
 ### Outgoing chain
 1. The user provides the information to communicate with the foreign cluster

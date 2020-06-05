@@ -92,14 +92,8 @@ func NewMetricsClient(path string, cm *v1.ConfigMap) (*metricsclient.Clientset, 
 // extract kubeconfig from a configMap.
 func GetKubeconfigFromConfigMap(cm v1.ConfigMap) clientcmd.KubeconfigGetter {
 	return func() (*clientcmdapi.Config, error) {
-		// Get the namespace this is running in from the env variable.
-		namespace := os.Getenv("POD_NAMESPACE")
-		if namespace == "" {
-			namespace = "default"
-		}
 
-		data := []byte{}
-		data = []byte(cm.Data["remote"])
+		data := []byte(cm.Data["remote"])
 		return clientcmd.Load(data)
 	}
 }

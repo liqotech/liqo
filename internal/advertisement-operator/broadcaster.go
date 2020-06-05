@@ -180,7 +180,7 @@ func CreateAdvertisement(clusterId string, gatewayIP string, gatewayPrivateIp st
 	// set prices field
 	prices := ComputePrices(images)
 	// use virtual nodes to build neighbours
-	neighbours := make(map[corev1.ResourceName]corev1.ResourceList, 0)
+	neighbours := make(map[corev1.ResourceName]corev1.ResourceList)
 	for _, vnode := range virtualNodes.Items {
 		neighbours[corev1.ResourceName(strings.TrimPrefix(vnode.Name, "vk-"))] = vnode.Status.Allocatable
 	}
@@ -296,9 +296,7 @@ func GetClusterResources(nodes []corev1.Node) (corev1.ResourceList, []corev1.Con
 		pods.Add(*node.Status.Allocatable.Pods())
 
 		nodeImages := GetNodeImages(node)
-		for _, image := range nodeImages {
-			clusterImages = append(clusterImages, image)
-		}
+		clusterImages = append(clusterImages, nodeImages...)
 	}
 	availability := corev1.ResourceList{}
 	availability[corev1.ResourceCPU] = cpu
