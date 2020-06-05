@@ -80,10 +80,11 @@ func (r *ForeignClusterReconciler) Reconcile(req ctrl.Request) (ctrl.Result, err
 			return ctrl.Result{}, err
 		}
 	}
-	if !fc.Spec.Federate && fc.Status.Federated {
-		// TODO: delete federation request
-		// this cluster can only delete own federation requests
-	}
+	// TODO: delete federation request
+	// this cluster can only delete own federation requests
+	/*if !fc.Spec.Federate && fc.Status.Federated {
+
+	}*/
 
 	return ctrl.Result{}, nil
 }

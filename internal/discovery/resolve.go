@@ -37,8 +37,8 @@ func (discovery *DiscoveryCtrl) Resolve(service string, domain string, waitTime 
 		discovery.UpdateForeign(res)
 	}(entries)
 
-	var ctx context.Context = nil
-	var cancel context.CancelFunc = nil
+	var ctx context.Context
+	var cancel context.CancelFunc
 	if waitTime > 0 {
 		ctx, cancel = context.WithTimeout(context.Background(), time.Second*time.Duration(waitTime))
 		defer cancel()
