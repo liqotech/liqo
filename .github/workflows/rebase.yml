@@ -20,6 +20,7 @@ jobs:
       - name: Create comment (Success)
         uses: peter-evans/create-or-update-comment@v1
         with:
+          token: ${{ secrets.CI_TOKEN }}
           issue-number: ${{ github.event.issue.number }}
           body: |
             Rebase status: ${{ job.status  }}!
