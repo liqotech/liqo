@@ -34,3 +34,7 @@ dependencies:
   version: "0.1.0"
   repository: file://subcharts/tunnelEndpointCreator_chart/
   condition: tunnelEndpointCreator_chart.enabled
+- name: schedulingNodeOperator_chart
+  version: "0.1.0"
+  repository: file://subcharts/schedulingNodeOperator_chart/
+  condition: schedulingNodeOperator_chart.enabled
