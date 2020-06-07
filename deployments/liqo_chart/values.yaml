@@ -20,7 +20,7 @@ adv_chart:
     image:
       repository: "liqo/advertisement-broadcaster"
       pullPolicy: "IfNotPresent"
-  enable: true
+  enabled: true
 
 #configuration values for the networkModule subchart
 networkModule_chart:
@@ -32,21 +32,21 @@ networkModule_chart:
     image:
       repository: "liqo/liqonet"
       pullPolicy: "IfNotPresent"
-  enable: true
+  enabled: true
 
 #configuration values for the tunnelendpointCreator subchart
 tunnelEndpointCreator_chart:
   image:
     repository: "liqo/liqonet"
     pullPolicy: "IfNotPresent"
-  enable: true
+  enabled: true
 
 #configuration values for the schedulingNode subchart
 schedulingNodeOperator_chart:
   image:
     repository: "liqo/schedulingnode-operator"
     pullPolicy: "IfNotPresent"
-  enable: true
+  enabled: true
 
 global:
   configmapName: "liqo-configmap"
