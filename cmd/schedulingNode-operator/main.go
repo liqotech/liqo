@@ -60,7 +60,7 @@ func main() {
 		MetricsBindAddress: metricsAddr,
 		Port:               9443,
 		LeaderElection:     enableLeaderElection,
-		LeaderElectionID:   "0d33827f.drone.com",
+		LeaderElectionID:   "0d33827f.liqo.io",
 	})
 	if err != nil {
 		setupLog.Error(err, "unable to start manager")

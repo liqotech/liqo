@@ -19,7 +19,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/go-logr/logr"
-	dronetOperator "github.com/liqoTech/liqo/pkg/liqonet"
+	liqonetOperator "github.com/liqoTech/liqo/pkg/liqonet"
 	"github.com/pkg/errors"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -31,7 +31,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	protocolv1 "github.com/liqoTech/liqo/api/advertisement-operator/v1"
-	dronetv1 "github.com/liqoTech/liqo/api/tunnel-endpoint/v1"
+	liqonetv1 "github.com/liqoTech/liqo/api/tunnel-endpoint/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 )
 
@@ -47,21 +47,21 @@ type TunnelEndpointCreator struct {
 	Scheme            *runtime.Scheme
 	UsedSubnets       map[string]*net.IPNet
 	FreeSubnets       map[string]*net.IPNet
-	IPManager         dronetOperator.Ipam
+	IPManager         liqonetOperator.Ipam
 	TunnelEndpointMap map[string]types.NamespacedName
 }
 
-// +kubebuilder:rbac:groups=protocol.drone.com,resources=advertisements,verbs=get;list;watch;create;update;patch;delete
-// +kubebuilder:rbac:groups=protocol.drone.com,resources=advertisements/status,verbs=get;update;patch
+// +kubebuilder:rbac:groups=protocol.liqo.io,resources=advertisements,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=protocol.liqo.io,resources=advertisements/status,verbs=get;update;patch
 
-//rbac for the dronet.drone.com api
-// +kubebuilder:rbac:groups=dronet.drone.com,resources=tunnelendpoints,verbs=get;list;watch;create;update;patch;delete
-// +kubebuilder:rbac:groups=dronet.drone.com,resources=tunnelendpoints/status,verbs=get;update;patch
+//rbac for the liqonet.liqo.io api
+// +kubebuilder:rbac:groups=liqonet.liqo.io,resources=tunnelendpoints,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=liqonet.liqo.io,resources=tunnelendpoints/status,verbs=get;update;patch
 
 func (r *TunnelEndpointCreator) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 	ctx := context.Background()
 	log := r.Log.WithValues("tunnelEndpointCreator-controller", req.NamespacedName)
-	tunnelEndpointCreatorFinalizer := "tunnelEndpointCreator-Finalizer.dronet.drone.com"
+	tunnelEndpointCreatorFinalizer := "tunnelEndpointCreator-Finalizer.liqonet.liqo.io"
 	// get advertisement
 	var adv protocolv1.Advertisement
 	if err := r.Get(ctx, req.NamespacedName, &adv); err != nil {
@@ -71,7 +71,7 @@ func (r *TunnelEndpointCreator) Reconcile(req ctrl.Request) (ctrl.Result, error)
 	}
 	// examine DeletionTimestamp to determine if object is under deletion
 	if adv.ObjectMeta.DeletionTimestamp.IsZero() {
-		if !dronetOperator.ContainsString(adv.ObjectMeta.Finalizers, tunnelEndpointCreatorFinalizer) {
+		if !liqonetOperator.ContainsString(adv.ObjectMeta.Finalizers, tunnelEndpointCreatorFinalizer) {
 			// The object is not being deleted, so if it does not have our finalizer,
 			// then lets add the finalizer and update the object. This is equivalent
 			// registering our finalizer.
@@ -93,14 +93,14 @@ func (r *TunnelEndpointCreator) Reconcile(req ctrl.Request) (ctrl.Result, error)
 		}
 	} else {
 		//the object is being deleted
-		if dronetOperator.ContainsString(adv.Finalizers, tunnelEndpointCreatorFinalizer) {
+		if liqonetOperator.ContainsString(adv.Finalizers, tunnelEndpointCreatorFinalizer) {
 			if err := r.deleteTunEndpoint(&adv); err != nil {
 				log.Error(err, "error while deleting endpoint")
 				return ctrl.Result{}, err
 			}
 
 			//remove the finalizer from the list and update it.
-			adv.Finalizers = dronetOperator.RemoveString(adv.Finalizers, tunnelEndpointCreatorFinalizer)
+			adv.Finalizers = liqonetOperator.RemoveString(adv.Finalizers, tunnelEndpointCreatorFinalizer)
 			if err := r.Update(ctx, &adv); err != nil {
 				if apierrors.IsConflict(err) {
 					return ctrl.Result{}, nil
@@ -124,7 +124,7 @@ func (r *TunnelEndpointCreator) Reconcile(req ctrl.Request) (ctrl.Result, error)
 
 func (r *TunnelEndpointCreator) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
-		For(&protocolv1.Advertisement{}).Owns(&dronetv1.TunnelEndpoint{}).
+		For(&protocolv1.Advertisement{}).Owns(&liqonetv1.TunnelEndpoint{}).
 		Complete(r)
 }
 
@@ -138,9 +138,9 @@ func (r *TunnelEndpointCreator) getNamespace() (namespace string, err error) {
 	return namespace, nil
 }
 
-func (r *TunnelEndpointCreator) getTunnelEndpointByKey(key types.NamespacedName) (tunEndpoint *dronetv1.TunnelEndpoint, err error) {
+func (r *TunnelEndpointCreator) getTunnelEndpointByKey(key types.NamespacedName) (tunEndpoint *liqonetv1.TunnelEndpoint, err error) {
 	ctx := context.Background()
-	tunEndpoint = new(dronetv1.TunnelEndpoint)
+	tunEndpoint = new(liqonetv1.TunnelEndpoint)
 	err = r.Get(ctx, key, tunEndpoint)
 	if err != nil {
 		return tunEndpoint, err
@@ -148,7 +148,7 @@ func (r *TunnelEndpointCreator) getTunnelEndpointByKey(key types.NamespacedName)
 	return tunEndpoint, err
 }
 
-func (r *TunnelEndpointCreator) getTunnelEndpointByName(name string) (tunEndpoint *dronetv1.TunnelEndpoint, err error) {
+func (r *TunnelEndpointCreator) getTunnelEndpointByName(name string) (tunEndpoint *liqonetv1.TunnelEndpoint, err error) {
 	ctx := context.Background()
 	//create the key to be used to retrieve the CR
 	namespace, err := r.getNamespace()
@@ -167,9 +167,9 @@ func (r *TunnelEndpointCreator) getTunnelEndpointByName(name string) (tunEndpoin
 	return tunEndpoint, err
 }
 
-func (r *TunnelEndpointCreator) getTunEndPerADV(adv *protocolv1.Advertisement) (dronetv1.TunnelEndpoint, error) {
+func (r *TunnelEndpointCreator) getTunEndPerADV(adv *protocolv1.Advertisement) (liqonetv1.TunnelEndpoint, error) {
 	ctx := context.Background()
-	var tunEndpoint dronetv1.TunnelEndpoint
+	var tunEndpoint liqonetv1.TunnelEndpoint
 	//build the key used to retrieve the tunnelEndpoint CR
 	tunEndKey := types.NamespacedName{
 		Namespace: adv.Namespace,
@@ -182,7 +182,7 @@ func (r *TunnelEndpointCreator) getTunEndPerADV(adv *protocolv1.Advertisement) (
 	return tunEndpoint, err
 }
 
-func (r *TunnelEndpointCreator) isTunEndpointUpdated(adv *protocolv1.Advertisement, tunEndpoint *dronetv1.TunnelEndpoint) bool {
+func (r *TunnelEndpointCreator) isTunEndpointUpdated(adv *protocolv1.Advertisement, tunEndpoint *liqonetv1.TunnelEndpoint) bool {
 	if adv.Spec.ClusterId == tunEndpoint.Spec.ClusterID && adv.Spec.Network.PodCIDR == tunEndpoint.Spec.PodCIDR && adv.Spec.Network.GatewayIP == tunEndpoint.Spec.TunnelPublicIP && adv.Spec.Network.GatewayPrivateIP == tunEndpoint.Spec.TunnelPrivateIP {
 		return true
 	} else {
@@ -216,7 +216,7 @@ func (r *TunnelEndpointCreator) updateTunEndpoint(adv *protocolv1.Advertisement)
 	//funcName := "updateTunEndpoint"
 	ctx := context.Background()
 	//log := r.Log.WithValues("tunnelEndpointCreator-controller", funcName)
-	var tunEndpoint dronetv1.TunnelEndpoint
+	var tunEndpoint liqonetv1.TunnelEndpoint
 	var remoteRemappedPodCIDR string
 	//build the key used to retrieve the tunnelEndpoint CR
 	tunEndKey := types.NamespacedName{
@@ -299,7 +299,7 @@ func (r *TunnelEndpointCreator) createTunEndpoint(adv *protocolv1.Advertisement)
 	funcName := "createTunEndpoint"
 	ctx := context.Background()
 	log := r.Log.WithValues("tunnelEndpointCreator-controller", funcName)
-	var tunEndpoint dronetv1.TunnelEndpoint
+	var tunEndpoint liqonetv1.TunnelEndpoint
 
 	//build the key used to retrieve the tunnelEndpoint CR
 	tunEndKey := types.NamespacedName{
@@ -313,20 +313,20 @@ func (r *TunnelEndpointCreator) createTunEndpoint(adv *protocolv1.Advertisement)
 		return nil
 	} else if apierrors.IsNotFound(err) {
 		//if tunnelEndpoint referenced by the key does not exist then we create it
-		tunEndpoint := &dronetv1.TunnelEndpoint{
+		tunEndpoint := &liqonetv1.TunnelEndpoint{
 			ObjectMeta: v1.ObjectMeta{
 				//the name is derived from the clusterID
 				Name: adv.Spec.ClusterId + tunEndpointNameSuffix,
 				//the namespace is read from the Environment variable passe to the pod
 				Namespace: adv.Namespace,
 			},
-			Spec: dronetv1.TunnelEndpointSpec{
+			Spec: liqonetv1.TunnelEndpointSpec{
 				ClusterID:       adv.Spec.ClusterId,
 				PodCIDR:         adv.Spec.Network.PodCIDR,
 				TunnelPublicIP:  adv.Spec.Network.GatewayIP,
 				TunnelPrivateIP: adv.Spec.Network.GatewayPrivateIP,
 			},
-			Status: dronetv1.TunnelEndpointStatus{},
+			Status: liqonetv1.TunnelEndpointStatus{},
 		}
 		var ownerReferences []v1.OwnerReference
 		var controller bool = true
@@ -351,7 +351,7 @@ func (r *TunnelEndpointCreator) createTunEndpoint(adv *protocolv1.Advertisement)
 
 func (r *TunnelEndpointCreator) deleteTunEndpoint(adv *protocolv1.Advertisement) error {
 	ctx := context.Background()
-	var tunEndpoint dronetv1.TunnelEndpoint
+	var tunEndpoint liqonetv1.TunnelEndpoint
 	//build the key used to retrieve the tunnelEndpoint CR
 	tunEndKey := types.NamespacedName{
 		Namespace: adv.Namespace,

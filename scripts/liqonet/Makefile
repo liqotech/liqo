@@ -1,6 +1,6 @@
 
 # Image URL to use all building/pushing image targets
-IMG ?= aldokcl/dronet:development
+IMG ?= aldokcl/liqonet:development
 # Produce CRDs that work back to Kubernetes 1.11 (no version conversion)
 CRD_OPTIONS ?= "crd:trivialVersions=true"
 
@@ -43,7 +43,7 @@ manifests: controller-gen
     #$(CONTROLLER_GEN) $(CRD_OPTIONS) rbac:roleName=manager-role webhook paths="./..." output:crd:artifacts:config=config/liqonet/crd/bases output:rbac:artifacts:config=config/liqonet/rbac
 	#$(CONTROLLER_GEN) $(CRD_OPTIONS) paths="./internal/liqonet/route-operator.go" rbac:roleName=manager-role crd:crdVersions=v1beta1 crd:trivialVersions=false output:crd:artifacts:config=config/liqonet/crd/bases output:rbac:artifacts:config=config/liqonet/rbac
 	$(CONTROLLER_GEN) $(CRD_OPTIONS) paths="./api/tunnel-endpoint/v1" rbac:roleName=manager-role crd:crdVersions=v1beta1 crd:trivialVersions=false output:crd:artifacts:config=config/liqonet/crd/bases output:rbac:artifacts:config=config/liqonet/rbac
-	rm config/dronet.drone.com_tunnelendpoints.yaml
+	rm config/liqonet.liqo.io_tunnelendpoints.yaml
 
 # Run go fmt against code
 fmt:

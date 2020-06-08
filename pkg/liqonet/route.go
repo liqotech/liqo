@@ -22,7 +22,7 @@ func AddRoute(dst string, gw string, deviceName string, onLink bool) (netlink.Ro
 	}
 	route = netlink.Route{LinkIndex: iface.Attrs().Index, Dst: destinationNet, Gw: gateway}
 	//check if already exist a route for the destination network on our device
-	//we don't care about other routes in devices not managed by dronet. The user should check the
+	//we don't care about other routes in devices not managed by liqonet. The user should check the
 	//possible ip conflicts
 	routes, err := netlink.RouteList(iface, netlink.FAMILY_V4)
 	if err != nil {

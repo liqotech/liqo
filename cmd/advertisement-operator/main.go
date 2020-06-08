@@ -28,7 +28,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
 	protocolv1 "github.com/liqoTech/liqo/api/advertisement-operator/v1"
-	dronetv1 "github.com/liqoTech/liqo/api/tunnel-endpoint/v1"
+	liqonetv1 "github.com/liqoTech/liqo/api/tunnel-endpoint/v1"
 	"github.com/liqoTech/liqo/internal/advertisement-operator"
 	// +kubebuilder:scaffold:imports
 )
@@ -50,7 +50,7 @@ func init() {
 
 	_ = protocolv1.AddToScheme(scheme)
 
-	_ = dronetv1.AddToScheme(scheme)
+	_ = liqonetv1.AddToScheme(scheme)
 	// +kubebuilder:scaffold:scheme
 }
 

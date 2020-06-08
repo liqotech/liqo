@@ -42,7 +42,7 @@ var (
 
 	defaultConfig = liqonet.VxlanNetConfig{
 		Network:    "192.168.200.0/24",
-		DeviceName: "dronet",
+		DeviceName: "liqonet",
 		Port:       "4789", //IANA assigned
 		Vni:        "200",
 	}

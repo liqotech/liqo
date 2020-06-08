@@ -6,9 +6,9 @@ metadata:
   annotations:
     controller-gen.kubebuilder.io/version: v0.2.5
   creationTimestamp: null
-  name: schedulingnodes.scheduling.drone.com
+  name: schedulingnodes.scheduling.liqo.io
 spec:
-  group: scheduling.drone.com
+  group: scheduling.liqo.io
   names:
     kind: SchedulingNode
     listKind: SchedulingNodeList

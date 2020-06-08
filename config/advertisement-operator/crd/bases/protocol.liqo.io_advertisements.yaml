@@ -6,18 +6,20 @@ metadata:
   annotations:
     controller-gen.kubebuilder.io/version: v0.2.5
   creationTimestamp: null
-  name: schedulingnodes.scheduling.drone.com
+  name: advertisements.protocol.liqo.io
 spec:
-  group: scheduling.drone.com
+  group: protocol.liqo.io
   names:
-    kind: SchedulingNode
-    listKind: SchedulingNodeList
-    plural: schedulingnodes
-    singular: schedulingnode
+    kind: Advertisement
+    listKind: AdvertisementList
+    plural: advertisements
+    singular: advertisement
   scope: Cluster
+  subresources:
+    status: {}
   validation:
     openAPIV3Schema:
-      description: SchedulingNode is the Schema for the schedulingnodes API
+      description: Advertisement is the Schema for the advertisements API
       properties:
         apiVersion:
           description: 'APIVersion defines the versioned schema of this representation
@@ -32,8 +34,10 @@ spec:
         metadata:
           type: object
         spec:
-          description: SchedulingNodeSpec defines the desired state of SchedulingNode
+          description: AdvertisementSpec defines the desired state of Advertisement
           properties:
+            clusterId:
+              type: string
             images:
               items:
                 description: Describe a container image
@@ -135,14 +139,23 @@ spec:
                 description: ResourceList is a set of (resource name, quantity) pairs.
                 type: object
               type: object
-            nodeName:
-              description: ResourceName is the name identifying various resources
-                in a ResourceList.
-              type: string
-            nodeType:
-              description: ResourceName is the name identifying various resources
-                in a ResourceList.
-              type: string
+            network:
+              properties:
+                gatewayIP:
+                  type: string
+                gatewayPrivateIP:
+                  type: string
+                podCIDR:
+                  type: string
+                supportedProtocols:
+                  items:
+                    type: string
+                  type: array
+              required:
+              - gatewayIP
+              - gatewayPrivateIP
+              - podCIDR
+              type: object
             prices:
               additionalProperties:
                 anyOf:
@@ -217,12 +230,65 @@ spec:
                     type: string
                   type: array
               type: object
+            timeToLive:
+              format: date-time
+              type: string
+            timestamp:
+              format: date-time
+              type: string
           required:
-          - nodeName
-          - nodeType
+          - clusterId
+          - network
+          - timeToLive
+          - timestamp
           type: object
         status:
-          description: SchedulingNodeStatus defines the observed state of SchedulingNode
+          description: AdvertisementStatus defines the observed state of Advertisement
+          properties:
+            advertisementStatus:
+              type: string
+            foreignNetwork:
+              properties:
+                gatewayIP:
+                  type: string
+                gatewayPrivateIP:
+                  type: string
+                podCIDR:
+                  type: string
+                supportedProtocols:
+                  items:
+                    type: string
+                  type: array
+              required:
+              - gatewayIP
+              - gatewayPrivateIP
+              - podCIDR
+              type: object
+            localRemappedPodCIDR:
+              type: string
+            observedGeneration:
+              format: int64
+              type: integer
+            remoteRemappedPodCIDR:
+              type: string
+            tunnelEndpointKey:
+              description: the tunnelEndpoint associated with the foreign cluster
+              properties:
+                name:
+                  type: string
+                namespace:
+                  type: string
+              required:
+              - name
+              - namespace
+              type: object
+            vkCreated:
+              type: boolean
+          required:
+          - advertisementStatus
+          - foreignNetwork
+          - tunnelEndpointKey
+          - vkCreated
           type: object
       type: object
   version: v1
