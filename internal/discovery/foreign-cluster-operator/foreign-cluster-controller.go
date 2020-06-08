@@ -48,8 +48,8 @@ type ForeignClusterReconciler struct {
 	clusterID       *clusterID.ClusterID
 }
 
-// +kubebuilder:rbac:groups=discovery.drone.com,resources=foreignclusters,verbs=get;list;watch;create;update;patch;delete
-// +kubebuilder:rbac:groups=discovery.drone.com,resources=foreignclusters/status,verbs=get;update;patch
+// +kubebuilder:rbac:groups=discovery.liqo.io,resources=foreignclusters,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=discovery.liqo.io,resources=foreignclusters/status,verbs=get;update;patch
 
 func (r *ForeignClusterReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 	_ = context.Background()

@@ -20,7 +20,7 @@ import (
 	"github.com/coreos/go-iptables/iptables"
 	"github.com/go-logr/logr"
 	"github.com/liqoTech/liqo/api/tunnel-endpoint/v1"
-	dronetOperator "github.com/liqoTech/liqo/pkg/liqonet"
+	liqonetOperator "github.com/liqoTech/liqo/pkg/liqonet"
 	"github.com/vishvananda/netlink"
 	k8sApiErrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -38,13 +38,13 @@ import (
 )
 
 var (
-	dronetPostroutingChain = "DRONET-POSTROUTING"
-	dronetPreroutingChain  = "DRONET-PREROUTING"
-	dronetForwardingChain  = "DRONET-FORWARD"
-	dronetInputChain       = "DRONET-INPUT"
-	natTable               = "nat"
-	filterTable            = "filter"
-	shutdownSignals        = []os.Signal{os.Interrupt, syscall.SIGTERM, syscall.SIGKILL}
+	liqonetPostroutingChain = "LIQONET-POSTROUTING"
+	liqonetPreroutingChain  = "LIQONET-PREROUTING"
+	liqonetForwardingChain  = "LIQONET-FORWARD"
+	liqonetInputChain       = "LIQONET-INPUT"
+	natTable                = "nat"
+	filterTable             = "filter"
+	shutdownSignals         = []os.Signal{os.Interrupt, syscall.SIGTERM, syscall.SIGKILL}
 )
 
 // RouteController reconciles a TunnelEndpoint object
@@ -65,18 +65,18 @@ type RouteController struct {
 	ClusterPodCIDR string
 	//here we save only the rules that reference the custom chains added by us
 	//we need them at deletion time
-	IPTablesRuleSpecsReferencingChains map[string]dronetOperator.IPtableRule //using a map to avoid duplicate entries. the key is the rulespec
+	IPTablesRuleSpecsReferencingChains map[string]liqonetOperator.IPtableRule //using a map to avoid duplicate entries. the key is the rulespec
 	//here we save the custom iptables chains, this chains are added at startup time so there should not be duplicates
 	//but we use a map to avoid them in case the operator crashes and then is restarted by kubernetes
-	IPTablesChains map[string]dronetOperator.IPTableChain
+	IPTablesChains map[string]liqonetOperator.IPTableChain
 	//for each cluster identified by clusterID we save all the rulespecs needed to ensure communication with its pods
-	IPtablesRuleSpecsPerRemoteCluster map[string][]dronetOperator.IPtableRule
+	IPtablesRuleSpecsPerRemoteCluster map[string][]liqonetOperator.IPtableRule
 	//here we save routes associated to each remote cluster
 	RoutesPerRemoteCluster map[string][]netlink.Route
 }
 
-// +kubebuilder:rbac:groups=dronet.drone.com,resources=tunnelendpoints,verbs=get;list;watch;create;update;patch;delete
-// +kubebuilder:rbac:groups=dronet.drone.com,resources=tunnelendpoints/status,verbs=get;update;patch
+// +kubebuilder:rbac:groups=liqonet.liqo.io,resources=tunnelendpoints,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=liqonet.liqo.io,resources=tunnelendpoints/status,verbs=get;update;patch
 // +kubebuilder:rbac:groups=core,resources=nodes,verbs=get;list
 
 func (r *RouteController) Reconcile(req ctrl.Request) (ctrl.Result, error) {
@@ -84,7 +84,7 @@ func (r *RouteController) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 	log := r.Log.WithValues("endpoint", req.NamespacedName)
 	var endpoint v1.TunnelEndpoint
 	//name of our finalizer
-	routeOperatorFinalizer := "routeOperator-" + r.NodeName + "-Finalizer.dronet.drone.com"
+	routeOperatorFinalizer := "routeOperator-" + r.NodeName + "-Finalizer.liqonet.liqo.io"
 
 	if err := r.Get(ctx, req.NamespacedName, &endpoint); err != nil {
 		r.Log.Error(err, "unable to fetch endpoint")
@@ -93,7 +93,7 @@ func (r *RouteController) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 
 	// examine DeletionTimestamp to determine if object is under deletion
 	if endpoint.ObjectMeta.DeletionTimestamp.IsZero() {
-		if !dronetOperator.ContainsString(endpoint.ObjectMeta.Finalizers, routeOperatorFinalizer) {
+		if !liqonetOperator.ContainsString(endpoint.ObjectMeta.Finalizers, routeOperatorFinalizer) {
 			// The object is not being deleted, so if it does not have our finalizer,
 			// then lets add the finalizer and update the object. This is equivalent
 			// registering our finalizer.
@@ -114,7 +114,7 @@ func (r *RouteController) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 		}
 	} else {
 		//the object is being deleted
-		if dronetOperator.ContainsString(endpoint.Finalizers, routeOperatorFinalizer) {
+		if liqonetOperator.ContainsString(endpoint.Finalizers, routeOperatorFinalizer) {
 			if err := r.deleteIPTablesRulespecForRemoteCluster(&endpoint); err != nil {
 				r.Log.Error(err, "error while deleting rulespec from iptables")
 				return ctrl.Result{}, err
@@ -124,7 +124,7 @@ func (r *RouteController) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 				return ctrl.Result{}, err
 			}
 			//remove the finalizer from the list and update it.
-			endpoint.Finalizers = dronetOperator.RemoveString(endpoint.Finalizers, routeOperatorFinalizer)
+			endpoint.Finalizers = liqonetOperator.RemoveString(endpoint.Finalizers, routeOperatorFinalizer)
 			if err := r.Update(ctx, &endpoint); err != nil {
 				if k8sApiErrors.IsConflict(err) {
 					return ctrl.Result{}, nil
@@ -148,7 +148,7 @@ func (r *RouteController) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 			log.Error(err, "unable to insert routes")
 			return ctrl.Result{}, err
 		}
-		endpoint.ObjectMeta.SetLabels(dronetOperator.SetLabelHandler(dronetOperator.RouteOpLabelKey+"-"+r.NodeName, "ready", endpoint.ObjectMeta.GetLabels()))
+		endpoint.ObjectMeta.SetLabels(liqonetOperator.SetLabelHandler(liqonetOperator.RouteOpLabelKey+"-"+r.NodeName, "ready", endpoint.ObjectMeta.GetLabels()))
 		err := r.Client.Update(ctx, &endpoint)
 		for k8sApiErrors.IsConflict(err) {
 			log.Info("a resource version conflict arose while updating", "resource", req.NamespacedName)
@@ -156,7 +156,7 @@ func (r *RouteController) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 				r.Log.Error(err, "unable to fetch endpoint")
 				return ctrl.Result{}, client.IgnoreNotFound(err)
 			}
-			endpoint.ObjectMeta.SetLabels(dronetOperator.SetLabelHandler(dronetOperator.RouteOpLabelKey+"-"+r.NodeName, "ready", endpoint.ObjectMeta.GetLabels()))
+			endpoint.ObjectMeta.SetLabels(liqonetOperator.SetLabelHandler(liqonetOperator.RouteOpLabelKey+"-"+r.NodeName, "ready", endpoint.ObjectMeta.GetLabels()))
 			err = r.Client.Update(ctx, &endpoint)
 		}
 		if err != nil {
@@ -168,10 +168,10 @@ func (r *RouteController) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 
 //this function is called at startup of the operator
 //here we:
-//create DRONET-FORWARD in the filter table and insert it in the "FORWARD" chain
-//create DRONET-POSTROUTING in the nat table and insert it in the "POSTROUTING" chain
-//create DRONET-INPUT in the filter table and insert it in the input chain
-//insert the rulespec which allows in input all the udp traffic incoming for the vxlan in the DRONET-INPUT chain
+//create LIQONET-FORWARD in the filter table and insert it in the "FORWARD" chain
+//create LIQONET-POSTROUTING in the nat table and insert it in the "POSTROUTING" chain
+//create LIQONET-INPUT in the filter table and insert it in the input chain
+//insert the rulespec which allows in input all the udp traffic incoming for the vxlan in the LIQONET-INPUT chain
 func (r *RouteController) createAndInsertIPTablesChains() error {
 	ipt, err := iptables.New()
 	log := r.Log.WithName("iptables")
@@ -179,105 +179,105 @@ func (r *RouteController) createAndInsertIPTablesChains() error {
 		return fmt.Errorf("unable to initialize iptables: %v. check if the ipatable are present in the system", err)
 	}
 
-	//creating DRONET-POSTROUTING chain
-	if err = dronetOperator.CreateIptablesChainsIfNotExist(ipt, natTable, dronetPostroutingChain); err != nil {
+	//creating LIQONET-POSTROUTING chain
+	if err = liqonetOperator.CreateIptablesChainsIfNotExist(ipt, natTable, liqonetPostroutingChain); err != nil {
 		return err
 	} else {
-		log.Info("created", "chain", dronetPostroutingChain, "in table", natTable)
+		log.Info("created", "chain", liqonetPostroutingChain, "in table", natTable)
 	}
-	r.IPTablesChains[dronetPostroutingChain] = dronetOperator.IPTableChain{
+	r.IPTablesChains[liqonetPostroutingChain] = liqonetOperator.IPTableChain{
 		Table: natTable,
-		Name:  dronetPostroutingChain,
+		Name:  liqonetPostroutingChain,
 	}
-	//installing rulespec which forwards all traffic to DRONET-POSTROUTING chain
-	forwardToDronetPostroutingRuleSpec := []string{"-j", dronetPostroutingChain}
-	if err = dronetOperator.InsertIptablesRulespecIfNotExists(ipt, natTable, "POSTROUTING", forwardToDronetPostroutingRuleSpec); err != nil {
+	//installing rulespec which forwards all traffic to LIQONET-POSTROUTING chain
+	forwardToLiqonetPostroutingRuleSpec := []string{"-j", liqonetPostroutingChain}
+	if err = liqonetOperator.InsertIptablesRulespecIfNotExists(ipt, natTable, "POSTROUTING", forwardToLiqonetPostroutingRuleSpec); err != nil {
 		return err
 	} else {
-		log.Info("installed", "rulespec", strings.Join(forwardToDronetPostroutingRuleSpec, " "), "belonging to chain POSTROUTING in table", natTable)
+		log.Info("installed", "rulespec", strings.Join(forwardToLiqonetPostroutingRuleSpec, " "), "belonging to chain POSTROUTING in table", natTable)
 	}
 	//add it to iptables rulespec if it does not exist in the map
-	r.IPTablesRuleSpecsReferencingChains[strings.Join(forwardToDronetPostroutingRuleSpec, " ")] = dronetOperator.IPtableRule{
+	r.IPTablesRuleSpecsReferencingChains[strings.Join(forwardToLiqonetPostroutingRuleSpec, " ")] = liqonetOperator.IPtableRule{
 		Table:    natTable,
 		Chain:    "POSTROUTING",
-		RuleSpec: forwardToDronetPostroutingRuleSpec,
+		RuleSpec: forwardToLiqonetPostroutingRuleSpec,
 	}
-	//creating DRONET-PREROUTING chain
-	if err = dronetOperator.CreateIptablesChainsIfNotExist(ipt, natTable, dronetPreroutingChain); err != nil {
+	//creating LIQONET-PREROUTING chain
+	if err = liqonetOperator.CreateIptablesChainsIfNotExist(ipt, natTable, liqonetPreroutingChain); err != nil {
 		return err
 	} else {
-		log.Info("created", "chain", dronetPreroutingChain, "in table", natTable)
+		log.Info("created", "chain", liqonetPreroutingChain, "in table", natTable)
 	}
-	r.IPTablesChains[dronetPostroutingChain] = dronetOperator.IPTableChain{
+	r.IPTablesChains[liqonetPostroutingChain] = liqonetOperator.IPTableChain{
 		Table: natTable,
-		Name:  dronetPreroutingChain,
+		Name:  liqonetPreroutingChain,
 	}
-	//installing rulespec which forwards all traffic to DRONET-PREROUTING chain
-	forwardToDronetPreroutingRuleSpec := []string{"-j", dronetPreroutingChain}
-	if err = dronetOperator.InsertIptablesRulespecIfNotExists(ipt, natTable, "PREROUTING", forwardToDronetPreroutingRuleSpec); err != nil {
+	//installing rulespec which forwards all traffic to LIQONET-PREROUTING chain
+	forwardToLiqonetPreroutingRuleSpec := []string{"-j", liqonetPreroutingChain}
+	if err = liqonetOperator.InsertIptablesRulespecIfNotExists(ipt, natTable, "PREROUTING", forwardToLiqonetPreroutingRuleSpec); err != nil {
 		return err
 	} else {
-		log.Info("installed", "rulespec", strings.Join(forwardToDronetPreroutingRuleSpec, " "), "belonging to chain POSTROUTING in table", natTable)
+		log.Info("installed", "rulespec", strings.Join(forwardToLiqonetPreroutingRuleSpec, " "), "belonging to chain POSTROUTING in table", natTable)
 	}
 	//add it to iptables rulespec if it does not exist in the map
-	r.IPTablesRuleSpecsReferencingChains[strings.Join(forwardToDronetPreroutingRuleSpec, " ")] = dronetOperator.IPtableRule{
+	r.IPTablesRuleSpecsReferencingChains[strings.Join(forwardToLiqonetPreroutingRuleSpec, " ")] = liqonetOperator.IPtableRule{
 		Table:    natTable,
 		Chain:    "PREROUTING",
-		RuleSpec: forwardToDronetPreroutingRuleSpec,
+		RuleSpec: forwardToLiqonetPreroutingRuleSpec,
 	}
-	//creating DRONET-FORWARD chain
-	if err = dronetOperator.CreateIptablesChainsIfNotExist(ipt, filterTable, dronetForwardingChain); err != nil {
+	//creating LIQONET-FORWARD chain
+	if err = liqonetOperator.CreateIptablesChainsIfNotExist(ipt, filterTable, liqonetForwardingChain); err != nil {
 		return err
 	} else {
-		log.Info("created", "chain", dronetForwardingChain, "in table", filterTable)
+		log.Info("created", "chain", liqonetForwardingChain, "in table", filterTable)
 	}
-	r.IPTablesChains[dronetForwardingChain] = dronetOperator.IPTableChain{
+	r.IPTablesChains[liqonetForwardingChain] = liqonetOperator.IPTableChain{
 		Table: filterTable,
-		Name:  dronetForwardingChain,
+		Name:  liqonetForwardingChain,
 	}
-	//installing rulespec which forwards all traffic to DRONET-FORWARD chain
-	forwardToDronetForwardRuleSpec := []string{"-j", dronetForwardingChain}
-	if err = dronetOperator.InsertIptablesRulespecIfNotExists(ipt, filterTable, "FORWARD", forwardToDronetForwardRuleSpec); err != nil {
+	//installing rulespec which forwards all traffic to LIQONET-FORWARD chain
+	forwardToLiqonetForwardRuleSpec := []string{"-j", liqonetForwardingChain}
+	if err = liqonetOperator.InsertIptablesRulespecIfNotExists(ipt, filterTable, "FORWARD", forwardToLiqonetForwardRuleSpec); err != nil {
 		return err
 	} else {
-		log.Info("installed", "rulespec", strings.Join(forwardToDronetForwardRuleSpec, " "), "belonging to chain FORWARD in table", filterTable)
+		log.Info("installed", "rulespec", strings.Join(forwardToLiqonetForwardRuleSpec, " "), "belonging to chain FORWARD in table", filterTable)
 	}
-	r.IPTablesRuleSpecsReferencingChains[strings.Join(forwardToDronetForwardRuleSpec, " ")] = dronetOperator.IPtableRule{
+	r.IPTablesRuleSpecsReferencingChains[strings.Join(forwardToLiqonetForwardRuleSpec, " ")] = liqonetOperator.IPtableRule{
 		Table:    filterTable,
 		Chain:    "FORWARD",
-		RuleSpec: forwardToDronetForwardRuleSpec,
+		RuleSpec: forwardToLiqonetForwardRuleSpec,
 	}
-	//creating DRONET-INPUT chain
-	if err = dronetOperator.CreateIptablesChainsIfNotExist(ipt, filterTable, dronetInputChain); err != nil {
+	//creating LIQONET-INPUT chain
+	if err = liqonetOperator.CreateIptablesChainsIfNotExist(ipt, filterTable, liqonetInputChain); err != nil {
 		return err
 	} else {
-		log.Info("created", "chain", dronetInputChain, "in table", filterTable)
+		log.Info("created", "chain", liqonetInputChain, "in table", filterTable)
 	}
-	r.IPTablesChains[dronetInputChain] = dronetOperator.IPTableChain{
+	r.IPTablesChains[liqonetInputChain] = liqonetOperator.IPTableChain{
 		Table: filterTable,
-		Name:  dronetInputChain,
+		Name:  liqonetInputChain,
 	}
-	//installing rulespec which forwards all udp incoming traffic to DRONET-INPUT chain
-	forwardToDronetInputSpec := []string{"-p", "udp", "-m", "udp", "-j", dronetInputChain}
-	if err = dronetOperator.InsertIptablesRulespecIfNotExists(ipt, filterTable, "INPUT", forwardToDronetInputSpec); err != nil {
+	//installing rulespec which forwards all udp incoming traffic to LIQONET-INPUT chain
+	forwardToLiqonetInputSpec := []string{"-p", "udp", "-m", "udp", "-j", liqonetInputChain}
+	if err = liqonetOperator.InsertIptablesRulespecIfNotExists(ipt, filterTable, "INPUT", forwardToLiqonetInputSpec); err != nil {
 		return err
 	} else {
-		log.Info("installed", "rulespec", strings.Join(forwardToDronetInputSpec, " "), "belonging to chain POSTROUTING in table", filterTable)
+		log.Info("installed", "rulespec", strings.Join(forwardToLiqonetInputSpec, " "), "belonging to chain POSTROUTING in table", filterTable)
 	}
-	r.IPTablesRuleSpecsReferencingChains[strings.Join(forwardToDronetInputSpec, " ")] = dronetOperator.IPtableRule{
+	r.IPTablesRuleSpecsReferencingChains[strings.Join(forwardToLiqonetInputSpec, " ")] = liqonetOperator.IPtableRule{
 		Table:    filterTable,
 		Chain:    "INPUT",
-		RuleSpec: forwardToDronetInputSpec,
+		RuleSpec: forwardToLiqonetInputSpec,
 	}
 	//installing rulespec which allows udp traffic with destination port the VXLAN port
 	//we put it here because this rulespec is independent from the remote cluster.
 	//we don't save this rulespec it will be removed when the chains are flushed at exit time
 	//TODO: do we need to move this one elsewhere? maybe in a dedicate function called at startup by the route operator?
 	vxlanUdpRuleSpec := []string{"-p", "udp", "-m", "udp", "--dport", strconv.Itoa(r.VxlanPort), "-j", "ACCEPT"}
-	if err = ipt.AppendUnique(filterTable, dronetInputChain, vxlanUdpRuleSpec...); err != nil {
-		return fmt.Errorf("unable to insert rulespec \"%s\" in %s table and %s chain: %v", vxlanUdpRuleSpec, filterTable, dronetInputChain, err)
+	if err = ipt.AppendUnique(filterTable, liqonetInputChain, vxlanUdpRuleSpec...); err != nil {
+		return fmt.Errorf("unable to insert rulespec \"%s\" in %s table and %s chain: %v", vxlanUdpRuleSpec, filterTable, liqonetInputChain, err)
 	} else {
-		log.Info("installed", "rulespec", strings.Join(vxlanUdpRuleSpec, " "), "belonging to chain", dronetInputChain, "in table", filterTable)
+		log.Info("installed", "rulespec", strings.Join(vxlanUdpRuleSpec, " "), "belonging to chain", liqonetInputChain, "in table", filterTable)
 	}
 	return nil
 }
@@ -293,7 +293,7 @@ func (r *RouteController) addIPTablesRulespecForRemoteCluster(endpoint *v1.Tunne
 		remotePodCIDR = endpoint.Spec.PodCIDR
 		log.Info("nat disabled", "using original pod cidr", endpoint.Spec.PodCIDR, "for cluster", clusterID)
 	}
-	var ruleSpecs []dronetOperator.IPtableRule
+	var ruleSpecs []liqonetOperator.IPtableRule
 	ipt, err := iptables.New()
 	if err != nil {
 		return fmt.Errorf("unable to initialize iptables: %v. check if the ipatable are present in the system", err)
@@ -301,40 +301,40 @@ func (r *RouteController) addIPTablesRulespecForRemoteCluster(endpoint *v1.Tunne
 
 	//do not nat the traffic directed to the remote pods
 	ruleSpec := []string{"-s", r.ClusterPodCIDR, "-d", remotePodCIDR, "-j", "ACCEPT"}
-	if err = ipt.AppendUnique(natTable, dronetPostroutingChain, ruleSpec...); err != nil {
-		return fmt.Errorf("unable to insert iptable rule \"%s\" in %s table, %s chain: %v", ruleSpec, natTable, dronetPostroutingChain, err)
+	if err = ipt.AppendUnique(natTable, liqonetPostroutingChain, ruleSpec...); err != nil {
+		return fmt.Errorf("unable to insert iptable rule \"%s\" in %s table, %s chain: %v", ruleSpec, natTable, liqonetPostroutingChain, err)
 	} else {
-		log.Info("installed", "rulespec", strings.Join(ruleSpec, " "), "belonging to chain", dronetPostroutingChain, "in table", filterTable)
+		log.Info("installed", "rulespec", strings.Join(ruleSpec, " "), "belonging to chain", liqonetPostroutingChain, "in table", filterTable)
 	}
-	ruleSpecs = append(ruleSpecs, dronetOperator.IPtableRule{
+	ruleSpecs = append(ruleSpecs, liqonetOperator.IPtableRule{
 		Table:    natTable,
-		Chain:    dronetPostroutingChain,
+		Chain:    liqonetPostroutingChain,
 		RuleSpec: ruleSpec,
 	})
 	r.IPtablesRuleSpecsPerRemoteCluster[clusterID] = ruleSpecs
 	//enable forwarding for all the traffic directed to the remote pods
 	ruleSpec = []string{"-d", remotePodCIDR, "-j", "ACCEPT"}
-	if err = ipt.AppendUnique(filterTable, dronetForwardingChain, ruleSpec...); err != nil {
-		return fmt.Errorf("unable to insert iptable rule \"%s\" in %s table, %s chain: %v", ruleSpec, filterTable, dronetForwardingChain, err)
+	if err = ipt.AppendUnique(filterTable, liqonetForwardingChain, ruleSpec...); err != nil {
+		return fmt.Errorf("unable to insert iptable rule \"%s\" in %s table, %s chain: %v", ruleSpec, filterTable, liqonetForwardingChain, err)
 	} else {
-		log.Info("installed", "rulespec", strings.Join(ruleSpec, " "), "belonging to chain", dronetForwardingChain, "in table", filterTable)
+		log.Info("installed", "rulespec", strings.Join(ruleSpec, " "), "belonging to chain", liqonetForwardingChain, "in table", filterTable)
 	}
-	ruleSpecs = append(ruleSpecs, dronetOperator.IPtableRule{
+	ruleSpecs = append(ruleSpecs, liqonetOperator.IPtableRule{
 		Table:    filterTable,
-		Chain:    dronetForwardingChain,
+		Chain:    liqonetForwardingChain,
 		RuleSpec: ruleSpec,
 	})
 	r.IPtablesRuleSpecsPerRemoteCluster[clusterID] = ruleSpecs
 	//this rules are needed in an environment where strictly policies are applied for the input chain
 	ruleSpec = []string{"-s", r.ClusterPodCIDR, "-d", remotePodCIDR, "-j", "ACCEPT"}
-	if err = ipt.AppendUnique(filterTable, dronetInputChain, ruleSpec...); err != nil {
-		return fmt.Errorf("unable to insert iptable rule \"%s\" in %s table, %s chain: %v", ruleSpec, filterTable, dronetInputChain, err)
+	if err = ipt.AppendUnique(filterTable, liqonetInputChain, ruleSpec...); err != nil {
+		return fmt.Errorf("unable to insert iptable rule \"%s\" in %s table, %s chain: %v", ruleSpec, filterTable, liqonetInputChain, err)
 	} else {
-		log.Info("installed", "rulespec", strings.Join(ruleSpec, " "), "belonging to chain", dronetInputChain, "in table", filterTable)
+		log.Info("installed", "rulespec", strings.Join(ruleSpec, " "), "belonging to chain", liqonetInputChain, "in table", filterTable)
 	}
-	ruleSpecs = append(ruleSpecs, dronetOperator.IPtableRule{
+	ruleSpecs = append(ruleSpecs, liqonetOperator.IPtableRule{
 		Table:    filterTable,
-		Chain:    dronetInputChain,
+		Chain:    liqonetInputChain,
 		RuleSpec: ruleSpec,
 	})
 	r.IPtablesRuleSpecsPerRemoteCluster[clusterID] = ruleSpecs
@@ -343,41 +343,41 @@ func (r *RouteController) addIPTablesRulespecForRemoteCluster(endpoint *v1.Tunne
 		//hosts use the ip of the vxlan interface as source ip when communicating with remote pods
 		//this is done on the gateway node only
 		ruleSpec = []string{"-s", r.VxlanNetwork, "-d", remotePodCIDR, "-j", "MASQUERADE"}
-		if err = ipt.AppendUnique(natTable, dronetPostroutingChain, ruleSpec...); err != nil {
-			return fmt.Errorf("unable to insert iptable rule \"%s\" in %s table, %s chain: %v", ruleSpec, natTable, dronetPostroutingChain, err)
+		if err = ipt.AppendUnique(natTable, liqonetPostroutingChain, ruleSpec...); err != nil {
+			return fmt.Errorf("unable to insert iptable rule \"%s\" in %s table, %s chain: %v", ruleSpec, natTable, liqonetPostroutingChain, err)
 		} else {
-			log.Info("installed", "rulespec", strings.Join(ruleSpec, " "), "belonging to chain", dronetPostroutingChain, "in table", natTable)
+			log.Info("installed", "rulespec", strings.Join(ruleSpec, " "), "belonging to chain", liqonetPostroutingChain, "in table", natTable)
 		}
-		ruleSpecs = append(ruleSpecs, dronetOperator.IPtableRule{
+		ruleSpecs = append(ruleSpecs, liqonetOperator.IPtableRule{
 			Table:    natTable,
-			Chain:    dronetPostroutingChain,
+			Chain:    liqonetPostroutingChain,
 			RuleSpec: ruleSpec,
 		})
 		r.IPtablesRuleSpecsPerRemoteCluster[clusterID] = ruleSpecs
 		//if we have been remapped by the remote cluster then insert the iptables rule to masquerade the source ip
 		if endpoint.Status.LocalRemappedPodCIDR != "None" {
 			ruleSpec = []string{"-s", r.ClusterPodCIDR, "-d", remotePodCIDR, "-j", "NETMAP", "--to", endpoint.Status.LocalRemappedPodCIDR}
-			if err = dronetOperator.InsertIptablesRulespecIfNotExists(ipt, natTable, dronetPostroutingChain, ruleSpec); err != nil {
-				return fmt.Errorf("unable to insert iptable rule \"%s\" in %s table, %s chain: %v", ruleSpec, natTable, dronetPostroutingChain, err)
+			if err = liqonetOperator.InsertIptablesRulespecIfNotExists(ipt, natTable, liqonetPostroutingChain, ruleSpec); err != nil {
+				return fmt.Errorf("unable to insert iptable rule \"%s\" in %s table, %s chain: %v", ruleSpec, natTable, liqonetPostroutingChain, err)
 			} else {
-				log.Info("installed", "rulespec", strings.Join(ruleSpec, " "), "belonging to chain", dronetPostroutingChain, "in table", natTable)
+				log.Info("installed", "rulespec", strings.Join(ruleSpec, " "), "belonging to chain", liqonetPostroutingChain, "in table", natTable)
 			}
-			ruleSpecs = append(ruleSpecs, dronetOperator.IPtableRule{
+			ruleSpecs = append(ruleSpecs, liqonetOperator.IPtableRule{
 				Table:    natTable,
-				Chain:    dronetPostroutingChain,
+				Chain:    liqonetPostroutingChain,
 				RuleSpec: ruleSpec,
 			})
 			r.IPtablesRuleSpecsPerRemoteCluster[clusterID] = ruleSpecs
 			//translate all the traffic coming to the local cluster in to the right podcidr because it has been remapped by the remote cluster
 			ruleSpec = []string{"-d", endpoint.Status.LocalRemappedPodCIDR, "-i", endpoint.Status.TunnelIFaceName, "-j", "NETMAP", "--to", r.ClusterPodCIDR}
-			if err = ipt.AppendUnique(natTable, dronetPreroutingChain, ruleSpec...); err != nil {
-				return fmt.Errorf("unable to insert iptable rule \"%s\" in %s table, %s chain: %v", ruleSpec, natTable, dronetPreroutingChain, err)
+			if err = ipt.AppendUnique(natTable, liqonetPreroutingChain, ruleSpec...); err != nil {
+				return fmt.Errorf("unable to insert iptable rule \"%s\" in %s table, %s chain: %v", ruleSpec, natTable, liqonetPreroutingChain, err)
 			} else {
-				log.Info("installed", "rulespec", strings.Join(ruleSpec, " "), "belonging to chain", dronetPreroutingChain, "in table", natTable)
+				log.Info("installed", "rulespec", strings.Join(ruleSpec, " "), "belonging to chain", liqonetPreroutingChain, "in table", natTable)
 			}
-			ruleSpecs = append(ruleSpecs, dronetOperator.IPtableRule{
+			ruleSpecs = append(ruleSpecs, liqonetOperator.IPtableRule{
 				Table:    natTable,
-				Chain:    dronetPreroutingChain,
+				Chain:    liqonetPreroutingChain,
 				RuleSpec: ruleSpec,
 			})
 			r.IPtablesRuleSpecsPerRemoteCluster[clusterID] = ruleSpecs
@@ -479,14 +479,14 @@ func (r *RouteController) InsertRoutesPerCluster(endpoint *v1.TunnelEndpoint) er
 	}
 	var routes []netlink.Route
 	if r.IsGateway {
-		route, err := dronetOperator.AddRoute(remoteTunnelPrivateIPNet, localTunnelPrivateIP, endpoint.Status.TunnelIFaceName, false)
+		route, err := liqonetOperator.AddRoute(remoteTunnelPrivateIPNet, localTunnelPrivateIP, endpoint.Status.TunnelIFaceName, false)
 		if err != nil {
 			return err
 		} else {
 			log.Info("installing", "route", route.String())
 		}
 		routes = append(routes, route)
-		route, err = dronetOperator.AddRoute(remotePodCIDR, endpoint.Status.RemoteTunnelPrivateIP, endpoint.Status.TunnelIFaceName, true)
+		route, err = liqonetOperator.AddRoute(remotePodCIDR, endpoint.Status.RemoteTunnelPrivateIP, endpoint.Status.TunnelIFaceName, true)
 		if err != nil {
 			return err
 		} else {
@@ -495,14 +495,14 @@ func (r *RouteController) InsertRoutesPerCluster(endpoint *v1.TunnelEndpoint) er
 		routes = append(routes, route)
 		r.RoutesPerRemoteCluster[endpoint.Spec.ClusterID] = routes
 	} else {
-		route, err := dronetOperator.AddRoute(remotePodCIDR, r.GatewayVxlanIP, r.VxlanIfaceName, false)
+		route, err := liqonetOperator.AddRoute(remotePodCIDR, r.GatewayVxlanIP, r.VxlanIfaceName, false)
 		if err != nil {
 			return err
 		} else {
 			log.Info("installing", "route", route.String())
 		}
 		routes = append(routes, route)
-		route, err = dronetOperator.AddRoute(remoteTunnelPrivateIPNet, r.GatewayVxlanIP, r.VxlanIfaceName, false)
+		route, err = liqonetOperator.AddRoute(remoteTunnelPrivateIPNet, r.GatewayVxlanIP, r.VxlanIfaceName, false)
 		if err != nil {
 			return err
 		} else {
@@ -520,7 +520,7 @@ func (r *RouteController) deleteRoutesPerCluster(endpoint *v1.TunnelEndpoint) er
 	log := r.Log.WithName("route")
 	log.Info("removing all routes for", "cluster", clusterID)
 	for _, route := range r.RoutesPerRemoteCluster[endpoint.Spec.ClusterID] {
-		err := dronetOperator.DelRoute(route)
+		err := liqonetOperator.DelRoute(route)
 		if err != nil {
 			return err
 		} else {
@@ -540,7 +540,7 @@ func (r *RouteController) deleteAllRoutes() {
 	//a log message is emitted if in case of error
 	for _, cluster := range r.RoutesPerRemoteCluster {
 		for _, route := range cluster {
-			if err := dronetOperator.DelRoute(route); err != nil {
+			if err := liqonetOperator.DelRoute(route); err != nil {
 				logger.Error(err, "an error occurred while deleting", "route", route.String())
 			}
 		}
@@ -555,7 +555,7 @@ func (r *RouteController) deleteVxlanIFace() {
 	if err != nil {
 		logger.Error(err, "an error occurred while removing vxlan interface", "ifaceName", r.VxlanIfaceName)
 	}
-	err = dronetOperator.DeleteIFaceByIndex(iface.Attrs().Index)
+	err = liqonetOperator.DeleteIFaceByIndex(iface.Attrs().Index)
 	if err != nil {
 		logger.Error(err, "an error occurred while removing vxlan interface", "ifaceName", r.VxlanIfaceName)
 	}
@@ -623,7 +623,7 @@ func (r *RouteController) ToBeProcessedByRouteOperator(meta metav1.Object) bool 
 	if labels == nil {
 		return false
 	}
-	_, processedByTunOP := labels[dronetOperator.TunOpLabelKey]
+	_, processedByTunOP := labels[liqonetOperator.TunOpLabelKey]
 	if processedByTunOP {
 		return true
 	} else {
@@ -636,7 +636,7 @@ func (r *RouteController) alreadyProcessedByRouteOperator(meta metav1.Object) bo
 	if labels == nil {
 		return true
 	}
-	_, processedByRouOp := labels[dronetOperator.RouteOpLabelKey+"-"+r.NodeName]
+	_, processedByRouOp := labels[liqonetOperator.RouteOpLabelKey+"-"+r.NodeName]
 	if processedByRouOp {
 		return true
 	} else {

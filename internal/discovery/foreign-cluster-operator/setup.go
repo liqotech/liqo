@@ -27,7 +27,7 @@ func StartOperator(namespace string) {
 		Scheme:           scheme,
 		Port:             9443,
 		LeaderElection:   false,
-		LeaderElectionID: "b3156c4e.drone.com",
+		LeaderElectionID: "b3156c4e.liqo.io",
 	})
 	if err != nil {
 		log.Error(err, "unable to start manager")

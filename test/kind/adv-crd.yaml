@@ -6,9 +6,9 @@ metadata:
   annotations:
     controller-gen.kubebuilder.io/version: v0.2.5
   creationTimestamp: null
-  name: advertisements.protocol.drone.com
+  name: advertisements.protocol.liqo.io
 spec:
-  group: protocol.drone.com
+  group: protocol.liqo.io
   names:
     kind: Advertisement
     listKind: AdvertisementList

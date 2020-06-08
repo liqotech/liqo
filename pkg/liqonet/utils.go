@@ -72,10 +72,10 @@ func getInternalIPOfNode(node corev1.Node) (string, error) {
 func IsGatewayNode(clientset *kubernetes.Clientset) (bool, error) {
 	isGatewayNode := false
 	//retrieve the node which is labeled as the gateway
-	nodesList, err := clientset.CoreV1().Nodes().List(metav1.ListOptions{LabelSelector: "dronet.drone.com/gateway == true"})
+	nodesList, err := clientset.CoreV1().Nodes().List(metav1.ListOptions{LabelSelector: "liqonet.liqo.io/gateway == true"})
 	if err != nil {
-		logger.Error(err, "Unable to list nodes with labbel 'dronet.drone.com/gateway=true'")
-		return isGatewayNode, fmt.Errorf("Unable to list nodes with labbel 'dronet.drone.com/gateway=true': %v", err)
+		logger.Error(err, "Unable to list nodes with labbel 'liqonet.liqo.io/gateway=true'")
+		return isGatewayNode, fmt.Errorf(" Unable to list nodes with label 'liqonet.liqo.io/gateway=true': %v", err)
 	}
 	if len(nodesList.Items) != 1 {
 		klog.V(4).Infof("number of gateway nodes found: %d", len(nodesList.Items))
@@ -100,10 +100,10 @@ func IsGatewayNode(clientset *kubernetes.Clientset) (bool, error) {
 func GetGatewayVxlanIP(clientset *kubernetes.Clientset, vxlanConfig VxlanNetConfig) (string, error) {
 	var gatewayVxlanIP string
 	//retrieve the node which is labeled as the gateway
-	nodesList, err := clientset.CoreV1().Nodes().List(metav1.ListOptions{LabelSelector: "dronet.drone.com/gateway == true"})
+	nodesList, err := clientset.CoreV1().Nodes().List(metav1.ListOptions{LabelSelector: "liqonet.liqo.io/gateway == true"})
 	if err != nil {
-		logger.Error(err, "Unable to list nodes with labbel 'dronet.drone.com/gateway=true'")
-		return gatewayVxlanIP, fmt.Errorf("Unable to list nodes with labbel 'dronet.drone.com/gateway=true': %v", err)
+		logger.Error(err, "Unable to list nodes with label 'liqonet.liqo.io/gateway=true'")
+		return gatewayVxlanIP, fmt.Errorf(" Unable to list nodes with label 'liqonet.liqo.io/gateway=true': %v", err)
 	}
 	if len(nodesList.Items) != 1 {
 		klog.V(4).Infof("number of gateway nodes found: %d", len(nodesList.Items))
@@ -127,8 +127,8 @@ func getRemoteVTEPS(clientset *kubernetes.Clientset) ([]string, error) {
 	var remoteVTEP []string
 	nodesList, err := clientset.CoreV1().Nodes().List(metav1.ListOptions{LabelSelector: "type != virtual-node"})
 	if err != nil {
-		logger.Error(err, "Unable to list nodes with labbel 'dronet.drone.com/gateway=true'")
-		return nil, fmt.Errorf("Unable to list nodes with labbel 'type != virtual-node': %v", err)
+		logger.Error(err, "Unable to list nodes with label 'liqonet.liqo.io/gateway=true'")
+		return nil, fmt.Errorf(" Unable to list nodes with label 'type != virtual-node': %v", err)
 	}
 	//get my podIP so i don't put consider it a s VTEP
 	podIP, err := getPodIP()

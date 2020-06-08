@@ -18,7 +18,7 @@ import (
 	"context"
 	"github.com/go-logr/logr"
 	"github.com/liqoTech/liqo/api/tunnel-endpoint/v1"
-	dronetOperator "github.com/liqoTech/liqo/pkg/liqonet"
+	liqonetOperator "github.com/liqoTech/liqo/pkg/liqonet"
 	"github.com/vishvananda/netlink"
 	"k8s.io/apimachinery/pkg/runtime"
 	"os"
@@ -35,15 +35,15 @@ type TunnelController struct {
 	TunnelIFacesPerRemoteCluster map[string]int
 }
 
-// +kubebuilder:rbac:groups=dronet.drone.com,resources=tunnelendpoints,verbs=get;list;watch;create;update;patch;delete
-// +kubebuilder:rbac:groups=dronet.drone.com,resources=tunnelendpoints/status,verbs=get;update;patch
+// +kubebuilder:rbac:groups=liqonet.liqo.io,resources=tunnelendpoints,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=liqonet.liqo.io,resources=tunnelendpoints/status,verbs=get;update;patch
 
 func (r *TunnelController) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 	ctx := context.Background()
 	log := r.Log.WithValues("endpoint", req.NamespacedName)
 	var endpoint v1.TunnelEndpoint
 	//name of our finalizer
-	tunnelEndpointFinalizer := "tunnelEndpointFinalizer.dronet.drone.com"
+	tunnelEndpointFinalizer := "tunnelEndpointFinalizer.liqonet.liqo.io"
 
 	if err := r.Get(ctx, req.NamespacedName, &endpoint); err != nil {
 		log.Error(err, "unable to fetch endpoint, probably it has been deleted")
@@ -56,7 +56,7 @@ func (r *TunnelController) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 	}
 	// examine DeletionTimestamp to determine if object is under deletion
 	if endpoint.ObjectMeta.DeletionTimestamp.IsZero() {
-		if !dronetOperator.ContainsString(endpoint.ObjectMeta.Finalizers, tunnelEndpointFinalizer) {
+		if !liqonetOperator.ContainsString(endpoint.ObjectMeta.Finalizers, tunnelEndpointFinalizer) {
 			// The object is not being deleted, so if it does not have our finalizer,
 			// then lets add the finalizer and update the object. This is equivalent
 			// registering our finalizer.
@@ -68,15 +68,15 @@ func (r *TunnelController) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 		}
 	} else {
 		//the object is being deleted
-		if dronetOperator.ContainsString(endpoint.Finalizers, tunnelEndpointFinalizer) {
-			if err := dronetOperator.RemoveGreTunnel(&endpoint); err != nil {
+		if liqonetOperator.ContainsString(endpoint.Finalizers, tunnelEndpointFinalizer) {
+			if err := liqonetOperator.RemoveGreTunnel(&endpoint); err != nil {
 				return ctrl.Result{}, err
 			}
 			//safe to do, even if the key does not exist in the map
 			delete(r.TunnelIFacesPerRemoteCluster, endpoint.Spec.ClusterID)
 			log.Info("tunnel iface removed")
 			//remove the finalizer from the list and update it.
-			endpoint.Finalizers = dronetOperator.RemoveString(endpoint.Finalizers, tunnelEndpointFinalizer)
+			endpoint.Finalizers = liqonetOperator.RemoveString(endpoint.Finalizers, tunnelEndpointFinalizer)
 			if err := r.Update(ctx, &endpoint); err != nil {
 				return ctrl.Result{}, err
 			}
@@ -88,7 +88,7 @@ func (r *TunnelController) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 	//and install the tunnel only
 	//check if the CR is newly created
 	if endpoint.Status.Phase == "Processed" {
-		iFaceIndex, iFaceName, err := dronetOperator.InstallGreTunnel(&endpoint)
+		iFaceIndex, iFaceName, err := liqonetOperator.InstallGreTunnel(&endpoint)
 		if err != nil {
 			log.Error(err, "unable to create the gre tunnel")
 			return ctrl.Result{}, err
@@ -98,11 +98,11 @@ func (r *TunnelController) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 		r.TunnelIFacesPerRemoteCluster[endpoint.Spec.ClusterID] = iFaceIndex
 		log.Info("installed gretunel with index: " + iFaceName)
 		//update the status of CR
-		localTunnelPublicIP, err := dronetOperator.GetLocalTunnelPublicIPToString()
+		localTunnelPublicIP, err := liqonetOperator.GetLocalTunnelPublicIPToString()
 		if err != nil {
 			log.Error(err, "unable to get localTunnelPublicIP")
 		}
-		localTunnelPrivateIP, err := dronetOperator.GetLocalTunnelPrivateIPToString()
+		localTunnelPrivateIP, err := liqonetOperator.GetLocalTunnelPrivateIPToString()
 		if err != nil {
 			log.Error(err, "unable to get localTunnelPrivateIP")
 		}
@@ -119,7 +119,7 @@ func (r *TunnelController) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 		}
 	} else if endpoint.Status.Phase == "Ready" {
 		//set the label that the resource have been processed by tunnel-operator
-		endpoint.ObjectMeta.SetLabels(dronetOperator.SetLabelHandler(dronetOperator.TunOpLabelKey, "ready", endpoint.ObjectMeta.GetLabels()))
+		endpoint.ObjectMeta.SetLabels(liqonetOperator.SetLabelHandler(liqonetOperator.TunOpLabelKey, "ready", endpoint.ObjectMeta.GetLabels()))
 		err := r.Client.Update(ctx, &endpoint)
 		if err != nil {
 			return ctrl.Result{}, err

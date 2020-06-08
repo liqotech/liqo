@@ -8,7 +8,7 @@ import (
 
 // we'd like to have crd cluster-scoped, but there is an issue in that. Additional investigation required
 var (
-	domain = "drone.com"
+	domain = "liqo.io"
 )
 
 func (sn *SchedulingNode) InitSchedulingNode(name string) {

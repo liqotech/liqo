@@ -33,8 +33,8 @@ type SchedulingNodeReconciler struct {
 	Scheme *runtime.Scheme
 }
 
-// +kubebuilder:rbac:groups=scheduling.drone.com,resources=schedulingnodes,verbs=get;list;watch;create;update;patch;delete
-// +kubebuilder:rbac:groups=scheduling.drone.com,resources=schedulingnodes/status,verbs=get;update;patch
+// +kubebuilder:rbac:groups=scheduling.liqo.io,resources=schedulingnodes,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=scheduling.liqo.io,resources=schedulingnodes/status,verbs=get;update;patch
 
 func (r *SchedulingNodeReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 	ctx := context.Background()

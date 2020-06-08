@@ -18,8 +18,8 @@ type IPTableChain struct {
 }
 
 //We create the chains in two different tables.
-//DRONET-POSTROUTING is created in the nat table
-//DRONET-FORWARD is created in the filter table
+//LIQONET-POSTROUTING is created in the nat table
+//LIQONET-FORWARD is created in the filter table
 func CreateIptablesChainsIfNotExist(ipt *iptables.IPTables, table string, newChain string) error {
 	//get existing chains
 	chains_list, err := ipt.ListChains(table)
