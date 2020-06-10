@@ -1,20 +1,26 @@
-Discovery service aims to join two clusters running Liqo. We call "client" cluster the one that needs resources and "server" cluster the one that can share resources.
+#Discovery 
 
-### How it works
+## Scenarios
 
-Server:
+* Exploring Neighborhood (e.g. LAN) for resources
+* DNS Discovery
+* Manual Insertion
 
-1. create and serve a ConfigMap with stored inside a kube-config file with create-only permission on `PeeringRequest` resource
-2. register master IP and ConfigMap URL to a mDNS service
+# Neighborhood discovery
 
-Client:
+service aims to join two clusters running Liqo. We call "client" cluster the one that needs resources and "server" 
+cluster the one that can share resources.
 
-1. send on local network mDNS query to find available servers
-2. download kube-config from them
-3. store these files in `ForeignCluster` CR along with their `clusterID`
-4. an operator is running on `ForeignCluster` CRD and when Peer flag become true (both automatically or manually) uses stored kube-config file to create a new `PeeringRequest` CR in foreign cluster
+Discovery service allows two clusters to know each other, ask for resources and begin exchanging Advertisements.
+The protocol is described by the following steps:
+1. each cluster creates and manages a ConfigMap containing a kubeconfig file with create-only permission on `FederationRequest` resources
+2. each cluster registers its master IP and ConfigMap URL to a mDNS service
+3. the requesting cluster sends on local network a mDNS query to find available servers
+4. when someone replies, the requesting cluster downloads its exposed kubeconfig
+5. the client cluster stores this information in `ForeignCluster` CR along with their `clusterID`
+6. when the `Join` flag in the `ForeignCluster` CR becomes true (either automatically or manually), 
+an operator is triggered and uses the stored kubeconfig to create a new `FederationRequest` CR on the _foreign cluster_.
+ `FederationRequest` creation process includes the creation of new kubeconfig with management permission on `Advertisement` CRs
+7. on the server cluster, an admission webhook accept/reject `FederationRequest`s
+8. the `FederationRequest` is used to start the sharing of resources
 
-Server:
-
-1. peering-requests admission webhook accept/reject `PeeringRequest`s
-2. using a `PeeringRequest` we start a new broadcaster
