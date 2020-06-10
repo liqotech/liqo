@@ -20,16 +20,12 @@ type DiscoveryCtrl struct {
 	ClusterId       *clusterID.ClusterID
 }
 
-func NewDiscoveryCtrl(namespace string) (*DiscoveryCtrl, error) {
+func NewDiscoveryCtrl(namespace string, clusterId *clusterID.ClusterID) (*DiscoveryCtrl, error) {
 	client, err := clients.NewK8sClient()
 	if err != nil {
 		return nil, err
 	}
 	clientDiscovery, err := clients.NewDiscoveryClient()
-	if err != nil {
-		return nil, err
-	}
-	clusterId, err := clusterID.NewClusterID()
 	if err != nil {
 		return nil, err
 	}

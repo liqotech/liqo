@@ -131,6 +131,7 @@ func (cId *ClusterID) save(id string, namespace string) error {
 					"cluster-id": id,
 				},
 			}
+			cId.id = id
 			_, err := cId.client.CoreV1().ConfigMaps(namespace).Create(cm)
 			return err
 		}
