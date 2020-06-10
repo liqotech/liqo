@@ -48,5 +48,18 @@ schedulingNodeOperator_chart:
     pullPolicy: "IfNotPresent"
   enabled: true
 
+#configuration values for the mutatingWebhook subchart
+mutatingWebhook_chart:
+  init-mutatingWebhook:
+    image:
+      repository: "liqo/init-pod-mutator"
+      pullPolicy: "IfNotPresent"
+  mutatingWebhook:
+    image:
+      repository: "liqo/pod-mutator"
+      pullPolicy: "IfNotPresent"
+  enabled: true
+
+
 global:
   configmapName: "liqo-configmap"
