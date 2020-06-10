@@ -88,7 +88,6 @@ func CreateVkDeployment(adv *protocolv1.Advertisement, nameSA, vkNamespace, vkIm
 		adv.Spec.ClusterId,
 		"--provider",
 		"kubernetes",
-		"--disable-taint",
 		"--nodename",
 		"vk-" + adv.Spec.ClusterId,
 		"--kubelet-namespace",
@@ -216,6 +215,18 @@ func CreateVkDeployment(adv *protocolv1.Advertisement, nameSA, vkNamespace, vkIm
 								{
 									Name:      "VKUBELET_POD_IP",
 									ValueFrom: &v1.EnvVarSource{FieldRef: &v1.ObjectFieldSelector{FieldPath: "status.podIP", APIVersion: "v1"}},
+								},
+								{
+									Name:  "VKUBELET_TAINT_KEY",
+									Value: "virtual-node.liqo.io/not-allowed",
+								},
+								{
+									Name:  "VKUBELET_TAINT_VALUE",
+									Value: "true",
+								},
+								{
+									Name:  "VKUBELET_TAINT_EFFECT",
+									Value: "NoExecute",
 								},
 							},
 						},
