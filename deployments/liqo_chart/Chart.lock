@@ -1,0 +1,24 @@
+dependencies:
+- name: adv_chart
+  repository: file://subcharts/adv_chart/
+  version: 0.1.0
+- name: networkModule_chart
+  repository: file://subcharts/networkModule_chart/
+  version: 0.1.0
+- name: tunnelEndpointCreator_chart
+  repository: file://subcharts/tunnelEndpointCreator_chart/
+  version: 0.1.0
+- name: schedulingNodeOperator_chart
+  repository: file://subcharts/schedulingNodeOperator_chart/
+  version: 0.1.0
+- name: mutatingWebhook_chart
+  repository: file://subcharts/mutatingWebhook_chart/
+  version: 0.1.0
+- name: discovery_chart
+  repository: file://subcharts/discovery_chart/
+  version: 0.1.0
+- name: peeringRequestOperator_chart
+  repository: file://subcharts/peeringRequestOperator_chart/
+  version: 0.1.0
+digest: sha256:96c66cc786c6b845a379e657ef6619d67dafb0f995fc92ee36039a053bc664df
+generated: "2020-06-10T15:32:43.298725518+02:00"

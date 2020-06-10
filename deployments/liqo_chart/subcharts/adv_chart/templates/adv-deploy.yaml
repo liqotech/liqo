@@ -3,10 +3,11 @@ apiVersion: v1
 kind: ServiceAccount
 metadata:
   name: advertisement-operator
+  namespace: {{ .Release.Namespace }}
   labels:
     k8s-app: advertisement-operator
 ---
-apiVersion: rbac.authorization.k8s.io/v1beta1
+apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
 metadata:
   name: advertisement-operator
@@ -22,7 +23,7 @@ roleRef:
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  creationTimestamp: null
+  namespace: {{ .Release.Namespace }}
   labels:
     run: advertisement-operator
   name: advertisement-operator
@@ -34,7 +35,6 @@ spec:
   strategy: {}
   template:
     metadata:
-      creationTimestamp: null
       labels:
         run: advertisement-operator
     spec:
