@@ -42,3 +42,11 @@ dependencies:
   version: "0.1.0"
   repository: file://subcharts/mutatingWebhook_chart/
   condition: mutatingWebhook_chart.enabled
+- name: discovery_chart
+  version: "0.1.0"
+  repository: file://subcharts/discovery_chart/
+  condition: mutatingWebhook.enabled
+- name: peeringRequestOperator_chart
+  version: "0.1.0"
+  repository: file://subcharts/peeringRequestOperator_chart/
+  condition: mutatingWebhook.enabled
