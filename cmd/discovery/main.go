@@ -4,6 +4,7 @@ import (
 	"flag"
 	"github.com/liqoTech/liqo/internal/discovery"
 	foreign_cluster_operator "github.com/liqoTech/liqo/internal/discovery/foreign-cluster-operator"
+	"github.com/liqoTech/liqo/pkg/clusterID"
 	"os"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
@@ -23,12 +24,18 @@ func main() {
 
 	ctrl.SetLogger(zap.New(zap.UseDevMode(true)))
 
-	discoveryCtl, err := discovery.NewDiscoveryCtrl(namespace)
+	clusterId, err := clusterID.NewClusterID()
 	if err != nil {
 		mainLog.Error(err, err.Error())
 		os.Exit(1)
 	}
-	err = discoveryCtl.ClusterId.SetupClusterID(namespace)
+	err = clusterId.SetupClusterID(namespace)
+	if err != nil {
+		mainLog.Error(err, err.Error())
+		os.Exit(1)
+	}
+
+	discoveryCtl, err := discovery.NewDiscoveryCtrl(namespace, clusterId)
 	if err != nil {
 		mainLog.Error(err, err.Error())
 		os.Exit(1)
