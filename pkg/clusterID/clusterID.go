@@ -106,7 +106,7 @@ func (cId *ClusterID) GetClusterID() string {
 
 func (cId *ClusterID) getMasterID() (string, error) {
 	nodes, err := cId.client.CoreV1().Nodes().List(metav1.ListOptions{
-		LabelSelector: "node-role.kubernetes.io/master=true",
+		LabelSelector: "node-role.kubernetes.io/master",
 	})
 	if err != nil {
 		return "", err
