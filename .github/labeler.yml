@@ -23,16 +23,21 @@ virtual-node:
   - internal/node/**/*
   - internal/trace/**/*
   - test/kubernetes_provider/**/*
+  - build/pod-mutator/**/*
 
-peering:
+discovery:
+  - internal/discovery/**/*
+  - build/peering-request-operator/**/*
   - build/discovery/**/*
+
+advertisement_management:
   - build/advertisement-broadcaster/**/*
   - build/advertisement-operator/**/*
   - deployment/advertisemet-operator/
   - deployment/advertisement-broadcaster/
   - pkg/adevertisement-operator/**/*
   - internal/advertisement-operator/**/*
-  - internal/discovery/**/*
+  - build/advertisement-broadcaster/**/*
 
 ui:
   - build/tray-agent/**/*
