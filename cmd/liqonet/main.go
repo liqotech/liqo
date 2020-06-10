@@ -98,7 +98,7 @@ func main() {
 	case "route-operator":
 		vxlanConfig, err := liqonet.ReadVxlanNetConfig(defaultConfig)
 		if err != nil {
-			setupLog.Error(err, "an error occured while getting the vxlan network configuration")
+			setupLog.Error(err, "an error occurred while getting the vxlan network configuration")
 		}
 		vxlanPort, err := strconv.Atoi(vxlanConfig.Port)
 		if err != nil {
@@ -111,24 +111,24 @@ func main() {
 		//Enable loose mode reverse path filtering on the vxlan interfaces
 		err = liqonet.Enable_rp_filter()
 		if err != nil {
-			setupLog.Error(err, "an error occured while enablig loose mode reverse path filtering")
+			setupLog.Error(err, "an error occurred while enabling loose mode reverse path filtering")
 			os.Exit(3)
 		}
 		isGatewayNode, err := liqonet.IsGatewayNode(clientset)
 		if err != nil {
-			setupLog.Error(err, "an error occured while checking if the node is the gatewaynode")
+			setupLog.Error(err, "an error occurred while checking if the node is the GatewayNode")
 			os.Exit(2)
 		}
 		//get node name
 		nodeName, err := liqonet.GetNodeName()
 		if err != nil {
-			setupLog.Error(err, "an error occured while retrieving node name")
+			setupLog.Error(err, "an error occurred while retrieving node name")
 			os.Exit(4)
 		}
 		//get node name
 		podCIDR, err := liqonet.GetClusterPodCIDR()
 		if err != nil {
-			setupLog.Error(err, "an error occured while retrieving cluster pod cidr")
+			setupLog.Error(err, "an error occurred while retrieving cluster pod cidr")
 			os.Exit(6)
 		}
 		gatewayVxlanIP, err := liqonet.GetGatewayVxlanIP(clientset, vxlanConfig)
