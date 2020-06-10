@@ -34,10 +34,12 @@ type PeeringRequestReconciler struct {
 	Log    logr.Logger
 	Scheme *runtime.Scheme
 
-	client          *kubernetes.Clientset
-	discoveryClient *v1.DiscoveryV1Client
-	Namespace       string
-	clusterId       *clusterID.ClusterID
+	client           *kubernetes.Clientset
+	discoveryClient  *v1.DiscoveryV1Client
+	Namespace        string
+	clusterId        *clusterID.ClusterID
+	configMapName    string
+	broadcasterImage string
 }
 
 // +kubebuilder:rbac:groups=discovery.liqo.io,resources=peeringrequests,verbs=get;list;watch;create;update;patch;delete
@@ -65,11 +67,11 @@ func (r *PeeringRequestReconciler) Reconcile(req ctrl.Request) (ctrl.Result, err
 	}
 	if !exists {
 		r.Log.Info("Deploy Broadcaster")
-		cm, err := r.client.CoreV1().ConfigMaps(r.Namespace).Get("adv-operator-config", metav1.GetOptions{})
+		cm, err := r.client.CoreV1().ConfigMaps(r.Namespace).Get(r.configMapName, metav1.GetOptions{})
 		if err != nil {
 			return ctrl.Result{}, err
 		}
-		deploy := GetBroadcasterDeployment(fr, "broadcaster", r.Namespace, "liqo/advertisement-broadcaster", r.clusterId.GetClusterID(), cm.Data["gatewayIP"], cm.Data["gatewayPrivateIP"])
+		deploy := GetBroadcasterDeployment(fr, "broadcaster", r.Namespace, r.broadcasterImage, r.clusterId.GetClusterID(), cm.Data["gatewayIP"], cm.Data["gatewayPrivateIP"])
 		_, err = r.client.AppsV1().Deployments(r.Namespace).Create(&deploy)
 		if err != nil {
 			return ctrl.Result{}, err

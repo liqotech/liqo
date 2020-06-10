@@ -20,7 +20,7 @@ func init() {
 	// +kubebuilder:scaffold:scheme
 }
 
-func StartOperator(namespace string) {
+func StartOperator(namespace string, configMapName string, broadcasterImage string) {
 	log := ctrl.Log.WithName("controllers").WithName("PeeringRequest")
 
 	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
@@ -55,10 +55,12 @@ func StartOperator(namespace string) {
 		Log:    log,
 		Scheme: mgr.GetScheme(),
 
-		client:          client,
-		discoveryClient: discoveryClient,
-		Namespace:       namespace,
-		clusterId:       clusterId,
+		client:           client,
+		discoveryClient:  discoveryClient,
+		Namespace:        namespace,
+		clusterId:        clusterId,
+		configMapName:    configMapName,
+		broadcasterImage: broadcasterImage,
 	}).SetupWithManager(mgr); err != nil {
 		log.Error(err, "unable to create controller")
 		os.Exit(1)
