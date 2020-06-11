@@ -1,6 +1,7 @@
 package clusterID
 
 import (
+	"errors"
 	"github.com/go-logr/logr"
 	"github.com/liqoTech/liqo/internal/discovery/clients"
 	"io/ioutil"
@@ -110,6 +111,9 @@ func (cId *ClusterID) getMasterID() (string, error) {
 	})
 	if err != nil {
 		return "", err
+	}
+	if len(nodes.Items) == 0 {
+		return "", errors.New("no master node found")
 	}
 	// get first master (ordered alphabetically by name)
 	sort.Slice(nodes.Items, func(i, j int) bool {
