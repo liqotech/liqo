@@ -2,11 +2,15 @@
 # This is a YAML-formatted file.
 # Declare variables to be passed into your templates.
 
-mutatingWebhook:
+secret-creation:
   image:
-    repository: "liqo/pod-mutator"
+    repository: "liqo/secret-creation"
     pullPolicy: "IfNotPresent"
 init-mutatingWebhook:
   image:
     repository: "liqo/init-pod-mutator"
+    pullPolicy: "IfNotPresent"
+mutatingWebhook:
+  image:
+    repository: "liqo/pod-mutator"
     pullPolicy: "IfNotPresent"
