@@ -1,6 +1,6 @@
 ![Go](https://github.com/liqoTech/liqo/workflows/Go/badge.svg) 
 [![Coverage Status](https://coveralls.io/repos/github/LiqoTech/liqo/badge.svg?branch=master)](https://coveralls.io/github/LiqoTech/liqo?branch=master)
-
+[![Go Report Card](https://goreportcard.com/badge/github.com/LiqoTech/liqo)](https://goreportcard.com/report/github.com/LiqoTech/liqo)
 # Liqo
 
 Liqo is a framework to enable dynamic sharing across Kubernetes Clusters. You can run your pods on a remote cluster
