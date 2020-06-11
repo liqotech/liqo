@@ -16,6 +16,7 @@ jobs:
         - discovery
         - peering-request-operator
         - tray-agent
+        - secret-creation
         - init-pod-mutator
         - pod-mutator
     steps:

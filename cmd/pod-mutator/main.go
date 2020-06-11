@@ -2,20 +2,27 @@ package main
 
 import (
 	"flag"
+	"github.com/joho/godotenv"
 	"github.com/liqoTech/liqo/pkg/mutate"
 	"k8s.io/klog"
 	"log"
 )
 
+const (
+	inputFile = "/etc/environment/liqo/env"
+)
+
 func main() {
 	config := &mutate.MutationConfig{}
 
-	flag.StringVar(&config.SecretNamespace, "secret-namespace", "", "The namespace in which the secret has been created")
-	flag.StringVar(&config.SecretName, "secret-name", "", "The name of the secret to fetch")
-	flag.StringVar(&config.CertFile, "cert-file", "", "The local path in which to copy the certificate")
-	flag.StringVar(&config.KeyFile, "key-file", "", "The local path in which to copy the key")
+	var inputEnvFile string
+
+	flag.StringVar(&inputEnvFile, "input-env-file", inputFile, "The environment variable file to source at startup")
 	flag.Parse()
 
+	if err := godotenv.Load(inputEnvFile); err != nil {
+		klog.Fatal("The env variable file hasn't been correctly loaded")
+	}
 	setOptions(config)
 
 	log.Println("Starting server ...")

@@ -1,28 +1,22 @@
 package main
 
-import "github.com/liqoTech/liqo/pkg/mutate"
+import (
+	"github.com/liqoTech/liqo/pkg/mutate"
+	"os"
+)
 
 const (
-	defaultNamespace  = "default"
-	defaultSecretName = "pod-mutator-secret"
-	defaultCertFile   = "/etc/ssl/liqo/cert.pem"
-	defaultKeyFile    = "/etc/ssl/liqo/key.pem"
+	defaultCertFile = "/etc/ssl/liqo/cert.pem"
+	defaultKeyFile  = "/etc/ssl/liqo/key.pem"
 )
 
 func setOptions(c *mutate.MutationConfig) {
-	if c.SecretNamespace == "" {
-		c.SecretNamespace = defaultNamespace
-	}
 
-	if c.SecretName == "" {
-		c.SecretName = defaultSecretName
-	}
-
-	if c.KeyFile == "" {
+	if c.KeyFile = os.Getenv("liqokey"); c.KeyFile == "" {
 		c.KeyFile = defaultKeyFile
 	}
 
-	if c.CertFile == "" {
+	if c.CertFile = os.Getenv("liqocert"); c.CertFile == "" {
 		c.CertFile = defaultCertFile
 	}
 }
