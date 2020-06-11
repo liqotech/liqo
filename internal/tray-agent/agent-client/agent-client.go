@@ -9,6 +9,7 @@ import (
 	"flag"
 	"fmt"
 	"github.com/liqoTech/liqo/api/advertisement-operator/v1"
+	app_indicator "github.com/liqoTech/liqo/internal/tray-agent/app-indicator"
 	advop "github.com/liqoTech/liqo/pkg/advertisement-operator"
 	"os"
 	"path/filepath"
@@ -25,14 +26,10 @@ import (
 //
 // It returns the address of a string containing the value of $LIQO_KCONFIG
 func AcquireConfig() *string {
-	//liqoPath := filepath.Join(os.Getenv("HOME"), "liqo")
-	liqoPath := "/liqo"
-	if err := os.Setenv("LIQO_PATH", liqoPath); err != nil {
-		os.Exit(1)
-	}
-	kubeconfig := flag.String("kubeconfig", filepath.Join(liqoPath, "Konfig.liqo"),
+	kubePath := filepath.Join(os.Getenv("HOME"), ".kube")
+	kubeconfig := flag.String("kubeconfig", filepath.Join(kubePath, "config"),
 		"[OPT] absolute path to the kubeconfig file."+
-			" Default = /liqo/Konfig.liqo")
+			" Default = $HOME/.kube/config")
 	flag.Parse()
 	if err := os.Setenv("LIQO_KCONFIG", *kubeconfig); err != nil {
 		os.Exit(1)
@@ -64,6 +61,11 @@ func ListAdvertisements(c *client.Client) (advDescriptionList []string, err erro
 	if err != nil {
 		return nil, err
 	}
+	//temporary workaround to show advertisements notifications
+	if len(advList.Items)>0 {
+		app_indicator.GetIndicator().SetIcon(app_indicator.IconLiqoAdvNew)
+		app_indicator.GetIndicator().SetLabel(string(len(advList.Items)))
+	}
 	for i, adv := range advList.Items {
 
 		str := strings.Builder{}
@@ -78,11 +80,12 @@ func DescribeAdvertisement(adv *v1.Advertisement) string {
 	prices := adv.Spec.Prices
 	CpuPrice := prices["cpu"]
 	MemPrice := prices["memory"]
-	str.WriteString(fmt.Sprintf("%v\n", adv.Name))
+	//str.WriteString(fmt.Sprintf("%v\n", adv.Name))
 	str.WriteString(fmt.Sprintf("\t• ClusterID: %v\n\t• Available Resources:\n", adv.Spec.ClusterId))
+	str.WriteString(fmt.Sprintf("\t• STATUS: %v", adv.Status.AdvertisementStatus))
 	str.WriteString(fmt.Sprintf("\t\t-cpu = %v [price %v]\n", adv.Spec.ResourceQuota.Hard.Cpu(), CpuPrice.String()))
 	str.WriteString(fmt.Sprintf("\t\t-memory = %v [price %v]\n", adv.Spec.ResourceQuota.Hard.Memory(), MemPrice.String()))
-	str.WriteString(fmt.Sprintf("\t\t-pods = %v\n", adv.Spec.ResourceQuota.Hard.Pods()))
-	str.WriteString(fmt.Sprintf("\t• STATUS: %v", adv.Status.AdvertisementStatus))
+	//str.WriteString(fmt.Sprintf("\t\t-pods = %v\n", adv.Spec.ResourceQuota.Hard.Pods()))
+
 	return str.String()
 }
