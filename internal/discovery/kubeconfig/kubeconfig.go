@@ -1,6 +1,7 @@
 package kubeconfig
 
 import (
+	"errors"
 	"github.com/liqoTech/liqo/internal/discovery/clients"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -22,10 +23,13 @@ func CreateKubeConfig(serviceAccountName string, namespace string) (string, erro
 	}
 
 	nodes, err := clientset.CoreV1().Nodes().List(v1.ListOptions{
-		LabelSelector: "node-role.kubernetes.io/master=true",
+		LabelSelector: "node-role.kubernetes.io/master",
 	})
 	if err != nil {
 		return "", err
+	}
+	if len(nodes.Items) == 0 {
+		return "", errors.New("no master node found")
 	}
 
 	token := string(secret.Data["token"])
