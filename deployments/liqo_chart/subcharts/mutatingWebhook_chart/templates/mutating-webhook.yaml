@@ -52,28 +52,49 @@ spec:
     spec:
       serviceAccountName: podmutatoraccount
       initContainers:
-      - name: pod-mutator-init
-        image: liqo/init-pod-mutator
+      - name: secret-creation
+        image: liqo/secret-creation
         imagePullPolicy: Always
         args:
           - "--namespace"
-          - "liqo"
+          - {{ .Release.Namespace }}
           - "--service"
           - "mutatepodtoleration"
           - "--secret"
           - "pod-mutator-secret"
+          - "--export-env-vars"
+          - "--output-env-file"
+          - "/etc/environment/liqo/env"
+          - "--output-dir"
+          - "/etc/ssl/liqo"
+        volumeMounts:
+          - mountPath: /etc/ssl/liqo
+            name: certs-volume
+          - mountPath: /etc/environment/liqo
+            name: env-volume
+      - name: pod-mutator-deployment
+        image: liqo/init-pod-mutator
+        imagePullPolicy: Always
+        args:
+          - "--input-env-file"
+          - "/etc/environment/liqo/env"
+        volumeMounts:
+          - mountPath: /etc/environment/liqo
+            name: env-volume
       containers:
       - name: podmutator
         image: liqo/pod-mutator
         imagePullPolicy: Always
         args:
-          - "--secret-namespace"
-          - "liqo"
-          - "--secret-name"
-          - "pod-mutator-secret"
+          - "--input-env-file"
+          - "/etc/environment/liqo/env"
         volumeMounts:
         - mountPath: /etc/ssl/liqo
           name: certs-volume
+        - mountPath: /etc/environment/liqo
+          name: env-volume
       volumes:
         - name: certs-volume
+          emptyDir: {}
+        - name: env-volume
           emptyDir: {}
