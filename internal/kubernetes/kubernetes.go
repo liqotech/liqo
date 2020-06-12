@@ -18,8 +18,6 @@ import (
 )
 
 const (
-	namespaceKey       = "namespace"
-	nameKey            = "name"
 	defaultMetricsAddr = ":8080"
 )
 

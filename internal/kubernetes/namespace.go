@@ -77,7 +77,7 @@ func (p *KubernetesProvider) NatNamespace(namespace string, create bool) (string
 	}
 
 	if !ok && create {
-		nattedNS = strings.Join([]string{p.homeClusterID, namespace}, "-")
+		nattedNS = strings.Join([]string{namespace, p.homeClusterID}, "-")
 		if nattingTable.Spec.NattingTable == nil {
 			nattingTable.Spec.NattingTable = make(map[string]string)
 			nattingTable.Spec.DeNattingTable = make(map[string]string)

@@ -6,6 +6,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/kubernetes"
+	"k8s.io/klog"
 )
 
 func (p *KubernetesProvider) manageSecEvent(event watch.Event) error {
@@ -25,27 +26,27 @@ func (p *KubernetesProvider) manageSecEvent(event watch.Event) error {
 	case watch.Added:
 		_, err := p.foreignClient.Client().CoreV1().Secrets(nattedNS).Get(sec.Name, metav1.GetOptions{})
 		if err != nil {
-			p.log.Info("remote secret " + sec.Name + " doesn't exist: creating it")
+			klog.Info("remote secret " + sec.Name + " doesn't exist: creating it")
 
 			if err = CreateSecret(p.foreignClient.Client(), sec, nattedNS); err != nil {
-				p.log.Error(err, "unable to create secret "+sec.Name+" on cluster "+p.foreignClusterId)
+				klog.Error(err, "unable to create secret "+sec.Name+" on cluster "+p.foreignClusterId)
 			} else {
-				p.log.Info("correctly created secret " + sec.Name + " on cluster " + p.foreignClusterId)
+				klog.Info("correctly created secret " + sec.Name + " on cluster " + p.foreignClusterId)
 			}
 		}
 
 	case watch.Modified:
 		if err = UpdateSecret(p.foreignClient.Client(), sec, nattedNS); err != nil {
-			p.log.Error(err, "unable to update secret "+sec.Name+" on cluster "+p.foreignClusterId)
+			klog.Error(err, "unable to update secret "+sec.Name+" on cluster "+p.foreignClusterId)
 		} else {
-			p.log.Info("correctly updated secret " + sec.Name + " on cluster " + p.foreignClusterId)
+			klog.Info("correctly updated secret " + sec.Name + " on cluster " + p.foreignClusterId)
 		}
 
 	case watch.Deleted:
 		if err = DeleteSecret(p.foreignClient.Client(), sec, nattedNS); err != nil {
-			p.log.Error(err, "unable to delete secret "+sec.Name+" on cluster "+p.foreignClusterId)
+			klog.Error(err, "unable to delete secret "+sec.Name+" on cluster "+p.foreignClusterId)
 		} else {
-			p.log.Info("correctly deleted secret " + sec.Name + " on cluster " + p.foreignClusterId)
+			klog.Info("correctly deleted secret " + sec.Name + " on cluster " + p.foreignClusterId)
 		}
 	}
 	return nil

@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"github.com/liqoTech/liqo/internal/errdefs"
-	"github.com/liqoTech/liqo/internal/log"
 	"github.com/liqoTech/liqo/internal/node/api"
 	"github.com/liqoTech/liqo/internal/trace"
 	"github.com/pkg/errors"
@@ -23,21 +22,16 @@ import (
 
 // CreatePod accepts a Pod definition and stores it in memory.
 func (p *KubernetesProvider) CreatePod(ctx context.Context, pod *v1.Pod) error {
-
-	ctx, span := trace.StartSpan(ctx, "CreatePod")
-	defer span.End()
-
 	// Add the pod's coordinates to the current span.
 	if pod == nil {
 		return errors.New("pod cannot be nil")
 	}
-	ctx = addAttributes(ctx, span, namespaceKey, pod.Namespace, nameKey, pod.Name)
 
-	log.G(ctx).Infof("receive CreatePod %q", pod.Name)
+	klog.Infof("receive CreatePod %q", pod.Name)
 
 	if pod.OwnerReferences != nil && len(pod.OwnerReferences) != 0 && pod.OwnerReferences[0].Kind == "DaemonSet" {
 		msg := fmt.Sprintf("Skip to create DaemonSet pod %q", pod.Name)
-		log.G(ctx).WithField("Method", "CreatePod").Info(msg)
+		klog.Info(msg)
 		return nil
 	}
 
@@ -52,7 +46,7 @@ func (p *KubernetesProvider) CreatePod(ctx context.Context, pod *v1.Pod) error {
 	if err != nil {
 		return err
 	}
-	log.G(ctx).Info("Pod", podServer.Name, "successfully created on remote cluster")
+	klog.Info("Pod", podServer.Name, "successfully created on remote cluster")
 	// Here we have to change the view of the remote POD to show it as a local one
 	p.notifier(pod)
 
@@ -61,16 +55,10 @@ func (p *KubernetesProvider) CreatePod(ctx context.Context, pod *v1.Pod) error {
 
 // UpdatePod accepts a Pod definition and updates its reference.
 func (p *KubernetesProvider) UpdatePod(ctx context.Context, pod *v1.Pod) error {
-	ctx, span := trace.StartSpan(ctx, "UpdatePod")
-
 	if pod == nil {
 		return errors.New("pod cannot be nil")
 	}
 	// Add the pod's coordinates to the current span.
-	ctx = addAttributes(ctx, span, namespaceKey, pod.Namespace, nameKey, pod.Name)
-
-	log.G(ctx).Infof("receive UpdatePod %q", pod.Name)
-
 	nattedNS, err := p.NatNamespace(pod.Namespace, false)
 	if err != nil {
 		return err
@@ -80,8 +68,11 @@ func (p *KubernetesProvider) UpdatePod(ctx context.Context, pod *v1.Pod) error {
 
 	poUpdated, err := p.foreignClient.Client().CoreV1().Pods(nattedNS).Get(podTranslated.Name, metav1.GetOptions{})
 	if err != nil {
+		klog.Warningf("Cannot update pod \"%s\" in provider namespace \"%s\"", podTranslated.Name, podTranslated.Namespace)
 		return err
 	}
+	klog.V(3).Infof("Updated pod \"%s\" in provider namespace \"%s\"", podTranslated.Name, podTranslated.Namespace)
+
 	podInverse := F2HTranslate(poUpdated, p.RemappedPodCidr, pod.Namespace)
 	p.notifier(podInverse)
 
@@ -90,13 +81,7 @@ func (p *KubernetesProvider) UpdatePod(ctx context.Context, pod *v1.Pod) error {
 
 // DeletePod deletes the specified pod out of memory.
 func (p *KubernetesProvider) DeletePod(ctx context.Context, pod *v1.Pod) (err error) {
-	ctx, span := trace.StartSpan(ctx, "DeletePod")
-	defer span.End()
-
-	// Add the pod's coordinates to the current span.
-	ctx = addAttributes(ctx, span, namespaceKey, pod.Namespace, nameKey, pod.Name)
-
-	log.G(ctx).Infof("receive DeletePod %q", pod.Name)
+	klog.Infof("receive DeletePod %q", pod.Name)
 	opts := &metav1.DeleteOptions{}
 
 	nattedNS, err := p.NatNamespace(pod.Namespace, false)
@@ -136,16 +121,7 @@ func (p *KubernetesProvider) DeletePod(ctx context.Context, pod *v1.Pod) (err er
 
 // GetPod returns a pod by name that is stored in memory.
 func (p *KubernetesProvider) GetPod(ctx context.Context, namespace, name string) (pod *v1.Pod, err error) {
-	ctx, span := trace.StartSpan(ctx, "GetPod")
-	defer func() {
-		span.SetStatus(err)
-		span.End()
-	}()
-
-	// Add the pod's coordinates to the current span.
-	ctx = addAttributes(ctx, span, namespaceKey, namespace, nameKey, name)
-
-	log.G(ctx).Infof("receive GetPod %q", name)
+	klog.Infof("receive GetPod %q", name)
 	opts := metav1.GetOptions{}
 
 	nattedNS, err := p.NatNamespace(namespace, false)
@@ -168,12 +144,6 @@ func (p *KubernetesProvider) GetPod(ctx context.Context, namespace, name string)
 // GetPodStatus returns the status of a pod by name that is "running".
 // returns nil if a pod by that name is not found.
 func (p *KubernetesProvider) GetPodStatus(ctx context.Context, namespace, name string) (*v1.PodStatus, error) {
-	ctx, span := trace.StartSpan(ctx, "GetPodStatus")
-	defer span.End()
-
-	// Add namespace and name as attributes to the current span.
-	ctx = addAttributes(ctx, span, namespaceKey, namespace, nameKey, name)
-
 	nattedNS, err := p.NatNamespace(namespace, false)
 
 	if err != nil {
@@ -185,7 +155,7 @@ func (p *KubernetesProvider) GetPodStatus(ctx context.Context, namespace, name s
 		return nil, errors.Wrap(err, "error getting status")
 	}
 	podOutput := F2HTranslate(podForeignIn, p.RemappedPodCidr, namespace)
-	log.G(ctx).Infof("receive GetPodStatus %q", name)
+	klog.Infof("receive GetPodStatus %q", name)
 	return &podOutput.Status, nil
 }
 
@@ -251,10 +221,7 @@ func (p *KubernetesProvider) GetContainerLogs(ctx context.Context, namespace str
 
 // GetPods returns a list of all pods known to be "running".
 func (p *KubernetesProvider) GetPods(ctx context.Context) ([]*v1.Pod, error) {
-	ctx, span := trace.StartSpan(ctx, "GetPods")
-	defer span.End()
-
-	log.G(ctx).Info("receive GetPods")
+	klog.Info("receive GetPods")
 
 	if p.foreignClient == nil {
 		return nil, nil
@@ -267,10 +234,12 @@ func (p *KubernetesProvider) GetPods(ctx context.Context) ([]*v1.Pod, error) {
 		return nil, err
 	}
 
+	if nt == nil || nt.Spec.NattingTable == nil {
+		klog.Info("empty natting table")
+		return podsHomeOut, nil
+	}
+
 	for k, v := range nt.Spec.NattingTable {
-		if p == nil {
-			continue
-		}
 		podsForeignIn, err := p.foreignClient.Client().CoreV1().Pods(v).List(metav1.ListOptions{})
 
 		if err != nil {
@@ -379,20 +348,6 @@ func (p *KubernetesProvider) NotifyPods(ctx context.Context, notifier func(*v1.P
 	p.notifier = notifier
 }
 
-// addAttributes adds the specified attributes to the provided span.
-// attrs must be an even-sized list of string arguments.
-// Otherwise, the span won't be modified.
-// TODO: Refactor and move to a "tracing utilities" package.
-func addAttributes(ctx context.Context, span trace.Span, attrs ...string) context.Context {
-	if len(attrs)%2 == 1 {
-		return ctx
-	}
-	for i := 0; i < len(attrs); i += 2 {
-		ctx = span.WithField(ctx, attrs[i], attrs[i+1])
-	}
-	return ctx
-}
-
 func (p *KubernetesProvider) watchForeignPods(watcher watch.Interface, stop chan struct{}) {
 	for {
 		select {
@@ -408,7 +363,7 @@ func (p *KubernetesProvider) watchForeignPods(watcher watch.Interface, stop chan
 			}
 			denattedNS, err := p.DeNatNamespace(p2.Namespace)
 			if err != nil {
-				p.log.Error(err, "natting error in watchForeignPods")
+				klog.Error(err, "natting error in watchForeignPods")
 			}
 			p.notifier(F2HTranslate(p2, p.RemappedPodCidr, denattedNS))
 		}

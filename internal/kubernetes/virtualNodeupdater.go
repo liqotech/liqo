@@ -24,15 +24,15 @@ type VirtualNodeReconciler struct {
 	Scheme         *runtime.Scheme
 	provider       *KubernetesProvider
 	nodeController *node.NodeController
-	ready          chan bool
+	ready          chan struct{}
 }
 
 // NewVirtualNodeReconciler returns a new instance of VirtualNodeReconciler already set-up
-func NewVirtualNodeReconciler(p *KubernetesProvider, n *node.NodeController) (chan bool, error) {
-	ready := make(chan bool, 1)
+func NewVirtualNodeReconciler(p *KubernetesProvider, n *node.NodeController) (chan struct{}, error) {
+	ready := make(chan struct{}, 1)
 	return ready, (&VirtualNodeReconciler{
 		Client:         p.manager.GetClient(),
-		Log:            ctrl.Log.WithName("controllers").WithName("Advertisement"),
+		Log:            ctrl.Log.WithName("vk").WithName("node updater"),
 		Scheme:         p.manager.GetScheme(),
 		provider:       p,
 		nodeController: n,
@@ -58,12 +58,14 @@ func (r *VirtualNodeReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error)
 		}
 	}
 
-	if err := r.updateFromAdv(ctx, adv); err != nil {
-		klog.Info(err)
-		return ctrl.Result{}, err
+	var err error
+	for {
+		if err = r.updateFromAdv(ctx, adv); err == nil {
+			klog.Info("node correctly updated from advertisement")
+			return ctrl.Result{}, nil
+		}
+		klog.Error("node update from advertisement failed, trying again...")
 	}
-
-	return ctrl.Result{}, nil
 }
 
 // checkAdvFiltering filters the triggering of the reconcile function
@@ -101,8 +103,6 @@ func (r *VirtualNodeReconciler) SetupWithManager(mgr ctrl.Manager) error {
 }
 
 // Initialization of the Virtual kubelet, that implies:
-// * clientProvider initialization
-// * podWatcher launch
 func (r *VirtualNodeReconciler) initVirtualKubelet(adv advv1.Advertisement) error {
 	klog.Info("vk initializing")
 
@@ -112,7 +112,7 @@ func (r *VirtualNodeReconciler) initVirtualKubelet(adv advv1.Advertisement) erro
 		r.provider.RemappedPodCidr = adv.Spec.Network.PodCIDR
 	}
 
-	r.ready <- true
+	close(r.ready)
 
 	return nil
 }

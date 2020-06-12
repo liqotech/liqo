@@ -21,10 +21,11 @@ import (
 	"path"
 	"strings"
 
+	ctrl "sigs.k8s.io/controller-runtime"
+
 	"github.com/liqoTech/liqo/cmd/virtual-kubelet/internal/provider"
 	"github.com/liqoTech/liqo/internal/errdefs"
 	k "github.com/liqoTech/liqo/internal/kubernetes"
-	"github.com/liqoTech/liqo/internal/log"
 	"github.com/liqoTech/liqo/internal/manager"
 	"github.com/liqoTech/liqo/internal/node"
 	"github.com/pkg/errors"
@@ -41,6 +42,7 @@ import (
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/client-go/tools/record"
+	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 )
 
 // NewCommand creates a new top-level command.
@@ -149,11 +151,8 @@ func runRootCommand(ctx context.Context, s *provider.Store, c Opts) error {
 		return errors.Wrapf(err, "error initializing provider %s", c.Provider)
 	}
 
-	ctx = log.WithLogger(ctx, log.G(ctx).WithFields(log.Fields{
-		"provider":         c.Provider,
-		"operatingSystem":  c.OperatingSystem,
-		"node":             c.NodeName,
-		"watchedNamespace": c.KubeNamespace,
+	ctrl.SetLogger(zap.New(func(o *zap.Options) {
+		o.Development = true
 	}))
 
 	var leaseClient v1beta1.LeaseInterface
@@ -174,6 +173,7 @@ func runRootCommand(ctx context.Context, s *provider.Store, c Opts) error {
 		node.WithNodeEnableLeaseV1Beta1(leaseClient, nil),
 		node.WithNodeStatusUpdateErrorHandler(
 			func(ctx context.Context, err error) error {
+				klog.Info("node setting up")
 				newNode := pNode.DeepCopy()
 				newNode.ResourceVersion = ""
 
@@ -184,14 +184,15 @@ func runRootCommand(ctx context.Context, s *provider.Store, c Opts) error {
 				oldNode, newErr := client.CoreV1().Nodes().Get(newNode.Name, metav1.GetOptions{})
 				if newErr != nil {
 					if !k8serrors.IsNotFound(newErr) {
+						klog.Error(newErr, "node error")
 						return newErr
 					}
 					_, newErr = client.CoreV1().Nodes().Create(newNode)
-					log.G(ctx).Debug("created new node")
+					klog.Info("new node created")
 				} else {
 					oldNode.Status = newNode.Status
 					_, newErr = client.CoreV1().Nodes().UpdateStatus(oldNode)
-					log.G(ctx).Debug("Node updated")
+					klog.Info("node updated")
 				}
 
 				if newErr != nil {
@@ -205,16 +206,15 @@ func runRootCommand(ctx context.Context, s *provider.Store, c Opts) error {
 		os.Exit(1)
 	}
 
-	var ready chan bool
+	var ready chan struct{}
 	if ready, err = k.NewVirtualNodeReconciler(p.(*k.KubernetesProvider), nodeRunner); err != nil {
 		klog.Error(err, "unable to create controller")
-		os.Exit(1)
+		panic(nil)
 	}
 
 	<-ready
 
 	eb := record.NewBroadcaster()
-	eb.StartLogging(log.G(ctx).Infof)
 	eb.StartRecordingToSink(&corev1client.EventSinkImpl{Interface: client.CoreV1().Events(c.KubeNamespace)})
 
 	pc, err := node.NewPodController(node.PodControllerConfig{
@@ -241,13 +241,14 @@ func runRootCommand(ctx context.Context, s *provider.Store, c Opts) error {
 
 	go func() {
 		if err := pc.Run(ctx, c.PodSyncWorkers); err != nil && errors.Cause(err) != context.Canceled {
-			log.G(ctx).Fatal(err)
+			klog.Error(err, "error in pod controller running")
+			panic(nil)
 		}
 	}()
 
 	if c.StartupTimeout > 0 {
 		ctx, cancel := context.WithTimeout(ctx, c.StartupTimeout)
-		log.G(ctx).Info("Waiting for pod controller / VK to be ready")
+		klog.Info("Waiting for pod controller / VK to be ready")
 		select {
 		case <-ctx.Done():
 			cancel()
@@ -262,7 +263,8 @@ func runRootCommand(ctx context.Context, s *provider.Store, c Opts) error {
 
 	go func() {
 		if err := nodeRunner.Run(ctx); err != nil {
-			log.G(ctx).Fatal(err)
+			klog.Error(err, "error in pod controller running")
+			panic(nil)
 		}
 	}()
 
@@ -272,7 +274,7 @@ func runRootCommand(ctx context.Context, s *provider.Store, c Opts) error {
 
 	nodeRunner.Ready()
 
-	log.G(ctx).Info("Initialized")
+	klog.Info("setup ended")
 
 	<-ctx.Done()
 	return nil
@@ -304,14 +306,12 @@ func newClient(configPath string) (*kubernetes.Clientset, error) {
 }
 
 func createOwnerReference(c *kubernetes.Clientset, deployName, namespace string) []metav1.OwnerReference {
-
 	if d, err := c.AppsV1().Deployments(namespace).Get(deployName, metav1.GetOptions{
 		TypeMeta: metav1.TypeMeta{Kind: "Deployment", APIVersion: metav1.SchemeGroupVersion.Version},
 	}); err != nil {
 		if k8serrors.IsNotFound(err) {
-			klog.Info("deployment not found")
+			klog.Info("virtual kubelet deployment not found, setting empty owner reference")
 		}
-
 		return []metav1.OwnerReference{}
 	} else {
 		return []metav1.OwnerReference{

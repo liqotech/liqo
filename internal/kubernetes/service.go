@@ -6,6 +6,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/kubernetes"
+	"k8s.io/klog"
 )
 
 func (p *KubernetesProvider) manageSvcEvent(event watch.Event) error {
@@ -25,27 +26,27 @@ func (p *KubernetesProvider) manageSvcEvent(event watch.Event) error {
 	case watch.Added:
 		_, err := p.foreignClient.Client().CoreV1().Services(nattedNS).Get(svc.Name, metav1.GetOptions{})
 		if err != nil {
-			p.log.Info("remote svc " + svc.Name + " doesn't exist: creating it")
+			klog.Info("remote svc " + svc.Name + " doesn't exist: creating it")
 
 			if err = CreateService(p.foreignClient.Client(), svc, nattedNS); err != nil {
-				p.log.Error(err, "unable to create service "+svc.Name+" on cluster "+p.foreignClusterId)
+				klog.Error(err, "unable to create service "+svc.Name+" on cluster "+p.foreignClusterId)
 			} else {
-				p.log.Info("correctly created service " + svc.Name + " on cluster " + p.foreignClusterId)
+				klog.Info("correctly created service " + svc.Name + " on cluster " + p.foreignClusterId)
 			}
 		}
 
 	case watch.Modified:
 		if err = UpdateService(p.foreignClient.Client(), svc, nattedNS); err != nil {
-			p.log.Error(err, "unable to update service "+svc.Name+" on cluster "+p.foreignClusterId)
+			klog.Error(err, "unable to update service "+svc.Name+" on cluster "+p.foreignClusterId)
 		} else {
-			p.log.Info("correctly updated service " + svc.Name + " on cluster " + p.foreignClusterId)
+			klog.Info("correctly updated service " + svc.Name + " on cluster " + p.foreignClusterId)
 		}
 
 	case watch.Deleted:
 		if err = DeleteService(p.foreignClient.Client(), svc, nattedNS); err != nil {
-			p.log.Error(err, "unable to delete service "+svc.Name+" on cluster "+p.foreignClusterId)
+			klog.Error(err, "unable to delete service "+svc.Name+" on cluster "+p.foreignClusterId)
 		} else {
-			p.log.Info("correctly deleted service " + svc.Name + " on cluster " + p.foreignClusterId)
+			klog.Info("correctly deleted service " + svc.Name + " on cluster " + p.foreignClusterId)
 		}
 	}
 

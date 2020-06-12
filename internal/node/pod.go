@@ -26,6 +26,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/util/workqueue"
+	"k8s.io/klog"
 )
 
 const (
@@ -69,19 +70,17 @@ func (pc *PodController) createOrUpdatePod(ctx context.Context, pod *corev1.Pod)
 	// Hence, we ignore the error and just act upon the pod if it is non-nil (meaning that the provider still knows about the pod).
 	if podFromProvider, _ := pc.provider.GetPod(ctx, pod.Namespace, pod.Name); podFromProvider != nil {
 		if !podsEqual(podFromProvider, podForProvider) {
-			log.G(ctx).Debugf("Pod %s exists, updating pod in provider", podFromProvider.Name)
 			if origErr := pc.provider.UpdatePod(ctx, podForProvider); origErr != nil {
 				pc.handleProviderError(ctx, span, origErr, pod)
 				return origErr
 			}
-			log.G(ctx).Info("Updated pod in provider")
 		}
 	} else {
 		if origErr := pc.provider.CreatePod(ctx, podForProvider); origErr != nil {
 			pc.handleProviderError(ctx, span, origErr, pod)
 			return origErr
 		}
-		log.G(ctx).Info("Created pod in provider")
+		klog.V(3).Info("Created pod in provider")
 	}
 	return nil
 }
@@ -136,16 +135,11 @@ func (pc *PodController) setProviderFailed(ctx context.Context, span trace.Span,
 	pod.Status.Reason = podStatusReasonProviderFailed
 	pod.Status.Message = origErr.Error()
 
-	logger := log.G(ctx).WithFields(log.Fields{
-		"podPhase": podPhase,
-		"reason":   pod.Status.Reason,
-	})
-
 	_, err := pc.client.Pods(pod.Namespace).UpdateStatus(pod)
 	if err != nil {
-		logger.WithError(err).Warn("Failed to update pod status")
+		klog.Error("Failed to update pod status")
 	} else {
-		logger.Info("Updated k8s pod status")
+		klog.Info("Updated k8s pod status")
 	}
 	span.SetStatus(origErr)
 }
@@ -161,7 +155,7 @@ func (pc *PodController) deletePod(ctx context.Context, pod *corev1.Pod) error {
 		return err
 	}
 
-	log.G(ctx).Debug("Deleted pod from provider")
+	klog.Info("Deleted pod from provider")
 
 	return nil
 }
@@ -176,10 +170,6 @@ func (pc *PodController) updatePodStatus(ctx context.Context, podFromKubernetes 
 	if shouldSkipPodStatusUpdate(podFromKubernetes) {
 		return nil
 	}
-
-	ctx, span := trace.StartSpan(ctx, "updatePodStatus")
-	defer span.End()
-	ctx = addPodAttributes(ctx, span, podFromKubernetes)
 
 	obj, ok := pc.knownPods.Load(key)
 	if !ok {
@@ -196,16 +186,12 @@ func (pc *PodController) updatePodStatus(ctx context.Context, podFromKubernetes 
 	podFromProvider.ResourceVersion = "0"
 
 	if _, err := pc.client.Pods(podFromKubernetes.Namespace).UpdateStatus(podFromProvider); err != nil {
-		span.SetStatus(err)
 		return pkgerrors.Wrap(err, "error while updating pod status in kubernetes")
 	}
 
-	log.G(ctx).WithFields(log.Fields{
-		"new phase":  string(podFromProvider.Status.Phase),
-		"new reason": podFromProvider.Status.Reason,
-		"old phase":  string(podFromKubernetes.Status.Phase),
-		"old reason": podFromKubernetes.Status.Reason,
-	}).Debug("Updated pod status in kubernetes")
+	klog.V(4).Infof("Updated pod status in kubernetes\tnew phase:%s\told phase:%s",
+		string(podFromProvider.Status.Phase),
+		string(podFromKubernetes.Status.Phase))
 
 	return nil
 }
@@ -214,7 +200,7 @@ func (pc *PodController) updatePodStatus(ctx context.Context, podFromKubernetes 
 // prior to enqueuePodStatusUpdate.
 func (pc *PodController) enqueuePodStatusUpdate(ctx context.Context, q workqueue.RateLimitingInterface, pod *corev1.Pod) {
 	if key, err := cache.MetaNamespaceKeyFunc(pod); err != nil {
-		log.G(ctx).WithError(err).WithField("method", "enqueuePodStatusUpdate").Error("Error getting pod meta namespace key")
+		klog.Error(err, "Error getting pod meta namespace key")
 	} else {
 		if obj, ok := pc.knownPods.Load(key); ok {
 			kpod := obj.(*knownPod)
@@ -231,11 +217,10 @@ func (pc *PodController) podStatusHandler(ctx context.Context, key string) (retE
 	defer span.End()
 
 	ctx = span.WithField(ctx, "key", key)
-	log.G(ctx).Debug("processing pod status update")
 	defer func() {
 		span.SetStatus(retErr)
 		if retErr != nil {
-			log.G(ctx).WithError(retErr).Error("Error processing pod status update")
+			klog.Error("Error processing pod status update")
 		}
 	}()
 
@@ -247,7 +232,7 @@ func (pc *PodController) podStatusHandler(ctx context.Context, key string) (retE
 	pod, err := pc.podsLister.Pods(namespace).Get(name)
 	if err != nil {
 		if errors.IsNotFound(err) {
-			log.G(ctx).WithError(err).Debug("Skipping pod status update for pod missing in Kubernetes")
+			klog.Error(err, "Skipping pod status update for pod missing in Kubernetes")
 			return nil
 		}
 		return pkgerrors.Wrap(err, "error looking up pod")
@@ -268,7 +253,7 @@ func (pc *PodController) deletePodHandler(ctx context.Context, key string) (retE
 
 	if err != nil {
 		// Log the error as a warning, but do not requeue the key as it is invalid.
-		log.G(ctx).Warn(pkgerrors.Wrapf(err, "invalid resource key: %q", key))
+		klog.Info(pkgerrors.Wrapf(err, "invalid resource key: %q", key))
 		span.SetStatus(err)
 		return nil
 	}
@@ -292,7 +277,7 @@ func (pc *PodController) deletePodHandler(ctx context.Context, key string) (retE
 	}
 
 	if running(&k8sPod.Status) {
-		log.G(ctx).Error("Force deleting pod in running state")
+		klog.Error("Force deleting pod in running state")
 	}
 
 	// We don't check with the provider before doing this delete. At this point, even if an outstanding pod status update
