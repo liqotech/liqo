@@ -26,11 +26,11 @@ type AdvertisementWatcher struct {
 	ForeignClusterId string
 }
 
-func WatchAdvertisement(localCRDClient client.Client, scheme *runtime.Scheme, remoteKubeconfig string, cm *v1.ConfigMap, homeClusterId string, foreignClusterId string) {
+func WatchAdvertisement(localCRDClient client.Client, scheme *runtime.Scheme, remoteKubeconfig string, sec *v1.Secret, homeClusterId string, foreignClusterId string) {
 
 	log := ctrl.Log.WithName("remote-advertisement-watcher")
 
-	config, err := pkg.GetConfig(remoteKubeconfig, cm)
+	config, err := pkg.GetConfig(remoteKubeconfig, nil, sec)
 	if err != nil {
 		log.Error(err, "unable to get config")
 		return

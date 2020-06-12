@@ -235,8 +235,8 @@ func (r *ForeignClusterReconciler) createClusterRoleIfNotExists(clusterID string
 				// TODO: set correct access to create advertisements
 				{
 					Verbs:     []string{"get", "list", "create", "delete", "watch"},
-					APIGroups: []string{"protocol.liqo.io"},
-					Resources: []string{"advertisements"},
+					APIGroups: []string{"protocol.liqo.io", ""},
+					Resources: []string{"advertisements", "secrets"},
 				},
 			},
 		}

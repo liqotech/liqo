@@ -44,13 +44,13 @@ func AcquireConfig() *string {
 // or retrieved from $LIQO_KCONFIG
 func CreateClient(kubeconfigPath *string) (client.Client, error) {
 	if kubeconfigPath != nil {
-		return advop.NewCRDClient(*kubeconfigPath, nil)
+		return advop.NewCRDClient(*kubeconfigPath, nil, nil)
 	} else {
 		path, pres := os.LookupEnv("LIQO_KCONFIG")
 		if pres {
-			return advop.NewCRDClient(path, nil)
+			return advop.NewCRDClient(path, nil, nil)
 		} else {
-			return advop.NewCRDClient("", nil)
+			return advop.NewCRDClient("", nil, nil)
 		}
 	}
 }

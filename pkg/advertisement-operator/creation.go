@@ -77,7 +77,7 @@ func CreateFromYaml(c client.Client, ctx context.Context, log logr.Logger, filen
 }
 
 // create deployment for a virtual-kubelet
-func CreateVkDeployment(adv *protocolv1.Advertisement, nameSA, vkNamespace, vkImage, initVKImage, homeClusterId string) appsv1.Deployment {
+func CreateVkDeployment(adv *protocolv1.Advertisement, saName, vkNamespace, vkImage, initVKImage, homeClusterId string) appsv1.Deployment {
 
 	command := []string{
 		"/usr/bin/virtual-kubelet",
@@ -102,8 +102,8 @@ func CreateVkDeployment(adv *protocolv1.Advertisement, nameSA, vkNamespace, vkIm
 		{
 			Name: "remote-kubeconfig",
 			VolumeSource: v1.VolumeSource{
-				ConfigMap: &v1.ConfigMapVolumeSource{
-					LocalObjectReference: v1.LocalObjectReference{Name: "foreign-kubeconfig-" + adv.Spec.ClusterId},
+				Secret: &v1.SecretVolumeSource{
+					SecretName: adv.Spec.KubeConfigRef.Name,
 				},
 			},
 		},
@@ -119,7 +119,7 @@ func CreateVkDeployment(adv *protocolv1.Advertisement, nameSA, vkNamespace, vkIm
 		{
 			Name:      "remote-kubeconfig",
 			MountPath: "/app/kubeconfig/remote",
-			SubPath:   "remote",
+			SubPath:   "kubeconfig",
 		},
 		{
 			Name:      "virtual-kubelet-crt",
@@ -231,7 +231,7 @@ func CreateVkDeployment(adv *protocolv1.Advertisement, nameSA, vkNamespace, vkIm
 							},
 						},
 					},
-					ServiceAccountName: nameSA,
+					ServiceAccountName: saName,
 					Affinity:           affinity.DeepCopy(),
 				},
 			},
@@ -246,10 +246,11 @@ func CreateOrUpdate(c client.Client, ctx context.Context, log logr.Logger, objec
 
 	switch obj := object.(type) {
 	case v1.Pod:
+		var pod v1.Pod
 		err := c.Get(ctx, types.NamespacedName{
 			Namespace: obj.Namespace,
 			Name:      obj.Name,
-		}, new(v1.Pod))
+		}, &pod)
 		if err != nil {
 			err = c.Create(ctx, &obj, &client.CreateOptions{})
 			if err != nil && !errors.IsAlreadyExists(err) {
@@ -257,6 +258,7 @@ func CreateOrUpdate(c client.Client, ctx context.Context, log logr.Logger, objec
 				return err
 			}
 		} else {
+			obj.SetResourceVersion(pod.ResourceVersion)
 			err = c.Update(ctx, &obj, &client.UpdateOptions{})
 			if err != nil {
 				log.Error(err, "unable to update pod "+obj.Name)
@@ -264,10 +266,11 @@ func CreateOrUpdate(c client.Client, ctx context.Context, log logr.Logger, objec
 			}
 		}
 	case appsv1.Deployment:
+		var deploy appsv1.Deployment
 		err := c.Get(ctx, types.NamespacedName{
 			Namespace: obj.Namespace,
 			Name:      obj.Name,
-		}, new(appsv1.Deployment))
+		}, &deploy)
 		if err != nil {
 			err = c.Create(ctx, &obj, &client.CreateOptions{})
 			if err != nil && !errors.IsAlreadyExists(err) {
@@ -275,6 +278,7 @@ func CreateOrUpdate(c client.Client, ctx context.Context, log logr.Logger, objec
 				return err
 			}
 		} else {
+			obj.SetResourceVersion(deploy.ResourceVersion)
 			err = c.Update(ctx, &obj, &client.UpdateOptions{})
 			if err != nil {
 				log.Error(err, "unable to update deployment "+obj.Name)
@@ -282,10 +286,11 @@ func CreateOrUpdate(c client.Client, ctx context.Context, log logr.Logger, objec
 			}
 		}
 	case v1.ConfigMap:
+		var cm v1.ConfigMap
 		err := c.Get(ctx, types.NamespacedName{
 			Namespace: obj.Namespace,
 			Name:      obj.Name,
-		}, new(v1.ConfigMap))
+		}, &cm)
 		if err != nil {
 			err = c.Create(ctx, &obj, &client.CreateOptions{})
 			if err != nil && !errors.IsAlreadyExists(err) {
@@ -293,17 +298,39 @@ func CreateOrUpdate(c client.Client, ctx context.Context, log logr.Logger, objec
 				return err
 			}
 		} else {
+			obj.SetResourceVersion(cm.ResourceVersion)
 			err = c.Update(ctx, &obj, &client.UpdateOptions{})
 			if err != nil {
 				log.Error(err, "unable to update configMap "+obj.Name)
 				return err
 			}
 		}
-	case v1.ServiceAccount:
+	case v1.Secret:
+		var sec v1.Secret
 		err := c.Get(ctx, types.NamespacedName{
 			Namespace: obj.Namespace,
 			Name:      obj.Name,
-		}, new(v1.ServiceAccount))
+		}, &sec)
+		if err != nil {
+			err = c.Create(ctx, &obj, &client.CreateOptions{})
+			if err != nil && !errors.IsAlreadyExists(err) {
+				log.Error(err, "unable to create configMap "+obj.Name)
+				return err
+			}
+		} else {
+			obj.SetResourceVersion(sec.ResourceVersion)
+			err = c.Update(ctx, &obj, &client.UpdateOptions{})
+			if err != nil {
+				log.Error(err, "unable to update secret "+obj.Name)
+				return err
+			}
+		}
+	case v1.ServiceAccount:
+		var sa v1.ServiceAccount
+		err := c.Get(ctx, types.NamespacedName{
+			Namespace: obj.Namespace,
+			Name:      obj.Name,
+		}, &sa)
 		if err != nil {
 			err = c.Create(ctx, &obj, &client.CreateOptions{})
 			if err != nil && !errors.IsAlreadyExists(err) {
@@ -311,6 +338,7 @@ func CreateOrUpdate(c client.Client, ctx context.Context, log logr.Logger, objec
 				return err
 			}
 		} else {
+			obj.SetResourceVersion(sa.ResourceVersion)
 			err = c.Update(ctx, &obj, &client.UpdateOptions{})
 			if err != nil {
 				log.Error(err, "unable to update serviceAccount "+obj.Name)
@@ -318,10 +346,11 @@ func CreateOrUpdate(c client.Client, ctx context.Context, log logr.Logger, objec
 			}
 		}
 	case rbacv1.ClusterRoleBinding:
+		var crb rbacv1.ClusterRoleBinding
 		err := c.Get(ctx, types.NamespacedName{
 			Namespace: obj.Namespace,
 			Name:      obj.Name,
-		}, new(rbacv1.ClusterRoleBinding))
+		}, &crb)
 		if err != nil {
 			err = c.Create(ctx, &obj, &client.CreateOptions{})
 			if err != nil && !errors.IsAlreadyExists(err) {
@@ -329,27 +358,28 @@ func CreateOrUpdate(c client.Client, ctx context.Context, log logr.Logger, objec
 				return err
 			}
 		} else {
+			obj.SetResourceVersion(crb.ResourceVersion)
 			err = c.Update(ctx, &obj, &client.UpdateOptions{})
 			if err != nil {
 				log.Error(err, "unable to update clusterRoleBinding "+obj.Name)
 				return err
 			}
 		}
-	case protocolv1.Advertisement:
+	case *protocolv1.Advertisement:
 		var adv protocolv1.Advertisement
 		err := c.Get(ctx, types.NamespacedName{
 			Namespace: obj.Namespace,
 			Name:      obj.Name,
 		}, &adv)
 		if err != nil {
-			err = c.Create(ctx, &obj, &client.CreateOptions{})
+			err = c.Create(ctx, obj, &client.CreateOptions{})
 			if err != nil && !errors.IsAlreadyExists(err) {
 				log.Error(err, "unable to create advertisement "+obj.Name)
 				return err
 			}
 		} else {
 			obj.SetResourceVersion(adv.ResourceVersion)
-			err = c.Update(ctx, &obj, &client.UpdateOptions{})
+			err = c.Update(ctx, obj, &client.UpdateOptions{})
 			if err != nil {
 				log.Error(err, "unable to update advertisement "+obj.Name)
 				return err
