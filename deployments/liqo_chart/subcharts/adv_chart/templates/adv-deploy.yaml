@@ -32,7 +32,6 @@ spec:
   selector:
     matchLabels:
       run: advertisement-operator
-  strategy: {}
   template:
     metadata:
       labels:
