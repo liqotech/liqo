@@ -1,0 +1,11 @@
+name: "Installer Testing"
+on: [push]
+jobs:
+  build:
+    name: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v2
+      - name: Test
+        run: docker run -v "${{ github.workspace }}:/code" bats/bats:latest /code/test/installer/unit.sh /code/test/installer/installer.sh 
