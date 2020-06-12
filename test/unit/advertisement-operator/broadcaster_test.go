@@ -137,12 +137,23 @@ func TestCreateAdvertisement(t *testing.T) {
 		neighbours[v1.ResourceName(vNode.Name)] = vNode.Status.Allocatable
 	}
 
-	adv := advertisement_operator.CreateAdvertisement("fake-cluster", "1.2.3.4", "10.0.0.1", pNodes, vNodes, availability, images, limits)
+	secret := v1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test",
+			Namespace: "test",
+		},
+		Data:       nil,
+		StringData: nil,
+		Type:       "",
+	}
+
+	adv := advertisement_operator.CreateAdvertisement("fake-cluster", "1.2.3.4", "10.0.0.1", pNodes, vNodes, availability, images, limits, secret)
 
 	assert.NotEmpty(t, adv.Name, "Name should be provided")
 	assert.NotEmpty(t, adv.Namespace, "Namespace should be set")
 	assert.Empty(t, adv.ResourceVersion)
 	assert.NotEmpty(t, adv.Spec.ClusterId)
+	assert.NotEmpty(t, adv.Spec.KubeConfigRef)
 	assert.NotEmpty(t, adv.Spec.Timestamp)
 	assert.NotEmpty(t, adv.Spec.TimeToLive)
 	assert.Equal(t, adv.Name, "advertisement-fake-cluster")

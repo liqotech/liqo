@@ -56,7 +56,6 @@ func init() {
 
 func main() {
 	var metricsAddr, localKubeconfig, foreignKubeconfig, clusterId string
-	var gatewayIP, gatewayPrivateIP string
 	var enableLeaderElection bool
 	var kubeletNamespace string
 	var kubeletImage string
@@ -68,8 +67,6 @@ func main() {
 	flag.StringVar(&localKubeconfig, "local-kubeconfig", "", "The path to the kubeconfig of your local cluster.")
 	flag.StringVar(&foreignKubeconfig, "foreign-kubeconfig", "", "The path to the kubeconfig of the foreign cluster.")
 	flag.StringVar(&clusterId, "cluster-id", "", "The cluster ID of your cluster")
-	flag.StringVar(&gatewayIP, "gateway-ip", "", "The IP address of the gateway node")
-	flag.StringVar(&gatewayPrivateIP, "gateway-private-ip", "", "The private IP address of the gateway node")
 	flag.StringVar(&kubeletNamespace, "kubelet-namespace", defaultNamespace, "Name of the namespace where Virtual kubelets will be spawned ( the namespace is default if not specified otherwise)")
 	flag.StringVar(&kubeletImage, "kubelet-image", defaultVKImage, "The image of the virtual kubelet to be deployed")
 	flag.StringVar(&initKubeletImage, "init-kubelet-image", defaultInitVKImage, "The image of the virtual kubelet init container to be deployed")
@@ -107,8 +104,6 @@ func main() {
 		Log:              ctrl.Log.WithName("controllers").WithName("Advertisement"),
 		Scheme:           mgr.GetScheme(),
 		EventsRecorder:   mgr.GetEventRecorderFor("AdvertisementOperator"),
-		GatewayIP:        gatewayIP,
-		GatewayPrivateIP: gatewayPrivateIP,
 		KindEnvironment:  runsInKindEnv,
 		KubeletNamespace: kubeletNamespace,
 		VKImage:          kubeletImage,

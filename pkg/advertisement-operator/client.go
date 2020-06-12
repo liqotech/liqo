@@ -1,7 +1,6 @@
 package advertisement_operator
 
 import (
-	metricsclient "k8s.io/metrics/pkg/client/clientset/versioned"
 	"os"
 
 	protocolv1 "github.com/liqoTech/liqo/api/advertisement-operator/v1"
@@ -20,20 +19,28 @@ import (
 // get config to create a client
 // parameters:
 // - path: the path to the kubeconfig file
-// - cm: the configMap containing the kubeconfig to the foreign cluster
-// if path is specified create a config from a kubeconfig file, otherwise create or a inCluster config or read the kubeconfig from the configMap
-func GetConfig(path string, cm *v1.ConfigMap) (*rest.Config, error) {
+// - cm: the configMap containing the kubeconfig
+// - sec: the secret containing the kubeconfig
+// if path is specified create a config from a kubeconfig file, otherwise create or a inCluster config or read the kubeconfig from the configMap/secret
+func GetConfig(path string, cm *v1.ConfigMap, sec *v1.Secret) (*rest.Config, error) {
 	var config *rest.Config
 	var err error
 
-	if path == "" && cm == nil {
+	if path == "" && cm == nil && sec == nil {
 		config, err = rest.InClusterConfig()
 		if err != nil {
 			return nil, err
 		}
-	} else if path == "" && cm != nil {
+	} else if path == "" && cm != nil && sec == nil {
 		// Get the kubeconfig from configMap
 		kubeconfigGetter := GetKubeconfigFromConfigMap(*cm)
+		config, err = clientcmd.BuildConfigFromKubeconfigGetter("", kubeconfigGetter)
+		if err != nil {
+			return nil, err
+		}
+	} else if path == "" && cm == nil && sec != nil {
+		// Get the kubeconfig from secret
+		kubeconfigGetter := GetKubeconfigFromSecret(*sec)
 		config, err = clientcmd.BuildConfigFromKubeconfigGetter("", kubeconfigGetter)
 		if err != nil {
 			return nil, err
@@ -52,8 +59,8 @@ func GetConfig(path string, cm *v1.ConfigMap) (*rest.Config, error) {
 }
 
 // create a standard K8s client -> to access use client.CoreV1().<resource>(<namespace>).<method>())
-func NewK8sClient(path string, cm *v1.ConfigMap) (*kubernetes.Clientset, error) {
-	config, err := GetConfig(path, cm)
+func NewK8sClient(path string, cm *v1.ConfigMap, sec *v1.Secret) (*kubernetes.Clientset, error) {
+	config, err := GetConfig(path, cm, sec)
 	if err != nil {
 		return nil, err
 	}
@@ -61,8 +68,8 @@ func NewK8sClient(path string, cm *v1.ConfigMap) (*kubernetes.Clientset, error) 
 }
 
 // create a crd client (kubebuilder-like) -> to access use client.<method>(context, <NamespacedName>, <resource>)
-func NewCRDClient(path string, cm *v1.ConfigMap) (client.Client, error) {
-	config, err := GetConfig(path, cm)
+func NewCRDClient(path string, cm *v1.ConfigMap, sec *v1.Secret) (client.Client, error) {
+	config, err := GetConfig(path, cm, sec)
 	if err != nil {
 		return nil, err
 	}
@@ -81,19 +88,19 @@ func NewCRDClient(path string, cm *v1.ConfigMap) (client.Client, error) {
 	return remoteClient, nil
 }
 
-func NewMetricsClient(path string, cm *v1.ConfigMap) (*metricsclient.Clientset, error) {
-	config, err := GetConfig(path, cm)
-	if err != nil {
-		return nil, err
-	}
-	return metricsclient.NewForConfig(config)
-}
-
-// extract kubeconfig from a configMap.
+// extract kubeconfig from a configMap
 func GetKubeconfigFromConfigMap(cm v1.ConfigMap) clientcmd.KubeconfigGetter {
 	return func() (*clientcmdapi.Config, error) {
 
-		data := []byte(cm.Data["remote"])
+		data := []byte(cm.Data["kubeconfig"])
 		return clientcmd.Load(data)
+	}
+}
+
+// extract kubeconfig from a secret
+func GetKubeconfigFromSecret(sec v1.Secret) clientcmd.KubeconfigGetter {
+	return func() (*clientcmdapi.Config, error) {
+
+		return clientcmd.Load(sec.Data["kubeconfig"])
 	}
 }

@@ -35,28 +35,24 @@ type NamespacedName struct {
 
 // AdvertisementSpec defines the desired state of Advertisement
 type AdvertisementSpec struct {
-	ClusterId string `json:"clusterId"`
-	// +optional
+	ClusterId     string                                      `json:"clusterId"`
 	Images        []corev1.ContainerImage                     `json:"images,omitempty"`
 	LimitRange    corev1.LimitRangeSpec                       `json:"limitRange,omitempty"`
 	ResourceQuota corev1.ResourceQuotaSpec                    `json:"resourceQuota,omitempty"`
 	Neighbors     map[corev1.ResourceName]corev1.ResourceList `json:"neighbors,omitempty"`
 	Properties    map[corev1.ResourceName]string              `json:"properties,omitempty"`
-	// +optional
-	Prices     corev1.ResourceList `json:"prices,omitempty"`
-	Network    NetworkInfo         `json:"network"`
-	Timestamp  metav1.Time         `json:"timestamp"`
-	TimeToLive metav1.Time         `json:"timeToLive"`
+	Prices        corev1.ResourceList                         `json:"prices,omitempty"`
+	Network       NetworkInfo                                 `json:"network"`
+	KubeConfigRef corev1.ObjectReference                      `json:"kubeConfigRef"`
+	Timestamp     metav1.Time                                 `json:"timestamp"`
+	TimeToLive    metav1.Time                                 `json:"timeToLive"`
 }
 
 // AdvertisementStatus defines the observed state of Advertisement
 type AdvertisementStatus struct {
-	AdvertisementStatus string      `json:"advertisementStatus"`
-	ForeignNetwork      NetworkInfo `json:"foreignNetwork"`
-	VkCreated           bool        `json:"vkCreated"`
-	// +optional
-	LocalRemappedPodCIDR string `json:"localRemappedPodCIDR,omitempty"`
-	// +optional
+	AdvertisementStatus   string `json:"advertisementStatus"`
+	VkCreated             bool   `json:"vkCreated"`
+	LocalRemappedPodCIDR  string `json:"localRemappedPodCIDR,omitempty"`
 	RemoteRemappedPodCIDR string `json:"remoteRemappedPodCIDR,omitempty"`
 	//the tunnelEndpoint associated with the foreign cluster
 	TunnelEndpointKey NamespacedName `json:"tunnelEndpointKey"`

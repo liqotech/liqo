@@ -24,7 +24,6 @@ import (
 	rbacv1 "k8s.io/api/rbac/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/tools/record"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -37,8 +36,6 @@ type AdvertisementReconciler struct {
 	Log              logr.Logger
 	Scheme           *runtime.Scheme
 	EventsRecorder   record.EventRecorder
-	GatewayIP        string
-	GatewayPrivateIP string
 	KubeletNamespace string
 	KindEnvironment  bool
 	VKImage          string
@@ -65,12 +62,7 @@ func (r *AdvertisementReconciler) Reconcile(req ctrl.Request) (ctrl.Result, erro
 
 	// filter advertisements and create a virtual-kubelet only for the good ones
 	if adv.Status.AdvertisementStatus == "" {
-		// get nodes of the local cluster
-		nodes, err := GetNodes(r.Client, ctx, log)
-		if err != nil {
-			return ctrl.Result{}, err
-		}
-		checkAdvertisement(r, ctx, log, &adv, nodes)
+		checkAdvertisement(r, ctx, log, &adv)
 		return ctrl.Result{}, nil
 	}
 
@@ -100,34 +92,15 @@ func (r *AdvertisementReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		Complete(r)
 }
 
-func GetNodes(c client.Client, ctx context.Context, log logr.Logger) ([]v1.Node, error) {
-	var nodes v1.NodeList
-
-	selector, err := labels.Parse("type != virtual-node")
-	if err != nil {
-		return nil, err
-	}
-	if err = c.List(ctx, &nodes, client.MatchingLabelsSelector{Selector: selector}); err != nil {
-		log.Error(err, "Unable to list nodes")
-		return nil, err
-	}
-	return nodes.Items, nil
-}
-
 // check if the advertisement is interesting and set its status accordingly
 func checkAdvertisement(r *AdvertisementReconciler, ctx context.Context, log logr.Logger,
-	adv *protocolv1.Advertisement, nodes []v1.Node) {
+	adv *protocolv1.Advertisement) {
 
 	//TODO: implement logic
 	adv.Status.AdvertisementStatus = "ACCEPTED"
 	metav1.SetMetaDataAnnotation(&adv.ObjectMeta, "advertisementStatus", "accepted")
 
 	recordEvent(r, log, "Advertisement "+adv.Name+" accepted", "Normal", "AdvertisementAccepted", adv)
-	adv.Status.ForeignNetwork = protocolv1.NetworkInfo{
-		PodCIDR:          GetPodCIDR(nodes),
-		GatewayIP:        r.GatewayIP,
-		GatewayPrivateIP: r.GatewayPrivateIP,
-	}
 	adv.Status.ObservedGeneration = adv.ObjectMeta.Generation
 	if err := r.Status().Update(ctx, adv); err != nil {
 		log.Error(err, "unable to update Advertisement status")
