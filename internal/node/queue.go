@@ -16,8 +16,8 @@ package node
 
 import (
 	"context"
+	"k8s.io/klog"
 
-	"github.com/liqoTech/liqo/internal/log"
 	"github.com/liqoTech/liqo/internal/trace"
 	pkgerrors "github.com/pkg/errors"
 	"k8s.io/client-go/util/workqueue"
@@ -39,10 +39,10 @@ func handleQueueItem(ctx context.Context, q workqueue.RateLimitingInterface, han
 		return false
 	}
 
-	log.G(ctx).Debug("Got queue object")
+	klog.Info("Got queue object")
 
 	err := func(obj interface{}) error {
-		defer log.G(ctx).Debug("Processed queue item")
+		defer klog.Info("Processed queue item")
 		// We call Done here so the work queue knows we have finished processing this item.
 		// We also must remember to call Forget if we do not want this work item being re-queued.
 		// For example, we do not call Forget if a transient error occurs.
@@ -56,7 +56,7 @@ func handleQueueItem(ctx context.Context, q workqueue.RateLimitingInterface, han
 		if key, ok = obj.(string); !ok {
 			// As the item in the work queue is actually invalid, we call Forget here else we'd go into a loop of attempting to process a work item that is invalid.
 			q.Forget(obj)
-			log.G(ctx).Warnf("expected string in work queue item but got %#v", obj)
+			klog.Warningf("expected string in work queue item but got %#v", obj)
 			return nil
 		}
 
@@ -66,7 +66,7 @@ func handleQueueItem(ctx context.Context, q workqueue.RateLimitingInterface, han
 		if err := handler(ctx, key); err != nil {
 			if q.NumRequeues(key) < maxRetries {
 				// Put the item back on the work queue to handle any transient errors.
-				log.G(ctx).WithError(err).Warnf("requeuing %q due to failed sync", key)
+				klog.Warningf("requeuing %q due to failed sync, error: %s", key, err.Error())
 				q.AddRateLimited(key)
 				return nil
 			}
@@ -82,7 +82,7 @@ func handleQueueItem(ctx context.Context, q workqueue.RateLimitingInterface, han
 	if err != nil {
 		// We've actually hit an error, so we set the span's status based on the error.
 		span.SetStatus(err)
-		log.G(ctx).Error(err)
+		klog.Error(err)
 		return true
 	}
 

@@ -17,13 +17,13 @@ package node
 import (
 	"context"
 	"fmt"
+	"k8s.io/klog"
 	"strconv"
 	"sync"
 	"time"
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/liqoTech/liqo/internal/errdefs"
-	"github.com/liqoTech/liqo/internal/log"
 	"github.com/liqoTech/liqo/internal/manager"
 	"github.com/liqoTech/liqo/internal/trace"
 	pkgerrors "github.com/pkg/errors"
@@ -238,7 +238,7 @@ func (pc *PodController) Run(ctx context.Context, podSyncWorkers int) (retErr er
 		wrapped := &syncProviderWrapper{PodLifecycleHandler: pc.provider, l: pc.podsLister}
 		runProvider = wrapped.run
 		provider = wrapped
-		log.G(ctx).Debug("Wrapped non-async provider with async")
+		klog.Info("Wrapped non-async provider with async")
 	}
 	pc.provider = provider
 
@@ -254,7 +254,7 @@ func (pc *PodController) Run(ctx context.Context, podSyncWorkers int) (retErr er
 	if ok := cache.WaitForCacheSync(ctx.Done(), pc.podsInformer.Informer().HasSynced); !ok {
 		return pkgerrors.New("failed to wait for caches to sync")
 	}
-	log.G(ctx).Info("Pod cache in-sync")
+	klog.Info("Pod cache in-sync")
 
 	// Set up event handlers for when Pod resources change. Since the pod cache is in-sync, the informer will generate
 	// synthetic add events at this point. It again avoids the race condition of adding handlers while the cache is
@@ -262,7 +262,7 @@ func (pc *PodController) Run(ctx context.Context, podSyncWorkers int) (retErr er
 	pc.podsInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
 		AddFunc: func(pod interface{}) {
 			if key, err := cache.MetaNamespaceKeyFunc(pod); err != nil {
-				log.G(ctx).Error(err)
+				klog.Error(err)
 			} else {
 				pc.knownPods.Store(key, &knownPod{})
 				pc.k8sQ.AddRateLimited(key)
@@ -274,14 +274,14 @@ func (pc *PodController) Run(ctx context.Context, podSyncWorkers int) (retErr er
 
 			// At this point we know that something in .metadata or .spec has changed, so we must proceed to sync the pod.
 			if key, err := cache.MetaNamespaceKeyFunc(newPod); err != nil {
-				log.G(ctx).Error(err)
+				klog.Error(err)
 			} else {
 				pc.k8sQ.AddRateLimited(key)
 			}
 		},
 		DeleteFunc: func(pod interface{}) {
 			if key, err := cache.DeletionHandlingMetaNamespaceKeyFunc(pod); err != nil {
-				log.G(ctx).Error(err)
+				klog.Error(err)
 			} else {
 				pc.knownPods.Delete(key)
 				pc.k8sQ.AddRateLimited(key)
@@ -296,7 +296,7 @@ func (pc *PodController) Run(ctx context.Context, podSyncWorkers int) (retErr er
 	// If by any reason the provider fails to delete a dangling pod, it will stay in the provider and deletion won't be retried.
 	pc.deleteDanglingPods(ctx, podSyncWorkers)
 
-	log.G(ctx).Info("starting workers")
+	klog.Info("starting workers")
 	wg := sync.WaitGroup{}
 
 	// Use the worker's "index" as its ID so we can use it for tracing.
@@ -329,9 +329,9 @@ func (pc *PodController) Run(ctx context.Context, podSyncWorkers int) (retErr er
 
 	close(pc.ready)
 
-	log.G(ctx).Info("started workers")
+	klog.Info("started workers")
 	<-ctx.Done()
-	log.G(ctx).Info("shutting down workers")
+	klog.Info("shutting down workers")
 	pc.k8sQ.ShutDown()
 	podStatusQueue.ShutDown()
 	pc.deletionQ.ShutDown()
@@ -386,13 +386,12 @@ func (pc *PodController) syncHandler(ctx context.Context, key string) error {
 
 	// Add the current key as an attribute to the current span.
 	ctx = span.WithField(ctx, "key", key)
-	log.G(ctx).WithField("key", key).Debug("sync handled")
 
 	// Convert the namespace/name string into a distinct namespace and name.
 	namespace, name, err := cache.SplitMetaNamespaceKey(key)
 	if err != nil {
 		// Log the error as a warning, but do not requeue the key as it is invalid.
-		log.G(ctx).Warn(pkgerrors.Wrapf(err, "invalid resource key: %q", key))
+		klog.Error(pkgerrors.Wrapf(err, "invalid resource key: %q", key))
 		return nil
 	}
 
@@ -443,7 +442,7 @@ func (pc *PodController) syncPodInProvider(ctx context.Context, pod *corev1.Pod,
 	// If the pod('s containers) is no longer in a running state then we force-delete the pod from API server
 	// more context is here: https://github.com/liqoTech/liqo/pull/760
 	if pod.DeletionTimestamp != nil && !running(&pod.Status) {
-		log.G(ctx).Debug("Force deleting pod from API Server as it is no longer running")
+		klog.Info("Force deleting pod from API Server as it is no longer running")
 		pc.deletionQ.Add(key)
 		return nil
 	}
@@ -471,9 +470,9 @@ func (pc *PodController) syncPodInProvider(ctx context.Context, pod *corev1.Pod,
 	// Check whether the pod has been marked for deletion.
 	// If it does, guarantee it is deleted in the provider and Kubernetes.
 	if pod.DeletionTimestamp != nil {
-		log.G(ctx).Debug("Deleting pod in provider")
+		klog.Info("Deleting pod in provider")
 		if err := pc.deletePod(ctx, pod); errdefs.IsNotFound(err) {
-			log.G(ctx).Debug("Pod not found in provider")
+			klog.Info("Pod not found in provider")
 		} else if err != nil {
 			err := pkgerrors.Wrapf(err, "failed to delete pod %q in the provider", loggablePodName(pod))
 			span.SetStatus(err)
@@ -486,7 +485,7 @@ func (pc *PodController) syncPodInProvider(ctx context.Context, pod *corev1.Pod,
 
 	// Ignore the pod if it is in the "Failed" or "Succeeded" state.
 	if pod.Status.Phase == corev1.PodFailed || pod.Status.Phase == corev1.PodSucceeded {
-		log.G(ctx).Warnf("skipping sync of pod %q in %q phase", loggablePodName(pod), pod.Status.Phase)
+		klog.Infof("skipping sync of pod %q in %q phase", loggablePodName(pod), pod.Status.Phase)
 		return nil
 	}
 
@@ -528,7 +527,7 @@ func (pc *PodController) deleteDanglingPods(ctx context.Context, threadiness int
 	if err != nil {
 		err := pkgerrors.Wrap(err, "failed to fetch the list of pods from the provider")
 		span.SetStatus(err)
-		log.G(ctx).Error(err)
+		klog.Error(err)
 		return
 	}
 
@@ -547,7 +546,7 @@ func (pc *PodController) deleteDanglingPods(ctx context.Context, threadiness int
 			// For some reason we couldn't fetch the pod from the lister, so we propagate the error.
 			err := pkgerrors.Wrap(err, "failed to fetch pod from the lister")
 			span.SetStatus(err)
-			log.G(ctx).Error(err)
+			klog.Error(err)
 			return
 		}
 	}
@@ -575,9 +574,9 @@ func (pc *PodController) deleteDanglingPods(ctx context.Context, threadiness int
 			// Actually delete the pod.
 			if err := pc.provider.DeletePod(ctx, pod.DeepCopy()); err != nil && !errdefs.IsNotFound(err) {
 				span.SetStatus(err)
-				log.G(ctx).Errorf("failed to delete pod %q in provider", loggablePodName(pod))
+				klog.Errorf("failed to delete pod %q in provider", loggablePodName(pod))
 			} else {
-				log.G(ctx).Infof("deleted leaked pod %q in provider", loggablePodName(pod))
+				klog.Infof("deleted leaked pod %q in provider", loggablePodName(pod))
 			}
 		}(ctx, pod)
 	}

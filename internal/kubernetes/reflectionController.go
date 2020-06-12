@@ -3,7 +3,7 @@ package kubernetes
 import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/watch"
-	ctrl "sigs.k8s.io/controller-runtime"
+	"k8s.io/klog"
 	"sync"
 	"time"
 )
@@ -45,8 +45,7 @@ type Reflector struct {
 // StartReflector initializes all the data structures
 // and creates a new goroutine running the reflector control loop
 func (p *KubernetesProvider) StartReflector() {
-	p.log = ctrl.Log.WithName("reflector")
-	p.log.Info("starting reflector for cluster " + p.foreignClusterId)
+	klog.Info("starting reflector for cluster " + p.foreignClusterId)
 
 	p.reflectedNamespaces.ns = make(map[string]chan struct{})
 	p.stop = make(chan struct{}, 1)
@@ -109,15 +108,15 @@ func (p *KubernetesProvider) controlLoop() {
 				break
 			}
 			if err := p.manageRemoteEpEvent(e); err != nil {
-				p.log.Error(err, "error in managing remote ep event")
+				klog.Error(err, "error in managing remote ep event")
 			}
 		case e := <-p.cmEvent:
 			if err = p.manageCmEvent(e); err != nil {
-				p.log.Error(err, "error in managing cm event")
+				klog.Error(err, "error in managing cm event")
 			}
 		case e := <-p.secEvent:
 			if err = p.manageSecEvent(e); err != nil {
-				p.log.Error(err, "error in managing sec event")
+				klog.Error(err, "error in managing sec event")
 			}
 		}
 	}
@@ -134,7 +133,7 @@ func (p *KubernetesProvider) cleanupNamespace(ns string) error {
 	for _, svc := range svcs.Items {
 		err = p.foreignClient.Client().CoreV1().Services(ns).Delete(svc.Name, &metav1.DeleteOptions{})
 		if err != nil {
-			p.log.Error(err, "cannot delete remote service")
+			klog.Error(err, "cannot delete remote service")
 		}
 	}
 
@@ -146,7 +145,7 @@ func (p *KubernetesProvider) cleanupNamespace(ns string) error {
 	for _, cm := range cms.Items {
 		err = p.foreignClient.Client().CoreV1().ConfigMaps(ns).Delete(cm.Name, &metav1.DeleteOptions{})
 		if err != nil {
-			p.log.Error(err, "cannot delete remote configMap")
+			klog.Error(err, "cannot delete remote configMap")
 		}
 	}
 
@@ -158,7 +157,7 @@ func (p *KubernetesProvider) cleanupNamespace(ns string) error {
 	for _, sec := range secs.Items {
 		err = p.foreignClient.Client().CoreV1().Secrets(ns).Delete(sec.Name, &metav1.DeleteOptions{})
 		if err != nil {
-			p.log.Error(err, "cannot delete remote secret")
+			klog.Error(err, "cannot delete remote secret")
 		}
 	}
 
@@ -220,7 +219,7 @@ func (p *KubernetesProvider) addRemoteEndpointWatcher(namespace string, stop cha
 func (p *KubernetesProvider) addConfigMapWatcher(namespace string, stop chan struct{}) error {
 	cmWatch, err := p.homeClient.Client().CoreV1().ConfigMaps(namespace).Watch(metav1.ListOptions{})
 	if err != nil {
-		p.log.Error(err, "cannot watch configMaps in namespace "+namespace)
+		klog.Error(err, "cannot watch configMaps in namespace "+namespace)
 		return err
 	}
 
@@ -232,7 +231,7 @@ func (p *KubernetesProvider) addConfigMapWatcher(namespace string, stop chan str
 func (p *KubernetesProvider) addSecretWatcher(namespace string, stop chan struct{}) error {
 	secWatch, err := p.homeClient.Client().CoreV1().Secrets(namespace).Watch(metav1.ListOptions{})
 	if err != nil {
-		p.log.Error(err, "cannot watch secrets in namespace "+namespace)
+		klog.Error(err, "cannot watch secrets in namespace "+namespace)
 		return err
 	}
 
@@ -289,10 +288,10 @@ func eventAggregator(watcher watch.Interface, outChan chan watch.Event, stop cha
 // StopReflector must be called when the virtual kubelet end up: all the channels are correctly closed
 // and the eventAggregator goroutines closing are waited
 func (p *KubernetesProvider) StopReflector() {
-	p.log.Info("stopping reflector for cluster " + p.foreignClusterId)
+	klog.Info("stopping reflector for cluster " + p.foreignClusterId)
 
 	if p.svcEvent == nil || p.epEvent == nil || p.repEvent == nil || p.cmEvent == nil || p.secEvent == nil {
-		p.log.Info("reflector was not active for cluster " + p.foreignClusterId)
+		klog.Info("reflector was not active for cluster " + p.foreignClusterId)
 		return
 	}
 
