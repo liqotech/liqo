@@ -6,5 +6,5 @@ spec:
   clusterID: foreign-cluster
   kubeConfigRef:
     name: foreign-config
-    namespace: default
+    namespace: liqo
   join: true
