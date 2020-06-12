@@ -65,8 +65,8 @@ spec:
           - name: CLUSTER_ID
             valueFrom:
               configMapKeyRef:
-                name: {{ .Values.global.configmapName }}
-                key: clusterID
+                name: cluster-id
+                key: cluster-id
           - name: LOCAL_TUNNEL_PUBLIC_IP
             valueFrom:
               configMapKeyRef:
