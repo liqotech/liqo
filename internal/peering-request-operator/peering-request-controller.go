@@ -34,12 +34,13 @@ type PeeringRequestReconciler struct {
 	Log    logr.Logger
 	Scheme *runtime.Scheme
 
-	client           *kubernetes.Clientset
-	discoveryClient  *v1.DiscoveryV1Client
-	Namespace        string
-	clusterId        *clusterID.ClusterID
-	configMapName    string
-	broadcasterImage string
+	client                    *kubernetes.Clientset
+	discoveryClient           *v1.DiscoveryV1Client
+	Namespace                 string
+	clusterId                 *clusterID.ClusterID
+	configMapName             string
+	broadcasterImage          string
+	broadcasterServiceAccount string
 }
 
 // +kubebuilder:rbac:groups=discovery.liqo.io,resources=peeringrequests,verbs=get;list;watch;create;update;patch;delete
@@ -71,7 +72,7 @@ func (r *PeeringRequestReconciler) Reconcile(req ctrl.Request) (ctrl.Result, err
 		if err != nil {
 			return ctrl.Result{}, err
 		}
-		deploy := GetBroadcasterDeployment(fr, "broadcaster", r.Namespace, r.broadcasterImage, r.clusterId.GetClusterID(), cm.Data["gatewayIP"], cm.Data["gatewayPrivateIP"])
+		deploy := GetBroadcasterDeployment(fr, r.broadcasterServiceAccount, r.Namespace, r.broadcasterImage, r.clusterId.GetClusterID(), cm.Data["gatewayIP"], cm.Data["gatewayPrivateIP"])
 		_, err = r.client.AppsV1().Deployments(r.Namespace).Create(&deploy)
 		if err != nil {
 			return ctrl.Result{}, err

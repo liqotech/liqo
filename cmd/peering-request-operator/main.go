@@ -15,13 +15,14 @@ var (
 func main() {
 	mainLog.Info("Starting")
 
-	var namespace, liqoConfigmap, broadcasterImage string
+	var namespace, liqoConfigmap, broadcasterImage, broadcasterServiceAccount string
 	var certPath string
 
 	flag.StringVar(&namespace, "namespace", "default", "Namespace where your configs are stored.")
 	flag.StringVar(&certPath, "cert-path", "", "Certificate files for webhook, needed only if run outside of cluster")
 	flag.StringVar(&liqoConfigmap, "config-map", "liqo-configmap", "Liqo ConfigMap name")
 	flag.StringVar(&broadcasterImage, "broadcaster-image", "liqo/advertisement-broadcaster", "Broadcaster-operator image name")
+	flag.StringVar(&broadcasterServiceAccount, "broadcaster-sa", "broadcaster", "Broadcaster-operator ServiceAccount name")
 	flag.Parse()
 
 	ctrl.SetLogger(zap.New(zap.UseDevMode(true)))
@@ -30,5 +31,5 @@ func main() {
 	_ = peering_request_admission.StartWebhook(certPath, namespace)
 
 	mainLog.Info("Starting peering-request operator")
-	peering_request_operator.StartOperator(namespace, liqoConfigmap, broadcasterImage)
+	peering_request_operator.StartOperator(namespace, liqoConfigmap, broadcasterImage, broadcasterServiceAccount)
 }
