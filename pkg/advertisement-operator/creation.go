@@ -77,7 +77,7 @@ func CreateFromYaml(c client.Client, ctx context.Context, log logr.Logger, filen
 }
 
 // create deployment for a virtual-kubelet
-func CreateVkDeployment(adv *protocolv1.Advertisement, saName, vkNamespace, vkImage, initVKImage, homeClusterId string) appsv1.Deployment {
+func CreateVkDeployment(adv *protocolv1.Advertisement, saName, vkNamespace, vkImage, initVKImage, homeClusterId string) *appsv1.Deployment {
 
 	command := []string{
 		"/usr/bin/virtual-kubelet",
@@ -145,11 +145,11 @@ func CreateVkDeployment(adv *protocolv1.Advertisement, saName, vkNamespace, vkIm
 		},
 	}
 
-	deploy := appsv1.Deployment{
+	deploy := &appsv1.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:            "vkubelet-" + adv.Spec.ClusterId,
 			Namespace:       vkNamespace,
-			OwnerReferences: GetOwnerReference(*adv),
+			OwnerReferences: GetOwnerReference(adv),
 		},
 		Spec: appsv1.DeploymentSpec{
 			Replicas: pointer.Int32Ptr(1),
@@ -242,124 +242,125 @@ func CreateVkDeployment(adv *protocolv1.Advertisement, saName, vkNamespace, vkIm
 }
 
 // create a k8s resource or update it if already exists
+// it receives a pointer to the resource
 func CreateOrUpdate(c client.Client, ctx context.Context, log logr.Logger, object interface{}) error {
 
 	switch obj := object.(type) {
-	case v1.Pod:
+	case *v1.Pod:
 		var pod v1.Pod
 		err := c.Get(ctx, types.NamespacedName{
 			Namespace: obj.Namespace,
 			Name:      obj.Name,
 		}, &pod)
 		if err != nil {
-			err = c.Create(ctx, &obj, &client.CreateOptions{})
+			err = c.Create(ctx, obj, &client.CreateOptions{})
 			if err != nil && !errors.IsAlreadyExists(err) {
 				log.Error(err, "unable to create pod "+obj.Name)
 				return err
 			}
 		} else {
 			obj.SetResourceVersion(pod.ResourceVersion)
-			err = c.Update(ctx, &obj, &client.UpdateOptions{})
+			err = c.Update(ctx, obj, &client.UpdateOptions{})
 			if err != nil {
 				log.Error(err, "unable to update pod "+obj.Name)
 				return err
 			}
 		}
-	case appsv1.Deployment:
+	case *appsv1.Deployment:
 		var deploy appsv1.Deployment
 		err := c.Get(ctx, types.NamespacedName{
 			Namespace: obj.Namespace,
 			Name:      obj.Name,
 		}, &deploy)
 		if err != nil {
-			err = c.Create(ctx, &obj, &client.CreateOptions{})
+			err = c.Create(ctx, obj, &client.CreateOptions{})
 			if err != nil && !errors.IsAlreadyExists(err) {
 				log.Error(err, "unable to create deployment "+obj.Name)
 				return err
 			}
 		} else {
 			obj.SetResourceVersion(deploy.ResourceVersion)
-			err = c.Update(ctx, &obj, &client.UpdateOptions{})
+			err = c.Update(ctx, obj, &client.UpdateOptions{})
 			if err != nil {
 				log.Error(err, "unable to update deployment "+obj.Name)
 				return err
 			}
 		}
-	case v1.ConfigMap:
+	case *v1.ConfigMap:
 		var cm v1.ConfigMap
 		err := c.Get(ctx, types.NamespacedName{
 			Namespace: obj.Namespace,
 			Name:      obj.Name,
 		}, &cm)
 		if err != nil {
-			err = c.Create(ctx, &obj, &client.CreateOptions{})
+			err = c.Create(ctx, obj, &client.CreateOptions{})
 			if err != nil && !errors.IsAlreadyExists(err) {
 				log.Error(err, "unable to create configMap "+obj.Name)
 				return err
 			}
 		} else {
 			obj.SetResourceVersion(cm.ResourceVersion)
-			err = c.Update(ctx, &obj, &client.UpdateOptions{})
+			err = c.Update(ctx, obj, &client.UpdateOptions{})
 			if err != nil {
 				log.Error(err, "unable to update configMap "+obj.Name)
 				return err
 			}
 		}
-	case v1.Secret:
+	case *v1.Secret:
 		var sec v1.Secret
 		err := c.Get(ctx, types.NamespacedName{
 			Namespace: obj.Namespace,
 			Name:      obj.Name,
 		}, &sec)
 		if err != nil {
-			err = c.Create(ctx, &obj, &client.CreateOptions{})
+			err = c.Create(ctx, obj, &client.CreateOptions{})
 			if err != nil && !errors.IsAlreadyExists(err) {
 				log.Error(err, "unable to create configMap "+obj.Name)
 				return err
 			}
 		} else {
 			obj.SetResourceVersion(sec.ResourceVersion)
-			err = c.Update(ctx, &obj, &client.UpdateOptions{})
+			err = c.Update(ctx, obj, &client.UpdateOptions{})
 			if err != nil {
 				log.Error(err, "unable to update secret "+obj.Name)
 				return err
 			}
 		}
-	case v1.ServiceAccount:
+	case *v1.ServiceAccount:
 		var sa v1.ServiceAccount
 		err := c.Get(ctx, types.NamespacedName{
 			Namespace: obj.Namespace,
 			Name:      obj.Name,
 		}, &sa)
 		if err != nil {
-			err = c.Create(ctx, &obj, &client.CreateOptions{})
+			err = c.Create(ctx, obj, &client.CreateOptions{})
 			if err != nil && !errors.IsAlreadyExists(err) {
 				log.Error(err, "unable to create serviceAccount "+obj.Name)
 				return err
 			}
 		} else {
 			obj.SetResourceVersion(sa.ResourceVersion)
-			err = c.Update(ctx, &obj, &client.UpdateOptions{})
+			err = c.Update(ctx, obj, &client.UpdateOptions{})
 			if err != nil {
 				log.Error(err, "unable to update serviceAccount "+obj.Name)
 				return err
 			}
 		}
-	case rbacv1.ClusterRoleBinding:
+	case *rbacv1.ClusterRoleBinding:
 		var crb rbacv1.ClusterRoleBinding
 		err := c.Get(ctx, types.NamespacedName{
 			Namespace: obj.Namespace,
 			Name:      obj.Name,
 		}, &crb)
 		if err != nil {
-			err = c.Create(ctx, &obj, &client.CreateOptions{})
+			err = c.Create(ctx, obj, &client.CreateOptions{})
 			if err != nil && !errors.IsAlreadyExists(err) {
 				log.Error(err, "unable to create clusterRoleBinding "+obj.Name)
 				return err
 			}
 		} else {
 			obj.SetResourceVersion(crb.ResourceVersion)
-			err = c.Update(ctx, &obj, &client.UpdateOptions{})
+			err = c.Update(ctx, obj, &client.UpdateOptions{})
 			if err != nil {
 				log.Error(err, "unable to update clusterRoleBinding "+obj.Name)
 				return err
@@ -401,7 +402,7 @@ func CreateFromFile(c client.Client, ctx context.Context, log logr.Logger, filen
 		return err
 	}
 
-	remoteKubeConfig := v1.ConfigMap{
+	remoteKubeConfig := &v1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "foreign-kubeconfig",
 			Namespace: "default",

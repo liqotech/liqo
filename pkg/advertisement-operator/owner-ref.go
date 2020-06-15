@@ -11,7 +11,7 @@ func GetOwnerReference(object interface{}) []metav1.OwnerReference {
 	ownerRef := make([]metav1.OwnerReference, 1)
 
 	switch obj := object.(type) {
-	case appsv1.Deployment:
+	case *appsv1.Deployment:
 		ownerRef = []metav1.OwnerReference{
 			{
 				APIVersion: obj.APIVersion,
@@ -20,7 +20,7 @@ func GetOwnerReference(object interface{}) []metav1.OwnerReference {
 				UID:        obj.UID,
 			},
 		}
-	case protocolv1.Advertisement:
+	case *protocolv1.Advertisement:
 		ownerRef = []metav1.OwnerReference{
 			{
 				APIVersion: obj.APIVersion,

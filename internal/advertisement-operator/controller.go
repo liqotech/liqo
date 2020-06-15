@@ -110,22 +110,22 @@ func checkAdvertisement(r *AdvertisementReconciler, ctx context.Context, log log
 func createVirtualKubelet(r *AdvertisementReconciler, ctx context.Context, log logr.Logger, adv *protocolv1.Advertisement) error {
 
 	// Create the base resources
-	vkSa := v1.ServiceAccount{
+	vkSa := &v1.ServiceAccount{
 		TypeMeta: metav1.TypeMeta{},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:            "vkubelet-" + adv.Spec.ClusterId,
 			Namespace:       r.KubeletNamespace,
-			OwnerReferences: pkg.GetOwnerReference(*adv),
+			OwnerReferences: pkg.GetOwnerReference(adv),
 		},
 	}
 	err := pkg.CreateOrUpdate(r.Client, ctx, log, vkSa)
 	if err != nil {
 		return err
 	}
-	vkCrb := rbacv1.ClusterRoleBinding{
+	vkCrb := &rbacv1.ClusterRoleBinding{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:            "vkubelet-" + adv.Spec.ClusterId,
-			OwnerReferences: pkg.GetOwnerReference(*adv),
+			OwnerReferences: pkg.GetOwnerReference(adv),
 		},
 		Subjects: []rbacv1.Subject{
 			{Kind: "ServiceAccount", APIGroup: "", Name: "vkubelet-" + adv.Spec.ClusterId, Namespace: r.KubeletNamespace},

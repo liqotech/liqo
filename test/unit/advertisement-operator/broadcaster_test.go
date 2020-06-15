@@ -137,7 +137,7 @@ func TestCreateAdvertisement(t *testing.T) {
 		neighbours[v1.ResourceName(vNode.Name)] = vNode.Status.Allocatable
 	}
 
-	secret := v1.Secret{
+	secret := &v1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "test",
 			Namespace: "test",
@@ -147,7 +147,14 @@ func TestCreateAdvertisement(t *testing.T) {
 		Type:       "",
 	}
 
-	adv := advertisement_operator.CreateAdvertisement("fake-cluster", "1.2.3.4", "10.0.0.1", pNodes, vNodes, availability, images, limits, secret)
+	broadcaster := advertisement_operator.AdvertisementBroadcaster{
+		KubeconfigSecretForForeign: secret,
+		HomeClusterId:              "fake-cluster",
+		GatewayIP:                  "1.2.3.4",
+		GatewayPrivateIP:           "10.0.0.1",
+	}
+
+	adv := broadcaster.CreateAdvertisement(pNodes, vNodes, availability, images, limits)
 
 	assert.NotEmpty(t, adv.Name, "Name should be provided")
 	assert.NotEmpty(t, adv.Namespace, "Namespace should be set")
