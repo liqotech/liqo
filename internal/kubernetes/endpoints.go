@@ -5,6 +5,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/watch"
+	"k8s.io/klog"
 	"strconv"
 )
 
@@ -13,6 +14,7 @@ func (p *KubernetesProvider) manageRemoteEpEvent(event watch.Event) error {
 	if !ok {
 		return errors.New("cannot cast endpoints")
 	}
+	klog.V(3).Info("received %v on endpoint %v", event.Type, foreignEps.Name)
 
 	denattedNS, err := p.DeNatNamespace(foreignEps.Namespace)
 	if err != nil {
@@ -37,6 +39,7 @@ func (p *KubernetesProvider) manageEpEvent(event timestampedEvent) error {
 	if !ok {
 		return errors.New("cannot cast object to endpoint")
 	}
+	klog.V(3).Info("received %v on endpoint %v", event.event.Type, endpoints.Name)
 
 	nattedNS, err := p.NatNamespace(endpoints.Namespace, false)
 	if err != nil {

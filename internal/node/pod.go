@@ -34,13 +34,7 @@ const (
 )
 
 func addPodAttributes(ctx context.Context, span trace.Span, pod *corev1.Pod) context.Context {
-	return span.WithFields(ctx, log.Fields{
-		"uid":       string(pod.GetUID()),
-		"namespace": pod.GetNamespace(),
-		"name":      pod.GetName(),
-		"phase":     string(pod.Status.Phase),
-		"reason":    pod.Status.Reason,
-	})
+	return span.WithFields(ctx, nil)
 }
 
 func (pc *PodController) createOrUpdatePod(ctx context.Context, pod *corev1.Pod) error {

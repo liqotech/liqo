@@ -6,6 +6,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/kubernetes"
+	"k8s.io/klog"
 )
 
 func (p *KubernetesProvider) manageCmEvent(event watch.Event) error {
@@ -15,6 +16,7 @@ func (p *KubernetesProvider) manageCmEvent(event watch.Event) error {
 	if !ok {
 		return errors.New("cannot cast object to configMap")
 	}
+	klog.V(3).Info("received %v on configmap %v", event.Type, cm.Name)
 
 	nattedNS, err := p.NatNamespace(cm.Namespace, false)
 	if err != nil {
@@ -25,27 +27,27 @@ func (p *KubernetesProvider) manageCmEvent(event watch.Event) error {
 	case watch.Added:
 		_, err := p.foreignClient.Client().CoreV1().ConfigMaps(nattedNS).Get(cm.Name, metav1.GetOptions{})
 		if err != nil {
-			p.log.Info("remote cm " + cm.Name + " doesn't exist: creating it")
+			klog.Info("remote cm " + cm.Name + " doesn't exist: creating it")
 
 			if err = CreateConfigMap(p.foreignClient.Client(), cm, nattedNS); err != nil {
-				p.log.Error(err, "unable to create configMap "+cm.Name+" on cluster "+p.foreignClusterId)
+				klog.Error(err, "unable to create configMap "+cm.Name+" on cluster "+p.foreignClusterId)
 			} else {
-				p.log.Info("correctly created configMap " + cm.Name + " on cluster " + p.foreignClusterId)
+				klog.Info("correctly created configMap " + cm.Name + " on cluster " + p.foreignClusterId)
 			}
 		}
 
 	case watch.Modified:
 		if err = UpdateConfigMap(p.foreignClient.Client(), cm, nattedNS); err != nil {
-			p.log.Error(err, "unable to update configMap "+cm.Name+" on cluster "+p.foreignClusterId)
+			klog.Error(err, "unable to update configMap "+cm.Name+" on cluster "+p.foreignClusterId)
 		} else {
-			p.log.Info("correctly updated configMap " + cm.Name + " on cluster " + p.foreignClusterId)
+			klog.Infof("correctly updated configMap %v on cluster %v", cm.Name, p.foreignClusterId)
 		}
 
 	case watch.Deleted:
 		if err = DeleteConfigMap(p.foreignClient.Client(), cm, nattedNS); err != nil {
-			p.log.Error(err, "unable to delete configMap "+cm.Name+" on cluster "+p.foreignClusterId)
+			klog.Error(err, "unable to delete configMap "+cm.Name+" on cluster "+p.foreignClusterId)
 		} else {
-			p.log.Info("correctly deleted configMap " + cm.Name + " on cluster " + p.foreignClusterId)
+			klog.Infof("correctly deleted configMap %v on cluster %v", cm.Name, p.foreignClusterId)
 		}
 	}
 	return nil

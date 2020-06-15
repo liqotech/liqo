@@ -39,10 +39,10 @@ func handleQueueItem(ctx context.Context, q workqueue.RateLimitingInterface, han
 		return false
 	}
 
-	klog.Info("Got queue object")
+	klog.V(5).Info("Got queue object")
 
 	err := func(obj interface{}) error {
-		defer klog.Info("Processed queue item")
+		defer klog.V(5).Info("Processed queue item")
 		// We call Done here so the work queue knows we have finished processing this item.
 		// We also must remember to call Forget if we do not want this work item being re-queued.
 		// For example, we do not call Forget if a transient error occurs.

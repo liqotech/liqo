@@ -18,10 +18,11 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/liqoTech/liqo/internal/log"
+	"k8s.io/klog"
 	"sync"
 	"time"
 
-	"github.com/liqoTech/liqo/internal/log"
 	"github.com/liqoTech/liqo/internal/trace"
 	pkgerrors "github.com/pkg/errors"
 	coord "k8s.io/api/coordination/v1beta1"
@@ -210,7 +211,7 @@ func (n *NodeController) Run(ctx context.Context) error {
 		if !errors.IsNotFound(err) {
 			return pkgerrors.Wrap(err, "error creating node lease")
 		}
-		log.G(ctx).Info("Node leases not supported, falling back to only node status updates")
+		klog.Info("Node leases not supported, falling back to only node status updates")
 		n.disableLease = true
 	}
 	n.lease = l

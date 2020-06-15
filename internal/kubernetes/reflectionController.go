@@ -67,6 +67,8 @@ func (p *KubernetesProvider) StartReflector() {
 		p.workers.Add(1)
 		go p.controlLoop()
 	}
+
+	klog.Infof("vk reflector started with %d workers", nReflectionWorkers)
 }
 
 // main function of the reflector: this control loop watches 5 different channels
@@ -87,7 +89,7 @@ func (p *KubernetesProvider) controlLoop() {
 
 		case e := <-p.svcEvent:
 			if err = p.manageSvcEvent(e); err != nil {
-				p.log.Error(err, "error in managing svc event")
+				klog.Error(err, "error in managing svc event")
 			}
 
 		case e := <-p.epEvent:
@@ -185,6 +187,7 @@ func (p *KubernetesProvider) addServiceWatcher(namespace string, stop chan struc
 	p.svcwg.Add(1)
 	go eventAggregator(svcWatch, p.svcEvent, stop, p.svcwg)
 
+	klog.V(3).Infof("service reflector for home namespace \"%v\" started", namespace)
 	return nil
 }
 
@@ -199,6 +202,7 @@ func (p *KubernetesProvider) addEndpointWatcher(namespace string, stop chan stru
 	p.epwg.Add(1)
 	go epEventsAggregator(epWatch, p.epEvent, stop, p.epwg)
 
+	klog.V(3).Infof("endpoint reflector for home namespace \"%v\" started", namespace)
 	return nil
 }
 
@@ -213,18 +217,21 @@ func (p *KubernetesProvider) addRemoteEndpointWatcher(namespace string, stop cha
 	p.repwg.Add(1)
 	go eventAggregator(epWatch, p.repEvent, stop, p.repwg)
 
+	klog.V(3).Infof("remote endpoint reflector in remote namespace \"%v\" started", namespace)
 	return nil
 }
 
 func (p *KubernetesProvider) addConfigMapWatcher(namespace string, stop chan struct{}) error {
 	cmWatch, err := p.homeClient.Client().CoreV1().ConfigMaps(namespace).Watch(metav1.ListOptions{})
 	if err != nil {
-		klog.Error(err, "cannot watch configMaps in namespace "+namespace)
+		klog.Errorf("error: %v - cannot watch configMaps in namespace %v", err, namespace)
 		return err
 	}
 
 	p.cmwg.Add(1)
 	go eventAggregator(cmWatch, p.cmEvent, stop, p.cmwg)
+
+	klog.V(3).Infof("configmap reflector for home namespace \"%v\" started", namespace)
 	return nil
 }
 
@@ -237,11 +244,13 @@ func (p *KubernetesProvider) addSecretWatcher(namespace string, stop chan struct
 
 	p.secwg.Add(1)
 	go eventAggregator(secWatch, p.secEvent, stop, p.secwg)
+
+	klog.V(3).Infof("secret reflector for home namespace \"%v\" started", namespace)
 	return nil
 }
 
-func (p *KubernetesProvider) AddPodWatcher(ns string, stop chan struct{}) error {
-	poWatch, err := p.foreignClient.Client().CoreV1().Pods(ns).Watch(metav1.ListOptions{})
+func (p *KubernetesProvider) AddPodWatcher(namespace string, stop chan struct{}) error {
+	poWatch, err := p.foreignClient.Client().CoreV1().Pods(namespace).Watch(metav1.ListOptions{})
 	if err != nil {
 		return err
 	}
@@ -249,6 +258,7 @@ func (p *KubernetesProvider) AddPodWatcher(ns string, stop chan struct{}) error 
 	p.powg.Add(1)
 	go p.watchForeignPods(poWatch, stop)
 
+	klog.V(3).Infof("foreign podWatcher for home namespace \"%v\" started", namespace)
 	return nil
 }
 
@@ -347,6 +357,8 @@ func (p *KubernetesProvider) reflectNamespace(namespace string) error {
 	}
 
 	p.reflectedNamespaces.ns[namespace] = stop
+
+	klog.Infof("reflection setup completed - namespace \"%v\" is reflected in namespace \"%v\"", namespace, nattedNS)
 
 	return nil
 }
