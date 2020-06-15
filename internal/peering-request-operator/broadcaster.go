@@ -38,6 +38,8 @@ func GetBroadcasterDeployment(request *discoveryv1.PeeringRequest, nameSA string
 		gatewayIP,
 		"--gateway-private-ip",
 		gatewayPrivateIP,
+		"--service-account",
+		nameSA, //TODO: using this SA, we pass to the foreign cluster a kubeconfig with the same permissions of the broadcaster deployment; if we want to pass a different one we have to forge it
 	}
 
 	deploy := appsv1.Deployment{
