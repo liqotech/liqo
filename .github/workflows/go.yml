@@ -19,6 +19,7 @@ jobs:
         - secret-creation
         - init-pod-mutator
         - pod-mutator
+        - peering-request-webhook-init
     steps:
       - name: Check out code into the Go module directory
         uses: actions/checkout@v1

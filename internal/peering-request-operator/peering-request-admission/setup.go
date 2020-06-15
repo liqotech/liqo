@@ -9,18 +9,15 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 )
 
-func StartWebhook(certPath string, namespace string) *WebhookServer {
+func StartWebhook(certPath string, keyPath string, namespace string) *WebhookServer {
 	port := 8443
-	return startTls(certPath, port, namespace)
+	return startTls(certPath, keyPath, port, namespace)
 }
 
-func startTls(certPath string, port int, namespace string) *WebhookServer {
-	certFile := certPath + "/cert.pem"
-	keyFile := certPath + "/key.pem"
-
+func startTls(certPath string, keyPath string, port int, namespace string) *WebhookServer {
 	log := ctrl.Log.WithName("peering-webhook-admission")
 
-	pair, err := tls.LoadX509KeyPair(certFile, keyFile)
+	pair, err := tls.LoadX509KeyPair(certPath, keyPath)
 	if err != nil {
 		log.Error(err, err.Error())
 		os.Exit(1)
@@ -50,7 +47,7 @@ func startTls(certPath string, port int, namespace string) *WebhookServer {
 
 	// start webhook Server in new routine
 	go func() {
-		if err := whsvr.Server.ListenAndServeTLS(certFile, keyFile); err != nil {
+		if err := whsvr.Server.ListenAndServeTLS(certPath, keyPath); err != nil {
 			whsvr.Log.Error(err, "Failed to listen and serve webhook Server: "+err.Error())
 		}
 	}()
