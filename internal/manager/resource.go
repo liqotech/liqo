@@ -18,8 +18,7 @@ import (
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	corev1listers "k8s.io/client-go/listers/core/v1"
-
-	"github.com/liqoTech/liqo/internal/log"
+	"k8s.io/klog"
 )
 
 // ResourceManager acts as a passthrough to a cache (lister) for pods assigned to the current node.
@@ -48,7 +47,7 @@ func (rm *ResourceManager) GetPods() []*v1.Pod {
 	if err == nil {
 		return l
 	}
-	log.L.Errorf("failed to fetch pods from lister: %v", err)
+	klog.Errorf("failed to fetch pods from lister: %v", err)
 	return make([]*v1.Pod, 0)
 }
 

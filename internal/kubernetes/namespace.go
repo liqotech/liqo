@@ -9,6 +9,7 @@ import (
 	kerror "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/tools/cache"
+	"k8s.io/klog"
 	"strings"
 )
 
@@ -28,7 +29,7 @@ func (p *KubernetesProvider) startNattingCache(clientSet v1alpha1.NamespacedCRDC
 		DeleteFunc: func(obj interface{}) {
 			p.StopReflector()
 			if err := p.createNattingTable(p.foreignClusterId); err != nil {
-				p.log.Error(err, "cannot create nattingTable")
+				klog.Error(err, "cannot create nattingTable")
 			}
 		},
 	}
@@ -37,6 +38,7 @@ func (p *KubernetesProvider) startNattingCache(clientSet v1alpha1.NamespacedCRDC
 	p.ntCache.Store, p.ntCache.Controller = crdClient.WatchResources(clientSet,
 		"namespacenattingtables", "",
 		0, ehf, lo)
+	klog.Info("namespaceNattingTable cache initialized")
 }
 
 func (nt *namespaceNTCache) WaitNamespaceNattingTableSync() {
@@ -153,6 +155,8 @@ func (p *KubernetesProvider) createNattingTable(name string) error {
 		return nil
 	}
 
+	klog.Info("new namespaceNattingTable created")
+
 	return err
 }
 
@@ -178,12 +182,12 @@ func (p *KubernetesProvider) manageReflections(oldObj interface{}, newObj interf
 
 			_, err := p.foreignClient.Client().CoreV1().Namespaces().Create(ns)
 			if err != nil && !kerror.IsAlreadyExists(err) {
-				p.log.Error(err, "error in namespace creation")
+				klog.Error(err, "error in namespace creation")
 				continue
 			}
 
 			if err := p.reflectNamespace(k); err != nil {
-				p.log.Error(err, "error in manage reflections")
+				klog.Error(err, "error in manage reflections")
 				continue
 			}
 		}
@@ -194,10 +198,10 @@ func (p *KubernetesProvider) manageReflections(oldObj interface{}, newObj interf
 
 			close(v)
 			if r := recover(); r != nil {
-				p.log.Info("channel already closed by the reflection routine")
+				klog.Info("channel already closed by the reflection routine")
 			} else {
 				if err := p.cleanupNamespace(oldNt[k]); err != nil {
-					p.log.Error(err, "error in cleaning up namespace")
+					klog.Error(err, "error in cleaning up namespace")
 				}
 			}
 			delete(p.reflectedNamespaces.ns, k)

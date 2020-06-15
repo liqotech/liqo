@@ -16,6 +16,7 @@ func (p *KubernetesProvider) manageSecEvent(event watch.Event) error {
 	if !ok {
 		return errors.New("cannot cast object to secret")
 	}
+	klog.V(3).Info("received %v on secret %v", event.Type, sec.Name)
 
 	nattedNS, err := p.NatNamespace(sec.Namespace, false)
 	if err != nil {
@@ -26,12 +27,12 @@ func (p *KubernetesProvider) manageSecEvent(event watch.Event) error {
 	case watch.Added:
 		_, err := p.foreignClient.Client().CoreV1().Secrets(nattedNS).Get(sec.Name, metav1.GetOptions{})
 		if err != nil {
-			klog.Info("remote secret " + sec.Name + " doesn't exist: creating it")
+			klog.V(5).Info("remote secret " + sec.Name + " doesn't exist: creating it")
 
 			if err = CreateSecret(p.foreignClient.Client(), sec, nattedNS); err != nil {
 				klog.Error(err, "unable to create secret "+sec.Name+" on cluster "+p.foreignClusterId)
 			} else {
-				klog.Info("correctly created secret " + sec.Name + " on cluster " + p.foreignClusterId)
+				klog.V(5).Info("correctly created secret " + sec.Name + " on cluster " + p.foreignClusterId)
 			}
 		}
 
@@ -39,14 +40,14 @@ func (p *KubernetesProvider) manageSecEvent(event watch.Event) error {
 		if err = UpdateSecret(p.foreignClient.Client(), sec, nattedNS); err != nil {
 			klog.Error(err, "unable to update secret "+sec.Name+" on cluster "+p.foreignClusterId)
 		} else {
-			klog.Info("correctly updated secret " + sec.Name + " on cluster " + p.foreignClusterId)
+			klog.V(5).Info("correctly updated secret " + sec.Name + " on cluster " + p.foreignClusterId)
 		}
 
 	case watch.Deleted:
 		if err = DeleteSecret(p.foreignClient.Client(), sec, nattedNS); err != nil {
 			klog.Error(err, "unable to delete secret "+sec.Name+" on cluster "+p.foreignClusterId)
 		} else {
-			klog.Info("correctly deleted secret " + sec.Name + " on cluster " + p.foreignClusterId)
+			klog.V(5).Info("correctly deleted secret " + sec.Name + " on cluster " + p.foreignClusterId)
 		}
 	}
 	return nil

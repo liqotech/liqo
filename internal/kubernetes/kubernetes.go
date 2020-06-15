@@ -1,7 +1,6 @@
 package kubernetes
 
 import (
-	"github.com/go-logr/logr"
 	protocolv1 "github.com/liqoTech/liqo/api/advertisement-operator/v1"
 	nattingv1 "github.com/liqoTech/liqo/api/namespaceNattingTable/v1"
 	"github.com/liqoTech/liqo/internal/node"
@@ -45,8 +44,6 @@ type KubernetesProvider struct { // nolint:golint]
 	RemappedPodCidr    string
 
 	foreignPodWatcherStop chan bool
-
-	log logr.Logger
 }
 
 // NewKubernetesProviderKubernetesConfig creates a new KubernetesV0Provider. Kubernetes legacy provider does not implement the new asynchronous podnotifier interface

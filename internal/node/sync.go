@@ -2,11 +2,12 @@ package node
 
 import (
 	"context"
+	"github.com/liqoTech/liqo/internal/log"
+	"k8s.io/klog"
 	"sync"
 	"time"
 
 	"github.com/liqoTech/liqo/internal/errdefs"
-	"github.com/liqoTech/liqo/internal/log"
 	"github.com/liqoTech/liqo/internal/trace"
 	"github.com/pkg/errors"
 	corev1 "k8s.io/api/core/v1"
@@ -48,7 +49,7 @@ func (p *syncProviderWrapper) NotifyPods(ctx context.Context, f func(*corev1.Pod
 }
 
 func (p *syncProviderWrapper) _deletePodKey(ctx context.Context, key string) {
-	log.G(ctx).WithField("key", key).Debug("Cleaning up pod from deletion cache")
+	klog.V(4).Info("Cleaning up pod from deletion cache")
 	p.deletedPods.Delete(key)
 }
 

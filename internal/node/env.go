@@ -17,6 +17,8 @@ package node
 import (
 	"context"
 	"fmt"
+	"github.com/liqoTech/liqo/internal/log"
+	"k8s.io/klog"
 	"sort"
 	"strings"
 
@@ -28,7 +30,6 @@ import (
 	fieldpath "k8s.io/kubernetes/pkg/fieldpath"
 	"k8s.io/kubernetes/third_party/forked/golang/expansion"
 
-	"github.com/liqoTech/liqo/internal/log"
 	"github.com/liqoTech/liqo/internal/manager"
 )
 
@@ -139,7 +140,7 @@ loop:
 					if errors.IsNotFound(err) {
 						recorder.Eventf(pod, corev1.EventTypeWarning, ReasonOptionalConfigMapNotFound, "configmap %q not found", ef.Name)
 					} else {
-						log.G(ctx).Warnf("failed to read configmap %q: %v", ef.Name, err)
+						klog.Warningf("failed to read configmap %q: %v", ef.Name, err)
 						recorder.Eventf(pod, corev1.EventTypeWarning, ReasonFailedToReadOptionalConfigMap, "failed to read configmap %q", ef.Name)
 					}
 					// Continue on to the next reference.
