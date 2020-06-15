@@ -41,6 +41,36 @@ spec:
         run: peering-request-operator
     spec:
       serviceAccountName: peering-request-operator
+      initContainers:
+        - name: secret-creation
+          image: liqo/secret-creation
+          imagePullPolicy: Always
+          args:
+            - "--namespace"
+            - {{ .Release.Namespace }}
+            - "--service"
+            - "peering-request-operator"
+            - "--secret"
+            - "peering-request-webhook-certs"
+            - "--export-env-vars"
+            - "--output-env-file"
+            - "/etc/environment/liqo/env"
+            - "--output-dir"
+            - "/etc/ssl/liqo"
+          volumeMounts:
+            - mountPath: /etc/ssl/liqo
+              name: certs-volume
+            - mountPath: /etc/environment/liqo
+              name: env-volume
+        - name: peering-request-deployment
+          image: liqo/init-peering-request
+          imagePullPolicy: Always
+          args:
+            - "--input-env-file"
+            - "/etc/environment/liqo/env"
+          volumeMounts:
+            - mountPath: /etc/environment/liqo
+              name: env-volume
       containers:
         - image: liqo/peering-request-operator
           name: peering-request-operator
@@ -48,23 +78,24 @@ spec:
           ports:
             - containerPort: 8443
           args:
-            - "--cert-path"
-            - "/etc/webhook/certs"
-            - "--namespace"
-            - "$(POD_NAMESPACE)"
+            - "--input-env-file"
+            - "/etc/environment/liqo/env"
           env:
             - name: POD_NAMESPACE
               valueFrom:
                 fieldRef:
                   fieldPath: metadata.namespace
           volumeMounts:
-            - name: webhook-certs
-              mountPath: /etc/webhook/certs
-              readOnly: true
+          - mountPath: /etc/ssl/liqo
+            name: certs-volume
+          - mountPath: /etc/environment/liqo
+            name: env-volume
       volumes:
-        - name: webhook-certs
-          secret:
-            secretName: webhook-certs
+        - name: certs-volume
+          emptyDir: {}
+        - name: env-volume
+          emptyDir: {}
+
 ---
 apiVersion: v1
 kind: Service
