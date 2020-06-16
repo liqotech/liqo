@@ -74,7 +74,6 @@ curl https://raw.githubusercontent.com/LiqoTech/liqo/master/install.sh | bash
 ```
 ## Architecture
 
-
 Liqo relies on several components:
 
 * *Liqo Virtual Kubelet*: Based on [Virtual Kubelet](https://github.com/virtual-kubelet/virtual-kubelet) project, the VK
