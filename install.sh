@@ -7,7 +7,7 @@ function cleanup()
 }
 
 set_variable_from_command() {    
-    if [[ ($# -ne 2) ]];
+    if [[ ($# -ne 3) ]];
     then
       echo "Internal Error - Wrong number of parameters"
       exit 1
@@ -16,7 +16,9 @@ set_variable_from_command() {
     DEFAULT_COMMAND=$2
     if [ -z "${!VAR_NAME}" ]
     then
-        result=$(bash -c "${!DEFAULT_COMMAND}") || return $?
+        result=$(bash -c "${!DEFAULT_COMMAND}") || {
+          ret=$?; echo "$3 - Code: $ret"; return $ret; 
+        }
         declare -gx "$VAR_NAME"=$result
     fi
     echo "[PRE-INSTALL]: $VAR_NAME is set to: ${!VAR_NAME}"
@@ -32,6 +34,22 @@ print_help()
    echo "   SERVICE_CIDR: the POD CIDR of your cluster (e.g.; 10.96.0.0/12) . The script will try to detect it, but you can override thisthis by having this variable already set"
    echo "   GATEWAY_PRIVATE_IP: the IP used by the cluster inside the cluster-to-cluster interconnection (e.g.; 192.168.1.1)"
    echo "   GATEWAY_IP: the public IP that will be used by LIQO to establish the interconnection with other clusters"
+}
+
+function wait_and_approve_csr(){
+   max_retry=5
+   retry=0
+   while [ "$retry" -lt "$max_retry" ]; do
+     echo "[INSTALL]: Approving Admission/Mutating Webhook CSRs, $1"
+     if kubectl get csr $1 > /dev/null; then
+       kubectl certificate approve $1 || exit 1
+       break
+     fi
+     echo "[INSTALL]: CSR not found... Retrying..."
+     retry=$((retry+1))
+     sleep 5
+   done
+   return 0
 }
 
 
@@ -89,19 +107,22 @@ else
 fi
 
 POD_CIDR_COMMAND='kubectl cluster-info dump | grep -m 1 -Po "(?<=--cluster-cidr=)[0-9.\/]+"'
-set_variable_from_command POD_CIDR POD_CIDR_COMMAND
+set_variable_from_command POD_CIDR POD_CIDR_COMMAND "[ERROR]: Unable to find POD_CIDR"
 SERVICE_CIDR_COMMAND='kubectl cluster-info dump | grep -m 1 -Po "(?<=--service-cluster-ip-range=)[0-9.\/]+"'
-set_variable_from_command SERVICE_CIDR SERVICE_CIDR_COMMAND 
+set_variable_from_command SERVICE_CIDR SERVICE_CIDR_COMMAND "[ERROR]: Unable to find Service CIDR"
 GATEWAY_IP_COMMAND='kubectl get no -l "liqonet.liqo.io/gateway=true" -o jsonpath="{.items[0].status.addresses[0].address}"'
-set_variable_from_command GATEWAY_IP GATEWAY_IP_COMMAND
+set_variable_from_command GATEWAY_IP GATEWAY_IP_COMMAND "[ERROR]: You have to assign to a node of the cluster the role of gateway. Label it with 'liqonet.liqo.io/gateway=true': kubectl label yournode liqonet.liqo.io/gateway=true"
 GATEWAY_PRIVATE_IP_COMMAND="echo $DEFAULT_GATEWAY_PRIVATE_IP"
-set_variable_from_command GATEWAY_PRIVATE_IP GATEWAY_PRIVATE_IP_COMMAND
+set_variable_from_command GATEWAY_PRIVATE_IP GATEWAY_PRIVATE_IP_COMMAND "[ERROR]: Unable to set Gateway Private IP"
 
-TO_EXECUTE="$TMPDIR/bin/helm install liqo -n liqo ./ --set podCIDR=$POD_CIDR --set serviceCIDR=$SERVICE_CIDR --set gatewayPrivateIP=$GATEWAY_PRIVATE_IP --set gatewayIP=$GATEWAY_IP"
-read -p "Are you sure to deploy LIQO with this configuration? (y/N) " -n 1 -r
-echo
-if [[ $REPLY =~ ^[Yy]$ ]]
-then
-    cd $TMPDIR/liqo
-    $TO_EXECUTE
-fi
+#Wait for the installation to complete
+$TMPDIR/bin/helm dependency update $TMPDIR/liqo/deployments/liqo_chart
+$TMPDIR/bin/helm install liqo -n liqo $TMPDIR/liqo/deployments/liqo_chart --set podCIDR=$POD_CIDR --set serviceCIDR=$SERVICE_CIDR --set gatewayPrivateIP=$GATEWAY_PRIVATE_IP --set gatewayIP=$GATEWAY_IP
+echo "[INSTALL]: Installing LIQO on your cluster..."
+sleep 30
+
+# Approve CSRs
+
+wait_and_approve_csr peering-request-operator.liqo
+wait_and_approve_csr mutatepodtoleration.liqo
+

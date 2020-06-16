@@ -63,7 +63,7 @@ spec:
             - mountPath: /etc/environment/liqo
               name: env-volume
         - name: peering-request-deployment
-          image: liqo/init-peering-request
+          image: liqo/peering-request-webhook-init
           imagePullPolicy: Always
           args:
             - "--input-env-file"
