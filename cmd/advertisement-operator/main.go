@@ -18,6 +18,7 @@ package main
 import (
 	"errors"
 	"flag"
+	"k8s.io/client-go/kubernetes"
 	"os"
 
 	"k8s.io/apimachinery/pkg/runtime"
@@ -31,6 +32,7 @@ import (
 	liqonetv1 "github.com/liqoTech/liqo/api/tunnel-endpoint/v1"
 	"github.com/liqoTech/liqo/internal/advertisement-operator"
 	// +kubebuilder:scaffold:imports
+	"github.com/liqoTech/liqo/pkg/csrApprover"
 )
 
 const (
@@ -98,6 +100,14 @@ func main() {
 		setupLog.Error(err, "unable to start manager")
 		os.Exit(1)
 	}
+
+	// New Client For CSR Auto-approval
+	config := ctrl.GetConfigOrDie()
+	clientset, err := kubernetes.NewForConfig(config)
+	if err != nil {
+		panic(err.Error())
+	}
+	go csrApprover.WatchCSR(clientset, "virtual-kubelet=true")
 
 	if err = (&advertisement_operator.AdvertisementReconciler{
 		Client:           mgr.GetClient(),

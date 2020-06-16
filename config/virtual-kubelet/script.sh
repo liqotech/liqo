@@ -35,6 +35,8 @@ apiVersion: certificates.k8s.io/v1beta1
 kind: CertificateSigningRequest
 metadata:
   name: ${POD_NAME}
+  labels:
+     "virtual-kubelet": "true"
 spec:
   request: $(cat server.csr | base64 | tr -d '\n')
   usages:

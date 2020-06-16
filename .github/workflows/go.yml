@@ -21,6 +21,8 @@ jobs:
         - pod-mutator
         - peering-request-webhook-init
     steps:
+      - name: setup-docker
+        uses: docker-practice/actions-setup-docker@0.0.1
       - name: Check out code into the Go module directory
         uses: actions/checkout@v1
       - name: Push ${{ matrix.component }} image on repo
