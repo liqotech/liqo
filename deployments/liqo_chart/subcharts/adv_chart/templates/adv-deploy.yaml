@@ -55,10 +55,6 @@ spec:
         args:
           - "--cluster-id"
           - "$(CLUSTER_ID)"
-          - "--gateway-ip"
-          - "$(LOCAL_TUNNEL_PUBLIC_IP)"
-          - "--gateway-private-ip"
-          - "$(LOCAL_TUNNEL_PRIVATE_IP)"
           - "--kubelet-namespace"
           - "$(POD_NAMESPACE)"
         env:

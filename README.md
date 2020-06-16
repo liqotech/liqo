@@ -31,24 +31,49 @@ Liqo can be installed via Helm.
     * K3s is also supported
 * Helm 3
 
-### 
-We will refer to cluster1 and cluster2.
-To start playing with Liqo you will require to create two kubeconfig. A script to properly generate a kubeconfig is 
-available [here](https://gist.github.com/innovia/fbba8259042f71db98ea8d4ad19bd708).
+### Installation
 
-Among the others possible values, you have to set up the following parameters in 
-[values.yaml](./deployments/liqo_chart/values.yaml):
+The following process will install Liqo on your Cluster. This will make your cluster ready to share resources with other Liqo resources.
+
+### Pre-requirements
+
+You have to label one node of your cluster as the gateay node. This will be used as the gateway for the inter-cluster traffic.
 
 ```bash
-cd deployments/liqo_chart/
-helm dep up
-export kubeconfig=cluster1 # the name of your kubeconfig
-helm install -n liqo liqo ./ -f values-c1.yaml
-export kubeconfig=cluster2 # the name of your kubeconfig
-helm install -n liqo liqo ./ -f values-c2.yaml
+kubectl label no __your__gateway__node liqonet.liqo.io/gateway=true
 ```
 
+To get the list of your nodes, you can use: 
+
+```
+kubectl get no
+```
+
+#### Kubernetes
+
+Liqo Installer should be capable to look for the cluster parameters required. 
+
+```bash
+curl https://raw.githubusercontent.com/LiqoTech/liqo/master/install.sh | bash
+```
+
+#### [K3s](k3s.io)
+
+K3s is a minimal Kubernetes cluster which is pretty small and easy to set up. However, it does not store its configuration in the
+way that traditional installers (e.g.; Kubedam) do. Therefore, it is required to know the configuration you entered for your cluster.
+
+After having exported your K3s Kubeconfig, you can install LIQO setting the following variables before launching the installer. The following values represent the default configuration for K3s cluster, 
+you may need to adapt them to the actual values of your cluster.
+
+```bash
+POD_CIDR=10.42.0.0/16
+SERVICE_CIDR=10.43.0.0/16
+GATEWAY_IP=10.0.0.31
+GATEWAY_PRIVATE_IP=192.168.100.1
+curl https://raw.githubusercontent.com/LiqoTech/liqo/master/install.sh | bash
+```
 ## Architecture
+
 
 Liqo relies on several components:
 
