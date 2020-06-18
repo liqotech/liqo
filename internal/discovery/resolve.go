@@ -2,10 +2,12 @@ package discovery
 
 import (
 	"context"
+	"errors"
 	"github.com/grandcat/zeroconf"
 	"math"
 	"net"
 	"os"
+	"strconv"
 	"time"
 )
 
@@ -27,7 +29,12 @@ func (discovery *DiscoveryCtrl) Resolve(service string, domain string, waitTime 
 		var res []*TxtData
 		for entry := range results {
 			if discovery.isForeign(entry.AddrIPv4) {
-				if txtData, err := Decode(entry.Text); err == nil {
+				ip, err := getEntryIP(entry)
+				if err != nil {
+					discovery.Log.Error(err, err.Error())
+					continue
+				}
+				if txtData, err := Decode(ip, strconv.Itoa(entry.Port), entry.Text); err == nil {
 					res = append(res, txtData)
 				} else {
 					discovery.Log.Error(err, err.Error())
@@ -97,4 +104,14 @@ func getIP(addr net.Addr) net.IP {
 		ip = v.IP
 	}
 	return ip
+}
+
+func getEntryIP(entry *zeroconf.ServiceEntry) (string, error) {
+	if len(entry.AddrIPv4) > 0 {
+		return entry.AddrIPv4[0].String(), nil
+	}
+	if len(entry.AddrIPv6) > 0 {
+		return entry.AddrIPv6[0].String(), nil
+	}
+	return "", errors.New("no IP found")
 }

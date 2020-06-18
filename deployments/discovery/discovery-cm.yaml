@@ -7,7 +7,7 @@ data:
   name: MyLiqo                      # service name
   service: _liqo._tcp               # service type
   domain: local.                    # service domain
-  port: '1234'                      # service port
+  port: '6443'                      # service port
 
   waitTime: '2'                     # wait response time
   updateTime: '3'                   # time between queries
@@ -15,4 +15,4 @@ data:
   enableDiscovery: 'false'          # enable service discovery
   enableAdvertisement: 'true'       # enable service advertisement
 
-  autoJoin: 'false'                 # enable automatic join process
+  autoJoin: 'true'                  # enable automatic join process

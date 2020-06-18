@@ -13,8 +13,6 @@ type Config struct {
 	Domain  string `json:"domain"`
 	Port    int    `json:"port"`
 
-	TxtData TxtData `json:"txtData"`
-
 	WaitTime   int `json:"waitTime"`
 	UpdateTime int `json:"updateTime"`
 
@@ -52,10 +50,6 @@ func (discovery *DiscoveryCtrl) GetDiscoveryConfig() {
 	discovery.config.EnableAdvertisement = config["enableAdvertisement"] == "true"
 
 	discovery.config.AutoJoin = config["autoJoin"] == "true"
-
-	if discovery.config.EnableAdvertisement {
-		discovery.config.TxtData = discovery.GetTxtData()
-	}
 
 	discovery.config.WaitTime, err = strconv.Atoi(config["waitTime"]) // wait response time
 	if err != nil {

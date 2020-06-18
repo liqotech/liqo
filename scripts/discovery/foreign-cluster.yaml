@@ -4,7 +4,6 @@ metadata:
   name: foreign-cluster
 spec:
   clusterID: foreign-cluster
-  kubeConfigRef:
-    name: foreign-config
-    namespace: liqo
   join: true
+  namespace: default
+  apiUrl: https://192.168.2.100:6443

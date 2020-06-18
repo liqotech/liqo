@@ -41,6 +41,7 @@ func main() {
 		os.Exit(1)
 	}
 
+	discoveryCtl.SetupCaData()
 	discoveryCtl.StartDiscovery()
 
 	mainLog.Info("Starting ForeignCluster operator")

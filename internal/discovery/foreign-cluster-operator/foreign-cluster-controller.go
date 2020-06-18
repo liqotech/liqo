@@ -53,7 +53,22 @@ func (r *ForeignClusterReconciler) Reconcile(req ctrl.Request) (ctrl.Result, err
 	fc, err := r.discoveryClient.ForeignClusters().Get(req.Name, metav1.GetOptions{})
 	if err != nil {
 		// TODO: has been removed
-		return ctrl.Result{}, err
+		return ctrl.Result{}, nil
+	}
+
+	if fc.Status.CaDataRef == nil {
+		r.Log.Info("Get CA Data")
+		err = fc.LoadForeignCA(r.client, r.Namespace)
+		if err != nil {
+			r.Log.Error(err, err.Error())
+			return ctrl.Result{}, err
+		}
+		_, err = r.discoveryClient.ForeignClusters().Update(fc, metav1.UpdateOptions{})
+		if err != nil {
+			r.Log.Error(err, err.Error())
+			return ctrl.Result{}, err
+		}
+		return ctrl.Result{}, nil
 	}
 
 	foreignConfig, err := fc.GetConfig(r.client)
@@ -72,6 +87,8 @@ func (r *ForeignClusterReconciler) Reconcile(req ctrl.Request) (ctrl.Result, err
 		return ctrl.Result{}, err
 	}
 
+	requireUpdate := false
+
 	// if join is required (both automatically or by user) and status is not set to joined
 	// create new peering request
 	if fc.Spec.Join && !fc.Status.Joined {
@@ -83,11 +100,7 @@ func (r *ForeignClusterReconciler) Reconcile(req ctrl.Request) (ctrl.Result, err
 		}
 		fc.Status.Joined = true
 		fc.Status.PeeringRequestName = pr.Name
-		_, err = r.discoveryClient.ForeignClusters().Update(fc, metav1.UpdateOptions{})
-		if err != nil {
-			r.Log.Error(err, err.Error())
-			return ctrl.Result{}, err
-		}
+		requireUpdate = true
 	}
 
 	// if join is no more required and status is set to joined
@@ -101,6 +114,10 @@ func (r *ForeignClusterReconciler) Reconcile(req ctrl.Request) (ctrl.Result, err
 		}
 		fc.Status.Joined = false
 		fc.Status.PeeringRequestName = ""
+		requireUpdate = true
+	}
+
+	if requireUpdate {
 		_, err = r.discoveryClient.ForeignClusters().Update(fc, metav1.UpdateOptions{})
 		if err != nil {
 			r.Log.Error(err, err.Error())
@@ -132,7 +149,7 @@ func (r *ForeignClusterReconciler) createPeeringRequestIfNotExists(clusterID str
 			// does not exist
 			secret := &apiv1.Secret{
 				ObjectMeta: metav1.ObjectMeta{
-					Name: clusterID,
+					Name: "pr-" + clusterID,
 				},
 				StringData: map[string]string{
 					"kubeconfig": fConfig,
@@ -140,6 +157,17 @@ func (r *ForeignClusterReconciler) createPeeringRequestIfNotExists(clusterID str
 			}
 			secret, err := foreignK8sClient.CoreV1().Secrets(r.Namespace).Create(secret)
 			if err != nil {
+				// TODO
+				// it can happen that this Secret is created but PR not
+				// because admission webhook is not ready yet
+				if errors.IsAlreadyExists(err) {
+					r.Log.Error(nil, "PeeringRequest Secret already exists")
+					err = foreignK8sClient.CoreV1().Secrets(r.Namespace).Delete("pr-"+clusterID, &metav1.DeleteOptions{})
+					if err != nil {
+						r.Log.Error(err, err.Error())
+						return nil, err
+					}
+				}
 				return nil, err
 			}
 			pr := &discoveryv1.PeeringRequest{

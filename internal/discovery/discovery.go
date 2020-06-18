@@ -42,10 +42,8 @@ func NewDiscoveryCtrl(namespace string, clusterId *clusterID.ClusterID) (*Discov
 
 // Read ConfigMap and start register and resolver goroutines
 func (discovery *DiscoveryCtrl) StartDiscovery() {
-	discovery.SetupConfigmap()
-
 	if discovery.config.EnableAdvertisement {
-		txtString, err := discovery.config.TxtData.Encode()
+		txtString, err := discovery.GetTxtData().Encode()
 		if err != nil {
 			discovery.Log.Error(err, err.Error())
 			os.Exit(1)
