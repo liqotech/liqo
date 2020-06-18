@@ -19,15 +19,25 @@ import (
 	"context"
 	"github.com/go-logr/logr"
 	protocolv1 "github.com/liqoTech/liqo/api/advertisement-operator/v1"
+	policyv1 "github.com/liqoTech/liqo/api/cluster-config/v1"
 	pkg "github.com/liqoTech/liqo/pkg/advertisement-operator"
 	v1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/tools/record"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+)
+
+var (
+	defaultClusterConfig = policyv1.ClusterConfigSpec{
+		ResourceSharingPercentage:  0,
+		MaxAcceptableAdvertisement: 0,
+		AutoAccept:                 false,
+	}
 )
 
 // AdvertisementReconciler reconciles a Advertisement object
@@ -41,6 +51,8 @@ type AdvertisementReconciler struct {
 	VKImage          string
 	InitVKImage      string
 	HomeClusterId    string
+	AcceptedAdvNum   int32
+	clusterConfig    policyv1.ClusterConfigSpec
 }
 
 // +kubebuilder:rbac:groups=protocol.liqo.io,resources=advertisements,verbs=get;list;watch;create;update;patch;delete
@@ -51,23 +63,32 @@ type AdvertisementReconciler struct {
 func (r *AdvertisementReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 	ctx := context.Background()
 	log := r.Log.WithValues("advertisement-controller", req.NamespacedName)
+	r.Log = log
 
 	// get advertisement
 	var adv protocolv1.Advertisement
 	if err := r.Get(ctx, req.NamespacedName, &adv); err != nil {
-		// reconcile was triggered by a delete request
-		log.Info("Advertisement " + req.Name + " deleted")
-		return ctrl.Result{}, client.IgnoreNotFound(err)
+		if errors.IsNotFound(err) {
+			// reconcile was triggered by a delete request
+			log.Info("Advertisement " + req.Name + " deleted")
+			// TODO: decrease r.AcceptedAdvNum if the advertisement was ACCEPTED
+			return ctrl.Result{}, client.IgnoreNotFound(err)
+		} else {
+			// not managed error
+			log.Error(err, "")
+			return ctrl.Result{}, err
+		}
 	}
 
 	// filter advertisements and create a virtual-kubelet only for the good ones
 	if adv.Status.AdvertisementStatus == "" {
-		checkAdvertisement(r, ctx, log, &adv)
+		r.checkAdvertisement(ctx, log, &adv)
 		return ctrl.Result{}, nil
 	}
 
 	if adv.Status.AdvertisementStatus != "ACCEPTED" {
-		return ctrl.Result{}, errors.NewBadRequest("advertisement ignored")
+		log.Info("Advertisement " + adv.Name + " refused")
+		return ctrl.Result{}, nil
 	}
 
 	if !r.KindEnvironment && adv.Status.RemoteRemappedPodCIDR == "" {
@@ -76,7 +97,7 @@ func (r *AdvertisementReconciler) Reconcile(req ctrl.Request) (ctrl.Result, erro
 	}
 
 	if !adv.Status.VkCreated {
-		err := createVirtualKubelet(r, ctx, log, &adv)
+		err := r.createVirtualKubelet(ctx, log, &adv)
 		if err != nil {
 			return ctrl.Result{}, err
 		}
@@ -93,21 +114,30 @@ func (r *AdvertisementReconciler) SetupWithManager(mgr ctrl.Manager) error {
 }
 
 // check if the advertisement is interesting and set its status accordingly
-func checkAdvertisement(r *AdvertisementReconciler, ctx context.Context, log logr.Logger,
-	adv *protocolv1.Advertisement) {
+func (r *AdvertisementReconciler) checkAdvertisement(ctx context.Context, log logr.Logger, adv *protocolv1.Advertisement) {
 
-	//TODO: implement logic
-	adv.Status.AdvertisementStatus = "ACCEPTED"
-	metav1.SetMetaDataAnnotation(&adv.ObjectMeta, "advertisementStatus", "accepted")
+	if r.clusterConfig.AutoAccept {
+		if r.AcceptedAdvNum < r.clusterConfig.MaxAcceptableAdvertisement {
+			// the adv accepted so far are less than the configured maximum
+			adv.Status.AdvertisementStatus = "ACCEPTED"
+			r.AcceptedAdvNum++
+			metav1.SetMetaDataAnnotation(&adv.ObjectMeta, "advertisementStatus", "accepted")
+			r.recordEvent(log, "Advertisement "+adv.Name+" accepted", "Normal", "AdvertisementAccepted", adv)
+		} else {
+			// the maximum has been reached: cannot accept
+			adv.Status.AdvertisementStatus = "REFUSED"
+			metav1.SetMetaDataAnnotation(&adv.ObjectMeta, "advertisementStatus", "refused")
+			r.recordEvent(log, "Advertisement "+adv.Name+" refused", "Normal", "AdvertisementRefused", adv)
+		}
 
-	recordEvent(r, log, "Advertisement "+adv.Name+" accepted", "Normal", "AdvertisementAccepted", adv)
-	adv.Status.ObservedGeneration = adv.ObjectMeta.Generation
-	if err := r.Status().Update(ctx, adv); err != nil {
-		log.Error(err, "unable to update Advertisement status")
+		if err := r.Status().Update(ctx, adv); err != nil {
+			log.Error(err, "unable to update Advertisement status")
+		}
 	}
+	//TODO: else branch with manual accept
 }
 
-func createVirtualKubelet(r *AdvertisementReconciler, ctx context.Context, log logr.Logger, adv *protocolv1.Advertisement) error {
+func (r *AdvertisementReconciler) createVirtualKubelet(ctx context.Context, log logr.Logger, adv *protocolv1.Advertisement) error {
 
 	// Create the base resources
 	vkSa := &v1.ServiceAccount{
@@ -147,7 +177,7 @@ func createVirtualKubelet(r *AdvertisementReconciler, ctx context.Context, log l
 		return err
 	}
 
-	recordEvent(r, log, "launching virtual-kubelet for cluster "+adv.Spec.ClusterId, "Normal", "VkCreated", adv)
+	r.recordEvent(log, "launching virtual-kubelet for cluster "+adv.Spec.ClusterId, "Normal", "VkCreated", adv)
 	adv.Status.VkCreated = true
 	if err := r.Status().Update(ctx, adv); err != nil {
 		log.Error(err, "unable to update Advertisement status")
@@ -155,11 +185,81 @@ func createVirtualKubelet(r *AdvertisementReconciler, ctx context.Context, log l
 	return nil
 }
 
-func recordEvent(r *AdvertisementReconciler, log logr.Logger,
+func (r *AdvertisementReconciler) recordEvent(log logr.Logger,
 	msg string, eventType string, eventReason string,
 	adv *protocolv1.Advertisement) {
 
 	log.Info(msg)
 	r.EventsRecorder.Event(adv, eventType, eventReason, msg)
 
+}
+
+func (r *AdvertisementReconciler) WatchConfiguration(kubeconfigPath string) error {
+	configClient, err := policyv1.CreateClusterConfigClient(kubeconfigPath)
+	if err != nil {
+		r.Log.Info(err.Error())
+		return err
+	}
+
+	watcher, err := configClient.Resource("clusterconfigs").Watch(metav1.ListOptions{})
+	if err != nil {
+		return err
+	}
+
+	go func() {
+		for event := range watcher.ResultChan() {
+			configuration, ok := event.Object.(*policyv1.ClusterConfig)
+			if !ok {
+				continue
+			}
+
+			// if first time, copy
+			if r.clusterConfig == defaultClusterConfig {
+				r.clusterConfig = configuration.Spec
+			}
+
+			switch event.Type {
+			case watch.Added, watch.Modified:
+				if configuration.Spec.MaxAcceptableAdvertisement > r.clusterConfig.MaxAcceptableAdvertisement {
+					// the maximum has increased: check if there are refused advertisements which now can be accepted
+					r.clusterConfig = configuration.Spec
+					var advList protocolv1.AdvertisementList
+					err = r.Client.List(context.Background(), &advList)
+					if err != nil {
+						r.Log.Error(err, "Unable to apply configuration: error listing Advertisements")
+						continue
+					}
+					for _, adv := range advList.Items {
+						if adv.Status.AdvertisementStatus == "REFUSED" {
+							r.checkAdvertisement(context.Background(), r.Log, &adv)
+						}
+					}
+				} else {
+					// the maximum has decreased: if the accepted advertisements are too many, delete some of them
+					r.clusterConfig = configuration.Spec
+					if r.clusterConfig.MaxAcceptableAdvertisement < r.AcceptedAdvNum {
+						var advList protocolv1.AdvertisementList
+						err = r.Client.List(context.Background(), &advList, &client.ListOptions{})
+						if err != nil {
+							r.Log.Error(err, "Unable to apply configuration: error listing Advertisements")
+							continue
+						}
+						for i := 0; i < int(r.AcceptedAdvNum-r.clusterConfig.MaxAcceptableAdvertisement); i++ {
+							adv := advList.Items[i]
+							if adv.Status.AdvertisementStatus == "ACCEPTED" {
+								err = r.Client.Delete(context.Background(), &adv)
+								if err != nil {
+									r.Log.Error(err, "Unable to apply configuration: error deleting Advertisement "+adv.Name)
+								}
+								r.AcceptedAdvNum--
+							}
+						}
+					}
+				}
+			case watch.Deleted:
+				// TODO: set default config?
+			}
+		}
+	}()
+	return nil
 }

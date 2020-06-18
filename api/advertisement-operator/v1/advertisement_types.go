@@ -56,8 +56,6 @@ type AdvertisementStatus struct {
 	RemoteRemappedPodCIDR string `json:"remoteRemappedPodCIDR,omitempty"`
 	//the tunnelEndpoint associated with the foreign cluster
 	TunnelEndpointKey NamespacedName `json:"tunnelEndpointKey"`
-	// +optional
-	ObservedGeneration int64 `json:"observedGeneration,omitempty"`
 }
 
 // +kubebuilder:object:root=true
