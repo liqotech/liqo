@@ -4,18 +4,15 @@ import (
 	"github.com/grandcat/zeroconf"
 	"github.com/liqoTech/liqo/internal/discovery/clients"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"math/rand"
 	"net"
 	"os"
-	"time"
 )
 
 var server *zeroconf.Server
 
 func (discovery *DiscoveryCtrl) Register(name string, service string, domain string, port int, txt []string) {
 	var err error = nil
-	// random string needed because equal names are discarded
-	server, err = zeroconf.Register(name+"_"+RandomString(8), service, domain, port, txt, discovery.GetInterfaces())
+	server, err = zeroconf.Register(name+"_"+discovery.ClusterId.GetClusterID(), service, domain, port, txt, discovery.getInterfaces())
 	if err != nil {
 		discovery.Log.Error(err, err.Error())
 		os.Exit(1)
@@ -25,17 +22,7 @@ func (discovery *DiscoveryCtrl) Register(name string, service string, domain str
 	select {}
 }
 
-func RandomString(nChars uint) string {
-	const charset = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
-	seededRand := rand.New(rand.NewSource(time.Now().UnixNano()))
-	b := make([]byte, nChars)
-	for i := range b {
-		b[i] = charset[seededRand.Intn(len(charset))]
-	}
-	return string(b)
-}
-
-func (discovery *DiscoveryCtrl) GetInterfaces() []net.Interface {
+func (discovery *DiscoveryCtrl) getInterfaces() []net.Interface {
 	var interfaces []net.Interface
 	ifaces, err := net.Interfaces()
 	if err != nil {
