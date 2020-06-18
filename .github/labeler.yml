@@ -27,6 +27,7 @@ virtual-node:
 
 discovery:
   - internal/discovery/**/*
+  - internal/peering-request-operator/**/*
   - build/peering-request-operator/**/*
   - build/discovery/**/*
 

@@ -19,6 +19,7 @@ import (
 	"errors"
 	"flag"
 	"k8s.io/client-go/kubernetes"
+	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"os"
 
 	"k8s.io/apimachinery/pkg/runtime"
@@ -59,9 +60,7 @@ func init() {
 func main() {
 	var metricsAddr, localKubeconfig, foreignKubeconfig, clusterId string
 	var enableLeaderElection bool
-	var kubeletNamespace string
-	var kubeletImage string
-	var initKubeletImage string
+	var kubeletNamespace, kubeletImage, initKubeletImage string
 	var runsInKindEnv bool
 
 	flag.StringVar(&metricsAddr, "metrics-addr", defaultMetricsaddr, "The address the metric endpoint binds to.")
@@ -110,6 +109,25 @@ func main() {
 	go csrApprover.WatchCSR(clientset, "virtual-kubelet=true")
 
 	if err = (&advertisement_operator.AdvertisementReconciler{
+	// get the number of already accepted advertisements
+	advClient, err := protocolv1.CreateAdvertisementClient(localKubeconfig)
+	if err != nil {
+		setupLog.Error(err, "unable to create local client for Advertisement")
+		os.Exit(1)
+	}
+	advList, err := advClient.Resource("advertisements").List(v1.ListOptions{})
+	if err != nil {
+		setupLog.Error(err, "unable to list Advertisements")
+		os.Exit(1)
+	}
+	var acceptedAdv int32
+	for _, adv := range advList.(*protocolv1.AdvertisementList).Items {
+		if adv.Status.AdvertisementStatus == "ACCEPTED" {
+			acceptedAdv++
+		}
+	}
+
+	r := &advertisement_operator.AdvertisementReconciler{
 		Client:           mgr.GetClient(),
 		Log:              ctrl.Log.WithName("controllers").WithName("Advertisement"),
 		Scheme:           mgr.GetScheme(),
@@ -119,11 +137,18 @@ func main() {
 		VKImage:          kubeletImage,
 		InitVKImage:      initKubeletImage,
 		HomeClusterId:    clusterId,
-	}).SetupWithManager(mgr); err != nil {
+		AcceptedAdvNum:   acceptedAdv,
+	}
+
+	if err = r.SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "Advertisement")
 		os.Exit(1)
 	}
 	// +kubebuilder:scaffold:builder
+
+	if err = r.WatchConfiguration(localKubeconfig); err != nil {
+		setupLog.Error(err, "unable to watch cluster configuration")
+	}
 
 	setupLog.Info("starting manager as advertisement-operator")
 	if err := mgr.Start(ctrl.SetupSignalHandler()); err != nil {

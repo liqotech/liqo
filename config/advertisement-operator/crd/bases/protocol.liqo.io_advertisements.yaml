@@ -287,9 +287,6 @@ spec:
               type: string
             localRemappedPodCIDR:
               type: string
-            observedGeneration:
-              format: int64
-              type: integer
             remoteRemappedPodCIDR:
               type: string
             tunnelEndpointKey:
