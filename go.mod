@@ -12,9 +12,7 @@ require (
 	github.com/coreos/bbolt v1.3.3 // indirect
 	github.com/coreos/etcd v3.3.18+incompatible // indirect
 	github.com/coreos/go-iptables v0.4.5
-	github.com/cpuguy83/go-md2man/v2 v2.0.0 // indirect
 	github.com/daaku/go.zipexe v1.0.1 // indirect
-	github.com/docker/docker v0.7.3-0.20190327010347-be7ac8be2ae0 // indirect
 	github.com/fatih/color v1.9.0 // indirect
 	github.com/gen2brain/beeep v0.0.0-20200420150314-13046a26d502
 	github.com/getlantern/systray v0.0.0-20200324212034-d3ab4fd25d99
@@ -44,8 +42,6 @@ require (
 	github.com/mattn/go-sqlite3 v2.0.2+incompatible // indirect
 	github.com/mitchellh/go-homedir v1.1.0
 	github.com/olekukonko/tablewriter v0.0.4 // indirect
-	github.com/onsi/ginkgo v1.11.0 // indirect
-	github.com/onsi/gomega v1.8.1 // indirect
 	github.com/ozgio/strutil v0.3.0
 	github.com/pelletier/go-toml v1.6.0 // indirect
 	github.com/pkg/errors v0.9.1
@@ -54,7 +50,7 @@ require (
 	github.com/securego/gosec v0.0.0-20200121091311-459e2d3e91bd // indirect
 	github.com/sirupsen/logrus v1.4.2
 	github.com/spf13/cast v1.3.1 // indirect
-	github.com/spf13/cobra v0.0.5
+	github.com/spf13/cobra v0.0.7
 	github.com/spf13/pflag v1.0.5
 	github.com/spf13/viper v1.6.2 // indirect
 	github.com/streadway/amqp v0.0.0-20200108173154-1c71cc93ed71 // indirect
