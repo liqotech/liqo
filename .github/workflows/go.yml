@@ -2,7 +2,7 @@ name: Go
 on: [push]
 jobs:
    build:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04
     strategy:
       fail-fast: false
       matrix:
@@ -55,7 +55,7 @@ jobs:
         if: always() && github.ref == 'refs/heads/master' # Pick up events even if the job fails or is canceled.
    test:
     name: Test Launch
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04
     steps:
     - name: Set up Go 1.13
       uses: actions/setup-go@v2

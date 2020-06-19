@@ -1,4 +1,4 @@
-FROM ubuntu:20.04 as builder
+FROM liqo/runner as builder
 #install required dependencies
 ENV DEBIAN_FRONTEND=noninteractive
 RUN apt-get update && apt-get -y install gcc tar wget libgtk-3-dev libappindicator3-dev \
