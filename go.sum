@@ -217,6 +217,8 @@ github.com/fsnotify/fsnotify v1.4.7 h1:IXs+QLmnXW2CcXuY+8Mzv/fWEsPGWxqefPtCP5CnV
 github.com/fsnotify/fsnotify v1.4.7/go.mod h1:jwhsz4b93w/PPRr/qN1Yymfu8t87LnFCMoQvtojpjFo=
 github.com/gen2brain/beeep v0.0.0-20200420150314-13046a26d502 h1:e+btj9i/zyL7a2WrgOeKl2rTMMYkzGJIuVzziFu3fi0=
 github.com/gen2brain/beeep v0.0.0-20200420150314-13046a26d502/go.mod h1:KvEoJUYimgK9VGK9RZu1RvlPHfdwtGw1+m6rnfPK+lI=
+github.com/gen2brain/dlgs v0.0.0-20200211102745-b9c2664df42f h1:Ub7Uppt+f4Gnu0zwy0sGetNFtkkDgwcirKNndYIMLM0=
+github.com/gen2brain/dlgs v0.0.0-20200211102745-b9c2664df42f/go.mod h1:/eFcjDXaU2THSOOqLxOPETIbHETnamk8FA/hMjhg/gU=
 github.com/getlantern/appdir v0.0.0-20180320102544-7c0f9d241ea7 h1:4b2ht7EWptzPz/e6shqGZn3p5dXh4E3VETyKMTTPfGo=
 github.com/getlantern/appdir v0.0.0-20180320102544-7c0f9d241ea7/go.mod h1:3vR6+jQdWfWojZ77w+htCqEF5MO/Y2twJOpAvFuM9po=
 github.com/getlantern/context v0.0.0-20190109183933-c447772a6520 h1:NRUJuo3v3WGC/g5YiyF790gut6oQr5f3FBI88Wv0dx4=

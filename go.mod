@@ -15,6 +15,7 @@ require (
 	github.com/daaku/go.zipexe v1.0.1 // indirect
 	github.com/fatih/color v1.9.0 // indirect
 	github.com/gen2brain/beeep v0.0.0-20200420150314-13046a26d502
+	github.com/gen2brain/dlgs v0.0.0-20200211102745-b9c2664df42f
 	github.com/getlantern/systray v0.0.0-20200324212034-d3ab4fd25d99
 	github.com/getsentry/raven-go v0.2.0 // indirect
 	github.com/go-logr/logr v0.1.0

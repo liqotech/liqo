@@ -1,41 +1,12 @@
-/*package app_indicator provides API to install a system tray Indicator and bind it to a menu.
-It relies on the github.com/getlantern/systray to display the indicator (icon+label) and perform
-a basic management of each menu entry (MenuItem)
-
-USAGE EXAMPLE:
-
-//define execution logic
-func onReady(){
-	indicator := app_indicator.GetIndicator()
-    indicator.AddQuick("HOME", "Q_HOME", myFunction)
-	...
-}
-
-func main(){
-	//start the indicator
-	app_indicator.Run(onReady,func() {})
-}
-
-
-*/
 package app_indicator
 
 import (
 	"github.com/getlantern/systray"
+	"github.com/liqoTech/liqo/internal/tray-agent/agent/client"
 	"github.com/liqoTech/liqo/internal/tray-agent/icon"
 )
 
 const MenuWidth = 64
-
-const (
-	NodetypeRoot NodeType = iota
-	NodetypeQuick
-	NodetypeAction
-	NodetypeOption
-	NodetypeList
-	NodetypeTitle
-)
-
 
 type Icon int
 
@@ -56,10 +27,14 @@ func Run(onReady func(), onExit func()) {
 
 //Quit stops the indicator execution
 func Quit() {
+	root.Disconnect()
+	if root.agentCtrl.Connected() {
+		root.agentCtrl.StopCaches()
+	}
 	systray.Quit()
 }
 
-//singleton
+//Indicator singleton
 var root *Indicator
 
 //Indicator is a stateful data structure that controls the app indicator and its related menu. It can be obtained
@@ -81,7 +56,54 @@ type Indicator struct {
 	activeNode *MenuNode
 	//data struct containing indicator config
 	config *config
+	//controller of all the application goroutines
 	quitChan chan struct{}
+	//if true, quitChan is closed and Indicator can gracefully exit
+	quitClosed bool
+	//data struct that controls Agent interaction with the cluster
+	agentCtrl *client.AgentController
+	//
+	listeners map[client.NotifyChannelType]*Listener
+}
+
+type Listener struct {
+	Tag        client.NotifyChannelType
+	StopChan   chan struct{}
+	NotifyChan chan string
+}
+
+func (i *Indicator) Listen(tag client.NotifyChannelType, notifyChan chan string, callback func(objName string, args ...interface{}), args ...interface{}) {
+	l := newListener(tag, notifyChan)
+	i.listeners[tag] = l
+	go func() {
+		for {
+			select {
+			//exec handler
+			case name := <-l.NotifyChan:
+				callback(name, args...)
+				//closing application
+			case <-i.quitChan:
+				return
+				//closing single listener. Channel controlled by Indicator
+			case <-l.StopChan:
+				delete(i.listeners, tag)
+				return
+			}
+		}
+	}()
+}
+
+func newListener(tag client.NotifyChannelType, rcv chan string) *Listener {
+	l := Listener{StopChan: make(chan struct{}, 1), Tag: tag, NotifyChan: rcv}
+	return &l
+}
+
+func (i *Indicator) Config() *config {
+	return i.config
+}
+
+func (i *Indicator) AgentCtrl() *client.AgentController {
+	return i.agentCtrl
 }
 
 //GetIndicator initialize and returns the Indicator singleton. This function should not be called before Run()
@@ -99,6 +121,11 @@ func GetIndicator() *Indicator {
 		root.quickMap = make(map[string]*MenuNode)
 		root.config = newConfig()
 		root.quitChan = make(chan struct{})
+		root.listeners = make(map[client.NotifyChannelType]*Listener)
+		root.agentCtrl = client.GetAgentController()
+		if !root.agentCtrl.Connected() {
+			root.NotifyNoConnection()
+		}
 	}
 	return root
 }
@@ -139,7 +166,7 @@ func (i *Indicator) actions() map[string]*MenuNode {
 }
 
 //SelectAction selects the ACTION correspondent to 'tag' (if present) as the currently running ACTION in the Indicator,
-//showing its OPTIONs (if present) and hiding all the other ACTIONS The ACTION must be isDeActivated == false
+//showing its OPTIONS (if present) and hiding all the other ACTIONS The ACTION must be isDeActivated == false
 func (i *Indicator) SelectAction(tag string) *MenuNode {
 	a, exist := i.menu.actionMap[tag]
 	if exist {
@@ -149,8 +176,8 @@ func (i *Indicator) SelectAction(tag string) *MenuNode {
 		i.activeNode = a
 		for aTag, action := range i.menu.actionMap {
 			if aTag != tag {
+				//recursively hide all other ACTIONS and all their sub-components
 				go func(n *MenuNode) {
-					//recursively hide other ACTIONS and all their sub-components
 					n.SetIsVisible(false)
 					//hide all node sub-components
 					for _, option := range n.optionMap {
@@ -161,9 +188,10 @@ func (i *Indicator) SelectAction(tag string) *MenuNode {
 					}
 				}(action)
 			} else {
+				//recursively show selected ACTION with its sub-components
+				action.SetIsEnabled(false)
 				go func(n *MenuNode) {
-					a.SetIsEnabled(false)
-					//OPTIONs are showed by default
+					//OPTIONS are showed by default
 					for _, option := range n.optionMap {
 						option.SetIsVisible(true)
 					}
@@ -202,6 +230,7 @@ func (i *Indicator) DeselectAction() {
 				}(action)
 			}
 		}
+		i.activeNode = i.menu
 	}
 }
 
@@ -301,12 +330,11 @@ func (i *Indicator) SetLabel(label string) {
 	systray.SetTitle(label)
 }
 
+//Disconnect exits all the event handlers associated with any Indicator MenuNode via the Connect() or
+//ConnectOnce() method
 func (i *Indicator) Disconnect() {
-/*	for _,q := range i.quickMap{
-		q.Disconnect()
+	if !i.quitClosed {
+		close(i.quitChan)
+		i.quitClosed = true
 	}
-	for _,a := range i.actions(){
-		a.Disconnect()
-	}
-*/
 }
