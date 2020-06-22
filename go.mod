@@ -26,7 +26,7 @@ require (
 	github.com/golangci/golangci-lint v1.23.1 // indirect
 	github.com/golangci/revgrep v0.0.0-20180812185044-276a5c0a1039 // indirect
 	github.com/google/certificate-transparency-go v1.1.0 // indirect
-	github.com/google/go-cmp v0.3.1
+	github.com/google/go-cmp v0.4.0
 	github.com/google/monologue v0.0.0-20200117164337-ad3ddc05419e // indirect
 	github.com/gorilla/mux v1.7.4
 	github.com/gorilla/websocket v1.4.1 // indirect
@@ -35,7 +35,6 @@ require (
 	github.com/grpc-ecosystem/grpc-gateway v1.12.2 // indirect
 	github.com/jirfag/go-printf-func-name v0.0.0-20200119135958-7558a9eaa5af // indirect
 	github.com/joho/godotenv v1.3.0
-	github.com/json-iterator/go v1.1.9 // indirect
 	github.com/lib/pq v1.3.0 // indirect
 	github.com/mattn/go-isatty v0.0.12 // indirect
 	github.com/mattn/go-runewidth v0.0.8 // indirect
@@ -45,8 +44,8 @@ require (
 	github.com/ozgio/strutil v0.3.0
 	github.com/pelletier/go-toml v1.6.0 // indirect
 	github.com/pkg/errors v0.9.1
-	github.com/prometheus/client_golang v1.3.0
-	github.com/prometheus/common v0.9.1
+	github.com/prometheus/client_golang v1.7.0
+	github.com/prometheus/common v0.10.0
 	github.com/securego/gosec v0.0.0-20200121091311-459e2d3e91bd // indirect
 	github.com/sirupsen/logrus v1.4.2
 	github.com/spf13/cast v1.3.1 // indirect
@@ -68,7 +67,7 @@ require (
 	go.uber.org/multierr v1.4.0 // indirect
 	go.uber.org/zap v1.13.0 // indirect
 	golang.org/x/crypto v0.0.0-20200117160349-530e935923ad // indirect
-	golang.org/x/sys v0.0.0-20200302150141-5c8b2ff67527
+	golang.org/x/sys v0.0.0-20200615200032-f1bc736245b1
 	golang.org/x/time v0.0.0-20191024005414-555d28b269f0 // indirect
 	golang.org/x/tools v0.0.0-20200123022218-593de606220b
 	google.golang.org/genproto v0.0.0-20200122232147-0452cf42e150 // indirect
