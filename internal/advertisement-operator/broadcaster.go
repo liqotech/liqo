@@ -3,6 +3,7 @@ package advertisement_operator
 import (
 	"context"
 	"errors"
+	policyv1 "github.com/liqoTech/liqo/api/cluster-config/v1"
 	"github.com/liqoTech/liqo/internal/discovery/clients"
 	"github.com/liqoTech/liqo/internal/discovery/kubeconfig"
 	discoveryv1 "github.com/liqoTech/liqo/pkg/discovery/v1"
@@ -41,6 +42,7 @@ type AdvertisementBroadcaster struct {
 	ForeignClusterId string
 	GatewayIP        string
 	GatewayPrivateIP string
+	ClusterConfig    policyv1.ClusterConfigSpec
 }
 
 // start the broadcaster which sends Advertisement messages
@@ -154,6 +156,11 @@ func StartBroadcaster(homeClusterId, localKubeconfigPath, foreignKubeconfigPath,
 			GatewayIP:                  gatewayIP,
 			GatewayPrivateIP:           gatewayPrivateIP,
 		}
+
+		if err = broadcaster.WatchConfiguration(localKubeconfigPath); err != nil {
+			log.Error(err, "unable to watch cluster configuration")
+		}
+
 		broadcaster.GenerateAdvertisement(foreignKubeconfigPath)
 		// if we come here there has been an error while the broadcaster was running
 		return errors.New("error while running Advertisement Broadcaster")
@@ -195,7 +202,7 @@ func (b *AdvertisementBroadcaster) GenerateAdvertisement(foreignKubeconfigPath s
 		}
 		reqs, limits := GetAllPodsResources(nodeNonTerminatedPodsList)
 		// compute resources to be announced to the other cluster
-		availability, images := ComputeAnnouncedResources(physicalNodes, reqs)
+		availability, images := ComputeAnnouncedResources(physicalNodes, reqs, int64(b.ClusterConfig.ResourceSharingPercentage))
 
 		// create the Advertisement on the foreign cluster
 		adv := b.CreateAdvertisement(physicalNodes, virtualNodes, availability, images, limits)
@@ -380,7 +387,7 @@ func GetNodeImages(node corev1.Node) []corev1.ContainerImage {
 }
 
 // create announced resources for advertisement
-func ComputeAnnouncedResources(physicalNodes *corev1.NodeList, reqs corev1.ResourceList) (availability corev1.ResourceList, images []corev1.ContainerImage) {
+func ComputeAnnouncedResources(physicalNodes *corev1.NodeList, reqs corev1.ResourceList, sharingPercentage int64) (availability corev1.ResourceList, images []corev1.ContainerImage) {
 	// get allocatable resources in all the physical nodes
 	allocatable, images := GetClusterResources(physicalNodes.Items)
 
@@ -392,9 +399,9 @@ func ComputeAnnouncedResources(physicalNodes *corev1.NodeList, reqs corev1.Resou
 	pods := allocatable.Pods().DeepCopy()
 
 	// TODO: policy to decide how many resources to announce
-	cpu.Set(cpu.Value() / 2)
-	mem.Set(mem.Value() / 2)
-	pods.Set(pods.Value() / 2)
+	cpu.Set(cpu.Value() * sharingPercentage / 100)
+	mem.Set(mem.Value() * sharingPercentage / 100)
+	pods.Set(pods.Value() * sharingPercentage / 100)
 	availability = corev1.ResourceList{
 		corev1.ResourceCPU:    cpu,
 		corev1.ResourceMemory: mem,

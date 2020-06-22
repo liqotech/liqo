@@ -131,7 +131,7 @@ func TestCreateAdvertisement(t *testing.T) {
 
 	pNodes, vNodes, images, _, pods := createFakeResources()
 	reqs, limits := advertisement_operator.GetAllPodsResources(pods)
-	availability, _ := advertisement_operator.ComputeAnnouncedResources(pNodes, reqs)
+	availability, _ := advertisement_operator.ComputeAnnouncedResources(pNodes, reqs, 50)
 	neighbours := make(map[v1.ResourceName]v1.ResourceList)
 	for _, vNode := range vNodes.Items {
 		neighbours[v1.ResourceName(vNode.Name)] = vNode.Status.Allocatable
