@@ -37,7 +37,7 @@ print_help()
 }
 
 function wait_and_approve_csr(){
-   max_retry=5
+   max_retry=10
    retry=0
    while [ "$retry" -lt "$max_retry" ]; do
      echo "[INSTALL]: Approving Admission/Mutating Webhook CSRs, $1"
@@ -47,7 +47,7 @@ function wait_and_approve_csr(){
      fi
      echo "[INSTALL]: CSR not found... Retrying..."
      retry=$((retry+1))
-     sleep 5
+     sleep 10
    done
    return 0
 }
@@ -76,6 +76,7 @@ HELM_VERSION=v3.2.3
 HELM_ARCHIVE=helm-${HELM_VERSION}-linux-amd64.tar.gz
 HELM_URL=https://get.helm.sh/$HELM_ARCHIVE
 DEFAULT_GATEWAY_PRIVATE_IP=192.168.1.1
+NAMESPACE_DEFAULT="liqo"
 
 # Necessary Commands
 commands="curl kubectl"
@@ -114,8 +115,12 @@ GATEWAY_IP_COMMAND='kubectl get no -l "liqonet.liqo.io/gateway=true" -o jsonpath
 set_variable_from_command GATEWAY_IP GATEWAY_IP_COMMAND "[ERROR]: You have to assign to a node of the cluster the role of gateway. Label it with 'liqonet.liqo.io/gateway=true': kubectl label yournode liqonet.liqo.io/gateway=true"
 GATEWAY_PRIVATE_IP_COMMAND="echo $DEFAULT_GATEWAY_PRIVATE_IP"
 set_variable_from_command GATEWAY_PRIVATE_IP GATEWAY_PRIVATE_IP_COMMAND "[ERROR]: Unable to set Gateway Private IP"
+NAMESPACE_COMMAND="echo $NAMESPACE_DEFAULT"
+set_variable_from_command NAMESPACE NAMESPACE_COMMAND "[ERROR]: Error while creating the namespace... "
 
 #Wait for the installation to complete
+echo $NAMESPACE
+kubectl create ns $NAMESPACE
 $TMPDIR/bin/helm dependency update $TMPDIR/liqo/deployments/liqo_chart
 $TMPDIR/bin/helm install liqo -n liqo $TMPDIR/liqo/deployments/liqo_chart --set podCIDR=$POD_CIDR --set serviceCIDR=$SERVICE_CIDR --set gatewayPrivateIP=$GATEWAY_PRIVATE_IP --set gatewayIP=$GATEWAY_IP
 echo "[INSTALL]: Installing LIQO on your cluster..."

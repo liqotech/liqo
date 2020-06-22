@@ -62,14 +62,14 @@ curl https://raw.githubusercontent.com/LiqoTech/liqo/master/install.sh | bash
 K3s is a minimal Kubernetes cluster which is pretty small and easy to set up. However, it does not store its configuration in the
 way that traditional installers (e.g.; Kubedam) do. Therefore, it is required to know the configuration you entered for your cluster.
 
-After having exported your K3s Kubeconfig, you can install LIQO setting the following variables before launching the installer. The following values represent the default configuration for K3s cluster, 
-you may need to adapt them to the actual values of your cluster.
+After having exported your K3s Kubeconfig, you can install LIQO setting the following variables before launching the installer.
+The following values represent the default configuration for K3s cluster, you may need to adapt them to the actual values of your cluster.
 
 ```bash
-POD_CIDR=10.42.0.0/16
-SERVICE_CIDR=10.43.0.0/16
-GATEWAY_IP=10.0.0.31
-GATEWAY_PRIVATE_IP=192.168.100.1
+export POD_CIDR=10.42.0.0/16
+export SERVICE_CIDR=10.43.0.0/16
+export GATEWAY_IP=10.0.0.31
+export GATEWAY_PRIVATE_IP=192.168.100.1
 curl https://raw.githubusercontent.com/LiqoTech/liqo/master/install.sh | bash
 ```
 ## Architecture
