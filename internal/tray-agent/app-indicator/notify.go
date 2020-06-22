@@ -1,6 +1,7 @@
 package app_indicator
 
 import (
+	"fmt"
 	bip "github.com/gen2brain/beeep"
 	"path/filepath"
 )
@@ -64,7 +65,7 @@ func (i *Indicator) Notify(title string, message string, notifyIcon NotifyIcon, 
 		default:
 			icoName = "liqo-black.png"
 		}
-		_ = bip.Notify(title,message, filepath.Join(i.config.notifyIconPath, icoName))
+		_ = bip.Notify(title, message, filepath.Join(i.config.notifyIconPath, icoName))
 	default:
 		return
 	}
@@ -88,4 +89,24 @@ func (i *Indicator) NotificationSetLevel(level NotifyLevel) {
 	default:
 		return
 	}
+}
+
+func (i *Indicator) NotifyNoConnection() {
+	i.Notify("Liqo Agent: NO CONNECTION", "Agent could not connect to the desired cluster",
+		NotifyIconNoConn, IconLiqoNoConn)
+}
+
+func (i *Indicator) NotifyNewAdv(name string) {
+	i.Notify("Liqo Agent: NEW ADVERTISEMENT", fmt.Sprintf("You received a new advertisement %s", name),
+		NotifyIconOrange, IconLiqoAdvNew)
+}
+
+func (i *Indicator) NotifyAcceptedAdv(name string) {
+	i.Notify("Liqo Agent: ACCEPTED ADVERTISEMENT", fmt.Sprintf("advertisement %s has been accepted", name),
+		NotifyIconGreen, IconLiqoAdvAccepted)
+}
+
+func (i *Indicator) NotifyRevokedAdv(name string) {
+	i.Notify("Liqo Agent: REVOKED ADVERTISEMENT", fmt.Sprintf("advertisement %s revoked", name),
+		NotifyIconOrange, IconLiqoAdvNew)
 }

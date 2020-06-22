@@ -1,5 +1,3 @@
-// Package icon contains data and functions inherent
-// the UI of the tray agent
 package icon
 
 // byte slice representing the icon
