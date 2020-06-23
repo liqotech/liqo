@@ -399,7 +399,7 @@ func ComputeAnnouncedResources(physicalNodes *corev1.NodeList, reqs corev1.Resou
 	pods := allocatable.Pods().DeepCopy()
 
 	// TODO: policy to decide how many resources to announce
-	cpu.Set(cpu.Value() * sharingPercentage / 100)
+	cpu.SetScaled(cpu.MilliValue()*sharingPercentage/100, resource.Milli)
 	mem.Set(mem.Value() * sharingPercentage / 100)
 	pods.Set(pods.Value() * sharingPercentage / 100)
 	availability = corev1.ResourceList{

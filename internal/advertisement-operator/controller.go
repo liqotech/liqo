@@ -31,14 +31,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-var (
-	defaultClusterConfig = policyv1.ClusterConfigSpec{
-		ResourceSharingPercentage:  0,
-		MaxAcceptableAdvertisement: 0,
-		AutoAccept:                 false,
-	}
-)
-
 // AdvertisementReconciler reconciles a Advertisement object
 type AdvertisementReconciler struct {
 	client.Client
@@ -81,7 +73,8 @@ func (r *AdvertisementReconciler) Reconcile(req ctrl.Request) (ctrl.Result, erro
 
 	// filter advertisements and create a virtual-kubelet only for the good ones
 	if adv.Status.AdvertisementStatus == "" {
-		r.checkAdvertisement(ctx, log, &adv)
+		r.CheckAdvertisement(&adv)
+		r.UpdateAdvertisement(log, &adv)
 		return ctrl.Result{}, nil
 	}
 
@@ -113,27 +106,34 @@ func (r *AdvertisementReconciler) SetupWithManager(mgr ctrl.Manager) error {
 }
 
 // check if the advertisement is interesting and set its status accordingly
-func (r *AdvertisementReconciler) checkAdvertisement(ctx context.Context, log logr.Logger, adv *protocolv1.Advertisement) {
+func (r *AdvertisementReconciler) CheckAdvertisement(adv *protocolv1.Advertisement) {
 
 	if r.ClusterConfig.AutoAccept {
 		if r.AcceptedAdvNum < r.ClusterConfig.MaxAcceptableAdvertisement {
 			// the adv accepted so far are less than the configured maximum
 			adv.Status.AdvertisementStatus = "ACCEPTED"
 			r.AcceptedAdvNum++
-			metav1.SetMetaDataAnnotation(&adv.ObjectMeta, "advertisementStatus", "accepted")
-			r.recordEvent(log, "Advertisement "+adv.Name+" accepted", "Normal", "AdvertisementAccepted", adv)
 		} else {
 			// the maximum has been reached: cannot accept
 			adv.Status.AdvertisementStatus = "REFUSED"
-			metav1.SetMetaDataAnnotation(&adv.ObjectMeta, "advertisementStatus", "refused")
-			r.recordEvent(log, "Advertisement "+adv.Name+" refused", "Normal", "AdvertisementRefused", adv)
 		}
-
-		if err := r.Status().Update(ctx, adv); err != nil {
-			log.Error(err, "unable to update Advertisement status")
-		}
+	} else {
+		//TODO: manual accept/refuse
+		adv.Status.AdvertisementStatus = "REFUSED"
 	}
-	//TODO: else branch with manual accept
+}
+
+func (r *AdvertisementReconciler) UpdateAdvertisement(log logr.Logger, adv *protocolv1.Advertisement) {
+	if adv.Status.AdvertisementStatus == "ACCEPTED" {
+		metav1.SetMetaDataAnnotation(&adv.ObjectMeta, "advertisementStatus", "accepted")
+		r.recordEvent(log, "Advertisement "+adv.Name+" accepted", "Normal", "AdvertisementAccepted", adv)
+	} else if adv.Status.AdvertisementStatus == "REFUSED" {
+		metav1.SetMetaDataAnnotation(&adv.ObjectMeta, "advertisementStatus", "refused")
+		r.recordEvent(log, "Advertisement "+adv.Name+" refused", "Normal", "AdvertisementRefused", adv)
+	}
+	if err := r.Status().Update(context.Background(), adv); err != nil {
+		log.Error(err, "unable to update Advertisement status")
+	}
 }
 
 func (r *AdvertisementReconciler) createVirtualKubelet(ctx context.Context, log logr.Logger, adv *protocolv1.Advertisement) error {
