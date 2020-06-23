@@ -19,9 +19,9 @@ import (
 	"errors"
 	"flag"
 	"k8s.io/client-go/kubernetes"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"os"
 
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
@@ -32,8 +32,8 @@ import (
 	protocolv1 "github.com/liqoTech/liqo/api/advertisement-operator/v1"
 	liqonetv1 "github.com/liqoTech/liqo/api/tunnel-endpoint/v1"
 	"github.com/liqoTech/liqo/internal/advertisement-operator"
-	// +kubebuilder:scaffold:imports
 	"github.com/liqoTech/liqo/pkg/csrApprover"
+	// +kubebuilder:scaffold:imports
 )
 
 const (
@@ -108,14 +108,13 @@ func main() {
 	}
 	go csrApprover.WatchCSR(clientset, "virtual-kubelet=true")
 
-	if err = (&advertisement_operator.AdvertisementReconciler{
 	// get the number of already accepted advertisements
 	advClient, err := protocolv1.CreateAdvertisementClient(localKubeconfig)
 	if err != nil {
 		setupLog.Error(err, "unable to create local client for Advertisement")
 		os.Exit(1)
 	}
-	advList, err := advClient.Resource("advertisements").List(v1.ListOptions{})
+	advList, err := advClient.Resource("advertisements").List(metav1.ListOptions{})
 	if err != nil {
 		setupLog.Error(err, "unable to list Advertisements")
 		os.Exit(1)

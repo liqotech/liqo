@@ -21,7 +21,10 @@ import (
 
 // ClusterConfigSpec defines the desired state of ClusterConfig
 type ClusterConfigSpec struct {
-	ResourceSharingPercentage  int32 `json:"resourceSharingPercentage,omitempty"`
+	// +kubebuilder:validation:Maximum=100
+	// +kubebuilder:validation:Minimum=0
+	ResourceSharingPercentage int32 `json:"resourceSharingPercentage,omitempty"`
+	// +kubebuilder:validation:Minimum=0
 	MaxAcceptableAdvertisement int32 `json:"maxAcceptableAdvertisement,omitempty"`
 	AutoAccept                 bool  `json:"autoAccept"`
 }
