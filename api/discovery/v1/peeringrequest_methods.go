@@ -10,7 +10,7 @@ import (
 )
 
 func (pr *PeeringRequest) GetConfig(clientset *kubernetes.Clientset) (*rest.Config, error) {
-	return getConfig(clientset, &pr.Spec.KubeConfigRef)
+	return getConfig(clientset, pr.Spec.KubeConfigRef)
 }
 
 func getConfig(clientset *kubernetes.Clientset, reference *v1.ObjectReference) (*rest.Config, error) {

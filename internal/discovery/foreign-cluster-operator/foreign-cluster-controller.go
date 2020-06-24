@@ -147,9 +147,31 @@ func (r *ForeignClusterReconciler) createPeeringRequestIfNotExists(clusterID str
 	if err != nil {
 		if errors.IsNotFound(err) {
 			// does not exist
+			pr := &discoveryv1.PeeringRequest{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: localClusterID,
+				},
+				Spec: discoveryv1.PeeringRequestSpec{
+					ClusterID:     localClusterID,
+					Namespace:     r.Namespace,
+					KubeConfigRef: nil,
+				},
+			}
+			pr, err = foreignClient.PeeringRequests().Create(pr)
+			if err != nil {
+				return nil, err
+			}
 			secret := &apiv1.Secret{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: "pr-" + clusterID,
+					OwnerReferences: []metav1.OwnerReference{
+						{
+							APIVersion: pr.APIVersion,
+							Kind:       pr.APIVersion,
+							Name:       pr.Name,
+							UID:        pr.UID,
+						},
+					},
 				},
 				StringData: map[string]string{
 					"kubeconfig": fConfig,
@@ -157,49 +179,16 @@ func (r *ForeignClusterReconciler) createPeeringRequestIfNotExists(clusterID str
 			}
 			secret, err := foreignK8sClient.CoreV1().Secrets(r.Namespace).Create(secret)
 			if err != nil {
-				// TODO
-				// it can happen that this Secret is created but PR not
-				// because admission webhook is not ready yet
-				if errors.IsAlreadyExists(err) {
-					r.Log.Error(nil, "PeeringRequest Secret already exists")
-					err = foreignK8sClient.CoreV1().Secrets(r.Namespace).Delete("pr-"+clusterID, &metav1.DeleteOptions{})
-					if err != nil {
-						r.Log.Error(err, err.Error())
-						return nil, err
-					}
-				}
 				return nil, err
 			}
-			pr := &discoveryv1.PeeringRequest{
-				ObjectMeta: metav1.ObjectMeta{
-					Name: localClusterID,
-				},
-				Spec: discoveryv1.PeeringRequestSpec{
-					ClusterID: localClusterID,
-					Namespace: r.Namespace,
-					KubeConfigRef: apiv1.ObjectReference{
-						Kind:       secret.Kind,
-						Namespace:  secret.Namespace,
-						Name:       secret.Name,
-						UID:        secret.UID,
-						APIVersion: secret.APIVersion,
-					},
-				},
+			pr.Spec.KubeConfigRef = &apiv1.ObjectReference{
+				Kind:       secret.Kind,
+				Namespace:  secret.Namespace,
+				Name:       secret.Name,
+				UID:        secret.UID,
+				APIVersion: secret.APIVersion,
 			}
-			pr, err = foreignClient.PeeringRequests().Create(pr)
-			if err != nil {
-				return nil, err
-			}
-			secret.ObjectMeta.OwnerReferences = []metav1.OwnerReference{
-				{
-					APIVersion: pr.APIVersion,
-					Kind:       pr.APIVersion,
-					Name:       pr.Name,
-					UID:        pr.UID,
-				},
-			}
-			_, err = foreignK8sClient.CoreV1().Secrets(r.Namespace).Update(secret)
-			return pr, err
+			return foreignClient.PeeringRequests().Update(pr, metav1.UpdateOptions{})
 		}
 		// other errors
 		return nil, err
@@ -262,7 +251,7 @@ func (r *ForeignClusterReconciler) createClusterRoleIfNotExists(clusterID string
 			Rules: []rbacv1.PolicyRule{
 				// TODO: set correct access to create advertisements
 				{
-					Verbs:     []string{"get", "list", "create", "delete", "watch"},
+					Verbs:     []string{"get", "list", "create", "update", "delete", "watch"},
 					APIGroups: []string{"protocol.liqo.io", ""},
 					Resources: []string{"advertisements", "secrets"},
 				},

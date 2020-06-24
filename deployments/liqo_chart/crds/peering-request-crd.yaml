@@ -36,6 +36,9 @@ spec:
             clusterID:
               type: string
               description: Cluster ID
+            namespace:
+              type: string
+              description: Namespace where Liqo is deployed
             kubeConfigRef:
               type: object
               description: KubeConfig file (with Advertisement creation role) secret reference
