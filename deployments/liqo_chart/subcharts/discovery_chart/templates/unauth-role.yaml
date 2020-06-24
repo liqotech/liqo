@@ -5,7 +5,7 @@ metadata:
 rules:
   - apiGroups: ["discovery.liqo.io"]
     resources: ["peeringrequests"]
-    verbs: ["get", "create", "delete"]
+    verbs: ["get", "create", "delete", "update"]
 
 ---
 apiVersion: rbac.authorization.k8s.io/v1
@@ -15,7 +15,7 @@ metadata:
 rules:
   - apiGroups: [""]
     resources: ["secrets"]
-    verbs: ["create", "update", "delete"]
+    verbs: ["create"]
 
 ---
 apiVersion: rbac.authorization.k8s.io/v1

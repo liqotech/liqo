@@ -37,14 +37,23 @@ spec:
             clusterID:
               type: string
               description: Foreign Cluster ID
-            kubeConfigRef:
-              type: object
-              description: Public KubeConfig file secret reference
+            namespace:
+              type: string
+              description: Namespace where Liqo is deployed
             join:
               type: boolean
               description: Enable join process to foreign cluster
+            apiUrl:
+              type: string
+              description: URL where to contact foreign API server
           required:
             - clusterID
             - join
         status:
-          type: object
+          properties:
+            joined:
+              type: boolean
+              description: Indicates if peering request has been created
+            peering-request-name:
+              type: string
+              description: Name of created PR

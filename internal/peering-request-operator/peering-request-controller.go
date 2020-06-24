@@ -50,10 +50,13 @@ func (r *PeeringRequestReconciler) Reconcile(req ctrl.Request) (ctrl.Result, err
 	_ = context.Background()
 	_ = r.Log.WithValues("peeringrequest", req.NamespacedName)
 
-	fr, err := r.discoveryClient.PeeringRequests().Get(req.Name, metav1.GetOptions{})
+	pr, err := r.discoveryClient.PeeringRequests().Get(req.Name, metav1.GetOptions{})
 	if err != nil {
 		// TODO: has been removed
 		r.Log.Info("Destroy peering")
+		return ctrl.Result{}, nil
+	}
+	if pr.Spec.KubeConfigRef == nil {
 		return ctrl.Result{}, nil
 	}
 
@@ -62,7 +65,7 @@ func (r *PeeringRequestReconciler) Reconcile(req ctrl.Request) (ctrl.Result, err
 		return ctrl.Result{}, err
 	}
 
-	exists, err := BroadcasterExists(fr, r.Namespace)
+	exists, err := BroadcasterExists(pr, r.Namespace)
 	if err != nil {
 		return ctrl.Result{}, err
 	}
@@ -72,7 +75,7 @@ func (r *PeeringRequestReconciler) Reconcile(req ctrl.Request) (ctrl.Result, err
 		if err != nil {
 			return ctrl.Result{}, err
 		}
-		deploy := GetBroadcasterDeployment(fr, r.broadcasterServiceAccount, r.Namespace, r.broadcasterImage, r.clusterId.GetClusterID(), cm.Data["gatewayIP"], cm.Data["gatewayPrivateIP"])
+		deploy := GetBroadcasterDeployment(pr, r.broadcasterServiceAccount, r.Namespace, r.broadcasterImage, r.clusterId.GetClusterID(), cm.Data["gatewayIP"], cm.Data["gatewayPrivateIP"])
 		_, err = r.client.AppsV1().Deployments(r.Namespace).Create(&deploy)
 		if err != nil {
 			return ctrl.Result{}, err

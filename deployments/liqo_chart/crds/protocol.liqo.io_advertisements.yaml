@@ -53,9 +53,46 @@ spec:
                     format: int64
                     type: integer
                 required:
-                - names
+                  - names
                 type: object
               type: array
+            kubeConfigRef:
+              description: ObjectReference contains enough information to let you
+                inspect or modify the referred object.
+              properties:
+                apiVersion:
+                  description: API version of the referent.
+                  type: string
+                fieldPath:
+                  description: 'If referring to a piece of an object instead of an
+                    entire object, this string should contain a valid JSON/Go field
+                    access statement, such as desiredState.manifest.containers[2].
+                    For example, if the object reference is to a container within
+                    a pod, this would take on a value like: "spec.containers{name}"
+                    (where "name" refers to the name of the container that triggered
+                    the event) or if no container name is specified "spec.containers[2]"
+                    (container with index 2 in this pod). This syntax is chosen only
+                    to have some well-defined way of referencing a part of an object.
+                    TODO: this design is not final and this field is subject to change
+                    in the future.'
+                  type: string
+                kind:
+                  description: 'Kind of the referent. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
+                  type: string
+                name:
+                  description: 'Name of the referent. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names'
+                  type: string
+                namespace:
+                  description: 'Namespace of the referent. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/namespaces/'
+                  type: string
+                resourceVersion:
+                  description: 'Specific resourceVersion to which this reference is
+                    made, if any. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#concurrency-control-and-consistency'
+                  type: string
+                uid:
+                  description: 'UID of the referent. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#uids'
+                  type: string
+              type: object
             limitRange:
               description: LimitRangeSpec defines a min/max usage limit for resources
                 that match on kind.
@@ -70,8 +107,8 @@ spec:
                       default:
                         additionalProperties:
                           anyOf:
-                          - type: integer
-                          - type: string
+                            - type: integer
+                            - type: string
                           pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
                           x-kubernetes-int-or-string: true
                         description: Default resource requirement limit value by resource
@@ -80,8 +117,8 @@ spec:
                       defaultRequest:
                         additionalProperties:
                           anyOf:
-                          - type: integer
-                          - type: string
+                            - type: integer
+                            - type: string
                           pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
                           x-kubernetes-int-or-string: true
                         description: DefaultRequest is the default resource requirement
@@ -90,8 +127,8 @@ spec:
                       max:
                         additionalProperties:
                           anyOf:
-                          - type: integer
-                          - type: string
+                            - type: integer
+                            - type: string
                           pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
                           x-kubernetes-int-or-string: true
                         description: Max usage constraints on this kind by resource
@@ -100,8 +137,8 @@ spec:
                       maxLimitRequestRatio:
                         additionalProperties:
                           anyOf:
-                          - type: integer
-                          - type: string
+                            - type: integer
+                            - type: string
                           pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
                           x-kubernetes-int-or-string: true
                         description: MaxLimitRequestRatio if specified, the named
@@ -113,8 +150,8 @@ spec:
                       min:
                         additionalProperties:
                           anyOf:
-                          - type: integer
-                          - type: string
+                            - type: integer
+                            - type: string
                           pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
                           x-kubernetes-int-or-string: true
                         description: Min usage constraints on this kind by resource
@@ -126,14 +163,14 @@ spec:
                     type: object
                   type: array
               required:
-              - limits
+                - limits
               type: object
             neighbors:
               additionalProperties:
                 additionalProperties:
                   anyOf:
-                  - type: integer
-                  - type: string
+                    - type: integer
+                    - type: string
                   pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
                   x-kubernetes-int-or-string: true
                 description: ResourceList is a set of (resource name, quantity) pairs.
@@ -152,15 +189,15 @@ spec:
                     type: string
                   type: array
               required:
-              - gatewayIP
-              - gatewayPrivateIP
-              - podCIDR
+                - gatewayIP
+                - gatewayPrivateIP
+                - podCIDR
               type: object
             prices:
               additionalProperties:
                 anyOf:
-                - type: integer
-                - type: string
+                  - type: integer
+                  - type: string
                 pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
                 x-kubernetes-int-or-string: true
               description: ResourceList is a set of (resource name, quantity) pairs.
@@ -176,8 +213,8 @@ spec:
                 hard:
                   additionalProperties:
                     anyOf:
-                    - type: integer
-                    - type: string
+                      - type: integer
+                      - type: string
                     pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
                     x-kubernetes-int-or-string: true
                   description: 'hard is the set of desired hard limits for each named
@@ -216,8 +253,8 @@ spec:
                               type: string
                             type: array
                         required:
-                        - operator
-                        - scopeName
+                          - operator
+                          - scopeName
                         type: object
                       type: array
                   type: object
@@ -237,33 +274,17 @@ spec:
               format: date-time
               type: string
           required:
-          - clusterId
-          - network
-          - timeToLive
-          - timestamp
+            - clusterId
+            - kubeConfigRef
+            - network
+            - timeToLive
+            - timestamp
           type: object
         status:
           description: AdvertisementStatus defines the observed state of Advertisement
           properties:
             advertisementStatus:
               type: string
-            foreignNetwork:
-              properties:
-                gatewayIP:
-                  type: string
-                gatewayPrivateIP:
-                  type: string
-                podCIDR:
-                  type: string
-                supportedProtocols:
-                  items:
-                    type: string
-                  type: array
-              required:
-              - gatewayIP
-              - gatewayPrivateIP
-              - podCIDR
-              type: object
             localRemappedPodCIDR:
               type: string
             observedGeneration:
@@ -279,23 +300,22 @@ spec:
                 namespace:
                   type: string
               required:
-              - name
-              - namespace
+                - name
+                - namespace
               type: object
             vkCreated:
               type: boolean
           required:
-          - advertisementStatus
-          - foreignNetwork
-          - tunnelEndpointKey
-          - vkCreated
+            - advertisementStatus
+            - tunnelEndpointKey
+            - vkCreated
           type: object
       type: object
   version: v1
   versions:
-  - name: v1
-    served: true
-    storage: true
+    - name: v1
+      served: true
+      storage: true
 status:
   acceptedNames:
     kind: ""

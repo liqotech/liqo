@@ -43,7 +43,7 @@ type ForeignClusterStatus struct {
 
 	Joined             bool                `json:"joined"`
 	PeeringRequestName string              `json:"peering-request-name"`
-	CaDataRef          *v1.ObjectReference `json:"caDataRef"`
+	CaDataRef          *v1.ObjectReference `json:"caDataRef,omitempty"`
 }
 
 // +kubebuilder:object:root=true

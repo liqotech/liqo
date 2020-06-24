@@ -12,6 +12,7 @@ type PeeringRequestInterface interface {
 	Get(name string, options metav1.GetOptions) (*v1.PeeringRequest, error)
 	Create(*v1.PeeringRequest) (*v1.PeeringRequest, error)
 	Delete(name string, opts metav1.DeleteOptions) error
+	Update(*v1.PeeringRequest, metav1.UpdateOptions) (*v1.PeeringRequest, error)
 }
 
 type peeringRequestClient struct {
@@ -61,4 +62,17 @@ func (c *peeringRequestClient) Delete(name string, opts metav1.DeleteOptions) er
 		Body(&opts).
 		Do().
 		Error()
+}
+
+func (c *peeringRequestClient) Update(pr *v1.PeeringRequest, opts metav1.UpdateOptions) (*v1.PeeringRequest, error) {
+	result := v1.PeeringRequest{}
+	err := c.restClient.
+		Put().
+		Resource("peeringrequests").
+		Name(pr.Name).
+		VersionedParams(&opts, scheme.ParameterCodec).
+		Body(pr).
+		Do().
+		Into(&result)
+	return &result, err
 }
