@@ -30,6 +30,8 @@ type Provider interface {
 	ConfigureNode(context.Context, *v1.Node)
 
 	ConfigureReflection() error
+
+	StartNodeUpdater(nodeRunner *node.NodeController) (chan struct{}, chan struct{}, error)
 }
 
 // PodMetricsProvider is an optional interface that providers can implement to expose pod stats

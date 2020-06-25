@@ -1,141 +1,103 @@
 package kubernetes
 
 import (
-	"context"
-	"github.com/go-logr/logr"
 	advv1 "github.com/liqoTech/liqo/api/advertisement-operator/v1"
 	"github.com/liqoTech/liqo/internal/node"
 	v1 "k8s.io/api/core/v1"
-	kerror "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/klog"
-	ctrl "sigs.k8s.io/controller-runtime"
-	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/event"
-	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"strings"
 )
 
-type VirtualNodeReconciler struct {
-	client.Client
-	Log            logr.Logger
-	Scheme         *runtime.Scheme
-	provider       *KubernetesProvider
-	nodeController *node.NodeController
-	ready          chan struct{}
-}
+func (p *KubernetesProvider) StartNodeUpdater(nodeRunner *node.NodeController) (chan struct{}, chan struct{}, error) {
+	stop := make(chan struct{}, 1)
+	advName := strings.Join([]string{"advertisement", p.foreignClusterId}, "-")
+	c, err := p.nodeUpdateClient.Resource("advertisements").Watch(metav1.ListOptions{
+		FieldSelector: strings.Join([]string{"metadata.name", advName}, "="),
+		Watch:         true,
+	})
+	if err != nil {
+		return nil, nil, err
+	}
+	p.nodeController = nodeRunner
 
-// NewVirtualNodeReconciler returns a new instance of VirtualNodeReconciler already set-up
-func NewVirtualNodeReconciler(p *KubernetesProvider, n *node.NodeController) (chan struct{}, error) {
 	ready := make(chan struct{}, 1)
-	return ready, (&VirtualNodeReconciler{
-		Client:         p.manager.GetClient(),
-		Log:            ctrl.Log.WithName("vk").WithName("node updater"),
-		Scheme:         p.manager.GetScheme(),
-		provider:       p,
-		nodeController: n,
-		ready:          ready,
-	}).SetupWithManager(p.manager)
+
+	go func() {
+		<-ready
+		for {
+			select {
+			case ev := <-c.ResultChan():
+				p.ReconcileNodeFromAdv(ev)
+			case <-stop:
+				c.Stop()
+				return
+			default:
+				break
+			}
+		}
+	}()
+
+	return ready, stop, nil
 }
 
 // The reconciliation function; every time this function is called,
 // the node status is updated by means of r.updateFromAdv
-func (r *VirtualNodeReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
-	ctx := context.Background()
-	log := r.Log.WithValues("vk", req.NamespacedName)
+func (p *KubernetesProvider) ReconcileNodeFromAdv(event watch.Event) {
 
-	// get advertisement
-	var adv advv1.Advertisement
-	if err := r.Get(ctx, req.NamespacedName, &adv); err != nil {
-		if kerror.IsNotFound(err) {
-			// reconcile was triggered by a delete request
-			log.Info("Adv deleted")
-			return ctrl.Result{}, client.IgnoreNotFound(err)
-		} else {
-			return ctrl.Result{}, err
-		}
+	adv, ok := event.Object.(*advv1.Advertisement)
+	if !ok {
+		klog.Error("error in casting advertisement")
+		return
+	}
+	if event.Type == watch.Deleted {
+		klog.Infof("advertisement %v deleted...the node is going to be deleted", adv.Name)
+		return
 	}
 
-	var err error
 	for {
-		if err = r.updateFromAdv(ctx, adv); err == nil {
+		if err := p.updateFromAdv(*adv); err == nil {
 			klog.Info("node correctly updated from advertisement")
-			return ctrl.Result{}, nil
+			break
 		}
-		klog.Error("node update from advertisement failed, trying again...")
+		klog.Errorf("node update from advertisement %v failed, trying again...", adv.Name)
 	}
-}
-
-// checkAdvFiltering filters the triggering of the reconcile function
-func (r *VirtualNodeReconciler) checkAdvFiltering(object metav1.Object) bool {
-
-	clusterId := strings.Replace(object.GetName(), "advertisement-", "", 1)
-	return clusterId == r.provider.foreignClusterId
-}
-
-func (r *VirtualNodeReconciler) SetupWithManager(mgr ctrl.Manager) error {
-
-	var generationChangedPredicate = predicate.Funcs{
-		UpdateFunc: func(e event.UpdateEvent) bool {
-			return r.checkAdvFiltering(e.MetaNew)
-		},
-		CreateFunc: func(e event.CreateEvent) bool {
-			return r.checkAdvFiltering(e.Meta)
-		},
-	}
-
-	if err := ctrl.NewControllerManagedBy(mgr).
-		For(&advv1.Advertisement{}).
-		WithEventFilter(generationChangedPredicate).
-		Complete(r); err != nil {
-		return err
-	}
-
-	go func() {
-		if err := mgr.Start(ctrl.SetupSignalHandler()); err != nil {
-			klog.Fatal(err)
-		}
-	}()
-
-	return nil
 }
 
 // Initialization of the Virtual kubelet, that implies:
-func (r *VirtualNodeReconciler) initVirtualKubelet(adv advv1.Advertisement) error {
+func (p *KubernetesProvider) initVirtualKubelet(adv advv1.Advertisement) error {
 	klog.Info("vk initializing")
 
 	if adv.Status.RemoteRemappedPodCIDR != "None" {
-		r.provider.RemappedPodCidr = adv.Status.RemoteRemappedPodCIDR
+		p.RemappedPodCidr = adv.Status.RemoteRemappedPodCIDR
 	} else {
-		r.provider.RemappedPodCidr = adv.Spec.Network.PodCIDR
+		p.RemappedPodCidr = adv.Spec.Network.PodCIDR
 	}
-
-	close(r.ready)
 
 	return nil
 }
 
 // updateFromAdv gets and  advertisement and updates the node status accordingly
-func (r *VirtualNodeReconciler) updateFromAdv(ctx context.Context, adv advv1.Advertisement) error {
+func (p *KubernetesProvider) updateFromAdv(adv advv1.Advertisement) error {
+	var err error
 
-	if !r.provider.initialized {
-		if err := r.initVirtualKubelet(adv); err != nil {
+	if !p.initialized {
+		if err = p.initVirtualKubelet(adv); err != nil {
 			return err
 		}
 	}
 
-	var no v1.Node
-	if err := r.Get(ctx, types.NamespacedName{Name: r.provider.nodeName}, &no); err != nil {
+	var no *v1.Node
+	if no, err = p.homeClient.Client().CoreV1().Nodes().Get(p.nodeName, metav1.GetOptions{}); err != nil {
 		return err
 	}
 
-	if !r.provider.initialized {
-		r.provider.initialized = true
-		if err := r.setAnnotation(ctx, "cluster-id", r.provider.foreignClusterId, &no); err != nil {
-			return err
-		}
+	if !p.initialized {
+		p.initialized = true
+		no.SetAnnotations(map[string]string{
+			"cluster-id": p.foreignClusterId,
+		})
 	}
 
 	if no.Status.Capacity == nil {
@@ -152,15 +114,5 @@ func (r *VirtualNodeReconciler) updateFromAdv(ctx context.Context, adv advv1.Adv
 	no.Status.Images = []v1.ContainerImage{}
 	no.Status.Images = append(no.Status.Images, adv.Spec.Images...)
 
-	return r.nodeController.UpdateNodeFromOutside(ctx, false, &no)
-}
-
-func (r *VirtualNodeReconciler) setAnnotation(ctx context.Context, k, v string, no *v1.Node) error {
-	metav1.SetMetaDataAnnotation(&no.ObjectMeta, k, v)
-
-	if err := r.Update(ctx, no); err != nil {
-		return err
-	}
-
-	return nil
+	return p.nodeController.UpdateNodeFromOutside(false, no)
 }

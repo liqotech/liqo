@@ -16,7 +16,7 @@ func (p *KubernetesProvider) manageCmEvent(event watch.Event) error {
 	if !ok {
 		return errors.New("cannot cast object to configMap")
 	}
-	klog.V(3).Info("received %v on configmap %v", event.Type, cm.Name)
+	klog.V(3).Infof("received %v on configmap %v", event.Type, cm.Name)
 
 	nattedNS, err := p.NatNamespace(cm.Namespace, false)
 	if err != nil {
@@ -32,7 +32,7 @@ func (p *KubernetesProvider) manageCmEvent(event watch.Event) error {
 			if err = CreateConfigMap(p.foreignClient.Client(), cm, nattedNS); err != nil {
 				klog.Error(err, "unable to create configMap "+cm.Name+" on cluster "+p.foreignClusterId)
 			} else {
-				klog.Info("correctly created configMap " + cm.Name + " on cluster " + p.foreignClusterId)
+				klog.V(3).Infof("correctly created configMap %v on cluster %v", cm.Name, p.foreignClusterId)
 			}
 		}
 
@@ -40,14 +40,14 @@ func (p *KubernetesProvider) manageCmEvent(event watch.Event) error {
 		if err = UpdateConfigMap(p.foreignClient.Client(), cm, nattedNS); err != nil {
 			klog.Error(err, "unable to update configMap "+cm.Name+" on cluster "+p.foreignClusterId)
 		} else {
-			klog.Infof("correctly updated configMap %v on cluster %v", cm.Name, p.foreignClusterId)
+			klog.V(3).Infof("correctly updated configMap %v on cluster %v", cm.Name, p.foreignClusterId)
 		}
 
 	case watch.Deleted:
 		if err = DeleteConfigMap(p.foreignClient.Client(), cm, nattedNS); err != nil {
 			klog.Error(err, "unable to delete configMap "+cm.Name+" on cluster "+p.foreignClusterId)
 		} else {
-			klog.Infof("correctly deleted configMap %v on cluster %v", cm.Name, p.foreignClusterId)
+			klog.V(3).Infof("correctly deleted configMap %v on cluster %v", cm.Name, p.foreignClusterId)
 		}
 	}
 	return nil

@@ -19,12 +19,12 @@ import (
 	"crypto/tls"
 	"fmt"
 	"io"
+	"k8s.io/klog"
 	"net"
 	"net/http"
 	"os"
 
 	"github.com/liqoTech/liqo/cmd/virtual-kubelet/internal/provider"
-	"github.com/liqoTech/liqo/internal/log"
 	"github.com/liqoTech/liqo/internal/node/api"
 	"github.com/pkg/errors"
 )
@@ -71,10 +71,7 @@ func setupHTTPServer(ctx context.Context, p provider.Provider, cfg *apiServerCon
 	}()
 
 	if cfg.CertPath == "" || cfg.KeyPath == "" {
-		log.G(ctx).
-			WithField("certPath", cfg.CertPath).
-			WithField("keyPath", cfg.KeyPath).
-			Error("TLS certificates not provided, not setting up pod http server")
+		klog.Error("TLS certificates not provided, not setting up pod http server")
 	} else {
 		tlsCfg, err := loadTLSConfig(cfg.CertPath, cfg.KeyPath)
 		if err != nil {
@@ -103,7 +100,7 @@ func setupHTTPServer(ctx context.Context, p provider.Provider, cfg *apiServerCon
 	}
 
 	if cfg.MetricsAddr == "" {
-		log.G(ctx).Info("Pod metrics server not setup due to empty metrics address")
+		klog.Info("Pod metrics server not setup due to empty metrics address")
 	} else {
 		l, err := net.Listen("tcp", cfg.MetricsAddr)
 		if err != nil {
@@ -135,7 +132,8 @@ func serveHTTP(ctx context.Context, s *http.Server, l net.Listener, name string)
 		select {
 		case <-ctx.Done():
 		default:
-			log.G(ctx).WithError(err).Errorf("Error setting up %s http server", name)
+			klog.Error(err)
+
 		}
 	}
 	l.Close()

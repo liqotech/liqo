@@ -330,11 +330,11 @@ func (n *NodeController) updateLease(ctx context.Context) error {
 	return nil
 }
 
-func (n *NodeController) UpdateNodeFromOutside(ctx context.Context, skipErrorCb bool, no *corev1.Node) error {
+func (n *NodeController) UpdateNodeFromOutside(skipErrorCb bool, no *corev1.Node) error {
 
 	n.n = no
 
-	return n.updateStatus(ctx, skipErrorCb)
+	return n.updateStatus(context.Background(), skipErrorCb)
 }
 
 func (n *NodeController) updateStatus(ctx context.Context, skipErrorCb bool) error {

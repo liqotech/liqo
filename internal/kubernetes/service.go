@@ -16,7 +16,7 @@ func (p *KubernetesProvider) manageSvcEvent(event watch.Event) error {
 	if !ok {
 		return errors.New("cannot cast object to service")
 	}
-	klog.V(3).Info("received %v on service %v", event.Type, svc.Name)
+	klog.V(3).Infof("received %v on service %v", event.Type, svc.Name)
 
 	nattedNS, err := p.NatNamespace(svc.Namespace, false)
 	if err != nil {
