@@ -16,7 +16,7 @@ func (p *KubernetesProvider) manageSecEvent(event watch.Event) error {
 	if !ok {
 		return errors.New("cannot cast object to secret")
 	}
-	klog.V(3).Info("received %v on secret %v", event.Type, sec.Name)
+	klog.V(3).Infof("received %v on secret %v", event.Type, sec.Name)
 
 	nattedNS, err := p.NatNamespace(sec.Namespace, false)
 	if err != nil {

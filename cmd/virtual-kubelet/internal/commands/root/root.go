@@ -21,11 +21,8 @@ import (
 	"path"
 	"strings"
 
-	ctrl "sigs.k8s.io/controller-runtime"
-
 	"github.com/liqoTech/liqo/cmd/virtual-kubelet/internal/provider"
 	"github.com/liqoTech/liqo/internal/errdefs"
-	k "github.com/liqoTech/liqo/internal/kubernetes"
 	"github.com/liqoTech/liqo/internal/manager"
 	"github.com/liqoTech/liqo/internal/node"
 	"github.com/pkg/errors"
@@ -42,7 +39,6 @@ import (
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/client-go/tools/record"
-	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 )
 
 // NewCommand creates a new top-level command.
@@ -151,10 +147,6 @@ func runRootCommand(ctx context.Context, s *provider.Store, c Opts) error {
 		return errors.Wrapf(err, "error initializing provider %s", c.Provider)
 	}
 
-	ctrl.SetLogger(zap.New(func(o *zap.Options) {
-		o.Development = true
-	}))
-
 	var leaseClient v1beta1.LeaseInterface
 	if c.EnableNodeLease {
 		leaseClient = client.CoordinationV1beta1().Leases(corev1.NamespaceNodeLease)
@@ -206,13 +198,10 @@ func runRootCommand(ctx context.Context, s *provider.Store, c Opts) error {
 		os.Exit(1)
 	}
 
-	var ready chan struct{}
-	if ready, err = k.NewVirtualNodeReconciler(p.(*k.KubernetesProvider), nodeRunner); err != nil {
-		klog.Error(err, "unable to create controller")
-		panic(nil)
+	nodeReady, _, err := p.StartNodeUpdater(nodeRunner)
+	if err != nil {
+		klog.Fatal(err)
 	}
-
-	<-ready
 
 	eb := record.NewBroadcaster()
 	eb.StartRecordingToSink(&corev1client.EventSinkImpl{Interface: client.CoreV1().Events(c.KubeNamespace)})
@@ -275,7 +264,7 @@ func runRootCommand(ctx context.Context, s *provider.Store, c Opts) error {
 	nodeRunner.Ready()
 
 	klog.Info("setup ended")
-
+	close(nodeReady)
 	<-ctx.Done()
 	return nil
 }

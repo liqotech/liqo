@@ -5,29 +5,22 @@ import (
 	nattingv1 "github.com/liqoTech/liqo/api/namespaceNattingTable/v1"
 	"github.com/liqoTech/liqo/internal/node"
 	"github.com/liqoTech/liqo/pkg/crdClient/v1alpha1"
-	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
-	manager2 "sigs.k8s.io/controller-runtime/pkg/manager"
 	"time"
 
 	v1 "k8s.io/api/core/v1"
-	ctrl "sigs.k8s.io/controller-runtime"
-)
-
-const (
-	defaultMetricsAddr = ":8080"
 )
 
 // KubernetesProvider implements the virtual-kubelet provider interface and stores pods in memory.
 type KubernetesProvider struct { // nolint:golint]
 	*Reflector
 
-	ntCache       *namespaceNTCache
-	manager       manager2.Manager
-	foreignClient *v1alpha1.CRDClient
-	homeClient    *v1alpha1.CRDClient
+	ntCache          *namespaceNTCache
+	nodeUpdateClient *v1alpha1.CRDClient
+	foreignClient    *v1alpha1.CRDClient
+	homeClient       *v1alpha1.CRDClient
 
 	nodeName           string
 	operatingSystem    string
@@ -43,7 +36,9 @@ type KubernetesProvider struct { // nolint:golint]
 	restConfig         *rest.Config
 	RemappedPodCidr    string
 
-	foreignPodWatcherStop chan bool
+	foreignPodWatcherStop chan struct{}
+	nodeUpdateStop        chan struct{}
+	nodeReady             chan struct{}
 }
 
 // NewKubernetesProviderKubernetesConfig creates a new KubernetesV0Provider. Kubernetes legacy provider does not implement the new asynchronous podnotifier interface
@@ -54,12 +49,12 @@ func NewKubernetesProvider(nodeName, clusterId, homeClusterId, operatingSystem s
 		return nil, err
 	}
 
-	mgr, err := newControllerManager(kubeconfig)
+	client, err := nattingv1.CreateClient(kubeconfig)
 	if err != nil {
 		return nil, err
 	}
 
-	client, err := nattingv1.CreateClient(kubeconfig)
+	advClient, err := protocolv1.CreateAdvertisementClient(kubeconfig)
 	if err != nil {
 		return nil, err
 	}
@@ -82,40 +77,17 @@ func NewKubernetesProvider(nodeName, clusterId, homeClusterId, operatingSystem s
 		internalIP:            internalIP,
 		daemonEndpointPort:    daemonEndpointPort,
 		startTime:             time.Now(),
-		manager:               mgr,
 		foreignClusterId:      clusterId,
 		homeClusterID:         homeClusterId,
 		providerKubeconfig:    remoteKubeConfig,
 		homeClient:            client,
-		foreignPodWatcherStop: make(chan bool, 1),
+		foreignPodWatcherStop: make(chan struct{}, 1),
 		restConfig:            restConfig,
 		foreignClient:         foreignClient,
+		nodeUpdateClient:      advClient,
 	}
 
 	return &provider, nil
-}
-
-func newControllerManager(configPath string) (manager2.Manager, error) {
-	sc := runtime.NewScheme()
-	_ = protocolv1.AddToScheme(sc)
-	_ = clientgoscheme.AddToScheme(sc)
-
-	kc, err := v1alpha1.NewKubeconfig(configPath, &protocolv1.GroupVersion)
-	if err != nil {
-		return nil, err
-	}
-
-	mgr, err := ctrl.NewManager(kc, ctrl.Options{
-		Scheme:             sc,
-		MetricsBindAddress: defaultMetricsAddr,
-		LeaderElection:     false,
-		Port:               9443,
-	})
-	if err != nil {
-		return nil, err
-	}
-
-	return mgr, nil
 }
 
 func (p *KubernetesProvider) ConfigureReflection() error {
