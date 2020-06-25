@@ -81,7 +81,7 @@ require (
 	k8s.io/klog v1.0.0
 	k8s.io/kubectl v0.17.0
 	k8s.io/kubernetes v1.17.0
-	k8s.io/metrics v0.18.2
+	k8s.io/metrics v0.18.4
 	k8s.io/utils v0.0.0-20191114184206-e782cd3c129f
 	mvdan.cc/unparam v0.0.0-20191111180625-960b1ec0f2c2 // indirect
 	sigs.k8s.io/controller-runtime v0.4.0
