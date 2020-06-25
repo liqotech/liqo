@@ -1,0 +1,8 @@
+apiVersion: policy.liqo.io/v1
+kind: ClusterConfig
+metadata:
+  name: configuration
+spec:
+  autoAccept: true
+  maxAcceptableAdvertisement: 5
+  resourceSharingPercentage: 30
