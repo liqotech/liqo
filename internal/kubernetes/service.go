@@ -5,7 +5,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/watch"
-	"k8s.io/client-go/kubernetes"
 	"k8s.io/klog"
 )
 
@@ -29,7 +28,7 @@ func (p *KubernetesProvider) manageSvcEvent(event watch.Event) error {
 		if err != nil {
 			klog.Info("remote svc " + svc.Name + " doesn't exist: creating it")
 
-			if err = CreateService(p.foreignClient.Client(), svc, nattedNS); err != nil {
+			if err = p.createService(svc, nattedNS); err != nil {
 				klog.Error(err, "unable to create service "+svc.Name+" on cluster "+p.foreignClusterId)
 			} else {
 				klog.Info("correctly created service " + svc.Name + " on cluster " + p.foreignClusterId)
@@ -37,14 +36,14 @@ func (p *KubernetesProvider) manageSvcEvent(event watch.Event) error {
 		}
 
 	case watch.Modified:
-		if err = UpdateService(p.foreignClient.Client(), svc, nattedNS); err != nil {
+		if err = p.updateService(svc, nattedNS); err != nil {
 			klog.Error(err, "unable to update service "+svc.Name+" on cluster "+p.foreignClusterId)
 		} else {
 			klog.Info("correctly updated service " + svc.Name + " on cluster " + p.foreignClusterId)
 		}
 
 	case watch.Deleted:
-		if err = DeleteService(p.foreignClient.Client(), svc, nattedNS); err != nil {
+		if err = p.deleteService(svc, nattedNS); err != nil {
 			klog.Error(err, "unable to delete service "+svc.Name+" on cluster "+p.foreignClusterId)
 		} else {
 			klog.Info("correctly deleted service " + svc.Name + " on cluster " + p.foreignClusterId)
@@ -54,7 +53,7 @@ func (p *KubernetesProvider) manageSvcEvent(event watch.Event) error {
 	return nil
 }
 
-func CreateService(c *kubernetes.Clientset, svc *corev1.Service, namespace string) error {
+func (p *KubernetesProvider) createService(svc *corev1.Service, namespace string) error {
 	svcRemote := corev1.Service{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:        svc.Name,
@@ -74,13 +73,13 @@ func CreateService(c *kubernetes.Clientset, svc *corev1.Service, namespace strin
 	}
 	svcRemote.Labels["liqo/reflection"] = "reflected"
 
-	_, err := c.CoreV1().Services(namespace).Create(&svcRemote)
+	_, err := p.foreignClient.Client().CoreV1().Services(namespace).Create(&svcRemote)
 
 	return err
 }
 
-func UpdateService(c *kubernetes.Clientset, svc *corev1.Service, namespace string) error {
-	serviceOld, err := c.CoreV1().Services(namespace).Get(svc.Name, metav1.GetOptions{})
+func (p *KubernetesProvider) updateService(svc *corev1.Service, namespace string) error {
+	serviceOld, err := p.foreignClient.Client().CoreV1().Services(namespace).Get(svc.Name, metav1.GetOptions{})
 	if err != nil {
 		return err
 	}
@@ -88,14 +87,14 @@ func UpdateService(c *kubernetes.Clientset, svc *corev1.Service, namespace strin
 	svc.SetNamespace(namespace)
 	svc.SetResourceVersion(serviceOld.ResourceVersion)
 	svc.SetUID(serviceOld.UID)
-	_, err = c.CoreV1().Services(namespace).Update(svc)
+	_, err = p.foreignClient.Client().CoreV1().Services(namespace).Update(svc)
 
 	return err
 }
 
-func DeleteService(c *kubernetes.Clientset, svc *corev1.Service, namespace string) error {
+func (p *KubernetesProvider) deleteService(svc *corev1.Service, namespace string) error {
 	svc.Namespace = namespace
-	err := c.CoreV1().Services(namespace).Delete(svc.Name, &metav1.DeleteOptions{})
+	err := p.foreignClient.Client().CoreV1().Services(namespace).Delete(svc.Name, &metav1.DeleteOptions{})
 
 	return err
 }

@@ -5,7 +5,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/watch"
-	"k8s.io/client-go/kubernetes"
 	"k8s.io/klog"
 )
 
@@ -29,7 +28,7 @@ func (p *KubernetesProvider) manageCmEvent(event watch.Event) error {
 		if err != nil {
 			klog.Info("remote cm " + cm.Name + " doesn't exist: creating it")
 
-			if err = CreateConfigMap(p.foreignClient.Client(), cm, nattedNS); err != nil {
+			if err = p.createConfigMap(cm, nattedNS); err != nil {
 				klog.Error(err, "unable to create configMap "+cm.Name+" on cluster "+p.foreignClusterId)
 			} else {
 				klog.V(3).Infof("correctly created configMap %v on cluster %v", cm.Name, p.foreignClusterId)
@@ -37,14 +36,14 @@ func (p *KubernetesProvider) manageCmEvent(event watch.Event) error {
 		}
 
 	case watch.Modified:
-		if err = UpdateConfigMap(p.foreignClient.Client(), cm, nattedNS); err != nil {
+		if err = p.updateConfigMap(cm, nattedNS); err != nil {
 			klog.Error(err, "unable to update configMap "+cm.Name+" on cluster "+p.foreignClusterId)
 		} else {
 			klog.V(3).Infof("correctly updated configMap %v on cluster %v", cm.Name, p.foreignClusterId)
 		}
 
 	case watch.Deleted:
-		if err = DeleteConfigMap(p.foreignClient.Client(), cm, nattedNS); err != nil {
+		if err = p.deleteConfigMap(cm, nattedNS); err != nil {
 			klog.Error(err, "unable to delete configMap "+cm.Name+" on cluster "+p.foreignClusterId)
 		} else {
 			klog.V(3).Infof("correctly deleted configMap %v on cluster %v", cm.Name, p.foreignClusterId)
@@ -53,7 +52,7 @@ func (p *KubernetesProvider) manageCmEvent(event watch.Event) error {
 	return nil
 }
 
-func CreateConfigMap(c *kubernetes.Clientset, cm *corev1.ConfigMap, namespace string) error {
+func (p *KubernetesProvider) createConfigMap(cm *corev1.ConfigMap, namespace string) error {
 	cmRemote := corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:        cm.Name,
@@ -70,13 +69,13 @@ func CreateConfigMap(c *kubernetes.Clientset, cm *corev1.ConfigMap, namespace st
 	}
 	cmRemote.Labels["liqo/reflection"] = "reflected"
 
-	_, err := c.CoreV1().ConfigMaps(namespace).Create(&cmRemote)
+	_, err := p.foreignClient.Client().CoreV1().ConfigMaps(namespace).Create(&cmRemote)
 
 	return err
 }
 
-func UpdateConfigMap(c *kubernetes.Clientset, cm *corev1.ConfigMap, namespace string) error {
-	cmOld, err := c.CoreV1().ConfigMaps(namespace).Get(cm.Name, metav1.GetOptions{})
+func (p *KubernetesProvider) updateConfigMap(cm *corev1.ConfigMap, namespace string) error {
+	cmOld, err := p.foreignClient.Client().CoreV1().ConfigMaps(namespace).Get(cm.Name, metav1.GetOptions{})
 	if err != nil {
 		return err
 	}
@@ -84,14 +83,14 @@ func UpdateConfigMap(c *kubernetes.Clientset, cm *corev1.ConfigMap, namespace st
 	cm.SetNamespace(namespace)
 	cm.SetResourceVersion(cmOld.ResourceVersion)
 	cm.SetUID(cmOld.UID)
-	_, err = c.CoreV1().ConfigMaps(namespace).Update(cm)
+	_, err = p.foreignClient.Client().CoreV1().ConfigMaps(namespace).Update(cm)
 
 	return err
 }
 
-func DeleteConfigMap(c *kubernetes.Clientset, cm *corev1.ConfigMap, namespace string) error {
+func (p *KubernetesProvider) deleteConfigMap(cm *corev1.ConfigMap, namespace string) error {
 	cm.Namespace = namespace
-	err := c.CoreV1().ConfigMaps(namespace).Delete(cm.Name, &metav1.DeleteOptions{})
+	err := p.foreignClient.Client().CoreV1().ConfigMaps(namespace).Delete(cm.Name, &metav1.DeleteOptions{})
 
 	return err
 }

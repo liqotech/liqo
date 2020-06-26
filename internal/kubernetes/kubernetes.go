@@ -91,7 +91,9 @@ func NewKubernetesProvider(nodeName, clusterId, homeClusterId, operatingSystem s
 }
 
 func (p *KubernetesProvider) ConfigureReflection() error {
-	p.startNattingCache(p.homeClient)
+	if err := p.startNattingCache(p.homeClient); err != nil {
+		return err
+	}
 
 	if err := p.createNattingTable(p.foreignClusterId); err != nil {
 		return err

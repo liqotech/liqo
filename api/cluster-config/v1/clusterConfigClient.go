@@ -2,6 +2,7 @@ package v1
 
 import (
 	"github.com/liqoTech/liqo/pkg/crdClient/v1alpha1"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
 )
@@ -23,7 +24,10 @@ func CreateClusterConfigClient(kubeconfig string) (*v1alpha1.CRDClient, error) {
 		return nil, err
 	}
 
-	v1alpha1.AddToRegistry("clusterconfigs", &ClusterConfig{}, &ClusterConfigList{})
+	v1alpha1.AddToRegistry("clusterconfigs", &ClusterConfig{}, &ClusterConfigList{}, nil, schema.GroupResource{
+		Group:    GroupVersion.Group,
+		Resource: "clusterconfigs",
+	})
 
 	return clientSet, nil
 }

@@ -40,6 +40,8 @@ type Reflector struct {
 		sync.Mutex
 		ns map[string]chan struct{}
 	}
+
+	started bool
 }
 
 // StartReflector initializes all the data structures
@@ -68,6 +70,7 @@ func (p *KubernetesProvider) StartReflector() {
 		go p.controlLoop()
 	}
 
+	p.started = true
 	klog.Infof("vk reflector started with %d workers", nReflectionWorkers)
 }
 
@@ -110,7 +113,7 @@ func (p *KubernetesProvider) controlLoop() {
 				break
 			}
 			if err := p.manageRemoteEpEvent(e); err != nil {
-				klog.Error(err, "error in managing remote ep event")
+				klog.Errorf("error in managing remote ep event: %v", err)
 			}
 		case e := <-p.cmEvent:
 			if err = p.manageCmEvent(e); err != nil {
@@ -275,6 +278,8 @@ func epEventsAggregator(watcher watch.Interface, outChan chan timestampedEvent, 
 				event: e,
 				ts:    time.Now().UnixNano(),
 			}
+		default:
+			break
 		}
 	}
 }
@@ -299,6 +304,8 @@ func eventAggregator(watcher watch.Interface, outChan chan watch.Event, stop cha
 // and the eventAggregator goroutines closing are waited
 func (p *KubernetesProvider) StopReflector() {
 	klog.Info("stopping reflector for cluster " + p.foreignClusterId)
+
+	p.started = false
 
 	if p.svcEvent == nil || p.epEvent == nil || p.repEvent == nil || p.cmEvent == nil || p.secEvent == nil {
 		klog.Info("reflector was not active for cluster " + p.foreignClusterId)
@@ -361,4 +368,12 @@ func (p *KubernetesProvider) reflectNamespace(namespace string) error {
 	klog.Infof("reflection setup completed - namespace \"%v\" is reflected in namespace \"%v\"", namespace, nattedNS)
 
 	return nil
+}
+
+func (p *KubernetesProvider) isNamespaceReflected(ns string) bool {
+	p.Reflector.reflectedNamespaces.Lock()
+	defer p.Reflector.reflectedNamespaces.Unlock()
+
+	_, ok := p.reflectedNamespaces.ns[ns]
+	return ok
 }
