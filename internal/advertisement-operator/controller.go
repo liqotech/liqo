@@ -30,6 +30,7 @@ import (
 	"k8s.io/klog"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"time"
 )
 
 // AdvertisementReconciler reconciles a Advertisement object
@@ -45,6 +46,7 @@ type AdvertisementReconciler struct {
 	AcceptedAdvNum   int32
 	ClusterConfig    policyv1.AdvertisementConfig
 	AdvClient        *crdClient.CRDClient
+	RetryTimeout     time.Duration
 }
 
 // +kubebuilder:rbac:groups=protocol.liqo.io,resources=advertisements,verbs=get;list;watch;create;update;patch;delete
@@ -66,7 +68,7 @@ func (r *AdvertisementReconciler) Reconcile(req ctrl.Request) (ctrl.Result, erro
 		} else {
 			// not managed error
 			klog.Error(err)
-			return ctrl.Result{}, err
+			return ctrl.Result{RequeueAfter: r.RetryTimeout }, err
 		}
 	}
 
@@ -74,17 +76,17 @@ func (r *AdvertisementReconciler) Reconcile(req ctrl.Request) (ctrl.Result, erro
 	if adv.Status.AdvertisementStatus == "" {
 		r.CheckAdvertisement(&adv)
 		r.UpdateAdvertisement(&adv)
-		return ctrl.Result{}, nil
+		return ctrl.Result{RequeueAfter: r.RetryTimeout}, nil
 	}
 
 	if adv.Status.AdvertisementStatus != "ACCEPTED" {
 		klog.Info("Advertisement " + adv.Name + " refused")
-		return ctrl.Result{}, nil
+		return ctrl.Result{RequeueAfter: r.RetryTimeout}, nil
 	}
 
 	if !r.KindEnvironment && adv.Status.RemoteRemappedPodCIDR == "" {
 		klog.Info("advertisement not complete, remoteRemappedPodCIDR not set yet")
-		return ctrl.Result{}, nil
+		return ctrl.Result{RequeueAfter: r.RetryTimeout}, nil
 	}
 
 	if !adv.Status.VkCreated {
@@ -93,10 +95,10 @@ func (r *AdvertisementReconciler) Reconcile(req ctrl.Request) (ctrl.Result, erro
 			return ctrl.Result{}, err
 		}
 		klog.V(3).Info("Correct creation of virtual kubelet deployment for cluster " + adv.Spec.ClusterId)
-		return ctrl.Result{}, nil
+		return ctrl.Result{RequeueAfter: r.RetryTimeout}, nil
 	}
 
-	return ctrl.Result{}, nil
+	return ctrl.Result{RequeueAfter: r.RetryTimeout}, nil
 }
 
 func (r *AdvertisementReconciler) SetupWithManager(mgr ctrl.Manager) error {
