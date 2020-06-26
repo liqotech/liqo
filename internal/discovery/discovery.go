@@ -29,15 +29,27 @@ func NewDiscoveryCtrl(namespace string, clusterId *clusterID.ClusterID) (*Discov
 	if err != nil {
 		return nil, err
 	}
-	discoveryCtrl := DiscoveryCtrl{
+	discoveryCtrl := GetDiscoveryCtrl(
+		namespace,
+		ctrl.Log.WithName("discovery"),
+		client,
+		clientDiscovery,
+		clusterId,
+	)
+	if discoveryCtrl.GetDiscoveryConfig() != nil {
+		os.Exit(1)
+	}
+	return &discoveryCtrl, nil
+}
+
+func GetDiscoveryCtrl(namespace string, log logr.Logger, client *kubernetes.Clientset, clientDiscovery *v1.DiscoveryV1Client, clusterId *clusterID.ClusterID) DiscoveryCtrl {
+	return DiscoveryCtrl{
 		Namespace:       namespace,
-		Log:             ctrl.Log.WithName("discovery"),
+		Log:             log,
 		client:          client,
 		clientDiscovery: clientDiscovery,
 		ClusterId:       clusterId,
 	}
-	discoveryCtrl.GetDiscoveryConfig()
-	return &discoveryCtrl, nil
 }
 
 // Read ConfigMap and start register and resolver goroutines

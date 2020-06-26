@@ -16,6 +16,7 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/kubernetes/pkg/apis/core/v1"
 	"net/http"
+	"os"
 )
 
 var (
@@ -54,7 +55,10 @@ func (whsvr *WebhookServer) validate(ar *v1beta1.AdmissionReview) *v1beta1.Admis
 
 	whsvr.Log.Info("PeeringRequest " + peerReq.Name + " Received")
 
-	conf := peering_request_operator.GetConfig(whsvr.client, whsvr.Log, whsvr.Namespace)
+	conf, err := peering_request_operator.GetConfig(whsvr.client, whsvr.Log, whsvr.Namespace)
+	if err != nil {
+		os.Exit(1)
+	}
 
 	if conf.AllowAll {
 		// allow every request

@@ -32,8 +32,10 @@ func (fc *ForeignCluster) getInsecureConfig() *rest.Config {
 	return &cnf
 }
 
-func (fc *ForeignCluster) LoadForeignCA(localClient *kubernetes.Clientset, localNamespace string) error {
-	config := fc.getInsecureConfig()
+func (fc *ForeignCluster) LoadForeignCA(localClient *kubernetes.Clientset, localNamespace string, config *rest.Config) error {
+	if config == nil {
+		config = fc.getInsecureConfig()
+	}
 	client, err := kubernetes.NewForConfig(config)
 	if err != nil {
 		return err

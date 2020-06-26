@@ -1,7 +1,7 @@
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: peering-request-operatorn-cm
+  name: peering-request-operator-cm
   namespace: {{ .Release.Namespace }}
 data:
   allowAll: "true"

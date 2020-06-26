@@ -20,7 +20,6 @@ import (
 	"context"
 	"github.com/go-logr/logr"
 	discoveryv1 "github.com/liqoTech/liqo/api/discovery/v1"
-	"github.com/liqoTech/liqo/internal/discovery/clients"
 	"github.com/liqoTech/liqo/pkg/clusterID"
 	v1 "github.com/liqoTech/liqo/pkg/discovery/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -60,12 +59,7 @@ func (r *PeeringRequestReconciler) Reconcile(req ctrl.Request) (ctrl.Result, err
 		return ctrl.Result{}, nil
 	}
 
-	_, err = clients.NewK8sClient()
-	if err != nil {
-		return ctrl.Result{}, err
-	}
-
-	exists, err := BroadcasterExists(pr, r.Namespace)
+	exists, err := r.BroadcasterExists(pr)
 	if err != nil {
 		return ctrl.Result{}, err
 	}
