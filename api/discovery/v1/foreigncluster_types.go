@@ -20,6 +20,7 @@ import (
 	"github.com/liqoTech/liqo/pkg/crdClient/v1alpha1"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 )
 
 // EDIT THIS FILE!  THIS IS SCAFFOLDING FOR YOU TO OWN!
@@ -70,5 +71,8 @@ type ForeignClusterList struct {
 func init() {
 	SchemeBuilder.Register(&ForeignCluster{}, &ForeignClusterList{})
 
-	v1alpha1.AddToRegistry("foreignclusters", &ForeignCluster{}, &ForeignClusterList{})
+	v1alpha1.AddToRegistry("foreignclusters", &ForeignCluster{}, &ForeignClusterList{}, nil, schema.GroupResource{
+		Group:    GroupVersion.Group,
+		Resource: "foreignclusters",
+	})
 }

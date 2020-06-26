@@ -19,7 +19,9 @@ type namespaceNTCache struct {
 	nattingTableName string
 }
 
-func (p *KubernetesProvider) startNattingCache(clientSet v1alpha1.NamespacedCRDClientInterface) {
+func (p *KubernetesProvider) startNattingCache(clientSet v1alpha1.NamespacedCRDClientInterface) error {
+	var err error
+
 	ehf := cache.ResourceEventHandlerFuncs{
 		AddFunc: func(obj interface{}) {
 			p.StartReflector()
@@ -35,10 +37,15 @@ func (p *KubernetesProvider) startNattingCache(clientSet v1alpha1.NamespacedCRDC
 	}
 	lo := metav1.ListOptions{FieldSelector: strings.Join([]string{"metadata.name", p.ntCache.nattingTableName}, "=")}
 
-	p.ntCache.Store, p.ntCache.Controller = crdClient.WatchResources(clientSet,
+	p.ntCache.Store, p.ntCache.Controller, err = crdClient.WatchResources(clientSet,
 		"namespacenattingtables", "",
 		0, ehf, lo)
+	if err != nil {
+		return err
+	}
 	klog.Info("namespaceNattingTable cache initialized")
+
+	return nil
 }
 
 func (nt *namespaceNTCache) WaitNamespaceNattingTableSync() {
@@ -187,7 +194,7 @@ func (p *KubernetesProvider) manageReflections(oldObj interface{}, newObj interf
 			}
 
 			if err := p.reflectNamespace(k); err != nil {
-				klog.Error(err, "error in manage reflections")
+				klog.Error(err)
 				continue
 			}
 		}

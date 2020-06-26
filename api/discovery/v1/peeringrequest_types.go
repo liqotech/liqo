@@ -20,6 +20,7 @@ import (
 	"github.com/liqoTech/liqo/pkg/crdClient/v1alpha1"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 )
 
 // EDIT THIS FILE!  THIS IS SCAFFOLDING FOR YOU TO OWN!
@@ -65,5 +66,8 @@ type PeeringRequestList struct {
 func init() {
 	SchemeBuilder.Register(&PeeringRequest{}, &PeeringRequestList{})
 
-	v1alpha1.AddToRegistry("peeringrequests", &PeeringRequest{}, &PeeringRequestList{})
+	v1alpha1.AddToRegistry("peeringrequests", &PeeringRequest{}, &PeeringRequestList{}, nil, schema.GroupResource{
+		Group:    v1.SchemeGroupVersion.Group,
+		Resource: "peeringrequests",
+	})
 }

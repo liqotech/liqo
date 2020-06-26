@@ -23,7 +23,7 @@ func CreateAdvertisementClient(kubeconfig string) (*v1alpha1.CRDClient, error) {
 		return nil, err
 	}
 
-	v1alpha1.AddToRegistry("advertisements", &Advertisement{}, &AdvertisementList{})
+	v1alpha1.AddToRegistry("advertisements", &Advertisement{}, &AdvertisementList{}, nil, GroupResource)
 
 	return clientSet, nil
 }
