@@ -47,6 +47,8 @@ spec:
           args:
           - "--namespace"
           - "$(POD_NAMESPACE)"
+          - "--requeueAfter"
+          - "30"
           env:
             - name: POD_NAMESPACE
               valueFrom:

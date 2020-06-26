@@ -8,6 +8,7 @@ import (
 	"os"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
+	"time"
 )
 
 var (
@@ -18,8 +19,10 @@ func main() {
 	mainLog.Info("Starting")
 
 	var namespace string
+	var requeueAfter int64 // seconds
 
 	flag.StringVar(&namespace, "namespace", "default", "Namespace where your configs are stored.")
+	flag.Int64Var(&requeueAfter, "requeueAfter", 30, "Period after that PeeringRequests status is rechecked (seconds)")
 	flag.Parse()
 
 	ctrl.SetLogger(zap.New(zap.UseDevMode(true)))
@@ -45,5 +48,5 @@ func main() {
 	discoveryCtl.StartDiscovery()
 
 	mainLog.Info("Starting ForeignCluster operator")
-	foreign_cluster_operator.StartOperator(namespace)
+	foreign_cluster_operator.StartOperator(namespace, time.Duration(requeueAfter)*time.Second)
 }
