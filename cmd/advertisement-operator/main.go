@@ -20,6 +20,7 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/klog"
 	"os"
+	"time"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -93,6 +94,7 @@ func main() {
 		os.Exit(1)
 	}
 
+
 	// New Client For CSR Auto-approval
 	config := ctrl.GetConfigOrDie()
 	clientset, err := kubernetes.NewForConfig(config)
@@ -131,6 +133,7 @@ func main() {
 		HomeClusterId:    clusterId,
 		AcceptedAdvNum:   acceptedAdv,
 		AdvClient:        advClient,
+		RetryTimeout:     60 * time.Second,
 	}
 
 	if err = r.SetupWithManager(mgr); err != nil {
