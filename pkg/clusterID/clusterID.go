@@ -26,6 +26,15 @@ type ClusterID struct {
 	log    logr.Logger
 }
 
+func GetNewClusterID(id string, client *kubernetes.Clientset, log logr.Logger) *ClusterID {
+	return &ClusterID{
+		id:     id,
+		m:      sync.RWMutex{},
+		client: client,
+		log:    log,
+	}
+}
+
 func NewClusterID() (*ClusterID, error) {
 	client, err := clients.NewK8sClient()
 	if err != nil {

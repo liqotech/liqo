@@ -66,6 +66,14 @@ jobs:
       id: go
     - name: Check out code into the Go module directory
       uses: actions/checkout@v2
+    - name: Install Kubebuilder
+      run: |
+        version=2.3.1 # latest stable version
+        arch=amd64
+        curl -L -O "https://github.com/kubernetes-sigs/kubebuilder/releases/download/v${version}/kubebuilder_${version}_linux_${arch}.tar.gz"
+        tar -zxvf kubebuilder_${version}_linux_${arch}.tar.gz
+        mv kubebuilder_${version}_linux_${arch} kubebuilder && sudo mv kubebuilder /usr/local/
+        export PATH=$PATH:/usr/local/kubebuilder/bin
     - name: Get dependencies
       run: |
         go get -u github.com/ory/go-acc

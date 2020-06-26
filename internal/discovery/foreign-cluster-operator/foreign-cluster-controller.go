@@ -29,6 +29,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/rest"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"time"
 )
@@ -43,6 +44,9 @@ type ForeignClusterReconciler struct {
 	discoveryClient *v1.DiscoveryV1Client
 	clusterID       *clusterID.ClusterID
 	RequeueAfter    time.Duration
+
+	// testing
+	ForeignConfig *rest.Config
 }
 
 // +kubebuilder:rbac:groups=discovery.liqo.io,resources=foreignclusters,verbs=get;list;watch;create;update;patch;delete
@@ -60,7 +64,7 @@ func (r *ForeignClusterReconciler) Reconcile(req ctrl.Request) (ctrl.Result, err
 
 	if fc.Status.CaDataRef == nil {
 		r.Log.Info("Get CA Data")
-		err = fc.LoadForeignCA(r.client, r.Namespace)
+		err = fc.LoadForeignCA(r.client, r.Namespace, r.ForeignConfig)
 		if err != nil {
 			r.Log.Error(err, err.Error())
 			return ctrl.Result{
@@ -260,6 +264,9 @@ func (r *ForeignClusterReconciler) createPeeringRequestIfNotExists(clusterID str
 
 // this function return a kube-config file to send to foreign cluster and crate everything needed for it
 func (r *ForeignClusterReconciler) getForeignConfig(clusterID string, owner *discoveryv1.ForeignCluster) (string, error) {
+	if r.ForeignConfig != nil {
+		return r.ForeignConfig.String(), nil
+	}
 	_, err := r.createClusterRoleIfNotExists(clusterID, owner)
 	if err != nil {
 		return "", err

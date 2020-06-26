@@ -1,10 +1,13 @@
 package foreign_cluster_operator
 
 import (
+	"github.com/go-logr/logr"
 	discoveryv1 "github.com/liqoTech/liqo/api/discovery/v1"
 	"github.com/liqoTech/liqo/internal/discovery/clients"
 	"github.com/liqoTech/liqo/pkg/clusterID"
+	v1 "github.com/liqoTech/liqo/pkg/discovery/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/client-go/kubernetes"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
 	"os"
@@ -51,15 +54,15 @@ func StartOperator(namespace string, requeueAfter time.Duration) {
 		os.Exit(1)
 	}
 
-	if err = (&ForeignClusterReconciler{
-		Log:             ctrl.Log.WithName("controllers").WithName("ForeignCluster"),
-		Scheme:          mgr.GetScheme(),
-		Namespace:       namespace,
-		client:          client,
-		discoveryClient: discoveryClient,
-		clusterID:       clusterId,
-		RequeueAfter:    requeueAfter,
-	}).SetupWithManager(mgr); err != nil {
+	if err = (GetFCReconciler(
+		ctrl.Log.WithName("controllers").WithName("ForeignCluster"),
+		mgr.GetScheme(),
+		namespace,
+		client,
+		discoveryClient,
+		clusterId,
+		requeueAfter,
+	)).SetupWithManager(mgr); err != nil {
 		log.Error(err, "unable to create controller", "controller", "ForeignCluster")
 		os.Exit(1)
 	}
@@ -68,5 +71,18 @@ func StartOperator(namespace string, requeueAfter time.Duration) {
 	if err := mgr.Start(ctrl.SetupSignalHandler()); err != nil {
 		log.Error(err, "problem running manager")
 		os.Exit(1)
+	}
+}
+
+func GetFCReconciler(log logr.Logger, scheme *runtime.Scheme, namespace string, client *kubernetes.Clientset, discoveryClient *v1.DiscoveryV1Client, clusterId *clusterID.ClusterID, requeueAfter time.Duration) *ForeignClusterReconciler {
+	return &ForeignClusterReconciler{
+		Log:             log,
+		Scheme:          scheme,
+		Namespace:       namespace,
+		client:          client,
+		discoveryClient: discoveryClient,
+		clusterID:       clusterId,
+		ForeignConfig:   nil,
+		RequeueAfter:    requeueAfter,
 	}
 }

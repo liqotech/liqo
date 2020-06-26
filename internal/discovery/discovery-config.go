@@ -3,7 +3,6 @@ package discovery
 import (
 	"errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"os"
 	"strconv"
 )
 
@@ -22,11 +21,11 @@ type Config struct {
 	AutoJoin bool `json:"autojoin"`
 }
 
-func (discovery *DiscoveryCtrl) GetDiscoveryConfig() {
+func (discovery *DiscoveryCtrl) GetDiscoveryConfig() error {
 	configMap, err := discovery.client.CoreV1().ConfigMaps(discovery.Namespace).Get("discovery-config", metav1.GetOptions{})
 	if err != nil {
 		discovery.Log.Error(err, err.Error())
-		os.Exit(1)
+		return err
 	}
 
 	config := configMap.Data
@@ -34,7 +33,7 @@ func (discovery *DiscoveryCtrl) GetDiscoveryConfig() {
 	err = checkConfig(config)
 	if err != nil {
 		discovery.Log.Error(err, err.Error())
-		os.Exit(1)
+		return err
 	}
 
 	discovery.config.Name = config["name"]
@@ -43,7 +42,7 @@ func (discovery *DiscoveryCtrl) GetDiscoveryConfig() {
 	discovery.config.Port, err = strconv.Atoi(config["port"])
 	if err != nil {
 		discovery.Log.Error(err, err.Error())
-		os.Exit(1)
+		return err
 	}
 
 	discovery.config.EnableDiscovery = config["enableDiscovery"] == "true"
@@ -54,13 +53,14 @@ func (discovery *DiscoveryCtrl) GetDiscoveryConfig() {
 	discovery.config.WaitTime, err = strconv.Atoi(config["waitTime"]) // wait response time
 	if err != nil {
 		discovery.Log.Error(err, err.Error())
-		os.Exit(1)
+		return err
 	}
 	discovery.config.UpdateTime, err = strconv.Atoi(config["updateTime"]) // time between update queries
 	if err != nil {
 		discovery.Log.Error(err, err.Error())
-		os.Exit(1)
+		return err
 	}
+	return nil
 }
 
 func checkConfig(config map[string]string) error {
