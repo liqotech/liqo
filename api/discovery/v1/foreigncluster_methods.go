@@ -2,6 +2,7 @@ package v1
 
 import (
 	v1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
@@ -59,7 +60,14 @@ func (fc *ForeignCluster) LoadForeignCA(localClient *kubernetes.Clientset, local
 	}
 	localSecret, err = localClient.CoreV1().Secrets(localNamespace).Create(localSecret)
 	if err != nil {
-		return err
+		if !errors.IsAlreadyExists(err) {
+			return err
+		}
+		// already exists
+		localSecret, err = localClient.CoreV1().Secrets(localNamespace).Get(fc.Name+"-ca-data", metav1.GetOptions{})
+		if err != nil {
+			return err
+		}
 	}
 	fc.Status.CaDataRef = &v1.ObjectReference{
 		Kind:       "Secret",

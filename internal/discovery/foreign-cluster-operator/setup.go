@@ -9,6 +9,7 @@ import (
 	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
 	"os"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"time"
 )
 
 var (
@@ -22,7 +23,7 @@ func init() {
 	// +kubebuilder:scaffold:scheme
 }
 
-func StartOperator(namespace string) {
+func StartOperator(namespace string, requeueAfter time.Duration) {
 	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
 		Scheme:           scheme,
 		Port:             9443,
@@ -57,6 +58,7 @@ func StartOperator(namespace string) {
 		client:          client,
 		discoveryClient: discoveryClient,
 		clusterID:       clusterId,
+		RequeueAfter:    requeueAfter,
 	}).SetupWithManager(mgr); err != nil {
 		log.Error(err, "unable to create controller", "controller", "ForeignCluster")
 		os.Exit(1)
