@@ -35,6 +35,7 @@ import (
 	"strconv"
 	"strings"
 	"syscall"
+	"time"
 )
 
 var (
@@ -73,6 +74,7 @@ type RouteController struct {
 	IPtablesRuleSpecsPerRemoteCluster map[string][]liqonetOperator.IPtableRule
 	//here we save routes associated to each remote cluster
 	RoutesPerRemoteCluster map[string][]netlink.Route
+	RetryTimeout  time.Duration
 }
 
 // +kubebuilder:rbac:groups=liqonet.liqo.io,resources=tunnelendpoints,verbs=get;list;watch;create;update;patch;delete
@@ -109,7 +111,7 @@ func (r *RouteController) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 					return ctrl.Result{}, nil
 				}
 				r.Log.Error(err, "unable to update endpoint")
-				return ctrl.Result{}, err
+				return ctrl.Result{RequeueAfter: r.RetryTimeout}, err
 			}
 		}
 	} else {
@@ -117,11 +119,11 @@ func (r *RouteController) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 		if liqonetOperator.ContainsString(endpoint.Finalizers, routeOperatorFinalizer) {
 			if err := r.deleteIPTablesRulespecForRemoteCluster(&endpoint); err != nil {
 				r.Log.Error(err, "error while deleting rulespec from iptables")
-				return ctrl.Result{}, err
+				return ctrl.Result{RequeueAfter: r.RetryTimeout}, err
 			}
 			if err := r.deleteRoutesPerCluster(&endpoint); err != nil {
 				r.Log.Error(err, "error while deleting routes")
-				return ctrl.Result{}, err
+				return ctrl.Result{RequeueAfter: r.RetryTimeout}, err
 			}
 			//remove the finalizer from the list and update it.
 			endpoint.Finalizers = liqonetOperator.RemoveString(endpoint.Finalizers, routeOperatorFinalizer)
@@ -130,23 +132,23 @@ func (r *RouteController) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 					return ctrl.Result{}, nil
 				}
 				r.Log.Error(err, "unable to update")
-				return ctrl.Result{}, err
+				return ctrl.Result{RequeueAfter: r.RetryTimeout}, err
 			}
 		}
-		return ctrl.Result{}, nil
+		return ctrl.Result{RequeueAfter: r.RetryTimeout}, nil
 	}
 	if !r.alreadyProcessedByRouteOperator(endpoint.GetObjectMeta()) {
 		if err := r.createAndInsertIPTablesChains(); err != nil {
 			r.Log.Error(err, "unable to create iptables chains")
-			return ctrl.Result{}, err
+			return ctrl.Result{RequeueAfter: r.RetryTimeout}, err
 		}
 		if err := r.addIPTablesRulespecForRemoteCluster(&endpoint); err != nil {
 			log.Error(err, "unable to insert ruleSpec")
-			return ctrl.Result{}, err
+			return ctrl.Result{RequeueAfter: r.RetryTimeout}, err
 		}
 		if err := r.InsertRoutesPerCluster(&endpoint); err != nil {
 			log.Error(err, "unable to insert routes")
-			return ctrl.Result{}, err
+			return ctrl.Result{RequeueAfter: r.RetryTimeout}, err
 		}
 		endpoint.ObjectMeta.SetLabels(liqonetOperator.SetLabelHandler(liqonetOperator.RouteOpLabelKey+"-"+r.NodeName, "ready", endpoint.ObjectMeta.GetLabels()))
 		err := r.Client.Update(ctx, &endpoint)
@@ -154,16 +156,16 @@ func (r *RouteController) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 			log.Info("a resource version conflict arose while updating", "resource", req.NamespacedName)
 			if err := r.Get(ctx, req.NamespacedName, &endpoint); err != nil {
 				r.Log.Error(err, "unable to fetch endpoint")
-				return ctrl.Result{}, client.IgnoreNotFound(err)
+				return ctrl.Result{RequeueAfter: r.RetryTimeout}, client.IgnoreNotFound(err)
 			}
 			endpoint.ObjectMeta.SetLabels(liqonetOperator.SetLabelHandler(liqonetOperator.RouteOpLabelKey+"-"+r.NodeName, "ready", endpoint.ObjectMeta.GetLabels()))
 			err = r.Client.Update(ctx, &endpoint)
 		}
 		if err != nil {
-			return ctrl.Result{}, err
+			return ctrl.Result{RequeueAfter: r.RetryTimeout}, err
 		}
 	}
-	return ctrl.Result{}, nil
+	return ctrl.Result{RequeueAfter: r.RetryTimeout}, nil
 }
 
 //this function is called at startup of the operator

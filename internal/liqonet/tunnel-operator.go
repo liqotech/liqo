@@ -25,6 +25,7 @@ import (
 	"os/signal"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"time"
 )
 
 // TunnelController reconciles a TunnelEndpoint object
@@ -33,6 +34,7 @@ type TunnelController struct {
 	Log                          logr.Logger
 	Scheme                       *runtime.Scheme
 	TunnelIFacesPerRemoteCluster map[string]int
+	RetryTimeout                 time.Duration
 }
 
 // +kubebuilder:rbac:groups=liqonet.liqo.io,resources=tunnelendpoints,verbs=get;list;watch;create;update;patch;delete
@@ -52,7 +54,7 @@ func (r *TunnelController) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 	//if the endpoint CR is not processed then return
 	if endpoint.Status.Phase != "Processed" && endpoint.Status.Phase != "Ready" {
 		log.Info("tunnelEndpoint is not ready ", "name", endpoint.Name, "phase", endpoint.Status.Phase)
-		return ctrl.Result{}, nil
+		return ctrl.Result{RequeueAfter: r.RetryTimeout}, nil
 	}
 	// examine DeletionTimestamp to determine if object is under deletion
 	if endpoint.ObjectMeta.DeletionTimestamp.IsZero() {
@@ -63,7 +65,7 @@ func (r *TunnelController) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 			endpoint.ObjectMeta.Finalizers = append(endpoint.Finalizers, tunnelEndpointFinalizer)
 			if err := r.Update(ctx, &endpoint); err != nil {
 				log.Error(err, "unable to update endpoint")
-				return ctrl.Result{}, err
+				return ctrl.Result{RequeueAfter: r.RetryTimeout}, err
 			}
 		}
 	} else {
@@ -81,7 +83,7 @@ func (r *TunnelController) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 				return ctrl.Result{}, err
 			}
 		}
-		return ctrl.Result{}, nil
+		return ctrl.Result{RequeueAfter: r.RetryTimeout}, nil
 	}
 
 	//update the status of the endpoint custom resource
@@ -91,7 +93,7 @@ func (r *TunnelController) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 		iFaceIndex, iFaceName, err := liqonetOperator.InstallGreTunnel(&endpoint)
 		if err != nil {
 			log.Error(err, "unable to create the gre tunnel")
-			return ctrl.Result{}, err
+			return ctrl.Result{RequeueAfter: r.RetryTimeout}, err
 		}
 		log.Info("gre tunnel installed", "index", iFaceIndex, "name", iFaceName)
 		//save the IFace index in the map
@@ -115,24 +117,24 @@ func (r *TunnelController) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 		endpoint.Status.Phase = "Ready"
 		err = r.Client.Status().Update(ctx, &endpoint)
 		if err != nil {
-			return ctrl.Result{}, err
+			return ctrl.Result{RequeueAfter: r.RetryTimeout}, err
 		}
 	} else if endpoint.Status.Phase == "Ready" {
 		//set the label that the resource have been processed by tunnel-operator
 		endpoint.ObjectMeta.SetLabels(liqonetOperator.SetLabelHandler(liqonetOperator.TunOpLabelKey, "ready", endpoint.ObjectMeta.GetLabels()))
 		err := r.Client.Update(ctx, &endpoint)
 		if err != nil {
-			return ctrl.Result{}, err
+			return ctrl.Result{RequeueAfter: r.RetryTimeout}, err
 		}
 
 	} else {
-		return ctrl.Result{}, nil
+		return ctrl.Result{RequeueAfter: r.RetryTimeout}, nil
 	}
 	//save the IFace index in the map
 	//we come here only if the tunnel is installed and the CR status has been updated
 	r.TunnelIFacesPerRemoteCluster[endpoint.Spec.ClusterID] = endpoint.Status.TunnelIFaceIndex
 
-	return ctrl.Result{}, nil
+	return ctrl.Result{RequeueAfter: r.RetryTimeout}, nil
 }
 
 //used to remove all the tunnel interfaces when the controller is closed
