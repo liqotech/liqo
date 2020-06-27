@@ -26,6 +26,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"net"
 	"os"
+	"time"
 
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -49,6 +50,7 @@ type TunnelEndpointCreator struct {
 	FreeSubnets       map[string]*net.IPNet
 	IPManager         liqonetOperator.Ipam
 	TunnelEndpointMap map[string]types.NamespacedName
+	RetryTimeout	  time.Duration
 }
 
 // +kubebuilder:rbac:groups=protocol.liqo.io,resources=advertisements,verbs=get;list;watch;create;update;patch;delete
@@ -87,16 +89,16 @@ func (r *TunnelEndpointCreator) Reconcile(req ctrl.Request) (ctrl.Result, error)
 					return ctrl.Result{}, nil
 				}
 				log.Error(err, "unable to update adv", "adv", adv.Name)
-				return ctrl.Result{}, err
+				return ctrl.Result{RequeueAfter: r.RetryTimeout}, err
 			}
-			return ctrl.Result{}, nil
+			return ctrl.Result{RequeueAfter: r.RetryTimeout}, nil
 		}
 	} else {
 		//the object is being deleted
 		if liqonetOperator.ContainsString(adv.Finalizers, tunnelEndpointCreatorFinalizer) {
 			if err := r.deleteTunEndpoint(&adv); err != nil {
 				log.Error(err, "error while deleting endpoint")
-				return ctrl.Result{}, err
+				return ctrl.Result{RequeueAfter: r.RetryTimeout}, err
 			}
 
 			//remove the finalizer from the list and update it.
@@ -106,20 +108,20 @@ func (r *TunnelEndpointCreator) Reconcile(req ctrl.Request) (ctrl.Result, error)
 					return ctrl.Result{}, nil
 				}
 				log.Error(err, "unable to update adv %s", adv.Name, "in namespace", adv.Namespace)
-				return ctrl.Result{}, err
+				return ctrl.Result{RequeueAfter: r.RetryTimeout}, err
 			}
 		}
 		//remove the reserved ip for the cluster
 		r.IPManager.RemoveReservedSubnet(adv.Spec.ClusterId)
-		return ctrl.Result{}, nil
+		return ctrl.Result{RequeueAfter: r.RetryTimeout}, nil
 	}
 
 	err := r.createOrUpdateTunEndpoint(&adv)
 	if err != nil {
 		log.Error(err, "error while creating endpoint")
-		return ctrl.Result{}, err
+		return ctrl.Result{RequeueAfter: r.RetryTimeout}, err
 	}
-	return ctrl.Result{}, nil
+	return ctrl.Result{RequeueAfter: r.RetryTimeout}, nil
 }
 
 func (r *TunnelEndpointCreator) SetupWithManager(mgr ctrl.Manager) error {

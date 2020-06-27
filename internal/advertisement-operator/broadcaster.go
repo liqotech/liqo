@@ -96,7 +96,7 @@ func StartBroadcaster(homeClusterId, localKubeconfigPath, gatewayPrivateIP, peer
 		remoteClient, err = protocolv1.CreateAdvertisementClient("", secretForAdvertisementCreation)
 		if err != nil {
 			klog.Errorln(err, "Unable to create client to remote cluster "+foreignClusterId+". Retry in 1 minute")
-			time.Sleep(b.RetryTimeout)
+			time.Sleep(1*time.Minute)
 		} else {
 			break
 		}
