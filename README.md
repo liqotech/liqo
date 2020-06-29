@@ -37,7 +37,7 @@ The following process will install Liqo on your Cluster. This will make your clu
 
 ### Pre-requirements
 
-You have to label one node of your cluster as the gateay node. This will be used as the gateway for the inter-cluster traffic.
+You have to label one node of your cluster as the gateway node. This will be used as the gateway for the inter-cluster traffic.
 
 ```bash
 kubectl label no __your__gateway__node liqonet.liqo.io/gateway=true
@@ -60,7 +60,7 @@ curl https://raw.githubusercontent.com/LiqoTech/liqo/master/install.sh | bash
 #### [K3s](k3s.io)
 
 K3s is a minimal Kubernetes cluster which is pretty small and easy to set up. However, it does not store its configuration in the
-way that traditional installers (e.g.; Kubedam) do. Therefore, it is required to know the configuration you entered for your cluster.
+way that traditional installers (e.g.; Kubeadm) do. Therefore, it is required to know the configuration you entered for your cluster.
 
 After having exported your K3s Kubeconfig, you can install LIQO setting the following variables before launching the installer.
 The following values represent the default configuration for K3s cluster, you may need to adapt them to the actual values of your cluster.
