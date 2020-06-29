@@ -8,14 +8,6 @@ import (
 	"k8s.io/apimachinery/pkg/watch"
 )
 
-var (
-	defaultClusterConfig = policyv1.ClusterConfigSpec{
-		ResourceSharingPercentage:  0,
-		MaxAcceptableAdvertisement: 0,
-		AutoAccept:                 false,
-	}
-)
-
 func (b *AdvertisementBroadcaster) WatchConfiguration(kubeconfigPath string) error {
 	configClient, err := policyv1.CreateClusterConfigClient(kubeconfigPath)
 	if err != nil {
@@ -65,20 +57,15 @@ func (r *AdvertisementReconciler) WatchConfiguration(kubeconfigPath string) erro
 				continue
 			}
 
-			// if first time, copy the configuration
-			if r.ClusterConfig == defaultClusterConfig {
-				r.ClusterConfig = configuration.Spec
-			}
-
 			switch event.Type {
 			case watch.Added, watch.Modified:
-				var advList protocolv1.AdvertisementList
-				err := r.Client.List(context.Background(), &advList)
+				obj, err := r.AdvClient.Resource("advertisements").List(metav1.ListOptions{})
 				if err != nil {
 					r.Log.Error(err, "Unable to apply configuration: error listing Advertisements")
 					continue
 				}
-				err, updateFlag := r.ManageConfigUpdate(configuration, &advList)
+				advList := obj.(*protocolv1.AdvertisementList)
+				err, updateFlag := r.ManageConfigUpdate(configuration, advList)
 				if err != nil {
 					continue
 				}

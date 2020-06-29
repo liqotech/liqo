@@ -137,6 +137,7 @@ func main() {
 		InitVKImage:      initKubeletImage,
 		HomeClusterId:    clusterId,
 		AcceptedAdvNum:   acceptedAdv,
+		AdvClient:        advClient,
 	}
 
 	if err = r.SetupWithManager(mgr); err != nil {

@@ -21,6 +21,7 @@ import (
 	protocolv1 "github.com/liqoTech/liqo/api/advertisement-operator/v1"
 	policyv1 "github.com/liqoTech/liqo/api/cluster-config/v1"
 	pkg "github.com/liqoTech/liqo/pkg/advertisement-operator"
+	"github.com/liqoTech/liqo/pkg/crdClient/v1alpha1"
 	v1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -44,6 +45,7 @@ type AdvertisementReconciler struct {
 	HomeClusterId    string
 	AcceptedAdvNum   int32
 	ClusterConfig    policyv1.ClusterConfigSpec
+	AdvClient        *v1alpha1.CRDClient
 }
 
 // +kubebuilder:rbac:groups=protocol.liqo.io,resources=advertisements,verbs=get;list;watch;create;update;patch;delete
@@ -84,7 +86,7 @@ func (r *AdvertisementReconciler) Reconcile(req ctrl.Request) (ctrl.Result, erro
 	}
 
 	if !r.KindEnvironment && adv.Status.RemoteRemappedPodCIDR == "" {
-		r.Log.Info("advertisement not complete, remoteRemappedPodCIRD not set yet")
+		r.Log.Info("advertisement not complete, remoteRemappedPodCIDR not set yet")
 		return ctrl.Result{}, nil
 	}
 
