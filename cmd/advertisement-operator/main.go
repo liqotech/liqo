@@ -16,9 +16,9 @@ limitations under the License.
 package main
 
 import (
-	"errors"
 	"flag"
 	"k8s.io/client-go/kubernetes"
+	"k8s.io/klog"
 	"os"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -26,13 +26,11 @@ import (
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
 
-	ctrl "sigs.k8s.io/controller-runtime"
-	"sigs.k8s.io/controller-runtime/pkg/log/zap"
-
 	protocolv1 "github.com/liqoTech/liqo/api/advertisement-operator/v1"
 	liqonetv1 "github.com/liqoTech/liqo/api/tunnel-endpoint/v1"
 	"github.com/liqoTech/liqo/internal/advertisement-operator"
 	"github.com/liqoTech/liqo/pkg/csrApprover"
+	ctrl "sigs.k8s.io/controller-runtime"
 	// +kubebuilder:scaffold:imports
 )
 
@@ -44,8 +42,7 @@ const (
 )
 
 var (
-	scheme   = runtime.NewScheme()
-	setupLog = ctrl.Log.WithName("setup")
+	scheme = runtime.NewScheme()
 )
 
 func init() {
@@ -74,12 +71,8 @@ func main() {
 	flag.BoolVar(&runsInKindEnv, "run-in-kind", false, "The cluster in which the controller runs is managed by kind")
 	flag.Parse()
 
-	ctrl.SetLogger(zap.New(func(o *zap.Options) {
-		o.Development = true
-	}))
-
 	if clusterId == "" {
-		setupLog.Error(errors.New("Cluster ID must be provided "), "")
+		klog.Error("Cluster ID must be provided")
 		os.Exit(1)
 	}
 
@@ -96,7 +89,7 @@ func main() {
 		Port:               9443,
 	})
 	if err != nil {
-		setupLog.Error(err, "unable to start manager")
+		klog.Error(err)
 		os.Exit(1)
 	}
 
@@ -104,31 +97,31 @@ func main() {
 	config := ctrl.GetConfigOrDie()
 	clientset, err := kubernetes.NewForConfig(config)
 	if err != nil {
-		panic(err.Error())
+		klog.Error(err)
+		os.Exit(1)
 	}
 	go csrApprover.WatchCSR(clientset, "virtual-kubelet=true")
 
 	// get the number of already accepted advertisements
 	advClient, err := protocolv1.CreateAdvertisementClient(localKubeconfig)
 	if err != nil {
-		setupLog.Error(err, "unable to create local client for Advertisement")
-		os.Exit(1)
-	}
-	advList, err := advClient.Resource("advertisements").List(metav1.ListOptions{})
-	if err != nil {
-		setupLog.Error(err, "unable to list Advertisements")
+		klog.Errorln(err, "unable to create local client for Advertisement")
 		os.Exit(1)
 	}
 	var acceptedAdv int32
-	for _, adv := range advList.(*protocolv1.AdvertisementList).Items {
-		if adv.Status.AdvertisementStatus == "ACCEPTED" {
-			acceptedAdv++
+	advList, err := advClient.Resource("advertisements").List(metav1.ListOptions{})
+	if err != nil {
+		klog.Error(err)
+	} else {
+		for _, adv := range advList.(*protocolv1.AdvertisementList).Items {
+			if adv.Status.AdvertisementStatus == "ACCEPTED" {
+				acceptedAdv++
+			}
 		}
 	}
 
 	r := &advertisement_operator.AdvertisementReconciler{
 		Client:           mgr.GetClient(),
-		Log:              ctrl.Log.WithName("controllers").WithName("Advertisement"),
 		Scheme:           mgr.GetScheme(),
 		EventsRecorder:   mgr.GetEventRecorderFor("AdvertisementOperator"),
 		KindEnvironment:  runsInKindEnv,
@@ -141,18 +134,18 @@ func main() {
 	}
 
 	if err = r.SetupWithManager(mgr); err != nil {
-		setupLog.Error(err, "unable to create controller", "controller", "Advertisement")
+		klog.Error(err)
 		os.Exit(1)
 	}
 	// +kubebuilder:scaffold:builder
 
 	if err = r.WatchConfiguration(localKubeconfig); err != nil {
-		setupLog.Error(err, "unable to watch cluster configuration")
+		klog.Error(err)
 	}
 
-	setupLog.Info("starting manager as advertisement-operator")
+	klog.Info("starting manager as advertisement-operator")
 	if err := mgr.Start(ctrl.SetupSignalHandler()); err != nil {
-		setupLog.Error(err, "problem running manager")
+		klog.Error(err)
 		os.Exit(1)
 	}
 

@@ -2,15 +2,17 @@ package advertisement_operator
 
 import (
 	"context"
+	"errors"
 	"github.com/go-logr/logr"
 	"io/ioutil"
+	"k8s.io/klog"
 
 	protocolv1 "github.com/liqoTech/liqo/api/advertisement-operator/v1"
 
 	appsv1 "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
-	"k8s.io/apimachinery/pkg/api/errors"
+	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/utils/pointer"
@@ -21,11 +23,11 @@ import (
 
 // create a k8s resource of a certain kind from a yaml file
 // it is equivalent to "kubectl apply -f *.yaml"
-func CreateFromYaml(c client.Client, ctx context.Context, log logr.Logger, filename string, kind string) (interface{}, error) {
+func CreateFromYaml(c client.Client, ctx context.Context, filename string, kind string) (interface{}, error) {
 
 	text, err := ioutil.ReadFile(filename)
 	if err != nil {
-		log.Error(err, "unable to read file "+filename)
+		klog.Error(err, "unable to read file "+filename)
 		return nil, err
 	}
 
@@ -34,7 +36,7 @@ func CreateFromYaml(c client.Client, ctx context.Context, log logr.Logger, filen
 		var pod v1.Pod
 		err = yaml.Unmarshal(text, &pod)
 		if err != nil {
-			log.Error(err, "unable to unmarshal yaml file "+filename)
+			klog.Error(err, "unable to unmarshal yaml file "+filename)
 			return nil, err
 		}
 		return pod, nil
@@ -42,7 +44,7 @@ func CreateFromYaml(c client.Client, ctx context.Context, log logr.Logger, filen
 		var deploy appsv1.Deployment
 		err = yaml.Unmarshal(text, &deploy)
 		if err != nil {
-			log.Error(err, "unable to unmarshal yaml file "+filename)
+			klog.Error(err, "unable to unmarshal yaml file "+filename)
 			return nil, err
 		}
 		return deploy, nil
@@ -50,7 +52,7 @@ func CreateFromYaml(c client.Client, ctx context.Context, log logr.Logger, filen
 		var cm v1.ConfigMap
 		err = yaml.Unmarshal(text, &cm)
 		if err != nil {
-			log.Error(err, "unable to unmarshal yaml file "+filename)
+			klog.Error(err, "unable to unmarshal yaml file "+filename)
 			return nil, err
 		}
 		return cm, nil
@@ -58,7 +60,7 @@ func CreateFromYaml(c client.Client, ctx context.Context, log logr.Logger, filen
 		var sa v1.ServiceAccount
 		err = yaml.Unmarshal(text, &sa)
 		if err != nil {
-			log.Error(err, "unable to unmarshal yaml file "+filename)
+			klog.Error(err, "unable to unmarshal yaml file "+filename)
 			return nil, err
 		}
 		return sa, nil
@@ -66,12 +68,12 @@ func CreateFromYaml(c client.Client, ctx context.Context, log logr.Logger, filen
 		var crb rbacv1.ClusterRoleBinding
 		err = yaml.Unmarshal(text, &crb)
 		if err != nil {
-			log.Error(err, "unable to unmarshal yaml file "+filename)
+			klog.Error(err, "unable to unmarshal yaml file "+filename)
 			return nil, err
 		}
 		return crb, nil
 	default:
-		log.Error(err, "invalid kind")
+		klog.Error(err, "invalid kind")
 		return nil, err
 	}
 }
@@ -243,7 +245,7 @@ func CreateVkDeployment(adv *protocolv1.Advertisement, saName, vkNamespace, vkIm
 
 // create a k8s resource or update it if already exists
 // it receives a pointer to the resource
-func CreateOrUpdate(c client.Client, ctx context.Context, log logr.Logger, object interface{}) error {
+func CreateOrUpdate(c client.Client, ctx context.Context, object interface{}) error {
 
 	switch obj := object.(type) {
 	case *v1.Pod:
@@ -254,15 +256,13 @@ func CreateOrUpdate(c client.Client, ctx context.Context, log logr.Logger, objec
 		}, &pod)
 		if err != nil {
 			err = c.Create(ctx, obj, &client.CreateOptions{})
-			if err != nil && !errors.IsAlreadyExists(err) {
-				log.Error(err, "unable to create pod "+obj.Name)
+			if err != nil && !k8serrors.IsAlreadyExists(err) {
 				return err
 			}
 		} else {
 			obj.SetResourceVersion(pod.ResourceVersion)
 			err = c.Update(ctx, obj, &client.UpdateOptions{})
 			if err != nil {
-				log.Error(err, "unable to update pod "+obj.Name)
 				return err
 			}
 		}
@@ -274,15 +274,13 @@ func CreateOrUpdate(c client.Client, ctx context.Context, log logr.Logger, objec
 		}, &deploy)
 		if err != nil {
 			err = c.Create(ctx, obj, &client.CreateOptions{})
-			if err != nil && !errors.IsAlreadyExists(err) {
-				log.Error(err, "unable to create deployment "+obj.Name)
+			if err != nil && !k8serrors.IsAlreadyExists(err) {
 				return err
 			}
 		} else {
 			obj.SetResourceVersion(deploy.ResourceVersion)
 			err = c.Update(ctx, obj, &client.UpdateOptions{})
 			if err != nil {
-				log.Error(err, "unable to update deployment "+obj.Name)
 				return err
 			}
 		}
@@ -294,15 +292,13 @@ func CreateOrUpdate(c client.Client, ctx context.Context, log logr.Logger, objec
 		}, &cm)
 		if err != nil {
 			err = c.Create(ctx, obj, &client.CreateOptions{})
-			if err != nil && !errors.IsAlreadyExists(err) {
-				log.Error(err, "unable to create configMap "+obj.Name)
+			if err != nil && !k8serrors.IsAlreadyExists(err) {
 				return err
 			}
 		} else {
 			obj.SetResourceVersion(cm.ResourceVersion)
 			err = c.Update(ctx, obj, &client.UpdateOptions{})
 			if err != nil {
-				log.Error(err, "unable to update configMap "+obj.Name)
 				return err
 			}
 		}
@@ -314,15 +310,13 @@ func CreateOrUpdate(c client.Client, ctx context.Context, log logr.Logger, objec
 		}, &sec)
 		if err != nil {
 			err = c.Create(ctx, obj, &client.CreateOptions{})
-			if err != nil && !errors.IsAlreadyExists(err) {
-				log.Error(err, "unable to create configMap "+obj.Name)
+			if err != nil && !k8serrors.IsAlreadyExists(err) {
 				return err
 			}
 		} else {
 			obj.SetResourceVersion(sec.ResourceVersion)
 			err = c.Update(ctx, obj, &client.UpdateOptions{})
 			if err != nil {
-				log.Error(err, "unable to update secret "+obj.Name)
 				return err
 			}
 		}
@@ -334,15 +328,13 @@ func CreateOrUpdate(c client.Client, ctx context.Context, log logr.Logger, objec
 		}, &sa)
 		if err != nil {
 			err = c.Create(ctx, obj, &client.CreateOptions{})
-			if err != nil && !errors.IsAlreadyExists(err) {
-				log.Error(err, "unable to create serviceAccount "+obj.Name)
+			if err != nil && !k8serrors.IsAlreadyExists(err) {
 				return err
 			}
 		} else {
 			obj.SetResourceVersion(sa.ResourceVersion)
 			err = c.Update(ctx, obj, &client.UpdateOptions{})
 			if err != nil {
-				log.Error(err, "unable to update serviceAccount "+obj.Name)
 				return err
 			}
 		}
@@ -354,15 +346,13 @@ func CreateOrUpdate(c client.Client, ctx context.Context, log logr.Logger, objec
 		}, &crb)
 		if err != nil {
 			err = c.Create(ctx, obj, &client.CreateOptions{})
-			if err != nil && !errors.IsAlreadyExists(err) {
-				log.Error(err, "unable to create clusterRoleBinding "+obj.Name)
+			if err != nil && !k8serrors.IsAlreadyExists(err) {
 				return err
 			}
 		} else {
 			obj.SetResourceVersion(crb.ResourceVersion)
 			err = c.Update(ctx, obj, &client.UpdateOptions{})
 			if err != nil {
-				log.Error(err, "unable to update clusterRoleBinding "+obj.Name)
 				return err
 			}
 		}
@@ -374,21 +364,18 @@ func CreateOrUpdate(c client.Client, ctx context.Context, log logr.Logger, objec
 		}, &adv)
 		if err != nil {
 			err = c.Create(ctx, obj, &client.CreateOptions{})
-			if err != nil && !errors.IsAlreadyExists(err) {
-				log.Error(err, "unable to create advertisement "+obj.Name)
+			if err != nil && !k8serrors.IsAlreadyExists(err) {
 				return err
 			}
 		} else {
 			obj.SetResourceVersion(adv.ResourceVersion)
 			err = c.Update(ctx, obj, &client.UpdateOptions{})
 			if err != nil {
-				log.Error(err, "unable to update advertisement "+obj.Name)
 				return err
 			}
 		}
 	default:
-		var err error
-		log.Error(err, "invalid kind")
+		err := errors.New("invalid kind")
 		return err
 	}
 
@@ -411,7 +398,7 @@ func CreateFromFile(c client.Client, ctx context.Context, log logr.Logger, filen
 			"remote": string(text),
 		},
 	}
-	err = CreateOrUpdate(c, ctx, log, remoteKubeConfig)
+	err = CreateOrUpdate(c, ctx, remoteKubeConfig)
 	if err != nil {
 		return err
 	}

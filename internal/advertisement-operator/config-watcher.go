@@ -6,12 +6,13 @@ import (
 	policyv1 "github.com/liqoTech/liqo/api/cluster-config/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/watch"
+	"k8s.io/klog"
 )
 
 func (b *AdvertisementBroadcaster) WatchConfiguration(kubeconfigPath string) error {
 	configClient, err := policyv1.CreateClusterConfigClient(kubeconfigPath)
 	if err != nil {
-		b.Log.Info(err.Error())
+		klog.Error(err)
 		return err
 	}
 
@@ -41,7 +42,7 @@ func (b *AdvertisementBroadcaster) WatchConfiguration(kubeconfigPath string) err
 func (r *AdvertisementReconciler) WatchConfiguration(kubeconfigPath string) error {
 	configClient, err := policyv1.CreateClusterConfigClient(kubeconfigPath)
 	if err != nil {
-		r.Log.Info(err.Error())
+		klog.Error(err)
 		return err
 	}
 
@@ -61,7 +62,7 @@ func (r *AdvertisementReconciler) WatchConfiguration(kubeconfigPath string) erro
 			case watch.Added, watch.Modified:
 				obj, err := r.AdvClient.Resource("advertisements").List(metav1.ListOptions{})
 				if err != nil {
-					r.Log.Error(err, "Unable to apply configuration: error listing Advertisements")
+					klog.Errorln(err, "Unable to apply configuration: error listing Advertisements")
 					continue
 				}
 				advList := obj.(*protocolv1.AdvertisementList)
@@ -71,7 +72,7 @@ func (r *AdvertisementReconciler) WatchConfiguration(kubeconfigPath string) erro
 				}
 				if updateFlag {
 					for _, adv := range advList.Items {
-						r.UpdateAdvertisement(r.Log, &adv)
+						r.UpdateAdvertisement(&adv)
 					}
 				}
 			case watch.Deleted:
@@ -104,7 +105,7 @@ func (r *AdvertisementReconciler) ManageConfigUpdate(configuration *policyv1.Clu
 				if adv.Status.AdvertisementStatus == "ACCEPTED" {
 					err := r.Client.Delete(context.Background(), &adv)
 					if err != nil {
-						r.Log.Error(err, "Unable to apply configuration: error deleting Advertisement "+adv.Name)
+						klog.Errorln(err, "Unable to apply configuration: error deleting Advertisement "+adv.Name)
 						return err, updateFlag
 					}
 					r.AcceptedAdvNum--

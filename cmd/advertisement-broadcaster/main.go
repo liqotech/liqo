@@ -1,12 +1,10 @@
 package main
 
 import (
-	"errors"
 	"flag"
 	advertisement_operator "github.com/liqoTech/liqo/internal/advertisement-operator"
+	"k8s.io/klog"
 	"os"
-	ctrl "sigs.k8s.io/controller-runtime"
-	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 )
 
 func main() {
@@ -24,19 +22,14 @@ func main() {
 	flag.StringVar(&saName, "service-account", "broadcaster", "The name of the ServiceAccount used to create the kubeconfig that will be sent to the foreign cluster")
 	flag.Parse()
 
-	log := ctrl.Log.WithName("setup")
-	ctrl.SetLogger(zap.New(func(o *zap.Options) {
-		o.Development = true
-	}))
-
 	if peeringRequestName == "" {
-		log.Error(errors.New("no peering request provided, exiting"), "")
+		klog.Error("no peering request provided, exiting")
 		os.Exit(1)
 	}
 
 	err := advertisement_operator.StartBroadcaster(clusterId, localKubeconfig, foreignKubeconfig, gatewayIP, gatewayPrivateIP, peeringRequestName, saName)
 	if err != nil {
-		log.Error(err, "Unable to start broadcaster: exiting")
+		klog.Errorln(err, "Unable to start broadcaster: exiting")
 		os.Exit(1)
 	}
 }

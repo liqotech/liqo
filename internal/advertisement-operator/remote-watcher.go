@@ -2,7 +2,6 @@ package advertisement_operator
 
 import (
 	"context"
-	"github.com/go-logr/logr"
 	protocolv1 "github.com/liqoTech/liqo/api/advertisement-operator/v1"
 	pkg "github.com/liqoTech/liqo/pkg/advertisement-operator"
 	v1 "k8s.io/api/core/v1"
@@ -10,6 +9,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/klog"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/event"
@@ -18,9 +18,8 @@ import (
 )
 
 type AdvertisementWatcher struct {
-	client.Client
+	RemoteClient     client.Client
 	LocalClient      client.Client
-	Log              logr.Logger
 	Scheme           *runtime.Scheme
 	HomeClusterId    string
 	ForeignClusterId string
@@ -28,11 +27,9 @@ type AdvertisementWatcher struct {
 
 func WatchAdvertisement(localCRDClient client.Client, scheme *runtime.Scheme, remoteKubeconfig string, sec *v1.Secret, homeClusterId string, foreignClusterId string) {
 
-	log := ctrl.Log.WithName("remote-advertisement-watcher")
-
 	config, err := pkg.GetConfig(remoteKubeconfig, nil, sec)
 	if err != nil {
-		log.Error(err, "unable to get config")
+		klog.Error(err)
 		return
 	}
 
@@ -42,24 +39,23 @@ func WatchAdvertisement(localCRDClient client.Client, scheme *runtime.Scheme, re
 		Port:               9443,
 	})
 	if err != nil {
-		log.Error(err, "unable to start remote watcher")
+		klog.Errorln(err, "Unable to start remote watcher")
 		return
 	}
 
 	if err = (&AdvertisementWatcher{
-		Client:           mgr.GetClient(),
+		RemoteClient:     mgr.GetClient(),
 		LocalClient:      localCRDClient,
-		Log:              log,
 		Scheme:           mgr.GetScheme(),
 		HomeClusterId:    homeClusterId,
 		ForeignClusterId: foreignClusterId,
 	}).SetupWithManager(mgr); err != nil {
-		log.Error(err, "unable to create advertisement watcher")
+		klog.Error(err)
 		return
 	}
-	log.Info("starting remote advertisement watcher")
+	klog.Info("starting remote advertisement watcher")
 	if err := mgr.Start(ctrl.SetupSignalHandler()); err != nil {
-		log.Error(err, "problem running manager")
+		klog.Error(err)
 		return
 	}
 }
@@ -97,10 +93,10 @@ func (r *AdvertisementWatcher) Reconcile(req ctrl.Request) (ctrl.Result, error) 
 
 	// get remote advertisement
 	var adv protocolv1.Advertisement
-	if err := r.Get(ctx, req.NamespacedName, &adv); err != nil {
+	if err := r.RemoteClient.Get(ctx, req.NamespacedName, &adv); err != nil {
 		if kerror.IsNotFound(err) {
 			// reconcile was triggered by a delete request
-			r.Log.Info("Adv deleted")
+			klog.Info("Adv deleted")
 			return ctrl.Result{}, client.IgnoreNotFound(err)
 		} else {
 			return ctrl.Result{}, err
@@ -125,15 +121,15 @@ func (r *AdvertisementWatcher) Reconcile(req ctrl.Request) (ctrl.Result, error) 
 		Name:      "advertisement-" + r.ForeignClusterId,
 	}
 	if err := r.LocalClient.Get(ctx, namespacedName, &foreignClusterAdv); err != nil {
-		r.Log.Error(err, "unable to get foreign cluster advertisement")
+		klog.Error(err)
 		return ctrl.Result{}, err
 	}
 
 	foreignClusterAdv.Status.LocalRemappedPodCIDR = adv.Status.RemoteRemappedPodCIDR
 	if err := r.LocalClient.Status().Update(ctx, &foreignClusterAdv); err != nil {
-		r.Log.Error(err, "unable to update Advertisement status")
+		klog.Error(err)
 		return ctrl.Result{}, err
 	}
-	r.Log.Info("correctly set status of foreign cluster " + r.ForeignClusterId + " advertisement")
+	klog.Info("correctly set status of foreign cluster " + r.ForeignClusterId + " advertisement")
 	return ctrl.Result{}, nil
 }
