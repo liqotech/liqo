@@ -32,6 +32,7 @@ require (
 	github.com/gorilla/websocket v1.4.1 // indirect
 	github.com/grandcat/zeroconf v1.0.0
 	github.com/grpc-ecosystem/go-grpc-middleware v1.1.0 // indirect
+	github.com/grpc-ecosystem/grpc-gateway v1.12.2 // indirect
 	github.com/jirfag/go-printf-func-name v0.0.0-20200119135958-7558a9eaa5af // indirect
 	github.com/joho/godotenv v1.3.0
 	github.com/lib/pq v1.3.0 // indirect
@@ -69,6 +70,9 @@ require (
 	golang.org/x/crypto v0.0.0-20200117160349-530e935923ad // indirect
 	golang.org/x/sys v0.0.0-20200615200032-f1bc736245b1
 	golang.org/x/tools v0.0.0-20200331025713-a30bf2db82d4
+	golang.org/x/time v0.0.0-20191024005414-555d28b269f0 // indirect
+	golang.org/x/tools v0.0.0-20200123022218-593de606220b
+	google.golang.org/genproto v0.0.0-20200122232147-0452cf42e150 // indirect
 	gopkg.in/ini.v1 v1.51.1 // indirect
 	gotest.tools v2.2.0+incompatible
 	k8s.io/api v0.18.5
@@ -76,8 +80,8 @@ require (
 	k8s.io/client-go v10.0.0+incompatible
 	k8s.io/klog v1.0.0
 	k8s.io/kubectl v0.18.6
-	k8s.io/kubernetes v1.17.0
-	k8s.io/metrics v0.18.5 // indirect
+	k8s.io/kubernetes v1.18.6
+	k8s.io/metrics v0.18.6 // indirect
 	k8s.io/utils v0.0.0-20191114184206-e782cd3c129f
 	mvdan.cc/unparam v0.0.0-20191111180625-960b1ec0f2c2 // indirect
 	sigs.k8s.io/controller-runtime v0.4.0
