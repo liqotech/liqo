@@ -3,6 +3,17 @@ kind: ClusterConfig
 metadata:
   name: configuration
 spec:
-  autoAccept: true
-  maxAcceptableAdvertisement: 5
-  resourceSharingPercentage: 30
+  advertisementConfig:
+    autoAccept: true
+    maxAcceptableAdvertisement: 5
+    resourceSharingPercentage: 30
+  discoveryConfig:
+    autojoin: true
+    domain: local.
+    enableAdvertisement: true
+    enableDiscovery: true
+    name: MyLiqo
+    port: 6443
+    service: _liqo._tcp
+    updateTime: 3
+    waitTime: 2

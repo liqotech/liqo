@@ -1,10 +1,12 @@
 package discovery
 
 import (
+	policyv1 "github.com/liqoTech/liqo/api/cluster-config/v1"
 	v1 "github.com/liqoTech/liqo/api/discovery/v1"
 	foreign_cluster_operator "github.com/liqoTech/liqo/internal/discovery/foreign-cluster-operator"
 	peering_request_operator "github.com/liqoTech/liqo/internal/peering-request-operator"
 	"github.com/liqoTech/liqo/pkg/clusterID"
+	"github.com/liqoTech/liqo/pkg/crdClient/v1alpha1"
 	discoveryv1 "github.com/liqoTech/liqo/pkg/discovery/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -104,6 +106,11 @@ func getCluster() (*Cluster, manager.Manager) {
 		os.Exit(1)
 	}
 
+	cluster.cfg.ContentConfig.GroupVersion = &policyv1.GroupVersion
+	cluster.cfg.APIPath = "/apis"
+	cluster.cfg.NegotiatedSerializer = scheme.Codecs.WithoutConversion()
+	cluster.cfg.UserAgent = rest.DefaultKubernetesUserAgent()
+
 	err = v1.AddToScheme(scheme.Scheme)
 	if err != nil {
 		ctrl.Log.Error(err, err.Error())
@@ -145,6 +152,7 @@ func getCluster() (*Cluster, manager.Manager) {
 	}
 
 	getLiqoConfig(cluster.k8sClient)
+	getClusterConfig(cluster.cfg)
 
 	return cluster, k8sManager
 }
@@ -164,6 +172,44 @@ func getLiqoConfig(client *kubernetes.Clientset) {
 		},
 	}
 	_, err := client.CoreV1().ConfigMaps("default").Create(cm)
+	if err != nil {
+		ctrl.Log.Error(err, err.Error())
+		os.Exit(1)
+	}
+}
+
+func getClusterConfig(config *rest.Config) {
+	cc := &policyv1.ClusterConfig{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "configuration",
+		},
+		Spec: policyv1.ClusterConfigSpec{
+			AdvertisementConfig: policyv1.AdvertisementConfig{
+				AutoAccept:                 true,
+				MaxAcceptableAdvertisement: 5,
+				ResourceSharingPercentage:  30,
+			},
+			DiscoveryConfig: policyv1.DiscoveryConfig{
+				AutoJoin:            true,
+				Domain:              "local.",
+				EnableAdvertisement: true,
+				EnableDiscovery:     true,
+				Name:                "MyLiqo",
+				Port:                6443,
+				Service:             "_liqo._tcp",
+				UpdateTime:          3,
+				WaitTime:            2,
+			},
+		},
+	}
+
+	client, err := v1alpha1.NewFromConfig(config)
+	if err != nil {
+		ctrl.Log.Error(err, err.Error())
+		os.Exit(1)
+	}
+
+	_, err = client.Resource("clusterconfigs").Create(cc, metav1.CreateOptions{})
 	if err != nil {
 		ctrl.Log.Error(err, err.Error())
 		os.Exit(1)

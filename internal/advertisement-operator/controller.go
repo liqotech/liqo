@@ -43,7 +43,7 @@ type AdvertisementReconciler struct {
 	InitVKImage      string
 	HomeClusterId    string
 	AcceptedAdvNum   int32
-	ClusterConfig    policyv1.ClusterConfigSpec
+	ClusterConfig    policyv1.AdvertisementConfig
 	AdvClient        *v1alpha1.CRDClient
 }
 

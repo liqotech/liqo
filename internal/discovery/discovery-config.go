@@ -1,74 +1,98 @@
 package discovery
 
 import (
-	"errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"strconv"
+	policyv1 "github.com/liqoTech/liqo/api/cluster-config/v1"
+	"github.com/liqoTech/liqo/pkg/clusterConfig"
+	"github.com/liqoTech/liqo/pkg/crdClient/v1alpha1"
+	"os"
+	"path/filepath"
 )
 
-type Config struct {
-	Name    string `json:"name"`
-	Service string `json:"service"`
-	Domain  string `json:"domain"`
-	Port    int    `json:"port"`
+func (discovery *DiscoveryCtrl) GetDiscoveryConfig(crdClient *v1alpha1.CRDClient) error {
+	waitFirst := make(chan bool)
+	isFirst := true
+	go clusterConfig.WatchConfiguration(func(configuration *policyv1.ClusterConfig) {
+		discovery.Log.Info("Change Configuration")
+		discovery.handleConfiguration(configuration.Spec.DiscoveryConfig)
+		if isFirst {
+			waitFirst <- true
+			isFirst = false
+		}
+	}, crdClient, filepath.Join(os.Getenv("HOME"), ".kube", "config"))
+	<-waitFirst
+	close(waitFirst)
 
-	WaitTime   int `json:"waitTime"`
-	UpdateTime int `json:"updateTime"`
-
-	EnableDiscovery     bool `json:"enableDiscovery"`
-	EnableAdvertisement bool `json:"enableAdvertisement"`
-
-	AutoJoin bool `json:"autojoin"`
-}
-
-func (discovery *DiscoveryCtrl) GetDiscoveryConfig() error {
-	configMap, err := discovery.client.CoreV1().ConfigMaps(discovery.Namespace).Get("discovery-config", metav1.GetOptions{})
-	if err != nil {
-		discovery.Log.Error(err, err.Error())
-		return err
-	}
-
-	config := configMap.Data
-
-	err = checkConfig(config)
-	if err != nil {
-		discovery.Log.Error(err, err.Error())
-		return err
-	}
-
-	discovery.config.Name = config["name"]
-	discovery.config.Service = config["service"]
-	discovery.config.Domain = config["domain"]
-	discovery.config.Port, err = strconv.Atoi(config["port"])
-	if err != nil {
-		discovery.Log.Error(err, err.Error())
-		return err
-	}
-
-	discovery.config.EnableDiscovery = config["enableDiscovery"] == "true"
-	discovery.config.EnableAdvertisement = config["enableAdvertisement"] == "true"
-
-	discovery.config.AutoJoin = config["autoJoin"] == "true"
-
-	discovery.config.WaitTime, err = strconv.Atoi(config["waitTime"]) // wait response time
-	if err != nil {
-		discovery.Log.Error(err, err.Error())
-		return err
-	}
-	discovery.config.UpdateTime, err = strconv.Atoi(config["updateTime"]) // time between update queries
-	if err != nil {
-		discovery.Log.Error(err, err.Error())
-		return err
-	}
 	return nil
 }
 
-func checkConfig(config map[string]string) error {
-	reqFields := []string{"name", "service", "domain", "port", "enableDiscovery", "enableAdvertisement", "autoJoin", "waitTime", "updateTime"}
-	for _, f := range reqFields {
-		if config[f] == "" {
-			return errors.New("Missing required field " + f)
+func (discovery *DiscoveryCtrl) handleConfiguration(config policyv1.DiscoveryConfig) {
+	reloadServer := false
+	reloadClient := false
+	if discovery.Config == nil {
+		// first iteration
+		discovery.Config = &config
+	} else {
+		// other iterations
+		if discovery.Config.Domain != config.Domain {
+			discovery.Config.Domain = config.Domain
+			reloadServer = true
+			reloadClient = true
+		}
+		if discovery.Config.EnableAdvertisement != config.EnableAdvertisement {
+			discovery.Config.EnableAdvertisement = config.EnableAdvertisement
+			reloadServer = true
+		}
+		if discovery.Config.Name != config.Name {
+			discovery.Config.Name = config.Name
+			reloadServer = true
+		}
+		if discovery.Config.Port != config.Port {
+			discovery.Config.Port = config.Port
+			reloadServer = true
+		}
+		if discovery.Config.Service != config.Service {
+			discovery.Config.Service = config.Service
+			reloadServer = true
+			reloadClient = true
+		}
+		if discovery.Config.UpdateTime != config.UpdateTime {
+			discovery.Config.UpdateTime = config.UpdateTime
+			reloadClient = true
+		}
+		if discovery.Config.WaitTime != config.WaitTime {
+			discovery.Config.WaitTime = config.WaitTime
+			reloadClient = true
+		}
+		if discovery.Config.AutoJoin != config.AutoJoin {
+			discovery.Config.AutoJoin = config.AutoJoin
+			reloadClient = true
+		}
+		if discovery.Config.EnableDiscovery != config.EnableDiscovery {
+			discovery.Config.EnableDiscovery = config.EnableDiscovery
+			reloadClient = true
+		}
+		if reloadServer {
+			discovery.reloadServer()
+		}
+		if reloadClient {
+			discovery.reloadClient()
 		}
 	}
-	return nil
+}
+
+func (discovery *DiscoveryCtrl) reloadServer() {
+	discovery.Log.Info("Reload mDNS server")
+	select {
+	case discovery.stopMDNS <- true:
+		close(discovery.stopMDNS)
+	default:
+	}
+	if discovery.Config.EnableAdvertisement {
+		go discovery.Register()
+	}
+}
+
+func (discovery *DiscoveryCtrl) reloadClient() {
+	discovery.Log.Info("Reload mDNS client")
+	// settings are automatically updated in next iteration
 }

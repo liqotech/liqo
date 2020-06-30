@@ -36,14 +36,10 @@ func testTxtData(t *testing.T) {
 // ------
 // tests if mDNS service works
 func testMdns(t *testing.T) {
-	name := "MyLiqo"
 	service := "_liqo._tcp"
 	domain := "local."
-	port := 6443
-	txt, err := txtData.Encode()
-	assert.NilError(t, err, "Error encoding txtData to DNS format")
 
-	go discoveryCtrl.Register(name, service, domain, port, txt)
+	go discoveryCtrl.Register()
 
 	time.Sleep(1 * time.Second)
 
