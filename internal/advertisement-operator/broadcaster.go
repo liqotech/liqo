@@ -10,11 +10,10 @@ import (
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
+	"k8s.io/klog"
 	"strings"
 	"sync"
 	"time"
-
-	"github.com/go-logr/logr"
 
 	protocolv1 "github.com/liqoTech/liqo/api/advertisement-operator/v1"
 	pkg "github.com/liqoTech/liqo/pkg/advertisement-operator"
@@ -24,12 +23,10 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	resourcehelper "k8s.io/kubectl/pkg/util/resource"
-	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 type AdvertisementBroadcaster struct {
-	Log logr.Logger
 	// local-related variables
 	LocalClient     *kubernetes.Clientset
 	LocalCRDClient  client.Client
@@ -37,7 +34,7 @@ type AdvertisementBroadcaster struct {
 	// remote-related variables
 	KubeconfigSecretForForeign *corev1.Secret // secret containing the kubeconfig that will be sent to the foreign cluster
 	RemoteClient               client.Client  // client to create Advertisements and Secrets on the foreign cluster
-	// config variables
+	// configuration variables
 	HomeClusterId    string
 	ForeignClusterId string
 	GatewayIP        string
@@ -56,32 +53,31 @@ type AdvertisementBroadcaster struct {
 // - peeringRequestName: the name of the PeeringRequest containing the reference to the secret with the kubeconfig for creating Advertisements CR on foreign cluster
 // - saName: The name of the ServiceAccount used to create the kubeconfig that will be sent to the foreign cluster with the permissions to create resources on local cluster
 func StartBroadcaster(homeClusterId, localKubeconfigPath, foreignKubeconfigPath, gatewayIP, gatewayPrivateIP, peeringRequestName, saName string) error {
-	log := ctrl.Log.WithName("advertisement-broadcaster")
-	log.Info("starting broadcaster")
+	klog.V(6).Info("starting broadcaster")
 
 	// get a client to the local cluster
 	localClient, err := pkg.NewK8sClient(localKubeconfigPath, nil, nil)
 	if err != nil {
-		log.Error(err, "Unable to create client to local cluster")
+		klog.Errorln(err, "Unable to create client to local cluster")
 		return err
 	}
 	// TODO: maybe we can use only the CRD client
 	localCRDClient, err := pkg.NewCRDClient(localKubeconfigPath, nil, nil)
 	if err != nil {
-		log.Error(err, "Unable to create CRD client to local cluster")
+		klog.Errorln(err, "Unable to create CRD client to local cluster")
 		return err
 	}
 
 	// get configuration from PeeringRequest CR
 	discoveryClient, err := clients.NewDiscoveryClient()
 	if err != nil {
-		log.Error(err, "Unable to create a discovery client for local cluster")
+		klog.Errorln(err, "Unable to create a discovery client for local cluster")
 		return err
 	}
 
 	pr, err := discoveryClient.PeeringRequests().Get(peeringRequestName, metav1.GetOptions{})
 	if err != nil {
-		log.Error(err, "Unable to get PeeringRequest "+peeringRequestName)
+		klog.Errorln(err, "Unable to get PeeringRequest "+peeringRequestName)
 		return err
 	}
 
@@ -89,7 +85,7 @@ func StartBroadcaster(homeClusterId, localKubeconfigPath, foreignKubeconfigPath,
 
 	secretForAdvertisementCreation, err := localClient.CoreV1().Secrets(pr.Spec.KubeConfigRef.Namespace).Get(pr.Spec.KubeConfigRef.Name, metav1.GetOptions{})
 	if err != nil {
-		log.Error(err, "Unable to get PeeringRequest secret")
+		klog.Errorln(err, "Unable to get PeeringRequest secret")
 		return err
 	}
 
@@ -100,29 +96,29 @@ func StartBroadcaster(homeClusterId, localKubeconfigPath, foreignKubeconfigPath,
 	for retry = 0; retry < 3; retry++ {
 		remoteClient, err = pkg.NewCRDClient(foreignKubeconfigPath, nil, secretForAdvertisementCreation)
 		if err != nil {
-			log.Error(err, "Unable to create client to remote cluster "+foreignClusterId+". Retry in 1 minute")
+			klog.Errorln(err, "Unable to create client to remote cluster "+foreignClusterId+". Retry in 1 minute")
 			time.Sleep(1 * time.Minute)
 		} else {
 			break
 		}
 	}
 	if retry == 3 {
-		log.Error(err, "Failed to create client to remote cluster "+foreignClusterId)
+		klog.Errorln(err, "Failed to create client to remote cluster "+foreignClusterId)
 		return err
 	} else {
-		log.Info("created client to remote cluster " + foreignClusterId)
+		klog.Info("Correctly created client to remote cluster " + foreignClusterId)
 	}
 
 	sa, err := localClient.CoreV1().ServiceAccounts(pr.Spec.Namespace).Get(saName, metav1.GetOptions{})
 	if err != nil {
-		log.Error(err, "Unable to get ServiceAccount "+saName)
+		klog.Errorln(err, "Unable to get ServiceAccount "+saName)
 		return err
 	}
 
 	// create the kubeconfig to allow the foreign cluster to create resources on local cluster
 	kubeconfigForForeignCluster, err := kubeconfig.CreateKubeConfig(sa.Name, sa.Namespace)
 	if err != nil {
-		log.Error(err, "Unable to create Kubeconfig")
+		klog.Errorln(err, "Unable to create Kubeconfig")
 		return err
 	}
 	// put the kubeconfig in a Secret, which is created on the foreign cluster
@@ -137,15 +133,14 @@ func StartBroadcaster(homeClusterId, localKubeconfigPath, foreignKubeconfigPath,
 			"kubeconfig": kubeconfigForForeignCluster,
 		},
 	}
-	err = pkg.CreateOrUpdate(remoteClient, context.Background(), log, kubeconfigSecretForForeign)
+	err = pkg.CreateOrUpdate(remoteClient, context.Background(), kubeconfigSecretForForeign)
 	if err != nil {
-		// secret not created, without it the vk cannot be launched: just log and exit
-		log.Error(err, "Unable to create secret on remote cluster "+foreignClusterId)
+		// secret not created, without it the vk cannot be launched: just klog and exit
+		klog.Errorln(err, "Unable to create secret on remote cluster "+foreignClusterId)
 		return err
 	} else {
 		// secret correctly created on foreign cluster, now create the Advertisement to trigger the creation of the virtual-kubelet
 		broadcaster := AdvertisementBroadcaster{
-			Log:                        log,
 			LocalClient:                localClient,
 			LocalCRDClient:             localCRDClient,
 			DiscoveryClient:            discoveryClient,
@@ -158,7 +153,7 @@ func StartBroadcaster(homeClusterId, localKubeconfigPath, foreignKubeconfigPath,
 		}
 
 		if err = broadcaster.WatchConfiguration(localKubeconfigPath); err != nil {
-			log.Error(err, "unable to watch cluster configuration")
+			klog.Errorln(err, "unable to watch cluster configuration")
 		}
 
 		broadcaster.GenerateAdvertisement(foreignKubeconfigPath)
@@ -178,25 +173,25 @@ func (b *AdvertisementBroadcaster) GenerateAdvertisement(foreignKubeconfigPath s
 		// get physical and virtual nodes in the cluster
 		physicalNodes, err := b.LocalClient.CoreV1().Nodes().List(metav1.ListOptions{LabelSelector: "type != virtual-node"})
 		if err != nil {
-			b.Log.Error(err, "Could not get physical nodes, retry in 1 minute")
+			klog.Errorln(err, "Could not get physical nodes, retry in 1 minute")
 			time.Sleep(1 * time.Minute)
 			continue
 		}
 		virtualNodes, err := b.LocalClient.CoreV1().Nodes().List(metav1.ListOptions{LabelSelector: "type = virtual-node"})
 		if err != nil {
-			b.Log.Error(err, "Could not get virtual nodes, retry in 1 minute")
+			klog.Errorln(err, "Could not get virtual nodes, retry in 1 minute")
 			time.Sleep(1 * time.Minute)
 			continue
 		}
 		// get resources used by pods in the cluster
 		fieldSelector, err := fields.ParseSelector("status.phase!=" + string(corev1.PodSucceeded) + ",status.phase!=" + string(corev1.PodFailed))
 		if err != nil {
-			b.Log.Error(err, "Could not parse field selector")
+			klog.Errorln(err, "Could not parse field selector")
 			break
 		}
 		nodeNonTerminatedPodsList, err := b.LocalClient.CoreV1().Pods("").List(metav1.ListOptions{FieldSelector: fieldSelector.String()})
 		if err != nil {
-			b.Log.Error(err, "Could not list pods, retry in 1 minute")
+			klog.Errorln(err, "Could not list pods, retry in 1 minute")
 			time.Sleep(1 * time.Minute)
 			continue
 		}
@@ -206,18 +201,18 @@ func (b *AdvertisementBroadcaster) GenerateAdvertisement(foreignKubeconfigPath s
 
 		// create the Advertisement on the foreign cluster
 		adv := b.CreateAdvertisement(physicalNodes, virtualNodes, availability, images, limits)
-		err = pkg.CreateOrUpdate(b.RemoteClient, context.Background(), b.Log, &adv)
+		err = pkg.CreateOrUpdate(b.RemoteClient, context.Background(), &adv)
 		if err != nil {
-			b.Log.Error(err, "Unable to create advertisement on remote cluster "+b.ForeignClusterId)
+			klog.Errorln(err, "Unable to create advertisement on remote cluster "+b.ForeignClusterId)
 		} else {
 			// Advertisement created, set the owner reference of the secret so that it is deleted when the adv is removed
-			b.Log.Info("correctly created advertisement on remote cluster " + b.ForeignClusterId)
+			klog.Info("Correctly created advertisement on remote cluster " + b.ForeignClusterId)
 			adv.Kind = "Advertisement"
 			adv.APIVersion = protocolv1.GroupVersion.String()
 			b.KubeconfigSecretForForeign.SetOwnerReferences(pkg.GetOwnerReference(&adv))
 			err = b.RemoteClient.Update(context.Background(), b.KubeconfigSecretForForeign)
 			if err != nil {
-				b.Log.Error(err, "Unable to update secret "+b.KubeconfigSecretForForeign.Name)
+				klog.Errorln(err, "Unable to update secret "+b.KubeconfigSecretForForeign.Name)
 			}
 			// start the remote watcher over this Advertisement; the watcher must be launched only once
 			go once.Do(func() {

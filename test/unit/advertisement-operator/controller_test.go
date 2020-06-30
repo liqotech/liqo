@@ -6,14 +6,12 @@ import (
 	advcontroller "github.com/liqoTech/liqo/internal/advertisement-operator"
 	"github.com/stretchr/testify/assert"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	ctrl "sigs.k8s.io/controller-runtime"
 	"testing"
 )
 
 func createReconciler(acceptedAdv, maxAcceptableAdv int32, autoAccept bool) advcontroller.AdvertisementReconciler {
 	return advcontroller.AdvertisementReconciler{
 		Client:           nil,
-		Log:              ctrl.Log.WithName("controller-test"),
 		Scheme:           nil,
 		EventsRecorder:   nil,
 		KubeletNamespace: "",

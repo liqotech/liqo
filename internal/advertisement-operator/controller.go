@@ -17,7 +17,6 @@ package advertisement_operator
 
 import (
 	"context"
-	"github.com/go-logr/logr"
 	protocolv1 "github.com/liqoTech/liqo/api/advertisement-operator/v1"
 	policyv1 "github.com/liqoTech/liqo/api/cluster-config/v1"
 	pkg "github.com/liqoTech/liqo/pkg/advertisement-operator"
@@ -28,6 +27,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/tools/record"
+	"k8s.io/klog"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
@@ -35,7 +35,6 @@ import (
 // AdvertisementReconciler reconciles a Advertisement object
 type AdvertisementReconciler struct {
 	client.Client
-	Log              logr.Logger
 	Scheme           *runtime.Scheme
 	EventsRecorder   record.EventRecorder
 	KubeletNamespace string
@@ -55,20 +54,18 @@ type AdvertisementReconciler struct {
 
 func (r *AdvertisementReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 	ctx := context.Background()
-	log := r.Log.WithValues("advertisement-controller", req.NamespacedName)
-	r.Log = log
 
 	// get advertisement
 	var adv protocolv1.Advertisement
 	if err := r.Get(ctx, req.NamespacedName, &adv); err != nil {
 		if errors.IsNotFound(err) {
 			// reconcile was triggered by a delete request
-			log.Info("Advertisement " + req.Name + " deleted")
+			klog.Info("Advertisement " + req.Name + " deleted")
 			// TODO: decrease r.AcceptedAdvNum if the advertisement was ACCEPTED
 			return ctrl.Result{}, client.IgnoreNotFound(err)
 		} else {
 			// not managed error
-			log.Error(err, "")
+			klog.Error(err)
 			return ctrl.Result{}, err
 		}
 	}
@@ -76,25 +73,26 @@ func (r *AdvertisementReconciler) Reconcile(req ctrl.Request) (ctrl.Result, erro
 	// filter advertisements and create a virtual-kubelet only for the good ones
 	if adv.Status.AdvertisementStatus == "" {
 		r.CheckAdvertisement(&adv)
-		r.UpdateAdvertisement(log, &adv)
+		r.UpdateAdvertisement(&adv)
 		return ctrl.Result{}, nil
 	}
 
 	if adv.Status.AdvertisementStatus != "ACCEPTED" {
-		log.Info("Advertisement " + adv.Name + " refused")
+		klog.Info("Advertisement " + adv.Name + " refused")
 		return ctrl.Result{}, nil
 	}
 
 	if !r.KindEnvironment && adv.Status.RemoteRemappedPodCIDR == "" {
-		r.Log.Info("advertisement not complete, remoteRemappedPodCIDR not set yet")
+		klog.Info("advertisement not complete, remoteRemappedPodCIDR not set yet")
 		return ctrl.Result{}, nil
 	}
 
 	if !adv.Status.VkCreated {
-		err := r.createVirtualKubelet(ctx, log, &adv)
+		err := r.createVirtualKubelet(ctx, &adv)
 		if err != nil {
 			return ctrl.Result{}, err
 		}
+		klog.V(3).Info("Coorect creation of virtual kubelet deployment for cluster " + adv.Spec.ClusterId)
 		return ctrl.Result{}, nil
 	}
 
@@ -125,20 +123,20 @@ func (r *AdvertisementReconciler) CheckAdvertisement(adv *protocolv1.Advertiseme
 	}
 }
 
-func (r *AdvertisementReconciler) UpdateAdvertisement(log logr.Logger, adv *protocolv1.Advertisement) {
+func (r *AdvertisementReconciler) UpdateAdvertisement(adv *protocolv1.Advertisement) {
 	if adv.Status.AdvertisementStatus == "ACCEPTED" {
 		metav1.SetMetaDataAnnotation(&adv.ObjectMeta, "advertisementStatus", "accepted")
-		r.recordEvent(log, "Advertisement "+adv.Name+" accepted", "Normal", "AdvertisementAccepted", adv)
+		r.recordEvent("Advertisement "+adv.Name+" accepted", "Normal", "AdvertisementAccepted", adv)
 	} else if adv.Status.AdvertisementStatus == "REFUSED" {
 		metav1.SetMetaDataAnnotation(&adv.ObjectMeta, "advertisementStatus", "refused")
-		r.recordEvent(log, "Advertisement "+adv.Name+" refused", "Normal", "AdvertisementRefused", adv)
+		r.recordEvent("Advertisement "+adv.Name+" refused", "Normal", "AdvertisementRefused", adv)
 	}
 	if err := r.Status().Update(context.Background(), adv); err != nil {
-		log.Error(err, "unable to update Advertisement status")
+		klog.Error(err)
 	}
 }
 
-func (r *AdvertisementReconciler) createVirtualKubelet(ctx context.Context, log logr.Logger, adv *protocolv1.Advertisement) error {
+func (r *AdvertisementReconciler) createVirtualKubelet(ctx context.Context, adv *protocolv1.Advertisement) error {
 
 	// Create the base resources
 	vkSa := &v1.ServiceAccount{
@@ -149,7 +147,7 @@ func (r *AdvertisementReconciler) createVirtualKubelet(ctx context.Context, log 
 			OwnerReferences: pkg.GetOwnerReference(adv),
 		},
 	}
-	err := pkg.CreateOrUpdate(r.Client, ctx, log, vkSa)
+	err := pkg.CreateOrUpdate(r.Client, ctx, vkSa)
 	if err != nil {
 		return err
 	}
@@ -167,30 +165,26 @@ func (r *AdvertisementReconciler) createVirtualKubelet(ctx context.Context, log 
 			Name:     "cluster-admin",
 		},
 	}
-	err = pkg.CreateOrUpdate(r.Client, ctx, log, vkCrb)
+	err = pkg.CreateOrUpdate(r.Client, ctx, vkCrb)
 	if err != nil {
 		return err
 	}
 	// Create the virtual Kubelet
 	deploy := pkg.CreateVkDeployment(adv, vkSa.Name, r.KubeletNamespace, r.VKImage, r.InitVKImage, r.HomeClusterId)
-	err = pkg.CreateOrUpdate(r.Client, ctx, log, deploy)
+	err = pkg.CreateOrUpdate(r.Client, ctx, deploy)
 	if err != nil {
 		return err
 	}
 
-	r.recordEvent(log, "launching virtual-kubelet for cluster "+adv.Spec.ClusterId, "Normal", "VkCreated", adv)
+	r.recordEvent("launching virtual-kubelet for cluster "+adv.Spec.ClusterId, "Normal", "VkCreated", adv)
 	adv.Status.VkCreated = true
 	if err := r.Status().Update(ctx, adv); err != nil {
-		log.Error(err, "unable to update Advertisement status")
+		klog.Error(err)
 	}
 	return nil
 }
 
-func (r *AdvertisementReconciler) recordEvent(log logr.Logger,
-	msg string, eventType string, eventReason string,
-	adv *protocolv1.Advertisement) {
-
-	log.Info(msg)
+func (r *AdvertisementReconciler) recordEvent(msg string, eventType string, eventReason string, adv *protocolv1.Advertisement) {
+	klog.Info(msg)
 	r.EventsRecorder.Event(adv, eventType, eventReason, msg)
-
 }
