@@ -1,9 +1,11 @@
 package discovery
 
 import (
+	policyv1 "github.com/liqoTech/liqo/api/cluster-config/v1"
 	v1 "github.com/liqoTech/liqo/api/discovery/v1"
 	"github.com/liqoTech/liqo/internal/discovery"
 	peering_request_operator "github.com/liqoTech/liqo/internal/peering-request-operator"
+	"github.com/liqoTech/liqo/pkg/crdClient/v1alpha1"
 	"gotest.tools/assert"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -111,28 +113,33 @@ func testClient(t *testing.T) {
 }
 
 // ------
-// tests if discovery controller is able to load it's configs from configmap
+// tests if discovery controller is able to load it's configs from ClusterConfigs
 func testDiscoveryConfig(t *testing.T) {
-	cm := &corev1.ConfigMap{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: "discovery-config",
-		},
-		Data: map[string]string{
-			"name":                "MyLiqo",
-			"service":             "_liqo._tcp",
-			"domain":              "local.",
-			"port":                "6443",
-			"waitTime":            "2",
-			"updateTime":          "3",
-			"enableDiscovery":     "true",
-			"enableAdvertisement": "true",
-			"autoJoin":            "true",
-		},
-	}
-	_, err := clientCluster.k8sClient.CoreV1().ConfigMaps("default").Create(cm)
-	assert.NilError(t, err, "Unable to create ConfigMaps")
-	err = discoveryCtrl.GetDiscoveryConfig()
-	assert.NilError(t, err, "DiscoveryCtrl can't load settings from ConfigMap")
+	crdClient, err := v1alpha1.NewFromConfig(clientCluster.cfg)
+	assert.NilError(t, err, "Can't get CRDClient")
+	err = discoveryCtrl.GetDiscoveryConfig(crdClient)
+	assert.NilError(t, err, "DiscoveryCtrl can't load settings")
+
+	tmp, err := crdClient.Resource("clusterconfigs").Get("configuration", metav1.GetOptions{})
+	assert.NilError(t, err, "Can't get configurations")
+	cc := tmp.(*policyv1.ClusterConfig)
+	cc.Spec.DiscoveryConfig.EnableAdvertisement = false
+	cc.Spec.DiscoveryConfig.EnableDiscovery = false
+	tmp, err = crdClient.Resource("clusterconfigs").Update("configuration", cc, metav1.UpdateOptions{})
+	assert.NilError(t, err, "Can't update configurations")
+	cc = tmp.(*policyv1.ClusterConfig)
+
+	time.Sleep(1 * time.Second)
+	assert.Equal(t, *discoveryCtrl.Config, cc.Spec.DiscoveryConfig)
+
+	cc.Spec.DiscoveryConfig.EnableAdvertisement = true
+	cc.Spec.DiscoveryConfig.EnableDiscovery = true
+	tmp, err = crdClient.Resource("clusterconfigs").Update("configuration", cc, metav1.UpdateOptions{})
+	assert.NilError(t, err, "Can't update configurations")
+	cc = tmp.(*policyv1.ClusterConfig)
+
+	time.Sleep(1 * time.Second)
+	assert.Equal(t, *discoveryCtrl.Config, cc.Spec.DiscoveryConfig)
 }
 
 // ------

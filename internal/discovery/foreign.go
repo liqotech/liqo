@@ -29,7 +29,7 @@ func (discovery *DiscoveryCtrl) createForeign(txtData *TxtData) (*v1.ForeignClus
 		Spec: v1.ForeignClusterSpec{
 			ClusterID: txtData.ID,
 			Namespace: txtData.Namespace,
-			Join:      discovery.config.AutoJoin,
+			Join:      discovery.Config.AutoJoin,
 			ApiUrl:    txtData.ApiUrl,
 		},
 	}

@@ -39,7 +39,7 @@ type AdvertisementBroadcaster struct {
 	ForeignClusterId string
 	GatewayIP        string
 	GatewayPrivateIP string
-	ClusterConfig    policyv1.ClusterConfigSpec
+	ClusterConfig    policyv1.AdvertisementConfig
 }
 
 // start the broadcaster which sends Advertisement messages
@@ -152,9 +152,7 @@ func StartBroadcaster(homeClusterId, localKubeconfigPath, foreignKubeconfigPath,
 			GatewayPrivateIP:           gatewayPrivateIP,
 		}
 
-		if err = broadcaster.WatchConfiguration(localKubeconfigPath); err != nil {
-			klog.Errorln(err, "unable to watch cluster configuration")
-		}
+		broadcaster.WatchConfiguration(localKubeconfigPath)
 
 		broadcaster.GenerateAdvertisement(foreignKubeconfigPath)
 		// if we come here there has been an error while the broadcaster was running

@@ -5,21 +5,25 @@ import (
 	"github.com/liqoTech/liqo/internal/discovery/clients"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"net"
-	"os"
 )
 
-var server *zeroconf.Server
+func (discovery *DiscoveryCtrl) Register() {
+	if discovery.Config.EnableAdvertisement {
+		txt, err := discovery.GetTxtData().Encode()
+		if err != nil {
+			discovery.Log.Error(err, err.Error())
+			return
+		}
 
-func (discovery *DiscoveryCtrl) Register(name string, service string, domain string, port int, txt []string) {
-	var err error = nil
-	server, err = zeroconf.Register(name+"_"+discovery.ClusterId.GetClusterID(), service, domain, port, txt, discovery.getInterfaces())
-	if err != nil {
-		discovery.Log.Error(err, err.Error())
-		os.Exit(1)
+		server, err := zeroconf.Register(discovery.Config.Name+"_"+discovery.ClusterId.GetClusterID(), discovery.Config.Service, discovery.Config.Domain, discovery.Config.Port, txt, discovery.getInterfaces())
+		if err != nil {
+			discovery.Log.Error(err, err.Error())
+			return
+		}
+		discovery.stopMDNS = make(chan bool)
+		defer server.Shutdown()
+		<-discovery.stopMDNS
 	}
-	defer server.Shutdown()
-
-	select {}
 }
 
 func (discovery *DiscoveryCtrl) getInterfaces() []net.Interface {

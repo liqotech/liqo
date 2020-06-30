@@ -11,9 +11,11 @@ import (
 	"time"
 )
 
-func (discovery *DiscoveryCtrl) StartResolver(service string, domain string, waitTime int, updateTime int) {
-	for range time.Tick(time.Second * time.Duration(updateTime)) {
-		discovery.Resolve(service, domain, int(math.Max(float64(waitTime), 1)), nil)
+func (discovery *DiscoveryCtrl) StartResolver() {
+	for range time.Tick(time.Second * time.Duration(discovery.Config.UpdateTime)) {
+		if discovery.Config.EnableDiscovery {
+			discovery.Resolve(discovery.Config.Service, discovery.Config.Domain, int(math.Max(float64(discovery.Config.WaitTime), 1)), nil)
+		}
 	}
 }
 
@@ -96,10 +98,10 @@ func (discovery *DiscoveryCtrl) getIPs() map[string]bool {
 func (discovery *DiscoveryCtrl) isForeign(foreignIps []net.IP) bool {
 	myIps := discovery.getIPs()
 	for _, fIp := range foreignIps {
-		discovery.Log.Info("Received packet from " + fIp.String())
 		if myIps[fIp.String()] {
 			return false
 		}
+		discovery.Log.Info("Received packet from " + fIp.String())
 	}
 	return true
 }

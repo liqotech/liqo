@@ -20,7 +20,7 @@ func createReconciler(acceptedAdv, maxAcceptableAdv int32, autoAccept bool) advc
 		InitVKImage:      "",
 		HomeClusterId:    "",
 		AcceptedAdvNum:   acceptedAdv,
-		ClusterConfig: policyv1.ClusterConfigSpec{
+		ClusterConfig: policyv1.AdvertisementConfig{
 			MaxAcceptableAdvertisement: maxAcceptableAdv,
 			AutoAccept:                 autoAccept,
 		},
@@ -101,8 +101,10 @@ func TestManageConfigUpdate(t *testing.T) {
 	// with the new configuration, check the 5 refused Adv are accepted
 	config := policyv1.ClusterConfig{
 		Spec: policyv1.ClusterConfigSpec{
-			MaxAcceptableAdvertisement: int32(advCount),
-			AutoAccept:                 true,
+			AdvertisementConfig: policyv1.AdvertisementConfig{
+				MaxAcceptableAdvertisement: int32(advCount),
+				AutoAccept:                 true,
+			},
 		},
 	}
 
@@ -111,7 +113,7 @@ func TestManageConfigUpdate(t *testing.T) {
 	err, flag := r.ManageConfigUpdate(&config, &advList)
 	assert.Nil(t, err)
 	assert.True(t, flag)
-	assert.Equal(t, config.Spec, r.ClusterConfig)
+	assert.Equal(t, config.Spec.AdvertisementConfig, r.ClusterConfig)
 	assert.Equal(t, int32(advCount), r.AcceptedAdvNum)
 	for _, adv := range advList.Items {
 		assert.Equal(t, "ACCEPTED", adv.Status.AdvertisementStatus)
@@ -123,7 +125,7 @@ func TestManageConfigUpdate(t *testing.T) {
 	err, flag = r.ManageConfigUpdate(&config, &advList)
 	assert.Nil(t, err)
 	assert.False(t, flag)
-	assert.Equal(t, config.Spec, r.ClusterConfig)
+	assert.Equal(t, config.Spec.AdvertisementConfig, r.ClusterConfig)
 	assert.Equal(t, int32(advCount), r.AcceptedAdvNum)
 
 	//TODO: FALSE TEST with config.MaxAcceptableAdvertisement < r.AcceptedAdvNum

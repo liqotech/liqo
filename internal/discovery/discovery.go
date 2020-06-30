@@ -2,6 +2,7 @@ package discovery
 
 import (
 	"github.com/go-logr/logr"
+	policyv1 "github.com/liqoTech/liqo/api/cluster-config/v1"
 	"github.com/liqoTech/liqo/internal/discovery/clients"
 	"github.com/liqoTech/liqo/pkg/clusterID"
 	v1 "github.com/liqoTech/liqo/pkg/discovery/v1"
@@ -14,7 +15,8 @@ type DiscoveryCtrl struct {
 	Namespace string
 	Log       logr.Logger
 
-	config          Config
+	Config          *policyv1.DiscoveryConfig
+	stopMDNS        chan bool
 	client          *kubernetes.Clientset
 	clientDiscovery *v1.DiscoveryV1Client
 	ClusterId       *clusterID.ClusterID
@@ -36,7 +38,7 @@ func NewDiscoveryCtrl(namespace string, clusterId *clusterID.ClusterID) (*Discov
 		clientDiscovery,
 		clusterId,
 	)
-	if discoveryCtrl.GetDiscoveryConfig() != nil {
+	if discoveryCtrl.GetDiscoveryConfig(nil) != nil {
 		os.Exit(1)
 	}
 	return &discoveryCtrl, nil
@@ -52,21 +54,8 @@ func GetDiscoveryCtrl(namespace string, log logr.Logger, client *kubernetes.Clie
 	}
 }
 
-// Read ConfigMap and start register and resolver goroutines
+// Start register and resolver goroutines
 func (discovery *DiscoveryCtrl) StartDiscovery() {
-	if discovery.config.EnableAdvertisement {
-		txtString, err := discovery.GetTxtData().Encode()
-		if err != nil {
-			discovery.Log.Error(err, err.Error())
-			os.Exit(1)
-		}
-
-		discovery.Log.Info("Starting service advertisement")
-		go discovery.Register(discovery.config.Name, discovery.config.Service, discovery.config.Domain, discovery.config.Port, txtString)
-	}
-
-	if discovery.config.EnableDiscovery {
-		discovery.Log.Info("Starting service discovery")
-		go discovery.StartResolver(discovery.config.Service, discovery.config.Domain, discovery.config.WaitTime, discovery.config.UpdateTime)
-	}
+	go discovery.Register()
+	go discovery.StartResolver()
 }
