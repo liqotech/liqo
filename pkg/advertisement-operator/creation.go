@@ -3,12 +3,7 @@ package advertisement_operator
 import (
 	"context"
 	"errors"
-	"github.com/go-logr/logr"
-	"io/ioutil"
-	"k8s.io/klog"
-
 	protocolv1 "github.com/liqoTech/liqo/api/advertisement-operator/v1"
-
 	appsv1 "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
@@ -18,65 +13,7 @@ import (
 	"k8s.io/utils/pointer"
 
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/yaml"
 )
-
-// create a k8s resource of a certain kind from a yaml file
-// it is equivalent to "kubectl apply -f *.yaml"
-func CreateFromYaml(c client.Client, ctx context.Context, filename string, kind string) (interface{}, error) {
-
-	text, err := ioutil.ReadFile(filename)
-	if err != nil {
-		klog.Error(err, "unable to read file "+filename)
-		return nil, err
-	}
-
-	switch kind {
-	case "Pod":
-		var pod v1.Pod
-		err = yaml.Unmarshal(text, &pod)
-		if err != nil {
-			klog.Error(err, "unable to unmarshal yaml file "+filename)
-			return nil, err
-		}
-		return pod, nil
-	case "Deployment":
-		var deploy appsv1.Deployment
-		err = yaml.Unmarshal(text, &deploy)
-		if err != nil {
-			klog.Error(err, "unable to unmarshal yaml file "+filename)
-			return nil, err
-		}
-		return deploy, nil
-	case "ConfigMap":
-		var cm v1.ConfigMap
-		err = yaml.Unmarshal(text, &cm)
-		if err != nil {
-			klog.Error(err, "unable to unmarshal yaml file "+filename)
-			return nil, err
-		}
-		return cm, nil
-	case "ServiceAccount":
-		var sa v1.ServiceAccount
-		err = yaml.Unmarshal(text, &sa)
-		if err != nil {
-			klog.Error(err, "unable to unmarshal yaml file "+filename)
-			return nil, err
-		}
-		return sa, nil
-	case "ClusterRoleBinding":
-		var crb rbacv1.ClusterRoleBinding
-		err = yaml.Unmarshal(text, &crb)
-		if err != nil {
-			klog.Error(err, "unable to unmarshal yaml file "+filename)
-			return nil, err
-		}
-		return crb, nil
-	default:
-		klog.Error(err, "invalid kind")
-		return nil, err
-	}
-}
 
 // create deployment for a virtual-kubelet
 func CreateVkDeployment(adv *protocolv1.Advertisement, saName, vkNamespace, vkImage, initVKImage, homeClusterId string) *appsv1.Deployment {
@@ -376,30 +313,6 @@ func CreateOrUpdate(c client.Client, ctx context.Context, object interface{}) er
 		}
 	default:
 		err := errors.New("invalid kind")
-		return err
-	}
-
-	return nil
-}
-
-func CreateFromFile(c client.Client, ctx context.Context, log logr.Logger, filename string) error {
-	text, err := ioutil.ReadFile(filename)
-	if err != nil {
-		log.Error(err, "unable to read file"+filename)
-		return err
-	}
-
-	remoteKubeConfig := &v1.ConfigMap{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "foreign-kubeconfig",
-			Namespace: "default",
-		},
-		Data: map[string]string{
-			"remote": string(text),
-		},
-	}
-	err = CreateOrUpdate(c, ctx, remoteKubeConfig)
-	if err != nil {
 		return err
 	}
 
