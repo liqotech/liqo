@@ -135,8 +135,7 @@ func (i *fakeInformer) Watch() {
 				}
 			case watch.Modified:
 				if i.keyer == nil {
-					klog.Error("keyer function not set")
-					break
+					klog.Fatal("keyer function not set")
 				}
 				k, err := i.keyer(e.Object)
 				if err != nil {

@@ -25,6 +25,10 @@ func (p *KubernetesProvider) manageRemoteEpEvent(event watch.Event) error {
 		return err
 	}
 
+	if !hasToBeUpdated(endpoints.Subsets, foreignEps.Subsets) {
+		return nil
+	}
+
 	foreignEps.Subsets = p.updateEndpoints(endpoints.Subsets, foreignEps.Subsets)
 
 	_, err = p.foreignClient.Client().CoreV1().Endpoints(foreignEps.Namespace).Update(foreignEps)
@@ -49,6 +53,10 @@ func (p *KubernetesProvider) manageEpEvent(event timestampedEvent) error {
 	foreignEps, err := p.foreignClient.Client().CoreV1().Endpoints(nattedNS).Get(endpoints.Name, metav1.GetOptions{})
 	if err != nil {
 		return err
+	}
+
+	if !hasToBeUpdated(endpoints.Subsets, foreignEps.Subsets) {
+		return nil
 	}
 
 	var t int64
@@ -112,4 +120,22 @@ func (p *KubernetesProvider) updateEndpoints(eps, foreignEps []corev1.EndpointSu
 		}
 	}
 	return subsets
+}
+
+func hasToBeUpdated(home, foreign []corev1.EndpointSubset) bool {
+	if len(home) != len(foreign) {
+		return true
+	}
+	for i := 0; i < len(home); i++ {
+		if len(home[i].Addresses) != len(foreign[i].Addresses) {
+			return true
+		}
+		for j := 0; j < len(home[i].Addresses); j++ {
+			if home[i].Addresses[j].IP != foreign[i].Addresses[j].IP {
+				return true
+			}
+		}
+	}
+
+	return false
 }
