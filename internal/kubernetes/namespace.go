@@ -202,13 +202,14 @@ func (p *KubernetesProvider) manageReflections(oldObj interface{}, newObj interf
 
 	for k, v := range p.reflectedNamespaces.ns {
 		if _, ok := nt[k]; !ok {
-
 			close(v)
 			if r := recover(); r != nil {
 				klog.Info("channel already closed by the reflection routine")
 			} else {
 				if err := p.cleanupNamespace(oldNt[k]); err != nil {
-					klog.Error(err, "error in cleaning up namespace")
+					klog.Errorf("error in cleaning up namespace %v - %v", k, err)
+				} else {
+					klog.Infof("namespace %v reflection correctly stopped", k)
 				}
 			}
 			delete(p.reflectedNamespaces.ns, k)

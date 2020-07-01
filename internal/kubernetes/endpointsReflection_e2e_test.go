@@ -11,10 +11,6 @@ import (
 	"time"
 )
 
-const (
-	timeout = 10 * time.Second
-)
-
 func TestHandleEpEvents(t *testing.T) {
 	// set the client in fake mode
 	v1alpha1.Fake = true
@@ -48,7 +44,7 @@ func TestHandleEpEvents(t *testing.T) {
 	}
 
 	// create a new namespaceNattingTable and deploy it in the fake cache
-	nt := createNamespaceNattingTable()
+	nt := test.CreateNamespaceNattingTable()
 	if err = p.ntCache.Store.Add(nt); err != nil {
 		t.Fatal(err)
 	}
@@ -61,7 +57,7 @@ func TestHandleEpEvents(t *testing.T) {
 	}
 
 	// ticker useful for make the test failing if some expected events are not triggered
-	ticker := time.NewTicker(timeout)
+	ticker := time.NewTicker(test.Timeout)
 	done := make(chan struct{}, 1)
 	errChan := make(chan error, 1)
 
@@ -171,22 +167,4 @@ func createEpEvents(p KubernetesProvider) error {
 	}
 
 	return nil
-}
-
-func createNamespaceNattingTable() *v1.NamespaceNattingTable {
-	return &v1.NamespaceNattingTable{
-		TypeMeta: metav1.TypeMeta{},
-		ObjectMeta: metav1.ObjectMeta{
-			Name: test.ForeignClusterId,
-		},
-		Spec: v1.NamespaceNattingTableSpec{
-			ClusterId: test.ForeignClusterId,
-			NattingTable: map[string]string{
-				test.Namespace: test.NattedNamespace,
-			},
-			DeNattingTable: map[string]string{
-				test.NattedNamespace: test.Namespace,
-			},
-		},
-	}
 }

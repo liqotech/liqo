@@ -6,15 +6,6 @@ import (
 	"strings"
 )
 
-const (
-	Namespace        = "test"
-	NattedNamespace  = Namespace + "-" + HomeClusterId
-	HostName         = "testHost"
-	EndpointsName    = "testEndpoints"
-	HomeClusterId    = "homeClusterID"
-	ForeignClusterId = "foreignClusterID"
-)
-
 var (
 	nodeName1 = "testNode"
 	nodeName2 = "testNode2"
