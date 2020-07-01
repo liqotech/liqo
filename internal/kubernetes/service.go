@@ -84,10 +84,11 @@ func (p *KubernetesProvider) updateService(svc *corev1.Service, namespace string
 		return err
 	}
 
-	svc.SetNamespace(namespace)
-	svc.SetResourceVersion(serviceOld.ResourceVersion)
-	svc.SetUID(serviceOld.UID)
-	_, err = p.foreignClient.Client().CoreV1().Services(namespace).Update(svc)
+	svc2 := svc.DeepCopy()
+	svc2.SetNamespace(namespace)
+	svc2.SetResourceVersion(serviceOld.ResourceVersion)
+	svc2.SetUID(serviceOld.UID)
+	_, err = p.foreignClient.Client().CoreV1().Services(namespace).Update(svc2)
 
 	return err
 }
