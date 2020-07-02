@@ -2,7 +2,7 @@ package test
 
 import corev1 "k8s.io/api/core/v1"
 
-func AssertServiceEquality(svc1, svc2 corev1.Service) bool {
+func AssertServiceCoherency(svc1, svc2 corev1.Service) bool {
 	if svc1.Name != svc2.Name {
 		return false
 	}

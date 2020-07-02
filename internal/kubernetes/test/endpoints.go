@@ -2,7 +2,7 @@ package test
 
 import corev1 "k8s.io/api/core/v1"
 
-func AssertEndpointsCorrectness(received, expected []corev1.EndpointSubset) bool {
+func AssertEndpointsCoherency(received, expected []corev1.EndpointSubset) bool {
 	if len(received) != len(expected) {
 		return false
 	}

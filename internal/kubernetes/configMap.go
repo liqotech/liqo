@@ -80,10 +80,11 @@ func (p *KubernetesProvider) updateConfigMap(cm *corev1.ConfigMap, namespace str
 		return err
 	}
 
-	cm.SetNamespace(namespace)
-	cm.SetResourceVersion(cmOld.ResourceVersion)
-	cm.SetUID(cmOld.UID)
-	_, err = p.foreignClient.Client().CoreV1().ConfigMaps(namespace).Update(cm)
+	cm2 := cm.DeepCopy()
+	cm2.SetNamespace(namespace)
+	cm2.SetResourceVersion(cmOld.ResourceVersion)
+	cm2.SetUID(cmOld.UID)
+	_, err = p.foreignClient.Client().CoreV1().ConfigMaps(namespace).Update(cm2)
 
 	return err
 }
