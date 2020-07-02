@@ -2,14 +2,13 @@ package peering_request_operator
 
 import (
 	discoveryv1 "github.com/liqoTech/liqo/api/discovery/v1"
-	"github.com/liqoTech/liqo/internal/discovery/clients"
 	"github.com/liqoTech/liqo/pkg/clusterID"
-	v1 "github.com/liqoTech/liqo/pkg/discovery/v1"
+	"github.com/liqoTech/liqo/pkg/crdClient/v1alpha1"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/client-go/kubernetes"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/klog"
 	"os"
+	"path/filepath"
 	ctrl "sigs.k8s.io/controller-runtime"
 )
 
@@ -35,14 +34,14 @@ func StartOperator(namespace string, configMapName string, broadcasterImage stri
 		os.Exit(1)
 	}
 
-	client, err := clients.NewK8sClient()
+	config, err := v1alpha1.NewKubeconfig(filepath.Join(os.Getenv("HOME"), ".kube", "config"), &discoveryv1.GroupVersion)
 	if err != nil {
-		klog.Error(err, "unable to start manager")
+		klog.Error(err, "unable to get kube config")
 		os.Exit(1)
 	}
-	discoveryClient, err := clients.NewDiscoveryClient()
+	crdClient, err := v1alpha1.NewFromConfig(config)
 	if err != nil {
-		klog.Error(err, "unable to start manager")
+		klog.Error(err, "unable to create crd client")
 		os.Exit(1)
 	}
 
@@ -54,8 +53,7 @@ func StartOperator(namespace string, configMapName string, broadcasterImage stri
 
 	if err = (GetPRReconciler(
 		mgr.GetScheme(),
-		client,
-		discoveryClient,
+		crdClient,
 		namespace,
 		clusterId,
 		configMapName,
@@ -73,11 +71,10 @@ func StartOperator(namespace string, configMapName string, broadcasterImage stri
 	}
 }
 
-func GetPRReconciler(scheme *runtime.Scheme, client *kubernetes.Clientset, discoveryClient *v1.DiscoveryV1Client, namespace string, clusterId *clusterID.ClusterID, configMapName string, broadcasterImage string, broadcasterServiceAccount string) *PeeringRequestReconciler {
+func GetPRReconciler(scheme *runtime.Scheme, crdClient *v1alpha1.CRDClient, namespace string, clusterId *clusterID.ClusterID, configMapName string, broadcasterImage string, broadcasterServiceAccount string) *PeeringRequestReconciler {
 	return &PeeringRequestReconciler{
 		Scheme:                    scheme,
-		client:                    client,
-		discoveryClient:           discoveryClient,
+		crdClient:                 crdClient,
 		Namespace:                 namespace,
 		clusterId:                 clusterId,
 		configMapName:             configMapName,

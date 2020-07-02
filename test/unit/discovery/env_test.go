@@ -7,7 +7,6 @@ import (
 	peering_request_operator "github.com/liqoTech/liqo/internal/peering-request-operator"
 	"github.com/liqoTech/liqo/pkg/clusterID"
 	"github.com/liqoTech/liqo/pkg/crdClient/v1alpha1"
-	discoveryv1 "github.com/liqoTech/liqo/pkg/discovery/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
@@ -23,23 +22,21 @@ import (
 )
 
 type Cluster struct {
-	env             *envtest.Environment
-	cfg             *rest.Config
-	k8sClient       *kubernetes.Clientset
-	discoveryClient *discoveryv1.DiscoveryV1Client
-	fcReconciler    *foreign_cluster_operator.ForeignClusterReconciler
-	prReconciler    *peering_request_operator.PeeringRequestReconciler
-	clusterId       *clusterID.ClusterID
+	env          *envtest.Environment
+	cfg          *rest.Config
+	crdClient    *v1alpha1.CRDClient
+	fcReconciler *foreign_cluster_operator.ForeignClusterReconciler
+	prReconciler *peering_request_operator.PeeringRequestReconciler
+	clusterId    *clusterID.ClusterID
 }
 
 func getClientCluster() *Cluster {
 	cluster, mgr := getCluster()
-	cluster.clusterId = clusterID.GetNewClusterID("client-cluster", cluster.k8sClient)
+	cluster.clusterId = clusterID.GetNewClusterID("client-cluster", cluster.crdClient.Client())
 	cluster.fcReconciler = foreign_cluster_operator.GetFCReconciler(
 		mgr.GetScheme(),
 		"default",
-		cluster.k8sClient,
-		cluster.discoveryClient,
+		cluster.crdClient,
 		cluster.clusterId,
 		1*time.Minute,
 	)
@@ -61,11 +58,10 @@ func getClientCluster() *Cluster {
 
 func getServerCluster() *Cluster {
 	cluster, mgr := getCluster()
-	cluster.clusterId = clusterID.GetNewClusterID("server-cluster", cluster.k8sClient)
+	cluster.clusterId = clusterID.GetNewClusterID("server-cluster", cluster.crdClient.Client())
 	cluster.prReconciler = peering_request_operator.GetPRReconciler(
 		mgr.GetScheme(),
-		cluster.k8sClient,
-		cluster.discoveryClient,
+		cluster.crdClient,
 		"default",
 		cluster.clusterId,
 		"liqo-config",
@@ -105,7 +101,7 @@ func getCluster() (*Cluster, manager.Manager) {
 		os.Exit(1)
 	}
 
-	cluster.cfg.ContentConfig.GroupVersion = &policyv1.GroupVersion
+	cluster.cfg.ContentConfig.GroupVersion = &v1.GroupVersion
 	cluster.cfg.APIPath = "/apis"
 	cluster.cfg.NegotiatedSerializer = scheme.Codecs.WithoutConversion()
 	cluster.cfg.UserAgent = rest.DefaultKubernetesUserAgent()
@@ -116,12 +112,7 @@ func getCluster() (*Cluster, manager.Manager) {
 		os.Exit(1)
 	}
 
-	cluster.k8sClient, err = kubernetes.NewForConfig(cluster.cfg)
-	if err != nil {
-		klog.Error(err, err.Error())
-		os.Exit(1)
-	}
-	cluster.discoveryClient, err = discoveryv1.NewForConfig(cluster.cfg)
+	cluster.crdClient, err = v1alpha1.NewFromConfig(cluster.cfg)
 	if err != nil {
 		klog.Error(err, err.Error())
 		os.Exit(1)
@@ -144,19 +135,19 @@ func getCluster() (*Cluster, manager.Manager) {
 			"ca.crt": []byte(""),
 		},
 	}
-	_, err = cluster.k8sClient.CoreV1().Secrets("default").Create(secret)
+	_, err = cluster.crdClient.Client().CoreV1().Secrets("default").Create(secret)
 	if err != nil {
 		klog.Error(err, err.Error())
 		os.Exit(1)
 	}
 
-	getLiqoConfig(cluster.k8sClient)
-	getClusterConfig(cluster.cfg)
+	getLiqoConfig(cluster.crdClient.Client())
+	getClusterConfig(*cluster.cfg)
 
 	return cluster, k8sManager
 }
 
-func getLiqoConfig(client *kubernetes.Clientset) {
+func getLiqoConfig(client kubernetes.Interface) {
 	// default config values
 	cm := &corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
@@ -177,7 +168,7 @@ func getLiqoConfig(client *kubernetes.Clientset) {
 	}
 }
 
-func getClusterConfig(config *rest.Config) {
+func getClusterConfig(config rest.Config) {
 	cc := &policyv1.ClusterConfig{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: "configuration",
@@ -202,7 +193,8 @@ func getClusterConfig(config *rest.Config) {
 		},
 	}
 
-	client, err := v1alpha1.NewFromConfig(config)
+	config.GroupVersion = &policyv1.GroupVersion
+	client, err := v1alpha1.NewFromConfig(&config)
 	if err != nil {
 		ctrl.Log.Error(err, err.Error())
 		os.Exit(1)

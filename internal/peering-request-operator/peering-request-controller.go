@@ -18,12 +18,12 @@ package peering_request_operator
 
 import (
 	"context"
+	"errors"
 	discoveryv1 "github.com/liqoTech/liqo/api/discovery/v1"
 	"github.com/liqoTech/liqo/pkg/clusterID"
-	v1 "github.com/liqoTech/liqo/pkg/discovery/v1"
+	"github.com/liqoTech/liqo/pkg/crdClient/v1alpha1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/client-go/kubernetes"
 	"k8s.io/klog"
 	ctrl "sigs.k8s.io/controller-runtime"
 )
@@ -32,8 +32,7 @@ import (
 type PeeringRequestReconciler struct {
 	Scheme *runtime.Scheme
 
-	client                    *kubernetes.Clientset
-	discoveryClient           *v1.DiscoveryV1Client
+	crdClient                 *v1alpha1.CRDClient
 	Namespace                 string
 	clusterId                 *clusterID.ClusterID
 	configMapName             string
@@ -47,11 +46,18 @@ type PeeringRequestReconciler struct {
 func (r *PeeringRequestReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 	_ = context.Background()
 
-	pr, err := r.discoveryClient.PeeringRequests().Get(req.Name, metav1.GetOptions{})
+	klog.Info("Reconciling PeeringRequest " + req.Name)
+
+	tmp, err := r.crdClient.Resource("peeringrequests").Get(req.Name, metav1.GetOptions{})
 	if err != nil {
 		// TODO: has been removed
-		klog.Info("Destroy peering")
+		klog.Info(err, "Destroy peering")
 		return ctrl.Result{}, nil
+	}
+	pr, ok := tmp.(*discoveryv1.PeeringRequest)
+	if !ok {
+		klog.Error("loaded object is not a PeeringRequest")
+		return ctrl.Result{}, errors.New("loaded object is not a PeeringRequest")
 	}
 	if pr.Spec.KubeConfigRef == nil {
 		return ctrl.Result{}, nil
@@ -59,21 +65,25 @@ func (r *PeeringRequestReconciler) Reconcile(req ctrl.Request) (ctrl.Result, err
 
 	exists, err := r.BroadcasterExists(pr)
 	if err != nil {
+		klog.Error(err, err.Error())
 		return ctrl.Result{}, err
 	}
 	if !exists {
 		klog.Info("Deploy Broadcaster")
-		cm, err := r.client.CoreV1().ConfigMaps(r.Namespace).Get(r.configMapName, metav1.GetOptions{})
+		cm, err := r.crdClient.Client().CoreV1().ConfigMaps(r.Namespace).Get(r.configMapName, metav1.GetOptions{})
 		if err != nil {
+			klog.Error(err, err.Error())
 			return ctrl.Result{}, err
 		}
 		deploy := GetBroadcasterDeployment(pr, r.broadcasterServiceAccount, r.Namespace, r.broadcasterImage, r.clusterId.GetClusterID(), cm.Data["gatewayIP"], cm.Data["gatewayPrivateIP"])
-		_, err = r.client.AppsV1().Deployments(r.Namespace).Create(&deploy)
+		_, err = r.crdClient.Client().AppsV1().Deployments(r.Namespace).Create(&deploy)
 		if err != nil {
+			klog.Error(err, err.Error())
 			return ctrl.Result{}, err
 		}
 	}
 
+	klog.Info("PeeringRequest " + pr.Name + " successfully reconciled")
 	return ctrl.Result{}, nil
 }
 

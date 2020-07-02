@@ -2,7 +2,8 @@ package clusterID
 
 import (
 	"errors"
-	"github.com/liqoTech/liqo/internal/discovery/clients"
+	discoveryv1 "github.com/liqoTech/liqo/api/discovery/v1"
+	"github.com/liqoTech/liqo/pkg/crdClient/v1alpha1"
 	"io/ioutil"
 	v1 "k8s.io/api/core/v1"
 	k8serror "k8s.io/apimachinery/pkg/api/errors"
@@ -12,6 +13,7 @@ import (
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/klog"
 	"os"
+	"path/filepath"
 	"sort"
 	"strings"
 	"sync"
@@ -21,10 +23,10 @@ type ClusterID struct {
 	id string
 	m  sync.RWMutex
 
-	client *kubernetes.Clientset
+	client kubernetes.Interface
 }
 
-func GetNewClusterID(id string, client *kubernetes.Clientset) *ClusterID {
+func GetNewClusterID(id string, client kubernetes.Interface) *ClusterID {
 	return &ClusterID{
 		id:     id,
 		m:      sync.RWMutex{},
@@ -33,12 +35,18 @@ func GetNewClusterID(id string, client *kubernetes.Clientset) *ClusterID {
 }
 
 func NewClusterID() (*ClusterID, error) {
-	client, err := clients.NewK8sClient()
+	config, err := v1alpha1.NewKubeconfig(filepath.Join(os.Getenv("HOME"), ".kube", "config"), &discoveryv1.GroupVersion)
 	if err != nil {
-		return nil, err
+		klog.Error(err, "unable to get kube config")
+		os.Exit(1)
+	}
+	crdClient, err := v1alpha1.NewFromConfig(config)
+	if err != nil {
+		klog.Error(err, "unable to create crd client")
+		os.Exit(1)
 	}
 	clusterId := &ClusterID{
-		client: client,
+		client: crdClient.Client(),
 	}
 
 	namespace, found := os.LookupEnv("POD_NAMESPACE")
