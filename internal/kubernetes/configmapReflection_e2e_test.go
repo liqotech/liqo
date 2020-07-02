@@ -13,7 +13,7 @@ import (
 	"time"
 )
 
-func TestHandleServiceEvents(t *testing.T) {
+func TestHandleConfigmapEvents(t *testing.T) {
 	// set the client in fake mode
 	v1alpha1.Fake = true
 
@@ -67,7 +67,7 @@ func TestHandleServiceEvents(t *testing.T) {
 
 	// remote ep watcher is needed to be sure that all the expected home events are replicated in the
 	// foreign cluster
-	w, err := p.foreignClient.Client().CoreV1().Services(test.NattedNamespace).Watch(metav1.ListOptions{
+	w, err := p.foreignClient.Client().CoreV1().ConfigMaps(test.NattedNamespace).Watch(metav1.ListOptions{
 		Watch: true,
 	})
 	if err != nil {
@@ -75,22 +75,22 @@ func TestHandleServiceEvents(t *testing.T) {
 		return
 	}
 
-	go serviceEventsMonitoring(errChan, createsdDone, updatesDone, deletesDone, ticker, w)
-	go svcCreation(p, errChan)
+	go configmapEventsMonitoring(errChan, createsdDone, updatesDone, deletesDone, ticker, w)
+	go cmCreation(p, errChan)
 
 loop:
 	for {
 		select {
 		case <-createsdDone:
-			if err := verifySvcConsistency(p, "creation"); err != nil {
+			if err := verifyCmConsistency(p, "creation"); err != nil {
 				t.Fatal(err)
 			}
-			go svcUpdate(p, errChan)
+			go cmUpdate(p, errChan)
 		case <-updatesDone:
 			if err = verifySvcConsistency(p, "update"); err != nil {
 				t.Fatal(err)
 			}
-			go svcDelete(p, errChan)
+			go cmDelete(p, errChan)
 		case <-deletesDone:
 			break loop
 		case <-ticker.C:
@@ -116,7 +116,7 @@ loop:
 		}
 	}
 
-	if err := verifySvcConsistency(p, "delete"); err != nil {
+	if err := verifyCmConsistency(p, "delete"); err != nil {
 		t.Fatal(err)
 	}
 
@@ -129,7 +129,7 @@ loop:
 	}
 }
 
-func serviceEventsMonitoring(errChan chan error, createsDone, updatesDone, deletesDone chan struct{}, ticker *time.Ticker, w watch.Interface) {
+func configmapEventsMonitoring(errChan chan error, createsDone, updatesDone, deletesDone chan struct{}, ticker *time.Ticker, w watch.Interface) {
 	// counters for event type
 	creates := 0
 	updates := 0
@@ -152,39 +152,39 @@ func serviceEventsMonitoring(errChan chan error, createsDone, updatesDone, delet
 			return
 		}
 
-		if creates == len(test.ServiceTestCases.InputServices) && !cc {
+		if creates == len(test.ConfigmapTestCases.InputConfigmaps) && !cc {
 			createsDone <- struct{}{}
 			cc = true
 		}
-		if updates == len(test.ServiceTestCases.UpdateServices) && !uc {
+		if updates == len(test.ConfigmapTestCases.UpdateConfigmaps) && !uc {
 			updatesDone <- struct{}{}
 			uc = true
 		}
-		if deletes == len(test.ServiceTestCases.DeleteServices) && !dc {
+		if deletes == len(test.ConfigmapTestCases.DeleteConfigmaps) && !dc {
 			close(deletesDone)
 			dc = true
 			ticker.Stop()
 		}
 
-		if creates > len(test.ServiceTestCases.InputServices) {
+		if creates > len(test.ConfigmapTestCases.InputConfigmaps) {
 			errChan <- errors.New("too many create events")
 			return
 		}
-		if updates > len(test.ServiceTestCases.UpdateServices) {
+		if updates > len(test.ConfigmapTestCases.UpdateConfigmaps) {
 			errChan <- errors.New("too many update events")
 			return
 		}
-		if deletes > len(test.ServiceTestCases.DeleteServices) {
+		if deletes > len(test.ConfigmapTestCases.DeleteConfigmaps) {
 			errChan <- errors.New("too many delete events")
 			return
 		}
 	}
 }
 
-func svcCreation(p *KubernetesProvider, chanError chan error) {
-	klog.Info("TEST - starting svc creation")
-	for _, s := range test.ServiceTestCases.InputServices {
-		_, err := p.homeClient.Client().CoreV1().Services(test.Namespace).Create(s)
+func cmCreation(p *KubernetesProvider, chanError chan error) {
+	klog.Info("TEST - starting cm creation")
+	for _, c := range test.ConfigmapTestCases.InputConfigmaps {
+		_, err := p.homeClient.Client().CoreV1().ConfigMaps(test.Namespace).Create(c)
 		if err != nil {
 			chanError <- err
 			return
@@ -192,10 +192,10 @@ func svcCreation(p *KubernetesProvider, chanError chan error) {
 	}
 }
 
-func svcUpdate(p *KubernetesProvider, chanError chan error) {
-	klog.Info("TEST - starting svc update")
-	for _, s := range test.ServiceTestCases.UpdateServices {
-		_, err := p.homeClient.Client().CoreV1().Services(test.Namespace).Update(s)
+func cmUpdate(p *KubernetesProvider, chanError chan error) {
+	klog.Info("TEST - starting cm update")
+	for _, c := range test.ConfigmapTestCases.UpdateConfigmaps {
+		_, err := p.homeClient.Client().CoreV1().ConfigMaps(test.Namespace).Update(c)
 		if err != nil {
 			chanError <- err
 			return
@@ -203,10 +203,10 @@ func svcUpdate(p *KubernetesProvider, chanError chan error) {
 	}
 }
 
-func svcDelete(p *KubernetesProvider, chanError chan error) {
-	klog.Info("TEST - starting svc delete")
-	for _, s := range test.ServiceTestCases.DeleteServices {
-		err := p.homeClient.Client().CoreV1().Services(test.Namespace).Delete(s.Name, &metav1.DeleteOptions{})
+func cmDelete(p *KubernetesProvider, chanError chan error) {
+	klog.Info("TEST - starting cm delete")
+	for _, c := range test.ConfigmapTestCases.DeleteConfigmaps {
+		err := p.homeClient.Client().CoreV1().ConfigMaps(test.Namespace).Delete(c.Name, &metav1.DeleteOptions{})
 		if err != nil {
 			chanError <- err
 			return
@@ -214,34 +214,34 @@ func svcDelete(p *KubernetesProvider, chanError chan error) {
 	}
 }
 
-func verifySvcConsistency(p *KubernetesProvider, event string) error {
+func verifyCmConsistency(p *KubernetesProvider, event string) error {
 	klog.Infof("TEST - Asserting status coherency after %v", event)
-	homeSvcs, err := p.homeClient.Client().CoreV1().Services(test.Namespace).List(metav1.ListOptions{})
+	homeCms, err := p.homeClient.Client().CoreV1().ConfigMaps(test.Namespace).List(metav1.ListOptions{})
 	if err != nil {
 		return err
 	}
-	foreignSvcs, err := p.foreignClient.Client().CoreV1().Services(test.NattedNamespace).List(metav1.ListOptions{})
+	foreignCms, err := p.foreignClient.Client().CoreV1().ConfigMaps(test.NattedNamespace).List(metav1.ListOptions{})
 	if err != nil {
 		return err
 	}
 
-	if len(homeSvcs.Items) != len(foreignSvcs.Items) {
-		return errors.New("home services not correctly reflected remotely")
+	if len(homeCms.Items) != len(foreignCms.Items) {
+		return errors.New("home configmaps not correctly reflected remotely")
 	}
 
-	for _, svc1 := range homeSvcs.Items {
+	for _, cm1 := range homeCms.Items {
 		var found bool
-		for _, svc2 := range foreignSvcs.Items {
-			if svc1.Name == svc2.Name {
+		for _, cm2 := range foreignCms.Items {
+			if cm1.Name == cm2.Name {
 				found = true
-				if !test.AssertServiceCoherency(svc1, svc2) {
-					return errors.New("services not matching")
+				if !test.AssertConfigmapCoherency(cm1, cm2) {
+					return errors.New("configmaps not matching")
 				}
 				break
 			}
 		}
 		if !found {
-			return errors.New("home services not correctly reflected remotely")
+			return errors.New("home configmaps not correctly reflected remotely")
 		}
 	}
 	klog.Infof("TEST - Status coherency after %v asserted", event)

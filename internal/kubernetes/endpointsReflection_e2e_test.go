@@ -130,7 +130,7 @@ loop:
 	}
 
 	// assert that the home endpoints have been correctly updated in the remote cluster
-	if !test.AssertEndpointsCorrectness(ep.Subsets, test.EndpointsTestCases.ExpectedEndpoints.Subsets) {
+	if !test.AssertEndpointsCoherency(ep.Subsets, test.EndpointsTestCases.ExpectedEndpoints.Subsets) {
 		t.Fatal("the received ep doesn't match with the expected one")
 	}
 
