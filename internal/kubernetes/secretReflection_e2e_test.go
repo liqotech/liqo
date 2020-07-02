@@ -13,7 +13,7 @@ import (
 	"time"
 )
 
-func TestHandleConfigmapEvents(t *testing.T) {
+func TestHandleSecretEvents(t *testing.T) {
 	// set the client in fake mode
 	v1alpha1.Fake = true
 
@@ -67,7 +67,7 @@ func TestHandleConfigmapEvents(t *testing.T) {
 
 	// remote ep watcher is needed to be sure that all the expected home events are replicated in the
 	// foreign cluster
-	w, err := p.foreignClient.Client().CoreV1().ConfigMaps(test.NattedNamespace).Watch(metav1.ListOptions{
+	w, err := p.foreignClient.Client().CoreV1().Secrets(test.NattedNamespace).Watch(metav1.ListOptions{
 		Watch: true,
 	})
 	if err != nil {
@@ -75,22 +75,22 @@ func TestHandleConfigmapEvents(t *testing.T) {
 		return
 	}
 
-	go configmapEventsMonitoring(errChan, createsdDone, updatesDone, deletesDone, ticker, w)
-	go cmCreation(p, errChan)
+	go secretEventsMonitoring(errChan, createsdDone, updatesDone, deletesDone, ticker, w)
+	go secretCreation(p, errChan)
 
 loop:
 	for {
 		select {
 		case <-createsdDone:
-			if err := verifyCmConsistency(p, "creation"); err != nil {
+			if err := verifySecretConsistency(p, "creation"); err != nil {
 				t.Fatal(err)
 			}
-			go cmUpdate(p, errChan)
+			go secretUpdate(p, errChan)
 		case <-updatesDone:
-			if err = verifyCmConsistency(p, "update"); err != nil {
+			if err = verifySecretConsistency(p, "update"); err != nil {
 				t.Fatal(err)
 			}
-			go cmDelete(p, errChan)
+			go secretDelete(p, errChan)
 		case <-deletesDone:
 			break loop
 		case <-ticker.C:
@@ -116,7 +116,7 @@ loop:
 		}
 	}
 
-	if err := verifyCmConsistency(p, "delete"); err != nil {
+	if err := verifySecretConsistency(p, "delete"); err != nil {
 		t.Fatal(err)
 	}
 
@@ -129,7 +129,7 @@ loop:
 	}
 }
 
-func configmapEventsMonitoring(errChan chan error, createsDone, updatesDone, deletesDone chan struct{}, ticker *time.Ticker, w watch.Interface) {
+func secretEventsMonitoring(errChan chan error, createsDone, updatesDone, deletesDone chan struct{}, ticker *time.Ticker, w watch.Interface) {
 	// counters for event type
 	creates := 0
 	updates := 0
@@ -152,39 +152,39 @@ func configmapEventsMonitoring(errChan chan error, createsDone, updatesDone, del
 			return
 		}
 
-		if creates == len(test.ConfigmapTestCases.InputConfigmaps) && !cc {
+		if creates == len(test.SecretTestCases.InputSecrets) && !cc {
 			createsDone <- struct{}{}
 			cc = true
 		}
-		if updates == len(test.ConfigmapTestCases.UpdateConfigmaps) && !uc {
+		if updates == len(test.SecretTestCases.UpdateSecrets) && !uc {
 			updatesDone <- struct{}{}
 			uc = true
 		}
-		if deletes == len(test.ConfigmapTestCases.DeleteConfigmaps) && !dc {
+		if deletes == len(test.SecretTestCases.DeleteSecrets) && !dc {
 			close(deletesDone)
 			dc = true
 			ticker.Stop()
 		}
 
-		if creates > len(test.ConfigmapTestCases.InputConfigmaps) {
+		if creates > len(test.SecretTestCases.InputSecrets) {
 			errChan <- errors.New("too many create events")
 			return
 		}
-		if updates > len(test.ConfigmapTestCases.UpdateConfigmaps) {
+		if updates > len(test.SecretTestCases.UpdateSecrets) {
 			errChan <- errors.New("too many update events")
 			return
 		}
-		if deletes > len(test.ConfigmapTestCases.DeleteConfigmaps) {
+		if deletes > len(test.SecretTestCases.DeleteSecrets) {
 			errChan <- errors.New("too many delete events")
 			return
 		}
 	}
 }
 
-func cmCreation(p *KubernetesProvider, chanError chan error) {
-	klog.Info("TEST - starting cm creation")
-	for _, c := range test.ConfigmapTestCases.InputConfigmaps {
-		_, err := p.homeClient.Client().CoreV1().ConfigMaps(test.Namespace).Create(c)
+func secretCreation(p *KubernetesProvider, chanError chan error) {
+	klog.Info("TEST - starting secret creation")
+	for _, s := range test.SecretTestCases.InputSecrets {
+		_, err := p.homeClient.Client().CoreV1().Secrets(test.Namespace).Create(s)
 		if err != nil {
 			chanError <- err
 			return
@@ -192,10 +192,10 @@ func cmCreation(p *KubernetesProvider, chanError chan error) {
 	}
 }
 
-func cmUpdate(p *KubernetesProvider, chanError chan error) {
-	klog.Info("TEST - starting cm update")
-	for _, c := range test.ConfigmapTestCases.UpdateConfigmaps {
-		_, err := p.homeClient.Client().CoreV1().ConfigMaps(test.Namespace).Update(c)
+func secretUpdate(p *KubernetesProvider, chanError chan error) {
+	klog.Info("TEST - starting secret update")
+	for _, s := range test.SecretTestCases.UpdateSecrets {
+		_, err := p.homeClient.Client().CoreV1().Secrets(test.Namespace).Update(s)
 		if err != nil {
 			chanError <- err
 			return
@@ -203,10 +203,10 @@ func cmUpdate(p *KubernetesProvider, chanError chan error) {
 	}
 }
 
-func cmDelete(p *KubernetesProvider, chanError chan error) {
-	klog.Info("TEST - starting cm delete")
-	for _, c := range test.ConfigmapTestCases.DeleteConfigmaps {
-		err := p.homeClient.Client().CoreV1().ConfigMaps(test.Namespace).Delete(c.Name, &metav1.DeleteOptions{})
+func secretDelete(p *KubernetesProvider, chanError chan error) {
+	klog.Info("TEST - starting secret delete")
+	for _, s := range test.SecretTestCases.DeleteSecrets {
+		err := p.homeClient.Client().CoreV1().Secrets(test.Namespace).Delete(s.Name, &metav1.DeleteOptions{})
 		if err != nil {
 			chanError <- err
 			return
@@ -214,34 +214,34 @@ func cmDelete(p *KubernetesProvider, chanError chan error) {
 	}
 }
 
-func verifyCmConsistency(p *KubernetesProvider, event string) error {
+func verifySecretConsistency(p *KubernetesProvider, event string) error {
 	klog.Infof("TEST - Asserting status coherency after %v", event)
-	homeCms, err := p.homeClient.Client().CoreV1().ConfigMaps(test.Namespace).List(metav1.ListOptions{})
+	homeSecrets, err := p.homeClient.Client().CoreV1().Secrets(test.Namespace).List(metav1.ListOptions{})
 	if err != nil {
 		return err
 	}
-	foreignCms, err := p.foreignClient.Client().CoreV1().ConfigMaps(test.NattedNamespace).List(metav1.ListOptions{})
+	foreignSecrets, err := p.foreignClient.Client().CoreV1().Secrets(test.NattedNamespace).List(metav1.ListOptions{})
 	if err != nil {
 		return err
 	}
 
-	if len(homeCms.Items) != len(foreignCms.Items) {
-		return errors.New("home configmaps not correctly reflected remotely")
+	if len(homeSecrets.Items) != len(foreignSecrets.Items) {
+		return errors.New("home secrets not correctly reflected remotely")
 	}
 
-	for _, cm1 := range homeCms.Items {
+	for _, s1 := range homeSecrets.Items {
 		var found bool
-		for _, cm2 := range foreignCms.Items {
-			if cm1.Name == cm2.Name {
+		for _, s2 := range foreignSecrets.Items {
+			if s1.Name == s2.Name {
 				found = true
-				if !test.AssertConfigmapCoherency(cm1, cm2) {
-					return errors.New("configmaps not matching")
+				if !test.AssertSecretCoherency(s1, s2) {
+					return errors.New("home secrets not correctly reflected remotely")
 				}
 				break
 			}
 		}
 		if !found {
-			return errors.New("home configmaps not correctly reflected remotely")
+			return errors.New("home secrets not correctly reflected remotely")
 		}
 	}
 	klog.Infof("TEST - Status coherency after %v asserted", event)

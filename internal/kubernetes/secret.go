@@ -81,10 +81,11 @@ func (p *KubernetesProvider) updateSecret(sec *corev1.Secret, namespace string) 
 		return err
 	}
 
-	sec.SetNamespace(namespace)
-	sec.SetResourceVersion(secOld.ResourceVersion)
-	sec.SetUID(secOld.UID)
-	_, err = p.foreignClient.Client().CoreV1().Secrets(namespace).Update(sec)
+	sec2 := sec.DeepCopy()
+	sec2.SetNamespace(namespace)
+	sec2.SetResourceVersion(secOld.ResourceVersion)
+	sec2.SetUID(secOld.UID)
+	_, err = p.foreignClient.Client().CoreV1().Secrets(namespace).Update(sec2)
 
 	return err
 }

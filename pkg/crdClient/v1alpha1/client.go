@@ -9,7 +9,6 @@ import (
 	"k8s.io/client-go/rest"
 	restFake "k8s.io/client-go/rest/fake"
 	"k8s.io/client-go/tools/clientcmd"
-	"k8s.io/klog"
 	"os"
 )
 
@@ -51,9 +50,6 @@ func NewKubeconfig(configPath string, gv *schema.GroupVersion) (*rest.Config, er
 	config.ContentConfig.GroupVersion = gv
 	config.APIPath = "/apis"
 	config.NegotiatedSerializer = scheme.Codecs.WithoutConversion()
-	if config.NegotiatedSerializer == nil {
-		klog.Info("aaa")
-	}
 	config.UserAgent = rest.DefaultKubernetesUserAgent()
 
 	return config, nil
