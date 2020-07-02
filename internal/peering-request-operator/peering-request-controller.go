@@ -18,19 +18,18 @@ package peering_request_operator
 
 import (
 	"context"
-	"github.com/go-logr/logr"
 	discoveryv1 "github.com/liqoTech/liqo/api/discovery/v1"
 	"github.com/liqoTech/liqo/pkg/clusterID"
 	v1 "github.com/liqoTech/liqo/pkg/discovery/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/kubernetes"
+	"k8s.io/klog"
 	ctrl "sigs.k8s.io/controller-runtime"
 )
 
 // PeeringRequestReconciler reconciles a PeeringRequest object
 type PeeringRequestReconciler struct {
-	Log    logr.Logger
 	Scheme *runtime.Scheme
 
 	client                    *kubernetes.Clientset
@@ -47,12 +46,11 @@ type PeeringRequestReconciler struct {
 
 func (r *PeeringRequestReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 	_ = context.Background()
-	_ = r.Log.WithValues("peeringrequest", req.NamespacedName)
 
 	pr, err := r.discoveryClient.PeeringRequests().Get(req.Name, metav1.GetOptions{})
 	if err != nil {
 		// TODO: has been removed
-		r.Log.Info("Destroy peering")
+		klog.Info("Destroy peering")
 		return ctrl.Result{}, nil
 	}
 	if pr.Spec.KubeConfigRef == nil {
@@ -64,7 +62,7 @@ func (r *PeeringRequestReconciler) Reconcile(req ctrl.Request) (ctrl.Result, err
 		return ctrl.Result{}, err
 	}
 	if !exists {
-		r.Log.Info("Deploy Broadcaster")
+		klog.Info("Deploy Broadcaster")
 		cm, err := r.client.CoreV1().ConfigMaps(r.Namespace).Get(r.configMapName, metav1.GetOptions{})
 		if err != nil {
 			return ctrl.Result{}, err

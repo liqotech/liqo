@@ -7,7 +7,7 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
-	"log"
+	"k8s.io/klog"
 	"os"
 	"path/filepath"
 )
@@ -32,7 +32,7 @@ func NewK8sClient() (*kubernetes.Clientset, error) {
 func NewDiscoveryClient() (*v1.DiscoveryV1Client, error) {
 	config, err := NewConfig()
 	if err != nil {
-		log.Println(err.Error())
+		klog.Error(err, err.Error())
 		os.Exit(1)
 	}
 	return v1.NewForConfig(config)

@@ -3,6 +3,7 @@ package discovery
 import (
 	v1 "github.com/liqoTech/liqo/api/discovery/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/klog"
 )
 
 func (discovery *DiscoveryCtrl) UpdateForeign(data []*TxtData) {
@@ -14,10 +15,10 @@ func (discovery *DiscoveryCtrl) UpdateForeign(data []*TxtData) {
 		}
 		_, err = discovery.createForeign(txtData)
 		if err != nil {
-			discovery.Log.Error(err, err.Error())
+			klog.Error(err, err.Error())
 			continue
 		}
-		discovery.Log.Info("ForeignCluster " + txtData.ID + " created")
+		klog.Info("ForeignCluster " + txtData.ID + " created")
 	}
 }
 

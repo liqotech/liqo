@@ -9,9 +9,9 @@ import (
 	"gotest.tools/assert"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/klog"
 	"os"
 	ctrl "sigs.k8s.io/controller-runtime"
-	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 	"strings"
 	"testing"
 	"time"
@@ -23,10 +23,8 @@ var stopChan <-chan struct{}
 var discoveryCtrl discovery.DiscoveryCtrl
 
 func setUp() {
-	ctrl.SetLogger(zap.New(zap.UseDevMode(true)))
 	stopChan = ctrl.SetupSignalHandler()
 
-	ctrl.Log.Info("bootstrapping test environment")
 	clientCluster = getClientCluster()
 	serverCluster = getServerCluster()
 
@@ -34,7 +32,6 @@ func setUp() {
 
 	discoveryCtrl = discovery.GetDiscoveryCtrl(
 		"default",
-		ctrl.Log,
 		clientCluster.k8sClient,
 		clientCluster.discoveryClient,
 		clientCluster.clusterId,
@@ -42,15 +39,14 @@ func setUp() {
 }
 
 func tearDown() {
-	ctrl.Log.Info("tearing down the test environment")
 	err := clientCluster.env.Stop()
 	if err != nil {
-		ctrl.Log.Error(err, err.Error())
+		klog.Error(err, err.Error())
 		os.Exit(1)
 	}
 	err = serverCluster.env.Stop()
 	if err != nil {
-		ctrl.Log.Error(err, err.Error())
+		klog.Error(err, err.Error())
 		os.Exit(1)
 	}
 }
@@ -155,7 +151,7 @@ func testPRConfig(t *testing.T) {
 	}
 	_, err := clientCluster.k8sClient.CoreV1().ConfigMaps("default").Create(cm)
 	assert.NilError(t, err, "Unable to create ConfigMaps")
-	_, err = peering_request_operator.GetConfig(clientCluster.k8sClient, ctrl.Log, "default")
+	_, err = peering_request_operator.GetConfig(clientCluster.k8sClient, "default")
 	assert.NilError(t, err, "PeeringRequest operator can't load settings from ConfigMap")
 }
 

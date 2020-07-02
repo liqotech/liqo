@@ -2,21 +2,21 @@ package peering_request_operator
 
 import (
 	"errors"
-	"github.com/go-logr/logr"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
+	"k8s.io/klog"
 )
 
 type Config struct {
 	AllowAll bool `json:"allowAll"`
 }
 
-func GetConfig(client *kubernetes.Clientset, Log logr.Logger, namespace string) (*Config, error) {
+func GetConfig(client *kubernetes.Clientset, namespace string) (*Config, error) {
 	conf := &Config{}
 
 	configMap, err := client.CoreV1().ConfigMaps(namespace).Get("peering-request-operator-cm", metav1.GetOptions{})
 	if err != nil {
-		Log.Error(err, err.Error())
+		klog.Error(err, err.Error())
 		return nil, err
 	}
 
@@ -24,7 +24,7 @@ func GetConfig(client *kubernetes.Clientset, Log logr.Logger, namespace string) 
 
 	err = checkConfig(config)
 	if err != nil {
-		Log.Error(err, err.Error())
+		klog.Error(err, err.Error())
 		return nil, err
 	}
 

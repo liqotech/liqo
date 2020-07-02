@@ -4,6 +4,7 @@ import (
 	policyv1 "github.com/liqoTech/liqo/api/cluster-config/v1"
 	"github.com/liqoTech/liqo/pkg/clusterConfig"
 	"github.com/liqoTech/liqo/pkg/crdClient/v1alpha1"
+	"k8s.io/klog"
 	"os"
 	"path/filepath"
 )
@@ -12,7 +13,7 @@ func (discovery *DiscoveryCtrl) GetDiscoveryConfig(crdClient *v1alpha1.CRDClient
 	waitFirst := make(chan bool)
 	isFirst := true
 	go clusterConfig.WatchConfiguration(func(configuration *policyv1.ClusterConfig) {
-		discovery.Log.Info("Change Configuration")
+		klog.Info("Change Configuration")
 		discovery.handleConfiguration(configuration.Spec.DiscoveryConfig)
 		if isFirst {
 			waitFirst <- true
@@ -81,7 +82,7 @@ func (discovery *DiscoveryCtrl) handleConfiguration(config policyv1.DiscoveryCon
 }
 
 func (discovery *DiscoveryCtrl) reloadServer() {
-	discovery.Log.Info("Reload mDNS server")
+	klog.Info("Reload mDNS server")
 	select {
 	case discovery.stopMDNS <- true:
 		close(discovery.stopMDNS)
@@ -93,6 +94,6 @@ func (discovery *DiscoveryCtrl) reloadServer() {
 }
 
 func (discovery *DiscoveryCtrl) reloadClient() {
-	discovery.Log.Info("Reload mDNS client")
+	klog.Info("Reload mDNS client")
 	// settings are automatically updated in next iteration
 }

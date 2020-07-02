@@ -4,6 +4,7 @@ import (
 	"github.com/grandcat/zeroconf"
 	"github.com/liqoTech/liqo/internal/discovery/clients"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/klog"
 	"net"
 )
 
@@ -11,13 +12,13 @@ func (discovery *DiscoveryCtrl) Register() {
 	if discovery.Config.EnableAdvertisement {
 		txt, err := discovery.GetTxtData().Encode()
 		if err != nil {
-			discovery.Log.Error(err, err.Error())
+			klog.Error(err, err.Error())
 			return
 		}
 
 		server, err := zeroconf.Register(discovery.Config.Name+"_"+discovery.ClusterId.GetClusterID(), discovery.Config.Service, discovery.Config.Domain, discovery.Config.Port, txt, discovery.getInterfaces())
 		if err != nil {
-			discovery.Log.Error(err, err.Error())
+			klog.Error(err, err.Error())
 			return
 		}
 		discovery.stopMDNS = make(chan bool)
@@ -78,7 +79,7 @@ func (discovery *DiscoveryCtrl) getPodNets() ([]*net.IPNet, error) {
 	for _, n := range nodes.Items {
 		_, ipnet, err := net.ParseCIDR(n.Spec.PodCIDR)
 		if err != nil {
-			discovery.Log.Error(err, err.Error())
+			klog.Error(err, err.Error())
 			continue
 		}
 		res = append(res, ipnet)

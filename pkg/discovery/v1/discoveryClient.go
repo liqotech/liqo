@@ -6,12 +6,8 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/serializer"
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
+	"k8s.io/klog"
 	"os"
-	ctrl "sigs.k8s.io/controller-runtime"
-)
-
-var (
-	Log = ctrl.Log.WithName("discoveryV1Client")
 )
 
 type DiscoveryV1Interface interface {
@@ -26,7 +22,7 @@ type DiscoveryV1Client struct {
 func init() {
 	err := v1.AddToScheme(scheme.Scheme)
 	if err != nil {
-		Log.Error(err, err.Error())
+		klog.Error(err, err.Error())
 		os.Exit(1)
 	}
 }
