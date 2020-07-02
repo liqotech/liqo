@@ -4,9 +4,9 @@ import (
 	"context"
 	"errors"
 	policyv1 "github.com/liqoTech/liqo/api/cluster-config/v1"
-	"github.com/liqoTech/liqo/internal/discovery/clients"
+	discoveryv1 "github.com/liqoTech/liqo/api/discovery/v1"
 	"github.com/liqoTech/liqo/internal/discovery/kubeconfig"
-	discoveryv1 "github.com/liqoTech/liqo/pkg/discovery/v1"
+	"github.com/liqoTech/liqo/pkg/crdClient/v1alpha1"
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
@@ -30,7 +30,7 @@ type AdvertisementBroadcaster struct {
 	// local-related variables
 	LocalClient     *kubernetes.Clientset
 	LocalCRDClient  client.Client
-	DiscoveryClient *discoveryv1.DiscoveryV1Client
+	DiscoveryClient *v1alpha1.CRDClient
 	// remote-related variables
 	KubeconfigSecretForForeign *corev1.Secret // secret containing the kubeconfig that will be sent to the foreign cluster
 	RemoteClient               client.Client  // client to create Advertisements and Secrets on the foreign cluster
@@ -68,17 +68,26 @@ func StartBroadcaster(homeClusterId, localKubeconfigPath, foreignKubeconfigPath,
 		return err
 	}
 
-	// get configuration from PeeringRequest CR
-	discoveryClient, err := clients.NewDiscoveryClient()
+	config, err := v1alpha1.NewKubeconfig(localKubeconfigPath, &discoveryv1.GroupVersion)
 	if err != nil {
-		klog.Errorln(err, "Unable to create a discovery client for local cluster")
+		klog.Error(err, err.Error())
+		return err
+	}
+	discoveryClient, err := v1alpha1.NewFromConfig(config)
+	if err != nil {
+		klog.Error(err, err.Error())
 		return err
 	}
 
-	pr, err := discoveryClient.PeeringRequests().Get(peeringRequestName, metav1.GetOptions{})
+	tmp, err := discoveryClient.Resource("peerignrequests").Get(peeringRequestName, metav1.GetOptions{})
 	if err != nil {
 		klog.Errorln(err, "Unable to get PeeringRequest "+peeringRequestName)
 		return err
+	}
+	pr, ok := tmp.(*discoveryv1.PeeringRequest)
+	if !ok {
+		klog.Errorln(err, "retrieved object is not a PeeringRequest")
+		return errors.New("retrieved object is not a PeeringRequest")
 	}
 
 	foreignClusterId := pr.Name
@@ -116,7 +125,7 @@ func StartBroadcaster(homeClusterId, localKubeconfigPath, foreignKubeconfigPath,
 	}
 
 	// create the kubeconfig to allow the foreign cluster to create resources on local cluster
-	kubeconfigForForeignCluster, err := kubeconfig.CreateKubeConfig(sa.Name, sa.Namespace)
+	kubeconfigForForeignCluster, err := kubeconfig.CreateKubeConfig(localClient, sa.Name, sa.Namespace)
 	if err != nil {
 		klog.Errorln(err, "Unable to create Kubeconfig")
 		return err

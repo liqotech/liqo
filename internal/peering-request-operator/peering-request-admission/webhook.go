@@ -5,6 +5,7 @@ import (
 	"fmt"
 	discoveryv1 "github.com/liqoTech/liqo/api/discovery/v1"
 	"github.com/liqoTech/liqo/internal/peering-request-operator"
+	"github.com/liqoTech/liqo/pkg/crdClient/v1alpha1"
 	"io/ioutil"
 	"k8s.io/api/admission/v1beta1"
 	admissionregistrationv1beta1 "k8s.io/api/admissionregistration/v1beta1"
@@ -12,7 +13,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/serializer"
-	"k8s.io/client-go/kubernetes"
 	"k8s.io/klog"
 	"k8s.io/kubernetes/pkg/apis/core/v1"
 	"net/http"
@@ -28,7 +28,7 @@ var (
 type WebhookServer struct {
 	Server *http.Server
 
-	client    *kubernetes.Clientset
+	crdClient *v1alpha1.CRDClient
 	Namespace string
 }
 
@@ -54,7 +54,7 @@ func (whsvr *WebhookServer) validate(ar *v1beta1.AdmissionReview) *v1beta1.Admis
 
 	klog.Info("PeeringRequest " + peerReq.Name + " Received")
 
-	conf, err := peering_request_operator.GetConfig(whsvr.client, whsvr.Namespace)
+	conf, err := peering_request_operator.GetConfig(whsvr.crdClient, whsvr.Namespace)
 	if err != nil {
 		os.Exit(1)
 	}

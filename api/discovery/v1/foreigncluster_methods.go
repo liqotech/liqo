@@ -5,10 +5,11 @@ import (
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
 )
 
-func (fc *ForeignCluster) GetConfig(client *kubernetes.Clientset) (*rest.Config, error) {
+func (fc *ForeignCluster) GetConfig(client kubernetes.Interface) (*rest.Config, error) {
 	secret, err := client.CoreV1().Secrets(fc.Status.CaDataRef.Namespace).Get(fc.Status.CaDataRef.Name, metav1.GetOptions{})
 	if err != nil {
 		return nil, err
@@ -19,6 +20,9 @@ func (fc *ForeignCluster) GetConfig(client *kubernetes.Clientset) (*rest.Config,
 			CAData: secret.Data["caData"],
 		},
 	}
+	cnf.APIPath = "/apis"
+	cnf.NegotiatedSerializer = scheme.Codecs.WithoutConversion()
+	cnf.UserAgent = rest.DefaultKubernetesUserAgent()
 	return &cnf, nil
 }
 
@@ -32,7 +36,7 @@ func (fc *ForeignCluster) getInsecureConfig() *rest.Config {
 	return &cnf
 }
 
-func (fc *ForeignCluster) LoadForeignCA(localClient *kubernetes.Clientset, localNamespace string, config *rest.Config) error {
+func (fc *ForeignCluster) LoadForeignCA(localClient kubernetes.Interface, localNamespace string, config *rest.Config) error {
 	if config == nil {
 		config = fc.getInsecureConfig()
 	}
@@ -49,8 +53,8 @@ func (fc *ForeignCluster) LoadForeignCA(localClient *kubernetes.Clientset, local
 			Name: fc.Name + "-ca-data",
 			OwnerReferences: []metav1.OwnerReference{
 				{
-					APIVersion: fc.APIVersion,
-					Kind:       fc.Kind,
+					APIVersion: "v1",
+					Kind:       "ForeignCluster",
 					Name:       fc.Name,
 					UID:        fc.UID,
 				},

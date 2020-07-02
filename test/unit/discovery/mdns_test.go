@@ -1,6 +1,7 @@
 package discovery
 
 import (
+	v1 "github.com/liqoTech/liqo/api/discovery/v1"
 	"github.com/liqoTech/liqo/internal/discovery"
 	"gotest.tools/assert"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -55,8 +56,10 @@ func testMdns(t *testing.T) {
 // ------
 // tests if ForeignCluster can be created from txtData
 func testForeignClusterCreation(t *testing.T) {
-	fcs, err := clientCluster.discoveryClient.ForeignClusters().List(metav1.ListOptions{})
+	tmp, err := clientCluster.crdClient.Resource("foreignclusters").List(metav1.ListOptions{})
 	assert.NilError(t, err, "Error listing ForeignClusters")
+	fcs, ok := tmp.(*v1.ForeignClusterList)
+	assert.Equal(t, ok, true)
 	l := len(fcs.Items)
 
 	txts := []*discovery.TxtData{
@@ -71,13 +74,17 @@ func testForeignClusterCreation(t *testing.T) {
 
 	time.Sleep(1 * time.Second)
 
-	fcs, err = clientCluster.discoveryClient.ForeignClusters().List(metav1.ListOptions{})
+	tmp, err = clientCluster.crdClient.Resource("foreignclusters").List(metav1.ListOptions{})
 	assert.NilError(t, err, "Error listing ForeignClusters")
+	fcs, ok = tmp.(*v1.ForeignClusterList)
+	assert.Equal(t, ok, true)
 	l2 := len(fcs.Items)
-	assert.Assert(t, l2-l == 1, "Foreign Cluster has to been created")
+	assert.Assert(t, l2-l == 1, "Foreign Cluster was not created")
 
-	fc, err := clientCluster.discoveryClient.ForeignClusters().Get("test", metav1.GetOptions{})
-	assert.NilError(t, err, "Error retrieving ForeignClusters")
+	tmp, err = clientCluster.crdClient.Resource("foreignclusters").Get("test", metav1.GetOptions{})
+	assert.NilError(t, err, "Error retrieving ForeignCluster")
+	fc, ok := tmp.(*v1.ForeignCluster)
+	assert.Equal(t, ok, true)
 	assert.Equal(t, fc.Spec.ApiUrl, "http://"+serverCluster.cfg.Host, "ApiUrl doesn't match the specified one")
 	assert.Equal(t, fc.Spec.Namespace, "default", "Foreign Namesapce doesn't match the specified one")
 }

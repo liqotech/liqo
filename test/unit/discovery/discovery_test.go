@@ -32,8 +32,7 @@ func setUp() {
 
 	discoveryCtrl = discovery.GetDiscoveryCtrl(
 		"default",
-		clientCluster.k8sClient,
-		clientCluster.discoveryClient,
+		clientCluster.crdClient,
 		clientCluster.clusterId,
 	)
 }
@@ -72,8 +71,10 @@ func TestDiscovery(t *testing.T) {
 // ------
 // tests if environment is correctly set and creation of ForeignCluster with disabled AutoJoin
 func testClient(t *testing.T) {
-	fcs, err := clientCluster.discoveryClient.ForeignClusters().List(metav1.ListOptions{})
+	tmp, err := clientCluster.crdClient.Resource("foreignclusters").List(metav1.ListOptions{})
 	assert.NilError(t, err)
+	fcs, ok := tmp.(*v1.ForeignClusterList)
+	assert.Equal(t, ok, true)
 	assert.Equal(t, len(fcs.Items), 0)
 
 	// create new ForeignCluster with disabled AutoJoin
@@ -88,30 +89,40 @@ func testClient(t *testing.T) {
 			ApiUrl:    serverCluster.cfg.Host,
 		},
 	}
-	_, err = clientCluster.discoveryClient.ForeignClusters().Create(fc)
+	_, err = clientCluster.crdClient.Resource("foreignclusters").Create(fc, metav1.CreateOptions{})
 	assert.NilError(t, err, "Error during ForeignCluster creation")
 
-	fcs, err = clientCluster.discoveryClient.ForeignClusters().List(metav1.ListOptions{})
+	tmp, err = clientCluster.crdClient.Resource("foreignclusters").List(metav1.ListOptions{})
 	assert.NilError(t, err)
+	fcs, ok = tmp.(*v1.ForeignClusterList)
+	assert.Equal(t, ok, true)
 	assert.Equal(t, len(fcs.Items), 1, "Number of ForeignCluster on clientCluster is different to 1")
 
-	fcs, err = serverCluster.discoveryClient.ForeignClusters().List(metav1.ListOptions{})
+	tmp, err = serverCluster.crdClient.Resource("foreignclusters").List(metav1.ListOptions{})
 	assert.NilError(t, err)
+	fcs, ok = tmp.(*v1.ForeignClusterList)
+	assert.Equal(t, ok, true)
 	assert.Equal(t, len(fcs.Items), 0, "Number of ForeignCluster on serverCluster is different to 0, is it crated in wrong cluster?!?")
 
-	prs, err := serverCluster.discoveryClient.PeeringRequests().List(metav1.ListOptions{})
+	tmp, err = serverCluster.crdClient.Resource("peeringrequests").List(metav1.ListOptions{})
 	assert.NilError(t, err)
+	prs, ok := tmp.(*v1.PeeringRequestList)
+	assert.Equal(t, ok, true)
 	assert.Equal(t, len(prs.Items), 0, "Peering Request has been created even if join flag was false")
 
-	prs, err = clientCluster.discoveryClient.PeeringRequests().List(metav1.ListOptions{})
+	tmp, err = clientCluster.crdClient.Resource("peeringrequests").List(metav1.ListOptions{})
 	assert.NilError(t, err)
+	prs, ok = tmp.(*v1.PeeringRequestList)
+	assert.Equal(t, ok, true)
 	assert.Equal(t, len(prs.Items), 0, "Peering Request has been created in client cluster")
 }
 
 // ------
 // tests if discovery controller is able to load it's configs from ClusterConfigs
 func testDiscoveryConfig(t *testing.T) {
-	crdClient, err := v1alpha1.NewFromConfig(clientCluster.cfg)
+	policyConfig := *clientCluster.cfg
+	policyConfig.GroupVersion = &policyv1.GroupVersion
+	crdClient, err := v1alpha1.NewFromConfig(&policyConfig)
 	assert.NilError(t, err, "Can't get CRDClient")
 	err = discoveryCtrl.GetDiscoveryConfig(crdClient)
 	assert.NilError(t, err, "DiscoveryCtrl can't load settings")
@@ -149,39 +160,47 @@ func testPRConfig(t *testing.T) {
 			"allowAll": "true",
 		},
 	}
-	_, err := clientCluster.k8sClient.CoreV1().ConfigMaps("default").Create(cm)
+	_, err := clientCluster.crdClient.Client().CoreV1().ConfigMaps("default").Create(cm)
 	assert.NilError(t, err, "Unable to create ConfigMaps")
-	_, err = peering_request_operator.GetConfig(clientCluster.k8sClient, "default")
+	_, err = peering_request_operator.GetConfig(clientCluster.crdClient, "default")
 	assert.NilError(t, err, "PeeringRequest operator can't load settings from ConfigMap")
 }
 
 // ------
 // tests if enabling Join flag a PeeringRequest and Broadcaster deployment are created on foreign cluster
 func testJoin(t *testing.T) {
-	fc, err := clientCluster.discoveryClient.ForeignClusters().Get("fc-test", metav1.GetOptions{})
+	tmp, err := clientCluster.crdClient.Resource("foreignclusters").Get("fc-test", metav1.GetOptions{})
 	assert.NilError(t, err, "Error retrieving ForeignCluster")
+	fc, ok := tmp.(*v1.ForeignCluster)
+	assert.Equal(t, ok, true)
 
 	fc.Spec.Join = true
-	_, err = clientCluster.discoveryClient.ForeignClusters().Update(fc, metav1.UpdateOptions{})
+	_, err = clientCluster.crdClient.Resource("foreignclusters").Update(fc.Name, fc, metav1.UpdateOptions{})
 	assert.NilError(t, err, "I can't set Join flag to true")
 
 	// wait reconciliation
 	time.Sleep(1 * time.Second)
 
-	fc, err = clientCluster.discoveryClient.ForeignClusters().Get("fc-test", metav1.GetOptions{})
-	assert.NilError(t, err)
+	tmp, err = clientCluster.crdClient.Resource("foreignclusters").Get("fc-test", metav1.GetOptions{})
+	assert.NilError(t, err, "Error retrieving ForeignCluster")
+	fc, ok = tmp.(*v1.ForeignCluster)
+	assert.Equal(t, ok, true)
 	assert.Equal(t, fc.Status.Joined, true, "Status Joined is not true")
 	assert.Assert(t, fc.Status.PeeringRequestName != "", "Peering Request name can not be empty")
 
-	prs, err := clientCluster.discoveryClient.PeeringRequests().List(metav1.ListOptions{})
+	tmp, err = clientCluster.crdClient.Resource("peeringrequests").List(metav1.ListOptions{})
 	assert.NilError(t, err)
+	prs, ok := tmp.(*v1.PeeringRequestList)
+	assert.Equal(t, ok, true)
 	assert.Equal(t, len(prs.Items), 0, "Peering Request has been created on home cluster")
 
-	prs, err = serverCluster.discoveryClient.PeeringRequests().List(metav1.ListOptions{})
+	tmp, err = serverCluster.crdClient.Resource("peeringrequests").List(metav1.ListOptions{})
 	assert.NilError(t, err)
+	prs, ok = tmp.(*v1.PeeringRequestList)
+	assert.Equal(t, ok, true)
 	assert.Equal(t, len(prs.Items), 1, "Peering Request has not been created on foreign cluster")
 
-	deploys, err := serverCluster.k8sClient.AppsV1().Deployments("default").List(metav1.ListOptions{})
+	deploys, err := serverCluster.crdClient.Client().AppsV1().Deployments("default").List(metav1.ListOptions{})
 	assert.NilError(t, err)
 	assert.Assert(t, len(deploys.Items) > 0, "Broadcaster deployment has not been created on foreign cluster")
 	assert.Assert(t, func() bool {
@@ -197,24 +216,30 @@ func testJoin(t *testing.T) {
 // ------
 // tests if disabling Join flag PeeringRequest is deleted from foreign cluster
 func testDisjoin(t *testing.T) {
-	fc, err := clientCluster.discoveryClient.ForeignClusters().Get("fc-test", metav1.GetOptions{})
+	tmp, err := clientCluster.crdClient.Resource("foreignclusters").Get("fc-test", metav1.GetOptions{})
 	assert.NilError(t, err, "Error retrieving ForeignCluster")
+	fc, ok := tmp.(*v1.ForeignCluster)
+	assert.Equal(t, ok, true)
 	assert.Equal(t, fc.Spec.Join, true, "Foreign Cluster is not in join spec")
 	assert.Equal(t, fc.Status.Joined, true, "Foreign Cluster is not joined")
 
 	fc.Spec.Join = false
-	_, err = clientCluster.discoveryClient.ForeignClusters().Update(fc, metav1.UpdateOptions{})
+	_, err = clientCluster.crdClient.Resource("foreignclusters").Update(fc.Name, fc, metav1.UpdateOptions{})
 	assert.NilError(t, err, "I can't set Join flag to false")
 
 	// wait reconciliation
 	time.Sleep(1 * time.Second)
 
-	fc, err = clientCluster.discoveryClient.ForeignClusters().Get("fc-test", metav1.GetOptions{})
+	tmp, err = clientCluster.crdClient.Resource("foreignclusters").Get("fc-test", metav1.GetOptions{})
 	assert.NilError(t, err, "Error retrieving ForeignCluster")
+	fc, ok = tmp.(*v1.ForeignCluster)
+	assert.Equal(t, ok, true)
 	assert.Equal(t, fc.Status.Joined, false, "Status Joined is true")
 	assert.Assert(t, fc.Status.PeeringRequestName == "", "Peering Request name has to be empty")
 
-	prs, err := serverCluster.discoveryClient.PeeringRequests().List(metav1.ListOptions{})
+	tmp, err = serverCluster.crdClient.Resource("peeringrequests").List(metav1.ListOptions{})
 	assert.NilError(t, err, "Error listing PeeringRequests")
+	prs, ok := tmp.(*v1.PeeringRequestList)
+	assert.Equal(t, ok, true)
 	assert.Equal(t, len(prs.Items), 0, "Peering Request has not been deleted on foreign cluster")
 }

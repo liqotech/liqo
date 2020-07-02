@@ -2,15 +2,14 @@ package foreign_cluster_operator
 
 import (
 	discoveryv1 "github.com/liqoTech/liqo/api/discovery/v1"
-	"github.com/liqoTech/liqo/internal/discovery/clients"
 	"github.com/liqoTech/liqo/pkg/clusterID"
-	v1 "github.com/liqoTech/liqo/pkg/discovery/v1"
+	"github.com/liqoTech/liqo/pkg/crdClient/v1alpha1"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/client-go/kubernetes"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
 	"k8s.io/klog"
 	"os"
+	"path/filepath"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"time"
 )
@@ -37,14 +36,14 @@ func StartOperator(namespace string, requeueAfter time.Duration) {
 		os.Exit(1)
 	}
 
-	client, err := clients.NewK8sClient()
+	config, err := v1alpha1.NewKubeconfig(filepath.Join(os.Getenv("HOME"), ".kube", "config"), &discoveryv1.GroupVersion)
 	if err != nil {
-		klog.Error(err, "unable to start manager")
+		klog.Error(err, "unable to get kube config")
 		os.Exit(1)
 	}
-	discoveryClient, err := clients.NewDiscoveryClient()
+	crdClient, err := v1alpha1.NewFromConfig(config)
 	if err != nil {
-		klog.Error(err, "unable to start manager")
+		klog.Error(err, "unable to create crd client")
 		os.Exit(1)
 	}
 	clusterId, err := clusterID.NewClusterID()
@@ -56,8 +55,7 @@ func StartOperator(namespace string, requeueAfter time.Duration) {
 	if err = (GetFCReconciler(
 		mgr.GetScheme(),
 		namespace,
-		client,
-		discoveryClient,
+		crdClient,
 		clusterId,
 		requeueAfter,
 	)).SetupWithManager(mgr); err != nil {
@@ -72,14 +70,13 @@ func StartOperator(namespace string, requeueAfter time.Duration) {
 	}
 }
 
-func GetFCReconciler(scheme *runtime.Scheme, namespace string, client *kubernetes.Clientset, discoveryClient *v1.DiscoveryV1Client, clusterId *clusterID.ClusterID, requeueAfter time.Duration) *ForeignClusterReconciler {
+func GetFCReconciler(scheme *runtime.Scheme, namespace string, crdClient *v1alpha1.CRDClient, clusterId *clusterID.ClusterID, requeueAfter time.Duration) *ForeignClusterReconciler {
 	return &ForeignClusterReconciler{
-		Scheme:          scheme,
-		Namespace:       namespace,
-		client:          client,
-		discoveryClient: discoveryClient,
-		clusterID:       clusterId,
-		ForeignConfig:   nil,
-		RequeueAfter:    requeueAfter,
+		Scheme:        scheme,
+		Namespace:     namespace,
+		crdClient:     crdClient,
+		clusterID:     clusterId,
+		ForeignConfig: nil,
+		RequeueAfter:  requeueAfter,
 	}
 }

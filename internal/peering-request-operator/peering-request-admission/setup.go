@@ -3,10 +3,12 @@ package peering_request_admission
 import (
 	"crypto/tls"
 	"fmt"
-	"github.com/liqoTech/liqo/internal/discovery/clients"
+	discoveryv1 "github.com/liqoTech/liqo/api/discovery/v1"
+	"github.com/liqoTech/liqo/pkg/crdClient/v1alpha1"
 	"k8s.io/klog"
 	"net/http"
 	"os"
+	"path/filepath"
 )
 
 func StartWebhook(certPath string, keyPath string, namespace string) *WebhookServer {
@@ -21,9 +23,14 @@ func startTls(certPath string, keyPath string, port int, namespace string) *Webh
 		os.Exit(1)
 	}
 
-	client, err := clients.NewK8sClient()
+	config, err := v1alpha1.NewKubeconfig(filepath.Join(os.Getenv("HOME"), ".kube", "config"), &discoveryv1.GroupVersion)
 	if err != nil {
-		klog.Error(err, "unable to start manager")
+		klog.Error(err, "unable to get kube config")
+		os.Exit(1)
+	}
+	crdClient, err := v1alpha1.NewFromConfig(config)
+	if err != nil {
+		klog.Error(err, "unable to create crd client")
 		os.Exit(1)
 	}
 
@@ -33,7 +40,7 @@ func startTls(certPath string, keyPath string, port int, namespace string) *Webh
 			TLSConfig: &tls.Config{Certificates: []tls.Certificate{pair}},
 		},
 
-		client:    client,
+		crdClient: crdClient,
 		Namespace: namespace,
 	}
 

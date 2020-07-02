@@ -2,16 +2,15 @@ package kubeconfig
 
 import (
 	"errors"
-	"github.com/liqoTech/liqo/internal/discovery/clients"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/client-go/kubernetes"
 	clientcmdlatest "k8s.io/client-go/tools/clientcmd/api/latest"
 	kubeconfigutil "k8s.io/kubernetes/cmd/kubeadm/app/util/kubeconfig"
 )
 
 // this function creates a kube-config file for a specified ServiceAccount
-func CreateKubeConfig(serviceAccountName string, namespace string) (string, error) {
-	clientset, _ := clients.NewK8sClient()
+func CreateKubeConfig(clientset kubernetes.Interface, serviceAccountName string, namespace string) (string, error) {
 	serviceAccount, err := clientset.CoreV1().ServiceAccounts(namespace).Get(serviceAccountName, v1.GetOptions{})
 	if err != nil {
 		return "", err

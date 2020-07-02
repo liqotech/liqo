@@ -2,37 +2,34 @@ package discovery
 
 import (
 	policyv1 "github.com/liqoTech/liqo/api/cluster-config/v1"
-	"github.com/liqoTech/liqo/internal/discovery/clients"
+	discoveryv1 "github.com/liqoTech/liqo/api/discovery/v1"
 	"github.com/liqoTech/liqo/pkg/clusterID"
-	v1 "github.com/liqoTech/liqo/pkg/discovery/v1"
-	"k8s.io/client-go/kubernetes"
-	"k8s.io/klog"
+	"github.com/liqoTech/liqo/pkg/crdClient/v1alpha1"
 	"os"
+	"path/filepath"
 )
 
 type DiscoveryCtrl struct {
 	Namespace string
 
-	Config          *policyv1.DiscoveryConfig
-	stopMDNS        chan bool
-	client          *kubernetes.Clientset
-	clientDiscovery *v1.DiscoveryV1Client
-	ClusterId       *clusterID.ClusterID
+	Config    *policyv1.DiscoveryConfig
+	stopMDNS  chan bool
+	crdClient *v1alpha1.CRDClient
+	ClusterId *clusterID.ClusterID
 }
 
 func NewDiscoveryCtrl(namespace string, clusterId *clusterID.ClusterID) (*DiscoveryCtrl, error) {
-	client, err := clients.NewK8sClient()
+	config, err := v1alpha1.NewKubeconfig(filepath.Join(os.Getenv("HOME"), ".kube", "config"), &discoveryv1.GroupVersion)
 	if err != nil {
 		return nil, err
 	}
-	clientDiscovery, err := clients.NewDiscoveryClient()
+	crdClient, err := v1alpha1.NewFromConfig(config)
 	if err != nil {
 		return nil, err
 	}
 	discoveryCtrl := GetDiscoveryCtrl(
 		namespace,
-		client,
-		clientDiscovery,
+		crdClient,
 		clusterId,
 	)
 	if discoveryCtrl.GetDiscoveryConfig(nil) != nil {
@@ -41,12 +38,11 @@ func NewDiscoveryCtrl(namespace string, clusterId *clusterID.ClusterID) (*Discov
 	return &discoveryCtrl, nil
 }
 
-func GetDiscoveryCtrl(namespace string, client *kubernetes.Clientset, clientDiscovery *v1.DiscoveryV1Client, clusterId *clusterID.ClusterID) DiscoveryCtrl {
+func GetDiscoveryCtrl(namespace string, crdClient *v1alpha1.CRDClient, clusterId *clusterID.ClusterID) DiscoveryCtrl {
 	return DiscoveryCtrl{
-		Namespace:       namespace,
-		client:          client,
-		clientDiscovery: clientDiscovery,
-		ClusterId:       clusterId,
+		Namespace: namespace,
+		crdClient: crdClient,
+		ClusterId: clusterId,
 	}
 }
 

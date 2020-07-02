@@ -8,14 +8,14 @@ import (
 )
 
 func (discovery *DiscoveryCtrl) SetupCaData() {
-	_, err := discovery.client.CoreV1().Secrets(discovery.Namespace).Get("ca-data", metav1.GetOptions{})
+	_, err := discovery.crdClient.Client().CoreV1().Secrets(discovery.Namespace).Get("ca-data", metav1.GetOptions{})
 	if err == nil {
 		// already exists
 		return
 	}
 
 	// get CaData from Secrets
-	secrets, err := discovery.client.CoreV1().Secrets(discovery.Namespace).List(metav1.ListOptions{
+	secrets, err := discovery.crdClient.Client().CoreV1().Secrets(discovery.Namespace).List(metav1.ListOptions{
 		Limit:         1,
 		FieldSelector: "type=kubernetes.io/service-account-token",
 	})
@@ -40,7 +40,7 @@ func (discovery *DiscoveryCtrl) SetupCaData() {
 			"ca.crt": secrets.Items[0].Data["ca.crt"],
 		},
 	}
-	_, err = discovery.client.CoreV1().Secrets(discovery.Namespace).Create(secret)
+	_, err = discovery.crdClient.Client().CoreV1().Secrets(discovery.Namespace).Create(secret)
 	if err != nil {
 		klog.Error(err, err.Error())
 		os.Exit(1)

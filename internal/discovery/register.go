@@ -2,7 +2,6 @@ package discovery
 
 import (
 	"github.com/grandcat/zeroconf"
-	"github.com/liqoTech/liqo/internal/discovery/clients"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/klog"
 	"net"
@@ -67,11 +66,7 @@ func (discovery *DiscoveryCtrl) getInterfaces() []net.Interface {
 }
 
 func (discovery *DiscoveryCtrl) getPodNets() ([]*net.IPNet, error) {
-	client, err := clients.NewK8sClient()
-	if err != nil {
-		return nil, err
-	}
-	nodes, err := client.CoreV1().Nodes().List(metav1.ListOptions{})
+	nodes, err := discovery.crdClient.Client().CoreV1().Nodes().List(metav1.ListOptions{})
 	if err != nil {
 		return nil, err
 	}

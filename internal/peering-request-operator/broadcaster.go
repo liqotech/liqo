@@ -10,7 +10,7 @@ import (
 )
 
 func (r *PeeringRequestReconciler) BroadcasterExists(request *discoveryv1.PeeringRequest) (bool, error) {
-	_, err := r.client.AppsV1().Deployments(r.Namespace).Get("broadcaster-"+request.Name, metav1.GetOptions{})
+	_, err := r.crdClient.Client().AppsV1().Deployments(r.Namespace).Get("broadcaster-"+request.Name, metav1.GetOptions{})
 	if k8serrors.IsNotFound(err) {
 		// does not exist
 		return false, nil
@@ -43,8 +43,8 @@ func GetBroadcasterDeployment(request *discoveryv1.PeeringRequest, nameSA string
 			Namespace: namespace,
 			OwnerReferences: []metav1.OwnerReference{
 				{
-					APIVersion: request.APIVersion,
-					Kind:       request.Kind,
+					APIVersion: "v1",
+					Kind:       "PeeringRequest",
 					Name:       request.Name,
 					UID:        request.UID,
 				},
