@@ -3,7 +3,6 @@ package peering_request_admission
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/go-logr/logr"
 	discoveryv1 "github.com/liqoTech/liqo/api/discovery/v1"
 	"github.com/liqoTech/liqo/internal/peering-request-operator"
 	"io/ioutil"
@@ -14,6 +13,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/serializer"
 	"k8s.io/client-go/kubernetes"
+	"k8s.io/klog"
 	"k8s.io/kubernetes/pkg/apis/core/v1"
 	"net/http"
 	"os"
@@ -27,7 +27,6 @@ var (
 
 type WebhookServer struct {
 	Server *http.Server
-	Log    logr.Logger
 
 	client    *kubernetes.Clientset
 	Namespace string
@@ -44,7 +43,7 @@ func (whsvr *WebhookServer) validate(ar *v1beta1.AdmissionReview) *v1beta1.Admis
 	peerReq := discoveryv1.PeeringRequest{}
 
 	if err := json.Unmarshal(ar.Request.Object.Raw, &peerReq); err != nil {
-		whsvr.Log.Error(err, err.Error())
+		klog.Error(err, err.Error())
 		return &v1beta1.AdmissionResponse{
 			Allowed: false,
 			Result: &metav1.Status{
@@ -53,23 +52,23 @@ func (whsvr *WebhookServer) validate(ar *v1beta1.AdmissionReview) *v1beta1.Admis
 		}
 	}
 
-	whsvr.Log.Info("PeeringRequest " + peerReq.Name + " Received")
+	klog.Info("PeeringRequest " + peerReq.Name + " Received")
 
-	conf, err := peering_request_operator.GetConfig(whsvr.client, whsvr.Log, whsvr.Namespace)
+	conf, err := peering_request_operator.GetConfig(whsvr.client, whsvr.Namespace)
 	if err != nil {
 		os.Exit(1)
 	}
 
 	if conf.AllowAll {
 		// allow every request
-		whsvr.Log.Info("PeeringRequest " + peerReq.Name + " Allowed")
+		klog.Info("PeeringRequest " + peerReq.Name + " Allowed")
 		return &v1beta1.AdmissionResponse{
 			Allowed: true,
 			Result:  nil,
 		}
 	} else {
 		// TODO: apply policy to accept/reject peering requests
-		whsvr.Log.Info("PeeringRequest " + peerReq.Name + " Denied")
+		klog.Info("PeeringRequest " + peerReq.Name + " Denied")
 		return &v1beta1.AdmissionResponse{
 			Allowed: false,
 			Result: &metav1.Status{
@@ -87,7 +86,7 @@ func (whsvr *WebhookServer) serve(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	if len(body) == 0 {
-		whsvr.Log.Error(nil, "empty body")
+		klog.Error(nil, "empty body")
 		http.Error(w, "empty body", http.StatusBadRequest)
 		return
 	}
@@ -95,7 +94,7 @@ func (whsvr *WebhookServer) serve(w http.ResponseWriter, r *http.Request) {
 	// verify the content type is accurate
 	contentType := r.Header.Get("Content-Type")
 	if contentType != "application/json" {
-		whsvr.Log.Error(nil, "Content-Type="+contentType+", expect application/json")
+		klog.Error(nil, "Content-Type="+contentType+", expect application/json")
 		http.Error(w, "invalid Content-Type, expect `application/json`", http.StatusUnsupportedMediaType)
 		return
 	}
@@ -103,7 +102,7 @@ func (whsvr *WebhookServer) serve(w http.ResponseWriter, r *http.Request) {
 	var admissionResponse *v1beta1.AdmissionResponse
 	ar := v1beta1.AdmissionReview{}
 	if _, _, err := deserializer.Decode(body, nil, &ar); err != nil {
-		whsvr.Log.Error(err, "Can't decode body: "+err.Error())
+		klog.Error(err, "Can't decode body: "+err.Error())
 		admissionResponse = &v1beta1.AdmissionResponse{
 			Result: &metav1.Status{
 				Message: err.Error(),
@@ -128,11 +127,11 @@ func (whsvr *WebhookServer) serve(w http.ResponseWriter, r *http.Request) {
 
 	resp, err := json.Marshal(admissionReview)
 	if err != nil {
-		whsvr.Log.Error(err, "Can't encode response: "+err.Error())
+		klog.Error(err, "Can't encode response: "+err.Error())
 		http.Error(w, fmt.Sprintf("could not encode response: %v", err), http.StatusInternalServerError)
 	}
 	if _, err := w.Write(resp); err != nil {
-		whsvr.Log.Error(err, "Can't write response: "+err.Error())
+		klog.Error(err, "Can't write response: "+err.Error())
 		http.Error(w, fmt.Sprintf("could not write response: %v", err), http.StatusInternalServerError)
 	}
 }

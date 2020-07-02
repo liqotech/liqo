@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"github.com/grandcat/zeroconf"
+	"k8s.io/klog"
 	"math"
 	"net"
 	"os"
@@ -22,7 +23,7 @@ func (discovery *DiscoveryCtrl) StartResolver() {
 func (discovery *DiscoveryCtrl) Resolve(service string, domain string, waitTime int, testRes *[]*TxtData) {
 	resolver, err := zeroconf.NewResolver(zeroconf.SelectIPTraffic(zeroconf.IPv4))
 	if err != nil {
-		discovery.Log.Error(err, err.Error())
+		klog.Error(err, err.Error())
 		os.Exit(1)
 	}
 
@@ -47,7 +48,7 @@ func (discovery *DiscoveryCtrl) Resolve(service string, domain string, waitTime 
 
 	err = resolver.Browse(ctx, service, domain, entries)
 	if err != nil {
-		discovery.Log.Error(err, err.Error())
+		klog.Error(err, err.Error())
 		os.Exit(1)
 	}
 
@@ -60,13 +61,13 @@ func (discovery *DiscoveryCtrl) getTxts(results <-chan *zeroconf.ServiceEntry, o
 		if discovery.isForeign(entry.AddrIPv4) || !onlyForeign {
 			ip, err := getEntryIP(entry)
 			if err != nil {
-				discovery.Log.Error(err, err.Error())
+				klog.Error(err, err.Error())
 				continue
 			}
 			if txtData, err := Decode(ip, strconv.Itoa(entry.Port), entry.Text); err == nil {
 				res = append(res, txtData)
 			} else {
-				discovery.Log.Error(err, err.Error())
+				klog.Error(err, err.Error())
 			}
 		}
 	}
@@ -77,7 +78,7 @@ func (discovery *DiscoveryCtrl) getIPs() map[string]bool {
 	myIps := map[string]bool{}
 	ifaces, err := net.Interfaces()
 	if err != nil {
-		discovery.Log.Error(err, err.Error())
+		klog.Error(err, err.Error())
 		os.Exit(1)
 	}
 	for _, i := range ifaces {
@@ -101,7 +102,7 @@ func (discovery *DiscoveryCtrl) isForeign(foreignIps []net.IP) bool {
 		if myIps[fIp.String()] {
 			return false
 		}
-		discovery.Log.Info("Received packet from " + fIp.String())
+		klog.Info("Received packet from " + fIp.String())
 	}
 	return true
 }

@@ -13,6 +13,7 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
+	"k8s.io/klog"
 	"os"
 	"path/filepath"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -33,9 +34,8 @@ type Cluster struct {
 
 func getClientCluster() *Cluster {
 	cluster, mgr := getCluster()
-	cluster.clusterId = clusterID.GetNewClusterID("client-cluster", cluster.k8sClient, ctrl.Log)
+	cluster.clusterId = clusterID.GetNewClusterID("client-cluster", cluster.k8sClient)
 	cluster.fcReconciler = foreign_cluster_operator.GetFCReconciler(
-		ctrl.Log.WithName("controllers").WithName("ForeignCluster"),
 		mgr.GetScheme(),
 		"default",
 		cluster.k8sClient,
@@ -45,14 +45,14 @@ func getClientCluster() *Cluster {
 	)
 	err := cluster.fcReconciler.SetupWithManager(mgr)
 	if err != nil {
-		ctrl.Log.Error(err, err.Error())
+		klog.Error(err, err.Error())
 		os.Exit(1)
 	}
 
 	go func() {
 		err = mgr.Start(stopChan)
 		if err != nil {
-			ctrl.Log.Error(err, err.Error())
+			klog.Error(err, err.Error())
 			os.Exit(1)
 		}
 	}()
@@ -61,9 +61,8 @@ func getClientCluster() *Cluster {
 
 func getServerCluster() *Cluster {
 	cluster, mgr := getCluster()
-	cluster.clusterId = clusterID.GetNewClusterID("server-cluster", cluster.k8sClient, ctrl.Log)
+	cluster.clusterId = clusterID.GetNewClusterID("server-cluster", cluster.k8sClient)
 	cluster.prReconciler = peering_request_operator.GetPRReconciler(
-		ctrl.Log.WithName("controllers").WithName("PeeringRequest"),
 		mgr.GetScheme(),
 		cluster.k8sClient,
 		cluster.discoveryClient,
@@ -75,14 +74,14 @@ func getServerCluster() *Cluster {
 	)
 	err := cluster.prReconciler.SetupWithManager(mgr)
 	if err != nil {
-		ctrl.Log.Error(err, err.Error())
+		klog.Error(err, err.Error())
 		os.Exit(1)
 	}
 
 	go func() {
 		err = mgr.Start(stopChan)
 		if err != nil {
-			ctrl.Log.Error(err, err.Error())
+			klog.Error(err, err.Error())
 			os.Exit(1)
 		}
 	}()
@@ -102,7 +101,7 @@ func getCluster() (*Cluster, manager.Manager) {
 	var err error
 	cluster.cfg, err = cluster.env.Start()
 	if err != nil {
-		ctrl.Log.Error(err, err.Error())
+		klog.Error(err, err.Error())
 		os.Exit(1)
 	}
 
@@ -113,18 +112,18 @@ func getCluster() (*Cluster, manager.Manager) {
 
 	err = v1.AddToScheme(scheme.Scheme)
 	if err != nil {
-		ctrl.Log.Error(err, err.Error())
+		klog.Error(err, err.Error())
 		os.Exit(1)
 	}
 
 	cluster.k8sClient, err = kubernetes.NewForConfig(cluster.cfg)
 	if err != nil {
-		ctrl.Log.Error(err, err.Error())
+		klog.Error(err, err.Error())
 		os.Exit(1)
 	}
 	cluster.discoveryClient, err = discoveryv1.NewForConfig(cluster.cfg)
 	if err != nil {
-		ctrl.Log.Error(err, err.Error())
+		klog.Error(err, err.Error())
 		os.Exit(1)
 	}
 	k8sManager, err := ctrl.NewManager(cluster.cfg, ctrl.Options{
@@ -132,7 +131,7 @@ func getCluster() (*Cluster, manager.Manager) {
 		MetricsBindAddress: "0", // this avoids port binding collision
 	})
 	if err != nil {
-		ctrl.Log.Error(err, err.Error())
+		klog.Error(err, err.Error())
 		os.Exit(1)
 	}
 
@@ -147,7 +146,7 @@ func getCluster() (*Cluster, manager.Manager) {
 	}
 	_, err = cluster.k8sClient.CoreV1().Secrets("default").Create(secret)
 	if err != nil {
-		ctrl.Log.Error(err, err.Error())
+		klog.Error(err, err.Error())
 		os.Exit(1)
 	}
 
@@ -173,7 +172,7 @@ func getLiqoConfig(client *kubernetes.Clientset) {
 	}
 	_, err := client.CoreV1().ConfigMaps("default").Create(cm)
 	if err != nil {
-		ctrl.Log.Error(err, err.Error())
+		klog.Error(err, err.Error())
 		os.Exit(1)
 	}
 }

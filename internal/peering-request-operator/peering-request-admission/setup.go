@@ -4,9 +4,9 @@ import (
 	"crypto/tls"
 	"fmt"
 	"github.com/liqoTech/liqo/internal/discovery/clients"
+	"k8s.io/klog"
 	"net/http"
 	"os"
-	ctrl "sigs.k8s.io/controller-runtime"
 )
 
 func StartWebhook(certPath string, keyPath string, namespace string) *WebhookServer {
@@ -15,17 +15,15 @@ func StartWebhook(certPath string, keyPath string, namespace string) *WebhookSer
 }
 
 func startTls(certPath string, keyPath string, port int, namespace string) *WebhookServer {
-	log := ctrl.Log.WithName("peering-webhook-admission")
-
 	pair, err := tls.LoadX509KeyPair(certPath, keyPath)
 	if err != nil {
-		log.Error(err, err.Error())
+		klog.Error(err, err.Error())
 		os.Exit(1)
 	}
 
 	client, err := clients.NewK8sClient()
 	if err != nil {
-		log.Error(err, "unable to start manager")
+		klog.Error(err, "unable to start manager")
 		os.Exit(1)
 	}
 
@@ -35,7 +33,6 @@ func startTls(certPath string, keyPath string, port int, namespace string) *Webh
 			TLSConfig: &tls.Config{Certificates: []tls.Certificate{pair}},
 		},
 
-		Log:       log,
 		client:    client,
 		Namespace: namespace,
 	}
@@ -48,11 +45,11 @@ func startTls(certPath string, keyPath string, port int, namespace string) *Webh
 	// start webhook Server in new routine
 	go func() {
 		if err := whsvr.Server.ListenAndServeTLS(certPath, keyPath); err != nil {
-			whsvr.Log.Error(err, "Failed to listen and serve webhook Server: "+err.Error())
+			klog.Error(err, "Failed to listen and serve webhook Server: "+err.Error())
 		}
 	}()
 
-	whsvr.Log.Info("Server started")
+	klog.Info("Server started")
 
 	return whsvr
 }

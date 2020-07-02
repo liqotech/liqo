@@ -2,7 +2,6 @@ package clusterID
 
 import (
 	"errors"
-	"github.com/go-logr/logr"
 	"github.com/liqoTech/liqo/internal/discovery/clients"
 	"io/ioutil"
 	v1 "k8s.io/api/core/v1"
@@ -11,8 +10,8 @@ import (
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/cache"
+	"k8s.io/klog"
 	"os"
-	ctrl "sigs.k8s.io/controller-runtime"
 	"sort"
 	"strings"
 	"sync"
@@ -23,15 +22,13 @@ type ClusterID struct {
 	m  sync.RWMutex
 
 	client *kubernetes.Clientset
-	log    logr.Logger
 }
 
-func GetNewClusterID(id string, client *kubernetes.Clientset, log logr.Logger) *ClusterID {
+func GetNewClusterID(id string, client *kubernetes.Clientset) *ClusterID {
 	return &ClusterID{
 		id:     id,
 		m:      sync.RWMutex{},
 		client: client,
-		log:    log,
 	}
 }
 
@@ -42,19 +39,18 @@ func NewClusterID() (*ClusterID, error) {
 	}
 	clusterId := &ClusterID{
 		client: client,
-		log:    ctrl.Log.WithName("cluster-id"),
 	}
 
 	namespace, found := os.LookupEnv("POD_NAMESPACE")
 	if !found {
-		clusterId.log.Info("POD_NAMESPACE not set")
+		klog.Info("POD_NAMESPACE not set")
 		data, err := ioutil.ReadFile("/var/run/secrets/kubernetes.io/serviceaccount/namespace")
 		if err != nil {
-			clusterId.log.Error(err, "Unable to get namespace")
+			klog.Error(err, "Unable to get namespace")
 			os.Exit(1)
 		}
 		if namespace = strings.TrimSpace(string(data)); len(namespace) <= 0 {
-			clusterId.log.Error(err, "Unable to get namespace")
+			klog.Error(err, "Unable to get namespace")
 			os.Exit(1)
 		}
 	}
@@ -170,5 +166,5 @@ func (cId *ClusterID) clusterIdUpdated(obj interface{}) {
 		cId.m.RLocker().Unlock()
 	}
 	cId.m.RUnlock()
-	cId.log.Info("ClusterID: " + tmp)
+	klog.Info("ClusterID: " + tmp)
 }

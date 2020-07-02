@@ -18,7 +18,6 @@ package foreign_cluster_operator
 
 import (
 	"context"
-	"github.com/go-logr/logr"
 	discoveryv1 "github.com/liqoTech/liqo/api/discovery/v1"
 	"github.com/liqoTech/liqo/internal/discovery/kubeconfig"
 	"github.com/liqoTech/liqo/pkg/clusterID"
@@ -30,13 +29,13 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
+	"k8s.io/klog"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"time"
 )
 
 // ForeignClusterReconciler reconciles a ForeignCluster object
 type ForeignClusterReconciler struct {
-	Log    logr.Logger
 	Scheme *runtime.Scheme
 
 	Namespace       string
@@ -54,7 +53,6 @@ type ForeignClusterReconciler struct {
 
 func (r *ForeignClusterReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 	_ = context.Background()
-	_ = r.Log.WithValues("foreigncluster", req.NamespacedName)
 
 	fc, err := r.discoveryClient.ForeignClusters().Get(req.Name, metav1.GetOptions{})
 	if err != nil {
@@ -63,10 +61,10 @@ func (r *ForeignClusterReconciler) Reconcile(req ctrl.Request) (ctrl.Result, err
 	}
 
 	if fc.Status.CaDataRef == nil {
-		r.Log.Info("Get CA Data")
+		klog.Info("Get CA Data")
 		err = fc.LoadForeignCA(r.client, r.Namespace, r.ForeignConfig)
 		if err != nil {
-			r.Log.Error(err, err.Error())
+			klog.Error(err, err.Error())
 			return ctrl.Result{
 				Requeue:      true,
 				RequeueAfter: r.RequeueAfter,
@@ -74,7 +72,7 @@ func (r *ForeignClusterReconciler) Reconcile(req ctrl.Request) (ctrl.Result, err
 		}
 		_, err = r.discoveryClient.ForeignClusters().Update(fc, metav1.UpdateOptions{})
 		if err != nil {
-			r.Log.Error(err, err.Error())
+			klog.Error(err, err.Error())
 			return ctrl.Result{
 				Requeue:      true,
 				RequeueAfter: r.RequeueAfter,
@@ -88,7 +86,7 @@ func (r *ForeignClusterReconciler) Reconcile(req ctrl.Request) (ctrl.Result, err
 
 	foreignConfig, err := fc.GetConfig(r.client)
 	if err != nil {
-		r.Log.Error(err, err.Error())
+		klog.Error(err, err.Error())
 		return ctrl.Result{
 			Requeue:      true,
 			RequeueAfter: r.RequeueAfter,
@@ -96,7 +94,7 @@ func (r *ForeignClusterReconciler) Reconcile(req ctrl.Request) (ctrl.Result, err
 	}
 	foreignK8sClient, err := kubernetes.NewForConfig(foreignConfig)
 	if err != nil {
-		r.Log.Error(err, err.Error())
+		klog.Error(err, err.Error())
 		return ctrl.Result{
 			Requeue:      true,
 			RequeueAfter: r.RequeueAfter,
@@ -104,7 +102,7 @@ func (r *ForeignClusterReconciler) Reconcile(req ctrl.Request) (ctrl.Result, err
 	}
 	foreignDiscoveryClient, err := v1.NewForConfig(foreignConfig)
 	if err != nil {
-		r.Log.Error(err, err.Error())
+		klog.Error(err, err.Error())
 		return ctrl.Result{
 			Requeue:      true,
 			RequeueAfter: r.RequeueAfter,
@@ -119,7 +117,7 @@ func (r *ForeignClusterReconciler) Reconcile(req ctrl.Request) (ctrl.Result, err
 		// create PeeringRequest
 		pr, err := r.createPeeringRequestIfNotExists(req.Name, fc, foreignDiscoveryClient, foreignK8sClient)
 		if err != nil {
-			r.Log.Error(err, err.Error())
+			klog.Error(err, err.Error())
 			return ctrl.Result{
 				Requeue:      true,
 				RequeueAfter: r.RequeueAfter,
@@ -136,7 +134,7 @@ func (r *ForeignClusterReconciler) Reconcile(req ctrl.Request) (ctrl.Result, err
 		// peering request has to be removed
 		err := r.deletePeeringRequest(foreignDiscoveryClient, fc)
 		if err != nil {
-			r.Log.Error(err, err.Error())
+			klog.Error(err, err.Error())
 			return ctrl.Result{
 				Requeue:      true,
 				RequeueAfter: r.RequeueAfter,
@@ -150,7 +148,7 @@ func (r *ForeignClusterReconciler) Reconcile(req ctrl.Request) (ctrl.Result, err
 	if requireUpdate {
 		_, err = r.discoveryClient.ForeignClusters().Update(fc, metav1.UpdateOptions{})
 		if err != nil {
-			r.Log.Error(err, err.Error())
+			klog.Error(err, err.Error())
 			return ctrl.Result{
 				Requeue:      true,
 				RequeueAfter: r.RequeueAfter,
@@ -166,7 +164,7 @@ func (r *ForeignClusterReconciler) Reconcile(req ctrl.Request) (ctrl.Result, err
 	if fc.Spec.Join && fc.Status.Joined {
 		_, err = r.checkJoined(fc, foreignDiscoveryClient)
 		if err != nil {
-			r.Log.Error(err, err.Error())
+			klog.Error(err, err.Error())
 			return ctrl.Result{
 				Requeue:      true,
 				RequeueAfter: r.RequeueAfter,

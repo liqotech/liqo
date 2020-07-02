@@ -3,6 +3,7 @@ package discovery
 import (
 	apiv1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/klog"
 	"os"
 )
 
@@ -19,15 +20,15 @@ func (discovery *DiscoveryCtrl) SetupCaData() {
 		FieldSelector: "type=kubernetes.io/service-account-token",
 	})
 	if err != nil {
-		discovery.Log.Error(err, err.Error())
+		klog.Error(err, err.Error())
 		os.Exit(1)
 	}
 	if len(secrets.Items) == 0 {
-		discovery.Log.Error(nil, "No service account found, I can't get CaData")
+		klog.Error(nil, "No service account found, I can't get CaData")
 		os.Exit(1)
 	}
 	if secrets.Items[0].Data["ca.crt"] == nil {
-		discovery.Log.Error(nil, "Cannot get CaData from secret")
+		klog.Error(nil, "Cannot get CaData from secret")
 		os.Exit(1)
 	}
 
@@ -41,7 +42,7 @@ func (discovery *DiscoveryCtrl) SetupCaData() {
 	}
 	_, err = discovery.client.CoreV1().Secrets(discovery.Namespace).Create(secret)
 	if err != nil {
-		discovery.Log.Error(err, err.Error())
+		klog.Error(err, err.Error())
 		os.Exit(1)
 	}
 }
