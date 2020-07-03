@@ -1,7 +1,7 @@
-name: Go
+name: Integration Pipeline
 on: [push]
 jobs:
-   build:
+  build:
     runs-on: ubuntu-20.04
     strategy:
       fail-fast: false
@@ -43,9 +43,31 @@ jobs:
           password: ${{ secrets.DOCKER_PASSWORD }}
           tags: "${{ github.sha }}"
         if: github.ref != 'refs/heads/master'
-   release:
+  dispatch-event:
+     runs-on: ubuntu-latest
+     needs: [ build ]
+     steps:
+       - uses: actions/checkout@v2
+       - name: "Make scripts executable"
+         run: chmod +x ./scripts/utils/*
+       - name: "Set PR number"
+         run: echo "::set-env name=PR_number::`echo $GITHUB_REF | cut -f 3 -d /`"
+       - name: "Install python dependencies"
+         run: pip install requests
+       - name: "Set branch owner"
+         run: echo "::set-env name=branch_owner::`./scripts/utils/get_branch_owner.py $PR_number`"
+       - name: "Set branch name"
+         run: echo "::set-env name=branch_name::`echo ${{github.head_ref}}`"
+       - name: "Notify PR Event to Liqops"
+         run: |
+           curl -X POST https://api.github.com/repos/LiqoTech/liqops/dispatches \
+           -H 'Accept: application/vnd.github.everest-preview+json' \
+           -u ${{ secrets.CI_TOKEN }} \
+           --data '{"event_type": "dev-event", "client_payload": { "actor": "'"$branch_owner"'", "ref": "'"$branch_name"'", "commit":"${{ github.sha }}" }}'
+         if: github.ref != 'refs/heads/master'
+  release:
     runs-on: ubuntu-latest
-    needs: build
+    needs: [build, test]
     steps:
       - uses: 8398a7/action-slack@v2
         with:
@@ -55,7 +77,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.CI_TOKEN }} # required
           SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK }} # required
         if: always() && github.ref == 'refs/heads/master' # Pick up events even if the job fails or is canceled.
-   test:
+  test:
     name: Test Launch
     runs-on: ubuntu-20.04
     steps:
@@ -84,11 +106,4 @@ jobs:
       uses: shogo82148/actions-goveralls@v1
       with:
         path-to-profile: coverage.txt
-    - uses: 8398a7/action-slack@v2
-      with:
-        status: ${{ job.status }}
-        author_name: Integration Test # default: 8398a7@action-slack
-      env:
-        GITHUB_TOKEN: ${{ secrets.CI_TOKEN }} # required
-        SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK }} # required
-      if: always() && github.ref == 'refs/heads/master' # Pick up events even if the job fails or is canceled.
+
