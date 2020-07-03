@@ -43,28 +43,25 @@ jobs:
           password: ${{ secrets.DOCKER_PASSWORD }}
           tags: "${{ github.sha }}"
         if: github.ref != 'refs/heads/master'
-  dispatch-event:
+  e2e-test-trigger:
      runs-on: ubuntu-latest
-     needs: [ build ]
+#     needs: [ build ]
      steps:
        - uses: actions/checkout@v2
        - name: "Make scripts executable"
          run: chmod +x ./scripts/utils/*
        - name: "Set PR number"
-         run: echo "::set-env name=PR_number::`echo $GITHUB_REF | cut -f 3 -d /`"
+         run: echo "::set-env name=branch_owner::`git log -1 --format='%ae' $GITHUB_SHA^!`"
        - name: "Install python dependencies"
          run: pip install requests
-       - name: "Set branch owner"
-         run: echo "::set-env name=branch_owner::`./scripts/utils/get_branch_owner.py $PR_number`"
        - name: "Set branch name"
-         run: echo "::set-env name=branch_name::`echo ${{github.head_ref}}`"
+         run: echo "::set-env name=branch_name::`echo ${GITHUB_REF#refs/*/}`"
        - name: "Notify PR Event to Liqops"
          run: |
            curl -X POST https://api.github.com/repos/LiqoTech/liqops/dispatches \
            -H 'Accept: application/vnd.github.everest-preview+json' \
            -u ${{ secrets.CI_TOKEN }} \
-           --data '{"event_type": "dev-event", "client_payload": { "actor": "'"$branch_owner"'", "ref": "'"$branch_name"'", "commit":"${{ github.sha }}" }}'
-         if: github.ref != 'refs/heads/master'
+           --data '{"event_type": "dev-event", "client_payload": { "actor": "${{ env.branch_owner }}", "ref": "${{ env.branch_name }}", "commit":"${{ github.sha }}" }}'
   release:
     runs-on: ubuntu-latest
     needs: [build, test]
