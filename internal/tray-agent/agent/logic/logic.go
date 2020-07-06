@@ -21,15 +21,20 @@ func actionShowAdv() {
 				return
 			}
 			i.SelectAction(aShowAdv)
+			i.SetIcon(app.IconLiqoMain)
 			// exec ACTION
-			for _, obj := range advCache.Store.List() {
-				adv := obj.(*advtypes.Advertisement)
-				element := act.UseListChild()
-				element.SetTitle(client.DescribeAdvertisement(adv))
+			if !ctrl.Mocked() {
+				for _, obj := range advCache.Store.List() {
+					adv := obj.(*advtypes.Advertisement)
+					element := act.UseListChild()
+					element.SetTitle(client.DescribeAdvertisement(adv))
+				}
 			}
 		} else {
 			i.NotifyNoConnection()
 		}
+	} else {
+		i.NotifyNoConnection()
 	}
 
 }
@@ -39,8 +44,7 @@ func actionShowAdv() {
 // callback function for the ACTION "settings" that displays the settings submenu.
 func actionSettings() {
 	i := app.GetIndicator()
-	_, pres := i.Action(aSettings)
-	if !pres {
+	if _, pres := i.Action(aSettings); !pres {
 		return
 	}
 	i.SelectAction(aSettings)
@@ -49,15 +53,13 @@ func actionSettings() {
 // callback function for the OPTION "notifications" of "settings" action.
 func optionChangeNotifyLevel() {
 	i := app.GetIndicator()
-	str := make([]string, 0)
-	nt := i.Config().NotifyTranslate()
-	for _, v := range nt {
-		str = append(str, v)
-	}
-	level, ok, _ := dlgs.List("NOTIFICATION SETTINGS", fmt.Sprintf("Choose how you would like to receive "+
-		"notifications from Liqo.\n"+
-		"CURRENT: %s", nt[i.Config().NotifyLevel()]), str)
-	if ok {
-		i.NotificationSetLevel(i.Config().NotifyTranslateReverse()[level])
+	if !app.GetGuiProvider().Mocked() {
+		notifyDescription := i.Config().NotifyDescriptions()
+		level, ok, _ := dlgs.List("NOTIFICATION SETTINGS", fmt.Sprintf("Choose how you would like to receive "+
+			"notifications from Liqo.\n"+
+			"CURRENT: %s", i.Config().NotifyTranslate(i.Config().NotifyLevel())), notifyDescription)
+		if ok {
+			i.NotificationSetLevel(i.Config().NotifyTranslateReverse(level))
+		}
 	}
 }

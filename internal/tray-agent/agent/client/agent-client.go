@@ -1,34 +1,67 @@
 package client
 
 import (
+	"errors"
 	"flag"
 	"github.com/gen2brain/dlgs"
 	"github.com/liqoTech/liqo/api/advertisement-operator/v1"
-	"github.com/liqoTech/liqo/pkg/crdClient/v1alpha1"
+	"github.com/liqoTech/liqo/pkg/crdClient"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
 	"os"
 	"path/filepath"
+	"sync"
 )
 
-// AgentController singleton.
+//AgentController singleton.
 var agentCtrl *AgentController
+
+//mockedController controls if the AgentController has to be mocked.
+var mockedController bool
+
+//mockOnce prevents mockedController to be modified at runtime.
+var mockOnce sync.Once
+
+//UseMockedAgentController enables a mocked AgentController that does not interacts
+//with the kubernetes cluster.
+//
+//Function MUST be called before GetAgentController in order to be effective.
+func UseMockedAgentController() {
+	mockOnce.Do(func() {
+		mockedController = true
+	})
+}
+
+//DestroyMockedAgentController destroys the AgentController singleton for
+//testing purposes. It works only after calling UseMockedAgentController().
+func DestroyMockedAgentController() {
+	if mockedController {
+		agentCtrl = nil
+	}
+}
 
 //AgentController is the data structure that manages Tray Agent interaction with the cluster.
 type AgentController struct {
-	client    *v1alpha1.CRDClient
+	client    *crdClient.CRDClient
 	valid     bool
 	connected bool
 	advCache  *AdvertisementCache
+	mocked    bool
+}
+
+//Mocked returns if the AgentController is mocked (true).
+func (ctrl *AgentController) Mocked() bool {
+	return ctrl.mocked
 }
 
 //Client returns the controller Client used for cluster interaction.
-func (ctrl *AgentController) Client() *v1alpha1.CRDClient {
+func (ctrl *AgentController) Client() *crdClient.CRDClient {
 	return ctrl.client
 }
 
-//Connected returns whether the controller client is actually connected to the cluster.
+//Connected returns if the controller client is actually connected to the cluster.
 func (ctrl *AgentController) Connected() bool {
 	return ctrl.connected
 }
@@ -39,7 +72,7 @@ func (ctrl *AgentController) AdvCache() *AdvertisementCache {
 }
 
 //createClient returns a client for the Tray Agent that can operate on some Liqo CRD.
-func createClient() (*v1alpha1.CRDClient, error) {
+func createClient() (*crdClient.CRDClient, error) {
 	var config *rest.Config
 	var err error
 
@@ -56,11 +89,11 @@ func createClient() (*v1alpha1.CRDClient, error) {
 	if _, err := os.Stat(kubePath); os.IsNotExist(err) {
 		return nil, err
 	}
-	config, err = v1alpha1.NewKubeconfig(kubePath, &v1.GroupVersion)
+	config, err = crdClient.NewKubeconfig(kubePath, &v1.GroupVersion)
 	if err != nil {
 		return nil, err
 	}
-	clientSet, err := v1alpha1.NewFromConfig(config)
+	clientSet, err := crdClient.NewFromConfig(config)
 	if err != nil {
 		return nil, err
 	}
@@ -69,7 +102,7 @@ func createClient() (*v1alpha1.CRDClient, error) {
 
 //StartCaches starts all the CR caches of the AgentController.
 func (ctrl *AgentController) StartCaches() {
-	ctrl.advCache.StartCache(ctrl.client)
+	_ = ctrl.advCache.StartCache(ctrl.client)
 }
 
 //StopCaches stops all the CR caches running for the AgentController.
@@ -81,21 +114,38 @@ func (ctrl *AgentController) StopCaches() {
 func GetAgentController() *AgentController {
 	if agentCtrl == nil {
 		agentCtrl = &AgentController{}
+		agentCtrl.mocked = mockedController
 		agentCtrl.advCache = createAdvCache()
-		v1alpha1.AddToRegistry("advertisements", &v1.Advertisement{}, &v1.AdvertisementList{})
-		var err error
-		if c := AcquireKubeconfig(); c {
-			if agentCtrl.client, err = createClient(); err == nil {
-				agentCtrl.valid = true
-				if test := agentCtrl.ConnectionTest(); test {
-					agentCtrl.StartCaches()
+		crdClient.AddToRegistry("advertisements", &v1.Advertisement{}, &v1.AdvertisementList{}, advertisementKeyer, v1.GroupResource)
+		if !mockedController {
+			var err error
+			if c := AcquireKubeconfig(); c {
+				if agentCtrl.client, err = createClient(); err == nil {
+					agentCtrl.valid = true
+					if test := agentCtrl.ConnectionTest(); test {
+						agentCtrl.StartCaches()
+					}
 				}
 			}
+		} else {
+			agentCtrl.valid = true
+			agentCtrl.connected = true
+			agentCtrl.StartCaches()
 		}
 	}
 	return agentCtrl
 }
 
+// key extractor for the Advertisement CRD
+func advertisementKeyer(obj runtime.Object) (string, error) {
+	adv, ok := obj.(*v1.Advertisement)
+	if !ok {
+		return "", errors.New("cannot cast received object to Advertisement")
+	}
+	return adv.Name, nil
+}
+
+//ConnectionTest tests if the AgentController can connect to the cluster.
 func (ctrl *AgentController) ConnectionTest() bool {
 	if !ctrl.valid {
 		return false
@@ -131,7 +181,9 @@ func AcquireKubeconfig() bool {
 		if ok {
 			path, selected, _ := dlgs.File("Select file", "", false)
 			if selected {
-				os.Setenv("LIQO_KCONFIG", path)
+				if err = os.Setenv("LIQO_KCONFIG", path); err != nil {
+					panic(err)
+				}
 				return true
 			}
 		}
