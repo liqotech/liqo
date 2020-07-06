@@ -1,7 +1,6 @@
 package advertisement_operator
 
 import (
-	"context"
 	protocolv1 "github.com/liqoTech/liqo/api/advertisement-operator/v1"
 	policyv1 "github.com/liqoTech/liqo/api/cluster-config/v1"
 	"github.com/liqoTech/liqo/pkg/clusterConfig"
@@ -56,7 +55,7 @@ func (r *AdvertisementReconciler) ManageConfigUpdate(configuration *policyv1.Clu
 			for i := 0; i < int(r.AcceptedAdvNum-r.ClusterConfig.MaxAcceptableAdvertisement); i++ {
 				adv := advList.Items[i]
 				if adv.Status.AdvertisementStatus == "ACCEPTED" {
-					err := r.Client.Delete(context.Background(), &adv)
+					err := r.AdvClient.Resource("advertisements").Delete(adv.Name, metav1.DeleteOptions{})
 					if err != nil {
 						klog.Errorln(err, "Unable to apply configuration: error deleting Advertisement "+adv.Name)
 						return err, updateFlag

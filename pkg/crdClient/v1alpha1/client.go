@@ -2,6 +2,7 @@ package v1alpha1
 
 import (
 	"github.com/pkg/errors"
+	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/kubernetes"
 	clientsetFake "k8s.io/client-go/kubernetes/fake"
@@ -9,6 +10,7 @@ import (
 	"k8s.io/client-go/rest"
 	restFake "k8s.io/client-go/rest/fake"
 	"k8s.io/client-go/tools/clientcmd"
+	clientcmdapi "k8s.io/client-go/tools/clientcmd/api"
 	"os"
 )
 
@@ -42,6 +44,30 @@ func NewKubeconfig(configPath string, gv *schema.GroupVersion) (*rest.Config, er
 			if err != nil {
 				return nil, errors.Wrap(err, "error building in cluster config")
 			}
+		}
+	} else {
+		config.ContentConfig = rest.ContentConfig{ContentType: "application/json"}
+	}
+
+	config.ContentConfig.GroupVersion = gv
+	config.APIPath = "/apis"
+	config.NegotiatedSerializer = scheme.Codecs.WithoutConversion()
+	config.UserAgent = rest.DefaultKubernetesUserAgent()
+
+	return config, nil
+}
+
+func NewKubeconfigFromSecret(secret *v1.Secret, gv *schema.GroupVersion) (*rest.Config, error) {
+	var err error
+	config := &rest.Config{}
+
+	if !Fake {
+		// Check if the kubeConfig file exists.
+		config, err = clientcmd.BuildConfigFromKubeconfigGetter("", func() (*clientcmdapi.Config, error) {
+			return clientcmd.Load(secret.Data["kubeconfig"])
+		})
+		if err != nil {
+			return nil, err
 		}
 	} else {
 		config.ContentConfig = rest.ContentConfig{ContentType: "application/json"}

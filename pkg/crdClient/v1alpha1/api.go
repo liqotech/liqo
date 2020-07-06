@@ -17,6 +17,7 @@ type CrdClientInterface interface {
 	Create(obj runtime.Object, opts metav1.CreateOptions) (runtime.Object, error)
 	Watch(opts metav1.ListOptions) (watch.Interface, error)
 	Update(name string, obj runtime.Object, opts metav1.UpdateOptions) (runtime.Object, error)
+	UpdateStatus(name string, obj runtime.Object, opts metav1.UpdateOptions) (runtime.Object, error)
 	Delete(name string, opts metav1.DeleteOptions) error
 }
 
@@ -141,6 +142,27 @@ func (c *Client) Update(name string, obj runtime.Object, opts metav1.UpdateOptio
 		VersionedParams(&opts, scheme.ParameterCodec).
 		NamespaceIfScoped(c.ns, namespaced).
 		Name(name).
+		Body(obj).
+		Do().
+		Into(result.(runtime.Object))
+
+	return result.(runtime.Object), err
+}
+
+func (c *Client) UpdateStatus(name string, obj runtime.Object, opts metav1.UpdateOptions) (runtime.Object, error) {
+	result := reflect.New(c.resource.SingularType).Interface()
+
+	var namespaced bool
+	if c.ns != "" {
+		namespaced = true
+	}
+
+	err := c.Client.Put().
+		Resource(c.api).
+		VersionedParams(&opts, scheme.ParameterCodec).
+		NamespaceIfScoped(c.ns, namespaced).
+		Name(name).
+		SubResource("status").
 		Body(obj).
 		Do().
 		Into(result.(runtime.Object))
