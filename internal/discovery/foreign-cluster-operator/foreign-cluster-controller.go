@@ -20,6 +20,7 @@ import (
 	"context"
 	goerrors "errors"
 	discoveryv1 "github.com/liqoTech/liqo/api/discovery/v1"
+	"github.com/liqoTech/liqo/internal/discovery"
 	"github.com/liqoTech/liqo/internal/discovery/kubeconfig"
 	"github.com/liqoTech/liqo/pkg/clusterID"
 	"github.com/liqoTech/liqo/pkg/crdClient"
@@ -42,6 +43,8 @@ type ForeignClusterReconciler struct {
 	crdClient    *crdClient.CRDClient
 	clusterID    *clusterID.ClusterID
 	RequeueAfter time.Duration
+
+	DiscoveryCtrl *discovery.DiscoveryCtrl
 
 	// testing
 	ForeignConfig *rest.Config

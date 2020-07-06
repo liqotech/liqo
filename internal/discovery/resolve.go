@@ -33,7 +33,7 @@ func (discovery *DiscoveryCtrl) Resolve(service string, domain string, waitTime 
 			*testRes = discovery.getTxts(results, false)
 		} else {
 			res := discovery.getTxts(results, true)
-			discovery.UpdateForeign(res)
+			discovery.UpdateForeign(res, nil)
 		}
 	}(entries)
 

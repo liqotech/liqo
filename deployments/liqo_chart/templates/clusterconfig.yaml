@@ -12,10 +12,11 @@ spec:
   discoveryConfig:
     autojoin: true
     domain: local.
-    enableAdvertisement: true
-    enableDiscovery: true
+    enableAdvertisement: false
+    enableDiscovery: false
     name: MyLiqo
     port: 6443
     service: _liqo._tcp
     updateTime: 3
     waitTime: 2
+    dnsServer: '8.8.8.8:53'

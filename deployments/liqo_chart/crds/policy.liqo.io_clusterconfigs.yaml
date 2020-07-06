@@ -56,6 +56,8 @@ spec:
               properties:
                 autojoin:
                   type: boolean
+                dnsServer:
+                  type: string
                 domain:
                   type: string
                 enableAdvertisement:
@@ -78,6 +80,7 @@ spec:
                   type: integer
               required:
                 - autojoin
+                - dnsServer
                 - domain
                 - enableAdvertisement
                 - enableDiscovery

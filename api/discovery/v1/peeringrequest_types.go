@@ -21,6 +21,7 @@ import (
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/client-go/kubernetes/scheme"
 )
 
 // EDIT THIS FILE!  THIS IS SCAFFOLDING FOR YOU TO OWN!
@@ -66,6 +67,9 @@ type PeeringRequestList struct {
 func init() {
 	SchemeBuilder.Register(&PeeringRequest{}, &PeeringRequestList{})
 
+	if err := AddToScheme(scheme.Scheme); err != nil {
+		panic(err)
+	}
 	crdClient.AddToRegistry("peeringrequests", &PeeringRequest{}, &PeeringRequestList{}, nil, schema.GroupResource{
 		Group:    v1.SchemeGroupVersion.Group,
 		Resource: "peeringrequests",

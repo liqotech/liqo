@@ -2,6 +2,7 @@ package foreign_cluster_operator
 
 import (
 	discoveryv1 "github.com/liqoTech/liqo/api/discovery/v1"
+	"github.com/liqoTech/liqo/internal/discovery"
 	"github.com/liqoTech/liqo/pkg/clusterID"
 	"github.com/liqoTech/liqo/pkg/crdClient"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -24,7 +25,7 @@ func init() {
 	// +kubebuilder:scaffold:scheme
 }
 
-func StartOperator(namespace string, requeueAfter time.Duration) {
+func StartOperator(namespace string, requeueAfter time.Duration, discoveryCtrl *discovery.DiscoveryCtrl) {
 	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
 		Scheme:           scheme,
 		Port:             9443,
@@ -58,6 +59,7 @@ func StartOperator(namespace string, requeueAfter time.Duration) {
 		crdClient,
 		clusterId,
 		requeueAfter,
+		discoveryCtrl,
 	)).SetupWithManager(mgr); err != nil {
 		klog.Error(err, "unable to create controller", "controller", "ForeignCluster")
 		os.Exit(1)
@@ -70,7 +72,7 @@ func StartOperator(namespace string, requeueAfter time.Duration) {
 	}
 }
 
-func GetFCReconciler(scheme *runtime.Scheme, namespace string, crdClient *crdClient.CRDClient, clusterId *clusterID.ClusterID, requeueAfter time.Duration) *ForeignClusterReconciler {
+func GetFCReconciler(scheme *runtime.Scheme, namespace string, crdClient *crdClient.CRDClient, clusterId *clusterID.ClusterID, requeueAfter time.Duration, discoveryCtrl *discovery.DiscoveryCtrl) *ForeignClusterReconciler {
 	return &ForeignClusterReconciler{
 		Scheme:        scheme,
 		Namespace:     namespace,
@@ -78,5 +80,6 @@ func GetFCReconciler(scheme *runtime.Scheme, namespace string, crdClient *crdCli
 		clusterID:     clusterId,
 		ForeignConfig: nil,
 		RequeueAfter:  requeueAfter,
+		DiscoveryCtrl: discoveryCtrl,
 	}
 }
