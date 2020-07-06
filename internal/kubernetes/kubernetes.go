@@ -54,7 +54,7 @@ func NewKubernetesProvider(nodeName, clusterId, homeClusterId, operatingSystem s
 		return nil, err
 	}
 
-	advClient, err := protocolv1.CreateAdvertisementClient(kubeconfig)
+	advClient, err := protocolv1.CreateAdvertisementClient(kubeconfig, nil)
 	if err != nil {
 		return nil, err
 	}

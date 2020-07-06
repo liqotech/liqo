@@ -103,7 +103,7 @@ func main() {
 	go csrApprover.WatchCSR(clientset, "virtual-kubelet=true")
 
 	// get the number of already accepted advertisements
-	advClient, err := protocolv1.CreateAdvertisementClient(localKubeconfig)
+	advClient, err := protocolv1.CreateAdvertisementClient(localKubeconfig, nil)
 	if err != nil {
 		klog.Errorln(err, "unable to create local client for Advertisement")
 		os.Exit(1)

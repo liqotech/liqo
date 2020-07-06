@@ -14,6 +14,8 @@ spec:
     listKind: AdvertisementList
     plural: advertisements
     singular: advertisement
+    shortNames:
+      - adv
   scope: Cluster
   subresources:
     status: {}
