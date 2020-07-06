@@ -1,0 +1,7 @@
+apiVersion: discovery.liqo.io/v1
+kind: SearchDomain
+metadata:
+  name: test.liqo.io
+spec:
+  domain: test.liqo.io
+  autojoin: false

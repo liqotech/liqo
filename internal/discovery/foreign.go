@@ -7,23 +7,30 @@ import (
 	"k8s.io/klog"
 )
 
-func (discovery *DiscoveryCtrl) UpdateForeign(data []*TxtData) {
+func (discovery *DiscoveryCtrl) UpdateForeign(data []*TxtData, sd *v1.SearchDomain) []*v1.ForeignCluster {
+	createdForeign := []*v1.ForeignCluster{}
 	for _, txtData := range data {
+		if txtData.ID == discovery.ClusterId.GetClusterID() {
+			// is local cluster
+			continue
+		}
 		_, err := discovery.crdClient.Resource("foreignclusters").Get(txtData.ID, metav1.GetOptions{})
 		if err == nil {
 			// already exists
 			continue
 		}
-		_, err = discovery.createForeign(txtData)
+		fc, err := discovery.createForeign(txtData, sd)
 		if err != nil {
 			klog.Error(err, err.Error())
 			continue
 		}
 		klog.Info("ForeignCluster " + txtData.ID + " created")
+		createdForeign = append(createdForeign, fc)
 	}
+	return createdForeign
 }
 
-func (discovery *DiscoveryCtrl) createForeign(txtData *TxtData) (*v1.ForeignCluster, error) {
+func (discovery *DiscoveryCtrl) createForeign(txtData *TxtData, sd *v1.SearchDomain) (*v1.ForeignCluster, error) {
 	fc := &v1.ForeignCluster{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: txtData.ID,
@@ -34,6 +41,17 @@ func (discovery *DiscoveryCtrl) createForeign(txtData *TxtData) (*v1.ForeignClus
 			Join:      discovery.Config.AutoJoin,
 			ApiUrl:    txtData.ApiUrl,
 		},
+	}
+	if sd != nil {
+		fc.Spec.Join = sd.Spec.AutoJoin
+		fc.ObjectMeta.OwnerReferences = []metav1.OwnerReference{
+			{
+				APIVersion: "discovery.liqo.io/v1",
+				Kind:       "SearchDomain",
+				Name:       sd.Name,
+				UID:        sd.UID,
+			},
+		}
 	}
 	tmp, err := discovery.crdClient.Resource("foreignclusters").Create(fc, metav1.CreateOptions{})
 	if err != nil {

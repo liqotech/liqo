@@ -17,7 +17,7 @@ limitations under the License.
 package v1
 
 import (
-	"github.com/liqoTech/liqo/pkg/crdClient"
+	"github.com/liqoTech/liqo/pkg/crdClient/v1alpha1"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -27,56 +27,52 @@ import (
 // EDIT THIS FILE!  THIS IS SCAFFOLDING FOR YOU TO OWN!
 // NOTE: json tags are required.  Any new fields you add must have json tags for the fields to be serialized.
 
-// ForeignClusterSpec defines the desired state of ForeignCluster
-type ForeignClusterSpec struct {
+// SearchDomainSpec defines the desired state of SearchDomain
+type SearchDomainSpec struct {
 	// INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
 	// Important: Run "make" to regenerate code after modifying this file
 
-	ClusterID string `json:"clusterID"`
-	Namespace string `json:"namespace"`
-	Join      bool   `json:"join"`
-	ApiUrl    string `json:"apiUrl"`
+	Domain   string `json:"domain"`
+	AutoJoin bool   `json:"autojoin"`
 }
 
-// ForeignClusterStatus defines the observed state of ForeignCluster
-type ForeignClusterStatus struct {
+// SearchDomainStatus defines the observed state of SearchDomain
+type SearchDomainStatus struct {
 	// INSERT ADDITIONAL STATUS FIELD - define observed state of cluster
 	// Important: Run "make" to regenerate code after modifying this file
 
-	Joined             bool                `json:"joined"`
-	PeeringRequestName string              `json:"peering-request-name"`
-	CaDataRef          *v1.ObjectReference `json:"caDataRef,omitempty"`
+	ForeignClusters []v1.ObjectReference `json:"foreignClusters"`
 }
 
 // +kubebuilder:object:root=true
 // +kubebuilder:resource:scope=Cluster
 
-// ForeignCluster is the Schema for the foreignclusters API
-type ForeignCluster struct {
+// SearchDomain is the Schema for the SearchDomains API
+type SearchDomain struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
-	Spec   ForeignClusterSpec   `json:"spec,omitempty"`
-	Status ForeignClusterStatus `json:"status,omitempty"`
+	Spec   SearchDomainSpec   `json:"spec,omitempty"`
+	Status SearchDomainStatus `json:"status,omitempty"`
 }
 
 // +kubebuilder:object:root=true
 
-// ForeignClusterList contains a list of ForeignCluster
-type ForeignClusterList struct {
+// SearchDomainList contains a list of SearchDomain
+type SearchDomainList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`
-	Items           []ForeignCluster `json:"items"`
+	Items           []SearchDomain `json:"items"`
 }
 
 func init() {
-	SchemeBuilder.Register(&ForeignCluster{}, &ForeignClusterList{})
+	SchemeBuilder.Register(&SearchDomain{}, &SearchDomainList{})
 
 	if err := AddToScheme(scheme.Scheme); err != nil {
 		panic(err)
 	}
-	crdClient.AddToRegistry("foreignclusters", &ForeignCluster{}, &ForeignClusterList{}, nil, schema.GroupResource{
-		Group:    GroupVersion.Group,
-		Resource: "foreignclusters",
+	v1alpha1.AddToRegistry("searchdomains", &SearchDomain{}, &SearchDomainList{}, nil, schema.GroupResource{
+		Group:    v1.SchemeGroupVersion.Group,
+		Resource: "searchdomains",
 	})
 }

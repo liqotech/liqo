@@ -1,17 +1,15 @@
 apiVersion: apiextensions.k8s.io/v1beta1
 kind: CustomResourceDefinition
 metadata:
-  name: foreignclusters.discovery.liqo.io
+  name: searchdomains.discovery.liqo.io
 spec:
   group: discovery.liqo.io
   names:
-    kind: ForeignCluster
-    singular: foreigncluster
-    plural: foreignclusters
+    kind: SearchDomain
+    singular: searchdomain
+    plural: searchdomains
     shortNames:
-      - fc
-      - foreign
-      - foreign-cluster
+      - sd
   scope: Cluster
   versions:
     - name: v1
@@ -34,25 +32,17 @@ spec:
           type: object
         spec:
           properties:
-            clusterID:
+            domain:
               type: string
-              description: Foreign Cluster ID
-            namespace:
-              type: string
-              description: Namespace where Liqo is deployed
-            join:
+              description: DNS domain where to search for subscribed remote clusters
+            autojoin:
               type: boolean
-              description: Enable join process to foreign cluster
-            apiUrl:
-              type: string
-              description: URL where to contact foreign API server
+              description: Enable join process for retrieved clusters
           required:
-            - join
+            - domain
+            - autojoin
         status:
           properties:
-            joined:
-              type: boolean
-              description: Indicates if peering request has been created
-            peering-request-name:
-              type: string
-              description: Name of created PR
+            foreignClusters:
+              type: array
+              description: ForeignCluster created basing on this SearchDomain

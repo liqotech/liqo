@@ -40,6 +40,7 @@ require (
 	github.com/mattn/go-isatty v0.0.12 // indirect
 	github.com/mattn/go-runewidth v0.0.8 // indirect
 	github.com/mattn/go-sqlite3 v2.0.2+incompatible // indirect
+	github.com/miekg/dns v1.1.27
 	github.com/mitchellh/go-homedir v1.1.0
 	github.com/olekukonko/tablewriter v0.0.4 // indirect
 	github.com/ozgio/strutil v0.3.0
