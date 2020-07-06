@@ -79,7 +79,7 @@ func StartBroadcaster(homeClusterId, localKubeconfigPath, foreignKubeconfigPath,
 		return err
 	}
 
-	tmp, err := discoveryClient.Resource("peerignrequests").Get(peeringRequestName, metav1.GetOptions{})
+	tmp, err := discoveryClient.Resource("peeringrequests").Get(peeringRequestName, metav1.GetOptions{})
 	if err != nil {
 		klog.Errorln(err, "Unable to get PeeringRequest "+peeringRequestName)
 		return err
