@@ -1,15 +1,19 @@
 package app_indicator
 
 import (
-	"github.com/getlantern/systray"
 	"github.com/liqoTech/liqo/internal/tray-agent/agent/client"
 	"github.com/liqoTech/liqo/internal/tray-agent/icon"
+	"sync"
 )
 
-const MenuWidth = 64
+//standard width of an item in the tray menu
+const menuWidth = 64
 
+//Icon represents the icon displayed in the tray bar
 type Icon int
 
+//Icon displayed in the tray bar. It is internally mapped into one of the icons in
+//github.com/liqoTech/liqo/internal/tray-agent/icon
 const (
 	IconLiqoMain Icon = iota
 	IconLiqoNoConn
@@ -19,19 +23,21 @@ const (
 	IconLiqoNil
 )
 
-//Run starts the indicator execution, running the onReady() function. After Quit() call, it runs onExit() before
+//Run starts the Indicator execution, running the onReady() function. After Quit() call, it runs onExit() before
 //exiting. It should be called at the very beginning of main() to lock at main thread.
 func Run(onReady func(), onExit func()) {
-	systray.Run(onReady, onExit)
+	GetGuiProvider().Run(onReady, onExit)
 }
 
 //Quit stops the indicator execution
-func Quit() {
-	root.Disconnect()
-	if root.agentCtrl.Connected() {
-		root.agentCtrl.StopCaches()
+func (i *Indicator) Quit() {
+	if i != nil {
+		i.Disconnect()
+		if i.agentCtrl.Connected() {
+			i.agentCtrl.StopCaches()
+		}
 	}
-	systray.Quit()
+	i.gProvider.Quit()
 }
 
 //Indicator singleton
@@ -56,22 +62,47 @@ type Indicator struct {
 	activeNode *MenuNode
 	//data struct containing indicator config
 	config *config
+	//guiProvider to interact with the graphic server
+	gProvider GuiProviderInterface
 	//controller of all the application goroutines
 	quitChan chan struct{}
 	//if true, quitChan is closed and Indicator can gracefully exit
 	quitClosed bool
 	//data struct that controls Agent interaction with the cluster
 	agentCtrl *client.AgentController
-	//
+	//map of all the instantiated Listeners
 	listeners map[client.NotifyChannelType]*Listener
 }
 
+//Listener is an event listener that can react calling a specific callback.
 type Listener struct {
-	Tag        client.NotifyChannelType
-	StopChan   chan struct{}
+	//Tag specifies the type of notification channel on which it listens to
+	Tag client.NotifyChannelType
+	//StopChan lets control the Listener event loop
+	StopChan chan struct{}
+	//NotifyChan is the notification channel on which it listens to
 	NotifyChan chan string
 }
 
+//newListener returns a new Listener.
+func newListener(tag client.NotifyChannelType, rcv chan string) *Listener {
+	l := Listener{StopChan: make(chan struct{}, 1), Tag: tag, NotifyChan: rcv}
+	return &l
+}
+
+//Config returns the Indicator config.
+func (i *Indicator) Config() *config {
+	return i.config
+}
+
+//AgentCtrl returns the Indicator AgentController that interacts with the cluster.
+func (i *Indicator) AgentCtrl() *client.AgentController {
+	return i.agentCtrl
+}
+
+//-----LISTENERS-----
+
+//Listen starts a Listener for a specific channel, executing callback when a notification arrives.
 func (i *Indicator) Listen(tag client.NotifyChannelType, notifyChan chan string, callback func(objName string, args ...interface{}), args ...interface{}) {
 	l := newListener(tag, notifyChan)
 	i.listeners[tag] = l
@@ -79,8 +110,10 @@ func (i *Indicator) Listen(tag client.NotifyChannelType, notifyChan chan string,
 		for {
 			select {
 			//exec handler
-			case name := <-l.NotifyChan:
-				callback(name, args...)
+			case name, open := <-l.NotifyChan:
+				if open {
+					callback(name, args...)
+				}
 				//closing application
 			case <-i.quitChan:
 				return
@@ -93,80 +126,44 @@ func (i *Indicator) Listen(tag client.NotifyChannelType, notifyChan chan string,
 	}()
 }
 
-func newListener(tag client.NotifyChannelType, rcv chan string) *Listener {
-	l := Listener{StopChan: make(chan struct{}, 1), Tag: tag, NotifyChan: rcv}
-	return &l
-}
-
-func (i *Indicator) Config() *config {
-	return i.config
-}
-
-func (i *Indicator) AgentCtrl() *client.AgentController {
-	return i.agentCtrl
-}
-
-//GetIndicator initialize and returns the Indicator singleton. This function should not be called before Run()
-func GetIndicator() *Indicator {
-	if root == nil {
-		root = &Indicator{}
-		root.menu = newMenuNode(NodetypeRoot)
-		root.activeNode = root.menu
-		root.icon = IconLiqoMain
-		systray.SetIcon(icon.LiqoBlack)
-		root.label = ""
-		systray.SetTitle("")
-		root.menuTitleNode = newMenuNode(NodetypeTitle)
-		systray.AddSeparator()
-		root.quickMap = make(map[string]*MenuNode)
-		root.config = newConfig()
-		root.quitChan = make(chan struct{})
-		root.listeners = make(map[client.NotifyChannelType]*Listener)
-		root.agentCtrl = client.GetAgentController()
-		if !root.agentCtrl.Connected() {
-			root.NotifyNoConnection()
-		}
-	}
-	return root
+//Listener returns the registered Listener for the specified NotifyChannelType. If such Listener does not exist,
+//present == false.
+func (i *Indicator) Listener(tag client.NotifyChannelType) (listener *Listener, present bool) {
+	listener, present = i.listeners[tag]
+	return
 }
 
 //-----ACTIONS-----
 
 //AddAction adds an ACTION to the indicator menu. It is visible by default.
 //
-//- title : label displayed in the menu
+//	title : label displayed in the menu
 //
-//- tag : unique tag for the ACTION
+//	tag : unique tag for the ACTION
 //
-//- callback : callback function to be executed at each 'clicked' event. If callback == nil, the function can be set
-//afterwards using (*Indicator).Connect() or you can manage the event in your own loop retrieving the ClickedChan channel
-//via (*MenuNode).Channel()
+//	callback : callback function to be executed at each 'clicked' event. If callback == nil, the function can be set
+//	afterwards using (*Indicator).Connect() .
 func (i *Indicator) AddAction(title string, tag string, callback func(args ...interface{}), args ...interface{}) *MenuNode {
-	a := newMenuNode(NodetypeAction)
+	a := newMenuNode(NodeTypeAction)
 	a.parent = i.menu
 	a.SetTitle(title)
 	a.SetTag(tag)
 	if callback != nil {
-		a.Connect(callback, args)
+		a.Connect(false, callback, args...)
 	}
 	a.SetIsVisible(true)
 	i.menu.actionMap[tag] = a
 	return a
 }
 
-//Action returns the *MenuNode of the ACTION with this specific tag. If not present, returns nil
-func (i *Indicator) Action(tag string) (act *MenuNode, pres bool) {
-	act, pres = i.menu.actionMap[tag]
+//Action returns the *MenuNode of the ACTION with this specific tag. If not present, present = false
+func (i *Indicator) Action(tag string) (act *MenuNode, present bool) {
+	act, present = i.menu.actionMap[tag]
 	return
 }
 
-//actions returns the map of all the ACTIONS created since Indicator start
-func (i *Indicator) actions() map[string]*MenuNode {
-	return i.menu.actionMap
-}
-
 //SelectAction selects the ACTION correspondent to 'tag' (if present) as the currently running ACTION in the Indicator,
-//showing its OPTIONS (if present) and hiding all the other ACTIONS The ACTION must be isDeActivated == false
+//showing its OPTIONS (if present) and hiding all the other ACTIONS. The ACTION must have isDeActivated = false
 func (i *Indicator) SelectAction(tag string) *MenuNode {
 	a, exist := i.menu.actionMap[tag]
 	if exist {
@@ -174,60 +171,55 @@ func (i *Indicator) SelectAction(tag string) *MenuNode {
 			return a
 		}
 		i.activeNode = a
+		//If there are other actions than the selected one, use WaitGroup to speed GUI mutation up
+		otherActions := len(i.menu.actionMap) - 1
+		var wgOther sync.WaitGroup
+		wgOther.Add(otherActions)
 		for aTag, action := range i.menu.actionMap {
 			if aTag != tag {
 				//recursively hide all other ACTIONS and all their sub-components
-				go func(n *MenuNode) {
+				go func(n *MenuNode, wg *sync.WaitGroup) {
 					n.SetIsVisible(false)
 					//hide all node sub-components
 					for _, option := range n.optionMap {
 						option.SetIsVisible(false)
 					}
-					for _, listNode := range n.nodesList {
-						listNode.SetIsVisible(false)
-					}
-				}(action)
+					wg.Done()
+				}(action, &wgOther)
 			} else {
 				//recursively show selected ACTION with its sub-components
 				action.SetIsEnabled(false)
-				go func(n *MenuNode) {
-					//OPTIONS are showed by default
-					for _, option := range n.optionMap {
-						option.SetIsVisible(true)
-					}
-					//LIST are directly managed by the ACTION logic and so they are not automatically showed
-				}(action)
+				//OPTIONS are shown by default
+				for _, option := range action.optionMap {
+					option.SetIsVisible(true)
+				}
 			}
-
 		}
+		wgOther.Wait()
 		return a
 	}
 	return nil
 }
 
 //DeselectAction deselects any currently selected ACTION, reverting the GUI to the home page. This does not affect
-//potential status changes (e.g. enabled/disabled)
+//potential status changes (e.g. enabled/disabled).
 func (i *Indicator) DeselectAction() {
 	if i.activeNode != i.menu {
 		for _, action := range i.menu.actionMap {
 			if action != i.activeNode {
 				action.SetIsVisible(true)
 			} else {
-				go func(n *MenuNode) {
-					n.SetIsVisible(true)
-					if !n.isDeactivated {
-						n.SetIsEnabled(true)
-					}
-					//hide all node sub-components
-					for _, option := range n.optionMap {
-						option.SetIsVisible(false)
-					}
-					for _, listNode := range n.nodesList {
-						listNode.SetIsVisible(false)
-						listNode.SetIsInvalid(true)
-						listNode.Disconnect()
-					}
-				}(action)
+				action.SetIsVisible(true)
+				if !action.isDeactivated {
+					action.SetIsEnabled(true)
+				}
+				//hide all node sub-components
+				for _, option := range action.optionMap {
+					option.SetIsVisible(false)
+				}
+				for _, listNode := range action.nodesList {
+					listNode.DisuseListChild()
+				}
 			}
 		}
 		i.activeNode = i.menu
@@ -238,64 +230,53 @@ func (i *Indicator) DeselectAction() {
 
 //AddQuick adds a QUICK to the indicator menu. It is visible by default.
 //
-//- title : label displayed in the menu
+//	title : label displayed in the menu
 //
-//- tag : unique tag for the QUICK
+//	tag : unique tag for the QUICK
 //
-//- callback : callback function to be executed at each 'clicked' event. If callback == nil, the function can be set
-//afterwards using (*Indicator).Connect() or you can manage the event in your own loop retrieving the ClickedChan channel
-//via (*MenuNode).Channel()
+//	callback : callback function to be executed at each 'clicked' event. If callback == nil, the function can be set
+//	afterwards using (*MenuNode).Connect() .
 func (i *Indicator) AddQuick(title string, tag string, callback func(args ...interface{}), args ...interface{}) *MenuNode {
-	q := newMenuNode(NodetypeQuick)
+	q := newMenuNode(NodeTypeQuick)
 	q.parent = q
 	q.SetTitle(title)
 	q.SetTag(tag)
 	if callback != nil {
-		q.Connect(callback, args)
+		q.Connect(false, callback, args...)
 	}
 	q.SetIsVisible(true)
 	i.quickMap[tag] = q
 	return q
 }
 
-//Quick returns the *MenuNode of the QUICK with this specific tag. If such QUICK does not exist, present == false
-func (i *Indicator) Quick(tag string) (quick *MenuNode, pres bool) {
-	quick, pres = i.quickMap[tag]
+//Quick returns the *MenuNode of the QUICK with this specific tag. If such QUICK does not exist, present == false.
+func (i *Indicator) Quick(tag string) (quick *MenuNode, present bool) {
+	quick, present = i.quickMap[tag]
 	return
-}
-
-//quicks returns the map of all the QUICKS created since Indicator start
-func (i *Indicator) quicks() map[string]*MenuNode {
-	return i.quickMap
 }
 
 //------ GETTERS/SETTERS ------
 
 //AddSeparator adds a separator line to the indicator menu
 func (i *Indicator) AddSeparator() {
-	systray.AddSeparator()
+	i.gProvider.AddSeparator()
 }
 
-//SetMenuTitle sets the text content of the TITLE MenuNode, displayed as the menu header
+//SetMenuTitle sets the text content of the TITLE MenuNode, displayed as the menu header.
 func (i *Indicator) SetMenuTitle(title string) {
 	i.menuTitleNode.SetTitle(title)
 	i.menuTitleNode.SetIsVisible(true)
 	i.menuTitleText = title
 }
 
-//Menu returns the ROOT node of the menu tree
-func (i *Indicator) Menu() *MenuNode {
-	return i.menu
-}
-
-//Icon returns the icon-id of the Indicator tray icon currently set
+//Icon returns the icon-id of the Indicator tray icon currently set.
 func (i *Indicator) Icon() Icon {
 	return i.icon
 }
 
-//SetIcon sets the Indicator tray icon
+//SetIcon sets the Indicator tray icon. If 'ico' is not a valid argument or ico == IconLiqoNil,
+//SetIcon does nothing.
 func (i *Indicator) SetIcon(ico Icon) {
-	i.icon = ico
 	var newIcon []byte
 	switch ico {
 	case IconLiqoNil:
@@ -311,30 +292,50 @@ func (i *Indicator) SetIcon(ico Icon) {
 	case IconLiqoAdvAccepted:
 		newIcon = icon.LiqoGreen
 	default:
-		ico = IconLiqoMain
-		newIcon = icon.LiqoBlack
+		return
 	}
-	systray.SetIcon(newIcon)
-	root.icon = ico
-
+	i.gProvider.SetIcon(newIcon)
+	i.icon = ico
 }
 
-//Label returns the text content of Indicator tray label
+//Label returns the text content of Indicator tray label.
 func (i *Indicator) Label() string {
 	return i.label
 }
 
-//SetLabel sets the text content of Indicator tray label
+//SetLabel sets the text content of Indicator tray label.
 func (i *Indicator) SetLabel(label string) {
 	i.label = label
-	systray.SetTitle(label)
+	i.gProvider.SetTitle(label)
 }
 
-//Disconnect exits all the event handlers associated with any Indicator MenuNode via the Connect() or
-//ConnectOnce() method
+//Disconnect exits all the event handlers associated with any Indicator MenuNode via the Connect() method.
 func (i *Indicator) Disconnect() {
 	if !i.quitClosed {
 		close(i.quitChan)
 		i.quitClosed = true
 	}
+}
+
+//GetIndicator initializes and returns the Indicator singleton. This function should not be called before Run().
+func GetIndicator() *Indicator {
+	if root == nil {
+		root = &Indicator{}
+		root.gProvider = GetGuiProvider()
+		root.menu = newMenuNode(NodeTypeRoot)
+		root.activeNode = root.menu
+		root.SetIcon(IconLiqoMain)
+		root.SetLabel("")
+		root.menuTitleNode = newMenuNode(NodeTypeTitle)
+		GetGuiProvider().AddSeparator()
+		root.quickMap = make(map[string]*MenuNode)
+		root.config = newConfig()
+		root.quitChan = make(chan struct{})
+		root.listeners = make(map[client.NotifyChannelType]*Listener)
+		root.agentCtrl = client.GetAgentController()
+		if !root.agentCtrl.Connected() {
+			root.NotifyNoConnection()
+		}
+	}
+	return root
 }

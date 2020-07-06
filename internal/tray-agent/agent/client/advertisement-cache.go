@@ -3,9 +3,9 @@ package client
 import (
 	advtypes "github.com/liqoTech/liqo/api/advertisement-operator/v1"
 	"github.com/liqoTech/liqo/pkg/crdClient"
-	"github.com/liqoTech/liqo/pkg/crdClient/v1alpha1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/tools/cache"
+	"time"
 )
 
 //NotifyChannelType identifies a notification channel for a specific event
@@ -13,20 +13,31 @@ type NotifyChannelType int
 
 //NotifyChannelType identifiers
 const (
+	//Notification channel id for the creation of an Advertisement
 	ChanAdvNew NotifyChannelType = iota
+	//Notification channel id for the acceptance of an Advertisement
 	ChanAdvAccepted
+	//Notification channel id for the deletion of an Advertisement
 	ChanAdvDeleted
+	//Notification channel id for the revocation of the 'ACCEPTED' status of an Advertisement
 	ChanAdvRevoked
 )
 const notifyBuffLength = 100
 
+//AdvertisementCache defines a data structure that provides a kubernetes cache for the Advertisement CRD along with
+//related status information and a controller.
 type AdvertisementCache struct {
-	Store          cache.Store
-	Controller     chan struct{}
-	Running        bool
+	// kubernetes cache for the Advertisement CRD.
+	Store cache.Store
+	// controller of the cache. Close() this channel to stop it.
+	Controller chan struct{}
+	// specifies whether the AdvertisementCache is up and running
+	Running bool
+	// set of the channels used by the AdvertisementCache logic to notify a watched event
 	NotifyChannels map[NotifyChannelType]chan string
 }
 
+//creates and initializes an AdvertisementCache
 func createAdvCache() *AdvertisementCache {
 	ac := AdvertisementCache{
 		NotifyChannels: make(map[NotifyChannelType]chan string)}
@@ -37,25 +48,36 @@ func createAdvCache() *AdvertisementCache {
 	return &ac
 }
 
-//StartCache
-func (c *AdvertisementCache) StartCache(client *v1alpha1.CRDClient) {
+//StartCache starts a watch (if not already running) on the Advertisement CRD in the cluster,
+//storing data in the AdvertisementCache.
+func (c *AdvertisementCache) StartCache(client *crdClient.CRDClient) error {
 	if c.Running {
-		return
+		return nil
 	}
-	ehf := cache.ResourceEventHandlerFuncs{
-		AddFunc:    checkNewAdv,
-		UpdateFunc: updateAcceptedAdv,
-		DeleteFunc: deleteAcceptedAdv,
+	if !mockedController {
+		ehf := cache.ResourceEventHandlerFuncs{
+			AddFunc:    checkNewAdv,
+			UpdateFunc: updateAcceptedAdv,
+			DeleteFunc: deleteAcceptedAdv,
+		}
+		lo := metav1.ListOptions{}
+		var err error
+		c.Store, c.Controller, err = crdClient.WatchResources(client,
+			"advertisements", "",
+			time.Second*2, ehf, lo)
+		if err == nil {
+			c.Running = true
+		}
+		return err
+	} else {
+		c.Controller = make(chan struct{})
+		c.Running = true
+		return nil
 	}
-	lo := metav1.ListOptions{}
-
-	c.Store, c.Controller = crdClient.WatchResources(client,
-		"advertisements", "",
-		0, ehf, lo)
-	c.Running = true
 }
 
-//StopCache stops the watch on the Advertisement CRD associated with the cache
+//StopCache stops (if running) the watch on the Advertisement CRD associated with the cache. Moreover, all
+//the associated NotifyChannels are closed.
 func (c *AdvertisementCache) StopCache() {
 	if c.Running {
 		close(c.Controller)
@@ -70,15 +92,9 @@ func (c *AdvertisementCache) StopCache() {
 func checkNewAdv(obj interface{}) {
 	newAdv := obj.(*advtypes.Advertisement)
 	if newAdv.Status.AdvertisementStatus == "ACCEPTED" {
-		select {
-		case agentCtrl.advCache.NotifyChannels[ChanAdvAccepted] <- newAdv.Name:
-		default:
-		}
+		agentCtrl.advCache.NotifyChannels[ChanAdvAccepted] <- newAdv.Name
 	} else {
-		select {
-		case agentCtrl.advCache.NotifyChannels[ChanAdvNew] <- newAdv.Name:
-		default:
-		}
+		agentCtrl.advCache.NotifyChannels[ChanAdvNew] <- newAdv.Name
 	}
 }
 
@@ -87,23 +103,14 @@ func updateAcceptedAdv(oldObj interface{}, newObj interface{}) {
 	oldAdv := oldObj.(*advtypes.Advertisement)
 	newAdv := newObj.(*advtypes.Advertisement)
 	if oldAdv.Status.AdvertisementStatus != "ACCEPTED" && newAdv.Status.AdvertisementStatus == "ACCEPTED" {
-		select {
-		case agentCtrl.advCache.NotifyChannels[ChanAdvAccepted] <- newAdv.Name:
-		default:
-		}
+		agentCtrl.advCache.NotifyChannels[ChanAdvAccepted] <- newAdv.Name
 	} else if oldAdv.Status.AdvertisementStatus == "ACCEPTED" && newAdv.Status.AdvertisementStatus != "ACCEPTED" {
-		select {
-		case agentCtrl.advCache.NotifyChannels[ChanAdvRevoked] <- newAdv.Name:
-		default:
-		}
+		agentCtrl.advCache.NotifyChannels[ChanAdvRevoked] <- newAdv.Name
 	}
 }
 
 // callback function for the Advertisement watch.
 func deleteAcceptedAdv(obj interface{}) {
 	adv := obj.(*advtypes.Advertisement)
-	select {
-	case agentCtrl.advCache.NotifyChannels[ChanAdvDeleted] <- adv.Name:
-	default:
-	}
+	agentCtrl.advCache.NotifyChannels[ChanAdvDeleted] <- adv.Name
 }

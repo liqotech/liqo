@@ -6,34 +6,45 @@ import (
 	"github.com/ozgio/strutil"
 )
 
-/*NodeType distinguishes different kinds of MenuNodes:
+/*NodeType defines the kind of a MenuNode, each one with specific features.
 
-ROOT: root of the Menu Tree
+NodeType distinguishes different kinds of MenuNodes:
 
-QUICK: simple shortcut to perform quick actions, e.g. navigation commands. It is always visible.
+		ROOT: root of the Menu Tree
 
-ACTION: launch an application command. It can open command submenu (if present)
+		QUICK: simple shortcut to perform quick actions, e.g. navigation commands. It is always visible.
 
-OPTION: submenu choice
+		ACTION: launch an application command. It can open command submenu (if present)
 
-LIST: placeholder item used to dynamically display application output
+		OPTION: submenu choice
 
-TITLE: node with special text formatting used to display menu header
+		LIST: placeholder item used to dynamically display application output
+
+		TITLE: node with special text formatting used to display menu header
 */
 type NodeType int
 
+//set of defined NodeType kinds
 const (
-	NodetypeRoot NodeType = iota
-	NodetypeQuick
-	NodetypeAction
-	NodetypeOption
-	NodetypeList
-	NodetypeTitle
+	//Nodetype of a ROOT MenuNode: root of the Menu Tree
+	NodeTypeRoot NodeType = iota
+	//Nodetype of a QUICK MenuNode: simple shortcut to perform quick actions,
+	//e.g. navigation commands. It is always visible.
+	NodeTypeQuick
+	//NodeType of an ACTION MenuNode: launches an application command. It can open command submenu (if present)
+	NodeTypeAction
+	//NodeType of an OPTION MenuNode: submenu choice (hidden by default)
+	NodeTypeOption
+	//NodeType of a LIST MenuNode: placeholder MenuNode used to dynamically display application output
+	NodeTypeList
+	//NodeType of a TITLE MenuNode: node with special text formatting used to display the menu header
+	NodeTypeTitle
 )
 
 //NodeIcon represents a string prefix helping to graphically distinguish different kinds of Menu entries (NodeType)
 type NodeIcon string
 
+//literal prefix that can be prepended to a MenuNode title, identifying its NodeType or some feature
 const (
 	nodeIconQuick   = "❱"
 	nodeIconAction  = "⬢"
@@ -42,12 +53,13 @@ const (
 	nodeIconChecked = "✔ "
 )
 
-// MenuNode is a stateful wrapper type that provides a better management of
-// systray/MenuItem type and additional features, such as submenus
+// MenuNode is a stateful wrapper type that provides a better management of the
+// github.com/getlantern/systray/MenuItem type and additional features, such as submenus.
 type MenuNode struct {
-	// the getlantern/systray MenuItem actually allocated on the menu. It contains the ClickedChan channel that responds
-	// to the 'clicked' event
-	item *systray.MenuItem
+	// the item actually allocated and displayed on the menu stack. If item instanceof
+	// *github.com/getlantern/systray/MenuItem, it also contains the ClickedChan channel that reacts to the
+	// 'item clicked' event
+	item Item
 	// the type of the MenuNode
 	nodeType NodeType
 	// unique tag of the MenuNode that can be used as a key to get access to it, e.g. using (*Indicator)
@@ -62,9 +74,9 @@ type MenuNode struct {
 	// the output of application functions. Use these kind of MenuNodes by calling (*MenuNode).UseListChild() and
 	// (*MenuNode).DisuseListChild() methods:
 	//
-	// - child1 := node.UseListChild()
+	//		child1 := node.UseListChild()
 	//
-	// - child1.DisuseListChild()
+	//		child1.DisuseListChild()
 	nodesList []*MenuNode
 	// current number of LIST MenuNode actually in use (isInvalid == false) with valid content
 	listLen int
@@ -90,24 +102,27 @@ type MenuNode struct {
 
 //newMenuNode creates a MenuNode of type NodeType
 func newMenuNode(nodeType NodeType) *MenuNode {
-	n := MenuNode{item: systray.AddMenuItem("", ""), nodeType: nodeType}
+	n := MenuNode{nodeType: nodeType}
+	n.item = GetGuiProvider().AddMenuItem("")
 	n.actionMap = make(map[string]*MenuNode)
 	n.optionMap = make(map[string]*MenuNode)
 	n.stopChan = make(chan struct{})
 	n.SetIsVisible(false)
 	switch nodeType {
-	case NodetypeQuick:
+	case NodeTypeQuick:
 		n.icon = nodeIconQuick
-	case NodetypeAction:
+	case NodeTypeAction:
 		n.icon = nodeIconAction
-	case NodetypeOption:
+	case NodeTypeOption:
 		n.icon = nodeIconOption
-	case NodetypeRoot:
+	case NodeTypeRoot:
 		n.parent = &n
-	case NodetypeTitle:
+		n.icon = nodeIconDefault
+	case NodeTypeTitle:
 		n.parent = &n
 		n.SetIsEnabled(false)
-	case NodetypeList:
+		n.icon = nodeIconDefault
+	case NodeTypeList:
 		n.icon = nodeIconDefault
 	default:
 		n.icon = nodeIconDefault
@@ -119,41 +134,39 @@ func newMenuNode(nodeType NodeType) *MenuNode {
 
 //Channel returns the ClickedChan chan of the MenuNode which reacts to the 'clicked' event
 func (n *MenuNode) Channel() chan struct{} {
-	return n.item.ClickedCh
+	switch n.item.(type) {
+	case *systray.MenuItem:
+		return n.item.(*systray.MenuItem).ClickedCh
+	case *mockItem:
+		return n.item.(*mockItem).ClickedCh()
+	default:
+		return nil
+	}
 }
 
 //Connect instantiates a listener for the 'clicked' event of the node
-func (n *MenuNode) Connect(callback func(args ...interface{}), args ...interface{}) {
+func (n *MenuNode) Connect(once bool, callback func(args ...interface{}), args ...interface{}) {
 	if n.stopped {
 		n.stopChan = make(chan struct{})
 		n.stopped = false
 	}
-	go func() {
-		for {
-			select {
-			case <-n.item.ClickedCh:
-				callback(args...)
-			case <-n.stopChan:
-				return
-			case <-root.quitChan:
-				return
-			}
-		}
-	}()
-}
-
-//ConnectOnce instantiates a one-time listener for the next 'clicked' event of the node.
-func (n *MenuNode) ConnectOnce(callback func(args ...interface{}), args ...interface{}) {
-	if n.stopped {
-		n.stopChan = make(chan struct{})
-		n.stopped = false
+	var clickCh chan struct{}
+	switch n.item.(type) {
+	case *systray.MenuItem:
+		clickCh = n.item.(*systray.MenuItem).ClickedCh
+	case *mockItem:
+		clickCh = n.item.(*mockItem).ClickedCh()
+	default:
+		clickCh = make(chan struct{}, 2)
 	}
 	go func() {
 		for {
 			select {
-			case <-n.item.ClickedCh:
+			case <-clickCh:
 				callback(args...)
-				return
+				if once {
+					return
+				}
 			case <-n.stopChan:
 				return
 			case <-root.quitChan:
@@ -176,12 +189,14 @@ func (n *MenuNode) Disconnect() {
 //UseListChild returns a child LIST MenuNode ready to use.
 func (n *MenuNode) UseListChild() *MenuNode {
 	/*
-		The systray api, which this package relies on, does not allow to delete elements from the menu stack.
+		The github.com/getlantern/systray api, which this package relies on, does not allow to pop elements from the
+		menu stack.
 		Hence, when application logic needs more nodes than the ones already allocated, the method allocates them.
 		For the next requests, if the number of nodes is lower, the exceeding nodes are invalidated and hidden
 	*/
+	//there is at least one already allocated LIST node free to use
 	if !(n.listLen < n.listCap) {
-		ch := newMenuNode(NodetypeList)
+		ch := newMenuNode(NodeTypeList)
 		ch.parent = n
 		n.nodesList = append(n.nodesList, ch)
 		n.listCap++
@@ -192,57 +207,52 @@ func (n *MenuNode) UseListChild() *MenuNode {
 	return child
 }
 
-//DisuseListChild mark this LIST MenuNode as unused.
+//DisuseListChild mark a LIST MenuNode as unused.
 func (n *MenuNode) DisuseListChild() {
 	n.isInvalid = true
-	n.item.SetTitle("")
+	n.SetTitle("")
 	n.SetTag("")
 	n.SetIsVisible(false)
+	n.parent.listLen--
+	n.Disconnect()
 }
 
 //------ OPTION ------
 
 //AddOption adds an OPTION to the MenuNode as a choice for the submenu. It is hidden by default.
 //
-//	- title : label displayed in the menu
+//		title : label displayed in the menu
 //
-//	- tag : unique tag for the OPTION
+//		tag : unique tag for the OPTION
 //
-//	- callback : callback function to be executed at each 'clicked' event.
-//	If callback == nil, the function can be set afterwards using n.Connect()
-//	or you can manage the event in your	own loop by retrieving the ClickedChan channel
-//	via (*MenuNode).Channel() .
+//		callback : callback function to be executed at each 'clicked' event.
+//	If callback == nil, the function can be set afterwards using n.Connect() .
 func (n *MenuNode) AddOption(title string, tag string, callback func(args ...interface{}), args ...interface{}) *MenuNode {
-	o := newMenuNode(NodetypeOption)
+	o := newMenuNode(NodeTypeOption)
 	o.SetTitle(title)
 	o.SetTag(tag)
 	o.parent = n
 	n.optionMap[tag] = o
 	o.SetIsVisible(false)
 	if callback != nil {
-		o.Connect(callback, args...)
+		o.Connect(false, callback, args...)
 	}
 	return o
 }
 
-//Option returns the *MenuNode of the OPTION with this specific tag. If such OPTION does not exist, present == false.
+//Option returns the *MenuNode of the OPTION with this specific tag. If such OPTION does not exist, present = false.
 func (n *MenuNode) Option(tag string) (opt *MenuNode, present bool) {
 	opt, present = n.optionMap[tag]
 	return
-}
-
-//options returns the map of all the OPTIONS of the MenuNode.
-func (n *MenuNode) options() map[string]*MenuNode {
-	return n.optionMap
 }
 
 //------ GETTERS/SETTERS ------
 
 //SetTitle sets the text content of the MenuNode label.
 func (n *MenuNode) SetTitle(title string) {
-	if n.nodeType == NodetypeTitle {
+	if n.nodeType == NodeTypeTitle {
 		//the TITLE MenuNode is also used to set the width of the entire menu window
-		n.item.SetTitle(strutil.CenterText(title, MenuWidth))
+		n.item.SetTitle(strutil.CenterText(title, menuWidth))
 
 	} else {
 		n.item.SetTitle(fmt.Sprintln(n.icon, " ", title))
@@ -313,7 +323,7 @@ func (n *MenuNode) SetIsChecked(isChecked bool) {
 		n.item.SetTitle(fmt.Sprintf("%s%s", nodeIconChecked, n.title))
 		n.item.Check()
 	} else if !isChecked && n.item.Checked() {
-		strutil.ReplaceAllToOne(n.title, []string{nodeIconChecked}, "")
+		n.item.SetTitle(n.title)
 		n.item.Uncheck()
 	}
 }
@@ -327,4 +337,5 @@ func (n *MenuNode) IsDeactivated() bool {
 func (n *MenuNode) SetIsDeactivated(isDeactivated bool) {
 	n.isDeactivated = isDeactivated
 	n.SetIsEnabled(!isDeactivated)
+	n.SetIsVisible(false)
 }
