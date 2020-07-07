@@ -3,7 +3,7 @@ package clusterID
 import (
 	"errors"
 	discoveryv1 "github.com/liqoTech/liqo/api/discovery/v1"
-	"github.com/liqoTech/liqo/pkg/crdClient/v1alpha1"
+	"github.com/liqoTech/liqo/pkg/crdClient"
 	"io/ioutil"
 	v1 "k8s.io/api/core/v1"
 	k8serror "k8s.io/apimachinery/pkg/api/errors"
@@ -35,12 +35,12 @@ func GetNewClusterID(id string, client kubernetes.Interface) *ClusterID {
 }
 
 func NewClusterID() (*ClusterID, error) {
-	config, err := v1alpha1.NewKubeconfig(filepath.Join(os.Getenv("HOME"), ".kube", "config"), &discoveryv1.GroupVersion)
+	config, err := crdClient.NewKubeconfig(filepath.Join(os.Getenv("HOME"), ".kube", "config"), &discoveryv1.GroupVersion)
 	if err != nil {
 		klog.Error(err, "unable to get kube config")
 		os.Exit(1)
 	}
-	crdClient, err := v1alpha1.NewFromConfig(config)
+	crdClient, err := crdClient.NewFromConfig(config)
 	if err != nil {
 		klog.Error(err, "unable to create crd client")
 		os.Exit(1)

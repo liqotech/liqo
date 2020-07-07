@@ -21,7 +21,7 @@ import (
 	"errors"
 	discoveryv1 "github.com/liqoTech/liqo/api/discovery/v1"
 	"github.com/liqoTech/liqo/pkg/clusterID"
-	"github.com/liqoTech/liqo/pkg/crdClient/v1alpha1"
+	"github.com/liqoTech/liqo/pkg/crdClient"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/klog"
@@ -32,7 +32,7 @@ import (
 type PeeringRequestReconciler struct {
 	Scheme *runtime.Scheme
 
-	crdClient                 *v1alpha1.CRDClient
+	crdClient                 *crdClient.CRDClient
 	Namespace                 string
 	clusterId                 *clusterID.ClusterID
 	configMapName             string

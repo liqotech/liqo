@@ -2,8 +2,6 @@ package crdClient
 
 import (
 	"errors"
-	v1 "github.com/liqoTech/liqo/api/namespaceNattingTable/v1"
-	"github.com/liqoTech/liqo/pkg/crdClient/v1alpha1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -21,10 +19,11 @@ type fakeInformer struct {
 
 	// Keyer is a function that allows to create a key given a generic runtime.Object
 	// The API should implement the keyer interface
-	keyer v1alpha1.KeyerFunc
+	keyer KeyerFunc
 
 	data          map[string]runtime.Object
 	lock          sync.Mutex
+	cacheWatcher  *watch.RaceFreeFakeWatcher
 	watcher       *watch.RaceFreeFakeWatcher
 	groupResource schema.GroupResource
 }
@@ -42,7 +41,7 @@ func (i *fakeInformer) AddFake(obj interface{}) error {
 	i.data[k] = obj.(runtime.Object)
 	i.lock.Unlock()
 
-	i.watcher.Add(obj.(runtime.Object))
+	i.cacheWatcher.Add(obj.(runtime.Object))
 
 	return nil
 }
@@ -60,11 +59,11 @@ func (i *fakeInformer) UpdateFake(obj interface{}) error {
 	defer i.lock.Unlock()
 	old, ok := i.data[k]
 	if !ok {
-		return kerrors.NewNotFound(v1.GroupResource, k)
+		return kerrors.NewNotFound(i.groupResource, k)
 	}
 	i.data[k] = obj.(runtime.Object)
 
-	i.watcher.Modify(old)
+	i.cacheWatcher.Modify(old)
 
 	return nil
 }
@@ -82,13 +81,20 @@ func (i *fakeInformer) DeleteFake(obj interface{}) error {
 	delete(i.data, k)
 	i.lock.Unlock()
 
-	i.watcher.Delete(obj.(runtime.Object))
+	i.cacheWatcher.Delete(obj.(runtime.Object))
 
 	return nil
 }
 
 func (i *fakeInformer) ListFake() []interface{} {
-	panic("to implement")
+	i.lock.Lock()
+	var items []interface{}
+	for _, v := range i.data {
+		items = append(items, v)
+	}
+	i.lock.Unlock()
+
+	return items
 }
 
 func (i *fakeInformer) ListKeysFake() []string {
@@ -121,7 +127,9 @@ func (i *fakeInformer) ResyncFake() error {
 
 func (i *fakeInformer) Watch() {
 	w := watch.NewRaceFreeFake()
-	i.watcher = w
+	w2 := watch.NewRaceFreeFake()
+	i.cacheWatcher = w
+	i.watcher = w2
 	go func() {
 		for e := range w.ResultChan() {
 			switch e.Type {
@@ -129,10 +137,12 @@ func (i *fakeInformer) Watch() {
 				if i.funcs.AddFunc != nil {
 					i.funcs.AddFunc(e.Object)
 				}
+				i.watcher.Add(e.Object)
 			case watch.Deleted:
 				if i.funcs.DeleteFunc != nil {
 					i.funcs.DeleteFunc(e.Object)
 				}
+				i.watcher.Delete(e.Object)
 			case watch.Modified:
 				if i.keyer == nil {
 					klog.Fatal("keyer function not set")
@@ -150,6 +160,7 @@ func (i *fakeInformer) Watch() {
 				if i.funcs.UpdateFunc != nil {
 					i.funcs.UpdateFunc(e.Object, newObj)
 				}
+				i.watcher.Modify(newObj)
 			}
 		}
 	}()

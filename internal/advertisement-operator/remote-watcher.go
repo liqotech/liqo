@@ -2,13 +2,13 @@ package advertisement_operator
 
 import (
 	protocolv1 "github.com/liqoTech/liqo/api/advertisement-operator/v1"
-	"github.com/liqoTech/liqo/pkg/crdClient/v1alpha1"
+	"github.com/liqoTech/liqo/pkg/crdClient"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/klog"
 )
 
-func WatchAdvertisement(localClient, remoteClient *v1alpha1.CRDClient, homeAdvName, foreignAdvName string) {
+func WatchAdvertisement(localClient, remoteClient *crdClient.CRDClient, homeAdvName, foreignAdvName string) {
 
 	klog.V(6).Info("starting remote advertisement watcher")
 	watcher, err := remoteClient.Resource("advertisements").Watch(metav1.ListOptions{

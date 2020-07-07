@@ -16,7 +16,7 @@ limitations under the License.
 package v1
 
 import (
-	"github.com/liqoTech/liqo/pkg/crdClient/v1alpha1"
+	"github.com/liqoTech/liqo/pkg/crdClient"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/kubernetes/scheme"
@@ -88,7 +88,7 @@ func init() {
 	if err := AddToScheme(scheme.Scheme); err != nil {
 		panic(err)
 	}
-	v1alpha1.AddToRegistry("clusterconfigs", &ClusterConfig{}, &ClusterConfigList{}, nil, schema.GroupResource{
+	crdClient.AddToRegistry("clusterconfigs", &ClusterConfig{}, &ClusterConfigList{}, nil, schema.GroupResource{
 		Group:    GroupVersion.Group,
 		Resource: "clusterconfigs",
 	})

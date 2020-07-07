@@ -1,4 +1,4 @@
-package v1alpha1
+package crdClient
 
 import (
 	"github.com/pkg/errors"
@@ -9,6 +9,7 @@ import (
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
 	restFake "k8s.io/client-go/rest/fake"
+	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/tools/clientcmd"
 	clientcmdapi "k8s.io/client-go/tools/clientcmd/api"
 	"os"
@@ -25,6 +26,8 @@ type CRDClient struct {
 	client    kubernetes.Interface
 
 	config *rest.Config
+	Store  cache.Store
+	Stop   chan struct{}
 }
 
 func NewKubeconfig(configPath string, gv *schema.GroupVersion) (*rest.Config, error) {
@@ -83,20 +86,13 @@ func NewKubeconfigFromSecret(secret *v1.Secret, gv *schema.GroupVersion) (*rest.
 
 func NewFromConfig(config *rest.Config) (*CRDClient, error) {
 	if Fake {
-		var gv schema.GroupVersion
-		if config == nil {
-			gv = schema.GroupVersion{}
-		} else {
-			gv = *config.GroupVersion
-		}
-
-		return &CRDClient{
-			crdClient: &restFake.RESTClient{NegotiatedSerializer: scheme.Codecs.WithoutConversion(),
-				GroupVersion: gv},
-			client: clientsetFake.NewSimpleClientset(),
-			config: config}, nil
+		return newFakeFromConfig(config)
 	}
 
+	return newRealFromconfig(config)
+}
+
+func newRealFromconfig(config *rest.Config) (*CRDClient, error) {
 	crdClient, err := rest.RESTClientFor(config)
 	if err != nil {
 		return nil, err
@@ -112,11 +108,38 @@ func NewFromConfig(config *rest.Config) (*CRDClient, error) {
 		config: config}, nil
 }
 
+func newFakeFromConfig(config *rest.Config) (*CRDClient, error) {
+	var gv schema.GroupVersion
+	if config == nil {
+		gv = schema.GroupVersion{}
+	} else {
+		gv = *config.GroupVersion
+	}
+
+	c := &CRDClient{
+		crdClient: &restFake.RESTClient{NegotiatedSerializer: scheme.Codecs.WithoutConversion(),
+			GroupVersion: gv},
+		client: clientsetFake.NewSimpleClientset(),
+		config: config}
+
+	return c, nil
+}
+
 func (c *CRDClient) Resource(api string) CrdClientInterface {
-	return &Client{
-		Client:   c.crdClient,
-		api:      api,
-		resource: Registry[api],
+	if Fake {
+		return &FakeClient{
+			Client:   c.crdClient,
+			api:      api,
+			resource: Registry[api],
+			storage:  c.Store.(*fakeInformer),
+		}
+	} else {
+		return &Client{
+			Client:   c.crdClient,
+			api:      api,
+			resource: Registry[api],
+			storage:  c.Store,
+		}
 	}
 }
 

@@ -1,4 +1,4 @@
-package v1alpha1
+package crdClient
 
 import (
 	"k8s.io/apimachinery/pkg/runtime"

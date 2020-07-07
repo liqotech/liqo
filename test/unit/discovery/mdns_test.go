@@ -56,7 +56,7 @@ func testMdns(t *testing.T) {
 // ------
 // tests if ForeignCluster can be created from txtData
 func testForeignClusterCreation(t *testing.T) {
-	tmp, err := clientCluster.crdClient.Resource("foreignclusters").List(metav1.ListOptions{})
+	tmp, err := clientCluster.client.Resource("foreignclusters").List(metav1.ListOptions{})
 	assert.NilError(t, err, "Error listing ForeignClusters")
 	fcs, ok := tmp.(*v1.ForeignClusterList)
 	assert.Equal(t, ok, true)
@@ -74,14 +74,14 @@ func testForeignClusterCreation(t *testing.T) {
 
 	time.Sleep(1 * time.Second)
 
-	tmp, err = clientCluster.crdClient.Resource("foreignclusters").List(metav1.ListOptions{})
+	tmp, err = clientCluster.client.Resource("foreignclusters").List(metav1.ListOptions{})
 	assert.NilError(t, err, "Error listing ForeignClusters")
 	fcs, ok = tmp.(*v1.ForeignClusterList)
 	assert.Equal(t, ok, true)
 	l2 := len(fcs.Items)
 	assert.Assert(t, l2-l == 1, "Foreign Cluster was not created")
 
-	tmp, err = clientCluster.crdClient.Resource("foreignclusters").Get("test", metav1.GetOptions{})
+	tmp, err = clientCluster.client.Resource("foreignclusters").Get("test", metav1.GetOptions{})
 	assert.NilError(t, err, "Error retrieving ForeignCluster")
 	fc, ok := tmp.(*v1.ForeignCluster)
 	assert.Equal(t, ok, true)

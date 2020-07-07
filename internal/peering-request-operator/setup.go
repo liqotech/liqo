@@ -3,7 +3,7 @@ package peering_request_operator
 import (
 	discoveryv1 "github.com/liqoTech/liqo/api/discovery/v1"
 	"github.com/liqoTech/liqo/pkg/clusterID"
-	"github.com/liqoTech/liqo/pkg/crdClient/v1alpha1"
+	"github.com/liqoTech/liqo/pkg/crdClient"
 	"k8s.io/apimachinery/pkg/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/klog"
@@ -34,12 +34,12 @@ func StartOperator(namespace string, configMapName string, broadcasterImage stri
 		os.Exit(1)
 	}
 
-	config, err := v1alpha1.NewKubeconfig(filepath.Join(os.Getenv("HOME"), ".kube", "config"), &discoveryv1.GroupVersion)
+	config, err := crdClient.NewKubeconfig(filepath.Join(os.Getenv("HOME"), ".kube", "config"), &discoveryv1.GroupVersion)
 	if err != nil {
 		klog.Error(err, "unable to get kube config")
 		os.Exit(1)
 	}
-	crdClient, err := v1alpha1.NewFromConfig(config)
+	client, err := crdClient.NewFromConfig(config)
 	if err != nil {
 		klog.Error(err, "unable to create crd client")
 		os.Exit(1)
@@ -53,7 +53,7 @@ func StartOperator(namespace string, configMapName string, broadcasterImage stri
 
 	if err = (GetPRReconciler(
 		mgr.GetScheme(),
-		crdClient,
+		client,
 		namespace,
 		clusterId,
 		configMapName,
@@ -71,7 +71,7 @@ func StartOperator(namespace string, configMapName string, broadcasterImage stri
 	}
 }
 
-func GetPRReconciler(scheme *runtime.Scheme, crdClient *v1alpha1.CRDClient, namespace string, clusterId *clusterID.ClusterID, configMapName string, broadcasterImage string, broadcasterServiceAccount string) *PeeringRequestReconciler {
+func GetPRReconciler(scheme *runtime.Scheme, crdClient *crdClient.CRDClient, namespace string, clusterId *clusterID.ClusterID, configMapName string, broadcasterImage string, broadcasterServiceAccount string) *PeeringRequestReconciler {
 	return &PeeringRequestReconciler{
 		Scheme:                    scheme,
 		crdClient:                 crdClient,

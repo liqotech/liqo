@@ -1,7 +1,6 @@
 package crdClient
 
 import (
-	"github.com/liqoTech/liqo/pkg/crdClient/v1alpha1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/tools/cache"
@@ -11,7 +10,7 @@ import (
 // and start the watching routine that implements the caching functionality
 // and the callbak notifications
 func NewFakeCustomInformer(handlers cache.ResourceEventHandlerFuncs,
-	keyer v1alpha1.KeyerFunc,
+	keyer KeyerFunc,
 	groupResource schema.GroupResource) (cache.Store, chan struct{}) {
 	i := &fakeInformer{
 		FakeCustomStore: cache.FakeCustomStore{},

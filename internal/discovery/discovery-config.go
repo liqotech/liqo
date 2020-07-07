@@ -3,13 +3,13 @@ package discovery
 import (
 	policyv1 "github.com/liqoTech/liqo/api/cluster-config/v1"
 	"github.com/liqoTech/liqo/pkg/clusterConfig"
-	"github.com/liqoTech/liqo/pkg/crdClient/v1alpha1"
+	"github.com/liqoTech/liqo/pkg/crdClient"
 	"k8s.io/klog"
 	"os"
 	"path/filepath"
 )
 
-func (discovery *DiscoveryCtrl) GetDiscoveryConfig(crdClient *v1alpha1.CRDClient) error {
+func (discovery *DiscoveryCtrl) GetDiscoveryConfig(crdClient *crdClient.CRDClient) error {
 	waitFirst := make(chan bool)
 	isFirst := true
 	go clusterConfig.WatchConfiguration(func(configuration *policyv1.ClusterConfig) {
