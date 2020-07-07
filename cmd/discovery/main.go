@@ -11,6 +11,7 @@ import (
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/klog"
 	"os"
+	ctrl "sigs.k8s.io/controller-runtime"
 	"time"
 )
 
@@ -54,9 +55,25 @@ func main() {
 	discoveryCtl.SetupCaData()
 	discoveryCtl.StartDiscovery()
 
+	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
+		Scheme:           scheme,
+		Port:             9443,
+		LeaderElection:   false,
+		LeaderElectionID: "b3156c4e.liqo.io",
+	})
+	if err != nil {
+		klog.Error(err, "unable to start manager")
+		os.Exit(1)
+	}
+
 	klog.Info("Starting SearchDomain operator")
-	go search_domain_operator.StartOperator(time.Duration(requeueAfter)*time.Second, discoveryCtl)
+	search_domain_operator.StartOperator(&mgr, time.Duration(requeueAfter)*time.Second, discoveryCtl)
 
 	klog.Info("Starting ForeignCluster operator")
-	foreign_cluster_operator.StartOperator(namespace, time.Duration(requeueAfter)*time.Second, discoveryCtl)
+	foreign_cluster_operator.StartOperator(&mgr, namespace, time.Duration(requeueAfter)*time.Second, discoveryCtl)
+
+	if err := mgr.Start(ctrl.SetupSignalHandler()); err != nil {
+		klog.Error(err, "problem running manager")
+		os.Exit(1)
+	}
 }

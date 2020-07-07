@@ -4,15 +4,27 @@ import (
 	discoveryv1 "github.com/liqoTech/liqo/api/discovery/v1"
 	"github.com/liqoTech/liqo/internal/discovery"
 	"github.com/liqoTech/liqo/pkg/crdClient/v1alpha1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
+	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
 	"k8s.io/klog"
 	"os"
 	"path/filepath"
+	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"time"
 )
 
-func StartOperator(requeueAfter time.Duration, discoveryCtrl *discovery.DiscoveryCtrl) {
+var (
+	scheme = runtime.NewScheme()
+)
+
+func init() {
+	_ = clientgoscheme.AddToScheme(scheme)
+	_ = discoveryv1.AddToScheme(scheme)
+	// +kubebuilder:scaffold:scheme
+}
+
+func StartOperator(mgr *manager.Manager, requeueAfter time.Duration, discoveryCtrl *discovery.DiscoveryCtrl) {
 	config, err := v1alpha1.NewKubeconfig(filepath.Join(os.Getenv("HOME"), ".kube", "config"), &discoveryv1.GroupVersion)
 	if err != nil {
 		klog.Error(err, "unable to get kube config")
@@ -24,7 +36,18 @@ func StartOperator(requeueAfter time.Duration, discoveryCtrl *discovery.Discover
 		os.Exit(1)
 	}
 
-	sdRec := GetSDReconciler(
+	if err = (GetSDReconciler(
+		(*mgr).GetScheme(),
+		crdClient,
+		discoveryCtrl,
+		requeueAfter,
+	)).SetupWithManager(*mgr); err != nil {
+		klog.Error(err, "unable to create controller", "controller", "ForeignCluster")
+		os.Exit(1)
+	}
+
+	/*sdRec := GetSDReconciler(
+		(*mgr).GetScheme(),
 		crdClient,
 		discoveryCtrl,
 		requeueAfter,
@@ -49,11 +72,12 @@ func StartOperator(requeueAfter time.Duration, discoveryCtrl *discovery.Discover
 		if requeueAfter > 0 {
 			// TODO
 		}
-	}
+	}*/
 }
 
-func GetSDReconciler(crdClient *v1alpha1.CRDClient, discoveryCtrl *discovery.DiscoveryCtrl, requeueAfter time.Duration) *SearchDomainReconciler {
+func GetSDReconciler(scheme *runtime.Scheme, crdClient *v1alpha1.CRDClient, discoveryCtrl *discovery.DiscoveryCtrl, requeueAfter time.Duration) *SearchDomainReconciler {
 	return &SearchDomainReconciler{
+		Scheme:        scheme,
 		requeueAfter:  requeueAfter,
 		crdClient:     crdClient,
 		DiscoveryCtrl: discoveryCtrl,
