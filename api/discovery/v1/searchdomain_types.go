@@ -17,7 +17,7 @@ limitations under the License.
 package v1
 
 import (
-	"github.com/liqoTech/liqo/pkg/crdClient/v1alpha1"
+	"github.com/liqoTech/liqo/pkg/crdClient"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -71,7 +71,7 @@ func init() {
 	if err := AddToScheme(scheme.Scheme); err != nil {
 		panic(err)
 	}
-	v1alpha1.AddToRegistry("searchdomains", &SearchDomain{}, &SearchDomainList{}, nil, schema.GroupResource{
+	crdClient.AddToRegistry("searchdomains", &SearchDomain{}, &SearchDomainList{}, nil, schema.GroupResource{
 		Group:    v1.SchemeGroupVersion.Group,
 		Resource: "searchdomains",
 	})

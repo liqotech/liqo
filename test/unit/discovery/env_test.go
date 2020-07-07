@@ -3,31 +3,39 @@ package discovery
 import (
 	policyv1 "github.com/liqoTech/liqo/api/cluster-config/v1"
 	v1 "github.com/liqoTech/liqo/api/discovery/v1"
+	"github.com/liqoTech/liqo/internal/discovery"
 	foreign_cluster_operator "github.com/liqoTech/liqo/internal/discovery/foreign-cluster-operator"
+	search_domain_operator "github.com/liqoTech/liqo/internal/discovery/search-domain-operator"
 	peering_request_operator "github.com/liqoTech/liqo/internal/peering-request-operator"
 	"github.com/liqoTech/liqo/pkg/clusterID"
 	"github.com/liqoTech/liqo/pkg/crdClient"
+	"github.com/miekg/dns"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
 	"k8s.io/klog"
+	"net"
 	"os"
 	"path/filepath"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/envtest"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
+	"strconv"
+	"strings"
 	"time"
 )
 
 type Cluster struct {
-	env          *envtest.Environment
-	cfg          *rest.Config
-	client       *crdClient.CRDClient
-	fcReconciler *foreign_cluster_operator.ForeignClusterReconciler
-	prReconciler *peering_request_operator.PeeringRequestReconciler
-	clusterId    *clusterID.ClusterID
+	env           *envtest.Environment
+	cfg           *rest.Config
+	client        *crdClient.CRDClient
+	discoveryCtrl discovery.DiscoveryCtrl
+	fcReconciler  *foreign_cluster_operator.ForeignClusterReconciler
+	prReconciler  *peering_request_operator.PeeringRequestReconciler
+	sdReconciler  *search_domain_operator.SearchDomainReconciler
+	clusterId     *clusterID.ClusterID
 }
 
 func getClientCluster() *Cluster {
@@ -39,8 +47,27 @@ func getClientCluster() *Cluster {
 		cluster.client,
 		cluster.clusterId,
 		1*time.Minute,
+		&cluster.discoveryCtrl,
 	)
 	err := cluster.fcReconciler.SetupWithManager(mgr)
+	if err != nil {
+		klog.Error(err, err.Error())
+		os.Exit(1)
+	}
+
+	cluster.discoveryCtrl = discovery.GetDiscoveryCtrl(
+		"default",
+		cluster.client,
+		cluster.clusterId,
+	)
+
+	cluster.sdReconciler = search_domain_operator.GetSDReconciler(
+		mgr.GetScheme(),
+		cluster.client,
+		&cluster.discoveryCtrl,
+		1*time.Minute,
+	)
+	err = cluster.sdReconciler.SetupWithManager(mgr)
 	if err != nil {
 		klog.Error(err, err.Error())
 		os.Exit(1)
@@ -73,6 +100,12 @@ func getServerCluster() *Cluster {
 		klog.Error(err, err.Error())
 		os.Exit(1)
 	}
+
+	cluster.discoveryCtrl = discovery.GetDiscoveryCtrl(
+		"default",
+		cluster.client,
+		cluster.clusterId,
+	)
 
 	go func() {
 		err = mgr.Start(stopChan)
@@ -189,6 +222,7 @@ func getClusterConfig(config rest.Config) {
 				Service:             "_liqo._tcp",
 				UpdateTime:          3,
 				WaitTime:            2,
+				DnsServer:           "8.8.8.8:53",
 			},
 		},
 	}
@@ -205,4 +239,103 @@ func getClusterConfig(config rest.Config) {
 		ctrl.Log.Error(err, err.Error())
 		os.Exit(1)
 	}
+}
+
+var registryDomain = "test.liqo.io."
+var ptrQueries = map[string][]string{
+	registryDomain: {
+		"myliqo1." + registryDomain,
+		"myliqo2." + registryDomain,
+	},
+}
+
+type handler struct{}
+
+func (h *handler) ServeDNS(w dns.ResponseWriter, r *dns.Msg) {
+	msg := dns.Msg{}
+	msg.SetReply(r)
+	msg.Authoritative = true
+	domain := msg.Question[0].Name
+	switch r.Question[0].Qtype {
+	case dns.TypePTR:
+		addresses, ok := ptrQueries[domain]
+		if ok {
+			for _, address := range addresses {
+				msg.Answer = append(msg.Answer, &dns.PTR{
+					Hdr: dns.RR_Header{Name: domain, Rrtype: dns.TypePTR, Class: dns.ClassINET, Ttl: 60},
+					Ptr: address,
+				})
+			}
+		}
+	case dns.TypeSRV:
+		var port int
+		var host string
+		if domain == ptrQueries[registryDomain][0] {
+			stringPort := strings.Split(clientCluster.cfg.Host, ":")[1]
+			port, _ = strconv.Atoi(stringPort)
+			host = "client." + registryDomain
+		} else if domain == ptrQueries[registryDomain][1] {
+			stringPort := strings.Split(serverCluster.cfg.Host, ":")[1]
+			port, _ = strconv.Atoi(stringPort)
+			host = "server." + registryDomain
+		}
+		msg.Answer = append(msg.Answer, &dns.SRV{
+			Hdr:      dns.RR_Header{Name: domain, Rrtype: dns.TypeSRV, Class: dns.ClassINET, Ttl: 60},
+			Priority: 0,
+			Weight:   0,
+			Port:     uint16(port),
+			Target:   host,
+		})
+	case dns.TypeTXT:
+		msg.Answer = append(msg.Answer, &dns.TXT{
+			Hdr: dns.RR_Header{Name: domain, Rrtype: dns.TypeTXT, Class: dns.ClassINET, Ttl: 60},
+			Txt: []string{
+				"namespace=default",
+			},
+		})
+		if domain == ptrQueries[registryDomain][0] {
+			msg.Answer = append(msg.Answer, &dns.TXT{
+				Hdr: dns.RR_Header{Name: domain, Rrtype: dns.TypeTXT, Class: dns.ClassINET, Ttl: 60},
+				Txt: []string{
+					"id=dns-client-cluster",
+				},
+			})
+		} else if domain == ptrQueries[registryDomain][1] {
+			msg.Answer = append(msg.Answer, &dns.TXT{
+				Hdr: dns.RR_Header{Name: domain, Rrtype: dns.TypeTXT, Class: dns.ClassINET, Ttl: 60},
+				Txt: []string{
+					"id=dns-server-cluster",
+				},
+			})
+		}
+	case dns.TypeA:
+		var host string
+		if domain == "client."+registryDomain {
+			host = strings.Split(clientCluster.cfg.Host, ":")[0]
+		} else if domain == "server."+registryDomain {
+			host = strings.Split(serverCluster.cfg.Host, ":")[0]
+		}
+		msg.Answer = append(msg.Answer, &dns.A{
+			Hdr: dns.RR_Header{Name: domain, Rrtype: dns.TypeA, Class: dns.ClassINET, Ttl: 60},
+			A:   net.ParseIP(host),
+		})
+	}
+	err := w.WriteMsg(&msg)
+	if err != nil {
+		klog.Error(err, err.Error())
+		os.Exit(1)
+	}
+}
+
+func SetupDNSServer() {
+	dnsServer := dns.Server{
+		Addr: "127.0.0.1:8053",
+		Net:  "udp",
+	}
+	dnsServer.Handler = &handler{}
+	go func() {
+		if err := dnsServer.ListenAndServe(); err != nil {
+			klog.Fatal("Failed to set udp listener ", err.Error())
+		}
+	}()
 }

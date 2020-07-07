@@ -4,7 +4,7 @@ import (
 	"errors"
 	discoveryv1 "github.com/liqoTech/liqo/api/discovery/v1"
 	"github.com/liqoTech/liqo/internal/discovery"
-	"github.com/liqoTech/liqo/pkg/crdClient/v1alpha1"
+	"github.com/liqoTech/liqo/pkg/crdClient"
 	v1 "k8s.io/api/core/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -18,7 +18,7 @@ type SearchDomainReconciler struct {
 	Scheme *runtime.Scheme
 
 	requeueAfter  time.Duration
-	crdClient     *v1alpha1.CRDClient
+	crdClient     *crdClient.CRDClient
 	DiscoveryCtrl *discovery.DiscoveryCtrl
 }
 

@@ -40,12 +40,12 @@ func testMdns(t *testing.T) {
 	service := "_liqo._tcp"
 	domain := "local."
 
-	go discoveryCtrl.Register()
+	go clientCluster.discoveryCtrl.Register()
 
 	time.Sleep(1 * time.Second)
 
 	txts := []*discovery.TxtData{}
-	discoveryCtrl.Resolve(service, domain, 3, &txts)
+	clientCluster.discoveryCtrl.Resolve(service, domain, 3, &txts)
 
 	time.Sleep(1 * time.Second)
 
@@ -70,7 +70,7 @@ func testForeignClusterCreation(t *testing.T) {
 		},
 	}
 
-	discoveryCtrl.UpdateForeign(txts)
+	clientCluster.discoveryCtrl.UpdateForeign(txts, nil)
 
 	time.Sleep(1 * time.Second)
 
