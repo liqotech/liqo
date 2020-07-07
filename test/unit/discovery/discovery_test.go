@@ -3,7 +3,6 @@ package discovery
 import (
 	policyv1 "github.com/liqoTech/liqo/api/cluster-config/v1"
 	v1 "github.com/liqoTech/liqo/api/discovery/v1"
-	"github.com/liqoTech/liqo/internal/discovery"
 	peering_request_operator "github.com/liqoTech/liqo/internal/peering-request-operator"
 	"github.com/liqoTech/liqo/pkg/crdClient"
 	"gotest.tools/assert"
@@ -20,7 +19,6 @@ import (
 var clientCluster *Cluster
 var serverCluster *Cluster
 var stopChan <-chan struct{}
-var discoveryCtrl discovery.DiscoveryCtrl
 
 func setUp() {
 	stopChan = ctrl.SetupSignalHandler()
@@ -30,11 +28,7 @@ func setUp() {
 
 	clientCluster.fcReconciler.ForeignConfig = serverCluster.cfg
 
-	discoveryCtrl = discovery.GetDiscoveryCtrl(
-		"default",
-		clientCluster.client,
-		clientCluster.clusterId,
-	)
+	SetupDNSServer()
 }
 
 func tearDown() {
@@ -124,7 +118,7 @@ func testDiscoveryConfig(t *testing.T) {
 	policyConfig.GroupVersion = &policyv1.GroupVersion
 	client, err := crdClient.NewFromConfig(&policyConfig)
 	assert.NilError(t, err, "Can't get CRDClient")
-	err = discoveryCtrl.GetDiscoveryConfig(client)
+	err = clientCluster.discoveryCtrl.GetDiscoveryConfig(client)
 	assert.NilError(t, err, "DiscoveryCtrl can't load settings")
 
 	tmp, err := client.Resource("clusterconfigs").Get("configuration", metav1.GetOptions{})
@@ -137,7 +131,7 @@ func testDiscoveryConfig(t *testing.T) {
 	cc = tmp.(*policyv1.ClusterConfig)
 
 	time.Sleep(1 * time.Second)
-	assert.Equal(t, *discoveryCtrl.Config, cc.Spec.DiscoveryConfig)
+	assert.Equal(t, *clientCluster.discoveryCtrl.Config, cc.Spec.DiscoveryConfig)
 
 	cc.Spec.DiscoveryConfig.EnableAdvertisement = true
 	cc.Spec.DiscoveryConfig.EnableDiscovery = true
@@ -146,7 +140,7 @@ func testDiscoveryConfig(t *testing.T) {
 	cc = tmp.(*policyv1.ClusterConfig)
 
 	time.Sleep(1 * time.Second)
-	assert.Equal(t, *discoveryCtrl.Config, cc.Spec.DiscoveryConfig)
+	assert.Equal(t, *clientCluster.discoveryCtrl.Config, cc.Spec.DiscoveryConfig)
 }
 
 // ------

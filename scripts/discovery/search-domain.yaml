@@ -4,4 +4,4 @@ metadata:
   name: test.liqo.io
 spec:
   domain: test.liqo.io
-  autojoin: false
+  autojoin: true
