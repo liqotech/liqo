@@ -1,5 +1,9 @@
 name: Integration Pipeline
-on: [push]
+on:
+  push:
+    branches:
+      - master
+  pull_request:
 jobs:
   build:
     runs-on: ubuntu-20.04
@@ -45,7 +49,7 @@ jobs:
         if: github.ref != 'refs/heads/master'
   e2e-test-trigger:
      runs-on: ubuntu-latest
-#     needs: [ build ]
+     needs: [ build ]
      steps:
        - uses: actions/checkout@v2
        - name: "Make scripts executable"

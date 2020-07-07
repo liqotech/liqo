@@ -7,7 +7,6 @@ metadata:
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
-  creationTimestamp: null
   name: tunnel-operator-manager-role
 rules:
   - apiGroups:
@@ -47,7 +46,6 @@ subjects:
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  creationTimestamp: null
   labels:
     run: tunnel-operator
   name: tunnel-operator
@@ -59,7 +57,6 @@ spec:
   strategy: {}
   template:
     metadata:
-      creationTimestamp: null
       labels:
         run: tunnel-operator
     spec:
@@ -67,7 +64,7 @@ spec:
         liqonet.liqo.io/gateway: "true"
       serviceAccountName: tunnel-operator-service-account
       containers:
-        - image: {{ .Values.tunnelEndpointOperator.image.repository }}
+        - image: {{ .Values.tunnelEndpointOperator.image.repository }}{{ .Values.global.suffix | default .Values.suffix }}:{{ .Values.global.version | default .Values.version }}
           imagePullPolicy: {{ .Values.tunnelEndpointOperator.image.pullPolicy }}
           name: tunnel-operator
           command: ["/usr/bin/liqonet"]
@@ -94,4 +91,3 @@ spec:
                   key: gatewayPrivateIP
       hostNetwork: true
       restartPolicy: Always
-status: {}

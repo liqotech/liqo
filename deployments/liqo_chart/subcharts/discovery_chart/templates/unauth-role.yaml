@@ -2,6 +2,9 @@ apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
   name: anonymous-role-peering
+  labels:
+    k8s-app: discovery
+    app: liqo.io
 rules:
   - apiGroups: ["discovery.liqo.io"]
     resources: ["peeringrequests"]
@@ -12,6 +15,9 @@ apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
   name: anonymous-role-secret
+  labels:
+    k8s-app: discovery
+    app: liqo.io
 rules:
   - apiGroups: [""]
     resources: ["secrets"]
@@ -22,6 +28,9 @@ apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
   name: anonymous-role-secret-ca
+  labels:
+    k8s-app: discovery
+    app: liqo.io
 rules:
   - apiGroups: [""]
     resources: ["secrets"]
@@ -48,6 +57,9 @@ kind: RoleBinding
 metadata:
   name: anonymous-binding-secret
   namespace: {{ .Release.Namespace }}
+  labels:
+    k8s-app: discovery
+    app: liqo.io
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
@@ -63,6 +75,9 @@ kind: RoleBinding
 metadata:
   name: anonymous-binding-secret-ca
   namespace: {{ .Release.Namespace }}
+  labels:
+    k8s-app: discovery
+    app: liqo.io
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole

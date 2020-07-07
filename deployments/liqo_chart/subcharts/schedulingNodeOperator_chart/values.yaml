@@ -7,3 +7,5 @@ image:
   repository: "liqo/schedulingnode-operator"
   pullPolicy: "IfNotPresent"
 
+suffix: ""
+version: "latest"

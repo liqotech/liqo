@@ -10,3 +10,6 @@ tunnelEndpointOperator:
   image:
     repository: "liqo/liqonet"
     pullPolicy: "IfNotPresent"
+
+suffix: ""
+version: "latest"

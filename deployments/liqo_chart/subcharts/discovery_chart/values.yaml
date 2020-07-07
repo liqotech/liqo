@@ -3,8 +3,11 @@
 # Declare variables to be passed into your templates.
 
 
-advController:
+discovery:
   image:
-    repository: "liqo/advertisement-operator"
+    repository: "liqo/discovery"
     pullPolicy: "IfNotPresent"
   foreignClusterID: "clusterID"
+
+suffix: ""
+version: "latest"

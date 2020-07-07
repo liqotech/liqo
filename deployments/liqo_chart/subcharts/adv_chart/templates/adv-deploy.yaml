@@ -6,11 +6,15 @@ metadata:
   namespace: {{ .Release.Namespace }}
   labels:
     k8s-app: advertisement-operator
+    app: liqo.io
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
 metadata:
   name: advertisement-operator
+  labels:
+    k8s-app: advertisement-operator
+    app: liqo.io
 subjects:
   - kind: ServiceAccount
     name: advertisement-operator
@@ -26,6 +30,7 @@ metadata:
   namespace: {{ .Release.Namespace }}
   labels:
     run: advertisement-operator
+    app: liqo.io
   name: advertisement-operator
 spec:
   replicas: 1
@@ -48,7 +53,7 @@ spec:
                       - virtual-node
       serviceAccountName: advertisement-operator
       containers:
-      - image: {{ .Values.advController.image.repository }}
+      - image: {{ .Values.advController.image.repository }}{{ .Values.global.suffix | default .Values.suffix }}:{{ .Values.global.version | default .Values.version }}
         imagePullPolicy: {{ .Values.advController.image.pullPolicy }}
         name: advertisement-operator
         command: ["/usr/bin/advertisement-operator"]

@@ -2,9 +2,11 @@ apiVersion: v1
 kind: ConfigMap
 metadata:
   name: {{ .Values.global.configmapName }}
+  labels:
+    app: liqo.io
 data:
-  clusterID: {{ .Values.configmap.clusterID}}
-  podCIDR: {{ .Values.configmap.podCIDR}}
-  serviceCIDR: {{ .Values.configmap.serviceCIDR}}
-  gatewayPrivateIP: {{ .Values.configmap.gatewayPrivateIP}}
-  gatewayIP: {{ .Values.configmap.gatewayIP}}
+  clusterID: {{ .Values.clusterID}}
+  podCIDR: {{ .Values.podCIDR}}
+  serviceCIDR: {{ .Values.serviceCIDR}}
+  gatewayPrivateIP: {{ .Values.gatewayPrivateIP}}
+  gatewayIP: {{ .Values.gatewayIP}}

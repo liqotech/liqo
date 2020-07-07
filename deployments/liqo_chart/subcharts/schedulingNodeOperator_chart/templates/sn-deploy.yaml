@@ -24,7 +24,6 @@ roleRef:
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  creationTimestamp: null
   labels:
     run: schedulingnode-operator
   name: schedulingnode-operator
@@ -36,15 +35,13 @@ spec:
   strategy: {}
   template:
     metadata:
-      creationTimestamp: null
       labels:
         run: schedulingnode-operator
     spec:
       serviceAccountName: sn-operator
       containers:
-      - image: {{ .Values.image.repository }}
+      - image: {{ .Values.image.repository }}{{ .Values.global.suffix | default .Values.suffix }}:{{ .Values.global.version | default .Values.version }}
         imagePullPolicy: {{ .Values.image.pullPolicy }}
         name: schedulingnode-operator
         command: ["/usr/bin/schedulingNode-operator"]
-status: {}
 
