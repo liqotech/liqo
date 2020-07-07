@@ -3,7 +3,7 @@ module github.com/liqoTech/liqo
 go 1.13
 
 require (
-	contrib.go.opencensus.io/exporter/jaeger v0.1.0
+	contrib.go.opencensus.io/exporter/jaeger v0.2.0
 	contrib.go.opencensus.io/exporter/ocagent v0.4.12
 	github.com/apparentlymart/go-cidr v1.0.1
 	github.com/certifi/gocertifi v0.0.0-20200104152315-a6d78f326758 // indirect
