@@ -11,7 +11,7 @@ import (
 	"k8s.io/klog"
 	"os"
 	"path/filepath"
-	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"time"
 )
 
@@ -25,18 +25,7 @@ func init() {
 	// +kubebuilder:scaffold:scheme
 }
 
-func StartOperator(namespace string, requeueAfter time.Duration, discoveryCtrl *discovery.DiscoveryCtrl) {
-	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
-		Scheme:           scheme,
-		Port:             9443,
-		LeaderElection:   false,
-		LeaderElectionID: "b3156c4e.liqo.io",
-	})
-	if err != nil {
-		klog.Error(err, "unable to start manager")
-		os.Exit(1)
-	}
-
+func StartOperator(mgr *manager.Manager, namespace string, requeueAfter time.Duration, discoveryCtrl *discovery.DiscoveryCtrl) {
 	config, err := crdClient.NewKubeconfig(filepath.Join(os.Getenv("HOME"), ".kube", "config"), &discoveryv1.GroupVersion)
 	if err != nil {
 		klog.Error(err, "unable to get kube config")
@@ -54,20 +43,14 @@ func StartOperator(namespace string, requeueAfter time.Duration, discoveryCtrl *
 	}
 
 	if err = (GetFCReconciler(
-		mgr.GetScheme(),
+		(*mgr).GetScheme(),
 		namespace,
 		crdClient,
 		clusterId,
 		requeueAfter,
 		discoveryCtrl,
-	)).SetupWithManager(mgr); err != nil {
+	)).SetupWithManager(*mgr); err != nil {
 		klog.Error(err, "unable to create controller", "controller", "ForeignCluster")
-		os.Exit(1)
-	}
-	// +kubebuilder:scaffold:builder
-
-	if err := mgr.Start(ctrl.SetupSignalHandler()); err != nil {
-		klog.Error(err, "problem running manager")
 		os.Exit(1)
 	}
 }
