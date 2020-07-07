@@ -2,24 +2,27 @@
 # This is a YAML-formatted file.
 # Declare variables to be passed into your templates.
 
-configmap:
-  clusterID: "cluster-1"
-  podCIDR: "10.244.0.0/16"
-  serviceCIDR: "10.96.0.0/12"
-  gatewayPrivateIP: "10.244.2.47"
-  gatewayIP: "10.251.0.1"
+clusterID: "lab9"
+podCIDR: "10.244.0.0/16"
+serviceCIDR: "10.96.0.0/12"
+gatewayPrivateIP: "192.168.1.1"
+gatewayIP: "X.Y.Z.Q" # The public IP of your gateway
+
+
+##### Needed
+suffix: ""
+version: "latest"
 
 #configuration values for the adv subchart
 adv_chart:
   advController:
     image:
       repository: "liqo/advertisement-operator"
-      pullPolicy: "IfNotPresent"
-    foreignClusterID: "cluster-2"
+      pullPolicy: "Always"
   broadcaster:
     image:
       repository: "liqo/advertisement-broadcaster"
-      pullPolicy: "IfNotPresent"
+      pullPolicy: "Always"
   enabled: true
 
 #configuration values for the networkModule subchart
@@ -27,42 +30,51 @@ networkModule_chart:
   routeOperator:
     image:
       repository: "liqo/liqonet"
-      pullPolicy: "IfNotPresent"
+      pullPolicy: "Always"
   tunnelEndpointOperator:
     image:
       repository: "liqo/liqonet"
-      pullPolicy: "IfNotPresent"
+      pullPolicy: "Always"
   enabled: true
 
 #configuration values for the tunnelendpointCreator subchart
 tunnelEndpointCreator_chart:
   image:
     repository: "liqo/liqonet"
-    pullPolicy: "IfNotPresent"
+    pullPolicy: "Always"
   enabled: true
 
 #configuration values for the schedulingNode subchart
 schedulingNodeOperator_chart:
   image:
     repository: "liqo/schedulingnode-operator"
-    pullPolicy: "IfNotPresent"
+    pullPolicy: "Always"
   enabled: true
 
 #configuration values for the mutatingWebhook subchart
 mutatingWebhook_chart:
-  secret-creation:
-    image:
-      repository: "liqo/secret-creation"
-      pullPolicy: "IfNotPresent"
   init-mutatingWebhook:
     image:
       repository: "liqo/init-pod-mutator"
-      pullPolicy: "IfNotPresent"
+      pullPolicy: "Always"
   mutatingWebhook:
     image:
       repository: "liqo/pod-mutator"
-      pullPolicy: "IfNotPresent"
+      pullPolicy: "Always"
   enabled: true
+
+discovery:
+  image:
+    repository: "liqo/discovery"
+    pullPolicy: "Always"
+  foreignClusterID: "clusterID"
+
+peeringRequest:
+  image:
+    repository: "liqo/peering-request-operator"
+    pullPolicy: "Always"
 
 global:
   configmapName: "liqo-configmap"
+  suffix: ""
+  version: ""

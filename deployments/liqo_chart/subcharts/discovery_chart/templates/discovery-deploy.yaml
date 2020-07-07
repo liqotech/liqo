@@ -6,12 +6,16 @@ metadata:
   namespace: {{ .Release.Namespace }}
   labels:
     k8s-app: discovery
+    app: liqo.io
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
 metadata:
   name: discovery
   namespace: {{ .Release.Namespace }}
+  labels:
+    k8s-app: discovery
+    app: liqo.io
 subjects:
   - kind: ServiceAccount
     name: discovery-sa
@@ -26,6 +30,7 @@ kind: Deployment
 metadata:
   labels:
     run: discovery
+    app: liqo.io
   name: discovery
   namespace: {{ .Release.Namespace }}
 spec:
@@ -40,9 +45,9 @@ spec:
     spec:
       serviceAccountName: discovery-sa
       containers:
-        - image: liqo/discovery
+        - image: {{ .Values.discovery.image.repository }}{{ .Values.global.suffix | default .Values.suffix }}:{{ .Values.global.version | default .Values.version }}
           name: discovery
-          imagePullPolicy: Always
+          imagePullPolicy: {{ .Values.discovery.image.pullPolicy }}
           command: ["/usr/bin/discovery"]
           args:
           - "--namespace"

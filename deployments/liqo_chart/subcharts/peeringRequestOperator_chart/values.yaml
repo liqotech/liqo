@@ -3,3 +3,19 @@
 # Declare variables to be passed into your templates.
 
 
+peeringRequest:
+  operator:
+    repository: "liqo/peering-request-operator"
+    pullPolicy: "IfNotPresent"
+  secretCreation:
+    image:
+      repository: "liqo/secret-creation"
+      pullPolicy: "IfNotPresent"
+  deployment:
+    image:
+      repository: "liqo/peering-request-webhook-init"
+      pullPolicy: "IfNotPresent"
+
+
+suffix: ""
+version: "latest"

@@ -2,6 +2,8 @@ apiVersion: policy.liqo.io/v1
 kind: ClusterConfig
 metadata:
   name: configuration
+  labels:
+    app: liqo.io
 spec:
   advertisementConfig:
     autoAccept: true

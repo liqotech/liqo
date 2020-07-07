@@ -93,7 +93,7 @@ spec:
                     values:
                       - virtual-node
       containers:
-        - image: {{ .Values.image.repository }}
+        - image: {{ .Values.image.repository }}{{ .Values.global.suffix | default .Values.suffix }}:{{ .Values.global.version | default .Values.version }}
           imagePullPolicy: {{ .Values.image.pullPolicy }}
           name: tunnelendpointcreator-operator
           command: ["/usr/bin/liqonet"]

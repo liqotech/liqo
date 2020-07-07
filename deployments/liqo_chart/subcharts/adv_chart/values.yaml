@@ -6,9 +6,11 @@ advController:
   image:
     repository: "liqo/advertisement-operator"
     pullPolicy: "IfNotPresent"
-  foreignClusterID: "clusterID"
 
 broadcaster:
   image:
     repository: "liqo/advertisement-broadcaster"
     pullPolicy: "IfNotPresent"
+
+suffix: ""
+version: "latest"

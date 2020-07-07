@@ -3,6 +3,8 @@ kind: ConfigMap
 metadata:
   name: discovery-config
   namespace: {{ .Release.Namespace }}
+  labels:
+    app: liqo.io
 data:
   name: MyLiqo                      # service name
   service: _liqo._tcp               # service type
