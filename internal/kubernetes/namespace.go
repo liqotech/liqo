@@ -4,7 +4,6 @@ import (
 	"errors"
 	nattingv1 "github.com/liqoTech/liqo/api/namespaceNattingTable/v1"
 	"github.com/liqoTech/liqo/pkg/crdClient"
-	"github.com/liqoTech/liqo/pkg/crdClient/v1alpha1"
 	v1 "k8s.io/api/core/v1"
 	kerror "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -19,7 +18,7 @@ type namespaceNTCache struct {
 	nattingTableName string
 }
 
-func (p *KubernetesProvider) startNattingCache(clientSet v1alpha1.NamespacedCRDClientInterface) error {
+func (p *KubernetesProvider) startNattingCache(clientSet crdClient.NamespacedCRDClientInterface) error {
 	var err error
 
 	ehf := cache.ResourceEventHandlerFuncs{

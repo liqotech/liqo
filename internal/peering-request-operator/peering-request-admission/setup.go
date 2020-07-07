@@ -4,7 +4,7 @@ import (
 	"crypto/tls"
 	"fmt"
 	discoveryv1 "github.com/liqoTech/liqo/api/discovery/v1"
-	"github.com/liqoTech/liqo/pkg/crdClient/v1alpha1"
+	"github.com/liqoTech/liqo/pkg/crdClient"
 	"k8s.io/klog"
 	"net/http"
 	"os"
@@ -23,12 +23,12 @@ func startTls(certPath string, keyPath string, port int, namespace string) *Webh
 		os.Exit(1)
 	}
 
-	config, err := v1alpha1.NewKubeconfig(filepath.Join(os.Getenv("HOME"), ".kube", "config"), &discoveryv1.GroupVersion)
+	config, err := crdClient.NewKubeconfig(filepath.Join(os.Getenv("HOME"), ".kube", "config"), &discoveryv1.GroupVersion)
 	if err != nil {
 		klog.Error(err, "unable to get kube config")
 		os.Exit(1)
 	}
-	crdClient, err := v1alpha1.NewFromConfig(config)
+	client, err := crdClient.NewFromConfig(config)
 	if err != nil {
 		klog.Error(err, "unable to create crd client")
 		os.Exit(1)
@@ -40,7 +40,7 @@ func startTls(certPath string, keyPath string, port int, namespace string) *Webh
 			TLSConfig: &tls.Config{Certificates: []tls.Certificate{pair}},
 		},
 
-		crdClient: crdClient,
+		client:    client,
 		Namespace: namespace,
 	}
 

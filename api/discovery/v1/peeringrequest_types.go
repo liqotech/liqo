@@ -17,7 +17,7 @@ limitations under the License.
 package v1
 
 import (
-	"github.com/liqoTech/liqo/pkg/crdClient/v1alpha1"
+	"github.com/liqoTech/liqo/pkg/crdClient"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -66,7 +66,7 @@ type PeeringRequestList struct {
 func init() {
 	SchemeBuilder.Register(&PeeringRequest{}, &PeeringRequestList{})
 
-	v1alpha1.AddToRegistry("peeringrequests", &PeeringRequest{}, &PeeringRequestList{}, nil, schema.GroupResource{
+	crdClient.AddToRegistry("peeringrequests", &PeeringRequest{}, &PeeringRequestList{}, nil, schema.GroupResource{
 		Group:    v1.SchemeGroupVersion.Group,
 		Resource: "peeringrequests",
 	})

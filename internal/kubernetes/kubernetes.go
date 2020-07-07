@@ -4,7 +4,7 @@ import (
 	protocolv1 "github.com/liqoTech/liqo/api/advertisement-operator/v1"
 	nattingv1 "github.com/liqoTech/liqo/api/namespaceNattingTable/v1"
 	"github.com/liqoTech/liqo/internal/node"
-	"github.com/liqoTech/liqo/pkg/crdClient/v1alpha1"
+	"github.com/liqoTech/liqo/pkg/crdClient"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
@@ -18,9 +18,9 @@ type KubernetesProvider struct { // nolint:golint]
 	*Reflector
 
 	ntCache          *namespaceNTCache
-	nodeUpdateClient *v1alpha1.CRDClient
-	foreignClient    *v1alpha1.CRDClient
-	homeClient       *v1alpha1.CRDClient
+	nodeUpdateClient *crdClient.CRDClient
+	foreignClient    *crdClient.CRDClient
+	homeClient       *crdClient.CRDClient
 
 	nodeName           string
 	operatingSystem    string
@@ -59,12 +59,12 @@ func NewKubernetesProvider(nodeName, clusterId, homeClusterId, operatingSystem s
 		return nil, err
 	}
 
-	restConfig, err := v1alpha1.NewKubeconfig(remoteKubeConfig, &schema.GroupVersion{})
+	restConfig, err := crdClient.NewKubeconfig(remoteKubeConfig, &schema.GroupVersion{})
 	if err != nil {
 		return nil, err
 	}
 
-	foreignClient, err := v1alpha1.NewFromConfig(restConfig)
+	foreignClient, err := crdClient.NewFromConfig(restConfig)
 	if err != nil {
 		return nil, err
 	}

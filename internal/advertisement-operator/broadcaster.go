@@ -3,7 +3,7 @@ package advertisement_operator
 import (
 	"errors"
 	"github.com/liqoTech/liqo/internal/discovery/kubeconfig"
-	"github.com/liqoTech/liqo/pkg/crdClient/v1alpha1"
+	"github.com/liqoTech/liqo/pkg/crdClient"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/klog"
@@ -24,11 +24,11 @@ import (
 
 type AdvertisementBroadcaster struct {
 	// local-related variables
-	LocalClient     *v1alpha1.CRDClient
-	DiscoveryClient *v1alpha1.CRDClient
+	LocalClient     *crdClient.CRDClient
+	DiscoveryClient *crdClient.CRDClient
 	// remote-related variables
-	KubeconfigSecretForForeign *corev1.Secret      // secret containing the kubeconfig that will be sent to the foreign cluster
-	RemoteClient               *v1alpha1.CRDClient // client to create Advertisements and Secrets on the foreign cluster
+	KubeconfigSecretForForeign *corev1.Secret       // secret containing the kubeconfig that will be sent to the foreign cluster
+	RemoteClient               *crdClient.CRDClient // client to create Advertisements and Secrets on the foreign cluster
 	// configuration variables
 	HomeClusterId    string
 	ForeignClusterId string
@@ -57,12 +57,12 @@ func StartBroadcaster(homeClusterId, localKubeconfigPath, gatewayIP, gatewayPriv
 	}
 
 	// create the discovery client
-	config, err := v1alpha1.NewKubeconfig(localKubeconfigPath, &discoveryv1.GroupVersion)
+	config, err := crdClient.NewKubeconfig(localKubeconfigPath, &discoveryv1.GroupVersion)
 	if err != nil {
 		klog.Error(err, err.Error())
 		return err
 	}
-	discoveryClient, err := v1alpha1.NewFromConfig(config)
+	discoveryClient, err := crdClient.NewFromConfig(config)
 	if err != nil {
 		klog.Error(err, err.Error())
 		return err
@@ -89,7 +89,7 @@ func StartBroadcaster(homeClusterId, localKubeconfigPath, gatewayIP, gatewayPriv
 	}
 
 	// create the Advertisement client to the remote cluster, using the retrieved Secret
-	var remoteClient *v1alpha1.CRDClient
+	var remoteClient *crdClient.CRDClient
 	var retry int
 
 	// create a CRD-client to the foreign cluster

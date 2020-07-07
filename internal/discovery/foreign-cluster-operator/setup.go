@@ -3,7 +3,7 @@ package foreign_cluster_operator
 import (
 	discoveryv1 "github.com/liqoTech/liqo/api/discovery/v1"
 	"github.com/liqoTech/liqo/pkg/clusterID"
-	"github.com/liqoTech/liqo/pkg/crdClient/v1alpha1"
+	"github.com/liqoTech/liqo/pkg/crdClient"
 	"k8s.io/apimachinery/pkg/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
@@ -36,12 +36,12 @@ func StartOperator(namespace string, requeueAfter time.Duration) {
 		os.Exit(1)
 	}
 
-	config, err := v1alpha1.NewKubeconfig(filepath.Join(os.Getenv("HOME"), ".kube", "config"), &discoveryv1.GroupVersion)
+	config, err := crdClient.NewKubeconfig(filepath.Join(os.Getenv("HOME"), ".kube", "config"), &discoveryv1.GroupVersion)
 	if err != nil {
 		klog.Error(err, "unable to get kube config")
 		os.Exit(1)
 	}
-	crdClient, err := v1alpha1.NewFromConfig(config)
+	crdClient, err := crdClient.NewFromConfig(config)
 	if err != nil {
 		klog.Error(err, "unable to create crd client")
 		os.Exit(1)
@@ -70,7 +70,7 @@ func StartOperator(namespace string, requeueAfter time.Duration) {
 	}
 }
 
-func GetFCReconciler(scheme *runtime.Scheme, namespace string, crdClient *v1alpha1.CRDClient, clusterId *clusterID.ClusterID, requeueAfter time.Duration) *ForeignClusterReconciler {
+func GetFCReconciler(scheme *runtime.Scheme, namespace string, crdClient *crdClient.CRDClient, clusterId *clusterID.ClusterID, requeueAfter time.Duration) *ForeignClusterReconciler {
 	return &ForeignClusterReconciler{
 		Scheme:        scheme,
 		Namespace:     namespace,

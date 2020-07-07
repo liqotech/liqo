@@ -2,13 +2,13 @@ package v1
 
 import (
 	"errors"
-	"github.com/liqoTech/liqo/pkg/crdClient/v1alpha1"
+	"github.com/liqoTech/liqo/pkg/crdClient"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
 )
 
-func CreateClient(kubeconfig string) (*v1alpha1.CRDClient, error) {
+func CreateClient(kubeconfig string) (*crdClient.CRDClient, error) {
 	var config *rest.Config
 	var err error
 
@@ -16,17 +16,17 @@ func CreateClient(kubeconfig string) (*v1alpha1.CRDClient, error) {
 		panic(err)
 	}
 
-	config, err = v1alpha1.NewKubeconfig(kubeconfig, &GroupVersion)
+	config, err = crdClient.NewKubeconfig(kubeconfig, &GroupVersion)
 	if err != nil {
 		panic(err)
 	}
 
-	clientSet, err := v1alpha1.NewFromConfig(config)
+	clientSet, err := crdClient.NewFromConfig(config)
 	if err != nil {
 		return nil, err
 	}
 
-	v1alpha1.AddToRegistry("namespacenattingtables",
+	crdClient.AddToRegistry("namespacenattingtables",
 		&NamespaceNattingTable{},
 		&NamespaceNattingTableList{},
 		Keyer,

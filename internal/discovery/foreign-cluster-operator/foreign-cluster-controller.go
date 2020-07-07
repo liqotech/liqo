@@ -22,7 +22,7 @@ import (
 	discoveryv1 "github.com/liqoTech/liqo/api/discovery/v1"
 	"github.com/liqoTech/liqo/internal/discovery/kubeconfig"
 	"github.com/liqoTech/liqo/pkg/clusterID"
-	"github.com/liqoTech/liqo/pkg/crdClient/v1alpha1"
+	"github.com/liqoTech/liqo/pkg/crdClient"
 	apiv1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -39,7 +39,7 @@ type ForeignClusterReconciler struct {
 	Scheme *runtime.Scheme
 
 	Namespace    string
-	crdClient    *v1alpha1.CRDClient
+	crdClient    *crdClient.CRDClient
 	clusterID    *clusterID.ClusterID
 	RequeueAfter time.Duration
 
@@ -100,7 +100,7 @@ func (r *ForeignClusterReconciler) Reconcile(req ctrl.Request) (ctrl.Result, err
 		}, err
 	}
 	foreignConfig.GroupVersion = &discoveryv1.GroupVersion
-	foreignDiscoveryClient, err := v1alpha1.NewFromConfig(foreignConfig)
+	foreignDiscoveryClient, err := crdClient.NewFromConfig(foreignConfig)
 	if err != nil {
 		klog.Error(err, err.Error())
 		return ctrl.Result{
@@ -186,7 +186,7 @@ func (r *ForeignClusterReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		Complete(r)
 }
 
-func (r *ForeignClusterReconciler) checkJoined(fc *discoveryv1.ForeignCluster, foreignDiscoveryClient *v1alpha1.CRDClient) (*discoveryv1.ForeignCluster, error) {
+func (r *ForeignClusterReconciler) checkJoined(fc *discoveryv1.ForeignCluster, foreignDiscoveryClient *crdClient.CRDClient) (*discoveryv1.ForeignCluster, error) {
 	_, err := foreignDiscoveryClient.Resource("peeringrequests").Get(fc.Status.PeeringRequestName, metav1.GetOptions{})
 	if err != nil {
 		fc.Status.Joined = false
@@ -204,7 +204,7 @@ func (r *ForeignClusterReconciler) checkJoined(fc *discoveryv1.ForeignCluster, f
 	return fc, nil
 }
 
-func (r *ForeignClusterReconciler) createPeeringRequestIfNotExists(clusterID string, owner *discoveryv1.ForeignCluster, foreignClient *v1alpha1.CRDClient) (*discoveryv1.PeeringRequest, error) {
+func (r *ForeignClusterReconciler) createPeeringRequestIfNotExists(clusterID string, owner *discoveryv1.ForeignCluster, foreignClient *crdClient.CRDClient) (*discoveryv1.PeeringRequest, error) {
 	// get config to send to foreign cluster
 	fConfig, err := r.getForeignConfig(clusterID, owner)
 	if err != nil {
@@ -417,6 +417,6 @@ func (r *ForeignClusterReconciler) createClusterRoleBindingIfNotExists(clusterID
 	}
 }
 
-func (r *ForeignClusterReconciler) deletePeeringRequest(foreignClient *v1alpha1.CRDClient, fc *discoveryv1.ForeignCluster) error {
+func (r *ForeignClusterReconciler) deletePeeringRequest(foreignClient *crdClient.CRDClient, fc *discoveryv1.ForeignCluster) error {
 	return foreignClient.Resource("peeringrequests").Delete(fc.Status.PeeringRequestName, metav1.DeleteOptions{})
 }

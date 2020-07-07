@@ -1,4 +1,4 @@
-package v1alpha1
+package crdClient
 
 import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -6,20 +6,10 @@ import (
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
+	"k8s.io/client-go/tools/cache"
 	"reflect"
 	"time"
 )
-
-type CrdClientInterface interface {
-	Namespace(namespace string) CrdClientInterface
-	List(opts metav1.ListOptions) (runtime.Object, error)
-	Get(name string, opts metav1.GetOptions) (runtime.Object, error)
-	Create(obj runtime.Object, opts metav1.CreateOptions) (runtime.Object, error)
-	Watch(opts metav1.ListOptions) (watch.Interface, error)
-	Update(name string, obj runtime.Object, opts metav1.UpdateOptions) (runtime.Object, error)
-	UpdateStatus(name string, obj runtime.Object, opts metav1.UpdateOptions) (runtime.Object, error)
-	Delete(name string, opts metav1.DeleteOptions) error
-}
 
 type Client struct {
 	Client rest.Interface
@@ -27,6 +17,8 @@ type Client struct {
 	api      string
 	resource RegistryType
 	ns       string
+
+	storage cache.Store
 }
 
 func (c *Client) Namespace(namespace string) CrdClientInterface {
