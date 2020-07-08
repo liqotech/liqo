@@ -72,5 +72,18 @@ func (c *FakeClient) Update(name string, obj runtime.Object, _ metav1.UpdateOpti
 }
 
 func (c *FakeClient) UpdateStatus(name string, obj runtime.Object, opts metav1.UpdateOptions) (runtime.Object, error) {
-	panic("to implement")
+	err := c.storage.Update(obj)
+	if err != nil {
+		return nil, err
+	}
+
+	result, found, err := c.storage.GetByKey(name)
+	if err != nil {
+		return nil, err
+	}
+	if !found {
+		return nil, kerrors.NewNotFound(c.storage.groupResource, name)
+	}
+
+	return result.(runtime.Object), nil
 }

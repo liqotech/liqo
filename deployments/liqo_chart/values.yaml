@@ -2,11 +2,10 @@
 # This is a YAML-formatted file.
 # Declare variables to be passed into your templates.
 
-configmap:
-  clusterID: "cluster-1"
-  podCIDR: "10.244.0.0/16"
-  serviceCIDR: "10.96.0.0/12"
-  gatewayPrivateIP: "10.244.2.47"
+clusterID: "lab9"
+podCIDR: "10.244.0.0/16"
+serviceCIDR: "10.96.0.0/12"
+gatewayPrivateIP: "192.168.1.1"
 
 
 ##### Needed
