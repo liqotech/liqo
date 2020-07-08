@@ -10,11 +10,12 @@ import (
 )
 
 func (p *KubernetesProvider) manageRemoteEpEvent(event watch.Event) error {
+	klog.V(3).Info("FOREIGN EP EVENT - starting remote ep reconciliation")
 	foreignEps, ok := event.Object.(*corev1.Endpoints)
 	if !ok {
 		return errors.New("cannot cast endpoints")
 	}
-	klog.V(3).Infof("received %v on endpoint %v", event.Type, foreignEps.Name)
+	klog.V(3).Infof("FOREIGN EP EVENT - event %v on endpoint %v with version %v", event.Type, foreignEps.Name, foreignEps.ResourceVersion)
 
 	denattedNS, err := p.DeNatNamespace(foreignEps.Namespace)
 	if err != nil {
@@ -26,24 +27,31 @@ func (p *KubernetesProvider) manageRemoteEpEvent(event watch.Event) error {
 	}
 
 	if !hasToBeUpdated(endpoints.Subsets, foreignEps.Subsets) {
+		klog.V(3).Infof("FOREIGN EP EVENT - endpoint %v has not to be updated", foreignEps.Name)
 		return nil
 	}
 
 	foreignEps.Subsets = p.updateEndpoints(endpoints.Subsets, foreignEps.Subsets)
 
 	_, err = p.foreignClient.Client().CoreV1().Endpoints(foreignEps.Namespace).Update(foreignEps)
+	if err != nil {
+		return err
+	}
 
-	return err
+	klog.V(3).Infof("FOREIGN EP EVENT - event %v on endpoint %v with version %v correctly reconciliated", event.Type, foreignEps.Name, foreignEps.ResourceVersion)
+
+	return nil
 }
 
 // manageEpEvent gets an event of type watch.MODIFIED, then cast it to the correct type,
 // gets the natted namespace, and finally calls the updateEndpoints function
 func (p *KubernetesProvider) manageEpEvent(event timestampedEvent) error {
+	klog.V(3).Info("HOME EP EVENT - starting home ep reconciliation")
 	endpoints, ok := event.event.Object.(*corev1.Endpoints)
 	if !ok {
 		return errors.New("cannot cast object to endpoint")
 	}
-	klog.V(3).Infof("received %v on endpoint %v", event.event.Type, endpoints.Name)
+	klog.V(3).Infof("HOME EP EVENT - event %v on endpoint %v with version %v", event.event.Type, endpoints.Name, endpoints.ResourceVersion)
 
 	nattedNS, err := p.NatNamespace(endpoints.Namespace, false)
 	if err != nil {
@@ -56,6 +64,7 @@ func (p *KubernetesProvider) manageEpEvent(event timestampedEvent) error {
 	}
 
 	if !hasToBeUpdated(endpoints.Subsets, foreignEps.Subsets) {
+		klog.V(3).Infof("HOME EP EVENT - endpoint %v has not to be updated", foreignEps.Name)
 		return nil
 	}
 
@@ -80,8 +89,12 @@ func (p *KubernetesProvider) manageEpEvent(event timestampedEvent) error {
 	foreignEps.Labels[timestampedLabel] = strconv.FormatInt(event.ts, 10)
 	foreignEps.Namespace = nattedNS
 	_, err = p.foreignClient.Client().CoreV1().Endpoints(nattedNS).Update(foreignEps)
+	if err != nil {
+		return err
+	}
 
-	return err
+	klog.V(3).Infof("HOME EP EVENT - event %v on endpoint %v with version %v correctly reconciliated", event.event.Type, endpoints.Name, endpoints.ResourceVersion)
+	return nil
 }
 
 // updateEndpoints gets a local endpoints resource and a namespace, then fetches the remote
@@ -124,14 +137,17 @@ func (p *KubernetesProvider) updateEndpoints(eps, foreignEps []corev1.EndpointSu
 
 func hasToBeUpdated(home, foreign []corev1.EndpointSubset) bool {
 	if len(home) != len(foreign) {
+		klog.V(4).Info("the ep has to be updated because home and foreign subsets lengths are different")
 		return true
 	}
 	for i := 0; i < len(home); i++ {
 		if len(home[i].Addresses) != len(foreign[i].Addresses) {
+			klog.V(4).Info("the ep has to be updated because home and foreign addresses lengths are different")
 			return true
 		}
 		for j := 0; j < len(home[i].Addresses); j++ {
 			if home[i].Addresses[j].IP != foreign[i].Addresses[j].IP {
+				klog.V(4).Info("the ep has to be updated because home and foreign IPs are different")
 				return true
 			}
 		}
