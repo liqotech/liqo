@@ -75,7 +75,7 @@ func (r *PeeringRequestReconciler) Reconcile(req ctrl.Request) (ctrl.Result, err
 			klog.Error(err, err.Error())
 			return ctrl.Result{}, err
 		}
-		deploy := GetBroadcasterDeployment(pr, r.broadcasterServiceAccount, r.Namespace, r.broadcasterImage, r.clusterId.GetClusterID(), cm.Data["gatewayIP"], cm.Data["gatewayPrivateIP"])
+		deploy := GetBroadcasterDeployment(pr, r.broadcasterServiceAccount, r.Namespace, r.broadcasterImage, r.clusterId.GetClusterID(), cm.Data["gatewayPrivateIP"])
 		_, err = r.crdClient.Client().AppsV1().Deployments(r.Namespace).Create(&deploy)
 		if err != nil {
 			klog.Error(err, err.Error())
