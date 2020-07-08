@@ -92,7 +92,7 @@ func (r *AdvertisementReconciler) Reconcile(req ctrl.Request) (ctrl.Result, erro
 		if err != nil {
 			return ctrl.Result{}, err
 		}
-		klog.V(3).Info("Coorect creation of virtual kubelet deployment for cluster " + adv.Spec.ClusterId)
+		klog.V(3).Info("Correct creation of virtual kubelet deployment for cluster " + adv.Spec.ClusterId)
 		return ctrl.Result{}, nil
 	}
 

@@ -4,6 +4,7 @@ import (
 	"errors"
 	"github.com/liqoTech/liqo/internal/discovery/kubeconfig"
 	"github.com/liqoTech/liqo/pkg/crdClient"
+	pkg "github.com/liqoTech/liqo/pkg/advertisement-operator"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/klog"
@@ -14,8 +15,6 @@ import (
 	protocolv1 "github.com/liqoTech/liqo/api/advertisement-operator/v1"
 	policyv1 "github.com/liqoTech/liqo/api/cluster-config/v1"
 	discoveryv1 "github.com/liqoTech/liqo/api/discovery/v1"
-	pkg "github.com/liqoTech/liqo/pkg/advertisement-operator"
-
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -32,7 +31,6 @@ type AdvertisementBroadcaster struct {
 	// configuration variables
 	HomeClusterId    string
 	ForeignClusterId string
-	GatewayIP        string
 	GatewayPrivateIP string
 	ClusterConfig    policyv1.AdvertisementConfig
 }
@@ -42,11 +40,10 @@ type AdvertisementBroadcaster struct {
 // parameters
 // - homeClusterId: the cluster ID of your cluster (must be a UUID)
 // - localKubeconfigPath: the path to the kubeconfig of the local cluster. Set it only when you are debugging and need to launch the program as a process and not inside Kubernetes
-// - gatewayIP: the IP address of the gateway node
 // - gatewayPrivateIP: the private IP address of the gateway node
 // - peeringRequestName: the name of the PeeringRequest containing the reference to the secret with the kubeconfig for creating Advertisements CR on foreign cluster
 // - saName: The name of the ServiceAccount used to create the kubeconfig that will be sent to the foreign cluster with the permissions to create resources on local cluster
-func StartBroadcaster(homeClusterId, localKubeconfigPath, gatewayIP, gatewayPrivateIP, peeringRequestName, saName string) error {
+func StartBroadcaster(homeClusterId, localKubeconfigPath, gatewayPrivateIP, peeringRequestName, saName string) error {
 	klog.V(6).Info("starting broadcaster")
 
 	// create the Advertisement client to the local cluster
@@ -153,7 +150,6 @@ func StartBroadcaster(homeClusterId, localKubeconfigPath, gatewayIP, gatewayPriv
 		RemoteClient:               remoteClient,
 		HomeClusterId:              homeClusterId,
 		ForeignClusterId:           pr.Name,
-		GatewayIP:                  gatewayIP,
 		GatewayPrivateIP:           gatewayPrivateIP,
 	}
 
@@ -171,71 +167,17 @@ func (b *AdvertisementBroadcaster) GenerateAdvertisement() {
 	var once sync.Once
 
 	for {
-		// get physical and virtual nodes in the cluster
-		physicalNodes, err := b.LocalClient.Client().CoreV1().Nodes().List(metav1.ListOptions{LabelSelector: "type != virtual-node"})
+		physicalNodes, virtualNodes, availability, limits, images, err := b.GetResourcesForAdv()
 		if err != nil {
-			klog.Errorln(err, "Could not get physical nodes, retry in 1 minute")
-			time.Sleep(1 * time.Minute)
+			klog.Errorln(err, "Error while computing resources for Advertisement")
 			continue
 		}
-		virtualNodes, err := b.LocalClient.Client().CoreV1().Nodes().List(metav1.ListOptions{LabelSelector: "type = virtual-node"})
-		if err != nil {
-			klog.Errorln(err, "Could not get virtual nodes, retry in 1 minute")
-			time.Sleep(1 * time.Minute)
-			continue
-		}
-		// get resources used by pods in the cluster
-		fieldSelector, err := fields.ParseSelector("status.phase!=" + string(corev1.PodSucceeded) + ",status.phase!=" + string(corev1.PodFailed))
-		if err != nil {
-			klog.Errorln(err, "Could not parse field selector")
-			break
-		}
-		nodeNonTerminatedPodsList, err := b.LocalClient.Client().CoreV1().Pods("").List(metav1.ListOptions{FieldSelector: fieldSelector.String()})
-		if err != nil {
-			klog.Errorln(err, "Could not list pods, retry in 1 minute")
-			time.Sleep(1 * time.Minute)
-			continue
-		}
-		reqs, limits := GetAllPodsResources(nodeNonTerminatedPodsList)
-		// compute resources to be announced to the other cluster
-		availability, images := ComputeAnnouncedResources(physicalNodes, reqs, int64(b.ClusterConfig.ResourceSharingPercentage))
 
 		// create the Advertisement on the foreign cluster
-		var adv *protocolv1.Advertisement
 		advToCreate := b.CreateAdvertisement(physicalNodes, virtualNodes, availability, images, limits)
-		obj, err := b.RemoteClient.Resource("advertisements").Get(advToCreate.Name, metav1.GetOptions{})
-		if err == nil {
-			// update Advertisement
-			adv = obj.(*protocolv1.Advertisement)
-			advToCreate.SetResourceVersion(adv.ResourceVersion)
-			advToCreate.SetUID(adv.UID)
-			_, err = b.RemoteClient.Resource("advertisements").Update(adv.Name, &advToCreate, metav1.UpdateOptions{})
-			if err != nil {
-				klog.Errorln(err, "Unable to update Advertisement "+advToCreate.Name)
-			}
-		} else if k8serrors.IsNotFound(err) {
-			// create Advertisement
-			obj, err := b.RemoteClient.Resource("advertisements").Create(&advToCreate, metav1.CreateOptions{})
-			if err != nil {
-				klog.Errorln(err, "Unable to create Advertisement "+advToCreate.Name+" on remote cluster "+b.ForeignClusterId)
-				// clean remote cluster from the secret previously created for the adv
-				if err := b.RemoteClient.Client().CoreV1().Secrets(b.KubeconfigSecretForForeign.Namespace).Delete(b.KubeconfigSecretForForeign.Name, &metav1.DeleteOptions{}); err != nil {
-					klog.Error(err)
-				}
-			} else {
-				// Advertisement created, set the owner reference of the secret so that it is deleted when the adv is removed
-				adv = obj.(*protocolv1.Advertisement)
-				klog.Info("Correctly created advertisement on remote cluster " + b.ForeignClusterId)
-				adv.Kind = "Advertisement"
-				adv.APIVersion = protocolv1.GroupVersion.String()
-				b.KubeconfigSecretForForeign.SetOwnerReferences(pkg.GetOwnerReference(&adv))
-				_, err = b.RemoteClient.Client().CoreV1().Secrets(b.KubeconfigSecretForForeign.Namespace).Update(b.KubeconfigSecretForForeign)
-				if err != nil {
-					klog.Errorln(err, "Unable to update secret "+b.KubeconfigSecretForForeign.Name)
-				}
-			}
-		} else {
-			klog.Errorln(err, "Unexpected error while getting Advertisement "+advToCreate.Name)
+		adv, err := b.SendAdvertisementToForeignCluster(advToCreate)
+		if err != nil {
+			klog.Errorln(err, "Error while sending Advertisement to cluster "+b.ForeignClusterId)
 			continue
 		}
 
@@ -291,7 +233,7 @@ func (b *AdvertisementBroadcaster) CreateAdvertisement(physicalNodes *corev1.Nod
 			Prices:     prices,
 			Network: protocolv1.NetworkInfo{
 				PodCIDR:            GetPodCIDR(physicalNodes.Items),
-				GatewayIP:          b.GatewayIP,
+				GatewayIP:          GetGateway(physicalNodes.Items),
 				GatewayPrivateIP:   b.GatewayPrivateIP,
 				SupportedProtocols: nil,
 			},
@@ -309,26 +251,99 @@ func (b *AdvertisementBroadcaster) CreateAdvertisement(physicalNodes *corev1.Nod
 	return adv
 }
 
+func (b *AdvertisementBroadcaster) GetResourcesForAdv() (physicalNodes, virtualNodes *corev1.NodeList, availability, limits corev1.ResourceList, images []corev1.ContainerImage, err error) {
+	// get physical and virtual nodes in the cluster
+	physicalNodes, err = b.LocalClient.Client().CoreV1().Nodes().List(metav1.ListOptions{LabelSelector: "type != virtual-node"})
+	if err != nil {
+		klog.Errorln("Could not get physical nodes, retry in 1 minute")
+		return nil, nil, nil, nil, nil, err
+	}
+	virtualNodes, err = b.LocalClient.Client().CoreV1().Nodes().List(metav1.ListOptions{LabelSelector: "type = virtual-node"})
+	if err != nil {
+		klog.Errorln("Could not get virtual nodes, retry in 1 minute")
+		return nil, nil, nil, nil, nil, err
+	}
+	// get resources used by pods in the cluster
+	fieldSelector, err := fields.ParseSelector("status.phase!=" + string(corev1.PodSucceeded) + ",status.phase!=" + string(corev1.PodFailed))
+	if err != nil {
+		return nil, nil, nil, nil, nil, err
+	}
+	nodeNonTerminatedPodsList, err := b.LocalClient.Client().CoreV1().Pods("").List(metav1.ListOptions{FieldSelector: fieldSelector.String()})
+	if err != nil {
+		klog.Errorln("Could not list pods, retry in 1 minute")
+		return nil, nil, nil, nil, nil, err
+	}
+	reqs, limits := GetAllPodsResources(nodeNonTerminatedPodsList)
+	// compute resources to be announced to the other cluster
+	availability, images = ComputeAnnouncedResources(physicalNodes, reqs, int64(b.ClusterConfig.ResourceSharingPercentage))
+
+	return physicalNodes, virtualNodes, availability, limits, images, nil
+}
+
+func (b *AdvertisementBroadcaster) SendAdvertisementToForeignCluster(advToCreate protocolv1.Advertisement) (*protocolv1.Advertisement, error) {
+	var adv *protocolv1.Advertisement
+
+	// try to get the Advertisement on remote cluster
+	obj, err := b.RemoteClient.Resource("advertisements").Get(advToCreate.Name, metav1.GetOptions{})
+	if err == nil {
+		// Advertisement already created, update it
+		adv = obj.(*protocolv1.Advertisement)
+		advToCreate.SetResourceVersion(adv.ResourceVersion)
+		advToCreate.SetUID(adv.UID)
+		_, err = b.RemoteClient.Resource("advertisements").Update(adv.Name, &advToCreate, metav1.UpdateOptions{})
+		if err != nil {
+			klog.Errorln("Unable to update Advertisement " + advToCreate.Name)
+			return nil, err
+		}
+	} else if k8serrors.IsNotFound(err) {
+		// Advertisement not found, create it
+		obj, err := b.RemoteClient.Resource("advertisements").Create(&advToCreate, metav1.CreateOptions{})
+		if err != nil {
+			klog.Errorln("Unable to create Advertisement " + advToCreate.Name + " on remote cluster " + b.ForeignClusterId)
+			// clean remote cluster from the secret previously created for the adv
+			if err := b.RemoteClient.Client().CoreV1().Secrets(b.KubeconfigSecretForForeign.Namespace).Delete(b.KubeconfigSecretForForeign.Name, &metav1.DeleteOptions{}); err != nil {
+				return nil, err
+			}
+			return nil, err
+		} else {
+			// Advertisement created, set the owner reference of the secret so that it is deleted when the adv is removed
+			adv = obj.(*protocolv1.Advertisement)
+			klog.Info("Correctly created advertisement on remote cluster " + b.ForeignClusterId)
+			adv.Kind = "Advertisement"
+			adv.APIVersion = protocolv1.GroupVersion.String()
+			b.KubeconfigSecretForForeign.SetOwnerReferences(pkg.GetOwnerReference(&adv))
+			_, err = b.RemoteClient.Client().CoreV1().Secrets(b.KubeconfigSecretForForeign.Namespace).Update(b.KubeconfigSecretForForeign)
+			if err != nil {
+				klog.Errorln(err, "Unable to update secret "+b.KubeconfigSecretForForeign.Name)
+			}
+		}
+	} else {
+		klog.Errorln("Unexpected error while getting Advertisement " + advToCreate.Name)
+		return nil, err
+	}
+	return adv, nil
+}
+
 func GetPodCIDR(nodes []corev1.Node) string {
 	var podCIDR string
 	token := strings.Split(nodes[0].Spec.PodCIDR, ".")
 	if len(token) >= 2 {
 		podCIDR = token[0] + "." + token[1] + "." + "0" + "." + "0/16"
 	} else {
+		// in some cases (e.g. minikube) node PodCIDR is null, set a default one
 		podCIDR = "172.17.0.0/16"
 	}
 	return podCIDR
 }
 
 func GetGateway(nodes []corev1.Node) string {
-	//TODO: get the node with the "gateway" label
+	for _, node := range nodes {
+		if node.Labels["liqonet.liqo.io/gateway"] != "" {
+			return node.Status.Addresses[0].Address
+		}
+	}
+	// node with required label not found, return the first one
 	return nodes[0].Status.Addresses[0].Address
-}
-
-func GetGatewayPrivateIP() string {
-	//TODO: implement
-
-	return ""
 }
 
 // get resources used by pods on physical nodes

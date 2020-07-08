@@ -130,6 +130,9 @@ func TestComputePrices(t *testing.T) {
 func TestCreateAdvertisement(t *testing.T) {
 
 	pNodes, vNodes, images, _, pods := createFakeResources()
+	pNodes.Items[0].Labels = make(map[string]string)
+	pNodes.Items[0].Labels["liqonet.liqo.io/gateway"] = "true"
+	gatewayNode := pNodes.Items[0]
 	reqs, limits := advertisement_operator.GetAllPodsResources(pods)
 	availability, _ := advertisement_operator.ComputeAnnouncedResources(pNodes, reqs, 50)
 	neighbours := make(map[v1.ResourceName]v1.ResourceList)
@@ -150,7 +153,6 @@ func TestCreateAdvertisement(t *testing.T) {
 	broadcaster := advertisement_operator.AdvertisementBroadcaster{
 		KubeconfigSecretForForeign: secret,
 		HomeClusterId:              "fake-cluster",
-		GatewayIP:                  "1.2.3.4",
 		GatewayPrivateIP:           "10.0.0.1",
 	}
 
@@ -169,7 +171,7 @@ func TestCreateAdvertisement(t *testing.T) {
 	assert.Equal(t, limits, adv.Spec.LimitRange.Limits[0].Max)
 	assert.Equal(t, neighbours, adv.Spec.Neighbors)
 	assert.Equal(t, pNodes.Items[0].Spec.PodCIDR, adv.Spec.Network.PodCIDR)
-	assert.Equal(t, "1.2.3.4", adv.Spec.Network.GatewayIP)
+	assert.Equal(t, gatewayNode.Status.Addresses[0].Address, adv.Spec.Network.GatewayIP)
 	assert.Equal(t, "10.0.0.1", adv.Spec.Network.GatewayPrivateIP)
 	assert.Empty(t, adv.Status, "Status should not be set")
 }

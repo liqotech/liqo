@@ -23,14 +23,12 @@ func (r *PeeringRequestReconciler) BroadcasterExists(request *discoveryv1.Peerin
 	return true, nil
 }
 
-func GetBroadcasterDeployment(request *discoveryv1.PeeringRequest, nameSA string, namespace string, image string, clusterId string, gatewayIP string, gatewayPrivateIP string) appsv1.Deployment {
+func GetBroadcasterDeployment(request *discoveryv1.PeeringRequest, nameSA string, namespace string, image string, clusterId string, gatewayPrivateIP string) appsv1.Deployment {
 	args := []string{
 		"--peering-request",
 		request.Name,
 		"--cluster-id",
 		clusterId,
-		"--gateway-ip",
-		gatewayIP,
 		"--gateway-private-ip",
 		gatewayPrivateIP,
 		"--service-account",

@@ -34,7 +34,7 @@ func WatchConfiguration(handler func(*policyv1.ClusterConfig), client *crdClient
 	for event := range watcher.ResultChan() {
 		configuration, ok := event.Object.(*policyv1.ClusterConfig)
 		if !ok {
-			klog.Error("Configuration object is not a ClusterConfig")
+			klog.Error("Received object is not a ClusterConfig")
 			continue
 		}
 		switch event.Type {

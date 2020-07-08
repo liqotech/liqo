@@ -11,6 +11,16 @@ import (
 func (b *AdvertisementBroadcaster) WatchConfiguration(kubeconfigPath string) {
 	go clusterConfig.WatchConfiguration(func(configuration *policyv1.ClusterConfig) {
 		b.ClusterConfig.ResourceSharingPercentage = configuration.Spec.AdvertisementConfig.ResourceSharingPercentage
+		// update Advertisement with new resources (given by the new sharing percentage)
+		physicalNodes, virtualNodes, availability, limits, images, err := b.GetResourcesForAdv()
+		if err != nil {
+			klog.Errorln(err, "Error while computing resources for Advertisement")
+		}
+		advToCreate := b.CreateAdvertisement(physicalNodes, virtualNodes, availability, images, limits)
+		_, err = b.SendAdvertisementToForeignCluster(advToCreate)
+		if err != nil {
+			klog.Errorln(err, "Error while sending Advertisement to cluster "+b.ForeignClusterId)
+		}
 	}, nil, kubeconfigPath)
 }
 
