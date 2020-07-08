@@ -4,6 +4,7 @@ import (
 	protocolv1 "github.com/liqoTech/liqo/api/advertisement-operator/v1"
 	appsv1 "k8s.io/api/apps/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/klog"
 )
 
 func GetOwnerReference(object interface{}) []metav1.OwnerReference {
@@ -29,6 +30,8 @@ func GetOwnerReference(object interface{}) []metav1.OwnerReference {
 				UID:        obj.UID,
 			},
 		}
+	default:
+		klog.Error("Invalid type for owner reference")
 	}
 
 	return ownerRef

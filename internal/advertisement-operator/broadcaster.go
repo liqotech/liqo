@@ -3,8 +3,8 @@ package advertisement_operator
 import (
 	"errors"
 	"github.com/liqoTech/liqo/internal/discovery/kubeconfig"
-	"github.com/liqoTech/liqo/pkg/crdClient"
 	pkg "github.com/liqoTech/liqo/pkg/advertisement-operator"
+	"github.com/liqoTech/liqo/pkg/crdClient"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/klog"
@@ -311,7 +311,7 @@ func (b *AdvertisementBroadcaster) SendAdvertisementToForeignCluster(advToCreate
 			klog.Info("Correctly created advertisement on remote cluster " + b.ForeignClusterId)
 			adv.Kind = "Advertisement"
 			adv.APIVersion = protocolv1.GroupVersion.String()
-			b.KubeconfigSecretForForeign.SetOwnerReferences(pkg.GetOwnerReference(&adv))
+			b.KubeconfigSecretForForeign.SetOwnerReferences(pkg.GetOwnerReference(adv))
 			_, err = b.RemoteClient.Client().CoreV1().Secrets(b.KubeconfigSecretForForeign.Namespace).Update(b.KubeconfigSecretForForeign)
 			if err != nil {
 				klog.Errorln(err, "Unable to update secret "+b.KubeconfigSecretForForeign.Name)
@@ -431,7 +431,6 @@ func ComputeAnnouncedResources(physicalNodes *corev1.NodeList, reqs corev1.Resou
 	mem.Sub(reqs.Memory().DeepCopy())
 	pods := allocatable.Pods().DeepCopy()
 
-	// TODO: policy to decide how many resources to announce
 	cpu.SetScaled(cpu.MilliValue()*sharingPercentage/100, resource.Milli)
 	mem.Set(mem.Value() * sharingPercentage / 100)
 	pods.Set(pods.Value() * sharingPercentage / 100)
