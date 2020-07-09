@@ -1,26 +1,124 @@
-#Discovery 
+# Discovery 
 
-## Scenarios
+This service aims to make aware two clusters running Liqo of each other existence and, eventually, make them peer. We call "home" cluster the one that needs resources and "foreign" cluster the one that can share resources.
 
-* Exploring Neighborhood (e.g. LAN) for resources
-* DNS Discovery
-* Manual Insertion
+### Scenarios
 
-# Neighborhood discovery
+When a first (home) cluster would like to peer to a second (foreign) cluster, it needs to know of the required parameters (e.g., cluster IP address, etc). This process can be achieved in three ways:
 
-service aims to join two clusters running Liqo. We call "client" cluster the one that needs resources and "server" 
-cluster the one that can share resources.
+* Automatic discover of other neighboring clusters, reachable on the same LAN the home cluster is attached to
+* Automatic discover of the parameters associated to remote clusters, through a proper DNS query
+* Manual insertion of the parameters required for the peering
+
+#### Required Parameters
+
+In `ForeignCluster` CR there are required parameters to connect to a foreign cluster
+
+* `ClusterID`: cluster's unique identifier, it is created by Liqo during first run
+* `LiqoNamespace`: namespace where Liqo components are deployed and they expect to find resources required to work
+* `IP` and `Port` where API Server is running
+
+#### Peering Process
+
+1. each cluster allow create-only permission on `FederationRequest` resources to unathenticated user
+2. when the `Join` flag in the `ForeignCluster` CR becomes true (either automatically or manually), 
+   an operator is triggered and creates a new `FederationRequest` CR on the _foreign cluster_.
+    `FederationRequest` creation process includes the creation of new kubeconfig with management permission on `Advertisement` CRs
+3. on the foreign cluster, an admission webhook accept/reject `FederationRequest`s
+4. the `FederationRequest` is used to start the sharing of resources
+
+## Neighborhood discovery
 
 Discovery service allows two clusters to know each other, ask for resources and begin exchanging Advertisements.
 The protocol is described by the following steps:
-1. each cluster creates and manages a ConfigMap containing a kubeconfig file with create-only permission on `FederationRequest` resources
-2. each cluster registers its master IP and ConfigMap URL to a mDNS service
-3. the requesting cluster sends on local network a mDNS query to find available servers
-4. when someone replies, the requesting cluster downloads its exposed kubeconfig
-5. the client cluster stores this information in `ForeignCluster` CR along with their `clusterID`
-6. when the `Join` flag in the `ForeignCluster` CR becomes true (either automatically or manually), 
-an operator is triggered and uses the stored kubeconfig to create a new `FederationRequest` CR on the _foreign cluster_.
- `FederationRequest` creation process includes the creation of new kubeconfig with management permission on `Advertisement` CRs
-7. on the server cluster, an admission webhook accept/reject `FederationRequest`s
-8. the `FederationRequest` is used to start the sharing of resources
+
+1. each cluster registers its master IP, its ClusterID and the namespace where Liqo is deployed to a mDNS service
+2. the requesting cluster sends on local network a mDNS query to find available foreigns
+3. when someone replies, the requesting cluster get required data from mDNS server
+4. the home cluster stores this information in `ForeignCluster` CR along with their `clusterID`
+
+Exchanged DNS packets are analogous to the ones exchanged in DNS discovery with exception of PTR record. In mDNS discovery list of all clusters will be the ones that replies on multicast query on `local.` domain. (See following section)
+
+## DNS Discovery
+
+### SearchDomain CRD
+
+This resource contain the domain where clusters that we want to find are registered
+
+```yaml
+apiVersion: discovery.liqo.io/v1
+kind: SearchDomain
+metadata:
+  name: test.mydomain.com
+spec:
+  domain: test.mydomain.com
+  autojoin: false
+```
+
+When this resource is created, changed or regularly each 30 seconds (by default), SearchDomain operator contacts DNS server specified in ClusterConfig (8.8.8.8:53 by default), loads data and creates discovered ForeignClusters
+
+On DNS server there will be the following DNS records:
+```txt
+test.mydomain.com.			PTR	myliqo1._liqo._tcp.test.mydomain.com.
+						myliqo2._liqo._tcp.test.mydomain.com.
+
+
+
+myliqo1._liqo._tcp.test.mydomain.com.	SRV	0 0 6443 cluster1.test.mydomain.com.
+
+myliqo1._liqo._tcp.test.mydomain.com.	TXT	"id=<YourClusterIDHere>"
+						"namespace=<YourNamespaceHere>"
+
+cluster1.test.mydomain.com.		A	<YourIPHere>
+
+
+
+myliqo2._liqo._tcp.test.mydomain.com.	SRV	0 0 6443 cluster2.test.mydomain.com.
+
+myliqo2._liqo._tcp.test.mydomain.com.	TXT	"id=<YourClusterIDHere>"
+						"namespace=<YourNamespaceHere>"
+
+cluster2.test.mydomain.com.		A	<YourIPHere>
+```
+
+Discovery process consist on 4 DNS queries:
+
+1. PTR query to get the list of clusters registered on this domain (test.mydomain.com)
+2. SRV query to get port and nameserver for each retrieved cluster
+3. TXT query to get ClusterID and the namespace where Liqo was deployed on that cluster
+4. A query to get actual IP address where to contact API Server
+
+With this configuration two `ForeignCluster`s will be created locally (if local cluster has different clusterID from both)
+
+## Manual Insertion
+
+With manual insertion with can make aware one cluster of existence of another one, in same or different network, without needing of DNS server
+
+We need Liqo up and running on both clusters, then we can get foreign cluster id from command line:
+
+```bash
+kubectl get configmap cluster-id -n <LiqoNamespace>
+```
+
+Copy your foreign `clusterID` inside a new `ForeignCluster` CR and fill `namespace` and `apiUrl` fields
+
+```yaml
+apiVersion: discovery.liqo.io/v1
+kind: ForeignCluster
+metadata:
+  name: foreign-cluster
+spec:
+  clusterID: <ForeignClusterID>
+  join: true
+  namespace: <LiqoNamespace>
+  apiUrl: https://<ForeignIP>:6443
+```
+
+Then apply this file to home cluster:
+
+```bash
+kubectl apply -f foreign-cluster.yaml
+```
+
+Wait few seconds and a new node will appear on your home cluster
 
