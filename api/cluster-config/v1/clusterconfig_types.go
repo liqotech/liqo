@@ -17,6 +17,7 @@ package v1
 
 import (
 	"github.com/liqoTech/liqo/pkg/crdClient"
+	"github.com/liqoTech/liqo/pkg/liqonet"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/kubernetes/scheme"
@@ -26,6 +27,7 @@ import (
 type ClusterConfigSpec struct {
 	AdvertisementConfig AdvertisementConfig `json:"advertisementConfig"`
 	DiscoveryConfig     DiscoveryConfig     `json:"discoveryConfig"`
+	LiqonetConfig       LiqonetConfig       `json:"liqonetConfig"`
 }
 
 type AdvertisementConfig struct {
@@ -54,6 +56,13 @@ type DiscoveryConfig struct {
 	EnableAdvertisement bool `json:"enableAdvertisement"`
 
 	AutoJoin bool `json:"autojoin"`
+}
+
+type LiqonetConfig struct {
+	//contains a list of reserved subnets in CIDR notation used by the k8s cluster like the podCIDR and ClusterCIDR
+	ReservedSubnets  []string               `json:"reservedSubnets"`
+	GatewayPrivateIP string                 `json:"gatewayPrivateIP"`
+	VxlanNetConfig   liqonet.VxlanNetConfig `json:"vxlanNetConfig"`
 }
 
 // ClusterConfigStatus defines the observed state of ClusterConfig
