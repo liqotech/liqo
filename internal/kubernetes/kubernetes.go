@@ -17,11 +17,13 @@ import (
 type KubernetesProvider struct { // nolint:golint]
 	*Reflector
 
-	ntCache          *namespaceNTCache
-	nodeUpdateClient *crdClient.CRDClient
-	foreignClient    *crdClient.CRDClient
-	homeClient       *crdClient.CRDClient
-
+	ntCache            *namespaceNTCache
+	foreignPodCaches   map[string]*podCache
+	homeEpCaches       map[string]*epCache
+	foreignEpCaches    map[string]*epCache
+	nodeUpdateClient   *crdClient.CRDClient
+	foreignClient      *crdClient.CRDClient
+	homeClient         *crdClient.CRDClient
 	nodeName           string
 	operatingSystem    string
 	internalIP         string
@@ -72,6 +74,9 @@ func NewKubernetesProvider(nodeName, clusterId, homeClusterId, operatingSystem s
 	provider := KubernetesProvider{
 		Reflector:             &Reflector{},
 		ntCache:               &namespaceNTCache{nattingTableName: clusterId},
+		foreignPodCaches:      make(map[string]*podCache),
+		homeEpCaches:          make(map[string]*epCache),
+		foreignEpCaches:       make(map[string]*epCache),
 		nodeName:              nodeName,
 		operatingSystem:       operatingSystem,
 		internalIP:            internalIP,

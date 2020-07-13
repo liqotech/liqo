@@ -48,8 +48,7 @@ func (p *KubernetesProvider) ReconcileNodeFromAdv(event watch.Event) {
 
 	adv, ok := event.Object.(*advv1.Advertisement)
 	if !ok {
-		klog.Error("error in casting advertisement")
-		return
+		klog.Fatal("error in casting advertisement")
 	}
 	if event.Type == watch.Deleted {
 		klog.Infof("advertisement %v deleted...the node is going to be deleted", adv.Name)

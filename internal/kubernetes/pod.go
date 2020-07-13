@@ -11,13 +11,21 @@ import (
 	v1 "k8s.io/api/core/v1"
 	kerror "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/watch"
+	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/scheme"
+	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/tools/remotecommand"
 	"k8s.io/klog"
 	stats "k8s.io/kubernetes/pkg/kubelet/apis/stats/v1alpha1"
 	"math/rand"
+	"strings"
 	"time"
+)
+
+const (
+	updateTiming = 500 * time.Millisecond
 )
 
 // CreatePod accepts a Pod definition and stores it in memory.
@@ -47,8 +55,6 @@ func (p *KubernetesProvider) CreatePod(ctx context.Context, pod *v1.Pod) error {
 		return err
 	}
 	klog.Info("Pod", podServer.Name, "successfully created on remote cluster")
-	// Here we have to change the view of the remote POD to show it as a local one
-	p.notifier(pod)
 
 	return nil
 }
@@ -66,15 +72,16 @@ func (p *KubernetesProvider) UpdatePod(ctx context.Context, pod *v1.Pod) error {
 
 	podTranslated := H2FTranslate(pod, nattedNS)
 
-	poUpdated, err := p.foreignClient.Client().CoreV1().Pods(nattedNS).Get(podTranslated.Name, metav1.GetOptions{})
+	if p.foreignPodCaches == nil || p.foreignPodCaches[nattedNS] == nil {
+		_, err = p.foreignClient.Client().CoreV1().Pods(nattedNS).Get(podTranslated.Name, metav1.GetOptions{})
+	} else {
+		_, err = p.foreignPodCaches[nattedNS].get(podTranslated.Name, metav1.GetOptions{})
+	}
 	if err != nil {
 		klog.Warningf("Cannot update pod \"%s\" in provider namespace \"%s\"", podTranslated.Name, podTranslated.Namespace)
 		return err
 	}
 	klog.V(3).Infof("Updated pod \"%s\" in provider namespace \"%s\"", podTranslated.Name, podTranslated.Namespace)
-
-	podInverse := F2HTranslate(poUpdated, p.RemappedPodCidr, pod.Namespace)
-	p.notifier(podInverse)
 
 	return nil
 }
@@ -114,22 +121,24 @@ func (p *KubernetesProvider) DeletePod(ctx context.Context, pod *v1.Pod) (err er
 		}
 	}
 
-	p.notifier(pod)
-
 	return nil
 }
 
 // GetPod returns a pod by name that is stored in memory.
 func (p *KubernetesProvider) GetPod(ctx context.Context, namespace, name string) (pod *v1.Pod, err error) {
-	klog.Infof("receive GetPod %q", name)
-	opts := metav1.GetOptions{}
+	klog.V(3).Infof("receive GetPod %q", name)
 
 	nattedNS, err := p.NatNamespace(namespace, false)
 	if err != nil {
 		return nil, err
 	}
 
-	podServer, err := p.foreignClient.Client().CoreV1().Pods(nattedNS).Get(name, opts)
+	var podServer *v1.Pod
+	if p.foreignPodCaches == nil || p.foreignPodCaches[nattedNS] == nil {
+		podServer, err = p.foreignClient.Client().CoreV1().Pods(nattedNS).Get(name, metav1.GetOptions{})
+	} else {
+		podServer, err = p.foreignPodCaches[nattedNS].get(name, metav1.GetOptions{})
+	}
 	if err != nil {
 		if kerror.IsNotFound(err) {
 			return nil, errdefs.NotFoundf("pod \"%s/%s\" is not known to the provider", namespace, name)
@@ -150,7 +159,12 @@ func (p *KubernetesProvider) GetPodStatus(ctx context.Context, namespace, name s
 		return nil, nil
 	}
 
-	podForeignIn, err := p.foreignClient.Client().CoreV1().Pods(nattedNS).Get(name, metav1.GetOptions{})
+	var podForeignIn *v1.Pod
+	if p.foreignPodCaches == nil || p.foreignPodCaches[nattedNS] == nil {
+		podForeignIn, err = p.foreignClient.Client().CoreV1().Pods(nattedNS).Get(name, metav1.GetOptions{})
+	} else {
+		podForeignIn, err = p.foreignPodCaches[nattedNS].get(name, metav1.GetOptions{})
+	}
 	if err != nil {
 		return nil, errors.Wrap(err, "error getting status")
 	}
@@ -240,8 +254,14 @@ func (p *KubernetesProvider) GetPods(ctx context.Context) ([]*v1.Pod, error) {
 	}
 
 	for k, v := range nt.Spec.NattingTable {
-		podsForeignIn, err := p.foreignClient.Client().CoreV1().Pods(v).List(metav1.ListOptions{})
+		var podsForeignIn *v1.PodList
+		var err error
 
+		if p.foreignPodCaches == nil || p.foreignPodCaches[v] == nil {
+			podsForeignIn, err = p.foreignClient.Client().CoreV1().Pods(v).List(metav1.ListOptions{})
+		} else {
+			podsForeignIn, err = p.foreignPodCaches[v].list(metav1.ListOptions{})
+		}
 		if err != nil {
 			if kerror.IsNotFound(err) {
 				return nil, errdefs.NotFoundf("pods in \"%s\" is not known to the provider", k)
@@ -348,24 +368,155 @@ func (p *KubernetesProvider) NotifyPods(ctx context.Context, notifier func(*v1.P
 	p.notifier = notifier
 }
 
+type podCache struct {
+	client    kubernetes.Interface
+	namespace string
+	store     cache.Store
+	stop      chan struct{}
+}
+
+// newForeignPodCache creates a new cache that serves the remote pods for a specific endpoint.
+func newForeignPodCache(c kubernetes.Interface, namespace string) *podCache {
+	listFunc := func(ls metav1.ListOptions) (result runtime.Object, err error) {
+		return c.CoreV1().Pods(namespace).List(ls)
+	}
+	watchFunc := func(ls metav1.ListOptions) (watch.Interface, error) {
+		return c.CoreV1().Pods(namespace).Watch(ls)
+	}
+
+	store, controller := cache.NewInformer(
+		&cache.ListWatch{
+			ListFunc:  listFunc,
+			WatchFunc: watchFunc,
+		},
+		&v1.Pod{},
+		1*time.Second,
+		cache.ResourceEventHandlerFuncs{},
+	)
+
+	stopChan := make(chan struct{}, 1)
+	go controller.Run(stopChan)
+
+	return &podCache{
+		client:    c,
+		store:     store,
+		stop:      stopChan,
+		namespace: namespace,
+	}
+}
+
+func (c *podCache) get(name string, options metav1.GetOptions) (*v1.Pod, error) {
+	n := strings.Join([]string{c.namespace, name}, "/")
+	po, found, _ := c.store.GetByKey(n)
+	if found {
+		klog.V(6).Infof("pod %v fetched from cache", name)
+		return po.(*v1.Pod), nil
+	}
+
+	po, err := c.client.CoreV1().Pods(c.namespace).Get(name, options)
+	if err != nil {
+		return nil, err
+	}
+
+	klog.V(6).Infof("pod %v fetched from remote", name)
+	return po.(*v1.Pod), nil
+}
+
+func (c *podCache) list(options metav1.ListOptions) (*v1.PodList, error) {
+	podList := &v1.PodList{
+		Items: []v1.Pod{},
+	}
+	if c.store == nil {
+		klog.V(6).Info("pods listed from remote")
+		return c.client.CoreV1().Pods(c.namespace).List(options)
+	}
+
+	pods := c.store.List()
+	if pods == nil {
+		klog.V(6).Info("pods listed from remote")
+		return c.client.CoreV1().Pods(c.namespace).List(options)
+	}
+
+	for _, po := range pods {
+		podList.Items = append(podList.Items, po.(v1.Pod))
+	}
+
+	klog.V(6).Info("pods listed from cache")
+	return podList, nil
+}
+
+type podEventCounter struct {
+	counter int
+	po      *v1.Pod
+}
+
+// watchForeignPods watch the remote pod transitions for a specific namespace
+// each transition should trigger a local update, through the p.notifier methods.
+// In order to avoid throttling, this notification mechanism is timed by
+// a ticker component
 func (p *KubernetesProvider) watchForeignPods(watcher watch.Interface, stop chan struct{}) {
+	pods := make(map[string]podEventCounter)
+	ticker := time.NewTicker(updateTiming)
+
 	for {
 		select {
 		case <-stop:
 			watcher.Stop()
 			p.powg.Done()
 			return
+		case <-ticker.C:
+			klog.V(5).Info("ticker triggered home pods reflection")
+			po := getMostImportantPod(pods)
+			if po == nil {
+				break
+			}
+			poUpdate := podEventCounter{
+				counter: 0,
+				po:      po,
+			}
+			pods[po.Name] = poUpdate
+			denattedNS, err := p.DeNatNamespace(po.Namespace)
+			if err != nil {
+				klog.Error(err, "natting error in watchForeignPods")
+			}
+			p.notifier(F2HTranslate(po, p.RemappedPodCidr, denattedNS))
 		case e := <-watcher.ResultChan():
-			p2, ok := e.Object.(*v1.Pod)
+			po, ok := e.Object.(*v1.Pod)
 			if !ok {
 				klog.Error("unexpected type")
 				break
 			}
-			denattedNS, err := p.DeNatNamespace(p2.Namespace)
-			if err != nil {
-				klog.Error(err, "natting error in watchForeignPods")
+			klog.V(6).Infof("new event %v for pod %v", e.Type, po.Name)
+			if _, ok := pods[po.Name]; !ok {
+				pods[po.Name] = podEventCounter{
+					counter: 1,
+					po:      po,
+				}
+			} else {
+				poUpdate := podEventCounter{
+					counter: pods[po.Name].counter + 1,
+					po:      po,
+				}
+				pods[po.Name] = poUpdate
 			}
-			p.notifier(F2HTranslate(p2, p.RemappedPodCidr, denattedNS))
 		}
 	}
+}
+
+// dummy function needed to update only one pod at a time. This implementation
+// can lead to a (very unlikely) starvation for a specific pod. It should be replaced by a smarter algorithm.
+func getMostImportantPod(pods map[string]podEventCounter) *v1.Pod {
+	var bestK string
+	var bestCounter int
+	for k, pc := range pods {
+		if pc.counter > bestCounter {
+			bestCounter = pc.counter
+			bestK = k
+		}
+	}
+	if bestCounter == 0 {
+		return nil
+	}
+
+	return pods[bestK].po
 }

@@ -184,7 +184,9 @@ func runRootCommand(ctx context.Context, s *provider.Store, c Opts) error {
 				} else {
 					oldNode.Status = newNode.Status
 					_, newErr = client.CoreV1().Nodes().UpdateStatus(oldNode)
-					klog.Info("node updated")
+					if newErr != nil {
+						klog.Info("node updated")
+					}
 				}
 
 				if newErr != nil {
