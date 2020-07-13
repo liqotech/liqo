@@ -53,7 +53,7 @@ func (r *AdvertisementReconciler) ManageConfigUpdate(configuration *policyv1.Clu
 		r.ClusterConfig = configuration.Spec.AdvertisementConfig
 		for i := 0; i < len(advList.Items); i++ {
 			adv := &advList.Items[i]
-			if adv.Status.AdvertisementStatus == "REFUSED" {
+			if adv.Status.AdvertisementStatus == AdvertisementRefused {
 				r.CheckAdvertisement(adv)
 				updateFlag = true
 			}
@@ -64,7 +64,7 @@ func (r *AdvertisementReconciler) ManageConfigUpdate(configuration *policyv1.Clu
 		if r.ClusterConfig.MaxAcceptableAdvertisement < r.AcceptedAdvNum {
 			for i := 0; i < int(r.AcceptedAdvNum-r.ClusterConfig.MaxAcceptableAdvertisement); i++ {
 				adv := advList.Items[i]
-				if adv.Status.AdvertisementStatus == "ACCEPTED" {
+				if adv.Status.AdvertisementStatus == AdvertisementAccepted {
 					err := r.AdvClient.Resource("advertisements").Delete(adv.Name, metav1.DeleteOptions{})
 					if err != nil {
 						klog.Errorln(err, "Unable to apply configuration: error deleting Advertisement "+adv.Name)

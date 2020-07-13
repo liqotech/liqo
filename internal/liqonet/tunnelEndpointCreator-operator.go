@@ -50,7 +50,7 @@ type TunnelEndpointCreator struct {
 	FreeSubnets       map[string]*net.IPNet
 	IPManager         liqonetOperator.Ipam
 	TunnelEndpointMap map[string]types.NamespacedName
-	RetryTimeout	  time.Duration
+	RetryTimeout      time.Duration
 }
 
 // +kubebuilder:rbac:groups=protocol.liqo.io,resources=advertisements,verbs=get;list;watch;create;update;patch;delete

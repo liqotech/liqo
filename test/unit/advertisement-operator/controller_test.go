@@ -43,7 +43,7 @@ func TestAcceptAdvertisementWithAutoAccept(t *testing.T) {
 	for i := 0; i < 10; i++ {
 		adv := createAdvertisement()
 		r.CheckAdvertisement(&adv)
-		assert.Equal(t, "ACCEPTED", adv.Status.AdvertisementStatus)
+		assert.Equal(t, advcontroller.AdvertisementAccepted, adv.Status.AdvertisementStatus)
 	}
 	// check that the Adv counter has been incremented
 	assert.Equal(t, int32(10), r.AcceptedAdvNum)
@@ -62,7 +62,7 @@ func TestRefuseAdvertisementWithAutoAccept(t *testing.T) {
 	for i := 0; i < 10; i++ {
 		adv := createAdvertisement()
 		r.CheckAdvertisement(&adv)
-		assert.Equal(t, "REFUSED", adv.Status.AdvertisementStatus)
+		assert.Equal(t, advcontroller.AdvertisementRefused, adv.Status.AdvertisementStatus)
 	}
 	// check that the Adv counter has not been modified
 	assert.Equal(t, int32(10), r.AcceptedAdvNum)
@@ -75,7 +75,7 @@ func TestCheckAdvertisementWithoutAutoAccept(t *testing.T) {
 	for i := 0; i < 10; i++ {
 		adv := createAdvertisement()
 		r.CheckAdvertisement(&adv)
-		assert.Equal(t, "REFUSED", adv.Status.AdvertisementStatus)
+		assert.Equal(t, advcontroller.AdvertisementRefused, adv.Status.AdvertisementStatus)
 	}
 	// check that the Adv counter has not been incremented
 	assert.Equal(t, int32(0), r.AcceptedAdvNum)
@@ -116,7 +116,7 @@ func TestManageConfigUpdate(t *testing.T) {
 	assert.Equal(t, config.Spec.AdvertisementConfig, r.ClusterConfig)
 	assert.Equal(t, int32(advCount), r.AcceptedAdvNum)
 	for _, adv := range advList.Items {
-		assert.Equal(t, "ACCEPTED", adv.Status.AdvertisementStatus)
+		assert.Equal(t, advcontroller.AdvertisementAccepted, adv.Status.AdvertisementStatus)
 	}
 
 	// FALSE TEST

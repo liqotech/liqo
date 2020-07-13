@@ -10,6 +10,7 @@ import (
 	"os"
 	"path/filepath"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"time"
 )
 
 var (
@@ -80,5 +81,6 @@ func GetPRReconciler(scheme *runtime.Scheme, crdClient *crdClient.CRDClient, nam
 		configMapName:             configMapName,
 		broadcasterImage:          broadcasterImage,
 		broadcasterServiceAccount: broadcasterServiceAccount,
+		retryTimeout:              1 * time.Minute,
 	}
 }
