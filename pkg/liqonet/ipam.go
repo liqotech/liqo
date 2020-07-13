@@ -17,6 +17,7 @@ type IpManager struct {
 	UsedSubnets      map[string]*net.IPNet
 	FreeSubnets      map[string]*net.IPNet
 	SubnetPerCluster map[string]*net.IPNet
+	Initialized      bool
 	Log              logr.Logger
 }
 

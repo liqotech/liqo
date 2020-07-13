@@ -18,11 +18,11 @@ package main
 import (
 	"flag"
 	protocolv1 "github.com/liqoTech/liqo/api/advertisement-operator/v1"
+	clusterConfig "github.com/liqoTech/liqo/api/cluster-config/v1"
 	"github.com/liqoTech/liqo/api/tunnel-endpoint/v1"
 	"github.com/liqoTech/liqo/internal/liqonet"
 	"github.com/liqoTech/liqo/pkg/liqonet"
 	"github.com/vishvananda/netlink"
-	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes"
 	"net"
 	"os"
@@ -55,6 +55,7 @@ func init() {
 	_ = v1.AddToScheme(scheme)
 
 	_ = protocolv1.AddToScheme(scheme)
+
 	// +kubebuilder:scaffold:scheme
 }
 
@@ -75,7 +76,6 @@ func main() {
 	ctrl.SetLogger(zap.New(func(o *zap.Options) {
 		o.Development = true
 	}))
-
 	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
 		Scheme:             scheme,
 		MetricsBindAddress: metricsAddr,
@@ -86,10 +86,8 @@ func main() {
 		setupLog.Error(err, "unable to start manager")
 		os.Exit(1)
 	}
-
 	// creates the in-cluster config or uses the .kube/config file
 	config := ctrl.GetConfigOrDie()
-
 	clientset, err := kubernetes.NewForConfig(config)
 	if err != nil {
 		panic(err.Error())
@@ -186,16 +184,16 @@ func main() {
 
 	case "tunnelEndpointCreator-operator":
 		r := &controllers.TunnelEndpointCreator{
-			Client:            mgr.GetClient(),
-			Log:               ctrl.Log.WithName("controllers").WithName("TunnelEndpointCreator"),
-			Scheme:            mgr.GetScheme(),
-			TunnelEndpointMap: make(map[string]types.NamespacedName),
-			UsedSubnets:       make(map[string]*net.IPNet),
-			FreeSubnets:       make(map[string]*net.IPNet),
+			Client:          mgr.GetClient(),
+			Log:             ctrl.Log.WithName("controllers").WithName("TunnelEndpointCreator"),
+			Scheme:          mgr.GetScheme(),
+			ReservedSubnets: make(map[string]*net.IPNet),
+			FreeSubnets:     make(map[string]*net.IPNet),
 			IPManager: liqonet.IpManager{
 				UsedSubnets:      make(map[string]*net.IPNet),
 				FreeSubnets:      make(map[string]*net.IPNet),
 				SubnetPerCluster: make(map[string]*net.IPNet),
+				Initialized:      false,
 				Log:              ctrl.Log.WithName("IPAM"),
 			},
 			RetryTimeout: 30 * time.Second,
@@ -204,6 +202,7 @@ func main() {
 			setupLog.Error(err, "unable to initialize ipam")
 			os.Exit(2)
 		}
+		r.WatchConfiguration(config, &clusterConfig.GroupVersion)
 		if err = r.SetupWithManager(mgr); err != nil {
 			setupLog.Error(err, "unable to create controller", "controller", "TunnelEndpointCreator")
 			os.Exit(1)

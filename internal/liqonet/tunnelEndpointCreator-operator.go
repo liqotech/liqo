@@ -19,11 +19,18 @@ import (
 	"context"
 	"fmt"
 	"github.com/go-logr/logr"
+	policyv1 "github.com/liqoTech/liqo/api/cluster-config/v1"
+	"github.com/liqoTech/liqo/pkg/clusterConfig"
+	"github.com/liqoTech/liqo/pkg/crdClient"
 	liqonetOperator "github.com/liqoTech/liqo/pkg/liqonet"
 	"github.com/pkg/errors"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/client-go/kubernetes/scheme"
+	"k8s.io/client-go/rest"
+	"k8s.io/klog"
 	"net"
 	"os"
 	"time"
@@ -44,12 +51,11 @@ const (
 // AdvertisementReconciler reconciles a Advertisement object
 type TunnelEndpointCreator struct {
 	client.Client
-	Log               logr.Logger
-	Scheme            *runtime.Scheme
-	UsedSubnets       map[string]*net.IPNet
-	FreeSubnets       map[string]*net.IPNet
-	IPManager         liqonetOperator.Ipam
-	TunnelEndpointMap map[string]types.NamespacedName
+	Log             logr.Logger
+	Scheme          *runtime.Scheme
+	ReservedSubnets map[string]*net.IPNet
+	FreeSubnets     map[string]*net.IPNet
+	IPManager       liqonetOperator.Ipam
 	RetryTimeout      time.Duration
 }
 
@@ -374,4 +380,19 @@ func (r *TunnelEndpointCreator) deleteTunEndpoint(adv *protocolv1.Advertisement)
 	} else {
 		return fmt.Errorf("unable to get endpoint with key %s: %v", tunEndKey.String(), err)
 	}
+}
+
+func (r *TunnelEndpointCreator) WatchConfiguration(config *rest.Config, gv *schema.GroupVersion) {
+	config.ContentConfig.GroupVersion = gv
+	config.APIPath = "/apis"
+	config.NegotiatedSerializer = scheme.Codecs.WithoutConversion()
+	config.UserAgent = rest.DefaultKubernetesUserAgent()
+	client, err := crdClient.NewFromConfig(config)
+	if err != nil {
+		klog.Error(err, err.Error())
+		os.Exit(1)
+	}
+	go clusterConfig.WatchConfiguration(func(configuration *policyv1.ClusterConfig) {
+		fmt.Println(configuration.Spec)
+	}, client, "")
 }
