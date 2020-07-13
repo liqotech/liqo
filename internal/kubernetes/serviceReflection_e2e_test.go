@@ -33,6 +33,9 @@ func TestHandleServiceEvents(t *testing.T) {
 	p := &KubernetesProvider{
 		Reflector:        &Reflector{started: false},
 		ntCache:          &namespaceNTCache{nattingTableName: test.ForeignClusterId},
+		foreignPodCaches: make(map[string]*podCache),
+		homeEpCaches:     make(map[string]*epCache),
+		foreignEpCaches:  make(map[string]*epCache),
 		foreignClient:    foreignClient,
 		homeClient:       homeClient,
 		startTime:        time.Time{},

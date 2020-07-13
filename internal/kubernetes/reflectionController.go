@@ -1,6 +1,7 @@
 package kubernetes
 
 import (
+	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/klog"
@@ -10,27 +11,23 @@ import (
 
 const (
 	reflectedService   = "liqo/reflection"
-	timestampedLabel   = "localLastTimestamp"
-	nReflectionWorkers = 10
+	nReflectionWorkers = 2
 )
 
-type timestampedEvent struct {
-	event watch.Event
-
-	ts int64
+type timestampedEndpoints struct {
+	ep *v1.Endpoints
+	t  time.Time
 }
 
 type Reflector struct {
 	stop     chan struct{}
 	svcEvent chan watch.Event
-	repEvent chan watch.Event
-	epEvent  chan timestampedEvent
+	epEvent  chan timestampedEndpoints
 	cmEvent  chan watch.Event
 	secEvent chan watch.Event
 
 	workers *sync.WaitGroup
 	svcwg   *sync.WaitGroup
-	repwg   *sync.WaitGroup
 	epwg    *sync.WaitGroup
 	powg    *sync.WaitGroup
 	cmwg    *sync.WaitGroup
@@ -52,8 +49,7 @@ func (p *KubernetesProvider) StartReflector() {
 	p.reflectedNamespaces.ns = make(map[string]chan struct{})
 	p.stop = make(chan struct{}, 1)
 	p.svcEvent = make(chan watch.Event, 1000)
-	p.epEvent = make(chan timestampedEvent, 1000)
-	p.repEvent = make(chan watch.Event, 1000)
+	p.epEvent = make(chan timestampedEndpoints, 1000)
 	p.cmEvent = make(chan watch.Event, 1000)
 	p.secEvent = make(chan watch.Event, 1000)
 
@@ -61,7 +57,6 @@ func (p *KubernetesProvider) StartReflector() {
 	p.powg = &sync.WaitGroup{}
 	p.epwg = &sync.WaitGroup{}
 	p.svcwg = &sync.WaitGroup{}
-	p.repwg = &sync.WaitGroup{}
 	p.cmwg = &sync.WaitGroup{}
 	p.secwg = &sync.WaitGroup{}
 
@@ -92,42 +87,34 @@ func (p *KubernetesProvider) controlLoop() {
 
 		case e := <-p.svcEvent:
 			if err = p.manageSvcEvent(e); err != nil {
-				klog.Error(err, "error in managing svc event")
+				klog.Errorf("error in managing svc event - ERR: %v", err)
 			}
 
-		case e := <-p.epEvent:
-			if e.event.Type != watch.Modified {
+		case ep := <-p.epEvent:
+			if time.Since(ep.t) > epExpirationRate {
 				break
 			}
-			if err = p.manageEpEvent(e); err != nil {
+			if err = p.manageEpEvent(ep.ep); err != nil {
 				// if the resource is not found, it has not been remotely created yet:
 				// we launch a goroutine that waits one second, then pushes the event again
 				// in the channel
-				go func(e timestampedEvent, ch chan timestampedEvent) {
+				go func(e timestampedEndpoints, ch chan timestampedEndpoints) {
 					time.Sleep(time.Second)
-					ch <- e
-				}(e, p.epEvent)
-			}
-		case e := <-p.repEvent:
-			if e.Type != watch.Modified {
-				break
-			}
-			if err := p.manageRemoteEpEvent(e); err != nil {
-				klog.Errorf("error in managing remote ep event: %v", err)
+					ch <- ep
+				}(ep, p.epEvent)
 			}
 		case e := <-p.cmEvent:
 			if err = p.manageCmEvent(e); err != nil {
-				klog.Error(err, "error in managing cm event")
+				klog.Errorf("error in managing cm event - ERR: %v", err)
 			}
 		case e := <-p.secEvent:
 			if err = p.manageSecEvent(e); err != nil {
-				klog.Error(err, "error in managing sec event")
+				klog.Errorf("error in managing sec event - ERR: %v", err)
 			}
 		}
 	}
 }
 
-// when a namespace counter reaches 0, the namespace has to be cleaned up (the reflected service must be deleted)
 func (p *KubernetesProvider) cleanupNamespace(ns string) error {
 
 	svcs, err := p.foreignClient.Client().CoreV1().Services(ns).List(metav1.ListOptions{LabelSelector: reflectedService})
@@ -188,39 +175,23 @@ func (p *KubernetesProvider) addServiceWatcher(namespace string, stop chan struc
 	}
 
 	p.svcwg.Add(1)
-	go eventAggregator(svcWatch, p.svcEvent, stop, p.svcwg)
+	go eventsAggregator(svcWatch, p.svcEvent, stop, p.svcwg)
 
 	klog.V(3).Infof("service reflector for home namespace \"%v\" started", namespace)
 	return nil
 }
 
-// addEndpointWatcher receives a namespace to watch, creates an endpoints watching chan and starts a routine
-// that watches the local events regarding the endpoints
 func (p *KubernetesProvider) addEndpointWatcher(namespace string, stop chan struct{}) error {
-	epWatch, err := p.homeClient.Client().CoreV1().Endpoints(namespace).Watch(metav1.ListOptions{})
+	p.epwg.Add(1)
+
+	nattedNS, err := p.NatNamespace(namespace, false)
 	if err != nil {
 		return err
 	}
-
-	p.epwg.Add(1)
-	go epEventsAggregator(epWatch, p.epEvent, stop, p.epwg)
+	p.homeEpCaches[namespace] = p.newHomeEpCache(p.homeClient.Client(), namespace, stop)
+	p.foreignEpCaches[nattedNS] = p.newForeignEpCache(p.foreignClient.Client(), nattedNS, stop)
 
 	klog.V(3).Infof("endpoint reflector for home namespace \"%v\" started", namespace)
-	return nil
-}
-
-// addEndpointWatcher receives a namespace to watch, creates an endpoints watching chan and starts a routine
-// that watches the local events regarding the endpoints
-func (p *KubernetesProvider) addRemoteEndpointWatcher(namespace string, stop chan struct{}) error {
-	epWatch, err := p.foreignClient.Client().CoreV1().Endpoints(namespace).Watch(metav1.ListOptions{})
-	if err != nil {
-		return err
-	}
-
-	p.repwg.Add(1)
-	go eventAggregator(epWatch, p.repEvent, stop, p.repwg)
-
-	klog.V(3).Infof("remote endpoint reflector in remote namespace \"%v\" started", namespace)
 	return nil
 }
 
@@ -232,7 +203,7 @@ func (p *KubernetesProvider) addConfigMapWatcher(namespace string, stop chan str
 	}
 
 	p.cmwg.Add(1)
-	go eventAggregator(cmWatch, p.cmEvent, stop, p.cmwg)
+	go eventsAggregator(cmWatch, p.cmEvent, stop, p.cmwg)
 
 	klog.V(3).Infof("configmap reflector for home namespace \"%v\" started", namespace)
 	return nil
@@ -246,7 +217,7 @@ func (p *KubernetesProvider) addSecretWatcher(namespace string, stop chan struct
 	}
 
 	p.secwg.Add(1)
-	go eventAggregator(secWatch, p.secEvent, stop, p.secwg)
+	go eventsAggregator(secWatch, p.secEvent, stop, p.secwg)
 
 	klog.V(3).Infof("secret reflector for home namespace \"%v\" started", namespace)
 	return nil
@@ -259,34 +230,19 @@ func (p *KubernetesProvider) AddPodWatcher(namespace string, stop chan struct{})
 	}
 
 	p.powg.Add(1)
+
+	c := newForeignPodCache(p.foreignClient.Client(), namespace)
+	p.foreignPodCaches[namespace] = c
+
 	go p.watchForeignPods(poWatch, stop)
 
 	klog.V(3).Infof("foreign podWatcher for home namespace \"%v\" started", namespace)
 	return nil
 }
 
-func epEventsAggregator(watcher watch.Interface, outChan chan timestampedEvent, stop chan struct{}, wg *sync.WaitGroup) {
-	for {
-		select {
-		case <-stop:
-			watcher.Stop()
-			wg.Done()
-			return
-
-		case e := <-watcher.ResultChan():
-			outChan <- timestampedEvent{
-				event: e,
-				ts:    time.Now().UnixNano(),
-			}
-		default:
-			break
-		}
-	}
-}
-
-// eventAggregator iterates over all the received channels and whenever a new event comes from the input chan,
+// eventsAggregator iterates over all the received channels and whenever a new event comes from the input chan,
 // it pushes it to the output chan
-func eventAggregator(watcher watch.Interface, outChan chan watch.Event, stop chan struct{}, wg *sync.WaitGroup) {
+func eventsAggregator(watcher watch.Interface, outChan chan watch.Event, stop chan struct{}, wg *sync.WaitGroup) {
 	for {
 		select {
 		case <-stop:
@@ -301,13 +257,13 @@ func eventAggregator(watcher watch.Interface, outChan chan watch.Event, stop cha
 }
 
 // StopReflector must be called when the virtual kubelet end up: all the channels are correctly closed
-// and the eventAggregator goroutines closing are waited
+// and the eventsAggregator goroutines closing are waited
 func (p *KubernetesProvider) StopReflector() {
 	klog.Info("stopping reflector for cluster " + p.foreignClusterId)
 
 	p.started = false
 
-	if p.svcEvent == nil || p.epEvent == nil || p.repEvent == nil || p.cmEvent == nil || p.secEvent == nil {
+	if p.svcEvent == nil || p.epEvent == nil || p.cmEvent == nil || p.secEvent == nil {
 		klog.Info("reflector was not active for cluster " + p.foreignClusterId)
 		return
 	}
@@ -321,6 +277,7 @@ func (p *KubernetesProvider) StopReflector() {
 	p.epwg.Wait()
 	p.cmwg.Wait()
 	p.secwg.Wait()
+
 }
 
 func (p *KubernetesProvider) reflectNamespace(namespace string) error {
@@ -349,11 +306,6 @@ func (p *KubernetesProvider) reflectNamespace(namespace string) error {
 	}
 
 	if err := p.addSecretWatcher(namespace, stop); err != nil {
-		close(stop)
-		return err
-	}
-
-	if err := p.addRemoteEndpointWatcher(nattedNS, stop); err != nil {
 		close(stop)
 		return err
 	}
