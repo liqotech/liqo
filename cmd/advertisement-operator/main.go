@@ -17,15 +17,14 @@ package main
 
 import (
 	"flag"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/kubernetes"
+	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
+	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
 	"k8s.io/klog"
 	"os"
 	"time"
-
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime"
-	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
-	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
 
 	protocolv1 "github.com/liqoTech/liqo/api/advertisement-operator/v1"
 	liqonetv1 "github.com/liqoTech/liqo/api/tunnel-endpoint/v1"
@@ -56,7 +55,7 @@ func init() {
 }
 
 func main() {
-	var metricsAddr, localKubeconfig, foreignKubeconfig, clusterId string
+	var metricsAddr, localKubeconfig, clusterId string
 	var enableLeaderElection bool
 	var kubeletNamespace, kubeletImage, initKubeletImage string
 	var runsInKindEnv bool
@@ -64,7 +63,6 @@ func main() {
 	flag.StringVar(&metricsAddr, "metrics-addr", defaultMetricsaddr, "The address the metric endpoint binds to.")
 	flag.BoolVar(&enableLeaderElection, "enable-leader-election", false, "Enable leader election for controller manager. Enabling this will ensure there is only one active controller manager.")
 	flag.StringVar(&localKubeconfig, "local-kubeconfig", "", "The path to the kubeconfig of your local cluster.")
-	flag.StringVar(&foreignKubeconfig, "foreign-kubeconfig", "", "The path to the kubeconfig of the foreign cluster.")
 	flag.StringVar(&clusterId, "cluster-id", "", "The cluster ID of your cluster")
 	flag.StringVar(&kubeletNamespace, "kubelet-namespace", defaultNamespace, "Name of the namespace where Virtual kubelets will be spawned ( the namespace is default if not specified otherwise)")
 	flag.StringVar(&kubeletImage, "kubelet-image", defaultVKImage, "The image of the virtual kubelet to be deployed")
@@ -94,7 +92,6 @@ func main() {
 		os.Exit(1)
 	}
 
-
 	// New Client For CSR Auto-approval
 	config := ctrl.GetConfigOrDie()
 	clientset, err := kubernetes.NewForConfig(config)
@@ -116,7 +113,7 @@ func main() {
 		klog.Error(err)
 	} else {
 		for _, adv := range advList.(*protocolv1.AdvertisementList).Items {
-			if adv.Status.AdvertisementStatus == "ACCEPTED" {
+			if adv.Status.AdvertisementStatus == advertisement_operator.AdvertisementAccepted {
 				acceptedAdv++
 			}
 		}
@@ -133,7 +130,7 @@ func main() {
 		HomeClusterId:    clusterId,
 		AcceptedAdvNum:   acceptedAdv,
 		AdvClient:        advClient,
-		RetryTimeout:     60 * time.Second,
+		RetryTimeout:     1 * time.Minute,
 	}
 
 	if err = r.SetupWithManager(mgr); err != nil {

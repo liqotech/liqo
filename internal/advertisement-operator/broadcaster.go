@@ -33,8 +33,6 @@ type AdvertisementBroadcaster struct {
 	ForeignClusterId string
 	GatewayPrivateIP string
 	ClusterConfig    policyv1.AdvertisementConfig
-	RetryTimeout     time.Duration
-	BroadcastTimeout time.Duration
 }
 
 // start the broadcaster which sends Advertisement messages
@@ -96,7 +94,7 @@ func StartBroadcaster(homeClusterId, localKubeconfigPath, gatewayPrivateIP, peer
 		remoteClient, err = protocolv1.CreateAdvertisementClient("", secretForAdvertisementCreation)
 		if err != nil {
 			klog.Errorln(err, "Unable to create client to remote cluster "+foreignClusterId+". Retry in 1 minute")
-			time.Sleep(1*time.Minute)
+			time.Sleep(1 * time.Minute)
 		} else {
 			break
 		}
@@ -172,6 +170,7 @@ func (b *AdvertisementBroadcaster) GenerateAdvertisement() {
 		physicalNodes, virtualNodes, availability, limits, images, err := b.GetResourcesForAdv()
 		if err != nil {
 			klog.Errorln(err, "Error while computing resources for Advertisement")
+			time.Sleep(1 * time.Minute)
 			continue
 		}
 
@@ -190,7 +189,6 @@ func (b *AdvertisementBroadcaster) GenerateAdvertisement() {
 		})
 
 		time.Sleep(10 * time.Minute)
-		time.Sleep(b.BroadcastTimeout)
 	}
 }
 

@@ -74,7 +74,7 @@ type RouteController struct {
 	IPtablesRuleSpecsPerRemoteCluster map[string][]liqonetOperator.IPtableRule
 	//here we save routes associated to each remote cluster
 	RoutesPerRemoteCluster map[string][]netlink.Route
-	RetryTimeout  time.Duration
+	RetryTimeout           time.Duration
 }
 
 // +kubebuilder:rbac:groups=liqonet.liqo.io,resources=tunnelendpoints,verbs=get;list;watch;create;update;patch;delete

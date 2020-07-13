@@ -155,7 +155,7 @@ func main() {
 			NodeName:                           nodeName,
 			GatewayVxlanIP:                     gatewayVxlanIP,
 			ClusterPodCIDR:                     podCIDR,
-			RetryTimeout:                       30*time.Second,
+			RetryTimeout:                       30 * time.Second,
 		}
 		if err = r.SetupWithManager(mgr); err != nil {
 			setupLog.Error(err, "unable to create controller", "controller", "Route")
@@ -198,7 +198,7 @@ func main() {
 				SubnetPerCluster: make(map[string]*net.IPNet),
 				Log:              ctrl.Log.WithName("IPAM"),
 			},
-			RetryTimeout:          30*time.Second,
+			RetryTimeout: 30 * time.Second,
 		}
 		if err := r.IPManager.Init(); err != nil {
 			setupLog.Error(err, "unable to initialize ipam")
