@@ -4,7 +4,7 @@ go 1.13
 
 require (
 	contrib.go.opencensus.io/exporter/jaeger v0.2.0
-	contrib.go.opencensus.io/exporter/ocagent v0.4.12
+	contrib.go.opencensus.io/exporter/ocagent v0.7.0
 	github.com/apparentlymart/go-cidr v1.0.1
 	github.com/certifi/gocertifi v0.0.0-20200104152315-a6d78f326758 // indirect
 	github.com/cloudflare/cfssl v1.4.1 // indirect
@@ -21,8 +21,6 @@ require (
 	github.com/go-logr/logr v0.1.0
 	github.com/go-sql-driver/mysql v1.5.0 // indirect
 	github.com/gogo/protobuf v1.3.1 // indirect
-	github.com/golang/groupcache v0.0.0-20200121045136-8c9f03a8e57e // indirect
-	github.com/golang/mock v1.4.0 // indirect
 	github.com/golangci/gocyclo v0.0.0-20180528144436-0a533e8fa43d // indirect
 	github.com/golangci/golangci-lint v1.23.1 // indirect
 	github.com/golangci/revgrep v0.0.0-20180812185044-276a5c0a1039 // indirect
@@ -33,7 +31,6 @@ require (
 	github.com/gorilla/websocket v1.4.1 // indirect
 	github.com/grandcat/zeroconf v1.0.0
 	github.com/grpc-ecosystem/go-grpc-middleware v1.1.0 // indirect
-	github.com/grpc-ecosystem/grpc-gateway v1.12.2 // indirect
 	github.com/jirfag/go-printf-func-name v0.0.0-20200119135958-7558a9eaa5af // indirect
 	github.com/joho/godotenv v1.3.0
 	github.com/lib/pq v1.3.0 // indirect
@@ -70,10 +67,7 @@ require (
 	go.uber.org/zap v1.13.0 // indirect
 	golang.org/x/crypto v0.0.0-20200117160349-530e935923ad // indirect
 	golang.org/x/sys v0.0.0-20200615200032-f1bc736245b1
-	golang.org/x/time v0.0.0-20191024005414-555d28b269f0 // indirect
-	golang.org/x/tools v0.0.0-20200123022218-593de606220b
-	google.golang.org/genproto v0.0.0-20200122232147-0452cf42e150 // indirect
-	google.golang.org/grpc v1.26.0 // indirect
+	golang.org/x/tools v0.0.0-20200331025713-a30bf2db82d4
 	gopkg.in/ini.v1 v1.51.1 // indirect
 	gotest.tools v2.2.0+incompatible
 	k8s.io/api v0.18.5
