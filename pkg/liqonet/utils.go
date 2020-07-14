@@ -1,8 +1,9 @@
 package liqonet
 
 import (
+	"bytes"
 	"fmt"
-	cidr "github.com/apparentlymart/go-cidr/cidr"
+	"github.com/apparentlymart/go-cidr/cidr"
 	"github.com/liqoTech/liqo/internal/errdefs"
 	"golang.org/x/tools/go/ssa/interp/testdata/src/errors"
 	corev1 "k8s.io/api/core/v1"
@@ -172,11 +173,22 @@ func RemoveString(slice []string, s string) (result []string) {
 
 func VerifyNoOverlap(subnets map[string]*net.IPNet, newNet *net.IPNet) bool {
 	firstLastIP := make([][]net.IP, 1)
-	first, last := cidr.AddressRange(newNet)
-	firstLastIP[0] = []net.IP{first, last}
+
 	for _, value := range subnets {
-		if value.Contains(firstLastIP[0][0]) || value.Contains(firstLastIP[0][1]) {
-			return true
+		if bytes.Compare(value.Mask, newNet.Mask) <= 0 {
+			first, last := cidr.AddressRange(newNet)
+			firstLastIP[0] = []net.IP{first, last}
+			if value.Contains(firstLastIP[0][0]) || value.Contains(firstLastIP[0][1]) {
+				klog.Infof("the subnets %s and %s overlaps", value.String(), newNet.String())
+				return true
+			}
+		} else {
+			first, last := cidr.AddressRange(value)
+			firstLastIP[0] = []net.IP{first, last}
+			if newNet.Contains(firstLastIP[0][0]) || newNet.Contains(firstLastIP[0][1]) {
+				klog.Infof("the subnets %s and %s overlaps", value.String(), newNet.String())
+				return true
+			}
 		}
 	}
 	return false

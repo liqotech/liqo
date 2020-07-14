@@ -90,9 +90,40 @@ spec:
               - updateTime
               - waitTime
               type: object
+            liqonetConfig:
+              properties:
+                gatewayPrivateIP:
+                  type: string
+                reservedSubnets:
+                  description: contains a list of reserved subnets in CIDR notation
+                    used by the k8s cluster like the podCIDR and ClusterCIDR
+                  items:
+                    type: string
+                  type: array
+                vxlanNetConfig:
+                  properties:
+                    DeviceName:
+                      type: string
+                    Network:
+                      type: string
+                    Port:
+                      type: string
+                    Vni:
+                      type: string
+                  required:
+                  - DeviceName
+                  - Network
+                  - Port
+                  - Vni
+                  type: object
+              required:
+              - gatewayPrivateIP
+              - reservedSubnets
+              type: object
           required:
           - advertisementConfig
           - discoveryConfig
+          - liqonetConfig
           type: object
         status:
           description: ClusterConfigStatus defines the observed state of ClusterConfig

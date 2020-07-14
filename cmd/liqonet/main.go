@@ -24,6 +24,7 @@ import (
 	"github.com/liqoTech/liqo/pkg/liqonet"
 	"github.com/vishvananda/netlink"
 	"k8s.io/client-go/kubernetes"
+	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
 	"net"
 	"os"
 	"strconv"
@@ -188,26 +189,20 @@ func main() {
 			Log:             ctrl.Log.WithName("controllers").WithName("TunnelEndpointCreator"),
 			Scheme:          mgr.GetScheme(),
 			ReservedSubnets: make(map[string]*net.IPNet),
-			FreeSubnets:     make(map[string]*net.IPNet),
 			IPManager: liqonet.IpManager{
-				UsedSubnets:      make(map[string]*net.IPNet),
-				FreeSubnets:      make(map[string]*net.IPNet),
-				SubnetPerCluster: make(map[string]*net.IPNet),
-				Initialized:      false,
-				Log:              ctrl.Log.WithName("IPAM"),
+				UsedSubnets:        make(map[string]*net.IPNet),
+				FreeSubnets:        make(map[string]*net.IPNet),
+				SubnetPerCluster:   make(map[string]*net.IPNet),
+				ConflictingSubnets: make(map[string]*net.IPNet),
+				Log:                ctrl.Log.WithName("IPAM"),
 			},
 			RetryTimeout: 30 * time.Second,
-		}
-		if err := r.IPManager.Init(); err != nil {
-			setupLog.Error(err, "unable to initialize ipam")
-			os.Exit(2)
 		}
 		r.WatchConfiguration(config, &clusterConfig.GroupVersion)
 		if err = r.SetupWithManager(mgr); err != nil {
 			setupLog.Error(err, "unable to create controller", "controller", "TunnelEndpointCreator")
 			os.Exit(1)
 		}
-
 		setupLog.Info("starting manager as tunnelEndpointCreator-operator")
 		if err := mgr.Start(ctrl.SetupSignalHandler()); err != nil {
 			setupLog.Error(err, "problem running manager")
