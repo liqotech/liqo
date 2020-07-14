@@ -19,6 +19,7 @@ package foreign_cluster_operator
 import (
 	"context"
 	goerrors "errors"
+	protocolv1 "github.com/liqoTech/liqo/api/advertisement-operator/v1"
 	discoveryv1 "github.com/liqoTech/liqo/api/discovery/v1"
 	"github.com/liqoTech/liqo/internal/discovery"
 	"github.com/liqoTech/liqo/internal/discovery/kubeconfig"
@@ -39,10 +40,11 @@ import (
 type ForeignClusterReconciler struct {
 	Scheme *runtime.Scheme
 
-	Namespace    string
-	crdClient    *crdClient.CRDClient
-	clusterID    *clusterID.ClusterID
-	RequeueAfter time.Duration
+	Namespace           string
+	crdClient           *crdClient.CRDClient
+	advertisementClient *crdClient.CRDClient
+	clusterID           *clusterID.ClusterID
+	RequeueAfter        time.Duration
 
 	DiscoveryCtrl *discovery.DiscoveryCtrl
 
@@ -67,6 +69,29 @@ func (r *ForeignClusterReconciler) Reconcile(req ctrl.Request) (ctrl.Result, err
 	if !ok {
 		klog.Error("created object is not a ForeignCluster")
 		return ctrl.Result{}, goerrors.New("created object is not a ForeignCluster")
+	}
+
+	requireUpdate := false
+
+	// if it has no discovery type label, add it
+	if fc.ObjectMeta.Labels == nil {
+		fc.ObjectMeta.Labels = map[string]string{}
+	}
+	if fc.ObjectMeta.Labels["discovery-type"] == "" {
+		fc.ObjectMeta.Labels["discovery-type"] = string(fc.Spec.DiscoveryType)
+		requireUpdate = true
+	}
+
+	// check if linked advertisement exists
+	if fc.Status.Advertisement != nil {
+		_, err := r.advertisementClient.Resource("advertisements").Get(fc.Status.Advertisement.Name, metav1.GetOptions{})
+		if errors.IsNotFound(err) {
+			fc.Status.Advertisement = nil
+			fc.Status.Joined = false
+			fc.Status.PeeringRequestName = ""
+			fc.Spec.Join = false
+			requireUpdate = true
+		}
 	}
 
 	if fc.Status.CaDataRef == nil {
@@ -112,8 +137,6 @@ func (r *ForeignClusterReconciler) Reconcile(req ctrl.Request) (ctrl.Result, err
 		}, err
 	}
 
-	requireUpdate := false
-
 	// if join is required (both automatically or by user) and status is not set to joined
 	// create new peering request
 	if fc.Spec.Join && !fc.Status.Joined {
@@ -136,6 +159,15 @@ func (r *ForeignClusterReconciler) Reconcile(req ctrl.Request) (ctrl.Result, err
 	if !fc.Spec.Join && fc.Status.Joined {
 		// peering request has to be removed
 		err := r.deletePeeringRequest(foreignDiscoveryClient, fc)
+		if err != nil {
+			klog.Error(err, err.Error())
+			return ctrl.Result{
+				Requeue:      true,
+				RequeueAfter: r.RequeueAfter,
+			}, err
+		}
+		// local advertisement has to be removed
+		err = r.deleteAdvertisement(fc)
 		if err != nil {
 			klog.Error(err, err.Error())
 			return ctrl.Result{
@@ -185,7 +217,7 @@ func (r *ForeignClusterReconciler) Reconcile(req ctrl.Request) (ctrl.Result, err
 
 func (r *ForeignClusterReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
-		For(&discoveryv1.ForeignCluster{}).
+		For(&discoveryv1.ForeignCluster{}).Owns(&protocolv1.Advertisement{}).
 		Complete(r)
 }
 
@@ -418,6 +450,10 @@ func (r *ForeignClusterReconciler) createClusterRoleBindingIfNotExists(clusterID
 	} else {
 		return rb, nil
 	}
+}
+
+func (r *ForeignClusterReconciler) deleteAdvertisement(fc *discoveryv1.ForeignCluster) error {
+	return fc.DeleteAdvertisement(r.advertisementClient)
 }
 
 func (r *ForeignClusterReconciler) deletePeeringRequest(foreignClient *crdClient.CRDClient, fc *discoveryv1.ForeignCluster) error {

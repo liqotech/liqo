@@ -1,6 +1,7 @@
 package discovery
 
 import (
+	protocolv1 "github.com/liqoTech/liqo/api/advertisement-operator/v1"
 	policyv1 "github.com/liqoTech/liqo/api/cluster-config/v1"
 	v1 "github.com/liqoTech/liqo/api/discovery/v1"
 	peering_request_operator "github.com/liqoTech/liqo/internal/peering-request-operator"
@@ -59,7 +60,7 @@ func TestDiscovery(t *testing.T) {
 	t.Run("testDiscoveryConfig", testDiscoveryConfig)
 	t.Run("testPRConfig", testPRConfig)
 	t.Run("testJoin", testJoin)
-	t.Run("testDisjoin", testDisjoin)
+	t.Run("testUnjoin", testUnjoin)
 }
 
 // ------
@@ -77,10 +78,11 @@ func testClient(t *testing.T) {
 			Name: "fc-test",
 		},
 		Spec: v1.ForeignClusterSpec{
-			ClusterID: "test-cluster",
-			Namespace: "default",
-			Join:      false,
-			ApiUrl:    serverCluster.cfg.Host,
+			ClusterID:     "test-cluster",
+			Namespace:     "default",
+			Join:          false,
+			ApiUrl:        serverCluster.cfg.Host,
+			DiscoveryType: v1.ManualDiscovery,
 		},
 	}
 	_, err = clientCluster.client.Resource("foreignclusters").Create(fc, metav1.CreateOptions{})
@@ -118,7 +120,7 @@ func testDiscoveryConfig(t *testing.T) {
 	policyConfig.GroupVersion = &policyv1.GroupVersion
 	client, err := crdClient.NewFromConfig(&policyConfig)
 	assert.NilError(t, err, "Can't get CRDClient")
-	err = clientCluster.discoveryCtrl.GetDiscoveryConfig(client)
+	err = clientCluster.discoveryCtrl.GetDiscoveryConfig(client, "")
 	assert.NilError(t, err, "DiscoveryCtrl can't load settings")
 
 	tmp, err := client.Resource("clusterconfigs").Get("configuration", metav1.GetOptions{})
@@ -205,11 +207,32 @@ func testJoin(t *testing.T) {
 		}
 		return false
 	}(), "No deployment found with broadcaster image")
+
+	// add local advertisement related to ForeignCluster,
+	// we have to add it manually because we have no Advertisement Operator running in this test
+	adv := &protocolv1.Advertisement{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "adv-test",
+		},
+		Spec: protocolv1.AdvertisementSpec{
+			LimitRange: corev1.LimitRangeSpec{
+				Limits: []corev1.LimitRangeItem{},
+			},
+			Timestamp:  metav1.NewTime(time.Now()),
+			TimeToLive: metav1.NewTime(time.Now()),
+		},
+	}
+	tmp, err = clientCluster.advClient.Resource("advertisements").Create(adv, metav1.CreateOptions{})
+	assert.NilError(t, err)
+	adv, ok = tmp.(*protocolv1.Advertisement)
+	assert.Equal(t, ok, true)
+	err = fc.SetAdvertisement(adv, clientCluster.client)
+	assert.NilError(t, err)
 }
 
 // ------
 // tests if disabling Join flag PeeringRequest is deleted from foreign cluster
-func testDisjoin(t *testing.T) {
+func testUnjoin(t *testing.T) {
 	tmp, err := clientCluster.client.Resource("foreignclusters").Get("fc-test", metav1.GetOptions{})
 	assert.NilError(t, err, "Error retrieving ForeignCluster")
 	fc, ok := tmp.(*v1.ForeignCluster)
@@ -236,4 +259,10 @@ func testDisjoin(t *testing.T) {
 	prs, ok := tmp.(*v1.PeeringRequestList)
 	assert.Equal(t, ok, true)
 	assert.Equal(t, len(prs.Items), 0, "Peering Request has not been deleted on foreign cluster")
+
+	tmp, err = clientCluster.advClient.Resource("advertisements").List(metav1.ListOptions{})
+	assert.NilError(t, err, "Error listing Advertisements")
+	advs, ok := tmp.(*protocolv1.AdvertisementList)
+	assert.Equal(t, ok, true)
+	assert.Equal(t, len(advs.Items), 0, "Advertisement has not been deleted on local cluster")
 }

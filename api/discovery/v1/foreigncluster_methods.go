@@ -1,12 +1,15 @@
 package v1
 
 import (
+	protocolv1 "github.com/liqoTech/liqo/api/advertisement-operator/v1"
+	"github.com/liqoTech/liqo/pkg/crdClient"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
+	"k8s.io/klog"
 )
 
 func (fc *ForeignCluster) GetConfig(client kubernetes.Interface) (*rest.Config, error) {
@@ -81,6 +84,35 @@ func (fc *ForeignCluster) LoadForeignCA(localClient kubernetes.Interface, localN
 		Name:       localSecret.Name,
 		UID:        localSecret.UID,
 		APIVersion: "v1",
+	}
+	return nil
+}
+
+func (fc *ForeignCluster) SetAdvertisement(adv *protocolv1.Advertisement, discoveryClient *crdClient.CRDClient) error {
+	if fc.Status.Advertisement == nil {
+		// Advertisement has not been set in ForeignCluster yet
+		fc.Status.Advertisement = &v1.ObjectReference{
+			Kind:       "Advertisement",
+			Name:       adv.Name,
+			UID:        adv.UID,
+			APIVersion: "protocol.liqo.io/v1",
+		}
+		_, err := discoveryClient.Resource("foreignclusters").Update(fc.Name, fc, metav1.UpdateOptions{})
+		if err != nil {
+			klog.Error(err, err.Error())
+			return err
+		}
+	}
+	return nil
+}
+
+func (fc *ForeignCluster) DeleteAdvertisement(advClient *crdClient.CRDClient) error {
+	if fc.Status.Advertisement != nil {
+		err := advClient.Resource("advertisements").Delete(fc.Status.Advertisement.Name, metav1.DeleteOptions{})
+		if err != nil {
+			return err
+		}
+		fc.Status.Advertisement = nil
 	}
 	return nil
 }

@@ -1,6 +1,7 @@
 package foreign_cluster_operator
 
 import (
+	protocolv1 "github.com/liqoTech/liqo/api/advertisement-operator/v1"
 	discoveryv1 "github.com/liqoTech/liqo/api/discovery/v1"
 	"github.com/liqoTech/liqo/internal/discovery"
 	"github.com/liqoTech/liqo/pkg/clusterID"
@@ -10,7 +11,6 @@ import (
 	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
 	"k8s.io/klog"
 	"os"
-	"path/filepath"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"time"
 )
@@ -25,27 +25,34 @@ func init() {
 	// +kubebuilder:scaffold:scheme
 }
 
-func StartOperator(mgr *manager.Manager, namespace string, requeueAfter time.Duration, discoveryCtrl *discovery.DiscoveryCtrl) {
-	config, err := crdClient.NewKubeconfig(filepath.Join(os.Getenv("HOME"), ".kube", "config"), &discoveryv1.GroupVersion)
+func StartOperator(mgr *manager.Manager, namespace string, requeueAfter time.Duration, discoveryCtrl *discovery.DiscoveryCtrl, kubeconfigPath string) {
+	config, err := crdClient.NewKubeconfig(kubeconfigPath, &discoveryv1.GroupVersion)
 	if err != nil {
 		klog.Error(err, "unable to get kube config")
 		os.Exit(1)
 	}
-	crdClient, err := crdClient.NewFromConfig(config)
+	discoveryClient, err := crdClient.NewFromConfig(config)
 	if err != nil {
 		klog.Error(err, "unable to create crd client")
 		os.Exit(1)
 	}
-	clusterId, err := clusterID.NewClusterID()
+	clusterId, err := clusterID.NewClusterID(kubeconfigPath)
 	if err != nil {
 		klog.Error(err, "unable to get clusterID")
+		os.Exit(1)
+	}
+
+	advClient, err := protocolv1.CreateAdvertisementClient(kubeconfigPath, nil)
+	if err != nil {
+		klog.Error(err, "unable to create local client for Advertisement")
 		os.Exit(1)
 	}
 
 	if err = (GetFCReconciler(
 		(*mgr).GetScheme(),
 		namespace,
-		crdClient,
+		discoveryClient,
+		advClient,
 		clusterId,
 		requeueAfter,
 		discoveryCtrl,
@@ -55,14 +62,15 @@ func StartOperator(mgr *manager.Manager, namespace string, requeueAfter time.Dur
 	}
 }
 
-func GetFCReconciler(scheme *runtime.Scheme, namespace string, crdClient *crdClient.CRDClient, clusterId *clusterID.ClusterID, requeueAfter time.Duration, discoveryCtrl *discovery.DiscoveryCtrl) *ForeignClusterReconciler {
+func GetFCReconciler(scheme *runtime.Scheme, namespace string, crdClient *crdClient.CRDClient, advertisementClient *crdClient.CRDClient, clusterId *clusterID.ClusterID, requeueAfter time.Duration, discoveryCtrl *discovery.DiscoveryCtrl) *ForeignClusterReconciler {
 	return &ForeignClusterReconciler{
-		Scheme:        scheme,
-		Namespace:     namespace,
-		crdClient:     crdClient,
-		clusterID:     clusterId,
-		ForeignConfig: nil,
-		RequeueAfter:  requeueAfter,
-		DiscoveryCtrl: discoveryCtrl,
+		Scheme:              scheme,
+		Namespace:           namespace,
+		crdClient:           crdClient,
+		advertisementClient: advertisementClient,
+		clusterID:           clusterId,
+		ForeignConfig:       nil,
+		RequeueAfter:        requeueAfter,
+		DiscoveryCtrl:       discoveryCtrl,
 	}
 }

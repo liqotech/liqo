@@ -5,11 +5,9 @@ import (
 	"github.com/liqoTech/liqo/pkg/clusterConfig"
 	"github.com/liqoTech/liqo/pkg/crdClient"
 	"k8s.io/klog"
-	"os"
-	"path/filepath"
 )
 
-func (discovery *DiscoveryCtrl) GetDiscoveryConfig(crdClient *crdClient.CRDClient) error {
+func (discovery *DiscoveryCtrl) GetDiscoveryConfig(crdClient *crdClient.CRDClient, kubeconfigPath string) error {
 	waitFirst := make(chan bool)
 	isFirst := true
 	go clusterConfig.WatchConfiguration(func(configuration *policyv1.ClusterConfig) {
@@ -19,7 +17,7 @@ func (discovery *DiscoveryCtrl) GetDiscoveryConfig(crdClient *crdClient.CRDClien
 			waitFirst <- true
 			isFirst = false
 		}
-	}, crdClient, filepath.Join(os.Getenv("HOME"), ".kube", "config"))
+	}, crdClient, kubeconfigPath)
 	<-waitFirst
 	close(waitFirst)
 

@@ -6,7 +6,6 @@ import (
 	"github.com/liqoTech/liqo/pkg/clusterID"
 	"github.com/liqoTech/liqo/pkg/crdClient"
 	"os"
-	"path/filepath"
 )
 
 type DiscoveryCtrl struct {
@@ -18,8 +17,8 @@ type DiscoveryCtrl struct {
 	ClusterId *clusterID.ClusterID
 }
 
-func NewDiscoveryCtrl(namespace string, clusterId *clusterID.ClusterID) (*DiscoveryCtrl, error) {
-	config, err := crdClient.NewKubeconfig(filepath.Join(os.Getenv("HOME"), ".kube", "config"), &discoveryv1.GroupVersion)
+func NewDiscoveryCtrl(namespace string, clusterId *clusterID.ClusterID, kubeconfigPath string) (*DiscoveryCtrl, error) {
+	config, err := crdClient.NewKubeconfig(kubeconfigPath, &discoveryv1.GroupVersion)
 	if err != nil {
 		return nil, err
 	}
@@ -32,7 +31,7 @@ func NewDiscoveryCtrl(namespace string, clusterId *clusterID.ClusterID) (*Discov
 		crdClient,
 		clusterId,
 	)
-	if discoveryCtrl.GetDiscoveryConfig(nil) != nil {
+	if discoveryCtrl.GetDiscoveryConfig(nil, kubeconfigPath) != nil {
 		os.Exit(1)
 	}
 	return &discoveryCtrl, nil

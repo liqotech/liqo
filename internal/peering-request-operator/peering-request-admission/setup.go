@@ -8,22 +8,21 @@ import (
 	"k8s.io/klog"
 	"net/http"
 	"os"
-	"path/filepath"
 )
 
-func StartWebhook(certPath string, keyPath string, namespace string) *WebhookServer {
+func StartWebhook(certPath string, keyPath string, namespace string, kubeconfigPath string) *WebhookServer {
 	port := 8443
-	return startTls(certPath, keyPath, port, namespace)
+	return startTls(certPath, keyPath, port, namespace, kubeconfigPath)
 }
 
-func startTls(certPath string, keyPath string, port int, namespace string) *WebhookServer {
+func startTls(certPath string, keyPath string, port int, namespace string, kubeconfigPath string) *WebhookServer {
 	pair, err := tls.LoadX509KeyPair(certPath, keyPath)
 	if err != nil {
 		klog.Error(err, err.Error())
 		os.Exit(1)
 	}
 
-	config, err := crdClient.NewKubeconfig(filepath.Join(os.Getenv("HOME"), ".kube", "config"), &discoveryv1.GroupVersion)
+	config, err := crdClient.NewKubeconfig(kubeconfigPath, &discoveryv1.GroupVersion)
 	if err != nil {
 		klog.Error(err, "unable to get kube config")
 		os.Exit(1)

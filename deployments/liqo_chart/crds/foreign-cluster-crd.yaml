@@ -46,8 +46,16 @@ spec:
             apiUrl:
               type: string
               description: URL where to contact foreign API server
+            discoveryType:
+              type: string
+              enum:
+                - LAN
+                - WAN
+                - Manual
           required:
             - join
+            - discoveryType
+          type: object
         status:
           properties:
             joined:
@@ -56,3 +64,13 @@ spec:
             peering-request-name:
               type: string
               description: Name of created PR
+            caDataRef:
+              type: object
+              description: Object Reference to retrieved CaData Secret
+            advertisement:
+              type: object
+              description: Object Reference to created Advertisement CR
+            ttl:
+              type: integer
+              description: If discoveryType is LAN and this counter reach 0 value, this FC will be removed
+          type: object

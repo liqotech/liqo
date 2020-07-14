@@ -17,6 +17,8 @@ package main
 
 import (
 	"flag"
+	discoveryv1 "github.com/liqoTech/liqo/api/discovery/v1"
+	"github.com/liqoTech/liqo/pkg/crdClient"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/kubernetes"
@@ -119,6 +121,17 @@ func main() {
 		}
 	}
 
+	discoveryConfig, err := crdClient.NewKubeconfig(localKubeconfig, &discoveryv1.GroupVersion)
+	if err != nil {
+		klog.Error(err, "unable to get kube config")
+		os.Exit(1)
+	}
+	discoveryClient, err := crdClient.NewFromConfig(discoveryConfig)
+	if err != nil {
+		klog.Errorln(err, "unable to create local client for Discovery")
+		os.Exit(1)
+	}
+
 	r := &advertisement_operator.AdvertisementReconciler{
 		Client:           mgr.GetClient(),
 		Scheme:           mgr.GetScheme(),
@@ -130,6 +143,7 @@ func main() {
 		HomeClusterId:    clusterId,
 		AcceptedAdvNum:   acceptedAdv,
 		AdvClient:        advClient,
+		DiscoveryClient:  discoveryClient,
 		RetryTimeout:     1 * time.Minute,
 	}
 
