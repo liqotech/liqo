@@ -1,6 +1,7 @@
 package discovery
 
 import (
+	protocolv1 "github.com/liqoTech/liqo/api/advertisement-operator/v1"
 	policyv1 "github.com/liqoTech/liqo/api/cluster-config/v1"
 	v1 "github.com/liqoTech/liqo/api/discovery/v1"
 	"github.com/liqoTech/liqo/internal/discovery"
@@ -31,6 +32,7 @@ type Cluster struct {
 	env           *envtest.Environment
 	cfg           *rest.Config
 	client        *crdClient.CRDClient
+	advClient     *crdClient.CRDClient
 	discoveryCtrl discovery.DiscoveryCtrl
 	fcReconciler  *foreign_cluster_operator.ForeignClusterReconciler
 	prReconciler  *peering_request_operator.PeeringRequestReconciler
@@ -45,6 +47,7 @@ func getClientCluster() *Cluster {
 		mgr.GetScheme(),
 		"default",
 		cluster.client,
+		cluster.advClient,
 		cluster.clusterId,
 		1*time.Minute,
 		&cluster.discoveryCtrl,
@@ -139,13 +142,27 @@ func getCluster() (*Cluster, manager.Manager) {
 	cluster.cfg.NegotiatedSerializer = scheme.Codecs.WithoutConversion()
 	cluster.cfg.UserAgent = rest.DefaultKubernetesUserAgent()
 
+	advCfg := *cluster.cfg
+	advCfg.ContentConfig.GroupVersion = &protocolv1.GroupVersion
+	crdClient.AddToRegistry("advertisements", &protocolv1.Advertisement{}, &protocolv1.AdvertisementList{}, nil, protocolv1.GroupResource)
+
 	err = v1.AddToScheme(scheme.Scheme)
+	if err != nil {
+		klog.Error(err, err.Error())
+		os.Exit(1)
+	}
+	err = protocolv1.AddToScheme(scheme.Scheme)
 	if err != nil {
 		klog.Error(err, err.Error())
 		os.Exit(1)
 	}
 
 	cluster.client, err = crdClient.NewFromConfig(cluster.cfg)
+	if err != nil {
+		klog.Error(err, err.Error())
+		os.Exit(1)
+	}
+	cluster.advClient, err = crdClient.NewFromConfig(&advCfg)
 	if err != nil {
 		klog.Error(err, err.Error())
 		os.Exit(1)

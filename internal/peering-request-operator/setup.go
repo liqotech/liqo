@@ -8,7 +8,6 @@ import (
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/klog"
 	"os"
-	"path/filepath"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"time"
 )
@@ -23,7 +22,7 @@ func init() {
 	// +kubebuilder:scaffold:scheme
 }
 
-func StartOperator(namespace string, configMapName string, broadcasterImage string, broadcasterServiceAccount string) {
+func StartOperator(namespace string, configMapName string, broadcasterImage string, broadcasterServiceAccount string, kubeconfigPath string) {
 	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
 		Scheme:           scheme,
 		Port:             9443,
@@ -35,7 +34,7 @@ func StartOperator(namespace string, configMapName string, broadcasterImage stri
 		os.Exit(1)
 	}
 
-	config, err := crdClient.NewKubeconfig(filepath.Join(os.Getenv("HOME"), ".kube", "config"), &discoveryv1.GroupVersion)
+	config, err := crdClient.NewKubeconfig(kubeconfigPath, &discoveryv1.GroupVersion)
 	if err != nil {
 		klog.Error(err, "unable to get kube config")
 		os.Exit(1)
@@ -46,7 +45,7 @@ func StartOperator(namespace string, configMapName string, broadcasterImage stri
 		os.Exit(1)
 	}
 
-	clusterId, err := clusterID.NewClusterID()
+	clusterId, err := clusterID.NewClusterID(kubeconfigPath)
 	if err != nil {
 		klog.Error(err, "unable to get clusterID")
 		os.Exit(1)

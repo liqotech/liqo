@@ -17,8 +17,10 @@ package advertisement_operator
 
 import (
 	"context"
+	goerrors "errors"
 	protocolv1 "github.com/liqoTech/liqo/api/advertisement-operator/v1"
 	policyv1 "github.com/liqoTech/liqo/api/cluster-config/v1"
+	discoveryv1 "github.com/liqoTech/liqo/api/discovery/v1"
 	pkg "github.com/liqoTech/liqo/pkg/advertisement-operator"
 	"github.com/liqoTech/liqo/pkg/crdClient"
 	v1 "k8s.io/api/core/v1"
@@ -51,6 +53,7 @@ type AdvertisementReconciler struct {
 	AcceptedAdvNum   int32
 	ClusterConfig    policyv1.AdvertisementConfig
 	AdvClient        *crdClient.CRDClient
+	DiscoveryClient  *crdClient.CRDClient
 	RetryTimeout     time.Duration
 }
 
@@ -75,6 +78,22 @@ func (r *AdvertisementReconciler) Reconcile(req ctrl.Request) (ctrl.Result, erro
 			klog.Error(err)
 			return ctrl.Result{RequeueAfter: r.RetryTimeout}, err
 		}
+	}
+
+	// we do that on Advertisement creation
+	err, update := r.UpdateForeignCluster(&adv)
+	if err != nil {
+		klog.Warning(err)
+		// this has not to return an error, Advertisement Operator will work fine
+	}
+	if update {
+		_, err = r.AdvClient.Resource("advertisements").Update(adv.Name, &adv, metav1.UpdateOptions{})
+		if err != nil {
+			klog.Error(err)
+			return ctrl.Result{RequeueAfter: r.RetryTimeout}, err
+		}
+		// retry timeout not set because is an update, this will trigger Reconcile again
+		return ctrl.Result{}, nil
 	}
 
 	// filter advertisements and create a virtual-kubelet only for the good ones
@@ -110,6 +129,46 @@ func (r *AdvertisementReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&protocolv1.Advertisement{}).
 		Complete(r)
+}
+
+// set Advertisement reference in related ForeignCluster
+func (r *AdvertisementReconciler) UpdateForeignCluster(adv *protocolv1.Advertisement) (error, bool) {
+	tmp, err := r.DiscoveryClient.Resource("foreignclusters").Get(adv.Spec.ClusterId, metav1.GetOptions{})
+	if err != nil {
+		klog.Error(err, err.Error())
+		return err, false
+	}
+	fc, ok := tmp.(*discoveryv1.ForeignCluster)
+	if !ok {
+		err = goerrors.New("retrieved object is not a ForeignCluster")
+		klog.Error(err, fc)
+		return err, false
+	}
+	err = fc.SetAdvertisement(adv, r.DiscoveryClient)
+	if err != nil {
+		klog.Error(err, err.Error())
+		return err, false
+	}
+	// check if FC is in Adv Owners
+	contains := false
+	for _, own := range adv.ObjectMeta.OwnerReferences {
+		if own.UID == fc.UID {
+			contains = true
+			break
+		}
+	}
+	if !contains {
+		// add owner reference
+		controller := true
+		adv.OwnerReferences = append(adv.OwnerReferences, metav1.OwnerReference{
+			APIVersion: "discovery.liqo.io/v1",
+			Kind:       "ForeignCluster",
+			Name:       fc.Name,
+			UID:        fc.UID,
+			Controller: &controller,
+		})
+	}
+	return nil, !contains
 }
 
 // check if the advertisement is interesting and set its status accordingly

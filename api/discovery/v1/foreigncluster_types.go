@@ -27,15 +27,24 @@ import (
 // EDIT THIS FILE!  THIS IS SCAFFOLDING FOR YOU TO OWN!
 // NOTE: json tags are required.  Any new fields you add must have json tags for the fields to be serialized.
 
+type DiscoveryType string
+
+const (
+	LanDiscovery    DiscoveryType = "LAN"
+	WanDiscovery    DiscoveryType = "WAN"
+	ManualDiscovery DiscoveryType = "Manual"
+)
+
 // ForeignClusterSpec defines the desired state of ForeignCluster
 type ForeignClusterSpec struct {
 	// INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
 	// Important: Run "make" to regenerate code after modifying this file
 
-	ClusterID string `json:"clusterID"`
-	Namespace string `json:"namespace"`
-	Join      bool   `json:"join"`
-	ApiUrl    string `json:"apiUrl"`
+	ClusterID     string        `json:"clusterID"`
+	Namespace     string        `json:"namespace"`
+	Join          bool          `json:"join"`
+	ApiUrl        string        `json:"apiUrl"`
+	DiscoveryType DiscoveryType `json:"discoveryType"`
 }
 
 // ForeignClusterStatus defines the observed state of ForeignCluster
@@ -46,9 +55,12 @@ type ForeignClusterStatus struct {
 	Joined             bool                `json:"joined"`
 	PeeringRequestName string              `json:"peering-request-name"`
 	CaDataRef          *v1.ObjectReference `json:"caDataRef,omitempty"`
+	Advertisement      *v1.ObjectReference `json:"advertisement,omitempty"`
+	Ttl                int                 `json:"ttl,omitempty"`
 }
 
 // +kubebuilder:object:root=true
+// +kubebuilder:subresource:status
 // +kubebuilder:resource:scope=Cluster
 
 // ForeignCluster is the Schema for the foreignclusters API

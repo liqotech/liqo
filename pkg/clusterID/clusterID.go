@@ -13,7 +13,6 @@ import (
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/klog"
 	"os"
-	"path/filepath"
 	"sort"
 	"strings"
 	"sync"
@@ -34,8 +33,8 @@ func GetNewClusterID(id string, client kubernetes.Interface) *ClusterID {
 	}
 }
 
-func NewClusterID() (*ClusterID, error) {
-	config, err := crdClient.NewKubeconfig(filepath.Join(os.Getenv("HOME"), ".kube", "config"), &discoveryv1.GroupVersion)
+func NewClusterID(kubeconfigPath string) (*ClusterID, error) {
+	config, err := crdClient.NewKubeconfig(kubeconfigPath, &discoveryv1.GroupVersion)
 	if err != nil {
 		klog.Error(err, "unable to get kube config")
 		os.Exit(1)
