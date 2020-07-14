@@ -14,11 +14,11 @@ type Ipam interface {
 }
 
 type IpManager struct {
-	UsedSubnets      map[string]*net.IPNet
-	FreeSubnets      map[string]*net.IPNet
-	SubnetPerCluster map[string]*net.IPNet
-	Initialized      bool
-	Log              logr.Logger
+	UsedSubnets        map[string]*net.IPNet
+	FreeSubnets        map[string]*net.IPNet
+	ConflictingSubnets map[string]*net.IPNet
+	SubnetPerCluster   map[string]*net.IPNet
+	Log                logr.Logger
 }
 
 func (ip IpManager) Init() error {
@@ -30,42 +30,12 @@ func (ip IpManager) Init() error {
 		ip.Log.Error(err, "unable to parse the first subnet %s :%v", CIDRBlock, err)
 		return err
 	}
-	//first we get podCIDR and clusterCIDR
-	podCIDR, err := GetClusterPodCIDR()
-	if err != nil {
-		ip.Log.Error(err, "unable to retrieve podCIDR from environment variable")
-		return err
-	}
-	clusterCIDR, err := GetClusterCIDR()
-	if err != nil {
-		ip.Log.Error(err, "unable to retrieve clusterCIDR from environment variable")
-		return err
-	}
-	//we parse podCIDR and clusterCIDR
-	_, clusterNet, err := net.ParseCIDR(clusterCIDR)
-	if err != nil {
-		return fmt.Errorf("an error occured while parsing clusterCIDR %s :%v", clusterCIDR, err)
-	}
-	_, podNet, err := net.ParseCIDR(podCIDR)
-	if err != nil {
-		return fmt.Errorf("an error occured while parsing podCIDR %s :%v", podCIDR, err)
-	}
 	//The first subnet /16 is added to the FreeSubnets
 	ip.FreeSubnets[subnet.String()] = subnet
 	//here we divide the CIDRBlock 10.0.0.0/8 in 256 /16 subnets
 	for i := 0; i < 255; i++ {
 		subnet, _ = cidr.NextSubnet(subnet, 16)
 		ip.FreeSubnets[subnet.String()] = subnet
-	}
-	//clusterCIDR and podCIDR are added to the UsedSubnets
-	ip.UsedSubnets[clusterNet.String()] = clusterNet
-	ip.UsedSubnets[podNet.String()] = podNet
-
-	//we remove all the subnets that have conflicts with the podCidr and clusterCidr from FreeSubnets
-	for _, net := range ip.FreeSubnets {
-		if bool := VerifyNoOverlap(ip.UsedSubnets, net); bool {
-			delete(ip.FreeSubnets, net.String())
-		}
 	}
 	return nil
 }

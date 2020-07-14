@@ -68,7 +68,7 @@ type LiqonetConfig struct {
 	//contains a list of reserved subnets in CIDR notation used by the k8s cluster like the podCIDR and ClusterCIDR
 	ReservedSubnets  []string               `json:"reservedSubnets"`
 	GatewayPrivateIP string                 `json:"gatewayPrivateIP"`
-	VxlanNetConfig   liqonet.VxlanNetConfig `json:"vxlanNetConfig"`
+	VxlanNetConfig   liqonet.VxlanNetConfig `json:"vxlanNetConfig,omitempty"`
 }
 
 // ClusterConfigStatus defines the observed state of ClusterConfig

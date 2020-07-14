@@ -34,6 +34,7 @@ import (
 	"net"
 	"os"
 	"time"
+	"sync"
 
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -54,9 +55,10 @@ type TunnelEndpointCreator struct {
 	Log             logr.Logger
 	Scheme          *runtime.Scheme
 	ReservedSubnets map[string]*net.IPNet
-	FreeSubnets     map[string]*net.IPNet
-	IPManager       liqonetOperator.Ipam
 	RetryTimeout      time.Duration
+	IPManager       liqonetOperator.IpManager
+	Mutex           sync.Mutex
+	IsConfigured    bool
 }
 
 // +kubebuilder:rbac:groups=protocol.liqo.io,resources=advertisements,verbs=get;list;watch;create;update;patch;delete
@@ -387,12 +389,147 @@ func (r *TunnelEndpointCreator) WatchConfiguration(config *rest.Config, gv *sche
 	config.APIPath = "/apis"
 	config.NegotiatedSerializer = scheme.Codecs.WithoutConversion()
 	config.UserAgent = rest.DefaultKubernetesUserAgent()
-	client, err := crdClient.NewFromConfig(config)
+	CRDclient, err := crdClient.NewFromConfig(config)
 	if err != nil {
 		klog.Error(err, err.Error())
 		os.Exit(1)
 	}
 	go clusterConfig.WatchConfiguration(func(configuration *policyv1.ClusterConfig) {
-		fmt.Println(configuration.Spec)
-	}, client, "")
+
+		//this section is executed at start-up time
+		if !r.IsConfigured {
+			if err := r.InitConfiguration(configuration); err != nil{
+				return
+			}
+		}
+
+	}, CRDclient, "")
+}
+
+func (r *TunnelEndpointCreator) InitConfiguration(config *policyv1.ClusterConfig) error {
+	var isError = false
+	//get the reserved subnets from che configuration CRD
+	reservedSubnets, err := r.GetConfiguration(config)
+	if err != nil {
+		klog.Error(err)
+		return err
+	}
+	//get subnets used by foreign clusters
+	clusterSubnets, err := r.GetClustersSubnets()
+	if err != nil {
+		klog.Error(err)
+		return err
+	}
+	//here we check that there are no conflicts between the configuration and the already used subnets
+	if clusterSubnets != nil{
+		for _, usedSubnet := range clusterSubnets {
+			if liqonetOperator.VerifyNoOverlap(reservedSubnets, usedSubnet) {
+				klog.Infof("there is a conflict between a reserved subnet given by the configuration and subnet used by another cluster. Please consider to remove the one of the conflicting subnets")
+				isError = true
+			}
+		}
+	}
+	//if no conflicts or errors occurred then we start the IPAM
+	if !isError {
+		//here we acquire the lock of the mutex
+		r.Mutex.Lock()
+		if err := r.IPManager.Init(); err != nil {
+			klog.Errorf("an error occurred while initializing the IP manager -> err")
+			r.Mutex.Unlock()
+			return err
+		}
+		//here we populate the used subnets with the reserved subnets and the subnets used by clusters
+		for _, value := range reservedSubnets{
+			r.IPManager.UsedSubnets [value.String()] = value
+		}
+		if clusterSubnets != nil{
+			for _, value := range clusterSubnets{
+				r.IPManager.UsedSubnets [value.String()] = value
+			}
+		}
+		//we remove all the free subnets that have conflicts with the used subnets
+		for _, net := range r.IPManager.FreeSubnets {
+			if bool := liqonetOperator.VerifyNoOverlap(r.IPManager.UsedSubnets, net); bool {
+				delete(r.IPManager.FreeSubnets, net.String())
+				//we add it to a new map, if the reserved ip is removed from the config then the conflicting subnets can be inserted in the free pool of subnets
+				r.IPManager.ConflictingSubnets[net.String()] = net
+				klog.Infof("removing subnet %s from the free pool", net.String())
+			}
+		}
+		r.IsConfigured = true
+		r.ReservedSubnets = reservedSubnets
+		r.Mutex.Unlock()
+	}else{
+		return fmt.Errorf("There are conflicts between the reserved subnets given in the configuration and the already used subnets in the tunnelEndpoint CRs.")
+	}
+	return nil
+}
+
+func (r *TunnelEndpointCreator) UpdateConfiguration(config *policyv1.ClusterConfig) error{
+	var addedSubnets, removedSubnets map[string]*net.IPNet
+	//get the reserved subnets from che configuration CRD
+	reservedSubnets, err := r.GetConfiguration(config)
+	if err != nil {
+		klog.Error(err)
+		return err
+	}
+
+}
+
+func (r *TunnelEndpointCreator) GetConfiguration(config *policyv1.ClusterConfig) (map[string]*net.IPNet, error) {
+	correctlyParsed := true
+	reservedSubnets := make(map[string]*net.IPNet)
+	liqonetConfig := config.Spec.LiqonetConfig
+	//check that the reserved subnets are in the right format
+	for _, subnet := range liqonetConfig.ReservedSubnets {
+		_, sn, err := net.ParseCIDR(subnet)
+		if err != nil {
+			klog.Errorf("an error occurred while parsing configuration: %s", err)
+			correctlyParsed = false
+		} else {
+			klog.Infof("subnet %s correctly added to the reserved subnets", sn.String())
+			reservedSubnets[sn.String()] = sn
+		}
+	}
+	if !correctlyParsed {
+		return nil, fmt.Errorf("the reserved subnets list is not in the correct format")
+	}
+	return reservedSubnets, nil
+}
+
+//it returns the subnets used by the foreign clusters
+func (r *TunnelEndpointCreator) GetClustersSubnets() (map[string]*net.IPNet, error) {
+	ctx := context.Background()
+	var tunEndList liqonetv1.TunnelEndpointList
+	subnets := make(map[string]*net.IPNet)
+	err := r.Client.List(ctx, &tunEndList, &client.ListOptions{})
+	if err != nil {
+		klog.Errorf("unable to get the list of tunnelEndpoint custom resources -> %s", err)
+		return nil, err
+	}
+	//if the list is empty return a nil slice and nil error
+	if tunEndList.Items == nil {
+		return nil, nil
+	}
+	for _, tunEnd := range tunEndList.Items {
+		if tunEnd.Status.LocalRemappedPodCIDR != "" && tunEnd.Status.LocalRemappedPodCIDR != defualtPodCIDRValue {
+			_, sn, err := net.ParseCIDR(tunEnd.Status.LocalRemappedPodCIDR)
+			if err != nil {
+				klog.Errorf("an error occurred while parsing configuration: %s", err)
+				return nil, err
+			}
+			subnets[sn.String()] = sn
+			klog.Infof("subnet %s already reserved for cluster %s", tunEnd.Status.LocalRemappedPodCIDR, tunEnd.Spec.ClusterID)
+		} else if tunEnd.Status.LocalRemappedPodCIDR == defualtPodCIDRValue {
+			_, sn, err := net.ParseCIDR(tunEnd.Spec.PodCIDR)
+			if err != nil {
+				klog.Errorf("an error occurred while parsing configuration: %s", err)
+				return nil, err
+			}
+			subnets[sn.String()] = sn
+			klog.Infof("subnet %s already reserved for cluster %s", tunEnd.Spec.PodCIDR, tunEnd.Spec.ClusterID)
+		} else {
+		}
+	}
+	return subnets, nil
 }
