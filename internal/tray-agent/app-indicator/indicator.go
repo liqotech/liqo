@@ -1,9 +1,11 @@
 package app_indicator
 
 import (
+	"errors"
 	"github.com/liqoTech/liqo/internal/tray-agent/agent/client"
 	"github.com/liqoTech/liqo/internal/tray-agent/icon"
 	"sync"
+	"time"
 )
 
 //standard width of an item in the tray menu
@@ -72,6 +74,8 @@ type Indicator struct {
 	agentCtrl *client.AgentController
 	//map of all the instantiated Listeners
 	listeners map[client.NotifyChannelType]*Listener
+	//map of all the instantiated Timers
+	timers map[string]*Timer
 }
 
 //Listener is an event listener that can react calling a specific callback.
@@ -317,6 +321,48 @@ func (i *Indicator) Disconnect() {
 	}
 }
 
+//StartTimer registers a new Timer in charge of controlling the loop execution of callback. The Timer starts
+//automatically and can be controlled using (*Timer).SetActive() .
+//
+//	- tag : Timer id.
+//
+//	- interval : specifies the time interval after which the callback execution is triggered.
+func (i *Indicator) StartTimer(tag string, interval time.Duration, callback func(args ...interface{}), args ...interface{}) error {
+	if _, present := i.timers[tag]; present {
+		return errors.New("A Timer with the same tag already exists")
+	}
+	t := &Timer{
+		tag:        tag,
+		controller: make(chan bool, 2),
+		quitCh:     i.quitChan,
+		active:     true,
+	}
+	i.timers[tag] = t
+	go func(timer *Timer) {
+		for {
+			select {
+			case <-time.After(interval):
+				if timer.active {
+					callback(args...)
+				}
+			case stat, open := <-timer.controller:
+				if open {
+					timer.active = stat
+				}
+			case <-timer.quitCh:
+				return
+			}
+		}
+	}(t)
+	return nil
+}
+
+//Timer returns the registered Timer for the specified tag. If such Timer does not exist, present == false.
+func (i *Indicator) Timer(tag string) (timer *Timer, present bool) {
+	timer, present = i.timers[tag]
+	return
+}
+
 //GetIndicator initializes and returns the Indicator singleton. This function should not be called before Run().
 func GetIndicator() *Indicator {
 	if root == nil {
@@ -332,6 +378,7 @@ func GetIndicator() *Indicator {
 		root.config = newConfig()
 		root.quitChan = make(chan struct{})
 		root.listeners = make(map[client.NotifyChannelType]*Listener)
+		root.timers = make(map[string]*Timer)
 		root.agentCtrl = client.GetAgentController()
 		if !root.agentCtrl.Connected() {
 			root.NotifyNoConnection()
