@@ -92,16 +92,11 @@ func (p *KubernetesProvider) controlLoop() {
 
 		case ep := <-p.epEvent:
 			if time.Since(ep.t) > epExpirationRate {
+				klog.V(7).Infof("ep %v in namespace %v update ignored due to its expiration", ep.ep.Name, ep.ep.Namespace)
 				break
 			}
 			if err = p.manageEpEvent(ep.ep); err != nil {
-				// if the resource is not found, it has not been remotely created yet:
-				// we launch a goroutine that waits one second, then pushes the event again
-				// in the channel
-				go func(e timestampedEndpoints, ch chan timestampedEndpoints) {
-					time.Sleep(time.Second)
-					ch <- ep
-				}(ep, p.epEvent)
+				klog.Errorf("error in managing ep event - ERR: %v", err)
 			}
 		case e := <-p.cmEvent:
 			if err = p.manageCmEvent(e); err != nil {

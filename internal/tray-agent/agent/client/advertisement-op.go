@@ -12,7 +12,7 @@ func DescribeAdvertisement(adv *advtypes.Advertisement) string {
 	prices := adv.Spec.Prices
 	str.WriteString(fmt.Sprintf("• ClusterID: %v\n", adv.Spec.ClusterId))
 	str.WriteString(fmt.Sprintf("\t• STATUS: %v\n", adv.Status.AdvertisementStatus))
-	str.WriteString(fmt.Sprintf("\t• Available Resources:\n"))
+	str.WriteString("\t• Available Resources:\n")
 	str.WriteString(fmt.Sprintf("\t\t- shared cpu = %v ", adv.Spec.ResourceQuota.Hard.Cpu()))
 	if CpuPrice, cFound := prices["cpu"]; cFound {
 		str.WriteString(fmt.Sprintf("[price %v]", CpuPrice.String()))
