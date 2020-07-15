@@ -24,6 +24,11 @@ const (
 	oChangeNotify = "O_CHANGE_NOTIFY"
 )
 
+//set of timer tags
+const (
+	timerTitle = "T_TITLE"
+)
+
 //OnReady is the routine orchestrating Liqo Tray Agent execution.
 func OnReady() {
 	// Indicator configuration
