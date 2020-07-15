@@ -7,6 +7,9 @@ community:
   - LICENSE
   - README.md
 
+documentation:
+  - docs/**/*
+
 networking:
   - build/liqonet/**/*
   - cmd/liqonet/**/*

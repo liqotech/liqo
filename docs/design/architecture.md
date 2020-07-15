@@ -10,10 +10,12 @@ Sharing resources with Liqo relies on three different phases:
 
 1. **Discovery**: The cluster looks for available clusters where offload new resources (e.g. neighborhood, dns, manual 
 insertion) and exchange credentials with each other to start communicate.
-2. **Advertisement management**: Clusters shares updates about the resourcing they are willing to export and their
+2. **Advertisement protocol**: Clusters shares updates about the resourcing they are willing to export and their
  capabilities (i.e. Advertisements)
 3. **Resource Sharing**: When a cluster is interested in resources proposed by a certain advertisement, it accepts the
  advertisement. This triggers the establishment of network interconnections and the spawning of a new virtual-kubelet.
+
+[Here](../images/complete-workflow.png) you can find a graphic description of the complete workflow  
 
 ## Discovery
 
@@ -34,7 +36,7 @@ The Advertisement operator can be split in two main components.
 - **Controller**: the module which is triggered when receiving an Advertisement and spawns a virtual node (using Virtual 
 Kubelet)
 
- You can find more details about the [here](advertisement_management.md)
+ You can find more details about the [here](advertisement_protocol.md)
 
 ## Resource Sharing
 
