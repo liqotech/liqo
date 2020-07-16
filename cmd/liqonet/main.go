@@ -189,6 +189,7 @@ func main() {
 			Log:             ctrl.Log.WithName("controllers").WithName("TunnelEndpointCreator"),
 			Scheme:          mgr.GetScheme(),
 			ReservedSubnets: make(map[string]*net.IPNet),
+			Configured:      make(chan bool, 1),
 			IPManager: liqonet.IpManager{
 				UsedSubnets:        make(map[string]*net.IPNet),
 				FreeSubnets:        make(map[string]*net.IPNet),
@@ -209,5 +210,4 @@ func main() {
 			os.Exit(1)
 		}
 	}
-
 }
