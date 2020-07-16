@@ -428,7 +428,13 @@ func ComputeAnnouncedResources(physicalNodes *corev1.NodeList, reqs corev1.Resou
 	// subtract used resources from available ones to have available resources
 	cpu := allocatable.Cpu().DeepCopy()
 	cpu.Sub(reqs.Cpu().DeepCopy())
+	if cpu.Value() < 0 {
+		cpu.Set(0)
+	}
 	mem := allocatable.Memory().DeepCopy()
+	if mem.Value() < 0 {
+		mem.Set(0)
+	}
 	mem.Sub(reqs.Memory().DeepCopy())
 	pods := allocatable.Pods().DeepCopy()
 

@@ -252,6 +252,9 @@ func TestGetResourceForAdv(t *testing.T) {
 
 	reqs, limits := advertisement_operator.GetAllPodsResources(pods)
 	availability, _ := advertisement_operator.ComputeAnnouncedResources(pNodes, reqs, int64(b.ClusterConfig.ResourceSharingPercentage))
+	if availability.Cpu().Value() < 0 || availability.Memory().Value() < 0 {
+		t.Fatal("Available resources cannot be negative")
+	}
 
 	pNodes2, vNodes2, availability2, limits2, images2, err := b.GetResourcesForAdv()
 	assert.Nil(t, err)

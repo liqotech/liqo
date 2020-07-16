@@ -114,6 +114,12 @@ func (r *AdvertisementReconciler) SetupWithManager(mgr ctrl.Manager) error {
 
 // check if the advertisement is interesting and set its status accordingly
 func (r *AdvertisementReconciler) CheckAdvertisement(adv *protocolv1.Advertisement) {
+	// if announced resources are negative, always refuse the Adv
+	for _, v := range adv.Spec.ResourceQuota.Hard {
+		if v.Value() < 0 {
+			adv.Status.AdvertisementStatus = AdvertisementRefused
+		}
+	}
 
 	if r.ClusterConfig.AutoAccept {
 		if r.AcceptedAdvNum < r.ClusterConfig.MaxAcceptableAdvertisement {
