@@ -47,14 +47,6 @@ func GetClusterPodCIDR() (string, error) {
 	return podCIDR, nil
 }
 
-func GetClusterCIDR() (string, error) {
-	clusterCIDR, isSet := os.LookupEnv("CLUSTER_CIDR")
-	if !isSet {
-		return clusterCIDR, errdefs.NotFound("CLUSTER_CIDR has not been set. check you manifest file")
-	}
-	return clusterCIDR, nil
-}
-
 func getInternalIPOfNode(node corev1.Node) (string, error) {
 	var internalIp string
 	for _, address := range node.Status.Addresses {
