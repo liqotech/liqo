@@ -65,6 +65,7 @@ func (discovery *DiscoveryCtrl) getTxts(results <-chan *zeroconf.ServiceEntry, o
 				continue
 			}
 			if txtData, err := Decode(ip, strconv.Itoa(entry.Port), entry.Text); err == nil {
+				klog.Info("Received packet from " + ip)
 				res = append(res, txtData)
 			} else {
 				klog.Error(err, err.Error())
@@ -102,7 +103,6 @@ func (discovery *DiscoveryCtrl) isForeign(foreignIps []net.IP) bool {
 		if myIps[fIp.String()] {
 			return false
 		}
-		klog.Info("Received packet from " + fIp.String())
 	}
 	return true
 }
