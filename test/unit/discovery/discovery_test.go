@@ -5,6 +5,7 @@ import (
 	protocolv1 "github.com/liqoTech/liqo/api/advertisement-operator/v1"
 	policyv1 "github.com/liqoTech/liqo/api/cluster-config/v1"
 	v1 "github.com/liqoTech/liqo/api/discovery/v1"
+	"github.com/liqoTech/liqo/internal/discovery"
 	"github.com/liqoTech/liqo/internal/discovery/kubeconfig"
 	peering_request_operator "github.com/liqoTech/liqo/internal/peering-request-operator"
 	"github.com/liqoTech/liqo/pkg/crdClient"
@@ -63,6 +64,7 @@ func TestDiscovery(t *testing.T) {
 	t.Run("testPRConfig", testPRConfig)
 	t.Run("testJoin", testJoin)
 	t.Run("testUnjoin", testUnjoin)
+	t.Run("testMergeClusters", testMergeClusters)
 	t.Run("testCreateKubeconfig", testCreateKubeconfig)
 }
 
@@ -268,6 +270,35 @@ func testUnjoin(t *testing.T) {
 	advs, ok := tmp.(*protocolv1.AdvertisementList)
 	assert.Equal(t, ok, true)
 	assert.Equal(t, len(advs.Items), 0, "Advertisement has not been deleted on local cluster")
+}
+
+// ------
+// tests clusters merge logic, when remote IP changes
+func testMergeClusters(t *testing.T) {
+	tmp, err := clientCluster.client.Resource("foreignclusters").Get("fc-test", metav1.GetOptions{})
+	assert.NilError(t, err, "Error retrieving ForeignCluster")
+	fc, ok := tmp.(*v1.ForeignCluster)
+	assert.Equal(t, ok, true)
+
+	txt := &discovery.TxtData{
+		ID:        fc.Spec.ClusterID,
+		Namespace: fc.Spec.Namespace,
+		ApiUrl:    strings.Replace(fc.Spec.ApiUrl, "127.0.0.1", "127.0.0.2", -1),
+	}
+	fc, err = clientCluster.discoveryCtrl.CheckUpdate(txt, fc, fc.Spec.DiscoveryType)
+	assert.NilError(t, err)
+	assert.Equal(t, fc.Spec.ApiUrl, txt.ApiUrl, "API URL not changed")
+
+	time.Sleep(100 * time.Millisecond)
+
+	tmp, err = clientCluster.client.Resource("foreignclusters").Get("fc-test", metav1.GetOptions{})
+	assert.NilError(t, err, "Error retrieving ForeignCluster")
+	fc, ok = tmp.(*v1.ForeignCluster)
+	assert.Equal(t, ok, true)
+
+	cfg, err := fc.GetConfig(clientCluster.client.Client())
+	assert.NilError(t, err, "Unable to load foreign CA Data")
+	assert.Assert(t, cfg != nil, "Unable to load foreign config")
 }
 
 // ------

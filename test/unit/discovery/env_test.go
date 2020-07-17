@@ -61,6 +61,7 @@ func getClientCluster() *Cluster {
 	cluster.discoveryCtrl = discovery.GetDiscoveryCtrl(
 		"default",
 		cluster.client,
+		cluster.advClient,
 		cluster.clusterId,
 	)
 
@@ -107,6 +108,7 @@ func getServerCluster() *Cluster {
 	cluster.discoveryCtrl = discovery.GetDiscoveryCtrl(
 		"default",
 		cluster.client,
+		cluster.advClient,
 		cluster.clusterId,
 	)
 

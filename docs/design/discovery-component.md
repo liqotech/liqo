@@ -5,7 +5,7 @@ This component's goal is to find other clusters running Liqo around us, get info
 ### Features
 List of supported features
 * ClusterID creation
-  * if not already present, during component starting, it creates new ClusterID taking the UID of first master of our cluster or generate new UUID if no master is present (NOTE: in this case ID will be different if ConfigMap where it is store is deleted)
+  * if not already present, during component starting, it creates new ClusterID taking the UID of first master of our cluster or generates new UUID if no master is present (NOTE: in this case ID will be different if ConfigMap where it is store is deleted)
 * Make our cluster discoverable by other clusters
   * this feature can be enabled and disabled at runtime setting `enableAdvertisement` flag in `ClusterConfig` CR
   * register Liqo service on local mDNS server and answers when someone is looking for it
@@ -16,6 +16,8 @@ List of supported features
 * Discovery on WAN
   * when a new `SearchDomain` CR is added, an operator retrieves data from DNS server, a new `ForeignCluster` CR will be created for each cluster registered to domain provided
   * if a cluster is no more in domain registered list, related `ForeignCluster` is deleted
+* Detect IP changes
+  * if remote cluster IP changes, it is updated in `ForeignCluster`
 * Automatically join discovered clusters
   * this feature can be enabled and disabled at runtime setting `autojoin` flag in `ClusterConfig` CR
   * when new `ForeignCluster` is added, peering process will automatically begin
@@ -34,7 +36,7 @@ List of known limitations
   * no way to use URL as API server address (only raw IP is supported)
 * Local cluster does not handle remote cluster CA changes
 * It is not possible to trust or not CAs and to authenticate remote cluster
-* If API Server IP changes, `ForeignCluster` will continue to point to th old one and will never change, leading to impossibility to contact remote cluster
+* If API Server IP changes and the two clusters are joined, related advertisement is deleted as all remote resources
 
 ## Architecture and workflow
 
