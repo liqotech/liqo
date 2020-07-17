@@ -10,8 +10,7 @@ These messages are then used to build a local virtual-node where jobs can be sch
 actually sent to the respective foreign cluster. 
 
 ## Architecture and workflow
-
-![architecture](../images/advertisement-protocol/architecture.png)
+![](../images/advertisement-protocol/architecture.png)
 
 ### Components
 * The [broadcaster](broadcaster.md) is in charge of sending to other clusters the Advertisement message, containing the resources made available for sharing and (optionally) their prices
