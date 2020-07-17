@@ -1,11 +1,10 @@
 package app_indicator
 
 import (
-	"errors"
+	"fmt"
 	"github.com/liqoTech/liqo/internal/tray-agent/agent/client"
 	"github.com/liqoTech/liqo/internal/tray-agent/icon"
 	"sync"
-	"time"
 )
 
 //standard width of an item in the tray menu
@@ -31,17 +30,6 @@ func Run(onReady func(), onExit func()) {
 	GetGuiProvider().Run(onReady, onExit)
 }
 
-//Quit stops the indicator execution
-func (i *Indicator) Quit() {
-	if i != nil {
-		i.Disconnect()
-		if i.agentCtrl.Connected() {
-			i.agentCtrl.StopCaches()
-		}
-	}
-	i.gProvider.Quit()
-}
-
 //Indicator singleton
 var root *Indicator
 
@@ -54,10 +42,12 @@ type Indicator struct {
 	label string
 	//indicator icon-id
 	icon Icon
-	//special MenuNode of type TITLE used by the indicator to show the menu header
+	//TITLE MenuNode used by the indicator to show the menu header
 	menuTitleNode *MenuNode
 	//title text currently in use
 	menuTitleText string
+	//STATUS MenuNode used to display status information.
+	menuStatusNode *MenuNode
 	//map that stores QUICK MenuNodes, associating them with their tag
 	quickMap map[string]*MenuNode
 	//reference to the node of the ACTION currently selected. If none, it defaults to the ROOT node
@@ -66,6 +56,8 @@ type Indicator struct {
 	config *config
 	//guiProvider to interact with the graphic server
 	gProvider GuiProviderInterface
+	//data struct containing Liqo Status, used to control the menuStatusNode
+	status StatusInterface
 	//controller of all the application goroutines
 	quitChan chan struct{}
 	//if true, quitChan is closed and Indicator can gracefully exit
@@ -78,63 +70,33 @@ type Indicator struct {
 	timers map[string]*Timer
 }
 
-//Listener is an event listener that can react calling a specific callback.
-type Listener struct {
-	//Tag specifies the type of notification channel on which it listens to
-	Tag client.NotifyChannelType
-	//StopChan lets control the Listener event loop
-	StopChan chan struct{}
-	//NotifyChan is the notification channel on which it listens to
-	NotifyChan chan string
-}
-
-//newListener returns a new Listener.
-func newListener(tag client.NotifyChannelType, rcv chan string) *Listener {
-	l := Listener{StopChan: make(chan struct{}, 1), Tag: tag, NotifyChan: rcv}
-	return &l
-}
-
-//Config returns the Indicator config.
-func (i *Indicator) Config() *config {
-	return i.config
-}
-
-//AgentCtrl returns the Indicator AgentController that interacts with the cluster.
-func (i *Indicator) AgentCtrl() *client.AgentController {
-	return i.agentCtrl
-}
-
-//-----LISTENERS-----
-
-//Listen starts a Listener for a specific channel, executing callback when a notification arrives.
-func (i *Indicator) Listen(tag client.NotifyChannelType, notifyChan chan string, callback func(objName string, args ...interface{}), args ...interface{}) {
-	l := newListener(tag, notifyChan)
-	i.listeners[tag] = l
-	go func() {
-		for {
-			select {
-			//exec handler
-			case name, open := <-l.NotifyChan:
-				if open {
-					callback(name, args...)
-				}
-				//closing application
-			case <-i.quitChan:
-				return
-				//closing single listener. Channel controlled by Indicator
-			case <-l.StopChan:
-				delete(i.listeners, tag)
-				return
-			}
+//GetIndicator initializes and returns the Indicator singleton. This function should not be called before Run().
+func GetIndicator() *Indicator {
+	if root == nil {
+		root = &Indicator{}
+		root.gProvider = GetGuiProvider()
+		root.SetIcon(IconLiqoNoConn)
+		root.SetLabel("")
+		root.menu = newMenuNode(NodeTypeRoot)
+		root.activeNode = root.menu
+		root.menuTitleNode = newMenuNode(NodeTypeTitle)
+		root.menuStatusNode = newMenuNode(NodeTypeStatus)
+		GetGuiProvider().AddSeparator()
+		root.quickMap = make(map[string]*MenuNode)
+		root.quitChan = make(chan struct{})
+		root.listeners = make(map[client.NotifyChannelType]*Listener)
+		root.timers = make(map[string]*Timer)
+		root.config = newConfig()
+		root.status = GetStatus()
+		root.RefreshStatus()
+		root.agentCtrl = client.GetAgentController()
+		if !root.agentCtrl.Connected() {
+			root.NotifyNoConnection()
+		} else {
+			root.SetIcon(IconLiqoMain)
 		}
-	}()
-}
-
-//Listener returns the registered Listener for the specified NotifyChannelType. If such Listener does not exist,
-//present == false.
-func (i *Indicator) Listener(tag client.NotifyChannelType) (listener *Listener, present bool) {
-	listener, present = i.listeners[tag]
-	return
+	}
+	return root
 }
 
 //-----ACTIONS-----
@@ -230,8 +192,6 @@ func (i *Indicator) DeselectAction() {
 	}
 }
 
-//-----QUICKS-----
-
 //AddQuick adds a QUICK to the indicator menu. It is visible by default.
 //
 //	title : label displayed in the menu
@@ -253,13 +213,15 @@ func (i *Indicator) AddQuick(title string, tag string, callback func(args ...int
 	return q
 }
 
+//-----QUICKS-----
+
 //Quick returns the *MenuNode of the QUICK with this specific tag. If such QUICK does not exist, present == false.
 func (i *Indicator) Quick(tag string) (quick *MenuNode, present bool) {
 	quick, present = i.quickMap[tag]
 	return
 }
 
-//------ GETTERS/SETTERS ------
+//-----GRAPHIC METHODS-----
 
 //AddSeparator adds a separator line to the indicator menu
 func (i *Indicator) AddSeparator() {
@@ -313,6 +275,30 @@ func (i *Indicator) SetLabel(label string) {
 	i.gProvider.SetTitle(label)
 }
 
+//RefreshLabel updates the content of the Indicator label
+//with the total number of actual peerings.
+func (i *Indicator) RefreshLabel() {
+	n := i.status.ActivePeerings()
+	if n <= 0 {
+		i.SetLabel("")
+	} else {
+		i.SetLabel(fmt.Sprintf("(%v)", n))
+	}
+}
+
+//--------------
+
+//Quit stops the indicator execution
+func (i *Indicator) Quit() {
+	if i != nil {
+		i.Disconnect()
+		if i.agentCtrl.Connected() {
+			i.agentCtrl.StopCaches()
+		}
+	}
+	i.gProvider.Quit()
+}
+
 //Disconnect exits all the event handlers associated with any Indicator MenuNode via the Connect() method.
 func (i *Indicator) Disconnect() {
 	if !i.quitClosed {
@@ -321,68 +307,7 @@ func (i *Indicator) Disconnect() {
 	}
 }
 
-//StartTimer registers a new Timer in charge of controlling the loop execution of callback. The Timer starts
-//automatically and can be controlled using (*Timer).SetActive() .
-//
-//	- tag : Timer id.
-//
-//	- interval : specifies the time interval after which the callback execution is triggered.
-func (i *Indicator) StartTimer(tag string, interval time.Duration, callback func(args ...interface{}), args ...interface{}) error {
-	if _, present := i.timers[tag]; present {
-		return errors.New("A Timer with the same tag already exists")
-	}
-	t := &Timer{
-		tag:        tag,
-		controller: make(chan bool, 2),
-		quitCh:     i.quitChan,
-		active:     true,
-	}
-	i.timers[tag] = t
-	go func(timer *Timer) {
-		for {
-			select {
-			case <-time.After(interval):
-				if timer.active {
-					callback(args...)
-				}
-			case stat, open := <-timer.controller:
-				if open {
-					timer.active = stat
-				}
-			case <-timer.quitCh:
-				return
-			}
-		}
-	}(t)
-	return nil
-}
-
-//Timer returns the registered Timer for the specified tag. If such Timer does not exist, present == false.
-func (i *Indicator) Timer(tag string) (timer *Timer, present bool) {
-	timer, present = i.timers[tag]
-	return
-}
-
-//GetIndicator initializes and returns the Indicator singleton. This function should not be called before Run().
-func GetIndicator() *Indicator {
-	if root == nil {
-		root = &Indicator{}
-		root.gProvider = GetGuiProvider()
-		root.menu = newMenuNode(NodeTypeRoot)
-		root.activeNode = root.menu
-		root.SetIcon(IconLiqoMain)
-		root.SetLabel("")
-		root.menuTitleNode = newMenuNode(NodeTypeTitle)
-		GetGuiProvider().AddSeparator()
-		root.quickMap = make(map[string]*MenuNode)
-		root.config = newConfig()
-		root.quitChan = make(chan struct{})
-		root.listeners = make(map[client.NotifyChannelType]*Listener)
-		root.timers = make(map[string]*Timer)
-		root.agentCtrl = client.GetAgentController()
-		if !root.agentCtrl.Connected() {
-			root.NotifyNoConnection()
-		}
-	}
-	return root
+//AgentCtrl returns the Indicator AgentController that interacts with the cluster.
+func (i *Indicator) AgentCtrl() *client.AgentController {
+	return i.agentCtrl
 }

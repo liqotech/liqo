@@ -35,6 +35,11 @@ func newConfig() *config {
 	return conf
 }
 
+//Config returns the Indicator config.
+func (i *Indicator) Config() *config {
+	return i.config
+}
+
 //NotifyTranslate translates a NotifyLevel into its correspondent user-friendly textual description.
 //If such level does not exist, it returns NotifyLevelUnknown
 func (c *config) NotifyTranslate(level NotifyLevel) string {

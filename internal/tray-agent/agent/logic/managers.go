@@ -6,69 +6,107 @@ import (
 	"os/exec"
 )
 
-// set of quick tags
-const (
-	qQuit = "Q_QUIT"
-	qHome = "Q_HOME"
-	qDash = "Q_LAUNCH_DASH"
-)
-
 // set of action tags
 const (
-	aShowAdv  = "A_SHOW_ADV"
-	aSettings = "A_SETTINGS"
+	aShowPeers = "A_SHOW_PEERS"
 )
 
 // set of options
 const (
-	oChangeNotify = "O_CHANGE_NOTIFY"
+	oAddPeer = "O_ADD_PEER"
 )
 
 //set of timer tags
 const (
-	timerTitle = "T_TITLE"
+	timerStatus = "T_STATUS"
 )
 
-//OnReady is the routine orchestrating Liqo Tray Agent execution.
+//OnReady is the routine orchestrating Liqo Agent execution.
 func OnReady() {
+	// Indicator configuration
+	i := app.GetIndicator()
+	i.SetMenuTitle("Liqo Agent")
+	i.RefreshStatus()
+	startListenerAdvertisements(i)
+	startQuickOnOff(i)
+	startQuickChangeMode(i)
+	startQuickDashboard(i)
+	startQuickSetNotifications(i)
+	startQuickLiqoWebsite(i)
+	startQuickQuit(i)
+	//todo auto selection of startActionPeers
+	startActionPeers(i)
+	//
+	//start liqo
+	quickTurnOnOff(i)
+}
+
+//OnReady is the routine orchestrating Liqo Tray Agent execution.
+func OldReady() {
 	// Indicator configuration
 	i := app.GetIndicator()
 	i.SetMenuTitle("Liqo Agent")
 	// LISTENERS insertion
 	startListenerAdvertisements(i)
 	// QUICKS insertion
-	startQuickHome(i)
+
 	startQuickDashboard(i)
 	startQuickQuit(i)
 	//
 	i.AddSeparator()
 	//
 	// ACTIONS insertion
-	startActionAdvertisements(i)
-	startActionSettings(i)
+	startActionPeers(i)
+	//todo add optional start liqo
 }
 
-//OnExit is the routine containing clean-up operations to be performed at Liqo Tray Agent exit.
+//OnExit is the routine containing clean-up operations to be performed at Liqo Agent exit.
 func OnExit() {
 	app.GetIndicator().Disconnect()
 }
 
-// wrapper function to register QUICK "HOME"
-func startQuickHome(i *app.Indicator) {
-	i.AddQuick("HOME", qHome, func(args ...interface{}) {
-		i.DeselectAction()
-	})
+//startQuickOnOff is the wrapper function to register the QUICK "START/STOP LIQO".
+func startQuickOnOff(i *app.Indicator) {
+	i.AddQuick("", qOnOff, func(args ...interface{}) {
+		quickTurnOnOff(args[0].(*app.Indicator))
+	}, i)
+	//the Quick MenuNode title is refreshed
+	updateQuickTurnOnOff(i)
 }
 
-// wrapper function to register QUICK "LAUNCH Liqo Dash"
-func startQuickDashboard(i *app.Indicator) {
-	i.AddQuick("LAUNCH LiqoDash", qDash, func(args ...interface{}) {
+//startQuickChangeMode is the wrapper function to register the QUICK "CHANGE LIQO MODE"
+func startQuickChangeMode(i *app.Indicator) {
+	i.AddQuick("",qMode, func(args ...interface{}) {
+		quickChangeMode(i)
+	},i)
+	//the Quick MenuNode title is refreshed
+	updateQuickChangeMode(i)
+}
+
+//startQuickLiqoWebsite is the wrapper function to register QUICK "About Liqo".
+func startQuickLiqoWebsite(i *app.Indicator) {
+	i.AddQuick("ⓘ About Liqo", qWeb, func(args ...interface{}) {
 		cmd := exec.Command("xdg-open", "http://liqo.io")
 		_ = cmd.Run()
 	})
 }
 
-// wrapper function to register QUICK "QUIT"
+//startQuickDashboard is the wrapper function to register QUICK "LAUNCH Liqo Dash".
+func startQuickDashboard(i *app.Indicator) {
+	i.AddQuick("LiqoDash", qDash, func(args ...interface{}) {
+		cmd := exec.Command("xdg-open", "http://liqo.io")
+		_ = cmd.Run()
+	})
+}
+
+//startQuickSetNotifications is the wrapper function to register QUICK "Change Notification settings".
+func startQuickSetNotifications(i *app.Indicator) {
+	i.AddQuick("NOTIFICATIONS SETTINGS", qNotify, func(args ...interface{}) {
+		quickChangeNotifyLevel()
+	})
+}
+
+//startQuickQuit is the wrapper function to register QUICK "QUIT".
 func startQuickQuit(i *app.Indicator) {
 	i.AddQuick("QUIT", qQuit, func(args ...interface{}) {
 		i := args[0].(*app.Indicator)
@@ -76,20 +114,10 @@ func startQuickQuit(i *app.Indicator) {
 	}, i)
 }
 
-// wrapper function to register ACTION "Show Advertisements"
-func startActionAdvertisements(i *app.Indicator) {
-	i.AddAction("Show Advertisements", aShowAdv, func(args ...interface{}) {
+//startActionPeers is the wrapper function to register ACTION "Show available peers".
+func startActionPeers(i *app.Indicator) {
+	i.AddAction("Show Advertisements", aShowPeers, func(args ...interface{}) {
 		actionShowAdv()
-	})
-}
-
-// wrapper function to register ACTION "Settings"
-func startActionSettings(i *app.Indicator) {
-	act := i.AddAction("Settings", aSettings, func(args ...interface{}) {
-		actionSettings()
-	})
-	act.AddOption("notifications", oChangeNotify, func(args ...interface{}) {
-		optionChangeNotifyLevel()
 	})
 }
 
@@ -126,6 +154,7 @@ func startListenerAdvertisements(i *app.Indicator) {
 			}
 		}
 		i.NotifyAcceptedAdv(objName)
+		i.Status().IncConsumePeerings()
 	})
 	i.Listen(client.ChanAdvRevoked, i.AgentCtrl().AdvCache().NotifyChannels[client.ChanAdvRevoked], func(objName string, args ...interface{}) {
 		ctrl := i.AgentCtrl()
@@ -141,6 +170,7 @@ func startListenerAdvertisements(i *app.Indicator) {
 			}
 		}
 		i.NotifyRevokedAdv(objName)
+		i.Status().DecConsumePeerings()
 	})
 	i.Listen(client.ChanAdvDeleted, i.AgentCtrl().AdvCache().NotifyChannels[client.ChanAdvDeleted], func(objName string, args ...interface{}) {
 		i.NotifyDeletedAdv(objName)

@@ -10,35 +10,43 @@ import (
 
 NodeType distinguishes different kinds of MenuNodes:
 
-		ROOT: root of the Menu Tree
+		ROOT: root of the Menu Tree.
 
 		QUICK: simple shortcut to perform quick actions, e.g. navigation commands. It is always visible.
 
-		ACTION: launch an application command. It can open command submenu (if present)
+		ACTION: launch an application command. It can open command submenu (if present).
 
-		OPTION: submenu choice
+		OPTION: submenu choice.
 
-		LIST: placeholder item used to dynamically display application output
+		LIST: placeholder item used to dynamically display application output.
 
-		TITLE: node with special text formatting used to display menu header
+		TITLE: node with special text formatting used to display menu header.
+
+		STATUS: non clickable node that displays status information.
 */
 type NodeType int
 
 //set of defined NodeType kinds
 const (
-	//Nodetype of a ROOT MenuNode: root of the Menu Tree
+	//NodeTypeRoot represents a Nodetype of a ROOT MenuNode: root of the Menu Tree.
 	NodeTypeRoot NodeType = iota
-	//Nodetype of a QUICK MenuNode: simple shortcut to perform quick actions,
+	//NodeTypeQuick represents a Nodetype of a QUICK MenuNode: simple shortcut to perform quick actions,
 	//e.g. navigation commands. It is always visible.
 	NodeTypeQuick
-	//NodeType of an ACTION MenuNode: launches an application command. It can open command submenu (if present)
+	//NodeTypeAction represents a NodeType of an ACTION MenuNode: launches an application command.
+	//It can open command submenu (if present).
 	NodeTypeAction
-	//NodeType of an OPTION MenuNode: submenu choice (hidden by default)
+	//NodeTypeOption represents a NodeType of an OPTION MenuNode: submenu choice (hidden by default).
 	NodeTypeOption
-	//NodeType of a LIST MenuNode: placeholder MenuNode used to dynamically display application output
+	//NodeTypeList represents a NodeType of a LIST MenuNode: placeholder MenuNode used to dynamically
+	//display application output.
 	NodeTypeList
-	//NodeType of a TITLE MenuNode: node with special text formatting used to display the menu header
+	//NodeTypeTitle represents a NodeType of a TITLE MenuNode: node with special text formatting
+	//used to display the menu header.
 	NodeTypeTitle
+	//NodeTypeStatus represents a NodeType of a STATUS MenuNode: non clickable node that displays status information
+	//about Liqo.
+	NodeTypeStatus
 )
 
 //NodeIcon represents a string prefix helping to graphically distinguish different kinds of Menu entries (NodeType)
@@ -46,9 +54,9 @@ type NodeIcon string
 
 //literal prefix that can be prepended to a MenuNode title, identifying its NodeType or some feature
 const (
-	nodeIconQuick   = "❱"
-	nodeIconAction  = "⬢"
-	nodeIconOption  = "\t-"
+	nodeIconQuick   = "❱ "
+	nodeIconAction  = "⬢ "
+	nodeIconOption  = "\t- "
 	nodeIconDefault = ""
 	nodeIconChecked = "✔ "
 )
@@ -124,6 +132,10 @@ func newMenuNode(nodeType NodeType) *MenuNode {
 		n.icon = nodeIconDefault
 	case NodeTypeList:
 		n.icon = nodeIconDefault
+	case NodeTypeStatus:
+		n.parent = &n
+		n.icon = nodeIconDefault
+		n.SetIsEnabled(false)
 	default:
 		n.icon = nodeIconDefault
 	}
@@ -255,7 +267,7 @@ func (n *MenuNode) SetTitle(title string) {
 		n.item.SetTitle(strutil.CenterText(title, menuWidth))
 
 	} else {
-		n.item.SetTitle(fmt.Sprintln(n.icon, " ", title))
+		n.item.SetTitle(fmt.Sprintln(n.icon, title))
 	}
 	n.title = title
 }
