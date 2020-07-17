@@ -32,12 +32,14 @@ import (
 	"k8s.io/klog"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sync"
 	"time"
 )
 
 const (
 	AdvertisementAccepted = "ACCEPTED"
 	AdvertisementRefused  = "REFUSED"
+	AdvertisementDeleting = "DELETING"
 )
 
 // AdvertisementReconciler reconciles a Advertisement object
@@ -55,6 +57,7 @@ type AdvertisementReconciler struct {
 	AdvClient        *crdClient.CRDClient
 	DiscoveryClient  *crdClient.CRDClient
 	RetryTimeout     time.Duration
+	garbaceCollector sync.Once
 }
 
 // +kubebuilder:rbac:groups=protocol.liqo.io,resources=advertisements,verbs=get;list;watch;create;update;patch;delete
@@ -65,6 +68,10 @@ type AdvertisementReconciler struct {
 func (r *AdvertisementReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 	ctx := context.Background()
 
+	// start the advertisement garbage collector
+	go r.garbaceCollector.Do(func() {
+		r.cleanOldAdvertisements()
+	})
 	// get advertisement
 	var adv protocolv1.Advertisement
 	if err := r.Get(ctx, req.NamespacedName, &adv); err != nil {
@@ -259,4 +266,24 @@ func (r *AdvertisementReconciler) createVirtualKubelet(ctx context.Context, adv 
 func (r *AdvertisementReconciler) recordEvent(msg string, eventType string, eventReason string, adv *protocolv1.Advertisement) {
 	klog.Info(msg)
 	r.EventsRecorder.Event(adv, eventType, eventReason, msg)
+}
+
+func (r *AdvertisementReconciler) cleanOldAdvertisements() {
+	var advList protocolv1.AdvertisementList
+	// every 10 minutes list advertisements and deletes the expired ones
+	for {
+		if err := r.Client.List(context.Background(), &advList, &client.ListOptions{}); err != nil {
+			klog.Error(err)
+			continue
+		}
+		for _, adv := range advList.Items {
+			now := metav1.NewTime(time.Now())
+			if adv.Spec.TimeToLive.Before(now.DeepCopy()) {
+				if err := r.Client.Delete(context.Background(), &adv, &client.DeleteOptions{}); err != nil {
+					klog.Error(err)
+				}
+			}
+		}
+		time.Sleep(10 * time.Minute)
+	}
 }

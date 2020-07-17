@@ -2,6 +2,7 @@ package kubernetes
 
 import (
 	advv1 "github.com/liqoTech/liqo/api/advertisement-operator/v1"
+	advertisement_operator "github.com/liqoTech/liqo/internal/advertisement-operator"
 	"github.com/liqoTech/liqo/internal/node"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -53,6 +54,34 @@ func (p *KubernetesProvider) ReconcileNodeFromAdv(event watch.Event) {
 	if event.Type == watch.Deleted {
 		klog.Infof("advertisement %v deleted...the node is going to be deleted", adv.Name)
 		return
+	}
+
+	if adv.Status.AdvertisementStatus == advertisement_operator.AdvertisementDeleting {
+		for retry := 0; retry < 3; retry++ {
+			klog.Infof("advertisement %v is going to be deleted... set node status not ready", adv.Name)
+			no, err := p.nodeUpdateClient.Client().CoreV1().Nodes().Get(p.nodeName, metav1.GetOptions{})
+			if err != nil {
+				klog.Error(err)
+				continue
+			}
+			for _, condition := range no.Status.Conditions {
+				if condition.Type == v1.NodeReady {
+					no.Status.Conditions[0].Status = v1.ConditionFalse
+					_, err = p.nodeUpdateClient.Client().CoreV1().Nodes().UpdateStatus(no)
+					break
+				}
+			}
+			if err != nil {
+				klog.Error(err)
+				continue
+			}
+			klog.Infof("delete all offloaded resources and advertisement")
+			if err := p.deleteAdv(adv); err != nil {
+				klog.Infof("something went wrong during advertisement deletion - %v", err)
+				continue
+			}
+			break
+		}
 	}
 
 	for {
@@ -114,4 +143,26 @@ func (p *KubernetesProvider) updateFromAdv(adv advv1.Advertisement) error {
 	no.Status.Images = append(no.Status.Images, adv.Spec.Images...)
 
 	return p.nodeController.UpdateNodeFromOutside(false, no)
+}
+
+func (p *KubernetesProvider) deleteAdv(adv *advv1.Advertisement) error {
+	// delete all reflected resources in reflected namespaces
+	for ns := range p.reflectedNamespaces.ns {
+		foreignNs, err := p.NatNamespace(ns, false)
+		if err != nil {
+			klog.Errorf("cannot nat namespace %v", ns)
+			return err
+		}
+		if err := p.cleanupNamespace(foreignNs); err != nil {
+			klog.Errorf("error in cleaning up namespace %v", foreignNs)
+			return err
+		}
+	}
+
+	// delete advertisement (which will delete virtual-kubelet)
+	if err := p.nodeUpdateClient.Resource("advertisements").Delete(adv.Name, metav1.DeleteOptions{}); err != nil {
+		klog.Errorf("Cannot delete advertisement %v", adv.Name)
+		return err
+	}
+	return nil
 }

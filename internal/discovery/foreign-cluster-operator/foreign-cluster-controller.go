@@ -384,7 +384,7 @@ func (r *ForeignClusterReconciler) createClusterRoleIfNotExists(clusterID string
 				{
 					Verbs:     []string{"get", "list", "create", "update", "delete", "watch"},
 					APIGroups: []string{"protocol.liqo.io", ""},
-					Resources: []string{"advertisements", "secrets"},
+					Resources: []string{"advertisements", "advertisements/status", "secrets"},
 				},
 			},
 		}

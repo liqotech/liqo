@@ -112,6 +112,18 @@ func (p *KubernetesProvider) controlLoop() {
 
 func (p *KubernetesProvider) cleanupNamespace(ns string) error {
 
+	pods, err := p.foreignClient.Client().CoreV1().Pods(ns).List(metav1.ListOptions{})
+	if err != nil {
+		return err
+	}
+
+	for _, po := range pods.Items {
+		err = p.foreignClient.Client().CoreV1().Pods(ns).Delete(po.Name, &metav1.DeleteOptions{})
+		if err != nil {
+			klog.Errorf("cannot delete remote pod %v - %v", po.Name, err)
+		}
+	}
+
 	svcs, err := p.foreignClient.Client().CoreV1().Services(ns).List(metav1.ListOptions{LabelSelector: reflectedService})
 	if err != nil {
 		return err
@@ -120,7 +132,7 @@ func (p *KubernetesProvider) cleanupNamespace(ns string) error {
 	for _, svc := range svcs.Items {
 		err = p.foreignClient.Client().CoreV1().Services(ns).Delete(svc.Name, &metav1.DeleteOptions{})
 		if err != nil {
-			klog.Error(err, "cannot delete remote service")
+			klog.Errorf("cannot delete remote service %v - %v", svc.Name, err)
 		}
 	}
 
@@ -132,7 +144,7 @@ func (p *KubernetesProvider) cleanupNamespace(ns string) error {
 	for _, cm := range cms.Items {
 		err = p.foreignClient.Client().CoreV1().ConfigMaps(ns).Delete(cm.Name, &metav1.DeleteOptions{})
 		if err != nil {
-			klog.Error(err, "cannot delete remote configMap")
+			klog.Errorf("cannot delete remote configMap %v - %v", cm.Name, err)
 		}
 	}
 
@@ -144,7 +156,7 @@ func (p *KubernetesProvider) cleanupNamespace(ns string) error {
 	for _, sec := range secs.Items {
 		err = p.foreignClient.Client().CoreV1().Secrets(ns).Delete(sec.Name, &metav1.DeleteOptions{})
 		if err != nil {
-			klog.Error(err, "cannot delete remote secret")
+			klog.Errorf("cannot delete remote secret %v - %v", sec.Name, err)
 		}
 	}
 
