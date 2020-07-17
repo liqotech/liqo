@@ -3,6 +3,8 @@ package app_indicator
 import (
 	"fmt"
 	bip "github.com/gen2brain/beeep"
+	"github.com/gen2brain/dlgs"
+	"github.com/ozgio/strutil"
 	"path/filepath"
 )
 
@@ -137,4 +139,18 @@ func (i *Indicator) NotifyRevokedAdv(name string) {
 func (i *Indicator) NotifyDeletedAdv(name string) {
 	i.Notify("Liqo Agent: DELETED ADVERTISEMENT", fmt.Sprintf("advertisement %s deleted", name),
 		NotifyIconOrange, IconLiqoAdvNew)
+}
+
+//ShowWarning displays a Warning window box.
+func (i *Indicator) ShowWarning(title, message string) {
+	if !GetGuiProvider().Mocked() {
+		dlgs.Warning(title, fmt.Sprintln(strutil.CenterText("", menuWidth*2), message))
+	}
+}
+
+//ShowWarningForbiddenTethered is an already configured ShowWarning() call to warn users
+//when they attempt to set the TETHERED mode without the required conditions.
+func (i *Indicator) ShowWarningForbiddenTethered() {
+	i.ShowWarning("LIQO AGENT: mode change not allowed", "TETHERED mode is only available"+
+		"with 1 active peering, offering resources.\n\nPlease disconnect from other peerings and retry.")
 }

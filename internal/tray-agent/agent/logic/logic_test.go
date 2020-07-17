@@ -14,7 +14,7 @@ func TestOnReady(t *testing.T) {
 	client.UseMockedAgentController()
 	app.DestroyMockedIndicator()
 	client.DestroyMockedAgentController()
-	OnReady()
+	OldReady()
 	i := app.GetIndicator()
 	//test startup Icon
 	startIcon := i.Icon()
@@ -28,8 +28,8 @@ func TestOnReady(t *testing.T) {
 	_, exist = i.Quick(qDash)
 	assert.Truef(t, exist, "QUICK %s not registered", qDash)
 	//
-	_, exist = i.Action(aShowAdv)
-	assert.Truef(t, exist, "ACTION %s not registered", aShowAdv)
+	_, exist = i.Action(aShowPeers)
+	assert.Truef(t, exist, "ACTION %s not registered", aShowPeers)
 	_, exist = i.Action(aSettings)
 	assert.Truef(t, exist, "ACTION %s not registered", aSettings)
 	// test Listeners registrations
