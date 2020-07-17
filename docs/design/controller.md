@@ -22,8 +22,7 @@ the jobs it receives on them.
 * Recreation of virtual-kubelet if it is unexpectedly deleted
 
 ## Architecture and workflow
-
-![controller-workflow](../images/advertisement-protocol/controller-workflow.png)
+![](../images/advertisement-protocol/controller-workflow.png)
 
 1. An `Advertisement` is created by the foreign cluster
 2. Apply configuration read from `ClusterConfig` CR to accept/refuse the `Advertisement`

@@ -30,8 +30,7 @@ After having created the Advertisement on the remote cluster, the broadcaster st
 * MetricsAPI to have more precise values of available resources
 
 ## Architecture and workflow
-
-![broadcaster-workflow](../images/advertisement-protocol/broadcaster-workflow.png)
+![](../images/advertisement-protocol/broadcaster-workflow.png)
 
 1. A `PeeringRequest` is created by the foreign cluster: a broadcaster deployment is launched
 2. Get the resources available in the cluster considering all its physical nodes

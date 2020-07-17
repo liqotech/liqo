@@ -10,36 +10,43 @@ import (
 
 func (b *AdvertisementBroadcaster) WatchConfiguration(kubeconfigPath string) {
 	go clusterConfig.WatchConfiguration(func(configuration *policyv1.ClusterConfig) {
-		b.ClusterConfig.ResourceSharingPercentage = configuration.Spec.AdvertisementConfig.ResourceSharingPercentage
-		// update Advertisement with new resources (given by the new sharing percentage)
-		physicalNodes, virtualNodes, availability, limits, images, err := b.GetResourcesForAdv()
-		if err != nil {
-			klog.Errorln(err, "Error while computing resources for Advertisement")
-		}
-		advToCreate := b.CreateAdvertisement(physicalNodes, virtualNodes, availability, images, limits)
-		_, err = b.SendAdvertisementToForeignCluster(advToCreate)
-		if err != nil {
-			klog.Errorln(err, "Error while sending Advertisement to cluster "+b.ForeignClusterId)
+		if configuration.Spec.AdvertisementConfig.ResourceSharingPercentage != b.ClusterConfig.ResourceSharingPercentage {
+			klog.V(3).Info("ClusterConfig changed")
+			b.ClusterConfig.ResourceSharingPercentage = configuration.Spec.AdvertisementConfig.ResourceSharingPercentage
+			// update Advertisement with new resources (given by the new sharing percentage)
+			physicalNodes, virtualNodes, availability, limits, images, err := b.GetResourcesForAdv()
+			if err != nil {
+				klog.Errorln(err, "Error while computing resources for Advertisement")
+			}
+			advToCreate := b.CreateAdvertisement(physicalNodes, virtualNodes, availability, images, limits)
+			_, err = b.SendAdvertisementToForeignCluster(advToCreate)
+			if err != nil {
+				klog.Errorln(err, "Error while sending Advertisement to cluster "+b.ForeignClusterId)
+			}
 		}
 	}, nil, kubeconfigPath)
 }
 
 func (r *AdvertisementReconciler) WatchConfiguration(kubeconfigPath string) {
 	go clusterConfig.WatchConfiguration(func(configuration *policyv1.ClusterConfig) {
-		obj, err := r.AdvClient.Resource("advertisements").List(metav1.ListOptions{})
-		if err != nil {
-			klog.Error(err, "Unable to apply configuration: error listing Advertisements")
-			return
-		}
-		advList := obj.(*protocolv1.AdvertisementList)
-		err, updateFlag := r.ManageConfigUpdate(configuration, advList)
-		if err != nil {
-			klog.Error(err, err.Error())
-			return
-		}
-		if updateFlag {
-			for _, adv := range advList.Items {
-				r.UpdateAdvertisement(&adv)
+		if configuration.Spec.AdvertisementConfig.AutoAccept != r.ClusterConfig.AutoAccept ||
+			configuration.Spec.AdvertisementConfig.MaxAcceptableAdvertisement != r.ClusterConfig.MaxAcceptableAdvertisement {
+			klog.V(3).Info("ClusterConfig changed")
+			obj, err := r.AdvClient.Resource("advertisements").List(metav1.ListOptions{})
+			if err != nil {
+				klog.Error(err, "Unable to apply configuration: error listing Advertisements")
+				return
+			}
+			advList := obj.(*protocolv1.AdvertisementList)
+			err, updateFlag := r.ManageConfigUpdate(configuration, advList)
+			if err != nil {
+				klog.Error(err, err.Error())
+				return
+			}
+			if updateFlag {
+				for _, adv := range advList.Items {
+					r.UpdateAdvertisement(&adv)
+				}
 			}
 		}
 	}, nil, kubeconfigPath)
