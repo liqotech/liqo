@@ -51,8 +51,10 @@ func createBroadcaster(sharingPercentage int32) advertisement_operator.Advertise
 		HomeClusterId:              test.HomeClusterId,
 		ForeignClusterId:           test.ForeignClusterId,
 		GatewayPrivateIP:           "10.0.0.1",
-		ClusterConfig: policyv1.AdvertisementConfig{
-			ResourceSharingPercentage: sharingPercentage,
+		ClusterConfig: policyv1.ClusterConfigSpec{
+			AdvertisementConfig: policyv1.AdvertisementConfig{
+				ResourceSharingPercentage: sharingPercentage,
+			},
 		},
 	}
 }
@@ -208,7 +210,6 @@ func TestCreateAdvertisement(t *testing.T) {
 	adv := broadcaster.CreateAdvertisement(pNodes, vNodes, availability, images, limits)
 
 	assert.NotEmpty(t, adv.Name, "Name should be provided")
-	assert.NotEmpty(t, adv.Namespace, "Namespace should be set")
 	assert.Empty(t, adv.ResourceVersion)
 	assert.Equal(t, broadcaster.HomeClusterId, adv.Spec.ClusterId)
 	assert.NotEmpty(t, adv.Spec.KubeConfigRef)
@@ -251,7 +252,7 @@ func TestGetResourceForAdv(t *testing.T) {
 	time.Sleep(5 * time.Second)
 
 	reqs, limits := advertisement_operator.GetAllPodsResources(pods)
-	availability, _ := advertisement_operator.ComputeAnnouncedResources(pNodes, reqs, int64(b.ClusterConfig.ResourceSharingPercentage))
+	availability, _ := advertisement_operator.ComputeAnnouncedResources(pNodes, reqs, int64(b.ClusterConfig.AdvertisementConfig.ResourceSharingPercentage))
 	if availability.Cpu().Value() < 0 || availability.Memory().Value() < 0 {
 		t.Fatal("Available resources cannot be negative")
 	}

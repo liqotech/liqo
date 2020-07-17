@@ -10,9 +10,18 @@ import (
 
 func (b *AdvertisementBroadcaster) WatchConfiguration(kubeconfigPath string) {
 	go clusterConfig.WatchConfiguration(func(configuration *policyv1.ClusterConfig) {
-		if configuration.Spec.AdvertisementConfig.ResourceSharingPercentage != b.ClusterConfig.ResourceSharingPercentage {
+		if !configuration.Spec.DiscoveryConfig.EnableAdvertisement {
 			klog.V(3).Info("ClusterConfig changed")
-			b.ClusterConfig.ResourceSharingPercentage = configuration.Spec.AdvertisementConfig.ResourceSharingPercentage
+			klog.Info("Stopping sharing resources with cluster " + b.ForeignClusterId)
+			err := b.NotifyAdvertisementDeletion()
+			if err != nil {
+				klog.Errorln(err, "Unable to notify Advertisement deletion to foreign cluster")
+			}
+		}
+
+		if configuration.Spec.AdvertisementConfig.ResourceSharingPercentage != b.ClusterConfig.AdvertisementConfig.ResourceSharingPercentage {
+			klog.V(3).Info("ClusterConfig changed")
+			b.ClusterConfig.AdvertisementConfig.ResourceSharingPercentage = configuration.Spec.AdvertisementConfig.ResourceSharingPercentage
 			// update Advertisement with new resources (given by the new sharing percentage)
 			physicalNodes, virtualNodes, availability, limits, images, err := b.GetResourcesForAdv()
 			if err != nil {
@@ -24,6 +33,7 @@ func (b *AdvertisementBroadcaster) WatchConfiguration(kubeconfigPath string) {
 				klog.Errorln(err, "Error while sending Advertisement to cluster "+b.ForeignClusterId)
 			}
 		}
+
 	}, nil, kubeconfigPath)
 }
 

@@ -29,10 +29,11 @@ type AdvertisementBroadcaster struct {
 	KubeconfigSecretForForeign *corev1.Secret       // secret containing the kubeconfig that will be sent to the foreign cluster
 	RemoteClient               *crdClient.CRDClient // client to create Advertisements and Secrets on the foreign cluster
 	// configuration variables
-	HomeClusterId    string
-	ForeignClusterId string
-	GatewayPrivateIP string
-	ClusterConfig    policyv1.AdvertisementConfig
+	HomeClusterId      string
+	ForeignClusterId   string
+	GatewayPrivateIP   string
+	PeeringRequestName string
+	ClusterConfig      policyv1.ClusterConfigSpec
 }
 
 // start the broadcaster which sends Advertisement messages
@@ -151,6 +152,7 @@ func StartBroadcaster(homeClusterId, localKubeconfigPath, gatewayPrivateIP, peer
 		HomeClusterId:              homeClusterId,
 		ForeignClusterId:           pr.Name,
 		GatewayPrivateIP:           gatewayPrivateIP,
+		PeeringRequestName:         peeringRequestName,
 	}
 
 	broadcaster.WatchConfiguration(localKubeconfigPath)
@@ -206,8 +208,7 @@ func (b *AdvertisementBroadcaster) CreateAdvertisement(physicalNodes *corev1.Nod
 
 	adv := protocolv1.Advertisement{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      "advertisement-" + b.HomeClusterId,
-			Namespace: "default",
+			Name: "advertisement-" + b.HomeClusterId,
 		},
 		Spec: protocolv1.AdvertisementSpec{
 			ClusterId: b.HomeClusterId,
@@ -276,7 +277,7 @@ func (b *AdvertisementBroadcaster) GetResourcesForAdv() (physicalNodes, virtualN
 	}
 	reqs, limits := GetAllPodsResources(nodeNonTerminatedPodsList)
 	// compute resources to be announced to the other cluster
-	availability, images = ComputeAnnouncedResources(physicalNodes, reqs, int64(b.ClusterConfig.ResourceSharingPercentage))
+	availability, images = ComputeAnnouncedResources(physicalNodes, reqs, int64(b.ClusterConfig.AdvertisementConfig.ResourceSharingPercentage))
 
 	return physicalNodes, virtualNodes, availability, limits, images, nil
 }
@@ -323,6 +324,37 @@ func (b *AdvertisementBroadcaster) SendAdvertisementToForeignCluster(advToCreate
 		return nil, err
 	}
 	return adv, nil
+}
+
+func (b *AdvertisementBroadcaster) NotifyAdvertisementDeletion() error {
+	advName := "advertisement-" + b.HomeClusterId
+	obj, err := b.RemoteClient.Resource("advertisements").Get(advName, metav1.GetOptions{})
+	if err != nil {
+		klog.Error("Advertisement " + advName + " doesn't exist on foreign cluster " + b.ForeignClusterId)
+	} else {
+		// update the status of adv to inform the vk it is going to be deleted
+		adv := obj.(*protocolv1.Advertisement)
+		adv.Status.AdvertisementStatus = AdvertisementDeleting
+		_, err = b.RemoteClient.Resource("advertisements").UpdateStatus(adv.Name, adv, metav1.UpdateOptions{})
+		if err != nil {
+			klog.Error("Unable to update Advertisement " + adv.Name)
+			return err
+		}
+	}
+
+	// wait for advertisement to be deleted to delete the peering request
+	for {
+		if _, err := b.RemoteClient.Resource("advertisements").Get(advName, metav1.GetOptions{}); err != nil && k8serrors.IsNotFound(err) {
+			break
+		}
+		time.Sleep(30 * time.Second)
+	}
+	// delete the peering request to delete the broadcaster
+	if err := b.DiscoveryClient.Resource("peeringrequests").Delete(b.PeeringRequestName, metav1.DeleteOptions{}); err != nil {
+		klog.Error("Unable to delete PeeringRequest " + b.PeeringRequestName)
+		return err
+	}
+	return nil
 }
 
 func GetPodCIDR(nodes []corev1.Node) string {

@@ -54,6 +54,7 @@ func WatchAdvertisement(localClient, remoteClient *crdClient.CRDClient, homeAdvN
 			klog.V(6).Info("correctly set status of foreign advertisement " + foreignAdvName)
 		case watch.Deleted:
 			klog.Info("Adv " + homeAdvName + " has been deleted")
+			watcher.Stop()
 		}
 	}
 }
