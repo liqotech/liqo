@@ -43,8 +43,8 @@ spec:
       serviceAccountName: peering-request-operator
       initContainers:
         - name: secret-creation
-          image: {{ .Values.peeringRequest.secretCreation.image.repository }}
-          imagePullPolicy: {{ .Values.peeringRequest.secretCreation.image.pullPolicy }}
+          image: {{ .Values.secretCreation.image.repository }}{{ .Values.suffix }}:{{ .Values.version }}
+          imagePullPolicy: {{ .Values.secretCreation.image.pullPolicy }}
           args:
             - "--namespace"
             - {{ .Release.Namespace }}
@@ -63,8 +63,8 @@ spec:
             - mountPath: /etc/environment/liqo
               name: env-volume
         - name: peering-request-deployment
-          image: {{ .Values.peeringRequest.deployment.image.repository }}{{ .Values.suffix }}:{{ .Values.version }}
-          imagePullPolicy: {{ .Values.peeringRequest.operator.pullPolicy }}
+          image: {{ .Values.deployment.image.repository }}{{ .Values.suffix }}:{{ .Values.version }}
+          imagePullPolicy: {{ .Values.operator.pullPolicy }}
           args:
             - "--input-env-file"
             - "/etc/environment/liqo/env"
@@ -72,9 +72,9 @@ spec:
             - mountPath: /etc/environment/liqo
               name: env-volume
       containers:
-        - image: liqo/peering-request-operator
+        - image: {{ .Values.operator.image.repository }}{{ .Values.suffix }}:{{ .Values.version }}
           name: peering-request-operator
-          imagePullPolicy: Always
+          imagePullPolicy: {{ .Values.deployment.image.pullPolicy }}
           ports:
             - containerPort: 8443
           args:

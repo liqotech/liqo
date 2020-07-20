@@ -45,9 +45,9 @@ spec:
     spec:
       serviceAccountName: discovery-sa
       containers:
-        - image: {{ .Values.discovery.image.repository }}{{ .Values.global.suffix | default .Values.suffix }}:{{ .Values.global.version | default .Values.version }}
+        - image: {{ .Values.image.repository }}{{ .Values.global.suffix | default .Values.suffix }}:{{ .Values.global.version | default .Values.version }}
           name: discovery
-          imagePullPolicy: {{ .Values.discovery.image.pullPolicy }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
           command: ["/usr/bin/discovery"]
           args:
           - "--namespace"
@@ -59,4 +59,12 @@ spec:
               valueFrom:
                 fieldRef:
                   fieldPath: metadata.namespace
+            {{ if .Values.apiServerIp }}
+            - name: APISERVER
+              value: {{ .Values.apiServerIp }}
+            {{ end }}
+            {{ if .Values.apiServerPort }}
+            - name: APISERVER_PORT
+              value: {{ .Values.apiServerPort }}
+            {{ end }}
       hostNetwork: true

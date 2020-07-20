@@ -1,13 +1,14 @@
-# Default values for discovery.
+# Default values for discovery_chart.
 # This is a YAML-formatted file.
 # Declare variables to be passed into your templates.
 
 
-discovery:
-  image:
-    repository: "liqo/discovery"
-    pullPolicy: "IfNotPresent"
-  foreignClusterID: "clusterID"
+image:
+  repository: "liqo/discovery"
+  pullPolicy: "IfNotPresent"
 
 suffix: ""
 version: "latest"
+
+apiServerIp: ""
+apiServerPort: ""
