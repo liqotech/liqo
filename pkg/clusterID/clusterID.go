@@ -2,6 +2,7 @@ package clusterID
 
 import (
 	"errors"
+	"github.com/google/uuid"
 	discoveryv1 "github.com/liqoTech/liqo/api/discovery/v1"
 	"github.com/liqoTech/liqo/pkg/crdClient"
 	"io/ioutil"
@@ -101,7 +102,8 @@ func NewClusterID(kubeconfigPath string) (*ClusterID, error) {
 func (cId *ClusterID) SetupClusterID(namespace string) error {
 	id, err := cId.getMasterID()
 	if err != nil {
-		return err
+		klog.Warning(err, "cannot get UID from master, generating new one")
+		id = uuid.New().String()
 	}
 	err = cId.save(id, namespace)
 	if err != nil {

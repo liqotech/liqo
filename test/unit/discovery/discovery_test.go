@@ -1,9 +1,11 @@
 package discovery
 
 import (
+	"encoding/base64"
 	protocolv1 "github.com/liqoTech/liqo/api/advertisement-operator/v1"
 	policyv1 "github.com/liqoTech/liqo/api/cluster-config/v1"
 	v1 "github.com/liqoTech/liqo/api/discovery/v1"
+	"github.com/liqoTech/liqo/internal/discovery/kubeconfig"
 	peering_request_operator "github.com/liqoTech/liqo/internal/peering-request-operator"
 	"github.com/liqoTech/liqo/pkg/crdClient"
 	"gotest.tools/assert"
@@ -61,6 +63,7 @@ func TestDiscovery(t *testing.T) {
 	t.Run("testPRConfig", testPRConfig)
 	t.Run("testJoin", testJoin)
 	t.Run("testUnjoin", testUnjoin)
+	t.Run("testCreateKubeconfig", testCreateKubeconfig)
 }
 
 // ------
@@ -265,4 +268,49 @@ func testUnjoin(t *testing.T) {
 	advs, ok := tmp.(*protocolv1.AdvertisementList)
 	assert.Equal(t, ok, true)
 	assert.Equal(t, len(advs.Items), 0, "Advertisement has not been deleted on local cluster")
+}
+
+// ------
+// tests kubeconfig creation
+func testCreateKubeconfig(t *testing.T) {
+	// setup
+	token := base64.StdEncoding.EncodeToString([]byte("token"))
+	secret := &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "sa-secret",
+		},
+		Data: map[string][]byte{
+			"token": []byte(token),
+		},
+	}
+	sa := &corev1.ServiceAccount{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "sa",
+		},
+		Secrets: []corev1.ObjectReference{
+			{
+				Name: secret.Name,
+			},
+		},
+	}
+	_, err := clientCluster.client.Client().CoreV1().Secrets("default").Create(secret)
+	assert.NilError(t, err)
+	_, err = clientCluster.client.Client().CoreV1().ServiceAccounts("default").Create(sa)
+	assert.NilError(t, err)
+
+	err = os.Setenv("APISERVER", "127.0.0.2")
+	assert.NilError(t, err)
+
+	// test
+	kc, err := kubeconfig.CreateKubeConfig(clientCluster.client.Client(), sa.Name, "default")
+	assert.NilError(t, err)
+	assert.Assert(t, strings.Contains(kc, "127.0.0.2"), "API server ip not set")
+	assert.Assert(t, strings.Contains(kc, "6443"), "default port not set")
+
+	err = os.Setenv("APISERVER_PORT", "1234")
+	assert.NilError(t, err)
+
+	kc, err = kubeconfig.CreateKubeConfig(clientCluster.client.Client(), sa.Name, "default")
+	assert.NilError(t, err)
+	assert.Assert(t, strings.Contains(kc, "1234"), "non-default port not set")
 }

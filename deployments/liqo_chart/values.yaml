@@ -62,16 +62,28 @@ mutatingWebhook_chart:
       pullPolicy: "Always"
   enabled: true
 
-discovery:
+discovery_chart:
   image:
     repository: "liqo/discovery"
     pullPolicy: "Always"
-  foreignClusterID: "clusterID"
+  apiServerIp: ""
+  apiServerPort: ""
+  enabled: true
 
-peeringRequest:
-  image:
-    repository: "liqo/peering-request-operator"
-    pullPolicy: "Always"
+peeringRequestOperator_chart:
+  operator:
+    image:
+      repository: "liqo/peering-request-operator"
+      pullPolicy: "Always"
+  secretCreation:
+    image:
+      repository: "liqo/secret-creation"
+      pullPolicy: "Always"
+  deployment:
+    image:
+      repository: "liqo/peering-request-webhook-init"
+      pullPolicy: "Always"
+  enabled: true
 
 global:
   configmapName: "liqo-configmap"

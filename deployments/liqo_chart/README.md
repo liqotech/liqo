@@ -11,7 +11,9 @@ Current chart version is `0.1.0`
 | Repository | Name | Version |
 |------------|------|---------|
 | file://subcharts/adv_chart/ | adv_chart | 0.1.0 |
+| file://subcharts/discovery_chart/ | discovery_chart | 0.1.0 |
 | file://subcharts/networkModule_chart/ | networkModule_chart | 0.1.0 |
+| file://subcharts/peeringRequestOperator_chart/ | peeringRequestOperator_chart | 0.1.0 |
 | file://subcharts/schedulingNodeOperator_chart/ | schedulingNodeOperator_chart | 0.1.0 |
 | file://subcharts/tunnelEndpointCreator_chart/ | tunnelEndpointCreator_chart | 0.1.0 |
 
@@ -25,6 +27,9 @@ Current chart version is `0.1.0`
 | adv_chart.broadcaster.image.pullPolicy | string | `"IfNotPresent"` |  |
 | adv_chart.broadcaster.image.repository | string | `"liqo/advertisement-broadcaster"` |  |
 | adv_chart.enabled | bool | `true` |  |
+| discovery_chart.image.pullPolicy | string | `"IfNotPresent"` |  |
+| discovery_chart.image.repository | string | `"liqo/discovery"` |  |
+| discovery_chart.enabled | bool | `true` |  |
 | configmap.clusterID | string | `"cluster-1"` |  |
 | configmap.gatewayIP | string | `"10.251.0.1"` |  |
 | configmap.gatewayPrivateIP | string | `"10.244.2.47"` |  |
@@ -36,6 +41,9 @@ Current chart version is `0.1.0`
 | networkModule_chart.routeOperator.image.repository | string | `"liqo/liqonet"` |  |
 | networkModule_chart.tunnelEndpointOperator.image.pullPolicy | string | `"IfNotPresent"` |  |
 | networkModule_chart.tunnelEndpointOperator.image.repository | string | `"liqo/liqonet"` |  |
+| peeringRequestOperator_chart.image.pullPolicy | string | `"IfNotPresent"` |  |
+| peeringRequestOperator_chart.image.repository | string | `"liqo/peering-request-operator"` |  |
+| peeringRequestOperator_chart.enabled | bool | `true` |  |
 | schedulingNodeOperator_chart.enabled | bool | `true` |  |
 | schedulingNodeOperator_chart.image.pullPolicy | string | `"IfNotPresent"` |  |
 | schedulingNodeOperator_chart.image.repository | string | `"liqo/schedulingnode-operator"` |  |
