@@ -2,10 +2,13 @@ package kubernetes
 
 import (
 	v1 "github.com/liqoTech/liqo/api/advertisement-operator/v1"
+	advertisement_operator "github.com/liqoTech/liqo/internal/advertisement-operator"
 	"github.com/liqoTech/liqo/internal/kubernetes/test"
 	"github.com/liqoTech/liqo/internal/node"
 	"github.com/liqoTech/liqo/pkg/crdClient"
+	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/klog"
 	"testing"
@@ -106,4 +109,27 @@ func TestNodeUpdater(t *testing.T) {
 	} else {
 		klog.Info("node coherency after advertisement update asserted")
 	}
+
+	// test unjoin
+	// set advertisement status to DELETING
+	adv.Status.AdvertisementStatus = advertisement_operator.AdvertisementDeleting
+	if _, err := client.Resource("advertisements").UpdateStatus(adv.Name, adv, metav1.UpdateOptions{}); err != nil {
+		t.Fatal(err)
+	}
+	time.Sleep(5 * time.Second)
+
+	// the node should go in NotReady status
+	if n, err = client.Client().CoreV1().Nodes().Get(test.NodeName, metav1.GetOptions{}); err != nil {
+		t.Fatal(err)
+	}
+	for _, condition := range n.Status.Conditions {
+		if condition.Type == corev1.NodeReady {
+			assert.Equal(t, corev1.ConditionFalse, n.Status.Conditions[0].Status)
+			break
+		}
+	}
+
+	// the adv should have been deleted
+	_, err = client.Resource("advertisements").Get(adv.Name, metav1.GetOptions{})
+	assert.True(t, errors.IsNotFound(err))
 }

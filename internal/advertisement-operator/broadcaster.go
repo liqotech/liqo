@@ -155,7 +155,7 @@ func StartBroadcaster(homeClusterId, localKubeconfigPath, gatewayPrivateIP, peer
 		PeeringRequestName:         peeringRequestName,
 	}
 
-	broadcaster.WatchConfiguration(localKubeconfigPath)
+	broadcaster.WatchConfiguration(localKubeconfigPath, nil)
 
 	broadcaster.GenerateAdvertisement()
 	// if we come here there has been an error while the broadcaster was running
@@ -340,19 +340,6 @@ func (b *AdvertisementBroadcaster) NotifyAdvertisementDeletion() error {
 			klog.Error("Unable to update Advertisement " + adv.Name)
 			return err
 		}
-	}
-
-	// wait for advertisement to be deleted to delete the peering request
-	for {
-		if _, err := b.RemoteClient.Resource("advertisements").Get(advName, metav1.GetOptions{}); err != nil && k8serrors.IsNotFound(err) {
-			break
-		}
-		time.Sleep(30 * time.Second)
-	}
-	// delete the peering request to delete the broadcaster
-	if err := b.DiscoveryClient.Resource("peeringrequests").Delete(b.PeeringRequestName, metav1.DeleteOptions{}); err != nil {
-		klog.Error("Unable to delete PeeringRequest " + b.PeeringRequestName)
-		return err
 	}
 	return nil
 }

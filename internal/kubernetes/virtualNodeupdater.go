@@ -67,7 +67,7 @@ func (p *KubernetesProvider) ReconcileNodeFromAdv(event watch.Event) {
 			for _, condition := range no.Status.Conditions {
 				if condition.Type == v1.NodeReady {
 					no.Status.Conditions[0].Status = v1.ConditionFalse
-					_, err = p.nodeUpdateClient.Client().CoreV1().Nodes().UpdateStatus(no)
+					err = p.nodeController.UpdateNodeFromOutside(false, no)
 					break
 				}
 			}

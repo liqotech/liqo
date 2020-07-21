@@ -3,8 +3,7 @@ package advertisement_operator
 import (
 	protocolv1 "github.com/liqoTech/liqo/api/advertisement-operator/v1"
 	advertisement_operator "github.com/liqoTech/liqo/internal/advertisement-operator"
-	"gotest.tools/assert"
-	corev1 "k8s.io/api/core/v1"
+	"github.com/stretchr/testify/assert"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"testing"
 	"time"
@@ -12,19 +11,11 @@ import (
 
 func TestWatchAdvertisement(t *testing.T) {
 	// prepare resources for advertisement
-	pNodes, vNodes, images, _, pods := createFakeResources()
-	sharingPercentage := int32(50)
-	reqs, limits := advertisement_operator.GetAllPodsResources(pods)
-	availability, _ := advertisement_operator.ComputeAnnouncedResources(pNodes, reqs, int64(sharingPercentage))
-	neighbours := make(map[corev1.ResourceName]corev1.ResourceList)
-	for _, vNode := range vNodes.Items {
-		neighbours[corev1.ResourceName(vNode.Name)] = vNode.Status.Allocatable
-	}
-
-	b := createBroadcaster(sharingPercentage)
+	clusterConfig := createFakeClusterConfig()
+	b := createBroadcaster(clusterConfig.Spec)
 
 	// create fake home and foreign cluster advertisements
-	homeAdv := b.CreateAdvertisement(pNodes, vNodes, availability, images, limits)
+	homeAdv := prepareAdv(b)
 	foreignAdv := homeAdv.DeepCopy()
 	foreignAdv.Name = "advertisement-" + b.ForeignClusterId
 	foreignAdv.Spec.ClusterId = b.ForeignClusterId
@@ -58,4 +49,7 @@ func TestWatchAdvertisement(t *testing.T) {
 	}
 	foreignAdv = tmp.(*protocolv1.Advertisement)
 	assert.Equal(t, newPodCIDR, foreignAdv.Status.LocalRemappedPodCIDR)
+
+	err = b.RemoteClient.Resource("advertisements").Delete(homeAdv.Name, v1.DeleteOptions{})
+	assert.Nil(t, err)
 }

@@ -51,7 +51,15 @@ func (c *FakeClient) Create(obj runtime.Object, _ metav1.CreateOptions) (runtime
 }
 
 func (c *FakeClient) Delete(name string, opts metav1.DeleteOptions) error {
-	panic("to implement")
+	obj, err := c.Get(name, metav1.GetOptions{})
+	if err != nil {
+		return err
+	}
+	err = c.storage.Delete(obj)
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 func (c *FakeClient) Update(name string, obj runtime.Object, _ metav1.UpdateOptions) (runtime.Object, error) {

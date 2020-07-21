@@ -62,7 +62,7 @@ func CreateAdvertisementClient(kubeconfig string, secret *v1.Secret) (*crdClient
 func Keyer(obj runtime.Object) (string, error) {
 	adv, ok := obj.(*Advertisement)
 	if !ok {
-		return "", errors.New("cannot cast received object to NamespaceNattingTable")
+		return "", errors.New("cannot cast received object to Advertisement")
 	}
 
 	return adv.Name, nil

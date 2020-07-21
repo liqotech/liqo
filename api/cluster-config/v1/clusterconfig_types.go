@@ -34,6 +34,7 @@ type AdvertisementConfig struct {
 	// +kubebuilder:validation:Maximum=100
 	// +kubebuilder:validation:Minimum=0
 	ResourceSharingPercentage int32 `json:"resourceSharingPercentage,omitempty"`
+	EnableBroadcaster         bool  `json:"enableBroadcaster,omitempty"`
 	// +kubebuilder:validation:Minimum=0
 	MaxAcceptableAdvertisement int32 `json:"maxAcceptableAdvertisement,omitempty"`
 	AutoAccept                 bool  `json:"autoAccept"`
