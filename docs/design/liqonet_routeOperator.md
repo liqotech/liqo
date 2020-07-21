@@ -15,5 +15,4 @@ It creates a VxLan overlay network to whom all the cluster nodes belong and uses
 * New nodes added to the cluster are not dynamically added to the VxLan network
 
 ## Architecture and workflow
-
 Will be included in the general overview of the network module.
