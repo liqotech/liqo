@@ -1,19 +1,17 @@
 # TunnelEndpoint-Operator
 ## Overview
-TunnelEndpoint is the component in charge of bringing up a VPN tunnel with the peering clusters.
-It runs as deployment, and the node where it runs is called the Gateway Node. All the network
-traffic for remote pods goes through the VPN tunnel. If NATing is not present then the traffic
-leaves the local cluster as it is, otherwise for the out-going or incoming traffic NATing rules
-have to be applied.
+This component is in charge of establishing a VPN tunnel with the peering clusters, which is created between the (local) Gateway Node and the one associated to the foreign cluster.
+All the traffic between the local and remote cluster is first delivered to the Gateway Node, then tunneled towards the remote gateway and finally delivered to the desired destination.
+The traffic can leave local cluster as it is in case the home and remote addressing spaces do not overlap; otherwise, the traffic crosses a properly configurated NAT in order to avoid overlapped spaces.
+
+The TunnelEndpoint-Operator runs as deployment only on the local Gateway Node.
 
 ### Features
 * GRE tunnel as VPN tunnel
 
-
 ### Limitations
-* Does not support other VPN solutions(yet)
+* Does not support other VPN solutions
 * Traffic flows as it is, does not add security 
 
 ## Architecture and workflow
-
 Will be included in the general overview of the network module.
