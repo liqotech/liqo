@@ -241,19 +241,23 @@ func getClusterConfig(config rest.Config) {
 				WaitTime:            2,
 				DnsServer:           "8.8.8.8:53",
 			},
+			LiqonetConfig: policyv1.LiqonetConfig{
+				ReservedSubnets:  []string{"10.0.0.0/16", "10.96.0.0/12"},
+				GatewayPrivateIP: "192.168.1.1",
+			},
 		},
 	}
 
 	config.GroupVersion = &policyv1.GroupVersion
 	client, err := crdClient.NewFromConfig(&config)
 	if err != nil {
-		ctrl.Log.Error(err, err.Error())
+		klog.Error(err, err.Error())
 		os.Exit(1)
 	}
 
 	_, err = client.Resource("clusterconfigs").Create(cc, metav1.CreateOptions{})
 	if err != nil {
-		ctrl.Log.Error(err, err.Error())
+		klog.Error(err, err.Error())
 		os.Exit(1)
 	}
 }

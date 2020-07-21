@@ -104,9 +104,9 @@ func (r *TunnelEndpointCreator) InitConfiguration(reservedSubnets map[string]*ne
 	if !isError {
 		//here we acquire the lock of the mutex
 		r.Mutex.Lock()
+		defer r.Mutex.Unlock()
 		if err := r.IPManager.Init(); err != nil {
 			klog.Errorf("an error occurred while initializing the IP manager -> err")
-			r.Mutex.Unlock()
 			return err
 		}
 		//here we populate the used subnets with the reserved subnets and the subnets used by clusters
@@ -129,7 +129,6 @@ func (r *TunnelEndpointCreator) InitConfiguration(reservedSubnets map[string]*ne
 		}
 		r.IsConfigured = true
 		r.ReservedSubnets = reservedSubnets
-		r.Mutex.Unlock()
 	} else {
 		return fmt.Errorf("there are conflicts between the reserved subnets given in the configuration and the already used subnets in the tunnelEndpoint CRs")
 	}
@@ -161,6 +160,7 @@ func (r *TunnelEndpointCreator) UpdateConfiguration(reservedSubnets map[string]*
 	}
 	//here we start to remove subnets from the reserved map
 	r.Mutex.Lock()
+	defer r.Mutex.Unlock()
 	if len(removedSubnets) > 0 {
 		for _, subnet := range removedSubnets {
 			//remove the subnet from the used ones
@@ -211,7 +211,6 @@ func (r *TunnelEndpointCreator) UpdateConfiguration(reservedSubnets map[string]*
 			}
 		}
 	}
-	r.Mutex.Unlock()
 	return nil
 }
 

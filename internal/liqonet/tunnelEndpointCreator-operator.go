@@ -248,12 +248,11 @@ func (r *TunnelEndpointCreator) updateTunEndpoint(adv *protocolv1.Advertisement)
 			return fmt.Errorf("an error occured while parsing podCidr %s from adv %s :%v", adv.Spec.Network.PodCIDR, adv.Name, err)
 		}
 		r.Mutex.Lock()
+		defer r.Mutex.Unlock()
 		subnet, err = r.IPManager.GetNewSubnetPerCluster(subnet, tunEndpoint.Spec.ClusterID)
 		if err != nil {
-			r.Mutex.Unlock()
 			return err
 		}
-		r.Mutex.Unlock()
 		if subnet != nil {
 			remoteRemappedPodCIDR = subnet.String()
 			//update adv status
