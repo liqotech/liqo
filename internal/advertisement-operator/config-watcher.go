@@ -4,18 +4,34 @@ import (
 	protocolv1 "github.com/liqoTech/liqo/api/advertisement-operator/v1"
 	policyv1 "github.com/liqoTech/liqo/api/cluster-config/v1"
 	"github.com/liqoTech/liqo/pkg/clusterConfig"
+	"github.com/liqoTech/liqo/pkg/crdClient"
+	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/klog"
+	"time"
 )
 
-func (b *AdvertisementBroadcaster) WatchConfiguration(kubeconfigPath string) {
+func (b *AdvertisementBroadcaster) WatchConfiguration(kubeconfigPath string, client *crdClient.CRDClient) {
 	go clusterConfig.WatchConfiguration(func(configuration *policyv1.ClusterConfig) {
-		if !configuration.Spec.DiscoveryConfig.EnableAdvertisement {
+		if !configuration.Spec.AdvertisementConfig.EnableBroadcaster {
 			klog.V(3).Info("ClusterConfig changed")
 			klog.Info("Stopping sharing resources with cluster " + b.ForeignClusterId)
 			err := b.NotifyAdvertisementDeletion()
 			if err != nil {
 				klog.Errorln(err, "Unable to notify Advertisement deletion to foreign cluster")
+			} else {
+				// wait for advertisement to be deleted to delete the peering request
+				for retry := 0; retry < 3; retry++ {
+					advName := "advertisement-" + b.HomeClusterId
+					if _, err := b.RemoteClient.Resource("advertisements").Get(advName, metav1.GetOptions{}); err != nil && k8serrors.IsNotFound(err) {
+						break
+					}
+					time.Sleep(30 * time.Second)
+				}
+			}
+			// delete the peering request to delete the broadcaster
+			if err := b.DiscoveryClient.Resource("peeringrequests").Delete(b.PeeringRequestName, metav1.DeleteOptions{}); err != nil {
+				klog.Error("Unable to delete PeeringRequest " + b.PeeringRequestName)
 			}
 		}
 
@@ -34,7 +50,7 @@ func (b *AdvertisementBroadcaster) WatchConfiguration(kubeconfigPath string) {
 			}
 		}
 
-	}, nil, kubeconfigPath)
+	}, client, kubeconfigPath)
 }
 
 func (r *AdvertisementReconciler) WatchConfiguration(kubeconfigPath string) {

@@ -40,6 +40,8 @@ spec:
               properties:
                 autoAccept:
                   type: boolean
+                enableBroadcaster:
+                  type: boolean
                 maxAcceptableAdvertisement:
                   format: int32
                   minimum: 0
@@ -119,6 +121,7 @@ spec:
               required:
               - gatewayPrivateIP
               - reservedSubnets
+              - vxlanNetConfig
               type: object
           required:
           - advertisementConfig

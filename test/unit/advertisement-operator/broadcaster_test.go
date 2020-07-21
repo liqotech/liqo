@@ -17,7 +17,7 @@ import (
 	"time"
 )
 
-func createBroadcaster(sharingPercentage int32) advertisement_operator.AdvertisementBroadcaster {
+func createBroadcaster(clusterConfig policyv1.ClusterConfigSpec) advertisement_operator.AdvertisementBroadcaster {
 	// set the client in fake mode
 	crdClient.Fake = true
 
@@ -51,11 +51,7 @@ func createBroadcaster(sharingPercentage int32) advertisement_operator.Advertise
 		HomeClusterId:              test.HomeClusterId,
 		ForeignClusterId:           test.ForeignClusterId,
 		GatewayPrivateIP:           "10.0.0.1",
-		ClusterConfig: policyv1.ClusterConfigSpec{
-			AdvertisementConfig: policyv1.AdvertisementConfig{
-				ResourceSharingPercentage: sharingPercentage,
-			},
-		},
+		ClusterConfig:              clusterConfig,
 	}
 }
 
@@ -162,6 +158,38 @@ func createFakeResources() (physicalNodes *corev1.NodeList, virtualNodes *corev1
 	return physicalNodes, virtualNodes, images, sum, podList
 }
 
+func createResourcesOnCluster(client *crdClient.CRDClient, pNodes *corev1.NodeList, vNodes *corev1.NodeList, pods *corev1.PodList) error {
+	// create resources on home cluster
+	for i := 0; i < len(pNodes.Items); i++ {
+		_, err := client.Client().CoreV1().Nodes().Create(&pNodes.Items[i])
+		if err != nil {
+			return err
+		}
+		_, err = client.Client().CoreV1().Nodes().Create(&vNodes.Items[i])
+		if err != nil {
+			return err
+		}
+	}
+	for i := 0; i < len(pods.Items); i++ {
+		_, err := client.Client().CoreV1().Pods("").Create(&pods.Items[i])
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func prepareAdv(b advertisement_operator.AdvertisementBroadcaster) protocolv1.Advertisement {
+	pNodes, vNodes, images, _, pods := createFakeResources()
+	reqs, limits := advertisement_operator.GetAllPodsResources(pods)
+	availability, _ := advertisement_operator.ComputeAnnouncedResources(pNodes, reqs, int64(b.ClusterConfig.AdvertisementConfig.ResourceSharingPercentage))
+	neighbours := make(map[corev1.ResourceName]corev1.ResourceList)
+	for _, vNode := range vNodes.Items {
+		neighbours[corev1.ResourceName(vNode.Name)] = vNode.Status.Allocatable
+	}
+	return b.CreateAdvertisement(pNodes, vNodes, availability, images, limits)
+}
+
 func TestGetClusterResources(t *testing.T) {
 
 	pNodes, _, images, sum, _ := createFakeResources()
@@ -194,7 +222,6 @@ func TestComputePrices(t *testing.T) {
 }
 
 func TestCreateAdvertisement(t *testing.T) {
-
 	pNodes, vNodes, images, _, pods := createFakeResources()
 	gatewayNode := pNodes.Items[0]
 	sharingPercentage := int32(50)
@@ -205,7 +232,8 @@ func TestCreateAdvertisement(t *testing.T) {
 		neighbours[corev1.ResourceName(vNode.Name)] = vNode.Status.Allocatable
 	}
 
-	broadcaster := createBroadcaster(sharingPercentage)
+	clusterConfig := createFakeClusterConfig()
+	broadcaster := createBroadcaster(clusterConfig.Spec)
 
 	adv := broadcaster.CreateAdvertisement(pNodes, vNodes, availability, images, limits)
 
@@ -227,28 +255,14 @@ func TestCreateAdvertisement(t *testing.T) {
 }
 
 func TestGetResourceForAdv(t *testing.T) {
-
-	b := createBroadcaster(int32(50))
+	clusterConfig := createFakeClusterConfig()
+	b := createBroadcaster(clusterConfig.Spec)
 	pNodes, vNodes, images, _, pods := createFakeResources()
 
-	// create resources on home cluster
-	for i := 0; i < len(pNodes.Items); i++ {
-		_, err := b.LocalClient.Client().CoreV1().Nodes().Create(&pNodes.Items[i])
-		if err != nil {
-			t.Fatal(err)
-		}
-		_, err = b.LocalClient.Client().CoreV1().Nodes().Create(&vNodes.Items[i])
-		if err != nil {
-			t.Fatal(err)
-		}
+	err := createResourcesOnCluster(b.LocalClient, pNodes, vNodes, pods)
+	if err != nil {
+		t.Fatal(err)
 	}
-	for i := 0; i < len(pods.Items); i++ {
-		_, err := b.LocalClient.Client().CoreV1().Pods("").Create(&pods.Items[i])
-		if err != nil {
-			t.Fatal(err)
-		}
-	}
-
 	time.Sleep(5 * time.Second)
 
 	reqs, limits := advertisement_operator.GetAllPodsResources(pods)
@@ -267,23 +281,14 @@ func TestGetResourceForAdv(t *testing.T) {
 }
 
 func TestSendAdvertisementCreation(t *testing.T) {
-	pNodes, vNodes, images, _, pods := createFakeResources()
-	sharingPercentage := int32(50)
-	reqs, limits := advertisement_operator.GetAllPodsResources(pods)
-	availability, _ := advertisement_operator.ComputeAnnouncedResources(pNodes, reqs, int64(sharingPercentage))
-	neighbours := make(map[corev1.ResourceName]corev1.ResourceList)
-	for _, vNode := range vNodes.Items {
-		neighbours[corev1.ResourceName(vNode.Name)] = vNode.Status.Allocatable
-	}
-
-	b := createBroadcaster(sharingPercentage)
-	adv := b.CreateAdvertisement(pNodes, vNodes, availability, images, limits)
-
+	clusterConfig := createFakeClusterConfig()
+	b := createBroadcaster(clusterConfig.Spec)
 	_, err := b.RemoteClient.Client().CoreV1().Secrets(b.KubeconfigSecretForForeign.Namespace).Create(b.KubeconfigSecretForForeign)
 	if err != nil {
 		t.Fatal(err)
 	}
 	// create adv on foreign cluster
+	adv := prepareAdv(b)
 	adv2, err := b.SendAdvertisementToForeignCluster(adv)
 	assert.Nil(t, err)
 	assert.Equal(t, b.KubeconfigSecretForForeign.OwnerReferences, pkg.GetOwnerReference(adv2))
@@ -293,4 +298,21 @@ func TestSendAdvertisementCreation(t *testing.T) {
 	adv3, err := b.SendAdvertisementToForeignCluster(adv)
 	assert.Nil(t, err)
 	assert.Equal(t, adv.Spec.ResourceQuota.Hard.Cpu().Value(), adv3.Spec.ResourceQuota.Hard.Cpu().Value())
+}
+
+func TestNotifyAdvertisementDeletion(t *testing.T) {
+	clusterConfig := createFakeClusterConfig()
+	b := createBroadcaster(clusterConfig.Spec)
+	_, err := b.RemoteClient.Client().CoreV1().Secrets(b.KubeconfigSecretForForeign.Namespace).Create(b.KubeconfigSecretForForeign)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// create adv on foreign cluster
+	adv := prepareAdv(b)
+	adv2, _ := b.SendAdvertisementToForeignCluster(adv)
+	// modify adv status to DELETING
+	err = b.NotifyAdvertisementDeletion()
+	time.Sleep(1 * time.Second)
+	assert.Nil(t, err)
+	assert.Equal(t, advertisement_operator.AdvertisementDeleting, adv2.Status.AdvertisementStatus)
 }

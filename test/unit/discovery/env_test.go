@@ -10,6 +10,7 @@ import (
 	peering_request_operator "github.com/liqoTech/liqo/internal/peering-request-operator"
 	"github.com/liqoTech/liqo/pkg/clusterID"
 	"github.com/liqoTech/liqo/pkg/crdClient"
+	"github.com/liqoTech/liqo/pkg/liqonet"
 	"github.com/miekg/dns"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -230,6 +231,7 @@ func getClusterConfig(config rest.Config) {
 				AutoAccept:                 true,
 				MaxAcceptableAdvertisement: 5,
 				ResourceSharingPercentage:  30,
+				EnableBroadcaster:          true,
 			},
 			DiscoveryConfig: policyv1.DiscoveryConfig{
 				AutoJoin:            true,
@@ -244,8 +246,14 @@ func getClusterConfig(config rest.Config) {
 				DnsServer:           "8.8.8.8:53",
 			},
 			LiqonetConfig: policyv1.LiqonetConfig{
-				ReservedSubnets:  []string{"10.0.0.0/16", "10.96.0.0/12"},
+				ReservedSubnets:  []string{"10.0.0.0/16"},
 				GatewayPrivateIP: "192.168.1.1",
+				VxlanNetConfig: liqonet.VxlanNetConfig{
+					Network:    "",
+					DeviceName: "",
+					Port:       "",
+					Vni:        "",
+				},
 			},
 		},
 	}

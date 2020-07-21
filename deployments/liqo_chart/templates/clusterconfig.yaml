@@ -9,6 +9,7 @@ spec:
     autoAccept: true
     maxAcceptableAdvertisement: 5
     resourceSharingPercentage: 30
+    enableBroadcaster: true
   discoveryConfig:
     autojoin: true
     domain: local.
