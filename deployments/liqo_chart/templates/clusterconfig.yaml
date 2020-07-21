@@ -22,6 +22,6 @@ spec:
     dnsServer: '8.8.8.8:53'
   liqonetConfig:
     gatewayPrivateIP: {{ .Values.gatewayPrivateIP }}
-    Reserved Subnets:
+    reservedSubnets:
     - {{ .Values.podCIDR }}
     - {{ .Values.serviceCIDR }}
