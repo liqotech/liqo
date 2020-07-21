@@ -75,7 +75,7 @@ require (
 	k8s.io/apimachinery v0.18.5
 	k8s.io/client-go v10.0.0+incompatible
 	k8s.io/klog v1.0.0
-	k8s.io/kubectl v0.17.0
+	k8s.io/kubectl v0.18.6
 	k8s.io/kubernetes v1.17.0
 	k8s.io/metrics v0.18.5 // indirect
 	k8s.io/utils v0.0.0-20191114184206-e782cd3c129f
