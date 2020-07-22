@@ -77,6 +77,8 @@ myliqo1._liqo._tcp.test.mydomain.com.	TXT	"id=<YourClusterIDHere>"
 						"namespace=<YourNamespaceHere>"
 
 cluster1.test.mydomain.com.		A	<YourIPHere>
+### OR
+cluster1.test.mydomain.com.		CNAME	<YourEndpointHere>
 
 
 
@@ -86,6 +88,8 @@ myliqo2._liqo._tcp.test.mydomain.com.	TXT	"id=<YourClusterIDHere>"
 						"namespace=<YourNamespaceHere>"
 
 cluster2.test.mydomain.com.		A	<YourIPHere>
+### OR
+cluster2.test.mydomain.com.		CNAME	<YourEndpointHere>
 ```
 
 Discovery process consist on 4 DNS queries:

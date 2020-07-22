@@ -285,6 +285,8 @@ var ptrQueries = map[string][]string{
 
 type handler struct{}
 
+var hasCname = false
+
 func (h *handler) ServeDNS(w dns.ResponseWriter, r *dns.Msg) {
 	msg := dns.Msg{}
 	msg.SetReply(r)
@@ -349,10 +351,19 @@ func (h *handler) ServeDNS(w dns.ResponseWriter, r *dns.Msg) {
 		} else if domain == "server."+registryDomain {
 			host = strings.Split(serverCluster.cfg.Host, ":")[0]
 		}
-		msg.Answer = append(msg.Answer, &dns.A{
-			Hdr: dns.RR_Header{Name: domain, Rrtype: dns.TypeA, Class: dns.ClassINET, Ttl: 60},
-			A:   net.ParseIP(host),
-		})
+		if !hasCname {
+			msg.Answer = append(msg.Answer, &dns.A{
+				Hdr: dns.RR_Header{Name: domain, Rrtype: dns.TypeA, Class: dns.ClassINET, Ttl: 60},
+				A:   net.ParseIP(host),
+			})
+		}
+	case dns.TypeCNAME:
+		if hasCname {
+			msg.Answer = append(msg.Answer, &dns.CNAME{
+				Hdr:    dns.RR_Header{Name: domain, Rrtype: dns.TypeCNAME, Class: dns.ClassINET, Ttl: 60},
+				Target: "cname.test.liqo.io.",
+			})
+		}
 	}
 	err := w.WriteMsg(&msg)
 	if err != nil {

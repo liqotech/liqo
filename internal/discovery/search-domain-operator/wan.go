@@ -74,11 +74,25 @@ func ResolveWan(c *dns.Client, dnsAddr string, ptr *dns.PTR) (*discovery.TxtData
 		return nil, err
 	}
 	if len(in.Answer) == 0 {
-		klog.Error("A record is not set for " + srv.Target)
-		return nil, errors.New("A record is not set for " + srv.Target)
+		// no A record is set, let's try with CNAME
+		msg = GetDnsMsg(srv.Target, dns.TypeCNAME)
+		in, _, err = c.Exchange(msg, dnsAddr)
+		if err != nil {
+			klog.Error(err, err.Error())
+			return nil, err
+		}
+
+		if len(in.Answer) == 0 {
+			klog.Error("no A record or CNAME record is set for " + srv.Target)
+			return nil, errors.New("no A record or CNAME record is set for " + srv.Target)
+		}
+
+		cname := in.Answer[0].(*dns.CNAME)
+		return discovery.Decode(cname.Target, strconv.Itoa(int(srv.Port)), txt)
+	} else {
+		a := in.Answer[0].(*dns.A)
+		return discovery.Decode(a.A.String(), strconv.Itoa(int(srv.Port)), txt)
 	}
-	a := in.Answer[0].(*dns.A)
-	return discovery.Decode(a.A.String(), strconv.Itoa(int(srv.Port)), txt)
 }
 
 func GetDnsMsg(name string, qType uint16) *dns.Msg {
