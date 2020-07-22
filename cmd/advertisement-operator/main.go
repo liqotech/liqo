@@ -61,6 +61,7 @@ func main() {
 	var enableLeaderElection bool
 	var kubeletNamespace, kubeletImage, initKubeletImage string
 	var runsInKindEnv bool
+	var mocked bool
 
 	flag.StringVar(&metricsAddr, "metrics-addr", defaultMetricsaddr, "The address the metric endpoint binds to.")
 	flag.BoolVar(&enableLeaderElection, "enable-leader-election", false, "Enable leader election for controller manager. Enabling this will ensure there is only one active controller manager.")
@@ -70,6 +71,8 @@ func main() {
 	flag.StringVar(&kubeletImage, "kubelet-image", defaultVKImage, "The image of the virtual kubelet to be deployed")
 	flag.StringVar(&initKubeletImage, "init-kubelet-image", defaultInitVKImage, "The image of the virtual kubelet init container to be deployed")
 	flag.BoolVar(&runsInKindEnv, "run-in-kind", false, "The cluster in which the controller runs is managed by kind")
+	flag.BoolVar(&mocked, "mocked", false, "The virtual kubelet is launched as a mocked node")
+
 	flag.Parse()
 
 	if clusterId == "" {
@@ -137,6 +140,7 @@ func main() {
 		Scheme:           mgr.GetScheme(),
 		EventsRecorder:   mgr.GetEventRecorderFor("AdvertisementOperator"),
 		KindEnvironment:  runsInKindEnv,
+		Mocked:           mocked,
 		KubeletNamespace: kubeletNamespace,
 		VKImage:          kubeletImage,
 		InitVKImage:      initKubeletImage,

@@ -180,6 +180,102 @@ func CreateVkDeployment(adv *protocolv1.Advertisement, saName, vkNamespace, vkIm
 	return deploy
 }
 
+// create deployment for a mocked virtual-kubelet
+func CreateMockVkDeployment(adv *protocolv1.Advertisement, saName, vkNamespace, vkImage, homeClusterId string) *appsv1.Deployment {
+
+	command := []string{
+		"/usr/bin/virtual-kubelet",
+	}
+
+	args := []string{
+		"--cluster-id",
+		adv.Spec.ClusterId,
+		"--provider",
+		"mocked",
+		"--nodename",
+		"vk-" + adv.Spec.ClusterId,
+		"--kubelet-namespace",
+		vkNamespace,
+		"--home-cluster-id",
+		homeClusterId,
+	}
+
+	affinity := v1.Affinity{
+		NodeAffinity: &v1.NodeAffinity{
+			RequiredDuringSchedulingIgnoredDuringExecution: &v1.NodeSelector{
+				NodeSelectorTerms: []v1.NodeSelectorTerm{
+					{
+						MatchExpressions: []v1.NodeSelectorRequirement{
+							{
+								Key:      "type",
+								Operator: v1.NodeSelectorOpNotIn,
+								Values:   []string{"virtual-node"},
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	deploy := &appsv1.Deployment{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:            "vkubelet-" + adv.Spec.ClusterId,
+			Namespace:       vkNamespace,
+			OwnerReferences: GetOwnerReference(adv),
+		},
+		Spec: appsv1.DeploymentSpec{
+			Replicas: pointer.Int32Ptr(1),
+			Selector: &metav1.LabelSelector{
+				MatchLabels: map[string]string{
+					"app": "virtual-kubelet",
+				},
+			},
+			Template: v1.PodTemplateSpec{
+				ObjectMeta: metav1.ObjectMeta{
+					Labels: map[string]string{
+						"app":     "virtual-kubelet",
+						"cluster": adv.Spec.ClusterId,
+					},
+				},
+				Spec: v1.PodSpec{
+					Containers: []v1.Container{
+						{
+							Name:            "virtual-kubelet",
+							Image:           vkImage,
+							ImagePullPolicy: v1.PullAlways,
+							Command:         command,
+							Args:            args,
+							Env: []v1.EnvVar{
+								{
+									Name:      "VKUBELET_POD_IP",
+									ValueFrom: &v1.EnvVarSource{FieldRef: &v1.ObjectFieldSelector{FieldPath: "status.podIP", APIVersion: "v1"}},
+								},
+								{
+									Name:  "VKUBELET_TAINT_KEY",
+									Value: "virtual-node.liqo.io/not-allowed",
+								},
+								{
+									Name:  "VKUBELET_TAINT_VALUE",
+									Value: "true",
+								},
+								{
+									Name:  "VKUBELET_TAINT_EFFECT",
+									Value: "NoExecute",
+								},
+							},
+						},
+					},
+					ServiceAccountName: saName,
+					Affinity:           affinity.DeepCopy(),
+				},
+			},
+		},
+	}
+
+	return deploy
+}
+
 // create a k8s resource or update it if already exists
 // it receives a pointer to the resource
 func CreateOrUpdate(c client.Client, ctx context.Context, object interface{}) error {

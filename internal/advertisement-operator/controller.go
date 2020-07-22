@@ -23,6 +23,7 @@ import (
 	discoveryv1 "github.com/liqoTech/liqo/api/discovery/v1"
 	pkg "github.com/liqoTech/liqo/pkg/advertisement-operator"
 	"github.com/liqoTech/liqo/pkg/crdClient"
+	appsv1 "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -47,6 +48,7 @@ type AdvertisementReconciler struct {
 	EventsRecorder   record.EventRecorder
 	KubeletNamespace string
 	KindEnvironment  bool
+	Mocked           bool
 	VKImage          string
 	InitVKImage      string
 	HomeClusterId    string
@@ -242,7 +244,13 @@ func (r *AdvertisementReconciler) createVirtualKubelet(ctx context.Context, adv 
 		return err
 	}
 	// Create the virtual Kubelet
-	deploy := pkg.CreateVkDeployment(adv, vkSa.Name, r.KubeletNamespace, r.VKImage, r.InitVKImage, r.HomeClusterId)
+	var deploy *appsv1.Deployment
+	if r.Mocked {
+		deploy = pkg.CreateMockVkDeployment(adv, vkSa.Name, r.KubeletNamespace, r.VKImage, r.HomeClusterId)
+	} else {
+		deploy = pkg.CreateVkDeployment(adv, vkSa.Name, r.KubeletNamespace, r.VKImage, r.InitVKImage, r.HomeClusterId)
+	}
+
 	err = pkg.CreateOrUpdate(r.Client, ctx, deploy)
 	if err != nil {
 		return err
