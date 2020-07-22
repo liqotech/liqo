@@ -7,12 +7,14 @@ import (
 	"gotest.tools/assert"
 	v12 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"strings"
 	"testing"
 	"time"
 )
 
 func TestDns(t *testing.T) {
 	t.Run("testDNS", testDns)
+	t.Run("testCNAME", testCname)
 	t.Run("testSDCreation", testSDCreation)
 	t.Run("testSDDelete", testSDDelete)
 }
@@ -43,6 +45,38 @@ func testDns(t *testing.T) {
 		}
 		return true
 	}(), "Retrieved data does not match the expected DNS records")
+}
+
+// ------
+// tests if is able to get txtData from local DNS server, with CNAME record
+func testCname(t *testing.T) {
+	hasCname = true
+
+	targetTxts := []*discovery.TxtData{
+		getTxtData(clientCluster, "dns-client-cluster"),
+		getTxtData(serverCluster, "dns-server-cluster"),
+	}
+
+	txts, err := search_domain_operator.Wan("127.0.0.1:8053", registryDomain)
+	assert.NilError(t, err, "Error during WAN DNS discovery")
+
+	assert.Equal(t, len(txts), len(targetTxts))
+	assert.Assert(t, func() bool {
+		for _, target := range targetTxts {
+			contains := false
+			for _, txt := range txts {
+				if txt.ID == target.ID && strings.Contains(txt.ApiUrl, "https://cname.test.liqo.io.") && txt.Namespace == target.Namespace {
+					contains = true
+				}
+			}
+			if !contains {
+				return false
+			}
+		}
+		return true
+	}(), "Retrieved data does not match the expected DNS records")
+
+	hasCname = false
 }
 
 // ------
