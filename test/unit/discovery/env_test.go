@@ -236,11 +236,13 @@ func getClusterConfig(config rest.Config) {
 			},
 			DiscoveryConfig: policyv1.DiscoveryConfig{
 				AutoJoin:            true,
+				AutoJoinUntrusted:   true,
 				Domain:              "local.",
 				EnableAdvertisement: true,
 				EnableDiscovery:     true,
 				Name:                "MyLiqo",
 				Port:                6443,
+				AllowUntrustedCA:    false,
 				Service:             "_liqo._tcp",
 				UpdateTime:          3,
 				WaitTime:            2,

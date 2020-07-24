@@ -2,17 +2,39 @@ package discovery
 
 import (
 	"context"
+	goerrors "errors"
 	apiv1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/klog"
 	"os"
 )
 
-func (discovery *DiscoveryCtrl) SetupCaData() {
-	_, err := discovery.crdClient.Client().CoreV1().Secrets(discovery.Namespace).Get(context.TODO(), "ca-data", metav1.GetOptions{})
+func (discovery *DiscoveryCtrl) SetupCaData() error {
+	err := discovery.WatchTrustedCAs()
+	if err != nil {
+		klog.Error(err, err.Error())
+		return err
+	}
+
+	if !discovery.Config.AllowUntrustedCA {
+		// let foreign clusters that want to peer with us to install our root CA
+		// we don't provide it to them, so they will be able to authenticate our cluster
+
+		// delete readable CA secret, if present
+		err := discovery.crdClient.Client().CoreV1().Secrets(discovery.Namespace).Delete(context.TODO(), "ca-data", metav1.DeleteOptions{})
+		if err != nil && !errors.IsNotFound(err) {
+			klog.Warning(err, err.Error())
+			return err
+		}
+		return nil
+	}
+	// provide local CA
+	_, err = discovery.crdClient.Client().CoreV1().Secrets(discovery.Namespace).Get(context.TODO(), "ca-data", metav1.GetOptions{})
 	if err == nil {
 		// already exists
-		return
+		return err
 	}
 
 	// get CaData from Secrets
@@ -22,15 +44,15 @@ func (discovery *DiscoveryCtrl) SetupCaData() {
 	})
 	if err != nil {
 		klog.Error(err, err.Error())
-		os.Exit(1)
+		return err
 	}
 	if len(secrets.Items) == 0 {
 		klog.Error(nil, "No service account found, I can't get CaData")
-		os.Exit(1)
+		return goerrors.New("No service account found, I can't get CaData")
 	}
 	if secrets.Items[0].Data["ca.crt"] == nil {
 		klog.Error(nil, "Cannot get CaData from secret")
-		os.Exit(1)
+		return goerrors.New("Cannot get CaData from secret")
 	}
 
 	secret := &apiv1.Secret{
@@ -44,6 +66,34 @@ func (discovery *DiscoveryCtrl) SetupCaData() {
 	_, err = discovery.crdClient.Client().CoreV1().Secrets(discovery.Namespace).Create(context.TODO(), secret, metav1.CreateOptions{})
 	if err != nil {
 		klog.Error(err, err.Error())
-		os.Exit(1)
+		return err
 	}
+	return nil
+}
+
+var trustedWatchRunning = false
+
+func (discovery *DiscoveryCtrl) WatchTrustedCAs() error {
+	// start it only once
+	if trustedWatchRunning {
+		return nil
+	}
+	trustedWatchRunning = true
+
+	// if trusted-ca ConfigMap changes, this component has to be reloaded
+	wc, err := discovery.crdClient.Client().CoreV1().ConfigMaps(discovery.Namespace).Watch(context.TODO(), metav1.ListOptions{})
+	if err != nil {
+		klog.Error(err, err.Error())
+		return err
+	}
+	go func() {
+		ch := wc.ResultChan()
+		for event := range ch {
+			if event.Type == watch.Modified {
+				klog.Info("Trusted CA modified, reload discovery component")
+				os.Exit(0)
+			}
+		}
+	}()
+	return nil
 }

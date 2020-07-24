@@ -27,6 +27,7 @@ func (discovery *DiscoveryCtrl) GetDiscoveryConfig(crdClient *crdClient.CRDClien
 func (discovery *DiscoveryCtrl) handleConfiguration(config policyv1.DiscoveryConfig) {
 	reloadServer := false
 	reloadClient := false
+	reloadCa := false
 	if discovery.Config == nil {
 		// first iteration
 		discovery.Config = &config
@@ -49,6 +50,11 @@ func (discovery *DiscoveryCtrl) handleConfiguration(config policyv1.DiscoveryCon
 			discovery.Config.Port = config.Port
 			reloadServer = true
 		}
+		if discovery.Config.AllowUntrustedCA != config.AllowUntrustedCA {
+			discovery.Config.AllowUntrustedCA = config.AllowUntrustedCA
+			reloadCa = true
+			reloadServer = true
+		}
 		if discovery.Config.Service != config.Service {
 			discovery.Config.Service = config.Service
 			reloadServer = true
@@ -66,6 +72,10 @@ func (discovery *DiscoveryCtrl) handleConfiguration(config policyv1.DiscoveryCon
 			discovery.Config.AutoJoin = config.AutoJoin
 			reloadClient = true
 		}
+		if discovery.Config.AutoJoinUntrusted != config.AutoJoinUntrusted {
+			discovery.Config.AutoJoinUntrusted = config.AutoJoinUntrusted
+			reloadClient = true
+		}
 		if discovery.Config.EnableDiscovery != config.EnableDiscovery {
 			discovery.Config.EnableDiscovery = config.EnableDiscovery
 			reloadClient = true
@@ -75,6 +85,12 @@ func (discovery *DiscoveryCtrl) handleConfiguration(config policyv1.DiscoveryCon
 		}
 		if reloadClient {
 			discovery.reloadClient()
+		}
+		if reloadCa {
+			err := discovery.SetupCaData()
+			if err != nil {
+				klog.Error(err, err.Error())
+			}
 		}
 	}
 }

@@ -94,7 +94,7 @@ func (r *ForeignClusterReconciler) Reconcile(req ctrl.Request) (ctrl.Result, err
 		}
 	}
 
-	if fc.Status.CaDataRef == nil {
+	if fc.Status.CaDataRef == nil && fc.Spec.AllowUntrustedCA {
 		klog.Info("Get CA Data")
 		err = fc.LoadForeignCA(r.crdClient.Client(), r.Namespace, r.ForeignConfig)
 		if err != nil {
@@ -122,6 +122,12 @@ func (r *ForeignClusterReconciler) Reconcile(req ctrl.Request) (ctrl.Result, err
 	foreignConfig, err := fc.GetConfig(r.crdClient.Client())
 	if err != nil {
 		klog.Error(err, err.Error())
+		// delete reference, in this way at next iteration it will be reloaded
+		fc.Status.CaDataRef = nil
+		_, err2 := r.crdClient.Resource("foreignclusters").Update(fc.Name, fc, metav1.UpdateOptions{})
+		if err2 != nil {
+			klog.Error(err2, err2.Error())
+		}
 		return ctrl.Result{
 			Requeue:      true,
 			RequeueAfter: r.RequeueAfter,

@@ -58,6 +58,8 @@ spec:
               properties:
                 autojoin:
                   type: boolean
+                autojoinUntrusted:
+                  type: boolean
                 dnsServer:
                   type: string
                 domain:
@@ -72,6 +74,8 @@ spec:
                   maximum: 65355
                   minimum: 1
                   type: integer
+                allowUntrustedCA:
+                  type: boolean
                 service:
                   type: string
                 updateTime:
@@ -82,12 +86,14 @@ spec:
                   type: integer
               required:
                 - autojoin
+                - autojoinUntrusted
                 - dnsServer
                 - domain
                 - enableAdvertisement
                 - enableDiscovery
                 - name
                 - port
+                - allowUntrustedCA
                 - service
                 - updateTime
                 - waitTime

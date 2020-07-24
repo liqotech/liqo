@@ -126,13 +126,19 @@ func (discovery *DiscoveryCtrl) createForeign(txtData *TxtData, sd *v1.SearchDom
 			Name: txtData.ID,
 		},
 		Spec: v1.ForeignClusterSpec{
-			ClusterID:     txtData.ID,
-			Namespace:     txtData.Namespace,
-			Join:          discovery.Config.AutoJoin,
-			ApiUrl:        txtData.ApiUrl,
-			DiscoveryType: discoveryType,
+			ClusterID:        txtData.ID,
+			Namespace:        txtData.Namespace,
+			ApiUrl:           txtData.ApiUrl,
+			DiscoveryType:    discoveryType,
+			AllowUntrustedCA: txtData.AllowUntrustedCA,
 		},
 	}
+	if discovery.Config.AutoJoin && !txtData.AllowUntrustedCA {
+		fc.Spec.Join = true
+	} else if discovery.Config.AutoJoinUntrusted && txtData.AllowUntrustedCA {
+		fc.Spec.Join = true
+	}
+
 	if sd != nil {
 		fc.Spec.Join = sd.Spec.AutoJoin
 		fc.ObjectMeta.OwnerReferences = []metav1.OwnerReference{
@@ -161,9 +167,10 @@ func (discovery *DiscoveryCtrl) createForeign(txtData *TxtData, sd *v1.SearchDom
 }
 
 func (discovery *DiscoveryCtrl) CheckUpdate(txtData *TxtData, fc *v1.ForeignCluster, discoveryType v1.DiscoveryType) (*v1.ForeignCluster, error) {
-	if fc.Spec.ApiUrl != txtData.ApiUrl || fc.Spec.Namespace != txtData.Namespace {
+	if fc.Spec.ApiUrl != txtData.ApiUrl || fc.Spec.Namespace != txtData.Namespace || fc.Spec.AllowUntrustedCA != txtData.AllowUntrustedCA {
 		fc.Spec.ApiUrl = txtData.ApiUrl
 		fc.Spec.Namespace = txtData.Namespace
+		fc.Spec.AllowUntrustedCA = txtData.AllowUntrustedCA
 		fc.Spec.DiscoveryType = discoveryType
 		if fc.Status.CaDataRef != nil {
 			err := discovery.crdClient.Client().CoreV1().Secrets(fc.Status.CaDataRef.Namespace).Delete(context.TODO(), fc.Status.CaDataRef.Name, metav1.DeleteOptions{})

@@ -48,7 +48,7 @@ spec:
         - image: {{ .Values.image.repository }}{{ .Values.global.suffix | default .Values.suffix }}:{{ .Values.global.version | default .Values.version }}
           name: discovery
           imagePullPolicy: {{ .Values.image.pullPolicy }}
-          command: ["/usr/bin/discovery"]
+          command: ["/usr/bin/entrypoint.sh", "/usr/bin/discovery"]
           args:
           - "--namespace"
           - "$(POD_NAMESPACE)"
@@ -67,4 +67,11 @@ spec:
             - name: APISERVER_PORT
               value: {{ .Values.apiServerPort }}
             {{ end }}
+          volumeMounts:
+            - mountPath: /usr/local/share/ca-certificates
+              name: ca-certificates
+      volumes:
+        - name: ca-certificates
+          configMap:
+            name: trusted-ca-certificates
       hostNetwork: true

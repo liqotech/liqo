@@ -14,15 +14,25 @@ import (
 )
 
 func (fc *ForeignCluster) GetConfig(client kubernetes.Interface) (*rest.Config, error) {
-	secret, err := client.CoreV1().Secrets(fc.Status.CaDataRef.Namespace).Get(context.TODO(), fc.Status.CaDataRef.Name, metav1.GetOptions{})
-	if err != nil {
-		return nil, err
-	}
-	cnf := rest.Config{
-		Host: fc.Spec.ApiUrl,
-		TLSClientConfig: rest.TLSClientConfig{
-			CAData: secret.Data["caData"],
-		},
+	var cnf rest.Config
+	if !fc.Spec.AllowUntrustedCA {
+		// ForeignCluster uses a trusted CA, it doesn't require to load retrieved CA
+		cnf = rest.Config{
+			Host: fc.Spec.ApiUrl,
+		}
+	} else {
+		// load retrieved CA
+		secret, err := client.CoreV1().Secrets(fc.Status.CaDataRef.Namespace).Get(context.TODO(), fc.Status.CaDataRef.Name, metav1.GetOptions{})
+		if err != nil {
+			klog.Error(err, err.Error())
+			return nil, err
+		}
+		cnf = rest.Config{
+			Host: fc.Spec.ApiUrl,
+			TLSClientConfig: rest.TLSClientConfig{
+				CAData: secret.Data["caData"],
+			},
+		}
 	}
 	cnf.APIPath = "/apis"
 	cnf.NegotiatedSerializer = scheme.Codecs.WithoutConversion()

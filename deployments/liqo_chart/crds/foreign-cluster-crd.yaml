@@ -52,9 +52,13 @@ spec:
                 - LAN
                 - WAN
                 - Manual
+            allowUntrustedCA:
+              type: boolean
+              description: This remote cluster allows untrusted incoming connections. Clients that contact it can not authenticate remote API server
           required:
             - join
             - discoveryType
+            - allowUntrustedCA
           type: object
         status:
           properties:

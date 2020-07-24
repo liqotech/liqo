@@ -8,3 +8,4 @@ spec:
   namespace: default
   apiUrl: https://192.168.2.100:6443
   discoveryType: Manual
+  allowUntrustedCA: true
