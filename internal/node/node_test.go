@@ -130,7 +130,7 @@ func testNodeRun(t *testing.T, enableLease bool) {
 	}
 
 	// trigger an async node status update
-	n, err := nodes.Get(testNode.Name, metav1.GetOptions{})
+	n, err := nodes.Get(context.TODO(), testNode.Name, metav1.GetOptions{})
 	assert.NilError(t, err)
 	newCondition := corev1.NodeCondition{
 		Type:               corev1.NodeConditionType("UPDATED"),
@@ -205,7 +205,7 @@ func TestNodeCustomUpdateStatusErrorHandler(t *testing.T) {
 	case <-node.Ready():
 	}
 
-	err = nodes.Delete(node.n.Name, nil)
+	err = nodes.Delete(context.TODO(), node.n.Name, metav1.DeleteOptions{})
 	assert.NilError(t, err)
 
 	testP.triggerStatusUpdate(node.n.DeepCopy())
@@ -255,7 +255,7 @@ func TestUpdateNodeStatus(t *testing.T) {
 	_, err = updateNodeStatus(ctx, nodes, n.DeepCopy())
 	assert.Equal(t, errors.IsNotFound(err), true, err)
 
-	_, err = nodes.Create(n)
+	_, err = nodes.Create(context.TODO(), n, metav1.CreateOptions{})
 	assert.NilError(t, err)
 
 	updated, err = updateNodeStatus(ctx, nodes, n.DeepCopy())
@@ -269,10 +269,10 @@ func TestUpdateNodeStatus(t *testing.T) {
 	assert.NilError(t, err)
 	assert.Check(t, cmp.DeepEqual(n.Status, updated.Status))
 
-	err = nodes.Delete(n.Name, nil)
+	err = nodes.Delete(context.TODO(), n.Name, metav1.DeleteOptions{})
 	assert.NilError(t, err)
 
-	_, err = nodes.Get(n.Name, metav1.GetOptions{})
+	_, err = nodes.Get(context.TODO(), n.Name, metav1.GetOptions{})
 	assert.Equal(t, errors.IsNotFound(err), true, err)
 
 	_, err = updateNodeStatus(ctx, nodes, updated.DeepCopy())
@@ -291,7 +291,7 @@ func TestUpdateNodeLease(t *testing.T) {
 	assert.Equal(t, l.Name, lease.Name)
 	assert.Assert(t, cmp.DeepEqual(l.Spec.HolderIdentity, lease.Spec.HolderIdentity))
 
-	compare, err := leases.Get(l.Name, emptyGetOptions)
+	compare, err := leases.Get(context.TODO(), l.Name, emptyGetOptions)
 	assert.NilError(t, err)
 	assert.Equal(t, l.Spec.RenewTime.Time.Unix(), compare.Spec.RenewTime.Time.Unix())
 	assert.Equal(t, compare.Name, lease.Name)
@@ -421,13 +421,13 @@ func (tnp *testNodeProviderPing) Ping(ctx context.Context) error {
 }
 
 type watchGetter interface {
-	Watch(metav1.ListOptions) (watch.Interface, error)
+	Watch(ctx context.Context, opts metav1.ListOptions) (watch.Interface, error)
 }
 
 func makeWatch(t *testing.T, wc watchGetter, name string) watch.Interface {
 	t.Helper()
 
-	w, err := wc.Watch(metav1.ListOptions{FieldSelector: "name=" + name})
+	w, err := wc.Watch(context.TODO(), metav1.ListOptions{FieldSelector: "name=" + name})
 	assert.NilError(t, err)
 	return w
 }

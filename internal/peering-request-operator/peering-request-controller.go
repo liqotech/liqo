@@ -72,13 +72,13 @@ func (r *PeeringRequestReconciler) Reconcile(req ctrl.Request) (ctrl.Result, err
 	}
 	if !exists {
 		klog.Info("Deploy Broadcaster")
-		cm, err := r.crdClient.Client().CoreV1().ConfigMaps(r.Namespace).Get(r.configMapName, metav1.GetOptions{})
+		cm, err := r.crdClient.Client().CoreV1().ConfigMaps(r.Namespace).Get(context.TODO(), r.configMapName, metav1.GetOptions{})
 		if err != nil {
 			klog.Error(err, err.Error())
 			return ctrl.Result{RequeueAfter: r.retryTimeout}, err
 		}
 		deploy := GetBroadcasterDeployment(pr, r.broadcasterServiceAccount, r.Namespace, r.broadcasterImage, r.clusterId.GetClusterID(), cm.Data["gatewayPrivateIP"])
-		_, err = r.crdClient.Client().AppsV1().Deployments(r.Namespace).Create(&deploy)
+		_, err = r.crdClient.Client().AppsV1().Deployments(r.Namespace).Create(context.TODO(), &deploy, metav1.CreateOptions{})
 		if err != nil {
 			klog.Error(err, err.Error())
 			return ctrl.Result{RequeueAfter: r.retryTimeout}, err

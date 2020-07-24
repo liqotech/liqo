@@ -1,6 +1,7 @@
 package kubernetes
 
 import (
+	"context"
 	"fmt"
 	"github.com/liqoTech/liqo/api/namespaceNattingTable/v1"
 	"github.com/liqoTech/liqo/internal/kubernetes/test"
@@ -66,7 +67,7 @@ func TestHandleEpEvents(t *testing.T) {
 
 	// remote ep watcher is needed to be sure that all the expected home events are replicated in the
 	// foreign cluster
-	w, err := p.foreignClient.Client().CoreV1().Endpoints(test.NattedNamespace).Watch(metav1.ListOptions{
+	w, err := p.foreignClient.Client().CoreV1().Endpoints(test.NattedNamespace).Watch(context.TODO(), metav1.ListOptions{
 		Watch: true,
 	})
 	if err != nil {
@@ -127,7 +128,7 @@ loop:
 	}
 
 	// get the foreign endpoints
-	ep, err := p.foreignClient.Client().CoreV1().Endpoints(test.NattedNamespace).Get(test.EndpointsName, metav1.GetOptions{})
+	ep, err := p.foreignClient.Client().CoreV1().Endpoints(test.NattedNamespace).Get(context.TODO(), test.EndpointsName, metav1.GetOptions{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -149,20 +150,20 @@ loop:
 func createEpEvents(p KubernetesProvider) error {
 	// create a new endpoints object in the home cluster
 	ep := test.EndpointsTestCases.InputEndpoints
-	_, err := p.homeClient.Client().CoreV1().Endpoints(test.Namespace).Create(ep)
+	_, err := p.homeClient.Client().CoreV1().Endpoints(test.Namespace).Create(context.TODO(), ep, metav1.CreateOptions{})
 	if err != nil {
 		return err
 	}
 
 	// create a new endpoints object in the foreign cluster
-	_, err = p.foreignClient.Client().CoreV1().Endpoints(test.NattedNamespace).Create(ep)
+	_, err = p.foreignClient.Client().CoreV1().Endpoints(test.NattedNamespace).Create(context.TODO(), ep, metav1.CreateOptions{})
 	if err != nil {
 		return err
 	}
 
 	for _, s := range test.EndpointsTestCases.InputSubsets {
 		ep.Subsets = s
-		_, err = p.homeClient.Client().CoreV1().Endpoints(test.Namespace).Update(ep)
+		_, err = p.homeClient.Client().CoreV1().Endpoints(test.Namespace).Update(context.TODO(), ep, metav1.UpdateOptions{})
 		time.Sleep(time.Millisecond)
 		if err != nil {
 			return err

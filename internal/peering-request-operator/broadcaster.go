@@ -1,6 +1,7 @@
 package peering_request_operator
 
 import (
+	"context"
 	discoveryv1 "github.com/liqoTech/liqo/api/discovery/v1"
 	appsv1 "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
@@ -10,7 +11,7 @@ import (
 )
 
 func (r *PeeringRequestReconciler) BroadcasterExists(request *discoveryv1.PeeringRequest) (bool, error) {
-	_, err := r.crdClient.Client().AppsV1().Deployments(r.Namespace).Get("broadcaster-"+request.Name, metav1.GetOptions{})
+	_, err := r.crdClient.Client().AppsV1().Deployments(r.Namespace).Get(context.TODO(), "broadcaster-"+request.Name, metav1.GetOptions{})
 	if k8serrors.IsNotFound(err) {
 		// does not exist
 		return false, nil

@@ -1,6 +1,7 @@
 package discovery
 
 import (
+	"context"
 	"encoding/base64"
 	protocolv1 "github.com/liqoTech/liqo/api/advertisement-operator/v1"
 	policyv1 "github.com/liqoTech/liqo/api/cluster-config/v1"
@@ -161,7 +162,7 @@ func testPRConfig(t *testing.T) {
 			"allowAll": "true",
 		},
 	}
-	_, err := clientCluster.client.Client().CoreV1().ConfigMaps("default").Create(cm)
+	_, err := clientCluster.client.Client().CoreV1().ConfigMaps("default").Create(context.TODO(), cm, metav1.CreateOptions{})
 	assert.NilError(t, err, "Unable to create ConfigMaps")
 	_, err = peering_request_operator.GetConfig(clientCluster.client, "default")
 	assert.NilError(t, err, "PeeringRequest operator can't load settings from ConfigMap")
@@ -201,7 +202,7 @@ func testJoin(t *testing.T) {
 	assert.Equal(t, ok, true)
 	assert.Equal(t, len(prs.Items), 1, "Peering Request has not been created on foreign cluster")
 
-	deploys, err := serverCluster.client.Client().AppsV1().Deployments("default").List(metav1.ListOptions{})
+	deploys, err := serverCluster.client.Client().AppsV1().Deployments("default").List(context.TODO(), metav1.ListOptions{})
 	assert.NilError(t, err)
 	assert.Assert(t, len(deploys.Items) > 0, "Broadcaster deployment has not been created on foreign cluster")
 	assert.Assert(t, func() bool {
@@ -324,9 +325,9 @@ func testCreateKubeconfig(t *testing.T) {
 			},
 		},
 	}
-	_, err := clientCluster.client.Client().CoreV1().Secrets("default").Create(secret)
+	_, err := clientCluster.client.Client().CoreV1().Secrets("default").Create(context.TODO(), secret, metav1.CreateOptions{})
 	assert.NilError(t, err)
-	_, err = clientCluster.client.Client().CoreV1().ServiceAccounts("default").Create(sa)
+	_, err = clientCluster.client.Client().CoreV1().ServiceAccounts("default").Create(context.TODO(), sa, metav1.CreateOptions{})
 	assert.NilError(t, err)
 
 	err = os.Setenv("APISERVER", "127.0.0.2")

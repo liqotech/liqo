@@ -1,6 +1,7 @@
 package kubernetes
 
 import (
+	"context"
 	"errors"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -24,7 +25,7 @@ func (p *KubernetesProvider) manageSvcEvent(event watch.Event) error {
 
 	switch event.Type {
 	case watch.Added:
-		_, err := p.foreignClient.Client().CoreV1().Services(nattedNS).Get(svc.Name, metav1.GetOptions{})
+		_, err := p.foreignClient.Client().CoreV1().Services(nattedNS).Get(context.TODO(), svc.Name, metav1.GetOptions{})
 		if err != nil {
 			klog.Info("remote svc " + svc.Name + " doesn't exist: creating it")
 
@@ -73,13 +74,13 @@ func (p *KubernetesProvider) createService(svc *corev1.Service, namespace string
 	}
 	svcRemote.Labels["liqo/reflection"] = "reflected"
 
-	_, err := p.foreignClient.Client().CoreV1().Services(namespace).Create(&svcRemote)
+	_, err := p.foreignClient.Client().CoreV1().Services(namespace).Create(context.TODO(), &svcRemote, metav1.CreateOptions{})
 
 	return err
 }
 
 func (p *KubernetesProvider) updateService(svc *corev1.Service, namespace string) error {
-	serviceOld, err := p.foreignClient.Client().CoreV1().Services(namespace).Get(svc.Name, metav1.GetOptions{})
+	serviceOld, err := p.foreignClient.Client().CoreV1().Services(namespace).Get(context.TODO(), svc.Name, metav1.GetOptions{})
 	if err != nil {
 		return err
 	}
@@ -88,14 +89,14 @@ func (p *KubernetesProvider) updateService(svc *corev1.Service, namespace string
 	svc2.SetNamespace(namespace)
 	svc2.SetResourceVersion(serviceOld.ResourceVersion)
 	svc2.SetUID(serviceOld.UID)
-	_, err = p.foreignClient.Client().CoreV1().Services(namespace).Update(svc2)
+	_, err = p.foreignClient.Client().CoreV1().Services(namespace).Update(context.TODO(), svc2, metav1.UpdateOptions{})
 
 	return err
 }
 
 func (p *KubernetesProvider) deleteService(svc *corev1.Service, namespace string) error {
 	svc.Namespace = namespace
-	err := p.foreignClient.Client().CoreV1().Services(namespace).Delete(svc.Name, &metav1.DeleteOptions{})
+	err := p.foreignClient.Client().CoreV1().Services(namespace).Delete(context.TODO(), svc.Name, metav1.DeleteOptions{})
 
 	return err
 }

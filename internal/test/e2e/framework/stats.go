@@ -1,6 +1,7 @@
 package framework
 
 import (
+	"context"
 	"encoding/json"
 	"strconv"
 
@@ -18,7 +19,7 @@ func (f *Framework) GetStatsSummary() (*stats.Summary, error) {
 		Resource("pods").
 		SubResource("proxy").
 		Name(net.JoinSchemeNamePort("http", f.NodeName, strconv.Itoa(10255))).
-		Suffix("/stats/summary").DoRaw()
+		Suffix("/stats/summary").DoRaw(context.TODO())
 	if err != nil {
 		return nil, err
 	}

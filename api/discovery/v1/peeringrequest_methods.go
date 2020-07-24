@@ -1,6 +1,7 @@
 package v1
 
 import (
+	"context"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
@@ -14,7 +15,7 @@ func (pr *PeeringRequest) GetConfig(clientset *kubernetes.Clientset) (*rest.Conf
 }
 
 func getConfig(clientset *kubernetes.Clientset, reference *v1.ObjectReference) (*rest.Config, error) {
-	secret, err := clientset.CoreV1().Secrets(reference.Namespace).Get(reference.Name, metav1.GetOptions{})
+	secret, err := clientset.CoreV1().Secrets(reference.Namespace).Get(context.TODO(), reference.Name, metav1.GetOptions{})
 	if err != nil {
 		return nil, err
 	}

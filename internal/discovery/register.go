@@ -1,6 +1,7 @@
 package discovery
 
 import (
+	"context"
 	"github.com/grandcat/zeroconf"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/klog"
@@ -66,7 +67,7 @@ func (discovery *DiscoveryCtrl) getInterfaces() []net.Interface {
 }
 
 func (discovery *DiscoveryCtrl) getPodNets() ([]*net.IPNet, error) {
-	nodes, err := discovery.crdClient.Client().CoreV1().Nodes().List(metav1.ListOptions{})
+	nodes, err := discovery.crdClient.Client().CoreV1().Nodes().List(context.TODO(), metav1.ListOptions{})
 	if err != nil {
 		return nil, err
 	}

@@ -1,6 +1,7 @@
 package kubernetes
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	v1 "github.com/liqoTech/liqo/api/namespaceNattingTable/v1"
@@ -70,7 +71,7 @@ func TestHandleConfigmapEvents(t *testing.T) {
 
 	// remote ep watcher is needed to be sure that all the expected home events are replicated in the
 	// foreign cluster
-	w, err := p.foreignClient.Client().CoreV1().ConfigMaps(test.NattedNamespace).Watch(metav1.ListOptions{
+	w, err := p.foreignClient.Client().CoreV1().ConfigMaps(test.NattedNamespace).Watch(context.TODO(), metav1.ListOptions{
 		Watch: true,
 	})
 	if err != nil {
@@ -187,7 +188,7 @@ func configmapEventsMonitoring(errChan chan error, createsDone, updatesDone, del
 func cmCreation(p *KubernetesProvider, chanError chan error) {
 	klog.Info("TEST - starting cm creation")
 	for _, c := range test.ConfigmapTestCases.InputConfigmaps {
-		_, err := p.homeClient.Client().CoreV1().ConfigMaps(test.Namespace).Create(c)
+		_, err := p.homeClient.Client().CoreV1().ConfigMaps(test.Namespace).Create(context.TODO(), c, metav1.CreateOptions{})
 		if err != nil {
 			chanError <- err
 			return
@@ -198,7 +199,7 @@ func cmCreation(p *KubernetesProvider, chanError chan error) {
 func cmUpdate(p *KubernetesProvider, chanError chan error) {
 	klog.Info("TEST - starting cm update")
 	for _, c := range test.ConfigmapTestCases.UpdateConfigmaps {
-		_, err := p.homeClient.Client().CoreV1().ConfigMaps(test.Namespace).Update(c)
+		_, err := p.homeClient.Client().CoreV1().ConfigMaps(test.Namespace).Update(context.TODO(), c, metav1.UpdateOptions{})
 		if err != nil {
 			chanError <- err
 			return
@@ -209,7 +210,7 @@ func cmUpdate(p *KubernetesProvider, chanError chan error) {
 func cmDelete(p *KubernetesProvider, chanError chan error) {
 	klog.Info("TEST - starting cm delete")
 	for _, c := range test.ConfigmapTestCases.DeleteConfigmaps {
-		err := p.homeClient.Client().CoreV1().ConfigMaps(test.Namespace).Delete(c.Name, &metav1.DeleteOptions{})
+		err := p.homeClient.Client().CoreV1().ConfigMaps(test.Namespace).Delete(context.TODO(), c.Name, metav1.DeleteOptions{})
 		if err != nil {
 			chanError <- err
 			return
@@ -219,11 +220,11 @@ func cmDelete(p *KubernetesProvider, chanError chan error) {
 
 func verifyCmConsistency(p *KubernetesProvider, event string) error {
 	klog.Infof("TEST - Asserting status coherency after %v", event)
-	homeCms, err := p.homeClient.Client().CoreV1().ConfigMaps(test.Namespace).List(metav1.ListOptions{})
+	homeCms, err := p.homeClient.Client().CoreV1().ConfigMaps(test.Namespace).List(context.TODO(), metav1.ListOptions{})
 	if err != nil {
 		return err
 	}
-	foreignCms, err := p.foreignClient.Client().CoreV1().ConfigMaps(test.NattedNamespace).List(metav1.ListOptions{})
+	foreignCms, err := p.foreignClient.Client().CoreV1().ConfigMaps(test.NattedNamespace).List(context.TODO(), metav1.ListOptions{})
 	if err != nil {
 		return err
 	}

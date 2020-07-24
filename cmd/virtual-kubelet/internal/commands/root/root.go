@@ -173,17 +173,17 @@ func runRootCommand(ctx context.Context, s *provider.Store, c Opts) error {
 					newNode.SetOwnerReferences(refs)
 				}
 
-				oldNode, newErr := client.CoreV1().Nodes().Get(newNode.Name, metav1.GetOptions{})
+				oldNode, newErr := client.CoreV1().Nodes().Get(context.TODO(), newNode.Name, metav1.GetOptions{})
 				if newErr != nil {
 					if !k8serrors.IsNotFound(newErr) {
 						klog.Error(newErr, "node error")
 						return newErr
 					}
-					_, newErr = client.CoreV1().Nodes().Create(newNode)
+					_, newErr = client.CoreV1().Nodes().Create(context.TODO(), newNode, metav1.CreateOptions{})
 					klog.Info("new node created")
 				} else {
 					oldNode.Status = newNode.Status
-					_, newErr = client.CoreV1().Nodes().UpdateStatus(oldNode)
+					_, newErr = client.CoreV1().Nodes().UpdateStatus(context.TODO(), oldNode, metav1.UpdateOptions{})
 					if newErr != nil {
 						klog.Info("node updated")
 					}
@@ -297,7 +297,7 @@ func newClient(configPath string) (*kubernetes.Clientset, error) {
 }
 
 func createOwnerReference(c *kubernetes.Clientset, deployName, namespace string) []metav1.OwnerReference {
-	if d, err := c.AppsV1().Deployments(namespace).Get(deployName, metav1.GetOptions{
+	if d, err := c.AppsV1().Deployments(namespace).Get(context.TODO(), deployName, metav1.GetOptions{
 		TypeMeta: metav1.TypeMeta{Kind: "Deployment", APIVersion: metav1.SchemeGroupVersion.Version},
 	}); err != nil {
 		if k8serrors.IsNotFound(err) {

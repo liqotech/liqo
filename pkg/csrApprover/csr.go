@@ -1,6 +1,7 @@
 package csrApprover
 
 import (
+	"context"
 	certificatesv1beta1 "k8s.io/api/certificates/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	k8s "k8s.io/client-go/kubernetes"
@@ -25,7 +26,7 @@ func approveCSR(clientSet k8s.Interface, csr *certificatesv1beta1.CertificateSig
 		Message:        "This CSR was approved by Liqo Advertisement Operator",
 		LastUpdateTime: metav1.Now(),
 	})
-	_, errApproval := clientSet.CertificatesV1beta1().CertificateSigningRequests().UpdateApproval(csr)
+	_, errApproval := clientSet.CertificatesV1beta1().CertificateSigningRequests().UpdateApproval(context.TODO(), csr, metav1.UpdateOptions{})
 	if errApproval != nil {
 		return errApproval
 	}
@@ -33,7 +34,7 @@ func approveCSR(clientSet k8s.Interface, csr *certificatesv1beta1.CertificateSig
 }
 
 func WatchCSR(clientset k8s.Interface, label string) {
-	watch, err := clientset.CertificatesV1beta1().CertificateSigningRequests().Watch(metav1.ListOptions{
+	watch, err := clientset.CertificatesV1beta1().CertificateSigningRequests().Watch(context.TODO(), metav1.ListOptions{
 		LabelSelector: label,
 	})
 	if err != nil {

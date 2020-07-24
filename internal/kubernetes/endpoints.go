@@ -1,6 +1,7 @@
 package kubernetes
 
 import (
+	"context"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -52,7 +53,7 @@ func (p *KubernetesProvider) manageEpEvent(endpoints *corev1.Endpoints) error {
 		foreignEps.Labels = make(map[string]string)
 	}
 	foreignEps.Namespace = nattedNS
-	_, err = p.foreignClient.Client().CoreV1().Endpoints(nattedNS).Update(foreignEps)
+	_, err = p.foreignClient.Client().CoreV1().Endpoints(nattedNS).Update(context.TODO(), foreignEps, metav1.UpdateOptions{})
 	if err != nil {
 		return err
 	}
@@ -140,7 +141,7 @@ func (c *epCache) get(name string, options metav1.GetOptions) (*corev1.Endpoints
 		return ep.(*corev1.Endpoints), nil
 	}
 
-	ep, err := c.client.CoreV1().Endpoints(c.namespace).Get(name, options)
+	ep, err := c.client.CoreV1().Endpoints(c.namespace).Get(context.TODO(), name, options)
 	if err != nil {
 		return nil, err
 	}
@@ -157,13 +158,13 @@ func (c *epCache) list(options metav1.ListOptions) (*corev1.EndpointsList, error
 	}
 	if c.store == nil {
 		klog.V(6).Info("endpoints listed from remote")
-		return c.client.CoreV1().Endpoints(c.namespace).List(options)
+		return c.client.CoreV1().Endpoints(c.namespace).List(context.TODO(), options)
 	}
 
 	eps := c.store.List()
 	if eps == nil {
 		klog.V(6).Info("endpoints listed from remote")
-		return c.client.CoreV1().Endpoints(c.namespace).List(options)
+		return c.client.CoreV1().Endpoints(c.namespace).List(context.TODO(), options)
 	}
 
 	for _, ep := range eps {
@@ -177,10 +178,10 @@ func (c *epCache) list(options metav1.ListOptions) (*corev1.EndpointsList, error
 // newForeignEpCache creates a new cache that serves the remote endpoints.
 func (p *KubernetesProvider) newForeignEpCache(c kubernetes.Interface, namespace string, stopChan chan struct{}) *epCache {
 	listFunc := func(ls metav1.ListOptions) (result runtime.Object, err error) {
-		return c.CoreV1().Endpoints(namespace).List(ls)
+		return c.CoreV1().Endpoints(namespace).List(context.TODO(), ls)
 	}
 	watchFunc := func(ls metav1.ListOptions) (watch.Interface, error) {
-		return c.CoreV1().Endpoints(namespace).Watch(ls)
+		return c.CoreV1().Endpoints(namespace).Watch(context.TODO(), ls)
 	}
 
 	store, controller := cache.NewInformer(
@@ -209,7 +210,7 @@ func (p *KubernetesProvider) newForeignEpCache(c kubernetes.Interface, namespace
 func (p *KubernetesProvider) newHomeEpCache(c kubernetes.Interface, namespace string, stopChan chan struct{}) *epCache {
 	lastUpdates := make(map[string]time.Time)
 	listFunc := func(ls metav1.ListOptions) (result runtime.Object, err error) {
-		eps, err := c.CoreV1().Endpoints(namespace).List(ls)
+		eps, err := c.CoreV1().Endpoints(namespace).List(context.TODO(), ls)
 		if err != nil {
 			return eps, err
 		}
@@ -223,7 +224,7 @@ func (p *KubernetesProvider) newHomeEpCache(c kubernetes.Interface, namespace st
 		return eps, err
 	}
 	watchFunc := func(ls metav1.ListOptions) (watch.Interface, error) {
-		return c.CoreV1().Endpoints(namespace).Watch(ls)
+		return c.CoreV1().Endpoints(namespace).Watch(context.TODO(), ls)
 	}
 
 	store, controller := cache.NewInformer(

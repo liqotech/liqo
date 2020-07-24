@@ -1,6 +1,7 @@
 package v1
 
 import (
+	"context"
 	protocolv1 "github.com/liqoTech/liqo/api/advertisement-operator/v1"
 	"github.com/liqoTech/liqo/pkg/crdClient"
 	v1 "k8s.io/api/core/v1"
@@ -13,7 +14,7 @@ import (
 )
 
 func (fc *ForeignCluster) GetConfig(client kubernetes.Interface) (*rest.Config, error) {
-	secret, err := client.CoreV1().Secrets(fc.Status.CaDataRef.Namespace).Get(fc.Status.CaDataRef.Name, metav1.GetOptions{})
+	secret, err := client.CoreV1().Secrets(fc.Status.CaDataRef.Namespace).Get(context.TODO(), fc.Status.CaDataRef.Name, metav1.GetOptions{})
 	if err != nil {
 		return nil, err
 	}
@@ -47,7 +48,7 @@ func (fc *ForeignCluster) LoadForeignCA(localClient kubernetes.Interface, localN
 	if err != nil {
 		return err
 	}
-	secret, err := client.CoreV1().Secrets(fc.Spec.Namespace).Get("ca-data", metav1.GetOptions{})
+	secret, err := client.CoreV1().Secrets(fc.Spec.Namespace).Get(context.TODO(), "ca-data", metav1.GetOptions{})
 	if err != nil {
 		return err
 	}
@@ -67,13 +68,13 @@ func (fc *ForeignCluster) LoadForeignCA(localClient kubernetes.Interface, localN
 			"caData": secret.Data["ca.crt"],
 		},
 	}
-	localSecret, err = localClient.CoreV1().Secrets(localNamespace).Create(localSecret)
+	localSecret, err = localClient.CoreV1().Secrets(localNamespace).Create(context.TODO(), localSecret, metav1.CreateOptions{})
 	if err != nil {
 		if !errors.IsAlreadyExists(err) {
 			return err
 		}
 		// already exists
-		localSecret, err = localClient.CoreV1().Secrets(localNamespace).Get(fc.Name+"-ca-data", metav1.GetOptions{})
+		localSecret, err = localClient.CoreV1().Secrets(localNamespace).Get(context.TODO(), fc.Name+"-ca-data", metav1.GetOptions{})
 		if err != nil {
 			return err
 		}

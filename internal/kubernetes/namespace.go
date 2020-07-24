@@ -1,6 +1,7 @@
 package kubernetes
 
 import (
+	"context"
 	"errors"
 	nattingv1 "github.com/liqoTech/liqo/api/namespaceNattingTable/v1"
 	"github.com/liqoTech/liqo/pkg/crdClient"
@@ -105,7 +106,7 @@ func (p *KubernetesProvider) NatNamespace(namespace string, create bool) (string
 			},
 		}
 
-		_, err = p.foreignClient.Client().CoreV1().Namespaces().Create(ns)
+		_, err = p.foreignClient.Client().CoreV1().Namespaces().Create(context.TODO(), ns, metav1.CreateOptions{})
 		if err != nil && !kerror.IsAlreadyExists(err) {
 			return "", err
 		}
@@ -186,7 +187,7 @@ func (p *KubernetesProvider) manageReflections(oldObj interface{}, newObj interf
 				},
 			}
 
-			_, err := p.foreignClient.Client().CoreV1().Namespaces().Create(ns)
+			_, err := p.foreignClient.Client().CoreV1().Namespaces().Create(context.TODO(), ns, metav1.CreateOptions{})
 			if err != nil && !kerror.IsAlreadyExists(err) {
 				klog.Error(err, "error in namespace creation")
 				continue

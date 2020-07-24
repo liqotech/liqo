@@ -1,6 +1,7 @@
 package discovery
 
 import (
+	"context"
 	"errors"
 	v1 "github.com/liqoTech/liqo/api/discovery/v1"
 	k8serror "k8s.io/apimachinery/pkg/api/errors"
@@ -165,7 +166,7 @@ func (discovery *DiscoveryCtrl) CheckUpdate(txtData *TxtData, fc *v1.ForeignClus
 		fc.Spec.Namespace = txtData.Namespace
 		fc.Spec.DiscoveryType = discoveryType
 		if fc.Status.CaDataRef != nil {
-			err := discovery.crdClient.Client().CoreV1().Secrets(fc.Status.CaDataRef.Namespace).Delete(fc.Status.CaDataRef.Name, &metav1.DeleteOptions{})
+			err := discovery.crdClient.Client().CoreV1().Secrets(fc.Status.CaDataRef.Namespace).Delete(context.TODO(), fc.Status.CaDataRef.Name, metav1.DeleteOptions{})
 			if err != nil {
 				klog.Error(err, err.Error())
 				return nil, err

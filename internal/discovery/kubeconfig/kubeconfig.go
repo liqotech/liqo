@@ -1,6 +1,7 @@
 package kubeconfig
 
 import (
+	"context"
 	"errors"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -13,19 +14,20 @@ import (
 
 // this function creates a kube-config file for a specified ServiceAccount
 func CreateKubeConfig(clientset kubernetes.Interface, serviceAccountName string, namespace string) (string, error) {
-	serviceAccount, err := clientset.CoreV1().ServiceAccounts(namespace).Get(serviceAccountName, v1.GetOptions{})
+	serviceAccount, err := clientset.CoreV1().ServiceAccounts(namespace).Get(context.TODO(), serviceAccountName, v1.GetOptions{})
 	if err != nil {
 		return "", err
 	}
 
-	secret, err := clientset.CoreV1().Secrets(namespace).Get(serviceAccount.Secrets[0].Name, v1.GetOptions{})
+	secret, err := clientset.CoreV1().Secrets(namespace).Get(context.TODO(), serviceAccount.Secrets[0].Name, v1.GetOptions{})
 	if err != nil {
 		return "", err
 	}
 
 	address, ok := os.LookupEnv("APISERVER")
 	if !ok || address == "" {
-		nodes, err := clientset.CoreV1().Nodes().List(v1.ListOptions{
+		nodes, err := clientset.CoreV1().Nodes().List(context.TODO(), v1.ListOptions{
+
 			LabelSelector: "node-role.kubernetes.io/master",
 		})
 		if err != nil {
