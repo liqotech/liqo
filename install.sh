@@ -102,7 +102,7 @@ mkdir -p $TMPDIR/bin/
 echo "[PRE-INSTALL] [HELM] Checking HELM installation..."
 echo "[PRE-INSTALL] [HELM]: Downloading Helm $HELM_VERSION"
 curl --fail -L ${HELM_URL} | tar zxf - --directory="$TMPDIR/bin/" --wildcards '*/helm' --strip 1
-if [ "$LIQO_SUFFIX" == "-ci" ] && [ -z "${LIQO_VERSION}" ]  ; then
+if [ "$LIQO_SUFFIX" == "-ci" ] && [ ! -z "${LIQO_VERSION}" ]  ; then
   git clone "$URL" $TMPDIR/liqo
   cd  $TMPDIR/liqo
   git checkout "$LIQO_VERSION" > /dev/null 2> /dev/null

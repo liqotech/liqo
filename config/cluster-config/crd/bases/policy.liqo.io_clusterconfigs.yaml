@@ -121,7 +121,6 @@ spec:
               required:
               - gatewayPrivateIP
               - reservedSubnets
-              - vxlanNetConfig
               type: object
           required:
           - advertisementConfig
