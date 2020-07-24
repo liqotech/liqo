@@ -9,7 +9,7 @@ import (
 	"time"
 )
 
-func Wan(dnsAddr string, name string) ([]*discovery.TxtData, error) {
+func Wan(dnsAddr string, name string, test bool) ([]*discovery.TxtData, error) {
 	txtData := []*discovery.TxtData{}
 
 	c := new(dns.Client)
@@ -29,7 +29,7 @@ func Wan(dnsAddr string, name string) ([]*discovery.TxtData, error) {
 			klog.Warning("Not PTR record: ", ans)
 			continue
 		}
-		txt, err := ResolveWan(c, dnsAddr, ptr)
+		txt, err := ResolveWan(c, dnsAddr, ptr, test)
 		if err != nil {
 			klog.Error(err, err.Error())
 			return nil, err
@@ -39,7 +39,7 @@ func Wan(dnsAddr string, name string) ([]*discovery.TxtData, error) {
 	return txtData, nil
 }
 
-func ResolveWan(c *dns.Client, dnsAddr string, ptr *dns.PTR) (*discovery.TxtData, error) {
+func ResolveWan(c *dns.Client, dnsAddr string, ptr *dns.PTR, test bool) (*discovery.TxtData, error) {
 	// SRV query
 	msg := GetDnsMsg(ptr.Ptr, dns.TypeSRV)
 	in, _, err := c.Exchange(msg, dnsAddr)
@@ -66,9 +66,18 @@ func ResolveWan(c *dns.Client, dnsAddr string, ptr *dns.PTR) (*discovery.TxtData
 		return nil, err
 	}
 
+	if test {
+		return completeResolution(c, dnsAddr, srv, txt)
+	} else {
+		// let http client to do A/CNAME resolution
+		return discovery.Decode(srv.Target, strconv.Itoa(int(srv.Port)), txt)
+	}
+}
+
+func completeResolution(c *dns.Client, dnsAddr string, srv *dns.SRV, txt []string) (*discovery.TxtData, error) {
 	// A query
-	msg = GetDnsMsg(srv.Target, dns.TypeA)
-	in, _, err = c.Exchange(msg, dnsAddr)
+	msg := GetDnsMsg(srv.Target, dns.TypeA)
+	in, _, err := c.Exchange(msg, dnsAddr)
 	if err != nil {
 		klog.Error(err, err.Error())
 		return nil, err

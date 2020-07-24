@@ -27,7 +27,7 @@ func testDns(t *testing.T) {
 		getTxtData(serverCluster, "dns-server-cluster"),
 	}
 
-	txts, err := search_domain_operator.Wan("127.0.0.1:8053", registryDomain)
+	txts, err := search_domain_operator.Wan("127.0.0.1:8053", registryDomain, true)
 	assert.NilError(t, err, "Error during WAN DNS discovery")
 
 	assert.Equal(t, len(txts), len(targetTxts))
@@ -57,7 +57,7 @@ func testCname(t *testing.T) {
 		getTxtData(serverCluster, "dns-server-cluster"),
 	}
 
-	txts, err := search_domain_operator.Wan("127.0.0.1:8053", registryDomain)
+	txts, err := search_domain_operator.Wan("127.0.0.1:8053", registryDomain, true)
 	assert.NilError(t, err, "Error during WAN DNS discovery")
 
 	assert.Equal(t, len(txts), len(targetTxts))

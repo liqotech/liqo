@@ -49,7 +49,7 @@ func (r *SearchDomainReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error
 
 	update := false
 
-	txts, err := Wan(r.DiscoveryCtrl.Config.DnsServer, sd.Spec.Domain)
+	txts, err := Wan(r.DiscoveryCtrl.Config.DnsServer, sd.Spec.Domain, false)
 	if err != nil {
 		klog.Error(err, err.Error())
 		return ctrl.Result{

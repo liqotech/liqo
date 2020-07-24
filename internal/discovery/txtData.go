@@ -29,7 +29,7 @@ func (txtData *TxtData) GetAllowUntrustedCA() string {
 	}
 }
 
-func Decode(ip string, port string, data []string) (*TxtData, error) {
+func Decode(address string, port string, data []string) (*TxtData, error) {
 	var res = TxtData{}
 	for _, d := range data {
 		if strings.HasPrefix(d, "id=") {
@@ -40,7 +40,7 @@ func Decode(ip string, port string, data []string) (*TxtData, error) {
 			res.AllowUntrustedCA = d[len("untrusted-ca="):] == "true"
 		}
 	}
-	res.ApiUrl = "https://" + ip + ":" + port
+	res.ApiUrl = "https://" + address + ":" + port
 	if res.ID == "" || res.Namespace == "" || res.ApiUrl == "" {
 		return nil, errors.New("TxtData missing required field")
 	}
