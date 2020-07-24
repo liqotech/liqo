@@ -52,7 +52,7 @@ spec:
                   minimum: 0
                   type: integer
               required:
-              - autoAccept
+                - autoAccept
               type: object
             discoveryConfig:
               properties:
@@ -81,16 +81,16 @@ spec:
                   minimum: 1
                   type: integer
               required:
-              - autojoin
-              - dnsServer
-              - domain
-              - enableAdvertisement
-              - enableDiscovery
-              - name
-              - port
-              - service
-              - updateTime
-              - waitTime
+                - autojoin
+                - dnsServer
+                - domain
+                - enableAdvertisement
+                - enableDiscovery
+                - name
+                - port
+                - service
+                - updateTime
+                - waitTime
               type: object
             liqonetConfig:
               properties:
@@ -113,20 +113,19 @@ spec:
                     Vni:
                       type: string
                   required:
-                  - DeviceName
-                  - Network
-                  - Port
-                  - Vni
+                    - DeviceName
+                    - Network
+                    - Port
+                    - Vni
                   type: object
               required:
-              - gatewayPrivateIP
-              - reservedSubnets
-              - vxlanNetConfig
+                - gatewayPrivateIP
+                - reservedSubnets
               type: object
           required:
-          - advertisementConfig
-          - discoveryConfig
-          - liqonetConfig
+            - advertisementConfig
+            - discoveryConfig
+            - liqonetConfig
           type: object
         status:
           description: ClusterConfigStatus defines the observed state of ClusterConfig
@@ -134,9 +133,9 @@ spec:
       type: object
   version: v1
   versions:
-  - name: v1
-    served: true
-    storage: true
+    - name: v1
+      served: true
+      storage: true
 status:
   acceptedNames:
     kind: ""
