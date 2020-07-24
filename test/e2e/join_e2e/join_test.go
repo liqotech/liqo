@@ -1,6 +1,7 @@
 package join_e2e
 
 import (
+	context2 "context"
 	"github.com/stretchr/testify/assert"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
@@ -99,7 +100,7 @@ func TestNodeVK2(t *testing.T) {
 }
 
 func ArePodsUp(clientset *kubernetes.Clientset, namespace string, t *testing.T, clustername string) {
-	pods, err := clientset.CoreV1().Pods(namespace).List(metav1.ListOptions{})
+	pods, err := clientset.CoreV1().Pods(namespace).List(context2.TODO(), metav1.ListOptions{})
 	if err != nil {
 		klog.Error(err)
 		t.Fail()
@@ -113,12 +114,12 @@ func ArePodsUp(clientset *kubernetes.Clientset, namespace string, t *testing.T, 
 }
 
 func CheckVkNode(client1 *kubernetes.Clientset, client2 *kubernetes.Clientset, namespace string, t *testing.T) {
-	id, err := client1.CoreV1().ConfigMaps(namespace).Get("cluster-id", metav1.GetOptions{})
+	id, err := client1.CoreV1().ConfigMaps(namespace).Get(context2.TODO(), "cluster-id", metav1.GetOptions{})
 	if err != nil {
 		klog.Error(err)
 		t.Fail()
 	}
-	node, err := client2.CoreV1().Nodes().Get("vk-"+id.Data["cluster-id"], metav1.GetOptions{})
+	node, err := client2.CoreV1().Nodes().Get(context2.TODO(), "vk-"+id.Data["cluster-id"], metav1.GetOptions{})
 	if err != nil {
 		klog.Error(err)
 		t.Fail()

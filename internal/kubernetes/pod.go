@@ -50,7 +50,7 @@ func (p *KubernetesProvider) CreatePod(ctx context.Context, pod *v1.Pod) error {
 
 	podTranslated := H2FTranslate(pod, nattedNS)
 
-	podServer, err := p.foreignClient.Client().CoreV1().Pods(podTranslated.Namespace).Create(podTranslated)
+	podServer, err := p.foreignClient.Client().CoreV1().Pods(podTranslated.Namespace).Create(context.TODO(), podTranslated, metav1.CreateOptions{})
 	if err != nil {
 		return err
 	}
@@ -73,7 +73,7 @@ func (p *KubernetesProvider) UpdatePod(ctx context.Context, pod *v1.Pod) error {
 	podTranslated := H2FTranslate(pod, nattedNS)
 
 	if p.foreignPodCaches == nil || p.foreignPodCaches[nattedNS] == nil {
-		_, err = p.foreignClient.Client().CoreV1().Pods(nattedNS).Get(podTranslated.Name, metav1.GetOptions{})
+		_, err = p.foreignClient.Client().CoreV1().Pods(nattedNS).Get(context.TODO(), podTranslated.Name, metav1.GetOptions{})
 	} else {
 		_, err = p.foreignPodCaches[nattedNS].get(podTranslated.Name, metav1.GetOptions{})
 	}
@@ -96,7 +96,7 @@ func (p *KubernetesProvider) DeletePod(ctx context.Context, pod *v1.Pod) (err er
 		return err
 	}
 
-	err = p.foreignClient.Client().CoreV1().Pods(nattedNS).Delete(pod.Name, opts)
+	err = p.foreignClient.Client().CoreV1().Pods(nattedNS).Delete(context.TODO(), pod.Name, *opts)
 	if err != nil {
 		return errors.Wrap(err, "Unable to delete pod")
 	}
@@ -135,7 +135,7 @@ func (p *KubernetesProvider) GetPod(ctx context.Context, namespace, name string)
 
 	var podServer *v1.Pod
 	if p.foreignPodCaches == nil || p.foreignPodCaches[nattedNS] == nil {
-		podServer, err = p.foreignClient.Client().CoreV1().Pods(nattedNS).Get(name, metav1.GetOptions{})
+		podServer, err = p.foreignClient.Client().CoreV1().Pods(nattedNS).Get(context.TODO(), name, metav1.GetOptions{})
 	} else {
 		podServer, err = p.foreignPodCaches[nattedNS].get(name, metav1.GetOptions{})
 	}
@@ -161,7 +161,7 @@ func (p *KubernetesProvider) GetPodStatus(ctx context.Context, namespace, name s
 
 	var podForeignIn *v1.Pod
 	if p.foreignPodCaches == nil || p.foreignPodCaches[nattedNS] == nil {
-		podForeignIn, err = p.foreignClient.Client().CoreV1().Pods(nattedNS).Get(name, metav1.GetOptions{})
+		podForeignIn, err = p.foreignClient.Client().CoreV1().Pods(nattedNS).Get(context.TODO(), name, metav1.GetOptions{})
 	} else {
 		podForeignIn, err = p.foreignPodCaches[nattedNS].get(name, metav1.GetOptions{})
 	}
@@ -226,7 +226,7 @@ func (p *KubernetesProvider) GetContainerLogs(ctx context.Context, namespace str
 		Container: containerName,
 	}
 	logs := p.foreignClient.Client().CoreV1().Pods(nattedNS).GetLogs(podName, options)
-	stream, err := logs.Stream()
+	stream, err := logs.Stream(context.TODO())
 	if err != nil {
 		return nil, fmt.Errorf("could not get stream from logs request: %v", err)
 	}
@@ -258,7 +258,7 @@ func (p *KubernetesProvider) GetPods(ctx context.Context) ([]*v1.Pod, error) {
 		var err error
 
 		if p.foreignPodCaches == nil || p.foreignPodCaches[v] == nil {
-			podsForeignIn, err = p.foreignClient.Client().CoreV1().Pods(v).List(metav1.ListOptions{})
+			podsForeignIn, err = p.foreignClient.Client().CoreV1().Pods(v).List(context.TODO(), metav1.ListOptions{})
 		} else {
 			podsForeignIn, err = p.foreignPodCaches[v].list(metav1.ListOptions{})
 		}
@@ -296,7 +296,7 @@ func (p *KubernetesProvider) GetStatsSummary(ctx context.Context) (*stats.Summar
 	}
 
 	// Populate the Summary object with dummy stats for each pod known by this provider.
-	pods, err := p.foreignClient.Client().CoreV1().Pods("").List(metav1.ListOptions{})
+	pods, err := p.foreignClient.Client().CoreV1().Pods("").List(context.TODO(), metav1.ListOptions{})
 	if err != nil {
 		if kerror.IsNotFound(err) {
 			return nil, errdefs.NotFoundf("pods in \"%s\" is not known to the provider", "")
@@ -378,10 +378,10 @@ type podCache struct {
 // newForeignPodCache creates a new cache that serves the remote pods for a specific endpoint.
 func newForeignPodCache(c kubernetes.Interface, namespace string) *podCache {
 	listFunc := func(ls metav1.ListOptions) (result runtime.Object, err error) {
-		return c.CoreV1().Pods(namespace).List(ls)
+		return c.CoreV1().Pods(namespace).List(context.TODO(), ls)
 	}
 	watchFunc := func(ls metav1.ListOptions) (watch.Interface, error) {
-		return c.CoreV1().Pods(namespace).Watch(ls)
+		return c.CoreV1().Pods(namespace).Watch(context.TODO(), ls)
 	}
 
 	store, controller := cache.NewInformer(
@@ -413,7 +413,7 @@ func (c *podCache) get(name string, options metav1.GetOptions) (*v1.Pod, error) 
 		return po.(*v1.Pod), nil
 	}
 
-	po, err := c.client.CoreV1().Pods(c.namespace).Get(name, options)
+	po, err := c.client.CoreV1().Pods(c.namespace).Get(context.TODO(), name, options)
 	if err != nil {
 		return nil, err
 	}
@@ -428,13 +428,13 @@ func (c *podCache) list(options metav1.ListOptions) (*v1.PodList, error) {
 	}
 	if c.store == nil {
 		klog.V(6).Info("pods listed from remote")
-		return c.client.CoreV1().Pods(c.namespace).List(options)
+		return c.client.CoreV1().Pods(c.namespace).List(context.TODO(), options)
 	}
 
 	pods := c.store.List()
 	if pods == nil {
 		klog.V(6).Info("pods listed from remote")
-		return c.client.CoreV1().Pods(c.namespace).List(options)
+		return c.client.CoreV1().Pods(c.namespace).List(context.TODO(), options)
 	}
 
 	for _, po := range pods {

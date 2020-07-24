@@ -2,6 +2,7 @@ package liqonet
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"github.com/apparentlymart/go-cidr/cidr"
 	"github.com/liqoTech/liqo/internal/errdefs"
@@ -65,7 +66,7 @@ func getInternalIPOfNode(node corev1.Node) (string, error) {
 func IsGatewayNode(clientset *kubernetes.Clientset) (bool, error) {
 	isGatewayNode := false
 	//retrieve the node which is labeled as the gateway
-	nodesList, err := clientset.CoreV1().Nodes().List(metav1.ListOptions{LabelSelector: "liqonet.liqo.io/gateway == true"})
+	nodesList, err := clientset.CoreV1().Nodes().List(context.TODO(), metav1.ListOptions{LabelSelector: "liqonet.liqo.io/gateway == true"})
 	if err != nil {
 		logger.Error(err, "Unable to list nodes with labbel 'liqonet.liqo.io/gateway=true'")
 		return isGatewayNode, fmt.Errorf(" Unable to list nodes with label 'liqonet.liqo.io/gateway=true': %v", err)
@@ -93,7 +94,7 @@ func IsGatewayNode(clientset *kubernetes.Clientset) (bool, error) {
 func GetGatewayVxlanIP(clientset *kubernetes.Clientset, vxlanConfig VxlanNetConfig) (string, error) {
 	var gatewayVxlanIP string
 	//retrieve the node which is labeled as the gateway
-	nodesList, err := clientset.CoreV1().Nodes().List(metav1.ListOptions{LabelSelector: "liqonet.liqo.io/gateway == true"})
+	nodesList, err := clientset.CoreV1().Nodes().List(context.TODO(), metav1.ListOptions{LabelSelector: "liqonet.liqo.io/gateway == true"})
 	if err != nil {
 		logger.Error(err, "Unable to list nodes with label 'liqonet.liqo.io/gateway=true'")
 		return gatewayVxlanIP, fmt.Errorf(" Unable to list nodes with label 'liqonet.liqo.io/gateway=true': %v", err)
@@ -118,7 +119,7 @@ func GetGatewayVxlanIP(clientset *kubernetes.Clientset, vxlanConfig VxlanNetConf
 }
 func getRemoteVTEPS(clientset *kubernetes.Clientset) ([]string, error) {
 	var remoteVTEP []string
-	nodesList, err := clientset.CoreV1().Nodes().List(metav1.ListOptions{LabelSelector: "type != virtual-node"})
+	nodesList, err := clientset.CoreV1().Nodes().List(context.TODO(), metav1.ListOptions{LabelSelector: "type != virtual-node"})
 	if err != nil {
 		logger.Error(err, "Unable to list nodes with label 'liqonet.liqo.io/gateway=true'")
 		return nil, fmt.Errorf(" Unable to list nodes with label 'type != virtual-node': %v", err)

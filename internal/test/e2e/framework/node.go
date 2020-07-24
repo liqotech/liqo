@@ -22,11 +22,11 @@ func (f *Framework) WaitUntilNodeCondition(fn watch.ConditionFunc) error {
 	lw := &cache.ListWatch{
 		ListFunc: func(options metav1.ListOptions) (runtime.Object, error) {
 			options.FieldSelector = fs
-			return f.KubeClient.CoreV1().Nodes().List(options)
+			return f.KubeClient.CoreV1().Nodes().List(context.TODO(), options)
 		},
 		WatchFunc: func(options metav1.ListOptions) (watchapi.Interface, error) {
 			options.FieldSelector = fs
-			return f.KubeClient.CoreV1().Nodes().Watch(options)
+			return f.KubeClient.CoreV1().Nodes().Watch(context.TODO(), options)
 		},
 	}
 
@@ -51,10 +51,10 @@ func (f *Framework) DeleteNode() error {
 		PropagationPolicy:  &propagation,
 		GracePeriodSeconds: &gracePeriod,
 	}
-	return f.KubeClient.CoreV1().Nodes().Delete(f.NodeName, &opts)
+	return f.KubeClient.CoreV1().Nodes().Delete(context.TODO(), f.NodeName, opts)
 }
 
 // GetNode gets the vk nodeused by the framework
 func (f *Framework) GetNode() (*corev1.Node, error) {
-	return f.KubeClient.CoreV1().Nodes().Get(f.NodeName, metav1.GetOptions{})
+	return f.KubeClient.CoreV1().Nodes().Get(context.TODO(), f.NodeName, metav1.GetOptions{})
 }

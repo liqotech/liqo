@@ -1,6 +1,7 @@
 package discovery
 
 import (
+	"context"
 	apiv1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/klog"
@@ -8,14 +9,14 @@ import (
 )
 
 func (discovery *DiscoveryCtrl) SetupCaData() {
-	_, err := discovery.crdClient.Client().CoreV1().Secrets(discovery.Namespace).Get("ca-data", metav1.GetOptions{})
+	_, err := discovery.crdClient.Client().CoreV1().Secrets(discovery.Namespace).Get(context.TODO(), "ca-data", metav1.GetOptions{})
 	if err == nil {
 		// already exists
 		return
 	}
 
 	// get CaData from Secrets
-	secrets, err := discovery.crdClient.Client().CoreV1().Secrets(discovery.Namespace).List(metav1.ListOptions{
+	secrets, err := discovery.crdClient.Client().CoreV1().Secrets(discovery.Namespace).List(context.TODO(), metav1.ListOptions{
 		Limit:         1,
 		FieldSelector: "type=kubernetes.io/service-account-token",
 	})
@@ -40,7 +41,7 @@ func (discovery *DiscoveryCtrl) SetupCaData() {
 			"ca.crt": secrets.Items[0].Data["ca.crt"],
 		},
 	}
-	_, err = discovery.crdClient.Client().CoreV1().Secrets(discovery.Namespace).Create(secret)
+	_, err = discovery.crdClient.Client().CoreV1().Secrets(discovery.Namespace).Create(context.TODO(), secret, metav1.CreateOptions{})
 	if err != nil {
 		klog.Error(err, err.Error())
 		os.Exit(1)

@@ -1,6 +1,7 @@
 package kubernetes
 
 import (
+	"context"
 	"errors"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -24,7 +25,7 @@ func (p *KubernetesProvider) manageSecEvent(event watch.Event) error {
 
 	switch event.Type {
 	case watch.Added:
-		_, err := p.foreignClient.Client().CoreV1().Secrets(nattedNS).Get(sec.Name, metav1.GetOptions{})
+		_, err := p.foreignClient.Client().CoreV1().Secrets(nattedNS).Get(context.TODO(), sec.Name, metav1.GetOptions{})
 		if err != nil {
 			klog.V(5).Info("remote secret " + sec.Name + " doesn't exist: creating it")
 
@@ -70,13 +71,13 @@ func (p *KubernetesProvider) createSecret(sec *corev1.Secret, namespace string) 
 	}
 	secRemote.Labels["liqo/reflection"] = "reflected"
 
-	_, err := p.foreignClient.Client().CoreV1().Secrets(namespace).Create(&secRemote)
+	_, err := p.foreignClient.Client().CoreV1().Secrets(namespace).Create(context.TODO(), &secRemote, metav1.CreateOptions{})
 
 	return err
 }
 
 func (p *KubernetesProvider) updateSecret(sec *corev1.Secret, namespace string) error {
-	secOld, err := p.foreignClient.Client().CoreV1().Secrets(namespace).Get(sec.Name, metav1.GetOptions{})
+	secOld, err := p.foreignClient.Client().CoreV1().Secrets(namespace).Get(context.TODO(), sec.Name, metav1.GetOptions{})
 	if err != nil {
 		return err
 	}
@@ -85,14 +86,14 @@ func (p *KubernetesProvider) updateSecret(sec *corev1.Secret, namespace string) 
 	sec2.SetNamespace(namespace)
 	sec2.SetResourceVersion(secOld.ResourceVersion)
 	sec2.SetUID(secOld.UID)
-	_, err = p.foreignClient.Client().CoreV1().Secrets(namespace).Update(sec2)
+	_, err = p.foreignClient.Client().CoreV1().Secrets(namespace).Update(context.TODO(), sec2, metav1.UpdateOptions{})
 
 	return err
 }
 
 func (p *KubernetesProvider) deleteSecret(sec *corev1.Secret, namespace string) error {
 	sec.Namespace = namespace
-	err := p.foreignClient.Client().CoreV1().Secrets(namespace).Delete(sec.Name, &metav1.DeleteOptions{})
+	err := p.foreignClient.Client().CoreV1().Secrets(namespace).Delete(context.TODO(), sec.Name, metav1.DeleteOptions{})
 
 	return err
 }

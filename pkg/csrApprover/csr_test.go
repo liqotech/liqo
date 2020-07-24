@@ -1,6 +1,7 @@
 package csrApprover
 
 import (
+	"context"
 	"github.com/stretchr/testify/assert"
 	certificatesv1beta1 "k8s.io/api/certificates/v1beta1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -23,7 +24,7 @@ func TestNewNamespaceWithSuffix(t *testing.T) {
 	}
 
 	c := testclient.NewSimpleClientset()
-	_, err := c.CertificatesV1beta1().CertificateSigningRequests().Create(&certificateToValidate)
+	_, err := c.CertificatesV1beta1().CertificateSigningRequests().Create(context.TODO(), &certificateToValidate, v1.CreateOptions{})
 	if err != nil {
 		t.Fail()
 	}
@@ -31,10 +32,11 @@ func TestNewNamespaceWithSuffix(t *testing.T) {
 	if err != nil {
 		t.Fail()
 	}
-	cert, err := c.CertificatesV1beta1().CertificateSigningRequests().Get("to_validate", v1.GetOptions{})
+	cert, err := c.CertificatesV1beta1().CertificateSigningRequests().Get(context.TODO(), "to_validate", v1.GetOptions{})
 	if err != nil {
 		t.Fail()
 	}
+	assert.NotNil(t, cert)
 	assert.NotEmpty(t, cert.Status.Conditions)
 	conditions := cert.Status.Conditions
 	assert.Equal(t, conditions[0].Type, certificatesv1beta1.CertificateApproved)

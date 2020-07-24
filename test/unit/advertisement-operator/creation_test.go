@@ -138,14 +138,21 @@ func TestCreateOrUpdate(t *testing.T) {
 
 func testPod(t *testing.T, c client.Client) {
 	name, ns := "pod", "fakens"
+	nsObject := &corev1.Namespace{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: ns,
+		},
+	}
 	key := types.NamespacedName{
 		Name:      name,
 		Namespace: ns,
 	}
+	err := c.Create(context.Background(), nsObject)
+	assert.Nil(t, err)
 	pod := createFakePod(name, ns)
 
 	// test pod creation
-	err := advertisement_operator.CreateOrUpdate(c, context.Background(), pod)
+	err = advertisement_operator.CreateOrUpdate(c, context.Background(), pod)
 	assert.Nil(t, err)
 
 	// creation requires some time to be effective

@@ -1,6 +1,7 @@
 package advertisement_operator
 
 import (
+	"context"
 	"fmt"
 	protocolv1 "github.com/liqoTech/liqo/api/advertisement-operator/v1"
 	policyv1 "github.com/liqoTech/liqo/api/cluster-config/v1"
@@ -161,17 +162,17 @@ func createFakeResources() (physicalNodes *corev1.NodeList, virtualNodes *corev1
 func createResourcesOnCluster(client *crdClient.CRDClient, pNodes *corev1.NodeList, vNodes *corev1.NodeList, pods *corev1.PodList) error {
 	// create resources on home cluster
 	for i := 0; i < len(pNodes.Items); i++ {
-		_, err := client.Client().CoreV1().Nodes().Create(&pNodes.Items[i])
+		_, err := client.Client().CoreV1().Nodes().Create(context.TODO(), &pNodes.Items[i], metav1.CreateOptions{})
 		if err != nil {
 			return err
 		}
-		_, err = client.Client().CoreV1().Nodes().Create(&vNodes.Items[i])
+		_, err = client.Client().CoreV1().Nodes().Create(context.TODO(), &vNodes.Items[i], metav1.CreateOptions{})
 		if err != nil {
 			return err
 		}
 	}
 	for i := 0; i < len(pods.Items); i++ {
-		_, err := client.Client().CoreV1().Pods("").Create(&pods.Items[i])
+		_, err := client.Client().CoreV1().Pods("").Create(context.TODO(), &pods.Items[i], metav1.CreateOptions{})
 		if err != nil {
 			return err
 		}
@@ -283,7 +284,7 @@ func TestGetResourceForAdv(t *testing.T) {
 func TestSendAdvertisementCreation(t *testing.T) {
 	clusterConfig := createFakeClusterConfig()
 	b := createBroadcaster(clusterConfig.Spec)
-	_, err := b.RemoteClient.Client().CoreV1().Secrets(b.KubeconfigSecretForForeign.Namespace).Create(b.KubeconfigSecretForForeign)
+	_, err := b.RemoteClient.Client().CoreV1().Secrets(b.KubeconfigSecretForForeign.Namespace).Create(context.TODO(), b.KubeconfigSecretForForeign, metav1.CreateOptions{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -303,7 +304,7 @@ func TestSendAdvertisementCreation(t *testing.T) {
 func TestNotifyAdvertisementDeletion(t *testing.T) {
 	clusterConfig := createFakeClusterConfig()
 	b := createBroadcaster(clusterConfig.Spec)
-	_, err := b.RemoteClient.Client().CoreV1().Secrets(b.KubeconfigSecretForForeign.Namespace).Create(b.KubeconfigSecretForForeign)
+	_, err := b.RemoteClient.Client().CoreV1().Secrets(b.KubeconfigSecretForForeign.Namespace).Create(context.TODO(), b.KubeconfigSecretForForeign, metav1.CreateOptions{})
 	if err != nil {
 		t.Fatal(err)
 	}

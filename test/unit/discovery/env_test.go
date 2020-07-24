@@ -1,6 +1,7 @@
 package discovery
 
 import (
+	"context"
 	protocolv1 "github.com/liqoTech/liqo/api/advertisement-operator/v1"
 	policyv1 "github.com/liqoTech/liqo/api/cluster-config/v1"
 	v1 "github.com/liqoTech/liqo/api/discovery/v1"
@@ -188,7 +189,7 @@ func getCluster() (*Cluster, manager.Manager) {
 			"ca.crt": []byte(""),
 		},
 	}
-	_, err = cluster.client.Client().CoreV1().Secrets("default").Create(secret)
+	_, err = cluster.client.Client().CoreV1().Secrets("default").Create(context.TODO(), secret, metav1.CreateOptions{})
 	if err != nil {
 		klog.Error(err, err.Error())
 		os.Exit(1)
@@ -214,7 +215,7 @@ func getLiqoConfig(client kubernetes.Interface) {
 			"gatewayIP":        "10.251.0.1",
 		},
 	}
-	_, err := client.CoreV1().ConfigMaps("default").Create(cm)
+	_, err := client.CoreV1().ConfigMaps("default").Create(context.TODO(), cm, metav1.CreateOptions{})
 	if err != nil {
 		klog.Error(err, err.Error())
 		os.Exit(1)

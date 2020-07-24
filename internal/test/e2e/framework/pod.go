@@ -48,12 +48,12 @@ func (f *Framework) CreateDummyPodObjectWithPrefix(testName string, prefix strin
 
 // CreatePod creates the specified pod in the Kubernetes API.
 func (f *Framework) CreatePod(pod *corev1.Pod) (*corev1.Pod, error) {
-	return f.KubeClient.CoreV1().Pods(f.Namespace).Create(pod)
+	return f.KubeClient.CoreV1().Pods(f.Namespace).Create(context.TODO(), pod, metav1.CreateOptions{})
 }
 
 // DeletePod deletes the pod with the specified name and namespace in the Kubernetes API using the default grace period.
 func (f *Framework) DeletePod(namespace, name string) error {
-	return f.KubeClient.CoreV1().Pods(namespace).Delete(name, &metav1.DeleteOptions{})
+	return f.KubeClient.CoreV1().Pods(namespace).Delete(context.TODO(), name, metav1.DeleteOptions{})
 }
 
 // DeletePodImmediately forcibly deletes the pod with the specified name and namespace in the Kubernetes API.
@@ -61,7 +61,7 @@ func (f *Framework) DeletePod(namespace, name string) error {
 func (f *Framework) DeletePodImmediately(namespace, name string) error {
 	grace := int64(0)
 	propagation := metav1.DeletePropagationBackground
-	return f.KubeClient.CoreV1().Pods(namespace).Delete(name, &metav1.DeleteOptions{
+	return f.KubeClient.CoreV1().Pods(namespace).Delete(context.TODO(), name, metav1.DeleteOptions{
 		GracePeriodSeconds: &grace,
 		PropagationPolicy:  &propagation,
 	})
@@ -76,11 +76,11 @@ func (f *Framework) WaitUntilPodCondition(namespace, name string, fn watch.Condi
 	lw := &cache.ListWatch{
 		ListFunc: func(options metav1.ListOptions) (runtime.Object, error) {
 			options.FieldSelector = fs.String()
-			return f.KubeClient.CoreV1().Pods(namespace).List(options)
+			return f.KubeClient.CoreV1().Pods(namespace).List(context.TODO(), options)
 		},
 		WatchFunc: func(options metav1.ListOptions) (watchapi.Interface, error) {
 			options.FieldSelector = fs.String()
-			return f.KubeClient.CoreV1().Pods(namespace).Watch(options)
+			return f.KubeClient.CoreV1().Pods(namespace).Watch(context.TODO(), options)
 		},
 	}
 	// Watch for updates to the Pod resource until fn is satisfied, or until the timeout is reached.
@@ -135,11 +135,11 @@ func (f *Framework) WaitUntilPodEventWithReason(pod *corev1.Pod, reason string) 
 	lw := &cache.ListWatch{
 		ListFunc: func(options metav1.ListOptions) (runtime.Object, error) {
 			options.FieldSelector = fs.String()
-			return f.KubeClient.CoreV1().Events(pod.Namespace).List(options)
+			return f.KubeClient.CoreV1().Events(pod.Namespace).List(context.TODO(), options)
 		},
 		WatchFunc: func(options metav1.ListOptions) (watchapi.Interface, error) {
 			options.FieldSelector = fs.String()
-			return f.KubeClient.CoreV1().Events(pod.Namespace).Watch(options)
+			return f.KubeClient.CoreV1().Events(pod.Namespace).Watch(context.TODO(), options)
 		},
 	}
 	// Watch for updates to the Event resource until fn is satisfied, or until the timeout is reached.
@@ -175,7 +175,7 @@ func (f *Framework) GetRunningPods() (*corev1.PodList, error) {
 		Name(f.NodeName).
 		SubResource("proxy").
 		Suffix("runningpods/").
-		Do().
+		Do(context.TODO()).
 		Into(result)
 
 	return result, err

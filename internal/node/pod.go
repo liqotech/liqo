@@ -108,7 +108,7 @@ func (pc *PodController) handleProviderError(ctx context.Context, span trace.Spa
 	// the related cases should be added here
 	switch kerrors.ReasonForError(origErr) {
 	case metav1.StatusReasonNotFound:
-		err := pc.client.Pods(pod.Namespace).Delete(pod.Name, &metav1.DeleteOptions{})
+		err := pc.client.Pods(pod.Namespace).Delete(context.TODO(), pod.Name, metav1.DeleteOptions{})
 		if err != nil {
 			pc.setProviderFailed(ctx, span, origErr, pod)
 		}
@@ -129,7 +129,7 @@ func (pc *PodController) setProviderFailed(ctx context.Context, span trace.Span,
 	pod.Status.Reason = podStatusReasonProviderFailed
 	pod.Status.Message = origErr.Error()
 
-	_, err := pc.client.Pods(pod.Namespace).UpdateStatus(pod)
+	_, err := pc.client.Pods(pod.Namespace).UpdateStatus(context.TODO(), pod, metav1.UpdateOptions{})
 	if err != nil {
 		klog.Error("Failed to update pod status")
 	} else {
@@ -179,7 +179,7 @@ func (pc *PodController) updatePodStatus(ctx context.Context, podFromKubernetes 
 	// we need to copy the pod and set ResourceVersion to 0.
 	podFromProvider.ResourceVersion = "0"
 
-	if _, err := pc.client.Pods(podFromKubernetes.Namespace).UpdateStatus(podFromProvider); err != nil {
+	if _, err := pc.client.Pods(podFromKubernetes.Namespace).UpdateStatus(context.TODO(), podFromProvider, metav1.UpdateOptions{}); err != nil {
 		return pkgerrors.Wrap(err, "error while updating pod status in kubernetes")
 	}
 
@@ -276,7 +276,7 @@ func (pc *PodController) deletePodHandler(ctx context.Context, key string) (retE
 
 	// We don't check with the provider before doing this delete. At this point, even if an outstanding pod status update
 	// was in progress,
-	err = pc.client.Pods(namespace).Delete(name, metav1.NewDeleteOptions(0))
+	err = pc.client.Pods(namespace).Delete(context.TODO(), name, *metav1.NewDeleteOptions(0))
 	if errors.IsNotFound(err) {
 		return nil
 	}

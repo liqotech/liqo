@@ -1,6 +1,7 @@
 package kubernetes
 
 import (
+	"context"
 	"errors"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -24,7 +25,7 @@ func (p *KubernetesProvider) manageCmEvent(event watch.Event) error {
 
 	switch event.Type {
 	case watch.Added:
-		_, err := p.foreignClient.Client().CoreV1().ConfigMaps(nattedNS).Get(cm.Name, metav1.GetOptions{})
+		_, err := p.foreignClient.Client().CoreV1().ConfigMaps(nattedNS).Get(context.TODO(), cm.Name, metav1.GetOptions{})
 		if err != nil {
 			klog.Info("remote cm " + cm.Name + " doesn't exist: creating it")
 
@@ -69,13 +70,13 @@ func (p *KubernetesProvider) createConfigMap(cm *corev1.ConfigMap, namespace str
 	}
 	cmRemote.Labels["liqo/reflection"] = "reflected"
 
-	_, err := p.foreignClient.Client().CoreV1().ConfigMaps(namespace).Create(&cmRemote)
+	_, err := p.foreignClient.Client().CoreV1().ConfigMaps(namespace).Create(context.TODO(), &cmRemote, metav1.CreateOptions{})
 
 	return err
 }
 
 func (p *KubernetesProvider) updateConfigMap(cm *corev1.ConfigMap, namespace string) error {
-	cmOld, err := p.foreignClient.Client().CoreV1().ConfigMaps(namespace).Get(cm.Name, metav1.GetOptions{})
+	cmOld, err := p.foreignClient.Client().CoreV1().ConfigMaps(namespace).Get(context.TODO(), cm.Name, metav1.GetOptions{})
 	if err != nil {
 		return err
 	}
@@ -84,14 +85,14 @@ func (p *KubernetesProvider) updateConfigMap(cm *corev1.ConfigMap, namespace str
 	cm2.SetNamespace(namespace)
 	cm2.SetResourceVersion(cmOld.ResourceVersion)
 	cm2.SetUID(cmOld.UID)
-	_, err = p.foreignClient.Client().CoreV1().ConfigMaps(namespace).Update(cm2)
+	_, err = p.foreignClient.Client().CoreV1().ConfigMaps(namespace).Update(context.TODO(), cm2, metav1.UpdateOptions{})
 
 	return err
 }
 
 func (p *KubernetesProvider) deleteConfigMap(cm *corev1.ConfigMap, namespace string) error {
 	cm.Namespace = namespace
-	err := p.foreignClient.Client().CoreV1().ConfigMaps(namespace).Delete(cm.Name, &metav1.DeleteOptions{})
+	err := p.foreignClient.Client().CoreV1().ConfigMaps(namespace).Delete(context.TODO(), cm.Name, metav1.DeleteOptions{})
 
 	return err
 }

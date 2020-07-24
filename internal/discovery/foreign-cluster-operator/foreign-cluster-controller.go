@@ -291,7 +291,7 @@ func (r *ForeignClusterReconciler) createPeeringRequestIfNotExists(clusterID str
 					"kubeconfig": fConfig,
 				},
 			}
-			secret, err := foreignClient.Client().CoreV1().Secrets(r.Namespace).Create(secret)
+			secret, err := foreignClient.Client().CoreV1().Secrets(r.Namespace).Create(context.TODO(), secret, metav1.CreateOptions{})
 			if err != nil {
 				return nil, err
 			}
@@ -344,7 +344,7 @@ func (r *ForeignClusterReconciler) getForeignConfig(clusterID string, owner *dis
 	}
 	// check if ServiceAccount already has a secret, wait if not
 	if len(sa.Secrets) == 0 {
-		wa, err := r.crdClient.Client().CoreV1().ServiceAccounts(r.Namespace).Watch(metav1.ListOptions{
+		wa, err := r.crdClient.Client().CoreV1().ServiceAccounts(r.Namespace).Watch(context.TODO(), metav1.ListOptions{
 			FieldSelector: "metadata.name=" + clusterID,
 		})
 		if err != nil {
@@ -364,7 +364,7 @@ func (r *ForeignClusterReconciler) getForeignConfig(clusterID string, owner *dis
 }
 
 func (r *ForeignClusterReconciler) createClusterRoleIfNotExists(clusterID string, owner *discoveryv1.ForeignCluster) (*rbacv1.ClusterRole, error) {
-	role, err := r.crdClient.Client().RbacV1().ClusterRoles().Get(clusterID, metav1.GetOptions{})
+	role, err := r.crdClient.Client().RbacV1().ClusterRoles().Get(context.TODO(), clusterID, metav1.GetOptions{})
 	if err != nil {
 		// does not exist
 		role = &rbacv1.ClusterRole{
@@ -388,14 +388,14 @@ func (r *ForeignClusterReconciler) createClusterRoleIfNotExists(clusterID string
 				},
 			},
 		}
-		return r.crdClient.Client().RbacV1().ClusterRoles().Create(role)
+		return r.crdClient.Client().RbacV1().ClusterRoles().Create(context.TODO(), role, metav1.CreateOptions{})
 	} else {
 		return role, nil
 	}
 }
 
 func (r *ForeignClusterReconciler) createServiceAccountIfNotExists(clusterID string, owner *discoveryv1.ForeignCluster) (*apiv1.ServiceAccount, error) {
-	sa, err := r.crdClient.Client().CoreV1().ServiceAccounts(r.Namespace).Get(clusterID, metav1.GetOptions{})
+	sa, err := r.crdClient.Client().CoreV1().ServiceAccounts(r.Namespace).Get(context.TODO(), clusterID, metav1.GetOptions{})
 	if err != nil {
 		// does not exist
 		sa = &apiv1.ServiceAccount{
@@ -411,14 +411,14 @@ func (r *ForeignClusterReconciler) createServiceAccountIfNotExists(clusterID str
 				},
 			},
 		}
-		return r.crdClient.Client().CoreV1().ServiceAccounts(r.Namespace).Create(sa)
+		return r.crdClient.Client().CoreV1().ServiceAccounts(r.Namespace).Create(context.TODO(), sa, metav1.CreateOptions{})
 	} else {
 		return sa, nil
 	}
 }
 
 func (r *ForeignClusterReconciler) createClusterRoleBindingIfNotExists(clusterID string, owner *discoveryv1.ForeignCluster) (*rbacv1.ClusterRoleBinding, error) {
-	rb, err := r.crdClient.Client().RbacV1().ClusterRoleBindings().Get(clusterID, metav1.GetOptions{})
+	rb, err := r.crdClient.Client().RbacV1().ClusterRoleBindings().Get(context.TODO(), clusterID, metav1.GetOptions{})
 	if err != nil {
 		// does not exist
 		rb = &rbacv1.ClusterRoleBinding{
@@ -446,7 +446,7 @@ func (r *ForeignClusterReconciler) createClusterRoleBindingIfNotExists(clusterID
 				Name:     clusterID,
 			},
 		}
-		return r.crdClient.Client().RbacV1().ClusterRoleBindings().Create(rb)
+		return r.crdClient.Client().RbacV1().ClusterRoleBindings().Create(context.TODO(), rb, metav1.CreateOptions{})
 	} else {
 		return rb, nil
 	}

@@ -1,6 +1,7 @@
 package advertisement_operator
 
 import (
+	"context"
 	"errors"
 	"github.com/liqoTech/liqo/internal/discovery/kubeconfig"
 	pkg "github.com/liqoTech/liqo/pkg/advertisement-operator"
@@ -80,7 +81,7 @@ func StartBroadcaster(homeClusterId, localKubeconfigPath, gatewayPrivateIP, peer
 	foreignClusterId := pr.Name
 
 	// get the Secret with the permission to create Advertisements and Secrets on foreign cluster
-	secretForAdvertisementCreation, err := localClient.Client().CoreV1().Secrets(pr.Spec.KubeConfigRef.Namespace).Get(pr.Spec.KubeConfigRef.Name, metav1.GetOptions{})
+	secretForAdvertisementCreation, err := localClient.Client().CoreV1().Secrets(pr.Spec.KubeConfigRef.Namespace).Get(context.TODO(), pr.Spec.KubeConfigRef.Name, metav1.GetOptions{})
 	if err != nil {
 		klog.Errorln(err, "Unable to get PeeringRequest secret")
 		return err
@@ -108,11 +109,11 @@ func StartBroadcaster(homeClusterId, localKubeconfigPath, gatewayPrivateIP, peer
 	}
 
 	kubeconfigSecretName := "vk-kubeconfig-secret-" + homeClusterId
-	kubeconfigSecretForForeign, err := remoteClient.Client().CoreV1().Secrets(pr.Spec.Namespace).Get(kubeconfigSecretName, metav1.GetOptions{})
+	kubeconfigSecretForForeign, err := remoteClient.Client().CoreV1().Secrets(pr.Spec.Namespace).Get(context.TODO(), kubeconfigSecretName, metav1.GetOptions{})
 	if err != nil {
 		// secret containing kubeconfig not found: create it
 		// get the ServiceAccount with the permissions that will be given to the foreign cluster
-		sa, err := localClient.Client().CoreV1().ServiceAccounts(pr.Spec.Namespace).Get(saName, metav1.GetOptions{})
+		sa, err := localClient.Client().CoreV1().ServiceAccounts(pr.Spec.Namespace).Get(context.TODO(), saName, metav1.GetOptions{})
 		if err != nil {
 			klog.Errorln(err, "Unable to get ServiceAccount "+saName)
 			return err
@@ -136,7 +137,7 @@ func StartBroadcaster(homeClusterId, localKubeconfigPath, gatewayPrivateIP, peer
 				"kubeconfig": kubeconfigForForeignCluster,
 			},
 		}
-		kubeconfigSecretForForeign, err = remoteClient.Client().CoreV1().Secrets(sa.Namespace).Create(kubeconfigSecretForForeign)
+		kubeconfigSecretForForeign, err = remoteClient.Client().CoreV1().Secrets(sa.Namespace).Create(context.TODO(), kubeconfigSecretForForeign, metav1.CreateOptions{})
 		if err != nil {
 			// secret not created, without it the vk cannot be launched: just log and exit
 			klog.Errorln(err, "Unable to create secret on remote cluster "+foreignClusterId)
@@ -255,12 +256,12 @@ func (b *AdvertisementBroadcaster) CreateAdvertisement(physicalNodes *corev1.Nod
 
 func (b *AdvertisementBroadcaster) GetResourcesForAdv() (physicalNodes, virtualNodes *corev1.NodeList, availability, limits corev1.ResourceList, images []corev1.ContainerImage, err error) {
 	// get physical and virtual nodes in the cluster
-	physicalNodes, err = b.LocalClient.Client().CoreV1().Nodes().List(metav1.ListOptions{LabelSelector: "type != virtual-node"})
+	physicalNodes, err = b.LocalClient.Client().CoreV1().Nodes().List(context.TODO(), metav1.ListOptions{LabelSelector: "type != virtual-node"})
 	if err != nil {
 		klog.Errorln("Could not get physical nodes, retry in 1 minute")
 		return nil, nil, nil, nil, nil, err
 	}
-	virtualNodes, err = b.LocalClient.Client().CoreV1().Nodes().List(metav1.ListOptions{LabelSelector: "type = virtual-node"})
+	virtualNodes, err = b.LocalClient.Client().CoreV1().Nodes().List(context.TODO(), metav1.ListOptions{LabelSelector: "type = virtual-node"})
 	if err != nil {
 		klog.Errorln("Could not get virtual nodes, retry in 1 minute")
 		return nil, nil, nil, nil, nil, err
@@ -270,7 +271,7 @@ func (b *AdvertisementBroadcaster) GetResourcesForAdv() (physicalNodes, virtualN
 	if err != nil {
 		return nil, nil, nil, nil, nil, err
 	}
-	nodeNonTerminatedPodsList, err := b.LocalClient.Client().CoreV1().Pods("").List(metav1.ListOptions{FieldSelector: fieldSelector.String()})
+	nodeNonTerminatedPodsList, err := b.LocalClient.Client().CoreV1().Pods("").List(context.TODO(), metav1.ListOptions{FieldSelector: fieldSelector.String()})
 	if err != nil {
 		klog.Errorln("Could not list pods, retry in 1 minute")
 		return nil, nil, nil, nil, nil, err
@@ -303,7 +304,7 @@ func (b *AdvertisementBroadcaster) SendAdvertisementToForeignCluster(advToCreate
 		if err != nil {
 			klog.Errorln("Unable to create Advertisement " + advToCreate.Name + " on remote cluster " + b.ForeignClusterId)
 			// clean remote cluster from the secret previously created for the adv
-			if err := b.RemoteClient.Client().CoreV1().Secrets(b.KubeconfigSecretForForeign.Namespace).Delete(b.KubeconfigSecretForForeign.Name, &metav1.DeleteOptions{}); err != nil {
+			if err := b.RemoteClient.Client().CoreV1().Secrets(b.KubeconfigSecretForForeign.Namespace).Delete(context.TODO(), b.KubeconfigSecretForForeign.Name, metav1.DeleteOptions{}); err != nil {
 				return nil, err
 			}
 			return nil, err
@@ -314,7 +315,7 @@ func (b *AdvertisementBroadcaster) SendAdvertisementToForeignCluster(advToCreate
 			adv.Kind = "Advertisement"
 			adv.APIVersion = protocolv1.GroupVersion.String()
 			b.KubeconfigSecretForForeign.SetOwnerReferences(pkg.GetOwnerReference(adv))
-			_, err = b.RemoteClient.Client().CoreV1().Secrets(b.KubeconfigSecretForForeign.Namespace).Update(b.KubeconfigSecretForForeign)
+			_, err = b.RemoteClient.Client().CoreV1().Secrets(b.KubeconfigSecretForForeign.Namespace).Update(context.TODO(), b.KubeconfigSecretForForeign, metav1.UpdateOptions{})
 			if err != nil {
 				klog.Errorln(err, "Unable to update secret "+b.KubeconfigSecretForForeign.Name)
 			}

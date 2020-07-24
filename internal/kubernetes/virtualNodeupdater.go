@@ -1,6 +1,7 @@
 package kubernetes
 
 import (
+	"context"
 	advv1 "github.com/liqoTech/liqo/api/advertisement-operator/v1"
 	advertisement_operator "github.com/liqoTech/liqo/internal/advertisement-operator"
 	"github.com/liqoTech/liqo/internal/node"
@@ -59,7 +60,7 @@ func (p *KubernetesProvider) ReconcileNodeFromAdv(event watch.Event) {
 	if adv.Status.AdvertisementStatus == advertisement_operator.AdvertisementDeleting {
 		for retry := 0; retry < 3; retry++ {
 			klog.Infof("advertisement %v is going to be deleted... set node status not ready", adv.Name)
-			no, err := p.nodeUpdateClient.Client().CoreV1().Nodes().Get(p.nodeName, metav1.GetOptions{})
+			no, err := p.nodeUpdateClient.Client().CoreV1().Nodes().Get(context.TODO(), p.nodeName, metav1.GetOptions{})
 			if err != nil {
 				klog.Error(err)
 				continue
@@ -117,7 +118,7 @@ func (p *KubernetesProvider) updateFromAdv(adv advv1.Advertisement) error {
 	}
 
 	var no *v1.Node
-	if no, err = p.homeClient.Client().CoreV1().Nodes().Get(p.nodeName, metav1.GetOptions{}); err != nil {
+	if no, err = p.homeClient.Client().CoreV1().Nodes().Get(context.TODO(), p.nodeName, metav1.GetOptions{}); err != nil {
 		return err
 	}
 

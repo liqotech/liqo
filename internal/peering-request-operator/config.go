@@ -1,6 +1,7 @@
 package peering_request_operator
 
 import (
+	"context"
 	"errors"
 	"github.com/liqoTech/liqo/pkg/crdClient"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -14,7 +15,7 @@ type Config struct {
 func GetConfig(crdClient *crdClient.CRDClient, namespace string) (*Config, error) {
 	conf := &Config{}
 
-	configMap, err := crdClient.Client().CoreV1().ConfigMaps(namespace).Get("peering-request-operator-cm", metav1.GetOptions{})
+	configMap, err := crdClient.Client().CoreV1().ConfigMaps(namespace).Get(context.TODO(), "peering-request-operator-cm", metav1.GetOptions{})
 	if err != nil {
 		klog.Error(err, err.Error())
 		return nil, err

@@ -1,6 +1,7 @@
 package kubernetes
 
 import (
+	"context"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/watch"
@@ -112,49 +113,49 @@ func (p *KubernetesProvider) controlLoop() {
 
 func (p *KubernetesProvider) cleanupNamespace(ns string) error {
 
-	pods, err := p.foreignClient.Client().CoreV1().Pods(ns).List(metav1.ListOptions{})
+	pods, err := p.foreignClient.Client().CoreV1().Pods(ns).List(context.TODO(), metav1.ListOptions{})
 	if err != nil {
 		return err
 	}
 
 	for _, po := range pods.Items {
-		err = p.foreignClient.Client().CoreV1().Pods(ns).Delete(po.Name, &metav1.DeleteOptions{})
+		err = p.foreignClient.Client().CoreV1().Pods(ns).Delete(context.TODO(), po.Name, metav1.DeleteOptions{})
 		if err != nil {
 			klog.Errorf("cannot delete remote pod %v - %v", po.Name, err)
 		}
 	}
 
-	svcs, err := p.foreignClient.Client().CoreV1().Services(ns).List(metav1.ListOptions{LabelSelector: reflectedService})
+	svcs, err := p.foreignClient.Client().CoreV1().Services(ns).List(context.TODO(), metav1.ListOptions{LabelSelector: reflectedService})
 	if err != nil {
 		return err
 	}
 
 	for _, svc := range svcs.Items {
-		err = p.foreignClient.Client().CoreV1().Services(ns).Delete(svc.Name, &metav1.DeleteOptions{})
+		err = p.foreignClient.Client().CoreV1().Services(ns).Delete(context.TODO(), svc.Name, metav1.DeleteOptions{})
 		if err != nil {
 			klog.Errorf("cannot delete remote service %v - %v", svc.Name, err)
 		}
 	}
 
-	cms, err := p.foreignClient.Client().CoreV1().ConfigMaps(ns).List(metav1.ListOptions{LabelSelector: reflectedService})
+	cms, err := p.foreignClient.Client().CoreV1().ConfigMaps(ns).List(context.TODO(), metav1.ListOptions{LabelSelector: reflectedService})
 	if err != nil {
 		return err
 	}
 
 	for _, cm := range cms.Items {
-		err = p.foreignClient.Client().CoreV1().ConfigMaps(ns).Delete(cm.Name, &metav1.DeleteOptions{})
+		err = p.foreignClient.Client().CoreV1().ConfigMaps(ns).Delete(context.TODO(), cm.Name, metav1.DeleteOptions{})
 		if err != nil {
 			klog.Errorf("cannot delete remote configMap %v - %v", cm.Name, err)
 		}
 	}
 
-	secs, err := p.foreignClient.Client().CoreV1().Secrets(ns).List(metav1.ListOptions{LabelSelector: reflectedService})
+	secs, err := p.foreignClient.Client().CoreV1().Secrets(ns).List(context.TODO(), metav1.ListOptions{LabelSelector: reflectedService})
 	if err != nil {
 		return err
 	}
 
 	for _, sec := range secs.Items {
-		err = p.foreignClient.Client().CoreV1().Secrets(ns).Delete(sec.Name, &metav1.DeleteOptions{})
+		err = p.foreignClient.Client().CoreV1().Secrets(ns).Delete(context.TODO(), sec.Name, metav1.DeleteOptions{})
 		if err != nil {
 			klog.Errorf("cannot delete remote secret %v - %v", sec.Name, err)
 		}
@@ -176,7 +177,7 @@ func (p *KubernetesProvider) closeChannels() {
 // addServiceWatcher receives a namespace to watch, creates a service watching chan and starts a routine
 // that watches the local events regarding the services
 func (p *KubernetesProvider) addServiceWatcher(namespace string, stop chan struct{}) error {
-	svcWatch, err := p.homeClient.Client().CoreV1().Services(namespace).Watch(metav1.ListOptions{})
+	svcWatch, err := p.homeClient.Client().CoreV1().Services(namespace).Watch(context.TODO(), metav1.ListOptions{})
 	if err != nil {
 		return err
 	}
@@ -203,7 +204,7 @@ func (p *KubernetesProvider) addEndpointWatcher(namespace string, stop chan stru
 }
 
 func (p *KubernetesProvider) addConfigMapWatcher(namespace string, stop chan struct{}) error {
-	cmWatch, err := p.homeClient.Client().CoreV1().ConfigMaps(namespace).Watch(metav1.ListOptions{})
+	cmWatch, err := p.homeClient.Client().CoreV1().ConfigMaps(namespace).Watch(context.TODO(), metav1.ListOptions{})
 	if err != nil {
 		klog.Errorf("error: %v - cannot watch configMaps in namespace %v", err, namespace)
 		return err
@@ -217,7 +218,7 @@ func (p *KubernetesProvider) addConfigMapWatcher(namespace string, stop chan str
 }
 
 func (p *KubernetesProvider) addSecretWatcher(namespace string, stop chan struct{}) error {
-	secWatch, err := p.homeClient.Client().CoreV1().Secrets(namespace).Watch(metav1.ListOptions{})
+	secWatch, err := p.homeClient.Client().CoreV1().Secrets(namespace).Watch(context.TODO(), metav1.ListOptions{})
 	if err != nil {
 		klog.Error(err, "cannot watch secrets in namespace "+namespace)
 		return err
@@ -231,7 +232,7 @@ func (p *KubernetesProvider) addSecretWatcher(namespace string, stop chan struct
 }
 
 func (p *KubernetesProvider) AddPodWatcher(namespace string, stop chan struct{}) error {
-	poWatch, err := p.foreignClient.Client().CoreV1().Pods(namespace).Watch(metav1.ListOptions{})
+	poWatch, err := p.foreignClient.Client().CoreV1().Pods(namespace).Watch(context.TODO(), metav1.ListOptions{})
 	if err != nil {
 		return err
 	}

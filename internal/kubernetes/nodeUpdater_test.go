@@ -1,6 +1,7 @@
 package kubernetes
 
 import (
+	"context"
 	v1 "github.com/liqoTech/liqo/api/advertisement-operator/v1"
 	advertisement_operator "github.com/liqoTech/liqo/internal/advertisement-operator"
 	"github.com/liqoTech/liqo/internal/kubernetes/test"
@@ -55,7 +56,7 @@ func TestNodeUpdater(t *testing.T) {
 		},
 	}
 
-	_, err = client.Client().CoreV1().Nodes().Create(test.NodeTestCases.InputNode)
+	_, err = client.Client().CoreV1().Nodes().Create(context.TODO(), test.NodeTestCases.InputNode, metav1.CreateOptions{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -80,7 +81,7 @@ func TestNodeUpdater(t *testing.T) {
 
 	time.Sleep(5 * time.Second)
 
-	n, err := client.Client().CoreV1().Nodes().Get(test.NodeName, metav1.GetOptions{})
+	n, err := client.Client().CoreV1().Nodes().Get(context.TODO(), test.NodeName, metav1.GetOptions{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -100,7 +101,7 @@ func TestNodeUpdater(t *testing.T) {
 
 	time.Sleep(5 * time.Second)
 
-	if n, err = client.Client().CoreV1().Nodes().Get(test.NodeName, metav1.GetOptions{}); err != nil {
+	if n, err = client.Client().CoreV1().Nodes().Get(context.TODO(), test.NodeName, metav1.GetOptions{}); err != nil {
 		t.Fatal(err)
 	}
 
@@ -119,7 +120,7 @@ func TestNodeUpdater(t *testing.T) {
 	time.Sleep(5 * time.Second)
 
 	// the node should go in NotReady status
-	if n, err = client.Client().CoreV1().Nodes().Get(test.NodeName, metav1.GetOptions{}); err != nil {
+	if n, err = client.Client().CoreV1().Nodes().Get(context.TODO(), test.NodeName, metav1.GetOptions{}); err != nil {
 		t.Fatal(err)
 	}
 	for _, condition := range n.Status.Conditions {

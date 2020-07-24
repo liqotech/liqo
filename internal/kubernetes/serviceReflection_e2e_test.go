@@ -1,6 +1,7 @@
 package kubernetes
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	v1 "github.com/liqoTech/liqo/api/namespaceNattingTable/v1"
@@ -70,7 +71,7 @@ func TestHandleServiceEvents(t *testing.T) {
 
 	// remote ep watcher is needed to be sure that all the expected home events are replicated in the
 	// foreign cluster
-	w, err := p.foreignClient.Client().CoreV1().Services(test.NattedNamespace).Watch(metav1.ListOptions{
+	w, err := p.foreignClient.Client().CoreV1().Services(test.NattedNamespace).Watch(context.TODO(), metav1.ListOptions{
 		Watch: true,
 	})
 	if err != nil {
@@ -187,7 +188,7 @@ func serviceEventsMonitoring(errChan chan error, createsDone, updatesDone, delet
 func svcCreation(p *KubernetesProvider, chanError chan error) {
 	klog.Info("TEST - starting svc creation")
 	for _, s := range test.ServiceTestCases.InputServices {
-		_, err := p.homeClient.Client().CoreV1().Services(test.Namespace).Create(s)
+		_, err := p.homeClient.Client().CoreV1().Services(test.Namespace).Create(context.TODO(), s, metav1.CreateOptions{})
 		if err != nil {
 			chanError <- err
 			return
@@ -198,7 +199,7 @@ func svcCreation(p *KubernetesProvider, chanError chan error) {
 func svcUpdate(p *KubernetesProvider, chanError chan error) {
 	klog.Info("TEST - starting svc update")
 	for _, s := range test.ServiceTestCases.UpdateServices {
-		_, err := p.homeClient.Client().CoreV1().Services(test.Namespace).Update(s)
+		_, err := p.homeClient.Client().CoreV1().Services(test.Namespace).Update(context.TODO(), s, metav1.UpdateOptions{})
 		if err != nil {
 			chanError <- err
 			return
@@ -209,7 +210,7 @@ func svcUpdate(p *KubernetesProvider, chanError chan error) {
 func svcDelete(p *KubernetesProvider, chanError chan error) {
 	klog.Info("TEST - starting svc delete")
 	for _, s := range test.ServiceTestCases.DeleteServices {
-		err := p.homeClient.Client().CoreV1().Services(test.Namespace).Delete(s.Name, &metav1.DeleteOptions{})
+		err := p.homeClient.Client().CoreV1().Services(test.Namespace).Delete(context.TODO(), s.Name, metav1.DeleteOptions{})
 		if err != nil {
 			chanError <- err
 			return
@@ -219,11 +220,11 @@ func svcDelete(p *KubernetesProvider, chanError chan error) {
 
 func verifySvcConsistency(p *KubernetesProvider, event string) error {
 	klog.Infof("TEST - Asserting status coherency after %v", event)
-	homeSvcs, err := p.homeClient.Client().CoreV1().Services(test.Namespace).List(metav1.ListOptions{})
+	homeSvcs, err := p.homeClient.Client().CoreV1().Services(test.Namespace).List(context.TODO(), metav1.ListOptions{})
 	if err != nil {
 		return err
 	}
-	foreignSvcs, err := p.foreignClient.Client().CoreV1().Services(test.NattedNamespace).List(metav1.ListOptions{})
+	foreignSvcs, err := p.foreignClient.Client().CoreV1().Services(test.NattedNamespace).List(context.TODO(), metav1.ListOptions{})
 	if err != nil {
 		return err
 	}

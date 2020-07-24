@@ -1,6 +1,7 @@
 package crdClient
 
 import (
+	"context"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/watch"
@@ -39,7 +40,7 @@ func (c *Client) Get(name string, opts metav1.GetOptions) (runtime.Object, error
 		VersionedParams(&opts, scheme.ParameterCodec).
 		NamespaceIfScoped(c.ns, namespaced).
 		Name(name).
-		Do().
+		Do(context.TODO()).
 		Into(result.(runtime.Object))
 
 	return result.(runtime.Object), err
@@ -57,7 +58,7 @@ func (c *Client) List(opts metav1.ListOptions) (runtime.Object, error) {
 		Resource(c.api).
 		VersionedParams(&opts, scheme.ParameterCodec).
 		NamespaceIfScoped(c.ns, namespaced).
-		Do().
+		Do(context.TODO()).
 		Into(result.(runtime.Object))
 
 	return result.(runtime.Object), err
@@ -81,7 +82,7 @@ func (c *Client) Watch(opts metav1.ListOptions) (watch.Interface, error) {
 		VersionedParams(&opts, scheme.ParameterCodec).
 		NamespaceIfScoped(c.ns, namespaced).
 		Timeout(timeout).
-		Watch()
+		Watch(context.TODO())
 }
 
 func (c *Client) Create(obj runtime.Object, opts metav1.CreateOptions) (runtime.Object, error) {
@@ -98,7 +99,7 @@ func (c *Client) Create(obj runtime.Object, opts metav1.CreateOptions) (runtime.
 		VersionedParams(&opts, scheme.ParameterCodec).
 		NamespaceIfScoped(c.ns, namespaced).
 		Body(obj).
-		Do().
+		Do(context.TODO()).
 		Into(result.(runtime.Object))
 
 	return result.(runtime.Object), err
@@ -117,7 +118,7 @@ func (c *Client) Delete(name string, opts metav1.DeleteOptions) error {
 		NamespaceIfScoped(c.ns, namespaced).
 		Name(name).
 		Body(&opts).
-		Do().
+		Do(context.TODO()).
 		Error()
 }
 
@@ -135,7 +136,7 @@ func (c *Client) Update(name string, obj runtime.Object, opts metav1.UpdateOptio
 		NamespaceIfScoped(c.ns, namespaced).
 		Name(name).
 		Body(obj).
-		Do().
+		Do(context.TODO()).
 		Into(result.(runtime.Object))
 
 	return result.(runtime.Object), err
@@ -156,7 +157,7 @@ func (c *Client) UpdateStatus(name string, obj runtime.Object, opts metav1.Updat
 		Name(name).
 		SubResource("status").
 		Body(obj).
-		Do().
+		Do(context.TODO()).
 		Into(result.(runtime.Object))
 
 	return result.(runtime.Object), err

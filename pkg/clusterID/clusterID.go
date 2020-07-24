@@ -1,6 +1,7 @@
 package clusterID
 
 import (
+	"context"
 	"errors"
 	"github.com/google/uuid"
 	discoveryv1 "github.com/liqoTech/liqo/api/discovery/v1"
@@ -40,13 +41,13 @@ func NewClusterID(kubeconfigPath string) (*ClusterID, error) {
 		klog.Error(err, "unable to get kube config")
 		os.Exit(1)
 	}
-	crdClient, err := crdClient.NewFromConfig(config)
+	crdClientVar, err := crdClient.NewFromConfig(config)
 	if err != nil {
 		klog.Error(err, "unable to create crd client")
 		os.Exit(1)
 	}
 	clusterId := &ClusterID{
-		client: crdClient.Client(),
+		client: crdClientVar.Client(),
 	}
 
 	namespace, found := os.LookupEnv("POD_NAMESPACE")
@@ -120,7 +121,7 @@ func (cId *ClusterID) GetClusterID() string {
 }
 
 func (cId *ClusterID) getMasterID() (string, error) {
-	nodes, err := cId.client.CoreV1().Nodes().List(metav1.ListOptions{
+	nodes, err := cId.client.CoreV1().Nodes().List(context.TODO(), metav1.ListOptions{
 		LabelSelector: "node-role.kubernetes.io/master",
 	})
 	if err != nil {
@@ -137,7 +138,7 @@ func (cId *ClusterID) getMasterID() (string, error) {
 }
 
 func (cId *ClusterID) save(id string, namespace string) error {
-	cm, err := cId.client.CoreV1().ConfigMaps(namespace).Get("cluster-id", metav1.GetOptions{})
+	cm, err := cId.client.CoreV1().ConfigMaps(namespace).Get(context.TODO(), "cluster-id", metav1.GetOptions{})
 	if err != nil {
 		if k8serror.IsNotFound(err) {
 			// does not exist
@@ -150,7 +151,7 @@ func (cId *ClusterID) save(id string, namespace string) error {
 				},
 			}
 			cId.id = id
-			_, err := cId.client.CoreV1().ConfigMaps(namespace).Create(cm)
+			_, err := cId.client.CoreV1().ConfigMaps(namespace).Create(context.TODO(), cm, metav1.CreateOptions{})
 			return err
 		}
 		// other errors
@@ -159,7 +160,7 @@ func (cId *ClusterID) save(id string, namespace string) error {
 	// already exists, update it if needed
 	if cm.Data["cluster-id"] != id {
 		cm.Data["cluster-id"] = id
-		_, err := cId.client.CoreV1().ConfigMaps(namespace).Update(cm)
+		_, err := cId.client.CoreV1().ConfigMaps(namespace).Update(context.TODO(), cm, metav1.UpdateOptions{})
 		return err
 	}
 	return nil

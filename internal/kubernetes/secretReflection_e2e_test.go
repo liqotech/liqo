@@ -1,6 +1,7 @@
 package kubernetes
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	v1 "github.com/liqoTech/liqo/api/namespaceNattingTable/v1"
@@ -70,7 +71,7 @@ func TestHandleSecretEvents(t *testing.T) {
 
 	// remote ep watcher is needed to be sure that all the expected home events are replicated in the
 	// foreign cluster
-	w, err := p.foreignClient.Client().CoreV1().Secrets(test.NattedNamespace).Watch(metav1.ListOptions{
+	w, err := p.foreignClient.Client().CoreV1().Secrets(test.NattedNamespace).Watch(context.TODO(), metav1.ListOptions{
 		Watch: true,
 	})
 	if err != nil {
@@ -187,7 +188,7 @@ func secretEventsMonitoring(errChan chan error, createsDone, updatesDone, delete
 func secretCreation(p *KubernetesProvider, chanError chan error) {
 	klog.Info("TEST - starting secret creation")
 	for _, s := range test.SecretTestCases.InputSecrets {
-		_, err := p.homeClient.Client().CoreV1().Secrets(test.Namespace).Create(s)
+		_, err := p.homeClient.Client().CoreV1().Secrets(test.Namespace).Create(context.TODO(), s, metav1.CreateOptions{})
 		if err != nil {
 			chanError <- err
 			return
@@ -198,7 +199,7 @@ func secretCreation(p *KubernetesProvider, chanError chan error) {
 func secretUpdate(p *KubernetesProvider, chanError chan error) {
 	klog.Info("TEST - starting secret update")
 	for _, s := range test.SecretTestCases.UpdateSecrets {
-		_, err := p.homeClient.Client().CoreV1().Secrets(test.Namespace).Update(s)
+		_, err := p.homeClient.Client().CoreV1().Secrets(test.Namespace).Update(context.TODO(), s, metav1.UpdateOptions{})
 		if err != nil {
 			chanError <- err
 			return
@@ -209,7 +210,7 @@ func secretUpdate(p *KubernetesProvider, chanError chan error) {
 func secretDelete(p *KubernetesProvider, chanError chan error) {
 	klog.Info("TEST - starting secret delete")
 	for _, s := range test.SecretTestCases.DeleteSecrets {
-		err := p.homeClient.Client().CoreV1().Secrets(test.Namespace).Delete(s.Name, &metav1.DeleteOptions{})
+		err := p.homeClient.Client().CoreV1().Secrets(test.Namespace).Delete(context.TODO(), s.Name, metav1.DeleteOptions{})
 		if err != nil {
 			chanError <- err
 			return
@@ -219,11 +220,11 @@ func secretDelete(p *KubernetesProvider, chanError chan error) {
 
 func verifySecretConsistency(p *KubernetesProvider, event string) error {
 	klog.Infof("TEST - Asserting status coherency after %v", event)
-	homeSecrets, err := p.homeClient.Client().CoreV1().Secrets(test.Namespace).List(metav1.ListOptions{})
+	homeSecrets, err := p.homeClient.Client().CoreV1().Secrets(test.Namespace).List(context.TODO(), metav1.ListOptions{})
 	if err != nil {
 		return err
 	}
-	foreignSecrets, err := p.foreignClient.Client().CoreV1().Secrets(test.NattedNamespace).List(metav1.ListOptions{})
+	foreignSecrets, err := p.foreignClient.Client().CoreV1().Secrets(test.NattedNamespace).List(context.TODO(), metav1.ListOptions{})
 	if err != nil {
 		return err
 	}
