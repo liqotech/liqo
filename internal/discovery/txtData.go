@@ -6,17 +6,27 @@ import (
 )
 
 type TxtData struct {
-	ID        string
-	Namespace string
-	ApiUrl    string
+	ID               string
+	Namespace        string
+	AllowUntrustedCA bool
+	ApiUrl           string
 }
 
 func (txtData TxtData) Encode() ([]string, error) {
 	res := []string{
 		"id=" + txtData.ID,
 		"namespace=" + txtData.Namespace,
+		"untrusted-ca=" + txtData.GetAllowUntrustedCA(),
 	}
 	return res, nil
+}
+
+func (txtData *TxtData) GetAllowUntrustedCA() string {
+	if txtData.AllowUntrustedCA {
+		return "true"
+	} else {
+		return "false"
+	}
 }
 
 func Decode(ip string, port string, data []string) (*TxtData, error) {
@@ -26,6 +36,8 @@ func Decode(ip string, port string, data []string) (*TxtData, error) {
 			res.ID = d[len("id="):]
 		} else if strings.HasPrefix(d, "namespace=") {
 			res.Namespace = d[len("namespace="):]
+		} else if strings.HasPrefix(d, "untrusted-ca=") {
+			res.AllowUntrustedCA = d[len("untrusted-ca="):] == "true"
 		}
 	}
 	res.ApiUrl = "https://" + ip + ":" + port
@@ -37,7 +49,8 @@ func Decode(ip string, port string, data []string) (*TxtData, error) {
 
 func (discovery *DiscoveryCtrl) GetTxtData() TxtData {
 	return TxtData{
-		ID:        discovery.ClusterId.GetClusterID(),
-		Namespace: discovery.Namespace,
+		ID:               discovery.ClusterId.GetClusterID(),
+		Namespace:        discovery.Namespace,
+		AllowUntrustedCA: discovery.Config.AllowUntrustedCA,
 	}
 }

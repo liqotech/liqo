@@ -129,8 +129,9 @@ func testSDDelete(t *testing.T) {
 
 func getTxtData(cluster *Cluster, id string) *discovery.TxtData {
 	return &discovery.TxtData{
-		ID:        id,
-		Namespace: "default",
-		ApiUrl:    "https://" + cluster.cfg.Host,
+		ID:               id,
+		Namespace:        "default",
+		ApiUrl:           "https://" + cluster.cfg.Host,
+		AllowUntrustedCA: true,
 	}
 }

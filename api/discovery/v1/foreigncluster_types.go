@@ -40,11 +40,12 @@ type ForeignClusterSpec struct {
 	// INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
 	// Important: Run "make" to regenerate code after modifying this file
 
-	ClusterID     string        `json:"clusterID"`
-	Namespace     string        `json:"namespace"`
-	Join          bool          `json:"join"`
-	ApiUrl        string        `json:"apiUrl"`
-	DiscoveryType DiscoveryType `json:"discoveryType"`
+	ClusterID        string        `json:"clusterID"`
+	Namespace        string        `json:"namespace"`
+	Join             bool          `json:"join"`
+	ApiUrl           string        `json:"apiUrl"`
+	DiscoveryType    DiscoveryType `json:"discoveryType"`
+	AllowUntrustedCA bool          `json:"allowUntrustedCA"`
 }
 
 // ForeignClusterStatus defines the observed state of ForeignCluster
@@ -53,7 +54,7 @@ type ForeignClusterStatus struct {
 	// Important: Run "make" to regenerate code after modifying this file
 
 	Joined             bool                `json:"joined"`
-	PeeringRequestName string              `json:"peering-request-name"`
+	PeeringRequestName string              `json:"peering-request-name,omitempty"`
 	CaDataRef          *v1.ObjectReference `json:"caDataRef,omitempty"`
 	Advertisement      *v1.ObjectReference `json:"advertisement,omitempty"`
 	Ttl                int                 `json:"ttl,omitempty"`

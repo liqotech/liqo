@@ -43,7 +43,7 @@ spec:
       serviceAccountName: peering-request-operator
       initContainers:
         - name: secret-creation
-          image: {{ .Values.secretCreation.image.repository }}{{ .Values.suffix }}:{{ .Values.version }}
+          image: {{ .Values.secretCreation.image.repository }}{{ .Values.global.suffix | default .Values.suffix }}:{{ .Values.global.version | default .Values.version }}
           imagePullPolicy: {{ .Values.secretCreation.image.pullPolicy }}
           args:
             - "--namespace"
@@ -63,7 +63,7 @@ spec:
             - mountPath: /etc/environment/liqo
               name: env-volume
         - name: peering-request-deployment
-          image: {{ .Values.deployment.image.repository }}{{ .Values.suffix }}:{{ .Values.version }}
+          image: {{ .Values.deployment.image.repository }}{{ .Values.global.suffix | default .Values.suffix }}:{{ .Values.global.version | default .Values.version }}
           imagePullPolicy: {{ .Values.operator.pullPolicy }}
           args:
             - "--input-env-file"
@@ -72,7 +72,7 @@ spec:
             - mountPath: /etc/environment/liqo
               name: env-volume
       containers:
-        - image: {{ .Values.operator.image.repository }}{{ .Values.suffix }}:{{ .Values.version }}
+        - image: {{ .Values.operator.image.repository }}{{ .Values.global.suffix | default .Values.suffix }}:{{ .Values.global.version | default .Values.version }}
           name: peering-request-operator
           imagePullPolicy: {{ .Values.deployment.image.pullPolicy }}
           ports:

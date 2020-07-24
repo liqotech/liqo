@@ -58,11 +58,16 @@ type DiscoveryConfig struct {
 	EnableDiscovery     bool `json:"enableDiscovery"`
 	EnableAdvertisement bool `json:"enableAdvertisement"`
 
-	AutoJoin bool `json:"autojoin"`
+	AutoJoin          bool `json:"autojoin"`
+	AutoJoinUntrusted bool `json:"autojoinUntrusted"`
 
 	// --- DNS ---
 
 	DnsServer string `json:"dnsServer"`
+
+	// --- CA ---
+
+	AllowUntrustedCA bool `json:"allowUntrustedCA"`
 }
 
 type LiqonetConfig struct {

@@ -40,6 +40,9 @@ func main() {
 	flag.StringVar(&kubeconfigPath, "kubeconfigPath", filepath.Join(os.Getenv("HOME"), ".kube", "config"), "For debug purpose, set path to local kubeconfig")
 	flag.Parse()
 
+	klog.Info("Namespace: ", namespace)
+	klog.Info("RequeueAfter: ", requeueAfter)
+
 	clusterId, err := clusterID.NewClusterID(kubeconfigPath)
 	if err != nil {
 		klog.Error(err, err.Error())
@@ -57,7 +60,12 @@ func main() {
 		os.Exit(1)
 	}
 
-	discoveryCtl.SetupCaData()
+	err = discoveryCtl.SetupCaData()
+	if err != nil {
+		klog.Error(err, err.Error())
+		os.Exit(1)
+	}
+
 	discoveryCtl.StartDiscovery()
 
 	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{

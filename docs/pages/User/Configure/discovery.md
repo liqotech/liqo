@@ -119,6 +119,8 @@ spec:
   join: true
   namespace: <LiqoNamespace>
   apiUrl: https://<ForeignIP>:6443
+  discoveryType: Manual
+  allowUntrustedCA: true
 ```
 
 Then apply this file to home cluster:
@@ -129,3 +131,48 @@ kubectl apply -f foreign-cluster.yaml
 
 Wait few seconds and a new node will appear on your home cluster
 
+## Trust Remote Clusters
+
+We can check if a remote cluster requires server authentication before to peer it
+
+If a remote cluster requires authentication, `ForeignCluster` CR will be created with the `allowUntrustedCA` flag enabled in its Spec. If the remote cluster certificate is signed by a "default" root CA we are ok, else if not we have to add its root CA (provided Out-Of-Band) in our `trusted-ca-certificates` ConfigMap
+
+Example:
+```bash
+kubectl edit cm trusted-ca-certificates
+```
+```yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: trusted-ca-certificates
+data:
+  remote: |
+    -----BEGIN CERTIFICATE-----
+    MIIBVjCB/qADAgECAgEAMAoGCCqGSM49BAMCMCMxITAfBgNVBAMMGGszcy1zZXJ2
+    ...
+    APKY9n4CRdSWSQ==
+    -----END CERTIFICATE-----
+```
+
+When we will try the peering, https client will check that API server certificate was issued by one of trusted CAs
+
+__NOTE:__ when this ConfigMap is updated, the discovery component will trigger a restart to reload new CA configurations
+
+### Untrusted Mode
+
+![../images/discovery/untrusted.png](/images/discovery/untrusted.png)
+
+With the untrusted mode clusters are allowed to send PeeringRequest simply downloading CA from remote cluster
+
+Peering process will be automatically triggered if local cluster config has `autojoinUntrusted` flag active
+
+### Trusted Mode
+
+![../images/discovery/trusted.png](/images/discovery/trusted.png)
+
+With the trusted mode clusters are not allowed to send PeeringRequest if they don't authenticate the remote cluster
+
+API server certificate has to be issued from "default" root CAs or by CA provided out-of-band
+
+Peering process will be automatically triggered if local cluster config has `autojoin` flag active

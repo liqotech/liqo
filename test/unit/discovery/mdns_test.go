@@ -24,9 +24,10 @@ func TestMdns(t *testing.T) {
 // tests if txtData is correctly encoded/decode to/from DNS format
 func testTxtData(t *testing.T) {
 	txtData = discovery.TxtData{
-		ID:        clientCluster.clusterId.GetClusterID(),
-		Namespace: "default",
-		ApiUrl:    "https://" + serverCluster.cfg.Host,
+		ID:               clientCluster.clusterId.GetClusterID(),
+		Namespace:        "default",
+		ApiUrl:           "https://" + serverCluster.cfg.Host,
+		AllowUntrustedCA: true,
 	}
 	txt, err := txtData.Encode()
 	assert.NilError(t, err, "Error encoding txtData to DNS format")
@@ -66,9 +67,10 @@ func testForeignClusterCreation(t *testing.T) {
 
 	txts := []*discovery.TxtData{
 		{
-			ID:        "test",
-			Namespace: "default",
-			ApiUrl:    "http://" + serverCluster.cfg.Host,
+			ID:               "test",
+			Namespace:        "default",
+			ApiUrl:           "http://" + serverCluster.cfg.Host,
+			AllowUntrustedCA: true,
 		},
 	}
 
@@ -133,9 +135,10 @@ func testTtl(t *testing.T) {
 
 	txts := []*discovery.TxtData{
 		{
-			ID:        fc.Spec.ClusterID,
-			Namespace: "default",
-			ApiUrl:    "",
+			ID:               fc.Spec.ClusterID,
+			Namespace:        "default",
+			ApiUrl:           "",
+			AllowUntrustedCA: true,
 		},
 	}
 	err = clientCluster.discoveryCtrl.UpdateTtl(txts)

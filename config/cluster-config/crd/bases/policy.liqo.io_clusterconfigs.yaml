@@ -52,11 +52,13 @@ spec:
                   minimum: 0
                   type: integer
               required:
-              - autoAccept
+                - autoAccept
               type: object
             discoveryConfig:
               properties:
                 autojoin:
+                  type: boolean
+                autojoinUntrusted:
                   type: boolean
                 dnsServer:
                   type: string
@@ -72,6 +74,8 @@ spec:
                   maximum: 65355
                   minimum: 1
                   type: integer
+                allowUntrustedCA:
+                  type: boolean
                 service:
                   type: string
                 updateTime:
@@ -82,12 +86,14 @@ spec:
                   type: integer
               required:
               - autojoin
+              - autojoinUntrusted
               - dnsServer
               - domain
               - enableAdvertisement
               - enableDiscovery
               - name
               - port
+              - allowUntrustedCA
               - service
               - updateTime
               - waitTime
@@ -133,9 +139,9 @@ spec:
       type: object
   version: v1
   versions:
-  - name: v1
-    served: true
-    storage: true
+    - name: v1
+      served: true
+      storage: true
 status:
   acceptedNames:
     kind: ""

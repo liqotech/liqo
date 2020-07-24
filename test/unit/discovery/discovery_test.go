@@ -282,9 +282,10 @@ func testMergeClusters(t *testing.T) {
 	assert.Equal(t, ok, true)
 
 	txt := &discovery.TxtData{
-		ID:        fc.Spec.ClusterID,
-		Namespace: fc.Spec.Namespace,
-		ApiUrl:    strings.Replace(fc.Spec.ApiUrl, "127.0.0.1", "127.0.0.2", -1),
+		ID:               fc.Spec.ClusterID,
+		Namespace:        fc.Spec.Namespace,
+		ApiUrl:           strings.Replace(fc.Spec.ApiUrl, "127.0.0.1", "127.0.0.2", -1),
+		AllowUntrustedCA: true,
 	}
 	fc, err = clientCluster.discoveryCtrl.CheckUpdate(txt, fc, fc.Spec.DiscoveryType)
 	assert.NilError(t, err)
