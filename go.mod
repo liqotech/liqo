@@ -20,7 +20,6 @@ require (
 	github.com/getsentry/raven-go v0.2.0 // indirect
 	github.com/go-logr/logr v0.1.0
 	github.com/go-sql-driver/mysql v1.5.0 // indirect
-	github.com/gogo/protobuf v1.3.1 // indirect
 	github.com/golangci/gocyclo v0.0.0-20180528144436-0a533e8fa43d // indirect
 	github.com/golangci/golangci-lint v1.23.1 // indirect
 	github.com/golangci/revgrep v0.0.0-20180812185044-276a5c0a1039 // indirect
@@ -53,7 +52,7 @@ require (
 	github.com/spf13/pflag v1.0.5
 	github.com/spf13/viper v1.6.2 // indirect
 	github.com/streadway/amqp v0.0.0-20200108173154-1c71cc93ed71 // indirect
-	github.com/stretchr/testify v1.4.0
+	github.com/stretchr/testify v1.6.1
 	github.com/tmc/grpc-websocket-proxy v0.0.0-20200122045848-3419fae592fc // indirect
 	github.com/tommy-muehle/go-mnd v1.2.0 // indirect
 	github.com/urfave/cli v1.22.2 // indirect
@@ -67,7 +66,6 @@ require (
 	go.uber.org/multierr v1.4.0 // indirect
 	go.uber.org/zap v1.13.0 // indirect
 	golang.org/x/sys v0.0.0-20200615200032-f1bc736245b1
-	golang.org/x/time v0.0.0-20191024005414-555d28b269f0 // indirect
 	golang.org/x/tools v0.0.0-20200331025713-a30bf2db82d4
 	gopkg.in/ini.v1 v1.51.1 // indirect
 	gotest.tools v2.2.0+incompatible
@@ -77,11 +75,9 @@ require (
 	k8s.io/klog v1.0.0
 	k8s.io/kubectl v0.18.6
 	k8s.io/kubernetes v1.18.6
-	k8s.io/metrics v0.18.6 // indirect
 	k8s.io/utils v0.0.0-20200603063816-c1c6865ac451
 	mvdan.cc/unparam v0.0.0-20191111180625-960b1ec0f2c2 // indirect
 	sigs.k8s.io/controller-runtime v0.6.1
-	sigs.k8s.io/yaml v1.2.0 // indirect
 	sourcegraph.com/sqs/pbtypes v1.0.0 // indirect
 )
 
