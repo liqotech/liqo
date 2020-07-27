@@ -2,7 +2,7 @@ package client
 
 import (
 	advtypes "github.com/liqoTech/liqo/api/advertisement-operator/v1"
-	advertisement_operator "github.com/liqoTech/liqo/internal/advertisement-operator"
+	advop "github.com/liqoTech/liqo/internal/advertisement-operator"
 	"github.com/liqoTech/liqo/pkg/crdClient"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/tools/cache"
@@ -92,7 +92,7 @@ func (c *AdvertisementCache) StopCache() {
 // callback function for the Advertisement watch.
 func checkNewAdv(obj interface{}) {
 	newAdv := obj.(*advtypes.Advertisement)
-	if newAdv.Status.AdvertisementStatus == advertisement_operator.AdvertisementAccepted {
+	if newAdv.Status.AdvertisementStatus == advop.AdvertisementAccepted {
 		agentCtrl.advCache.NotifyChannels[ChanAdvAccepted] <- newAdv.Name
 	} else {
 		agentCtrl.advCache.NotifyChannels[ChanAdvNew] <- newAdv.Name
@@ -103,9 +103,9 @@ func checkNewAdv(obj interface{}) {
 func updateAcceptedAdv(oldObj interface{}, newObj interface{}) {
 	oldAdv := oldObj.(*advtypes.Advertisement)
 	newAdv := newObj.(*advtypes.Advertisement)
-	if oldAdv.Status.AdvertisementStatus != advertisement_operator.AdvertisementAccepted && newAdv.Status.AdvertisementStatus == advertisement_operator.AdvertisementAccepted {
+	if oldAdv.Status.AdvertisementStatus != advop.AdvertisementAccepted && newAdv.Status.AdvertisementStatus == advop.AdvertisementAccepted {
 		agentCtrl.advCache.NotifyChannels[ChanAdvAccepted] <- newAdv.Name
-	} else if oldAdv.Status.AdvertisementStatus == advertisement_operator.AdvertisementAccepted && newAdv.Status.AdvertisementStatus != advertisement_operator.AdvertisementAccepted {
+	} else if oldAdv.Status.AdvertisementStatus == advop.AdvertisementAccepted && newAdv.Status.AdvertisementStatus != advop.AdvertisementAccepted {
 		agentCtrl.advCache.NotifyChannels[ChanAdvRevoked] <- newAdv.Name
 	}
 }

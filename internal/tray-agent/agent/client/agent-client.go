@@ -119,12 +119,10 @@ func GetAgentController() *AgentController {
 		crdClient.AddToRegistry("advertisements", &v1.Advertisement{}, &v1.AdvertisementList{}, advertisementKeyer, v1.GroupResource)
 		if !mockedController {
 			var err error
-			if c := AcquireKubeconfig(); c {
-				if agentCtrl.client, err = createClient(); err == nil {
-					agentCtrl.valid = true
-					if test := agentCtrl.ConnectionTest(); test {
-						agentCtrl.StartCaches()
-					}
+			if agentCtrl.client, err = createClient(); err == nil {
+				agentCtrl.valid = true
+				if test := agentCtrl.ConnectionTest(); test {
+					agentCtrl.StartCaches()
 				}
 			}
 		} else {
@@ -162,13 +160,13 @@ func (ctrl *AgentController) ConnectionTest() bool {
 // LIQO_KCONFIG represents the location of a kubeconfig file in order to let
 // the client connect to the local cluster.
 //
-// The file path - if not expressed with the 'kubeconfig' program argument -
+// The file path - if not expressed with the 'kubeconf' program argument -
 // is set to $HOME/.kube/config .
 //
 // It returns whether a valid file path for a possible kubeconfig has been set.
 func AcquireKubeconfig() bool {
 	kubePath := filepath.Join(os.Getenv("HOME"), ".kube")
-	kubeconfig := flag.String("kubeconfig", filepath.Join(kubePath, "config"),
+	kubeconfig := flag.String("kubeconf", filepath.Join(kubePath, "config"),
 		"[OPT] absolute path to the kubeconfig file."+
 			" Default = $HOME/.kube/config")
 	flag.Parse()

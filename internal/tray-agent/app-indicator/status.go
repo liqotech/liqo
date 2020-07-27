@@ -348,3 +348,10 @@ func (i *Indicator) RefreshStatus() {
 	i.menuStatusNode.SetTitle(i.status.GoString())
 	i.RefreshLabel()
 }
+
+//DestroyStatus is a testing function used to refresh the Status component.
+func DestroyStatus() {
+	if GetGuiProvider().Mocked() {
+		statusBlock = nil
+	}
+}

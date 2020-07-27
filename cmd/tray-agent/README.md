@@ -13,6 +13,6 @@ In order to build it, install these dependencies via
 ### RUN
 Liqo Agent requires a valid kubeconfig file in order to connect to the Kubernetes cluster. You can select a file explicitly with the **kubeconfig** argument:
 
-```./liqo-agent --kubeconfig='path/to/kubeconfig/file'```.
+```./liqo-agent -kubeconf='path/to/kubeconfig/file'```.
 
 If **kubeconfig** option is missing, the program searches for a kubeconfig file in ```$HOME/.kube/config```.
