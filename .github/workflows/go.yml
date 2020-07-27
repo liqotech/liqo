@@ -59,6 +59,10 @@ jobs:
   e2e-test-trigger:
      runs-on: ubuntu-latest
      needs: [build, test]
+     matrix:
+       component:
+         - liqops
+         - doc-website
      steps:
        - name: Set the commit to build
          run: |
@@ -80,7 +84,7 @@ jobs:
          run: echo "::set-env name=branch_name::`echo ${GITHUB_REF#refs/*/}`"
        - name: "Notify PR Event to Liqops"
          run: |
-           curl -X POST https://api.github.com/repos/LiqoTech/liqops/dispatches \
+           curl -X POST https://api.github.com/repos/LiqoTech/${{ matrix.component }}/dispatches \
            -H 'Accept: application/vnd.github.everest-preview+json' \
            -u ${{ secrets.CI_TOKEN }} \
            --data '{"event_type": "dev-event", "client_payload": { "actor": "${{ env.branch_owner }}", "ref": "${{ env.branch_name }}", "commit":"${{ env.commit_ref }}" }}'
