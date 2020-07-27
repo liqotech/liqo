@@ -22,18 +22,29 @@ func quickTurnOnOff(i *app.Indicator) {
 	runSt := i.Status().Running()
 	switch runSt {
 	case app.StatRunOff:
+		//turning ON Liqo if possible
 		if i.AgentCtrl().Connected() {
 			i.Status().SetRunning(app.StatRunOn)
 			updateQuickTurnOnOff(i)
+			i.RefreshStatus()
 			//user can access the ACTION
+			if action, present := i.Action(aShowPeers); present {
+				action.SetIsVisible(true)
+			}
 			i.SelectAction(aShowPeers)
 		}
 	case app.StatRunOn:
+		//turning OFF Liqo
 		//todo insert "shutdown peerings" logic
 		i.Status().SetRunning(app.StatRunOff)
 		updateQuickTurnOnOff(i)
+		i.RefreshStatus()
+		i.SetIcon(app.IconLiqoMain)
 		//the active ACTION is turned off
 		i.DeselectAction()
+		if action, present := i.Action(aShowPeers); present {
+			action.SetIsVisible(false)
+		}
 	}
 }
 
@@ -65,7 +76,7 @@ func quickChangeMode(i *app.Indicator) {
 			updateQuickChangeMode(i)
 			i.RefreshStatus()
 		} else {
-			i.ShowWarning("LIQO AGENT","Mode change not allowed.")
+			i.ShowWarningForbiddenTethered()
 		}
 	case app.StatModeTethered:
 		//transition to AUTONOMOUS mode
@@ -74,7 +85,7 @@ func quickChangeMode(i *app.Indicator) {
 			updateQuickChangeMode(i)
 			i.RefreshStatus()
 		} else {
-			i.ShowWarningForbiddenTethered()
+			i.ShowWarning("LIQO AGENT", "Mode change not allowed.")
 		}
 
 	}

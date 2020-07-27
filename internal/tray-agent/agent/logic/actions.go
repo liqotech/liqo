@@ -36,14 +36,3 @@ func actionShowAdv() {
 	}
 
 }
-
-/*** SETTINGS ***/
-
-// callback function for the ACTION "settings" that displays the settings submenu.
-/*func actionSettings() {
-	i := app.GetIndicator()
-	if _, pres := i.Action(aSettings); !pres {
-		return
-	}
-	i.SelectAction(aSettings)
-}*/

@@ -144,7 +144,7 @@ func (i *Indicator) NotifyDeletedAdv(name string) {
 //ShowWarning displays a Warning window box.
 func (i *Indicator) ShowWarning(title, message string) {
 	if !GetGuiProvider().Mocked() {
-		dlgs.Warning(title, fmt.Sprintln(strutil.CenterText("", menuWidth*2), message))
+		_, _ = dlgs.Warning(title, fmt.Sprintln(strutil.CenterText("", menuWidth*2), message))
 	}
 }
 

@@ -154,6 +154,7 @@ func (i *Indicator) SelectAction(tag string) *MenuNode {
 				}(action, &wgOther)
 			} else {
 				//recursively show selected ACTION with its sub-components
+				action.SetIsVisible(true)
 				action.SetIsEnabled(false)
 				//OPTIONS are shown by default
 				for _, option := range action.optionMap {
@@ -186,6 +187,9 @@ func (i *Indicator) DeselectAction() {
 				for _, listNode := range action.nodesList {
 					listNode.DisuseListChild()
 				}
+				//temporary workaround for current implementation of "Liqo Peers;
+				//the action is automatically managed.
+				action.SetIsEnabled(false)
 			}
 		}
 		i.activeNode = i.menu

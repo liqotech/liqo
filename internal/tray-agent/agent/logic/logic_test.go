@@ -14,24 +14,30 @@ func TestOnReady(t *testing.T) {
 	client.UseMockedAgentController()
 	app.DestroyMockedIndicator()
 	client.DestroyMockedAgentController()
-	OldReady()
+	app.DestroyStatus()
+	OnReady()
 	i := app.GetIndicator()
 	//test startup Icon
 	startIcon := i.Icon()
 	assert.Equal(t, app.IconLiqoMain, startIcon, "startup Indicator icon is not IconLiqoMain")
 	//test ACTIONs and QUICKs registrations
 	var exist bool
-	_, exist = i.Quick(qHome)
-	assert.Truef(t, exist, "QUICK %s not registered", qHome)
+	_, exist = i.Quick(qOnOff)
+	assert.Truef(t, exist, "QUICK %s not registered", qOnOff)
+	_, exist = i.Quick(qMode)
+	assert.Truef(t, exist, "QUICK %s not registered", qMode)
+	_, exist = i.Quick(qWeb)
+	assert.Truef(t, exist, "QUICK %s not registered", qWeb)
 	_, exist = i.Quick(qQuit)
 	assert.Truef(t, exist, "QUICK %s not registered", qQuit)
 	_, exist = i.Quick(qDash)
 	assert.Truef(t, exist, "QUICK %s not registered", qDash)
+	_, exist = i.Quick(qNotify)
+	assert.Truef(t, exist, "QUICK %s not registered", qNotify)
 	//
 	_, exist = i.Action(aShowPeers)
 	assert.Truef(t, exist, "ACTION %s not registered", aShowPeers)
-	_, exist = i.Action(aSettings)
-	assert.Truef(t, exist, "ACTION %s not registered", aSettings)
+
 	// test Listeners registrations
 	_, exist = i.Listener(client.ChanAdvNew)
 	assert.True(t, exist, "Listener for NotifyChanType ChanAdvNew not registered")

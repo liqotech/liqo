@@ -6,19 +6,14 @@ import (
 	"os/exec"
 )
 
-// set of action tags
+//set of action tags
 const (
 	aShowPeers = "A_SHOW_PEERS"
 )
 
-// set of options
+//set of options
 const (
 	oAddPeer = "O_ADD_PEER"
-)
-
-//set of timer tags
-const (
-	timerStatus = "T_STATUS"
 )
 
 //OnReady is the routine orchestrating Liqo Agent execution.
@@ -34,30 +29,9 @@ func OnReady() {
 	startQuickSetNotifications(i)
 	startQuickLiqoWebsite(i)
 	startQuickQuit(i)
-	//todo auto selection of startActionPeers
 	startActionPeers(i)
-	//
-	//start liqo
+	//try to start Liqo and main ACTION
 	quickTurnOnOff(i)
-}
-
-//OnReady is the routine orchestrating Liqo Tray Agent execution.
-func OldReady() {
-	// Indicator configuration
-	i := app.GetIndicator()
-	i.SetMenuTitle("Liqo Agent")
-	// LISTENERS insertion
-	startListenerAdvertisements(i)
-	// QUICKS insertion
-
-	startQuickDashboard(i)
-	startQuickQuit(i)
-	//
-	i.AddSeparator()
-	//
-	// ACTIONS insertion
-	startActionPeers(i)
-	//todo add optional start liqo
 }
 
 //OnExit is the routine containing clean-up operations to be performed at Liqo Agent exit.
@@ -76,9 +50,9 @@ func startQuickOnOff(i *app.Indicator) {
 
 //startQuickChangeMode is the wrapper function to register the QUICK "CHANGE LIQO MODE"
 func startQuickChangeMode(i *app.Indicator) {
-	i.AddQuick("",qMode, func(args ...interface{}) {
+	i.AddQuick("", qMode, func(args ...interface{}) {
 		quickChangeMode(i)
-	},i)
+	}, i)
 	//the Quick MenuNode title is refreshed
 	updateQuickChangeMode(i)
 }
@@ -116,9 +90,14 @@ func startQuickQuit(i *app.Indicator) {
 
 //startActionPeers is the wrapper function to register ACTION "Show available peers".
 func startActionPeers(i *app.Indicator) {
-	i.AddAction("Show Advertisements", aShowPeers, func(args ...interface{}) {
+	a := i.AddAction("Available Peers", aShowPeers, func(args ...interface{}) {
 		actionShowAdv()
 	})
+	if a != nil {
+		a.SetIsVisible(false)
+		a.AddOption("Add remote peer", oAddPeer, nil)
+	}
+
 }
 
 //LISTENERS
@@ -174,5 +153,6 @@ func startListenerAdvertisements(i *app.Indicator) {
 	})
 	i.Listen(client.ChanAdvDeleted, i.AgentCtrl().AdvCache().NotifyChannels[client.ChanAdvDeleted], func(objName string, args ...interface{}) {
 		i.NotifyDeletedAdv(objName)
+		i.Status().DecConsumePeerings()
 	})
 }
