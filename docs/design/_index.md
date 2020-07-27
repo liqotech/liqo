@@ -1,3 +1,7 @@
+---
+title: "Liqo Documentation"
+---
+
 ## Introduction
 
 Liqo enables resource sharing across Kubernetes clusters. To do so, it encapsulates (1) a logic to discover/advertise 
