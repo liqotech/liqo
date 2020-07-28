@@ -59,8 +59,10 @@ jobs:
   e2e-test-trigger:
      runs-on: ubuntu-latest
      needs: [build, test]
-     matrix:
-       component:
+     strategy:
+       fail-fast: false
+       matrix:
+         component:
          - liqops
          - doc-website
      steps:

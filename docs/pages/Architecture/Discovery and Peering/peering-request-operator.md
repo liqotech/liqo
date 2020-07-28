@@ -1,4 +1,7 @@
-# Peering Request Operator
+---
+title: Peering Request Operator
+---
+
 ## Overview
 This component manages `PeeringRequest` lifecycle during peering process
 

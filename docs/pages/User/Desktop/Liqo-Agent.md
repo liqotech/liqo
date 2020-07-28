@@ -1,4 +1,7 @@
-# Liqo Agent
+---
+title: Liqo Agent 
+weight: 1
+---
 
 * [**Overview**](#overview)
     * [Features](#features)
@@ -75,7 +78,7 @@ tray menu. Each MenuNode has exclusive control on a single menu item and its fea
 It embeds all the necessary logic and data structures (like clients and caches) in order to 
 operate with the Liqo CRDs, watching relevant events and signaling them to the _Indicator_ Notify system.
 
-![Liqo Agent components](../images/tray-agent/liqo_agent-scheme.png)
+![Liqo Agent components](/images/tray-agent/liqo_agent-scheme.png)
 
 ## Implementation    
 Take a look at the complete api [documentation](https://pkg.go.dev/github.com/liqoTech/liqo/internal/tray-agent).
@@ -111,7 +114,7 @@ Using a proper orchestration of the Liqo components, _Agent_ introduces two abst
 
 ### Autonomous
 
-![Autonomous mode](../images/tray-agent/autonomous-mode.png)
+![Autonomous mode](/images/tray-agent/autonomous-mode.png)
 
 In the **_Autonomous_** mode (default), **the device uses its own on-board intelligence**, i.e. it connects to its
 local K8s _API server_ and lets the local orchestrator control the scheduling. This way:
@@ -126,7 +129,7 @@ and **sharing its proprietary resources** to other peers.
 
 ### Tethered
 
-![Tethered mode](../images/tray-agent/tethered-mode.png)
+![Tethered mode](/images/tray-agent/tethered-mode.png)
 
 When working in **_Tethered_** mode, the device can **_choose_ to connect** to a **_single_** foreign Liqo peer
 (e.g. the corporate network), allowing the remote orchestrator to control the usage of its resources.

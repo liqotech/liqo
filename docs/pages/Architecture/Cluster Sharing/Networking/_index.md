@@ -1,16 +1,19 @@
-# Liqonet
+---
+title: Networking 
+---
+
 Liqonet is in charge of connecting networks of different Kubernetes clusters. It is made of three Kubernetes operators:
 * [tunnelEndpointCreator-operator](liqonet_tunEndCreator.md);
 * [route-operator](liqonet_routeOperator.md);
 * [tunnelEndpoint-operator](liqonet_tunnelEndpoint.md).
 
 The module enables Kubernetes clusters to exchange only the POD traffic, which means that only the POD CIDR subnet of a remote cluster is reachable by a local cluster.
-Thanks to the [resource reflection](resource_sharing.md) pods and nodes of a local cluster can reach also the pods running behind a service in a remote cluster.
+Thanks to the [resource reflection](../_index.md) pods and nodes of a local cluster can reach also the pods running behind a service in a remote cluster.
 
 ## Architecture
 The following image shows the basic architecture of liqonet.
 
-  ![](../images/liqonet/liqonet_architecture.png)
+  ![](/images/liqonet/liqonet_architecture.png)
 
 More information on the operators can be found on their relative section.
 
@@ -21,7 +24,8 @@ Having traffic originated on the node of a local cluster it is routed through th
 After that it is sent through the VPN tunnel and reaches the remote cluster gateway node where it is handled by the CNI of the cluster in order to reach the destination pod. 
 
 ### Workflow
-![](../images/liqonet/liqonet_workflow.png)
+
+![](/images/liqonet/liqonet_workflow.png)
 
 The initialization network connection between two cluster goes through the following steps:
 1. a `protocol.liqo.io` custom resource called **Advertisement** is created in the local cluster by peering cluster;

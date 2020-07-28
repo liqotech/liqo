@@ -28,4 +28,4 @@ being an a.b.c.d/16 CIDR block.
 
 ## Architecture and workflow
 
-Will be included in the general overview of the network module.
+Wtill be included in the general overview of the network module.
