@@ -1,11 +1,14 @@
-# Resource Sharing
+---
+title: Compute Sharing
+weight: 2
+---
 
 ## Overview
 
 The resource sharing in Liqo is implemented by exploiting our implementation of the
 [Virtual Kubelet (VK)](https://github.com/virtual-kubelet/virtual-kubelet) project, a component that, through a custom
 kubelet implementation, is in charge of masquerading a remote cluster by means of a local (virtual) node. This local
-node pretends to have available resources and to effectively handle the pods scheduled on it, but actually it acts as a 
+node pretends to have available resources and to effectively handle the pods scheduled on it, but actually it acts as a
 proxy toward a remote Kubernetes cluster.
 
 ## Features
@@ -38,7 +41,7 @@ between local and remote namespaces.
 If the lookup operation doesn't return a valid translation for the local namespace, it creates a new translation entry
 by using the following syntax: `<local-namespace>-<home-cluster-id>`, then creates the remote namespace and starts
 reflecting all the local resources (see below). Once a translation entry for the current namespace is set up, and the
-reflection mechanism is configured, the received pods are sent to the foreign cluster, and their lifecycle is handled 
+reflection mechanism is configured, the received pods are sent to the foreign cluster, and their lifecycle is handled
 according to the above pattern.
 
 #### Local Resource reflection
@@ -71,7 +74,7 @@ management could be achieved by means of the
 ## Architecture and workflow
 
 #### Pod lifecycle handling
-![](../images/resource_sharing/pod_lifecycle.png)
+![](/images/resource_sharing/pod_lifecycle.png)
 
 The pod lifecycle is the mechanism of keeping the home pods scheduled on the virtual node aligned with the remote ones.
 It is a based on a double reflected mechanism:
@@ -80,7 +83,7 @@ It is a based on a double reflected mechanism:
 * the `NamespaceNattingTable` is needed to translate the local namespace to the foreign one.
 
 #### Resource reflection
-![](../images/resource_sharing/reflection.png)
+![](/images/resource_sharing/reflection.png)
 
 The resource reflection makes use of a control loop managed by a set of threads, each one selecting an incoming event
 (that can be of any type, regarding all kinds of objects) at once. In order to accomplish this behavior, every time a

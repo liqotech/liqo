@@ -1,14 +1,18 @@
-# Discovery 
+---
+title: "Discovery"
+---
 
-This service aims to make aware two clusters running Liqo of each other existence and, eventually, make them peer. We call "home" cluster the one that needs resources and "foreign" cluster the one that can share resources.
+This service aims to make aware two clusters running Liqo of each other existence and, eventually, make them peer. 
+We call "home" cluster the one that needs resources and "foreign" cluster the one that can share resources.
 
 ### Scenarios
 
-When a first (home) cluster would like to peer to a second (foreign) cluster, it needs to know of the required parameters (e.g., cluster IP address, etc). This process can be achieved in three ways:
+When a first (home) cluster would like to peer to a second (foreign) cluster, it needs to know of the required parameters
+(e.g., cluster IP address, etc). This process can be achieved in three ways:
 
-* Automatic discover of other neighboring clusters, reachable on the same LAN the home cluster is attached to
-* Automatic discover of the parameters associated to remote clusters, through a proper DNS query
-* Manual insertion of the parameters required for the peering
+* **LAN Discovery**: Automatic discover of other neighboring clusters, reachable on the same LAN the home cluster is attached to
+* **DNS Discovery**: Automatic discover of the parameters associated to remote clusters, through a proper DNS query
+* **Manual Insertion**: Manual insertion of the parameters required for the peering
 
 #### Required Parameters
 
@@ -20,12 +24,13 @@ In `ForeignCluster` CR there are required parameters to connect to a foreign clu
 
 #### Peering Process
 
-1. each cluster allow create-only permission on `FederationRequest` resources to unathenticated user
+1. each cluster allow create-only permission on `FederationRequest` resources to unathenticated user.
 2. when the `Join` flag in the `ForeignCluster` CR becomes true (either automatically or manually), 
    an operator is triggered and creates a new `FederationRequest` CR on the _foreign cluster_.
-    `FederationRequest` creation process includes the creation of new kubeconfig with management permission on `Advertisement` CRs
-3. on the foreign cluster, an admission webhook accept/reject `FederationRequest`s
-4. the `FederationRequest` is used to start the sharing of resources
+   `FederationRequest` creation process includes the creation of new kubeconfig with management permission on
+   `Advertisement` CRs.
+3. on the foreign cluster, an admission webhook accept/reject `FederationRequest`s.
+4. the `FederationRequest` is used to start the sharing of resources.
 
 ## Neighborhood discovery
 
@@ -37,7 +42,9 @@ The protocol is described by the following steps:
 3. when someone replies, the requesting cluster get required data from mDNS server
 4. the home cluster stores this information in `ForeignCluster` CR along with their `clusterID`
 
-Exchanged DNS packets are analogous to the ones exchanged in DNS discovery with exception of PTR record. In mDNS discovery list of all clusters will be the ones that replies on multicast query on `local.` domain. (See following section)
+Exchanged DNS packets are analogous to the ones exchanged in DNS discovery with exception of PTR record. 
+In mDNS discovery list of all clusters will be the ones that replies on multicast query on `local.` domain. 
+(See following section)
 
 ## DNS Discovery
 

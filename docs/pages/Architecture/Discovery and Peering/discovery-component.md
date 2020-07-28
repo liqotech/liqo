@@ -1,11 +1,16 @@
-# Discovery
+---
+title: "Discovery Protocol"
+---
+
 ## Overview
 This component's goal is to find other clusters running Liqo around us, get information needed to pair and start peering process
 
 ### Features
 List of supported features
 * ClusterID creation
-  * if not already present, during component starting, it creates new ClusterID taking the UID of first master of our cluster or generates new UUID if no master is present (NOTE: in this case ID will be different if ConfigMap where it is store is deleted)
+  * if not already present, during component starting, it creates new ClusterID taking the UID of first master of our
+   cluster or generates new UUID if no master is present (NOTE: in this case ID will be different if ConfigMap where it 
+   is store is deleted)
 * Make our cluster discoverable by other clusters
   * this feature can be enabled and disabled at runtime setting `enableAdvertisement` flag in `ClusterConfig` CR
   * register Liqo service on local mDNS server and answers when someone is looking for it
@@ -52,26 +57,26 @@ This component can be divided in two main blocks:
 #### Cluster finding
 
 The goal of this block is to find clusters, to collect data and to create `ForeignCluster`s CR.
-
 This can be done by mDNS resolver, DNS client or by manual insertion.
-
-If we are using DNS client, we use an additional sub-component, the `SearchDomain` operator. This operator watches `SearchDomain` resources, when a new one is added, it contacts DNS server to retrieve required data.
+If we are using DNS client, we use an additional sub-component, the `SearchDomain` operator. This operator watches 
+`SearchDomain` resources, when a new one is added, it contacts DNS server to retrieve required data.
 
 ##### Merge Logic
 
-This logic merges discovered clusters with already existent ones. Currently, it checks if there is a cluster with the same ClusterId, if not it creates a new one.
+This logic merges discovered clusters with already existent ones. Currently, it checks if there is a cluster with the
+same ClusterId, if not it creates a new one.
 
 #### ForeignCluster management
 
 This block is a standard Kubernetes operator that is watching on `ForeignCluster` resources.
-
-When new one is added this component retrieves CAData from the remote cluster and stores it in a secret. That secret will be used in all next interactions with remote cluster to authenticate it using it as Certification Authority of remote cluster TLS certificate.
-
-When `join` flag becomes true in a `ForeignCluster`, this component creates a new `PeeringRequest` CR in the remote cluster triggering peering process.
-
+When new one is added this component retrieves CAData from the remote cluster and stores it in a secret. That secret will
+be used in all next interactions with remote cluster to authenticate it using it as Certification Authority of remote
+cluster TLS certificate.
+When `join` flag becomes true in a `ForeignCluster`, this component creates a new `PeeringRequest` CR in the remote
+cluster triggering peering process.
 Vice versa when we set to false this flag, `PeeringRequest` will be deleted triggering peering delete.
-
-Every 30 seconds it checks is everything is working as expected both in the local and in the remote cluster, if something is not it tries to reconcile them.
+Every 30 seconds it checks is everything is working as expected both in the local and in the remote cluster, 
+if something is not it tries to reconcile them.
 
 ### Workflow
 

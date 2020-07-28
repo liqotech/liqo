@@ -1,4 +1,7 @@
-# Advertisement protocol
+---
+title: "Advertisement Protocol"
+weight: 1
+---
 
 ## Overview
 The advertisement protocol is the logic that enables resource sharing between different clusters.
@@ -10,16 +13,18 @@ These messages are then used to build a local virtual-node where jobs can be sch
 actually sent to the respective foreign cluster. 
 
 ## Architecture and workflow
-![](../images/advertisement-protocol/architecture.png)
+![](/images/advertisement-protocol/architecture.png)
 
 ### Components
-* The [broadcaster](broadcaster.md) is in charge of sending to other clusters the Advertisement message, containing the resources made available for sharing and (optionally) their prices
-* The [advertisement operator](controller.md) (briefly called **controller**) is the module that receives Advertisement messages and creates the virtual nodes with the announced resources.
+* The [broadcaster](broadcaster.md) is in charge of sending to other clusters the Advertisement message, containing the
+  resources made available for sharing and (optionally) their prices
+* The [advertisement operator](controller.md) (briefly called **controller**) is the module that receives Advertisement 
+  messages and creates the virtual nodes with the announced resources.
   
 ### Workflow
 
 #### Outgoing chain
-1. A foreign cluster is provided (manually by the admin or through the [discovery protocol](discovery.md)).
+1. A foreign cluster is provided (manually by the admin or through the [discovery protocol](Discovery and Peering/discovery.md)).
 2. When the foreign cluster requests some resources, the discovery logic creates the broadcaster
 3. The broadcaster retrieves the available cluster resources and, after applying some policies, creates an Advertisement.
 4. The Advertisement is pushed to the foreign cluster.
@@ -28,4 +33,4 @@ actually sent to the respective foreign cluster.
 1. An Advertisement is received from the foreign cluster
 2. The Advertisement is checked by a policy block: if it is accepted, it is further processed by the controller
 3. The controller creates a virtual node with the information taken by the Advertisement
-4. The virtual node will masquerade the foreign cluster and the resources created on it will be reflected according to the [sharing process](resource_sharing.md)
+4. The virtual node will masquerade the foreign cluster and the resources created on it will be reflected according to the [sharing process](Cluster Sharing/_index.md)

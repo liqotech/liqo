@@ -1,4 +1,6 @@
-# Broadcaster
+---
+title: Broadcaster
+---
 
 ## Overview
 The broadcaster is in charge of sending to other clusters the `Advertisement` CR, containing the resources made available 
@@ -22,15 +24,15 @@ After having created the Advertisement on the remote cluster, the broadcaster st
    The Advertisement is sent every 10 minutes to the foreign cluster.
 * Dynamic creation of the Advertisement when the configuration changes
 
-   The broadcaster watches `ClusterConfig` CR: when the sharing percentage is modified, it creates an Advertisement with the new
-   amount of resources and immediately pushes it on the foreign cluster, without waiting for the periodic creation.
+   The broadcaster watches `ClusterConfig` CR: when the sharing percentage is modified, it creates an Advertisement with 
+   the new amount of resources and immediately pushes it on the foreign cluster, without waiting for the periodic creation.
 
 ### Limitations
 * More complex policies (e.g. differentiate Advertisement on the base of the foreign cluster)
 * MetricsAPI to have more precise values of available resources
 
 ## Architecture and workflow
-![](../images/advertisement-protocol/broadcaster-workflow.png)
+![](/images/advertisement-protocol/broadcaster-workflow.png)
 
 1. A `PeeringRequest` is created by the foreign cluster: a broadcaster deployment is launched
 2. Get the resources available in the cluster considering all its physical nodes

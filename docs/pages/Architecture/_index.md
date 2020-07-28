@@ -1,5 +1,6 @@
 ---
-title: "Liqo Documentation"
+title: "Architecture"
+weight: 2
 ---
 
 ## Introduction
@@ -19,7 +20,7 @@ insertion) and exchange credentials with each other to start communicate.
 3. **Resource Sharing**: When a cluster is interested in resources proposed by a certain advertisement, it accepts the
  advertisement. This triggers the establishment of network interconnections and the spawning of a new virtual-kubelet.
 
-[Here](../images/complete-workflow.png) you can find a graphic description of the complete workflow  
+[Here](/images/complete-workflow.png) you can find a graphic description of the complete workflow  
 
 ## Discovery
 
@@ -31,7 +32,7 @@ case with mDNS, in second the one with standard DNS.
 
 The output of the discovery phase is the exchange of advertisements with "foreign" clusters.
 
-The discovery phase is presented in details [here](discovery.md)
+The discovery phase is presented in details [here](discovery-and-peering/)
 
 ## Advertisement management
 The Advertisement operator can be split in two main components.
@@ -49,5 +50,6 @@ foreign cluster resources are seamlessly added to the cluster resources by the c
 From the networking perspectives, the "acceptation" of an Advertisement triggers the networking logic which establishes
 the tunnels and install the routes.
 
-More details about [resource sharing](./resource_sharing.md)
+More details about [resource sharing](cluster-sharing/)
+
 
