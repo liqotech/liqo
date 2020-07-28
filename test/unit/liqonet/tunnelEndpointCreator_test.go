@@ -2,15 +2,26 @@ package liqonet
 
 import (
 	policyv1 "github.com/liqoTech/liqo/api/cluster-config/v1"
+	v1 "github.com/liqoTech/liqo/api/tunnel-endpoint/v1"
 	controller "github.com/liqoTech/liqo/internal/liqonet"
 	liqonetOperator "github.com/liqoTech/liqo/pkg/liqonet"
 	"github.com/stretchr/testify/assert"
+	k8sApiErrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/klog"
 	"net"
+	"os"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sync"
 	"testing"
+	"time"
 )
+
+func TestMain(m *testing.M) {
+	setupEnv()
+	defer tearDown()
+	os.Exit(m.Run())
+}
 
 func getTunnelEndpointCreator() *controller.TunnelEndpointCreator {
 	return &controller.TunnelEndpointCreator{
@@ -242,4 +253,114 @@ func TestUpdateConfiguration(t *testing.T) {
 			assert.Equal(t, false, overlapping)
 		}
 	}
+}
+
+func TestGetTunEndPerADV(t *testing.T) {
+	//during the set up of the environment a custom resource of type advertisement.protocol.liqo.io
+	//have been created. Here we test that given an advertisement we can retrieve the associated
+	//custom resource of type tunnelEndpoint.liqonet.liqo.io
+	var err error
+	adv := getAdv()
+	err = tunEndpointCreator.Get(ctx, client.ObjectKey{
+		Namespace: adv.Namespace,
+		Name:      adv.Name,
+	}, adv)
+	assert.Nil(t, err, "should be nil")
+	//here we sleep in order to permit the controller to create the tunnelEndpoint custom resource
+	time.Sleep(1 * time.Second)
+	_, err = tunEndpointCreator.GetTunEndPerADV(adv)
+
+	assert.Nil(t, err, "should be nil")
+}
+
+func TestCreateTunEndpoint(t *testing.T) {
+	//testing that given a custom resource of type advertisement.protocol.liqo.io
+	//a custom resource of type tunnelendpoint.liqonet.liqo.io is created and all the
+	//associated fields are correct
+	var tep v1.TunnelEndpoint
+	var err error
+	adv := getAdv()
+	for {
+		tep, err = tunEndpointCreator.GetTunEndPerADV(adv)
+		if !k8sApiErrors.IsNotFound(err) {
+			break
+		}
+	}
+	assert.Nil(t, err, "should be nil")
+	assert.Equal(t, adv.Spec.Network.PodCIDR, tep.Spec.PodCIDR, "pod CIDRs should be equal")
+	assert.Equal(t, adv.Spec.Network.GatewayIP, tep.Spec.TunnelPublicIP, "gatewayIPs should be equal")
+	assert.Equal(t, adv.Spec.Network.GatewayPrivateIP, tep.Spec.TunnelPrivateIP, "gatewayPrivateIPs should be equal")
+}
+
+func TestUpdateTunEndpoint(t *testing.T) {
+	//test1: given an advertisement.protocol.liqo.io custom resource which carries a network configuration
+	//for a remote cluster that does not have conflicts with the local network configuration
+	//then the .Status.RemoteRemappedPodCIDR should be set to "None" value
+	adv := getAdv()
+	time.Sleep(1 * time.Second)
+	tep, err := tunEndpointCreator.GetTunEndPerADV(adv)
+	assert.Nil(t, err, "should be nil")
+	assert.Equal(t, adv.Spec.Network.PodCIDR, tep.Spec.PodCIDR, "pod CIDRs should be equal")
+	assert.Equal(t, adv.Spec.Network.GatewayIP, tep.Spec.TunnelPublicIP, "gatewayIPs should be equal")
+	assert.Equal(t, adv.Spec.Network.GatewayPrivateIP, tep.Spec.TunnelPrivateIP, "gatewayPrivateIPs should be equal")
+	assert.Equal(t, "New", tep.Status.Phase, "the phase field in status should be New")
+	assert.Equal(t, "None", tep.Status.RemoteRemappedPodCIDR, "the remote podCIDR should be empty")
+
+	//test2: same as the first test but in this case the podCIDR of the remote cluster has to be NATed
+	newPodCIDR := "10.0.0.0/16"
+	newAdv := getAdv()
+	newAdv.Spec.Network.PodCIDR = newPodCIDR
+	newAdv.Name = "conflict-testing"
+	newAdv.Spec.ClusterId = "conflicting"
+	err = tunEndpointCreator.Create(ctx, newAdv)
+	assert.Nil(t, err, "should be nil")
+	time.Sleep(2 * time.Second)
+	tep, err = tunEndpointCreator.GetTunEndPerADV(newAdv)
+	assert.Nil(t, err, "should be nil")
+	//here we check that the remote pod CIDR has been remapped
+	assert.NotEqual(t, "None", tep.Status.RemoteRemappedPodCIDR, "the remoteremappedPodCIDR should be set to a value different None")
+	assert.NotEqual(t, "", tep.Status.RemoteRemappedPodCIDR, "the remoteremappedPodCIDR should be set to a value different than empty string")
+	assert.Equal(t, "New", tep.Status.Phase, "the phase field in status should be New")
+
+	//test3: we update the status of an existing advertisement.protocol.liqo.io
+	//setting the Status.LocalRemappedPodCIDR field to a correct value
+	//we expect that this value is set also in the status of tunnelendpoint.liqonet.liqo.io custom resource
+	//associated to the previously updated advertisement.
+	//and the Status.Phase field is set to "Processed"
+	err = tunEndpointCreator.Get(ctx, client.ObjectKey{
+		Namespace: newAdv.Namespace,
+		Name:      newAdv.Name,
+	}, newAdv)
+	assert.Nil(t, err, "should be nil")
+	newAdv.Status.LocalRemappedPodCIDR = "192.168.1.0/24"
+	err = tunEndpointCreator.Status().Update(ctx, newAdv)
+	assert.Nil(t, err, "should be nil")
+	time.Sleep(2 * time.Second)
+	tep, err = tunEndpointCreator.GetTunEndPerADV(newAdv)
+	assert.Nil(t, err, "should be nil")
+	assert.Equal(t, "Processed", tep.Status.Phase, "phase should be set to Processed")
+	assert.Equal(t, "192.168.1.0/24", tep.Status.LocalRemappedPodCIDR, "should be equal")
+
+}
+
+func TestDeleteTunEndpoint(t *testing.T) {
+	//testing that after a advertisement.protocol.liqo.io custom resource is
+	//deleted than the associated tunnelendpoint.liqonet.liqo.io custom resource is
+	//deleted aswell
+	adv := getAdv()
+	err := tunEndpointCreator.Get(ctx, client.ObjectKey{
+		Namespace: adv.Namespace,
+		Name:      adv.Name,
+	}, adv)
+	assert.Nil(t, err, "should be nil")
+	_, err = tunEndpointCreator.GetTunEndPerADV(adv)
+	assert.Nil(t, err, "should be nil")
+	err = tunEndpointCreator.Delete(ctx, adv)
+	assert.Nil(t, err, "should be nil")
+	time.Sleep(500 * time.Millisecond)
+	_, err = tunEndpointCreator.GetTunEndPerADV(adv)
+	assert.Equal(t, k8sApiErrors.IsNotFound(err), true, "the error should be notFound")
+	adv = getAdv()
+	err = tunEndpointCreator.Create(ctx, adv)
+	assert.Nil(t, err, "should be nil")
 }

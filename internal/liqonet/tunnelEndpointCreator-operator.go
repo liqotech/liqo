@@ -20,13 +20,11 @@ import (
 	"fmt"
 	"github.com/go-logr/logr"
 	liqonetOperator "github.com/liqoTech/liqo/pkg/liqonet"
-	"github.com/pkg/errors"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/klog"
 	"net"
-	"os"
 	"sync"
 	"time"
 
@@ -67,7 +65,7 @@ func (r *TunnelEndpointCreator) Reconcile(req ctrl.Request) (ctrl.Result, error)
 	//wait for the configuration to be completed
 	if !r.IsConfigured {
 		<-r.Configured
-		klog.Infof("from reconciler configured")
+		klog.Info("from reconciler configured")
 	}
 	ctx := context.Background()
 	log := r.Log.WithValues("tunnelEndpointCreator-controller", req.NamespacedName)
@@ -138,46 +136,7 @@ func (r *TunnelEndpointCreator) SetupWithManager(mgr ctrl.Manager) error {
 		Complete(r)
 }
 
-func (r *TunnelEndpointCreator) getNamespace() (namespace string, err error) {
-	//it is passed to the pod during the deployment; in its manifest
-	keyNamespace := "POD_NAMESPACE"
-	namespace, found := os.LookupEnv(keyNamespace)
-	if !found {
-		return namespace, errors.New("the environment variable " + keyNamespace + "is not set. ")
-	}
-	return namespace, nil
-}
-
-func (r *TunnelEndpointCreator) getTunnelEndpointByKey(key types.NamespacedName) (tunEndpoint *liqonetv1.TunnelEndpoint, err error) {
-	ctx := context.Background()
-	tunEndpoint = new(liqonetv1.TunnelEndpoint)
-	err = r.Get(ctx, key, tunEndpoint)
-	if err != nil {
-		return tunEndpoint, err
-	}
-	return tunEndpoint, err
-}
-
-func (r *TunnelEndpointCreator) getTunnelEndpointByName(name string) (tunEndpoint *liqonetv1.TunnelEndpoint, err error) {
-	ctx := context.Background()
-	//create the key to be used to retrieve the CR
-	namespace, err := r.getNamespace()
-	if err != nil {
-		return tunEndpoint, err
-	}
-	key := types.NamespacedName{
-		Namespace: namespace,
-		Name:      name,
-	}
-	//try to retrieve the CR
-	err = r.Get(ctx, key, tunEndpoint)
-	if err != nil {
-		return tunEndpoint, err
-	}
-	return tunEndpoint, err
-}
-
-func (r *TunnelEndpointCreator) getTunEndPerADV(adv *protocolv1.Advertisement) (liqonetv1.TunnelEndpoint, error) {
+func (r *TunnelEndpointCreator) GetTunEndPerADV(adv *protocolv1.Advertisement) (liqonetv1.TunnelEndpoint, error) {
 	ctx := context.Background()
 	var tunEndpoint liqonetv1.TunnelEndpoint
 	//build the key used to retrieve the tunnelEndpoint CR
@@ -201,7 +160,7 @@ func (r *TunnelEndpointCreator) isTunEndpointUpdated(adv *protocolv1.Advertiseme
 }
 
 func (r *TunnelEndpointCreator) createOrUpdateTunEndpoint(adv *protocolv1.Advertisement) error {
-	_, err := r.getTunEndPerADV(adv)
+	_, err := r.GetTunEndPerADV(adv)
 	if err == nil {
 		err := r.updateTunEndpoint(adv)
 		if err == nil {
@@ -211,7 +170,7 @@ func (r *TunnelEndpointCreator) createOrUpdateTunEndpoint(adv *protocolv1.Advert
 		}
 
 	} else if apierrors.IsNotFound(err) {
-		err := r.createTunEndpoint(adv)
+		err := r.CreateTunEndpoint(adv)
 		if err == nil {
 			return nil
 		} else {
@@ -307,8 +266,8 @@ func (r *TunnelEndpointCreator) updateTunEndpoint(adv *protocolv1.Advertisement)
 //For each ADV CR a tunnelEndpoint CR is created in the same namespace as the ADV CR and the name of the later
 //is derived from the name of the ADV adding a suffix. Doing so, given an ADV we can always create, update or delete
 //the associated tunnelEndpoint CR without the necessity for its key to be saved by the operator.
-func (r *TunnelEndpointCreator) createTunEndpoint(adv *protocolv1.Advertisement) error {
-	funcName := "createTunEndpoint"
+func (r *TunnelEndpointCreator) CreateTunEndpoint(adv *protocolv1.Advertisement) error {
+	funcName := "CreateTunEndpoint"
 	ctx := context.Background()
 	log := r.Log.WithValues("tunnelEndpointCreator-controller", funcName)
 	var tunEndpoint liqonetv1.TunnelEndpoint
