@@ -17,6 +17,7 @@ package main
 
 import (
 	"flag"
+	"github.com/coreos/go-iptables/iptables"
 	protocolv1 "github.com/liqoTech/liqo/api/advertisement-operator/v1"
 	clusterConfig "github.com/liqoTech/liqo/api/cluster-config/v1"
 	"github.com/liqoTech/liqo/api/tunnel-endpoint/v1"
@@ -32,7 +33,6 @@ import (
 
 	"k8s.io/apimachinery/pkg/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
-	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 	// +kubebuilder:scaffold:imports
@@ -136,6 +136,10 @@ func main() {
 			setupLog.Error(err, "unable to derive gatewayVxlanIP")
 			os.Exit(5)
 		}
+		ipt, err := iptables.New()
+		if err != nil {
+			setupLog.Error(err, "unable to initialize iptables: %v. check if the ipatable are present in the system", err)
+		}
 
 		r := &controllers.RouteController{
 			Client:                             mgr.GetClient(),
@@ -155,6 +159,8 @@ func main() {
 			GatewayVxlanIP:                     gatewayVxlanIP,
 			ClusterPodCIDR:                     podCIDR,
 			RetryTimeout:                       30 * time.Second,
+			IPtables:                           ipt,
+			NetLink:                            &liqonet.RouteManager{},
 		}
 		if err = r.SetupWithManager(mgr); err != nil {
 			setupLog.Error(err, "unable to create controller", "controller", "Route")

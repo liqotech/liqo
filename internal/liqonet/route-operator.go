@@ -63,6 +63,8 @@ type RouteController struct {
 	GatewayVxlanIP string
 	VxlanIfaceName string
 	VxlanPort      int
+	IPtables       liqonetOperator.IPTables
+	NetLink        liqonetOperator.NetLink
 	ClusterPodCIDR string
 	//here we save only the rules that reference the custom chains added by us
 	//we need them at deletion time
@@ -175,12 +177,9 @@ func (r *RouteController) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 //create LIQONET-INPUT in the filter table and insert it in the input chain
 //insert the rulespec which allows in input all the udp traffic incoming for the vxlan in the LIQONET-INPUT chain
 func (r *RouteController) createAndInsertIPTablesChains() error {
-	ipt, err := iptables.New()
+	var err error
+	ipt := r.IPtables
 	log := r.Log.WithName("iptables")
-	if err != nil {
-		return fmt.Errorf("unable to initialize iptables: %v. check if the ipatable are present in the system", err)
-	}
-
 	//creating LIQONET-POSTROUTING chain
 	if err = liqonetOperator.CreateIptablesChainsIfNotExist(ipt, natTable, liqonetPostroutingChain); err != nil {
 		return err
@@ -286,6 +285,7 @@ func (r *RouteController) createAndInsertIPTablesChains() error {
 
 func (r *RouteController) addIPTablesRulespecForRemoteCluster(endpoint *v1.TunnelEndpoint) error {
 	var remotePodCIDR string
+	var err error
 	clusterID := endpoint.Spec.ClusterID
 	log := r.Log.WithName("iptables")
 	if endpoint.Status.RemoteRemappedPodCIDR != "None" && endpoint.Status.RemoteRemappedPodCIDR != "" {
@@ -296,11 +296,7 @@ func (r *RouteController) addIPTablesRulespecForRemoteCluster(endpoint *v1.Tunne
 		log.Info("nat disabled", "using original pod cidr", endpoint.Spec.PodCIDR, "for cluster", clusterID)
 	}
 	var ruleSpecs []liqonetOperator.IPtableRule
-	ipt, err := iptables.New()
-	if err != nil {
-		return fmt.Errorf("unable to initialize iptables: %v. check if the ipatable are present in the system", err)
-	}
-
+	ipt := r.IPtables
 	//do not nat the traffic directed to the remote pods
 	ruleSpec := []string{"-s", r.ClusterPodCIDR, "-d", remotePodCIDR, "-j", "ACCEPT"}
 	if err = ipt.AppendUnique(natTable, liqonetPostroutingChain, ruleSpec...); err != nil {
@@ -390,12 +386,10 @@ func (r *RouteController) addIPTablesRulespecForRemoteCluster(endpoint *v1.Tunne
 
 //remove all the rules added by addIPTablesRulespecForRemoteCluster function
 func (r *RouteController) deleteIPTablesRulespecForRemoteCluster(endpoint *v1.TunnelEndpoint) error {
+	var err error
 	clusterID := endpoint.Spec.ClusterID
 	log := r.Log.WithName("iptables")
-	ipt, err := iptables.New()
-	if err != nil {
-		return fmt.Errorf("unable to initialize iptables: %v. check if the ipatable are present in the system", err)
-	}
+	ipt := r.IPtables
 	//retrive the iptables rules for the remote cluster
 	rules, ok := r.IPtablesRuleSpecsPerRemoteCluster[endpoint.Spec.ClusterID]
 	if ok {
@@ -425,40 +419,41 @@ func (r *RouteController) deleteIPTablesRulespecForRemoteCluster(endpoint *v1.Tu
 //a log message is emitted if in case of error
 //only if the iptables binaries are missing an error is returned
 func (r *RouteController) DeleteAllIPTablesChains() {
+	var err error
 	logger := r.Log.WithName("DeleteAllIPTablesChains")
-	ipt, err := iptables.New()
-	if err != nil {
-		logger.Error(err, "unable to initialize iptables.check if the ipatable are present in the system")
-	}
+	ipt := r.IPtables
 	//first all the iptables chains are flushed
-	for _, chain := range r.IPTablesChains {
+	for k, chain := range r.IPTablesChains {
 		if err = ipt.ClearChain(chain.Table, chain.Name); err != nil {
 			e, ok := err.(*iptables.Error)
 			if ok && e.IsNotExist() {
-				continue
+				delete(r.IPTablesChains, k)
 			} else if !ok {
 				logger.Error(err, "unable to clear: ", "chain", chain.Name, "in table", chain.Table)
 			}
 
 		}
 	}
+	for k := range r.IPtablesRuleSpecsPerRemoteCluster {
+		delete(r.IPtablesRuleSpecsPerRemoteCluster, k)
+	}
 	//second we delete the references to the chains
-	for _, rulespec := range r.IPTablesRuleSpecsReferencingChains {
+	for k, rulespec := range r.IPTablesRuleSpecsReferencingChains {
 		if err = ipt.Delete(rulespec.Table, rulespec.Chain, rulespec.RuleSpec...); err != nil {
 			e, ok := err.(*iptables.Error)
 			if ok && e.IsNotExist() {
-				continue
+				delete(r.IPTablesRuleSpecsReferencingChains, k)
 			} else if !ok {
 				logger.Error(err, "unable to delete: ", "rule", strings.Join(rulespec.RuleSpec, ""), "in chain", rulespec.Chain, "in table", rulespec.Table)
 			}
 		}
 	}
 	//then we delete the chains which now should be empty
-	for _, chain := range r.IPTablesChains {
+	for k, chain := range r.IPTablesChains {
 		if err = ipt.DeleteChain(chain.Table, chain.Name); err != nil {
 			e, ok := err.(*iptables.Error)
 			if ok && e.IsNotExist() {
-				continue
+				delete(r.IPTablesChains, k)
 			} else if !ok {
 				logger.Error(err, "unable to delete ", "chain", chain.Name, "in table", chain.Table)
 			}
@@ -481,14 +476,14 @@ func (r *RouteController) InsertRoutesPerCluster(endpoint *v1.TunnelEndpoint) er
 	}
 	var routes []netlink.Route
 	if r.IsGateway {
-		route, err := liqonetOperator.AddRoute(remoteTunnelPrivateIPNet, localTunnelPrivateIP, endpoint.Status.TunnelIFaceName, false)
+		route, err := r.NetLink.AddRoute(remoteTunnelPrivateIPNet, localTunnelPrivateIP, endpoint.Status.TunnelIFaceName, false)
 		if err != nil {
 			return err
 		} else {
 			log.Info("installing", "route", route.String())
 		}
 		routes = append(routes, route)
-		route, err = liqonetOperator.AddRoute(remotePodCIDR, endpoint.Status.RemoteTunnelPrivateIP, endpoint.Status.TunnelIFaceName, true)
+		route, err = r.NetLink.AddRoute(remotePodCIDR, endpoint.Status.RemoteTunnelPrivateIP, endpoint.Status.TunnelIFaceName, true)
 		if err != nil {
 			return err
 		} else {
@@ -497,14 +492,14 @@ func (r *RouteController) InsertRoutesPerCluster(endpoint *v1.TunnelEndpoint) er
 		routes = append(routes, route)
 		r.RoutesPerRemoteCluster[endpoint.Spec.ClusterID] = routes
 	} else {
-		route, err := liqonetOperator.AddRoute(remotePodCIDR, r.GatewayVxlanIP, r.VxlanIfaceName, false)
+		route, err := r.NetLink.AddRoute(remotePodCIDR, r.GatewayVxlanIP, r.VxlanIfaceName, false)
 		if err != nil {
 			return err
 		} else {
 			log.Info("installing", "route", route.String())
 		}
 		routes = append(routes, route)
-		route, err = liqonetOperator.AddRoute(remoteTunnelPrivateIPNet, r.GatewayVxlanIP, r.VxlanIfaceName, false)
+		route, err = r.NetLink.AddRoute(remoteTunnelPrivateIPNet, r.GatewayVxlanIP, r.VxlanIfaceName, false)
 		if err != nil {
 			return err
 		} else {
@@ -522,7 +517,7 @@ func (r *RouteController) deleteRoutesPerCluster(endpoint *v1.TunnelEndpoint) er
 	log := r.Log.WithName("route")
 	log.Info("removing all routes for", "cluster", clusterID)
 	for _, route := range r.RoutesPerRemoteCluster[endpoint.Spec.ClusterID] {
-		err := liqonetOperator.DelRoute(route)
+		err := r.NetLink.DelRoute(route)
 		if err != nil {
 			return err
 		} else {
@@ -540,12 +535,13 @@ func (r *RouteController) deleteAllRoutes() {
 	//the errors are not checked because the function is called at exit time
 	//it cleans up all the possible resources
 	//a log message is emitted if in case of error
-	for _, cluster := range r.RoutesPerRemoteCluster {
+	for k, cluster := range r.RoutesPerRemoteCluster {
 		for _, route := range cluster {
-			if err := liqonetOperator.DelRoute(route); err != nil {
+			if err := r.NetLink.DelRoute(route); err != nil {
 				logger.Error(err, "an error occurred while deleting", "route", route.String())
 			}
 		}
+		delete(r.RoutesPerRemoteCluster, k)
 	}
 }
 
@@ -583,24 +579,6 @@ func (r *RouteController) SetupSignalHandlerForRouteOperator() (stopCh <-chan st
 	return stop
 }
 
-//checks if all the values need to install routes have ben set in the CR status
-func (r *RouteController) ValidateCRAndReturn(endpoint *v1.TunnelEndpoint) bool {
-	isReady := true
-	//check if the tunnel interface is installed but only if the route operator is running on the gatewayhost
-	if endpoint.Status.TunnelIFaceIndex != 0 && r.IsGateway {
-		_, err := netlink.LinkByIndex(endpoint.Status.TunnelIFaceIndex)
-		if err != nil {
-			isReady = false
-		}
-	}
-	if endpoint.Status.RemoteTunnelPrivateIP == "" || endpoint.Status.RemoteTunnelPublicIP == "" {
-		isReady = false
-	}
-	if endpoint.Status.LocalTunnelPrivateIP == "" || endpoint.Status.LocalTunnelPublicIP == "" {
-		isReady = false
-	}
-	return isReady
-}
 func (r *RouteController) SetupWithManager(mgr ctrl.Manager) error {
 	resourceToBeProccesedPredicate := predicate.Funcs{
 		CreateFunc: func(e event.CreateEvent) bool {
