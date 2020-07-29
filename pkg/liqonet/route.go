@@ -8,7 +8,15 @@ import (
 	"strings"
 )
 
-func AddRoute(dst string, gw string, deviceName string, onLink bool) (netlink.Route, error) {
+type NetLink interface {
+	AddRoute(dst string, gw string, deviceName string, onLink bool) (netlink.Route, error)
+	DelRoute(route netlink.Route) error
+}
+
+type RouteManager struct {
+}
+
+func (rm *RouteManager) AddRoute(dst string, gw string, deviceName string, onLink bool) (netlink.Route, error) {
 	var route netlink.Route
 	//convert destination in *net.IPNet
 	destinationIP, destinationNet, err := net.ParseCIDR(dst)
@@ -39,7 +47,7 @@ func AddRoute(dst string, gw string, deviceName string, onLink bool) (netlink.Ro
 		}
 		if occurrences > 1 {
 			for _, val := range routes {
-				err = DelRoute(val)
+				err = rm.DelRoute(val)
 				if err != nil {
 					return route, fmt.Errorf("unable to delete route %v:%v", val, err)
 				}
@@ -96,7 +104,7 @@ func GetGateway() (int, net.IP, error) {
 	return iface.Index, gw, nil
 }
 
-func DelRoute(route netlink.Route) error {
+func (rm *RouteManager) DelRoute(route netlink.Route) error {
 
 	//try to remove all the routes for that ip
 	err := netlink.RouteDel(&route)
