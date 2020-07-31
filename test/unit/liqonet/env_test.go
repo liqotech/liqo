@@ -14,11 +14,11 @@ import (
 	"k8s.io/client-go/rest"
 	"k8s.io/klog/v2"
 	"k8s.io/kubectl/pkg/scheme"
-	"net"
 	"os"
 	"path/filepath"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/envtest"
+	"testing"
 	"time"
 )
 
@@ -28,7 +28,41 @@ var (
 	ctx                 = context.Background()
 	tunEndpointCreator  *controllers.TunnelEndpointCreator
 	configClusterClient *crdClient.CRDClient
+	routeOperator       *controllers.RouteController
 )
+
+func TestMain(m *testing.M) {
+	setupEnv()
+	defer tearDown()
+	err := setupTunnelEndpointCreatorOperator()
+	if err != nil {
+		os.Exit(-1)
+	}
+	err = setupRouteOperator()
+	if err != nil {
+		os.Exit(-2)
+	}
+	cacheStarted := make(chan struct{})
+	go func() {
+		if err = k8sManager.Start(ctrl.SetupSignalHandler()); err != nil {
+			klog.Error(err)
+			panic(err)
+		}
+	}()
+	started := k8sManager.GetCache().WaitForCacheSync(cacheStarted)
+	if !started {
+		klog.Errorf("an error occurred while waiting for the chache to start")
+		os.Exit(-1)
+	}
+	adv := getAdv()
+	err = tunEndpointCreator.Create(ctx, adv)
+	if err != nil {
+		klog.Error(err, err.Error())
+		os.Exit(-2)
+	}
+	time.Sleep(1 * time.Second)
+	os.Exit(m.Run())
+}
 
 func getConfigClusterCRDClient(config *rest.Config) *crdClient.CRDClient {
 	newConfig := config
@@ -50,15 +84,15 @@ func setupEnv() {
 	}
 
 	config, err := testEnv.Start()
+	if err != nil {
+		klog.Error(err, "an error occurred while setting up the testing environment")
+		os.Exit(-1)
+	}
 	newConfig := &rest.Config{
 		Host: config.Host,
 		// gotta go fast during tests -- we don't really care about overwhelming our test API server
 		QPS:   1000.0,
 		Burst: 2000.0,
-	}
-	if err != nil {
-		klog.Error(err, "an error occurred while setting up the testing environment")
-		os.Exit(-1)
 	}
 	err = clientgoscheme.AddToScheme(scheme.Scheme)
 	if err != nil {
@@ -82,53 +116,12 @@ func setupEnv() {
 		panic(err)
 	}
 	configClusterClient = getConfigClusterCRDClient(newConfig)
-	tunEndpointCreator = &controllers.TunnelEndpointCreator{
-		Client:          k8sManager.GetClient(),
-		Log:             ctrl.Log.WithName("controllers").WithName("TunnelEndpointCreator"),
-		Scheme:          k8sManager.GetScheme(),
-		ReservedSubnets: make(map[string]*net.IPNet),
-		Configured:      make(chan bool, 1),
-		IPManager: liqonet.IpManager{
-			UsedSubnets:        make(map[string]*net.IPNet),
-			FreeSubnets:        make(map[string]*net.IPNet),
-			SubnetPerCluster:   make(map[string]*net.IPNet),
-			ConflictingSubnets: make(map[string]*net.IPNet),
-			Log:                ctrl.Log.WithName("IPAM"),
-		},
-		RetryTimeout: 30 * time.Second,
-	}
-	tunEndpointCreator.WatchConfiguration(newConfig, &policyv1.GroupVersion)
-	err = tunEndpointCreator.SetupWithManager(k8sManager)
-	if err != nil {
-		klog.Error(err, err.Error())
-		os.Exit(-2)
-	}
-
-	cacheStarted := make(chan struct{})
-	go func() {
-		if err = k8sManager.Start(ctrl.SetupSignalHandler()); err != nil {
-			klog.Error(err)
-			panic(err)
-		}
-	}()
-	started := k8sManager.GetCache().WaitForCacheSync(cacheStarted)
-	if !started {
-		klog.Errorf("an error occurred while waiting for the chache to start")
-		os.Exit(-1)
-	}
 	cc := getClusterConfig()
 	_, err = configClusterClient.Resource("clusterconfigs").Create(cc, metav1.CreateOptions{})
 	if err != nil {
 		klog.Error(err, err.Error())
 		os.Exit(-1)
 	}
-	adv := getAdv()
-	err = tunEndpointCreator.Create(ctx, adv)
-	if err != nil {
-		klog.Error(err, err.Error())
-		os.Exit(-1)
-	}
-	time.Sleep(1 * time.Second)
 	klog.Info("setupenv finished")
 }
 

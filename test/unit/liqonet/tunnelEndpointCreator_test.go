@@ -4,24 +4,20 @@ import (
 	policyv1 "github.com/liqoTech/liqo/api/cluster-config/v1"
 	v1 "github.com/liqoTech/liqo/api/tunnel-endpoint/v1"
 	controller "github.com/liqoTech/liqo/internal/liqonet"
+	"github.com/liqoTech/liqo/pkg/liqonet"
 	liqonetOperator "github.com/liqoTech/liqo/pkg/liqonet"
 	"github.com/stretchr/testify/assert"
 	k8sApiErrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/rest"
 	"k8s.io/klog"
 	"net"
-	"os"
+	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sync"
 	"testing"
 	"time"
 )
-
-func TestMain(m *testing.M) {
-	setupEnv()
-	defer tearDown()
-	os.Exit(m.Run())
-}
 
 func getTunnelEndpointCreator() *controller.TunnelEndpointCreator {
 	return &controller.TunnelEndpointCreator{
@@ -60,6 +56,38 @@ func getClusterConfigurationCR(reservedSubnets []string) *policyv1.ClusterConfig
 	}
 }
 
+func setupTunnelEndpointCreatorOperator() error {
+	var err error
+	tunEndpointCreator = &controller.TunnelEndpointCreator{
+		Client:          k8sManager.GetClient(),
+		Log:             ctrl.Log.WithName("controllers").WithName("TunnelEndpointCreator"),
+		Scheme:          k8sManager.GetScheme(),
+		ReservedSubnets: make(map[string]*net.IPNet),
+		Configured:      make(chan bool, 1),
+		IPManager: liqonet.IpManager{
+			UsedSubnets:        make(map[string]*net.IPNet),
+			FreeSubnets:        make(map[string]*net.IPNet),
+			SubnetPerCluster:   make(map[string]*net.IPNet),
+			ConflictingSubnets: make(map[string]*net.IPNet),
+			Log:                ctrl.Log.WithName("IPAM"),
+		},
+		RetryTimeout: 30 * time.Second,
+	}
+	config := k8sManager.GetConfig()
+	newConfig := &rest.Config{
+		Host: config.Host,
+		// gotta go fast during tests -- we don't really care about overwhelming our test API server
+		QPS:   1000.0,
+		Burst: 2000.0,
+	}
+	tunEndpointCreator.WatchConfiguration(newConfig, &policyv1.GroupVersion)
+	err = tunEndpointCreator.SetupWithManager(k8sManager)
+	if err != nil {
+		klog.Error(err, err.Error())
+		return err
+	}
+	return nil
+}
 func setupConfig(reservedSubnets, clusterSubnets []string) (*controller.TunnelEndpointCreator, error) {
 	clusterSubnetsMap, err := convertSliceToMap(clusterSubnets)
 	if err != nil {

@@ -11,7 +11,7 @@ import (
 	"testing"
 )
 
-func getTunnelEndpointCR() *v1.TunnelEndpoint {
+func GetTunnelEndpointCR() *v1.TunnelEndpoint {
 	return &v1.TunnelEndpoint{
 		TypeMeta:   metav1.TypeMeta{},
 		ObjectMeta: metav1.ObjectMeta{},
@@ -91,7 +91,7 @@ func TestCreateAndInsertIPTablesChains(t *testing.T) {
 
 func TestAddIPTablesRulespecForRemoteCluster(t *testing.T) {
 	r := getRouteController()
-	tep := getTunnelEndpointCR()
+	tep := GetTunnelEndpointCR()
 	//test:1 NAT not enabled and node is not the gateway
 	//in this case we expect only 3 rules to be inserted
 	err := r.addIPTablesRulespecForRemoteCluster(tep)
@@ -132,7 +132,7 @@ func TestDeleteIPTablesRulespecForRemoteCluster(t *testing.T) {
 	//firt we add the rules and then we remove it
 	//expecting that the rulse are 0.
 	r := getRouteController()
-	tep := getTunnelEndpointCR()
+	tep := GetTunnelEndpointCR()
 	r.IsGateway = true
 	tep.Status.LocalRemappedPodCIDR = "10.100.0.0/16"
 	err := r.addIPTablesRulespecForRemoteCluster(tep)
@@ -150,7 +150,7 @@ func TestDeleteAllIPTablesChains(t *testing.T) {
 	//after that 6 rules should be present, after the delete function is called
 	//0 rules should be present
 	r := getRouteController()
-	tep := getTunnelEndpointCR()
+	tep := GetTunnelEndpointCR()
 	r.IsGateway = true
 	tep.Status.LocalRemappedPodCIDR = "10.100.0.0/16"
 	err := r.addIPTablesRulespecForRemoteCluster(tep)
@@ -168,7 +168,7 @@ func TestInsertRoutesPerCluster(t *testing.T) {
 	//in a node that is not the gateway node
 	//the expected number of routes is two
 	r := getRouteController()
-	tep := getTunnelEndpointCR()
+	tep := GetTunnelEndpointCR()
 	err := r.InsertRoutesPerCluster(tep)
 	assert.Nil(t, err, "error should be nil")
 	assert.Equal(t, 2, len(r.RoutesPerRemoteCluster[tep.Spec.ClusterID]), "number of routes should be 2")
@@ -179,7 +179,7 @@ func TestInsertRoutesPerCluster(t *testing.T) {
 	//the expected number of routes is 2
 	r = getRouteController()
 	r.IsGateway = true
-	tep = getTunnelEndpointCR()
+	tep = GetTunnelEndpointCR()
 	tep.Status.RemoteRemappedPodCIDR = "10.100.0.0/16"
 	err = r.InsertRoutesPerCluster(tep)
 	assert.Nil(t, err, "error should be nil")
@@ -193,7 +193,7 @@ func TestDeleteRoutesPerCluster(t *testing.T) {
 	//the results are as expected
 	//When we delete the routes for a given cluster we expect that all the routes are removed
 	r := getRouteController()
-	tep := getTunnelEndpointCR()
+	tep := GetTunnelEndpointCR()
 	err := r.InsertRoutesPerCluster(tep)
 	assert.Nil(t, err, "error should be nil")
 	assert.Equal(t, 2, len(r.RoutesPerRemoteCluster[tep.Spec.ClusterID]), "number of routes should be 2")
@@ -208,7 +208,7 @@ func TestDeleteRoutesPerCluster(t *testing.T) {
 func TestDeleteAllRoutes(t *testing.T) {
 	//testing that all the routes are removed for all the clusters
 	r := getRouteController()
-	tep := getTunnelEndpointCR()
+	tep := GetTunnelEndpointCR()
 	err := r.InsertRoutesPerCluster(tep)
 	assert.Nil(t, err, "error should be nil")
 	assert.Equal(t, 2, len(r.RoutesPerRemoteCluster[tep.Spec.ClusterID]), "number of routes should be 2")
