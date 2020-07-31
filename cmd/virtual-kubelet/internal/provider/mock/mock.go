@@ -320,8 +320,7 @@ func (p *MockProvider) GetPods(ctx context.Context) ([]*v1.Pod, error) {
 	defer span.End()
 
 	log.G(ctx).Info("receive GetPods")
-
-	var pods []*v1.Pod
+	pods := make([]*v1.Pod, 0, len(p.pods))
 
 	for _, pod := range p.pods {
 		pods = append(pods, pod)

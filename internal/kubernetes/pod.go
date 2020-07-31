@@ -269,7 +269,8 @@ func (p *KubernetesProvider) GetPods(ctx context.Context) ([]*v1.Pod, error) {
 			return nil, errors.Wrap(err, "Unable to get pods")
 		}
 
-		for _, pod := range podsForeignIn.Items {
+		for i := range podsForeignIn.Items {
+			pod := podsForeignIn.Items[i]
 			podsHomeOut = append(podsHomeOut, H2FTranslate(&pod, k))
 		}
 	}

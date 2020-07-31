@@ -79,7 +79,8 @@ func (discovery *DiscoveryCtrl) UpdateTtl(txts []*TxtData) error {
 		klog.Error(err, err.Error())
 		return err
 	}
-	for _, fc := range fcs.Items {
+	for i := range fcs.Items {
+		fc := fcs.Items[i]
 		// find the ones that are not in the last retrieved list on LAN
 		found := false
 		for _, txt := range txts {

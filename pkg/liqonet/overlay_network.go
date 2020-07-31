@@ -103,7 +103,7 @@ func Enable_rp_filter() error {
 	for index := range ifaces_list {
 		if ifaces_list[index].Type() == "vxlan" {
 			// Enable loose mode reverse path filtering on the vxlan interface.
-			err = ioutil.WriteFile("/proc/sys/net/ipv4/conf/"+ifaces_list[index].Attrs().Name+"/rp_filter", []byte("2"), 0644)
+			err = ioutil.WriteFile("/proc/sys/net/ipv4/conf/"+ifaces_list[index].Attrs().Name+"/rp_filter", []byte("2"), 0600)
 			if err != nil {
 				return fmt.Errorf("unable to update vxlan rp_filter proc entry for interface %s, err: %s", ifaces_list[index].Attrs().Name, err)
 			}
