@@ -123,7 +123,7 @@ func SetDefaultOpts(c *Opts) error {
 
 	if c.ListenPort == 0 {
 		if kp := os.Getenv("KUBELET_PORT"); kp != "" {
-			p, err := strconv.Atoi(kp)
+			p, err := strconv.ParseInt(kp, 10, 32)
 			if err != nil {
 				return errors.Wrap(err, "error parsing KUBELET_PORT environment variable")
 			}

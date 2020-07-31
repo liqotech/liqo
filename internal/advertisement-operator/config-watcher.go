@@ -70,7 +70,8 @@ func (r *AdvertisementReconciler) WatchConfiguration(kubeconfigPath string) {
 				return
 			}
 			if updateFlag {
-				for _, adv := range advList.Items {
+				for i := range advList.Items {
+					adv := advList.Items[i]
 					r.UpdateAdvertisement(&adv)
 				}
 			}

@@ -276,7 +276,8 @@ func (r *AdvertisementReconciler) cleanOldAdvertisements() {
 			klog.Error(err)
 			continue
 		}
-		for _, adv := range advList.Items {
+		for i := range advList.Items {
+			adv := advList.Items[i]
 			now := metav1.NewTime(time.Now())
 			if adv.Spec.TimeToLive.Before(now.DeepCopy()) {
 				if err := r.Client.Delete(context.Background(), &adv, &client.DeleteOptions{}); err != nil {

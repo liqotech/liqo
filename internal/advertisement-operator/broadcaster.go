@@ -381,7 +381,8 @@ func GetAllPodsResources(nodeNonTerminatedPodsList *corev1.PodList) (requests co
 
 func getPodsTotalRequestsAndLimits(podList *corev1.PodList) (reqs map[corev1.ResourceName]resource.Quantity, limits map[corev1.ResourceName]resource.Quantity) {
 	reqs, limits = map[corev1.ResourceName]resource.Quantity{}, map[corev1.ResourceName]resource.Quantity{}
-	for _, pod := range podList.Items {
+	for i := range podList.Items {
+		pod := podList.Items[i]
 		podReqs, podLimits := resourcehelper.PodRequestsAndLimits(&pod)
 		for podReqName, podReqValue := range podReqs {
 			if value, ok := reqs[podReqName]; !ok {

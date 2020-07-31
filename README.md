@@ -6,6 +6,8 @@
 Liqo is a framework to enable dynamic sharing across Kubernetes Clusters. You can run your pods on a remote cluster
 seamlessly, without any modification (Kubernetes or your application). 
 
+#What is Liqo?
+
 Differently from the [Kubernetes Federation](https://github.com/kubernetes-sigs/kubefed) and the
 [Admiralty](https://admiralty.io/) project, Liqo is designed to handle dynamic, temporary
 resource sharing across multi-owner clusters and targets every type of computing resources (e.g. Raspberry PI, 
@@ -57,7 +59,7 @@ Liqo Installer should be capable to look for the cluster parameters required.
 curl https://raw.githubusercontent.com/LiqoTech/liqo/master/install.sh | bash
 ```
 
-#### [K3s](k3s.io)
+#### [K3s](https://k3s.io)
 
 K3s is a minimal Kubernetes cluster which is pretty small and easy to set up. However, it does not store its configuration in the
 way that traditional installers (e.g.; Kubeadm) do. Therefore, it is required to know the configuration you entered for your cluster.

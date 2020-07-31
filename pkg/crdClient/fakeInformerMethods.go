@@ -88,7 +88,7 @@ func (i *fakeInformer) DeleteFake(obj interface{}) error {
 
 func (i *fakeInformer) ListFake() []interface{} {
 	i.lock.Lock()
-	var items []interface{}
+	items := make([]interface{}, 0, len(i.data))
 	for _, v := range i.data {
 		items = append(items, v)
 	}

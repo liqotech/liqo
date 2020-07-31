@@ -214,7 +214,8 @@ func (p *KubernetesProvider) newHomeEpCache(c kubernetes.Interface, namespace st
 		if err != nil {
 			return eps, err
 		}
-		for _, ep := range eps.Items {
+		for k := range eps.Items {
+			ep := eps.Items[k]
 			p.epEvent <- timestampedEndpoints{
 				ep: &ep,
 				t:  time.Now(),

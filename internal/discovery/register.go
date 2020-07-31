@@ -71,7 +71,7 @@ func (discovery *DiscoveryCtrl) getPodNets() ([]*net.IPNet, error) {
 	if err != nil {
 		return nil, err
 	}
-	var res []*net.IPNet
+	res := make([]*net.IPNet, 0, len(nodes.Items))
 	for _, n := range nodes.Items {
 		_, ipnet, err := net.ParseCIDR(n.Spec.PodCIDR)
 		if err != nil {
