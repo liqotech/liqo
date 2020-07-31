@@ -39,12 +39,12 @@ import (
 )
 
 var (
-	liqonetPostroutingChain = "LIQONET-POSTROUTING"
-	liqonetPreroutingChain  = "LIQONET-PREROUTING"
-	liqonetForwardingChain  = "LIQONET-FORWARD"
-	liqonetInputChain       = "LIQONET-INPUT"
-	natTable                = "nat"
-	filterTable             = "filter"
+	LiqonetPostroutingChain = "LIQONET-POSTROUTING"
+	LiqonetPreroutingChain  = "LIQONET-PREROUTING"
+	LiqonetForwardingChain  = "LIQONET-FORWARD"
+	LiqonetInputChain       = "LIQONET-INPUT"
+	NatTable                = "nat"
+	FilterTable             = "filter"
 	shutdownSignals         = []os.Signal{os.Interrupt, syscall.SIGTERM, syscall.SIGKILL}
 )
 
@@ -181,92 +181,92 @@ func (r *RouteController) createAndInsertIPTablesChains() error {
 	ipt := r.IPtables
 	log := r.Log.WithName("iptables")
 	//creating LIQONET-POSTROUTING chain
-	if err = liqonetOperator.CreateIptablesChainsIfNotExist(ipt, natTable, liqonetPostroutingChain); err != nil {
+	if err = liqonetOperator.CreateIptablesChainsIfNotExist(ipt, NatTable, LiqonetPostroutingChain); err != nil {
 		return err
 	} else {
-		log.Info("created", "chain", liqonetPostroutingChain, "in table", natTable)
+		log.Info("created", "chain", LiqonetPostroutingChain, "in table", NatTable)
 	}
-	r.IPTablesChains[liqonetPostroutingChain] = liqonetOperator.IPTableChain{
-		Table: natTable,
-		Name:  liqonetPostroutingChain,
+	r.IPTablesChains[LiqonetPostroutingChain] = liqonetOperator.IPTableChain{
+		Table: NatTable,
+		Name:  LiqonetPostroutingChain,
 	}
 	//installing rulespec which forwards all traffic to LIQONET-POSTROUTING chain
-	forwardToLiqonetPostroutingRuleSpec := []string{"-j", liqonetPostroutingChain}
-	if err = liqonetOperator.InsertIptablesRulespecIfNotExists(ipt, natTable, "POSTROUTING", forwardToLiqonetPostroutingRuleSpec); err != nil {
+	forwardToLiqonetPostroutingRuleSpec := []string{"-j", LiqonetPostroutingChain}
+	if err = liqonetOperator.InsertIptablesRulespecIfNotExists(ipt, NatTable, "POSTROUTING", forwardToLiqonetPostroutingRuleSpec); err != nil {
 		return err
 	} else {
-		log.Info("installed", "rulespec", strings.Join(forwardToLiqonetPostroutingRuleSpec, " "), "belonging to chain POSTROUTING in table", natTable)
+		log.Info("installed", "rulespec", strings.Join(forwardToLiqonetPostroutingRuleSpec, " "), "belonging to chain POSTROUTING in table", NatTable)
 	}
 	//add it to iptables rulespec if it does not exist in the map
 	r.IPTablesRuleSpecsReferencingChains[strings.Join(forwardToLiqonetPostroutingRuleSpec, " ")] = liqonetOperator.IPtableRule{
-		Table:    natTable,
+		Table:    NatTable,
 		Chain:    "POSTROUTING",
 		RuleSpec: forwardToLiqonetPostroutingRuleSpec,
 	}
 	//creating LIQONET-PREROUTING chain
-	if err = liqonetOperator.CreateIptablesChainsIfNotExist(ipt, natTable, liqonetPreroutingChain); err != nil {
+	if err = liqonetOperator.CreateIptablesChainsIfNotExist(ipt, NatTable, LiqonetPreroutingChain); err != nil {
 		return err
 	} else {
-		log.Info("created", "chain", liqonetPreroutingChain, "in table", natTable)
+		log.Info("created", "chain", LiqonetPreroutingChain, "in table", NatTable)
 	}
-	r.IPTablesChains[liqonetPostroutingChain] = liqonetOperator.IPTableChain{
-		Table: natTable,
-		Name:  liqonetPreroutingChain,
+	r.IPTablesChains[LiqonetPostroutingChain] = liqonetOperator.IPTableChain{
+		Table: NatTable,
+		Name:  LiqonetPreroutingChain,
 	}
 	//installing rulespec which forwards all traffic to LIQONET-PREROUTING chain
-	forwardToLiqonetPreroutingRuleSpec := []string{"-j", liqonetPreroutingChain}
-	if err = liqonetOperator.InsertIptablesRulespecIfNotExists(ipt, natTable, "PREROUTING", forwardToLiqonetPreroutingRuleSpec); err != nil {
+	forwardToLiqonetPreroutingRuleSpec := []string{"-j", LiqonetPreroutingChain}
+	if err = liqonetOperator.InsertIptablesRulespecIfNotExists(ipt, NatTable, "PREROUTING", forwardToLiqonetPreroutingRuleSpec); err != nil {
 		return err
 	} else {
-		log.Info("installed", "rulespec", strings.Join(forwardToLiqonetPreroutingRuleSpec, " "), "belonging to chain POSTROUTING in table", natTable)
+		log.Info("installed", "rulespec", strings.Join(forwardToLiqonetPreroutingRuleSpec, " "), "belonging to chain POSTROUTING in table", NatTable)
 	}
 	//add it to iptables rulespec if it does not exist in the map
 	r.IPTablesRuleSpecsReferencingChains[strings.Join(forwardToLiqonetPreroutingRuleSpec, " ")] = liqonetOperator.IPtableRule{
-		Table:    natTable,
+		Table:    NatTable,
 		Chain:    "PREROUTING",
 		RuleSpec: forwardToLiqonetPreroutingRuleSpec,
 	}
 	//creating LIQONET-FORWARD chain
-	if err = liqonetOperator.CreateIptablesChainsIfNotExist(ipt, filterTable, liqonetForwardingChain); err != nil {
+	if err = liqonetOperator.CreateIptablesChainsIfNotExist(ipt, FilterTable, LiqonetForwardingChain); err != nil {
 		return err
 	} else {
-		log.Info("created", "chain", liqonetForwardingChain, "in table", filterTable)
+		log.Info("created", "chain", LiqonetForwardingChain, "in table", FilterTable)
 	}
-	r.IPTablesChains[liqonetForwardingChain] = liqonetOperator.IPTableChain{
-		Table: filterTable,
-		Name:  liqonetForwardingChain,
+	r.IPTablesChains[LiqonetForwardingChain] = liqonetOperator.IPTableChain{
+		Table: FilterTable,
+		Name:  LiqonetForwardingChain,
 	}
 	//installing rulespec which forwards all traffic to LIQONET-FORWARD chain
-	forwardToLiqonetForwardRuleSpec := []string{"-j", liqonetForwardingChain}
-	if err = liqonetOperator.InsertIptablesRulespecIfNotExists(ipt, filterTable, "FORWARD", forwardToLiqonetForwardRuleSpec); err != nil {
+	forwardToLiqonetForwardRuleSpec := []string{"-j", LiqonetForwardingChain}
+	if err = liqonetOperator.InsertIptablesRulespecIfNotExists(ipt, FilterTable, "FORWARD", forwardToLiqonetForwardRuleSpec); err != nil {
 		return err
 	} else {
-		log.Info("installed", "rulespec", strings.Join(forwardToLiqonetForwardRuleSpec, " "), "belonging to chain FORWARD in table", filterTable)
+		log.Info("installed", "rulespec", strings.Join(forwardToLiqonetForwardRuleSpec, " "), "belonging to chain FORWARD in table", FilterTable)
 	}
 	r.IPTablesRuleSpecsReferencingChains[strings.Join(forwardToLiqonetForwardRuleSpec, " ")] = liqonetOperator.IPtableRule{
-		Table:    filterTable,
+		Table:    FilterTable,
 		Chain:    "FORWARD",
 		RuleSpec: forwardToLiqonetForwardRuleSpec,
 	}
 	//creating LIQONET-INPUT chain
-	if err = liqonetOperator.CreateIptablesChainsIfNotExist(ipt, filterTable, liqonetInputChain); err != nil {
+	if err = liqonetOperator.CreateIptablesChainsIfNotExist(ipt, FilterTable, LiqonetInputChain); err != nil {
 		return err
 	} else {
-		log.Info("created", "chain", liqonetInputChain, "in table", filterTable)
+		log.Info("created", "chain", LiqonetInputChain, "in table", FilterTable)
 	}
-	r.IPTablesChains[liqonetInputChain] = liqonetOperator.IPTableChain{
-		Table: filterTable,
-		Name:  liqonetInputChain,
+	r.IPTablesChains[LiqonetInputChain] = liqonetOperator.IPTableChain{
+		Table: FilterTable,
+		Name:  LiqonetInputChain,
 	}
 	//installing rulespec which forwards all udp incoming traffic to LIQONET-INPUT chain
-	forwardToLiqonetInputSpec := []string{"-p", "udp", "-m", "udp", "-j", liqonetInputChain}
-	if err = liqonetOperator.InsertIptablesRulespecIfNotExists(ipt, filterTable, "INPUT", forwardToLiqonetInputSpec); err != nil {
+	forwardToLiqonetInputSpec := []string{"-p", "udp", "-m", "udp", "-j", LiqonetInputChain}
+	if err = liqonetOperator.InsertIptablesRulespecIfNotExists(ipt, FilterTable, "INPUT", forwardToLiqonetInputSpec); err != nil {
 		return err
 	} else {
-		log.Info("installed", "rulespec", strings.Join(forwardToLiqonetInputSpec, " "), "belonging to chain POSTROUTING in table", filterTable)
+		log.Info("installed", "rulespec", strings.Join(forwardToLiqonetInputSpec, " "), "belonging to chain POSTROUTING in table", FilterTable)
 	}
 	r.IPTablesRuleSpecsReferencingChains[strings.Join(forwardToLiqonetInputSpec, " ")] = liqonetOperator.IPtableRule{
-		Table:    filterTable,
+		Table:    FilterTable,
 		Chain:    "INPUT",
 		RuleSpec: forwardToLiqonetInputSpec,
 	}
@@ -275,10 +275,10 @@ func (r *RouteController) createAndInsertIPTablesChains() error {
 	//we don't save this rulespec it will be removed when the chains are flushed at exit time
 	//TODO: do we need to move this one elsewhere? maybe in a dedicate function called at startup by the route operator?
 	vxlanUdpRuleSpec := []string{"-p", "udp", "-m", "udp", "--dport", strconv.Itoa(r.VxlanPort), "-j", "ACCEPT"}
-	if err = ipt.AppendUnique(filterTable, liqonetInputChain, vxlanUdpRuleSpec...); err != nil {
-		return fmt.Errorf("unable to insert rulespec \"%s\" in %s table and %s chain: %v", vxlanUdpRuleSpec, filterTable, liqonetInputChain, err)
+	if err = ipt.AppendUnique(FilterTable, LiqonetInputChain, vxlanUdpRuleSpec...); err != nil {
+		return fmt.Errorf("unable to insert rulespec \"%s\" in %s table and %s chain: %v", vxlanUdpRuleSpec, FilterTable, LiqonetInputChain, err)
 	} else {
-		log.Info("installed", "rulespec", strings.Join(vxlanUdpRuleSpec, " "), "belonging to chain", liqonetInputChain, "in table", filterTable)
+		log.Info("installed", "rulespec", strings.Join(vxlanUdpRuleSpec, " "), "belonging to chain", LiqonetInputChain, "in table", FilterTable)
 	}
 	return nil
 }
@@ -299,40 +299,40 @@ func (r *RouteController) addIPTablesRulespecForRemoteCluster(endpoint *v1.Tunne
 	ipt := r.IPtables
 	//do not nat the traffic directed to the remote pods
 	ruleSpec := []string{"-s", r.ClusterPodCIDR, "-d", remotePodCIDR, "-j", "ACCEPT"}
-	if err = ipt.AppendUnique(natTable, liqonetPostroutingChain, ruleSpec...); err != nil {
-		return fmt.Errorf("unable to insert iptable rule \"%s\" in %s table, %s chain: %v", ruleSpec, natTable, liqonetPostroutingChain, err)
+	if err = ipt.AppendUnique(NatTable, LiqonetPostroutingChain, ruleSpec...); err != nil {
+		return fmt.Errorf("unable to insert iptable rule \"%s\" in %s table, %s chain: %v", ruleSpec, NatTable, LiqonetPostroutingChain, err)
 	} else {
-		log.Info("installed", "rulespec", strings.Join(ruleSpec, " "), "belonging to chain", liqonetPostroutingChain, "in table", filterTable)
+		log.Info("installed", "rulespec", strings.Join(ruleSpec, " "), "belonging to chain", LiqonetPostroutingChain, "in table", FilterTable)
 	}
 	ruleSpecs = append(ruleSpecs, liqonetOperator.IPtableRule{
-		Table:    natTable,
-		Chain:    liqonetPostroutingChain,
+		Table:    NatTable,
+		Chain:    LiqonetPostroutingChain,
 		RuleSpec: ruleSpec,
 	})
 	r.IPtablesRuleSpecsPerRemoteCluster[clusterID] = ruleSpecs
 	//enable forwarding for all the traffic directed to the remote pods
 	ruleSpec = []string{"-d", remotePodCIDR, "-j", "ACCEPT"}
-	if err = ipt.AppendUnique(filterTable, liqonetForwardingChain, ruleSpec...); err != nil {
-		return fmt.Errorf("unable to insert iptable rule \"%s\" in %s table, %s chain: %v", ruleSpec, filterTable, liqonetForwardingChain, err)
+	if err = ipt.AppendUnique(FilterTable, LiqonetForwardingChain, ruleSpec...); err != nil {
+		return fmt.Errorf("unable to insert iptable rule \"%s\" in %s table, %s chain: %v", ruleSpec, FilterTable, LiqonetForwardingChain, err)
 	} else {
-		log.Info("installed", "rulespec", strings.Join(ruleSpec, " "), "belonging to chain", liqonetForwardingChain, "in table", filterTable)
+		log.Info("installed", "rulespec", strings.Join(ruleSpec, " "), "belonging to chain", LiqonetForwardingChain, "in table", FilterTable)
 	}
 	ruleSpecs = append(ruleSpecs, liqonetOperator.IPtableRule{
-		Table:    filterTable,
-		Chain:    liqonetForwardingChain,
+		Table:    FilterTable,
+		Chain:    LiqonetForwardingChain,
 		RuleSpec: ruleSpec,
 	})
 	r.IPtablesRuleSpecsPerRemoteCluster[clusterID] = ruleSpecs
 	//this rules are needed in an environment where strictly policies are applied for the input chain
 	ruleSpec = []string{"-s", r.ClusterPodCIDR, "-d", remotePodCIDR, "-j", "ACCEPT"}
-	if err = ipt.AppendUnique(filterTable, liqonetInputChain, ruleSpec...); err != nil {
-		return fmt.Errorf("unable to insert iptable rule \"%s\" in %s table, %s chain: %v", ruleSpec, filterTable, liqonetInputChain, err)
+	if err = ipt.AppendUnique(FilterTable, LiqonetInputChain, ruleSpec...); err != nil {
+		return fmt.Errorf("unable to insert iptable rule \"%s\" in %s table, %s chain: %v", ruleSpec, FilterTable, LiqonetInputChain, err)
 	} else {
-		log.Info("installed", "rulespec", strings.Join(ruleSpec, " "), "belonging to chain", liqonetInputChain, "in table", filterTable)
+		log.Info("installed", "rulespec", strings.Join(ruleSpec, " "), "belonging to chain", LiqonetInputChain, "in table", FilterTable)
 	}
 	ruleSpecs = append(ruleSpecs, liqonetOperator.IPtableRule{
-		Table:    filterTable,
-		Chain:    liqonetInputChain,
+		Table:    FilterTable,
+		Chain:    LiqonetInputChain,
 		RuleSpec: ruleSpec,
 	})
 	r.IPtablesRuleSpecsPerRemoteCluster[clusterID] = ruleSpecs
@@ -341,41 +341,41 @@ func (r *RouteController) addIPTablesRulespecForRemoteCluster(endpoint *v1.Tunne
 		//hosts use the ip of the vxlan interface as source ip when communicating with remote pods
 		//this is done on the gateway node only
 		ruleSpec = []string{"-s", r.VxlanNetwork, "-d", remotePodCIDR, "-j", "MASQUERADE"}
-		if err = ipt.AppendUnique(natTable, liqonetPostroutingChain, ruleSpec...); err != nil {
-			return fmt.Errorf("unable to insert iptable rule \"%s\" in %s table, %s chain: %v", ruleSpec, natTable, liqonetPostroutingChain, err)
+		if err = ipt.AppendUnique(NatTable, LiqonetPostroutingChain, ruleSpec...); err != nil {
+			return fmt.Errorf("unable to insert iptable rule \"%s\" in %s table, %s chain: %v", ruleSpec, NatTable, LiqonetPostroutingChain, err)
 		} else {
-			log.Info("installed", "rulespec", strings.Join(ruleSpec, " "), "belonging to chain", liqonetPostroutingChain, "in table", natTable)
+			log.Info("installed", "rulespec", strings.Join(ruleSpec, " "), "belonging to chain", LiqonetPostroutingChain, "in table", NatTable)
 		}
 		ruleSpecs = append(ruleSpecs, liqonetOperator.IPtableRule{
-			Table:    natTable,
-			Chain:    liqonetPostroutingChain,
+			Table:    NatTable,
+			Chain:    LiqonetPostroutingChain,
 			RuleSpec: ruleSpec,
 		})
 		r.IPtablesRuleSpecsPerRemoteCluster[clusterID] = ruleSpecs
 		//if we have been remapped by the remote cluster then insert the iptables rule to masquerade the source ip
 		if endpoint.Status.LocalRemappedPodCIDR != "None" {
 			ruleSpec = []string{"-s", r.ClusterPodCIDR, "-d", remotePodCIDR, "-j", "NETMAP", "--to", endpoint.Status.LocalRemappedPodCIDR}
-			if err = liqonetOperator.InsertIptablesRulespecIfNotExists(ipt, natTable, liqonetPostroutingChain, ruleSpec); err != nil {
-				return fmt.Errorf("unable to insert iptable rule \"%s\" in %s table, %s chain: %v", ruleSpec, natTable, liqonetPostroutingChain, err)
+			if err = liqonetOperator.InsertIptablesRulespecIfNotExists(ipt, NatTable, LiqonetPostroutingChain, ruleSpec); err != nil {
+				return fmt.Errorf("unable to insert iptable rule \"%s\" in %s table, %s chain: %v", ruleSpec, NatTable, LiqonetPostroutingChain, err)
 			} else {
-				log.Info("installed", "rulespec", strings.Join(ruleSpec, " "), "belonging to chain", liqonetPostroutingChain, "in table", natTable)
+				log.Info("installed", "rulespec", strings.Join(ruleSpec, " "), "belonging to chain", LiqonetPostroutingChain, "in table", NatTable)
 			}
 			ruleSpecs = append(ruleSpecs, liqonetOperator.IPtableRule{
-				Table:    natTable,
-				Chain:    liqonetPostroutingChain,
+				Table:    NatTable,
+				Chain:    LiqonetPostroutingChain,
 				RuleSpec: ruleSpec,
 			})
 			r.IPtablesRuleSpecsPerRemoteCluster[clusterID] = ruleSpecs
 			//translate all the traffic coming to the local cluster in to the right podcidr because it has been remapped by the remote cluster
 			ruleSpec = []string{"-d", endpoint.Status.LocalRemappedPodCIDR, "-i", endpoint.Status.TunnelIFaceName, "-j", "NETMAP", "--to", r.ClusterPodCIDR}
-			if err = ipt.AppendUnique(natTable, liqonetPreroutingChain, ruleSpec...); err != nil {
-				return fmt.Errorf("unable to insert iptable rule \"%s\" in %s table, %s chain: %v", ruleSpec, natTable, liqonetPreroutingChain, err)
+			if err = ipt.AppendUnique(NatTable, LiqonetPreroutingChain, ruleSpec...); err != nil {
+				return fmt.Errorf("unable to insert iptable rule \"%s\" in %s table, %s chain: %v", ruleSpec, NatTable, LiqonetPreroutingChain, err)
 			} else {
-				log.Info("installed", "rulespec", strings.Join(ruleSpec, " "), "belonging to chain", liqonetPreroutingChain, "in table", natTable)
+				log.Info("installed", "rulespec", strings.Join(ruleSpec, " "), "belonging to chain", LiqonetPreroutingChain, "in table", NatTable)
 			}
 			ruleSpecs = append(ruleSpecs, liqonetOperator.IPtableRule{
-				Table:    natTable,
-				Chain:    liqonetPreroutingChain,
+				Table:    NatTable,
+				Chain:    LiqonetPreroutingChain,
 				RuleSpec: ruleSpec,
 			})
 			r.IPtablesRuleSpecsPerRemoteCluster[clusterID] = ruleSpecs
