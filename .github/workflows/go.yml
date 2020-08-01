@@ -38,7 +38,7 @@ jobs:
         uses: actions/checkout@v2
         with:
           ref: "${{ env.commit_ref }}"
-      - name: Push ${{ matrix.component }} image on repo
+      - name: Push ${{ matrix.component }} image on repo (Master)
         uses: elgohr/Publish-Docker-Github-Action@master
         with:
           name: liqo/${{ matrix.component }}
@@ -47,7 +47,7 @@ jobs:
           password: ${{ secrets.DOCKER_PASSWORD }}
           tags: "latest,${{ env.commit_ref }}"
         if: github.ref == 'refs/heads/master' && github.event.pull_request.head.repo.full_name == 'liqotech/liqo'
-      - name: Push ${{ matrix.component }} image on repo
+      - name: Push ${{ matrix.component }} image on repo (Development)
         uses: elgohr/Publish-Docker-Github-Action@master
         with:
           name: liqo/${{ matrix.component }}-ci
@@ -56,7 +56,7 @@ jobs:
           password: ${{ secrets.DOCKER_PASSWORD }}
           tags: "${{ env.commit_ref }}"
         if: github.ref != 'refs/heads/master' && github.event.pull_request.head.repo.full_name == 'liqotech/liqo'
-      - name: Build Only ${{ matrix.component }} image
+      - name: Build Only ${{ matrix.component }} image (Forked Repositories)
         uses: docker/build-push-action@v1
         with:
           name: liqo/${{ matrix.component }}-ci

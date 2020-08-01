@@ -1,17 +1,21 @@
+<p align="center">
+<img alt="Liqo Logo" src="https://doc.liqo.io/images/logo-liqo-blue.svg" />
+</p>
+
+# Liqo
+
 ![Go](https://github.com/liqoTech/liqo/workflows/Go/badge.svg) 
 [![Coverage Status](https://coveralls.io/repos/github/LiqoTech/liqo/badge.svg?branch=master)](https://coveralls.io/github/LiqoTech/liqo?branch=master)
 [![Go Report Card](https://goreportcard.com/badge/github.com/LiqoTech/liqo)](https://goreportcard.com/report/github.com/LiqoTech/liqo)
-# Liqo
 
 Liqo is a framework to enable dynamic sharing across Kubernetes Clusters. You can run your pods on a remote cluster
 seamlessly, without any modification (Kubernetes or your application). 
 
-#What is Liqo?
+Liqo is an open source project started at Politecnico of Turin that allows Kubernetes to seamlessly and securely share resources and services, so you can run your tasks on any other cluster available nearby.
 
-Differently from the [Kubernetes Federation](https://github.com/kubernetes-sigs/kubefed) and the
-[Admiralty](https://admiralty.io/) project, Liqo is designed to handle dynamic, temporary
-resource sharing across multi-owner clusters and targets every type of computing resources (e.g. Raspberry PI, 
-Desktop PCs, Servers).
+Thanks to the support for K3s, also single machines can participate,creating dynamic, opportunistic data centers that include commodity desktop computers and laptops as well.
+
+Liqo leverages the same highly successful “peering” model of the Internet, without any central point of control. New peering relationships can be established dynamically, whenever needed, even automatically. Cluster auto-discovery can further simplify this process.
 
 ## Features
 
