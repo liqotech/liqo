@@ -68,8 +68,7 @@ func startQuickLiqoWebsite(i *app.Indicator) {
 //startQuickDashboard is the wrapper function to register QUICK "LAUNCH Liqo Dash".
 func startQuickDashboard(i *app.Indicator) {
 	i.AddQuick("LiqoDash", qDash, func(args ...interface{}) {
-		cmd := exec.Command("xdg-open", "http://liqo.io")
-		_ = cmd.Run()
+		quickConnectDashboard(i)
 	})
 }
 

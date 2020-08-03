@@ -141,7 +141,7 @@ jobs:
       run: |
         go get -u github.com/ory/go-acc
     - name: install tray-agent dependencies
-      run: sudo apt update && sudo apt-get install gcc libgtk-3-dev libappindicator3-dev libwebkit2gtk-4.0-dev
+      run: sudo apt update && sudo apt-get install gcc libgtk-3-dev libappindicator3-dev libwebkit2gtk-4.0-dev xclip
     - run: go-acc ./... --ignore liqo/test/e2e
     - name: Send coverage
       uses: shogo82148/actions-goveralls@v1

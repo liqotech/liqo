@@ -5,7 +5,9 @@ go 1.13
 require (
 	contrib.go.opencensus.io/exporter/jaeger v0.2.0
 	contrib.go.opencensus.io/exporter/ocagent v0.7.0
+	github.com/agrison/go-commons-lang v0.0.0-20200208220349-58e9fcb95174
 	github.com/apparentlymart/go-cidr v1.1.0
+	github.com/atotto/clipboard v0.1.2
 	github.com/certifi/gocertifi v0.0.0-20200104152315-a6d78f326758 // indirect
 	github.com/cloudflare/cfssl v1.4.1 // indirect
 	github.com/cloudflare/redoctober v0.0.0-20200117180338-34d894fcc2a1 // indirect

@@ -2,6 +2,7 @@ package app_indicator
 
 import (
 	"fmt"
+	"github.com/agrison/go-commons-lang/stringUtils"
 	bip "github.com/gen2brain/beeep"
 	"github.com/gen2brain/dlgs"
 	"github.com/ozgio/strutil"
@@ -79,7 +80,10 @@ func (i *Indicator) Notify(title string, message string, notifyIcon NotifyIcon, 
 			icoName = "liqo-black.png"
 		}
 		if !i.gProvider.Mocked() {
-			_ = bip.Notify(title, message, filepath.Join(i.config.notifyIconPath, icoName))
+			/*The golang guidelines suggests error messages should not start with a capitalized letter.
+			Therefore, since Notify sometimes receives an error as 'message', the Capitalize() function
+			overcomes this problem, correctly displaying the string to the user.*/
+			_ = bip.Notify(title, stringUtils.Capitalize(message), filepath.Join(i.config.notifyIconPath, icoName))
 		}
 	default:
 		return

@@ -2,7 +2,7 @@ FROM liqo/runner as builder
 #install required dependencies
 ENV DEBIAN_FRONTEND=noninteractive
 RUN apt-get update && apt-get -y install gcc tar wget libgtk-3-dev libappindicator3-dev \
-libwebkit2gtk-4.0-dev
+libwebkit2gtk-4.0-dev xclip
 
 FROM builder as gobuild
 RUN wget https://dl.google.com/go/go1.14.3.linux-amd64.tar.gz && tar -xzf go1.14.3.linux-amd64.tar.gz
