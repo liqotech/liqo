@@ -30,9 +30,10 @@ import (
 type DiscoveryType string
 
 const (
-	LanDiscovery    DiscoveryType = "LAN"
-	WanDiscovery    DiscoveryType = "WAN"
-	ManualDiscovery DiscoveryType = "Manual"
+	LanDiscovery             DiscoveryType = "LAN"
+	WanDiscovery             DiscoveryType = "WAN"
+	ManualDiscovery          DiscoveryType = "Manual"
+	IncomingPeeringDiscovery DiscoveryType = "IncomingPeering"
 )
 
 // ForeignClusterSpec defines the desired state of ForeignCluster
@@ -53,11 +54,21 @@ type ForeignClusterStatus struct {
 	// INSERT ADDITIONAL STATUS FIELD - define observed state of cluster
 	// Important: Run "make" to regenerate code after modifying this file
 
-	Joined             bool                `json:"joined"`
-	PeeringRequestName string              `json:"peering-request-name,omitempty"`
-	CaDataRef          *v1.ObjectReference `json:"caDataRef,omitempty"`
-	Advertisement      *v1.ObjectReference `json:"advertisement,omitempty"`
-	Ttl                int                 `json:"ttl,omitempty"`
+	Outgoing Outgoing `json:"outgoing,omitempty"`
+	Incoming Incoming `json:"incoming,omitempty"`
+	Ttl      int      `json:"ttl,omitempty"`
+}
+
+type Outgoing struct {
+	Joined                   bool                `json:"joined"`
+	RemotePeeringRequestName string              `json:"remote-peering-request-name,omitempty"`
+	CaDataRef                *v1.ObjectReference `json:"caDataRef,omitempty"`
+	Advertisement            *v1.ObjectReference `json:"advertisement,omitempty"`
+}
+
+type Incoming struct {
+	Joined         bool                `json:"joined"`
+	PeeringRequest *v1.ObjectReference `json:"peeringRequest,omitempty"`
 }
 
 // +kubebuilder:object:root=true

@@ -140,12 +140,26 @@ func (r *AdvertisementReconciler) SetupWithManager(mgr ctrl.Manager) error {
 
 // set Advertisement reference in related ForeignCluster
 func (r *AdvertisementReconciler) UpdateForeignCluster(adv *protocolv1.Advertisement) (error, bool) {
-	tmp, err := r.DiscoveryClient.Resource("foreignclusters").Get(adv.Spec.ClusterId, metav1.GetOptions{})
+	tmp, err := r.DiscoveryClient.Resource("foreignclusters").List(metav1.ListOptions{
+		LabelSelector: "cluster-id=" + adv.Spec.ClusterId,
+	})
 	if err != nil {
 		klog.Error(err, err.Error())
 		return err, false
 	}
-	fc, ok := tmp.(*discoveryv1.ForeignCluster)
+	fcList, ok := tmp.(*discoveryv1.ForeignClusterList)
+	if !ok {
+		err = goerrors.New("retrieved object is not a ForeignClusterList")
+		klog.Error(err, err.Error())
+		return err, false
+	}
+	if len(fcList.Items) == 0 {
+		// object not found
+		err = goerrors.New("ForeignCluster not found for cluster id " + adv.Spec.ClusterId)
+		klog.Error(err, err.Error())
+		return err, false
+	}
+	fc := fcList.Items[0]
 	if !ok {
 		err = goerrors.New("retrieved object is not a ForeignCluster")
 		klog.Error(err, fc)

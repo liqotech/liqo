@@ -60,6 +60,21 @@ func getClientCluster() *Cluster {
 		os.Exit(1)
 	}
 
+	cluster.prReconciler = peering_request_operator.GetPRReconciler(
+		mgr.GetScheme(),
+		cluster.client,
+		"default",
+		cluster.clusterId,
+		"liqo-config",
+		"broadcaster",
+		"br-sa",
+	)
+	err = cluster.prReconciler.SetupWithManager(mgr)
+	if err != nil {
+		klog.Error(err, err.Error())
+		os.Exit(1)
+	}
+
 	cluster.discoveryCtrl = discovery.GetDiscoveryCtrl(
 		"default",
 		cluster.client,
@@ -92,6 +107,21 @@ func getClientCluster() *Cluster {
 func getServerCluster() *Cluster {
 	cluster, mgr := getCluster()
 	cluster.clusterId = clusterID.GetNewClusterID("server-cluster", cluster.client.Client())
+	cluster.fcReconciler = foreign_cluster_operator.GetFCReconciler(
+		mgr.GetScheme(),
+		"default",
+		cluster.client,
+		cluster.advClient,
+		cluster.clusterId,
+		1*time.Minute,
+		&cluster.discoveryCtrl,
+	)
+	err := cluster.fcReconciler.SetupWithManager(mgr)
+	if err != nil {
+		klog.Error(err, err.Error())
+		os.Exit(1)
+	}
+
 	cluster.prReconciler = peering_request_operator.GetPRReconciler(
 		mgr.GetScheme(),
 		cluster.client,
@@ -101,7 +131,7 @@ func getServerCluster() *Cluster {
 		"broadcaster",
 		"br-sa",
 	)
-	err := cluster.prReconciler.SetupWithManager(mgr)
+	err = cluster.prReconciler.SetupWithManager(mgr)
 	if err != nil {
 		klog.Error(err, err.Error())
 		os.Exit(1)

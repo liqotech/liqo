@@ -10,11 +10,19 @@ import (
 	clientcmdapi "k8s.io/client-go/tools/clientcmd/api"
 )
 
-func (pr *PeeringRequest) GetConfig(clientset *kubernetes.Clientset) (*rest.Config, error) {
+func (pr *PeeringRequest) GetConfig(clientset kubernetes.Interface) (*rest.Config, error) {
 	return getConfig(clientset, pr.Spec.KubeConfigRef)
 }
 
-func getConfig(clientset *kubernetes.Clientset, reference *v1.ObjectReference) (*rest.Config, error) {
+type LoadConfigError struct {
+	error string
+}
+
+func (lce LoadConfigError) Error() string {
+	return lce.error
+}
+
+func getConfig(clientset kubernetes.Interface, reference *v1.ObjectReference) (*rest.Config, error) {
 	secret, err := clientset.CoreV1().Secrets(reference.Namespace).Get(context.TODO(), reference.Name, metav1.GetOptions{})
 	if err != nil {
 		return nil, err
@@ -22,5 +30,11 @@ func getConfig(clientset *kubernetes.Clientset, reference *v1.ObjectReference) (
 	kubeconfig := func() (*clientcmdapi.Config, error) {
 		return clientcmd.Load(secret.Data["kubeconfig"])
 	}
-	return clientcmd.BuildConfigFromKubeconfigGetter("", kubeconfig)
+	cnf, err := clientcmd.BuildConfigFromKubeconfigGetter("", kubeconfig)
+	if err != nil {
+		return nil, LoadConfigError{
+			error: err.Error(),
+		}
+	}
+	return cnf, nil
 }

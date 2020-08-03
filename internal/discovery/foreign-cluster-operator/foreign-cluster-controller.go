@@ -81,20 +81,55 @@ func (r *ForeignClusterReconciler) Reconcile(req ctrl.Request) (ctrl.Result, err
 		fc.ObjectMeta.Labels["discovery-type"] = string(fc.Spec.DiscoveryType)
 		requireUpdate = true
 	}
+	// set cluster-id label to easy retrieve ForeignClusters by ClusterId,
+	// if it is added manually, the name maybe not coincide with ClusterId
+	if fc.ObjectMeta.Labels["cluster-id"] == "" {
+		fc.ObjectMeta.Labels["cluster-id"] = fc.Spec.ClusterID
+		requireUpdate = true
+	}
 
 	// check if linked advertisement exists
-	if fc.Status.Advertisement != nil {
-		_, err := r.advertisementClient.Resource("advertisements").Get(fc.Status.Advertisement.Name, metav1.GetOptions{})
+	if fc.Status.Outgoing.Advertisement != nil {
+		_, err = r.advertisementClient.Resource("advertisements").Get(fc.Status.Outgoing.Advertisement.Name, metav1.GetOptions{})
 		if errors.IsNotFound(err) {
-			fc.Status.Advertisement = nil
-			fc.Status.Joined = false
-			fc.Status.PeeringRequestName = ""
+			fc.Status.Outgoing.Advertisement = nil
+			fc.Status.Outgoing.Joined = false
+			fc.Status.Outgoing.RemotePeeringRequestName = ""
 			fc.Spec.Join = false
 			requireUpdate = true
 		}
 	}
 
-	if fc.Status.CaDataRef == nil && fc.Spec.AllowUntrustedCA {
+	// check if linked peeringRequest exists
+	if fc.Status.Incoming.PeeringRequest != nil {
+		_, err = r.crdClient.Resource("peeringrequests").Get(fc.Status.Incoming.PeeringRequest.Name, metav1.GetOptions{})
+		if errors.IsNotFound(err) {
+			fc.Status.Incoming.PeeringRequest = nil
+			fc.Status.Incoming.Joined = false
+			requireUpdate = true
+		} else if err == nil && !fc.Status.Incoming.Joined {
+			// PeeringRequest exists, set flag to true
+			fc.Status.Incoming.Joined = true
+			requireUpdate = true
+		}
+	}
+
+	// if it has been discovered thanks to incoming peeringRequest and it has no active connections, delete it
+	if fc.Spec.DiscoveryType == discoveryv1.IncomingPeeringDiscovery && fc.Status.Incoming.PeeringRequest == nil && fc.Status.Outgoing.Advertisement == nil {
+		err = r.crdClient.Resource("foreignclusters").Delete(fc.Name, metav1.DeleteOptions{})
+		if err != nil {
+			klog.Error(err, err.Error())
+			return ctrl.Result{
+				Requeue:      true,
+				RequeueAfter: r.RequeueAfter,
+			}, err
+		}
+		klog.Info(fc.Name + " deleted, discovery type " + string(fc.Spec.DiscoveryType) + " has no active connections")
+		klog.Info("ForeignCluster " + fc.Name + " successfully reconciled")
+		return ctrl.Result{}, nil
+	}
+
+	if fc.Status.Outgoing.CaDataRef == nil && fc.Spec.AllowUntrustedCA {
 		klog.Info("Get CA Data")
 		err = fc.LoadForeignCA(r.crdClient.Client(), r.Namespace, r.ForeignConfig)
 		if err != nil {
@@ -123,7 +158,7 @@ func (r *ForeignClusterReconciler) Reconcile(req ctrl.Request) (ctrl.Result, err
 	if err != nil {
 		klog.Error(err, err.Error())
 		// delete reference, in this way at next iteration it will be reloaded
-		fc.Status.CaDataRef = nil
+		fc.Status.Outgoing.CaDataRef = nil
 		_, err2 := r.crdClient.Resource("foreignclusters").Update(fc.Name, fc, metav1.UpdateOptions{})
 		if err2 != nil {
 			klog.Error(err2, err2.Error())
@@ -145,8 +180,9 @@ func (r *ForeignClusterReconciler) Reconcile(req ctrl.Request) (ctrl.Result, err
 
 	// if join is required (both automatically or by user) and status is not set to joined
 	// create new peering request
-	if fc.Spec.Join && !fc.Status.Joined {
+	if fc.Spec.Join && !fc.Status.Outgoing.Joined {
 		// create PeeringRequest
+		klog.Info("Creating PeeringRequest")
 		pr, err := r.createPeeringRequestIfNotExists(req.Name, fc, foreignDiscoveryClient)
 		if err != nil {
 			klog.Error(err, err.Error())
@@ -155,15 +191,16 @@ func (r *ForeignClusterReconciler) Reconcile(req ctrl.Request) (ctrl.Result, err
 				RequeueAfter: r.RequeueAfter,
 			}, err
 		}
-		fc.Status.Joined = true
-		fc.Status.PeeringRequestName = pr.Name
+		fc.Status.Outgoing.Joined = true
+		fc.Status.Outgoing.RemotePeeringRequestName = pr.Name
 		requireUpdate = true
 	}
 
 	// if join is no more required and status is set to joined
 	// delete peering request
-	if !fc.Spec.Join && fc.Status.Joined {
+	if !fc.Spec.Join && fc.Status.Outgoing.Joined {
 		// peering request has to be removed
+		klog.Info("Deleting PeeringRequest")
 		err := r.deletePeeringRequest(foreignDiscoveryClient, fc)
 		if err != nil {
 			klog.Error(err, err.Error())
@@ -181,8 +218,8 @@ func (r *ForeignClusterReconciler) Reconcile(req ctrl.Request) (ctrl.Result, err
 				RequeueAfter: r.RequeueAfter,
 			}, err
 		}
-		fc.Status.Joined = false
-		fc.Status.PeeringRequestName = ""
+		fc.Status.Outgoing.Joined = false
+		fc.Status.Outgoing.RemotePeeringRequestName = ""
 		requireUpdate = true
 	}
 
@@ -203,7 +240,7 @@ func (r *ForeignClusterReconciler) Reconcile(req ctrl.Request) (ctrl.Result, err
 	}
 
 	// check if peering request really exists on foreign cluster
-	if fc.Spec.Join && fc.Status.Joined {
+	if fc.Spec.Join && fc.Status.Outgoing.Joined {
 		_, err = r.checkJoined(fc, foreignDiscoveryClient)
 		if err != nil {
 			klog.Error(err, err.Error())
@@ -223,15 +260,17 @@ func (r *ForeignClusterReconciler) Reconcile(req ctrl.Request) (ctrl.Result, err
 
 func (r *ForeignClusterReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
-		For(&discoveryv1.ForeignCluster{}).Owns(&protocolv1.Advertisement{}).
+		For(&discoveryv1.ForeignCluster{}).
+		Owns(&protocolv1.Advertisement{}).
+		Owns(&discoveryv1.PeeringRequest{}).
 		Complete(r)
 }
 
 func (r *ForeignClusterReconciler) checkJoined(fc *discoveryv1.ForeignCluster, foreignDiscoveryClient *crdClient.CRDClient) (*discoveryv1.ForeignCluster, error) {
-	_, err := foreignDiscoveryClient.Resource("peeringrequests").Get(fc.Status.PeeringRequestName, metav1.GetOptions{})
+	_, err := foreignDiscoveryClient.Resource("peeringrequests").Get(fc.Status.Outgoing.RemotePeeringRequestName, metav1.GetOptions{})
 	if err != nil {
-		fc.Status.Joined = false
-		fc.Status.PeeringRequestName = ""
+		fc.Status.Outgoing.Joined = false
+		fc.Status.Outgoing.RemotePeeringRequestName = ""
 		tmp, err := r.crdClient.Resource("foreignclusters").Update(fc.Name, fc, metav1.UpdateOptions{})
 		if err != nil {
 			return nil, err
@@ -243,6 +282,21 @@ func (r *ForeignClusterReconciler) checkJoined(fc *discoveryv1.ForeignCluster, f
 		}
 	}
 	return fc, nil
+}
+
+// this method returns the local setting (about trusting policy, ...) to be sent to the remote cluster
+// to allow it to create its local ForeignCluster with the correct settings
+func (r *ForeignClusterReconciler) getOriginClusterSets() discoveryv1.OriginClusterSets {
+	if r.DiscoveryCtrl.Config == nil {
+		klog.Warning("DiscoveryCtrl Config is not set, by default we are allowing UntrustedCA join")
+		return discoveryv1.OriginClusterSets{
+			AllowUntrustedCA: true,
+		}
+	} else {
+		return discoveryv1.OriginClusterSets{
+			AllowUntrustedCA: r.DiscoveryCtrl.Config.AllowUntrustedCA,
+		}
+	}
 }
 
 func (r *ForeignClusterReconciler) createPeeringRequestIfNotExists(clusterID string, owner *discoveryv1.ForeignCluster, foreignClient *crdClient.CRDClient) (*discoveryv1.PeeringRequest, error) {
@@ -267,9 +321,10 @@ func (r *ForeignClusterReconciler) createPeeringRequestIfNotExists(clusterID str
 					Name: localClusterID,
 				},
 				Spec: discoveryv1.PeeringRequestSpec{
-					ClusterID:     localClusterID,
-					Namespace:     r.Namespace,
-					KubeConfigRef: nil,
+					ClusterID:         localClusterID,
+					Namespace:         r.Namespace,
+					KubeConfigRef:     nil,
+					OriginClusterSets: r.getOriginClusterSets(),
 				},
 			}
 			tmp, err = foreignClient.Resource("peeringrequests").Create(pr, metav1.CreateOptions{})
@@ -333,9 +388,6 @@ func (r *ForeignClusterReconciler) createPeeringRequestIfNotExists(clusterID str
 
 // this function return a kube-config file to send to foreign cluster and crate everything needed for it
 func (r *ForeignClusterReconciler) getForeignConfig(clusterID string, owner *discoveryv1.ForeignCluster) (string, error) {
-	if r.ForeignConfig != nil {
-		return r.ForeignConfig.String(), nil
-	}
 	_, err := r.createClusterRoleIfNotExists(clusterID, owner)
 	if err != nil {
 		return "", err
@@ -356,14 +408,29 @@ func (r *ForeignClusterReconciler) getForeignConfig(clusterID string, owner *dis
 		if err != nil {
 			return "", err
 		}
+		timeout := time.NewTimer(500 * time.Millisecond)
 		ch := wa.ResultChan()
-		for s := range ch {
-			_sa := s.Object.(*apiv1.ServiceAccount)
-			if _sa.Name == sa.Name && len(_sa.Secrets) > 0 {
+		defer timeout.Stop()
+		defer wa.Stop()
+		for iterate := true; iterate; {
+			select {
+			case s := <-ch:
+				_sa := s.Object.(*apiv1.ServiceAccount)
+				if _sa.Name == sa.Name && len(_sa.Secrets) > 0 {
+					iterate = false
+					break
+				}
 				break
+			case <-timeout.C:
+				// try to use default config
+				if r.ForeignConfig != nil {
+					klog.Warning("using default ForeignConfig")
+					return r.ForeignConfig.String(), nil
+				}
+				// ServiceAccount not updated with secrets and no default config
+				return "", errors.NewTimeoutError("ServiceAccount's Secret was not created", 0)
 			}
 		}
-		wa.Stop()
 	}
 	cnf, err := kubeconfig.CreateKubeConfig(r.crdClient.Client(), clusterID, r.Namespace)
 	return cnf, err
@@ -463,5 +530,5 @@ func (r *ForeignClusterReconciler) deleteAdvertisement(fc *discoveryv1.ForeignCl
 }
 
 func (r *ForeignClusterReconciler) deletePeeringRequest(foreignClient *crdClient.CRDClient, fc *discoveryv1.ForeignCluster) error {
-	return foreignClient.Resource("peeringrequests").Delete(fc.Status.PeeringRequestName, metav1.DeleteOptions{})
+	return foreignClient.Resource("peeringrequests").Delete(fc.Status.Outgoing.RemotePeeringRequestName, metav1.DeleteOptions{})
 }

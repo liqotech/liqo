@@ -32,9 +32,22 @@ type PeeringRequestSpec struct {
 	// INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
 	// Important: Run "make" to regenerate code after modifying this file
 
-	ClusterID     string              `json:"clusterID"`
-	Namespace     string              `json:"namespace"`
-	KubeConfigRef *v1.ObjectReference `json:"kubeConfigRef,omitempty"`
+	ClusterID         string              `json:"clusterID"`
+	Namespace         string              `json:"namespace"`
+	KubeConfigRef     *v1.ObjectReference `json:"kubeConfigRef,omitempty"`
+	OriginClusterSets OriginClusterSets   `json:"originClusterSets"`
+}
+
+type ReverseJoin string
+
+const (
+	NoReverseJoin      ReverseJoin = "NoReverseJoin"      // this cluster will not allow remote cluster to send its PeeringRequest
+	AllowReverseJoin   ReverseJoin = "AllowReverseJoin"   // this cluster will accept remote cluster PeeringRequest
+	RequireReverseJoin ReverseJoin = "RequireReverseJoin" // this cluster asks to remote cluster to send its PeeringRequest
+)
+
+type OriginClusterSets struct {
+	AllowUntrustedCA bool `json:"allowUntrustedCA"`
 }
 
 // PeeringRequestStatus defines the observed state of PeeringRequest

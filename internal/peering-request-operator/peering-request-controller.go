@@ -24,6 +24,7 @@ import (
 	"github.com/liqoTech/liqo/pkg/crdClient"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/client-go/rest"
 	"k8s.io/klog"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"time"
@@ -40,6 +41,9 @@ type PeeringRequestReconciler struct {
 	broadcasterImage          string
 	broadcasterServiceAccount string
 	retryTimeout              time.Duration
+
+	// testing
+	ForeignConfig *rest.Config
 }
 
 // +kubebuilder:rbac:groups=discovery.liqo.io,resources=peeringrequests,verbs=get;list;watch;create;update;patch;delete
@@ -65,6 +69,12 @@ func (r *PeeringRequestReconciler) Reconcile(req ctrl.Request) (ctrl.Result, err
 		return ctrl.Result{}, nil
 	}
 
+	err = r.UpdateForeignCluster(pr)
+	if err != nil {
+		klog.Error(err, err.Error())
+		return ctrl.Result{RequeueAfter: r.retryTimeout}, err
+	}
+
 	exists, err := r.BroadcasterExists(pr)
 	if err != nil {
 		klog.Error(err, err.Error())
@@ -85,8 +95,13 @@ func (r *PeeringRequestReconciler) Reconcile(req ctrl.Request) (ctrl.Result, err
 		}
 	}
 
+	_, err = r.crdClient.Resource("peeringrequests").Update(pr.Name, pr, metav1.UpdateOptions{})
+	if err != nil {
+		klog.Error(err, err.Error())
+		return ctrl.Result{RequeueAfter: r.retryTimeout}, err
+	}
 	klog.Info("PeeringRequest " + pr.Name + " successfully reconciled")
-	return ctrl.Result{}, nil
+	return ctrl.Result{RequeueAfter: r.retryTimeout}, nil
 }
 
 func (r *PeeringRequestReconciler) SetupWithManager(mgr ctrl.Manager) error {

@@ -32,6 +32,7 @@ spec:
         metadata:
           type: object
         spec:
+          type: object
           properties:
             clusterID:
               type: string
@@ -42,6 +43,15 @@ spec:
             kubeConfigRef:
               type: object
               description: KubeConfig file (with Advertisement creation role) secret reference
+            originClusterSets:
+              type: object
+              description: Sets of origin cluster on join
+              properties:
+                allowUntrustedCA:
+                  type: boolean
+                  description: This cluster allows untrusted incoming connections. Clients that contact it can not authenticate remote API server
+              required:
+                - allowUntrustedCA
           required:
             - clusterID
         status:
