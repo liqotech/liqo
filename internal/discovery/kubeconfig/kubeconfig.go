@@ -27,7 +27,6 @@ func CreateKubeConfig(clientset kubernetes.Interface, serviceAccountName string,
 	address, ok := os.LookupEnv("APISERVER")
 	if !ok || address == "" {
 		nodes, err := clientset.CoreV1().Nodes().List(context.TODO(), v1.ListOptions{
-
 			LabelSelector: "node-role.kubernetes.io/master",
 		})
 		if err != nil {

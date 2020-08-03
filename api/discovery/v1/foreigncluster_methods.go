@@ -22,7 +22,7 @@ func (fc *ForeignCluster) GetConfig(client kubernetes.Interface) (*rest.Config, 
 		}
 	} else {
 		// load retrieved CA
-		secret, err := client.CoreV1().Secrets(fc.Status.CaDataRef.Namespace).Get(context.TODO(), fc.Status.CaDataRef.Name, metav1.GetOptions{})
+		secret, err := client.CoreV1().Secrets(fc.Status.Outgoing.CaDataRef.Namespace).Get(context.TODO(), fc.Status.Outgoing.CaDataRef.Name, metav1.GetOptions{})
 		if err != nil {
 			klog.Error(err, err.Error())
 			return nil, err
@@ -89,7 +89,7 @@ func (fc *ForeignCluster) LoadForeignCA(localClient kubernetes.Interface, localN
 			return err
 		}
 	}
-	fc.Status.CaDataRef = &v1.ObjectReference{
+	fc.Status.Outgoing.CaDataRef = &v1.ObjectReference{
 		Kind:       "Secret",
 		Namespace:  localNamespace,
 		Name:       localSecret.Name,
@@ -100,9 +100,9 @@ func (fc *ForeignCluster) LoadForeignCA(localClient kubernetes.Interface, localN
 }
 
 func (fc *ForeignCluster) SetAdvertisement(adv *protocolv1.Advertisement, discoveryClient *crdClient.CRDClient) error {
-	if fc.Status.Advertisement == nil {
+	if fc.Status.Outgoing.Advertisement == nil {
 		// Advertisement has not been set in ForeignCluster yet
-		fc.Status.Advertisement = &v1.ObjectReference{
+		fc.Status.Outgoing.Advertisement = &v1.ObjectReference{
 			Kind:       "Advertisement",
 			Name:       adv.Name,
 			UID:        adv.UID,
@@ -118,12 +118,12 @@ func (fc *ForeignCluster) SetAdvertisement(adv *protocolv1.Advertisement, discov
 }
 
 func (fc *ForeignCluster) DeleteAdvertisement(advClient *crdClient.CRDClient) error {
-	if fc.Status.Advertisement != nil {
-		err := advClient.Resource("advertisements").Delete(fc.Status.Advertisement.Name, metav1.DeleteOptions{})
+	if fc.Status.Outgoing.Advertisement != nil {
+		err := advClient.Resource("advertisements").Delete(fc.Status.Outgoing.Advertisement.Name, metav1.DeleteOptions{})
 		if err != nil {
 			return err
 		}
-		fc.Status.Advertisement = nil
+		fc.Status.Outgoing.Advertisement = nil
 	}
 	return nil
 }

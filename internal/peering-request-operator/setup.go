@@ -81,5 +81,6 @@ func GetPRReconciler(scheme *runtime.Scheme, crdClient *crdClient.CRDClient, nam
 		broadcasterImage:          broadcasterImage,
 		broadcasterServiceAccount: broadcasterServiceAccount,
 		retryTimeout:              1 * time.Minute,
+		ForeignConfig:             nil,
 	}
 }

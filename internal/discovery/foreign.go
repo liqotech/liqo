@@ -173,14 +173,14 @@ func (discovery *DiscoveryCtrl) CheckUpdate(txtData *TxtData, fc *v1.ForeignClus
 		fc.Spec.Namespace = txtData.Namespace
 		fc.Spec.AllowUntrustedCA = txtData.AllowUntrustedCA
 		fc.Spec.DiscoveryType = discoveryType
-		if fc.Status.CaDataRef != nil {
-			err := discovery.crdClient.Client().CoreV1().Secrets(fc.Status.CaDataRef.Namespace).Delete(context.TODO(), fc.Status.CaDataRef.Name, metav1.DeleteOptions{})
+		if fc.Status.Outgoing.CaDataRef != nil {
+			err := discovery.crdClient.Client().CoreV1().Secrets(fc.Status.Outgoing.CaDataRef.Namespace).Delete(context.TODO(), fc.Status.Outgoing.CaDataRef.Name, metav1.DeleteOptions{})
 			if err != nil {
 				klog.Error(err, err.Error())
 				return nil, err
 			}
 		}
-		fc.Status.CaDataRef = nil
+		fc.Status.Outgoing.CaDataRef = nil
 		tmp, err := discovery.crdClient.Resource("foreignclusters").Update(fc.Name, fc, metav1.UpdateOptions{})
 		if err != nil {
 			klog.Error(err, err.Error())
@@ -192,11 +192,11 @@ func (discovery *DiscoveryCtrl) CheckUpdate(txtData *TxtData, fc *v1.ForeignClus
 			klog.Error(err, err.Error())
 			return nil, err
 		}
-		if fc.Status.Advertisement != nil {
+		if fc.Status.Outgoing.Advertisement != nil {
 			// changed ip in peered cluster, delete advertisement and wait for its recreation
 			// TODO: find more sophisticated logic to not remove all resources on remote cluster
-			advName := fc.Status.Advertisement.Name
-			fc.Status.Advertisement = nil
+			advName := fc.Status.Outgoing.Advertisement.Name
+			fc.Status.Outgoing.Advertisement = nil
 			// updating it before adv delete will avoid us to set to false join flag
 			tmp, err = discovery.crdClient.Resource("foreignclusters").Update(fc.Name, fc, metav1.UpdateOptions{})
 			if err != nil {

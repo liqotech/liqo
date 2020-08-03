@@ -78,6 +78,8 @@ Vice versa when we set to false this flag, `PeeringRequest` will be deleted trig
 Every 30 seconds it checks is everything is working as expected both in the local and in the remote cluster, 
 if something is not it tries to reconcile them.
 
+![](/images/discovery/peering-process.png)
+
 ### Workflow
 
 The typical workflow consist of three main steps:
@@ -92,3 +94,7 @@ When we no longer need foreign resources we can disable `join` flag to trigger p
     * that triggers `Broadcaster` termination
 2. `Advertisement` delete
     * that triggers `VirtualKubelet` termination
+
+### Witch fields are managed by who?
+
+![](/images/discovery/foreign-cluster.png)

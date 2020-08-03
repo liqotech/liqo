@@ -52,6 +52,7 @@ spec:
                 - LAN
                 - WAN
                 - Manual
+                - IncomingPeering
             allowUntrustedCA:
               type: boolean
               description: This remote cluster allows untrusted incoming connections. Clients that contact it can not authenticate remote API server
@@ -62,18 +63,30 @@ spec:
           type: object
         status:
           properties:
-            joined:
-              type: boolean
-              description: Indicates if peering request has been created
-            peering-request-name:
-              type: string
-              description: Name of created PR
-            caDataRef:
+            outgoing:
               type: object
-              description: Object Reference to retrieved CaData Secret
-            advertisement:
+              properties:
+                joined:
+                  type: boolean
+                  description: Indicates if peering request has been created and this remote cluster is sharing its resources to us
+                peering-request-name:
+                  type: string
+                  description: Name of created PR
+                caDataRef:
+                  type: object
+                  description: Object Reference to retrieved CaData Secret
+                advertisement:
+                  type: object
+                  description: Object Reference to created Advertisement CR
+            incoming:
               type: object
-              description: Object Reference to created Advertisement CR
+              properties:
+                joined:
+                  type: boolean
+                  description: Indicates if peering request has been created and this remote cluster is using our local resources
+                peeringRequest:
+                  type: object
+                  description: Object Reference to created PeeringRequest CR
             ttl:
               type: integer
               description: If discoveryType is LAN and this counter reach 0 value, this FC will be removed
