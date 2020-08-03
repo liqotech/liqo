@@ -2,8 +2,12 @@ package logic
 
 import (
 	"fmt"
+	"github.com/atotto/clipboard"
 	"github.com/gen2brain/dlgs"
+	"github.com/liqoTech/liqo/internal/tray-agent/agent/client"
 	app "github.com/liqoTech/liqo/internal/tray-agent/app-indicator"
+	"os"
+	"os/exec"
 	"strings"
 )
 
@@ -113,7 +117,7 @@ func updateQuickChangeMode(i *app.Indicator) {
 	}
 }
 
-//quickChangeNotifyLevel is the callback function for the OPTION "notifications" of "settings" action.
+//quickChangeNotifyLevel is the callback function for the QUICK "Notifications Settings".
 func quickChangeNotifyLevel() {
 	i := app.GetIndicator()
 	if !app.GetGuiProvider().Mocked() {
@@ -123,6 +127,50 @@ func quickChangeNotifyLevel() {
 			"CURRENT: %s", i.Config().NotifyTranslate(i.Config().NotifyLevel())), notifyDescription)
 		if ok {
 			i.NotificationSetLevel(i.Config().NotifyTranslateReverse(level))
+		}
+	}
+}
+
+//quickConnectDashboard is the callback function for the QUICK "Launch LiqoDash".
+//
+//- If LiqoDash connection parameters are set (or can be retrieved), it opens the LiqoDash address
+//in the default browser.
+//
+//- Then, it searches for an access token in the cluster and provides it to the user directly in the
+//clipboard, ready to be pasted.
+func quickConnectDashboard(i *app.Indicator) {
+	ctrl := i.AgentCtrl()
+	//Check if connection parameters are already set in the env vars to speed execution up.
+	host, ok1 := os.LookupEnv(client.EnvLiqoDashHost)
+	port, ok2 := os.LookupEnv(client.EnvLiqoDashPort)
+	if !ok1 || !ok2 {
+		if err := ctrl.AcquireDashboardConfig(); err != nil {
+			i.Notify("Liqo Agent: SERVICE UNAVAILABLE", err.Error(),
+				app.NotifyIconDefault, app.IconLiqoNil)
+			return
+		}
+		host = os.Getenv(client.EnvLiqoDashHost)
+		port = os.Getenv(client.EnvLiqoDashPort)
+	}
+	dashUrlBuilder := strings.Builder{}
+	dashUrlBuilder.WriteString(host)
+	if port != "" {
+		dashUrlBuilder.WriteString(":" + port)
+	}
+	dashUrl := dashUrlBuilder.String()
+	if err := exec.Command("xdg-open", dashUrl).Start(); err == nil {
+		//try to recover access token
+		if token, errNFound := ctrl.GetLiqoDashSecret(); errNFound == nil {
+			if err = clipboard.WriteAll(*token); err == nil {
+				i.Notify("Liqo Agent", "The LiqoDash access token was copied in your clipboard",
+					app.NotifyIconDefault, app.IconLiqoNil)
+			} else {
+				i.ShowWarning("LIQO AGENT", "Liqo Agent could not copy LiqoDash access token\n"+
+					"to the clipboard")
+			}
+		} else {
+			i.Notify("Liqo Agent", "LiqoDash access token was not found",
+				app.NotifyIconDefault, app.IconLiqoNil)
 		}
 	}
 }
