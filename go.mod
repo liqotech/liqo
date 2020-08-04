@@ -43,8 +43,8 @@ require (
 	github.com/ozgio/strutil v0.3.0
 	github.com/pelletier/go-toml v1.6.0 // indirect
 	github.com/pkg/errors v0.9.1
-	github.com/prometheus/client_golang v1.7.0
-	github.com/prometheus/common v0.10.0
+	github.com/prometheus/client_golang v1.7.1
+	github.com/prometheus/common v0.11.1
 	github.com/securego/gosec v0.0.0-20200121091311-459e2d3e91bd // indirect
 	github.com/sirupsen/logrus v1.6.0
 	github.com/spf13/cast v1.3.1 // indirect
@@ -64,8 +64,7 @@ require (
 	go.opencensus.io v0.22.4
 	go.uber.org/atomic v1.5.1 // indirect
 	go.uber.org/multierr v1.4.0 // indirect
-	go.uber.org/zap v1.13.0 // indirect
-	golang.org/x/sys v0.0.0-20200615200032-f1bc736245b1
+	golang.org/x/sys v0.0.0-20200625212154-ddb9806d33ae
 	golang.org/x/tools v0.0.0-20200331025713-a30bf2db82d4
 	gopkg.in/ini.v1 v1.51.1 // indirect
 	gotest.tools v2.2.0+incompatible
