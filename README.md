@@ -89,5 +89,5 @@ Liqo relies on several components:
 * *Liqonet Operators*: Those operators are responsible to establish Pod-to-Pod and Pod-to-Service connection across 
 partner clusters.
 
-...and some others. Check out the architecture [Documentation](docs/design/architecture.md)
+...and some others. Check out the architecture [Documentation](https://doc.liqo.io/architecture/)
 
