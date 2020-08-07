@@ -41,20 +41,6 @@ Liqo can be installed via Helm.
 
 The following process will install Liqo on your Cluster. This will make your cluster ready to share resources with other Liqo resources.
 
-### Pre-requirements
-
-You have to label one node of your cluster as the gateway node. This will be used as the gateway for the inter-cluster traffic.
-
-```bash
-kubectl label no __your__gateway__node liqonet.liqo.io/gateway=true
-```
-
-To get the list of your nodes, you can use: 
-
-```
-kubectl get no
-```
-
 #### Kubernetes
 
 Liqo Installer should be capable to look for the cluster parameters required. 
