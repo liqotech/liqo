@@ -188,7 +188,7 @@ func (b *AdvertisementBroadcaster) GenerateAdvertisement() {
 		// start the remote watcher over this Advertisement; the watcher must be launched only once
 		go once.Do(func() {
 			foreignAdvName := "advertisement-" + b.ForeignClusterId
-			WatchAdvertisement(b.LocalClient, b.RemoteClient, adv.Name, foreignAdvName)
+			b.WatchAdvertisement(adv.Name, foreignAdvName)
 		})
 
 		time.Sleep(10 * time.Minute)

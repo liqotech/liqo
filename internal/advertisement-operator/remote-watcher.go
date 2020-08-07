@@ -2,16 +2,16 @@ package advertisement_operator
 
 import (
 	protocolv1 "github.com/liqoTech/liqo/api/advertisement-operator/v1"
-	"github.com/liqoTech/liqo/pkg/crdClient"
+	discoveryv1 "github.com/liqoTech/liqo/api/discovery/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/klog"
 )
 
-func WatchAdvertisement(localClient, remoteClient *crdClient.CRDClient, homeAdvName, foreignAdvName string) {
+func (b *AdvertisementBroadcaster) WatchAdvertisement(homeAdvName, foreignAdvName string) {
 
-	klog.V(6).Info("starting remote advertisement watcher")
-	watcher, err := remoteClient.Resource("advertisements").Watch(metav1.ListOptions{
+	klog.Info("starting remote advertisement watcher")
+	watcher, err := b.RemoteClient.Resource("advertisements").Watch(metav1.ListOptions{
 		FieldSelector: "metadata.name=" + homeAdvName,
 		Watch:         true,
 	})
@@ -19,7 +19,7 @@ func WatchAdvertisement(localClient, remoteClient *crdClient.CRDClient, homeAdvN
 		klog.Error(err)
 		return
 	}
-	klog.V(6).Info("correctly created watcher for " + homeAdvName)
+	klog.Info("correctly created watcher for " + homeAdvName)
 
 	// events are triggered only by modifications on the Advertisement created by the broadcaster on the remote cluster
 	// homeClusterAdv is the Advertisement created by home cluster on foreign cluster -> stored remotely
@@ -32,29 +32,61 @@ func WatchAdvertisement(localClient, remoteClient *crdClient.CRDClient, homeAdvN
 		}
 		switch event.Type {
 		case watch.Added, watch.Modified:
-			// check if the triggering event is a modification made by the tunnelEndpoint creator
-			if homeClusterAdv.Status.RemoteRemappedPodCIDR == "" {
-				continue
+			// the triggering event is a modification made by the tunnelEndpoint creator
+			if homeClusterAdv.Status.RemoteRemappedPodCIDR != "" {
+				err = b.setNetworkRemapping(homeClusterAdv, foreignAdvName)
+				if err != nil {
+					klog.Error(err)
+				} else {
+					klog.Info("correctly set network remapping for foreign advertisement " + foreignAdvName)
+				}
 			}
 
-			// get the Advertisement of the foreign cluster (stored in the local cluster)
-			obj, err := localClient.Resource("advertisements").Get(foreignAdvName, metav1.GetOptions{})
-			if err != nil {
-				klog.Error(err)
-				continue
+			// the triggering event is the acceptance/refusal of the Advertisement
+			if homeClusterAdv.Status.AdvertisementStatus != "" {
+				err = b.saveAdvStatus(homeClusterAdv)
+				if err != nil {
+					klog.Error(err)
+				} else {
+					klog.Info("correctly set peering request status to " + homeClusterAdv.Status.AdvertisementStatus)
+				}
 			}
-			foreignClusterAdv := obj.(*protocolv1.Advertisement)
-			// set the status of the foreign cluster Advertisement with the information given by the tunnelEndpoint creator
-			foreignClusterAdv.Status.LocalRemappedPodCIDR = homeClusterAdv.Status.RemoteRemappedPodCIDR
-			_, err = localClient.Resource("advertisements").UpdateStatus(foreignAdvName, foreignClusterAdv, metav1.UpdateOptions{})
-			if err != nil {
-				klog.Error(err)
-				continue
-			}
-			klog.V(6).Info("correctly set status of foreign advertisement " + foreignAdvName)
 		case watch.Deleted:
 			klog.Info("Adv " + homeAdvName + " has been deleted")
 			watcher.Stop()
 		}
 	}
+}
+
+func (b *AdvertisementBroadcaster) setNetworkRemapping(homeClusterAdv *protocolv1.Advertisement, foreignAdvName string) error {
+	// get the Advertisement of the foreign cluster (stored in the local cluster)
+	obj, err := b.LocalClient.Resource("advertisements").Get(foreignAdvName, metav1.GetOptions{})
+	if err != nil {
+		return err
+	}
+	foreignClusterAdv := obj.(*protocolv1.Advertisement)
+	// set the status of the foreign cluster Advertisement with the information given by the tunnelEndpoint creator
+	foreignClusterAdv.Status.LocalRemappedPodCIDR = homeClusterAdv.Status.RemoteRemappedPodCIDR
+	_, err = b.LocalClient.Resource("advertisements").UpdateStatus(foreignAdvName, foreignClusterAdv, metav1.UpdateOptions{})
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (b *AdvertisementBroadcaster) saveAdvStatus(adv *protocolv1.Advertisement) error {
+	// get the PeeringRequest from the foreign cluster which requested resources
+	tmp, err := b.DiscoveryClient.Resource("peeringrequests").Get(b.PeeringRequestName, metav1.GetOptions{})
+	if err != nil {
+		return err
+	}
+	pr := tmp.(*discoveryv1.PeeringRequest)
+
+	// save the advertisement status (ACCEPTED/REFUSED) in the PeeringRequest
+	pr.Status.AdvertisementStatus = adv.Status.AdvertisementStatus
+	_, err = b.DiscoveryClient.Resource("peeringrequests").UpdateStatus(b.PeeringRequestName, pr, metav1.UpdateOptions{})
+	if err != nil {
+		return err
+	}
+	return nil
 }

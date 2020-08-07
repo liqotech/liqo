@@ -39,8 +39,7 @@ type PeeringRequestSpec struct {
 
 // PeeringRequestStatus defines the observed state of PeeringRequest
 type PeeringRequestStatus struct {
-	// INSERT ADDITIONAL STATUS FIELD - define observed state of cluster
-	// Important: Run "make" to regenerate code after modifying this file
+	AdvertisementStatus string `json:"advertisementStatus,omitempty"`
 }
 
 // +kubebuilder:object:root=true

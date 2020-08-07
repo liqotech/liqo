@@ -5,6 +5,7 @@ import (
 	"fmt"
 	protocolv1 "github.com/liqoTech/liqo/api/advertisement-operator/v1"
 	policyv1 "github.com/liqoTech/liqo/api/cluster-config/v1"
+	discoveryv1 "github.com/liqoTech/liqo/api/discovery/v1"
 	"github.com/liqoTech/liqo/internal/advertisement-operator"
 	"github.com/liqoTech/liqo/internal/kubernetes/test"
 	pkg "github.com/liqoTech/liqo/pkg/advertisement-operator"
@@ -34,6 +35,12 @@ func createBroadcaster(clusterConfig policyv1.ClusterConfigSpec) advertisement_o
 		panic(err)
 	}
 
+	// create the discovery client
+	discoveryClient, err := discoveryv1.CreatePeeringRequestClient("")
+	if err != nil {
+		panic(err)
+	}
+
 	secret := &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "test",
@@ -46,13 +53,14 @@ func createBroadcaster(clusterConfig policyv1.ClusterConfigSpec) advertisement_o
 
 	return advertisement_operator.AdvertisementBroadcaster{
 		LocalClient:                homeClient,
-		DiscoveryClient:            nil,
+		DiscoveryClient:            discoveryClient,
 		KubeconfigSecretForForeign: secret,
 		RemoteClient:               foreignClient,
 		HomeClusterId:              test.HomeClusterId,
 		ForeignClusterId:           test.ForeignClusterId,
 		GatewayPrivateIP:           "10.0.0.1",
 		ClusterConfig:              clusterConfig,
+		PeeringRequestName:         test.ForeignClusterId,
 	}
 }
 
