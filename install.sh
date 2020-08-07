@@ -6,7 +6,7 @@ function cleanup()
    set +e
 }
 
-set_variable_from_command() {    
+function set_variable_from_command() {
     if [[ ($# -ne 3) ]];
     then
       echo "Internal Error - Wrong number of parameters"
@@ -24,7 +24,7 @@ set_variable_from_command() {
     echo "[PRE-INSTALL]: $VAR_NAME is set to: ${!VAR_NAME}"
 }
 
-print_help()
+function print_help()
 {
    echo "Arguments:"
    echo "   --help: print this help"
@@ -52,6 +52,15 @@ function wait_and_approve_csr(){
    return 0
 }
 
+function set_gateway_node() {
+   test=$(kubectl get no -l "liqonet.liqo.io/gateway=true" 2> /dev/null | wc -l)
+   if [ $test == 0 ]; then
+      node=$(kubectl get no -o jsonpath="{.items[-1].metadata.name}")
+      kubectl label no $node liqonet.liqo.io/gateway=true > /dev/null
+   fi
+   address=$(kubectl get no -l "liqonet.liqo.io/gateway=true" -o jsonpath="{.items[0].status.addresses[0].address}")
+   echo "$address"
+}
 
 if [[ ($# -eq 1 && $1 == '--help') ]];
 then
@@ -121,12 +130,16 @@ else
   echo "[PRE-INSTALL]: Kubeconfig variable is not set. Kubectl will use: ~/.kube/config"
 fi
 
+
+echo "[PRE-INSTALL]: Setting Gateway IP"
+GATEWAY_IP=$(set_gateway_node)
+echo "[PRE-INSTALL]: GATEWAY_IP is set to: $GATEWAY_IP"
+
+
 POD_CIDR_COMMAND='kubectl cluster-info dump | grep -m 1 -Po "(?<=--cluster-cidr=)[0-9.\/]+"'
 set_variable_from_command POD_CIDR POD_CIDR_COMMAND "[ERROR]: Unable to find POD_CIDR"
 SERVICE_CIDR_COMMAND='kubectl cluster-info dump | grep -m 1 -Po "(?<=--service-cluster-ip-range=)[0-9.\/]+"'
 set_variable_from_command SERVICE_CIDR SERVICE_CIDR_COMMAND "[ERROR]: Unable to find Service CIDR"
-GATEWAY_IP_COMMAND='kubectl get no -l "liqonet.liqo.io/gateway=true" -o jsonpath="{.items[0].status.addresses[0].address}"'
-set_variable_from_command GATEWAY_IP GATEWAY_IP_COMMAND "[ERROR]: You have to assign to a node of the cluster the role of gateway. Label it with 'liqonet.liqo.io/gateway=true': kubectl label yournode liqonet.liqo.io/gateway=true"
 GATEWAY_PRIVATE_IP_COMMAND="echo $DEFAULT_GATEWAY_PRIVATE_IP"
 set_variable_from_command GATEWAY_PRIVATE_IP GATEWAY_PRIVATE_IP_COMMAND "[ERROR]: Unable to set Gateway Private IP"
 NAMESPACE_COMMAND="echo $NAMESPACE_DEFAULT"
