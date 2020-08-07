@@ -44,3 +44,8 @@ spec:
               description: KubeConfig file (with Advertisement creation role) secret reference
           required:
             - clusterID
+        status:
+          description: PeeringRequestStatus defines the observed state of PeeringRequest
+          properties:
+            advertisementStatus:
+              type: string
