@@ -95,6 +95,6 @@ When we no longer need foreign resources we can disable `join` flag to trigger p
 2. `Advertisement` delete
     * that triggers `VirtualKubelet` termination
 
-### Witch fields are managed by who?
+### Which fields are managed by who?
 
 ![](/images/discovery/foreign-cluster.png)
