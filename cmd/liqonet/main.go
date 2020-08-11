@@ -20,7 +20,7 @@ import (
 	"github.com/coreos/go-iptables/iptables"
 	protocolv1 "github.com/liqoTech/liqo/api/advertisement-operator/v1"
 	clusterConfig "github.com/liqoTech/liqo/api/cluster-config/v1"
-	"github.com/liqoTech/liqo/api/tunnel-endpoint/v1"
+	"github.com/liqoTech/liqo/api/liqonet/v1"
 	"github.com/liqoTech/liqo/internal/liqonet"
 	"github.com/liqoTech/liqo/pkg/liqonet"
 	"github.com/vishvananda/netlink"

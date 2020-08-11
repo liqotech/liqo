@@ -42,8 +42,18 @@ deploy: manifests
 manifests: controller-gen
     #$(CONTROLLER_GEN) $(CRD_OPTIONS) rbac:roleName=manager-role webhook paths="./..." output:crd:artifacts:config=config/liqonet/crd/bases output:rbac:artifacts:config=config/liqonet/rbac
 	#$(CONTROLLER_GEN) $(CRD_OPTIONS) paths="./internal/liqonet/route-operator.go" rbac:roleName=manager-role crd:crdVersions=v1beta1 crd:trivialVersions=false output:crd:artifacts:config=config/liqonet/crd/bases output:rbac:artifacts:config=config/liqonet/rbac
-	$(CONTROLLER_GEN) $(CRD_OPTIONS) paths="./api/tunnel-endpoint/v1" rbac:roleName=manager-role crd:crdVersions=v1beta1 crd:trivialVersions=false output:crd:artifacts:config=config/liqonet/crd/bases output:rbac:artifacts:config=config/liqonet/rbac
+	$(CONTROLLER_GEN) $(CRD_OPTIONS) paths="./api/liqonet/v1" rbac:roleName=manager-role crd:crdVersions=v1beta1 crd:trivialVersions=false output:crd:artifacts:config=config/liqonet/crd/bases output:rbac:artifacts:config=config/liqonet/rbac
 	rm config/liqonet.liqo.io_tunnelendpoints.yaml
+	cp config/liqonet/crd/bases/liqonet.liqo.io_networkconfigs.yaml deployments/liqo_chart/crds
+	#rm config/liqonet.liqo.io_networkconfigs.yaml
+
+# Generate manifests e.g. CRD, RBAC etc.
+manifestsv1alpha1: controller-gen
+    #$(CONTROLLER_GEN) $(CRD_OPTIONS) rbac:roleName=manager-role webhook paths="./..." output:crd:artifacts:config=config/liqonet/crd/bases output:rbac:artifacts:config=config/liqonet/rbac
+	#$(CONTROLLER_GEN) $(CRD_OPTIONS) paths="./internal/liqonet/route-operator.go" rbac:roleName=manager-role crd:crdVersions=v1beta1 crd:trivialVersions=false output:crd:artifacts:config=config/liqonet/crd/bases output:rbac:artifacts:config=config/liqonet/rbac
+	$(CONTROLLER_GEN) $(CRD_OPTIONS) paths="./api/liqonet/v1alpha1" rbac:roleName=manager-role crd:crdVersions=v1beta1 crd:trivialVersions=false output:crd:artifacts:config=config/liqonet/crd/bases
+
+	#rm config/liqonet.liqo.io_networkconfigs.yaml
 
 # Run go fmt against code
 fmt:
@@ -55,7 +65,7 @@ vet:
 
 # Generate code
 generate: controller-gen
-	$(CONTROLLER_GEN) object:headerFile=./hack/boilerplate.go.txt paths="./..."
+	$(CONTROLLER_GEN) object:headerFile=./hack/boilerplate.go.txt paths="./api/liqonet/v1"
 
 # Build the docker image
 docker-build:

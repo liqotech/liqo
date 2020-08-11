@@ -32,7 +32,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	protocolv1 "github.com/liqoTech/liqo/api/advertisement-operator/v1"
-	liqonetv1 "github.com/liqoTech/liqo/api/tunnel-endpoint/v1"
+	liqonetv1 "github.com/liqoTech/liqo/api/liqonet/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 )
 

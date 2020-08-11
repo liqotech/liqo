@@ -1,7 +1,7 @@
 package liqonet
 
 import (
-	v1 "github.com/liqoTech/liqo/api/tunnel-endpoint/v1"
+	v1 "github.com/liqoTech/liqo/api/liqonet/v1"
 	controller "github.com/liqoTech/liqo/internal/liqonet"
 	"github.com/liqoTech/liqo/pkg/liqonet"
 	utils "github.com/liqoTech/liqo/pkg/liqonet"

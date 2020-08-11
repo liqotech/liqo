@@ -17,7 +17,7 @@ package controllers
 import (
 	"context"
 	"github.com/go-logr/logr"
-	"github.com/liqoTech/liqo/api/tunnel-endpoint/v1"
+	"github.com/liqoTech/liqo/api/liqonet/v1"
 	liqonetOperator "github.com/liqoTech/liqo/pkg/liqonet"
 	"github.com/vishvananda/netlink"
 	"k8s.io/apimachinery/pkg/runtime"
