@@ -2,27 +2,23 @@
 title: "Liqo Glossary"
 ---
 
-# API Glossary
-
 Liqo leverages CRDs to expose its API and store its state.
-
-# External API
 
 ## Configuration
 
-** **ClusterConfig**: contains the Liqo Configuration.
+* **ClusterConfig**: contains the Liqo Configuration.
 
 ## Discovery and Peering
 
-- **PeeringRequest**: Notify a foreign cluster the interest to received subscription    
+* **PeeringRequest**: Notify a foreign cluster the interest to received subscription    
       * Policy can be enforced manually (i.e. UI) for Advertisement broadcasting
-- **ForeignCluster**: represents the existence of a discovered (e.g.; in the LAN or via DNS) or 
+* **ForeignCluster**: represents the existence of a discovered (e.g.; in the LAN or via DNS) or 
 manually added remote cluster to connect to.
-- **SearchDomain**: represents the DNS domain where cluster are searched.
+* **SearchDomain**: represents the DNS domain where cluster are searched.
 
 ## Advertisement Management and Policies
 
-- **Advertisement**: represents the offer of resources from a foreign cluster to an home cluster.
+* **Advertisement**: represents the offer of resources from a foreign cluster to an home cluster.
 
 ## Resource Sharing
 

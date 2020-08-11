@@ -7,6 +7,7 @@
 ![Go](https://github.com/liqoTech/liqo/workflows/Go/badge.svg) 
 [![Coverage Status](https://coveralls.io/repos/github/LiqoTech/liqo/badge.svg?branch=master)](https://coveralls.io/github/LiqoTech/liqo?branch=master)
 [![Go Report Card](https://goreportcard.com/badge/github.com/LiqoTech/liqo)](https://goreportcard.com/report/github.com/LiqoTech/liqo)
+![Docker Pulls](https://img.shields.io/docker/pulls/liqo/virtual-kubelet?label=Liqo%20vkubelet%20pulls)
 
 Liqo is a framework to enable dynamic sharing across Kubernetes Clusters. You can run your pods on a remote cluster
 seamlessly, without any modification (Kubernetes or your application). 
@@ -23,47 +24,18 @@ Liqo leverages the same highly successful “peering” model of the Internet, w
 * Seamless pod execution on remote cluster,
 * Seamless reconciliation on remote clusters of K8s objects (i.e. configmaps, secrets, services, endpoints)
 
-
 ## Quickstart
 
-Liqo can be installed via Helm. 
-
-### Pre-requisites
-
-* Two Kubernetes clusters
-    * Supported CNIs:
-      * Flannel
-      * Calico 
-    * K3s is also supported
-* Helm 3
-
-### Installation
-
-The following process will install Liqo on your Cluster. This will make your cluster ready to share resources with other Liqo resources.
-
-#### Kubernetes
-
-Liqo Installer should be capable to look for the cluster parameters required. 
+Liqo can be installed via Helm.
+The parameters of the home cluster required by Liqo to start should be automatically discovered by the Liqo installer 
+(through proper kubeadm calls).
 
 ```bash
 curl https://raw.githubusercontent.com/LiqoTech/liqo/master/install.sh | bash
 ```
 
-#### [K3s](https://k3s.io)
+For more details about [Liqo installation](doc.liqo.io/user/install)
 
-K3s is a minimal Kubernetes cluster which is pretty small and easy to set up. However, it does not store its configuration in the
-way that traditional installers (e.g.; Kubeadm) do. Therefore, it is required to know the configuration you entered for your cluster.
-
-After having exported your K3s Kubeconfig, you can install LIQO setting the following variables before launching the installer.
-The following values represent the default configuration for K3s cluster, you may need to adapt them to the actual values of your cluster.
-
-```bash
-export POD_CIDR=10.42.0.0/16
-export SERVICE_CIDR=10.43.0.0/16
-export GATEWAY_IP=10.0.0.31
-export GATEWAY_PRIVATE_IP=192.168.100.1
-curl https://raw.githubusercontent.com/LiqoTech/liqo/master/install.sh | bash
-```
 ## Architecture
 
 Liqo relies on several components:
