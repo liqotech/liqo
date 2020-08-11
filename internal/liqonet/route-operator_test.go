@@ -1,7 +1,7 @@
 package controllers
 
 import (
-	v1 "github.com/liqoTech/liqo/api/tunnel-endpoint/v1"
+	v1 "github.com/liqoTech/liqo/api/liqonet/v1"
 	"github.com/liqoTech/liqo/pkg/liqonet"
 	"github.com/stretchr/testify/assert"
 	"github.com/vishvananda/netlink"

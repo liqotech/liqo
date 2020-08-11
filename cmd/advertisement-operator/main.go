@@ -29,7 +29,7 @@ import (
 	"time"
 
 	protocolv1 "github.com/liqoTech/liqo/api/advertisement-operator/v1"
-	liqonetv1 "github.com/liqoTech/liqo/api/tunnel-endpoint/v1"
+	liqonetv1 "github.com/liqoTech/liqo/api/liqonet/v1"
 	"github.com/liqoTech/liqo/internal/advertisement-operator"
 	"github.com/liqoTech/liqo/pkg/csrApprover"
 	ctrl "sigs.k8s.io/controller-runtime"

@@ -4,7 +4,7 @@ import (
 	"context"
 	protocolv1 "github.com/liqoTech/liqo/api/advertisement-operator/v1"
 	policyv1 "github.com/liqoTech/liqo/api/cluster-config/v1"
-	liqonetv1 "github.com/liqoTech/liqo/api/tunnel-endpoint/v1"
+	liqonetv1 "github.com/liqoTech/liqo/api/liqonet/v1"
 	controllers "github.com/liqoTech/liqo/internal/liqonet"
 	"github.com/liqoTech/liqo/pkg/crdClient"
 	"github.com/liqoTech/liqo/pkg/liqonet"

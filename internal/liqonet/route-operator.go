@@ -19,7 +19,7 @@ import (
 	"fmt"
 	"github.com/coreos/go-iptables/iptables"
 	"github.com/go-logr/logr"
-	"github.com/liqoTech/liqo/api/tunnel-endpoint/v1"
+	"github.com/liqoTech/liqo/api/liqonet/v1"
 	liqonetOperator "github.com/liqoTech/liqo/pkg/liqonet"
 	"github.com/vishvananda/netlink"
 	k8sApiErrors "k8s.io/apimachinery/pkg/api/errors"

@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 	policyv1 "github.com/liqoTech/liqo/api/cluster-config/v1"
-	liqonetv1 "github.com/liqoTech/liqo/api/tunnel-endpoint/v1"
+	liqonetv1 "github.com/liqoTech/liqo/api/liqonet/v1"
 	"github.com/liqoTech/liqo/pkg/clusterConfig"
 	"github.com/liqoTech/liqo/pkg/crdClient"
 	liqonetOperator "github.com/liqoTech/liqo/pkg/liqonet"
