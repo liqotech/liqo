@@ -46,19 +46,20 @@ const (
 // AdvertisementReconciler reconciles a Advertisement object
 type AdvertisementReconciler struct {
 	client.Client
-	Scheme           *runtime.Scheme
-	EventsRecorder   record.EventRecorder
-	KubeletNamespace string
-	KindEnvironment  bool
-	VKImage          string
-	InitVKImage      string
-	HomeClusterId    string
-	AcceptedAdvNum   int32
-	ClusterConfig    policyv1.AdvertisementConfig
-	AdvClient        *crdClient.CRDClient
-	DiscoveryClient  *crdClient.CRDClient
-	RetryTimeout     time.Duration
-	garbaceCollector sync.Once
+	Scheme             *runtime.Scheme
+	EventsRecorder     record.EventRecorder
+	KubeletNamespace   string
+	KindEnvironment    bool
+	VKImage            string
+	InitVKImage        string
+	HomeClusterId      string
+	AcceptedAdvNum     int32
+	ClusterConfig      policyv1.AdvertisementConfig
+	AdvClient          *crdClient.CRDClient
+	DiscoveryClient    *crdClient.CRDClient
+	RetryTimeout       time.Duration
+	garbaceCollector   sync.Once
+	checkRemoteCluster map[string]*sync.Once
 }
 
 // +kubebuilder:rbac:groups=protocol.liqo.io,resources=advertisements,verbs=get;list;watch;create;update;patch;delete
@@ -73,6 +74,12 @@ func (r *AdvertisementReconciler) Reconcile(req ctrl.Request) (ctrl.Result, erro
 	go r.garbaceCollector.Do(func() {
 		r.cleanOldAdvertisements()
 	})
+
+	// initialize the checkRemoteCluster map
+	if r.checkRemoteCluster == nil {
+		r.checkRemoteCluster = make(map[string]*sync.Once)
+	}
+
 	// get advertisement
 	var adv protocolv1.Advertisement
 	if err := r.Get(ctx, req.NamespacedName, &adv); err != nil {
@@ -127,6 +134,23 @@ func (r *AdvertisementReconciler) Reconcile(req ctrl.Request) (ctrl.Result, erro
 			return ctrl.Result{}, err
 		}
 		klog.Info("Correct creation of virtual kubelet deployment for cluster " + adv.Spec.ClusterId)
+		// start the keepalive check for the new cluster
+		r.checkRemoteCluster[adv.Spec.ClusterId] = new(sync.Once)
+		go r.checkRemoteCluster[adv.Spec.ClusterId].Do(func() {
+			err := r.checkClusterStatus(adv)
+			// if everything works well, the check is an infinite loop
+			// therefore, if an error is returned, the foreign cluster is not reachable anymore
+			if err != nil {
+				// the foreign cluster is down
+				klog.Error(err)
+				//TODO: decide which action to do (delete the adv/peering request...
+				// if we delete the adv we need to set a bool variable for tests
+				err = r.Delete(ctx, &adv, &client.DeleteOptions{})
+				if err != nil {
+					klog.Error(err)
+				}
+			}
+		})
 		return ctrl.Result{RequeueAfter: r.RetryTimeout}, nil
 	}
 
@@ -302,8 +326,129 @@ func (r *AdvertisementReconciler) cleanOldAdvertisements() {
 				if err := r.Client.Delete(context.Background(), &adv, &client.DeleteOptions{}); err != nil {
 					klog.Error(err)
 				}
+				klog.Infof("Adv %v expired. TimeToLive was %v", adv.Name, adv.Spec.TimeToLive)
 			}
 		}
 		time.Sleep(10 * time.Minute)
 	}
+}
+
+func (r *AdvertisementReconciler) checkClusterStatus(adv protocolv1.Advertisement) error {
+	// get the kubeconfig provided by the foreign cluster
+	remoteKubeconfig, err := r.AdvClient.Client().CoreV1().Secrets(adv.Spec.KubeConfigRef.Namespace).Get(context.Background(), adv.Spec.KubeConfigRef.Name, metav1.GetOptions{})
+	if err != nil {
+		return err
+	}
+
+	// METHOD 1 : kubectl get pods (on foreign cluster)
+	remoteClient, err := protocolv1.CreateAdvertisementClient("", remoteKubeconfig)
+	if err != nil {
+		return err
+	}
+	retry := 0
+	for {
+		_, err = remoteClient.Client().CoreV1().Pods("default").List(context.Background(), metav1.ListOptions{})
+		if err != nil {
+			retry++
+		} else {
+			retry = 0
+		}
+		if retry == 3 {
+			return err
+		}
+		time.Sleep(20 * time.Second)
+	}
+
+	// METHOD 2 : CRONJOB
+	//cronJob := &v1beta1.CronJob{
+	//	ObjectMeta: metav1.ObjectMeta{
+	//		Name:      "keepalive",
+	//		Namespace: r.KubeletNamespace,
+	//	},
+	//	Spec: v1beta1.CronJobSpec{
+	//		Schedule: "*/1 * * * *", // every minute
+	//		JobTemplate: v1beta1.JobTemplateSpec{
+	//			ObjectMeta: metav1.ObjectMeta{},
+	//			Spec: v12.JobSpec{
+	//				BackoffLimit: pointer.Int32Ptr(3),
+	//				Selector:     nil,
+	//				Template: v1.PodTemplateSpec{
+	//					ObjectMeta: metav1.ObjectMeta{},
+	//					Spec: v1.PodSpec{
+	//						Containers: []v1.Container{
+	//							{
+	//								Name:  "curl",
+	//								Image: "curlimages/curl",
+	//								Args:  []string{"curl", "-k", url},
+	//							},
+	//						},
+	//						NodeSelector:  nil,
+	//						Affinity:      nil,
+	//						RestartPolicy: v1.RestartPolicyOnFailure,
+	//					},
+	//				},
+	//			},
+	//		},
+	//	},
+	//}
+	//_, err = r.AdvClient.Client().BatchV1beta1().CronJobs(r.KubeletNamespace).Create(context.Background(), cronJob, metav1.CreateOptions{})
+	//if err != nil {
+	//	return err
+	//}
+
+	// METHOD 3 : curl -k <foreign_cluster_url>
+	// extract the url of the server from the kubeconfig
+	//s := string(remoteKubeconfig.Data["kubeconfig"])
+	//scanner := bufio.NewScanner(strings.NewReader(s))
+	//var url string
+	//for scanner.Scan() {
+	//	line := scanner.Text()
+	//	if strings.Contains(line, "server:") {
+	//		// get the url
+	//		url = strings.Replace(line, "server:", "", 1)
+	//		// remove all spaces
+	//		url = strings.ReplaceAll(url, " ", "")
+	//		// add the healthz endpoint to the url
+	//		url = url + "/healthz"
+	//		break
+	//	}
+	//}
+	//if url == "" {
+	//	return goerrors.New("cannot extract url from kubeconfig: the given url was empty")
+	//}
+	//// prepare a get request on the given url
+	//tr := &http.Transport{
+	//	TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+	//}
+	//c := &http.Client{Transport: tr}
+	//req, err := http.NewRequest("GET", url, nil)
+	//if err != nil {
+	//	return err
+	//}
+	//
+	//// check the foreign cluster every 20 seconds
+	//// if we receive a bad response 3 times, we exit
+	//retry := 0
+	//for {
+	//	resp, err := c.Do(req)
+	//	if err != nil || resp.StatusCode < 200 || resp.StatusCode >= 300 {
+	//		retry++
+	//		klog.Errorf("An error occurred when trying to contact foreign cluster %v at url %v: counter = %d", adv.Spec.ClusterId, url, retry)
+	//	} else {
+	//		retry = 0
+	//	}
+	//	if retry == 3 {
+	//		klog.Error("3 failed attempts to contact the foreign cluster: exiting")
+	//		err = resp.Body.Close()
+	//		if err != nil {
+	//			klog.Warning(err)
+	//		}
+	//		return err
+	//	}
+	//	err = resp.Body.Close()
+	//	if err != nil {
+	//		klog.Warning(err)
+	//	}
+	//	time.Sleep(20 * time.Second)
+	//}
 }
