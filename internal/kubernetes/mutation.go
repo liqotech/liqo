@@ -15,13 +15,12 @@ func F2HTranslate(podForeignIn *v1.Pod, newCidr, namespace string) (podHomeOut *
 	podHomeOut.SetUID(types.UID(podForeignIn.Annotations["home_uuid"]))
 	podHomeOut.SetResourceVersion(podForeignIn.Annotations["home_resourceVersion"])
 	t, err := time.Parse("2006-01-02 15:04:05 -0700 MST", podForeignIn.Annotations["home_creationTimestamp"])
+	if err != nil {
+		_ = fmt.Errorf("unable to parse time")
+	}
 	if podForeignIn.DeletionGracePeriodSeconds != nil {
 		metav1.SetMetaDataAnnotation(&podHomeOut.ObjectMeta, "foreign_deletionPeriodSeconds", string(*podForeignIn.DeletionGracePeriodSeconds))
 		podHomeOut.DeletionGracePeriodSeconds = nil
-	}
-
-	if err != nil {
-		_ = fmt.Errorf("unable to parse time")
 	}
 	if podHomeOut.Status.PodIP != "" {
 		newIp := ChangePodIp(newCidr, podHomeOut.Status.PodIP)
@@ -61,6 +60,7 @@ func H2FTranslate(pod *v1.Pod, nattedNS string) *v1.Pod {
 			ReadinessProbe:  pod.Spec.Containers[i].ReadinessProbe,
 			StartupProbe:    pod.Spec.Containers[i].StartupProbe,
 			SecurityContext: pod.Spec.Containers[i].SecurityContext,
+			VolumeMounts:    pod.Spec.Containers[i].VolumeMounts,
 		}
 	}
 
@@ -81,10 +81,13 @@ func H2FTranslate(pod *v1.Pod, nattedNS string) *v1.Pod {
 			},
 		},
 	}
+
+	volumes := FilterVolumes(pod.Spec.Volumes)
 	// create an empty Spec for the output pod, copying only "Containers" field
 	podSpec := v1.PodSpec{
 		Containers: containers,
 		Affinity:   affinity.DeepCopy(),
+		Volumes:    volumes,
 		//TODO: check if we need other fields
 	}
 
@@ -99,6 +102,20 @@ func H2FTranslate(pod *v1.Pod, nattedNS string) *v1.Pod {
 		Spec:       podSpec,
 		Status:     pod.Status,
 	}
+}
+
+func FilterVolumes(volumesIn []v1.Volume) []v1.Volume {
+	volumesOut := make([]v1.Volume, 0)
+	for _, v := range volumesIn {
+		if v.ConfigMap != nil || v.EmptyDir != nil || v.DownwardAPI != nil {
+			volumesOut = append(volumesOut, v)
+		}
+		// copy all volumes of type Secret except for the default token
+		if v.Secret != nil && !strings.Contains(v.Secret.SecretName, "default-token") {
+			volumesOut = append(volumesOut, v)
+		}
+	}
+	return volumesOut
 }
 
 func ChangePodIp(newPodCidr string, oldPodIp string) (newPodIp string) {
