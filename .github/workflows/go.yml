@@ -46,7 +46,7 @@ jobs:
           dockerfile: build/${{ matrix.component }}/Dockerfile
           password: ${{ secrets.DOCKER_PASSWORD }}
           tags: "latest,${{ env.commit_ref }}"
-        if: github.ref == 'refs/heads/master' && github.event.pull_request.head.repo.full_name == 'liqotech/liqo'
+        if: github.ref == 'refs/heads/master' && github.event.repository.full_name == 'liqoTech/liqo'
       - name: Push ${{ matrix.component }} image on repo (Development)
         uses: elgohr/Publish-Docker-Github-Action@master
         with:
@@ -55,14 +55,14 @@ jobs:
           dockerfile: build/${{ matrix.component }}/Dockerfile
           password: ${{ secrets.DOCKER_PASSWORD }}
           tags: "${{ env.commit_ref }}"
-        if: github.ref != 'refs/heads/master' && github.event.pull_request.head.repo.full_name == 'liqotech/liqo'
+        if: github.ref != 'refs/heads/master' && github.event.repository.full_name == 'liqoTech/liqo'
       - name: Build Only ${{ matrix.component }} image (Forked Repositories)
         uses: docker/build-push-action@v1
         with:
           name: liqo/${{ matrix.component }}-ci
           dockerfile: build/${{ matrix.component }}/Dockerfile
           push: false
-        if: github.ref != 'refs/heads/master' && github.event.pull_request.head.repo.full_name != 'liqotech/liqo'
+        if: github.ref != 'refs/heads/master' && github.event.repository.full_name != 'liqoTech/liqo'
   e2e-test-trigger:
      runs-on: ubuntu-latest
      needs: [build, test]
