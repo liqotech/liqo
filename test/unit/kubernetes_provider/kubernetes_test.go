@@ -9,47 +9,67 @@ import (
 	"testing"
 )
 
-func createFakeVolumes() []v1.Volume {
+func createFakeVolumesAndVolumeMounts() ([]v1.Volume, []v1.VolumeMount) {
 	return []v1.Volume{
-		{
-			Name: "secret-test",
-			VolumeSource: v1.VolumeSource{
-				Secret: &v1.SecretVolumeSource{},
+			{
+				Name: "secret-test",
+				VolumeSource: v1.VolumeSource{
+					Secret: &v1.SecretVolumeSource{},
+				},
 			},
-		},
-		{
-			Name: "configMap-test",
-			VolumeSource: v1.VolumeSource{
-				ConfigMap: &v1.ConfigMapVolumeSource{},
+			{
+				Name: "configMap-test",
+				VolumeSource: v1.VolumeSource{
+					ConfigMap: &v1.ConfigMapVolumeSource{},
+				},
 			},
-		},
-		{
-			Name: "emptyDir-test",
-			VolumeSource: v1.VolumeSource{
-				EmptyDir: &v1.EmptyDirVolumeSource{},
+			{
+				Name: "emptyDir-test",
+				VolumeSource: v1.VolumeSource{
+					EmptyDir: &v1.EmptyDirVolumeSource{},
+				},
 			},
-		},
-		{
-			Name: "downwardAPI-test",
-			VolumeSource: v1.VolumeSource{
-				DownwardAPI: &v1.DownwardAPIVolumeSource{},
+			{
+				Name: "downwardAPI-test",
+				VolumeSource: v1.VolumeSource{
+					DownwardAPI: &v1.DownwardAPIVolumeSource{},
+				},
 			},
-		},
-		{
-			Name: "unmanaged-test",
-			VolumeSource: v1.VolumeSource{
-				PersistentVolumeClaim: &v1.PersistentVolumeClaimVolumeSource{},
+			{
+				Name: "unmanaged-test",
+				VolumeSource: v1.VolumeSource{
+					PersistentVolumeClaim: &v1.PersistentVolumeClaimVolumeSource{},
+				},
 			},
-		},
-		{
-			Name: "default-token-test",
-			VolumeSource: v1.VolumeSource{
-				Secret: &v1.SecretVolumeSource{
-					SecretName: "default-token-12345",
+			{
+				Name: "default-token-test",
+				VolumeSource: v1.VolumeSource{
+					Secret: &v1.SecretVolumeSource{
+						SecretName: "default-token-12345",
+					},
 				},
 			},
 		},
-	}
+		[]v1.VolumeMount{
+			{
+				Name: "secret-test",
+			},
+			{
+				Name: "configMap-test",
+			},
+			{
+				Name: "emptyDir-test",
+			},
+			{
+				Name: "downwardAPI-test",
+			},
+			{
+				Name: "unmanaged-test",
+			},
+			{
+				Name: "default-token-test",
+			},
+		}
 }
 
 func createFakeContainers(volumeMounts []v1.VolumeMount) []v1.Container {
@@ -70,35 +90,19 @@ func createFakeContainers(volumeMounts []v1.VolumeMount) []v1.Container {
 			SecurityContext: nil,
 		},
 		{
-			Name:  "test2",
-			Image: "test2",
+			Name:         "test2",
+			Image:        "test2",
+			VolumeMounts: []v1.VolumeMount{},
 		},
 	}
 }
 
 func TestH2FCreation(t *testing.T) {
 
-	volumes := createFakeVolumes()
+	volumes, volumeMounts := createFakeVolumesAndVolumeMounts()
 	filteredVolumes := provider.FilterVolumes(volumes)
-	volumeMounts := []v1.VolumeMount{
-		{
-			Name:      "secret-test",
-			MountPath: "/test/secret",
-		},
-		{
-			Name:      "configMap-test",
-			MountPath: "/test/cm",
-		},
-		{
-			Name:      "emptyDir-test",
-			MountPath: "/test/emptyDir",
-		},
-		{
-			Name:      "downwardAPI-test",
-			MountPath: "/test/downwardAPI",
-		},
-	}
-	containers := createFakeContainers(volumeMounts)
+	filteredVolumeMounts := provider.FilterVolumeMounts(filteredVolumes, volumeMounts)
+	containers := createFakeContainers(filteredVolumeMounts)
 
 	pHome := &v1.Pod{
 		TypeMeta: metav1.TypeMeta{},
@@ -124,7 +128,7 @@ func TestH2FCreation(t *testing.T) {
 	assert.Equal(t, pHome.Spec.NodeName, pForeign.GetAnnotations()["home_nodename"])
 	assert.Equal(t, pHome.ResourceVersion, pForeign.GetAnnotations()["home_resourceVersion"])
 	assert.ElementsMatch(t, containers, pForeign.Spec.Containers)
-	assert.ElementsMatch(t, volumeMounts, pForeign.Spec.Containers[0].VolumeMounts)
+	assert.ElementsMatch(t, filteredVolumeMounts, pForeign.Spec.Containers[0].VolumeMounts)
 	assert.ElementsMatch(t, filteredVolumes, pForeign.Spec.Volumes)
 }
 
@@ -166,7 +170,7 @@ func TestFilterVolumes(t *testing.T) {
 	// the first 4 should be copied
 	// the fifth one is of an unmanaged type and should be filtered
 	// the sixth one is a default-token secret and should be filtered
-	volumes := createFakeVolumes()
+	volumes, _ := createFakeVolumesAndVolumeMounts()
 	expectedResult := []v1.Volume{
 		{
 			Name: "secret-test",
@@ -194,6 +198,28 @@ func TestFilterVolumes(t *testing.T) {
 		},
 	}
 	result := provider.FilterVolumes(volumes)
+
+	assert.ElementsMatch(t, expectedResult, result)
+}
+
+func TestFilterVolumeMounts(t *testing.T) {
+	volumes, volumeMounts := createFakeVolumesAndVolumeMounts()
+	filteredVolumes := provider.FilterVolumes(volumes)
+	expectedResult := []v1.VolumeMount{
+		{
+			Name: "secret-test",
+		},
+		{
+			Name: "configMap-test",
+		},
+		{
+			Name: "emptyDir-test",
+		},
+		{
+			Name: "downwardAPI-test",
+		},
+	}
+	result := provider.FilterVolumeMounts(filteredVolumes, volumeMounts)
 
 	assert.ElementsMatch(t, expectedResult, result)
 }

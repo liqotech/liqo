@@ -44,9 +44,14 @@ func H2FTranslate(pod *v1.Pod, nattedNS string) *v1.Pod {
 		Labels:    pod.Labels,
 	}
 
+	// filter volumes which can be mounted on the foreign cluster
+	volumes := FilterVolumes(pod.Spec.Volumes)
 	// copy all containers from input pod
 	containers := make([]v1.Container, len(pod.Spec.Containers))
 	for i := 0; i < len(pod.Spec.Containers); i++ {
+		// filter volumeMounts related to volumes which have been filtered
+		volumeMounts := FilterVolumeMounts(volumes, pod.Spec.Containers[i].VolumeMounts)
+
 		containers[i] = v1.Container{
 			Name:            pod.Spec.Containers[i].Name,
 			Image:           pod.Spec.Containers[i].Image,
@@ -60,7 +65,7 @@ func H2FTranslate(pod *v1.Pod, nattedNS string) *v1.Pod {
 			ReadinessProbe:  pod.Spec.Containers[i].ReadinessProbe,
 			StartupProbe:    pod.Spec.Containers[i].StartupProbe,
 			SecurityContext: pod.Spec.Containers[i].SecurityContext,
-			VolumeMounts:    pod.Spec.Containers[i].VolumeMounts,
+			VolumeMounts:    volumeMounts,
 		}
 	}
 
@@ -82,7 +87,6 @@ func H2FTranslate(pod *v1.Pod, nattedNS string) *v1.Pod {
 		},
 	}
 
-	volumes := FilterVolumes(pod.Spec.Volumes)
 	// create an empty Spec for the output pod, copying only "Containers" field
 	podSpec := v1.PodSpec{
 		Containers: containers,
@@ -116,6 +120,19 @@ func FilterVolumes(volumesIn []v1.Volume) []v1.Volume {
 		}
 	}
 	return volumesOut
+}
+
+// remove from volumeMountsIn all the volumeMounts with name not contained in volumes
+func FilterVolumeMounts(volumes []v1.Volume, volumeMountsIn []v1.VolumeMount) []v1.VolumeMount {
+	volumeMounts := make([]v1.VolumeMount, 0)
+	for _, vm := range volumeMountsIn {
+		for _, v := range volumes {
+			if vm.Name == v.Name {
+				volumeMounts = append(volumeMounts, vm)
+			}
+		}
+	}
+	return volumeMounts
 }
 
 func ChangePodIp(newPodCidr string, oldPodIp string) (newPodIp string) {
