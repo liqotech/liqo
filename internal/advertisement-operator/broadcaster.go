@@ -240,12 +240,9 @@ func (b *AdvertisementBroadcaster) CreateAdvertisement(physicalNodes *corev1.Nod
 				GatewayPrivateIP:   b.GatewayPrivateIP,
 				SupportedProtocols: nil,
 			},
-			KubeConfigRef: corev1.ObjectReference{
-				Kind:       b.KubeconfigSecretForForeign.Kind,
-				Namespace:  b.KubeconfigSecretForForeign.Namespace,
-				Name:       b.KubeconfigSecretForForeign.Name,
-				UID:        b.KubeconfigSecretForForeign.UID,
-				APIVersion: b.KubeconfigSecretForForeign.APIVersion,
+			KubeConfigRef: corev1.SecretReference{
+				Namespace: b.KubeconfigSecretForForeign.Namespace,
+				Name:      b.KubeconfigSecretForForeign.Name,
 			},
 			Timestamp:  metav1.NewTime(time.Now()),
 			TimeToLive: metav1.NewTime(time.Now().Add(30 * time.Minute)),

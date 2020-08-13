@@ -16,6 +16,7 @@ limitations under the License.
 package v1
 
 import (
+	object_references "github.com/liqoTech/liqo/pkg/object-references"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -43,17 +44,18 @@ type AdvertisementSpec struct {
 	Properties    map[corev1.ResourceName]string              `json:"properties,omitempty"`
 	Prices        corev1.ResourceList                         `json:"prices,omitempty"`
 	Network       NetworkInfo                                 `json:"network"`
-	KubeConfigRef corev1.ObjectReference                      `json:"kubeConfigRef"`
+	KubeConfigRef corev1.SecretReference                      `json:"kubeConfigRef"`
 	Timestamp     metav1.Time                                 `json:"timestamp"`
 	TimeToLive    metav1.Time                                 `json:"timeToLive"`
 }
 
 // AdvertisementStatus defines the observed state of Advertisement
 type AdvertisementStatus struct {
-	AdvertisementStatus   string `json:"advertisementStatus"`
-	VkCreated             bool   `json:"vkCreated"`
-	LocalRemappedPodCIDR  string `json:"localRemappedPodCIDR,omitempty"`
-	RemoteRemappedPodCIDR string `json:"remoteRemappedPodCIDR,omitempty"`
+	AdvertisementStatus   string                                `json:"advertisementStatus"`
+	VkCreated             bool                                  `json:"vkCreated"`
+	VkReference           object_references.DeploymentReference `json:"vkReference,omitempty"`
+	LocalRemappedPodCIDR  string                                `json:"localRemappedPodCIDR,omitempty"`
+	RemoteRemappedPodCIDR string                                `json:"remoteRemappedPodCIDR,omitempty"`
 	//the tunnelEndpoint associated with the foreign cluster
 	TunnelEndpointKey NamespacedName `json:"tunnelEndpointKey"`
 }
