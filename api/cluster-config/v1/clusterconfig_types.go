@@ -28,6 +28,7 @@ type ClusterConfigSpec struct {
 	AdvertisementConfig AdvertisementConfig `json:"advertisementConfig"`
 	DiscoveryConfig     DiscoveryConfig     `json:"discoveryConfig"`
 	LiqonetConfig       LiqonetConfig       `json:"liqonetConfig"`
+	DispatcherConfig    DispatcherConfig    `json:"dispatcherConfig,omitempty"`
 }
 
 type AdvertisementConfig struct {
@@ -79,6 +80,16 @@ type LiqonetConfig struct {
 	ReservedSubnets  []string               `json:"reservedSubnets"`
 	GatewayPrivateIP string                 `json:"gatewayPrivateIP"`
 	VxlanNetConfig   liqonet.VxlanNetConfig `json:"vxlanNetConfig,omitempty"`
+}
+
+//contains a list of resources identified by their GVR
+type Resource struct {
+	Group    string `json:"group"`
+	Version  string `json:"version"`
+	Resource string `json:"resource"`
+}
+type DispatcherConfig struct {
+	ResourcesToReplicate []Resource `json:"resourcesToReplicate,omitempty"`
 }
 
 // ClusterConfigStatus defines the observed state of ClusterConfig

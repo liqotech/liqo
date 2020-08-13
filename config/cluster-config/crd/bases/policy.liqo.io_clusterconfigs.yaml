@@ -106,6 +106,26 @@ spec:
               - updateTime
               - waitTime
               type: object
+            dispatcherConfig:
+              properties:
+                resourcesToReplicate:
+                  items:
+                    description: contains a list of resources identified by their
+                      GVR
+                    properties:
+                      group:
+                        type: string
+                      resource:
+                        type: string
+                      version:
+                        type: string
+                    required:
+                    - group
+                    - resource
+                    - version
+                    type: object
+                  type: array
+              type: object
             liqonetConfig:
               properties:
                 gatewayPrivateIP:
