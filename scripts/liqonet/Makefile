@@ -42,22 +42,14 @@ deploy: manifests
 manifests: controller-gen
     #$(CONTROLLER_GEN) $(CRD_OPTIONS) rbac:roleName=manager-role webhook paths="./..." output:crd:artifacts:config=config/liqonet/crd/bases output:rbac:artifacts:config=config/liqonet/rbac
 	#$(CONTROLLER_GEN) $(CRD_OPTIONS) paths="./internal/liqonet/route-operator.go" rbac:roleName=manager-role crd:crdVersions=v1beta1 crd:trivialVersions=false output:crd:artifacts:config=config/liqonet/crd/bases output:rbac:artifacts:config=config/liqonet/rbac
-	$(CONTROLLER_GEN) $(CRD_OPTIONS) paths="./api/liqonet/v1" rbac:roleName=manager-role crd:crdVersions=v1beta1 crd:trivialVersions=false output:crd:artifacts:config=config/liqonet/crd/bases output:rbac:artifacts:config=config/liqonet/rbac
-	rm config/liqonet.liqo.io_tunnelendpoints.yaml
-	cp config/liqonet/crd/bases/liqonet.liqo.io_networkconfigs.yaml deployments/liqo_chart/crds
-	#rm config/liqonet.liqo.io_networkconfigs.yaml
-
-# Generate manifests e.g. CRD, RBAC etc.
-manifestsv1alpha1: controller-gen
-    #$(CONTROLLER_GEN) $(CRD_OPTIONS) rbac:roleName=manager-role webhook paths="./..." output:crd:artifacts:config=config/liqonet/crd/bases output:rbac:artifacts:config=config/liqonet/rbac
-	#$(CONTROLLER_GEN) $(CRD_OPTIONS) paths="./internal/liqonet/route-operator.go" rbac:roleName=manager-role crd:crdVersions=v1beta1 crd:trivialVersions=false output:crd:artifacts:config=config/liqonet/crd/bases output:rbac:artifacts:config=config/liqonet/rbac
-	$(CONTROLLER_GEN) $(CRD_OPTIONS) paths="./api/liqonet/v1alpha1" rbac:roleName=manager-role crd:crdVersions=v1beta1 crd:trivialVersions=false output:crd:artifacts:config=config/liqonet/crd/bases
-
-	#rm config/liqonet.liqo.io_networkconfigs.yaml
+	$(CONTROLLER_GEN) $(CRD_OPTIONS)  paths="../../api/liqonet/..." rbac:roleName=manager-role output:crd:artifacts:config=../../config/liqonet/crd/bases output:rbac:artifacts:config=../../config/liqonet/rbac
 
 # Run go fmt against code
 fmt:
 	go fmt ./...
+
+lint:
+    /home/aldo/go/bin/golangci-lint run ./... --timeout=600s -D unused,structcheck -E gosec,prealloc,gofmt,govet --skip-files "zz_generate.*.go"
 
 # Run go vet against code
 vet:
@@ -65,7 +57,7 @@ vet:
 
 # Generate code
 generate: controller-gen
-	$(CONTROLLER_GEN) object:headerFile=./hack/boilerplate.go.txt paths="./api/liqonet/v1"
+	$(CONTROLLER_GEN) object:headerFile=../../hack/boilerplate.go.txt paths="../../api/liqonet/..."
 
 # Build the docker image
 docker-build:
@@ -84,7 +76,7 @@ ifeq (, $(shell which controller-gen))
 	CONTROLLER_GEN_TMP_DIR=$$(mktemp -d) ;\
 	cd $$CONTROLLER_GEN_TMP_DIR ;\
 	go mod init tmp ;\
-	go get sigs.k8s.io/controller-tools/cmd/controller-gen@v0.2.4 ;\
+	go get sigs.k8s.io/controller-tools/cmd/controller-gen@v0.2.5 ;\
 	rm -rf $$CONTROLLER_GEN_TMP_DIR ;\
 	}
 CONTROLLER_GEN=$(GOBIN)/controller-gen
