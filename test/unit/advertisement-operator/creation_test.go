@@ -27,8 +27,7 @@ func createFakeAdv(name, namespace string) *v1.Advertisement {
 		},
 		Spec: v1.AdvertisementSpec{
 			ClusterId: "cluster1",
-			KubeConfigRef: corev1.ObjectReference{
-				Kind:      "Secret",
+			KubeConfigRef: corev1.SecretReference{
 				Namespace: "fake",
 				Name:      "fake-kubeconfig",
 			},

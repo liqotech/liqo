@@ -23,6 +23,7 @@ import (
 	discoveryv1 "github.com/liqoTech/liqo/api/discovery/v1"
 	pkg "github.com/liqoTech/liqo/pkg/advertisement-operator"
 	"github.com/liqoTech/liqo/pkg/crdClient"
+	object_references "github.com/liqoTech/liqo/pkg/object-references"
 	v1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -125,7 +126,7 @@ func (r *AdvertisementReconciler) Reconcile(req ctrl.Request) (ctrl.Result, erro
 		if err != nil {
 			return ctrl.Result{}, err
 		}
-		klog.V(3).Info("Correct creation of virtual kubelet deployment for cluster " + adv.Spec.ClusterId)
+		klog.Info("Correct creation of virtual kubelet deployment for cluster " + adv.Spec.ClusterId)
 		return ctrl.Result{RequeueAfter: r.RetryTimeout}, nil
 	}
 
@@ -271,6 +272,10 @@ func (r *AdvertisementReconciler) createVirtualKubelet(ctx context.Context, adv 
 
 	r.recordEvent("launching virtual-kubelet for cluster "+adv.Spec.ClusterId, "Normal", "VkCreated", adv)
 	adv.Status.VkCreated = true
+	adv.Status.VkReference = object_references.DeploymentReference{
+		Namespace: deploy.Namespace,
+		Name:      deploy.Name,
+	}
 	if err := r.Status().Update(ctx, adv); err != nil {
 		klog.Error(err)
 	}

@@ -141,8 +141,7 @@ func getAdv() *protocolv1.Advertisement {
 		},
 		Spec: protocolv1.AdvertisementSpec{
 			ClusterId: "cluster1",
-			KubeConfigRef: corev1.ObjectReference{
-				Kind:      "Secret",
+			KubeConfigRef: corev1.SecretReference{
 				Namespace: "fake",
 				Name:      "fake-kubeconfig",
 			},

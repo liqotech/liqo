@@ -37,7 +37,7 @@ import (
 )
 
 const (
-	defaultNamespace   = "default"
+	defaultNamespace   = "liqo"
 	defaultMetricsaddr = ":8080"
 	defaultVKImage     = "liqo/virtual-kubelet"
 	defaultInitVKImage = "liqo/init-vkubelet"
