@@ -68,7 +68,7 @@ require (
 	golang.org/x/tools v0.0.0-20200331025713-a30bf2db82d4
 	gopkg.in/ini.v1 v1.51.1 // indirect
 	gotest.tools v2.2.0+incompatible
-	k8s.io/api v0.18.6
+	k8s.io/api v0.18.8
 	k8s.io/apimachinery v0.18.6
 	k8s.io/client-go v12.0.0+incompatible
 	k8s.io/klog v1.0.0
