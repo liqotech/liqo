@@ -29,6 +29,9 @@ type DispatcherReconciler struct {
 	LocalDynClient dynamic.Interface
 	//a list of GVRs of resources to be replicated
 	RegisteredResources []schema.GroupVersionResource
+	//each time a resource is removed from the configuration it is saved in this list,
+	//it stays here until the associated watcher, if running, is stopped
+	UnregisteredResources []string
 	//for each cluster we save the tuples (registeredResource, chan)
 	RunningWatchers map[string]chan bool
 	Started         bool
@@ -37,7 +40,7 @@ type DispatcherReconciler struct {
 func (d *DispatcherReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 
 	d.StartWatchers()
-	d.StopWatchers()
+	defer d.StopWatchers()
 
 	return ctrl.Result{
 		Requeue:      false,
@@ -66,7 +69,10 @@ func (d *DispatcherReconciler) Watcher(gvr schema.GroupVersionResource, stop cha
 			klog.Infof("stopping the local watcher for resource: %s", gvr)
 			return
 		case e := <-event:
-			obj := e.Object.(*unstructured.Unstructured)
+			obj, ok := e.Object.(*unstructured.Unstructured)
+			if !ok {
+				continue
+			}
 			switch e.Type {
 			case watch.Added:
 				klog.Infof("the resource %s %s has been added  on local cluster", obj.GetName(), gvr.String())
@@ -92,7 +98,8 @@ func (d *DispatcherReconciler) StartWatchers() {
 			go d.Watcher(r, stop)
 			klog.Infof("starting watcher for resource: %s", r.String())
 		} else {
-			if _, ok := <-d.RunningWatchers[r.String()]; !ok {
+			//here we check if the channel is closed and if so then we start again the watcher
+			if !isOpen(d.RunningWatchers[r.String()]) {
 				//it means that the channel is closed we need to restart the watcher
 				stop := make(chan bool)
 				d.RunningWatchers[r.String()] = stop
@@ -105,10 +112,9 @@ func (d *DispatcherReconciler) StartWatchers() {
 
 //Stops all the watchers for the resources that have been unregistered
 func (d *DispatcherReconciler) StopWatchers() {
-	resList := d.GetRemovedResources()
-	for _, r := range resList {
+	for _, r := range d.UnregisteredResources {
 		if ch, ok := d.RunningWatchers[r]; ok {
-			if _, ok := <-ch; !ok {
+			if !isOpen(ch) {
 				//it means that the channel is closed we need only to delete the entry in the map
 				delete(d.RunningWatchers, r)
 			} else {
@@ -116,39 +122,8 @@ func (d *DispatcherReconciler) StopWatchers() {
 				delete(d.RunningWatchers, r)
 				klog.Infof("stopping watcher for resource: %s", r)
 			}
-
 		}
 	}
-}
-
-func (d *DispatcherReconciler) GetRemovedResources() []string {
-	oldRes := []string{}
-	diffRes := []string{}
-	newRes := []string{}
-	//save the resources as strings in 'newRes'
-	for _, r := range d.RegisteredResources {
-		newRes = append(newRes, r.String())
-	}
-	//get the old resources
-	for k := range d.RunningWatchers {
-		oldRes = append(oldRes, k)
-	}
-	//save in diffRes all the resources that appears in oldRes but not in newRes
-	flag := false
-	for _, old := range oldRes {
-		for _, new := range newRes {
-			if old == new {
-				flag = true
-				break
-			}
-		}
-		if flag {
-			flag = false
-		} else {
-			diffRes = append(diffRes, old)
-		}
-	}
-	return diffRes
 }
 
 func (d *DispatcherReconciler) CreateResource(client dynamic.Interface, gvr schema.GroupVersionResource, obj *unstructured.Unstructured, clusterID string) error {
@@ -343,15 +318,15 @@ func (d *DispatcherReconciler) UpdateResource(client dynamic.Interface, gvr sche
 		klog.Errorf("an error occurred while getting resource %s of type %s on cluster %s: %s", name, gvr.String(), clusterID, err)
 		return err
 	}
-	//this one should never happen, if it does then something strange happened
+	//this one should never happen, if it does then someone deleted the resource on the other cluster
 	if !found {
 		klog.Errorf("an error occurred while getting resource %s of type %s on cluster %s: %s", name, gvr.String(), clusterID, err)
 		return fmt.Errorf("something strange happened, check if the resource %s of type %s on cluster %s exists on the remote cluster", name, gvr.String(), clusterID)
 	}
-	//check if metadata have to be updated
+	//check if metadata has to be updated
 	if !reflect.DeepEqual(obj.GetLabels(), r.GetLabels()) {
 		newMetaData := metav1.ObjectMeta{
-			Labels: r.GetLabels(),
+			Labels: obj.GetLabels(),
 		}
 		klog.Infof("updating metadata of resource %s of type %s on remote cluster %s", name, gvr.String(), clusterID)
 		if err := d.UpdateMetadata(client, gvr, r, clusterID, newMetaData); err != nil {
@@ -447,4 +422,19 @@ func (d *DispatcherReconciler) UpdateStatus(client dynamic.Interface, gvr schema
 		klog.Errorf("an error occurred while updating status field of resource %s of type %s on cluster %s: %s", obj.GetName(), gvr.String(), clusterID, err)
 	}
 	return err
+}
+
+func isOpen(ch chan bool) bool {
+	select {
+	case _, ok := <-ch:
+		if ok {
+			//it means that the channel is open so we return true
+			return true
+		} else {
+			return false
+		}
+	default:
+		//if it returns but no values are ready we return true so it means that is open
+		return true
+	}
 }

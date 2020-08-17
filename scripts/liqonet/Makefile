@@ -48,9 +48,6 @@ manifests: controller-gen
 fmt:
 	go fmt ./...
 
-lint:
-    /home/aldo/go/bin/golangci-lint run ./... --timeout=600s -D unused,structcheck -E gosec,prealloc,gofmt,govet --skip-files "zz_generate.*.go"
-
 # Run go vet against code
 vet:
 	go vet ./...

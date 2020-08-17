@@ -38,8 +38,8 @@ func main() {
 	}
 	d := &dispatcher.DispatcherReconciler{
 		Scheme:           scheme,
-		RemoteDynClients: make(map[string]dynamic.Interface),
 		LocalDynClient:   dynamic.NewForConfigOrDie(cfg),
+		RemoteDynClients: make(map[string]dynamic.Interface),
 		RunningWatchers:  make(map[string]chan bool),
 	}
 	d.RemoteDynClients[clusterID] = dynamic.NewForConfigOrDie(remoteCfg)
@@ -56,7 +56,11 @@ func main() {
 		klog.Error(err, "unable to setup the dispatcher-operator")
 		os.Exit(1)
 	}
-	d.WatchConfiguration(cfg, &clusterConfig.GroupVersion)
+	err = d.WatchConfiguration(cfg, &clusterConfig.GroupVersion)
+	if err != nil {
+		klog.Error(err)
+		os.Exit(-1)
+	}
 	klog.Info("Starting dispatcher-operator")
 	if err := mgr.Start(ctrl.SetupSignalHandler()); err != nil {
 		klog.Error(err, "problem running manager")
