@@ -141,12 +141,10 @@ func (r *AdvertisementReconciler) Reconcile(req ctrl.Request) (ctrl.Result, erro
 			// if everything works well, the check is an infinite loop
 			// therefore, if an error is returned, the foreign cluster is not reachable anymore
 			if err != nil {
-				// the foreign cluster is down
+				// the foreign cluster is down: set adv status to trigger the unjoin
 				klog.Error(err)
-				//TODO: decide which action to do (delete the adv/peering request...
-				// if we delete the adv we need to set a bool variable for tests
-				err = r.Delete(ctx, &adv, &client.DeleteOptions{})
-				if err != nil {
+				adv.Status.AdvertisementStatus = AdvertisementDeleting
+				if err := r.Status().Update(context.Background(), &adv); err != nil {
 					klog.Error(err)
 				}
 			}
@@ -340,7 +338,6 @@ func (r *AdvertisementReconciler) checkClusterStatus(adv protocolv1.Advertisemen
 		return err
 	}
 
-	// METHOD 1 : kubectl get pods (on foreign cluster)
 	remoteClient, err := protocolv1.CreateAdvertisementClient("", remoteKubeconfig)
 	if err != nil {
 		return err
@@ -353,102 +350,9 @@ func (r *AdvertisementReconciler) checkClusterStatus(adv protocolv1.Advertisemen
 		} else {
 			retry = 0
 		}
-		if retry == 3 {
+		if retry == int(r.ClusterConfig.KeepaliveThreshold) {
 			return err
 		}
-		time.Sleep(20 * time.Second)
+		time.Sleep(time.Duration(r.ClusterConfig.KeepaliveRetryTime) * time.Second)
 	}
-
-	// METHOD 2 : CRONJOB
-	//cronJob := &v1beta1.CronJob{
-	//	ObjectMeta: metav1.ObjectMeta{
-	//		Name:      "keepalive",
-	//		Namespace: r.KubeletNamespace,
-	//	},
-	//	Spec: v1beta1.CronJobSpec{
-	//		Schedule: "*/1 * * * *", // every minute
-	//		JobTemplate: v1beta1.JobTemplateSpec{
-	//			ObjectMeta: metav1.ObjectMeta{},
-	//			Spec: v12.JobSpec{
-	//				BackoffLimit: pointer.Int32Ptr(3),
-	//				Selector:     nil,
-	//				Template: v1.PodTemplateSpec{
-	//					ObjectMeta: metav1.ObjectMeta{},
-	//					Spec: v1.PodSpec{
-	//						Containers: []v1.Container{
-	//							{
-	//								Name:  "curl",
-	//								Image: "curlimages/curl",
-	//								Args:  []string{"curl", "-k", url},
-	//							},
-	//						},
-	//						NodeSelector:  nil,
-	//						Affinity:      nil,
-	//						RestartPolicy: v1.RestartPolicyOnFailure,
-	//					},
-	//				},
-	//			},
-	//		},
-	//	},
-	//}
-	//_, err = r.AdvClient.Client().BatchV1beta1().CronJobs(r.KubeletNamespace).Create(context.Background(), cronJob, metav1.CreateOptions{})
-	//if err != nil {
-	//	return err
-	//}
-
-	// METHOD 3 : curl -k <foreign_cluster_url>
-	// extract the url of the server from the kubeconfig
-	//s := string(remoteKubeconfig.Data["kubeconfig"])
-	//scanner := bufio.NewScanner(strings.NewReader(s))
-	//var url string
-	//for scanner.Scan() {
-	//	line := scanner.Text()
-	//	if strings.Contains(line, "server:") {
-	//		// get the url
-	//		url = strings.Replace(line, "server:", "", 1)
-	//		// remove all spaces
-	//		url = strings.ReplaceAll(url, " ", "")
-	//		// add the healthz endpoint to the url
-	//		url = url + "/healthz"
-	//		break
-	//	}
-	//}
-	//if url == "" {
-	//	return goerrors.New("cannot extract url from kubeconfig: the given url was empty")
-	//}
-	//// prepare a get request on the given url
-	//tr := &http.Transport{
-	//	TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
-	//}
-	//c := &http.Client{Transport: tr}
-	//req, err := http.NewRequest("GET", url, nil)
-	//if err != nil {
-	//	return err
-	//}
-	//
-	//// check the foreign cluster every 20 seconds
-	//// if we receive a bad response 3 times, we exit
-	//retry := 0
-	//for {
-	//	resp, err := c.Do(req)
-	//	if err != nil || resp.StatusCode < 200 || resp.StatusCode >= 300 {
-	//		retry++
-	//		klog.Errorf("An error occurred when trying to contact foreign cluster %v at url %v: counter = %d", adv.Spec.ClusterId, url, retry)
-	//	} else {
-	//		retry = 0
-	//	}
-	//	if retry == 3 {
-	//		klog.Error("3 failed attempts to contact the foreign cluster: exiting")
-	//		err = resp.Body.Close()
-	//		if err != nil {
-	//			klog.Warning(err)
-	//		}
-	//		return err
-	//	}
-	//	err = resp.Body.Close()
-	//	if err != nil {
-	//		klog.Warning(err)
-	//	}
-	//	time.Sleep(20 * time.Second)
-	//}
 }

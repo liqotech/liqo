@@ -10,6 +10,8 @@ spec:
     maxAcceptableAdvertisement: 5
     resourceSharingPercentage: 30
     enableBroadcaster: true
+    keepaliveThreshold: 3
+    keepaliveRetryTime: 20
   discoveryConfig:
     autojoin: true
     autojoinUntrusted: true

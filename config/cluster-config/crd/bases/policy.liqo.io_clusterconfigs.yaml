@@ -42,6 +42,14 @@ spec:
                   type: boolean
                 enableBroadcaster:
                   type: boolean
+                keepaliveRetryTime:
+                  format: int32
+                  minimum: 0
+                  type: integer
+                keepaliveThreshold:
+                  format: int32
+                  minimum: 0
+                  type: integer
                 maxAcceptableAdvertisement:
                   format: int32
                   minimum: 0
@@ -52,10 +60,12 @@ spec:
                   minimum: 0
                   type: integer
               required:
-                - autoAccept
+              - autoAccept
               type: object
             discoveryConfig:
               properties:
+                allowUntrustedCA:
+                  type: boolean
                 autojoin:
                   type: boolean
                 autojoinUntrusted:
@@ -74,8 +84,6 @@ spec:
                   maximum: 65355
                   minimum: 1
                   type: integer
-                allowUntrustedCA:
-                  type: boolean
                 service:
                   type: string
                 updateTime:
@@ -85,6 +93,7 @@ spec:
                   minimum: 1
                   type: integer
               required:
+              - allowUntrustedCA
               - autojoin
               - autojoinUntrusted
               - dnsServer
@@ -93,7 +102,6 @@ spec:
               - enableDiscovery
               - name
               - port
-              - allowUntrustedCA
               - service
               - updateTime
               - waitTime
@@ -139,9 +147,9 @@ spec:
       type: object
   version: v1
   versions:
-    - name: v1
-      served: true
-      storage: true
+  - name: v1
+    served: true
+    storage: true
 status:
   acceptedNames:
     kind: ""
