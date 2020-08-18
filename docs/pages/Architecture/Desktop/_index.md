@@ -34,13 +34,13 @@ operate with the Liqo CRDs, watching relevant events and signaling them to the _
 ![Liqo Agent components](/images/tray-agent/liqo_agent-scheme.png)
 
 ## Implementation    
-Take a look at the complete api [documentation](https://pkg.go.dev/github.com/liqoTech/liqo/internal/tray-agent).
+Take a look at the complete API [documentation](https://pkg.go.dev/github.com/liqoTech/liqo/internal/tray-agent).
 
 * **_NOTE_**: In order to orchestrate the tray icon and menu, _Agent_ exploits the 
 [systray](https://github.com/getlantern/systray) package which has some limitations:
-    * Missing sub-menu implementation. _Agent_ overcame the problem using native OS graphic windows.
+    * Missing sub-menu implementation. _Agent_ overcomes the problem by using native OS graphic windows.
     * The tray menu works as a stack, and the library offers no possibility to delete an Item. 
-    _Agent_ partially solved the problem changing properly the menu items visibility.
+    _Agent_ partially solves the problem by changing properly the menu items visibility.
 
 * When _Agents_ starts:
     1. the **Gui Provider** starts and open a connection to the OS graphic server ([X](https://x.org/wiki/)).
@@ -53,8 +53,14 @@ Take a look at the complete api [documentation](https://pkg.go.dev/github.com/li
         * It loads _Agent_ settings from the cluster and from a config file on the OS filesystem 
     3. the **Agent Controller**:
         * searches for a valid Client configuration for the home cluster (a _kubeconfig_ file)
-        * if present, it opens a connection to the home cluster and starts watching a set of Liqo
+        * if present, it opens a connection to the home cluster and starts watching a subset of Liqo
         resources.
+            * The **ForeignCluster** CRD allows to control the status of a peering, both consuming
+            and offering. 
+            * Moreover, using its internal links (*Object Reference*s) to the related instances 
+            of the **Advertisement** and **PeeringRequest** CRDs, it provides also the possibility of
+             monitoring every stage of the connection, e.g. validating the request of a new connection or
+            the details of an offering proposal.
     4. the main routine of the **Gui Provider** blocks, and the _Indicator_ waits for events triggered
     both from **users** (mouse click) or **Liqo** (operations on cluster resources).
 * When the user quits the _Agent_ (via the "QUIT" button), the _Gui Provider_ main routine exits, 
@@ -62,7 +68,7 @@ and a cleaning routine is performed.
     
 ## Working Modes
 
-Using a proper orchestration of the Liqo components, _Agent_ introduces two abstraction models, called
+_Agent_ supports two abstraction models, called
 **Working Modes**, designed to cover some common use cases.
 
 ### Autonomous
