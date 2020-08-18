@@ -109,7 +109,7 @@ func createFakeResources() (physicalNodes *corev1.NodeList, virtualNodes *corev1
 			// virtual node
 			vNodes[v] = corev1.Node{
 				ObjectMeta: metav1.ObjectMeta{
-					Name:   "vk-cluster" + strconv.Itoa(v),
+					Name:   "liqo-cluster" + strconv.Itoa(v),
 					Labels: map[string]string{"type": "virtual-node"},
 				},
 				Spec: corev1.NodeSpec{

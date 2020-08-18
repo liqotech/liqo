@@ -100,15 +100,15 @@ func createFakeCRDClient() client.Client {
 func TestCreateVkDeployment(t *testing.T) {
 	name, ns := "advertisement-cluster1", "fakens"
 	adv := createFakeAdv(name, ns)
-	saName := "fake-sa"
+	vkName := "liqo-cluster1"
 	vkNamespace := "fake"
 	vkImage := "liqo/virtual-kubelet"
 	initVkImage := "liqo/init-vk"
 	homeClusterId := "cluster2"
 
-	deploy := advertisement_operator.CreateVkDeployment(adv, saName, vkNamespace, vkImage, initVkImage, homeClusterId)
+	deploy := advertisement_operator.CreateVkDeployment(adv, vkName, vkNamespace, vkImage, initVkImage, homeClusterId)
 
-	assert.Equal(t, "vkubelet-"+adv.Spec.ClusterId, deploy.Name)
+	assert.Equal(t, vkName, deploy.Name)
 	assert.Equal(t, vkNamespace, deploy.Namespace)
 	assert.Equal(t, advertisement_operator.GetOwnerReference(adv), deploy.OwnerReferences)
 	assert.Equal(t, adv.Spec.ClusterId, deploy.Spec.Template.Labels["cluster"])
@@ -118,13 +118,13 @@ func TestCreateVkDeployment(t *testing.T) {
 	assert.Equal(t, vkImage, deploy.Spec.Template.Spec.Containers[0].Image)
 	assert.NotEmpty(t, deploy.Spec.Template.Spec.Containers[0].Args)
 	assert.Contains(t, deploy.Spec.Template.Spec.Containers[0].Args, adv.Spec.ClusterId)
-	assert.Contains(t, deploy.Spec.Template.Spec.Containers[0].Args, "vk-"+adv.Spec.ClusterId)
+	assert.Contains(t, deploy.Spec.Template.Spec.Containers[0].Args, vkName)
 	assert.Contains(t, deploy.Spec.Template.Spec.Containers[0].Args, vkNamespace)
 	assert.Contains(t, deploy.Spec.Template.Spec.Containers[0].Args, homeClusterId)
 	assert.NotEmpty(t, deploy.Spec.Template.Spec.Containers[0].Command)
 	assert.NotEmpty(t, deploy.Spec.Template.Spec.Containers[0].VolumeMounts)
 	assert.NotEmpty(t, deploy.Spec.Template.Spec.Containers[0].Env)
-	assert.Equal(t, saName, deploy.Spec.Template.Spec.ServiceAccountName)
+	assert.Equal(t, vkName, deploy.Spec.Template.Spec.ServiceAccountName)
 	assert.NotEmpty(t, deploy.Spec.Template.Spec.Affinity)
 }
 

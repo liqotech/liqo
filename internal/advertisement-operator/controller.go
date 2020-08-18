@@ -254,11 +254,12 @@ func (r *AdvertisementReconciler) UpdateAdvertisement(adv *protocolv1.Advertisem
 
 func (r *AdvertisementReconciler) createVirtualKubelet(ctx context.Context, adv *protocolv1.Advertisement) error {
 
+	name := "liqo-" + adv.Spec.ClusterId
 	// Create the base resources
 	vkSa := &v1.ServiceAccount{
 		TypeMeta: metav1.TypeMeta{},
 		ObjectMeta: metav1.ObjectMeta{
-			Name:            "vkubelet-" + adv.Spec.ClusterId,
+			Name:            name,
 			Namespace:       r.KubeletNamespace,
 			OwnerReferences: pkg.GetOwnerReference(adv),
 		},
@@ -269,11 +270,11 @@ func (r *AdvertisementReconciler) createVirtualKubelet(ctx context.Context, adv 
 	}
 	vkCrb := &rbacv1.ClusterRoleBinding{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:            "vkubelet-" + adv.Spec.ClusterId,
+			Name:            name,
 			OwnerReferences: pkg.GetOwnerReference(adv),
 		},
 		Subjects: []rbacv1.Subject{
-			{Kind: "ServiceAccount", APIGroup: "", Name: "vkubelet-" + adv.Spec.ClusterId, Namespace: r.KubeletNamespace},
+			{Kind: "ServiceAccount", APIGroup: "", Name: name, Namespace: r.KubeletNamespace},
 		},
 		RoleRef: rbacv1.RoleRef{
 			APIGroup: "rbac.authorization.k8s.io",
@@ -286,7 +287,7 @@ func (r *AdvertisementReconciler) createVirtualKubelet(ctx context.Context, adv 
 		return err
 	}
 	// Create the virtual Kubelet
-	deploy := pkg.CreateVkDeployment(adv, vkSa.Name, r.KubeletNamespace, r.VKImage, r.InitVKImage, r.HomeClusterId)
+	deploy := pkg.CreateVkDeployment(adv, name, r.KubeletNamespace, r.VKImage, r.InitVKImage, r.HomeClusterId)
 	err = pkg.CreateOrUpdate(r.Client, ctx, deploy)
 	if err != nil {
 		return err

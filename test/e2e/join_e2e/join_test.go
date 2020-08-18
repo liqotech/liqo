@@ -119,7 +119,7 @@ func CheckVkNode(client1 *kubernetes.Clientset, client2 *kubernetes.Clientset, n
 		klog.Error(err)
 		t.Fail()
 	}
-	node, err := client2.CoreV1().Nodes().Get(context2.TODO(), "vk-"+id.Data["cluster-id"], metav1.GetOptions{})
+	node, err := client2.CoreV1().Nodes().Get(context2.TODO(), "liqo-"+id.Data["cluster-id"], metav1.GetOptions{})
 	if err != nil {
 		klog.Error(err)
 		t.Fail()

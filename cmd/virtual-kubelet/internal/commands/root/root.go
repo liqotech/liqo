@@ -152,7 +152,7 @@ func runRootCommand(ctx context.Context, s *provider.Store, c Opts) error {
 		leaseClient = client.CoordinationV1beta1().Leases(corev1.NamespaceNodeLease)
 	}
 
-	deployName := strings.Join([]string{"vkubelet", c.ClusterId}, "-")
+	deployName := strings.Join([]string{"liqo", c.ClusterId}, "-")
 	refs := createOwnerReference(client, deployName, c.KubeletNamespace)
 
 	var nodeRunner *node.NodeController

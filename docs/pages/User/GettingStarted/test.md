@@ -57,7 +57,7 @@ Now you can check the state of your pod; the output confirms that the pod is run
 ```
 kubectl get po -o wide -n test
 NAME    READY   STATUS    RESTARTS   AGE   IP           NODE                                      NOMINATED NODE   READINESS GATES
-nginx   1/1     Running   0          41m   10.45.0.12   vk-1dfa22f9-1cdd-4401-9e7a-c5342ec90059   <none>           <none>
+nginx   1/1     Running   0          41m   10.45.0.12   liqo-1dfa22f9-1cdd-4401-9e7a-c5342ec90059   <none>           <none>
 ```
 
 
