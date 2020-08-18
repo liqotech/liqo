@@ -78,6 +78,12 @@ spec:
                 advertisement:
                   type: object
                   description: Object Reference to created Advertisement CR
+                availableIdentity:
+                  type: boolean
+                  description: Indicates if related identity is available
+                advertisementStatus:
+                  type: string
+                  description: Advertisement status
             incoming:
               type: object
               properties:
@@ -87,6 +93,12 @@ spec:
                 peeringRequest:
                   type: object
                   description: Object Reference to created PeeringRequest CR
+                availableIdentity:
+                  type: boolean
+                  description: Indicates if related identity is available
+                advertisementStatus:
+                  type: string
+                  description: Status of Advertisement created from this PeeringRequest
             ttl:
               type: integer
               description: If discoveryType is LAN and this counter reach 0 value, this FC will be removed
