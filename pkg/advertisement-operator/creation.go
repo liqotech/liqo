@@ -16,7 +16,7 @@ import (
 )
 
 // create deployment for a virtual-kubelet
-func CreateVkDeployment(adv *protocolv1.Advertisement, saName, vkNamespace, vkImage, initVKImage, homeClusterId string) *appsv1.Deployment {
+func CreateVkDeployment(adv *protocolv1.Advertisement, name, vkNamespace, vkImage, initVKImage, homeClusterId string) *appsv1.Deployment {
 
 	command := []string{
 		"/usr/bin/virtual-kubelet",
@@ -28,7 +28,7 @@ func CreateVkDeployment(adv *protocolv1.Advertisement, saName, vkNamespace, vkIm
 		"--provider",
 		"kubernetes",
 		"--nodename",
-		"vk-" + adv.Spec.ClusterId,
+		name,
 		"--kubelet-namespace",
 		vkNamespace,
 		"--provider-config",
@@ -86,7 +86,7 @@ func CreateVkDeployment(adv *protocolv1.Advertisement, saName, vkNamespace, vkIm
 
 	deploy := &appsv1.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:            "vkubelet-" + adv.Spec.ClusterId,
+			Name:            name,
 			Namespace:       vkNamespace,
 			OwnerReferences: GetOwnerReference(adv),
 		},
@@ -170,7 +170,7 @@ func CreateVkDeployment(adv *protocolv1.Advertisement, saName, vkNamespace, vkIm
 							},
 						},
 					},
-					ServiceAccountName: saName,
+					ServiceAccountName: name,
 					Affinity:           affinity.DeepCopy(),
 				},
 			},

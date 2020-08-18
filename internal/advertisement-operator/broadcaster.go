@@ -368,7 +368,7 @@ func GetGateway(nodes []corev1.Node) string {
 func GetAllPodsResources(nodeNonTerminatedPodsList *corev1.PodList) (requests corev1.ResourceList, limits corev1.ResourceList) {
 	// remove pods on virtual nodes
 	for i, pod := range nodeNonTerminatedPodsList.Items {
-		if strings.HasPrefix(pod.Spec.NodeName, "vk-") {
+		if strings.HasPrefix(pod.Spec.NodeName, "liqo-") {
 			nodeNonTerminatedPodsList.Items[i] = corev1.Pod{}
 		}
 	}
