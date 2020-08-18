@@ -6,11 +6,6 @@ weight: 1
 * [**Overview**](#overview)
     * [Features](#features)
     * [Limitations](#limitations)
-* [**Architecture and workflow**](#architecture-and-workflow)
-* [**Implementation**](#implementation)
-* [**Working Modes**](#working-modes)
-    * [Autonomous](#autonomous)
-    * [Tethered](#tethered)
 
 ## Overview
 **Liqo Agent** is the Liqo component that lets users interact with Liqo in an easy, friendly way.
@@ -31,7 +26,7 @@ the arrival of a new Advertisement.
 ### Features
 *   **Status information**: get details about Liqo
     * check if Liqo is turned ON/OFF
-    * current Liqo [**_Working Mode_**](#working-modes)
+    * current Liqo [**_Working Mode_**](/pages/Architecture/Desktop/_index.md)
 *   Manage Liqo Agent **settings**
     * users can turn on/off notifications and choose how they would like to receive them:
         * silent notifications on the tray icon
@@ -48,4 +43,5 @@ base of:
 Future implementations will provide the possibility to actually shut down and restart the entire framework.
 
 * Currently, **_Autonomous_** is the only supported working mode. 
-For more information, take a look at the [dedicated section below](/architecture/desktop/).
+
+>For more information, take a look at the dedicated [Architecture section](/pages/Architecture/Desktop/_index.md).
