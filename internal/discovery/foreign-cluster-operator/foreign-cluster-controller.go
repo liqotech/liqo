@@ -68,7 +68,10 @@ func (r *ForeignClusterReconciler) Reconcile(req ctrl.Request) (ctrl.Result, err
 	fc, ok := tmp.(*discoveryv1.ForeignCluster)
 	if !ok {
 		klog.Error("created object is not a ForeignCluster")
-		return ctrl.Result{}, goerrors.New("created object is not a ForeignCluster")
+		return ctrl.Result{
+			Requeue:      true,
+			RequeueAfter: r.RequeueAfter,
+		}, goerrors.New("created object is not a ForeignCluster")
 	}
 
 	requireUpdate := false
@@ -90,27 +93,85 @@ func (r *ForeignClusterReconciler) Reconcile(req ctrl.Request) (ctrl.Result, err
 
 	// check if linked advertisement exists
 	if fc.Status.Outgoing.Advertisement != nil {
-		_, err = r.advertisementClient.Resource("advertisements").Get(fc.Status.Outgoing.Advertisement.Name, metav1.GetOptions{})
+		tmp, err = r.advertisementClient.Resource("advertisements").Get(fc.Status.Outgoing.Advertisement.Name, metav1.GetOptions{})
 		if errors.IsNotFound(err) {
 			fc.Status.Outgoing.Advertisement = nil
+			fc.Status.Outgoing.AvailableIdentity = false
+			fc.Status.Outgoing.AdvertisementStatus = ""
 			fc.Status.Outgoing.Joined = false
 			fc.Status.Outgoing.RemotePeeringRequestName = ""
 			fc.Spec.Join = false
 			requireUpdate = true
+		} else if err == nil {
+			// check if kubeconfig secret exists
+			adv, ok := tmp.(*protocolv1.Advertisement)
+			if !ok {
+				err = goerrors.New("retrieved object is not an Advertisement")
+				klog.Error(err)
+				return ctrl.Result{
+					Requeue:      true,
+					RequeueAfter: r.RequeueAfter,
+				}, err
+			}
+			if adv.Spec.KubeConfigRef.Name != "" && adv.Spec.KubeConfigRef.Namespace != "" {
+				_, err = r.crdClient.Client().CoreV1().Secrets(adv.Spec.KubeConfigRef.Namespace).Get(context.TODO(), adv.Spec.KubeConfigRef.Name, metav1.GetOptions{})
+				available := err == nil
+				if fc.Status.Outgoing.AvailableIdentity != available {
+					fc.Status.Outgoing.AvailableIdentity = available
+					requireUpdate = true
+				}
+			}
+
+			// update advertisement status
+			status := adv.Status.AdvertisementStatus
+			if status != fc.Status.Outgoing.AdvertisementStatus {
+				fc.Status.Outgoing.AdvertisementStatus = status
+				requireUpdate = true
+			}
 		}
 	}
 
 	// check if linked peeringRequest exists
 	if fc.Status.Incoming.PeeringRequest != nil {
-		_, err = r.crdClient.Resource("peeringrequests").Get(fc.Status.Incoming.PeeringRequest.Name, metav1.GetOptions{})
+		tmp, err = r.crdClient.Resource("peeringrequests").Get(fc.Status.Incoming.PeeringRequest.Name, metav1.GetOptions{})
 		if errors.IsNotFound(err) {
 			fc.Status.Incoming.PeeringRequest = nil
+			fc.Status.Incoming.AvailableIdentity = false
+			fc.Status.Incoming.AdvertisementStatus = ""
 			fc.Status.Incoming.Joined = false
 			requireUpdate = true
 		} else if err == nil && !fc.Status.Incoming.Joined {
 			// PeeringRequest exists, set flag to true
 			fc.Status.Incoming.Joined = true
 			requireUpdate = true
+		}
+
+		if err == nil {
+			// check if kubeconfig secret exists
+			pr, ok := tmp.(*discoveryv1.PeeringRequest)
+			if !ok {
+				err = goerrors.New("retrieved object is not a PeeringRequest")
+				klog.Error(err)
+				return ctrl.Result{
+					Requeue:      true,
+					RequeueAfter: r.RequeueAfter,
+				}, err
+			}
+			if pr.Spec.KubeConfigRef != nil && pr.Spec.KubeConfigRef.Name != "" && pr.Spec.KubeConfigRef.Namespace != "" {
+				_, err = r.crdClient.Client().CoreV1().Secrets(pr.Spec.KubeConfigRef.Namespace).Get(context.TODO(), pr.Spec.KubeConfigRef.Name, metav1.GetOptions{})
+				available := err == nil
+				if fc.Status.Incoming.AvailableIdentity != available {
+					fc.Status.Incoming.AvailableIdentity = available
+					requireUpdate = true
+				}
+			}
+
+			// update advertisement status
+			status := pr.Status.AdvertisementStatus
+			if status != fc.Status.Incoming.AdvertisementStatus {
+				fc.Status.Incoming.AdvertisementStatus = status
+				requireUpdate = true
+			}
 		}
 	}
 

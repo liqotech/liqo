@@ -64,11 +64,15 @@ type Outgoing struct {
 	RemotePeeringRequestName string              `json:"remote-peering-request-name,omitempty"`
 	CaDataRef                *v1.ObjectReference `json:"caDataRef,omitempty"`
 	Advertisement            *v1.ObjectReference `json:"advertisement,omitempty"`
+	AvailableIdentity        bool                `json:"availableIdentity,omitempty"`
+	AdvertisementStatus      string              `json:"advertisementStatus,omitempty"`
 }
 
 type Incoming struct {
-	Joined         bool                `json:"joined"`
-	PeeringRequest *v1.ObjectReference `json:"peeringRequest,omitempty"`
+	Joined              bool                `json:"joined"`
+	PeeringRequest      *v1.ObjectReference `json:"peeringRequest,omitempty"`
+	AvailableIdentity   bool                `json:"availableIdentity,omitempty"`
+	AdvertisementStatus string              `json:"advertisementStatus,omitempty"`
 }
 
 // +kubebuilder:object:root=true
