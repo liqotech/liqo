@@ -38,6 +38,10 @@ type AdvertisementConfig struct {
 	// +kubebuilder:validation:Minimum=0
 	MaxAcceptableAdvertisement int32 `json:"maxAcceptableAdvertisement,omitempty"`
 	AutoAccept                 bool  `json:"autoAccept"`
+	// +kubebuilder:validation:Minimum=0
+	KeepaliveThreshold int32 `json:"keepaliveThreshold,omitempty"`
+	// +kubebuilder:validation:Minimum=0
+	KeepaliveRetryTime int32 `json:"keepaliveRetryTime,omitempty"`
 }
 
 type DiscoveryConfig struct {
