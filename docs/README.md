@@ -32,13 +32,3 @@ Images should be put in [docs/images](docs/images). When referencing an image fr
 you should use an absolute link taking docs as root. For example, if you add an image to *docs/images/install/test.png*,
 the link will be ```![](/images/install/test.png)```. Obviously, you should pay attention to put the first slash "/".
 
-## Local testing
-
-In case you want to browse the documentation website on your local computer, you can start the website by running the following commands:
-
-```
-# This command starts the Hugo server and watches the site directory for changes.
-$ hugo server -D 
-```
-
-Now, simply connect to [http://localhost:1313/](http://localhost:1313/).
