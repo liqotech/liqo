@@ -1,169 +1,319 @@
 package net_test
 
 import (
+	"bytes"
 	"context"
-	"github.com/liqoTech/liqo/test/e2e/util"
-	"gotest.tools/assert"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/tools/remotecommand"
-	"os"
-	"testing"
+	"github.com/liqotech/liqo/test/e2e/util"
+	"github.com/stretchr/testify/assert"
 	v1 "k8s.io/api/core/v1"
-	"time"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/klog"
-	restclient "k8s.io/client-go/rest"
-	"k8s.io/client-go/kubernetes/scheme"
-	"io"
+	"os/exec"
+	"strconv"
+	"testing"
+	"time"
+)
+
+var (
+	image              = "nginx"
+	waitTime           = 60 * time.Second
+	podTesterLocalCl1  = "tester-local-cl1"
+	podTesterRemoteCl1 = "tester-remote-cl1"
+	podTesterLocalCl2  = "tester-local-cl2"
+	podTesterRemoteCl2 = "tester-remote-cl2"
+	namespaceNameCl1   = "test-connectivity-cl1"
+	namespaceNameCl2   = "test-connectivity-cl2"
+	//label to list only the real nodes excluding the virtual ones
+	labelSelectorNodes = "type!=virtual-node"
+	//TODO: use the retry mecchanism of curl without sleeping before running the command
+	command = "curl -s -o /dev/null -w '%{http_code}' "
 )
 
 func TestPodConnectivity1to2(t *testing.T) {
 	context := util.GetTester()
-	ConnectivityCheck(context.Client1, context.Client2, t, "cluster1")
+	ConnectivityCheckPodToPodCluster1ToCluster2(context, t)
+	ConnectivityCheckNodeToPodCluster1ToCluster2(context, t)
+	err := util.DeleteNamespace(context.Client1, namespaceNameCl1)
+	assert.Nil(t, err, "error should be nil while deleting namespace %s in cluster %s", namespaceNameCl1, context.ClusterID1)
+
 }
 
-func ConnectivityCheck(c1 *kubernetes.Clientset, c2 *kubernetes.Clientset, t *testing.T, namespace string){
-	ns := v1.Namespace{
-		TypeMeta:   metav1.TypeMeta{},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:                       "test-connectivity",
-		},
-		Spec:       v1.NamespaceSpec{},
-		Status:     v1.NamespaceStatus{},
-	}
-	remoteNodes, err := c1.CoreV1().Nodes().List(context.TODO(),metav1.ListOptions{
-		LabelSelector:       "virtual-node=true",
-	})
-	if err != nil {
-		klog.Error(err)
-		t.Fail()
-	}
-	localNodes, err := c1.CoreV1().Nodes().List(context.TODO(),metav1.ListOptions{
-		LabelSelector:       "virtual-node!=true",
-	})
-	if err != nil {
-		klog.Error(err)
-		t.Fail()
-	}
-	_, err = c1.CoreV1().Namespaces().Create(context.TODO(),&ns,metav1.CreateOptions{})
-	if err != nil {
-		klog.Error(err)
-		t.Fail()
-	}
-	p1 := DeployLocalPod()
-	_, err = c1.CoreV1().Pods("test-connectivity").Create(context.TODO(),p1,metav1.CreateOptions{})
-	if err != nil {
-		klog.Error(err)
-		t.Fail()
-	}
-	p2 := DeployRemotePod()
-	_, err = c1.CoreV1().Pods("test-connectivity").Create(context.TODO(),p2,metav1.CreateOptions{})
-	if err != nil {
-		klog.Error(err)
-		t.Fail()
-	}
-	time.Sleep(5*time.Second)
-	p1Update, err := c1.CoreV1().Pods("test-connectivity").Get(context.TODO(),"tester-local", metav1.GetOptions{})
-	if err != nil {
-		klog.Error(err)
-		t.Fail()
-	}
-	p2Update, err := c1.CoreV1().Pods("test-connectivity").Get(context.TODO(),"tester-remote",metav1.GetOptions{})
-	if err != nil {
-		klog.Error(err)
-		t.Fail()
-	}
-    assert.Equal(t,p2Update.Spec.NodeName,remoteNodes.Items[0].Name)
-	assert.Equal(t,p1Update.Spec.NodeName,localNodes.Items[0].Name)
-	cmd := "curl --fail http://" + p2.Status.PodIP + "/healthz"
-	err = ExecCmdExample(c1,&restclient.Config{},p1.Name,cmd,os.Stdin,os.Stdout,os.Stderr)
-	assert.Equal(t,err,"")
+func TestPodConnectivity2to1(t *testing.T) {
+	context := util.GetTester()
+	ConnectivityCheckPodToPodCluster2ToCluster1(context, t)
+	ConnectivityCheckNodeToPodCluster2ToCluster1(context, t)
+	err := util.DeleteNamespace(context.Client2, namespaceNameCl2)
+	assert.Nil(t, err, "error should be nil while deleting namespace %s in cluster %s", namespaceNameCl2, context.ClusterID2)
 }
 
-// ExecCmd exec command on specific pod and wait the command's output.
-func ExecCmdExample(client kubernetes.Interface, config *restclient.Config, podName string,
-	command string, stdin io.Reader, stdout io.Writer, stderr io.Writer) error {
-	cmd := []string{
-		"sh",
-		"-c",
-		command,
-	}
-	req := client.CoreV1().RESTClient().Post().Resource("pods").Name(podName).
-		Namespace("default").SubResource("exec")
-	option := &v1.PodExecOptions{
-		Command: cmd,
-		Stdin:   true,
-		Stdout:  true,
-		Stderr:  true,
-		TTY:     true,
-	}
-	if stdin == nil {
-		option.Stdin = false
-	}
-	req.VersionedParams(
-		option,
-		scheme.ParameterCodec,
-	)
-	exec, err := remotecommand.NewSPDYExecutor(config, "POST", req.URL())
+func ConnectivityCheckPodToPodCluster1ToCluster2(con *util.Tester, t *testing.T) {
+	localNodes, err := util.GetNodes(con.Client1, con.ClusterID2, labelSelectorNodes)
 	if err != nil {
-		return err
+		klog.Error(err)
+		t.Fail()
 	}
-	err = exec.Stream(remotecommand.StreamOptions{
-		Stdin:  stdin,
-		Stdout: stdout,
-		Stderr: stderr,
-	})
+	remoteNodes, err := util.GetNodes(con.Client2, con.ClusterID1, labelSelectorNodes)
 	if err != nil {
-		return err
+		klog.Error(err)
+		t.Fail()
 	}
 
-	return nil
+	//testing connection from cluster1 to cluster2
+	//we expect for the pod to be created on cluster one and also on cluster 2
+	//and to communicate with each other
+	ns, err := util.CreateNamespace(con.Client1, con.ClusterID1, namespaceNameCl1)
+	if err != nil {
+		t.Fail()
+	}
+	reflectedNamespace := ns.Name + "-" + con.ClusterID1
+	podRemote := DeployRemotePod(image, podTesterRemoteCl1, ns.Name)
+	_, err = con.Client1.CoreV1().Pods(ns.Name).Create(context.TODO(), podRemote, metav1.CreateOptions{})
+	if err != nil {
+		klog.Error(err)
+		t.Fail()
+	}
+	podLocal := DeployLocalPod(image, podTesterLocalCl1, ns.Name)
+	_, err = con.Client1.CoreV1().Pods(ns.Name).Create(context.TODO(), podLocal, metav1.CreateOptions{})
+	if err != nil {
+		klog.Error(err)
+		t.Fail()
+	}
+	if !util.WaitForPodToBeReady(con.Client1, waitTime, con.ClusterID1, podLocal.Namespace, podLocal.Name) {
+		t.Fail()
+	}
+	if !util.WaitForPodToBeReady(con.Client1, waitTime, con.ClusterID1, podRemote.Namespace, podRemote.Name) {
+		t.Fail()
+	}
+	if !util.WaitForPodToBeReady(con.Client2, waitTime, con.ClusterID2, reflectedNamespace, podRemote.Name) {
+		t.Fail()
+	}
+	podRemoteUpdateCluster2, err := con.Client2.CoreV1().Pods(reflectedNamespace).Get(context.TODO(), podRemote.Name, metav1.GetOptions{})
+	if err != nil {
+		klog.Error(err)
+		t.Fail()
+	}
+	podRemoteUpdateCluster1, err := con.Client1.CoreV1().Pods(podRemote.Namespace).Get(context.TODO(), podRemote.Name, metav1.GetOptions{})
+	if err != nil {
+		klog.Error(err)
+		t.Fail()
+	}
+	podLocalUpdate, err := con.Client1.CoreV1().Pods(podLocal.Namespace).Get(context.TODO(), podLocal.Name, metav1.GetOptions{})
+	if err != nil {
+		klog.Error(err)
+		t.Fail()
+	}
+	assert.True(t, isContained(remoteNodes, podRemoteUpdateCluster2.Spec.NodeName), "remotepod should be running on one of the local nodes")
+	assert.True(t, isContained(localNodes, podLocalUpdate.Spec.NodeName), "localpod should be running on one of the remote pods")
+	cmd := command + podRemoteUpdateCluster1.Status.PodIP
+	stdout, _, err := util.ExecCmd(con.Config1, con.Client1, podLocalUpdate.Name, podLocalUpdate.Namespace, cmd)
+	assert.Equal(t, "200", stdout, "status code should be 200")
+	if err != nil {
+		t.Fail()
+	}
 }
 
-func DeployLocalPod() *v1.Pod {
+func ConnectivityCheckPodToPodCluster2ToCluster1(con *util.Tester, t *testing.T) {
+	localNodes, err := util.GetNodes(con.Client2, con.ClusterID2, labelSelectorNodes)
+	if err != nil {
+		t.Fail()
+	}
+	remoteNodes, err := util.GetNodes(con.Client1, con.ClusterID1, labelSelectorNodes)
+	if err != nil {
+		t.Fail()
+	}
+
+	//testing connection from cluster2 to cluster1
+	//we expect for the pod to be created on cluster one and also on cluster 2
+	//and to communicate with each other
+	ns, err := util.CreateNamespace(con.Client2, con.ClusterID2, namespaceNameCl2)
+	if err != nil {
+		t.Fail()
+	}
+	reflectedNamespace := ns.Name + "-" + con.ClusterID2
+	podRemote := DeployRemotePod(image, podTesterRemoteCl2, ns.Name)
+	_, err = con.Client2.CoreV1().Pods(ns.Name).Create(context.TODO(), podRemote, metav1.CreateOptions{})
+	if err != nil {
+		klog.Error(err)
+		t.Fail()
+	}
+	podLocal := DeployLocalPod(image, podTesterLocalCl2, ns.Name)
+	_, err = con.Client2.CoreV1().Pods(ns.Name).Create(context.TODO(), podLocal, metav1.CreateOptions{})
+	if err != nil {
+		klog.Error(err)
+		t.Fail()
+	}
+	if !util.WaitForPodToBeReady(con.Client2, waitTime, con.ClusterID2, podLocal.Namespace, podLocal.Name) {
+		t.Fail()
+	}
+	if !util.WaitForPodToBeReady(con.Client2, waitTime, con.ClusterID2, podRemote.Namespace, podRemote.Name) {
+		t.Fail()
+	}
+	if !util.WaitForPodToBeReady(con.Client1, waitTime, con.ClusterID1, reflectedNamespace, podRemote.Name) {
+		t.Fail()
+	}
+	podRemoteUpdateCluster1, err := con.Client1.CoreV1().Pods(reflectedNamespace).Get(context.TODO(), podRemote.Name, metav1.GetOptions{})
+	if err != nil {
+		klog.Error(err)
+		t.Fail()
+	}
+	podRemoteUpdateCluster2, err := con.Client2.CoreV1().Pods(podRemote.Namespace).Get(context.TODO(), podRemote.Name, metav1.GetOptions{})
+	if err != nil {
+		klog.Error(err)
+		t.Fail()
+	}
+	podLocalUpdate, err := con.Client2.CoreV1().Pods(podLocal.Namespace).Get(context.TODO(), podLocal.Name, metav1.GetOptions{})
+	if err != nil {
+		klog.Error(err)
+		t.Fail()
+	}
+	assert.True(t, isContained(remoteNodes, podRemoteUpdateCluster1.Spec.NodeName), "remotepod should be running on one of the local nodes")
+	assert.True(t, isContained(localNodes, podLocalUpdate.Spec.NodeName), "localpod should be running on one of the remote pods")
+	cmd := command + podRemoteUpdateCluster2.Status.PodIP
+	stdout, _, err := util.ExecCmd(con.Config2, con.Client2, podLocalUpdate.Name, podLocalUpdate.Namespace, cmd)
+	assert.Nil(t, err, "error should be nil")
+	assert.Equal(t, "200", stdout, "status code should be 200")
+	if err != nil {
+		t.Fail()
+	}
+}
+
+func ConnectivityCheckNodeToPodCluster1ToCluster2(con *util.Tester, t *testing.T) {
+	nodePort, err := util.CreateNodePort(con.Client1, con.ClusterID1, podTesterRemoteCl1, "nodeport-cl1", namespaceNameCl1)
+	if err != nil {
+		t.Fail()
+	}
+	localNodes, err := util.GetNodes(con.Client1, con.ClusterID1, labelSelectorNodes)
+	if err != nil {
+		t.Fail()
+	}
+	time.Sleep(10 * time.Second)
+	for _, node := range localNodes.Items {
+		cmd := command + node.Status.Addresses[0].Address + ":" + strconv.Itoa(int(nodePort.Spec.Ports[0].NodePort))
+		c := exec.Command("sh", "-c", cmd)
+		output := &bytes.Buffer{}
+		errput := &bytes.Buffer{}
+		c.Stdout = output
+		c.Stderr = errput
+		klog.Infof("running command %s", cmd)
+		err := c.Run()
+		if err != nil {
+			klog.Error(err)
+			klog.Infof(errput.String())
+			t.Fail()
+		}
+		assert.Nil(t, err, "error should be nil")
+		assert.Equal(t, "200", output.String(), "status code should be 200")
+	}
+}
+
+func ConnectivityCheckNodeToPodCluster2ToCluster1(con *util.Tester, t *testing.T) {
+	nodePort, err := util.CreateNodePort(con.Client2, con.ClusterID2, podTesterRemoteCl2, "nodeport-cl2", namespaceNameCl2)
+	if err != nil {
+		t.Fail()
+	}
+	localNodes, err := util.GetNodes(con.Client2, con.ClusterID2, labelSelectorNodes)
+	if err != nil {
+		t.Fail()
+	}
+	time.Sleep(10 * time.Second)
+	for _, node := range localNodes.Items {
+		cmd := command + node.Status.Addresses[0].Address + ":" + strconv.Itoa(int(nodePort.Spec.Ports[0].NodePort))
+		c := exec.Command("sh", "-c", cmd)
+		output := &bytes.Buffer{}
+		errput := &bytes.Buffer{}
+		c.Stdout = output
+		c.Stderr = errput
+		klog.Infof("running command %s", cmd)
+		err := c.Run()
+		if err != nil {
+			klog.Error(err)
+			klog.Infof(errput.String())
+			t.Fail()
+		}
+		assert.Nil(t, err, "error should be nil")
+		assert.Equal(t, "200", output.String(), "status code should be 200")
+	}
+}
+
+func DeployRemotePod(image, podName, namespace string) *v1.Pod {
 	pod1 := v1.Pod{
-		TypeMeta:   metav1.TypeMeta{},
+		TypeMeta: metav1.TypeMeta{},
 		ObjectMeta: metav1.ObjectMeta{
-			Name:                       "tester-local",
-			Namespace:                  "",
+			Name:      podName,
+			Namespace: namespace,
+			Labels:    map[string]string{"app": podName},
 		},
-		Spec:       v1.PodSpec{
-			Containers:                   []v1.Container{
+		Spec: v1.PodSpec{
+			Containers: []v1.Container{
 				{
-					Name:                     "Tester",
-					Image:                    "nginx",
-					Resources:                v1.ResourceRequirements{},
-					ImagePullPolicy:          "IfNotPresent",
+					Name:            "tester",
+					Image:           image,
+					Resources:       v1.ResourceRequirements{},
+					ImagePullPolicy: "IfNotPresent",
+					Ports: []v1.ContainerPort{{
+						ContainerPort: 80,
+					}},
 				},
 			},
-			NodeSelector: map[string]string{
-				"virtual-node": "false",
+			Affinity: &v1.Affinity{
+				NodeAffinity: &v1.NodeAffinity{
+					RequiredDuringSchedulingIgnoredDuringExecution: &v1.NodeSelector{NodeSelectorTerms: []v1.NodeSelectorTerm{{
+						MatchExpressions: []v1.NodeSelectorRequirement{{
+							Key:      "type",
+							Operator: "In",
+							Values:   []string{"virtual-node"},
+						}},
+						MatchFields: nil,
+					}}},
+				},
 			},
 		},
-		Status:     v1.PodStatus{},
+		Status: v1.PodStatus{},
 	}
 	return &pod1
 }
 
-func DeployRemotePod() *v1.Pod {
+func DeployLocalPod(image, podName, namespace string) *v1.Pod {
 	pod2 := v1.Pod{
-		TypeMeta:   metav1.TypeMeta{},
+		TypeMeta: metav1.TypeMeta{},
 		ObjectMeta: metav1.ObjectMeta{
-			Name:                       "tester-local",
-			Namespace:                  "",
+			Name:      podName,
+			Namespace: namespace,
 		},
-		Spec:       v1.PodSpec{
-			Containers:                   []v1.Container{
+		Spec: v1.PodSpec{
+			Containers: []v1.Container{
 				{
-					Name:                     "Tester",
-					Image:                    "nginx",
-					ImagePullPolicy:          "IfNotPresent",
+					Name:            "tester",
+					Image:           image,
+					ImagePullPolicy: "IfNotPresent",
+					Ports: []v1.ContainerPort{{
+						ContainerPort: 80,
+					},
+					},
+				}},
+
+			Affinity: &v1.Affinity{
+				NodeAffinity: &v1.NodeAffinity{
+					RequiredDuringSchedulingIgnoredDuringExecution: &v1.NodeSelector{NodeSelectorTerms: []v1.NodeSelectorTerm{{
+						MatchExpressions: []v1.NodeSelectorRequirement{{
+							Key:      "type",
+							Operator: "NotIn",
+							Values:   []string{"virtual-node"},
+						}},
+						MatchFields: nil,
+					}}},
 				},
-			},
-			NodeSelector: map[string]string{
-				"virtual-node": "true",
 			},
 		},
 	}
 	return &pod2
+}
+
+func isContained(nodes *v1.NodeList, nodeName string) bool {
+	for _, node := range nodes.Items {
+		if nodeName == node.Name {
+			return true
+		}
+	}
+	return false
 }
