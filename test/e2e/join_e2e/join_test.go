@@ -5,98 +5,30 @@ import (
 	"github.com/stretchr/testify/assert"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/klog"
-	"sync"
 	"testing"
-)
-import "os"
-
-type Tester struct {
-	client1   *kubernetes.Clientset
-	client2   *kubernetes.Clientset
-	namespace string
-}
-
-var l = &sync.Mutex{}
-
-var (
-	t1 *Tester
+	"github.com/liqoTech/liqo/test/e2e/util"
 )
 
-func GetTester() *Tester {
-	l.Lock()
-	defer l.Unlock()
-
-	if t1 == nil {
-		t1 = createTester()
-	}
-
-	return t1
-}
-
-func createTester() *Tester {
-	kubeconfig1 := os.Getenv("KUBECONFIG_1")
-	if kubeconfig1 == "" {
-		klog.Error("KUBECONFIG_1 not set")
-		os.Exit(1)
-	}
-	kubeconfig2 := os.Getenv("KUBECONFIG_2")
-	if kubeconfig2 == "" {
-		klog.Error("KUBECONFIG_2 not set")
-		os.Exit(1)
-	}
-	namespace := os.Getenv("NAMESPACE")
-	if namespace == "" {
-		klog.Error("NAMESPACE not set")
-		os.Exit(1)
-	}
-
-	config1, err := clientcmd.BuildConfigFromFlags("", kubeconfig1)
-	if err != nil {
-		klog.Error(err)
-		os.Exit(1)
-	}
-	config2, err := clientcmd.BuildConfigFromFlags("", kubeconfig2)
-	if err != nil {
-		klog.Error(err)
-		os.Exit(1)
-	}
-	clientset1, err := kubernetes.NewForConfig(config1)
-	if err != nil {
-		klog.Error(err)
-		os.Exit(1)
-	}
-	clientset2, err := kubernetes.NewForConfig(config2)
-	if err != nil {
-		klog.Error(err)
-		os.Exit(1)
-	}
-	return &Tester{
-		client1:   clientset1,
-		client2:   clientset2,
-		namespace: namespace,
-	}
-}
 
 func TestPodsUp1(t *testing.T) {
-	context := GetTester()
-	ArePodsUp(context.client1, context.namespace, t, "cluster1")
+	context := util.GetTester()
+	ArePodsUp(context.Client1, context.Namespace, t, "cluster1")
 }
 
 func TestPodsUp2(t *testing.T) {
-	context := GetTester()
-	ArePodsUp(context.client2, context.namespace, t, "cluster2")
+	context := util.GetTester()
+	ArePodsUp(context.Client2, context.Namespace, t, "cluster2")
 }
 
 func TestNodeVK1(t *testing.T) {
-	context := GetTester()
-	CheckVkNode(context.client1, context.client2, context.namespace, t)
+	context := util.GetTester()
+	CheckVkNode(context.Client1, context.Client2, context.Namespace, t)
 }
 
 func TestNodeVK2(t *testing.T) {
-	context := GetTester()
-	CheckVkNode(context.client2, context.client1, context.namespace, t)
+	context := util.GetTester()
+	CheckVkNode(context.Client2, context.Client1, context.Namespace, t)
 }
 
 func ArePodsUp(clientset *kubernetes.Clientset, namespace string, t *testing.T, clustername string) {
