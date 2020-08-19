@@ -51,7 +51,7 @@ func getRouteController() *RouteController {
 		GatewayVxlanIP:                     "172.12.1.1",
 		VxlanIfaceName:                     "vxlanTest",
 		VxlanPort:                          0,
-		ClusterPodCIDR:                     "",
+		ClusterPodCIDR:                     "10.1.0.0/16",
 		IPTablesRuleSpecsReferencingChains: make(map[string]liqonet.IPtableRule),
 		IPTablesChains:                     make(map[string]liqonet.IPTableChain),
 		IPtablesRuleSpecsPerRemoteCluster:  make(map[string][]liqonet.IPtableRule),
@@ -171,9 +171,8 @@ func TestInsertRoutesPerCluster(t *testing.T) {
 	tep := GetTunnelEndpointCR()
 	err := r.InsertRoutesPerCluster(tep)
 	assert.Nil(t, err, "error should be nil")
-	assert.Equal(t, 2, len(r.RoutesPerRemoteCluster[tep.Spec.ClusterID]), "number of routes should be 2")
+	assert.Equal(t, 1, len(r.RoutesPerRemoteCluster[tep.Spec.ClusterID]), "number of routes should be 1")
 	assert.True(t, routePerDestination(r.RoutesPerRemoteCluster[tep.Spec.ClusterID], tep.Spec.PodCIDR), "the route for the remote pod cidr should be present")
-	assert.True(t, routePerDestination(r.RoutesPerRemoteCluster[tep.Spec.ClusterID], tep.Status.RemoteTunnelPrivateIP+"/32"), "the route for the remote gateway should be present")
 
 	//test2: same as above but the node is gateway node and the remote pod CIDR has been remapped
 	//the expected number of routes is 2
@@ -183,9 +182,8 @@ func TestInsertRoutesPerCluster(t *testing.T) {
 	tep.Status.RemoteRemappedPodCIDR = "10.100.0.0/16"
 	err = r.InsertRoutesPerCluster(tep)
 	assert.Nil(t, err, "error should be nil")
-	assert.Equal(t, 2, len(r.RoutesPerRemoteCluster[tep.Spec.ClusterID]), "number of routes should be 2")
+	assert.Equal(t, 1, len(r.RoutesPerRemoteCluster[tep.Spec.ClusterID]), "number of routes should be 1")
 	assert.True(t, routePerDestination(r.RoutesPerRemoteCluster[tep.Spec.ClusterID], "10.100.0.0/16"), "the route for the remote remapped pod cidr should be present")
-	assert.True(t, routePerDestination(r.RoutesPerRemoteCluster[tep.Spec.ClusterID], tep.Status.RemoteTunnelPrivateIP+"/32"), "the route for the remote gateway should be present")
 }
 
 func TestDeleteRoutesPerCluster(t *testing.T) {
@@ -196,9 +194,8 @@ func TestDeleteRoutesPerCluster(t *testing.T) {
 	tep := GetTunnelEndpointCR()
 	err := r.InsertRoutesPerCluster(tep)
 	assert.Nil(t, err, "error should be nil")
-	assert.Equal(t, 2, len(r.RoutesPerRemoteCluster[tep.Spec.ClusterID]), "number of routes should be 2")
+	assert.Equal(t, 1, len(r.RoutesPerRemoteCluster[tep.Spec.ClusterID]), "number of routes should be 1")
 	assert.True(t, routePerDestination(r.RoutesPerRemoteCluster[tep.Spec.ClusterID], tep.Spec.PodCIDR), "the route for the remote pod cidr should be present")
-	assert.True(t, routePerDestination(r.RoutesPerRemoteCluster[tep.Spec.ClusterID], tep.Status.RemoteTunnelPrivateIP+"/32"), "the route for the remote gateway should be present")
 	//here we delete all the routes for the cluster
 	err = r.deleteRoutesPerCluster(tep)
 	assert.Nil(t, err, "error should be nil")
@@ -211,9 +208,8 @@ func TestDeleteAllRoutes(t *testing.T) {
 	tep := GetTunnelEndpointCR()
 	err := r.InsertRoutesPerCluster(tep)
 	assert.Nil(t, err, "error should be nil")
-	assert.Equal(t, 2, len(r.RoutesPerRemoteCluster[tep.Spec.ClusterID]), "number of routes should be 2")
+	assert.Equal(t, 1, len(r.RoutesPerRemoteCluster[tep.Spec.ClusterID]), "number of routes should be 2")
 	assert.True(t, routePerDestination(r.RoutesPerRemoteCluster[tep.Spec.ClusterID], tep.Spec.PodCIDR), "the route for the remote pod cidr should be present")
-	assert.True(t, routePerDestination(r.RoutesPerRemoteCluster[tep.Spec.ClusterID], tep.Status.RemoteTunnelPrivateIP+"/32"), "the route for the remote gateway should be present")
 	//here we delete all the routes for the clusters
 	r.deleteAllRoutes()
 	assert.Zero(t, len(r.RoutesPerRemoteCluster), "routes for the cluster should be zero")

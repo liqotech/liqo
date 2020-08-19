@@ -26,6 +26,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/kubernetes"
+	"net"
 	"os"
 	"os/signal"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -284,7 +285,7 @@ func (r *RouteController) createAndInsertIPTablesChains() error {
 }
 
 func (r *RouteController) addIPTablesRulespecForRemoteCluster(endpoint *v1.TunnelEndpoint) error {
-	var remotePodCIDR string
+	var remotePodCIDR, localPodCIDR string
 	var err error
 	clusterID := endpoint.Spec.ClusterID
 	log := r.Log.WithName("iptables")
@@ -294,6 +295,11 @@ func (r *RouteController) addIPTablesRulespecForRemoteCluster(endpoint *v1.Tunne
 	} else {
 		remotePodCIDR = endpoint.Spec.PodCIDR
 		log.Info("nat disabled", "using original pod cidr", endpoint.Spec.PodCIDR, "for cluster", clusterID)
+	}
+	if endpoint.Status.LocalRemappedPodCIDR != "None" && endpoint.Status.LocalRemappedPodCIDR != "" {
+		localPodCIDR = endpoint.Status.LocalRemappedPodCIDR
+	} else {
+		localPodCIDR = r.ClusterPodCIDR
 	}
 	var ruleSpecs []liqonetOperator.IPtableRule
 	ipt := r.IPtables
@@ -337,10 +343,15 @@ func (r *RouteController) addIPTablesRulespecForRemoteCluster(endpoint *v1.Tunne
 	})
 	r.IPtablesRuleSpecsPerRemoteCluster[clusterID] = ruleSpecs
 	if r.IsGateway {
-		//all the traffic coming from the hosts and directed to the remote pods is natted using the LocalTunnelPrivateIP
-		//hosts use the ip of the vxlan interface as source ip when communicating with remote pods
-		//this is done on the gateway node only
-		ruleSpec = []string{"-s", r.VxlanNetwork, "-d", remotePodCIDR, "-j", "MASQUERADE"}
+		//we get the first IP address from the podCIDR of the local cluster
+		natIP, _, err := net.ParseCIDR(localPodCIDR)
+		if err != nil {
+			return fmt.Errorf("unable to get the IP from remotePodCidr %s used to NAT the traffic from localhosts to remote hosts", localPodCIDR)
+		}
+		//all the traffic coming from the hosts and directed to the remote pods is natted using the first IP address
+		//taken from the podCIDR of the local cluster
+		//all the traffic leaving the tunnel interface is source nated.
+		ruleSpec = []string{"-o", endpoint.Status.TunnelIFaceName, "-j", "SNAT", "--to", natIP.String()}
 		if err = ipt.AppendUnique(NatTable, LiqonetPostroutingChain, ruleSpec...); err != nil {
 			return fmt.Errorf("unable to insert iptable rule \"%s\" in %s table, %s chain: %v", ruleSpec, NatTable, LiqonetPostroutingChain, err)
 		} else {
@@ -464,9 +475,7 @@ func (r *RouteController) DeleteAllIPTablesChains() {
 func (r *RouteController) InsertRoutesPerCluster(endpoint *v1.TunnelEndpoint) error {
 	clusterID := endpoint.Spec.ClusterID
 	log := r.Log.WithName("route")
-	remoteTunnelPrivateIPNet := endpoint.Status.RemoteTunnelPrivateIP + "/32"
 	var remotePodCIDR string
-	localTunnelPrivateIP := endpoint.Status.LocalTunnelPrivateIP
 	if endpoint.Status.RemoteRemappedPodCIDR != "None" && endpoint.Status.RemoteRemappedPodCIDR != "" {
 		remotePodCIDR = endpoint.Status.RemoteRemappedPodCIDR
 		log.Info("installing routes for", "cluster", clusterID, "with remapped pod cidr", remotePodCIDR)
@@ -476,14 +485,7 @@ func (r *RouteController) InsertRoutesPerCluster(endpoint *v1.TunnelEndpoint) er
 	}
 	var routes []netlink.Route
 	if r.IsGateway {
-		route, err := r.NetLink.AddRoute(remoteTunnelPrivateIPNet, localTunnelPrivateIP, endpoint.Status.TunnelIFaceName, false)
-		if err != nil {
-			return err
-		} else {
-			log.Info("installing", "route", route.String())
-		}
-		routes = append(routes, route)
-		route, err = r.NetLink.AddRoute(remotePodCIDR, endpoint.Status.RemoteTunnelPrivateIP, endpoint.Status.TunnelIFaceName, true)
+		route, err := r.NetLink.AddRoute(remotePodCIDR, "", endpoint.Status.TunnelIFaceName, false)
 		if err != nil {
 			return err
 		} else {
@@ -493,13 +495,6 @@ func (r *RouteController) InsertRoutesPerCluster(endpoint *v1.TunnelEndpoint) er
 		r.RoutesPerRemoteCluster[endpoint.Spec.ClusterID] = routes
 	} else {
 		route, err := r.NetLink.AddRoute(remotePodCIDR, r.GatewayVxlanIP, r.VxlanIfaceName, false)
-		if err != nil {
-			return err
-		} else {
-			log.Info("installing", "route", route.String())
-		}
-		routes = append(routes, route)
-		route, err = r.NetLink.AddRoute(remoteTunnelPrivateIPNet, r.GatewayVxlanIP, r.VxlanIfaceName, false)
 		if err != nil {
 			return err
 		} else {
