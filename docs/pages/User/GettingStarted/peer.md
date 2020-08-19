@@ -1,6 +1,6 @@
 ---
 title: Peering to a foreign cluster
-weight: 1
+weight: 2
 ---
 
 ## Introduction
@@ -8,13 +8,13 @@ weight: 1
 The peering process in Liqo enables two clusters to *selectively* start sharing resources and services between them.
 In this asymmetric process, an **home** cluster can ask for resources and services to a remote **foreign** cluster; bi-directional sharing can be achieved by generating a peering request also in the other direction.
 
-Multiple mechanisms are available for discovering other clusters: Local discovery, DNS discovery, Manual discovery.
-
 When a first cluster asks for a peering, a Peering Request is generated towards the foreign cluster, which may answer with
 an Advertisement. The advertisement contains a list of resources (CPUs, memory, persistent storage, services) that the contacted cluster is willing to share with the requester, and (optionally) their cost.
 
 If the requesting cluster accepts the advertisement, it creates a **virtual node** (a sort of *digital twin* of the foreign cluster) and it will establish the proper **network connections** (e.g., secure network tunnels) for the inter-cluster traffic.
 The virtual node models the resources available on the foreign cluster and allows the home cluster to schedule pods on it. Instead, the cluster interconnection allow to reach pods (and services) scheduled on the foreign cluster such as they were running on the home infrastructure.
+
+Finally, in order to establish a peering to another cluster, you need to *know another cluster*. Liqo offers multiple mechanisms to [discover other clusters](/architecture/discovery-and-peering): LAN discovery, DNS discovery, Manual discovery.
 
 
 ## Explore available clusters
@@ -46,5 +46,5 @@ vk-remote-cluster   Ready    agent    3h5m    v1.17.2-vk-N/A   alpha.service-con
 
 ## Verify that the resulting infrastructure works correctly
 
-You are now ready to verify that the resulting infrastructure works correctly, which is presented in the [next step](./test).
+You are now ready to verify that the resulting infrastructure works correctly, which is presented in the [next step](../test).
 
