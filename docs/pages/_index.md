@@ -12,7 +12,7 @@ Liqo is an open source project started at [Politecnico of Turin](https://www.pol
 Thanks to the support for **K3s**, also single machines can join a Liqo domain, creating dynamic, opportunistic data centers that 
 include also commodity desktop computers and laptops.
 
-Liqo leverages the same highly successful “**peering**” model of the Internet, without any central point of control. 
+Liqo leverages the same highly successful "**peering**" model of the Internet, without any central point of control. 
 New peering relationships can be established dynamically, whenever needed, even automatically. 
 **Cluster auto-discovery** can further simplify this process.
 

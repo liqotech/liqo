@@ -1,5 +1,5 @@
 ---
-title: Installing Liqo
+title: Install Liqo
 weight: 1
 ---
 

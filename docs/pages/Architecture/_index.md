@@ -9,7 +9,8 @@ Liqo enables resource sharing across Kubernetes clusters. To do so, it encapsula
 resources in a neighborhood (e.g. LAN) and (2) a protocol to negotiate resource exchange. In this document, we describe 
 how the cluster peering logic works.
 
-## Liqo Functioning
+
+## Liqo operating workflow
 
 Sharing resources with Liqo relies on three different phases:
 
@@ -20,7 +21,7 @@ insertion) and exchange credentials with each other to start communicate.
 3. **Resource Sharing**: When a cluster is interested in resources proposed by a certain advertisement, it accepts the
  advertisement. This triggers the establishment of network interconnections and the spawning of a new virtual-kubelet.
 
-[Here](/images/complete-workflow.png) you can find a graphic description of the complete workflow  
+[Here](/images/complete-workflow.png) you can find a graphic description of the complete workflow.
 
 ## Discovery
 
@@ -32,7 +33,7 @@ case with mDNS, in second the one with standard DNS.
 
 The output of the discovery phase is the exchange of advertisements with "foreign" clusters.
 
-The discovery phase is presented in details [here](discovery-and-peering/)
+The discovery phase is presented in details [here](discovery-and-peering/).
 
 ## Advertisement management
 The Advertisement operator can be split in two main components.
@@ -41,7 +42,7 @@ The Advertisement operator can be split in two main components.
 - **Controller**: the module which is triggered when receiving an Advertisement and spawns a virtual node (using Virtual 
 Kubelet)
 
- You can find more details about the [here](advertisement_protocol.md)
+ You can find more details about the [here](advertisement_protocol.md).
 
 ## Resource Sharing
 
@@ -50,6 +51,6 @@ foreign cluster resources are seamlessly added to the cluster resources by the c
 From the networking perspectives, the "acceptation" of an Advertisement triggers the networking logic which establishes
 the tunnels and install the routes.
 
-More details about [resource sharing](cluster-sharing/)
+More details about [resource sharing](cluster-sharing/).
 
 
