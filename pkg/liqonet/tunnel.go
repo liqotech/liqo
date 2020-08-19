@@ -83,15 +83,6 @@ func InstallGreTunnel(endpoint *v1.TunnelEndpoint) (int, string, error) {
 	if err != nil {
 		return 0, "", err
 	}
-	ownPrivateIP, err := GetLocalTunnelPrivateIPToString()
-	if err != nil {
-		return 0, "", err
-	}
-	address, network, err := net.ParseCIDR(ownPrivateIP + "/32")
-	if err != nil {
-		return 0, "", err
-	}
-	err = gretunnel.configureIPAddress(address, network.Mask)
 	if err != nil {
 		return 0, "", err
 	}

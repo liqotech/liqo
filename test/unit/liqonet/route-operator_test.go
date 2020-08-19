@@ -9,6 +9,7 @@ import (
 	"github.com/vishvananda/netlink"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/klog"
+	"net"
 	"reflect"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -29,7 +30,7 @@ func GetTunnelEndpointCR() *v1.TunnelEndpoint {
 		},
 		Spec: v1.TunnelEndpointSpec{
 			ClusterID:       "cluster-test",
-			PodCIDR:         "10.0.0.0/12",
+			PodCIDR:         "10.0.0.0/16",
 			TunnelPublicIP:  "192.168.5.1",
 			TunnelPrivateIP: "192.168.4.1",
 		},
@@ -59,7 +60,7 @@ func setupRouteOperator() error {
 		NetLink: &liqonet.MockRouteManager{
 			RouteList: []netlink.Route{},
 		},
-		ClusterPodCIDR:                     "",
+		ClusterPodCIDR:                     "10.1.0.0/16",
 		IPTablesRuleSpecsReferencingChains: make(map[string]liqonet.IPtableRule),
 		IPTablesChains:                     make(map[string]liqonet.IPTableChain),
 		IPtablesRuleSpecsPerRemoteCluster:  make(map[string][]liqonet.IPtableRule),
@@ -120,13 +121,18 @@ func setToReady(tep *v1.TunnelEndpoint) error {
 }
 
 func getIPtablesRules(endpoint *v1.TunnelEndpoint) map[string][]liqonet.IPtableRule {
-	var remotePodCIDR string
+	var remotePodCIDR, localPodCIDR string
 	var rules = make(map[string][]liqonet.IPtableRule)
 	clusterID := endpoint.Spec.ClusterID
 	if endpoint.Status.RemoteRemappedPodCIDR != "None" && endpoint.Status.RemoteRemappedPodCIDR != "" {
 		remotePodCIDR = endpoint.Status.RemoteRemappedPodCIDR
 	} else {
 		remotePodCIDR = endpoint.Spec.PodCIDR
+	}
+	if endpoint.Status.LocalRemappedPodCIDR != "None" && endpoint.Status.LocalRemappedPodCIDR != "" {
+		localPodCIDR = endpoint.Status.LocalRemappedPodCIDR
+	} else {
+		localPodCIDR = routeOperator.ClusterPodCIDR
 	}
 	var ruleSpecs []utils.IPtableRule
 	ruleSpec := []string{"-s", routeOperator.ClusterPodCIDR, "-d", remotePodCIDR, "-j", "ACCEPT"}
@@ -154,10 +160,15 @@ func getIPtablesRules(endpoint *v1.TunnelEndpoint) map[string][]liqonet.IPtableR
 	})
 	rules[clusterID] = ruleSpecs
 	if routeOperator.IsGateway {
-		//all the traffic coming from the hosts and directed to the remote pods is natted using the LocalTunnelPrivateIP
-		//hosts use the ip of the vxlan interface as source ip when communicating with remote pods
-		//this is done on the gateway node only
-		ruleSpec = []string{"-s", routeOperator.VxlanNetwork, "-d", remotePodCIDR, "-j", "MASQUERADE"}
+		//we get the first IP address from the podCIDR of the local cluster
+		natIP, _, err := net.ParseCIDR(localPodCIDR)
+		if err != nil {
+			klog.Infof("unable to get the IP from localPodCIDR %s used to NAT the traffic from localhosts to remote hosts", localPodCIDR)
+		}
+		//all the traffic coming from the hosts and directed to the remote pods is natted using the first IP address
+		//taken from the podCIDR of the local cluster
+		//all the traffic leaving the tunnel interface is source nated.
+		ruleSpec = []string{"-o", endpoint.Status.TunnelIFaceName, "-j", "SNAT", "--to", natIP.String()}
 
 		ruleSpecs = append(ruleSpecs, utils.IPtableRule{
 			Table:    controller.NatTable,
@@ -212,12 +223,11 @@ func Test1RouteOperator(t *testing.T) {
 	err = setToReady(tep)
 	assert.Nil(t, err, "error should be nil")
 	assert.Equal(t, 3, len(routeOperator.IPtablesRuleSpecsPerRemoteCluster[tep.Spec.ClusterID]), "there should be 3 rules")
-	assert.Equal(t, 2, len(routeOperator.RoutesPerRemoteCluster[tep.Spec.ClusterID]), "number of routes should be 2")
+	assert.Equal(t, 1, len(routeOperator.RoutesPerRemoteCluster[tep.Spec.ClusterID]), "number of routes should be 1")
 	expectedRules := getIPtablesRules(tep)
 	equal := reflect.DeepEqual(expectedRules[tep.Spec.ClusterID], routeOperator.IPtablesRuleSpecsPerRemoteCluster[tep.Spec.ClusterID])
 	assert.True(t, equal, "the rules should be the same")
 	assert.True(t, routePerDestination(routeOperator.RoutesPerRemoteCluster[tep.Spec.ClusterID], tep.Spec.PodCIDR), "the route for the remote pod cidr should be present")
-	assert.True(t, routePerDestination(routeOperator.RoutesPerRemoteCluster[tep.Spec.ClusterID], tep.Status.RemoteTunnelPrivateIP+"/32"), "the route for the remote gateway should be present")
 	//here we remove the custom resource
 	err = routeOperator.Client.Delete(ctx, tep)
 	assert.Nil(t, err, "error should be nil")
@@ -242,12 +252,11 @@ func Test2RouteOperator(t *testing.T) {
 	err = setToReady(tep)
 	assert.Nil(t, err, "error should be nil")
 	assert.Equal(t, 4, len(routeOperator.IPtablesRuleSpecsPerRemoteCluster[tep.Spec.ClusterID]), "there should be 4 rules")
-	assert.Equal(t, 2, len(routeOperator.RoutesPerRemoteCluster[tep.Spec.ClusterID]), "number of routes should be 2")
+	assert.Equal(t, 1, len(routeOperator.RoutesPerRemoteCluster[tep.Spec.ClusterID]), "number of routes should be 1")
 	expectedRules := getIPtablesRules(tep)
 	equal := reflect.DeepEqual(expectedRules[tep.Spec.ClusterID], routeOperator.IPtablesRuleSpecsPerRemoteCluster[tep.Spec.ClusterID])
 	assert.True(t, equal, "the rules should be the same")
 	assert.True(t, routePerDestination(routeOperator.RoutesPerRemoteCluster[tep.Spec.ClusterID], tep.Status.RemoteRemappedPodCIDR), "the route for the remote remapped pod cidr should be present")
-	assert.True(t, routePerDestination(routeOperator.RoutesPerRemoteCluster[tep.Spec.ClusterID], tep.Status.RemoteTunnelPrivateIP+"/32"), "the route for the remote gateway should be present")
 	//here we remove the custom resource
 	err = routeOperator.Client.Delete(ctx, tep)
 	assert.Nil(t, err, "error should be nil")
@@ -272,12 +281,11 @@ func Test3RouteOperator(t *testing.T) {
 	err = setToReady(tep)
 	assert.Nil(t, err, "error should be nil")
 	assert.Equal(t, 3, len(routeOperator.IPtablesRuleSpecsPerRemoteCluster[tep.Spec.ClusterID]), "there should be 6 rules")
-	assert.Equal(t, 2, len(routeOperator.RoutesPerRemoteCluster[tep.Spec.ClusterID]), "number of routes should be 2")
+	assert.Equal(t, 1, len(routeOperator.RoutesPerRemoteCluster[tep.Spec.ClusterID]), "number of routes should be 1")
 	expectedRules := getIPtablesRules(tep)
 	equal := reflect.DeepEqual(expectedRules[tep.Spec.ClusterID], routeOperator.IPtablesRuleSpecsPerRemoteCluster[tep.Spec.ClusterID])
 	assert.True(t, equal, "the rules should be the same")
 	assert.True(t, routePerDestination(routeOperator.RoutesPerRemoteCluster[tep.Spec.ClusterID], tep.Status.RemoteRemappedPodCIDR), "the route for the remote pod cidr should be present")
-	assert.True(t, routePerDestination(routeOperator.RoutesPerRemoteCluster[tep.Spec.ClusterID], tep.Status.RemoteTunnelPrivateIP+"/32"), "the route for the remote gateway should be present")
 	//here we remove the custom resource
 	err = routeOperator.Client.Delete(ctx, tep)
 	assert.Nil(t, err, "error should be nil")
@@ -302,12 +310,11 @@ func Test4RouteOperator(t *testing.T) {
 	err = setToReady(tep)
 	assert.Nil(t, err, "error should be nil")
 	assert.Equal(t, 6, len(routeOperator.IPtablesRuleSpecsPerRemoteCluster[tep.Spec.ClusterID]), "there should be 6 rules")
-	assert.Equal(t, 2, len(routeOperator.RoutesPerRemoteCluster[tep.Spec.ClusterID]), "number of routes should be 2")
+	assert.Equal(t, 1, len(routeOperator.RoutesPerRemoteCluster[tep.Spec.ClusterID]), "number of routes should be 1")
 	expectedRules := getIPtablesRules(tep)
 	equal := reflect.DeepEqual(expectedRules[tep.Spec.ClusterID], routeOperator.IPtablesRuleSpecsPerRemoteCluster[tep.Spec.ClusterID])
 	assert.True(t, equal, "the rules should be the same")
 	assert.True(t, routePerDestination(routeOperator.RoutesPerRemoteCluster[tep.Spec.ClusterID], tep.Status.RemoteRemappedPodCIDR), "the route for the remote remapped pod cidr should be present")
-	assert.True(t, routePerDestination(routeOperator.RoutesPerRemoteCluster[tep.Spec.ClusterID], tep.Status.RemoteTunnelPrivateIP+"/32"), "the route for the remote gateway should be present")
 	//here we remove the custom resource
 	err = routeOperator.Client.Delete(ctx, tep)
 	assert.Nil(t, err, "error should be nil")
