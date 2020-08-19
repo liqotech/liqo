@@ -3,51 +3,55 @@ title: Installing Liqo
 weight: 1
 ---
 
-## Installation
+## Install steps
 
-The following process will install Liqo on your local cluster. This will make your cluster ready to share resources with other Liqo clusters.
+This procedure will install Liqo on your cluster, enabling it to share resources with other Liqo clusters.
 
-The Liqo Installer can retrieve automatically the cluster parameters required by Liqo to start.
+This procedure comes in two variants:
+* [Default install](#default install): suitable if your Kubernetes cluster has been installed via `kubeadm`
+* [Custom install](#custom install): suitable if you did not use `kubeadm` to install your Kubernetes, or you are running another distribution of Kubernetes (such as [K3s](https://k3s.io/)).
+
+
+### Default install
+
+If your cluster has been installed via `kubeadm`, the Liqo Installer can retrieve automatically the cluster parameters required by Liqo to start.
 After having properly configured the `kubeconfig` for your cluster, you can install Liqo by launching: 
 
 ```bash
 curl https://raw.githubusercontent.com/LiqoTech/liqo/master/install.sh | bash
 ```
 
-This would normally work "out of the box" if your cluster has been installed via **Kubeadm**.
-If you used another installer or another distribution (such as K3s), you can override them by exporting the following variables before launching the installer:
+<!-- TODO: please specify what do you have to do to 'configure the kubeconfig', which does not look obvious to me. -->
 
-* *POD_CIDR*:  range of IP addresses for the pod network
-* *SERVICE_CIDR*: range of IP address for service VIPs
+
+### Custom install
+
+If you did not use `kubeadm` to install your Kubernetes, or you are running another distribution of Kubernetes (such as [K3s](https://k3s.io/)), you should explicitly define the parameters required by Liqo by exporting the following variables **before** launching the installer:
+
+* *POD_CIDR*: range of IP addresses for the pod network
+* *SERVICE_CIDR*: range of IP addresses for service VIPs
 * *GATEWAY_IP*: public IP of the node targeted for cluster interconnection
-* *GATEWAY_PRIVATE_IP*: private IP of the tunnel for interconnected clusters. This IP can be chosen randomly but they
-have to be unique for each cluster which share resources.
 
-A possible example of installation:
+<!-- TODO: please be more specific about which IP addresses you have to tell for POD and SERVICE CIDR: are those the one configured on your local cluster? In this case, can you please make an example about how to get them in K3s? -->
+
+Then you can run the Liqo installer script, which will use the above settings to configure your Liqo instance.
+
+Please remember to export your K3s `kubeconfig` before launching the script.
+
+<!-- TODO: please specify what do you have to do to 'export the kubeconfig', which does not look obvious to me. -->
+
+A possible example of installation is the following (please replace the IP addresses with the ones suitable for your case):
 ```bash
 export POD_CIDR=10.32.0.0/16
 export SERVICE_CIDR=10.10.0.0/16
 export GATEWAY_IP=10.0.0.23
-export GATEWAY_PRIVATE_IP=192.168.100.2
 curl https://raw.githubusercontent.com/LiqoTech/liqo/master/install.sh | bash
 ```
 
-#### [Example: K3s](k3s.io)
+## Peer with another cluster
 
-K3s is a minimal Kubernetes distribution with reduced resource consumption and it is easy to set up.
-However, since it stores its configuration in a different way compared to traditional installers (e.g.; `kubeadm`), you have to use a slightly different procedure to setup Liqo, which requires some manual steps.
+In order to peer with another cluster, you need to have **two** Kubernetes clusters with Liqo enabled.
+Therefore you may need to repeat the above procedure on another cluster in order to get a second Liqo instance.
 
-After having exported your K3s `kubeconfig`, you can install LIQO setting the following variables before launching the installer. The following values represent the default configuration for K3s cluster, you may need to adapt them to the current values of your cluster.
-
-```bash
-export POD_CIDR=10.42.0.0/16
-export SERVICE_CIDR=10.43.0.0/16
-export GATEWAY_IP=10.0.0.31
-export GATEWAY_PRIVATE_IP=192.168.100.1
-curl https://raw.githubusercontent.com/LiqoTech/liqo/master/install.sh | bash
-```
-
-### Join another cluster
-
-After having performed the same installation on another cluster. You have to let them peer [together](./peering).
+You are now ready to start the [peering procedure](./peer), which is presented in the [next step](./peer).
 
