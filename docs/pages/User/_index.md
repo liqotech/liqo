@@ -3,10 +3,10 @@ title: User Guide
 weight: 1
 ---
 
-This section presents the functioning of Liqo:
+This section presents the main user-oriented documentation parts of Liqo:
 
-* [Install](./gettingstarted): Learn how to quickly install Liqo on your cluster and connect to a foreign cluster
-* [Configure](./configure): Customize your Liqo experience by tailoring the configuration to your requirements
-* [Desktop Users](./desktop): We love to use Liqo on [K3s](www.k3s.io) for a cluster experience over a desktop. 
-Check it out how to configure Liqo on your Desktop.
+* [Liqo brief](./liqo-brief): quickly learn what Liqo is about, its features, and the main concepts you need to know in order to operate properly.
+* [Install](./gettingstarted): learn how to quickly install Liqo on your cluster and connect to a foreign cluster.
+* [Configure](./configure): customize your Liqo experience by tailoring the configuration to your requirements.
+* [Desktop agent](./liqo-agent): we love to use Liqo on [K3s](www.k3s.io) for a Kubernetes cluster experience on a desktop/laptop computer. Check how to configure Liqo on your personal computer by means of the [Liqo Agent](./liqo-agent).
 
