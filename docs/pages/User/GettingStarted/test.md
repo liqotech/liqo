@@ -1,6 +1,6 @@
 ---
 title: Exploit foreign resources 
-weight: 1
+weight: 3
 ---
 
 This third step allows to verify that the resulting infrastructure works correctly.
@@ -15,7 +15,7 @@ To schedule a Pod in a foreign cluster, first you have to set the `KUBECONFIG` v
 export KUBECONFIG=home-kubeconfig.yaml
 ```
 
-Now you have to create a namespace where your pod will be started and label it as ```liqo.io/enabled=true```. This label will tell the Kubernetes scheduler that the namespace can extend on foreign clusters as well; hence, pods started in the above namespaces are suitable for being executed on the remote cluster.
+Now you have to create a namespace where your pod will be started and label it as ```liqo.io/enabled=true```. This label will tell the Kubernetes scheduler that the namespace spans across the foreign clusters as well; hence, pods started in the above namespaces are suitable for being executed on the foreign cluster.
 
 ```
 kubectl create ns test-liqo
@@ -28,7 +28,7 @@ Then, you can deploy the test pod in the `test-liqo` namespace:
 kubectl apply -f https://raw.githubusercontent.com/LiqoTech/liqo/master/docs/examples/hello-world.yaml -n test-liqo
 ```
 
-where your `hello-world.yaml` looks as follows:
+where your `hello-world.yaml` looks the following:
 
 ```
 apiVersion: v1
@@ -49,8 +49,8 @@ spec:
     type: virtual-node
 ```
 
-It is typical nginx pod with the addition of a *node selector* tag, which tells the Kubernetes scheduler that the pod has to be started on a virtual node.
-The `nodeSelector` tag is not compulsory: if missing, the Kubernetes scheduler will select the best hosting node based on the available resources, which can be either a node in the *home* cluster or the *foreign* cluster.
+This pod is a simple `nginx` service; the (optional) `nodeSelector` tag tells the Kubernetes scheduler that the pod has to be started on a virtual node.
+In case the above tag is missing, the Kubernetes scheduler will select the best hosting node based on the available resources, which can be either a node in the *home* cluster or in the *foreign* cluster.
 
 Now you can check the state of your pod; the output confirms that the pod is running on a virtual node (i.e. a node whose name that starts with `vk`, i.e. *virtual kubelet*):
 
@@ -69,7 +69,7 @@ If you have direct connectivity with the cluster (e.g. K3s) from your host:
 POD_HOST=$(kubectl get pod nginx -n test-liqo --template={{.status.podIP}})
 echo $POD_HOST
 ```
-Open a browser and connect to the value of $POD_HOST or use a curl command
+Open a browser and connect to the value of `$POD_HOST` or use the following `curl` command:
 
 ```
 curl -v $POD_HOST
@@ -80,7 +80,7 @@ curl -v $POD_HOST
 
 ## Service
 
-The previous "apply" creates also a service, which is designed to serve traffic to the previously deployed pod.
+The above `hello-world.yaml` tells Kubernetes to create also a service, which is designed to serve traffic to the previously deployed pod.
 The service is a traditional [Kubernetes Service](https://kubernetes.io/docs/concepts/services-networking/service/) and can work with Liqo with no modifications.
 
 This can be seen by inspecting the service and its endpoints:
