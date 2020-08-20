@@ -13,17 +13,13 @@ Liqo simplifies this process by defining three way of discovering a remote clust
 
 ## Required Parameters
 
-<!-- TODO We're in the user guide. I would avoid talking about ForeignCluster CR, if possible. I would simply list the required paramenter, then tell the user how to set them. -->
-
-In `ForeignCluster` CR there are required parameters to connect to a foreign cluster
+We need some parameters to contact and to connect to a remote cluster:
 
 * `ClusterID`: cluster's unique identifier, it is created by Liqo during first run
-* `LiqoNamespace`: namespace where Liqo components are deployed and they expect to find resources required to work
+* `LiqoNamespace`: namespace where Liqo components are deployed and they expect to find resources required to work. If you installed Liqo with the [provided script](../../gettingstarted/install/) the namespace should be `liqo`
 * `IP` and `Port` of the Kubernetes API Server
 
 <!-- TODO As discussed in the weekly call on 18/08, not clear why we need to specify ClusterID, instead of allowing the system to discover that parameter automatically -->
-
-<!-- TODO Not clear to me what "LiqoNamespace" is. Is it different from the namespace 'test-liqo' we created during the installation process? -->
 
 <!-- TODO Alex, please help me here. Most of the following text doesn't look appropriate for this section, which is about "advanced config". It looks you should be a developer to understand most of the following. Should we move this text into another place? -->
 
@@ -56,26 +52,6 @@ In mDNS discovery list of all clusters will be the ones that replies on multicas
 (See following section)
 
 ## DNS Discovery
-
-### SearchDomain CRD
-
-<!-- TODO I would propose to start with the DNS dump, then the DNS queries, then present the CRD if really needed -->
-
-This resource contains the domain where clusters that we want to find are registered:
-
-```yaml
-apiVersion: discovery.liqo.io/v1
-kind: SearchDomain
-metadata:
-  name: mydomain.com
-spec:
-  domain: mydomain.com
-  autojoin: false
-```
-
-When this resource is created, changed or regularly each 30 seconds (by default), SearchDomain operator contacts DNS server specified in ClusterConfig (8.8.8.8:53 by default), loads data and creates discovered ForeignClusters.
-
-<!-- TODO I would start this section from here -->
 
 Each DNS domain (e.g., `foo.bar` domain) can export one or more Liqo clusters, which are automatically discovered by issuing the proper queries to the DNS, starting from the domain name. In other words, we can discovery all the Liqo cluster by querying the the `foo.bar` domain.
 
@@ -128,6 +104,30 @@ Given the proper DNS configuration, the discovery process consist in at least 4 
 4. `CNAME/A/AAAA` query to get the actual IP address of the Kubernetes API server.
 
 With this configuration two `ForeignCluster`s will be created locally (if local cluster has different clusterID from both)
+
+### How can I trigger this process?
+
+This process can be triggered by telling Liqo which domain to look for. We can do that on Liqo dashboard on manually adding a resource
+
+Create a new file (`mydomain.yaml`) with this content:
+
+```yaml
+apiVersion: discovery.liqo.io/v1
+kind: SearchDomain
+metadata:
+  name: mydomain.com
+spec:
+  domain: mydomain.com
+  autojoin: false
+```
+
+Then
+
+```bash
+kubectl apply -f mydomain.yaml
+```
+
+When this resource is created, changed or regularly each 30 seconds (by default), SearchDomain operator contacts DNS server specified in ClusterConfig (8.8.8.8:53 by default), loads data and creates discovered ForeignClusters.
 
 
 ## Manual Insertion
@@ -196,16 +196,20 @@ __NOTE:__ when this ConfigMap is updated, the discovery component will trigger a
 
 ### Untrusted Mode
 
-<!-- TODO Really not clear to me what is the problem we have to solve here. -->
+When a new Kubernetes cluster is deployed, by default, it creates a new CA that will be used to issue all needed certificates. This CA is required by a remote client that want to contact a cluster.
+
+To allow users to use Liqo without the need of managing TLS certificates and to have a trusted CA installed on API server, we support an Untrusted Mode. With this modality a cluster that wants to contact another one can read its CA certificate in a well-known path.
 
 ![../images/discovery/untrusted.png](/images/discovery/untrusted.png)
 
-With the untrusted mode clusters are allowed to send PeeringRequest simply downloading CA from remote cluster.
+With the untrusted mode clusters are allowed to send PeeringRequest simply downloading CA from the remote cluster.
 
 Peering process will be automatically triggered if local cluster config has `autojoinUntrusted` flag active.
 
 
 ### Trusted Mode
+
+When trusted mode is enabled our cluster does not expose our CA certificate, if a remote cluster want to join us has to trust our CA and check our identity.
 
 ![../images/discovery/trusted.png](/images/discovery/trusted.png)
 
