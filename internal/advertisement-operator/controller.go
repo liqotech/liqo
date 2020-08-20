@@ -102,7 +102,7 @@ func (r *AdvertisementReconciler) Reconcile(req ctrl.Request) (ctrl.Result, erro
 		// this has not to return an error, Advertisement Operator will work fine
 	}
 	if update {
-		_, err = r.AdvClient.Resource("advertisements").Update(adv.Name, &adv, metav1.UpdateOptions{})
+		err = r.Update(ctx, &adv, &client.UpdateOptions{})
 		if err != nil {
 			klog.Error(err)
 			return ctrl.Result{RequeueAfter: r.RetryTimeout}, err
@@ -221,10 +221,15 @@ func (r *AdvertisementReconciler) CheckAdvertisement(adv *protocolv1.Advertiseme
 	for _, v := range adv.Spec.ResourceQuota.Hard {
 		if v.Value() < 0 {
 			adv.Status.AdvertisementStatus = AdvertisementRefused
+			return
 		}
 	}
 
-	if r.ClusterConfig.AutoAccept {
+	switch r.ClusterConfig.AcceptPolicy {
+	case policyv1.AutoAcceptAll:
+		adv.Status.AdvertisementStatus = AdvertisementAccepted
+		r.AcceptedAdvNum++
+	case policyv1.AutoAcceptWithinMaximum:
 		if r.AcceptedAdvNum < r.ClusterConfig.MaxAcceptableAdvertisement {
 			// the adv accepted so far are less than the configured maximum
 			adv.Status.AdvertisementStatus = AdvertisementAccepted
@@ -233,7 +238,9 @@ func (r *AdvertisementReconciler) CheckAdvertisement(adv *protocolv1.Advertiseme
 			// the maximum has been reached: cannot accept
 			adv.Status.AdvertisementStatus = AdvertisementRefused
 		}
-	} else {
+	case policyv1.AutoRefuseAll:
+		adv.Status.AdvertisementStatus = AdvertisementRefused
+	case policyv1.ManualAccept:
 		//TODO: manual accept/refuse
 		adv.Status.AdvertisementStatus = AdvertisementRefused
 	}

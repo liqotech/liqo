@@ -1,6 +1,7 @@
 package advertisement_operator
 
 import (
+	"context"
 	protocolv1 "github.com/liqoTech/liqo/api/advertisement-operator/v1"
 	policyv1 "github.com/liqoTech/liqo/api/cluster-config/v1"
 	"github.com/liqoTech/liqo/pkg/clusterConfig"
@@ -8,13 +9,17 @@ import (
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/klog"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	"time"
 )
 
 func (b *AdvertisementBroadcaster) WatchConfiguration(kubeconfigPath string, client *crdClient.CRDClient) {
 	go clusterConfig.WatchConfiguration(func(configuration *policyv1.ClusterConfig) {
-		if !configuration.Spec.AdvertisementConfig.EnableBroadcaster {
-			klog.V(3).Info("ClusterConfig changed")
+		newConfig := configuration.Spec.AdvertisementConfig.BroadcasterConfig
+		if !newConfig.EnableBroadcaster {
+			// the broadcaster has been disabled
+			klog.Infof("AdvertisementConfig changed: the EnableBroadcaster flag has been set to %v", newConfig.EnableBroadcaster)
+			b.ClusterConfig.AdvertisementConfig.EnableBroadcaster = newConfig.EnableBroadcaster
 			klog.Info("Stopping sharing resources with cluster " + b.ForeignClusterId)
 			err := b.NotifyAdvertisementDeletion()
 			if err != nil {
@@ -35,9 +40,11 @@ func (b *AdvertisementBroadcaster) WatchConfiguration(kubeconfigPath string, cli
 			}
 		}
 
-		if configuration.Spec.AdvertisementConfig.ResourceSharingPercentage != b.ClusterConfig.AdvertisementConfig.ResourceSharingPercentage {
-			klog.V(3).Info("ClusterConfig changed")
-			b.ClusterConfig.AdvertisementConfig.ResourceSharingPercentage = configuration.Spec.AdvertisementConfig.ResourceSharingPercentage
+		if newConfig.ResourceSharingPercentage != b.ClusterConfig.AdvertisementConfig.ResourceSharingPercentage {
+			// the resource sharing percentage has been modified: update the advertisement
+			klog.Infof("AdvertisementConfig changed: the ResourceSharingPercentage has changed from %v to %v",
+				b.ClusterConfig.AdvertisementConfig.ResourceSharingPercentage, newConfig.ResourceSharingPercentage)
+			b.ClusterConfig.AdvertisementConfig.ResourceSharingPercentage = newConfig.ResourceSharingPercentage
 			// update Advertisement with new resources (given by the new sharing percentage)
 			physicalNodes, virtualNodes, availability, limits, images, err := b.GetResourcesForAdv()
 			if err != nil {
@@ -53,38 +60,68 @@ func (b *AdvertisementBroadcaster) WatchConfiguration(kubeconfigPath string, cli
 	}, client, kubeconfigPath)
 }
 
-func (r *AdvertisementReconciler) WatchConfiguration(kubeconfigPath string) {
+func (r *AdvertisementReconciler) WatchConfiguration(kubeconfigPath string, client *crdClient.CRDClient) {
 	go clusterConfig.WatchConfiguration(func(configuration *policyv1.ClusterConfig) {
-		if configuration.Spec.AdvertisementConfig.AutoAccept != r.ClusterConfig.AutoAccept ||
-			configuration.Spec.AdvertisementConfig.MaxAcceptableAdvertisement != r.ClusterConfig.MaxAcceptableAdvertisement {
-			klog.V(3).Info("ClusterConfig changed")
+		newConfig := configuration.Spec.AdvertisementConfig
+		if newConfig.AdvOperatorConfig != r.ClusterConfig.AdvOperatorConfig {
+			// the config update is related to the advertisement operator
+			// list all advertisements
 			obj, err := r.AdvClient.Resource("advertisements").List(metav1.ListOptions{})
 			if err != nil {
 				klog.Error(err, "Unable to apply configuration: error listing Advertisements")
 				return
 			}
 			advList := obj.(*protocolv1.AdvertisementList)
-			err, updateFlag := r.ManageConfigUpdate(configuration, advList)
-			if err != nil {
-				klog.Error(err, err.Error())
-				return
-			}
-			if updateFlag {
+
+			// check the type of update
+			if newConfig.AcceptPolicy != r.ClusterConfig.AcceptPolicy {
+				// the AcceptPolicy has changed: all Advertisements need to be checked again according to the new policy
+				klog.Infof("AdvertisementConfig changed: the AcceptPolicy has changed from %v to %v", r.ClusterConfig.AcceptPolicy, newConfig.AcceptPolicy)
+				if r.ClusterConfig.AcceptPolicy == policyv1.AutoAcceptAll {
+					// if the previous policy was AutoAcceptAll, the MaxAcceptableAdvertisement field has been ignored
+					// therefore, we could have more accepted advertisements than the maximum
+					// check the maximum is respected
+					err, _ := r.ManageMaximumUpdate(newConfig, advList)
+					if err != nil {
+						klog.Error(err, err.Error())
+						return
+					}
+				}
+				// update the config saved in the reconciler
+				r.ClusterConfig = newConfig
+				// check all advertisements with the new policy
 				for i := range advList.Items {
 					adv := advList.Items[i]
+					r.CheckAdvertisement(&adv)
 					r.UpdateAdvertisement(&adv)
 				}
 			}
+			if newConfig.AcceptPolicy == policyv1.AutoAcceptWithinMaximum && newConfig.MaxAcceptableAdvertisement != r.ClusterConfig.MaxAcceptableAdvertisement {
+				// the accept policy is set to AutoAcceptWithinMaximum and the Maximum has changed: re-check all Advertisements and update if needed
+				klog.Infof("AdvertisementConfig changed: the AcceptPolicy is %v and the MaxAcceptableAdvertisement has changed from %v to %v",
+					newConfig.AcceptPolicy, configuration.Spec.AdvertisementConfig.MaxAcceptableAdvertisement, newConfig.MaxAcceptableAdvertisement)
+				err, updateFlag := r.ManageMaximumUpdate(newConfig, advList)
+				if err != nil {
+					klog.Error(err, err.Error())
+					return
+				}
+				if updateFlag {
+					for i := range advList.Items {
+						adv := advList.Items[i]
+						r.UpdateAdvertisement(&adv)
+					}
+				}
+			}
 		}
-	}, nil, kubeconfigPath)
+	}, client, kubeconfigPath)
 }
 
-func (r *AdvertisementReconciler) ManageConfigUpdate(configuration *policyv1.ClusterConfig, advList *protocolv1.AdvertisementList) (error, bool) {
+func (r *AdvertisementReconciler) ManageMaximumUpdate(newConfig policyv1.AdvertisementConfig, advList *protocolv1.AdvertisementList) (error, bool) {
 
 	updateFlag := false
-	if configuration.Spec.AdvertisementConfig.MaxAcceptableAdvertisement > r.ClusterConfig.MaxAcceptableAdvertisement {
+	if newConfig.MaxAcceptableAdvertisement > r.ClusterConfig.MaxAcceptableAdvertisement {
 		// the maximum has increased: check if there are refused advertisements which now can be accepted
-		r.ClusterConfig = configuration.Spec.AdvertisementConfig
+		r.ClusterConfig = newConfig
 		for i := 0; i < len(advList.Items); i++ {
 			adv := &advList.Items[i]
 			if adv.Status.AdvertisementStatus == AdvertisementRefused {
@@ -94,14 +131,15 @@ func (r *AdvertisementReconciler) ManageConfigUpdate(configuration *policyv1.Clu
 		}
 	} else {
 		// the maximum has decreased: if the already accepted advertisements are too many (with the new maximum), delete some of them
-		r.ClusterConfig = configuration.Spec.AdvertisementConfig
+		r.ClusterConfig = newConfig
 		if r.ClusterConfig.MaxAcceptableAdvertisement < r.AcceptedAdvNum {
-			for i := 0; i < int(r.AcceptedAdvNum-r.ClusterConfig.MaxAcceptableAdvertisement); i++ {
+			advToDelete := int(r.AcceptedAdvNum - r.ClusterConfig.MaxAcceptableAdvertisement)
+			for i := 0; i < advToDelete; i++ {
 				adv := advList.Items[i]
 				if adv.Status.AdvertisementStatus == AdvertisementAccepted {
-					err := r.AdvClient.Resource("advertisements").Delete(adv.Name, metav1.DeleteOptions{})
+					err := r.Delete(context.Background(), &adv, &client.DeleteOptions{})
 					if err != nil {
-						klog.Errorln(err, "Unable to apply configuration: error deleting Advertisement "+adv.Name)
+						klog.Errorln(err, "Unable to apply new configuration: error deleting Advertisement "+adv.Name)
 						return err, updateFlag
 					}
 					r.AcceptedAdvNum--

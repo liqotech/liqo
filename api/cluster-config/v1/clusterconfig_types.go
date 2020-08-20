@@ -32,17 +32,40 @@ type ClusterConfigSpec struct {
 }
 
 type AdvertisementConfig struct {
-	// +kubebuilder:validation:Maximum=100
-	// +kubebuilder:validation:Minimum=0
-	ResourceSharingPercentage int32 `json:"resourceSharingPercentage,omitempty"`
-	EnableBroadcaster         bool  `json:"enableBroadcaster,omitempty"`
-	// +kubebuilder:validation:Minimum=0
-	MaxAcceptableAdvertisement int32 `json:"maxAcceptableAdvertisement,omitempty"`
-	AutoAccept                 bool  `json:"autoAccept"`
+	BroadcasterConfig `json:"broadcasterConfig,omitempty"`
+	AdvOperatorConfig `json:"advOperatorConfig,omitempty"`
 	// +kubebuilder:validation:Minimum=0
 	KeepaliveThreshold int32 `json:"keepaliveThreshold,omitempty"`
 	// +kubebuilder:validation:Minimum=0
 	KeepaliveRetryTime int32 `json:"keepaliveRetryTime,omitempty"`
+}
+
+type BroadcasterConfig struct {
+	// +kubebuilder:validation:Maximum=100
+	// +kubebuilder:validation:Minimum=0
+	ResourceSharingPercentage int32 `json:"resourceSharingPercentage,omitempty"`
+	EnableBroadcaster         bool  `json:"enableBroadcaster,omitempty"`
+}
+
+// AcceptPolicy defines the policy to accept/refuse an Advertisement
+type AcceptPolicy string
+
+const (
+	// AutoAcceptAll means all the Advertisement received will be accepted
+	AutoAcceptAll AcceptPolicy = "AutoAcceptAll"
+	// AutoAcceptWithinMaximum means all the Advertisement received will be accepted until the MaxAcceptableAdvertisement limit is reached
+	AutoAcceptWithinMaximum AcceptPolicy = "AutoAcceptWithinMaximum"
+	// AutoRefuseAll means all the Advertisement received will be refused (but not deleted)
+	AutoRefuseAll AcceptPolicy = "AutoRefuseAll"
+	// ManualAccept means every Advertisement received will need a manual accept/refuse, which can be done by updating its status
+	ManualAccept AcceptPolicy = "Manual"
+)
+
+type AdvOperatorConfig struct {
+	// +kubebuilder:validation:Minimum=0
+	MaxAcceptableAdvertisement int32 `json:"maxAcceptableAdvertisement,omitempty"`
+	// +kubebuilder:validation:Enum="AutoAcceptAll";"AutoAcceptWithinMaximum";"AutoRefuseAll";"Manual"
+	AcceptPolicy AcceptPolicy `json:"acceptPolicy"`
 }
 
 type DiscoveryConfig struct {
