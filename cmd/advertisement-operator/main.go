@@ -153,7 +153,7 @@ func main() {
 	}
 	// +kubebuilder:scaffold:builder
 
-	r.WatchConfiguration(localKubeconfig)
+	r.WatchConfiguration(localKubeconfig, nil)
 
 	klog.Info("starting manager as advertisement-operator")
 	if err := mgr.Start(ctrl.SetupSignalHandler()); err != nil {

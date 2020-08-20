@@ -9,6 +9,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes/scheme"
+	"k8s.io/client-go/tools/record"
 	"k8s.io/klog"
 	"path/filepath"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -61,7 +62,7 @@ func createFakePod(name, namespace string) *corev1.Pod {
 	}
 }
 
-func createFakeCRDClient() client.Client {
+func createFakeKubebuilderClient() (client.Client, record.EventRecorder) {
 	env := &envtest.Environment{
 		CRDDirectoryPaths: []string{filepath.Join("..", "..", "..", "deployments", "liqo_chart", "crds")},
 	}
@@ -94,7 +95,7 @@ func createFakeCRDClient() client.Client {
 		}
 	}()
 	manager.GetCache().WaitForCacheSync(cacheStarted)
-	return manager.GetClient()
+	return manager.GetClient(), manager.GetEventRecorderFor("AdvertisementOperator")
 }
 
 func TestCreateVkDeployment(t *testing.T) {
@@ -129,7 +130,7 @@ func TestCreateVkDeployment(t *testing.T) {
 }
 
 func TestCreateOrUpdate(t *testing.T) {
-	c := createFakeCRDClient()
+	c, _ := createFakeKubebuilderClient()
 
 	testPod(t, c)
 	testAdvertisement(t, c)

@@ -165,10 +165,14 @@ func getClusterConfig() *policyv1.ClusterConfig {
 		},
 		Spec: policyv1.ClusterConfigSpec{
 			AdvertisementConfig: policyv1.AdvertisementConfig{
-				AutoAccept:                 true,
-				MaxAcceptableAdvertisement: 5,
-				ResourceSharingPercentage:  30,
-				EnableBroadcaster:          true,
+				AdvOperatorConfig: policyv1.AdvOperatorConfig{
+					AcceptPolicy:               policyv1.AutoAcceptWithinMaximum,
+					MaxAcceptableAdvertisement: 5,
+				},
+				BroadcasterConfig: policyv1.BroadcasterConfig{
+					ResourceSharingPercentage: 30,
+					EnableBroadcaster:         true,
+				},
 			},
 			DiscoveryConfig: policyv1.DiscoveryConfig{
 				AutoJoin:            true,

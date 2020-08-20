@@ -6,10 +6,12 @@ metadata:
     app: liqo.io
 spec:
   advertisementConfig:
-    autoAccept: true
-    maxAcceptableAdvertisement: 5
-    resourceSharingPercentage: 30
-    enableBroadcaster: true
+    advOperatorConfig:
+      acceptPolicy: AutoAcceptWithinMaximum
+      maxAcceptableAdvertisement: 5
+    broadcasterConfig:
+      resourceSharingPercentage: 30
+      enableBroadcaster: true
     keepaliveThreshold: 3
     keepaliveRetryTime: 20
   discoveryConfig:

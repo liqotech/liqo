@@ -37,6 +37,7 @@ func WatchConfiguration(handler func(*policyv1.ClusterConfig), client *crdClient
 			klog.Error("Received object is not a ClusterConfig")
 			continue
 		}
+		klog.V(3).Info("ClusterConfig changed")
 		switch event.Type {
 		case watch.Added, watch.Modified:
 			handler(configuration)
