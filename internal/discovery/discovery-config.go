@@ -1,9 +1,13 @@
 package discovery
 
 import (
+	"context"
 	policyv1 "github.com/liqoTech/liqo/api/cluster-config/v1"
 	"github.com/liqoTech/liqo/pkg/clusterConfig"
 	"github.com/liqoTech/liqo/pkg/crdClient"
+	rbacv1 "k8s.io/api/rbac/v1"
+	"k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/klog"
 )
 
@@ -13,6 +17,7 @@ func (discovery *DiscoveryCtrl) GetDiscoveryConfig(crdClient *crdClient.CRDClien
 	go clusterConfig.WatchConfiguration(func(configuration *policyv1.ClusterConfig) {
 		klog.Info("Change Configuration")
 		discovery.handleConfiguration(configuration.Spec.DiscoveryConfig)
+		discovery.handleDispatcherConfig(configuration.Spec.DispatcherConfig)
 		if isFirst {
 			waitFirst <- true
 			isFirst = false
@@ -22,6 +27,46 @@ func (discovery *DiscoveryCtrl) GetDiscoveryConfig(crdClient *crdClient.CRDClien
 	close(waitFirst)
 
 	return nil
+}
+
+func (discovery *DiscoveryCtrl) handleDispatcherConfig(config policyv1.DispatcherConfig) {
+	role, err := discovery.crdClient.Client().RbacV1().ClusterRoles().Get(context.TODO(), "dispatcher-role", metav1.GetOptions{})
+	create := false
+	if errors.IsNotFound(err) {
+		// create it
+		role = &rbacv1.ClusterRole{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: "dispatcher-role",
+			},
+			Rules: []rbacv1.PolicyRule{},
+		}
+		create = true
+	} else if err != nil {
+		// other errors
+		klog.Error(err)
+		return
+	}
+
+	// create rules array
+	rules := []rbacv1.PolicyRule{}
+	for _, res := range config.ResourcesToReplicate {
+		rules = append(rules, rbacv1.PolicyRule{
+			Verbs:     []string{"*"},
+			APIGroups: []string{res.Group + "/" + res.Version},
+			Resources: []string{res.Resource},
+		})
+	}
+	role.Rules = rules
+
+	if create {
+		_, err = discovery.crdClient.Client().RbacV1().ClusterRoles().Create(context.TODO(), role, metav1.CreateOptions{})
+	} else {
+		_, err = discovery.crdClient.Client().RbacV1().ClusterRoles().Update(context.TODO(), role, metav1.UpdateOptions{})
+	}
+	if err != nil {
+		klog.Error(err)
+		return
+	}
 }
 
 func (discovery *DiscoveryCtrl) handleConfiguration(config policyv1.DiscoveryConfig) {
