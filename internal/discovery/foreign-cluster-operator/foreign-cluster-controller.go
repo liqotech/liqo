@@ -461,6 +461,13 @@ func (r *ForeignClusterReconciler) getForeignConfig(clusterID string, owner *dis
 	if err != nil {
 		return "", err
 	}
+
+	// dispatcher role binding
+	err = r.setDispatcherRole(clusterID, sa)
+	if err != nil {
+		return "", err
+	}
+
 	// check if ServiceAccount already has a secret, wait if not
 	if len(sa.Secrets) == 0 {
 		wa, err := r.crdClient.Client().CoreV1().ServiceAccounts(r.Namespace).Watch(context.TODO(), metav1.ListOptions{
@@ -499,7 +506,7 @@ func (r *ForeignClusterReconciler) getForeignConfig(clusterID string, owner *dis
 
 func (r *ForeignClusterReconciler) createClusterRoleIfNotExists(clusterID string, owner *discoveryv1.ForeignCluster) (*rbacv1.ClusterRole, error) {
 	role, err := r.crdClient.Client().RbacV1().ClusterRoles().Get(context.TODO(), clusterID, metav1.GetOptions{})
-	if err != nil {
+	if errors.IsNotFound(err) {
 		// does not exist
 		role = &rbacv1.ClusterRole{
 			ObjectMeta: metav1.ObjectMeta{
@@ -514,7 +521,6 @@ func (r *ForeignClusterReconciler) createClusterRoleIfNotExists(clusterID string
 				},
 			},
 			Rules: []rbacv1.PolicyRule{
-				// TODO: set correct access to create advertisements
 				{
 					Verbs:     []string{"get", "list", "create", "update", "delete", "watch"},
 					APIGroups: []string{"protocol.liqo.io", ""},
@@ -523,6 +529,9 @@ func (r *ForeignClusterReconciler) createClusterRoleIfNotExists(clusterID string
 			},
 		}
 		return r.crdClient.Client().RbacV1().ClusterRoles().Create(context.TODO(), role, metav1.CreateOptions{})
+	} else if err != nil {
+		klog.Error(err)
+		return nil, err
 	} else {
 		return role, nil
 	}
@@ -530,7 +539,7 @@ func (r *ForeignClusterReconciler) createClusterRoleIfNotExists(clusterID string
 
 func (r *ForeignClusterReconciler) createServiceAccountIfNotExists(clusterID string, owner *discoveryv1.ForeignCluster) (*apiv1.ServiceAccount, error) {
 	sa, err := r.crdClient.Client().CoreV1().ServiceAccounts(r.Namespace).Get(context.TODO(), clusterID, metav1.GetOptions{})
-	if err != nil {
+	if errors.IsNotFound(err) {
 		// does not exist
 		sa = &apiv1.ServiceAccount{
 			ObjectMeta: metav1.ObjectMeta{
@@ -546,6 +555,9 @@ func (r *ForeignClusterReconciler) createServiceAccountIfNotExists(clusterID str
 			},
 		}
 		return r.crdClient.Client().CoreV1().ServiceAccounts(r.Namespace).Create(context.TODO(), sa, metav1.CreateOptions{})
+	} else if err != nil {
+		klog.Error(err)
+		return nil, err
 	} else {
 		return sa, nil
 	}
@@ -553,7 +565,7 @@ func (r *ForeignClusterReconciler) createServiceAccountIfNotExists(clusterID str
 
 func (r *ForeignClusterReconciler) createClusterRoleBindingIfNotExists(clusterID string, owner *discoveryv1.ForeignCluster) (*rbacv1.ClusterRoleBinding, error) {
 	rb, err := r.crdClient.Client().RbacV1().ClusterRoleBindings().Get(context.TODO(), clusterID, metav1.GetOptions{})
-	if err != nil {
+	if errors.IsNotFound(err) {
 		// does not exist
 		rb = &rbacv1.ClusterRoleBinding{
 			ObjectMeta: metav1.ObjectMeta{
@@ -581,8 +593,53 @@ func (r *ForeignClusterReconciler) createClusterRoleBindingIfNotExists(clusterID
 			},
 		}
 		return r.crdClient.Client().RbacV1().ClusterRoleBindings().Create(context.TODO(), rb, metav1.CreateOptions{})
+	} else if err != nil {
+		klog.Error(err)
+		return nil, err
 	} else {
 		return rb, nil
+	}
+}
+
+func (r *ForeignClusterReconciler) setDispatcherRole(clusterID string, sa *apiv1.ServiceAccount) error {
+	_, err := r.crdClient.Client().RbacV1().ClusterRoleBindings().Get(context.TODO(), clusterID+"-dispatcher", metav1.GetOptions{})
+	if errors.IsNotFound(err) {
+		// does not exist
+		rb := &rbacv1.ClusterRoleBinding{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: clusterID + "-dispatcher",
+				OwnerReferences: []metav1.OwnerReference{
+					{
+						APIVersion: "v1",
+						Kind:       "ServiceAccount",
+						Name:       sa.Name,
+						UID:        sa.UID,
+					},
+				},
+			},
+			Subjects: []rbacv1.Subject{
+				{
+					Kind:      "ServiceAccount",
+					Name:      sa.Name,
+					Namespace: sa.Namespace,
+				},
+			},
+			RoleRef: rbacv1.RoleRef{
+				APIGroup: "rbac.authorization.k8s.io",
+				Kind:     "ClusterRole",
+				Name:     "dispatcher-role",
+			},
+		}
+		_, err = r.crdClient.Client().RbacV1().ClusterRoleBindings().Create(context.TODO(), rb, metav1.CreateOptions{})
+		if err != nil {
+			klog.Error(err)
+		}
+		return err
+	} else if err != nil {
+		klog.Error(err)
+		return err
+	} else {
+		return nil
 	}
 }
 
