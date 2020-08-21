@@ -19,7 +19,7 @@ func TestOnReady(t *testing.T) {
 	i := app.GetIndicator()
 	//test startup Icon
 	startIcon := i.Icon()
-	assert.Equal(t, app.IconLiqoNoConn, startIcon, "startup Indicator icon is not IconLiqoNoConn")
+	assert.Equal(t, app.IconLiqoMain, startIcon, "startup Indicator icon is not IconLiqoMain")
 	//test ACTIONs and QUICKs registrations
 	var exist bool
 	_, exist = i.Quick(qOnOff)
@@ -58,7 +58,7 @@ func TestAdvertisementNotify(t *testing.T) {
 	client.DestroyMockedAgentController()
 	i := app.GetIndicator()
 	startListenerAdvertisements(i)
-	assert.Equal(t, app.IconLiqoNoConn, i.Icon(), "startup Indicator icon is not IconLiqoNoConn")
+	assert.Equal(t, app.IconLiqoMain, i.Icon(), "startup Indicator icon is not IconLiqoMain")
 	i.AgentCtrl().StartCaches()
 	advChannels := i.AgentCtrl().AdvCache().NotifyChannels
 	testAdvName := "test"
