@@ -10,12 +10,26 @@ Before peering your home cluster with a foreign cluster, we suggest to have a lo
 
 ```
 kubectl get foreignclusters
+NAME                                   AGE
+ff5aa14a-dd6e-4fd2-80fe-eaecb827cf55   101m
 ```
 
+Discovered clusters will be listed among available foreignclusters.
 Default policy tries to activate peering with a remote cluster, when it is discovered.
 
-Peering can be enabled by setting the `Join` property in `ForeignCluster` to `True` or via the dashboard.
+{{%expand Advanced %}}
 
+Peering can be enabled by setting the `Join` property in `ForeignCluster`resource to `true` or via the dashboard.
+
+The check if the peering is in progress with the other cluster, you can verify that the `join` property of the target `ForeignCluster`.
+This can be easily done via:
+
+```
+kubectl get foreignclusters ff5aa14a-dd6e-4fd2-80fe-eaecb827cf55 --template={{.spec.join}}
+true
+```
+
+{{% /expand %}}
 <!-- TODO: The above sentence looks not obvious for an occasional user. Please be more user-friendly. -->
 
 

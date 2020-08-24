@@ -27,30 +27,19 @@ Then, you can deploy the test pod in the `test-liqo` namespace:
 ```
 kubectl apply -f https://raw.githubusercontent.com/LiqoTech/liqo/master/docs/examples/hello-world.yaml -n test-liqo
 ```
+The `hello-world.yaml` file is a simple `nginx` service; it is composed by a simple pod running a nginx image, and a service exposing the pod to the cluster. We labeled the pod to be executed on the virtual-node just created.
+
+{{%expand "Expand here for a more advanced explanation of what is happened under the hoods:" %}}
 
 where your `hello-world.yaml` looks the following:
+{{% render-code file="static/examples/hello-world.yaml" language="yaml" %}}
 
-```
-apiVersion: v1
-kind: Pod
-metadata:
-  name: nginx
-  labels:
-    app: test-liqo
-spec:
-  containers:
-  - name: nginx
-    image: nginxdemos/hello
-    imagePullPolicy: IfNotPresent
-    ports:
-      - containerPort: 80
-        name: web
-  nodeSelector:
-    type: virtual-node
-```
 
-This pod is a simple `nginx` service; the (optional) `nodeSelector` tag tells the Kubernetes scheduler that the pod has to be started on a virtual node.
+Differently from traditional examples, we added an (optional) `nodeSelector` field. This latter tells the Kubernetes scheduler that the pod has to be started on a virtual node. Virtual nodes are like traditional Kubernetes nodes, but they are labelled with `type: virtual-node`.
+
 In case the above tag is missing, the Kubernetes scheduler will select the best hosting node based on the available resources, which can be either a node in the *home* cluster or in the *foreign* cluster.
+
+{{% /expand%}}
 
 Now you can check the state of your pod; the output confirms that the pod is running on a virtual node (i.e. a node whose name that starts with `vk`, i.e. *virtual kubelet*):
 
@@ -59,7 +48,6 @@ kubectl get po -o wide -n test
 NAME    READY   STATUS    RESTARTS   AGE   IP           NODE                                      NOMINATED NODE   READINESS GATES
 nginx   1/1     Running   0          41m   10.45.0.12   liqo-1dfa22f9-1cdd-4401-9e7a-c5342ec90059   <none>           <none>
 ```
-
 
 ## Check pod connectivity 
 
@@ -75,8 +63,11 @@ Open a browser and connect to the value of `$POD_HOST` or use the following `cur
 curl -v $POD_HOST
 ```
 
-<!-- TODO: split this section in two: the first case if you have direct connectivity, the second case in which you are working on a remote cluster. -->
+If you have not direct connectivity, you can fire up a pod and run a curl inside:
 
+```
+kubectl run --image=curlimages/curl tester -n default -ti --rm -- curl -L $POD_HOST
+```
 
 ## Service
 
