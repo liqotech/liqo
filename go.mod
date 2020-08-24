@@ -27,7 +27,7 @@ require (
 	github.com/google/go-cmp v0.5.1
 	github.com/google/monologue v0.0.0-20200117164337-ad3ddc05419e // indirect
 	github.com/google/uuid v1.1.1
-	github.com/gorilla/mux v1.7.4
+	github.com/gorilla/mux v1.8.0
 	github.com/gorilla/websocket v1.4.1 // indirect
 	github.com/grandcat/zeroconf v1.0.0
 	github.com/grpc-ecosystem/go-grpc-middleware v1.1.0 // indirect
