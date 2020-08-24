@@ -20,7 +20,6 @@ kind: Service
 metadata:
   name: test-liqo
 spec:
-  clusterIP: None
   ports:
     - name: web
       port: 80
@@ -28,4 +27,4 @@ spec:
       targetPort: web
   selector:
     app: test-liqo
-  type: NodePort
+  type: ClusterIP
