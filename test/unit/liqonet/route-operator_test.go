@@ -1,6 +1,7 @@
 package liqonet
 
 import (
+	clusterConfig "github.com/liqoTech/liqo/api/cluster-config/v1"
 	v1 "github.com/liqoTech/liqo/api/liqonet/v1"
 	controller "github.com/liqoTech/liqo/internal/liqonet"
 	"github.com/liqoTech/liqo/pkg/liqonet"
@@ -8,6 +9,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/vishvananda/netlink"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/rest"
 	"k8s.io/klog"
 	"net"
 	"reflect"
@@ -60,12 +62,25 @@ func setupRouteOperator() error {
 		NetLink: &liqonet.MockRouteManager{
 			RouteList: []netlink.Route{},
 		},
-		ClusterPodCIDR:                     "10.1.0.0/16",
+		Configured:                         make(chan bool, 1),
 		IPTablesRuleSpecsReferencingChains: make(map[string]liqonet.IPtableRule),
 		IPTablesChains:                     make(map[string]liqonet.IPTableChain),
 		IPtablesRuleSpecsPerRemoteCluster:  make(map[string][]liqonet.IPtableRule),
 		RoutesPerRemoteCluster:             make(map[string][]netlink.Route),
 		RetryTimeout:                       0,
+	}
+	config := k8sManager.GetConfig()
+	newConfig := &rest.Config{
+		Host: config.Host,
+		// gotta go fast during tests -- we don't really care about overwhelming our test API server
+		QPS:   1000.0,
+		Burst: 2000.0,
+	}
+	routeOperator.WatchConfiguration(newConfig, &clusterConfig.GroupVersion)
+	if !routeOperator.IsConfigured {
+		<-routeOperator.Configured
+		routeOperator.IsConfigured = true
+		klog.Infof("route-operator configured with podCIDR %s", routeOperator.ClusterPodCIDR)
 	}
 	err = routeOperator.SetupWithManager(k8sManager)
 	if err != nil {

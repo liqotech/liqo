@@ -47,9 +47,9 @@ func getClusterConfigurationCR(reservedSubnets []string) *policyv1.ClusterConfig
 			AdvertisementConfig: policyv1.AdvertisementConfig{},
 			DiscoveryConfig:     policyv1.DiscoveryConfig{},
 			LiqonetConfig: policyv1.LiqonetConfig{
-				ReservedSubnets:  reservedSubnets,
-				GatewayPrivateIP: "",
-				VxlanNetConfig:   liqonetOperator.VxlanNetConfig{},
+				ReservedSubnets: reservedSubnets,
+				PodCIDR:         "",
+				VxlanNetConfig:  liqonetOperator.VxlanNetConfig{},
 			},
 		},
 		Status: policyv1.ClusterConfigStatus{},

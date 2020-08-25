@@ -111,16 +111,5 @@ spec:
           command: ["/usr/bin/liqonet"]
           args:
             - "-run-as=tunnelEndpointCreator-operator"
-          env:
-            - name: POD_CIDR
-              valueFrom:
-                configMapKeyRef:
-                  name: {{ .Values.global.configmapName }}
-                  key: podCIDR
-            - name: CLUSTER_CIDR
-              valueFrom:
-                configMapKeyRef:
-                  name: {{ .Values.global.configmapName }}
-                  key: serviceCIDR
       restartPolicy: Always
 status: {}

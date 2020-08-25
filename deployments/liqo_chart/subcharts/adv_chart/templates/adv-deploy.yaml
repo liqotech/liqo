@@ -68,16 +68,6 @@ spec:
               configMapKeyRef:
                 name: cluster-id
                 key: cluster-id
-          - name: LOCAL_TUNNEL_PUBLIC_IP
-            valueFrom:
-              configMapKeyRef:
-                name: {{ .Values.global.configmapName }}
-                key: gatewayIP
-          - name: LOCAL_TUNNEL_PRIVATE_IP
-            valueFrom:
-              configMapKeyRef:
-                name: {{ .Values.global.configmapName }}
-                key: gatewayPrivateIP
           - name: POD_NAMESPACE
             valueFrom:
              fieldRef:

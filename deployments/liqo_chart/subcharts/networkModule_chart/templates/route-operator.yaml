@@ -37,6 +37,18 @@ rules:
       - get
       - patch
       - update
+  - apiGroups:
+      - policy.liqo.io
+    resources:
+     - clusterconfigs
+    verbs:
+      - create
+      - delete
+      - get
+      - list
+      - patch
+      - update
+      - watch
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
@@ -115,10 +127,5 @@ spec:
               valueFrom:
                fieldRef:
                  fieldPath: spec.nodeName
-            - name: POD_CIDR
-              valueFrom:
-                configMapKeyRef:
-                  name: {{ .Values.global.configmapName }}
-                  key: podCIDR
       hostNetwork: true
       restartPolicy: Always

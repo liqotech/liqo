@@ -5,7 +5,6 @@
 clusterID: "lab9"
 podCIDR: "10.244.0.0/16"
 serviceCIDR: "10.96.0.0/12"
-gatewayPrivateIP: "192.168.1.1"
 
 ##### Needed
 suffix: ""
@@ -88,7 +87,7 @@ liqodash_chart:
   image:
     repository: "liqo/dashboard"
     pullpolicy: "Always"
-  enabled: true  
+  enabled: true
 
 global:
   configmapName: "liqo-configmap"
