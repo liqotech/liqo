@@ -10,7 +10,12 @@ import (
 
 func (discovery *DiscoveryCtrl) Register() {
 	if discovery.Config.EnableAdvertisement {
-		txt, err := discovery.GetTxtData().Encode()
+		txtData, err := discovery.GetTxtData()
+		if err != nil {
+			klog.Error(err)
+			return
+		}
+		txt, err := txtData.Encode()
 		if err != nil {
 			klog.Error(err, err.Error())
 			return
