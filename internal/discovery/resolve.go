@@ -2,13 +2,11 @@ package discovery
 
 import (
 	"context"
-	"errors"
 	"github.com/grandcat/zeroconf"
 	"k8s.io/klog"
 	"math"
 	"net"
 	"os"
-	"strconv"
 	"time"
 )
 
@@ -59,13 +57,9 @@ func (discovery *DiscoveryCtrl) getTxts(results <-chan *zeroconf.ServiceEntry, o
 	var res []*TxtData
 	for entry := range results {
 		if discovery.isForeign(entry.AddrIPv4) || !onlyForeign {
-			ip, err := getEntryIP(entry)
-			if err != nil {
-				klog.Error(err, err.Error())
-				continue
-			}
-			if txtData, err := Decode(ip, strconv.Itoa(entry.Port), entry.Text); err == nil {
-				klog.Info("Received packet from " + ip)
+			txtData, err := Decode("", "", entry.Text)
+			if err == nil {
+				klog.Info("Remote cluster found at " + txtData.ApiUrl)
 				res = append(res, txtData)
 			} else {
 				klog.Error(err, err.Error())
@@ -97,14 +91,15 @@ func (discovery *DiscoveryCtrl) getIPs() map[string]bool {
 	return myIps
 }
 
+// a cluster is considered as foreign if it has at least one IP different from our IPs
 func (discovery *DiscoveryCtrl) isForeign(foreignIps []net.IP) bool {
 	myIps := discovery.getIPs()
 	for _, fIp := range foreignIps {
-		if myIps[fIp.String()] {
-			return false
+		if !myIps[fIp.String()] {
+			return true
 		}
 	}
-	return true
+	return false
 }
 
 func getIP(addr net.Addr) net.IP {
@@ -116,14 +111,4 @@ func getIP(addr net.Addr) net.IP {
 		ip = v.IP
 	}
 	return ip
-}
-
-func getEntryIP(entry *zeroconf.ServiceEntry) (string, error) {
-	if len(entry.AddrIPv4) > 0 {
-		return entry.AddrIPv4[0].String(), nil
-	}
-	if len(entry.AddrIPv6) > 0 {
-		return entry.AddrIPv6[0].String(), nil
-	}
-	return "", errors.New("no IP found")
 }
