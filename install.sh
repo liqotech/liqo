@@ -32,7 +32,6 @@ function print_help()
    echo "This script is designed to install LIQO on your cluster. This script is configurable via environment variables:"
    echo "   POD_CIDR: the POD CIDR of your cluster (e.g.; 10.0.0.0/16). The script will try to detect it, but you can override this by having this variable already set"
    echo "   SERVICE_CIDR: the POD CIDR of your cluster (e.g.; 10.96.0.0/12) . The script will try to detect it, but you can override thisthis by having this variable already set"
-   echo "   GATEWAY_PRIVATE_IP: the IP used by the cluster inside the cluster-to-cluster interconnection (e.g.; 192.168.1.1)"
    echo "   GATEWAY_IP: the public IP that will be used by LIQO to establish the interconnection with other clusters"
 }
 
@@ -84,7 +83,6 @@ URL=https://github.com/LiqoTech/liqo.git
 HELM_VERSION=v3.2.3
 HELM_ARCHIVE=helm-${HELM_VERSION}-linux-amd64.tar.gz
 HELM_URL=https://get.helm.sh/$HELM_ARCHIVE
-DEFAULT_GATEWAY_PRIVATE_IP=192.168.1.1
 NAMESPACE_DEFAULT="liqo"
 # The following variable are used a default value to select the images when installing LIQO.
 # When installing a non released version:
@@ -140,8 +138,6 @@ POD_CIDR_COMMAND='kubectl cluster-info dump | grep -m 1 -Po "(?<=--cluster-cidr=
 set_variable_from_command POD_CIDR POD_CIDR_COMMAND "[ERROR]: Unable to find POD_CIDR"
 SERVICE_CIDR_COMMAND='kubectl cluster-info dump | grep -m 1 -Po "(?<=--service-cluster-ip-range=)[0-9.\/]+"'
 set_variable_from_command SERVICE_CIDR SERVICE_CIDR_COMMAND "[ERROR]: Unable to find Service CIDR"
-GATEWAY_PRIVATE_IP_COMMAND="echo $DEFAULT_GATEWAY_PRIVATE_IP"
-set_variable_from_command GATEWAY_PRIVATE_IP GATEWAY_PRIVATE_IP_COMMAND "[ERROR]: Unable to set Gateway Private IP"
 NAMESPACE_COMMAND="echo $NAMESPACE_DEFAULT"
 set_variable_from_command NAMESPACE NAMESPACE_COMMAND "[ERROR]: Error while creating the namespace... "
 LIQO_SUFFIX_COMMAND="echo $LIQO_SUFFIX_DEFAULT"
@@ -155,7 +151,7 @@ set_variable_from_command DASHBOARD_APISERVER DASHBOARD_APISERVER_COMMAND "[ERRO
 kubectl create ns $NAMESPACE
 $TMPDIR/bin/helm dependency update $TMPDIR/liqo/deployments/liqo_chart
 $TMPDIR/bin/helm install liqo -n liqo $TMPDIR/liqo/deployments/liqo_chart --set podCIDR=$POD_CIDR --set serviceCIDR=$SERVICE_CIDR \
---set gatewayPrivateIP=$GATEWAY_PRIVATE_IP --set gatewayIP=$GATEWAY_IP --set global.suffix="$LIQO_SUFFIX" --set global.version="$LIQO_VERSION" \
+--set gatewayIP=$GATEWAY_IP --set global.suffix="$LIQO_SUFFIX" --set global.version="$LIQO_VERSION" \
 --set global.apiServerURL=$DASHBOARD_APISERVER
 echo "[INSTALL]: Installing LIQO on your cluster..."
 sleep 30

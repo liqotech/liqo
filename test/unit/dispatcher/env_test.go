@@ -181,8 +181,7 @@ func getClusterConfig() *policyv1.ClusterConfig {
 				DnsServer:           "8.8.8.8:53",
 			},
 			LiqonetConfig: policyv1.LiqonetConfig{
-				ReservedSubnets:  []string{"10.0.0.0/16"},
-				GatewayPrivateIP: "192.168.1.1",
+				ReservedSubnets: []string{"10.0.0.0/16"},
 				VxlanNetConfig: liqonet.VxlanNetConfig{
 					Network:    "",
 					DeviceName: "",

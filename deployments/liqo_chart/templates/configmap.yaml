@@ -5,8 +5,8 @@ metadata:
   labels:
     app: liqo.io
 data:
-  clusterID: {{ .Values.clusterID}}
-  podCIDR: {{ .Values.podCIDR}}
-  serviceCIDR: {{ .Values.serviceCIDR}}
-  gatewayPrivateIP: {{ .Values.gatewayPrivateIP}}
-  gatewayIP: {{ .Values.gatewayIP}}
+  clusterID: "placeHolder"
+  podCIDR: {{ .Values.podCIDR }}
+  serviceCIDR: {{ .Values.serviceCIDR }}
+  gatewayPrivateIP: "192.168.1.1" #placeholder, needed by broadcaster. soon will be removed
+  gatewayIP: "placeholder"

@@ -26,6 +26,7 @@ import (
 	"github.com/vishvananda/netlink"
 	"k8s.io/client-go/kubernetes"
 	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
+	"k8s.io/klog/v2"
 	"net"
 	"os"
 	"strconv"
@@ -125,12 +126,6 @@ func main() {
 			setupLog.Error(err, "an error occurred while retrieving node name")
 			os.Exit(4)
 		}
-		//get node name
-		podCIDR, err := liqonet.GetClusterPodCIDR()
-		if err != nil {
-			setupLog.Error(err, "an error occurred while retrieving cluster pod cidr")
-			os.Exit(6)
-		}
 		gatewayVxlanIP, err := liqonet.GetGatewayVxlanIP(clientset, vxlanConfig)
 		if err != nil {
 			setupLog.Error(err, "unable to derive gatewayVxlanIP")
@@ -157,10 +152,16 @@ func main() {
 			IPtablesRuleSpecsPerRemoteCluster:  make(map[string][]liqonet.IPtableRule),
 			NodeName:                           nodeName,
 			GatewayVxlanIP:                     gatewayVxlanIP,
-			ClusterPodCIDR:                     podCIDR,
 			RetryTimeout:                       30 * time.Second,
 			IPtables:                           ipt,
 			NetLink:                            &liqonet.RouteManager{},
+			Configured:                         make(chan bool, 1),
+		}
+		r.WatchConfiguration(config, &clusterConfig.GroupVersion)
+		if !r.IsConfigured {
+			<-r.Configured
+			r.IsConfigured = true
+			klog.Infof("route-operator configured with podCIDR %s", r.ClusterPodCIDR)
 		}
 		if err = r.SetupWithManager(mgr); err != nil {
 			setupLog.Error(err, "unable to create controller", "controller", "Route")

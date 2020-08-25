@@ -26,7 +26,7 @@ spec:
     waitTime: 2
     dnsServer: '8.8.8.8:53'
   liqonetConfig:
-    gatewayPrivateIP: {{ .Values.gatewayPrivateIP }}
+    podCIDR: {{ .Values.podCIDR }}
     reservedSubnets:
     - {{ .Values.podCIDR }}
     - {{ .Values.serviceCIDR }}

@@ -67,6 +67,8 @@ type RouteController struct {
 	IPtables       liqonetOperator.IPTables
 	NetLink        liqonetOperator.NetLink
 	ClusterPodCIDR string
+	Configured     chan bool //channel to comunicate when the podCIDR has been set
+	IsConfigured   bool      //true when the operator is configured and ready to be started
 	//here we save only the rules that reference the custom chains added by us
 	//we need them at deletion time
 	IPTablesRuleSpecsReferencingChains map[string]liqonetOperator.IPtableRule //using a map to avoid duplicate entries. the key is the rulespec

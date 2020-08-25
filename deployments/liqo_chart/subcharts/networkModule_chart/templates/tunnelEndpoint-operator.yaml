@@ -84,10 +84,5 @@ spec:
               valueFrom:
                 fieldRef:
                   fieldPath: status.podIP
-            - name: LOCAL_TUNNEL_PRIVATE_IP
-              valueFrom:
-                configMapKeyRef:
-                  name: {{ .Values.global.configmapName }}
-                  key: gatewayPrivateIP
       hostNetwork: true
       restartPolicy: Always
