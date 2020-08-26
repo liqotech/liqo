@@ -1,5 +1,5 @@
 ---
-title: Demo/Tutorial: KubernetesOnDesktop
+title: Demo/Tutorial with KubernetesOnDesktop
 weight: 4
 ---
 
