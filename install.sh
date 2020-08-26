@@ -148,13 +148,15 @@ LIQO_SUFFIX_COMMAND="echo $LIQO_SUFFIX_DEFAULT"
 set_variable_from_command LIQO_SUFFIX LIQO_SUFFIX_COMMAND "[ERROR]: Error setting the Liqo suffix... "
 LIQO_VERSION_COMMAND="echo $LIQO_VERSION_DEFAULT"
 set_variable_from_command LIQO_VERSION LIQO_VERSION_COMMAND "[ERROR]: Error setting the Liqo version... "
-
+DASHBOARD_APISERVER_COMMAND='kubectl config view -o jsonpath='{.clusters[].cluster.server}''
+set_variable_from_command DASHBOARD_APISERVER DASHBOARD_APISERVER_COMMAND "[ERROR]: Error setting the api server... "
 
 #Wait for the installation to complete
 kubectl create ns $NAMESPACE
 $TMPDIR/bin/helm dependency update $TMPDIR/liqo/deployments/liqo_chart
 $TMPDIR/bin/helm install liqo -n liqo $TMPDIR/liqo/deployments/liqo_chart --set podCIDR=$POD_CIDR --set serviceCIDR=$SERVICE_CIDR \
---set gatewayPrivateIP=$GATEWAY_PRIVATE_IP --set gatewayIP=$GATEWAY_IP --set global.suffix="$LIQO_SUFFIX" --set global.version="$LIQO_VERSION"
+--set gatewayPrivateIP=$GATEWAY_PRIVATE_IP --set gatewayIP=$GATEWAY_IP --set global.suffix="$LIQO_SUFFIX" --set global.version="$LIQO_VERSION" \
+--set global.apiServerURL=$DASHBOARD_APISERVER
 echo "[INSTALL]: Installing LIQO on your cluster..."
 sleep 30
 

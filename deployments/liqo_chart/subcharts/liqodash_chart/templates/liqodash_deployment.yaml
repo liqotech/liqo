@@ -1,0 +1,111 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: liqo-dashboard-configmap
+  namespace: {{ .Release.Namespace }}
+data:
+  oidc_client_id: ""
+  oidc_provider_url: ""
+  oidc_client_secret: ""
+  oidc_redirect_uri: ""
+  apiserver_url: {{ .Values.global.apiServerURL }}
+
+---
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app: liqo-dashboard
+  name: liqo-dashboard
+  namespace: {{ .Release.Namespace }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: liqo-dashboard
+  template:
+    metadata:
+      labels:
+        app: liqo-dashboard
+    spec:
+      containers:
+        - image: {{ .Values.image.repository }}{{ .Values.global.suffix | default .Values.suffix }}:{{ .Values.version }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          name: liqo-dashboard
+          ports:
+            - containerPort: 80
+              name: http
+              protocol: TCP
+          env:
+            - name: OIDC_PROVIDER_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: liqo-dashboard-configmap
+                  key: oidc_provider_url
+            - name: OIDC_CLIENT_ID
+              valueFrom:
+                configMapKeyRef:
+                  name: liqo-dashboard-configmap
+                  key: oidc_client_id
+            - name: OIDC_CLIENT_SECRET
+              valueFrom:
+                configMapKeyRef:
+                  name: liqo-dashboard-configmap
+                  key: oidc_client_secret
+            - name: OIDC_REDIRECT_URI
+              valueFrom:
+                configMapKeyRef:
+                  name: liqo-dashboard-configmap
+                  key: oidc_redirect_uri
+            - name: APISERVER_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: liqo-dashboard-configmap
+                  key: apiserver_url  
+
+---
+
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app: liqo-dashboard
+  name: liqo-dashboard
+  namespace: {{ .Release.Namespace }}
+spec:
+  type: NodePort
+  selector:
+    app: liqo-dashboard
+  ports:
+    - name: http
+      protocol: TCP
+      port: 80
+      targetPort: 80
+
+---
+
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  labels:
+    app: liqo-dashboard
+  name: liqodash-admin-sa
+  namespace: {{ .Release.Namespace }}
+
+---
+
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  labels:
+    app: liqo-dashboard
+  name: liqodash-admin-sa
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: cluster-admin
+subjects:
+- kind: ServiceAccount
+  name: liqodash-admin-sa
+  namespace: {{ .Release.Namespace }}

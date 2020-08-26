@@ -50,3 +50,7 @@ dependencies:
   version: "0.1.0"
   repository: file://subcharts/peeringRequestOperator_chart/
   condition: peeringRequestOperator_chart.enabled
+- name: liqodash_chart
+  version: "0.1.0"
+  repository: file://subcharts/liqodash_chart/
+  condition: liqodash_chart.enabled

@@ -7,7 +7,6 @@ podCIDR: "10.244.0.0/16"
 serviceCIDR: "10.96.0.0/12"
 gatewayPrivateIP: "192.168.1.1"
 
-
 ##### Needed
 suffix: ""
 version: "latest"
@@ -85,7 +84,14 @@ peeringRequestOperator_chart:
       pullPolicy: "Always"
   enabled: true
 
+liqodash_chart:
+  image:
+    repository: "liqo/dashboard"
+    pullpolicy: "Always"
+  enabled: true  
+
 global:
   configmapName: "liqo-configmap"
+  apiServerURL: ""
   suffix: ""
   version: ""
