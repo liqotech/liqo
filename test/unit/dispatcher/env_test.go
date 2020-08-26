@@ -1,15 +1,17 @@
 package dispatcher
 
 import (
+	"context"
+	"fmt"
 	policyv1 "github.com/liqoTech/liqo/api/cluster-config/v1"
 	discoveryv1 "github.com/liqoTech/liqo/api/discovery/v1"
 	"github.com/liqoTech/liqo/internal/dispatcher"
 	"github.com/liqoTech/liqo/pkg/crdClient"
 	"github.com/liqoTech/liqo/pkg/liqonet"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/dynamic"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
-
 	"k8s.io/klog/v2"
 	"k8s.io/kubectl/pkg/scheme"
 	"os"
@@ -21,17 +23,29 @@ import (
 )
 
 var (
-	k8sManagerLocal     ctrl.Manager
-	k8sManagerRemote    ctrl.Manager
-	testEnvLocal        *envtest.Environment
-	testEnvRemote       *envtest.Environment
-	configClusterClient *crdClient.CRDClient
-	dOperator           *dispatcher.DispatcherReconciler
+	numberPeeringClusters = 1
+
+	peeringIDTemplate         = "peering-cluster-"
+	localClusterID            = "localClusterID"
+	peeringClustersTestEnvs   = map[string]*envtest.Environment{}
+	peeringClustersManagers   = map[string]ctrl.Manager{}
+	peeringClustersDynClients = map[string]dynamic.Interface{}
+	configClusterClient       *crdClient.CRDClient
+	k8sManagerLocal           ctrl.Manager
+	testEnvLocal              *envtest.Environment
+	dOperator                 *dispatcher.DispatcherReconciler
 )
 
 func TestMain(m *testing.M) {
 	setupEnv()
 	defer tearDown()
+	startDispatcherOperator()
+	time.Sleep(10 * time.Second)
+	klog.Info("main set up")
+	os.Exit(m.Run())
+}
+
+func startDispatcherOperator() {
 	err := setupDispatcherOperator()
 	if err != nil {
 		klog.Error(err)
@@ -49,22 +63,24 @@ func TestMain(m *testing.M) {
 		klog.Errorf("an error occurred while waiting for the chache to start")
 		os.Exit(-1)
 	}
-
-	cacheStartedRemote := make(chan struct{})
-	go func() {
-		if err = k8sManagerRemote.Start(make(chan struct{})); err != nil {
-			klog.Error(err)
-			panic(err)
-		}
-	}()
-	started = k8sManagerRemote.GetCache().WaitForCacheSync(cacheStartedRemote)
-	if !started {
-		klog.Errorf("an error occurred while waiting for the chache to start")
+	configLocal := k8sManagerLocal.GetConfig()
+	newConfig := &rest.Config{
+		Host: configLocal.Host,
+		// gotta go fast during tests -- we don't really care about overwhelming our test API server
+		QPS:   1000.0,
+		Burst: 2000.0,
+	}
+	err = dOperator.WatchConfiguration(newConfig, &policyv1.GroupVersion)
+	if err != nil {
+		klog.Errorf("an error occurred while starting the configuration watcher of dispatcher operator: %s", err)
 		os.Exit(-1)
 	}
-
-	time.Sleep(1 * time.Second)
-	os.Exit(m.Run())
+	fc := getForeignClusterResource()
+	_, err = dOperator.LocalDynClient.Resource(fcGVR).Create(context.TODO(), fc, metav1.CreateOptions{})
+	if err != nil {
+		klog.Error(err, err.Error())
+		os.Exit(-1)
+	}
 }
 
 func getConfigClusterCRDClient(config *rest.Config) *crdClient.CRDClient {
@@ -73,7 +89,7 @@ func getConfigClusterCRDClient(config *rest.Config) *crdClient.CRDClient {
 	newConfig.APIPath = "/apis"
 	newConfig.NegotiatedSerializer = clientgoscheme.Codecs.WithoutConversion()
 	newConfig.UserAgent = rest.DefaultKubernetesUserAgent()
-	CRDclient, err := crdClient.NewFromConfig(config)
+	CRDclient, err := crdClient.NewFromConfig(newConfig)
 	if err != nil {
 		klog.Error(err, err.Error())
 		os.Exit(1)
@@ -82,56 +98,60 @@ func getConfigClusterCRDClient(config *rest.Config) *crdClient.CRDClient {
 }
 
 func setupEnv() {
+	err := discoveryv1.AddToScheme(scheme.Scheme)
+	if err != nil {
+		klog.Error(err)
+	}
+	//save the environment variables in the map
+	for i := 1; i <= numberPeeringClusters; i++ {
+		peeringClusterID := peeringIDTemplate + fmt.Sprintf("%d", i)
+		peeringClustersTestEnvs[peeringClusterID] = &envtest.Environment{
+			CRDDirectoryPaths: []string{filepath.Join("..", "..", "..", "deployments", "liqo_chart", "crds")},
+		}
+	}
+	//start the peering environments, save the managers, create dynamic clients
+	for peeringClusterID, testEnv := range peeringClustersTestEnvs {
+		config, err := testEnv.Start()
+		if err != nil {
+			klog.Errorf("%s -> an error occurred while setting test environment: %s", peeringClusterID, err)
+			os.Exit(-1)
+		} else {
+			klog.Infof("%s -> created test environment with configCluster %s", peeringClusterID, config.String())
+		}
+		manager, err := ctrl.NewManager(config, ctrl.Options{
+			Scheme:             scheme.Scheme,
+			MetricsBindAddress: "0",
+		})
+		if err != nil {
+			klog.Errorf("%s -> an error occurred while creating the manager %s", peeringClusterID, err)
+			os.Exit(-1)
+		}
+		peeringClustersManagers[peeringClusterID] = manager
+		dynClient := dynamic.NewForConfigOrDie(manager.GetConfig())
+		peeringClustersDynClients[peeringClusterID] = dynClient
+	}
+	//setup the local testing environment
 	testEnvLocal = &envtest.Environment{
 		CRDDirectoryPaths: []string{filepath.Join("..", "..", "..", "deployments", "liqo_chart", "crds")},
 	}
-
 	configLocal, err := testEnvLocal.Start()
 	if err != nil {
 		klog.Error(err, "an error occurred while setting up the local testing environment")
-		os.Exit(-1)
 	}
+	klog.Infof("%s -> created test environment with configCluster %s", localClusterID, configLocal.String())
 	newConfig := &rest.Config{
 		Host: configLocal.Host,
 		// gotta go fast during tests -- we don't really care about overwhelming our test API server
 		QPS:   1000.0,
 		Burst: 2000.0,
 	}
-
-	testEnvRemote = &envtest.Environment{
-		CRDDirectoryPaths: []string{filepath.Join("..", "..", "..", "deployments", "liqo_chart", "crds")},
-	}
-
-	configRemote, err := testEnvRemote.Start()
-	if err != nil {
-		klog.Error(err, "an error occurred while setting up the local testing environment")
-		os.Exit(-1)
-	}
-
-	err = clientgoscheme.AddToScheme(scheme.Scheme)
-	if err != nil {
-		klog.Error(err, err.Error())
-	}
-	err = discoveryv1.AddToScheme(scheme.Scheme)
-	if err != nil {
-		klog.Error(err)
-	}
-
 	k8sManagerLocal, err = ctrl.NewManager(configLocal, ctrl.Options{
 		Scheme:             scheme.Scheme,
 		MetricsBindAddress: "0",
 	})
 	if err != nil {
-		klog.Error(err)
-		panic(err)
-	}
-	k8sManagerRemote, err = ctrl.NewManager(configRemote, ctrl.Options{
-		Scheme:             scheme.Scheme,
-		MetricsBindAddress: "0",
-	})
-	if err != nil {
-		klog.Error(err)
-		panic(err)
+		klog.Errorf("%s -> an error occurred while creating the manager %s", localClusterID, err)
+		os.Exit(-1)
 	}
 	configClusterClient = getConfigClusterCRDClient(newConfig)
 	cc := getClusterConfig()
@@ -140,19 +160,20 @@ func setupEnv() {
 		klog.Error(err, err.Error())
 		os.Exit(-1)
 	}
-	klog.Info("setupenv finished")
+	klog.Info("setup of testing environments finished")
 }
 
 func tearDown() {
-	err := testEnvRemote.Stop()
-	if err != nil {
-		klog.Error(err, err.Error())
-		os.Exit(1)
+	//stop the peering testing environments
+	for id, env := range peeringClustersTestEnvs {
+		err := env.Stop()
+		if err != nil {
+			klog.Errorf("%s -> an error occurred while stopping peering environment test: %s", id, err)
+		}
 	}
-	err = testEnvLocal.Stop()
+	err := testEnvLocal.Stop()
 	if err != nil {
-		klog.Error(err, err.Error())
-		os.Exit(1)
+		klog.Errorf("%s -> an error occurred while stopping local environment test: %s", localClusterID, err)
 	}
 }
 
@@ -195,8 +216,8 @@ func getClusterConfig() *policyv1.ClusterConfig {
 			},
 			DispatcherConfig: policyv1.DispatcherConfig{ResourcesToReplicate: []policyv1.Resource{{
 				Group:    "liqonet.liqo.io",
-				Version:  "v1alpha1",
-				Resource: "networkconfigs",
+				Version:  "v1",
+				Resource: "tunnelendpoints",
 			}}},
 		},
 	}

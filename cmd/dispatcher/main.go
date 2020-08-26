@@ -2,21 +2,22 @@ package main
 
 import (
 	"flag"
-	"fmt"
 	clusterConfig "github.com/liqoTech/liqo/api/cluster-config/v1"
 	discoveryv1 "github.com/liqoTech/liqo/api/discovery/v1"
 	"github.com/liqoTech/liqo/internal/dispatcher"
+	util "github.com/liqoTech/liqo/pkg/liqonet"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/dynamic"
+	"k8s.io/client-go/kubernetes"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
-	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/klog/v2"
 	"os"
 	ctrl "sigs.k8s.io/controller-runtime"
 )
 
 var (
-	scheme = runtime.NewScheme()
+	scheme          = runtime.NewScheme()
+	clusteIDConfMap = "cluster-id"
 )
 
 func init() {
@@ -26,31 +27,43 @@ func init() {
 }
 
 func main() {
-	remoteKubeConfig := flag.String("remoteConfig", "", "path to the kubeConfig of the remote cluster")
 	flag.Parse()
-	clusterID := "remoteCluster"
-
 	cfg := ctrl.GetConfigOrDie()
-	fmt.Println(remoteKubeConfig)
-	remoteCfg, err := clientcmd.BuildConfigFromFlags("", *remoteKubeConfig)
-	if err != nil {
-		panic(err)
-	}
-	d := &dispatcher.DispatcherReconciler{
-		Scheme:           scheme,
-		LocalDynClient:   dynamic.NewForConfigOrDie(cfg),
-		RemoteDynClients: make(map[string]dynamic.Interface),
-		RunningWatchers:  make(map[string]chan bool),
-	}
-	d.RemoteDynClients[clusterID] = dynamic.NewForConfigOrDie(remoteCfg)
-	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
+	mgr, err := ctrl.NewManager(cfg, ctrl.Options{
 		Scheme:         scheme,
 		Port:           9443,
 		LeaderElection: false,
 	})
 	if err != nil {
 		klog.Error(err, "unable to start manager")
-		os.Exit(1)
+		os.Exit(-1)
+	}
+	//create a clientSet
+	k8sClient := kubernetes.NewForConfigOrDie(cfg)
+	//get namespace where the operator is running
+	namespaceName, found := os.LookupEnv("NAMESPACE")
+	if !found {
+		klog.Errorf("namespace env variable not set, please set it in manifest file o the operator")
+		os.Exit(-1)
+	}
+	clusterID, err := util.GetClusterID(k8sClient, clusteIDConfMap, namespaceName)
+	if err != nil {
+		klog.Errorf("an error occurred while retrieving the clusterID: %s", err)
+	} else {
+		klog.Infof("setting local clusterID to: %s", clusterID)
+	}
+
+	d := &dispatcher.DispatcherReconciler{
+		Scheme:                mgr.GetScheme(),
+		Client:                mgr.GetClient(),
+		ClientSet:             k8sClient,
+		ClusterID:             clusterID,
+		RemoteDynClients:      make(map[string]dynamic.Interface),
+		LocalDynClient:        dynamic.NewForConfigOrDie(cfg),
+		RegisteredResources:   nil,
+		UnregisteredResources: nil,
+		LocalWatchers:         make(map[string]chan bool),
+		RemoteWatchers:        make(map[string]map[string]chan bool),
 	}
 	if err = d.SetupWithManager(mgr); err != nil {
 		klog.Error(err, "unable to setup the dispatcher-operator")

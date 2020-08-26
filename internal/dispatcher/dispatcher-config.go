@@ -32,11 +32,11 @@ func (d *DispatcherReconciler) UpdateConfig(cfg *policyv1.ClusterConfig) {
 		d.UnregisteredResources = d.GetRemovedResources(resources)
 		d.RegisteredResources = resources
 	}
+	klog.Infof("%s -> current registered resources %s", d.ClusterID, d.RegisteredResources)
 }
 
 func (d *DispatcherReconciler) GetConfig(cfg *policyv1.ClusterConfig) []schema.GroupVersionResource {
 	resourceList := cfg.Spec.DispatcherConfig
-	klog.Info(resourceList)
 	config := []schema.GroupVersionResource{}
 	for _, res := range resourceList.ResourcesToReplicate {
 		config = append(config, schema.GroupVersionResource{

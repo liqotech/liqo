@@ -3,6 +3,7 @@ package dispatcher
 import (
 	"context"
 	"github.com/stretchr/testify/assert"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -11,13 +12,19 @@ import (
 	"time"
 )
 
+var (
+	remoteClusterID = "testRemoteClusterID"
+	localClusterID  = "testLocalClusterID"
+)
+
 func getObj() *unstructured.Unstructured {
 	networkConfig := &unstructured.Unstructured{
 		Object: map[string]interface{}{
 			"apiVersion": "liqonet.liqo.io/v1alpha1",
 			"kind":       "NetworkConfig",
 			"metadata": map[string]interface{}{
-				"name": "test-networkconfig",
+				"name":   "test-networkconfig",
+				"labels": map[string]string{},
 			},
 			"spec": map[string]interface{}{
 				"clusterID":       "clusterID-test",
@@ -27,12 +34,33 @@ func getObj() *unstructured.Unstructured {
 			},
 		},
 	}
+	networkConfig.SetLabels(getLabels())
 	return networkConfig
+}
+
+func getLabels() map[string]string {
+	return map[string]string{
+		LocalLabelSelector: "true",
+		DestinationLabel:   remoteClusterID,
+	}
+}
+
+func getDispatcher() DispatcherReconciler {
+	return DispatcherReconciler{
+		Scheme:                nil,
+		ClusterID:             localClusterID,
+		RemoteDynClients:      map[string]dynamic.Interface{remoteClusterID: dynClient},
+		RegisteredResources:   nil,
+		UnregisteredResources: nil,
+		RemoteWatchers:        map[string]map[string]chan bool{},
+		LocalDynClient:        dynClient,
+		LocalWatchers:         make(map[string]chan bool),
+	}
 }
 
 func TestDispatcherReconciler_CreateResource(t *testing.T) {
 	networkConfig := getObj()
-	d := DispatcherReconciler{}
+	d := getDispatcher()
 	//test 1
 	//the resource does not exist on the cluster
 	//we expect to be created
@@ -53,7 +81,7 @@ func TestDispatcherReconciler_CreateResource(t *testing.T) {
 	//the resource is not a valid one
 	//we expect an error
 	networkConfig.SetAPIVersion("invalidOne")
-	networkConfig.SetLabels(map[string]string{"labelTesti": "test"})
+	networkConfig.SetName("newName")
 	err = d.CreateResource(dynClient, gvr, networkConfig, clusterID)
 	assert.NotNil(t, err, "error should not be nil")
 	//test 5
@@ -65,7 +93,7 @@ func TestDispatcherReconciler_CreateResource(t *testing.T) {
 }
 
 func TestDispatcherReconciler_DeleteResource(t *testing.T) {
-	d := DispatcherReconciler{}
+	d := getDispatcher()
 	//test 1
 	//delete an existing resource
 	//we expect the error to be nil
@@ -82,7 +110,7 @@ func TestDispatcherReconciler_DeleteResource(t *testing.T) {
 }
 
 func TestDispatcherReconciler_UpdateResource(t *testing.T) {
-	d := DispatcherReconciler{}
+	d := getDispatcher()
 	//first we create the resource
 	networkConfig := getObj()
 	err := d.CreateResource(dynClient, gvr, networkConfig, clusterID)
@@ -132,13 +160,100 @@ func TestDispatcherReconciler_UpdateResource(t *testing.T) {
 	assert.Equal(t, newStatus, status, "status should be equal")
 }
 
-func TestDispatcherReconciler_StartWatchers(t *testing.T) {
-	d := DispatcherReconciler{
-		LocalDynClient:  dynClient,
-		RunningWatchers: make(map[string]chan bool),
-		Started:         false,
+func TestDispatcherReconciler_StartRemoteWatchers(t *testing.T) {
+	d := getDispatcher()
+	//for each test we have a number of registered resources and
+	//after calling the StartWatchers function we expect two have a certain number of active watchers
+	//as is the number of the registered resources
+	test1 := []schema.GroupVersionResource{{
+		Group:    "liqonet.liqo.io",
+		Version:  "v1alpha1",
+		Resource: "networkconfigs",
+	}, {
+		Group:    "liqonet.liqo.io",
+		Version:  "v1",
+		Resource: "tunnelendpoints",
+	}}
+	test2 := []schema.GroupVersionResource{}
+	test3 := []schema.GroupVersionResource{{
+		Group:    "liqonet.liqo.io",
+		Version:  "v1alpha1",
+		Resource: "networkconfigs",
+	}}
+	tests := []struct {
+		test             []schema.GroupVersionResource
+		expectedWatchers int
+	}{
+		{test1, 2},
+		{test2, 0},
+		{test3, 1},
 	}
-	//for each test we have a number of registers resources and
+
+	for _, test := range tests {
+		d.RegisteredResources = test.test
+		d.StartRemoteWatchers()
+		assert.Equal(t, test.expectedWatchers, len(d.RemoteWatchers[remoteClusterID]), "it should be the same")
+		//stop the watchers
+
+		for k, ch := range d.RemoteWatchers[remoteClusterID] {
+			close(ch)
+			delete(d.RemoteWatchers[remoteClusterID], k)
+			time.Sleep(1 * time.Second)
+		}
+	}
+	//test on a closed channel
+	//we close a channel of a running watcher an expect that the function restarts the watcher
+	//we add a new channel on runningWatchers
+	d.RemoteWatchers[remoteClusterID][test3[0].String()] = make(chan bool)
+	close(d.RemoteWatchers[remoteClusterID][test3[0].String()])
+	time.Sleep(1 * time.Second)
+	d.StartRemoteWatchers()
+	select {
+	case _, ok := <-d.RemoteWatchers[remoteClusterID][test3[0].String()]:
+		assert.True(t, ok, "should be true")
+	default:
+
+	}
+	assert.NotPanics(t, func() { close(d.RemoteWatchers[remoteClusterID][test3[0].String()]) }, "should not panic")
+}
+
+func TestDispatcherReconciler_StopRemoteWatchers(t *testing.T) {
+	d := getDispatcher()
+	//we add two kind of resources to be watched
+	//then unregister them and check that the watchers have been closed as well
+	test1 := []schema.GroupVersionResource{{
+		Group:    "liqonet.liqo.io",
+		Version:  "v1alpha1",
+		Resource: "networkconfigs",
+	}, {
+		Group:    "liqonet.liqo.io",
+		Version:  "v1",
+		Resource: "tunnelendpoints",
+	}}
+	d.RegisteredResources = test1
+	d.StartRemoteWatchers()
+	assert.Equal(t, 2, len(d.RemoteWatchers[remoteClusterID]), "it should be 2")
+	for _, r := range test1 {
+		d.UnregisteredResources = append(d.UnregisteredResources, r.String())
+	}
+	d.StopRemoteWatchers()
+	assert.Equal(t, 0, len(d.RemoteWatchers[remoteClusterID]), "it should be 0")
+	d.UnregisteredResources = []string{}
+	//test 2
+	//we close previously a channel of a watcher and then we add the resource to the unregistered list
+	//we expect than it does not panic and only one watcher is still active
+	d.RegisteredResources = test1
+	d.StartRemoteWatchers()
+	assert.Equal(t, 2, len(d.RemoteWatchers[remoteClusterID]), "it should be 2")
+	d.UnregisteredResources = append(d.UnregisteredResources, d.RegisteredResources[0].String())
+	assert.NotPanics(t, func() { close(d.RemoteWatchers[remoteClusterID][d.RegisteredResources[0].String()]) }, "should not panic")
+	d.StopRemoteWatchers()
+	assert.Equal(t, 1, len(d.RemoteWatchers[remoteClusterID]), "it should be 0")
+}
+
+func TestDispatcherReconciler_StartWatchers(t *testing.T) {
+	d := getDispatcher()
+	//for each test we have a number of registered resources and
 	//after calling the StartWatchers function we expect two have a certain number of active watchers
 	//as is the number of the registered resources
 	test1 := []schema.GroupVersionResource{{
@@ -168,35 +283,34 @@ func TestDispatcherReconciler_StartWatchers(t *testing.T) {
 	for _, test := range tests {
 		d.RegisteredResources = test.test
 		d.StartWatchers()
-		assert.Equal(t, test.expectedWatchers, len(d.RunningWatchers), "it should be the same")
+		assert.Equal(t, test.expectedWatchers, len(d.LocalWatchers), "it should be the same")
 		//stop the watchers
-		for k, ch := range d.RunningWatchers {
+		for k, ch := range d.LocalWatchers {
 			close(ch)
-			delete(d.RunningWatchers, k)
+			delete(d.LocalWatchers, k)
 			time.Sleep(1 * time.Second)
 		}
 	}
 	//test on a closed channel
 	//we close a channel of a running watcher an expect that the function restarts the watcher
 	//we add a new channel on runningWatchers
-	d.RunningWatchers[test3[0].String()] = make(chan bool)
-	close(d.RunningWatchers[test3[0].String()])
+	d.LocalWatchers[test3[0].String()] = make(chan bool)
+	close(d.LocalWatchers[test3[0].String()])
 	time.Sleep(1 * time.Second)
 	d.StartWatchers()
 	select {
-	case _, ok := <-d.RunningWatchers[test3[0].String()]:
+	case _, ok := <-d.LocalWatchers[test3[0].String()]:
 		assert.True(t, ok, "should be true")
 	default:
 
 	}
-	assert.NotPanics(t, func() { close(d.RunningWatchers[test3[0].String()]) }, "should not panic")
+	assert.NotPanics(t, func() { close(d.LocalWatchers[test3[0].String()]) }, "should not panic")
 }
 
 func TestDispatcherReconciler_StopWatchers(t *testing.T) {
 	d := DispatcherReconciler{
-		LocalDynClient:  dynClient,
-		RunningWatchers: make(map[string]chan bool),
-		Started:         false,
+		LocalDynClient: dynClient,
+		LocalWatchers:  make(map[string]chan bool),
 	}
 	//we add two kind of resources to be watched
 	//then unregister them and check that the watchers have ben closed as well
@@ -211,29 +325,27 @@ func TestDispatcherReconciler_StopWatchers(t *testing.T) {
 	}}
 	d.RegisteredResources = test1
 	d.StartWatchers()
-	assert.Equal(t, 2, len(d.RunningWatchers), "it should be 2")
+	assert.Equal(t, 2, len(d.LocalWatchers), "it should be 2")
 	for _, r := range test1 {
 		d.UnregisteredResources = append(d.UnregisteredResources, r.String())
 	}
 	d.StopWatchers()
-	assert.Equal(t, 0, len(d.RunningWatchers), "it should be 0")
+	assert.Equal(t, 0, len(d.LocalWatchers), "it should be 0")
 	d.UnregisteredResources = []string{}
 	//test 2
 	//we close previously a channel of a watcher and then we add the resource to the unregistered list
 	//we expect than it does not panic and only one watcher is still active
 	d.RegisteredResources = test1
 	d.StartWatchers()
-	assert.Equal(t, 2, len(d.RunningWatchers), "it should be 2")
+	assert.Equal(t, 2, len(d.LocalWatchers), "it should be 2")
 	d.UnregisteredResources = append(d.UnregisteredResources, d.RegisteredResources[0].String())
-	assert.NotPanics(t, func() { close(d.RunningWatchers[d.RegisteredResources[0].String()]) }, "should not panic")
+	assert.NotPanics(t, func() { close(d.LocalWatchers[d.RegisteredResources[0].String()]) }, "should not panic")
 	d.StopWatchers()
-	assert.Equal(t, 1, len(d.RunningWatchers), "it should be 0")
+	assert.Equal(t, 1, len(d.LocalWatchers), "it should be 0")
 }
 
 func TestDispatcherReconciler_AddedHandler(t *testing.T) {
-	d := DispatcherReconciler{
-		RemoteDynClients: map[string]dynamic.Interface{clusterID: dynClient},
-	}
+	d := getDispatcher()
 	//test 1
 	//adding a resource kind that exists on the cluster
 	//we expect the resource to be created
@@ -243,7 +355,6 @@ func TestDispatcherReconciler_AddedHandler(t *testing.T) {
 	obj, err := dynClient.Resource(gvr).Get(context.TODO(), test1.GetName(), metav1.GetOptions{})
 	assert.Nil(t, err, "error should be empty")
 	assert.True(t, areEqual(test1, obj), "the two objects should be equal")
-
 	//remove the resource
 	err = dynClient.Resource(gvr).Delete(context.TODO(), test1.GetName(), metav1.DeleteOptions{})
 	assert.Nil(t, err, "should be nil")
@@ -257,9 +368,7 @@ func TestDispatcherReconciler_AddedHandler(t *testing.T) {
 	assert.Nil(t, obj, "the object retrieved should be nil")
 }
 func TestDispatcherReconciler_ModifiedHandler(t *testing.T) {
-	d := DispatcherReconciler{
-		RemoteDynClients: map[string]dynamic.Interface{clusterID: dynClient},
-	}
+	d := getDispatcher()
 
 	//test 1
 	//the modified resource does not exist on the cluster
@@ -288,10 +397,40 @@ func TestDispatcherReconciler_ModifiedHandler(t *testing.T) {
 	assert.Nil(t, err, "should be nil")
 }
 
+func TestDispatcherReconciler_RemoteResourceModifiedHandler(t *testing.T) {
+	d := getDispatcher()
+
+	//test 1
+	//the modified resource does not exist on the cluster
+	//we expect the resource to be created and error to be nil
+	test1 := getObj()
+	d.RemoteResourceModifiedHandler(test1, gvr, remoteClusterID)
+	time.Sleep(1 * time.Second)
+	_, err := dynClient.Resource(gvr).Get(context.TODO(), test1.GetName(), metav1.GetOptions{})
+	assert.True(t, apierrors.IsNotFound(err), "error should be not found")
+
+	//test 2
+	//the modified resource already exists on the cluster
+	//we modify some fields other than status
+	//we expect the resource to not be modified and the error to be nil
+	test1, err = dynClient.Resource(gvr).Create(context.TODO(), test1, metav1.CreateOptions{})
+	assert.Nil(t, err, "error should be nil")
+	test1.SetLabels(map[string]string{
+		"labelTestin": "labelling",
+	})
+	d.RemoteResourceModifiedHandler(test1, gvr, remoteClusterID)
+	time.Sleep(1 * time.Second)
+	obj, err := dynClient.Resource(gvr).Get(context.TODO(), test1.GetName(), metav1.GetOptions{})
+	assert.Nil(t, err, "error should be empty")
+	assert.NotEqual(t, obj.GetLabels(), test1.GetLabels(), "the labels of the two objects should be ")
+
+	//clean up the resource
+	err = dynClient.Resource(gvr).Delete(context.TODO(), test1.GetName(), metav1.DeleteOptions{})
+	assert.Nil(t, err, "should be nil")
+}
+
 func TestDispatcherReconciler_DeletedHandler(t *testing.T) {
-	d := DispatcherReconciler{
-		RemoteDynClients: map[string]dynamic.Interface{clusterID: dynClient},
-	}
+	d := getDispatcher()
 	//test 1
 	//we create a resource then we pass it to the handler
 	//we expect the resource to be deleted
