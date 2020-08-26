@@ -20,13 +20,13 @@ func createFakeClusterConfig() policyv1.ClusterConfig {
 		},
 		Spec: policyv1.ClusterConfigSpec{
 			AdvertisementConfig: policyv1.AdvertisementConfig{
-				BroadcasterConfig: policyv1.BroadcasterConfig{
+				OutgoingConfig: policyv1.BroadcasterConfig{
 					ResourceSharingPercentage: 50,
 					EnableBroadcaster:         true,
 				},
-				AdvOperatorConfig: policyv1.AdvOperatorConfig{
+				IngoingConfig: policyv1.AdvOperatorConfig{
 					MaxAcceptableAdvertisement: 5,
-					AcceptPolicy:               policyv1.AutoAcceptAll,
+					AcceptPolicy:               policyv1.AutoAcceptWithinMaximum,
 				},
 			},
 		},
@@ -71,7 +71,7 @@ func testModifySharingPercentage(t *testing.T) {
 	cpu := adv.Spec.ResourceQuota.Hard.Cpu().Value()
 	mem := adv.Spec.ResourceQuota.Hard.Memory().Value()
 	// modify sharing percentage
-	clusterConfig.Spec.AdvertisementConfig.ResourceSharingPercentage = int32(30)
+	clusterConfig.Spec.AdvertisementConfig.OutgoingConfig.ResourceSharingPercentage = int32(30)
 	_, err = configClient.Resource("clusterconfigs").Update(clusterConfig.Name, &clusterConfig, v1.UpdateOptions{})
 	if err != nil {
 		t.Fatal(err)
@@ -113,7 +113,7 @@ func testDisableBroadcaster(t *testing.T) {
 	time.Sleep(1 * time.Second)
 
 	// disable advertisement
-	clusterConfig.Spec.AdvertisementConfig.EnableBroadcaster = false
+	clusterConfig.Spec.AdvertisementConfig.OutgoingConfig.EnableBroadcaster = false
 	_, err = configClient.Resource("clusterconfigs").Update(clusterConfig.Name, &clusterConfig, v1.UpdateOptions{})
 	if err != nil {
 		t.Fatal(err)
@@ -130,46 +130,6 @@ func testDisableBroadcaster(t *testing.T) {
 
 func TestWatchAdvOperatorConfig(t *testing.T) {
 	t.Run("testManageMaximumUpdate", testManageMaximumUpdate)
-	t.Run("testModifyAcceptPolicy", testModifyAcceptPolicy)
-}
-
-func testModifyAcceptPolicy(t *testing.T) {
-	clusterConfig := createFakeClusterConfig()
-	r := createReconcilerWithConfig(clusterConfig.Spec.AdvertisementConfig)
-
-	// create some adv on the cluster
-	for i := 0; i < 10; i++ {
-		adv := createFakeAdv("cluster-"+strconv.Itoa(i), "default")
-		_, err := r.AdvClient.Resource("advertisements").Create(adv, v1.CreateOptions{})
-		if err != nil {
-			t.Fatal(err)
-		}
-	}
-
-	// create fake client for configuration watcher
-	configClient, err := policyv1.CreateClusterConfigClient("")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	r.WatchConfiguration("", configClient)
-	_, err = configClient.Resource("clusterconfigs").Create(&clusterConfig, v1.CreateOptions{})
-	if err != nil {
-		t.Fatal(err)
-	}
-	time.Sleep(5 * time.Second)
-
-	clusterConfig.Spec.AdvertisementConfig.AcceptPolicy = policyv1.AutoAcceptWithinMaximum
-	_, err = configClient.Resource("clusterconfigs").Update(clusterConfig.Name, &clusterConfig, v1.UpdateOptions{})
-	if err != nil {
-		t.Fatal(err)
-	}
-	time.Sleep(5 * time.Second)
-	assert.Equal(t, clusterConfig.Spec.AdvertisementConfig, r.ClusterConfig)
-}
-
-func testModifyMaxAcceptableAdvertisement(t *testing.T) {
-
 }
 
 func testManageMaximumUpdate(t *testing.T) {
@@ -198,7 +158,7 @@ func testManageMaximumUpdate(t *testing.T) {
 	config := policyv1.ClusterConfig{
 		Spec: policyv1.ClusterConfigSpec{
 			AdvertisementConfig: policyv1.AdvertisementConfig{
-				AdvOperatorConfig: policyv1.AdvOperatorConfig{
+				IngoingConfig: policyv1.AdvOperatorConfig{
 					MaxAcceptableAdvertisement: int32(advCount),
 					AcceptPolicy:               policyv1.AutoAcceptWithinMaximum,
 				},
@@ -208,12 +168,13 @@ func testManageMaximumUpdate(t *testing.T) {
 
 	// TRUE TEST
 	// test the true branch of ManageMaximumUpdate
-	err, flag := r.ManageMaximumUpdate(config.Spec.AdvertisementConfig, &advList)
+	err, advToUpdate := r.ManageMaximumUpdate(config.Spec.AdvertisementConfig, &advList)
 	assert.Nil(t, err)
-	assert.True(t, flag)
+	assert.NotEmpty(t, advToUpdate)
+	assert.NotEmpty(t, advToUpdate.Items)
 	assert.Equal(t, config.Spec.AdvertisementConfig, r.ClusterConfig)
 	assert.Equal(t, int32(advCount), r.AcceptedAdvNum)
-	for _, adv := range advList.Items {
+	for _, adv := range advToUpdate.Items {
 		assert.Equal(t, advcontroller.AdvertisementAccepted, adv.Status.AdvertisementStatus)
 		r.UpdateAdvertisement(&adv)
 	}
@@ -221,21 +182,20 @@ func testManageMaximumUpdate(t *testing.T) {
 	// FALSE TEST
 	// apply again the same configuration
 	// we enter in the false branch of ManageMaximumUpdate but nothing should change
-	err, flag = r.ManageMaximumUpdate(config.Spec.AdvertisementConfig, &advList)
+	err, advToUpdate = r.ManageMaximumUpdate(config.Spec.AdvertisementConfig, &advList)
 	assert.Nil(t, err)
-	assert.False(t, flag)
+	assert.NotEmpty(t, advToUpdate)
+	assert.Empty(t, advToUpdate.Items)
 	assert.Equal(t, config.Spec.AdvertisementConfig, r.ClusterConfig)
 	assert.Equal(t, int32(advCount), r.AcceptedAdvNum)
 
-	// FALSE TEST with config.MaxAcceptableAdvertisement < r.AcceptedAdvNum
-	// the advList contains 15 accepted Adv
-	// create a new configuration with MaxAcceptableAdv = 10
-	// with the new configuration, check 5 adv are deleted
+	// FALSE TEST with new config
+	// check the new config is saved
 	advCount = 10
 	config = policyv1.ClusterConfig{
 		Spec: policyv1.ClusterConfigSpec{
 			AdvertisementConfig: policyv1.AdvertisementConfig{
-				AdvOperatorConfig: policyv1.AdvOperatorConfig{
+				IngoingConfig: policyv1.AdvOperatorConfig{
 					MaxAcceptableAdvertisement: int32(advCount),
 					AcceptPolicy:               policyv1.AutoAcceptWithinMaximum,
 				},
@@ -243,15 +203,9 @@ func testManageMaximumUpdate(t *testing.T) {
 		},
 	}
 
-	err, flag = r.ManageMaximumUpdate(config.Spec.AdvertisementConfig, &advList)
+	err, advToUpdate = r.ManageMaximumUpdate(config.Spec.AdvertisementConfig, &advList)
 	assert.Nil(t, err)
-	assert.False(t, flag)
+	assert.NotEmpty(t, advToUpdate)
+	assert.Empty(t, advToUpdate.Items)
 	assert.Equal(t, config.Spec.AdvertisementConfig, r.ClusterConfig)
-	assert.Equal(t, int32(advCount), r.AcceptedAdvNum)
-	var advList2 advv1.AdvertisementList
-	_ = r.List(context.Background(), &advList2, &client.ListOptions{})
-	assert.Equal(t, advCount, len(advList2.Items))
-	for _, adv := range advList2.Items {
-		assert.Equal(t, advcontroller.AdvertisementAccepted, adv.Status.AdvertisementStatus)
-	}
 }

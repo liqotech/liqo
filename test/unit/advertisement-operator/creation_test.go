@@ -45,6 +45,33 @@ func createFakeAdv(name, namespace string) *v1.Advertisement {
 	}
 }
 
+func createFakeInvalidAdv(name, namespace string, resourceQuota corev1.ResourceQuotaSpec) *v1.Advertisement {
+	return &v1.Advertisement{
+		TypeMeta: metav1.TypeMeta{},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      name,
+			Namespace: namespace,
+		},
+		Spec: v1.AdvertisementSpec{
+			ClusterId: "cluster1",
+			KubeConfigRef: corev1.SecretReference{
+				Namespace: "fake",
+				Name:      "fake-kubeconfig",
+			},
+			ResourceQuota: resourceQuota,
+			LimitRange:    corev1.LimitRangeSpec{Limits: []corev1.LimitRangeItem{}},
+			Network: v1.NetworkInfo{
+				PodCIDR:            "",
+				GatewayIP:          "",
+				GatewayPrivateIP:   "",
+				SupportedProtocols: nil,
+			},
+			Timestamp:  metav1.NewTime(time.Now()),
+			TimeToLive: metav1.NewTime(time.Now().Add(30 * time.Minute)),
+		},
+	}
+}
+
 func createFakePod(name, namespace string) *corev1.Pod {
 	return &corev1.Pod{
 		ObjectMeta: metav1.ObjectMeta{

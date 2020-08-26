@@ -32,8 +32,8 @@ type ClusterConfigSpec struct {
 }
 
 type AdvertisementConfig struct {
-	BroadcasterConfig `json:"broadcasterConfig,omitempty"`
-	AdvOperatorConfig `json:"advOperatorConfig,omitempty"`
+	OutgoingConfig BroadcasterConfig `json:"outgoingConfig,omitempty"`
+	IngoingConfig  AdvOperatorConfig `json:"ingoingConfig,omitempty"`
 	// +kubebuilder:validation:Minimum=0
 	KeepaliveThreshold int32 `json:"keepaliveThreshold,omitempty"`
 	// +kubebuilder:validation:Minimum=0
@@ -51,12 +51,10 @@ type BroadcasterConfig struct {
 type AcceptPolicy string
 
 const (
-	// AutoAcceptAll means all the Advertisement received will be accepted
-	AutoAcceptAll AcceptPolicy = "AutoAcceptAll"
 	// AutoAcceptWithinMaximum means all the Advertisement received will be accepted until the MaxAcceptableAdvertisement limit is reached
+	// AutoAcceptAll can be achieved by setting MaxAcceptableAdvertisement to infinite
+	// AutoRefuseAll can be achieved by setting MaxAcceptableAdvertisement to 0
 	AutoAcceptWithinMaximum AcceptPolicy = "AutoAcceptWithinMaximum"
-	// AutoRefuseAll means all the Advertisement received will be refused (but not deleted)
-	AutoRefuseAll AcceptPolicy = "AutoRefuseAll"
 	// ManualAccept means every Advertisement received will need a manual accept/refuse, which can be done by updating its status
 	ManualAccept AcceptPolicy = "Manual"
 )
@@ -64,7 +62,7 @@ const (
 type AdvOperatorConfig struct {
 	// +kubebuilder:validation:Minimum=0
 	MaxAcceptableAdvertisement int32 `json:"maxAcceptableAdvertisement,omitempty"`
-	// +kubebuilder:validation:Enum="AutoAcceptAll";"AutoAcceptWithinMaximum";"AutoRefuseAll";"Manual"
+	// +kubebuilder:validation:Enum="AutoAcceptWithinMaximum";"Manual"
 	AcceptPolicy AcceptPolicy `json:"acceptPolicy"`
 }
 

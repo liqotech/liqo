@@ -6,10 +6,10 @@ metadata:
     app: liqo.io
 spec:
   advertisementConfig:
-    advOperatorConfig:
+    ingoingConfig:
       acceptPolicy: AutoAcceptWithinMaximum
       maxAcceptableAdvertisement: 5
-    broadcasterConfig:
+    outgoingConfig:
       resourceSharingPercentage: 30
       enableBroadcaster: true
     keepaliveThreshold: 3

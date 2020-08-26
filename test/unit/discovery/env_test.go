@@ -259,11 +259,11 @@ func getClusterConfig(config rest.Config) {
 		},
 		Spec: policyv1.ClusterConfigSpec{
 			AdvertisementConfig: policyv1.AdvertisementConfig{
-				AdvOperatorConfig: policyv1.AdvOperatorConfig{
+				IngoingConfig: policyv1.AdvOperatorConfig{
 					AcceptPolicy:               policyv1.AutoAcceptWithinMaximum,
 					MaxAcceptableAdvertisement: 5,
 				},
-				BroadcasterConfig: policyv1.BroadcasterConfig{
+				OutgoingConfig: policyv1.BroadcasterConfig{
 					ResourceSharingPercentage: 30,
 					EnableBroadcaster:         true,
 				},
