@@ -16,7 +16,7 @@ limitations under the License.
 // Package v1 contains API Schema definitions for the policy v1 API group
 // +kubebuilder:object:generate=true
 // +groupName=policy.liqo.io
-package v1
+package v1alpha1
 
 import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -25,7 +25,7 @@ import (
 
 var (
 	// GroupVersion is group version used to register these objects
-	GroupVersion = schema.GroupVersion{Group: "policy.liqo.io", Version: "v1"}
+	GroupVersion = schema.GroupVersion{Group: "config.liqo.io", Version: "v1alpha1"}
 
 	GroupResource = schema.GroupResource{Group: GroupVersion.Group, Resource: "clusterconfigs"}
 

@@ -1,7 +1,7 @@
 package crdReplicator
 
 import (
-	policyv1 "github.com/liqoTech/liqo/api/cluster-config/v1"
+	configv1alpha1 "github.com/liqoTech/liqo/api/config/v1alpha1"
 	"github.com/stretchr/testify/assert"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"testing"
@@ -11,10 +11,10 @@ func TestDispatcherReconciler_GetConfig(t *testing.T) {
 	dispatcher := CRDReplicatorReconciler{}
 	//test 1
 	//the list of the resources to be replicated is 0, so we expect a 0 length list to be returned by the function
-	t1 := policyv1.DispatcherConfig{ResourcesToReplicate: nil}
+	t1 := configv1alpha1.DispatcherConfig{ResourcesToReplicate: nil}
 	//test 2
 	//the list of the resources to be replicated contains 2 elements, so we expect  two elements in the list to be returned by the function
-	t2 := policyv1.DispatcherConfig{ResourcesToReplicate: []policyv1.Resource{
+	t2 := configv1alpha1.DispatcherConfig{ResourcesToReplicate: []configv1alpha1.Resource{
 		{
 			Group:    "liqonet.liqo.io",
 			Version:  "v1alpha1",
@@ -26,7 +26,7 @@ func TestDispatcherReconciler_GetConfig(t *testing.T) {
 		},
 	}}
 	tests := []struct {
-		config           policyv1.DispatcherConfig
+		config           configv1alpha1.DispatcherConfig
 		expectedElements int
 	}{
 		{t1, 0},
@@ -34,11 +34,11 @@ func TestDispatcherReconciler_GetConfig(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		cfg := &policyv1.ClusterConfig{
-			Spec: policyv1.ClusterConfigSpec{
+		cfg := &configv1alpha1.ClusterConfig{
+			Spec: configv1alpha1.ClusterConfigSpec{
 				DispatcherConfig: test.config,
 			},
-			Status: policyv1.ClusterConfigStatus{},
+			Status: configv1alpha1.ClusterConfigStatus{},
 		}
 		res := dispatcher.GetConfig(cfg)
 		assert.Equal(t, test.expectedElements, len(res), "length should be equal")
@@ -108,11 +108,11 @@ func TestDispatcherReconciler_UpdateConfig(t *testing.T) {
 	//test 1
 	//the list of the resources to be replicated is 0, so we expect a 0 length list to be returned by the function
 	//and 0 elements removed
-	t1 := policyv1.DispatcherConfig{ResourcesToReplicate: nil}
+	t1 := configv1alpha1.DispatcherConfig{ResourcesToReplicate: nil}
 	//test 2
 	//the list of the resources to be replicated contains 2 elements, so we expect  two elements in the list to be returned by the function
 	//and 0 elements removed
-	t2 := policyv1.DispatcherConfig{ResourcesToReplicate: []policyv1.Resource{
+	t2 := configv1alpha1.DispatcherConfig{ResourcesToReplicate: []configv1alpha1.Resource{
 		{
 			Group:    "liqonet.liqo.io",
 			Version:  "v1alpha1",
@@ -127,7 +127,7 @@ func TestDispatcherReconciler_UpdateConfig(t *testing.T) {
 	//test 3
 	//we remove an existing element and add a new one. we expect to have 2 elements in the registeredResources
 	//and 1 element removedResources
-	t3 := policyv1.DispatcherConfig{ResourcesToReplicate: []policyv1.Resource{
+	t3 := configv1alpha1.DispatcherConfig{ResourcesToReplicate: []configv1alpha1.Resource{
 		{
 			Group:    "liqonet.liqo.io",
 			Version:  "v1alpha1",
@@ -139,7 +139,7 @@ func TestDispatcherReconciler_UpdateConfig(t *testing.T) {
 		},
 	}}
 	tests := []struct {
-		config                     policyv1.DispatcherConfig
+		config                     configv1alpha1.DispatcherConfig
 		expectedElementsResources  int
 		expectedElementsRemovedRes int
 	}{
@@ -149,11 +149,11 @@ func TestDispatcherReconciler_UpdateConfig(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		cfg := &policyv1.ClusterConfig{
-			Spec: policyv1.ClusterConfigSpec{
+		cfg := &configv1alpha1.ClusterConfig{
+			Spec: configv1alpha1.ClusterConfigSpec{
 				DispatcherConfig: test.config,
 			},
-			Status: policyv1.ClusterConfigStatus{},
+			Status: configv1alpha1.ClusterConfigStatus{},
 		}
 		dispatcher.UpdateConfig(cfg)
 		assert.Equal(t, test.expectedElementsResources, len(dispatcher.RegisteredResources), "length should be equal")
@@ -172,6 +172,6 @@ func TestDispatcherReconciler_WatchConfiguration(t *testing.T) {
 
 	//test2
 	//the group version is not correct and we expect an error
-	err = dispatcher.WatchConfiguration(config, &policyv1.GroupVersion)
+	err = dispatcher.WatchConfiguration(config, &configv1alpha1.GroupVersion)
 	assert.Nil(t, err, "error should be not nil")
 }

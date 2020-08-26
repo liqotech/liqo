@@ -1,8 +1,8 @@
 package advertisement_operator
 
 import (
-	policyv1 "github.com/liqoTech/liqo/api/cluster-config/v1"
 	advtypes "github.com/liqoTech/liqo/api/sharing/v1alpha1"
+	configv1alpha1 "github.com/liqoTech/liqo/api/config/v1alpha1"
 	"github.com/liqoTech/liqo/pkg/clusterConfig"
 	"github.com/liqoTech/liqo/pkg/crdClient"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
@@ -12,7 +12,7 @@ import (
 )
 
 func (b *AdvertisementBroadcaster) WatchConfiguration(kubeconfigPath string, client *crdClient.CRDClient) {
-	go clusterConfig.WatchConfiguration(func(configuration *policyv1.ClusterConfig) {
+	go clusterConfig.WatchConfiguration(func(configuration *configv1alpha1.ClusterConfig) {
 		newConfig := configuration.Spec.AdvertisementConfig.OutgoingConfig
 		if !newConfig.EnableBroadcaster {
 			// the broadcaster has been disabled
@@ -60,7 +60,7 @@ func (b *AdvertisementBroadcaster) WatchConfiguration(kubeconfigPath string, cli
 }
 
 func (r *AdvertisementReconciler) WatchConfiguration(kubeconfigPath string, client *crdClient.CRDClient) {
-	go clusterConfig.WatchConfiguration(func(configuration *policyv1.ClusterConfig) {
+	go clusterConfig.WatchConfiguration(func(configuration *configv1alpha1.ClusterConfig) {
 		newConfig := configuration.Spec.AdvertisementConfig
 		if newConfig.IngoingConfig != r.ClusterConfig.IngoingConfig {
 			// the config update is related to the advertisement operator
@@ -72,7 +72,7 @@ func (r *AdvertisementReconciler) WatchConfiguration(kubeconfigPath string, clie
 			}
 			advList := obj.(*advtypes.AdvertisementList)
 
-			if newConfig.IngoingConfig.AcceptPolicy == policyv1.AutoAcceptWithinMaximum && newConfig.IngoingConfig.MaxAcceptableAdvertisement != r.ClusterConfig.IngoingConfig.MaxAcceptableAdvertisement {
+			if newConfig.IngoingConfig.AcceptPolicy == configv1alpha1.AutoAcceptWithinMaximum && newConfig.IngoingConfig.MaxAcceptableAdvertisement != r.ClusterConfig.IngoingConfig.MaxAcceptableAdvertisement {
 				// the accept policy is set to AutoAcceptWithinMaximum and the Maximum has changed: re-check all Advertisements and update if needed
 				klog.Infof("AdvertisementConfig changed: the AcceptPolicy is %v and the MaxAcceptableAdvertisement has changed from %v to %v",
 					newConfig.IngoingConfig.AcceptPolicy, r.ClusterConfig.IngoingConfig.MaxAcceptableAdvertisement, newConfig.IngoingConfig.MaxAcceptableAdvertisement)
@@ -90,7 +90,7 @@ func (r *AdvertisementReconciler) WatchConfiguration(kubeconfigPath string, clie
 	}, client, kubeconfigPath)
 }
 
-func (r *AdvertisementReconciler) ManageMaximumUpdate(newConfig policyv1.AdvertisementConfig, advList *advtypes.AdvertisementList) (error, advtypes.AdvertisementList) {
+func (r *AdvertisementReconciler) ManageMaximumUpdate(newConfig configv1alpha1.AdvertisementConfig, advList *advtypes.AdvertisementList) (error, advtypes.AdvertisementList) {
 
 	advToUpdate := advtypes.AdvertisementList{Items: []advtypes.Advertisement{}}
 	if newConfig.IngoingConfig.MaxAcceptableAdvertisement > r.ClusterConfig.IngoingConfig.MaxAcceptableAdvertisement {
@@ -99,7 +99,6 @@ func (r *AdvertisementReconciler) ManageMaximumUpdate(newConfig policyv1.Adverti
 		for i := 0; i < len(advList.Items); i++ {
 			adv := &advList.Items[i]
 			if adv.Status.AdvertisementStatus == AdvertisementRefused {
-				// the adv was refused: check if now it can be accepted
 				r.CheckAdvertisement(adv)
 				if adv.Status.AdvertisementStatus == AdvertisementAccepted {
 					// the adv status has changed: it must be updated

@@ -2,8 +2,8 @@ package discovery
 
 import (
 	"context"
-	policyv1 "github.com/liqoTech/liqo/api/cluster-config/v1"
 	"github.com/liqoTech/liqo/pkg/clusterConfig"
+	configv1alpha1 "github.com/liqoTech/liqo/api/config/v1alpha1"
 	"github.com/liqoTech/liqo/pkg/crdClient"
 	rbacv1 "k8s.io/api/rbac/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -14,7 +14,7 @@ import (
 func (discovery *DiscoveryCtrl) GetDiscoveryConfig(crdClient *crdClient.CRDClient, kubeconfigPath string) error {
 	waitFirst := make(chan bool)
 	isFirst := true
-	go clusterConfig.WatchConfiguration(func(configuration *policyv1.ClusterConfig) {
+	go clusterConfig.WatchConfiguration(func(configuration *configv1alpha1.ClusterConfig) {
 		klog.Info("Change Configuration")
 		discovery.handleConfiguration(configuration.Spec.DiscoveryConfig)
 		discovery.handleDispatcherConfig(configuration.Spec.DispatcherConfig)
@@ -29,14 +29,14 @@ func (discovery *DiscoveryCtrl) GetDiscoveryConfig(crdClient *crdClient.CRDClien
 	return nil
 }
 
-func (discovery *DiscoveryCtrl) handleDispatcherConfig(config policyv1.DispatcherConfig) {
+func (discovery *DiscoveryCtrl) handleDispatcherConfig(config configv1alpha1.DispatcherConfig) {
 	role, err := discovery.crdClient.Client().RbacV1().ClusterRoles().Get(context.TODO(), "crdReplicator-role", metav1.GetOptions{})
 	create := false
 	if errors.IsNotFound(err) {
 		// create it
 		role = &rbacv1.ClusterRole{
 			ObjectMeta: metav1.ObjectMeta{
-				Name: "crdReplicator-role",
+				Name: "dispatcher-role",
 			},
 			Rules: []rbacv1.PolicyRule{},
 		}
@@ -69,7 +69,7 @@ func (discovery *DiscoveryCtrl) handleDispatcherConfig(config policyv1.Dispatche
 	}
 }
 
-func (discovery *DiscoveryCtrl) handleConfiguration(config policyv1.DiscoveryConfig) {
+func (discovery *DiscoveryCtrl) handleConfiguration(config configv1alpha1.DiscoveryConfig) {
 	reloadServer := false
 	reloadClient := false
 	reloadCa := false

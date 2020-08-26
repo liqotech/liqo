@@ -18,8 +18,8 @@ package advertisement_operator
 import (
 	"context"
 	goerrors "errors"
-	policyv1 "github.com/liqoTech/liqo/api/cluster-config/v1"
 	discoveryv1alpha1 "github.com/liqoTech/liqo/api/discovery/v1alpha1"
+	configv1alpha1 "github.com/liqoTech/liqo/api/config/v1alpha1"
 	advtypes "github.com/liqoTech/liqo/api/sharing/v1alpha1"
 	pkg "github.com/liqoTech/liqo/pkg/advertisement-operator"
 	"github.com/liqoTech/liqo/pkg/crdClient"
@@ -54,7 +54,7 @@ type AdvertisementReconciler struct {
 	InitVKImage        string
 	HomeClusterId      string
 	AcceptedAdvNum     int32
-	ClusterConfig      policyv1.AdvertisementConfig
+	ClusterConfig      configv1alpha1.AdvertisementConfig
 	AdvClient          *crdClient.CRDClient
 	DiscoveryClient    *crdClient.CRDClient
 	RetryTimeout       time.Duration
@@ -205,7 +205,7 @@ func (r *AdvertisementReconciler) UpdateForeignCluster(adv *advtypes.Advertiseme
 		// add owner reference
 		controller := true
 		adv.OwnerReferences = append(adv.OwnerReferences, metav1.OwnerReference{
-			APIVersion: "discovery.liqo.io/v1alpha1",
+			APIVersion: "discovery.liqo.io/v1",
 			Kind:       "ForeignCluster",
 			Name:       fc.Name,
 			UID:        fc.UID,
@@ -226,7 +226,7 @@ func (r *AdvertisementReconciler) CheckAdvertisement(adv *advtypes.Advertisement
 	}
 
 	switch r.ClusterConfig.IngoingConfig.AcceptPolicy {
-	case policyv1.AutoAcceptWithinMaximum:
+	case configv1alpha1.AutoAcceptWithinMaximum:
 		if r.AcceptedAdvNum < r.ClusterConfig.IngoingConfig.MaxAcceptableAdvertisement {
 			// the adv accepted so far are less than the configured maximum
 			adv.Status.AdvertisementStatus = AdvertisementAccepted
@@ -235,7 +235,7 @@ func (r *AdvertisementReconciler) CheckAdvertisement(adv *advtypes.Advertisement
 			// the maximum has been reached: cannot accept
 			adv.Status.AdvertisementStatus = AdvertisementRefused
 		}
-	case policyv1.ManualAccept:
+	case configv1alpha1.ManualAccept:
 		//TODO: manual accept/refuse, now we refuse all
 		adv.Status.AdvertisementStatus = AdvertisementRefused
 	}

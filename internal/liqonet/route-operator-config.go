@@ -1,7 +1,7 @@
 package controllers
 
 import (
-	policyv1 "github.com/liqoTech/liqo/api/cluster-config/v1"
+	configv1alpha1 "github.com/liqoTech/liqo/api/config/v1alpha1"
 	"github.com/liqoTech/liqo/pkg/clusterConfig"
 	"github.com/liqoTech/liqo/pkg/crdClient"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -21,7 +21,7 @@ func (r *RouteController) WatchConfiguration(config *rest.Config, gv *schema.Gro
 		klog.Error(err, err.Error())
 		os.Exit(1)
 	}
-	go clusterConfig.WatchConfiguration(func(configuration *policyv1.ClusterConfig) {
+	go clusterConfig.WatchConfiguration(func(configuration *configv1alpha1.ClusterConfig) {
 		if !r.IsConfigured {
 			r.ClusterPodCIDR = configuration.Spec.LiqonetConfig.PodCIDR
 			r.Configured <- true

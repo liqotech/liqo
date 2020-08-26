@@ -1,8 +1,8 @@
 package advertisement_operator
 
 import (
-	policyv1 "github.com/liqoTech/liqo/api/cluster-config/v1"
 	advtypes "github.com/liqoTech/liqo/api/sharing/v1alpha1"
+	configv1alpha1 "github.com/liqoTech/liqo/api/config/v1alpha1"
 	advop "github.com/liqoTech/liqo/internal/advertisement-operator"
 	"github.com/liqoTech/liqo/pkg/crdClient"
 	"github.com/stretchr/testify/assert"
@@ -12,7 +12,7 @@ import (
 	"testing"
 )
 
-func createReconciler(acceptedAdv, maxAcceptableAdv int32, acceptPolicy policyv1.AcceptPolicy) advop.AdvertisementReconciler {
+func createReconciler(acceptedAdv, maxAcceptableAdv int32, acceptPolicy configv1alpha1.AcceptPolicy) advop.AdvertisementReconciler {
 	c, evRecorder := createFakeKubebuilderClient()
 	// set the client in fake mode
 	crdClient.Fake = true
@@ -32,8 +32,8 @@ func createReconciler(acceptedAdv, maxAcceptableAdv int32, acceptPolicy policyv1
 		InitVKImage:      "",
 		HomeClusterId:    "",
 		AcceptedAdvNum:   acceptedAdv,
-		ClusterConfig: policyv1.AdvertisementConfig{
-			IngoingConfig: policyv1.AdvOperatorConfig{
+		ClusterConfig: configv1alpha1.AdvertisementConfig{
+			IngoingConfig: configv1alpha1.AdvOperatorConfig{
 				MaxAcceptableAdvertisement: maxAcceptableAdv,
 				AcceptPolicy:               acceptPolicy,
 			},
@@ -49,7 +49,7 @@ func TestCheckAdvertisement(t *testing.T) {
 }
 
 func testAutoAcceptWithinMaximum(t *testing.T) {
-	r := createReconciler(0, 10, policyv1.AutoAcceptWithinMaximum)
+	r := createReconciler(0, 10, configv1alpha1.AutoAcceptWithinMaximum)
 
 	// given a configuration with max 10 Advertisements, create 10 Advertisements
 	for i := 0; i < 10; i++ {
@@ -68,7 +68,7 @@ func testAutoAcceptWithinMaximum(t *testing.T) {
 }
 
 func testManualAccept(t *testing.T) {
-	r := createReconciler(0, 10, policyv1.ManualAccept)
+	r := createReconciler(0, 10, configv1alpha1.ManualAccept)
 
 	// given a configuration with max 10 Advertisements and ManualAccept policy, create 5 Advertisements and check they are refused
 	for i := 0; i < 5; i++ {
@@ -81,7 +81,7 @@ func testManualAccept(t *testing.T) {
 }
 
 func testRefuseInvalidAdvertisement(t *testing.T) {
-	r := createReconciler(0, 10, policyv1.AutoAcceptWithinMaximum)
+	r := createReconciler(0, 10, configv1alpha1.AutoAcceptWithinMaximum)
 
 	// create 5 advertisements with negative values in ResourceQuota field and check they are refused
 	for i := 1; i <= 5; i++ {

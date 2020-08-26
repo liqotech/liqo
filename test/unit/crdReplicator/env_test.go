@@ -3,8 +3,8 @@ package crdReplicator
 import (
 	"context"
 	"fmt"
-	policyv1 "github.com/liqoTech/liqo/api/cluster-config/v1"
 	discoveryv1alpha1 "github.com/liqoTech/liqo/api/discovery/v1alpha1"
+	configv1alpha1 "github.com/liqoTech/liqo/api/config/v1alpha1"
 	"github.com/liqoTech/liqo/internal/crdReplicator"
 	"github.com/liqoTech/liqo/pkg/crdClient"
 	"github.com/liqoTech/liqo/pkg/liqonet"
@@ -70,7 +70,7 @@ func startDispatcherOperator() {
 		QPS:   1000.0,
 		Burst: 2000.0,
 	}
-	err = dOperator.WatchConfiguration(newConfig, &policyv1.GroupVersion)
+	err = dOperator.WatchConfiguration(newConfig, &configv1alpha1.GroupVersion)
 	if err != nil {
 		klog.Errorf("an error occurred while starting the configuration watcher of crdReplicator operator: %s", err)
 		os.Exit(-1)
@@ -85,7 +85,7 @@ func startDispatcherOperator() {
 
 func getConfigClusterCRDClient(config *rest.Config) *crdClient.CRDClient {
 	newConfig := config
-	newConfig.ContentConfig.GroupVersion = &policyv1.GroupVersion
+	newConfig.ContentConfig.GroupVersion = &configv1alpha1.GroupVersion
 	newConfig.APIPath = "/apis"
 	newConfig.NegotiatedSerializer = clientgoscheme.Codecs.WithoutConversion()
 	newConfig.UserAgent = rest.DefaultKubernetesUserAgent()
@@ -177,23 +177,23 @@ func tearDown() {
 	}
 }
 
-func getClusterConfig() *policyv1.ClusterConfig {
-	return &policyv1.ClusterConfig{
+func getClusterConfig() *configv1alpha1.ClusterConfig {
+	return &configv1alpha1.ClusterConfig{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: "configuration",
 		},
-		Spec: policyv1.ClusterConfigSpec{
-			AdvertisementConfig: policyv1.AdvertisementConfig{
-				IngoingConfig: policyv1.AdvOperatorConfig{
-					AcceptPolicy:               policyv1.AutoAcceptWithinMaximum,
+		Spec: configv1alpha1.ClusterConfigSpec{
+			AdvertisementConfig: configv1alpha1.AdvertisementConfig{
+				IngoingConfig: configv1alpha1.AdvOperatorConfig{
+					AcceptPolicy:               configv1alpha1.AutoAcceptWithinMaximum,
 					MaxAcceptableAdvertisement: 5,
 				},
-				OutgoingConfig: policyv1.BroadcasterConfig{
+				OutgoingConfig: configv1alpha1.BroadcasterConfig{
 					ResourceSharingPercentage: 30,
 					EnableBroadcaster:         true,
 				},
 			},
-			DiscoveryConfig: policyv1.DiscoveryConfig{
+			DiscoveryConfig: configv1alpha1.DiscoveryConfig{
 				AutoJoin:            true,
 				Domain:              "local.",
 				EnableAdvertisement: true,
@@ -205,7 +205,7 @@ func getClusterConfig() *policyv1.ClusterConfig {
 				WaitTime:            2,
 				DnsServer:           "8.8.8.8:53",
 			},
-			LiqonetConfig: policyv1.LiqonetConfig{
+			LiqonetConfig: configv1alpha1.LiqonetConfig{
 				ReservedSubnets: []string{"10.0.0.0/16"},
 				VxlanNetConfig: liqonet.VxlanNetConfig{
 					Network:    "",
@@ -214,7 +214,7 @@ func getClusterConfig() *policyv1.ClusterConfig {
 					Vni:        "",
 				},
 			},
-			DispatcherConfig: policyv1.DispatcherConfig{ResourcesToReplicate: []policyv1.Resource{{
+			DispatcherConfig: configv1alpha1.DispatcherConfig{ResourcesToReplicate: []configv1alpha1.Resource{{
 				Group:    "liqonet.liqo.io",
 				Version:  "v1",
 				Resource: "tunnelendpoints",

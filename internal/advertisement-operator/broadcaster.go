@@ -13,7 +13,7 @@ import (
 	"sync"
 	"time"
 
-	policyv1 "github.com/liqoTech/liqo/api/cluster-config/v1"
+	configv1alpha1 "github.com/liqoTech/liqo/api/config/v1alpha1"
 	discoveryv1alpha1 "github.com/liqoTech/liqo/api/discovery/v1alpha1"
 	advtypes "github.com/liqoTech/liqo/api/sharing/v1alpha1"
 	corev1 "k8s.io/api/core/v1"
@@ -34,7 +34,7 @@ type AdvertisementBroadcaster struct {
 	ForeignClusterId   string
 	GatewayPrivateIP   string
 	PeeringRequestName string
-	ClusterConfig      policyv1.ClusterConfigSpec
+	ClusterConfig      configv1alpha1.ClusterConfigSpec
 }
 
 // start the broadcaster which sends Advertisement messages

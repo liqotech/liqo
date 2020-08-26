@@ -3,7 +3,7 @@ package controllers
 import (
 	"context"
 	"fmt"
-	policyv1 "github.com/liqoTech/liqo/api/cluster-config/v1"
+	configv1alpha1 "github.com/liqoTech/liqo/api/config/v1alpha1"
 	liqonetv1 "github.com/liqoTech/liqo/api/liqonet/v1"
 	"github.com/liqoTech/liqo/pkg/clusterConfig"
 	"github.com/liqoTech/liqo/pkg/crdClient"
@@ -20,7 +20,7 @@ import (
 	"time"
 )
 
-func (r *TunnelEndpointCreator) GetConfiguration(config *policyv1.ClusterConfig) (map[string]*net.IPNet, error) {
+func (r *TunnelEndpointCreator) GetConfiguration(config *configv1alpha1.ClusterConfig) (map[string]*net.IPNet, error) {
 	correctlyParsed := true
 	reservedSubnets := make(map[string]*net.IPNet)
 	liqonetConfig := config.Spec.LiqonetConfig
@@ -225,7 +225,7 @@ func (r *TunnelEndpointCreator) WatchConfiguration(config *rest.Config, gv *sche
 		os.Exit(1)
 	}
 
-	go clusterConfig.WatchConfiguration(func(configuration *policyv1.ClusterConfig) {
+	go clusterConfig.WatchConfiguration(func(configuration *configv1alpha1.ClusterConfig) {
 
 		//this section is executed at start-up time
 		if !r.IsConfigured {

@@ -2,7 +2,7 @@ package discovery
 
 import (
 	"context"
-	policyv1 "github.com/liqoTech/liqo/api/cluster-config/v1"
+	configv1alpha1 "github.com/liqoTech/liqo/api/config/v1alpha1"
 	"github.com/liqoTech/liqo/api/discovery/v1alpha1"
 	advtypes "github.com/liqoTech/liqo/api/sharing/v1alpha1"
 	"github.com/liqoTech/liqo/internal/discovery"
@@ -253,22 +253,22 @@ func getLiqoConfig(client kubernetes.Interface) {
 }
 
 func getClusterConfig(config rest.Config) {
-	cc := &policyv1.ClusterConfig{
+	cc := &configv1alpha1.ClusterConfig{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: "configuration",
 		},
-		Spec: policyv1.ClusterConfigSpec{
-			AdvertisementConfig: policyv1.AdvertisementConfig{
-				IngoingConfig: policyv1.AdvOperatorConfig{
-					AcceptPolicy:               policyv1.AutoAcceptWithinMaximum,
+		Spec: configv1alpha1.ClusterConfigSpec{
+			AdvertisementConfig: configv1alpha1.AdvertisementConfig{
+				IngoingConfig: configv1alpha1.AdvOperatorConfig{
+					AcceptPolicy:               configv1alpha1.AutoAcceptWithinMaximum,
 					MaxAcceptableAdvertisement: 5,
 				},
-				OutgoingConfig: policyv1.BroadcasterConfig{
+				OutgoingConfig: configv1alpha1.BroadcasterConfig{
 					ResourceSharingPercentage: 30,
 					EnableBroadcaster:         true,
 				},
 			},
-			DiscoveryConfig: policyv1.DiscoveryConfig{
+			DiscoveryConfig: configv1alpha1.DiscoveryConfig{
 				AutoJoin:            true,
 				AutoJoinUntrusted:   true,
 				Domain:              "local.",
@@ -282,7 +282,7 @@ func getClusterConfig(config rest.Config) {
 				WaitTime:            2,
 				DnsServer:           "8.8.8.8:53",
 			},
-			LiqonetConfig: policyv1.LiqonetConfig{
+			LiqonetConfig: configv1alpha1.LiqonetConfig{
 				ReservedSubnets: []string{"10.0.0.0/16"},
 				PodCIDR:         "192.168.1.1",
 				VxlanNetConfig: liqonet.VxlanNetConfig{
@@ -295,7 +295,7 @@ func getClusterConfig(config rest.Config) {
 		},
 	}
 
-	config.GroupVersion = &policyv1.GroupVersion
+	config.GroupVersion = &configv1alpha1.GroupVersion
 	client, err := crdClient.NewFromConfig(&config)
 	if err != nil {
 		klog.Error(err, err.Error())

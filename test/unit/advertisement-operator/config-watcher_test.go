@@ -2,7 +2,7 @@ package advertisement_operator
 
 import (
 	"context"
-	policyv1 "github.com/liqoTech/liqo/api/cluster-config/v1"
+	configv1alpha1 "github.com/liqoTech/liqo/api/config/v1alpha1"
 	advtypes "github.com/liqoTech/liqo/api/sharing/v1alpha1"
 	advop "github.com/liqoTech/liqo/internal/advertisement-operator"
 	"github.com/stretchr/testify/assert"
@@ -13,20 +13,20 @@ import (
 	"time"
 )
 
-func createFakeClusterConfig() policyv1.ClusterConfig {
-	return policyv1.ClusterConfig{
+func createFakeClusterConfig() configv1alpha1.ClusterConfig {
+	return configv1alpha1.ClusterConfig{
 		ObjectMeta: v1.ObjectMeta{
 			Name: "fake-configuration",
 		},
-		Spec: policyv1.ClusterConfigSpec{
-			AdvertisementConfig: policyv1.AdvertisementConfig{
-				OutgoingConfig: policyv1.BroadcasterConfig{
+		Spec: configv1alpha1.ClusterConfigSpec{
+			AdvertisementConfig: configv1alpha1.AdvertisementConfig{
+				OutgoingConfig: configv1alpha1.BroadcasterConfig{
 					ResourceSharingPercentage: 50,
 					EnableBroadcaster:         true,
 				},
-				IngoingConfig: policyv1.AdvOperatorConfig{
+				IngoingConfig: configv1alpha1.AdvOperatorConfig{
 					MaxAcceptableAdvertisement: 5,
-					AcceptPolicy:               policyv1.AutoAcceptWithinMaximum,
+					AcceptPolicy:               configv1alpha1.AutoAcceptWithinMaximum,
 				},
 			},
 		},
@@ -42,7 +42,7 @@ func testModifySharingPercentage(t *testing.T) {
 	clusterConfig := createFakeClusterConfig()
 	b := createBroadcaster(clusterConfig.Spec)
 	// create fake client for configuration watcher
-	configClient, err := policyv1.CreateClusterConfigClient("")
+	configClient, err := configv1alpha1.CreateClusterConfigClient("")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -93,7 +93,7 @@ func testDisableBroadcaster(t *testing.T) {
 	clusterConfig := createFakeClusterConfig()
 	b := createBroadcaster(clusterConfig.Spec)
 	// create fake client for configuration watcher
-	configClient, err := policyv1.CreateClusterConfigClient("")
+	configClient, err := configv1alpha1.CreateClusterConfigClient("")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -133,7 +133,7 @@ func TestWatchAdvOperatorConfig(t *testing.T) {
 }
 
 func testManageMaximumUpdate(t *testing.T) {
-	r := createReconciler(0, 10, policyv1.AutoAcceptWithinMaximum)
+	r := createReconciler(0, 10, configv1alpha1.AutoAcceptWithinMaximum)
 	advList := advtypes.AdvertisementList{
 		Items: []advtypes.Advertisement{},
 	}
@@ -155,12 +155,12 @@ func testManageMaximumUpdate(t *testing.T) {
 	// the advList contains 10 accepted and 5 refused Adv
 	// create a new configuration with MaxAcceptableAdv = 15
 	// with the new configuration, check the 5 refused Adv are accepted
-	config := policyv1.ClusterConfig{
-		Spec: policyv1.ClusterConfigSpec{
-			AdvertisementConfig: policyv1.AdvertisementConfig{
-				IngoingConfig: policyv1.AdvOperatorConfig{
+	config := configv1alpha1.ClusterConfig{
+		Spec: configv1alpha1.ClusterConfigSpec{
+			AdvertisementConfig: configv1alpha1.AdvertisementConfig{
+				IngoingConfig: configv1alpha1.AdvOperatorConfig{
 					MaxAcceptableAdvertisement: int32(advCount),
-					AcceptPolicy:               policyv1.AutoAcceptWithinMaximum,
+					AcceptPolicy:               configv1alpha1.AutoAcceptWithinMaximum,
 				},
 			},
 		},
@@ -192,12 +192,12 @@ func testManageMaximumUpdate(t *testing.T) {
 	// FALSE TEST with new config
 	// check the new config is saved
 	advCount = 10
-	config = policyv1.ClusterConfig{
-		Spec: policyv1.ClusterConfigSpec{
-			AdvertisementConfig: policyv1.AdvertisementConfig{
-				IngoingConfig: policyv1.AdvOperatorConfig{
+	config = configv1alpha1.ClusterConfig{
+		Spec: configv1alpha1.ClusterConfigSpec{
+			AdvertisementConfig: configv1alpha1.AdvertisementConfig{
+				IngoingConfig: configv1alpha1.AdvOperatorConfig{
 					MaxAcceptableAdvertisement: int32(advCount),
-					AcceptPolicy:               policyv1.AutoAcceptWithinMaximum,
+					AcceptPolicy:               configv1alpha1.AutoAcceptWithinMaximum,
 				},
 			},
 		},
