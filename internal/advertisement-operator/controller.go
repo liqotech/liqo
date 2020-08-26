@@ -38,9 +38,9 @@ import (
 )
 
 const (
-	AdvertisementAccepted = "ACCEPTED"
-	AdvertisementRefused  = "REFUSED"
-	AdvertisementDeleting = "DELETING"
+	AdvertisementAccepted = "Accepted"
+	AdvertisementRefused  = "Refused"
+	AdvertisementDeleting = "Deleting"
 )
 
 // AdvertisementReconciler reconciles a Advertisement object
@@ -225,12 +225,9 @@ func (r *AdvertisementReconciler) CheckAdvertisement(adv *protocolv1.Advertiseme
 		}
 	}
 
-	switch r.ClusterConfig.AcceptPolicy {
-	case policyv1.AutoAcceptAll:
-		adv.Status.AdvertisementStatus = AdvertisementAccepted
-		r.AcceptedAdvNum++
+	switch r.ClusterConfig.IngoingConfig.AcceptPolicy {
 	case policyv1.AutoAcceptWithinMaximum:
-		if r.AcceptedAdvNum < r.ClusterConfig.MaxAcceptableAdvertisement {
+		if r.AcceptedAdvNum < r.ClusterConfig.IngoingConfig.MaxAcceptableAdvertisement {
 			// the adv accepted so far are less than the configured maximum
 			adv.Status.AdvertisementStatus = AdvertisementAccepted
 			r.AcceptedAdvNum++
@@ -238,10 +235,8 @@ func (r *AdvertisementReconciler) CheckAdvertisement(adv *protocolv1.Advertiseme
 			// the maximum has been reached: cannot accept
 			adv.Status.AdvertisementStatus = AdvertisementRefused
 		}
-	case policyv1.AutoRefuseAll:
-		adv.Status.AdvertisementStatus = AdvertisementRefused
 	case policyv1.ManualAccept:
-		//TODO: manual accept/refuse
+		//TODO: manual accept/refuse, now we refuse all
 		adv.Status.AdvertisementStatus = AdvertisementRefused
 	}
 }

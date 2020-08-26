@@ -19,20 +19,15 @@ test: generate fmt vet manifests
 
 # Install CRDs into a cluster
 install: manifests
-	kubectl kustomize config/cluster-config/crd | kubectl apply -f -
+	kubectl apply -f deployments/liqo_chart/crds/
 
 # Uninstall CRDs from a cluster
 uninstall: manifests
-	kubectl kustomize config/cluster-config/crd | kubectl delete -f -
-
-# Deploy controller in the configured Kubernetes cluster in ~/.kube/config
-deploy: manifests
-	cd config/cluster-config/manager && kustomize edit set image controller=${IMG}
-	kubectl kustomize config/cluster-config/default | kubectl apply -f -
+	kubectl delete -f deployments/liqo_chart/crds/
 
 # Generate manifests e.g. CRD, RBAC etc.
 manifests: controller-gen
-	$(CONTROLLER_GEN) $(CRD_OPTIONS) paths="../../api/cluster-config/v1" output:crd:artifacts:config=../../config/cluster-config/crd/bases
+	$(CONTROLLER_GEN) $(CRD_OPTIONS) paths="./api/cluster-config/v1" output:crd:artifacts:config=deployments/liqo_chart/crds
 
 # Run go fmt against code
 fmt:

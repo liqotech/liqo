@@ -38,15 +38,13 @@ spec:
           properties:
             advertisementConfig:
               properties:
-                advOperatorConfig:
+                ingoingConfig:
                   properties:
                     acceptPolicy:
                       description: AcceptPolicy defines the policy to accept/refuse
                         an Advertisement
                       enum:
-                      - AutoAcceptAll
                       - AutoAcceptWithinMaximum
-                      - AutoRefuseAll
                       - Manual
                       type: string
                     maxAcceptableAdvertisement:
@@ -56,7 +54,15 @@ spec:
                   required:
                   - acceptPolicy
                   type: object
-                broadcasterConfig:
+                keepaliveRetryTime:
+                  format: int32
+                  minimum: 0
+                  type: integer
+                keepaliveThreshold:
+                  format: int32
+                  minimum: 0
+                  type: integer
+                outgoingConfig:
                   properties:
                     enableBroadcaster:
                       type: boolean
@@ -66,14 +72,6 @@ spec:
                       minimum: 0
                       type: integer
                   type: object
-                keepaliveRetryTime:
-                  format: int32
-                  minimum: 0
-                  type: integer
-                keepaliveThreshold:
-                  format: int32
-                  minimum: 0
-                  type: integer
               type: object
             discoveryConfig:
               properties:

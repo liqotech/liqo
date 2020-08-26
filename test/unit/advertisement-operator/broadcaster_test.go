@@ -191,7 +191,7 @@ func createResourcesOnCluster(client *crdClient.CRDClient, pNodes *corev1.NodeLi
 func prepareAdv(b advertisement_operator.AdvertisementBroadcaster) protocolv1.Advertisement {
 	pNodes, vNodes, images, _, pods := createFakeResources()
 	reqs, limits := advertisement_operator.GetAllPodsResources(pods)
-	availability, _ := advertisement_operator.ComputeAnnouncedResources(pNodes, reqs, int64(b.ClusterConfig.AdvertisementConfig.ResourceSharingPercentage))
+	availability, _ := advertisement_operator.ComputeAnnouncedResources(pNodes, reqs, int64(b.ClusterConfig.AdvertisementConfig.OutgoingConfig.ResourceSharingPercentage))
 	neighbours := make(map[corev1.ResourceName]corev1.ResourceList)
 	for _, vNode := range vNodes.Items {
 		neighbours[corev1.ResourceName(vNode.Name)] = vNode.Status.Allocatable
@@ -275,7 +275,7 @@ func TestGetResourceForAdv(t *testing.T) {
 	time.Sleep(5 * time.Second)
 
 	reqs, limits := advertisement_operator.GetAllPodsResources(pods)
-	availability, _ := advertisement_operator.ComputeAnnouncedResources(pNodes, reqs, int64(b.ClusterConfig.AdvertisementConfig.ResourceSharingPercentage))
+	availability, _ := advertisement_operator.ComputeAnnouncedResources(pNodes, reqs, int64(b.ClusterConfig.AdvertisementConfig.OutgoingConfig.ResourceSharingPercentage))
 	if availability.Cpu().Value() < 0 || availability.Memory().Value() < 0 {
 		t.Fatal("Available resources cannot be negative")
 	}

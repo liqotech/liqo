@@ -275,7 +275,7 @@ func (b *AdvertisementBroadcaster) GetResourcesForAdv() (physicalNodes, virtualN
 	}
 	reqs, limits := GetAllPodsResources(nodeNonTerminatedPodsList)
 	// compute resources to be announced to the other cluster
-	availability, images = ComputeAnnouncedResources(physicalNodes, reqs, int64(b.ClusterConfig.AdvertisementConfig.ResourceSharingPercentage))
+	availability, images = ComputeAnnouncedResources(physicalNodes, reqs, int64(b.ClusterConfig.AdvertisementConfig.OutgoingConfig.ResourceSharingPercentage))
 
 	return physicalNodes, virtualNodes, availability, limits, images, nil
 }
