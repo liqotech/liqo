@@ -39,10 +39,10 @@ The discovery phase is presented in details [here](discovery-and-peering/).
 The Advertisement operator can be split in two main components.
 
 - **Broadcaster**: the module which creates and sends the Advertisement message
-- **Controller**: the module which is triggered when receiving an Advertisement and spawns a virtual node (using Virtual 
+- **Advertisement Operator**: the module which is triggered when receiving an Advertisement and spawns a virtual node (using Virtual 
 Kubelet)
 
- You can find more details about the [here](advertisement_protocol.md).
+ You can find more details about the [here](advertisement-management/).
 
 ## Resource Sharing
 

@@ -14,10 +14,7 @@ The operator watches `ClusterConfig` CR to know the maximum number of Advertisem
 If the `AutoAccept` flag is set to true, the behaviour is the following:
  - if MaxAcceptableAdvertisements increases, check if there are refused Advertisements: if so, they are accepted until
    the new maximum is reached.
- - if MaxAcceptableAdvertisements decreases
-   - if the current number of accepted Advertisements is lower than the new maximum, nothing changes
-   - if the current number of accepted Advertisements is higher than the new maximum, some of them are deleted until
-     the new maximum is respected.
+ - if MaxAcceptableAdvertisements decreases, Advertisements already accepted are left and from now on the new Advertisements that arrive will follow the new policy.
 
 ### Limitations
 * Manual acceptance of Advertisement
@@ -26,6 +23,7 @@ If the `AutoAccept` flag is set to true, the behaviour is the following:
 * Recreation of virtual-kubelet if it is unexpectedly deleted
 
 ## Architecture and workflow
+
 ![](/images/advertisement-protocol/controller-workflow.png)
 
 1. An `Advertisement` is created by the foreign cluster
