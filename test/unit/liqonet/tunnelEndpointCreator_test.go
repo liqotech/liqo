@@ -1,7 +1,7 @@
 package liqonet
 
 import (
-	policyv1 "github.com/liqoTech/liqo/api/cluster-config/v1"
+	configv1alpha1 "github.com/liqoTech/liqo/api/config/v1alpha1"
 	v1 "github.com/liqoTech/liqo/api/liqonet/v1"
 	controller "github.com/liqoTech/liqo/internal/liqonet"
 	"github.com/liqoTech/liqo/pkg/liqonet"
@@ -39,20 +39,19 @@ func getTunnelEndpointCreator() *controller.TunnelEndpointCreator {
 	}
 }
 
-func getClusterConfigurationCR(reservedSubnets []string) *policyv1.ClusterConfig {
-	return &policyv1.ClusterConfig{
+func getClusterConfigurationCR(reservedSubnets []string) *configv1alpha1.ClusterConfig {
+	return &configv1alpha1.ClusterConfig{
 		TypeMeta:   metav1.TypeMeta{},
 		ObjectMeta: metav1.ObjectMeta{},
-		Spec: policyv1.ClusterConfigSpec{
-			AdvertisementConfig: policyv1.AdvertisementConfig{},
-			DiscoveryConfig:     policyv1.DiscoveryConfig{},
-			LiqonetConfig: policyv1.LiqonetConfig{
-				ReservedSubnets: reservedSubnets,
-				PodCIDR:         "",
-				VxlanNetConfig:  liqonetOperator.VxlanNetConfig{},
+		Spec: configv1alpha1.ClusterConfigSpec{
+			AdvertisementConfig: configv1alpha1.AdvertisementConfig{},
+			DiscoveryConfig:     configv1alpha1.DiscoveryConfig{},
+			LiqonetConfig: configv1alpha1.LiqonetConfig{
+				ReservedSubnets:  reservedSubnets,
+				VxlanNetConfig:   liqonetOperator.VxlanNetConfig{},
 			},
 		},
-		Status: policyv1.ClusterConfigStatus{},
+		Status: configv1alpha1.ClusterConfigStatus{},
 	}
 }
 
@@ -80,7 +79,7 @@ func setupTunnelEndpointCreatorOperator() error {
 		QPS:   1000.0,
 		Burst: 2000.0,
 	}
-	tunEndpointCreator.WatchConfiguration(newConfig, &policyv1.GroupVersion)
+	tunEndpointCreator.WatchConfiguration(newConfig, &configv1alpha1.GroupVersion)
 	err = tunEndpointCreator.SetupWithManager(k8sManager)
 	if err != nil {
 		klog.Error(err, err.Error())

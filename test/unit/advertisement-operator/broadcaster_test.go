@@ -3,8 +3,8 @@ package advertisement_operator
 import (
 	"context"
 	"fmt"
-	policyv1 "github.com/liqoTech/liqo/api/cluster-config/v1"
 	discoveryv1alpha1 "github.com/liqoTech/liqo/api/discovery/v1alpha1"
+	configv1alpha1 "github.com/liqoTech/liqo/api/config/v1alpha1"
 	advtypes "github.com/liqoTech/liqo/api/sharing/v1alpha1"
 	advop "github.com/liqoTech/liqo/internal/advertisement-operator"
 	"github.com/liqoTech/liqo/internal/kubernetes/test"
@@ -19,7 +19,7 @@ import (
 	"time"
 )
 
-func createBroadcaster(clusterConfig policyv1.ClusterConfigSpec) advop.AdvertisementBroadcaster {
+func createBroadcaster(configv1alpha1 configv1alpha1.ClusterConfigSpec) advop.AdvertisementBroadcaster {
 	// set the client in fake mode
 	crdClient.Fake = true
 
@@ -59,7 +59,7 @@ func createBroadcaster(clusterConfig policyv1.ClusterConfigSpec) advop.Advertise
 		HomeClusterId:              test.HomeClusterId,
 		ForeignClusterId:           test.ForeignClusterId,
 		GatewayPrivateIP:           "10.0.0.1",
-		ClusterConfig:              clusterConfig,
+		ClusterConfig:              configv1alpha1,
 		PeeringRequestName:         test.ForeignClusterId,
 	}
 }
@@ -241,8 +241,8 @@ func TestCreateAdvertisement(t *testing.T) {
 		neighbours[corev1.ResourceName(vNode.Name)] = vNode.Status.Allocatable
 	}
 
-	clusterConfig := createFakeClusterConfig()
-	broadcaster := createBroadcaster(clusterConfig.Spec)
+	configv1alpha1 := createFakeClusterConfig()
+	broadcaster := createBroadcaster(configv1alpha1.Spec)
 
 	adv := broadcaster.CreateAdvertisement(pNodes, vNodes, availability, images, limits)
 
@@ -264,8 +264,8 @@ func TestCreateAdvertisement(t *testing.T) {
 }
 
 func TestGetResourceForAdv(t *testing.T) {
-	clusterConfig := createFakeClusterConfig()
-	b := createBroadcaster(clusterConfig.Spec)
+	configv1alpha1 := createFakeClusterConfig()
+	b := createBroadcaster(configv1alpha1.Spec)
 	pNodes, vNodes, images, _, pods := createFakeResources()
 
 	err := createResourcesOnCluster(b.LocalClient, pNodes, vNodes, pods)
@@ -290,8 +290,8 @@ func TestGetResourceForAdv(t *testing.T) {
 }
 
 func TestSendAdvertisementCreation(t *testing.T) {
-	clusterConfig := createFakeClusterConfig()
-	b := createBroadcaster(clusterConfig.Spec)
+	configv1alpha1 := createFakeClusterConfig()
+	b := createBroadcaster(configv1alpha1.Spec)
 	_, err := b.RemoteClient.Client().CoreV1().Secrets(b.KubeconfigSecretForForeign.Namespace).Create(context.TODO(), b.KubeconfigSecretForForeign, metav1.CreateOptions{})
 	if err != nil {
 		t.Fatal(err)
@@ -310,8 +310,8 @@ func TestSendAdvertisementCreation(t *testing.T) {
 }
 
 func TestNotifyAdvertisementDeletion(t *testing.T) {
-	clusterConfig := createFakeClusterConfig()
-	b := createBroadcaster(clusterConfig.Spec)
+	configv1alpha1 := createFakeClusterConfig()
+	b := createBroadcaster(configv1alpha1.Spec)
 	_, err := b.RemoteClient.Client().CoreV1().Secrets(b.KubeconfigSecretForForeign.Namespace).Create(context.TODO(), b.KubeconfigSecretForForeign, metav1.CreateOptions{})
 	if err != nil {
 		t.Fatal(err)

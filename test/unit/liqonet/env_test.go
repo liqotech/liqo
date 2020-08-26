@@ -2,7 +2,7 @@ package liqonet
 
 import (
 	"context"
-	policyv1 "github.com/liqoTech/liqo/api/cluster-config/v1"
+	configv1alpha1 "github.com/liqoTech/liqo/api/config/v1alpha1"
 	liqonetv1 "github.com/liqoTech/liqo/api/liqonet/v1"
 	advtypes "github.com/liqoTech/liqo/api/sharing/v1alpha1"
 	controllers "github.com/liqoTech/liqo/internal/liqonet"
@@ -66,7 +66,7 @@ func TestMain(m *testing.M) {
 
 func getConfigClusterCRDClient(config *rest.Config) *crdClient.CRDClient {
 	newConfig := config
-	newConfig.ContentConfig.GroupVersion = &policyv1.GroupVersion
+	newConfig.ContentConfig.GroupVersion = &configv1alpha1.GroupVersion
 	newConfig.APIPath = "/apis"
 	newConfig.NegotiatedSerializer = clientgoscheme.Codecs.WithoutConversion()
 	newConfig.UserAgent = rest.DefaultKubernetesUserAgent()
@@ -158,23 +158,23 @@ func getAdv() *advtypes.Advertisement {
 	}
 }
 
-func getClusterConfig() *policyv1.ClusterConfig {
-	return &policyv1.ClusterConfig{
+func getClusterConfig() *configv1alpha1.ClusterConfig {
+	return &configv1alpha1.ClusterConfig{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: "configuration",
 		},
-		Spec: policyv1.ClusterConfigSpec{
-			AdvertisementConfig: policyv1.AdvertisementConfig{
-				IngoingConfig: policyv1.AdvOperatorConfig{
-					AcceptPolicy:               policyv1.AutoAcceptWithinMaximum,
+		Spec: configv1alpha1.ClusterConfigSpec{
+			AdvertisementConfig: configv1alpha1.AdvertisementConfig{
+				IngoingConfig: configv1alpha1.AdvOperatorConfig{
+					AcceptPolicy:               configv1alpha1.AutoAcceptWithinMaximum,
 					MaxAcceptableAdvertisement: 5,
 				},
-				OutgoingConfig: policyv1.BroadcasterConfig{
+				OutgoingConfig: configv1alpha1.BroadcasterConfig{
 					ResourceSharingPercentage: 30,
 					EnableBroadcaster:         true,
 				},
 			},
-			DiscoveryConfig: policyv1.DiscoveryConfig{
+			DiscoveryConfig: configv1alpha1.DiscoveryConfig{
 				AutoJoin:            true,
 				Domain:              "local.",
 				EnableAdvertisement: true,
@@ -186,7 +186,7 @@ func getClusterConfig() *policyv1.ClusterConfig {
 				WaitTime:            2,
 				DnsServer:           "8.8.8.8:53",
 			},
-			LiqonetConfig: policyv1.LiqonetConfig{
+			LiqonetConfig: configv1alpha1.LiqonetConfig{
 				ReservedSubnets: []string{"10.0.0.0/16"},
 				PodCIDR:         "10.244.0.0/16",
 				VxlanNetConfig: liqonet.VxlanNetConfig{

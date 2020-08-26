@@ -18,7 +18,7 @@ package main
 import (
 	"flag"
 	"github.com/coreos/go-iptables/iptables"
-	clusterConfig "github.com/liqoTech/liqo/api/cluster-config/v1"
+	clusterConfig "github.com/liqoTech/liqo/api/config/v1alpha1"
 	"github.com/liqoTech/liqo/api/liqonet/v1"
 	advtypes "github.com/liqoTech/liqo/api/sharing/v1alpha1"
 	"github.com/liqoTech/liqo/internal/liqonet"

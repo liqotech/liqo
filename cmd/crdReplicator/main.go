@@ -2,7 +2,7 @@ package main
 
 import (
 	"flag"
-	clusterConfig "github.com/liqoTech/liqo/api/cluster-config/v1"
+	configv1alpha1 "github.com/liqoTech/liqo/api/config/v1alpha1"
 	discoveryv1alpha1 "github.com/liqoTech/liqo/api/discovery/v1alpha1"
 	"github.com/liqoTech/liqo/internal/crdReplicator"
 	util "github.com/liqoTech/liqo/pkg/liqonet"
@@ -69,7 +69,7 @@ func main() {
 		klog.Error(err, "unable to setup the crdReplicator-operator")
 		os.Exit(1)
 	}
-	err = d.WatchConfiguration(cfg, &clusterConfig.GroupVersion)
+	err = d.WatchConfiguration(cfg, &configv1alpha1.GroupVersion)
 	if err != nil {
 		klog.Error(err)
 		os.Exit(-1)

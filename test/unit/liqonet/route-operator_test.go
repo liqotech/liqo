@@ -1,7 +1,7 @@
 package liqonet
 
 import (
-	clusterConfig "github.com/liqoTech/liqo/api/cluster-config/v1"
+	configv1alpha1 "github.com/liqoTech/liqo/api/config/v1alpha1"
 	v1 "github.com/liqoTech/liqo/api/liqonet/v1"
 	controller "github.com/liqoTech/liqo/internal/liqonet"
 	"github.com/liqoTech/liqo/pkg/liqonet"
@@ -76,7 +76,7 @@ func setupRouteOperator() error {
 		QPS:   1000.0,
 		Burst: 2000.0,
 	}
-	routeOperator.WatchConfiguration(newConfig, &clusterConfig.GroupVersion)
+	routeOperator.WatchConfiguration(newConfig, &configv1alpha1.GroupVersion)
 	if !routeOperator.IsConfigured {
 		<-routeOperator.Configured
 		routeOperator.IsConfigured = true
