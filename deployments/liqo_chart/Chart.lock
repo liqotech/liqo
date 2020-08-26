@@ -20,5 +20,8 @@ dependencies:
 - name: peeringRequestOperator_chart
   repository: file://subcharts/peeringRequestOperator_chart/
   version: 0.1.0
-digest: sha256:d33c46b9d72d488a05d9dd06cf33bf2807e7d97667664e3163a7e1c1470a6843
-generated: "2020-07-20T17:21:35.393517096+02:00"
+- name: liqodash_chart
+  repository: file://subcharts/liqodash_chart/
+  version: 0.1.0
+digest: sha256:9a937b23181275cfc00e0d34d3f6c51f02d0ef2227644a11c7d3b88ad019effe
+generated: "2020-08-26T17:03:44.2572446+02:00"

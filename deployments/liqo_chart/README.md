@@ -16,6 +16,7 @@ Current chart version is `0.1.0`
 | file://subcharts/peeringRequestOperator_chart/ | peeringRequestOperator_chart | 0.1.0 |
 | file://subcharts/schedulingNodeOperator_chart/ | schedulingNodeOperator_chart | 0.1.0 |
 | file://subcharts/tunnelEndpointCreator_chart/ | tunnelEndpointCreator_chart | 0.1.0 |
+| file://subcharts/liqodash_chart/ | liqodash_chart | 0.1.0 |
 
 ## Chart Values
 
@@ -50,3 +51,7 @@ Current chart version is `0.1.0`
 | tunnelEndpointCreator_chart.enabled | bool | `true` |  |
 | tunnelEndpointCreator_chart.image.pullPolicy | string | `"IfNotPresent"` |  |
 | tunnelEndpointCreator_chart.image.repository | string | `"liqo/liqonet"` |  |
+| liqodash_chart.enabled | bool | `true` |  |
+| liqodash_chart.image.pullPolicy | string | `"IfNotPresent"` |  |
+| liqodash_chart.image.repository | string | `"liqo/dashboard"` |  |
+| global.apiServerURL | string | `""` |  |
