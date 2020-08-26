@@ -59,7 +59,6 @@ func TestDispatcherReconciler_GetRemovedResources(t *testing.T) {
 				Resource: "tunnelendpoints",
 			},
 		},
-		Started: false,
 	}
 	//test 1
 	//the configuration does not change, is the same

@@ -194,3 +194,13 @@ func SetLabelHandler(labelKey, labelValue string, mapToUpdate map[string]string)
 	mapToUpdate[labelKey] = labelValue
 	return mapToUpdate
 }
+
+func GetClusterID(client *kubernetes.Clientset, cmName, namespace string) (string, error) {
+	cmClient := client.CoreV1().ConfigMaps(namespace)
+	cm, err := cmClient.Get(context.TODO(), cmName, metav1.GetOptions{})
+	if err != nil {
+		return "", err
+	}
+	clusterID := cm.Data[cmName]
+	return clusterID, nil
+}

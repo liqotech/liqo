@@ -1,10 +1,8 @@
 package dispatcher
 
 import (
-	discoveryv1 "github.com/liqoTech/liqo/api/discovery/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/dynamic"
-	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	"time"
 
 	"k8s.io/klog/v2"
@@ -43,14 +41,6 @@ func setupEnv() {
 	if err != nil {
 		klog.Error(err, "an error occurred while setting up the local testing environment")
 		os.Exit(-1)
-	}
-	err = clientgoscheme.AddToScheme(scheme.Scheme)
-	if err != nil {
-		klog.Error(err, err.Error())
-	}
-	err = discoveryv1.AddToScheme(scheme.Scheme)
-	if err != nil {
-		klog.Error(err)
 	}
 
 	k8sManagerLocal, err = ctrl.NewManager(configLocal, ctrl.Options{
