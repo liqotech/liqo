@@ -3,33 +3,15 @@ title: Demo/Tutorial with KubernetesOnDesktop
 weight: 4
 ---
 
-## About this demo/tutorial
+## Introduction
+In this demo/tutorial we will show you how to install [liqo.io](https://liqo.io) on two [k3s](https://k3s.io/) clusters from scratch and then run a real application ([KubernetesOnDesktop](#about-kubernetesondesktop)) by using the foreign cluster.
 
-In this demo/tutorial we will show you how to install [liqo.io](https://liqo.io) on two [k3s](https://k3s.io/) cluster from scratch and then run a real application ([KubernetesOnDesktop](#about-kubernetesondesktop)) by using the foreign cluster.
+The goal is to offload the (blender) application execution from a cluster to another one. To be more specific, we will try to execute a blender `pod` in a *foreign cluster* (that is represented in the *local cluster* as a *virtual node* named `liqo-<...>`) and a viewer `pod` in the *local cluster*. See the schema below:
+
+![](/images/k8s-on-desktop-demo/introduction_schema.svg)
 
 N.B.:
 From now on, when we'll talk about "*local cluster*" we'll refer to the one that will run the `cloudify` script ([see afterwards](#about-kubernetesondesktop)), and when we'll talk about "*foreign cluster*" we'll refer to the other one.
-
-## About KubernetesOnDesktop
-
-[KubernetesOnDesktop](https://github.com/netgroup-polito/KubernetesOnDesktop) is a University project with the aim of developing a cloud infrastructure to run user application in a remote cluster node. 
-It uses a client/server VNC+PulseAudio+SSH infrastructure that schedules the application `pod` in a k8s remote node and redirects the GUI (through VNC) and the sound (through PulseAudio+SSH) in a second `pod` scheduled in the node in which the `cloudify` application is running. For further information see [KubernetesOnDesktop](https://github.com/netgroup-polito/KubernetesOnDesktop) GitHub page.
-
-So far, the supported applications are firefox, libreoffice and blender (with the ability to use NVIDIA CUDA driver if the node which the `pod` will be executed in has a NVIDIA graphic card). Anyway, thanks to a huge use of templates, it is possible to scale up to many more applications.
-
-This project uses several kubernetes components, such as `deployments`, `jobs`, `services` (with `ClusterIP` and `NodePort` `type` values) and `secrets`. All those components, as you can see afterwards, are supported by [liqo.io](https://liqo.io).
-
-When executed, through `cloudify` command, the application will create:
-* a `secret` containing a ssh key;
-* a `deployment` containing the application (e.g. blender) and the VNC server, whose `pod` will be scheduled on a remote node with respect to the node `cloudify` is launched from;
-* a `service` of `type` `NodePort` (that automatically creates a `ClusterIP` `type` too, as you can see in [k8s official documentation](https://kubernetes.io/docs/concepts/services-networking/service/#publishing-services-service-types)) that makes the `pod` created from the `deployment` above reachable from other `pod`s in the cluster and from the outside;
-* a `job` executing the VNC viewer, whose `pod` will be scheduled in the same node `cloudify` is launched from.
-
-## Demo goal
-
-In this demo, we will try to execute a blender `pod` in a *foreign cluster* (that is represented in the *local cluster* as a *virtual node* named `liqo-<...>`) and a viewer `pod` in the *local cluster*.
-
-Thanks to the *foreign cluster* virtualization as a *local cluster* node, the `cloudify` application will automatically schedule the `pod`s as described above and will use the [K8s DNS for services](https://kubernetes.io/docs/concepts/services-networking/dns-pod-service/) for the communications between the `pod`s. In fact, even if there are two separated clusters and the `pod`s will be scheduled one for each, it's not required to use the `NodePort` because the *foreign cluster* is actually a *virtual node* of the *local cluster*. So, to reach the `pod` scheduled in the *foreign cluster* from the one scheduled in the *local cluster*, [`ServiceURL:Port`](https://kubernetes.io/docs/concepts/services-networking/dns-pod-service/#services) will be used instead of `NodeIP:NodePort`.
 
 ## Installation of the required software
 To install all the required software we need to follow this steps:
@@ -45,7 +27,13 @@ Assuming you already have two linux (we tested it with Ubuntu Desktop 20.04 LTS)
 curl -sfL https://get.k3s.io | sh -
 ```
 
-When the script ends, to make [liqo.io](https://liqo.io) work properly, you need to modify the `/etc/systemd/system/k3s.service` file by adding the `--kube-apiserver-arg anonymous-auth=true` service execution parameter. After this operation, your `k3s.service` file should be like this:
+When the script ends, to make [liqo.io](https://liqo.io) work properly, you need to modify the `/etc/systemd/system/k3s.service` file by adding the `--kube-apiserver-arg anonymous-auth=true` service execution parameter. You can do this by executing the following:
+
+```bash
+sudo sed -i "s#server#server --kube-apiserver-arg anonymous-auth=true#" /etc/systemd/system/k3s.service
+```
+
+After this operation, your `k3s.service` file should be like this:
 
 ```
 [Unit]
@@ -73,8 +61,7 @@ RestartSec=5s
 ExecStartPre=-/sbin/modprobe br_netfilter
 ExecStartPre=-/sbin/modprobe overlay
 ExecStart=/usr/local/bin/k3s \
-server \
---kube-apiserver-arg anonymous-auth=true \
+    server --kube-apiserver-arg anonymous-auth=true \
 
 ```
 
@@ -111,6 +98,23 @@ Before proceding with the installation of [KubernetesOnDesktop](https://github.c
 Due to the fact that both (virtual) machines share the same subnet, each liqo cluster will automatically join the foreign one! See the liqo [Discovery](/user/configure/discovery/) and [Peering](/user/gettingstarted/peer/) documentation.
 
 ### Install KubernetesOnDesktop
+
+#### About KubernetesOnDesktop
+
+[KubernetesOnDesktop](https://github.com/netgroup-polito/KubernetesOnDesktop) is a University project with the aim of developing a cloud infrastructure to run user application in a remote cluster node. 
+It uses a client/server VNC+PulseAudio+SSH infrastructure that schedules the application `pod` in a k8s remote node and redirects the GUI (through VNC) and the sound (through PulseAudio+SSH) in a second `pod` scheduled in the node in which the `cloudify` application is running. For further information see [KubernetesOnDesktop](https://github.com/netgroup-polito/KubernetesOnDesktop) GitHub page.
+
+So far, the supported applications are firefox, libreoffice and blender (with the ability to use NVIDIA CUDA driver if the node which the `pod` will be executed in has a NVIDIA graphic card). Anyway, thanks to a huge use of templates, it is possible to scale up to many more applications.
+
+This project uses several kubernetes components, such as `deployments`, `jobs`, `services` (with `ClusterIP` and `NodePort` `type` values) and `secrets`. All those components, as you can see afterwards, are supported by [liqo.io](https://liqo.io).
+
+When executed, through `cloudify` command, the application will create:
+* a `secret` containing a ssh key;
+* a `deployment` containing the application (e.g. blender) and the VNC server, whose `pod` will be scheduled on a remote node with respect to the node `cloudify` is launched from;
+* a `service` of `type` `NodePort` (that automatically creates a `ClusterIP` `type` too, as you can see in [k8s official documentation](https://kubernetes.io/docs/concepts/services-networking/service/#publishing-services-service-types)) that makes the `pod` created from the `deployment` above reachable from other `pod`s in the cluster and from the outside;
+* a `job` executing the VNC viewer, whose `pod` will be scheduled in the same node `cloudify` is launched from.
+
+#### Installation of KubernetesOnDesktop
 Now that both [k3s](https://k3s.io/) and [liqo.io](https://liqo.io) are up and running, we can install [KubernetesOnDesktop](https://github.com/netgroup-polito/KubernetesOnDesktop) by cloning the git repository and launching the install.sh script as follows:
 
 ```bash
@@ -127,16 +131,19 @@ To run the demo we need to execute the `cloudify` command. We can do it as follo
 ```bash
 cloudify -t 500 -r 2 -e blender
 ```
-Parameters meaning:
+{{%expand "Parameters meaning:" %}}
 * -t 500 -> specifies a timeout. If the pods doesn't have the `Running` status before the timeout the native application will be run (if any). It's strongly recommended to specify a huge value for this parameter the very first time you execute the application, this is because a lot of time will be spent to pull the application and the viewer images;
 * -r 2 -> specifies the run mode. In this case the viewer will be a k8s `pod` too (as the application one) and will be scheduled on the current node;
 * -e -> enable tunnel encryption between the app `pod` and the viewer `pod`;
 * blender -> the (supported) application we want to execute. If you have a NVIDIA graphic card (with the required drivers already installed as specified in the [NVIDIA Quickstart](https://github.com/NVIDIA/nvidia-docker#quickstart)) in the node the `pod` will be executed in, you can use that card with blender!!
+{{% /expand%}}
 If you need help about the execution parameters, please run `cloudify -h`.
 
-The `cloudify` application will create the `k8s-on-desktop` `namespace` (if not present) and will apply on it the `liqo.io/enabled=true` `label` so that this `namespace` could be reflected to the liqo.io *foreign cluster*.
+The `cloudify` application will create the `k8s-on-desktop` `namespace` (if not present) and will apply on it the `liqo.io/enabled=true` `label` so that this `namespace` could be reflected to the liqo.io *foreign cluster* (See [Exploit foreign cluster resources](/user/gettingstarted/test/#start-hello-world-pod)).
 
 Also, a label to the local `node` will be applied to let k3s scheduling the pods according to the node affinity specified in the `kubernetes/deployment.yaml`. This rule specifies that the application `pod` must run in a node that is not the local one. In reverse, inside `kubernetes/vncviewer.yaml` it is specified that the viewer must be executed on the local node.
+
+Thanks to the *foreign cluster* virtualization as a *local cluster* node, the `cloudify` application will automatically schedule the `pod`s as described above and will use the [K8s DNS for services](https://kubernetes.io/docs/concepts/services-networking/dns-pod-service/) for the communications between the `pod`s. In fact, even if there are two separated clusters and the `pod`s will be scheduled one for each, it's not required to use the `NodePort` because the *foreign cluster* is actually a *virtual node* of the *local cluster*. So, to reach the `pod` scheduled in the *foreign cluster* from the one scheduled in the *local cluster*, [`ServiceURL:Port`](https://kubernetes.io/docs/concepts/services-networking/dns-pod-service/#services) will be used instead of `NodeIP:NodePort`.
 
 ### Check the created resources and where the pods run
 When the GUI appears on the machine running the `cloudify` script, you can check the created resources by running on it the following:
