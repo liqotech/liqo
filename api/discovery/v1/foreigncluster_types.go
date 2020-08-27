@@ -65,6 +65,7 @@ type Outgoing struct {
 	CaDataRef                *v1.ObjectReference `json:"caDataRef,omitempty"`
 	Advertisement            *v1.ObjectReference `json:"advertisement,omitempty"`
 	AvailableIdentity        bool                `json:"availableIdentity,omitempty"`
+	IdentityRef              *v1.ObjectReference `json:"identityRef,omitempty"`
 	AdvertisementStatus      string              `json:"advertisementStatus,omitempty"`
 }
 
@@ -72,6 +73,7 @@ type Incoming struct {
 	Joined              bool                `json:"joined"`
 	PeeringRequest      *v1.ObjectReference `json:"peeringRequest,omitempty"`
 	AvailableIdentity   bool                `json:"availableIdentity,omitempty"`
+	IdentityRef         *v1.ObjectReference `json:"identityRef,omitempty"`
 	AdvertisementStatus string              `json:"advertisementStatus,omitempty"`
 }
 
