@@ -6,9 +6,11 @@ weight: 4
 ## Introduction
 In this demo/tutorial we will show you how to install [liqo.io](https://liqo.io) on two [k3s](https://k3s.io/) clusters from scratch and then run a real application ([KubernetesOnDesktop](#about-kubernetesondesktop)) by using the foreign cluster.
 
-The goal is to offload the (blender) application execution from a cluster to another one. To be more specific, we will try to execute a blender `pod` in a *foreign cluster* (that is represented in the *local cluster* as a *virtual node* named `liqo-<...>`) and a viewer `pod` in the *local cluster*. See the schema below:
+The goal is to offload the (blender) application execution from a cluster to another one (e.g. to cluster that has a NVIDIA graphic card). See the schema below: 
 
 ![](/images/k8s-on-desktop-demo/introduction_schema.svg)
+
+To be more specific, we will try to execute a blender `pod` in a *foreign cluster* (that is represented in the *local cluster* as a *virtual node* named `liqo-<...>`) and a viewer `pod` in the *local cluster*.
 
 N.B.:
 From now on, when we'll talk about "*local cluster*" we'll refer to the one that will run the `cloudify` script ([see afterwards](#about-kubernetesondesktop)), and when we'll talk about "*foreign cluster*" we'll refer to the other one.
@@ -33,7 +35,7 @@ When the script ends, to make [liqo.io](https://liqo.io) work properly, you need
 sudo sed -i "s#server#server --kube-apiserver-arg anonymous-auth=true#" /etc/systemd/system/k3s.service
 ```
 
-After this operation, your `k3s.service` file should be like this:
+After this operation, your `k3s.service` file should look like this:
 
 ```
 [Unit]
@@ -93,7 +95,7 @@ curl https://raw.githubusercontent.com/LiqoTech/liqo/master/install.sh | bash
 
 For further information see the [Liqo Installation Guide](/user/gettingstarted/install/#custom-install).
 
-Before proceding with the installation of [KubernetesOnDesktop](https://github.com/netgroup-polito/KubernetesOnDesktop) in one of the two clusters, wait for all the `pod`s in `liqo.io` `namespace` to be up and running in both clusters. You can check it by executing `kubectl get pod -n liqo.io` in both clusters.
+Before proceding with the installation of [KubernetesOnDesktop](https://github.com/netgroup-polito/KubernetesOnDesktop) in one of the two clusters, wait for all the `pod`s in `liqo.io` `namespace` to be up and running in both clusters. You can check it by executing `kubectl get pod -n liqo` in both clusters.
 
 Due to the fact that both (virtual) machines share the same subnet, each liqo cluster will automatically join the foreign one! See the liqo [Discovery](/user/configure/discovery/) and [Peering](/user/gettingstarted/peer/) documentation.
 
