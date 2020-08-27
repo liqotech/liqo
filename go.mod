@@ -75,7 +75,7 @@ require (
 	k8s.io/client-go v12.0.0+incompatible
 	k8s.io/klog v1.0.0
 	k8s.io/klog/v2 v2.0.0
-	k8s.io/kubectl v0.18.6
+	k8s.io/kubectl v0.19.0
 	k8s.io/kubernetes v1.18.6
 	k8s.io/utils v0.0.0-20200603063816-c1c6865ac451
 	mvdan.cc/unparam v0.0.0-20191111180625-960b1ec0f2c2 // indirect
