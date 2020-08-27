@@ -74,14 +74,6 @@ Now you need to apply the changes by executing the following:
 systemctl daemon-reload
 systemctl restart k3s.service
 ```
-
-Finally, to use `kubectl` command to interact with the cluster without `sudo`, you need to give the `k3s.yaml` config file the required privileges and to copy it in `~/.kube/config` by doing the following:
-
-```bash
-sudo chmod 666 /etc/rancher/k3s/k3s.yaml
-cp /etc/rancher/k3s/k3s.yaml ~/.kube/config
-```
-
 Finally, to use `kubectl` command to interact with the installed cluster without `sudo`, you need to copy the `k3s.yaml` config file in a user folder, change its owner and export the KUBECONFIG environment variable as follows:
 
 ```bash
@@ -90,6 +82,7 @@ sudo cp /etc/rancher/k3s/k3s.yaml $HOME/.kube/
 sudo chown $USER:$USER $HOME/.kube/k3s.yaml
 export KUBECONFIG="$HOME/.kube/k3s.yaml"
 ```
+N.B.: You need to export the KUBECONFIG environment variable each time you open a new terminal by running, as above, `export KUBECONFIG="$HOME/.kube/k3s.yaml"`
 
 Before proceeding with the [liqo](https://liqo.io) installation, wait for all the pod to be in `Running` status. You can check it by executing `kubectl get pod --all-namespaces`.
 
