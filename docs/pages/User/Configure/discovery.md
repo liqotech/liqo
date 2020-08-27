@@ -1,6 +1,6 @@
 ---
 title: Discovery
-weight: 1
+weight: 2
 ---
 
 When a first (home) cluster would like to peer to a second (foreign) cluster, it needs to know of the required parameters

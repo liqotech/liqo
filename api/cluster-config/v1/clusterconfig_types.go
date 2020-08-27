@@ -32,8 +32,8 @@ type ClusterConfigSpec struct {
 }
 
 type AdvertisementConfig struct {
-	OutgoingConfig BroadcasterConfig `json:"outgoingConfig,omitempty"`
-	IngoingConfig  AdvOperatorConfig `json:"ingoingConfig,omitempty"`
+	OutgoingConfig BroadcasterConfig `json:"outgoingConfig"`
+	IngoingConfig  AdvOperatorConfig `json:"ingoingConfig"`
 	// +kubebuilder:validation:Minimum=0
 	KeepaliveThreshold int32 `json:"keepaliveThreshold,omitempty"`
 	// +kubebuilder:validation:Minimum=0
@@ -43,8 +43,8 @@ type AdvertisementConfig struct {
 type BroadcasterConfig struct {
 	// +kubebuilder:validation:Maximum=100
 	// +kubebuilder:validation:Minimum=0
-	ResourceSharingPercentage int32 `json:"resourceSharingPercentage,omitempty"`
-	EnableBroadcaster         bool  `json:"enableBroadcaster,omitempty"`
+	ResourceSharingPercentage int32 `json:"resourceSharingPercentage"`
+	EnableBroadcaster         bool  `json:"enableBroadcaster"`
 }
 
 // AcceptPolicy defines the policy to accept/refuse an Advertisement
@@ -61,7 +61,7 @@ const (
 
 type AdvOperatorConfig struct {
 	// +kubebuilder:validation:Minimum=0
-	MaxAcceptableAdvertisement int32 `json:"maxAcceptableAdvertisement,omitempty"`
+	MaxAcceptableAdvertisement int32 `json:"maxAcceptableAdvertisement"`
 	// +kubebuilder:validation:Enum="AutoAcceptWithinMaximum";"Manual"
 	AcceptPolicy AcceptPolicy `json:"acceptPolicy"`
 }
