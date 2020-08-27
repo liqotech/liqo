@@ -80,7 +80,7 @@ func (r *ForeignClusterReconciler) Reconcile(req ctrl.Request) (ctrl.Result, err
 	if fc.ObjectMeta.Labels == nil {
 		fc.ObjectMeta.Labels = map[string]string{}
 	}
-	if fc.ObjectMeta.Labels["discovery-type"] == "" {
+	if fc.ObjectMeta.Labels["discovery-type"] == "" || fc.ObjectMeta.Labels["discovery-type"] != string(fc.Spec.DiscoveryType) {
 		fc.ObjectMeta.Labels["discovery-type"] = string(fc.Spec.DiscoveryType)
 		requireUpdate = true
 	}
@@ -97,6 +97,7 @@ func (r *ForeignClusterReconciler) Reconcile(req ctrl.Request) (ctrl.Result, err
 		if errors.IsNotFound(err) {
 			fc.Status.Outgoing.Advertisement = nil
 			fc.Status.Outgoing.AvailableIdentity = false
+			fc.Status.Outgoing.IdentityRef = nil
 			fc.Status.Outgoing.AdvertisementStatus = ""
 			fc.Status.Outgoing.Joined = false
 			fc.Status.Outgoing.RemotePeeringRequestName = ""
@@ -118,6 +119,14 @@ func (r *ForeignClusterReconciler) Reconcile(req ctrl.Request) (ctrl.Result, err
 				available := err == nil
 				if fc.Status.Outgoing.AvailableIdentity != available {
 					fc.Status.Outgoing.AvailableIdentity = available
+					if available {
+						fc.Status.Outgoing.IdentityRef = &apiv1.ObjectReference{
+							Kind:       "Secret",
+							Namespace:  adv.Spec.KubeConfigRef.Namespace,
+							Name:       adv.Spec.KubeConfigRef.Name,
+							APIVersion: "v1",
+						}
+					}
 					requireUpdate = true
 				}
 			}
@@ -137,17 +146,11 @@ func (r *ForeignClusterReconciler) Reconcile(req ctrl.Request) (ctrl.Result, err
 		if errors.IsNotFound(err) {
 			fc.Status.Incoming.PeeringRequest = nil
 			fc.Status.Incoming.AvailableIdentity = false
+			fc.Status.Incoming.IdentityRef = nil
 			fc.Status.Incoming.AdvertisementStatus = ""
 			fc.Status.Incoming.Joined = false
 			requireUpdate = true
-		} else if err == nil && !fc.Status.Incoming.Joined {
-			// PeeringRequest exists, set flag to true
-			fc.Status.Incoming.Joined = true
-			requireUpdate = true
-		}
-
-		if err == nil {
-			// check if kubeconfig secret exists
+		} else if err == nil {
 			pr, ok := tmp.(*discoveryv1.PeeringRequest)
 			if !ok {
 				err = goerrors.New("retrieved object is not a PeeringRequest")
@@ -157,11 +160,20 @@ func (r *ForeignClusterReconciler) Reconcile(req ctrl.Request) (ctrl.Result, err
 					RequeueAfter: r.RequeueAfter,
 				}, err
 			}
+
+			// PeeringRequest exists, set flag to true
+			fc.Status.Incoming.Joined = true
+			requireUpdate = true
+
+			// check if kubeconfig secret exists
 			if pr.Spec.KubeConfigRef != nil && pr.Spec.KubeConfigRef.Name != "" && pr.Spec.KubeConfigRef.Namespace != "" {
 				_, err = r.crdClient.Client().CoreV1().Secrets(pr.Spec.KubeConfigRef.Namespace).Get(context.TODO(), pr.Spec.KubeConfigRef.Name, metav1.GetOptions{})
 				available := err == nil
 				if fc.Status.Incoming.AvailableIdentity != available {
 					fc.Status.Incoming.AvailableIdentity = available
+					if available {
+						fc.Status.Incoming.IdentityRef = pr.Spec.KubeConfigRef
+					}
 					requireUpdate = true
 				}
 			}

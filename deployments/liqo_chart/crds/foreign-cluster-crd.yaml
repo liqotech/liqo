@@ -81,6 +81,9 @@ spec:
                 availableIdentity:
                   type: boolean
                   description: Indicates if related identity is available
+                identityRef:
+                  type: object
+                  description: Object reference to related identity
                 advertisementStatus:
                   type: string
                   description: Advertisement status
@@ -96,6 +99,9 @@ spec:
                 availableIdentity:
                   type: boolean
                   description: Indicates if related identity is available
+                identityRef:
+                  type: object
+                  description: Object reference to related identity
                 advertisementStatus:
                   type: string
                   description: Status of Advertisement created from this PeeringRequest

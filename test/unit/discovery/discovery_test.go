@@ -227,6 +227,7 @@ func testJoin(t *testing.T) {
 	assert.Assert(t, remoteFcList.Items[0].Status.Incoming.PeeringRequest != nil, "PeeringRequest reference is not set")
 	assert.Assert(t, remoteFcList.Items[0].Status.Incoming.Joined, "IncomingJoin flag not set on remote cluster")
 	assert.Assert(t, remoteFcList.Items[0].Status.Incoming.AvailableIdentity, "AvailableIdentity not correctly set on remote cluster")
+	assert.Assert(t, remoteFcList.Items[0].Status.Incoming.IdentityRef != nil, "IdentityRef not correctly set on remote cluster")
 
 	// add local advertisement related to ForeignCluster,
 	// we have to add it manually because we have no Advertisement Operator running in this test
