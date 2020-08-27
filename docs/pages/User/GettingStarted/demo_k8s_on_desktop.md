@@ -21,21 +21,21 @@ This project uses several kubernetes components, such as `deployments`, `jobs`, 
 
 When executed, through `cloudify` command, the application will create:
 * a `secret` containing a ssh key;
-* a `deployment` containing the application (e.g. blender) and the VNC server, whose `pod` will be scheduled on a remote node with respect to the node `cloudify` is luanched from;
+* a `deployment` containing the application (e.g. blender) and the VNC server, whose `pod` will be scheduled on a remote node with respect to the node `cloudify` is launched from;
 * a `service` of `type` `NodePort` (that automatically creates a `ClusterIP` `type` too, as you can see in [k8s official documentation](https://kubernetes.io/docs/concepts/services-networking/service/#publishing-services-service-types)) that makes the `pod` created from the `deployment` above reachable from other `pod`s in the cluster and from the outside;
-* a `job` executing the VNC viewer, whose `pod` will be scheduled in the same node `cloudify` is luanched from.
+* a `job` executing the VNC viewer, whose `pod` will be scheduled in the same node `cloudify` is launched from.
 
 ## Demo goal
 
 In this demo, we will try to execute a blender `pod` in a *foreign cluster* (that is represented in the *local cluster* as a *virtual node* named `liqo-<...>`) and a viewer `pod` in the *local cluster*.
 
-Thanks to the *foreign cluster* virtualization as a *local cluster* node, the `cloudify` application will automatically schedule the `pod`s as described above and will use the [K8s DNS for services](https://kubernetes.io/docs/concepts/services-networking/dns-pod-service/) for the communications between the `pod`s. In fact, even if there are two separated clusters and the `pod`s will be scheduled one for each, it's not required to use the `NodePort` because the *foreign cluster* is actually a *virtual node* of the *local cluster*. So, to reach the `pod` scheduled in the *foreign cluster* from the one scheduled in the *local cluster*, will be used [`ServiceURL:Port`](https://kubernetes.io/docs/concepts/services-networking/dns-pod-service/#services) instead of `NodeIP:NodePort`.
+Thanks to the *foreign cluster* virtualization as a *local cluster* node, the `cloudify` application will automatically schedule the `pod`s as described above and will use the [K8s DNS for services](https://kubernetes.io/docs/concepts/services-networking/dns-pod-service/) for the communications between the `pod`s. In fact, even if there are two separated clusters and the `pod`s will be scheduled one for each, it's not required to use the `NodePort` because the *foreign cluster* is actually a *virtual node* of the *local cluster*. So, to reach the `pod` scheduled in the *foreign cluster* from the one scheduled in the *local cluster*, [`ServiceURL:Port`](https://kubernetes.io/docs/concepts/services-networking/dns-pod-service/#services) will be used instead of `NodeIP:NodePort`.
 
 ## Installation of the required software
 To install all the required software we need to follow this steps:
 
 1. [Install k3s](#install-k3s) in both clusters;
-2. [Install liqo.io](#install-liqo.io) in both clusters; 
+2. [Install liqo.io](#install-liqo-io) in both clusters; 
 3. [Install KubernetesOnDesktop](#install-kubernetesondesktop) just in one of the clusters (the so called *local cluster*).
 
 ### Install k3s
@@ -45,7 +45,7 @@ Assuming you already have two linux (we tested it with Ubuntu Desktop 20.04 LTS)
 curl -sfL https://get.k3s.io | sh -
 ```
 
-When the script ends, to make [liqo.io](https://liqo.io) work fine, you need to modify the `/etc/systemd/system/k3s.service` file by adding the `--kube-apiserver-arg anonymous-auth=true` service execution parameter. After this operation, your `k3s.service` file should be like this:
+When the script ends, to make [liqo.io](https://liqo.io) work properly, you need to modify the `/etc/systemd/system/k3s.service` file by adding the `--kube-apiserver-arg anonymous-auth=true` service execution parameter. After this operation, your `k3s.service` file should be like this:
 
 ```
 [Unit]
@@ -106,7 +106,7 @@ curl https://raw.githubusercontent.com/LiqoTech/liqo/master/install.sh | bash
 
 For further information see the [Liqo Installation Guide](/user/gettingstarted/install/#custom-install).
 
-Before proceding to install [KubernetesOnDesktop](https://github.com/netgroup-polito/KubernetesOnDesktop) in one of the two clusters, wait for all the `pod`s in `liqo.io` `namespace` to be up and running in both clusters. You can check it by executing `kubectl get pod -n liqo.io` in both clusters.
+Before proceding with the installation of [KubernetesOnDesktop](https://github.com/netgroup-polito/KubernetesOnDesktop) in one of the two clusters, wait for all the `pod`s in `liqo.io` `namespace` to be up and running in both clusters. You can check it by executing `kubectl get pod -n liqo.io` in both clusters.
 
 Due to the fact that both (virtual) machines share the same subnet, each liqo cluster will automatically join the foreign one! See the liqo [Discovery](/user/configure/discovery/) and [Peering](/user/gettingstarted/peer/) documentation.
 
