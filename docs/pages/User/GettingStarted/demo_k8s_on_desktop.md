@@ -4,7 +4,7 @@ weight: 4
 ---
 
 ## Introduction
-In this demo/tutorial we will show you how to install [liqo.io](https://liqo.io) on two [k3s](https://k3s.io/) clusters from scratch and then run a real application ([KubernetesOnDesktop](#about-kubernetesondesktop)) by using the foreign cluster.
+In this demo/tutorial we will show you how to install [liqo](https://liqo-io) on two [k3s](https://k3s.io/) clusters from scratch and then run a real application ([KubernetesOnDesktop](#about-kubernetesondesktop)) by using the foreign cluster.
 
 The goal is to offload the (blender) application execution from a cluster to another one (e.g. to cluster that has a NVIDIA graphic card). See the schema below: 
 
@@ -19,7 +19,7 @@ From now on, when we'll talk about "*local cluster*" we'll refer to the one that
 To install all the required software we need to follow this steps:
 
 1. [Install k3s](#install-k3s) in both clusters;
-2. [Install liqo.io](#install-liqo-io) in both clusters; 
+2. [Install liqo](#install-liqo) in both clusters; 
 3. [Install KubernetesOnDesktop](#install-kubernetesondesktop) just in one of the clusters (the so called *local cluster*).
 
 ### Install k3s
@@ -29,13 +29,13 @@ Assuming you already have two linux (we tested it with Ubuntu Desktop 20.04 LTS)
 curl -sfL https://get.k3s.io | sh -
 ```
 
-When the script ends, to make [liqo.io](https://liqo.io) work properly, you need to modify the `/etc/systemd/system/k3s.service` file by adding the `--kube-apiserver-arg anonymous-auth=true` service execution parameter. You can do this by executing the following:
+When the script ends, to make [liqo](https://liqo.io) work properly, you need to modify the `/etc/systemd/system/k3s.service` file by adding the `--kube-apiserver-arg anonymous-auth=true` service execution parameter. You can do this by executing the following:
 
 ```bash
 sudo sed -i "s#server#server --kube-apiserver-arg anonymous-auth=true#" /etc/systemd/system/k3s.service
 ```
 
-After this operation, your `k3s.service` file should look like this:
+{{%expand "After this operation, your `k3s.service` file should look like this:" %}}
 
 ```
 [Unit]
@@ -66,6 +66,7 @@ ExecStart=/usr/local/bin/k3s \
     server --kube-apiserver-arg anonymous-auth=true \
 
 ```
+{{% /expand%}}
 
 Now you need to apply the changes by executing the following:
 
@@ -81,10 +82,19 @@ sudo chmod 666 /etc/rancher/k3s/k3s.yaml
 cp /etc/rancher/k3s/k3s.yaml ~/.kube/config
 ```
 
-Before proceeding with the [liqo.io](https://liqo.io) installation, wait for all the pod to be in `Running` status. You can check it by executing `kubectl get pod --all-namespaces`.
+Finally, to use `kubectl` command to interact with the installed cluster without `sudo`, you need to copy the `k3s.yaml` config file in a user folder, change its owner and export the KUBECONFIG environment variable as follows:
 
-### Install liqo.io
-To install [liqo.io](https://liqo.io) you have to set the required environment variables and use the script provided in the project by doing the following:
+```bash
+mkdir -p $HOME/.kube
+sudo cp /etc/rancher/k3s/k3s.yaml $HOME/.kube/
+sudo chown $USER:$USER $HOME/.kube/k3s.yaml
+export KUBECONFIG="$HOME/.kube/k3s.yaml"
+```
+
+Before proceeding with the [liqo](https://liqo.io) installation, wait for all the pod to be in `Running` status. You can check it by executing `kubectl get pod --all-namespaces`.
+
+### Install liqo
+To install [liqo](https://liqo.io) you have to set the required environment variables and use the script provided in the project by doing the following:
 
 ```bash
 export KUBECONFIG=/etc/rancher/k3s/k3s.yaml
@@ -95,7 +105,7 @@ curl https://raw.githubusercontent.com/LiqoTech/liqo/master/install.sh | bash
 
 For further information see the [Liqo Installation Guide](/user/gettingstarted/install/#custom-install).
 
-Before proceding with the installation of [KubernetesOnDesktop](https://github.com/netgroup-polito/KubernetesOnDesktop) in one of the two clusters, wait for all the `pod`s in `liqo.io` `namespace` to be up and running in both clusters. You can check it by executing `kubectl get pod -n liqo` in both clusters.
+Before proceding with the installation of [KubernetesOnDesktop](https://github.com/netgroup-polito/KubernetesOnDesktop) in one of the two clusters, wait for all the `pod`s in `liqo` `namespace` to be up and running in both clusters. You can check it by executing `kubectl get pod -n liqo` in both clusters.
 
 Due to the fact that both (virtual) machines share the same subnet, each liqo cluster will automatically join the foreign one! See the liqo [Discovery](/user/configure/discovery/) and [Peering](/user/gettingstarted/peer/) documentation.
 
@@ -108,7 +118,9 @@ It uses a client/server VNC+PulseAudio+SSH infrastructure that schedules the app
 
 So far, the supported applications are firefox, libreoffice and blender (with the ability to use NVIDIA CUDA driver if the node which the `pod` will be executed in has a NVIDIA graphic card). Anyway, thanks to a huge use of templates, it is possible to scale up to many more applications.
 
-This project uses several kubernetes components, such as `deployments`, `jobs`, `services` (with `ClusterIP` and `NodePort` `type` values) and `secrets`. All those components, as you can see afterwards, are supported by [liqo.io](https://liqo.io).
+{{%expand "Kubernetes components used in KubernetesOnDesktop" %}}
+This project uses several kubernetes components, such as `deployments`, `jobs`, `services` (with `ClusterIP` and `NodePort` `type` values) and `secrets`. All those components, as you can see afterwards, are supported by [liqo](https://liqo.io).
+{{% /expand%}}
 
 When executed, through `cloudify` command, the application will create:
 * a `secret` containing a ssh key;
@@ -117,7 +129,7 @@ When executed, through `cloudify` command, the application will create:
 * a `job` executing the VNC viewer, whose `pod` will be scheduled in the same node `cloudify` is launched from.
 
 #### Installation of KubernetesOnDesktop
-Now that both [k3s](https://k3s.io/) and [liqo.io](https://liqo.io) are up and running, we can install [KubernetesOnDesktop](https://github.com/netgroup-polito/KubernetesOnDesktop) by cloning the git repository and launching the install.sh script as follows:
+Now that both [k3s](https://k3s.io/) and [liqo](https://liqo.io) are up and running, we can install [KubernetesOnDesktop](https://github.com/netgroup-polito/KubernetesOnDesktop) by cloning the git repository and launching the install.sh script as follows:
 
 ```bash
 git clone https://github.com/netgroup-polito/KubernetesOnDesktop.git
@@ -141,7 +153,7 @@ cloudify -t 500 -r 2 -e blender
 {{% /expand%}}
 If you need help about the execution parameters, please run `cloudify -h`.
 
-The `cloudify` application will create the `k8s-on-desktop` `namespace` (if not present) and will apply on it the `liqo.io/enabled=true` `label` so that this `namespace` could be reflected to the liqo.io *foreign cluster* (See [Exploit foreign cluster resources](/user/gettingstarted/test/#start-hello-world-pod)).
+The `cloudify` application will create the `k8s-on-desktop` `namespace` (if not present) and will apply on it the `liqo.io/enabled=true` `label` so that this `namespace` could be reflected to the liqo *foreign cluster* (See [Exploit foreign cluster resources](/user/gettingstarted/test/#start-hello-world-pod)).
 
 Also, a label to the local `node` will be applied to let k3s scheduling the pods according to the node affinity specified in the `kubernetes/deployment.yaml`. This rule specifies that the application `pod` must run in a node that is not the local one. In reverse, inside `kubernetes/vncviewer.yaml` it is specified that the viewer must be executed on the local node.
 
@@ -182,8 +194,8 @@ cd ..
 rm -fr KubernetesOnDesktop
 ```
 
-## Teardown k3s and liqo.io
-To teardown k3s and liqo.io just run the following in both the nodes:
+## Teardown k3s and liqo
+To teardown k3s and liqo just run the following in both the nodes:
 ```bash
 k3s-uninstall.sh
 ```
