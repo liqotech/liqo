@@ -53,6 +53,7 @@ spec:
                       type: integer
                   required:
                   - acceptPolicy
+                  - maxAcceptableAdvertisement
                   type: object
                 keepaliveRetryTime:
                   format: int32
@@ -71,10 +72,18 @@ spec:
                       maximum: 100
                       minimum: 0
                       type: integer
+                  required:
+                  - enableBroadcaster
+                  - resourceSharingPercentage
                   type: object
+              required:
+              - ingoingConfig
+              - outgoingConfig
               type: object
             discoveryConfig:
               properties:
+                allowUntrustedCA:
+                  type: boolean
                 autojoin:
                   type: boolean
                 autojoinUntrusted:
@@ -93,8 +102,6 @@ spec:
                   maximum: 65355
                   minimum: 1
                   type: integer
-                allowUntrustedCA:
-                  type: boolean
                 service:
                   type: string
                 updateTime:
@@ -104,18 +111,18 @@ spec:
                   minimum: 1
                   type: integer
               required:
-                - allowUntrustedCA
-                - autojoin
-                - autojoinUntrusted
-                - dnsServer
-                - domain
-                - enableAdvertisement
-                - enableDiscovery
-                - name
-                - port
-                - service
-                - updateTime
-                - waitTime
+              - allowUntrustedCA
+              - autojoin
+              - autojoinUntrusted
+              - dnsServer
+              - domain
+              - enableAdvertisement
+              - enableDiscovery
+              - name
+              - port
+              - service
+              - updateTime
+              - waitTime
               type: object
             dispatcherConfig:
               properties:
@@ -131,9 +138,9 @@ spec:
                       version:
                         type: string
                     required:
-                      - group
-                      - resource
-                      - version
+                    - group
+                    - resource
+                    - version
                     type: object
                   type: array
               type: object

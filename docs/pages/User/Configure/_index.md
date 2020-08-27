@@ -7,6 +7,7 @@ While the [installation procedure](../gettingstarted) works in most cases, you m
 
 This section presents some additional configuration options for your Liqo cluster:
 
+* [Cluster configuration](./cluster-config): how to set the desired configuration for your cluster (e.g. how many resources to share, the policies to accept another cluster etc...)
 * [Discovery and peering](./discovery): how to discover available Liqo cluster and peer with them
 * [Network](./network): how to finaly tune the network infastructure in Liqo
 * [Scheduling](./scheduling): how to force the Kubernetes scheduler to start pods the way we like

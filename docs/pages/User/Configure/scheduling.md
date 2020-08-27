@@ -1,6 +1,6 @@
 ---
 title: Scheduling
-weight: 3
+weight: 4
 ---
 
 ## Customizing the Kubernetes scheduling logic

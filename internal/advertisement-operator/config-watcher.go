@@ -43,7 +43,7 @@ func (b *AdvertisementBroadcaster) WatchConfiguration(kubeconfigPath string, cli
 			// the resource sharing percentage has been modified: update the advertisement
 			klog.Infof("AdvertisementConfig changed: the ResourceSharingPercentage has changed from %v to %v",
 				b.ClusterConfig.AdvertisementConfig.OutgoingConfig.ResourceSharingPercentage, newConfig.ResourceSharingPercentage)
-			b.ClusterConfig.AdvertisementConfig.OutgoingConfig.ResourceSharingPercentage = newConfig.ResourceSharingPercentage
+			b.ClusterConfig.AdvertisementConfig.OutgoingConfig = newConfig
 			// update Advertisement with new resources (given by the new sharing percentage)
 			physicalNodes, virtualNodes, availability, limits, images, err := b.GetResourcesForAdv()
 			if err != nil {
@@ -75,14 +75,14 @@ func (r *AdvertisementReconciler) WatchConfiguration(kubeconfigPath string, clie
 			if newConfig.IngoingConfig.AcceptPolicy == policyv1.AutoAcceptWithinMaximum && newConfig.IngoingConfig.MaxAcceptableAdvertisement != r.ClusterConfig.IngoingConfig.MaxAcceptableAdvertisement {
 				// the accept policy is set to AutoAcceptWithinMaximum and the Maximum has changed: re-check all Advertisements and update if needed
 				klog.Infof("AdvertisementConfig changed: the AcceptPolicy is %v and the MaxAcceptableAdvertisement has changed from %v to %v",
-					newConfig.IngoingConfig.AcceptPolicy, configuration.Spec.AdvertisementConfig.IngoingConfig.MaxAcceptableAdvertisement, newConfig.IngoingConfig.MaxAcceptableAdvertisement)
+					newConfig.IngoingConfig.AcceptPolicy, r.ClusterConfig.IngoingConfig.MaxAcceptableAdvertisement, newConfig.IngoingConfig.MaxAcceptableAdvertisement)
 				err, advToUpdate := r.ManageMaximumUpdate(newConfig, advList)
 				if err != nil {
 					klog.Error(err, err.Error())
 					return
 				}
 				for i := range advToUpdate.Items {
-					adv := advList.Items[i]
+					adv := advToUpdate.Items[i]
 					r.UpdateAdvertisement(&adv)
 				}
 			}

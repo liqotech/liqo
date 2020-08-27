@@ -1,6 +1,6 @@
 ---
 title: Network
-weight: 2
+weight: 3
 ---
 
 ## Setting the cluster gateway
