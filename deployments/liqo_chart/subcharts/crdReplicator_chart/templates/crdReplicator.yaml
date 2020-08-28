@@ -58,7 +58,7 @@ rules:
       - update
 
   - apiGroups:
-      - policy.liqo.io
+      - config.liqo.io
     resources:
       - clusterconfigs
     verbs:

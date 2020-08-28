@@ -9,8 +9,8 @@ RUN wget https://dl.google.com/go/go1.14.3.linux-amd64.tar.gz && tar -xzf go1.14
 ENV PATH /go/bin:$PATH
 ENV GOROOT /go
 ENV GOPATH /go
-COPY . /go/src/github.com/liqoTech/liqo
-WORKDIR /go/src/github.com/liqoTech/liqo
+COPY . /go/src/github.com/liqotech/liqo
+WORKDIR /go/src/github.com/liqotech/liqo
 RUN GO111MODULE=on CGO_ENABLED=1 GOOS=linux GOARCH=amd64 go build ./cmd/tray-agent/
 RUN cp tray-agent /usr/bin/tray-agent
 

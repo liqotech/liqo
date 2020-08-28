@@ -1,8 +1,8 @@
 package advertisement_operator
 
 import (
-	advtypes "github.com/liqoTech/liqo/api/sharing/v1alpha1"
 	configv1alpha1 "github.com/liqoTech/liqo/api/config/v1alpha1"
+	advtypes "github.com/liqoTech/liqo/api/sharing/v1alpha1"
 	"github.com/liqoTech/liqo/pkg/clusterConfig"
 	"github.com/liqoTech/liqo/pkg/crdClient"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
