@@ -25,26 +25,35 @@ import (
 
 // ClusterConfigSpec defines the desired state of ClusterConfig
 type ClusterConfigSpec struct {
+	//AdvertisementConfig defines the configuration for the advertisement protocol
 	AdvertisementConfig AdvertisementConfig `json:"advertisementConfig"`
 	DiscoveryConfig     DiscoveryConfig     `json:"discoveryConfig"`
 	LiqonetConfig       LiqonetConfig       `json:"liqonetConfig"`
 	DispatcherConfig    DispatcherConfig    `json:"dispatcherConfig,omitempty"`
 }
 
+//AdvertisementConfig defines the configuration for the advertisement protocol
 type AdvertisementConfig struct {
+	//OutgoingConfig defines the behaviour for the creation of Advertisements on other clusters
 	OutgoingConfig BroadcasterConfig `json:"outgoingConfig"`
-	IngoingConfig  AdvOperatorConfig `json:"ingoingConfig"`
+	//IngoingConfig defines the behaviour for the acceptance of Advertisements from other clusters
+	IngoingConfig AdvOperatorConfig `json:"ingoingConfig"`
+	//KeepaliveThreshold defines the number of failed attempts to contact the foreign cluster your cluster will tolerate before deleting it.
 	// +kubebuilder:validation:Minimum=0
 	KeepaliveThreshold int32 `json:"keepaliveThreshold,omitempty"`
+	//After establishing a sharing with a foreign cluster, a keepalive mechanism starts, in order to know if the foreign cluster is reachable or not.
+	//KeepaliveRetryTime defines the time between an attempt to contact the foreign cluster and the next one.
 	// +kubebuilder:validation:Minimum=0
 	KeepaliveRetryTime int32 `json:"keepaliveRetryTime,omitempty"`
 }
 
 type BroadcasterConfig struct {
+	//ResourceSharingPercentage defines the percentage of your cluster resources that you will share with foreign clusters
 	// +kubebuilder:validation:Maximum=100
 	// +kubebuilder:validation:Minimum=0
 	ResourceSharingPercentage int32 `json:"resourceSharingPercentage"`
-	EnableBroadcaster         bool  `json:"enableBroadcaster"`
+	//EnableBroadcaster flag allows you to enable/disable the broadcasting of your Advertisement to the foreign clusters
+	EnableBroadcaster bool `json:"enableBroadcaster"`
 }
 
 // AcceptPolicy defines the policy to accept/refuse an Advertisement
@@ -60,8 +69,13 @@ const (
 )
 
 type AdvOperatorConfig struct {
+	// MaxAcceptableAdvertisement defines the maximum number of Advertisements that can be accepted
 	// +kubebuilder:validation:Minimum=0
 	MaxAcceptableAdvertisement int32 `json:"maxAcceptableAdvertisement"`
+	// AcceptPolicy defines the policy to accept/refuse an Advertisement.
+	// Possible values are AutoAcceptWithinMaximum and Manual.
+	// AutoAcceptWithinMaximum means all the Advertisement received will be accepted until the MaxAcceptableAdvertisement limit is reached;
+	// Manual means every Advertisement received will need a manual accept/refuse, which can be done by updating its status.
 	// +kubebuilder:validation:Enum="AutoAcceptWithinMaximum";"Manual"
 	AcceptPolicy AcceptPolicy `json:"acceptPolicy"`
 }

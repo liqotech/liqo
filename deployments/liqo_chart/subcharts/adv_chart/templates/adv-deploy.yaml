@@ -62,6 +62,10 @@ spec:
           - "$(CLUSTER_ID)"
           - "--kubelet-namespace"
           - "$(POD_NAMESPACE)"
+          - "--kubelet-image"
+          - {{ .Values.virtualKubelet.image.repository }}{{ .Values.global.suffix | default .Values.suffix }}:{{ .Values.global.version | default .Values.version }}
+          - "--init-kubelet-image"
+          - {{ .Values.initVk.image.repository }}{{ .Values.global.suffix | default .Values.suffix }}:{{ .Values.global.version | default .Values.version }}
         env:
           - name: CLUSTER_ID
             valueFrom:

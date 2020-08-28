@@ -80,6 +80,8 @@ spec:
           args:
             - "--input-env-file"
             - "/etc/environment/liqo/env"
+            - "--broadcaster-image"
+            - {{ .Values.broadcaster.image.repository }}{{ .Values.global.suffix | default .Values.suffix }}:{{ .Values.global.version | default .Values.version }}
           env:
             - name: POD_NAMESPACE
               valueFrom:

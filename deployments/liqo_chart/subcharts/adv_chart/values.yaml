@@ -12,5 +12,15 @@ broadcaster:
     repository: "liqo/advertisement-broadcaster"
     pullPolicy: "IfNotPresent"
 
+virtualKubelet:
+  image:
+    repository: "liqo/virtual-kubelet"
+    pullPolicy: "IfNotPresent"
+
+initVk:
+  image:
+    repository: "liqo/init-vkubelet"
+    pullPolicy: "IfNotPresent"
+
 suffix: ""
 version: "latest"

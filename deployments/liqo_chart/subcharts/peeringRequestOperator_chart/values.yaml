@@ -15,6 +15,10 @@ deployment:
   image:
     repository: "liqo/peering-request-webhook-init"
     pullPolicy: "IfNotPresent"
+broadcaster:
+  image:
+    repository: "liqo/advertisement-broadcaster"
+    pullPolicy: "IfNotPresent"
 
 
 suffix: ""
