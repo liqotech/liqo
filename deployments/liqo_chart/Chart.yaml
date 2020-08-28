@@ -54,3 +54,7 @@ dependencies:
   version: "0.1.0"
   repository: file://subcharts/liqodash_chart/
   condition: liqodash_chart.enabled
+- name: dispatcher_chart
+  version: "0.1.0"
+  repository: file://subcharts/dispatcher_chart/
+  condition: dispatcher_chart.enabled

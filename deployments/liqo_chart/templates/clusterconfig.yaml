@@ -32,3 +32,8 @@ spec:
     reservedSubnets:
     - {{ .Values.podCIDR }}
     - {{ .Values.serviceCIDR }}
+  dispatcherConfig:
+    resourcesToReplicate:
+    - group: liqonet.liqo.io
+      version: v1alpha1
+      resource: networkconfigs
