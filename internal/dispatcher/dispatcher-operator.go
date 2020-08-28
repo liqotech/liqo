@@ -110,11 +110,11 @@ func (d *DispatcherReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) 
 			d.RemoteDynClients[remoteClusterID] = dynClient
 		}
 	}
+
 	d.StartWatchers()
 	d.StartRemoteWatchers()
 	d.StopWatchers()
 	d.StopRemoteWatchers()
-
 	return result, nil
 }
 
@@ -125,6 +125,9 @@ func (d *DispatcherReconciler) SetupWithManager(mgr ctrl.Manager) error {
 }
 
 func (d *DispatcherReconciler) getConfig(clientset kubernetes.Interface, reference *corev1.ObjectReference, remoteClusterID string) (*rest.Config, error) {
+	if reference == nil {
+		return nil, fmt.Errorf("%s -> object reference for the secret containing kubeconfig of foreign cluster %s not set yet", d.ClusterID, remoteClusterID)
+	}
 	secret, err := clientset.CoreV1().Secrets(reference.Namespace).Get(context.TODO(), reference.Name, metav1.GetOptions{})
 	if err != nil {
 		return nil, err
@@ -220,15 +223,22 @@ func (d *DispatcherReconciler) RemoteResourceModifiedHandler(obj *unstructured.U
 	}
 	// TODO if the resource does not exist what do we do?
 	//do nothing? remove the remote replication?
-	//current choice -> do nothing
+	//current choice -> remove the remote one as well
 	if !found {
 		klog.Infof("%s -> resource %s in namespace %s of type %s not found", clusterID, name, namespace, gvr.String())
+		klog.Infof("%s -> removing resource %s in namespace %s of type %s", remoteClusterId, name, namespace, gvr.String())
+		err := d.DeleteResource(d.RemoteDynClients[remoteClusterId], gvr, obj, remoteClusterId)
+		if err != nil {
+			return
+		}
 		return
 	}
 	//if the resource exists on the local cluster then we update the status
 	retryErr := retry.RetryOnConflict(retry.DefaultRetry, func() error {
-		//TODO: we reflect on the local resource only the changes of the status of the remote one
-		//support labels and annotations
+		//we reflect on the local resource only the changes of the status of the remote one
+		//we do not reflect the changes to labels, annotations or spec
+		//TODO:support labels and annotations
+
 		//get status field for both resources
 		remoteStatus, err := getStatus(obj, clusterID)
 		if err != nil {
@@ -478,7 +488,7 @@ func (d *DispatcherReconciler) AddedHandler(obj *unstructured.Unstructured, gvr 
 		return
 	}
 	if dynClient, ok := d.RemoteDynClients[remoteClusterID]; !ok {
-		klog.Infof("a connection to the peering cluster with id: %s does not exist", remoteClusterID)
+		klog.Infof("%s -> a connection to the peering cluster with id: %s does not exist", d.ClusterID, remoteClusterID)
 		return
 	} else {
 		err := d.CreateResource(dynClient, gvr, obj, remoteClusterID)
@@ -560,26 +570,6 @@ func (d *DispatcherReconciler) DeletedHandler(obj *unstructured.Unstructured, gv
 			}
 		}
 	}
-
-	/*for cluster := range d.RemoteDynClients {
-		name := obj.GetName()
-		namespace := obj.GetNamespace()
-		client := d.RemoteDynClients[cluster]
-		clusterID := cluster
-		//we check if the resource exists in the remote cluster
-		_, found, err := d.GetResource(client, gvr, name, namespace, cluster)
-		if err != nil {
-			klog.Errorf("%s -> an error occurred while getting resource %s of type %s: %s", clusterID, name, gvr.String(), err)
-			return
-		}
-		//if the resource exists on the remote cluster then we delete it
-		if found {
-			err := d.DeleteResource(client, gvr, obj, clusterID)
-			if err != nil {
-				klog.Error(err)
-			}
-		}
-	}*/
 }
 
 func (d *DispatcherReconciler) UpdateResource(client dynamic.Interface, gvr schema.GroupVersionResource, obj *unstructured.Unstructured, clusterID string) error {
@@ -600,7 +590,7 @@ func (d *DispatcherReconciler) UpdateResource(client dynamic.Interface, gvr sche
 	//check if metadata has to be updated
 	if !reflect.DeepEqual(obj.GetLabels(), r.GetLabels()) {
 		newMetaData := metav1.ObjectMeta{
-			Labels: obj.GetLabels(),
+			Labels: d.UpdateLabels(obj.GetLabels()),
 		}
 		klog.Infof("%s -> updating metadata of resource %s of type %s", clusterID, name, gvr.String())
 		if err := d.UpdateMetadata(client, gvr, r, clusterID, newMetaData); err != nil {

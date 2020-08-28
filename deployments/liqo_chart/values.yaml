@@ -89,6 +89,12 @@ liqodash_chart:
     pullpolicy: "Always"
   enabled: true
 
+dispatcher_chart:
+  image:
+    repository: "liqo/dispatcher"
+    pullpolicy: "Always"
+  enabled: true
+
 global:
   configmapName: "liqo-configmap"
   apiServerURL: ""

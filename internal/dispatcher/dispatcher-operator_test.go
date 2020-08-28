@@ -124,7 +124,6 @@ func TestDispatcherReconciler_UpdateResource(t *testing.T) {
 	assert.Nil(t, err, "error should be nil")
 	obj, err := dynClient.Resource(gvr).Get(context.TODO(), networkConfig.GetName(), metav1.GetOptions{})
 	assert.Nil(t, err, "error should be nil")
-	assert.Equal(t, networkConfig.GetLabels(), obj.GetLabels(), "labels should be equal")
 
 	//Test 2
 	//we update the spec section
