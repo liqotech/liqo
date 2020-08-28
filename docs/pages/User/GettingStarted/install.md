@@ -34,8 +34,8 @@ curl https://raw.githubusercontent.com/LiqoTech/liqo/master/install.sh | bash
 
 If you did not use `kubeadm` to install your Kubernetes, or you are running another distribution of Kubernetes (such as [K3s](https://k3s.io/)), you should explicitly define the parameters required by Liqo by exporting the following variables **before** launching the installer:
 
-* `POD_CIDR`: range of IP addresses for the pod network (K3s default: 10.32.0.0/16)
-* `SERVICE_CIDR`: range of IP addresses for service VIPs (k3s default: 10.10.0.0/16)
+* `POD_CIDR`: range of IP addresses for the pod network (K3s default: 10.42.0.0/16)
+* `SERVICE_CIDR`: range of IP addresses for service VIPs (k3s default: 10.43.0.0/16)
 * `GATEWAY_IP`: public IP address of the node that will be used as a gateway for all the traffic toward the foreign cluster. If you do not specify one, the installer will pick one among your nodes.
 
 Then, you can run the Liqo installer script, which will use the above settings to configure your Liqo instance.
@@ -45,8 +45,8 @@ Please remember to export your K3s `kubeconfig` before launching the script, as 
 A possible example of installation is the following (please replace the IP addresses with the ones related to your Kubernetes instance):
 ```bash
 export KUBECONFIG=/etc/rancher/k3s/k3s.yaml
-export POD_CIDR=10.32.0.0/16
-export SERVICE_CIDR=10.10.0.0/16
+export POD_CIDR=10.42.0.0/16
+export SERVICE_CIDR=10.43.0.0/16
 curl https://raw.githubusercontent.com/LiqoTech/liqo/master/install.sh | bash
 ```
 
