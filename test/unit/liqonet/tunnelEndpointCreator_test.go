@@ -47,8 +47,8 @@ func getClusterConfigurationCR(reservedSubnets []string) *configv1alpha1.Cluster
 			AdvertisementConfig: configv1alpha1.AdvertisementConfig{},
 			DiscoveryConfig:     configv1alpha1.DiscoveryConfig{},
 			LiqonetConfig: configv1alpha1.LiqonetConfig{
-				ReservedSubnets:  reservedSubnets,
-				VxlanNetConfig:   liqonetOperator.VxlanNetConfig{},
+				ReservedSubnets: reservedSubnets,
+				VxlanNetConfig:  liqonetOperator.VxlanNetConfig{},
 			},
 		},
 		Status: configv1alpha1.ClusterConfigStatus{},

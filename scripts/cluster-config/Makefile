@@ -19,11 +19,11 @@ test: generate fmt vet manifests
 
 # Install CRDs into a cluster
 install: manifests
-	kubectl apply -f deployments/liqo_chart/crds/policy.liqo.io_clusterconfigs
+	kubectl apply -f deployments/liqo_chart/crds/config.liqo.io_clusterconfigs
 
 # Uninstall CRDs from a cluster
 uninstall: manifests
-	kubectl delete -f deployments/liqo_chart/crds/policy.liqo.io_clusterconfigs
+	kubectl delete -f deployments/liqo_chart/crds/config.liqo.io_clusterconfigs
 
 # Generate manifests e.g. CRD, RBAC etc.
 manifests: controller-gen
