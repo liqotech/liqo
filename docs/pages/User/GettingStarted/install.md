@@ -57,5 +57,5 @@ Obviously, you should have enough privileges to read the K3s kubeconfig file.
 In order to peer with another cluster, you need to have **two** Kubernetes clusters with Liqo enabled.
 Therefore you may need to repeat the above procedure on another cluster in order to get a second Liqo instance.
 
-Once you have two clusters ready, you can start the peering procedure, which is presented in the [next step](./peer).
+Once you have two clusters ready, you can start the peering procedure, which is presented in the [next step](../peer).
 
