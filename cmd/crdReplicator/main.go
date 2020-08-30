@@ -4,7 +4,7 @@ import (
 	"flag"
 	clusterConfig "github.com/liqoTech/liqo/api/cluster-config/v1"
 	discoveryv1 "github.com/liqoTech/liqo/api/discovery/v1"
-	"github.com/liqoTech/liqo/internal/dispatcher"
+	"github.com/liqoTech/liqo/internal/crdReplicator"
 	util "github.com/liqoTech/liqo/pkg/liqonet"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/dynamic"
@@ -16,8 +16,8 @@ import (
 )
 
 var (
-	scheme          = runtime.NewScheme()
-	clusteIDConfMap = "cluster-id"
+	scheme           = runtime.NewScheme()
+	clusterIDConfMap = "cluster-id"
 )
 
 func init() {
@@ -43,17 +43,17 @@ func main() {
 	//get namespace where the operator is running
 	namespaceName, found := os.LookupEnv("NAMESPACE")
 	if !found {
-		klog.Errorf("namespace env variable not set, please set it in manifest file o the operator")
+		klog.Errorf("namespace env variable not set, please set it in manifest file of the operator")
 		os.Exit(-1)
 	}
-	clusterID, err := util.GetClusterID(k8sClient, clusteIDConfMap, namespaceName)
+	clusterID, err := util.GetClusterID(k8sClient, clusterIDConfMap, namespaceName)
 	if err != nil {
 		klog.Errorf("an error occurred while retrieving the clusterID: %s", err)
 	} else {
 		klog.Infof("setting local clusterID to: %s", clusterID)
 	}
 
-	d := &dispatcher.DispatcherReconciler{
+	d := &crdReplicator.CRDReplicatorReconciler{
 		Scheme:                mgr.GetScheme(),
 		Client:                mgr.GetClient(),
 		ClientSet:             k8sClient,
@@ -66,7 +66,7 @@ func main() {
 		RemoteWatchers:        make(map[string]map[string]chan bool),
 	}
 	if err = d.SetupWithManager(mgr); err != nil {
-		klog.Error(err, "unable to setup the dispatcher-operator")
+		klog.Error(err, "unable to setup the crdReplicator-operator")
 		os.Exit(1)
 	}
 	err = d.WatchConfiguration(cfg, &clusterConfig.GroupVersion)
@@ -74,7 +74,7 @@ func main() {
 		klog.Error(err)
 		os.Exit(-1)
 	}
-	klog.Info("Starting dispatcher-operator")
+	klog.Info("Starting crdReplicator-operator")
 	if err := mgr.Start(ctrl.SetupSignalHandler()); err != nil {
 		klog.Error(err, "problem running manager")
 		os.Exit(1)

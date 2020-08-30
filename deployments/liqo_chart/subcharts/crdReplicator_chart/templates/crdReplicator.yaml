@@ -2,13 +2,13 @@
 apiVersion: v1
 kind: ServiceAccount
 metadata:
-  name: dispatcher-operator-service-account
+  name: crdreplicator-operator-service-account
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
   creationTimestamp: null
-  name: dispatcher-operator-manager-role
+  name: crdreplicator-operator-manager-role
 rules:
   - apiGroups:
       - ""
@@ -69,30 +69,30 @@ rules:
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
 metadata:
-  name: dispatcher-operator-manager-rolebinding
+  name: crdreplicator-operator-manager-rolebinding
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
-  name: dispatcher-operator-manager-role
+  name: crdreplicator-operator-manager-role
 subjects:
   - kind: ServiceAccount
-    name: dispatcher-operator-service-account
+    name: crdreplicator-operator-service-account
     namespace: {{ .Release.Namespace }}
 ---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
   labels:
-    run: dispatcher-operator
-  name: dispatcher-operator
+    run: crdreplicator-operator
+  name: crdreplicator-operator
 spec:
   selector:
     matchLabels:
-      run: dispatcher-operator
+      run: crdreplicator-operator
   template:
     metadata:
       labels:
-        run: dispatcher-operator
+        run: crdreplicator-operator
     spec:
       affinity:
         nodeAffinity:
@@ -103,12 +103,12 @@ spec:
                     operator: NotIn
                     values:
                       - virtual-node
-      serviceAccountName: dispatcher-operator-service-account
+      serviceAccountName: crdreplicator-operator-service-account
       containers:
         - image: {{ .Values.image.repository }}{{ .Values.global.suffix | default .Values.suffix }}:{{ .Values.global.version | default .Values.version }}
           imagePullPolicy: {{ .Values.image.pullPolicy }}
-          name: dispatcher-operator
-          command: ["/usr/bin/dispatcher"]
+          name: crdreplicator-operator
+          command: ["/usr/bin/crdReplicator"]
           resources: {}
           env:
             - name: NAMESPACE

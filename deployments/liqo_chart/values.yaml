@@ -89,9 +89,9 @@ liqodash_chart:
     pullpolicy: "Always"
   enabled: true
 
-dispatcher_chart:
+crdReplicator_chart:
   image:
-    repository: "liqo/dispatcher"
+    repository: "liqo/crdreplicator"
     pullpolicy: "Always"
   enabled: true
 

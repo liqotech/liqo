@@ -24,7 +24,7 @@ jobs:
         - init-pod-mutator
         - pod-mutator
         - peering-request-webhook-init
-        - dispatcher
+        - crdReplicator
     steps:
       - name: setup-docker
         uses: docker-practice/actions-setup-docker@0.0.1

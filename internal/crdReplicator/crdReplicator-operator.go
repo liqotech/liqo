@@ -1,4 +1,4 @@
-package dispatcher
+package crdReplicator
 
 import (
 	"context"
@@ -37,7 +37,7 @@ var (
 	}
 )
 
-type DispatcherReconciler struct {
+type CRDReplicatorReconciler struct {
 	Scheme *runtime.Scheme
 	client.Client
 	ClientSet *kubernetes.Clientset
@@ -57,7 +57,7 @@ type DispatcherReconciler struct {
 	RemoteWatchers map[string]map[string]chan bool
 }
 
-func (d *DispatcherReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
+func (d *CRDReplicatorReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 	var fc v1.ForeignCluster
 	ctx := context.Background()
 
@@ -118,13 +118,13 @@ func (d *DispatcherReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) 
 	return result, nil
 }
 
-func (d *DispatcherReconciler) SetupWithManager(mgr ctrl.Manager) error {
+func (d *CRDReplicatorReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&v1.ForeignCluster{}).
 		Complete(d)
 }
 
-func (d *DispatcherReconciler) getConfig(clientset kubernetes.Interface, reference *corev1.ObjectReference, remoteClusterID string) (*rest.Config, error) {
+func (d *CRDReplicatorReconciler) getConfig(clientset kubernetes.Interface, reference *corev1.ObjectReference, remoteClusterID string) (*rest.Config, error) {
 	if reference == nil {
 		return nil, fmt.Errorf("%s -> object reference for the secret containing kubeconfig of foreign cluster %s not set yet", d.ClusterID, remoteClusterID)
 	}
@@ -142,7 +142,7 @@ func (d *DispatcherReconciler) getConfig(clientset kubernetes.Interface, referen
 	return cnf, nil
 }
 
-func (d *DispatcherReconciler) LocalWatcher(gvr schema.GroupVersionResource, stop chan bool) {
+func (d *CRDReplicatorReconciler) LocalWatcher(gvr schema.GroupVersionResource, stop chan bool) {
 	watcher, err := d.LocalDynClient.Resource(gvr).Watch(context.TODO(), metav1.ListOptions{
 		LabelSelector: LocalLabelSelector + "=true",
 	})
@@ -179,7 +179,7 @@ func (d *DispatcherReconciler) LocalWatcher(gvr schema.GroupVersionResource, sto
 	}
 }
 
-func (d *DispatcherReconciler) RemoteWatcher(dynClient dynamic.Interface, gvr schema.GroupVersionResource, stop chan bool, remoteClusterID string) {
+func (d *CRDReplicatorReconciler) RemoteWatcher(dynClient dynamic.Interface, gvr schema.GroupVersionResource, stop chan bool, remoteClusterID string) {
 	watcher, err := dynClient.Resource(gvr).Watch(context.TODO(), metav1.ListOptions{
 		LabelSelector: RemoteLabelSelector + "=" + d.ClusterID,
 	})
@@ -210,7 +210,7 @@ func (d *DispatcherReconciler) RemoteWatcher(dynClient dynamic.Interface, gvr sc
 	}
 }
 
-func (d *DispatcherReconciler) RemoteResourceModifiedHandler(obj *unstructured.Unstructured, gvr schema.GroupVersionResource, remoteClusterId string) {
+func (d *CRDReplicatorReconciler) RemoteResourceModifiedHandler(obj *unstructured.Unstructured, gvr schema.GroupVersionResource, remoteClusterId string) {
 	name := obj.GetName()
 	namespace := obj.GetNamespace()
 	client := d.LocalDynClient
@@ -261,7 +261,7 @@ func (d *DispatcherReconciler) RemoteResourceModifiedHandler(obj *unstructured.U
 	}
 }
 
-func (d *DispatcherReconciler) StartWatchers() {
+func (d *CRDReplicatorReconciler) StartWatchers() {
 	//for each resource check if there is already a local running watcher
 	for _, res := range d.RegisteredResources {
 		//if there is not then start one
@@ -283,7 +283,7 @@ func (d *DispatcherReconciler) StartWatchers() {
 	}
 }
 
-func (d *DispatcherReconciler) StartRemoteWatchers() {
+func (d *CRDReplicatorReconciler) StartRemoteWatchers() {
 	//for each remote cluster check if the remote watchers are running for each registered resource
 	for remCluster, remDynClient := range d.RemoteDynClients {
 		watchers := d.RemoteWatchers[remCluster]
@@ -313,7 +313,7 @@ func (d *DispatcherReconciler) StartRemoteWatchers() {
 }
 
 //Stops all the watchers for the resources that have been unregistered
-func (d *DispatcherReconciler) StopWatchers() {
+func (d *CRDReplicatorReconciler) StopWatchers() {
 	for _, res := range d.UnregisteredResources {
 		if ch, ok := d.LocalWatchers[res]; ok {
 			if !isOpen(ch) {
@@ -328,7 +328,7 @@ func (d *DispatcherReconciler) StopWatchers() {
 	}
 }
 
-func (d *DispatcherReconciler) StopRemoteWatchers() {
+func (d *CRDReplicatorReconciler) StopRemoteWatchers() {
 	for remCluster, watchers := range d.RemoteWatchers {
 		for _, res := range d.UnregisteredResources {
 			if ch, ok := watchers[res]; ok {
@@ -346,7 +346,7 @@ func (d *DispatcherReconciler) StopRemoteWatchers() {
 	}
 }
 
-func (d *DispatcherReconciler) CreateResource(client dynamic.Interface, gvr schema.GroupVersionResource, obj *unstructured.Unstructured, clusterID string) error {
+func (d *CRDReplicatorReconciler) CreateResource(client dynamic.Interface, gvr schema.GroupVersionResource, obj *unstructured.Unstructured, clusterID string) error {
 	//check if the resource exists
 	name := obj.GetName()
 	namespace := obj.GetNamespace()
@@ -397,7 +397,7 @@ func (d *DispatcherReconciler) CreateResource(client dynamic.Interface, gvr sche
 	return err
 }
 
-func (d *DispatcherReconciler) UpdateLabels(labels map[string]string) map[string]string {
+func (d *CRDReplicatorReconciler) UpdateLabels(labels map[string]string) map[string]string {
 	//we don't check if the map is nil, because it has to be initialized because we use the label to filter the resources
 	//which needs to be replicated
 	//setting the replication label to false
@@ -467,7 +467,7 @@ func getStatus(obj *unstructured.Unstructured, clusterID string) (map[string]int
 	return status, nil
 }
 
-func (d *DispatcherReconciler) GetResource(client dynamic.Interface, gvr schema.GroupVersionResource, name, namespace, clusterID string) (*unstructured.Unstructured, bool, error) {
+func (d *CRDReplicatorReconciler) GetResource(client dynamic.Interface, gvr schema.GroupVersionResource, name, namespace, clusterID string) (*unstructured.Unstructured, bool, error) {
 	r, err := client.Resource(gvr).Namespace(namespace).Get(context.TODO(), name, metav1.GetOptions{})
 	if err == nil {
 		return r, true, nil
@@ -479,7 +479,7 @@ func (d *DispatcherReconciler) GetResource(client dynamic.Interface, gvr schema.
 	}
 }
 
-func (d *DispatcherReconciler) AddedHandler(obj *unstructured.Unstructured, gvr schema.GroupVersionResource) {
+func (d *CRDReplicatorReconciler) AddedHandler(obj *unstructured.Unstructured, gvr schema.GroupVersionResource) {
 	//check if already exists a cluster to the remote peering cluster specified in the labels
 	labels := obj.GetLabels()
 	remoteClusterID, ok := labels[DestinationLabel]
@@ -498,7 +498,7 @@ func (d *DispatcherReconciler) AddedHandler(obj *unstructured.Unstructured, gvr 
 	}
 }
 
-func (d *DispatcherReconciler) ModifiedHandler(obj *unstructured.Unstructured, gvr schema.GroupVersionResource) {
+func (d *CRDReplicatorReconciler) ModifiedHandler(obj *unstructured.Unstructured, gvr schema.GroupVersionResource) {
 	//check if already exists a cluster to the remote peering cluster specified in the labels
 	labels := obj.GetLabels()
 	remoteClusterID, ok := labels[DestinationLabel]
@@ -539,7 +539,7 @@ func (d *DispatcherReconciler) ModifiedHandler(obj *unstructured.Unstructured, g
 	}
 }
 
-func (d *DispatcherReconciler) DeletedHandler(obj *unstructured.Unstructured, gvr schema.GroupVersionResource) {
+func (d *CRDReplicatorReconciler) DeletedHandler(obj *unstructured.Unstructured, gvr schema.GroupVersionResource) {
 	//check if already exists a cluster to the remote peering cluster specified in the labels
 	labels := obj.GetLabels()
 	remoteClusterID, ok := labels[DestinationLabel]
@@ -572,7 +572,7 @@ func (d *DispatcherReconciler) DeletedHandler(obj *unstructured.Unstructured, gv
 	}
 }
 
-func (d *DispatcherReconciler) UpdateResource(client dynamic.Interface, gvr schema.GroupVersionResource, obj *unstructured.Unstructured, clusterID string) error {
+func (d *CRDReplicatorReconciler) UpdateResource(client dynamic.Interface, gvr schema.GroupVersionResource, obj *unstructured.Unstructured, clusterID string) error {
 	name := obj.GetName()
 	namespace := obj.GetNamespace()
 	klog.Infof("%s -> updating resource %s of type %s", clusterID, name, gvr.String())
@@ -634,7 +634,7 @@ func (d *DispatcherReconciler) UpdateResource(client dynamic.Interface, gvr sche
 	return nil
 }
 
-func (d *DispatcherReconciler) DeleteResource(client dynamic.Interface, gvr schema.GroupVersionResource, obj *unstructured.Unstructured, clusterID string) error {
+func (d *CRDReplicatorReconciler) DeleteResource(client dynamic.Interface, gvr schema.GroupVersionResource, obj *unstructured.Unstructured, clusterID string) error {
 	klog.Infof("%s -> deleting resource %s of type %s", clusterID, obj.GetName(), gvr.String())
 	err := client.Resource(gvr).Delete(context.TODO(), obj.GetName(), metav1.DeleteOptions{})
 	if err != nil {
@@ -645,7 +645,7 @@ func (d *DispatcherReconciler) DeleteResource(client dynamic.Interface, gvr sche
 }
 
 //updates the following field of metadata: labels
-func (d *DispatcherReconciler) UpdateMetadata(client dynamic.Interface, gvr schema.GroupVersionResource, obj *unstructured.Unstructured, clusterID string, m metav1.ObjectMeta) error {
+func (d *CRDReplicatorReconciler) UpdateMetadata(client dynamic.Interface, gvr schema.GroupVersionResource, obj *unstructured.Unstructured, clusterID string, m metav1.ObjectMeta) error {
 	//setting the new values of metadata
 	obj.SetLabels(m.Labels)
 	//update the remote resource
@@ -657,7 +657,7 @@ func (d *DispatcherReconciler) UpdateMetadata(client dynamic.Interface, gvr sche
 }
 
 //updates the spec field of a resource
-func (d *DispatcherReconciler) UpdateSpec(client dynamic.Interface, gvr schema.GroupVersionResource, obj *unstructured.Unstructured, clusterID string, spec map[string]interface{}) error {
+func (d *CRDReplicatorReconciler) UpdateSpec(client dynamic.Interface, gvr schema.GroupVersionResource, obj *unstructured.Unstructured, clusterID string, spec map[string]interface{}) error {
 	//setting the new values of spec fields
 	err := unstructured.SetNestedMap(obj.Object, spec, "spec")
 	if err != nil {
@@ -673,7 +673,7 @@ func (d *DispatcherReconciler) UpdateSpec(client dynamic.Interface, gvr schema.G
 }
 
 //updates the status field of a resource
-func (d *DispatcherReconciler) UpdateStatus(client dynamic.Interface, gvr schema.GroupVersionResource, obj *unstructured.Unstructured, clusterID string, status map[string]interface{}) error {
+func (d *CRDReplicatorReconciler) UpdateStatus(client dynamic.Interface, gvr schema.GroupVersionResource, obj *unstructured.Unstructured, clusterID string, status map[string]interface{}) error {
 	//setting the new values of spec fields
 	err := unstructured.SetNestedMap(obj.Object, status, "status")
 	if err != nil {

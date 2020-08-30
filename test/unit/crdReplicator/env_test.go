@@ -1,11 +1,11 @@
-package dispatcher
+package crdReplicator
 
 import (
 	"context"
 	"fmt"
 	policyv1 "github.com/liqoTech/liqo/api/cluster-config/v1"
 	discoveryv1 "github.com/liqoTech/liqo/api/discovery/v1"
-	"github.com/liqoTech/liqo/internal/dispatcher"
+	"github.com/liqoTech/liqo/internal/crdReplicator"
 	"github.com/liqoTech/liqo/pkg/crdClient"
 	"github.com/liqoTech/liqo/pkg/liqonet"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -33,7 +33,7 @@ var (
 	configClusterClient       *crdClient.CRDClient
 	k8sManagerLocal           ctrl.Manager
 	testEnvLocal              *envtest.Environment
-	dOperator                 *dispatcher.DispatcherReconciler
+	dOperator                 *crdReplicator.CRDReplicatorReconciler
 )
 
 func TestMain(m *testing.M) {
@@ -72,7 +72,7 @@ func startDispatcherOperator() {
 	}
 	err = dOperator.WatchConfiguration(newConfig, &policyv1.GroupVersion)
 	if err != nil {
-		klog.Errorf("an error occurred while starting the configuration watcher of dispatcher operator: %s", err)
+		klog.Errorf("an error occurred while starting the configuration watcher of crdReplicator operator: %s", err)
 		os.Exit(-1)
 	}
 	fc := getForeignClusterResource()
