@@ -1,4 +1,4 @@
-package dispatcher
+package crdReplicator
 
 import (
 	policyv1 "github.com/liqoTech/liqo/api/cluster-config/v1"
@@ -8,7 +8,7 @@ import (
 )
 
 func TestDispatcherReconciler_GetConfig(t *testing.T) {
-	dispatcher := DispatcherReconciler{}
+	dispatcher := CRDReplicatorReconciler{}
 	//test 1
 	//the list of the resources to be replicated is 0, so we expect a 0 length list to be returned by the function
 	t1 := policyv1.DispatcherConfig{ResourcesToReplicate: nil}
@@ -46,7 +46,7 @@ func TestDispatcherReconciler_GetConfig(t *testing.T) {
 }
 
 func TestDispatcherReconciler_GetRemovedResources(t *testing.T) {
-	dispatcher := DispatcherReconciler{
+	dispatcher := CRDReplicatorReconciler{
 		RegisteredResources: []schema.GroupVersionResource{
 			{
 				Group:    "liqonet.liqo.io",
@@ -104,7 +104,7 @@ func TestDispatcherReconciler_GetRemovedResources(t *testing.T) {
 }
 
 func TestDispatcherReconciler_UpdateConfig(t *testing.T) {
-	dispatcher := DispatcherReconciler{}
+	dispatcher := CRDReplicatorReconciler{}
 	//test 1
 	//the list of the resources to be replicated is 0, so we expect a 0 length list to be returned by the function
 	//and 0 elements removed
@@ -163,7 +163,7 @@ func TestDispatcherReconciler_UpdateConfig(t *testing.T) {
 
 //we test that if the *rest.config of the custer is not correct the function return the error
 func TestDispatcherReconciler_WatchConfiguration(t *testing.T) {
-	dispatcher := DispatcherReconciler{}
+	dispatcher := CRDReplicatorReconciler{}
 	//test1
 	//the group version is not correct and we expect an error
 	config := k8sManagerLocal.GetConfig()

@@ -1,4 +1,4 @@
-package dispatcher
+package crdReplicator
 
 import (
 	"k8s.io/apimachinery/pkg/runtime/schema"

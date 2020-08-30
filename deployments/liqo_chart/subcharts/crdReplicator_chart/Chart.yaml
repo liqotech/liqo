@@ -1,6 +1,6 @@
 apiVersion: v2
-name: dispatcher_chart
-description: A Helm chart for Dispatcher Operator
+name: crdReplicator_chart
+description: A Helm chart for CRDReplicator Operator
 
 # A chart can be either an 'application' or a 'library' chart.
 #

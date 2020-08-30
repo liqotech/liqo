@@ -1,4 +1,4 @@
-package dispatcher
+package crdReplicator
 
 import (
 	"context"
@@ -45,8 +45,8 @@ func getLabels() map[string]string {
 	}
 }
 
-func getDispatcher() DispatcherReconciler {
-	return DispatcherReconciler{
+func getCRDReplicator() CRDReplicatorReconciler {
+	return CRDReplicatorReconciler{
 		Scheme:                nil,
 		ClusterID:             localClusterID,
 		RemoteDynClients:      map[string]dynamic.Interface{remoteClusterID: dynClient},
@@ -58,9 +58,9 @@ func getDispatcher() DispatcherReconciler {
 	}
 }
 
-func TestDispatcherReconciler_CreateResource(t *testing.T) {
+func TestCRDReplicatorReconciler_CreateResource(t *testing.T) {
 	networkConfig := getObj()
-	d := getDispatcher()
+	d := getCRDReplicator()
 	//test 1
 	//the resource does not exist on the cluster
 	//we expect to be created
@@ -92,8 +92,8 @@ func TestDispatcherReconciler_CreateResource(t *testing.T) {
 
 }
 
-func TestDispatcherReconciler_DeleteResource(t *testing.T) {
-	d := getDispatcher()
+func TestCRDReplicatorReconciler_DeleteResource(t *testing.T) {
+	d := getCRDReplicator()
 	//test 1
 	//delete an existing resource
 	//we expect the error to be nil
@@ -109,8 +109,8 @@ func TestDispatcherReconciler_DeleteResource(t *testing.T) {
 	assert.NotNil(t, err, "error should be not nil")
 }
 
-func TestDispatcherReconciler_UpdateResource(t *testing.T) {
-	d := getDispatcher()
+func TestCRDReplicatorReconciler_UpdateResource(t *testing.T) {
+	d := getCRDReplicator()
 	//first we create the resource
 	networkConfig := getObj()
 	err := d.CreateResource(dynClient, gvr, networkConfig, clusterID)
@@ -159,8 +159,8 @@ func TestDispatcherReconciler_UpdateResource(t *testing.T) {
 	assert.Equal(t, newStatus, status, "status should be equal")
 }
 
-func TestDispatcherReconciler_StartRemoteWatchers(t *testing.T) {
-	d := getDispatcher()
+func TestCRDReplicatorReconciler_StartRemoteWatchers(t *testing.T) {
+	d := getCRDReplicator()
 	//for each test we have a number of registered resources and
 	//after calling the StartWatchers function we expect two have a certain number of active watchers
 	//as is the number of the registered resources
@@ -216,8 +216,8 @@ func TestDispatcherReconciler_StartRemoteWatchers(t *testing.T) {
 	assert.NotPanics(t, func() { close(d.RemoteWatchers[remoteClusterID][test3[0].String()]) }, "should not panic")
 }
 
-func TestDispatcherReconciler_StopRemoteWatchers(t *testing.T) {
-	d := getDispatcher()
+func TestCRDReplicatorReconciler_StopRemoteWatchers(t *testing.T) {
+	d := getCRDReplicator()
 	//we add two kind of resources to be watched
 	//then unregister them and check that the watchers have been closed as well
 	test1 := []schema.GroupVersionResource{{
@@ -250,8 +250,8 @@ func TestDispatcherReconciler_StopRemoteWatchers(t *testing.T) {
 	assert.Equal(t, 1, len(d.RemoteWatchers[remoteClusterID]), "it should be 0")
 }
 
-func TestDispatcherReconciler_StartWatchers(t *testing.T) {
-	d := getDispatcher()
+func TestCRDReplicatorReconciler_StartWatchers(t *testing.T) {
+	d := getCRDReplicator()
 	//for each test we have a number of registered resources and
 	//after calling the StartWatchers function we expect two have a certain number of active watchers
 	//as is the number of the registered resources
@@ -306,8 +306,8 @@ func TestDispatcherReconciler_StartWatchers(t *testing.T) {
 	assert.NotPanics(t, func() { close(d.LocalWatchers[test3[0].String()]) }, "should not panic")
 }
 
-func TestDispatcherReconciler_StopWatchers(t *testing.T) {
-	d := DispatcherReconciler{
+func TestCRDReplicatorReconciler_StopWatchers(t *testing.T) {
+	d := CRDReplicatorReconciler{
 		LocalDynClient: dynClient,
 		LocalWatchers:  make(map[string]chan bool),
 	}
@@ -343,8 +343,8 @@ func TestDispatcherReconciler_StopWatchers(t *testing.T) {
 	assert.Equal(t, 1, len(d.LocalWatchers), "it should be 0")
 }
 
-func TestDispatcherReconciler_AddedHandler(t *testing.T) {
-	d := getDispatcher()
+func TestCRDReplicatorReconciler_AddedHandler(t *testing.T) {
+	d := getCRDReplicator()
 	//test 1
 	//adding a resource kind that exists on the cluster
 	//we expect the resource to be created
@@ -366,8 +366,8 @@ func TestDispatcherReconciler_AddedHandler(t *testing.T) {
 	assert.NotNil(t, err, "error should be not nil")
 	assert.Nil(t, obj, "the object retrieved should be nil")
 }
-func TestDispatcherReconciler_ModifiedHandler(t *testing.T) {
-	d := getDispatcher()
+func TestCRDReplicatorReconciler_ModifiedHandler(t *testing.T) {
+	d := getCRDReplicator()
 
 	//test 1
 	//the modified resource does not exist on the cluster
@@ -396,8 +396,8 @@ func TestDispatcherReconciler_ModifiedHandler(t *testing.T) {
 	assert.Nil(t, err, "should be nil")
 }
 
-func TestDispatcherReconciler_RemoteResourceModifiedHandler(t *testing.T) {
-	d := getDispatcher()
+func TestCRDReplicatorReconciler_RemoteResourceModifiedHandler(t *testing.T) {
+	d := getCRDReplicator()
 
 	//test 1
 	//the modified resource does not exist on the cluster
@@ -428,8 +428,8 @@ func TestDispatcherReconciler_RemoteResourceModifiedHandler(t *testing.T) {
 	assert.Nil(t, err, "should be nil")
 }
 
-func TestDispatcherReconciler_DeletedHandler(t *testing.T) {
-	d := getDispatcher()
+func TestCRDReplicatorReconciler_DeletedHandler(t *testing.T) {
+	d := getCRDReplicator()
 	//test 1
 	//we create a resource then we pass it to the handler
 	//we expect the resource to be deleted

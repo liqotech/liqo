@@ -1,4 +1,4 @@
-package dispatcher
+package crdReplicator
 
 import (
 	policyv1 "github.com/liqoTech/liqo/api/cluster-config/v1"
@@ -11,7 +11,7 @@ import (
 	"reflect"
 )
 
-func (d *DispatcherReconciler) WatchConfiguration(config *rest.Config, gv *schema.GroupVersion) error {
+func (d *CRDReplicatorReconciler) WatchConfiguration(config *rest.Config, gv *schema.GroupVersion) error {
 	config.ContentConfig.GroupVersion = gv
 	config.APIPath = "/apis"
 	config.NegotiatedSerializer = scheme.Codecs.WithoutConversion()
@@ -25,7 +25,7 @@ func (d *DispatcherReconciler) WatchConfiguration(config *rest.Config, gv *schem
 	return nil
 }
 
-func (d *DispatcherReconciler) UpdateConfig(cfg *policyv1.ClusterConfig) {
+func (d *CRDReplicatorReconciler) UpdateConfig(cfg *policyv1.ClusterConfig) {
 	resources := d.GetConfig(cfg)
 	if !reflect.DeepEqual(d.RegisteredResources, resources) {
 		klog.Info("updating the list of registered resources to be replicated")
@@ -35,7 +35,7 @@ func (d *DispatcherReconciler) UpdateConfig(cfg *policyv1.ClusterConfig) {
 	klog.Infof("%s -> current registered resources %s", d.ClusterID, d.RegisteredResources)
 }
 
-func (d *DispatcherReconciler) GetConfig(cfg *policyv1.ClusterConfig) []schema.GroupVersionResource {
+func (d *CRDReplicatorReconciler) GetConfig(cfg *policyv1.ClusterConfig) []schema.GroupVersionResource {
 	resourceList := cfg.Spec.DispatcherConfig
 	config := []schema.GroupVersionResource{}
 	for _, res := range resourceList.ResourcesToReplicate {
@@ -48,7 +48,7 @@ func (d *DispatcherReconciler) GetConfig(cfg *policyv1.ClusterConfig) []schema.G
 	return config
 }
 
-func (d *DispatcherReconciler) GetRemovedResources(resources []schema.GroupVersionResource) []string {
+func (d *CRDReplicatorReconciler) GetRemovedResources(resources []schema.GroupVersionResource) []string {
 	oldRes := []string{}
 	diffRes := []string{}
 	newRes := []string{}
