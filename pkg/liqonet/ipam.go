@@ -96,9 +96,11 @@ func (ip IpManager) reserveSubnet(network *net.IPNet, clusterID string) {
 func (ip IpManager) RemoveReservedSubnet(clusterID string) {
 
 	subnet := ip.SubnetPerCluster[clusterID]
+	if subnet != nil {
+		ip.FreeSubnets[subnet.String()] = subnet
+		delete(ip.UsedSubnets, subnet.String())
+		delete(ip.SubnetPerCluster, clusterID)
+		ip.Log.Info("Removing", "subnet", subnet.String(), "reserved to cluster", clusterID)
+	}
 
-	ip.FreeSubnets[subnet.String()] = subnet
-	delete(ip.UsedSubnets, subnet.String())
-	delete(ip.SubnetPerCluster, clusterID)
-	ip.Log.Info("Removing", "subnet", subnet.String(), "reserved to cluster", clusterID)
 }

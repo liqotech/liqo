@@ -16,10 +16,9 @@ func GetTunnelEndpointCR() *netv1alpha1.TunnelEndpoint {
 		TypeMeta:   metav1.TypeMeta{},
 		ObjectMeta: metav1.ObjectMeta{},
 		Spec: netv1alpha1.TunnelEndpointSpec{
-			ClusterID:       "cluster-test",
-			PodCIDR:         "10.0.0.0/12",
-			TunnelPublicIP:  "192.168.5.1",
-			TunnelPrivateIP: "192.168.4.1",
+			ClusterID:      "cluster-test",
+			PodCIDR:        "10.0.0.0/12",
+			TunnelPublicIP: "192.168.5.1",
 		},
 		Status: netv1alpha1.TunnelEndpointStatus{
 			Phase:                 "",
@@ -27,9 +26,7 @@ func GetTunnelEndpointCR() *netv1alpha1.TunnelEndpoint {
 			RemoteRemappedPodCIDR: "None",
 			NATEnabled:            false,
 			RemoteTunnelPublicIP:  "192.168.10.1",
-			RemoteTunnelPrivateIP: "192.168.9.1",
 			LocalTunnelPublicIP:   "192.168.5.1",
-			LocalTunnelPrivateIP:  "192.168.4.1",
 			TunnelIFaceIndex:      0,
 			TunnelIFaceName:       "",
 		},
