@@ -16,26 +16,31 @@ limitations under the License.
 package main
 
 import (
+	"context"
 	"flag"
 	"github.com/coreos/go-iptables/iptables"
 	clusterConfig "github.com/liqoTech/liqo/api/config/v1alpha1"
+	discoveryv1alpha1 "github.com/liqoTech/liqo/api/discovery/v1alpha1"
 	"github.com/liqoTech/liqo/api/liqonet/v1"
+	netv1alpha1 "github.com/liqoTech/liqo/api/liqonet/v1alpha1"
 	advtypes "github.com/liqoTech/liqo/api/sharing/v1alpha1"
 	"github.com/liqoTech/liqo/internal/liqonet"
 	"github.com/liqoTech/liqo/pkg/liqonet"
 	"github.com/vishvananda/netlink"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
+	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
 	"k8s.io/klog/v2"
 	"net"
 	"os"
-	"strconv"
-	"time"
-
-	"k8s.io/apimachinery/pkg/runtime"
-	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
+	"strconv"
+	"time"
 	// +kubebuilder:scaffold:imports
 )
 
@@ -49,6 +54,17 @@ var (
 		Port:       "4789", //IANA assigned
 		Vni:        "200",
 	}
+
+	peeringReqGVR = schema.GroupVersionResource{
+		Group:    discoveryv1alpha1.GroupVersion.Group,
+		Version:  discoveryv1alpha1.GroupVersion.Version,
+		Resource: "peeringrequests",
+	}
+	advGVR = schema.GroupVersionResource{
+		Group:    advtypes.GroupVersion.Group,
+		Version:  advtypes.GroupVersion.Version,
+		Resource: "advertisements",
+	}
 )
 
 func init() {
@@ -56,7 +72,7 @@ func init() {
 
 	_ = v1.AddToScheme(scheme)
 
-	_ = advtypes.AddToScheme(scheme)
+	_ = netv1alpha1.AddToScheme(scheme)
 
 	// +kubebuilder:scaffold:scheme
 }
@@ -191,12 +207,30 @@ func main() {
 		}
 
 	case "tunnelEndpointCreator-operator":
+
+		//get IP of gatewayNode
+		nodeList, err := clientset.CoreV1().Nodes().List(context.Background(), metav1.ListOptions{
+			LabelSelector: "liqonet.liqo.io/gateway=true",
+		})
+		if err != nil {
+			klog.Errorf("an error occurred while getting nodes %s", err)
+			os.Exit(-1)
+		}
+		if len(nodeList.Items) != 1 {
+			klog.Errorf("no node or multiple nodes found with label \"liqonet.liqo.io/gateway=true\"")
+			os.Exit(-1)
+		}
+		gatewayIP := nodeList.Items[0].Status.Addresses[0].Address
+
 		r := &controllers.TunnelEndpointCreator{
 			Client:          mgr.GetClient(),
-			Log:             ctrl.Log.WithName("controllers").WithName("TunnelEndpointCreator"),
 			Scheme:          mgr.GetScheme(),
+			DynClient:       dynamic.NewForConfigOrDie(mgr.GetConfig()),
+			GatewayIP:       gatewayIP,
 			ReservedSubnets: make(map[string]*net.IPNet),
 			Configured:      make(chan bool, 1),
+			AdvWatcher:      make(chan bool, 1),
+			PReqWatcher:     make(chan bool, 1),
 			IPManager: liqonet.IpManager{
 				UsedSubnets:        make(map[string]*net.IPNet),
 				FreeSubnets:        make(map[string]*net.IPNet),
@@ -206,6 +240,8 @@ func main() {
 			},
 			RetryTimeout: 30 * time.Second,
 		}
+		go r.Watcher(r.DynClient, peeringReqGVR, r.PeeringRequestHandler, r.PReqWatcher)
+		go r.Watcher(r.DynClient, advGVR, r.AdvertisementHandler, r.AdvWatcher)
 		r.WatchConfiguration(config, &clusterConfig.GroupVersion)
 		if err = r.SetupWithManager(mgr); err != nil {
 			setupLog.Error(err, "unable to create controller", "controller", "TunnelEndpointCreator")
@@ -216,5 +252,7 @@ func main() {
 			setupLog.Error(err, "problem running manager")
 			os.Exit(1)
 		}
+		klog.Infof("starting watchers")
+
 	}
 }

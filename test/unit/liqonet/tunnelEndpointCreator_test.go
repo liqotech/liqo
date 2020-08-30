@@ -1,22 +1,43 @@
 package liqonet
 
 import (
+	"context"
 	configv1alpha1 "github.com/liqoTech/liqo/api/config/v1alpha1"
-	v1 "github.com/liqoTech/liqo/api/liqonet/v1"
+	discoveryv1alpha1 "github.com/liqoTech/liqo/api/discovery/v1alpha1"
+	netv1alpha1 "github.com/liqoTech/liqo/api/liqonet/v1alpha1"
+	advtypes "github.com/liqoTech/liqo/api/sharing/v1alpha1"
+	"github.com/liqoTech/liqo/internal/crdReplicator"
 	controller "github.com/liqoTech/liqo/internal/liqonet"
 	"github.com/liqoTech/liqo/pkg/liqonet"
 	liqonetOperator "github.com/liqoTech/liqo/pkg/liqonet"
 	"github.com/stretchr/testify/assert"
-	k8sApiErrors "k8s.io/apimachinery/pkg/api/errors"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/rest"
 	"k8s.io/klog"
 	"net"
 	ctrl "sigs.k8s.io/controller-runtime"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sync"
 	"testing"
 	"time"
+)
+
+var (
+	peeringReqGVR = schema.GroupVersionResource{
+		Group:    discoveryv1alpha1.GroupVersion.Group,
+		Version:  discoveryv1alpha1.GroupVersion.Version,
+		Resource: "peeringrequests",
+	}
+	advGVR = schema.GroupVersionResource{
+		Group:    advtypes.GroupVersion.Group,
+		Version:  advtypes.GroupVersion.Version,
+		Resource: "advertisements",
+	}
 )
 
 func getTunnelEndpointCreator() *controller.TunnelEndpointCreator {
@@ -24,6 +45,7 @@ func getTunnelEndpointCreator() *controller.TunnelEndpointCreator {
 		Client:          nil,
 		Log:             nil,
 		Scheme:          nil,
+		GatewayIP:       "192.168.1.1",
 		ReservedSubnets: make(map[string]*net.IPNet),
 		IPManager: liqonetOperator.IpManager{
 			UsedSubnets:        make(map[string]*net.IPNet),
@@ -35,6 +57,8 @@ func getTunnelEndpointCreator() *controller.TunnelEndpointCreator {
 		Mutex:        sync.Mutex{},
 		IsConfigured: false,
 		Configured:   nil,
+		PReqWatcher:  make(chan bool, 1),
+		AdvWatcher:   make(chan bool, 1),
 		RetryTimeout: 0,
 	}
 }
@@ -48,6 +72,8 @@ func getClusterConfigurationCR(reservedSubnets []string) *configv1alpha1.Cluster
 			DiscoveryConfig:     configv1alpha1.DiscoveryConfig{},
 			LiqonetConfig: configv1alpha1.LiqonetConfig{
 				ReservedSubnets: reservedSubnets,
+				PodCIDR:         "10.1.0.0/16",
+				ServiceCIDR:     "10.96.0.0/12",
 				VxlanNetConfig:  liqonetOperator.VxlanNetConfig{},
 			},
 		},
@@ -58,11 +84,14 @@ func getClusterConfigurationCR(reservedSubnets []string) *configv1alpha1.Cluster
 func setupTunnelEndpointCreatorOperator() error {
 	var err error
 	tunEndpointCreator = &controller.TunnelEndpointCreator{
+		DynClient:       dynamic.NewForConfigOrDie(k8sManager.GetConfig()),
 		Client:          k8sManager.GetClient(),
 		Log:             ctrl.Log.WithName("controllers").WithName("TunnelEndpointCreator"),
 		Scheme:          k8sManager.GetScheme(),
 		ReservedSubnets: make(map[string]*net.IPNet),
 		Configured:      make(chan bool, 1),
+		AdvWatcher:      make(chan bool, 1),
+		PReqWatcher:     make(chan bool, 1),
 		IPManager: liqonet.IpManager{
 			UsedSubnets:        make(map[string]*net.IPNet),
 			FreeSubnets:        make(map[string]*net.IPNet),
@@ -85,6 +114,9 @@ func setupTunnelEndpointCreatorOperator() error {
 		klog.Error(err, err.Error())
 		return err
 	}
+	klog.Infof("starting watchers")
+	go tunEndpointCreator.Watcher(tunEndpointCreator.DynClient, peeringReqGVR, tunEndpointCreator.PeeringRequestHandler, tunEndpointCreator.PReqWatcher)
+	go tunEndpointCreator.Watcher(tunEndpointCreator.DynClient, advGVR, tunEndpointCreator.AdvertisementHandler, tunEndpointCreator.AdvWatcher)
 	return nil
 }
 func setupConfig(reservedSubnets, clusterSubnets []string) (*controller.TunnelEndpointCreator, error) {
@@ -114,6 +146,12 @@ func convertSliceToMap(subnets []string) (map[string]*net.IPNet, error) {
 		}
 	}
 	return mapSubnets, nil
+}
+
+func TestSetNetParameters(t *testing.T) {
+	cc := getClusterConfig()
+	assert.Equal(t, cc.Spec.LiqonetConfig.ServiceCIDR, tunEndpointCreator.ServiceCIDR, "the two values should be equal")
+	assert.Equal(t, cc.Spec.LiqonetConfig.PodCIDR, tunEndpointCreator.PodCIDR, "the two values should be equal")
 }
 
 func TestGetConfiguration(t *testing.T) {
@@ -282,112 +320,183 @@ func TestUpdateConfiguration(t *testing.T) {
 	}
 }
 
-func TestGetTunEndPerADV(t *testing.T) {
-	//during the set up of the environment a custom resource of type advertisement.sharing.liqo.io
-	//have been created. Here we test that given an advertisement we can retrieve the associated
-	//custom resource of type tunnelEndpoint.liqonet.liqo.io
-	var err error
+//test that the networkConfig is created when a new advertisement is received
+func TestCreateNetConfigFromAdvertisement(t *testing.T) {
 	adv := getAdv()
-	err = tunEndpointCreator.Get(ctx, client.ObjectKey{
+	adv.Name = "testingwatcher"
+	//convert adv in unstructured object
+	advObj, err := runtime.DefaultUnstructuredConverter.ToUnstructured(&adv)
+	assert.Nil(t, err, "should be nil")
+	//create advertisement
+	_, err = tunEndpointCreator.DynClient.Resource(advGVR).Create(context.TODO(), &unstructured.Unstructured{Object: advObj}, metav1.CreateOptions{})
+	assert.Nil(t, err, "should be nil")
+	time.Sleep(2 * time.Second)
+	netConfig := &netv1alpha1.NetworkConfig{}
+	err = tunEndpointCreator.Get(context.TODO(), types.NamespacedName{
 		Namespace: adv.Namespace,
-		Name:      adv.Name,
-	}, adv)
-	assert.Nil(t, err, "should be nil")
-	//here we sleep in order to permit the controller to create the tunnelEndpoint custom resource
-	time.Sleep(1 * time.Second)
-	_, err = tunEndpointCreator.GetTunEndPerADV(adv)
-
-	assert.Nil(t, err, "should be nil")
+		Name:      controller.NetConfigNamePrefix + adv.Spec.ClusterId,
+	}, netConfig)
+	assert.Nil(t, err, "error should be nil")
+	assert.Equal(t, adv.Spec.ClusterId, netConfig.Spec.ClusterID, "should be equal")
+	assert.Equal(t, tunEndpointCreator.PodCIDR, netConfig.Spec.PodCIDR, "should be equal")
+	assert.Equal(t, tunEndpointCreator.GatewayIP, netConfig.Spec.TunnelPublicIP, "should be equal")
+	labels := netConfig.GetLabels()
+	assert.Equal(t, "true", labels[crdReplicator.LocalLabelSelector])
+	assert.Equal(t, adv.Spec.ClusterId, labels[crdReplicator.DestinationLabel])
+	err = tunEndpointCreator.Delete(context.TODO(), netConfig)
+	assert.Nil(t, err)
+	time.Sleep(2 * time.Second)
 }
 
-func TestCreateTunEndpoint(t *testing.T) {
-	//testing that given a custom resource of type advertisement.sharing.liqo.io
-	//a custom resource of type tunnelendpoint.liqonet.liqo.io is created and all the
-	//associated fields are correct
-	var tep v1.TunnelEndpoint
-	var err error
-	adv := getAdv()
-	for {
-		tep, err = tunEndpointCreator.GetTunEndPerADV(adv)
-		if !k8sApiErrors.IsNotFound(err) {
-			break
-		}
+//test that the networkConfig is created when a new peeringRequest is received
+func TestCreateNetConfigFromPeeringRequest(t *testing.T) {
+	pReq := discoveryv1alpha1.PeeringRequest{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       "PeeringRequest",
+			APIVersion: "discovery.liqo.io/v1alpha1",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "testingname",
+		},
+		Spec: discoveryv1alpha1.PeeringRequestSpec{
+			ClusterID:     "testing",
+			KubeConfigRef: &corev1.ObjectReference{},
+			Namespace:     "liqo",
+			OriginClusterSets: discoveryv1alpha1.OriginClusterSets{
+				AllowUntrustedCA: true,
+			},
+		},
+		Status: discoveryv1alpha1.PeeringRequestStatus{},
 	}
+	//convert pReq in unstructured object
+	pReqObj, err := runtime.DefaultUnstructuredConverter.ToUnstructured(&pReq)
 	assert.Nil(t, err, "should be nil")
-	assert.Equal(t, adv.Spec.Network.PodCIDR, tep.Spec.PodCIDR, "pod CIDRs should be equal")
-	assert.Equal(t, adv.Spec.Network.GatewayIP, tep.Spec.TunnelPublicIP, "gatewayIPs should be equal")
-	assert.Equal(t, adv.Spec.Network.GatewayPrivateIP, tep.Spec.TunnelPrivateIP, "gatewayPrivateIPs should be equal")
-}
-
-func TestUpdateTunEndpoint(t *testing.T) {
-	//test1: given an advertisement.sharing.liqo.io custom resource which carries a network configuration
-	//for a remote cluster that does not have conflicts with the local network configuration
-	//then the .Status.RemoteRemappedPodCIDR should be set to "None" value
-	adv := getAdv()
-	time.Sleep(1 * time.Second)
-	tep, err := tunEndpointCreator.GetTunEndPerADV(adv)
-	assert.Nil(t, err, "should be nil")
-	assert.Equal(t, adv.Spec.Network.PodCIDR, tep.Spec.PodCIDR, "pod CIDRs should be equal")
-	assert.Equal(t, adv.Spec.Network.GatewayIP, tep.Spec.TunnelPublicIP, "gatewayIPs should be equal")
-	assert.Equal(t, adv.Spec.Network.GatewayPrivateIP, tep.Spec.TunnelPrivateIP, "gatewayPrivateIPs should be equal")
-	assert.Equal(t, "New", tep.Status.Phase, "the phase field in status should be New")
-	assert.Equal(t, "None", tep.Status.RemoteRemappedPodCIDR, "the remote podCIDR should be empty")
-
-	//test2: same as the first test but in this case the podCIDR of the remote cluster has to be NATed
-	newPodCIDR := "10.0.0.0/16"
-	newAdv := getAdv()
-	newAdv.Spec.Network.PodCIDR = newPodCIDR
-	newAdv.Name = "conflict-testing"
-	newAdv.Spec.ClusterId = "conflicting"
-	err = tunEndpointCreator.Create(ctx, newAdv)
+	//create advertisement
+	_, err = tunEndpointCreator.DynClient.Resource(peeringReqGVR).Create(context.TODO(), &unstructured.Unstructured{Object: pReqObj}, metav1.CreateOptions{})
 	assert.Nil(t, err, "should be nil")
 	time.Sleep(2 * time.Second)
-	tep, err = tunEndpointCreator.GetTunEndPerADV(newAdv)
-	assert.Nil(t, err, "should be nil")
-	//here we check that the remote pod CIDR has been remapped
-	assert.NotEqual(t, "None", tep.Status.RemoteRemappedPodCIDR, "the remoteremappedPodCIDR should be set to a value different None")
-	assert.NotEqual(t, "", tep.Status.RemoteRemappedPodCIDR, "the remoteremappedPodCIDR should be set to a value different than empty string")
-	assert.Equal(t, "New", tep.Status.Phase, "the phase field in status should be New")
-
-	//test3: we update the status of an existing advertisement.sharing.liqo.io
-	//setting the Status.LocalRemappedPodCIDR field to a correct value
-	//we expect that this value is set also in the status of tunnelendpoint.liqonet.liqo.io custom resource
-	//associated to the previously updated advertisement.
-	//and the Status.Phase field is set to "Processed"
-	err = tunEndpointCreator.Get(ctx, client.ObjectKey{
-		Namespace: newAdv.Namespace,
-		Name:      newAdv.Name,
-	}, newAdv)
-	assert.Nil(t, err, "should be nil")
-	newAdv.Status.LocalRemappedPodCIDR = "192.168.1.0/24"
-	err = tunEndpointCreator.Status().Update(ctx, newAdv)
-	assert.Nil(t, err, "should be nil")
+	netConfig := &netv1alpha1.NetworkConfig{}
+	err = tunEndpointCreator.Get(context.TODO(), types.NamespacedName{
+		Namespace: pReq.Namespace,
+		Name:      controller.NetConfigNamePrefix + pReq.Spec.ClusterID,
+	}, netConfig)
+	assert.Nil(t, err, "error should be nil")
+	assert.Equal(t, pReq.Spec.ClusterID, netConfig.Spec.ClusterID, "should be equal")
+	assert.Equal(t, tunEndpointCreator.PodCIDR, netConfig.Spec.PodCIDR, "should be equal")
+	assert.Equal(t, tunEndpointCreator.GatewayIP, netConfig.Spec.TunnelPublicIP, "should be equal")
+	labels := netConfig.GetLabels()
+	assert.Equal(t, "true", labels[crdReplicator.LocalLabelSelector])
+	assert.Equal(t, pReq.Spec.ClusterID, labels[crdReplicator.DestinationLabel])
+	err = tunEndpointCreator.Delete(context.TODO(), netConfig)
+	assert.Nil(t, err)
 	time.Sleep(2 * time.Second)
-	tep, err = tunEndpointCreator.GetTunEndPerADV(newAdv)
-	assert.Nil(t, err, "should be nil")
-	assert.Equal(t, "Processed", tep.Status.Phase, "phase should be set to Processed")
-	assert.Equal(t, "192.168.1.0/24", tep.Status.LocalRemappedPodCIDR, "should be equal")
-
 }
 
-func TestDeleteTunEndpoint(t *testing.T) {
-	//testing that after a advertisement.sharing.liqo.io custom resource is
-	//deleted than the associated tunnelendpoint.liqonet.liqo.io custom resource is
-	//deleted aswell
-	adv := getAdv()
-	err := tunEndpointCreator.Get(ctx, client.ObjectKey{
-		Namespace: adv.Namespace,
-		Name:      adv.Name,
-	}, adv)
-	assert.Nil(t, err, "should be nil")
-	_, err = tunEndpointCreator.GetTunEndPerADV(adv)
-	assert.Nil(t, err, "should be nil")
-	err = tunEndpointCreator.Delete(ctx, adv)
-	assert.Nil(t, err, "should be nil")
-	time.Sleep(500 * time.Millisecond)
-	_, err = tunEndpointCreator.GetTunEndPerADV(adv)
-	assert.Equal(t, k8sApiErrors.IsNotFound(err), true, "the error should be notFound")
-	adv = getAdv()
-	err = tunEndpointCreator.Create(ctx, adv)
-	assert.Nil(t, err, "should be nil")
+func getNetworkConfig() *netv1alpha1.NetworkConfig {
+	return &netv1alpha1.NetworkConfig{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "netconfig-1",
+		},
+		Spec: netv1alpha1.NetworkConfigSpec{
+			ClusterID:      "localClusterID",
+			PodCIDR:        "10.2.0.0/16",
+			TunnelPublicIP: "192.168.1.1",
+		},
+		Status: netv1alpha1.NetworkConfigStatus{},
+	}
+}
+
+//we create a networkConfig instance as it comes from a peering cluster
+//we expect the status to be set
+func TestNetConfigProcessing(t *testing.T) {
+	//test 1
+	//the networkConfig has not a conflicting podCIDR
+	labels := map[string]string{
+		crdReplicator.LocalLabelSelector:     "false",
+		crdReplicator.ReplicationStatuslabel: "true",
+		crdReplicator.RemoteLabelSelector:    "remoteclusterid",
+	}
+	netConfig1 := getNetworkConfig()
+	netConfig1.SetLabels(labels)
+	err := tunEndpointCreator.Create(context.Background(), netConfig1)
+	assert.Nil(t, err)
+	time.Sleep(3 * time.Second)
+	err = tunEndpointCreator.Get(context.Background(), types.NamespacedName{Name: netConfig1.Name}, netConfig1)
+	assert.Nil(t, err)
+	assert.Equal(t, "false", netConfig1.Status.NATEnabled)
+	assert.Equal(t, "None", netConfig1.Status.PodCIDRNAT)
+
+	//test2
+	//the networkConfig has a conflicting podCIDR
+	netConfig2 := getNetworkConfig()
+	netConfig2.SetLabels(labels)
+	netConfig2.Name = "netconfig-2"
+	netConfig2.Spec.PodCIDR = "10.1.0.0/12"
+	err = tunEndpointCreator.Create(context.Background(), netConfig2)
+	assert.Nil(t, err)
+	time.Sleep(3 * time.Second)
+	err = tunEndpointCreator.Get(context.Background(), types.NamespacedName{Name: netConfig2.Name}, netConfig2)
+	assert.Nil(t, err)
+	assert.Equal(t, "true", netConfig2.Status.NATEnabled)
+	assert.NotEqual(t, "None", netConfig2.Status.PodCIDRNAT)
+
+	//test3
+	//modifying the netconfig2 to be a local resource
+	//we expect a tunnelEndpoint to be created
+	localLabels := map[string]string{
+		crdReplicator.LocalLabelSelector: "true",
+		crdReplicator.DestinationLabel:   "remoteclusterid",
+	}
+	netConfig2.SetLabels(localLabels)
+	netConfig2.Spec.ClusterID = "remoteclusterid"
+	err = tunEndpointCreator.Update(context.Background(), netConfig2)
+	assert.Nil(t, err)
+	time.Sleep(10 * time.Second)
+	tepName := controller.TunEndpointNamePrefix + "remoteclusterid"
+	tep, found, err := tunEndpointCreator.GetTunnelEndpoint(tepName)
+	assert.True(t, found)
+	assert.Nil(t, err)
+	assert.Equal(t, netConfig1.Status.PodCIDRNAT, tep.Status.RemoteRemappedPodCIDR)
+	assert.Equal(t, netConfig2.Status.PodCIDRNAT, tep.Status.LocalRemappedPodCIDR)
+	assert.Equal(t, netConfig2.Spec.ClusterID, tep.Spec.ClusterID)
+	assert.Equal(t, netConfig1.Spec.PodCIDR, tep.Spec.PodCIDR)
+	assert.Equal(t, netConfig1.Spec.TunnelPublicIP, tep.Spec.TunnelPublicIP)
+	assert.Equal(t, "Processed", tep.Status.Phase)
+
+	//test4
+	//we change some fields in the remote netConfig status
+	//expect that the tunnelEndpoint is updated
+	err = tunEndpointCreator.Get(context.Background(), types.NamespacedName{Name: netConfig1.Name}, netConfig1)
+	assert.Nil(t, err)
+	newNATPodCIDR := "10.100.0.0/16"
+	netConfig1.Status.PodCIDRNAT = newNATPodCIDR
+	err = tunEndpointCreator.Status().Update(context.Background(), netConfig1)
+	assert.Nil(t, err)
+	time.Sleep(10 * time.Second)
+	tep, found, err = tunEndpointCreator.GetTunnelEndpoint(tepName)
+	assert.True(t, found)
+	assert.Nil(t, err)
+	assert.Equal(t, newNATPodCIDR, tep.Status.RemoteRemappedPodCIDR)
+
+	//test5
+	//we change some fields on the remote netConfig spec and some on the local netConfig status
+	//expect that the tunnelEndpoint is updated
+	err = tunEndpointCreator.Get(context.Background(), types.NamespacedName{Name: netConfig1.Name}, netConfig1)
+	assert.Nil(t, err)
+	newPodCIDR := "10.200.0.0/16"
+	netConfig1.Spec.PodCIDR = newPodCIDR
+	err = tunEndpointCreator.Update(context.Background(), netConfig1)
+	assert.Nil(t, err)
+	err = tunEndpointCreator.Get(context.Background(), types.NamespacedName{Name: netConfig2.Name}, netConfig2)
+	assert.Nil(t, err)
+	newNATPodCIDR = "10.300.0.0/16"
+	netConfig2.Status.PodCIDRNAT = newNATPodCIDR
+	err = tunEndpointCreator.Status().Update(context.Background(), netConfig2)
+	assert.Nil(t, err)
+	time.Sleep(10 * time.Second)
+	tep, found, err = tunEndpointCreator.GetTunnelEndpoint(tepName)
+	assert.True(t, found)
+	assert.Nil(t, err)
+	assert.Equal(t, newNATPodCIDR, tep.Status.LocalRemappedPodCIDR)
+	assert.Equal(t, newPodCIDR, tep.Spec.PodCIDR)
 }

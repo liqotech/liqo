@@ -29,6 +29,7 @@ spec:
     dnsServer: '8.8.8.8:53'
   liqonetConfig:
     podCIDR: {{ .Values.podCIDR }}
+    serviceCIDR: {{ .Values.serviceCIDR }}
     reservedSubnets:
     - {{ .Values.podCIDR }}
     - {{ .Values.serviceCIDR }}

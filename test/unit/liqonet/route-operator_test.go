@@ -31,10 +31,9 @@ func GetTunnelEndpointCR() *v1.TunnelEndpoint {
 			Namespace: "",
 		},
 		Spec: v1.TunnelEndpointSpec{
-			ClusterID:       "cluster-test",
-			PodCIDR:         "10.0.0.0/16",
-			TunnelPublicIP:  "192.168.5.1",
-			TunnelPrivateIP: "192.168.4.1",
+			ClusterID:      "cluster-test",
+			PodCIDR:        "10.0.0.0/16",
+			TunnelPublicIP: "192.168.5.1",
 		},
 		Status: v1.TunnelEndpointStatus{},
 	}
@@ -229,7 +228,6 @@ func Test1RouteOperator(t *testing.T) {
 	assert.Nil(t, err, "error should be nil")
 	assert.NotNil(t, tep, "the cr should not be nil")
 	tep.Status.RemoteTunnelPublicIP = "192.168.200.1"
-	tep.Status.RemoteTunnelPrivateIP = "192.168.190.1"
 	tep.Status.RemoteRemappedPodCIDR = "None"
 	tep.Status.LocalRemappedPodCIDR = "None"
 	tep, err = updateStatusTEP(tep)
@@ -258,7 +256,6 @@ func Test2RouteOperator(t *testing.T) {
 	assert.Nil(t, err, "error should be nil")
 	assert.NotNil(t, tep, "the cr should not be nil")
 	tep.Status.RemoteTunnelPublicIP = "192.168.200.1"
-	tep.Status.RemoteTunnelPrivateIP = "192.168.190.1"
 	tep.Status.RemoteRemappedPodCIDR = "10.96.0.0/16"
 	tep.Status.LocalRemappedPodCIDR = "None"
 	tep, err = updateStatusTEP(tep)
@@ -287,7 +284,6 @@ func Test3RouteOperator(t *testing.T) {
 	assert.Nil(t, err, "error should be nil")
 	assert.NotNil(t, tep, "the cr should not be nil")
 	tep.Status.RemoteTunnelPublicIP = "192.168.200.1"
-	tep.Status.RemoteTunnelPrivateIP = "192.168.190.1"
 	tep.Status.RemoteRemappedPodCIDR = "10.96.0.0/16"
 	tep.Status.LocalRemappedPodCIDR = "10.100.0.0/16"
 	tep, err = updateStatusTEP(tep)
@@ -316,7 +312,6 @@ func Test4RouteOperator(t *testing.T) {
 	assert.Nil(t, err, "error should be nil")
 	assert.NotNil(t, tep, "the cr should not be nil")
 	tep.Status.RemoteTunnelPublicIP = "192.168.200.1"
-	tep.Status.RemoteTunnelPrivateIP = "192.168.190.1"
 	tep.Status.RemoteRemappedPodCIDR = "10.96.0.0/16"
 	tep.Status.LocalRemappedPodCIDR = "10.100.0.0/16"
 	tep, err = updateStatusTEP(tep)

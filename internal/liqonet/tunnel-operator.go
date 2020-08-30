@@ -104,15 +104,9 @@ func (r *TunnelController) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 		if err != nil {
 			log.Error(err, "unable to get localTunnelPublicIP")
 		}
-		localTunnelPrivateIP, err := liqonetOperator.GetLocalTunnelPrivateIPToString()
-		if err != nil {
-			log.Error(err, "unable to get localTunnelPrivateIP")
-		}
 		endpoint.Status.TunnelIFaceName = iFaceName
 		endpoint.Status.TunnelIFaceIndex = iFaceIndex
-		endpoint.Status.LocalTunnelPrivateIP = localTunnelPrivateIP
 		endpoint.Status.LocalTunnelPublicIP = localTunnelPublicIP
-		endpoint.Status.RemoteTunnelPrivateIP = endpoint.Spec.TunnelPrivateIP
 		endpoint.Status.RemoteTunnelPublicIP = endpoint.Spec.TunnelPublicIP
 		endpoint.Status.Phase = "Ready"
 		err = r.Client.Status().Update(ctx, &endpoint)

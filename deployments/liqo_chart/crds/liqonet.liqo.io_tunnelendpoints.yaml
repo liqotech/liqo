@@ -40,14 +40,11 @@ spec:
               type: string
             podCIDR:
               type: string
-            tunnelPrivateIP:
-              type: string
             tunnelPublicIP:
               type: string
           required:
           - clusterID
           - podCIDR
-          - tunnelPrivateIP
           - tunnelPublicIP
           type: object
         status:
@@ -57,8 +54,6 @@ spec:
               type: boolean
             localRemappedPodCIDR:
               type: string
-            localTunnelPrivateIP:
-              type: string
             localTunnelPublicIP:
               type: string
             phase:
@@ -67,8 +62,6 @@ spec:
                 this file\'
               type: string
             remoteRemappedPodCIDR:
-              type: string
-            remoteTunnelPrivateIP:
               type: string
             remoteTunnelPublicIP:
               type: string

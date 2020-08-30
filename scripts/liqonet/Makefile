@@ -42,7 +42,7 @@ deploy: manifests
 manifests: controller-gen
     #$(CONTROLLER_GEN) $(CRD_OPTIONS) rbac:roleName=manager-role webhook paths="./..." output:crd:artifacts:config=config/liqonet/crd/bases output:rbac:artifacts:config=config/liqonet/rbac
 	#$(CONTROLLER_GEN) $(CRD_OPTIONS) paths="./internal/liqonet/route-operator.go" rbac:roleName=manager-role crd:crdVersions=v1beta1 crd:trivialVersions=false output:crd:artifacts:config=config/liqonet/crd/bases output:rbac:artifacts:config=config/liqonet/rbac
-	$(CONTROLLER_GEN) $(CRD_OPTIONS)  paths="../../api/liqonet/..." rbac:roleName=manager-role output:crd:artifacts:config=../../config/liqonet/crd/bases output:rbac:artifacts:config=../../config/liqonet/rbac
+	$(CONTROLLER_GEN) $(CRD_OPTIONS)  paths="../../api/liqonet/..." rbac:roleName=manager-role output:crd:artifacts:config=../../deployments/liqo_chart/crds
 
 # Run go fmt against code
 fmt:

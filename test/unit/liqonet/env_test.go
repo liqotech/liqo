@@ -4,6 +4,7 @@ import (
 	"context"
 	configv1alpha1 "github.com/liqoTech/liqo/api/config/v1alpha1"
 	liqonetv1 "github.com/liqoTech/liqo/api/liqonet/v1"
+	netv1alpha1 "github.com/liqoTech/liqo/api/liqonet/v1alpha1"
 	advtypes "github.com/liqoTech/liqo/api/sharing/v1alpha1"
 	controllers "github.com/liqoTech/liqo/internal/liqonet"
 	"github.com/liqoTech/liqo/pkg/crdClient"
@@ -34,11 +35,8 @@ var (
 func TestMain(m *testing.M) {
 	setupEnv()
 	defer tearDown()
-	err := setupTunnelEndpointCreatorOperator()
-	if err != nil {
-		os.Exit(-1)
-	}
-	err = setupRouteOperator()
+
+	err := setupRouteOperator()
 	if err != nil {
 		os.Exit(-2)
 	}
@@ -54,12 +52,16 @@ func TestMain(m *testing.M) {
 		klog.Errorf("an error occurred while waiting for the chache to start")
 		os.Exit(-1)
 	}
-	adv := getAdv()
-	err = tunEndpointCreator.Create(ctx, adv)
+	err = setupTunnelEndpointCreatorOperator()
 	if err != nil {
-		klog.Error(err, err.Error())
-		os.Exit(-2)
+		os.Exit(-1)
 	}
+	/*	adv := getAdv()
+		err = tunEndpointCreator.Create(ctx, adv)
+		if err != nil {
+			klog.Error(err, err.Error())
+			os.Exit(-2)
+		}*/
 	time.Sleep(1 * time.Second)
 	os.Exit(m.Run())
 }
@@ -107,6 +109,8 @@ func setupEnv() {
 		klog.Error(err, err.Error())
 	}
 
+	_ = netv1alpha1.AddToScheme(scheme.Scheme)
+
 	k8sManager, err = ctrl.NewManager(config, ctrl.Options{
 		Scheme:             scheme.Scheme,
 		MetricsBindAddress: "0",
@@ -135,7 +139,10 @@ func tearDown() {
 
 func getAdv() *advtypes.Advertisement {
 	return &advtypes.Advertisement{
-		TypeMeta: metav1.TypeMeta{},
+		TypeMeta: metav1.TypeMeta{
+			Kind:       "Advertisement",
+			APIVersion: "sharing.liqo.io/v1alpha1",
+		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name: "testadv",
 		},
@@ -189,6 +196,7 @@ func getClusterConfig() *configv1alpha1.ClusterConfig {
 			LiqonetConfig: configv1alpha1.LiqonetConfig{
 				ReservedSubnets: []string{"10.0.0.0/16"},
 				PodCIDR:         "10.244.0.0/16",
+				ServiceCIDR:     "10.1.0.0/12",
 				VxlanNetConfig: liqonet.VxlanNetConfig{
 					Network:    "",
 					DeviceName: "",

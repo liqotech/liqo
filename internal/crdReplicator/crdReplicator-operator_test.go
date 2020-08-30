@@ -27,10 +27,9 @@ func getObj() *unstructured.Unstructured {
 				"labels": map[string]string{},
 			},
 			"spec": map[string]interface{}{
-				"clusterID":       "clusterID-test",
-				"podCIDR":         "10.0.0.0/12",
-				"tunnelPublicIP":  "192.16.5.1",
-				"tunnelPrivateIP": "192.168.4.1",
+				"clusterID":      "clusterID-test",
+				"podCIDR":        "10.0.0.0/12",
+				"tunnelPublicIP": "192.16.5.1",
 			},
 		},
 	}
@@ -146,7 +145,7 @@ func TestCRDReplicatorReconciler_UpdateResource(t *testing.T) {
 	//we update the status section
 	//we expect a nil error and the status section of the resource on the server to be equal as we set it
 	newStatus := map[string]interface{}{
-		"natEnabled": true,
+		"natEnabled": "true",
 	}
 	err = unstructured.SetNestedMap(obj.Object, newStatus, "status")
 	assert.Nil(t, err, "error should be nil")

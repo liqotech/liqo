@@ -44,16 +44,12 @@ spec:
             podCIDR:
               description: network subnet used in the local cluster for the pod IPs
               type: string
-            tunnelPrivateIP:
-              description: the IP address of the node in the private VPN subnet
-              type: string
             tunnelPublicIP:
               description: public IP of the node where the VPN tunnel is created
               type: string
           required:
           - clusterID
           - podCIDR
-          - tunnelPrivateIP
           - tunnelPublicIP
           type: object
         status:
@@ -63,7 +59,7 @@ spec:
               description: 'INSERT ADDITIONAL STATUS FIELD - define observed state
                 of cluster Important: Run "make" to regenerate code after modifying
                 this file indicates if the NAT is enabled for the remote cluster'
-              type: boolean
+              type: string
             podCIDRNAT:
               description: the new subnet used to NAT the pods' subnet of the remote
                 cluster

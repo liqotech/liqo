@@ -115,10 +115,17 @@ type DiscoveryConfig struct {
 }
 
 type LiqonetConfig struct {
-	//contains a list of reserved subnets in CIDR notation used by the k8s cluster like the podCIDR and ClusterCIDR
-	ReservedSubnets []string               `json:"reservedSubnets"`
-	PodCIDR         string                 `json:"podCIDR"`
-	VxlanNetConfig  liqonet.VxlanNetConfig `json:"vxlanNetConfig,omitempty"`
+	//this field is used by the IPAM embedded in the tunnelEndpointCreator
+	//if the podCIDR of a peering cluster needs to be NATed a new subnet from the 10.0.0.0/8
+	//is used. if subnets belonging to that range are used in the local cluster then it is necessary to
+	//declare them as a list in CIDR notation. ex. [10.1.0.0/16, 10.200.1.0/24]
+	ReservedSubnets []string `json:"reservedSubnets"`
+	//the subnet used by the cluster for the pods, in CIDR notation
+	PodCIDR string `json:"podCIDR"`
+	//the subnet used by the cluster for the services, in CIDR notation
+	ServiceCIDR string `json:"serviceCIDR"`
+	//the configuration for the VXLAN overlay network which handles the traffic in the local cluster destined to remote peering clusters
+	VxlanNetConfig liqonet.VxlanNetConfig `json:"vxlanNetConfig,omitempty"`
 }
 
 //contains a list of resources identified by their GVR
