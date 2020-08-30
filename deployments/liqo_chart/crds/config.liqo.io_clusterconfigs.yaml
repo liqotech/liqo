@@ -186,6 +186,8 @@ spec:
                   items:
                     type: string
                   type: array
+                serviceCIDR:
+                  type: string
                 vxlanNetConfig:
                   properties:
                     DeviceName:
@@ -205,6 +207,7 @@ spec:
               required:
               - podCIDR
               - reservedSubnets
+              - serviceCIDR
               type: object
           required:
           - advertisementConfig

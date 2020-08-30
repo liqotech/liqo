@@ -41,6 +41,19 @@ func (r *TunnelEndpointCreator) GetConfiguration(config *configv1alpha1.ClusterC
 	return reservedSubnets, nil
 }
 
+func (r *TunnelEndpointCreator) SetNetParameters(config *configv1alpha1.ClusterConfig) {
+	podCIDR := config.Spec.LiqonetConfig.PodCIDR
+	serviceCIDR := config.Spec.LiqonetConfig.ServiceCIDR
+	if r.PodCIDR != podCIDR {
+		klog.Infof("setting podCIDR to %s", podCIDR)
+		r.PodCIDR = podCIDR
+	}
+	if r.ServiceCIDR != serviceCIDR {
+		klog.Infof("setting serviceCIDR to %s", serviceCIDR)
+		r.ServiceCIDR = serviceCIDR
+	}
+}
+
 //it returns the subnets used by the foreign clusters
 //get the list of all tunnelEndpoint CR and saves the address space assigned to the
 //foreign cluster.
@@ -70,7 +83,7 @@ func (r *TunnelEndpointCreator) GetClustersSubnets() (map[string]*net.IPNet, err
 		return nil, nil
 	}
 	for _, tunEnd := range tunEndList.Items {
-		if tunEnd.Status.LocalRemappedPodCIDR != "" && tunEnd.Status.LocalRemappedPodCIDR != defualtPodCIDRValue {
+		if tunEnd.Status.LocalRemappedPodCIDR != "" && tunEnd.Status.LocalRemappedPodCIDR != defaultPodCIDRValue {
 			_, sn, err := net.ParseCIDR(tunEnd.Status.LocalRemappedPodCIDR)
 			if err != nil {
 				klog.Errorf("an error occurred while parsing the following cidr %s: %s", tunEnd.Status.LocalRemappedPodCIDR, err)
@@ -78,7 +91,7 @@ func (r *TunnelEndpointCreator) GetClustersSubnets() (map[string]*net.IPNet, err
 			}
 			subnets[sn.String()] = sn
 			klog.Infof("subnet %s already reserved for cluster %s", tunEnd.Status.LocalRemappedPodCIDR, tunEnd.Spec.ClusterID)
-		} else if tunEnd.Status.LocalRemappedPodCIDR == defualtPodCIDRValue {
+		} else if tunEnd.Status.LocalRemappedPodCIDR == defaultPodCIDRValue {
 			_, sn, err := net.ParseCIDR(tunEnd.Spec.PodCIDR)
 			if err != nil {
 				klog.Errorf("an error occurred while parsing the following cidr %s: %s", tunEnd.Spec.PodCIDR, err)
@@ -257,6 +270,11 @@ func (r *TunnelEndpointCreator) WatchConfiguration(config *rest.Config, gv *sche
 				klog.Error(err)
 				return
 			}
+		}
+		r.SetNetParameters(configuration)
+		if !r.RunningWatchers {
+			r.AdvWatcher <- true
+			r.PReqWatcher <- true
 		}
 
 	}, CRDclient, "")

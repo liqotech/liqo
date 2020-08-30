@@ -19,10 +19,18 @@ import (
 	"context"
 	"fmt"
 	"github.com/go-logr/logr"
+	discoveryv1alpha1 "github.com/liqoTech/liqo/api/discovery/v1alpha1"
+	advtypes "github.com/liqoTech/liqo/api/sharing/v1alpha1"
+	"github.com/liqoTech/liqo/internal/crdReplicator"
 	liqonetOperator "github.com/liqoTech/liqo/pkg/liqonet"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/watch"
+	"k8s.io/client-go/dynamic"
+	"k8s.io/client-go/util/retry"
 	"k8s.io/klog"
 	"net"
 	"sync"
@@ -32,26 +40,48 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	netv1alpha1 "github.com/liqoTech/liqo/api/net/v1alpha1"
-	advtypes "github.com/liqoTech/liqo/api/sharing/v1alpha1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 )
 
 const (
-	tunEndpointNameSuffix = "-tunendpoint"
-	defualtPodCIDRValue   = "None"
+	TunEndpointNamePrefix = "tun-endpoint-"
+	NetConfigNamePrefix   = "net-config-"
+	defaultPodCIDRValue   = "None"
 )
 
-// AdvertisementReconciler reconciles a Advertisement object
+var (
+	result = ctrl.Result{
+		Requeue:      false,
+		RequeueAfter: 5 * time.Second,
+	}
+)
+
+type networkParam struct {
+	clusterID        string
+	gatewayIP        string
+	podCIDR          string
+	localNatPodCIDR  string
+	remoteNatPodCIDR string
+}
+
 type TunnelEndpointCreator struct {
 	client.Client
-	Log             logr.Logger
-	Scheme          *runtime.Scheme
-	ReservedSubnets map[string]*net.IPNet
-	IPManager       liqonetOperator.IpManager
-	Mutex           sync.Mutex
-	IsConfigured    bool
-	Configured      chan bool
-	RetryTimeout    time.Duration
+	Log                logr.Logger
+	Scheme             *runtime.Scheme
+	DynClient          dynamic.Interface
+	GatewayIP          string
+	PodCIDR            string
+	ServiceCIDR        string
+	netParamPerCluster map[string]networkParam
+	ReservedSubnets    map[string]*net.IPNet
+	IPManager          liqonetOperator.IpManager
+	Mutex              sync.Mutex
+	IsConfigured       bool
+	Configured         chan bool
+	AdvWatcher         chan bool
+	PReqWatcher        chan bool
+	RunningWatchers    bool
+	RetryTimeout       time.Duration
 }
 
 // +kubebuilder:rbac:groups=sharing.liqo.io,resources=advertisements,verbs=get;list;watch;create;update;patch;delete
@@ -62,29 +92,30 @@ type TunnelEndpointCreator struct {
 // +kubebuilder:rbac:groups=net.liqo.io,resources=tunnelendpoints/status,verbs=get;update;patch
 
 func (r *TunnelEndpointCreator) Reconcile(req ctrl.Request) (ctrl.Result, error) {
-	//wait for the configuration to be completed
 	if !r.IsConfigured {
 		<-r.Configured
-		klog.Info("from reconciler configured")
+		klog.Infof("operator configured")
 	}
 	ctx := context.Background()
-	log := r.Log.WithValues("tunnelEndpointCreator-controller", req.NamespacedName)
-	tunnelEndpointCreatorFinalizer := "tunnelEndpointCreator-Finalizer.net.liqo.io"
-	// get advertisement
-	var adv advtypes.Advertisement
-	if err := r.Get(ctx, req.NamespacedName, &adv); err != nil {
+	tunnelEndpointCreatorFinalizer := "tunnelEndpointCreator-Finalizer.liqonet.liqo.io"
+	// get networkConfig
+	var netConfig netv1alpha1.NetworkConfig
+	if err := r.Get(ctx, req.NamespacedName, &netConfig); apierrors.IsNotFound(err) {
 		// reconcile was triggered by a delete request
-		log.Info("Advertisement " + req.Name + " deleted")
+		klog.Infof("resource %s not found, probably it was deleted", req.NamespacedName)
 		return ctrl.Result{}, client.IgnoreNotFound(err)
+	} else if err != nil {
+		klog.Errorf("an error occurred while getting resource %s: %s", req.NamespacedName, err)
+		return result, err
 	}
 	// examine DeletionTimestamp to determine if object is under deletion
-	if adv.ObjectMeta.DeletionTimestamp.IsZero() {
-		if !liqonetOperator.ContainsString(adv.ObjectMeta.Finalizers, tunnelEndpointCreatorFinalizer) {
+	if netConfig.ObjectMeta.DeletionTimestamp.IsZero() {
+		if !liqonetOperator.ContainsString(netConfig.ObjectMeta.Finalizers, tunnelEndpointCreatorFinalizer) {
 			// The object is not being deleted, so if it does not have our finalizer,
 			// then lets add the finalizer and update the object. This is equivalent
 			// registering our finalizer.
-			adv.ObjectMeta.Finalizers = append(adv.Finalizers, tunnelEndpointCreatorFinalizer)
-			if err := r.Update(ctx, &adv); err != nil {
+			netConfig.ObjectMeta.Finalizers = append(netConfig.Finalizers, tunnelEndpointCreatorFinalizer)
+			if err := r.Update(ctx, &netConfig); err != nil {
 				//while updating we check if the a resource version conflict happened
 				//which means the version of the object we have is outdated.
 				//a solution could be to return an error and requeue the object for later process
@@ -94,239 +125,378 @@ func (r *TunnelEndpointCreator) Reconcile(req ctrl.Request) (ctrl.Result, error)
 				if apierrors.IsConflict(err) {
 					return ctrl.Result{}, nil
 				}
-				log.Error(err, "unable to update adv", "adv", adv.Name)
-				return ctrl.Result{RequeueAfter: r.RetryTimeout}, err
+				klog.Errorf("an error occurred while setting finalizer for resource %s: %s", req.NamespacedName, err)
+				return result, err
 			}
-			return ctrl.Result{RequeueAfter: r.RetryTimeout}, nil
+			return result, nil
 		}
 	} else {
 		//the object is being deleted
-		if liqonetOperator.ContainsString(adv.Finalizers, tunnelEndpointCreatorFinalizer) {
-			if err := r.deleteTunEndpoint(&adv); err != nil {
+		if liqonetOperator.ContainsString(netConfig.Finalizers, tunnelEndpointCreatorFinalizer) {
+			/*if err := r.deleteTunEndpoint(&netConfig); err != nil {
 				log.Error(err, "error while deleting endpoint")
-				return ctrl.Result{RequeueAfter: r.RetryTimeout}, err
-			}
+				return result, err
+			}*/
 
 			//remove the finalizer from the list and update it.
-			adv.Finalizers = liqonetOperator.RemoveString(adv.Finalizers, tunnelEndpointCreatorFinalizer)
-			if err := r.Update(ctx, &adv); err != nil {
+			netConfig.Finalizers = liqonetOperator.RemoveString(netConfig.Finalizers, tunnelEndpointCreatorFinalizer)
+			if err := r.Update(ctx, &netConfig); err != nil {
 				if apierrors.IsConflict(err) {
 					return ctrl.Result{}, nil
 				}
-				log.Error(err, "unable to update adv %s", adv.Name, "in namespace", adv.Namespace)
-				return ctrl.Result{RequeueAfter: r.RetryTimeout}, err
+				klog.Errorf("an error occurred while removing finalizer from resource %s: %s", req.NamespacedName, err)
+				return result, err
 			}
 		}
 		//remove the reserved ip for the cluster
-		r.IPManager.RemoveReservedSubnet(adv.Spec.ClusterId)
-		return ctrl.Result{RequeueAfter: r.RetryTimeout}, nil
+		r.IPManager.RemoveReservedSubnet(netConfig.Spec.ClusterID)
+		return result, nil
 	}
 
-	err := r.createOrUpdateTunEndpoint(&adv)
-	if err != nil {
-		log.Error(err, "error while creating endpoint")
-		return ctrl.Result{RequeueAfter: r.RetryTimeout}, err
+	//check if the netconfig is local or remote
+	labels := netConfig.GetLabels()
+	if val, ok := labels[crdReplicator.LocalLabelSelector]; ok && val == "true" {
+		return result, r.processLocalNetConfig(&netConfig)
+	} else {
+		return result, r.processRemoteNetConfig(&netConfig)
 	}
-	return ctrl.Result{RequeueAfter: r.RetryTimeout}, nil
 }
 
 func (r *TunnelEndpointCreator) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
-		For(&advtypes.Advertisement{}).Owns(&netv1alpha1.TunnelEndpoint{}).
+		For(&netv1alpha1.NetworkConfig{}).
 		Complete(r)
 }
 
-func (r *TunnelEndpointCreator) GetTunEndPerADV(adv *advtypes.Advertisement) (netv1alpha1.TunnelEndpoint, error) {
-	ctx := context.Background()
-	var tunEndpoint netv1alpha1.TunnelEndpoint
-	//build the key used to retrieve the tunnelEndpoint CR
-	tunEndKey := types.NamespacedName{
-		Namespace: adv.Namespace,
-		Name:      adv.Spec.ClusterId + tunEndpointNameSuffix,
-	}
-	//retrieve the tunnelEndpoint CR
-	err := r.Get(ctx, tunEndKey, &tunEndpoint)
-	//if the tunEndpoint CR can not be retrieved then return the error
-	//if this come here it means that the CR has been created because the function is called only if the create process goes well
-	return tunEndpoint, err
-}
-
-func (r *TunnelEndpointCreator) isTunEndpointUpdated(adv *advtypes.Advertisement, tunEndpoint *netv1alpha1.TunnelEndpoint) bool {
-	if adv.Spec.ClusterId == tunEndpoint.Spec.ClusterID && adv.Spec.Network.PodCIDR == tunEndpoint.Spec.PodCIDR && adv.Spec.Network.GatewayIP == tunEndpoint.Spec.TunnelPublicIP && adv.Spec.Network.GatewayPrivateIP == tunEndpoint.Spec.TunnelPrivateIP {
-		return true
-	} else {
-		return false
-	}
-}
-
-func (r *TunnelEndpointCreator) createOrUpdateTunEndpoint(adv *advtypes.Advertisement) error {
-	_, err := r.GetTunEndPerADV(adv)
-	if err == nil {
-		err := r.updateTunEndpoint(adv)
-		if err == nil {
-			return nil
-		} else {
-			return err
-		}
-
-	} else if apierrors.IsNotFound(err) {
-		err := r.CreateTunEndpoint(adv)
-		if err == nil {
-			return nil
-		} else {
-			return err
-		}
-	} else {
-		return err
-	}
-}
-
-func (r *TunnelEndpointCreator) updateTunEndpoint(adv *advtypes.Advertisement) error {
-	//funcName := "updateTunEndpoint"
-	ctx := context.Background()
-	//log := r.Log.WithValues("tunnelEndpointCreator-controller", funcName)
-	var tunEndpoint netv1alpha1.TunnelEndpoint
-	var remoteRemappedPodCIDR string
-	//build the key used to retrieve the tunnelEndpoint CR
-	tunEndKey := types.NamespacedName{
-		Namespace: adv.Namespace,
-		Name:      adv.Spec.ClusterId + tunEndpointNameSuffix,
-	}
-	//retrieve the tunnelEndpoint CR
-	err := r.Get(ctx, tunEndKey, &tunEndpoint)
-	//if the tunEndpoint CR can not be retrieved then return the error
-	//if this come here it means that the CR has been created because the function is called only if the create process goes well
+func (d *TunnelEndpointCreator) Watcher(dynClient dynamic.Interface, gvr schema.GroupVersionResource, handler func(obj *unstructured.Unstructured), start chan bool) {
+	<-start
+	klog.Infof("starting watcher for %s", gvr.String())
+	watcher, err := dynClient.Resource(gvr).Watch(context.TODO(), metav1.ListOptions{})
 	if err != nil {
-		return err
+		klog.Errorf("an error occurred while starting watcher for resource %s: %s", gvr, err)
+		return
 	}
+	for event := range watcher.ResultChan() {
+		obj, ok := event.Object.(*unstructured.Unstructured)
+		if !ok {
+			klog.Infof("an error occurred while casting e.object to *unstructured.Unstructured")
+		}
+		switch event.Type {
+		case watch.Added:
+			handler(obj)
+		case watch.Modified:
+			handler(obj)
+		}
+	}
+}
 
-	if tunEndpoint.Status.Phase == "" {
+func (r *TunnelEndpointCreator) createNetConfig(clusterID string) error {
+	netConfig := netv1alpha1.NetworkConfig{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: NetConfigNamePrefix + clusterID,
+			Labels: map[string]string{
+				crdReplicator.LocalLabelSelector: "true",
+				crdReplicator.DestinationLabel:   clusterID,
+			},
+		},
+		Spec: netv1alpha1.NetworkConfigSpec{
+			ClusterID:      clusterID,
+			PodCIDR:        r.PodCIDR,
+			TunnelPublicIP: r.GatewayIP,
+		},
+		Status: netv1alpha1.NetworkConfigStatus{},
+	}
+	err := r.Create(context.TODO(), &netConfig)
+	if apierrors.IsAlreadyExists(err) {
+		return nil
+	} else if err != nil {
+		klog.Errorf("an error occurred while creating resource %s of type %s: %s", netConfig.Name, netv1alpha1.GroupVersion.String(), err)
+		return err
+	} else {
+		klog.Infof("resource %s of type %s created", netConfig.Name, netv1alpha1.GroupVersion.String())
+		return nil
+	}
+}
+
+func (r *TunnelEndpointCreator) processRemoteNetConfig(netConfig *netv1alpha1.NetworkConfig) error {
+	if netConfig.Status.NATEnabled == "" {
 		//check if the PodCidr of the remote cluster overlaps with any of the subnets on the local cluster
-		_, subnet, err := net.ParseCIDR(adv.Spec.Network.PodCIDR)
+		_, subnet, err := net.ParseCIDR(netConfig.Spec.PodCIDR)
 		if err != nil {
-			return fmt.Errorf("an error occured while parsing podCidr %s from adv %s :%v", adv.Spec.Network.PodCIDR, adv.Name, err)
+			klog.Errorf("an error occurred while parsing the PodCIDR of resource %s: %s", netConfig.Name, err)
+			return err
 		}
 		r.Mutex.Lock()
 		defer r.Mutex.Unlock()
-		subnet, err = r.IPManager.GetNewSubnetPerCluster(subnet, tunEndpoint.Spec.ClusterID)
+		subnet, err = r.IPManager.GetNewSubnetPerCluster(subnet, netConfig.Spec.ClusterID)
 		if err != nil {
+			klog.Errorf("an error occurred while getting a new subnet for resource %s: %s", netConfig.Name, err)
 			return err
 		}
 		if subnet != nil {
-			remoteRemappedPodCIDR = subnet.String()
-			//update adv status
-			adv.Status.RemoteRemappedPodCIDR = remoteRemappedPodCIDR
-			err := r.Status().Update(ctx, adv)
+			//update netConfig status
+			netConfig.Status.PodCIDRNAT = subnet.String()
+			netConfig.Status.NATEnabled = "true"
+			err := r.Status().Update(context.Background(), netConfig)
 			if err != nil {
-				return err
-			}
-			//update tunEndpoint status
-			tunEndpoint.Status.RemoteRemappedPodCIDR = remoteRemappedPodCIDR
-			tunEndpoint.Status.Phase = "New"
-			err = r.Status().Update(ctx, &tunEndpoint)
-			if err != nil {
+				klog.Errorf("an error occurred while updating the status of resource %s: %s", netConfig.Name, err)
 				return err
 			}
 		} else {
-			//update adv status
-			adv.Status.RemoteRemappedPodCIDR = defualtPodCIDRValue
-			err := r.Status().Update(ctx, adv)
+			//update netConfig status
+			netConfig.Status.PodCIDRNAT = defaultPodCIDRValue
+			netConfig.Status.NATEnabled = "false"
+			err := r.Status().Update(context.Background(), netConfig)
 			if err != nil {
-				return err
-			}
-			//update tunEndpoint status
-			tunEndpoint.Status.RemoteRemappedPodCIDR = defualtPodCIDRValue
-			tunEndpoint.Status.Phase = "New"
-			err = r.Status().Update(ctx, &tunEndpoint)
-			if err != nil {
+				klog.Errorf("an error occurred while updating the status of resource %s: %s", netConfig.Name, err)
 				return err
 			}
 		}
-		return nil
-	} else if tunEndpoint.Status.Phase == "New" {
-		if adv.Status.LocalRemappedPodCIDR == "" {
-			return nil
-		} else {
-			tunEndpoint.Status.LocalRemappedPodCIDR = adv.Status.LocalRemappedPodCIDR
-			tunEndpoint.Status.Phase = "Processed"
-			err = r.Status().Update(ctx, &tunEndpoint)
-			if err != nil {
-				return err
-			}
-		}
-		return nil
-	} else {
 		return nil
 	}
+	return nil
 }
 
-//we do not support updates to the ADV CR by the user, at least not yet
-//we assume that the ADV is created by the Remote Server and is the only one who can remove or update it
-//if the ADV has to be updated first we remove it and then recreate the it with new values
-//For each ADV CR a tunnelEndpoint CR is created in the same namespace as the ADV CR and the name of the later
-//is derived from the name of the ADV adding a suffix. Doing so, given an ADV we can always create, update or delete
-//the associated tunnelEndpoint CR without the necessity for its key to be saved by the operator.
-func (r *TunnelEndpointCreator) CreateTunEndpoint(adv *advtypes.Advertisement) error {
-	funcName := "CreateTunEndpoint"
-	ctx := context.Background()
-	log := r.Log.WithValues("tunnelEndpointCreator-controller", funcName)
-	var tunEndpoint netv1alpha1.TunnelEndpoint
-
-	//build the key used to retrieve the tunnelEndpoint CR
-	tunEndKey := types.NamespacedName{
-		Namespace: adv.Namespace,
-		Name:      adv.Spec.ClusterId + tunEndpointNameSuffix,
+func (r *TunnelEndpointCreator) processLocalNetConfig(netConfig *netv1alpha1.NetworkConfig) error {
+	//check if the resource has been processed by the remote cluster
+	if netConfig.Status.PodCIDRNAT == "" {
+		return nil
 	}
-	//retrieve the tunnelEndpoint CR
-	err := r.Get(ctx, tunEndKey, &tunEndpoint)
-	//if the CR exist then do nothing and return
-	if err == nil {
-		return nil
-	} else if apierrors.IsNotFound(err) {
-		//if tunnelEndpoint referenced by the key does not exist then we create it
-		tunEndpoint := &netv1alpha1.TunnelEndpoint{
-			ObjectMeta: v1.ObjectMeta{
-				//the name is derived from the clusterID
-				Name: adv.Spec.ClusterId + tunEndpointNameSuffix,
-				//the namespace is read from the Environment variable passe to the pod
-				Namespace: adv.Namespace,
-			},
-			Spec: netv1alpha1.TunnelEndpointSpec{
-				ClusterID:       adv.Spec.ClusterId,
-				PodCIDR:         adv.Spec.Network.PodCIDR,
-				TunnelPublicIP:  adv.Spec.Network.GatewayIP,
-				TunnelPrivateIP: adv.Spec.Network.GatewayPrivateIP,
-			},
-			Status: netv1alpha1.TunnelEndpointStatus{},
-		}
-		var ownerReferences []v1.OwnerReference
-		var controller bool = true
-		tunEndpoint.SetOwnerReferences(append(ownerReferences, v1.OwnerReference{
-			APIVersion: adv.APIVersion,
-			Kind:       adv.Kind,
-			Name:       adv.Name,
-			UID:        adv.UID,
-			Controller: &controller,
-		}))
-		err = r.Create(ctx, tunEndpoint)
-		if err != nil {
-			log.Info("failed to create the custom resource", "name", tunEndpoint.Name, "namespace", tunEndpoint.Namespace, "clusterId", adv.Spec.ClusterId, "podCIDR", adv.Spec.Network.PodCIDR, "gatewayPublicIP", adv.Spec.Network.GatewayIP, "tunnelPrivateIP", adv.Spec.Network.GatewayPrivateIP)
-			return err
-		}
-		log.Info("created the custom resource", "name", tunEndpoint.Name, "namespace", tunEndpoint.Namespace, "clusterId", adv.Spec.ClusterId, "podCIDR", adv.Spec.Network.PodCIDR, "gatewayPublicIP", adv.Spec.Network.GatewayIP, "tunnelPrivateIP", adv.Spec.Network.GatewayPrivateIP)
-		return nil
-	} else {
+	//we get the remote netconfig related to this one
+	netConfigList := &netv1alpha1.NetworkConfigList{}
+	labels := client.MatchingLabels{crdReplicator.RemoteLabelSelector: netConfig.Spec.ClusterID}
+	err := r.List(context.Background(), netConfigList, labels)
+	if err != nil {
+		klog.Errorf("an error occurred while listing resources: %s", err)
 		return err
 	}
+	if len(netConfigList.Items) != 1 {
+		if len(netConfigList.Items) == 0 {
+			return nil
+		} else {
+			klog.Errorf("more than one instances of type %s exists for remote cluster %s", netv1alpha1.GroupVersion.String(), netConfig.Spec.ClusterID)
+			return fmt.Errorf("multiple instances of %s for remote cluster %s", netv1alpha1.GroupVersion.String(), netConfig.Spec.ClusterID)
+		}
+	} else {
+		//check if it has been processed by the operator
+		if netConfigList.Items[0].Status.NATEnabled == "" {
+			return nil
+		}
+	}
+	//at this point we have all the necessary parameters to create the tunnelEndpoint resource
+	remoteNetConf := netConfigList.Items[0]
+	netParam := networkParam{
+		clusterID:        netConfig.Spec.ClusterID,
+		gatewayIP:        remoteNetConf.Spec.TunnelPublicIP,
+		podCIDR:          remoteNetConf.Spec.PodCIDR,
+		localNatPodCIDR:  netConfig.Status.PodCIDRNAT,
+		remoteNatPodCIDR: remoteNetConf.Status.PodCIDRNAT,
+	}
+	if err := r.ProcessTunnelEndpoint(netParam); err != nil {
+		klog.Errorf("an error occurred while processing the tunnelEndpoint: %s", err)
+		return err
+	}
+	return nil
 }
 
-func (r *TunnelEndpointCreator) deleteTunEndpoint(adv *advtypes.Advertisement) error {
+func (r *TunnelEndpointCreator) ProcessTunnelEndpoint(param networkParam) error {
+	tepName := TunEndpointNamePrefix + param.clusterID
+	//try to get the tunnelEndpoint, it may not exist
+	_, found, err := r.GetTunnelEndpoint(tepName)
+	if err != nil {
+		klog.Errorf("an error occurred while getting resource %s: %s", TunEndpointNamePrefix+param.clusterID, err)
+		return err
+	}
+	if !found {
+		return r.CreateTunnelEndpoint(param)
+	} else {
+		if err := r.UpdateSpecTunnelEndpoint(param); err != nil {
+			return err
+		}
+		if err := r.UpdateStatusTunnelEndpoint(param); err != nil {
+			return err
+		}
+		return nil
+	}
+}
+
+func (r *TunnelEndpointCreator) UpdateSpecTunnelEndpoint(param networkParam) error {
+	tepName := TunEndpointNamePrefix + param.clusterID
+	tep := &netv1alpha1.TunnelEndpoint{}
+
+	//here we recover from conflicting resource versions
+	retryError := retry.RetryOnConflict(retry.DefaultRetry, func() error {
+		toBeUpdated := false
+		err := r.Get(context.Background(), client.ObjectKey{
+			Name: tepName,
+		}, tep)
+		if err != nil {
+			return err
+		}
+		//check if there are fields to be updated
+		if tep.Spec.ClusterID != param.clusterID {
+			tep.Spec.ClusterID = param.clusterID
+			toBeUpdated = true
+		}
+		if tep.Spec.TunnelPublicIP != param.gatewayIP {
+			tep.Spec.TunnelPublicIP = param.gatewayIP
+			toBeUpdated = true
+		}
+		if tep.Spec.PodCIDR != param.podCIDR {
+			tep.Spec.PodCIDR = param.podCIDR
+			toBeUpdated = true
+		}
+		if toBeUpdated {
+			err = r.Update(context.Background(), tep)
+			return err
+		}
+		return nil
+	})
+	if retryError != nil {
+		klog.Errorf("an error occurred while updating spec of tunnelEndpoint resource %s: %s", tep.Name, retryError)
+		return retryError
+	}
+	return nil
+}
+
+func (r *TunnelEndpointCreator) UpdateStatusTunnelEndpoint(param networkParam) error {
+	tepName := TunEndpointNamePrefix + param.clusterID
+	tep := &netv1alpha1.TunnelEndpoint{}
+
+	//here we recover from conflicting resource versions
+	retryError := retry.RetryOnConflict(retry.DefaultRetry, func() error {
+		toBeUpdated := false
+		err := r.Get(context.Background(), client.ObjectKey{
+			Name: tepName,
+		}, tep)
+		if err != nil {
+			return err
+		}
+		//check if there are fields to be updated
+		if tep.Status.LocalRemappedPodCIDR != param.localNatPodCIDR {
+			tep.Status.LocalRemappedPodCIDR = param.localNatPodCIDR
+			toBeUpdated = true
+		}
+		if tep.Status.RemoteRemappedPodCIDR != param.remoteNatPodCIDR {
+			tep.Status.RemoteRemappedPodCIDR = param.remoteNatPodCIDR
+			toBeUpdated = true
+		}
+		if tep.Status.Phase == "" {
+			tep.Status.Phase = "Processed"
+			toBeUpdated = true
+		}
+		if toBeUpdated {
+			err = r.Status().Update(context.Background(), tep)
+			return err
+		}
+		return nil
+	})
+	if retryError != nil {
+		klog.Errorf("an error occurred while updating spec of tunnelEndpoint resource %s: %s", tep.Name, retryError)
+		return retryError
+	}
+	return nil
+}
+
+func (r *TunnelEndpointCreator) CreateTunnelEndpoint(param networkParam) error {
+	tepName := TunEndpointNamePrefix + param.clusterID
+	//here we create it
+	tep := &netv1alpha1.TunnelEndpoint{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: tepName,
+		},
+		Spec: netv1alpha1.TunnelEndpointSpec{
+			ClusterID:      param.clusterID,
+			PodCIDR:        param.podCIDR,
+			TunnelPublicIP: param.gatewayIP,
+		},
+		Status: netv1alpha1.TunnelEndpointStatus{},
+	}
+	err := r.Create(context.Background(), tep)
+	if err != nil {
+		klog.Errorf("an error occurred while creating tunnelEndpoint resource %s: %s", tep.Name, err)
+		return err
+	}
+	//first retry is to wait until the resource is created
+	retryError := retry.OnError(retry.DefaultRetry, apierrors.IsNotFound, func() error {
+		err := r.Get(context.Background(), client.ObjectKey{
+			Name: tepName,
+		}, tep)
+		if err != nil {
+			return err
+		}
+		return nil
+	})
+	if retryError != nil {
+		klog.Errorf("an error occurred while processing tunnelEndpoint resource %s: %s", tep.Name, err)
+		return retryError
+	}
+	//here we recover from conflicting resource versions
+	retryErrorConflict := retry.RetryOnConflict(retry.DefaultRetry, func() error {
+		err := r.Get(context.Background(), client.ObjectKey{
+			Name: tepName,
+		}, tep)
+		if err != nil {
+			return err
+		}
+		tep.Status.RemoteRemappedPodCIDR = param.remoteNatPodCIDR
+		tep.Status.LocalRemappedPodCIDR = param.localNatPodCIDR
+		tep.Status.Phase = "Processed"
+		err = r.Status().Update(context.Background(), tep)
+		return err
+	})
+	if retryErrorConflict != nil {
+		klog.Errorf("an error occurred while updating status of tunnelEndpoint resource %s: %s", tep.Name, err)
+		return retryErrorConflict
+	}
+	return nil
+}
+
+func (r *TunnelEndpointCreator) AdvertisementHandler(obj *unstructured.Unstructured) {
+	adv := &advtypes.Advertisement{}
+	err := runtime.DefaultUnstructuredConverter.FromUnstructured(obj.Object, adv)
+	if err != nil {
+		klog.Errorf("an error occurred while converting resource %s of type %s to typed object: %s", obj.GetName(), obj.GetKind(), err)
+		return
+	}
+	_ = r.createNetConfig(adv.Spec.ClusterId)
+}
+
+func (r *TunnelEndpointCreator) PeeringRequestHandler(obj *unstructured.Unstructured) {
+	peeringReq := &discoveryv1alpha1.PeeringRequest{}
+	err := runtime.DefaultUnstructuredConverter.FromUnstructured(obj.Object, peeringReq)
+	if err != nil {
+		klog.Errorf("an error occurred while converting resource %s of type %s to typed object: %s", obj.GetName(), obj.GetKind(), err)
+		return
+	}
+	_ = r.createNetConfig(peeringReq.Spec.ClusterID)
+}
+
+func (r *TunnelEndpointCreator) GetTunnelEndpoint(name string) (*netv1alpha1.TunnelEndpoint, bool, error) {
+	ctx := context.Background()
+	tunEndpoint := &netv1alpha1.TunnelEndpoint{}
+	//build the key used to retrieve the tunnelEndpoint CR
+	tunEndKey := types.NamespacedName{
+		Name: name,
+	}
+	//retrieve the tunnelEndpoint CR
+	err := r.Get(ctx, tunEndKey, tunEndpoint)
+	if apierrors.IsNotFound(err) {
+		return nil, false, nil
+	} else if err != nil {
+		return nil, false, err
+	} else {
+		return tunEndpoint, true, nil
+	}
+}
+
+func (r *TunnelEndpointCreator) deleteTunEndpoint(netConfig *advtypes.Advertisement) error {
 	ctx := context.Background()
 	var tunEndpoint netv1alpha1.TunnelEndpoint
 	//build the key used to retrieve the tunnelEndpoint CR
 	tunEndKey := types.NamespacedName{
-		Namespace: adv.Namespace,
-		Name:      adv.Spec.ClusterId + tunEndpointNameSuffix,
+		Namespace: netConfig.Namespace,
+		Name:      netConfig.Spec.ClusterId + TunEndpointNamePrefix,
 	}
 	//retrieve the tunnelEndpoint CR
 	err := r.Get(ctx, tunEndKey, &tunEndpoint)

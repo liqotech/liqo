@@ -32,8 +32,6 @@ type NetworkConfigSpec struct {
 	PodCIDR string `json:"podCIDR"`
 	//public IP of the node where the VPN tunnel is created
 	TunnelPublicIP string `json:"tunnelPublicIP"`
-	//the IP address of the node in the private VPN subnet
-	TunnelPrivateIP string `json:"tunnelPrivateIP"`
 }
 
 // NetworkConfigStatus defines the observed state of NetworkConfig
@@ -41,7 +39,7 @@ type NetworkConfigStatus struct {
 	// INSERT ADDITIONAL STATUS FIELD - define observed state of cluster
 	// Important: Run "make" to regenerate code after modifying this file
 	//indicates if the NAT is enabled for the remote cluster
-	NATEnabled bool `json:"natEnabled,omitempty"`
+	NATEnabled string `json:"natEnabled,omitempty"`
 	//the new subnet used to NAT the pods' subnet of the remote cluster
 	PodCIDRNAT string `json:"podCIDRNAT,omitempty"`
 }
