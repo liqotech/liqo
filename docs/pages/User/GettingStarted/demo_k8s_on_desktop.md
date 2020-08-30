@@ -89,8 +89,11 @@ sudo chown $USER:$USER $HOME/.kube/k3s.yaml
 export KUBECONFIG="$HOME/.kube/k3s.yaml"
 ```
 
-**NOTE**: You need to export the `KUBECONFIG` environment variable each time you open a new terminal by running, as above, `export KUBECONFIG="$HOME/.kube/k3s.yaml"`.
-<!-- TODO: add instructions to modify the .bashrc script, so that this is automatically exported -->
+**NOTE**: You need to export the `KUBECONFIG` environment variable each time you open a new terminal by running, as above, `export KUBECONFIG="$HOME/.kube/k3s.yaml"`. If you want to make `KUBECONFIG` environment variable permanent, you can add it to your shell configuration file by executing the following command:
+
+```bash
+echo 'export KUBECONFIG="$HOME/.kube/k3s.yaml"' >> $HOME/.bashrc
+```
 
 Before proceeding with the [liqo](https://liqo.io) installation, wait for all the pod to be in `Running` status; for this, you can execute the command `kubectl get pod --all-namespaces`.
 
@@ -114,9 +117,17 @@ You can check it by executing `kubectl get pod -n liqo` in both clusters.
 Since both (virtual) machines are connected to the same local area network, each Liqo cluster will automatically join the foreign one thanks the Liqo [Discovery](/user/configure/discovery/) and [Peering](/user/gettingstarted/peer/) features.
 
 ### Install KubernetesOnDesktop
-<!-- TODO -->
+Now that both [k3s](https://k3s.io/) and [liqo](https://liqo.io) are up and running, we can install [KubernetesOnDesktop](https://github.com/netgroup-polito/KubernetesOnDesktop) by cloning the git repository and launching the install.sh script as follows:
 
-#### About KubernetesOnDesktop
+```bash
+git clone https://github.com/netgroup-polito/KubernetesOnDesktop.git
+cd KubernetesOnDesktop
+sudo ./install.sh
+```
+
+Now we are ready to run the KubernetesOnDesktop `cloudify` script as described [below](#run-the-kubernetesondesktop-demo).
+
+## About KubernetesOnDesktop
 
 [KubernetesOnDesktop](https://github.com/netgroup-polito/KubernetesOnDesktop) is a University project with the aim of developing a cloud infrastructure to run user application in a remote cluster node. 
 It uses a client/server VNC+PulseAudio+SSH infrastructure that schedules the application `pod` in a k8s remote node and redirects the GUI (through VNC) and the sound (through PulseAudio+SSH) in a second `pod` scheduled in the node in which the `cloudify` application is running. For further information see [KubernetesOnDesktop](https://github.com/netgroup-polito/KubernetesOnDesktop) GitHub page.
@@ -132,18 +143,6 @@ When executed, through `cloudify` command, the application will create:
 * a `deployment` containing the application (e.g. blender) and the VNC server, whose `pod` will be scheduled on a remote node with respect to the node `cloudify` is launched from;
 * a `service` of `type` `NodePort` (that automatically creates a `ClusterIP` `type` too, as you can see in [k8s official documentation](https://kubernetes.io/docs/concepts/services-networking/service/#publishing-services-service-types)) that makes the `pod` created from the `deployment` above reachable from other `pod`s in the cluster and from the outside;
 * a `job` executing the VNC viewer, whose `pod` will be scheduled in the same node `cloudify` is launched from.
-
-#### Installation of KubernetesOnDesktop
-<!-- Why is this here? Shouldn't be moved above? -->
-Now that both [k3s](https://k3s.io/) and [liqo](https://liqo.io) are up and running, we can install [KubernetesOnDesktop](https://github.com/netgroup-polito/KubernetesOnDesktop) by cloning the git repository and launching the install.sh script as follows:
-
-```bash
-git clone https://github.com/netgroup-polito/KubernetesOnDesktop.git
-cd KubernetesOnDesktop
-sudo ./install.sh
-```
-
-Now we are ready to run the `cloudify` script.
 
 ## Run the KubernetesOnDesktop demo
 To run the demo we need to execute the `cloudify` command. We can do it as follows:
