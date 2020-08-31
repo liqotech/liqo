@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 	policyv1 "github.com/liqoTech/liqo/api/cluster-config/v1"
-	discoveryv1 "github.com/liqoTech/liqo/api/discovery/v1"
+	discoveryv1alpha1 "github.com/liqoTech/liqo/api/discovery/v1alpha1"
 	"github.com/liqoTech/liqo/internal/crdReplicator"
 	"github.com/liqoTech/liqo/pkg/crdClient"
 	"github.com/liqoTech/liqo/pkg/liqonet"
@@ -98,7 +98,7 @@ func getConfigClusterCRDClient(config *rest.Config) *crdClient.CRDClient {
 }
 
 func setupEnv() {
-	err := discoveryv1.AddToScheme(scheme.Scheme)
+	err := discoveryv1alpha1.AddToScheme(scheme.Scheme)
 	if err != nil {
 		klog.Error(err)
 	}

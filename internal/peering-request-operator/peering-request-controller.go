@@ -19,7 +19,7 @@ package peering_request_operator
 import (
 	"context"
 	"errors"
-	discoveryv1 "github.com/liqoTech/liqo/api/discovery/v1"
+	discoveryv1alpha1 "github.com/liqoTech/liqo/api/discovery/v1alpha1"
 	"github.com/liqoTech/liqo/pkg/clusterID"
 	"github.com/liqoTech/liqo/pkg/crdClient"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -60,7 +60,7 @@ func (r *PeeringRequestReconciler) Reconcile(req ctrl.Request) (ctrl.Result, err
 		klog.Info(err, "Destroy peering")
 		return ctrl.Result{RequeueAfter: r.retryTimeout}, nil
 	}
-	pr, ok := tmp.(*discoveryv1.PeeringRequest)
+	pr, ok := tmp.(*discoveryv1alpha1.PeeringRequest)
 	if !ok {
 		klog.Error("loaded object is not a PeeringRequest")
 		return ctrl.Result{RequeueAfter: r.retryTimeout}, errors.New("loaded object is not a PeeringRequest")
@@ -106,6 +106,6 @@ func (r *PeeringRequestReconciler) Reconcile(req ctrl.Request) (ctrl.Result, err
 
 func (r *PeeringRequestReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
-		For(&discoveryv1.PeeringRequest{}).
+		For(&discoveryv1alpha1.PeeringRequest{}).
 		Complete(r)
 }

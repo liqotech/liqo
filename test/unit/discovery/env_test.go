@@ -3,7 +3,7 @@ package discovery
 import (
 	"context"
 	policyv1 "github.com/liqoTech/liqo/api/cluster-config/v1"
-	v1 "github.com/liqoTech/liqo/api/discovery/v1"
+	"github.com/liqoTech/liqo/api/discovery/v1alpha1"
 	advtypes "github.com/liqoTech/liqo/api/sharing/v1alpha1"
 	"github.com/liqoTech/liqo/internal/discovery"
 	foreign_cluster_operator "github.com/liqoTech/liqo/internal/discovery/foreign-cluster-operator"
@@ -171,7 +171,7 @@ func getCluster() (*Cluster, manager.Manager) {
 		os.Exit(1)
 	}
 
-	cluster.cfg.ContentConfig.GroupVersion = &v1.GroupVersion
+	cluster.cfg.ContentConfig.GroupVersion = &v1alpha1.GroupVersion
 	cluster.cfg.APIPath = "/apis"
 	cluster.cfg.NegotiatedSerializer = scheme.Codecs.WithoutConversion()
 	cluster.cfg.UserAgent = rest.DefaultKubernetesUserAgent()
@@ -180,7 +180,7 @@ func getCluster() (*Cluster, manager.Manager) {
 	advCfg.ContentConfig.GroupVersion = &advtypes.GroupVersion
 	crdClient.AddToRegistry("advertisements", &advtypes.Advertisement{}, &advtypes.AdvertisementList{}, nil, advtypes.GroupResource)
 
-	err = v1.AddToScheme(scheme.Scheme)
+	err = v1alpha1.AddToScheme(scheme.Scheme)
 	if err != nil {
 		klog.Error(err, err.Error())
 		os.Exit(1)

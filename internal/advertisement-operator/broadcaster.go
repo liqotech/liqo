@@ -14,7 +14,7 @@ import (
 	"time"
 
 	policyv1 "github.com/liqoTech/liqo/api/cluster-config/v1"
-	discoveryv1 "github.com/liqoTech/liqo/api/discovery/v1"
+	discoveryv1alpha1 "github.com/liqoTech/liqo/api/discovery/v1alpha1"
 	advtypes "github.com/liqoTech/liqo/api/sharing/v1alpha1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
@@ -56,7 +56,7 @@ func StartBroadcaster(homeClusterId, localKubeconfigPath, gatewayPrivateIP, peer
 	}
 
 	// create the discovery client
-	config, err := crdClient.NewKubeconfig(localKubeconfigPath, &discoveryv1.GroupVersion)
+	config, err := crdClient.NewKubeconfig(localKubeconfigPath, &discoveryv1alpha1.GroupVersion)
 	if err != nil {
 		klog.Error(err, err.Error())
 		return err
@@ -73,7 +73,7 @@ func StartBroadcaster(homeClusterId, localKubeconfigPath, gatewayPrivateIP, peer
 		klog.Errorln(err, "Unable to get PeeringRequest "+peeringRequestName)
 		return err
 	}
-	pr, ok := tmp.(*discoveryv1.PeeringRequest)
+	pr, ok := tmp.(*discoveryv1alpha1.PeeringRequest)
 	if !ok {
 		return errors.New("retrieved object is not a PeeringRequest")
 	}

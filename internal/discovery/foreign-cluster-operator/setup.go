@@ -1,7 +1,7 @@
 package foreign_cluster_operator
 
 import (
-	discoveryv1 "github.com/liqoTech/liqo/api/discovery/v1"
+	discoveryv1alpha1 "github.com/liqoTech/liqo/api/discovery/v1alpha1"
 	advtypes "github.com/liqoTech/liqo/api/sharing/v1alpha1"
 	"github.com/liqoTech/liqo/internal/discovery"
 	"github.com/liqoTech/liqo/pkg/clusterID"
@@ -21,12 +21,12 @@ var (
 
 func init() {
 	_ = clientgoscheme.AddToScheme(scheme)
-	_ = discoveryv1.AddToScheme(scheme)
+	_ = discoveryv1alpha1.AddToScheme(scheme)
 	// +kubebuilder:scaffold:scheme
 }
 
 func StartOperator(mgr *manager.Manager, namespace string, requeueAfter time.Duration, discoveryCtrl *discovery.DiscoveryCtrl, kubeconfigPath string) {
-	config, err := crdClient.NewKubeconfig(kubeconfigPath, &discoveryv1.GroupVersion)
+	config, err := crdClient.NewKubeconfig(kubeconfigPath, &discoveryv1alpha1.GroupVersion)
 	if err != nil {
 		klog.Error(err, "unable to get kube config")
 		os.Exit(1)

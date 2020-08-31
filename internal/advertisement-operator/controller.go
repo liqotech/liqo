@@ -19,7 +19,7 @@ import (
 	"context"
 	goerrors "errors"
 	policyv1 "github.com/liqoTech/liqo/api/cluster-config/v1"
-	discoveryv1 "github.com/liqoTech/liqo/api/discovery/v1"
+	discoveryv1alpha1 "github.com/liqoTech/liqo/api/discovery/v1alpha1"
 	advtypes "github.com/liqoTech/liqo/api/sharing/v1alpha1"
 	pkg "github.com/liqoTech/liqo/pkg/advertisement-operator"
 	"github.com/liqoTech/liqo/pkg/crdClient"
@@ -170,7 +170,7 @@ func (r *AdvertisementReconciler) UpdateForeignCluster(adv *advtypes.Advertiseme
 		klog.Error(err, err.Error())
 		return err, false
 	}
-	fcList, ok := tmp.(*discoveryv1.ForeignClusterList)
+	fcList, ok := tmp.(*discoveryv1alpha1.ForeignClusterList)
 	if !ok {
 		err = goerrors.New("retrieved object is not a ForeignClusterList")
 		klog.Error(err, err.Error())
@@ -205,7 +205,7 @@ func (r *AdvertisementReconciler) UpdateForeignCluster(adv *advtypes.Advertiseme
 		// add owner reference
 		controller := true
 		adv.OwnerReferences = append(adv.OwnerReferences, metav1.OwnerReference{
-			APIVersion: "discovery.liqo.io/v1",
+			APIVersion: "discovery.liqo.io/v1alpha1",
 			Kind:       "ForeignCluster",
 			Name:       fc.Name,
 			UID:        fc.UID,

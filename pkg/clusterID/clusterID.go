@@ -4,7 +4,7 @@ import (
 	"context"
 	"errors"
 	"github.com/google/uuid"
-	discoveryv1 "github.com/liqoTech/liqo/api/discovery/v1"
+	discoveryv1alpha1 "github.com/liqoTech/liqo/api/discovery/v1alpha1"
 	"github.com/liqoTech/liqo/pkg/crdClient"
 	"io/ioutil"
 	v1 "k8s.io/api/core/v1"
@@ -36,7 +36,7 @@ func GetNewClusterID(id string, client kubernetes.Interface) *ClusterID {
 }
 
 func NewClusterID(kubeconfigPath string) (*ClusterID, error) {
-	config, err := crdClient.NewKubeconfig(kubeconfigPath, &discoveryv1.GroupVersion)
+	config, err := crdClient.NewKubeconfig(kubeconfigPath, &discoveryv1alpha1.GroupVersion)
 	if err != nil {
 		klog.Error(err, "unable to get kube config")
 		os.Exit(1)

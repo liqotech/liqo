@@ -2,7 +2,7 @@ package search_domain_operator
 
 import (
 	"errors"
-	discoveryv1 "github.com/liqoTech/liqo/api/discovery/v1"
+	discoveryv1alpha1 "github.com/liqoTech/liqo/api/discovery/v1alpha1"
 	"github.com/liqoTech/liqo/internal/discovery"
 	"github.com/liqoTech/liqo/pkg/crdClient"
 	v1 "k8s.io/api/core/v1"
@@ -37,7 +37,7 @@ func (r *SearchDomainReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error
 			RequeueAfter: r.requeueAfter,
 		}, err
 	}
-	sd, ok := tmp.(*discoveryv1.SearchDomain)
+	sd, ok := tmp.(*discoveryv1alpha1.SearchDomain)
 	if !ok {
 		err := errors.New("retrieved resource is not a SearchDomain")
 		klog.Error(err, err.Error())
@@ -119,16 +119,16 @@ func (r *SearchDomainReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error
 
 func (r *SearchDomainReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
-		For(&discoveryv1.SearchDomain{}).
+		For(&discoveryv1alpha1.SearchDomain{}).
 		Complete(r)
 }
 
-func ForeignClustersToObjectReferences(fcs []*discoveryv1.ForeignCluster) []v1.ObjectReference {
+func ForeignClustersToObjectReferences(fcs []*discoveryv1alpha1.ForeignCluster) []v1.ObjectReference {
 	refs := []v1.ObjectReference{}
 	for _, fc := range fcs {
 		refs = append(refs, v1.ObjectReference{
 			Kind:       "ForeignCluster",
-			APIVersion: "discovery.liqo.io/v1",
+			APIVersion: "discovery.liqo.io/v1alpha1",
 			Name:       fc.Name,
 			UID:        fc.UID,
 		})
@@ -136,7 +136,7 @@ func ForeignClustersToObjectReferences(fcs []*discoveryv1.ForeignCluster) []v1.O
 	return refs
 }
 
-func AddToList(sd *discoveryv1.SearchDomain, refs []v1.ObjectReference) {
+func AddToList(sd *discoveryv1alpha1.SearchDomain, refs []v1.ObjectReference) {
 	for _, ref := range refs {
 		contains := false
 		for _, fc := range sd.Status.ForeignClusters {
@@ -151,7 +151,7 @@ func AddToList(sd *discoveryv1.SearchDomain, refs []v1.ObjectReference) {
 	}
 }
 
-func (r *SearchDomainReconciler) CheckForDeletion(sd *discoveryv1.SearchDomain, txts []*discovery.TxtData) ([]string, error) {
+func (r *SearchDomainReconciler) CheckForDeletion(sd *discoveryv1alpha1.SearchDomain, txts []*discovery.TxtData) ([]string, error) {
 	toDelete := []string{}
 	for _, fc := range sd.Status.ForeignClusters {
 		contains := false

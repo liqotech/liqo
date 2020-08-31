@@ -1,7 +1,7 @@
 package discovery
 
 import (
-	v1 "github.com/liqoTech/liqo/api/discovery/v1"
+	"github.com/liqoTech/liqo/api/discovery/v1alpha1"
 	"github.com/liqoTech/liqo/internal/discovery"
 	"gotest.tools/assert"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -61,7 +61,7 @@ func testMdns(t *testing.T) {
 func testForeignClusterCreation(t *testing.T) {
 	tmp, err := clientCluster.client.Resource("foreignclusters").List(metav1.ListOptions{})
 	assert.NilError(t, err, "Error listing ForeignClusters")
-	fcs, ok := tmp.(*v1.ForeignClusterList)
+	fcs, ok := tmp.(*v1alpha1.ForeignClusterList)
 	assert.Equal(t, ok, true)
 	l := len(fcs.Items)
 
@@ -80,14 +80,14 @@ func testForeignClusterCreation(t *testing.T) {
 
 	tmp, err = clientCluster.client.Resource("foreignclusters").List(metav1.ListOptions{})
 	assert.NilError(t, err, "Error listing ForeignClusters")
-	fcs, ok = tmp.(*v1.ForeignClusterList)
+	fcs, ok = tmp.(*v1alpha1.ForeignClusterList)
 	assert.Equal(t, ok, true)
 	l2 := len(fcs.Items)
 	assert.Assert(t, l2-l == 1, "Foreign Cluster was not created")
 
 	tmp, err = clientCluster.client.Resource("foreignclusters").Get("test", metav1.GetOptions{})
 	assert.NilError(t, err, "Error retrieving ForeignCluster")
-	fc, ok := tmp.(*v1.ForeignCluster)
+	fc, ok := tmp.(*v1alpha1.ForeignCluster)
 	assert.Equal(t, ok, true)
 	assert.Equal(t, fc.Spec.ApiUrl, "http://"+serverCluster.cfg.Host, "ApiUrl doesn't match the specified one")
 	assert.Equal(t, fc.Spec.Namespace, "default", "Foreign Namesapce doesn't match the specified one")
@@ -96,18 +96,18 @@ func testForeignClusterCreation(t *testing.T) {
 // ------
 // test TTL logic on LAN discovered ForeignClusters
 func testTtl(t *testing.T) {
-	fc := &v1.ForeignCluster{
+	fc := &v1alpha1.ForeignCluster{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: "fc-test-ttl",
 		},
-		Spec: v1.ForeignClusterSpec{
+		Spec: v1alpha1.ForeignClusterSpec{
 			ClusterID:     "test-cluster-ttl",
 			Namespace:     "default",
 			Join:          false,
 			ApiUrl:        serverCluster.cfg.Host,
-			DiscoveryType: v1.LanDiscovery,
+			DiscoveryType: v1alpha1.LanDiscovery,
 		},
-		Status: v1.ForeignClusterStatus{
+		Status: v1alpha1.ForeignClusterStatus{
 			Ttl: 3,
 		},
 	}
@@ -118,9 +118,9 @@ func testTtl(t *testing.T) {
 	time.Sleep(1 * time.Second)
 	tmp, err := clientCluster.client.Resource("foreignclusters").Get(fc.Name, metav1.GetOptions{})
 	assert.NilError(t, err)
-	fc, ok := tmp.(*v1.ForeignCluster)
+	fc, ok := tmp.(*v1alpha1.ForeignCluster)
 	assert.Equal(t, ok, true)
-	assert.Equal(t, fc.ObjectMeta.Labels["discovery-type"], string(v1.LanDiscovery), "discovery-type label not correctly set")
+	assert.Equal(t, fc.ObjectMeta.Labels["discovery-type"], string(v1alpha1.LanDiscovery), "discovery-type label not correctly set")
 	assert.Equal(t, fc.Status.Ttl, 3, "TTL not set to default value")
 
 	err = clientCluster.discoveryCtrl.UpdateTtl([]*discovery.TxtData{})
@@ -129,7 +129,7 @@ func testTtl(t *testing.T) {
 	time.Sleep(1 * time.Second)
 	tmp, err = clientCluster.client.Resource("foreignclusters").Get(fc.Name, metav1.GetOptions{})
 	assert.NilError(t, err)
-	fc, ok = tmp.(*v1.ForeignCluster)
+	fc, ok = tmp.(*v1alpha1.ForeignCluster)
 	assert.Equal(t, ok, true)
 	assert.Equal(t, fc.Status.Ttl, 3-1, "TTL has not been decreased")
 
@@ -147,7 +147,7 @@ func testTtl(t *testing.T) {
 	time.Sleep(1 * time.Second)
 	tmp, err = clientCluster.client.Resource("foreignclusters").Get(fc.Name, metav1.GetOptions{})
 	assert.NilError(t, err)
-	fc, ok = tmp.(*v1.ForeignCluster)
+	fc, ok = tmp.(*v1alpha1.ForeignCluster)
 	assert.Equal(t, ok, true)
 	assert.Equal(t, fc.Status.Ttl, 3, "TTL not set to default value")
 
@@ -156,7 +156,7 @@ func testTtl(t *testing.T) {
 	time.Sleep(100 * time.Millisecond)
 	tmp, err = clientCluster.client.Resource("foreignclusters").Get(fc.Name, metav1.GetOptions{})
 	assert.NilError(t, err)
-	fc, ok = tmp.(*v1.ForeignCluster)
+	fc, ok = tmp.(*v1alpha1.ForeignCluster)
 	assert.Equal(t, ok, true)
 	assert.Equal(t, fc.Status.Ttl, 3, "TTL decrease even if in discovered list")
 

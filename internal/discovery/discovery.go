@@ -2,7 +2,7 @@ package discovery
 
 import (
 	policyv1 "github.com/liqoTech/liqo/api/cluster-config/v1"
-	discoveryv1 "github.com/liqoTech/liqo/api/discovery/v1"
+	discoveryv1alpha1 "github.com/liqoTech/liqo/api/discovery/v1alpha1"
 	advtypes "github.com/liqoTech/liqo/api/sharing/v1alpha1"
 	"github.com/liqoTech/liqo/pkg/clusterID"
 	"github.com/liqoTech/liqo/pkg/crdClient"
@@ -21,7 +21,7 @@ type DiscoveryCtrl struct {
 }
 
 func NewDiscoveryCtrl(namespace string, clusterId *clusterID.ClusterID, kubeconfigPath string) (*DiscoveryCtrl, error) {
-	config, err := crdClient.NewKubeconfig(kubeconfigPath, &discoveryv1.GroupVersion)
+	config, err := crdClient.NewKubeconfig(kubeconfigPath, &discoveryv1alpha1.GroupVersion)
 	if err != nil {
 		return nil, err
 	}

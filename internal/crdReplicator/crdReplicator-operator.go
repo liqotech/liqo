@@ -3,7 +3,7 @@ package crdReplicator
 import (
 	"context"
 	"fmt"
-	"github.com/liqoTech/liqo/api/discovery/v1"
+	"github.com/liqoTech/liqo/api/discovery/v1alpha1"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -58,7 +58,7 @@ type CRDReplicatorReconciler struct {
 }
 
 func (d *CRDReplicatorReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
-	var fc v1.ForeignCluster
+	var fc v1alpha1.ForeignCluster
 	ctx := context.Background()
 
 	err := d.Get(ctx, req.NamespacedName, &fc)
@@ -120,7 +120,7 @@ func (d *CRDReplicatorReconciler) Reconcile(req ctrl.Request) (ctrl.Result, erro
 
 func (d *CRDReplicatorReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
-		For(&v1.ForeignCluster{}).
+		For(&v1alpha1.ForeignCluster{}).
 		Complete(d)
 }
 

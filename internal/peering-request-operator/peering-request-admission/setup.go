@@ -3,7 +3,7 @@ package peering_request_admission
 import (
 	"crypto/tls"
 	"fmt"
-	discoveryv1 "github.com/liqoTech/liqo/api/discovery/v1"
+	discoveryv1alpha1 "github.com/liqoTech/liqo/api/discovery/v1alpha1"
 	"github.com/liqoTech/liqo/pkg/crdClient"
 	"k8s.io/klog"
 	"net/http"
@@ -22,7 +22,7 @@ func startTls(certPath string, keyPath string, port int, namespace string, kubec
 		os.Exit(1)
 	}
 
-	config, err := crdClient.NewKubeconfig(kubeconfigPath, &discoveryv1.GroupVersion)
+	config, err := crdClient.NewKubeconfig(kubeconfigPath, &discoveryv1alpha1.GroupVersion)
 	if err != nil {
 		klog.Error(err, "unable to get kube config")
 		os.Exit(1)

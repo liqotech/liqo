@@ -1,7 +1,7 @@
 package advertisement_operator
 
 import (
-	discoveryv1 "github.com/liqoTech/liqo/api/discovery/v1"
+	discoveryv1alpha1 "github.com/liqoTech/liqo/api/discovery/v1alpha1"
 	advtypes "github.com/liqoTech/liqo/api/sharing/v1alpha1"
 	advop "github.com/liqoTech/liqo/internal/advertisement-operator"
 	"github.com/stretchr/testify/assert"
@@ -61,17 +61,17 @@ func TestWatchAdvertisementAcceptance(t *testing.T) {
 	b := createBroadcaster(clusterConfig.Spec)
 
 	// create fake peering request on cluster home
-	pr := discoveryv1.PeeringRequest{
+	pr := discoveryv1alpha1.PeeringRequest{
 		TypeMeta: v1.TypeMeta{},
 		ObjectMeta: v1.ObjectMeta{
 			Name: b.PeeringRequestName,
 		},
-		Spec: discoveryv1.PeeringRequestSpec{
+		Spec: discoveryv1alpha1.PeeringRequestSpec{
 			ClusterID:     b.PeeringRequestName,
 			Namespace:     "test",
 			KubeConfigRef: nil,
 		},
-		Status: discoveryv1.PeeringRequestStatus{},
+		Status: discoveryv1alpha1.PeeringRequestStatus{},
 	}
 	_, err := b.DiscoveryClient.Resource("peeringrequests").Create(&pr, v1.CreateOptions{})
 	if err != nil {
@@ -102,6 +102,6 @@ func TestWatchAdvertisementAcceptance(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	pr2 := tmp.(*discoveryv1.PeeringRequest)
+	pr2 := tmp.(*discoveryv1alpha1.PeeringRequest)
 	assert.Equal(t, advop.AdvertisementAccepted, pr2.Status.AdvertisementStatus)
 }

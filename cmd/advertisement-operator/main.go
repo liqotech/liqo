@@ -17,7 +17,7 @@ package main
 
 import (
 	"flag"
-	discoveryv1 "github.com/liqoTech/liqo/api/discovery/v1"
+	discoveryv1alpha1 "github.com/liqoTech/liqo/api/discovery/v1alpha1"
 	"github.com/liqoTech/liqo/pkg/crdClient"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -121,7 +121,7 @@ func main() {
 		}
 	}
 
-	discoveryConfig, err := crdClient.NewKubeconfig(localKubeconfig, &discoveryv1.GroupVersion)
+	discoveryConfig, err := crdClient.NewKubeconfig(localKubeconfig, &discoveryv1alpha1.GroupVersion)
 	if err != nil {
 		klog.Error(err, "unable to get kube config")
 		os.Exit(1)
