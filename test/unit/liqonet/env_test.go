@@ -2,9 +2,9 @@ package liqonet
 
 import (
 	"context"
-	protocolv1 "github.com/liqoTech/liqo/api/advertisement-operator/v1"
 	policyv1 "github.com/liqoTech/liqo/api/cluster-config/v1"
 	liqonetv1 "github.com/liqoTech/liqo/api/liqonet/v1"
+	advtypes "github.com/liqoTech/liqo/api/sharing/v1alpha1"
 	controllers "github.com/liqoTech/liqo/internal/liqonet"
 	"github.com/liqoTech/liqo/pkg/crdClient"
 	"github.com/liqoTech/liqo/pkg/liqonet"
@@ -98,7 +98,7 @@ func setupEnv() {
 	if err != nil {
 		klog.Error(err, err.Error())
 	}
-	err = protocolv1.AddToScheme(scheme.Scheme)
+	err = advtypes.AddToScheme(scheme.Scheme)
 	if err != nil {
 		klog.Error(err, err.Error())
 	}
@@ -133,20 +133,20 @@ func tearDown() {
 	}
 }
 
-func getAdv() *protocolv1.Advertisement {
-	return &protocolv1.Advertisement{
+func getAdv() *advtypes.Advertisement {
+	return &advtypes.Advertisement{
 		TypeMeta: metav1.TypeMeta{},
 		ObjectMeta: metav1.ObjectMeta{
 			Name: "testadv",
 		},
-		Spec: protocolv1.AdvertisementSpec{
+		Spec: advtypes.AdvertisementSpec{
 			ClusterId: "cluster1",
 			KubeConfigRef: corev1.SecretReference{
 				Namespace: "fake",
 				Name:      "fake-kubeconfig",
 			},
 			LimitRange: corev1.LimitRangeSpec{Limits: []corev1.LimitRangeItem{}},
-			Network: protocolv1.NetworkInfo{
+			Network: advtypes.NetworkInfo{
 				PodCIDR:            "10.96.0.0/16",
 				GatewayIP:          "192.168.1.2",
 				GatewayPrivateIP:   "10.0.0.1",

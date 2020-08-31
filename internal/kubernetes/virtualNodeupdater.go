@@ -2,8 +2,8 @@ package kubernetes
 
 import (
 	"context"
-	advv1 "github.com/liqoTech/liqo/api/advertisement-operator/v1"
-	advertisement_operator "github.com/liqoTech/liqo/internal/advertisement-operator"
+	advtypes "github.com/liqoTech/liqo/api/sharing/v1alpha1"
+	advop "github.com/liqoTech/liqo/internal/advertisement-operator"
 	"github.com/liqoTech/liqo/internal/node"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -48,7 +48,7 @@ func (p *KubernetesProvider) StartNodeUpdater(nodeRunner *node.NodeController) (
 // the node status is updated by means of r.updateFromAdv
 func (p *KubernetesProvider) ReconcileNodeFromAdv(event watch.Event) {
 
-	adv, ok := event.Object.(*advv1.Advertisement)
+	adv, ok := event.Object.(*advtypes.Advertisement)
 	if !ok {
 		klog.Fatal("error in casting advertisement")
 	}
@@ -57,7 +57,7 @@ func (p *KubernetesProvider) ReconcileNodeFromAdv(event watch.Event) {
 		return
 	}
 
-	if adv.Status.AdvertisementStatus == advertisement_operator.AdvertisementDeleting {
+	if adv.Status.AdvertisementStatus == advop.AdvertisementDeleting {
 		for retry := 0; retry < 3; retry++ {
 			klog.Infof("advertisement %v is going to be deleted... set node status not ready", adv.Name)
 			no, err := p.nodeUpdateClient.Client().CoreV1().Nodes().Get(context.TODO(), p.nodeName, metav1.GetOptions{})
@@ -95,7 +95,7 @@ func (p *KubernetesProvider) ReconcileNodeFromAdv(event watch.Event) {
 }
 
 // Initialization of the Virtual kubelet, that implies:
-func (p *KubernetesProvider) initVirtualKubelet(adv advv1.Advertisement) error {
+func (p *KubernetesProvider) initVirtualKubelet(adv advtypes.Advertisement) error {
 	klog.Info("vk initializing")
 
 	if adv.Status.RemoteRemappedPodCIDR != "None" {
@@ -108,7 +108,7 @@ func (p *KubernetesProvider) initVirtualKubelet(adv advv1.Advertisement) error {
 }
 
 // updateFromAdv gets and  advertisement and updates the node status accordingly
-func (p *KubernetesProvider) updateFromAdv(adv advv1.Advertisement) error {
+func (p *KubernetesProvider) updateFromAdv(adv advtypes.Advertisement) error {
 	var err error
 
 	if !p.initialized {
@@ -146,7 +146,7 @@ func (p *KubernetesProvider) updateFromAdv(adv advv1.Advertisement) error {
 	return p.nodeController.UpdateNodeFromOutside(false, no)
 }
 
-func (p *KubernetesProvider) deleteAdv(adv *advv1.Advertisement) error {
+func (p *KubernetesProvider) deleteAdv(adv *advtypes.Advertisement) error {
 	// delete all reflected resources in reflected namespaces
 	for ns := range p.reflectedNamespaces.ns {
 		foreignNs, err := p.NatNamespace(ns, false)

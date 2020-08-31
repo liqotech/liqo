@@ -18,9 +18,9 @@ package main
 import (
 	"flag"
 	"github.com/coreos/go-iptables/iptables"
-	protocolv1 "github.com/liqoTech/liqo/api/advertisement-operator/v1"
 	clusterConfig "github.com/liqoTech/liqo/api/cluster-config/v1"
 	"github.com/liqoTech/liqo/api/liqonet/v1"
+	advtypes "github.com/liqoTech/liqo/api/sharing/v1alpha1"
 	"github.com/liqoTech/liqo/internal/liqonet"
 	"github.com/liqoTech/liqo/pkg/liqonet"
 	"github.com/vishvananda/netlink"
@@ -56,7 +56,7 @@ func init() {
 
 	_ = v1.AddToScheme(scheme)
 
-	_ = protocolv1.AddToScheme(scheme)
+	_ = advtypes.AddToScheme(scheme)
 
 	// +kubebuilder:scaffold:scheme
 }

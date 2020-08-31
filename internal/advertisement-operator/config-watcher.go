@@ -1,8 +1,8 @@
 package advertisement_operator
 
 import (
-	protocolv1 "github.com/liqoTech/liqo/api/advertisement-operator/v1"
 	policyv1 "github.com/liqoTech/liqo/api/cluster-config/v1"
+	advtypes "github.com/liqoTech/liqo/api/sharing/v1alpha1"
 	"github.com/liqoTech/liqo/pkg/clusterConfig"
 	"github.com/liqoTech/liqo/pkg/crdClient"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
@@ -70,7 +70,7 @@ func (r *AdvertisementReconciler) WatchConfiguration(kubeconfigPath string, clie
 				klog.Error(err, "Unable to apply configuration: error listing Advertisements")
 				return
 			}
-			advList := obj.(*protocolv1.AdvertisementList)
+			advList := obj.(*advtypes.AdvertisementList)
 
 			if newConfig.IngoingConfig.AcceptPolicy == policyv1.AutoAcceptWithinMaximum && newConfig.IngoingConfig.MaxAcceptableAdvertisement != r.ClusterConfig.IngoingConfig.MaxAcceptableAdvertisement {
 				// the accept policy is set to AutoAcceptWithinMaximum and the Maximum has changed: re-check all Advertisements and update if needed
@@ -90,9 +90,9 @@ func (r *AdvertisementReconciler) WatchConfiguration(kubeconfigPath string, clie
 	}, client, kubeconfigPath)
 }
 
-func (r *AdvertisementReconciler) ManageMaximumUpdate(newConfig policyv1.AdvertisementConfig, advList *protocolv1.AdvertisementList) (error, protocolv1.AdvertisementList) {
+func (r *AdvertisementReconciler) ManageMaximumUpdate(newConfig policyv1.AdvertisementConfig, advList *advtypes.AdvertisementList) (error, advtypes.AdvertisementList) {
 
-	advToUpdate := protocolv1.AdvertisementList{Items: []protocolv1.Advertisement{}}
+	advToUpdate := advtypes.AdvertisementList{Items: []advtypes.Advertisement{}}
 	if newConfig.IngoingConfig.MaxAcceptableAdvertisement > r.ClusterConfig.IngoingConfig.MaxAcceptableAdvertisement {
 		// the maximum has increased: check if there are refused advertisements which now can be accepted
 		r.ClusterConfig = newConfig

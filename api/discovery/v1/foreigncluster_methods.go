@@ -2,7 +2,7 @@ package v1
 
 import (
 	"context"
-	protocolv1 "github.com/liqoTech/liqo/api/advertisement-operator/v1"
+	advtypes "github.com/liqoTech/liqo/api/sharing/v1alpha1"
 	"github.com/liqoTech/liqo/pkg/crdClient"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -99,14 +99,14 @@ func (fc *ForeignCluster) LoadForeignCA(localClient kubernetes.Interface, localN
 	return nil
 }
 
-func (fc *ForeignCluster) SetAdvertisement(adv *protocolv1.Advertisement, discoveryClient *crdClient.CRDClient) error {
+func (fc *ForeignCluster) SetAdvertisement(adv *advtypes.Advertisement, discoveryClient *crdClient.CRDClient) error {
 	if fc.Status.Outgoing.Advertisement == nil {
 		// Advertisement has not been set in ForeignCluster yet
 		fc.Status.Outgoing.Advertisement = &v1.ObjectReference{
 			Kind:       "Advertisement",
 			Name:       adv.Name,
 			UID:        adv.UID,
-			APIVersion: "protocol.liqo.io/v1",
+			APIVersion: "sharing.liqo.io/v1alpha1",
 		}
 		_, err := discoveryClient.Resource("foreignclusters").Update(fc.Name, fc, metav1.UpdateOptions{})
 		if err != nil {

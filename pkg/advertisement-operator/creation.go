@@ -3,7 +3,7 @@ package advertisement_operator
 import (
 	"context"
 	"errors"
-	protocolv1 "github.com/liqoTech/liqo/api/advertisement-operator/v1"
+	advtypes "github.com/liqoTech/liqo/api/sharing/v1alpha1"
 	appsv1 "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
@@ -16,7 +16,7 @@ import (
 )
 
 // create deployment for a virtual-kubelet
-func CreateVkDeployment(adv *protocolv1.Advertisement, name, vkNamespace, vkImage, initVKImage, homeClusterId string) *appsv1.Deployment {
+func CreateVkDeployment(adv *advtypes.Advertisement, name, vkNamespace, vkImage, initVKImage, homeClusterId string) *appsv1.Deployment {
 
 	command := []string{
 		"/usr/bin/virtual-kubelet",
@@ -293,8 +293,8 @@ func CreateOrUpdate(c client.Client, ctx context.Context, object interface{}) er
 				return err
 			}
 		}
-	case *protocolv1.Advertisement:
-		var adv protocolv1.Advertisement
+	case *advtypes.Advertisement:
+		var adv advtypes.Advertisement
 		err := c.Get(ctx, types.NamespacedName{
 			Namespace: obj.Namespace,
 			Name:      obj.Name,

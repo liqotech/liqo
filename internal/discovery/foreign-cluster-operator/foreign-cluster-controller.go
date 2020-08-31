@@ -19,8 +19,8 @@ package foreign_cluster_operator
 import (
 	"context"
 	goerrors "errors"
-	protocolv1 "github.com/liqoTech/liqo/api/advertisement-operator/v1"
 	discoveryv1 "github.com/liqoTech/liqo/api/discovery/v1"
+	advtypes "github.com/liqoTech/liqo/api/sharing/v1alpha1"
 	"github.com/liqoTech/liqo/internal/discovery"
 	"github.com/liqoTech/liqo/internal/discovery/kubeconfig"
 	"github.com/liqoTech/liqo/pkg/clusterID"
@@ -105,7 +105,7 @@ func (r *ForeignClusterReconciler) Reconcile(req ctrl.Request) (ctrl.Result, err
 			requireUpdate = true
 		} else if err == nil {
 			// check if kubeconfig secret exists
-			adv, ok := tmp.(*protocolv1.Advertisement)
+			adv, ok := tmp.(*advtypes.Advertisement)
 			if !ok {
 				err = goerrors.New("retrieved object is not an Advertisement")
 				klog.Error(err)
@@ -334,7 +334,7 @@ func (r *ForeignClusterReconciler) Reconcile(req ctrl.Request) (ctrl.Result, err
 func (r *ForeignClusterReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&discoveryv1.ForeignCluster{}).
-		Owns(&protocolv1.Advertisement{}).
+		Owns(&advtypes.Advertisement{}).
 		Owns(&discoveryv1.PeeringRequest{}).
 		Complete(r)
 }
@@ -535,7 +535,7 @@ func (r *ForeignClusterReconciler) createClusterRoleIfNotExists(clusterID string
 			Rules: []rbacv1.PolicyRule{
 				{
 					Verbs:     []string{"get", "list", "create", "update", "delete", "watch"},
-					APIGroups: []string{"protocol.liqo.io", ""},
+					APIGroups: []string{"sharing.liqo.io", ""},
 					Resources: []string{"advertisements", "advertisements/status", "secrets"},
 				},
 			},

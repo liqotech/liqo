@@ -18,12 +18,12 @@ package advertisement_operator
 import (
 	"context"
 	goerrors "errors"
-	protocolv1 "github.com/liqoTech/liqo/api/advertisement-operator/v1"
 	policyv1 "github.com/liqoTech/liqo/api/cluster-config/v1"
 	discoveryv1 "github.com/liqoTech/liqo/api/discovery/v1"
+	advtypes "github.com/liqoTech/liqo/api/sharing/v1alpha1"
 	pkg "github.com/liqoTech/liqo/pkg/advertisement-operator"
 	"github.com/liqoTech/liqo/pkg/crdClient"
-	object_references "github.com/liqoTech/liqo/pkg/object-references"
+	objectreferences "github.com/liqoTech/liqo/pkg/object-references"
 	v1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -62,8 +62,8 @@ type AdvertisementReconciler struct {
 	checkRemoteCluster map[string]*sync.Once
 }
 
-// +kubebuilder:rbac:groups=protocol.liqo.io,resources=advertisements,verbs=get;list;watch;create;update;patch;delete
-// +kubebuilder:rbac:groups=protocol.liqo.io,resources=advertisements/status,verbs=get;update;patch
+// +kubebuilder:rbac:groups=sharing.liqo.io,resources=advertisements,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=sharing.liqo.io,resources=advertisements/status,verbs=get;update;patch
 // +kubebuilder:rbac:groups=core,resources=events,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=core,resources=events/status,verbs=get
 
@@ -81,7 +81,7 @@ func (r *AdvertisementReconciler) Reconcile(req ctrl.Request) (ctrl.Result, erro
 	}
 
 	// get advertisement
-	var adv protocolv1.Advertisement
+	var adv advtypes.Advertisement
 	if err := r.Get(ctx, req.NamespacedName, &adv); err != nil {
 		if errors.IsNotFound(err) {
 			// reconcile was triggered by a delete request
@@ -157,12 +157,12 @@ func (r *AdvertisementReconciler) Reconcile(req ctrl.Request) (ctrl.Result, erro
 
 func (r *AdvertisementReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
-		For(&protocolv1.Advertisement{}).
+		For(&advtypes.Advertisement{}).
 		Complete(r)
 }
 
 // set Advertisement reference in related ForeignCluster
-func (r *AdvertisementReconciler) UpdateForeignCluster(adv *protocolv1.Advertisement) (error, bool) {
+func (r *AdvertisementReconciler) UpdateForeignCluster(adv *advtypes.Advertisement) (error, bool) {
 	tmp, err := r.DiscoveryClient.Resource("foreignclusters").List(metav1.ListOptions{
 		LabelSelector: "cluster-id=" + adv.Spec.ClusterId,
 	})
@@ -216,7 +216,7 @@ func (r *AdvertisementReconciler) UpdateForeignCluster(adv *protocolv1.Advertise
 }
 
 // check if the advertisement is interesting and set its status accordingly
-func (r *AdvertisementReconciler) CheckAdvertisement(adv *protocolv1.Advertisement) {
+func (r *AdvertisementReconciler) CheckAdvertisement(adv *advtypes.Advertisement) {
 	// if announced resources are negative, always refuse the Adv
 	for _, v := range adv.Spec.ResourceQuota.Hard {
 		if v.Value() < 0 {
@@ -241,7 +241,7 @@ func (r *AdvertisementReconciler) CheckAdvertisement(adv *protocolv1.Advertiseme
 	}
 }
 
-func (r *AdvertisementReconciler) UpdateAdvertisement(adv *protocolv1.Advertisement) {
+func (r *AdvertisementReconciler) UpdateAdvertisement(adv *advtypes.Advertisement) {
 	if adv.Status.AdvertisementStatus == AdvertisementAccepted {
 		metav1.SetMetaDataAnnotation(&adv.ObjectMeta, "advertisementStatus", "accepted")
 		r.recordEvent("Advertisement "+adv.Name+" accepted", "Normal", "AdvertisementAccepted", adv)
@@ -254,7 +254,7 @@ func (r *AdvertisementReconciler) UpdateAdvertisement(adv *protocolv1.Advertisem
 	}
 }
 
-func (r *AdvertisementReconciler) createVirtualKubelet(ctx context.Context, adv *protocolv1.Advertisement) error {
+func (r *AdvertisementReconciler) createVirtualKubelet(ctx context.Context, adv *advtypes.Advertisement) error {
 
 	name := "liqo-" + adv.Spec.ClusterId
 	// Create the base resources
@@ -297,7 +297,7 @@ func (r *AdvertisementReconciler) createVirtualKubelet(ctx context.Context, adv 
 
 	r.recordEvent("launching virtual-kubelet for cluster "+adv.Spec.ClusterId, "Normal", "VkCreated", adv)
 	adv.Status.VkCreated = true
-	adv.Status.VkReference = object_references.DeploymentReference{
+	adv.Status.VkReference = objectreferences.DeploymentReference{
 		Namespace: deploy.Namespace,
 		Name:      deploy.Name,
 	}
@@ -307,13 +307,13 @@ func (r *AdvertisementReconciler) createVirtualKubelet(ctx context.Context, adv 
 	return nil
 }
 
-func (r *AdvertisementReconciler) recordEvent(msg string, eventType string, eventReason string, adv *protocolv1.Advertisement) {
+func (r *AdvertisementReconciler) recordEvent(msg string, eventType string, eventReason string, adv *advtypes.Advertisement) {
 	klog.Info(msg)
 	r.EventsRecorder.Event(adv, eventType, eventReason, msg)
 }
 
 func (r *AdvertisementReconciler) cleanOldAdvertisements() {
-	var advList protocolv1.AdvertisementList
+	var advList advtypes.AdvertisementList
 	// every 10 minutes list advertisements and deletes the expired ones
 	for {
 		if err := r.Client.List(context.Background(), &advList, &client.ListOptions{}); err != nil {
@@ -334,14 +334,14 @@ func (r *AdvertisementReconciler) cleanOldAdvertisements() {
 	}
 }
 
-func (r *AdvertisementReconciler) checkClusterStatus(adv protocolv1.Advertisement) error {
+func (r *AdvertisementReconciler) checkClusterStatus(adv advtypes.Advertisement) error {
 	// get the kubeconfig provided by the foreign cluster
 	remoteKubeconfig, err := r.AdvClient.Client().CoreV1().Secrets(adv.Spec.KubeConfigRef.Namespace).Get(context.Background(), adv.Spec.KubeConfigRef.Name, metav1.GetOptions{})
 	if err != nil {
 		return err
 	}
 
-	remoteClient, err := protocolv1.CreateAdvertisementClient("", remoteKubeconfig)
+	remoteClient, err := advtypes.CreateAdvertisementClient("", remoteKubeconfig)
 	if err != nil {
 		return err
 	}

@@ -1,7 +1,7 @@
 package kubernetes
 
 import (
-	protocolv1 "github.com/liqoTech/liqo/api/advertisement-operator/v1"
+	advtypes "github.com/liqoTech/liqo/api/sharing/v1alpha1"
 	nattingv1 "github.com/liqoTech/liqo/api/virtualKubelet/v1alpha1"
 	"github.com/liqoTech/liqo/internal/node"
 	"github.com/liqoTech/liqo/pkg/crdClient"
@@ -56,7 +56,7 @@ func NewKubernetesProvider(nodeName, clusterId, homeClusterId, operatingSystem s
 		return nil, err
 	}
 
-	advClient, err := protocolv1.CreateAdvertisementClient(kubeconfig, nil)
+	advClient, err := advtypes.CreateAdvertisementClient(kubeconfig, nil)
 	if err != nil {
 		return nil, err
 	}

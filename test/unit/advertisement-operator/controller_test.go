@@ -1,9 +1,9 @@
 package advertisement_operator
 
 import (
-	v1 "github.com/liqoTech/liqo/api/advertisement-operator/v1"
 	policyv1 "github.com/liqoTech/liqo/api/cluster-config/v1"
-	advcontroller "github.com/liqoTech/liqo/internal/advertisement-operator"
+	advtypes "github.com/liqoTech/liqo/api/sharing/v1alpha1"
+	advop "github.com/liqoTech/liqo/internal/advertisement-operator"
 	"github.com/liqoTech/liqo/pkg/crdClient"
 	"github.com/stretchr/testify/assert"
 	v12 "k8s.io/api/core/v1"
@@ -12,17 +12,17 @@ import (
 	"testing"
 )
 
-func createReconciler(acceptedAdv, maxAcceptableAdv int32, acceptPolicy policyv1.AcceptPolicy) advcontroller.AdvertisementReconciler {
+func createReconciler(acceptedAdv, maxAcceptableAdv int32, acceptPolicy policyv1.AcceptPolicy) advop.AdvertisementReconciler {
 	c, evRecorder := createFakeKubebuilderClient()
 	// set the client in fake mode
 	crdClient.Fake = true
 	// create fake client for the home cluster
-	advClient, err := v1.CreateAdvertisementClient("", nil)
+	advClient, err := advtypes.CreateAdvertisementClient("", nil)
 	if err != nil {
 		panic(err)
 	}
 
-	return advcontroller.AdvertisementReconciler{
+	return advop.AdvertisementReconciler{
 		Client:           c,
 		Scheme:           nil,
 		EventsRecorder:   evRecorder,
@@ -61,7 +61,7 @@ func testAutoAcceptWithinMaximum(t *testing.T) {
 	for i := 10; i < 15; i++ {
 		adv := createFakeAdv("cluster-"+strconv.Itoa(i), "default")
 		r.CheckAdvertisement(adv)
-		assert.Equal(t, advcontroller.AdvertisementRefused, adv.Status.AdvertisementStatus)
+		assert.Equal(t, advop.AdvertisementRefused, adv.Status.AdvertisementStatus)
 	}
 	// check that the Adv counter has not been modified
 	assert.Equal(t, int32(10), r.AcceptedAdvNum)
@@ -74,7 +74,7 @@ func testManualAccept(t *testing.T) {
 	for i := 0; i < 5; i++ {
 		adv := createFakeAdv("cluster-"+strconv.Itoa(i), "default")
 		r.CheckAdvertisement(adv)
-		assert.Equal(t, advcontroller.AdvertisementRefused, adv.Status.AdvertisementStatus)
+		assert.Equal(t, advop.AdvertisementRefused, adv.Status.AdvertisementStatus)
 	}
 	// check that the Adv counter has not been incremented
 	assert.Equal(t, int32(0), r.AcceptedAdvNum)
@@ -93,7 +93,7 @@ func testRefuseInvalidAdvertisement(t *testing.T) {
 		}
 		adv := createFakeInvalidAdv("cluster-"+strconv.Itoa(i), "default", quota)
 		r.CheckAdvertisement(adv)
-		assert.Equal(t, advcontroller.AdvertisementRefused, adv.Status.AdvertisementStatus)
+		assert.Equal(t, advop.AdvertisementRefused, adv.Status.AdvertisementStatus)
 	}
 	// check that the Adv counter has not been incremented
 	assert.Equal(t, int32(0), r.AcceptedAdvNum)

@@ -1,7 +1,7 @@
 package advertisement_operator
 
 import (
-	protocolv1 "github.com/liqoTech/liqo/api/advertisement-operator/v1"
+	advtypes "github.com/liqoTech/liqo/api/sharing/v1alpha1"
 	appsv1 "k8s.io/api/apps/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/klog"
@@ -21,7 +21,7 @@ func GetOwnerReference(object interface{}) []metav1.OwnerReference {
 				UID:        obj.UID,
 			},
 		}
-	case *protocolv1.Advertisement:
+	case *advtypes.Advertisement:
 		ownerRef = []metav1.OwnerReference{
 			{
 				APIVersion: obj.APIVersion,

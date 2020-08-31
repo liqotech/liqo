@@ -28,7 +28,7 @@ After that it is sent through the VPN tunnel and reaches the remote cluster gate
 ![](/images/liqonet/liqonet_workflow.png)
 
 The initialization network connection between two cluster goes through the following steps:
-1. a `protocol.liqo.io` custom resource called **Advertisement** is created in the local cluster by peering cluster;
+1. a `sharing.liqo.io` custom resource called **Advertisement** is created in the local cluster by peering cluster;
 2. the tunnelEndpointCreator reacts and from this **Advertisement** derives a **TunnelEndpoint** custom resource of type `liqonet.liqo.io`;
 3. the IPAM embedded in the tunnelEndpointCreator resolves possible conflicts between the subnet used in the local cluster and the pod CIDR used by the peering cluster;
 4. the Remote Watcher on the peering cluster checks the **TunnelEndpoint CR** on the local cluster if the NAT is enabled and updates the **CR** on the peering cluster accordingly;

@@ -2,8 +2,8 @@ package schedulingNodeOperator
 
 import (
 	"context"
-	advv1 "github.com/liqoTech/liqo/api/advertisement-operator/v1"
 	"github.com/liqoTech/liqo/api/scheduling/v1alpha1"
+	advtypes "github.com/liqoTech/liqo/api/sharing/v1alpha1"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/types"
@@ -73,7 +73,7 @@ func (r *SchedulingNodeReconciler) createSchedulingNode(ctx context.Context, nod
 }
 
 func (r *SchedulingNodeReconciler) setNeighborsFromAdv(sn *v1alpha1.SchedulingNode, ctx context.Context, node corev1.Node) error {
-	var adv advv1.Advertisement
+	var adv advtypes.Advertisement
 
 	namespacedNodeName := types.NamespacedName{
 		Name:      strings.Join([]string{"advertisement", node.Annotations["cluster-id"]}, "-"),

@@ -3,7 +3,7 @@ package advertisement_operator
 import (
 	"os"
 
-	protocolv1 "github.com/liqoTech/liqo/api/advertisement-operator/v1"
+	advtypes "github.com/liqoTech/liqo/api/sharing/v1alpha1"
 
 	v1 "k8s.io/api/core/v1"
 	k8sruntime "k8s.io/apimachinery/pkg/runtime"
@@ -76,7 +76,7 @@ func NewCRDClient(path string, cm *v1.ConfigMap, sec *v1.Secret) (client.Client,
 
 	scheme := k8sruntime.NewScheme()
 	_ = clientgoscheme.AddToScheme(scheme)
-	_ = protocolv1.AddToScheme(scheme)
+	_ = advtypes.AddToScheme(scheme)
 
 	remoteClient, err := client.New(config, client.Options{
 		Scheme: scheme,

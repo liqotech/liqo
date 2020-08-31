@@ -11,7 +11,7 @@ else
 GOBIN=$(shell go env GOBIN)
 endif
 
-all: manager
+all: generate fmt vet
 
 # Run tests
 test: generate fmt vet manifests
@@ -27,20 +27,15 @@ run: generate fmt vet manifests
 
 # Install CRDs into a cluster
 install: manifests
-	kubectl kustomize config/advertisement-operator/crd | kubectl apply -f -
+	kubectl apply -f deployments/liqo_chart/crds/sharing.liqo.io_advertisements
 
 # Uninstall CRDs from a cluster
 uninstall: manifests
-	kubectl kustomize config/advertisement-operator/crd | kubectl delete -f -
-
-# Deploy controller in the configured Kubernetes cluster in ~/.kube/config
-deploy: manifests
-	cd config/advertisement-operator/manager && kustomize edit set image controller=${IMG}
-	kubectl kustomize config/advertisement-operator/default | kubectl apply -f -
+	kubectl delete -f deployments/liqo_chart/crds/sharing.liqo.io_advertisements
 
 # Generate manifests e.g. CRD, RBAC etc.
 manifests: controller-gen
-	$(CONTROLLER_GEN) $(CRD_OPTIONS) paths="./api/advertisement-operator/v1" output:crd:artifacts:config=config/advertisement-operator/crd/bases
+	$(CONTROLLER_GEN) $(CRD_OPTIONS) paths="./api/sharing/v1alpha1" output:crd:artifacts:config=deployments/liqo_chart/crds
 
 # Run go fmt against code
 fmt:
@@ -52,7 +47,7 @@ vet:
 
 # Generate code
 generate: controller-gen
-	$(CONTROLLER_GEN) object:headerFile=./hack/boilerplate.go.txt paths="./..."
+	$(CONTROLLER_GEN) object:headerFile=./hack/boilerplate.go.txt paths="./api/sharing/v1alpha1"
 
 # Build the docker image
 docker-build: test

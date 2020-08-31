@@ -284,7 +284,7 @@ func TestUpdateConfiguration(t *testing.T) {
 }
 
 func TestGetTunEndPerADV(t *testing.T) {
-	//during the set up of the environment a custom resource of type advertisement.protocol.liqo.io
+	//during the set up of the environment a custom resource of type advertisement.sharing.liqo.io
 	//have been created. Here we test that given an advertisement we can retrieve the associated
 	//custom resource of type tunnelEndpoint.liqonet.liqo.io
 	var err error
@@ -302,7 +302,7 @@ func TestGetTunEndPerADV(t *testing.T) {
 }
 
 func TestCreateTunEndpoint(t *testing.T) {
-	//testing that given a custom resource of type advertisement.protocol.liqo.io
+	//testing that given a custom resource of type advertisement.sharing.liqo.io
 	//a custom resource of type tunnelendpoint.liqonet.liqo.io is created and all the
 	//associated fields are correct
 	var tep v1.TunnelEndpoint
@@ -321,7 +321,7 @@ func TestCreateTunEndpoint(t *testing.T) {
 }
 
 func TestUpdateTunEndpoint(t *testing.T) {
-	//test1: given an advertisement.protocol.liqo.io custom resource which carries a network configuration
+	//test1: given an advertisement.sharing.liqo.io custom resource which carries a network configuration
 	//for a remote cluster that does not have conflicts with the local network configuration
 	//then the .Status.RemoteRemappedPodCIDR should be set to "None" value
 	adv := getAdv()
@@ -350,7 +350,7 @@ func TestUpdateTunEndpoint(t *testing.T) {
 	assert.NotEqual(t, "", tep.Status.RemoteRemappedPodCIDR, "the remoteremappedPodCIDR should be set to a value different than empty string")
 	assert.Equal(t, "New", tep.Status.Phase, "the phase field in status should be New")
 
-	//test3: we update the status of an existing advertisement.protocol.liqo.io
+	//test3: we update the status of an existing advertisement.sharing.liqo.io
 	//setting the Status.LocalRemappedPodCIDR field to a correct value
 	//we expect that this value is set also in the status of tunnelendpoint.liqonet.liqo.io custom resource
 	//associated to the previously updated advertisement.
@@ -372,7 +372,7 @@ func TestUpdateTunEndpoint(t *testing.T) {
 }
 
 func TestDeleteTunEndpoint(t *testing.T) {
-	//testing that after a advertisement.protocol.liqo.io custom resource is
+	//testing that after a advertisement.sharing.liqo.io custom resource is
 	//deleted than the associated tunnelendpoint.liqonet.liqo.io custom resource is
 	//deleted aswell
 	adv := getAdv()

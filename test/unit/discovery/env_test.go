@@ -2,9 +2,9 @@ package discovery
 
 import (
 	"context"
-	protocolv1 "github.com/liqoTech/liqo/api/advertisement-operator/v1"
 	policyv1 "github.com/liqoTech/liqo/api/cluster-config/v1"
 	v1 "github.com/liqoTech/liqo/api/discovery/v1"
+	advtypes "github.com/liqoTech/liqo/api/sharing/v1alpha1"
 	"github.com/liqoTech/liqo/internal/discovery"
 	foreign_cluster_operator "github.com/liqoTech/liqo/internal/discovery/foreign-cluster-operator"
 	search_domain_operator "github.com/liqoTech/liqo/internal/discovery/search-domain-operator"
@@ -177,15 +177,15 @@ func getCluster() (*Cluster, manager.Manager) {
 	cluster.cfg.UserAgent = rest.DefaultKubernetesUserAgent()
 
 	advCfg := *cluster.cfg
-	advCfg.ContentConfig.GroupVersion = &protocolv1.GroupVersion
-	crdClient.AddToRegistry("advertisements", &protocolv1.Advertisement{}, &protocolv1.AdvertisementList{}, nil, protocolv1.GroupResource)
+	advCfg.ContentConfig.GroupVersion = &advtypes.GroupVersion
+	crdClient.AddToRegistry("advertisements", &advtypes.Advertisement{}, &advtypes.AdvertisementList{}, nil, advtypes.GroupResource)
 
 	err = v1.AddToScheme(scheme.Scheme)
 	if err != nil {
 		klog.Error(err, err.Error())
 		os.Exit(1)
 	}
-	err = protocolv1.AddToScheme(scheme.Scheme)
+	err = advtypes.AddToScheme(scheme.Scheme)
 	if err != nil {
 		klog.Error(err, err.Error())
 		os.Exit(1)

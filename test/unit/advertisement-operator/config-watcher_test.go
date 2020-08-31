@@ -2,9 +2,9 @@ package advertisement_operator
 
 import (
 	"context"
-	advv1 "github.com/liqoTech/liqo/api/advertisement-operator/v1"
 	policyv1 "github.com/liqoTech/liqo/api/cluster-config/v1"
-	advcontroller "github.com/liqoTech/liqo/internal/advertisement-operator"
+	advtypes "github.com/liqoTech/liqo/api/sharing/v1alpha1"
+	advop "github.com/liqoTech/liqo/internal/advertisement-operator"
 	"github.com/stretchr/testify/assert"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -82,7 +82,7 @@ func testModifySharingPercentage(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	adv2 := tmp.(*advv1.Advertisement)
+	adv2 := tmp.(*advtypes.Advertisement)
 	cpu2 := adv2.Spec.ResourceQuota.Hard.Cpu().Value()
 	mem2 := adv2.Spec.ResourceQuota.Hard.Memory().Value()
 	assert.Less(t, cpu2, cpu)
@@ -124,8 +124,8 @@ func testDisableBroadcaster(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	adv2 := tmp.(*advv1.Advertisement)
-	assert.Equal(t, advcontroller.AdvertisementDeleting, adv2.Status.AdvertisementStatus)
+	adv2 := tmp.(*advtypes.Advertisement)
+	assert.Equal(t, advop.AdvertisementDeleting, adv2.Status.AdvertisementStatus)
 }
 
 func TestWatchAdvOperatorConfig(t *testing.T) {
@@ -134,8 +134,8 @@ func TestWatchAdvOperatorConfig(t *testing.T) {
 
 func testManageMaximumUpdate(t *testing.T) {
 	r := createReconciler(0, 10, policyv1.AutoAcceptWithinMaximum)
-	advList := advv1.AdvertisementList{
-		Items: []advv1.Advertisement{},
+	advList := advtypes.AdvertisementList{
+		Items: []advtypes.Advertisement{},
 	}
 
 	advCount := 15
@@ -175,7 +175,7 @@ func testManageMaximumUpdate(t *testing.T) {
 	assert.Equal(t, config.Spec.AdvertisementConfig, r.ClusterConfig)
 	assert.Equal(t, int32(advCount), r.AcceptedAdvNum)
 	for _, adv := range advToUpdate.Items {
-		assert.Equal(t, advcontroller.AdvertisementAccepted, adv.Status.AdvertisementStatus)
+		assert.Equal(t, advop.AdvertisementAccepted, adv.Status.AdvertisementStatus)
 		r.UpdateAdvertisement(&adv)
 	}
 
