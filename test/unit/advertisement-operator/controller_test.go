@@ -43,13 +43,13 @@ func createReconciler(acceptedAdv, maxAcceptableAdv int32, acceptPolicy configv1
 }
 
 func TestCheckAdvertisement(t *testing.T) {
-	t.Run("testAutoAcceptWithinMaximum", testAutoAcceptWithinMaximum)
+	t.Run("testAutoAcceptMax", testAutoAcceptMax)
 	t.Run("testManualAccept", testManualAccept)
 	t.Run("testRefuseInvalidAdvertisement", testRefuseInvalidAdvertisement)
 }
 
-func testAutoAcceptWithinMaximum(t *testing.T) {
-	r := createReconciler(0, 10, configv1alpha1.AutoAcceptWithinMaximum)
+func testAutoAcceptMax(t *testing.T) {
+	r := createReconciler(0, 10, configv1alpha1.AutoAcceptMax)
 
 	// given a configuration with max 10 Advertisements, create 10 Advertisements
 	for i := 0; i < 10; i++ {
@@ -81,7 +81,7 @@ func testManualAccept(t *testing.T) {
 }
 
 func testRefuseInvalidAdvertisement(t *testing.T) {
-	r := createReconciler(0, 10, configv1alpha1.AutoAcceptWithinMaximum)
+	r := createReconciler(0, 10, configv1alpha1.AutoAcceptMax)
 
 	// create 5 advertisements with negative values in ResourceQuota field and check they are refused
 	for i := 1; i <= 5; i++ {

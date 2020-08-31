@@ -1,4 +1,4 @@
-package advertisement_operator
+package advertisementOperator
 
 import (
 	"context"

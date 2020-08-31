@@ -166,7 +166,7 @@ func getClusterConfig() *configv1alpha1.ClusterConfig {
 		Spec: configv1alpha1.ClusterConfigSpec{
 			AdvertisementConfig: configv1alpha1.AdvertisementConfig{
 				IngoingConfig: configv1alpha1.AdvOperatorConfig{
-					AcceptPolicy:               configv1alpha1.AutoAcceptWithinMaximum,
+					AcceptPolicy:               configv1alpha1.AutoAcceptMax,
 					MaxAcceptableAdvertisement: 5,
 				},
 				OutgoingConfig: configv1alpha1.BroadcasterConfig{

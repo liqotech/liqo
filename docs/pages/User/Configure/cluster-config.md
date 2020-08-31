@@ -18,9 +18,10 @@ and the parameters for the [keepalive check](#keepalive-check):
   - `enableBroadcaster` flag allows you to enable/disable the broadcasting of your Advertisement to the foreign clusters your cluster knows
   - `resourceSharingPercentage` defines the percentage of your cluster resources that you will share with other clusters
 * **IngoingConfig** defines the behaviour for the acceptance of Advertisements from other clusters.
-  - `maxAcceptableAdvertisement` defines the maximum number of Advertisements that can be accepted.
+  - `maxAcceptableAdvertisement` defines the maximum number of Advertisements that can be accepted over time
   - `acceptPolicy` defines the policy to accept or refuse a new Advertisement from a foreign cluster. The possible policies are:
-    - `AutoAcceptWthinMaximum`: every Advertisement is automatically checked considering the configured maximum.
+    - `AutoAcceptMax`: every Advertisement is automatically checked considering the configured maximum; 
+    AutoAcceptAll policy can be achieved by setting MaxAcceptableAdvertisement to 1000000, a symbolic value representing infinite; AutoRefuseAll can be achieved by setting MaxAcceptableAdvertisement to 0
     - `ManualAccept`: every Advertisement needs to be manually accepted or refused; this mode is not implemented yet.
 
 ### Keepalive check
