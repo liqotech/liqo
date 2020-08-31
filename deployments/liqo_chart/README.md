@@ -54,4 +54,3 @@ Current chart version is `0.1.0`
 | liqodash_chart.enabled | bool | `true` |  |
 | liqodash_chart.image.pullPolicy | string | `"IfNotPresent"` |  |
 | liqodash_chart.image.repository | string | `"liqo/dashboard"` |  |
-| global.apiServerURL | string | `""` |  |

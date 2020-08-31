@@ -97,6 +97,5 @@ crdReplicator_chart:
 
 global:
   configmapName: "liqo-configmap"
-  apiServerURL: ""
   suffix: ""
   version: ""

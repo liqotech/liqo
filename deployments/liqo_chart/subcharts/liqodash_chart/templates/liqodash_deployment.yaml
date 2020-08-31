@@ -8,17 +8,16 @@ data:
   oidc_provider_url: ""
   oidc_client_secret: ""
   oidc_redirect_uri: ""
-  apiserver_url: {{ .Values.global.apiServerURL }}
 
 ---
 
 apiVersion: apps/v1
 kind: Deployment
 metadata:
+  namespace: {{ .Release.Namespace }}
   labels:
     app: liqo-dashboard
   name: liqo-dashboard
-  namespace: {{ .Release.Namespace }}
 spec:
   replicas: 1
   selector:
@@ -29,8 +28,22 @@ spec:
       labels:
         app: liqo-dashboard
     spec:
+      volumes:
+        - name: shared-data
+          emptyDir: { }
+      initContainers:
+        - name: proxy-cert
+          image: nginx
+          volumeMounts:
+            - name: shared-data
+              mountPath: /etc/nginx/ssl/
+          command: [ "/bin/sh" ]
+          args: [ "-c", 'openssl req -x509 -subj "/C=IT/ST=Turin/O=Liqo" -nodes -days 365 -newkey rsa:2048 -keyout /etc/nginx/ssl/nginx.key -out /etc/nginx/ssl/nginx.cert' ]
       containers:
-        - image: {{ .Values.image.repository }}{{ .Values.global.suffix | default .Values.suffix }}:{{ .Values.version }}
+        - image: {{ .Values.image.repository }}:{{ .Values.version }}
+          volumeMounts:
+            - name: shared-data
+              mountPath: /etc/nginx/ssl/
           imagePullPolicy: {{ .Values.image.pullPolicy }}
           name: liqo-dashboard
           ports:
@@ -58,11 +71,6 @@ spec:
                 configMapKeyRef:
                   name: liqo-dashboard-configmap
                   key: oidc_redirect_uri
-            - name: APISERVER_URL
-              valueFrom:
-                configMapKeyRef:
-                  name: liqo-dashboard-configmap
-                  key: apiserver_url  
 
 ---
 
@@ -78,10 +86,10 @@ spec:
   selector:
     app: liqo-dashboard
   ports:
-    - name: http
+    - name: https
       protocol: TCP
-      port: 80
-      targetPort: 80
+      port: 443
+      targetPort: 443
 
 ---
 
