@@ -19,7 +19,7 @@ package foreign_cluster_operator
 import (
 	"context"
 	goerrors "errors"
-	discoveryv1 "github.com/liqoTech/liqo/api/discovery/v1"
+	discoveryv1alpha1 "github.com/liqoTech/liqo/api/discovery/v1alpha1"
 	advtypes "github.com/liqoTech/liqo/api/sharing/v1alpha1"
 	"github.com/liqoTech/liqo/internal/discovery"
 	"github.com/liqoTech/liqo/internal/discovery/kubeconfig"
@@ -65,7 +65,7 @@ func (r *ForeignClusterReconciler) Reconcile(req ctrl.Request) (ctrl.Result, err
 		// TODO: has been removed
 		return ctrl.Result{}, nil
 	}
-	fc, ok := tmp.(*discoveryv1.ForeignCluster)
+	fc, ok := tmp.(*discoveryv1alpha1.ForeignCluster)
 	if !ok {
 		klog.Error("created object is not a ForeignCluster")
 		return ctrl.Result{
@@ -151,7 +151,7 @@ func (r *ForeignClusterReconciler) Reconcile(req ctrl.Request) (ctrl.Result, err
 			fc.Status.Incoming.Joined = false
 			requireUpdate = true
 		} else if err == nil {
-			pr, ok := tmp.(*discoveryv1.PeeringRequest)
+			pr, ok := tmp.(*discoveryv1alpha1.PeeringRequest)
 			if !ok {
 				err = goerrors.New("retrieved object is not a PeeringRequest")
 				klog.Error(err)
@@ -188,7 +188,7 @@ func (r *ForeignClusterReconciler) Reconcile(req ctrl.Request) (ctrl.Result, err
 	}
 
 	// if it has been discovered thanks to incoming peeringRequest and it has no active connections, delete it
-	if fc.Spec.DiscoveryType == discoveryv1.IncomingPeeringDiscovery && fc.Status.Incoming.PeeringRequest == nil && fc.Status.Outgoing.Advertisement == nil {
+	if fc.Spec.DiscoveryType == discoveryv1alpha1.IncomingPeeringDiscovery && fc.Status.Incoming.PeeringRequest == nil && fc.Status.Outgoing.Advertisement == nil {
 		err = r.crdClient.Resource("foreignclusters").Delete(fc.Name, metav1.DeleteOptions{})
 		if err != nil {
 			klog.Error(err, err.Error())
@@ -241,7 +241,7 @@ func (r *ForeignClusterReconciler) Reconcile(req ctrl.Request) (ctrl.Result, err
 			RequeueAfter: r.RequeueAfter,
 		}, err
 	}
-	foreignConfig.GroupVersion = &discoveryv1.GroupVersion
+	foreignConfig.GroupVersion = &discoveryv1alpha1.GroupVersion
 	foreignDiscoveryClient, err := crdClient.NewFromConfig(foreignConfig)
 	if err != nil {
 		klog.Error(err, err.Error())
@@ -333,13 +333,13 @@ func (r *ForeignClusterReconciler) Reconcile(req ctrl.Request) (ctrl.Result, err
 
 func (r *ForeignClusterReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
-		For(&discoveryv1.ForeignCluster{}).
+		For(&discoveryv1alpha1.ForeignCluster{}).
 		Owns(&advtypes.Advertisement{}).
-		Owns(&discoveryv1.PeeringRequest{}).
+		Owns(&discoveryv1alpha1.PeeringRequest{}).
 		Complete(r)
 }
 
-func (r *ForeignClusterReconciler) checkJoined(fc *discoveryv1.ForeignCluster, foreignDiscoveryClient *crdClient.CRDClient) (*discoveryv1.ForeignCluster, error) {
+func (r *ForeignClusterReconciler) checkJoined(fc *discoveryv1alpha1.ForeignCluster, foreignDiscoveryClient *crdClient.CRDClient) (*discoveryv1alpha1.ForeignCluster, error) {
 	_, err := foreignDiscoveryClient.Resource("peeringrequests").Get(fc.Status.Outgoing.RemotePeeringRequestName, metav1.GetOptions{})
 	if err != nil {
 		fc.Status.Outgoing.Joined = false
@@ -349,7 +349,7 @@ func (r *ForeignClusterReconciler) checkJoined(fc *discoveryv1.ForeignCluster, f
 			return nil, err
 		}
 		var ok bool
-		fc, ok = tmp.(*discoveryv1.ForeignCluster)
+		fc, ok = tmp.(*discoveryv1alpha1.ForeignCluster)
 		if !ok {
 			return nil, goerrors.New("updated object is not a ForeignCluster")
 		}
@@ -359,20 +359,20 @@ func (r *ForeignClusterReconciler) checkJoined(fc *discoveryv1.ForeignCluster, f
 
 // this method returns the local setting (about trusting policy, ...) to be sent to the remote cluster
 // to allow it to create its local ForeignCluster with the correct settings
-func (r *ForeignClusterReconciler) getOriginClusterSets() discoveryv1.OriginClusterSets {
+func (r *ForeignClusterReconciler) getOriginClusterSets() discoveryv1alpha1.OriginClusterSets {
 	if r.DiscoveryCtrl.Config == nil {
 		klog.Warning("DiscoveryCtrl Config is not set, by default we are allowing UntrustedCA join")
-		return discoveryv1.OriginClusterSets{
+		return discoveryv1alpha1.OriginClusterSets{
 			AllowUntrustedCA: true,
 		}
 	} else {
-		return discoveryv1.OriginClusterSets{
+		return discoveryv1alpha1.OriginClusterSets{
 			AllowUntrustedCA: r.DiscoveryCtrl.Config.AllowUntrustedCA,
 		}
 	}
 }
 
-func (r *ForeignClusterReconciler) createPeeringRequestIfNotExists(clusterID string, owner *discoveryv1.ForeignCluster, foreignClient *crdClient.CRDClient) (*discoveryv1.PeeringRequest, error) {
+func (r *ForeignClusterReconciler) createPeeringRequestIfNotExists(clusterID string, owner *discoveryv1alpha1.ForeignCluster, foreignClient *crdClient.CRDClient) (*discoveryv1alpha1.PeeringRequest, error) {
 	// get config to send to foreign cluster
 	fConfig, err := r.getForeignConfig(clusterID, owner)
 	if err != nil {
@@ -385,15 +385,15 @@ func (r *ForeignClusterReconciler) createPeeringRequestIfNotExists(clusterID str
 	if err != nil {
 		if errors.IsNotFound(err) {
 			// does not exist
-			pr := &discoveryv1.PeeringRequest{
+			pr := &discoveryv1alpha1.PeeringRequest{
 				TypeMeta: metav1.TypeMeta{
 					Kind:       "PeeringRequest",
-					APIVersion: "discovery.liqo.io/v1",
+					APIVersion: "discovery.liqo.io/v1alpha1",
 				},
 				ObjectMeta: metav1.ObjectMeta{
 					Name: localClusterID,
 				},
-				Spec: discoveryv1.PeeringRequestSpec{
+				Spec: discoveryv1alpha1.PeeringRequestSpec{
 					ClusterID:         localClusterID,
 					Namespace:         r.Namespace,
 					KubeConfigRef:     nil,
@@ -405,7 +405,7 @@ func (r *ForeignClusterReconciler) createPeeringRequestIfNotExists(clusterID str
 				return nil, err
 			}
 			var ok bool
-			pr, ok = tmp.(*discoveryv1.PeeringRequest)
+			pr, ok = tmp.(*discoveryv1alpha1.PeeringRequest)
 			if !ok {
 				return nil, goerrors.New("created object is not a ForeignCluster")
 			}
@@ -414,7 +414,7 @@ func (r *ForeignClusterReconciler) createPeeringRequestIfNotExists(clusterID str
 					Name: "pr-" + clusterID,
 					OwnerReferences: []metav1.OwnerReference{
 						{
-							APIVersion: "discovery.liqo.io/v1",
+							APIVersion: "discovery.liqo.io/v1alpha1",
 							Kind:       "PeeringRequest",
 							Name:       pr.Name,
 							UID:        pr.UID,
@@ -437,12 +437,12 @@ func (r *ForeignClusterReconciler) createPeeringRequestIfNotExists(clusterID str
 				APIVersion: "v1",
 			}
 			pr.TypeMeta.Kind = "PeeringRequest"
-			pr.TypeMeta.APIVersion = "discovery.liqo.io/v1"
+			pr.TypeMeta.APIVersion = "discovery.liqo.io/v1alpha1"
 			tmp, err = foreignClient.Resource("peeringrequests").Update(pr.Name, pr, metav1.UpdateOptions{})
 			if err != nil {
 				return nil, err
 			}
-			pr, ok = tmp.(*discoveryv1.PeeringRequest)
+			pr, ok = tmp.(*discoveryv1alpha1.PeeringRequest)
 			if !ok {
 				return nil, goerrors.New("created object is not a ForeignCluster")
 			}
@@ -452,7 +452,7 @@ func (r *ForeignClusterReconciler) createPeeringRequestIfNotExists(clusterID str
 		return nil, err
 	}
 	// already exists
-	pr, ok := tmp.(*discoveryv1.PeeringRequest)
+	pr, ok := tmp.(*discoveryv1alpha1.PeeringRequest)
 	if !ok {
 		return nil, goerrors.New("retrieved object is not a PeeringRequest")
 	}
@@ -460,7 +460,7 @@ func (r *ForeignClusterReconciler) createPeeringRequestIfNotExists(clusterID str
 }
 
 // this function return a kube-config file to send to foreign cluster and crate everything needed for it
-func (r *ForeignClusterReconciler) getForeignConfig(clusterID string, owner *discoveryv1.ForeignCluster) (string, error) {
+func (r *ForeignClusterReconciler) getForeignConfig(clusterID string, owner *discoveryv1alpha1.ForeignCluster) (string, error) {
 	_, err := r.createClusterRoleIfNotExists(clusterID, owner)
 	if err != nil {
 		return "", err
@@ -516,7 +516,7 @@ func (r *ForeignClusterReconciler) getForeignConfig(clusterID string, owner *dis
 	return cnf, err
 }
 
-func (r *ForeignClusterReconciler) createClusterRoleIfNotExists(clusterID string, owner *discoveryv1.ForeignCluster) (*rbacv1.ClusterRole, error) {
+func (r *ForeignClusterReconciler) createClusterRoleIfNotExists(clusterID string, owner *discoveryv1alpha1.ForeignCluster) (*rbacv1.ClusterRole, error) {
 	role, err := r.crdClient.Client().RbacV1().ClusterRoles().Get(context.TODO(), clusterID, metav1.GetOptions{})
 	if errors.IsNotFound(err) {
 		// does not exist
@@ -525,7 +525,7 @@ func (r *ForeignClusterReconciler) createClusterRoleIfNotExists(clusterID string
 				Name: clusterID,
 				OwnerReferences: []metav1.OwnerReference{
 					{
-						APIVersion: "v1",
+						APIVersion: "v1alpha1",
 						Kind:       "ForeignCluster",
 						Name:       owner.Name,
 						UID:        owner.UID,
@@ -549,7 +549,7 @@ func (r *ForeignClusterReconciler) createClusterRoleIfNotExists(clusterID string
 	}
 }
 
-func (r *ForeignClusterReconciler) createServiceAccountIfNotExists(clusterID string, owner *discoveryv1.ForeignCluster) (*apiv1.ServiceAccount, error) {
+func (r *ForeignClusterReconciler) createServiceAccountIfNotExists(clusterID string, owner *discoveryv1alpha1.ForeignCluster) (*apiv1.ServiceAccount, error) {
 	sa, err := r.crdClient.Client().CoreV1().ServiceAccounts(r.Namespace).Get(context.TODO(), clusterID, metav1.GetOptions{})
 	if errors.IsNotFound(err) {
 		// does not exist
@@ -558,7 +558,7 @@ func (r *ForeignClusterReconciler) createServiceAccountIfNotExists(clusterID str
 				Name: clusterID,
 				OwnerReferences: []metav1.OwnerReference{
 					{
-						APIVersion: "v1",
+						APIVersion: "v1alpha1",
 						Kind:       "ForeignCluster",
 						Name:       owner.Name,
 						UID:        owner.UID,
@@ -575,7 +575,7 @@ func (r *ForeignClusterReconciler) createServiceAccountIfNotExists(clusterID str
 	}
 }
 
-func (r *ForeignClusterReconciler) createClusterRoleBindingIfNotExists(clusterID string, owner *discoveryv1.ForeignCluster) (*rbacv1.ClusterRoleBinding, error) {
+func (r *ForeignClusterReconciler) createClusterRoleBindingIfNotExists(clusterID string, owner *discoveryv1alpha1.ForeignCluster) (*rbacv1.ClusterRoleBinding, error) {
 	rb, err := r.crdClient.Client().RbacV1().ClusterRoleBindings().Get(context.TODO(), clusterID, metav1.GetOptions{})
 	if errors.IsNotFound(err) {
 		// does not exist
@@ -584,7 +584,7 @@ func (r *ForeignClusterReconciler) createClusterRoleBindingIfNotExists(clusterID
 				Name: clusterID,
 				OwnerReferences: []metav1.OwnerReference{
 					{
-						APIVersion: "v1",
+						APIVersion: "v1alpha1",
 						Kind:       "ForeignCluster",
 						Name:       owner.Name,
 						UID:        owner.UID,
@@ -655,10 +655,10 @@ func (r *ForeignClusterReconciler) setDispatcherRole(clusterID string, sa *apiv1
 	}
 }
 
-func (r *ForeignClusterReconciler) deleteAdvertisement(fc *discoveryv1.ForeignCluster) error {
+func (r *ForeignClusterReconciler) deleteAdvertisement(fc *discoveryv1alpha1.ForeignCluster) error {
 	return fc.DeleteAdvertisement(r.advertisementClient)
 }
 
-func (r *ForeignClusterReconciler) deletePeeringRequest(foreignClient *crdClient.CRDClient, fc *discoveryv1.ForeignCluster) error {
+func (r *ForeignClusterReconciler) deletePeeringRequest(foreignClient *crdClient.CRDClient, fc *discoveryv1alpha1.ForeignCluster) error {
 	return foreignClient.Resource("peeringrequests").Delete(fc.Status.Outgoing.RemotePeeringRequestName, metav1.DeleteOptions{})
 }

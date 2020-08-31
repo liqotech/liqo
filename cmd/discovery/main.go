@@ -2,7 +2,7 @@ package main
 
 import (
 	"flag"
-	discoveryv1 "github.com/liqoTech/liqo/api/discovery/v1"
+	discoveryv1alpha1 "github.com/liqoTech/liqo/api/discovery/v1alpha1"
 	advtypes "github.com/liqoTech/liqo/api/sharing/v1alpha1"
 	"github.com/liqoTech/liqo/internal/discovery"
 	foreign_cluster_operator "github.com/liqoTech/liqo/internal/discovery/foreign-cluster-operator"
@@ -23,7 +23,7 @@ var (
 
 func init() {
 	_ = clientgoscheme.AddToScheme(scheme)
-	_ = discoveryv1.AddToScheme(scheme)
+	_ = discoveryv1alpha1.AddToScheme(scheme)
 	_ = advtypes.AddToScheme(scheme)
 	// +kubebuilder:scaffold:scheme
 }

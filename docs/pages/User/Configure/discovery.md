@@ -112,7 +112,7 @@ This process can be triggered by telling Liqo which domain to look for. We can d
 Create a new file (`mydomain.yaml`) with this content:
 
 ```yaml
-apiVersion: discovery.liqo.io/v1
+apiVersion: discovery.liqo.io/v1alpha1
 kind: SearchDomain
 metadata:
   name: mydomain.com
@@ -143,7 +143,7 @@ kubectl get configmap cluster-id -n <LiqoNamespace>
 Copy your foreign `clusterID` inside a new `ForeignCluster` CR and fill `namespace` and `apiUrl` fields:
 
 ```yaml
-apiVersion: discovery.liqo.io/v1
+apiVersion: discovery.liqo.io/v1alpha1
 kind: ForeignCluster
 metadata:
   name: foreign-cluster

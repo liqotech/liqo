@@ -52,7 +52,7 @@ webhooks:
     rules:
       - operations: [ "CREATE" ]
         apiGroups: ["discovery.liqo.io"]
-        apiVersions: ["v1"]
+        apiVersions: ["v1alpha1"]
         resources: ["peeringrequests"]
     admissionReviewVersions: ["v1"]
     sideEffects: None

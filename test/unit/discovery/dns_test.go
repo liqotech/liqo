@@ -1,7 +1,7 @@
 package discovery
 
 import (
-	v1 "github.com/liqoTech/liqo/api/discovery/v1"
+	"github.com/liqoTech/liqo/api/discovery/v1alpha1"
 	"github.com/liqoTech/liqo/internal/discovery"
 	search_domain_operator "github.com/liqoTech/liqo/internal/discovery/search-domain-operator"
 	"gotest.tools/assert"
@@ -84,19 +84,19 @@ func testCname(t *testing.T) {
 func testSDCreation(t *testing.T) {
 	tmp, err := clientCluster.client.Resource("foreignclusters").List(metav1.ListOptions{})
 	assert.NilError(t, err, "Error listing ForeignClusters")
-	fcs, ok := tmp.(*v1.ForeignClusterList)
+	fcs, ok := tmp.(*v1alpha1.ForeignClusterList)
 	assert.Equal(t, ok, true)
 	l := len(fcs.Items)
 
-	sd := &v1.SearchDomain{
+	sd := &v1alpha1.SearchDomain{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: "test-domain",
 		},
-		Spec: v1.SearchDomainSpec{
+		Spec: v1alpha1.SearchDomainSpec{
 			Domain:   registryDomain,
 			AutoJoin: false,
 		},
-		Status: v1.SearchDomainStatus{
+		Status: v1alpha1.SearchDomainStatus{
 			ForeignClusters: []v12.ObjectReference{},
 		},
 	}
@@ -107,13 +107,13 @@ func testSDCreation(t *testing.T) {
 
 	tmp, err = clientCluster.client.Resource("searchdomains").List(metav1.ListOptions{})
 	assert.NilError(t, err)
-	sds, ok := tmp.(*v1.SearchDomainList)
+	sds, ok := tmp.(*v1alpha1.SearchDomainList)
 	assert.Equal(t, ok, true)
 	assert.Equal(t, len(sds.Items), 1, "SearchDomain not created")
 
 	tmp, err = clientCluster.client.Resource("foreignclusters").List(metav1.ListOptions{})
 	assert.NilError(t, err, "Error listing ForeignClusters")
-	fcs, ok = tmp.(*v1.ForeignClusterList)
+	fcs, ok = tmp.(*v1alpha1.ForeignClusterList)
 	assert.Equal(t, ok, true)
 	l2 := len(fcs.Items)
 	assert.Assert(t, l2-l == 2, "Foreign Cluster was not created")
@@ -124,12 +124,12 @@ func testSDCreation(t *testing.T) {
 func testSDDelete(t *testing.T) {
 	tmp, err := clientCluster.client.Resource("searchdomains").Get("test-domain", metav1.GetOptions{})
 	assert.NilError(t, err)
-	sd, ok := tmp.(*v1.SearchDomain)
+	sd, ok := tmp.(*v1alpha1.SearchDomain)
 	assert.Equal(t, ok, true)
 
 	tmp, err = clientCluster.client.Resource("foreignclusters").List(metav1.ListOptions{})
 	assert.NilError(t, err, "Error listing ForeignClusters")
-	fcs, ok := tmp.(*v1.ForeignClusterList)
+	fcs, ok := tmp.(*v1alpha1.ForeignClusterList)
 	assert.Equal(t, ok, true)
 	l := len(fcs.Items)
 
@@ -140,13 +140,13 @@ func testSDDelete(t *testing.T) {
 
 	tmp, err = clientCluster.client.Resource("searchdomains").List(metav1.ListOptions{})
 	assert.NilError(t, err)
-	sds, ok := tmp.(*v1.SearchDomainList)
+	sds, ok := tmp.(*v1alpha1.SearchDomainList)
 	assert.Equal(t, ok, true)
 	assert.Equal(t, len(sds.Items), 0, "SearchDomain not deleted")
 
 	tmp, err = clientCluster.client.Resource("foreignclusters").List(metav1.ListOptions{})
 	assert.NilError(t, err, "Error listing ForeignClusters")
-	fcs, ok = tmp.(*v1.ForeignClusterList)
+	fcs, ok = tmp.(*v1alpha1.ForeignClusterList)
 	assert.Equal(t, ok, true)
 	l2 := len(fcs.Items)
 	// delete doesn't work on testing, no control plan to delete object with owner reference

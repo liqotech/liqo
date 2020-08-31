@@ -1,7 +1,7 @@
 package advertisement_operator
 
 import (
-	discoveryv1 "github.com/liqoTech/liqo/api/discovery/v1"
+	discoveryv1alpha1 "github.com/liqoTech/liqo/api/discovery/v1alpha1"
 	advtypes "github.com/liqoTech/liqo/api/sharing/v1alpha1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/watch"
@@ -80,7 +80,7 @@ func (b *AdvertisementBroadcaster) saveAdvStatus(adv *advtypes.Advertisement) er
 	if err != nil {
 		return err
 	}
-	pr := tmp.(*discoveryv1.PeeringRequest)
+	pr := tmp.(*discoveryv1alpha1.PeeringRequest)
 
 	// save the advertisement status (ACCEPTED/REFUSED) in the PeeringRequest
 	pr.Status.AdvertisementStatus = adv.Status.AdvertisementStatus

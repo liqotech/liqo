@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 	policyv1 "github.com/liqoTech/liqo/api/cluster-config/v1"
-	discoveryv1 "github.com/liqoTech/liqo/api/discovery/v1"
+	discoveryv1alpha1 "github.com/liqoTech/liqo/api/discovery/v1alpha1"
 	advtypes "github.com/liqoTech/liqo/api/sharing/v1alpha1"
 	advop "github.com/liqoTech/liqo/internal/advertisement-operator"
 	"github.com/liqoTech/liqo/internal/kubernetes/test"
@@ -36,7 +36,7 @@ func createBroadcaster(clusterConfig policyv1.ClusterConfigSpec) advop.Advertise
 	}
 
 	// create the discovery client
-	discoveryClient, err := discoveryv1.CreatePeeringRequestClient("")
+	discoveryClient, err := discoveryv1alpha1.CreatePeeringRequestClient("")
 	if err != nil {
 		panic(err)
 	}

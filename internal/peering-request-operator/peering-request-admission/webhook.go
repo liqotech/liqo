@@ -3,7 +3,7 @@ package peering_request_admission
 import (
 	"encoding/json"
 	"fmt"
-	discoveryv1 "github.com/liqoTech/liqo/api/discovery/v1"
+	discoveryv1alpha1 "github.com/liqoTech/liqo/api/discovery/v1alpha1"
 	"github.com/liqoTech/liqo/internal/peering-request-operator"
 	"github.com/liqoTech/liqo/pkg/crdClient"
 	"io/ioutil"
@@ -40,7 +40,7 @@ func init() {
 
 func (whsvr *WebhookServer) validate(ar *v1beta1.AdmissionReview) *v1beta1.AdmissionResponse {
 
-	peerReq := discoveryv1.PeeringRequest{}
+	peerReq := discoveryv1alpha1.PeeringRequest{}
 
 	if err := json.Unmarshal(ar.Request.Object.Raw, &peerReq); err != nil {
 		klog.Error(err, err.Error())

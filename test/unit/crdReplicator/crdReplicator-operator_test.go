@@ -25,7 +25,7 @@ var (
 	}
 	fcGVR = schema.GroupVersionResource{
 		Group:    "discovery.liqo.io",
-		Version:  "v1",
+		Version:  "v1alpha1",
 		Resource: "foreignclusters",
 	}
 )
@@ -75,7 +75,7 @@ func getTunnelEndpointResource() *unstructured.Unstructured {
 func getForeignClusterResource() *unstructured.Unstructured {
 	return &unstructured.Unstructured{
 		Object: map[string]interface{}{
-			"apiVersion": "discovery.liqo.io/v1",
+			"apiVersion": "discovery.liqo.io/v1alpha1",
 			"kind":       "ForeignCluster",
 			"metadata": map[string]interface{}{
 				"name":   "test",

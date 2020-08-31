@@ -3,7 +3,7 @@ package main
 import (
 	"flag"
 	clusterConfig "github.com/liqoTech/liqo/api/cluster-config/v1"
-	discoveryv1 "github.com/liqoTech/liqo/api/discovery/v1"
+	discoveryv1alpha1 "github.com/liqoTech/liqo/api/discovery/v1alpha1"
 	"github.com/liqoTech/liqo/internal/crdReplicator"
 	util "github.com/liqoTech/liqo/pkg/liqonet"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -22,7 +22,7 @@ var (
 
 func init() {
 	_ = clientgoscheme.AddToScheme(scheme)
-	_ = discoveryv1.AddToScheme(scheme)
+	_ = discoveryv1alpha1.AddToScheme(scheme)
 	// +kubebuilder:scaffold:scheme
 }
 

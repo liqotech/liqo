@@ -4,7 +4,7 @@ import (
 	"context"
 	"encoding/base64"
 	policyv1 "github.com/liqoTech/liqo/api/cluster-config/v1"
-	v1 "github.com/liqoTech/liqo/api/discovery/v1"
+	"github.com/liqoTech/liqo/api/discovery/v1alpha1"
 	advtypes "github.com/liqoTech/liqo/api/sharing/v1alpha1"
 	"github.com/liqoTech/liqo/internal/discovery"
 	"github.com/liqoTech/liqo/internal/discovery/kubeconfig"
@@ -78,21 +78,21 @@ func TestDiscovery(t *testing.T) {
 func testClient(t *testing.T) {
 	tmp, err := clientCluster.client.Resource("foreignclusters").List(metav1.ListOptions{})
 	assert.NilError(t, err)
-	fcs, ok := tmp.(*v1.ForeignClusterList)
+	fcs, ok := tmp.(*v1alpha1.ForeignClusterList)
 	assert.Equal(t, ok, true)
 	assert.Equal(t, len(fcs.Items), 0)
 
 	// create new ForeignCluster with disabled AutoJoin
-	fc := &v1.ForeignCluster{
+	fc := &v1alpha1.ForeignCluster{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: "fc-test",
 		},
-		Spec: v1.ForeignClusterSpec{
+		Spec: v1alpha1.ForeignClusterSpec{
 			ClusterID:     "test-cluster",
 			Namespace:     "default",
 			Join:          false,
 			ApiUrl:        serverCluster.cfg.Host,
-			DiscoveryType: v1.ManualDiscovery,
+			DiscoveryType: v1alpha1.ManualDiscovery,
 		},
 	}
 	_, err = clientCluster.client.Resource("foreignclusters").Create(fc, metav1.CreateOptions{})
@@ -100,25 +100,25 @@ func testClient(t *testing.T) {
 
 	tmp, err = clientCluster.client.Resource("foreignclusters").List(metav1.ListOptions{})
 	assert.NilError(t, err)
-	fcs, ok = tmp.(*v1.ForeignClusterList)
+	fcs, ok = tmp.(*v1alpha1.ForeignClusterList)
 	assert.Equal(t, ok, true)
 	assert.Equal(t, len(fcs.Items), 1, "Number of ForeignCluster on clientCluster is different to 1")
 
 	tmp, err = serverCluster.client.Resource("foreignclusters").List(metav1.ListOptions{})
 	assert.NilError(t, err)
-	fcs, ok = tmp.(*v1.ForeignClusterList)
+	fcs, ok = tmp.(*v1alpha1.ForeignClusterList)
 	assert.Equal(t, ok, true)
 	assert.Equal(t, len(fcs.Items), 0, "Number of ForeignCluster on serverCluster is different to 0, is it crated in wrong cluster?!?")
 
 	tmp, err = serverCluster.client.Resource("peeringrequests").List(metav1.ListOptions{})
 	assert.NilError(t, err)
-	prs, ok := tmp.(*v1.PeeringRequestList)
+	prs, ok := tmp.(*v1alpha1.PeeringRequestList)
 	assert.Equal(t, ok, true)
 	assert.Equal(t, len(prs.Items), 0, "Peering Request has been created even if join flag was false")
 
 	tmp, err = clientCluster.client.Resource("peeringrequests").List(metav1.ListOptions{})
 	assert.NilError(t, err)
-	prs, ok = tmp.(*v1.PeeringRequestList)
+	prs, ok = tmp.(*v1alpha1.PeeringRequestList)
 	assert.Equal(t, ok, true)
 	assert.Equal(t, len(prs.Items), 0, "Peering Request has been created in client cluster")
 }
@@ -177,7 +177,7 @@ func testPRConfig(t *testing.T) {
 func testJoin(t *testing.T) {
 	tmp, err := clientCluster.client.Resource("foreignclusters").Get("fc-test", metav1.GetOptions{})
 	assert.NilError(t, err, "Error retrieving ForeignCluster")
-	fc, ok := tmp.(*v1.ForeignCluster)
+	fc, ok := tmp.(*v1alpha1.ForeignCluster)
 	assert.Equal(t, ok, true)
 
 	fc.Spec.Join = true
@@ -189,20 +189,20 @@ func testJoin(t *testing.T) {
 
 	tmp, err = clientCluster.client.Resource("foreignclusters").Get("fc-test", metav1.GetOptions{})
 	assert.NilError(t, err, "Error retrieving ForeignCluster")
-	fc, ok = tmp.(*v1.ForeignCluster)
+	fc, ok = tmp.(*v1alpha1.ForeignCluster)
 	assert.Equal(t, ok, true)
 	assert.Equal(t, fc.Status.Outgoing.Joined, true, "Status OutgoingJoin is not true")
 	assert.Assert(t, fc.Status.Outgoing.RemotePeeringRequestName != "", "Peering Request name can not be empty")
 
 	tmp, err = clientCluster.client.Resource("peeringrequests").List(metav1.ListOptions{})
 	assert.NilError(t, err)
-	prs, ok := tmp.(*v1.PeeringRequestList)
+	prs, ok := tmp.(*v1alpha1.PeeringRequestList)
 	assert.Equal(t, ok, true)
 	assert.Equal(t, len(prs.Items), 0, "Peering Request has been created on home cluster")
 
 	tmp, err = serverCluster.client.Resource("peeringrequests").List(metav1.ListOptions{})
 	assert.NilError(t, err)
-	prs, ok = tmp.(*v1.PeeringRequestList)
+	prs, ok = tmp.(*v1alpha1.PeeringRequestList)
 	assert.Equal(t, ok, true)
 	assert.Equal(t, len(prs.Items), 1, "Peering Request has not been created on foreign cluster")
 
@@ -220,10 +220,10 @@ func testJoin(t *testing.T) {
 
 	tmp, err = serverCluster.client.Resource("foreignclusters").List(metav1.ListOptions{})
 	assert.NilError(t, err)
-	remoteFcList, ok := tmp.(*v1.ForeignClusterList)
+	remoteFcList, ok := tmp.(*v1alpha1.ForeignClusterList)
 	assert.Assert(t, ok)
 	assert.Assert(t, len(remoteFcList.Items) == 1)
-	assert.Assert(t, remoteFcList.Items[0].Spec.DiscoveryType == v1.IncomingPeeringDiscovery, "FC on remote cluster has not correct DiscoveryType")
+	assert.Assert(t, remoteFcList.Items[0].Spec.DiscoveryType == v1alpha1.IncomingPeeringDiscovery, "FC on remote cluster has not correct DiscoveryType")
 	assert.Assert(t, remoteFcList.Items[0].Status.Incoming.PeeringRequest != nil, "PeeringRequest reference is not set")
 	assert.Assert(t, remoteFcList.Items[0].Status.Incoming.Joined, "IncomingJoin flag not set on remote cluster")
 	assert.Assert(t, remoteFcList.Items[0].Status.Incoming.AvailableIdentity, "AvailableIdentity not correctly set on remote cluster")
@@ -256,7 +256,7 @@ func testJoin(t *testing.T) {
 func testUnjoin(t *testing.T) {
 	tmp, err := clientCluster.client.Resource("foreignclusters").Get("fc-test", metav1.GetOptions{})
 	assert.NilError(t, err, "Error retrieving ForeignCluster")
-	fc, ok := tmp.(*v1.ForeignCluster)
+	fc, ok := tmp.(*v1alpha1.ForeignCluster)
 	assert.Equal(t, ok, true)
 	assert.Equal(t, fc.Spec.Join, true, "Foreign Cluster is not in join spec")
 	assert.Equal(t, fc.Status.Outgoing.Joined, true, "Foreign Cluster is not joined")
@@ -270,14 +270,14 @@ func testUnjoin(t *testing.T) {
 
 	tmp, err = clientCluster.client.Resource("foreignclusters").Get("fc-test", metav1.GetOptions{})
 	assert.NilError(t, err, "Error retrieving ForeignCluster")
-	fc, ok = tmp.(*v1.ForeignCluster)
+	fc, ok = tmp.(*v1alpha1.ForeignCluster)
 	assert.Equal(t, ok, true)
 	assert.Equal(t, fc.Status.Outgoing.Joined, false, "Status OutgoingJoin is true")
 	assert.Assert(t, fc.Status.Outgoing.RemotePeeringRequestName == "", "Peering Request name has to be empty")
 
 	tmp, err = serverCluster.client.Resource("peeringrequests").List(metav1.ListOptions{})
 	assert.NilError(t, err, "Error listing PeeringRequests")
-	prs, ok := tmp.(*v1.PeeringRequestList)
+	prs, ok := tmp.(*v1alpha1.PeeringRequestList)
 	assert.Equal(t, ok, true)
 	assert.Equal(t, len(prs.Items), 0, "Peering Request has not been deleted on foreign cluster")
 
@@ -291,7 +291,7 @@ func testUnjoin(t *testing.T) {
 
 	tmp, err = serverCluster.client.Resource("foreignclusters").List(metav1.ListOptions{})
 	assert.NilError(t, err)
-	remoteFcList, ok := tmp.(*v1.ForeignClusterList)
+	remoteFcList, ok := tmp.(*v1alpha1.ForeignClusterList)
 	assert.Assert(t, ok)
 	assert.Assert(t, len(remoteFcList.Items) == 0, "ForeignCluster has not been deleted on remote cluster")
 }
@@ -299,16 +299,16 @@ func testUnjoin(t *testing.T) {
 // ------
 // tests bidirectional join
 func testBidirectionalJoin(t *testing.T) {
-	fc := &v1.ForeignCluster{
+	fc := &v1alpha1.ForeignCluster{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: "server-cluster",
 		},
-		Spec: v1.ForeignClusterSpec{
+		Spec: v1alpha1.ForeignClusterSpec{
 			ClusterID:     "server-cluster",
 			Namespace:     "default",
 			Join:          true,
 			ApiUrl:        serverCluster.cfg.Host,
-			DiscoveryType: v1.ManualDiscovery,
+			DiscoveryType: v1alpha1.ManualDiscovery,
 		},
 	}
 	_, err := clientCluster.client.Resource("foreignclusters").Create(fc, metav1.CreateOptions{})
@@ -319,7 +319,7 @@ func testBidirectionalJoin(t *testing.T) {
 
 	tmp, err := serverCluster.client.Resource("foreignclusters").List(metav1.ListOptions{})
 	assert.NilError(t, err)
-	remoteFcList, ok := tmp.(*v1.ForeignClusterList)
+	remoteFcList, ok := tmp.(*v1alpha1.ForeignClusterList)
 	assert.Assert(t, ok)
 	assert.Assert(t, len(remoteFcList.Items) == 1)
 
@@ -332,19 +332,19 @@ func testBidirectionalJoin(t *testing.T) {
 
 	tmp, err = serverCluster.client.Resource("foreignclusters").Get(remoteFc.Name, metav1.GetOptions{})
 	assert.NilError(t, err)
-	remoteFc, ok = tmp.(*v1.ForeignCluster)
+	remoteFc, ok = tmp.(*v1alpha1.ForeignCluster)
 	assert.Assert(t, ok)
 	assert.Assert(t, remoteFc.Status.Outgoing.Joined, "remote cluster has not joined us")
 
 	tmp, err = clientCluster.client.Resource("peeringrequests").List(metav1.ListOptions{})
 	assert.NilError(t, err)
-	prList, ok := tmp.(*v1.PeeringRequestList)
+	prList, ok := tmp.(*v1alpha1.PeeringRequestList)
 	assert.Assert(t, ok)
 	assert.Assert(t, len(prList.Items) == 1, "no incoming PeeringRequest")
 
 	tmp, err = clientCluster.client.Resource("foreignclusters").Get("server-cluster", metav1.GetOptions{})
 	assert.NilError(t, err)
-	fc, ok = tmp.(*v1.ForeignCluster)
+	fc, ok = tmp.(*v1alpha1.ForeignCluster)
 	assert.Assert(t, ok)
 	assert.Assert(t, fc.Status.Incoming.PeeringRequest != nil, "PeeringRequest has not been set in local ForeignCluster")
 	assert.Assert(t, fc.Status.Incoming.Joined && fc.Status.Outgoing.Joined, "Incoming and Outgoing flags ahs to be both set")
@@ -355,7 +355,7 @@ func testBidirectionalJoin(t *testing.T) {
 func testMergeClusters(t *testing.T) {
 	tmp, err := clientCluster.client.Resource("foreignclusters").Get("fc-test", metav1.GetOptions{})
 	assert.NilError(t, err, "Error retrieving ForeignCluster")
-	fc, ok := tmp.(*v1.ForeignCluster)
+	fc, ok := tmp.(*v1alpha1.ForeignCluster)
 	assert.Equal(t, ok, true)
 
 	txt := &discovery.TxtData{
@@ -372,7 +372,7 @@ func testMergeClusters(t *testing.T) {
 
 	tmp, err = clientCluster.client.Resource("foreignclusters").Get("fc-test", metav1.GetOptions{})
 	assert.NilError(t, err, "Error retrieving ForeignCluster")
-	fc, ok = tmp.(*v1.ForeignCluster)
+	fc, ok = tmp.(*v1alpha1.ForeignCluster)
 	assert.Equal(t, ok, true)
 
 	cfg, err := fc.GetConfig(clientCluster.client.Client())

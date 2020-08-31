@@ -1,4 +1,4 @@
-package v1
+package v1alpha1
 
 import (
 	"context"
@@ -67,7 +67,7 @@ func (fc *ForeignCluster) LoadForeignCA(localClient kubernetes.Interface, localN
 			Name: fc.Name + "-ca-data",
 			OwnerReferences: []metav1.OwnerReference{
 				{
-					APIVersion: "v1",
+					APIVersion: "v1alpha1",
 					Kind:       "ForeignCluster",
 					Name:       fc.Name,
 					UID:        fc.UID,
