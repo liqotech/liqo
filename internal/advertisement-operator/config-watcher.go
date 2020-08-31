@@ -1,4 +1,4 @@
-package advertisement_operator
+package advertisementOperator
 
 import (
 	configv1alpha1 "github.com/liqoTech/liqo/api/config/v1alpha1"
@@ -72,8 +72,8 @@ func (r *AdvertisementReconciler) WatchConfiguration(kubeconfigPath string, clie
 			}
 			advList := obj.(*advtypes.AdvertisementList)
 
-			if newConfig.IngoingConfig.AcceptPolicy == configv1alpha1.AutoAcceptWithinMaximum && newConfig.IngoingConfig.MaxAcceptableAdvertisement != r.ClusterConfig.IngoingConfig.MaxAcceptableAdvertisement {
-				// the accept policy is set to AutoAcceptWithinMaximum and the Maximum has changed: re-check all Advertisements and update if needed
+			if newConfig.IngoingConfig.AcceptPolicy == configv1alpha1.AutoAcceptMax && newConfig.IngoingConfig.MaxAcceptableAdvertisement != r.ClusterConfig.IngoingConfig.MaxAcceptableAdvertisement {
+				// the accept policy is set to AutoAcceptMax and the Maximum has changed: re-check all Advertisements and update if needed
 				klog.Infof("AdvertisementConfig changed: the AcceptPolicy is %v and the MaxAcceptableAdvertisement has changed from %v to %v",
 					newConfig.IngoingConfig.AcceptPolicy, r.ClusterConfig.IngoingConfig.MaxAcceptableAdvertisement, newConfig.IngoingConfig.MaxAcceptableAdvertisement)
 				err, advToUpdate := r.ManageMaximumUpdate(newConfig, advList)

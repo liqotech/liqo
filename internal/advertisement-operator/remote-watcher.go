@@ -1,4 +1,4 @@
-package advertisement_operator
+package advertisementOperator
 
 import (
 	discoveryv1alpha1 "github.com/liqoTech/liqo/api/discovery/v1alpha1"

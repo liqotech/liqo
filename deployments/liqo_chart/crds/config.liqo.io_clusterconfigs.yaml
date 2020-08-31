@@ -46,20 +46,22 @@ spec:
                   properties:
                     acceptPolicy:
                       description: AcceptPolicy defines the policy to accept/refuse
-                        an Advertisement. Possible values are AutoAcceptWithinMaximum
-                        and Manual. AutoAcceptWithinMaximum means all the Advertisement
-                        received will be accepted until the MaxAcceptableAdvertisement
-                        limit is reached; Manual means every Advertisement received
-                        will need a manual accept/refuse, which can be done by updating
-                        its status.
+                        an Advertisement. Possible values are AutoAcceptMax and Manual.
+                        AutoAcceptMax means all the Advertisement received will be
+                        accepted until the MaxAcceptableAdvertisement limit is reached;
+                        Manual means every Advertisement received will need a manual
+                        accept/refuse, which can be done by updating its status.
                       enum:
-                      - AutoAcceptWithinMaximum
+                      - AutoAcceptMax
                       - Manual
                       type: string
                     maxAcceptableAdvertisement:
                       description: MaxAcceptableAdvertisement defines the maximum
-                        number of Advertisements that can be accepted
+                        number of Advertisements that can be accepted over time. The
+                        maximum value for this field is set to 1000000, a symbolic
+                        value that implements the AcceptAll policy.
                       format: int32
+                      maximum: 1000000
                       minimum: 0
                       type: integer
                   required:
@@ -88,12 +90,16 @@ spec:
                   properties:
                     enableBroadcaster:
                       description: EnableBroadcaster flag allows you to enable/disable
-                        the broadcasting of your Advertisement to the foreign clusters
+                        the broadcasting of your Advertisement to the foreign clusters.
+                        When EnableBroadcaster is set to false, the home cluster notifies
+                        to the foreign he wants to stop sharing resources by setting
+                        the Advertisement status to Deleting. This will trigger the
+                        deletion of the virtual-kubelet and, after that, of the Advertisement,
                       type: boolean
                     resourceSharingPercentage:
                       description: ResourceSharingPercentage defines the percentage
                         of your cluster resources that you will share with foreign
-                        clusters
+                        clusters.
                       format: int32
                       maximum: 100
                       minimum: 0

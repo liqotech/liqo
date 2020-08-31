@@ -11,7 +11,7 @@ else
 GOBIN=$(shell go env GOBIN)
 endif
 
-all: generate fmt vet
+all: test
 
 # Run tests
 test: generate fmt vet manifests
@@ -27,7 +27,7 @@ uninstall: manifests
 
 # Generate manifests e.g. CRD, RBAC etc.
 manifests: controller-gen
-	$(CONTROLLER_GEN) $(CRD_OPTIONS) paths="./api/cluster-config/v1" output:crd:artifacts:config=deployments/liqo_chart/crds
+	$(CONTROLLER_GEN) $(CRD_OPTIONS) paths="./api/config/v1alpha1" output:crd:artifacts:config=deployments/liqo_chart/crds
 
 # Run go fmt against code
 fmt:
@@ -39,7 +39,7 @@ vet:
 
 # Generate code
 generate: controller-gen
-	$(CONTROLLER_GEN) object:headerFile=./hack/boilerplate.go.txt paths="./api/cluster-config/v1"
+	$(CONTROLLER_GEN) object:headerFile=./hack/boilerplate.go.txt paths="./api/config/v1alpha1"
 
 # Build the docker image
 docker-build: test

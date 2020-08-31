@@ -13,7 +13,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package advertisement_operator
+package advertisementOperator
 
 import (
 	"context"
@@ -226,7 +226,7 @@ func (r *AdvertisementReconciler) CheckAdvertisement(adv *advtypes.Advertisement
 	}
 
 	switch r.ClusterConfig.IngoingConfig.AcceptPolicy {
-	case configv1alpha1.AutoAcceptWithinMaximum:
+	case configv1alpha1.AutoAcceptMax:
 		if r.AcceptedAdvNum < r.ClusterConfig.IngoingConfig.MaxAcceptableAdvertisement {
 			// the adv accepted so far are less than the configured maximum
 			adv.Status.AdvertisementStatus = AdvertisementAccepted

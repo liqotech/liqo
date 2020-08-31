@@ -26,7 +26,7 @@ func createFakeClusterConfig() configv1alpha1.ClusterConfig {
 				},
 				IngoingConfig: configv1alpha1.AdvOperatorConfig{
 					MaxAcceptableAdvertisement: 5,
-					AcceptPolicy:               configv1alpha1.AutoAcceptWithinMaximum,
+					AcceptPolicy:               configv1alpha1.AutoAcceptMax,
 				},
 			},
 		},
@@ -133,7 +133,7 @@ func TestWatchAdvOperatorConfig(t *testing.T) {
 }
 
 func testManageMaximumUpdate(t *testing.T) {
-	r := createReconciler(0, 10, configv1alpha1.AutoAcceptWithinMaximum)
+	r := createReconciler(0, 10, configv1alpha1.AutoAcceptMax)
 	advList := advtypes.AdvertisementList{
 		Items: []advtypes.Advertisement{},
 	}
@@ -160,7 +160,7 @@ func testManageMaximumUpdate(t *testing.T) {
 			AdvertisementConfig: configv1alpha1.AdvertisementConfig{
 				IngoingConfig: configv1alpha1.AdvOperatorConfig{
 					MaxAcceptableAdvertisement: int32(advCount),
-					AcceptPolicy:               configv1alpha1.AutoAcceptWithinMaximum,
+					AcceptPolicy:               configv1alpha1.AutoAcceptMax,
 				},
 			},
 		},
@@ -197,7 +197,7 @@ func testManageMaximumUpdate(t *testing.T) {
 			AdvertisementConfig: configv1alpha1.AdvertisementConfig{
 				IngoingConfig: configv1alpha1.AdvOperatorConfig{
 					MaxAcceptableAdvertisement: int32(advCount),
-					AcceptPolicy:               configv1alpha1.AutoAcceptWithinMaximum,
+					AcceptPolicy:               configv1alpha1.AutoAcceptMax,
 				},
 			},
 		},

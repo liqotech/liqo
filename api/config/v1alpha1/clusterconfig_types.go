@@ -48,11 +48,13 @@ type AdvertisementConfig struct {
 }
 
 type BroadcasterConfig struct {
-	//ResourceSharingPercentage defines the percentage of your cluster resources that you will share with foreign clusters
+	//ResourceSharingPercentage defines the percentage of your cluster resources that you will share with foreign clusters.
 	// +kubebuilder:validation:Maximum=100
 	// +kubebuilder:validation:Minimum=0
 	ResourceSharingPercentage int32 `json:"resourceSharingPercentage"`
-	//EnableBroadcaster flag allows you to enable/disable the broadcasting of your Advertisement to the foreign clusters
+	//EnableBroadcaster flag allows you to enable/disable the broadcasting of your Advertisement to the foreign clusters.
+	//When EnableBroadcaster is set to false, the home cluster notifies to the foreign he wants to stop sharing resources
+	//by setting the Advertisement status to Deleting. This will trigger the deletion of the virtual-kubelet and, after that, of the Advertisement,
 	EnableBroadcaster bool `json:"enableBroadcaster"`
 }
 
@@ -60,23 +62,25 @@ type BroadcasterConfig struct {
 type AcceptPolicy string
 
 const (
-	// AutoAcceptWithinMaximum means all the Advertisement received will be accepted until the MaxAcceptableAdvertisement limit is reached
-	// AutoAcceptAll can be achieved by setting MaxAcceptableAdvertisement to infinite
+	// AutoAcceptMax means all the Advertisement received will be accepted until the MaxAcceptableAdvertisement limit is reached
+	// AutoAcceptAll can be achieved by setting MaxAcceptableAdvertisement to 1000000
 	// AutoRefuseAll can be achieved by setting MaxAcceptableAdvertisement to 0
-	AutoAcceptWithinMaximum AcceptPolicy = "AutoAcceptWithinMaximum"
+	AutoAcceptMax AcceptPolicy = "AutoAcceptMax"
 	// ManualAccept means every Advertisement received will need a manual accept/refuse, which can be done by updating its status
 	ManualAccept AcceptPolicy = "Manual"
 )
 
 type AdvOperatorConfig struct {
-	// MaxAcceptableAdvertisement defines the maximum number of Advertisements that can be accepted
+	// MaxAcceptableAdvertisement defines the maximum number of Advertisements that can be accepted over time.
+	// The maximum value for this field is set to 1000000, a symbolic value that implements the AcceptAll policy.
 	// +kubebuilder:validation:Minimum=0
+	// +kubebuilder:validation:Maximum=1000000
 	MaxAcceptableAdvertisement int32 `json:"maxAcceptableAdvertisement"`
 	// AcceptPolicy defines the policy to accept/refuse an Advertisement.
-	// Possible values are AutoAcceptWithinMaximum and Manual.
-	// AutoAcceptWithinMaximum means all the Advertisement received will be accepted until the MaxAcceptableAdvertisement limit is reached;
+	// Possible values are AutoAcceptMax and Manual.
+	// AutoAcceptMax means all the Advertisement received will be accepted until the MaxAcceptableAdvertisement limit is reached;
 	// Manual means every Advertisement received will need a manual accept/refuse, which can be done by updating its status.
-	// +kubebuilder:validation:Enum="AutoAcceptWithinMaximum";"Manual"
+	// +kubebuilder:validation:Enum="AutoAcceptMax";"Manual"
 	AcceptPolicy AcceptPolicy `json:"acceptPolicy"`
 }
 
