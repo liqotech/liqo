@@ -6,16 +6,14 @@ metadata:
   annotations:
     controller-gen.kubebuilder.io/version: v0.2.5
   creationTimestamp: null
-  name: advertisements.protocol.liqo.io
+  name: advertisements.sharing.liqo.io
 spec:
-  group: protocol.liqo.io
+  group: sharing.liqo.io
   names:
     kind: Advertisement
     listKind: AdvertisementList
     plural: advertisements
     singular: advertisement
-    shortNames:
-      - adv
   scope: Cluster
   subresources:
     status: {}
@@ -301,9 +299,9 @@ spec:
           - vkCreated
           type: object
       type: object
-  version: v1
+  version: v1alpha1
   versions:
-  - name: v1
+  - name: v1alpha1
     served: true
     storage: true
 status:

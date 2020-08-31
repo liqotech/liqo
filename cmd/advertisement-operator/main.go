@@ -28,9 +28,9 @@ import (
 	"os"
 	"time"
 
-	protocolv1 "github.com/liqoTech/liqo/api/advertisement-operator/v1"
 	liqonetv1 "github.com/liqoTech/liqo/api/liqonet/v1"
-	"github.com/liqoTech/liqo/internal/advertisement-operator"
+	advtypes "github.com/liqoTech/liqo/api/sharing/v1alpha1"
+	advop "github.com/liqoTech/liqo/internal/advertisement-operator"
 	"github.com/liqoTech/liqo/pkg/csrApprover"
 	ctrl "sigs.k8s.io/controller-runtime"
 	// +kubebuilder:scaffold:imports
@@ -50,7 +50,7 @@ var (
 func init() {
 	_ = clientgoscheme.AddToScheme(scheme)
 
-	_ = protocolv1.AddToScheme(scheme)
+	_ = advtypes.AddToScheme(scheme)
 
 	_ = liqonetv1.AddToScheme(scheme)
 	// +kubebuilder:scaffold:scheme
@@ -104,7 +104,7 @@ func main() {
 	go csrApprover.WatchCSR(clientset, "virtual-kubelet=true")
 
 	// get the number of already accepted advertisements
-	advClient, err := protocolv1.CreateAdvertisementClient(localKubeconfig, nil)
+	advClient, err := advtypes.CreateAdvertisementClient(localKubeconfig, nil)
 	if err != nil {
 		klog.Errorln(err, "unable to create local client for Advertisement")
 		os.Exit(1)
@@ -114,8 +114,8 @@ func main() {
 	if err != nil {
 		klog.Error(err)
 	} else {
-		for _, adv := range advList.(*protocolv1.AdvertisementList).Items {
-			if adv.Status.AdvertisementStatus == advertisement_operator.AdvertisementAccepted {
+		for _, adv := range advList.(*advtypes.AdvertisementList).Items {
+			if adv.Status.AdvertisementStatus == advop.AdvertisementAccepted {
 				acceptedAdv++
 			}
 		}
@@ -132,7 +132,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	r := &advertisement_operator.AdvertisementReconciler{
+	r := &advop.AdvertisementReconciler{
 		Client:           mgr.GetClient(),
 		Scheme:           mgr.GetScheme(),
 		EventsRecorder:   mgr.GetEventRecorderFor("AdvertisementOperator"),

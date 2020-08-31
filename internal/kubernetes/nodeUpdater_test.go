@@ -2,8 +2,8 @@ package kubernetes
 
 import (
 	"context"
-	v1 "github.com/liqoTech/liqo/api/advertisement-operator/v1"
-	advertisement_operator "github.com/liqoTech/liqo/internal/advertisement-operator"
+	advtypes "github.com/liqoTech/liqo/api/sharing/v1alpha1"
+	advop "github.com/liqoTech/liqo/internal/advertisement-operator"
 	"github.com/liqoTech/liqo/internal/kubernetes/test"
 	"github.com/liqoTech/liqo/internal/node"
 	"github.com/liqoTech/liqo/pkg/crdClient"
@@ -21,7 +21,7 @@ func TestNodeUpdater(t *testing.T) {
 	crdClient.Fake = true
 
 	// create fake client for the home cluster
-	client, err := v1.CreateAdvertisementClient("", nil)
+	client, err := advtypes.CreateAdvertisementClient("", nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -39,11 +39,11 @@ func TestNodeUpdater(t *testing.T) {
 
 	var nodeRunner *node.NodeController
 
-	adv := &v1.Advertisement{
+	adv := &advtypes.Advertisement{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: test.AdvName,
 		},
-		Spec: v1.AdvertisementSpec{
+		Spec: advtypes.AdvertisementSpec{
 			ClusterId:  test.ForeignClusterId,
 			Images:     nil,
 			LimitRange: corev1.LimitRangeSpec{},
@@ -113,7 +113,7 @@ func TestNodeUpdater(t *testing.T) {
 
 	// test unjoin
 	// set advertisement status to DELETING
-	adv.Status.AdvertisementStatus = advertisement_operator.AdvertisementDeleting
+	adv.Status.AdvertisementStatus = advop.AdvertisementDeleting
 	if _, err := client.Resource("advertisements").UpdateStatus(adv.Name, adv, metav1.UpdateOptions{}); err != nil {
 		t.Fatal(err)
 	}

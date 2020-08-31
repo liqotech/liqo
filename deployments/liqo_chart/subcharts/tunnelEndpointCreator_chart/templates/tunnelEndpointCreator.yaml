@@ -30,7 +30,7 @@ rules:
   - patch
   - update
 - apiGroups:
-  - protocol.liqo.io
+  - sharing.liqo.io
   resources:
   - advertisements
   verbs:
@@ -42,7 +42,7 @@ rules:
   - update
   - watch
 - apiGroups:
-  - protocol.liqo.io
+  - sharing.liqo.io
   resources:
   - advertisements/status
   verbs:

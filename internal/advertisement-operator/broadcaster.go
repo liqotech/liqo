@@ -13,9 +13,9 @@ import (
 	"sync"
 	"time"
 
-	protocolv1 "github.com/liqoTech/liqo/api/advertisement-operator/v1"
 	policyv1 "github.com/liqoTech/liqo/api/cluster-config/v1"
 	discoveryv1 "github.com/liqoTech/liqo/api/discovery/v1"
+	advtypes "github.com/liqoTech/liqo/api/sharing/v1alpha1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -49,7 +49,7 @@ func StartBroadcaster(homeClusterId, localKubeconfigPath, gatewayPrivateIP, peer
 	klog.V(6).Info("starting broadcaster")
 
 	// create the Advertisement client to the local cluster
-	localClient, err := protocolv1.CreateAdvertisementClient(localKubeconfigPath, nil)
+	localClient, err := advtypes.CreateAdvertisementClient(localKubeconfigPath, nil)
 	if err != nil {
 		klog.Errorln(err, "Unable to create client to local cluster")
 		return err
@@ -93,7 +93,7 @@ func StartBroadcaster(homeClusterId, localKubeconfigPath, gatewayPrivateIP, peer
 
 	// create a CRD-client to the foreign cluster
 	for retry = 0; retry < 3; retry++ {
-		remoteClient, err = protocolv1.CreateAdvertisementClient("", secretForAdvertisementCreation)
+		remoteClient, err = advtypes.CreateAdvertisementClient("", secretForAdvertisementCreation)
 		if err != nil {
 			klog.Errorln(err, "Unable to create client to remote cluster "+foreignClusterId+". Retry in 1 minute")
 			time.Sleep(1 * time.Minute)
@@ -197,7 +197,7 @@ func (b *AdvertisementBroadcaster) GenerateAdvertisement() {
 
 // create advertisement message
 func (b *AdvertisementBroadcaster) CreateAdvertisement(physicalNodes *corev1.NodeList, virtualNodes *corev1.NodeList,
-	availability corev1.ResourceList, images []corev1.ContainerImage, limits corev1.ResourceList) protocolv1.Advertisement {
+	availability corev1.ResourceList, images []corev1.ContainerImage, limits corev1.ResourceList) advtypes.Advertisement {
 
 	// set prices field
 	prices := ComputePrices(images)
@@ -207,11 +207,11 @@ func (b *AdvertisementBroadcaster) CreateAdvertisement(physicalNodes *corev1.Nod
 		neighbours[corev1.ResourceName(vnode.Name)] = vnode.Status.Allocatable
 	}
 
-	adv := protocolv1.Advertisement{
+	adv := advtypes.Advertisement{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: "advertisement-" + b.HomeClusterId,
 		},
-		Spec: protocolv1.AdvertisementSpec{
+		Spec: advtypes.AdvertisementSpec{
 			ClusterId: b.HomeClusterId,
 			Images:    images,
 			LimitRange: corev1.LimitRangeSpec{
@@ -234,7 +234,7 @@ func (b *AdvertisementBroadcaster) CreateAdvertisement(physicalNodes *corev1.Nod
 			Neighbors:  neighbours,
 			Properties: nil,
 			Prices:     prices,
-			Network: protocolv1.NetworkInfo{
+			Network: advtypes.NetworkInfo{
 				PodCIDR:            GetPodCIDR(physicalNodes.Items),
 				GatewayIP:          GetGateway(physicalNodes.Items),
 				GatewayPrivateIP:   b.GatewayPrivateIP,
@@ -280,14 +280,14 @@ func (b *AdvertisementBroadcaster) GetResourcesForAdv() (physicalNodes, virtualN
 	return physicalNodes, virtualNodes, availability, limits, images, nil
 }
 
-func (b *AdvertisementBroadcaster) SendAdvertisementToForeignCluster(advToCreate protocolv1.Advertisement) (*protocolv1.Advertisement, error) {
-	var adv *protocolv1.Advertisement
+func (b *AdvertisementBroadcaster) SendAdvertisementToForeignCluster(advToCreate advtypes.Advertisement) (*advtypes.Advertisement, error) {
+	var adv *advtypes.Advertisement
 
 	// try to get the Advertisement on remote cluster
 	obj, err := b.RemoteClient.Resource("advertisements").Get(advToCreate.Name, metav1.GetOptions{})
 	if err == nil {
 		// Advertisement already created, update it
-		adv = obj.(*protocolv1.Advertisement)
+		adv = obj.(*advtypes.Advertisement)
 		advToCreate.SetResourceVersion(adv.ResourceVersion)
 		advToCreate.SetUID(adv.UID)
 		_, err = b.RemoteClient.Resource("advertisements").Update(adv.Name, &advToCreate, metav1.UpdateOptions{})
@@ -307,10 +307,10 @@ func (b *AdvertisementBroadcaster) SendAdvertisementToForeignCluster(advToCreate
 			return nil, err
 		} else {
 			// Advertisement created, set the owner reference of the secret so that it is deleted when the adv is removed
-			adv = obj.(*protocolv1.Advertisement)
+			adv = obj.(*advtypes.Advertisement)
 			klog.Info("Correctly created advertisement on remote cluster " + b.ForeignClusterId)
 			adv.Kind = "Advertisement"
-			adv.APIVersion = protocolv1.GroupVersion.String()
+			adv.APIVersion = advtypes.GroupVersion.String()
 			b.KubeconfigSecretForForeign.SetOwnerReferences(pkg.GetOwnerReference(adv))
 			_, err = b.RemoteClient.Client().CoreV1().Secrets(b.KubeconfigSecretForForeign.Namespace).Update(context.TODO(), b.KubeconfigSecretForForeign, metav1.UpdateOptions{})
 			if err != nil {
@@ -331,7 +331,7 @@ func (b *AdvertisementBroadcaster) NotifyAdvertisementDeletion() error {
 		klog.Error("Advertisement " + advName + " doesn't exist on foreign cluster " + b.ForeignClusterId)
 	} else {
 		// update the status of adv to inform the vk it is going to be deleted
-		adv := obj.(*protocolv1.Advertisement)
+		adv := obj.(*advtypes.Advertisement)
 		adv.Status.AdvertisementStatus = AdvertisementDeleting
 		_, err = b.RemoteClient.Resource("advertisements").UpdateStatus(adv.Name, adv, metav1.UpdateOptions{})
 		if err != nil {

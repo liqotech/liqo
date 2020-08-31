@@ -4,7 +4,7 @@ import (
 	"errors"
 	"flag"
 	"github.com/gen2brain/dlgs"
-	"github.com/liqoTech/liqo/api/advertisement-operator/v1"
+	"github.com/liqoTech/liqo/api/sharing/v1alpha1"
 	"github.com/liqoTech/liqo/pkg/crdClient"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -94,7 +94,7 @@ func createClient() (*crdClient.CRDClient, error) {
 	var config *rest.Config
 	var err error
 
-	if err = v1.AddToScheme(scheme.Scheme); err != nil {
+	if err = v1alpha1.AddToScheme(scheme.Scheme); err != nil {
 		panic(err)
 	}
 	kubePath, ok := os.LookupEnv("LIQO_KCONFIG")
@@ -107,7 +107,7 @@ func createClient() (*crdClient.CRDClient, error) {
 	if _, err := os.Stat(kubePath); os.IsNotExist(err) {
 		return nil, err
 	}
-	config, err = crdClient.NewKubeconfig(kubePath, &v1.GroupVersion)
+	config, err = crdClient.NewKubeconfig(kubePath, &v1alpha1.GroupVersion)
 	if err != nil {
 		return nil, err
 	}
@@ -134,7 +134,7 @@ func GetAgentController() *AgentController {
 		agentCtrl = &AgentController{}
 		agentCtrl.mocked = mockedController
 		agentCtrl.advCache = createAdvCache()
-		crdClient.AddToRegistry("advertisements", &v1.Advertisement{}, &v1.AdvertisementList{}, advertisementKeyer, v1.GroupResource)
+		crdClient.AddToRegistry("advertisements", &v1alpha1.Advertisement{}, &v1alpha1.AdvertisementList{}, advertisementKeyer, v1alpha1.GroupResource)
 		var err error
 		if agentCtrl.kubeClient, err = createKubeClient(); err == nil {
 			if !mockedController {
@@ -156,7 +156,7 @@ func GetAgentController() *AgentController {
 
 // key extractor for the Advertisement CRD
 func advertisementKeyer(obj runtime.Object) (string, error) {
-	adv, ok := obj.(*v1.Advertisement)
+	adv, ok := obj.(*v1alpha1.Advertisement)
 	if !ok {
 		return "", errors.New("cannot cast received object to Advertisement")
 	}

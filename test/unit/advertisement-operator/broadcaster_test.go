@@ -3,10 +3,10 @@ package advertisement_operator
 import (
 	"context"
 	"fmt"
-	protocolv1 "github.com/liqoTech/liqo/api/advertisement-operator/v1"
 	policyv1 "github.com/liqoTech/liqo/api/cluster-config/v1"
 	discoveryv1 "github.com/liqoTech/liqo/api/discovery/v1"
-	"github.com/liqoTech/liqo/internal/advertisement-operator"
+	advtypes "github.com/liqoTech/liqo/api/sharing/v1alpha1"
+	advop "github.com/liqoTech/liqo/internal/advertisement-operator"
 	"github.com/liqoTech/liqo/internal/kubernetes/test"
 	pkg "github.com/liqoTech/liqo/pkg/advertisement-operator"
 	"github.com/liqoTech/liqo/pkg/crdClient"
@@ -19,18 +19,18 @@ import (
 	"time"
 )
 
-func createBroadcaster(clusterConfig policyv1.ClusterConfigSpec) advertisement_operator.AdvertisementBroadcaster {
+func createBroadcaster(clusterConfig policyv1.ClusterConfigSpec) advop.AdvertisementBroadcaster {
 	// set the client in fake mode
 	crdClient.Fake = true
 
 	// create fake client for the home cluster
-	homeClient, err := protocolv1.CreateAdvertisementClient("", nil)
+	homeClient, err := advtypes.CreateAdvertisementClient("", nil)
 	if err != nil {
 		panic(err)
 	}
 
 	// create the fake client for the foreign cluster
-	foreignClient, err := protocolv1.CreateAdvertisementClient("", nil)
+	foreignClient, err := advtypes.CreateAdvertisementClient("", nil)
 	if err != nil {
 		panic(err)
 	}
@@ -51,7 +51,7 @@ func createBroadcaster(clusterConfig policyv1.ClusterConfigSpec) advertisement_o
 		Type:       "",
 	}
 
-	return advertisement_operator.AdvertisementBroadcaster{
+	return advop.AdvertisementBroadcaster{
 		LocalClient:                homeClient,
 		DiscoveryClient:            discoveryClient,
 		KubeconfigSecretForForeign: secret,
@@ -188,10 +188,10 @@ func createResourcesOnCluster(client *crdClient.CRDClient, pNodes *corev1.NodeLi
 	return nil
 }
 
-func prepareAdv(b advertisement_operator.AdvertisementBroadcaster) protocolv1.Advertisement {
+func prepareAdv(b advop.AdvertisementBroadcaster) advtypes.Advertisement {
 	pNodes, vNodes, images, _, pods := createFakeResources()
-	reqs, limits := advertisement_operator.GetAllPodsResources(pods)
-	availability, _ := advertisement_operator.ComputeAnnouncedResources(pNodes, reqs, int64(b.ClusterConfig.AdvertisementConfig.OutgoingConfig.ResourceSharingPercentage))
+	reqs, limits := advop.GetAllPodsResources(pods)
+	availability, _ := advop.ComputeAnnouncedResources(pNodes, reqs, int64(b.ClusterConfig.AdvertisementConfig.OutgoingConfig.ResourceSharingPercentage))
 	neighbours := make(map[corev1.ResourceName]corev1.ResourceList)
 	for _, vNode := range vNodes.Items {
 		neighbours[corev1.ResourceName(vNode.Name)] = vNode.Status.Allocatable
@@ -202,7 +202,7 @@ func prepareAdv(b advertisement_operator.AdvertisementBroadcaster) protocolv1.Ad
 func TestGetClusterResources(t *testing.T) {
 
 	pNodes, _, images, sum, _ := createFakeResources()
-	res, im := advertisement_operator.GetClusterResources(pNodes.Items)
+	res, im := advop.GetClusterResources(pNodes.Items)
 
 	assert.Empty(t, res.StorageEphemeral(), "StorageEphemeral was not set so it should be null")
 	assert.Equal(t, *res.Cpu(), sum)
@@ -213,7 +213,7 @@ func TestGetClusterResources(t *testing.T) {
 
 func TestComputePrices(t *testing.T) {
 	_, _, images, _, _ := createFakeResources()
-	prices := advertisement_operator.ComputePrices(images)
+	prices := advop.ComputePrices(images)
 
 	keys1 := make([]string, len(prices))
 	keys2 := make([]string, len(prices))
@@ -234,8 +234,8 @@ func TestCreateAdvertisement(t *testing.T) {
 	pNodes, vNodes, images, _, pods := createFakeResources()
 	gatewayNode := pNodes.Items[0]
 	sharingPercentage := int32(50)
-	reqs, limits := advertisement_operator.GetAllPodsResources(pods)
-	availability, _ := advertisement_operator.ComputeAnnouncedResources(pNodes, reqs, int64(sharingPercentage))
+	reqs, limits := advop.GetAllPodsResources(pods)
+	availability, _ := advop.ComputeAnnouncedResources(pNodes, reqs, int64(sharingPercentage))
 	neighbours := make(map[corev1.ResourceName]corev1.ResourceList)
 	for _, vNode := range vNodes.Items {
 		neighbours[corev1.ResourceName(vNode.Name)] = vNode.Status.Allocatable
@@ -274,8 +274,8 @@ func TestGetResourceForAdv(t *testing.T) {
 	}
 	time.Sleep(5 * time.Second)
 
-	reqs, limits := advertisement_operator.GetAllPodsResources(pods)
-	availability, _ := advertisement_operator.ComputeAnnouncedResources(pNodes, reqs, int64(b.ClusterConfig.AdvertisementConfig.OutgoingConfig.ResourceSharingPercentage))
+	reqs, limits := advop.GetAllPodsResources(pods)
+	availability, _ := advop.ComputeAnnouncedResources(pNodes, reqs, int64(b.ClusterConfig.AdvertisementConfig.OutgoingConfig.ResourceSharingPercentage))
 	if availability.Cpu().Value() < 0 || availability.Memory().Value() < 0 {
 		t.Fatal("Available resources cannot be negative")
 	}
@@ -323,5 +323,5 @@ func TestNotifyAdvertisementDeletion(t *testing.T) {
 	err = b.NotifyAdvertisementDeletion()
 	time.Sleep(1 * time.Second)
 	assert.Nil(t, err)
-	assert.Equal(t, advertisement_operator.AdvertisementDeleting, adv2.Status.AdvertisementStatus)
+	assert.Equal(t, advop.AdvertisementDeleting, adv2.Status.AdvertisementStatus)
 }

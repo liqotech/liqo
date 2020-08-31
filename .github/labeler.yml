@@ -37,11 +37,11 @@ discovery:
 advertisement_management:
   - build/advertisement-broadcaster/**/*
   - build/advertisement-operator/**/*
-  - deployment/advertisemet-operator/
-  - deployment/advertisement-broadcaster/
-  - pkg/adevertisement-operator/**/*
+  - cmd/advertisement-operator/**/*
+  - cmd/advertisement-broadcaster/**/*
   - internal/advertisement-operator/**/*
-  - build/advertisement-broadcaster/**/*
+  - pkg/adevertisement-operator/**/*
+  - test/unit/advertisement-operator
 
 ui:
   - build/tray-agent/**/*

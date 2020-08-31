@@ -2,8 +2,8 @@ package advertisement_operator
 
 import (
 	"context"
-	v1 "github.com/liqoTech/liqo/api/advertisement-operator/v1"
-	advertisement_operator "github.com/liqoTech/liqo/pkg/advertisement-operator"
+	advtypes "github.com/liqoTech/liqo/api/sharing/v1alpha1"
+	pkg "github.com/liqoTech/liqo/pkg/advertisement-operator"
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -19,21 +19,21 @@ import (
 	"time"
 )
 
-func createFakeAdv(name, namespace string) *v1.Advertisement {
-	return &v1.Advertisement{
+func createFakeAdv(name, namespace string) *advtypes.Advertisement {
+	return &advtypes.Advertisement{
 		TypeMeta: metav1.TypeMeta{},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      name,
 			Namespace: namespace,
 		},
-		Spec: v1.AdvertisementSpec{
+		Spec: advtypes.AdvertisementSpec{
 			ClusterId: "cluster1",
 			KubeConfigRef: corev1.SecretReference{
 				Namespace: "fake",
 				Name:      "fake-kubeconfig",
 			},
 			LimitRange: corev1.LimitRangeSpec{Limits: []corev1.LimitRangeItem{}},
-			Network: v1.NetworkInfo{
+			Network: advtypes.NetworkInfo{
 				PodCIDR:            "",
 				GatewayIP:          "",
 				GatewayPrivateIP:   "",
@@ -45,14 +45,14 @@ func createFakeAdv(name, namespace string) *v1.Advertisement {
 	}
 }
 
-func createFakeInvalidAdv(name, namespace string, resourceQuota corev1.ResourceQuotaSpec) *v1.Advertisement {
-	return &v1.Advertisement{
+func createFakeInvalidAdv(name, namespace string, resourceQuota corev1.ResourceQuotaSpec) *advtypes.Advertisement {
+	return &advtypes.Advertisement{
 		TypeMeta: metav1.TypeMeta{},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      name,
 			Namespace: namespace,
 		},
-		Spec: v1.AdvertisementSpec{
+		Spec: advtypes.AdvertisementSpec{
 			ClusterId: "cluster1",
 			KubeConfigRef: corev1.SecretReference{
 				Namespace: "fake",
@@ -60,7 +60,7 @@ func createFakeInvalidAdv(name, namespace string, resourceQuota corev1.ResourceQ
 			},
 			ResourceQuota: resourceQuota,
 			LimitRange:    corev1.LimitRangeSpec{Limits: []corev1.LimitRangeItem{}},
-			Network: v1.NetworkInfo{
+			Network: advtypes.NetworkInfo{
 				PodCIDR:            "",
 				GatewayIP:          "",
 				GatewayPrivateIP:   "",
@@ -100,7 +100,7 @@ func createFakeKubebuilderClient() (client.Client, record.EventRecorder) {
 		panic(err)
 	}
 
-	if err = v1.AddToScheme(scheme.Scheme); err != nil {
+	if err = advtypes.AddToScheme(scheme.Scheme); err != nil {
 		klog.Error(err)
 		panic(err)
 	}
@@ -134,11 +134,11 @@ func TestCreateVkDeployment(t *testing.T) {
 	initVkImage := "liqo/init-vk"
 	homeClusterId := "cluster2"
 
-	deploy := advertisement_operator.CreateVkDeployment(adv, vkName, vkNamespace, vkImage, initVkImage, homeClusterId)
+	deploy := pkg.CreateVkDeployment(adv, vkName, vkNamespace, vkImage, initVkImage, homeClusterId)
 
 	assert.Equal(t, vkName, deploy.Name)
 	assert.Equal(t, vkNamespace, deploy.Namespace)
-	assert.Equal(t, advertisement_operator.GetOwnerReference(adv), deploy.OwnerReferences)
+	assert.Equal(t, pkg.GetOwnerReference(adv), deploy.OwnerReferences)
 	assert.Equal(t, adv.Spec.ClusterId, deploy.Spec.Template.Labels["cluster"])
 	assert.Len(t, deploy.Spec.Template.Spec.Volumes, 2)
 	assert.Equal(t, adv.Spec.KubeConfigRef.Name, deploy.Spec.Template.Spec.Volumes[0].VolumeSource.Secret.SecretName)
@@ -179,7 +179,7 @@ func testPod(t *testing.T, c client.Client) {
 	pod := createFakePod(name, ns)
 
 	// test pod creation
-	err = advertisement_operator.CreateOrUpdate(c, context.Background(), pod)
+	err = pkg.CreateOrUpdate(c, context.Background(), pod)
 	assert.Nil(t, err)
 
 	// creation requires some time to be effective
@@ -188,7 +188,7 @@ func testPod(t *testing.T, c client.Client) {
 
 	// test pod update
 	pod.Spec.Containers[0].Image = "image2"
-	err = advertisement_operator.CreateOrUpdate(c, context.Background(), pod)
+	err = pkg.CreateOrUpdate(c, context.Background(), pod)
 	assert.Nil(t, err)
 
 	time.Sleep(1 * time.Second)
@@ -204,7 +204,7 @@ func testAdvertisement(t *testing.T, c client.Client) {
 	adv := createFakeAdv(name, ns)
 
 	// test adv creation
-	err := advertisement_operator.CreateOrUpdate(c, context.Background(), adv)
+	err := pkg.CreateOrUpdate(c, context.Background(), adv)
 	assert.Nil(t, err)
 
 	//TODO: update test

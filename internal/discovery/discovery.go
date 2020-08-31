@@ -1,9 +1,9 @@
 package discovery
 
 import (
-	protocolv1 "github.com/liqoTech/liqo/api/advertisement-operator/v1"
 	policyv1 "github.com/liqoTech/liqo/api/cluster-config/v1"
 	discoveryv1 "github.com/liqoTech/liqo/api/discovery/v1"
+	advtypes "github.com/liqoTech/liqo/api/sharing/v1alpha1"
 	"github.com/liqoTech/liqo/pkg/clusterID"
 	"github.com/liqoTech/liqo/pkg/crdClient"
 	"k8s.io/klog"
@@ -30,7 +30,7 @@ func NewDiscoveryCtrl(namespace string, clusterId *clusterID.ClusterID, kubeconf
 		return nil, err
 	}
 
-	advClient, err := protocolv1.CreateAdvertisementClient(kubeconfigPath, nil)
+	advClient, err := advtypes.CreateAdvertisementClient(kubeconfigPath, nil)
 	if err != nil {
 		klog.Error(err, "unable to create local client for Advertisement")
 		os.Exit(1)

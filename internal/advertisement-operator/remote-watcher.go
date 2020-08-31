@@ -1,8 +1,8 @@
 package advertisement_operator
 
 import (
-	protocolv1 "github.com/liqoTech/liqo/api/advertisement-operator/v1"
 	discoveryv1 "github.com/liqoTech/liqo/api/discovery/v1"
+	advtypes "github.com/liqoTech/liqo/api/sharing/v1alpha1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/klog"
@@ -25,7 +25,7 @@ func (b *AdvertisementBroadcaster) WatchAdvertisement(homeAdvName, foreignAdvNam
 	// homeClusterAdv is the Advertisement created by home cluster on foreign cluster -> stored remotely
 	// foreignClusterAdv is the Advertisement created by foreign cluster on home cluster -> stored locally
 	for event := range watcher.ResultChan() {
-		homeClusterAdv, ok := event.Object.(*protocolv1.Advertisement)
+		homeClusterAdv, ok := event.Object.(*advtypes.Advertisement)
 		if !ok {
 			klog.Error("Received object is not an Advertisement")
 			continue
@@ -58,13 +58,13 @@ func (b *AdvertisementBroadcaster) WatchAdvertisement(homeAdvName, foreignAdvNam
 	}
 }
 
-func (b *AdvertisementBroadcaster) setNetworkRemapping(homeClusterAdv *protocolv1.Advertisement, foreignAdvName string) error {
+func (b *AdvertisementBroadcaster) setNetworkRemapping(homeClusterAdv *advtypes.Advertisement, foreignAdvName string) error {
 	// get the Advertisement of the foreign cluster (stored in the local cluster)
 	obj, err := b.LocalClient.Resource("advertisements").Get(foreignAdvName, metav1.GetOptions{})
 	if err != nil {
 		return err
 	}
-	foreignClusterAdv := obj.(*protocolv1.Advertisement)
+	foreignClusterAdv := obj.(*advtypes.Advertisement)
 	// set the status of the foreign cluster Advertisement with the information given by the tunnelEndpoint creator
 	foreignClusterAdv.Status.LocalRemappedPodCIDR = homeClusterAdv.Status.RemoteRemappedPodCIDR
 	_, err = b.LocalClient.Resource("advertisements").UpdateStatus(foreignAdvName, foreignClusterAdv, metav1.UpdateOptions{})
@@ -74,7 +74,7 @@ func (b *AdvertisementBroadcaster) setNetworkRemapping(homeClusterAdv *protocolv
 	return nil
 }
 
-func (b *AdvertisementBroadcaster) saveAdvStatus(adv *protocolv1.Advertisement) error {
+func (b *AdvertisementBroadcaster) saveAdvStatus(adv *advtypes.Advertisement) error {
 	// get the PeeringRequest from the foreign cluster which requested resources
 	tmp, err := b.DiscoveryClient.Resource("peeringrequests").Get(b.PeeringRequestName, metav1.GetOptions{})
 	if err != nil {

@@ -26,8 +26,8 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
-	advv1 "github.com/liqoTech/liqo/api/advertisement-operator/v1"
 	schedulingv1 "github.com/liqoTech/liqo/api/scheduling/v1alpha1"
+	advtypes "github.com/liqoTech/liqo/api/sharing/v1alpha1"
 	controllers "github.com/liqoTech/liqo/internal/schedulingNode-operator"
 	// +kubebuilder:scaffold:imports
 )
@@ -41,7 +41,7 @@ func init() {
 	_ = clientgoscheme.AddToScheme(scheme)
 
 	_ = schedulingv1.AddToScheme(scheme)
-	_ = advv1.AddToScheme(scheme)
+	_ = advtypes.AddToScheme(scheme)
 }
 
 func main() {

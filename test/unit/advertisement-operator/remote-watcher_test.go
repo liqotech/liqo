@@ -1,9 +1,9 @@
 package advertisement_operator
 
 import (
-	protocolv1 "github.com/liqoTech/liqo/api/advertisement-operator/v1"
 	discoveryv1 "github.com/liqoTech/liqo/api/discovery/v1"
-	advertisement_operator "github.com/liqoTech/liqo/internal/advertisement-operator"
+	advtypes "github.com/liqoTech/liqo/api/sharing/v1alpha1"
+	advop "github.com/liqoTech/liqo/internal/advertisement-operator"
 	"github.com/stretchr/testify/assert"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"testing"
@@ -48,7 +48,7 @@ func TestWatchAdvertisementNetworkRemapping(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	foreignAdv = tmp.(*protocolv1.Advertisement)
+	foreignAdv = tmp.(*advtypes.Advertisement)
 	assert.Equal(t, newPodCIDR, foreignAdv.Status.LocalRemappedPodCIDR)
 
 	err = b.RemoteClient.Resource("advertisements").Delete(homeAdv.Name, v1.DeleteOptions{})
@@ -90,7 +90,7 @@ func TestWatchAdvertisementAcceptance(t *testing.T) {
 	go b.WatchAdvertisement(homeAdv.Name, "")
 
 	// set adv status and update it: this will trigger the watcher
-	homeAdv.Status.AdvertisementStatus = advertisement_operator.AdvertisementAccepted
+	homeAdv.Status.AdvertisementStatus = advop.AdvertisementAccepted
 	_, err = b.RemoteClient.Resource("advertisements").Update(homeAdv.Name, &homeAdv, v1.UpdateOptions{})
 	if err != nil {
 		t.Fatal(err)
@@ -103,5 +103,5 @@ func TestWatchAdvertisementAcceptance(t *testing.T) {
 		t.Fatal(err)
 	}
 	pr2 := tmp.(*discoveryv1.PeeringRequest)
-	assert.Equal(t, advertisement_operator.AdvertisementAccepted, pr2.Status.AdvertisementStatus)
+	assert.Equal(t, advop.AdvertisementAccepted, pr2.Status.AdvertisementStatus)
 }

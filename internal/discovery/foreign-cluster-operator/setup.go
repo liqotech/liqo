@@ -1,8 +1,8 @@
 package foreign_cluster_operator
 
 import (
-	protocolv1 "github.com/liqoTech/liqo/api/advertisement-operator/v1"
 	discoveryv1 "github.com/liqoTech/liqo/api/discovery/v1"
+	advtypes "github.com/liqoTech/liqo/api/sharing/v1alpha1"
 	"github.com/liqoTech/liqo/internal/discovery"
 	"github.com/liqoTech/liqo/pkg/clusterID"
 	"github.com/liqoTech/liqo/pkg/crdClient"
@@ -42,7 +42,7 @@ func StartOperator(mgr *manager.Manager, namespace string, requeueAfter time.Dur
 		os.Exit(1)
 	}
 
-	advClient, err := protocolv1.CreateAdvertisementClient(kubeconfigPath, nil)
+	advClient, err := advtypes.CreateAdvertisementClient(kubeconfigPath, nil)
 	if err != nil {
 		klog.Error(err, "unable to create local client for Advertisement")
 		os.Exit(1)

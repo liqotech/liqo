@@ -3,9 +3,9 @@ package discovery
 import (
 	"context"
 	"encoding/base64"
-	protocolv1 "github.com/liqoTech/liqo/api/advertisement-operator/v1"
 	policyv1 "github.com/liqoTech/liqo/api/cluster-config/v1"
 	v1 "github.com/liqoTech/liqo/api/discovery/v1"
+	advtypes "github.com/liqoTech/liqo/api/sharing/v1alpha1"
 	"github.com/liqoTech/liqo/internal/discovery"
 	"github.com/liqoTech/liqo/internal/discovery/kubeconfig"
 	peering_request_operator "github.com/liqoTech/liqo/internal/peering-request-operator"
@@ -231,11 +231,11 @@ func testJoin(t *testing.T) {
 
 	// add local advertisement related to ForeignCluster,
 	// we have to add it manually because we have no Advertisement Operator running in this test
-	adv := &protocolv1.Advertisement{
+	adv := &advtypes.Advertisement{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: "adv-test",
 		},
-		Spec: protocolv1.AdvertisementSpec{
+		Spec: advtypes.AdvertisementSpec{
 			LimitRange: corev1.LimitRangeSpec{
 				Limits: []corev1.LimitRangeItem{},
 			},
@@ -245,7 +245,7 @@ func testJoin(t *testing.T) {
 	}
 	tmp, err = clientCluster.advClient.Resource("advertisements").Create(adv, metav1.CreateOptions{})
 	assert.NilError(t, err)
-	adv, ok = tmp.(*protocolv1.Advertisement)
+	adv, ok = tmp.(*advtypes.Advertisement)
 	assert.Equal(t, ok, true)
 	err = fc.SetAdvertisement(adv, clientCluster.client)
 	assert.NilError(t, err)
@@ -285,7 +285,7 @@ func testUnjoin(t *testing.T) {
 
 	tmp, err = clientCluster.advClient.Resource("advertisements").List(metav1.ListOptions{})
 	assert.NilError(t, err, "Error listing Advertisements")
-	advs, ok := tmp.(*protocolv1.AdvertisementList)
+	advs, ok := tmp.(*advtypes.AdvertisementList)
 	assert.Equal(t, ok, true)
 	assert.Equal(t, len(advs.Items), 0, "Advertisement has not been deleted on local cluster")
 
