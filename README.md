@@ -35,7 +35,7 @@ The parameters of the home cluster required by Liqo to start should be automatic
 curl https://raw.githubusercontent.com/LiqoTech/liqo/master/install.sh | bash
 ```
 
-For more details about [Liqo installation](https://doc.liqo.io/user/install)
+For more details about [Liqo installation](https://doc.liqo.io/user/gettingstarted/install)
 
 ## Architecture
 
