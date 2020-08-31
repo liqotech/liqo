@@ -103,7 +103,6 @@ To install [Liqo](https://liqo.io), you have to (1) export manually the required
 This can be done with the following commands:
 
 ```bash
-export KUBECONFIG=/etc/rancher/k3s/k3s.yaml
 export POD_CIDR=10.32.0.0/16
 export SERVICE_CIDR=10.10.0.0/16
 curl https://raw.githubusercontent.com/LiqoTech/liqo/master/install.sh | bash
@@ -117,12 +116,10 @@ You can check it by executing `kubectl get pod -n liqo` in both clusters.
 Since both (virtual) machines are connected to the same local area network, each Liqo cluster will automatically join the foreign one thanks the Liqo [Discovery](/user/configure/discovery/) and [Peering](/user/gettingstarted/peer/) features.
 
 ### Install KubernetesOnDesktop
-Now that both [k3s](https://k3s.io/) and [liqo](https://liqo.io) are up and running, we can install [KubernetesOnDesktop](https://github.com/netgroup-polito/KubernetesOnDesktop) by cloning the git repository and launching the install.sh script as follows:
+Now that both [k3s](https://k3s.io/) and [liqo](https://liqo.io) are up and running, we can install [KubernetesOnDesktop](https://github.com/netgroup-polito/KubernetesOnDesktop) by executing the following command:
 
 ```bash
-git clone https://github.com/netgroup-polito/KubernetesOnDesktop.git
-cd KubernetesOnDesktop
-sudo ./install.sh
+sudo curl -L https://raw.githubusercontent.com/netgroup-polito/KubernetesOnDesktop/master/install.sh | sudo bash -s -- --remote
 ```
 
 Now we are ready to run the KubernetesOnDesktop `cloudify` script as described [below](#run-the-kubernetesondesktop-demo).
@@ -182,22 +179,13 @@ Now, you can execute on the *foreign cluster* all the `kubectl` listed above by 
 In this case, you will see that only the `secret`, the `deployment` and the application `pod` (in this example blender) will exist in this cluster. This is because the other resources (related to vncviewer) will be only in the *local cluster*.
 
 ## Cleanup KubernetesOnDesktop installation
-To clean up the KubernetesOnDesktop installation you need to do the following:
+To clean up the KubernetesOnDesktop installation you need to execute the following command:
 
-1. Execute uninstall.sh script:
 ```bash
-cd /path/to/KubernetesOnDesktop #The path to the KubernetesOnDesktop git folder
-sudo ./uninstall.sh
+sudo KUBECONFIG=$KUBECONFIG cloudify-uninstall
 ```
-2. Delete the `k8s-on-desktop` `namespace`:
-```bash
-kubectl delete namespace k8s-on-desktop
-```
-3. Delete the KubernetesOnDesktop git folder. Assuming you are inside the folder, execute:
-```bash
-cd ..
-rm -fr KubernetesOnDesktop
-```
+
+**Note:** During the uninstall process it will be asked if you want to remove the `k8s-on-desktop` namespace too. Just type "yes" and then press "Enter" to complete the process.
 
 ## Teardown k3s and liqo
 To teardown k3s and liqo just run the following in both the nodes:
