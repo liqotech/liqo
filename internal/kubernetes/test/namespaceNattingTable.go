@@ -1,7 +1,7 @@
 package test
 
 import (
-	v1 "github.com/liqoTech/liqo/api/namespaceNattingTable/v1"
+	v1 "github.com/liqoTech/liqo/api/virtualKubelet/v1alpha1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 

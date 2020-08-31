@@ -2,7 +2,7 @@ package kubernetes
 
 import (
 	protocolv1 "github.com/liqoTech/liqo/api/advertisement-operator/v1"
-	nattingv1 "github.com/liqoTech/liqo/api/namespaceNattingTable/v1"
+	nattingv1 "github.com/liqoTech/liqo/api/virtualKubelet/v1alpha1"
 	"github.com/liqoTech/liqo/internal/node"
 	"github.com/liqoTech/liqo/pkg/crdClient"
 	"k8s.io/apimachinery/pkg/runtime/schema"

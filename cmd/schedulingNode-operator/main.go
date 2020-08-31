@@ -27,7 +27,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
 	advv1 "github.com/liqoTech/liqo/api/advertisement-operator/v1"
-	schedulingv1 "github.com/liqoTech/liqo/api/schedulingNode-operator/v1"
+	schedulingv1 "github.com/liqoTech/liqo/api/scheduling/v1alpha1"
 	controllers "github.com/liqoTech/liqo/internal/schedulingNode-operator"
 	// +kubebuilder:scaffold:imports
 )

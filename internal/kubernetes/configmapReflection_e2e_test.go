@@ -4,7 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	v1 "github.com/liqoTech/liqo/api/namespaceNattingTable/v1"
+	v1 "github.com/liqoTech/liqo/api/virtualKubelet/v1alpha1"
 	"github.com/liqoTech/liqo/internal/kubernetes/test"
 	"github.com/liqoTech/liqo/pkg/crdClient"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"

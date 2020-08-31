@@ -3,7 +3,7 @@ package kubernetes
 import (
 	"context"
 	"errors"
-	nattingv1 "github.com/liqoTech/liqo/api/namespaceNattingTable/v1"
+	nattingv1 "github.com/liqoTech/liqo/api/virtualKubelet/v1alpha1"
 	"github.com/liqoTech/liqo/pkg/crdClient"
 	v1 "k8s.io/api/core/v1"
 	kerror "k8s.io/apimachinery/pkg/api/errors"
