@@ -3,7 +3,7 @@ package schedulingNodeOperator
 import (
 	"context"
 	advv1 "github.com/liqoTech/liqo/api/advertisement-operator/v1"
-	"github.com/liqoTech/liqo/api/schedulingNode-operator/v1"
+	"github.com/liqoTech/liqo/api/scheduling/v1alpha1"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/types"
@@ -16,9 +16,9 @@ import (
 // corresponding SchedulingNode CR
 func (r *SchedulingNodeReconciler) CreateOrUpdateFromNode(ctx context.Context, node corev1.Node) error {
 
-	var sn v1.SchedulingNode
+	var sn v1alpha1.SchedulingNode
 
-	if err := r.Client.Get(ctx, v1.CreateNamespacedName(node.Name), &sn); err != nil {
+	if err := r.Client.Get(ctx, v1alpha1.CreateNamespacedName(node.Name), &sn); err != nil {
 		if apierrors.IsNotFound(err) {
 			return r.createSchedulingNode(ctx, node)
 		} else {
@@ -31,7 +31,7 @@ func (r *SchedulingNodeReconciler) CreateOrUpdateFromNode(ctx context.Context, n
 
 // updateSchedulingNode receives an already deployed schedulingNode and updates it
 // according to the received node
-func (r *SchedulingNodeReconciler) updateSchedulingNode(ctx context.Context, node corev1.Node, sn *v1.SchedulingNode) error {
+func (r *SchedulingNodeReconciler) updateSchedulingNode(ctx context.Context, node corev1.Node, sn *v1alpha1.SchedulingNode) error {
 
 	if err := sn.UpdateFromNode(node); err != nil {
 		return err
@@ -53,7 +53,7 @@ func (r *SchedulingNodeReconciler) updateSchedulingNode(ctx context.Context, nod
 // createSchedulingNode receives a node and creates a new SchedulingNode CR according
 // to the node capabilities
 func (r *SchedulingNodeReconciler) createSchedulingNode(ctx context.Context, node corev1.Node) error {
-	var sn v1.SchedulingNode
+	var sn v1alpha1.SchedulingNode
 
 	if err := sn.CreateFromNode(node); err != nil {
 		return err
@@ -72,7 +72,7 @@ func (r *SchedulingNodeReconciler) createSchedulingNode(ctx context.Context, nod
 	return nil
 }
 
-func (r *SchedulingNodeReconciler) setNeighborsFromAdv(sn *v1.SchedulingNode, ctx context.Context, node corev1.Node) error {
+func (r *SchedulingNodeReconciler) setNeighborsFromAdv(sn *v1alpha1.SchedulingNode, ctx context.Context, node corev1.Node) error {
 	var adv advv1.Advertisement
 
 	namespacedNodeName := types.NamespacedName{

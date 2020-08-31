@@ -3,7 +3,7 @@ package kubernetes
 import (
 	"context"
 	"fmt"
-	"github.com/liqoTech/liqo/api/namespaceNattingTable/v1"
+	"github.com/liqoTech/liqo/api/virtualKubelet/v1alpha1"
 	"github.com/liqoTech/liqo/internal/kubernetes/test"
 	"github.com/liqoTech/liqo/pkg/crdClient"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -17,13 +17,13 @@ func TestHandleEpEvents(t *testing.T) {
 	crdClient.Fake = true
 
 	// create fake client for the home cluster
-	homeClient, err := v1.CreateClient("")
+	homeClient, err := v1alpha1.CreateClient("")
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	// create the fake client for the foreign cluster
-	foreignClient, err := v1.CreateClient("")
+	foreignClient, err := v1alpha1.CreateClient("")
 	if err != nil {
 		t.Fatal(err)
 	}
