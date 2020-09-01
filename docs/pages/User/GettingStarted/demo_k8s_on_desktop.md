@@ -119,8 +119,8 @@ To install [Liqo](https://liqo.io), you have to (1) export manually the required
 This can be done with the following commands:
 
 ```bash
-export POD_CIDR=10.32.0.0/16
-export SERVICE_CIDR=10.10.0.0/16
+export POD_CIDR=10.42.0.0/16
+export SERVICE_CIDR=10.43.0.0/16
 curl https://raw.githubusercontent.com/LiqoTech/liqo/master/install.sh | bash
 ```
 
@@ -145,41 +145,35 @@ Now we are ready to run the KubernetesOnDesktop `cloudify` script as described i
 To run the demo we need to execute the `cloudify` command with the following command:
 
 ```bash
-cloudify -t 500 -r 2 -e blender
+cloudify -t 500 -r pod -s blender
 ```
 {{%expand "Parameters meaning:" %}}
-<!-- TODO: timeout is in seconds? -->
-  * -t 500 -> specifies a timeout. If the pod does not reaches the `Running` status within the timeout, the native application will be executed (if any). The very first time you execute the _cloudified_ application, you should specify a large value for this parameter because of the time required to pull the required Docker images from the public repository;
-<!-- TODO can we replace this switch with a string? e.g., -r pod / -r native -->
-  * -r 2 -> specifies the run mode. In this case the viewer will be a k8s `pod` too (as the application one) and will be scheduled on the current node;
-<!-- TODO I would say "-s" (secure) instead of "e" -->
-  * -e -> enable secure communication between the application `pod` and the viewer `pod`;
+  * -t 500 -> specifies a timeout in seconds. If the pod does not reaches the `Running` status within the timeout, the native application will be executed (if any). The very first time you execute the _cloudified_ application, you should specify a large value for this parameter because of the time required to pull the required Docker images from the public repository;
+  * -r pod -> specifies the run mode. In this case the viewer will be a k8s `pod` too (as the application one) and will be scheduled on the current node;
+  * -s -> enable secure communication between the application `pod` and the viewer `pod`;
   * blender -> the (supported) application we want to execute. If you have a NVIDIA graphic card (with the required drivers already installed as specified in the [NVIDIA Quickstart](https://github.com/NVIDIA/nvidia-docker#quickstart)) in the remote node, you can use that card with blender!!
 {{% /expand%}}
 If you need help about the execution parameters, please run `cloudify -h`.
 
-<!-- TODO sostituirei k8s-on-desktop ==> KoD, ma e' solo una mia preferenza per avere una cosa piu' corta. -->
-The `cloudify` application will create the `k8s-on-desktop` `namespace` (if not present) and will apply on it the `liqo.io/enabled=true` `label` so that this `namespace` could be extended to the liqo *foreign cluster* (See [Exploit foreign cluster resources](/user/gettingstarted/test/#start-hello-world-pod)).
+The `cloudify` application will create the `kod` `namespace` (if not present) and will apply on it the `liqo.io/enabled=true` `label` so that this `namespace` could be extended to the liqo *foreign cluster* (See [Exploit foreign cluster resources](/user/gettingstarted/test/#start-hello-world-pod)).
 
 In addition, `cloudify` adds a label to the local `node` to allow k3s to schedule the pods according to the node affinity specified in the `kubernetes/deployment.yaml`, particularly that the application `pod` must be executed in a remote node.
 Similarly, `kubernetes/vncviewer.yaml` specifies that the viewer must be executed on the local node.
 
 Thanks to the *foreign cluster* virtualization as a *local cluster* node, the `cloudify` application will automatically schedule the `pod`s as described above and will use the [K8s DNS for services](https://kubernetes.io/docs/concepts/services-networking/dns-pod-service/) for the communications between the `pod`s.
-In fact, even if there are two separated clusters and the `pod`s will be scheduled one for each, it is not required to use the `NodePort` because the *foreign cluster* is actually a *virtual node* of the *local cluster*.
-So, to reach the `pod` scheduled in the *foreign cluster* from the one scheduled in the *local cluster*, [`ServiceURL:Port`](https://kubernetes.io/docs/concepts/services-networking/dns-pod-service/#services) will be used instead of `NodeIP:NodePort`.
-<!-- TODO Non ho capito a cosa serva il Nodeport, visto che non lo usiamo per comunicare con il remote cluster. -->
+In fact, even if there are two separated clusters and the `pod`s will be scheduled one for each, it is not required to use a [`service`](https://kubernetes.io/docs/concepts/services-networking/service/#publishing-services-service-types) that exposes the `pod` outside of the cluster, e.g. a `NodePort` one, because the *foreign cluster* is actually a *virtual node* of the *local cluster*, so a `ClusterIP` service will be enough.
 
 ### Check the created resources and where the pods are running
 When the GUI appears on the machine running the `cloudify` script, you can inspect the created resources by running the following commands:
 ```bash
-kubectl get deployment -n k8s-on-desktop    #This will show you the application deployment (blender in this example)
-kubectl get jobs -n k8s-on-desktop          #This will show you the vncviewer job
-kubectl get secrets -n k8s-on-desktop       #This will show you the secret containing the ssh key
-kubectl get pod -n k8s-on-desktop -o wide   #This will show you the running pods and which node the were scheduled in
+kubectl get deployment -n kod    #This will show you the application deployment (blender in this example)
+kubectl get jobs -n kod          #This will show you the vncviewer job
+kubectl get secrets -n kod       #This will show you the secret containing the ssh key
+kubectl get pod -n kod -o wide   #This will show you the running pods and which node the were scheduled in
 ```
 
 The above commands can be executed in both the clusters, paying attention to the `namespace`.
-In fact, the `k8s-on-desktop` `namespace` will be reflected in the *foreign cluster* by adding a suffix as follows `k8s-on-desktop-<...>`. So, to retrieve that `namespace`, execute the following in the *foreign cluster*:
+In fact, the `kod` `namespace` will be reflected in the *foreign cluster* by adding a suffix as follows `kod-<...>`. So, to retrieve that `namespace`, execute the following in the *foreign cluster*:
 ```bash
 kubectl get namespaces
 ```
@@ -195,7 +189,7 @@ To clean up the KubernetesOnDesktop installation you need to execute the followi
 sudo KUBECONFIG=$KUBECONFIG cloudify-uninstall
 ```
 
-**Note:** During the uninstall process it will be asked if you want to remove the `k8s-on-desktop` namespace too. Just type "yes" and then press "Enter" to complete the process.
+**Note:** During the uninstall process it will be asked if you want to remove the `kod` namespace too. Just type "yes" and then press "Enter" to complete the process.
 
 ## Teardown k3s and liqo
 To teardown k3s and liqo just run the following in both the nodes:
