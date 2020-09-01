@@ -23,7 +23,7 @@ In a nutshell, KoD splits traditional desktop applications in a backend (running
 This enables dektop applications to be executed also on a remote machine, while keeping their GUI locally.
 
 Technically, KoD leverages a client/server VNC+PulseAudio+SSH infrastructure that enables to start the application `pod` in a k8s remote node and redirects its GUI (through VNC) and the audio (through PulseAudio+SSH) in a second `pod` scheduled in the node where the `cloudify` application is running.
-The communication between the two components leverages several kubernetes primitives, such as `deployments`, `jobs`, `services` (particularly, `ClusterIP` and `NodePort` are used) and `secrets`.
+The communication between the two components leverages several kubernetes primitives, such as `deployments`, `jobs`, `services` (particularly, `ClusterIP` is used) and `secrets`.
 For further information see [KubernetesOnDesktop](https://github.com/netgroup-polito/KubernetesOnDesktop) GitHub page.
 
 So far, KoD suppors firefox, libreoffice and blender, the latter with the capability to expoit any available NVIDIA GPUs (through the NVIDIA CUDA driver) if the remote node has this hardware.
@@ -32,7 +32,7 @@ In any case, thanks to the massive use of templates, many more applications can 
 When executing the `cloudify` command, the application will create:
   * a `secret` containing an ssh key that allows the two application components to communicate securely;
   * a `deployment` containing the application (e.g. blender) and the VNC server, whose `pod` will be scheduled on the remote cluster;
-  * a `NodePort` `service` (that automatically creates also a `ClusterIP` service, as explained in [k8s official documentation](https://kubernetes.io/docs/concepts/services-networking/service/#publishing-services-service-types)) that allow the remote `pod` to be reachable from outside the remote cluster;
+  * a `ClusterIP` `service` that allows the remote `pod` to be reachable from other `pod`s in the cluster by using [K8s DNS for services](https://kubernetes.io/docs/concepts/services-networking/dns-pod-service/);
   * a `pod` executing the VNC viewer, started in the local machine (i.e., on the same node where you run `cloudify`).
   
 ## Installation of the required software
@@ -192,7 +192,15 @@ sudo KUBECONFIG=$KUBECONFIG cloudify-uninstall
 **Note:** During the uninstall process it will be asked if you want to remove the `kod` namespace too. Just type "yes" and then press "Enter" to complete the process.
 
 ## Teardown k3s and liqo
-To teardown k3s and liqo just run the following in both the nodes:
+To teardown k3s and liqo just run the following commands in both the nodes:
+
 ```bash
 k3s-uninstall.sh
+rm $HOME/.kube/k3s.yaml
+```
+
+**Note**: If you have executed the command `echo 'export KUBECONFIG="$HOME/.kube/k3s.yaml"' >> $HOME/.bashrc` to make `KUBECONFIG` environment variable permanent, as described in [Install k3s](#install-k3s) section, then run the following command:
+
+```bash
+sed -i 's#export KUBECONFIG="$HOME/.kube/k3s.yaml"##' $HOME/.bashrc
 ```
