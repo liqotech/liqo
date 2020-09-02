@@ -323,5 +323,5 @@ func TestNotifyAdvertisementDeletion(t *testing.T) {
 	err = b.NotifyAdvertisementDeletion()
 	time.Sleep(1 * time.Second)
 	assert.Nil(t, err)
-	assert.Equal(t, advop.AdvertisementDeleting, adv2.Status.AdvertisementStatus)
+	assert.Equal(t, advtypes.AdvertisementDeleting, adv2.Status.AdvertisementStatus)
 }

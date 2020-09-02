@@ -98,9 +98,9 @@ func (r *AdvertisementReconciler) ManageMaximumUpdate(newConfig configv1alpha1.A
 		r.ClusterConfig = newConfig
 		for i := 0; i < len(advList.Items); i++ {
 			adv := &advList.Items[i]
-			if adv.Status.AdvertisementStatus == AdvertisementRefused {
+			if adv.Status.AdvertisementStatus == advtypes.AdvertisementRefused {
 				r.CheckAdvertisement(adv)
-				if adv.Status.AdvertisementStatus == AdvertisementAccepted {
+				if adv.Status.AdvertisementStatus == advtypes.AdvertisementAccepted {
 					// the adv status has changed: it must be updated
 					advToUpdate.Items = append(advToUpdate.Items, *adv)
 				}

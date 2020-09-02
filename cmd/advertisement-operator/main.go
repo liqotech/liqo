@@ -115,7 +115,7 @@ func main() {
 		klog.Error(err)
 	} else {
 		for _, adv := range advList.(*advtypes.AdvertisementList).Items {
-			if adv.Status.AdvertisementStatus == advop.AdvertisementAccepted {
+			if adv.Status.AdvertisementStatus == advtypes.AdvertisementAccepted {
 				acceptedAdv++
 			}
 		}

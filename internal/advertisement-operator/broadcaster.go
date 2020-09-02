@@ -332,7 +332,7 @@ func (b *AdvertisementBroadcaster) NotifyAdvertisementDeletion() error {
 	} else {
 		// update the status of adv to inform the vk it is going to be deleted
 		adv := obj.(*advtypes.Advertisement)
-		adv.Status.AdvertisementStatus = AdvertisementDeleting
+		adv.Status.AdvertisementStatus = advtypes.AdvertisementDeleting
 		_, err = b.RemoteClient.Resource("advertisements").UpdateStatus(adv.Name, adv, metav1.UpdateOptions{})
 		if err != nil {
 			klog.Error("Unable to update Advertisement " + adv.Name)

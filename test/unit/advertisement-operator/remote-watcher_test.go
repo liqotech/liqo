@@ -3,7 +3,6 @@ package advertisement_operator
 import (
 	discoveryv1alpha1 "github.com/liqoTech/liqo/api/discovery/v1alpha1"
 	advtypes "github.com/liqoTech/liqo/api/sharing/v1alpha1"
-	advop "github.com/liqoTech/liqo/internal/advertisement-operator"
 	"github.com/stretchr/testify/assert"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"testing"
@@ -90,7 +89,7 @@ func TestWatchAdvertisementAcceptance(t *testing.T) {
 	go b.WatchAdvertisement(homeAdv.Name, "")
 
 	// set adv status and update it: this will trigger the watcher
-	homeAdv.Status.AdvertisementStatus = advop.AdvertisementAccepted
+	homeAdv.Status.AdvertisementStatus = advtypes.AdvertisementAccepted
 	_, err = b.RemoteClient.Resource("advertisements").Update(homeAdv.Name, &homeAdv, v1.UpdateOptions{})
 	if err != nil {
 		t.Fatal(err)
@@ -103,5 +102,5 @@ func TestWatchAdvertisementAcceptance(t *testing.T) {
 		t.Fatal(err)
 	}
 	pr2 := tmp.(*discoveryv1alpha1.PeeringRequest)
-	assert.Equal(t, advop.AdvertisementAccepted, pr2.Status.AdvertisementStatus)
+	assert.Equal(t, advtypes.AdvertisementAccepted, pr2.Status.AdvertisementStatus)
 }

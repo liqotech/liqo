@@ -37,12 +37,6 @@ import (
 	"time"
 )
 
-const (
-	AdvertisementAccepted = "Accepted"
-	AdvertisementRefused  = "Refused"
-	AdvertisementDeleting = "Deleting"
-)
-
 // AdvertisementReconciler reconciles a Advertisement object
 type AdvertisementReconciler struct {
 	client.Client
@@ -118,7 +112,7 @@ func (r *AdvertisementReconciler) Reconcile(req ctrl.Request) (ctrl.Result, erro
 		return ctrl.Result{RequeueAfter: r.RetryTimeout}, nil
 	}
 
-	if adv.Status.AdvertisementStatus != AdvertisementAccepted {
+	if adv.Status.AdvertisementStatus != advtypes.AdvertisementAccepted {
 		klog.Info("Advertisement " + adv.Name + " refused")
 		return ctrl.Result{RequeueAfter: r.RetryTimeout}, nil
 	}
@@ -143,7 +137,7 @@ func (r *AdvertisementReconciler) Reconcile(req ctrl.Request) (ctrl.Result, erro
 			if err != nil {
 				// the foreign cluster is down: set adv status to trigger the unjoin
 				klog.Error(err)
-				adv.Status.AdvertisementStatus = AdvertisementDeleting
+				adv.Status.AdvertisementStatus = advtypes.AdvertisementDeleting
 				if err := r.Status().Update(context.Background(), &adv); err != nil {
 					klog.Error(err)
 				}
@@ -220,7 +214,7 @@ func (r *AdvertisementReconciler) CheckAdvertisement(adv *advtypes.Advertisement
 	// if announced resources are negative, always refuse the Adv
 	for _, v := range adv.Spec.ResourceQuota.Hard {
 		if v.Value() < 0 {
-			adv.Status.AdvertisementStatus = AdvertisementRefused
+			adv.Status.AdvertisementStatus = advtypes.AdvertisementRefused
 			return
 		}
 	}
@@ -229,23 +223,23 @@ func (r *AdvertisementReconciler) CheckAdvertisement(adv *advtypes.Advertisement
 	case configv1alpha1.AutoAcceptMax:
 		if r.AcceptedAdvNum < r.ClusterConfig.IngoingConfig.MaxAcceptableAdvertisement {
 			// the adv accepted so far are less than the configured maximum
-			adv.Status.AdvertisementStatus = AdvertisementAccepted
+			adv.Status.AdvertisementStatus = advtypes.AdvertisementAccepted
 			r.AcceptedAdvNum++
 		} else {
 			// the maximum has been reached: cannot accept
-			adv.Status.AdvertisementStatus = AdvertisementRefused
+			adv.Status.AdvertisementStatus = advtypes.AdvertisementRefused
 		}
 	case configv1alpha1.ManualAccept:
 		//TODO: manual accept/refuse, now we refuse all
-		adv.Status.AdvertisementStatus = AdvertisementRefused
+		adv.Status.AdvertisementStatus = advtypes.AdvertisementRefused
 	}
 }
 
 func (r *AdvertisementReconciler) UpdateAdvertisement(adv *advtypes.Advertisement) {
-	if adv.Status.AdvertisementStatus == AdvertisementAccepted {
+	if adv.Status.AdvertisementStatus == advtypes.AdvertisementAccepted {
 		metav1.SetMetaDataAnnotation(&adv.ObjectMeta, "advertisementStatus", "accepted")
 		r.recordEvent("Advertisement "+adv.Name+" accepted", "Normal", "AdvertisementAccepted", adv)
-	} else if adv.Status.AdvertisementStatus == AdvertisementRefused {
+	} else if adv.Status.AdvertisementStatus == advtypes.AdvertisementRefused {
 		metav1.SetMetaDataAnnotation(&adv.ObjectMeta, "advertisementStatus", "refused")
 		r.recordEvent("Advertisement "+adv.Name+" refused", "Normal", "AdvertisementRefused", adv)
 	}
