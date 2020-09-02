@@ -3,8 +3,8 @@ package advertisement_operator
 import (
 	"context"
 	"fmt"
-	discoveryv1alpha1 "github.com/liqoTech/liqo/api/discovery/v1alpha1"
 	configv1alpha1 "github.com/liqoTech/liqo/api/config/v1alpha1"
+	discoveryv1alpha1 "github.com/liqoTech/liqo/api/discovery/v1alpha1"
 	advtypes "github.com/liqoTech/liqo/api/sharing/v1alpha1"
 	advop "github.com/liqoTech/liqo/internal/advertisement-operator"
 	"github.com/liqoTech/liqo/internal/kubernetes/test"
