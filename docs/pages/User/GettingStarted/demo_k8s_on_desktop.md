@@ -26,7 +26,7 @@ Technically, KoD leverages a client/server VNC+PulseAudio+SSH infrastructure tha
 The communication between the two components leverages several kubernetes primitives, such as `deployments`, `jobs`, `services` (particularly, `ClusterIP` is used) and `secrets`.
 For further information see [KubernetesOnDesktop](https://github.com/netgroup-polito/KubernetesOnDesktop) GitHub page.
 
-So far, KoD suppors firefox, libreoffice and blender, the latter with the capability to expoit any available NVIDIA GPUs (through the NVIDIA CUDA driver) if the remote node has this hardware.
+So far, KoD suppors firefox, libreoffice and blender, the latter with the capability to exploit any available NVIDIA GPUs (through the NVIDIA CUDA driver) if the remote node has this hardware.
 In any case, thanks to the massive use of templates, many more applications can be easily supported.
 
 When executing the `cloudify` command, the application will create:
@@ -87,6 +87,16 @@ ExecStartPre=-/sbin/modprobe overlay
 ExecStart=/usr/local/bin/k3s \
     server --kube-apiserver-arg anonymous-auth=true \
 
+```
+{{% /expand%}}
+
+{{%expand "**Note**: If you want to exploit any available NVIDIA GPUs in the *foreign cluster* you also have to do in that cluster as follows:" %}}
+1. [Install in the required NVIDIA CUDA driver](https://github.com/NVIDIA/nvidia-docker/wiki/Frequently-Asked-Questions#how-do-i-install-the-nvidia-driver);
+2. [Install the Docker engine](https://docs.docker.com/engine/install/);
+3. [Install the `nvidia-container-runtime`](https://github.com/nvidia/nvidia-container-runtime#installation);
+4. Add the `--docker` service execution parameter in the `/etc/systemd/system/k3s.service` file by executing the following command:
+```bash
+sudo sed -i "s#server#server --docker#" /etc/systemd/system/k3s.service
 ```
 {{% /expand%}}
 
