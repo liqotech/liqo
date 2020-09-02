@@ -159,7 +159,7 @@ func createFakeResources() (physicalNodes *corev1.NodeList, virtualNodes *corev1
 			v++
 		}
 	}
-	pNodes[0].Labels["liqonet.liqo.io/gateway"] = "true"
+	pNodes[0].Labels["net.liqo.io/gateway"] = "true"
 	physicalNodes.Items = pNodes
 	virtualNodes.Items = vNodes
 	podList = &corev1.PodList{Items: pods}

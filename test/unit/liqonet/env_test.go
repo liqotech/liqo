@@ -3,7 +3,7 @@ package liqonet
 import (
 	"context"
 	configv1alpha1 "github.com/liqoTech/liqo/api/config/v1alpha1"
-	liqonetv1 "github.com/liqoTech/liqo/api/liqonet/v1"
+	netv1alpha1 "github.com/liqoTech/liqo/api/net/v1alpha1"
 	advtypes "github.com/liqoTech/liqo/api/sharing/v1alpha1"
 	controllers "github.com/liqoTech/liqo/internal/liqonet"
 	"github.com/liqoTech/liqo/pkg/crdClient"
@@ -102,7 +102,7 @@ func setupEnv() {
 	if err != nil {
 		klog.Error(err, err.Error())
 	}
-	err = liqonetv1.AddToScheme(scheme.Scheme)
+	err = netv1alpha1.AddToScheme(scheme.Scheme)
 	if err != nil {
 		klog.Error(err, err.Error())
 	}

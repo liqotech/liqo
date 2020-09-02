@@ -356,7 +356,7 @@ func GetPodCIDR(nodes []corev1.Node) string {
 
 func GetGateway(nodes []corev1.Node) string {
 	for _, node := range nodes {
-		if node.Labels["liqonet.liqo.io/gateway"] != "" {
+		if node.Labels["net.liqo.io/gateway"] != "" {
 			return node.Status.Addresses[0].Address
 		}
 	}

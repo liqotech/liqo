@@ -19,7 +19,7 @@ import (
 	"fmt"
 	"github.com/coreos/go-iptables/iptables"
 	"github.com/go-logr/logr"
-	"github.com/liqoTech/liqo/api/liqonet/v1"
+	netv1alpha1 "github.com/liqoTech/liqo/api/net/v1alpha1"
 	liqonetOperator "github.com/liqoTech/liqo/pkg/liqonet"
 	"github.com/vishvananda/netlink"
 	k8sApiErrors "k8s.io/apimachinery/pkg/api/errors"
@@ -82,16 +82,16 @@ type RouteController struct {
 	RetryTimeout           time.Duration
 }
 
-// +kubebuilder:rbac:groups=liqonet.liqo.io,resources=tunnelendpoints,verbs=get;list;watch;create;update;patch;delete
-// +kubebuilder:rbac:groups=liqonet.liqo.io,resources=tunnelendpoints/status,verbs=get;update;patch
+// +kubebuilder:rbac:groups=net.liqo.io,resources=tunnelendpoints,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=net.liqo.io,resources=tunnelendpoints/status,verbs=get;update;patch
 // +kubebuilder:rbac:groups=core,resources=nodes,verbs=get;list
 
 func (r *RouteController) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 	ctx := context.Background()
 	log := r.Log.WithValues("endpoint", req.NamespacedName)
-	var endpoint v1.TunnelEndpoint
+	var endpoint netv1alpha1.TunnelEndpoint
 	//name of our finalizer
-	routeOperatorFinalizer := "routeOperator-" + r.NodeName + "-Finalizer.liqonet.liqo.io"
+	routeOperatorFinalizer := "routeOperator-" + r.NodeName + "-Finalizer.net.liqo.io"
 
 	if err := r.Get(ctx, req.NamespacedName, &endpoint); err != nil {
 		r.Log.Error(err, "unable to fetch endpoint")
@@ -286,7 +286,7 @@ func (r *RouteController) createAndInsertIPTablesChains() error {
 	return nil
 }
 
-func (r *RouteController) addIPTablesRulespecForRemoteCluster(endpoint *v1.TunnelEndpoint) error {
+func (r *RouteController) addIPTablesRulespecForRemoteCluster(endpoint *netv1alpha1.TunnelEndpoint) error {
 	var remotePodCIDR, localPodCIDR string
 	var err error
 	clusterID := endpoint.Spec.ClusterID
@@ -398,7 +398,7 @@ func (r *RouteController) addIPTablesRulespecForRemoteCluster(endpoint *v1.Tunne
 }
 
 //remove all the rules added by addIPTablesRulespecForRemoteCluster function
-func (r *RouteController) deleteIPTablesRulespecForRemoteCluster(endpoint *v1.TunnelEndpoint) error {
+func (r *RouteController) deleteIPTablesRulespecForRemoteCluster(endpoint *netv1alpha1.TunnelEndpoint) error {
 	var err error
 	clusterID := endpoint.Spec.ClusterID
 	log := r.Log.WithName("iptables")
@@ -474,7 +474,7 @@ func (r *RouteController) DeleteAllIPTablesChains() {
 	}
 }
 
-func (r *RouteController) InsertRoutesPerCluster(endpoint *v1.TunnelEndpoint) error {
+func (r *RouteController) InsertRoutesPerCluster(endpoint *netv1alpha1.TunnelEndpoint) error {
 	clusterID := endpoint.Spec.ClusterID
 	log := r.Log.WithName("route")
 	var remotePodCIDR string
@@ -509,7 +509,7 @@ func (r *RouteController) InsertRoutesPerCluster(endpoint *v1.TunnelEndpoint) er
 }
 
 //used to remove the routes when a tunnelEndpoint CR is removed
-func (r *RouteController) deleteRoutesPerCluster(endpoint *v1.TunnelEndpoint) error {
+func (r *RouteController) deleteRoutesPerCluster(endpoint *netv1alpha1.TunnelEndpoint) error {
 	clusterID := endpoint.Spec.ClusterID
 	log := r.Log.WithName("route")
 	log.Info("removing all routes for", "cluster", clusterID)
@@ -591,7 +591,7 @@ func (r *RouteController) SetupWithManager(mgr ctrl.Manager) error {
 		},
 	}
 	return ctrl.NewControllerManagedBy(mgr).WithEventFilter(resourceToBeProccesedPredicate).
-		For(&v1.TunnelEndpoint{}).
+		For(&netv1alpha1.TunnelEndpoint{}).
 		Complete(r)
 }
 

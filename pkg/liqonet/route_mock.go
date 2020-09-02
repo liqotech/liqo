@@ -25,7 +25,7 @@ func (m *MockRouteManager) AddRoute(dst string, gw string, deviceName string, on
 
 	route = netlink.Route{LinkIndex: ifaceIndex, Dst: destinationNet, Gw: gateway}
 	//check if already exist a route for the destination network on our device
-	//we don't care about other routes in devices not managed by liqonet. The user should check the
+	//we don't care about other routes in devices not managed by net. The user should check the
 	//possible ip conflicts
 	routes := m.RouteList
 	if len(routes) > 0 {

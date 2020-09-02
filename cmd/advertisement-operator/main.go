@@ -28,7 +28,7 @@ import (
 	"os"
 	"time"
 
-	liqonetv1 "github.com/liqoTech/liqo/api/liqonet/v1"
+	netv1alpha1 "github.com/liqoTech/liqo/api/net/v1alpha1"
 	advtypes "github.com/liqoTech/liqo/api/sharing/v1alpha1"
 	advop "github.com/liqoTech/liqo/internal/advertisement-operator"
 	"github.com/liqoTech/liqo/pkg/csrApprover"
@@ -52,7 +52,7 @@ func init() {
 
 	_ = advtypes.AddToScheme(scheme)
 
-	_ = liqonetv1.AddToScheme(scheme)
+	_ = netv1alpha1.AddToScheme(scheme)
 	// +kubebuilder:scaffold:scheme
 }
 

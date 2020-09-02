@@ -19,7 +19,7 @@ import (
 	"flag"
 	"github.com/coreos/go-iptables/iptables"
 	clusterConfig "github.com/liqoTech/liqo/api/config/v1alpha1"
-	"github.com/liqoTech/liqo/api/liqonet/v1"
+	netv1alpha1 "github.com/liqoTech/liqo/api/net/v1alpha1"
 	advtypes "github.com/liqoTech/liqo/api/sharing/v1alpha1"
 	"github.com/liqoTech/liqo/internal/liqonet"
 	"github.com/liqoTech/liqo/pkg/liqonet"
@@ -54,7 +54,7 @@ var (
 func init() {
 	_ = clientgoscheme.AddToScheme(scheme)
 
-	_ = v1.AddToScheme(scheme)
+	_ = netv1alpha1.AddToScheme(scheme)
 
 	_ = advtypes.AddToScheme(scheme)
 

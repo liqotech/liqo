@@ -6,9 +6,9 @@ metadata:
   annotations:
     controller-gen.kubebuilder.io/version: v0.2.5
   creationTimestamp: null
-  name: networkconfigs.liqonet.liqo.io
+  name: networkconfigs.net.liqo.io
 spec:
-  group: liqonet.liqo.io
+  group: net.liqo.io
   names:
     kind: NetworkConfig
     listKind: NetworkConfigList

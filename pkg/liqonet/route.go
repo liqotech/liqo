@@ -30,7 +30,7 @@ func (rm *RouteManager) AddRoute(dst string, gw string, deviceName string, onLin
 	}
 	route = netlink.Route{LinkIndex: iface.Attrs().Index, Dst: destinationNet, Gw: gateway}
 	//check if already exist a route for the destination network on our device
-	//we don't care about other routes in devices not managed by liqonet. The user should check the
+	//we don't care about other routes in devices not managed by net. The user should check the
 	//possible ip conflicts
 	routes, err := netlink.RouteList(iface, netlink.FAMILY_V4)
 	if err != nil {

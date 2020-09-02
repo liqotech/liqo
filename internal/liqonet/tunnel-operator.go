@@ -17,7 +17,7 @@ package controllers
 import (
 	"context"
 	"github.com/go-logr/logr"
-	"github.com/liqoTech/liqo/api/liqonet/v1"
+	netv1alpha1 "github.com/liqoTech/liqo/api/net/v1alpha1"
 	liqonetOperator "github.com/liqoTech/liqo/pkg/liqonet"
 	"github.com/vishvananda/netlink"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -37,15 +37,15 @@ type TunnelController struct {
 	RetryTimeout                 time.Duration
 }
 
-// +kubebuilder:rbac:groups=liqonet.liqo.io,resources=tunnelendpoints,verbs=get;list;watch;create;update;patch;delete
-// +kubebuilder:rbac:groups=liqonet.liqo.io,resources=tunnelendpoints/status,verbs=get;update;patch
+// +kubebuilder:rbac:groups=net.liqo.io,resources=tunnelendpoints,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=net.liqo.io,resources=tunnelendpoints/status,verbs=get;update;patch
 
 func (r *TunnelController) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 	ctx := context.Background()
 	log := r.Log.WithValues("endpoint", req.NamespacedName)
-	var endpoint v1.TunnelEndpoint
+	var endpoint netv1alpha1.TunnelEndpoint
 	//name of our finalizer
-	tunnelEndpointFinalizer := "tunnelEndpointFinalizer.liqonet.liqo.io"
+	tunnelEndpointFinalizer := "tunnelEndpointFinalizer.net.liqo.io"
 
 	if err := r.Get(ctx, req.NamespacedName, &endpoint); err != nil {
 		log.Error(err, "unable to fetch endpoint, probably it has been deleted")
@@ -174,6 +174,6 @@ func (r *TunnelController) SetupSignalHandlerForTunnelOperator() (stopCh <-chan 
 
 func (r *TunnelController) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
-		For(&v1.TunnelEndpoint{}).
+		For(&netv1alpha1.TunnelEndpoint{}).
 		Complete(r)
 }

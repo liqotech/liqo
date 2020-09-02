@@ -2,6 +2,7 @@ package crdReplicator
 
 import (
 	configv1alpha1 "github.com/liqoTech/liqo/api/config/v1alpha1"
+	netv1alpha1 "github.com/liqoTech/liqo/api/net/v1alpha1"
 	"github.com/stretchr/testify/assert"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"testing"
@@ -16,12 +17,12 @@ func TestDispatcherReconciler_GetConfig(t *testing.T) {
 	//the list of the resources to be replicated contains 2 elements, so we expect  two elements in the list to be returned by the function
 	t2 := configv1alpha1.DispatcherConfig{ResourcesToReplicate: []configv1alpha1.Resource{
 		{
-			Group:    "liqonet.liqo.io",
-			Version:  "v1alpha1",
+			Group:    netv1alpha1.GroupVersion.Group,
+			Version:  netv1alpha1.GroupVersion.Version,
 			Resource: "networkconfigs"},
 		{
-			Group:    "liqonet.liqo.io",
-			Version:  "v1",
+			Group:    netv1alpha1.GroupVersion.Group,
+			Version:  netv1alpha1.GroupVersion.Version,
 			Resource: "tunnelendpoints",
 		},
 	}}
@@ -49,13 +50,13 @@ func TestDispatcherReconciler_GetRemovedResources(t *testing.T) {
 	dispatcher := CRDReplicatorReconciler{
 		RegisteredResources: []schema.GroupVersionResource{
 			{
-				Group:    "liqonet.liqo.io",
-				Version:  "v1alpha1",
+				Group:    netv1alpha1.GroupVersion.Group,
+				Version:  netv1alpha1.GroupVersion.Version,
 				Resource: "networkconfigs",
 			},
 			{
-				Group:    "liqonet.liqo.io",
-				Version:  "v1",
+				Group:    netv1alpha1.GroupVersion.Group,
+				Version:  netv1alpha1.GroupVersion.Version,
 				Resource: "tunnelendpoints",
 			},
 		},
@@ -65,12 +66,12 @@ func TestDispatcherReconciler_GetRemovedResources(t *testing.T) {
 	//so we expect expect to get a 0 length list
 	t1 := []schema.GroupVersionResource{
 		{
-			Group:    "liqonet.liqo.io",
-			Version:  "v1alpha1",
+			Group:    netv1alpha1.GroupVersion.Group,
+			Version:  netv1alpha1.GroupVersion.Version,
 			Resource: "networkconfigs"},
 		{
-			Group:    "liqonet.liqo.io",
-			Version:  "v1",
+			Group:    netv1alpha1.GroupVersion.Group,
+			Version:  netv1alpha1.GroupVersion.Version,
 			Resource: "tunnelendpoints",
 		},
 	}
@@ -79,13 +80,13 @@ func TestDispatcherReconciler_GetRemovedResources(t *testing.T) {
 	//so we expect to get a list with 1 element
 	t2 := []schema.GroupVersionResource{
 		{
-			Group:    "liqonet.liqo.io",
-			Version:  "v1alpha1",
+			Group:    netv1alpha1.GroupVersion.Group,
+			Version:  netv1alpha1.GroupVersion.Version,
 			Resource: "networkconfigs"},
 		{
-			Group:    "liqonet.liqo.io",
-			Version:  "v1alpha1",
-			Resource: "tunnelendpoints",
+			Group:    netv1alpha1.GroupVersion.Group,
+			Version:  netv1alpha1.GroupVersion.Version,
+			Resource: "tunnelendpoints-wrong",
 		},
 	}
 
@@ -114,12 +115,12 @@ func TestDispatcherReconciler_UpdateConfig(t *testing.T) {
 	//and 0 elements removed
 	t2 := configv1alpha1.DispatcherConfig{ResourcesToReplicate: []configv1alpha1.Resource{
 		{
-			Group:    "liqonet.liqo.io",
-			Version:  "v1alpha1",
+			Group:    netv1alpha1.GroupVersion.Group,
+			Version:  netv1alpha1.GroupVersion.Version,
 			Resource: "networkconfigs"},
 		{
-			Group:    "liqonet.liqo.io",
-			Version:  "v1",
+			Group:    netv1alpha1.GroupVersion.Group,
+			Version:  netv1alpha1.GroupVersion.Version,
 			Resource: "tunnelendpoints",
 		},
 	}}
@@ -129,13 +130,13 @@ func TestDispatcherReconciler_UpdateConfig(t *testing.T) {
 	//and 1 element removedResources
 	t3 := configv1alpha1.DispatcherConfig{ResourcesToReplicate: []configv1alpha1.Resource{
 		{
-			Group:    "liqonet.liqo.io",
-			Version:  "v1alpha1",
+			Group:    netv1alpha1.GroupVersion.Group,
+			Version:  netv1alpha1.GroupVersion.Version,
 			Resource: "networkconfigs"},
 		{
-			Group:    "liqonet.liqo.io",
-			Version:  "v1alpha1",
-			Resource: "tunnelendpoints",
+			Group:    netv1alpha1.GroupVersion.Group,
+			Version:  netv1alpha1.GroupVersion.Version,
+			Resource: "tunnelendpoints-wrong",
 		},
 	}}
 	tests := []struct {

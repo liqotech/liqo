@@ -7,7 +7,7 @@ The traffic can leave the local cluster as is in case the home and remote addres
 the traffic crosses a properly [configurated NAT](liqonet_routeOperator.md) in order to avoid overlapped spaces.
 
 The TunnelEndpoint-Operator runs as deployment only on the local Gateway Node, this node has to be labelled with
-**'liqonet.liqo.io/gateway=true'**.
+**'net.liqo.io/gateway=true'**.
 
 ### Features
 * GRE tunnel as VPN tunnel

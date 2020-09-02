@@ -2,7 +2,7 @@ package liqonet
 
 import (
 	configv1alpha1 "github.com/liqoTech/liqo/api/config/v1alpha1"
-	v1 "github.com/liqoTech/liqo/api/liqonet/v1"
+	netv1alpha1 "github.com/liqoTech/liqo/api/net/v1alpha1"
 	controller "github.com/liqoTech/liqo/internal/liqonet"
 	"github.com/liqoTech/liqo/pkg/liqonet"
 	utils "github.com/liqoTech/liqo/pkg/liqonet"
@@ -23,20 +23,20 @@ var (
 	waitTime = 1 * time.Second
 )
 
-func GetTunnelEndpointCR() *v1.TunnelEndpoint {
-	return &v1.TunnelEndpoint{
+func GetTunnelEndpointCR() *netv1alpha1.TunnelEndpoint {
+	return &netv1alpha1.TunnelEndpoint{
 		TypeMeta: metav1.TypeMeta{},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "tep-1",
 			Namespace: "",
 		},
-		Spec: v1.TunnelEndpointSpec{
+		Spec: netv1alpha1.TunnelEndpointSpec{
 			ClusterID:       "cluster-test",
 			PodCIDR:         "10.0.0.0/16",
 			TunnelPublicIP:  "192.168.5.1",
 			TunnelPrivateIP: "192.168.4.1",
 		},
-		Status: v1.TunnelEndpointStatus{},
+		Status: netv1alpha1.TunnelEndpointStatus{},
 	}
 }
 
@@ -90,8 +90,8 @@ func setupRouteOperator() error {
 	return nil
 }
 
-//creates the tunnelendpoint.liqonet.liqo.io custom resource
-func createTEP() (*v1.TunnelEndpoint, error) {
+//creates the tunnelendpoint.net.liqo.io custom resource
+func createTEP() (*netv1alpha1.TunnelEndpoint, error) {
 	tep := GetTunnelEndpointCR()
 	err := routeOperator.Client.Create(ctx, tep)
 	if err != nil {
@@ -108,7 +108,7 @@ func createTEP() (*v1.TunnelEndpoint, error) {
 	return tep, nil
 }
 
-func updateStatusTEP(tep *v1.TunnelEndpoint) (*v1.TunnelEndpoint, error) {
+func updateStatusTEP(tep *netv1alpha1.TunnelEndpoint) (*netv1alpha1.TunnelEndpoint, error) {
 	err := routeOperator.Client.Status().Update(ctx, tep)
 	if err != nil {
 		return nil, err
@@ -117,8 +117,8 @@ func updateStatusTEP(tep *v1.TunnelEndpoint) (*v1.TunnelEndpoint, error) {
 	return tep, nil
 }
 
-//set the  tunnelendpoint.liqonet.liqo.io custom resource to ready in order to be processed by the operator
-func setToReady(tep *v1.TunnelEndpoint) error {
+//set the  tunnelendpoint.net.liqo.io custom resource to ready in order to be processed by the operator
+func setToReady(tep *netv1alpha1.TunnelEndpoint) error {
 	err := routeOperator.Client.Get(ctx, client.ObjectKey{
 		Namespace: tep.Namespace,
 		Name:      tep.Name,
@@ -135,7 +135,7 @@ func setToReady(tep *v1.TunnelEndpoint) error {
 	return nil
 }
 
-func getIPtablesRules(endpoint *v1.TunnelEndpoint) map[string][]liqonet.IPtableRule {
+func getIPtablesRules(endpoint *netv1alpha1.TunnelEndpoint) map[string][]liqonet.IPtableRule {
 	var remotePodCIDR, localPodCIDR string
 	var rules = make(map[string][]liqonet.IPtableRule)
 	clusterID := endpoint.Spec.ClusterID
@@ -222,7 +222,7 @@ func routePerDestination(routeList []netlink.Route, dest string) bool {
 	return false
 }
 
-//test1: a tunnelendpoint.liqonet.liqo.io CR is created without nat enabled and operator running in a non gateway node
+//test1: a tunnelendpoint.net.liqo.io CR is created without nat enabled and operator running in a non gateway node
 //we expect 3 iptables rules and 2 routes
 func Test1RouteOperator(t *testing.T) {
 	tep, err := createTEP()
@@ -250,7 +250,7 @@ func Test1RouteOperator(t *testing.T) {
 	assert.Equal(t, 0, len(routeOperator.IPtablesRuleSpecsPerRemoteCluster[tep.Spec.ClusterID]), "there should be 3 rules")
 }
 
-//test2: a tunnelendpoint.liqonet.liqo.io CR is created without nat enabled and operator running in a gateway node
+//test2: a tunnelendpoint.net.liqo.io CR is created without nat enabled and operator running in a gateway node
 //we expect 4 iptables rules and 2 routes
 func Test2RouteOperator(t *testing.T) {
 	routeOperator.IsGateway = true
@@ -279,7 +279,7 @@ func Test2RouteOperator(t *testing.T) {
 	assert.Equal(t, 0, len(routeOperator.IPtablesRuleSpecsPerRemoteCluster[tep.Spec.ClusterID]), "there should be 3 rules")
 }
 
-//test3: a tunnelendpoint.liqonet.liqo.io CR is created with NAT and operator running in a not gateway node
+//test3: a tunnelendpoint.net.liqo.io CR is created with NAT and operator running in a not gateway node
 //we expect 6 iptables rules and 2 routes
 func Test3RouteOperator(t *testing.T) {
 	routeOperator.IsGateway = false
@@ -308,7 +308,7 @@ func Test3RouteOperator(t *testing.T) {
 	assert.Equal(t, 0, len(routeOperator.IPtablesRuleSpecsPerRemoteCluster[tep.Spec.ClusterID]), "there should be 3 rules")
 }
 
-//test4: a tunnelendpoint.liqonet.liqo.io CR is created with NAT and operator running in a gateway node
+//test4: a tunnelendpoint.net.liqo.io CR is created with NAT and operator running in a gateway node
 //we expect 6 iptables rules and 2 routes
 func Test4RouteOperator(t *testing.T) {
 	routeOperator.IsGateway = true

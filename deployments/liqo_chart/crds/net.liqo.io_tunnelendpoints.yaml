@@ -6,9 +6,9 @@ metadata:
   annotations:
     controller-gen.kubebuilder.io/version: v0.2.5
   creationTimestamp: null
-  name: tunnelendpoints.liqonet.liqo.io
+  name: tunnelendpoints.net.liqo.io
 spec:
-  group: liqonet.liqo.io
+  group: net.liqo.io
   names:
     kind: TunnelEndpoint
     listKind: TunnelEndpointList
@@ -78,9 +78,9 @@ spec:
               type: string
           type: object
       type: object
-  version: v1
+  version: v1alpha1
   versions:
-  - name: v1
+  - name: v1alpha1
     served: true
     storage: true
 status:

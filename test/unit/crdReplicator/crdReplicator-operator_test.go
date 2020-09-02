@@ -2,7 +2,7 @@ package crdReplicator
 
 import (
 	"context"
-	v1 "github.com/liqoTech/liqo/api/liqonet/v1"
+	netv1alpha1 "github.com/liqoTech/liqo/api/net/v1alpha1"
 	"github.com/liqoTech/liqo/internal/crdReplicator"
 	"github.com/stretchr/testify/assert"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -19,8 +19,8 @@ import (
 
 var (
 	tunGVR = schema.GroupVersionResource{
-		Group:    "liqonet.liqo.io",
-		Version:  "v1",
+		Group:    netv1alpha1.GroupVersion.Group,
+		Version:  netv1alpha1.GroupVersion.Version,
 		Resource: "tunnelendpoints",
 	}
 	fcGVR = schema.GroupVersionResource{
@@ -56,7 +56,7 @@ func setupDispatcherOperator() error {
 func getTunnelEndpointResource() *unstructured.Unstructured {
 	return &unstructured.Unstructured{
 		Object: map[string]interface{}{
-			"apiVersion": "liqonet.liqo.io/v1",
+			"apiVersion": "net.liqo.io/v1alpha1",
 			"kind":       "TunnelEndpoint",
 			"metadata": map[string]interface{}{
 				"name":   "test",
@@ -93,7 +93,7 @@ func getForeignClusterResource() *unstructured.Unstructured {
 	}
 }
 
-func cleanUp(t *testing.T, localResources map[string]*v1.TunnelEndpoint) {
+func cleanUp(t *testing.T, localResources map[string]*netv1alpha1.TunnelEndpoint) {
 	for _, res := range localResources {
 		err := dOperator.LocalDynClient.Resource(tunGVR).Delete(context.TODO(), res.Name, metav1.DeleteOptions{})
 		klog.Infof("deleting resource %s", res.Name)
@@ -136,7 +136,7 @@ func TestReplication1(t *testing.T) {
 //we label it to be replicated on all the three clusters, so we expect to not find it on the remote clusters
 func TestReplication2(t *testing.T) {
 	time.Sleep(10 * time.Second)
-	localResources := map[string]*v1.TunnelEndpoint{}
+	localResources := map[string]*netv1alpha1.TunnelEndpoint{}
 	//we create the resource on the localcluster to be replicated on all the peeringClusters
 	for clusterID := range peeringClustersTestEnvs {
 		tun := getTunnelEndpointResource()
@@ -147,7 +147,7 @@ func TestReplication2(t *testing.T) {
 		})
 		newTun, err := dOperator.LocalDynClient.Resource(tunGVR).Create(context.TODO(), tun, metav1.CreateOptions{})
 		assert.Nil(t, err, "error should be nil")
-		typedTun := &v1.TunnelEndpoint{}
+		typedTun := &netv1alpha1.TunnelEndpoint{}
 		err = runtime.DefaultUnstructuredConverter.FromUnstructured(newTun.Object, typedTun)
 		assert.Nil(t, err, "error should be nil")
 		localResources[clusterID] = typedTun
@@ -156,7 +156,7 @@ func TestReplication2(t *testing.T) {
 	time.Sleep(10 * time.Second)
 	//check that the replication happened on the peering clusters and that the spec is the same.
 	for clusterID, dynClient := range peeringClustersDynClients {
-		typedTun := &v1.TunnelEndpoint{}
+		typedTun := &netv1alpha1.TunnelEndpoint{}
 		remTun, err := dynClient.Resource(tunGVR).Get(context.TODO(), localResources[clusterID].Name, metav1.GetOptions{})
 		assert.Nil(t, err, "error should be nil")
 		err = runtime.DefaultUnstructuredConverter.FromUnstructured(remTun.Object, typedTun)
@@ -174,7 +174,7 @@ func TestReplication2(t *testing.T) {
 //we update the status on the peering clusters and expect it to be replicated on the local cluster as well
 func TestReplication4(t *testing.T) {
 	time.Sleep(10 * time.Second)
-	localResources := map[string]*v1.TunnelEndpoint{}
+	localResources := map[string]*netv1alpha1.TunnelEndpoint{}
 	//we create the resource on the localcluster to be replicated on all the peeringClusters
 	for clusterID := range peeringClustersTestEnvs {
 		tun := getTunnelEndpointResource()
@@ -185,7 +185,7 @@ func TestReplication4(t *testing.T) {
 		})
 		newTun, err := dOperator.LocalDynClient.Resource(tunGVR).Create(context.TODO(), tun, metav1.CreateOptions{})
 		assert.Nil(t, err, "error should be nil")
-		typedTun := &v1.TunnelEndpoint{}
+		typedTun := &netv1alpha1.TunnelEndpoint{}
 		err = runtime.DefaultUnstructuredConverter.FromUnstructured(newTun.Object, typedTun)
 		assert.Nil(t, err, "error should be nil")
 		localResources[clusterID] = typedTun
@@ -196,7 +196,7 @@ func TestReplication4(t *testing.T) {
 	for clusterID, dynClient := range peeringClustersDynClients {
 		remTun, err := dynClient.Resource(tunGVR).Get(context.TODO(), localResources[clusterID].Name, metav1.GetOptions{})
 		assert.Nil(t, err, "error should be nil")
-		typedTun := &v1.TunnelEndpoint{}
+		typedTun := &netv1alpha1.TunnelEndpoint{}
 		err = runtime.DefaultUnstructuredConverter.FromUnstructured(remTun.Object, typedTun)
 		assert.Nil(t, err, "error should be nil")
 		//check that the local and the replicated one are the same
@@ -221,7 +221,7 @@ func TestReplication4(t *testing.T) {
 	for _, tun := range localResources {
 		remTun, err := dOperator.LocalDynClient.Resource(tunGVR).Get(context.TODO(), tun.GetName(), metav1.GetOptions{})
 		assert.Nil(t, err, "error should be nil")
-		typedTun := &v1.TunnelEndpoint{}
+		typedTun := &netv1alpha1.TunnelEndpoint{}
 		err = runtime.DefaultUnstructuredConverter.FromUnstructured(remTun.Object, typedTun)
 		assert.Nil(t, err, "error should be nil")
 		//check that the local and the replicated one are the same
@@ -239,7 +239,7 @@ func TestReplication4(t *testing.T) {
 //we update the status and expect it to be replicated on the peering clusters as well
 func TestReplication3(t *testing.T) {
 	time.Sleep(10 * time.Second)
-	localResources := map[string]*v1.TunnelEndpoint{}
+	localResources := map[string]*netv1alpha1.TunnelEndpoint{}
 	//we create the resource on the localcluster to be replicated on all the peeringClusters
 	for clusterID := range peeringClustersTestEnvs {
 		tun := getTunnelEndpointResource()
@@ -250,7 +250,7 @@ func TestReplication3(t *testing.T) {
 		})
 		newTun, err := dOperator.LocalDynClient.Resource(tunGVR).Create(context.TODO(), tun, metav1.CreateOptions{})
 		assert.Nil(t, err, "error should be nil")
-		typedTun := &v1.TunnelEndpoint{}
+		typedTun := &netv1alpha1.TunnelEndpoint{}
 		err = runtime.DefaultUnstructuredConverter.FromUnstructured(newTun.Object, typedTun)
 		assert.Nil(t, err, "error should be nil")
 		localResources[clusterID] = typedTun
@@ -261,7 +261,7 @@ func TestReplication3(t *testing.T) {
 	for clusterID, dynClient := range peeringClustersDynClients {
 		remTun, err := dynClient.Resource(tunGVR).Get(context.TODO(), localResources[clusterID].Name, metav1.GetOptions{})
 		assert.Nil(t, err, "error should be nil")
-		typedTun := &v1.TunnelEndpoint{}
+		typedTun := &netv1alpha1.TunnelEndpoint{}
 		err = runtime.DefaultUnstructuredConverter.FromUnstructured(remTun.Object, typedTun)
 		assert.Nil(t, err, "error should be nil")
 		//check that the local and the replicated one are the same
@@ -286,7 +286,7 @@ func TestReplication3(t *testing.T) {
 	for clusterID, dynClient := range peeringClustersDynClients {
 		remTun, err := dynClient.Resource(tunGVR).Get(context.TODO(), localResources[clusterID].Name, metav1.GetOptions{})
 		assert.Nil(t, err, "error should be nil")
-		typedTun := &v1.TunnelEndpoint{}
+		typedTun := &netv1alpha1.TunnelEndpoint{}
 		err = runtime.DefaultUnstructuredConverter.FromUnstructured(remTun.Object, typedTun)
 		assert.Nil(t, err, "error should be nil")
 		//check that the local and the replicated one are the same

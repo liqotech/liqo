@@ -11,7 +11,7 @@ The install script will select (randomly) one of the existing nodes of your clus
 In case you would like to select a precise node, you have to label it as follows:
 
 ```bash
-kubectl label no your_gateway_node liqonet.liqo.io/gateway=true
+kubectl label no your_gateway_node net.liqo.io/gateway=true
 ```
 where `your__gateway__node` is the name of the node that has to be selected as gateway (e.g., `k8s-2-node-1`).
 

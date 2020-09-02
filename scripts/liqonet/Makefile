@@ -40,9 +40,9 @@ deploy: manifests
 
 # Generate manifests e.g. CRD, RBAC etc.
 manifests: controller-gen
-    #$(CONTROLLER_GEN) $(CRD_OPTIONS) rbac:roleName=manager-role webhook paths="./..." output:crd:artifacts:config=config/liqonet/crd/bases output:rbac:artifacts:config=config/liqonet/rbac
-	#$(CONTROLLER_GEN) $(CRD_OPTIONS) paths="./internal/liqonet/route-operator.go" rbac:roleName=manager-role crd:crdVersions=v1beta1 crd:trivialVersions=false output:crd:artifacts:config=config/liqonet/crd/bases output:rbac:artifacts:config=config/liqonet/rbac
-	$(CONTROLLER_GEN) $(CRD_OPTIONS)  paths="../../api/liqonet/..." rbac:roleName=manager-role output:crd:artifacts:config=../../config/liqonet/crd/bases output:rbac:artifacts:config=../../config/liqonet/rbac
+    #$(CONTROLLER_GEN) $(CRD_OPTIONS) rbac:roleName=manager-role webhook paths="./..." output:crd:artifacts:config=config/net/crd/bases output:rbac:artifacts:config=config/net/rbac
+	#$(CONTROLLER_GEN) $(CRD_OPTIONS) paths="./internal/net/route-operator.go" rbac:roleName=manager-role crd:crdVersions=v1beta1 crd:trivialVersions=false output:crd:artifacts:config=config/net/crd/bases output:rbac:artifacts:config=config/net/rbac
+	$(CONTROLLER_GEN) $(CRD_OPTIONS)  paths="../../api/net/..." rbac:roleName=manager-role output:crd:artifacts:config=../../deployments/liqo_chart/crds
 
 # Run go fmt against code
 fmt:
@@ -54,7 +54,7 @@ vet:
 
 # Generate code
 generate: controller-gen
-	$(CONTROLLER_GEN) object:headerFile=../../hack/boilerplate.go.txt paths="../../api/liqonet/..."
+	$(CONTROLLER_GEN) object:headerFile=../../hack/boilerplate.go.txt paths="../../api/net/..."
 
 # Build the docker image
 docker-build:

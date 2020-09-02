@@ -2,6 +2,7 @@ package crdReplicator
 
 import (
 	"context"
+	netv1alpha1 "github.com/liqoTech/liqo/api/net/v1alpha1"
 	"github.com/stretchr/testify/assert"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -20,7 +21,7 @@ var (
 func getObj() *unstructured.Unstructured {
 	networkConfig := &unstructured.Unstructured{
 		Object: map[string]interface{}{
-			"apiVersion": "liqonet.liqo.io/v1alpha1",
+			"apiVersion": "net.liqo.io/v1alpha1",
 			"kind":       "NetworkConfig",
 			"metadata": map[string]interface{}{
 				"name":   "test-networkconfig",
@@ -165,18 +166,18 @@ func TestCRDReplicatorReconciler_StartRemoteWatchers(t *testing.T) {
 	//after calling the StartWatchers function we expect two have a certain number of active watchers
 	//as is the number of the registered resources
 	test1 := []schema.GroupVersionResource{{
-		Group:    "liqonet.liqo.io",
-		Version:  "v1alpha1",
+		Group:    netv1alpha1.GroupVersion.Group,
+		Version:  netv1alpha1.GroupVersion.Version,
 		Resource: "networkconfigs",
 	}, {
-		Group:    "liqonet.liqo.io",
-		Version:  "v1",
+		Group:    netv1alpha1.GroupVersion.Group,
+		Version:  netv1alpha1.GroupVersion.Version,
 		Resource: "tunnelendpoints",
 	}}
 	test2 := []schema.GroupVersionResource{}
 	test3 := []schema.GroupVersionResource{{
-		Group:    "liqonet.liqo.io",
-		Version:  "v1alpha1",
+		Group:    netv1alpha1.GroupVersion.Group,
+		Version:  netv1alpha1.GroupVersion.Version,
 		Resource: "networkconfigs",
 	}}
 	tests := []struct {
@@ -221,12 +222,12 @@ func TestCRDReplicatorReconciler_StopRemoteWatchers(t *testing.T) {
 	//we add two kind of resources to be watched
 	//then unregister them and check that the watchers have been closed as well
 	test1 := []schema.GroupVersionResource{{
-		Group:    "liqonet.liqo.io",
-		Version:  "v1alpha1",
+		Group:    netv1alpha1.GroupVersion.Group,
+		Version:  netv1alpha1.GroupVersion.Version,
 		Resource: "networkconfigs",
 	}, {
-		Group:    "liqonet.liqo.io",
-		Version:  "v1",
+		Group:    netv1alpha1.GroupVersion.Group,
+		Version:  netv1alpha1.GroupVersion.Version,
 		Resource: "tunnelendpoints",
 	}}
 	d.RegisteredResources = test1
@@ -256,18 +257,18 @@ func TestCRDReplicatorReconciler_StartWatchers(t *testing.T) {
 	//after calling the StartWatchers function we expect two have a certain number of active watchers
 	//as is the number of the registered resources
 	test1 := []schema.GroupVersionResource{{
-		Group:    "liqonet.liqo.io",
-		Version:  "v1alpha1",
+		Group:    netv1alpha1.GroupVersion.Group,
+		Version:  netv1alpha1.GroupVersion.Version,
 		Resource: "networkconfigs",
 	}, {
-		Group:    "liqonet.liqo.io",
-		Version:  "v1",
+		Group:    netv1alpha1.GroupVersion.Group,
+		Version:  netv1alpha1.GroupVersion.Version,
 		Resource: "tunnelendpoints",
 	}}
 	test2 := []schema.GroupVersionResource{}
 	test3 := []schema.GroupVersionResource{{
-		Group:    "liqonet.liqo.io",
-		Version:  "v1alpha1",
+		Group:    netv1alpha1.GroupVersion.Group,
+		Version:  netv1alpha1.GroupVersion.Version,
 		Resource: "networkconfigs",
 	}}
 	tests := []struct {
@@ -314,12 +315,12 @@ func TestCRDReplicatorReconciler_StopWatchers(t *testing.T) {
 	//we add two kind of resources to be watched
 	//then unregister them and check that the watchers have ben closed as well
 	test1 := []schema.GroupVersionResource{{
-		Group:    "liqonet.liqo.io",
-		Version:  "v1alpha1",
+		Group:    netv1alpha1.GroupVersion.Group,
+		Version:  netv1alpha1.GroupVersion.Version,
 		Resource: "networkconfigs",
 	}, {
-		Group:    "liqonet.liqo.io",
-		Version:  "v1",
+		Group:    netv1alpha1.GroupVersion.Group,
+		Version:  netv1alpha1.GroupVersion.Version,
 		Resource: "tunnelendpoints",
 	}}
 	d.RegisteredResources = test1

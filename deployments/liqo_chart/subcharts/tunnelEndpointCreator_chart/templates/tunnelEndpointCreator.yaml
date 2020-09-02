@@ -10,7 +10,7 @@ metadata:
   name: tunnelendpointcreator-manager-role
 rules:
 - apiGroups:
-  - liqonet.liqo.io
+  - net.liqo.io
   resources:
   - tunnelendpoints
   verbs:
@@ -22,7 +22,7 @@ rules:
   - update
   - watch
 - apiGroups:
-  - liqonet.liqo.io
+  - net.liqo.io
   resources:
   - tunnelendpoints/status
   verbs:
