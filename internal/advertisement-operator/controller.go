@@ -18,8 +18,8 @@ package advertisement_operator
 import (
 	"context"
 	goerrors "errors"
-	discoveryv1alpha1 "github.com/liqoTech/liqo/api/discovery/v1alpha1"
 	configv1alpha1 "github.com/liqoTech/liqo/api/config/v1alpha1"
+	discoveryv1alpha1 "github.com/liqoTech/liqo/api/discovery/v1alpha1"
 	advtypes "github.com/liqoTech/liqo/api/sharing/v1alpha1"
 	pkg "github.com/liqoTech/liqo/pkg/advertisement-operator"
 	"github.com/liqoTech/liqo/pkg/crdClient"

@@ -3,8 +3,8 @@ package crdReplicator
 import (
 	"context"
 	"fmt"
-	discoveryv1alpha1 "github.com/liqoTech/liqo/api/discovery/v1alpha1"
 	configv1alpha1 "github.com/liqoTech/liqo/api/config/v1alpha1"
+	discoveryv1alpha1 "github.com/liqoTech/liqo/api/discovery/v1alpha1"
 	"github.com/liqoTech/liqo/internal/crdReplicator"
 	"github.com/liqoTech/liqo/pkg/crdClient"
 	"github.com/liqoTech/liqo/pkg/liqonet"
