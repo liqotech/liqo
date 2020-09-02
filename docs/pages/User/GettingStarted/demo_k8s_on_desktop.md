@@ -161,7 +161,7 @@ cloudify -t 500 -r pod -s blender
   * -t 500 -> specifies a timeout in seconds. If the pod does not reaches the `Running` status within the timeout, the native application will be executed (if any). The very first time you execute the _cloudified_ application, you should specify a large value for this parameter because of the time required to pull the required Docker images from the public repository;
   * -r pod -> specifies the run mode. In this case the viewer will be a k8s `pod` too (as the application one) and will be scheduled on the current node;
   * -s -> enable secure communication between the application `pod` and the viewer `pod`;
-  * blender -> the (supported) application we want to execute. If you have a NVIDIA graphic card (with the required drivers already installed as specified in the [NVIDIA Quickstart](https://github.com/NVIDIA/nvidia-docker#quickstart)) in the remote node, you can use that card with blender!!
+  * blender -> the (supported) application we want to execute. If you have a NVIDIA graphic card (with the required drivers already installed as specified [above](#install-k3s)) in the remote node, you can use that card with blender!!
 {{% /expand%}}
 If you need help about the execution parameters, please run `cloudify -h`.
 
