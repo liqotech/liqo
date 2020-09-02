@@ -17,6 +17,7 @@ limitations under the License.
 package v1alpha1
 
 import (
+	advtypes "github.com/liqoTech/liqo/api/sharing/v1alpha1"
 	"github.com/liqoTech/liqo/pkg/crdClient"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -66,7 +67,7 @@ type Outgoing struct {
 	Advertisement            *v1.ObjectReference `json:"advertisement,omitempty"`
 	AvailableIdentity        bool                `json:"availableIdentity,omitempty"`
 	IdentityRef              *v1.ObjectReference `json:"identityRef,omitempty"`
-	AdvertisementStatus      string              `json:"advertisementStatus,omitempty"`
+	AdvertisementStatus      advtypes.AdvPhase   `json:"advertisementStatus,omitempty"`
 }
 
 type Incoming struct {
@@ -74,7 +75,7 @@ type Incoming struct {
 	PeeringRequest      *v1.ObjectReference `json:"peeringRequest,omitempty"`
 	AvailableIdentity   bool                `json:"availableIdentity,omitempty"`
 	IdentityRef         *v1.ObjectReference `json:"identityRef,omitempty"`
-	AdvertisementStatus string              `json:"advertisementStatus,omitempty"`
+	AdvertisementStatus advtypes.AdvPhase   `json:"advertisementStatus,omitempty"`
 }
 
 // +kubebuilder:object:root=true

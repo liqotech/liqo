@@ -3,7 +3,6 @@ package kubernetes
 import (
 	"context"
 	advtypes "github.com/liqoTech/liqo/api/sharing/v1alpha1"
-	advop "github.com/liqoTech/liqo/internal/advertisement-operator"
 	"github.com/liqoTech/liqo/internal/node"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -57,7 +56,7 @@ func (p *KubernetesProvider) ReconcileNodeFromAdv(event watch.Event) {
 		return
 	}
 
-	if adv.Status.AdvertisementStatus == advop.AdvertisementDeleting {
+	if adv.Status.AdvertisementStatus == advtypes.AdvertisementDeleting {
 		for retry := 0; retry < 3; retry++ {
 			klog.Infof("advertisement %v is going to be deleted... set node status not ready", adv.Name)
 			no, err := p.nodeUpdateClient.Client().CoreV1().Nodes().Get(context.TODO(), p.nodeName, metav1.GetOptions{})

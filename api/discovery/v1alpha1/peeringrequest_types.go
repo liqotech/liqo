@@ -17,6 +17,7 @@ limitations under the License.
 package v1alpha1
 
 import (
+	advtypes "github.com/liqoTech/liqo/api/sharing/v1alpha1"
 	"github.com/liqoTech/liqo/pkg/crdClient"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -52,7 +53,7 @@ type OriginClusterSets struct {
 
 // PeeringRequestStatus defines the observed state of PeeringRequest
 type PeeringRequestStatus struct {
-	AdvertisementStatus string `json:"advertisementStatus,omitempty"`
+	AdvertisementStatus advtypes.AdvPhase `json:"advertisementStatus,omitempty"`
 }
 
 // +kubebuilder:object:root=true

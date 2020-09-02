@@ -3,7 +3,6 @@ package kubernetes
 import (
 	"context"
 	advtypes "github.com/liqoTech/liqo/api/sharing/v1alpha1"
-	advop "github.com/liqoTech/liqo/internal/advertisement-operator"
 	"github.com/liqoTech/liqo/internal/kubernetes/test"
 	"github.com/liqoTech/liqo/internal/node"
 	"github.com/liqoTech/liqo/pkg/crdClient"
@@ -113,7 +112,7 @@ func TestNodeUpdater(t *testing.T) {
 
 	// test unjoin
 	// set advertisement status to DELETING
-	adv.Status.AdvertisementStatus = advop.AdvertisementDeleting
+	adv.Status.AdvertisementStatus = advtypes.AdvertisementDeleting
 	if _, err := client.Resource("advertisements").UpdateStatus(adv.Name, adv, metav1.UpdateOptions{}); err != nil {
 		t.Fatal(err)
 	}

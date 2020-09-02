@@ -14,6 +14,8 @@ spec:
     listKind: AdvertisementList
     plural: advertisements
     singular: advertisement
+    shortNames:
+      - adv
   scope: Cluster
   subresources:
     status: {}
@@ -37,8 +39,13 @@ spec:
           description: AdvertisementSpec defines the desired state of Advertisement
           properties:
             clusterId:
+              description: ClusterId is the identifier of the cluster that is sending
+                this Advertisement. It is the uid of the first master node in you
+                cluster.
               type: string
             images:
+              description: Images is the list of the images already stored in the
+                cluster.
               items:
                 description: Describe a container image
                 properties:
@@ -57,8 +64,10 @@ spec:
                 type: object
               type: array
             kubeConfigRef:
-              description: SecretReference represents a Secret Reference. It has enough
-                information to retrieve secret in any namespace
+              description: KubeConfigRef is a reference to a secret containing the
+                kubeconfig for the virtual-kubelet. The virtual-kubelet will use this
+                kubeconfig to access to the foreign cluster which is sending this
+                Advertisement.
               properties:
                 name:
                   description: Name is unique within a namespace to reference a secret
@@ -70,8 +79,8 @@ spec:
                   type: string
               type: object
             limitRange:
-              description: LimitRangeSpec defines a min/max usage limit for resources
-                that match on kind.
+              description: LimitRange contains the limits for every kind of resource
+                (cpu, memory...).
               properties:
                 limits:
                   description: Limits is the list of LimitRangeItem objects that are
@@ -153,8 +162,12 @@ spec:
                   x-kubernetes-int-or-string: true
                 description: ResourceList is a set of (resource name, quantity) pairs.
                 type: object
+              description: Neighbors is a map where the key is the name of a virtual
+                node (representing a foreign cluster) and the value are the resources
+                allocatable on that node.
               type: object
             network:
+              description: Network contains the network information of the cluster.
               properties:
                 gatewayIP:
                   type: string
@@ -178,15 +191,18 @@ spec:
                 - type: string
                 pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
                 x-kubernetes-int-or-string: true
-              description: ResourceList is a set of (resource name, quantity) pairs.
+              description: Prices contains the possible prices for every kind of resource
+                (cpu, memory, image).
               type: object
             properties:
               additionalProperties:
                 type: string
+              description: Properties can contain any additional information about
+                the cluster.
               type: object
             resourceQuota:
-              description: ResourceQuotaSpec defines the desired hard limits to enforce
-                for Quota.
+              description: ResourceQuota contains the quantity of resources made available
+                by the cluster.
               properties:
                 hard:
                   additionalProperties:
@@ -246,9 +262,14 @@ spec:
                   type: array
               type: object
             timeToLive:
+              description: TimeToLive is the time instant until this Advertisement
+                will be valid. If not refreshed, an Advertisement will expire after
+                30 minutes.
               format: date-time
               type: string
             timestamp:
+              description: Timestamp is the time instant when this Advertisement was
+                created.
               format: date-time
               type: string
           required:
@@ -262,13 +283,33 @@ spec:
           description: AdvertisementStatus defines the observed state of Advertisement
           properties:
             advertisementStatus:
+              description: AdvertisementStatus is the status of this Advertisement.
+                When the adv is created it is checked by the operator, which sets
+                this field to "Accepted" or "Refused" on tha base of cluster configuration.
+                If the Advertisement is accepted a virtual-kubelet for the foreign
+                cluster will be created. When the cluster wants to stop sharing its
+                resources, it sets AdvertisementStatus to "Deleting" to allow the
+                virtual-kubelet to delete the resources it had created, then the Advertisement
+                is deleted.
+              enum:
+              - ""
+              - Accepted
+              - Refused
+              - Deleting
               type: string
             localRemappedPodCIDR:
+              description: LocalRemappedPodCIDR contains how the foreign cluster (sending
+                the Advertisement) has remapped home cluster (receiving the Advertisement)
+                pod CIDR. If no overlapping occurred, this field is set to "None"
               type: string
             remoteRemappedPodCIDR:
+              description: RemoteRemappedPodCIDR contains how the home cluster (receiving
+                the Advertisement) has remapped foreign cluster (sendind the Advertisement)
+                pod CIDR. If no overlapping occurred, this field is set to "None"
               type: string
             tunnelEndpointKey:
-              description: the tunnelEndpoint associated with the foreign cluster
+              description: TunnelEndpointKey contains the namespaced name of the tunnelEndpoint
+                associated with the foreign cluster
               properties:
                 name:
                   type: string
@@ -279,10 +320,12 @@ spec:
               - namespace
               type: object
             vkCreated:
+              description: VkCreated indicates if the virtual-kubelet for this Advertisement
+                has been created or not.
               type: boolean
             vkReference:
-              description: DeploymentReference represents a Deployment Reference.
-                It has enough information to retrieve deployment in any namespace
+              description: VkReference is a reference to the deployment running the
+                virtual-kubelet.
               properties:
                 name:
                   description: Name is unique within a namespace to reference a deployment

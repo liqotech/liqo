@@ -4,7 +4,6 @@ import (
 	"context"
 	configv1alpha1 "github.com/liqoTech/liqo/api/config/v1alpha1"
 	advtypes "github.com/liqoTech/liqo/api/sharing/v1alpha1"
-	advop "github.com/liqoTech/liqo/internal/advertisement-operator"
 	"github.com/stretchr/testify/assert"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -125,7 +124,7 @@ func testDisableBroadcaster(t *testing.T) {
 		t.Fatal(err)
 	}
 	adv2 := tmp.(*advtypes.Advertisement)
-	assert.Equal(t, advop.AdvertisementDeleting, adv2.Status.AdvertisementStatus)
+	assert.Equal(t, advtypes.AdvertisementDeleting, adv2.Status.AdvertisementStatus)
 }
 
 func TestWatchAdvOperatorConfig(t *testing.T) {
@@ -175,7 +174,7 @@ func testManageMaximumUpdate(t *testing.T) {
 	assert.Equal(t, config.Spec.AdvertisementConfig, r.ClusterConfig)
 	assert.Equal(t, int32(advCount), r.AcceptedAdvNum)
 	for _, adv := range advToUpdate.Items {
-		assert.Equal(t, advop.AdvertisementAccepted, adv.Status.AdvertisementStatus)
+		assert.Equal(t, advtypes.AdvertisementAccepted, adv.Status.AdvertisementStatus)
 		r.UpdateAdvertisement(&adv)
 	}
 

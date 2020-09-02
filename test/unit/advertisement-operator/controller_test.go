@@ -61,7 +61,7 @@ func testAutoAcceptMax(t *testing.T) {
 	for i := 10; i < 15; i++ {
 		adv := createFakeAdv("cluster-"+strconv.Itoa(i), "default")
 		r.CheckAdvertisement(adv)
-		assert.Equal(t, advop.AdvertisementRefused, adv.Status.AdvertisementStatus)
+		assert.Equal(t, advtypes.AdvertisementRefused, adv.Status.AdvertisementStatus)
 	}
 	// check that the Adv counter has not been modified
 	assert.Equal(t, int32(10), r.AcceptedAdvNum)
@@ -74,7 +74,7 @@ func testManualAccept(t *testing.T) {
 	for i := 0; i < 5; i++ {
 		adv := createFakeAdv("cluster-"+strconv.Itoa(i), "default")
 		r.CheckAdvertisement(adv)
-		assert.Equal(t, advop.AdvertisementRefused, adv.Status.AdvertisementStatus)
+		assert.Equal(t, advtypes.AdvertisementRefused, adv.Status.AdvertisementStatus)
 	}
 	// check that the Adv counter has not been incremented
 	assert.Equal(t, int32(0), r.AcceptedAdvNum)
@@ -93,7 +93,7 @@ func testRefuseInvalidAdvertisement(t *testing.T) {
 		}
 		adv := createFakeInvalidAdv("cluster-"+strconv.Itoa(i), "default", quota)
 		r.CheckAdvertisement(adv)
-		assert.Equal(t, advop.AdvertisementRefused, adv.Status.AdvertisementStatus)
+		assert.Equal(t, advtypes.AdvertisementRefused, adv.Status.AdvertisementStatus)
 	}
 	// check that the Adv counter has not been incremented
 	assert.Equal(t, int32(0), r.AcceptedAdvNum)

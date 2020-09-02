@@ -1,4 +1,4 @@
-package advertisement_operator
+package advertisementOperator
 
 import (
 	advtypes "github.com/liqoTech/liqo/api/sharing/v1alpha1"
