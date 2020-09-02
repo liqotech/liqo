@@ -1,6 +1,7 @@
 package crdReplicator
 
 import (
+	netv1alpha1 "github.com/liqoTech/liqo/api/net/v1alpha1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/dynamic"
 	"time"
@@ -19,8 +20,8 @@ var (
 	testEnvLocal    *envtest.Environment
 	dynClient       dynamic.Interface
 	gvr             = schema.GroupVersionResource{
-		Group:    "liqonet.liqo.io",
-		Version:  "v1alpha1",
+		Group:    netv1alpha1.GroupVersion.Group,
+		Version:  netv1alpha1.GroupVersion.Version,
 		Resource: "networkconfigs",
 	}
 	clusterID = "ClusterID-test"

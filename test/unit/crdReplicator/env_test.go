@@ -5,6 +5,7 @@ import (
 	"fmt"
 	configv1alpha1 "github.com/liqoTech/liqo/api/config/v1alpha1"
 	discoveryv1alpha1 "github.com/liqoTech/liqo/api/discovery/v1alpha1"
+	netv1alpha1 "github.com/liqoTech/liqo/api/net/v1alpha1"
 	"github.com/liqoTech/liqo/internal/crdReplicator"
 	"github.com/liqoTech/liqo/pkg/crdClient"
 	"github.com/liqoTech/liqo/pkg/liqonet"
@@ -215,8 +216,8 @@ func getClusterConfig() *configv1alpha1.ClusterConfig {
 				},
 			},
 			DispatcherConfig: configv1alpha1.DispatcherConfig{ResourcesToReplicate: []configv1alpha1.Resource{{
-				Group:    "liqonet.liqo.io",
-				Version:  "v1",
+				Group:    netv1alpha1.GroupVersion.Group,
+				Version:  netv1alpha1.GroupVersion.Version,
 				Resource: "tunnelendpoints",
 			}}},
 		},

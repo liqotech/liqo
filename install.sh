@@ -58,12 +58,12 @@ function wait_and_approve_csr(){
 }
 
 function set_gateway_node() {
-   test=$(kubectl get no -l "liqonet.liqo.io/gateway=true" 2> /dev/null | wc -l)
+   test=$(kubectl get no -l "net.liqo.io/gateway=true" 2> /dev/null | wc -l)
    if [ $test == 0 ]; then
       node=$(kubectl get no -o jsonpath="{.items[-1].metadata.name}")
-      kubectl label no $node liqonet.liqo.io/gateway=true > /dev/null
+      kubectl label no $node net.liqo.io/gateway=true > /dev/null
    fi
-   address=$(kubectl get no -l "liqonet.liqo.io/gateway=true" -o jsonpath="{.items[0].status.addresses[0].address}")
+   address=$(kubectl get no -l "net.liqo.io/gateway=true" -o jsonpath="{.items[0].status.addresses[0].address}")
    echo "$address"
 }
 

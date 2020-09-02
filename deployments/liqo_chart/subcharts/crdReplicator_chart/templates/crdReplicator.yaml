@@ -20,7 +20,7 @@ rules:
       - list
 
   - apiGroups:
-      - liqonet.liqo.io
+      - net.liqo.io
     resources:
       - networkconfigs
     verbs:
@@ -32,7 +32,7 @@ rules:
       - update
       - watch
   - apiGroups:
-      - liqonet.liqo.io
+      - net.liqo.io
     resources:
       - networkconfigs/status
     verbs:

@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 	configv1alpha1 "github.com/liqoTech/liqo/api/config/v1alpha1"
-	liqonetv1 "github.com/liqoTech/liqo/api/liqonet/v1"
+	netv1alpha1 "github.com/liqoTech/liqo/api/net/v1alpha1"
 	"github.com/liqoTech/liqo/pkg/clusterConfig"
 	"github.com/liqoTech/liqo/pkg/crdClient"
 	liqonetOperator "github.com/liqoTech/liqo/pkg/liqonet"
@@ -47,7 +47,7 @@ func (r *TunnelEndpointCreator) GetConfiguration(config *configv1alpha1.ClusterC
 func (r *TunnelEndpointCreator) GetClustersSubnets() (map[string]*net.IPNet, error) {
 	ctx := context.Background()
 	var err error
-	var tunEndList liqonetv1.TunnelEndpointList
+	var tunEndList netv1alpha1.TunnelEndpointList
 	subnets := make(map[string]*net.IPNet)
 	//if the error is ErrCacheNotStarted we retry until the chaches are ready
 	for {

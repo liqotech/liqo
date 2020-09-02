@@ -2,7 +2,7 @@ package liqonet
 
 import (
 	configv1alpha1 "github.com/liqoTech/liqo/api/config/v1alpha1"
-	v1 "github.com/liqoTech/liqo/api/liqonet/v1"
+	netv1alpha1 "github.com/liqoTech/liqo/api/net/v1alpha1"
 	controller "github.com/liqoTech/liqo/internal/liqonet"
 	"github.com/liqoTech/liqo/pkg/liqonet"
 	liqonetOperator "github.com/liqoTech/liqo/pkg/liqonet"
@@ -285,7 +285,7 @@ func TestUpdateConfiguration(t *testing.T) {
 func TestGetTunEndPerADV(t *testing.T) {
 	//during the set up of the environment a custom resource of type advertisement.sharing.liqo.io
 	//have been created. Here we test that given an advertisement we can retrieve the associated
-	//custom resource of type tunnelEndpoint.liqonet.liqo.io
+	//custom resource of type tunnelEndpoint.net.liqo.io
 	var err error
 	adv := getAdv()
 	err = tunEndpointCreator.Get(ctx, client.ObjectKey{
@@ -302,9 +302,9 @@ func TestGetTunEndPerADV(t *testing.T) {
 
 func TestCreateTunEndpoint(t *testing.T) {
 	//testing that given a custom resource of type advertisement.sharing.liqo.io
-	//a custom resource of type tunnelendpoint.liqonet.liqo.io is created and all the
+	//a custom resource of type tunnelendpoint.net.liqo.io is created and all the
 	//associated fields are correct
-	var tep v1.TunnelEndpoint
+	var tep netv1alpha1.TunnelEndpoint
 	var err error
 	adv := getAdv()
 	for {
@@ -351,7 +351,7 @@ func TestUpdateTunEndpoint(t *testing.T) {
 
 	//test3: we update the status of an existing advertisement.sharing.liqo.io
 	//setting the Status.LocalRemappedPodCIDR field to a correct value
-	//we expect that this value is set also in the status of tunnelendpoint.liqonet.liqo.io custom resource
+	//we expect that this value is set also in the status of tunnelendpoint.net.liqo.io custom resource
 	//associated to the previously updated advertisement.
 	//and the Status.Phase field is set to "Processed"
 	err = tunEndpointCreator.Get(ctx, client.ObjectKey{
@@ -372,7 +372,7 @@ func TestUpdateTunEndpoint(t *testing.T) {
 
 func TestDeleteTunEndpoint(t *testing.T) {
 	//testing that after a advertisement.sharing.liqo.io custom resource is
-	//deleted than the associated tunnelendpoint.liqonet.liqo.io custom resource is
+	//deleted than the associated tunnelendpoint.net.liqo.io custom resource is
 	//deleted aswell
 	adv := getAdv()
 	err := tunEndpointCreator.Get(ctx, client.ObjectKey{

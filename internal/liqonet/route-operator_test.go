@@ -1,7 +1,7 @@
 package controllers
 
 import (
-	v1 "github.com/liqoTech/liqo/api/liqonet/v1"
+	netv1alpha1 "github.com/liqoTech/liqo/api/net/v1alpha1"
 	"github.com/liqoTech/liqo/pkg/liqonet"
 	"github.com/stretchr/testify/assert"
 	"github.com/vishvananda/netlink"
@@ -11,17 +11,17 @@ import (
 	"testing"
 )
 
-func GetTunnelEndpointCR() *v1.TunnelEndpoint {
-	return &v1.TunnelEndpoint{
+func GetTunnelEndpointCR() *netv1alpha1.TunnelEndpoint {
+	return &netv1alpha1.TunnelEndpoint{
 		TypeMeta:   metav1.TypeMeta{},
 		ObjectMeta: metav1.ObjectMeta{},
-		Spec: v1.TunnelEndpointSpec{
+		Spec: netv1alpha1.TunnelEndpointSpec{
 			ClusterID:       "cluster-test",
 			PodCIDR:         "10.0.0.0/12",
 			TunnelPublicIP:  "192.168.5.1",
 			TunnelPrivateIP: "192.168.4.1",
 		},
-		Status: v1.TunnelEndpointStatus{
+		Status: netv1alpha1.TunnelEndpointStatus{
 			Phase:                 "",
 			LocalRemappedPodCIDR:  "None",
 			RemoteRemappedPodCIDR: "None",
@@ -127,7 +127,7 @@ func TestAddIPTablesRulespecForRemoteCluster(t *testing.T) {
 }
 
 func TestDeleteIPTablesRulespecForRemoteCluster(t *testing.T) {
-	//Testing that giving a tunnelEnpoint.liqonet.liqo.io we can remove
+	//Testing that giving a tunnelEnpoint.net.liqo.io we can remove
 	//all the rules inserted for the cluster described by the custom resource
 	//firt we add the rules and then we remove it
 	//expecting that the rulse are 0.
@@ -164,7 +164,7 @@ func TestDeleteAllIPTablesChains(t *testing.T) {
 }
 
 func TestInsertRoutesPerCluster(t *testing.T) {
-	//test1: given a tunnelendpoint.liqonet.liqo.io we add the routes
+	//test1: given a tunnelendpoint.net.liqo.io we add the routes
 	//in a node that is not the gateway node
 	//the expected number of routes is two
 	r := getRouteController()

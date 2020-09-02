@@ -2,7 +2,7 @@ package liqonet
 
 import (
 	"errors"
-	"github.com/liqoTech/liqo/api/liqonet/v1"
+	netv1alpha1 "github.com/liqoTech/liqo/api/net/v1alpha1"
 	"github.com/liqoTech/liqo/internal/errdefs"
 	"github.com/prometheus/common/log"
 	"github.com/vishvananda/netlink"
@@ -63,7 +63,7 @@ func GetLocalTunnelPrivateIPToString() (string, error) {
 	return ipAddress, nil
 }
 
-func InstallGreTunnel(endpoint *v1.TunnelEndpoint) (int, string, error) {
+func InstallGreTunnel(endpoint *netv1alpha1.TunnelEndpoint) (int, string, error) {
 	//TODO configure the name according to the max length permitted by the kernel
 	name := tunnelNamePrefix
 	//get the local ip address and use it as local ip for the gre tunnel
@@ -94,7 +94,7 @@ func InstallGreTunnel(endpoint *v1.TunnelEndpoint) (int, string, error) {
 
 //this function is called to remove the gre tunnel external resource
 //when the Custorm Resource is deleted. It has to be idempotent
-func RemoveGreTunnel(endpoint *v1.TunnelEndpoint) error {
+func RemoveGreTunnel(endpoint *netv1alpha1.TunnelEndpoint) error {
 	//check if the interface index is set
 	if endpoint.Status.TunnelIFaceIndex == 0 {
 		log.Info("no tunnel installed. Do nothing")

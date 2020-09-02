@@ -10,7 +10,7 @@ metadata:
   name: tunnel-operator-manager-role
 rules:
   - apiGroups:
-      - liqonet.liqo.io
+      - net.liqo.io
     resources:
       - tunnelendpoints
     verbs:
@@ -22,7 +22,7 @@ rules:
       - update
       - watch
   - apiGroups:
-      - liqonet.liqo.io
+      - net.liqo.io
     resources:
       - tunnelendpoints/status
     verbs:
@@ -61,7 +61,7 @@ spec:
         run: tunnel-operator
     spec:
       nodeSelector: 
-        liqonet.liqo.io/gateway: "true"
+        net.liqo.io/gateway: "true"
       serviceAccountName: tunnel-operator-service-account
       containers:
         - image: {{ .Values.tunnelEndpointOperator.image.repository }}{{ .Values.global.suffix | default .Values.suffix }}:{{ .Values.global.version | default .Values.version }}
