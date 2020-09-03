@@ -39,7 +39,7 @@ When executing the `cloudify` command, the application will create:
 To install all the required software we need to follow this steps:
 
 1. [Install k3s](#install-k3s) in both clusters;
-2. [Install liqo](#install-liqo) in both clusters; 
+2. [Install Liqo](#install-liqo) in both clusters; 
 3. [Install KubernetesOnDesktop](#install-kubernetesondesktop) in the *local cluster*. Note that the foreign cluster simply runs a vanilla Liqo, without any other software.
 
 ### Install k3s
@@ -50,7 +50,7 @@ So, you only need to run the following command:
 curl -sfL https://get.k3s.io | sh -
 ```
 
-A tiny customization of the above default install is required for [liqo](https://liqo.io) to work.
+A tiny customization of the above default install is required for [Liqo](https://liqo.io) to work.
 When the script ends, you need to modify the `/etc/systemd/system/k3s.service` file by adding the `--kube-apiserver-arg anonymous-auth=true` service execution parameter as in the following command:
 
 ```bash
@@ -121,10 +121,10 @@ export KUBECONFIG="$HOME/.kube/k3s.yaml"
 echo 'export KUBECONFIG="$HOME/.kube/k3s.yaml"' >> $HOME/.bashrc
 ```
 
-Before proceeding with the [liqo](https://liqo.io) installation, wait for all the pod to be in `Running` status; for this, you can execute the command `kubectl get pod --all-namespaces`.
+Before proceeding with the [Liqo](https://liqo.io) installation, wait for all the pod to be in `Running` status; for this, you can execute the command `kubectl get pod --all-namespaces`.
 
 
-### Install liqo
+### Install Liqo
 To install [Liqo](https://liqo.io), you have to (1) export manually the required environment variables and (2) use the script provided in the project.
 This can be done with the following commands:
 
@@ -142,7 +142,7 @@ You can check it by executing `kubectl get pod -n liqo` in both clusters.
 Since both (virtual) machines are connected to the same local area network, each Liqo cluster will automatically join the foreign one thanks the Liqo [Discovery](/user/configure/discovery/) and [Peering](/user/gettingstarted/peer/) features.
 
 ### Install KubernetesOnDesktop
-Now that both [k3s](https://k3s.io/) and [liqo](https://liqo.io) are up and running, we can install [KubernetesOnDesktop](https://github.com/netgroup-polito/KubernetesOnDesktop) by executing the following command:
+Now that both [k3s](https://k3s.io/) and [Liqo](https://liqo.io) are up and running, we can install [KubernetesOnDesktop](https://github.com/netgroup-polito/KubernetesOnDesktop) by executing the following command:
 
 ```bash
 sudo curl -L https://raw.githubusercontent.com/netgroup-polito/KubernetesOnDesktop/master/install.sh | sudo bash -s -- --remote
@@ -165,7 +165,7 @@ cloudify -t 500 -r pod -s blender
 {{% /expand%}}
 If you need help about the execution parameters, please run `cloudify -h`.
 
-The `cloudify` application will create the `kod` `namespace` (if not present) and will apply on it the `liqo.io/enabled=true` `label` so that this `namespace` could be extended to the liqo *foreign cluster* (See [Exploit foreign cluster resources](/user/gettingstarted/test/#start-hello-world-pod)).
+The `cloudify` application will create the `kod` `namespace` (if not present) and will apply on it the `liqo.io/enabled=true` `label` so that this `namespace` could be extended to the Liqo *foreign cluster* (See [Exploit foreign cluster resources](/user/gettingstarted/test/#start-hello-world-pod)).
 
 In addition, `cloudify` adds a label to the local `node` to allow k3s to schedule the pods according to the node affinity specified in the `kubernetes/deployment.yaml`, particularly that the application `pod` must be executed in a remote node.
 Similarly, `kubernetes/vncviewer.yaml` specifies that the viewer must be executed on the local node.
@@ -201,8 +201,8 @@ sudo KUBECONFIG=$KUBECONFIG cloudify-uninstall
 
 **Note:** During the uninstall process it will be asked if you want to remove the `kod` namespace too. Just type "yes" and then press "Enter" to complete the process.
 
-## Teardown k3s and liqo
-To teardown k3s and liqo just run the following commands in both the nodes:
+## Teardown k3s and Liqo
+To teardown k3s and Liqo just run the following commands in both the nodes:
 
 ```bash
 k3s-uninstall.sh
