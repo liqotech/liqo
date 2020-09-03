@@ -232,7 +232,6 @@ func TestComputePrices(t *testing.T) {
 
 func TestCreateAdvertisement(t *testing.T) {
 	pNodes, vNodes, images, _, pods := createFakeResources()
-	gatewayNode := pNodes.Items[0]
 	sharingPercentage := int32(50)
 	reqs, limits := advop.GetAllPodsResources(pods)
 	availability, _ := advop.ComputeAnnouncedResources(pNodes, reqs, int64(sharingPercentage))
@@ -241,8 +240,8 @@ func TestCreateAdvertisement(t *testing.T) {
 		neighbours[corev1.ResourceName(vNode.Name)] = vNode.Status.Allocatable
 	}
 
-	configv1alpha1 := createFakeClusterConfig()
-	broadcaster := createBroadcaster(configv1alpha1.Spec)
+	config := createFakeClusterConfig()
+	broadcaster := createBroadcaster(config.Spec)
 
 	adv := broadcaster.CreateAdvertisement(pNodes, vNodes, availability, images, limits)
 
@@ -257,15 +256,12 @@ func TestCreateAdvertisement(t *testing.T) {
 	assert.Equal(t, availability, adv.Spec.ResourceQuota.Hard)
 	assert.Equal(t, limits, adv.Spec.LimitRange.Limits[0].Max)
 	assert.Equal(t, neighbours, adv.Spec.Neighbors)
-	assert.Equal(t, pNodes.Items[0].Spec.PodCIDR, adv.Spec.Network.PodCIDR)
-	assert.Equal(t, gatewayNode.Status.Addresses[0].Address, adv.Spec.Network.GatewayIP)
-	assert.Equal(t, "10.0.0.1", adv.Spec.Network.GatewayPrivateIP)
 	assert.Empty(t, adv.Status, "Status should not be set")
 }
 
 func TestGetResourceForAdv(t *testing.T) {
-	configv1alpha1 := createFakeClusterConfig()
-	b := createBroadcaster(configv1alpha1.Spec)
+	config := createFakeClusterConfig()
+	b := createBroadcaster(config.Spec)
 	pNodes, vNodes, images, _, pods := createFakeResources()
 
 	err := createResourcesOnCluster(b.LocalClient, pNodes, vNodes, pods)
@@ -290,8 +286,8 @@ func TestGetResourceForAdv(t *testing.T) {
 }
 
 func TestSendAdvertisementCreation(t *testing.T) {
-	configv1alpha1 := createFakeClusterConfig()
-	b := createBroadcaster(configv1alpha1.Spec)
+	config := createFakeClusterConfig()
+	b := createBroadcaster(config.Spec)
 	_, err := b.RemoteClient.Client().CoreV1().Secrets(b.KubeconfigSecretForForeign.Namespace).Create(context.TODO(), b.KubeconfigSecretForForeign, metav1.CreateOptions{})
 	if err != nil {
 		t.Fatal(err)
@@ -310,8 +306,8 @@ func TestSendAdvertisementCreation(t *testing.T) {
 }
 
 func TestNotifyAdvertisementDeletion(t *testing.T) {
-	configv1alpha1 := createFakeClusterConfig()
-	b := createBroadcaster(configv1alpha1.Spec)
+	config := createFakeClusterConfig()
+	b := createBroadcaster(config.Spec)
 	_, err := b.RemoteClient.Client().CoreV1().Secrets(b.KubeconfigSecretForForeign.Namespace).Create(context.TODO(), b.KubeconfigSecretForForeign, metav1.CreateOptions{})
 	if err != nil {
 		t.Fatal(err)

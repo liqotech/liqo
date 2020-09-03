@@ -153,12 +153,6 @@ func getAdv() *advtypes.Advertisement {
 				Name:      "fake-kubeconfig",
 			},
 			LimitRange: corev1.LimitRangeSpec{Limits: []corev1.LimitRangeItem{}},
-			Network: advtypes.NetworkInfo{
-				PodCIDR:            "10.96.0.0/16",
-				GatewayIP:          "192.168.1.2",
-				GatewayPrivateIP:   "10.0.0.1",
-				SupportedProtocols: nil,
-			},
 			Timestamp:  metav1.NewTime(time.Now()),
 			TimeToLive: metav1.NewTime(time.Now().Add(30 * time.Minute)),
 		},

@@ -123,11 +123,6 @@ func (r *AdvertisementReconciler) Reconcile(req ctrl.Request) (ctrl.Result, erro
 		return ctrl.Result{RequeueAfter: r.RetryTimeout}, nil
 	}
 
-	if !r.KindEnvironment && adv.Status.RemoteRemappedPodCIDR == "" {
-		klog.Info("advertisement not complete, remoteRemappedPodCIDR not set yet")
-		return ctrl.Result{RequeueAfter: r.RetryTimeout}, nil
-	}
-
 	if !adv.Status.VkCreated {
 		err := r.createVirtualKubelet(ctx, &adv)
 		if err != nil {

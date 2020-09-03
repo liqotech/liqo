@@ -21,29 +21,15 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-type NetworkInfo struct {
-	PodCIDR          string `json:"podCIDR"`
-	GatewayIP        string `json:"gatewayIP"`
-	GatewayPrivateIP string `json:"gatewayPrivateIP"`
-	// +optional
-	SupportedProtocols []string `json:"supportedProtocols,omitempty"`
-}
-
-type NamespacedName struct {
-	Namespace string `json:"namespace"`
-	Name      string `json:"name"`
-}
-
 // AdvertisementSpec defines the desired state of Advertisement
 type AdvertisementSpec struct {
 	ClusterId     string                                      `json:"clusterId"`
 	Images        []corev1.ContainerImage                     `json:"images,omitempty"`
 	LimitRange    corev1.LimitRangeSpec                       `json:"limitRange,omitempty"`
-	ResourceQuota corev1.ResourceQuotaSpec                    `json:"resourceQuota,omitempty"`
+	ResourceQuota corev1.ResourceQuotaSpec                    `json:"resourceQuota"`
 	Neighbors     map[corev1.ResourceName]corev1.ResourceList `json:"neighbors,omitempty"`
 	Properties    map[corev1.ResourceName]string              `json:"properties,omitempty"`
 	Prices        corev1.ResourceList                         `json:"prices,omitempty"`
-	Network       NetworkInfo                                 `json:"network"`
 	KubeConfigRef corev1.SecretReference                      `json:"kubeConfigRef"`
 	Timestamp     metav1.Time                                 `json:"timestamp"`
 	TimeToLive    metav1.Time                                 `json:"timeToLive"`
@@ -51,13 +37,9 @@ type AdvertisementSpec struct {
 
 // AdvertisementStatus defines the observed state of Advertisement
 type AdvertisementStatus struct {
-	AdvertisementStatus   string                                `json:"advertisementStatus"`
-	VkCreated             bool                                  `json:"vkCreated"`
-	VkReference           object_references.DeploymentReference `json:"vkReference,omitempty"`
-	LocalRemappedPodCIDR  string                                `json:"localRemappedPodCIDR,omitempty"`
-	RemoteRemappedPodCIDR string                                `json:"remoteRemappedPodCIDR,omitempty"`
-	//the tunnelEndpoint associated with the foreign cluster
-	TunnelEndpointKey NamespacedName `json:"tunnelEndpointKey"`
+	AdvertisementStatus string                                `json:"advertisementStatus"`
+	VkCreated           bool                                  `json:"vkCreated"`
+	VkReference         object_references.DeploymentReference `json:"vkReference,omitempty"`
 }
 
 // +kubebuilder:object:root=true

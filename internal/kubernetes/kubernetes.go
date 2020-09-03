@@ -1,6 +1,7 @@
 package kubernetes
 
 import (
+	nettypes "github.com/liqoTech/liqo/api/liqonet/v1"
 	advtypes "github.com/liqoTech/liqo/api/sharing/v1alpha1"
 	nattingv1 "github.com/liqoTech/liqo/api/virtualKubelet/v1alpha1"
 	"github.com/liqoTech/liqo/internal/node"
@@ -21,7 +22,8 @@ type KubernetesProvider struct { // nolint:golint]
 	foreignPodCaches   map[string]*podCache
 	homeEpCaches       map[string]*epCache
 	foreignEpCaches    map[string]*epCache
-	nodeUpdateClient   *crdClient.CRDClient
+	advClient          *crdClient.CRDClient
+	tunEndClient       *crdClient.CRDClient
 	foreignClient      *crdClient.CRDClient
 	homeClient         *crdClient.CRDClient
 	nodeName           string
@@ -32,7 +34,6 @@ type KubernetesProvider struct { // nolint:golint]
 	notifier           func(*v1.Pod)
 	foreignClusterId   string
 	homeClusterID      string
-	initialized        bool
 	nodeController     *node.NodeController
 	providerKubeconfig string
 	restConfig         *rest.Config
@@ -57,6 +58,11 @@ func NewKubernetesProvider(nodeName, clusterId, homeClusterId, operatingSystem s
 	}
 
 	advClient, err := advtypes.CreateAdvertisementClient(kubeconfig, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	tepClient, err := nettypes.CreateTunnelEndpointClient(kubeconfig)
 	if err != nil {
 		return nil, err
 	}
@@ -89,7 +95,8 @@ func NewKubernetesProvider(nodeName, clusterId, homeClusterId, operatingSystem s
 		foreignPodWatcherStop: make(chan struct{}, 1),
 		restConfig:            restConfig,
 		foreignClient:         foreignClient,
-		nodeUpdateClient:      advClient,
+		advClient:             advClient,
+		tunEndClient:          tepClient,
 	}
 
 	return &provider, nil

@@ -234,12 +234,6 @@ func (b *AdvertisementBroadcaster) CreateAdvertisement(physicalNodes *corev1.Nod
 			Neighbors:  neighbours,
 			Properties: nil,
 			Prices:     prices,
-			Network: advtypes.NetworkInfo{
-				PodCIDR:            GetPodCIDR(physicalNodes.Items),
-				GatewayIP:          GetGateway(physicalNodes.Items),
-				GatewayPrivateIP:   b.GatewayPrivateIP,
-				SupportedProtocols: nil,
-			},
 			KubeConfigRef: corev1.SecretReference{
 				Namespace: b.KubeconfigSecretForForeign.Namespace,
 				Name:      b.KubeconfigSecretForForeign.Name,
