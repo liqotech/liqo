@@ -90,7 +90,7 @@ ExecStart=/usr/local/bin/k3s \
 ```
 {{% /expand%}}
 
-{{%expand "**Note**: If you want to exploit any available NVIDIA GPUs in the *foreign cluster* you also have to do in that cluster as follows:" %}}
+{{%expand "**Note**: If you want to exploit any available NVIDIA GPUs in the *foreign cluster*, you have to follow the additional steps below (in the foreign cluster):" %}}
 1. [Install in the required NVIDIA CUDA driver](https://github.com/NVIDIA/nvidia-docker/wiki/Frequently-Asked-Questions#how-do-i-install-the-nvidia-driver);
 2. [Install the Docker engine](https://docs.docker.com/engine/install/);
 3. [Install the `nvidia-container-runtime`](https://github.com/nvidia/nvidia-container-runtime#installation);
