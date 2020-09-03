@@ -21,19 +21,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-type NetworkInfo struct {
-	PodCIDR          string `json:"podCIDR"`
-	GatewayIP        string `json:"gatewayIP"`
-	GatewayPrivateIP string `json:"gatewayPrivateIP"`
-	// +optional
-	SupportedProtocols []string `json:"supportedProtocols,omitempty"`
-}
-
-type NamespacedName struct {
-	Namespace string `json:"namespace"`
-	Name      string `json:"name"`
-}
-
 // AdvertisementSpec defines the desired state of Advertisement
 type AdvertisementSpec struct {
 	// ClusterId is the identifier of the cluster that is sending this Advertisement.
@@ -50,11 +37,7 @@ type AdvertisementSpec struct {
 	// Properties can contain any additional information about the cluster.
 	Properties map[corev1.ResourceName]string `json:"properties,omitempty"`
 	// Prices contains the possible prices for every kind of resource (cpu, memory, image).
-	Prices corev1.ResourceList `json:"prices,omitempty"`
-	// Network contains the network information of the cluster.
-	Network NetworkInfo `json:"network"`
-	// KubeConfigRef is a reference to a secret containing the kubeconfig for the virtual-kubelet.
-	// The virtual-kubelet will use this kubeconfig to access to the foreign cluster which is sending this Advertisement.
+	Prices        corev1.ResourceList    `json:"prices,omitempty"`
 	KubeConfigRef corev1.SecretReference `json:"kubeConfigRef"`
 	// Timestamp is the time instant when this Advertisement was created.
 	Timestamp metav1.Time `json:"timestamp"`
@@ -85,14 +68,6 @@ type AdvertisementStatus struct {
 	VkCreated bool `json:"vkCreated"`
 	// VkReference is a reference to the deployment running the virtual-kubelet.
 	VkReference object_references.DeploymentReference `json:"vkReference,omitempty"`
-	// LocalRemappedPodCIDR contains how the foreign cluster (sending the Advertisement) has remapped home cluster (receiving the Advertisement) pod CIDR.
-	// If no overlapping occurred, this field is set to "None"
-	LocalRemappedPodCIDR string `json:"localRemappedPodCIDR,omitempty"`
-	// RemoteRemappedPodCIDR contains how the home cluster (receiving the Advertisement) has remapped foreign cluster (sendind the Advertisement) pod CIDR.
-	// If no overlapping occurred, this field is set to "None"
-	RemoteRemappedPodCIDR string `json:"remoteRemappedPodCIDR,omitempty"`
-	// TunnelEndpointKey contains the namespaced name of the tunnelEndpoint associated with the foreign cluster
-	TunnelEndpointKey NamespacedName `json:"tunnelEndpointKey"`
 }
 
 // +kubebuilder:object:root=true

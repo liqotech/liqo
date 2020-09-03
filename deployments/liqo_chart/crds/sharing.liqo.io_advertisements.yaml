@@ -162,27 +162,6 @@ spec:
                   x-kubernetes-int-or-string: true
                 description: ResourceList is a set of (resource name, quantity) pairs.
                 type: object
-              description: Neighbors is a map where the key is the name of a virtual
-                node (representing a foreign cluster) and the value are the resources
-                allocatable on that node.
-              type: object
-            network:
-              description: Network contains the network information of the cluster.
-              properties:
-                gatewayIP:
-                  type: string
-                gatewayPrivateIP:
-                  type: string
-                podCIDR:
-                  type: string
-                supportedProtocols:
-                  items:
-                    type: string
-                  type: array
-              required:
-              - gatewayIP
-              - gatewayPrivateIP
-              - podCIDR
               type: object
             prices:
               additionalProperties:
@@ -275,7 +254,7 @@ spec:
           required:
           - clusterId
           - kubeConfigRef
-          - network
+          - resourceQuota
           - timeToLive
           - timestamp
           type: object
@@ -297,28 +276,6 @@ spec:
               - Refused
               - Deleting
               type: string
-            localRemappedPodCIDR:
-              description: LocalRemappedPodCIDR contains how the foreign cluster (sending
-                the Advertisement) has remapped home cluster (receiving the Advertisement)
-                pod CIDR. If no overlapping occurred, this field is set to "None"
-              type: string
-            remoteRemappedPodCIDR:
-              description: RemoteRemappedPodCIDR contains how the home cluster (receiving
-                the Advertisement) has remapped foreign cluster (sendind the Advertisement)
-                pod CIDR. If no overlapping occurred, this field is set to "None"
-              type: string
-            tunnelEndpointKey:
-              description: TunnelEndpointKey contains the namespaced name of the tunnelEndpoint
-                associated with the foreign cluster
-              properties:
-                name:
-                  type: string
-                namespace:
-                  type: string
-              required:
-              - name
-              - namespace
-              type: object
             vkCreated:
               description: VkCreated indicates if the virtual-kubelet for this Advertisement
                 has been created or not.
@@ -338,7 +295,6 @@ spec:
               type: object
           required:
           - advertisementStatus
-          - tunnelEndpointKey
           - vkCreated
           type: object
       type: object

@@ -33,12 +33,6 @@ func createFakeAdv(name, namespace string) *advtypes.Advertisement {
 				Name:      "fake-kubeconfig",
 			},
 			LimitRange: corev1.LimitRangeSpec{Limits: []corev1.LimitRangeItem{}},
-			Network: advtypes.NetworkInfo{
-				PodCIDR:            "",
-				GatewayIP:          "",
-				GatewayPrivateIP:   "",
-				SupportedProtocols: nil,
-			},
 			Timestamp:  metav1.NewTime(time.Now()),
 			TimeToLive: metav1.NewTime(time.Now().Add(30 * time.Minute)),
 		},
@@ -60,14 +54,8 @@ func createFakeInvalidAdv(name, namespace string, resourceQuota corev1.ResourceQ
 			},
 			ResourceQuota: resourceQuota,
 			LimitRange:    corev1.LimitRangeSpec{Limits: []corev1.LimitRangeItem{}},
-			Network: advtypes.NetworkInfo{
-				PodCIDR:            "",
-				GatewayIP:          "",
-				GatewayPrivateIP:   "",
-				SupportedProtocols: nil,
-			},
-			Timestamp:  metav1.NewTime(time.Now()),
-			TimeToLive: metav1.NewTime(time.Now().Add(30 * time.Minute)),
+			Timestamp:     metav1.NewTime(time.Now()),
+			TimeToLive:    metav1.NewTime(time.Now().Add(30 * time.Minute)),
 		},
 	}
 }
