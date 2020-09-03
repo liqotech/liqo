@@ -51,8 +51,8 @@ type CRDReplicatorReconciler struct {
 	//each time a resource is removed from the configuration it is saved in this list,
 	//it stays here until the associated watcher, if running, is stopped
 	UnregisteredResources []string
-	//for each local resource that exists a running watcher we save the tuples (registeredResource, chan)
-	LocalWatchers map[string]chan bool
+	//for each peering cluster we save all the running watchers monitoring the local resources:(clusterID, (registeredResource, chan))
+	LocalWatchers map[string]map[string]chan bool
 	//for each peering cluster we save all the running watchers monitoring the replicated resources:(clusterID, (registeredResource, chan))
 	RemoteWatchers map[string]map[string]chan bool
 }
@@ -75,7 +75,7 @@ func (d *CRDReplicatorReconciler) Reconcile(req ctrl.Request) (ctrl.Result, erro
 	//first we check the outgoing connection
 	if fc.Status.Outgoing.AvailableIdentity {
 		//retrieve the config
-		config, err := d.getConfig(d.ClientSet, fc.Status.Outgoing.IdentityRef, remoteClusterID)
+		config, err := d.getKubeConfig(d.ClientSet, fc.Status.Outgoing.IdentityRef, remoteClusterID)
 		if err != nil {
 			klog.Errorf("%s -> unable to retrieve config from resource %s for remote peering cluster %s: %s", d.ClusterID, req.NamespacedName, remoteClusterID, err)
 			return result, nil
@@ -93,7 +93,7 @@ func (d *CRDReplicatorReconciler) Reconcile(req ctrl.Request) (ctrl.Result, erro
 		}
 	} else if fc.Status.Incoming.AvailableIdentity {
 		//retrieve the config
-		config, err := d.getConfig(d.ClientSet, fc.Status.Outgoing.IdentityRef, remoteClusterID)
+		config, err := d.getKubeConfig(d.ClientSet, fc.Status.Outgoing.IdentityRef, remoteClusterID)
 		if err != nil {
 			klog.Errorf("%s -> unable to retrieve config from resource %s for remote peering cluster %s: %s", d.ClusterID, req.NamespacedName, remoteClusterID, err)
 			return result, err
@@ -112,9 +112,7 @@ func (d *CRDReplicatorReconciler) Reconcile(req ctrl.Request) (ctrl.Result, erro
 	}
 
 	d.StartWatchers()
-	d.StartRemoteWatchers()
 	d.StopWatchers()
-	d.StopRemoteWatchers()
 	return result, nil
 }
 
@@ -124,7 +122,7 @@ func (d *CRDReplicatorReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		Complete(d)
 }
 
-func (d *CRDReplicatorReconciler) getConfig(clientset kubernetes.Interface, reference *corev1.ObjectReference, remoteClusterID string) (*rest.Config, error) {
+func (d *CRDReplicatorReconciler) getKubeConfig(clientset kubernetes.Interface, reference *corev1.ObjectReference, remoteClusterID string) (*rest.Config, error) {
 	if reference == nil {
 		return nil, fmt.Errorf("%s -> object reference for the secret containing kubeconfig of foreign cluster %s not set yet", d.ClusterID, remoteClusterID)
 	}
@@ -142,22 +140,21 @@ func (d *CRDReplicatorReconciler) getConfig(clientset kubernetes.Interface, refe
 	return cnf, nil
 }
 
-func (d *CRDReplicatorReconciler) LocalWatcher(gvr schema.GroupVersionResource, stop chan bool) {
+func (d *CRDReplicatorReconciler) LocalWatcher(gvr schema.GroupVersionResource, stop chan bool, remoteClusterID string) {
 	watcher, err := d.LocalDynClient.Resource(gvr).Watch(context.TODO(), metav1.ListOptions{
-		LabelSelector: LocalLabelSelector + "=true",
+		LabelSelector: LocalLabelSelector + "=true" + "," + DestinationLabel + "=" + remoteClusterID,
 	})
 	if err != nil {
-		klog.Error(err, gvr)
+		klog.Errorf("%s -> an error occurred while starting local watcher for resource %s :%s", remoteClusterID, gvr.String(), err)
 		//closing the channel, so at the next reconcile the watcher will be restarted
 		close(stop)
-		klog.Infof("stopping the local watcher for resource: %s", gvr)
 		return
 	}
 	event := watcher.ResultChan()
 	for {
 		select {
 		case <-stop:
-			klog.Infof("%s -> stopping the local watcher for resource: %s", d.ClusterID, gvr)
+			klog.Infof("%s -> stopping the local watcher for resource: %s", remoteClusterID, gvr)
 			return
 		case e := <-event:
 			obj, ok := e.Object.(*unstructured.Unstructured)
@@ -166,13 +163,13 @@ func (d *CRDReplicatorReconciler) LocalWatcher(gvr schema.GroupVersionResource, 
 			}
 			switch e.Type {
 			case watch.Added:
-				klog.Infof("%s -> the resource %s %s has been added", d.ClusterID, obj.GetName(), gvr.String())
+				klog.Infof("%s -> the local resource %s %s has been added", remoteClusterID, obj.GetName(), gvr.String())
 				d.AddedHandler(obj, gvr)
 			case watch.Modified:
-				klog.Infof("%s -> the resource %s %s has been modified", d.ClusterID, obj.GetName(), gvr.String())
+				klog.Infof("%s -> the local resource %s %s has been modified", remoteClusterID, obj.GetName(), gvr.String())
 				d.ModifiedHandler(obj, gvr)
 			case watch.Deleted:
-				klog.Infof("%s -> the resource %s %s has been deleted", d.ClusterID, obj.GetName(), gvr.String())
+				klog.Infof("%s -> the local resource %s %s has been deleted", remoteClusterID, obj.GetName(), gvr.String())
 				d.DeletedHandler(obj, gvr)
 			}
 		}
@@ -184,10 +181,9 @@ func (d *CRDReplicatorReconciler) RemoteWatcher(dynClient dynamic.Interface, gvr
 		LabelSelector: RemoteLabelSelector + "=" + d.ClusterID,
 	})
 	if err != nil {
-		klog.Error(err, gvr)
+		klog.Errorf("%s -> an error occurred while starting local watcher for resource %s :%s", remoteClusterID, gvr.String(), err)
 		//closing the channel, so at the next reconcile the watcher will be restarted
 		close(stop)
-		klog.Infof("%s -> stopping the remote watcher for resource: %s", remoteClusterID, gvr)
 		return
 	}
 	event := watcher.ResultChan()
@@ -203,7 +199,7 @@ func (d *CRDReplicatorReconciler) RemoteWatcher(dynClient dynamic.Interface, gvr
 			}
 			switch e.Type {
 			case watch.Modified:
-				klog.Infof("%s -> the resource %s %s has been modified ", remoteClusterID, obj.GetName(), gvr.String())
+				klog.Infof("%s -> the remote resource %s %s has been modified ", remoteClusterID, obj.GetName(), gvr.String())
 				d.RemoteResourceModifiedHandler(obj, gvr, remoteClusterID)
 			}
 		}
@@ -262,28 +258,6 @@ func (d *CRDReplicatorReconciler) RemoteResourceModifiedHandler(obj *unstructure
 }
 
 func (d *CRDReplicatorReconciler) StartWatchers() {
-	//for each resource check if there is already a local running watcher
-	for _, res := range d.RegisteredResources {
-		//if there is not then start one
-		if _, ok := d.LocalWatchers[res.String()]; !ok {
-			stop := make(chan bool, 1)
-			d.LocalWatchers[res.String()] = stop
-			go d.LocalWatcher(res, stop)
-			klog.Infof("%s -> starting watcher for resource: %s", d.ClusterID, res.String())
-		} else {
-			//here we check if the channel is closed and if so then we start again the watcher
-			if !isOpen(d.LocalWatchers[res.String()]) {
-				//it means that the channel is closed we need to restart the watcher
-				stop := make(chan bool, 1)
-				d.LocalWatchers[res.String()] = stop
-				go d.LocalWatcher(res, stop)
-				klog.Infof("%s -> starting watcher for resource: %s", d.ClusterID, res.String())
-			}
-		}
-	}
-}
-
-func (d *CRDReplicatorReconciler) StartRemoteWatchers() {
 	//for each remote cluster check if the remote watchers are running for each registered resource
 	for remCluster, remDynClient := range d.RemoteDynClients {
 		watchers := d.RemoteWatchers[remCluster]
@@ -310,25 +284,37 @@ func (d *CRDReplicatorReconciler) StartRemoteWatchers() {
 		}
 		d.RemoteWatchers[remCluster] = watchers
 	}
+	//for each remote cluster check if the local watchers are running for each registered resource
+	for remCluster := range d.RemoteDynClients {
+		watchers := d.LocalWatchers[remCluster]
+		if watchers == nil {
+			watchers = make(map[string]chan bool)
+		}
+		for _, res := range d.RegisteredResources {
+			//if there is not a running local watcher then start one
+			if _, ok := watchers[res.String()]; !ok {
+				stop := make(chan bool, 1)
+				watchers[res.String()] = stop
+				go d.LocalWatcher(res, stop, remCluster)
+				klog.Infof("%s -> starting local watcher for resource: %s", remCluster, res.String())
+			} else {
+				//here we check if the channel is closed and if so then we start again the watcher
+				if !isOpen(watchers[res.String()]) {
+					//it means that the channel is closed we need to restart the watcher
+					stop := make(chan bool, 1)
+					watchers[res.String()] = stop
+					go d.LocalWatcher(res, stop, remCluster)
+					klog.Infof("%s -> starting local watcher for resource: %s", remCluster, res.String())
+				}
+			}
+		}
+		d.LocalWatchers[remCluster] = watchers
+	}
 }
 
 //Stops all the watchers for the resources that have been unregistered
 func (d *CRDReplicatorReconciler) StopWatchers() {
-	for _, res := range d.UnregisteredResources {
-		if ch, ok := d.LocalWatchers[res]; ok {
-			if !isOpen(ch) {
-				//it means that the channel is closed we need only to delete the entry in the map
-				delete(d.LocalWatchers, res)
-			} else {
-				close(ch)
-				delete(d.LocalWatchers, res)
-				klog.Infof("%s -> stopping watcher for resource: %s", d.ClusterID, res)
-			}
-		}
-	}
-}
-
-func (d *CRDReplicatorReconciler) StopRemoteWatchers() {
+	//stop all remote watchers
 	for remCluster, watchers := range d.RemoteWatchers {
 		for _, res := range d.UnregisteredResources {
 			if ch, ok := watchers[res]; ok {
@@ -338,11 +324,25 @@ func (d *CRDReplicatorReconciler) StopRemoteWatchers() {
 				} else {
 					close(ch)
 					delete(watchers, res)
-					klog.Infof("%s -> stopping remote watcher for resource: %s", remCluster, res)
 				}
 			}
 		}
 		d.RemoteWatchers[remCluster] = watchers
+	}
+	//stop all local watchers
+	for remCluster, watchers := range d.LocalWatchers {
+		for _, res := range d.UnregisteredResources {
+			if ch, ok := watchers[res]; ok {
+				if !isOpen(ch) {
+					//it means that the channel is closed we need only to delete the entry in the map
+					delete(watchers, res)
+				} else {
+					close(ch)
+					delete(watchers, res)
+				}
+			}
+		}
+		d.LocalWatchers[remCluster] = watchers
 	}
 }
 
@@ -444,7 +444,6 @@ func areEqual(local, remote *unstructured.Unstructured) bool {
 func getSpec(obj *unstructured.Unstructured, clusterID string) (map[string]interface{}, error) {
 	spec, b, err := unstructured.NestedMap(obj.Object, "spec")
 	if !b {
-		klog.Infof("%s -> spec field not found for resource %s %s ", clusterID, obj.GetName(), obj.GetKind())
 		return nil, nil
 	}
 	if err != nil {
@@ -457,7 +456,6 @@ func getSpec(obj *unstructured.Unstructured, clusterID string) (map[string]inter
 func getStatus(obj *unstructured.Unstructured, clusterID string) (map[string]interface{}, error) {
 	status, b, err := unstructured.NestedMap(obj.Object, "status")
 	if !b {
-		klog.Infof("%s -> status field not found for resource %s %s of type %s", clusterID, obj.GetName(), obj.GetNamespace(), obj.GetKind())
 		return nil, nil
 	}
 	if err != nil {
@@ -530,11 +528,9 @@ func (d *CRDReplicatorReconciler) ModifiedHandler(obj *unstructured.Unstructured
 		}
 		//if the resource exists or we just created it then we update the fields
 		//we do this considering that the resource existed, even if we just created it
-		retryErr := retry.RetryOnConflict(retry.DefaultRetry, func() error {
-			return d.UpdateResource(client, gvr, obj, clusterID)
-		})
-		if retryErr != nil {
-			klog.Error(retryErr)
+		if err = d.UpdateResource(client, gvr, obj, clusterID); err != nil {
+			klog.Errorf("%s -> an error occurred while updating resource %s of type %s: %s", clusterID, name, gvr.String(), err)
+			return
 		}
 	}
 }
@@ -658,34 +654,63 @@ func (d *CRDReplicatorReconciler) UpdateMetadata(client dynamic.Interface, gvr s
 
 //updates the spec field of a resource
 func (d *CRDReplicatorReconciler) UpdateSpec(client dynamic.Interface, gvr schema.GroupVersionResource, obj *unstructured.Unstructured, clusterID string, spec map[string]interface{}) error {
-	//setting the new values of spec fields
-	err := unstructured.SetNestedMap(obj.Object, spec, "spec")
-	if err != nil {
-		klog.Errorf("%s -> an error occurred while setting the new spec fields of resource %s %s of kind %s: %s", clusterID, obj.GetName(), obj.GetNamespace(), gvr.String(), err)
-		return err
+	res := &unstructured.Unstructured{}
+	retryError := retry.RetryOnConflict(retry.DefaultRetry, func() error {
+		//get the latest version of the resource before attempting to update it
+		res, err := client.Resource(gvr).Namespace(obj.GetNamespace()).Get(context.TODO(), obj.GetName(), metav1.GetOptions{})
+		if err != nil {
+			klog.Errorf("%s -> an error occurred while getting the latest version of resource %s %s of kind %s before attempting to update its spec field: %s", clusterID, obj.GetName(), obj.GetNamespace(), gvr.String(), err)
+			return err
+		}
+		//setting the new values of spec fields
+		err = unstructured.SetNestedMap(res.Object, spec, "spec")
+		if err != nil {
+			klog.Errorf("%s -> an error occurred while setting the new spec fields of resource %s %s of kind %s: %s", clusterID, res.GetName(), res.GetNamespace(), gvr.String(), err)
+			return err
+		}
+		//update the remote resource
+		_, err = client.Resource(gvr).Namespace(obj.GetNamespace()).Update(context.TODO(), res, metav1.UpdateOptions{})
+		if err != nil {
+			return err
+		}
+		return nil
+	})
+	if retryError != nil {
+		klog.Errorf("%s -> an error occurred while updating spec field of resource %s %s of type %s: %s", clusterID, res.GetName(), res.GetNamespace(), gvr.String(), retryError)
+		return retryError
 	}
-	//update the remote resource
-	_, err = client.Resource(gvr).Namespace(obj.GetNamespace()).Update(context.TODO(), obj, metav1.UpdateOptions{})
-	if err != nil && !apierrors.IsConflict(err) {
-		klog.Errorf("%s -> an error occurred while updating spec field of resource %s %s of type %s: %s", clusterID, obj.GetName(), obj.GetNamespace(), gvr.String(), err)
-	}
-	return err
+	return nil
 }
 
 //updates the status field of a resource
 func (d *CRDReplicatorReconciler) UpdateStatus(client dynamic.Interface, gvr schema.GroupVersionResource, obj *unstructured.Unstructured, clusterID string, status map[string]interface{}) error {
-	//setting the new values of spec fields
-	err := unstructured.SetNestedMap(obj.Object, status, "status")
-	if err != nil {
-		klog.Errorf("%s -> an error occurred while setting the new status fields of resource %s %s of kind %s: %s", clusterID, obj.GetName(), obj.GetNamespace(), gvr.String(), err)
-		return err
+	res := &unstructured.Unstructured{}
+	retryError := retry.RetryOnConflict(retry.DefaultRetry, func() error {
+		//get the latest version of the resource before attempting to update it
+		res, err := client.Resource(gvr).Namespace(obj.GetNamespace()).Get(context.TODO(), obj.GetName(), metav1.GetOptions{})
+		if err != nil {
+			klog.Errorf("%s -> an error occurred while getting the latest version of resource %s %s of kind %s before attempting to update its status field: %s", clusterID, obj.GetName(), obj.GetNamespace(), gvr.String(), err)
+			return err
+		}
+		//setting the new values of spec fields
+		err = unstructured.SetNestedMap(res.Object, status, "status")
+		if err != nil {
+			klog.Errorf("%s -> an error occurred while setting the new status fields of resource %s %s of kind %s: %s", clusterID, res.GetName(), res.GetNamespace(), gvr.String(), err)
+			return err
+		}
+		//update the remote resource
+		_, err = client.Resource(gvr).Namespace(obj.GetNamespace()).UpdateStatus(context.TODO(), res, metav1.UpdateOptions{})
+		if err != nil {
+			klog.Errorf("%s -> an error occurred while updating status field of resource %s %s of type %s: %s", clusterID, res.GetName(), res.GetNamespace(), gvr.String(), err)
+			return err
+		}
+		return nil
+	})
+	if retryError != nil {
+		klog.Errorf("%s -> an error occurred while updating status field of resource %s %s of type %s: %s", clusterID, res.GetName(), res.GetNamespace(), gvr.String(), retryError)
+		return retryError
 	}
-	//update the remote resource
-	_, err = client.Resource(gvr).Namespace(obj.GetNamespace()).UpdateStatus(context.TODO(), obj, metav1.UpdateOptions{})
-	if err != nil && !apierrors.IsConflict(err) {
-		klog.Errorf("%s -> an error occurred while updating status field of resource %s %s of type %s: %s", clusterID, obj.GetName(), obj.GetNamespace(), gvr.String(), err)
-	}
-	return err
+	return nil
 }
 
 func isOpen(ch chan bool) bool {

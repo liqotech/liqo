@@ -49,6 +49,7 @@ func main() {
 	clusterID, err := util.GetClusterID(k8sClient, clusterIDConfMap, namespaceName)
 	if err != nil {
 		klog.Errorf("an error occurred while retrieving the clusterID: %s", err)
+		os.Exit(-1)
 	} else {
 		klog.Infof("setting local clusterID to: %s", clusterID)
 	}
@@ -62,7 +63,7 @@ func main() {
 		LocalDynClient:        dynamic.NewForConfigOrDie(cfg),
 		RegisteredResources:   nil,
 		UnregisteredResources: nil,
-		LocalWatchers:         make(map[string]chan bool),
+		LocalWatchers:         make(map[string]map[string]chan bool),
 		RemoteWatchers:        make(map[string]map[string]chan bool),
 	}
 	if err = d.SetupWithManager(mgr); err != nil {
