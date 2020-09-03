@@ -94,7 +94,7 @@ ExecStart=/usr/local/bin/k3s \
 1. [Install in the required NVIDIA CUDA driver](https://github.com/NVIDIA/nvidia-docker/wiki/Frequently-Asked-Questions#how-do-i-install-the-nvidia-driver);
 2. [Install the Docker engine](https://docs.docker.com/engine/install/);
 3. [Install the `nvidia-container-runtime`](https://github.com/nvidia/nvidia-container-runtime#installation);
-4. Add the `--docker` service execution parameter in the `/etc/systemd/system/k3s.service` file by executing the following command:
+4. Add the `--docker` service execution parameter in the `/etc/systemd/system/k3s.service` file to let k3s using docker instead of containerd as container runtime because this is the one officially supported by NVIDIA. You can do this by executing the following command:
 ```bash
 sudo sed -i "s#server#server --docker#" /etc/systemd/system/k3s.service
 ```
