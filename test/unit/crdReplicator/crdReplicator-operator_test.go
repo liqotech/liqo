@@ -42,7 +42,7 @@ func setupDispatcherOperator() error {
 		LocalDynClient:        localDynClient,
 		RegisteredResources:   nil,
 		UnregisteredResources: nil,
-		LocalWatchers:         make(map[string]chan bool),
+		LocalWatchers:         make(map[string]map[string]chan bool),
 		RemoteWatchers:        make(map[string]map[string]chan bool),
 	}
 	err = dOperator.SetupWithManager(k8sManagerLocal)
