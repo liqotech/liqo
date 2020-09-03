@@ -2,6 +2,7 @@ package kubernetes
 
 import (
 	"context"
+	v1 "github.com/liqoTech/liqo/api/liqonet/v1"
 	advtypes "github.com/liqoTech/liqo/api/sharing/v1alpha1"
 	"github.com/liqoTech/liqo/internal/kubernetes/test"
 	"github.com/liqoTech/liqo/internal/node"
@@ -20,7 +21,12 @@ func TestNodeUpdater(t *testing.T) {
 	crdClient.Fake = true
 
 	// create fake client for the home cluster
-	client, err := advtypes.CreateAdvertisementClient("", nil)
+	advClient, err := advtypes.CreateAdvertisementClient("", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	tepClient, err := v1.CreateTunnelEndpointClient("")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -28,8 +34,9 @@ func TestNodeUpdater(t *testing.T) {
 	// instantiate a fake provider
 	p := KubernetesProvider{
 		Reflector:        &Reflector{started: false},
-		nodeUpdateClient: client,
-		homeClient:       client,
+		advClient:        advClient,
+		homeClient:       advClient,
+		tunEndClient:     tepClient,
 		nodeName:         test.NodeName,
 		startTime:        time.Time{},
 		foreignClusterId: test.ForeignClusterId,
@@ -55,7 +62,7 @@ func TestNodeUpdater(t *testing.T) {
 		},
 	}
 
-	_, err = client.Client().CoreV1().Nodes().Create(context.TODO(), test.NodeTestCases.InputNode, metav1.CreateOptions{})
+	_, err = advClient.Client().CoreV1().Nodes().Create(context.TODO(), test.NodeTestCases.InputNode, metav1.CreateOptions{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -63,7 +70,7 @@ func TestNodeUpdater(t *testing.T) {
 	nodeRunner, err = node.NewNodeController(
 		node.NaiveNodeProvider{},
 		test.NodeTestCases.InputNode,
-		client.Client().CoreV1().Nodes())
+		advClient.Client().CoreV1().Nodes())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -74,13 +81,13 @@ func TestNodeUpdater(t *testing.T) {
 	}
 	close(nodeReady)
 
-	if _, err := client.Resource("advertisements").Create(adv, metav1.CreateOptions{}); err != nil {
+	if _, err := advClient.Resource("advertisements").Create(adv, metav1.CreateOptions{}); err != nil {
 		t.Fatal(err)
 	}
 
 	time.Sleep(5 * time.Second)
 
-	n, err := client.Client().CoreV1().Nodes().Get(context.TODO(), test.NodeName, metav1.GetOptions{})
+	n, err := advClient.Client().CoreV1().Nodes().Get(context.TODO(), test.NodeName, metav1.GetOptions{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -94,13 +101,13 @@ func TestNodeUpdater(t *testing.T) {
 	adv.Spec.ResourceQuota.Hard["cpu"] = test.Cpu2
 	adv.Spec.ResourceQuota.Hard["memory"] = test.Memory2
 
-	if _, err := client.Resource("advertisements").Update(adv.Name, adv, metav1.UpdateOptions{}); err != nil {
+	if _, err := advClient.Resource("advertisements").Update(adv.Name, adv, metav1.UpdateOptions{}); err != nil {
 		t.Fatal(err)
 	}
 
 	time.Sleep(5 * time.Second)
 
-	if n, err = client.Client().CoreV1().Nodes().Get(context.TODO(), test.NodeName, metav1.GetOptions{}); err != nil {
+	if n, err = advClient.Client().CoreV1().Nodes().Get(context.TODO(), test.NodeName, metav1.GetOptions{}); err != nil {
 		t.Fatal(err)
 	}
 
@@ -113,13 +120,13 @@ func TestNodeUpdater(t *testing.T) {
 	// test unjoin
 	// set advertisement status to DELETING
 	adv.Status.AdvertisementStatus = advtypes.AdvertisementDeleting
-	if _, err := client.Resource("advertisements").UpdateStatus(adv.Name, adv, metav1.UpdateOptions{}); err != nil {
+	if _, err := advClient.Resource("advertisements").UpdateStatus(adv.Name, adv, metav1.UpdateOptions{}); err != nil {
 		t.Fatal(err)
 	}
 	time.Sleep(5 * time.Second)
 
 	// the node should go in NotReady status
-	if n, err = client.Client().CoreV1().Nodes().Get(context.TODO(), test.NodeName, metav1.GetOptions{}); err != nil {
+	if n, err = advClient.Client().CoreV1().Nodes().Get(context.TODO(), test.NodeName, metav1.GetOptions{}); err != nil {
 		t.Fatal(err)
 	}
 	for _, condition := range n.Status.Conditions {
@@ -130,6 +137,6 @@ func TestNodeUpdater(t *testing.T) {
 	}
 
 	// the adv should have been deleted
-	_, err = client.Resource("advertisements").Get(adv.Name, metav1.GetOptions{})
+	_, err = advClient.Resource("advertisements").Get(adv.Name, metav1.GetOptions{})
 	assert.True(t, errors.IsNotFound(err))
 }

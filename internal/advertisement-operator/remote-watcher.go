@@ -32,16 +32,6 @@ func (b *AdvertisementBroadcaster) WatchAdvertisement(homeAdvName, foreignAdvNam
 		}
 		switch event.Type {
 		case watch.Added, watch.Modified:
-			// the triggering event is a modification made by the tunnelEndpoint creator
-			if homeClusterAdv.Status.RemoteRemappedPodCIDR != "" {
-				err = b.setNetworkRemapping(homeClusterAdv, foreignAdvName)
-				if err != nil {
-					klog.Error(err)
-				} else {
-					klog.Info("correctly set network remapping for foreign advertisement " + foreignAdvName)
-				}
-			}
-
 			// the triggering event is the acceptance/refusal of the Advertisement
 			if homeClusterAdv.Status.AdvertisementStatus != "" {
 				err = b.saveAdvStatus(homeClusterAdv)
@@ -56,22 +46,6 @@ func (b *AdvertisementBroadcaster) WatchAdvertisement(homeAdvName, foreignAdvNam
 			watcher.Stop()
 		}
 	}
-}
-
-func (b *AdvertisementBroadcaster) setNetworkRemapping(homeClusterAdv *advtypes.Advertisement, foreignAdvName string) error {
-	// get the Advertisement of the foreign cluster (stored in the local cluster)
-	obj, err := b.LocalClient.Resource("advertisements").Get(foreignAdvName, metav1.GetOptions{})
-	if err != nil {
-		return err
-	}
-	foreignClusterAdv := obj.(*advtypes.Advertisement)
-	// set the status of the foreign cluster Advertisement with the information given by the tunnelEndpoint creator
-	foreignClusterAdv.Status.LocalRemappedPodCIDR = homeClusterAdv.Status.RemoteRemappedPodCIDR
-	_, err = b.LocalClient.Resource("advertisements").UpdateStatus(foreignAdvName, foreignClusterAdv, metav1.UpdateOptions{})
-	if err != nil {
-		return err
-	}
-	return nil
 }
 
 func (b *AdvertisementBroadcaster) saveAdvStatus(adv *advtypes.Advertisement) error {
