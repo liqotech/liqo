@@ -28,7 +28,7 @@ import (
 
 	schedulingv1 "github.com/liqoTech/liqo/api/scheduling/v1alpha1"
 	advtypes "github.com/liqoTech/liqo/api/sharing/v1alpha1"
-	controllers "github.com/liqoTech/liqo/internal/schedulingNode-operator"
+	controllers "github.com/liqoTech/liqo/internal/schedulingNodeOperator"
 	// +kubebuilder:scaffold:imports
 )
 

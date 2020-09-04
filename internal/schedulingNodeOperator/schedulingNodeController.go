@@ -51,7 +51,6 @@ func (r *SchedulingNodeReconciler) Reconcile(req ctrl.Request) (ctrl.Result, err
 		} else {
 			return ctrl.Result{}, err
 		}
-
 	}
 
 	return ctrl.Result{}, r.CreateOrUpdateFromNode(ctx, no)

@@ -7,7 +7,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/klog"
 	"strings"
 )
 
@@ -18,7 +17,7 @@ func (r *SchedulingNodeReconciler) CreateOrUpdateFromNode(ctx context.Context, n
 
 	var sn v1alpha1.SchedulingNode
 
-	if err := r.Client.Get(ctx, v1alpha1.CreateNamespacedName(node.Name), &sn); err != nil {
+	if err := r.Client.Get(ctx, types.NamespacedName{Namespace: "", Name: node.Name}, &sn); err != nil {
 		if apierrors.IsNotFound(err) {
 			return r.createSchedulingNode(ctx, node)
 		} else {
@@ -75,18 +74,13 @@ func (r *SchedulingNodeReconciler) createSchedulingNode(ctx context.Context, nod
 func (r *SchedulingNodeReconciler) setNeighborsFromAdv(sn *v1alpha1.SchedulingNode, ctx context.Context, node corev1.Node) error {
 	var adv advtypes.Advertisement
 
-	namespacedNodeName := types.NamespacedName{
-		Name:      strings.Join([]string{"advertisement", node.Annotations["cluster-id"]}, "-"),
-		Namespace: "default",
+	advName := types.NamespacedName{
+		Namespace: "",
+		Name:      strings.Replace(node.Name, "liqo", "advertisement", 1),
 	}
 
-	if err := r.Client.Get(ctx, namespacedNodeName, &adv); err != nil {
-		if apierrors.IsNotFound(err) {
-			klog.Info("error to be managed, node cannot exist")
-			return nil
-		} else {
-			return err
-		}
+	if err := r.Client.Get(ctx, advName, &adv); err != nil {
+		return err
 	}
 
 	if adv.Spec.Neighbors == nil {

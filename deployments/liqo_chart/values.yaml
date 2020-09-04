@@ -44,7 +44,7 @@ tunnelEndpointCreator_chart:
 #configuration values for the schedulingNode subchart
 schedulingNodeOperator_chart:
   image:
-    repository: "liqo/schedulingnode-operator"
+    repository: "liqo/scheduling-node-operator"
     pullPolicy: "Always"
   enabled: true
 
