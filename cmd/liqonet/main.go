@@ -20,8 +20,8 @@ import (
 	"flag"
 	"github.com/coreos/go-iptables/iptables"
 	clusterConfig "github.com/liqoTech/liqo/api/config/v1alpha1"
-	netv1alpha1 "github.com/liqoTech/liqo/api/net/v1alpha1"
 	discoveryv1alpha1 "github.com/liqoTech/liqo/api/discovery/v1alpha1"
+	netv1alpha1 "github.com/liqoTech/liqo/api/net/v1alpha1"
 	advtypes "github.com/liqoTech/liqo/api/sharing/v1alpha1"
 	"github.com/liqoTech/liqo/internal/liqonet"
 	"github.com/liqoTech/liqo/pkg/liqonet"
@@ -71,9 +71,6 @@ func init() {
 
 	_ = netv1alpha1.AddToScheme(scheme)
 
-	_ = netv1alpha1.AddToScheme(scheme)
-
-	// +kubebuilder:scaffold:scheme
 }
 
 func main() {
@@ -209,14 +206,14 @@ func main() {
 
 		//get IP of gatewayNode
 		nodeList, err := clientset.CoreV1().Nodes().List(context.Background(), metav1.ListOptions{
-			LabelSelector: "liqonet.liqo.io/gateway=true",
+			LabelSelector: "net.liqo.io/gateway=true",
 		})
 		if err != nil {
 			klog.Errorf("an error occurred while getting nodes %s", err)
 			os.Exit(-1)
 		}
 		if len(nodeList.Items) != 1 {
-			klog.Errorf("no node or multiple nodes found with label \"liqonet.liqo.io/gateway=true\"")
+			klog.Errorf("no node or multiple nodes found with label \"net.liqo.io/gateway=true\"")
 			os.Exit(-1)
 		}
 		gatewayIP := nodeList.Items[0].Status.Addresses[0].Address
@@ -252,6 +249,5 @@ func main() {
 			os.Exit(1)
 		}
 		klog.Infof("starting watchers")
-
 	}
 }
