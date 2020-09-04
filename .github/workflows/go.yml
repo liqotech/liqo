@@ -16,7 +16,7 @@ jobs:
         - advertisement-broadcaster
         - advertisement-operator
         - init-vkubelet
-        - schedulingnode-operator
+        - scheduling-node-operator
         - discovery
         - peering-request-operator
         - tray-agent

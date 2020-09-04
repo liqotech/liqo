@@ -43,5 +43,5 @@ spec:
       - image: {{ .Values.image.repository }}{{ .Values.global.suffix | default .Values.suffix }}:{{ .Values.global.version | default .Values.version }}
         imagePullPolicy: {{ .Values.image.pullPolicy }}
         name: schedulingnode-operator
-        command: ["/usr/bin/schedulingNode-operator"]
+        command: ["/usr/bin/schedulingNodeOperator"]
 

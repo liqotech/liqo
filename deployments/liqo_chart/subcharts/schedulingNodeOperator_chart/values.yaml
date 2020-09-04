@@ -4,7 +4,7 @@
 
 
 image:
-  repository: "liqo/schedulingnode-operator"
+  repository: "liqo/scheduling-node-operator"
   pullPolicy: "IfNotPresent"
 
 suffix: ""
