@@ -68,6 +68,8 @@ type AdvertisementStatus struct {
 	VkCreated bool `json:"vkCreated"`
 	// VkReference is a reference to the deployment running the virtual-kubelet.
 	VkReference object_references.DeploymentReference `json:"vkReference,omitempty"`
+	// VnodeReference is a reference to the virtual node linked to this Advertisement
+	VnodeReference object_references.NodeReference `json:"vnodeReference,omitempty"`
 }
 
 // +kubebuilder:object:root=true

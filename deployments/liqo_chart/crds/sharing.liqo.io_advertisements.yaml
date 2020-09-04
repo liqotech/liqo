@@ -14,6 +14,8 @@ spec:
     listKind: AdvertisementList
     plural: advertisements
     singular: advertisement
+    shortNames:
+      - adv
   scope: Cluster
   subresources:
     status: {}
@@ -289,6 +291,14 @@ spec:
                 namespace:
                   description: Namespace defines the space within which the deployment
                     name must be unique.
+                  type: string
+              type: object
+            vnodeReference:
+              description: VnodeReference is a reference to the virtual node linked
+                to this Advertisement
+              properties:
+                name:
+                  description: Name is unique to reference a node resource.
                   type: string
               type: object
           required:

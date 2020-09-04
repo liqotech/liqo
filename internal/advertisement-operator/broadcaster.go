@@ -137,10 +137,27 @@ func StartBroadcaster(homeClusterId, localKubeconfigPath, gatewayPrivateIP, peer
 				"kubeconfig": kubeconfigForForeignCluster,
 			},
 		}
+
 		kubeconfigSecretForForeign, err = remoteClient.Client().CoreV1().Secrets(sa.Namespace).Create(context.TODO(), kubeconfigSecretForForeign, metav1.CreateOptions{})
-		if err != nil {
+		if err == nil {
+			klog.Infof("Correctly created secret %v on remote cluster %v", kubeconfigSecretForForeign.Name, foreignClusterId)
+		} else if k8serrors.IsAlreadyExists(err) {
+			// secret already created, update it
+			s, err := remoteClient.Client().CoreV1().Secrets(sa.Namespace).Get(context.TODO(), kubeconfigSecretForForeign.Name, metav1.GetOptions{})
+			if err != nil {
+				// secret not present, without it the vk cannot be launched: just log and exit
+				klog.Errorf("Unable to get secret %v on remote cluster %v; error: %v", kubeconfigSecretForForeign.Name, foreignClusterId, err)
+				return err
+			}
+			kubeconfigSecretForForeign.SetResourceVersion(s.ResourceVersion)
+			kubeconfigSecretForForeign.SetUID(s.UID)
+			_, err = remoteClient.Client().CoreV1().Secrets(sa.Namespace).Update(context.TODO(), kubeconfigSecretForForeign, metav1.UpdateOptions{})
+			if err != nil {
+				klog.Errorf("Unable to update secret %v on remote cluster %v; error: %v", kubeconfigSecretForForeign.Name, foreignClusterId, err)
+			}
+		} else {
 			// secret not created, without it the vk cannot be launched: just log and exit
-			klog.Errorln(err, "Unable to create secret on remote cluster "+foreignClusterId)
+			klog.Errorf("Unable to create secret %v on remote cluster %v; error: %v", kubeconfigSecretForForeign.Name, foreignClusterId, err)
 			return err
 		}
 	}
@@ -294,10 +311,6 @@ func (b *AdvertisementBroadcaster) SendAdvertisementToForeignCluster(advToCreate
 		obj, err := b.RemoteClient.Resource("advertisements").Create(&advToCreate, metav1.CreateOptions{})
 		if err != nil {
 			klog.Errorln("Unable to create Advertisement " + advToCreate.Name + " on remote cluster " + b.ForeignClusterId)
-			// clean remote cluster from the secret previously created for the adv
-			if err := b.RemoteClient.Client().CoreV1().Secrets(b.KubeconfigSecretForForeign.Namespace).Delete(context.TODO(), b.KubeconfigSecretForForeign.Name, metav1.DeleteOptions{}); err != nil {
-				return nil, err
-			}
 			return nil, err
 		} else {
 			// Advertisement created, set the owner reference of the secret so that it is deleted when the adv is removed
