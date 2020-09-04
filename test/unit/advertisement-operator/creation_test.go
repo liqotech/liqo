@@ -116,13 +116,14 @@ func createFakeKubebuilderClient() (client.Client, record.EventRecorder) {
 func TestCreateVkDeployment(t *testing.T) {
 	name, ns := "advertisement-cluster1", "fakens"
 	adv := createFakeAdv(name, ns)
-	vkName := "liqo-cluster1"
+	vkName := "virtual-kubelet-cluster1"
+	nodeName := "liqo-cluster1"
 	vkNamespace := "fake"
 	vkImage := "liqo/virtual-kubelet"
 	initVkImage := "liqo/init-vk"
 	homeClusterId := "cluster2"
 
-	deploy := pkg.CreateVkDeployment(adv, vkName, vkNamespace, vkImage, initVkImage, homeClusterId)
+	deploy := pkg.CreateVkDeployment(adv, vkName, vkNamespace, vkImage, initVkImage, nodeName, homeClusterId)
 
 	assert.Equal(t, vkName, deploy.Name)
 	assert.Equal(t, vkNamespace, deploy.Namespace)
@@ -134,7 +135,7 @@ func TestCreateVkDeployment(t *testing.T) {
 	assert.Equal(t, vkImage, deploy.Spec.Template.Spec.Containers[0].Image)
 	assert.NotEmpty(t, deploy.Spec.Template.Spec.Containers[0].Args)
 	assert.Contains(t, deploy.Spec.Template.Spec.Containers[0].Args, adv.Spec.ClusterId)
-	assert.Contains(t, deploy.Spec.Template.Spec.Containers[0].Args, vkName)
+	assert.Contains(t, deploy.Spec.Template.Spec.Containers[0].Args, nodeName)
 	assert.Contains(t, deploy.Spec.Template.Spec.Containers[0].Args, vkNamespace)
 	assert.Contains(t, deploy.Spec.Template.Spec.Containers[0].Args, homeClusterId)
 	assert.NotEmpty(t, deploy.Spec.Template.Spec.Containers[0].Command)

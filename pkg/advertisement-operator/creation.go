@@ -11,12 +11,11 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/utils/pointer"
-
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 // create deployment for a virtual-kubelet
-func CreateVkDeployment(adv *advtypes.Advertisement, name, vkNamespace, vkImage, initVKImage, homeClusterId string) *appsv1.Deployment {
+func CreateVkDeployment(adv *advtypes.Advertisement, vkName, vkNamespace, vkImage, initVKImage, nodeName, homeClusterId string) *appsv1.Deployment {
 
 	command := []string{
 		"/usr/bin/virtual-kubelet",
@@ -28,7 +27,7 @@ func CreateVkDeployment(adv *advtypes.Advertisement, name, vkNamespace, vkImage,
 		"--provider",
 		"kubernetes",
 		"--nodename",
-		name,
+		nodeName,
 		"--kubelet-namespace",
 		vkNamespace,
 		"--provider-config",
@@ -86,7 +85,7 @@ func CreateVkDeployment(adv *advtypes.Advertisement, name, vkNamespace, vkImage,
 
 	deploy := &appsv1.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:            name,
+			Name:            vkName,
 			Namespace:       vkNamespace,
 			OwnerReferences: GetOwnerReference(adv),
 		},
@@ -170,7 +169,7 @@ func CreateVkDeployment(adv *advtypes.Advertisement, name, vkNamespace, vkImage,
 							},
 						},
 					},
-					ServiceAccountName: name,
+					ServiceAccountName: vkName,
 					Affinity:           affinity.DeepCopy(),
 				},
 			},

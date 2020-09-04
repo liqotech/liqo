@@ -37,6 +37,11 @@ import (
 	"time"
 )
 
+const (
+	VirtualNodePrefix    = "liqo-"
+	VirtualKubeletPrefix = "virtual-kubelet-"
+)
+
 // AdvertisementReconciler reconciles a Advertisement object
 type AdvertisementReconciler struct {
 	client.Client
@@ -245,7 +250,14 @@ func (r *AdvertisementReconciler) UpdateAdvertisement(adv *advtypes.Advertisemen
 
 func (r *AdvertisementReconciler) createVirtualKubelet(ctx context.Context, adv *advtypes.Advertisement) error {
 
-	name := "liqo-" + adv.Spec.ClusterId
+	secRef := adv.Spec.KubeConfigRef
+	_, err := r.AdvClient.Client().CoreV1().Secrets(secRef.Namespace).Get(context.Background(), secRef.Name, metav1.GetOptions{})
+	if errors.IsNotFound(err) {
+		klog.Errorf("Cannot find secret %v in namespace %v for the virtual kubelet; error: %v", secRef.Name, secRef.Namespace, err)
+		return err
+	}
+	name := VirtualKubeletPrefix + adv.Spec.ClusterId
+	nodeName := VirtualNodePrefix + adv.Spec.ClusterId
 	// Create the base resources
 	vkSa := &v1.ServiceAccount{
 		TypeMeta: metav1.TypeMeta{},
@@ -255,7 +267,7 @@ func (r *AdvertisementReconciler) createVirtualKubelet(ctx context.Context, adv 
 			OwnerReferences: pkg.GetOwnerReference(adv),
 		},
 	}
-	err := pkg.CreateOrUpdate(r.Client, ctx, vkSa)
+	err = pkg.CreateOrUpdate(r.Client, ctx, vkSa)
 	if err != nil {
 		return err
 	}
@@ -278,7 +290,7 @@ func (r *AdvertisementReconciler) createVirtualKubelet(ctx context.Context, adv 
 		return err
 	}
 	// Create the virtual Kubelet
-	deploy := pkg.CreateVkDeployment(adv, name, r.KubeletNamespace, r.VKImage, r.InitVKImage, r.HomeClusterId)
+	deploy := pkg.CreateVkDeployment(adv, name, r.KubeletNamespace, r.VKImage, r.InitVKImage, nodeName, r.HomeClusterId)
 	err = pkg.CreateOrUpdate(r.Client, ctx, deploy)
 	if err != nil {
 		return err
@@ -289,6 +301,9 @@ func (r *AdvertisementReconciler) createVirtualKubelet(ctx context.Context, adv 
 	adv.Status.VkReference = objectreferences.DeploymentReference{
 		Namespace: deploy.Namespace,
 		Name:      deploy.Name,
+	}
+	adv.Status.VnodeReference = objectreferences.NodeReference{
+		Name: nodeName,
 	}
 	if err := r.Status().Update(ctx, adv); err != nil {
 		klog.Error(err)

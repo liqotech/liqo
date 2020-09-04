@@ -10,3 +10,10 @@ type DeploymentReference struct {
 	// +optional
 	Namespace string `json:"namespace,omitempty" protobuf:"bytes,2,opt,name=namespace"`
 }
+
+// NodeReference represents a Node Reference. It has enough information to retrieve a node
+type NodeReference struct {
+	// Name is unique to reference a node resource.
+	// +optional
+	Name string `json:"name,omitempty" protobuf:"bytes,1,opt,name=name"`
+}
