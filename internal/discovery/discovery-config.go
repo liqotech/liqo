@@ -36,7 +36,7 @@ func (discovery *DiscoveryCtrl) handleDispatcherConfig(config configv1alpha1.Dis
 		// create it
 		role = &rbacv1.ClusterRole{
 			ObjectMeta: metav1.ObjectMeta{
-				Name: "dispatcher-role",
+				Name: "crdReplicator-role",
 			},
 			Rules: []rbacv1.PolicyRule{},
 		}
