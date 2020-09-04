@@ -55,12 +55,6 @@ func TestMain(m *testing.M) {
 	if err != nil {
 		os.Exit(-1)
 	}
-	/*	adv := getAdv()
-		err = tunEndpointCreator.Create(ctx, adv)
-		if err != nil {
-			klog.Error(err, err.Error())
-			os.Exit(-2)
-		}*/
 	time.Sleep(1 * time.Second)
 	os.Exit(m.Run())
 }

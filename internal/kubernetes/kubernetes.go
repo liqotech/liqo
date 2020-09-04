@@ -1,7 +1,7 @@
 package kubernetes
 
 import (
-	nettypes "github.com/liqoTech/liqo/api/liqonet/v1"
+	nettypes "github.com/liqoTech/liqo/api/net/v1alpha1"
 	advtypes "github.com/liqoTech/liqo/api/sharing/v1alpha1"
 	nattingv1 "github.com/liqoTech/liqo/api/virtualKubelet/v1alpha1"
 	"github.com/liqoTech/liqo/internal/node"

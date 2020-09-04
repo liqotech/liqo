@@ -84,9 +84,6 @@ type TunnelEndpointCreator struct {
 	RetryTimeout       time.Duration
 }
 
-// +kubebuilder:rbac:groups=sharing.liqo.io,resources=advertisements,verbs=get;list;watch;create;update;patch;delete
-// +kubebuilder:rbac:groups=sharing.liqo.io,resources=advertisements/status,verbs=get;update;patch
-
 //rbac for the net.liqo.io api
 // +kubebuilder:rbac:groups=net.liqo.io,resources=tunnelendpoints,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=net.liqo.io,resources=tunnelendpoints/status,verbs=get;update;patch
@@ -133,11 +130,6 @@ func (r *TunnelEndpointCreator) Reconcile(req ctrl.Request) (ctrl.Result, error)
 	} else {
 		//the object is being deleted
 		if liqonetOperator.ContainsString(netConfig.Finalizers, tunnelEndpointCreatorFinalizer) {
-			/*if err := r.deleteTunEndpoint(&netConfig); err != nil {
-				log.Error(err, "error while deleting endpoint")
-				return result, err
-			}*/
-
 			//remove the finalizer from the list and update it.
 			netConfig.Finalizers = liqonetOperator.RemoveString(netConfig.Finalizers, tunnelEndpointCreatorFinalizer)
 			if err := r.Update(ctx, &netConfig); err != nil {
@@ -490,13 +482,13 @@ func (r *TunnelEndpointCreator) GetTunnelEndpoint(name string) (*netv1alpha1.Tun
 	}
 }
 
-func (r *TunnelEndpointCreator) deleteTunEndpoint(netConfig *advtypes.Advertisement) error {
+func (r *TunnelEndpointCreator) deleteTunEndpoint(netConfig *netv1alpha1.NetworkConfig) error {
 	ctx := context.Background()
 	var tunEndpoint netv1alpha1.TunnelEndpoint
 	//build the key used to retrieve the tunnelEndpoint CR
 	tunEndKey := types.NamespacedName{
 		Namespace: netConfig.Namespace,
-		Name:      netConfig.Spec.ClusterId + TunEndpointNamePrefix,
+		Name:      TunEndpointNamePrefix + netConfig.Spec.ClusterID,
 	}
 	//retrieve the tunnelEndpoint CR
 	err := r.Get(ctx, tunEndKey, &tunEndpoint)

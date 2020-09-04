@@ -60,6 +60,27 @@ rules:
     - update
 
   - apiGroups:
+      - discovery.liqo.io
+    resources:
+      - peeringrequests
+    verbs:
+      - create
+      - delete
+      - get
+      - list
+      - patch
+      - update
+      - watch
+  - apiGroups:
+      - sharing.liqo.io
+    resources:
+      - peeringrequests/status
+    verbs:
+      - get
+      - patch
+      - update
+
+  - apiGroups:
       - config.liqo.io
     resources:
       - clusterconfigs

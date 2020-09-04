@@ -93,7 +93,7 @@ func (d *CRDReplicatorReconciler) Reconcile(req ctrl.Request) (ctrl.Result, erro
 		}
 	} else if fc.Status.Incoming.AvailableIdentity {
 		//retrieve the config
-		config, err := d.getKubeConfig(d.ClientSet, fc.Status.Outgoing.IdentityRef, remoteClusterID)
+		config, err := d.getKubeConfig(d.ClientSet, fc.Status.Incoming.IdentityRef, remoteClusterID)
 		if err != nil {
 			klog.Errorf("%s -> unable to retrieve config from resource %s for remote peering cluster %s: %s", d.ClusterID, req.NamespacedName, remoteClusterID, err)
 			return result, err

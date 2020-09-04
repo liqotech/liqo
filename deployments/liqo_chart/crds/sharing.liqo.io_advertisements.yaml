@@ -14,8 +14,6 @@ spec:
     listKind: AdvertisementList
     plural: advertisements
     singular: advertisement
-    shortNames:
-      - adv
   scope: Cluster
   subresources:
     status: {}
@@ -64,10 +62,8 @@ spec:
                 type: object
               type: array
             kubeConfigRef:
-              description: KubeConfigRef is a reference to a secret containing the
-                kubeconfig for the virtual-kubelet. The virtual-kubelet will use this
-                kubeconfig to access to the foreign cluster which is sending this
-                Advertisement.
+              description: SecretReference represents a Secret Reference. It has enough
+                information to retrieve secret in any namespace
               properties:
                 name:
                   description: Name is unique within a namespace to reference a secret
@@ -162,6 +158,9 @@ spec:
                   x-kubernetes-int-or-string: true
                 description: ResourceList is a set of (resource name, quantity) pairs.
                 type: object
+              description: Neighbors is a map where the key is the name of a virtual
+                node (representing a foreign cluster) and the value are the resources
+                allocatable on that node.
               type: object
             prices:
               additionalProperties:
@@ -254,7 +253,6 @@ spec:
           required:
           - clusterId
           - kubeConfigRef
-          - resourceQuota
           - timeToLive
           - timestamp
           type: object

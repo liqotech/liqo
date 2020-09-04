@@ -2,7 +2,7 @@ package kubernetes
 
 import (
 	"context"
-	v1 "github.com/liqoTech/liqo/api/liqonet/v1"
+	v1 "github.com/liqoTech/liqo/api/net/v1alpha1"
 	advtypes "github.com/liqoTech/liqo/api/sharing/v1alpha1"
 	"github.com/liqoTech/liqo/internal/kubernetes/test"
 	"github.com/liqoTech/liqo/internal/node"
