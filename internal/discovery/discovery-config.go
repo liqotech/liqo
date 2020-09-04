@@ -52,8 +52,8 @@ func (discovery *DiscoveryCtrl) handleDispatcherConfig(config configv1alpha1.Dis
 	for _, res := range config.ResourcesToReplicate {
 		rules = append(rules, rbacv1.PolicyRule{
 			Verbs:     []string{"*"},
-			APIGroups: []string{res.Group + "/" + res.Version},
-			Resources: []string{res.Resource},
+			APIGroups: []string{res.Group},
+			Resources: []string{res.Resource, res.Resource + "/status"},
 		})
 	}
 	role.Rules = rules
