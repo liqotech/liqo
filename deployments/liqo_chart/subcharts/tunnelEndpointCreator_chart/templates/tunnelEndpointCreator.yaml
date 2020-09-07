@@ -72,7 +72,7 @@ rules:
       - update
       - watch
   - apiGroups:
-      - sharing.liqo.io
+      - discovery.liqo.io
     resources:
       - peeringrequests/status
     verbs:

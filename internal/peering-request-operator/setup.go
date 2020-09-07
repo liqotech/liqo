@@ -22,7 +22,7 @@ func init() {
 	// +kubebuilder:scaffold:scheme
 }
 
-func StartOperator(namespace string, configMapName string, broadcasterImage string, broadcasterServiceAccount string, kubeconfigPath string) {
+func StartOperator(namespace string, broadcasterImage string, broadcasterServiceAccount string, kubeconfigPath string) {
 	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
 		Scheme:           scheme,
 		Port:             9443,
@@ -56,7 +56,6 @@ func StartOperator(namespace string, configMapName string, broadcasterImage stri
 		client,
 		namespace,
 		clusterId,
-		configMapName,
 		broadcasterImage,
 		broadcasterServiceAccount,
 	)).SetupWithManager(mgr); err != nil {
@@ -71,13 +70,12 @@ func StartOperator(namespace string, configMapName string, broadcasterImage stri
 	}
 }
 
-func GetPRReconciler(scheme *runtime.Scheme, crdClient *crdClient.CRDClient, namespace string, clusterId *clusterID.ClusterID, configMapName string, broadcasterImage string, broadcasterServiceAccount string) *PeeringRequestReconciler {
+func GetPRReconciler(scheme *runtime.Scheme, crdClient *crdClient.CRDClient, namespace string, clusterId *clusterID.ClusterID, broadcasterImage string, broadcasterServiceAccount string) *PeeringRequestReconciler {
 	return &PeeringRequestReconciler{
 		Scheme:                    scheme,
 		crdClient:                 crdClient,
 		Namespace:                 namespace,
 		clusterId:                 clusterId,
-		configMapName:             configMapName,
 		broadcasterImage:          broadcasterImage,
 		broadcasterServiceAccount: broadcasterServiceAccount,
 		retryTimeout:              1 * time.Minute,

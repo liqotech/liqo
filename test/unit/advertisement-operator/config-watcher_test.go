@@ -59,7 +59,7 @@ func testModifySharingPercentage(t *testing.T) {
 	}
 	time.Sleep(5 * time.Second)
 	// create advertisement on foreign cluster
-	adv := prepareAdv(b)
+	adv := prepareAdv(&b)
 	_, err = b.RemoteClient.Resource("advertisements").Create(&adv, v1.CreateOptions{})
 	if err != nil {
 		t.Fatal(err)
@@ -104,7 +104,7 @@ func testDisableBroadcaster(t *testing.T) {
 	}
 	time.Sleep(5 * time.Second)
 	// create adv on foreign cluster
-	adv := prepareAdv(b)
+	adv := prepareAdv(&b)
 	_, err = b.RemoteClient.Resource("advertisements").Create(&adv, v1.CreateOptions{})
 	if err != nil {
 		t.Fatal(err)

@@ -96,6 +96,5 @@ crdReplicator_chart:
   enabled: true
 
 global:
-  configmapName: "liqo-configmap"
   suffix: ""
   version: ""
