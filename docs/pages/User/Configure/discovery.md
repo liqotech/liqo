@@ -3,20 +3,20 @@ title: Discovery
 weight: 2
 ---
 
-When a first (home) cluster would like to peer to a second (foreign) cluster, it needs to know of the required parameters
-(e.g., IP address of the Kubernetes API server, etc).
-Liqo simplifies this process by defining three way of discovering a remote cluster:
+When a first (home) cluster would like to peer to a second (foreign) cluster, it needs to know the required network parameters
+(e.g., the IP address of the Kubernetes API server, etc).
+Liqo simplifies this process by defining three ways of discovering a remote cluster:
 
-* **LAN Discovery**: automatic discovery of other **neighboring clusters**, reachable on the same local area network of your cluster. This looks similar to the automatic discovery of WiFi hotspots available nearby and it is particularly suitable when your cluster is made by a single node (e.g., using [K3s](https://k3s.io)).
-* **DNS Discovery**: automatic discovery of the parameters associated to **remote clusters** through a proper set of DNS queries (e.g., *which are the Liqo parameters if I want to peer with domain `foo.bar`?*). This looks similar to the discovery of voice-over-IP SIP servers and it is mostly oriented to big organizations that have already adopted Liqo in production.
-* **Manual Discovery**: when other methods are not available, Liqo allows the manual insertion of the parameters required for the peering. This medhod is particularly appropriate for testing purposes, when you want to connect to a remote cluster and the DNS discovery is not yet available.
+* **LAN Discovery**: automatic discovery of other **neighboring clusters**, reachable on the same local area network of your cluster. This looks similar to the automatic discovery of WiFi hotspots available nearby and it is particularly suitable when your cluster is composed of a single node (e.g., using [K3s](https://k3s.io)).
+* **DNS Discovery**: automatic discovery of the parameters associated with **remote clusters** through a proper set of DNS queries (e.g., *which are the Liqo parameters if I want to peer with domain `foo.bar`?*). This looks similar to the discovery of voice-over-IP SIP servers and it is mostly oriented to big organizations that have already adopted Liqo in production.
+* **Manual Discovery**: when the other methods are not available, Liqo allows the manual insertion of the parameters required for the peering. This method is particularly appropriate for testing purposes, when you want to connect to a remote cluster and the DNS discovery is not yet available.
 
 ## Required Parameters
 
 We need some parameters to contact and to connect to a remote cluster:
 
-* `ClusterID`: cluster's unique identifier, it is created by Liqo during first run
-* `LiqoNamespace`: namespace where Liqo components are deployed and they expect to find resources required to work. If you installed Liqo with the [provided script](../../gettingstarted/install/) the namespace should be `liqo`
+* `ClusterID`: cluster's unique identifier, it is created by Liqo during the first run
+* `LiqoNamespace`: namespace where the Liqo components are deployed and they expect to find the resources required to work. If you installed Liqo with the [provided script](../../gettingstarted/install/) the namespace should be `liqo`
 * `IP` and `Port` of the Kubernetes API Server
 
 <!-- TODO As discussed in the weekly call on 18/08, not clear why we need to specify ClusterID, instead of allowing the system to discover that parameter automatically -->
@@ -26,12 +26,12 @@ We need some parameters to contact and to connect to a remote cluster:
 
 ## Peering Process
 
-1. Each cluster allow create-only permission on `FederationRequest` resources to unathenticated user.
-2. When the `Join` flag in the `ForeignCluster` CR becomes true (either automatically or manually), 
-   an operator is triggered and creates a new `FederationRequest` CR on the _foreign cluster_.
-   `FederationRequest` creation process includes the creation of new kubeconfig with management permission on
+1. Each cluster grants create-only permissions on `FederationRequest` resources to unauthenticated user.
+2. When the `Join` flag in the `ForeignCluster` CR becomes true (either automatically or manually),
+   an operator is triggered and creates a new `FederationRequest` CR in the _foreign cluster_.
+   The `FederationRequest` creation process includes the creation of new kubeconfig with management permissions on
    `Advertisement` CRs.
-3. On the foreign cluster, an admission webhook accept/reject `FederationRequest`s.
+3. In the foreign cluster, an admission webhook accepts/rejects `FederationRequest`s.
 4. The `FederationRequest` is used to start the sharing of resources.
 
 
@@ -39,25 +39,25 @@ We need some parameters to contact and to connect to a remote cluster:
 
 <!-- TODO Alex, should we move this into the 'architecture' section? -->
 
-Discovery service allows two clusters to know each other, ask for resources and begin exchanging Advertisements.
+Discovery service allows two clusters to know each other, ask for resources and begin exchanging `Advertisements`.
 The protocol is described by the following steps:
 
-1. each cluster registers its master IP, its ClusterID and the namespace where Liqo is deployed to a mDNS service
-2. the requesting cluster sends on local network a mDNS query to find available foreigns
-3. when someone replies, the requesting cluster get required data from mDNS server
-4. the home cluster stores this information in `ForeignCluster` CR along with their `clusterID`
+1. Each cluster registers its master IP, its ClusterID and the namespace where Liqo is deployed to a mDNS service
+2. The requesting cluster sends on local network a mDNS query to find available foreigns
+3. When someone replies, the requesting cluster gets the required data from the mDNS server
+4. The home cluster stores this information in a `ForeignCluster` CR, along with their `clusterID`
 
-Exchanged DNS packets are analogous to the ones exchanged in DNS discovery with exception of PTR record. 
-In mDNS discovery list of all clusters will be the ones that replies on multicast query on `local.` domain. 
+Exchanged DNS packets are analogous to the ones exchanged in DNS discovery with exception of PTR record.
+In mDNS discovery list of all clusters will be the ones that replies on multicast query on `local.` domain.
 (See following section)
 
 ## DNS Discovery
 
-Each DNS domain (e.g., `foo.bar` domain) can export one or more Liqo clusters, which are automatically discovered by issuing the proper queries to the DNS, starting from the domain name. In other words, we can discovery all the Liqo cluster by querying the the `foo.bar` domain.
+Each DNS domain (e.g., `foo.bar`) can export one or more Liqo clusters, which can then be automatically discovered though proper DNS queries. Hence, new peerings can be configured specifying the domain name of the target clusters only.
 
 The DNS discovery mechanism exploits a mixture of `PTR`, `SRV`, and `TXT` DNS records (in addition to traditional `A/AAAA/CNAME` ones) and is very similar to the service discovery defined by other services, such as the Session Initiation Protocol (SIP) for discovering voice-over-IP servers.
 
-This mechanism is mostly oriented to big organizations that have already adopted Liqo in production and that would like to simplify the peering from a remote cluster.
+This mechanism is mostly oriented to big organizations that have already adopted Liqo in production and that would like to simplify the peering with a remote cluster.
 
 The following snapshot shows a possible configuration of the DNS records referred to the domain `mydomain.com` that exports two Liqo clusters, called `liqo1` and `liqo2`:
 
@@ -96,7 +96,7 @@ where:
    and, in this case, it means that anybody can peer with the first Liqo cluster by connecting to host `apiserver1.mydomain.com`, using the TCP protocol on port 6443, with priority and weight equal to zero (which are important only in case of multiple redundant servers). More information about SRV records are available on [Wikipedia](https://en.wikipedia.org/wiki/SRV_record).
 * TXT record: this record is opaque to the DNS system and it can contain any information. Liqo uses the TXT record to store the `ClusterID` and `LiqoNamespace` parameters presented above.
 
-Given the proper DNS configuration, the discovery process consist in at least 4 DNS queries:
+Given the proper DNS configuration, the discovery process consists in at least four DNS queries:
 
 1. `PTR` query to get the list of clusters registered on this domain (mydomain.com);
 2. `SRV` query to get the network parameters (transport-level protocol, TCP/UDP port) required to connect to the Kubernetes API server of the selected cluster;
@@ -107,7 +107,7 @@ With this configuration two `ForeignCluster`s will be created locally (if local 
 
 ### How can I trigger this process?
 
-This process can be triggered by telling Liqo which domain to look for. We can do that on Liqo dashboard on manually adding a resource
+This process can be triggered by telling Liqo which domain to look for. This operation can be performed through the Liqo dashboard or manually adding a `SearchDomain` resource.
 
 Create a new file (`mydomain.yaml`) with this content:
 
@@ -127,7 +127,7 @@ Then
 kubectl apply -f mydomain.yaml
 ```
 
-When this resource is created, changed or regularly each 30 seconds (by default), SearchDomain operator contacts DNS server specified in ClusterConfig (8.8.8.8:53 by default), loads data and creates discovered ForeignClusters.
+When this resource is created, changed or regularly every 30 seconds (by default), the SearchDomain operator contacts the DNS server specified in the ClusterConfig (8.8.8.8:53 by default), loads the data and creates the discovered ForeignClusters.
 
 
 ## Manual Insertion
