@@ -15,16 +15,16 @@ This procedure comes in two variants:
 ### Default install
 
 If your cluster has been installed via `kubeadm`, the Liqo Installer can automatically retrieve the parameters required by Liqo to start.
-Before installing, you have to properly set the `kubeconfig` for your cluster. The Liqo installer leverages `kubectl`: by default kubectl refers to the default identity in `~/.kube/config` but you can override this configuration by exporting a `KUBECONFIG` variable. 
+Before installing, you have to properly set the `kubeconfig` for your cluster. The Liqo installer leverages `kubectl`: by default kubectl refers to the default identity in `~/.kube/config` but you can override this configuration by exporting a `KUBECONFIG` variable.
 
 For example:
 ```
 export KUBECONFIG=my-kubeconfig.yaml
 ```
 
-You can find more details about configuring kubectl [here](https://kubernetes.io/docs/concepts/configuration/organize-cluster-access-kubeconfig/)
+You can find more details about configuring `kubectl` in the [official documentation](https://kubernetes.io/docs/concepts/configuration/organize-cluster-access-kubeconfig/).
 
-Now, you can install Liqo by launching: 
+Now, you can install Liqo by launching:
 
 ```bash
 curl https://raw.githubusercontent.com/LiqoTech/liqo/master/install.sh | bash
@@ -32,7 +32,7 @@ curl https://raw.githubusercontent.com/LiqoTech/liqo/master/install.sh | bash
 
 ### Custom install
 
-If you did not use `kubeadm` to install your Kubernetes, or you are running another distribution of Kubernetes (such as [K3s](https://k3s.io/)), you should explicitly define the parameters required by Liqo by exporting the following variables **before** launching the installer:
+If you did not use `kubeadm` to install your Kubernetes cluster, or you are running another distribution of Kubernetes (such as [K3s](https://k3s.io/)), you should explicitly define the parameters required by Liqo, by exporting the following variables **before** launching the installer:
 
 * `POD_CIDR`: range of IP addresses for the pod network (K3s default: 10.42.0.0/16)
 * `SERVICE_CIDR`: range of IP addresses for service VIPs (k3s default: 10.43.0.0/16)
@@ -58,4 +58,3 @@ In order to peer with another cluster, you need to have **two** Kubernetes clust
 Therefore you may need to repeat the above procedure on another cluster in order to get a second Liqo instance.
 
 Once you have two clusters ready, you can start the peering procedure, which is presented in the [next step](../peer).
-

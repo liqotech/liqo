@@ -9,7 +9,7 @@ The resource sharing in Liqo is implemented by exploiting our implementation of 
 [Virtual Kubelet (VK)](https://github.com/virtual-kubelet/virtual-kubelet) project, a component that, through a custom
 kubelet implementation, is in charge of masquerading a remote cluster by means of a local (virtual) node. This local
 node pretends to have available resources and to effectively handle the pods scheduled on it, but actually it acts as a
-proxy toward a remote Kubernetes cluster.
+proxy towards a remote Kubernetes cluster.
 
 ## Features
 
@@ -34,11 +34,11 @@ the VK is in charge of keeping the remote pod state aligned with the local one.
 
 #### Multi-namespaced environment
 
-The VK is able to work in a multi-namespaced environment: whether a new pod belonging to a specific namespace is
-scheduled to the Virtual Node, the VK looks-up for the related translation entry in a resource of type
+The VK is able to work in a multi-namespaced environment: whenever a new pod belonging to a specific namespace is
+scheduled on the Virtual Node, the VK looks-up for the related translation entry in a resource of type
 `NamespaceNattingTable` associated to the current VK instance. The `NamespaceNattingTable` CRD keeps a translation table
 between local and remote namespaces.
-If the lookup operation doesn't return a valid translation for the local namespace, it creates a new translation entry
+If the lookup operation does not return a valid translation for the local namespace, it creates a new translation entry
 by using the following syntax: `<local-namespace>-<home-cluster-id>`, then creates the remote namespace and starts
 reflecting all the local resources (see below). Once a translation entry for the current namespace is set up, and the
 reflection mechanism is configured, the received pods are sent to the foreign cluster, and their lifecycle is handled
@@ -92,4 +92,3 @@ spawned, with the goal of getting all the watched events and pushing them to a c
 by the control loop routines. This pattern ensures a fixed amount of interactions with the API server, at scale with the
 number of reflected namespaces. As said before, there is a filtering mechanism in the `Endpoints` reflection, in order
 to avoid the throttling triggered by the foreign API server.
-
