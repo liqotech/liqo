@@ -132,15 +132,15 @@ When this resource is created, changed or regularly every 30 seconds (by default
 
 ## Manual Insertion
 
-With manual insertion with can make aware one cluster of existence of another one, in same or different network, without needing of DNS server.
+Through the manual insertion procedure it is possible to make one cluster aware of the existence of another one, either in the same or in a different network, without the need for a DNS server.
 
-We need Liqo up and running on both clusters, then we can get foreign `ClusterID` from command line:
+We need Liqo up and running on both clusters, then we can get the foreign `ClusterID` through:
 
 ```bash
 kubectl get configmap cluster-id -n <LiqoNamespace>
 ```
 
-Copy your foreign `clusterID` inside a new `ForeignCluster` CR and fill `namespace` and `apiUrl` fields:
+Copy your foreign `clusterID` inside a new `ForeignCluster` CR and fill the `namespace` and `apiUrl` fields:
 
 ```yaml
 apiVersion: discovery.liqo.io/v1alpha1
@@ -156,7 +156,7 @@ spec:
   allowUntrustedCA: true
 ```
 
-Then apply this file to home cluster:
+Then apply this file to the home cluster:
 
 ```bash
 kubectl apply -f foreign-cluster.yaml
@@ -196,9 +196,9 @@ __NOTE:__ when this ConfigMap is updated, the discovery component will trigger a
 
 ### Untrusted Mode
 
-When a new Kubernetes cluster is deployed, by default, it creates a new CA that will be used to issue all needed certificates. This CA is required by a remote client that want to contact a cluster.
+When a new Kubernetes cluster is deployed, by default, it creates a new self-signed Certification AUthority (CA) that is be used to issue all certificates. This CA needs to be trusted by each remote client that wants to contact the cluster.
 
-To allow users to use Liqo without the need of managing TLS certificates and to have a trusted CA installed on API server, we support an Untrusted Mode. With this modality a cluster that wants to contact another one can read its CA certificate in a well-known path.
+To allow the users to use Liqo without requiring to manage TLS certificates and have a trusted CA installed in the API server, we support an Untrusted Mode. With this modality a cluster that wants to contact another one can read its CA certificate in a well-known path.
 
 ![../images/discovery/untrusted.png](/images/discovery/untrusted.png)
 

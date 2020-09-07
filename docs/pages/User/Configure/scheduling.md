@@ -8,7 +8,7 @@ weight: 4
 The default Kubernetes scheduler is not Liqo-aware, hence we may need to use some tricks to force the scheduler to start a pod on a given cluster.
 
 ### Default scheduling behavior
-By default, the Kubernetes scheduler selects the node with the highest free resources.
+By default, the Kubernetes scheduler selects the node with the highest amount of free resources.
 Given that the virtual node summarizes all the resources shared by a given foreign cluster (no matter how many remote physical nodes are involved), is very likely that the above node will be perceived as *fatter* than any physical node available locally. Hence, very likely, new pods will be scheduled on that node.
 
 However, in general, you cannot know which node (either local, or in the foreign cluster) will be selected: it simply depends on the amount of available resources.
@@ -17,13 +17,13 @@ To schedule a pod on a given cluster, you have to follow one of the options belo
 
 ### Scheduling a pod in a remote cluster using the 'liqo.io/enabled' label
 
-First, you need to configure a Kubernetes namespace that spans also across foreign clusters, which can be achieved by setting the `liqo.io/enabled=true label`, as follows (which refers to namespace `test-liqo`):
+First, you need to configure a Kubernetes namespace that spans also across foreign clusters, which can be achieved by setting the `liqo.io/enabled=true` label, as follows (which refers to namespace `liqo-demo`):
 
 ```
-# Create a new namespace named 'test-liqo'
-kubectl create ns test-liqo
+# Create a new namespace named 'liqo-demo'
+kubectl create namespace liqo-demo
 # Associate the 'liqo.io/enabled' label to the above namespace
-kubectl label ns test-liqo liqo.io/enabled=true
+kubectl label namespace liqo-demo liqo.io/enabled=true
 ```
 
 Second, you need to start a pod whose specification includes the `nodeSelector` tag set to `virtual-node`, as follows:
@@ -34,7 +34,7 @@ kind: Pod
 metadata:
   name: nginx
   labels:
-    app: test-liqo
+    app: liqo-demo
 spec:
   containers:
   - name: nginx
@@ -63,6 +63,3 @@ spec:
       key: virtual-node.liqo.io/not-allowed
       value: "true"
 ```
-
-
-
