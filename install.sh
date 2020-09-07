@@ -41,22 +41,6 @@ function print_help()
    echo "   NAMESPACE: the namespace where LIQO control plane resources will be created"
 }
 
-function wait_and_approve_csr(){
-   max_retry=10
-   retry=0
-   while [ "$retry" -lt "$max_retry" ]; do
-     echo "[INSTALL]: Approving Admission/Mutating Webhook CSRs, $1"
-     if kubectl get csr $1 > /dev/null; then
-       kubectl certificate approve $1 || exit 1
-       break
-     fi
-     echo "[INSTALL]: CSR not found... Retrying..."
-     retry=$((retry+1))
-     sleep 10
-   done
-   return 0
-}
-
 function set_gateway_node() {
    test=$(kubectl get no -l "net.liqo.io/gateway=true" 2> /dev/null | wc -l)
    if [ $test == 0 ]; then
@@ -127,12 +111,6 @@ function install() {
   $HELM_PATH install liqo -n $NAMESPACE $TMPDIR/liqo/deployments/liqo_chart --set podCIDR=$POD_CIDR --set serviceCIDR=$SERVICE_CIDR \
     --set gatewayIP=$GATEWAY_IP --set global.suffix="$LIQO_SUFFIX" --set global.version="$LIQO_VERSION"
   echo "[INSTALL]: Installing LIQO on your cluster..."
-  sleep 30
-
-  # Approve CSRs
-
-  wait_and_approve_csr "peering-request-operator.$NAMESPACE"
-  wait_and_approve_csr "mutatepodtoleration.$NAMESPACE"
 }
 
 function uninstall() {
