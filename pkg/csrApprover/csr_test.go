@@ -16,7 +16,7 @@ func TestNewNamespaceWithSuffix(t *testing.T) {
 		ObjectMeta: v1.ObjectMeta{
 			Name: "to_validate",
 			Labels: map[string]string{
-				"virtual-kubelet": "true",
+				"liqo.io/csr": "true",
 			},
 		},
 		Spec:   certificatesv1beta1.CertificateSigningRequestSpec{},
@@ -40,6 +40,6 @@ func TestNewNamespaceWithSuffix(t *testing.T) {
 	assert.NotEmpty(t, cert.Status.Conditions)
 	conditions := cert.Status.Conditions
 	assert.Equal(t, conditions[0].Type, certificatesv1beta1.CertificateApproved)
-	assert.Equal(t, conditions[0].Reason, "VirtualKubeletApproval")
+	assert.Equal(t, conditions[0].Reason, "LiqoApproval")
 	assert.Equal(t, conditions[0].Message, "This CSR was approved by Liqo Advertisement Operator")
 }

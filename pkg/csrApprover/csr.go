@@ -22,7 +22,7 @@ func approveCSR(clientSet k8s.Interface, csr *certificatesv1beta1.CertificateSig
 	// Approve
 	csr.Status.Conditions = append(csr.Status.Conditions, certificatesv1beta1.CertificateSigningRequestCondition{
 		Type:           certificatesv1beta1.CertificateApproved,
-		Reason:         "VirtualKubeletApproval",
+		Reason:         "LiqoApproval",
 		Message:        "This CSR was approved by Liqo Advertisement Operator",
 		LastUpdateTime: metav1.Now(),
 	})

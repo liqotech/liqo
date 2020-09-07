@@ -102,6 +102,8 @@ apiVersion: certificates.k8s.io/v1beta1
 kind: CertificateSigningRequest
 metadata:
   name: ${CSR_NAME}
+  labels:
+    "liqo.io/csr": "true"
 spec:
   groups:
   - system:authenticated
