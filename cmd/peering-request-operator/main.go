@@ -13,12 +13,11 @@ import (
 func main() {
 	klog.Info("Starting")
 
-	var liqoConfigmap, broadcasterImage, broadcasterServiceAccount string
+	var broadcasterImage, broadcasterServiceAccount string
 	var inputEnvFile string
 	var kubeconfigPath string
 
 	flag.StringVar(&inputEnvFile, "input-env-file", "/etc/environment/liqo/env", "The environment variable file to source at startup")
-	flag.StringVar(&liqoConfigmap, "config-map", "liqo-configmap", "Liqo ConfigMap name")
 	flag.StringVar(&broadcasterImage, "broadcaster-image", "liqo/advertisement-broadcaster", "Broadcaster-operator image name")
 	flag.StringVar(&broadcasterServiceAccount, "broadcaster-sa", "broadcaster", "Broadcaster-operator ServiceAccount name")
 	flag.StringVar(&kubeconfigPath, "kubeconfigPath", filepath.Join(os.Getenv("HOME"), ".kube", "config"), "For debug purpose, set path to local kubeconfig")
@@ -46,5 +45,5 @@ func main() {
 	_ = peering_request_admission.StartWebhook(certPath, keyPath, namespace, kubeconfigPath)
 
 	klog.Info("Starting peering-request operator")
-	peering_request_operator.StartOperator(namespace, liqoConfigmap, broadcasterImage, broadcasterServiceAccount, kubeconfigPath)
+	peering_request_operator.StartOperator(namespace, broadcasterImage, broadcasterServiceAccount, kubeconfigPath)
 }

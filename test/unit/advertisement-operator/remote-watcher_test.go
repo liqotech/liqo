@@ -33,7 +33,7 @@ func TestWatchAdvertisementAcceptance(t *testing.T) {
 	}
 
 	// create fake advertisement on cluster foreign
-	homeAdv := prepareAdv(b)
+	homeAdv := prepareAdv(&b)
 	_, err = b.RemoteClient.Resource("advertisements").Create(&homeAdv, v1.CreateOptions{})
 	if err != nil {
 		t.Fatal(err)

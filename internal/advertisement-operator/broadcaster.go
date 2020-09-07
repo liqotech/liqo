@@ -32,9 +32,9 @@ type AdvertisementBroadcaster struct {
 	// configuration variables
 	HomeClusterId      string
 	ForeignClusterId   string
-	GatewayPrivateIP   string
 	PeeringRequestName string
 	ClusterConfig      configv1alpha1.ClusterConfigSpec
+	mutex              sync.Mutex
 }
 
 // start the broadcaster which sends Advertisement messages
@@ -42,10 +42,9 @@ type AdvertisementBroadcaster struct {
 // parameters
 // - homeClusterId: the cluster ID of your cluster (must be a UUID)
 // - localKubeconfigPath: the path to the kubeconfig of the local cluster. Set it only when you are debugging and need to launch the program as a process and not inside Kubernetes
-// - gatewayPrivateIP: the private IP address of the gateway node
 // - peeringRequestName: the name of the PeeringRequest containing the reference to the secret with the kubeconfig for creating Advertisements CR on foreign cluster
 // - saName: The name of the ServiceAccount used to create the kubeconfig that will be sent to the foreign cluster with the permissions to create resources on local cluster
-func StartBroadcaster(homeClusterId, localKubeconfigPath, gatewayPrivateIP, peeringRequestName, saName string) error {
+func StartBroadcaster(homeClusterId, localKubeconfigPath, peeringRequestName, saName string) error {
 	klog.V(6).Info("starting broadcaster")
 
 	// create the Advertisement client to the local cluster
@@ -169,7 +168,6 @@ func StartBroadcaster(homeClusterId, localKubeconfigPath, gatewayPrivateIP, peer
 		RemoteClient:               remoteClient,
 		HomeClusterId:              homeClusterId,
 		ForeignClusterId:           pr.Name,
-		GatewayPrivateIP:           gatewayPrivateIP,
 		PeeringRequestName:         peeringRequestName,
 	}
 
@@ -187,7 +185,7 @@ func (b *AdvertisementBroadcaster) GenerateAdvertisement() {
 	var once sync.Once
 
 	for {
-		physicalNodes, virtualNodes, availability, limits, images, err := b.GetResourcesForAdv()
+		_, virtualNodes, availability, limits, images, err := b.GetResourcesForAdv()
 		if err != nil {
 			klog.Errorln(err, "Error while computing resources for Advertisement")
 			time.Sleep(1 * time.Minute)
@@ -195,7 +193,7 @@ func (b *AdvertisementBroadcaster) GenerateAdvertisement() {
 		}
 
 		// create the Advertisement on the foreign cluster
-		advToCreate := b.CreateAdvertisement(physicalNodes, virtualNodes, availability, images, limits)
+		advToCreate := b.CreateAdvertisement(virtualNodes, availability, images, limits)
 		adv, err := b.SendAdvertisementToForeignCluster(advToCreate)
 		if err != nil {
 			klog.Errorln(err, "Error while sending Advertisement to cluster "+b.ForeignClusterId)
@@ -213,7 +211,7 @@ func (b *AdvertisementBroadcaster) GenerateAdvertisement() {
 }
 
 // create advertisement message
-func (b *AdvertisementBroadcaster) CreateAdvertisement(physicalNodes *corev1.NodeList, virtualNodes *corev1.NodeList,
+func (b *AdvertisementBroadcaster) CreateAdvertisement(virtualNodes *corev1.NodeList,
 	availability corev1.ResourceList, images []corev1.ContainerImage, limits corev1.ResourceList) advtypes.Advertisement {
 
 	// set prices field
@@ -292,6 +290,8 @@ func (b *AdvertisementBroadcaster) GetResourcesForAdv() (physicalNodes, virtualN
 }
 
 func (b *AdvertisementBroadcaster) SendAdvertisementToForeignCluster(advToCreate advtypes.Advertisement) (*advtypes.Advertisement, error) {
+	b.mutex.Lock()
+	defer b.mutex.Unlock()
 	var adv *advtypes.Advertisement
 
 	// try to get the Advertisement on remote cluster
@@ -347,28 +347,6 @@ func (b *AdvertisementBroadcaster) NotifyAdvertisementDeletion() error {
 		}
 	}
 	return nil
-}
-
-func GetPodCIDR(nodes []corev1.Node) string {
-	var podCIDR string
-	token := strings.Split(nodes[0].Spec.PodCIDR, ".")
-	if len(token) >= 2 {
-		podCIDR = token[0] + "." + token[1] + "." + "0" + "." + "0/16"
-	} else {
-		// in some cases (e.g. minikube) node PodCIDR is null, set a default one
-		podCIDR = "172.17.0.0/16"
-	}
-	return podCIDR
-}
-
-func GetGateway(nodes []corev1.Node) string {
-	for _, node := range nodes {
-		if node.Labels["net.liqo.io/gateway"] != "" {
-			return node.Status.Addresses[0].Address
-		}
-	}
-	// node with required label not found, return the first one
-	return nodes[0].Status.Addresses[0].Address
 }
 
 // get resources used by pods on physical nodes

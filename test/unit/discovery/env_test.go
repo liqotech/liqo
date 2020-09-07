@@ -15,7 +15,6 @@ import (
 	"github.com/miekg/dns"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
 	"k8s.io/klog"
@@ -65,7 +64,6 @@ func getClientCluster() *Cluster {
 		cluster.client,
 		"default",
 		cluster.clusterId,
-		"liqo-config",
 		"broadcaster",
 		"br-sa",
 	)
@@ -127,7 +125,6 @@ func getServerCluster() *Cluster {
 		cluster.client,
 		"default",
 		cluster.clusterId,
-		"liqo-config",
 		"broadcaster",
 		"br-sa",
 	)
@@ -225,31 +222,9 @@ func getCluster() (*Cluster, manager.Manager) {
 		os.Exit(1)
 	}
 
-	getLiqoConfig(cluster.client.Client())
 	getClusterConfig(*cluster.cfg)
 
 	return cluster, k8sManager
-}
-
-func getLiqoConfig(client kubernetes.Interface) {
-	// default config values
-	cm := &corev1.ConfigMap{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: "liqo-config",
-		},
-		Data: map[string]string{
-			"clusterID":        "cluster-1",
-			"podCIDR":          "10.244.0.0/16",
-			"serviceCIDR":      "10.96.0.0/12",
-			"gatewayPrivateIP": "10.244.2.47",
-			"gatewayIP":        "10.251.0.1",
-		},
-	}
-	_, err := client.CoreV1().ConfigMaps("default").Create(context.TODO(), cm, metav1.CreateOptions{})
-	if err != nil {
-		klog.Error(err, err.Error())
-		os.Exit(1)
-	}
 }
 
 func getClusterConfig(config rest.Config) {

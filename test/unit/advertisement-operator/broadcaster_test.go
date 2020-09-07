@@ -58,7 +58,6 @@ func createBroadcaster(configv1alpha1 configv1alpha1.ClusterConfigSpec) advop.Ad
 		RemoteClient:               foreignClient,
 		HomeClusterId:              test.HomeClusterId,
 		ForeignClusterId:           test.ForeignClusterId,
-		GatewayPrivateIP:           "10.0.0.1",
 		ClusterConfig:              configv1alpha1,
 		PeeringRequestName:         test.ForeignClusterId,
 	}
@@ -188,7 +187,7 @@ func createResourcesOnCluster(client *crdClient.CRDClient, pNodes *corev1.NodeLi
 	return nil
 }
 
-func prepareAdv(b advop.AdvertisementBroadcaster) advtypes.Advertisement {
+func prepareAdv(b *advop.AdvertisementBroadcaster) advtypes.Advertisement {
 	pNodes, vNodes, images, _, pods := createFakeResources()
 	reqs, limits := advop.GetAllPodsResources(pods)
 	availability, _ := advop.ComputeAnnouncedResources(pNodes, reqs, int64(b.ClusterConfig.AdvertisementConfig.OutgoingConfig.ResourceSharingPercentage))
@@ -196,7 +195,7 @@ func prepareAdv(b advop.AdvertisementBroadcaster) advtypes.Advertisement {
 	for _, vNode := range vNodes.Items {
 		neighbours[corev1.ResourceName(vNode.Name)] = vNode.Status.Allocatable
 	}
-	return b.CreateAdvertisement(pNodes, vNodes, availability, images, limits)
+	return b.CreateAdvertisement(vNodes, availability, images, limits)
 }
 
 func TestGetClusterResources(t *testing.T) {
@@ -243,7 +242,7 @@ func TestCreateAdvertisement(t *testing.T) {
 	config := createFakeClusterConfig()
 	broadcaster := createBroadcaster(config.Spec)
 
-	adv := broadcaster.CreateAdvertisement(pNodes, vNodes, availability, images, limits)
+	adv := broadcaster.CreateAdvertisement(vNodes, availability, images, limits)
 
 	assert.NotEmpty(t, adv.Name, "Name should be provided")
 	assert.Empty(t, adv.ResourceVersion)
@@ -293,7 +292,7 @@ func TestSendAdvertisementCreation(t *testing.T) {
 		t.Fatal(err)
 	}
 	// create adv on foreign cluster
-	adv := prepareAdv(b)
+	adv := prepareAdv(&b)
 	adv2, err := b.SendAdvertisementToForeignCluster(adv)
 	assert.Nil(t, err)
 	assert.Equal(t, b.KubeconfigSecretForForeign.OwnerReferences, pkg.GetOwnerReference(adv2))
@@ -313,7 +312,7 @@ func TestNotifyAdvertisementDeletion(t *testing.T) {
 		t.Fatal(err)
 	}
 	// create adv on foreign cluster
-	adv := prepareAdv(b)
+	adv := prepareAdv(&b)
 	adv2, _ := b.SendAdvertisementToForeignCluster(adv)
 	// modify adv status to DELETING
 	err = b.NotifyAdvertisementDeletion()
