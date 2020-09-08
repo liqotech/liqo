@@ -23,5 +23,8 @@ dependencies:
 - name: liqodash_chart
   repository: file://subcharts/liqodash_chart/
   version: 0.1.0
-digest: sha256:9a937b23181275cfc00e0d34d3f6c51f02d0ef2227644a11c7d3b88ad019effe
-generated: "2020-08-26T17:03:44.2572446+02:00"
+- name: crdReplicator_chart
+  repository: file://subcharts/crdReplicator_chart/
+  version: 0.1.0
+digest: sha256:131a968257923aae0bf7fa2c489b49b4cf6decf6ab95f87043eb1a3246e1b9da
+generated: "2020-09-08T12:21:48.2836765+02:00"

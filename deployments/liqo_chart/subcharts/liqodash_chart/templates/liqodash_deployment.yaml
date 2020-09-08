@@ -117,3 +117,28 @@ subjects:
 - kind: ServiceAccount
   name: liqodash-admin-sa
   namespace: {{ .Release.Namespace }}
+
+---
+
+{{- if (.Values.global.dashboard_ingress)}}
+apiVersion: networking.k8s.io/v1beta1
+kind: Ingress
+metadata:
+  labels:
+    app: liqo-dashboard
+  name: liqo-dashboard-ingress
+  namespace: {{ .Release.Namespace }}
+spec:
+  rules:
+    - host: {{ .Values.global.dashboard_ingress }}
+      http:
+        paths:
+          - backend:
+              serviceName: liqo-dashboard
+              servicePort: 443
+            path: /
+  tls:
+    - hosts:
+        - {{ .Values.global.dashboard_ingress }}
+      secretName: liqodash-tls-cert
+{{- end }}

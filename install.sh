@@ -39,6 +39,7 @@ function print_help()
    echo "   SERVICE_CIDR: the POD CIDR of your cluster (e.g.; 10.96.0.0/12) . The script will try to detect it, but you can override this by having this variable already set"
    echo "   GATEWAY_IP: the public IP that will be used by LIQO to establish the interconnection with other clusters"
    echo "   NAMESPACE: the namespace where LIQO control plane resources will be created"
+   echo "   DASHBOARD_INGRESS: the name of the host you want to assign to the LIQO dashboard"
 }
 
 function set_gateway_node() {
@@ -108,7 +109,7 @@ function install() {
   kubectl create ns "$NAMESPACE" || true
   $HELM_PATH dependency update "$TMPDIR"/liqo/deployments/liqo_chart
   $HELM_PATH install liqo -n "$NAMESPACE" "$TMPDIR/liqo/deployments/liqo_chart" --set podCIDR="$POD_CIDR" --set serviceCIDR="$SERVICE_CIDR" \
-    --set gatewayIP="$GATEWAY_IP" --set global.suffix="$LIQO_SUFFIX" --set global.version="$LIQO_VERSION"
+    --set gatewayIP="$GATEWAY_IP" --set global.suffix="$LIQO_SUFFIX" --set global.version="$LIQO_VERSION" --set global.dashboard_ingress="$DASHBOARD_INGRESS"
   echo "[INSTALL]: Installing LIQO on your cluster..."
 }
 
