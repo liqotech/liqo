@@ -19,10 +19,10 @@ function set_variable_from_command() {
     DEFAULT_COMMAND=$2
     if [ -z "${!VAR_NAME}" ]
     then
-        result=$(bash -c "${!DEFAULT_COMMAND}") || {
+        result=$(bash -c "${DEFAULT_COMMAND}") || {
           ret=$?; echo "$3 - Code: $ret"; return $ret; 
         }
-        declare -gx "$VAR_NAME"=$result
+        declare -gx "$VAR_NAME"="$result"
     fi
     echo "[PRE-INSTALL]: $VAR_NAME is set to: ${!VAR_NAME}"
 }
@@ -43,16 +43,16 @@ function print_help()
 
 function set_gateway_node() {
    test=$(kubectl get no -l "net.liqo.io/gateway=true" 2> /dev/null | wc -l)
-   if [ $test == 0 ]; then
+   if [ "$test" == 0 ]; then
       node=$(kubectl get no -o jsonpath="{.items[-1].metadata.name}")
-      kubectl label no $node net.liqo.io/gateway=true > /dev/null
+      kubectl label no "$node" net.liqo.io/gateway=true > /dev/null
    fi
    address=$(kubectl get no -l "net.liqo.io/gateway=true" -o jsonpath="{.items[0].status.addresses[0].address}")
    echo "$address"
 }
 
 function clone_repo() {
-  if [ "$LIQO_SUFFIX" == "-ci" ] && [ ! -z "${LIQO_VERSION}" ]  ; then
+  if [ "$LIQO_SUFFIX" == "-ci" ] && [ -n "${LIQO_VERSION}" ]  ; then
     git clone "$URL" "$TMPDIR"/liqo
     cd "$TMPDIR"/liqo
     git checkout "$LIQO_VERSION" > /dev/null 2> /dev/null
@@ -94,11 +94,10 @@ function install() {
   GATEWAY_IP=$(set_gateway_node)
   echo "[PRE-INSTALL]: GATEWAY_IP is set to: $GATEWAY_IP"
 
-
   POD_CIDR_COMMAND='kubectl cluster-info dump | grep -m 1 -Po "(?<=--cluster-cidr=)[0-9.\/]+"'
-  set_variable_from_command POD_CIDR POD_CIDR_COMMAND "[ERROR]: Unable to find POD_CIDR"
+  set_variable_from_command POD_CIDR "${POD_CIDR_COMMAND}" "[ERROR]: Unable to find POD_CIDR"
   SERVICE_CIDR_COMMAND='kubectl cluster-info dump | grep -m 1 -Po "(?<=--service-cluster-ip-range=)[0-9.\/]+"'
-  set_variable_from_command SERVICE_CIDR SERVICE_CIDR_COMMAND "[ERROR]: Unable to find Service CIDR"
+  set_variable_from_command SERVICE_CIDR "${SERVICE_CIDR_COMMAND}" "[ERROR]: Unable to find SERVICE_CIDR"
   NAMESPACE=${NAMESPACE:-$NAMESPACE_DEFAULT}
   LIQO_SUFFIX=${LIQO_SUFFIX:-$LIQO_SUFFIX_DEFAULT}
   LIQO_VERSION=${LIQO_VERSION:-$LIQO_VERSION_DEFAULT}
@@ -106,10 +105,10 @@ function install() {
 
 
   #Wait for the installation to complete
-  kubectl create ns $NAMESPACE || true
-  $HELM_PATH dependency update $TMPDIR/liqo/deployments/liqo_chart
-  $HELM_PATH install liqo -n $NAMESPACE $TMPDIR/liqo/deployments/liqo_chart --set podCIDR=$POD_CIDR --set serviceCIDR=$SERVICE_CIDR \
-    --set gatewayIP=$GATEWAY_IP --set global.suffix="$LIQO_SUFFIX" --set global.version="$LIQO_VERSION"
+  kubectl create ns "$NAMESPACE" || true
+  $HELM_PATH dependency update "$TMPDIR"/liqo/deployments/liqo_chart
+  $HELM_PATH install liqo -n "$NAMESPACE" "$TMPDIR/liqo/deployments/liqo_chart" --set podCIDR="$POD_CIDR" --set serviceCIDR="$SERVICE_CIDR" \
+    --set gatewayIP="$GATEWAY_IP" --set global.suffix="$LIQO_SUFFIX" --set global.version="$LIQO_VERSION"
   echo "[INSTALL]: Installing LIQO on your cluster..."
 }
 
@@ -170,33 +169,33 @@ NAMESPACE_DEFAULT="liqo"
 LIQO_VERSION_DEFAULT="latest"
 LIQO_SUFFIX_DEFAULT=""
 
-# Necessary Commands
+# Check necessary commands to be installed before installing Liqo
 commands="curl kubectl"
 
 echo "[PRE-CHECK]: Checking all pre-requisites are met"
 for val in $commands; do
-    if command -v $val > /dev/null; then
-      echo "[PRE-CHECK]: $val correctly found"
+    if command -v "$val" > /dev/null; then
+      echo "[PRE-INSTALL]: $val correctly found"
     else
-      echo "[PRE-CHECK] [FATAL] : $val not found. Exiting"
+      echo "[PRE-INSTALL] [FATAL] : $val not found. Exiting"
       exit 1
     fi
 done
 
 TMPDIR=$(mktemp -d)
-mkdir -p $TMPDIR/bin/
-echo "[PRE-CHECK] [HELM]: Downloading Helm $HELM_VERSION"
+mkdir -p "$TMPDIR/bin/"
+echo "[PRE-INSTALL] [HELM]: Downloading Helm $HELM_VERSION"
 curl --fail -L ${HELM_URL} | tar zxf - --directory="$TMPDIR/bin/" --wildcards '*/helm' --strip 1
 HELM_PATH="$TMPDIR/bin/helm"
 
 
-echo "[PRE-CHECK]: Collecting installation variables. The installer will retrieve installation parameters from your
+echo "[PRE-INSTALL]: Collecting installation variables. The installer will retrieve installation parameters from your
  Kubernetes cluster. Feel free to override them, by launching it with those environment variables set in advance."
-if [ ! -z "$KUBECONFIG" ]
+if [ -n "$KUBECONFIG" ]
 then
-  echo "[PRE-CHECK]: Kubeconfig variable is set to: $KUBECONFIG"
+  echo "[PRE-INSTALL]: Kubeconfig variable is set to: $KUBECONFIG"
 else
-  echo "[PRE-CHECK]: Kubeconfig variable is not set. Kubectl will use: ~/.kube/config"
+  echo "[PRE-INSTALL: Kubeconfig variable is not set. Kubectl will use: ~/.kube/config"
 fi
 
 if [ -n "$UNINSTALL" ]; then

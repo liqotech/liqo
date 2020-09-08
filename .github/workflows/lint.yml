@@ -8,7 +8,7 @@ on:
   pull_request:
 jobs:
   golangci:
-    name: lint
+    name: goLint
     runs-on: ubuntu-20.04
     steps:
       - uses: actions/checkout@v2
@@ -20,3 +20,11 @@ jobs:
           # Required: the version of golangci-lint is required and must be specified without patch version: we always use the latest patch version.
           version: v1.26
           args: --timeout=600s -D unused,structcheck -E gosec,prealloc,gofmt,govet --skip-files "zz_generated.*.go"
+  shelllint:
+    name: shellLint
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+      - name: Run Shellcheck
+        uses: azohra/shell-linter@latest

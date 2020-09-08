@@ -1,6 +1,7 @@
+#!/bin/bash
 function main() {
   t=$1
-  bash "${BATS_TEST_DIRNAME}"/../../install.sh $t
+  bash "${BATS_TEST_DIRNAME}"/../../install.sh "$t"
 }
 
 @test "Error Exit with unkown argument" {

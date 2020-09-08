@@ -55,12 +55,12 @@ while [[ $# -gt 0 ]]; do
     shift
 done
 
-[ -z ${service} ] && service=mutatepodtoleration
-[ -z ${secret} ] && secret=pod-mutator-secret
-[ -z ${namespace} ] && namespace=default
-[ -z ${outputdir} ] && outputdir=/etc/ssl/liqo
-[ -z ${outputenvfile} ] && outputenvfile=/etc/environment/liqo
-[ -z ${exportenvvars} ] && exportenvvars=false
+service="${service:-mutatepodtoleration}"
+secret="${secret:-pod-mutator-secret}"
+namespace="${namespace:-default}"
+outputdir=${outputdir:-/etc/ssl/liqo}
+outputenvfile=${outputenvfile:-/etc/environment/liqo}
+exportenvvars=${exportenvvars:-false}
 
 if [ ! -x "$(command -v openssl)" ]; then
     echo "openssl not found"
@@ -94,7 +94,7 @@ openssl genrsa -out ${tmpdir}/server-key.pem 2048
 openssl req -new -key ${tmpdir}/server-key.pem -subj "/CN=${service}.${namespace}.svc" -out ${tmpdir}/server.csr -config ${tmpdir}/csr.conf
 
 # clean-up any previously created CSR for our service. Ignore errors if not present.
-kubectl delete csr ${CSR_NAME} 2>/dev/null || true
+kubectl delete csr "${CSR_NAME}" 2>/dev/null || true
 
 # create  server cert/key CSR and  send to k8s API
 cat << EOF | kubectl create -f -
@@ -107,7 +107,7 @@ metadata:
 spec:
   groups:
   - system:authenticated
-  request: $(cat ${tmpdir}/server.csr | base64 | tr -d '\n')
+  request: $(< ${tmpdir}/server.csr base64 | tr -d '\n')
   usages:
   - digital signature
   - key encipherment
@@ -116,8 +116,8 @@ EOF
 
 # verify CSR has been created
 while true; do
-    kubectl get csr ${CSR_NAME}
-    if [ "$?" -eq 0 ]; then
+    if kubectl get csr "${CSR_NAME}";
+    then
         break
     fi
 done
@@ -135,18 +135,18 @@ while true;
      sleep 3
 done
 
-serverCert=$(kubectl get csr ${CSR_NAME} -o jsonpath='{.status.certificate}')
-echo ${serverCert} | openssl base64 -d -A -out ${tmpdir}/server-cert.pem
+serverCert=$(kubectl get csr "${CSR_NAME}" -o jsonpath='{.status.certificate}')
+echo "${serverCert}" | openssl base64 -d -A -out ${tmpdir}/server-cert.pem
 
 # create the secret with CA cert and server cert/key
-kubectl create secret generic ${secret} \
+kubectl create secret generic "${secret}" \
         --from-file=key.pem=${tmpdir}/server-key.pem \
         --from-file=cert.pem=${tmpdir}/server-cert.pem \
         --dry-run -o yaml |
-    kubectl -n ${namespace} apply -f -
+    kubectl -n "${namespace}" apply -f -
 
-cp ${tmpdir}/server-cert.pem ${outputdir}/server-cert.pem
-cp ${tmpdir}/server-key.pem ${outputdir}/server-key.pem
+cp ${tmpdir}/server-cert.pem "${outputdir}"/server-cert.pem
+cp ${tmpdir}/server-key.pem "${outputdir}"/server-key.pem
 
 if [ "$exportenvvars" = true ]; then
   {
@@ -155,7 +155,7 @@ if [ "$exportenvvars" = true ]; then
     echo "liqonamespace=$namespace"
     echo "liqoservice=$service"
     echo "liqosecret=$secret"
-  } >> $outputenvfile
+  } >> "$outputenvfile"
 fi
 
 exit 0
