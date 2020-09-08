@@ -1,0 +1,60 @@
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: views.dashboard.liqo.com
+  annotations:
+    description: 'This CRD is used to create custom views from a set of CRDs'
+spec:
+  group: dashboard.liqo.com
+  scope: Namespaced
+  names:
+    plural: views
+    singular: view
+    kind: View
+    listKind: ViewList
+  versions:
+  - name: v1alpha1
+    schema:
+      openAPIV3Schema:
+        properties:
+          apiVersion:
+            description: 'APIVersion defines the versioned schema of this representation
+              of an object. Servers should convert recognized schemas to the latest
+              internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
+            type: string
+          kind:
+            description: 'Kind is a string value representing the REST resource this
+              object represents. Servers may infer this from the endpoint the client
+              submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
+            type: string
+          metadata:
+            type: object
+          spec:
+            properties:
+              viewName:
+                description: The name of the view showed in the sidebar
+                type: string
+              layout:
+                description: Layout of the view
+                type: object
+              crds:
+                description: Collection of CRDs to show
+                items:
+                  properties:
+                    crdAltName:
+                      description: The name showed in the custom view for this CRD
+                      type: string
+                    crdName:
+                      description: The name of the CRD that will be in the view
+                      type: string
+                    template:
+                      description: The path of a type template CRD custom resource (if empty will use the template specified in the CRD)
+                      type: string
+                  type: object
+                type: array
+            type: object
+        type: object
+    served: true
+    storage: true
+    subresources:
+      status: {}
