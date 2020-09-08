@@ -1,4 +1,8 @@
-# TunnelEndpointCreator-Operator
+---
+title: "TunnelEndpointCreator Operator"
+
+---
+
 ## Overview
 The TunnelEndpointCreator is part of the network module and runs as a deployment. It reacts to **Advertisements Custom Resources (CR)**
 and for each one it creates a **TunnelEndpoint CR**. The **advertisement CR** carries all the required data
@@ -26,6 +30,3 @@ being an a.b.c.d/16 CIDR block.
 * NAT is supported only on peering clusters that have a pod CIDR with subnet mask 255.255.0.0.
 * The maximum number of peering clusters using the NAT service is 256.
 
-## Architecture and workflow
-
-Wtill be included in the general overview of the network module.
