@@ -1,4 +1,4 @@
-#/bin/sh
+#!/bin/bash
 
 if [ "$#" -ne 2 ]; then
     echo "usage: $0 {image.png} {IconName}"
@@ -11,8 +11,8 @@ fi
 
 if [ ! -e "$GOPATH/bin/2goarray" ]; then
     echo "Installing 2goarray..."
-    go get github.com/cratonica/2goarray
-    if [ $? -ne 0 ]; then
+    if go get github.com/cratonica/2goarray
+    then
         echo Failure executing go get github.com/cratonica/2goarray
         exit
     fi
@@ -24,7 +24,7 @@ if [ -z "$1" ]; then
 fi
 
 if [ ! -f "$1" ]; then
-    echo $1 is not a valid file
+    echo "$1" is not a valid file
     exit
 fi    
 
@@ -32,8 +32,9 @@ fi
 
 # $1=png , $2=varName
 
-cat "$1" | $GOPATH/bin/2goarray $2 icon > $2.go
-if [ $? -ne 0 ]; then
+
+if <  "$1" "$GOPATH"/bin/2goarray "$2" icon > "$2".go
+then
     echo Failure generating 
     exit
 fi

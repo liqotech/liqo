@@ -11,31 +11,31 @@ setup() {
 @test "Exit if command is broken (1)" {
   command_to_run="false"
   set -e
-  run set_variable_from_command name command_to_run "Hello"
+  run set_variable_from_command name "$command_to_run" "Hello"
   [ "$status" -eq 1 ]
 }
 
 @test "Exit if command is broken (127)" {
   command_to_run="false-trololo"
   set -e
-  run set_variable_from_command name command_to_run "Hello"
+  run set_variable_from_command name "$command_to_run" "Hello"
   [ "$status" -eq 127 ]
 }
 
 @test "Test overwritten value is maintained" {
-  name="ok"
+  export name="ok"
   command="echo ko"
-  run set_variable_from_command name command "Hello"
+  run set_variable_from_command name "$command" "Hello"
   [ "$status" -eq 0 ]
-  echo $output
+  echo "$output"
   [ "$output" == "[PRE-INSTALL]: name is set to: ok" ]
 }
 
 @test "Test default value is correctly assigned" {
   command="echo ok"
-  run set_variable_from_command name command "Hello"
+  run set_variable_from_command name "$command" "Hello"
   [ "$status" -eq 0 ]
-  echo $output
+  echo "$output"
   [ "$output" == "[PRE-INSTALL]: name is set to: ok" ]
 }
 

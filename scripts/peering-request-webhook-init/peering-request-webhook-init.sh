@@ -24,12 +24,12 @@ while [[ $# -gt 0 ]]; do
     shift
 done
 
-[ -z ${inputenvfile} ] && inputenvfile=/etc/environment/liqo/env
+[ -z "${inputenvfile}" ] && inputenvfile=/etc/environment/liqo/env
 
 # shellcheck source=/dev/null
 source ${inputenvfile}
 
-CACRT=$(cat /var/run/secrets/kubernetes.io/serviceaccount/ca.crt | base64 | sed ':a;N;$!ba;s/\n//g')
+CACRT=$(< /var/run/secrets/kubernetes.io/serviceaccount/ca.crt base64 | sed ':a;N;$!ba;s/\n//g')
 
 # shellcheck disable=SC2154
 cat <<EOF | kubectl apply -f -

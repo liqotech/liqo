@@ -21,7 +21,7 @@ If you want to read about using Liqo or developing packages in Liqo, the Liqo Fl
 
 ## Local development
 
-Liqo components can be developed locally. We provide a [deployment script](/scripts/kind/kind.sh) to spawn multiple 
+Liqo components can be developed locally. We provide a [deployment script](/examples/kind.sh) to spawn multiple 
 kubernetes clusters by using [Kind](https://kind.sigs.k8s.io/) with Liqo installed. This script can be used as a starting
 point to improve/replace one Liqo component.
 
