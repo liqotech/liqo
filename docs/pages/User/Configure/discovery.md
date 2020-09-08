@@ -35,7 +35,7 @@ We need some parameters to contact and to connect to a remote cluster:
 4. The `FederationRequest` is used to start the sharing of resources.
 
 
-## Neighbor discovery
+## Neighbor discovery (on LAN)
 
 <!-- TODO Alex, should we move this into the 'architecture' section? -->
 
@@ -164,14 +164,38 @@ kubectl apply -f foreign-cluster.yaml
 
 Wait few seconds and a new node will appear on your home cluster.
 
-
+<!--
 ## Trust Remote Clusters
 
-We can check if a remote cluster requires server authentication before to peer it.
+#### The Problem
 
-If a remote cluster requires authentication, `ForeignCluster` CR will be created with the `allowUntrustedCA` flag enabled in its Spec. If the remote cluster certificate is signed by a "default" root CA we are ok, else if not we have to add its root CA (provided Out-Of-Band) in our `trusted-ca-certificates` ConfigMap.
+In Liqo all communications between two clusters are on HTTPS protocol. so, how can we know who is the cluster that we are peering with? It can expose known IP and clusterId, but everyone else can set it and steal our offloaded jobs... So we will use TLS server authentication.
+What is the problem? By default, Kubernetes clusters expose API server with a self-signed certificate that, again, does not provide us a way to trust the remote cluster.
+We can add another certificate to API server issued by a trusted Certification Authority (CA) or making this self-signed CA as trusted in home cluster, in this way the peering will be authenticated.
+Liqo supports both authenticate and unauthenticated peering, in environments controlled and safe authentication can be unnecessary (i.e. at your home), but in environments public and unsafe trusted mode is strongly recommended.
 
-Example:
+If a remote cluster requires authentication, `ForeignCluster` CR will be created with the `allowUntrustedCA` flag disabled in its Spec. If the remote cluster certificate is signed by a "default" root CA we are ok, otherwise we have to add its root CA (provided Out-Of-Band) in our `trusted-ca-certificates` ConfigMap.
+
+
+### Trusted Mode
+
+When trusted mode is enabled our cluster does not expose our CA certificate, if a remote cluster want to join us has to trust our CA and check our identity.
+
+![../images/discovery/trusted.png](/images/discovery/trusted.png)
+
+With the trusted mode clusters are not allowed to send PeeringRequest if they don't authenticate the remote cluster.
+
+API server certificate has to be issued from "default" root CAs or by CA provided out-of-band.
+
+Peering process will be automatically triggered if local cluster config has `autojoin` flag active.
+
+#### Trust public CA
+
+If your API server exposes a certificate issued by a public CA, your identity will be automatically checked and there is no further actions needed
+
+#### Add trusted CA
+
+If your API server exposes a certificate issued by your own CA, you have to add this CA as trusted in the remote cluster. To do that you have to add your CA certificate in a ConfigMap:
 ```bash
 kubectl edit cm trusted-ca-certificates
 ```
@@ -189,14 +213,12 @@ data:
     -----END CERTIFICATE-----
 ```
 
-When we will try the peering, https client will check that API server certificate was issued by one of trusted CAs.
-
 __NOTE:__ when this ConfigMap is updated, the discovery component will trigger a restart to reload new CA configurations.
 
 
 ### Untrusted Mode
 
-When a new Kubernetes cluster is deployed, by default, it creates a new self-signed Certification AUthority (CA) that is be used to issue all certificates. This CA needs to be trusted by each remote client that wants to contact the cluster.
+When a new Kubernetes cluster is deployed, by default, it creates a new self-signed CA that is be used to issue all certificates. This CA needs to be trusted by each remote client that wants to contact the cluster.
 
 To allow the users to use Liqo without requiring to manage TLS certificates and have a trusted CA installed in the API server, we support an Untrusted Mode. With this modality a cluster that wants to contact another one can read its CA certificate in a well-known path.
 
@@ -205,16 +227,4 @@ To allow the users to use Liqo without requiring to manage TLS certificates and 
 With the untrusted mode clusters are allowed to send PeeringRequest simply downloading CA from the remote cluster.
 
 Peering process will be automatically triggered if local cluster config has `autojoinUntrusted` flag active.
-
-
-### Trusted Mode
-
-When trusted mode is enabled our cluster does not expose our CA certificate, if a remote cluster want to join us has to trust our CA and check our identity.
-
-![../images/discovery/trusted.png](/images/discovery/trusted.png)
-
-With the trusted mode clusters are not allowed to send PeeringRequest if they don't authenticate the remote cluster.
-
-API server certificate has to be issued from "default" root CAs or by CA provided out-of-band.
-
-Peering process will be automatically triggered if local cluster config has `autojoin` flag active.
+-->
