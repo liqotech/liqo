@@ -86,11 +86,32 @@ You should see the pod offloaded to the remote cluster listed as service endpoin
 
 ### Check the Service connectivity
 
-If you have direct connectivity with the cluster (e.g. K3s) from your host:
+First, you have to retrieve the IP address of the service:
 
-```bash
+```
 SVC_IP=$(kubectl get service -n liqo-demo --template={{.spec.clusterIP}})
 echo $SVC_IP
 ```
 
-<!-- TODO:  add a 'curl' command or something like that that shows that the pod returns the expected page. Show that the command is exactly the same in either cases (i.e., when the pod is local, when the pod is remote) -->
+If you have direct connectivity with the cluster (e.g. K3s) from your host, open a browser and connect to the value of `$SVC_IP` or use the following `curl` command:
+
+```
+curl -v $SVC_IP
+```
+
+If you do not have direct connectivity, you can fire up a pod and run a `curl` inside:
+
+```
+kubectl run --image=curlimages/curl tester -n test-liqo -ti --rm -- curl -L $SVC_IP
+```
+
+You can also connect to the service through its _service name_, which exploits the Kubernetes DNS service:
+
+```
+kubectl run --image=curlimages/curl tester -n test-liqo -ti --rm -- curl -L http://test-liqo 
+```
+
+
+
+
+

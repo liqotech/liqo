@@ -5,6 +5,33 @@ title: "Discovery Protocol"
 ## Overview
 This component's goal is to find other clusters running Liqo around us, get information needed to pair and start peering process
 
+
+## Peering Process
+
+1. Each cluster grants create-only permissions on `FederationRequest` resources to unauthenticated user.
+2. When the `Join` flag in the `ForeignCluster` CR becomes true (either automatically or manually),
+   an operator is triggered and creates a new `FederationRequest` CR in the _foreign cluster_.
+   The `FederationRequest` creation process includes the creation of new kubeconfig with management permissions on
+   `Advertisement` CRs.
+3. In the foreign cluster, an admission webhook accepts/rejects `FederationRequest`s.
+4. The `FederationRequest` is used to start the sharing of resources.
+
+
+## Neighbor discovery
+
+Discovery service allows two clusters to know each other, ask for resources and begin exchanging `Advertisements`.
+The protocol is described by the following steps:
+
+1. Each cluster registers its master IP, its ClusterID and the namespace where Liqo is deployed to a mDNS service
+2. The requesting cluster sends on local network a mDNS query to find available foreigns
+3. When someone replies, the requesting cluster gets the required data from the mDNS server
+4. The home cluster stores this information in a `ForeignCluster` CR, along with their `clusterID`
+
+Exchanged DNS packets are analogous to the ones exchanged in DNS discovery with exception of PTR record.
+In mDNS discovery list of all clusters will be the ones that replies on multicast query on `local.` domain.
+(See following section)
+
+
 ### Features
 List of supported features
 * ClusterID creation
