@@ -5,6 +5,7 @@ import (
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -19,7 +20,7 @@ func F2HTranslate(podForeignIn *v1.Pod, newCidr, namespace string) (podHomeOut *
 		_ = fmt.Errorf("unable to parse time")
 	}
 	if podForeignIn.DeletionGracePeriodSeconds != nil {
-		metav1.SetMetaDataAnnotation(&podHomeOut.ObjectMeta, "foreign_deletionPeriodSeconds", string(*podForeignIn.DeletionGracePeriodSeconds))
+		metav1.SetMetaDataAnnotation(&podHomeOut.ObjectMeta, "foreign_deletionPeriodSeconds", strconv.FormatInt(*podForeignIn.DeletionGracePeriodSeconds, 10))
 		podHomeOut.DeletionGracePeriodSeconds = nil
 	}
 	if podHomeOut.Status.PodIP != "" {
@@ -136,6 +137,9 @@ func FilterVolumeMounts(volumes []v1.Volume, volumeMountsIn []v1.VolumeMount) []
 }
 
 func ChangePodIp(newPodCidr string, oldPodIp string) (newPodIp string) {
+	if newPodCidr == "" {
+		return oldPodIp
+	}
 	//the last two slices are the suffix of the newPodIp
 	oldPodIpTokenized := strings.Split(oldPodIp, ".")
 	newPodCidrTokenized := strings.Split(newPodCidr, "/")

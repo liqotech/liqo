@@ -37,7 +37,9 @@ type KubernetesProvider struct { // nolint:golint]
 	nodeController     *node.NodeController
 	providerKubeconfig string
 	restConfig         *rest.Config
-	RemappedPodCidr    string
+
+	RemoteRemappedPodCidr string
+	LocalRemappedPodCidr  string
 
 	foreignPodWatcherStop chan struct{}
 	nodeUpdateStop        chan struct{}

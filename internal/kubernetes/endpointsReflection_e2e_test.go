@@ -6,6 +6,7 @@ import (
 	"github.com/liqoTech/liqo/api/virtualKubelet/v1alpha1"
 	"github.com/liqoTech/liqo/internal/kubernetes/test"
 	"github.com/liqoTech/liqo/pkg/crdClient"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/watch"
 	"testing"
@@ -30,16 +31,17 @@ func TestHandleEpEvents(t *testing.T) {
 
 	// instantiate a fake provider
 	p := KubernetesProvider{
-		Reflector:        &Reflector{started: false},
-		ntCache:          &namespaceNTCache{nattingTableName: test.ForeignClusterId},
-		foreignPodCaches: make(map[string]*podCache),
-		homeEpCaches:     make(map[string]*epCache),
-		foreignEpCaches:  make(map[string]*epCache),
-		foreignClient:    foreignClient,
-		homeClient:       homeClient,
-		startTime:        time.Time{},
-		foreignClusterId: test.ForeignClusterId,
-		homeClusterID:    test.HomeClusterId,
+		Reflector:            &Reflector{started: false},
+		ntCache:              &namespaceNTCache{nattingTableName: test.ForeignClusterId},
+		foreignPodCaches:     make(map[string]*podCache),
+		homeEpCaches:         make(map[string]*epCache),
+		foreignEpCaches:      make(map[string]*epCache),
+		foreignClient:        foreignClient,
+		homeClient:           homeClient,
+		startTime:            time.Time{},
+		foreignClusterId:     test.ForeignClusterId,
+		homeClusterID:        test.HomeClusterId,
+		LocalRemappedPodCidr: "100.200.0.0/16",
 	}
 
 	// start the fake cache for the namespaceNattingTable
@@ -134,7 +136,7 @@ loop:
 	}
 
 	// assert that the home endpoints have been correctly updated in the remote cluster
-	if !test.AssertEndpointsCoherency(ep.Subsets, test.EndpointsTestCases.ExpectedEndpoints.Subsets) {
+	if !assertEndpointsCoherency(p.LocalRemappedPodCidr, ep.Subsets, test.EndpointsTestCases.ExpectedEndpoints.Subsets) {
 		t.Fatal("the received ep doesn't match with the expected one")
 	}
 
@@ -171,4 +173,23 @@ func createEpEvents(p KubernetesProvider) error {
 	}
 
 	return nil
+}
+
+func assertEndpointsCoherency(podCIDR string, received, expected []corev1.EndpointSubset) bool {
+	if len(received) != len(expected) {
+		return false
+	}
+	for i := 0; i < len(received); i++ {
+		if len(received[i].Addresses) != len(expected[i].Addresses) {
+			return false
+		}
+		for j := 0; j < len(received[i].Addresses); j++ {
+			addr := ChangePodIp(podCIDR, expected[i].Addresses[j].IP)
+			if received[i].Addresses[j].IP != addr {
+				return false
+			}
+		}
+	}
+
+	return true
 }
