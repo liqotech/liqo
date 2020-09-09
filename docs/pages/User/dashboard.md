@@ -17,7 +17,7 @@ LiqoDash is installed by default during the installation of Liqo and it is bound
 
 ## Accessing LiqoDash
 
-### Node Port
+### NodePort
 In order to access the dashboard you need to first get the port on which LiqoDash is exposed, which can be done with the following command:
 ```
 kubectl -n liqo describe service liqo-dashboard | grep NodePort
@@ -30,8 +30,8 @@ NodePort:      https  32421/TCP
 In this case, the dashboard has been exposed to the port ``32421``
 Now, you can access LiqoDash using your master node IP and the service port you just found: ``https://<MASTER_IP>:<LIQODASH_PORT>``
 
-**NOTE: to get your master node IP, you can run ``kubectl get nodes -o wide | grep master``, and take the
-``INTERNAL-IP``**
+**NOTE:** to get your master node IP, you can run ``kubectl get nodes -o wide | grep master``, and take the
+``INTERNAL-IP``
 
 ### Port-Forward
 A simple way to access the dashboard with a simpler URL than the one specified above is to use ``kubectl port-forward``.
@@ -44,6 +44,20 @@ https://localhost:6443
 ```
 **NOTE:** The PORT exposed with the port forward, that in the example is ``6443``, can be any PORT that is not already used.
 
+### Ingress
+LiqoDash can also be exposed using an [Ingress](https://kubernetes.io/docs/concepts/services-networking/ingress).
+You must have an [Ingress controller](https://kubernetes.io/docs/concepts/services-networking/ingress-controllers/)
+for an Ingress resource to work. If you have one, you can specify the desired host name exporting the variable `DASHBOARD_INGRESS` **before**
+installing Liqo, for example:
+```
+export DASHBOARD_INGRESS=example.liqodash.com
+```
+Once installed, you can see that an Ingress resource is created:
+```
+kubectl get -n liqo ingress
+```
+You can access the dashboard through the provided host name.
+
 ### Security certificates
 For security reasons, LiqoDash runs over HTTPS, which means that a _Certificate_ is needed to establish the TLS connection.
 An x509 self-signed Certificate is generated when the dashboard is deployed, and **must be accepted** by your browser in order to establish
@@ -52,6 +66,25 @@ the TLS connection.
 The first time you access LiqoDash, it is likely that your browser will show you a warning
 that you are trying to access a website that uses a self-signed certificate, and thus it is not trusted
 by default. Simply accept the risk and continue to access the dashboard.
+
+If you are exposing LiqoDash through an Ingress, you can either use a certificate provided by a public trusted Certificate Authority (like 
+[Let's encrypt](https://letsencrypt.org/)) or a self-signed one.
+
+### Differences between access methods
+#### When to use Port-Forward
+Using `kubectl port-forward` to access the dashboard service is usually meant for testing/debugging purposes. It is not a 
+long term solution, as it require to always run the port-forward and keep it active. However, if you just want to access
+the dashboard via localhost, this is the easiest method.
+#### When to use NodePort
+Using a NodePort means that a specific port is opened on all the Nodes, and traffic sent to this port is forwarded
+to a service (in this case the dashboard). It is not recommended to use this method to directly expose a service
+on the internet, but if you are going to use the dashboard on the same machine your cluster is, that is a simple
+and valid solution.
+#### When to use Ingress
+Using Ingress is probably the best way to expose LiqoDash, especially if you want to access it through the internet. 
+It can provide load balancing, SSL termination and name-based hosting, letting you access the dashboard using
+a host name instead of just its IP. Because there many types of Ingress controllers, each one with different
+capabilities, it may require some work to properly set up.
 
 ## Authentication
 
@@ -107,7 +140,6 @@ apiVersion: v1
   selfLink: /api/v1/namespaces/liqo/configmaps/liqo-dashboard-configmap
   uid: 8e48f478-993d-11e7-87e0-901b0e532516
 data:
-  apiserver_url: https://127.0.0.1:35609
   oidc_client_id: ""
   oidc_client_secret: ""
   oidc_provider_url: ""
@@ -126,8 +158,8 @@ From now on, any attempt to login will be redirected to your OIDC provider for t
 ## Metrics Integration
 One of the key feature of LiqoDash is to show the real time status of your cluster (in terms of cpu and memory), as well as the other clusters you
 are connected to. In order to show the **actual** consumption of resources you need to have a metrics server running in
-your cluster. Otherwise, LiqoDash will consider the worst-case scenario, which means that it will consider every resource
-consuming so much cpu and memory as specified in the _request_ parameter of that resource.
+your cluster. Otherwise, LiqoDash will consider every resource consuming so much cpu and memory as specified in the _request_ parameter of that resource
+(if specified).
 
 You can install a metrics server following the official [documentation](https://github.com/kubernetes-sigs/metrics-server#deployment).
 The easiest way to check if `metrics-server` is installed and working properly is to run `kubectl top pod` or `kubectl top node`.
