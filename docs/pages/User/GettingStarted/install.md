@@ -30,7 +30,7 @@ Now, you can install Liqo by launching:
 curl https://raw.githubusercontent.com/liqotech/liqo/master/install.sh | bash
 ```
 
-### Custom install
+### Custom install (K3s)
 
 If you did not use `kubeadm` to install your Kubernetes cluster, or you are running another distribution of Kubernetes (such as [K3s](https://k3s.io/)), you should explicitly define the parameters required by Liqo, by exporting the following variables **before** launching the installer:
 

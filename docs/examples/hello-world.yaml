@@ -1,7 +1,7 @@
 apiVersion: v1
 kind: Pod
 metadata:
-  name: nginx
+  name: nginx-local
   labels:
     app: test-liqo
 spec:
@@ -12,8 +12,39 @@ spec:
       ports:
         - containerPort: 80
           name: web
-  nodeSelector:
-    type: virtual-node
+  affinity:
+    nodeAffinity:
+      requiredDuringSchedulingIgnoredDuringExecution:
+        nodeSelectorTerms:
+          - matchExpressions:
+              - key: type
+                operator: NotIn
+                values:
+                  - virtual'node
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: nginx-remote
+  labels:
+    app: test-liqo
+spec:
+  containers:
+    - name: nginx
+      image: nginxdemos/hello
+      imagePullPolicy: IfNotPresent
+      ports:
+        - containerPort: 80
+          name: web
+  affinity:
+    nodeAffinity:
+      requiredDuringSchedulingIgnoredDuringExecution:
+        nodeSelectorTerms:
+          - matchExpressions:
+              - key: type
+                operator: In
+                values:
+                  - virtual'node
 ---
 apiVersion: v1
 kind: Service

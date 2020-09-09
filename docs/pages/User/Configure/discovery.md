@@ -15,41 +15,15 @@ Liqo simplifies this process by defining three ways of discovering a remote clus
 
 We need some parameters to contact and to connect to a remote cluster:
 
-* `ClusterID`: cluster's unique identifier, it is created by Liqo during the first run
+* `ClusterID`: cluster's unique identifier, it is created by Liqo during the first run.
 * `LiqoNamespace`: namespace where the Liqo components are deployed and they expect to find the resources required to work. If you installed Liqo with the [provided script](../../gettingstarted/install/) the namespace should be `liqo`
 * `IP` and `Port` of the Kubernetes API Server
 
 <!-- TODO As discussed in the weekly call on 18/08, not clear why we need to specify ClusterID, instead of allowing the system to discover that parameter automatically -->
 
-<!-- TODO Alex, please help me here. Most of the following text doesn't look appropriate for this section, which is about "advanced config". It looks you should be a developer to understand most of the following. Should we move this text into another place? -->
+## LAN Discovery
 
 
-## Peering Process
-
-1. Each cluster grants create-only permissions on `FederationRequest` resources to unauthenticated user.
-2. When the `Join` flag in the `ForeignCluster` CR becomes true (either automatically or manually),
-   an operator is triggered and creates a new `FederationRequest` CR in the _foreign cluster_.
-   The `FederationRequest` creation process includes the creation of new kubeconfig with management permissions on
-   `Advertisement` CRs.
-3. In the foreign cluster, an admission webhook accepts/rejects `FederationRequest`s.
-4. The `FederationRequest` is used to start the sharing of resources.
-
-
-## Neighbor discovery
-
-<!-- TODO Alex, should we move this into the 'architecture' section? -->
-
-Discovery service allows two clusters to know each other, ask for resources and begin exchanging `Advertisements`.
-The protocol is described by the following steps:
-
-1. Each cluster registers its master IP, its ClusterID and the namespace where Liqo is deployed to a mDNS service
-2. The requesting cluster sends on local network a mDNS query to find available foreigns
-3. When someone replies, the requesting cluster gets the required data from the mDNS server
-4. The home cluster stores this information in a `ForeignCluster` CR, along with their `clusterID`
-
-Exchanged DNS packets are analogous to the ones exchanged in DNS discovery with exception of PTR record.
-In mDNS discovery list of all clusters will be the ones that replies on multicast query on `local.` domain.
-(See following section)
 
 ## DNS Discovery
 

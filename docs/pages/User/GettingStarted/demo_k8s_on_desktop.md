@@ -1,32 +1,40 @@
 ---
-title: Demo with KubernetesOnDesktop
+title: Using LIQO to borrow resources
 weight: 4
 ---
 
-## Introduction
-This tutorial shows how to install [Liqo](https://liqo-io) on two [k3s](https://k3s.io/) clusters from scratch and then run a real application on the foreign cluster.
-In particular, we use a desktop application that has been _cloudified_ with the [KubernetesOnDesktop](#about-kubernetesondesktop) project, which aims at executing traditional Desktop applications in a remote environment, while keeping their graphical user interface locally.
+## Scenario
 
-In this tutorial we will offload [Blender](https://www.blender.org/), a graphical application that runs much faster if the hosting computer has a powerful GPU, on a remote cluster according to the schema below:
+Many times, as students, we would like to use the environment of our PCs but also leverage the hardware capabilities that 
+the University provided us. This is pretty useful in particular when the university was provided of specific hardware facilities such as GPUs. On the other hand, the system admins want to keep control of resources, limit the amount of consumption of a user, etc. 
+
+
+In this tutorial, we provide a proof-of concept example of how Liqo can be used to offload desktop applications on remote
+More precisely, we offload an instance of [Blender](https://www.blender.org/), a graphical application that runs much faster if the hosting computer can use a powerful GPU.
 
 ![](/images/k8s-on-desktop-demo/introduction_schema.svg)
+
+## Introduction
+
+This tutorial shows how to install [Liqo](https://liqo-io) on two [k3s](https://k3s.io/) clusters from scratch and then run a real application on the foreign cluster.
+In particular, we use a _containeraized_ desktop application with the [KubernetesOnDesktop](#about-kubernetesondesktop) project, which aims at executing traditional Desktop applications in a remote environment, while keeping their graphical user interface locally.
 
 Obviously, for the purpose of the demo it would be better if the remote machine features an NVIDIA graphic card, while the local machine can be a traditional laptop.
 To be more specific, we will execute a Blender `pod` in a *foreign cluster* (that is represented in the *local cluster* as a *virtual node* named `liqo-<...>`) and a viewer `pod` in the *local cluster*.
 
-**Note**: from now on, when we'll talk about "*local cluster*" we'll refer to the one that will run the `cloudify` script ([see afterwards](#about-kubernetesondesktop)), and when we'll talk about "*foreign cluster*" we'll refer to the other one.
+**Note**: from now on, following the Liqo naming, when we'll talk about "*remote cluster*" we'll refer to the one that will run the `cloudify` script ([see afterwards](#about-kubernetesondesktop)), and when we'll talk about "*foreign cluster*" we'll refer to the other one.
 
 
-## The KubernetesOnDesktop project
+### The KubernetesOnDesktop project
 [KubernetesOnDesktop](https://github.com/netgroup-polito/KubernetesOnDesktop) (KoD) aims at developing a cloud infrastructure to run desktop applications in a remote Kubernetes cluster.
 In a nutshell, KoD splits traditional desktop applications in a backend (running the actual application) and a frontend, running the graphical interface and interacting with the (desktop) user.
-This enables dektop applications to be executed also on a remote machine, while keeping their GUI locally.
+This enables desktop applications to be executed also on a remote machine, while keeping their GUI locally.
 
 Technically, KoD leverages a client/server VNC+PulseAudio+SSH infrastructure that enables to start the application `pod` in a k8s remote node and redirects its GUI (through VNC) and the audio (through PulseAudio+SSH) in a second `pod` scheduled in the node where the `cloudify` application is running.
 The communication between the two components leverages several kubernetes primitives, such as `deployments`, `jobs`, `services` (particularly, `ClusterIP` is used) and `secrets`.
 For further information see [KubernetesOnDesktop](https://github.com/netgroup-polito/KubernetesOnDesktop) GitHub page.
 
-So far, KoD suppors firefox, libreoffice and blender, the latter with the capability to exploit any available NVIDIA GPUs (through the NVIDIA CUDA driver) if the remote node has this hardware.
+So far, KoD supports firefox, libreoffice and blender, the latter with the capability to exploit any available NVIDIA GPUs (through the NVIDIA CUDA driver) if the remote node has this hardware.
 In any case, thanks to the massive use of templates, many more applications can be easily supported.
 
 When executing the `cloudify` command, the application will create:
@@ -36,6 +44,7 @@ When executing the `cloudify` command, the application will create:
   * a `pod` executing the VNC viewer, started in the local machine (i.e., on the same node where you run `cloudify`).
   
 ## Installation of the required software
+
 To install all the required software we need to follow this steps:
 
 1. [Install k3s](#install-k3s) in both clusters;
@@ -43,6 +52,7 @@ To install all the required software we need to follow this steps:
 3. [Install KubernetesOnDesktop](#install-kubernetesondesktop) in the *local cluster*. Note that the foreign cluster simply runs a vanilla Liqo, without any other software.
 
 ### Install k3s
+
 Assuming you already have two Linux machines (or Virtual Machines) up and running in the same LAN, we can install [k3s](https://k3s.io/) by using the official script as documented in the [K3s Quick-Start Guide](https://rancher.com/docs/k3s/latest/en/quick-start/).
 So, you only need to run the following command:
 
