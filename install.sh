@@ -42,7 +42,8 @@ set -o pipefail  # Fail if one of the piped commands fails
 #   - KUBECONFIG_CONTEXT
 #     the context selected to interact with the cluster (defaults to the current one).
 #
-
+#   - AGENT_INSTALL
+#     setting this variable to 'true' will trigger also the installer of the LIQO Desktop Agent"
 EXIT_SUCCESS=0
 EXIT_FAILURE=1
 
@@ -131,6 +132,8 @@ function help() {
 
 	  ${BOLD}KUBECONFIG${RESET}:         the KUBECONFIG file used to interact with the cluster (defaults to ~/.kube/config).
 	  ${BOLD}KUBECONFIG_CONTEXT${RESET}: the context selected to interact with the cluster (defaults to the current one).
+
+	  ${BOLD}AGENT_INSTALL${RESET}:      set this variable to 'true' to trigger the installer of Liqo Desktop Agent
 
 	EOF
 }
@@ -394,6 +397,9 @@ function install_liqo() {
 			fatal "[INSTALL]" "Something went wrong while installing Liqo"
 
 	info "[INSTALL]" "Hooray! Liqo is now installed on your cluster"
+	 if [ -n "${AGENT_INSTALL}" ] && [ "$AGENT_INSTALL" == "true" ] ; then
+      agent_install
+  fi
 }
 
 function all_clusters_unjoined() {
@@ -455,6 +461,7 @@ function uninstall_liqo() {
 	${KUBECTL} label nodes --selector ${GATEWAY_LABEL} ${GATEWAY_LABEL}- 1>/dev/null 2>&1
 
 	info "[UNINSTALL]" "Liqo has been correctly uninstalled from your cluster"
+	agent_uninstall
 	set -e
 }
 
@@ -506,3 +513,53 @@ if ! (return 0 2>/dev/null); then
 	main "$@"
 	exit ${EXIT_SUCCESS}
 fi
+
+function agent_install() {
+    echo "[INSTALL]: Installing LIQO Desktop Agent..."
+    AGENT_INSTALL_DIR="$TMPDIR/liqo/scripts/tray-agent"
+    cd "$AGENT_INSTALL_DIR"
+    #1- DOWNLOAD AND INSTALL AGENT BINARY WITH RELATED FILES
+    # ----> TO DEFINE AGENT LINK FROM GITHUB ACTIONS
+    AGENT_URL=""
+    curl --fail -L ${AGENT_URL} | tar xpzf -
+    # /usr/bin is one of the directories always present in PATH
+    sudo mv -f "liqo-agent" /usr/bin
+    AGENT_DIR="$HOME/.liqo"
+    mkdir -p "$AGENT_DIR/icons"
+    rm -rf "$AGENT_DIR/icons/*"
+    tar xzf io.liqo.Agent_icons.tar.gz -C "$AGENT_DIR/icons" --strip 1
+    #2- INSTALL AGENT AS DESKTOP APPLICATION
+    # a) Installing '.desktop' file in one of $XDG_DATA_DIRS/applications/ to let the system
+    # recognize the binary as full application.
+    # Using /usr/share since it is one of the default/fallback directories for $XDG_DATA_DIRS.
+    XDG_APP_DIR="/usr/share/applications"
+    sudo mkdir -p "$XDG_APP_DIR"
+    sudo cp -f io.liqo.Agent.desktop "$XDG_APP_DIR"
+    # b) Installing '.desktop' in one of $XDG_CONFIG_DIRS/autostart to enable autostart.
+    # Having the file in both directories will let an easier implementation of a "don't start at boot" option.
+    # Using /etc/xdg since it is the default dir for $XDG_CONFIG_DIRS.
+    AUTOSTART_DIR="/etc/xdg/autostart"
+    sudo mkdir -p "$AUTOSTART_DIR"
+    sudo mv -f io.liqo.Agent.desktop "$AUTOSTART_DIR"
+    # c) exporting Agent icon in 'scalable' format to the default theme in one of $XDG_DATA_DIRS/icons/hicolor/scalable/apps.
+    # Using /usr/share since it is one of the default dirs for $XDG_DATA_DIRS.
+    ICONS_DIR="/usr/share/icons/hicolor/scalable/apps"
+    sudo mkdir -p "$ICONS_DIR"
+    sudo mv -f io.liqo.Agent.svg "$ICONS_DIR"
+    echo "...OK"
+    cd -
+}
+
+function agent_uninstall() {
+  if [ -f "/usr/bin/liqo-agent" ]; then
+      echo "[UNINSTALL]: uninstalling Liqo Agent..."
+      #uninstalling binary
+      sudo rm -f /usr/bin/liqo-agent
+      rm -rf "$HOME/.liqo"
+      #uninstalling desktop application
+      sudo rm -f /usr/share/applications/io.liqo.Agent.desktop
+      sudo rm -f /etc/xdg/autostart/io.liqo.Agent.desktop
+      sudo rm -f /usr/share/icons/hicolor/scalable/apps/io.liqo.Agent.svg
+      echo "...OK"
+  fi
+}

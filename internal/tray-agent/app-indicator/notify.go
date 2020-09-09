@@ -35,14 +35,13 @@ const (
 	notifyLevelUnknownDescription = "unknown"
 )
 
-// Liqo icon set for the Indicator notification system
+//Liqo icon set for the Indicator notification system.
 const (
 	NotifyIconNil NotifyIcon = iota
-	NotifyIconNoConn
 	NotifyIconDefault
-	NotifyIconGreen
-	NotifyIconGray
-	NotifyIconOrange
+	NotifyIconWhite
+	NotifyIconError
+	NotifyIconWarning
 )
 
 //Notify manages Indicator notification logic. Depending on the current NotifyLevel of the Indicator,
@@ -66,18 +65,16 @@ func (i *Indicator) Notify(title string, message string, notifyIcon NotifyIcon, 
 		switch notifyIcon {
 		case NotifyIconNil:
 			icoName = ""
-		case NotifyIconNoConn:
-			icoName = "liqo-no_conn.png"
 		case NotifyIconDefault:
-			icoName = "liqo-black.png"
-		case NotifyIconGreen:
-			icoName = "liqo-green.png"
-		case NotifyIconGray:
-			icoName = "liqo-gray.png"
-		case NotifyIconOrange:
-			icoName = "liqo-orange.png"
+			icoName = "liqo-main-black.png"
+		case NotifyIconWarning:
+			icoName = "liqo-warning.png"
+		case NotifyIconWhite:
+			icoName = "liqo-main-white.png"
+		case NotifyIconError:
+			icoName = "liqo-error.png"
 		default:
-			icoName = "liqo-black.png"
+			icoName = "liqo-main-black.png"
 		}
 		if !i.gProvider.Mocked() {
 			/*The golang guidelines suggests error messages should not start with a capitalized letter.
@@ -114,35 +111,35 @@ func (i *Indicator) NotificationSetLevel(level NotifyLevel) {
 //connection with the cluster pointed by $LIQO_KCONFIG.
 func (i *Indicator) NotifyNoConnection() {
 	i.Notify("Liqo Agent: NO CONNECTION", "Agent could not connect to the desired cluster",
-		NotifyIconNoConn, IconLiqoNoConn)
+		NotifyIconWarning, IconLiqoNoConn)
 }
 
 //NotifyNewAdv is an already configured Notify() call to notify the creation of a
 //new Advertisement CRD in the cluster.
 func (i *Indicator) NotifyNewAdv(name string) {
 	i.Notify("Liqo Agent: NEW ADVERTISEMENT", fmt.Sprintf("You received a new advertisement %s", name),
-		NotifyIconOrange, IconLiqoAdvNew)
+		NotifyIconDefault, IconLiqoOrange)
 }
 
 //NotifyAcceptedAdv is an already configured Notify() call to notify that an
 //Advertisement CRD in the cluster has changed its status in "ACCEPTED".
 func (i *Indicator) NotifyAcceptedAdv(name string) {
 	i.Notify("Liqo Agent: ACCEPTED ADVERTISEMENT", fmt.Sprintf("advertisement %s has been accepted", name),
-		NotifyIconGreen, IconLiqoAdvAccepted)
+		NotifyIconDefault, IconLiqoGreen)
 }
 
 //NotifyRevokedAdv is an already configured Notify() call to notify that an Advertisement
 //CRD in the cluster is not in "ACCEPTED" status anymore.
 func (i *Indicator) NotifyRevokedAdv(name string) {
 	i.Notify("Liqo Agent: REVOKED ADVERTISEMENT", fmt.Sprintf("advertisement %s revoked", name),
-		NotifyIconOrange, IconLiqoAdvNew)
+		NotifyIconDefault, IconLiqoOrange)
 }
 
 //NotifyDeletedAdv is an already configured Notify() call to notify that an Advertisement
 //CRD in the cluster has been deleted.
 func (i *Indicator) NotifyDeletedAdv(name string) {
 	i.Notify("Liqo Agent: DELETED ADVERTISEMENT", fmt.Sprintf("advertisement %s deleted", name),
-		NotifyIconOrange, IconLiqoAdvNew)
+		NotifyIconDefault, IconLiqoOrange)
 }
 
 //ShowWarning displays a Warning window box.
