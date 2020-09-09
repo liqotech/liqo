@@ -116,7 +116,7 @@ func (p *KubernetesProvider) ReconcileNodeFromTep(event watch.Event) {
 	}
 	if event.Type == watch.Deleted {
 		klog.Infof("tunnelEndpoint %v deleted", tep.Name)
-		p.RemappedPodCidr = ""
+		p.RemoteRemappedPodCidr = ""
 		no, err := p.homeClient.Client().CoreV1().Nodes().Get(context.TODO(), p.nodeName, metav1.GetOptions{})
 		if err != nil {
 			klog.Error(err)
@@ -172,9 +172,11 @@ func (p *KubernetesProvider) updateFromAdv(adv advtypes.Advertisement) error {
 
 func (p *KubernetesProvider) updateFromTep(tep nettypes.TunnelEndpoint) error {
 	if tep.Status.RemoteRemappedPodCIDR != "" && tep.Status.RemoteRemappedPodCIDR != "None" {
-		p.RemappedPodCidr = tep.Status.RemoteRemappedPodCIDR
-	} else {
-		p.RemappedPodCidr = tep.Spec.PodCIDR
+		p.RemoteRemappedPodCidr = tep.Status.RemoteRemappedPodCIDR
+	}
+
+	if tep.Status.LocalRemappedPodCIDR != "" && tep.Status.LocalRemappedPodCIDR != "None" {
+		p.LocalRemappedPodCidr = tep.Status.LocalRemappedPodCIDR
 	}
 
 	no, err := p.homeClient.Client().CoreV1().Nodes().Get(context.TODO(), p.nodeName, metav1.GetOptions{})
@@ -186,7 +188,7 @@ func (p *KubernetesProvider) updateFromTep(tep nettypes.TunnelEndpoint) error {
 }
 
 func (p *KubernetesProvider) updateNode(node *v1.Node) error {
-	if p.RemappedPodCidr != "" && node.Status.Allocatable != nil {
+	if p.RemoteRemappedPodCidr != "" && node.Status.Allocatable != nil {
 		// both the podCIDR and the resources have been set: the node is ready
 		for i, condition := range node.Status.Conditions {
 			if condition.Type == v1.NodeReady {
@@ -196,14 +198,14 @@ func (p *KubernetesProvider) updateNode(node *v1.Node) error {
 				node.Status.Conditions[i].Status = v1.ConditionFalse
 			}
 		}
-	} else if p.RemappedPodCidr != "" && node.Status.Allocatable == nil {
+	} else if p.RemoteRemappedPodCidr != "" && node.Status.Allocatable == nil {
 		// the resources have not been set yet: set the node status to NotReady
 		for i, condition := range node.Status.Conditions {
 			if condition.Type == v1.NodeReady {
 				node.Status.Conditions[i].Status = v1.ConditionFalse
 			}
 		}
-	} else if p.RemappedPodCidr == "" && node.Status.Allocatable != nil {
+	} else if p.RemoteRemappedPodCidr == "" && node.Status.Allocatable != nil {
 		// the podCIDR has not been set yet: set the node status to NetworkUnavailable
 		for i, condition := range node.Status.Conditions {
 			if condition.Type == v1.NodeReady {

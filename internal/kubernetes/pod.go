@@ -146,7 +146,7 @@ func (p *KubernetesProvider) GetPod(ctx context.Context, namespace, name string)
 		return nil, errors.Wrap(err, "Unable to get pod")
 	}
 
-	podInverted := F2HTranslate(podServer, p.RemappedPodCidr, namespace)
+	podInverted := F2HTranslate(podServer, p.RemoteRemappedPodCidr, namespace)
 	return podInverted, nil
 }
 
@@ -168,7 +168,7 @@ func (p *KubernetesProvider) GetPodStatus(ctx context.Context, namespace, name s
 	if err != nil {
 		return nil, errors.Wrap(err, "error getting status")
 	}
-	podOutput := F2HTranslate(podForeignIn, p.RemappedPodCidr, namespace)
+	podOutput := F2HTranslate(podForeignIn, p.RemoteRemappedPodCidr, namespace)
 	klog.Infof("receive GetPodStatus %q", name)
 	return &podOutput.Status, nil
 }
@@ -480,7 +480,7 @@ func (p *KubernetesProvider) watchForeignPods(watcher watch.Interface, stop chan
 			if err != nil {
 				klog.Error(err, "natting error in watchForeignPods")
 			}
-			p.notifier(F2HTranslate(po, p.RemappedPodCidr, denattedNS))
+			p.notifier(F2HTranslate(po, p.RemoteRemappedPodCidr, denattedNS))
 		case e := <-watcher.ResultChan():
 			po, ok := e.Object.(*v1.Pod)
 			if !ok {

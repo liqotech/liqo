@@ -83,6 +83,7 @@ func (p *KubernetesProvider) updateEndpoints(eps, foreignEps []corev1.EndpointSu
 				addr.NodeName = &p.homeClusterID
 				addr.TargetRef = nil
 
+				addr.IP = ChangePodIp(p.LocalRemappedPodCidr, addr.IP)
 				subsets[i].Addresses = append(subsets[i].Addresses, addr)
 			}
 		}
