@@ -1,8 +1,8 @@
 package clusterConfig
 
 import (
-	configv1alpha1 "github.com/liqoTech/liqo/api/config/v1alpha1"
-	"github.com/liqoTech/liqo/pkg/crdClient"
+	configv1alpha1 "github.com/liqotech/liqo/api/config/v1alpha1"
+	"github.com/liqotech/liqo/pkg/crdClient"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/watch"

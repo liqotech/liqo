@@ -19,10 +19,10 @@ import (
 	"context"
 	"fmt"
 	"github.com/go-logr/logr"
-	discoveryv1alpha1 "github.com/liqoTech/liqo/api/discovery/v1alpha1"
-	advtypes "github.com/liqoTech/liqo/api/sharing/v1alpha1"
-	"github.com/liqoTech/liqo/internal/crdReplicator"
-	liqonetOperator "github.com/liqoTech/liqo/pkg/liqonet"
+	discoveryv1alpha1 "github.com/liqotech/liqo/api/discovery/v1alpha1"
+	advtypes "github.com/liqotech/liqo/api/sharing/v1alpha1"
+	"github.com/liqotech/liqo/internal/crdReplicator"
+	liqonetOperator "github.com/liqotech/liqo/pkg/liqonet"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -39,7 +39,7 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	netv1alpha1 "github.com/liqoTech/liqo/api/net/v1alpha1"
+	netv1alpha1 "github.com/liqotech/liqo/api/net/v1alpha1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 )
 

@@ -17,7 +17,7 @@ package trace
 import (
 	"context"
 
-	"github.com/liqoTech/liqo/internal/log"
+	"github.com/liqotech/liqo/internal/log"
 )
 
 type nopTracer struct{}

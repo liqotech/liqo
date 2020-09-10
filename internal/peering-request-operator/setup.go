@@ -1,9 +1,9 @@
 package peering_request_operator
 
 import (
-	discoveryv1alpha1 "github.com/liqoTech/liqo/api/discovery/v1alpha1"
-	"github.com/liqoTech/liqo/pkg/clusterID"
-	"github.com/liqoTech/liqo/pkg/crdClient"
+	discoveryv1alpha1 "github.com/liqotech/liqo/api/discovery/v1alpha1"
+	"github.com/liqotech/liqo/pkg/clusterID"
+	"github.com/liqotech/liqo/pkg/crdClient"
 	"k8s.io/apimachinery/pkg/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/klog"

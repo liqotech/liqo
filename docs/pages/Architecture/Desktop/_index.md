@@ -34,7 +34,7 @@ operate with the Liqo CRDs, watching relevant events and signaling them to the _
 ![Liqo Agent components](/images/tray-agent/liqo_agent-scheme.png)
 
 ## Implementation    
-Take a look at the complete API [documentation](https://pkg.go.dev/github.com/liqoTech/liqo/internal/tray-agent).
+Take a look at the complete API [documentation](https://pkg.go.dev/github.com/liqotech/liqo/internal/tray-agent).
 
 * **_NOTE_**: In order to orchestrate the tray icon and menu, _Agent_ exploits the 
 [systray](https://github.com/getlantern/systray) package which has some limitations:

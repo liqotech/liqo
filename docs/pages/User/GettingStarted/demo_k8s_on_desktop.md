@@ -131,7 +131,7 @@ This can be done with the following commands:
 ```bash
 export POD_CIDR=10.42.0.0/16
 export SERVICE_CIDR=10.43.0.0/16
-curl https://raw.githubusercontent.com/LiqoTech/liqo/master/install.sh | bash
+curl https://raw.githubusercontent.com/liqotech/liqo/master/install.sh | bash
 ```
 
 For detailed information see the [Liqo Installation Guide](/user/gettingstarted/install/#custom-install); particularly, check that your Liqo instance works properly.

@@ -2,7 +2,7 @@ package client
 
 import (
 	"fmt"
-	advtypes "github.com/liqoTech/liqo/api/sharing/v1alpha1"
+	advtypes "github.com/liqotech/liqo/api/sharing/v1alpha1"
 	"strings"
 )
 

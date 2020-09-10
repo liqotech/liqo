@@ -17,7 +17,7 @@ package opencensus
 import (
 	"testing"
 
-	"github.com/liqoTech/liqo/internal/trace"
+	"github.com/liqotech/liqo/internal/trace"
 )
 
 func TestTracerImplementsTracer(t *testing.T) {

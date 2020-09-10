@@ -47,7 +47,7 @@ jobs:
           dockerfile: build/${{ matrix.component }}/Dockerfile
           password: ${{ secrets.DOCKER_PASSWORD }}
           tags: "latest,${{ env.commit_ref }}"
-        if: github.ref == 'refs/heads/master' && github.event.repository.full_name == 'LiqoTech/liqo'
+        if: github.ref == 'refs/heads/master' && github.event.repository.full_name == 'liqotech/liqo'
       - name: Push ${{ matrix.component }} image on repo (Development)
         uses: elgohr/Publish-Docker-Github-Action@master
         with:
@@ -56,14 +56,14 @@ jobs:
           dockerfile: build/${{ matrix.component }}/Dockerfile
           password: ${{ secrets.DOCKER_PASSWORD }}
           tags: "${{ env.commit_ref }}"
-        if: github.ref != 'refs/heads/master' && github.event.pull_request.head.repo.full_name == 'LiqoTech/liqo'
+        if: github.ref != 'refs/heads/master' && github.event.pull_request.head.repo.full_name == 'liqotech/liqo'
       - name: Build Only ${{ matrix.component }} image (Forked Repositories)
         uses: docker/build-push-action@v1
         with:
           name: liqo/${{ matrix.component }}-ci
           dockerfile: build/${{ matrix.component }}/Dockerfile
           push: false
-        if: github.ref != 'refs/heads/master' && github.event.pull_request.head.repo.full_name != 'LiqoTech/liqo'
+        if: github.ref != 'refs/heads/master' && github.event.pull_request.head.repo.full_name != 'liqotech/liqo'
   e2e-test-trigger:
      runs-on: ubuntu-latest
      needs: [build, test]
@@ -94,7 +94,7 @@ jobs:
          run: echo "::set-env name=branch_name::`echo ${GITHUB_REF#refs/*/}`"
        - name: "Notify PR Event to Liqops"
          run: |
-           curl -X POST https://api.github.com/repos/LiqoTech/${{ matrix.component }}/dispatches \
+           curl -X POST https://api.github.com/repos/liqotech/${{ matrix.component }}/dispatches \
            -H 'Accept: application/vnd.github.everest-preview+json' \
            -u ${{ secrets.CI_TOKEN }} \
            --data '{"event_type": "dev-event", "client_payload": { "actor": "${{ env.branch_owner }}", "ref": "${{ env.branch_name }}", "commit":"${{ env.commit_ref }}" }}'

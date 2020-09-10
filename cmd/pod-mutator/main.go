@@ -3,7 +3,7 @@ package main
 import (
 	"flag"
 	"github.com/joho/godotenv"
-	"github.com/liqoTech/liqo/pkg/mutate"
+	"github.com/liqotech/liqo/pkg/mutate"
 	"k8s.io/klog"
 	"log"
 )

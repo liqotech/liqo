@@ -1,8 +1,8 @@
 package client
 
 import (
-	advtypes "github.com/liqoTech/liqo/api/sharing/v1alpha1"
-	"github.com/liqoTech/liqo/pkg/crdClient"
+	advtypes "github.com/liqotech/liqo/api/sharing/v1alpha1"
+	"github.com/liqotech/liqo/pkg/crdClient"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/tools/cache"
 	"time"

@@ -18,8 +18,8 @@ import (
 	"io"
 	"net/http"
 
-	"github.com/liqoTech/liqo/internal/errdefs"
-	"github.com/liqoTech/liqo/internal/log"
+	"github.com/liqotech/liqo/internal/errdefs"
+	"github.com/liqotech/liqo/internal/log"
 )
 
 type handlerFunc func(http.ResponseWriter, *http.Request) error

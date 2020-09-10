@@ -5,7 +5,7 @@ weight: 4
 
 ## Overview
 The **Liqo Agent** is the component that allows desktop users to interact with Liqo in an easy, friendly way.
-It represents one of the two main entry points to the Liqo environment, along with the [**LiqoDash**](https://github.com/LiqoTech/dashboard).
+It represents one of the two main entry points to the Liqo environment, along with the [**LiqoDash**](https://github.com/liqotech/dashboard).
 
 Liqo relies on several components running in the Kubernetes environment.
 Monitoring and managing the system directly might prove rather challenging for many users as it requires good knowledge about Kubernetes tools such as `kubectl`.

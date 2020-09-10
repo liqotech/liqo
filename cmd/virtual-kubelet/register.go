@@ -1,8 +1,8 @@
 package main
 
 import (
-	"github.com/liqoTech/liqo/cmd/virtual-kubelet/internal/provider"
-	"github.com/liqoTech/liqo/internal/kubernetes"
+	"github.com/liqotech/liqo/cmd/virtual-kubelet/internal/provider"
+	"github.com/liqotech/liqo/internal/kubernetes"
 )
 
 func registerKubernetes(s *provider.Store) error {

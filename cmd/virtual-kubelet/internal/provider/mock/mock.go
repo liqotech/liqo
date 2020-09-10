@@ -4,17 +4,17 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/liqoTech/liqo/internal/node"
+	"github.com/liqotech/liqo/internal/node"
 	"io"
 	"io/ioutil"
 	"math/rand"
 	"strings"
 	"time"
 
-	"github.com/liqoTech/liqo/internal/errdefs"
-	"github.com/liqoTech/liqo/internal/log"
-	"github.com/liqoTech/liqo/internal/node/api"
-	"github.com/liqoTech/liqo/internal/trace"
+	"github.com/liqotech/liqo/internal/errdefs"
+	"github.com/liqotech/liqo/internal/log"
+	"github.com/liqotech/liqo/internal/node/api"
+	"github.com/liqotech/liqo/internal/trace"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -33,7 +33,7 @@ const (
 	containerNameKey = "containerName"
 )
 
-// See: https://github.com/liqoTech/liqo/issues/632
+// See: https://github.com/liqotech/liqo/issues/632
 /*
 var (
 	_ providers.Provider           = (*MockV0Provider)(nil)

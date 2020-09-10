@@ -2,7 +2,7 @@ package search_domain_operator
 
 import (
 	"errors"
-	"github.com/liqoTech/liqo/internal/discovery"
+	"github.com/liqotech/liqo/internal/discovery"
 	"github.com/miekg/dns"
 	"k8s.io/klog"
 	"strconv"

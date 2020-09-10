@@ -2,8 +2,8 @@ package crdReplicator
 
 import (
 	"context"
-	netv1alpha1 "github.com/liqoTech/liqo/api/net/v1alpha1"
-	"github.com/liqoTech/liqo/internal/crdReplicator"
+	netv1alpha1 "github.com/liqotech/liqo/api/net/v1alpha1"
+	"github.com/liqotech/liqo/internal/crdReplicator"
 	"github.com/stretchr/testify/assert"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"

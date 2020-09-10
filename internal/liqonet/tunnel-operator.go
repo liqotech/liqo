@@ -17,8 +17,8 @@ package controllers
 import (
 	"context"
 	"github.com/go-logr/logr"
-	netv1alpha1 "github.com/liqoTech/liqo/api/net/v1alpha1"
-	liqonetOperator "github.com/liqoTech/liqo/pkg/liqonet"
+	netv1alpha1 "github.com/liqotech/liqo/api/net/v1alpha1"
+	liqonetOperator "github.com/liqotech/liqo/pkg/liqonet"
 	"github.com/vishvananda/netlink"
 	"k8s.io/apimachinery/pkg/runtime"
 	"os"

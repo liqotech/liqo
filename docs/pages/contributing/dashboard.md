@@ -10,7 +10,7 @@ Here we take a look on how to setup LiqoDash in your development environment.
 - Docker 1.25+ ([installation manual](https://docs.docker.com/engine/installation/linux/docker-ce/ubuntu/))
 
 ### Local installation
-Clone the [repository](https://github.com/LiqoTech/dashboard/tree/master) and install the dependencies with:
+Clone the [repository](https://github.com/liqotech/dashboard/tree/master) and install the dependencies with:
 ```
 npm install
 ```

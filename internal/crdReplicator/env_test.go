@@ -1,7 +1,7 @@
 package crdReplicator
 
 import (
-	netv1alpha1 "github.com/liqoTech/liqo/api/net/v1alpha1"
+	netv1alpha1 "github.com/liqotech/liqo/api/net/v1alpha1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/dynamic"
 	"time"

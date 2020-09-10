@@ -22,7 +22,7 @@ import (
 	"time"
 
 	"github.com/gorilla/mux"
-	"github.com/liqoTech/liqo/internal/errdefs"
+	"github.com/liqotech/liqo/internal/errdefs"
 	"github.com/pkg/errors"
 	"k8s.io/apimachinery/pkg/types"
 	remoteutils "k8s.io/client-go/tools/remotecommand"

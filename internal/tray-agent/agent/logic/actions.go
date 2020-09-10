@@ -1,9 +1,9 @@
 package logic
 
 import (
-	advtypes "github.com/liqoTech/liqo/api/sharing/v1alpha1"
-	"github.com/liqoTech/liqo/internal/tray-agent/agent/client"
-	app "github.com/liqoTech/liqo/internal/tray-agent/app-indicator"
+	advtypes "github.com/liqotech/liqo/api/sharing/v1alpha1"
+	"github.com/liqotech/liqo/internal/tray-agent/agent/client"
+	app "github.com/liqotech/liqo/internal/tray-agent/app-indicator"
 )
 
 // callback function for the ACTION "Show Advertisements". It shows the Advertisements CRs currently in the cluster,

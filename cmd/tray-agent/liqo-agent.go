@@ -1,8 +1,8 @@
 package main
 
 import (
-	"github.com/liqoTech/liqo/internal/tray-agent/agent/logic"
-	"github.com/liqoTech/liqo/internal/tray-agent/app-indicator"
+	"github.com/liqotech/liqo/internal/tray-agent/agent/logic"
+	"github.com/liqotech/liqo/internal/tray-agent/app-indicator"
 )
 
 func main() {

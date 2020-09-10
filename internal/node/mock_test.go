@@ -6,8 +6,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/liqoTech/liqo/internal/errdefs"
-	"github.com/liqoTech/liqo/internal/log"
+	"github.com/liqotech/liqo/internal/errdefs"
+	"github.com/liqotech/liqo/internal/log"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )

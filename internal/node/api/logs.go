@@ -22,8 +22,8 @@ import (
 	"time"
 
 	"github.com/gorilla/mux"
-	"github.com/liqoTech/liqo/internal/errdefs"
-	"github.com/liqoTech/liqo/internal/log"
+	"github.com/liqotech/liqo/internal/errdefs"
+	"github.com/liqotech/liqo/internal/log"
 	"github.com/pkg/errors"
 )
 

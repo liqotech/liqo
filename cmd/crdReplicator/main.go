@@ -2,10 +2,10 @@ package main
 
 import (
 	"flag"
-	configv1alpha1 "github.com/liqoTech/liqo/api/config/v1alpha1"
-	discoveryv1alpha1 "github.com/liqoTech/liqo/api/discovery/v1alpha1"
-	"github.com/liqoTech/liqo/internal/crdReplicator"
-	util "github.com/liqoTech/liqo/pkg/liqonet"
+	configv1alpha1 "github.com/liqotech/liqo/api/config/v1alpha1"
+	discoveryv1alpha1 "github.com/liqotech/liqo/api/discovery/v1alpha1"
+	"github.com/liqotech/liqo/internal/crdReplicator"
+	util "github.com/liqotech/liqo/pkg/liqonet"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"

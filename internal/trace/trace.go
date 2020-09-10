@@ -22,7 +22,7 @@ package trace
 import (
 	"context"
 
-	"github.com/liqoTech/liqo/internal/log"
+	"github.com/liqotech/liqo/internal/log"
 )
 
 // Tracer is the interface used for creating a tracing span

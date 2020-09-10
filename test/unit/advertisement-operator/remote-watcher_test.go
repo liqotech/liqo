@@ -1,8 +1,8 @@
 package advertisement_operator
 
 import (
-	discoveryv1alpha1 "github.com/liqoTech/liqo/api/discovery/v1alpha1"
-	advtypes "github.com/liqoTech/liqo/api/sharing/v1alpha1"
+	discoveryv1alpha1 "github.com/liqotech/liqo/api/discovery/v1alpha1"
+	advtypes "github.com/liqotech/liqo/api/sharing/v1alpha1"
 	"github.com/stretchr/testify/assert"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"testing"

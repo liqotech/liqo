@@ -2,8 +2,8 @@ package app_indicator
 
 import (
 	"fmt"
-	"github.com/liqoTech/liqo/internal/tray-agent/agent/client"
-	"github.com/liqoTech/liqo/internal/tray-agent/icon"
+	"github.com/liqotech/liqo/internal/tray-agent/agent/client"
+	"github.com/liqotech/liqo/internal/tray-agent/icon"
 	"sync"
 )
 
@@ -14,7 +14,7 @@ const menuWidth = 64
 type Icon int
 
 //Icon displayed in the tray bar. It is internally mapped into one of the icons in
-//github.com/liqoTech/liqo/internal/tray-agent/icon
+//github.com/liqotech/liqo/internal/tray-agent/icon
 const (
 	IconLiqoMain Icon = iota
 	IconLiqoNoConn

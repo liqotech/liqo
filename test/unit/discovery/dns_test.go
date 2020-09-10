@@ -1,9 +1,9 @@
 package discovery
 
 import (
-	"github.com/liqoTech/liqo/api/discovery/v1alpha1"
-	"github.com/liqoTech/liqo/internal/discovery"
-	search_domain_operator "github.com/liqoTech/liqo/internal/discovery/search-domain-operator"
+	"github.com/liqotech/liqo/api/discovery/v1alpha1"
+	"github.com/liqotech/liqo/internal/discovery"
+	search_domain_operator "github.com/liqotech/liqo/internal/discovery/search-domain-operator"
 	"gotest.tools/assert"
 	v12 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"

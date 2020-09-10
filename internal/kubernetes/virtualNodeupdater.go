@@ -2,10 +2,10 @@ package kubernetes
 
 import (
 	"context"
-	nettypes "github.com/liqoTech/liqo/api/net/v1alpha1"
-	advtypes "github.com/liqoTech/liqo/api/sharing/v1alpha1"
-	controllers "github.com/liqoTech/liqo/internal/liqonet"
-	"github.com/liqoTech/liqo/internal/node"
+	nettypes "github.com/liqotech/liqo/api/net/v1alpha1"
+	advtypes "github.com/liqotech/liqo/api/sharing/v1alpha1"
+	controllers "github.com/liqotech/liqo/internal/liqonet"
+	"github.com/liqotech/liqo/internal/node"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/watch"

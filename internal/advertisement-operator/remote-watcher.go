@@ -1,8 +1,8 @@
 package advertisementOperator
 
 import (
-	discoveryv1alpha1 "github.com/liqoTech/liqo/api/discovery/v1alpha1"
-	advtypes "github.com/liqoTech/liqo/api/sharing/v1alpha1"
+	discoveryv1alpha1 "github.com/liqotech/liqo/api/discovery/v1alpha1"
+	advtypes "github.com/liqotech/liqo/api/sharing/v1alpha1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/klog"

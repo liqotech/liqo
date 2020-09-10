@@ -17,8 +17,8 @@ package main
 
 import (
 	"flag"
-	discoveryv1alpha1 "github.com/liqoTech/liqo/api/discovery/v1alpha1"
-	"github.com/liqoTech/liqo/pkg/crdClient"
+	discoveryv1alpha1 "github.com/liqotech/liqo/api/discovery/v1alpha1"
+	"github.com/liqotech/liqo/pkg/crdClient"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/kubernetes"
@@ -28,10 +28,10 @@ import (
 	"os"
 	"time"
 
-	netv1alpha1 "github.com/liqoTech/liqo/api/net/v1alpha1"
-	advtypes "github.com/liqoTech/liqo/api/sharing/v1alpha1"
-	advop "github.com/liqoTech/liqo/internal/advertisement-operator"
-	"github.com/liqoTech/liqo/pkg/csrApprover"
+	netv1alpha1 "github.com/liqotech/liqo/api/net/v1alpha1"
+	advtypes "github.com/liqotech/liqo/api/sharing/v1alpha1"
+	advop "github.com/liqotech/liqo/internal/advertisement-operator"
+	"github.com/liqotech/liqo/pkg/csrApprover"
 	ctrl "sigs.k8s.io/controller-runtime"
 	// +kubebuilder:scaffold:imports
 )

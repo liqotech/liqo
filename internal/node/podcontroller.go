@@ -23,9 +23,9 @@ import (
 	"time"
 
 	"github.com/google/go-cmp/cmp"
-	"github.com/liqoTech/liqo/internal/errdefs"
-	"github.com/liqoTech/liqo/internal/manager"
-	"github.com/liqoTech/liqo/internal/trace"
+	"github.com/liqotech/liqo/internal/errdefs"
+	"github.com/liqotech/liqo/internal/manager"
+	"github.com/liqotech/liqo/internal/trace"
 	pkgerrors "github.com/pkg/errors"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -440,7 +440,7 @@ func (pc *PodController) syncPodInProvider(ctx context.Context, pod *corev1.Pod,
 	ctx = addPodAttributes(ctx, span, pod)
 
 	// If the pod('s containers) is no longer in a running state then we force-delete the pod from API server
-	// more context is here: https://github.com/liqoTech/liqo/pull/760
+	// more context is here: https://github.com/liqotech/liqo/pull/760
 	if pod.DeletionTimestamp != nil && !running(&pod.Status) {
 		klog.Info("Force deleting pod from API Server as it is no longer running")
 		pc.deletionQ.Add(key)

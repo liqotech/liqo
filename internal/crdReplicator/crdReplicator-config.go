@@ -1,9 +1,9 @@
 package crdReplicator
 
 import (
-	configv1alpha1 "github.com/liqoTech/liqo/api/config/v1alpha1"
-	"github.com/liqoTech/liqo/pkg/clusterConfig"
-	"github.com/liqoTech/liqo/pkg/crdClient"
+	configv1alpha1 "github.com/liqotech/liqo/api/config/v1alpha1"
+	"github.com/liqotech/liqo/pkg/clusterConfig"
+	"github.com/liqotech/liqo/pkg/crdClient"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"

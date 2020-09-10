@@ -3,9 +3,9 @@ package kubernetes
 import (
 	"context"
 	"fmt"
-	"github.com/liqoTech/liqo/api/virtualKubelet/v1alpha1"
-	"github.com/liqoTech/liqo/internal/kubernetes/test"
-	"github.com/liqoTech/liqo/pkg/crdClient"
+	"github.com/liqotech/liqo/api/virtualKubelet/v1alpha1"
+	"github.com/liqotech/liqo/internal/kubernetes/test"
+	"github.com/liqotech/liqo/pkg/crdClient"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/watch"

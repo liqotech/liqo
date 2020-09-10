@@ -1,4 +1,4 @@
-module github.com/liqoTech/liqo
+module github.com/liqotech/liqo
 
 go 1.13
 

@@ -3,9 +3,9 @@ package peering_request_admission
 import (
 	"encoding/json"
 	"fmt"
-	discoveryv1alpha1 "github.com/liqoTech/liqo/api/discovery/v1alpha1"
-	"github.com/liqoTech/liqo/internal/peering-request-operator"
-	"github.com/liqoTech/liqo/pkg/crdClient"
+	discoveryv1alpha1 "github.com/liqotech/liqo/api/discovery/v1alpha1"
+	"github.com/liqotech/liqo/internal/peering-request-operator"
+	"github.com/liqotech/liqo/pkg/crdClient"
 	"io/ioutil"
 	"k8s.io/api/admission/v1beta1"
 	admissionregistrationv1beta1 "k8s.io/api/admissionregistration/v1beta1"

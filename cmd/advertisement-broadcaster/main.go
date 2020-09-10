@@ -2,7 +2,7 @@ package main
 
 import (
 	"flag"
-	advop "github.com/liqoTech/liqo/internal/advertisement-operator"
+	advop "github.com/liqotech/liqo/internal/advertisement-operator"
 	"k8s.io/klog"
 	"os"
 )
