@@ -10,6 +10,20 @@ There are three main sections you can configure:
 * [**DiscoveryConfig**](#discovery-configuration): defines the configuration for the discovery protocol
 * [**NetworkConfig**](#network-configuration): defines the configuration for the network modules
 
+## Modify your cluster name
+The ClusterName is the nickname of your cluster, a simple and understandable name that the other clusters can see when they discover your.
+It is set during installation, but you can easily change it whenever you want by editing your `ClusterConfig`, through the dashboard or `kubectl`.
+
+To modify the `ClusterConfig` via kubectl use the following command:
+```bash
+kubectl edit clusterconfig
+```
+and modify the field 
+```yaml
+discoveryConfig: 
+   clusterName: your_cluster_name
+```
+
 ## Advertisement configuration
 
 In this section you can configure your cluster behaviour regarding the Advertisement broadcasting and acceptance,
