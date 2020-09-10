@@ -50,7 +50,7 @@ func TestHandleConfigmapEvents(t *testing.T) {
 	}
 
 	// create a new namespaceNattingTable and deploy it in the fake cache
-	nt := test.CreateNamespaceNattingTable()
+	nt := test.CreateNamespaceNattingTable(p.foreignClusterId)
 	if err = p.ntCache.Store.Add(nt); err != nil {
 		t.Fatal(err)
 	}

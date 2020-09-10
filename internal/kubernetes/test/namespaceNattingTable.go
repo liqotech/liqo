@@ -5,14 +5,14 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-func CreateNamespaceNattingTable() *v1.NamespaceNattingTable {
+func CreateNamespaceNattingTable(foreignClusterId string) *v1.NamespaceNattingTable {
 	return &v1.NamespaceNattingTable{
 		TypeMeta: metav1.TypeMeta{},
 		ObjectMeta: metav1.ObjectMeta{
-			Name: ForeignClusterId,
+			Name: foreignClusterId,
 		},
 		Spec: v1.NamespaceNattingTableSpec{
-			ClusterId: ForeignClusterId,
+			ClusterId: foreignClusterId,
 			NattingTable: map[string]string{
 				Namespace: NattedNamespace,
 			},
