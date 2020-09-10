@@ -13,18 +13,18 @@ import (
 	"time"
 )
 
-func TestHandleEpEvents(t *testing.T) {
+func TestHandleEpEventsNatting(t *testing.T) {
 	// set the client in fake mode
 	crdClient.Fake = true
 
 	// create fake client for the home cluster
-	homeClient, err := v1alpha1.CreateClient("")
+	hc, err := v1alpha1.CreateClient("")
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	// create the fake client for the foreign cluster
-	foreignClient, err := v1alpha1.CreateClient("")
+	fc, err := v1alpha1.CreateClient("")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -36,22 +36,61 @@ func TestHandleEpEvents(t *testing.T) {
 		foreignPodCaches:     make(map[string]*podCache),
 		homeEpCaches:         make(map[string]*epCache),
 		foreignEpCaches:      make(map[string]*epCache),
-		foreignClient:        foreignClient,
-		homeClient:           homeClient,
+		foreignClient:        fc,
+		homeClient:           hc,
 		startTime:            time.Time{},
-		foreignClusterId:     test.ForeignClusterId,
 		homeClusterID:        test.HomeClusterId,
-		LocalRemappedPodCidr: "100.200.0.0/16",
+		foreignClusterId:     test.ForeignClusterId,
+		LocalRemappedPodCidr: test.LocalRemappedPodCIDR,
 	}
 
+	HandleEpEvents(t, p)
+}
+
+func TestHandleEpEventsNoNatting(t *testing.T) {
+	// set the client in fake mode
+	crdClient.Fake = true
+
+	// create fake client for the home cluster
+	hc, err := v1alpha1.CreateClient("")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// create the fake client for the foreign cluster
+	fc, err := v1alpha1.CreateClient("")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// instantiate a fake provider
+	p := KubernetesProvider{
+		Reflector:        &Reflector{started: false},
+		ntCache:          &namespaceNTCache{nattingTableName: test.ForeignClusterId},
+		foreignPodCaches: make(map[string]*podCache),
+		homeEpCaches:     make(map[string]*epCache),
+		foreignEpCaches:  make(map[string]*epCache),
+		foreignClient:    fc,
+		homeClient:       hc,
+		startTime:        time.Time{},
+		homeClusterID:    test.HomeClusterId,
+		foreignClusterId: test.ForeignClusterId,
+	}
+
+	HandleEpEvents(t, p)
+
+}
+
+func HandleEpEvents(t *testing.T, p KubernetesProvider) {
+
 	// start the fake cache for the namespaceNattingTable
-	if err := p.startNattingCache(homeClient); err != nil {
+	if err := p.startNattingCache(p.homeClient); err != nil {
 		t.Fatal(err)
 	}
 
 	// create a new namespaceNattingTable and deploy it in the fake cache
-	nt := test.CreateNamespaceNattingTable()
-	if err = p.ntCache.Store.Add(nt); err != nil {
+	nt := test.CreateNamespaceNattingTable(p.foreignClusterId)
+	if err := p.ntCache.Store.Add(nt); err != nil {
 		t.Fatal(err)
 	}
 
@@ -82,6 +121,7 @@ func TestHandleEpEvents(t *testing.T) {
 		counter := 0
 		for e := range w.ResultChan() {
 			if e.Type == watch.Modified {
+				t.Log("new update event on endpoints")
 				counter++
 			}
 
@@ -139,6 +179,7 @@ loop:
 	if !assertEndpointsCoherency(p.LocalRemappedPodCidr, ep.Subsets, test.EndpointsTestCases.ExpectedEndpoints.Subsets) {
 		t.Fatal("the received ep doesn't match with the expected one")
 	}
+	t.Log("the received ep matches with the expected one")
 
 	// last check to be sure that only the expected number of foreign events has been triggered
 	select {
@@ -152,20 +193,20 @@ loop:
 func createEpEvents(p KubernetesProvider) error {
 	// create a new endpoints object in the home cluster
 	ep := test.EndpointsTestCases.InputEndpoints
-	_, err := p.homeClient.Client().CoreV1().Endpoints(test.Namespace).Create(context.TODO(), ep, metav1.CreateOptions{})
+	_, err := p.homeClient.Client().CoreV1().Endpoints(test.Namespace).Create(context.TODO(), &ep, metav1.CreateOptions{})
 	if err != nil {
 		return err
 	}
 
 	// create a new endpoints object in the foreign cluster
-	_, err = p.foreignClient.Client().CoreV1().Endpoints(test.NattedNamespace).Create(context.TODO(), ep, metav1.CreateOptions{})
+	_, err = p.foreignClient.Client().CoreV1().Endpoints(test.NattedNamespace).Create(context.TODO(), &ep, metav1.CreateOptions{})
 	if err != nil {
 		return err
 	}
 
 	for _, s := range test.EndpointsTestCases.InputSubsets {
 		ep.Subsets = s
-		_, err = p.homeClient.Client().CoreV1().Endpoints(test.Namespace).Update(context.TODO(), ep, metav1.UpdateOptions{})
+		_, err = p.homeClient.Client().CoreV1().Endpoints(test.Namespace).Update(context.TODO(), &ep, metav1.UpdateOptions{})
 		time.Sleep(time.Millisecond)
 		if err != nil {
 			return err
@@ -190,6 +231,5 @@ func assertEndpointsCoherency(podCIDR string, received, expected []corev1.Endpoi
 			}
 		}
 	}
-
 	return true
 }

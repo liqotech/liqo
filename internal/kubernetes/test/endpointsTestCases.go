@@ -12,13 +12,13 @@ var (
 )
 
 var EndpointsTestCases = struct {
-	InputEndpoints         *corev1.Endpoints
+	InputEndpoints         corev1.Endpoints
 	InputSubsets           [][]corev1.EndpointSubset
-	ExpectedEndpoints      *corev1.Endpoints
+	ExpectedEndpoints      corev1.Endpoints
 	ExpectedNumberOfEvents int
 }{
 	ExpectedNumberOfEvents: 2,
-	InputEndpoints: &corev1.Endpoints{
+	InputEndpoints: corev1.Endpoints{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: EndpointsName,
 		},
@@ -72,7 +72,7 @@ var EndpointsTestCases = struct {
 			},
 		},
 	},
-	ExpectedEndpoints: &corev1.Endpoints{
+	ExpectedEndpoints: corev1.Endpoints{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "serviceTest",
 			Namespace: Namespace,
