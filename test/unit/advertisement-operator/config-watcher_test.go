@@ -2,8 +2,8 @@ package advertisement_operator
 
 import (
 	"context"
-	configv1alpha1 "github.com/liqoTech/liqo/api/config/v1alpha1"
-	advtypes "github.com/liqoTech/liqo/api/sharing/v1alpha1"
+	configv1alpha1 "github.com/liqotech/liqo/api/config/v1alpha1"
+	advtypes "github.com/liqotech/liqo/api/sharing/v1alpha1"
 	"github.com/stretchr/testify/assert"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"

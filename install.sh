@@ -157,7 +157,7 @@ fi
 
 
 trap cleanup EXIT
-URL=https://github.com/LiqoTech/liqo.git
+URL=https://github.com/liqotech/liqo.git
 HELM_VERSION=v3.2.3
 HELM_ARCHIVE=helm-${HELM_VERSION}-linux-amd64.tar.gz
 HELM_URL=https://get.helm.sh/$HELM_ARCHIVE

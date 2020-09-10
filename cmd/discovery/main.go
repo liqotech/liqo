@@ -2,12 +2,12 @@ package main
 
 import (
 	"flag"
-	discoveryv1alpha1 "github.com/liqoTech/liqo/api/discovery/v1alpha1"
-	advtypes "github.com/liqoTech/liqo/api/sharing/v1alpha1"
-	"github.com/liqoTech/liqo/internal/discovery"
-	foreign_cluster_operator "github.com/liqoTech/liqo/internal/discovery/foreign-cluster-operator"
-	search_domain_operator "github.com/liqoTech/liqo/internal/discovery/search-domain-operator"
-	"github.com/liqoTech/liqo/pkg/clusterID"
+	discoveryv1alpha1 "github.com/liqotech/liqo/api/discovery/v1alpha1"
+	advtypes "github.com/liqotech/liqo/api/sharing/v1alpha1"
+	"github.com/liqotech/liqo/internal/discovery"
+	foreign_cluster_operator "github.com/liqotech/liqo/internal/discovery/foreign-cluster-operator"
+	search_domain_operator "github.com/liqotech/liqo/internal/discovery/search-domain-operator"
+	"github.com/liqotech/liqo/pkg/clusterID"
 	"k8s.io/apimachinery/pkg/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/klog"

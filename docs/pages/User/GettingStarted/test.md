@@ -25,7 +25,7 @@ kubectl label namespace liqo-demo liqo.io/enabled=true
 Then, you can deploy the test pod in the `liqo-demo` namespace:
 
 ```
-kubectl apply -f https://raw.githubusercontent.com/LiqoTech/liqo/master/docs/examples/hello-world.yaml -n liqo-demo
+kubectl apply -f https://raw.githubusercontent.com/liqotech/liqo/master/docs/examples/hello-world.yaml -n liqo-demo
 ```
 The `hello-world.yaml` file is a simple `nginx` service; it is composed of a pod running an `nginx` image, and a service exposing the pod to the cluster. We labeled the pod to be executed on the virtual-node just created.
 

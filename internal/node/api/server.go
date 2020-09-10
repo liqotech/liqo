@@ -18,7 +18,7 @@ import (
 	"net/http"
 
 	"github.com/gorilla/mux"
-	"github.com/liqoTech/liqo/internal/log"
+	"github.com/liqotech/liqo/internal/log"
 	"go.opencensus.io/plugin/ochttp"
 	"go.opencensus.io/plugin/ochttp/propagation/b3"
 )

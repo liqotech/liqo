@@ -1,11 +1,11 @@
 package liqonet
 
 import (
-	configv1alpha1 "github.com/liqoTech/liqo/api/config/v1alpha1"
-	netv1alpha1 "github.com/liqoTech/liqo/api/net/v1alpha1"
-	controller "github.com/liqoTech/liqo/internal/liqonet"
-	"github.com/liqoTech/liqo/pkg/liqonet"
-	utils "github.com/liqoTech/liqo/pkg/liqonet"
+	configv1alpha1 "github.com/liqotech/liqo/api/config/v1alpha1"
+	netv1alpha1 "github.com/liqotech/liqo/api/net/v1alpha1"
+	controller "github.com/liqotech/liqo/internal/liqonet"
+	"github.com/liqotech/liqo/pkg/liqonet"
+	utils "github.com/liqotech/liqo/pkg/liqonet"
 	"github.com/stretchr/testify/assert"
 	"github.com/vishvananda/netlink"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"

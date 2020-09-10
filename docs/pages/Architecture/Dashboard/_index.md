@@ -5,7 +5,7 @@ weight: 2
 
 LiqoDash is a general purpose, dynamic dashboard that lets you create your own
 views, and fully customize your resources.
-LiqoDash is also a web-based UI for [Liqo](https://github.com/LiqoTech/liqo). It allows you to visualize and manage
+LiqoDash is also a web-based UI for [Liqo](https://github.com/liqotech/liqo). It allows you to visualize and manage
 all the Liqo components, as well as manage the status of the Liqo system itself.
 
 ### Features

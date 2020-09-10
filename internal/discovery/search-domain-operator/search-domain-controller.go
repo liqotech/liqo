@@ -2,9 +2,9 @@ package search_domain_operator
 
 import (
 	"errors"
-	discoveryv1alpha1 "github.com/liqoTech/liqo/api/discovery/v1alpha1"
-	"github.com/liqoTech/liqo/internal/discovery"
-	"github.com/liqoTech/liqo/pkg/crdClient"
+	discoveryv1alpha1 "github.com/liqotech/liqo/api/discovery/v1alpha1"
+	"github.com/liqotech/liqo/internal/discovery"
+	"github.com/liqotech/liqo/pkg/crdClient"
 	v1 "k8s.io/api/core/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"

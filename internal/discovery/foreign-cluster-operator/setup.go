@@ -1,11 +1,11 @@
 package foreign_cluster_operator
 
 import (
-	discoveryv1alpha1 "github.com/liqoTech/liqo/api/discovery/v1alpha1"
-	advtypes "github.com/liqoTech/liqo/api/sharing/v1alpha1"
-	"github.com/liqoTech/liqo/internal/discovery"
-	"github.com/liqoTech/liqo/pkg/clusterID"
-	"github.com/liqoTech/liqo/pkg/crdClient"
+	discoveryv1alpha1 "github.com/liqotech/liqo/api/discovery/v1alpha1"
+	advtypes "github.com/liqotech/liqo/api/sharing/v1alpha1"
+	"github.com/liqotech/liqo/internal/discovery"
+	"github.com/liqotech/liqo/pkg/clusterID"
+	"github.com/liqotech/liqo/pkg/crdClient"
 	"k8s.io/apimachinery/pkg/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"

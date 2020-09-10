@@ -18,7 +18,7 @@
 package logrus
 
 import (
-	"github.com/liqoTech/liqo/internal/log"
+	"github.com/liqotech/liqo/internal/log"
 	"github.com/sirupsen/logrus"
 )
 

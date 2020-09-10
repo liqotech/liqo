@@ -3,8 +3,8 @@ package provider
 import (
 	"sync"
 
-	"github.com/liqoTech/liqo/internal/errdefs"
-	"github.com/liqoTech/liqo/internal/manager"
+	"github.com/liqotech/liqo/internal/errdefs"
+	"github.com/liqotech/liqo/internal/manager"
 )
 
 // Store is used for registering/fetching providers

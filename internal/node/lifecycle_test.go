@@ -7,9 +7,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/liqoTech/liqo/internal/errdefs"
-	"github.com/liqoTech/liqo/internal/log"
-	logruslogger "github.com/liqoTech/liqo/internal/log/logrus"
+	"github.com/liqotech/liqo/internal/errdefs"
+	"github.com/liqotech/liqo/internal/log"
+	logruslogger "github.com/liqotech/liqo/internal/log/logrus"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"gotest.tools/assert"

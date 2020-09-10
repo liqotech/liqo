@@ -3,8 +3,8 @@ package peering_request_admission
 import (
 	"crypto/tls"
 	"fmt"
-	discoveryv1alpha1 "github.com/liqoTech/liqo/api/discovery/v1alpha1"
-	"github.com/liqoTech/liqo/pkg/crdClient"
+	discoveryv1alpha1 "github.com/liqotech/liqo/api/discovery/v1alpha1"
+	"github.com/liqotech/liqo/pkg/crdClient"
 	"k8s.io/klog"
 	"net/http"
 	"os"

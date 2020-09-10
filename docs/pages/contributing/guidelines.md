@@ -4,7 +4,7 @@ title: "Contributing Guidelines"
 
 :+1::tada: First off, thank you for taking the time to contribute to Liqo! :tada::+1:
 
-The following is a set of guidelines for contributing to Liqo, which are hosted in the LiqoTech Organization on GitHub. 
+The following is a set of guidelines for contributing to Liqo, which are hosted in the liqotech Organization on GitHub. 
 These are mostly guidelines, not rules. Use your best judgment, and feel free to propose changes to this document
 in a pull request.
 

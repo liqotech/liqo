@@ -1,7 +1,7 @@
 package kubernetes_provider
 
 import (
-	provider "github.com/liqoTech/liqo/internal/kubernetes"
+	provider "github.com/liqotech/liqo/internal/kubernetes"
 	"github.com/stretchr/testify/assert"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"

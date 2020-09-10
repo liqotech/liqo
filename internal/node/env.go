@@ -17,7 +17,7 @@ package node
 import (
 	"context"
 	"fmt"
-	"github.com/liqoTech/liqo/internal/log"
+	"github.com/liqotech/liqo/internal/log"
 	"k8s.io/klog"
 	"sort"
 	"strings"
@@ -30,7 +30,7 @@ import (
 	fieldpath "k8s.io/kubernetes/pkg/fieldpath"
 	"k8s.io/kubernetes/third_party/forked/golang/expansion"
 
-	"github.com/liqoTech/liqo/internal/manager"
+	"github.com/liqotech/liqo/internal/manager"
 )
 
 const (
@@ -385,7 +385,7 @@ loop:
 			continue loop
 		// Handle population from a field (downward API).
 		case env.ValueFrom != nil && env.ValueFrom.FieldRef != nil:
-			// https://github.com/liqoTech/liqo/issues/123
+			// https://github.com/liqotech/liqo/issues/123
 			vf := env.ValueFrom.FieldRef
 
 			runtimeVal, err := podFieldSelectorRuntimeValue(vf, pod)

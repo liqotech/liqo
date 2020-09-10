@@ -2,11 +2,11 @@ package kubernetes
 
 import (
 	"context"
-	v1 "github.com/liqoTech/liqo/api/net/v1alpha1"
-	advtypes "github.com/liqoTech/liqo/api/sharing/v1alpha1"
-	"github.com/liqoTech/liqo/internal/kubernetes/test"
-	"github.com/liqoTech/liqo/internal/node"
-	"github.com/liqoTech/liqo/pkg/crdClient"
+	v1 "github.com/liqotech/liqo/api/net/v1alpha1"
+	advtypes "github.com/liqotech/liqo/api/sharing/v1alpha1"
+	"github.com/liqotech/liqo/internal/kubernetes/test"
+	"github.com/liqotech/liqo/internal/node"
+	"github.com/liqotech/liqo/pkg/crdClient"
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"

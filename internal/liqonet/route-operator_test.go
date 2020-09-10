@@ -1,8 +1,8 @@
 package controllers
 
 import (
-	netv1alpha1 "github.com/liqoTech/liqo/api/net/v1alpha1"
-	"github.com/liqoTech/liqo/pkg/liqonet"
+	netv1alpha1 "github.com/liqotech/liqo/api/net/v1alpha1"
+	"github.com/liqotech/liqo/pkg/liqonet"
 	"github.com/stretchr/testify/assert"
 	"github.com/vishvananda/netlink"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"

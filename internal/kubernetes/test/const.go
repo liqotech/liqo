@@ -1,7 +1,7 @@
 package test
 
 import (
-	controllers "github.com/liqoTech/liqo/internal/liqonet"
+	controllers "github.com/liqotech/liqo/internal/liqonet"
 	"time"
 )
 

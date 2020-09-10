@@ -1,6 +1,6 @@
 package app_indicator
 
-import "github.com/liqoTech/liqo/internal/tray-agent/agent/client"
+import "github.com/liqotech/liqo/internal/tray-agent/agent/client"
 
 //Listener is an event listener that can react calling a specific callback.
 type Listener struct {

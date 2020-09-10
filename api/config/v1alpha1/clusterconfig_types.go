@@ -16,8 +16,8 @@ limitations under the License.
 package v1alpha1
 
 import (
-	"github.com/liqoTech/liqo/pkg/crdClient"
-	"github.com/liqoTech/liqo/pkg/liqonet"
+	"github.com/liqotech/liqo/pkg/crdClient"
+	"github.com/liqotech/liqo/pkg/liqonet"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/kubernetes/scheme"

@@ -2,7 +2,7 @@ package mock
 
 // We can guarantee the right interfaces are implemented inside of by putting casts in place. We must do the verification
 // that a given type *does not* implement a given interface in this test.
-// Cannot implement this due to:  https://github.com/liqoTech/liqo/issues/632
+// Cannot implement this due to:  https://github.com/liqotech/liqo/issues/632
 /*
 func TestMockLegacyInterface(t *testing.T) {
 	var mlp providers.Provider = &MockLegacyProvider{}

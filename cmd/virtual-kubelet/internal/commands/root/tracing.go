@@ -22,8 +22,8 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/liqoTech/liqo/internal/errdefs"
-	"github.com/liqoTech/liqo/internal/log"
+	"github.com/liqotech/liqo/internal/errdefs"
+	"github.com/liqotech/liqo/internal/log"
 	"github.com/pkg/errors"
 	octrace "go.opencensus.io/trace"
 	"go.opencensus.io/zpages"

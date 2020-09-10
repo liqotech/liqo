@@ -3,9 +3,9 @@ package kubernetes
 import (
 	"context"
 	"fmt"
-	"github.com/liqoTech/liqo/internal/errdefs"
-	"github.com/liqoTech/liqo/internal/node/api"
-	"github.com/liqoTech/liqo/internal/trace"
+	"github.com/liqotech/liqo/internal/errdefs"
+	"github.com/liqotech/liqo/internal/node/api"
+	"github.com/liqotech/liqo/internal/trace"
 	"github.com/pkg/errors"
 	"io"
 	v1 "k8s.io/api/core/v1"

@@ -2,12 +2,12 @@ package liqonet
 
 import (
 	"context"
-	configv1alpha1 "github.com/liqoTech/liqo/api/config/v1alpha1"
-	netv1alpha1 "github.com/liqoTech/liqo/api/net/v1alpha1"
-	advtypes "github.com/liqoTech/liqo/api/sharing/v1alpha1"
-	controllers "github.com/liqoTech/liqo/internal/liqonet"
-	"github.com/liqoTech/liqo/pkg/crdClient"
-	"github.com/liqoTech/liqo/pkg/liqonet"
+	configv1alpha1 "github.com/liqotech/liqo/api/config/v1alpha1"
+	netv1alpha1 "github.com/liqotech/liqo/api/net/v1alpha1"
+	advtypes "github.com/liqotech/liqo/api/sharing/v1alpha1"
+	controllers "github.com/liqotech/liqo/internal/liqonet"
+	"github.com/liqotech/liqo/pkg/crdClient"
+	"github.com/liqotech/liqo/pkg/liqonet"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"

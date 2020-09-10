@@ -2,7 +2,7 @@ package v1alpha1
 
 import (
 	"errors"
-	"github.com/liqoTech/liqo/pkg/crdClient"
+	"github.com/liqotech/liqo/pkg/crdClient"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"

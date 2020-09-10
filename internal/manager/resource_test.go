@@ -17,8 +17,8 @@ package manager_test
 import (
 	"testing"
 
-	"github.com/liqoTech/liqo/internal/manager"
-	testutil "github.com/liqoTech/liqo/internal/test/util"
+	"github.com/liqotech/liqo/internal/manager"
+	testutil "github.com/liqotech/liqo/internal/test/util"
 	"gotest.tools/assert"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"

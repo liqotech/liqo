@@ -4,11 +4,11 @@
 
 # Liqo
 
-![Go](https://github.com/liqoTech/liqo/workflows/Go/badge.svg) 
-[![Coverage Status](https://coveralls.io/repos/github/LiqoTech/liqo/badge.svg?branch=master)](https://coveralls.io/github/LiqoTech/liqo?branch=master)
-[![Go Report Card](https://goreportcard.com/badge/github.com/LiqoTech/liqo)](https://goreportcard.com/report/github.com/LiqoTech/liqo)
+![Go](https://github.com/liqotech/liqo/workflows/Go/badge.svg) 
+[![Coverage Status](https://coveralls.io/repos/github/liqotech/liqo/badge.svg?branch=master)](https://coveralls.io/github/liqotech/liqo?branch=master)
+[![Go Report Card](https://goreportcard.com/badge/github.com/liqotech/liqo)](https://goreportcard.com/report/github.com/liqotech/liqo)
 ![Docker Pulls](https://img.shields.io/docker/pulls/liqo/virtual-kubelet?label=Liqo%20vkubelet%20pulls)
-[![FOSSA Status](https://app.fossa.com/api/projects/git%2Bgithub.com%2FLiqoTech%2Fliqo.svg?type=shield)](https://app.fossa.com/projects/git%2Bgithub.com%2FLiqoTech%2Fliqo?ref=badge_shield)
+[![FOSSA Status](https://app.fossa.com/api/projects/git%2Bgithub.com%2Fliqotech%2Fliqo.svg?type=shield)](https://app.fossa.com/projects/git%2Bgithub.com%2Fliqotech%2Fliqo?ref=badge_shield)
 
 Liqo is a framework to enable dynamic sharing across Kubernetes Clusters. You can run your pods on a remote cluster
 seamlessly, without any modification (Kubernetes or your application). 
@@ -32,7 +32,7 @@ The parameters of the home cluster required by Liqo to start should be automatic
 (through proper kubeadm calls).
 
 ```bash
-curl https://raw.githubusercontent.com/LiqoTech/liqo/master/install.sh | bash
+curl https://raw.githubusercontent.com/liqotech/liqo/master/install.sh | bash
 ```
 
 For more details about [Liqo installation](https://doc.liqo.io/user/gettingstarted/install)
@@ -52,4 +52,4 @@ partner clusters.
 
 
 ## License
-[![FOSSA Status](https://app.fossa.com/api/projects/git%2Bgithub.com%2FLiqoTech%2Fliqo.svg?type=large)](https://app.fossa.com/projects/git%2Bgithub.com%2FLiqoTech%2Fliqo?ref=badge_large)
+[![FOSSA Status](https://app.fossa.com/api/projects/git%2Bgithub.com%2Fliqotech%2Fliqo.svg?type=large)](https://app.fossa.com/projects/git%2Bgithub.com%2Fliqotech%2Fliqo?ref=badge_large)

@@ -1,7 +1,7 @@
 package discovery
 
 import (
-	"github.com/liqoTech/liqo/pkg/clusterID"
+	"github.com/liqotech/liqo/pkg/clusterID"
 	"gotest.tools/assert"
 	"testing"
 )

@@ -27,7 +27,7 @@ You can find more details about configuring `kubectl` in the [official documenta
 Now, you can install Liqo by launching:
 
 ```bash
-curl https://raw.githubusercontent.com/LiqoTech/liqo/master/install.sh | bash
+curl https://raw.githubusercontent.com/liqotech/liqo/master/install.sh | bash
 ```
 
 ### Custom install
@@ -47,7 +47,7 @@ A possible example of installation is the following (please replace the IP addre
 export KUBECONFIG=/etc/rancher/k3s/k3s.yaml
 export POD_CIDR=10.42.0.0/16
 export SERVICE_CIDR=10.43.0.0/16
-curl https://raw.githubusercontent.com/LiqoTech/liqo/master/install.sh | bash
+curl https://raw.githubusercontent.com/liqotech/liqo/master/install.sh | bash
 ```
 
 Obviously, you should have enough privileges to read the K3s kubeconfig file.

@@ -23,9 +23,9 @@ import (
 	"fmt"
 	"sync"
 
-	"github.com/liqoTech/liqo/internal/errdefs"
-	"github.com/liqoTech/liqo/internal/log"
-	"github.com/liqoTech/liqo/internal/trace"
+	"github.com/liqotech/liqo/internal/errdefs"
+	"github.com/liqotech/liqo/internal/log"
+	"github.com/liqotech/liqo/internal/trace"
 	octrace "go.opencensus.io/trace"
 )
 

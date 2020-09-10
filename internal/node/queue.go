@@ -18,7 +18,7 @@ import (
 	"context"
 	"k8s.io/klog"
 
-	"github.com/liqoTech/liqo/internal/trace"
+	"github.com/liqotech/liqo/internal/trace"
 	pkgerrors "github.com/pkg/errors"
 	"k8s.io/client-go/util/workqueue"
 )

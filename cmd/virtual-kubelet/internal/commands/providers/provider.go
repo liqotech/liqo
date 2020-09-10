@@ -18,7 +18,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/liqoTech/liqo/cmd/virtual-kubelet/internal/provider"
+	"github.com/liqotech/liqo/cmd/virtual-kubelet/internal/provider"
 	"github.com/spf13/cobra"
 )
 

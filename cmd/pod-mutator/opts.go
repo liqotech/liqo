@@ -1,7 +1,7 @@
 package main
 
 import (
-	"github.com/liqoTech/liqo/pkg/mutate"
+	"github.com/liqotech/liqo/pkg/mutate"
 	"os"
 )
 

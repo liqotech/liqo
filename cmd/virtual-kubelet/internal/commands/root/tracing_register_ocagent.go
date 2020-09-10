@@ -20,7 +20,7 @@ import (
 	"os"
 
 	"contrib.go.opencensus.io/exporter/ocagent"
-	"github.com/liqoTech/liqo/internal/errdefs"
+	"github.com/liqotech/liqo/internal/errdefs"
 	"go.opencensus.io/trace"
 )
 

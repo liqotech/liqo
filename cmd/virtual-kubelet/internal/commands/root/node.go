@@ -18,8 +18,8 @@ import (
 	"context"
 	"strings"
 
-	"github.com/liqoTech/liqo/cmd/virtual-kubelet/internal/provider"
-	"github.com/liqoTech/liqo/internal/errdefs"
+	"github.com/liqotech/liqo/cmd/virtual-kubelet/internal/provider"
+	"github.com/liqotech/liqo/internal/errdefs"
 	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"

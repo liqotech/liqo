@@ -3,8 +3,8 @@ package main
 import (
 	"flag"
 	"github.com/joho/godotenv"
-	peering_request_operator "github.com/liqoTech/liqo/internal/peering-request-operator"
-	peering_request_admission "github.com/liqoTech/liqo/internal/peering-request-operator/peering-request-admission"
+	peering_request_operator "github.com/liqotech/liqo/internal/peering-request-operator"
+	peering_request_admission "github.com/liqotech/liqo/internal/peering-request-operator/peering-request-admission"
 	"k8s.io/klog"
 	"os"
 	"path/filepath"
