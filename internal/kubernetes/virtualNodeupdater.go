@@ -173,6 +173,8 @@ func (p *KubernetesProvider) updateFromAdv(adv advtypes.Advertisement) error {
 func (p *KubernetesProvider) updateFromTep(tep nettypes.TunnelEndpoint) error {
 	if tep.Status.RemoteRemappedPodCIDR != "" && tep.Status.RemoteRemappedPodCIDR != "None" {
 		p.RemoteRemappedPodCidr = tep.Status.RemoteRemappedPodCIDR
+	} else {
+		p.RemoteRemappedPodCidr = tep.Spec.PodCIDR
 	}
 
 	if tep.Status.LocalRemappedPodCIDR != "" && tep.Status.LocalRemappedPodCIDR != "None" {
