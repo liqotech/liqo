@@ -8,19 +8,29 @@ Doing so, the remote clusters (emulated by the virtual nodes) are taken into acc
 the jobs it receives on them.
 
 ### Features
-* Dynamic management of Advertisement acceptance/refusal
 
-The operator watches the `ClusterConfig` CR to know the maximum number of Advertisements that can be accepted.
-If the `AutoAccept` flag is set to true, the behavior is the following:
- - if MaxAcceptableAdvertisements increases, check if there are refused Advertisements: if so, they are accepted until
+The operator dynamically watches the `ClusterConfig` CR to know the maximum number of Advertisements that can be accepted and the acceptance policy.
+Check [cluster configuration](/user/configure/cluster-config#advertisement-configuration) to get more details about `ClusterConfig` management.
+If the configured policy is `AutoAcceptMax`, the behavior is the following:
+ - if `MaxAcceptableAdvertisements` increases, check if there are refused Advertisements: if so, they are accepted until
    the new maximum is reached.
  - if MaxAcceptableAdvertisements decreases, Advertisements already accepted are left and from now on the new Advertisements that arrive will follow the new policy.
 
-### Limitations
-* Manual acceptance of Advertisement.
-* More complex policies (e.g. blacklist/whitelist some foreign clusters).
-* Graceful deletion of virtual-kubelet when Advertisement is deleted.
-* Recreation of virtual-kubelet if it is unexpectedly deleted.
+### Future work
+* Implement manual acceptance of Advertisement: at the moment the `ManualAccept` policy is not implemented.
+* Implement more complex policies, for example blacklist/whitelist some foreign clusters.
+* Gracefully delete the virtual-kubelet when the Advertisement is deleted.
+
+  The Virtual-Kubelet has an ownerReference to the Advertisement, so when this is deleted, the Virtual-Kubelet is deleted as well.
+  However, the deletion order is: Advertisement deleted -> Virtual-Kubelet deleted -> Virtual node deleted.
+  The desired deletion order is the opposite: in fact, by first deleting the virtual node, the Virtual-Kubelet will reflect the deletion of
+  all offloaded resources on the foreign cluster, leaving a clean namespace in it.
+  
+* Recreate the Virtual-Kubelet if it is unexpectedly deleted.
+
+  If an Accepted Advertisement exists in the cluster, the linked Virtual-Kubelet should exist as well.
+  If the Deployment of the Virtual-Kubelet is deleted in some way, it should be recreated by the Advertisement Operator.
+  
 
 ## Architecture and workflow
 

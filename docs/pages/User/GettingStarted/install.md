@@ -24,6 +24,10 @@ export KUBECONFIG=my-kubeconfig.yaml
 
 You can find more details about configuring `kubectl` in the [official documentation](https://kubernetes.io/docs/concepts/configuration/organize-cluster-access-kubeconfig/).
 
+Similarly to WiFi SSID, you can specify a nickname for your cluster by exporting the variable `CLUSTER_NAME`. 
+If you don't specify one, the installer will give you a cluster name in the form "LiqoClusterX", where X is a random number.
+Your cluster name can be modified after installation as explained [here](/user/configure/cluster-config#modify-your-cluster-name).
+
 Now, you can install Liqo by launching:
 
 ```bash
@@ -41,6 +45,8 @@ If you did not use `kubeadm` to install your Kubernetes cluster, or you are runn
 
 * `POD_CIDR`: range of IP addresses for the pod network (K3s default: 10.42.0.0/16)
 * `SERVICE_CIDR`: range of IP addresses for service VIPs (k3s default: 10.43.0.0/16)
+* `CLUSTER_NAME`: nickname for your cluster that will be seen by others. If you don't specify one, the installer will give you a cluster name in the form "LiqoClusterX", where X is a random number.
+Your cluster name can be modified after installation as explained [here](/user/configure/cluster-config#modify-your-cluster-name).
 
 Then, you can run the Liqo installer script, which will use the above settings to configure your Liqo instance.
 

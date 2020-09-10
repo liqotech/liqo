@@ -8,7 +8,7 @@ for sharing and (optionally) their prices.
 It is created after the reception of a `PeeringRequest` from a foreign cluster, which is requesting some resources.
 
 After having created the Advertisement on the remote cluster, the broadcaster starts watching it, to know the events that occur over it
-(e.g. the Advertisement has been accepted/refused, a network remapping is needed...).
+(e.g. the Advertisement has been accepted/refused).
 
 ### Features
 * Dynamic computation of the shared resources:
@@ -27,13 +27,13 @@ After having created the Advertisement on the remote cluster, the broadcaster st
    The broadcaster watches the `ClusterConfig` CR: when the sharing percentage is modified, it creates an Advertisement with
    the new amount of resources and immediately pushes it on the foreign cluster, without waiting for the periodic creation.
 
-### Limitations
-* More complex policies (e.g. differentiate Advertisement on the base of the foreign cluster).
-* MetricsAPI to have more precise values of available resources.
+### Future work
+* Implement more complex policies (e.g. differentiate Advertisement on the base of the foreign cluster).
+* Read data from [MetricsAPI](https://kubernetes.io/docs/tasks/debug-application-cluster/resource-metrics-pipeline/) to have more precise values of resources currently used by pods and a better computation of available resources.
 
 ## Architecture and workflow
 
-![](/images/advertisement-protocol/broadcaster-workflow.png)
+![](/images/advertisement-protocol/broadcaster-workflow.png) 
 
 1. A `PeeringRequest` is created by the foreign cluster: a broadcaster deployment is launched.
 2. Get the resources available in the cluster considering all its physical nodes.
@@ -43,6 +43,5 @@ After having created the Advertisement on the remote cluster, the broadcaster st
 6. Prepare an `Advertisement` with the computed resources.
 7. Create on the foreign cluster a `Secret` with the needed permissions for sharing (i.e. define which operations are allowed on which resources).
 8. Create the `Advertisement` on the foreign cluster and start watching it.
-9. When the `Advertisement` is modified by foreign cluster modules (for example to notify the Advertisement has been accepted,
-   or that a PodCIDR remapping is necessary), the watcher is triggered and, if needed, reacts in some way
-   (e.g. update foreign cluster `Advertisement` with the remapped PodCIDR set in the `Advertisement` Status).
+9. When the `Advertisement` is modified by foreign cluster modules (for example to notify the Advertisement has been accepted), 
+   the watcher is triggered and, if needed, reacts in some way.
