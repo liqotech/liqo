@@ -2,8 +2,10 @@ package kubernetes
 
 import (
 	"context"
+	"errors"
 	nettypes "github.com/liqotech/liqo/api/net/v1alpha1"
 	advtypes "github.com/liqotech/liqo/api/sharing/v1alpha1"
+	"github.com/liqotech/liqo/internal/kubernetes/test"
 	controllers "github.com/liqotech/liqo/internal/liqonet"
 	"github.com/liqotech/liqo/internal/node"
 	v1 "k8s.io/api/core/v1"
@@ -42,9 +44,31 @@ func (p *KubernetesProvider) StartNodeUpdater(nodeRunner *node.NodeController) (
 		for {
 			select {
 			case ev := <-advWatcher.ResultChan():
-				p.ReconcileNodeFromAdv(ev)
+				err = p.ReconcileNodeFromAdv(ev)
+				if err != nil {
+					klog.Error(err)
+					advWatcher.Stop()
+					advWatcher, err = p.advClient.Resource("advertisements").Watch(metav1.ListOptions{
+						FieldSelector: strings.Join([]string{"metadata.name", advName}, "="),
+						Watch:         true,
+					})
+					if err != nil {
+						klog.Error(err)
+					}
+				}
 			case ev := <-tepWatcher.ResultChan():
-				p.ReconcileNodeFromTep(ev)
+				err = p.ReconcileNodeFromTep(ev)
+				if err != nil {
+					klog.Error(err)
+					tepWatcher.Stop()
+					tepWatcher, err = p.tunEndClient.Resource("tunnelendpoints").Watch(metav1.ListOptions{
+						FieldSelector: strings.Join([]string{"metadata.name", tepName}, "="),
+						Watch:         true,
+					})
+					if err != nil {
+						klog.Error(err)
+					}
+				}
 			case <-stop:
 				advWatcher.Stop()
 				tepWatcher.Stop()
@@ -60,15 +84,15 @@ func (p *KubernetesProvider) StartNodeUpdater(nodeRunner *node.NodeController) (
 
 // The reconciliation function; every time this function is called,
 // the node status is updated by means of r.updateFromAdv
-func (p *KubernetesProvider) ReconcileNodeFromAdv(event watch.Event) {
+func (p *KubernetesProvider) ReconcileNodeFromAdv(event watch.Event) error {
 
 	adv, ok := event.Object.(*advtypes.Advertisement)
 	if !ok {
-		klog.Fatal("error in casting advertisement")
+		return errors.New("error in casting advertisement: recreate watcher")
 	}
 	if event.Type == watch.Deleted {
 		klog.Infof("advertisement %v deleted...the node is going to be deleted", adv.Name)
-		return
+		return nil
 	}
 
 	if adv.Status.AdvertisementStatus == advtypes.AdvertisementDeleting {
@@ -97,6 +121,7 @@ func (p *KubernetesProvider) ReconcileNodeFromAdv(event watch.Event) {
 			}
 			break
 		}
+		return nil
 	}
 
 	for {
@@ -107,12 +132,13 @@ func (p *KubernetesProvider) ReconcileNodeFromAdv(event watch.Event) {
 			klog.Errorf("node update from advertisement %v failed for reason %v; retry...", adv.Name, err)
 		}
 	}
+	return nil
 }
 
-func (p *KubernetesProvider) ReconcileNodeFromTep(event watch.Event) {
+func (p *KubernetesProvider) ReconcileNodeFromTep(event watch.Event) error {
 	tep, ok := event.Object.(*nettypes.TunnelEndpoint)
 	if !ok {
-		klog.Fatal("error in casting tunnelEndpoint")
+		return errors.New("error in casting tunnel endpoint: recreate watcher")
 	}
 	if event.Type == watch.Deleted {
 		klog.Infof("tunnelEndpoint %v deleted", tep.Name)
@@ -120,13 +146,13 @@ func (p *KubernetesProvider) ReconcileNodeFromTep(event watch.Event) {
 		no, err := p.homeClient.Client().CoreV1().Nodes().Get(context.TODO(), p.nodeName, metav1.GetOptions{})
 		if err != nil {
 			klog.Error(err)
-			return
+			return err
 		}
 		err = p.updateNode(no)
 		if err != nil {
 			klog.Error(err)
 		}
-		return
+		return err
 	}
 
 	for {
@@ -137,7 +163,7 @@ func (p *KubernetesProvider) ReconcileNodeFromTep(event watch.Event) {
 			klog.Errorf("node update from tunnelEndpoint %v failed for reason %v; retry...", tep.Name, err)
 		}
 	}
-
+	return nil
 }
 
 // updateFromAdv gets and  advertisement and updates the node status accordingly
@@ -163,6 +189,9 @@ func (p *KubernetesProvider) updateFromAdv(adv advtypes.Advertisement) error {
 		no.Status.Capacity[k] = v
 		no.Status.Allocatable[k] = v
 	}
+	if no.Status.Conditions == nil {
+		no.Status.Conditions = test.Condition1
+	}
 
 	no.Status.Images = []v1.ContainerImage{}
 	no.Status.Images = append(no.Status.Images, adv.Spec.Images...)
@@ -184,6 +213,10 @@ func (p *KubernetesProvider) updateFromTep(tep nettypes.TunnelEndpoint) error {
 	no, err := p.homeClient.Client().CoreV1().Nodes().Get(context.TODO(), p.nodeName, metav1.GetOptions{})
 	if err != nil {
 		return err
+	}
+
+	if no.Status.Conditions == nil {
+		no.Status.Conditions = test.Condition1
 	}
 
 	return p.updateNode(no)
