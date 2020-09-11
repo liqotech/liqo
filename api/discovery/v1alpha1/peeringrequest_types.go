@@ -19,6 +19,7 @@ package v1alpha1
 import (
 	advtypes "github.com/liqotech/liqo/api/sharing/v1alpha1"
 	"github.com/liqotech/liqo/pkg/crdClient"
+	object_references "github.com/liqotech/liqo/pkg/object-references"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -53,7 +54,8 @@ type OriginClusterSets struct {
 
 // PeeringRequestStatus defines the observed state of PeeringRequest
 type PeeringRequestStatus struct {
-	AdvertisementStatus advtypes.AdvPhase `json:"advertisementStatus,omitempty"`
+	BroadcasterRef      *object_references.DeploymentReference `json:"broadcasterRef,omitempty"`
+	AdvertisementStatus advtypes.AdvPhase                      `json:"advertisementStatus,omitempty"`
 }
 
 // +kubebuilder:object:root=true

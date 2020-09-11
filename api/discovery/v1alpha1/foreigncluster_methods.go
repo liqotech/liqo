@@ -2,6 +2,7 @@ package v1alpha1
 
 import (
 	"context"
+	goerrors "errors"
 	advtypes "github.com/liqotech/liqo/api/sharing/v1alpha1"
 	"github.com/liqotech/liqo/pkg/crdClient"
 	v1 "k8s.io/api/core/v1"
@@ -119,7 +120,16 @@ func (fc *ForeignCluster) SetAdvertisement(adv *advtypes.Advertisement, discover
 
 func (fc *ForeignCluster) DeleteAdvertisement(advClient *crdClient.CRDClient) error {
 	if fc.Status.Outgoing.Advertisement != nil {
-		err := advClient.Resource("advertisements").Delete(fc.Status.Outgoing.Advertisement.Name, metav1.DeleteOptions{})
+		tmp, err := advClient.Resource("advertisements").Get(fc.Status.Outgoing.Advertisement.Name, metav1.GetOptions{})
+		if err != nil {
+			return err
+		}
+		adv, ok := tmp.(*advtypes.Advertisement)
+		if !ok {
+			return goerrors.New("cannot cast received object to Advertisement")
+		}
+		adv.Status.AdvertisementStatus = advtypes.AdvertisementDeleting
+		_, err = advClient.Resource("advertisements").UpdateStatus(adv.Name, adv, metav1.UpdateOptions{})
 		if err != nil {
 			return err
 		}

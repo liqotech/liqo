@@ -59,3 +59,14 @@ spec:
           properties:
             advertisementStatus:
               type: string
+            broadcasterRef:
+              properties:
+                name:
+                  description: Name is unique within a namespace to reference a deployment
+                    resource.
+                  type: string
+                namespace:
+                  description: Namespace defines the space within which the deployment
+                    name must be unique.
+                  type: string
+              type: object

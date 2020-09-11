@@ -292,7 +292,8 @@ func testUnjoin(t *testing.T) {
 	assert.NilError(t, err, "Error listing Advertisements")
 	advs, ok := tmp.(*advtypes.AdvertisementList)
 	assert.Equal(t, ok, true)
-	assert.Equal(t, len(advs.Items), 0, "Advertisement has not been deleted on local cluster")
+	assert.Equal(t, len(advs.Items), 1, "There is no Advertisement in local cluster")
+	assert.Equal(t, advs.Items[0].Status.AdvertisementStatus, advtypes.AdvertisementDeleting, "The Advertisement is not in Deleting state")
 
 	tmp, err = serverCluster.client.Resource("foreignclusters").List(metav1.ListOptions{})
 	assert.NilError(t, err)

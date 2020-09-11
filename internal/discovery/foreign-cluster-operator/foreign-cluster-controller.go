@@ -34,6 +34,7 @@ import (
 	"k8s.io/klog"
 	"k8s.io/kubernetes/pkg/util/slice"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"strings"
 	"time"
 )
 
@@ -405,11 +406,18 @@ func (r *ForeignClusterReconciler) createPeeringRequestIfNotExists(clusterID str
 
 	localClusterID := r.clusterID.GetClusterID()
 
+	// check if a peering request with our cluster id already exists on remote cluster
 	tmp, err := foreignClient.Resource("peeringrequests").Get(localClusterID, metav1.GetOptions{})
-	if err != nil {
-		if errors.IsNotFound(err) {
-			// does not exist
-			pr := &discoveryv1alpha1.PeeringRequest{
+	if err != nil && !errors.IsNotFound(err) {
+		return nil, err
+	}
+	pr, ok := tmp.(*discoveryv1alpha1.PeeringRequest)
+	inf := errors.IsNotFound(err) || !ok // inf -> IsNotFound
+	// if peering request does not exists or its secret was not created for some reason
+	if inf || pr.Spec.KubeConfigRef == nil {
+		if inf {
+			// does not exist -> create new peering request
+			pr = &discoveryv1alpha1.PeeringRequest{
 				TypeMeta: metav1.TypeMeta{
 					Kind:       "PeeringRequest",
 					APIVersion: "discovery.liqo.io/v1alpha1",
@@ -433,53 +441,62 @@ func (r *ForeignClusterReconciler) createPeeringRequestIfNotExists(clusterID str
 			if !ok {
 				return nil, goerrors.New("created object is not a ForeignCluster")
 			}
-			secret := &apiv1.Secret{
-				ObjectMeta: metav1.ObjectMeta{
-					Name: "pr-" + clusterID,
-					OwnerReferences: []metav1.OwnerReference{
-						{
-							APIVersion: "discovery.liqo.io/v1alpha1",
-							Kind:       "PeeringRequest",
-							Name:       pr.Name,
-							UID:        pr.UID,
-						},
+		}
+		secret := &apiv1.Secret{
+			ObjectMeta: metav1.ObjectMeta{
+				// generate name will lead to different names every time, avoiding name collisions
+				GenerateName: strings.Join([]string{"pr", r.clusterID.GetClusterID(), ""}, "-"),
+				OwnerReferences: []metav1.OwnerReference{
+					{
+						APIVersion: "discovery.liqo.io/v1alpha1",
+						Kind:       "PeeringRequest",
+						Name:       pr.Name,
+						UID:        pr.UID,
 					},
 				},
-				StringData: map[string]string{
-					"kubeconfig": fConfig,
-				},
-			}
-			secret, err := foreignClient.Client().CoreV1().Secrets(r.Namespace).Create(context.TODO(), secret, metav1.CreateOptions{})
-			if err != nil {
-				return nil, err
-			}
-			pr.Spec.KubeConfigRef = &apiv1.ObjectReference{
-				Kind:       "Secret",
-				Namespace:  secret.Namespace,
-				Name:       secret.Name,
-				UID:        secret.UID,
-				APIVersion: "v1",
-			}
-			pr.TypeMeta.Kind = "PeeringRequest"
-			pr.TypeMeta.APIVersion = "discovery.liqo.io/v1alpha1"
-			tmp, err = foreignClient.Resource("peeringrequests").Update(pr.Name, pr, metav1.UpdateOptions{})
-			if err != nil {
-				return nil, err
-			}
-			pr, ok = tmp.(*discoveryv1alpha1.PeeringRequest)
-			if !ok {
-				return nil, goerrors.New("created object is not a ForeignCluster")
-			}
-			return pr, nil
+			},
+			StringData: map[string]string{
+				"kubeconfig": fConfig,
+			},
 		}
-		// other errors
-		return nil, err
+		secret, err := foreignClient.Client().CoreV1().Secrets(r.Namespace).Create(context.TODO(), secret, metav1.CreateOptions{})
+		if err != nil {
+			klog.Error(err)
+			// there was an error during secret creation, delete peering request
+			err2 := foreignClient.Resource("peeringrequests").Delete(pr.Name, metav1.DeleteOptions{})
+			if err2 != nil {
+				klog.Error(err2)
+				return nil, err2
+			}
+			return nil, err
+		}
+		pr.Spec.KubeConfigRef = &apiv1.ObjectReference{
+			Kind:       "Secret",
+			Namespace:  secret.Namespace,
+			Name:       secret.Name,
+			UID:        secret.UID,
+			APIVersion: "v1",
+		}
+		pr.TypeMeta.Kind = "PeeringRequest"
+		pr.TypeMeta.APIVersion = "discovery.liqo.io/v1alpha1"
+		tmp, err = foreignClient.Resource("peeringrequests").Update(pr.Name, pr, metav1.UpdateOptions{})
+		if err != nil {
+			klog.Error(err)
+			// delete peering request, also secret will be deleted by garbage collector
+			err2 := foreignClient.Resource("peeringrequests").Delete(pr.Name, metav1.DeleteOptions{})
+			if err2 != nil {
+				klog.Error(err2)
+				return nil, err2
+			}
+			return nil, err
+		}
+		pr, ok = tmp.(*discoveryv1alpha1.PeeringRequest)
+		if !ok {
+			return nil, goerrors.New("created object is not a PeeringRequest")
+		}
+		return pr, nil
 	}
 	// already exists
-	pr, ok := tmp.(*discoveryv1alpha1.PeeringRequest)
-	if !ok {
-		return nil, goerrors.New("retrieved object is not a PeeringRequest")
-	}
 	return pr, nil
 }
 
