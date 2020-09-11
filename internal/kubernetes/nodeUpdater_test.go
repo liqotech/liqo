@@ -117,6 +117,92 @@ func TestNodeUpdater(t *testing.T) {
 		klog.Info("node coherency after advertisement update asserted")
 	}
 
+	// test network
+	// create a TunnelEndpoint: this will trigger update of node status to Ready
+	tep := &v1.TunnelEndpoint{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: test.TepName,
+		},
+		Spec: v1.TunnelEndpointSpec{
+			ClusterID:      test.ForeignClusterId,
+			PodCIDR:        test.PodCIDR,
+			TunnelPublicIP: test.TunnelPublicIP,
+		},
+	}
+
+	if _, err := p.tunEndClient.Resource("tunnelendpoints").Create(tep, metav1.CreateOptions{}); err != nil {
+		t.Fatal(err)
+	}
+
+	time.Sleep(5 * time.Second)
+
+	if n, err = advClient.Client().CoreV1().Nodes().Get(context.TODO(), test.NodeName, metav1.GetOptions{}); err != nil {
+		t.Fatal(err)
+	}
+
+	if !test.AssertNodeCoherency(n, test.NodeTestCases.ExpectedNodes[2]) {
+		t.Fatal("node coherency after tunnelEndpoint update not asserted")
+	} else {
+		klog.Info("node coherency after tunnelEndpoint update asserted")
+	}
+
+	assert.Equal(t, test.PodCIDR, p.RemoteRemappedPodCidr)
+	assert.Equal(t, "", p.LocalRemappedPodCidr)
+
+	// delete the TunnelEndpoint: the node should become NotReady
+	if err := p.tunEndClient.Resource("tunnelendpoints").Delete(tep.Name, metav1.DeleteOptions{}); err != nil {
+		t.Fatal(err)
+	}
+
+	time.Sleep(5 * time.Second)
+
+	if n, err = advClient.Client().CoreV1().Nodes().Get(context.TODO(), test.NodeName, metav1.GetOptions{}); err != nil {
+		t.Fatal(err)
+	}
+
+	if !test.AssertNodeCoherency(n, test.NodeTestCases.ExpectedNodes[1]) {
+		t.Fatal("node coherency after tunnelEndpoint update not asserted")
+	} else {
+		klog.Info("node coherency after tunnelEndpoint update asserted")
+	}
+
+	assert.Equal(t, "", p.RemoteRemappedPodCidr)
+
+	// create a TunnelEndpoint with network remapping: the node should become Ready
+	tep = &v1.TunnelEndpoint{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: test.TepName,
+		},
+		Spec: v1.TunnelEndpointSpec{
+			ClusterID:      test.ForeignClusterId,
+			PodCIDR:        test.PodCIDR,
+			TunnelPublicIP: test.TunnelPublicIP,
+		},
+		Status: v1.TunnelEndpointStatus{
+			LocalRemappedPodCIDR:  test.LocalRemappedPodCIDR,
+			RemoteRemappedPodCIDR: test.RemoteRemappedPodCIDR,
+		},
+	}
+
+	if _, err := p.tunEndClient.Resource("tunnelendpoints").Create(tep, metav1.CreateOptions{}); err != nil {
+		t.Fatal(err)
+	}
+
+	time.Sleep(5 * time.Second)
+
+	if n, err = advClient.Client().CoreV1().Nodes().Get(context.TODO(), test.NodeName, metav1.GetOptions{}); err != nil {
+		t.Fatal(err)
+	}
+
+	if !test.AssertNodeCoherency(n, test.NodeTestCases.ExpectedNodes[2]) {
+		t.Fatal("node coherency after tunnelEndpoint update not asserted")
+	} else {
+		klog.Info("node coherency after tunnelEndpoint update asserted")
+	}
+
+	assert.Equal(t, test.RemoteRemappedPodCIDR, p.RemoteRemappedPodCidr)
+	assert.Equal(t, test.LocalRemappedPodCIDR, p.LocalRemappedPodCidr)
+
 	// test unjoin
 	// set advertisement status to DELETING
 	adv.Status.AdvertisementStatus = advtypes.AdvertisementDeleting
@@ -129,9 +215,9 @@ func TestNodeUpdater(t *testing.T) {
 	if n, err = advClient.Client().CoreV1().Nodes().Get(context.TODO(), test.NodeName, metav1.GetOptions{}); err != nil {
 		t.Fatal(err)
 	}
-	for _, condition := range n.Status.Conditions {
+	for i, condition := range n.Status.Conditions {
 		if condition.Type == corev1.NodeReady {
-			assert.Equal(t, corev1.ConditionFalse, n.Status.Conditions[0].Status)
+			assert.Equal(t, corev1.ConditionFalse, n.Status.Conditions[i].Status)
 			break
 		}
 	}

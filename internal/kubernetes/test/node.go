@@ -27,5 +27,17 @@ func AssertNodeCoherency(received, expected *corev1.Node) bool {
 		}
 	}
 
+	if len(received.Status.Conditions) != len(expected.Status.Conditions) {
+		return false
+	}
+
+	for _, c1 := range received.Status.Conditions {
+		for _, c2 := range expected.Status.Conditions {
+			if c1.Type == c2.Type && c1.Status != c2.Status {
+				return false
+			}
+		}
+	}
+
 	return true
 }
