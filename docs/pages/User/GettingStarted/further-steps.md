@@ -3,48 +3,83 @@ title: Deploy a sample application
 weight: 4
 ---
 
-So far, we tested Liqo with a simple nginx container, but Liqo can be used with more complex microservices.
+So far, you tested Liqo with a simple `nginx` application, but Liqo can be used with more complex micro-services.
 
 ##  Deploy a micro-service application with micro-services application
 
-We can test Liqo using a sample microservices application provided by [Google](https://github.com/GoogleCloudPlatform/microservices-demo):
+For a complete demo of the potentialities of Liqo, it is possible to deploy an illustrative
+micro-services application provided by [Google](https://github.com/GoogleCloudPlatform/microservices-demo):
 
 ```
-kubectl apply -f https://raw.githubusercontent.com/LiqoTech/microservices-demo/master/release/kubernetes-manifests.yaml -n liqo-demo
+kubectl apply -f https://raw.githubusercontent.com/liqotech/microservices-demo/master/release/kubernetes-manifests.yaml -n liqo-demo
 ```
-Now, you can play with the commands presented in the [test](test) section in order to force the scheduling of the different pods in the local/remote cluster, and see that everything works smoothly.
-Your scheduler will decide for each pod which is the best destination for each pod. Each deployed pod will be exposed as 
-a service and a front-end application. Liqo implements a replication model of K8s services where each micro-service deployed across clusters can reach the others seamlessly. Independently from the cluster a pod is deployed, each pod is able to use another service via traditional K8s discovery mechanisms (e.g. DNS, Environment variables).
 
-Several other objects (i.e. configmap and secrets) inside a namesapce are copied to the remote cluster inside the "virtual twin" namespace.  
+By default, Kubernetes schedules each pod either in the local or in the remote cluster, depending on the available resources.
+Yet, you can play with *affinity* constraints as presented in the [*exploit foreign resources*](../test) section,
+to force the scheduling of each component in a specific location, and see that everything continues to work smoothly.
 
-## Observe Application deployment
+Each demo component is exposed as a service and accessed by other components.
+Nonetheless, Liqo implements a replication model of Kubernetes services.
+Hence, each micro-service deployed across clusters can reach the others seamlessly:
+independently from the cluster a pod is deployed in, each pod is able to contact other services and leverage the
+traditional Kubernetes discovery mechanisms (e.g. DNS, Environment variables).
 
+Additionally, several other objects (e.g. `configmap` and `secrets`) inside a namespace are replicated in the remote cluster, within the "virtual twin" namespace.
+Thus, ensuring that complex applications can work seamlessly across clusters.
 
-##  Test the application
+## Observe the application deployment
 
-### Node Port
-In order to access the dashboard you need to first get the port on which LiqoDash is exposed, which can be done with the following command:
-```
-kubectl -n liqo-demo get service frontend-external 
-```
-Which will output:
-```
-Type:          NodePort
-NodePort:      https  32421/TCP
-```
-In this case, the dashboard has been exposed to the port ``32421``
-Now, you can access LiqoDash using your master node IP and the service port you just found: ``https://<MASTER_IP>:<LIQODASH_PORT>``
+Once the demo application manifest is applied, it is possible to observe the creation of the different pods:
 
-**NOTE: to get your master node IP, you can run ``kubectl get nodes -o wide | grep master``, and take the
-``INTERNAL-IP``**
+```
+watch kubectl get pods -n liqo-demo
+```
 
-### Port-Forward
-A simple way to access the dashboard with a simpler URL than the one specified above is to use ``kubectl port-forward``.
+At steady state, you should see an output similar to the following.
+Yet, different pods may be hosted by the local and the remote cluster, depending on the scheduling decisions.
 ```
-kubectl port-forward -n liqo service/liqo-dashboard 6443:443
+NAME                                     READY   STATUS    RESTARTS   AGE   IP               NODE
+adservice-5c9c7c997f-gmmdx               1/1     Running   0          12m   10.244.2.56      worker-node-2
+cartservice-6d99678dd6-db6ns             1/1     Running   0          13m   172.16.97.199    liqo-9a596a4b-591c-4ac6-8fd6-80258b4b3bf9
+checkoutservice-779cb9bfdf-h48tg         1/1     Running   0          13m   172.16.97.201    liqo-9a596a4b-591c-4ac6-8fd6-80258b4b3bf9
+currencyservice-5db6c7d559-gb7ln         1/1     Running   0          12m   172.16.226.110   liqo-9a596a4b-591c-4ac6-8fd6-80258b4b3bf9
+emailservice-5c47dc87bf-zzz4z            1/1     Running   0          13m   10.244.2.235     worker-node-2
+frontend-5fcb8cdcdc-vvq4m                1/1     Running   0          13m   172.16.97.207    liqo-9a596a4b-591c-4ac6-8fd6-80258b4b3bf9
+loadgenerator-79bff5bd57-t7976           1/1     Running   0          12m   172.16.97.208    liqo-9a596a4b-591c-4ac6-8fd6-80258b4b3bf9
+paymentservice-6564cb7fb9-vn7pn          1/1     Running   0          13m   172.16.97.197    liqo-9a596a4b-591c-4ac6-8fd6-80258b4b3bf9
+productcatalogservice-5db9444549-cxjlb   1/1     Running   0          13m   172.16.226.87    liqo-9a596a4b-591c-4ac6-8fd6-80258b4b3bf9
+recommendationservice-78dd87ff95-2s8ks   1/1     Running   0          13m   10.244.2.241     worker-node-2
+redis-cart-57bd646894-9x4cd              1/1     Running   0          12m   172.16.226.120   liqo-9a596a4b-591c-4ac6-8fd6-80258b4b3bf9
+shippingservice-f47755f97-5jcpm          1/1     Running   0          12m   10.244.4.169     worker-node-1
 ```
-To access LiqoDash you can go to:
+
+## Access the demo application
+
+Once the deployment is completed, it is possible to start navigating the demo application and verify that everything works
+correctly even if its components are distributed across multiple Kubernetes clusters.
+By default, the frontend web-page is exposed through a `LoadBalancer` service, which can be inspected using:
+```bash
+kubectl get service -n liqo-demo frontend-external
 ```
-https://localhost:6443
+
+You should see an output similar to the following, indicating that you can access the demo application at `http://xxx.yyy.zzz.www`:
 ```
+NAME                TYPE           CLUSTER-IP    EXTERNAL-IP       PORT(S)        AGE
+frontend-external   LoadBalancer   10.96.8.220   xxx.yyy.zzz.www   80:32233/TCP   15m
+```
+
+In case the `EXTERNAL-IP` field is characterized by a `<pending>` value, on the other hand, you are probably using a bare metal cluster
+(i.e. not managed by an IaaS platform such as GCP, AWS, Azure, ...) and lacking a Load Balancer implementation.
+Still, you have two alternatives to access the demo application:
+
+1. Leverage the `NodePort` (e.g. 32233 in the previous example), which can be accessed using the IP address of any of
+   the physical servers of your home cluster;
+2. Leverage `kubectl port-forward` to forward the requests from your local machine (i.e. `http://localhost:8080`) to the frontend service:
+   ```bash
+   kubectl port-forward -n liqo-demo service/frontend-external 8080:80
+   ```
+
+> **Clean-up**: If you want to delete the deployed example, just issue:
+> ```bash
+> kubectl delete -f https://github.com/liqotech/microservices-demo/blob/master/release/kubernetes-manifests.yaml -n liqo-demo
+> ```

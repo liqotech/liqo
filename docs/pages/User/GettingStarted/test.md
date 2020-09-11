@@ -128,5 +128,5 @@ Now, you are ready to move to the [next section](../further-steps). to deploy a 
 
 > **Clean-up**: If you want to delete the deployed example, just issue:
 > ```
-> kubectl delete -f https://raw.githubusercontent.com/LiqoTech/liqo/master/docs/examples/hello-world.yaml -n test-liqo
+> kubectl delete -f https://raw.githubusercontent.com/LiqoTech/liqo/master/docs/examples/hello-world.yaml -n liqo-demo
 > ```
