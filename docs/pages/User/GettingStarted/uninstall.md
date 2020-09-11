@@ -1,6 +1,6 @@
 ---
 title: Uninstall Liqo
-weight: 4
+weight: 6
 ---
 
 ## Uninstall steps
