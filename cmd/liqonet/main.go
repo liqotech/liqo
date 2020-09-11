@@ -20,19 +20,18 @@ import (
 	"flag"
 	"github.com/coreos/go-iptables/iptables"
 	clusterConfig "github.com/liqotech/liqo/api/config/v1alpha1"
-	discoveryv1alpha1 "github.com/liqotech/liqo/api/discovery/v1alpha1"
 	netv1alpha1 "github.com/liqotech/liqo/api/net/v1alpha1"
-	advtypes "github.com/liqotech/liqo/api/sharing/v1alpha1"
 	"github.com/liqotech/liqo/internal/liqonet"
 	"github.com/liqotech/liqo/pkg/liqonet"
 	"github.com/vishvananda/netlink"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/dynamic"
+	"k8s.io/client-go/dynamic/dynamicinformer"
 	"k8s.io/client-go/kubernetes"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
+	"k8s.io/client-go/tools/cache"
 	"k8s.io/klog/v2"
 	"net"
 	"os"
@@ -52,17 +51,6 @@ var (
 		DeviceName: "liqonet",
 		Port:       "4789", //IANA assigned
 		Vni:        "200",
-	}
-
-	peeringReqGVR = schema.GroupVersionResource{
-		Group:    discoveryv1alpha1.GroupVersion.Group,
-		Version:  discoveryv1alpha1.GroupVersion.Version,
-		Resource: "peeringrequests",
-	}
-	advGVR = schema.GroupVersionResource{
-		Group:    advtypes.GroupVersion.Group,
-		Version:  advtypes.GroupVersion.Version,
-		Resource: "advertisements",
 	}
 )
 
@@ -148,7 +136,7 @@ func main() {
 			setupLog.Error(err, "unable to initialize iptables: %v. check if the ipatable are present in the system", err)
 		}
 
-		r := &controllers.RouteController{
+		r := &liqonetOperators.RouteController{
 			Client:                             mgr.GetClient(),
 			Log:                                ctrl.Log.WithName("route-operator"),
 			Scheme:                             mgr.GetScheme(),
@@ -186,9 +174,9 @@ func main() {
 		}
 
 	case "tunnel-operator":
-		r := &controllers.TunnelController{
+		r := &liqonetOperators.TunnelController{
 			Client:                       mgr.GetClient(),
-			Log:                          ctrl.Log.WithName("controllers").WithName("TunnelEndpoint"),
+			Log:                          ctrl.Log.WithName("liqonetOperators").WithName("TunnelEndpoint"),
 			Scheme:                       mgr.GetScheme(),
 			TunnelIFacesPerRemoteCluster: make(map[string]int),
 		}
@@ -217,16 +205,22 @@ func main() {
 			os.Exit(-1)
 		}
 		gatewayIP := nodeList.Items[0].Status.Addresses[0].Address
-
-		r := &controllers.TunnelEndpointCreator{
-			Client:          mgr.GetClient(),
-			Scheme:          mgr.GetScheme(),
-			DynClient:       dynamic.NewForConfigOrDie(mgr.GetConfig()),
-			GatewayIP:       gatewayIP,
-			ReservedSubnets: make(map[string]*net.IPNet),
-			Configured:      make(chan bool, 1),
-			AdvWatcher:      make(chan bool, 1),
-			PReqWatcher:     make(chan bool, 1),
+		//creating dynamic client
+		dynClient := dynamic.NewForConfigOrDie(mgr.GetConfig())
+		//creating dynamicSharedInformerFactory
+		dynFactory := dynamicinformer.NewDynamicSharedInformerFactory(dynClient, liqonetOperators.ResyncPeriod)
+		r := &liqonetOperators.TunnelEndpointCreator{
+			Client:           mgr.GetClient(),
+			Scheme:           mgr.GetScheme(),
+			DynClient:        dynClient,
+			DynFactory:       dynFactory,
+			GatewayIP:        gatewayIP,
+			ReservedSubnets:  make(map[string]*net.IPNet),
+			Configured:       make(chan bool, 1),
+			AdvStartWatcher:  make(chan bool, 1),
+			AdvStopWatcher:   make(chan struct{}),
+			PReqStartWatcher: make(chan bool, 1),
+			PReqStopWatcher:  make(chan struct{}),
 			IPManager: liqonet.IpManager{
 				UsedSubnets:        make(map[string]*net.IPNet),
 				FreeSubnets:        make(map[string]*net.IPNet),
@@ -236,18 +230,25 @@ func main() {
 			},
 			RetryTimeout: 30 * time.Second,
 		}
-		go r.Watcher(r.DynClient, peeringReqGVR, r.PeeringRequestHandler, r.PReqWatcher)
-		go r.Watcher(r.DynClient, advGVR, r.AdvertisementHandler, r.AdvWatcher)
+		//starting the watchers
+		go r.Watcher(r.DynFactory, liqonetOperators.AdvGVR, cache.ResourceEventHandlerFuncs{
+			AddFunc:    r.AdvertisementHandlerAdd,
+			UpdateFunc: r.AdvertisementHandlerUpdate,
+		}, r.AdvStartWatcher, r.AdvStopWatcher)
+		go r.Watcher(r.DynFactory, liqonetOperators.PeeringReqGVR, cache.ResourceEventHandlerFuncs{
+			AddFunc:    r.PeeringRequestHandlerAdd,
+			UpdateFunc: r.PeeringRequestHandlerUpdate,
+		}, r.PReqStartWatcher, r.PReqStopWatcher)
+		//starting configuration watcher
 		r.WatchConfiguration(config, &clusterConfig.GroupVersion)
 		if err = r.SetupWithManager(mgr); err != nil {
 			setupLog.Error(err, "unable to create controller", "controller", "TunnelEndpointCreator")
 			os.Exit(1)
 		}
-		setupLog.Info("starting manager as tunnelEndpointCreator-operator")
-		if err := mgr.Start(ctrl.SetupSignalHandler()); err != nil {
-			setupLog.Error(err, "problem running manager")
+		klog.Info("starting manager as tunnelEndpointCreator-operator")
+		if err := mgr.Start(r.SetupSignalHandlerForTunEndCreator()); err != nil {
+			klog.Errorf("an error occurred while starting manager: %s", err)
 			os.Exit(1)
 		}
-		klog.Infof("starting watchers")
 	}
 }

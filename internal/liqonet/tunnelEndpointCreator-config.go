@@ -1,4 +1,4 @@
-package controllers
+package liqonetOperators
 
 import (
 	"context"
@@ -273,8 +273,8 @@ func (r *TunnelEndpointCreator) WatchConfiguration(config *rest.Config, gv *sche
 		}
 		r.SetNetParameters(configuration)
 		if !r.RunningWatchers {
-			r.AdvWatcher <- true
-			r.PReqWatcher <- true
+			r.AdvStartWatcher <- true
+			r.PReqStartWatcher <- true
 		}
 
 	}, CRDclient, "")

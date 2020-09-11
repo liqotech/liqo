@@ -26,7 +26,7 @@ var (
 	k8sManager          ctrl.Manager
 	testEnv             *envtest.Environment
 	ctx                 = context.Background()
-	tunEndpointCreator  *controllers.TunnelEndpointCreator
+	tec                 *controllers.TunnelEndpointCreator
 	configClusterClient *crdClient.CRDClient
 	routeOperator       *controllers.RouteController
 )

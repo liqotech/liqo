@@ -5,7 +5,6 @@ import (
 	configv1alpha1 "github.com/liqotech/liqo/api/config/v1alpha1"
 	discoveryv1alpha1 "github.com/liqotech/liqo/api/discovery/v1alpha1"
 	netv1alpha1 "github.com/liqotech/liqo/api/net/v1alpha1"
-	advtypes "github.com/liqotech/liqo/api/sharing/v1alpha1"
 	"github.com/liqotech/liqo/internal/crdReplicator"
 	controller "github.com/liqotech/liqo/internal/liqonet"
 	"github.com/liqotech/liqo/pkg/liqonet"
@@ -15,29 +14,17 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/dynamic"
+	"k8s.io/client-go/dynamic/dynamicinformer"
 	"k8s.io/client-go/rest"
+	"k8s.io/client-go/tools/cache"
 	"k8s.io/klog"
 	"net"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sync"
 	"testing"
 	"time"
-)
-
-var (
-	peeringReqGVR = schema.GroupVersionResource{
-		Group:    discoveryv1alpha1.GroupVersion.Group,
-		Version:  discoveryv1alpha1.GroupVersion.Version,
-		Resource: "peeringrequests",
-	}
-	advGVR = schema.GroupVersionResource{
-		Group:    advtypes.GroupVersion.Group,
-		Version:  advtypes.GroupVersion.Version,
-		Resource: "advertisements",
-	}
 )
 
 func getTunnelEndpointCreator() *controller.TunnelEndpointCreator {
@@ -54,12 +41,12 @@ func getTunnelEndpointCreator() *controller.TunnelEndpointCreator {
 			SubnetPerCluster:   nil,
 			Log:                nil,
 		},
-		Mutex:        sync.Mutex{},
-		IsConfigured: false,
-		Configured:   nil,
-		PReqWatcher:  make(chan bool, 1),
-		AdvWatcher:   make(chan bool, 1),
-		RetryTimeout: 0,
+		Mutex:            sync.Mutex{},
+		IsConfigured:     false,
+		Configured:       nil,
+		PReqStartWatcher: make(chan bool, 1),
+		AdvStartWatcher:  make(chan bool, 1),
+		RetryTimeout:     0,
 	}
 }
 
@@ -83,15 +70,20 @@ func getClusterConfigurationCR(reservedSubnets []string) *configv1alpha1.Cluster
 
 func setupTunnelEndpointCreatorOperator() error {
 	var err error
-	tunEndpointCreator = &controller.TunnelEndpointCreator{
-		DynClient:       dynamic.NewForConfigOrDie(k8sManager.GetConfig()),
-		Client:          k8sManager.GetClient(),
-		Log:             ctrl.Log.WithName("controllers").WithName("TunnelEndpointCreator"),
-		Scheme:          k8sManager.GetScheme(),
-		ReservedSubnets: make(map[string]*net.IPNet),
-		Configured:      make(chan bool, 1),
-		AdvWatcher:      make(chan bool, 1),
-		PReqWatcher:     make(chan bool, 1),
+	dynClient := dynamic.NewForConfigOrDie(k8sManager.GetConfig())
+	dynFactory := dynamicinformer.NewDynamicSharedInformerFactory(dynClient, controller.ResyncPeriod)
+	tec = &controller.TunnelEndpointCreator{
+		DynClient:        dynClient,
+		DynFactory:       dynFactory,
+		Client:           k8sManager.GetClient(),
+		Log:              ctrl.Log.WithName("controllers").WithName("TunnelEndpointCreator"),
+		Scheme:           k8sManager.GetScheme(),
+		ReservedSubnets:  make(map[string]*net.IPNet),
+		Configured:       make(chan bool, 1),
+		AdvStartWatcher:  make(chan bool, 1),
+		AdvStopWatcher:   make(chan struct{}),
+		PReqStartWatcher: make(chan bool, 1),
+		PReqStopWatcher:  make(chan struct{}),
 		IPManager: liqonet.IpManager{
 			UsedSubnets:        make(map[string]*net.IPNet),
 			FreeSubnets:        make(map[string]*net.IPNet),
@@ -108,15 +100,23 @@ func setupTunnelEndpointCreatorOperator() error {
 		QPS:   1000.0,
 		Burst: 2000.0,
 	}
-	tunEndpointCreator.WatchConfiguration(newConfig, &configv1alpha1.GroupVersion)
-	err = tunEndpointCreator.SetupWithManager(k8sManager)
+	tec.WatchConfiguration(newConfig, &configv1alpha1.GroupVersion)
+	err = tec.SetupWithManager(k8sManager)
 	if err != nil {
 		klog.Error(err, err.Error())
 		return err
 	}
 	klog.Infof("starting watchers")
-	go tunEndpointCreator.Watcher(tunEndpointCreator.DynClient, peeringReqGVR, tunEndpointCreator.PeeringRequestHandler, tunEndpointCreator.PReqWatcher)
-	go tunEndpointCreator.Watcher(tunEndpointCreator.DynClient, advGVR, tunEndpointCreator.AdvertisementHandler, tunEndpointCreator.AdvWatcher)
+	advHandler := cache.ResourceEventHandlerFuncs{
+		AddFunc:    tec.AdvertisementHandlerAdd,
+		UpdateFunc: tec.AdvertisementHandlerUpdate,
+	}
+	pReqHandler := cache.ResourceEventHandlerFuncs{
+		AddFunc:    tec.PeeringRequestHandlerAdd,
+		UpdateFunc: tec.PeeringRequestHandlerUpdate,
+	}
+	go tec.Watcher(tec.DynFactory, controller.AdvGVR, advHandler, tec.AdvStartWatcher, tec.AdvStopWatcher)
+	go tec.Watcher(tec.DynFactory, controller.PeeringReqGVR, pReqHandler, tec.PReqStartWatcher, tec.PReqStopWatcher)
 	return nil
 }
 func setupConfig(reservedSubnets, clusterSubnets []string) (*controller.TunnelEndpointCreator, error) {
@@ -150,8 +150,8 @@ func convertSliceToMap(subnets []string) (map[string]*net.IPNet, error) {
 
 func TestSetNetParameters(t *testing.T) {
 	cc := getClusterConfig()
-	assert.Equal(t, cc.Spec.LiqonetConfig.ServiceCIDR, tunEndpointCreator.ServiceCIDR, "the two values should be equal")
-	assert.Equal(t, cc.Spec.LiqonetConfig.PodCIDR, tunEndpointCreator.PodCIDR, "the two values should be equal")
+	assert.Equal(t, cc.Spec.LiqonetConfig.ServiceCIDR, tec.ServiceCIDR, "the two values should be equal")
+	assert.Equal(t, cc.Spec.LiqonetConfig.PodCIDR, tec.PodCIDR, "the two values should be equal")
 }
 
 func TestGetConfiguration(t *testing.T) {
@@ -328,22 +328,22 @@ func TestCreateNetConfigFromAdvertisement(t *testing.T) {
 	advObj, err := runtime.DefaultUnstructuredConverter.ToUnstructured(&adv)
 	assert.Nil(t, err, "should be nil")
 	//create advertisement
-	_, err = tunEndpointCreator.DynClient.Resource(advGVR).Create(context.TODO(), &unstructured.Unstructured{Object: advObj}, metav1.CreateOptions{})
+	_, err = tec.DynClient.Resource(controller.AdvGVR).Create(context.TODO(), &unstructured.Unstructured{Object: advObj}, metav1.CreateOptions{})
 	assert.Nil(t, err, "should be nil")
 	time.Sleep(2 * time.Second)
 	netConfig := &netv1alpha1.NetworkConfig{}
-	err = tunEndpointCreator.Get(context.TODO(), types.NamespacedName{
+	err = tec.Get(context.TODO(), types.NamespacedName{
 		Namespace: adv.Namespace,
 		Name:      controller.NetConfigNamePrefix + adv.Spec.ClusterId,
 	}, netConfig)
 	assert.Nil(t, err, "error should be nil")
 	assert.Equal(t, adv.Spec.ClusterId, netConfig.Spec.ClusterID, "should be equal")
-	assert.Equal(t, tunEndpointCreator.PodCIDR, netConfig.Spec.PodCIDR, "should be equal")
-	assert.Equal(t, tunEndpointCreator.GatewayIP, netConfig.Spec.TunnelPublicIP, "should be equal")
+	assert.Equal(t, tec.PodCIDR, netConfig.Spec.PodCIDR, "should be equal")
+	assert.Equal(t, tec.GatewayIP, netConfig.Spec.TunnelPublicIP, "should be equal")
 	labels := netConfig.GetLabels()
 	assert.Equal(t, "true", labels[crdReplicator.LocalLabelSelector])
 	assert.Equal(t, adv.Spec.ClusterId, labels[crdReplicator.DestinationLabel])
-	err = tunEndpointCreator.Delete(context.TODO(), netConfig)
+	err = tec.Delete(context.TODO(), netConfig)
 	assert.Nil(t, err)
 	time.Sleep(2 * time.Second)
 }
@@ -372,22 +372,22 @@ func TestCreateNetConfigFromPeeringRequest(t *testing.T) {
 	pReqObj, err := runtime.DefaultUnstructuredConverter.ToUnstructured(&pReq)
 	assert.Nil(t, err, "should be nil")
 	//create advertisement
-	_, err = tunEndpointCreator.DynClient.Resource(peeringReqGVR).Create(context.TODO(), &unstructured.Unstructured{Object: pReqObj}, metav1.CreateOptions{})
+	_, err = tec.DynClient.Resource(controller.PeeringReqGVR).Create(context.TODO(), &unstructured.Unstructured{Object: pReqObj}, metav1.CreateOptions{})
 	assert.Nil(t, err, "should be nil")
 	time.Sleep(2 * time.Second)
 	netConfig := &netv1alpha1.NetworkConfig{}
-	err = tunEndpointCreator.Get(context.TODO(), types.NamespacedName{
+	err = tec.Get(context.TODO(), types.NamespacedName{
 		Namespace: pReq.Namespace,
 		Name:      controller.NetConfigNamePrefix + pReq.Spec.ClusterID,
 	}, netConfig)
 	assert.Nil(t, err, "error should be nil")
 	assert.Equal(t, pReq.Spec.ClusterID, netConfig.Spec.ClusterID, "should be equal")
-	assert.Equal(t, tunEndpointCreator.PodCIDR, netConfig.Spec.PodCIDR, "should be equal")
-	assert.Equal(t, tunEndpointCreator.GatewayIP, netConfig.Spec.TunnelPublicIP, "should be equal")
+	assert.Equal(t, tec.PodCIDR, netConfig.Spec.PodCIDR, "should be equal")
+	assert.Equal(t, tec.GatewayIP, netConfig.Spec.TunnelPublicIP, "should be equal")
 	labels := netConfig.GetLabels()
 	assert.Equal(t, "true", labels[crdReplicator.LocalLabelSelector])
 	assert.Equal(t, pReq.Spec.ClusterID, labels[crdReplicator.DestinationLabel])
-	err = tunEndpointCreator.Delete(context.TODO(), netConfig)
+	err = tec.Delete(context.TODO(), netConfig)
 	assert.Nil(t, err)
 	time.Sleep(2 * time.Second)
 }
@@ -418,10 +418,10 @@ func TestNetConfigProcessing(t *testing.T) {
 	}
 	netConfig1 := getNetworkConfig()
 	netConfig1.SetLabels(labels)
-	err := tunEndpointCreator.Create(context.Background(), netConfig1)
+	err := tec.Create(context.Background(), netConfig1)
 	assert.Nil(t, err)
 	time.Sleep(3 * time.Second)
-	err = tunEndpointCreator.Get(context.Background(), types.NamespacedName{Name: netConfig1.Name}, netConfig1)
+	err = tec.Get(context.Background(), types.NamespacedName{Name: netConfig1.Name}, netConfig1)
 	assert.Nil(t, err)
 	assert.Equal(t, "false", netConfig1.Status.NATEnabled)
 	assert.Equal(t, "None", netConfig1.Status.PodCIDRNAT)
@@ -432,10 +432,10 @@ func TestNetConfigProcessing(t *testing.T) {
 	netConfig2.SetLabels(labels)
 	netConfig2.Name = "netconfig-2"
 	netConfig2.Spec.PodCIDR = "10.1.0.0/12"
-	err = tunEndpointCreator.Create(context.Background(), netConfig2)
+	err = tec.Create(context.Background(), netConfig2)
 	assert.Nil(t, err)
 	time.Sleep(3 * time.Second)
-	err = tunEndpointCreator.Get(context.Background(), types.NamespacedName{Name: netConfig2.Name}, netConfig2)
+	err = tec.Get(context.Background(), types.NamespacedName{Name: netConfig2.Name}, netConfig2)
 	assert.Nil(t, err)
 	assert.Equal(t, "true", netConfig2.Status.NATEnabled)
 	assert.NotEqual(t, "None", netConfig2.Status.PodCIDRNAT)
@@ -449,11 +449,11 @@ func TestNetConfigProcessing(t *testing.T) {
 	}
 	netConfig2.SetLabels(localLabels)
 	netConfig2.Spec.ClusterID = "remoteclusterid"
-	err = tunEndpointCreator.Update(context.Background(), netConfig2)
+	err = tec.Update(context.Background(), netConfig2)
 	assert.Nil(t, err)
 	time.Sleep(10 * time.Second)
 	tepName := controller.TunEndpointNamePrefix + "remoteclusterid"
-	tep, found, err := tunEndpointCreator.GetTunnelEndpoint(tepName)
+	tep, found, err := tec.GetTunnelEndpoint(tepName)
 	assert.True(t, found)
 	assert.Nil(t, err)
 	assert.Equal(t, netConfig1.Status.PodCIDRNAT, tep.Status.RemoteRemappedPodCIDR)
@@ -466,14 +466,14 @@ func TestNetConfigProcessing(t *testing.T) {
 	//test4
 	//we change some fields in the remote netConfig status
 	//expect that the tunnelEndpoint is updated
-	err = tunEndpointCreator.Get(context.Background(), types.NamespacedName{Name: netConfig1.Name}, netConfig1)
+	err = tec.Get(context.Background(), types.NamespacedName{Name: netConfig1.Name}, netConfig1)
 	assert.Nil(t, err)
 	newNATPodCIDR := "10.100.0.0/16"
 	netConfig1.Status.PodCIDRNAT = newNATPodCIDR
-	err = tunEndpointCreator.Status().Update(context.Background(), netConfig1)
+	err = tec.Status().Update(context.Background(), netConfig1)
 	assert.Nil(t, err)
 	time.Sleep(10 * time.Second)
-	tep, found, err = tunEndpointCreator.GetTunnelEndpoint(tepName)
+	tep, found, err = tec.GetTunnelEndpoint(tepName)
 	assert.True(t, found)
 	assert.Nil(t, err)
 	assert.Equal(t, newNATPodCIDR, tep.Status.RemoteRemappedPodCIDR)
@@ -481,20 +481,20 @@ func TestNetConfigProcessing(t *testing.T) {
 	//test5
 	//we change some fields on the remote netConfig spec and some on the local netConfig status
 	//expect that the tunnelEndpoint is updated
-	err = tunEndpointCreator.Get(context.Background(), types.NamespacedName{Name: netConfig1.Name}, netConfig1)
+	err = tec.Get(context.Background(), types.NamespacedName{Name: netConfig1.Name}, netConfig1)
 	assert.Nil(t, err)
 	newPodCIDR := "10.200.0.0/16"
 	netConfig1.Spec.PodCIDR = newPodCIDR
-	err = tunEndpointCreator.Update(context.Background(), netConfig1)
+	err = tec.Update(context.Background(), netConfig1)
 	assert.Nil(t, err)
-	err = tunEndpointCreator.Get(context.Background(), types.NamespacedName{Name: netConfig2.Name}, netConfig2)
+	err = tec.Get(context.Background(), types.NamespacedName{Name: netConfig2.Name}, netConfig2)
 	assert.Nil(t, err)
 	newNATPodCIDR = "10.300.0.0/16"
 	netConfig2.Status.PodCIDRNAT = newNATPodCIDR
-	err = tunEndpointCreator.Status().Update(context.Background(), netConfig2)
+	err = tec.Status().Update(context.Background(), netConfig2)
 	assert.Nil(t, err)
 	time.Sleep(10 * time.Second)
-	tep, found, err = tunEndpointCreator.GetTunnelEndpoint(tepName)
+	tep, found, err = tec.GetTunnelEndpoint(tepName)
 	assert.True(t, found)
 	assert.Nil(t, err)
 	assert.Equal(t, newNATPodCIDR, tep.Status.LocalRemappedPodCIDR)

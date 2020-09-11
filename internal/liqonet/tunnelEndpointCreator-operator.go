@@ -13,7 +13,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package controllers
+package liqonetOperators
 
 import (
 	"context"
@@ -28,11 +28,14 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/dynamic"
+	"k8s.io/client-go/dynamic/dynamicinformer"
+	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/util/retry"
 	"k8s.io/klog"
 	"net"
+	"os"
+	"os/signal"
 	"sync"
 	"time"
 
@@ -50,6 +53,18 @@ const (
 )
 
 var (
+	ResyncPeriod  = 30 * time.Second
+	PeeringReqGVR = schema.GroupVersionResource{
+		Group:    discoveryv1alpha1.GroupVersion.Group,
+		Version:  discoveryv1alpha1.GroupVersion.Version,
+		Resource: "peeringrequests",
+	}
+
+	AdvGVR = schema.GroupVersionResource{
+		Group:    advtypes.GroupVersion.Group,
+		Version:  advtypes.GroupVersion.Version,
+		Resource: "advertisements",
+	}
 	result = ctrl.Result{
 		Requeue:      false,
 		RequeueAfter: 5 * time.Second,
@@ -69,6 +84,7 @@ type TunnelEndpointCreator struct {
 	Log                logr.Logger
 	Scheme             *runtime.Scheme
 	DynClient          dynamic.Interface
+	DynFactory         dynamicinformer.DynamicSharedInformerFactory
 	GatewayIP          string
 	PodCIDR            string
 	ServiceCIDR        string
@@ -78,8 +94,10 @@ type TunnelEndpointCreator struct {
 	Mutex              sync.Mutex
 	IsConfigured       bool
 	Configured         chan bool
-	AdvWatcher         chan bool
-	PReqWatcher        chan bool
+	AdvStartWatcher    chan bool
+	AdvStopWatcher     chan struct{}
+	PReqStartWatcher   chan bool
+	PReqStopWatcher    chan struct{}
 	RunningWatchers    bool
 	RetryTimeout       time.Duration
 }
@@ -160,26 +178,31 @@ func (r *TunnelEndpointCreator) SetupWithManager(mgr ctrl.Manager) error {
 		Complete(r)
 }
 
-func (d *TunnelEndpointCreator) Watcher(dynClient dynamic.Interface, gvr schema.GroupVersionResource, handler func(obj *unstructured.Unstructured), start chan bool) {
+// SetupSignalHandlerForTunnelEndpointCreator registers for SIGTERM, SIGINT, SIGKILL. A stop channel is returned
+// which is closed on one of these signals.
+func (r *TunnelEndpointCreator) SetupSignalHandlerForTunEndCreator() (stopCh <-chan struct{}) {
+	klog.Infof("starting signal handler for tunnelEndpointCreator-operator")
+	stop := make(chan struct{})
+	c := make(chan os.Signal, 1)
+	signal.Notify(c, shutdownSignals...)
+	go func(r *TunnelEndpointCreator) {
+		sig := <-c
+		klog.Infof("received signal: %s", sig.String())
+		//closing shared informers
+		close(r.PReqStopWatcher)
+		close(r.AdvStopWatcher)
+		close(stop)
+	}(r)
+	return stop
+}
+
+func (d *TunnelEndpointCreator) Watcher(sharedDynFactory dynamicinformer.DynamicSharedInformerFactory, resourceType schema.GroupVersionResource, handlerFuncs cache.ResourceEventHandlerFuncs, start chan bool, stopCh chan struct{}) {
 	<-start
-	klog.Infof("starting watcher for %s", gvr.String())
-	watcher, err := dynClient.Resource(gvr).Watch(context.TODO(), metav1.ListOptions{})
-	if err != nil {
-		klog.Errorf("an error occurred while starting watcher for resource %s: %s", gvr, err)
-		return
-	}
-	for event := range watcher.ResultChan() {
-		obj, ok := event.Object.(*unstructured.Unstructured)
-		if !ok {
-			klog.Infof("an error occurred while casting e.object to *unstructured.Unstructured")
-		}
-		switch event.Type {
-		case watch.Added:
-			handler(obj)
-		case watch.Modified:
-			handler(obj)
-		}
-	}
+	dynInformer := sharedDynFactory.ForResource(resourceType)
+	klog.Infof("starting watcher for resources %s", resourceType.String())
+	//adding handlers to the informer
+	dynInformer.Informer().AddEventHandler(handlerFuncs)
+	dynInformer.Informer().Run(stopCh)
 }
 
 func (r *TunnelEndpointCreator) createNetConfig(clusterID string) error {
@@ -444,24 +467,44 @@ func (r *TunnelEndpointCreator) CreateTunnelEndpoint(param networkParam) error {
 	return nil
 }
 
-func (r *TunnelEndpointCreator) AdvertisementHandler(obj *unstructured.Unstructured) {
-	adv := &advtypes.Advertisement{}
-	err := runtime.DefaultUnstructuredConverter.FromUnstructured(obj.Object, adv)
-	if err != nil {
-		klog.Errorf("an error occurred while converting resource %s of type %s to typed object: %s", obj.GetName(), obj.GetKind(), err)
+func (r *TunnelEndpointCreator) AdvertisementHandlerAdd(obj interface{}) {
+	objUnstruct, ok := obj.(*unstructured.Unstructured)
+	if !ok {
+		klog.Errorf("an error occurred while converting advertisement obj to unstructured object")
 		return
 	}
+	adv := &advtypes.Advertisement{}
+	err := runtime.DefaultUnstructuredConverter.FromUnstructured(objUnstruct.Object, adv)
+	if err != nil {
+		klog.Errorf("an error occurred while converting resource %s of type %s to typed object: %s", objUnstruct.GetName(), objUnstruct.GetKind(), err)
+		return
+	}
+	klog.Infof("processing %s", adv.Name)
 	_ = r.createNetConfig(adv.Spec.ClusterId)
 }
 
-func (r *TunnelEndpointCreator) PeeringRequestHandler(obj *unstructured.Unstructured) {
-	peeringReq := &discoveryv1alpha1.PeeringRequest{}
-	err := runtime.DefaultUnstructuredConverter.FromUnstructured(obj.Object, peeringReq)
-	if err != nil {
-		klog.Errorf("an error occurred while converting resource %s of type %s to typed object: %s", obj.GetName(), obj.GetKind(), err)
+func (r *TunnelEndpointCreator) AdvertisementHandlerUpdate(oldObj interface{}, newObj interface{}) {
+	r.AdvertisementHandlerAdd(newObj)
+}
+
+func (r *TunnelEndpointCreator) PeeringRequestHandlerAdd(obj interface{}) {
+	objUnstruct, ok := obj.(*unstructured.Unstructured)
+	if !ok {
+		klog.Errorf("an error occurred while converting peeringRequest obj to unstructured object")
 		return
 	}
+	peeringReq := &discoveryv1alpha1.PeeringRequest{}
+	err := runtime.DefaultUnstructuredConverter.FromUnstructured(objUnstruct.Object, peeringReq)
+	if err != nil {
+		klog.Errorf("an error occurred while converting resource %s of type %s to typed object: %s", objUnstruct.GetName(), objUnstruct.GetKind(), err)
+		return
+	}
+	klog.Infof("processing %s", peeringReq.Name)
 	_ = r.createNetConfig(peeringReq.Spec.ClusterID)
+}
+
+func (r *TunnelEndpointCreator) PeeringRequestHandlerUpdate(oldObj interface{}, newObj interface{}) {
+	r.PeeringRequestHandlerAdd(newObj)
 }
 
 func (r *TunnelEndpointCreator) GetTunnelEndpoint(name string) (*netv1alpha1.TunnelEndpoint, bool, error) {
