@@ -3,7 +3,7 @@ kind: Pod
 metadata:
   name: nginx-local
   labels:
-    app: test-liqo
+    app: liqo-demo
 spec:
   containers:
     - name: nginx
@@ -20,14 +20,14 @@ spec:
               - key: type
                 operator: NotIn
                 values:
-                  - virtual'node
+                  - virtual-node
 ---
 apiVersion: v1
 kind: Pod
 metadata:
   name: nginx-remote
   labels:
-    app: test-liqo
+    app: liqo-demo
 spec:
   containers:
     - name: nginx
@@ -44,12 +44,12 @@ spec:
               - key: type
                 operator: In
                 values:
-                  - virtual'node
+                  - virtual-node
 ---
 apiVersion: v1
 kind: Service
 metadata:
-  name: test-liqo
+  name: liqo-demo
 spec:
   ports:
     - name: web
@@ -57,5 +57,5 @@ spec:
       protocol: TCP
       targetPort: web
   selector:
-    app: test-liqo
+    app: liqo-demo
   type: ClusterIP
