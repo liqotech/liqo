@@ -63,11 +63,26 @@ function clone_repo() {
   fi
 }
 
+function check_unjoined() {
+  tmp=$(kubectl get foreignclusters -o jsonpath="{.items[*].status.incoming.joined} {.items[*].status.outgoing.joined}")
+  for f in ${tmp}; do
+    if [ "$f" == "true" ]; then
+      # they are not completely unjoined
+      return 0
+    fi
+  done
+  return 1
+}
+
 function unjoin() {
+  for id in $(kubectl get foreignclusters -o jsonpath="{.items[*].metadata.name}"); do
+    kubectl patch foreignclusters "$id" -p '{"spec":{"join":false}}' --type 'merge'
+  done
+
   kubectl patch clusterconfig configuration -p '{"spec":{"advertisementConfig":{"outgoingConfig":{"enableBroadcaster":false}}}}' --type 'merge'
 
   retry=10
-  while [ "$(kubectl get pods -n "$NAMESPACE" | grep -c broadcaster)" -gt 0 ]; do
+  while check_unjoined; do
     sleep 10
     retry=$((retry-1))
     if [ "$retry" -eq 0 ]; then
@@ -76,14 +91,14 @@ function unjoin() {
     fi
   done
 
-  for id in $(kubectl get foreignclusters -o jsonpath="{.items[*].metadata.name}"); do
-    kubectl patch foreignclusters "$id" -p '{"spec":{"join":false}}' --type 'merge'
-  done
+  # wait for network operator to reconcile status
+  sleep 10
 }
 
 function deleteCrd() {
   echo "delete CRD"
   clone_repo
+
   kubectl delete -f "$TMPDIR"/liqo/deployments/liqo_chart/crds || true
   kubectl delete ns "$NAMESPACE"
 }

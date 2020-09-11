@@ -101,7 +101,7 @@ func (discovery *DiscoveryCtrl) UpdateTtl(txts []*TxtData) error {
 		if !found {
 			// if ForeignCluster is not in Txt list, reduce its TTL
 			fc.Status.Ttl -= 1
-			if fc.Status.Ttl <= 0 {
+			if fc.Status.Ttl <= 0 && !fc.Status.Outgoing.Joined && !fc.Status.Incoming.Joined {
 				// delete ForeignCluster
 				err = discovery.crdClient.Resource("foreignclusters").Delete(fc.Name, metav1.DeleteOptions{})
 				if err != nil {

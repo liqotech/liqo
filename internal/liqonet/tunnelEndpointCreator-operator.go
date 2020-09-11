@@ -486,6 +486,8 @@ func (r *TunnelEndpointCreator) ForeignClusterHandlerAdd(obj interface{}) {
 	}
 	if fc.Status.Incoming.Joined || fc.Status.Outgoing.Joined {
 		_ = r.createNetConfig(fc.Spec.ClusterID)
+	} else if !fc.Status.Incoming.Joined && !fc.Status.Outgoing.Joined {
+		_ = r.deleteNetConfig(fc.Spec.ClusterID)
 	}
 }
 
