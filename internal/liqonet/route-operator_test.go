@@ -1,4 +1,4 @@
-package controllers
+package liqonetOperators
 
 import (
 	netv1alpha1 "github.com/liqotech/liqo/api/net/v1alpha1"
