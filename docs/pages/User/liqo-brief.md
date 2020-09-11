@@ -3,7 +3,7 @@ title: Liqo in brief
 weight: 1
 ---
 
-This section gives an brief insight about Liqo, its features, and the main concepts we need to know in order to operate properly with it.
+This section gives a brief insight about Liqo, its features, and the main concepts we need to know in order to operate properly with it.
 
 ## Overview
 Liqo is an open source add-on for Kubernetes that allows to seamlessly and securely share resources and services between multiple clusters, enabling to run your workloads on remote clusters.
@@ -21,7 +21,7 @@ Role-Based Access Control (RBAC), Pod Security Policies (PSP), hardened Containe
 
 Kubernetes users will experience the usual environment also after starting Liqo: all administrative tasks are the same, performed in the usual way and with the well-known tools (e.g. `kubectl`). The only difference is that your cluster can become more powerful, as resources and services can be borrowed from the other clusters you peered with.
 
-With Liqo, you can leverage an unlimited amount of resources by simply peering with other clusters. Similarly, resource providers can leverage their infrastructure by selling their resources to many different peers, in an highly dynamic way.
+With Liqo, you can leverage an unlimited amount of resources by simply peering with other clusters. Similarly, resource providers can leverage their infrastructure by selling their resources to many different peers, in a highly dynamic way.
 
 ## Terminology
 We call **home** cluster the one under your control, while the **foreign** cluster is the one that you peer with, which is usually under the control of different organizations.
@@ -62,10 +62,10 @@ In the **_Autonomous_** mode (default), **the cluster uses its own intelligence*
 
 ### Tethered
 
-When working in **_Tethered_** mode, the cluster can **peer** to a **single_** foreign cluster, such as the one controlling the corporate infrastructure, allowing the foreign orchestrator (i.e., the Kubernetes API server) to fully control the usage of its local resources.
+When working in **_Tethered_** mode, the cluster can **peer** to a **single** foreign cluster, such as the one controlling the corporate infrastructure, allowing the foreign orchestrator (i.e., the Kubernetes API server) to fully control the usage of its local resources.
 When the tethered mode is on, the local Kubernetes API server becomes uneffective.
 
-This mode is meaningful particularly for single-node clusters (e.g., a laptop running Liqo) when they connect to enterprise infrastructure, which has the right to control all the computing nodes to their full extent.
+This mode is particularly meaningful for single-node clusters (e.g., a laptop running Liqo) when they connect to the enterprise infrastructure, which has the right to control all the computing nodes to their full extent.
 
 When the tethered peering is established:
   * The device turns off its intelligence.
