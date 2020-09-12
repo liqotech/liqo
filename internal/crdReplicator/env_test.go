@@ -2,8 +2,11 @@ package crdReplicator
 
 import (
 	netv1alpha1 "github.com/liqotech/liqo/api/net/v1alpha1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/dynamic"
+	"k8s.io/client-go/dynamic/dynamicinformer"
+	"strings"
 	"time"
 
 	"k8s.io/klog/v2"
@@ -19,6 +22,8 @@ var (
 	k8sManagerLocal ctrl.Manager
 	testEnvLocal    *envtest.Environment
 	dynClient       dynamic.Interface
+	dynFac          dynamicinformer.DynamicSharedInformerFactory
+	localDynFac     dynamicinformer.DynamicSharedInformerFactory
 	gvr             = schema.GroupVersionResource{
 		Group:    netv1alpha1.GroupVersion.Group,
 		Version:  netv1alpha1.GroupVersion.Version,
@@ -53,6 +58,18 @@ func setupEnv() {
 		panic(err)
 	}
 	dynClient = dynamic.NewForConfigOrDie(configLocal)
+	dynFac = dynamicinformer.NewFilteredDynamicSharedInformerFactory(dynClient, ResyncPeriod, metav1.NamespaceAll, func(options *metav1.ListOptions) {
+		//we want to watch only the resources that have been created by us on the remote cluster
+		if options.LabelSelector == "" {
+			newLabelSelector := []string{RemoteLabelSelector, "=", localClusterID}
+			options.LabelSelector = strings.Join(newLabelSelector, "")
+		} else {
+			newLabelSelector := []string{options.LabelSelector, RemoteLabelSelector, "=", localClusterID}
+			options.LabelSelector = strings.Join(newLabelSelector, "")
+		}
+	})
+
+	localDynFac = dynamicinformer.NewFilteredDynamicSharedInformerFactory(dynClient, ResyncPeriod, metav1.NamespaceAll, nil)
 	time.Sleep(1 * time.Second)
 }
 

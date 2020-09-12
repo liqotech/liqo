@@ -37,7 +37,6 @@ func (d *CRDReplicatorReconciler) UpdateConfig(cfg *configv1alpha1.ClusterConfig
 
 func (d *CRDReplicatorReconciler) GetConfig(cfg *configv1alpha1.ClusterConfig) []schema.GroupVersionResource {
 	resourceList := cfg.Spec.DispatcherConfig
-	klog.Info(resourceList)
 	config := []schema.GroupVersionResource{}
 	for _, res := range resourceList.ResourcesToReplicate {
 		config = append(config, schema.GroupVersionResource{

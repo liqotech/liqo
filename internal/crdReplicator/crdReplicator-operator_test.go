@@ -9,6 +9,7 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/dynamic"
+	"k8s.io/client-go/dynamic/dynamicinformer"
 	"testing"
 	"time"
 )
@@ -47,14 +48,16 @@ func getLabels() map[string]string {
 
 func getCRDReplicator() CRDReplicatorReconciler {
 	return CRDReplicatorReconciler{
-		Scheme:                nil,
-		ClusterID:             localClusterID,
-		RemoteDynClients:      map[string]dynamic.Interface{remoteClusterID: dynClient},
-		RegisteredResources:   nil,
-		UnregisteredResources: nil,
-		RemoteWatchers:        map[string]map[string]chan bool{},
-		LocalDynClient:        dynClient,
-		LocalWatchers:         map[string]map[string]chan bool{},
+		Scheme:                         nil,
+		ClusterID:                      localClusterID,
+		RemoteDynClients:               map[string]dynamic.Interface{remoteClusterID: dynClient},
+		RemoteDynSharedInformerFactory: map[string]dynamicinformer.DynamicSharedInformerFactory{remoteClusterID: dynFac},
+		RegisteredResources:            nil,
+		UnregisteredResources:          nil,
+		RemoteWatchers:                 map[string]map[string]chan struct{}{},
+		LocalDynClient:                 dynClient,
+		LocalDynSharedInformerFactory:  localDynFac,
+		LocalWatchers:                  map[string]map[string]chan struct{}{},
 	}
 }
 
@@ -159,77 +162,7 @@ func TestCRDReplicatorReconciler_UpdateResource(t *testing.T) {
 	assert.Equal(t, newStatus, status, "status should be equal")
 }
 
-func TestCRDReplicatorReconciler_StartWatchers(t *testing.T) {
-	d := getCRDReplicator()
-	//for each test we have a number of registered resources and
-	//after calling the StartWatchers function we expect two have a certain number of active watchers
-	//as is the number of the registered resources
-	test1 := []schema.GroupVersionResource{{
-		Group:    netv1alpha1.GroupVersion.Group,
-		Version:  netv1alpha1.GroupVersion.Version,
-		Resource: "networkconfigs",
-	}, {
-		Group:    netv1alpha1.GroupVersion.Group,
-		Version:  netv1alpha1.GroupVersion.Version,
-		Resource: "tunnelendpoints",
-	}}
-	test2 := []schema.GroupVersionResource{}
-	test3 := []schema.GroupVersionResource{{
-		Group:    netv1alpha1.GroupVersion.Group,
-		Version:  netv1alpha1.GroupVersion.Version,
-		Resource: "networkconfigs",
-	}}
-	tests := []struct {
-		test             []schema.GroupVersionResource
-		expectedWatchers int
-	}{
-		{test1, 2},
-		{test2, 0},
-		{test3, 1},
-	}
-
-	for _, test := range tests {
-		d.RegisteredResources = test.test
-		d.StartWatchers()
-		assert.Equal(t, test.expectedWatchers, len(d.RemoteWatchers[remoteClusterID]), "it should be the same")
-		assert.Equal(t, test.expectedWatchers, len(d.LocalWatchers[remoteClusterID]), "it should be the same")
-		//stop the watchers
-
-		for k, ch := range d.RemoteWatchers[remoteClusterID] {
-			close(ch)
-			delete(d.RemoteWatchers[remoteClusterID], k)
-			time.Sleep(1 * time.Second)
-		}
-		for k, ch := range d.LocalWatchers[remoteClusterID] {
-			close(ch)
-			delete(d.LocalWatchers[remoteClusterID], k)
-			time.Sleep(1 * time.Second)
-		}
-	}
-	//test on a closed channel
-	//we close a channel of a running watcher an expect that the function restarts the watcher
-	//we add a new channel on runningWatchers
-	d.RemoteWatchers[remoteClusterID][test3[0].String()] = make(chan bool)
-	d.LocalWatchers[remoteClusterID][test3[0].String()] = make(chan bool)
-	close(d.RemoteWatchers[remoteClusterID][test3[0].String()])
-	close(d.LocalWatchers[remoteClusterID][test3[0].String()])
-	time.Sleep(1 * time.Second)
-	d.StartWatchers()
-	select {
-	case _, ok := <-d.RemoteWatchers[remoteClusterID][test3[0].String()]:
-		assert.True(t, ok, "should be true")
-	default:
-	}
-	select {
-	case _, ok := <-d.LocalWatchers[remoteClusterID][test3[0].String()]:
-		assert.True(t, ok, "should be true")
-	default:
-	}
-	assert.NotPanics(t, func() { close(d.RemoteWatchers[remoteClusterID][test3[0].String()]) }, "should not panic")
-	assert.NotPanics(t, func() { close(d.LocalWatchers[remoteClusterID][test3[0].String()]) }, "should not panic")
-}
-
-func TestCRDReplicatorReconciler_StopWatchers(t *testing.T) {
+func TestCRDReplicatorReconciler_StartAndStopWatchers(t *testing.T) {
 	d := getCRDReplicator()
 	//we add two kind of resources to be watched
 	//then unregister them and check that the watchers have been closed as well
@@ -253,17 +186,7 @@ func TestCRDReplicatorReconciler_StopWatchers(t *testing.T) {
 	assert.Equal(t, 0, len(d.RemoteWatchers[remoteClusterID]), "it should be 0")
 	assert.Equal(t, 0, len(d.LocalWatchers[remoteClusterID]), "it should be 0")
 	d.UnregisteredResources = []string{}
-	//test 2
-	//we close previously a channel of a watcher and then we add the resource to the unregistered list
-	//we expect than it does not panic and only one watcher is still active
-	d.RegisteredResources = test1
-	d.StartWatchers()
-	assert.Equal(t, 2, len(d.RemoteWatchers[remoteClusterID]), "it should be 2")
-	d.UnregisteredResources = append(d.UnregisteredResources, d.RegisteredResources[0].String())
-	assert.NotPanics(t, func() { close(d.RemoteWatchers[remoteClusterID][d.RegisteredResources[0].String()]) }, "should not panic")
-	d.StopWatchers()
-	assert.Equal(t, 1, len(d.RemoteWatchers[remoteClusterID]), "it should be 0")
-	assert.Equal(t, 1, len(d.LocalWatchers[remoteClusterID]), "it should be 0")
+
 }
 
 func TestCRDReplicatorReconciler_AddedHandler(t *testing.T) {
@@ -374,30 +297,6 @@ func TestCRDReplicatorReconciler_DeletedHandler(t *testing.T) {
 	obj, err = dynClient.Resource(gvr).Get(context.TODO(), test1.GetName(), metav1.GetOptions{})
 	assert.NotNil(t, err, "error should not be empty")
 	assert.Nil(t, obj, "the object retrieved should be nil")
-}
-
-func TestIsOpen(t *testing.T) {
-	//test 1
-	//create a bool channel
-	//expect to be opened
-	ch := make(chan bool, 1)
-	result := isOpen(ch)
-	assert.True(t, result, "channel should be open")
-
-	//test 2
-	//write to the channel
-	//expect to be opened
-	ch <- true
-	result = isOpen(ch)
-	assert.True(t, result, "channel should be open")
-
-	//test 3
-	//close the channel and check if is closed
-	//expect to be closed
-	assert.NotPanics(t, func() { close(ch) }, "this should not panic, because the channel is opened")
-	result = isOpen(ch)
-	assert.False(t, result, "channel should be closed")
-
 }
 
 func TestGetSpec(t *testing.T) {
