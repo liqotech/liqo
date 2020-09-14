@@ -9,6 +9,7 @@
 [![Go Report Card](https://goreportcard.com/badge/github.com/liqotech/liqo)](https://goreportcard.com/report/github.com/liqotech/liqo)
 ![Docker Pulls](https://img.shields.io/docker/pulls/liqo/virtual-kubelet?label=Liqo%20vkubelet%20pulls)
 [![FOSSA Status](https://app.fossa.com/api/projects/git%2Bgithub.com%2Fliqotech%2Fliqo.svg?type=shield)](https://app.fossa.com/projects/git%2Bgithub.com%2Fliqotech%2Fliqo?ref=badge_shield)
+[![Twitter](https://img.shields.io/twitter/url/https/twitter.com/liqo_io.svg?style=social&label=Follow%20%40liqo_io)](https://twitter.com/liqo_io)
 
 Liqo is a framework to enable dynamic sharing across Kubernetes Clusters. You can run your pods on a remote cluster
 seamlessly, without any modification (Kubernetes or your application). 

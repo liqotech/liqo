@@ -1,5 +1,5 @@
 ---
-title: Deploy a sample application
+title: Deploy a complex application
 weight: 4
 ---
 
