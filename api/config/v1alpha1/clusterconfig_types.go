@@ -105,10 +105,6 @@ type DiscoveryConfig struct {
 	AutoJoin          bool `json:"autojoin"`
 	AutoJoinUntrusted bool `json:"autojoinUntrusted"`
 
-	// --- DNS ---
-
-	DnsServer string `json:"dnsServer"`
-
 	// --- CA ---
 
 	AllowUntrustedCA bool `json:"allowUntrustedCA"`

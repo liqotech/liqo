@@ -26,7 +26,6 @@ spec:
     service: _liqo._tcp
     updateTime: 3
     waitTime: 2
-    dnsServer: '8.8.8.8:53'
   liqonetConfig:
     podCIDR: {{ .Values.podCIDR }}
     serviceCIDR: {{ .Values.serviceCIDR }}

@@ -120,8 +120,6 @@ spec:
                   type: boolean
                 autojoinUntrusted:
                   type: boolean
-                dnsServer:
-                  type: string
                 domain:
                   type: string
                 enableAdvertisement:
@@ -146,7 +144,6 @@ spec:
               - allowUntrustedCA
               - autojoin
               - autojoinUntrusted
-              - dnsServer
               - domain
               - enableAdvertisement
               - enableDiscovery

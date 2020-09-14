@@ -32,9 +32,12 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/rest"
 	"k8s.io/klog"
+	"k8s.io/kubernetes/pkg/util/slice"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"time"
 )
+
+const FinalizerString = "foreigncluster.discovery.liqo.io/peered"
 
 // ForeignClusterReconciler reconciles a ForeignCluster object
 type ForeignClusterReconciler struct {
@@ -62,7 +65,6 @@ func (r *ForeignClusterReconciler) Reconcile(req ctrl.Request) (ctrl.Result, err
 
 	tmp, err := r.crdClient.Resource("foreignclusters").Get(req.Name, metav1.GetOptions{})
 	if err != nil {
-		// TODO: has been removed
 		return ctrl.Result{}, nil
 	}
 	fc, ok := tmp.(*discoveryv1alpha1.ForeignCluster)
@@ -227,72 +229,39 @@ func (r *ForeignClusterReconciler) Reconcile(req ctrl.Request) (ctrl.Result, err
 		}, nil
 	}
 
-	foreignConfig, err := fc.GetConfig(r.crdClient.Client())
+	foreignDiscoveryClient, err := r.getRemoteClient(fc)
 	if err != nil {
-		klog.Error(err, err.Error())
-		// delete reference, in this way at next iteration it will be reloaded
-		fc.Status.Outgoing.CaDataRef = nil
-		_, err2 := r.crdClient.Resource("foreignclusters").Update(fc.Name, fc, metav1.UpdateOptions{})
-		if err2 != nil {
-			klog.Error(err2, err2.Error())
-		}
+		klog.Error(err)
 		return ctrl.Result{
 			Requeue:      true,
 			RequeueAfter: r.RequeueAfter,
-		}, err
-	}
-	foreignConfig.GroupVersion = &discoveryv1alpha1.GroupVersion
-	foreignDiscoveryClient, err := crdClient.NewFromConfig(foreignConfig)
-	if err != nil {
-		klog.Error(err, err.Error())
-		return ctrl.Result{
-			Requeue:      true,
-			RequeueAfter: r.RequeueAfter,
-		}, err
+		}, nil
 	}
 
 	// if join is required (both automatically or by user) and status is not set to joined
 	// create new peering request
 	if fc.Spec.Join && !fc.Status.Outgoing.Joined {
-		// create PeeringRequest
-		klog.Info("Creating PeeringRequest")
-		pr, err := r.createPeeringRequestIfNotExists(req.Name, fc, foreignDiscoveryClient)
+		fc, err = r.Peer(fc, foreignDiscoveryClient)
 		if err != nil {
-			klog.Error(err, err.Error())
 			return ctrl.Result{
 				Requeue:      true,
 				RequeueAfter: r.RequeueAfter,
 			}, err
 		}
-		fc.Status.Outgoing.Joined = true
-		fc.Status.Outgoing.RemotePeeringRequestName = pr.Name
 		requireUpdate = true
 	}
 
 	// if join is no more required and status is set to joined
+	// or if this foreign cluster is being deleted
 	// delete peering request
-	if !fc.Spec.Join && fc.Status.Outgoing.Joined {
-		// peering request has to be removed
-		klog.Info("Deleting PeeringRequest")
-		err := r.deletePeeringRequest(foreignDiscoveryClient, fc)
+	if (!fc.Spec.Join || !fc.DeletionTimestamp.IsZero()) && fc.Status.Outgoing.Joined {
+		fc, err = r.Unpeer(fc, foreignDiscoveryClient)
 		if err != nil {
-			klog.Error(err, err.Error())
 			return ctrl.Result{
 				Requeue:      true,
 				RequeueAfter: r.RequeueAfter,
 			}, err
 		}
-		// local advertisement has to be removed
-		err = r.deleteAdvertisement(fc)
-		if err != nil {
-			klog.Error(err, err.Error())
-			return ctrl.Result{
-				Requeue:      true,
-				RequeueAfter: r.RequeueAfter,
-			}, err
-		}
-		fc.Status.Outgoing.Joined = false
-		fc.Status.Outgoing.RemotePeeringRequestName = ""
 		requireUpdate = true
 	}
 
@@ -329,6 +298,61 @@ func (r *ForeignClusterReconciler) Reconcile(req ctrl.Request) (ctrl.Result, err
 		Requeue:      true,
 		RequeueAfter: r.RequeueAfter,
 	}, nil
+}
+
+func (r *ForeignClusterReconciler) Peer(fc *discoveryv1alpha1.ForeignCluster, foreignDiscoveryClient *crdClient.CRDClient) (*discoveryv1alpha1.ForeignCluster, error) {
+	// create PeeringRequest
+	klog.Info("Creating PeeringRequest")
+	pr, err := r.createPeeringRequestIfNotExists(fc.Name, fc, foreignDiscoveryClient)
+	if err != nil {
+		klog.Error(err)
+		return nil, err
+	}
+	fc.Status.Outgoing.Joined = true
+	fc.Status.Outgoing.RemotePeeringRequestName = pr.Name
+	// add finalizer
+	if !slice.ContainsString(fc.Finalizers, FinalizerString, nil) {
+		fc.Finalizers = append(fc.Finalizers, FinalizerString)
+	}
+	return fc, nil
+}
+
+func (r *ForeignClusterReconciler) Unpeer(fc *discoveryv1alpha1.ForeignCluster, foreignDiscoveryClient *crdClient.CRDClient) (*discoveryv1alpha1.ForeignCluster, error) {
+	// peering request has to be removed
+	klog.Info("Deleting PeeringRequest")
+	err := r.deletePeeringRequest(foreignDiscoveryClient, fc)
+	if err != nil {
+		klog.Error(err)
+		return nil, err
+	}
+	// local advertisement has to be removed
+	err = r.deleteAdvertisement(fc)
+	if err != nil {
+		klog.Error(err)
+		return nil, err
+	}
+	fc.Status.Outgoing.Joined = false
+	fc.Status.Outgoing.RemotePeeringRequestName = ""
+	if slice.ContainsString(fc.Finalizers, FinalizerString, nil) {
+		fc.Finalizers = slice.RemoveString(fc.Finalizers, FinalizerString, nil)
+	}
+	return fc, nil
+}
+
+func (r *ForeignClusterReconciler) getRemoteClient(fc *discoveryv1alpha1.ForeignCluster) (*crdClient.CRDClient, error) {
+	foreignConfig, err := fc.GetConfig(r.crdClient.Client())
+	if err != nil {
+		klog.Error(err)
+		// delete reference, in this way at next iteration it will be reloaded
+		fc.Status.Outgoing.CaDataRef = nil
+		_, err2 := r.crdClient.Resource("foreignclusters").Update(fc.Name, fc, metav1.UpdateOptions{})
+		if err2 != nil {
+			klog.Error(err2)
+		}
+		return nil, err
+	}
+	foreignConfig.GroupVersion = &discoveryv1alpha1.GroupVersion
+	return crdClient.NewFromConfig(foreignConfig)
 }
 
 func (r *ForeignClusterReconciler) SetupWithManager(mgr ctrl.Manager) error {
