@@ -35,8 +35,114 @@ spec:
                 description: The name of the view showed in the sidebar
                 type: string
               layout:
-                description: Layout of the view
-                type: object
+                description: Describe the position of each CRD card in the view differetiating by breakpoints
+                properties:
+                  lg:
+                    description: lg breakpoint (greater than 1200px)
+                    items:
+                      properties:
+                        h:
+                          description: Height of the CRD card
+                          type: integer
+                        w:
+                          description: Width of the CRD card
+                          type: integer
+                        x:
+                          description: X Position of the CRD card
+                          type: integer
+                        "y":
+                          description: Y Position of the CRD card
+                          type: integer
+                        i:
+                          description: name of the CRD this layout corresponds to
+                          type: string
+                      type: object 
+                    type: array
+                  md:
+                    description: md breakpoint (from 1200px to 996px)
+                    items:
+                      properties:
+                        h:
+                          description: Height of the CRD card
+                          type: integer
+                        w:
+                          description: Width of the CRD card
+                          type: integer
+                        x:
+                          description: X Position of the CRD card
+                          type: integer
+                        "y":
+                          description: Y Position of the CRD card
+                          type: integer
+                        i:
+                          description: name of the CRD this layout corresponds to
+                          type: string
+                      type: object 
+                    type: array
+                  sm:
+                    description: sm breakpoint (from 996px to 768px)
+                    items:
+                      properties:
+                        h:
+                          description: Height of the CRD card
+                          type: integer
+                        w:
+                          description: Width of the CRD card
+                          type: integer
+                        x:
+                          description: X Position of the CRD card
+                          type: integer
+                        "y":
+                          description: Y Position of the CRD card
+                          type: integer
+                        i:
+                          description: name of the CRD this layout corresponds to
+                          type: string
+                      type: object 
+                    type: array
+                  xs:
+                    description: xs breakpoint (from 768px to 480px)
+                    items:
+                      properties:
+                        h:
+                          description: Height of the CRD card
+                          type: integer
+                        w:
+                          description: Width of the CRD card
+                          type: integer
+                        x:
+                          description: X Position of the CRD card
+                          type: integer
+                        "y":
+                          description: Y Position of the CRD card
+                          type: integer
+                        i:
+                          description: name of the CRD this layout corresponds to
+                          type: string
+                      type: object 
+                    type: array
+                  xss:
+                    description: xss breakpoint (less than 480px)
+                    items:
+                      properties:
+                        h:
+                          description: Height of the CRD card
+                          type: integer
+                        w:
+                          description: Width of the CRD card
+                          type: integer
+                        x:
+                          description: X Position of the CRD card
+                          type: integer
+                        "y":
+                          description: Y Position of the CRD card
+                          type: integer
+                        i:
+                          description: name of the CRD this layout corresponds to
+                          type: string
+                      type: object 
+                    type: array        
+                type: object  
               crds:
                 description: Collection of CRDs to show
                 items:
