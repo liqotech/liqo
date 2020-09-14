@@ -21,7 +21,8 @@ import (
 	configv1alpha1 "github.com/liqotech/liqo/api/config/v1alpha1"
 	discoveryv1alpha1 "github.com/liqotech/liqo/api/discovery/v1alpha1"
 	advtypes "github.com/liqotech/liqo/api/sharing/v1alpha1"
-	pkg "github.com/liqotech/liqo/pkg/advertisement-operator"
+	pkg "github.com/liqotech/liqo/pkg"
+	advpkg "github.com/liqotech/liqo/pkg/advertisement-operator"
 	"github.com/liqotech/liqo/pkg/crdClient"
 	objectreferences "github.com/liqotech/liqo/pkg/object-references"
 	v1 "k8s.io/api/core/v1"
@@ -35,11 +36,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sync"
 	"time"
-)
-
-const (
-	VirtualNodePrefix    = "liqo-"
-	VirtualKubeletPrefix = "virtual-kubelet-"
 )
 
 // AdvertisementReconciler reconciles a Advertisement object
@@ -256,25 +252,25 @@ func (r *AdvertisementReconciler) createVirtualKubelet(ctx context.Context, adv 
 		klog.Errorf("Cannot find secret %v in namespace %v for the virtual kubelet; error: %v", secRef.Name, secRef.Namespace, err)
 		return err
 	}
-	name := VirtualKubeletPrefix + adv.Spec.ClusterId
-	nodeName := VirtualNodePrefix + adv.Spec.ClusterId
+	name := pkg.VirtualKubeletPrefix + adv.Spec.ClusterId
+	nodeName := pkg.VirtualNodePrefix + adv.Spec.ClusterId
 	// Create the base resources
 	vkSa := &v1.ServiceAccount{
 		TypeMeta: metav1.TypeMeta{},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:            name,
 			Namespace:       r.KubeletNamespace,
-			OwnerReferences: pkg.GetOwnerReference(adv),
+			OwnerReferences: advpkg.GetOwnerReference(adv),
 		},
 	}
-	err = pkg.CreateOrUpdate(r.Client, ctx, vkSa)
+	err = advpkg.CreateOrUpdate(r.Client, ctx, vkSa)
 	if err != nil {
 		return err
 	}
 	vkCrb := &rbacv1.ClusterRoleBinding{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:            name,
-			OwnerReferences: pkg.GetOwnerReference(adv),
+			OwnerReferences: advpkg.GetOwnerReference(adv),
 		},
 		Subjects: []rbacv1.Subject{
 			{Kind: "ServiceAccount", APIGroup: "", Name: name, Namespace: r.KubeletNamespace},
@@ -285,13 +281,13 @@ func (r *AdvertisementReconciler) createVirtualKubelet(ctx context.Context, adv 
 			Name:     "cluster-admin",
 		},
 	}
-	err = pkg.CreateOrUpdate(r.Client, ctx, vkCrb)
+	err = advpkg.CreateOrUpdate(r.Client, ctx, vkCrb)
 	if err != nil {
 		return err
 	}
 	// Create the virtual Kubelet
-	deploy := pkg.CreateVkDeployment(adv, name, r.KubeletNamespace, r.VKImage, r.InitVKImage, nodeName, r.HomeClusterId)
-	err = pkg.CreateOrUpdate(r.Client, ctx, deploy)
+	deploy := advpkg.CreateVkDeployment(adv, name, r.KubeletNamespace, r.VKImage, r.InitVKImage, nodeName, r.HomeClusterId)
+	err = advpkg.CreateOrUpdate(r.Client, ctx, deploy)
 	if err != nil {
 		return err
 	}

@@ -5,7 +5,6 @@ import (
 	"errors"
 	nettypes "github.com/liqotech/liqo/api/net/v1alpha1"
 	advtypes "github.com/liqotech/liqo/api/sharing/v1alpha1"
-	"github.com/liqotech/liqo/internal/kubernetes/test"
 	controllers "github.com/liqotech/liqo/internal/liqonet"
 	"github.com/liqotech/liqo/internal/node"
 	v1 "k8s.io/api/core/v1"
@@ -190,7 +189,28 @@ func (p *KubernetesProvider) updateFromAdv(adv advtypes.Advertisement) error {
 		no.Status.Allocatable[k] = v
 	}
 	if no.Status.Conditions == nil {
-		no.Status.Conditions = test.Condition1
+		no.Status.Conditions = []v1.NodeCondition{
+			{
+				Type:   v1.NodeReady,
+				Status: v1.ConditionFalse,
+			},
+			{
+				Type:   v1.NodeMemoryPressure,
+				Status: v1.ConditionFalse,
+			},
+			{
+				Type:   v1.NodeDiskPressure,
+				Status: v1.ConditionFalse,
+			},
+			{
+				Type:   v1.NodePIDPressure,
+				Status: v1.ConditionFalse,
+			},
+			{
+				Type:   v1.NodeNetworkUnavailable,
+				Status: v1.ConditionTrue,
+			},
+		}
 	}
 
 	no.Status.Images = []v1.ContainerImage{}
@@ -216,7 +236,28 @@ func (p *KubernetesProvider) updateFromTep(tep nettypes.TunnelEndpoint) error {
 	}
 
 	if no.Status.Conditions == nil {
-		no.Status.Conditions = test.Condition1
+		no.Status.Conditions = []v1.NodeCondition{
+			{
+				Type:   v1.NodeReady,
+				Status: v1.ConditionFalse,
+			},
+			{
+				Type:   v1.NodeMemoryPressure,
+				Status: v1.ConditionFalse,
+			},
+			{
+				Type:   v1.NodeDiskPressure,
+				Status: v1.ConditionFalse,
+			},
+			{
+				Type:   v1.NodePIDPressure,
+				Status: v1.ConditionFalse,
+			},
+			{
+				Type:   v1.NodeNetworkUnavailable,
+				Status: v1.ConditionTrue,
+			},
+		}
 	}
 
 	return p.updateNode(no)
