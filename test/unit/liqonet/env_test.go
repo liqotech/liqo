@@ -153,7 +153,6 @@ func getClusterConfig() *configv1alpha1.ClusterConfig {
 				Service:             "_liqo._tcp",
 				UpdateTime:          3,
 				WaitTime:            2,
-				DnsServer:           "8.8.8.8:53",
 			},
 			LiqonetConfig: configv1alpha1.LiqonetConfig{
 				ReservedSubnets: []string{"10.0.0.0/16"},

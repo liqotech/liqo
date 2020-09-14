@@ -5,12 +5,27 @@ import (
 	"github.com/liqotech/liqo/internal/discovery"
 	"github.com/miekg/dns"
 	"k8s.io/klog"
+	"net"
 	"strconv"
 	"time"
 )
 
 func Wan(dnsAddr string, name string, test bool) ([]*discovery.TxtData, error) {
 	txtData := []*discovery.TxtData{}
+
+	if dnsAddr == "" {
+		clientConfig, err := dns.ClientConfigFromFile("/etc/resolv.conf")
+		if err != nil {
+			klog.Error(err)
+			return nil, err
+		}
+		if len(clientConfig.Servers) == 0 {
+			err = errors.New("no DNS server config found")
+			klog.Error(err)
+			return nil, err
+		}
+		dnsAddr = net.JoinHostPort(clientConfig.Servers[0], "53")
+	}
 
 	c := new(dns.Client)
 	c.DialTimeout = 30 * time.Second

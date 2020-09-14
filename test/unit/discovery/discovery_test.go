@@ -7,6 +7,7 @@ import (
 	"github.com/liqotech/liqo/api/discovery/v1alpha1"
 	advtypes "github.com/liqotech/liqo/api/sharing/v1alpha1"
 	"github.com/liqotech/liqo/internal/discovery"
+	foreign_cluster_operator "github.com/liqotech/liqo/internal/discovery/foreign-cluster-operator"
 	"github.com/liqotech/liqo/internal/discovery/kubeconfig"
 	peering_request_operator "github.com/liqotech/liqo/internal/peering-request-operator"
 	"github.com/liqotech/liqo/pkg/crdClient"
@@ -14,6 +15,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/klog"
+	"k8s.io/kubectl/pkg/util/slice"
 	"os"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"strings"
@@ -193,6 +195,8 @@ func testJoin(t *testing.T) {
 	assert.Equal(t, ok, true)
 	assert.Equal(t, fc.Status.Outgoing.Joined, true, "Status OutgoingJoin is not true")
 	assert.Assert(t, fc.Status.Outgoing.RemotePeeringRequestName != "", "Peering Request name can not be empty")
+	assert.Assert(t, len(fc.Finalizers) > 0, "No finalizer has been set")
+	assert.Assert(t, slice.ContainsString(fc.Finalizers, foreign_cluster_operator.FinalizerString, nil))
 
 	tmp, err = clientCluster.client.Resource("peeringrequests").List(metav1.ListOptions{})
 	assert.NilError(t, err)
@@ -274,6 +278,7 @@ func testUnjoin(t *testing.T) {
 	assert.Equal(t, ok, true)
 	assert.Equal(t, fc.Status.Outgoing.Joined, false, "Status OutgoingJoin is true")
 	assert.Assert(t, fc.Status.Outgoing.RemotePeeringRequestName == "", "Peering Request name has to be empty")
+	assert.Assert(t, !slice.ContainsString(fc.Finalizers, foreign_cluster_operator.FinalizerString, nil), "Finalizer is not removed")
 
 	tmp, err = serverCluster.client.Resource("peeringrequests").List(metav1.ListOptions{})
 	assert.NilError(t, err, "Error listing PeeringRequests")
