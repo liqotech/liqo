@@ -101,7 +101,7 @@ func main() {
 		klog.Error(err)
 		os.Exit(1)
 	}
-	go csrApprover.WatchCSR(clientset, "liqo.io/csr=true")
+	go csrApprover.WatchCSR(clientset, "liqo.io/csr=true", 5*time.Second)
 
 	// get the number of already accepted advertisements
 	advClient, err := advtypes.CreateAdvertisementClient(localKubeconfig, nil)

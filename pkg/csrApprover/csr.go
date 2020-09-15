@@ -4,8 +4,11 @@ import (
 	"context"
 	certificatesv1beta1 "k8s.io/api/certificates/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/informers"
 	k8s "k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/tools/cache"
 	"k8s.io/klog"
+	"time"
 )
 
 func approveCSR(clientSet k8s.Interface, csr *certificatesv1beta1.CertificateSigningRequest) error {
@@ -33,26 +36,32 @@ func approveCSR(clientSet k8s.Interface, csr *certificatesv1beta1.CertificateSig
 	return nil
 }
 
-func WatchCSR(clientset k8s.Interface, label string) {
-	watch, err := clientset.CertificatesV1beta1().CertificateSigningRequests().Watch(context.TODO(), metav1.ListOptions{
-		LabelSelector: label,
-	})
-	if err != nil {
-		klog.Error(err)
+func WatchCSR(clientset k8s.Interface, label string, resyncPeriod time.Duration) {
+
+	stop := make(chan struct{})
+	lo := func(options *metav1.ListOptions) {
+		options.LabelSelector = label
 	}
-	go func() {
-		for event := range watch.ResultChan() {
-			csr, ok := event.Object.(*certificatesv1beta1.CertificateSigningRequest)
+	options := []informers.SharedInformerOption{
+		informers.WithTweakListOptions(lo),
+	}
+	informer := informers.NewSharedInformerFactoryWithOptions(clientset, resyncPeriod, options...)
+	csrInformer := informer.Certificates().V1beta1().CertificateSigningRequests().Informer()
+	csrInformer.AddEventHandler(&cache.ResourceEventHandlerFuncs{
+		AddFunc: func(obj interface{}) {
+			csr, ok := obj.(*certificatesv1beta1.CertificateSigningRequest)
 			if !ok {
-				klog.Error("Unable to cast object from watch operation")
+				klog.Error("Unable to cast object")
+				return
 			}
-			// Check if the certificare is already approved
 			err := approveCSR(clientset, csr)
 			if err != nil {
 				klog.Error(err)
+			} else {
+				klog.Infof("CSR %v correctly approved", csr.Name)
 			}
-		}
-		watch.Stop()
-	}()
+		},
+	})
 
+	go informer.Start(stop)
 }
