@@ -71,6 +71,7 @@ liqo1._liqo._tcp.mydomain.com.   SRV     0 0 6443 apiserver1.mydomain.com.
 
 liqo1._liqo._tcp.mydomain.com.   TXT     "id=<YourClusterIDHere>"
                                          "namespace=<YourNamespaceHere>"
+                                         "untrusted-ca=true"
 
 apiserver1.mydomain.com.         A       <YourIPHere>
 ### OR
@@ -81,6 +82,7 @@ liqo2._liqo._tcp.mydomain.com.   SRV     0 0 6443 apiserver2.mydomain.com.
 
 liqo2._liqo._tcp.mydomain.com.   TXT     "id=<YourClusterIDHere>"
                                          "namespace=<YourNamespaceHere>"
+                                         "untrusted-ca=true"
 
 apiserver2.mydomain.com.         A       <YourIPHere>
 ### OR
@@ -94,7 +96,7 @@ where:
     _service._proto.name. TTL class SRV priority weight port target.
    ```
    and, in this case, it means that anybody can peer with the first Liqo cluster by connecting to host `apiserver1.mydomain.com`, using the TCP protocol on port 6443, with priority and weight equal to zero (which are important only in case of multiple redundant servers). More information about SRV records are available on [Wikipedia](https://en.wikipedia.org/wiki/SRV_record).
-* TXT record: this record is opaque to the DNS system and it can contain any information. Liqo uses the TXT record to store the `ClusterID` and `LiqoNamespace` parameters presented above.
+* TXT record: this record is opaque to the DNS system and it can contain any information. Liqo uses the TXT record to store the `ClusterID` and `LiqoNamespace` parameters presented above. Set the `UntrustedCA` flag accordingly to enable/disable [trusted](#trusted-mode) and [untrusted mode](#untrusted-mode).
 
 Given the proper DNS configuration, the discovery process consists in at least four DNS queries:
 
