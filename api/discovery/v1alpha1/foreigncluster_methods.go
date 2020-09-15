@@ -2,6 +2,7 @@ package v1alpha1
 
 import (
 	"context"
+	"crypto/x509"
 	goerrors "errors"
 	advtypes "github.com/liqotech/liqo/api/sharing/v1alpha1"
 	"github.com/liqotech/liqo/pkg/crdClient"
@@ -12,11 +13,12 @@ import (
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
 	"k8s.io/klog"
+	"k8s.io/utils/pointer"
 )
 
 func (fc *ForeignCluster) GetConfig(client kubernetes.Interface) (*rest.Config, error) {
 	var cnf rest.Config
-	if !fc.Spec.AllowUntrustedCA {
+	if fc.Status.TrustMode == TrustModeTrusted {
 		// ForeignCluster uses a trusted CA, it doesn't require to load retrieved CA
 		cnf = rest.Config{
 			Host: fc.Spec.ApiUrl,
@@ -39,6 +41,32 @@ func (fc *ForeignCluster) GetConfig(client kubernetes.Interface) (*rest.Config, 
 	cnf.NegotiatedSerializer = scheme.Codecs.WithoutConversion()
 	cnf.UserAgent = rest.DefaultKubernetesUserAgent()
 	return &cnf, nil
+}
+
+func (fc *ForeignCluster) CheckTrusted() (bool, error) {
+	cnf := &rest.Config{
+		Host: fc.Spec.ApiUrl,
+		TLSClientConfig: rest.TLSClientConfig{
+			Insecure: false,
+		},
+	}
+	client, err := kubernetes.NewForConfig(cnf)
+	if err != nil {
+		return false, err
+	}
+	_, err = client.CoreV1().Nodes().List(context.TODO(), metav1.ListOptions{
+		TimeoutSeconds: pointer.Int64Ptr(1),
+	})
+	var err509 x509.UnknownAuthorityError
+	if errors.IsTimeout(err) {
+		// it can be more appropriate to set a different error
+		return false, nil
+	}
+	if err == nil || !goerrors.As(err, &err509) {
+		// if I can connect without a x509 error it is trusted
+		return true, nil
+	}
+	return false, nil
 }
 
 func (fc *ForeignCluster) getInsecureConfig() *rest.Config {

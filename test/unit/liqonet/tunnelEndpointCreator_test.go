@@ -324,11 +324,10 @@ func TestCreateNetConfigFromForeignClusterOutgoingJoined(t *testing.T) {
 			ClusterIdentity: discoveryv1alpha1.ClusterIdentity{
 				ClusterID: "testing",
 			},
-			Namespace:        "",
-			Join:             false,
-			ApiUrl:           "",
-			DiscoveryType:    "LAN",
-			AllowUntrustedCA: false,
+			Namespace:     "",
+			Join:          false,
+			ApiUrl:        "",
+			DiscoveryType: "LAN",
 		},
 		Status: discoveryv1alpha1.ForeignClusterStatus{
 			Outgoing: discoveryv1alpha1.Outgoing{

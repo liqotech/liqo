@@ -72,7 +72,6 @@ func (discovery *DiscoveryCtrl) handleDispatcherConfig(config configv1alpha1.Dis
 func (discovery *DiscoveryCtrl) handleConfiguration(config configv1alpha1.DiscoveryConfig) {
 	reloadServer := false
 	reloadClient := false
-	reloadCa := false
 	if discovery.Config == nil {
 		// first iteration
 		discovery.Config = &config
@@ -102,7 +101,6 @@ func (discovery *DiscoveryCtrl) handleConfiguration(config configv1alpha1.Discov
 		}
 		if discovery.Config.AllowUntrustedCA != config.AllowUntrustedCA {
 			discovery.Config.AllowUntrustedCA = config.AllowUntrustedCA
-			reloadCa = true
 			reloadServer = true
 		}
 		if discovery.Config.Service != config.Service {
@@ -135,12 +133,6 @@ func (discovery *DiscoveryCtrl) handleConfiguration(config configv1alpha1.Discov
 		}
 		if reloadClient {
 			discovery.reloadClient()
-		}
-		if reloadCa {
-			err := discovery.SetupCaData()
-			if err != nil {
-				klog.Error(err, err.Error())
-			}
 		}
 	}
 }

@@ -10,32 +10,22 @@ import (
 )
 
 type TxtData struct {
-	ID               string
-	Name             string
-	Namespace        string
-	AllowUntrustedCA bool
-	ApiUrl           string
+	ID        string
+	Name      string
+	Namespace string
+	ApiUrl    string
 }
 
 func (txtData TxtData) Encode() ([]string, error) {
 	res := []string{
 		"id=" + txtData.ID,
 		"namespace=" + txtData.Namespace,
-		"untrusted-ca=" + txtData.GetAllowUntrustedCA(),
 		"url=" + txtData.ApiUrl,
 	}
 	if txtData.Name != "" {
 		res = append(res, "name="+txtData.Name)
 	}
 	return res, nil
-}
-
-func (txtData *TxtData) GetAllowUntrustedCA() string {
-	if txtData.AllowUntrustedCA {
-		return "true"
-	} else {
-		return "false"
-	}
 }
 
 func Decode(address string, port string, data []string) (*TxtData, error) {
@@ -47,13 +37,12 @@ func Decode(address string, port string, data []string) (*TxtData, error) {
 			res.Namespace = d[len("namespace="):]
 		} else if strings.HasPrefix(d, "name=") {
 			res.Name = d[len("name="):]
-		} else if strings.HasPrefix(d, "untrusted-ca=") {
-			res.AllowUntrustedCA = d[len("untrusted-ca="):] == "true"
 		} else if strings.HasPrefix(d, "url=") {
 			// used in LAN discovery
 			res.ApiUrl = d[len("url="):]
 		}
 	}
+
 	// used in WAN discovery
 	if address != "" && port != "" {
 		res.ApiUrl = "https://" + address + ":" + port
@@ -71,10 +60,9 @@ func (discovery *DiscoveryCtrl) GetTxtData() (*TxtData, error) {
 		return nil, err
 	}
 	txtData := &TxtData{
-		ID:               discovery.ClusterId.GetClusterID(),
-		Namespace:        discovery.Namespace,
-		AllowUntrustedCA: discovery.Config.AllowUntrustedCA,
-		ApiUrl:           apiUrl,
+		ID:        discovery.ClusterId.GetClusterID(),
+		Namespace: discovery.Namespace,
+		ApiUrl:    apiUrl,
 	}
 	if discovery.Config.ClusterName != "" {
 		txtData.Name = discovery.Config.ClusterName

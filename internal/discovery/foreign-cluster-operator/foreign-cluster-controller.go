@@ -79,6 +79,30 @@ func (r *ForeignClusterReconciler) Reconcile(req ctrl.Request) (ctrl.Result, err
 
 	requireUpdate := false
 
+	// set trust property
+	if fc.Status.TrustMode == discoveryv1alpha1.TrustModeUnknown {
+		trust, err := fc.CheckTrusted()
+		if err != nil {
+			klog.Error(err)
+			return ctrl.Result{
+				Requeue:      true,
+				RequeueAfter: r.RequeueAfter,
+			}, err
+		}
+		if trust {
+			fc.Status.TrustMode = discoveryv1alpha1.TrustModeTrusted
+		} else {
+			fc.Status.TrustMode = discoveryv1alpha1.TrustModeUntrusted
+		}
+		// set join flag
+		// if it was discovery with WAN discovery, this value is overwritten by SearchDomain value
+		if fc.Spec.DiscoveryType != discoveryv1alpha1.WanDiscovery && fc.Spec.DiscoveryType != discoveryv1alpha1.IncomingPeeringDiscovery {
+			fc.Spec.Join = (r.getAutoJoin(fc) && fc.Status.TrustMode == discoveryv1alpha1.TrustModeTrusted) || (r.getAutoJoinUntrusted(fc) && fc.Status.TrustMode == discoveryv1alpha1.TrustModeUntrusted)
+		}
+
+		requireUpdate = true
+	}
+
 	// if it has no discovery type label, add it
 	if fc.ObjectMeta.Labels == nil {
 		fc.ObjectMeta.Labels = map[string]string{}
@@ -205,7 +229,7 @@ func (r *ForeignClusterReconciler) Reconcile(req ctrl.Request) (ctrl.Result, err
 		return ctrl.Result{}, nil
 	}
 
-	if fc.Status.Outgoing.CaDataRef == nil && fc.Spec.AllowUntrustedCA {
+	if fc.Status.Outgoing.CaDataRef == nil && fc.Status.TrustMode == discoveryv1alpha1.TrustModeUntrusted {
 		klog.Info("Get CA Data")
 		err = fc.LoadForeignCA(r.crdClient.Client(), r.Namespace, r.ForeignConfig)
 		if err != nil {
@@ -713,4 +737,20 @@ func (r *ForeignClusterReconciler) deleteAdvertisement(fc *discoveryv1alpha1.For
 
 func (r *ForeignClusterReconciler) deletePeeringRequest(foreignClient *crdClient.CRDClient, fc *discoveryv1alpha1.ForeignCluster) error {
 	return foreignClient.Resource("peeringrequests").Delete(fc.Status.Outgoing.RemotePeeringRequestName, metav1.DeleteOptions{})
+}
+
+func (r *ForeignClusterReconciler) getAutoJoin(fc *discoveryv1alpha1.ForeignCluster) bool {
+	if r.DiscoveryCtrl == nil || r.DiscoveryCtrl.Config == nil {
+		klog.Warning("Discovery Config is not set, using default value")
+		return fc.Spec.Join
+	}
+	return r.DiscoveryCtrl.Config.AutoJoin
+}
+
+func (r *ForeignClusterReconciler) getAutoJoinUntrusted(fc *discoveryv1alpha1.ForeignCluster) bool {
+	if r.DiscoveryCtrl == nil || r.DiscoveryCtrl.Config == nil {
+		klog.Warning("Discovery Config is not set, using default value")
+		return fc.Spec.Join
+	}
+	return r.DiscoveryCtrl.Config.AutoJoinUntrusted
 }
