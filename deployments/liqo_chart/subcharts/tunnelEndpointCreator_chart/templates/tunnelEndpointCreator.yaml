@@ -39,30 +39,9 @@ rules:
     - update
 
   - apiGroups:
-    - sharing.liqo.io
-    resources:
-    - advertisements
-    verbs:
-    - create
-    - delete
-    - get
-    - list
-    - patch
-    - update
-    - watch
-  - apiGroups:
-    - sharing.liqo.io
-    resources:
-    - advertisements/status
-    verbs:
-    - get
-    - patch
-    - update
-
-  - apiGroups:
       - discovery.liqo.io
     resources:
-      - peeringrequests
+      - foreignclusters
     verbs:
       - create
       - delete

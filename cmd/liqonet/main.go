@@ -210,17 +210,15 @@ func main() {
 		//creating dynamicSharedInformerFactory
 		dynFactory := dynamicinformer.NewDynamicSharedInformerFactory(dynClient, liqonetOperators.ResyncPeriod)
 		r := &liqonetOperators.TunnelEndpointCreator{
-			Client:           mgr.GetClient(),
-			Scheme:           mgr.GetScheme(),
-			DynClient:        dynClient,
-			DynFactory:       dynFactory,
-			GatewayIP:        gatewayIP,
-			ReservedSubnets:  make(map[string]*net.IPNet),
-			Configured:       make(chan bool, 1),
-			AdvStartWatcher:  make(chan bool, 1),
-			AdvStopWatcher:   make(chan struct{}),
-			PReqStartWatcher: make(chan bool, 1),
-			PReqStopWatcher:  make(chan struct{}),
+			Client:                     mgr.GetClient(),
+			Scheme:                     mgr.GetScheme(),
+			DynClient:                  dynClient,
+			DynFactory:                 dynFactory,
+			GatewayIP:                  gatewayIP,
+			ReservedSubnets:            make(map[string]*net.IPNet),
+			Configured:                 make(chan bool, 1),
+			ForeignClusterStartWatcher: make(chan bool, 1),
+			ForeignClusterStopWatcher:  make(chan struct{}),
 			IPManager: liqonet.IpManager{
 				UsedSubnets:        make(map[string]*net.IPNet),
 				FreeSubnets:        make(map[string]*net.IPNet),
@@ -231,14 +229,11 @@ func main() {
 			RetryTimeout: 30 * time.Second,
 		}
 		//starting the watchers
-		go r.Watcher(r.DynFactory, liqonetOperators.AdvGVR, cache.ResourceEventHandlerFuncs{
-			AddFunc:    r.AdvertisementHandlerAdd,
-			UpdateFunc: r.AdvertisementHandlerUpdate,
-		}, r.AdvStartWatcher, r.AdvStopWatcher)
-		go r.Watcher(r.DynFactory, liqonetOperators.PeeringReqGVR, cache.ResourceEventHandlerFuncs{
-			AddFunc:    r.PeeringRequestHandlerAdd,
-			UpdateFunc: r.PeeringRequestHandlerUpdate,
-		}, r.PReqStartWatcher, r.PReqStopWatcher)
+		go r.Watcher(r.DynFactory, liqonetOperators.ForeignClusterGVR, cache.ResourceEventHandlerFuncs{
+			AddFunc:    r.ForeignClusterHandlerAdd,
+			UpdateFunc: r.ForeignClusterHandlerUpdate,
+			DeleteFunc: r.ForeignClusterHandlerDelete,
+		}, r.ForeignClusterStartWatcher, r.ForeignClusterStopWatcher)
 		//starting configuration watcher
 		r.WatchConfiguration(config, &clusterConfig.GroupVersion)
 		if err = r.SetupWithManager(mgr); err != nil {

@@ -8,7 +8,6 @@ import (
 	controllers "github.com/liqotech/liqo/internal/liqonet"
 	"github.com/liqotech/liqo/pkg/crdClient"
 	"github.com/liqotech/liqo/pkg/liqonet"
-	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
@@ -125,28 +124,6 @@ func tearDown() {
 	if err != nil {
 		klog.Error(err, err.Error())
 		os.Exit(1)
-	}
-}
-
-func getAdv() *advtypes.Advertisement {
-	return &advtypes.Advertisement{
-		TypeMeta: metav1.TypeMeta{
-			Kind:       "Advertisement",
-			APIVersion: "sharing.liqo.io/v1alpha1",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name: "testadv",
-		},
-		Spec: advtypes.AdvertisementSpec{
-			ClusterId: "cluster1",
-			KubeConfigRef: corev1.SecretReference{
-				Namespace: "fake",
-				Name:      "fake-kubeconfig",
-			},
-			LimitRange: corev1.LimitRangeSpec{Limits: []corev1.LimitRangeItem{}},
-			Timestamp:  metav1.NewTime(time.Now()),
-			TimeToLive: metav1.NewTime(time.Now().Add(30 * time.Minute)),
-		},
 	}
 }
 
