@@ -20,7 +20,6 @@ import (
 	"fmt"
 	"github.com/go-logr/logr"
 	discoveryv1alpha1 "github.com/liqotech/liqo/api/discovery/v1alpha1"
-	advtypes "github.com/liqotech/liqo/api/sharing/v1alpha1"
 	"github.com/liqotech/liqo/internal/crdReplicator"
 	liqonetOperator "github.com/liqotech/liqo/pkg/liqonet"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -36,6 +35,7 @@ import (
 	"net"
 	"os"
 	"os/signal"
+	"strings"
 	"sync"
 	"time"
 
@@ -53,17 +53,12 @@ const (
 )
 
 var (
-	ResyncPeriod  = 30 * time.Second
-	PeeringReqGVR = schema.GroupVersionResource{
+	ResyncPeriod = 30 * time.Second
+
+	ForeignClusterGVR = schema.GroupVersionResource{
 		Group:    discoveryv1alpha1.GroupVersion.Group,
 		Version:  discoveryv1alpha1.GroupVersion.Version,
-		Resource: "peeringrequests",
-	}
-
-	AdvGVR = schema.GroupVersionResource{
-		Group:    advtypes.GroupVersion.Group,
-		Version:  advtypes.GroupVersion.Version,
-		Resource: "advertisements",
+		Resource: "foreignclusters",
 	}
 	result = ctrl.Result{
 		Requeue:      false,
@@ -81,25 +76,23 @@ type networkParam struct {
 
 type TunnelEndpointCreator struct {
 	client.Client
-	Log                logr.Logger
-	Scheme             *runtime.Scheme
-	DynClient          dynamic.Interface
-	DynFactory         dynamicinformer.DynamicSharedInformerFactory
-	GatewayIP          string
-	PodCIDR            string
-	ServiceCIDR        string
-	netParamPerCluster map[string]networkParam
-	ReservedSubnets    map[string]*net.IPNet
-	IPManager          liqonetOperator.IpManager
-	Mutex              sync.Mutex
-	IsConfigured       bool
-	Configured         chan bool
-	AdvStartWatcher    chan bool
-	AdvStopWatcher     chan struct{}
-	PReqStartWatcher   chan bool
-	PReqStopWatcher    chan struct{}
-	RunningWatchers    bool
-	RetryTimeout       time.Duration
+	Log                        logr.Logger
+	Scheme                     *runtime.Scheme
+	DynClient                  dynamic.Interface
+	DynFactory                 dynamicinformer.DynamicSharedInformerFactory
+	GatewayIP                  string
+	PodCIDR                    string
+	ServiceCIDR                string
+	netParamPerCluster         map[string]networkParam
+	ReservedSubnets            map[string]*net.IPNet
+	IPManager                  liqonetOperator.IpManager
+	Mutex                      sync.Mutex
+	IsConfigured               bool
+	Configured                 chan bool
+	ForeignClusterStartWatcher chan bool
+	ForeignClusterStopWatcher  chan struct{}
+	RunningWatchers            bool
+	RetryTimeout               time.Duration
 }
 
 //rbac for the net.liqo.io api
@@ -189,8 +182,7 @@ func (r *TunnelEndpointCreator) SetupSignalHandlerForTunEndCreator() (stopCh <-c
 		sig := <-c
 		klog.Infof("received signal: %s", sig.String())
 		//closing shared informers
-		close(r.PReqStopWatcher)
-		close(r.AdvStopWatcher)
+		close(r.ForeignClusterStopWatcher)
 		close(stop)
 	}(r)
 	return stop
@@ -231,6 +223,33 @@ func (r *TunnelEndpointCreator) createNetConfig(clusterID string) error {
 		klog.Infof("resource %s of type %s created", netConfig.Name, netv1alpha1.GroupVersion.String())
 		return nil
 	}
+}
+
+func (r *TunnelEndpointCreator) deleteNetConfig(clusterID string) error {
+	resName := NetConfigNamePrefix + clusterID
+	netConfig := &netv1alpha1.NetworkConfig{}
+	//first we get the resource
+	err := r.Get(context.Background(), types.NamespacedName{Name: resName}, netConfig)
+	if err != nil {
+		klog.Errorf("an error occurred while getting resource %s of type %s: %s", resName, netv1alpha1.GroupVersion.String(), err)
+		return err
+	}
+	err = r.Delete(context.Background(), netConfig)
+	if err != nil {
+		klog.Errorf("an error occurred while deleting resource %s of type %s: %s", netConfig.Name, netv1alpha1.GroupVersion.String(), err)
+		return err
+	} else {
+		klog.Infof("resource %s of type %s deleted", netConfig.Name, netv1alpha1.GroupVersion.String())
+	}
+	err = r.deleteTunEndpoint(netConfig)
+	if err != nil {
+		klog.Errorf("an error occurred while deleting resource %s of type %s: %s", strings.Join([]string{TunEndpointNamePrefix, netConfig.Spec.ClusterID}, ""), netv1alpha1.GroupVersion.String(), err)
+		return err
+	} else {
+		klog.Infof("resource %s of type %s deleted", strings.Join([]string{TunEndpointNamePrefix, netConfig.Spec.ClusterID}, ""), netv1alpha1.GroupVersion.String())
+		return nil
+	}
+
 }
 
 func (r *TunnelEndpointCreator) processRemoteNetConfig(netConfig *netv1alpha1.NetworkConfig) error {
@@ -467,44 +486,40 @@ func (r *TunnelEndpointCreator) CreateTunnelEndpoint(param networkParam) error {
 	return nil
 }
 
-func (r *TunnelEndpointCreator) AdvertisementHandlerAdd(obj interface{}) {
+func (r *TunnelEndpointCreator) ForeignClusterHandlerAdd(obj interface{}) {
 	objUnstruct, ok := obj.(*unstructured.Unstructured)
 	if !ok {
 		klog.Errorf("an error occurred while converting advertisement obj to unstructured object")
 		return
 	}
-	adv := &advtypes.Advertisement{}
-	err := runtime.DefaultUnstructuredConverter.FromUnstructured(objUnstruct.Object, adv)
+	fc := &discoveryv1alpha1.ForeignCluster{}
+	err := runtime.DefaultUnstructuredConverter.FromUnstructured(objUnstruct.Object, fc)
 	if err != nil {
 		klog.Errorf("an error occurred while converting resource %s of type %s to typed object: %s", objUnstruct.GetName(), objUnstruct.GetKind(), err)
 		return
 	}
-	klog.Infof("processing %s", adv.Name)
-	_ = r.createNetConfig(adv.Spec.ClusterId)
+	if fc.Status.Incoming.Joined || fc.Status.Outgoing.Joined {
+		_ = r.createNetConfig(fc.Spec.ClusterID)
+	}
 }
 
-func (r *TunnelEndpointCreator) AdvertisementHandlerUpdate(oldObj interface{}, newObj interface{}) {
-	r.AdvertisementHandlerAdd(newObj)
+func (r *TunnelEndpointCreator) ForeignClusterHandlerUpdate(oldObj interface{}, newObj interface{}) {
+	r.ForeignClusterHandlerAdd(newObj)
 }
 
-func (r *TunnelEndpointCreator) PeeringRequestHandlerAdd(obj interface{}) {
+func (r *TunnelEndpointCreator) ForeignClusterHandlerDelete(obj interface{}) {
 	objUnstruct, ok := obj.(*unstructured.Unstructured)
 	if !ok {
-		klog.Errorf("an error occurred while converting peeringRequest obj to unstructured object")
+		klog.Errorf("an error occurred while converting advertisement obj to unstructured object")
 		return
 	}
-	peeringReq := &discoveryv1alpha1.PeeringRequest{}
-	err := runtime.DefaultUnstructuredConverter.FromUnstructured(objUnstruct.Object, peeringReq)
+	fc := &discoveryv1alpha1.ForeignCluster{}
+	err := runtime.DefaultUnstructuredConverter.FromUnstructured(objUnstruct.Object, fc)
 	if err != nil {
 		klog.Errorf("an error occurred while converting resource %s of type %s to typed object: %s", objUnstruct.GetName(), objUnstruct.GetKind(), err)
 		return
 	}
-	klog.Infof("processing %s", peeringReq.Name)
-	_ = r.createNetConfig(peeringReq.Spec.ClusterID)
-}
-
-func (r *TunnelEndpointCreator) PeeringRequestHandlerUpdate(oldObj interface{}, newObj interface{}) {
-	r.PeeringRequestHandlerAdd(newObj)
+	_ = r.deleteNetConfig(fc.Spec.ClusterID)
 }
 
 func (r *TunnelEndpointCreator) GetTunnelEndpoint(name string) (*netv1alpha1.TunnelEndpoint, bool, error) {

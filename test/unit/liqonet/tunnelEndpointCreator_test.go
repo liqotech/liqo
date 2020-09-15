@@ -10,7 +10,7 @@ import (
 	"github.com/liqotech/liqo/pkg/liqonet"
 	liqonetOperator "github.com/liqotech/liqo/pkg/liqonet"
 	"github.com/stretchr/testify/assert"
-	corev1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -41,12 +41,10 @@ func getTunnelEndpointCreator() *controller.TunnelEndpointCreator {
 			SubnetPerCluster:   nil,
 			Log:                nil,
 		},
-		Mutex:            sync.Mutex{},
-		IsConfigured:     false,
-		Configured:       nil,
-		PReqStartWatcher: make(chan bool, 1),
-		AdvStartWatcher:  make(chan bool, 1),
-		RetryTimeout:     0,
+		Mutex:        sync.Mutex{},
+		IsConfigured: false,
+		Configured:   nil,
+		RetryTimeout: 0,
 	}
 }
 
@@ -73,17 +71,15 @@ func setupTunnelEndpointCreatorOperator() error {
 	dynClient := dynamic.NewForConfigOrDie(k8sManager.GetConfig())
 	dynFactory := dynamicinformer.NewDynamicSharedInformerFactory(dynClient, controller.ResyncPeriod)
 	tec = &controller.TunnelEndpointCreator{
-		DynClient:        dynClient,
-		DynFactory:       dynFactory,
-		Client:           k8sManager.GetClient(),
-		Log:              ctrl.Log.WithName("controllers").WithName("TunnelEndpointCreator"),
-		Scheme:           k8sManager.GetScheme(),
-		ReservedSubnets:  make(map[string]*net.IPNet),
-		Configured:       make(chan bool, 1),
-		AdvStartWatcher:  make(chan bool, 1),
-		AdvStopWatcher:   make(chan struct{}),
-		PReqStartWatcher: make(chan bool, 1),
-		PReqStopWatcher:  make(chan struct{}),
+		DynClient:                  dynClient,
+		DynFactory:                 dynFactory,
+		Client:                     k8sManager.GetClient(),
+		Log:                        ctrl.Log.WithName("controllers").WithName("TunnelEndpointCreator"),
+		Scheme:                     k8sManager.GetScheme(),
+		ReservedSubnets:            make(map[string]*net.IPNet),
+		Configured:                 make(chan bool, 1),
+		ForeignClusterStartWatcher: make(chan bool, 1),
+		ForeignClusterStopWatcher:  make(chan struct{}),
 		IPManager: liqonet.IpManager{
 			UsedSubnets:        make(map[string]*net.IPNet),
 			FreeSubnets:        make(map[string]*net.IPNet),
@@ -107,16 +103,12 @@ func setupTunnelEndpointCreatorOperator() error {
 		return err
 	}
 	klog.Infof("starting watchers")
-	advHandler := cache.ResourceEventHandlerFuncs{
-		AddFunc:    tec.AdvertisementHandlerAdd,
-		UpdateFunc: tec.AdvertisementHandlerUpdate,
+	foreingClusterHandler := cache.ResourceEventHandlerFuncs{
+		AddFunc:    tec.ForeignClusterHandlerAdd,
+		UpdateFunc: tec.ForeignClusterHandlerUpdate,
+		DeleteFunc: tec.ForeignClusterHandlerDelete,
 	}
-	pReqHandler := cache.ResourceEventHandlerFuncs{
-		AddFunc:    tec.PeeringRequestHandlerAdd,
-		UpdateFunc: tec.PeeringRequestHandlerUpdate,
-	}
-	go tec.Watcher(tec.DynFactory, controller.AdvGVR, advHandler, tec.AdvStartWatcher, tec.AdvStopWatcher)
-	go tec.Watcher(tec.DynFactory, controller.PeeringReqGVR, pReqHandler, tec.PReqStartWatcher, tec.PReqStopWatcher)
+	go tec.Watcher(tec.DynFactory, controller.ForeignClusterGVR, foreingClusterHandler, tec.ForeignClusterStartWatcher, tec.ForeignClusterStopWatcher)
 	return nil
 }
 func setupConfig(reservedSubnets, clusterSubnets []string) (*controller.TunnelEndpointCreator, error) {
@@ -320,76 +312,98 @@ func TestUpdateConfiguration(t *testing.T) {
 	}
 }
 
-//test that the networkConfig is created when a new advertisement is received
-func TestCreateNetConfigFromAdvertisement(t *testing.T) {
-	adv := getAdv()
-	adv.Name = "testingwatcher"
-	//convert adv in unstructured object
-	advObj, err := runtime.DefaultUnstructuredConverter.ToUnstructured(&adv)
-	assert.Nil(t, err, "should be nil")
-	//create advertisement
-	_, err = tec.DynClient.Resource(controller.AdvGVR).Create(context.TODO(), &unstructured.Unstructured{Object: advObj}, metav1.CreateOptions{})
-	assert.Nil(t, err, "should be nil")
-	time.Sleep(2 * time.Second)
-	netConfig := &netv1alpha1.NetworkConfig{}
-	err = tec.Get(context.TODO(), types.NamespacedName{
-		Namespace: adv.Namespace,
-		Name:      controller.NetConfigNamePrefix + adv.Spec.ClusterId,
-	}, netConfig)
-	assert.Nil(t, err, "error should be nil")
-	assert.Equal(t, adv.Spec.ClusterId, netConfig.Spec.ClusterID, "should be equal")
-	assert.Equal(t, tec.PodCIDR, netConfig.Spec.PodCIDR, "should be equal")
-	assert.Equal(t, tec.GatewayIP, netConfig.Spec.TunnelPublicIP, "should be equal")
-	labels := netConfig.GetLabels()
-	assert.Equal(t, "true", labels[crdReplicator.LocalLabelSelector])
-	assert.Equal(t, adv.Spec.ClusterId, labels[crdReplicator.DestinationLabel])
-	err = tec.Delete(context.TODO(), netConfig)
-	assert.Nil(t, err)
-	time.Sleep(2 * time.Second)
-}
-
-//test that the networkConfig is created when a new peeringRequest is received
-func TestCreateNetConfigFromPeeringRequest(t *testing.T) {
-	pReq := discoveryv1alpha1.PeeringRequest{
+//test that the networkConfig is created and deleted based on the join status
+func TestCreateNetConfigFromForeignClusterOutgoingJoined(t *testing.T) {
+	fc := discoveryv1alpha1.ForeignCluster{
 		TypeMeta: metav1.TypeMeta{
-			Kind:       "PeeringRequest",
-			APIVersion: "discovery.liqo.io/v1alpha1",
+			Kind:       "ForeignCluster",
+			APIVersion: discoveryv1alpha1.GroupVersion.String(),
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name: "testingname",
+			Name: "foreigncluster-testing",
 		},
-		Spec: discoveryv1alpha1.PeeringRequestSpec{
-			ClusterID:     "testing",
-			KubeConfigRef: &corev1.ObjectReference{},
-			Namespace:     "liqo",
-			OriginClusterSets: discoveryv1alpha1.OriginClusterSets{
-				AllowUntrustedCA: true,
+		Spec: discoveryv1alpha1.ForeignClusterSpec{
+			ClusterID:        "testing",
+			Namespace:        "",
+			Join:             false,
+			ApiUrl:           "",
+			DiscoveryType:    "LAN",
+			AllowUntrustedCA: false,
+		},
+		Status: discoveryv1alpha1.ForeignClusterStatus{
+			Outgoing: discoveryv1alpha1.Outgoing{
+				Joined: true,
 			},
+			Incoming: discoveryv1alpha1.Incoming{
+				Joined: false,
+			},
+			Ttl: 0,
 		},
-		Status: discoveryv1alpha1.PeeringRequestStatus{},
 	}
-	//convert pReq in unstructured object
-	pReqObj, err := runtime.DefaultUnstructuredConverter.ToUnstructured(&pReq)
-	assert.Nil(t, err, "should be nil")
-	//create advertisement
-	_, err = tec.DynClient.Resource(controller.PeeringReqGVR).Create(context.TODO(), &unstructured.Unstructured{Object: pReqObj}, metav1.CreateOptions{})
-	assert.Nil(t, err, "should be nil")
-	time.Sleep(2 * time.Second)
-	netConfig := &netv1alpha1.NetworkConfig{}
-	err = tec.Get(context.TODO(), types.NamespacedName{
-		Namespace: pReq.Namespace,
-		Name:      controller.NetConfigNamePrefix + pReq.Spec.ClusterID,
-	}, netConfig)
-	assert.Nil(t, err, "error should be nil")
-	assert.Equal(t, pReq.Spec.ClusterID, netConfig.Spec.ClusterID, "should be equal")
-	assert.Equal(t, tec.PodCIDR, netConfig.Spec.PodCIDR, "should be equal")
-	assert.Equal(t, tec.GatewayIP, netConfig.Spec.TunnelPublicIP, "should be equal")
-	labels := netConfig.GetLabels()
-	assert.Equal(t, "true", labels[crdReplicator.LocalLabelSelector])
-	assert.Equal(t, pReq.Spec.ClusterID, labels[crdReplicator.DestinationLabel])
-	err = tec.Delete(context.TODO(), netConfig)
-	assert.Nil(t, err)
-	time.Sleep(2 * time.Second)
+	tests := []struct {
+		outgoingJoined bool
+		incomingJoined bool
+	}{
+		{outgoingJoined: true, incomingJoined: false},  //expect the netconfig to be created and delete after the foreigncluster has been deleted
+		{outgoingJoined: false, incomingJoined: true},  //expect the netconfig to be created and delete after the foreigncluster has been deleted
+		{outgoingJoined: true, incomingJoined: true},   //expect the netconfig to be created and delete after the foreigncluster has been deleted
+		{outgoingJoined: false, incomingJoined: false}, //expect the netconfig not to be created
+	}
+	//only the outgoing join is set to true
+	//we expect the netconfig to be created
+	//convert foreignCluster in unstructured object
+	for _, test := range tests {
+		fc.Status.Outgoing.Joined = test.outgoingJoined
+		fc.Status.Incoming.Joined = test.incomingJoined
+		if test.incomingJoined || test.outgoingJoined {
+			pReqObj, err := runtime.DefaultUnstructuredConverter.ToUnstructured(&fc)
+			assert.Nil(t, err, "should be nil")
+			//create foreign cluster
+			_, err = tec.DynClient.Resource(controller.ForeignClusterGVR).Create(context.TODO(), &unstructured.Unstructured{Object: pReqObj}, metav1.CreateOptions{})
+			assert.Nil(t, err, "should be nil")
+			time.Sleep(2 * time.Second)
+			netConfig := &netv1alpha1.NetworkConfig{}
+			err = tec.Get(context.TODO(), types.NamespacedName{
+				Namespace: fc.Namespace,
+				Name:      controller.NetConfigNamePrefix + fc.Spec.ClusterID,
+			}, netConfig)
+			assert.Nil(t, err, "error should be nil")
+			assert.Equal(t, fc.Spec.ClusterID, netConfig.Spec.ClusterID, "should be equal")
+			assert.Equal(t, tec.PodCIDR, netConfig.Spec.PodCIDR, "should be equal")
+			assert.Equal(t, tec.GatewayIP, netConfig.Spec.TunnelPublicIP, "should be equal")
+			labels := netConfig.GetLabels()
+			assert.Equal(t, "true", labels[crdReplicator.LocalLabelSelector])
+			assert.Equal(t, fc.Spec.ClusterID, labels[crdReplicator.DestinationLabel])
+			err = tec.Delete(context.TODO(), netConfig)
+			assert.Nil(t, err)
+			err = tec.DynClient.Resource(controller.ForeignClusterGVR).Delete(context.TODO(), fc.Name, metav1.DeleteOptions{})
+			assert.Nil(t, err)
+			time.Sleep(2 * time.Second)
+			//check that the netconfig has been deleted
+			err = tec.Get(context.TODO(), types.NamespacedName{
+				Namespace: fc.Namespace,
+				Name:      controller.NetConfigNamePrefix + fc.Spec.ClusterID,
+			}, netConfig)
+			assert.True(t, apierrors.IsNotFound(err))
+		} else {
+			pReqObj, err := runtime.DefaultUnstructuredConverter.ToUnstructured(&fc)
+			assert.Nil(t, err, "should be nil")
+			//create foreign cluster
+			_, err = tec.DynClient.Resource(controller.ForeignClusterGVR).Create(context.TODO(), &unstructured.Unstructured{Object: pReqObj}, metav1.CreateOptions{})
+			assert.Nil(t, err, "should be nil")
+			time.Sleep(2 * time.Second)
+			netConfig := &netv1alpha1.NetworkConfig{}
+			err = tec.Get(context.TODO(), types.NamespacedName{
+				Namespace: fc.Namespace,
+				Name:      controller.NetConfigNamePrefix + fc.Spec.ClusterID,
+			}, netConfig)
+			assert.True(t, apierrors.IsNotFound(err))
+			err = tec.DynClient.Resource(controller.ForeignClusterGVR).Delete(context.TODO(), fc.Name, metav1.DeleteOptions{})
+			assert.Nil(t, err)
+			time.Sleep(2 * time.Second)
+		}
+	}
+
 }
 
 func getNetworkConfig() *netv1alpha1.NetworkConfig {

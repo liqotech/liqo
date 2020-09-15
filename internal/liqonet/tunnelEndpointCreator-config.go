@@ -273,8 +273,7 @@ func (r *TunnelEndpointCreator) WatchConfiguration(config *rest.Config, gv *sche
 		}
 		r.SetNetParameters(configuration)
 		if !r.RunningWatchers {
-			r.AdvStartWatcher <- true
-			r.PReqStartWatcher <- true
+			r.ForeignClusterStartWatcher <- true
 		}
 
 	}, CRDclient, "")
