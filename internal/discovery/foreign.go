@@ -101,7 +101,7 @@ func (discovery *DiscoveryCtrl) UpdateTtl(txts []*TxtData) error {
 		if !found {
 			// if ForeignCluster is not in Txt list, reduce its TTL
 			fc.Status.Ttl -= 1
-			if fc.Status.Ttl <= 0 && !fc.Status.Outgoing.Joined && !fc.Status.Incoming.Joined {
+			if fc.Status.Ttl <= 0 {
 				// delete ForeignCluster
 				err = discovery.crdClient.Resource("foreignclusters").Delete(fc.Name, metav1.DeleteOptions{})
 				if err != nil {
@@ -131,16 +131,10 @@ func (discovery *DiscoveryCtrl) createForeign(txtData *TxtData, sd *v1alpha1.Sea
 				ClusterID:   txtData.ID,
 				ClusterName: txtData.Name,
 			},
-			Namespace:        txtData.Namespace,
-			ApiUrl:           txtData.ApiUrl,
-			DiscoveryType:    discoveryType,
-			AllowUntrustedCA: txtData.AllowUntrustedCA,
+			Namespace:     txtData.Namespace,
+			ApiUrl:        txtData.ApiUrl,
+			DiscoveryType: discoveryType,
 		},
-	}
-	if discovery.Config.AutoJoin && !txtData.AllowUntrustedCA {
-		fc.Spec.Join = true
-	} else if discovery.Config.AutoJoinUntrusted && txtData.AllowUntrustedCA {
-		fc.Spec.Join = true
 	}
 
 	if sd != nil {
@@ -171,10 +165,9 @@ func (discovery *DiscoveryCtrl) createForeign(txtData *TxtData, sd *v1alpha1.Sea
 }
 
 func (discovery *DiscoveryCtrl) CheckUpdate(txtData *TxtData, fc *v1alpha1.ForeignCluster, discoveryType v1alpha1.DiscoveryType) (*v1alpha1.ForeignCluster, error) {
-	if fc.Spec.ApiUrl != txtData.ApiUrl || fc.Spec.Namespace != txtData.Namespace || fc.Spec.AllowUntrustedCA != txtData.AllowUntrustedCA {
+	if fc.Spec.ApiUrl != txtData.ApiUrl || fc.Spec.Namespace != txtData.Namespace {
 		fc.Spec.ApiUrl = txtData.ApiUrl
 		fc.Spec.Namespace = txtData.Namespace
-		fc.Spec.AllowUntrustedCA = txtData.AllowUntrustedCA
 		fc.Spec.DiscoveryType = discoveryType
 		if fc.Status.Outgoing.CaDataRef != nil {
 			err := discovery.crdClient.Client().CoreV1().Secrets(fc.Status.Outgoing.CaDataRef.Namespace).Delete(context.TODO(), fc.Status.Outgoing.CaDataRef.Name, metav1.DeleteOptions{})

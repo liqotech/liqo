@@ -24,11 +24,10 @@ func TestMdns(t *testing.T) {
 // tests if txtData is correctly encoded/decode to/from DNS format
 func testTxtData(t *testing.T) {
 	txtData = discovery.TxtData{
-		ID:               clientCluster.clusterId.GetClusterID(),
-		Name:             "Cluster 1",
-		Namespace:        "default",
-		ApiUrl:           "https://" + serverCluster.cfg.Host,
-		AllowUntrustedCA: true,
+		ID:        clientCluster.clusterId.GetClusterID(),
+		Name:      "Cluster 1",
+		Namespace: "default",
+		ApiUrl:    "https://" + serverCluster.cfg.Host,
 	}
 	txt, err := txtData.Encode()
 	assert.NilError(t, err, "Error encoding txtData to DNS format")
@@ -68,11 +67,10 @@ func testForeignClusterCreation(t *testing.T) {
 
 	txts := []*discovery.TxtData{
 		{
-			ID:               "test",
-			Name:             "Test Cluster 1",
-			Namespace:        "default",
-			ApiUrl:           "http://" + serverCluster.cfg.Host,
-			AllowUntrustedCA: true,
+			ID:        "test",
+			Name:      "Test Cluster 1",
+			Namespace: "default",
+			ApiUrl:    "http://" + serverCluster.cfg.Host,
 		},
 	}
 
@@ -106,11 +104,11 @@ func testTtl(t *testing.T) {
 		},
 		Spec: v1alpha1.ForeignClusterSpec{
 			ClusterIdentity: v1alpha1.ClusterIdentity{
-				ClusterID: "test-cluster-ttl",
+				ClusterID: "fc-test-ttl",
 			},
 			Namespace:     "default",
 			Join:          false,
-			ApiUrl:        serverCluster.cfg.Host,
+			ApiUrl:        "http://" + serverCluster.cfg.Host,
 			DiscoveryType: v1alpha1.LanDiscovery,
 		},
 		Status: v1alpha1.ForeignClusterStatus{
@@ -122,6 +120,7 @@ func testTtl(t *testing.T) {
 	assert.NilError(t, err)
 
 	time.Sleep(1 * time.Second)
+
 	tmp, err := clientCluster.client.Resource("foreignclusters").Get(fc.Name, metav1.GetOptions{})
 	assert.NilError(t, err)
 	fc, ok := tmp.(*v1alpha1.ForeignCluster)
@@ -141,10 +140,9 @@ func testTtl(t *testing.T) {
 
 	txts := []*discovery.TxtData{
 		{
-			ID:               fc.Spec.ClusterIdentity.ClusterID,
-			Namespace:        "default",
-			ApiUrl:           "",
-			AllowUntrustedCA: true,
+			ID:        fc.Spec.ClusterIdentity.ClusterID,
+			Namespace: "default",
+			ApiUrl:    "",
 		},
 	}
 	err = clientCluster.discoveryCtrl.UpdateTtl(txts)
@@ -171,6 +169,8 @@ func testTtl(t *testing.T) {
 		assert.NilError(t, err)
 		time.Sleep(100 * time.Millisecond)
 	}
+
+	time.Sleep(3 * time.Second)
 
 	_, err = clientCluster.client.Resource("foreignclusters").Get(fc.Name, metav1.GetOptions{})
 	assert.Assert(t, errors.IsNotFound(err), "ForeignCluster not deleted on TTL 0")

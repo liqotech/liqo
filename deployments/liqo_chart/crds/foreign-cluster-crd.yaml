@@ -62,13 +62,9 @@ spec:
                 - WAN
                 - Manual
                 - IncomingPeering
-            allowUntrustedCA:
-              type: boolean
-              description: This remote cluster allows untrusted incoming connections. Clients that contact it can not authenticate remote API server
           required:
             - join
             - discoveryType
-            - allowUntrustedCA
             - clusterIdentity
           type: object
         status:
@@ -118,4 +114,11 @@ spec:
             ttl:
               type: integer
               description: If discoveryType is LAN and this counter reach 0 value, this FC will be removed
+            trustMode:
+              type: string
+              description: Indicates if this remote cluster is trusted or not
+              enum:
+                - ""
+                - Trusted
+                - Untrusted
           type: object

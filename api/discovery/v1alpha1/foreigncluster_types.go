@@ -37,17 +37,24 @@ const (
 	IncomingPeeringDiscovery DiscoveryType = "IncomingPeering"
 )
 
+type TrustMode string
+
+const (
+	TrustModeUnknown   TrustMode = ""
+	TrustModeTrusted   TrustMode = "Trusted"
+	TrustModeUntrusted TrustMode = "Untrusted"
+)
+
 // ForeignClusterSpec defines the desired state of ForeignCluster
 type ForeignClusterSpec struct {
 	// INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
 	// Important: Run "make" to regenerate code after modifying this file
 
-	ClusterIdentity  ClusterIdentity `json:"clusterIdentity"`
-	Namespace        string          `json:"namespace"`
-	Join             bool            `json:"join"`
-	ApiUrl           string          `json:"apiUrl"`
-	DiscoveryType    DiscoveryType   `json:"discoveryType"`
-	AllowUntrustedCA bool            `json:"allowUntrustedCA"`
+	ClusterIdentity ClusterIdentity `json:"clusterIdentity"`
+	Namespace       string          `json:"namespace"`
+	Join            bool            `json:"join"`
+	ApiUrl          string          `json:"apiUrl"`
+	DiscoveryType   DiscoveryType   `json:"discoveryType"`
 }
 
 type ClusterIdentity struct {
@@ -63,6 +70,8 @@ type ForeignClusterStatus struct {
 	Outgoing Outgoing `json:"outgoing,omitempty"`
 	Incoming Incoming `json:"incoming,omitempty"`
 	Ttl      int      `json:"ttl,omitempty"`
+	// +kubebuilder:validation:Enum="";"Trusted";"Untrusted"
+	TrustMode TrustMode `json:"trustMode"`
 }
 
 type Outgoing struct {

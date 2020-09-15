@@ -4,7 +4,6 @@ import (
 	"context"
 	goerrors "errors"
 	apiv1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/klog"
@@ -18,18 +17,6 @@ func (discovery *DiscoveryCtrl) SetupCaData() error {
 		return err
 	}
 
-	if !discovery.Config.AllowUntrustedCA {
-		// let foreign clusters that want to peer with us to install our root CA
-		// we don't provide it to them, so they will be able to authenticate our cluster
-
-		// delete readable CA secret, if present
-		err := discovery.crdClient.Client().CoreV1().Secrets(discovery.Namespace).Delete(context.TODO(), "ca-data", metav1.DeleteOptions{})
-		if err != nil && !errors.IsNotFound(err) {
-			klog.Warning(err, err.Error())
-			return err
-		}
-		return nil
-	}
 	// provide local CA
 	_, err = discovery.crdClient.Client().CoreV1().Secrets(discovery.Namespace).Get(context.TODO(), "ca-data", metav1.GetOptions{})
 	if err == nil {

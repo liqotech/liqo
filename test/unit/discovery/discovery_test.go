@@ -327,7 +327,9 @@ func testBidirectionalJoin(t *testing.T) {
 	// wait reconciliation
 	time.Sleep(1 * time.Second)
 
-	tmp, err := serverCluster.client.Resource("foreignclusters").List(metav1.ListOptions{})
+	tmp, err := serverCluster.client.Resource("foreignclusters").List(metav1.ListOptions{
+		LabelSelector: "discovery-type=" + string(v1alpha1.IncomingPeeringDiscovery),
+	})
 	assert.NilError(t, err)
 	remoteFcList, ok := tmp.(*v1alpha1.ForeignClusterList)
 	assert.Assert(t, ok)
@@ -369,10 +371,9 @@ func testMergeClusters(t *testing.T) {
 	assert.Equal(t, ok, true)
 
 	txt := &discovery.TxtData{
-		ID:               fc.Spec.ClusterIdentity.ClusterID,
-		Namespace:        fc.Spec.Namespace,
-		ApiUrl:           strings.Replace(fc.Spec.ApiUrl, "127.0.0.1", "127.0.0.2", -1),
-		AllowUntrustedCA: true,
+		ID:        fc.Spec.ClusterIdentity.ClusterID,
+		Namespace: fc.Spec.Namespace,
+		ApiUrl:    strings.Replace(fc.Spec.ApiUrl, "127.0.0.1", "127.0.0.2", -1),
 	}
 	fc, err = clientCluster.discoveryCtrl.CheckUpdate(txt, fc, fc.Spec.DiscoveryType)
 	assert.NilError(t, err)

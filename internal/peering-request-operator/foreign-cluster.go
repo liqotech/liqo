@@ -76,12 +76,11 @@ func (r *PeeringRequestReconciler) createForeignCluster(pr *v1alpha1.PeeringRequ
 			Name: pr.Spec.ClusterIdentity.ClusterID,
 		},
 		Spec: v1alpha1.ForeignClusterSpec{
-			ClusterIdentity:  pr.Spec.ClusterIdentity,
-			Namespace:        pr.Spec.Namespace,
-			Join:             false,
-			ApiUrl:           cnf.Host,
-			DiscoveryType:    v1alpha1.IncomingPeeringDiscovery,
-			AllowUntrustedCA: pr.Spec.OriginClusterSets.AllowUntrustedCA,
+			ClusterIdentity: pr.Spec.ClusterIdentity,
+			Namespace:       pr.Spec.Namespace,
+			Join:            false,
+			ApiUrl:          cnf.Host,
+			DiscoveryType:   v1alpha1.IncomingPeeringDiscovery,
 		},
 		Status: v1alpha1.ForeignClusterStatus{
 			Incoming: v1alpha1.Incoming{
