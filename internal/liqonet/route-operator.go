@@ -23,7 +23,6 @@ import (
 	liqonetOperator "github.com/liqotech/liqo/pkg/liqonet"
 	"github.com/vishvananda/netlink"
 	k8sApiErrors "k8s.io/apimachinery/pkg/api/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/kubernetes"
 	"net"
@@ -142,33 +141,18 @@ func (r *RouteController) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 		}
 		return ctrl.Result{RequeueAfter: r.RetryTimeout}, nil
 	}
-	if !r.alreadyProcessedByRouteOperator(endpoint.GetObjectMeta()) {
-		if err := r.createAndInsertIPTablesChains(); err != nil {
-			r.Log.Error(err, "unable to create iptables chains")
-			return ctrl.Result{RequeueAfter: r.RetryTimeout}, err
-		}
-		if err := r.addIPTablesRulespecForRemoteCluster(&endpoint); err != nil {
-			log.Error(err, "unable to insert ruleSpec")
-			return ctrl.Result{RequeueAfter: r.RetryTimeout}, err
-		}
-		if err := r.InsertRoutesPerCluster(&endpoint); err != nil {
-			log.Error(err, "unable to insert routes")
-			return ctrl.Result{RequeueAfter: r.RetryTimeout}, err
-		}
-		endpoint.ObjectMeta.SetLabels(liqonetOperator.SetLabelHandler(liqonetOperator.RouteOpLabelKey+"-"+r.NodeName, "ready", endpoint.ObjectMeta.GetLabels()))
-		err := r.Client.Update(ctx, &endpoint)
-		for k8sApiErrors.IsConflict(err) {
-			log.Info("a resource version conflict arose while updating", "resource", req.NamespacedName)
-			if err := r.Get(ctx, req.NamespacedName, &endpoint); err != nil {
-				r.Log.Error(err, "unable to fetch endpoint")
-				return ctrl.Result{RequeueAfter: r.RetryTimeout}, client.IgnoreNotFound(err)
-			}
-			endpoint.ObjectMeta.SetLabels(liqonetOperator.SetLabelHandler(liqonetOperator.RouteOpLabelKey+"-"+r.NodeName, "ready", endpoint.ObjectMeta.GetLabels()))
-			err = r.Client.Update(ctx, &endpoint)
-		}
-		if err != nil {
-			return ctrl.Result{RequeueAfter: r.RetryTimeout}, err
-		}
+
+	if err := r.createAndInsertIPTablesChains(); err != nil {
+		r.Log.Error(err, "unable to create iptables chains")
+		return ctrl.Result{RequeueAfter: r.RetryTimeout}, err
+	}
+	if err := r.addIPTablesRulespecForRemoteCluster(&endpoint); err != nil {
+		log.Error(err, "unable to insert ruleSpec")
+		return ctrl.Result{RequeueAfter: r.RetryTimeout}, err
+	}
+	if err := r.InsertRoutesPerCluster(&endpoint); err != nil {
+		log.Error(err, "unable to insert routes")
+		return ctrl.Result{RequeueAfter: r.RetryTimeout}, err
 	}
 	return ctrl.Result{RequeueAfter: r.RetryTimeout}, nil
 }
@@ -578,45 +562,13 @@ func (r *RouteController) SetupSignalHandlerForRouteOperator() (stopCh <-chan st
 
 func (r *RouteController) SetupWithManager(mgr ctrl.Manager) error {
 	resourceToBeProccesedPredicate := predicate.Funcs{
-		CreateFunc: func(e event.CreateEvent) bool {
-			return r.ToBeProcessedByRouteOperator(e.Meta)
-		},
 		DeleteFunc: func(e event.DeleteEvent) bool {
 			//finalizers are used to check if a resource is being deleted, and perform there the needed actions
 			//we don't want to reconcile on the delete of a resource.
 			return false
 		},
-		UpdateFunc: func(e event.UpdateEvent) bool {
-			return r.ToBeProcessedByRouteOperator(e.MetaNew)
-		},
 	}
 	return ctrl.NewControllerManagedBy(mgr).WithEventFilter(resourceToBeProccesedPredicate).
 		For(&netv1alpha1.TunnelEndpoint{}).
 		Complete(r)
-}
-
-func (r *RouteController) ToBeProcessedByRouteOperator(meta metav1.Object) bool {
-	labels := meta.GetLabels()
-	if labels == nil {
-		return false
-	}
-	_, processedByTunOP := labels[liqonetOperator.TunOpLabelKey]
-	if processedByTunOP {
-		return true
-	} else {
-		return false
-	}
-}
-
-func (r *RouteController) alreadyProcessedByRouteOperator(meta metav1.Object) bool {
-	labels := meta.GetLabels()
-	if labels == nil {
-		return true
-	}
-	_, processedByRouOp := labels[liqonetOperator.RouteOpLabelKey+"-"+r.NodeName]
-	if processedByRouOp {
-		return true
-	} else {
-		return false
-	}
 }
