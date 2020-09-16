@@ -1,4 +1,4 @@
-package pkg
+package virtualKubelet
 
 const (
 	VirtualNodePrefix       = "liqo-"

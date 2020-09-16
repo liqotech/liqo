@@ -3,9 +3,9 @@ package advertisementOperator
 import (
 	configv1alpha1 "github.com/liqotech/liqo/api/config/v1alpha1"
 	advtypes "github.com/liqotech/liqo/api/sharing/v1alpha1"
-	"github.com/liqotech/liqo/pkg"
 	"github.com/liqotech/liqo/pkg/clusterConfig"
 	"github.com/liqotech/liqo/pkg/crdClient"
+	pkg "github.com/liqotech/liqo/pkg/virtualKubelet"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/klog"

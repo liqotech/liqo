@@ -17,7 +17,7 @@ type fakeInformer struct {
 	cache.FakeCustomStore
 	funcs cache.ResourceEventHandlerFuncs
 
-	// Keyer is a function that allows to create a key given a generic runtime.Object
+	// KeyerFromObj is a function that allows to create a key given a generic runtime.Object
 	// The API should implement the keyer interface
 	keyer KeyerFunc
 

@@ -30,7 +30,7 @@ const (
 // syncProviderWrapper wraps a PodLifecycleHandler to give it async-like pod status notification behavior.
 type syncProviderWrapper struct {
 	PodLifecycleHandler
-	notify func(*corev1.Pod)
+	notify func(interface{})
 	l      corev1listers.PodLister
 
 	// deletedPods makes sure we don't set the "NotFound" status
@@ -44,7 +44,7 @@ type syncWrapper interface {
 	_deletePodKey(context.Context, string)
 }
 
-func (p *syncProviderWrapper) NotifyPods(ctx context.Context, f func(*corev1.Pod)) {
+func (p *syncProviderWrapper) NotifyPods(ctx context.Context, f func(interface{})) {
 	p.notify = f
 }
 

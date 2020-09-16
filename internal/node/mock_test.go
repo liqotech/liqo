@@ -75,7 +75,7 @@ type mockProvider struct {
 
 	pods         sync.Map
 	startTime    time.Time
-	realNotifier func(*v1.Pod)
+	realNotifier func(interface{})
 }
 
 // newMockProvider creates a new mockProvider.
@@ -305,7 +305,7 @@ type mockProviderAsync struct {
 
 // NotifyPods is called to set a pod notifier callback function. This should be called before any operations are done
 // within the provider.
-func (p *mockProviderAsync) NotifyPods(ctx context.Context, notifier func(*v1.Pod)) {
+func (p *mockProviderAsync) NotifyPods(ctx context.Context, notifier func(interface{})) {
 	p.realNotifier = notifier
 }
 

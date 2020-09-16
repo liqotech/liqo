@@ -8,6 +8,7 @@ import (
 	"github.com/liqotech/liqo/internal/kubernetes/test"
 	"github.com/liqotech/liqo/internal/node"
 	"github.com/liqotech/liqo/pkg/crdClient"
+	"github.com/liqotech/liqo/pkg/virtualKubelet/apiReflection/apiReflection"
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -34,14 +35,14 @@ func TestNodeUpdater(t *testing.T) {
 
 	// instantiate a fake provider
 	p := KubernetesProvider{
-		Reflector:        &Reflector{started: false},
-		advClient:        advClient,
-		homeClient:       advClient,
-		tunEndClient:     tepClient,
-		nodeName:         test.NodeName,
-		startTime:        time.Time{},
-		foreignClusterId: test.ForeignClusterId,
-		homeClusterID:    test.HomeClusterId,
+		ReflectionManager: &apiReflection.ReflectionManager{started: false},
+		advClient:         advClient,
+		homeClient:        advClient,
+		tunEndClient:      tepClient,
+		nodeName:          test.NodeName,
+		startTime:         time.Time{},
+		foreignClusterId:  test.ForeignClusterId,
+		homeClusterID:     test.HomeClusterId,
 	}
 
 	var nodeRunner *node.NodeController

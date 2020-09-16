@@ -7,6 +7,7 @@ import (
 	v1 "github.com/liqotech/liqo/api/virtualKubelet/v1alpha1"
 	"github.com/liqotech/liqo/internal/kubernetes/test"
 	"github.com/liqotech/liqo/pkg/crdClient"
+	"github.com/liqotech/liqo/pkg/virtualKubelet/apiReflection/apiReflection"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/klog"
@@ -32,16 +33,16 @@ func TestHandleServiceEvents(t *testing.T) {
 
 	// instantiate a fake provider
 	p := &KubernetesProvider{
-		Reflector:        &Reflector{started: false},
-		ntCache:          &namespaceNTCache{nattingTableName: test.ForeignClusterId},
-		foreignPodCaches: make(map[string]*podCache),
-		homeEpCaches:     make(map[string]*epCache),
-		foreignEpCaches:  make(map[string]*epCache),
-		foreignClient:    foreignClient,
-		homeClient:       homeClient,
-		startTime:        time.Time{},
-		foreignClusterId: test.ForeignClusterId,
-		homeClusterID:    test.HomeClusterId,
+		ReflectionManager: &apiReflection.ReflectionManager{started: false},
+		ntCache:           &namespaceNatting.namespaceNTCache{nattingTableName: test.ForeignClusterId},
+		foreignPodCaches:  make(map[string]*podCache),
+		homeEpCaches:      make(map[string]*epCache),
+		foreignEpCaches:   make(map[string]*epCache),
+		foreignClient:     foreignClient,
+		homeClient:        homeClient,
+		startTime:         time.Time{},
+		foreignClusterId:  test.ForeignClusterId,
+		homeClusterID:     test.HomeClusterId,
 	}
 
 	// start the fake cache for the namespaceNattingTable

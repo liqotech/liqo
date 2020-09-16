@@ -16,7 +16,7 @@ package root
 
 import (
 	"context"
-	"github.com/liqotech/liqo/pkg"
+	"github.com/liqotech/liqo/pkg/virtualKubelet"
 	"k8s.io/klog"
 	"os"
 	"path"
@@ -153,7 +153,7 @@ func runRootCommand(ctx context.Context, s *provider.Store, c Opts) error {
 		leaseClient = client.CoordinationV1beta1().Leases(corev1.NamespaceNodeLease)
 	}
 
-	deployName := strings.Join([]string{pkg.VirtualKubeletPrefix, c.ClusterId}, "")
+	deployName := strings.Join([]string{virtualKubelet.VirtualKubeletPrefix, c.ClusterId}, "")
 	refs := createOwnerReference(client, deployName, c.KubeletNamespace)
 
 	var nodeRunner *node.NodeController
@@ -259,10 +259,6 @@ func runRootCommand(ctx context.Context, s *provider.Store, c Opts) error {
 			panic(nil)
 		}
 	}()
-
-	if err := p.ConfigureReflection(); err != nil {
-		return err
-	}
 
 	nodeRunner.Ready()
 

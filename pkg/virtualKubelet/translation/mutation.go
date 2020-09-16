@@ -1,10 +1,11 @@
-package kubernetes
+package translation
 
 import (
 	"fmt"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/klog"
 	"strconv"
 	"strings"
 	"time"
@@ -28,6 +29,9 @@ func F2HTranslate(podForeignIn *v1.Pod, newCidr, namespace string) (podHomeOut *
 		podHomeOut.Status.PodIP = newIp
 		podHomeOut.Status.PodIPs[0].IP = newIp
 	}
+
+	klog.Info(podForeignIn.Status.Phase)
+
 	podHomeOut.SetCreationTimestamp(metav1.NewTime(t))
 	podHomeOut.Spec.NodeName = podForeignIn.Annotations["home_nodename"]
 	delete(podHomeOut.Annotations, "home_creationTimestamp")

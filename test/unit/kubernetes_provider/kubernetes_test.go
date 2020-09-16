@@ -1,7 +1,7 @@
 package kubernetes_provider
 
 import (
-	provider "github.com/liqotech/liqo/internal/kubernetes"
+	"github.com/liqotech/liqo/pkg/virtualKubelet/translation"
 	"github.com/stretchr/testify/assert"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -100,8 +100,8 @@ func createFakeContainers(volumeMounts []v1.VolumeMount) []v1.Container {
 func TestH2FCreation(t *testing.T) {
 
 	volumes, volumeMounts := createFakeVolumesAndVolumeMounts()
-	filteredVolumes := provider.FilterVolumes(volumes)
-	filteredVolumeMounts := provider.FilterVolumeMounts(filteredVolumes, volumeMounts)
+	filteredVolumes := translation.FilterVolumes(volumes)
+	filteredVolumeMounts := translation.FilterVolumeMounts(filteredVolumes, volumeMounts)
 	containers := createFakeContainers(filteredVolumeMounts)
 
 	pHome := &v1.Pod{
@@ -116,7 +116,7 @@ func TestH2FCreation(t *testing.T) {
 		},
 		Status: v1.PodStatus{},
 	}
-	pForeign := provider.H2FTranslate(pHome, "")
+	pForeign := translation.H2FTranslate(pHome, "")
 
 	assert.Empty(t, pForeign.UID, "The UID of translated pod should be null")
 	assert.Empty(t, pForeign.Spec.NodeName, "The NodeName should not be set")
@@ -160,7 +160,7 @@ func TestF2HCreation(t *testing.T) {
 	newForeignPodCidr := "172.42.0.0/16"
 	expectedPodIP := "172.42.1.2"
 
-	pHome := provider.F2HTranslate(pForeign, newForeignPodCidr, "")
+	pHome := translation.F2HTranslate(pForeign, newForeignPodCidr, "")
 	assert.Equal(t, pHome.UID, types.UID(pForeign.GetAnnotations()["home_uuid"]))
 	assert.Equal(t, pHome.Status.PodIP, expectedPodIP)
 }
@@ -197,14 +197,14 @@ func TestFilterVolumes(t *testing.T) {
 			},
 		},
 	}
-	result := provider.FilterVolumes(volumes)
+	result := translation.FilterVolumes(volumes)
 
 	assert.ElementsMatch(t, expectedResult, result)
 }
 
 func TestFilterVolumeMounts(t *testing.T) {
 	volumes, volumeMounts := createFakeVolumesAndVolumeMounts()
-	filteredVolumes := provider.FilterVolumes(volumes)
+	filteredVolumes := translation.FilterVolumes(volumes)
 	expectedResult := []v1.VolumeMount{
 		{
 			Name: "secret-test",
@@ -219,7 +219,7 @@ func TestFilterVolumeMounts(t *testing.T) {
 			Name: "downwardAPI-test",
 		},
 	}
-	result := provider.FilterVolumeMounts(filteredVolumes, volumeMounts)
+	result := translation.FilterVolumeMounts(filteredVolumes, volumeMounts)
 
 	assert.ElementsMatch(t, expectedResult, result)
 }

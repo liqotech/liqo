@@ -6,40 +6,41 @@ import (
 	nattingv1 "github.com/liqotech/liqo/api/virtualKubelet/v1alpha1"
 	"github.com/liqotech/liqo/internal/node"
 	"github.com/liqotech/liqo/pkg/crdClient"
+	"github.com/liqotech/liqo/pkg/virtualKubelet/apiReflection/controller"
+	"github.com/liqotech/liqo/pkg/virtualKubelet/namespacesMapping"
+	"github.com/liqotech/liqo/pkg/virtualKubelet/options"
+	optTypes "github.com/liqotech/liqo/pkg/virtualKubelet/options/types"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
+	"k8s.io/klog"
 	"time"
-
-	v1 "k8s.io/api/core/v1"
 )
 
 // KubernetesProvider implements the virtual-kubelet provider interface and stores pods in memory.
 type KubernetesProvider struct { // nolint:golint]
-	*Reflector
+	namespaceMapper *namespacesMapping.NamespaceMapperController
+	apiController   *controller.Controller
 
-	ntCache            *namespaceNTCache
-	foreignPodCaches   map[string]*podCache
-	homeEpCaches       map[string]*epCache
-	foreignEpCaches    map[string]*epCache
-	advClient          *crdClient.CRDClient
-	tunEndClient       *crdClient.CRDClient
-	foreignClient      *crdClient.CRDClient
-	homeClient         *crdClient.CRDClient
-	nodeName           string
+	advClient     *crdClient.CRDClient
+	tunEndClient  *crdClient.CRDClient
+	foreignClient *crdClient.CRDClient
+	homeClient    *crdClient.CRDClient
+
 	operatingSystem    string
 	internalIP         string
 	daemonEndpointPort int32
 	startTime          time.Time
-	notifier           func(*v1.Pod)
+	notifier           func(interface{})
 	foreignClusterId   string
 	homeClusterID      string
 	nodeController     *node.NodeController
 	providerKubeconfig string
 	restConfig         *rest.Config
 
-	RemoteRemappedPodCidr string
-	LocalRemappedPodCidr  string
+	nodeName              options.Option
+	RemoteRemappedPodCidr options.Option
+	LocalRemappedPodCidr  options.Option
 
 	foreignPodWatcherStop chan struct{}
 	nodeUpdateStop        chan struct{}
@@ -47,7 +48,7 @@ type KubernetesProvider struct { // nolint:golint]
 }
 
 // NewKubernetesProviderKubernetesConfig creates a new KubernetesV0Provider. Kubernetes legacy provider does not implement the new asynchronous podnotifier interface
-func NewKubernetesProvider(nodeName, clusterId, homeClusterId, operatingSystem string, internalIP string, daemonEndpointPort int32, kubeconfig, remoteKubeConfig string) (*KubernetesProvider, error) {
+func NewKubernetesProvider(nodeName, foreignClusterId, homeClusterId, operatingSystem string, internalIP string, daemonEndpointPort int32, kubeconfig, remoteKubeConfig string) (*KubernetesProvider, error) {
 	var err error
 
 	if err = nattingv1.AddToScheme(clientgoscheme.Scheme); err != nil {
@@ -79,18 +80,30 @@ func NewKubernetesProvider(nodeName, clusterId, homeClusterId, operatingSystem s
 		return nil, err
 	}
 
+	mapper, err := namespacesMapping.NewNamespaceMapperController(client, foreignClient.Client(), homeClusterId, foreignClusterId)
+	if err != nil {
+		klog.Fatal(err)
+	}
+	mapper.WaitForSync()
+
+	remoteRemappedPodCIDROpt := optTypes.NewNetworkingOption(optTypes.RemoteRemappedPodCIDR, "")
+	localRemappedPodCIDROpt := optTypes.NewNetworkingOption(optTypes.LocalRemappedPodCIDR, "")
+	nodeNameOpt := optTypes.NewNetworkingOption(optTypes.NodeName, optTypes.NetworkingValue(nodeName))
+
+	opts := forgeOptionsMap(
+		remoteRemappedPodCIDROpt,
+		localRemappedPodCIDROpt,
+		nodeNameOpt)
+
 	provider := KubernetesProvider{
-		Reflector:             &Reflector{},
-		ntCache:               &namespaceNTCache{nattingTableName: clusterId},
-		foreignPodCaches:      make(map[string]*podCache),
-		homeEpCaches:          make(map[string]*epCache),
-		foreignEpCaches:       make(map[string]*epCache),
-		nodeName:              nodeName,
+		apiController:         controller.NewApiController(client.Client(), foreignClient.Client(), mapper, opts),
+		namespaceMapper:       mapper,
+		nodeName:              nodeNameOpt,
 		operatingSystem:       operatingSystem,
 		internalIP:            internalIP,
 		daemonEndpointPort:    daemonEndpointPort,
 		startTime:             time.Now(),
-		foreignClusterId:      clusterId,
+		foreignClusterId:      foreignClusterId,
 		homeClusterID:         homeClusterId,
 		providerKubeconfig:    remoteKubeConfig,
 		homeClient:            client,
@@ -99,21 +112,20 @@ func NewKubernetesProvider(nodeName, clusterId, homeClusterId, operatingSystem s
 		foreignClient:         foreignClient,
 		advClient:             advClient,
 		tunEndClient:          tepClient,
+
+		RemoteRemappedPodCidr: remoteRemappedPodCIDROpt,
+		LocalRemappedPodCidr:  localRemappedPodCIDROpt,
 	}
 
 	return &provider, nil
 }
 
-func (p *KubernetesProvider) ConfigureReflection() error {
-	if err := p.startNattingCache(p.homeClient); err != nil {
-		return err
+func forgeOptionsMap(opts ...options.Option) map[options.OptionKey]options.Option {
+	outOpts := make(map[options.OptionKey]options.Option)
+
+	for _, o := range opts {
+		outOpts[o.Key()] = o
 	}
 
-	if err := p.createNattingTable(p.foreignClusterId); err != nil {
-		return err
-	}
-
-	p.ntCache.WaitNamespaceNattingTableSync()
-
-	return nil
+	return outOpts
 }

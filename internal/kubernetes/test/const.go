@@ -2,7 +2,7 @@ package test
 
 import (
 	controllers "github.com/liqotech/liqo/internal/liqonet"
-	"github.com/liqotech/liqo/pkg"
+	pkg "github.com/liqotech/liqo/pkg/virtualKubelet"
 	"time"
 )
 

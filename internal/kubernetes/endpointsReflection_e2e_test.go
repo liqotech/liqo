@@ -6,6 +6,8 @@ import (
 	"github.com/liqotech/liqo/api/virtualKubelet/v1alpha1"
 	"github.com/liqotech/liqo/internal/kubernetes/test"
 	"github.com/liqotech/liqo/pkg/crdClient"
+	"github.com/liqotech/liqo/pkg/virtualKubelet/apiReflection/apiReflection"
+	"github.com/liqotech/liqo/pkg/virtualKubelet/translation"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/watch"
@@ -31,8 +33,8 @@ func TestHandleEpEventsNatting(t *testing.T) {
 
 	// instantiate a fake provider
 	p := KubernetesProvider{
-		Reflector:            &Reflector{started: false},
-		ntCache:              &namespaceNTCache{nattingTableName: test.ForeignClusterId},
+		ReflectionManager:    &apiReflection.ReflectionManager{started: false},
+		ntCache:              &namespaceNatting.namespaceNTCache{nattingTableName: test.ForeignClusterId},
 		foreignPodCaches:     make(map[string]*podCache),
 		homeEpCaches:         make(map[string]*epCache),
 		foreignEpCaches:      make(map[string]*epCache),
@@ -65,16 +67,16 @@ func TestHandleEpEventsNoNatting(t *testing.T) {
 
 	// instantiate a fake provider
 	p := KubernetesProvider{
-		Reflector:        &Reflector{started: false},
-		ntCache:          &namespaceNTCache{nattingTableName: test.ForeignClusterId},
-		foreignPodCaches: make(map[string]*podCache),
-		homeEpCaches:     make(map[string]*epCache),
-		foreignEpCaches:  make(map[string]*epCache),
-		foreignClient:    fc,
-		homeClient:       hc,
-		startTime:        time.Time{},
-		homeClusterID:    test.HomeClusterId,
-		foreignClusterId: test.ForeignClusterId,
+		ReflectionManager: &apiReflection.ReflectionManager{started: false},
+		ntCache:           &namespaceNatting.namespaceNTCache{nattingTableName: test.ForeignClusterId},
+		foreignPodCaches:  make(map[string]*podCache),
+		homeEpCaches:      make(map[string]*epCache),
+		foreignEpCaches:   make(map[string]*epCache),
+		foreignClient:     fc,
+		homeClient:        hc,
+		startTime:         time.Time{},
+		homeClusterID:     test.HomeClusterId,
+		foreignClusterId:  test.ForeignClusterId,
 	}
 
 	HandleEpEvents(t, p)
@@ -225,7 +227,7 @@ func assertEndpointsCoherency(podCIDR string, received, expected []corev1.Endpoi
 			return false
 		}
 		for j := 0; j < len(received[i].Addresses); j++ {
-			addr := ChangePodIp(podCIDR, expected[i].Addresses[j].IP)
+			addr := translation.ChangePodIp(podCIDR, expected[i].Addresses[j].IP)
 			if received[i].Addresses[j].IP != addr {
 				return false
 			}

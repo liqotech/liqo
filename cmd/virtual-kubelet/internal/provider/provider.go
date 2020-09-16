@@ -29,8 +29,6 @@ type Provider interface {
 	// will be used for Kubernetes.
 	ConfigureNode(context.Context, *v1.Node)
 
-	ConfigureReflection() error
-
 	StartNodeUpdater(nodeRunner *node.NodeController) (chan struct{}, chan struct{}, error)
 }
 
