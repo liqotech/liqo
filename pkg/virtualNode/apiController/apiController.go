@@ -1,4 +1,4 @@
-package kubernetes
+package apiController
 
 import (
 	"k8s.io/client-go/tools/cache"
@@ -8,10 +8,10 @@ import (
 type preProcessingUpdateHandler func(newObj, oldObj interface{}) bool
 
 type APIController struct {
-	preProcessing preProcessingUpdateHandler
-	informer map[string]cache.SharedIndexInformer
-	waitGroup *sync.WaitGroup
-	output chan interface{}
+	PreProcessing preProcessingUpdateHandler
+	Informer      map[string]cache.SharedIndexInformer
+	waitGroup     *sync.WaitGroup
+	Output        chan interface{}
 }
 
 func (c *APIController) Wait() {
