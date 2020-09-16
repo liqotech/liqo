@@ -54,27 +54,6 @@ func (p *KubernetesProvider) CreatePod(ctx context.Context, pod *v1.Pod) error {
 
 // UpdatePod accepts a Pod definition and updates its reference.
 func (p *KubernetesProvider) UpdatePod(ctx context.Context, pod *v1.Pod) error {
-	if pod == nil {
-		return errors.New("pod cannot be nil")
-	}
-	// Add the pod's coordinates to the current span.
-	nattedNS, err := p.namespaceMapper.NatNamespace(pod.Namespace, false)
-	if err != nil {
-		return err
-	}
-
-	podTranslated := translation.H2FTranslate(pod, nattedNS)
-	foreignPod := p.apiController.GetMirroredObjectByKey(apimgmgt.Pods, nattedNS, podTranslated.Name).(*v1.Pod)
-
-	podTranslated.Spec = foreignPod.Spec
-
-	_, err = p.foreignClient.Client().CoreV1().Pods(nattedNS).Update(context.TODO(), podTranslated, metav1.UpdateOptions{})
-	if err != nil {
-		klog.Warningf("Cannot update pod \"%s\" in provider namespace \"%s\"", podTranslated.Name, podTranslated.Namespace)
-		return err
-	}
-	klog.V(3).Infof("Updated pod \"%s\" in provider namespace \"%s\"", podTranslated.Name, podTranslated.Namespace)
-
 	return nil
 }
 

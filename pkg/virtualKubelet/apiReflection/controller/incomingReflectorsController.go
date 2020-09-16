@@ -85,17 +85,28 @@ func (c *IncomingReflectorsController) startNamespaceReflection(namespace string
 	c.homeInformerFactories[namespace] = homeFactory
 	c.foreignInformerFactories[nattedNs] = foreignFactory
 
-	for api, handler := range incoming.InformerBuilders {
+	for api, handler := range incoming.HomeInformerBuilders {
 		homeInformer := handler(homeFactory)
-		foreignInformer := handler(foreignFactory)
+		var foreignInformer cache.SharedIndexInformer
 
-		homeIndexer := incoming.Indexers[api]
+		foreignHandler, ok := incoming.ForeignInformerBuilders[api]
+		if ok {
+			foreignInformer = foreignHandler(foreignFactory)
+		} else {
+			foreignInformer = handler(foreignFactory)
+		}
+
+		homeIndexer := incoming.HomeIndexers[api]
+		foreignIndexer, ok := incoming.ForeignIndexers[api]
+		if !ok {
+			foreignIndexer = homeIndexer
+		}
+
 		if homeIndexer != nil {
 			if err := homeInformer.AddIndexers(homeIndexer()); err != nil {
 				klog.Errorf("Error while setting up home informer - ERR: %v", err)
 			}
 		}
-		foreignIndexer := incoming.Indexers[api]
 		if foreignIndexer != nil {
 			if err := foreignInformer.AddIndexers(foreignIndexer()); err != nil {
 				klog.Errorf("Error while setting up foreign informer - ERR: %v", err)
@@ -126,6 +137,8 @@ func (c *IncomingReflectorsController) startNamespaceReflection(namespace string
 		delete(c.foreignInformerFactories, nattedNs)
 		c.foreignWaitGroup.Done()
 	}()
+
+	klog.V(2).Infof("Incoming reflection for namespace %v started", namespace)
 }
 
 func (c *IncomingReflectorsController) SetInforming(api apimgmt.ApiType, handler func(interface{})) {
