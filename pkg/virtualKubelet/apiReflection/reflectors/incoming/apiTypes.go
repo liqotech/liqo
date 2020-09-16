@@ -17,12 +17,16 @@ var ApiMapping = map[apimgmt.ApiType]func(reflector ri.APIReflector, opts map[op
 	},
 }
 
-var InformerBuilders = map[apimgmt.ApiType]func(informers.SharedInformerFactory) cache.SharedIndexInformer{
+var HomeInformerBuilders = map[apimgmt.ApiType]func(informers.SharedInformerFactory) cache.SharedIndexInformer{
 	apimgmt.Pods: func(factory informers.SharedInformerFactory) cache.SharedIndexInformer {
 		return factory.Core().V1().Pods().Informer()
 	},
 }
 
-var Indexers = map[apimgmt.ApiType]func() cache.Indexers{
+var HomeIndexers = map[apimgmt.ApiType]func() cache.Indexers{
 	apimgmt.Pods: AddPodsIndexers,
 }
+
+var ForeignInformerBuilders = map[apimgmt.ApiType]func(informers.SharedInformerFactory) cache.SharedIndexInformer{}
+
+var ForeignIndexers = map[apimgmt.ApiType]func() cache.Indexers{}

@@ -10,6 +10,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/cache"
+	"k8s.io/client-go/util/retry"
 	"k8s.io/klog"
 	"strings"
 )
@@ -58,7 +59,7 @@ func (m *NamespaceMapper) startNattingCache(clientSet crdClient.NamespacedCRDCli
 
 	m.cache.Store, m.cache.Controller, err = crdClient.WatchResources(clientSet,
 		"namespacenattingtables", "",
-		0, ehf, lo)
+		5, ehf, lo)
 	if err != nil {
 		return err
 	}
@@ -84,7 +85,7 @@ func (m *NamespaceMapper) NatNamespace(namespace string, create bool) (string, e
 		return "", errors.New("namespacenattingtable not existing")
 	}
 
-	nattingTable := nt.(*nattingv1.NamespaceNattingTable)
+	nattingTable := nt.(*nattingv1.NamespaceNattingTable).DeepCopy()
 	nattedNS, ok := nattingTable.Spec.NattingTable[namespace]
 	if !ok && !create {
 		return "", errors.New("not natted namespaces")
@@ -100,8 +101,31 @@ func (m *NamespaceMapper) NatNamespace(namespace string, create bool) (string, e
 		nattingTable.Spec.NattingTable[namespace] = nattedNS
 		nattingTable.Spec.DeNattingTable[nattedNS] = namespace
 
-		_, err := m.homeClient.Resource("namespacenattingtables").Update(nattingTable.Name, nattingTable, metav1.UpdateOptions{})
-		if err != nil {
+		retriable := func(err error) bool {
+			if !kerror.IsConflict(err) {
+				return false
+			}
+			if err = m.cache.Store.Resync(); err != nil {
+				klog.Errorf("error while resyncing cache - ERR: %v", err)
+				return false
+			}
+			nt, ok, err = m.cache.Store.GetByKey(m.foreignClusterId)
+			if !ok {
+				klog.Errorf("error while fetching namespaceNattingTable, not existing")
+				return false
+			}
+			if err != nil {
+				klog.Errorf("error while getting natting table after resync - ERR: %v", err)
+				return false
+			}
+			nattingTable.ResourceVersion = nt.(*nattingv1.NamespaceNattingTable).ResourceVersion
+			return true
+		}
+
+		if err := retry.OnError(retry.DefaultRetry, retriable, func() error {
+			_, err := m.homeClient.Resource("namespacenattingtables").Update(nattingTable.Name, nattingTable, metav1.UpdateOptions{})
+			return err
+		}); err != nil {
 			return "", err
 		}
 
@@ -145,7 +169,7 @@ func (m *NamespaceMapper) getMappedNamespaces() (map[string]string, error) {
 	if !exists {
 		return nil, errors.New("namespacenattingtable not existing")
 	}
-	nt := obj.(*nattingv1.NamespaceNattingTable)
+	nt := obj.(*nattingv1.NamespaceNattingTable).DeepCopy()
 
 	return nt.Spec.NattingTable, nil
 }
@@ -202,14 +226,20 @@ func (m *NamespaceMapper) manageReflections(oldObj interface{}, newObj interface
 			}
 
 			_, err := m.foreignClient.CoreV1().Namespaces().Create(context.TODO(), ns, metav1.CreateOptions{})
+			if err == nil {
+				klog.V(3).Infof("remote namespace %v correctly created", ns.Name)
+			}
+			if kerror.IsAlreadyExists(err) {
+				klog.V(3).Infof("remote namespace %v not created because already existing", ns.Name)
+			}
 			if err != nil && !kerror.IsAlreadyExists(err) {
 				klog.Error(err, "error in namespace creation")
 				continue
 			}
-		}
 
-		m.startOutgoingReflection <- localNs
-		m.startIncomingReflection <- localNs
+			m.startOutgoingReflection <- localNs
+			m.startIncomingReflection <- localNs
+		}
 	}
 
 	for localNs := range oldNattingTable {

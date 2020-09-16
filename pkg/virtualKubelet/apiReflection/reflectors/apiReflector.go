@@ -18,7 +18,8 @@ type GenericAPIReflector struct {
 	OutputChan            chan apimgmt.ApiEvent
 	informingFunc         func(obj interface{})
 
-	ForeignClient    kubernetes.Interface
+	ForeignClient kubernetes.Interface
+
 	LocalInformers   map[string]cache.SharedIndexInformer
 	ForeignInformers map[string]cache.SharedIndexInformer
 	NamespaceNatting namespacesMapping.NamespaceNatter
@@ -38,6 +39,13 @@ func (r *GenericAPIReflector) ForeignInformer(namespace string) cache.SharedInde
 
 func (r *GenericAPIReflector) NattingTable() namespacesMapping.NamespaceNatter {
 	return r.NamespaceNatting
+}
+
+func (r *GenericAPIReflector) PreProcessIsAllowed(obj interface{}) bool {
+	if r.PreProcessingHandlers.IsAllowed == nil {
+		return true
+	}
+	return r.PreProcessingHandlers.IsAllowed(obj)
 }
 
 func (r *GenericAPIReflector) PreProcessAdd(obj interface{}) interface{} {
@@ -64,6 +72,9 @@ func (r *GenericAPIReflector) PreProcessDelete(obj interface{}) interface{} {
 func (r *GenericAPIReflector) SetInformers(reflectionType ri.ReflectionType, namespace, nattedNs string, localInformer, foreignInformer cache.SharedIndexInformer) {
 	handlers := &cache.ResourceEventHandlerFuncs{
 		AddFunc: func(obj interface{}) {
+			if ok := r.PreProcessIsAllowed(obj); !ok {
+				return
+			}
 			o := r.PreProcessAdd(obj)
 			if o == nil {
 				return
@@ -77,6 +88,9 @@ func (r *GenericAPIReflector) SetInformers(reflectionType ri.ReflectionType, nam
 			})
 		},
 		UpdateFunc: func(oldObj, newObj interface{}) {
+			if ok := r.PreProcessIsAllowed(newObj); !ok {
+				return
+			}
 			o := r.PreProcessUpdate(newObj, oldObj)
 			if o == nil {
 				return
@@ -90,6 +104,9 @@ func (r *GenericAPIReflector) SetInformers(reflectionType ri.ReflectionType, nam
 			})
 		},
 		DeleteFunc: func(obj interface{}) {
+			if ok := r.PreProcessIsAllowed(obj); !ok {
+				return
+			}
 			o := r.PreProcessDelete(obj)
 			if o == nil {
 				return

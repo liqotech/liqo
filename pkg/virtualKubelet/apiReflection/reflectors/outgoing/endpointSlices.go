@@ -2,25 +2,36 @@ package outgoing
 
 import (
 	"context"
+	"errors"
+	apimgmt "github.com/liqotech/liqo/pkg/virtualKubelet/apiReflection"
 	ri "github.com/liqotech/liqo/pkg/virtualKubelet/apiReflection/reflectors/reflectorsInterfaces"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/options"
+	"github.com/liqotech/liqo/pkg/virtualKubelet/translation"
 	corev1 "k8s.io/api/core/v1"
 	discoveryv1beta1 "k8s.io/api/discovery/v1beta1"
+	kerror "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/watch"
+	"k8s.io/client-go/tools/cache"
+	"k8s.io/client-go/util/retry"
 	"k8s.io/klog"
 	"strings"
 )
 
+var endpointsliceLabels = map[string]string{
+	"endpointslice.kubernetes.io/managed-by": "endpoint-reflector.liqo.io",
+}
+
 type EndpointSlicesReflector struct {
 	ri.APIReflector
 
-	localRemappedPodCIDR options.ReadOnlyOption
-	nodeName             options.ReadOnlyOption
+	LocalRemappedPodCIDR options.ReadOnlyOption
+	NodeName             options.ReadOnlyOption
 }
 
 func (r *EndpointSlicesReflector) SetSpecializedPreProcessingHandlers() {
 	r.SetPreProcessingHandlers(ri.PreProcessingHandlers{
+		IsAllowed:  r.isAllowed,
 		AddFunc:    r.PreAdd,
 		UpdateFunc: r.PreUpdate,
 		DeleteFunc: r.PreDelete})
@@ -35,31 +46,34 @@ func (r *EndpointSlicesReflector) HandleEvent(e interface{}) {
 		klog.Error("REFLECTION: cannot cast object to EndpointSlice")
 		return
 	}
-	klog.V(3).Infof("REFLECTION: received %v for EndpointSlice %v", event.Type, cm.Name)
+	key := r.Keyer(cm.Namespace, cm.Name)
+	klog.V(3).Infof("REFLECTION: received %v for EndpointSlice %v", event.Type, key)
 
 	switch event.Type {
 	case watch.Added:
 		if _, err := r.GetForeignClient().DiscoveryV1beta1().EndpointSlices(cm.Namespace).Create(context.TODO(), cm, metav1.CreateOptions{}); err != nil {
-			klog.Errorf("REFLECTION: Error while creating the remote EndpointSlice %v/%v - ERR: %v", cm.Namespace, cm.Name, err)
+			klog.Errorf("REFLECTION: Error while creating the remote EndpointSlice %v - ERR: %v", key, err)
 		}
-		klog.V(3).Infof("REFLECTION: remote EndpointSlice %v-%v correctly created", cm.Namespace, cm.Name)
+		klog.V(3).Infof("REFLECTION: remote EndpointSlice %v correctly created", key)
 
 	case watch.Modified:
 		if _, err = r.GetForeignClient().DiscoveryV1beta1().EndpointSlices(cm.Namespace).Update(context.TODO(), cm, metav1.UpdateOptions{}); err != nil {
-			klog.Errorf("REFLECTION: Error while updating the remote EndpointSlice %v/%v - ERR: %v", cm.Namespace, cm.Name, err)
+			klog.Errorf("REFLECTION: Error while updating the remote EndpointSlice %v - ERR: %v", key, err)
+		} else {
+			klog.V(3).Infof("REFLECTION: remote EndpointSlice %v correctly updated", key)
 		}
-		klog.V(3).Infof("REFLECTION: remote EndpointSlice %v-%v correctly updated", cm.Namespace, cm.Name)
 
 	case watch.Deleted:
 		if err := r.GetForeignClient().DiscoveryV1beta1().EndpointSlices(cm.Namespace).Delete(context.TODO(), cm.Name, metav1.DeleteOptions{}); err != nil {
-			klog.Errorf("REFLECTION: Error while deleting the remote EndpointSlice %v/%v - ERR: %v", cm.Namespace, cm.Name, err)
+			klog.Errorf("REFLECTION: Error while deleting the remote EndpointSlice %v - ERR: %v", key, err)
+		} else {
+			klog.V(3).Infof("REFLECTION: remote EndpointSlice %v correctly deleted", key)
 		}
-		klog.V(3).Infof("REFLECTION: remote EndpointSlice %v-%v correctly deleted", cm.Namespace, cm.Name)
 	}
 }
 
 func (r *EndpointSlicesReflector) PreAdd(obj interface{}) interface{} {
-	epLocal := obj.(*discoveryv1beta1.EndpointSlice)
+	epLocal := obj.(*discoveryv1beta1.EndpointSlice).DeepCopy()
 	nattedNs, err := r.NattingTable().NatNamespace(epLocal.Namespace, false)
 	if err != nil {
 		klog.Error(err)
@@ -67,13 +81,26 @@ func (r *EndpointSlicesReflector) PreAdd(obj interface{}) interface{} {
 	}
 
 	labels := map[string]string{
-		"endpointslice.kubernetes.io/managed-by": "endpoint-reflector.liqo.io",
-		"kubernetes.io/service-name":             epLocal.Labels["kubernetes.io/service-name"],
+		"kubernetes.io/service-name": epLocal.Labels["kubernetes.io/service-name"],
+	}
+	for k, v := range endpointsliceLabels {
+		labels[k] = v
 	}
 
-	svc, err := r.GetForeignClient().CoreV1().Services(nattedNs).Get(context.TODO(), epLocal.OwnerReferences[0].Name, metav1.GetOptions{})
-	if err != nil {
-		klog.Error(err)
+	var svc *corev1.Service
+	svcName := epLocal.OwnerReferences[0].Name
+	key := r.Keyer(nattedNs, svcName)
+
+	retriable := func(err error) bool {
+		return kerror.IsNotFound(err)
+	}
+	fn := func() error {
+		svc, err = r.GetForeignClient().CoreV1().Services(nattedNs).Get(context.TODO(), svcName, metav1.GetOptions{})
+		return err
+	}
+	if err = retry.OnError(retry.DefaultBackoff, retriable, fn); err != nil {
+		klog.Errorf("error while retrieving service %v in endppointslices reflector - ERR: %v", key, err)
+		blacklist[apimgmt.EndpointSlices][key] = true
 		return nil
 	}
 
@@ -81,12 +108,12 @@ func (r *EndpointSlicesReflector) PreAdd(obj interface{}) interface{} {
 		{
 			APIVersion: "v1",
 			Kind:       "Service",
-			Name:       epLocal.OwnerReferences[0].Name,
+			Name:       svcName,
 			UID:        svc.UID,
 		},
 	}
 
-	epsRemote := discoveryv1beta1.EndpointSlice{
+	epsRemote := &discoveryv1beta1.EndpointSlice{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:            epLocal.Name,
 			Namespace:       nattedNs,
@@ -94,7 +121,7 @@ func (r *EndpointSlicesReflector) PreAdd(obj interface{}) interface{} {
 			OwnerReferences: svcOwnerRef,
 		},
 		AddressType: discoveryv1beta1.AddressTypeIPv4,
-		Endpoints:   filterEndpoints(epLocal),
+		Endpoints:   filterEndpoints(epLocal, string(r.LocalRemappedPodCIDR.Value()), string(r.NodeName.Value())),
 		Ports:       epLocal.Ports,
 	}
 
@@ -102,28 +129,49 @@ func (r *EndpointSlicesReflector) PreAdd(obj interface{}) interface{} {
 }
 
 func (r *EndpointSlicesReflector) PreUpdate(newObj, _ interface{}) interface{} {
-	endpointSliceLocal := newObj.(discoveryv1beta1.EndpointSlice)
+	endpointSliceLocal := newObj.(*discoveryv1beta1.EndpointSlice).DeepCopy()
 
 	nattedNs, err := r.NattingTable().NatNamespace(endpointSliceLocal.Namespace, false)
 	if err != nil {
 		klog.Error(err)
 		return nil
 	}
-
-	endpointSliceOldRemote, err := r.GetForeignClient().DiscoveryV1beta1().EndpointSlices(nattedNs).Get(context.TODO(), endpointSliceLocal.Name, metav1.GetOptions{})
+	key := r.Keyer(nattedNs, endpointSliceLocal.Name)
+	oldRemoteObj, exists, err := r.ForeignInformer(nattedNs).GetStore().GetByKey(key)
 	if err != nil {
 		klog.Error(err)
 		return nil
 	}
-	endpointSliceLocal.SetNamespace(nattedNs)
-	endpointSliceLocal.SetResourceVersion(endpointSliceOldRemote.ResourceVersion)
-	endpointSliceLocal.SetUID(endpointSliceOldRemote.UID)
+	if !exists {
+		err = r.ForeignInformer(nattedNs).GetStore().Resync()
+		if err != nil {
+			klog.Errorf("error while resyncing endpointslice foreign cache - ERR: %v", err)
+			return nil
+		}
+		oldRemoteObj, exists, err = r.ForeignInformer(nattedNs).GetStore().GetByKey(key)
+		if err != nil {
+			klog.Errorf("error while retrieving endpointslice from foreign cache - ERR: %v", err)
+			return nil
+		}
+		if !exists {
+			klog.V(3).Infof("endpointslice %v not found after cache resync", key)
+			return nil
+		}
+	}
+	RemoteEpSlice := oldRemoteObj.(*discoveryv1beta1.EndpointSlice).DeepCopy()
 
-	return newObj
+	RemoteEpSlice.SetNamespace(nattedNs)
+	RemoteEpSlice.SetResourceVersion(RemoteEpSlice.ResourceVersion)
+	RemoteEpSlice.SetUID(RemoteEpSlice.UID)
+
+	RemoteEpSlice.Endpoints = filterEndpoints(endpointSliceLocal, string(r.LocalRemappedPodCIDR.Value()), string(r.NodeName.Value()))
+	RemoteEpSlice.Ports = endpointSliceLocal.Ports
+
+	return RemoteEpSlice
 }
 
 func (r *EndpointSlicesReflector) PreDelete(obj interface{}) interface{} {
-	endpointSliceLocal := obj.(discoveryv1beta1.EndpointSlice)
+	endpointSliceLocal := obj.(*discoveryv1beta1.EndpointSlice)
 	nattedNs, err := r.NattingTable().NatNamespace(endpointSliceLocal.Namespace, false)
 	if err != nil {
 		klog.Error(err)
@@ -134,22 +182,20 @@ func (r *EndpointSlicesReflector) PreDelete(obj interface{}) interface{} {
 	return endpointSliceLocal
 }
 
-func filterEndpoints(slice *discoveryv1beta1.EndpointSlice) []discoveryv1beta1.Endpoint {
+func filterEndpoints(slice *discoveryv1beta1.EndpointSlice, podCidr string, nodeName string) []discoveryv1beta1.Endpoint {
 	var epList []discoveryv1beta1.Endpoint
 	// Two possibilities: (1) exclude all virtual nodes (2)
-	myVirtualNode := "liqo-6575d0b9-6fba-4f7d-b890-a6417009cb64"
 	for _, v := range slice.Endpoints {
-		if v.Topology["kubernetes.io/hostname:"] != myVirtualNode {
-			v := discoveryv1beta1.Endpoint{
-				Addresses:  ChangePodIp("10.0.0.0/16", v.Addresses[0]),
+		t := v.Topology["kubernetes.io/hostname"]
+		if t != nodeName {
+			newEp := discoveryv1beta1.Endpoint{
+				Addresses:  []string{translation.ChangePodIp(podCidr, v.Addresses[0])},
 				Conditions: v.Conditions,
 				Hostname:   nil,
 				TargetRef:  nil,
-				Topology: map[string]string{
-					"kubernetes.io/hostname": "my-cluster-id",
-				},
+				Topology:   nil,
 			}
-			epList = append(epList, v)
+			epList = append(epList, newEp)
 		}
 	}
 	return epList
@@ -180,9 +226,27 @@ func (r *EndpointSlicesReflector) CleanupNamespace(localNamespace string) {
 	}
 }
 
-func ChangePodIp(cidr string, ip string) []string {
-	// call to Nat API
-	return []string{
-		ip,
+func (r *EndpointSlicesReflector) isAllowed(obj interface{}) bool {
+	eps, ok := obj.(*discoveryv1beta1.EndpointSlice)
+	if !ok {
+		klog.Error("cannot convert obj to service")
+		return false
 	}
+	key := r.Keyer(eps.Namespace, eps.Name)
+	_, ok = blacklist[apimgmt.EndpointSlices][key]
+	return ok
+}
+
+func addEndpointSlicesIndexers() cache.Indexers {
+	i := cache.Indexers{}
+	i["EndpointSlice"] = func(obj interface{}) ([]string, error) {
+		endpointSlice, ok := obj.(*discoveryv1beta1.EndpointSlice)
+		if !ok {
+			return []string{}, errors.New("cannot convert obj to configmap")
+		}
+		return []string{
+			strings.Join([]string{endpointSlice.Namespace, endpointSlice.Name}, "/"),
+		}, nil
+	}
+	return i
 }
