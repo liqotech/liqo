@@ -84,7 +84,7 @@ type PodNotifier interface {
 	// this function is called.
 	//
 	// NotifyPods will not block callers.
-	NotifyPods(context.Context, func(*corev1.Pod))
+	NotifyPods(context.Context, func(interface{}))
 }
 
 // PodController is the controller implementation for Pod resources.
@@ -151,7 +151,7 @@ type PodControllerConfig struct {
 
 	Provider PodLifecycleHandler
 
-	// Informers used for filling details for things like downward API in pod spec.
+	// LocalInformers used for filling details for things like downward API in pod spec.
 	//
 	// We are using informers here instead of listeners because we'll need the
 	// informer for certain features (like notifications for updated ConfigMaps)
@@ -243,7 +243,11 @@ func (pc *PodController) Run(ctx context.Context, podSyncWorkers int) (retErr er
 	pc.provider = provider
 
 	podStatusQueue := workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "syncPodStatusFromProvider")
-	provider.NotifyPods(ctx, func(pod *corev1.Pod) {
+	provider.NotifyPods(ctx, func(obj interface{}) {
+		pod, ok := obj.(*corev1.Pod)
+		if !ok {
+			klog.Fatal("cannot cast object to pod")
+		}
 		pc.enqueuePodStatusUpdate(ctx, podStatusQueue, pod.DeepCopy())
 	})
 	go runProvider(ctx)

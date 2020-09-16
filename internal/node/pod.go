@@ -91,13 +91,27 @@ func podsEqual(pod1, pod2 *corev1.Pod) bool {
 	// - `objectmeta.annotations`
 	// compare the values of the pods to see if the values actually changed
 
-	return cmp.Equal(pod1.Spec.Containers, pod2.Spec.Containers) &&
-		cmp.Equal(pod1.Spec.InitContainers, pod2.Spec.InitContainers) &&
-		cmp.Equal(pod1.Spec.ActiveDeadlineSeconds, pod2.Spec.ActiveDeadlineSeconds) &&
-		cmp.Equal(pod1.Spec.Tolerations, pod2.Spec.Tolerations) &&
-		cmp.Equal(pod1.ObjectMeta.Labels, pod2.Labels) &&
-		cmp.Equal(pod1.ObjectMeta.Annotations, pod2.Annotations)
+	if len(pod1.Annotations) == 0 {
+		pod1.Annotations = nil
+	}
+	if len(pod2.Annotations) == 0 {
+		pod2.Annotations = nil
+	}
+	if len(pod1.Labels) == 0 {
+		pod1.Labels = nil
+	}
+	if len(pod2.Labels) == 0 {
+		pod2.Labels = nil
+	}
 
+	containers := cmp.Equal(pod1.Spec.Containers, pod2.Spec.Containers)
+	initContainers := cmp.Equal(pod1.Spec.InitContainers, pod2.Spec.InitContainers)
+	deadline := cmp.Equal(pod1.Spec.ActiveDeadlineSeconds, pod2.Spec.ActiveDeadlineSeconds)
+	tolerations := cmp.Equal(pod1.Spec.Tolerations, pod2.Spec.Tolerations)
+	labels := cmp.Equal(pod1.ObjectMeta.Labels, pod2.Labels)
+	annotations := cmp.Equal(pod1.ObjectMeta.Annotations, pod2.Annotations)
+
+	return containers && initContainers && deadline && tolerations && labels && annotations
 }
 
 func (pc *PodController) handleProviderError(ctx context.Context, span trace.Span, origErr error, pod *corev1.Pod) {

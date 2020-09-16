@@ -8,7 +8,8 @@ import (
 	advertisementOperator "github.com/liqotech/liqo/internal/advertisement-operator"
 	controllers "github.com/liqotech/liqo/internal/liqonet"
 	"github.com/liqotech/liqo/internal/node"
-	"github.com/liqotech/liqo/pkg"
+	"github.com/liqotech/liqo/pkg/virtualKubelet"
+	"github.com/liqotech/liqo/pkg/virtualKubelet/options"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/watch"
@@ -19,7 +20,7 @@ import (
 
 func (p *KubernetesProvider) StartNodeUpdater(nodeRunner *node.NodeController) (chan struct{}, chan struct{}, error) {
 	stop := make(chan struct{}, 1)
-	advName := strings.Join([]string{pkg.AdvertisementPrefix, p.foreignClusterId}, "")
+	advName := strings.Join([]string{virtualKubelet.AdvertisementPrefix, p.foreignClusterId}, "")
 	advWatcher, err := p.advClient.Resource("advertisements").Watch(metav1.ListOptions{
 		FieldSelector: strings.Join([]string{"metadata.name", advName}, "="),
 		Watch:         true,
@@ -96,7 +97,7 @@ func (p *KubernetesProvider) ReconcileNodeFromAdv(event watch.Event) error {
 	if event.Type == watch.Deleted || !adv.DeletionTimestamp.IsZero() {
 		for retry := 0; retry < 3; retry++ {
 			klog.Infof("advertisement %v is going to be deleted... set node status not ready", adv.Name)
-			no, err := p.advClient.Client().CoreV1().Nodes().Get(context.TODO(), p.nodeName, metav1.GetOptions{})
+			no, err := p.advClient.Client().CoreV1().Nodes().Get(context.TODO(), p.nodeName.Value().ToString(), metav1.GetOptions{})
 			if err != nil {
 				klog.Error(err)
 				continue
@@ -140,8 +141,8 @@ func (p *KubernetesProvider) ReconcileNodeFromTep(event watch.Event) error {
 	}
 	if event.Type == watch.Deleted {
 		klog.Infof("tunnelEndpoint %v deleted", tep.Name)
-		p.RemoteRemappedPodCidr = ""
-		no, err := p.homeClient.Client().CoreV1().Nodes().Get(context.TODO(), p.nodeName, metav1.GetOptions{})
+		p.RemoteRemappedPodCidr.SetValue("")
+		no, err := p.homeClient.Client().CoreV1().Nodes().Get(context.TODO(), p.nodeName.Value().ToString(), metav1.GetOptions{})
 		if err != nil {
 			klog.Error(err)
 			return err
@@ -169,7 +170,7 @@ func (p *KubernetesProvider) updateFromAdv(adv advtypes.Advertisement) error {
 	var err error
 
 	var no *v1.Node
-	if no, err = p.homeClient.Client().CoreV1().Nodes().Get(context.TODO(), p.nodeName, metav1.GetOptions{}); err != nil {
+	if no, err = p.homeClient.Client().CoreV1().Nodes().Get(context.TODO(), p.nodeName.Value().ToString(), metav1.GetOptions{}); err != nil {
 		return err
 	}
 
@@ -220,16 +221,16 @@ func (p *KubernetesProvider) updateFromAdv(adv advtypes.Advertisement) error {
 
 func (p *KubernetesProvider) updateFromTep(tep nettypes.TunnelEndpoint) error {
 	if tep.Status.RemoteRemappedPodCIDR != "" && tep.Status.RemoteRemappedPodCIDR != "None" {
-		p.RemoteRemappedPodCidr = tep.Status.RemoteRemappedPodCIDR
+		p.RemoteRemappedPodCidr.SetValue(options.OptionValue(tep.Status.RemoteRemappedPodCIDR))
 	} else {
-		p.RemoteRemappedPodCidr = tep.Spec.PodCIDR
+		p.RemoteRemappedPodCidr.SetValue(options.OptionValue(tep.Spec.PodCIDR))
 	}
 
 	if tep.Status.LocalRemappedPodCIDR != "" && tep.Status.LocalRemappedPodCIDR != "None" {
-		p.LocalRemappedPodCidr = tep.Status.LocalRemappedPodCIDR
+		p.LocalRemappedPodCidr.SetValue(options.OptionValue(tep.Status.LocalRemappedPodCIDR))
 	}
 
-	no, err := p.homeClient.Client().CoreV1().Nodes().Get(context.TODO(), p.nodeName, metav1.GetOptions{})
+	no, err := p.homeClient.Client().CoreV1().Nodes().Get(context.TODO(), p.nodeName.Value().ToString(), metav1.GetOptions{})
 	if err != nil {
 		return err
 	}
@@ -263,7 +264,7 @@ func (p *KubernetesProvider) updateFromTep(tep nettypes.TunnelEndpoint) error {
 }
 
 func (p *KubernetesProvider) updateNode(node *v1.Node) error {
-	if p.RemoteRemappedPodCidr != "" && node.Status.Allocatable != nil {
+	if p.RemoteRemappedPodCidr.Value() != "" && node.Status.Allocatable != nil {
 		// both the podCIDR and the resources have been set: the node is ready
 		for i, condition := range node.Status.Conditions {
 			if condition.Type == v1.NodeReady {
@@ -273,14 +274,14 @@ func (p *KubernetesProvider) updateNode(node *v1.Node) error {
 				node.Status.Conditions[i].Status = v1.ConditionFalse
 			}
 		}
-	} else if p.RemoteRemappedPodCidr != "" && node.Status.Allocatable == nil {
+	} else if p.RemoteRemappedPodCidr.Value() != "" && node.Status.Allocatable == nil {
 		// the resources have not been set yet: set the node status to NotReady
 		for i, condition := range node.Status.Conditions {
 			if condition.Type == v1.NodeReady {
 				node.Status.Conditions[i].Status = v1.ConditionFalse
 			}
 		}
-	} else if p.RemoteRemappedPodCidr == "" && node.Status.Allocatable != nil {
+	} else if p.RemoteRemappedPodCidr.Value() == "" && node.Status.Allocatable != nil {
 		// the podCIDR has not been set yet: set the node status to NetworkUnavailable
 		for i, condition := range node.Status.Conditions {
 			if condition.Type == v1.NodeReady {
@@ -302,18 +303,7 @@ func (p *KubernetesProvider) updateNode(node *v1.Node) error {
 }
 
 func (p *KubernetesProvider) deleteAdv(adv *advtypes.Advertisement) error {
-	// delete all reflected resources in reflected namespaces
-	for ns := range p.reflectedNamespaces.ns {
-		foreignNs, err := p.NatNamespace(ns, false)
-		if err != nil {
-			klog.Errorf("cannot nat namespace %v", ns)
-			return err
-		}
-		if err := p.cleanupNamespace(foreignNs); err != nil {
-			klog.Errorf("error in cleaning up namespace %v", foreignNs)
-			return err
-		}
-	}
+	p.apiController.StopReflection()
 
 	// remove finalizer
 	if slice.ContainsString(adv.Finalizers, advertisementOperator.FinalizerString, nil) {

@@ -21,10 +21,10 @@ import (
 	configv1alpha1 "github.com/liqotech/liqo/api/config/v1alpha1"
 	discoveryv1alpha1 "github.com/liqotech/liqo/api/discovery/v1alpha1"
 	advtypes "github.com/liqotech/liqo/api/sharing/v1alpha1"
-	pkg "github.com/liqotech/liqo/pkg"
 	advpkg "github.com/liqotech/liqo/pkg/advertisement-operator"
 	"github.com/liqotech/liqo/pkg/crdClient"
 	objectreferences "github.com/liqotech/liqo/pkg/object-references"
+	"github.com/liqotech/liqo/pkg/virtualKubelet"
 	v1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -262,8 +262,8 @@ func (r *AdvertisementReconciler) createVirtualKubelet(ctx context.Context, adv 
 		klog.Errorf("Cannot find secret %v in namespace %v for the virtual kubelet; error: %v", secRef.Name, secRef.Namespace, err)
 		return err
 	}
-	name := pkg.VirtualKubeletPrefix + adv.Spec.ClusterId
-	nodeName := pkg.VirtualNodePrefix + adv.Spec.ClusterId
+	name := virtualKubelet.VirtualKubeletPrefix + adv.Spec.ClusterId
+	nodeName := virtualKubelet.VirtualNodePrefix + adv.Spec.ClusterId
 	// Create the base resources
 	vkSa := &v1.ServiceAccount{
 		TypeMeta: metav1.TypeMeta{},
