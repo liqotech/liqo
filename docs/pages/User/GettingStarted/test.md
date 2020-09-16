@@ -26,8 +26,7 @@ Then, you can deploy a demo application in the `liqo-demo` namespace:
 ```
 kubectl apply -f https://raw.githubusercontent.com/liqotech/liqo/master/docs/examples/hello-world.yaml -n liqo-demo
 ```
-The `hello-world.yaml` file is a simple `nginx` service; it is composed of two pods running an `nginx` image, and a service exposing the pods to the cluster.
-The two `nginx` pods are configured such that one is executed in the local cluster, while the other is forced to be scheduled on the remote cluster.
+The `hello-world.yaml` file is a simple `nginx` service; it is composed of two pods running an `nginx` image, and a service exposing the pods to the cluster; the reason for having _two_ `nginx` pods is to create a configuration in which one pod runs in the local cluster, while the other is forced to be scheduled on the remote cluster.
 
 {{%expand "Expand here for a more advanced explanation of what is happened under the hoods:" %}}
 
@@ -35,8 +34,7 @@ The complete `hello-world.yaml` file is as follows:
 {{% render-code file="static/examples/hello-world.yaml" language="yaml" %}}
 
 
-Differently from the traditional examples, we introduced an *affinity* constraint.
-It forces Kubernetes to schedule the first pod (i.e. `nginx-local`) on a physical node, and the second one (i.e. `nginx-remote`) on a virtual node.
+Differently from the traditional examples, the above deployment introduces an *affinity* constraint that forces Kubernetes to schedule the first pod (i.e. `nginx-local`) on a physical node, and the second one (i.e. `nginx-remote`) on a virtual node.
 Virtual nodes are like traditional Kubernetes nodes, but they represent foreign clusters and are labelled with `type: virtual-node`.
 
 In case the affinity constraint is not specified, the Kubernetes scheduler selects the best hosting node based on the available resources.
