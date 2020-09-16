@@ -67,11 +67,12 @@ var (
 )
 
 type networkParam struct {
-	clusterID        string
-	gatewayIP        string
-	podCIDR          string
-	localNatPodCIDR  string
+	remoteClusterID  string
+	remoteGatewayIP  string
+	remotePodCIDR    string
 	remoteNatPodCIDR string
+	localGatewayIP   string
+	localNatPodCIDR  string
 }
 
 type TunnelEndpointCreator struct {
@@ -320,11 +321,12 @@ func (r *TunnelEndpointCreator) processLocalNetConfig(netConfig *netv1alpha1.Net
 	//at this point we have all the necessary parameters to create the tunnelEndpoint resource
 	remoteNetConf := netConfigList.Items[0]
 	netParam := networkParam{
-		clusterID:        netConfig.Spec.ClusterID,
-		gatewayIP:        remoteNetConf.Spec.TunnelPublicIP,
-		podCIDR:          remoteNetConf.Spec.PodCIDR,
-		localNatPodCIDR:  netConfig.Status.PodCIDRNAT,
+		remoteClusterID:  netConfig.Spec.ClusterID,
+		remoteGatewayIP:  remoteNetConf.Spec.TunnelPublicIP,
+		remotePodCIDR:    remoteNetConf.Spec.PodCIDR,
 		remoteNatPodCIDR: remoteNetConf.Status.PodCIDRNAT,
+		localNatPodCIDR:  netConfig.Status.PodCIDRNAT,
+		localGatewayIP:   netConfig.Spec.TunnelPublicIP,
 	}
 	if err := r.ProcessTunnelEndpoint(netParam); err != nil {
 		klog.Errorf("an error occurred while processing the tunnelEndpoint: %s", err)
@@ -334,11 +336,11 @@ func (r *TunnelEndpointCreator) processLocalNetConfig(netConfig *netv1alpha1.Net
 }
 
 func (r *TunnelEndpointCreator) ProcessTunnelEndpoint(param networkParam) error {
-	tepName := TunEndpointNamePrefix + param.clusterID
+	tepName := TunEndpointNamePrefix + param.remoteClusterID
 	//try to get the tunnelEndpoint, it may not exist
 	_, found, err := r.GetTunnelEndpoint(tepName)
 	if err != nil {
-		klog.Errorf("an error occurred while getting resource %s: %s", TunEndpointNamePrefix+param.clusterID, err)
+		klog.Errorf("an error occurred while getting resource %s: %s", TunEndpointNamePrefix+param.remoteClusterID, err)
 		return err
 	}
 	if !found {
@@ -355,7 +357,7 @@ func (r *TunnelEndpointCreator) ProcessTunnelEndpoint(param networkParam) error 
 }
 
 func (r *TunnelEndpointCreator) UpdateSpecTunnelEndpoint(param networkParam) error {
-	tepName := TunEndpointNamePrefix + param.clusterID
+	tepName := TunEndpointNamePrefix + param.remoteClusterID
 	tep := &netv1alpha1.TunnelEndpoint{}
 
 	//here we recover from conflicting resource versions
@@ -368,16 +370,16 @@ func (r *TunnelEndpointCreator) UpdateSpecTunnelEndpoint(param networkParam) err
 			return err
 		}
 		//check if there are fields to be updated
-		if tep.Spec.ClusterID != param.clusterID {
-			tep.Spec.ClusterID = param.clusterID
+		if tep.Spec.ClusterID != param.remoteClusterID {
+			tep.Spec.ClusterID = param.remoteClusterID
 			toBeUpdated = true
 		}
-		if tep.Spec.TunnelPublicIP != param.gatewayIP {
-			tep.Spec.TunnelPublicIP = param.gatewayIP
+		if tep.Spec.TunnelPublicIP != param.remoteGatewayIP {
+			tep.Spec.TunnelPublicIP = param.remoteGatewayIP
 			toBeUpdated = true
 		}
-		if tep.Spec.PodCIDR != param.podCIDR {
-			tep.Spec.PodCIDR = param.podCIDR
+		if tep.Spec.PodCIDR != param.remotePodCIDR {
+			tep.Spec.PodCIDR = param.remotePodCIDR
 			toBeUpdated = true
 		}
 		if toBeUpdated {
@@ -394,7 +396,7 @@ func (r *TunnelEndpointCreator) UpdateSpecTunnelEndpoint(param networkParam) err
 }
 
 func (r *TunnelEndpointCreator) UpdateStatusTunnelEndpoint(param networkParam) error {
-	tepName := TunEndpointNamePrefix + param.clusterID
+	tepName := TunEndpointNamePrefix + param.remoteClusterID
 	tep := &netv1alpha1.TunnelEndpoint{}
 
 	//here we recover from conflicting resource versions
@@ -415,8 +417,16 @@ func (r *TunnelEndpointCreator) UpdateStatusTunnelEndpoint(param networkParam) e
 			tep.Status.RemoteRemappedPodCIDR = param.remoteNatPodCIDR
 			toBeUpdated = true
 		}
-		if tep.Status.Phase == "" {
-			tep.Status.Phase = "Processed"
+		if tep.Status.LocalTunnelPublicIP != param.localGatewayIP {
+			tep.Status.LocalTunnelPublicIP = param.localGatewayIP
+			toBeUpdated = true
+		}
+		if tep.Status.RemoteTunnelPublicIP != param.remoteGatewayIP {
+			tep.Status.RemoteTunnelPublicIP = param.remoteGatewayIP
+			toBeUpdated = true
+		}
+		if tep.Status.Phase != "Ready" {
+			tep.Status.Phase = "Ready"
 			toBeUpdated = true
 		}
 		if toBeUpdated {
@@ -426,62 +436,38 @@ func (r *TunnelEndpointCreator) UpdateStatusTunnelEndpoint(param networkParam) e
 		return nil
 	})
 	if retryError != nil {
-		klog.Errorf("an error occurred while updating spec of tunnelEndpoint resource %s: %s", tep.Name, retryError)
+		klog.Errorf("an error occurred while updating status of tunnelEndpoint resource %s: %s", tep.Name, retryError)
 		return retryError
 	}
 	return nil
 }
 
 func (r *TunnelEndpointCreator) CreateTunnelEndpoint(param networkParam) error {
-	tepName := TunEndpointNamePrefix + param.clusterID
+	tepName := TunEndpointNamePrefix + param.remoteClusterID
 	//here we create it
 	tep := &netv1alpha1.TunnelEndpoint{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: tepName,
 		},
 		Spec: netv1alpha1.TunnelEndpointSpec{
-			ClusterID:      param.clusterID,
-			PodCIDR:        param.podCIDR,
-			TunnelPublicIP: param.gatewayIP,
+			ClusterID:      param.remoteClusterID,
+			PodCIDR:        param.remotePodCIDR,
+			TunnelPublicIP: param.remoteGatewayIP,
 		},
-		Status: netv1alpha1.TunnelEndpointStatus{},
+		Status: netv1alpha1.TunnelEndpointStatus{
+			Phase:                 "Ready",
+			LocalRemappedPodCIDR:  param.localNatPodCIDR,
+			RemoteRemappedPodCIDR: param.remoteNatPodCIDR,
+			RemoteTunnelPublicIP:  param.remoteGatewayIP,
+			LocalTunnelPublicIP:   param.localGatewayIP,
+		},
 	}
 	err := r.Create(context.Background(), tep)
 	if err != nil {
-		klog.Errorf("an error occurred while creating tunnelEndpoint resource %s: %s", tep.Name, err)
+		klog.Errorf("an error occurred while creating resource %s of type %s: %s", tep.Name, netv1alpha1.GroupResource, err)
 		return err
-	}
-	//first retry is to wait until the resource is created
-	retryError := retry.OnError(retry.DefaultRetry, apierrors.IsNotFound, func() error {
-		err := r.Get(context.Background(), client.ObjectKey{
-			Name: tepName,
-		}, tep)
-		if err != nil {
-			return err
-		}
-		return nil
-	})
-	if retryError != nil {
-		klog.Errorf("an error occurred while processing tunnelEndpoint resource %s: %s", tep.Name, err)
-		return retryError
-	}
-	//here we recover from conflicting resource versions
-	retryErrorConflict := retry.RetryOnConflict(retry.DefaultRetry, func() error {
-		err := r.Get(context.Background(), client.ObjectKey{
-			Name: tepName,
-		}, tep)
-		if err != nil {
-			return err
-		}
-		tep.Status.RemoteRemappedPodCIDR = param.remoteNatPodCIDR
-		tep.Status.LocalRemappedPodCIDR = param.localNatPodCIDR
-		tep.Status.Phase = "Processed"
-		err = r.Status().Update(context.Background(), tep)
-		return err
-	})
-	if retryErrorConflict != nil {
-		klog.Errorf("an error occurred while updating status of tunnelEndpoint resource %s: %s", tep.Name, err)
-		return retryErrorConflict
+	} else {
+		klog.Infof("resource %s of type %s created", tep.Name, netv1alpha1.GroupResource)
 	}
 	return nil
 }

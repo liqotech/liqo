@@ -412,7 +412,7 @@ func getNetworkConfig() *netv1alpha1.NetworkConfig {
 			Name: "netconfig-1",
 		},
 		Spec: netv1alpha1.NetworkConfigSpec{
-			ClusterID:      "localClusterID",
+			ClusterID:      "localclusterid",
 			PodCIDR:        "10.2.0.0/16",
 			TunnelPublicIP: "192.168.1.1",
 		},
@@ -475,7 +475,7 @@ func TestNetConfigProcessing(t *testing.T) {
 	assert.Equal(t, netConfig2.Spec.ClusterID, tep.Spec.ClusterID)
 	assert.Equal(t, netConfig1.Spec.PodCIDR, tep.Spec.PodCIDR)
 	assert.Equal(t, netConfig1.Spec.TunnelPublicIP, tep.Spec.TunnelPublicIP)
-	assert.Equal(t, "Processed", tep.Status.Phase)
+	assert.Equal(t, "Ready", tep.Status.Phase)
 
 	//test4
 	//we change some fields in the remote netConfig status

@@ -30,39 +30,6 @@ func GetLocalTunnelPublicIP() (net.IP, error) {
 	return net.ParseIP(ipAddress), nil
 }
 
-func GetLocalTunnelPublicIPToString() (string, error) {
-	ipAddress, isSet := os.LookupEnv("LOCAL_TUNNEL_PUBLIC_IP")
-	if !isSet {
-		return "", errdefs.NotFound("the pod IP is not set")
-	}
-	if ipAddress == "" {
-		return "", errors.New("pod IP is not yet set")
-	}
-	return ipAddress, nil
-}
-
-func GetLocalTunnelPrivateIP() (net.IP, error) {
-	ipAddress, isSet := os.LookupEnv("LOCAL_TUNNEL_PRIVATE_IP")
-	if !isSet {
-		return nil, errdefs.NotFound("the pod IP is not set")
-	}
-	if ipAddress == "" {
-		return nil, errors.New("pod IP is not yet set")
-	}
-	return net.ParseIP(ipAddress), nil
-}
-
-func GetLocalTunnelPrivateIPToString() (string, error) {
-	ipAddress, isSet := os.LookupEnv("LOCAL_TUNNEL_PRIVATE_IP")
-	if !isSet {
-		return "", errdefs.NotFound("the pod IP is not set")
-	}
-	if ipAddress == "" {
-		return "", errors.New("pod IP is not yet set")
-	}
-	return ipAddress, nil
-}
-
 func InstallGreTunnel(endpoint *netv1alpha1.TunnelEndpoint) (int, string, error) {
 	//TODO configure the name according to the max length permitted by the kernel
 	name := tunnelNamePrefix
