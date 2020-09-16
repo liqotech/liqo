@@ -4,16 +4,28 @@ import (
 	"context"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/watch"
+	"k8s.io/client-go/informers"
+	"k8s.io/client-go/tools/cache"
 	"k8s.io/klog"
 	"sync"
 	"time"
 )
 
 const (
-	reflectedService   = "liqo/reflection"
-	nReflectionWorkers = 2
+	configmaps = iota
+	secrets
+	services
+	endpoints
 )
+const (
+	reflectedService    = "liqo/reflection"
+	nReflectionWorkers  = 2
+	defaultResyncPeriod = 10*time.Second
+)
+
+type preProcessingHandler func(newObj, oldObj interface{}) bool
 
 type timestampedEndpoints struct {
 	ep *v1.Endpoints
@@ -22,10 +34,15 @@ type timestampedEndpoints struct {
 
 type Reflector struct {
 	stop     chan struct{}
+	reflectionChannels map[int]chan interface{}
 	svcEvent chan watch.Event
 	epEvent  chan timestampedEndpoints
 	cmEvent  chan watch.Event
 	secEvent chan watch.Event
+
+	informerFactories map[string]informers.SharedInformerFactory
+	informers map[string]map[int]cache.SharedIndexInformer
+	preProcessingFuncs map[int]preProcessingHandler
 
 	workers *sync.WaitGroup
 	svcwg   *sync.WaitGroup
@@ -49,6 +66,14 @@ func (p *KubernetesProvider) StartReflector() {
 
 	p.reflectedNamespaces.ns = make(map[string]chan struct{})
 	p.stop = make(chan struct{}, 1)
+
+	p.reflectionChannels = make(map[int]chan interface{})
+
+	p.reflectionChannels[configmaps] = make(chan interface{}, 1000)
+	p.reflectionChannels[secrets] = make(chan interface{}, 1000)
+	p.reflectionChannels[services] = make(chan interface{}, 1000)
+	p.reflectionChannels[endpoints] = make(chan interface{}, 1000)
+
 	p.svcEvent = make(chan watch.Event, 1000)
 	p.epEvent = make(chan timestampedEndpoints, 1000)
 	p.cmEvent = make(chan watch.Event, 1000)
@@ -61,6 +86,10 @@ func (p *KubernetesProvider) StartReflector() {
 	p.cmwg = &sync.WaitGroup{}
 	p.secwg = &sync.WaitGroup{}
 
+	p.informerFactories = make(map[string]informers.SharedInformerFactory)
+	p.informers = make(map[string]map[int]cache.SharedIndexInformer)
+	p.preProcessingFuncs = make(map[int]preProcessingHandler)
+
 	for i := 0; i < nReflectionWorkers; i++ {
 		p.workers.Add(1)
 		go p.controlLoop()
@@ -68,6 +97,36 @@ func (p *KubernetesProvider) StartReflector() {
 
 	p.started = true
 	klog.Infof("vk reflector started with %d workers", nReflectionWorkers)
+}
+
+func (r *Reflector) ConfigureInformers(ns string) {
+	for k, i := range r.informers[ns] {
+		i.AddEventHandler(&cache.ResourceEventHandlerFuncs{
+			AddFunc: func(obj interface{}) {
+				r.reflectionChannels[k] <- watch.Event{
+					Type:   watch.Added,
+					Object: obj.(runtime.Object),
+				}
+			},
+			UpdateFunc: func(oldObj, newObj interface{}) {
+				if r.preProcessingFuncs[k] != nil {
+					if !r.preProcessingFuncs[k](oldObj, newObj) {
+						return
+					}
+				}
+				r.reflectionChannels[k] <- watch.Event{
+					Type:   watch.Modified,
+					Object: newObj.(runtime.Object),
+				}
+			},
+			DeleteFunc: func(obj interface{}) {
+				r.reflectionChannels[k] <- watch.Event{
+					Type:   watch.Deleted,
+					Object: obj.(runtime.Object),
+				}
+			},
+		})
+	}
 }
 
 // main function of the reflector: this control loop watches 5 different channels
@@ -298,6 +357,13 @@ func (p *KubernetesProvider) reflectNamespace(namespace string) error {
 	}
 
 	stop := make(chan struct{}, 1)
+
+	p.informerFactories[namespace] = informers.NewSharedInformerFactoryWithOptions(
+		p.homeClient.Client(),
+		defaultResyncPeriod,
+		informers.WithNamespace(namespace))
+	p.ConfigureInformers(namespace)
+
 	if err := p.addServiceWatcher(namespace, stop); err != nil {
 		close(stop)
 		return err
@@ -308,10 +374,10 @@ func (p *KubernetesProvider) reflectNamespace(namespace string) error {
 		return err
 	}
 
-	if err := p.addConfigMapWatcher(namespace, stop); err != nil {
+	/*if err := p.addConfigMapWatcher(namespace, stop); err != nil {
 		close(stop)
 		return err
-	}
+	}*/
 
 	if err := p.addSecretWatcher(namespace, stop); err != nil {
 		close(stop)
