@@ -39,7 +39,6 @@ func getRouteController() *RouteController {
 		Log:                                ctrl.Log.WithName("route-operator"),
 		Scheme:                             nil,
 		clientset:                          kubernetes.Clientset{},
-		RouteOperator:                      false,
 		NodeName:                           "test",
 		ClientSet:                          nil,
 		RemoteVTEPs:                        nil,
@@ -81,7 +80,7 @@ func TestCreateAndInsertIPTablesChains(t *testing.T) {
 	for i := 3; i >= 0; i-- {
 		err := r.createAndInsertIPTablesChains()
 		assert.Nil(t, err, "error should be nil")
-		assert.Equal(t, 3, len(r.IPTablesChains), "there should be three new chains")
+		assert.Equal(t, 4, len(r.IPTablesChains), "there should be 4 new chains")
 		assert.Equal(t, 4, len(r.IPTablesRuleSpecsReferencingChains), "there should be 4 new rules")
 	}
 }

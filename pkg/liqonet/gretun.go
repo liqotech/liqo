@@ -5,6 +5,7 @@ import (
 	"github.com/vishvananda/netlink"
 	"k8s.io/klog"
 	"net"
+	"strconv"
 	"syscall"
 )
 
@@ -28,18 +29,42 @@ func createGretunIface(iface *gretunIface) error {
 		if err != nil {
 			return fmt.Errorf("failed to retrieve the existing gretun interface info: %v", err)
 		}
-		//Remove the existing gre interface
-		if err = netlink.LinkDel(existingIface); err != nil {
-			return fmt.Errorf("failed to delete the existing gretun interface: %v", err)
-		}
-		//Try do add again the gretun interface
-		if err = netlink.LinkAdd(iface.link); err != nil {
-			return fmt.Errorf("failed to re-create the gretun interface: %v", err)
+		//Remove the existing gre interface if it has different attributes than the one that we want to create
+		if existingGretun, ok := existingIface.(*netlink.Gretun); ok {
+			equal := compareGretun(existingGretun, iface.link)
+			if !equal {
+				if err = netlink.LinkDel(existingIface); err != nil {
+					return fmt.Errorf("failed to delete the existing gretun interface: %v", err)
+				}
+				//Try do add again the gretun interface
+				if err = netlink.LinkAdd(iface.link); err != nil {
+					return fmt.Errorf("failed to re-create the gretun interface: %v", err)
+				}
+			} else {
+				klog.Infof("tunnel interface already configured")
+			}
+		} else {
+			return fmt.Errorf("existing iface named %s with index number %s is not of type gretun", existingIface.Attrs().Name, strconv.Itoa(existingIface.Attrs().Index))
 		}
 	} else if err != nil {
 		return fmt.Errorf("failed to create the gretun interface: %v", err)
 	}
 	return nil
+}
+
+//check if the existing network interface has the same configuration
+//as the one we want to create
+func compareGretun(existing, new *netlink.Gretun) bool {
+	if existing.Local.String() != new.Local.String() {
+		return false
+	}
+	if existing.Remote.String() != new.Remote.String() {
+		return false
+	}
+	if existing.Ttl != new.Ttl {
+		return false
+	}
+	return true
 }
 
 func newGretunInterface(attributes *gretunAttributes) (*gretunIface, error) {

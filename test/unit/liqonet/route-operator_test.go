@@ -45,7 +45,7 @@ func setupRouteOperator() error {
 		Client:         k8sManager.GetClient(),
 		Log:            ctrl.Log.WithName("controllers").WithName("routeOperator"),
 		Scheme:         k8sManager.GetScheme(),
-		RouteOperator:  false,
+		Recorder:       k8sManager.GetEventRecorderFor("testing"),
 		NodeName:       "testing",
 		ClientSet:      nil,
 		RemoteVTEPs:    nil,
@@ -114,24 +114,6 @@ func updateStatusTEP(tep *netv1alpha1.TunnelEndpoint) (*netv1alpha1.TunnelEndpoi
 	}
 	time.Sleep(waitTime)
 	return tep, nil
-}
-
-//set the  tunnelendpoint.net.liqo.io custom resource to ready in order to be processed by the operator
-func setToReady(tep *netv1alpha1.TunnelEndpoint) error {
-	err := routeOperator.Client.Get(ctx, client.ObjectKey{
-		Namespace: tep.Namespace,
-		Name:      tep.Name,
-	}, tep)
-	if err != nil {
-		return err
-	}
-	tep.ObjectMeta.SetLabels(utils.SetLabelHandler(utils.TunOpLabelKey, "ready", tep.ObjectMeta.GetLabels()))
-	err = routeOperator.Client.Update(ctx, tep)
-	if err != nil {
-		return err
-	}
-	time.Sleep(waitTime)
-	return nil
 }
 
 func getIPtablesRules(endpoint *netv1alpha1.TunnelEndpoint) map[string][]liqonet.IPtableRule {
@@ -230,10 +212,10 @@ func Test1RouteOperator(t *testing.T) {
 	tep.Status.RemoteTunnelPublicIP = "192.168.200.1"
 	tep.Status.RemoteRemappedPodCIDR = "None"
 	tep.Status.LocalRemappedPodCIDR = "None"
+	tep.Status.TunnelIFaceName = "testTunnel"
 	tep, err = updateStatusTEP(tep)
 	assert.Nil(t, err, "error should be nil")
 	assert.NotNil(t, tep, "the cr should not be nil")
-	err = setToReady(tep)
 	assert.Nil(t, err, "error should be nil")
 	assert.Equal(t, 3, len(routeOperator.IPtablesRuleSpecsPerRemoteCluster[tep.Spec.ClusterID]), "there should be 3 rules")
 	assert.Equal(t, 1, len(routeOperator.RoutesPerRemoteCluster[tep.Spec.ClusterID]), "number of routes should be 1")
@@ -258,10 +240,10 @@ func Test2RouteOperator(t *testing.T) {
 	tep.Status.RemoteTunnelPublicIP = "192.168.200.1"
 	tep.Status.RemoteRemappedPodCIDR = "10.96.0.0/16"
 	tep.Status.LocalRemappedPodCIDR = "None"
+	tep.Status.TunnelIFaceName = "testTunnel"
 	tep, err = updateStatusTEP(tep)
 	assert.Nil(t, err, "error should be nil")
 	assert.NotNil(t, tep, "the cr should not be nil")
-	err = setToReady(tep)
 	assert.Nil(t, err, "error should be nil")
 	assert.Equal(t, 4, len(routeOperator.IPtablesRuleSpecsPerRemoteCluster[tep.Spec.ClusterID]), "there should be 4 rules")
 	assert.Equal(t, 1, len(routeOperator.RoutesPerRemoteCluster[tep.Spec.ClusterID]), "number of routes should be 1")
@@ -286,10 +268,10 @@ func Test3RouteOperator(t *testing.T) {
 	tep.Status.RemoteTunnelPublicIP = "192.168.200.1"
 	tep.Status.RemoteRemappedPodCIDR = "10.96.0.0/16"
 	tep.Status.LocalRemappedPodCIDR = "10.100.0.0/16"
+	tep.Status.TunnelIFaceName = "testTunnel"
 	tep, err = updateStatusTEP(tep)
 	assert.Nil(t, err, "error should be nil")
 	assert.NotNil(t, tep, "the cr should not be nil")
-	err = setToReady(tep)
 	assert.Nil(t, err, "error should be nil")
 	assert.Equal(t, 3, len(routeOperator.IPtablesRuleSpecsPerRemoteCluster[tep.Spec.ClusterID]), "there should be 6 rules")
 	assert.Equal(t, 1, len(routeOperator.RoutesPerRemoteCluster[tep.Spec.ClusterID]), "number of routes should be 1")
@@ -314,10 +296,10 @@ func Test4RouteOperator(t *testing.T) {
 	tep.Status.RemoteTunnelPublicIP = "192.168.200.1"
 	tep.Status.RemoteRemappedPodCIDR = "10.96.0.0/16"
 	tep.Status.LocalRemappedPodCIDR = "10.100.0.0/16"
+	tep.Status.TunnelIFaceName = "testTunnel"
 	tep, err = updateStatusTEP(tep)
 	assert.Nil(t, err, "error should be nil")
 	assert.NotNil(t, tep, "the cr should not be nil")
-	err = setToReady(tep)
 	assert.Nil(t, err, "error should be nil")
 	assert.Equal(t, 6, len(routeOperator.IPtablesRuleSpecsPerRemoteCluster[tep.Spec.ClusterID]), "there should be 6 rules")
 	assert.Equal(t, 1, len(routeOperator.RoutesPerRemoteCluster[tep.Spec.ClusterID]), "number of routes should be 1")

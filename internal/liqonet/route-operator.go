@@ -25,6 +25,7 @@ import (
 	k8sApiErrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/tools/record"
 	"net"
 	"os"
 	"os/signal"
@@ -54,7 +55,7 @@ type RouteController struct {
 	Log            logr.Logger
 	Scheme         *runtime.Scheme
 	clientset      kubernetes.Clientset
-	RouteOperator  bool
+	Recorder       record.EventRecorder
 	NodeName       string
 	ClientSet      *kubernetes.Clientset
 	RemoteVTEPs    []string
@@ -96,7 +97,14 @@ func (r *RouteController) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 		r.Log.Error(err, "unable to fetch endpoint")
 		return ctrl.Result{}, client.IgnoreNotFound(err)
 	}
-
+	//we can process a tunnelendpoint resource only if the tunnel interface has been created and configured
+	//this network interface is managed by the tunnel operator who sets this field when process the same tunnelendpoint
+	//resource and creates the network interface.
+	//if it has not been created yet than we return and wait for the resource to be processed by the tunnel operator.
+	if endpoint.Status.TunnelIFaceName == "" {
+		log.Info("the tunnel network interface is not ready")
+		return ctrl.Result{RequeueAfter: r.RetryTimeout}, nil
+	}
 	// examine DeletionTimestamp to determine if object is under deletion
 	if endpoint.ObjectMeta.DeletionTimestamp.IsZero() {
 		if !liqonetOperator.ContainsString(endpoint.ObjectMeta.Finalizers, routeOperatorFinalizer) {
@@ -120,13 +128,18 @@ func (r *RouteController) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 		}
 	} else {
 		//the object is being deleted
+		//if we encounter an error while removing iptables rules or the routes than we record an
+		//event on the resource to notify the user
+		//the finalizer is not removed
 		if liqonetOperator.ContainsString(endpoint.Finalizers, routeOperatorFinalizer) {
 			if err := r.deleteIPTablesRulespecForRemoteCluster(&endpoint); err != nil {
 				r.Log.Error(err, "error while deleting rulespec from iptables")
+				r.Recorder.Event(&endpoint, "Warning", "Processing", err.Error())
 				return ctrl.Result{RequeueAfter: r.RetryTimeout}, err
 			}
 			if err := r.deleteRoutesPerCluster(&endpoint); err != nil {
 				r.Log.Error(err, "error while deleting routes")
+				r.Recorder.Event(&endpoint, "Warning", "Processing", err.Error())
 				return ctrl.Result{RequeueAfter: r.RetryTimeout}, err
 			}
 			//remove the finalizer from the list and update it.
@@ -144,16 +157,26 @@ func (r *RouteController) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 
 	if err := r.createAndInsertIPTablesChains(); err != nil {
 		r.Log.Error(err, "unable to create iptables chains")
+		r.Recorder.Event(&endpoint, "Warning", "Processing", err.Error())
 		return ctrl.Result{RequeueAfter: r.RetryTimeout}, err
+	} else {
+		r.Recorder.Event(&endpoint, "Normal", "Processing", "iptables chains inserted")
 	}
 	if err := r.addIPTablesRulespecForRemoteCluster(&endpoint); err != nil {
 		log.Error(err, "unable to insert ruleSpec")
+		r.Recorder.Event(&endpoint, "Warning", "Processing", err.Error())
 		return ctrl.Result{RequeueAfter: r.RetryTimeout}, err
+	} else {
+		r.Recorder.Event(&endpoint, "Normal", "Processing", "iptables rules inserted")
 	}
 	if err := r.InsertRoutesPerCluster(&endpoint); err != nil {
 		log.Error(err, "unable to insert routes")
+		r.Recorder.Event(&endpoint, "Warning", "Processing", err.Error())
 		return ctrl.Result{RequeueAfter: r.RetryTimeout}, err
+	} else {
+		r.Recorder.Event(&endpoint, "Normal", "Processing", "routes inserted")
 	}
+
 	return ctrl.Result{RequeueAfter: r.RetryTimeout}, nil
 }
 
@@ -196,7 +219,7 @@ func (r *RouteController) createAndInsertIPTablesChains() error {
 	} else {
 		log.Info("created", "chain", LiqonetPreroutingChain, "in table", NatTable)
 	}
-	r.IPTablesChains[LiqonetPostroutingChain] = liqonetOperator.IPTableChain{
+	r.IPTablesChains[LiqonetPreroutingChain] = liqonetOperator.IPTableChain{
 		Table: NatTable,
 		Name:  LiqonetPreroutingChain,
 	}
@@ -250,7 +273,7 @@ func (r *RouteController) createAndInsertIPTablesChains() error {
 	if err = liqonetOperator.InsertIptablesRulespecIfNotExists(ipt, FilterTable, "INPUT", forwardToLiqonetInputSpec); err != nil {
 		return err
 	} else {
-		log.Info("installed", "rulespec", strings.Join(forwardToLiqonetInputSpec, " "), "belonging to chain POSTROUTING in table", FilterTable)
+		log.Info("installed", "rulespec", strings.Join(forwardToLiqonetInputSpec, " "), "belonging to chain INPUT in table", FilterTable)
 	}
 	r.IPTablesRuleSpecsReferencingChains[strings.Join(forwardToLiqonetInputSpec, " ")] = liqonetOperator.IPtableRule{
 		Table:    FilterTable,
@@ -294,7 +317,7 @@ func (r *RouteController) addIPTablesRulespecForRemoteCluster(endpoint *netv1alp
 	if err = ipt.AppendUnique(NatTable, LiqonetPostroutingChain, ruleSpec...); err != nil {
 		return fmt.Errorf("unable to insert iptable rule \"%s\" in %s table, %s chain: %v", ruleSpec, NatTable, LiqonetPostroutingChain, err)
 	} else {
-		log.Info("installed", "rulespec", strings.Join(ruleSpec, " "), "belonging to chain", LiqonetPostroutingChain, "in table", FilterTable)
+		log.Info("installed", "rulespec", strings.Join(ruleSpec, " "), "belonging to chain", LiqonetPostroutingChain, "in table", NatTable)
 	}
 	ruleSpecs = append(ruleSpecs, liqonetOperator.IPtableRule{
 		Table:    NatTable,

@@ -38,6 +38,7 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 	"strconv"
+	"strings"
 	"time"
 	// +kubebuilder:scaffold:imports
 )
@@ -135,12 +136,11 @@ func main() {
 		if err != nil {
 			setupLog.Error(err, "unable to initialize iptables: %v. check if the ipatable are present in the system", err)
 		}
-
 		r := &liqonetOperators.RouteController{
 			Client:                             mgr.GetClient(),
 			Log:                                ctrl.Log.WithName("route-operator"),
 			Scheme:                             mgr.GetScheme(),
-			RouteOperator:                      runAsRouteOperator,
+			Recorder:                           mgr.GetEventRecorderFor(strings.Join([]string{"route-OP", nodeName}, "-")),
 			ClientSet:                          clientset,
 			RoutesPerRemoteCluster:             make(map[string][]netlink.Route),
 			IsGateway:                          isGatewayNode,
@@ -178,6 +178,7 @@ func main() {
 			Client:                       mgr.GetClient(),
 			Log:                          ctrl.Log.WithName("liqonetOperators").WithName("TunnelEndpoint"),
 			Scheme:                       mgr.GetScheme(),
+			Recorder:                     mgr.GetEventRecorderFor("tunnel-operator"),
 			TunnelIFacesPerRemoteCluster: make(map[string]int),
 		}
 		if err = r.SetupWithManager(mgr); err != nil {
