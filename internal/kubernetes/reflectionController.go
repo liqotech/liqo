@@ -2,7 +2,7 @@ package kubernetes
 
 import (
 	"context"
-	"github.com/liqotech/liqo/pkg/virtualNode/apiController"
+	"github.com/liqotech/liqo/pkg/virtualNode/apiReflector"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -14,12 +14,6 @@ import (
 	"time"
 )
 
-const (
-	configmaps = iota
-	endpoints
-	secrets
-	services
-)
 const (
 	reflectedService    = "liqo/reflection"
 	nReflectionWorkers  = 2
@@ -35,7 +29,7 @@ type Reflector struct {
 	stop     chan struct{}
 
 	informerFactories map[string]informers.SharedInformerFactory
-	apiControllers map[int]apiController.APIController
+	apiControllers map[int]apiReflector.APIReflector
 
 	workers *sync.WaitGroup
 	powg    *sync.WaitGroup
@@ -57,7 +51,7 @@ func (p *KubernetesProvider) StartReflector() {
 	p.stop = make(chan struct{}, 1)
 
 	p.workers = &sync.WaitGroup{}
-	p.apiControllers = make(map[int]apiController.APIController)
+	p.apiControllers = make(map[int]apiReflector.APIReflector)
 	p.informerFactories = make(map[string]informers.SharedInformerFactory)
 
 	for i := 0; i < nReflectionWorkers; i++ {
