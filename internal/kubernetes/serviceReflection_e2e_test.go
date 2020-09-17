@@ -32,16 +32,16 @@ func TestHandleServiceEvents(t *testing.T) {
 
 	// instantiate a fake provider
 	p := &KubernetesProvider{
-		Reflector:        &Reflector{started: false},
-		ntCache:          &namespaceNTCache{nattingTableName: test.ForeignClusterId},
-		foreignPodCaches: make(map[string]*podCache),
-		homeEpCaches:     make(map[string]*epCache),
-		foreignEpCaches:  make(map[string]*epCache),
-		foreignClient:    foreignClient,
-		homeClient:       homeClient,
-		startTime:        time.Time{},
-		foreignClusterId: test.ForeignClusterId,
-		homeClusterID:    test.HomeClusterId,
+		ReflectionManager: &ReflectionManager{started: false},
+		ntCache:           &namespaceNTCache{nattingTableName: test.ForeignClusterId},
+		foreignPodCaches:  make(map[string]*podCache),
+		homeEpCaches:      make(map[string]*epCache),
+		foreignEpCaches:   make(map[string]*epCache),
+		foreignClient:     foreignClient,
+		homeClient:        homeClient,
+		startTime:         time.Time{},
+		foreignClusterId:  test.ForeignClusterId,
+		homeClusterID:     test.HomeClusterId,
 	}
 
 	// start the fake cache for the namespaceNattingTable

@@ -363,7 +363,7 @@ func (p *KubernetesProvider) GetStatsSummary(ctx context.Context) (*stats.Summar
 	return res, nil
 }
 
-// NotifyPods is called to set a pod notifier callback function. This should be called before any operations are ready
+// NotifyPods is called to set a pod informing callback function. This should be called before any operations are ready
 // within the provider.
 func (p *KubernetesProvider) NotifyPods(ctx context.Context, notifier func(*v1.Pod)) {
 	p.notifier = notifier
@@ -452,7 +452,7 @@ type podEventCounter struct {
 }
 
 // watchForeignPods watch the remote pod transitions for a specific namespace
-// each transition should trigger a local update, through the p.notifier methods.
+// each transition should trigger a local update, through the p.informing methods.
 // In order to avoid throttling, this notification mechanism is timed by
 // a ticker component
 func (p *KubernetesProvider) watchForeignPods(watcher watch.Interface, stop chan struct{}) {

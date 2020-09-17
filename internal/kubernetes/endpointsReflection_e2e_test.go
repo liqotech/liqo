@@ -31,7 +31,7 @@ func TestHandleEpEventsNatting(t *testing.T) {
 
 	// instantiate a fake provider
 	p := KubernetesProvider{
-		Reflector:            &Reflector{started: false},
+		ReflectionManager:    &ReflectionManager{started: false},
 		ntCache:              &namespaceNTCache{nattingTableName: test.ForeignClusterId},
 		foreignPodCaches:     make(map[string]*podCache),
 		homeEpCaches:         make(map[string]*epCache),
@@ -65,16 +65,16 @@ func TestHandleEpEventsNoNatting(t *testing.T) {
 
 	// instantiate a fake provider
 	p := KubernetesProvider{
-		Reflector:        &Reflector{started: false},
-		ntCache:          &namespaceNTCache{nattingTableName: test.ForeignClusterId},
-		foreignPodCaches: make(map[string]*podCache),
-		homeEpCaches:     make(map[string]*epCache),
-		foreignEpCaches:  make(map[string]*epCache),
-		foreignClient:    fc,
-		homeClient:       hc,
-		startTime:        time.Time{},
-		homeClusterID:    test.HomeClusterId,
-		foreignClusterId: test.ForeignClusterId,
+		ReflectionManager: &ReflectionManager{started: false},
+		ntCache:           &namespaceNTCache{nattingTableName: test.ForeignClusterId},
+		foreignPodCaches:  make(map[string]*podCache),
+		homeEpCaches:      make(map[string]*epCache),
+		foreignEpCaches:   make(map[string]*epCache),
+		foreignClient:     fc,
+		homeClient:        hc,
+		startTime:         time.Time{},
+		homeClusterID:     test.HomeClusterId,
+		foreignClusterId:  test.ForeignClusterId,
 	}
 
 	HandleEpEvents(t, p)

@@ -16,7 +16,7 @@ import (
 
 // KubernetesProvider implements the virtual-kubelet provider interface and stores pods in memory.
 type KubernetesProvider struct { // nolint:golint]
-	*Reflector
+	*ReflectionManager
 
 	ntCache            *namespaceNTCache
 	foreignPodCaches   map[string]*podCache
@@ -80,17 +80,17 @@ func NewKubernetesProvider(nodeName, clusterId, homeClusterId, operatingSystem s
 	}
 
 	provider := KubernetesProvider{
-		Reflector:             &Reflector{},
-		ntCache:               &namespaceNTCache{nattingTableName: clusterId},
-		foreignPodCaches:      make(map[string]*podCache),
-		homeEpCaches:          make(map[string]*epCache),
-		foreignEpCaches:       make(map[string]*epCache),
-		nodeName:              nodeName,
-		operatingSystem:       operatingSystem,
-		internalIP:            internalIP,
-		daemonEndpointPort:    daemonEndpointPort,
-		startTime:             time.Now(),
-		foreignClusterId:      clusterId,
+		ReflectionManager:  &ReflectionManager{},
+		ntCache:            &namespaceNTCache{nattingTableName: clusterId},
+		foreignPodCaches:   make(map[string]*podCache),
+		homeEpCaches:       make(map[string]*epCache),
+		foreignEpCaches:    make(map[string]*epCache),
+		nodeName:           nodeName,
+		operatingSystem:    operatingSystem,
+		internalIP:         internalIP,
+		daemonEndpointPort: daemonEndpointPort,
+		startTime:          time.Now(),
+		foreignClusterId:   clusterId,
 		homeClusterID:         homeClusterId,
 		providerKubeconfig:    remoteKubeConfig,
 		homeClient:            client,

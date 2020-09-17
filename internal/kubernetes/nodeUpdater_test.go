@@ -33,14 +33,14 @@ func TestNodeUpdater(t *testing.T) {
 
 	// instantiate a fake provider
 	p := KubernetesProvider{
-		Reflector:        &Reflector{started: false},
-		advClient:        advClient,
-		homeClient:       advClient,
-		tunEndClient:     tepClient,
-		nodeName:         test.NodeName,
-		startTime:        time.Time{},
-		foreignClusterId: test.ForeignClusterId,
-		homeClusterID:    test.HomeClusterId,
+		ReflectionManager: &ReflectionManager{started: false},
+		advClient:         advClient,
+		homeClient:        advClient,
+		tunEndClient:      tepClient,
+		nodeName:          test.NodeName,
+		startTime:         time.Time{},
+		foreignClusterId:  test.ForeignClusterId,
+		homeClusterID:     test.HomeClusterId,
 	}
 
 	var nodeRunner *node.NodeController
