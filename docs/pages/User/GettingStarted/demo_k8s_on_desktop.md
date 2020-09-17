@@ -149,7 +149,7 @@ For detailed information see the [Liqo Installation Guide](/user/gettingstarted/
 Before proceding with the installation of [KubernetesOnDesktop](https://github.com/netgroup-polito/KubernetesOnDesktop) in one of the two clusters, wait for all the `pod`s in `liqo` `namespace` to be up and running in both clusters.
 You can check it by executing `kubectl get pod -n liqo` in both clusters.
 
-Since both (virtual) machines are connected to the same local area network, each Liqo cluster will automatically join the foreign one thanks the Liqo [Discovery](/user/configure/discovery/) and [Peering](/user/gettingstarted/peer/) features.
+Since both (virtual) machines are connected to the same local area network, each Liqo cluster will automatically join the foreign one thanks the Liqo [Discovery and Peering](/user/gettingstarted/peer/) features.
 
 ### Install KubernetesOnDesktop
 Now that both [k3s](https://k3s.io/) and [Liqo](https://liqo.io) are up and running, we can install [KubernetesOnDesktop](https://github.com/netgroup-polito/KubernetesOnDesktop) by executing the following command:

@@ -42,8 +42,7 @@ an Advertisement. The advertisement contains a list of resources (CPUs, memory, 
 If the requesting cluster accepts the advertisement, it creates a **virtual node** (a sort of *digital twin* of the foreign cluster) and it establishes the proper **network connections** (e.g., secure network tunnels) for the inter-cluster traffic.
 The virtual node models the resources available in the foreign cluster and allows the home cluster to schedule pods on it. Instead, the cluster interconnection allows to reach pods (and services) scheduled on the foreign cluster as if they were running on the home infrastructure.
 
-Finally, in order to establish a peering to another cluster, you need to *know another cluster*. Liqo offers multiple mechanisms to [discover other clusters](../configure/discovery): LAN discovery, DNS discovery, Manual discovery.
-
+Finally, in order to establish a peering to another cluster, you need to *know another cluster*. Liqo offers multiple mechanisms to discover other clusters: LAN discovery, DNS discovery, Manual discovery.
 
 ## Working Modes
 
