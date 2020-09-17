@@ -10,7 +10,7 @@ import (
 )
 
 type ConfigmapsReflector struct {
-	GenericAPIReflector
+	*GenericAPIReflector
 }
 
 func (r *ConfigmapsReflector) HandleEvent(e interface{}) error {

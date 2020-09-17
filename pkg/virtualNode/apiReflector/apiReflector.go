@@ -3,7 +3,6 @@ package apiReflector
 import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/cache"
-	"reflect"
 	"sync"
 )
 
@@ -22,31 +21,23 @@ type APIPreProcessing interface {
 type APIReflector interface {
 	APIPreProcessing
 
+	ReflectNamespace(namespace string, informer cache.SharedIndexInformer)
+	Out(interface{})
 	Wait()
-	HandleEvent(interface{}) error
-
 	done()
+}
+
+type SpecializedAPIReflector interface {
+	HandleEvent(interface{}) error
 }
 
 type GenericAPIReflector struct {
 	preProcessingHandlers PreProcessingHandlers
-	Informer              map[string]cache.SharedIndexInformer
 	waitGroup             *sync.WaitGroup
-	Output                chan interface{}
+	outputChan	chan interface{}
 
 	client kubernetes.Interface
-}
-
-func NewApiReflector(api int) APIReflector {
-	return reflect.New(apiTypes[api]).Interface().(APIReflector)
-}
-
-func (c *GenericAPIReflector) Wait() {
-	c.waitGroup.Wait()
-}
-
-func (c *GenericAPIReflector) done() {
-	c.waitGroup.Done()
+	informer              map[string]cache.SharedIndexInformer
 }
 
 func (c *GenericAPIReflector) PreProcessAdd(obj interface{}) interface{} {
@@ -69,3 +60,20 @@ func (c *GenericAPIReflector) PreProcessDelete(obj interface{}) interface{} {
 	}
 	return c.preProcessingHandlers.deleteFunc(obj)
 }
+
+func (c *GenericAPIReflector) ReflectNamespace(namespace string, informer cache.SharedIndexInformer) {
+	c.informer[namespace] = informer
+}
+
+func (c *GenericAPIReflector) Wait() {
+	c.waitGroup.Wait()
+}
+
+func (c *GenericAPIReflector) Out(obj interface{}) {
+	c.outputChan <- obj
+}
+
+func (c *GenericAPIReflector) done() {
+	c.waitGroup.Done()
+}
+

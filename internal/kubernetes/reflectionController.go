@@ -65,29 +65,34 @@ func (p *KubernetesProvider) StartReflector() {
 
 func (r *Reflector) ConfigureInformers(ns string) {
 	for _, controller := range r.apiControllers {
-		controller.informer[ns].AddEventHandler(&cache.ResourceEventHandlerFuncs{
+		controller.AddEventHandler(ns, &cache.ResourceEventHandlerFuncs{
 			AddFunc: func(obj interface{}) {
-				controller.output <- watch.Event{
+				controller.Out(watch.Event{
 					Type:   watch.Added,
 					Object: obj.(runtime.Object),
-				}
+				})
 			},
 			UpdateFunc: func(oldObj, newObj interface{}) {
-				if controller.preProcessing!= nil {
-					if !controller.preProcessing(oldObj, newObj) {
+				if controller.PreProcessUpdate != nil {
+					if controller.PreProcessUpdate(oldObj, newObj) == nil {
 						return
 					}
 				}
-				controller.output <- watch.Event{
+				controller.Out(watch.Event{
 					Type:   watch.Modified,
 					Object: newObj.(runtime.Object),
-				}
+				})
 			},
 			DeleteFunc: func(obj interface{}) {
-				controller.output <- watch.Event{
+				if controller.PreProcessDelete != nil {
+					if controller.PreProcessDelete(obj) == nil {
+						return
+					}
+				}
+				controller.Out(watch.Event{
 					Type:   watch.Deleted,
 					Object: obj.(runtime.Object),
-				}
+				})
 			},
 		})
 	}
@@ -228,7 +233,7 @@ func (p *KubernetesProvider) StopReflector() {
 	p.workers.Wait()
 	p.powg.Wait()
 	for _, controller := range p.apiControllers {
-		controller.waitGroup.Wait()
+		controller.Wait()
 	}
 }
 
@@ -243,10 +248,12 @@ func (p *KubernetesProvider) reflectNamespace(namespace string) error {
 
 	stop := make(chan struct{}, 1)
 
-	p.informerFactories[namespace] = informers.NewSharedInformerFactoryWithOptions(
+	informersFactory := informers.NewSharedInformerFactoryWithOptions(
 		p.homeClient.Client(),
 		defaultResyncPeriod,
 		informers.WithNamespace(namespace))
+	informer := informersFactory.
+	p.informerFactories[namespace] = informersFactory
 	p.ConfigureInformers(namespace)
 
 	if err := p.AddPodWatcher(nattedNS, stop); err != nil {
