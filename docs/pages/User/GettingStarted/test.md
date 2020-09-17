@@ -9,21 +9,21 @@ This demonstrates the capability of Liqo to start a pod either in the local (*ho
 
 ## Start an Hello World pod
 
-First, ensure you are operating in your home cluster. Otherwise, set the `KUBECONFIG` variable to the correct value:
+First, ensure you have configured your KUBECONFIG to point to your home cluster. Otherwise, set the `KUBECONFIG` variable to the correct value:
 ```shell script
 export KUBECONFIG=home-kubeconfig.yaml
 ```
 
 Now you have to create a namespace where your pod will be started and label it as ```liqo.io/enabled=true```. This label will tell the Kubernetes scheduler that the namespace spans across the foreign clusters as well; hence, pods started in the above namespaces are suitable for being executed on the foreign cluster.
 
-```
+```shell script
 kubectl create namespace liqo-demo
 kubectl label namespace liqo-demo liqo.io/enabled=true
 ```
 
 Then, you can deploy a demo application in the `liqo-demo` namespace:
 
-```
+```shell script
 kubectl apply -f https://raw.githubusercontent.com/liqotech/liqo/master/docs/examples/hello-world.yaml -n liqo-demo
 ```
 The `hello-world.yaml` file is a simple `nginx` service; it is composed of two pods running an `nginx` image, and a service exposing the pods to the cluster; the reason for having _two_ `nginx` pods is to create a configuration in which one pod runs in the local cluster, while the other is forced to be scheduled on the remote cluster.
@@ -55,27 +55,32 @@ nginx-remote   1/1     Running   0          76s   172.16.97.219   liqo-9a596a4b-
 
 ## Check the pod connectivity
 
+Once both pods are correctly running, it is possible to check one of the abstractions introduced by Liqo.
+Indeed, Liqo enables each pod to be transparently contacted by every other pod and physical node (according to the Kubernetes model), regardless of whether it is hosted by the _local_ or by the foreign cluster.
+
 First, let's retrieve the IP address of the `nginx` pods:
 
-```bash
+```shell script
 LOCAL_POD_IP=$(kubectl get pod nginx-local -n liqo-demo --template={{.status.podIP}})
 REMOTE_POD_IP=$(kubectl get pod nginx-remote -n liqo-demo --template={{.status.podIP}})
 echo "Local Pod IP: ${LOCAL_POD_IP} - Remote Pod IP: ${REMOTE_POD_IP}"
 ```
 
-If you have direct connectivity with the home cluster from your host (e.g. you are running K3s locally),
-you can open a browser and directly check the connectivity to both IP addresses.
-Similarly, you can also use `curl`:
-```
+If you have direct connectivity with the home cluster from your host (e.g. you are running K3s locally), you can open a browser and directly check the connectivity to both IP addresses.
+You should notice no differences when connecting to the two IP addresses, although one pod is running in the _local_ cluster and the other in the _foreign_ cluster.
+
+Similarly, you can also use `curl` to perform the same check:
+```shell script
 curl ${LOCAL_POD_IP}
 curl ${REMOTE_POD_IP}
 ```
 
 If you do not have direct connectivity, on the other hand, you can fire up a pod and run `curl` from inside:
-```
+```shell script
 kubectl run --image=curlimages/curl curl -n default -it --rm --restart=Never -- curl ${LOCAL_POD_IP}
 kubectl run --image=curlimages/curl curl -n default -it --rm --restart=Never -- curl ${REMOTE_POD_IP}
 ```
+Also in this case both commands should lead to a successful outcome (i.e. return a demo web page), regardless of whether each pod is executed locally or remotely.
 
 ## Expose the pod through a Service
 
@@ -83,7 +88,8 @@ The above `hello-world.yaml` manifest tells Kubernetes to create also a service,
 The service is a traditional [Kubernetes Service](https://kubernetes.io/docs/concepts/services-networking/service/) and can work with Liqo with no modifications.
 
 Indeed, inspecting the service it is possible to observe that both `nginx` pods are correctly specified as endpoints.
-```
+Nonetheless, it is worth noticing that the first endpoint (i.e. `10.244.2.214:80` in this example) refers to a pod running in the _home_ cluster, while the second one (i.e. `172.16.97.219:80`) points to a pod hosted by the _foreign_ cluster.
+```shell script
 kubectl describe service liqo-demo -n liqo-demo
 
 Name:              liqo-demo
@@ -98,28 +104,34 @@ Endpoints:         10.244.2.214:80,172.16.97.219:80
 
 ### Check the Service connectivity
 
+It is now possible to contact the service: as usual, kubernetes will forward the HTTP request to one the available back-end pods.
+Additionally, all traditional mechanisms still work seamlessly (e.g. DNS discovery), even though one of the pods is actually running in a _foreign_ cluster.
+
 First, you have to retrieve the IP address of the service:
-```
+```shell script
 SVC_IP=$(kubectl get service liqo-demo -n liqo-demo --template={{.spec.clusterIP}})
 echo "Service IP: ${SVC_IP}"
 ```
 
-If you have direct connectivity with the home cluster from your host (e.g. you are running K3s locally),
-you can open a browser and directly check the connectivity to the service IP address.
-Similarly, you can also use `curl`:
+If you have direct connectivity with the home cluster from your host (e.g. you are running K3s locally), you can open a browser and directly check the connectivity to the service IP address.
+At the bottom of the displayed demo web-page, you should see the IP address and the hostname of the back-end that is serving the request (i.e. either the local or the remote pod).
+Try reloading the page and observe the differences: the hostname should alternate between `nginx-local` and `nginx-remote`, hence confirming that both pods are correctly leveraged by Kubernetes as back-ends of the service.
+
+Similarly, you can also use `curl` to perform the same verification (execute this command multiple times to contact both endpoints):
 ```
-curl ${SVC_IP}
+curl --silent ${SVC_IP} | grep 'Server'
 ```
 
 If you do not have direct connectivity, on the other hand, you can fire up a pod and run `curl` from inside:
 ```
-kubectl run --image=curlimages/curl curl -n default -it --rm --restart=Never -- curl ${SVC_IP}
+kubectl run --image=curlimages/curl curl -n default -it --rm --restart=Never -- curl --silent ${SVC_IP} | grep 'Server'
 ```
+Also in this case, if you execute the command multiple times, you should observe an alternation between the local and the remote endpoint.
 
-You can also connect to the service through its _service name_, which exploits the Kubernetes DNS service:
+Finally, you can also connect to the service through its _service name_, which exploits the Kubernetes DNS service:
 
 ```
-kubectl run --image=curlimages/curl curl -n default -it --rm --restart=Never -- curl http://liqo-demo.liqo-demo
+kubectl run --image=curlimages/curl curl -n default -it --rm --restart=Never -- curl --silent http://liqo-demo.liqo-demo | grep 'Server'
 ```
 
 Now, you are ready to move to the [next section](../further-steps). to deploy a more complex demo application.

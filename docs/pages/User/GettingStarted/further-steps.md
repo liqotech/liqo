@@ -7,7 +7,7 @@ So far, you tested Liqo with a simple `nginx` application, but Liqo can be used 
 
 ##  Deploy a micro-service application with micro-services application
 
-For a complete demo of the capabilities of Liqo, we can play with a micro-services application provided by [Google](https://github.com/GoogleCloudPlatform/microservices-demo), which include multiple cooperating services:
+For a complete demo of the capabilities of Liqo, we can play with a micro-services application provided by [Google](https://github.com/GoogleCloudPlatform/microservices-demo), which includes multiple cooperating services:
 
 ```
 kubectl apply -f https://raw.githubusercontent.com/liqotech/microservices-demo/master/release/kubernetes-manifests.yaml -n liqo-demo
@@ -75,3 +75,39 @@ Still, you have two alternatives to access the demo application:
 > ```bash
 > kubectl delete -f https://github.com/liqotech/microservices-demo/blob/master/release/kubernetes-manifests.yaml -n liqo-demo
 > ```
+
+## Trigger rescheduling
+
+You can trigger a rescheduling of the application by simply deleting some pods, observing that the application is continuing to work:
+
+For example, to reschedule the payment service of the sample website, we can delete its pod: 
+
+```
+kubectl delete po -l app=paymentservice -n liqo-demo
+```
+
+We can observe that the pod is going to be rescheduled somewhere, considering physical and virtual nodes:
+
+```
+kubectl get pods -n liqo-demo
+```
+
+The output will be something like:
+
+```
+NAME                                     READY   STATUS    RESTARTS   AGE   IP               NODE
+adservice-5c9c7c997f-gmmdx               1/1     Running   0          12m   10.244.2.56      worker-node-2
+cartservice-6d99678dd6-db6ns             1/1     Running   0          13m   172.16.97.199    liqo-9a596a4b-591c-4ac6-8fd6-80258b4b3bf9
+checkoutservice-779cb9bfdf-h48tg         1/1     Running   0          13m   172.16.97.201    liqo-9a596a4b-591c-4ac6-8fd6-80258b4b3bf9
+currencyservice-5db6c7d559-gb7ln         1/1     Running   0          12m   172.16.226.110   liqo-9a596a4b-591c-4ac6-8fd6-80258b4b3bf9
+emailservice-5c47dc87bf-zzz4z            1/1     Running   0          13m   10.244.2.235     worker-node-2
+frontend-5fcb8cdcdc-vvq4m                1/1     Running   0          13m   172.16.97.207    liqo-9a596a4b-591c-4ac6-8fd6-80258b4b3bf9
+loadgenerator-79bff5bd57-t7976           1/1     Running   0          12m   172.16.97.208    liqo-9a596a4b-591c-4ac6-8fd6-80258b4b3bf9
+paymentservice-6564cb7fb9-dsase          1/1     Running   0          10s   172.16.97.197   worker-node-2
+productcatalogservice-5db9444549-cxjlb   1/1     Running   0          13m   172.16.226.87    liqo-9a596a4b-591c-4ac6-8fd6-80258b4b3bf9
+recommendationservice-78dd87ff95-2s8ks   1/1     Running   0          13m   10.244.2.241     worker-node-2
+redis-cart-57bd646894-9x4cd              1/1     Running   0          12m   172.16.226.120   liqo-9a596a4b-591c-4ac6-8fd6-80258b4b3bf9
+shippingservice-f47755f97-5jcpm          1/1     Running   0          12m   10.244.4.169     worker-node-1
+```
+
+After deletion Kubernetes control logic schedules a new pod from *paymentservice* deployment, since we deleted the previous one. This new pod can be scheduled on every node available in the cluster, both virtual or physical. In the example, the scheduler placed the new pod on a physical node (worker-node-2) instead of the virtual one chosen for the previously deleted one. 
