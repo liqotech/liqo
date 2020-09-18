@@ -266,6 +266,11 @@ func (r *ForeignClusterReconciler) Reconcile(req ctrl.Request) (ctrl.Result, err
 		requireUpdate = true
 	}
 
+	if !fc.Spec.Join && !fc.Status.Outgoing.Joined && slice.ContainsString(fc.Finalizers, FinalizerString, nil) {
+		fc.Finalizers = slice.RemoveString(fc.Finalizers, FinalizerString, nil)
+		requireUpdate = true
+	}
+
 	if requireUpdate {
 		_, err = r.crdClient.Resource("foreignclusters").Update(fc.Name, fc, metav1.UpdateOptions{})
 		if err != nil {
@@ -369,6 +374,9 @@ func (r *ForeignClusterReconciler) checkJoined(fc *discoveryv1alpha1.ForeignClus
 	if err != nil {
 		fc.Status.Outgoing.Joined = false
 		fc.Status.Outgoing.RemotePeeringRequestName = ""
+		if slice.ContainsString(fc.Finalizers, FinalizerString, nil) {
+			fc.Finalizers = slice.RemoveString(fc.Finalizers, FinalizerString, nil)
+		}
 		tmp, err := r.crdClient.Resource("foreignclusters").Update(fc.Name, fc, metav1.UpdateOptions{})
 		if err != nil {
 			return nil, err
