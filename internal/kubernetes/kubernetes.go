@@ -6,7 +6,7 @@ import (
 	nattingv1 "github.com/liqotech/liqo/api/virtualKubelet/v1alpha1"
 	"github.com/liqotech/liqo/internal/node"
 	"github.com/liqotech/liqo/pkg/crdClient"
-	"github.com/liqotech/liqo/pkg/virtualNode/namespacesMapping"
+	"github.com/liqotech/liqo/pkg/virtualKubelet/apiReflection"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
@@ -17,7 +17,7 @@ import (
 
 // KubernetesProvider implements the virtual-kubelet provider interface and stores pods in memory.
 type KubernetesProvider struct { // nolint:golint]
-	*ReflectionManager
+	*apiReflection.ReflectionManager
 
 	ntCache            *namespaceNatting.namespaceNTCache
 	foreignPodCaches   map[string]*podCache
@@ -81,7 +81,7 @@ func NewKubernetesProvider(nodeName, clusterId, homeClusterId, operatingSystem s
 	}
 
 	provider := KubernetesProvider{
-		ReflectionManager:     &ReflectionManager{},
+		ReflectionManager:     &apiReflection.ReflectionManager{},
 		ntCache:               &namespaceNatting.namespaceNTCache{nattingTableName: clusterId},
 		foreignPodCaches:      make(map[string]*podCache),
 		homeEpCaches:          make(map[string]*epCache),

@@ -2,6 +2,7 @@ package kubernetes
 
 import (
 	"context"
+	"github.com/liqotech/liqo/pkg/virtualKubelet/apiReflection"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -217,7 +218,7 @@ func (p *KubernetesProvider) newHomeEpCache(c kubernetes.Interface, namespace st
 		}
 		for k := range eps.Items {
 			ep := eps.Items[k]
-			p.epEvent <- timestampedEndpoints{
+			p.epEvent <- apiReflection.timestampedEndpoints{
 				ep: &ep,
 				t:  time.Now(),
 			}
@@ -240,7 +241,7 @@ func (p *KubernetesProvider) newHomeEpCache(c kubernetes.Interface, namespace st
 			UpdateFunc: func(oldObj, newObj interface{}) {
 				ep := newObj.(*corev1.Endpoints)
 				if t, ok := lastUpdates[ep.Name]; !ok || time.Since(t) >= epUpdateRate {
-					p.epEvent <- timestampedEndpoints{
+					p.epEvent <- apiReflection.timestampedEndpoints{
 						ep: ep,
 						t:  time.Now(),
 					}

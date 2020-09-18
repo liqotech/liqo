@@ -7,7 +7,7 @@ import (
 	v1 "github.com/liqotech/liqo/api/virtualKubelet/v1alpha1"
 	"github.com/liqotech/liqo/internal/kubernetes/test"
 	"github.com/liqotech/liqo/pkg/crdClient"
-	"github.com/liqotech/liqo/pkg/virtualNode/namespacesMapping"
+	"github.com/liqotech/liqo/pkg/virtualKubelet/apiReflection"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/klog"
@@ -33,7 +33,7 @@ func TestHandleConfigmapEvents(t *testing.T) {
 
 	// instantiate a fake provider
 	p := &KubernetesProvider{
-		ReflectionManager: &ReflectionManager{started: false},
+		ReflectionManager: &apiReflection.ReflectionManager{started: false},
 		ntCache:           &namespaceNatting.namespaceNTCache{nattingTableName: test.ForeignClusterId},
 		foreignPodCaches:  make(map[string]*podCache),
 		homeEpCaches:      make(map[string]*epCache),

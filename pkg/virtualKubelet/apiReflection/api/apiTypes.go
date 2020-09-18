@@ -8,6 +8,11 @@ import (
 type ApiType int
 
 const (
+	commonLabelKey   = "liqo/reflection"
+	commonLabelValue = "reflected"
+)
+
+const (
 	Configmaps = iota
 	Endpoints
 	Secrets

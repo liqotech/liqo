@@ -1,7 +1,7 @@
 package api
 
 import (
-	"github.com/liqotech/liqo/pkg/virtualNode/namespacesMapping"
+	"github.com/liqotech/liqo/pkg/virtualKubelet/namespacesMapping"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/kubernetes"
@@ -22,15 +22,15 @@ type APIPreProcessing interface {
 
 type APIReflector interface {
 	APIPreProcessing
+	SpecializedAPIReflector
 
 	Inform(obj ApiEvent)
-
 	ReflectNamespace(namespace string, informer cache.SharedIndexInformer)
 }
 
 type SpecializedAPIReflector interface {
 	SetPreProcessingHandlers()
-	HandleEvent(interface{}) error
+	HandleEvent(interface{})
 }
 
 type GenericAPIReflector struct {

@@ -14,9 +14,9 @@ type ConfigmapsReflector struct {
 
 func (r *ConfigmapsReflector) SetPreProcessingHandlers() {
 	r.PreProcessingHandlers = PreProcessingHandlers{
-			addFunc:    r.PreAdd,
-			updateFunc: r.PreUpdate,
-			deleteFunc: r.PreDelete,
+		addFunc:    r.PreAdd,
+		updateFunc: r.PreUpdate,
+		deleteFunc: r.PreDelete,
 	}
 }
 
@@ -36,19 +36,19 @@ func (r *ConfigmapsReflector) HandleEvent(e interface{}) {
 		if _, err := r.ForeignClient.CoreV1().ConfigMaps(cm.Namespace).Create(context.TODO(), cm, metav1.CreateOptions{}); err != nil {
 			klog.Errorf("REFLECTION: Error while creating the remote configmap %v/%v - ERR: %v", cm.Namespace, cm.Name, err)
 		}
-		klog.V(3).Infof("REFLECTION: remote configMap %v-%v correctly created",cm.Namespace, cm.Name)
+		klog.V(3).Infof("REFLECTION: remote configMap %v-%v correctly created", cm.Namespace, cm.Name)
 
 	case watch.Modified:
 		if _, err = r.ForeignClient.CoreV1().ConfigMaps(cm.Namespace).Update(context.TODO(), cm, metav1.UpdateOptions{}); err != nil {
 			klog.Errorf("REFLECTION: Error while updating the remote configmap %v/%v - ERR: %v", cm.Namespace, cm.Name, err)
 		}
-		klog.V(3).Infof("REFLECTION: remote configMap %v-%v correctly updated",cm.Namespace, cm.Name)
+		klog.V(3).Infof("REFLECTION: remote configMap %v-%v correctly updated", cm.Namespace, cm.Name)
 
 	case watch.Deleted:
 		if err := r.ForeignClient.CoreV1().ConfigMaps(cm.Namespace).Delete(context.TODO(), cm.Name, metav1.DeleteOptions{}); err != nil {
 			klog.Errorf("REFLECTION: Error while deleting the remote configmap %v/%v - ERR: %v", cm.Namespace, cm.Name, err)
 		}
-		klog.V(3).Infof("REFLECTION: remote configMap %v-%v correctly deleted",cm.Namespace, cm.Name)
+		klog.V(3).Infof("REFLECTION: remote configMap %v-%v correctly deleted", cm.Namespace, cm.Name)
 	}
 }
 
@@ -72,7 +72,7 @@ func (r *ConfigmapsReflector) PreAdd(obj interface{}) interface{} {
 	for k, v := range cmLocal.Labels {
 		cmRemote.Labels[k] = v
 	}
-	cmRemote.Labels["liqo/reflection"] = "reflected"
+	cmRemote.Labels[commonLabelKey] = commonLabelValue
 
 	return cmRemote
 }

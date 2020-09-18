@@ -7,6 +7,7 @@ import (
 	"github.com/liqotech/liqo/internal/kubernetes/test"
 	"github.com/liqotech/liqo/internal/node"
 	"github.com/liqotech/liqo/pkg/crdClient"
+	"github.com/liqotech/liqo/pkg/virtualKubelet/apiReflection"
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -33,7 +34,7 @@ func TestNodeUpdater(t *testing.T) {
 
 	// instantiate a fake provider
 	p := KubernetesProvider{
-		ReflectionManager: &ReflectionManager{started: false},
+		ReflectionManager: &apiReflection.ReflectionManager{started: false},
 		advClient:         advClient,
 		homeClient:        advClient,
 		tunEndClient:      tepClient,
