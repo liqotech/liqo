@@ -1,4 +1,4 @@
-package apiReflection
+package reflectionController
 
 import (
 	"k8s.io/client-go/informers"
@@ -66,7 +66,7 @@ func (c *APIReflectorController) ReflectNamespace(namespace string,
 }
 
 func (c *APIReflectorController) DispatchEvent(event ApiEvent) error {
-	return c.apiReflectors[event.api].(SpecializedAPIReflector).HandleEvent(event)
+	return c.apiReflectors[event.api].(SpecializedAPIReflector).HandleEvent(event.event)
 }
 
 func (c *APIReflectorController) Stop() {

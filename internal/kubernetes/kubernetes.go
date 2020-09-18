@@ -6,6 +6,7 @@ import (
 	nattingv1 "github.com/liqotech/liqo/api/virtualKubelet/v1alpha1"
 	"github.com/liqotech/liqo/internal/node"
 	"github.com/liqotech/liqo/pkg/crdClient"
+	"github.com/liqotech/liqo/pkg/virtualNode/namespacesMapping"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
@@ -18,7 +19,7 @@ import (
 type KubernetesProvider struct { // nolint:golint]
 	*ReflectionManager
 
-	ntCache            *namespaceNTCache
+	ntCache            *namespaceNatting.namespaceNTCache
 	foreignPodCaches   map[string]*podCache
 	homeEpCaches       map[string]*epCache
 	foreignEpCaches    map[string]*epCache
@@ -81,7 +82,7 @@ func NewKubernetesProvider(nodeName, clusterId, homeClusterId, operatingSystem s
 
 	provider := KubernetesProvider{
 		ReflectionManager:  &ReflectionManager{},
-		ntCache:            &namespaceNTCache{nattingTableName: clusterId},
+		ntCache:            &namespaceNatting.namespaceNTCache{nattingTableName: clusterId},
 		foreignPodCaches:   make(map[string]*podCache),
 		homeEpCaches:       make(map[string]*epCache),
 		foreignEpCaches:    make(map[string]*epCache),

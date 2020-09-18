@@ -1,8 +1,9 @@
-package apiReflection
+package apis
 
 import (
 	"context"
 	"errors"
+	"github.com/liqotech/liqo/pkg/virtualNode/apiReflection/reflectionController"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/watch"
@@ -10,7 +11,7 @@ import (
 )
 
 type ConfigmapsReflector struct {
-	GenericAPIReflector
+	reflectionController.GenericAPIReflector
 }
 
 func (r *ConfigmapsReflector) HandleEvent(e interface{}) error {
@@ -58,25 +59,35 @@ func (r *ConfigmapsReflector) HandleEvent(e interface{}) error {
 	return nil
 }
 
-func (r *ConfigmapsReflector) createConfigMap(cm *corev1.ConfigMap, namespace string) error {
+func (r *ConfigmapsReflector)PreProcessingAdd(obj interface{}) interface{} {
+	cmLocal := obj.(corev1.ConfigMap)
 	cmRemote := corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:        cm.Name,
-			Namespace:   namespace,
-			Labels:      cm.Labels,
-			Annotations: nil,
+			Name:        cmLocal.Name,
+			Namespace:   "", // TODO natting
+			Labels:      make(map[string]string),
 		},
-		Data:       cm.Data,
-		BinaryData: cm.BinaryData,
+		Data:       cmLocal.Data,
+		BinaryData: cmLocal.BinaryData,
 	}
-
-	if cmRemote.Labels == nil {
-		cmRemote.Labels = make(map[string]string)
+	for k, v := range cmLocal.Labels {
+		cmRemote.Labels[k] = v
 	}
 	cmRemote.Labels["liqo/reflection"] = "reflected"
 
-	_, err := r.foreignClient.CoreV1().ConfigMaps(namespace).Create(context.TODO(), &cmRemote, metav1.CreateOptions{})
+	return cmRemote
+}
 
+func (r *ConfigmapsReflector)PreProcessingUpdate(newObj, oldObj interface{}) interface{} {
+	return newObj
+}
+
+func (r *ConfigmapsReflector)PreProcessingDelete(obj interface{}) interface{} {
+	return obj
+}
+
+func (r *ConfigmapsReflector) createConfigMap(cm *corev1.ConfigMap, namespace string) error {
+	_, err := r.foreignClient.CoreV1().ConfigMaps(namespace).Create(context.TODO(), cm, metav1.CreateOptions{})
 	return err
 }
 

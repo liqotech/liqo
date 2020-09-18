@@ -1,4 +1,4 @@
-package apiReflection
+package reflectionController
 
 import (
 	"k8s.io/apimachinery/pkg/runtime"
@@ -32,9 +32,9 @@ type SpecializedAPIReflector interface {
 }
 
 type GenericAPIReflector struct {
-	api ApiType
+	api                   ApiType
 	preProcessingHandlers PreProcessingHandlers
-	outputChan	chan ApiEvent
+	outputChan            chan ApiEvent
 
 	foreignClient kubernetes.Interface
 	informers     map[string]cache.SharedIndexInformer

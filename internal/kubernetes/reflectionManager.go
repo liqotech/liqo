@@ -2,7 +2,7 @@ package kubernetes
 
 import (
 	"context"
-	"github.com/liqotech/liqo/pkg/virtualNode/apiReflection"
+	"github.com/liqotech/liqo/pkg/virtualNode/apiReflection/reflectionController"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/klog"
@@ -24,16 +24,11 @@ type timestampedEndpoints struct {
 type ReflectionManager struct {
 	stop     chan struct{}
 
-	reflectorController *apiReflection.APIReflectorController
+	reflectorController *reflectionController.APIReflectorController
 
 	workers   *sync.WaitGroup
 	powg      *sync.WaitGroup
-	informing chan apiReflection.ApiEvent
-
-	reflectedNamespaces struct {
-		sync.Mutex
-		ns map[string]chan struct{}
-	}
+	informing chan reflectionController.ApiEvent
 
 	started bool
 }
@@ -44,9 +39,9 @@ func (p *KubernetesProvider) StartReflector() {
 	klog.Infof("starting reflector for cluster %v", p.foreignClusterId)
 
 	p.reflectedNamespaces.ns = make(map[string]chan struct{})
-	p.informing = make(chan apiReflection.ApiEvent)
+	p.informing = make(chan reflectionController.ApiEvent)
 	p.stop = make(chan struct{})
-	p.reflectorController = apiReflection.NewAPIReflectorController(p.homeClient.Client(), p.foreignClient.Client(), p.informing)
+	p.reflectorController = reflectionController.NewAPIReflectorController(p.homeClient.Client(), p.foreignClient.Client(), p.informing)
 
 	for i := 0; i < nReflectionWorkers; i++ {
 		p.workers.Add(1)

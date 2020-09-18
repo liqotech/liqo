@@ -1,6 +1,7 @@
-package apiReflection
+package reflectionController
 
 import (
+	"github.com/liqotech/liqo/pkg/virtualNode/apiReflection/apis"
 	"k8s.io/client-go/informers"
 	"k8s.io/client-go/tools/cache"
 )
@@ -16,23 +17,21 @@ const (
 
 type ApiEvent struct {
 	event interface{}
-	api ApiType
+	api   ApiType
 }
 
 var apiMapping = map[ApiType]func(reflector *GenericAPIReflector) APIReflector{
 	Configmaps: func(reflector *GenericAPIReflector) APIReflector {
-		return &ConfigmapsReflector{GenericAPIReflector: *reflector}
+		return &apis.ConfigmapsReflector{GenericAPIReflector: *reflector}
 	},
-	Endpoints: nil,
-	Secrets:   nil,
-	Services:  nil,
 }
 
 var apiPreProcessingHandlers = map[ApiType]PreProcessingHandlers{
-	Configmaps: nil,
-	Endpoints:  nil,
-	Secrets:    nil,
-	Services:   nil,
+	Configmaps: {
+		addFunc:    nil,
+		updateFunc: nil,
+		deleteFunc: nil,
+	},
 }
 
 var informerBuilding = map[ApiType]func(informers.SharedInformerFactory) cache.SharedIndexInformer{
