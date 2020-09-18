@@ -42,7 +42,7 @@ type Cluster struct {
 }
 
 func getClientCluster() *Cluster {
-	cluster, mgr := getCluster()
+	cluster, mgr, cc := getCluster()
 	cluster.clusterId = clusterID.GetNewClusterID("client-cluster", cluster.client.Client())
 	cluster.fcReconciler = foreign_cluster_operator.GetFCReconciler(
 		mgr.GetScheme(),
@@ -79,6 +79,7 @@ func getClientCluster() *Cluster {
 		cluster.advClient,
 		cluster.clusterId,
 	)
+	cluster.discoveryCtrl.Config = &cc.Spec.DiscoveryConfig
 
 	cluster.sdReconciler = search_domain_operator.GetSDReconciler(
 		mgr.GetScheme(),
@@ -103,7 +104,7 @@ func getClientCluster() *Cluster {
 }
 
 func getServerCluster() *Cluster {
-	cluster, mgr := getCluster()
+	cluster, mgr, cc := getCluster()
 	cluster.clusterId = clusterID.GetNewClusterID("server-cluster", cluster.client.Client())
 	cluster.fcReconciler = foreign_cluster_operator.GetFCReconciler(
 		mgr.GetScheme(),
@@ -140,6 +141,7 @@ func getServerCluster() *Cluster {
 		cluster.advClient,
 		cluster.clusterId,
 	)
+	cluster.discoveryCtrl.Config = &cc.Spec.DiscoveryConfig
 
 	go func() {
 		err = mgr.Start(stopChan)
@@ -151,7 +153,7 @@ func getServerCluster() *Cluster {
 	return cluster
 }
 
-func getCluster() (*Cluster, manager.Manager) {
+func getCluster() (*Cluster, manager.Manager, *configv1alpha1.ClusterConfig) {
 	cluster := &Cluster{}
 
 	cluster.env = &envtest.Environment{
@@ -222,12 +224,12 @@ func getCluster() (*Cluster, manager.Manager) {
 		os.Exit(1)
 	}
 
-	getClusterConfig(*cluster.cfg)
+	cc := getClusterConfig(*cluster.cfg)
 
-	return cluster, k8sManager
+	return cluster, k8sManager, cc
 }
 
-func getClusterConfig(config rest.Config) {
+func getClusterConfig(config rest.Config) *configv1alpha1.ClusterConfig {
 	cc := &configv1alpha1.ClusterConfig{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: "configuration",
@@ -246,6 +248,7 @@ func getClusterConfig(config rest.Config) {
 			DiscoveryConfig: configv1alpha1.DiscoveryConfig{
 				AutoJoin:            true,
 				AutoJoinUntrusted:   true,
+				ClusterName:         "Test Cluster",
 				Domain:              "local.",
 				EnableAdvertisement: true,
 				EnableDiscovery:     true,
@@ -276,11 +279,14 @@ func getClusterConfig(config rest.Config) {
 		os.Exit(1)
 	}
 
-	_, err = client.Resource("clusterconfigs").Create(cc, metav1.CreateOptions{})
+	tmp, err := client.Resource("clusterconfigs").Create(cc, metav1.CreateOptions{})
 	if err != nil {
 		klog.Error(err, err.Error())
 		os.Exit(1)
 	}
+	cc, _ = tmp.(*configv1alpha1.ClusterConfig)
+
+	return cc
 }
 
 var registryDomain = "test.liqo.io."

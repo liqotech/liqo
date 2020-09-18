@@ -25,6 +25,7 @@ func TestMdns(t *testing.T) {
 func testTxtData(t *testing.T) {
 	txtData = discovery.TxtData{
 		ID:               clientCluster.clusterId.GetClusterID(),
+		Name:             "Cluster 1",
 		Namespace:        "default",
 		ApiUrl:           "https://" + serverCluster.cfg.Host,
 		AllowUntrustedCA: true,
@@ -68,6 +69,7 @@ func testForeignClusterCreation(t *testing.T) {
 	txts := []*discovery.TxtData{
 		{
 			ID:               "test",
+			Name:             "Test Cluster 1",
 			Namespace:        "default",
 			ApiUrl:           "http://" + serverCluster.cfg.Host,
 			AllowUntrustedCA: true,
@@ -91,6 +93,8 @@ func testForeignClusterCreation(t *testing.T) {
 	assert.Equal(t, ok, true)
 	assert.Equal(t, fc.Spec.ApiUrl, "http://"+serverCluster.cfg.Host, "ApiUrl doesn't match the specified one")
 	assert.Equal(t, fc.Spec.Namespace, "default", "Foreign Namesapce doesn't match the specified one")
+	assert.Equal(t, fc.Spec.ClusterIdentity.ClusterID, txts[0].ID)
+	assert.Equal(t, fc.Spec.ClusterIdentity.ClusterName, txts[0].Name)
 }
 
 // ------
@@ -101,7 +105,9 @@ func testTtl(t *testing.T) {
 			Name: "fc-test-ttl",
 		},
 		Spec: v1alpha1.ForeignClusterSpec{
-			ClusterID:     "test-cluster-ttl",
+			ClusterIdentity: v1alpha1.ClusterIdentity{
+				ClusterID: "test-cluster-ttl",
+			},
 			Namespace:     "default",
 			Join:          false,
 			ApiUrl:        serverCluster.cfg.Host,
@@ -135,7 +141,7 @@ func testTtl(t *testing.T) {
 
 	txts := []*discovery.TxtData{
 		{
-			ID:               fc.Spec.ClusterID,
+			ID:               fc.Spec.ClusterIdentity.ClusterID,
 			Namespace:        "default",
 			ApiUrl:           "",
 			AllowUntrustedCA: true,

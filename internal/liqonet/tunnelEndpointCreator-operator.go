@@ -489,9 +489,9 @@ func (r *TunnelEndpointCreator) ForeignClusterHandlerAdd(obj interface{}) {
 		return
 	}
 	if fc.Status.Incoming.Joined || fc.Status.Outgoing.Joined {
-		_ = r.createNetConfig(fc.Spec.ClusterID)
+		_ = r.createNetConfig(fc.Spec.ClusterIdentity.ClusterID)
 	} else if !fc.Status.Incoming.Joined && !fc.Status.Outgoing.Joined {
-		_ = r.deleteNetConfig(fc.Spec.ClusterID)
+		_ = r.deleteNetConfig(fc.Spec.ClusterIdentity.ClusterID)
 	}
 }
 
@@ -511,7 +511,7 @@ func (r *TunnelEndpointCreator) ForeignClusterHandlerDelete(obj interface{}) {
 		klog.Errorf("an error occurred while converting resource %s of type %s to typed object: %s", objUnstruct.GetName(), objUnstruct.GetKind(), err)
 		return
 	}
-	_ = r.deleteNetConfig(fc.Spec.ClusterID)
+	_ = r.deleteNetConfig(fc.Spec.ClusterIdentity.ClusterID)
 }
 
 func (r *TunnelEndpointCreator) GetTunnelEndpoint(name string) (*netv1alpha1.TunnelEndpoint, bool, error) {

@@ -78,7 +78,7 @@ func (d *CRDReplicatorReconciler) Reconcile(req ctrl.Request) (ctrl.Result, erro
 		klog.Errorf("%s -> resource %s not present, probably deleted: %s", d.ClusterID, req.NamespacedName, err)
 		return ctrl.Result{}, nil
 	}
-	remoteClusterID := fc.Spec.ClusterID
+	remoteClusterID := fc.Spec.ClusterIdentity.ClusterID
 	//check if the client already exists
 	//check if the dynamic dynamic client and informer factory exists
 	_, dynClientOk := d.RemoteDynClients[remoteClusterID]

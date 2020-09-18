@@ -21,7 +21,9 @@ func TestWatchAdvertisementAcceptance(t *testing.T) {
 			Name: b.PeeringRequestName,
 		},
 		Spec: discoveryv1alpha1.PeeringRequestSpec{
-			ClusterID:     b.PeeringRequestName,
+			ClusterIdentity: discoveryv1alpha1.ClusterIdentity{
+				ClusterID: b.PeeringRequestName,
+			},
 			Namespace:     "test",
 			KubeConfigRef: nil,
 		},

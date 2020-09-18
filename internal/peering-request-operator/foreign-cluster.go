@@ -12,7 +12,7 @@ import (
 
 func (r *PeeringRequestReconciler) UpdateForeignCluster(pr *v1alpha1.PeeringRequest) error {
 	tmp, err := r.crdClient.Resource("foreignclusters").List(metav1.ListOptions{
-		LabelSelector: "cluster-id=" + pr.Spec.ClusterID,
+		LabelSelector: "cluster-id=" + pr.Spec.ClusterIdentity.ClusterID,
 	})
 	if err != nil {
 		klog.Error(err, err.Error())
@@ -73,10 +73,10 @@ func (r *PeeringRequestReconciler) createForeignCluster(pr *v1alpha1.PeeringRequ
 
 	fc := &v1alpha1.ForeignCluster{
 		ObjectMeta: metav1.ObjectMeta{
-			Name: pr.Spec.ClusterID,
+			Name: pr.Spec.ClusterIdentity.ClusterID,
 		},
 		Spec: v1alpha1.ForeignClusterSpec{
-			ClusterID:        pr.Spec.ClusterID,
+			ClusterIdentity:  pr.Spec.ClusterIdentity,
 			Namespace:        pr.Spec.Namespace,
 			Join:             false,
 			ApiUrl:           cnf.Host,

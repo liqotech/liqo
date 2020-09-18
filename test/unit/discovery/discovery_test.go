@@ -90,7 +90,9 @@ func testClient(t *testing.T) {
 			Name: "fc-test",
 		},
 		Spec: v1alpha1.ForeignClusterSpec{
-			ClusterID:     "test-cluster",
+			ClusterIdentity: v1alpha1.ClusterIdentity{
+				ClusterID: "test-cluster",
+			},
 			Namespace:     "default",
 			Join:          false,
 			ApiUrl:        serverCluster.cfg.Host,
@@ -310,7 +312,9 @@ func testBidirectionalJoin(t *testing.T) {
 			Name: "server-cluster",
 		},
 		Spec: v1alpha1.ForeignClusterSpec{
-			ClusterID:     "server-cluster",
+			ClusterIdentity: v1alpha1.ClusterIdentity{
+				ClusterID: "server-cluster",
+			},
 			Namespace:     "default",
 			Join:          true,
 			ApiUrl:        serverCluster.cfg.Host,
@@ -365,7 +369,7 @@ func testMergeClusters(t *testing.T) {
 	assert.Equal(t, ok, true)
 
 	txt := &discovery.TxtData{
-		ID:               fc.Spec.ClusterID,
+		ID:               fc.Spec.ClusterIdentity.ClusterID,
 		Namespace:        fc.Spec.Namespace,
 		ApiUrl:           strings.Replace(fc.Spec.ApiUrl, "127.0.0.1", "127.0.0.2", -1),
 		AllowUntrustedCA: true,

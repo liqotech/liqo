@@ -90,7 +90,7 @@ func (r *ForeignClusterReconciler) Reconcile(req ctrl.Request) (ctrl.Result, err
 	// set cluster-id label to easy retrieve ForeignClusters by ClusterId,
 	// if it is added manually, the name maybe not coincide with ClusterId
 	if fc.ObjectMeta.Labels["cluster-id"] == "" {
-		fc.ObjectMeta.Labels["cluster-id"] = fc.Spec.ClusterID
+		fc.ObjectMeta.Labels["cluster-id"] = fc.Spec.ClusterIdentity.ClusterID
 		requireUpdate = true
 	}
 
@@ -434,7 +434,10 @@ func (r *ForeignClusterReconciler) createPeeringRequestIfNotExists(clusterID str
 					Name: localClusterID,
 				},
 				Spec: discoveryv1alpha1.PeeringRequestSpec{
-					ClusterID:         localClusterID,
+					ClusterIdentity: discoveryv1alpha1.ClusterIdentity{
+						ClusterID:   localClusterID,
+						ClusterName: r.DiscoveryCtrl.Config.ClusterName,
+					},
 					Namespace:         r.Namespace,
 					KubeConfigRef:     nil,
 					OriginClusterSets: r.getOriginClusterSets(),
