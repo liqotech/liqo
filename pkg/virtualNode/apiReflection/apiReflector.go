@@ -1,6 +1,7 @@
-package reflectionController
+package apiReflection
 
 import (
+	"github.com/liqotech/liqo/pkg/virtualNode/namespacesMapping"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/kubernetes"
@@ -36,8 +37,9 @@ type GenericAPIReflector struct {
 	preProcessingHandlers PreProcessingHandlers
 	outputChan            chan ApiEvent
 
-	foreignClient kubernetes.Interface
-	informers     map[string]cache.SharedIndexInformer
+	ForeignClient    kubernetes.Interface
+	informers        map[string]cache.SharedIndexInformer
+	NamespaceNatting namespacesMapping.NamespaceNatter
 }
 
 func (r *GenericAPIReflector) PreProcessAdd(obj interface{}) interface{} {

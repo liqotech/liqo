@@ -1,12 +1,15 @@
-package reflectionController
+package apiReflection
 
 import (
+	"github.com/liqotech/liqo/pkg/virtualNode/namespacesMapping"
 	"k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/cache"
 	"sync"
 	"time"
 )
+
+var defaultResyncPeriod = 10*time.Second
 
 type APIReflectorController struct {
 	outputChan        chan ApiEvent
@@ -15,16 +18,20 @@ type APIReflectorController struct {
 	informerFactories map[string]informers.SharedInformerFactory
 	apiReflectors     map[ApiType]APIReflector
 	waitGroup             *sync.WaitGroup
+	namespaceNatting namespacesMapping.NamespaceController
 	stop chan struct{}
 }
 
-func NewAPIReflectorController(homeClient, foreignClient kubernetes.Interface, outputChan chan ApiEvent) *APIReflectorController {
+func NewAPIReflectorController(homeClient, foreignClient kubernetes.Interface,
+	outputChan chan ApiEvent,
+	namespaceNatting namespacesMapping.NamespaceController) *APIReflectorController {
 	controller := &APIReflectorController{
 		outputChan:        outputChan,
 		homeClient:        homeClient,
 		foreignClient:     foreignClient,
 		informerFactories: make(map[string]informers.SharedInformerFactory),
 		apiReflectors:     make(map[ApiType]APIReflector),
+		namespaceNatting: namespaceNatting,
 		stop: make(chan struct{}),
 	}
 
@@ -35,22 +42,30 @@ func NewAPIReflectorController(homeClient, foreignClient kubernetes.Interface, o
 	return controller
 }
 
+func (c *APIReflectorController) Start() {
+	for {
+		select {
+		case ns := <-c.namespaceNatting.PollStartReflection():
+			c.reflectNamespace(ns)
+		}
+	}
+}
+
 func (c *APIReflectorController) buildApiReflector(api ApiType) APIReflector {
 	apiReflector := &GenericAPIReflector{
 		api:                   api,
 		preProcessingHandlers: apiPreProcessingHandlers[api],
 		outputChan:            c.outputChan,
-		foreignClient:         c.foreignClient,
+		ForeignClient:         c.foreignClient,
 		informers:             make(map[string]cache.SharedIndexInformer),
+		NamespaceNatting:      c.namespaceNatting,
 	}
 	return apiMapping[api](apiReflector)
 }
 
-func (c *APIReflectorController) ReflectNamespace(namespace string,
-	reSyncPeriod time.Duration,
-	opts informers.SharedInformerOption) {
+func (c *APIReflectorController) reflectNamespace(namespace string) {
 
-	factory := informers.NewSharedInformerFactoryWithOptions(c.homeClient, reSyncPeriod, informers.WithNamespace(namespace), opts)
+	factory := informers.NewSharedInformerFactoryWithOptions(c.homeClient, defaultResyncPeriod, informers.WithNamespace(namespace))
 	c.informerFactories[namespace] = factory
 
 	for api, handler := range informerBuilding {

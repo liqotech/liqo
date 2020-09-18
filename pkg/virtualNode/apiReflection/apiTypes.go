@@ -1,7 +1,6 @@
-package reflectionController
+package apiReflection
 
 import (
-	"github.com/liqotech/liqo/pkg/virtualNode/apiReflection/apis"
 	"k8s.io/client-go/informers"
 	"k8s.io/client-go/tools/cache"
 )
@@ -22,7 +21,7 @@ type ApiEvent struct {
 
 var apiMapping = map[ApiType]func(reflector *GenericAPIReflector) APIReflector{
 	Configmaps: func(reflector *GenericAPIReflector) APIReflector {
-		return &apis.ConfigmapsReflector{GenericAPIReflector: *reflector}
+		return &ConfigmapsReflector{GenericAPIReflector: *reflector}
 	},
 }
 

@@ -2,6 +2,25 @@ package namespacesMapping
 
 import "github.com/liqotech/liqo/pkg/crdClient"
 
+type MapperController interface {
+	NamespaceController
+
+	PollStartMapper() chan struct{}
+	PollEndMapper() chan struct{}
+}
+
+type NamespaceController interface {
+	NamespaceNatter
+
+	PollStartReflection() chan string
+	PollStopReflection() chan string
+}
+
+type NamespaceNatter interface {
+	NatNamespace(namespace string, create bool) (string, error)
+	DeNatNamespace(namespace string) (string, error)
+}
+
 type NamespaceMapperController struct {
 	mapper *NamespaceMapper
 }
