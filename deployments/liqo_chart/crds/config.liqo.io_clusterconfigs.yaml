@@ -120,6 +120,8 @@ spec:
                   type: boolean
                 autojoinUntrusted:
                   type: boolean
+                clusterName:
+                  type: string
                 domain:
                   type: string
                 enableAdvertisement:

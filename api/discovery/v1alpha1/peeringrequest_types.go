@@ -34,7 +34,7 @@ type PeeringRequestSpec struct {
 	// INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
 	// Important: Run "make" to regenerate code after modifying this file
 
-	ClusterID         string              `json:"clusterID"`
+	ClusterIdentity   ClusterIdentity     `json:"clusterIdentity"`
 	Namespace         string              `json:"namespace"`
 	KubeConfigRef     *v1.ObjectReference `json:"kubeConfigRef,omitempty"`
 	OriginClusterSets OriginClusterSets   `json:"originClusterSets"`

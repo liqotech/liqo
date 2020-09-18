@@ -321,7 +321,9 @@ func TestCreateNetConfigFromForeignClusterOutgoingJoined(t *testing.T) {
 			Name: "foreigncluster-testing",
 		},
 		Spec: discoveryv1alpha1.ForeignClusterSpec{
-			ClusterID:        "testing",
+			ClusterIdentity: discoveryv1alpha1.ClusterIdentity{
+				ClusterID: "testing",
+			},
 			Namespace:        "",
 			Join:             false,
 			ApiUrl:           "",
@@ -363,15 +365,15 @@ func TestCreateNetConfigFromForeignClusterOutgoingJoined(t *testing.T) {
 			netConfig := &netv1alpha1.NetworkConfig{}
 			err = tec.Get(context.TODO(), types.NamespacedName{
 				Namespace: fc.Namespace,
-				Name:      controller.NetConfigNamePrefix + fc.Spec.ClusterID,
+				Name:      controller.NetConfigNamePrefix + fc.Spec.ClusterIdentity.ClusterID,
 			}, netConfig)
 			assert.Nil(t, err, "error should be nil")
-			assert.Equal(t, fc.Spec.ClusterID, netConfig.Spec.ClusterID, "should be equal")
+			assert.Equal(t, fc.Spec.ClusterIdentity.ClusterID, netConfig.Spec.ClusterID, "should be equal")
 			assert.Equal(t, tec.PodCIDR, netConfig.Spec.PodCIDR, "should be equal")
 			assert.Equal(t, tec.GatewayIP, netConfig.Spec.TunnelPublicIP, "should be equal")
 			labels := netConfig.GetLabels()
 			assert.Equal(t, "true", labels[crdReplicator.LocalLabelSelector])
-			assert.Equal(t, fc.Spec.ClusterID, labels[crdReplicator.DestinationLabel])
+			assert.Equal(t, fc.Spec.ClusterIdentity.ClusterID, labels[crdReplicator.DestinationLabel])
 			err = tec.Delete(context.TODO(), netConfig)
 			assert.Nil(t, err)
 			err = tec.DynClient.Resource(controller.ForeignClusterGVR).Delete(context.TODO(), fc.Name, metav1.DeleteOptions{})
@@ -380,7 +382,7 @@ func TestCreateNetConfigFromForeignClusterOutgoingJoined(t *testing.T) {
 			//check that the netconfig has been deleted
 			err = tec.Get(context.TODO(), types.NamespacedName{
 				Namespace: fc.Namespace,
-				Name:      controller.NetConfigNamePrefix + fc.Spec.ClusterID,
+				Name:      controller.NetConfigNamePrefix + fc.Spec.ClusterIdentity.ClusterID,
 			}, netConfig)
 			assert.True(t, apierrors.IsNotFound(err))
 		} else {
@@ -393,7 +395,7 @@ func TestCreateNetConfigFromForeignClusterOutgoingJoined(t *testing.T) {
 			netConfig := &netv1alpha1.NetworkConfig{}
 			err = tec.Get(context.TODO(), types.NamespacedName{
 				Namespace: fc.Namespace,
-				Name:      controller.NetConfigNamePrefix + fc.Spec.ClusterID,
+				Name:      controller.NetConfigNamePrefix + fc.Spec.ClusterIdentity.ClusterID,
 			}, netConfig)
 			assert.True(t, apierrors.IsNotFound(err))
 			err = tec.DynClient.Resource(controller.ForeignClusterGVR).Delete(context.TODO(), fc.Name, metav1.DeleteOptions{})

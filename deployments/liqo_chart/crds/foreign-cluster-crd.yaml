@@ -34,9 +34,18 @@ spec:
           type: object
         spec:
           properties:
-            clusterID:
-              type: string
-              description: Foreign Cluster ID
+            clusterIdentity:
+              type: object
+              description: Foreign Cluster Identity
+              properties:
+                clusterID:
+                  type: string
+                  description: Foreign Cluster ID, this is a unique identifier of that cluster
+                clusterName:
+                  type: string
+                  description: Foreign Cluster Name to be shown in GUIs
+              required:
+                - clusterID
             namespace:
               type: string
               description: Namespace where Liqo is deployed
@@ -60,6 +69,7 @@ spec:
             - join
             - discoveryType
             - allowUntrustedCA
+            - clusterIdentity
           type: object
         status:
           properties:

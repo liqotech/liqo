@@ -85,6 +85,8 @@ type AdvOperatorConfig struct {
 }
 
 type DiscoveryConfig struct {
+	ClusterName string `json:"clusterName,omitempty"`
+
 	// --- mDNS ---
 
 	Name    string `json:"name"`

@@ -42,12 +42,17 @@ type ForeignClusterSpec struct {
 	// INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
 	// Important: Run "make" to regenerate code after modifying this file
 
-	ClusterID        string        `json:"clusterID"`
-	Namespace        string        `json:"namespace"`
-	Join             bool          `json:"join"`
-	ApiUrl           string        `json:"apiUrl"`
-	DiscoveryType    DiscoveryType `json:"discoveryType"`
-	AllowUntrustedCA bool          `json:"allowUntrustedCA"`
+	ClusterIdentity  ClusterIdentity `json:"clusterIdentity"`
+	Namespace        string          `json:"namespace"`
+	Join             bool            `json:"join"`
+	ApiUrl           string          `json:"apiUrl"`
+	DiscoveryType    DiscoveryType   `json:"discoveryType"`
+	AllowUntrustedCA bool            `json:"allowUntrustedCA"`
+}
+
+type ClusterIdentity struct {
+	ClusterID   string `json:"clusterID"`
+	ClusterName string `json:"clusterName,omitempty"`
 }
 
 // ForeignClusterStatus defines the observed state of ForeignCluster

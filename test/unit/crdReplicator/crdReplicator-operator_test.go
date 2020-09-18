@@ -86,7 +86,9 @@ func getForeignClusterResource() *unstructured.Unstructured {
 				"labels": map[string]string{},
 			},
 			"spec": map[string]interface{}{
-				"clusterID":        "foreign-cluster",
+				"clusterIdentity": map[string]interface{}{
+					"clusterID": "foreign-cluster",
+				},
 				"join":             true,
 				"namespace":        "default",
 				"apiUrl":           "https://192.168.2.100:6443",

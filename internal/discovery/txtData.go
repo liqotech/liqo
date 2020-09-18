@@ -11,6 +11,7 @@ import (
 
 type TxtData struct {
 	ID               string
+	Name             string
 	Namespace        string
 	AllowUntrustedCA bool
 	ApiUrl           string
@@ -22,6 +23,9 @@ func (txtData TxtData) Encode() ([]string, error) {
 		"namespace=" + txtData.Namespace,
 		"untrusted-ca=" + txtData.GetAllowUntrustedCA(),
 		"url=" + txtData.ApiUrl,
+	}
+	if txtData.Name != "" {
+		res = append(res, "name="+txtData.Name)
 	}
 	return res, nil
 }
@@ -41,6 +45,8 @@ func Decode(address string, port string, data []string) (*TxtData, error) {
 			res.ID = d[len("id="):]
 		} else if strings.HasPrefix(d, "namespace=") {
 			res.Namespace = d[len("namespace="):]
+		} else if strings.HasPrefix(d, "name=") {
+			res.Name = d[len("name="):]
 		} else if strings.HasPrefix(d, "untrusted-ca=") {
 			res.AllowUntrustedCA = d[len("untrusted-ca="):] == "true"
 		} else if strings.HasPrefix(d, "url=") {
@@ -64,12 +70,16 @@ func (discovery *DiscoveryCtrl) GetTxtData() (*TxtData, error) {
 		klog.Error(err)
 		return nil, err
 	}
-	return &TxtData{
+	txtData := &TxtData{
 		ID:               discovery.ClusterId.GetClusterID(),
 		Namespace:        discovery.Namespace,
 		AllowUntrustedCA: discovery.Config.AllowUntrustedCA,
 		ApiUrl:           apiUrl,
-	}, nil
+	}
+	if discovery.Config.ClusterName != "" {
+		txtData.Name = discovery.Config.ClusterName
+	}
+	return txtData, nil
 }
 
 // get API Server Url for this cluster

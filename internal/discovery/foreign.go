@@ -84,7 +84,7 @@ func (discovery *DiscoveryCtrl) UpdateTtl(txts []*TxtData) error {
 		// find the ones that are not in the last retrieved list on LAN
 		found := false
 		for _, txt := range txts {
-			if txt.ID == fc.Spec.ClusterID {
+			if txt.ID == fc.Spec.ClusterIdentity.ClusterID {
 				found = true
 				// if cluster TTL was decreased, reset it to default value
 				if fc.Status.Ttl != 3 {
@@ -127,7 +127,10 @@ func (discovery *DiscoveryCtrl) createForeign(txtData *TxtData, sd *v1alpha1.Sea
 			Name: txtData.ID,
 		},
 		Spec: v1alpha1.ForeignClusterSpec{
-			ClusterID:        txtData.ID,
+			ClusterIdentity: v1alpha1.ClusterIdentity{
+				ClusterID:   txtData.ID,
+				ClusterName: txtData.Name,
+			},
 			Namespace:        txtData.Namespace,
 			ApiUrl:           txtData.ApiUrl,
 			DiscoveryType:    discoveryType,
