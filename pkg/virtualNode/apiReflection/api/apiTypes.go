@@ -1,4 +1,4 @@
-package apiReflection
+package api
 
 import (
 	"k8s.io/client-go/informers"
@@ -15,25 +15,17 @@ const (
 )
 
 type ApiEvent struct {
-	event interface{}
-	api   ApiType
+	Event interface{}
+	Api   ApiType
 }
 
-var apiMapping = map[ApiType]func(reflector *GenericAPIReflector) APIReflector{
+var ApiMapping = map[ApiType]func(reflector *GenericAPIReflector) APIReflector{
 	Configmaps: func(reflector *GenericAPIReflector) APIReflector {
 		return &ConfigmapsReflector{GenericAPIReflector: *reflector}
 	},
 }
 
-var apiPreProcessingHandlers = map[ApiType]PreProcessingHandlers{
-	Configmaps: {
-		addFunc:    nil,
-		updateFunc: nil,
-		deleteFunc: nil,
-	},
-}
-
-var informerBuilding = map[ApiType]func(informers.SharedInformerFactory) cache.SharedIndexInformer{
+var InformerBuilding = map[ApiType]func(informers.SharedInformerFactory) cache.SharedIndexInformer{
 	Configmaps: func(factory informers.SharedInformerFactory) cache.SharedIndexInformer {
 		return factory.Core().V1().ConfigMaps().Informer()
 	},

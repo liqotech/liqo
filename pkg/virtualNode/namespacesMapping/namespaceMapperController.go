@@ -28,8 +28,8 @@ type NamespaceMapperController struct {
 func NewNamespaceMapperController(client crdClient.NamespacedCRDClientInterface, homeClusterId, foreignClusterId string) *NamespaceMapperController {
 	startReflectionChan := make(chan string, 100)
 	stopReflectionChan := make(chan string, 100)
-	startChan := make(chan struct {}, 100)
-	stopChan := make(chan struct {}, 100)
+	startChan := make(chan struct{}, 100)
+	stopChan := make(chan struct{}, 100)
 
 	controller := &NamespaceMapperController{
 		mapper: &NamespaceMapper{
@@ -38,7 +38,7 @@ func NewNamespaceMapperController(client crdClient.NamespacedCRDClientInterface,
 			homeClusterId:    homeClusterId,
 			foreignClusterId: foreignClusterId,
 			startReflection:  startReflectionChan,
-			stopReflection: stopReflectionChan,
+			stopReflection:   stopReflectionChan,
 			startMapper:      startChan,
 			stopMapper:       stopChan,
 		},

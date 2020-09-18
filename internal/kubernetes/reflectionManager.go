@@ -3,6 +3,7 @@ package kubernetes
 import (
 	"context"
 	"github.com/liqotech/liqo/pkg/virtualNode/apiReflection"
+	"github.com/liqotech/liqo/pkg/virtualNode/apiReflection/api"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/klog"
@@ -11,8 +12,8 @@ import (
 )
 
 const (
-	reflectedService    = "liqo/reflection"
-	nReflectionWorkers  = 2
+	reflectedService   = "liqo/reflection"
+	nReflectionWorkers = 2
 )
 
 type timestampedEndpoints struct {
@@ -21,13 +22,13 @@ type timestampedEndpoints struct {
 }
 
 type ReflectionManager struct {
-	stop     chan struct{}
+	stop chan struct{}
 
 	reflectorController *apiReflection.APIReflectorController
 
 	workers   *sync.WaitGroup
 	powg      *sync.WaitGroup
-	informing chan apiReflection.ApiEvent
+	informing chan api.ApiEvent
 
 	started bool
 }
@@ -38,7 +39,7 @@ func (p *KubernetesProvider) StartReflector() {
 	klog.Infof("starting reflector for cluster %v", p.foreignClusterId)
 
 	p.reflectedNamespaces.ns = make(map[string]chan struct{})
-	p.informing = make(chan apiReflection.ApiEvent)
+	p.informing = make(chan api.ApiEvent)
 	p.stop = make(chan struct{})
 	p.reflectorController = apiReflection.NewAPIReflectorController(p.homeClient.Client(), p.foreignClient.Client(), p.informing)
 

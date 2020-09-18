@@ -1,4 +1,4 @@
-package apiReflection
+package api
 
 import (
 	"github.com/liqotech/liqo/pkg/virtualNode/namespacesMapping"
@@ -9,7 +9,7 @@ import (
 )
 
 type PreProcessingHandlers struct {
-	addFunc func(obj interface{}) interface{}
+	addFunc    func(obj interface{}) interface{}
 	updateFunc func(newObj, oldObj interface{}) interface{}
 	deleteFunc func(obj interface{}) interface{}
 }
@@ -25,56 +25,57 @@ type APIReflector interface {
 
 	Inform(obj ApiEvent)
 
-	reflectNamespace(namespace string, informer cache.SharedIndexInformer)
+	ReflectNamespace(namespace string, informer cache.SharedIndexInformer)
 }
 
 type SpecializedAPIReflector interface {
+	SetPreProcessingHandlers()
 	HandleEvent(interface{}) error
 }
 
 type GenericAPIReflector struct {
-	api                   ApiType
-	preProcessingHandlers PreProcessingHandlers
-	outputChan            chan ApiEvent
+	Api                   ApiType
+	PreProcessingHandlers PreProcessingHandlers
+	OutputChan            chan ApiEvent
 
 	ForeignClient    kubernetes.Interface
-	informers        map[string]cache.SharedIndexInformer
+	Informers        map[string]cache.SharedIndexInformer
 	NamespaceNatting namespacesMapping.NamespaceNatter
 }
 
 func (r *GenericAPIReflector) PreProcessAdd(obj interface{}) interface{} {
-	if r.preProcessingHandlers.updateFunc == nil {
+	if r.PreProcessingHandlers.updateFunc == nil {
 		return obj
 	}
-	return r.preProcessingHandlers.addFunc(obj)
+	return r.PreProcessingHandlers.addFunc(obj)
 }
 
 func (r *GenericAPIReflector) PreProcessUpdate(newObj, oldObj interface{}) interface{} {
-	if r.preProcessingHandlers.updateFunc == nil {
+	if r.PreProcessingHandlers.updateFunc == nil {
 		return newObj
 	}
-	return r.preProcessingHandlers.updateFunc(newObj, oldObj)
+	return r.PreProcessingHandlers.updateFunc(newObj, oldObj)
 }
 
 func (r *GenericAPIReflector) PreProcessDelete(obj interface{}) interface{} {
-	if r.preProcessingHandlers.deleteFunc == nil {
+	if r.PreProcessingHandlers.deleteFunc == nil {
 		return obj
 	}
-	return r.preProcessingHandlers.deleteFunc(obj)
+	return r.PreProcessingHandlers.deleteFunc(obj)
 }
 
-func (r *GenericAPIReflector) reflectNamespace(namespace string, informer cache.SharedIndexInformer) {
+func (r *GenericAPIReflector) ReflectNamespace(namespace string, informer cache.SharedIndexInformer) {
 	informer.AddEventHandler(&cache.ResourceEventHandlerFuncs{
 		AddFunc: func(obj interface{}) {
 			if r.PreProcessAdd(obj) == nil {
 				return
 			}
 			r.Inform(ApiEvent{
-				event: watch.Event{
+				Event: watch.Event{
 					Type:   watch.Added,
 					Object: obj.(runtime.Object),
 				},
-				api: r.api,
+				Api: r.Api,
 			})
 		},
 		UpdateFunc: func(oldObj, newObj interface{}) {
@@ -82,11 +83,11 @@ func (r *GenericAPIReflector) reflectNamespace(namespace string, informer cache.
 				return
 			}
 			r.Inform(ApiEvent{
-					event: watch.Event{
-						Type:   watch.Modified,
-						Object: newObj.(runtime.Object),
-					},
-					api: r.api,
+				Event: watch.Event{
+					Type:   watch.Modified,
+					Object: newObj.(runtime.Object),
+				},
+				Api: r.Api,
 			})
 		},
 		DeleteFunc: func(obj interface{}) {
@@ -94,16 +95,16 @@ func (r *GenericAPIReflector) reflectNamespace(namespace string, informer cache.
 				return
 			}
 			r.Inform(ApiEvent{
-				event: watch.Event{
+				Event: watch.Event{
 					Object: obj.(runtime.Object),
 				},
-				api: r.api,
+				Api: r.Api,
 			})
 		},
 	})
-	r.informers[namespace] = informer
+	r.Informers[namespace] = informer
 }
 
 func (r *GenericAPIReflector) Inform(obj ApiEvent) {
-	r.outputChan <- obj
+	r.OutputChan <- obj
 }

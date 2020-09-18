@@ -1,6 +1,7 @@
 package apiReflection
 
 import (
+	reflectedApi "github.com/liqotech/liqo/pkg/virtualNode/apiReflection/api"
 	"github.com/liqotech/liqo/pkg/virtualNode/namespacesMapping"
 	"k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes"
@@ -9,33 +10,33 @@ import (
 	"time"
 )
 
-var defaultResyncPeriod = 10*time.Second
+var defaultResyncPeriod = 10 * time.Second
 
 type APIReflectorController struct {
-	outputChan        chan ApiEvent
+	outputChan        chan reflectedApi.ApiEvent
 	homeClient        kubernetes.Interface
 	foreignClient     kubernetes.Interface
 	informerFactories map[string]informers.SharedInformerFactory
-	apiReflectors     map[ApiType]APIReflector
-	waitGroup             *sync.WaitGroup
-	namespaceNatting namespacesMapping.NamespaceController
-	stop chan struct{}
+	apiReflectors     map[reflectedApi.ApiType]reflectedApi.APIReflector
+	waitGroup         *sync.WaitGroup
+	namespaceNatting  namespacesMapping.NamespaceController
+	stop              chan struct{}
 }
 
 func NewAPIReflectorController(homeClient, foreignClient kubernetes.Interface,
-	outputChan chan ApiEvent,
+	outputChan chan reflectedApi.ApiEvent,
 	namespaceNatting namespacesMapping.NamespaceController) *APIReflectorController {
 	controller := &APIReflectorController{
 		outputChan:        outputChan,
 		homeClient:        homeClient,
 		foreignClient:     foreignClient,
 		informerFactories: make(map[string]informers.SharedInformerFactory),
-		apiReflectors:     make(map[ApiType]APIReflector),
-		namespaceNatting: namespaceNatting,
-		stop: make(chan struct{}),
+		apiReflectors:     make(map[reflectedApi.ApiType]reflectedApi.APIReflector),
+		namespaceNatting:  namespaceNatting,
+		stop:              make(chan struct{}),
 	}
 
-	for api := range apiMapping {
+	for api := range reflectedApi.ApiMapping {
 		controller.buildApiReflector(api)
 	}
 
@@ -51,16 +52,15 @@ func (c *APIReflectorController) Start() {
 	}
 }
 
-func (c *APIReflectorController) buildApiReflector(api ApiType) APIReflector {
-	apiReflector := &GenericAPIReflector{
-		api:                   api,
-		preProcessingHandlers: apiPreProcessingHandlers[api],
-		outputChan:            c.outputChan,
-		ForeignClient:         c.foreignClient,
-		informers:             make(map[string]cache.SharedIndexInformer),
-		NamespaceNatting:      c.namespaceNatting,
+func (c *APIReflectorController) buildApiReflector(api reflectedApi.ApiType) reflectedApi.APIReflector {
+	apiReflector := &reflectedApi.GenericAPIReflector{
+		Api:              api,
+		OutputChan:       c.outputChan,
+		ForeignClient:    c.foreignClient,
+		Informers:        make(map[string]cache.SharedIndexInformer),
+		NamespaceNatting: c.namespaceNatting,
 	}
-	return apiMapping[api](apiReflector)
+	return reflectedApi.ApiMapping[api](apiReflector)
 }
 
 func (c *APIReflectorController) reflectNamespace(namespace string) {
@@ -68,9 +68,9 @@ func (c *APIReflectorController) reflectNamespace(namespace string) {
 	factory := informers.NewSharedInformerFactoryWithOptions(c.homeClient, defaultResyncPeriod, informers.WithNamespace(namespace))
 	c.informerFactories[namespace] = factory
 
-	for api, handler := range informerBuilding {
+	for api, handler := range reflectedApi.InformerBuilding {
 		informer := handler(factory)
-		c.apiReflectors[api].reflectNamespace(namespace, informer)
+		c.apiReflectors[api].ReflectNamespace(namespace, informer)
 	}
 
 	c.waitGroup.Add(1)
@@ -80,12 +80,11 @@ func (c *APIReflectorController) reflectNamespace(namespace string) {
 	}()
 }
 
-func (c *APIReflectorController) DispatchEvent(event ApiEvent) error {
-	return c.apiReflectors[event.api].(SpecializedAPIReflector).HandleEvent(event.event)
+func (c *APIReflectorController) DispatchEvent(event reflectedApi.ApiEvent) error {
+	return c.apiReflectors[event.Api].(reflectedApi.SpecializedAPIReflector).HandleEvent(event.Event)
 }
 
 func (c *APIReflectorController) Stop() {
 	close(c.stop)
 	c.waitGroup.Wait()
 }
-
