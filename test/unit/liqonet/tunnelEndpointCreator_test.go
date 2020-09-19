@@ -476,21 +476,6 @@ func TestNetConfigProcessing(t *testing.T) {
 	assert.Equal(t, "Ready", tep.Status.Phase)
 
 	//test4
-	//we change some fields in the remote netConfig status
-	//expect that the tunnelEndpoint is updated
-	err = tec.Get(context.Background(), types.NamespacedName{Name: netConfig1.Name}, netConfig1)
-	assert.Nil(t, err)
-	newNATPodCIDR := "10.100.0.0/16"
-	netConfig1.Status.PodCIDRNAT = newNATPodCIDR
-	err = tec.Status().Update(context.Background(), netConfig1)
-	assert.Nil(t, err)
-	time.Sleep(10 * time.Second)
-	tep, found, err = tec.GetTunnelEndpoint(tepName)
-	assert.True(t, found)
-	assert.Nil(t, err)
-	assert.Equal(t, newNATPodCIDR, tep.Status.RemoteRemappedPodCIDR)
-
-	//test5
 	//we change some fields on the remote netConfig spec and some on the local netConfig status
 	//expect that the tunnelEndpoint is updated
 	err = tec.Get(context.Background(), types.NamespacedName{Name: netConfig1.Name}, netConfig1)
@@ -501,7 +486,7 @@ func TestNetConfigProcessing(t *testing.T) {
 	assert.Nil(t, err)
 	err = tec.Get(context.Background(), types.NamespacedName{Name: netConfig2.Name}, netConfig2)
 	assert.Nil(t, err)
-	newNATPodCIDR = "10.300.0.0/16"
+	newNATPodCIDR := "10.300.0.0/16"
 	netConfig2.Status.PodCIDRNAT = newNATPodCIDR
 	err = tec.Status().Update(context.Background(), netConfig2)
 	assert.Nil(t, err)
