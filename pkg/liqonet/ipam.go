@@ -3,7 +3,7 @@ package liqonet
 import (
 	"fmt"
 	"github.com/apparentlymart/go-cidr/cidr"
-	"github.com/go-logr/logr"
+	"k8s.io/klog"
 	"net"
 )
 
@@ -18,7 +18,6 @@ type IpManager struct {
 	FreeSubnets        map[string]*net.IPNet
 	ConflictingSubnets map[string]*net.IPNet
 	SubnetPerCluster   map[string]*net.IPNet
-	Log                logr.Logger
 }
 
 func (ip IpManager) Init() error {
@@ -27,7 +26,7 @@ func (ip IpManager) Init() error {
 	//the first /16 subnet in 10/8 cidr block
 	_, subnet, err := net.ParseCIDR("10.0.0.0/16")
 	if err != nil {
-		ip.Log.Error(err, "unable to parse the first subnet %s :%v", CIDRBlock, err)
+		klog.Errorf("unable to parse the first subnet %s: %s", CIDRBlock, err)
 		return err
 	}
 	//The first subnet /16 is added to the FreeSubnets
@@ -43,7 +42,7 @@ func (ip IpManager) Init() error {
 //for a given cluster it returns an error if no subnets are available
 //a new subnet if the original pod Cidr of the cluster has conflicts
 //the existing subnet allocated to the cluster if already called this function
-//nil for the new subnet if no conflicts are present.
+//original network if no conflicts are present.
 func (ip IpManager) GetNewSubnetPerCluster(network *net.IPNet, clusterID string) (*net.IPNet, error) {
 	//first check if we already have assigned a subnet to the cluster
 	if _, ok := ip.SubnetPerCluster[clusterID]; ok {
@@ -57,12 +56,14 @@ func (ip IpManager) GetNewSubnetPerCluster(network *net.IPNet, clusterID string)
 			return nil, err
 		} else {
 			ip.reserveSubnet(subnet, clusterID)
-			ip.Log.Info("Reserved: ", "subnet", subnet.String(), "for cluster", clusterID)
+			klog.Infof("%s -> NAT enabled, remapping original subnet %s to new subnet %s", clusterID, network.String(), subnet.String())
 			return subnet, nil
 		}
 	}
-	ip.SubnetPerCluster[clusterID] = network
-	return nil, nil
+	ip.reserveSubnet(network, clusterID)
+	klog.Infof("%s -> NAT not needed, using original subnet %s", clusterID, network.String())
+
+	return network, nil
 }
 
 func (ip *IpManager) getNextSubnet() (*net.IPNet, error) {
@@ -77,30 +78,32 @@ func (ip *IpManager) getNextSubnet() (*net.IPNet, error) {
 	return availableSubnet, nil
 }
 
-//add the network to the UsedSubnets and remove of the subnets in free subnets that overlap with the network
+//add the network to the UsedSubnets and remove the subnets in free subnets that overlap with the network
 func (ip IpManager) reserveSubnet(network *net.IPNet, clusterID string) {
 	ip.UsedSubnets[network.String()] = network
 	for _, net := range ip.FreeSubnets {
 		if bool := VerifyNoOverlap(ip.UsedSubnets, net); bool {
-			if _, ok := ip.UsedSubnets[net.String()]; !ok {
-				ip.UsedSubnets[net.String()] = net
-				delete(ip.FreeSubnets, net.String())
-			} else {
-				delete(ip.FreeSubnets, net.String())
-			}
+			ip.ConflictingSubnets[net.String()] = net
+			delete(ip.FreeSubnets, net.String())
 		}
 	}
+	//add the very same subnet to the
 	ip.SubnetPerCluster[clusterID] = network
 }
 
 func (ip IpManager) RemoveReservedSubnet(clusterID string) {
-
-	subnet := ip.SubnetPerCluster[clusterID]
-	if subnet != nil {
-		ip.FreeSubnets[subnet.String()] = subnet
-		delete(ip.UsedSubnets, subnet.String())
-		delete(ip.SubnetPerCluster, clusterID)
-		ip.Log.Info("Removing", "subnet", subnet.String(), "reserved to cluster", clusterID)
+	subnet, ok := ip.SubnetPerCluster[clusterID]
+	if !ok {
+		return
 	}
-
+	//remove the subnet from the used ones
+	delete(ip.UsedSubnets, subnet.String())
+	delete(ip.SubnetPerCluster, clusterID)
+	//check if there are subnets in the conflicting map that can be made available in to the free pool
+	for _, net := range ip.ConflictingSubnets {
+		if overlap := VerifyNoOverlap(ip.UsedSubnets, net); !overlap {
+			delete(ip.ConflictingSubnets, net.String())
+			ip.FreeSubnets[net.String()] = net
+		}
+	}
 }

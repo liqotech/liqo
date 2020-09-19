@@ -39,7 +39,6 @@ func getTunnelEndpointCreator() *controller.TunnelEndpointCreator {
 			FreeSubnets:        make(map[string]*net.IPNet),
 			ConflictingSubnets: make(map[string]*net.IPNet),
 			SubnetPerCluster:   nil,
-			Log:                nil,
 		},
 		Mutex:        sync.Mutex{},
 		IsConfigured: false,
@@ -85,7 +84,6 @@ func setupTunnelEndpointCreatorOperator() error {
 			FreeSubnets:        make(map[string]*net.IPNet),
 			SubnetPerCluster:   make(map[string]*net.IPNet),
 			ConflictingSubnets: make(map[string]*net.IPNet),
-			Log:                ctrl.Log.WithName("IPAM"),
 		},
 		RetryTimeout: 30 * time.Second,
 	}
