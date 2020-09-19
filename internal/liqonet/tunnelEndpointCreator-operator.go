@@ -254,22 +254,23 @@ func (r *TunnelEndpointCreator) deleteNetConfig(clusterID string) error {
 }
 
 func (r *TunnelEndpointCreator) processRemoteNetConfig(netConfig *netv1alpha1.NetworkConfig) error {
-	if netConfig.Status.NATEnabled == "" {
-		//check if the PodCidr of the remote cluster overlaps with any of the subnets on the local cluster
-		_, clusterSubnet, err := net.ParseCIDR(netConfig.Spec.PodCIDR)
-		if err != nil {
-			klog.Errorf("an error occurred while parsing the PodCIDR of resource %s: %s", netConfig.Name, err)
-			return err
-		}
-		r.Mutex.Lock()
-		defer r.Mutex.Unlock()
-		newSubnet, err := r.IPManager.GetNewSubnetPerCluster(clusterSubnet, netConfig.Spec.ClusterID)
-		if err != nil {
-			klog.Errorf("an error occurred while getting a new subnet for resource %s: %s", netConfig.Name, err)
-			return err
-		}
-		//if they are different, the NAT is needed and a new subnet have been allacoted for the peering cluster
-		if newSubnet.String() != clusterSubnet.String() {
+	//check if the PodCidr of the remote cluster overlaps with any of the subnets on the local cluster
+	_, clusterSubnet, err := net.ParseCIDR(netConfig.Spec.PodCIDR)
+	if err != nil {
+		klog.Errorf("an error occurred while parsing the PodCIDR of resource %s: %s", netConfig.Name, err)
+		return err
+	}
+	r.Mutex.Lock()
+	defer r.Mutex.Unlock()
+	newSubnet, err := r.IPManager.GetNewSubnetPerCluster(clusterSubnet, netConfig.Spec.ClusterID)
+	if err != nil {
+		klog.Errorf("an error occurred while getting a new subnet for resource %s: %s", netConfig.Name, err)
+		return err
+	}
+
+	//if they are different, the NAT is needed and a new subnet have been reserved for the peering cluster
+	if newSubnet.String() != clusterSubnet.String() {
+		if newSubnet.String() != netConfig.Status.PodCIDRNAT {
 			//update netConfig status
 			netConfig.Status.PodCIDRNAT = newSubnet.String()
 			netConfig.Status.NATEnabled = "true"
@@ -278,15 +279,17 @@ func (r *TunnelEndpointCreator) processRemoteNetConfig(netConfig *netv1alpha1.Ne
 				klog.Errorf("an error occurred while updating the status of resource %s: %s", netConfig.Name, err)
 				return err
 			}
-		} else {
-			//update netConfig status
-			netConfig.Status.PodCIDRNAT = defaultPodCIDRValue
-			netConfig.Status.NATEnabled = "false"
-			err := r.Status().Update(context.Background(), netConfig)
-			if err != nil {
-				klog.Errorf("an error occurred while updating the status of resource %s: %s", netConfig.Name, err)
-				return err
-			}
+		}
+		return nil
+	}
+	if netConfig.Status.PodCIDRNAT != defaultPodCIDRValue {
+		//update netConfig status
+		netConfig.Status.PodCIDRNAT = defaultPodCIDRValue
+		netConfig.Status.NATEnabled = "false"
+		err := r.Status().Update(context.Background(), netConfig)
+		if err != nil {
+			klog.Errorf("an error occurred while updating the status of resource %s: %s", netConfig.Name, err)
+			return err
 		}
 		return nil
 	}
