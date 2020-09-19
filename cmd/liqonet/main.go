@@ -225,7 +225,6 @@ func main() {
 				FreeSubnets:        make(map[string]*net.IPNet),
 				SubnetPerCluster:   make(map[string]*net.IPNet),
 				ConflictingSubnets: make(map[string]*net.IPNet),
-				Log:                ctrl.Log.WithName("IPAM"),
 			},
 			RetryTimeout: 30 * time.Second,
 		}

@@ -256,21 +256,22 @@ func (r *TunnelEndpointCreator) deleteNetConfig(clusterID string) error {
 func (r *TunnelEndpointCreator) processRemoteNetConfig(netConfig *netv1alpha1.NetworkConfig) error {
 	if netConfig.Status.NATEnabled == "" {
 		//check if the PodCidr of the remote cluster overlaps with any of the subnets on the local cluster
-		_, subnet, err := net.ParseCIDR(netConfig.Spec.PodCIDR)
+		_, clusterSubnet, err := net.ParseCIDR(netConfig.Spec.PodCIDR)
 		if err != nil {
 			klog.Errorf("an error occurred while parsing the PodCIDR of resource %s: %s", netConfig.Name, err)
 			return err
 		}
 		r.Mutex.Lock()
 		defer r.Mutex.Unlock()
-		subnet, err = r.IPManager.GetNewSubnetPerCluster(subnet, netConfig.Spec.ClusterID)
+		newSubnet, err := r.IPManager.GetNewSubnetPerCluster(clusterSubnet, netConfig.Spec.ClusterID)
 		if err != nil {
 			klog.Errorf("an error occurred while getting a new subnet for resource %s: %s", netConfig.Name, err)
 			return err
 		}
-		if subnet != nil {
+		//if they are different, the NAT is needed and a new subnet have been allacoted for the peering cluster
+		if newSubnet.String() != clusterSubnet.String() {
 			//update netConfig status
-			netConfig.Status.PodCIDRNAT = subnet.String()
+			netConfig.Status.PodCIDRNAT = newSubnet.String()
 			netConfig.Status.NATEnabled = "true"
 			err := r.Status().Update(context.Background(), netConfig)
 			if err != nil {
