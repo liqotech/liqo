@@ -176,7 +176,6 @@ func main() {
 	case "tunnel-operator":
 		r := &liqonetOperators.TunnelController{
 			Client:                       mgr.GetClient(),
-			Log:                          ctrl.Log.WithName("liqonetOperators").WithName("TunnelEndpoint"),
 			Scheme:                       mgr.GetScheme(),
 			Recorder:                     mgr.GetEventRecorderFor("tunnel-operator"),
 			TunnelIFacesPerRemoteCluster: make(map[string]int),
