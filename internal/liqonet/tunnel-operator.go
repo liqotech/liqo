@@ -16,24 +16,25 @@ package liqonetOperators
 
 import (
 	"context"
-	"github.com/go-logr/logr"
 	netv1alpha1 "github.com/liqotech/liqo/api/net/v1alpha1"
 	liqonetOperator "github.com/liqotech/liqo/pkg/liqonet"
 	"github.com/vishvananda/netlink"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/tools/record"
 	"k8s.io/client-go/util/retry"
+	"k8s.io/klog"
 	"os"
 	"os/signal"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/event"
+	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"time"
 )
 
 // TunnelController reconciles a TunnelEndpoint object
 type TunnelController struct {
 	client.Client
-	Log                          logr.Logger
 	Scheme                       *runtime.Scheme
 	Recorder                     record.EventRecorder
 	TunnelIFacesPerRemoteCluster map[string]int
@@ -45,18 +46,17 @@ type TunnelController struct {
 
 func (r *TunnelController) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 	ctx := context.Background()
-	log := r.Log.WithValues("endpoint", req.NamespacedName)
 	var endpoint netv1alpha1.TunnelEndpoint
 	//name of our finalizer
 	tunnelEndpointFinalizer := "tunnelEndpointFinalizer.net.liqo.io"
 	if err := r.Get(ctx, req.NamespacedName, &endpoint); err != nil {
-		log.Error(err, "unable to fetch endpoint, probably it has been deleted")
+		klog.Errorf("unable to fetch resource %s: %s", req.Name, err)
 		return ctrl.Result{}, client.IgnoreNotFound(err)
 	}
 	//we wait for the resource to be ready. The resource is created in two steps, firt the spec and metadata fields
 	//then the status field. so we wait for the status to be ready.
 	if endpoint.Status.Phase != "Ready" {
-		log.Info("the resource", "with name", endpoint.Name, "is not ready")
+		klog.Infof("%s -> resource %s is not ready", endpoint.Spec.ClusterID, endpoint.Name)
 		return ctrl.Result{RequeueAfter: r.RetryTimeout}, nil
 	}
 	// examine DeletionTimestamp to determine if object is under deletion
@@ -67,7 +67,7 @@ func (r *TunnelController) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 			// registering our finalizer.
 			endpoint.ObjectMeta.Finalizers = append(endpoint.Finalizers, tunnelEndpointFinalizer)
 			if err := r.Update(ctx, &endpoint); err != nil {
-				log.Error(err, "unable to update endpoint")
+				klog.Errorf("%s -> unable to update resource %s: %s", endpoint.Spec.ClusterID, endpoint.Name, err)
 				return ctrl.Result{RequeueAfter: r.RetryTimeout}, err
 			}
 		}
@@ -77,37 +77,51 @@ func (r *TunnelController) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 			if err := liqonetOperator.RemoveGreTunnel(&endpoint); err != nil {
 				//record an event and return
 				r.Recorder.Event(&endpoint, "Warning", "Processing", err.Error())
+				klog.Errorf("%s -> unable to remove tunnel network interface %s for resource %s: %s", endpoint.Spec.ClusterID, endpoint.Status.TunnelIFaceName, endpoint.Name, err)
 				return ctrl.Result{}, err
 			}
 			r.Recorder.Event(&endpoint, "Normal", "Processing", "tunnel network interface removed")
 			//safe to do, even if the key does not exist in the map
 			delete(r.TunnelIFacesPerRemoteCluster, endpoint.Spec.ClusterID)
-			log.Info("tunnel iface removed")
-			//remove the finalizer from the list and update it.
-			endpoint.Finalizers = liqonetOperator.RemoveString(endpoint.Finalizers, tunnelEndpointFinalizer)
-			if err := r.Update(ctx, &endpoint); err != nil {
-				return ctrl.Result{}, err
+			klog.Infof("%s -> tunnel network interface %s removed for resource %s", endpoint.Spec.ClusterID, endpoint.Status.TunnelIFaceName, endpoint.Name)
+			retryError := retry.RetryOnConflict(retry.DefaultRetry, func() error {
+				if err := r.Get(ctx, req.NamespacedName, &endpoint); err != nil {
+					klog.Errorf("unable to fetch resource %s: %s", req.Name, err)
+					return err
+				}
+				//remove the finalizer from the list and update it.
+				endpoint.Finalizers = liqonetOperator.RemoveString(endpoint.Finalizers, tunnelEndpointFinalizer)
+				if err := r.Update(ctx, &endpoint); err != nil {
+					return err
+				}
+				return nil
+			})
+			if retryError != nil {
+				klog.Errorf("%s -> unable to update finalizers of resource %s: %s", endpoint.Spec.ClusterID, endpoint.Name, retryError)
+				return ctrl.Result{RequeueAfter: r.RetryTimeout}, retryError
 			}
+			return ctrl.Result{RequeueAfter: r.RetryTimeout}, nil
 		}
-		return ctrl.Result{RequeueAfter: r.RetryTimeout}, nil
 	}
 	//try to install the GRE tunnel if it does not exist
 	iFaceIndex, iFaceName, err := liqonetOperator.InstallGreTunnel(&endpoint)
 	if err != nil {
-		log.Error(err, "unable to create the gre tunnel")
+		klog.Errorf("%s -> unable to create tunnel network interface for resource %s :%s", endpoint.Spec.ClusterID, endpoint.Name, err)
 		r.Recorder.Event(&endpoint, "Warning", "Processing", err.Error())
 		return ctrl.Result{RequeueAfter: r.RetryTimeout}, err
 	}
 	r.Recorder.Event(&endpoint, "Normal", "Processing", "tunnel network interface installed")
-	log.Info("gre tunnel installed", "index", iFaceIndex, "name", iFaceName)
+	klog.Infof("%s -> tunnel network interface with name %s for resource %s created successfully", endpoint.Spec.ClusterID, iFaceName, endpoint.Name)
 	//save the IFace index in the map
 	r.TunnelIFacesPerRemoteCluster[endpoint.Spec.ClusterID] = iFaceIndex
-	log.Info("installed gretunel with index: " + iFaceName)
-
 	//update the status of CR if needed
 	//here we recover from conflicting resource versions
 	retryError := retry.RetryOnConflict(retry.DefaultRetry, func() error {
 		toBeUpdated := false
+		if err := r.Get(ctx, req.NamespacedName, &endpoint); err != nil {
+			klog.Errorf("unable to fetch resource %s: %s", req.Name, err)
+			return err
+		}
 		if endpoint.Status.TunnelIFaceName != iFaceName {
 			endpoint.Status.TunnelIFaceName = iFaceName
 			toBeUpdated = true
@@ -123,7 +137,7 @@ func (r *TunnelController) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 		return nil
 	})
 	if retryError != nil {
-		log.Error(retryError, "unable to create the gre tunnel")
+		klog.Errorf("%s -> unable to update status of resource %s: %s", endpoint.Spec.ClusterID, endpoint.Name, retryError)
 		return ctrl.Result{RequeueAfter: r.RetryTimeout}, retryError
 	}
 	return ctrl.Result{RequeueAfter: r.RetryTimeout}, nil
@@ -133,16 +147,15 @@ func (r *TunnelController) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 //it does not return an error, but just logs them, cause we can not recover from
 //them at exit time
 func (r *TunnelController) RemoveAllTunnels() {
-	logger := r.Log.WithName("RemoveAllTunnels")
-	for _, ifaceIndex := range r.TunnelIFacesPerRemoteCluster {
+	for clusterID, ifaceIndex := range r.TunnelIFacesPerRemoteCluster {
 		existingIface, err := netlink.LinkByIndex(ifaceIndex)
 		if err == nil {
 			//Remove the existing gre interface
 			if err = netlink.LinkDel(existingIface); err != nil {
-				logger.Error(err, "unable to delete the iface:", "ifaceIndex", ifaceIndex, "ifaceName", existingIface.Attrs().Name)
+				klog.Errorf("%s -> unable to delete tunnel network interface with name %s: %s", clusterID, existingIface.Attrs().Name, err)
 			}
 		} else {
-			logger.Error(err, "unable to retrive the iface:", "index", ifaceIndex)
+			klog.Errorf("%s -> unable to fetch tunnel network interface with index %d: %s", clusterID, ifaceIndex, err)
 		}
 	}
 }
@@ -150,13 +163,12 @@ func (r *TunnelController) RemoveAllTunnels() {
 // SetupSignalHandlerForRouteOperator registers for SIGTERM, SIGINT, SIGKILL. A stop channel is returned
 // which is closed on one of these signals.
 func (r *TunnelController) SetupSignalHandlerForTunnelOperator() (stopCh <-chan struct{}) {
-	logger := r.Log.WithName("Tunnel Operator Signal Handler")
 	stop := make(chan struct{})
 	c := make(chan os.Signal, 1)
 	signal.Notify(c, shutdownSignals...)
 	go func(r *TunnelController) {
 		sig := <-c
-		logger.Info("received ", "signal", sig.String())
+		klog.Infof("received signal %s: cleaning up", sig.String())
 		r.RemoveAllTunnels()
 		<-c
 		close(stop)
@@ -165,7 +177,14 @@ func (r *TunnelController) SetupSignalHandlerForTunnelOperator() (stopCh <-chan 
 }
 
 func (r *TunnelController) SetupWithManager(mgr ctrl.Manager) error {
+	resourceToBeProccesedPredicate := predicate.Funcs{
+		DeleteFunc: func(e event.DeleteEvent) bool {
+			//finalizers are used to check if a resource is being deleted, and perform there the needed actions
+			//we don't want to reconcile on the delete of a resource.
+			return false
+		},
+	}
 	return ctrl.NewControllerManagedBy(mgr).
-		For(&netv1alpha1.TunnelEndpoint{}).
+		For(&netv1alpha1.TunnelEndpoint{}).WithEventFilter(resourceToBeProccesedPredicate).
 		Complete(r)
 }
