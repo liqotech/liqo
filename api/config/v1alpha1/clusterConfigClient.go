@@ -11,7 +11,7 @@ import (
 )
 
 // create a client for ClusterConfig CR using a provided kubeconfig
-func CreateClusterConfigClient(kubeconfig string) (*crdClient.CRDClient, error) {
+func CreateClusterConfigClient(kubeconfig string, watchResources bool) (*crdClient.CRDClient, error) {
 	var config *rest.Config
 	var err error
 
@@ -31,20 +31,22 @@ func CreateClusterConfigClient(kubeconfig string) (*crdClient.CRDClient, error) 
 		return nil, err
 	}
 
-	store, stop, err := crdClient.WatchResources(clientSet,
-		"clusterconfigs",
-		"",
-		0,
-		cache.ResourceEventHandlerFuncs{},
-		metav1.ListOptions{})
+	if watchResources {
+		store, stop, err := crdClient.WatchResources(clientSet,
+			"clusterconfigs",
+			"",
+			0,
+			cache.ResourceEventHandlerFuncs{},
+			metav1.ListOptions{})
 
-	if err != nil {
-		return nil, err
+		if err != nil {
+			return nil, err
+		}
+
+		clientSet.Store = store
+		clientSet.Stop = stop
+
 	}
-
-	clientSet.Store = store
-	clientSet.Stop = stop
-
 	return clientSet, nil
 }
 
