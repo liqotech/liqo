@@ -108,6 +108,15 @@ func StartBroadcaster(homeClusterId, localKubeconfigPath, peeringRequestName, sa
 		klog.Info("Correctly created client to remote cluster " + foreignClusterId)
 	}
 
+	broadcaster := AdvertisementBroadcaster{
+		LocalClient:        localClient,
+		DiscoveryClient:    discoveryClient,
+		RemoteClient:       remoteClient,
+		HomeClusterId:      homeClusterId,
+		ForeignClusterId:   pr.Name,
+		PeeringRequestName: peeringRequestName,
+	}
+
 	kubeconfigSecretName := pkg.VirtualKubeletSecPrefix + homeClusterId
 	kubeconfigSecretForForeign, err := remoteClient.Client().CoreV1().Secrets(pr.Spec.Namespace).Get(context.TODO(), kubeconfigSecretName, metav1.GetOptions{})
 	if err != nil {
@@ -138,39 +147,15 @@ func StartBroadcaster(homeClusterId, localKubeconfigPath, peeringRequestName, sa
 			},
 		}
 
-		kubeconfigSecretForForeign, err = remoteClient.Client().CoreV1().Secrets(sa.Namespace).Create(context.TODO(), kubeconfigSecretForForeign, metav1.CreateOptions{})
-		if err == nil {
-			klog.Infof("Correctly created secret %v on remote cluster %v", kubeconfigSecretForForeign.Name, foreignClusterId)
-		} else if k8serrors.IsAlreadyExists(err) {
-			// secret already created, update it
-			s, err := remoteClient.Client().CoreV1().Secrets(sa.Namespace).Get(context.TODO(), kubeconfigSecretForForeign.Name, metav1.GetOptions{})
-			if err != nil {
-				// secret not present, without it the vk cannot be launched: just log and exit
-				klog.Errorf("Unable to get secret %v on remote cluster %v; error: %v", kubeconfigSecretForForeign.Name, foreignClusterId, err)
-				return err
-			}
-			kubeconfigSecretForForeign.SetResourceVersion(s.ResourceVersion)
-			kubeconfigSecretForForeign.SetUID(s.UID)
-			_, err = remoteClient.Client().CoreV1().Secrets(sa.Namespace).Update(context.TODO(), kubeconfigSecretForForeign, metav1.UpdateOptions{})
-			if err != nil {
-				klog.Errorf("Unable to update secret %v on remote cluster %v; error: %v", kubeconfigSecretForForeign.Name, foreignClusterId, err)
-			}
-		} else {
+		kubeconfigSecretForForeign, err = broadcaster.SendSecretToForeignCluster(kubeconfigSecretForForeign)
+		if err != nil {
 			// secret not created, without it the vk cannot be launched: just log and exit
-			klog.Errorf("Unable to create secret %v on remote cluster %v; error: %v", kubeconfigSecretForForeign.Name, foreignClusterId, err)
+			klog.Errorf("Unable to create secret for virtualKubelet on remote cluster %v; error: %v", foreignClusterId, err)
 			return err
 		}
 	}
-	// secret correctly created on foreign cluster, now create the Advertisement to trigger the creation of the virtual-kubelet
-	broadcaster := AdvertisementBroadcaster{
-		LocalClient:                localClient,
-		DiscoveryClient:            discoveryClient,
-		KubeconfigSecretForForeign: kubeconfigSecretForForeign,
-		RemoteClient:               remoteClient,
-		HomeClusterId:              homeClusterId,
-		ForeignClusterId:           pr.Name,
-		PeeringRequestName:         peeringRequestName,
-	}
+	// secret correctly created on foreign cluster, now launch the broadcaster to create Advertisement
+	broadcaster.KubeconfigSecretForForeign = kubeconfigSecretForForeign
 
 	broadcaster.WatchConfiguration(localKubeconfigPath, nil)
 
@@ -186,6 +171,13 @@ func (b *AdvertisementBroadcaster) GenerateAdvertisement() {
 	var once sync.Once
 
 	for {
+		_, err := b.SendSecretToForeignCluster(b.KubeconfigSecretForForeign)
+		if err != nil {
+			klog.Errorln(err, "Error while sending Secret for virtual-kubelet to cluster "+b.ForeignClusterId)
+			time.Sleep(1 * time.Minute)
+			continue
+		}
+
 		_, virtualNodes, availability, limits, images, err := b.GetResourcesForAdv()
 		if err != nil {
 			klog.Errorln(err, "Error while computing resources for Advertisement")
@@ -198,6 +190,7 @@ func (b *AdvertisementBroadcaster) GenerateAdvertisement() {
 		adv, err := b.SendAdvertisementToForeignCluster(advToCreate)
 		if err != nil {
 			klog.Errorln(err, "Error while sending Advertisement to cluster "+b.ForeignClusterId)
+			time.Sleep(1 * time.Minute)
 			continue
 		}
 
@@ -329,6 +322,34 @@ func (b *AdvertisementBroadcaster) SendAdvertisementToForeignCluster(advToCreate
 		return nil, err
 	}
 	return adv, nil
+}
+
+func (b *AdvertisementBroadcaster) SendSecretToForeignCluster(secret *corev1.Secret) (*corev1.Secret, error) {
+	secretForeign, err := b.RemoteClient.Client().CoreV1().Secrets(secret.Namespace).Get(context.TODO(), secret.Name, metav1.GetOptions{})
+	if err == nil {
+		// secret already created, update it
+		secret.SetResourceVersion(secretForeign.ResourceVersion)
+		secret.SetUID(secretForeign.UID)
+		secretForeign, err = b.RemoteClient.Client().CoreV1().Secrets(secret.Namespace).Update(context.TODO(), secret, metav1.UpdateOptions{})
+		if err != nil {
+			klog.Errorf("Unable to update secret %v on remote cluster %v; error: %v", secret.Name, b.ForeignClusterId, err)
+			return nil, err
+		}
+		klog.Infof("Correctly updated secret %v on remote cluster %v", secret.Name, b.ForeignClusterId)
+	} else if k8serrors.IsNotFound(err) {
+		// secret not found, create it
+		secretForeign, err = b.RemoteClient.Client().CoreV1().Secrets(secret.Namespace).Create(context.TODO(), secret, metav1.CreateOptions{})
+		if err != nil {
+			// secret not created, without it the vk cannot be launched: just log and exit
+			klog.Errorf("Unable to create secret %v on remote cluster %v; error: %v", secret.Name, b.ForeignClusterId, err)
+			return nil, err
+		}
+		klog.Infof("Correctly created secret %v on remote cluster %v", secret.Name, b.ForeignClusterId)
+	} else {
+		klog.Errorln("Unexpected error while getting Secret " + secret.Name)
+		return nil, err
+	}
+	return secretForeign, nil
 }
 
 func (b *AdvertisementBroadcaster) NotifyAdvertisementDeletion() error {

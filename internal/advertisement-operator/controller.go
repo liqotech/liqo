@@ -324,8 +324,14 @@ func (r *AdvertisementReconciler) cleanOldAdvertisements() {
 			adv := advList.Items[i]
 			now := metav1.NewTime(time.Now())
 			if adv.Spec.TimeToLive.Before(now.DeepCopy()) {
-				if err := r.Client.Delete(context.Background(), &adv, &client.DeleteOptions{}); err != nil {
+				// gracefully delete the Advertisement
+				adv.Status.AdvertisementStatus = advtypes.AdvertisementDeleting
+				if err := r.Status().Update(context.Background(), &adv); err != nil {
+					// cannot delete gracefully, try to directly delete
 					klog.Error(err)
+					if err := r.Client.Delete(context.Background(), &adv, &client.DeleteOptions{}); err != nil {
+						klog.Error(err)
+					}
 				}
 				klog.Infof("Adv %v expired. TimeToLive was %v", adv.Name, adv.Spec.TimeToLive)
 			}

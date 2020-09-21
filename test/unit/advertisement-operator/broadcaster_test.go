@@ -301,7 +301,7 @@ func TestGetResourceForAdv(t *testing.T) {
 	assert.Equal(t, images, images2)
 }
 
-func TestSendAdvertisementCreation(t *testing.T) {
+func TestSendAdvertisement(t *testing.T) {
 	config := createFakeClusterConfig()
 	b := createBroadcaster(config.Spec)
 	_, err := b.RemoteClient.Client().CoreV1().Secrets(b.KubeconfigSecretForForeign.Namespace).Create(context.TODO(), b.KubeconfigSecretForForeign, metav1.CreateOptions{})
@@ -319,6 +319,20 @@ func TestSendAdvertisementCreation(t *testing.T) {
 	adv3, err := b.SendAdvertisementToForeignCluster(adv)
 	assert.Nil(t, err)
 	assert.Equal(t, adv.Spec.ResourceQuota.Hard.Cpu().Value(), adv3.Spec.ResourceQuota.Hard.Cpu().Value())
+}
+
+func TestSendSecret(t *testing.T) {
+	config := createFakeClusterConfig()
+	b := createBroadcaster(config.Spec)
+	sec, err := b.SendSecretToForeignCluster(b.KubeconfigSecretForForeign)
+	assert.Nil(t, err)
+	assert.Equal(t, b.KubeconfigSecretForForeign, sec)
+
+	// update adv on foreign cluster
+	sec.StringData = nil
+	sec2, err := b.SendSecretToForeignCluster(sec)
+	assert.Nil(t, err)
+	assert.Equal(t, sec.StringData, sec2.StringData)
 }
 
 func TestNotifyAdvertisementDeletion(t *testing.T) {
