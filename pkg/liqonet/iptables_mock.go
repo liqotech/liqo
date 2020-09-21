@@ -1,7 +1,6 @@
 package liqonet
 
 import (
-	"reflect"
 	"strings"
 )
 
@@ -12,7 +11,7 @@ type MockIPTables struct {
 
 func (m *MockIPTables) Exists(table string, chain string, rulespec ...string) (bool, error) {
 	for _, rule := range m.Rules {
-		if rule.Table == table && rule.Chain == chain && strings.Join(rule.RuleSpec, " ") == strings.Join(rulespec, "") {
+		if rule.Table == table && rule.Chain == chain && strings.Join(rule.RuleSpec, " ") == strings.Join(rulespec, " ") {
 			return true, nil
 		}
 	}
@@ -62,7 +61,7 @@ func (m *MockIPTables) containsChain(chain IPTableChain) bool {
 
 func (m *MockIPTables) ruleIndex(table string, chain string, rulespec []string) int {
 	for i, rule := range m.Rules {
-		if rule.Table == table && rule.Chain == chain && reflect.DeepEqual(rule.RuleSpec, rulespec) {
+		if rule.Table == table && rule.Chain == chain && strings.Join(rule.RuleSpec, " ") == strings.Join(rulespec, " ") {
 			return i
 		}
 	}

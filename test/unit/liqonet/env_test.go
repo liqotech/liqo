@@ -1,7 +1,6 @@
 package liqonet
 
 import (
-	"context"
 	configv1alpha1 "github.com/liqotech/liqo/api/config/v1alpha1"
 	netv1alpha1 "github.com/liqotech/liqo/api/net/v1alpha1"
 	advtypes "github.com/liqotech/liqo/api/sharing/v1alpha1"
@@ -24,23 +23,17 @@ import (
 var (
 	k8sManager          ctrl.Manager
 	testEnv             *envtest.Environment
-	ctx                 = context.Background()
 	tec                 *controllers.TunnelEndpointCreator
 	configClusterClient *crdClient.CRDClient
-	routeOperator       *controllers.RouteController
 )
 
 func TestMain(m *testing.M) {
 	setupEnv()
 	defer tearDown()
 
-	err := setupRouteOperator()
-	if err != nil {
-		os.Exit(-2)
-	}
 	cacheStarted := make(chan struct{})
 	go func() {
-		if err = k8sManager.Start(ctrl.SetupSignalHandler()); err != nil {
+		if err := k8sManager.Start(ctrl.SetupSignalHandler()); err != nil {
 			klog.Error(err)
 			panic(err)
 		}
@@ -50,7 +43,7 @@ func TestMain(m *testing.M) {
 		klog.Errorf("an error occurred while waiting for the chache to start")
 		os.Exit(-1)
 	}
-	err = setupTunnelEndpointCreatorOperator()
+	err := setupTunnelEndpointCreatorOperator()
 	if err != nil {
 		os.Exit(-1)
 	}

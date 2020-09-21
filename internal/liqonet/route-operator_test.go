@@ -7,8 +7,13 @@ import (
 	"github.com/vishvananda/netlink"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
-	ctrl "sigs.k8s.io/controller-runtime"
+	"reflect"
+	"strings"
 	"testing"
+)
+
+var (
+	ip *liqonet.MockIPTables
 )
 
 func GetTunnelEndpointCR() *netv1alpha1.TunnelEndpoint {
@@ -17,7 +22,7 @@ func GetTunnelEndpointCR() *netv1alpha1.TunnelEndpoint {
 		ObjectMeta: metav1.ObjectMeta{},
 		Spec: netv1alpha1.TunnelEndpointSpec{
 			ClusterID:      "cluster-test",
-			PodCIDR:        "10.0.0.0/12",
+			PodCIDR:        "10.100.0.0/16",
 			TunnelPublicIP: "192.168.5.1",
 		},
 		Status: netv1alpha1.TunnelEndpointStatus{
@@ -28,15 +33,18 @@ func GetTunnelEndpointCR() *netv1alpha1.TunnelEndpoint {
 			RemoteTunnelPublicIP:  "192.168.10.1",
 			LocalTunnelPublicIP:   "192.168.5.1",
 			TunnelIFaceIndex:      0,
-			TunnelIFaceName:       "",
+			TunnelIFaceName:       "testtunnel",
 		},
 	}
 }
 
 func getRouteController() *RouteController {
+	ip = &liqonet.MockIPTables{
+		Rules:  []liqonet.IPtableRule{},
+		Chains: []liqonet.IPTableChain{},
+	}
 	return &RouteController{
 		Client:                             nil,
-		Log:                                ctrl.Log.WithName("route-operator"),
 		Scheme:                             nil,
 		clientset:                          kubernetes.Clientset{},
 		NodeName:                           "test",
@@ -47,29 +55,15 @@ func getRouteController() *RouteController {
 		GatewayVxlanIP:                     "172.12.1.1",
 		VxlanIfaceName:                     "vxlanTest",
 		VxlanPort:                          0,
-		ClusterPodCIDR:                     "10.1.0.0/16",
+		ClusterPodCIDR:                     "10.200.0.0/16",
 		IPTablesRuleSpecsReferencingChains: make(map[string]liqonet.IPtableRule),
 		IPTablesChains:                     make(map[string]liqonet.IPTableChain),
-		IPtablesRuleSpecsPerRemoteCluster:  make(map[string][]liqonet.IPtableRule),
-		RoutesPerRemoteCluster:             make(map[string][]netlink.Route),
 		RetryTimeout:                       0,
-		IPtables: &liqonet.MockIPTables{
-			Rules:  []liqonet.IPtableRule{},
-			Chains: []liqonet.IPTableChain{},
-		},
+		IPtables:                           ip,
 		NetLink: &liqonet.MockRouteManager{
 			RouteList: []netlink.Route{},
 		},
 	}
-}
-
-func routePerDestination(routeList []netlink.Route, dest string) bool {
-	for _, route := range routeList {
-		if route.Dst.String() == dest {
-			return true
-		}
-	}
-	return false
 }
 
 func TestCreateAndInsertIPTablesChains(t *testing.T) {
@@ -78,135 +72,275 @@ func TestCreateAndInsertIPTablesChains(t *testing.T) {
 	r := getRouteController()
 	//the function is run 3 times and we expect that the number of tables is 3 and of rules 4
 	for i := 3; i >= 0; i-- {
-		err := r.createAndInsertIPTablesChains()
+		err := r.CreateAndEnsureIPTablesChains()
 		assert.Nil(t, err, "error should be nil")
 		assert.Equal(t, 4, len(r.IPTablesChains), "there should be 4 new chains")
 		assert.Equal(t, 4, len(r.IPTablesRuleSpecsReferencingChains), "there should be 4 new rules")
 	}
-}
-
-func TestAddIPTablesRulespecForRemoteCluster(t *testing.T) {
-	r := getRouteController()
-	tep := GetTunnelEndpointCR()
-	//test:1 NAT not enabled and node is not the gateway
-	//in this case we expect only 3 rules to be inserted
-	err := r.addIPTablesRulespecForRemoteCluster(tep)
-	assert.Nil(t, err, "error should be nil")
-	assert.Equal(t, 3, len(r.IPtablesRuleSpecsPerRemoteCluster[tep.Spec.ClusterID]), "there should be 3 rules")
-
-	//test:2 NAT enabled and node is not the gateway
-	//in this case we expect 3 rules to be inserted
-	r = getRouteController()
-	tep.Status.RemoteRemappedPodCIDR = "10.96.0.0/16"
-	tep.Status.LocalRemappedPodCIDR = "10.100.0.0/16"
-	err = r.addIPTablesRulespecForRemoteCluster(tep)
-	assert.Nil(t, err, "error should be nil")
-	assert.Equal(t, 3, len(r.IPtablesRuleSpecsPerRemoteCluster[tep.Spec.ClusterID]), "there should be 3 rules")
-
-	//test:3 NAT not enabled and node is the gateway
-	//in this case we expect 4 rules to be inserted
-	r = getRouteController()
-	r.IsGateway = true
-	tep.Status.LocalRemappedPodCIDR = "None"
-	err = r.addIPTablesRulespecForRemoteCluster(tep)
-	assert.Nil(t, err, "error should be nil")
-	assert.Equal(t, 4, len(r.IPtablesRuleSpecsPerRemoteCluster[tep.Spec.ClusterID]), "there should be 4 rules")
-
-	//test:4 NAT enabled and node is the gateway
-	//in this case we expect 6 rules to be inserted
-	r = getRouteController()
-	r.IsGateway = true
-	tep.Status.LocalRemappedPodCIDR = "10.100.0.0/16"
-	err = r.addIPTablesRulespecForRemoteCluster(tep)
-	assert.Nil(t, err, "error should be nil")
-	assert.Equal(t, 6, len(r.IPtablesRuleSpecsPerRemoteCluster[tep.Spec.ClusterID]), "there should be 6 rules")
-}
-
-func TestDeleteIPTablesRulespecForRemoteCluster(t *testing.T) {
-	//Testing that giving a tunnelEnpoint.net.liqo.io we can remove
-	//all the rules inserted for the cluster described by the custom resource
-	//firt we add the rules and then we remove it
-	//expecting that the rulse are 0.
-	r := getRouteController()
-	tep := GetTunnelEndpointCR()
-	r.IsGateway = true
-	tep.Status.LocalRemappedPodCIDR = "10.100.0.0/16"
-	err := r.addIPTablesRulespecForRemoteCluster(tep)
-	assert.Nil(t, err, "error should be nil")
-	assert.Equal(t, 6, len(r.IPtablesRuleSpecsPerRemoteCluster[tep.Spec.ClusterID]), "there should be 6 rules")
-	err = r.deleteIPTablesRulespecForRemoteCluster(tep)
-	assert.Nil(t, err, "error should be nil")
-	assert.Equal(t, 0, len(r.IPtablesRuleSpecsPerRemoteCluster[tep.Spec.ClusterID]), "there should be 6 rules")
-}
-
-func TestDeleteAllIPTablesChains(t *testing.T) {
-	//testing that all the iptables chains are deleted
-	//first we add the rules for a new cluster described by a tunnelendpoint.liqone.liqo.io
-	//which have NatEnabled and the node is the gateway node.
-	//after that 6 rules should be present, after the delete function is called
-	//0 rules should be present
-	r := getRouteController()
-	tep := GetTunnelEndpointCR()
-	r.IsGateway = true
-	tep.Status.LocalRemappedPodCIDR = "10.100.0.0/16"
-	err := r.addIPTablesRulespecForRemoteCluster(tep)
-	assert.Nil(t, err, "error should be nil")
-	assert.Equal(t, 6, len(r.IPtablesRuleSpecsPerRemoteCluster[tep.Spec.ClusterID]), "there should be 6 rules")
-	r.DeleteAllIPTablesChains()
-	assert.Equal(t, 0, len(r.IPtablesRuleSpecsPerRemoteCluster[tep.Spec.ClusterID]), "there should be 0 rules")
-	assert.Equal(t, 0, len(r.IPTablesChains), "number of chains should be 0")
-	assert.Equal(t, 0, len(r.IPTablesRuleSpecsReferencingChains), "number of rules referencing the chains should be 0")
 
 }
 
-func TestInsertRoutesPerCluster(t *testing.T) {
-	//test1: given a tunnelendpoint.net.liqo.io we add the routes
-	//in a node that is not the gateway node
-	//the expected number of routes is two
+func TestRouteController_InsertIptablesRulespecIfNotExists(t *testing.T) {
 	r := getRouteController()
-	tep := GetTunnelEndpointCR()
-	err := r.InsertRoutesPerCluster(tep)
-	assert.Nil(t, err, "error should be nil")
-	assert.Equal(t, 1, len(r.RoutesPerRemoteCluster[tep.Spec.ClusterID]), "number of routes should be 1")
-	assert.True(t, routePerDestination(r.RoutesPerRemoteCluster[tep.Spec.ClusterID], tep.Spec.PodCIDR), "the route for the remote pod cidr should be present")
-
-	//test2: same as above but the node is gateway node and the remote pod CIDR has been remapped
-	//the expected number of routes is 2
-	r = getRouteController()
-	r.IsGateway = true
-	tep = GetTunnelEndpointCR()
-	tep.Status.RemoteRemappedPodCIDR = "10.100.0.0/16"
-	err = r.InsertRoutesPerCluster(tep)
-	assert.Nil(t, err, "error should be nil")
-	assert.Equal(t, 1, len(r.RoutesPerRemoteCluster[tep.Spec.ClusterID]), "number of routes should be 1")
-	assert.True(t, routePerDestination(r.RoutesPerRemoteCluster[tep.Spec.ClusterID], "10.100.0.0/16"), "the route for the remote remapped pod cidr should be present")
+	rulespec1 := liqonet.IPtableRule{
+		Table:    "TestTable",
+		Chain:    "TestChain",
+		RuleSpec: []string{"this", "rule", "has", "to", "be", "at", "first", "position"},
+	}
+	rulespec2 := liqonet.IPtableRule{
+		Table:    "TestTable",
+		Chain:    "TestChain",
+		RuleSpec: []string{"this", "rule", "used", "to", "test", "InsertIptablesRulespecIfNotExists"},
+	}
+	//insert the rule
+	_ = r.InsertIptablesRulespecIfNotExists(rulespec1.Table, rulespec1.Chain, rulespec1.RuleSpec)
+	//we check that the rule is at first position
+	rules, _ := r.IPtables.List(rulespec1.Table, rulespec1.Chain)
+	assert.True(t, reflect.DeepEqual(rules[0], strings.Join(rulespec1.RuleSpec, " ")))
+	//insert rule two at the first position
+	_ = r.IPtables.Insert(rulespec1.Table, rulespec1.Chain, 1, rulespec2.RuleSpec...)
+	//check that the new rule is at the first position
+	rules, _ = r.IPtables.List(rulespec1.Table, rulespec1.Chain)
+	assert.True(t, reflect.DeepEqual(rules[0], strings.Join(rulespec2.RuleSpec, " ")))
+	//ensure that rulespec1 is at first position
+	_ = r.InsertIptablesRulespecIfNotExists(rulespec1.Table, rulespec1.Chain, rulespec1.RuleSpec)
+	//we check that the rule is at first position
+	rules, _ = r.IPtables.List(rulespec1.Table, rulespec1.Chain)
+	assert.True(t, reflect.DeepEqual(rules[0], strings.Join(rulespec1.RuleSpec, " ")))
+	//append again the rulespec1
+	_ = r.IPtables.Insert(rulespec1.Table, rulespec1.Chain, 3, rulespec1.RuleSpec...)
+	//make sure that rulespec1 is present at least two times
+	occurrencies := 0
+	rules, _ = r.IPtables.List(rulespec1.Table, rulespec1.Chain)
+	for _, rule := range rules {
+		if rule == strings.Join(rulespec1.RuleSpec, " ") {
+			occurrencies++
+		}
+	}
+	assert.Greater(t, occurrencies, 1)
+	//ensure that the rulespec1 is at first position and present only once
+	_ = r.InsertIptablesRulespecIfNotExists(rulespec1.Table, rulespec1.Chain, rulespec1.RuleSpec)
+	occurrencies = 0
+	rules, _ = r.IPtables.List(rulespec1.Table, rulespec1.Chain)
+	for _, rule := range rules {
+		if rule == strings.Join(rulespec1.RuleSpec, " ") {
+			occurrencies++
+		}
+	}
+	assert.Equal(t, 1, occurrencies)
+	assert.True(t, reflect.DeepEqual(rules[0], strings.Join(rulespec1.RuleSpec, " ")))
 }
 
-func TestDeleteRoutesPerCluster(t *testing.T) {
-	//first we add routes for cluster and then we delete them and check if
-	//the results are as expected
-	//When we delete the routes for a given cluster we expect that all the routes are removed
-	r := getRouteController()
+func TestRouteController_GetPodCIDRS(t *testing.T) {
 	tep := GetTunnelEndpointCR()
-	err := r.InsertRoutesPerCluster(tep)
-	assert.Nil(t, err, "error should be nil")
-	assert.Equal(t, 1, len(r.RoutesPerRemoteCluster[tep.Spec.ClusterID]), "number of routes should be 1")
-	assert.True(t, routePerDestination(r.RoutesPerRemoteCluster[tep.Spec.ClusterID], tep.Spec.PodCIDR), "the route for the remote pod cidr should be present")
-	//here we delete all the routes for the cluster
-	err = r.deleteRoutesPerCluster(tep)
-	assert.Nil(t, err, "error should be nil")
-	assert.Zero(t, len(r.RoutesPerRemoteCluster[tep.Spec.ClusterID]), "routes for the cluster should be zero")
+	r := getRouteController()
+	tests := []struct {
+		localRemappedPodCIDR  string
+		remoteRemappedPodCIDR string
+		remotePodCIDR         string
+		expectedLocalCIDR     string
+		expectedRemoteCIDR    string
+	}{
+		{
+			defaultPodCIDRValue,
+			defaultPodCIDRValue,
+			"10.200.0.0/16",
+			defaultPodCIDRValue,
+			"10.200.0.0/16",
+		},
+		{
+			"10.1.0.0/16",
+			"10.2.0.0/16",
+			"10.3.0.0/16",
+			"10.1.0.0/16",
+			"10.2.0.0/16",
+		},
+	}
+	for _, test := range tests {
+		tep.Spec.PodCIDR = test.remotePodCIDR
+		tep.Status.LocalRemappedPodCIDR = test.localRemappedPodCIDR
+		tep.Status.RemoteRemappedPodCIDR = test.remoteRemappedPodCIDR
+		localPodCIDR, remotePodCIDR := r.GetPodCIDRS(tep)
+		assert.Equal(t, test.expectedLocalCIDR, localPodCIDR)
+		assert.Equal(t, test.expectedRemoteCIDR, remotePodCIDR)
+	}
 }
 
-func TestDeleteAllRoutes(t *testing.T) {
-	//testing that all the routes are removed for all the clusters
+func TestRouteController_GetPostroutingRules(t *testing.T) {
 	r := getRouteController()
 	tep := GetTunnelEndpointCR()
-	err := r.InsertRoutesPerCluster(tep)
-	assert.Nil(t, err, "error should be nil")
-	assert.Equal(t, 1, len(r.RoutesPerRemoteCluster[tep.Spec.ClusterID]), "number of routes should be 2")
-	assert.True(t, routePerDestination(r.RoutesPerRemoteCluster[tep.Spec.ClusterID], tep.Spec.PodCIDR), "the route for the remote pod cidr should be present")
-	//here we delete all the routes for the clusters
-	r.deleteAllRoutes()
-	assert.Zero(t, len(r.RoutesPerRemoteCluster), "routes for the cluster should be zero")
+
+	tests := []struct {
+		isGateway             bool
+		localRemappedPodCIDR  string
+		remoteRemappedPodCIDR string
+		rules                 []string
+	}{
+		{
+			true,
+			"10.1.0.0/16",
+			defaultPodCIDRValue,
+			[]string{strings.Join([]string{"-s", r.ClusterPodCIDR, "-d", tep.Spec.PodCIDR, "-j", "NETMAP", "--to", "10.1.0.0/16"}, " "), strings.Join([]string{"!", "-s", r.ClusterPodCIDR, "-d", tep.Spec.PodCIDR, "-j", "SNAT", "--to-source", "10.1.0.0"}, " ")},
+		},
+		{
+			true,
+			"10.1.0.0/16",
+			"10.2.0.0/16",
+			[]string{strings.Join([]string{"-s", r.ClusterPodCIDR, "-d", "10.2.0.0/16", "-j", "NETMAP", "--to", "10.1.0.0/16"}, " "), strings.Join([]string{"!", "-s", r.ClusterPodCIDR, "-d", "10.2.0.0/16", "-j", "SNAT", "--to-source", "10.1.0.0"}, " ")},
+		},
+		{
+			true,
+			defaultPodCIDRValue,
+			"10.2.0.0/16",
+			[]string{strings.Join([]string{"!", "-s", r.ClusterPodCIDR, "-d", "10.2.0.0/16", "-j", "SNAT", "--to-source", "10.200.0.0"}, " "), strings.Join([]string{"-s", r.ClusterPodCIDR, "-d", "10.2.0.0/16", "-j", "ACCEPT"}, " ")},
+		},
+		{
+			true,
+			defaultPodCIDRValue,
+			defaultPodCIDRValue,
+			[]string{strings.Join([]string{"!", "-s", r.ClusterPodCIDR, "-d", tep.Spec.PodCIDR, "-j", "SNAT", "--to-source", "10.200.0.0"}, " "), strings.Join([]string{"-s", r.ClusterPodCIDR, "-d", tep.Spec.PodCIDR, "-j", "ACCEPT"}, " ")},
+		},
+		{
+			false,
+			defaultPodCIDRValue,
+			defaultPodCIDRValue,
+			[]string{strings.Join([]string{"-s", r.ClusterPodCIDR, "-d", tep.Spec.PodCIDR, "-j", "ACCEPT"}, " ")},
+		},
+		{
+			false,
+			defaultPodCIDRValue,
+			"10.2.0.0/16",
+			[]string{strings.Join([]string{"-s", r.ClusterPodCIDR, "-d", "10.2.0.0/16", "-j", "ACCEPT"}, " ")},
+		},
+	}
+	for _, test := range tests {
+		r.IsGateway = test.isGateway
+		tep.Status.LocalRemappedPodCIDR = test.localRemappedPodCIDR
+		tep.Status.RemoteRemappedPodCIDR = test.remoteRemappedPodCIDR
+		newRules, err := r.GetPostroutingRules(tep)
+		assert.Nil(t, err)
+		assert.Equal(t, len(test.rules), len(newRules))
+		assert.Equal(t, test.rules, newRules)
+	}
+}
+
+func TestRouteController_InsertRulesIfNotPresent(t *testing.T) {
+	r := getRouteController()
+	clusterID := "routeOperatorUnitTests"
+	tests := []struct {
+		table string
+		chain string
+		rules []string
+	}{
+		{
+			"testTable",
+			"testChain",
+			[]string{"-d 10.2.0.0/16 -j LIQO-PSTRT-CLS-9ed4d9bd", " ! -s 10.245.0.0/16 -d 10.2.0.0/16 -j SNAT --to-source 10.245.0.0", " 10.245.0.0/16 -d 10.2.0.0/16 -j ACCEPT"},
+		},
+		{
+			"testTable",
+			"testChain",
+			[]string{"-d 10.2.0.0/16 -j LIQO-PSTRT-CLS-9ed4d9bd", " ! -s 10.245.0.0/16 -d 10.2.0.0/16 -j SNAT --to-source 10.245.0.0", " 10.245.0.0/16 -d 10.2.0.0/16 -j ACCEPT", "! -s 10.2.0.0/16 -d 10.245.0.0/16 -j SNAT --to-source 10.2.0.0", "-s 10.2.0.0/16 -d 10.245.0.0/16 -j ACCEPT"},
+		},
+	}
+	for _, test := range tests {
+		_ = r.InsertRulesIfNotPresent(clusterID, test.table, test.chain, test.rules)
+		for _, testRule := range test.rules {
+			present := false
+			for _, rule := range ip.Rules {
+				if testRule == strings.Join(rule.RuleSpec, " ") {
+					present = true
+				}
+			}
+			assert.True(t, present)
+		}
+	}
+}
+
+func TestRouteController_UpdateRulesPerChain(t *testing.T) {
+	r := getRouteController()
+	existingRules := struct {
+		clusterID string
+		table     string
+		chain     string
+		rules     []string
+	}{
+		"routeOperatorUnitTests",
+		"testTable",
+		"testChain",
+		[]string{"-d 10.2.0.0/16 -j LIQO-PSTRT-CLS-9ed4d9bd", "! -s 10.245.0.0/16 -d 10.2.0.0/16 -j SNAT --to-source 10.245.0.0", "10.245.0.0/16 -d 10.2.0.0/16 -j ACCEPT", "! -s 10.2.0.0/16 -d 10.245.0.0/16 -j SNAT --to-source 10.2.0.0", "-s 10.2.0.0/16 -d 10.245.0.0/16 -j ACCEPT"},
+	}
+	newRules := struct {
+		clusterID string
+		table     string
+		chain     string
+		rules     []string
+	}{
+		"routeOperatorUnitTests",
+		"testTable",
+		"testChain",
+		[]string{"-d 10.2.0.0/16 -j LIQO-PSTRT-CLS-9ed4d9bd", "! -s 10.245.0.0/16 -d 10.2.0.0/16 -j SNAT --to-source 10.245.0.0", "10.245.0.0/16 -d 10.2.0.0/16 -j ACCEPT", "10.245.0.0/16 -d 10.89.0.0/16 -j ACCEPT"},
+	}
+	//first we insert the existing rules
+	_ = r.InsertRulesIfNotPresent(existingRules.clusterID, existingRules.table, existingRules.chain, existingRules.rules)
+	//here we update the rules twice, the first one to check that the outdated rules are removed
+	//second one to check that the function is idempotent when no rules are outdated
+	for i := 0; i < 2; i++ {
+		_ = r.UpdateRulesPerChain(newRules.clusterID, newRules.chain, newRules.table, existingRules.rules, newRules.rules)
+		assert.Equal(t, len(newRules.rules), len(ip.Rules))
+		for _, testRule := range newRules.rules {
+			present := false
+			for _, rule := range ip.Rules {
+				if testRule == strings.Join(rule.RuleSpec, " ") {
+					present = true
+				}
+			}
+			assert.True(t, present)
+		}
+	}
+}
+
+func TestRouteController_ListRulesInChain(t *testing.T) {
+	r := getRouteController()
+	//here we emulute how the rules are present when listing theme with option -S i.e iptables -S chain -t table
+	existingRules := struct {
+		clusterID     string
+		table         string
+		chain         string
+		rules         []string
+		expectedRules []string
+	}{
+		"routeOperatorUnitTests",
+		"nat",
+		"LIQO-PSTRT-CLS-d7cd85f9",
+		[]string{"-N LIQO-PSTRT-CLS-d7cd85f9", "-A LIQO-PSTRT-CLS-d7cd85f9 ! -s 10.2.0.0/16 -d 10.245.0.0/16 -j SNAT --to-source 10.2.0.0", "-A LIQO-PSTRT-CLS-d7cd85f9 -s 10.2.0.0/16 -d 10.245.0.0/16 -j ACCEPT"},
+		[]string{"! -s 10.2.0.0/16 -d 10.245.0.0/16 -j SNAT --to-source 10.2.0.0", "-s 10.2.0.0/16 -d 10.245.0.0/16 -j ACCEPT"},
+	}
+	//first we insert the existing rules
+	_ = r.InsertRulesIfNotPresent(existingRules.clusterID, existingRules.table, existingRules.chain, existingRules.rules)
+	rules, _ := r.ListRulesInChain(existingRules.table, existingRules.chain)
+	assert.Equal(t, 2, len(rules))
+	assert.Equal(t, existingRules.expectedRules, rules)
+}
+
+func TestRouteController_GetChainRulespecs(t *testing.T) {
+	r := getRouteController()
+	tep := GetTunnelEndpointCR()
+	tests := []struct {
+		localRemappedPodCIDR   string
+		expectedNumberofChains int
+	}{
+		{"10.1.0.0/16",
+			4,
+		},
+		{
+			defaultPodCIDRValue,
+			3,
+		},
+	}
+	for _, test := range tests {
+		tep.Status.LocalRemappedPodCIDR = test.localRemappedPodCIDR
+		chainRulespecs := r.GetChainRulespecs(tep)
+		assert.Equal(t, test.expectedNumberofChains, len(chainRulespecs))
+	}
 }
