@@ -5,7 +5,6 @@ import (
 	"github.com/vishvananda/netlink"
 	"golang.org/x/sys/unix"
 	"net"
-	"strings"
 )
 
 type NetLink interface {
@@ -19,7 +18,7 @@ type RouteManager struct {
 func (rm *RouteManager) AddRoute(dst string, gw string, deviceName string, onLink bool) (netlink.Route, error) {
 	var route netlink.Route
 	//convert destination in *net.IPNet
-	destinationIP, destinationNet, err := net.ParseCIDR(dst)
+	_, destinationNet, err := net.ParseCIDR(dst)
 	if err != nil {
 		return route, fmt.Errorf("unable to convert destination \"%s\" from string to net.IPNet: %v", dst, err)
 	}
@@ -27,42 +26,6 @@ func (rm *RouteManager) AddRoute(dst string, gw string, deviceName string, onLin
 	iface, err := netlink.LinkByName(deviceName)
 	if err != nil {
 		return route, fmt.Errorf("unable to retrieve information of \"%s\": %v", deviceName, err)
-	}
-	route = netlink.Route{LinkIndex: iface.Attrs().Index, Dst: destinationNet, Gw: gateway}
-	//check if already exist a route for the destination network on our device
-	//we don't care about other routes in devices not managed by net. The user should check the
-	//possible ip conflicts
-	routes, err := netlink.RouteList(iface, netlink.FAMILY_V4)
-	if err != nil {
-		return route, fmt.Errorf("unable to get routes for \"%s\": %v", destinationIP.String(), err)
-	}
-	if len(routes) > 0 {
-		//count how many routes exist for the the current destination
-		//if more then one: something went wrong so we remove them all
-		occurrences := 0
-		for _, val := range routes {
-			if val.Dst.String() == route.Dst.String() {
-				occurrences++
-			}
-		}
-		if occurrences > 1 {
-			for _, val := range routes {
-				err = rm.DelRoute(val)
-				if err != nil {
-					return route, fmt.Errorf("unable to delete route %v:%v", val, err)
-				}
-			}
-		} else if occurrences == 1 {
-			index := 0
-			for i, val := range routes {
-				if val.Dst.String() == route.Dst.String() {
-					index = i
-				}
-			}
-			if IsRouteConfigTheSame(&routes[index], route) {
-				return routes[index], nil
-			}
-		}
 	}
 	if onLink {
 		route = netlink.Route{LinkIndex: iface.Attrs().Index, Dst: destinationNet, Gw: gateway, Flags: unix.RTNH_F_ONLINK}
@@ -87,25 +50,7 @@ func IsRouteConfigTheSame(existing *netlink.Route, new netlink.Route) bool {
 	}
 }
 
-//get the ip of the vxlan interface added by the flannel cni. this ip is
-//the ip of the node where the tunnel operator runs
-func GetGateway() (int, net.IP, error) {
-	var gw net.IP
-	iface, err := net.InterfaceByName("wlp1s0")
-	if err != nil {
-		return 0, gw, nil
-	}
-	addresses, err := iface.Addrs()
-	if err != nil {
-		return 0, gw, nil
-	}
-	s := strings.Split(addresses[0].String(), "/")
-	gw = net.ParseIP(s[0])
-	return iface.Index, gw, nil
-}
-
 func (rm *RouteManager) DelRoute(route netlink.Route) error {
-
 	//try to remove all the routes for that ip
 	err := netlink.RouteDel(&route)
 	if err != nil {
@@ -113,15 +58,7 @@ func (rm *RouteManager) DelRoute(route netlink.Route) error {
 			//it means the route does not exist so we are done
 			return nil
 		}
-		return fmt.Errorf("unable to delete route %v: %v", route, err)
+		return err
 	}
 	return nil
-}
-
-func StringtoIPNet(ipNet string) (net.IP, error) {
-	ip, _, err := net.ParseCIDR(ipNet)
-	if err != nil {
-		return nil, err
-	}
-	return ip, nil
 }

@@ -36,7 +36,6 @@ import (
 	"net"
 	"os"
 	ctrl "sigs.k8s.io/controller-runtime"
-	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 	"strconv"
 	"strings"
 	"time"
@@ -44,9 +43,7 @@ import (
 )
 
 var (
-	scheme   = runtime.NewScheme()
-	setupLog = ctrl.Log.WithName("setup")
-
+	scheme        = runtime.NewScheme()
 	defaultConfig = liqonet.VxlanNetConfig{
 		Network:    "192.168.200.0/24",
 		DeviceName: "liqonet",
@@ -75,10 +72,7 @@ func main() {
 		"Runs the controller as Route-Operator, the default value is false and will run as Tunnel-Operator")
 	flag.StringVar(&runAs, "run-as", "tunnel-operator", "The accepted values are: tunnel-operator, route-operator, tunnelEndpointCreator-operator. The default value is \"tunnel-operator\"")
 	flag.Parse()
-
-	ctrl.SetLogger(zap.New(func(o *zap.Options) {
-		o.Development = true
-	}))
+	waitCleanUp := make(chan struct{})
 	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
 		Scheme:             scheme,
 		MetricsBindAddress: metricsAddr,
@@ -86,7 +80,7 @@ func main() {
 		Port:               9443,
 	})
 	if err != nil {
-		setupLog.Error(err, "unable to start manager")
+		klog.Errorf("unable to get manager: %s", err)
 		os.Exit(1)
 	}
 	// creates the in-cluster config or uses the .kube/config file
@@ -100,56 +94,55 @@ func main() {
 	case "route-operator":
 		vxlanConfig, err := liqonet.ReadVxlanNetConfig(defaultConfig)
 		if err != nil {
-			setupLog.Error(err, "an error occurred while getting the vxlan network configuration")
+			klog.Errorf("an error occurred while getting the vxlan network configuration: %s", err)
 		}
 		vxlanPort, err := strconv.Atoi(vxlanConfig.Port)
 		if err != nil {
-			setupLog.Error(err, "unable to convert vxlan port "+vxlanConfig.Port+" from string to int.")
+			klog.Errorf("unable to convert vxlan port %s to string", vxlanConfig.Port)
 		}
 		err = liqonet.CreateVxLANInterface(clientset, vxlanConfig)
 		if err != nil {
-			setupLog.Error(err, "an error occurred while creating vxlan interface")
+			klog.Errorf("unable to create vxlan interface: %s", err)
 		}
 		//Enable loose mode reverse path filtering on the vxlan interfaces
 		err = liqonet.Enable_rp_filter()
 		if err != nil {
-			setupLog.Error(err, "an error occurred while enabling loose mode reverse path filtering")
+			klog.Errorf("an error occurred while enabling loose mode reverse path filtering: %s", err)
 			os.Exit(3)
 		}
 		isGatewayNode, err := liqonet.IsGatewayNode(clientset)
 		if err != nil {
-			setupLog.Error(err, "an error occurred while checking if the node is the GatewayNode")
+			klog.Errorf("an error occurred while checking if the node is the GatewayNode: %s", err)
 			os.Exit(2)
 		}
 		//get node name
 		nodeName, err := liqonet.GetNodeName()
 		if err != nil {
-			setupLog.Error(err, "an error occurred while retrieving node name")
+			klog.Errorf("unable to get node nome: %s", err)
 			os.Exit(4)
 		}
 		gatewayVxlanIP, err := liqonet.GetGatewayVxlanIP(clientset, vxlanConfig)
 		if err != nil {
-			setupLog.Error(err, "unable to derive gatewayVxlanIP")
+			klog.Errorf("unable to build gateway vxlanIP: %s", err)
 			os.Exit(5)
 		}
 		ipt, err := iptables.New()
 		if err != nil {
-			setupLog.Error(err, "unable to initialize iptables: %v. check if the ipatable are present in the system", err)
+			klog.Errorf("unable to initialize iptables, check if the binaries are present in the sysetm: %s", err)
+			os.Exit(6)
 		}
 		r := &liqonetOperators.RouteController{
 			Client:                             mgr.GetClient(),
-			Log:                                ctrl.Log.WithName("route-operator"),
 			Scheme:                             mgr.GetScheme(),
 			Recorder:                           mgr.GetEventRecorderFor(strings.Join([]string{"route-OP", nodeName}, "-")),
 			ClientSet:                          clientset,
-			RoutesPerRemoteCluster:             make(map[string][]netlink.Route),
 			IsGateway:                          isGatewayNode,
 			VxlanNetwork:                       vxlanConfig.Network,
 			VxlanIfaceName:                     vxlanConfig.DeviceName,
 			VxlanPort:                          vxlanPort,
 			IPTablesRuleSpecsReferencingChains: make(map[string]liqonet.IPtableRule),
 			IPTablesChains:                     make(map[string]liqonet.IPTableChain),
-			IPtablesRuleSpecsPerRemoteCluster:  make(map[string][]liqonet.IPtableRule),
+			RoutesPerRemoteCluster:             make(map[string]netlink.Route),
 			NodeName:                           nodeName,
 			GatewayVxlanIP:                     gatewayVxlanIP,
 			RetryTimeout:                       30 * time.Second,
@@ -163,15 +156,32 @@ func main() {
 			r.IsConfigured = true
 			klog.Infof("route-operator configured with podCIDR %s", r.ClusterPodCIDR)
 		}
+		//this go routing ensures that the general chains and rulespecs for LIQO exist and are
+		//at the first position
+		quit := make(chan struct{})
+		go func() {
+			for {
+				if err := r.CreateAndEnsureIPTablesChains(); err != nil {
+					klog.Error(err)
+				}
+				select {
+				case <-quit:
+					klog.Infof("stopping go routing that ensure liqo iptables rules")
+					return
+				case <-time.After(liqonetOperators.ResyncPeriod):
+				}
+			}
+		}()
 		if err = r.SetupWithManager(mgr); err != nil {
-			setupLog.Error(err, "unable to create controller", "controller", "Route")
+			klog.Errorf("unable to setup controller: %s", err)
 			os.Exit(1)
 		}
-		setupLog.Info("Starting manager as Route-Operator")
-		if err := mgr.Start(r.SetupSignalHandlerForRouteOperator()); err != nil {
-			setupLog.Error(err, "problem running manager")
+		klog.Info("Starting manager as Route-Operator")
+		if err := mgr.Start(r.SetupSignalHandlerForRouteOperator(quit, waitCleanUp)); err != nil {
+			klog.Errorf("unable to start controller: %s", err)
 			os.Exit(1)
 		}
+		<-waitCleanUp
 
 	case "tunnel-operator":
 		r := &liqonetOperators.TunnelController{
@@ -181,12 +191,12 @@ func main() {
 			TunnelIFacesPerRemoteCluster: make(map[string]int),
 		}
 		if err = r.SetupWithManager(mgr); err != nil {
-			setupLog.Error(err, "unable to create controller", "controller", "TunnelEndpoint")
+			klog.Errorf("unable to setup controller: %s", err)
 			os.Exit(1)
 		}
-		setupLog.Info("Starting manager as Tunnel-Operator")
+		klog.Info("Starting manager as Tunnel-Operator")
 		if err := mgr.Start(r.SetupSignalHandlerForTunnelOperator()); err != nil {
-			setupLog.Error(err, "problem running manager")
+			klog.Errorf("unable to start controller: %s", err)
 			os.Exit(1)
 		}
 
@@ -236,7 +246,7 @@ func main() {
 		//starting configuration watcher
 		r.WatchConfiguration(config, &clusterConfig.GroupVersion)
 		if err = r.SetupWithManager(mgr); err != nil {
-			setupLog.Error(err, "unable to create controller", "controller", "TunnelEndpointCreator")
+			klog.Errorf("unable to create controller controller TunnelEndpointCreator: %s", err)
 			os.Exit(1)
 		}
 		klog.Info("starting manager as tunnelEndpointCreator-operator")
@@ -245,4 +255,5 @@ func main() {
 			os.Exit(1)
 		}
 	}
+
 }
