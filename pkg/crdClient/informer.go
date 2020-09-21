@@ -19,6 +19,7 @@ func WatchResources(clientSet NamespacedCRDClientInterface,
 	lo metav1.ListOptions) (cache.Store, chan struct{}, error) {
 
 	if Fake {
+
 		return WatchfakeResources(resource, handlers)
 	} else {
 		return WatchRealResources(clientSet, resource, namespace, resyncPeriod, handlers, lo)
