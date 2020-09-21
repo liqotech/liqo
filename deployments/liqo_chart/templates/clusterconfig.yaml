@@ -15,6 +15,7 @@ spec:
     keepaliveThreshold: 3
     keepaliveRetryTime: 20
   discoveryConfig:
+    clusterName: {{ .Values.clusterName}}
     autojoin: true
     autojoinUntrusted: true
     domain: local.

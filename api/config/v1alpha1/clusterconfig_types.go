@@ -85,6 +85,7 @@ type AdvOperatorConfig struct {
 }
 
 type DiscoveryConfig struct {
+	// ClusterName is a nickname for your cluster that can be easily understood by a user
 	ClusterName string `json:"clusterName,omitempty"`
 
 	// --- mDNS ---
