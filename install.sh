@@ -40,6 +40,7 @@ function print_help()
    echo "   GATEWAY_IP: the public IP that will be used by LIQO to establish the interconnection with other clusters"
    echo "   NAMESPACE: the namespace where LIQO control plane resources will be created"
    echo "   DASHBOARD_INGRESS: the name of the host you want to assign to the LIQO dashboard"
+   echo "   CLUSTER_NAME: the nickname for your cluster"
 }
 
 function set_gateway_node() {
@@ -110,6 +111,7 @@ function install() {
   GATEWAY_IP=$(set_gateway_node)
   echo "[PRE-INSTALL]: GATEWAY_IP is set to: $GATEWAY_IP"
 
+
   POD_CIDR_COMMAND='kubectl cluster-info dump | grep -m 1 -Po "(?<=--cluster-cidr=)[0-9.\/]+"'
   set_variable_from_command POD_CIDR "${POD_CIDR_COMMAND}" "[ERROR]: Unable to find POD_CIDR"
   SERVICE_CIDR_COMMAND='kubectl cluster-info dump | grep -m 1 -Po "(?<=--service-cluster-ip-range=)[0-9.\/]+"'
@@ -117,13 +119,14 @@ function install() {
   NAMESPACE=${NAMESPACE:-$NAMESPACE_DEFAULT}
   LIQO_SUFFIX=${LIQO_SUFFIX:-$LIQO_SUFFIX_DEFAULT}
   LIQO_VERSION=${LIQO_VERSION:-$LIQO_VERSION_DEFAULT}
+  CLUSTER_NAME=${CLUSTER_NAME:-$CLUSTER_NAME_DEFAULT}
 
-
+  echo "[PRE-INSTALL]: CLUSTER_NAME is set to: $CLUSTER_NAME"
 
   #Wait for the installation to complete
   kubectl create ns "$NAMESPACE" || true
   $HELM_PATH dependency update "$TMPDIR"/liqo/deployments/liqo_chart
-  $HELM_PATH install liqo -n "$NAMESPACE" "$TMPDIR/liqo/deployments/liqo_chart" --set podCIDR="$POD_CIDR" --set serviceCIDR="$SERVICE_CIDR" \
+  $HELM_PATH install liqo -n "$NAMESPACE" "$TMPDIR/liqo/deployments/liqo_chart" --set podCIDR="$POD_CIDR" --set serviceCIDR="$SERVICE_CIDR" --set clusterName="$CLUSTER_NAME"\
     --set gatewayIP="$GATEWAY_IP" --set global.suffix="$LIQO_SUFFIX" --set global.version="$LIQO_VERSION" --set global.dashboard_ingress="$DASHBOARD_INGRESS"
   echo "[INSTALL]: Installing LIQO on your cluster..."
 }
@@ -184,6 +187,7 @@ NAMESPACE_DEFAULT="liqo"
 # - Export LIQO_VERSION to the id of your commit
 LIQO_VERSION_DEFAULT="latest"
 LIQO_SUFFIX_DEFAULT=""
+CLUSTER_NAME_DEFAULT="LiqoCluster"$RANDOM
 
 # Check necessary commands to be installed before installing Liqo
 commands="curl kubectl"

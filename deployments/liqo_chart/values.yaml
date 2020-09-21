@@ -3,6 +3,7 @@
 # Declare variables to be passed into your templates.
 
 clusterID: "lab9"
+clusterName: "Lab9Cluster"
 podCIDR: "10.244.0.0/16"
 serviceCIDR: "10.96.0.0/12"
 

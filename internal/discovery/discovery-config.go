@@ -78,6 +78,11 @@ func (discovery *DiscoveryCtrl) handleConfiguration(config configv1alpha1.Discov
 		discovery.Config = &config
 	} else {
 		// other iterations
+		if discovery.Config.ClusterName != config.ClusterName {
+			discovery.Config.ClusterName = config.ClusterName
+			reloadClient = true
+			reloadServer = true
+		}
 		if discovery.Config.Domain != config.Domain {
 			discovery.Config.Domain = config.Domain
 			reloadServer = true
