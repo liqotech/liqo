@@ -4,7 +4,8 @@ import (
 	"context"
 	"errors"
 	"github.com/liqotech/liqo/internal/discovery/kubeconfig"
-	pkg "github.com/liqotech/liqo/pkg/advertisement-operator"
+	pkg "github.com/liqotech/liqo/pkg"
+	advpkg "github.com/liqotech/liqo/pkg/advertisement-operator"
 	"github.com/liqotech/liqo/pkg/crdClient"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/fields"
@@ -107,7 +108,7 @@ func StartBroadcaster(homeClusterId, localKubeconfigPath, peeringRequestName, sa
 		klog.Info("Correctly created client to remote cluster " + foreignClusterId)
 	}
 
-	kubeconfigSecretName := "vk-kubeconfig-secret-" + homeClusterId
+	kubeconfigSecretName := pkg.VirtualKubeletSecPrefix + homeClusterId
 	kubeconfigSecretForForeign, err := remoteClient.Client().CoreV1().Secrets(pr.Spec.Namespace).Get(context.TODO(), kubeconfigSecretName, metav1.GetOptions{})
 	if err != nil {
 		// secret containing kubeconfig not found: create it
@@ -128,7 +129,7 @@ func StartBroadcaster(homeClusterId, localKubeconfigPath, peeringRequestName, sa
 		kubeconfigSecretForForeign = &corev1.Secret{
 			TypeMeta: metav1.TypeMeta{},
 			ObjectMeta: metav1.ObjectMeta{
-				Name:      "vk-kubeconfig-secret-" + homeClusterId,
+				Name:      kubeconfigSecretName,
 				Namespace: sa.Namespace,
 			},
 			Data: nil,
@@ -202,8 +203,7 @@ func (b *AdvertisementBroadcaster) GenerateAdvertisement() {
 
 		// start the remote watcher over this Advertisement; the watcher must be launched only once
 		go once.Do(func() {
-			foreignAdvName := "advertisement-" + b.ForeignClusterId
-			b.WatchAdvertisement(adv.Name, foreignAdvName)
+			b.WatchAdvertisement(adv.Name)
 		})
 
 		time.Sleep(10 * time.Minute)
@@ -224,7 +224,7 @@ func (b *AdvertisementBroadcaster) CreateAdvertisement(virtualNodes *corev1.Node
 
 	adv := advtypes.Advertisement{
 		ObjectMeta: metav1.ObjectMeta{
-			Name: "advertisement-" + b.HomeClusterId,
+			Name: pkg.AdvertisementPrefix + b.HomeClusterId,
 		},
 		Spec: advtypes.AdvertisementSpec{
 			ClusterId: b.HomeClusterId,
@@ -318,7 +318,7 @@ func (b *AdvertisementBroadcaster) SendAdvertisementToForeignCluster(advToCreate
 			klog.Info("Correctly created advertisement on remote cluster " + b.ForeignClusterId)
 			adv.Kind = "Advertisement"
 			adv.APIVersion = advtypes.GroupVersion.String()
-			b.KubeconfigSecretForForeign.SetOwnerReferences(pkg.GetOwnerReference(adv))
+			b.KubeconfigSecretForForeign.SetOwnerReferences(advpkg.GetOwnerReference(adv))
 			_, err = b.RemoteClient.Client().CoreV1().Secrets(b.KubeconfigSecretForForeign.Namespace).Update(context.TODO(), b.KubeconfigSecretForForeign, metav1.UpdateOptions{})
 			if err != nil {
 				klog.Errorln(err, "Unable to update secret "+b.KubeconfigSecretForForeign.Name)
@@ -332,7 +332,7 @@ func (b *AdvertisementBroadcaster) SendAdvertisementToForeignCluster(advToCreate
 }
 
 func (b *AdvertisementBroadcaster) NotifyAdvertisementDeletion() error {
-	advName := "advertisement-" + b.HomeClusterId
+	advName := pkg.AdvertisementPrefix + b.HomeClusterId
 	obj, err := b.RemoteClient.Resource("advertisements").Get(advName, metav1.GetOptions{})
 	if err != nil {
 		klog.Error("Advertisement " + advName + " doesn't exist on foreign cluster " + b.ForeignClusterId)
@@ -409,17 +409,22 @@ func GetClusterResources(nodes []corev1.Node) (corev1.ResourceList, []corev1.Con
 }
 
 func GetNodeImages(node corev1.Node) []corev1.ContainerImage {
-	images := make([]corev1.ContainerImage, 0)
+	m := make(map[string]corev1.ContainerImage)
 
 	for _, image := range node.Status.Images {
 		for _, name := range image.Names {
 			// TODO: policy to decide which images to announce
 			if !strings.Contains(name, "k8s") {
-				images = append(images, image)
+				m[name] = image
 			}
 		}
 	}
-
+	images := make([]corev1.ContainerImage, len(m))
+	i := 0
+	for _, image := range m {
+		images[i] = image
+		i++
+	}
 	return images
 }
 

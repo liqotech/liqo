@@ -114,10 +114,9 @@ type DiscoveryConfig struct {
 }
 
 type LiqonetConfig struct {
-	//this field is used by the IPAM embedded in the tunnelEndpointCreator
-	//if the podCIDR of a peering cluster needs to be NATed a new subnet from the 10.0.0.0/8
-	//is used. if subnets belonging to that range are used in the local cluster then it is necessary to
-	//declare them as a list in CIDR notation. ex. [10.1.0.0/16, 10.200.1.0/24]
+	//This field is used by the IPAM embedded in the tunnelEndpointCreator.
+	//Subnets listed in this field are excluded from the list of possible subnets used for natting POD CIDR.
+	//Add here the subnets already used in your environment as a list in CIDR notation (e.g. [10.1.0.0/16, 10.200.1.0/24]).
 	ReservedSubnets []string `json:"reservedSubnets"`
 	//the subnet used by the cluster for the pods, in CIDR notation
 	PodCIDR string `json:"podCIDR"`

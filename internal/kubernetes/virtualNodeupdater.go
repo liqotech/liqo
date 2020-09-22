@@ -7,6 +7,7 @@ import (
 	advtypes "github.com/liqotech/liqo/api/sharing/v1alpha1"
 	controllers "github.com/liqotech/liqo/internal/liqonet"
 	"github.com/liqotech/liqo/internal/node"
+	"github.com/liqotech/liqo/pkg"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/watch"
@@ -16,7 +17,7 @@ import (
 
 func (p *KubernetesProvider) StartNodeUpdater(nodeRunner *node.NodeController) (chan struct{}, chan struct{}, error) {
 	stop := make(chan struct{}, 1)
-	advName := strings.Join([]string{"advertisement", p.foreignClusterId}, "-")
+	advName := strings.Join([]string{pkg.AdvertisementPrefix, p.foreignClusterId}, "")
 	advWatcher, err := p.advClient.Resource("advertisements").Watch(metav1.ListOptions{
 		FieldSelector: strings.Join([]string{"metadata.name", advName}, "="),
 		Watch:         true,

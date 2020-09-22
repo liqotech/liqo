@@ -8,7 +8,8 @@ import (
 	advtypes "github.com/liqotech/liqo/api/sharing/v1alpha1"
 	advop "github.com/liqotech/liqo/internal/advertisement-operator"
 	"github.com/liqotech/liqo/internal/kubernetes/test"
-	pkg "github.com/liqotech/liqo/pkg/advertisement-operator"
+	"github.com/liqotech/liqo/pkg"
+	advpkg "github.com/liqotech/liqo/pkg/advertisement-operator"
 	"github.com/liqotech/liqo/pkg/crdClient"
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
@@ -201,13 +202,29 @@ func prepareAdv(b *advop.AdvertisementBroadcaster) advtypes.Advertisement {
 func TestGetClusterResources(t *testing.T) {
 
 	pNodes, _, images, sum, _ := createFakeResources()
-	res, im := advop.GetClusterResources(pNodes.Items)
+	res, images2 := advop.GetClusterResources(pNodes.Items)
 
 	assert.Empty(t, res.StorageEphemeral(), "StorageEphemeral was not set so it should be null")
 	assert.Equal(t, *res.Cpu(), sum)
 	assert.Equal(t, *res.Memory(), sum)
 	assert.Equal(t, *res.Pods(), sum)
-	assert.Equal(t, im, images)
+	assert.ElementsMatch(t, images, images2)
+}
+
+func TestGetNodeImages(t *testing.T) {
+	nodes, _, _, _, _ := createFakeResources()
+	n := nodes.Items[0]
+	expected := n.Status.Images
+	n.Status.Images = append(n.Status.Images, n.Status.Images...)
+	ignoredImage := corev1.ContainerImage{
+		Names:     []string{"k8s-test-image"},
+		SizeBytes: 5,
+	}
+	n.Status.Images = append(n.Status.Images, ignoredImage)
+
+	images := advop.GetNodeImages(n)
+	assert.Len(t, images, len(expected))
+	assert.Equal(t, expected, images)
 }
 
 func TestComputePrices(t *testing.T) {
@@ -250,7 +267,7 @@ func TestCreateAdvertisement(t *testing.T) {
 	assert.NotEmpty(t, adv.Spec.KubeConfigRef)
 	assert.NotEmpty(t, adv.Spec.Timestamp)
 	assert.NotEmpty(t, adv.Spec.TimeToLive)
-	assert.Equal(t, "advertisement-"+broadcaster.HomeClusterId, adv.Name)
+	assert.Equal(t, pkg.AdvertisementPrefix+broadcaster.HomeClusterId, adv.Name)
 	assert.Equal(t, images, adv.Spec.Images)
 	assert.Equal(t, availability, adv.Spec.ResourceQuota.Hard)
 	assert.Equal(t, limits, adv.Spec.LimitRange.Limits[0].Max)
@@ -295,7 +312,7 @@ func TestSendAdvertisementCreation(t *testing.T) {
 	adv := prepareAdv(&b)
 	adv2, err := b.SendAdvertisementToForeignCluster(adv)
 	assert.Nil(t, err)
-	assert.Equal(t, b.KubeconfigSecretForForeign.OwnerReferences, pkg.GetOwnerReference(adv2))
+	assert.Equal(t, b.KubeconfigSecretForForeign.OwnerReferences, advpkg.GetOwnerReference(adv2))
 
 	// update adv on foreign cluster
 	adv.Spec.ResourceQuota.Hard[corev1.ResourceCPU] = resource.MustParse("10")

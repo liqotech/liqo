@@ -3,6 +3,7 @@ package advertisementOperator
 import (
 	configv1alpha1 "github.com/liqotech/liqo/api/config/v1alpha1"
 	advtypes "github.com/liqotech/liqo/api/sharing/v1alpha1"
+	"github.com/liqotech/liqo/pkg"
 	"github.com/liqotech/liqo/pkg/clusterConfig"
 	"github.com/liqotech/liqo/pkg/crdClient"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
@@ -25,7 +26,7 @@ func (b *AdvertisementBroadcaster) WatchConfiguration(kubeconfigPath string, cli
 			} else {
 				// wait for advertisement to be deleted to delete the peering request
 				for retry := 0; retry < 3; retry++ {
-					advName := "advertisement-" + b.HomeClusterId
+					advName := pkg.AdvertisementPrefix + b.HomeClusterId
 					if _, err := b.RemoteClient.Resource("advertisements").Get(advName, metav1.GetOptions{}); err != nil && k8serrors.IsNotFound(err) {
 						break
 					}

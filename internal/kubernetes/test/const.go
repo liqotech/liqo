@@ -2,6 +2,7 @@ package test
 
 import (
 	controllers "github.com/liqotech/liqo/internal/liqonet"
+	"github.com/liqotech/liqo/pkg"
 	"time"
 )
 
@@ -10,7 +11,7 @@ const (
 	NattedNamespace       = Namespace + "-" + HomeClusterId
 	HostName              = "testHost"
 	NodeName              = "testNode"
-	AdvName               = "advertisement-" + ForeignClusterId
+	AdvName               = pkg.AdvertisementPrefix + ForeignClusterId
 	TepName               = controllers.TunEndpointNamePrefix + ForeignClusterId
 	EndpointsName         = "testEndpoints"
 	HomeClusterId         = "homeClusterID"
