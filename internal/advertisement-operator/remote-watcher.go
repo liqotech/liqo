@@ -8,7 +8,7 @@ import (
 	"k8s.io/klog"
 )
 
-func (b *AdvertisementBroadcaster) WatchAdvertisement(homeAdvName, foreignAdvName string) {
+func (b *AdvertisementBroadcaster) WatchAdvertisement(homeAdvName string) {
 
 	klog.Info("starting remote advertisement watcher")
 	watcher, err := b.RemoteClient.Resource("advertisements").Watch(metav1.ListOptions{
@@ -23,7 +23,6 @@ func (b *AdvertisementBroadcaster) WatchAdvertisement(homeAdvName, foreignAdvNam
 
 	// events are triggered only by modifications on the Advertisement created by the broadcaster on the remote cluster
 	// homeClusterAdv is the Advertisement created by home cluster on foreign cluster -> stored remotely
-	// foreignClusterAdv is the Advertisement created by foreign cluster on home cluster -> stored locally
 	for event := range watcher.ResultChan() {
 		homeClusterAdv, ok := event.Object.(*advtypes.Advertisement)
 		if !ok {
@@ -58,9 +57,10 @@ func (b *AdvertisementBroadcaster) saveAdvStatus(adv *advtypes.Advertisement) er
 
 	// save the advertisement status (ACCEPTED/REFUSED) in the PeeringRequest
 	pr.Status.AdvertisementStatus = adv.Status.AdvertisementStatus
-	_, err = b.DiscoveryClient.Resource("peeringrequests").UpdateStatus(b.PeeringRequestName, pr, metav1.UpdateOptions{})
+	_, err = b.DiscoveryClient.Resource("peeringrequests").Update(pr.Name, pr, metav1.UpdateOptions{})
 	if err != nil {
 		return err
 	}
+	klog.Infof("PeeringRequest %v status updated with AdvertisementStatus = %v", pr.Name, pr.Status.AdvertisementStatus)
 	return nil
 }

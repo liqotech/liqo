@@ -1,6 +1,8 @@
 package pkg
 
 const (
-	VirtualNodePrefix    = "liqo-"
-	VirtualKubeletPrefix = "virtual-kubelet-"
+	VirtualNodePrefix       = "liqo-"
+	VirtualKubeletPrefix    = "virtual-kubelet-"
+	VirtualKubeletSecPrefix = "vk-kubeconfig-secret-"
+	AdvertisementPrefix     = "advertisement-"
 )

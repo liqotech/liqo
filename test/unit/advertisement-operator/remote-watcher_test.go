@@ -43,7 +43,7 @@ func TestWatchAdvertisementAcceptance(t *testing.T) {
 	time.Sleep(1 * time.Second)
 
 	// after having created home adv on foreign cluster, start watching it
-	go b.WatchAdvertisement(homeAdv.Name, "")
+	go b.WatchAdvertisement(homeAdv.Name)
 
 	// set adv status and update it: this will trigger the watcher
 	homeAdv.Status.AdvertisementStatus = advtypes.AdvertisementAccepted

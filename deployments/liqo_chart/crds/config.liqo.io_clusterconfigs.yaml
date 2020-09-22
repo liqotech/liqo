@@ -121,6 +121,8 @@ spec:
                 autojoinUntrusted:
                   type: boolean
                 clusterName:
+                  description: ClusterName is a nickname for your cluster that can
+                    be easily understood by a user
                   type: string
                 domain:
                   type: string
@@ -178,16 +180,26 @@ spec:
             liqonetConfig:
               properties:
                 podCIDR:
+                  description: the subnet used by the cluster for the pods, in CIDR
+                    notation
                   type: string
                 reservedSubnets:
-                  description: contains a list of reserved subnets in CIDR notation
-                    used by the k8s cluster like the podCIDR and ClusterCIDR
+                  description: This field is used by the IPAM embedded in the tunnelEndpointCreator.
+                    Subnets listed in this field are excluded from the list of possible
+                    subnets used for natting POD CIDR. Add here the subnets already
+                    used in your environment as a list in CIDR notation (e.g. [10.1.0.0/16,
+                    10.200.1.0/24]).
                   items:
                     type: string
                   type: array
                 serviceCIDR:
+                  description: the subnet used by the cluster for the services, in
+                    CIDR notation
                   type: string
                 vxlanNetConfig:
+                  description: the configuration for the VXLAN overlay network which
+                    handles the traffic in the local cluster destined to remote peering
+                    clusters
                   properties:
                     DeviceName:
                       type: string
