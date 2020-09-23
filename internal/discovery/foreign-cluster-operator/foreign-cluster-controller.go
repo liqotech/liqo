@@ -414,21 +414,6 @@ func (r *ForeignClusterReconciler) checkJoined(fc *discoveryv1alpha1.ForeignClus
 	return fc, nil
 }
 
-// this method returns the local setting (about trusting policy, ...) to be sent to the remote cluster
-// to allow it to create its local ForeignCluster with the correct settings
-func (r *ForeignClusterReconciler) getOriginClusterSets() discoveryv1alpha1.OriginClusterSets {
-	if r.DiscoveryCtrl.Config == nil {
-		klog.Warning("DiscoveryCtrl Config is not set, by default we are allowing UntrustedCA join")
-		return discoveryv1alpha1.OriginClusterSets{
-			AllowUntrustedCA: true,
-		}
-	} else {
-		return discoveryv1alpha1.OriginClusterSets{
-			AllowUntrustedCA: r.DiscoveryCtrl.Config.AllowUntrustedCA,
-		}
-	}
-}
-
 func (r *ForeignClusterReconciler) createPeeringRequestIfNotExists(clusterID string, owner *discoveryv1alpha1.ForeignCluster, foreignClient *crdClient.CRDClient) (*discoveryv1alpha1.PeeringRequest, error) {
 	// get config to send to foreign cluster
 	fConfig, err := r.getForeignConfig(clusterID, owner)
@@ -462,9 +447,8 @@ func (r *ForeignClusterReconciler) createPeeringRequestIfNotExists(clusterID str
 						ClusterID:   localClusterID,
 						ClusterName: r.DiscoveryCtrl.Config.ClusterName,
 					},
-					Namespace:         r.Namespace,
-					KubeConfigRef:     nil,
-					OriginClusterSets: r.getOriginClusterSets(),
+					Namespace:     r.Namespace,
+					KubeConfigRef: nil,
 				},
 			}
 			tmp, err = foreignClient.Resource("peeringrequests").Create(pr, metav1.CreateOptions{})

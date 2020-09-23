@@ -50,7 +50,7 @@ func getClientCluster() *Cluster {
 		cluster.client,
 		cluster.advClient,
 		cluster.clusterId,
-		10*time.Minute,
+		1*time.Minute,
 		&cluster.discoveryCtrl,
 	)
 	err := cluster.fcReconciler.SetupWithManager(mgr)

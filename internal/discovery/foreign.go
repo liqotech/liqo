@@ -64,6 +64,10 @@ func (discovery *DiscoveryCtrl) UpdateForeign(data []*TxtData, sd *v1alpha1.Sear
 	return createdUpdatedForeign
 }
 
+// this function is called every x seconds when LAN discovery is triggered
+// for each cluster with discovery-type = LAN we will decrease TTL if that cluster
+// didn't answered to current discovery
+// when TTL is 0 that ForeignCluster will be deleted
 func (discovery *DiscoveryCtrl) UpdateTtl(txts []*TxtData) error {
 	// find all ForeignCluster with discovery type LAN
 	tmp, err := discovery.crdClient.Resource("foreignclusters").List(metav1.ListOptions{

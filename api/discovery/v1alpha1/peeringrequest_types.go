@@ -34,10 +34,12 @@ type PeeringRequestSpec struct {
 	// INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
 	// Important: Run "make" to regenerate code after modifying this file
 
-	ClusterIdentity   ClusterIdentity     `json:"clusterIdentity"`
-	Namespace         string              `json:"namespace"`
-	KubeConfigRef     *v1.ObjectReference `json:"kubeConfigRef,omitempty"`
-	OriginClusterSets OriginClusterSets   `json:"originClusterSets"`
+	// Foreign Cluster Identity
+	ClusterIdentity ClusterIdentity `json:"clusterIdentity"`
+	// Namespace where Liqo is deployed
+	Namespace string `json:"namespace"`
+	// KubeConfig file (with Advertisement creation role) secret reference
+	KubeConfigRef *v1.ObjectReference `json:"kubeConfigRef,omitempty"`
 }
 
 type ReverseJoin string
@@ -47,10 +49,6 @@ const (
 	AllowReverseJoin   ReverseJoin = "AllowReverseJoin"   // this cluster will accept remote cluster PeeringRequest
 	RequireReverseJoin ReverseJoin = "RequireReverseJoin" // this cluster asks to remote cluster to send its PeeringRequest
 )
-
-type OriginClusterSets struct {
-	AllowUntrustedCA bool `json:"allowUntrustedCA"`
-}
 
 // PeeringRequestStatus defines the observed state of PeeringRequest
 type PeeringRequestStatus struct {

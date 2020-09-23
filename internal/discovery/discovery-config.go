@@ -15,7 +15,6 @@ func (discovery *DiscoveryCtrl) GetDiscoveryConfig(crdClient *crdClient.CRDClien
 	waitFirst := make(chan bool)
 	isFirst := true
 	go clusterConfig.WatchConfiguration(func(configuration *configv1alpha1.ClusterConfig) {
-		klog.Info("Change Configuration")
 		discovery.handleConfiguration(configuration.Spec.DiscoveryConfig)
 		discovery.handleDispatcherConfig(configuration.Spec.DispatcherConfig)
 		if isFirst {

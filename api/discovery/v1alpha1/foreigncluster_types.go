@@ -40,7 +40,7 @@ const (
 type TrustMode string
 
 const (
-	TrustModeUnknown   TrustMode = ""
+	TrustModeUnknown   TrustMode = "Unknown"
 	TrustModeTrusted   TrustMode = "Trusted"
 	TrustModeUntrusted TrustMode = "Untrusted"
 )
@@ -50,15 +50,22 @@ type ForeignClusterSpec struct {
 	// INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
 	// Important: Run "make" to regenerate code after modifying this file
 
+	// Foreign Cluster Identity
 	ClusterIdentity ClusterIdentity `json:"clusterIdentity"`
-	Namespace       string          `json:"namespace"`
-	Join            bool            `json:"join"`
-	ApiUrl          string          `json:"apiUrl"`
-	DiscoveryType   DiscoveryType   `json:"discoveryType"`
+	// Namespace where Liqo is deployed
+	Namespace string `json:"namespace"`
+	// Enable join process to foreign cluster
+	Join bool `json:"join"`
+	// URL where to contact foreign API server
+	ApiUrl string `json:"apiUrl"`
+	// How this ForeignCluster has been discovered
+	DiscoveryType DiscoveryType `json:"discoveryType"`
 }
 
 type ClusterIdentity struct {
-	ClusterID   string `json:"clusterID"`
+	// Foreign Cluster ID, this is a unique identifier of that cluster
+	ClusterID string `json:"clusterID"`
+	// Foreign Cluster Name to be shown in GUIs
 	ClusterName string `json:"clusterName,omitempty"`
 }
 
@@ -69,31 +76,45 @@ type ForeignClusterStatus struct {
 
 	Outgoing Outgoing `json:"outgoing,omitempty"`
 	Incoming Incoming `json:"incoming,omitempty"`
-	Ttl      int      `json:"ttl,omitempty"`
-	// +kubebuilder:validation:Enum="";"Trusted";"Untrusted"
-	TrustMode TrustMode `json:"trustMode"`
+	// If discoveryType is LAN and this counter reach 0 value, this FC will be removed
+	Ttl int `json:"ttl,omitempty"`
+	// +kubebuilder:validation:Enum="Unknown";"Trusted";"Untrusted"
+	// +kubebuilder:default="Unknown"
+	// Indicates if this remote cluster is trusted or not
+	TrustMode TrustMode `json:"trustMode,omitempty"`
 }
 
 type Outgoing struct {
-	Joined                   bool                `json:"joined"`
-	RemotePeeringRequestName string              `json:"remote-peering-request-name,omitempty"`
-	CaDataRef                *v1.ObjectReference `json:"caDataRef,omitempty"`
-	Advertisement            *v1.ObjectReference `json:"advertisement,omitempty"`
-	AvailableIdentity        bool                `json:"availableIdentity,omitempty"`
-	IdentityRef              *v1.ObjectReference `json:"identityRef,omitempty"`
-	AdvertisementStatus      advtypes.AdvPhase   `json:"advertisementStatus,omitempty"`
+	// Indicates if peering request has been created and this remote cluster is sharing its resources to us
+	Joined bool `json:"joined"`
+	// Name of created PR
+	RemotePeeringRequestName string `json:"remote-peering-request-name,omitempty"`
+	// Object Reference to retrieved CaData Secret
+	CaDataRef *v1.ObjectReference `json:"caDataRef,omitempty"`
+	// Object Reference to created Advertisement CR
+	Advertisement *v1.ObjectReference `json:"advertisement,omitempty"`
+	// Indicates if related identity is available
+	AvailableIdentity bool `json:"availableIdentity,omitempty"`
+	// Object reference to related identity
+	IdentityRef *v1.ObjectReference `json:"identityRef,omitempty"`
+	// Advertisement status
+	AdvertisementStatus advtypes.AdvPhase `json:"advertisementStatus,omitempty"`
 }
 
 type Incoming struct {
-	Joined              bool                `json:"joined"`
-	PeeringRequest      *v1.ObjectReference `json:"peeringRequest,omitempty"`
-	AvailableIdentity   bool                `json:"availableIdentity,omitempty"`
-	IdentityRef         *v1.ObjectReference `json:"identityRef,omitempty"`
-	AdvertisementStatus advtypes.AdvPhase   `json:"advertisementStatus,omitempty"`
+	// Indicates if peering request has been created and this remote cluster is using our local resources
+	Joined bool `json:"joined"`
+	// Object Reference to created PeeringRequest CR
+	PeeringRequest *v1.ObjectReference `json:"peeringRequest,omitempty"`
+	// Indicates if related identity is available
+	AvailableIdentity bool `json:"availableIdentity,omitempty"`
+	// Object reference to related identity
+	IdentityRef *v1.ObjectReference `json:"identityRef,omitempty"`
+	// Status of Advertisement created from this PeeringRequest
+	AdvertisementStatus advtypes.AdvPhase `json:"advertisementStatus,omitempty"`
 }
 
 // +kubebuilder:object:root=true
-// +kubebuilder:subresource:status
 // +kubebuilder:resource:scope=Cluster
 
 // ForeignCluster is the Schema for the foreignclusters API
