@@ -20,6 +20,6 @@ LABEL net.liqo.agent.version="0.1"
 LABEL net.liqo.agent.description="first demo version of the Liqo tray Agent"
 ENV HOME /root
 COPY --from=gobuild /usr/bin/tray-agent /usr/bin/tray-agent
-RUN tar -xzf ./scripts/tray-agent/icons.tar.gz
-COPY ./scripts/tray-agent/icons $HOME/.liqo/icons
+COPY ./scripts/tray-agent/io.liqo.Agent_icons.tar.gz $HOME/.liqo/icons/
+RUN tar -xzf $HOME/.liqo/icons/io.liqo.Agent_icons.tar.gz --strip 1 -C $HOME/.liqo/icons && rm $HOME/.liqo/icons/io.liqo.Agent_icons.tar.gz
 ENTRYPOINT [ "/usr/bin/tray-agent" ]
