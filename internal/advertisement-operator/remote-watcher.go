@@ -3,46 +3,63 @@ package advertisementOperator
 import (
 	discoveryv1alpha1 "github.com/liqotech/liqo/api/discovery/v1alpha1"
 	advtypes "github.com/liqotech/liqo/api/sharing/v1alpha1"
+	"github.com/liqotech/liqo/pkg/crdClient"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/watch"
+	"k8s.io/client-go/tools/cache"
 	"k8s.io/klog"
+	"os"
+	"time"
 )
 
 func (b *AdvertisementBroadcaster) WatchAdvertisement(homeAdvName string) {
+	var err error
+	resyncPeriod := 1 * time.Minute
 
 	klog.Info("starting remote advertisement watcher")
-	watcher, err := b.RemoteClient.Resource("advertisements").Watch(metav1.ListOptions{
+	// events are triggered only by modifications on the Advertisement created by the broadcaster on the remote cluster
+	// homeClusterAdv is the Advertisement created by home cluster on foreign cluster -> stored remotely
+	lo := metav1.ListOptions{
 		FieldSelector: "metadata.name=" + homeAdvName,
-		Watch:         true,
-	})
+	}
+	ehf := cache.ResourceEventHandlerFuncs{
+		AddFunc: func(obj interface{}) {
+			b.handlerFunc(obj)
+		},
+		UpdateFunc: func(oldObj interface{}, newObj interface{}) {
+			b.handlerFunc(newObj)
+		},
+		DeleteFunc: func(config interface{}) {
+			klog.Info("Adv " + homeAdvName + " has been deleted: stopping the watcher")
+			b.RemoteClient.Stop <- struct{}{}
+		},
+	}
+
+	b.RemoteClient.Store, b.RemoteClient.Stop, err = crdClient.WatchResources(b.RemoteClient,
+		"advertisements",
+		"",
+		resyncPeriod,
+		ehf,
+		lo)
 	if err != nil {
 		klog.Error(err)
 		return
 	}
-	klog.Info("correctly created watcher for " + homeAdvName)
 
-	// events are triggered only by modifications on the Advertisement created by the broadcaster on the remote cluster
-	// homeClusterAdv is the Advertisement created by home cluster on foreign cluster -> stored remotely
-	for event := range watcher.ResultChan() {
-		homeClusterAdv, ok := event.Object.(*advtypes.Advertisement)
-		if !ok {
-			klog.Error("Received object is not an Advertisement")
-			continue
-		}
-		switch event.Type {
-		case watch.Added, watch.Modified:
-			// the triggering event is the acceptance/refusal of the Advertisement
-			if homeClusterAdv.Status.AdvertisementStatus != "" {
-				err = b.saveAdvStatus(homeClusterAdv)
-				if err != nil {
-					klog.Error(err)
-				} else {
-					klog.Info("correctly set peering request status to " + homeClusterAdv.Status.AdvertisementStatus)
-				}
-			}
-		case watch.Deleted:
-			klog.Info("Adv " + homeAdvName + " has been deleted")
-			watcher.Stop()
+	klog.Info("correctly created watcher for " + homeAdvName)
+}
+
+func (b *AdvertisementBroadcaster) handlerFunc(obj interface{}) {
+	homeClusterAdv, ok := obj.(*advtypes.Advertisement)
+	if !ok {
+		klog.Error("Error casting Advertisement")
+		os.Exit(1)
+	}
+	if homeClusterAdv.Status.AdvertisementStatus != "" {
+		err := b.saveAdvStatus(homeClusterAdv)
+		if err != nil {
+			klog.Error(err)
+		} else {
+			klog.Info("correctly set peering request status to " + homeClusterAdv.Status.AdvertisementStatus)
 		}
 	}
 }

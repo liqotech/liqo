@@ -42,20 +42,21 @@ func CreateAdvertisementClient(kubeconfig string, secret *v1.Secret) (*crdClient
 		return nil, err
 	}
 
-	store, stop, err := crdClient.WatchResources(clientSet,
-		"advertisements",
-		"",
-		0,
-		cache.ResourceEventHandlerFuncs{},
-		metav1.ListOptions{})
+	if crdClient.Fake {
+		store, stop, err := crdClient.WatchResources(clientSet,
+			"advertisements",
+			"",
+			0,
+			cache.ResourceEventHandlerFuncs{},
+			metav1.ListOptions{})
 
-	if err != nil {
-		return nil, err
+		if err != nil {
+			return nil, err
+		}
+
+		clientSet.Store = store
+		clientSet.Stop = stop
 	}
-
-	clientSet.Store = store
-	clientSet.Stop = stop
-
 	return clientSet, nil
 }
 
