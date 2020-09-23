@@ -3,6 +3,7 @@ package advertisement_operator
 import (
 	discoveryv1alpha1 "github.com/liqotech/liqo/api/discovery/v1alpha1"
 	advtypes "github.com/liqotech/liqo/api/sharing/v1alpha1"
+	pkg "github.com/liqotech/liqo/pkg/virtualKubelet"
 	"github.com/stretchr/testify/assert"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"testing"
@@ -13,7 +14,20 @@ func TestWatchAdvertisementAcceptance(t *testing.T) {
 	// prepare resources for advertisement
 	clusterConfig := createFakeClusterConfig()
 	b := createBroadcaster(clusterConfig.Spec)
-
+	// reset the store, which is needs to be created in WatchAdvertisement method
+	b.RemoteClient.Store = nil
+	// launch the watcher
+	advName := pkg.AdvertisementPrefix + b.HomeClusterId
+	go b.WatchAdvertisement(advName)
+	// Waiting for the correct initialization of the client
+	deadline := time.Now().Add(10 * time.Second)
+	for {
+		if b.RemoteClient.Store != nil || time.Now().After(deadline) {
+			break
+		} else {
+			time.Sleep(500 * time.Millisecond)
+		}
+	}
 	// create fake peering request on cluster home
 	pr := discoveryv1alpha1.PeeringRequest{
 		TypeMeta: v1.TypeMeta{},
@@ -40,10 +54,10 @@ func TestWatchAdvertisementAcceptance(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	time.Sleep(1 * time.Second)
-
-	// after having created home adv on foreign cluster, start watching it
-	go b.WatchAdvertisement(homeAdv.Name)
+	err = waitEvent(b.RemoteClient, "advertisements", advName)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	// set adv status and update it: this will trigger the watcher
 	homeAdv.Status.AdvertisementStatus = advtypes.AdvertisementAccepted
@@ -52,7 +66,10 @@ func TestWatchAdvertisementAcceptance(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	time.Sleep(5 * time.Second)
+	err = waitEvent(b.RemoteClient, "advertisements", advName)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	tmp, err := b.DiscoveryClient.Resource("peeringrequests").Get(b.PeeringRequestName, v1.GetOptions{})
 	if err != nil {

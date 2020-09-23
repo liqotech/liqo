@@ -24,7 +24,6 @@ import (
 func createBroadcaster(configv1alpha1 configv1alpha1.ClusterConfigSpec) advop.AdvertisementBroadcaster {
 	// set the client in fake mode
 	crdClient.Fake = true
-
 	// create fake client for the home cluster
 	homeClient, err := advtypes.CreateAdvertisementClient("", nil)
 	if err != nil {
@@ -313,7 +312,10 @@ func TestSendAdvertisement(t *testing.T) {
 	adv := prepareAdv(&b)
 	adv2, err := b.SendAdvertisementToForeignCluster(adv)
 	assert.Nil(t, err)
-	assert.Equal(t, b.KubeconfigSecretForForeign.OwnerReferences, advpkg.GetOwnerReference(adv2))
+
+	secretForeign, err := b.RemoteClient.Client().CoreV1().Secrets(b.KubeconfigSecretForForeign.Namespace).Get(context.TODO(), b.KubeconfigSecretForForeign.Name, metav1.GetOptions{})
+	assert.Nil(t, err)
+	assert.Equal(t, secretForeign.OwnerReferences, advpkg.GetOwnerReference(adv2))
 
 	// update adv on foreign cluster
 	adv.Spec.ResourceQuota.Hard[corev1.ResourceCPU] = resource.MustParse("10")

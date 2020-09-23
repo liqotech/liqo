@@ -118,44 +118,40 @@ func StartBroadcaster(homeClusterId, localKubeconfigPath, peeringRequestName, sa
 	}
 
 	kubeconfigSecretName := pkg.VirtualKubeletSecPrefix + homeClusterId
-	kubeconfigSecretForForeign, err := remoteClient.Client().CoreV1().Secrets(pr.Spec.Namespace).Get(context.TODO(), kubeconfigSecretName, metav1.GetOptions{})
+
+	// get the ServiceAccount with the permissions that will be given to the foreign cluster
+	sa, err := localClient.Client().CoreV1().ServiceAccounts(pr.Spec.Namespace).Get(context.TODO(), saName, metav1.GetOptions{})
 	if err != nil {
-		// secret containing kubeconfig not found: create it
-		// get the ServiceAccount with the permissions that will be given to the foreign cluster
-		sa, err := localClient.Client().CoreV1().ServiceAccounts(pr.Spec.Namespace).Get(context.TODO(), saName, metav1.GetOptions{})
-		if err != nil {
-			klog.Errorln(err, "Unable to get ServiceAccount "+saName)
-			return err
-		}
+		klog.Errorln(err, "Unable to get ServiceAccount "+saName)
+		return err
+	}
 
-		// create the kubeconfig to allow the foreign cluster to create resources on local cluster
-		kubeconfigForForeignCluster, err := kubeconfig.CreateKubeConfig(localClient.Client(), sa.Name, sa.Namespace)
-		if err != nil {
-			klog.Errorln(err, "Unable to create Kubeconfig")
-			return err
-		}
-		// put the kubeconfig in a Secret, which is created on the foreign cluster
-		kubeconfigSecretForForeign = &corev1.Secret{
-			TypeMeta: metav1.TypeMeta{},
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      kubeconfigSecretName,
-				Namespace: sa.Namespace,
-			},
-			Data: nil,
-			StringData: map[string]string{
-				"kubeconfig": kubeconfigForForeignCluster,
-			},
-		}
-
-		kubeconfigSecretForForeign, err = broadcaster.SendSecretToForeignCluster(kubeconfigSecretForForeign)
-		if err != nil {
-			// secret not created, without it the vk cannot be launched: just log and exit
-			klog.Errorf("Unable to create secret for virtualKubelet on remote cluster %v; error: %v", foreignClusterId, err)
-			return err
-		}
+	// create the kubeconfig to allow the foreign cluster to create resources on local cluster
+	kubeconfigForForeignCluster, err := kubeconfig.CreateKubeConfig(localClient.Client(), sa.Name, sa.Namespace)
+	if err != nil {
+		klog.Errorln(err, "Unable to create Kubeconfig")
+		return err
+	}
+	// put the kubeconfig in a Secret, which is created on the foreign cluster
+	kubeconfigSecretForForeign := &corev1.Secret{
+		TypeMeta: metav1.TypeMeta{},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      kubeconfigSecretName,
+			Namespace: sa.Namespace,
+		},
+		Data: nil,
+		StringData: map[string]string{
+			"kubeconfig": kubeconfigForForeignCluster,
+		},
+	}
+	broadcaster.KubeconfigSecretForForeign = kubeconfigSecretForForeign
+	_, err = broadcaster.SendSecretToForeignCluster(kubeconfigSecretForForeign)
+	if err != nil {
+		// secret not created, without it the vk cannot be launched: just log and exit
+		klog.Errorf("Unable to create secret for virtualKubelet on remote cluster %v; error: %v", foreignClusterId, err)
+		return err
 	}
 	// secret correctly created on foreign cluster, now launch the broadcaster to create Advertisement
-	broadcaster.KubeconfigSecretForForeign = kubeconfigSecretForForeign
 
 	broadcaster.WatchConfiguration(localKubeconfigPath, nil)
 
@@ -300,6 +296,10 @@ func (b *AdvertisementBroadcaster) SendAdvertisementToForeignCluster(advToCreate
 			return nil, err
 		}
 	} else if k8serrors.IsNotFound(err) {
+		secretForeign, err := b.RemoteClient.Client().CoreV1().Secrets(b.KubeconfigSecretForForeign.Namespace).Get(context.TODO(), b.KubeconfigSecretForForeign.Name, metav1.GetOptions{})
+		if err != nil {
+			return nil, err
+		}
 		// Advertisement not found, create it
 		obj, err := b.RemoteClient.Resource("advertisements").Create(&advToCreate, metav1.CreateOptions{})
 		if err != nil {
@@ -311,8 +311,9 @@ func (b *AdvertisementBroadcaster) SendAdvertisementToForeignCluster(advToCreate
 			klog.Info("Correctly created advertisement on remote cluster " + b.ForeignClusterId)
 			adv.Kind = "Advertisement"
 			adv.APIVersion = advtypes.GroupVersion.String()
-			b.KubeconfigSecretForForeign.SetOwnerReferences(advpkg.GetOwnerReference(adv))
-			_, err = b.RemoteClient.Client().CoreV1().Secrets(b.KubeconfigSecretForForeign.Namespace).Update(context.TODO(), b.KubeconfigSecretForForeign, metav1.UpdateOptions{})
+
+			secretForeign.SetOwnerReferences(advpkg.GetOwnerReference(adv))
+			_, err = b.RemoteClient.Client().CoreV1().Secrets(secretForeign.Namespace).Update(context.TODO(), secretForeign, metav1.UpdateOptions{})
 			if err != nil {
 				klog.Errorln(err, "Unable to update secret "+b.KubeconfigSecretForForeign.Name)
 			}
@@ -338,6 +339,8 @@ func (b *AdvertisementBroadcaster) SendSecretToForeignCluster(secret *corev1.Sec
 		klog.Infof("Correctly updated secret %v on remote cluster %v", secret.Name, b.ForeignClusterId)
 	} else if k8serrors.IsNotFound(err) {
 		// secret not found, create it
+		secret.SetResourceVersion("")
+		secret.SetUID("")
 		secretForeign, err = b.RemoteClient.Client().CoreV1().Secrets(secret.Namespace).Create(context.TODO(), secret, metav1.CreateOptions{})
 		if err != nil {
 			// secret not created, without it the vk cannot be launched: just log and exit
