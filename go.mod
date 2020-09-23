@@ -50,7 +50,7 @@ require (
 	github.com/securego/gosec v0.0.0-20200121091311-459e2d3e91bd // indirect
 	github.com/sirupsen/logrus v1.6.0
 	github.com/spf13/cast v1.3.1 // indirect
-	github.com/spf13/cobra v0.0.7
+	github.com/spf13/cobra v1.0.0
 	github.com/spf13/pflag v1.0.5
 	github.com/spf13/viper v1.6.2 // indirect
 	github.com/streadway/amqp v0.0.0-20200108173154-1c71cc93ed71 // indirect
@@ -67,7 +67,7 @@ require (
 	go.uber.org/atomic v1.5.1 // indirect
 	go.uber.org/multierr v1.4.0 // indirect
 	golang.org/x/sys v0.0.0-20200625212154-ddb9806d33ae
-	golang.org/x/tools v0.0.0-20200331025713-a30bf2db82d4
+	golang.org/x/tools v0.0.0-20200616195046-dc31b401abb5
 	gopkg.in/ini.v1 v1.51.1 // indirect
 	gotest.tools v2.2.0+incompatible
 	k8s.io/api v0.18.6
@@ -80,6 +80,7 @@ require (
 	k8s.io/utils v0.0.0-20200603063816-c1c6865ac451
 	mvdan.cc/unparam v0.0.0-20191111180625-960b1ec0f2c2 // indirect
 	sigs.k8s.io/controller-runtime v0.6.2
+	sigs.k8s.io/controller-tools v0.4.0 // indirect
 	sourcegraph.com/sqs/pbtypes v1.0.0 // indirect
 )
 

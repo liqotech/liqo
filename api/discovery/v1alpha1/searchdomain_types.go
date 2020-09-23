@@ -32,8 +32,10 @@ type SearchDomainSpec struct {
 	// INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
 	// Important: Run "make" to regenerate code after modifying this file
 
-	Domain   string `json:"domain"`
-	AutoJoin bool   `json:"autojoin"`
+	// DNS domain where to search for subscribed remote clusters
+	Domain string `json:"domain"`
+	// Enable join process for retrieved clusters
+	AutoJoin bool `json:"autojoin"`
 }
 
 // SearchDomainStatus defines the observed state of SearchDomain
@@ -41,6 +43,7 @@ type SearchDomainStatus struct {
 	// INSERT ADDITIONAL STATUS FIELD - define observed state of cluster
 	// Important: Run "make" to regenerate code after modifying this file
 
+	// ForeignCluster created basing on this SearchDomain
 	ForeignClusters []v1.ObjectReference `json:"foreignClusters"`
 }
 
