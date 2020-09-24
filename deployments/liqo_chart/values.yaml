@@ -87,13 +87,13 @@ peeringRequestOperator_chart:
 liqodash_chart:
   image:
     repository: "liqo/dashboard"
-    pullpolicy: "Always"
+    pullPolicy: "Always"
   enabled: true
 
 crdReplicator_chart:
   image:
     repository: "liqo/crdreplicator"
-    pullpolicy: "Always"
+    pullPolicy: "Always"
   enabled: true
 
 global:

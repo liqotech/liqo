@@ -33,8 +33,6 @@ spec:
     reservedSubnets:
     - {{ .Values.podCIDR }}
     - {{ .Values.serviceCIDR }}
-    - "10.96.0.0/12" # #needed to run the network tests
-    - "10.244.0.0/16" # #needed to run the network tests
   dispatcherConfig:
     resourcesToReplicate:
     - group: net.liqo.io
