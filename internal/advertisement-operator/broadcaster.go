@@ -354,18 +354,11 @@ func (b *AdvertisementBroadcaster) SendSecretToForeignCluster(secret *corev1.Sec
 
 func (b *AdvertisementBroadcaster) NotifyAdvertisementDeletion() error {
 	advName := pkg.AdvertisementPrefix + b.HomeClusterId
-	obj, err := b.RemoteClient.Resource("advertisements").Get(advName, metav1.GetOptions{})
+	// delete adv to inform the vk to do the cleanup
+	err := b.RemoteClient.Resource("advertisements").Delete(advName, metav1.DeleteOptions{})
 	if err != nil {
-		klog.Error("Advertisement " + advName + " doesn't exist on foreign cluster " + b.ForeignClusterId)
-	} else {
-		// update the status of adv to inform the vk it is going to be deleted
-		adv := obj.(*advtypes.Advertisement)
-		adv.Status.AdvertisementStatus = advtypes.AdvertisementDeleting
-		_, err = b.RemoteClient.Resource("advertisements").UpdateStatus(adv.Name, adv, metav1.UpdateOptions{})
-		if err != nil {
-			klog.Error("Unable to update Advertisement " + adv.Name)
-			return err
-		}
+		klog.Error("Unable to delete Advertisement " + advName)
+		return err
 	}
 	return nil
 }

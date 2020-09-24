@@ -32,11 +32,14 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/tools/record"
 	"k8s.io/klog"
+	"k8s.io/kubernetes/pkg/util/slice"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sync"
 	"time"
 )
+
+const FinalizerString = "advertisement.sharing.liqo.io/virtual-kubelet"
 
 // AdvertisementReconciler reconciles a Advertisement object
 type AdvertisementReconciler struct {
@@ -124,6 +127,14 @@ func (r *AdvertisementReconciler) Reconcile(req ctrl.Request) (ctrl.Result, erro
 			return ctrl.Result{}, err
 		}
 		klog.Info("Correct creation of virtual kubelet deployment for cluster " + adv.Spec.ClusterId)
+		// add finalizer
+		if !slice.ContainsString(adv.Finalizers, FinalizerString, nil) {
+			adv.Finalizers = append(adv.Finalizers, FinalizerString)
+		}
+		err = r.Update(ctx, &adv)
+		if err != nil {
+			return ctrl.Result{}, err
+		}
 		// start the keepalive check for the new cluster
 		r.checkRemoteCluster[adv.Spec.ClusterId] = new(sync.Once)
 		go r.checkRemoteCluster[adv.Spec.ClusterId].Do(func() {
@@ -133,9 +144,8 @@ func (r *AdvertisementReconciler) Reconcile(req ctrl.Request) (ctrl.Result, erro
 			if err != nil {
 				// the foreign cluster is down: set adv status to trigger the unjoin
 				klog.Error(err)
-				adv.Status.AdvertisementStatus = advtypes.AdvertisementDeleting
-				if err := r.Status().Update(context.Background(), &adv); err != nil {
-					klog.Error(err)
+				if err2 := r.Delete(context.Background(), &adv); err2 != nil {
+					klog.Error(err2)
 				}
 			}
 		})
@@ -325,13 +335,8 @@ func (r *AdvertisementReconciler) cleanOldAdvertisements() {
 			now := metav1.NewTime(time.Now())
 			if adv.Spec.TimeToLive.Before(now.DeepCopy()) {
 				// gracefully delete the Advertisement
-				adv.Status.AdvertisementStatus = advtypes.AdvertisementDeleting
-				if err := r.Status().Update(context.Background(), &adv); err != nil {
-					// cannot delete gracefully, try to directly delete
+				if err := r.Delete(context.Background(), &adv); err != nil {
 					klog.Error(err)
-					if err := r.Client.Delete(context.Background(), &adv, &client.DeleteOptions{}); err != nil {
-						klog.Error(err)
-					}
 				}
 				klog.Infof("Adv %v expired. TimeToLive was %v", adv.Name, adv.Spec.TimeToLive)
 			}

@@ -52,7 +52,6 @@ type AdvPhase string
 const (
 	AdvertisementAccepted AdvPhase = "Accepted"
 	AdvertisementRefused  AdvPhase = "Refused"
-	AdvertisementDeleting AdvPhase = "Deleting"
 )
 
 // AdvertisementStatus defines the observed state of Advertisement
@@ -60,9 +59,7 @@ type AdvertisementStatus struct {
 	// AdvertisementStatus is the status of this Advertisement.
 	// When the adv is created it is checked by the operator, which sets this field to "Accepted" or "Refused" on tha base of cluster configuration.
 	// If the Advertisement is accepted a virtual-kubelet for the foreign cluster will be created.
-	// When the cluster wants to stop sharing its resources, it sets AdvertisementStatus to "Deleting" to allow the virtual-kubelet to delete the resources it had created,
-	// then the Advertisement is deleted.
-	// +kubebuilder:validation:Enum="";"Accepted";"Refused";"Deleting"
+	// +kubebuilder:validation:Enum="";"Accepted";"Refused"
 	AdvertisementStatus AdvPhase `json:"advertisementStatus"`
 	// VkCreated indicates if the virtual-kubelet for this Advertisement has been created or not.
 	VkCreated bool `json:"vkCreated"`

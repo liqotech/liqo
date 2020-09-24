@@ -5,6 +5,7 @@ import (
 	"errors"
 	nettypes "github.com/liqotech/liqo/api/net/v1alpha1"
 	advtypes "github.com/liqotech/liqo/api/sharing/v1alpha1"
+	advertisementOperator "github.com/liqotech/liqo/internal/advertisement-operator"
 	controllers "github.com/liqotech/liqo/internal/liqonet"
 	"github.com/liqotech/liqo/internal/node"
 	"github.com/liqotech/liqo/pkg"
@@ -12,6 +13,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/klog"
+	"k8s.io/kubernetes/pkg/util/slice"
 	"strings"
 )
 
@@ -90,12 +92,8 @@ func (p *KubernetesProvider) ReconcileNodeFromAdv(event watch.Event) error {
 	if !ok {
 		return errors.New("error in casting advertisement: recreate watcher")
 	}
-	if event.Type == watch.Deleted {
-		klog.Infof("advertisement %v deleted...the node is going to be deleted", adv.Name)
-		return nil
-	}
 
-	if adv.Status.AdvertisementStatus == advtypes.AdvertisementDeleting {
+	if event.Type == watch.Deleted || !adv.DeletionTimestamp.IsZero() {
 		for retry := 0; retry < 3; retry++ {
 			klog.Infof("advertisement %v is going to be deleted... set node status not ready", adv.Name)
 			no, err := p.advClient.Client().CoreV1().Nodes().Get(context.TODO(), p.nodeName, metav1.GetOptions{})
@@ -317,9 +315,14 @@ func (p *KubernetesProvider) deleteAdv(adv *advtypes.Advertisement) error {
 		}
 	}
 
-	// delete advertisement (which will delete virtual-kubelet)
-	if err := p.advClient.Resource("advertisements").Delete(adv.Name, metav1.DeleteOptions{}); err != nil {
-		klog.Errorf("Cannot delete advertisement %v", adv.Name)
+	// remove finalizer
+	if slice.ContainsString(adv.Finalizers, advertisementOperator.FinalizerString, nil) {
+		adv.Finalizers = slice.RemoveString(adv.Finalizers, advertisementOperator.FinalizerString, nil)
+	}
+
+	// update advertisement -> remove finalizer (which will delete virtual-kubelet)
+	if _, err := p.advClient.Resource("advertisements").Update(adv.Name, adv, metav1.UpdateOptions{}); err != nil {
+		klog.Errorf("Cannot update advertisement %v", adv.Name)
 		return err
 	}
 	return nil

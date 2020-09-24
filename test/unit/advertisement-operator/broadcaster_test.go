@@ -13,6 +13,7 @@ import (
 	"github.com/liqotech/liqo/pkg/crdClient"
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
+	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"strconv"
@@ -344,10 +345,17 @@ func TestNotifyAdvertisementDeletion(t *testing.T) {
 	}
 	// create adv on foreign cluster
 	adv := prepareAdv(&b)
+	adv.Status.AdvertisementStatus = advtypes.AdvertisementAccepted
+	adv.Finalizers = append(adv.Finalizers, advop.FinalizerString)
 	adv2, _ := b.SendAdvertisementToForeignCluster(adv)
+
 	// modify adv status to DELETING
 	err = b.NotifyAdvertisementDeletion()
-	time.Sleep(1 * time.Second)
 	assert.Nil(t, err)
-	assert.Equal(t, advtypes.AdvertisementDeleting, adv2.Status.AdvertisementStatus)
+
+	err = waitEvent(b.RemoteClient, "advertisements", adv2.Name)
+	assert.Nil(t, err)
+
+	_, err = b.RemoteClient.Resource("advertisements").Get(adv2.Name, metav1.GetOptions{})
+	assert.Equal(t, k8serrors.IsNotFound(err), true, "Advertisement has not been deleted")
 }
