@@ -53,8 +53,8 @@ type BroadcasterConfig struct {
 	// +kubebuilder:validation:Minimum=0
 	ResourceSharingPercentage int32 `json:"resourceSharingPercentage"`
 	//EnableBroadcaster flag allows you to enable/disable the broadcasting of your Advertisement to the foreign clusters.
-	//When EnableBroadcaster is set to false, the home cluster notifies to the foreign he wants to stop sharing resources
-	//by setting the Advertisement status to Deleting. This will trigger the deletion of the virtual-kubelet and, after that, of the Advertisement,
+	//When EnableBroadcaster is set to false, the home cluster notifies to the foreign he wants to stop sharing resources.
+	//This will trigger the deletion of the virtual-kubelet and, after that, of the Advertisement,
 	EnableBroadcaster bool `json:"enableBroadcaster"`
 }
 

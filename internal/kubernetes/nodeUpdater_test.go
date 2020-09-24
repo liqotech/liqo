@@ -4,6 +4,7 @@ import (
 	"context"
 	v1 "github.com/liqotech/liqo/api/net/v1alpha1"
 	advtypes "github.com/liqotech/liqo/api/sharing/v1alpha1"
+	advertisementOperator "github.com/liqotech/liqo/internal/advertisement-operator"
 	"github.com/liqotech/liqo/internal/kubernetes/test"
 	"github.com/liqotech/liqo/internal/node"
 	"github.com/liqotech/liqo/pkg/crdClient"
@@ -48,6 +49,9 @@ func TestNodeUpdater(t *testing.T) {
 	adv := &advtypes.Advertisement{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: test.AdvName,
+			Finalizers: []string{
+				advertisementOperator.FinalizerString,
+			},
 		},
 		Spec: advtypes.AdvertisementSpec{
 			ClusterId:  test.ForeignClusterId,
@@ -204,9 +208,8 @@ func TestNodeUpdater(t *testing.T) {
 	assert.Equal(t, test.LocalRemappedPodCIDR, p.LocalRemappedPodCidr)
 
 	// test unjoin
-	// set advertisement status to DELETING
-	adv.Status.AdvertisementStatus = advtypes.AdvertisementDeleting
-	if _, err := advClient.Resource("advertisements").UpdateStatus(adv.Name, adv, metav1.UpdateOptions{}); err != nil {
+	// delete advertisement
+	if err := advClient.Resource("advertisements").Delete(adv.Name, metav1.DeleteOptions{}); err != nil {
 		t.Fatal(err)
 	}
 	time.Sleep(5 * time.Second)

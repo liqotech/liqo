@@ -6,6 +6,7 @@ import (
 	advtypes "github.com/liqotech/liqo/api/sharing/v1alpha1"
 	"github.com/liqotech/liqo/pkg/crdClient"
 	"github.com/stretchr/testify/assert"
+	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/watch"
@@ -157,13 +158,9 @@ func testDisableBroadcaster(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	// check adv status has been set
-	tmp, err := b.RemoteClient.Resource("advertisements").Get(adv.Name, v1.GetOptions{})
-	if err != nil {
-		t.Fatal(err)
-	}
-	adv2 := tmp.(*advtypes.Advertisement)
-	assert.Equal(t, advtypes.AdvertisementDeleting, adv2.Status.AdvertisementStatus)
+	// check adv has been deleted
+	_, err = b.RemoteClient.Resource("advertisements").Get(adv.Name, v1.GetOptions{})
+	assert.Equal(t, k8serrors.IsNotFound(err), true, "Advertisement has not been deleted")
 }
 
 func waitEvent(client *crdClient.CRDClient, resourcetype string, name string) error {
