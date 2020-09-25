@@ -12,12 +12,12 @@ import (
 
 func TestPodsUp1(t *testing.T) {
 	context := util.GetTester()
-	ArePodsUp(context.Client1, context.Namespace, t, "cluster1")
+	util.ArePodsUp(context.Client1, context.Namespace, t, "cluster1")
 }
 
 func TestPodsUp2(t *testing.T) {
 	context := util.GetTester()
-	ArePodsUp(context.Client2, context.Namespace, t, "cluster2")
+	util.ArePodsUp(context.Client2, context.Namespace, t, "cluster2")
 }
 
 func TestNodeVK1(t *testing.T) {
@@ -28,20 +28,6 @@ func TestNodeVK1(t *testing.T) {
 func TestNodeVK2(t *testing.T) {
 	context := util.GetTester()
 	CheckVkNode(context.Client2, context.Client1, context.Namespace, t)
-}
-
-func ArePodsUp(clientset *kubernetes.Clientset, namespace string, t *testing.T, clustername string) {
-	pods, err := clientset.CoreV1().Pods(namespace).List(context2.TODO(), metav1.ListOptions{})
-	if err != nil {
-		klog.Error(err)
-		t.Fail()
-	}
-	for _, num := range pods.Items {
-		for _, container := range num.Status.ContainerStatuses {
-			assert.Equal(t, true, container.Ready, "Asserting "+container.Name+"pods is running "+
-				"on "+clustername)
-		}
-	}
 }
 
 func CheckVkNode(client1 *kubernetes.Clientset, client2 *kubernetes.Clientset, namespace string, t *testing.T) {

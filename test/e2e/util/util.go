@@ -3,6 +3,7 @@ package util
 import (
 	"bytes"
 	"context"
+	"gotest.tools/assert"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
@@ -18,6 +19,7 @@ import (
 	api "k8s.io/kubernetes/pkg/apis/core"
 	"os"
 	"sync"
+	"testing"
 	"time"
 )
 
@@ -89,13 +91,13 @@ func createTester() *Tester {
 	}
 	clusterID1, err := getClusterID(clientset1, namespace)
 	if err != nil {
-		klog.Errorf("an error occurred while getting cluster-id configmap %s", err)
-		os.Exit(1)
+		klog.Warningf("an error occurred while getting cluster-id configmap %s", err)
+		clusterID1 = ""
 	}
 	clusterID2, err := getClusterID(clientset2, namespace)
 	if err != nil {
-		klog.Errorf("an error occurred while getting cluster-id configmap %s", err)
-		os.Exit(1)
+		klog.Warningf("an error occurred while getting cluster-id configmap %s", err)
+		clusterID2 = ""
 	}
 	return &Tester{
 		Config1:    config1,
@@ -272,4 +274,19 @@ func CreateNodePort(client *kubernetes.Clientset, clusterID, appName, name, name
 		return nil, err
 	}
 	return nodePort, nil
+}
+
+func ArePodsUp(clientset *kubernetes.Clientset, namespace string, t *testing.T, clustername string) {
+	pods, err := clientset.CoreV1().Pods(namespace).List(context.TODO(), metav1.ListOptions{})
+	if err != nil {
+		klog.Error(err)
+		t.Fail()
+	}
+	assert.Assert(t, len(pods.Items) > 0, "No pods in "+namespace+" on "+clustername)
+	for _, num := range pods.Items {
+		for _, container := range num.Status.ContainerStatuses {
+			assert.Equal(t, true, container.Ready, "Asserting "+container.Name+"pods is running "+
+				"on "+clustername)
+		}
+	}
 }
