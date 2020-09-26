@@ -27,7 +27,12 @@ You can find more details about configuring `kubectl` in the [official documenta
 Now, you can install Liqo by launching:
 
 ```bash
-curl https://raw.githubusercontent.com/liqotech/liqo/master/install.sh | bash
+curl -sL https://raw.githubusercontent.com/liqotech/liqo/master/install.sh | bash
+```
+
+If you want to know more about possible customizations, you can show the help message:
+```bash
+curl -sL https://raw.githubusercontent.com/liqotech/liqo/master/install.sh | bash -s -- --help
 ```
 
 ### Custom install (K3s)
@@ -36,7 +41,6 @@ If you did not use `kubeadm` to install your Kubernetes cluster, or you are runn
 
 * `POD_CIDR`: range of IP addresses for the pod network (K3s default: 10.42.0.0/16)
 * `SERVICE_CIDR`: range of IP addresses for service VIPs (k3s default: 10.43.0.0/16)
-* `GATEWAY_IP`: public IP address of the node that will be used as a gateway for all the traffic toward the foreign cluster. If you do not specify one, the installer will pick one among your nodes.
 
 Then, you can run the Liqo installer script, which will use the above settings to configure your Liqo instance.
 
@@ -47,7 +51,7 @@ A possible example of installation is the following (please replace the IP addre
 export KUBECONFIG=/etc/rancher/k3s/k3s.yaml
 export POD_CIDR=10.42.0.0/16
 export SERVICE_CIDR=10.43.0.0/16
-curl https://raw.githubusercontent.com/liqotech/liqo/master/install.sh | bash
+curl -sL https://raw.githubusercontent.com/liqotech/liqo/master/install.sh | bash
 ```
 
 Obviously, you should have enough privileges to read the K3s kubeconfig file.
