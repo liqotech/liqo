@@ -1,11 +1,16 @@
 name: "Installer Testing"
 on: [push]
 jobs:
-  build:
-    name: build
+  installer-testing:
+    name: "Installer Testing"
     runs-on: ubuntu-latest
     steps:
       - name: Check out code
         uses: actions/checkout@v2
-      - name: Test
-        run: docker run -v "${{ github.workspace }}:/code" bats/bats:latest /code/test/installer/unit.sh /code/test/installer/installer.sh 
+        with:
+          submodules: true
+      - name: Test the installer
+        run: |
+          BATS="${{ github.workspace }}/test/installer/libs/bats/bin/bats"
+          TEST="${{ github.workspace }}/test/installer/install-test.sh"
+          "${BATS}" "${TEST}"
