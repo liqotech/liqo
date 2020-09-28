@@ -1,4 +1,4 @@
-package join_e2e
+package e2e
 
 import (
 	context2 "context"
@@ -10,22 +10,29 @@ import (
 	"testing"
 )
 
-func TestPodsUp1(t *testing.T) {
+func testJoin(t *testing.T) {
+	t.Run("testPodsUp1", testPodsUp1)
+	t.Run("testPodsUp2", testPodsUp2)
+	t.Run("testNodeVK1", testNodeVK1)
+	t.Run("testNodeVK2", testNodeVK2)
+}
+
+func testPodsUp1(t *testing.T) {
 	context := util.GetTester()
 	util.ArePodsUp(context.Client1, context.Namespace, t, "cluster1")
 }
 
-func TestPodsUp2(t *testing.T) {
+func testPodsUp2(t *testing.T) {
 	context := util.GetTester()
 	util.ArePodsUp(context.Client2, context.Namespace, t, "cluster2")
 }
 
-func TestNodeVK1(t *testing.T) {
+func testNodeVK1(t *testing.T) {
 	context := util.GetTester()
 	CheckVkNode(context.Client1, context.Client2, context.Namespace, t)
 }
 
-func TestNodeVK2(t *testing.T) {
+func testNodeVK2(t *testing.T) {
 	context := util.GetTester()
 	CheckVkNode(context.Client2, context.Client1, context.Namespace, t)
 }

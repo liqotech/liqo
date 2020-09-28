@@ -1,4 +1,4 @@
-package net_test
+package e2e
 
 import (
 	"bytes"
@@ -16,7 +16,7 @@ import (
 
 var (
 	image              = "nginx"
-	waitTime           = 60 * time.Second
+	waitTime           = 2 * time.Minute
 	podTesterLocalCl1  = "tester-local-cl1"
 	podTesterRemoteCl1 = "tester-remote-cl1"
 	podTesterLocalCl2  = "tester-local-cl2"
@@ -29,7 +29,12 @@ var (
 	command = "curl -s -o /dev/null -w '%{http_code}' "
 )
 
-func TestPodConnectivity1to2(t *testing.T) {
+func testNet(t *testing.T) {
+	t.Run("testPodConnectivity1to2", testPodConnectivity1to2)
+	t.Run("testPodConnectivity2to1", testPodConnectivity2to1)
+}
+
+func testPodConnectivity1to2(t *testing.T) {
 	context := util.GetTester()
 	ConnectivityCheckPodToPodCluster1ToCluster2(context, t)
 	ConnectivityCheckNodeToPodCluster1ToCluster2(context, t)
@@ -38,7 +43,7 @@ func TestPodConnectivity1to2(t *testing.T) {
 
 }
 
-func TestPodConnectivity2to1(t *testing.T) {
+func testPodConnectivity2to1(t *testing.T) {
 	context := util.GetTester()
 	ConnectivityCheckPodToPodCluster2ToCluster1(context, t)
 	ConnectivityCheckNodeToPodCluster2ToCluster1(context, t)
