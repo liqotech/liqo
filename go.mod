@@ -79,7 +79,7 @@ require (
 	k8s.io/kubernetes v1.18.6
 	k8s.io/utils v0.0.0-20200603063816-c1c6865ac451
 	mvdan.cc/unparam v0.0.0-20191111180625-960b1ec0f2c2 // indirect
-	sigs.k8s.io/controller-runtime v0.6.2
+	sigs.k8s.io/controller-runtime v0.6.3
 	sigs.k8s.io/controller-tools v0.4.0 // indirect
 	sourcegraph.com/sqs/pbtypes v1.0.0 // indirect
 )
