@@ -15,6 +15,7 @@
 package main
 
 import (
+	"bufio"
 	"context"
 	"os"
 	"os/signal"
@@ -36,9 +37,9 @@ import (
 )
 
 var (
-	buildVersion = "N/A"
-	buildTime    = "N/A"
-	k8sVersion   = "v1.17.2" // This should follow the version of k8s.io/kubernetes we are importing
+	buildVersion      = "N/A"
+	buildTime         = "N/A"
+	defaultK8sVersion = "v1.18.2" // This should follow the version of k8s.io/kubernetes we are importing
 )
 
 func main() {
@@ -55,7 +56,8 @@ func main() {
 
 	var opts root.Opts
 	optsErr := root.SetDefaultOpts(&opts)
-	opts.Version = strings.Join([]string{k8sVersion, "vk", buildVersion}, "-")
+
+	opts.Version = getK8sVersion(ctx)
 
 	s := provider.NewStore()
 
@@ -94,4 +96,30 @@ func main() {
 	if err := rootCmd.Execute(); err != nil && errors.Cause(err) != context.Canceled {
 		log.G(ctx).Fatal(err)
 	}
+}
+
+func getK8sVersion(ctx context.Context) string {
+
+	path := "/usr/local/go.mod"
+
+	file, err := os.Open(path)
+	if err != nil {
+		log.G(ctx).Infof("Cannot read %v file: trying with path ./go.mod; error: %v", path, err)
+		path = "./go.mod"
+		file, err = os.Open(path)
+		if err != nil {
+			log.G(ctx).Warnf("Cannot read k8s version: using default version %v; error: %v", defaultK8sVersion, err)
+			return defaultK8sVersion
+		}
+	}
+	defer file.Close()
+
+	scanner := bufio.NewScanner(file)
+	for i := 1; scanner.Scan(); i++ {
+		line := scanner.Text()
+		if strings.Contains(line, "k8s.io/kubernetes") {
+			return strings.Replace(strings.TrimPrefix(line, "\tk8s.io/kubernetes "), "0", "1", 1)
+		}
+	}
+	return defaultK8sVersion
 }
