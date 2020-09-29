@@ -15,12 +15,13 @@
 package main
 
 import (
-	"bufio"
 	"context"
+	"k8s.io/client-go/discovery"
+	"k8s.io/client-go/rest"
+	"k8s.io/client-go/tools/clientcmd"
 	"os"
 	"os/signal"
 	"path/filepath"
-	"strings"
 	"syscall"
 
 	"github.com/liqotech/liqo/cmd/virtual-kubelet/internal/commands/providers"
@@ -57,7 +58,7 @@ func main() {
 	var opts root.Opts
 	optsErr := root.SetDefaultOpts(&opts)
 
-	opts.Version = getK8sVersion(ctx)
+	opts.Version = getK8sVersion(ctx, opts.KubeConfigPath)
 
 	s := provider.NewStore()
 
@@ -96,30 +97,49 @@ func main() {
 	if err := rootCmd.Execute(); err != nil && errors.Cause(err) != context.Canceled {
 		log.G(ctx).Fatal(err)
 	}
+
 }
 
-func getK8sVersion(ctx context.Context) string {
+func getK8sVersion(ctx context.Context, defaultConfigPath string) string {
+	var config *rest.Config
+	var configPath string
 
-	path := "/usr/local/go.mod"
+	for i := 1; i < len(os.Args); i++ {
+		if os.Args[i] == "--kubeconfig" {
+			configPath = os.Args[i+1]
+		}
+	}
+	if configPath == "" {
+		configPath = defaultConfigPath
+	}
 
-	file, err := os.Open(path)
-	if err != nil {
-		log.G(ctx).Infof("Cannot read %v file: trying with path ./go.mod; error: %v", path, err)
-		path = "./go.mod"
-		file, err = os.Open(path)
+	// Check if the kubeConfig file exists.
+	if _, err := os.Stat(configPath); !os.IsNotExist(err) {
+		// Get the kubeconfig from the filepath.
+		config, err = clientcmd.BuildConfigFromFlags("", configPath)
+		if err != nil {
+			log.G(ctx).Warnf("Cannot read k8s version: using default version %v; error: %v", defaultK8sVersion, err)
+			return defaultK8sVersion
+		}
+	} else {
+		// Set to in-cluster config.
+		config, err = rest.InClusterConfig()
 		if err != nil {
 			log.G(ctx).Warnf("Cannot read k8s version: using default version %v; error: %v", defaultK8sVersion, err)
 			return defaultK8sVersion
 		}
 	}
-	defer file.Close()
 
-	scanner := bufio.NewScanner(file)
-	for i := 1; scanner.Scan(); i++ {
-		line := scanner.Text()
-		if strings.Contains(line, "k8s.io/kubernetes") {
-			return strings.Replace(strings.TrimPrefix(line, "\tk8s.io/kubernetes "), "0", "1", 1)
-		}
+	c, err := discovery.NewDiscoveryClientForConfig(config)
+	if err != nil {
+		log.G(ctx).Warnf("Cannot read k8s version: using default version %v; error: %v", defaultK8sVersion, err)
+		return defaultK8sVersion
 	}
-	return defaultK8sVersion
+	v, err := c.ServerVersion()
+	if err != nil {
+		log.G(ctx).Warnf("Cannot read k8s version: using default version %v; error: %v", defaultK8sVersion, err)
+		return defaultK8sVersion
+	}
+
+	return v.GitVersion
 }
