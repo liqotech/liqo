@@ -204,7 +204,10 @@ func (r *ServicesReflector) isAllowed(obj interface{}) bool {
 	}
 	key := r.Keyer(svc.Namespace, svc.Name)
 	_, ok = blacklist[apimgmt.Services][key]
-	return ok
+	if ok {
+		klog.V(4).Infof("service %v blacklisted", key)
+	}
+	return !ok
 }
 
 func addServicesIndexers() cache.Indexers {
