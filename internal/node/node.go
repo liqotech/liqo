@@ -331,9 +331,7 @@ func (n *NodeController) updateLease(ctx context.Context) error {
 }
 
 func (n *NodeController) UpdateNodeFromOutside(skipErrorCb bool, no *corev1.Node) error {
-
 	n.n = no
-
 	return n.updateStatus(context.Background(), skipErrorCb)
 }
 

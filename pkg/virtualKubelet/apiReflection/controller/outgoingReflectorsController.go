@@ -32,8 +32,7 @@ func NewOutgoingReflectorsController(homeClient, foreignClient kubernetes.Interf
 			apiReflectors:            make(map[apimgmt.ApiType]ri.APIReflector),
 			namespaceNatting:         namespaceNatting,
 			namespacedStops:          make(map[string]chan struct{}),
-			homeWaitGroup:            &sync.WaitGroup{},
-			foreignWaitGroup:         &sync.WaitGroup{},
+			reflectionGroup:          &sync.WaitGroup{},
 		},
 	}
 
@@ -49,6 +48,7 @@ func (c *OutgoingReflectorsController) buildOutgoingReflector(api apimgmt.ApiTyp
 		Api:              api,
 		OutputChan:       c.outputChan,
 		ForeignClient:    c.foreignClient,
+		HomeClient:       c.homeClient,
 		LocalInformers:   make(map[string]cache.SharedIndexInformer),
 		ForeignInformers: make(map[string]cache.SharedIndexInformer),
 		NamespaceNatting: c.namespaceNatting,
@@ -117,25 +117,20 @@ func (c *OutgoingReflectorsController) startNamespaceReflection(namespace string
 	}
 
 	c.namespacedStops[namespace] = make(chan struct{})
-	c.homeWaitGroup.Add(1)
+	c.reflectionGroup.Add(1)
 	go func() {
 		c.homeInformerFactories[namespace].Start(c.namespacedStops[namespace])
-
-		<-c.namespacedStops[namespace]
-		for _, reflector := range c.apiReflectors {
-			reflector.(ri.OutgoingAPIReflector).CleanupNamespace(namespace)
-		}
-		delete(c.homeInformerFactories, namespace)
-		c.homeWaitGroup.Done()
-	}()
-
-	c.foreignWaitGroup.Add(1)
-	go func() {
 		c.foreignInformerFactories[nattedNs].Start(c.namespacedStops[namespace])
 
 		<-c.namespacedStops[namespace]
+
+		for _, reflector := range c.apiReflectors {
+			reflector.(ri.OutgoingAPIReflector).CleanupNamespace(namespace)
+		}
+
+		delete(c.homeInformerFactories, namespace)
 		delete(c.foreignInformerFactories, nattedNs)
-		c.foreignWaitGroup.Done()
+		c.reflectionGroup.Done()
 	}()
 
 	klog.V(2).Infof("Outgoing reflection for namespace %v started", namespace)

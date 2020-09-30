@@ -26,9 +26,11 @@ type APIReflector interface {
 
 	Inform(obj apimgmt.ApiEvent)
 	Keyer(namespace, name string) string
+	GetObjFromForeignCache(string, string) (interface{}, error)
 	LocalInformer(string) cache.SharedIndexInformer
 	ForeignInformer(string) cache.SharedIndexInformer
 	GetForeignClient() kubernetes.Interface
+	GetHomeClient() kubernetes.Interface
 	NattingTable() namespacesMapping.NamespaceNatter
 	SetInformers(reflectionType ReflectionType, namespace, nattedNs string, homeInformer, foreignInformer cache.SharedIndexInformer)
 	SetPreProcessingHandlers(PreProcessingHandlers)

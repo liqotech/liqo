@@ -2,14 +2,15 @@ package outgoing
 
 import (
 	"context"
-	"errors"
 	apimgmt "github.com/liqotech/liqo/pkg/virtualKubelet/apiReflection"
 	ri "github.com/liqotech/liqo/pkg/virtualKubelet/apiReflection/reflectors/reflectorsInterfaces"
+	"github.com/pkg/errors"
 	corev1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/tools/cache"
+	"k8s.io/client-go/util/retry"
 	"k8s.io/klog"
 	"strings"
 )
@@ -106,27 +107,12 @@ func (r *ConfigmapsReflector) PreUpdate(newObj, _ interface{}) interface{} {
 		return nil
 	}
 
-	name := r.KeyerFromObj(newObj, nattedNs)
-	oldRemoteObj, exists, err := r.ForeignInformer(nattedNs).GetStore().GetByKey(r.Keyer(nattedNs, name))
+	key := r.KeyerFromObj(newObj, nattedNs)
+	oldRemoteObj, err := r.GetObjFromForeignCache(nattedNs, key)
 	if err != nil {
+		err = errors.Wrapf(err, "configmap %v", key)
 		klog.Error(err)
 		return nil
-	}
-	if !exists {
-		err = r.ForeignInformer(nattedNs).GetStore().Resync()
-		if err != nil {
-			klog.Errorf("error while resyncing pods foreign cache - ERR: %v", err)
-			return nil
-		}
-		oldRemoteObj, exists, err = r.ForeignInformer(nattedNs).GetStore().GetByKey(r.Keyer(nattedNs, name))
-		if err != nil {
-			klog.Errorf("error while retrieving pod from foreign cache - ERR: %v", err)
-			return nil
-		}
-		if !exists {
-			klog.V(3).Infof("pod %v/%v not found after cache resync", nattedNs, name)
-			return nil
-		}
 	}
 	oldRemoteCm := oldRemoteObj.(*corev1.ConfigMap)
 
@@ -182,11 +168,30 @@ func (r *ConfigmapsReflector) CleanupNamespace(localNamespace string) {
 		return
 	}
 
+	// resync for ensuring to be remotely aligned with the foreign cluster state
+	err = r.ForeignInformer(foreignNamespace).GetStore().Resync()
+	if err != nil {
+		klog.Errorf("error while resyncing configmaps foreign cache - ERR: %v", err)
+		return
+	}
+
 	objects := r.ForeignInformer(foreignNamespace).GetStore().List()
+
+	retriable := func(err error) bool {
+		switch kerrors.ReasonForError(err) {
+		case metav1.StatusReasonNotFound:
+			return false
+		default:
+			klog.Warningf("retrying while deleting configmap because of- ERR; %v", err)
+			return true
+		}
+	}
 	for _, obj := range objects {
 		cm := obj.(*corev1.ConfigMap)
-		if err := r.GetForeignClient().CoreV1().ConfigMaps(foreignNamespace).Delete(context.TODO(), cm.Name, metav1.DeleteOptions{}); err != nil {
-			klog.Errorf("error while deleting configmap %v/%v - ERR: %v", cm.Name, cm.Namespace, err)
+		if err := retry.OnError(retry.DefaultBackoff, retriable, func() error {
+			return r.GetForeignClient().CoreV1().ConfigMaps(foreignNamespace).Delete(context.TODO(), cm.Name, metav1.DeleteOptions{})
+		}); err != nil {
+			klog.Errorf("Error while deleting remote configmap %v/%v", cm.Namespace, cm.Name)
 		}
 	}
 }
