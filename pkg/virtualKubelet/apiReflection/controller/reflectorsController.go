@@ -44,8 +44,7 @@ type ReflectorsController struct {
 
 	apiReflectors map[apimgmt.ApiType]ri.APIReflector
 
-	homeWaitGroup    *sync.WaitGroup
-	foreignWaitGroup *sync.WaitGroup
+	reflectionGroup  *sync.WaitGroup
 	namespaceNatting namespacesMapping.MapperController
 	namespacedStops  map[string]chan struct{}
 }
@@ -58,6 +57,5 @@ func (c *ReflectorsController) Stop() {
 	for _, stop := range c.namespacedStops {
 		close(stop)
 	}
-	c.homeWaitGroup.Wait()
-	c.foreignWaitGroup.Wait()
+	c.reflectionGroup.Wait()
 }

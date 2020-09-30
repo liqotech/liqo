@@ -1,6 +1,7 @@
 package controller
 
 import (
+	"errors"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/apiReflection"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/namespacesMapping"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/options"
@@ -19,6 +20,7 @@ type Controller struct {
 	outgoingReflectorsController OutGoingAPIReflectorsController
 	incomingReflectorsController IncomingAPIReflectorsController
 
+	mainControllerRoutine   *sync.WaitGroup
 	outgoingReflectionGroup *sync.WaitGroup
 	incomingReflectionGroup *sync.WaitGroup
 
@@ -42,20 +44,23 @@ func NewApiController(homeClient, foreignClient kubernetes.Interface, mapper nam
 		incomingReflectorsController: NewIncomingReflectorsController(homeClient, foreignClient, incomingReflectionInforming, mapper, opts),
 		outgoingReflectionGroup:      &sync.WaitGroup{},
 		incomingReflectionGroup:      &sync.WaitGroup{},
+		mainControllerRoutine:        &sync.WaitGroup{},
 		outgoingReflectionInforming:  outgoingReflectionInforming,
 		incomingReflectionInforming:  incomingReflectionInforming,
 		started:                      false,
 		stopController:               make(chan struct{}),
 	}
 
+	c.mainControllerRoutine.Add(1)
 	go func() {
 		for {
 			select {
 			case <-c.mapper.PollStartMapper():
 				c.StartController()
 			case <-c.mapper.PollStopMapper():
-				c.StopReflection()
+				c.StopReflection(true)
 			case <-c.stopController:
+				c.mainControllerRoutine.Done()
 				return
 			default:
 				break
@@ -130,11 +135,22 @@ func (c *Controller) StartController() {
 	klog.V(2).Infof("api controller started with %v workers", nOutgoingReflectionWorkers)
 }
 
-func (c *Controller) StopController() {
+func (c *Controller) StopController() error {
+	select {
+	case <-c.stopController:
+		return errors.New("controller stop has already been called")
+	default:
+		break
+	}
 	close(c.stopController)
+	c.mainControllerRoutine.Wait()
+	c.StopReflection(false)
+	klog.V(2).Info("Reflection controller stopped")
+
+	return nil
 }
 
-func (c *Controller) StopReflection() {
+func (c *Controller) StopReflection(restart bool) {
 	klog.V(2).Info("stopping reflection manager")
 
 	c.outgoingReflectorsController.Stop()
@@ -146,7 +162,7 @@ func (c *Controller) StopReflection() {
 	c.incomingReflectionGroup.Wait()
 
 	c.started = false
-	c.mapper.ReadyForRestart()
-
-	klog.V(2).Info("api controller stopped")
+	if restart {
+		c.mapper.ReadyForRestart()
+	}
 }

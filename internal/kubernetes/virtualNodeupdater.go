@@ -11,8 +11,10 @@ import (
 	"github.com/liqotech/liqo/pkg/virtualKubelet"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/options"
 	v1 "k8s.io/api/core/v1"
+	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/watch"
+	"k8s.io/client-go/util/retry"
 	"k8s.io/klog"
 	"k8s.io/kubernetes/pkg/util/slice"
 	"strings"
@@ -95,30 +97,24 @@ func (p *KubernetesProvider) ReconcileNodeFromAdv(event watch.Event) error {
 	}
 
 	if event.Type == watch.Deleted || !adv.DeletionTimestamp.IsZero() {
-		for retry := 0; retry < 3; retry++ {
-			klog.Infof("advertisement %v is going to be deleted... set node status not ready", adv.Name)
-			no, err := p.advClient.Client().CoreV1().Nodes().Get(context.TODO(), p.nodeName.Value().ToString(), metav1.GetOptions{})
-			if err != nil {
-				klog.Error(err)
-				continue
+		klog.Infof("advertisement %v is going to be deleted... set node status not ready", adv.Name)
+		no, err := p.advClient.Client().CoreV1().Nodes().Get(context.TODO(), p.nodeName.Value().ToString(), metav1.GetOptions{})
+		if err != nil {
+			klog.Error(err)
+		}
+		for i, condition := range no.Status.Conditions {
+			if condition.Type == v1.NodeReady {
+				no.Status.Conditions[i].Status = v1.ConditionFalse
+				err = p.nodeController.UpdateNodeFromOutside(false, no)
+				break
 			}
-			for i, condition := range no.Status.Conditions {
-				if condition.Type == v1.NodeReady {
-					no.Status.Conditions[i].Status = v1.ConditionFalse
-					err = p.nodeController.UpdateNodeFromOutside(false, no)
-					break
-				}
-			}
-			if err != nil {
-				klog.Error(err)
-				continue
-			}
-			klog.Infof("delete all offloaded resources and advertisement")
-			if err := p.deleteAdv(adv); err != nil {
-				klog.Infof("something went wrong during advertisement deletion - %v", err)
-				continue
-			}
-			break
+		}
+		if err != nil {
+			klog.Error(err)
+		}
+
+		if err := p.deleteAdv(adv); err != nil {
+			klog.Errorf("something went wrong during advertisement deletion - %v", err)
 		}
 		return nil
 	}
@@ -303,7 +299,9 @@ func (p *KubernetesProvider) updateNode(node *v1.Node) error {
 }
 
 func (p *KubernetesProvider) deleteAdv(adv *advtypes.Advertisement) error {
-	p.apiController.StopReflection()
+	if err := p.apiController.StopController(); err != nil {
+		return err
+	}
 
 	// remove finalizer
 	if slice.ContainsString(adv.Finalizers, advertisementOperator.FinalizerString, nil) {
@@ -311,9 +309,22 @@ func (p *KubernetesProvider) deleteAdv(adv *advtypes.Advertisement) error {
 	}
 
 	// update advertisement -> remove finalizer (which will delete virtual-kubelet)
-	if _, err := p.advClient.Resource("advertisements").Update(adv.Name, adv, metav1.UpdateOptions{}); err != nil {
-		klog.Errorf("Cannot update advertisement %v", adv.Name)
+	retriable := func(err error) bool {
+		switch kerrors.ReasonForError(err) {
+		case metav1.StatusReasonNotFound:
+			return false
+		default:
+			klog.Warningf("retrying while deleting advertisement because of- ERR; %v", err)
+			return true
+		}
+	}
+
+	if err := retry.OnError(retry.DefaultBackoff, retriable, func() error {
+		_, err := p.advClient.Resource("advertisements").Update(adv.Name, adv, metav1.UpdateOptions{})
+		return err
+	}); err != nil {
 		return err
 	}
+
 	return nil
 }
