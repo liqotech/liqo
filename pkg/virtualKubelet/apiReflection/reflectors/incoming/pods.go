@@ -2,15 +2,16 @@ package incoming
 
 import (
 	"context"
-	"errors"
 	ri "github.com/liqotech/liqo/pkg/virtualKubelet/apiReflection/reflectors/reflectorsInterfaces"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/options"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/translation"
+	"github.com/pkg/errors"
 	corev1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/tools/cache"
+	"k8s.io/client-go/util/retry"
 	"k8s.io/klog"
 	"strings"
 )
@@ -58,26 +59,13 @@ func (r *PodsIncomingReflector) GetMirroredObject(namespace, name string) interf
 	if informer == nil {
 		return r.GetPodFromServer(namespace, name)
 	}
-	obj, exists, err := informer.GetStore().GetByKey(r.Keyer(namespace, name))
+
+	key := r.Keyer(namespace, name)
+	obj, err := r.GetObjFromForeignCache(namespace, key)
 	if err != nil {
-		klog.Errorf("error while retrieving pod from foreign cache - ERR: %v", err)
+		err = errors.Wrapf(err, "pod %v", key)
+		klog.Error(err)
 		return nil
-	}
-	if !exists {
-		err = r.ForeignInformer(namespace).GetStore().Resync()
-		if err != nil {
-			klog.Errorf("error while resyncing pods foreign cache - ERR: %v", err)
-			return nil
-		}
-		obj, exists, err = r.ForeignInformer(namespace).GetStore().GetByKey(r.Keyer(namespace, name))
-		if err != nil {
-			klog.Errorf("error while retrieving pod from foreign cache - ERR: %v", err)
-			return nil
-		}
-		if !exists {
-			klog.V(3).Infof("pod %v/%v not found after cache resync", namespace, name)
-			return nil
-		}
 	}
 
 	return obj.(*corev1.Pod).DeepCopy()
@@ -113,11 +101,28 @@ func (r *PodsIncomingReflector) CleanupNamespace(namespace string) {
 		return
 	}
 
+	// resync for ensuring to be remotely aligned with the foreign cluster state
+	err = r.ForeignInformer(foreignNamespace).GetStore().Resync()
+	if err != nil {
+		klog.Errorf("error while resyncing pods foreign cache - ERR: %v", err)
+		return
+	}
+
 	objects := r.ForeignInformer(foreignNamespace).GetStore().List()
+
+	retriable := func(err error)bool {
+		if err != nil {
+			klog.Warningf("retrying while deleting remote pod because of - ERR; %v", err)
+			return true
+		}
+		return false
+	}
 	for _, obj := range objects {
-		pod := obj.(*corev1.Pod)
-		if err := r.GetForeignClient().CoreV1().ConfigMaps(foreignNamespace).Delete(context.TODO(), pod.Name, metav1.DeleteOptions{}); err != nil {
-			klog.Errorf("error while deleting configmap %v/%v - ERR: %v", pod.Name, pod.Namespace, err)
+		po := obj.(*corev1.Pod)
+		if err := retry.OnError(retry.DefaultBackoff, retriable, func() error {
+			return r.GetForeignClient().CoreV1().Pods(foreignNamespace).Delete(context.TODO(), po.Name, metav1.DeleteOptions{})
+		}); err != nil {
+			klog.Errorf("Error while deleting remote pod %v/%v", po.Namespace, po.Name)
 		}
 	}
 }

@@ -122,9 +122,6 @@ func (c *IncomingReflectorsController) startNamespaceReflection(namespace string
 		c.homeInformerFactories[namespace].Start(c.namespacedStops[namespace])
 
 		<-c.namespacedStops[namespace]
-		for _, reflector := range c.apiReflectors {
-			reflector.(ri.IncomingAPIReflector).CleanupNamespace(namespace)
-		}
 		delete(c.homeInformerFactories, namespace)
 		c.homeWaitGroup.Done()
 	}()
@@ -134,6 +131,9 @@ func (c *IncomingReflectorsController) startNamespaceReflection(namespace string
 		c.foreignInformerFactories[nattedNs].Start(c.namespacedStops[namespace])
 
 		<-c.namespacedStops[namespace]
+		for _, reflector := range c.apiReflectors {
+			reflector.(ri.IncomingAPIReflector).CleanupNamespace(namespace)
+		}
 		delete(c.foreignInformerFactories, nattedNs)
 		c.foreignWaitGroup.Done()
 	}()

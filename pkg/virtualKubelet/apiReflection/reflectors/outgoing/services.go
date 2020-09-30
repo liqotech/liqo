@@ -2,14 +2,15 @@ package outgoing
 
 import (
 	"context"
-	"errors"
 	apimgmt "github.com/liqotech/liqo/pkg/virtualKubelet/apiReflection"
 	ri "github.com/liqotech/liqo/pkg/virtualKubelet/apiReflection/reflectors/reflectorsInterfaces"
+	"github.com/pkg/errors"
 	corev1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/tools/cache"
+	"k8s.io/client-go/util/retry"
 	"k8s.io/klog"
 	"strings"
 )
@@ -80,6 +81,7 @@ func (r *ServicesReflector) CleanupNamespace(localNamespace string) {
 		return
 	}
 
+	// resync for ensuring to be remotely aligned with the foreign cluster state
 	err = r.ForeignInformer(foreignNamespace).GetStore().Resync()
 	if err != nil {
 		klog.Errorf("error while resyncing services foreign cache - ERR: %v", err)
@@ -87,10 +89,20 @@ func (r *ServicesReflector) CleanupNamespace(localNamespace string) {
 	}
 
 	objects := r.ForeignInformer(foreignNamespace).GetStore().List()
+
+	retriable := func(err error)bool {
+		if err != nil {
+			klog.Warningf("retrying while deleting service because of - ERR; %v", err)
+			return true
+		}
+		return false
+	}
 	for _, obj := range objects {
-		cm := obj.(*corev1.Service)
-		if err := r.GetForeignClient().CoreV1().Services(foreignNamespace).Delete(context.TODO(), cm.Name, metav1.DeleteOptions{}); err != nil {
-			klog.Errorf("error while deleting service %v/%v - ERR: %v", cm.Name, cm.Namespace, err)
+		svc := obj.(*corev1.Service)
+		if err := retry.OnError(retry.DefaultBackoff, retriable, func() error {
+			return r.GetForeignClient().CoreV1().Services(foreignNamespace).Delete(context.TODO(), svc.Name, metav1.DeleteOptions{})
+		}); err != nil {
+			klog.Errorf("Error while deleting service %v/%v", svc.Namespace, svc.Name)
 		}
 	}
 }
@@ -136,26 +148,11 @@ func (r *ServicesReflector) PreUpdate(newObj interface{}, _ interface{}) interfa
 	}
 
 	key := r.Keyer(nattedNs, newSvc.Name)
-	oldRemoteObj, exists, err := r.ForeignInformer(nattedNs).GetStore().GetByKey(key)
+	oldRemoteObj, err := r.GetObjFromForeignCache(nattedNs, key)
 	if err != nil {
+		err = errors.Wrapf(err, "service %v", key)
 		klog.Error(err)
 		return nil
-	}
-	if !exists {
-		err = r.ForeignInformer(nattedNs).GetStore().Resync()
-		if err != nil {
-			klog.Errorf("error while resyncing services foreign cache - ERR: %v", err)
-			return nil
-		}
-		oldRemoteObj, exists, err = r.ForeignInformer(nattedNs).GetStore().GetByKey(key)
-		if err != nil {
-			klog.Errorf("error while retrieving service from foreign cache - ERR: %v", err)
-			return nil
-		}
-		if !exists {
-			klog.V(3).Infof("service %v not found after cache resync", key)
-			return nil
-		}
 	}
 	RemoteSvc := oldRemoteObj.(*corev1.Service).DeepCopy()
 

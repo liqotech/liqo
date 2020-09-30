@@ -2,7 +2,6 @@ package apiReflection
 
 const (
 	Configmaps = iota
-	Endpoints
 	EndpointSlices
 	Pods
 	Services
@@ -12,7 +11,7 @@ const (
 type ApiType int
 
 const (
-	LiqoLabelKey   = "liqo/reflection"
+	LiqoLabelKey   = "virtualkubelet.liqo.io/reflection"
 	LiqoLabelValue = "reflected"
 )
 

@@ -2,14 +2,15 @@ package outgoing
 
 import (
 	"context"
-	"errors"
 	apimgmt "github.com/liqotech/liqo/pkg/virtualKubelet/apiReflection"
 	ri "github.com/liqotech/liqo/pkg/virtualKubelet/apiReflection/reflectors/reflectorsInterfaces"
+	"github.com/pkg/errors"
 	corev1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/tools/cache"
+	"k8s.io/client-go/util/retry"
 	"k8s.io/klog"
 	"strings"
 )
@@ -80,11 +81,28 @@ func (r *SecretsReflector) CleanupNamespace(localNamespace string) {
 		return
 	}
 
+	// resync for ensuring to be remotely aligned with the foreign cluster state
+	err = r.ForeignInformer(foreignNamespace).GetStore().Resync()
+	if err != nil {
+		klog.Errorf("error while resyncing secrets foreign cache - ERR: %v", err)
+		return
+	}
+
 	objects := r.ForeignInformer(foreignNamespace).GetStore().List()
+
+	retriable := func(err error)bool {
+		if err != nil {
+			klog.Warningf("retrying while deleting secret because of- ERR; %v", err)
+			return true
+		}
+		return false
+	}
 	for _, obj := range objects {
-		secret := obj.(*corev1.Secret)
-		if err := r.GetForeignClient().CoreV1().Secrets(foreignNamespace).Delete(context.TODO(), secret.Name, metav1.DeleteOptions{}); err != nil {
-			klog.Errorf("error while deleting Secret %v/%v - ERR: %v", secret.Name, secret.Namespace, err)
+		svc := obj.(*corev1.Secret)
+		if err := retry.OnError(retry.DefaultBackoff, retriable, func() error {
+			return r.GetForeignClient().CoreV1().Secrets(foreignNamespace).Delete(context.TODO(), svc.Name, metav1.DeleteOptions{})
+		}); err != nil {
+			klog.Errorf("Error while deleting secret %v/%v", svc.Namespace, svc.Name)
 		}
 	}
 }
@@ -132,27 +150,12 @@ func (r *SecretsReflector) PreUpdate(newObj interface{}, _ interface{}) interfac
 		return nil
 	}
 
-	name := r.KeyerFromObj(newObj, nattedNs)
-	oldRemoteObj, exists, err := r.ForeignInformer(nattedNs).GetStore().GetByKey(name)
+	key := r.KeyerFromObj(newObj, nattedNs)
+	oldRemoteObj, err := r.GetObjFromForeignCache(nattedNs, key)
 	if err != nil {
+		err = errors.Wrapf(err, "secret %v", key)
 		klog.Error(err)
 		return nil
-	}
-	if !exists {
-		err = r.ForeignInformer(nattedNs).GetStore().Resync()
-		if err != nil {
-			klog.Errorf("error while resyncing secrets foreign cache - ERR: %v", err)
-			return nil
-		}
-		oldRemoteObj, exists, err = r.ForeignInformer(nattedNs).GetStore().GetByKey(r.Keyer(nattedNs, name))
-		if err != nil {
-			klog.Errorf("error while retrieving secret from foreign cache - ERR: %v", err)
-			return nil
-		}
-		if !exists {
-			klog.V(3).Infof("secret %v/%v not found after cache resync", nattedNs, name)
-			return nil
-		}
 	}
 	oldRemoteSec := oldRemoteObj.(*corev1.Secret)
 

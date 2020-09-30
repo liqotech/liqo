@@ -132,7 +132,6 @@ func (c *OutgoingReflectorsController) startNamespaceReflection(namespace string
 	c.foreignWaitGroup.Add(1)
 	go func() {
 		c.foreignInformerFactories[nattedNs].Start(c.namespacedStops[namespace])
-
 		<-c.namespacedStops[namespace]
 		delete(c.foreignInformerFactories, nattedNs)
 		c.foreignWaitGroup.Done()

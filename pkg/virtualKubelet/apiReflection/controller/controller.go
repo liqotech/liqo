@@ -19,6 +19,7 @@ type Controller struct {
 	outgoingReflectorsController OutGoingAPIReflectorsController
 	incomingReflectorsController IncomingAPIReflectorsController
 
+	mainControllerRoutine *sync.WaitGroup
 	outgoingReflectionGroup *sync.WaitGroup
 	incomingReflectionGroup *sync.WaitGroup
 
@@ -42,20 +43,23 @@ func NewApiController(homeClient, foreignClient kubernetes.Interface, mapper nam
 		incomingReflectorsController: NewIncomingReflectorsController(homeClient, foreignClient, incomingReflectionInforming, mapper, opts),
 		outgoingReflectionGroup:      &sync.WaitGroup{},
 		incomingReflectionGroup:      &sync.WaitGroup{},
+		mainControllerRoutine: &sync.WaitGroup{},
 		outgoingReflectionInforming:  outgoingReflectionInforming,
 		incomingReflectionInforming:  incomingReflectionInforming,
 		started:                      false,
 		stopController:               make(chan struct{}),
 	}
 
+	c.mainControllerRoutine.Add(1)
 	go func() {
 		for {
 			select {
 			case <-c.mapper.PollStartMapper():
 				c.StartController()
 			case <-c.mapper.PollStopMapper():
-				c.StopReflection()
+				c.StopReflection(true)
 			case <-c.stopController:
+				c.mainControllerRoutine.Done()
 				return
 			default:
 				break
@@ -131,10 +135,20 @@ func (c *Controller) StartController() {
 }
 
 func (c *Controller) StopController() {
+	select {
+	case <-c.stopController:
+		klog.V(2).Info("Controller stop has been called twice, aborting this stop routine...")
+		return
+	default:
+		break
+	}
+	c.StopReflection(false)
 	close(c.stopController)
+	c.mainControllerRoutine.Wait()
+	klog.V(2).Info("Reflection controller stopped")
 }
 
-func (c *Controller) StopReflection() {
+func (c *Controller) StopReflection(restart bool) {
 	klog.V(2).Info("stopping reflection manager")
 
 	c.outgoingReflectorsController.Stop()
@@ -146,7 +160,7 @@ func (c *Controller) StopReflection() {
 	c.incomingReflectionGroup.Wait()
 
 	c.started = false
-	c.mapper.ReadyForRestart()
-
-	klog.V(2).Info("api controller stopped")
+	if restart {
+		c.mapper.ReadyForRestart()
+	}
 }

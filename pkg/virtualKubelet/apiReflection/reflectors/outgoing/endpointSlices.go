@@ -2,11 +2,11 @@ package outgoing
 
 import (
 	"context"
-	"errors"
 	apimgmt "github.com/liqotech/liqo/pkg/virtualKubelet/apiReflection"
 	ri "github.com/liqotech/liqo/pkg/virtualKubelet/apiReflection/reflectors/reflectorsInterfaces"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/options"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/translation"
+	"github.com/pkg/errors"
 	corev1 "k8s.io/api/core/v1"
 	discoveryv1beta1 "k8s.io/api/discovery/v1beta1"
 	kerror "k8s.io/apimachinery/pkg/api/errors"
@@ -137,26 +137,11 @@ func (r *EndpointSlicesReflector) PreUpdate(newObj, _ interface{}) interface{} {
 		return nil
 	}
 	key := r.Keyer(nattedNs, endpointSliceLocal.Name)
-	oldRemoteObj, exists, err := r.ForeignInformer(nattedNs).GetStore().GetByKey(key)
+	oldRemoteObj, err := r.GetObjFromForeignCache(nattedNs, key)
 	if err != nil {
+		err = errors.Wrapf(err, "endpointslices %v", key)
 		klog.Error(err)
 		return nil
-	}
-	if !exists {
-		err = r.ForeignInformer(nattedNs).GetStore().Resync()
-		if err != nil {
-			klog.Errorf("error while resyncing endpointslice foreign cache - ERR: %v", err)
-			return nil
-		}
-		oldRemoteObj, exists, err = r.ForeignInformer(nattedNs).GetStore().GetByKey(key)
-		if err != nil {
-			klog.Errorf("error while retrieving endpointslice from foreign cache - ERR: %v", err)
-			return nil
-		}
-		if !exists {
-			klog.V(3).Infof("endpointslice %v not found after cache resync", key)
-			return nil
-		}
 	}
 	RemoteEpSlice := oldRemoteObj.(*discoveryv1beta1.EndpointSlice).DeepCopy()
 
@@ -217,11 +202,28 @@ func (r *EndpointSlicesReflector) CleanupNamespace(localNamespace string) {
 		return
 	}
 
+	// resync for ensuring to be remotely aligned with the foreign cluster state
+	err = r.ForeignInformer(foreignNamespace).GetStore().Resync()
+	if err != nil {
+		klog.Errorf("error while resyncing endpointslices foreign cache - ERR: %v", err)
+		return
+	}
+
 	objects := r.ForeignInformer(foreignNamespace).GetStore().List()
+
+	retriable := func(err error)bool {
+		if err != nil {
+			klog.Warningf("retrying while deleting remote endpointslice because of - ERR; %v", err)
+			return true
+		}
+		return false
+	}
 	for _, obj := range objects {
-		cm := obj.(*corev1.ConfigMap)
-		if err := r.GetForeignClient().DiscoveryV1beta1().EndpointSlices(foreignNamespace).Delete(context.TODO(), cm.Name, metav1.DeleteOptions{}); err != nil {
-			klog.Errorf("error while deleting configmap %v/%v - ERR: %v", cm.Name, cm.Namespace, err)
+		eps := obj.(*discoveryv1beta1.EndpointSlice)
+		if err := retry.OnError(retry.DefaultBackoff, retriable, func() error {
+			return r.GetForeignClient().DiscoveryV1beta1().EndpointSlices(foreignNamespace).Delete(context.TODO(), eps.Name, metav1.DeleteOptions{})
+		}); err != nil {
+			klog.Errorf("Error while deleting remote endpointslice %v/%v", eps.Namespace, eps.Name)
 		}
 	}
 }

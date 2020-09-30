@@ -4,6 +4,7 @@ import (
 	apimgmt "github.com/liqotech/liqo/pkg/virtualKubelet/apiReflection"
 	ri "github.com/liqotech/liqo/pkg/virtualKubelet/apiReflection/reflectors/reflectorsInterfaces"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/namespacesMapping"
+	"github.com/pkg/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/kubernetes"
@@ -153,4 +154,26 @@ func (r *GenericAPIReflector) SetPreProcessingHandlers(handlers ri.PreProcessing
 
 func (r *GenericAPIReflector) Keyer(namespace, name string) string {
 	return strings.Join([]string{namespace, name}, "/")
+}
+
+func (r *GenericAPIReflector) GetObjFromForeignCache(namespace, key string) (interface{}, error) {
+	obj, exists, err := r.ForeignInformer(namespace).GetStore().GetByKey(key)
+	if err != nil {
+		return nil, errors.Wrap(err, "error while getting by key object from foreign cache")
+	}
+	if !exists {
+		err = r.ForeignInformer(namespace).GetStore().Resync()
+		if err != nil {
+			return nil, errors.Wrap(err, "error while resyncing foreign cache")
+		}
+		obj, exists, err = r.ForeignInformer(namespace).GetStore().GetByKey(key)
+		if err != nil {
+			return nil, errors.Wrap(err, "error while retrieving object from foreign cache")
+		}
+		if !exists {
+			return nil, errors.New("object not found after cache resync")
+		}
+	}
+
+	return obj, nil
 }

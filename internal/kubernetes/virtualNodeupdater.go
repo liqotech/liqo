@@ -303,7 +303,7 @@ func (p *KubernetesProvider) updateNode(node *v1.Node) error {
 }
 
 func (p *KubernetesProvider) deleteAdv(adv *advtypes.Advertisement) error {
-	p.apiController.StopReflection()
+	p.apiController.StopController()
 
 	// remove finalizer
 	if slice.ContainsString(adv.Finalizers, advertisementOperator.FinalizerString, nil) {

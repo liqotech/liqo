@@ -26,6 +26,7 @@ type APIReflector interface {
 
 	Inform(obj apimgmt.ApiEvent)
 	Keyer(namespace, name string) string
+	GetObjFromForeignCache(string, string) (interface{}, error)
 	LocalInformer(string) cache.SharedIndexInformer
 	ForeignInformer(string) cache.SharedIndexInformer
 	GetForeignClient() kubernetes.Interface
