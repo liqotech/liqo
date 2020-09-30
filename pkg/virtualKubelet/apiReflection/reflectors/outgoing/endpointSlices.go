@@ -234,7 +234,10 @@ func (r *EndpointSlicesReflector) isAllowed(obj interface{}) bool {
 	}
 	key := r.Keyer(eps.Namespace, eps.Name)
 	_, ok = blacklist[apimgmt.EndpointSlices][key]
-	return ok
+	if ok {
+		klog.V(4).Infof("endpointslice %v blacklisted", key)
+	}
+	return !ok
 }
 
 func addEndpointSlicesIndexers() cache.Indexers {
