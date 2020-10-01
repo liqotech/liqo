@@ -1,0 +1,25 @@
+# Default values for peeringRequestOperator.
+# This is a YAML-formatted file.
+# Declare variables to be passed into your templates.
+
+
+operator:
+  image:
+    repository: "liqo/peering-request-operator"
+    pullPolicy: "IfNotPresent"
+secretCreation:
+  image:
+    repository: "liqo/secret-creation"
+    pullPolicy: "IfNotPresent"
+deployment:
+  image:
+    repository: "liqo/peering-request-webhook-init"
+    pullPolicy: "IfNotPresent"
+broadcaster:
+  image:
+    repository: "liqo/advertisement-broadcaster"
+    pullPolicy: "IfNotPresent"
+
+
+suffix: ""
+version: "latest"

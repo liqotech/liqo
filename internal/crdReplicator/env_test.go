@@ -40,7 +40,7 @@ func TestMain(m *testing.M) {
 
 func setupEnv() {
 	testEnvLocal = &envtest.Environment{
-		CRDDirectoryPaths: []string{filepath.Join("..", "..", "deployments", "liqo_chart", "crds")},
+		CRDDirectoryPaths: []string{filepath.Join("..", "..", "deployments", "liqo", "crds")},
 	}
 
 	configLocal, err := testEnvLocal.Start()

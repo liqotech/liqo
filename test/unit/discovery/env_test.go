@@ -161,7 +161,7 @@ func getCluster() (*Cluster, manager.Manager, *configv1alpha1.ClusterConfig) {
 	cluster := &Cluster{}
 
 	cluster.env = &envtest.Environment{
-		CRDDirectoryPaths: []string{filepath.Join("..", "..", "..", "deployments", "liqo_chart", "crds")},
+		CRDDirectoryPaths: []string{filepath.Join("..", "..", "..", "deployments", "liqo", "crds")},
 	}
 
 	/*

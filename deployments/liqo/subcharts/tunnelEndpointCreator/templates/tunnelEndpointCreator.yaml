@@ -1,0 +1,153 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: tunnelendpointcreator-operator-service-account
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  creationTimestamp: null
+  name: tunnelendpointcreator-manager-role
+rules:
+  - apiGroups:
+    - ""
+    resources:
+    - nodes
+    verbs:
+    - get
+    - list
+
+  - apiGroups:
+    - net.liqo.io
+    resources:
+    - tunnelendpoints
+    verbs:
+    - create
+    - delete
+    - get
+    - list
+    - patch
+    - update
+    - watch
+  - apiGroups:
+    - net.liqo.io
+    resources:
+    - tunnelendpoints/status
+    verbs:
+    - get
+    - patch
+    - update
+
+  - apiGroups:
+      - discovery.liqo.io
+    resources:
+      - foreignclusters
+    verbs:
+      - create
+      - delete
+      - get
+      - list
+      - patch
+      - update
+      - watch
+  - apiGroups:
+      - discovery.liqo.io
+    resources:
+      - peeringrequests/status
+    verbs:
+      - get
+      - patch
+      - update
+
+  - apiGroups:
+      - config.liqo.io
+    resources:
+      - clusterconfigs
+    verbs:
+      - create
+      - delete
+      - get
+      - list
+      - patch
+      - update
+      - watch
+
+  - apiGroups:
+      - net.liqo.io
+    resources:
+      - networkconfigs
+    verbs:
+      - create
+      - delete
+      - get
+      - list
+      - patch
+      - update
+      - watch
+  - apiGroups:
+      - net.liqo.io
+    resources:
+      - networkconfigs/status
+    verbs:
+      - get
+      - patch
+      - update
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: tunnelendpointcreator-manager-rolebinding
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: tunnelendpointcreator-manager-role
+subjects:
+  - kind: ServiceAccount
+    name: tunnelendpointcreator-operator-service-account
+    namespace: {{ .Release.Namespace }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  creationTimestamp: null
+  labels:
+    run: tunnelendpointcreator-operator
+  name: tunnelendpointcreator-operator
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      run: tunnelendpointcreator-operator
+  strategy: {}
+  template:
+    metadata:
+      creationTimestamp: null
+      labels:
+        run: tunnelendpointcreator-operator
+    spec:
+      serviceAccountName: tunnelendpointcreator-operator-service-account
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+              - matchExpressions:
+                  - key: type
+                    operator: NotIn
+                    values:
+                      - virtual-node
+      containers:
+        - image: {{ .Values.image.repository }}{{ .Values.global.suffix | default .Values.suffix }}:{{ .Values.global.version | default .Values.version }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          name: tunnelendpointcreator-operator
+          command: ["/usr/bin/liqonet"]
+          args:
+            - "-run-as=tunnelEndpointCreator-operator"
+          resources:
+            limits:
+              cpu: 20m
+              memory: 50M
+            requests:
+              cpu: 20m
+              memory: 50M
+      restartPolicy: Always
+status: {}

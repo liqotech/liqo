@@ -1,0 +1,10 @@
+# Default values for tunnelEndpointCreator.
+# This is a YAML-formatted file.
+# Declare variables to be passed into your templates.
+
+image:
+  repository: "liqo/liqonet"
+  pullPolicy: "IfNotPresent"
+
+suffix: ""
+version: "latest"

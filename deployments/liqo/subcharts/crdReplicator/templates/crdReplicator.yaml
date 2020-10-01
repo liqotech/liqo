@@ -1,0 +1,124 @@
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: crdreplicator-operator-service-account
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  creationTimestamp: null
+  name: crdreplicator-operator-manager-role
+rules:
+  - apiGroups:
+      - ""
+    resources:
+      - secrets
+      - configmaps
+    verbs:
+      - get
+      - list
+
+  - apiGroups:
+      - net.liqo.io
+    resources:
+      - networkconfigs
+    verbs:
+      - create
+      - delete
+      - get
+      - list
+      - patch
+      - update
+      - watch
+  - apiGroups:
+      - net.liqo.io
+    resources:
+      - networkconfigs/status
+    verbs:
+      - get
+      - patch
+      - update
+
+  - apiGroups:
+    - discovery.liqo.io
+    resources:
+      - foreignclusters
+    verbs:
+      - get
+      - list
+      - watch
+  - apiGroups:
+      - discovery.liqo.io
+    resources:
+      - foreignclusters/status
+    verbs:
+      - get
+      - patch
+      - update
+
+  - apiGroups:
+      - config.liqo.io
+    resources:
+      - clusterconfigs
+    verbs:
+      - get
+      - list
+      - watch
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: crdreplicator-operator-manager-rolebinding
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: crdreplicator-operator-manager-role
+subjects:
+  - kind: ServiceAccount
+    name: crdreplicator-operator-service-account
+    namespace: {{ .Release.Namespace }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    run: crdreplicator-operator
+  name: crdreplicator-operator
+spec:
+  selector:
+    matchLabels:
+      run: crdreplicator-operator
+  template:
+    metadata:
+      labels:
+        run: crdreplicator-operator
+    spec:
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+              - matchExpressions:
+                  - key: type
+                    operator: NotIn
+                    values:
+                      - virtual-node
+      serviceAccountName: crdreplicator-operator-service-account
+      containers:
+        - image: {{ .Values.image.repository }}{{ .Values.global.suffix | default .Values.suffix }}:{{ .Values.global.version | default .Values.version }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          name: crdreplicator-operator
+          command: ["/usr/bin/crdReplicator"]
+          env:
+            - name: NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+          resources:
+           limits:
+             cpu: 20m
+             memory: 50M
+           requests:
+             cpu: 20m
+             memory: 50M
+      restartPolicy: Always

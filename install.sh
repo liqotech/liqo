@@ -47,7 +47,7 @@ EXIT_SUCCESS=0
 EXIT_FAILURE=1
 
 LIQO_REPO="liqotech/liqo"
-LIQO_CHARTS_PATH="deployments/liqo_chart"
+LIQO_CHARTS_PATH="deployments/liqo"
 
 LIQO_DASHBOARD_REPO="liqotech/dashboard"
 

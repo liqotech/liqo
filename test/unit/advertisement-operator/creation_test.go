@@ -79,7 +79,7 @@ func createFakePod(name, namespace string) *corev1.Pod {
 
 func createFakeKubebuilderClient() (client.Client, record.EventRecorder) {
 	env := &envtest.Environment{
-		CRDDirectoryPaths: []string{filepath.Join("..", "..", "..", "deployments", "liqo_chart", "crds")},
+		CRDDirectoryPaths: []string{filepath.Join("..", "..", "..", "deployments", "liqo", "crds")},
 	}
 
 	cfg, err := env.Start()
