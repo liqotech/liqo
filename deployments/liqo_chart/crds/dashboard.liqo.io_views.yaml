@@ -1,11 +1,11 @@
 apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
-  name: views.dashboard.liqo.com
+  name: views.dashboard.liqo.io
   annotations:
     description: 'This CRD is used to create custom views from a set of CRDs'
 spec:
-  group: dashboard.liqo.com
+  group: dashboard.liqo.io
   scope: Namespaced
   names:
     plural: views
