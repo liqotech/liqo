@@ -99,5 +99,6 @@ crdReplicator_chart:
 global:
   configmapName: "liqo-configmap"
   dashboard_ingress: ""
+  dashboard_version: ""
   suffix: ""
   version: ""

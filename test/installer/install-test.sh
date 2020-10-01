@@ -182,65 +182,83 @@ setup() {
 
 @test "setup_liqo_version correctly configures the environment if a commit is specified" {
 	LIQO_VERSION="f2de258b07d8b507b461f55f87e17f1bb619f926"
+	function get_repo_master_commit() { 
+		if [[ "$1" = "liqotech/dashboard" ]]; then
+			echo "a3de258b07d8b507b461f55f87e17f1bb619f926";
+		else
+			echo "b5de258b07d8b507b461f55f87e17f1bb619f926";
+		fi
+	}
 
 	# Assert that the output is correct
 	run setup_liqo_version
 	assert_success
 	assert_output --partial "A Liqo commit has been specified: using the development version"
+	assert_output --partial "An unreleased version of Liqo Dashboard is going to be downloaded"
 
 	# Run again with side effects, to assert that the variables are correct
 	setup_liqo_version
 	assert_equal "${LIQO_VERSION}" "f2de258b07d8b507b461f55f87e17f1bb619f926"
 	assert_equal "${LIQO_IMAGE_VERSION}" "f2de258b07d8b507b461f55f87e17f1bb619f926"
 	assert_equal "${LIQO_SUFFIX}" "-ci"
+	assert_equal "${LIQO_DASHBOARD_IMAGE_VERSION}" "a3de258b07d8b507b461f55f87e17f1bb619f926"
 }
 
 @test "setup_liqo_version correctly configures the environment if master is specified" {
-	function get_liqo_tags() { echo ""; }
-	function get_liqo_master_commit() { echo "f2de258b07d8b507b461f55f87e17f1bb619f926"; }
-	declare -f get_liqo_tags get_liqo_master_commit
+	function get_repo_tags() { echo ""; }
+	function get_repo_master_commit() { 
+		if [[ "$1" = "liqotech/dashboard" ]]; then
+			echo "a3de258b07d8b507b461f55f87e17f1bb619f926";
+		else
+			echo "f2de258b07d8b507b461f55f87e17f1bb619f926";
+		fi
+	}
+	declare -f get_repo_tags get_repo_master_commit
 
 	LIQO_VERSION="master"
 
 	# Assert that the output is correct
 	run setup_liqo_version
 	assert_success
-	assert_output --partial "An unreleased version of Liqo is going to be installed"
+	assert_output --partial "An unreleased version of Liqo is going to be downloaded"
+	assert_output --partial "An unreleased version of Liqo Dashboard is going to be downloaded"
 
 	# Run again with side effects, to assert that the variables are correct
 	setup_liqo_version
 	assert_equal "${LIQO_VERSION}" "master"
 	assert_equal "${LIQO_IMAGE_VERSION}" "f2de258b07d8b507b461f55f87e17f1bb619f926"
+	assert_equal "${LIQO_DASHBOARD_IMAGE_VERSION}" "a3de258b07d8b507b461f55f87e17f1bb619f926"
 	assert [ -z "${LIQO_SUFFIX:-}" ]
 }
 
 @test "setup_liqo_version correctly configures the environment if a version is specified" {
-	function get_liqo_tags() { printf "v1.0.0\nv0.1.0-alpha"; }
-	declare -f get_liqo_tags
+	function get_repo_tags() { printf "v1.0.0\nv0.1.0-alpha"; }
+	declare -f get_repo_tags
 
 	# Run again with side effects, to assert that the variables are correct
 	LIQO_VERSION="v0.1.0-alpha"
 	setup_liqo_version
 	assert_equal "${LIQO_VERSION}" "v0.1.0-alpha"
 	assert_equal "${LIQO_IMAGE_VERSION}" "v0.1.0-alpha"
+	assert_equal "${LIQO_DASHBOARD_IMAGE_VERSION}" "v0.1.0-alpha"
 	assert [ -z "${LIQO_SUFFIX:-}" ]
 }
 
 @test "setup_liqo_version correctly detects whether a version is available or not" {
-	function get_liqo_tags() { printf "v1.0.0\nv0.1.0-alpha"; }
-	declare -f get_liqo_tags
+	function get_repo_tags() { printf "v1.0.0\nv0.1.0-alpha"; }
+	declare -f get_repo_tags
 
-	# This version is returned by get_liqo_tags, hence it should succeed
+	# This version is returned by get_repo_tags, hence it should succeed
 	LIQO_VERSION="v1.0.0"
 	run setup_liqo_version
 	assert_success
 
-	# This version is returned by get_liqo_tags, hence it should succeed
+	# This version is returned by get_repo_tags, hence it should succeed
 	LIQO_VERSION="v0.1.0-alpha"
 	run setup_liqo_version
 	assert_success
 
-	# This version is not returned by get_liqo_tags, hence it should fail
+	# This version is not returned by get_repo_tags, hence it should fail
 	LIQO_VERSION="v0.1.0"
 	run setup_liqo_version
 	assert_failure
@@ -248,28 +266,51 @@ setup() {
 }
 
 @test "setup_liqo_version correctly uses the latest tag or master if no version is specified" {
-	function get_liqo_tags() { printf "v1.0.0\nv0.1.0-alpha"; }
-	declare -f get_liqo_tags
+	function get_repo_tags() { printf "v1.0.0\nv0.1.0-alpha"; }
+	declare -f get_repo_tags
 
-	# get_liqo_tags returns a list of tags, hence the latest should be used (assumed to be sorted)
+	# get_repo_tags returns a list of tags, hence the latest should be used (assumed to be sorted)
 	unset LIQO_VERSION
 	setup_liqo_version
 	assert_equal "${LIQO_VERSION}" "v1.0.0"
 	assert_equal "${LIQO_IMAGE_VERSION}" "v1.0.0"
+	assert_equal "${LIQO_DASHBOARD_IMAGE_VERSION}" "v1.0.0"
 	assert [ -z "${LIQO_SUFFIX:-}" ]
 
-	function get_liqo_tags() { echo ""; }
-	function get_liqo_master_commit() { echo "f2de258b07d8b507b461f55f87e17f1bb619f926"; }
-	declare -f get_liqo_tags get_liqo_master_commit
+	function get_repo_tags() { echo ""; }
+	function get_repo_master_commit() { 
+		if [[ "$1" = "liqotech/dashboard" ]]; then
+			echo "a3de258b07d8b507b461f55f87e17f1bb619f926";
+		else
+			echo "f2de258b07d8b507b461f55f87e17f1bb619f926";
+		fi
+	}
+	declare -f get_repo_tags get_repo_master_commit
 
-	# get_liqo_tags returns no tags, hence should fallback to master
+	# get_repo_tags returns no tags, hence should fallback to master
 	unset LIQO_VERSION
 	setup_liqo_version
 	assert_equal "${LIQO_VERSION}" "master"
 	assert_equal "${LIQO_IMAGE_VERSION}" "f2de258b07d8b507b461f55f87e17f1bb619f926"
+	assert_equal "${LIQO_DASHBOARD_IMAGE_VERSION}" "a3de258b07d8b507b461f55f87e17f1bb619f926"
 	assert [ -z "${LIQO_SUFFIX:-}" ]
 }
 
+@test "setup_liqo_version fails if the dashboard repo does not have the same tag as the liqo repo" {
+	function get_repo_tags() { 
+		if [[ "$1" = "liqotech/dashboard" ]]; then
+			echo "";
+		else
+			printf "v1.0.0\nv0.1.0-alpha";
+		fi
+	}
+	declare -f get_repo_tags
+
+	LIQO_VERSION="v0.1.0-alpha"
+	run setup_liqo_version
+	assert_failure
+	assert_output --partial "The requested Liqo Dashboard version '${LIQO_VERSION}' does not exist"
+}
 
 @test "setup_kubectl correctly detects whether kubectl is available or not" {
 	PATH='' run setup_kubectl

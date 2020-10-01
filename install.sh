@@ -22,7 +22,7 @@ set -o pipefail  # Fail if one of the piped commands fails
 # Environment variables:
 #
 #   - LIQO_VERSION
-#     the version of Liqo to install. It can be a released version, a commit SHA or 'latest'.
+#     the version of Liqo to install. It can be a released version, a commit SHA or 'master'.
 #     Defaults to the latest released version.
 #
 #   - LIQO_NAMESPACE
@@ -48,6 +48,8 @@ EXIT_FAILURE=1
 
 LIQO_REPO="liqotech/liqo"
 LIQO_CHARTS_PATH="deployments/liqo_chart"
+
+LIQO_DASHBOARD_REPO="liqotech/dashboard"
 
 LIQO_NAMESPACE_DEFAULT="liqo"
 CLUSTER_NAME_DEFAULT=$(printf "LiqoCluster%04d" $(( RANDOM%10000 )) )
@@ -118,7 +120,7 @@ function help() {
 	  ${BOLD}-h, --help${RESET}:         display this help
 
 	${BLUE}${BOLD}Environment variables:${RESET}
-	  ${BOLD}LIQO_VERSION${RESET}:       the version of Liqo to install. It can be a released version, a commit SHA or 'latest'.
+	  ${BOLD}LIQO_VERSION${RESET}:       the version of Liqo to install. It can be a released version, a commit SHA or 'master'.
 
 	  ${BOLD}LIQO_NAMESPACE${RESET}:     the Kubernetes namespace where all Liqo components are created (defaults to liqo)
 	  ${BOLD}CLUSTER_NAME${RESET}:       the mnemonic name assigned to this Liqo instance. Automatically generated if not specified.
@@ -182,16 +184,18 @@ function setup_downloader() {
 	info "[PRE-FLIGHT] [DOWNLOAD]" "Using ${DOWNLOADER} to download files"
 }
 
-function get_liqo_tags() {
+function get_repo_tags() {
+	[ $# -eq 1 ] || fatal "[PRE-FLIGHT] [DOWNLOAD]" "Internal error: incorrect parameters"
 	# The maximum number of retrieved tags is 100, but this should not raise concerns for a while
-	local LIQO_TAGS_URL="https://api.github.com/repos/${LIQO_REPO}/tags?page=1&per_page=100"
-	download "${LIQO_TAGS_URL}" | grep -Po '"name": "\K.*?(?=")' || echo ""
+	local TAGS_URL="https://api.github.com/repos/$1/tags?page=1&per_page=100"
+	download "${TAGS_URL}" | grep -Po '"name": "\K.*?(?=")' || echo ""
 }
 
-function get_liqo_master_commit() {
+function get_repo_master_commit() {
+	[ $# -eq 1 ] || fatal "[PRE-FLIGHT] [DOWNLOAD]" "Internal error: incorrect parameters"
 	# The maximum number of retrieved tags is 100, but this should not raise concerns for a while
-	local LIQO_MASTER_COMMIT_URL="https://api.github.com/repos/${LIQO_REPO}/commits?page=1&per_page=1"
-	download "${LIQO_MASTER_COMMIT_URL}" | grep -Po --max-count=1 '"sha": "\K.*?(?=")'
+	local MASTER_COMMIT_URL="https://api.github.com/repos/$1/commits?page=1&per_page=1"
+	download "${MASTER_COMMIT_URL}" | grep -Po --max-count=1 '"sha": "\K.*?(?=")'
 }
 
 function setup_liqo_version() {
@@ -200,12 +204,21 @@ function setup_liqo_version() {
 		warn "[PRE-FLIGHT] [DOWNLOAD]" "A Liqo commit has been specified: using the development version"
 		LIQO_IMAGE_VERSION=${LIQO_VERSION}
 		LIQO_SUFFIX="-ci"
+
+		# Using the Liqo Dashboard version from master
+		warn "[PRE-FLIGHT] [DOWNLOAD]" "An unreleased version of Liqo Dashboard is going to be downloaded"
+		LIQO_DASHBOARD_IMAGE_VERSION=$(get_repo_master_commit ${LIQO_DASHBOARD_REPO}) ||
+			fatal "[PRE-FLIGHT] [DOWNLOAD]" "Failed to retrieve the latest commit of the master branch"
 		return 0
 	fi
 
 	# Obtain the list of Liqo tags
 	local LIQO_TAGS
-	LIQO_TAGS=$(get_liqo_tags)
+	LIQO_TAGS=$(get_repo_tags ${LIQO_REPO})
+
+	#Obtain the list of Liqo Dashboard tags
+	local LIQO_DASHBOARD_TAGS
+	LIQO_DASHBOARD_TAGS=$(get_repo_tags ${LIQO_DASHBOARD_REPO})
 
 	# If no version has been specified, select the latest tag (if available)
 	LIQO_VERSION=${LIQO_VERSION:-$(printf "%s" "${LIQO_TAGS}" | head --lines=1)}
@@ -215,11 +228,21 @@ function setup_liqo_version() {
 		printf "%s" "${LIQO_TAGS}" | grep -P --silent "^${LIQO_VERSION}$" ||
 			fatal "[PRE-FLIGHT] [DOWNLOAD]" "The requested Liqo version '${LIQO_VERSION}' does not exist"
 		LIQO_IMAGE_VERSION=${LIQO_VERSION}
+		
+		# Also check if the relative dashboard version exists
+		printf "%s" "${LIQO_DASHBOARD_TAGS}" | grep -P --silent "^${LIQO_VERSION}$" ||
+			fatal "[PRE-FLIGHT] [DOWNLOAD]" "The requested Liqo Dashboard version '${LIQO_VERSION}' does not exist"
+		LIQO_DASHBOARD_IMAGE_VERSION=${LIQO_VERSION}
 
 	else
 		# Using the version from master
-		warn "[PRE-FLIGHT] [DOWNLOAD]" "An unreleased version of Liqo is going to be installed"
-		LIQO_IMAGE_VERSION=$(get_liqo_master_commit) ||
+		warn "[PRE-FLIGHT] [DOWNLOAD]" "An unreleased version of Liqo is going to be downloaded"
+		LIQO_IMAGE_VERSION=$(get_repo_master_commit ${LIQO_REPO}) ||
+			fatal "[PRE-FLIGHT] [DOWNLOAD]" "Failed to retrieve the latest commit of the master branch"
+
+		# Using the Liqo Dashboard version from master
+		warn "[PRE-FLIGHT] [DOWNLOAD]" "An unreleased version of Liqo Dashboard is going to be downloaded"
+		LIQO_DASHBOARD_IMAGE_VERSION=$(get_repo_master_commit ${LIQO_DASHBOARD_REPO}) ||
 			fatal "[PRE-FLIGHT] [DOWNLOAD]" "Failed to retrieve the latest commit of the master branch"
 	fi
 }
@@ -246,7 +269,7 @@ function download_helm() {
 
 	info "[PRE-FLIGHT] [DOWNLOAD]" "Downloading Helm ${HELM_VERSION}"
 	command_exists tar || fatal "[PRE-FLIGHT] [DOWNLOAD]" "'tar' is not available"
-	download "${HELM_URL}" | tar zxf - --directory="${BINDIR}" --wildcards '*/helm' --strip 1 ||
+	download "${HELM_URL}" | tar zxf - --directory="${BINDIR}" --wildcards '*/helm' --strip 1 2>/dev/null ||
 		fatal "[PRE-FLIGHT] [DOWNLOAD]" "Something went wrong while extracting the Helm archive"
 	HELM="${BINDIR}/helm"
 }
@@ -255,7 +278,7 @@ function download_liqo() {
 	info "[PRE-FLIGHT] [DOWNLOAD]" "Downloading Liqo (version: ${LIQO_VERSION})"
 	command_exists tar || fatal "[PRE-FLIGHT] [DOWNLOAD]" "'tar' is not available"
 	local LIQO_DOWNLOAD_URL=https://github.com/liqotech/liqo/archive/${LIQO_VERSION}.tar.gz
-	download "${LIQO_DOWNLOAD_URL}" | tar zxf - --directory="${TMPDIR}" --strip 1 ||
+	download "${LIQO_DOWNLOAD_URL}" | tar zxf - --directory="${TMPDIR}" --strip 1 2>/dev/null ||
 		fatal "[PRE-FLIGHT] [DOWNLOAD]" "Something went wrong while extracting the Liqo archive"
 }
 
@@ -366,6 +389,7 @@ function install_liqo() {
 	${HELM} install liqo --kube-context "${KUBECONFIG_CONTEXT}" --namespace "${LIQO_NAMESPACE}" "${LIQO_CHART}" \
 		--set global.version="${LIQO_IMAGE_VERSION}" --set global.suffix="${LIQO_SUFFIX:-}" --set clusterName="${CLUSTER_NAME}" \
 		--set podCIDR="${POD_CIDR}" --set serviceCIDR="${SERVICE_CIDR}" --set gatewayIP="${GATEWAY_IP}" \
+		--set global.dashboard_version="${LIQO_DASHBOARD_IMAGE_VERSION}" \
 		--set global.dashboard_ingress="${DASHBOARD_INGRESS:-}" >/dev/null ||
 			fatal "[INSTALL]" "Something went wrong while installing Liqo"
 
@@ -384,11 +408,6 @@ function unjoin_clusters() {
 
 	info "[UNINSTALL] [UNJOIN]" "Unjoining from all peers"
 
-	# Avoid waiting it no peers were estabished
-	if all_clusters_unjoined; then
-		return 0
-	fi
-
 	# Globally disable the broadcaster
 	local CLUSTER_CONFIG_PATCH='{"spec":{"advertisementConfig":{"outgoingConfig":{"enableBroadcaster":false}}}}'
 	${KUBECTL} patch clusterconfig configuration --patch "${CLUSTER_CONFIG_PATCH}" --type 'merge' >/dev/null 2>&1
@@ -401,7 +420,7 @@ function unjoin_clusters() {
 
 	info "[UNINSTALL] [UNJOIN]" "Waiting for the unjoining process to complete..."
 
-	local RETRIES=60
+	local RETRIES=600
 	while ! all_clusters_unjoined; do
 		RETRIES=$(( RETRIES-1 ))
 		[ "${RETRIES}" -gt 0 ] ||

@@ -40,7 +40,7 @@ spec:
           command: [ "/bin/sh" ]
           args: [ "-c", 'openssl req -x509 -subj "/C=IT/ST=Turin/O=Liqo" -nodes -days 365 -newkey rsa:2048 -keyout /etc/nginx/ssl/nginx.key -out /etc/nginx/ssl/nginx.cert' ]
       containers:
-        - image: {{ .Values.image.repository }}:{{ .Values.version }}
+        - image: {{ .Values.image.repository }}:{{ .Values.global.dashboard_version | default .Values.version }}
           volumeMounts:
             - name: shared-data
               mountPath: /etc/nginx/ssl/
