@@ -33,6 +33,7 @@ require (
 	github.com/gorilla/websocket v1.4.1 // indirect
 	github.com/grandcat/zeroconf v1.0.0
 	github.com/grpc-ecosystem/go-grpc-middleware v1.1.0 // indirect
+	github.com/gruntwork-io/terratest v0.30.6 // indirect
 	github.com/jirfag/go-printf-func-name v0.0.0-20200119135958-7558a9eaa5af // indirect
 	github.com/joho/godotenv v1.3.0
 	github.com/lib/pq v1.3.0 // indirect

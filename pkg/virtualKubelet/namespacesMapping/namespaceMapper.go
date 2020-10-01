@@ -13,7 +13,10 @@ import (
 	"k8s.io/client-go/util/retry"
 	"k8s.io/klog"
 	"strings"
+	"time"
 )
+
+var cacheResyncPeriod = 10 * time.Second
 
 type namespaceNTCache struct {
 	Store            cache.Store
@@ -59,7 +62,7 @@ func (m *NamespaceMapper) startNattingCache(clientSet crdClient.NamespacedCRDCli
 
 	m.cache.Store, m.cache.Controller, err = crdClient.WatchResources(clientSet,
 		"namespacenattingtables", "",
-		5, ehf, lo)
+		cacheResyncPeriod, ehf, lo)
 	if err != nil {
 		return err
 	}
@@ -209,11 +212,11 @@ func (m *NamespaceMapper) createNattingTable(name string) error {
 }
 
 func (m *NamespaceMapper) manageReflections(oldObj interface{}, newObj interface{}) {
-	var oldNattingTable map[string]string
+	var oldNattingTable = make(map[string]string)
 
-	newNattingTable := newObj.(*nattingv1.NamespaceNattingTable).Spec.NattingTable
+	newNattingTable := newObj.(*nattingv1.NamespaceNattingTable).DeepCopy().Spec.NattingTable
 	if oldObj != nil {
-		oldNattingTable = oldObj.(*nattingv1.NamespaceNattingTable).Spec.NattingTable
+		oldNattingTable = oldObj.(*nattingv1.NamespaceNattingTable).DeepCopy().Spec.NattingTable
 	}
 
 	for localNs, remoteNs := range newNattingTable {
