@@ -1,0 +1,99 @@
+# Default values for liqo.
+# This is a YAML-formatted file.
+# Declare variables to be passed into your templates.
+
+##### Needed
+suffix: ""
+version: "latest"
+
+#configuration values for the adv subchart
+advertisementOperator:
+  advController:
+    image:
+      repository: "liqo/advertisement-operator"
+      pullPolicy: "IfNotPresent"
+  broadcaster:
+    image:
+      repository: "liqo/advertisement-broadcaster"
+      pullPolicy: "IfNotPresent"
+  enabled: true
+
+#configuration values for the networkModule subchart
+networkModule:
+  routeOperator:
+    image:
+      repository: "liqo/liqonet"
+      pullPolicy: "IfNotPresent"
+  tunnelEndpointOperator:
+    image:
+      repository: "liqo/liqonet"
+      pullPolicy: "IfNotPresent"
+  enabled: true
+
+#configuration values for the tunnelendpointCreator subchart
+tunnelEndpointCreator:
+  image:
+    repository: "liqo/liqonet"
+    pullPolicy: "IfNotPresent"
+  enabled: true
+
+#configuration values for the schedulingNode subchart
+schedulingNodeOperator:
+  image:
+    repository: "liqo/scheduling-node-operator"
+    pullPolicy: "IfNotPresent"
+  enabled: true
+
+#configuration values for the mutatingWebhook subchart
+podMutator:
+  init-mutatingWebhook:
+    image:
+      repository: "liqo/init-pod-mutator"
+      pullPolicy: "IfNotPresent"
+  mutatingWebhook:
+    image:
+      repository: "liqo/pod-mutator"
+      pullPolicy: "IfNotPresent"
+  enabled: true
+
+discoveryOperator:
+  image:
+    repository: "liqo/discovery"
+    pullPolicy: "IfNotPresent"
+  apiServerIp: ""
+  apiServerPort: ""
+  enabled: true
+
+peeringRequestOperator:
+  operator:
+    image:
+      repository: "liqo/peering-request-operator"
+      pullPolicy: "IfNotPresent"
+  secretCreation:
+    image:
+      repository: "liqo/secret-creation"
+      pullPolicy: "IfNotPresent"
+  deployment:
+    image:
+      repository: "liqo/peering-request-webhook-init"
+      pullPolicy: "IfNotPresent"
+  enabled: true
+
+liqodash:
+  image:
+    repository: "liqo/dashboard"
+    pullPolicy: "IfNotPresent"
+  enabled: true
+
+crdReplicator:
+  image:
+    repository: "liqo/crdreplicator"
+    pullPolicy: "IfNotPresent"
+  enabled: true
+
+global:
+  configmapName: "liqo-configmap"
+  dashboard_ingress: ""
+  dashboard_version: ""
+  suffix: ""
+  version: ""

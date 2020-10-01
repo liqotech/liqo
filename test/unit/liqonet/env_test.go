@@ -67,7 +67,7 @@ func getConfigClusterCRDClient(config *rest.Config) *crdClient.CRDClient {
 
 func setupEnv() {
 	testEnv = &envtest.Environment{
-		CRDDirectoryPaths: []string{filepath.Join("..", "..", "..", "deployments", "liqo_chart", "crds")},
+		CRDDirectoryPaths: []string{filepath.Join("..", "..", "..", "deployments", "liqo", "crds")},
 	}
 
 	config, err := testEnv.Start()

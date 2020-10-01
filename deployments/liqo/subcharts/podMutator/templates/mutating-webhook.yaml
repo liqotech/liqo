@@ -1,0 +1,126 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: podmutatoraccount
+  labels:
+    k8s-app: discovery
+    app: liqo.io
+---
+apiVersion: rbac.authorization.k8s.io/v1beta1
+kind: ClusterRoleBinding
+metadata:
+  name: podmutatoraccount
+  labels:
+    k8s-app: discovery
+    app: liqo.io
+subjects:
+  - kind: ServiceAccount
+    name: podmutatoraccount
+    namespace: {{ .Release.Namespace }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: cluster-admin
+
+---
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: mutatepodtoleration
+  labels:
+    k8s-app: discovery
+    app: liqo.io
+spec:
+  selector:
+    app: mutatepodtoleration
+  ports:
+    - port: 443
+      targetPort: 8443
+
+---
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: podmutator
+  labels:
+    app: mutatepodtoleration
+spec:
+  selector:
+    matchLabels:
+      app: mutatepodtoleration
+  template:
+    metadata:
+      labels:
+        app: mutatepodtoleration
+    spec:
+      serviceAccountName: podmutatoraccount
+      initContainers:
+      - name: secret-creation
+        image: {{ .Values.secretCreation.image.repository }}{{ .Values.global.suffix | default .Values.suffix }}:{{ .Values.global.version | default .Values.version }}
+        imagePullPolicy: Always
+        args:
+          - "--namespace"
+          - {{ .Release.Namespace }}
+          - "--service"
+          - "mutatepodtoleration"
+          - "--secret"
+          - "pod-mutator-secret"
+          - "--export-env-vars"
+          - "--output-env-file"
+          - "/etc/environment/liqo/env"
+          - "--output-dir"
+          - "/etc/ssl/liqo"
+        volumeMounts:
+          - mountPath: /etc/ssl/liqo
+            name: certs-volume
+          - mountPath: /etc/environment/liqo
+            name: env-volume
+        resources:
+          limits:
+            cpu: 100m
+            memory: 100M
+          requests:
+            cpu: 100m
+            memory: 100M
+      - name: pod-mutator-deployment
+        image: {{ .Values.initMutatingWebhook.image.repository }}{{ .Values.global.suffix | default .Values.suffix }}:{{ .Values.global.version | default .Values.version }}
+        imagePullPolicy: Always
+        args:
+          - "--input-env-file"
+          - "/etc/environment/liqo/env"
+        volumeMounts:
+          - mountPath: /etc/environment/liqo
+            name: env-volume
+        resources:
+          limits:
+            cpu: 100m
+            memory: 50M
+          requests:
+            cpu: 100m
+            memory: 50M
+      containers:
+      - name: podmutator
+        image: {{ .Values.mutatingWebhook.image.repository }}{{ .Values.global.suffix | default .Values.suffix }}:{{ .Values.global.version | default .Values.version }}
+        imagePullPolicy: Always
+        args:
+          - "--input-env-file"
+          - "/etc/environment/liqo/env"
+        volumeMounts:
+        - mountPath: /etc/ssl/liqo
+          name: certs-volume
+        - mountPath: /etc/environment/liqo
+          name: env-volume
+        resources:
+          limits:
+            cpu: 100m
+            memory: 50M
+          requests:
+            cpu: 100m
+            memory: 50M
+      volumes:
+        - name: certs-volume
+          emptyDir: {}
+        - name: env-volume
+          emptyDir: {}

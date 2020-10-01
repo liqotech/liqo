@@ -109,7 +109,7 @@ func setupEnv() {
 	for i := 1; i <= numberPeeringClusters; i++ {
 		peeringClusterID := peeringIDTemplate + fmt.Sprintf("%d", i)
 		peeringClustersTestEnvs[peeringClusterID] = &envtest.Environment{
-			CRDDirectoryPaths: []string{filepath.Join("..", "..", "..", "deployments", "liqo_chart", "crds")},
+			CRDDirectoryPaths: []string{filepath.Join("..", "..", "..", "deployments", "liqo", "crds")},
 		}
 	}
 	//start the peering environments, save the managers, create dynamic clients
@@ -140,7 +140,7 @@ func setupEnv() {
 	}
 	//setup the local testing environment
 	testEnvLocal = &envtest.Environment{
-		CRDDirectoryPaths: []string{filepath.Join("..", "..", "..", "deployments", "liqo_chart", "crds")},
+		CRDDirectoryPaths: []string{filepath.Join("..", "..", "..", "deployments", "liqo", "crds")},
 	}
 	configLocal, err := testEnvLocal.Start()
 	if err != nil {

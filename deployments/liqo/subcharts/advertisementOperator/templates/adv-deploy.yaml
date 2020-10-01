@@ -1,0 +1,86 @@
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: advertisement-operator
+  namespace: {{ .Release.Namespace }}
+  labels:
+    k8s-app: advertisement-operator
+    app: liqo.io
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: advertisement-operator
+  labels:
+    k8s-app: advertisement-operator
+    app: liqo.io
+subjects:
+  - kind: ServiceAccount
+    name: advertisement-operator
+    namespace: {{ .Release.Namespace }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: cluster-admin
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  namespace: {{ .Release.Namespace }}
+  labels:
+    run: advertisement-operator
+    app: liqo.io
+  name: advertisement-operator
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      run: advertisement-operator
+  template:
+    metadata:
+      labels:
+        run: advertisement-operator
+    spec:
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+              - matchExpressions:
+                  - key: type
+                    operator: NotIn
+                    values:
+                      - virtual-node
+      serviceAccountName: advertisement-operator
+      containers:
+      - image: {{ .Values.advController.image.repository }}{{ .Values.global.suffix | default .Values.suffix }}:{{ .Values.global.version | default .Values.version }}
+        imagePullPolicy: {{ .Values.advController.image.pullPolicy }}
+        name: advertisement-operator
+        command: ["/usr/bin/advertisement-operator"]
+        args:
+          - "--cluster-id"
+          - "$(CLUSTER_ID)"
+          - "--kubelet-namespace"
+          - "$(POD_NAMESPACE)"
+          - "--kubelet-image"
+          - {{ .Values.virtualKubelet.image.repository }}{{ .Values.global.suffix | default .Values.suffix }}:{{ .Values.global.version | default .Values.version }}
+          - "--init-kubelet-image"
+          - {{ .Values.initVk.image.repository }}{{ .Values.global.suffix | default .Values.suffix }}:{{ .Values.global.version | default .Values.version }}
+        env:
+          - name: CLUSTER_ID
+            valueFrom:
+              configMapKeyRef:
+                name: cluster-id
+                key: cluster-id
+          - name: POD_NAMESPACE
+            valueFrom:
+             fieldRef:
+               fieldPath: metadata.namespace
+        resources:
+          limits:
+            cpu: 100m
+            memory: 50M
+          requests:
+            cpu: 100m
+            memory: 50M
+

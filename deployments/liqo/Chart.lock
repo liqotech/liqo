@@ -1,0 +1,30 @@
+dependencies:
+- name: advertisementOperator
+  repository: file://subcharts/advertisementOperator/
+  version: 0.1.0
+- name: networkModule
+  repository: file://subcharts/networkModule/
+  version: 0.1.0
+- name: tunnelEndpointCreator
+  repository: file://subcharts/tunnelEndpointCreator/
+  version: 0.1.0
+- name: schedulingNodeOperator
+  repository: file://subcharts/schedulingNodeOperator/
+  version: 0.1.0
+- name: podMutator
+  repository: file://subcharts/podMutator/
+  version: 0.1.0
+- name: discoveryOperator
+  repository: file://subcharts/discoveryOperator/
+  version: 0.1.0
+- name: peeringRequestOperator
+  repository: file://subcharts/peeringRequestOperator/
+  version: 0.1.0
+- name: liqoDash
+  repository: file://subcharts/liqoDash/
+  version: 0.1.0
+- name: crdReplicator
+  repository: file://subcharts/crdReplicator/
+  version: 0.1.0
+digest: sha256:1d2daeb4e2683328ed05687c095ad4ea7956fa2040c281bd327e1351b6df357e
+generated: "2020-10-02T08:16:19.280293895+02:00"

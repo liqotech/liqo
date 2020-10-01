@@ -1,0 +1,144 @@
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: route-operator-service-account
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  creationTimestamp: null
+  name: route-operator-manager-role
+rules:
+  - apiGroups:
+      - ""
+    resources:
+      - nodes
+    verbs:
+      - get
+      - list
+  - apiGroups:
+      - net.liqo.io
+    resources:
+      - tunnelendpoints
+    verbs:
+      - create
+      - delete
+      - get
+      - list
+      - patch
+      - update
+      - watch
+  - apiGroups:
+      - net.liqo.io
+    resources:
+      - tunnelendpoints/status
+    verbs:
+      - get
+      - patch
+      - update
+  - apiGroups:
+      - config.liqo.io
+    resources:
+     - clusterconfigs
+    verbs:
+      - create
+      - delete
+      - get
+      - list
+      - patch
+      - update
+      - watch
+  - apiGroups:
+     - ""
+    resources:
+     - events
+    verbs:
+      - create
+      - patch
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: route-operator-manager-rolebinding
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: route-operator-manager-role
+subjects:
+  - kind: ServiceAccount
+    name: route-operator-service-account
+    namespace: {{ .Release.Namespace }}
+---
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  labels:
+    run: route-operator
+  name: route-operator
+spec:
+  selector:
+    matchLabels:
+      run: route-operator
+  template:
+    metadata:
+      labels:
+        run: route-operator
+    spec:
+      tolerations:
+        - key: CriticalAddonsOnly
+          operator: Exists
+        - effect: NoSchedule
+          key: node-role.kubernetes.io/master
+        - effect: NoExecute
+          key: node.kubernetes.io/not-ready
+          operator: Exists
+          tolerationSeconds: 300
+        - effect: NoExecute
+          key: node.kubernetes.io/unreachable
+          operator: Exists
+          tolerationSeconds: 300
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+              - matchExpressions:
+                  - key: type
+                    operator: NotIn
+                    values:
+                      - virtual-node
+      serviceAccountName: route-operator-service-account
+      containers:
+        - image: {{ .Values.routeOperator.image.repository }}{{ .Values.global.suffix | default .Values.suffix }}:{{ .Values.global.version | default .Values.version }}
+          imagePullPolicy: {{ .Values.routeOperator.image.pullPolicy }}
+          name: route-operator
+          command: ["/usr/bin/liqonet"]
+          args: ["-run-as=route-operator"]
+          resources:
+            limits:
+              cpu: 100m
+              memory: 80M
+            requests:
+              cpu: 100m
+              memory: 80M
+          securityContext:
+            privileged: true
+          env:
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: POD_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            - name: POD_IP
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.podIP
+            - name: NODE_NAME
+              valueFrom:
+               fieldRef:
+                 fieldPath: spec.nodeName
+      hostNetwork: true
+      restartPolicy: Always
