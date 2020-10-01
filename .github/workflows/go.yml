@@ -61,8 +61,7 @@ jobs:
           dockerfile: build/${{ matrix.component }}/Dockerfile
           password: ${{ secrets.DOCKER_PASSWORD }}
           tags: "latest,${{ steps.get_version.outputs.VERSION }}"
-        if: github.ref == 'refs/heads/master' && github.event.repository.full_name == 'liqotech/liqo' &&
-          startsWith(github.ref, 'refs/tags/v')
+        if: github.event.repository.full_name == 'liqotech/liqo' && startsWith(github.ref, 'refs/tags/v')
       - name: Push ${{ matrix.component }} image on repo (Development)
         uses: elgohr/Publish-Docker-Github-Action@master
         with:
