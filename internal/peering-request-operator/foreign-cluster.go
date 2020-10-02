@@ -2,7 +2,7 @@ package peering_request_operator
 
 import (
 	"errors"
-	"github.com/liqotech/liqo/api/discovery/v1alpha1"
+	"github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/rest"

@@ -2,8 +2,8 @@ package main
 
 import (
 	"flag"
-	configv1alpha1 "github.com/liqotech/liqo/api/config/v1alpha1"
-	discoveryv1alpha1 "github.com/liqotech/liqo/api/discovery/v1alpha1"
+	configv1alpha1 "github.com/liqotech/liqo/apis/config/v1alpha1"
+	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	"github.com/liqotech/liqo/internal/crdReplicator"
 	util "github.com/liqotech/liqo/pkg/liqonet"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"

@@ -1,7 +1,7 @@
 package test
 
 import (
-	v1 "github.com/liqotech/liqo/api/virtualKubelet/v1alpha1"
+	v1 "github.com/liqotech/liqo/apis/virtualKubelet/v1alpha1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 

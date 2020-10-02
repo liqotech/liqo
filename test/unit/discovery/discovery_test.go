@@ -3,9 +3,9 @@ package discovery
 import (
 	"context"
 	"encoding/base64"
-	configv1alpha1 "github.com/liqotech/liqo/api/config/v1alpha1"
-	"github.com/liqotech/liqo/api/discovery/v1alpha1"
-	advtypes "github.com/liqotech/liqo/api/sharing/v1alpha1"
+	configv1alpha1 "github.com/liqotech/liqo/apis/config/v1alpha1"
+	"github.com/liqotech/liqo/apis/discovery/v1alpha1"
+	advtypes "github.com/liqotech/liqo/apis/sharing/v1alpha1"
 	"github.com/liqotech/liqo/internal/discovery"
 	foreign_cluster_operator "github.com/liqotech/liqo/internal/discovery/foreign-cluster-operator"
 	"github.com/liqotech/liqo/internal/discovery/kubeconfig"

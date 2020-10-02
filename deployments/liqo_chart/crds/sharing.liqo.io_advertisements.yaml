@@ -214,7 +214,7 @@ spec:
             description: AdvertisementStatus defines the observed state of Advertisement
             properties:
               advertisementStatus:
-                description: AdvertisementStatus is the status of this Advertisement. When the adv is created it is checked by the operator, which sets this field to "Accepted" or "Refused" on tha base of cluster configuration. If the Advertisement is accepted a virtual-kubelet for the foreign cluster will be created. When the cluster wants to stop sharing its resources, it sets AdvertisementStatus to "Deleting" to allow the virtual-kubelet to delete the resources it had created, then the Advertisement is deleted.
+                description: AdvertisementStatus is the status of this Advertisement. When the adv is created it is checked by the operator, which sets this field to "Accepted" or "Refused" on tha base of cluster configuration. If the Advertisement is accepted a virtual-kubelet for the foreign cluster will be created.
                 enum:
                 - ""
                 - Accepted

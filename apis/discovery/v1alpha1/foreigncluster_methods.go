@@ -4,7 +4,7 @@ import (
 	"context"
 	"crypto/x509"
 	goerrors "errors"
-	advtypes "github.com/liqotech/liqo/api/sharing/v1alpha1"
+	advtypes "github.com/liqotech/liqo/apis/sharing/v1alpha1"
 	"github.com/liqotech/liqo/pkg/crdClient"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"

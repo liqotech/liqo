@@ -3,7 +3,7 @@ package advertisementOperator
 import (
 	"context"
 	"errors"
-	advtypes "github.com/liqotech/liqo/api/sharing/v1alpha1"
+	advtypes "github.com/liqotech/liqo/apis/sharing/v1alpha1"
 	appsv1 "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"

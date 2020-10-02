@@ -1,6 +1,4 @@
 
-# Image URL to use all building/pushing image targets
-IMG ?= controller:latest
 # Produce CRDs that work back to Kubernetes 1.11 (no version conversion)
 CRD_OPTIONS ?= "crd:trivialVersions=true"
 
@@ -11,31 +9,34 @@ else
 GOBIN=$(shell go env GOBIN)
 endif
 
-all: test
+gen: generate fmt vet manifests
 
-# Run tests
-test: generate fmt vet manifests
-	#go test ./... -coverprofile cover.out
+#run all tests
+test: unit e2e
 
-# Build manager binary
-manager: generate fmt vet
-	go build -o bin/manager ./cmd/discovery/main.go
+# Run unit tests
+unit: gen
+	go test $(shell go list ./... | grep -v "e2e")
 
-# Run against the configured Kubernetes cluster in ~/.kube/config
-run: generate fmt vet manifests
-	go run ./cmd/discovery/main.go
+# Run e2e tests
+e2e: gen
+	go test $(shell go list ./... | grep "e2e")
 
-# Install CRDs into a cluster
+# Install LIQO into a cluster
 install: manifests
-	kubectl apply -f deployments/liqo_chart/crds/foreign-cluster-crd
+	./install.sh
 
-# Uninstall CRDs from a cluster
+# Uninstall LIQO from a cluster
 uninstall: manifests
-	kubectl delete -f deployments/liqo_chart/crds/foreign-cluster-crd
+	./install.sh --uninstall
+
+# Uninstall LIQO from a cluster with purge flag
+purge: manifests
+	./install.sh --uninstall --purge
 
 # Generate manifests e.g. CRD, RBAC etc.
 manifests: controller-gen
-	$(CONTROLLER_GEN) $(CRD_OPTIONS) paths="./api/discovery/v1alpha1" output:crd:artifacts:config=deployments/liqo_chart/crds
+	$(CONTROLLER_GEN) $(CRD_OPTIONS) paths="./..." output:crd:artifacts:config=deployments/liqo_chart/crds
 
 # Run go fmt against code
 fmt:
@@ -47,15 +48,7 @@ vet:
 
 # Generate code
 generate: controller-gen
-	$(CONTROLLER_GEN) object:headerFile=./hack/boilerplate.go.txt paths="./api/discovery/v1alpha1"
-
-# Build the docker image
-docker-build: test
-	docker build -f build/discovery/Dockerfile . -t ${IMG}
-
-# Push the docker image
-docker-push:
-	docker push ${IMG}
+	$(CONTROLLER_GEN) object:headerFile="hack/boilerplate.go.txt" paths="./..."
 
 # find or download controller-gen
 # download controller-gen if necessary

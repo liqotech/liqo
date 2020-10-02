@@ -14,9 +14,9 @@ import (
 	"sync"
 	"time"
 
-	configv1alpha1 "github.com/liqotech/liqo/api/config/v1alpha1"
-	discoveryv1alpha1 "github.com/liqotech/liqo/api/discovery/v1alpha1"
-	advtypes "github.com/liqotech/liqo/api/sharing/v1alpha1"
+	configv1alpha1 "github.com/liqotech/liqo/apis/config/v1alpha1"
+	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
+	advtypes "github.com/liqotech/liqo/apis/sharing/v1alpha1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"

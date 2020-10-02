@@ -1,7 +1,7 @@
 package advertisement_operator
 
 import (
-	advtypes "github.com/liqotech/liqo/api/sharing/v1alpha1"
+	advtypes "github.com/liqotech/liqo/apis/sharing/v1alpha1"
 	pkg "github.com/liqotech/liqo/pkg/advertisement-operator"
 	"github.com/stretchr/testify/assert"
 	appsv1 "k8s.io/api/apps/v1"

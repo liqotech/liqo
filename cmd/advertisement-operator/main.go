@@ -17,7 +17,7 @@ package main
 
 import (
 	"flag"
-	discoveryv1alpha1 "github.com/liqotech/liqo/api/discovery/v1alpha1"
+	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	"github.com/liqotech/liqo/pkg/crdClient"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -28,8 +28,8 @@ import (
 	"os"
 	"time"
 
-	netv1alpha1 "github.com/liqotech/liqo/api/net/v1alpha1"
-	advtypes "github.com/liqotech/liqo/api/sharing/v1alpha1"
+	netv1alpha1 "github.com/liqotech/liqo/apis/net/v1alpha1"
+	advtypes "github.com/liqotech/liqo/apis/sharing/v1alpha1"
 	advop "github.com/liqotech/liqo/internal/advertisement-operator"
 	"github.com/liqotech/liqo/pkg/csrApprover"
 	ctrl "sigs.k8s.io/controller-runtime"

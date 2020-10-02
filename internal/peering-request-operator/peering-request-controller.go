@@ -19,7 +19,7 @@ package peering_request_operator
 import (
 	"context"
 	"errors"
-	discoveryv1alpha1 "github.com/liqotech/liqo/api/discovery/v1alpha1"
+	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	"github.com/liqotech/liqo/pkg/clusterID"
 	"github.com/liqotech/liqo/pkg/crdClient"
 	object_references "github.com/liqotech/liqo/pkg/object-references"

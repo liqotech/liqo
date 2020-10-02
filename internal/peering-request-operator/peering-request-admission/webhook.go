@@ -3,7 +3,7 @@ package peering_request_admission
 import (
 	"encoding/json"
 	"fmt"
-	discoveryv1alpha1 "github.com/liqotech/liqo/api/discovery/v1alpha1"
+	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	"github.com/liqotech/liqo/internal/peering-request-operator"
 	"github.com/liqotech/liqo/pkg/crdClient"
 	"io/ioutil"

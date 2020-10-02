@@ -40,8 +40,8 @@ type NamespaceNattingTableStatus struct {
 }
 
 // +kubebuilder:object:root=true
+// +kubebuilder:resource:shortName="nnt"
 // +kubebuilder:resource:scope=Cluster
-
 // NamespaceNattingTable is the Schema for the namespacenattingtables API
 type NamespaceNattingTable struct {
 	metav1.TypeMeta   `json:",inline"`

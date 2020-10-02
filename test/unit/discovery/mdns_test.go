@@ -1,7 +1,7 @@
 package discovery
 
 import (
-	"github.com/liqotech/liqo/api/discovery/v1alpha1"
+	"github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	"github.com/liqotech/liqo/internal/discovery"
 	"gotest.tools/assert"
 	"k8s.io/apimachinery/pkg/api/errors"

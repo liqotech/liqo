@@ -1,9 +1,9 @@
 package liqonet
 
 import (
-	configv1alpha1 "github.com/liqotech/liqo/api/config/v1alpha1"
-	netv1alpha1 "github.com/liqotech/liqo/api/net/v1alpha1"
-	advtypes "github.com/liqotech/liqo/api/sharing/v1alpha1"
+	configv1alpha1 "github.com/liqotech/liqo/apis/config/v1alpha1"
+	netv1alpha1 "github.com/liqotech/liqo/apis/net/v1alpha1"
+	advtypes "github.com/liqotech/liqo/apis/sharing/v1alpha1"
 	controllers "github.com/liqotech/liqo/internal/liqonet"
 	"github.com/liqotech/liqo/pkg/crdClient"
 	"github.com/liqotech/liqo/pkg/liqonet"

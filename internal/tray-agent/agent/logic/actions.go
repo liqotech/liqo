@@ -1,7 +1,7 @@
 package logic
 
 import (
-	advtypes "github.com/liqotech/liqo/api/sharing/v1alpha1"
+	advtypes "github.com/liqotech/liqo/apis/sharing/v1alpha1"
 	"github.com/liqotech/liqo/internal/tray-agent/agent/client"
 	app "github.com/liqotech/liqo/internal/tray-agent/app-indicator"
 )
