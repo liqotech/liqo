@@ -1,18 +1,43 @@
 #!/bin/bash
-
+CLUSTER_NAME=liqo-cluster
+CLUSTER_NAME_1=${CLUSTER_NAME}1
+CLUSTER_NAME_2=${CLUSTER_NAME}2
 echo "Cleaning: Deleting old clusters"
-kind delete cluster --name liqo1
-kind delete cluster --name liqo2
+kind delete cluster --name $CLUSTER_NAME_1
+kind delete cluster --name $CLUSTER_NAME_2
 
-echo "Creating cluster Liqo1..."
-kind create cluster --name liqo1 --kubeconfig liqo_kubeconf_1 --config liqo-cluster-config.yaml --wait 2m
+cat << EOF > liqo-cluster-config.yaml
+kind: Cluster
+apiVersion: kind.x-k8s.io/v1alpha4
+networking:
+  serviceSubnet: "10.90.0.0/12"
+  podSubnet: "10.200.0.0/16"
+nodes:
+  - role: control-plane
+    image: kindest/node:v1.19.1
+  - role: worker
+    image: kindest/node:v1.19.1
+EOF
 
-echo "Create cluster Liqo2..."
-kind create cluster --name liqo2 --kubeconfig liqo_kubeconf_2 --config liqo-cluster-config.yaml --wait 2m
+echo "Creating cluster $CLUSTER_NAME_1..."
+kind create cluster --name $CLUSTER_NAME_1 --kubeconfig liqo_kubeconf_1 --config liqo-cluster-config.yaml --wait 2m
+
+echo "Create cluster $CLUSTER_NAME_2..."
+kind create cluster --name $CLUSTER_NAME_2 --kubeconfig liqo_kubeconf_2 --config liqo-cluster-config.yaml --wait 2m
 
 echo ----------------
 CURRENT_DIRECTORY=$(pwd)
-echo "liqo1 KUBECONFIG=$CURRENT_DIRECTORY/liqo_kubeconf_1"
-echo "liqo2 KUBECONFIG=$CURRENT_DIRECTORY/liqo_kubeconf_2"
+#Environment variables for E2E testing
+export KUBECONFIG_1=$CURRENT_DIRECTORY/liqo_kubeconf_1
+export KUBECONFIG_2=$CURRENT_DIRECTORY/liqo_kubeconf_2
+export NAMESPACE=liqo
+echo "Exported Variables:"
+echo "- KUBECONFIG_1=$CURRENT_DIRECTORY/liqo_kubeconf_1"
+echo "- KUBECONFIG_2=$CURRENT_DIRECTORY/liqo_kubeconf_2"
+echo "- NAMESPACE=liqo"
+# shellcheck disable=SC2016
+echo "If you want to select $CLUSTER_NAME_1, you should simply type:" 'export KUBECONFIG=$KUBECONFIG_1'
+# shellcheck disable=SC2016
+echo "If you want to select $CLUSTER_NAME_2, you should simply type:" 'export KUBECONFIG=$KUBECONFIG_2'
 
 exit 0
