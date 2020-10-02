@@ -23,11 +23,11 @@ func TestDns(t *testing.T) {
 // tests if is able to get txtData from local DNS server
 func testDns(t *testing.T) {
 	targetTxts := []*discovery.TxtData{
-		getTxtData(clientCluster, "dns-client-cluster"),
-		getTxtData(serverCluster, "dns-server-cluster"),
+		getTxtData("https://client.test.liqo.io.:"+getPort(clientCluster.cfg.Host), "dns-client-cluster"),
+		getTxtData("https://server.test.liqo.io.:"+getPort(serverCluster.cfg.Host), "dns-server-cluster"),
 	}
 
-	txts, err := search_domain_operator.Wan("127.0.0.1:8053", registryDomain, true)
+	txts, err := search_domain_operator.Wan("127.0.0.1:8053", registryDomain)
 	assert.NilError(t, err, "Error during WAN DNS discovery")
 
 	assert.Equal(t, len(txts), len(targetTxts))
@@ -53,11 +53,11 @@ func testCname(t *testing.T) {
 	hasCname = true
 
 	targetTxts := []*discovery.TxtData{
-		getTxtData(clientCluster, "dns-client-cluster"),
-		getTxtData(serverCluster, "dns-server-cluster"),
+		getTxtData("https://client.test.liqo.io.:"+getPort(clientCluster.cfg.Host), "dns-client-cluster"),
+		getTxtData("https://server.test.liqo.io.:"+getPort(serverCluster.cfg.Host), "dns-server-cluster"),
 	}
 
-	txts, err := search_domain_operator.Wan("127.0.0.1:8053", registryDomain, true)
+	txts, err := search_domain_operator.Wan("127.0.0.1:8053", registryDomain)
 	assert.NilError(t, err, "Error during WAN DNS discovery")
 
 	assert.Equal(t, len(txts), len(targetTxts))
@@ -65,7 +65,7 @@ func testCname(t *testing.T) {
 		for _, target := range targetTxts {
 			contains := false
 			for _, txt := range txts {
-				if txt.ID == target.ID && strings.Contains(txt.ApiUrl, "https://cname.test.liqo.io.") && txt.Namespace == target.Namespace {
+				if txt.ID == target.ID && txt.Namespace == target.Namespace {
 					contains = true
 				}
 			}
@@ -82,11 +82,30 @@ func testCname(t *testing.T) {
 // ------
 // tests if SearchDomain operator is able to create ForeignClusters
 func testSDCreation(t *testing.T) {
-	tmp, err := clientCluster.client.Resource("foreignclusters").List(metav1.ListOptions{})
-	assert.NilError(t, err, "Error listing ForeignClusters")
-	fcs, ok := tmp.(*v1alpha1.ForeignClusterList)
-	assert.Equal(t, ok, true)
-	l := len(fcs.Items)
+	fcIncoming := &v1alpha1.ForeignCluster{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "dns-server-cluster",
+		},
+		Spec: v1alpha1.ForeignClusterSpec{
+			ClusterIdentity: v1alpha1.ClusterIdentity{
+				ClusterID: "dns-server-cluster",
+			},
+			Namespace:     "default",
+			Join:          false,
+			ApiUrl:        serverCluster.cfg.Host,
+			DiscoveryType: v1alpha1.IncomingPeeringDiscovery,
+		},
+		Status: v1alpha1.ForeignClusterStatus{
+			Incoming: v1alpha1.Incoming{
+				Joined:         true,
+				PeeringRequest: &v12.ObjectReference{},
+			},
+		},
+	}
+
+	// create an IncomingPeering ForeignCluster to be overwritten
+	_, err := clientCluster.client.Resource("foreignclusters").Create(fcIncoming, metav1.CreateOptions{})
+	assert.NilError(t, err)
 
 	sd := &v1alpha1.SearchDomain{
 		ObjectMeta: metav1.ObjectMeta{
@@ -103,20 +122,28 @@ func testSDCreation(t *testing.T) {
 	_, err = clientCluster.client.Resource("searchdomains").Create(sd, metav1.CreateOptions{})
 	assert.NilError(t, err, "Error creating SearchDomain")
 
-	time.Sleep(1 * time.Second)
+	time.Sleep(5 * time.Second)
 
-	tmp, err = clientCluster.client.Resource("searchdomains").List(metav1.ListOptions{})
+	tmp, err := clientCluster.client.Resource("searchdomains").List(metav1.ListOptions{})
 	assert.NilError(t, err)
 	sds, ok := tmp.(*v1alpha1.SearchDomainList)
 	assert.Equal(t, ok, true)
 	assert.Equal(t, len(sds.Items), 1, "SearchDomain not created")
 
-	tmp, err = clientCluster.client.Resource("foreignclusters").List(metav1.ListOptions{})
+	tmp, err = clientCluster.client.Resource("foreignclusters").List(metav1.ListOptions{
+		LabelSelector: strings.Join([]string{"discovery-type", string(v1alpha1.WanDiscovery)}, "="),
+	})
 	assert.NilError(t, err, "Error listing ForeignClusters")
-	fcs, ok = tmp.(*v1alpha1.ForeignClusterList)
+	fcs, ok := tmp.(*v1alpha1.ForeignClusterList)
 	assert.Equal(t, ok, true)
-	l2 := len(fcs.Items)
-	assert.Assert(t, l2-l == 2, "Foreign Cluster was not created")
+	l := len(fcs.Items)
+	assert.Assert(t, l == 2, "Foreign Cluster was not created")
+
+	tmp, err = clientCluster.client.Resource("foreignclusters").Get(fcIncoming.Name, metav1.GetOptions{})
+	assert.NilError(t, err)
+	fc, ok := tmp.(*v1alpha1.ForeignCluster)
+	assert.Assert(t, ok)
+	assert.Equal(t, fc.Spec.DiscoveryType, v1alpha1.WanDiscovery, "Discovery type was not set to WAN")
 }
 
 // ------
@@ -161,10 +188,14 @@ func testSDDelete(t *testing.T) {
 
 // utility functions
 
-func getTxtData(cluster *Cluster, id string) *discovery.TxtData {
+func getTxtData(url string, id string) *discovery.TxtData {
 	return &discovery.TxtData{
 		ID:        id,
 		Namespace: "default",
-		ApiUrl:    "https://" + cluster.cfg.Host,
+		ApiUrl:    url,
 	}
+}
+
+func getPort(url string) string {
+	return strings.Split(url, ":")[1]
 }

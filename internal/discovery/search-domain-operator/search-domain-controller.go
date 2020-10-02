@@ -20,6 +20,8 @@ type SearchDomainReconciler struct {
 	requeueAfter  time.Duration
 	crdClient     *crdClient.CRDClient
 	DiscoveryCtrl *discovery.DiscoveryCtrl
+
+	DnsAddress string
 }
 
 func (r *SearchDomainReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
@@ -49,7 +51,7 @@ func (r *SearchDomainReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error
 
 	update := false
 
-	txts, err := Wan("", sd.Spec.Domain, false)
+	txts, err := Wan(r.DnsAddress, sd.Spec.Domain)
 	if err != nil {
 		klog.Error(err, err.Error())
 		return ctrl.Result{

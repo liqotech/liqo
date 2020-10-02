@@ -6,7 +6,9 @@ import (
 	"github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	k8serror "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/klog"
+	"strings"
 )
 
 // 1. checks if cluster ID is already known
@@ -29,7 +31,7 @@ func (discovery *DiscoveryCtrl) UpdateForeign(data []*TxtData, sd *v1alpha1.Sear
 			// is local cluster
 			continue
 		}
-		tmp, err := discovery.crdClient.Resource("foreignclusters").Get(txtData.ID, metav1.GetOptions{})
+		fc, err := discovery.GetForeignClusterByID(txtData.ID)
 		if k8serror.IsNotFound(err) {
 			fc, err := discovery.createForeign(txtData, sd, discoveryType)
 			if err != nil {
@@ -39,13 +41,7 @@ func (discovery *DiscoveryCtrl) UpdateForeign(data []*TxtData, sd *v1alpha1.Sear
 			klog.Info("ForeignCluster " + txtData.ID + " created")
 			createdUpdatedForeign = append(createdUpdatedForeign, fc)
 		} else if err == nil {
-			fc, ok := tmp.(*v1alpha1.ForeignCluster)
-			if !ok {
-				err = errors.New("retrieved object is not a ForeignCluster")
-				klog.Error(err, err.Error())
-				continue
-			}
-			fc, err = discovery.CheckUpdate(txtData, fc, discoveryType)
+			fc, err = discovery.CheckUpdate(txtData, fc, discoveryType, sd)
 			if err != nil {
 				klog.Error(err, err.Error())
 				continue
@@ -168,11 +164,14 @@ func (discovery *DiscoveryCtrl) createForeign(txtData *TxtData, sd *v1alpha1.Sea
 	return fc, err
 }
 
-func (discovery *DiscoveryCtrl) CheckUpdate(txtData *TxtData, fc *v1alpha1.ForeignCluster, discoveryType v1alpha1.DiscoveryType) (*v1alpha1.ForeignCluster, error) {
-	if fc.Spec.ApiUrl != txtData.ApiUrl || fc.Spec.Namespace != txtData.Namespace {
+func (discovery *DiscoveryCtrl) CheckUpdate(txtData *TxtData, fc *v1alpha1.ForeignCluster, discoveryType v1alpha1.DiscoveryType, searchDomain *v1alpha1.SearchDomain) (*v1alpha1.ForeignCluster, error) {
+	if fc.Spec.ApiUrl != txtData.ApiUrl || fc.Spec.Namespace != txtData.Namespace || fc.HasHigherPriority(discoveryType) {
 		fc.Spec.ApiUrl = txtData.ApiUrl
 		fc.Spec.Namespace = txtData.Namespace
 		fc.Spec.DiscoveryType = discoveryType
+		if searchDomain != nil && discoveryType == v1alpha1.WanDiscovery {
+			fc.Spec.Join = searchDomain.Spec.AutoJoin
+		}
 		if fc.Status.Outgoing.CaDataRef != nil {
 			err := discovery.crdClient.Client().CoreV1().Secrets(fc.Status.Outgoing.CaDataRef.Namespace).Delete(context.TODO(), fc.Status.Outgoing.CaDataRef.Name, metav1.DeleteOptions{})
 			if err != nil {
@@ -218,4 +217,21 @@ func (discovery *DiscoveryCtrl) CheckUpdate(txtData *TxtData, fc *v1alpha1.Forei
 		return fc, nil
 	}
 	return fc, nil
+}
+
+func (discovery *DiscoveryCtrl) GetForeignClusterByID(clusterID string) (*v1alpha1.ForeignCluster, error) {
+	tmp, err := discovery.crdClient.Resource("foreignclusters").List(metav1.ListOptions{
+		LabelSelector: strings.Join([]string{"cluster-id", clusterID}, "="),
+	})
+	if err != nil {
+		return nil, err
+	}
+	fcs, ok := tmp.(*v1alpha1.ForeignClusterList)
+	if !ok || len(fcs.Items) == 0 {
+		return nil, k8serror.NewNotFound(schema.GroupResource{
+			Group:    v1alpha1.GroupVersion.Group,
+			Resource: "foreignclusters",
+		}, clusterID)
+	}
+	return &fcs.Items[0], nil
 }
