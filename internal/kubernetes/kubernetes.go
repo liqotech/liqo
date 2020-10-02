@@ -1,9 +1,9 @@
 package kubernetes
 
 import (
-	nettypes "github.com/liqotech/liqo/api/net/v1alpha1"
-	advtypes "github.com/liqotech/liqo/api/sharing/v1alpha1"
-	nattingv1 "github.com/liqotech/liqo/api/virtualKubelet/v1alpha1"
+	nettypes "github.com/liqotech/liqo/apis/net/v1alpha1"
+	advtypes "github.com/liqotech/liqo/apis/sharing/v1alpha1"
+	nattingv1 "github.com/liqotech/liqo/apis/virtualKubelet/v1alpha1"
 	"github.com/liqotech/liqo/internal/node"
 	"github.com/liqotech/liqo/pkg/crdClient"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/apiReflection/controller"

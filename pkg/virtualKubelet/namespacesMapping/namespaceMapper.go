@@ -3,7 +3,7 @@ package namespacesMapping
 import (
 	"context"
 	"errors"
-	nattingv1 "github.com/liqotech/liqo/api/virtualKubelet/v1alpha1"
+	nattingv1 "github.com/liqotech/liqo/apis/virtualKubelet/v1alpha1"
 	"github.com/liqotech/liqo/pkg/crdClient"
 	v1 "k8s.io/api/core/v1"
 	kerror "k8s.io/apimachinery/pkg/api/errors"

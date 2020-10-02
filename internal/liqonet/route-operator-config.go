@@ -1,7 +1,7 @@
 package liqonetOperators
 
 import (
-	configv1alpha1 "github.com/liqotech/liqo/api/config/v1alpha1"
+	configv1alpha1 "github.com/liqotech/liqo/apis/config/v1alpha1"
 	"github.com/liqotech/liqo/pkg/clusterConfig"
 	"github.com/liqotech/liqo/pkg/crdClient"
 	"k8s.io/apimachinery/pkg/runtime/schema"

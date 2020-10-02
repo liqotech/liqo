@@ -3,8 +3,8 @@ package kubernetes
 import (
 	"context"
 	"errors"
-	nettypes "github.com/liqotech/liqo/api/net/v1alpha1"
-	advtypes "github.com/liqotech/liqo/api/sharing/v1alpha1"
+	nettypes "github.com/liqotech/liqo/apis/net/v1alpha1"
+	advtypes "github.com/liqotech/liqo/apis/sharing/v1alpha1"
 	advertisementOperator "github.com/liqotech/liqo/internal/advertisement-operator"
 	controllers "github.com/liqotech/liqo/internal/liqonet"
 	"github.com/liqotech/liqo/internal/node"
@@ -113,7 +113,7 @@ func (p *KubernetesProvider) ReconcileNodeFromAdv(event watch.Event) error {
 			klog.Error(err)
 		}
 
-		if err := p.deleteAdv(adv); err != nil {
+		if err := p.handleAdvDelete(adv); err != nil {
 			klog.Errorf("something went wrong during advertisement deletion - %v", err)
 		}
 		return nil
@@ -298,7 +298,7 @@ func (p *KubernetesProvider) updateNode(node *v1.Node) error {
 	return p.nodeController.UpdateNodeFromOutside(false, node)
 }
 
-func (p *KubernetesProvider) deleteAdv(adv *advtypes.Advertisement) error {
+func (p *KubernetesProvider) handleAdvDelete(adv *advtypes.Advertisement) error {
 	if err := p.apiController.StopController(); err != nil {
 		return err
 	}

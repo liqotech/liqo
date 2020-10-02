@@ -2,8 +2,8 @@ package schedulingNodeOperator
 
 import (
 	"context"
-	"github.com/liqotech/liqo/api/scheduling/v1alpha1"
-	advtypes "github.com/liqotech/liqo/api/sharing/v1alpha1"
+	"github.com/liqotech/liqo/apis/scheduling/v1alpha1"
+	advtypes "github.com/liqotech/liqo/apis/sharing/v1alpha1"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/types"

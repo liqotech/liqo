@@ -19,9 +19,9 @@ package foreign_cluster_operator
 import (
 	"context"
 	goerrors "errors"
-	discoveryv1alpha1 "github.com/liqotech/liqo/api/discovery/v1alpha1"
-	nettypes "github.com/liqotech/liqo/api/net/v1alpha1"
-	advtypes "github.com/liqotech/liqo/api/sharing/v1alpha1"
+	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
+	nettypes "github.com/liqotech/liqo/apis/net/v1alpha1"
+	advtypes "github.com/liqotech/liqo/apis/sharing/v1alpha1"
 	"github.com/liqotech/liqo/internal/crdReplicator"
 	"github.com/liqotech/liqo/internal/discovery"
 	"github.com/liqotech/liqo/internal/discovery/kubeconfig"
@@ -413,8 +413,6 @@ func (r *ForeignClusterReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		For(&discoveryv1alpha1.ForeignCluster{}).
 		Owns(&advtypes.Advertisement{}).
 		Owns(&discoveryv1alpha1.PeeringRequest{}).
-		Owns(&nettypes.NetworkConfig{}).
-		Owns(&nettypes.TunnelEndpoint{}).
 		Complete(r)
 }
 

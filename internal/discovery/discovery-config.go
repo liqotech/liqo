@@ -2,7 +2,7 @@ package discovery
 
 import (
 	"context"
-	configv1alpha1 "github.com/liqotech/liqo/api/config/v1alpha1"
+	configv1alpha1 "github.com/liqotech/liqo/apis/config/v1alpha1"
 	"github.com/liqotech/liqo/pkg/clusterConfig"
 	"github.com/liqotech/liqo/pkg/crdClient"
 	rbacv1 "k8s.io/api/rbac/v1"

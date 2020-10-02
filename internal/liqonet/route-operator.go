@@ -18,7 +18,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/coreos/go-iptables/iptables"
-	netv1alpha1 "github.com/liqotech/liqo/api/net/v1alpha1"
+	netv1alpha1 "github.com/liqotech/liqo/apis/net/v1alpha1"
 	liqonetOperator "github.com/liqotech/liqo/pkg/liqonet"
 	"github.com/vishvananda/netlink"
 	k8sApiErrors "k8s.io/apimachinery/pkg/api/errors"

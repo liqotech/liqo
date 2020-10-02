@@ -4,7 +4,7 @@ import (
 	"context"
 	"errors"
 	"github.com/google/uuid"
-	discoveryv1alpha1 "github.com/liqotech/liqo/api/discovery/v1alpha1"
+	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	"github.com/liqotech/liqo/pkg/crdClient"
 	"io/ioutil"
 	v1 "k8s.io/api/core/v1"

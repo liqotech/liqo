@@ -2,7 +2,7 @@ package crdReplicator
 
 import (
 	"context"
-	netv1alpha1 "github.com/liqotech/liqo/api/net/v1alpha1"
+	netv1alpha1 "github.com/liqotech/liqo/apis/net/v1alpha1"
 	"github.com/stretchr/testify/assert"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -229,10 +229,9 @@ func TestCRDReplicatorReconciler_ModifiedHandler(t *testing.T) {
 	//the modified resource already exists on the cluster
 	//we expect the resource to be modified and the error to be nil
 	newSpec := map[string]interface{}{
-		"clusterID":       "clusterID-test-modified",
-		"podCIDR":         "10.0.0.0/12",
-		"tunnelPublicIP":  "192.16.5.1",
-		"tunnelPrivateIP": "192.168.4.1",
+		"clusterID":      "clusterID-test-modified",
+		"podCIDR":        "10.0.0.0/12",
+		"tunnelPublicIP": "192.16.5.1",
 	}
 	newStatus := map[string]interface{}{
 		"podCIDRNAT": "10.200.0.0/12",

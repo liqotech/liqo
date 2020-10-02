@@ -1,7 +1,7 @@
 package search_domain_operator
 
 import (
-	discoveryv1alpha1 "github.com/liqotech/liqo/api/discovery/v1alpha1"
+	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	"github.com/liqotech/liqo/internal/discovery"
 	"github.com/liqotech/liqo/pkg/crdClient"
 	"k8s.io/apimachinery/pkg/runtime"
