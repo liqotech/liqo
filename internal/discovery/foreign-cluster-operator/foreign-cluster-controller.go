@@ -83,7 +83,7 @@ func (r *ForeignClusterReconciler) Reconcile(req ctrl.Request) (ctrl.Result, err
 	requireUpdate := false
 
 	// set trust property
-	if fc.Status.TrustMode == discoveryv1alpha1.TrustModeUnknown {
+	if fc.Status.TrustMode == discoveryv1alpha1.TrustModeUnknown || fc.Status.TrustMode == "" {
 		trust, err := fc.CheckTrusted()
 		if err != nil {
 			klog.Error(err)
@@ -99,7 +99,7 @@ func (r *ForeignClusterReconciler) Reconcile(req ctrl.Request) (ctrl.Result, err
 		}
 		// set join flag
 		// if it was discovery with WAN discovery, this value is overwritten by SearchDomain value
-		if fc.Spec.DiscoveryType != discoveryv1alpha1.WanDiscovery && fc.Spec.DiscoveryType != discoveryv1alpha1.IncomingPeeringDiscovery {
+		if fc.Spec.DiscoveryType != discoveryv1alpha1.WanDiscovery && fc.Spec.DiscoveryType != discoveryv1alpha1.IncomingPeeringDiscovery && fc.Spec.DiscoveryType != discoveryv1alpha1.ManualDiscovery {
 			fc.Spec.Join = (r.getAutoJoin(fc) && fc.Status.TrustMode == discoveryv1alpha1.TrustModeTrusted) || (r.getAutoJoinUntrusted(fc) && fc.Status.TrustMode == discoveryv1alpha1.TrustModeUntrusted)
 		}
 

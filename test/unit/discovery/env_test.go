@@ -90,6 +90,7 @@ func getClientCluster() *Cluster {
 		&cluster.discoveryCtrl,
 		1*time.Minute,
 	)
+	cluster.sdReconciler.DnsAddress = "127.0.0.1:8053"
 	err = cluster.sdReconciler.SetupWithManager(mgr)
 	if err != nil {
 		klog.Error(err, err.Error())

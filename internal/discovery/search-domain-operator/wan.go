@@ -10,7 +10,7 @@ import (
 	"time"
 )
 
-func Wan(dnsAddr string, name string, test bool) ([]*discovery.TxtData, error) {
+func Wan(dnsAddr string, name string) ([]*discovery.TxtData, error) {
 	txtData := []*discovery.TxtData{}
 
 	if dnsAddr == "" {
@@ -44,7 +44,7 @@ func Wan(dnsAddr string, name string, test bool) ([]*discovery.TxtData, error) {
 			klog.Warning("Not PTR record: ", ans)
 			continue
 		}
-		txt, err := ResolveWan(c, dnsAddr, ptr, test)
+		txt, err := ResolveWan(c, dnsAddr, ptr)
 		if err != nil {
 			klog.Error(err, err.Error())
 			return nil, err
@@ -54,7 +54,7 @@ func Wan(dnsAddr string, name string, test bool) ([]*discovery.TxtData, error) {
 	return txtData, nil
 }
 
-func ResolveWan(c *dns.Client, dnsAddr string, ptr *dns.PTR, test bool) (*discovery.TxtData, error) {
+func ResolveWan(c *dns.Client, dnsAddr string, ptr *dns.PTR) (*discovery.TxtData, error) {
 	// SRV query
 	msg := GetDnsMsg(ptr.Ptr, dns.TypeSRV)
 	in, _, err := c.Exchange(msg, dnsAddr)
@@ -81,42 +81,7 @@ func ResolveWan(c *dns.Client, dnsAddr string, ptr *dns.PTR, test bool) (*discov
 		return nil, err
 	}
 
-	if test {
-		return completeResolution(c, dnsAddr, srv, txt)
-	} else {
-		// let http client to do A/CNAME resolution
-		return discovery.Decode(srv.Target, strconv.Itoa(int(srv.Port)), txt)
-	}
-}
-
-func completeResolution(c *dns.Client, dnsAddr string, srv *dns.SRV, txt []string) (*discovery.TxtData, error) {
-	// A query
-	msg := GetDnsMsg(srv.Target, dns.TypeA)
-	in, _, err := c.Exchange(msg, dnsAddr)
-	if err != nil {
-		klog.Error(err, err.Error())
-		return nil, err
-	}
-	if len(in.Answer) == 0 {
-		// no A record is set, let's try with CNAME
-		msg = GetDnsMsg(srv.Target, dns.TypeCNAME)
-		in, _, err = c.Exchange(msg, dnsAddr)
-		if err != nil {
-			klog.Error(err, err.Error())
-			return nil, err
-		}
-
-		if len(in.Answer) == 0 {
-			klog.Error("no A record or CNAME record is set for " + srv.Target)
-			return nil, errors.New("no A record or CNAME record is set for " + srv.Target)
-		}
-
-		cname := in.Answer[0].(*dns.CNAME)
-		return discovery.Decode(cname.Target, strconv.Itoa(int(srv.Port)), txt)
-	} else {
-		a := in.Answer[0].(*dns.A)
-		return discovery.Decode(a.A.String(), strconv.Itoa(int(srv.Port)), txt)
-	}
+	return discovery.Decode(srv.Target, strconv.Itoa(int(srv.Port)), txt)
 }
 
 func GetDnsMsg(name string, qType uint16) *dns.Msg {

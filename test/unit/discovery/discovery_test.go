@@ -374,7 +374,7 @@ func testMergeClusters(t *testing.T) {
 		Namespace: fc.Spec.Namespace,
 		ApiUrl:    strings.Replace(fc.Spec.ApiUrl, "127.0.0.1", "127.0.0.2", -1),
 	}
-	fc, err = clientCluster.discoveryCtrl.CheckUpdate(txt, fc, fc.Spec.DiscoveryType)
+	fc, err = clientCluster.discoveryCtrl.CheckUpdate(txt, fc, fc.Spec.DiscoveryType, nil)
 	assert.NilError(t, err)
 	assert.Equal(t, fc.Spec.ApiUrl, txt.ApiUrl, "API URL not changed")
 
