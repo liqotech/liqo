@@ -22,7 +22,7 @@ func CreateVkDeployment(adv *advtypes.Advertisement, vkName, vkNamespace, vkImag
 	}
 
 	args := []string{
-		"--cluster-id",
+		"--foreign-cluster-id",
 		adv.Spec.ClusterId,
 		"--provider",
 		"kubernetes",
@@ -30,7 +30,7 @@ func CreateVkDeployment(adv *advtypes.Advertisement, vkName, vkNamespace, vkImag
 		nodeName,
 		"--kubelet-namespace",
 		vkNamespace,
-		"--provider-config",
+		"--foreign-kubeconfig",
 		"/app/kubeconfig/remote",
 		"--home-cluster-id",
 		homeClusterId,

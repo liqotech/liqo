@@ -28,10 +28,9 @@ import (
 // Defaults for root command options
 const (
 	DefaultNodeName             = "virtual-kubelet"
-	DefaultOperatingSystem      = "Linux"
 	DefaultInformerResyncPeriod = 1 * time.Minute
 	DefaultMetricsAddr          = ":10255"
-	DefaultListenPort           = 10250 // TODO(cpuguy83)(VK1.0): Change this to an addr instead of just a port.. we should not be listening on all interfaces.
+	DefaultListenPort           = 10250
 	DefaultPodSyncWorkers       = 10
 	DefaultKubeNamespace        = corev1.NamespaceAll
 	DefaultKubeClusterDomain    = "cluster.local"
@@ -48,10 +47,6 @@ const (
 // You can set the default options by creating a new `Opts` struct and passing
 // it into `SetDefaultOpts`
 type Opts struct {
-	// Path to the kubeconfig to use to connect to the Kubernetes API server.
-	KubeConfigPath string
-	// Namespace to watch for pods and other resources
-	KubeNamespace string
 	// Domain suffix to append to search domains for the pods created by virtual-kubelet
 	KubeClusterDomain string
 
@@ -61,11 +56,10 @@ type Opts struct {
 	// Node name to use when creating a node in Kubernetes
 	NodeName string
 
-	// Operating system to run pods for
-	OperatingSystem string
+	Provider string
 
-	Provider           string
-	ProviderConfigPath string
+	HomeKubeconfig    string
+	ForeignKubeconfig string
 
 	TaintKey     string
 	TaintEffect  string
@@ -87,20 +81,17 @@ type Opts struct {
 	// Startup Timeout is how long to wait for the kubelet to start
 	StartupTimeout time.Duration
 
-	ClusterId        string
+	ForeignClusterId string
 	HomeClusterId    string
 	KubeletNamespace string
 
-	Version string
+	Version   string
+	Profiling bool
 }
 
 // SetDefaultOpts sets default options for unset values on the passed in option struct.
 // Fields tht are already set will not be modified.
 func SetDefaultOpts(c *Opts) error {
-	if c.OperatingSystem == "" {
-		c.OperatingSystem = DefaultOperatingSystem
-	}
-
 	if c.NodeName == "" {
 		c.NodeName = getEnv("DEFAULT_NODE_NAME", DefaultNodeName)
 	}
@@ -133,10 +124,6 @@ func SetDefaultOpts(c *Opts) error {
 		}
 	}
 
-	if c.KubeNamespace == "" {
-		c.KubeNamespace = DefaultKubeNamespace
-	}
-
 	if c.KubeClusterDomain == "" {
 		c.KubeClusterDomain = DefaultKubeClusterDomain
 	}
@@ -150,12 +137,12 @@ func SetDefaultOpts(c *Opts) error {
 	if c.KubeletNamespace == "" {
 		c.KubeletNamespace = DefaultKubeletNamespace
 	}
-	if c.KubeConfigPath == "" {
-		c.KubeConfigPath = os.Getenv("KUBECONFIG")
-		if c.KubeConfigPath == "" {
+	if c.HomeKubeconfig == "" {
+		c.HomeKubeconfig = os.Getenv("KUBECONFIG")
+		if c.HomeKubeconfig == "" {
 			home, _ := homedir.Dir()
 			if home != "" {
-				c.KubeConfigPath = filepath.Join(home, ".kube", "config")
+				c.HomeKubeconfig = filepath.Join(home, ".kube", "config")
 			}
 		}
 	}

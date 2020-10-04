@@ -11,7 +11,6 @@ func registerKubernetes(s *provider.Store) error {
 			cfg.NodeName,
 			cfg.ClusterId,
 			cfg.HomeClusterId,
-			cfg.OperatingSystem,
 			cfg.InternalIP,
 			cfg.DaemonPort,
 			cfg.ConfigPath,

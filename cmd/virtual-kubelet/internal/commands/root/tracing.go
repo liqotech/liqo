@@ -16,6 +16,7 @@ package root
 
 import (
 	"context"
+	"github.com/liqotech/liqo/cmd/virtual-kubelet/internal/provider"
 	"net"
 	"net/http"
 	"os"
@@ -46,7 +47,7 @@ func setupTracing(ctx context.Context, c Opts) error {
 	if c.TraceConfig.Tags == nil {
 		c.TraceConfig.Tags = make(map[string]string, 3)
 	}
-	c.TraceConfig.Tags["operatingSystem"] = c.OperatingSystem
+	c.TraceConfig.Tags["operatingSystem"] = provider.OperatingSystemLinux
 	c.TraceConfig.Tags["provider"] = c.Provider
 	c.TraceConfig.Tags["nodeName"] = c.NodeName
 	for _, e := range c.TraceExporters {
