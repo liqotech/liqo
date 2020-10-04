@@ -64,7 +64,6 @@ func (s *Store) Exists(name string) bool {
 type InitConfig struct {
 	ConfigPath        string
 	NodeName          string
-	OperatingSystem   string
 	InternalIP        string
 	DaemonPort        int32
 	KubeClusterDomain string

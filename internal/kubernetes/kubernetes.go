@@ -48,7 +48,7 @@ type KubernetesProvider struct { // nolint:golint]
 }
 
 // NewKubernetesProviderKubernetesConfig creates a new KubernetesV0Provider. Kubernetes legacy provider does not implement the new asynchronous podnotifier interface
-func NewKubernetesProvider(nodeName, foreignClusterId, homeClusterId, operatingSystem string, internalIP string, daemonEndpointPort int32, kubeconfig, remoteKubeConfig string) (*KubernetesProvider, error) {
+func NewKubernetesProvider(nodeName, foreignClusterId, homeClusterId string, internalIP string, daemonEndpointPort int32, kubeconfig, remoteKubeConfig string) (*KubernetesProvider, error) {
 	var err error
 
 	if err = nattingv1.AddToScheme(clientgoscheme.Scheme); err != nil {
@@ -99,7 +99,6 @@ func NewKubernetesProvider(nodeName, foreignClusterId, homeClusterId, operatingS
 		apiController:         controller.NewApiController(client.Client(), foreignClient.Client(), mapper, opts),
 		namespaceMapper:       mapper,
 		nodeName:              nodeNameOpt,
-		operatingSystem:       operatingSystem,
 		internalIP:            internalIP,
 		daemonEndpointPort:    daemonEndpointPort,
 		startTime:             time.Now(),

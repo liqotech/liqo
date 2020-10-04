@@ -36,7 +36,6 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/kubernetes/typed/coordination/v1beta1"
-	corev1client "k8s.io/client-go/kubernetes/typed/core/v1"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/client-go/tools/record"
@@ -44,7 +43,7 @@ import (
 
 // NewCommand creates a new top-level command.
 // This command is used to start the virtual-kubelet daemon
-func NewCommand(ctx context.Context, name string, s *provider.Store, c Opts) *cobra.Command {
+func NewCommand(ctx context.Context, name string, s *provider.Store, c *Opts) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   name,
 		Short: name + " provides a virtual kubelet interface for your kubernetes cluster.",
@@ -55,24 +54,18 @@ This allows users to schedule kubernetes workloads on nodes that aren't running 
 			return runRootCommand(ctx, s, c)
 		},
 	}
-
-	installFlags(cmd.Flags(), &c)
 	return cmd
 }
 
-func runRootCommand(ctx context.Context, s *provider.Store, c Opts) error {
+func runRootCommand(ctx context.Context, s *provider.Store, c *Opts) error {
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
-	if ok := provider.ValidOperatingSystems[c.OperatingSystem]; !ok {
-		return errdefs.InvalidInputf("operating system %q is not supported", c.OperatingSystem)
-	}
-
-	if c.ProviderConfigPath == "" {
+	if c.ForeignKubeconfig == "" {
 		return errors.New("provider kubeconfig is mandatory")
 	}
 
-	if c.ClusterId == "" {
+	if c.ForeignClusterId == "" {
 		return errors.New("cluster id is mandatory")
 	}
 
@@ -83,13 +76,13 @@ func runRootCommand(ctx context.Context, s *provider.Store, c Opts) error {
 	var taint *corev1.Taint
 	if !c.DisableTaint {
 		var err error
-		taint, err = getTaint(c)
+		taint, err = getTaint(*c)
 		if err != nil {
 			return err
 		}
 	}
 
-	client, err := newClient(c.KubeConfigPath)
+	client, err := newClient(c.HomeKubeconfig)
 	if err != nil {
 		return err
 	}
@@ -98,7 +91,6 @@ func runRootCommand(ctx context.Context, s *provider.Store, c Opts) error {
 	podInformerFactory := kubeinformers.NewSharedInformerFactoryWithOptions(
 		client,
 		c.InformerResyncPeriod,
-		kubeinformers.WithNamespace(c.KubeNamespace),
 		kubeinformers.WithTweakListOptions(func(options *metav1.ListOptions) {
 			options.FieldSelector = fields.OneTermEqualSelector("spec.nodeName", c.NodeName).String()
 		}))
@@ -116,26 +108,25 @@ func runRootCommand(ctx context.Context, s *provider.Store, c Opts) error {
 		return errors.Wrap(err, "could not create resource manager")
 	}
 
-	apiConfig, err := getAPIConfig(c)
+	apiConfig, err := getAPIConfig(*c)
 	if err != nil {
 		return err
 	}
 
-	if err := setupTracing(ctx, c); err != nil {
+	if err := setupTracing(ctx, *c); err != nil {
 		return err
 	}
 
 	initConfig := provider.InitConfig{
-		ConfigPath:        c.KubeConfigPath,
+		ConfigPath:        c.HomeKubeconfig,
 		NodeName:          c.NodeName,
-		OperatingSystem:   c.OperatingSystem,
 		ResourceManager:   rm,
 		DaemonPort:        c.ListenPort,
 		InternalIP:        os.Getenv("VKUBELET_POD_IP"),
 		KubeClusterDomain: c.KubeClusterDomain,
-		ClusterId:         c.ClusterId,
+		ClusterId:         c.ForeignClusterId,
 		HomeClusterId:     c.HomeClusterId,
-		RemoteKubeConfig:  c.ProviderConfigPath,
+		RemoteKubeConfig:  c.ForeignKubeconfig,
 	}
 
 	pInit := s.Get(c.Provider)
@@ -153,7 +144,7 @@ func runRootCommand(ctx context.Context, s *provider.Store, c Opts) error {
 		leaseClient = client.CoordinationV1beta1().Leases(corev1.NamespaceNodeLease)
 	}
 
-	deployName := strings.Join([]string{virtualKubelet.VirtualKubeletPrefix, c.ClusterId}, "")
+	deployName := strings.Join([]string{virtualKubelet.VirtualKubeletPrefix, c.ForeignClusterId}, "")
 	refs := createOwnerReference(client, deployName, c.KubeletNamespace)
 
 	var nodeRunner *node.NodeController
@@ -207,7 +198,6 @@ func runRootCommand(ctx context.Context, s *provider.Store, c Opts) error {
 	}
 
 	eb := record.NewBroadcaster()
-	eb.StartRecordingToSink(&corev1client.EventSinkImpl{Interface: client.CoreV1().Events(c.KubeNamespace)})
 
 	pc, err := node.NewPodController(node.PodControllerConfig{
 		PodClient:         client.CoreV1(),

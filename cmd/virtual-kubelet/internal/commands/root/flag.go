@@ -57,14 +57,12 @@ func (mv mapVar) Type() string {
 	return "map"
 }
 
-func installFlags(flags *pflag.FlagSet, c *Opts) {
-	flags.StringVar(&c.KubeConfigPath, "kubeconfig", c.KubeConfigPath, "kube config file to use for connecting to the Kubernetes API server")
-	flags.StringVar(&c.KubeNamespace, "namespace", c.KubeNamespace, "kubernetes namespace (default is 'all')")
+func InstallFlags(flags *pflag.FlagSet, c *Opts) {
+	flags.StringVar(&c.HomeKubeconfig, "home-kubeconfig", c.HomeKubeconfig, "kube config file to use for connecting to the Kubernetes API server")
 	flags.StringVar(&c.KubeClusterDomain, "cluster-domain", c.KubeClusterDomain, "kubernetes cluster-domain (default is 'cluster.local')")
 	flags.StringVar(&c.NodeName, "nodename", c.NodeName, "kubernetes node name")
-	flags.StringVar(&c.OperatingSystem, "os", c.OperatingSystem, "Operating System (Linux/Windows)")
 	flags.StringVar(&c.Provider, "provider", c.Provider, "cloud provider")
-	flags.StringVar(&c.ProviderConfigPath, "provider-config", c.ProviderConfigPath, "cloud provider kubeconfig")
+	flags.StringVar(&c.ForeignKubeconfig, "foreign-kubeconfig", c.ForeignKubeconfig, "cloud provider kubeconfig")
 	flags.StringVar(&c.MetricsAddr, "metrics-addr", c.MetricsAddr, "address to listen for metrics/stats requests")
 
 	flags.StringVar(&c.TaintKey, "taint", c.TaintKey, "Set node taint key")
@@ -76,15 +74,15 @@ func installFlags(flags *pflag.FlagSet, c *Opts) {
 
 	flags.StringSliceVar(&c.TraceExporters, "trace-exporter", c.TraceExporters, fmt.Sprintf("sets the tracing exporter to use, available exporters: %s", AvailableTraceExporters()))
 	flags.StringVar(&c.TraceConfig.ServiceName, "trace-service-name", c.TraceConfig.ServiceName, "sets the name of the service used to register with the trace exporter")
-	flags.Var(mapVar(c.TraceConfig.Tags), "trace-tag", "add tags to include with traces in key=value form")
 	flags.StringVar(&c.TraceSampleRate, "trace-sample-rate", c.TraceSampleRate, "set probability of tracing samples")
 
 	flags.DurationVar(&c.InformerResyncPeriod, "full-resync-period", c.InformerResyncPeriod, "how often to perform a full resync of pods between kubernetes and the provider")
 	flags.DurationVar(&c.StartupTimeout, "startup-timeout", c.StartupTimeout, "How long to wait for the virtual-kubelet to start")
 
-	flags.StringVar(&c.ClusterId, "cluster-id", c.ClusterId, "The Id of the foreign cluster")
+	flags.StringVar(&c.ForeignClusterId, "foreign-cluster-id", c.ForeignClusterId, "The Id of the foreign cluster")
 	flags.StringVar(&c.KubeletNamespace, "kubelet-namespace", c.KubeletNamespace, "The namespace of the virtual kubelet")
 	flags.StringVar(&c.HomeClusterId, "home-cluster-id", c.HomeClusterId, "The Id of the home cluster")
+	flags.BoolVar(&c.Profiling, "enable-profiling", c.Profiling, "Enable pprof profiling")
 
 	flagset := flag.NewFlagSet("klog", flag.PanicOnError)
 	klog.InitFlags(flagset)
