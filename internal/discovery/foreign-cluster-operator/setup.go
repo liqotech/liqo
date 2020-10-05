@@ -2,6 +2,7 @@ package foreign_cluster_operator
 
 import (
 	discoveryv1alpha1 "github.com/liqotech/liqo/api/discovery/v1alpha1"
+	nettypes "github.com/liqotech/liqo/api/net/v1alpha1"
 	advtypes "github.com/liqotech/liqo/api/sharing/v1alpha1"
 	"github.com/liqotech/liqo/internal/discovery"
 	"github.com/liqotech/liqo/pkg/clusterID"
@@ -48,11 +49,18 @@ func StartOperator(mgr *manager.Manager, namespace string, requeueAfter time.Dur
 		os.Exit(1)
 	}
 
+	networkClient, err := nettypes.CreateTunnelEndpointClient(kubeconfigPath)
+	if err != nil {
+		klog.Error(err, "unable to create local client for Networking")
+		os.Exit(1)
+	}
+
 	if err = (GetFCReconciler(
 		(*mgr).GetScheme(),
 		namespace,
 		discoveryClient,
 		advClient,
+		networkClient,
 		clusterId,
 		requeueAfter,
 		discoveryCtrl,
@@ -62,12 +70,13 @@ func StartOperator(mgr *manager.Manager, namespace string, requeueAfter time.Dur
 	}
 }
 
-func GetFCReconciler(scheme *runtime.Scheme, namespace string, crdClient *crdClient.CRDClient, advertisementClient *crdClient.CRDClient, clusterId *clusterID.ClusterID, requeueAfter time.Duration, discoveryCtrl *discovery.DiscoveryCtrl) *ForeignClusterReconciler {
+func GetFCReconciler(scheme *runtime.Scheme, namespace string, crdClient *crdClient.CRDClient, advertisementClient *crdClient.CRDClient, networkClient *crdClient.CRDClient, clusterId *clusterID.ClusterID, requeueAfter time.Duration, discoveryCtrl *discovery.DiscoveryCtrl) *ForeignClusterReconciler {
 	return &ForeignClusterReconciler{
 		Scheme:              scheme,
 		Namespace:           namespace,
 		crdClient:           crdClient,
 		advertisementClient: advertisementClient,
+		networkClient:       networkClient,
 		clusterID:           clusterId,
 		ForeignConfig:       nil,
 		RequeueAfter:        requeueAfter,
