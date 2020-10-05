@@ -82,6 +82,24 @@ type ForeignClusterStatus struct {
 	// +kubebuilder:default="Unknown"
 	// Indicates if this remote cluster is trusted or not
 	TrustMode TrustMode `json:"trustMode,omitempty"`
+	// It stores most important network statuses
+	Network Network `json:"network,omitempty"`
+}
+
+type ResourceLink struct {
+	// Indicates if the resource is available
+	Available bool `json:"available"`
+	// Object Reference to the resource
+	Reference *v1.ObjectReference `json:"reference,omitempty"`
+}
+
+type Network struct {
+	// Local NetworkConfig link
+	LocalNetworkConfig ResourceLink `json:"localNetworkConfig"`
+	// Remote NetworkConfig link
+	RemoteNetworkConfig ResourceLink `json:"remoteNetworkConfig"`
+	// TunnelEndpoint link
+	TunnelEndpoint ResourceLink `json:"tunnelEndpoint"`
 }
 
 type Outgoing struct {

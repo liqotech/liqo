@@ -4,6 +4,7 @@ import (
 	"context"
 	configv1alpha1 "github.com/liqotech/liqo/api/config/v1alpha1"
 	"github.com/liqotech/liqo/api/discovery/v1alpha1"
+	nettypes "github.com/liqotech/liqo/api/net/v1alpha1"
 	advtypes "github.com/liqotech/liqo/api/sharing/v1alpha1"
 	"github.com/liqotech/liqo/internal/discovery"
 	foreign_cluster_operator "github.com/liqotech/liqo/internal/discovery/foreign-cluster-operator"
@@ -34,6 +35,7 @@ type Cluster struct {
 	cfg           *rest.Config
 	client        *crdClient.CRDClient
 	advClient     *crdClient.CRDClient
+	netClient     *crdClient.CRDClient
 	discoveryCtrl discovery.DiscoveryCtrl
 	fcReconciler  *foreign_cluster_operator.ForeignClusterReconciler
 	prReconciler  *peering_request_operator.PeeringRequestReconciler
@@ -49,6 +51,7 @@ func getClientCluster() *Cluster {
 		"default",
 		cluster.client,
 		cluster.advClient,
+		cluster.netClient,
 		cluster.clusterId,
 		1*time.Minute,
 		&cluster.discoveryCtrl,
@@ -111,6 +114,7 @@ func getServerCluster() *Cluster {
 		"default",
 		cluster.client,
 		cluster.advClient,
+		cluster.netClient,
 		cluster.clusterId,
 		1*time.Minute,
 		&cluster.discoveryCtrl,
@@ -179,12 +183,22 @@ func getCluster() (*Cluster, manager.Manager, *configv1alpha1.ClusterConfig) {
 	advCfg.ContentConfig.GroupVersion = &advtypes.GroupVersion
 	crdClient.AddToRegistry("advertisements", &advtypes.Advertisement{}, &advtypes.AdvertisementList{}, nil, advtypes.GroupResource)
 
+	netCfg := *cluster.cfg
+	netCfg.ContentConfig.GroupVersion = &nettypes.GroupVersion
+	crdClient.AddToRegistry("networkconfigs", &nettypes.NetworkConfig{}, &nettypes.NetworkConfigList{}, nil, nettypes.GroupResource)
+	crdClient.AddToRegistry("tunnelendpoints", &nettypes.TunnelEndpoint{}, &nettypes.TunnelEndpointList{}, nil, nettypes.GroupResource)
+
 	err = v1alpha1.AddToScheme(scheme.Scheme)
 	if err != nil {
 		klog.Error(err, err.Error())
 		os.Exit(1)
 	}
 	err = advtypes.AddToScheme(scheme.Scheme)
+	if err != nil {
+		klog.Error(err, err.Error())
+		os.Exit(1)
+	}
+	err = nettypes.AddToScheme(scheme.Scheme)
 	if err != nil {
 		klog.Error(err, err.Error())
 		os.Exit(1)
@@ -196,6 +210,11 @@ func getCluster() (*Cluster, manager.Manager, *configv1alpha1.ClusterConfig) {
 		os.Exit(1)
 	}
 	cluster.advClient, err = crdClient.NewFromConfig(&advCfg)
+	if err != nil {
+		klog.Error(err, err.Error())
+		os.Exit(1)
+	}
+	cluster.netClient, err = crdClient.NewFromConfig(&netCfg)
 	if err != nil {
 		klog.Error(err, err.Error())
 		os.Exit(1)

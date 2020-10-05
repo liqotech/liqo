@@ -20,7 +20,9 @@ import (
 	"context"
 	goerrors "errors"
 	discoveryv1alpha1 "github.com/liqotech/liqo/api/discovery/v1alpha1"
+	nettypes "github.com/liqotech/liqo/api/net/v1alpha1"
 	advtypes "github.com/liqotech/liqo/api/sharing/v1alpha1"
+	"github.com/liqotech/liqo/internal/crdReplicator"
 	"github.com/liqotech/liqo/internal/discovery"
 	"github.com/liqotech/liqo/internal/discovery/kubeconfig"
 	"github.com/liqotech/liqo/pkg/clusterID"
@@ -47,6 +49,7 @@ type ForeignClusterReconciler struct {
 	Namespace           string
 	crdClient           *crdClient.CRDClient
 	advertisementClient *crdClient.CRDClient
+	networkClient       *crdClient.CRDClient
 	clusterID           *clusterID.ClusterID
 	RequeueAfter        time.Duration
 
@@ -116,6 +119,26 @@ func (r *ForeignClusterReconciler) Reconcile(req ctrl.Request) (ctrl.Result, err
 	if fc.ObjectMeta.Labels["cluster-id"] == "" {
 		fc.ObjectMeta.Labels["cluster-id"] = fc.Spec.ClusterIdentity.ClusterID
 		requireUpdate = true
+	}
+
+	// check for NetworkConfigs
+	err = r.checkNetwork(fc, &requireUpdate)
+	if err != nil {
+		klog.Error(err)
+		return ctrl.Result{
+			Requeue:      true,
+			RequeueAfter: r.RequeueAfter,
+		}, err
+	}
+
+	// check for TunnelEndpoints
+	err = r.checkTEP(fc, &requireUpdate)
+	if err != nil {
+		klog.Error(err)
+		return ctrl.Result{
+			Requeue:      true,
+			RequeueAfter: r.RequeueAfter,
+		}, err
 	}
 
 	// check if linked advertisement exists
@@ -390,6 +413,8 @@ func (r *ForeignClusterReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		For(&discoveryv1alpha1.ForeignCluster{}).
 		Owns(&advtypes.Advertisement{}).
 		Owns(&discoveryv1alpha1.PeeringRequest{}).
+		Owns(&nettypes.NetworkConfig{}).
+		Owns(&nettypes.TunnelEndpoint{}).
 		Complete(r)
 }
 
@@ -737,4 +762,85 @@ func (r *ForeignClusterReconciler) getAutoJoinUntrusted(fc *discoveryv1alpha1.Fo
 		return fc.Spec.Join
 	}
 	return r.DiscoveryCtrl.Config.AutoJoinUntrusted
+}
+
+func (r *ForeignClusterReconciler) checkNetwork(fc *discoveryv1alpha1.ForeignCluster, requireUpdate *bool) error {
+	// local NetworkConfig
+	labelSelector := strings.Join([]string{crdReplicator.DestinationLabel, fc.Spec.ClusterIdentity.ClusterID}, "=")
+	if err := r.updateNetwork(labelSelector, &fc.Status.Network.LocalNetworkConfig, requireUpdate); err != nil {
+		klog.Error(err)
+		return err
+	}
+
+	// remote NetworkConfig
+	labelSelector = strings.Join([]string{crdReplicator.RemoteLabelSelector, fc.Spec.ClusterIdentity.ClusterID}, "=")
+	return r.updateNetwork(labelSelector, &fc.Status.Network.RemoteNetworkConfig, requireUpdate)
+}
+
+func (r *ForeignClusterReconciler) updateNetwork(labelSelector string, resourceLink *discoveryv1alpha1.ResourceLink, requireUpdate *bool) error {
+	tmp, err := r.networkClient.Resource("networkconfigs").List(metav1.ListOptions{
+		LabelSelector: labelSelector,
+	})
+	if err != nil {
+		klog.Error(err)
+		return err
+	}
+	ncfs, ok := tmp.(*nettypes.NetworkConfigList)
+	if !ok {
+		err = goerrors.New("retrieved object is not a NetworkConfig")
+		klog.Error(err)
+		return err
+	}
+	if len(ncfs.Items) == 0 && resourceLink.Available {
+		// no NetworkConfigs found
+		resourceLink.Available = false
+		resourceLink.Reference = nil
+		*requireUpdate = true
+	} else if len(ncfs.Items) > 0 && !resourceLink.Available {
+		// there are NetworkConfigs
+		ncf := &ncfs.Items[0]
+		resourceLink.Available = true
+		resourceLink.Reference = &apiv1.ObjectReference{
+			Kind:       "NetworkConfig",
+			Name:       ncf.Name,
+			UID:        ncf.UID,
+			APIVersion: "v1alpha1",
+		}
+		*requireUpdate = true
+	}
+	return nil
+}
+
+func (r *ForeignClusterReconciler) checkTEP(fc *discoveryv1alpha1.ForeignCluster, requireUpdate *bool) error {
+	tmp, err := r.networkClient.Resource("tunnelendpoints").List(metav1.ListOptions{
+		LabelSelector: strings.Join([]string{"clusterID", fc.Spec.ClusterIdentity.ClusterID}, "="),
+	})
+	if err != nil {
+		klog.Error(err)
+		return err
+	}
+	teps, ok := tmp.(*nettypes.TunnelEndpointList)
+	if !ok {
+		err = goerrors.New("retrieved object is not a TunnelEndpoint")
+		klog.Error(err)
+		return err
+	}
+	if len(teps.Items) == 0 && fc.Status.Network.TunnelEndpoint.Available {
+		// no TEP found
+		fc.Status.Network.TunnelEndpoint.Available = false
+		fc.Status.Network.TunnelEndpoint.Reference = nil
+		*requireUpdate = true
+	} else if len(teps.Items) > 0 && !fc.Status.Network.TunnelEndpoint.Available {
+		// there are TEPs
+		tep := &teps.Items[0]
+		fc.Status.Network.TunnelEndpoint.Available = true
+		fc.Status.Network.TunnelEndpoint.Reference = &apiv1.ObjectReference{
+			Kind:       "TunnelEndpoints",
+			Name:       tep.Name,
+			UID:        tep.UID,
+			APIVersion: "v1alpha1",
+		}
+		*requireUpdate = true
+	}
+	return nil
 }

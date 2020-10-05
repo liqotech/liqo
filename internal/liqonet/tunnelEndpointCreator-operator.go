@@ -22,6 +22,7 @@ import (
 	discoveryv1alpha1 "github.com/liqotech/liqo/api/discovery/v1alpha1"
 	"github.com/liqotech/liqo/internal/crdReplicator"
 	liqonetOperator "github.com/liqotech/liqo/pkg/liqonet"
+	"github.com/liqotech/liqo/pkg/owner"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -32,6 +33,7 @@ import (
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/util/retry"
 	"k8s.io/klog"
+	"k8s.io/utils/pointer"
 	"net"
 	"os"
 	"os/signal"
@@ -198,13 +200,23 @@ func (d *TunnelEndpointCreator) Watcher(sharedDynFactory dynamicinformer.Dynamic
 	dynInformer.Informer().Run(stopCh)
 }
 
-func (r *TunnelEndpointCreator) createNetConfig(clusterID string) error {
+func (r *TunnelEndpointCreator) createNetConfig(fc *discoveryv1alpha1.ForeignCluster) error {
+	clusterID := fc.Spec.ClusterIdentity.ClusterID
 	netConfig := netv1alpha1.NetworkConfig{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: NetConfigNamePrefix + clusterID,
 			Labels: map[string]string{
 				crdReplicator.LocalLabelSelector: "true",
 				crdReplicator.DestinationLabel:   clusterID,
+			},
+			OwnerReferences: []metav1.OwnerReference{
+				{
+					APIVersion: "v1alpha1",
+					Kind:       "ForeignCluster",
+					Name:       fc.Name,
+					UID:        fc.UID,
+					Controller: pointer.BoolPtr(true),
+				},
 			},
 		},
 		Spec: netv1alpha1.NetworkConfigSpec{
@@ -226,7 +238,8 @@ func (r *TunnelEndpointCreator) createNetConfig(clusterID string) error {
 	}
 }
 
-func (r *TunnelEndpointCreator) deleteNetConfig(clusterID string) error {
+func (r *TunnelEndpointCreator) deleteNetConfig(fc *discoveryv1alpha1.ForeignCluster) error {
+	clusterID := fc.Spec.ClusterIdentity.ClusterID
 	resName := NetConfigNamePrefix + clusterID
 	netConfig := &netv1alpha1.NetworkConfig{}
 	//first we get the resource
@@ -282,6 +295,22 @@ func (r *TunnelEndpointCreator) processRemoteNetConfig(netConfig *netv1alpha1.Ne
 		}
 		return nil
 	}
+	if owner.GetOwnerByKind(&netConfig.OwnerReferences, "ForeignCluster") == nil {
+		// if it has no owner of kind ForeignCluster, add it
+		own, err := r.getFCOwner(netConfig)
+		if err != nil {
+			klog.Error(err)
+			return err
+		}
+		if own != nil {
+			netConfig.OwnerReferences = append(netConfig.OwnerReferences, *own)
+			err = r.Update(context.TODO(), netConfig)
+			if err != nil {
+				klog.Error(err)
+				return err
+			}
+		}
+	}
 	if netConfig.Status.PodCIDRNAT != defaultPodCIDRValue {
 		//update netConfig status
 		netConfig.Status.PodCIDRNAT = defaultPodCIDRValue
@@ -332,14 +361,15 @@ func (r *TunnelEndpointCreator) processLocalNetConfig(netConfig *netv1alpha1.Net
 		localNatPodCIDR:  netConfig.Status.PodCIDRNAT,
 		localGatewayIP:   netConfig.Spec.TunnelPublicIP,
 	}
-	if err := r.ProcessTunnelEndpoint(netParam); err != nil {
+	fcOwner := owner.GetOwnerByKind(&netConfig.OwnerReferences, "ForeignCluster")
+	if err := r.ProcessTunnelEndpoint(netParam, fcOwner); err != nil {
 		klog.Errorf("an error occurred while processing the tunnelEndpoint: %s", err)
 		return err
 	}
 	return nil
 }
 
-func (r *TunnelEndpointCreator) ProcessTunnelEndpoint(param networkParam) error {
+func (r *TunnelEndpointCreator) ProcessTunnelEndpoint(param networkParam, owner *metav1.OwnerReference) error {
 	tepName := TunEndpointNamePrefix + param.remoteClusterID
 	//try to get the tunnelEndpoint, it may not exist
 	_, found, err := r.GetTunnelEndpoint(tepName)
@@ -348,7 +378,7 @@ func (r *TunnelEndpointCreator) ProcessTunnelEndpoint(param networkParam) error 
 		return err
 	}
 	if !found {
-		return r.CreateTunnelEndpoint(param)
+		return r.CreateTunnelEndpoint(param, owner)
 	} else {
 		if err := r.UpdateSpecTunnelEndpoint(param); err != nil {
 			return err
@@ -446,12 +476,15 @@ func (r *TunnelEndpointCreator) UpdateStatusTunnelEndpoint(param networkParam) e
 	return nil
 }
 
-func (r *TunnelEndpointCreator) CreateTunnelEndpoint(param networkParam) error {
+func (r *TunnelEndpointCreator) CreateTunnelEndpoint(param networkParam, owner *metav1.OwnerReference) error {
 	tepName := TunEndpointNamePrefix + param.remoteClusterID
 	//here we create it
 	tep := &netv1alpha1.TunnelEndpoint{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: tepName,
+			Labels: map[string]string{
+				"clusterID": param.remoteClusterID,
+			},
 		},
 		Spec: netv1alpha1.TunnelEndpointSpec{
 			ClusterID:      param.remoteClusterID,
@@ -465,6 +498,9 @@ func (r *TunnelEndpointCreator) CreateTunnelEndpoint(param networkParam) error {
 			RemoteTunnelPublicIP:  param.remoteGatewayIP,
 			LocalTunnelPublicIP:   param.localGatewayIP,
 		},
+	}
+	if owner != nil {
+		tep.OwnerReferences = append(tep.OwnerReferences, *owner)
 	}
 	err := r.Create(context.Background(), tep)
 	if err != nil {
@@ -489,9 +525,9 @@ func (r *TunnelEndpointCreator) ForeignClusterHandlerAdd(obj interface{}) {
 		return
 	}
 	if fc.Status.Incoming.Joined || fc.Status.Outgoing.Joined {
-		_ = r.createNetConfig(fc.Spec.ClusterIdentity.ClusterID)
+		_ = r.createNetConfig(fc)
 	} else if !fc.Status.Incoming.Joined && !fc.Status.Outgoing.Joined {
-		_ = r.deleteNetConfig(fc.Spec.ClusterIdentity.ClusterID)
+		_ = r.deleteNetConfig(fc)
 	}
 }
 
@@ -511,7 +547,7 @@ func (r *TunnelEndpointCreator) ForeignClusterHandlerDelete(obj interface{}) {
 		klog.Errorf("an error occurred while converting resource %s of type %s to typed object: %s", objUnstruct.GetName(), objUnstruct.GetKind(), err)
 		return
 	}
-	_ = r.deleteNetConfig(fc.Spec.ClusterIdentity.ClusterID)
+	_ = r.deleteNetConfig(fc)
 }
 
 func (r *TunnelEndpointCreator) GetTunnelEndpoint(name string) (*netv1alpha1.TunnelEndpoint, bool, error) {
@@ -555,4 +591,30 @@ func (r *TunnelEndpointCreator) deleteTunEndpoint(netConfig *netv1alpha1.Network
 	} else {
 		return fmt.Errorf("unable to get endpoint with key %s: %v", tunEndKey.String(), err)
 	}
+}
+
+func (r *TunnelEndpointCreator) getFCOwner(netConfig *netv1alpha1.NetworkConfig) (*metav1.OwnerReference, error) {
+	dynFC := r.DynClient.Resource(schema.GroupVersionResource{
+		Group:    discoveryv1alpha1.GroupVersion.Group,
+		Version:  discoveryv1alpha1.GroupVersion.Version,
+		Resource: "foreignclusters",
+	})
+	list, err := dynFC.List(context.TODO(), metav1.ListOptions{
+		LabelSelector: strings.Join([]string{"cluster-id", netConfig.Spec.ClusterID}, "="),
+	})
+	if err != nil {
+		klog.Error(err)
+		return nil, err
+	}
+	if len(list.Items) == 0 {
+		return nil, nil
+	}
+	fc := list.Items[0]
+	return &metav1.OwnerReference{
+		APIVersion: fc.GetAPIVersion(),
+		Kind:       fc.GetKind(),
+		Name:       fc.GetName(),
+		UID:        fc.GetUID(),
+		Controller: pointer.BoolPtr(true),
+	}, nil
 }
