@@ -288,8 +288,7 @@ func (b *AdvertisementBroadcaster) SendAdvertisementToForeignCluster(advToCreate
 	if err == nil {
 		// Advertisement already created, update it
 		adv = obj.(*advtypes.Advertisement)
-		advToCreate.SetResourceVersion(adv.ResourceVersion)
-		advToCreate.SetUID(adv.UID)
+		advToCreate.ObjectMeta = adv.ObjectMeta
 		_, err = b.RemoteClient.Resource("advertisements").Update(adv.Name, &advToCreate, metav1.UpdateOptions{})
 		if err != nil {
 			klog.Errorln("Unable to update Advertisement " + advToCreate.Name)
