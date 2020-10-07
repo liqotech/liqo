@@ -64,7 +64,7 @@ require (
 	github.com/weppos/publicsuffix-go v0.10.0 // indirect
 	github.com/zmap/zlint v1.1.0 // indirect
 	go.etcd.io/etcd v3.3.18+incompatible // indirect
-	go.opencensus.io v0.22.4
+	go.opencensus.io v0.22.5
 	go.uber.org/atomic v1.5.1 // indirect
 	go.uber.org/multierr v1.4.0 // indirect
 	golang.org/x/sys v0.0.0-20200625212154-ddb9806d33ae
