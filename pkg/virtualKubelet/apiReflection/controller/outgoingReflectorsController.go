@@ -66,8 +66,6 @@ func (c *OutgoingReflectorsController) Start() {
 			c.startNamespaceReflection(ns)
 		case ns := <-c.namespaceNatting.PollStopOutgoingReflection():
 			c.stopNamespaceReflection(ns)
-		default:
-			break
 		}
 	}
 }

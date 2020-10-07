@@ -78,8 +78,6 @@ func (p *KubernetesProvider) StartNodeUpdater(nodeRunner *node.NodeController) (
 				advWatcher.Stop()
 				tepWatcher.Stop()
 				return
-			default:
-				break
 			}
 		}
 	}()
