@@ -81,7 +81,7 @@ distinguished_name = req_distinguished_name
 [req_distinguished_name]
 [ v3_req ]
 basicConstraints = CA:FALSE
-keyUsage = nonRepudiation, digitalSignature, keyEncipherment
+keyUsage = digitalSignature, keyEncipherment
 extendedKeyUsage = serverAuth
 subjectAltName = @alt_names
 [alt_names]
@@ -98,7 +98,7 @@ kubectl delete csr "${CSR_NAME}" 2>/dev/null || true
 
 # create  server cert/key CSR and  send to k8s API
 cat << EOF | kubectl create -f -
-apiVersion: certificates.k8s.io/v1beta1
+apiVersion: certificates.k8s.io/v1
 kind: CertificateSigningRequest
 metadata:
   name: ${CSR_NAME}
@@ -107,6 +107,7 @@ metadata:
 spec:
   groups:
   - system:authenticated
+  signerName: kubernetes.io/legacy-unknown
   request: $(< ${tmpdir}/server.csr base64 | tr -d '\n')
   usages:
   - digital signature

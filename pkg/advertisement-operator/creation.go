@@ -8,10 +8,16 @@ import (
 	v1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/utils/pointer"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+)
+
+const (
+	virtualKubeletCPU    = "200m"
+	virtualKubeletMemory = "100M"
 )
 
 // create deployment for a virtual-kubelet
@@ -140,7 +146,17 @@ func CreateVkDeployment(adv *advtypes.Advertisement, vkName, vkNamespace, vkImag
 							ImagePullPolicy: v1.PullAlways,
 							Command:         command,
 							Args:            args,
-							VolumeMounts:    volumeMounts,
+							Resources: v1.ResourceRequirements{
+								Limits: v1.ResourceList{
+									"cpu":    resource.MustParse(virtualKubeletCPU),
+									"memory": resource.MustParse(virtualKubeletMemory),
+								},
+								Requests: v1.ResourceList{
+									"cpu":    resource.MustParse(virtualKubeletCPU),
+									"memory": resource.MustParse(virtualKubeletMemory),
+								},
+							},
+							VolumeMounts: volumeMounts,
 							Env: []v1.EnvVar{
 								{
 									Name:  "APISERVER_CERT_LOCATION",
