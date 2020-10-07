@@ -62,8 +62,6 @@ func NewApiController(homeClient, foreignClient kubernetes.Interface, mapper nam
 			case <-c.stopController:
 				c.mainControllerRoutine.Done()
 				return
-			default:
-				break
 			}
 		}
 	}()
@@ -77,11 +75,8 @@ func (c *Controller) outgoingReflectionControlLoop() {
 		case <-c.stopReflection:
 			c.outgoingReflectionGroup.Done()
 			return
-
 		case e := <-c.outgoingReflectionInforming:
 			c.outgoingReflectorsController.DispatchEvent(e)
-		default:
-			break
 		}
 	}
 }
@@ -92,11 +87,8 @@ func (c *Controller) incomingReflectionControlLoop() {
 		case <-c.stopReflection:
 			c.incomingReflectionGroup.Done()
 			return
-
 		case e := <-c.incomingReflectionInforming:
 			c.incomingReflectorsController.DispatchEvent(e)
-		default:
-			break
 		}
 	}
 }
