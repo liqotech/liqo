@@ -15,6 +15,8 @@ type APIReflectorsController interface {
 	Start()
 	Stop()
 	DispatchEvent(event apimgmt.ApiEvent)
+
+	stopNamespaceReflection(string)
 }
 
 type OutGoingAPIReflectorsController interface {
@@ -58,4 +60,8 @@ func (c *ReflectorsController) Stop() {
 		close(stop)
 	}
 	c.reflectionGroup.Wait()
+}
+
+func (c *ReflectorsController) stopNamespaceReflection(namespace string) {
+	close(c.namespacedStops[namespace])
 }

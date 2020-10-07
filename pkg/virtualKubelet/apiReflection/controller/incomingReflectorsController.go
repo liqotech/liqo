@@ -148,7 +148,3 @@ func (c *IncomingReflectorsController) GetMirroredObject(api apimgmt.ApiType, na
 func (c *IncomingReflectorsController) ListMirroredObjects(api apimgmt.ApiType, namespace string) []interface{} {
 	return c.apiReflectors[api].(ri.IncomingAPIReflector).ListMirroredObjects(namespace)
 }
-
-func (c *IncomingReflectorsController) stopNamespaceReflection(namespace string) {
-	close(c.namespacedStops[namespace])
-}

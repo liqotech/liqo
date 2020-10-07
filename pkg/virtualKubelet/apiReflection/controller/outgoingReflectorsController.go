@@ -135,7 +135,3 @@ func (c *OutgoingReflectorsController) startNamespaceReflection(namespace string
 
 	klog.V(2).Infof("Outgoing reflection for namespace %v started", namespace)
 }
-
-func (c *OutgoingReflectorsController) stopNamespaceReflection(namespace string) {
-	close(c.namespacedStops[namespace])
-}
