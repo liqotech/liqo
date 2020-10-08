@@ -14,6 +14,5 @@ mutatingWebhook:
   image:
     repository: "liqo/pod-mutator"
     pullPolicy: "IfNotPresent"
-
 suffix: ""
 version: "latest"

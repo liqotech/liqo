@@ -1,68 +1,121 @@
 apiVersion: v1
 kind: ServiceAccount
 metadata:
-  name: podmutatoraccount
+  name: pod-mutator-account
   labels:
-    k8s-app: discovery
-    app: liqo.io
+    app: mutatepodtoleration.liqo.io
 ---
-apiVersion: rbac.authorization.k8s.io/v1beta1
+apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
 metadata:
-  name: podmutatoraccount
+  name: pod-mutator-cluster-rolebinding
   labels:
-    k8s-app: discovery
-    app: liqo.io
+    app: mutatepodtoleration.liqo.io
 subjects:
   - kind: ServiceAccount
-    name: podmutatoraccount
-    namespace: {{ .Release.Namespace }}
+    name: pod-mutator-account
+    namespace: liqo
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
-  name: cluster-admin
-
+  name: pod-mutator-cluter-role
 ---
-
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  creationTimestamp: null
+  name: pod-mutator-cluster-role
+rules:
+  - apiGroups:
+      - ""
+    resources:
+      - pods
+    verbs:
+      - patch
+      - update
+  - apiGroups:
+      - certificates.k8s.io
+    resources:
+      - certificatesigningrequests
+    verbs:
+      - get
+      - list
+      - watch
+      - create
+      - update
+      - patch
+  - apiGroups:
+      - admissionregistration.k8s.io
+    resources:
+      - mutatingwebhookconfigurations
+    verbs:
+      - get
+      - patch
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  namespace: default
+  name: pod-mutator-secrets-role
+rules:
+  - apiGroups:
+      - ""
+    resources:
+      - secrets
+    verbs:
+      - get
+      - patch
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: pod-mutator-secrets-rolebinding
+  namespace: liqo
+subjects:
+  - kind: ServiceAccount
+    name: pod-mutator-account
+    namespace: liqo
+roleRef:
+  kind: Role
+  name: pod-mutator-secrets-role
+  apiGroup: rbac.authorization.k8s.io
+---
 apiVersion: v1
 kind: Service
 metadata:
   name: mutatepodtoleration
   labels:
-    k8s-app: discovery
-    app: liqo.io
+    app: mutatepodtoleration.liqo.io
 spec:
   selector:
-    app: mutatepodtoleration
+    app: mutatepodtoleration.liqo.io
   ports:
     - port: 443
       targetPort: 8443
-
 ---
-
 apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: podmutator
   labels:
-    app: mutatepodtoleration
+    app: mutatepodtoleration.liqo.io
 spec:
   selector:
     matchLabels:
-      app: mutatepodtoleration
+      app: mutatepodtoleration.liqo.io
   template:
     metadata:
       labels:
-        app: mutatepodtoleration
+        app: mutatepodtoleration.liqo.io
     spec:
-      serviceAccountName: podmutatoraccount
+      serviceAccountName: pod-mutator-account
       initContainers:
       - name: secret-creation
-        image: {{ .Values.secretCreation.image.repository }}{{ .Values.global.suffix | default .Values.suffix }}:{{ .Values.global.version | default .Values.version }}
+        image: liqo/secret-creation
         imagePullPolicy: Always
         args:
           - "--namespace"
-          - {{ .Release.Namespace }}
+          - liqo
           - "--service"
           - "mutatepodtoleration"
           - "--secret"
@@ -85,7 +138,7 @@ spec:
             cpu: 100m
             memory: 100M
       - name: pod-mutator-deployment
-        image: {{ .Values.initMutatingWebhook.image.repository }}{{ .Values.global.suffix | default .Values.suffix }}:{{ .Values.global.version | default .Values.version }}
+        image: liqo/init-pod-mutator
         imagePullPolicy: Always
         args:
           - "--input-env-file"
@@ -102,7 +155,7 @@ spec:
             memory: 50M
       containers:
       - name: podmutator
-        image: {{ .Values.mutatingWebhook.image.repository }}{{ .Values.global.suffix | default .Values.suffix }}:{{ .Values.global.version | default .Values.version }}
+        image: liqo/pod-mutator
         imagePullPolicy: Always
         args:
           - "--input-env-file"
