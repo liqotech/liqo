@@ -2,24 +2,71 @@
 apiVersion: v1
 kind: ServiceAccount
 metadata:
-  name: sn-operator
+  name: scheduling-node-operator-service-account
   labels:
-    k8s-app: sn-operator
-
+    k8s-app: scheduling-node-operator
 ---
-apiVersion: rbac.authorization.k8s.io/v1beta1
+apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
 metadata:
-  name: sn-operator
+  name: scheduling-node-operator
 subjects:
   - kind: ServiceAccount
-    name: sn-operator
+    name: scheduling-node-operator-service-account
     namespace: {{ .Release.Namespace }}
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
-  name: cluster-admin
-
+  name: scheduling-node-operator-role
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  creationTimestamp: null
+  name: scheduling-node-operator-role
+rules:
+  - apiGroups:
+      - ""
+    resources:
+      - nodes
+    verbs:
+      - get
+      - list
+  - apiGroups:
+      - scheduling.liqo.io
+    resources:
+      - schedulingnodes
+    verbs:
+      - create
+      - delete
+      - get
+      - list
+      - patch
+      - update
+      - watch
+  - apiGroups:
+      - scheduling.liqo.io
+    resources:
+      - schedulingnodes/status
+    verbs:
+      - get
+      - patch
+      - update
+  - apiGroups:
+      - sharing.liqo.io
+    resources:
+      - advertisements
+    verbs:
+      - get
+      - list
+      - watch
+  - apiGroups:
+      - ""
+    resources:
+      - events
+    verbs:
+      - create
+      - patch
 ---
 apiVersion: apps/v1
 kind: Deployment
