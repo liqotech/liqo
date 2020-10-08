@@ -18,7 +18,7 @@ require (
 	github.com/google/uuid v1.1.1
 	github.com/gorilla/mux v1.7.4
 	github.com/grandcat/zeroconf v1.0.0
-	github.com/gruntwork-io/terratest v0.30.6
+	github.com/gruntwork-io/terratest v0.30.7
 	github.com/joho/godotenv v1.3.0
 	github.com/miekg/dns v1.1.27
 	github.com/mitchellh/go-homedir v1.1.0
