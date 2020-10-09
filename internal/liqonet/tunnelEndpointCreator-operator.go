@@ -27,7 +27,6 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
-	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/dynamic/dynamicinformer"
 	"k8s.io/client-go/tools/cache"
@@ -113,7 +112,6 @@ func (r *TunnelEndpointCreator) Reconcile(req ctrl.Request) (ctrl.Result, error)
 	var netConfig netv1alpha1.NetworkConfig
 	if err := r.Get(ctx, req.NamespacedName, &netConfig); apierrors.IsNotFound(err) {
 		// reconcile was triggered by a delete request
-		klog.Infof("resource %s not found, probably it was deleted", req.NamespacedName)
 		return ctrl.Result{}, client.IgnoreNotFound(err)
 	} else if err != nil {
 		klog.Errorf("an error occurred while getting resource %s: %s", req.NamespacedName, err)
@@ -143,6 +141,10 @@ func (r *TunnelEndpointCreator) Reconcile(req ctrl.Request) (ctrl.Result, error)
 		}
 	} else {
 		//the object is being deleted
+		if err := r.deleteTunEndpoint(&netConfig); err != nil {
+			klog.Errorf("an error occurred while deleting tunnel endpoint related to %s: %s", netConfig.Name, err)
+			return result, err
+		}
 		if liqonetOperator.ContainsString(netConfig.Finalizers, tunnelEndpointCreatorFinalizer) {
 			//remove the finalizer from the list and update it.
 			netConfig.Finalizers = liqonetOperator.RemoveString(netConfig.Finalizers, tunnelEndpointCreatorFinalizer)
@@ -163,9 +165,11 @@ func (r *TunnelEndpointCreator) Reconcile(req ctrl.Request) (ctrl.Result, error)
 	labels := netConfig.GetLabels()
 	if val, ok := labels[crdReplicator.LocalLabelSelector]; ok && val == "true" {
 		return result, r.processLocalNetConfig(&netConfig)
-	} else {
+	}
+	if _, ok := labels[crdReplicator.RemoteLabelSelector]; ok {
 		return result, r.processRemoteNetConfig(&netConfig)
 	}
+	return result, nil
 }
 
 func (r *TunnelEndpointCreator) SetupWithManager(mgr ctrl.Manager) error {
@@ -204,7 +208,7 @@ func (r *TunnelEndpointCreator) createNetConfig(fc *discoveryv1alpha1.ForeignClu
 	clusterID := fc.Spec.ClusterIdentity.ClusterID
 	netConfig := netv1alpha1.NetworkConfig{
 		ObjectMeta: metav1.ObjectMeta{
-			Name: NetConfigNamePrefix + clusterID,
+			GenerateName: NetConfigNamePrefix,
 			Labels: map[string]string{
 				crdReplicator.LocalLabelSelector: "true",
 				crdReplicator.DestinationLabel:   clusterID,
@@ -226,36 +230,51 @@ func (r *TunnelEndpointCreator) createNetConfig(fc *discoveryv1alpha1.ForeignClu
 		},
 		Status: netv1alpha1.NetworkConfigStatus{},
 	}
-	err := r.Create(context.TODO(), &netConfig)
-	if apierrors.IsAlreadyExists(err) {
-		return nil
-	} else if err != nil {
-		klog.Errorf("an error occurred while creating resource %s of type %s: %s", netConfig.Name, netv1alpha1.GroupVersion.String(), err)
+	//check if the resource for the remote cluster already exists
+	_, exists, err := r.GetNetworkConfig(clusterID)
+	if err != nil {
 		return err
-	} else {
-		klog.Infof("resource %s of type %s created", netConfig.Name, netv1alpha1.GroupVersion.String())
+	}
+	if exists {
 		return nil
 	}
+	err = r.Create(context.TODO(), &netConfig)
+	if err != nil {
+		klog.Errorf("an error occurred while creating resource %s of type %s: %s", netConfig.Name, netv1alpha1.GroupVersion.String(), err)
+		return err
+	}
+	klog.Infof("resource %s of type %s created", netConfig.Name, netv1alpha1.GroupVersion.String())
+	return nil
+
 }
 
 func (r *TunnelEndpointCreator) deleteNetConfig(fc *discoveryv1alpha1.ForeignCluster) error {
 	clusterID := fc.Spec.ClusterIdentity.ClusterID
-	resName := NetConfigNamePrefix + clusterID
-	netConfig := &netv1alpha1.NetworkConfig{}
-	//first we get the resource
-	err := r.Get(context.Background(), types.NamespacedName{Name: resName}, netConfig)
+	netConfigList := &netv1alpha1.NetworkConfigList{}
+	labels := client.MatchingLabels{crdReplicator.DestinationLabel: clusterID}
+	err := r.List(context.Background(), netConfigList, labels)
 	if err != nil {
-		klog.Errorf("an error occurred while getting resource %s of type %s: %s", resName, netv1alpha1.GroupVersion.String(), err)
+		klog.Errorf("an error occurred while listing resources: %s", err)
 		return err
 	}
-	err = r.Delete(context.Background(), netConfig)
+	if len(netConfigList.Items) != 1 {
+		if len(netConfigList.Items) == 0 {
+			klog.Infof("nothing to remove: a resource of type %s for remote cluster %s not found", netv1alpha1.GroupVersion.String(), clusterID)
+			return nil
+		} else {
+			klog.Errorf("more than one instances of type %s exists for remote cluster %s", netv1alpha1.GroupVersion.String(), clusterID)
+			return fmt.Errorf("multiple instances of %s for remote cluster %s", netv1alpha1.GroupVersion.String(), clusterID)
+		}
+	}
+	netConfig := netConfigList.Items[0]
+	err = r.Delete(context.Background(), &netConfig)
 	if err != nil {
 		klog.Errorf("an error occurred while deleting resource %s of type %s: %s", netConfig.Name, netv1alpha1.GroupVersion.String(), err)
 		return err
 	} else {
 		klog.Infof("resource %s of type %s deleted", netConfig.Name, netv1alpha1.GroupVersion.String())
 	}
-	err = r.deleteTunEndpoint(netConfig)
+	err = r.deleteTunEndpoint(&netConfig)
 	if err != nil {
 		klog.Errorf("an error occurred while deleting resource %s of type %s: %s", strings.Join([]string{TunEndpointNamePrefix, netConfig.Spec.ClusterID}, ""), netv1alpha1.GroupVersion.String(), err)
 		return err
@@ -264,6 +283,26 @@ func (r *TunnelEndpointCreator) deleteNetConfig(fc *discoveryv1alpha1.ForeignClu
 		return nil
 	}
 
+}
+
+func (r *TunnelEndpointCreator) GetNetworkConfig(destinationClusterID string) (*netv1alpha1.NetworkConfig, bool, error) {
+	clusterID := destinationClusterID
+	networkConfigList := &netv1alpha1.NetworkConfigList{}
+	labels := client.MatchingLabels{crdReplicator.DestinationLabel: clusterID}
+	err := r.List(context.Background(), networkConfigList, labels)
+	if err != nil {
+		klog.Errorf("an error occurred while listing resources of type %s: %s", netv1alpha1.GroupVersion, err)
+		return nil, false, err
+	}
+	if len(networkConfigList.Items) != 1 {
+		if len(networkConfigList.Items) == 0 {
+			return nil, false, nil
+		} else {
+			klog.Errorf("more than one instances of type %s exists for remote cluster %s", netv1alpha1.GroupVersion.String(), clusterID)
+			return nil, false, fmt.Errorf("multiple instances of %s for remote cluster %s", netv1alpha1.GroupVersion.String(), clusterID)
+		}
+	}
+	return &networkConfigList.Items[0], true, nil
 }
 
 func (r *TunnelEndpointCreator) processRemoteNetConfig(netConfig *netv1alpha1.NetworkConfig) error {
@@ -275,7 +314,9 @@ func (r *TunnelEndpointCreator) processRemoteNetConfig(netConfig *netv1alpha1.Ne
 	}
 	r.Mutex.Lock()
 	defer r.Mutex.Unlock()
-	newSubnet, err := r.IPManager.GetNewSubnetPerCluster(clusterSubnet, netConfig.Spec.ClusterID)
+	//networkconfigs resources received from remote clusters contains the clusterID of the destination cluster,
+	//so in order to take the clusterID of the sender we need to retrieve it from the labels.
+	newSubnet, err := r.IPManager.GetNewSubnetPerCluster(clusterSubnet, netConfig.Labels[crdReplicator.RemoteLabelSelector])
 	if err != nil {
 		klog.Errorf("an error occurred while getting a new subnet for resource %s: %s", netConfig.Name, err)
 		return err
@@ -370,11 +411,10 @@ func (r *TunnelEndpointCreator) processLocalNetConfig(netConfig *netv1alpha1.Net
 }
 
 func (r *TunnelEndpointCreator) ProcessTunnelEndpoint(param networkParam, owner *metav1.OwnerReference) error {
-	tepName := TunEndpointNamePrefix + param.remoteClusterID
 	//try to get the tunnelEndpoint, it may not exist
-	_, found, err := r.GetTunnelEndpoint(tepName)
+	_, found, err := r.GetTunnelEndpoint(param.remoteClusterID)
 	if err != nil {
-		klog.Errorf("an error occurred while getting resource %s: %s", TunEndpointNamePrefix+param.remoteClusterID, err)
+		klog.Errorf("an error occurred while getting resource tunnelEndpoint for cluster %s: %s", param.remoteClusterID, err)
 		return err
 	}
 	if !found {
@@ -391,17 +431,16 @@ func (r *TunnelEndpointCreator) ProcessTunnelEndpoint(param networkParam, owner 
 }
 
 func (r *TunnelEndpointCreator) UpdateSpecTunnelEndpoint(param networkParam) error {
-	tepName := TunEndpointNamePrefix + param.remoteClusterID
 	tep := &netv1alpha1.TunnelEndpoint{}
-
 	//here we recover from conflicting resource versions
 	retryError := retry.RetryOnConflict(retry.DefaultRetry, func() error {
 		toBeUpdated := false
-		err := r.Get(context.Background(), client.ObjectKey{
-			Name: tepName,
-		}, tep)
+		tep, found, err := r.GetTunnelEndpoint(param.remoteClusterID)
 		if err != nil {
 			return err
+		}
+		if !found {
+			return apierrors.NewNotFound(netv1alpha1.GroupResource, strings.Join([]string{"tunnelEndpoint for cluster:", param.remoteClusterID}, " "))
 		}
 		//check if there are fields to be updated
 		if tep.Spec.ClusterID != param.remoteClusterID {
@@ -430,17 +469,17 @@ func (r *TunnelEndpointCreator) UpdateSpecTunnelEndpoint(param networkParam) err
 }
 
 func (r *TunnelEndpointCreator) UpdateStatusTunnelEndpoint(param networkParam) error {
-	tepName := TunEndpointNamePrefix + param.remoteClusterID
 	tep := &netv1alpha1.TunnelEndpoint{}
 
 	//here we recover from conflicting resource versions
 	retryError := retry.RetryOnConflict(retry.DefaultRetry, func() error {
 		toBeUpdated := false
-		err := r.Get(context.Background(), client.ObjectKey{
-			Name: tepName,
-		}, tep)
+		tep, found, err := r.GetTunnelEndpoint(param.remoteClusterID)
 		if err != nil {
 			return err
+		}
+		if !found {
+			return apierrors.NewNotFound(netv1alpha1.GroupResource, strings.Join([]string{"tunnelEndpoint for cluster:", param.remoteClusterID}, " "))
 		}
 		//check if there are fields to be updated
 		if tep.Status.LocalRemappedPodCIDR != param.localNatPodCIDR {
@@ -477,11 +516,10 @@ func (r *TunnelEndpointCreator) UpdateStatusTunnelEndpoint(param networkParam) e
 }
 
 func (r *TunnelEndpointCreator) CreateTunnelEndpoint(param networkParam, owner *metav1.OwnerReference) error {
-	tepName := TunEndpointNamePrefix + param.remoteClusterID
 	//here we create it
 	tep := &netv1alpha1.TunnelEndpoint{
 		ObjectMeta: metav1.ObjectMeta{
-			Name: tepName,
+			GenerateName: TunEndpointNamePrefix,
 			Labels: map[string]string{
 				"clusterID": param.remoteClusterID,
 			},
@@ -550,46 +588,43 @@ func (r *TunnelEndpointCreator) ForeignClusterHandlerDelete(obj interface{}) {
 	_ = r.deleteNetConfig(fc)
 }
 
-func (r *TunnelEndpointCreator) GetTunnelEndpoint(name string) (*netv1alpha1.TunnelEndpoint, bool, error) {
-	ctx := context.Background()
-	tunEndpoint := &netv1alpha1.TunnelEndpoint{}
-	//build the key used to retrieve the tunnelEndpoint CR
-	tunEndKey := types.NamespacedName{
-		Name: name,
-	}
-	//retrieve the tunnelEndpoint CR
-	err := r.Get(ctx, tunEndKey, tunEndpoint)
-	if apierrors.IsNotFound(err) {
-		return nil, false, nil
-	} else if err != nil {
+func (r *TunnelEndpointCreator) GetTunnelEndpoint(destinationClusterID string) (*netv1alpha1.TunnelEndpoint, bool, error) {
+	clusterID := destinationClusterID
+	tunEndpointList := &netv1alpha1.TunnelEndpointList{}
+	labels := client.MatchingLabels{"clusterID": clusterID}
+	err := r.List(context.Background(), tunEndpointList, labels)
+	if err != nil {
+		klog.Errorf("an error occurred while listing resources: %s", err)
 		return nil, false, err
-	} else {
-		return tunEndpoint, true, nil
 	}
+	if len(tunEndpointList.Items) != 1 {
+		if len(tunEndpointList.Items) == 0 {
+			return nil, false, nil
+		} else {
+			klog.Errorf("more than one instances of type %s exists for remote cluster %s", netv1alpha1.GroupVersion.String(), clusterID)
+			return nil, false, fmt.Errorf("multiple instances of %s for remote cluster %s", netv1alpha1.GroupVersion.String(), clusterID)
+		}
+	}
+	return &tunEndpointList.Items[0], true, nil
 }
 
 func (r *TunnelEndpointCreator) deleteTunEndpoint(netConfig *netv1alpha1.NetworkConfig) error {
 	ctx := context.Background()
-	var tunEndpoint netv1alpha1.TunnelEndpoint
-	//build the key used to retrieve the tunnelEndpoint CR
-	tunEndKey := types.NamespacedName{
-		Namespace: netConfig.Namespace,
-		Name:      TunEndpointNamePrefix + netConfig.Spec.ClusterID,
+	clusterID := netConfig.Spec.ClusterID
+	tep, found, err := r.GetTunnelEndpoint(clusterID)
+	if err != nil {
+		return err
 	}
-	//retrieve the tunnelEndpoint CR
-	err := r.Get(ctx, tunEndKey, &tunEndpoint)
-	//if the CR exist then do nothing and return
-	if err == nil {
-		err := r.Delete(ctx, &tunEndpoint)
-		if err != nil {
-			return fmt.Errorf("unable to delete endpoint %s in namespace %s : %v", tunEndpoint.Name, tunEndpoint.Namespace, err)
-		} else {
-			return nil
-		}
-	} else if apierrors.IsNotFound(err) {
+	if !found {
+		klog.Infof("tunnelendpoint resource for cluster %s not found", clusterID)
 		return nil
+	}
+	err = r.Delete(ctx, tep)
+	if err != nil {
+		return fmt.Errorf("unable to delete endpoint %s in namespace %s : %v", tep.Name, tep.Namespace, err)
 	} else {
-		return fmt.Errorf("unable to get endpoint with key %s: %v", tunEndKey.String(), err)
+		klog.Infof("resource %s of type %s for remote cluster %s has been removed", tep.Name, netv1alpha1.GroupVersion.String(), clusterID)
+		return nil
 	}
 }
 
