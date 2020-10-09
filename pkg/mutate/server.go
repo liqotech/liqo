@@ -55,7 +55,7 @@ func (s *MutationServer) handleMutate(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// mutate the request
-	mutated, err := s.Mutate(body, true)
+	mutated, err := s.Mutate(body)
 	if err != nil {
 		s.sendError(err, w)
 		return

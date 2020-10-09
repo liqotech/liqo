@@ -19,7 +19,7 @@ spec:
       namespace: {{ .Release.Namespace }}
       appLabel: "liqo-dashboard"
   discoveryConfig:
-    clusterName: {{ .Values.clusterName}}
+    clusterName: {{ .Values.clusterName }}
     autojoin: true
     autojoinUntrusted: true
     domain: local.

@@ -56,19 +56,17 @@ schedulingNodeOperator:
   enabled: true
 
 #configuration values for the mutatingWebhook subchart
-podMutator:
-  initMutatingWebhook:
+liqoWebhook:
+  webhook:
     image:
-      repository: "liqo/init-pod-mutator"
+      repository: "liqo/liqo-webhook"
       pullPolicy: "IfNotPresent"
-  mutatingWebhook:
+  webhookConfiguration:
     image:
-      repository: "liqo/pod-mutator"
+      repository: "liqo/webhook-configuration"
       pullPolicy: "IfNotPresent"
-  secretCreation:
-    image:
-      repository: "liqo/secret-creation"
-      pullPolicy: "IfNotPresent"
+  webhookServiceName: "liqo-webhook"
+  certSecretName: "liqo-webhook-cert"
   enabled: true
 
 discoveryOperator:
