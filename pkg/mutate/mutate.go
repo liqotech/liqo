@@ -6,16 +6,15 @@ import (
 	v1beta1 "k8s.io/api/admission/v1beta1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"log"
+	"k8s.io/klog"
 )
 
 // Mutate mutates the object received via admReview and creates a response
 // that embeds a patch to the received pod
-func (s *MutationServer) Mutate(body []byte, verbose bool) ([]byte, error) {
+func (s *MutationServer) Mutate(body []byte) ([]byte, error) {
 	var err error
-	if verbose {
-		log.Printf("recv: %s\n", string(body)) // untested section
-	}
+
+	klog.Infof("recv: %s\n", string(body))
 
 	// unmarshal request into AdmissionReview struct
 	admReview := v1beta1.AdmissionReview{}
@@ -80,9 +79,7 @@ func (s *MutationServer) Mutate(body []byte, verbose bool) ([]byte, error) {
 		}
 	}
 
-	if verbose {
-		log.Printf("resp: %s\n", string(responseBody))
-	}
+	klog.Infof("resp: %s\n", string(responseBody))
 
 	return responseBody, nil
 }

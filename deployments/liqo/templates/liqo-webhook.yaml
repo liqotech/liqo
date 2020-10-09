@@ -1,0 +1,31 @@
+apiVersion: admissionregistration.k8s.io/v1
+kind: MutatingWebhookConfiguration
+metadata:
+  name: liqo-webhook
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app: liqo-webhook
+webhooks:
+  - name: liqo-webhook.{{ .Release.Namespace }}.{{ .Values.liqoWebhook.webhookServiceName }}
+    admissionReviewVersions:
+      - v1
+      - v1beta1
+    clientConfig:
+      caBundle: eHh4Cg==
+      service:
+        name: {{ .Values.liqoWebhook.webhookServiceName }}
+        namespace: {{ .Release.Namespace }}
+        path: "/mutate"
+        port: 443
+    rules:
+      - operations: ["CREATE"]
+        apiGroups: [""]
+        apiVersions: ["v1"]
+        resources: ["pods"]
+    sideEffects: None
+    timeoutSeconds: 5
+    reinvocationPolicy: Never
+    failurePolicy: Ignore
+    namespaceSelector:
+      matchLabels:
+        liqo.io/enabled: "true"

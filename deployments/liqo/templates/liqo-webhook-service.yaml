@@ -1,14 +1,12 @@
----
 apiVersion: v1
 kind: Service
 metadata:
-  name: mutatepodtoleration
+  name: {{ .Values.liqoWebhook.webhookServiceName }}
   labels:
-    k8s-app: discovery
-    app: liqo.io
+    app: liqo-webhook
 spec:
   selector:
-    app: mutatepodtoleration
+    app: liqo-webhook
   ports:
     - port: 443
       targetPort: 8443

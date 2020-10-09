@@ -1,0 +1,60 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: liqo-webhook
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app: liqo-webhook
+spec:
+  selector:
+    matchLabels:
+      app: liqo-webhook
+  template:
+    metadata:
+      labels:
+        app: liqo-webhook
+    spec:
+      serviceAccountName: liqo-webhook
+      initContainers:
+        - name: webhook-configuration
+          image: {{ .Values.liqoWebhook.webhookConfiguration.image.repository }}{{ .Values.suffix }}:{{ default .Values.version }}
+          imagePullPolicy: {{ .Values.liqoWebhook.webhookConfiguration.image.pullPolicy }}
+          args:
+            - "--webhook-name"
+            - "liqo-webhook"
+          env:
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: POD_UID
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.uid
+          volumeMounts:
+            - mountPath: /etc/ssl/liqo
+              name: cert-volume
+          resources:
+            limits:
+              cpu: 100m
+              memory: 100M
+            requests:
+              cpu: 100m
+              memory: 100M
+      containers:
+        - name: liqo-webhook
+          image: {{ .Values.liqoWebhook.webhook.image.repository }}{{ default .Values.suffix }}:{{ default .Values.version }}
+          imagePullPolicy: {{ .Values.liqoWebhook.webhook.image.pullPolicy }}
+          volumeMounts:
+            - mountPath: /etc/ssl/liqo
+              name: cert-volume
+          resources:
+            limits:
+              cpu: 100m
+              memory: 50M
+            requests:
+              cpu: 100m
+              memory: 50M
+      volumes:
+        - name: cert-volume
+          emptyDir: {}
