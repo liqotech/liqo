@@ -42,6 +42,7 @@ type PeeringRequestReconciler struct {
 	configMapName             string
 	broadcasterImage          string
 	broadcasterServiceAccount string
+	vkServiceAccount          string
 	retryTimeout              time.Duration
 
 	// testing
@@ -88,7 +89,7 @@ func (r *PeeringRequestReconciler) Reconcile(req ctrl.Request) (ctrl.Result, err
 	}
 	if !exists {
 		klog.Info("Deploy Broadcaster")
-		deploy := GetBroadcasterDeployment(pr, r.broadcasterServiceAccount, r.Namespace, r.broadcasterImage, r.clusterId.GetClusterID())
+		deploy := GetBroadcasterDeployment(pr, r.broadcasterServiceAccount, r.vkServiceAccount, r.Namespace, r.broadcasterImage, r.clusterId.GetClusterID())
 		deploy, err = r.crdClient.Client().AppsV1().Deployments(r.Namespace).Create(context.TODO(), deploy, metav1.CreateOptions{})
 		if err != nil {
 			klog.Error(err, err.Error())
