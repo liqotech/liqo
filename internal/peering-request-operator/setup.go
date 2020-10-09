@@ -22,7 +22,7 @@ func init() {
 	// +kubebuilder:scaffold:scheme
 }
 
-func StartOperator(namespace string, broadcasterImage string, broadcasterServiceAccount string, kubeconfigPath string) {
+func StartOperator(namespace string, broadcasterImage string, broadcasterServiceAccount string, vkServiceAccount string, kubeconfigPath string) {
 	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
 		Scheme:           scheme,
 		Port:             9443,
@@ -58,6 +58,7 @@ func StartOperator(namespace string, broadcasterImage string, broadcasterService
 		clusterId,
 		broadcasterImage,
 		broadcasterServiceAccount,
+		vkServiceAccount,
 	)).SetupWithManager(mgr); err != nil {
 		klog.Error(err, "unable to create controller")
 		os.Exit(1)
@@ -70,7 +71,7 @@ func StartOperator(namespace string, broadcasterImage string, broadcasterService
 	}
 }
 
-func GetPRReconciler(scheme *runtime.Scheme, crdClient *crdClient.CRDClient, namespace string, clusterId *clusterID.ClusterID, broadcasterImage string, broadcasterServiceAccount string) *PeeringRequestReconciler {
+func GetPRReconciler(scheme *runtime.Scheme, crdClient *crdClient.CRDClient, namespace string, clusterId *clusterID.ClusterID, broadcasterImage string, broadcasterServiceAccount string, vkServiceAccount string) *PeeringRequestReconciler {
 	return &PeeringRequestReconciler{
 		Scheme:                    scheme,
 		crdClient:                 crdClient,
@@ -78,6 +79,7 @@ func GetPRReconciler(scheme *runtime.Scheme, crdClient *crdClient.CRDClient, nam
 		clusterId:                 clusterId,
 		broadcasterImage:          broadcasterImage,
 		broadcasterServiceAccount: broadcasterServiceAccount,
+		vkServiceAccount:          vkServiceAccount,
 		retryTimeout:              1 * time.Minute,
 		ForeignConfig:             nil,
 	}

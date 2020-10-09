@@ -31,14 +31,14 @@ func (r *PeeringRequestReconciler) BroadcasterExists(request *discoveryv1alpha1.
 	return true, nil
 }
 
-func GetBroadcasterDeployment(request *discoveryv1alpha1.PeeringRequest, nameSA string, namespace string, image string, clusterId string) *appsv1.Deployment {
+func GetBroadcasterDeployment(request *discoveryv1alpha1.PeeringRequest, nameSA string, remoteSA string, namespace string, image string, clusterId string) *appsv1.Deployment {
 	args := []string{
 		"--peering-request",
 		request.Name,
 		"--cluster-id",
 		clusterId,
 		"--service-account",
-		nameSA, //TODO: using this SA, we pass to the foreign cluster a kubeconfig with the same permissions of the broadcaster deployment; if we want to pass a different one we have to forge it
+		remoteSA,
 	}
 
 	deploy := &appsv1.Deployment{

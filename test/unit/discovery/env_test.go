@@ -69,6 +69,7 @@ func getClientCluster() *Cluster {
 		cluster.clusterId,
 		"broadcaster",
 		"br-sa",
+		"br-sa",
 	)
 	err = cluster.prReconciler.SetupWithManager(mgr)
 	if err != nil {
@@ -132,6 +133,7 @@ func getServerCluster() *Cluster {
 		"default",
 		cluster.clusterId,
 		"broadcaster",
+		"br-sa",
 		"br-sa",
 	)
 	err = cluster.prReconciler.SetupWithManager(mgr)

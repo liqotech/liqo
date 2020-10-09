@@ -119,15 +119,8 @@ func StartBroadcaster(homeClusterId, localKubeconfigPath, peeringRequestName, sa
 
 	kubeconfigSecretName := pkg.VirtualKubeletSecPrefix + homeClusterId
 
-	// get the ServiceAccount with the permissions that will be given to the foreign cluster
-	sa, err := localClient.Client().CoreV1().ServiceAccounts(pr.Spec.Namespace).Get(context.TODO(), saName, metav1.GetOptions{})
-	if err != nil {
-		klog.Errorln(err, "Unable to get ServiceAccount "+saName)
-		return err
-	}
-
 	// create the kubeconfig to allow the foreign cluster to create resources on local cluster
-	kubeconfigForForeignCluster, err := kubeconfig.CreateKubeConfig(localClient.Client(), sa.Name, sa.Namespace)
+	kubeconfigForForeignCluster, err := kubeconfig.CreateKubeConfig(localClient.Client(), saName, pr.Spec.Namespace)
 	if err != nil {
 		klog.Errorln(err, "Unable to create Kubeconfig")
 		return err
@@ -137,7 +130,7 @@ func StartBroadcaster(homeClusterId, localKubeconfigPath, peeringRequestName, sa
 		TypeMeta: metav1.TypeMeta{},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      kubeconfigSecretName,
-			Namespace: sa.Namespace,
+			Namespace: pr.Spec.Namespace,
 		},
 		Data: nil,
 		StringData: map[string]string{
