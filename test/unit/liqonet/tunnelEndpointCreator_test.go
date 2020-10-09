@@ -2,6 +2,7 @@ package liqonet
 
 import (
 	"context"
+	"fmt"
 	configv1alpha1 "github.com/liqotech/liqo/apis/config/v1alpha1"
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	netv1alpha1 "github.com/liqotech/liqo/apis/net/v1alpha1"
@@ -22,6 +23,7 @@ import (
 	"k8s.io/klog"
 	"net"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sync"
 	"testing"
 	"time"
@@ -361,11 +363,7 @@ func TestCreateNetConfigFromForeignClusterOutgoingJoined(t *testing.T) {
 			_, err = tec.DynClient.Resource(controller.ForeignClusterGVR).Create(context.TODO(), &unstructured.Unstructured{Object: pReqObj}, metav1.CreateOptions{})
 			assert.Nil(t, err, "should be nil")
 			time.Sleep(2 * time.Second)
-			netConfig := &netv1alpha1.NetworkConfig{}
-			err = tec.Get(context.TODO(), types.NamespacedName{
-				Namespace: fc.Namespace,
-				Name:      controller.NetConfigNamePrefix + fc.Spec.ClusterIdentity.ClusterID,
-			}, netConfig)
+			netConfig, err := getNetworkConfigByLabel(fc)
 			assert.Nil(t, err, "error should be nil")
 			assert.Equal(t, fc.Spec.ClusterIdentity.ClusterID, netConfig.Spec.ClusterID, "should be equal")
 			assert.Equal(t, tec.PodCIDR, netConfig.Spec.PodCIDR, "should be equal")
@@ -379,10 +377,8 @@ func TestCreateNetConfigFromForeignClusterOutgoingJoined(t *testing.T) {
 			assert.Nil(t, err)
 			time.Sleep(2 * time.Second)
 			//check that the netconfig has been deleted
-			err = tec.Get(context.TODO(), types.NamespacedName{
-				Namespace: fc.Namespace,
-				Name:      controller.NetConfigNamePrefix + fc.Spec.ClusterIdentity.ClusterID,
-			}, netConfig)
+			netConfig, err = getNetworkConfigByLabel(fc)
+			assert.Nil(t, netConfig)
 			assert.True(t, apierrors.IsNotFound(err))
 		} else {
 			pReqObj, err := runtime.DefaultUnstructuredConverter.ToUnstructured(&fc)
@@ -391,11 +387,7 @@ func TestCreateNetConfigFromForeignClusterOutgoingJoined(t *testing.T) {
 			_, err = tec.DynClient.Resource(controller.ForeignClusterGVR).Create(context.TODO(), &unstructured.Unstructured{Object: pReqObj}, metav1.CreateOptions{})
 			assert.Nil(t, err, "should be nil")
 			time.Sleep(2 * time.Second)
-			netConfig := &netv1alpha1.NetworkConfig{}
-			err = tec.Get(context.TODO(), types.NamespacedName{
-				Namespace: fc.Namespace,
-				Name:      controller.NetConfigNamePrefix + fc.Spec.ClusterIdentity.ClusterID,
-			}, netConfig)
+			_, err = getNetworkConfigByLabel(fc)
 			assert.True(t, apierrors.IsNotFound(err))
 			err = tec.DynClient.Resource(controller.ForeignClusterGVR).Delete(context.TODO(), fc.Name, metav1.DeleteOptions{})
 			assert.Nil(t, err)
@@ -417,6 +409,27 @@ func getNetworkConfig() *netv1alpha1.NetworkConfig {
 		},
 		Status: netv1alpha1.NetworkConfigStatus{},
 	}
+}
+
+func getNetworkConfigByLabel(fc discoveryv1alpha1.ForeignCluster) (*netv1alpha1.NetworkConfig, error) {
+	clusterID := fc.Spec.ClusterIdentity.ClusterID
+	netConfigList := &netv1alpha1.NetworkConfigList{}
+	labels := client.MatchingLabels{crdReplicator.DestinationLabel: clusterID}
+	err := tec.List(context.Background(), netConfigList, labels)
+	if err != nil {
+		klog.Errorf("an error occurred while listing resources: %s", err)
+		return nil, err
+	}
+	if len(netConfigList.Items) != 1 {
+		if len(netConfigList.Items) == 0 {
+			klog.Infof("no resource of type %s for remote cluster %s not found", netv1alpha1.GroupVersion.String(), clusterID)
+			return nil, apierrors.NewNotFound(netv1alpha1.GroupResource, clusterID)
+		} else {
+			klog.Errorf("more than one instances of type %s exists for remote cluster %s", netv1alpha1.GroupVersion.String(), clusterID)
+			return nil, fmt.Errorf("multiple instances of %s for remote cluster %s", netv1alpha1.GroupVersion.String(), clusterID)
+		}
+	}
+	return &netConfigList.Items[0], nil
 }
 
 //we create a networkConfig instance as it comes from a peering cluster
@@ -447,7 +460,7 @@ func TestNetConfigProcessing(t *testing.T) {
 	netConfig2.Spec.PodCIDR = "10.1.0.0/12"
 	err = tec.Create(context.Background(), netConfig2)
 	assert.Nil(t, err)
-	time.Sleep(3 * time.Second)
+	time.Sleep(2 * time.Second)
 	err = tec.Get(context.Background(), types.NamespacedName{Name: netConfig2.Name}, netConfig2)
 	assert.Nil(t, err)
 	assert.Equal(t, "true", netConfig2.Status.NATEnabled)
@@ -465,8 +478,7 @@ func TestNetConfigProcessing(t *testing.T) {
 	err = tec.Update(context.Background(), netConfig2)
 	assert.Nil(t, err)
 	time.Sleep(10 * time.Second)
-	tepName := controller.TunEndpointNamePrefix + "remoteclusterid"
-	tep, found, err := tec.GetTunnelEndpoint(tepName)
+	tep, found, err := tec.GetTunnelEndpoint("remoteclusterid")
 	assert.True(t, found)
 	assert.Nil(t, err)
 	assert.Equal(t, netConfig1.Status.PodCIDRNAT, tep.Status.RemoteRemappedPodCIDR)
@@ -491,10 +503,23 @@ func TestNetConfigProcessing(t *testing.T) {
 	netConfig2.Status.PodCIDRNAT = newNATPodCIDR
 	err = tec.Status().Update(context.Background(), netConfig2)
 	assert.Nil(t, err)
-	time.Sleep(10 * time.Second)
-	tep, found, err = tec.GetTunnelEndpoint(tepName)
+	time.Sleep(3 * time.Second)
+	tep, found, err = tec.GetTunnelEndpoint("remoteclusterid")
 	assert.True(t, found)
 	assert.Nil(t, err)
 	assert.Equal(t, newNATPodCIDR, tep.Status.LocalRemappedPodCIDR)
 	assert.Equal(t, newPodCIDR, tep.Spec.PodCIDR)
+
+	//test5
+	//we delete the local netConfig
+	//expect that the tunneEndpoint associated is also deleted
+	err = tec.Get(context.Background(), types.NamespacedName{Name: netConfig2.Name}, netConfig2)
+	assert.Nil(t, err)
+	err = tec.Delete(context.Background(), netConfig2)
+	assert.Nil(t, err)
+	time.Sleep(2 * time.Second)
+	_, found, err = tec.GetTunnelEndpoint("remoteclusterid")
+	assert.False(t, found)
+	assert.Nil(t, err)
+	time.Sleep(10 * time.Second)
 }

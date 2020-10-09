@@ -6,7 +6,6 @@ import (
 	nettypes "github.com/liqotech/liqo/apis/net/v1alpha1"
 	advtypes "github.com/liqotech/liqo/apis/sharing/v1alpha1"
 	advertisementOperator "github.com/liqotech/liqo/internal/advertisement-operator"
-	controllers "github.com/liqotech/liqo/internal/liqonet"
 	"github.com/liqotech/liqo/internal/node"
 	"github.com/liqotech/liqo/pkg/virtualKubelet"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/options"
@@ -31,9 +30,8 @@ func (p *KubernetesProvider) StartNodeUpdater(nodeRunner *node.NodeController) (
 		return nil, nil, err
 	}
 
-	tepName := strings.Join([]string{controllers.TunEndpointNamePrefix, p.foreignClusterId}, "")
 	tepWatcher, err := p.tunEndClient.Resource("tunnelendpoints").Watch(metav1.ListOptions{
-		FieldSelector: strings.Join([]string{"metadata.name", tepName}, "="),
+		LabelSelector: strings.Join([]string{"clusterID", p.foreignClusterId}, "="),
 		Watch:         true,
 	})
 	if err != nil {
@@ -67,7 +65,7 @@ func (p *KubernetesProvider) StartNodeUpdater(nodeRunner *node.NodeController) (
 					klog.Error(err)
 					tepWatcher.Stop()
 					tepWatcher, err = p.tunEndClient.Resource("tunnelendpoints").Watch(metav1.ListOptions{
-						FieldSelector: strings.Join([]string{"metadata.name", tepName}, "="),
+						LabelSelector: strings.Join([]string{"clusterID", p.foreignClusterId}, "="),
 						Watch:         true,
 					})
 					if err != nil {

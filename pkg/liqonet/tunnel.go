@@ -8,10 +8,11 @@ import (
 	"github.com/vishvananda/netlink"
 	"net"
 	"os"
+	"strings"
 )
 
 const (
-	tunnelNamePrefix = "gretun_"
+	tunnelNamePrefix = "liqo-"
 	tunnelTtl        = 255
 )
 
@@ -31,8 +32,8 @@ func GetLocalTunnelPublicIP() (net.IP, error) {
 }
 
 func InstallGreTunnel(endpoint *netv1alpha1.TunnelEndpoint) (int, string, error) {
-	//TODO configure the name according to the max length permitted by the kernel
-	name := tunnelNamePrefix
+	tokens := strings.Split(endpoint.Name, "-")
+	name := strings.Join([]string{tunnelNamePrefix, tokens[2]}, "")
 	//get the local ip address and use it as local ip for the gre tunnel
 	local, err := GetLocalTunnelPublicIP()
 	if err != nil {
