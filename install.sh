@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
-set -e           # Fail in case of error
-set -o nounset   # Fail if undefined variables are used
-set -o pipefail  # Fail if one of the piped commands fails
+set -e          # Fail in case of error
+set -o nounset  # Fail if undefined variables are used
+set -o pipefail # Fail if one of the piped commands fails
 
 #
 # Usage:
@@ -42,8 +42,8 @@ set -o pipefail  # Fail if one of the piped commands fails
 #   - KUBECONFIG_CONTEXT
 #     the context selected to interact with the cluster (defaults to the current one).
 #
-#		- INSTALL_AGENT
-#			enables the installation of Liqo Desktop Agent.
+#   - INSTALL_AGENT
+#     enables the installation of Liqo Desktop Agent.
 
 EXIT_SUCCESS=0
 EXIT_FAILURE=1
@@ -54,7 +54,7 @@ LIQO_CHARTS_PATH="deployments/liqo_chart"
 LIQO_DASHBOARD_REPO="liqotech/dashboard"
 
 LIQO_NAMESPACE_DEFAULT="liqo"
-CLUSTER_NAME_DEFAULT=$(printf "LiqoCluster%04d" $(( RANDOM%10000 )) )
+CLUSTER_NAME_DEFAULT=$(printf "LiqoCluster%04d" $((RANDOM % 10000)))
 
 function setup_colors() {
 	# Only use colors if connected to a terminal
@@ -79,21 +79,21 @@ function print_logo() {
 	# ASCII Art: https://patorjk.com/software/taag/#p=display&f=Big%20Money-ne&t=Liqo
 	echo -n "${BLUE}${BOLD}"
 	cat <<-'EOF'
-
-
-	     /$$       /$$
-	    | $$      |__/
-	    | $$       /$$  /$$$$$$   /$$$$$$
-	    | $$      | $$ /$$__  $$ /$$__  $$
-	    | $$      | $$| $$  \ $$| $$  \ $$
-	    | $$      | $$| $$  | $$| $$  | $$
-	    | $$$$$$$$| $$|  $$$$$$$|  $$$$$$/
-	    |________/|__/ \____  $$ \______/
-	                        | $$
-	                        | $$
-	                        |__/
-
-
+		
+		
+			     /$$       /$$
+			    | $$      |__/
+			    | $$       /$$  /$$$$$$   /$$$$$$
+			    | $$      | $$ /$$__  $$ /$$__  $$
+			    | $$      | $$| $$  \ $$| $$  \ $$
+			    | $$      | $$| $$  | $$| $$  | $$
+			    | $$$$$$$$| $$|  $$$$$$$|  $$$$$$/
+			    |________/|__/ \____  $$ \______/
+			                        | $$
+			                        | $$
+			                        |__/
+		
+		
 	EOF
 	echo -n "${RESET}"
 }
@@ -109,33 +109,32 @@ function fatal() {
 	exit ${EXIT_FAILURE}
 }
 
-
 function help() {
 	cat <<-EOF
-	${BLUE}${BOLD}Install Liqo on your Kubernetes cluster${RESET}
-	  ${BOLD}Usage: $0 [options]
-
-	${BLUE}${BOLD}Options:${RESET}
-	  ${BOLD}--uninstall${RESET}:        uninstall Liqo from your cluster
-	  ${BOLD}--purge${RESET}:            purge all Liqo components from your cluster (i.e. including CRDs)
-
-	  ${BOLD}-h, --help${RESET}:         display this help
-
-	${BLUE}${BOLD}Environment variables:${RESET}
-	  ${BOLD}LIQO_VERSION${RESET}:       the version of Liqo to install. It can be a released version, a commit SHA or 'master'.
-
-	  ${BOLD}LIQO_NAMESPACE${RESET}:     the Kubernetes namespace where all Liqo components are created (defaults to liqo)
-	  ${BOLD}CLUSTER_NAME${RESET}:       the mnemonic name assigned to this Liqo instance. Automatically generated if not specified.
-	  ${BOLD}DASHBOARD_HOSTNAME${RESET}: the hostname assigned to the Liqo dashboard (exposed through an Ingress resource).
-
-	  ${BOLD}POD_CIDR${RESET}:           the Pod CIDR of your cluster (e.g.; 10.0.0.0/16). Automatically detected if not configured.
-	  ${BOLD}SERVICE_CIDR${RESET}:       the Service CIDR of your cluster (e.g.; 10.96.0.0/12). Automatically detected if not configured.
-
-	  ${BOLD}KUBECONFIG${RESET}:         the KUBECONFIG file used to interact with the cluster (defaults to ~/.kube/config).
-	  ${BOLD}KUBECONFIG_CONTEXT${RESET}: the context selected to interact with the cluster (defaults to the current one).
-
-	  ${BOLD}INSTALL_AGENT${RESET}:      set it to 'true' to enable the Liqo Desktop Agent installation.
-
+		${BLUE}${BOLD}Install Liqo on your Kubernetes cluster${RESET}
+		  ${BOLD}Usage: $0 [options]
+	
+		${BLUE}${BOLD}Options:${RESET}
+		  ${BOLD}--uninstall${RESET}:        uninstall Liqo from your cluster
+		  ${BOLD}--purge${RESET}:            purge all Liqo components from your cluster (i.e. including CRDs)
+	
+		  ${BOLD}-h, --help${RESET}:         display this help
+	
+		${BLUE}${BOLD}Environment variables:${RESET}
+		  ${BOLD}LIQO_VERSION${RESET}:       the version of Liqo to install. It can be a released version, a commit SHA or 'master'.
+	
+		  ${BOLD}LIQO_NAMESPACE${RESET}:     the Kubernetes namespace where all Liqo components are created (defaults to liqo)
+		  ${BOLD}CLUSTER_NAME${RESET}:       the mnemonic name assigned to this Liqo instance. Automatically generated if not specified.
+		  ${BOLD}DASHBOARD_HOSTNAME${RESET}: the hostname assigned to the Liqo dashboard (exposed through an Ingress resource).
+	
+		  ${BOLD}POD_CIDR${RESET}:           the Pod CIDR of your cluster (e.g.; 10.0.0.0/16). Automatically detected if not configured.
+		  ${BOLD}SERVICE_CIDR${RESET}:       the Service CIDR of your cluster (e.g.; 10.96.0.0/12). Automatically detected if not configured.
+	
+		  ${BOLD}KUBECONFIG${RESET}:         the KUBECONFIG file used to interact with the cluster (defaults to ~/.kube/config).
+		  ${BOLD}KUBECONFIG_CONTEXT${RESET}: the context selected to interact with the cluster (defaults to the current one).
+	
+		  ${BOLD}INSTALL_AGENT${RESET}:      set it to 'true' to enable the Liqo Desktop Agent installation.
+	
 	EOF
 }
 
@@ -153,16 +152,23 @@ function parse_arguments() {
 
 	while true; do
 		case "$1" in
-		--help|-h)
-			help; exit ${EXIT_SUCCESS} ;;
+			--help | -h)
+				help
+				exit ${EXIT_SUCCESS}
+				;;
 
-		--uninstall)
-			INSTALL_LIQO=false ;;
-		--purge)
-			INSTALL_LIQO=false; PURGE_LIQO=true; ;;
+			--uninstall)
+				INSTALL_LIQO=false
+				;;
+			--purge)
+				INSTALL_LIQO=false
+				PURGE_LIQO=true
+				;;
 
-		--)
-			shift; break; ;;
+			--)
+				shift
+				break
+				;;
 		esac
 		shift
 	done
@@ -170,11 +176,9 @@ function parse_arguments() {
 	[ $# -eq 0 ] || fatal "[PRE-FLIGHT]" "unrecognized argument '$1'"
 }
 
-
 function command_exists() {
 	command -v "$1" >/dev/null 2>&1
 }
-
 
 function setup_downloader() {
 	if command_exists "curl"; then
@@ -215,6 +219,27 @@ function get_agent_link() {
 	else
 		AGENT_ASSET_URL=$(download ${latest_url} | grep -Po '"browser_download_url": "\K.*liqo-agent.*(?=")' || echo "")
 	fi
+}
+
+function setup_agent_environment() {
+	# Default directory for XDG_CONFIG_HOME.
+	AGENT_XDG_CONFIG_DIR="${HOME}/.config/"
+	# Default directory for XDG_DATA_HOME.
+	AGENT_XDG_DATA_DIR="${HOME}/.local/share"
+
+	# Directory containing the Agent binary.
+	AGENT_BIN_DIR="${HOME}/.local/bin"
+	# Liqo subdirectory containing the notifications icons.
+	AGENT_ICONS_DIR="${AGENT_XDG_DATA_DIR}/liqo/icons"
+	# Directory storing the '.desktop' file.
+	AGENT_APP_DIR="${AGENT_XDG_DATA_DIR}/applications"
+	# Directory storing the scalable icon for the desktop application.
+	AGENT_THEME_DIR="${AGENT_XDG_DATA_DIR}/icons/hicolor/scalable/apps"
+	# Directory storing the '.desktop' file to enable the application autostart.
+	AGENT_AUTOSTART_DIR="${AGENT_XDG_CONFIG_DIR}/autostart"
+
+	[[ "$1" == "-c" ]] && mkdir -p AGENT_XDG_CONFIG_DIR AGENT_XDG_DATA_DIR \
+	AGENT_BIN_DIR AGENT_ICONS_DIR AGENT_APP_DIR AGENT_THEME_DIR AGENT_AUTOSTART_DIR
 }
 
 function setup_liqo_version() {
@@ -272,12 +297,15 @@ function download() {
 	case ${DOWNLOADER:-} in
 		curl)
 			curl --output - --silent --fail --location "$1" ||
-				fatal "[PRE-FLIGHT] [DOWNLOAD]" "Failed downloading $1" ;;
+				fatal "[PRE-FLIGHT] [DOWNLOAD]" "Failed downloading $1"
+			;;
 		wget)
 			wget --quiet --output-document=- "$1" ||
-				fatal "[PRE-FLIGHT] [DOWNLOAD]" "Failed downloading $1" ;;
+				fatal "[PRE-FLIGHT] [DOWNLOAD]" "Failed downloading $1"
+			;;
 		*)
-			fatal "[PRE-FLIGHT] [DOWNLOAD]" "Internal error: incorrect downloader" ;;
+			fatal "[PRE-FLIGHT] [DOWNLOAD]" "Internal error: incorrect downloader"
+			;;
 	esac
 }
 
@@ -300,7 +328,6 @@ function download_liqo() {
 	download "${LIQO_DOWNLOAD_URL}" | tar zxf - --directory="${TMPDIR}" --strip 1 2>/dev/null ||
 		fatal "[PRE-FLIGHT] [DOWNLOAD]" "Something went wrong while extracting the Liqo archive"
 }
-
 
 function setup_kubectl() {
 	command_exists "kubectl" ||
@@ -334,10 +361,9 @@ function setup_tmpdir() {
 	trap cleanup INT EXIT
 }
 
-
 function configure_namespace() {
 	local PHASE
-	PHASE=$([ "${INSTALL_LIQO}" = true ] && echo "INSTALL" || echo "UNINSTALL" )
+	PHASE=$([ "${INSTALL_LIQO}" = true ] && echo "INSTALL" || echo "UNINSTALL")
 
 	LIQO_NAMESPACE=${LIQO_NAMESPACE:-${LIQO_NAMESPACE_DEFAULT}}
 	info "[${PHASE}] [CONFIGURE]" "Using namespace: ${LIQO_NAMESPACE}"
@@ -352,8 +378,9 @@ function configure_installation_variables() {
 		POD_CIDR=$(
 			${KUBECTL} get pods --namespace kube-system \
 				--selector component=kube-controller-manager \
-				--output jsonpath="{.items[*].spec.containers[*].command}" 2>/dev/null | \
-					grep -Po --max-count=1 "(?<=--cluster-cidr=)[0-9.\/]+") ||
+				--output jsonpath="{.items[*].spec.containers[*].command}" 2>/dev/null |
+				grep -Po --max-count=1 "(?<=--cluster-cidr=)[0-9.\/]+"
+		) ||
 			fatal "[INSTALL] [CONFIGURE]" "Failed to automatically retrieve the Pod CIDR." \
 				"Please, manually specify it with 'export POD_CIDR=...' before executing again this script"
 	fi
@@ -364,8 +391,9 @@ function configure_installation_variables() {
 		SERVICE_CIDR=$(
 			${KUBECTL} get pods --namespace kube-system \
 				--selector component=kube-controller-manager \
-				--output jsonpath="{.items[*].spec.containers[*].command} 2>dev/null" | \
-					grep -Po --max-count=1 "(?<=--service-cluster-ip-range=)[0-9.\/]+") ||
+				--output jsonpath="{.items[*].spec.containers[*].command} 2>dev/null" |
+				grep -Po --max-count=1 "(?<=--service-cluster-ip-range=)[0-9.\/]+"
+		) ||
 			fatal "[INSTALL] [CONFIGURE]" "Failed to automatically retrieve the Service CIDR." \
 				"Please, manually specify it with 'export SERVICE_CIDR=...' before executing again this script"
 	fi
@@ -379,7 +407,7 @@ function configure_gateway_node() {
 	GATEWAY=$(${KUBECTL} get node --selector "${GATEWAY_LABEL}" --output jsonpath="{.items[*].metadata.name}" 2>/dev/null) ||
 		fatal "[INSTALL] [CONFIGURE]" "Failed to detect whether a gateway node is already configured"
 
-	if [ "$(wc --words <<< "${GATEWAY}")" -ge 2 ]; then
+	if [ "$(wc --words <<<"${GATEWAY}")" -ge 2 ]; then
 		fatal "[INSTALL] [CONFIGURE]" "More than one cluster node is labeled as gateway"
 	fi
 
@@ -410,7 +438,7 @@ function install_liqo() {
 		--set podCIDR="${POD_CIDR}" --set serviceCIDR="${SERVICE_CIDR}" --set gatewayIP="${GATEWAY_IP}" \
 		--set global.dashboard_version="${LIQO_DASHBOARD_IMAGE_VERSION}" \
 		--set global.dashboard_ingress="${DASHBOARD_INGRESS:-}" >/dev/null ||
-			fatal "[INSTALL]" "Something went wrong while installing Liqo"
+		fatal "[INSTALL]" "Something went wrong while installing Liqo"
 
 	info "[INSTALL]" "Hooray! Liqo is now installed on your cluster"
 }
@@ -420,53 +448,67 @@ function install_agent() {
 	info "[INSTALL]" "LIQO DESKTOP AGENT INSTALLATION"
 	get_agent_link
 	if [[ -z "${AGENT_ASSET_URL}" ]]; then
-	warn "[PRE-FLIGHT] [CONFIGURE]" "No Liqo Agent binary found! Skipping Agent installation"
-	return 0
+		warn "[PRE-FLIGHT] [CONFIGURE]" "No Liqo Agent binary found! Skipping Agent installation"
+		return 0
 	fi
 	info "[PRE-FLIGHT] [CONFIGURE]" "Liqo Agent binary found!"
 	local AGENT_INSTALL_DIR="${TMPDIR}/scripts/tray-agent"
 	cd "${AGENT_INSTALL_DIR}"
-	info "[AGENT INSTALL] [1/3]" "Downloading binary"
+
+	info "[AGENT INSTALL] [1/4]" "Downloading binary"
 	download "${AGENT_ASSET_URL}" | tar xpzf - || fatal "[DOWNLOAD]" "Something went wrong while extracting \
 	the Agent archive"
-	info "[AGENT INSTALL] [2/3]" "Installing binary"
+
+	info "[AGENT INSTALL] [2/4]" "Preparing environment"
+	setup_agent_environment -c
+
+	info "[AGENT INSTALL] [3/4]" "Installing binary"
 	# moving binary
-	local agent_bin_dir="${HOME}/.local/bin"
-	mkdir -p "${agent_bin_dir}"
-	mv -f "liqo-agent" "${agent_bin_dir}"
+	mv -f "liqo-agent" "${AGENT_BIN_DIR}"
 	# moving notifications icons
-	local agent_dir="${HOME}/.local/share/liqo"
-	rm -rf "${agent_dir}"
-	mkdir -p "${agent_dir}/icons"
-	tar xzf io.liqo.Agent_icons.tar.gz -C "${agent_dir}/icons" --strip 1 || fatal "[INSTALL]" "Something went wrong while \
-	extracting files"
-	info "[AGENT INSTALL] [3/3]" "Installing Desktop Application"
+	tar xzf io.liqo.Agent_icons.tar.gz -C "${AGENT_ICONS_DIR}" --strip 1 --overwrite || \
+	fatal "[INSTALL]" "Something went wrong while extracting files"
+
+	info "[AGENT INSTALL] [4/4]" "Installing Desktop Application"
 	# INSTALL AGENT AS A DESKTOP APPLICATION
-	# a) The '.desktop' file is installed in one of the XDG_DATA_* directories to let the system recognize Liqo Agent as a
-	# desktop application.
-	# Using $HOME/.local/share which is the fallback for the user directory $XDG_DATA_HOME.
-	local xdg_app_dir="${HOME}/.local/share/applications"
-	mkdir -p "${xdg_app_dir}"
-	cp -f io.liqo.Agent.desktop "${xdg_app_dir}"
-	# b) The '.desktop' file is installed in one of the XDG_CONFIG_* directories to enable autostart.
+	# a) Inject binary path into '.desktop' file.
+	echo Exec='"'"${AGENT_BIN_DIR}/liqo-agent"'"' >> io.liqo.Agent.desktop
+	# The x permission is required to let the system trust the application to autostart.
+	chmod +x io.liqo.Agent.desktop
+	# b) The '.desktop' file is installed in one of the XDG_DATA_* directories to let the
+	# system recognize Liqo Agent as a desktop application.
+	cp -f io.liqo.Agent.desktop "${AGENT_APP_DIR}"
+	# c) The '.desktop' file is installed in one of the XDG_CONFIG_* directories to enable autostart.
 	# Having the file in both directories allows an easier management of a "don't start at boot" option.
-	# Using $HOME/.config which is the fallback for the user directory $XDG_CONFIG_HOME.
-	local xdg_autostart="${HOME}/.config/autostart"
-	mkdir -p "${xdg_autostart}"
-	mv -f io.liqo.Agent.desktop "${xdg_autostart}"
-	# c) The Liqo Agent desktop icon  is exported in 'scalable' format for the default theme to one of the
+	mv -f io.liqo.Agent.desktop "${AGENT_AUTOSTART_DIR}"
+	# d) The Liqo Agent desktop icon is exported in 'scalable' format for the default theme to one of the
 	# $XDG_DATA_*/icons/hicolor/scalable/apps directories.
-	# Using $HOME/.local/share as above.
-	local xdg_icons_dir="${HOME}/.local/share/icons/hicolor/scalable/apps"
-	mkdir -p "${xdg_icons_dir}"
-	mv -f io.liqo.Agent.svg "${xdg_icons_dir}"
+	mv -f io.liqo.Agent.svg "${AGENT_THEME_DIR}"
+	# e) In order to automatically trust the application, the '.desktop' file copies' metadata
+	# are trusted using gio after they are moved in their respective location.
+	if command_exists gio; then
+		gio set "${AGENT_APP_DIR}/io.liqo.Agent.desktop" "metadata::trusted" yes
+		gio set "${AGENT_AUTOSTART_DIR}/io.liqo.Agent.desktop" "metadata::trusted" yes
+	fi
+	# f) If a '.profile' shell config file is present, export the two AGENT_XDG_* directories
+	# to ensure they will be scanned by the display manager even if the user would set the
+	# XDG_DATA_HOME and XDG_CONFIG_HOME variables with values different from their respective
+	# default.
+	if [[ -s "${HOME}/.profile" ]]; then
+		# shellcheck disable=SC2016
+		echo 'export XDG_CONFIG_DIRS="'"${AGENT_XDG_CONFIG_DIR}:"'$XDG_CONFIG_DIRS"' >> "${HOME}/.profile"
+		# shellcheck disable=SC2016
+		echo 'export XDG_DATA_DIRS="'"${AGENT_XDG_DATA_DIR}:"'$XDG_DATA_DIRS"' >> "${HOME}/.profile"
+	fi
+	info "[AGENT INSTALL]" "Installation complete!"
+	info "[AGENT INSTALL]" "Please restart your computer for the applied changes to make effect"
 	cd -
-	info "[AGENT INSTALL]" "Installation complete! Restart your computer"
+	"${AGENT_BIN_DIR}"/liqo-agent &
 }
 
 function all_clusters_unjoined() {
 	local JSON_PATH="{.items[*].spec.join} {.items[*].status.incoming.joined} {.items[*].status.outgoing.joined} {.items[*].status.network.localNetworkConfig.available} {.items[*].status.network.remoteNetworkConfig.available} {.items[*].status.network.tunnelEndpoint.available}"
-	( ${KUBECTL} get foreignclusters --output jsonpath="${JSON_PATH}" 2>/dev/null || echo "" ) | \
+	(${KUBECTL} get foreignclusters --output jsonpath="${JSON_PATH}" 2>/dev/null || echo "") |
 		grep --invert-match --silent "true"
 }
 
@@ -490,7 +532,7 @@ function unjoin_clusters() {
 
 	local RETRIES=600
 	while ! all_clusters_unjoined; do
-		RETRIES=$(( RETRIES-1 ))
+		RETRIES=$((RETRIES - 1))
 		[ "${RETRIES}" -gt 0 ] ||
 			fatal "[UNINSTALL] [UNJOIN]" "Timeout: impossible to unpeer from all clusters"
 		sleep 1
@@ -513,7 +555,7 @@ function uninstall_liqo() {
 	info "[UNINSTALL]" "Waiting for all Liqo pods to terminate..."
 	${KUBECTL} wait pods --timeout=120s --namespace liqo --all --for=delete 1>/dev/null 2>&1
 
- 	${KUBECTL} delete MutatingWebhookConfiguration mutatepodtoleration 1>/dev/null 2>&1
+	${KUBECTL} delete MutatingWebhookConfiguration mutatepodtoleration 1>/dev/null 2>&1
 	${KUBECTL} delete ValidatingWebhookConfiguration peering-request-operator 1>/dev/null 2>&1
 
 	${KUBECTL} delete certificatesigningrequest "peering-request-operator.${LIQO_NAMESPACE}" 1>/dev/null 2>&1
@@ -527,16 +569,26 @@ function uninstall_liqo() {
 }
 
 function uninstall_agent() {
-	[[ ! -x "${HOME}/.local/bin/liqo-agent" ]] && return 0
+	setup_agent_environment
 	# Do not fail in case of errors, to avoid exiting if Liqo Agent had already been (partially) uninstalled.
+	info "[UNINSTALL] [AGENT]" "Uninstalling Liqo Agent components"
 	set +e
 	# Uninstalling main components.
-	rm -f "${HOME}/.local/bin/liqo-agent"
-	rm -rf "${HOME}/.local/share/liqo"
+	rm -f "${AGENT_BIN_DIR}/liqo-agent"
+	rm -rf "${AGENT_XDG_DATA_DIR}/liqo"
 	# Uninstalling desktop application files.
-	rm -f "${HOME}/.local/share/applications/io.liqo.Agent.desktop"
-	rm -f "${HOME}/.config/autostart/io.liqo.Agent.desktop"
-	rm -f "${HOME}/.local/share/icons/hicolor/scalable/apps/io.liqo.Agent.svg"
+	rm -f "${AGENT_APP_DIR}/io.liqo.Agent.desktop"
+	rm -f "${AGENT_AUTOSTART_DIR}/io.liqo.Agent.desktop"
+	rm -f "${AGENT_THEME_DIR}/io.liqo.Agent.svg"
+	if [[ -s "${HOME}/.profile" ]] && command_exists sed; then
+		# shellcheck disable=SC2016
+		local str1='export XDG_CONFIG_DIRS="'"${AGENT_XDG_CONFIG_DIR}:"'$XDG_CONFIG_DIRS"'
+		# shellcheck disable=SC2016
+		local str2='export XDG_DATA_DIRS="'"${AGENT_XDG_DATA_DIR}:"'$XDG_DATA_DIRS"'
+		# remove the exact added exports, trying not to compromise user edits.
+		sed -i "/$str1/d" "${HOME}/.profile"
+		sed -i "/$str2/d" "${HOME}/.profile"
+	fi
 	info "[UNINSTALL] [AGENT]" "Liqo Agent was correctly uninstalled"
 	set -e
 }
@@ -555,7 +607,6 @@ function purge_liqo() {
 	set -e
 }
 
-
 function main() {
 	setup_colors
 	print_logo
@@ -572,7 +623,7 @@ function main() {
 
 	configure_namespace
 
-	if [[ ${INSTALL_LIQO} = true ]]; then
+	if [[ ${INSTALL_LIQO} == true ]]; then
 		configure_installation_variables
 		configure_gateway_node
 		install_liqo
@@ -591,4 +642,3 @@ if ! (return 0 2>/dev/null); then
 	main "$@"
 	exit ${EXIT_SUCCESS}
 fi
-

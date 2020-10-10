@@ -33,7 +33,7 @@ func TestNewConfig(t *testing.T) {
 		t.Skip("it was not possible to set OS env variable")
 	}
 	conf := newConfig()
-	assert.Equal(t, "test/.liqo", os.Getenv("LIQO_PATH"))
+	assert.Equal(t, "test/.local/share/liqo", os.Getenv("LIQO_PATH"))
 	assert.Equal(t, 3, len(conf.notifyTranslateMap))
 	assert.Equal(t, 3, len(conf.notifyTranslateReverseMap))
 	// test config startup content

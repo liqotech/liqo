@@ -19,7 +19,7 @@ type config struct {
 
 // newConfig assigns a startup configuration to the Indicator
 func newConfig() *config {
-	liqoPath := filepath.Join(os.Getenv("HOME"), ".liqo")
+	liqoPath := filepath.Join(os.Getenv("HOME"), ".local/share/liqo")
 	if err := os.Setenv("LIQO_PATH", liqoPath); err != nil {
 		os.Exit(1)
 	}
