@@ -63,6 +63,11 @@ spec:
                     description: Namespace defines the space within which the secret name must be unique.
                     type: string
                 type: object
+              labels:
+                additionalProperties:
+                  type: string
+                description: Labels contains the label to be added to the virtual node.
+                type: object
               limitRange:
                 description: LimitRange contains the limits for every kind of resource (cpu, memory...).
                 properties:

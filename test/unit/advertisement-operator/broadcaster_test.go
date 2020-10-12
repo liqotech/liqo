@@ -78,8 +78,10 @@ func createFakeResources() (physicalNodes *corev1.NodeList, virtualNodes *corev1
 	for i := 0; i < 10; i++ {
 		resources := corev1.ResourceList{}
 		q := *resource.NewQuantity(int64(i), resource.DecimalSI)
+		qm := q.DeepCopy()
+		qm.SetScaled(qm.Value(), resource.Mega)
 		resources[corev1.ResourceCPU] = q
-		resources[corev1.ResourceMemory] = q
+		resources[corev1.ResourceMemory] = qm
 		resources[corev1.ResourcePods] = q
 
 		if i%2 == 0 {
@@ -193,20 +195,23 @@ func prepareAdv(b *advop.AdvertisementBroadcaster) advtypes.Advertisement {
 	reqs, limits := advop.GetAllPodsResources(pods)
 	availability, _ := advop.ComputeAnnouncedResources(pNodes, reqs, int64(b.ClusterConfig.AdvertisementConfig.OutgoingConfig.ResourceSharingPercentage))
 	neighbours := make(map[corev1.ResourceName]corev1.ResourceList)
+	labels := make(map[string]string)
 	for _, vNode := range vNodes.Items {
 		neighbours[corev1.ResourceName(vNode.Name)] = vNode.Status.Allocatable
 	}
-	return b.CreateAdvertisement(vNodes, availability, images, limits)
+	return b.CreateAdvertisement(&advop.AdvResources{PhysicalNodes: pNodes, VirtualNodes: vNodes, Availability: availability, Limits: limits, Images: images, Labels: labels})
 }
 
 func TestGetClusterResources(t *testing.T) {
 
 	pNodes, _, images, sum, _ := createFakeResources()
+	sumM := sum.DeepCopy()
+	sumM.SetScaled(sumM.Value(), resource.Mega)
 	res, images2 := advop.GetClusterResources(pNodes.Items)
 
 	assert.Empty(t, res.StorageEphemeral(), "StorageEphemeral was not set so it should be null")
 	assert.Equal(t, *res.Cpu(), sum)
-	assert.Equal(t, *res.Memory(), sum)
+	assert.Equal(t, *res.Memory(), sumM)
 	assert.Equal(t, *res.Pods(), sum)
 	assert.ElementsMatch(t, images, images2)
 }
@@ -252,6 +257,7 @@ func TestCreateAdvertisement(t *testing.T) {
 	reqs, limits := advop.GetAllPodsResources(pods)
 	availability, _ := advop.ComputeAnnouncedResources(pNodes, reqs, int64(sharingPercentage))
 	neighbours := make(map[corev1.ResourceName]corev1.ResourceList)
+	labels := make(map[string]string)
 	for _, vNode := range vNodes.Items {
 		neighbours[corev1.ResourceName(vNode.Name)] = vNode.Status.Allocatable
 	}
@@ -259,7 +265,7 @@ func TestCreateAdvertisement(t *testing.T) {
 	config := createFakeClusterConfig()
 	broadcaster := createBroadcaster(config.Spec)
 
-	adv := broadcaster.CreateAdvertisement(vNodes, availability, images, limits)
+	adv := broadcaster.CreateAdvertisement(&advop.AdvResources{PhysicalNodes: pNodes, VirtualNodes: vNodes, Availability: availability, Limits: limits, Images: images, Labels: labels})
 
 	assert.NotEmpty(t, adv.Name, "Name should be provided")
 	assert.Empty(t, adv.ResourceVersion)
@@ -292,13 +298,13 @@ func TestGetResourceForAdv(t *testing.T) {
 		t.Fatal("Available resources cannot be negative")
 	}
 
-	pNodes2, vNodes2, availability2, limits2, images2, err := b.GetResourcesForAdv()
+	advRes, err := b.GetResourcesForAdv()
 	assert.Nil(t, err)
-	assert.Equal(t, pNodes, pNodes2)
-	assert.Equal(t, vNodes, vNodes2)
-	assert.Equal(t, availability, availability2)
-	assert.Equal(t, limits, limits2)
-	assert.Equal(t, images, images2)
+	assert.Equal(t, pNodes, advRes.PhysicalNodes)
+	assert.Equal(t, vNodes, advRes.VirtualNodes)
+	assert.Equal(t, availability, advRes.Availability)
+	assert.Equal(t, limits, advRes.Limits)
+	assert.Equal(t, images, advRes.Images)
 }
 
 func TestSendAdvertisement(t *testing.T) {

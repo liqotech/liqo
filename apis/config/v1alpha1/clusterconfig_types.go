@@ -17,6 +17,7 @@ package v1alpha1
 
 import (
 	"github.com/liqotech/liqo/pkg/crdClient"
+	"github.com/liqotech/liqo/pkg/labelPolicy"
 	"github.com/liqotech/liqo/pkg/liqonet"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -45,6 +46,8 @@ type AdvertisementConfig struct {
 	//KeepaliveRetryTime defines the time between an attempt to contact the foreign cluster and the next one.
 	// +kubebuilder:validation:Minimum=0
 	KeepaliveRetryTime int32 `json:"keepaliveRetryTime,omitempty"`
+	// LabelPolicies contains the policies for each label to be added to remote virtual nodes
+	LabelPolicies []LabelPolicy `json:"labelPolicies,omitempty"`
 }
 
 type BroadcasterConfig struct {
@@ -82,6 +85,16 @@ type AdvOperatorConfig struct {
 	// Manual means every Advertisement received will need a manual accept/refuse, which can be done by updating its status.
 	// +kubebuilder:validation:Enum="AutoAcceptMax";"Manual"
 	AcceptPolicy AcceptPolicy `json:"acceptPolicy"`
+}
+
+// LabelPolicy define a key-value structure to indicate which keys have to be aggregated and with which policy
+type LabelPolicy struct {
+	// Label Key to be aggregated in new virtual nodes
+	Key string `json:"key"`
+	// Merge labels Policy
+	// +kubebuilder:validation:Enum="LabelPolicyAnyTrue";"LabelPolicyAllTrue";"LabelPolicyAnyTrueNoLabelIfFalse";"LabelPolicyAllTrueNoLabelIfFalse"
+	// +kubebuilder:default="LabelPolicyAnyTrue"
+	Policy labelPolicy.LabelPolicyType `json:"policy,omitempty"`
 }
 
 type DiscoveryConfig struct {

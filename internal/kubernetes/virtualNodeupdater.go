@@ -169,6 +169,11 @@ func (p *KubernetesProvider) updateFromAdv(adv advtypes.Advertisement) error {
 	no.SetAnnotations(map[string]string{
 		"cluster-id": p.foreignClusterId,
 	})
+	no.SetLabels(mergeMaps(no.GetLabels(), adv.Spec.Labels))
+	no, err = p.homeClient.Client().CoreV1().Nodes().Update(context.TODO(), no, metav1.UpdateOptions{})
+	if err != nil {
+		return err
+	}
 
 	if no.Status.Capacity == nil {
 		no.Status.Capacity = v1.ResourceList{}
@@ -209,6 +214,13 @@ func (p *KubernetesProvider) updateFromAdv(adv advtypes.Advertisement) error {
 	no.Status.Images = append(no.Status.Images, adv.Spec.Images...)
 
 	return p.updateNode(no)
+}
+
+func mergeMaps(m1 map[string]string, m2 map[string]string) map[string]string {
+	for k, v := range m2 {
+		m1[k] = v
+	}
+	return m1
 }
 
 func (p *KubernetesProvider) updateFromTep(tep nettypes.TunnelEndpoint) error {

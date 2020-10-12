@@ -96,6 +96,13 @@ func (in *AdvertisementSpec) DeepCopyInto(out *AdvertisementSpec) {
 	}
 	in.LimitRange.DeepCopyInto(&out.LimitRange)
 	in.ResourceQuota.DeepCopyInto(&out.ResourceQuota)
+	if in.Labels != nil {
+		in, out := &in.Labels, &out.Labels
+		*out = make(map[string]string, len(*in))
+		for key, val := range *in {
+			(*out)[key] = val
+		}
+	}
 	if in.Neighbors != nil {
 		in, out := &in.Neighbors, &out.Neighbors
 		*out = make(map[v1.ResourceName]v1.ResourceList, len(*in))

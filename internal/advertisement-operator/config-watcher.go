@@ -46,18 +46,28 @@ func (b *AdvertisementBroadcaster) WatchConfiguration(kubeconfigPath string, cli
 				b.ClusterConfig.AdvertisementConfig.OutgoingConfig.ResourceSharingPercentage, newConfig.ResourceSharingPercentage)
 			b.ClusterConfig.AdvertisementConfig.OutgoingConfig = newConfig
 			// update Advertisement with new resources (given by the new sharing percentage)
-			_, virtualNodes, availability, limits, images, err := b.GetResourcesForAdv()
-			if err != nil {
-				klog.Errorln(err, "Error while computing resources for Advertisement")
-			}
-			advToCreate := b.CreateAdvertisement(virtualNodes, availability, images, limits)
-			_, err = b.SendAdvertisementToForeignCluster(advToCreate)
-			if err != nil {
-				klog.Errorln(err, "Error while sending Advertisement to cluster "+b.ForeignClusterId)
-			}
+			b.updateAdvertisement()
+		}
+
+		if differentLabels(b.ClusterConfig.AdvertisementConfig.LabelPolicies, configuration.Spec.AdvertisementConfig.LabelPolicies) {
+			// update label policies
+			b.ClusterConfig.AdvertisementConfig.LabelPolicies = configuration.Spec.AdvertisementConfig.LabelPolicies
+			b.updateAdvertisement()
 		}
 
 	}, client, kubeconfigPath)
+}
+
+func (b *AdvertisementBroadcaster) updateAdvertisement() {
+	advRes, err := b.GetResourcesForAdv()
+	if err != nil {
+		klog.Errorln(err, "Error while computing resources for Advertisement")
+	}
+	advToCreate := b.CreateAdvertisement(advRes)
+	_, err = b.SendAdvertisementToForeignCluster(advToCreate)
+	if err != nil {
+		klog.Errorln(err, "Error while sending Advertisement to cluster "+b.ForeignClusterId)
+	}
 }
 
 func (r *AdvertisementReconciler) WatchConfiguration(kubeconfigPath string, client *crdClient.CRDClient) {
@@ -113,4 +123,25 @@ func (r *AdvertisementReconciler) ManageMaximumUpdate(newConfig configv1alpha1.A
 		r.ClusterConfig = newConfig
 	}
 	return nil, advToUpdate
+}
+
+func differentLabels(current []configv1alpha1.LabelPolicy, next []configv1alpha1.LabelPolicy) bool {
+	if len(current) != len(next) {
+		return true
+	}
+	for _, l := range current {
+		if !contains(next, l) {
+			return true
+		}
+	}
+	return false
+}
+
+func contains(arr []configv1alpha1.LabelPolicy, el configv1alpha1.LabelPolicy) bool {
+	for _, a := range arr {
+		if a.Key == el.Key && a.Policy == el.Policy {
+			return true
+		}
+	}
+	return false
 }
