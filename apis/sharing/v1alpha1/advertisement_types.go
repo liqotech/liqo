@@ -32,6 +32,8 @@ type AdvertisementSpec struct {
 	LimitRange corev1.LimitRangeSpec `json:"limitRange,omitempty"`
 	// ResourceQuota contains the quantity of resources made available by the cluster.
 	ResourceQuota corev1.ResourceQuotaSpec `json:"resourceQuota,omitempty"`
+	// Labels contains the label to be added to the virtual node.
+	Labels map[string]string `json:"labels,omitempty"`
 	// Neighbors is a map where the key is the name of a virtual node (representing a foreign cluster) and the value are the resources allocatable on that node.
 	Neighbors map[corev1.ResourceName]corev1.ResourceList `json:"neighbors,omitempty"`
 	// Properties can contain any additional information about the cluster.

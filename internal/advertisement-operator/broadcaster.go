@@ -6,6 +6,7 @@ import (
 	"github.com/liqotech/liqo/internal/discovery/kubeconfig"
 	advpkg "github.com/liqotech/liqo/pkg/advertisement-operator"
 	"github.com/liqotech/liqo/pkg/crdClient"
+	"github.com/liqotech/liqo/pkg/labelPolicy"
 	pkg "github.com/liqotech/liqo/pkg/virtualKubelet"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/fields"
@@ -36,6 +37,16 @@ type AdvertisementBroadcaster struct {
 	PeeringRequestName string
 	ClusterConfig      configv1alpha1.ClusterConfigSpec
 	mutex              sync.Mutex
+}
+
+// convenience struct, to be returned in func
+type AdvResources struct {
+	PhysicalNodes *corev1.NodeList
+	VirtualNodes  *corev1.NodeList
+	Availability  corev1.ResourceList
+	Limits        corev1.ResourceList
+	Images        []corev1.ContainerImage
+	Labels        map[string]string
 }
 
 // start the broadcaster which sends Advertisement messages
@@ -167,7 +178,7 @@ func (b *AdvertisementBroadcaster) GenerateAdvertisement() {
 			continue
 		}
 
-		_, virtualNodes, availability, limits, images, err := b.GetResourcesForAdv()
+		advRes, err := b.GetResourcesForAdv()
 		if err != nil {
 			klog.Errorln(err, "Error while computing resources for Advertisement")
 			time.Sleep(1 * time.Minute)
@@ -175,7 +186,7 @@ func (b *AdvertisementBroadcaster) GenerateAdvertisement() {
 		}
 
 		// create the Advertisement on the foreign cluster
-		advToCreate := b.CreateAdvertisement(virtualNodes, availability, images, limits)
+		advToCreate := b.CreateAdvertisement(advRes)
 		adv, err := b.SendAdvertisementToForeignCluster(advToCreate)
 		if err != nil {
 			klog.Errorln(err, "Error while sending Advertisement to cluster "+b.ForeignClusterId)
@@ -193,14 +204,13 @@ func (b *AdvertisementBroadcaster) GenerateAdvertisement() {
 }
 
 // create advertisement message
-func (b *AdvertisementBroadcaster) CreateAdvertisement(virtualNodes *corev1.NodeList,
-	availability corev1.ResourceList, images []corev1.ContainerImage, limits corev1.ResourceList) advtypes.Advertisement {
+func (b *AdvertisementBroadcaster) CreateAdvertisement(advRes *AdvResources) advtypes.Advertisement {
 
 	// set prices field
-	prices := ComputePrices(images)
+	prices := ComputePrices(advRes.Images)
 	// use virtual nodes to build neighbours
 	neighbours := make(map[corev1.ResourceName]corev1.ResourceList)
-	for _, vnode := range virtualNodes.Items {
+	for _, vnode := range advRes.VirtualNodes.Items {
 		neighbours[corev1.ResourceName(vnode.Name)] = vnode.Status.Allocatable
 	}
 
@@ -210,12 +220,12 @@ func (b *AdvertisementBroadcaster) CreateAdvertisement(virtualNodes *corev1.Node
 		},
 		Spec: advtypes.AdvertisementSpec{
 			ClusterId: b.HomeClusterId,
-			Images:    images,
+			Images:    advRes.Images,
 			LimitRange: corev1.LimitRangeSpec{
 				Limits: []corev1.LimitRangeItem{
 					{
 						Type:                 "",
-						Max:                  limits,
+						Max:                  advRes.Limits,
 						Min:                  nil,
 						Default:              nil,
 						DefaultRequest:       nil,
@@ -224,10 +234,11 @@ func (b *AdvertisementBroadcaster) CreateAdvertisement(virtualNodes *corev1.Node
 				},
 			},
 			ResourceQuota: corev1.ResourceQuotaSpec{
-				Hard:          availability,
+				Hard:          advRes.Availability,
 				Scopes:        nil,
 				ScopeSelector: nil,
 			},
+			Labels:     advRes.Labels,
 			Neighbors:  neighbours,
 			Properties: nil,
 			Prices:     prices,
@@ -242,33 +253,42 @@ func (b *AdvertisementBroadcaster) CreateAdvertisement(virtualNodes *corev1.Node
 	return adv
 }
 
-func (b *AdvertisementBroadcaster) GetResourcesForAdv() (physicalNodes, virtualNodes *corev1.NodeList, availability, limits corev1.ResourceList, images []corev1.ContainerImage, err error) {
+func (b *AdvertisementBroadcaster) GetResourcesForAdv() (advRes *AdvResources, err error) {
 	// get physical and virtual nodes in the cluster
-	physicalNodes, err = b.LocalClient.Client().CoreV1().Nodes().List(context.TODO(), metav1.ListOptions{LabelSelector: "type != virtual-node"})
+	physicalNodes, err := b.LocalClient.Client().CoreV1().Nodes().List(context.TODO(), metav1.ListOptions{LabelSelector: "type != virtual-node"})
 	if err != nil {
 		klog.Errorln("Could not get physical nodes, retry in 1 minute")
-		return nil, nil, nil, nil, nil, err
+		return nil, err
 	}
-	virtualNodes, err = b.LocalClient.Client().CoreV1().Nodes().List(context.TODO(), metav1.ListOptions{LabelSelector: "type = virtual-node"})
+	virtualNodes, err := b.LocalClient.Client().CoreV1().Nodes().List(context.TODO(), metav1.ListOptions{LabelSelector: "type = virtual-node"})
 	if err != nil {
 		klog.Errorln("Could not get virtual nodes, retry in 1 minute")
-		return nil, nil, nil, nil, nil, err
+		return nil, err
 	}
 	// get resources used by pods in the cluster
 	fieldSelector, err := fields.ParseSelector("status.phase!=" + string(corev1.PodSucceeded) + ",status.phase!=" + string(corev1.PodFailed))
 	if err != nil {
-		return nil, nil, nil, nil, nil, err
+		return nil, err
 	}
 	nodeNonTerminatedPodsList, err := b.LocalClient.Client().CoreV1().Pods("").List(context.TODO(), metav1.ListOptions{FieldSelector: fieldSelector.String()})
 	if err != nil {
 		klog.Errorln("Could not list pods, retry in 1 minute")
-		return nil, nil, nil, nil, nil, err
+		return nil, err
 	}
 	reqs, limits := GetAllPodsResources(nodeNonTerminatedPodsList)
 	// compute resources to be announced to the other cluster
-	availability, images = ComputeAnnouncedResources(physicalNodes, reqs, int64(b.ClusterConfig.AdvertisementConfig.OutgoingConfig.ResourceSharingPercentage))
+	availability, images := ComputeAnnouncedResources(physicalNodes, reqs, int64(b.ClusterConfig.AdvertisementConfig.OutgoingConfig.ResourceSharingPercentage))
 
-	return physicalNodes, virtualNodes, availability, limits, images, nil
+	labels := GetLabels(physicalNodes, b.ClusterConfig.AdvertisementConfig.LabelPolicies)
+
+	return &AdvResources{
+		PhysicalNodes: physicalNodes,
+		VirtualNodes:  virtualNodes,
+		Availability:  availability,
+		Limits:        limits,
+		Images:        images,
+		Labels:        labels,
+	}, nil
 }
 
 func (b *AdvertisementBroadcaster) SendAdvertisementToForeignCluster(advToCreate advtypes.Advertisement) (*advtypes.Advertisement, error) {
@@ -395,26 +415,32 @@ func getPodsTotalRequestsAndLimits(podList *corev1.PodList) (reqs map[corev1.Res
 	return
 }
 
-// get cluster resources (cpu, ram and pods) and images
+// get cluster resources (cpu, ram, pods, ...) and images
 func GetClusterResources(nodes []corev1.Node) (corev1.ResourceList, []corev1.ContainerImage) {
-	cpu := resource.Quantity{}
-	ram := resource.Quantity{}
-	pods := resource.Quantity{}
 	clusterImages := make([]corev1.ContainerImage, 0)
 
+	availability := corev1.ResourceList{}
 	for _, node := range nodes {
-		cpu.Add(*node.Status.Allocatable.Cpu())
-		ram.Add(*node.Status.Allocatable.Memory())
-		pods.Add(*node.Status.Allocatable.Pods())
+		addResourceLists(&availability, &node.Status.Allocatable)
 
 		nodeImages := GetNodeImages(node)
 		clusterImages = append(clusterImages, nodeImages...)
 	}
-	availability := corev1.ResourceList{}
-	availability[corev1.ResourceCPU] = cpu
-	availability[corev1.ResourceMemory] = ram
-	availability[corev1.ResourcePods] = pods
 	return availability, clusterImages
+}
+
+func addResourceLists(dst *corev1.ResourceList, toAdd *corev1.ResourceList) {
+	for k, v := range *toAdd {
+		qnt, ok := (*dst)[k]
+		if ok {
+			// value already exists, add to it
+			qnt.Add(v)
+			(*dst)[k] = qnt
+		} else {
+			// value does not exists, create it
+			(*dst)[k] = v.DeepCopy()
+		}
+	}
 }
 
 func GetNodeImages(node corev1.Node) []corev1.ContainerImage {
@@ -437,33 +463,45 @@ func GetNodeImages(node corev1.Node) []corev1.ContainerImage {
 	return images
 }
 
+// get labels for advertisement
+func GetLabels(physicalNodes *corev1.NodeList, labelPolicies []configv1alpha1.LabelPolicy) (labels map[string]string) {
+	labels = make(map[string]string)
+	if labelPolicies == nil {
+		return labels
+	}
+	for _, lblPol := range labelPolicies {
+		if val, insert := labelPolicy.GetInstance(lblPol.Policy).Process(physicalNodes, lblPol.Key); insert {
+			labels[lblPol.Key] = val
+		}
+	}
+	return labels
+}
+
 // create announced resources for advertisement
 func ComputeAnnouncedResources(physicalNodes *corev1.NodeList, reqs corev1.ResourceList, sharingPercentage int64) (availability corev1.ResourceList, images []corev1.ContainerImage) {
 	// get allocatable resources in all the physical nodes
 	allocatable, images := GetClusterResources(physicalNodes.Items)
 
 	// subtract used resources from available ones to have available resources
-	cpu := allocatable.Cpu().DeepCopy()
-	cpu.Sub(reqs.Cpu().DeepCopy())
-	if cpu.Value() < 0 {
-		cpu.Set(0)
+	availability = allocatable.DeepCopy()
+	for k, v := range availability {
+		if req, ok := reqs[k]; ok {
+			v.Sub(req)
+		}
+		if v.Value() < 0 {
+			v.Set(0)
+		}
+		if k == corev1.ResourceCPU {
+			// use millis
+			v.SetScaled(v.MilliValue()*sharingPercentage/100, resource.Milli)
+		} else if k == corev1.ResourceMemory {
+			// use mega
+			v.SetScaled(v.ScaledValue(resource.Mega)*sharingPercentage/100, resource.Mega)
+		} else {
+			v.Set(v.Value() * sharingPercentage / 100)
+		}
+		availability[k] = v
 	}
-	mem := allocatable.Memory().DeepCopy()
-	if mem.Value() < 0 {
-		mem.Set(0)
-	}
-	mem.Sub(reqs.Memory().DeepCopy())
-	pods := allocatable.Pods().DeepCopy()
-
-	cpu.SetScaled(cpu.MilliValue()*sharingPercentage/100, resource.Milli)
-	mem.Set(mem.Value() * sharingPercentage / 100)
-	pods.Set(pods.Value() * sharingPercentage / 100)
-	availability = corev1.ResourceList{
-		corev1.ResourceCPU:    cpu,
-		corev1.ResourceMemory: mem,
-		corev1.ResourcePods:   pods,
-	}
-
 	return availability, images
 }
 
