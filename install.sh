@@ -239,6 +239,7 @@ function setup_liqo_version() {
 		warn "[PRE-FLIGHT] [DOWNLOAD]" "An unreleased version of Liqo is going to be downloaded"
 		LIQO_IMAGE_VERSION=$(get_repo_master_commit ${LIQO_REPO}) ||
 			fatal "[PRE-FLIGHT] [DOWNLOAD]" "Failed to retrieve the latest commit of the master branch"
+		LIQO_SUFFIX="-ci"
 
 		# Using the Liqo Dashboard version from master
 		warn "[PRE-FLIGHT] [DOWNLOAD]" "An unreleased version of Liqo Dashboard is going to be downloaded"

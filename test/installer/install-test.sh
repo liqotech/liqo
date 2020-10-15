@@ -228,7 +228,7 @@ setup() {
 	assert_equal "${LIQO_VERSION}" "master"
 	assert_equal "${LIQO_IMAGE_VERSION}" "f2de258b07d8b507b461f55f87e17f1bb619f926"
 	assert_equal "${LIQO_DASHBOARD_IMAGE_VERSION}" "a3de258b07d8b507b461f55f87e17f1bb619f926"
-	assert [ -z "${LIQO_SUFFIX:-}" ]
+	assert_equal "${LIQO_SUFFIX}" "-ci"
 }
 
 @test "setup_liqo_version correctly configures the environment if a version is specified" {
@@ -293,7 +293,7 @@ setup() {
 	assert_equal "${LIQO_VERSION}" "master"
 	assert_equal "${LIQO_IMAGE_VERSION}" "f2de258b07d8b507b461f55f87e17f1bb619f926"
 	assert_equal "${LIQO_DASHBOARD_IMAGE_VERSION}" "a3de258b07d8b507b461f55f87e17f1bb619f926"
-	assert [ -z "${LIQO_SUFFIX:-}" ]
+	assert_equal "${LIQO_SUFFIX}" "-ci"
 }
 
 @test "setup_liqo_version fails if the dashboard repo does not have the same tag as the liqo repo" {
