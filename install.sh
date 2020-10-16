@@ -134,6 +134,7 @@ function help() {
 	  ${BOLD}KUBECONFIG${RESET}:         the KUBECONFIG file used to interact with the cluster (defaults to ~/.kube/config).
 	  ${BOLD}KUBECONFIG_CONTEXT${RESET}: the context selected to interact with the cluster (defaults to the current one).
 
+	  ${BOLD}INSTALL_AGENT${RESET}:      set this variable to 'true' to enable Liqo Agent installation on your desktop.
 	EOF
 }
 
@@ -216,6 +217,7 @@ function get_agent_link() {
 }
 
 function setup_agent_environment() {
+	[[ -z ${HOME:-} ]] && HOME=~
 	# Default directory for XDG_CONFIG_HOME.
 	AGENT_XDG_CONFIG_DIR="${HOME}/.config/"
 	# Default directory for XDG_DATA_HOME.
@@ -232,8 +234,10 @@ function setup_agent_environment() {
 	# Directory storing the '.desktop' file to enable the application autostart.
 	AGENT_AUTOSTART_DIR="${AGENT_XDG_CONFIG_DIR}/autostart"
 
-	[[ "$1" == "-c" ]] && mkdir -p AGENT_XDG_CONFIG_DIR AGENT_XDG_DATA_DIR \
-	AGENT_BIN_DIR AGENT_ICONS_DIR AGENT_APP_DIR AGENT_THEME_DIR AGENT_AUTOSTART_DIR
+	if [[ $# -ge 1 ]] && [[ "$1" == "-c" ]]; then
+		mkdir -p AGENT_XDG_CONFIG_DIR AGENT_XDG_DATA_DIR \
+		AGENT_BIN_DIR AGENT_ICONS_DIR AGENT_APP_DIR AGENT_THEME_DIR AGENT_AUTOSTART_DIR
+	fi
 }
 
 function setup_liqo_version() {
@@ -435,7 +439,7 @@ function install_liqo() {
 }
 
 function install_agent() {
-	[[ "${INSTALL_AGENT}" != "true" ]] && return 0
+	[[ "${INSTALL_AGENT:-}" != "true" ]] && return 0
 	info "[INSTALL]" "LIQO DESKTOP AGENT INSTALLATION"
 	get_agent_link
 	if [[ -z "${AGENT_ASSET_URL}" ]]; then
@@ -485,7 +489,7 @@ function install_agent() {
 	# to ensure they will be scanned by the display manager even if the user would set the
 	# XDG_DATA_HOME and XDG_CONFIG_HOME variables with values different from their respective
 	# default.
-	if [[ -s "${HOME}/.profile" ]]; then
+	if [[ -f "${HOME}/.profile" ]]; then
 		# shellcheck disable=SC2016
 		echo 'export XDG_CONFIG_DIRS="'"${AGENT_XDG_CONFIG_DIR}:"'$XDG_CONFIG_DIRS"' >> "${HOME}/.profile"
 		# shellcheck disable=SC2016
@@ -571,7 +575,7 @@ function uninstall_agent() {
 	rm -f "${AGENT_APP_DIR}/io.liqo.Agent.desktop"
 	rm -f "${AGENT_AUTOSTART_DIR}/io.liqo.Agent.desktop"
 	rm -f "${AGENT_THEME_DIR}/io.liqo.Agent.svg"
-	if [[ -s "${HOME}/.profile" ]] && command_exists sed; then
+	if [[ -f "${HOME}/.profile" ]] && command_exists sed; then
 		# shellcheck disable=SC2016
 		local str1='export XDG_CONFIG_DIRS="'"${AGENT_XDG_CONFIG_DIR}:"'$XDG_CONFIG_DIRS"'
 		# shellcheck disable=SC2016
