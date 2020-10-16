@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
-set -e          # Fail in case of error
-set -o nounset  # Fail if undefined variables are used
-set -o pipefail # Fail if one of the piped commands fails
+set -e           # Fail in case of error
+set -o nounset   # Fail if undefined variables are used
+set -o pipefail  # Fail if one of the piped commands fails
 
 #
 # Usage:
@@ -49,12 +49,12 @@ EXIT_SUCCESS=0
 EXIT_FAILURE=1
 
 LIQO_REPO="liqotech/liqo"
-LIQO_CHARTS_PATH="deployments/liqo_chart"
+LIQO_CHARTS_PATH="deployments/liqo"
 
 LIQO_DASHBOARD_REPO="liqotech/dashboard"
 
 LIQO_NAMESPACE_DEFAULT="liqo"
-CLUSTER_NAME_DEFAULT=$(printf "LiqoCluster%04d" $((RANDOM % 10000)))
+CLUSTER_NAME_DEFAULT=$(printf "LiqoCluster%04d" $(( RANDOM%10000 )) )
 
 function setup_colors() {
 	# Only use colors if connected to a terminal
@@ -79,21 +79,21 @@ function print_logo() {
 	# ASCII Art: https://patorjk.com/software/taag/#p=display&f=Big%20Money-ne&t=Liqo
 	echo -n "${BLUE}${BOLD}"
 	cat <<-'EOF'
-		
-		
-			     /$$       /$$
-			    | $$      |__/
-			    | $$       /$$  /$$$$$$   /$$$$$$
-			    | $$      | $$ /$$__  $$ /$$__  $$
-			    | $$      | $$| $$  \ $$| $$  \ $$
-			    | $$      | $$| $$  | $$| $$  | $$
-			    | $$$$$$$$| $$|  $$$$$$$|  $$$$$$/
-			    |________/|__/ \____  $$ \______/
-			                        | $$
-			                        | $$
-			                        |__/
-		
-		
+
+
+	     /$$       /$$
+	    | $$      |__/
+	    | $$       /$$  /$$$$$$   /$$$$$$
+	    | $$      | $$ /$$__  $$ /$$__  $$
+	    | $$      | $$| $$  \ $$| $$  \ $$
+	    | $$      | $$| $$  | $$| $$  | $$
+	    | $$$$$$$$| $$|  $$$$$$$|  $$$$$$/
+	    |________/|__/ \____  $$ \______/
+	                        | $$
+	                        | $$
+	                        |__/
+
+
 	EOF
 	echo -n "${RESET}"
 }
@@ -109,32 +109,31 @@ function fatal() {
 	exit ${EXIT_FAILURE}
 }
 
+
 function help() {
 	cat <<-EOF
-		${BLUE}${BOLD}Install Liqo on your Kubernetes cluster${RESET}
-		  ${BOLD}Usage: $0 [options]
-	
-		${BLUE}${BOLD}Options:${RESET}
-		  ${BOLD}--uninstall${RESET}:        uninstall Liqo from your cluster
-		  ${BOLD}--purge${RESET}:            purge all Liqo components from your cluster (i.e. including CRDs)
-	
-		  ${BOLD}-h, --help${RESET}:         display this help
-	
-		${BLUE}${BOLD}Environment variables:${RESET}
-		  ${BOLD}LIQO_VERSION${RESET}:       the version of Liqo to install. It can be a released version, a commit SHA or 'master'.
-	
-		  ${BOLD}LIQO_NAMESPACE${RESET}:     the Kubernetes namespace where all Liqo components are created (defaults to liqo)
-		  ${BOLD}CLUSTER_NAME${RESET}:       the mnemonic name assigned to this Liqo instance. Automatically generated if not specified.
-		  ${BOLD}DASHBOARD_HOSTNAME${RESET}: the hostname assigned to the Liqo dashboard (exposed through an Ingress resource).
-	
-		  ${BOLD}POD_CIDR${RESET}:           the Pod CIDR of your cluster (e.g.; 10.0.0.0/16). Automatically detected if not configured.
-		  ${BOLD}SERVICE_CIDR${RESET}:       the Service CIDR of your cluster (e.g.; 10.96.0.0/12). Automatically detected if not configured.
-	
-		  ${BOLD}KUBECONFIG${RESET}:         the KUBECONFIG file used to interact with the cluster (defaults to ~/.kube/config).
-		  ${BOLD}KUBECONFIG_CONTEXT${RESET}: the context selected to interact with the cluster (defaults to the current one).
-	
-		  ${BOLD}INSTALL_AGENT${RESET}:      set it to 'true' to enable the Liqo Desktop Agent installation.
-	
+	${BLUE}${BOLD}Install Liqo on your Kubernetes cluster${RESET}
+	  ${BOLD}Usage: $0 [options]
+
+	${BLUE}${BOLD}Options:${RESET}
+	  ${BOLD}--uninstall${RESET}:        uninstall Liqo from your cluster
+	  ${BOLD}--purge${RESET}:            purge all Liqo components from your cluster (i.e. including CRDs)
+
+	  ${BOLD}-h, --help${RESET}:         display this help
+
+	${BLUE}${BOLD}Environment variables:${RESET}
+	  ${BOLD}LIQO_VERSION${RESET}:       the version of Liqo to install. It can be a released version, a commit SHA or 'master'.
+
+	  ${BOLD}LIQO_NAMESPACE${RESET}:     the Kubernetes namespace where all Liqo components are created (defaults to liqo)
+	  ${BOLD}CLUSTER_NAME${RESET}:       the mnemonic name assigned to this Liqo instance. Automatically generated if not specified.
+	  ${BOLD}DASHBOARD_HOSTNAME${RESET}: the hostname assigned to the Liqo dashboard (exposed through an Ingress resource).
+
+	  ${BOLD}POD_CIDR${RESET}:           the Pod CIDR of your cluster (e.g.; 10.0.0.0/16). Automatically detected if not configured.
+	  ${BOLD}SERVICE_CIDR${RESET}:       the Service CIDR of your cluster (e.g.; 10.96.0.0/12). Automatically detected if not configured.
+
+	  ${BOLD}KUBECONFIG${RESET}:         the KUBECONFIG file used to interact with the cluster (defaults to ~/.kube/config).
+	  ${BOLD}KUBECONFIG_CONTEXT${RESET}: the context selected to interact with the cluster (defaults to the current one).
+
 	EOF
 }
 
@@ -152,23 +151,16 @@ function parse_arguments() {
 
 	while true; do
 		case "$1" in
-			--help | -h)
-				help
-				exit ${EXIT_SUCCESS}
-				;;
+		--help|-h)
+			help; exit ${EXIT_SUCCESS} ;;
 
-			--uninstall)
-				INSTALL_LIQO=false
-				;;
-			--purge)
-				INSTALL_LIQO=false
-				PURGE_LIQO=true
-				;;
+		--uninstall)
+			INSTALL_LIQO=false ;;
+		--purge)
+			INSTALL_LIQO=false; PURGE_LIQO=true; ;;
 
-			--)
-				shift
-				break
-				;;
+		--)
+			shift; break; ;;
 		esac
 		shift
 	done
@@ -176,9 +168,11 @@ function parse_arguments() {
 	[ $# -eq 0 ] || fatal "[PRE-FLIGHT]" "unrecognized argument '$1'"
 }
 
+
 function command_exists() {
 	command -v "$1" >/dev/null 2>&1
 }
+
 
 function setup_downloader() {
 	if command_exists "curl"; then
@@ -297,15 +291,12 @@ function download() {
 	case ${DOWNLOADER:-} in
 		curl)
 			curl --output - --silent --fail --location "$1" ||
-				fatal "[PRE-FLIGHT] [DOWNLOAD]" "Failed downloading $1"
-			;;
+				fatal "[PRE-FLIGHT] [DOWNLOAD]" "Failed downloading $1" ;;
 		wget)
 			wget --quiet --output-document=- "$1" ||
-				fatal "[PRE-FLIGHT] [DOWNLOAD]" "Failed downloading $1"
-			;;
+				fatal "[PRE-FLIGHT] [DOWNLOAD]" "Failed downloading $1" ;;
 		*)
-			fatal "[PRE-FLIGHT] [DOWNLOAD]" "Internal error: incorrect downloader"
-			;;
+			fatal "[PRE-FLIGHT] [DOWNLOAD]" "Internal error: incorrect downloader" ;;
 	esac
 }
 
@@ -328,6 +319,7 @@ function download_liqo() {
 	download "${LIQO_DOWNLOAD_URL}" | tar zxf - --directory="${TMPDIR}" --strip 1 2>/dev/null ||
 		fatal "[PRE-FLIGHT] [DOWNLOAD]" "Something went wrong while extracting the Liqo archive"
 }
+
 
 function setup_kubectl() {
 	command_exists "kubectl" ||
@@ -361,9 +353,10 @@ function setup_tmpdir() {
 	trap cleanup INT EXIT
 }
 
+
 function configure_namespace() {
 	local PHASE
-	PHASE=$([ "${INSTALL_LIQO}" = true ] && echo "INSTALL" || echo "UNINSTALL")
+	PHASE=$([ "${INSTALL_LIQO}" = true ] && echo "INSTALL" || echo "UNINSTALL" )
 
 	LIQO_NAMESPACE=${LIQO_NAMESPACE:-${LIQO_NAMESPACE_DEFAULT}}
 	info "[${PHASE}] [CONFIGURE]" "Using namespace: ${LIQO_NAMESPACE}"
@@ -378,9 +371,8 @@ function configure_installation_variables() {
 		POD_CIDR=$(
 			${KUBECTL} get pods --namespace kube-system \
 				--selector component=kube-controller-manager \
-				--output jsonpath="{.items[*].spec.containers[*].command}" 2>/dev/null |
-				grep -Po --max-count=1 "(?<=--cluster-cidr=)[0-9.\/]+"
-		) ||
+				--output jsonpath="{.items[*].spec.containers[*].command}" 2>/dev/null | \
+					grep -Po --max-count=1 "(?<=--cluster-cidr=)[0-9.\/]+") ||
 			fatal "[INSTALL] [CONFIGURE]" "Failed to automatically retrieve the Pod CIDR." \
 				"Please, manually specify it with 'export POD_CIDR=...' before executing again this script"
 	fi
@@ -391,9 +383,8 @@ function configure_installation_variables() {
 		SERVICE_CIDR=$(
 			${KUBECTL} get pods --namespace kube-system \
 				--selector component=kube-controller-manager \
-				--output jsonpath="{.items[*].spec.containers[*].command} 2>dev/null" |
-				grep -Po --max-count=1 "(?<=--service-cluster-ip-range=)[0-9.\/]+"
-		) ||
+				--output jsonpath="{.items[*].spec.containers[*].command} 2>dev/null" | \
+					grep -Po --max-count=1 "(?<=--service-cluster-ip-range=)[0-9.\/]+") ||
 			fatal "[INSTALL] [CONFIGURE]" "Failed to automatically retrieve the Service CIDR." \
 				"Please, manually specify it with 'export SERVICE_CIDR=...' before executing again this script"
 	fi
@@ -407,7 +398,7 @@ function configure_gateway_node() {
 	GATEWAY=$(${KUBECTL} get node --selector "${GATEWAY_LABEL}" --output jsonpath="{.items[*].metadata.name}" 2>/dev/null) ||
 		fatal "[INSTALL] [CONFIGURE]" "Failed to detect whether a gateway node is already configured"
 
-	if [ "$(wc --words <<<"${GATEWAY}")" -ge 2 ]; then
+	if [ "$(wc --words <<< "${GATEWAY}")" -ge 2 ]; then
 		fatal "[INSTALL] [CONFIGURE]" "More than one cluster node is labeled as gateway"
 	fi
 
@@ -438,7 +429,7 @@ function install_liqo() {
 		--set podCIDR="${POD_CIDR}" --set serviceCIDR="${SERVICE_CIDR}" --set gatewayIP="${GATEWAY_IP}" \
 		--set global.dashboard_version="${LIQO_DASHBOARD_IMAGE_VERSION}" \
 		--set global.dashboard_ingress="${DASHBOARD_INGRESS:-}" >/dev/null ||
-		fatal "[INSTALL]" "Something went wrong while installing Liqo"
+			fatal "[INSTALL]" "Something went wrong while installing Liqo"
 
 	info "[INSTALL]" "Hooray! Liqo is now installed on your cluster"
 }
@@ -508,7 +499,7 @@ function install_agent() {
 
 function all_clusters_unjoined() {
 	local JSON_PATH="{.items[*].spec.join} {.items[*].status.incoming.joined} {.items[*].status.outgoing.joined} {.items[*].status.network.localNetworkConfig.available} {.items[*].status.network.remoteNetworkConfig.available} {.items[*].status.network.tunnelEndpoint.available}"
-	(${KUBECTL} get foreignclusters --output jsonpath="${JSON_PATH}" 2>/dev/null || echo "") |
+	( ${KUBECTL} get foreignclusters --output jsonpath="${JSON_PATH}" 2>/dev/null || echo "" ) | \
 		grep --invert-match --silent "true"
 }
 
@@ -532,7 +523,7 @@ function unjoin_clusters() {
 
 	local RETRIES=600
 	while ! all_clusters_unjoined; do
-		RETRIES=$((RETRIES - 1))
+		RETRIES=$(( RETRIES-1 ))
 		[ "${RETRIES}" -gt 0 ] ||
 			fatal "[UNINSTALL] [UNJOIN]" "Timeout: impossible to unpeer from all clusters"
 		sleep 1
@@ -555,7 +546,7 @@ function uninstall_liqo() {
 	info "[UNINSTALL]" "Waiting for all Liqo pods to terminate..."
 	${KUBECTL} wait pods --timeout=120s --namespace liqo --all --for=delete 1>/dev/null 2>&1
 
-	${KUBECTL} delete MutatingWebhookConfiguration mutatepodtoleration 1>/dev/null 2>&1
+ 	${KUBECTL} delete MutatingWebhookConfiguration mutatepodtoleration 1>/dev/null 2>&1
 	${KUBECTL} delete ValidatingWebhookConfiguration peering-request-operator 1>/dev/null 2>&1
 
 	${KUBECTL} delete certificatesigningrequest "peering-request-operator.${LIQO_NAMESPACE}" 1>/dev/null 2>&1
@@ -607,6 +598,7 @@ function purge_liqo() {
 	set -e
 }
 
+
 function main() {
 	setup_colors
 	print_logo
@@ -623,7 +615,7 @@ function main() {
 
 	configure_namespace
 
-	if [[ ${INSTALL_LIQO} == true ]]; then
+	if [[ ${INSTALL_LIQO} = true ]]; then
 		configure_installation_variables
 		configure_gateway_node
 		install_liqo
