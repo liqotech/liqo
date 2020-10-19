@@ -24,8 +24,8 @@ require (
 	github.com/mitchellh/go-homedir v1.1.0
 	github.com/ozgio/strutil v0.3.0
 	github.com/pkg/errors v0.9.1
-	github.com/prometheus/client_golang v1.7.1
-	github.com/prometheus/common v0.11.1
+	github.com/prometheus/client_golang v1.8.0
+	github.com/prometheus/common v0.14.0
 	github.com/sirupsen/logrus v1.6.0
 	github.com/spf13/cobra v1.0.0
 	github.com/spf13/pflag v1.0.5
@@ -34,7 +34,7 @@ require (
 	go.opencensus.io v0.22.4
 	go.uber.org/atomic v1.5.1 // indirect
 	go.uber.org/multierr v1.4.0 // indirect
-	golang.org/x/sys v0.0.0-20200625212154-ddb9806d33ae
+	golang.org/x/sys v0.0.0-20201015000850-e3ed0017c211
 	golang.org/x/tools v0.0.0-20200616195046-dc31b401abb5
 	gotest.tools v2.2.0+incompatible
 	k8s.io/api v0.18.6
