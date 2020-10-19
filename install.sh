@@ -461,8 +461,7 @@ function install_agent() {
 	# moving binary
 	mv -f "liqo-agent" "${AGENT_BIN_DIR}"
 	# moving notifications icons
-	tar xzf io.liqo.Agent_icons.tar.gz -C "${AGENT_ICONS_DIR}" --strip 1 --overwrite || \
-	fatal "[INSTALL]" "Something went wrong while extracting files"
+	mv -f io.liqo.Agent_icons/* "${AGENT_ICONS_DIR}" || fatal "[INSTALL]" "Something went wrong while copying files"
 
 	info "[AGENT INSTALL] [4/4]" "Installing Desktop Application"
 	# INSTALL AGENT AS A DESKTOP APPLICATION
