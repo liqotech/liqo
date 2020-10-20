@@ -144,8 +144,7 @@ func getClusterConfig() *configv1alpha1.ClusterConfig {
 				Name:                "MyLiqo",
 				Port:                6443,
 				Service:             "_liqo._tcp",
-				UpdateTime:          3,
-				WaitTime:            2,
+				Ttl:                 30,
 			},
 			LiqonetConfig: configv1alpha1.LiqonetConfig{
 				ReservedSubnets: []string{"10.0.0.0/16"},

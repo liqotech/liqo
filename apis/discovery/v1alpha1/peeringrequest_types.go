@@ -42,14 +42,6 @@ type PeeringRequestSpec struct {
 	KubeConfigRef *v1.ObjectReference `json:"kubeConfigRef,omitempty"`
 }
 
-type ReverseJoin string
-
-const (
-	NoReverseJoin      ReverseJoin = "NoReverseJoin"      // this cluster will not allow remote cluster to send its PeeringRequest
-	AllowReverseJoin   ReverseJoin = "AllowReverseJoin"   // this cluster will accept remote cluster PeeringRequest
-	RequireReverseJoin ReverseJoin = "RequireReverseJoin" // this cluster asks to remote cluster to send its PeeringRequest
-)
-
 // PeeringRequestStatus defines the observed state of PeeringRequest
 type PeeringRequestStatus struct {
 	BroadcasterRef      *object_references.DeploymentReference `json:"broadcasterRef,omitempty"`

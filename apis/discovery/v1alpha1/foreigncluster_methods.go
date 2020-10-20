@@ -14,6 +14,8 @@ import (
 	"k8s.io/client-go/rest"
 	"k8s.io/klog"
 	"k8s.io/utils/pointer"
+	"strconv"
+	"time"
 )
 
 func (fc *ForeignCluster) GetConfig(client kubernetes.Interface) (*rest.Config, error) {
@@ -149,7 +151,7 @@ func (fc *ForeignCluster) SetAdvertisement(adv *advtypes.Advertisement, discover
 func (fc *ForeignCluster) DeleteAdvertisement(advClient *crdClient.CRDClient) error {
 	if fc.Status.Outgoing.Advertisement != nil {
 		err := advClient.Resource("advertisements").Delete(fc.Status.Outgoing.Advertisement.Name, metav1.DeleteOptions{})
-		if err != nil {
+		if err != nil && !errors.IsNotFound(err) {
 			return err
 		}
 		fc.Status.Outgoing.Advertisement = nil
@@ -162,4 +164,33 @@ func (fc *ForeignCluster) DeleteAdvertisement(advClient *crdClient.CRDClient) er
 // adding it manually
 func (fc *ForeignCluster) HasHigherPriority(discoveryType DiscoveryType) bool {
 	return fc.Spec.DiscoveryType == IncomingPeeringDiscovery && discoveryType != IncomingPeeringDiscovery
+}
+
+// sets lastUpdate annotation to current time
+func (fc *ForeignCluster) LastUpdateNow() {
+	ann := fc.GetAnnotations()
+	if ann == nil {
+		ann = map[string]string{}
+	}
+	ann[LastUpdateAnnotation] = strconv.Itoa(int(time.Now().Unix()))
+	fc.SetAnnotations(ann)
+}
+
+func (fc *ForeignCluster) IsExpired() bool {
+	ann := fc.GetAnnotations()
+	if ann == nil {
+		return false
+	}
+
+	lastUpdate, ok := ann[LastUpdateAnnotation]
+	if !ok {
+		return false
+	}
+	lu, err := strconv.Atoi(lastUpdate)
+	if err != nil {
+		klog.Error(err)
+		return true
+	}
+	now := time.Now().Unix()
+	return int64(lu+int(fc.Status.Ttl)) < now
 }

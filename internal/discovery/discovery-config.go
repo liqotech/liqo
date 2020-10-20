@@ -98,22 +98,14 @@ func (discovery *DiscoveryCtrl) handleConfiguration(config configv1alpha1.Discov
 			discovery.Config.Port = config.Port
 			reloadServer = true
 		}
-		if discovery.Config.AllowUntrustedCA != config.AllowUntrustedCA {
-			discovery.Config.AllowUntrustedCA = config.AllowUntrustedCA
-			reloadServer = true
-		}
 		if discovery.Config.Service != config.Service {
 			discovery.Config.Service = config.Service
 			reloadServer = true
 			reloadClient = true
 		}
-		if discovery.Config.UpdateTime != config.UpdateTime {
-			discovery.Config.UpdateTime = config.UpdateTime
-			reloadClient = true
-		}
-		if discovery.Config.WaitTime != config.WaitTime {
-			discovery.Config.WaitTime = config.WaitTime
-			reloadClient = true
+		if discovery.Config.Ttl != config.Ttl {
+			discovery.Config.Ttl = config.Ttl
+			reloadServer = true
 		}
 		if discovery.Config.AutoJoin != config.AutoJoin {
 			discovery.Config.AutoJoin = config.AutoJoin
@@ -138,17 +130,20 @@ func (discovery *DiscoveryCtrl) handleConfiguration(config configv1alpha1.Discov
 
 func (discovery *DiscoveryCtrl) reloadServer() {
 	klog.Info("Reload mDNS server")
-	select {
-	case discovery.stopMDNS <- true:
-		close(discovery.stopMDNS)
-	default:
-	}
+	discovery.stopMDNS <- true
 	if discovery.Config.EnableAdvertisement {
+		close(discovery.stopMDNS)
+		discovery.stopMDNS = make(chan bool, 1)
 		go discovery.Register()
 	}
 }
 
 func (discovery *DiscoveryCtrl) reloadClient() {
 	klog.Info("Reload mDNS client")
-	// settings are automatically updated in next iteration
+	discovery.stopMDNSClient <- true
+	if discovery.Config.EnableDiscovery {
+		close(discovery.stopMDNSClient)
+		discovery.stopMDNSClient = make(chan bool, 1)
+		go discovery.StartResolver(discovery.stopMDNSClient)
+	}
 }

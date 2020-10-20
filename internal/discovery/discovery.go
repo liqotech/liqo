@@ -1,6 +1,7 @@
 package discovery
 
 import (
+	"github.com/grandcat/zeroconf"
 	configv1alpha1 "github.com/liqotech/liqo/apis/config/v1alpha1"
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	advtypes "github.com/liqotech/liqo/apis/sharing/v1alpha1"
@@ -8,19 +9,25 @@ import (
 	"github.com/liqotech/liqo/pkg/crdClient"
 	"k8s.io/klog"
 	"os"
+	"sync"
 )
 
 type DiscoveryCtrl struct {
 	Namespace string
 
-	Config    *configv1alpha1.DiscoveryConfig
-	stopMDNS  chan bool
-	crdClient *crdClient.CRDClient
-	advClient *crdClient.CRDClient
-	ClusterId *clusterID.ClusterID
+	Config         *configv1alpha1.DiscoveryConfig
+	stopMDNS       chan bool
+	stopMDNSClient chan bool
+	crdClient      *crdClient.CRDClient
+	advClient      *crdClient.CRDClient
+	ClusterId      *clusterID.ClusterID
+
+	mdnsServer                *zeroconf.Server
+	serverMux                 sync.Mutex
+	resolveContextRefreshTime int
 }
 
-func NewDiscoveryCtrl(namespace string, clusterId *clusterID.ClusterID, kubeconfigPath string) (*DiscoveryCtrl, error) {
+func NewDiscoveryCtrl(namespace string, clusterId *clusterID.ClusterID, kubeconfigPath string, resolveContextRefreshTime int) (*DiscoveryCtrl, error) {
 	config, err := crdClient.NewKubeconfig(kubeconfigPath, &discoveryv1alpha1.GroupVersion)
 	if err != nil {
 		return nil, err
@@ -41,6 +48,7 @@ func NewDiscoveryCtrl(namespace string, clusterId *clusterID.ClusterID, kubeconf
 		discoveryClient,
 		advClient,
 		clusterId,
+		resolveContextRefreshTime,
 	)
 	if discoveryCtrl.GetDiscoveryConfig(nil, kubeconfigPath) != nil {
 		os.Exit(1)
@@ -48,17 +56,22 @@ func NewDiscoveryCtrl(namespace string, clusterId *clusterID.ClusterID, kubeconf
 	return &discoveryCtrl, nil
 }
 
-func GetDiscoveryCtrl(namespace string, crdClient *crdClient.CRDClient, advClient *crdClient.CRDClient, clusterId *clusterID.ClusterID) DiscoveryCtrl {
+func GetDiscoveryCtrl(namespace string, crdClient *crdClient.CRDClient, advClient *crdClient.CRDClient, clusterId *clusterID.ClusterID, resolveContextRefreshTime int) DiscoveryCtrl {
 	return DiscoveryCtrl{
-		Namespace: namespace,
-		crdClient: crdClient,
-		advClient: advClient,
-		ClusterId: clusterId,
+		Namespace:                 namespace,
+		crdClient:                 crdClient,
+		advClient:                 advClient,
+		ClusterId:                 clusterId,
+		stopMDNS:                  make(chan bool, 1),
+		stopMDNSClient:            make(chan bool, 1),
+		resolveContextRefreshTime: resolveContextRefreshTime,
 	}
 }
 
 // Start register and resolver goroutines
 func (discovery *DiscoveryCtrl) StartDiscovery() {
 	go discovery.Register()
-	go discovery.StartResolver()
+	go discovery.StartResolver(discovery.stopMDNSClient)
+	go discovery.StartGratuitousAnswers()
+	go discovery.StartGarbageCollector()
 }

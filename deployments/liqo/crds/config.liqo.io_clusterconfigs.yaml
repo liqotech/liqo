@@ -107,8 +107,6 @@ spec:
                 type: object
               discoveryConfig:
                 properties:
-                  allowUntrustedCA:
-                    type: boolean
                   autojoin:
                     type: boolean
                   autojoinUntrusted:
@@ -130,14 +128,11 @@ spec:
                     type: integer
                   service:
                     type: string
-                  updateTime:
-                    minimum: 2
-                    type: integer
-                  waitTime:
-                    minimum: 1
+                  ttl:
+                    format: int32
+                    minimum: 30
                     type: integer
                 required:
-                - allowUntrustedCA
                 - autojoin
                 - autojoinUntrusted
                 - domain
@@ -146,8 +141,7 @@ spec:
                 - name
                 - port
                 - service
-                - updateTime
-                - waitTime
+                - ttl
                 type: object
               dispatcherConfig:
                 properties:

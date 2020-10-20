@@ -23,10 +23,8 @@ spec:
     enableDiscovery: true
     name: MyLiqo
     port: 6443
-    allowUntrustedCA: true
     service: _liqo._tcp
-    updateTime: 3
-    waitTime: 2
+    ttl: 90
   liqonetConfig:
     podCIDR: {{ .Values.podCIDR }}
     serviceCIDR: {{ .Values.serviceCIDR }}

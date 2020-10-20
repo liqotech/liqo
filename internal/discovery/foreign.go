@@ -16,50 +16,71 @@ import (
 // 3. else
 //   3a. if IP is different set new IP and delete CA data
 //   3b. else it is ok
-// 4. TTL logic
 
-func (discovery *DiscoveryCtrl) UpdateForeign(data []*TxtData, sd *v1alpha1.SearchDomain) []*v1alpha1.ForeignCluster {
-	createdUpdatedForeign := []*v1alpha1.ForeignCluster{}
-	var discoveryType v1alpha1.DiscoveryType
-	if sd == nil {
-		discoveryType = v1alpha1.LanDiscovery
-	} else {
-		discoveryType = v1alpha1.WanDiscovery
+func (discovery *DiscoveryCtrl) UpdateForeignLAN(data *TxtData) {
+	discoveryType := v1alpha1.LanDiscovery
+	if data.ID == discovery.ClusterId.GetClusterID() {
+		// is local cluster
+		return
 	}
+
+	err := discovery.createOrUpdate(data, nil, discoveryType, nil)
+	if err != nil {
+		klog.Error(err)
+	}
+}
+
+func (discovery *DiscoveryCtrl) UpdateForeignWAN(data []*TxtData, sd *v1alpha1.SearchDomain) []*v1alpha1.ForeignCluster {
+	createdUpdatedForeign := []*v1alpha1.ForeignCluster{}
+	discoveryType := v1alpha1.WanDiscovery
 	for _, txtData := range data {
 		if txtData.ID == discovery.ClusterId.GetClusterID() {
 			// is local cluster
 			continue
 		}
-		fc, err := discovery.GetForeignClusterByID(txtData.ID)
-		if k8serror.IsNotFound(err) {
-			fc, err := discovery.createForeign(txtData, sd, discoveryType)
-			if err != nil {
-				klog.Error(err, err.Error())
-				continue
-			}
-			klog.Info("ForeignCluster " + txtData.ID + " created")
-			createdUpdatedForeign = append(createdUpdatedForeign, fc)
-		} else if err == nil {
-			fc, err = discovery.CheckUpdate(txtData, fc, discoveryType, sd)
-			if err != nil {
-				klog.Error(err, err.Error())
-				continue
-			}
-			klog.Info("ForeignCluster " + txtData.ID + " updated")
-			createdUpdatedForeign = append(createdUpdatedForeign, fc)
-		} else {
-			// unhandled errors
-			klog.Error(err, err.Error())
+
+		err := discovery.createOrUpdate(txtData, sd, discoveryType, &createdUpdatedForeign)
+		if err != nil {
 			continue
 		}
-	}
-	if discoveryType == v1alpha1.LanDiscovery {
-		_ = discovery.UpdateTtl(data)
 	}
 	return createdUpdatedForeign
 }
 
+func (discovery *DiscoveryCtrl) createOrUpdate(txtData *TxtData, sd *v1alpha1.SearchDomain, discoveryType v1alpha1.DiscoveryType, createdUpdatedForeign *[]*v1alpha1.ForeignCluster) error {
+	fc, err := discovery.GetForeignClusterByID(txtData.ID)
+	if k8serror.IsNotFound(err) {
+		fc, err := discovery.createForeign(txtData, sd, discoveryType)
+		if err != nil {
+			klog.Error(err)
+			return err
+		}
+		klog.Infof("ForeignCluster %s created", txtData.ID)
+		if createdUpdatedForeign != nil {
+			*createdUpdatedForeign = append(*createdUpdatedForeign, fc)
+		}
+	} else if err == nil {
+		var updated bool
+		fc, updated, err = discovery.CheckUpdate(txtData, fc, discoveryType, sd)
+		if err != nil {
+			klog.Error(err)
+			return err
+		}
+		if updated {
+			klog.Infof("ForeignCluster %s updated", txtData.ID)
+			if createdUpdatedForeign != nil {
+				*createdUpdatedForeign = append(*createdUpdatedForeign, fc)
+			}
+		}
+	} else {
+		// unhandled errors
+		klog.Error(err)
+		return err
+	}
+	return nil
+}
+
+/*
 // this function is called every x seconds when LAN discovery is triggered
 // for each cluster with discovery-type = LAN we will decrease TTL if that cluster
 // didn't answered to current discovery
@@ -120,6 +141,7 @@ func (discovery *DiscoveryCtrl) UpdateTtl(txts []*TxtData) error {
 	}
 	return nil
 }
+*/
 
 func (discovery *DiscoveryCtrl) createForeign(txtData *TxtData, sd *v1alpha1.SearchDomain, discoveryType v1alpha1.DiscoveryType) (*v1alpha1.ForeignCluster, error) {
 	fc := &v1alpha1.ForeignCluster{
@@ -136,6 +158,7 @@ func (discovery *DiscoveryCtrl) createForeign(txtData *TxtData, sd *v1alpha1.Sea
 			DiscoveryType: discoveryType,
 		},
 	}
+	fc.LastUpdateNow()
 
 	if sd != nil {
 		fc.Spec.Join = sd.Spec.AutoJoin
@@ -149,8 +172,8 @@ func (discovery *DiscoveryCtrl) createForeign(txtData *TxtData, sd *v1alpha1.Sea
 		}
 	}
 	if discoveryType == v1alpha1.LanDiscovery {
-		// set TTL to default value
-		fc.Status.Ttl = 3
+		// set TTL
+		fc.Status.Ttl = txtData.Ttl
 	}
 	tmp, err := discovery.crdClient.Resource("foreignclusters").Create(fc, metav1.CreateOptions{})
 	if err != nil {
@@ -164,8 +187,9 @@ func (discovery *DiscoveryCtrl) createForeign(txtData *TxtData, sd *v1alpha1.Sea
 	return fc, err
 }
 
-func (discovery *DiscoveryCtrl) CheckUpdate(txtData *TxtData, fc *v1alpha1.ForeignCluster, discoveryType v1alpha1.DiscoveryType, searchDomain *v1alpha1.SearchDomain) (*v1alpha1.ForeignCluster, error) {
+func (discovery *DiscoveryCtrl) CheckUpdate(txtData *TxtData, fc *v1alpha1.ForeignCluster, discoveryType v1alpha1.DiscoveryType, searchDomain *v1alpha1.SearchDomain) (fcUpdated *v1alpha1.ForeignCluster, updated bool, err error) {
 	if fc.Spec.ApiUrl != txtData.ApiUrl || fc.Spec.Namespace != txtData.Namespace || fc.HasHigherPriority(discoveryType) {
+		// something is changed in ForeignCluster specs, update it
 		fc.Spec.ApiUrl = txtData.ApiUrl
 		fc.Spec.Namespace = txtData.Namespace
 		fc.Spec.DiscoveryType = discoveryType
@@ -175,21 +199,22 @@ func (discovery *DiscoveryCtrl) CheckUpdate(txtData *TxtData, fc *v1alpha1.Forei
 		if fc.Status.Outgoing.CaDataRef != nil {
 			err := discovery.crdClient.Client().CoreV1().Secrets(fc.Status.Outgoing.CaDataRef.Namespace).Delete(context.TODO(), fc.Status.Outgoing.CaDataRef.Name, metav1.DeleteOptions{})
 			if err != nil {
-				klog.Error(err, err.Error())
-				return nil, err
+				klog.Error(err)
+				return nil, false, err
 			}
 		}
 		fc.Status.Outgoing.CaDataRef = nil
+		fc.LastUpdateNow()
 		tmp, err := discovery.crdClient.Resource("foreignclusters").Update(fc.Name, fc, metav1.UpdateOptions{})
 		if err != nil {
-			klog.Error(err, err.Error())
-			return nil, err
+			klog.Error(err)
+			return nil, false, err
 		}
 		fc, ok := tmp.(*v1alpha1.ForeignCluster)
 		if !ok {
 			err = errors.New("retrieved object is not a ForeignCluster")
-			klog.Error(err, err.Error())
-			return nil, err
+			klog.Error(err)
+			return nil, false, err
 		}
 		if fc.Status.Outgoing.Advertisement != nil {
 			// changed ip in peered cluster, delete advertisement and wait for its recreation
@@ -199,24 +224,38 @@ func (discovery *DiscoveryCtrl) CheckUpdate(txtData *TxtData, fc *v1alpha1.Forei
 			// updating it before adv delete will avoid us to set to false join flag
 			tmp, err = discovery.crdClient.Resource("foreignclusters").Update(fc.Name, fc, metav1.UpdateOptions{})
 			if err != nil {
-				klog.Error(err, err.Error())
-				return nil, err
+				klog.Error(err)
+				return nil, false, err
 			}
 			fc, ok = tmp.(*v1alpha1.ForeignCluster)
 			if !ok {
 				err = errors.New("retrieved object is not a ForeignCluster")
-				klog.Error(err, err.Error())
-				return nil, err
+				klog.Error(err)
+				return nil, false, err
 			}
 			err = discovery.advClient.Resource("advertisements").Delete(advName, metav1.DeleteOptions{})
 			if err != nil {
-				klog.Error(err, err.Error())
-				return nil, err
+				klog.Error(err)
+				return nil, false, err
 			}
 		}
-		return fc, nil
+		return fc, true, nil
+	} else {
+		// update "lastUpdate" annotation
+		fc.LastUpdateNow()
+		tmp, err := discovery.crdClient.Resource("foreignclusters").Update(fc.Name, fc, metav1.UpdateOptions{})
+		if err != nil {
+			klog.Error(err)
+			return nil, false, err
+		}
+		var ok bool
+		if fc, ok = tmp.(*v1alpha1.ForeignCluster); !ok {
+			err = errors.New("retrieved object is not a ForeignCluster")
+			klog.Error(err)
+			return nil, false, err
+		}
+		return fc, false, nil
 	}
-	return fc, nil
 }
 
 func (discovery *DiscoveryCtrl) GetForeignClusterByID(clusterID string) (*v1alpha1.ForeignCluster, error) {

@@ -156,7 +156,8 @@ func testDiscoveryConfig(t *testing.T) {
 	cc = tmp.(*configv1alpha1.ClusterConfig)
 
 	time.Sleep(1 * time.Second)
-	assert.Equal(t, *clientCluster.discoveryCtrl.Config, cc.Spec.DiscoveryConfig)
+	cnf := clientCluster.discoveryCtrl.Config
+	assert.Equal(t, *cnf, cc.Spec.DiscoveryConfig)
 }
 
 // ------
@@ -374,8 +375,9 @@ func testMergeClusters(t *testing.T) {
 		Namespace: fc.Spec.Namespace,
 		ApiUrl:    strings.Replace(fc.Spec.ApiUrl, "127.0.0.1", "127.0.0.2", -1),
 	}
-	fc, err = clientCluster.discoveryCtrl.CheckUpdate(txt, fc, fc.Spec.DiscoveryType, nil)
+	fc, updated, err := clientCluster.discoveryCtrl.CheckUpdate(txt, fc, fc.Spec.DiscoveryType, nil)
 	assert.NilError(t, err)
+	assert.Assert(t, updated)
 	assert.Equal(t, fc.Spec.ApiUrl, txt.ApiUrl, "API URL not changed")
 
 	time.Sleep(100 * time.Millisecond)

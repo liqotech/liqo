@@ -342,6 +342,7 @@ spec:
                 type: string
               ttl:
                 description: If discoveryType is LAN and this counter reach 0 value, this FC will be removed
+                format: int32
                 type: integer
             type: object
         type: object

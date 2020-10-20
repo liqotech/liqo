@@ -1,11 +1,14 @@
 package discovery
 
 import (
+	"context"
 	"github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	"github.com/liqotech/liqo/internal/discovery"
 	"gotest.tools/assert"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/klog"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -44,16 +47,31 @@ func testMdns(t *testing.T) {
 	domain := "local."
 
 	go clientCluster.discoveryCtrl.Register()
+	go clientCluster.discoveryCtrl.StartGratuitousAnswers()
 
 	time.Sleep(1 * time.Second)
 
-	txts := []*discovery.TxtData{}
-	clientCluster.discoveryCtrl.Resolve(service, domain, 3, &txts)
+	stopChan := make(chan bool, 1)
 
-	time.Sleep(1 * time.Second)
+	resultChan := make(chan *discovery.TxtData, 10)
+	ctx, cancel := context.WithCancel(context.TODO())
+	defer cancel()
+	go clientCluster.discoveryCtrl.Resolve(ctx, service, domain, stopChan, resultChan)
 
-	// TODO: find better way to test mDNS, local IP is not always detected
-	assert.Assert(t, len(txts) >= 0, "If this line is reached test would be successful, no foreign packet can reach our testing environment at the moment")
+	hasTxts := false
+	select {
+	case <-resultChan:
+		hasTxts = true
+		stopChan <- true
+	case <-ctx.Done():
+		klog.Info("ctx.Done")
+		break
+	case <-time.NewTimer(10 * time.Second).C:
+		klog.Info("timeout")
+		stopChan <- true
+		break
+	}
+	assert.Assert(t, hasTxts)
 }
 
 // ------
@@ -74,7 +92,7 @@ func testForeignClusterCreation(t *testing.T) {
 		},
 	}
 
-	clientCluster.discoveryCtrl.UpdateForeign(txts, nil)
+	clientCluster.discoveryCtrl.UpdateForeignWAN(txts, nil)
 
 	time.Sleep(1 * time.Second)
 
@@ -101,6 +119,12 @@ func testTtl(t *testing.T) {
 	fc := &v1alpha1.ForeignCluster{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: "fc-test-ttl",
+			Labels: map[string]string{
+				"discovery-type": string(v1alpha1.LanDiscovery),
+			},
+			Annotations: map[string]string{
+				v1alpha1.LastUpdateAnnotation: strconv.Itoa(int(time.Now().Unix())),
+			},
 		},
 		Spec: v1alpha1.ForeignClusterSpec{
 			ClusterIdentity: v1alpha1.ClusterIdentity{
@@ -112,66 +136,29 @@ func testTtl(t *testing.T) {
 			DiscoveryType: v1alpha1.LanDiscovery,
 		},
 		Status: v1alpha1.ForeignClusterStatus{
-			Ttl: 3,
+			Ttl:       1,
+			TrustMode: v1alpha1.TrustModeUntrusted,
 		},
 	}
 
 	_, err := clientCluster.client.Resource("foreignclusters").Create(fc, metav1.CreateOptions{})
 	assert.NilError(t, err)
 
-	time.Sleep(1 * time.Second)
+	retry := 10
+	for {
+		time.Sleep(250 * time.Millisecond)
 
-	tmp, err := clientCluster.client.Resource("foreignclusters").Get(fc.Name, metav1.GetOptions{})
-	assert.NilError(t, err)
-	fc, ok := tmp.(*v1alpha1.ForeignCluster)
-	assert.Equal(t, ok, true)
-	assert.Equal(t, fc.ObjectMeta.Labels["discovery-type"], string(v1alpha1.LanDiscovery), "discovery-type label not correctly set")
-	assert.Equal(t, fc.Status.Ttl, 3, "TTL not set to default value")
-
-	err = clientCluster.discoveryCtrl.UpdateTtl([]*discovery.TxtData{})
-	assert.NilError(t, err)
-
-	time.Sleep(1 * time.Second)
-	tmp, err = clientCluster.client.Resource("foreignclusters").Get(fc.Name, metav1.GetOptions{})
-	assert.NilError(t, err)
-	fc, ok = tmp.(*v1alpha1.ForeignCluster)
-	assert.Equal(t, ok, true)
-	assert.Equal(t, fc.Status.Ttl, 3-1, "TTL has not been decreased")
-
-	txts := []*discovery.TxtData{
-		{
-			ID:        fc.Spec.ClusterIdentity.ClusterID,
-			Namespace: "default",
-			ApiUrl:    "",
-		},
-	}
-	err = clientCluster.discoveryCtrl.UpdateTtl(txts)
-	assert.NilError(t, err)
-
-	time.Sleep(1 * time.Second)
-	tmp, err = clientCluster.client.Resource("foreignclusters").Get(fc.Name, metav1.GetOptions{})
-	assert.NilError(t, err)
-	fc, ok = tmp.(*v1alpha1.ForeignCluster)
-	assert.Equal(t, ok, true)
-	assert.Equal(t, fc.Status.Ttl, 3, "TTL not set to default value")
-
-	err = clientCluster.discoveryCtrl.UpdateTtl(txts)
-	assert.NilError(t, err)
-	time.Sleep(100 * time.Millisecond)
-	tmp, err = clientCluster.client.Resource("foreignclusters").Get(fc.Name, metav1.GetOptions{})
-	assert.NilError(t, err)
-	fc, ok = tmp.(*v1alpha1.ForeignCluster)
-	assert.Equal(t, ok, true)
-	assert.Equal(t, fc.Status.Ttl, 3, "TTL decrease even if in discovered list")
-
-	for i := 0; i < 3; i++ {
-		err = clientCluster.discoveryCtrl.UpdateTtl([]*discovery.TxtData{})
+		err = clientCluster.discoveryCtrl.CollectGarbage()
 		assert.NilError(t, err)
-		time.Sleep(100 * time.Millisecond)
+
+		time.Sleep(250 * time.Millisecond)
+
+		_, err = clientCluster.client.Resource("foreignclusters").Get(fc.Name, metav1.GetOptions{})
+
+		retry--
+		if errors.IsNotFound(err) || retry <= 0 {
+			assert.Assert(t, errors.IsNotFound(err), "this resource was not deleted by garbage collector")
+			break
+		}
 	}
-
-	time.Sleep(3 * time.Second)
-
-	_, err = clientCluster.client.Resource("foreignclusters").Get(fc.Name, metav1.GetOptions{})
-	assert.Assert(t, errors.IsNotFound(err), "ForeignCluster not deleted on TTL 0")
 }

@@ -33,6 +33,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/rest"
+	"k8s.io/client-go/util/retry"
 	"k8s.io/klog"
 	"k8s.io/kubernetes/pkg/util/slice"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -65,7 +66,7 @@ type ForeignClusterReconciler struct {
 func (r *ForeignClusterReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 	_ = context.Background()
 
-	klog.Info("Reconciling ForeignCluster " + req.Name)
+	klog.V(4).Infof("Reconciling ForeignCluster %s", req.Name)
 
 	tmp, err := r.crdClient.Resource("foreignclusters").Get(req.Name, metav1.GetOptions{})
 	if err != nil {
@@ -247,8 +248,8 @@ func (r *ForeignClusterReconciler) Reconcile(req ctrl.Request) (ctrl.Result, err
 				RequeueAfter: r.RequeueAfter,
 			}, err
 		}
-		klog.Info(fc.Name + " deleted, discovery type " + string(fc.Spec.DiscoveryType) + " has no active connections")
-		klog.Info("ForeignCluster " + fc.Name + " successfully reconciled")
+		klog.Infof("%s deleted, discovery type %s has no active connections", fc.Name, fc.Spec.DiscoveryType)
+		klog.V(4).Infof("ForeignCluster %s successfully reconciled", fc.Name)
 		return ctrl.Result{}, nil
 	}
 
@@ -262,7 +263,7 @@ func (r *ForeignClusterReconciler) Reconcile(req ctrl.Request) (ctrl.Result, err
 				RequeueAfter: r.RequeueAfter,
 			}, err
 		}
-		_, err = r.crdClient.Resource("foreignclusters").Update(fc.Name, fc, metav1.UpdateOptions{})
+		_, err = r.Update(fc)
 		if err != nil {
 			klog.Error(err, err.Error())
 			return ctrl.Result{
@@ -319,7 +320,7 @@ func (r *ForeignClusterReconciler) Reconcile(req ctrl.Request) (ctrl.Result, err
 	}
 
 	if requireUpdate {
-		_, err = r.crdClient.Resource("foreignclusters").Update(fc.Name, fc, metav1.UpdateOptions{})
+		_, err = r.Update(fc)
 		if err != nil {
 			klog.Error(err, err.Error())
 			return ctrl.Result{
@@ -327,7 +328,7 @@ func (r *ForeignClusterReconciler) Reconcile(req ctrl.Request) (ctrl.Result, err
 				RequeueAfter: r.RequeueAfter,
 			}, err
 		}
-		klog.Info("ForeignCluster " + fc.Name + " successfully reconciled")
+		klog.V(4).Infof("ForeignCluster %s successfully reconciled", fc.Name)
 		return ctrl.Result{
 			Requeue:      true,
 			RequeueAfter: r.RequeueAfter,
@@ -346,11 +347,43 @@ func (r *ForeignClusterReconciler) Reconcile(req ctrl.Request) (ctrl.Result, err
 		}
 	}
 
-	klog.Info("ForeignCluster " + fc.Name + " successfully reconciled")
+	klog.V(4).Infof("ForeignCluster %s successfully reconciled", fc.Name)
 	return ctrl.Result{
 		Requeue:      true,
 		RequeueAfter: r.RequeueAfter,
 	}, nil
+}
+
+func (r *ForeignClusterReconciler) Update(fc *discoveryv1alpha1.ForeignCluster) (*discoveryv1alpha1.ForeignCluster, error) {
+	err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
+		if tmp, err := r.crdClient.Resource("foreignclusters").Update(fc.Name, fc, metav1.UpdateOptions{}); err == nil {
+			var ok bool
+			fc, ok = tmp.(*discoveryv1alpha1.ForeignCluster)
+			if !ok {
+				err = goerrors.New("this object is not a ForeignCluster")
+				klog.Error(err, tmp)
+				return err
+			}
+			return nil
+		} else if !errors.IsConflict(err) {
+			return err
+		}
+		tmp, err := r.crdClient.Resource("foreignclusters").Get(fc.Name, metav1.GetOptions{})
+		if err != nil {
+			klog.Error(err)
+			return err
+		}
+		fc2, ok := tmp.(*discoveryv1alpha1.ForeignCluster)
+		if !ok {
+			err = goerrors.New("this object is not a ForeignCluster")
+			klog.Error(err, tmp)
+			return err
+		}
+		fc.ResourceVersion = fc2.ResourceVersion
+		fc.Generation = fc2.Generation
+		return err
+	})
+	return fc, err
 }
 
 func (r *ForeignClusterReconciler) Peer(fc *discoveryv1alpha1.ForeignCluster, foreignDiscoveryClient *crdClient.CRDClient) (*discoveryv1alpha1.ForeignCluster, error) {
@@ -374,13 +407,13 @@ func (r *ForeignClusterReconciler) Unpeer(fc *discoveryv1alpha1.ForeignCluster, 
 	// peering request has to be removed
 	klog.Info("Deleting PeeringRequest")
 	err := r.deletePeeringRequest(foreignDiscoveryClient, fc)
-	if err != nil {
+	if err != nil && !errors.IsNotFound(err) {
 		klog.Error(err)
 		return nil, err
 	}
 	// local advertisement has to be removed
 	err = r.deleteAdvertisement(fc)
-	if err != nil {
+	if err != nil && !errors.IsNotFound(err) {
 		klog.Error(err)
 		return nil, err
 	}
@@ -398,7 +431,7 @@ func (r *ForeignClusterReconciler) getRemoteClient(fc *discoveryv1alpha1.Foreign
 		klog.Error(err)
 		// delete reference, in this way at next iteration it will be reloaded
 		fc.Status.Outgoing.CaDataRef = nil
-		_, err2 := r.crdClient.Resource("foreignclusters").Update(fc.Name, fc, metav1.UpdateOptions{})
+		_, err2 := r.Update(fc)
 		if err2 != nil {
 			klog.Error(err2)
 		}
@@ -424,14 +457,9 @@ func (r *ForeignClusterReconciler) checkJoined(fc *discoveryv1alpha1.ForeignClus
 		if slice.ContainsString(fc.Finalizers, FinalizerString, nil) {
 			fc.Finalizers = slice.RemoveString(fc.Finalizers, FinalizerString, nil)
 		}
-		tmp, err := r.crdClient.Resource("foreignclusters").Update(fc.Name, fc, metav1.UpdateOptions{})
+		fc, err = r.Update(fc)
 		if err != nil {
 			return nil, err
-		}
-		var ok bool
-		fc, ok = tmp.(*discoveryv1alpha1.ForeignCluster)
-		if !ok {
-			return nil, goerrors.New("updated object is not a ForeignCluster")
 		}
 	}
 	return fc, nil
