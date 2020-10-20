@@ -65,22 +65,22 @@ func TestAdvertisementNotify(t *testing.T) {
 	//
 	advChannels[client.ChanAdvNew] <- testAdvName
 	time.Sleep(time.Second * 4)
-	assert.Equal(t, app.IconLiqoAdvNew, i.Icon(), "Icon not correctly set on New Advertisement")
+	assert.Equal(t, app.IconLiqoOrange, i.Icon(), "Icon not correctly set on New Advertisement")
 	i.SetIcon(app.IconLiqoMain)
 	//
 	advChannels[client.ChanAdvAccepted] <- testAdvName
 	time.Sleep(time.Second * 4)
-	assert.Equal(t, app.IconLiqoAdvAccepted, i.Icon(), "Icon not correctly set on Accepted Advertisement")
+	assert.Equal(t, app.IconLiqoGreen, i.Icon(), "Icon not correctly set on Accepted Advertisement")
 	i.SetIcon(app.IconLiqoMain)
 	//
 	advChannels[client.ChanAdvRevoked] <- testAdvName
 	time.Sleep(time.Second * 4)
-	assert.Equal(t, app.IconLiqoAdvNew, i.Icon(), "Icon not correctly set on Revoked Advertisement")
+	assert.Equal(t, app.IconLiqoOrange, i.Icon(), "Icon not correctly set on Revoked Advertisement")
 	i.SetIcon(app.IconLiqoMain)
 	//
 	advChannels[client.ChanAdvDeleted] <- testAdvName
 	time.Sleep(time.Second * 4)
-	assert.Equal(t, app.IconLiqoAdvNew, i.Icon(), "Icon not correctly set on Deleted Advertisement")
+	assert.Equal(t, app.IconLiqoOrange, i.Icon(), "Icon not correctly set on Deleted Advertisement")
 	i.SetIcon(app.IconLiqoMain)
 	i.Quit()
 }

@@ -18,9 +18,14 @@ type Icon int
 const (
 	IconLiqoMain Icon = iota
 	IconLiqoNoConn
-	IconLiqoErr
-	IconLiqoAdvNew
-	IconLiqoAdvAccepted
+	IconLiqoOff
+	IconLiqoWarning
+	IconLiqoOrange
+	IconLiqoGreen
+	IconLiqoPurple
+	IconLiqoRed
+	IconLiqoYellow
+	IconLiqoCyan
 	IconLiqoNil
 )
 
@@ -252,15 +257,25 @@ func (i *Indicator) SetIcon(ico Icon) {
 	case IconLiqoNil:
 		return
 	case IconLiqoMain:
-		newIcon = icon.LiqoBlack
+		newIcon = icon.LiqoMain
+	case IconLiqoOff:
+		newIcon = icon.LiqoOff
 	case IconLiqoNoConn:
 		newIcon = icon.LiqoNoConn
-	case IconLiqoAdvNew:
+	case IconLiqoWarning:
+		newIcon = icon.LiqoWarning
+	case IconLiqoOrange:
 		newIcon = icon.LiqoOrange
-	case IconLiqoErr:
-		newIcon = icon.LiqoRed
-	case IconLiqoAdvAccepted:
+	case IconLiqoGreen:
 		newIcon = icon.LiqoGreen
+	case IconLiqoPurple:
+		newIcon = icon.LiqoPurple
+	case IconLiqoRed:
+		newIcon = icon.LiqoRed
+	case IconLiqoYellow:
+		newIcon = icon.LiqoYellow
+	case IconLiqoCyan:
+		newIcon = icon.LiqoCyan
 	default:
 		return
 	}

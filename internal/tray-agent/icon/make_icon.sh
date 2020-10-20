@@ -1,41 +1,23 @@
 #!/bin/bash
 
-if [ "$#" -ne 2 ]; then
-    echo "usage: $0 {image.png} {IconName}"
-fi
+# Launch this script from the project root.
 
-if [ -z "$GOPATH" ]; then
-    echo GOPATH environment variable not set
-    exit
-fi
+function command_exists() {
+	command -v "$1" >/dev/null 2>&1
+}
 
-if [ ! -e "$GOPATH/bin/2goarray" ]; then
+if ! command_exists "2goarray"; then
     echo "Installing 2goarray..."
-    if go get github.com/cratonica/2goarray
+    if go get -u github.com/cratonica/2goarray
     then
         echo Failure executing go get github.com/cratonica/2goarray
-        exit
+        exit 1
     fi
 fi
 
-if [ -z "$1" ]; then
-    echo Please specify a PNG file
-    exit
-fi
+for image in internal/tray-agent/icon/icons/tray/*.png; do
+    name=$(basename "${image}" .png)
+    2goarray "${name}" icon < "${image}" > "internal/tray-agent/icon/${name}.go"
+done
 
-if [ ! -f "$1" ]; then
-    echo "$1" is not a valid file
-    exit
-fi    
-
-
-
-# $1=png , $2=varName
-
-
-if <  "$1" "$GOPATH"/bin/2goarray "$2" icon > "$2".go
-then
-    echo Failure generating 
-    exit
-fi
-echo Finished
+gofmt -w internal/tray-agent/icon/Liqo*.go

@@ -5,7 +5,7 @@
 *.so
 *.dylib
 bin
-
+internal/tray-agent/icon/Liqo*.go
 # Test binary, build with `go test -c`
 *.test
 

@@ -1,8 +1,9 @@
 /*
-This package provides a set of icons that can be displayed in the
-system tray bar using the internal/tray-agent/app-indicator/Indicator type.
+package icon provides a Liqo iconset exploited by
+https://github.com/liqoTech/liqo/internal/tray-agent/app-indicator/Indicator
+to display Liqo Agent's tray icons.
 
-Package variables are automatically generated with the github.com/cratonica/2goarray tool that converts PNG
-images into []byte. This is the format required by the github.com/getlantern/systray package that Indicator exploits.
+The icons are in the form of []byte, automatically generated using the https://github.com/cratonica/2goarray tool.
+This is the format required by the https://github.com/getlantern/systray package that Indicator exploits.
 */
 package icon
