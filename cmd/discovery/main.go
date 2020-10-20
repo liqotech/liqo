@@ -36,10 +36,12 @@ func main() {
 	var namespace string
 	var requeueAfter int64 // seconds
 	var kubeconfigPath string
+	var resolveContextRefreshTime int // minutes
 
 	flag.StringVar(&namespace, "namespace", "default", "Namespace where your configs are stored.")
 	flag.Int64Var(&requeueAfter, "requeueAfter", 30, "Period after that PeeringRequests status is rechecked (seconds)")
 	flag.StringVar(&kubeconfigPath, "kubeconfigPath", filepath.Join(os.Getenv("HOME"), ".kube", "config"), "For debug purpose, set path to local kubeconfig")
+	flag.IntVar(&resolveContextRefreshTime, "resolveContextRefreshTime", 10, "Period after that mDNS resolve context is refreshed (minutes)")
 	flag.Parse()
 
 	klog.Info("Namespace: ", namespace)
@@ -56,7 +58,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	discoveryCtl, err := discovery.NewDiscoveryCtrl(namespace, clusterId, kubeconfigPath)
+	discoveryCtl, err := discovery.NewDiscoveryCtrl(namespace, clusterId, kubeconfigPath, resolveContextRefreshTime)
 	if err != nil {
 		klog.Error(err, err.Error())
 		os.Exit(1)

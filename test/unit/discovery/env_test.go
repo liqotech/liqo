@@ -82,6 +82,7 @@ func getClientCluster() *Cluster {
 		cluster.client,
 		cluster.advClient,
 		cluster.clusterId,
+		10,
 	)
 	cluster.discoveryCtrl.Config = &cc.Spec.DiscoveryConfig
 
@@ -147,6 +148,7 @@ func getServerCluster() *Cluster {
 		cluster.client,
 		cluster.advClient,
 		cluster.clusterId,
+		10,
 	)
 	cluster.discoveryCtrl.Config = &cc.Spec.DiscoveryConfig
 
@@ -276,10 +278,8 @@ func getClusterConfig(config rest.Config) *configv1alpha1.ClusterConfig {
 				EnableDiscovery:     true,
 				Name:                "MyLiqo",
 				Port:                6443,
-				AllowUntrustedCA:    false,
 				Service:             "_liqo._tcp",
-				UpdateTime:          3,
-				WaitTime:            2,
+				Ttl:                 30,
 			},
 			LiqonetConfig: configv1alpha1.LiqonetConfig{
 				ReservedSubnets: []string{"10.0.0.0/16"},

@@ -59,7 +59,7 @@ func (r *SearchDomainReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error
 			RequeueAfter: r.requeueAfter,
 		}, err
 	}
-	fcs := r.DiscoveryCtrl.UpdateForeign(txts, sd)
+	fcs := r.DiscoveryCtrl.UpdateForeignWAN(txts, sd)
 	if len(fcs) > 0 {
 		// new FCs added, so update the list
 		AddToList(sd, ForeignClustersToObjectReferences(fcs))

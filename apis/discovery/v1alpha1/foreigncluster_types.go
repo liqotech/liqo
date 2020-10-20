@@ -45,6 +45,10 @@ const (
 	TrustModeUntrusted TrustMode = "Untrusted"
 )
 
+const (
+	LastUpdateAnnotation string = "LastUpdate"
+)
+
 // ForeignClusterSpec defines the desired state of ForeignCluster
 type ForeignClusterSpec struct {
 	// INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
@@ -77,7 +81,7 @@ type ForeignClusterStatus struct {
 	Outgoing Outgoing `json:"outgoing,omitempty"`
 	Incoming Incoming `json:"incoming,omitempty"`
 	// If discoveryType is LAN and this counter reach 0 value, this FC will be removed
-	Ttl int `json:"ttl,omitempty"`
+	Ttl uint32 `json:"ttl,omitempty"`
 	// +kubebuilder:validation:Enum="Unknown";"Trusted";"Untrusted"
 	// +kubebuilder:default="Unknown"
 	// Indicates if this remote cluster is trusted or not

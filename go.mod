@@ -95,3 +95,5 @@ replace k8s.io/node-api => k8s.io/node-api v0.18.6
 replace k8s.io/sample-cli-plugin => k8s.io/sample-cli-plugin v0.18.6
 
 replace k8s.io/sample-controller => k8s.io/sample-controller v0.18.6
+
+replace github.com/grandcat/zeroconf => github.com/liqotech/zeroconf v1.0.1-0.20201020081245-6384f3f21ffb

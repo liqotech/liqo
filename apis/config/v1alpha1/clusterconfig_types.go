@@ -109,21 +109,14 @@ type DiscoveryConfig struct {
 	// +kubebuilder:validation:Maximum=65355
 	// +kubebuilder:validation:Minimum=1
 	Port int `json:"port"`
-
-	// +kubebuilder:validation:Minimum=1
-	WaitTime int `json:"waitTime"`
-	// +kubebuilder:validation:Minimum=2
-	UpdateTime int `json:"updateTime"`
+	// +kubebuilder:validation:Minimum=30
+	Ttl uint32 `json:"ttl"`
 
 	EnableDiscovery     bool `json:"enableDiscovery"`
 	EnableAdvertisement bool `json:"enableAdvertisement"`
 
 	AutoJoin          bool `json:"autojoin"`
 	AutoJoinUntrusted bool `json:"autojoinUntrusted"`
-
-	// --- CA ---
-
-	AllowUntrustedCA bool `json:"allowUntrustedCA"`
 }
 
 type LiqonetConfig struct {

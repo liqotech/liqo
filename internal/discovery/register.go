@@ -17,19 +17,27 @@ func (discovery *DiscoveryCtrl) Register() {
 		}
 		txt, err := txtData.Encode()
 		if err != nil {
-			klog.Error(err, err.Error())
+			klog.Error(err)
 			return
 		}
 
-		server, err := zeroconf.Register(discovery.Config.Name+"_"+discovery.ClusterId.GetClusterID(), discovery.Config.Service, discovery.Config.Domain, discovery.Config.Port, txt, discovery.getInterfaces())
+		var ttl = discovery.Config.Ttl
+		discovery.serverMux.Lock()
+		discovery.mdnsServer, err = zeroconf.Register(discovery.Config.Name+"_"+discovery.ClusterId.GetClusterID(), discovery.Config.Service, discovery.Config.Domain, discovery.Config.Port, txt, discovery.getInterfaces(), ttl)
+		discovery.serverMux.Unlock()
 		if err != nil {
-			klog.Error(err, err.Error())
+			klog.Error(err)
 			return
 		}
-		discovery.stopMDNS = make(chan bool)
-		defer server.Shutdown()
+		defer discovery.shutdownServer()
 		<-discovery.stopMDNS
 	}
+}
+
+func (discovery *DiscoveryCtrl) shutdownServer() {
+	discovery.serverMux.Lock()
+	defer discovery.serverMux.Unlock()
+	discovery.mdnsServer.Shutdown()
 }
 
 func (discovery *DiscoveryCtrl) getInterfaces() []net.Interface {

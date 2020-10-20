@@ -4,69 +4,76 @@ import (
 	"context"
 	"github.com/grandcat/zeroconf"
 	"k8s.io/klog"
-	"math"
 	"net"
 	"os"
 	"time"
 )
 
-func (discovery *DiscoveryCtrl) StartResolver() {
-	for range time.Tick(time.Second * time.Duration(discovery.Config.UpdateTime)) {
+func (discovery *DiscoveryCtrl) StartResolver(stopChan <-chan bool) {
+	for {
 		if discovery.Config.EnableDiscovery {
-			discovery.Resolve(discovery.Config.Service, discovery.Config.Domain, int(math.Max(float64(discovery.Config.WaitTime), 1)), nil)
+			discovery.Resolve(context.TODO(), discovery.Config.Service, discovery.Config.Domain, stopChan, nil)
+		} else {
+			break
 		}
 	}
 }
 
-func (discovery *DiscoveryCtrl) Resolve(service string, domain string, waitTime int, testRes *[]*TxtData) {
+func (discovery *DiscoveryCtrl) Resolve(ctx context.Context, service string, domain string, stopChan <-chan bool, resultChan chan *TxtData) {
 	resolver, err := zeroconf.NewResolver(zeroconf.SelectIPTraffic(zeroconf.IPv4))
 	if err != nil {
 		klog.Error(err, err.Error())
 		os.Exit(1)
 	}
 
-	entries := make(chan *zeroconf.ServiceEntry)
+	entries := make(chan *zeroconf.ServiceEntry, 10)
 	go func(results <-chan *zeroconf.ServiceEntry) {
-		if testRes != nil {
-			*testRes = discovery.getTxts(results, false)
-		} else {
-			res := discovery.getTxts(results, true)
-			discovery.UpdateForeign(res, nil)
+		for entry := range results {
+			data, err := discovery.getTxt(entry)
+			if err != nil {
+				klog.Error(err)
+				continue
+			}
+			if resultChan != nil {
+				resultChan <- data
+			}
+			if data != nil {
+				// it is not a local cluster
+				klog.V(4).Infof("FC data: %v", data)
+				discovery.UpdateForeignLAN(data)
+			}
 		}
 	}(entries)
 
-	var ctx context.Context
-	var cancel context.CancelFunc
-	if waitTime > 0 {
-		ctx, cancel = context.WithTimeout(context.Background(), time.Second*time.Duration(waitTime))
-		defer cancel()
-	} else {
-		ctx = context.Background()
-	}
-
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
 	err = resolver.Browse(ctx, service, domain, entries)
 	if err != nil {
 		klog.Error(err, err.Error())
 		os.Exit(1)
 	}
-
-	<-ctx.Done()
+	select {
+	case <-stopChan:
+		return
+	case <-time.NewTimer(time.Duration(discovery.resolveContextRefreshTime) * time.Minute).C:
+		return
+	case <-ctx.Done():
+		return
+	}
 }
 
-func (discovery *DiscoveryCtrl) getTxts(results <-chan *zeroconf.ServiceEntry, onlyForeign bool) []*TxtData {
-	var res []*TxtData
-	for entry := range results {
-		if discovery.isForeign(entry.AddrIPv4) || !onlyForeign {
-			txtData, err := Decode("", "", entry.Text)
-			if err == nil {
-				klog.Info("Remote cluster found at " + txtData.ApiUrl)
-				res = append(res, txtData)
-			} else {
-				klog.Error(err, err.Error())
-			}
+func (discovery *DiscoveryCtrl) getTxt(entry *zeroconf.ServiceEntry) (*TxtData, error) {
+	if discovery.isForeign(entry.AddrIPv4) {
+		txtData, err := Decode("", "", entry.Text)
+		if err != nil {
+			klog.Error(err)
+			return nil, err
 		}
+		klog.V(4).Infof("Remote cluster found at %s", txtData.ApiUrl)
+		txtData.Ttl = entry.TTL
+		return txtData, nil
 	}
-	return res
+	return nil, nil
 }
 
 func (discovery *DiscoveryCtrl) getIPs() map[string]bool {

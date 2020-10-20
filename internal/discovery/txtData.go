@@ -14,6 +14,7 @@ type TxtData struct {
 	Name      string
 	Namespace string
 	ApiUrl    string
+	Ttl       uint32
 }
 
 func (txtData TxtData) Encode() ([]string, error) {
