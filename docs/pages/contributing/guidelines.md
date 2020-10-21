@@ -19,6 +19,15 @@ All components have the same structure:
 
 If you want to read about using Liqo or developing packages in Liqo, the Liqo Flight Manual is free and available online. 
 
+## Changelog Creation
+
+Liqo leverages lerna-changelog to create the changelog of a certain version. PRs with the following labels applied will be considered for the changelog:
+
+* breaking (boom Breaking Change)
+* enhancement (rocket Enhancement)
+* bug (bug Bug Fix)
+* documentation (memo Documentation)
+
 ## Local development
 
 Liqo components can be developed locally. We provide a [deployment script](/examples/kind.sh) to spawn multiple 

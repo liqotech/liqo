@@ -1,0 +1,8 @@
+{
+  "changelog": {
+    "repo": "liqotech/liqo",
+    "ignoreCommitters": [
+      "adamjensenbot"
+    ]
+  }
+}
