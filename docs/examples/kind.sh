@@ -49,5 +49,3 @@ echo "- NAMESPACE=liqo"
 echo "If you want to select $CLUSTER_NAME_1, you should simply type:" 'export KUBECONFIG=$KUBECONFIG_1'
 # shellcheck disable=SC2016
 echo "If you want to select $CLUSTER_NAME_2, you should simply type:" 'export KUBECONFIG=$KUBECONFIG_2'
-
-exit 0
