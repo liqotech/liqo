@@ -2,7 +2,7 @@ name: Integration Pipeline
 on:
   push:
     tags:
-      - '*'
+      - 'v*'
     branches:
       - master
   pull_request:
@@ -118,21 +118,55 @@ jobs:
   release:
     runs-on: ubuntu-latest
     needs: [build, test]
+    if: github.event_name == 'push' && github.event.repository.full_name == 'liqotech/liqo' && startsWith(github.ref, 'refs/tags/v')
     steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+        with:
+          # The changelog generation requires the entire history
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Get the Liqo version to be released
+        id: version
+        run: echo "version::${GITHUB_REF/refs\/tags\//}" >> $GITHUB_ENV
+
+      - name: Get the latest Liqo release
+        uses: pozetroninc/github-action-get-latest-release@v0.5.0
+        id: last-release
+        with:
+          repository: ${{ github.repository }}
+
+      - name: Generate the CHANGELOG
+        uses: RiskLedger/generate-changelog@v1.2
+        id: changelog
+        with:
+          from: ${{ steps.last-release.outputs.release }}
+          to: ${{ steps.version.outputs.version }}
+        env:
+          GITHUB_AUTH: ${{ secrets.CI_TOKEN }}
+
+      - name: Save the CHANGELOG as a file
+        run: |
+          echo "${{ steps.changelog.outputs.changelog }}" > ./CHANGELOG.md
+          sed -i "1s/.*/## Changes since ${{ steps.last-release.outputs.release }}/" ./CHANGELOG.md
+
       - name: Create release
         id: create_release
         uses: actions/create-release@v1
         with:
           tag_name: ${{ needs.test.outputs.release_version }}
           release_name: ${{ needs.test.outputs.release_version }}
+          body_path: ./CHANGELOG.md
         env:
           GITHUB_TOKEN: ${{ secrets.CI_TOKEN }}
-        if: github.event_name == 'push' && github.event.repository.full_name == 'liqotech/liqo' && startsWith(github.ref, 'refs/tags/v')
+
+# Agent Upload Artifact
       - name: Download Agent artifact
         uses: actions/download-artifact@v2
         with:
           name: agent_artifact
-        if: github.event_name == 'push' && github.event.repository.full_name == 'liqotech/liqo' && startsWith(github.ref, 'refs/tags/v')
+
       - name: Upload Agent asset to release
         uses: shogo82148/actions-upload-release-asset@v1
         with:
@@ -141,18 +175,9 @@ jobs:
           asset_content_type: application/gzip
           github_token: ${{ secrets.CI_TOKEN }}
           overwrite: true
-        if: github.event_name == 'push' && github.event.repository.full_name == 'liqotech/liqo' && startsWith(github.ref, 'refs/tags/v')
-      - uses: 8398a7/action-slack@v2
-        with:
-          status: ${{ job.status }}
-          author_name: Integration Test # default: 8398a7@action-slack
-        env:
-          GITHUB_TOKEN: ${{ secrets.CI_TOKEN }} # required
-          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK }} # required
-        if: always() && github.ref == 'refs/heads/master' # Pick up events even if the job fails or is canceled.
 
   test:
-    name: Test Launch
+    name: Launch Test and Build Liqo Agent
     runs-on: ubuntu-20.04
     outputs:
       release_version: ${{ steps.get_version.outputs.VERSION }}
