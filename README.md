@@ -28,7 +28,7 @@ seamlessly, without any modification (Kubernetes or your application).
 
 Liqo is an open source project started at Politecnico of Turin that allows Kubernetes to seamlessly and securely share resources and services, so you can run your tasks on any other cluster available nearby.
 
-Thanks to the support for K3s, also single machines can participate,creating dynamic, opportunistic data centers that include commodity desktop computers and laptops as well.
+Thanks to the support for K3s, also single machines can participate, creating dynamic, opportunistic data centers that include commodity desktop computers and laptops as well.
 
 Liqo leverages the same highly successful “peering” model of the Internet, without any central point of control. New peering relationships can be established dynamically, whenever needed, even automatically. Cluster auto-discovery can further simplify this process.
 
@@ -50,7 +50,7 @@ export KUBECONFIG=$KUBECONFIG_2
 curl -L https://get.liqo.io | bash -s
 ```
 
-Wait that all containers are up and running (around 30 seconds). When a new virtual-kubelet pops out, a new node modeling the remote cluster is present
+Wait that all containers are up and running (around 30 seconds). When a new virtual-kubelet pops out, a new node modeling the remote cluster is present and ready to receive pods. Check it out with:
 
 ```bash
 kubectl get no -o wide
@@ -66,17 +66,16 @@ kubectl apply -f https://get.liqo.io/app.yaml -n demo-liqo
 
 You can observe that:
 
-* Your application is correctly working by:
+* Your application is correctly working by exposing the application frontend port and later connecting with a browser to [localhost:8000](localhost:8000). To expose the pod port:
 ```bash
   kubectl port-forward -n liqo-demo service/frontend 8080:80
 ```
-  And connecting with a browser to [localhost:8000](localhost:8000)
-* Your application is probably deployed across two different clusters:
+* Your application is transparently deployed across two different clusters:
 ```bash
   kubectl get po -n demo-liqo -o wide  
 ``` 
 
-For more details about [Liqo installation](https://doc.liqo.io/user/gettingstarted/install)
+To get more information about how to install Liqo in your own clusters and configure it, you can check out the [Liqo Documentation](https://doc.liqo.io/user/).
 
 ## Architecture
 
@@ -89,7 +88,7 @@ Liqo relies on several components:
 * *Liqonet Operators*: Those operators are responsible to establish Pod-to-Pod and Pod-to-Service connection across 
 partner clusters.
 
-...and some others. Check out the architecture [Documentation](https://doc.liqo.io/architecture/)
+...and some others. Check out the architecture [documentation](https://doc.liqo.io/architecture/)
 
 
 ## License
