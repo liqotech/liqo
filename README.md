@@ -9,7 +9,19 @@
 [![Go Report Card](https://goreportcard.com/badge/github.com/liqotech/liqo)](https://goreportcard.com/report/github.com/liqotech/liqo)
 ![Docker Pulls](https://img.shields.io/docker/pulls/liqo/virtual-kubelet?label=Liqo%20vkubelet%20pulls)
 [![FOSSA Status](https://app.fossa.com/api/projects/git%2Bgithub.com%2Fliqotech%2Fliqo.svg?type=shield)](https://app.fossa.com/projects/git%2Bgithub.com%2Fliqotech%2Fliqo?ref=badge_shield)
+[<img src="https://img.shields.io/badge/slack-liqo.io-yellow">](https://liqo-io.slack.com) 
 [![Twitter](https://img.shields.io/twitter/url/https/twitter.com/liqo_io.svg?style=social&label=Follow%20%40liqo_io)](https://twitter.com/liqo_io)
+
+Great for:
+* Dynamic resource sharing across clusters, with decentralized governance
+* Seamless multi-cluster management
+* Edge clusters orchestration
+
+Liqo is in an alpha version and not yet production-ready.
+
+Community Meeting: Monday 18.30 CET, 9.30 PST [here](meet.google.com/dyr-ieso-smu)
+
+# What is Liqo?
 
 Liqo is a framework to enable dynamic sharing across Kubernetes Clusters. You can run your pods on a remote cluster
 seamlessly, without any modification (Kubernetes or your application). 
@@ -20,21 +32,49 @@ Thanks to the support for K3s, also single machines can participate,creating dyn
 
 Liqo leverages the same highly successful “peering” model of the Internet, without any central point of control. New peering relationships can be established dynamically, whenever needed, even automatically. Cluster auto-discovery can further simplify this process.
 
-## Features
-
-* Dynamic discovery of clusters in LAN
-* Seamless pod execution on remote cluster,
-* Seamless reconciliation on remote clusters of K8s objects (i.e. configmaps, secrets, services, endpoints)
-
 ## Quickstart
 
-Liqo can be installed via Helm.
-The parameters of the home cluster required by Liqo to start should be automatically discovered by the Liqo installer 
-(through proper kubeadm calls).
+Create two [KinD](kind.sigs.k8s.io/) clusters via our script or bring your own clusters. 
+N.B. Using our cluster, Docker has to be installed on your test machine and user should have permission to issue commands.
 
 ```bash
-curl https://raw.githubusercontent.com/liqotech/liqo/master/install.sh | bash
+source <(curl -L https://get.liqo.io/clusters.sh)
 ```
+
+Install Liqo on both clusters:
+
+```bash
+export KUBECONFIG=$KUBECONFIG_1
+curl -L https://get.liqo.io | bash -s
+export KUBECONFIG=$KUBECONFIG_2
+curl -L https://get.liqo.io | bash -s
+```
+
+Wait that all containers are up and running (around 30 seconds). When a new virtual-kubelet pops out, a new node modeling the remote cluster is present
+
+```bash
+kubectl get no -o wide
+```
+
+Let's use those resources. Deploy the [Google microservice Shop](https://github.com/liqotech/microservices-demo/blob/master/release/kubernetes-manifests.yaml) application via: 
+
+```bash
+kubectl create ns demo-liqo
+kubectl label ns demo-liqo liqo.io/enabled=true
+kubectl apply -f https://get.liqo.io/app.yaml -n demo-liqo
+```
+
+You can observe that:
+
+* Your application is correctly working by:
+```bash
+  kubectl port-forward -n liqo-demo service/frontend 8080:80
+```
+  And connecting with a browser to [localhost:8000](localhost:8000)
+* Your application is probably deployed across two different clusters:
+```bash
+  kubectl get po -n demo-liqo -o wide  
+``` 
 
 For more details about [Liqo installation](https://doc.liqo.io/user/gettingstarted/install)
 
