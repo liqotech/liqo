@@ -19,7 +19,7 @@ Great for:
 
 Liqo is in an alpha version and not yet production-ready.
 
-Community Meeting: Monday 18.30 CET, 9.30 PST [here](meet.google.com/dyr-ieso-smu)
+Community Meeting: Monday 18.30 CET, 9.30 PST [here](https://meet.google.com/dyr-ieso-smu)
 
 # What is Liqo?
 
