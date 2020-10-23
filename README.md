@@ -53,14 +53,14 @@ curl -L https://get.liqo.io | bash -s
 Wait that all containers are up and running (around 30 seconds). When a new virtual-kubelet pops out, a new node modeling the remote cluster is present and ready to receive pods. Check it out with:
 
 ```bash
-kubectl get no -o wide
+kubectl get nodes -o wide
 ```
 
 Let's use those resources. Deploy the [Google microservice Shop](https://github.com/liqotech/microservices-demo/blob/master/release/kubernetes-manifests.yaml) application via: 
 
 ```bash
-kubectl create ns demo-liqo
-kubectl label ns demo-liqo liqo.io/enabled=true
+kubectl create namespace demo-liqo
+kubectl label namespace demo-liqo liqo.io/enabled=true
 kubectl apply -f https://get.liqo.io/app.yaml -n demo-liqo
 ```
 
@@ -68,11 +68,11 @@ You can observe that:
 
 * Your application is correctly working by exposing the application frontend port and later connecting with a browser to [localhost:8000](localhost:8000). To expose the pod port:
 ```bash
-  kubectl port-forward -n liqo-demo service/frontend 8080:80
+  kubectl port-forward -n demo-liqo service/frontend 8080:80
 ```
 * Your application is transparently deployed across two different clusters:
 ```bash
-  kubectl get po -n demo-liqo -o wide  
+  kubectl get pods -n demo-liqo -o wide  
 ``` 
 
 To get more information about how to install Liqo in your own clusters and configure it, you can check out the [Liqo Documentation](https://doc.liqo.io/user/).
