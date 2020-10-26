@@ -3,6 +3,8 @@ package node
 import (
 	"context"
 	"fmt"
+	"github.com/liqotech/liqo/pkg/virtualKubelet/apiReflection/controller"
+	"github.com/liqotech/liqo/pkg/virtualKubelet/namespacesMapping"
 	"sync"
 	"time"
 
@@ -76,6 +78,16 @@ type mockProvider struct {
 	pods         sync.Map
 	startTime    time.Time
 	realNotifier func(interface{})
+}
+
+func (p *mockProvider) GetNamespaceMapper() (*namespacesMapping.NamespaceMapperController, error) {
+	// TODO: implement me
+	return nil, nil
+}
+
+func (p *mockProvider) GetApiController() (*controller.Controller, error) {
+	// TODO: implement me
+	return nil, nil
 }
 
 // newMockProvider creates a new mockProvider.

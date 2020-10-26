@@ -50,7 +50,15 @@ func (pc *PodController) createOrUpdatePod(ctx context.Context, pod *corev1.Pod)
 
 	// We do this so we don't mutate the pod from the informer cache
 	pod = pod.DeepCopy()
-	if err := populateEnvironmentVariables(ctx, pod, pc.resourceManager, pc.recorder); err != nil {
+	nm, err := pc.provider.GetNamespaceMapper()
+	if err != nil {
+		return err
+	}
+	ac, err := pc.provider.GetApiController()
+	if err != nil {
+		return err
+	}
+	if err := populateEnvironmentVariables(ctx, pod, nm, ac, pc.resourceManager, pc.recorder); err != nil {
 		span.SetStatus(err)
 		return err
 	}

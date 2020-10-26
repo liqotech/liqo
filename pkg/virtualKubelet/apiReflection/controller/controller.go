@@ -15,6 +15,12 @@ const (
 	nIncomingReflectionWorkers = 2
 )
 
+type ApiControllerCacheManager interface {
+	GetMirroredObjectByKey(api apiReflection.ApiType, namespace string, name string) interface{}
+	GetMirroringObjectByKey(api apiReflection.ApiType, namespace string, name string) (interface{}, error)
+	ListMirroredObjects(api apiReflection.ApiType, namespace string) []interface{}
+}
+
 type Controller struct {
 	mapper                       namespacesMapping.MapperController
 	outgoingReflectorsController OutGoingAPIReflectorsController
@@ -99,6 +105,10 @@ func (c *Controller) SetInformingFunc(api apiReflection.ApiType, handler func(in
 
 func (c *Controller) GetMirroredObjectByKey(api apiReflection.ApiType, namespace string, name string) interface{} {
 	return c.incomingReflectorsController.GetMirroredObject(api, namespace, name)
+}
+
+func (c *Controller) GetMirroringObjectByKey(api apiReflection.ApiType, namespace string, name string) (interface{}, error) {
+	return c.outgoingReflectorsController.GetMirroringObject(api, namespace, name)
 }
 
 func (c *Controller) ListMirroredObjects(api apiReflection.ApiType, namespace string) []interface{} {

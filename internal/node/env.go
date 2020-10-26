@@ -18,15 +18,23 @@ import (
 	"context"
 	"fmt"
 	"github.com/liqotech/liqo/internal/log"
+	"github.com/liqotech/liqo/pkg/virtualKubelet/apiReflection"
+	"github.com/liqotech/liqo/pkg/virtualKubelet/apiReflection/controller"
+	"github.com/liqotech/liqo/pkg/virtualKubelet/namespacesMapping"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/klog"
+	"k8s.io/kubernetes/pkg/kubelet/envvars"
+	"reflect"
 	"sort"
 	"strings"
 
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/util/sets"
 	apivalidation "k8s.io/apimachinery/pkg/util/validation"
 	"k8s.io/client-go/tools/record"
 	podshelper "k8s.io/kubernetes/pkg/apis/core/pods"
+	v1helper "k8s.io/kubernetes/pkg/apis/core/v1/helper"
 	fieldpath "k8s.io/kubernetes/pkg/fieldpath"
 	"k8s.io/kubernetes/third_party/forked/golang/expansion"
 
@@ -66,19 +74,21 @@ const (
 	ReasonInvalidEnvironmentVariableNames = "InvalidEnvironmentVariableNames"
 )
 
+var masterServices = sets.NewString("kubernetes")
+
 // populateEnvironmentVariables populates the environment of each container (and init container) in the specified pod.
 // TODO Make this the single exported function of a "pkg/environment" package in the future.
-func populateEnvironmentVariables(ctx context.Context, pod *corev1.Pod, rm *manager.ResourceManager, recorder record.EventRecorder) error {
+func populateEnvironmentVariables(ctx context.Context, pod *corev1.Pod, namespaceMapper namespacesMapping.NamespaceNatter, apiController controller.ApiControllerCacheManager, rm *manager.ResourceManager, recorder record.EventRecorder) error {
 
 	// Populate each init container's environment.
 	for idx := range pod.Spec.InitContainers {
-		if err := populateContainerEnvironment(ctx, pod, &pod.Spec.InitContainers[idx], rm, recorder); err != nil {
+		if err := populateContainerEnvironment(ctx, pod, &pod.Spec.InitContainers[idx], namespaceMapper, apiController, rm, recorder); err != nil {
 			return err
 		}
 	}
 	// Populate each container's environment.
 	for idx := range pod.Spec.Containers {
-		if err := populateContainerEnvironment(ctx, pod, &pod.Spec.Containers[idx], rm, recorder); err != nil {
+		if err := populateContainerEnvironment(ctx, pod, &pod.Spec.Containers[idx], namespaceMapper, apiController, rm, recorder); err != nil {
 			return err
 		}
 	}
@@ -86,7 +96,7 @@ func populateEnvironmentVariables(ctx context.Context, pod *corev1.Pod, rm *mana
 }
 
 // populateContainerEnvironment populates the environment of a single container in the specified pod.
-func populateContainerEnvironment(ctx context.Context, pod *corev1.Pod, container *corev1.Container, rm *manager.ResourceManager, recorder record.EventRecorder) error {
+func populateContainerEnvironment(ctx context.Context, pod *corev1.Pod, container *corev1.Container, namespaceMapper namespacesMapping.NamespaceNatter, apiController controller.ApiControllerCacheManager, rm *manager.ResourceManager, recorder record.EventRecorder) error {
 	// Create an "environment map" based on the value of the specified container's ".envFrom" field.
 	tmpEnv, err := makeEnvironmentMapBasedOnEnvFrom(ctx, pod, container, rm, recorder)
 	if err != nil {
@@ -94,7 +104,7 @@ func populateContainerEnvironment(ctx context.Context, pod *corev1.Pod, containe
 	}
 	// Create the final "environment map" for the container using the ".env" and ".envFrom" field
 	// and service environment variables.
-	err = makeEnvironmentMap(ctx, pod, container, rm, recorder, tmpEnv)
+	err = makeEnvironmentMap(ctx, pod, container, namespaceMapper, apiController, rm, recorder, tmpEnv)
 	if err != nil {
 		return err
 	}
@@ -114,6 +124,80 @@ func populateContainerEnvironment(ctx context.Context, pod *corev1.Pod, containe
 	}
 	container.Env = res
 
+	return nil
+}
+
+// getServiceEnvVarMap makes a map[string]string of env vars for services a
+// pod in namespace ns should see.
+// Based on getServiceEnvVarMap in kubelet_pods.go.
+func getServiceEnvVarMap(rm *manager.ResourceManager, ns string, enableServiceLinks bool, namespaceMapper namespacesMapping.NamespaceNatter, apiController controller.ApiControllerCacheManager) (map[string]string, error) {
+	if reflect.ValueOf(namespaceMapper).IsNil() || reflect.ValueOf(apiController).IsNil() {
+		return map[string]string{}, nil
+	}
+
+	var (
+		serviceMap = make(map[string]*corev1.Service)
+		m          = make(map[string]string)
+	)
+
+	remoteNs, err := namespaceMapper.NatNamespace(ns, true)
+	if err != nil {
+		return nil, err
+	}
+
+	services, err := rm.ListServices()
+	if err != nil {
+		return nil, err
+	}
+
+	// project the services in namespace ns onto the master services
+	for i := range services {
+		// We always want to add environment variables for master kubernetes service
+		// from the default namespace, even if enableServiceLinks is false.
+		// We also add environment variables for other services in the same
+		// namespace, if enableServiceLinks is true.
+
+		service := services[i]
+		serviceName := service.Name
+
+		if service.Namespace == metav1.NamespaceDefault && masterServices.Has(serviceName) {
+			// TODO: we have to set env vars for our home kubernetes service
+		} else if service.Namespace == ns && enableServiceLinks {
+			err = addService(&serviceMap, apiController, remoteNs, serviceName, true)
+		}
+		if err != nil {
+			continue
+		}
+	}
+
+	mappedServices := make([]*corev1.Service, 0, len(serviceMap))
+	for key := range serviceMap {
+		mappedServices = append(mappedServices, serviceMap[key])
+	}
+
+	for _, e := range envvars.FromServices(mappedServices) {
+		m[e.Name] = e.Value
+	}
+	return m, nil
+}
+
+func addService(serviceMap *map[string]*corev1.Service, apiController controller.ApiControllerCacheManager, namespace string, name string, checkNamespace bool) error {
+	tmp, err := apiController.GetMirroringObjectByKey(apiReflection.Services, namespace, name)
+	if err != nil {
+		return err
+	}
+	if tmp == nil {
+		return nil
+	}
+	remoteSvc := tmp.(*corev1.Service)
+	// ignore services where ClusterIP is "None" or empty
+	if !v1helper.IsServiceIPSet(remoteSvc) {
+		return nil
+	}
+
+	if _, exists := (*serviceMap)[name]; !exists && (!checkNamespace || remoteSvc.Namespace == namespace) {
+		(*serviceMap)[name] = remoteSvc
+	}
 	return nil
 }
 
@@ -240,29 +324,23 @@ loop:
 }
 
 // makeEnvironmentMap returns a map representing the resolved environment of the specified container after being populated from the entries in the ".env" and ".envFrom" field.
-func makeEnvironmentMap(ctx context.Context, pod *corev1.Pod, container *corev1.Container, rm *manager.ResourceManager, recorder record.EventRecorder, res map[string]string) error {
+func makeEnvironmentMap(ctx context.Context, pod *corev1.Pod, container *corev1.Container, namespaceMapper namespacesMapping.NamespaceNatter, apiController controller.ApiControllerCacheManager, rm *manager.ResourceManager, recorder record.EventRecorder, res map[string]string) error {
 
 	// TODO If pod.Spec.EnableServiceLinks is nil then fail as per 1.14 kubelet.
-	/*enableServiceLinks := corev1.DefaultEnableServiceLinks
+	enableServiceLinks := corev1.DefaultEnableServiceLinks
 	if pod.Spec.EnableServiceLinks != nil {
 		enableServiceLinks = *pod.Spec.EnableServiceLinks
-	}*/
+	}
 
 	// Note that there is a race between Kubelet seeing the pod and kubelet seeing the service.
 	// To avoid this users can: (1) wait between starting a service and starting; or (2) detect
 	// missing service env var and exit and be restarted; or (3) use DNS instead of env vars
 	// and keep trying to resolve the DNS name of the service (recommended).
 
-	// ServiceEnvVarMap has been removed in order to let the remote kubelet
-	// filling of the service env var
-	/*
-		svcEnv, err := getServiceEnvVarMap(rm, pod.Namespace, enableServiceLinks)
-
-		if err != nil {
-			return err
-		}
-	*/
-	svcEnv := map[string]string{}
+	svcEnv, err := getServiceEnvVarMap(rm, pod.Namespace, enableServiceLinks, namespaceMapper, apiController)
+	if err != nil {
+		return err
+	}
 
 	// If the variable's Value is set, expand the `$(var)` references to other
 	// variables in the .Value field; the sources of variables are the declared

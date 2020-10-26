@@ -1,6 +1,7 @@
 package kubernetes
 
 import (
+	"errors"
 	nettypes "github.com/liqotech/liqo/apis/net/v1alpha1"
 	advtypes "github.com/liqotech/liqo/apis/sharing/v1alpha1"
 	nattingv1 "github.com/liqotech/liqo/apis/virtualKubelet/v1alpha1"
@@ -127,4 +128,18 @@ func forgeOptionsMap(opts ...options.Option) map[options.OptionKey]options.Optio
 	}
 
 	return outOpts
+}
+
+func (p *KubernetesProvider) GetNamespaceMapper() (*namespacesMapping.NamespaceMapperController, error) {
+	if p.namespaceMapper == nil {
+		return nil, errors.New("NamespaceMapper is nil")
+	}
+	return p.namespaceMapper, nil
+}
+
+func (p *KubernetesProvider) GetApiController() (*controller.Controller, error) {
+	if p.apiController == nil {
+		return nil, errors.New("ApiController is nil")
+	}
+	return p.apiController, nil
 }
