@@ -15,7 +15,7 @@ if ! command_exists "2goarray"; then
     fi
 fi
 
-for image in internal/tray-agent/icon/icons/tray/*.png; do
+for image in assets/tray-agent/icons/tray-bar/*.png; do
     name=$(basename "${image}" .png)
     2goarray "${name}" icon < "${image}" > "internal/tray-agent/icon/${name}.go"
 done

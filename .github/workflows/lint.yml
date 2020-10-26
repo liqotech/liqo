@@ -22,8 +22,8 @@ jobs:
         run: go get -u github.com/cratonica/2goarray
       - name: Generate tray-agent icons
         run: |
-          chmod +x ./internal/tray-agent/icon/make_icon.sh
-          ./internal/tray-agent/icon/make_icon.sh
+          chmod +x ./scripts/tray-agent/make_icon.sh
+          ./scripts/tray-agent/make_icon.sh
       - name: golangci-lint
         uses: golangci/golangci-lint-action@v1
         with:

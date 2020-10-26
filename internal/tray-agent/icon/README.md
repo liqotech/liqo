@@ -8,7 +8,7 @@ system tray bar using the [**Indicator**](https://github.com/liqoTech/liqo/inter
 images into **Golang []byte**. This is the format required by the 
 [systray](https://github.com/getlantern/systray) package the **Indicator** exploits.
 
-  - PNG source files are located under **internal/tray-agent/icon/icons/tray/**
+  - PNG source files are located under **assets/tray-agent/icons/tray-bar/**
 
 > ```bash
 >$GOPATH/bin/2goarray <IcoVarName> icon < <myimage>.png > <IcoVarName>.go
@@ -18,7 +18,7 @@ images into **Golang []byte**. This is the format required by the
 creation process. Execute this script to generate all the package files.
 > ```bash
 > # EXECUTE THE SCRIPT FROM THE PROJECT ROOT
-> $ ./internal/tray-agent/icon/make_icon.sh
+> $ ./scripts/tray-agent/make_icon.sh
 > ```
 
 #### NOTE:
