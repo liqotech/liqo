@@ -224,8 +224,8 @@ jobs:
         sudo apt-get -y install gcc libgtk-3-dev libappindicator3-dev libxapp-dev libwebkit2gtk-4.0-dev xclip
     - name: generate tray-agent icons
       run: |
-        chmod +x ./internal/tray-agent/icon/make_icon.sh
-        ./internal/tray-agent/icon/make_icon.sh
+        chmod +x ./scripts/tray-agent/make_icon.sh
+        ./scripts/tray-agent/make_icon.sh
     - run: go-acc ./... --ignore liqo/test/e2e
     - name: Send coverage
       uses: shogo82148/actions-goveralls@v1
