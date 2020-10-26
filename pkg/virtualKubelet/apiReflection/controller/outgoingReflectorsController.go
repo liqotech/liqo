@@ -137,3 +137,8 @@ func (c *OutgoingReflectorsController) startNamespaceReflection(namespace string
 func (c *OutgoingReflectorsController) stopNamespaceReflection(namespace string) {
 	close(c.namespacedStops[namespace])
 }
+
+func (c *OutgoingReflectorsController) GetMirroringObject(api apimgmt.ApiType, namespace, name string) (interface{}, error) {
+	apiReflector := c.apiReflectors[api].(ri.OutgoingAPIReflector)
+	return apiReflector.GetObjFromForeignCache(namespace, apiReflector.Keyer(namespace, name))
+}
