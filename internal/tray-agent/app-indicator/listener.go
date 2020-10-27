@@ -18,7 +18,7 @@ func newListener(tag client.NotifyChannel, rcv chan string) *Listener {
 	return &l
 }
 
-//Listener returns the registered Listener for the specified NotifyChannelType. If such Listener does not exist,
+//Listener returns the registered Listener for the specified NotifyChannel. If such Listener does not exist,
 //present == false.
 func (i *Indicator) Listener(tag client.NotifyChannel) (listener *Listener, present bool) {
 	listener, present = i.listeners[tag]

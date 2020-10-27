@@ -12,17 +12,6 @@ import (
 )
 
 const (
-	//liqoDashboardIngressName is the name of the LiqoDash Ingress for remote access.
-	liqoDashboardIngressName = "liqo-dashboard-content"
-	//liqoDashboardServiceName is the name of the LiqoDash Service.
-	liqoDashboardServiceName = "liqo-dashboard"
-	//liqoDashboardNamespace is the name of the LiqoDash namespace.
-	liqoDashboardNamespace = "liqo"
-	//liqoDashboardSAName is the name of the LiqoDash ServiceAccount containing the reference
-	//to the secret with the access token.
-	liqoDashboardSAName = "liqodash-admin-sa"
-	//liqoDashboardTkPrefix is the name prefix of the LiqoDash access token.
-	liqoDashboardTkPrefix = "liqodash-admin-sa-token"
 	//masterNodeLabel is the label name associated with master nodes.
 	masterNodeLabel = "node-role.kubernetes.io/master"
 	//EnvLiqoDashHost defines the env var for the HOST part of the LiqoDash address.
@@ -36,6 +25,9 @@ const (
 //If a valid configuration is found, the EnvLiqoDashHost and EnvLiqoDashPort env vars are set.
 func (ctrl *AgentController) AcquireDashboardConfig() error {
 	//cleanup LiqoDash env vars
+	if !ctrl.Connected() || !ctrl.ValidConfiguration() {
+		return errors.New("cluster connection not available")
+	}
 	var err error
 	if err = os.Unsetenv(EnvLiqoDashHost); err != nil {
 		return err
@@ -45,8 +37,9 @@ func (ctrl *AgentController) AcquireDashboardConfig() error {
 	}
 	//preliminary check to verify the LiqoDash pod is running
 	var dashPodL *corev1.PodList
-	dashPodL, err = ctrl.kubeClient.CoreV1().Pods(liqoDashboardNamespace).List(context.TODO(), metav1.ListOptions{
-		LabelSelector: "app=" + liqoDashboardServiceName,
+	dashConf := ctrl.agentConf.dashboard
+	dashPodL, err = ctrl.kubeClient.CoreV1().Pods(dashConf.namespace).List(context.TODO(), metav1.ListOptions{
+		LabelSelector: "app=" + dashConf.label,
 		FieldSelector: fields.OneTermEqualSelector("status.phase", "Running").String(),
 	})
 	if err != nil {
@@ -90,14 +83,20 @@ loop:
 //In case of success, it sets the env vars specified by EnvLiqoDashHost
 //and EnvLiqoDashPort with proper values.
 func (ctrl *AgentController) getDashboardConfigRemote() bool {
-	if !ctrl.Connected() {
+	if !ctrl.Connected() || !ctrl.ValidConfiguration() {
 		return false
 	}
 	/*search for a LiqoDash Ingress. To increase security, it must contain
 	a 'tls' field with at least one explicitly specified 'host' (https connection)*/
-	ingress, err := ctrl.kubeClient.NetworkingV1beta1().Ingresses(liqoDashboardNamespace).Get(context.TODO(), liqoDashboardIngressName,
-		metav1.GetOptions{})
-	if err == nil && len(ingress.Spec.TLS) > 0 {
+	dashConf := ctrl.agentConf.dashboard
+	ingrL, err := ctrl.kubeClient.NetworkingV1beta1().Ingresses(dashConf.namespace).List(context.TODO(), metav1.ListOptions{
+		LabelSelector: "app=" + dashConf.label,
+	})
+	if err != nil || len(ingrL.Items) < 1 {
+		return false
+	}
+	ingress := ingrL.Items[0]
+	if len(ingress.Spec.TLS) > 0 {
 		hosts := ingress.Spec.TLS[0].Hosts
 		if len(hosts) > 0 {
 			dashHost := hosts[0]
@@ -118,19 +117,20 @@ func (ctrl *AgentController) getDashboardConfigRemote() bool {
 //In case of success, it sets the env vars specified by EnvLiqoDashHost
 //and EnvLiqoDashPort with proper values.
 func (ctrl *AgentController) getDashboardConfigLocal() bool {
-	if !ctrl.Connected() {
+	if !ctrl.Connected() || !ctrl.ValidConfiguration() {
 		return false
 	}
 	c := ctrl.kubeClient
+	dashConf := ctrl.agentConf.dashboard
 	var nodePortNo, masterIP string
 	found := false
 	/*search for a LiqoDash Service of type NodePort*/
-	service, err := c.CoreV1().Services(liqoDashboardNamespace).Get(context.TODO(), liqoDashboardServiceName, metav1.GetOptions{})
+	service, err := c.CoreV1().Services(dashConf.namespace).Get(context.TODO(), dashConf.service, metav1.GetOptions{})
 	if err == nil && service.Spec.Type == corev1.ServiceTypeNodePort {
 		ports := service.Spec.Ports
 		for i := range ports {
 			port := ports[i]
-			if port.Name == "http" {
+			if port.Name == "https" {
 				nodePortNo = fmt.Sprint(port.NodePort)
 				found = true
 				break
@@ -157,7 +157,8 @@ func (ctrl *AgentController) getDashboardConfigLocal() bool {
 	if found {
 		/*having found both address and port, it is possible to set
 		the two env vars*/
-		if err = os.Setenv(EnvLiqoDashHost, masterIP); err == nil {
+		if err = os.Setenv(EnvLiqoDashHost, fmt.Sprintf(
+			"https://%s", masterIP)); err == nil {
 			if err = os.Setenv(EnvLiqoDashPort, nodePortNo); err == nil {
 				return true
 			}
@@ -169,29 +170,31 @@ func (ctrl *AgentController) getDashboardConfigLocal() bool {
 //GetLiqoDashSecret returns the access token for the LiqoDash service.
 func (ctrl *AgentController) GetLiqoDashSecret() (*string, error) {
 	var token = ""
-	if !ctrl.Connected() {
+	if !ctrl.Connected() || !ctrl.ValidConfiguration() {
 		return &token, errors.New("no connection to the cluster")
 	}
 	errNoToken := errors.New("cannot retrieve token")
 	/*In order to better prune its search, the secret is retrieved by its name, using the
 	service account associated with it.*/
 	c := ctrl.kubeClient
-	liqoSA, err := ctrl.kubeClient.CoreV1().ServiceAccounts(liqoDashboardNamespace).Get(context.TODO(), liqoDashboardSAName, metav1.GetOptions{})
+	dashConf := ctrl.agentConf.dashboard
+	liqoSA, err := c.CoreV1().ServiceAccounts(dashConf.namespace).Get(context.TODO(), dashConf.serviceAccount, metav1.GetOptions{})
 	if err != nil {
 		return &token, errNoToken
 	}
 	found := false
 	var secretName string
+	tokenPrefixName := dashConf.serviceAccount + "-token"
 	for i := range liqoSA.Secrets {
 		secret := liqoSA.Secrets[i]
-		if strings.HasPrefix(secret.Name, liqoDashboardTkPrefix) {
+		if strings.HasPrefix(secret.Name, tokenPrefixName) {
 			found = true
 			secretName = secret.Name
 			break
 		}
 	}
 	if found {
-		if secret, err := c.CoreV1().Secrets(liqoDashboardNamespace).Get(context.TODO(), secretName, metav1.GetOptions{}); err == nil {
+		if secret, err := c.CoreV1().Secrets(dashConf.namespace).Get(context.TODO(), secretName, metav1.GetOptions{}); err == nil {
 			token = fmt.Sprintf("%s", secret.Data["token"])
 			return &token, nil
 		}
