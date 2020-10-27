@@ -31,6 +31,8 @@ type ClusterConfigSpec struct {
 	DiscoveryConfig     DiscoveryConfig     `json:"discoveryConfig"`
 	LiqonetConfig       LiqonetConfig       `json:"liqonetConfig"`
 	DispatcherConfig    DispatcherConfig    `json:"dispatcherConfig,omitempty"`
+	//AgentConfig defines the configuration for Liqo Agent.
+	AgentConfig AgentConfig `json:"agentConfig"`
 }
 
 //AdvertisementConfig defines the configuration for the advertisement protocol
@@ -140,6 +142,26 @@ type Resource struct {
 }
 type DispatcherConfig struct {
 	ResourcesToReplicate []Resource `json:"resourcesToReplicate,omitempty"`
+}
+
+type DashboardConfig struct {
+	// Namespace defines the namespace LiqoDash resources belongs to.
+	Namespace string `json:"namespace"`
+	// Service is the LiqoDash service name.
+	Service string `json:"service"`
+	// ServiceAccount is the LiqoDash serviceAccount name.
+	ServiceAccount string `json:"serviceAccount"`
+	// AppLabel defines the value of the 'app' label. All LiqoDash
+	// related resources are labelled with it.
+	AppLabel string `json:"appLabel"`
+	// Ingress is the LiqoDash ingress name.
+	Ingress string `json:"ingress"`
+}
+
+type AgentConfig struct {
+	// DashboardConfig contains the parameters required for Liqo Agent
+	//to provide access to LiqoDash
+	DashboardConfig DashboardConfig `json:"dashboardConfig"`
 }
 
 // ClusterConfigStatus defines the observed state of ClusterConfig

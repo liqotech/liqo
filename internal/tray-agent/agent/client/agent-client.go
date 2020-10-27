@@ -61,7 +61,9 @@ type AgentController struct {
 	notifyChannels map[NotifyChannel]chan string
 	//kubeClient is a standard kubernetes client.
 	kubeClient kubernetes.Interface
-	//crdManager that manages CRD operations.
+	//agentConf contains Liqo Agent configuration parameters.
+	agentConf *agentConfiguration
+	//crdManager manages CRD operations.
 	*crdManager
 	//valid specifies whether the provided kubeconfig actually describes a correct configuration.
 	valid bool
@@ -175,7 +177,9 @@ func createKubeClient() (kubernetes.Interface, error) {
 //GetAgentController returns an initialized AgentController singleton.
 func GetAgentController() *AgentController {
 	if agentCtrl == nil {
-		agentCtrl = &AgentController{}
+		agentCtrl = &AgentController{
+			agentConf: &agentConfiguration{},
+		}
 		agentCtrl.mocked = mockedController
 		//init the notifyChannels that are kept open during the entire Agent execution.
 		agentCtrl.notifyChannels = make(map[NotifyChannel]chan string)
@@ -190,6 +194,8 @@ func GetAgentController() *AgentController {
 				if agentCtrl.ConnectionTest() {
 					if err = agentCtrl.StartCaches(); err == nil {
 						agentCtrl.connected = true
+						//init configuration data
+						agentCtrl.acquireClusterConfiguration()
 					} else {
 						//stop already started caches since Agent cannot work
 						//with a partially running system.

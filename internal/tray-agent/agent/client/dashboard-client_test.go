@@ -23,13 +23,14 @@ var getLiqoDashServiceReactor ktesting.ReactionFunc = func(action ktesting.Actio
 	getAction := action.(ktesting.GetAction)
 	servName := getAction.GetName()
 	servNamespace := getAction.GetNamespace()
-	if servName != liqoDashboardServiceName || servNamespace != liqoDashboardNamespace {
+	dashConf := GetAgentController().agentConf.dashboard
+	if servName != dashConf.service || servNamespace != dashConf.namespace {
 		return false, nil, nil
 	}
-	liqoServ := testutil.FakeService(liqoDashboardNamespace, liqoDashboardServiceName,
+	liqoServ := testutil.FakeService(dashConf.namespace, dashConf.service,
 		"10.0.0.2", "TCP", 80)
 	liqoServ.Spec.Type = corev1.ServiceTypeNodePort
-	liqoServ.Spec.Ports[0].Name = "http"
+	liqoServ.Spec.Ports[0].Name = "https"
 	liqoServ.Spec.Ports[0].NodePort = int32(nodePort)
 	return true, liqoServ, nil
 }
@@ -70,48 +71,59 @@ var listMasterNodeReactor ktesting.ReactionFunc = func(action ktesting.Action) (
 
 //configRemote params
 var ingressTestHost = "test.host.net"
-var getLiqoDashIngressReactor ktesting.ReactionFunc = func(action ktesting.Action) (handled bool, ret runtime.Object, err error) {
-	getAction := action.(ktesting.GetAction)
-	if getAction.GetName() != liqoDashboardIngressName || getAction.GetNamespace() != liqoDashboardNamespace {
+var listLiqoDashIngressesReactor ktesting.ReactionFunc = func(action ktesting.Action) (handled bool, ret runtime.Object, err error) {
+	listAction := action.(ktesting.ListAction)
+	dashConf := GetAgentController().agentConf.dashboard
+	labelSet := labels.Set{}
+	labelSet["app"] = dashConf.label
+	if !listAction.GetListRestrictions().Labels.Matches(labelSet) || listAction.GetNamespace() != dashConf.namespace {
 		return false, nil, nil
 	}
-	ingress := v1beta1.Ingress{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:            liqoDashboardIngressName,
-			Namespace:       liqoDashboardNamespace,
-			ResourceVersion: strconv.Itoa(1),
-		},
-		Spec: v1beta1.IngressSpec{
-			TLS: []v1beta1.IngressTLS{
-				{
-					Hosts: []string{
-						ingressTestHost,
+	labelsMap := make(map[string]string)
+	labelsMap["app"] = dashConf.label
+	ingressList := v1beta1.IngressList{
+		ListMeta: metav1.ListMeta{},
+		Items: []v1beta1.Ingress{
+			{
+				ObjectMeta: metav1.ObjectMeta{
+					Namespace:       dashConf.namespace,
+					ResourceVersion: strconv.Itoa(1),
+					Labels:          labelsMap,
+				},
+				Spec: v1beta1.IngressSpec{
+					TLS: []v1beta1.IngressTLS{
+						{
+							Hosts: []string{
+								ingressTestHost,
+							},
+							SecretName: "",
+						},
 					},
-					SecretName: "",
 				},
 			},
 		},
 	}
-	return true, &ingress, nil
+	return true, &ingressList, nil
 }
 
 //getLiqoDashSecret params
-var secrTestName = liqoDashboardTkPrefix + "-test"
 var testData = "test-data"
 var getLiqoDashServiceAccountReactor ktesting.ReactionFunc = func(action ktesting.Action) (handled bool, ret runtime.Object, err error) {
 	getAction := action.(ktesting.GetAction)
-	if getAction.GetName() != liqoDashboardSAName || getAction.GetNamespace() != liqoDashboardNamespace {
+	dashConf := GetAgentController().agentConf.dashboard
+	secrTestName := dashConf.serviceAccount + "-token-test"
+	if getAction.GetName() != dashConf.serviceAccount || getAction.GetNamespace() != dashConf.namespace {
 		return false, nil, nil
 	}
 	servAcc := corev1.ServiceAccount{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:            liqoDashboardSAName,
-			Namespace:       liqoDashboardNamespace,
+			Name:            dashConf.serviceAccount,
+			Namespace:       dashConf.namespace,
 			ResourceVersion: strconv.Itoa(1),
 		},
 		Secrets: []corev1.ObjectReference{
 			{
-				Namespace:       liqoDashboardNamespace,
+				Namespace:       dashConf.namespace,
 				Name:            secrTestName,
 				ResourceVersion: strconv.Itoa(1),
 			},
@@ -121,13 +133,15 @@ var getLiqoDashServiceAccountReactor ktesting.ReactionFunc = func(action ktestin
 }
 var getLiqoDashSecretReactor ktesting.ReactionFunc = func(action ktesting.Action) (handled bool, ret runtime.Object, err error) {
 	getAction := action.(ktesting.GetAction)
-	if getAction.GetName() != secrTestName || getAction.GetNamespace() != liqoDashboardNamespace {
+	dashConf := GetAgentController().agentConf.dashboard
+	secrTestName := dashConf.serviceAccount + "-token-test"
+	if getAction.GetName() != secrTestName || getAction.GetNamespace() != dashConf.namespace {
 		return false, nil, nil
 	}
 	secret := corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:            secrTestName,
-			Namespace:       liqoDashboardNamespace,
+			Namespace:       dashConf.namespace,
 			ResourceVersion: strconv.Itoa(1),
 		},
 		Data: make(map[string][]byte),
@@ -138,14 +152,15 @@ var getLiqoDashSecretReactor ktesting.ReactionFunc = func(action ktesting.Action
 
 //acquireDashboardConfig params
 var listLiqoDashPodsReactor ktesting.ReactionFunc = func(action ktesting.Action) (handled bool, ret runtime.Object, err error) {
-	var labelSet = labels.Set{}
-	labelSet["app"] = liqoDashboardServiceName
+	dashConf := GetAgentController().agentConf.dashboard
+	labelSet := labels.Set{}
+	labelSet["app"] = dashConf.label
 	listAction := action.(ktesting.ListAction)
-	if !listAction.GetListRestrictions().Labels.Matches(labelSet) || listAction.GetNamespace() != liqoDashboardNamespace {
+	if !listAction.GetListRestrictions().Labels.Matches(labelSet) || listAction.GetNamespace() != dashConf.namespace {
 		return false, nil, nil
 	}
 	labelsMap := make(map[string]string)
-	labelsMap["app"] = liqoDashboardServiceName
+	labelsMap["app"] = dashConf.label
 	podList := corev1.PodList{
 		ListMeta: metav1.ListMeta{
 			ResourceVersion: strconv.Itoa(1),
@@ -153,7 +168,7 @@ var listLiqoDashPodsReactor ktesting.ReactionFunc = func(action ktesting.Action)
 		Items: []corev1.Pod{
 			{
 				ObjectMeta: metav1.ObjectMeta{
-					Namespace: liqoDashboardNamespace,
+					Namespace: dashConf.namespace,
 					Labels:    labelsMap,
 				},
 				Status: corev1.PodStatus{
@@ -214,7 +229,7 @@ func TestAgentController_getDashboardConfigLocal(t *testing.T) {
 	var dashHost, dashPort string
 	var envSet bool
 	if dashHost, envSet = os.LookupEnv(EnvLiqoDashHost); envSet {
-		assert.Equal(t, masterNodeIP, dashHost)
+		assert.Equal(t, fmt.Sprintf("https://%s", masterNodeIP), dashHost)
 	} else {
 		t.Fatal("ENV liqodash HOST not set after configLocal")
 	}
@@ -237,7 +252,7 @@ func TestAgentController_getDashboardConfigRemote(t *testing.T) {
 	}
 	ctrl := GetAgentController()
 	fakeKubeClient := ctrl.kubeClient.(*fake.Clientset)
-	fakeKubeClient.Fake.PrependReactor("get", "ingresses", getLiqoDashIngressReactor)
+	fakeKubeClient.Fake.PrependReactor("list", "ingresses", listLiqoDashIngressesReactor)
 	res := ctrl.getDashboardConfigRemote()
 	assert.True(t, res, "DashboardConfigRemote should return true")
 	var dashHost, dashPort string

@@ -97,6 +97,8 @@ func GetIndicator() *Indicator {
 		root.agentCtrl = client.GetAgentController()
 		if !root.agentCtrl.Connected() {
 			root.ShowErrorNoConnection()
+		} else if !root.agentCtrl.ValidConfiguration() {
+			root.ShowError("LIQO AGENT - FATAL", "Agent could not retrieve configuration data.")
 		} else {
 			root.SetIcon(IconLiqoMain)
 		}

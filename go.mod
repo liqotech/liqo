@@ -10,12 +10,15 @@ require (
 	github.com/atotto/clipboard v0.1.2
 	github.com/containerd/ttrpc v1.0.2 // indirect
 	github.com/coreos/go-iptables v0.4.5
+	github.com/fatih/color v1.10.0 // indirect
 	github.com/gen2brain/beeep v0.0.0-20200420150314-13046a26d502
 	github.com/gen2brain/dlgs v0.0.0-20200211102745-b9c2664df42f
 	github.com/getlantern/systray v0.0.0-20200324212034-d3ab4fd25d99
 	github.com/go-logr/logr v0.1.0
 	github.com/go-sql-driver/mysql v1.5.0 // indirect
+	github.com/gobuffalo/flect v0.2.2 // indirect
 	github.com/google/go-cmp v0.5.1
+	github.com/google/gofuzz v1.2.0 // indirect
 	github.com/google/uuid v1.1.1
 	github.com/gorilla/mux v1.7.4
 	github.com/grandcat/zeroconf v1.0.0
@@ -38,18 +41,23 @@ require (
 	go.opencensus.io v0.22.4
 	go.uber.org/atomic v1.5.1 // indirect
 	go.uber.org/multierr v1.4.0 // indirect
-	golang.org/x/sys v0.0.0-20201015000850-e3ed0017c211
-	golang.org/x/tools v0.0.0-20200616195046-dc31b401abb5
+	golang.org/x/net v0.0.0-20201110031124-69a78807bb2b // indirect
+	golang.org/x/sys v0.0.0-20201113233024-12cec1faf1ba
+	golang.org/x/text v0.3.4 // indirect
+	golang.org/x/tools v0.0.0-20201116002733-ac45abd4c88c
+	gopkg.in/yaml.v3 v3.0.0-20200615113413-eeeca48fe776 // indirect
 	gotest.tools v2.2.0+incompatible
-	k8s.io/api v0.18.6
-	k8s.io/apimachinery v0.18.6
+	k8s.io/api v0.19.4
+	k8s.io/apiextensions-apiserver v0.19.4 // indirect
+	k8s.io/apimachinery v0.19.4
 	k8s.io/client-go v12.0.0+incompatible
 	k8s.io/klog v1.0.0
 	k8s.io/klog/v2 v2.0.0
 	k8s.io/kubectl v0.18.6
 	k8s.io/kubernetes v1.18.6
-	k8s.io/utils v0.0.0-20200603063816-c1c6865ac451
+	k8s.io/utils v0.0.0-20201110183641-67b214c5f920
 	sigs.k8s.io/controller-runtime v0.6.2
+	sigs.k8s.io/controller-tools v0.4.0 // indirect
 )
 
 replace k8s.io/legacy-cloud-providers => k8s.io/legacy-cloud-providers v0.18.6
