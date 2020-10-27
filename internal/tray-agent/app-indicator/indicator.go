@@ -70,7 +70,7 @@ type Indicator struct {
 	//data struct that controls Agent interaction with the cluster
 	agentCtrl *client.AgentController
 	//map of all the instantiated Listeners
-	listeners map[client.NotifyChannelType]*Listener
+	listeners map[client.NotifyChannel]*Listener
 	//map of all the instantiated Timers
 	timers map[string]*Timer
 }
@@ -89,14 +89,14 @@ func GetIndicator() *Indicator {
 		GetGuiProvider().AddSeparator()
 		root.quickMap = make(map[string]*MenuNode)
 		root.quitChan = make(chan struct{})
-		root.listeners = make(map[client.NotifyChannelType]*Listener)
+		root.listeners = make(map[client.NotifyChannel]*Listener)
 		root.timers = make(map[string]*Timer)
 		root.config = newConfig()
 		root.status = GetStatus()
 		root.RefreshStatus()
 		root.agentCtrl = client.GetAgentController()
 		if !root.agentCtrl.Connected() {
-			root.NotifyNoConnection()
+			root.ShowErrorNoConnection()
 		} else {
 			root.SetIcon(IconLiqoMain)
 		}
@@ -307,7 +307,7 @@ func (i *Indicator) RefreshLabel() {
 
 //--------------
 
-//Quit stops the indicator execution
+//Quit stops the indicator execution.
 func (i *Indicator) Quit() {
 	if i != nil {
 		i.Disconnect()

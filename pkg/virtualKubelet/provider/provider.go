@@ -61,7 +61,7 @@ func NewKubernetesProvider(nodeName, foreignClusterId, homeClusterId string, int
 		return nil, err
 	}
 
-	advClient, err := advtypes.CreateAdvertisementClient(kubeconfig, nil)
+	advClient, err := advtypes.CreateAdvertisementClient(kubeconfig, nil, true)
 	if err != nil {
 		return nil, err
 	}

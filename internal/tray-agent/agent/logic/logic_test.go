@@ -59,26 +59,28 @@ func TestAdvertisementNotify(t *testing.T) {
 	i := app.GetIndicator()
 	startListenerAdvertisements(i)
 	assert.Equal(t, app.IconLiqoMain, i.Icon(), "startup Indicator icon is not IconLiqoMain")
-	i.AgentCtrl().StartCaches()
-	advChannels := i.AgentCtrl().AdvCache().NotifyChannels
+	ctrl := i.AgentCtrl()
+	if err := ctrl.StartCaches(); err != nil {
+		t.Fatal("caches not started")
+	}
 	testAdvName := "test"
 	//
-	advChannels[client.ChanAdvNew] <- testAdvName
+	ctrl.NotifyChannel(client.ChanAdvNew) <- testAdvName
 	time.Sleep(time.Second * 4)
 	assert.Equal(t, app.IconLiqoOrange, i.Icon(), "Icon not correctly set on New Advertisement")
 	i.SetIcon(app.IconLiqoMain)
 	//
-	advChannels[client.ChanAdvAccepted] <- testAdvName
+	ctrl.NotifyChannel(client.ChanAdvAccepted) <- testAdvName
 	time.Sleep(time.Second * 4)
 	assert.Equal(t, app.IconLiqoGreen, i.Icon(), "Icon not correctly set on Accepted Advertisement")
 	i.SetIcon(app.IconLiqoMain)
 	//
-	advChannels[client.ChanAdvRevoked] <- testAdvName
+	ctrl.NotifyChannel(client.ChanAdvRevoked) <- testAdvName
 	time.Sleep(time.Second * 4)
 	assert.Equal(t, app.IconLiqoOrange, i.Icon(), "Icon not correctly set on Revoked Advertisement")
 	i.SetIcon(app.IconLiqoMain)
 	//
-	advChannels[client.ChanAdvDeleted] <- testAdvName
+	ctrl.NotifyChannel(client.ChanAdvDeleted) <- testAdvName
 	time.Sleep(time.Second * 4)
 	assert.Equal(t, app.IconLiqoOrange, i.Icon(), "Icon not correctly set on Deleted Advertisement")
 	i.SetIcon(app.IconLiqoMain)

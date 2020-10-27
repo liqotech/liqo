@@ -43,7 +43,7 @@ func StartOperator(mgr *manager.Manager, namespace string, requeueAfter time.Dur
 		os.Exit(1)
 	}
 
-	advClient, err := advtypes.CreateAdvertisementClient(kubeconfigPath, nil)
+	advClient, err := advtypes.CreateAdvertisementClient(kubeconfigPath, nil, true)
 	if err != nil {
 		klog.Error(err, "unable to create local client for Advertisement")
 		os.Exit(1)

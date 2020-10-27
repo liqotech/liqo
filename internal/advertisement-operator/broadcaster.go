@@ -60,7 +60,7 @@ func StartBroadcaster(homeClusterId, localKubeconfigPath, peeringRequestName, sa
 	klog.V(6).Info("starting broadcaster")
 
 	// create the Advertisement client to the local cluster
-	localClient, err := advtypes.CreateAdvertisementClient(localKubeconfigPath, nil)
+	localClient, err := advtypes.CreateAdvertisementClient(localKubeconfigPath, nil, true)
 	if err != nil {
 		klog.Errorln(err, "Unable to create client to local cluster")
 		return err
@@ -104,7 +104,7 @@ func StartBroadcaster(homeClusterId, localKubeconfigPath, peeringRequestName, sa
 
 	// create a CRD-client to the foreign cluster
 	for retry = 0; retry < 3; retry++ {
-		remoteClient, err = advtypes.CreateAdvertisementClient("", secretForAdvertisementCreation)
+		remoteClient, err = advtypes.CreateAdvertisementClient("", secretForAdvertisementCreation, true)
 		if err != nil {
 			klog.Errorln(err, "Unable to create client to remote cluster "+foreignClusterId+". Retry in 1 minute")
 			time.Sleep(1 * time.Minute)
