@@ -209,23 +209,40 @@ function get_repo_master_commit() {
 	download "${MASTER_COMMIT_URL}" | grep -Po --max-count=1 '"sha": "\K.*?(?=")'
 }
 
+function setup_installation_platform() {
+	# Identify on which kind of platform the installer is running.
+	# More specific filters will be added with further support of additional environments.
+	local host_system
+	host_system=$(uname)
+	case "${host_system}" in
+		'Linux')
+			INSTALLATION_PLATFORM="linux" ;;
+		*)
+			INSTALLATION_PLATFORM="other" ;;
+	esac
+
+}
+
 function setup_agent_version() {
 	# Get the latest releases also checking if there is any release available.
 	local LIQO_RELEASES
 	LIQO_RELEASES=$(get_liqo_releases)
 	[[ -z "${LIQO_RELEASES}" ]] && return 0
 	local RELEASE_URL
-	if [[ "${REQUESTED_AGENT_VERSION:=latest}" != "latest" ]]; then
-		warn "[AGENT] [PRE-FLIGHT]" "A Liqo Agent app matching requested Liqo version will be installed (${REQUESTED_AGENT_VERSION})."
-		warn "[AGENT] [PRE-FLIGHT]" "Searching for requested version of Liqo Agent binary..."
-		printf "%s" "${LIQO_RELEASES}" | grep -P --silent "^${REQUESTED_AGENT_VERSION}$" || return 0
-		RELEASE_URL="https://api.github.com/repos/${LIQO_REPO}/releases/tags/${REQUESTED_AGENT_VERSION}"
+	# The Liqo Agent binary is available for download only from released versions of Liqo.
+	# When a specific tagged version of Liqo is chosen, a Liqo Agent binary from the same release will be installed
+	# (if requested and available).
+	if [[ "${LIQO_VERSION:-}" =~ ^v ]]; then
+		info "[AGENT] [PRE-FLIGHT]" "A Liqo Agent app matching requested Liqo version will be installed (${LIQO_VERSION})."
+		info "[AGENT] [PRE-FLIGHT]" "Searching for requested version of Liqo Agent binary..."
+		printf "%s" "${LIQO_RELEASES}" | grep -P --silent "^${LIQO_VERSION}$" || return 0
+		RELEASE_URL="https://api.github.com/repos/${LIQO_REPO}/releases/tags/${LIQO_VERSION}"
 	else
 		warn "[AGENT] [PRE-FLIGHT]" "No valid release version has been requested. Switching to latest version."
 		warn "[AGENT] [PRE-FLIGHT]" "Searching for the latest version of Liqo Agent binary..."
 		RELEASE_URL="https://api.github.com/repos/${LIQO_REPO}/releases/latest"
 	fi
-		AGENT_ASSET_URL=$(download "${RELEASE_URL}" | grep -Po '"browser_download_url": "\K.*liqo-agent.*(?=")' || echo "")
+	AGENT_ASSET_URL=$(download "${RELEASE_URL}" | grep -Po '"browser_download_url": "\K.*liqo-agent.*(?=")' || echo "")
 }
 
 function setup_agent_environment() {
@@ -247,9 +264,9 @@ function setup_agent_environment() {
 	AGENT_AUTOSTART_DIR="${AGENT_XDG_CONFIG_DIR}/autostart"
 
 	if [[ "${1:-}" == "--create" ]]; then
-		mkdir -p AGENT_XDG_CONFIG_DIR AGENT_XDG_DATA_DIR \
-		AGENT_BIN_DIR AGENT_ICONS_DIR AGENT_APP_DIR \
-		AGENT_THEME_DIR AGENT_AUTOSTART_DIR
+		mkdir --parent "${AGENT_XDG_CONFIG_DIR}" "${AGENT_XDG_DATA_DIR}" \
+		"${AGENT_BIN_DIR}" "${AGENT_ICONS_DIR}" "${AGENT_APP_DIR}" \
+		"${AGENT_THEME_DIR}" "${AGENT_AUTOSTART_DIR}"
 	fi
 }
 
@@ -283,10 +300,6 @@ function setup_liqo_version() {
 		printf "%s" "${LIQO_TAGS}" | grep -P --silent "^${LIQO_VERSION}$" ||
 			fatal "[PRE-FLIGHT] [DOWNLOAD]" "The requested Liqo version '${LIQO_VERSION}' does not exist"
 		LIQO_IMAGE_VERSION=${LIQO_VERSION}
-		# The Liqo Agent binary is available for download only from released versions of Liqo.
-		# When a specific tagged version of Liqo is chosen, a Liqo Agent binary from the same release will be installed
-		# if (requested).
-		REQUESTED_AGENT_VERSION=${LIQO_VERSION}
 
 		# Also check if the relative dashboard version exists
 		printf "%s" "${LIQO_DASHBOARD_TAGS}" | grep -P --silent "^${LIQO_VERSION}$" ||
@@ -459,17 +472,27 @@ function install_liqo() {
 function install_agent() {
 	[[ "${INSTALL_AGENT:-}" != "true" ]] && return 0
 	info "[AGENT] [PRE-FLIGHT]" "Liqo desktop agent installation"
+	# Currently Liqo only supports the Linux-based version of Liqo Agent.
+	# This check prevents useless and bad installations of the Liqo Agent on desktop environments that are only
+	# partially compatible, e.g. MacOs or cygwin for Windows.
+	setup_installation_platform
+	if [[ "${INSTALLATION_PLATFORM}" != "linux" ]]; then
+		warn "[AGENT] [PRE-FLIGHT]" "Sorry, Liqo Agent does not support your desktop OS for now! Skipping Agent installation"
+		return 0
+	fi
+
 	setup_agent_version
 	if [[ -z "${AGENT_ASSET_URL:-}" ]]; then
 		warn "[AGENT] [PRE-FLIGHT]" "No Liqo Agent binary found! Skipping Agent installation"
 		return 0
 	fi
 	info "[AGENT] [PRE-FLIGHT]" "Liqo Agent binary found!"
-	local AGENT_INSTALL_DIR="${TMPDIR}/scripts/tray-agent"
+
 	local AGENT_ASSETS_DIR="${TMPDIR}/assets/tray-agent"
+	local AGENT_INSTALL_LINUX_DIR="${AGENT_ASSETS_DIR}/install/linux"
 
 	info "[AGENT] [INSTALL] [1/4]" "Downloading binary"
-	download "${AGENT_ASSET_URL}" | tar xpzf - --directory="${AGENT_INSTALL_DIR}" ||
+	download "${AGENT_ASSET_URL}" | tar xpzf - --directory="${BINDIR}" ||
 		fatal "[AGENT] [INSTALL]" "Something went wrong while extracting the Agent archive"
 
 	info "[AGENT] [INSTALL] [2/4]" "Preparing environment"
@@ -477,26 +500,26 @@ function install_agent() {
 
 	info "[AGENT] [INSTALL] [3/4]" "Installing binary"
 	# moving binary
-	mv -f "${AGENT_INSTALL_DIR}/liqo-agent" "${AGENT_BIN_DIR}"
+	mv -f "${BINDIR}/liqo-agent" "${AGENT_BIN_DIR}"
 	# moving notifications icons
-	mv -f "${AGENT_ASSETS_DIR}/icons/desktop/*" "${AGENT_ICONS_DIR}" ||
+	mv -f "${AGENT_ASSETS_DIR}"/icons/desktop/* "${AGENT_ICONS_DIR}" ||
 		fatal "[AGENT] [INSTALL]" "Something went wrong while copying files"
 
 	info "[AGENT] [INSTALL] [4/4]" "Installing Desktop Application"
 	# INSTALL AGENT AS A DESKTOP APPLICATION
 	# a) Inject binary path into '.desktop' file.
-	echo Exec='"'"${AGENT_BIN_DIR}/liqo-agent"'"' >> "${AGENT_INSTALL_DIR}/io.liqo.Agent.desktop"
+	echo Exec='"'"${AGENT_BIN_DIR}/liqo-agent"'"' >> "${AGENT_INSTALL_LINUX_DIR}/io.liqo.Agent.desktop"
 	# The x permission is required to let the system trust the application to autostart.
-	chmod +x "${AGENT_INSTALL_DIR}/io.liqo.Agent.desktop"
+	chmod +x "${AGENT_INSTALL_LINUX_DIR}/io.liqo.Agent.desktop"
 	# b) The '.desktop' file is installed in one of the XDG_DATA_* directories to let the
 	# system recognize Liqo Agent as a desktop application.
-	cp -f "${AGENT_INSTALL_DIR}/io.liqo.Agent.desktop" "${AGENT_APP_DIR}"
+	cp -f "${AGENT_INSTALL_LINUX_DIR}/io.liqo.Agent.desktop" "${AGENT_APP_DIR}"
 	# c) The '.desktop' file is installed in one of the XDG_CONFIG_* directories to enable autostart.
 	# Having the file in both directories allows an easier management of a "don't start at boot" option.
-	mv -f "${AGENT_INSTALL_DIR}/io.liqo.Agent.desktop" "${AGENT_AUTOSTART_DIR}"
+	mv -f "${AGENT_INSTALL_LINUX_DIR}/io.liqo.Agent.desktop" "${AGENT_AUTOSTART_DIR}"
 	# d) The Liqo Agent desktop icon is exported in 'scalable' format for the default theme to one of the
 	# $XDG_DATA_*/icons/hicolor/scalable/apps directories.
-	mv -f "${AGENT_INSTALL_DIR}/io.liqo.Agent.desktop" "${AGENT_THEME_DIR}"
+	mv -f "${AGENT_INSTALL_LINUX_DIR}/io.liqo.Agent.svg" "${AGENT_THEME_DIR}"
 	# e) In order to automatically trust the application, the '.desktop' file copies' metadata
 	# are trusted using gio after they are moved in their respective location.
 	if command_exists gio; then
@@ -570,10 +593,10 @@ function uninstall_liqo() {
 }
 
 function uninstall_agent() {
+	setup_installation_platform
+	[[ "${INSTALLATION_PLATFORM}" != "linux" ]] && return 0
 	setup_agent_environment
-	# Do not fail in case of errors, to avoid exiting if Liqo Agent had already been (partially) uninstalled.
 	info "[AGENT] [UNINSTALL]" "Uninstalling Liqo Agent components"
-	set +e
 	# Uninstalling main components.
 	rm -f "${AGENT_BIN_DIR}/liqo-agent"
 	rm -rf "${AGENT_XDG_DATA_DIR}/liqo"
@@ -581,17 +604,7 @@ function uninstall_agent() {
 	rm -f "${AGENT_APP_DIR}/io.liqo.Agent.desktop"
 	rm -f "${AGENT_AUTOSTART_DIR}/io.liqo.Agent.desktop"
 	rm -f "${AGENT_THEME_DIR}/io.liqo.Agent.svg"
-	if [[ -f "${HOME}/.profile" ]] && command_exists sed; then
-		# shellcheck disable=SC2016
-		local STR1='export XDG_CONFIG_DIRS="'"${AGENT_XDG_CONFIG_DIR}:"'$XDG_CONFIG_DIRS"'
-		# shellcheck disable=SC2016
-		local STR2='export XDG_DATA_DIRS="'"${AGENT_XDG_DATA_DIR}:"'$XDG_DATA_DIRS"'
-		# remove the exact added exports, trying not to compromise user edits.
-		sed -i "/$STR1/d" "${HOME}/.profile"
-		sed -i "/$STR2/d" "${HOME}/.profile"
-	fi
 	info "[AGENT] [UNINSTALL]" "Liqo Agent was correctly uninstalled"
-	set -e
 }
 
 function purge_liqo() {

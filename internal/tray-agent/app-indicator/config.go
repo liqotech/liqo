@@ -19,7 +19,15 @@ type config struct {
 
 // newConfig assigns a startup configuration to the Indicator
 func newConfig() *config {
-	liqoPath := filepath.Join(os.Getenv("HOME"), ".local/share/liqo")
+	/*According to Liqo Agent installation process, first check if
+	user has defined XDG_DATA_HOME env variable. Otherwise, use the
+	fallback directory according to XDG specifications
+	(www.freedesktop.com)*/
+	XDGBaseDir, present := os.LookupEnv("XDG_DATA_HOME")
+	if !present {
+		XDGBaseDir = filepath.Join(os.Getenv("HOME"), ".local/share")
+	}
+	liqoPath := filepath.Join(XDGBaseDir, "liqo")
 	if err := os.Setenv("LIQO_PATH", liqoPath); err != nil {
 		os.Exit(1)
 	}
