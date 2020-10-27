@@ -17,7 +17,7 @@ func createReconciler(acceptedAdv, maxAcceptableAdv int32, acceptPolicy configv1
 	// set the client in fake mode
 	crdClient.Fake = true
 	// create fake client for the home cluster
-	advClient, err := advtypes.CreateAdvertisementClient("", nil)
+	advClient, err := advtypes.CreateAdvertisementClient("", nil, true)
 	if err != nil {
 		panic(err)
 	}

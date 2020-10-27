@@ -103,10 +103,10 @@ func startActionPeers(i *app.Indicator) {
 
 // wrapper that starts the Listeners for the events regarding the Advertisement CRD
 func startListenerAdvertisements(i *app.Indicator) {
-	i.Listen(client.ChanAdvNew, i.AgentCtrl().AdvCache().NotifyChannels[client.ChanAdvNew], func(objName string, args ...interface{}) {
+	i.Listen(client.ChanAdvNew, i.AgentCtrl().NotifyChannel(client.ChanAdvNew), func(objName string, args ...interface{}) {
 		ctrl := i.AgentCtrl()
 		if !ctrl.Mocked() {
-			advStore := ctrl.AdvCache().Store
+			advStore := ctrl.Controller(client.CRAdvertisement).Store
 			_, exist, err := advStore.GetByKey(objName)
 			if err != nil {
 				i.NotifyNoConnection()
@@ -118,10 +118,10 @@ func startListenerAdvertisements(i *app.Indicator) {
 		}
 		i.NotifyNewAdv(objName)
 	})
-	i.Listen(client.ChanAdvAccepted, i.AgentCtrl().AdvCache().NotifyChannels[client.ChanAdvAccepted], func(objName string, args ...interface{}) {
+	i.Listen(client.ChanAdvAccepted, i.AgentCtrl().NotifyChannel(client.ChanAdvAccepted), func(objName string, args ...interface{}) {
 		ctrl := i.AgentCtrl()
 		if !ctrl.Mocked() {
-			advStore := ctrl.AdvCache().Store
+			advStore := ctrl.Controller(client.CRAdvertisement).Store
 			_, exist, err := advStore.GetByKey(objName)
 			if err != nil {
 				i.NotifyNoConnection()
@@ -134,10 +134,10 @@ func startListenerAdvertisements(i *app.Indicator) {
 		i.NotifyAcceptedAdv(objName)
 		i.Status().IncConsumePeerings()
 	})
-	i.Listen(client.ChanAdvRevoked, i.AgentCtrl().AdvCache().NotifyChannels[client.ChanAdvRevoked], func(objName string, args ...interface{}) {
+	i.Listen(client.ChanAdvRevoked, i.AgentCtrl().NotifyChannel(client.ChanAdvRevoked), func(objName string, args ...interface{}) {
 		ctrl := i.AgentCtrl()
 		if !ctrl.Mocked() {
-			advStore := ctrl.AdvCache().Store
+			advStore := ctrl.Controller(client.CRAdvertisement).Store
 			_, exist, err := advStore.GetByKey(objName)
 			if err != nil {
 				i.NotifyNoConnection()
@@ -150,7 +150,7 @@ func startListenerAdvertisements(i *app.Indicator) {
 		i.NotifyRevokedAdv(objName)
 		i.Status().DecConsumePeerings()
 	})
-	i.Listen(client.ChanAdvDeleted, i.AgentCtrl().AdvCache().NotifyChannels[client.ChanAdvDeleted], func(objName string, args ...interface{}) {
+	i.Listen(client.ChanAdvDeleted, i.AgentCtrl().NotifyChannel(client.ChanAdvDeleted), func(objName string, args ...interface{}) {
 		i.NotifyDeletedAdv(objName)
 		i.Status().DecConsumePeerings()
 	})

@@ -155,3 +155,20 @@ func (i *Indicator) ShowWarningForbiddenTethered() {
 	i.ShowWarning("LIQO AGENT: mode change not allowed", "TETHERED mode is only available"+
 		"with 1 active peering, offering resources.\n\nPlease disconnect from other peerings and retry.")
 }
+
+//ShowError displays an Error window box.
+func (i *Indicator) ShowError(title, message string) {
+	if !GetGuiProvider().Mocked() {
+		_, _ = dlgs.Error(title, fmt.Sprintln(strutil.CenterText("", menuWidth*2), message))
+	}
+}
+
+//ShowErrorNoConnection is an already configured ShowError() call to warn
+//the user about kubeconfig misconfiguration.
+func (i *Indicator) ShowErrorNoConnection() {
+	if !GetGuiProvider().Mocked() {
+		_, _ = dlgs.Error("LIQO AGENT", fmt.Sprintln(strutil.CenterText("", menuWidth*2),
+			"Liqo Agent could not find a valid kubeconfig file.\n",
+			"Please restart the Agent after providing a correct configuration."))
+	}
+}

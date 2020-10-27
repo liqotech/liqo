@@ -175,8 +175,8 @@ func (ctrl *AgentController) GetLiqoDashSecret() (*string, error) {
 	errNoToken := errors.New("cannot retrieve token")
 	/*In order to better prune its search, the secret is retrieved by its name, using the
 	service account associated with it.*/
-	c := ctrl.KubeClient()
-	liqoSA, err := c.CoreV1().ServiceAccounts(liqoDashboardNamespace).Get(context.TODO(), liqoDashboardSAName, metav1.GetOptions{})
+	c := ctrl.kubeClient
+	liqoSA, err := ctrl.kubeClient.CoreV1().ServiceAccounts(liqoDashboardNamespace).Get(context.TODO(), liqoDashboardSAName, metav1.GetOptions{})
 	if err != nil {
 		return &token, errNoToken
 	}

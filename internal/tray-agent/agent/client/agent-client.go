@@ -1,17 +1,14 @@
 package client
 
 import (
+	"context"
 	"errors"
 	"flag"
 	"github.com/gen2brain/dlgs"
-	"github.com/liqotech/liqo/apis/sharing/v1alpha1"
 	"github.com/liqotech/liqo/pkg/crdClient"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/fake"
-	"k8s.io/client-go/kubernetes/scheme"
-	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 	"os"
 	"path/filepath"
@@ -40,6 +37,7 @@ var mockOnce sync.Once
 func UseMockedAgentController() {
 	mockOnce.Do(func() {
 		mockedController = true
+		crdClient.Fake = true
 	})
 }
 
@@ -51,19 +49,25 @@ func DestroyMockedAgentController() {
 	}
 }
 
+//kubeconfArg specifies the resulting value of the 'kubeconf' program argument after arguments parsing.
+var kubeconfArg *string
+
+//flagOnce prevents the program arguments flag redefinition which would cause panic.
+var flagOnce sync.Once
+
 //AgentController is the data structure that manages Tray Agent interaction with the cluster.
 type AgentController struct {
+	//notifyChannels is a set of channels used by the cache logic to notify a watched event.
+	notifyChannels map[NotifyChannel]chan string
+	//kubeClient is a standard kubernetes client.
 	kubeClient kubernetes.Interface
-	client     *crdClient.CRDClient
-	valid      bool
-	connected  bool
-	advCache   *AdvertisementCache
-	mocked     bool
-}
-
-//KubeClient returns a Kubernetes client to interact with the cluster.
-func (ctrl *AgentController) KubeClient() kubernetes.Interface {
-	return ctrl.kubeClient
+	//crdManager that manages CRD operations.
+	*crdManager
+	//valid specifies whether the provided kubeconfig actually describes a correct configuration.
+	valid bool
+	//connected specifies whether all AgentController components are correctly up and running.
+	connected bool
+	mocked    bool
 }
 
 //Mocked returns if the AgentController is mocked (true).
@@ -71,143 +75,82 @@ func (ctrl *AgentController) Mocked() bool {
 	return ctrl.mocked
 }
 
-//Client returns the controller Client used for cluster interaction.
-func (ctrl *AgentController) Client() *crdClient.CRDClient {
-	return ctrl.client
-}
-
-//Connected returns if the controller client is actually connected to the cluster.
+//Connected returns if the Controller client is actually connected to the cluster.
 func (ctrl *AgentController) Connected() bool {
-	if mockedController {
-		return true
-	}
 	return ctrl.connected
 }
 
-//AdvCache returns the Advertisement cache of the controller.
-func (ctrl *AgentController) AdvCache() *AdvertisementCache {
-	return ctrl.advCache
+//NotifyChannel returns the NotifyChannel of type 'channelType'.
+func (ctrl *AgentController) NotifyChannel(channelType NotifyChannel) chan string {
+	return ctrl.notifyChannels[channelType]
 }
 
-//createClient returns a client for the Tray Agent that can operate on some Liqo CRD.
-func createClient() (*crdClient.CRDClient, error) {
-	var config *rest.Config
-	var err error
-
-	if err = v1alpha1.AddToScheme(scheme.Scheme); err != nil {
-		panic(err)
-	}
-	kubePath, ok := os.LookupEnv("LIQO_KCONFIG")
-	if !ok {
-		if config := AcquireKubeconfig(); !config {
-			return nil, err
+//StartCaches starts each available AgentController cache.
+func (ctrl *AgentController) StartCaches() error {
+	for _, crdCtrl := range ctrl.crdManager.clientMap {
+		if err := crdCtrl.StartCache(); err != nil {
+			return err
 		}
-		kubePath = os.Getenv("LIQO_KCONFIG")
 	}
-	if _, err := os.Stat(kubePath); os.IsNotExist(err) {
-		return nil, err
-	}
-	config, err = crdClient.NewKubeconfig(kubePath, &v1alpha1.GroupVersion)
-	if err != nil {
-		return nil, err
-	}
-	clientSet, err := crdClient.NewFromConfig(config)
-	if err != nil {
-		return nil, err
-	}
-	return clientSet, nil
-}
-
-//StartCaches starts all the CR caches of the AgentController.
-func (ctrl *AgentController) StartCaches() {
-	_ = ctrl.advCache.StartCache(ctrl.client)
+	return nil
 }
 
 //StopCaches stops all the CR caches running for the AgentController.
 func (ctrl *AgentController) StopCaches() {
-	ctrl.advCache.StopCache()
+	for _, crdCtrl := range ctrl.crdManager.clientMap {
+		crdCtrl.StopCache()
+	}
 }
 
-//GetAgentController returns an initialized AgentController singleton.
-func GetAgentController() *AgentController {
-	if agentCtrl == nil {
-		agentCtrl = &AgentController{}
-		agentCtrl.mocked = mockedController
-		agentCtrl.advCache = createAdvCache()
-		crdClient.AddToRegistry("advertisements", &v1alpha1.Advertisement{}, &v1alpha1.AdvertisementList{}, advertisementKeyer, v1alpha1.GroupResource)
-		var err error
-		if agentCtrl.kubeClient, err = createKubeClient(); err == nil {
-			if !mockedController {
-				if agentCtrl.client, err = createClient(); err == nil {
-					agentCtrl.valid = true
-					if test := agentCtrl.ConnectionTest(); test {
-						agentCtrl.StartCaches()
-					}
-				}
-			} else {
-				agentCtrl.valid = true
-				agentCtrl.connected = true
-				agentCtrl.StartCaches()
-			}
-		}
-	}
-	return agentCtrl
-}
+/*acquireKubeconfig sets the LIQO_KCONFIG env variable.
+EnvLiqoKConfig represents the path of a kubeconfig file required to let
+the client connect to the local cluster.
 
-// key extractor for the Advertisement CRD
-func advertisementKeyer(obj runtime.Object) (string, error) {
-	adv, ok := obj.(*v1alpha1.Advertisement)
-	if !ok {
-		return "", errors.New("cannot cast received object to Advertisement")
-	}
-	return adv.Name, nil
-}
+- As first option, the function uses the file path of the 'kubeconf' program argument.
 
-//ConnectionTest tests if the AgentController can connect to the cluster.
-func (ctrl *AgentController) ConnectionTest() bool {
-	if !ctrl.valid {
-		return false
-	}
-	if _, err := ctrl.client.Resource("advertisements").List(metav1.ListOptions{}); err == nil {
-		ctrl.connected = true
-	} else {
-		ctrl.connected = false
-	}
-	return ctrl.connected
-}
+- If that argument is not provided, it defaults to $HOME/.kube/config.
 
-// AcquireKubeconfig sets the LIQO_KCONFIG env variable.
-// LIQO_KCONFIG represents the location of a kubeconfig file in order to let
-// the client connect to the local cluster.
-//
-// The file path - if not expressed with the 'kubeconf' program argument -
-// is set to $HOME/.kube/config .
-//
-// It returns whether a valid file path for a possible kubeconfig has been set.
-func AcquireKubeconfig() bool {
-	kubePath := filepath.Join(os.Getenv("HOME"), ".kube")
-	kubeconfig := flag.String("kubeconf", filepath.Join(kubePath, "config"),
-		"[OPT] absolute path to the kubeconfig file."+
-			" Default = $HOME/.kube/config")
-	flag.Parse()
-	if err := os.Setenv(EnvLiqoKConfig, *kubeconfig); err != nil {
+- If the resulting filepath does not exist, users are asked to manually
+select a valid one. Otherwise, EnvLiqoKConfig is not set.
+*/
+func acquireKubeconfig() {
+	var path string
+	var found bool
+	if err := os.Unsetenv(EnvLiqoKConfig); err != nil {
 		panic(err)
 	}
-	if _, err := os.Stat(*kubeconfig); os.IsNotExist(err) {
-		ok, _ := dlgs.Question("NO VALID KUBECONFIG FILE FOUND", "Liqo could not find a valid kubeconfig file.\n "+
-			"Do you want to select a file?", false)
-		if ok {
-			path, selected, _ := dlgs.File("Select file", "", false)
-			if selected {
-				if err = os.Setenv(EnvLiqoKConfig, path); err != nil {
-					panic(err)
+	if mockedController {
+		path = "/test/path"
+		found = true
+	} else {
+		kubePath := filepath.Join(os.Getenv("HOME"), ".kube")
+		flagOnce.Do(func() {
+			kubeconfArg = flag.String("kubeconf", filepath.Join(kubePath, "config"),
+				"[OPT] absolute path to the kubeconfig file."+
+					" Default = $HOME/.kube/config")
+			flag.Parse()
+		})
+		if _, err := os.Stat(*kubeconfArg); os.IsNotExist(err) {
+			ok, _ := dlgs.Question("NO VALID KUBECONFIG FILE FOUND",
+				"Liqo could not find a valid kubeconfig file.\n "+
+					"Do you want to select one?", false)
+			if ok {
+				filePath, selected, _ := dlgs.File("Select file", "", false)
+				if selected {
+					path = filePath
+					found = true
 				}
-				return true
 			}
+		} else {
+			path = *kubeconfArg
+			found = true
 		}
-		return false
 	}
-	return true
+	if found {
+		if err := os.Setenv(EnvLiqoKConfig, path); err != nil {
+			panic(err)
+		}
+	}
 }
 
 //createKubeClient creates a new out-of-cluster client from a kubeconfig file.
@@ -227,4 +170,47 @@ func createKubeClient() (kubernetes.Interface, error) {
 		return nil, err
 	}
 	return kubernetes.NewForConfig(cfg)
+}
+
+//GetAgentController returns an initialized AgentController singleton.
+func GetAgentController() *AgentController {
+	if agentCtrl == nil {
+		agentCtrl = &AgentController{}
+		agentCtrl.mocked = mockedController
+		//init the notifyChannels that are kept open during the entire Agent execution.
+		agentCtrl.notifyChannels = make(map[NotifyChannel]chan string)
+		for _, i := range notifyChannelNames {
+			agentCtrl.notifyChannels[i] = make(chan string, notifyBuffLength)
+		}
+		var err error
+		//acquire configuration, try to connect clients, start caches.
+		acquireKubeconfig()
+		if agentCtrl.kubeClient, err = createKubeClient(); err == nil {
+			if err = agentCtrl.initCRDManager(); err == nil {
+				if agentCtrl.ConnectionTest() {
+					if err = agentCtrl.StartCaches(); err == nil {
+						agentCtrl.connected = true
+					} else {
+						//stop already started caches since Agent cannot work
+						//with a partially running system.
+						agentCtrl.StopCaches()
+					}
+				}
+
+			}
+		}
+	}
+	return agentCtrl
+}
+
+//ConnectionTest checks the validity of the provided kubernetes configuration via
+//kubeconfig file by trying to establish a connection to the API server.
+func (ctrl *AgentController) ConnectionTest() bool {
+	_, err := ctrl.kubeClient.CoreV1().Nodes().List(context.TODO(), metav1.ListOptions{
+		LabelSelector: masterNodeLabel,
+	})
+	if err == nil {
+		ctrl.valid = true
+	}
+	return ctrl.valid
 }

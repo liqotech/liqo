@@ -37,7 +37,7 @@ func NewDiscoveryCtrl(namespace string, clusterId *clusterID.ClusterID, kubeconf
 		return nil, err
 	}
 
-	advClient, err := advtypes.CreateAdvertisementClient(kubeconfigPath, nil)
+	advClient, err := advtypes.CreateAdvertisementClient(kubeconfigPath, nil, true)
 	if err != nil {
 		klog.Error(err, "unable to create local client for Advertisement")
 		os.Exit(1)

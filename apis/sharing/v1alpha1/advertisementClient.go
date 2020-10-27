@@ -15,7 +15,7 @@ import (
 // - secret != nil                     : the kubeconfig is extracted from the secret
 // - secret == nil && kubeconfig == "" : use an in-cluster configuration
 // - secret == nil && kubeconfig != "" : read the kubeconfig from the provided filepath
-func CreateAdvertisementClient(kubeconfig string, secret *v1.Secret) (*crdClient.CRDClient, error) {
+func CreateAdvertisementClient(kubeconfig string, secret *v1.Secret, watchResources bool) (*crdClient.CRDClient, error) {
 	var config *rest.Config
 	var err error
 
@@ -42,7 +42,7 @@ func CreateAdvertisementClient(kubeconfig string, secret *v1.Secret) (*crdClient
 		return nil, err
 	}
 
-	if crdClient.Fake {
+	if crdClient.Fake && watchResources {
 		store, stop, err := crdClient.WatchResources(clientSet,
 			"advertisements",
 			"",

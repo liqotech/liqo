@@ -11,8 +11,9 @@ import (
 func actionShowAdv() {
 	i := app.GetIndicator()
 	if ctrl := i.AgentCtrl(); ctrl != nil {
-		advCache := ctrl.AdvCache()
-		if ctrl.Connected() && advCache.Running {
+		advController := ctrl.Controller(client.CRAdvertisement)
+		advCache := advController.Store
+		if ctrl.Connected() && advController.Running() {
 			// start indicator ACTION
 			act, pres := i.Action(aShowPeers)
 			if !pres {
@@ -22,7 +23,7 @@ func actionShowAdv() {
 			i.SetIcon(app.IconLiqoMain)
 			// exec ACTION
 			if !ctrl.Mocked() {
-				for _, obj := range advCache.Store.List() {
+				for _, obj := range advCache.List() {
 					adv := obj.(*advtypes.Advertisement)
 					element := act.UseListChild()
 					element.SetTitle(client.DescribeAdvertisement(adv))
