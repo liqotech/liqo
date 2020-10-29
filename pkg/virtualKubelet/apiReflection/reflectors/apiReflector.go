@@ -162,7 +162,12 @@ func (r *GenericAPIReflector) Keyer(namespace, name string) string {
 }
 
 func (r *GenericAPIReflector) GetObjFromForeignCache(namespace, key string) (interface{}, error) {
-	obj, exists, err := r.ForeignInformer(namespace).GetStore().GetByKey(key)
+	informer := r.ForeignInformer(namespace)
+	if informer == nil {
+		return nil, errors.New("informer not yet instantiated")
+	}
+
+	obj, exists, err := informer.GetStore().GetByKey(key)
 	if err != nil {
 		return nil, errors.Wrap(err, "error while getting by key object from foreign cache")
 	}
