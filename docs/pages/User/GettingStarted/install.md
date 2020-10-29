@@ -11,7 +11,6 @@ This procedure comes in two variants:
 * [Default install](#default-install): suitable if your Kubernetes cluster has been installed via `kubeadm`
 * [Custom install](#custom-install): suitable if you did not use `kubeadm` to install your Kubernetes, or you are running another distribution of Kubernetes (such as [K3s](https://k3s.io/)).
 
-
 ### Default install
 
 If your cluster has been installed via `kubeadm`, the Liqo Installer can automatically retrieve the parameters required by Liqo to start.
@@ -31,12 +30,12 @@ Your cluster name can be modified after installation as explained [here](/user/c
 Now, you can install Liqo by launching:
 
 ```bash
-curl -sL https://raw.githubusercontent.com/liqotech/liqo/master/install.sh | bash
+curl -sL https://get.liqo.io | bash
 ```
 
 If you want to know more about possible customizations, you can show the help message:
 ```bash
-curl -sL https://raw.githubusercontent.com/liqotech/liqo/master/install.sh | bash -s -- --help
+curl -sL https://get.liqo.io | bash -s -- --help
 ```
 
 ### Custom install (K3s)
@@ -57,7 +56,7 @@ A possible example of installation is the following (please replace the IP addre
 export KUBECONFIG=/etc/rancher/k3s/k3s.yaml
 export POD_CIDR=10.42.0.0/16
 export SERVICE_CIDR=10.43.0.0/16
-curl -sL https://raw.githubusercontent.com/liqotech/liqo/master/install.sh | bash
+curl -sL https://get.liqo.io | bash
 ```
 
 Obviously, you should have enough privileges to read the K3s kubeconfig file.
