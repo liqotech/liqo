@@ -10,7 +10,7 @@ So far, you tested Liqo with a simple `nginx` application, but Liqo can be used 
 For a complete demo of the capabilities of Liqo, we can play with a micro-services application provided by [Google](https://github.com/GoogleCloudPlatform/microservices-demo), which includes multiple cooperating services:
 
 ```
-kubectl apply -f https://raw.githubusercontent.com/liqotech/microservices-demo/master/release/kubernetes-manifests.yaml -n liqo-demo
+kubectl apply -f https://get.liqo.io/app.yaml -n liqo-demo
 ```
 
 By default, Kubernetes schedules each pod either in the local or in the remote cluster, optimizing each deployment based on the available resources.
