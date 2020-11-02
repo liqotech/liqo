@@ -43,6 +43,14 @@ func (p *KubernetesProvider) CreatePod(ctx context.Context, pod *v1.Pod) error {
 	}
 
 	podTranslated := translation.H2FTranslate(pod, nattedNS)
+	remoteSecrets, err := p.apiController.CacheManager().ListForeignNamespacedObject(apimgmgt.Secrets, podTranslated.Namespace)
+	if err != nil {
+		return err
+	}
+	podTranslated, err = translation.TranslateSA(podTranslated, pod, remoteSecrets)
+	if err != nil {
+		return err
+	}
 
 	apiController, err := p.GetApiController()
 	if err != nil {

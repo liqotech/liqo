@@ -3,8 +3,10 @@ package translation
 import (
 	"fmt"
 	v1 "k8s.io/api/core/v1"
+	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/utils/pointer"
 	"strconv"
 	"strings"
 	"time"
@@ -27,6 +29,11 @@ func F2HTranslate(podForeignIn *v1.Pod, newCidr, namespace string) (podHomeOut *
 		newIp := ChangePodIp(newCidr, podHomeOut.Status.PodIP)
 		podHomeOut.Status.PodIP = newIp
 		podHomeOut.Status.PodIPs[0].IP = newIp
+	}
+
+	if v, ok := podHomeOut.Annotations["liqo-automount-service-account-token"]; ok {
+		podHomeOut.Spec.AutomountServiceAccountToken = pointer.BoolPtr(v == "true")
+		delete(podHomeOut.Annotations, "liqo-automount-service-account-token")
 	}
 
 	podHomeOut.SetCreationTimestamp(metav1.NewTime(t))
@@ -179,4 +186,57 @@ func ChangePodIp(newPodCidr string, oldPodIp string) (newPodIp string) {
 		}
 	}
 	return strings.TrimSuffix(newPodIpBuilder.String(), ".")
+}
+
+func TranslateSA(destPod *v1.Pod, origPod *v1.Pod, remoteSecrets []interface{}) (*v1.Pod, error) {
+	var secret *v1.Secret = nil
+	for _, obj := range remoteSecrets {
+		s, ok := obj.(*v1.Secret)
+		if !ok {
+			continue
+		}
+		if sa, ok := s.Labels["kubernetes.io/service-account.name"]; ok && sa == origPod.Spec.ServiceAccountName {
+			secret = s
+			break
+		}
+	}
+	if secret == nil {
+		return nil, kerrors.NewServiceUnavailable("service account token not found")
+	}
+
+	mountToken := false
+	if origPod.Spec.AutomountServiceAccountToken != nil && *origPod.Spec.AutomountServiceAccountToken {
+		destPod.Annotations["liqo-automount-service-account-token"] = "true"
+		mountToken = true
+	} else {
+		destPod.Annotations["liqo-automount-service-account-token"] = "false"
+	}
+	destPod.Spec.AutomountServiceAccountToken = pointer.BoolPtr(false)
+	if mountToken {
+		destPod.Spec.Volumes = append(destPod.Spec.Volumes, v1.Volume{
+			Name: secret.Name,
+			VolumeSource: v1.VolumeSource{
+				Secret: &v1.SecretVolumeSource{
+					SecretName: secret.Name,
+				},
+			},
+		})
+		destPod.Spec.InitContainers = mountInContainers(destPod.Spec.InitContainers, secret.Name)
+		destPod.Spec.Containers = mountInContainers(destPod.Spec.Containers, secret.Name)
+	}
+
+	return destPod, nil
+}
+
+func mountInContainers(containers []v1.Container, secretName string) []v1.Container {
+	res := make([]v1.Container, len(containers))
+	for i, container := range containers {
+		container.VolumeMounts = append(container.VolumeMounts, v1.VolumeMount{
+			Name:      secretName,
+			ReadOnly:  true,
+			MountPath: "/var/run/secrets/kubernetes.io/serviceaccount",
+		})
+		res[i] = container
+	}
+	return res
 }

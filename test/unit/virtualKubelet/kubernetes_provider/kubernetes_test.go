@@ -6,6 +6,7 @@ import (
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/utils/pointer"
 	"testing"
 )
 
@@ -222,4 +223,102 @@ func TestFilterVolumeMounts(t *testing.T) {
 	result := translation.FilterVolumeMounts(filteredVolumes, volumeMounts)
 
 	assert.ElementsMatch(t, expectedResult, result)
+}
+
+func TestTranslateSA(t *testing.T) {
+	containers := createFakeContainers([]v1.VolumeMount{})
+
+	pDest := &v1.Pod{
+		TypeMeta: metav1.TypeMeta{},
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "toto", Namespace: "test",
+			Annotations: map[string]string{},
+		},
+		Spec: v1.PodSpec{
+			Containers: containers,
+			Volumes:    []v1.Volume{},
+		},
+		Status: v1.PodStatus{},
+	}
+	pOrig := &v1.Pod{
+		TypeMeta: metav1.TypeMeta{},
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "toto", Namespace: "test",
+			Annotations: map[string]string{},
+		},
+		Spec: v1.PodSpec{
+			ServiceAccountName:           "sa-test",
+			AutomountServiceAccountToken: pointer.BoolPtr(true),
+			Containers:                   containers,
+			Volumes:                      []v1.Volume{},
+		},
+		Status: v1.PodStatus{},
+	}
+
+	remoteSecrets := []interface{}{
+		&v1.Secret{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: "secret-1", Namespace: "test",
+			},
+		},
+		&v1.Secret{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: "secret-2", Namespace: "test",
+				Labels: map[string]string{
+					"kubernetes.io/service-account.name": "sa-test-fake",
+				},
+			},
+		},
+		&v1.Secret{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: "secret-3", Namespace: "test",
+				Labels: map[string]string{
+					"kubernetes.io/service-account.name": "sa-test",
+				},
+			},
+		},
+	}
+
+	pRes, err := translation.TranslateSA(pDest, pOrig, remoteSecrets)
+	assert.Nil(t, err)
+	automountAnn, ok := pRes.Annotations["liqo-automount-service-account-token"]
+	assert.True(t, ok, "automount service account token annotation not set")
+	assert.Equal(t, automountAnn, "true", "automount service account token annotation not set correctly")
+	assert.False(t, *pRes.Spec.AutomountServiceAccountToken)
+	expectedVol := v1.Volume{
+		Name: "secret-3",
+		VolumeSource: v1.VolumeSource{
+			Secret: &v1.SecretVolumeSource{
+				SecretName: "secret-3",
+			},
+		},
+	}
+	assert.Contains(t, pRes.Spec.Volumes, expectedVol, "secret volume not found")
+
+	vm := v1.VolumeMount{
+		Name:      "secret-3",
+		ReadOnly:  true,
+		MountPath: "/var/run/secrets/kubernetes.io/serviceaccount",
+	}
+
+	containerHasVol := func(c v1.Container, vm v1.VolumeMount) bool {
+		for _, v := range c.VolumeMounts {
+			if v.Name == vm.Name && v.ReadOnly == vm.ReadOnly && v.MountPath == vm.MountPath {
+				return true
+			}
+		}
+		return false
+	}
+
+	containersHasVol := func(containers []v1.Container, vm v1.VolumeMount) bool {
+		for _, c := range containers {
+			if !containerHasVol(c, vm) {
+				return false
+			}
+		}
+		return true
+	}
+
+	assert.True(t, containersHasVol(pRes.Spec.Containers, vm), "secret not correctly mounted in all containers")
+	assert.True(t, containersHasVol(pRes.Spec.InitContainers, vm), "secret not correctly mounted in all init containers")
 }

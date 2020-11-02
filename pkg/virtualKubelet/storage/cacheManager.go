@@ -145,7 +145,7 @@ func (cm *Manager) GetForeignNamespacedObject(api apimgmt.ApiType, namespace, na
 
 	apiCache := cm.foreignInformers.Namespace(namespace)
 	if apiCache == nil {
-		return nil, errors.Errorf("foreign cache for api %v in namespace %v set to nil", apimgmt.ApiNames[api], namespace)
+		return nil, kerrors.NewServiceUnavailable(fmt.Sprintf("foreign cache for api %v in namespace %v set to nil", apimgmt.ApiNames[api], namespace))
 	}
 
 	return apiCache.getApi(api, utils.Keyer(namespace, name))
@@ -182,7 +182,7 @@ func (cm *Manager) ListForeignNamespacedObject(api apimgmt.ApiType, namespace st
 
 	apiCache := cm.foreignInformers.Namespace(namespace)
 	if apiCache == nil {
-		return nil, errors.Errorf("foreign cache for api %v in namespace %v set to nil", apimgmt.ApiNames[api], namespace)
+		return nil, kerrors.NewServiceUnavailable(fmt.Sprintf("foreign cache for api %v in namespace %v set to nil", apimgmt.ApiNames[api], namespace))
 	}
 
 	objects, err := apiCache.listApi(api)
