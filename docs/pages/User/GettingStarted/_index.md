@@ -13,6 +13,3 @@ The following steps will guide you through a tour to learn how to install Liqo a
 * [Exploit foreign resources](./test): start an *Hello World* application to verify that the two peered clusters can actually share resources correctly and that you are able to run a pod in a foreign cluster.
 * [Deploy a complex application](./further-steps): deploy a complex application based on multiple micro-services, to demonstrate the advanced capabilities of Liqo.
 * [Uninstall Liqo](./uninstall): uninstall Liqo from your cluster.
-
-
-In addition, Liqo provides a user-friendly [Dashboard](../dashboard), which can be used to configure and inspect the most important parameters of the system.

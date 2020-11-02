@@ -43,8 +43,6 @@ in order to know if the foreign cluster is reachable or not. In the Advertisemen
 * `KeepaliveThreshold`: the number of failed attempts to contact the foreign cluster your cluster will tolerate before deleting it.
 * `KeepaliveRetryTime`: the time between an attempt and the next one.
 
-## Discovery configuration
-
 ## Network configuration
 
 ### Setting the cluster gateway

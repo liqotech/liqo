@@ -7,6 +7,16 @@ title: Liqo Docs
 
 # Documentation
 
-Liqo is an open source project started at [Politecnico of Turin](https://www.polito.it) that allows Kubernetes to seamlessly and securely **share resources and services**, enabling to run your tasks on any other cluster available nearby.
+Liqo allows Kubernetes to seamlessly and securely share resources and services, enabling to run tasks on any other 
+cluster available nearby.
 
-[Get started!](user/gettingstarted)
+## Why Liqo
+
+
+
+## What Liqo provides
+
+* Automatic discovery of available clusters with Liqo installed
+* Dynamic peering and resource sharing
+* Seamless offload of local pods on peered cluster
+* Pod-to-pod and pod-to-service connectivity across the clusters, disregarding the installed CNI
