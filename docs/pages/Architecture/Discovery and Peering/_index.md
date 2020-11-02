@@ -1,3 +1,0 @@
----
-title: Discovery and Peering
----
