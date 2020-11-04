@@ -18,9 +18,9 @@ require (
 	github.com/google/uuid v1.1.1
 	github.com/gorilla/mux v1.7.4
 	github.com/grandcat/zeroconf v1.0.0
-	github.com/gruntwork-io/terratest v0.30.7
+	github.com/gruntwork-io/terratest v0.30.16
 	github.com/joho/godotenv v1.3.0
-	github.com/miekg/dns v1.1.27
+	github.com/miekg/dns v1.1.31
 	github.com/mitchellh/go-homedir v1.1.0
 	github.com/ozgio/strutil v0.3.0
 	github.com/pkg/errors v0.9.1
@@ -37,8 +37,8 @@ require (
 	golang.org/x/sys v0.0.0-20201015000850-e3ed0017c211
 	golang.org/x/tools v0.0.0-20200616195046-dc31b401abb5
 	gotest.tools v2.2.0+incompatible
-	k8s.io/api v0.18.6
-	k8s.io/apimachinery v0.18.6
+	k8s.io/api v0.19.3
+	k8s.io/apimachinery v0.19.3
 	k8s.io/client-go v12.0.0+incompatible
 	k8s.io/klog v1.0.0
 	k8s.io/klog/v2 v2.0.0
