@@ -11,7 +11,9 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/kubernetes/pkg/kubelet/envvars"
 	"k8s.io/utils/pointer"
+	"os"
 	"sort"
+	"strings"
 	"testing"
 )
 
@@ -31,6 +33,9 @@ func sortEnv(in []corev1.EnvVar) []corev1.EnvVar {
 }
 
 func TestServiceEnvVar(t *testing.T) {
+	_ = os.Setenv("HOME_KUBERNETES_IP", "127.0.0.1")
+	_ = os.Setenv("HOME_KUBERNETES_PORT", "6443")
+
 	namespace := "namespace"
 	namespace2 := "namespace-02"
 
@@ -38,6 +43,9 @@ func TestServiceEnvVar(t *testing.T) {
 	service2 := testutil.FakeService(namespace, "test", "1.2.3.3", "TCP", 8083)
 	// unused svc to show it isn't populated within a different namespace.
 	service3 := testutil.FakeService(namespace2, "unused", "1.2.3.4", "TCP", 8084)
+
+	homeKubernetes := testutil.FakeService(metav1.NamespaceDefault, "kubernetes", "127.0.0.1", "TCP", 6443)
+	homeKubernetes.Spec.Ports[0].Name = "https"
 
 	cacheReader.AddHomeEntry(metav1.NamespaceDefault, apimgmt.Services, service1)
 	cacheReader.AddHomeEntry(namespace, apimgmt.Services, service2)
@@ -67,6 +75,14 @@ func TestServiceEnvVar(t *testing.T) {
 	remoteSvc.Spec.ClusterIP = "4.3.2.1" // change clusterIP to remote service, this is the IP that we want in remote pod env vars
 	cacheReader.AddForeignEntry(remoteSvc.Namespace, apimgmt.Services, remoteSvc)
 	envs := envvars.FromServices([]*corev1.Service{remoteSvc})
+	kenvs := []corev1.EnvVar{}
+	for _, v := range envvars.FromServices([]*corev1.Service{homeKubernetes}) {
+		if strings.Contains(v.Name, strings.Join([]string{"KUBERNETES_PORT", "6443"}, "_")) {
+			// this avoids that these labels will be recreated by remote kubelet
+			v.Name = strings.Replace(v.Name, "6443", "443", -1)
+		}
+		kenvs = append(kenvs, v)
+	}
 
 	testCases := []struct {
 		name               string          // the name of the test case
@@ -76,16 +92,16 @@ func TestServiceEnvVar(t *testing.T) {
 		{
 			name:               "ServiceLinks disabled",
 			enableServiceLinks: pointer.BoolPtr(false),
-			expectedEnvs: []corev1.EnvVar{
+			expectedEnvs: append([]corev1.EnvVar{
 				{Name: envVarName1, Value: envVarValue1},
-			},
+			}, kenvs...),
 		},
 		{
 			name:               "ServiceLinks enabled",
 			enableServiceLinks: pointer.BoolPtr(true),
 			expectedEnvs: append([]corev1.EnvVar{
 				{Name: envVarName1, Value: envVarValue1},
-			}, envs...),
+			}, append(envs, kenvs...)...),
 		},
 	}
 

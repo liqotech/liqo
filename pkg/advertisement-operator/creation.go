@@ -15,7 +15,7 @@ import (
 )
 
 // create deployment for a virtual-kubelet
-func CreateVkDeployment(adv *advtypes.Advertisement, vkName, vkNamespace, vkImage, initVKImage, nodeName, homeClusterId string) *appsv1.Deployment {
+func CreateVkDeployment(adv *advtypes.Advertisement, vkName, vkNamespace, vkImage, initVKImage, nodeName, homeClusterId string, homeApiServerAddress string, homeApiServerPort string) *appsv1.Deployment {
 
 	command := []string{
 		"/usr/bin/virtual-kubelet",
@@ -165,6 +165,14 @@ func CreateVkDeployment(adv *advtypes.Advertisement, vkName, vkNamespace, vkImag
 								{
 									Name:  "VKUBELET_TAINT_EFFECT",
 									Value: "NoExecute",
+								},
+								{
+									Name:  "HOME_KUBERNETES_IP",
+									Value: homeApiServerAddress,
+								},
+								{
+									Name:  "HOME_KUBERNETES_PORT",
+									Value: homeApiServerPort,
 								},
 							},
 						},

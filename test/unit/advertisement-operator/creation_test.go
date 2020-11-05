@@ -123,7 +123,7 @@ func TestCreateVkDeployment(t *testing.T) {
 	initVkImage := "liqo/init-vk"
 	homeClusterId := "cluster2"
 
-	deploy := pkg.CreateVkDeployment(adv, vkName, vkNamespace, vkImage, initVkImage, nodeName, homeClusterId)
+	deploy := pkg.CreateVkDeployment(adv, vkName, vkNamespace, vkImage, initVkImage, nodeName, homeClusterId, "127.0.0.1", "6443")
 
 	assert.Equal(t, vkName, deploy.Name)
 	assert.Equal(t, vkNamespace, deploy.Namespace)

@@ -22,6 +22,7 @@ import (
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	advtypes "github.com/liqotech/liqo/apis/sharing/v1alpha1"
 	advpkg "github.com/liqotech/liqo/pkg/advertisement-operator"
+	"github.com/liqotech/liqo/pkg/apiServerUtils"
 	"github.com/liqotech/liqo/pkg/crdClient"
 	objectreferences "github.com/liqotech/liqo/pkg/object-references"
 	"github.com/liqotech/liqo/pkg/virtualKubelet"
@@ -295,8 +296,13 @@ func (r *AdvertisementReconciler) createVirtualKubelet(ctx context.Context, adv 
 	if err != nil {
 		return err
 	}
+	homeApiServerAddress, err := apiServerUtils.GetAddress(r.AdvClient.Client())
+	if err != nil {
+		return err
+	}
+	homeApiServerPort := apiServerUtils.GetPort()
 	// Create the virtual Kubelet
-	deploy := advpkg.CreateVkDeployment(adv, name, r.KubeletNamespace, r.VKImage, r.InitVKImage, nodeName, r.HomeClusterId)
+	deploy := advpkg.CreateVkDeployment(adv, name, r.KubeletNamespace, r.VKImage, r.InitVKImage, nodeName, r.HomeClusterId, homeApiServerAddress, homeApiServerPort)
 	err = advpkg.CreateOrUpdate(r.Client, ctx, deploy)
 	if err != nil {
 		return err

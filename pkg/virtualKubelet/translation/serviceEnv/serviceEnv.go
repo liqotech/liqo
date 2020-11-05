@@ -1,12 +1,18 @@
 package serviceEnv
 
 import (
+	goerrors "errors"
 	apimgmgt "github.com/liqotech/liqo/pkg/virtualKubelet/apiReflection"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/storage"
 	v1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/klog"
 	v1helper "k8s.io/kubernetes/pkg/apis/core/v1/helper"
 	"k8s.io/kubernetes/pkg/kubelet/envvars"
+	"k8s.io/utils/net"
+	"os"
+	"strings"
 )
 
 func TranslateServiceEnvVariables(pod *v1.Pod, localNS string, nattedNS string, cacheManager storage.CacheManagerReader) (*v1.Pod, error) {
@@ -59,6 +65,21 @@ func getServiceEnvVarMap(ns string, enableServiceLinks bool, remoteNs string, ca
 		return nil, err
 	}
 
+	kubernetesIp, ok := os.LookupEnv("HOME_KUBERNETES_IP")
+	if !ok {
+		err = goerrors.New("HOME_KUBERNETES_IP env var not set")
+		return nil, err
+	}
+	kubernetesPort, ok := os.LookupEnv("HOME_KUBERNETES_PORT")
+	if !ok {
+		err = goerrors.New("HOME_KUBERNETES_PORT env var not set")
+		return nil, err
+	}
+	port, err := net.ParsePort(kubernetesPort, false)
+	if err != nil {
+		return nil, err
+	}
+
 	// project the services in namespace ns onto the master services
 	for i := range services {
 		// We always want to add environment variables for master kubernetes service
@@ -82,12 +103,36 @@ func getServiceEnvVarMap(ns string, enableServiceLinks bool, remoteNs string, ca
 		}
 	}
 
+	// kubernetes service is translated to our local API Server IP+Port
+	svc := &v1.Service{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "kubernetes",
+		},
+		Spec: v1.ServiceSpec{
+			ClusterIP: kubernetesIp,
+			Ports: []v1.ServicePort{
+				{
+					Name:       "https",
+					Protocol:   "tcp",
+					Port:       int32(port),
+					TargetPort: intstr.FromInt(port),
+				},
+			},
+			Type: v1.ServiceTypeClusterIP,
+		},
+	}
+	serviceMap[svc.Name] = svc
+
 	mappedServices := make([]*v1.Service, 0, len(serviceMap))
 	for key := range serviceMap {
 		mappedServices = append(mappedServices, serviceMap[key])
 	}
 
 	for _, e := range envvars.FromServices(mappedServices) {
+		if strings.Contains(e.Name, strings.Join([]string{"KUBERNETES_PORT", kubernetesPort}, "_")) {
+			// this avoids that these labels will be recreated by remote kubelet
+			e.Name = strings.Replace(e.Name, kubernetesPort, "443", -1)
+		}
 		envVars[e.Name] = e.Value
 	}
 	return envVars, nil
