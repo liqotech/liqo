@@ -2,12 +2,12 @@ package main
 
 import (
 	"github.com/liqotech/liqo/cmd/virtual-kubelet/internal/provider"
-	"github.com/liqotech/liqo/internal/kubernetes"
+	liqoProvider "github.com/liqotech/liqo/pkg/virtualKubelet/provider"
 )
 
 func registerKubernetes(s *provider.Store) error {
 	return s.Register("kubernetes", func(cfg provider.InitConfig) (provider.Provider, error) { //nolint:errcheck
-		return kubernetes.NewKubernetesProvider(
+		return liqoProvider.NewKubernetesProvider(
 			cfg.NodeName,
 			cfg.ClusterId,
 			cfg.HomeClusterId,

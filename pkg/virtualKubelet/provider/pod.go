@@ -1,4 +1,4 @@
-package kubernetes
+package provider
 
 import (
 	"context"
