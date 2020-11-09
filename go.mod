@@ -20,6 +20,7 @@ require (
 	github.com/grandcat/zeroconf v1.0.0
 	github.com/gruntwork-io/terratest v0.30.7
 	github.com/joho/godotenv v1.3.0
+	github.com/julienschmidt/httprouter v1.3.0
 	github.com/miekg/dns v1.1.27
 	github.com/mitchellh/go-homedir v1.1.0
 	github.com/ozgio/strutil v0.3.0
