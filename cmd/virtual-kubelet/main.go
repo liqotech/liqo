@@ -29,7 +29,7 @@ import (
 
 	"github.com/liqotech/liqo/cmd/virtual-kubelet/internal/commands/root"
 	"github.com/liqotech/liqo/cmd/virtual-kubelet/internal/provider"
-	"github.com/liqotech/liqo/internal/log"
+	"github.com/liqotech/liqo/internal/utils/log"
 	"github.com/spf13/cobra"
 )
 

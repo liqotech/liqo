@@ -23,9 +23,9 @@ import (
 	"strings"
 
 	"github.com/liqotech/liqo/cmd/virtual-kubelet/internal/provider"
-	"github.com/liqotech/liqo/internal/errdefs"
-	"github.com/liqotech/liqo/internal/manager"
-	"github.com/liqotech/liqo/internal/node"
+	"github.com/liqotech/liqo/internal/utils/errdefs"
+	"github.com/liqotech/liqo/internal/virtualKubelet/manager"
+	"github.com/liqotech/liqo/internal/virtualKubelet/node"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 	corev1 "k8s.io/api/core/v1"

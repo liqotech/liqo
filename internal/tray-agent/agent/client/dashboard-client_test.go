@@ -2,7 +2,7 @@ package client
 
 import (
 	"fmt"
-	testutil "github.com/liqotech/liqo/internal/test/util"
+	testutil "github.com/liqotech/liqo/internal/virtualKubelet/test/util"
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/api/networking/v1beta1"
