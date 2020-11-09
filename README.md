@@ -34,8 +34,9 @@ Liqo leverages the same highly successful “peering” model of the Internet, w
 
 ## Quickstart
 
-Create two [KinD](kind.sigs.k8s.io/) clusters via our script or bring your own clusters. 
-N.B. Using our cluster, Docker has to be installed on your test machine and user should have permission to issue commands.
+Create two [KinD](https://kind.sigs.k8s.io/) clusters via our script or bring your own clusters.  
+N.B. Using our cluster, Docker has to be installed on your test machine and user should have permission to issue commands.  
+N.B. Scripts are also compatible with `Windows` if you use `Mingw` (provided by default with `git bash`)
 
 ```bash
 source <(curl -L https://get.liqo.io/clusters.sh)
