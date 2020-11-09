@@ -523,3 +523,30 @@ setup() {
 	export -f kubectl
 	all_clusters_unjoined
 }
+
+@test "setup_arch_and_os fails if ARCH is unknown" {
+    function uname() { echo 'does_not_exist'; }
+    export -f uname
+
+    run setup_arch_and_os
+    assert_failure 
+    assert_line --partial "[PRE-FLIGHT] architecture 'does_not_exist' unknown [FATAL]"
+}
+
+@test "setup_arch_and_os fails if combination arch and os is not supported" {
+    function uname() { if [ "$*" == "-m" ] ; then echo "armv7"; else echo "mingw"; fi; }
+    export -f uname
+
+    run setup_arch_and_os
+    assert_failure
+    assert_line --partial "[PRE-FLIGHT] System 'windows-arm' not supported."
+}
+
+@test "setup_arch_and_os success if combination arch and os is supported" {
+    function uname() { if [ "$*" == "-m" ] ; then echo "x86_64"; else echo "linux"; fi; }
+    export -f uname
+
+    run setup_arch_and_os
+    assert_success
+}
+

@@ -178,6 +178,67 @@ function command_exists() {
 	command -v "$1" >/dev/null 2>&1
 }
 
+function darwin_install_gnu_tool(){
+	local PACKAGE=$1
+	local BINARY_PATH=$2
+
+	if ! brew list "${PACKAGE}"  > /dev/null 2>&1; then
+		info "[PRE-FLIGHT][${OS}]" "package '${PACKAGE}' is not installed. Do you want ot install it ?"
+		select yn in "Yes" "No"; do
+				case $yn in
+						Yes ) brew install "${PACKAGE}";
+									info "[PRE-FLIGHT][${OS}]" "package '${PACKAGE}' installed";
+									break;;
+						No ) fatal "[PRE-FLIGHT][${OS}] package '${PACKAGE}' is required. Abort";;
+				esac
+		done
+	fi
+	info "[PRE-FLIGHT][${OS}]" "Add gnu tool provided by '${PACKAGE}' package to the PATH"
+	export PATH="${BINARY_PATH}:$PATH"
+
+
+}
+
+function setup_darwin_package(){
+	info "[PRE-FLIGHT][${OS}]" "Check necessary gnu-tools (getopts, grep ...) are installed"
+	command_exists "brew" || fatal "[PRE-FLIGHT][${OS}]" "please install brew. It need to install package"
+
+	darwin_install_gnu_tool "coreutils" "/usr/local/opt/coreutils/libexec/gnubin"
+	darwin_install_gnu_tool "grep" "/usr/local/opt/grep/libexec/gnubin"
+	darwin_install_gnu_tool "gnu-getopt" "/usr/local/opt/gnu-getopt/bin"
+	darwin_install_gnu_tool "gnu-tar" "/usr/local/opt/gnu-tar/libexec/gnubin"
+}
+
+
+function setup_arch_and_os(){
+	ARCH=$(uname -m)
+	case $ARCH in
+		armv5*) ARCH="armv5";;
+		armv6*) ARCH="armv6";;
+		armv7*) ARCH="arm";;
+		aarch64) ARCH="arm64";;
+		x86) ARCH="386";;
+		x86_64) ARCH="amd64";;
+		i686) ARCH="386";;
+		i386) ARCH="386";;
+		*) fatal "[PRE-FLIGHT] architecture '${ARCH}' unknown"; return ;;
+	esac
+
+	OS=$(uname |tr '[:upper:]' '[:lower:]')
+	case "$OS" in
+		"darwin"*) setup_darwin_package;;
+		# Minimalist GNU for Windows
+		"mingw"*) OS='windows';;
+	esac
+
+	# borrow to helm install script: https://raw.githubusercontent.com/helm/helm/master/scripts/get-helm-3
+	local supported="darwin-amd64\nlinux-386\nlinux-amd64\nlinux-arm\nlinux-arm64\nlinux-ppc64le\nlinux-s390x\nwindows-amd64"
+	if ! echo "${supported}" | grep -q "${OS}-${ARCH}"; then
+		fatal "[PRE-FLIGHT] System '${OS}-${ARCH}' not supported."
+	fi
+
+}
+
 
 function setup_downloader() {
 	if command_exists "curl"; then
@@ -344,14 +405,14 @@ function download() {
 
 function download_helm() {
 	local HELM_VERSION=v3.3.4
-	local HELM_ARCHIVE=helm-${HELM_VERSION}-linux-amd64.tar.gz
+	local HELM_ARCHIVE=helm-${HELM_VERSION}-${OS}-${ARCH}.tar.gz
 	local HELM_URL=https://get.helm.sh/${HELM_ARCHIVE}
 
 	info "[PRE-FLIGHT] [DOWNLOAD]" "Downloading Helm ${HELM_VERSION}"
 	command_exists tar || fatal "[PRE-FLIGHT] [DOWNLOAD]" "'tar' is not available"
-	download "${HELM_URL}" | tar zxf - --directory="${BINDIR}" --wildcards '*/helm' --strip 1 2>/dev/null ||
+	download "${HELM_URL}" | tar zxf - --directory="${BINDIR}" 2>/dev/null ||
 		fatal "[PRE-FLIGHT] [DOWNLOAD]" "Something went wrong while extracting the Helm archive"
-	HELM="${BINDIR}/helm"
+	HELM="${BINDIR}/$OS-$ARCH/helm"
 }
 
 function download_liqo() {
@@ -633,6 +694,7 @@ function main() {
 	setup_colors
 	print_logo
 
+	setup_arch_and_os
 	parse_arguments "$@"
 
 	setup_tmpdir
