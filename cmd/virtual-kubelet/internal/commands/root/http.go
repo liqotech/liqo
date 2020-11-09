@@ -25,7 +25,7 @@ import (
 	"os"
 
 	"github.com/liqotech/liqo/cmd/virtual-kubelet/internal/provider"
-	"github.com/liqotech/liqo/internal/node/api"
+	"github.com/liqotech/liqo/internal/virtualKubelet/node/api"
 	"github.com/pkg/errors"
 )
 

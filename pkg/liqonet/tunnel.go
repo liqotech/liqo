@@ -3,7 +3,7 @@ package liqonet
 import (
 	"errors"
 	netv1alpha1 "github.com/liqotech/liqo/apis/net/v1alpha1"
-	"github.com/liqotech/liqo/internal/errdefs"
+	"github.com/liqotech/liqo/internal/utils/errdefs"
 	"github.com/prometheus/common/log"
 	"github.com/vishvananda/netlink"
 	"net"

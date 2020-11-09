@@ -5,7 +5,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/apparentlymart/go-cidr/cidr"
-	"github.com/liqotech/liqo/internal/errdefs"
+	"github.com/liqotech/liqo/internal/utils/errdefs"
 	"golang.org/x/tools/go/ssa/interp/testdata/src/errors"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"

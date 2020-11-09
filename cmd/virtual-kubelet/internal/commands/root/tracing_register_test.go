@@ -17,7 +17,7 @@ package root
 import (
 	"testing"
 
-	"github.com/liqotech/liqo/internal/errdefs"
+	"github.com/liqotech/liqo/internal/utils/errdefs"
 	"go.opencensus.io/trace"
 )
 

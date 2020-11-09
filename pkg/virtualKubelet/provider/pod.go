@@ -3,9 +3,9 @@ package provider
 import (
 	"context"
 	"fmt"
-	"github.com/liqotech/liqo/internal/errdefs"
-	"github.com/liqotech/liqo/internal/node/api"
-	"github.com/liqotech/liqo/internal/trace"
+	"github.com/liqotech/liqo/internal/utils/errdefs"
+	"github.com/liqotech/liqo/internal/utils/trace"
+	"github.com/liqotech/liqo/internal/virtualKubelet/node/api"
 	apimgmgt "github.com/liqotech/liqo/pkg/virtualKubelet/apiReflection"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/translation"
 	"github.com/pkg/errors"
