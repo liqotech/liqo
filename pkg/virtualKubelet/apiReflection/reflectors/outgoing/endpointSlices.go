@@ -12,10 +12,8 @@ import (
 	kerror "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/watch"
-	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/util/retry"
 	"k8s.io/klog"
-	"strings"
 )
 
 var endpointsliceLabels = map[string]string{
@@ -129,17 +127,17 @@ func (r *EndpointSlicesReflector) PreAdd(obj interface{}) interface{} {
 }
 
 func (r *EndpointSlicesReflector) PreUpdate(newObj, _ interface{}) interface{} {
-	endpointSliceLocal := newObj.(*discoveryv1beta1.EndpointSlice).DeepCopy()
+	endpointSliceHome := newObj.(*discoveryv1beta1.EndpointSlice).DeepCopy()
+	endpointSliceName := endpointSliceHome.Name
 
-	nattedNs, err := r.NattingTable().NatNamespace(endpointSliceLocal.Namespace, false)
+	nattedNs, err := r.NattingTable().NatNamespace(endpointSliceHome.Namespace, false)
 	if err != nil {
 		klog.Error(err)
 		return nil
 	}
-	key := r.Keyer(nattedNs, endpointSliceLocal.Name)
-	oldRemoteObj, err := r.GetObjFromForeignCache(nattedNs, key)
+	oldRemoteObj, err := r.GetCacheManager().GetForeignNamespacedObject(apimgmt.EndpointSlices, nattedNs, endpointSliceName)
 	if err != nil {
-		err = errors.Wrapf(err, "endpointslices %v", key)
+		err = errors.Wrapf(err, "endpointslices %v/%v", nattedNs, endpointSliceName)
 		klog.Error(err)
 		return nil
 	}
@@ -149,8 +147,8 @@ func (r *EndpointSlicesReflector) PreUpdate(newObj, _ interface{}) interface{} {
 	RemoteEpSlice.SetResourceVersion(RemoteEpSlice.ResourceVersion)
 	RemoteEpSlice.SetUID(RemoteEpSlice.UID)
 
-	RemoteEpSlice.Endpoints = filterEndpoints(endpointSliceLocal, string(r.LocalRemappedPodCIDR.Value()), string(r.NodeName.Value()))
-	RemoteEpSlice.Ports = endpointSliceLocal.Ports
+	RemoteEpSlice.Endpoints = filterEndpoints(endpointSliceHome, string(r.LocalRemappedPodCIDR.Value()), string(r.NodeName.Value()))
+	RemoteEpSlice.Ports = endpointSliceHome.Ports
 
 	return RemoteEpSlice
 }
@@ -186,15 +184,6 @@ func filterEndpoints(slice *discoveryv1beta1.EndpointSlice, podCidr string, node
 	return epList
 }
 
-func (r *EndpointSlicesReflector) KeyerFromObj(obj interface{}, remoteNamespace string) string {
-	el, ok := obj.(*discoveryv1beta1.EndpointSlice)
-	if !ok {
-		return ""
-	}
-
-	return strings.Join([]string{el.Name, remoteNamespace}, "/")
-}
-
 func (r *EndpointSlicesReflector) CleanupNamespace(localNamespace string) {
 	foreignNamespace, err := r.NattingTable().NatNamespace(localNamespace, false)
 	if err != nil {
@@ -202,14 +191,11 @@ func (r *EndpointSlicesReflector) CleanupNamespace(localNamespace string) {
 		return
 	}
 
-	// resync for ensuring to be remotely aligned with the foreign cluster state
-	err = r.ForeignInformer(foreignNamespace).GetStore().Resync()
+	objects, err := r.GetCacheManager().ResyncListForeignNamespacedObject(apimgmt.EndpointSlices, foreignNamespace)
 	if err != nil {
-		klog.Errorf("error while resyncing endpointslices foreign cache - ERR: %v", err)
+		klog.Error(err)
 		return
 	}
-
-	objects := r.ForeignInformer(foreignNamespace).GetStore().List()
 
 	retriable := func(err error) bool {
 		switch kerror.ReasonForError(err) {
@@ -242,18 +228,4 @@ func (r *EndpointSlicesReflector) isAllowed(obj interface{}) bool {
 		klog.V(4).Infof("endpointslice %v blacklisted", key)
 	}
 	return !ok
-}
-
-func addEndpointSlicesIndexers() cache.Indexers {
-	i := cache.Indexers{}
-	i["EndpointSlice"] = func(obj interface{}) ([]string, error) {
-		endpointSlice, ok := obj.(*discoveryv1beta1.EndpointSlice)
-		if !ok {
-			return []string{}, errors.New("cannot convert obj to configmap")
-		}
-		return []string{
-			strings.Join([]string{endpointSlice.Namespace, endpointSlice.Name}, "/"),
-		}, nil
-	}
-	return i
 }

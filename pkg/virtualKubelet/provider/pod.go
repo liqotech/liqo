@@ -104,7 +104,16 @@ func (p *KubernetesProvider) GetPod(ctx context.Context, namespace, name string)
 		return nil, err
 	}
 
-	foreignPod := p.apiController.GetMirroredObjectByKey(apimgmgt.Pods, nattedNS, name)
+	foreignPod, err := p.apiController.CacheManager().GetForeignNamespacedObject(apimgmgt.Pods, nattedNS, name)
+	if err != nil {
+		err = errors.Wrapf(err, "error while retrieving foreign pod")
+		klog.Error(err)
+
+		if kerror.IsNotFound(err) {
+			return nil, errdefs.NotFound(err.Error())
+		}
+		return nil, err
+	}
 
 	if foreignPod == nil {
 		if kerror.IsNotFound(err) {
@@ -126,7 +135,10 @@ func (p *KubernetesProvider) GetPodStatus(ctx context.Context, namespace, name s
 		return nil, nil
 	}
 
-	foreignPod := p.apiController.GetMirroredObjectByKey(apimgmgt.Pods, nattedNS, name)
+	foreignPod, err := p.apiController.CacheManager().GetForeignNamespacedObject(apimgmgt.Pods, nattedNS, name)
+	if err != nil {
+		klog.Errorf("error while retrieving foreign pod - ERR: %v", err)
+	}
 
 	if err != nil {
 		return nil, errors.Wrap(err, "error getting status")
@@ -207,8 +219,8 @@ func (p *KubernetesProvider) GetPods(ctx context.Context) ([]*v1.Pod, error) {
 	var podsHomeOut []*v1.Pod
 
 	for _, foreignNamespace := range p.namespaceMapper.MappedNamespaces() {
-		pods := p.apiController.ListMirroredObjects(apimgmgt.Pods, foreignNamespace)
-		if pods == nil {
+		pods, err := p.apiController.CacheManager().ListForeignNamespacedObject(apimgmgt.Pods, foreignNamespace)
+		if err != nil {
 			return nil, errors.New("Unable to get pods")
 		}
 
