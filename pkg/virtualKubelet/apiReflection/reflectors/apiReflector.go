@@ -4,7 +4,7 @@ import (
 	apimgmt "github.com/liqotech/liqo/pkg/virtualKubelet/apiReflection"
 	ri "github.com/liqotech/liqo/pkg/virtualKubelet/apiReflection/reflectors/reflectorsInterfaces"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/namespacesMapping"
-	"github.com/pkg/errors"
+	reflectionCache "github.com/liqotech/liqo/pkg/virtualKubelet/storage"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/kubernetes"
@@ -22,8 +22,8 @@ type GenericAPIReflector struct {
 	ForeignClient kubernetes.Interface
 	HomeClient    kubernetes.Interface
 
-	LocalInformers   map[string]cache.SharedIndexInformer
-	ForeignInformers map[string]cache.SharedIndexInformer
+	CacheManager reflectionCache.CacheManagerReaderAdder
+
 	NamespaceNatting namespacesMapping.NamespaceNatter
 }
 
@@ -35,12 +35,8 @@ func (r *GenericAPIReflector) GetHomeClient() kubernetes.Interface {
 	return r.HomeClient
 }
 
-func (r *GenericAPIReflector) LocalInformer(namespace string) cache.SharedIndexInformer {
-	return r.LocalInformers[namespace]
-}
-
-func (r *GenericAPIReflector) ForeignInformer(namespace string) cache.SharedIndexInformer {
-	return r.ForeignInformers[namespace]
+func (r *GenericAPIReflector) GetCacheManager() reflectionCache.CacheManagerReader {
+	return r.CacheManager
 }
 
 func (r *GenericAPIReflector) NattingTable() namespacesMapping.NamespaceNatter {
@@ -75,7 +71,7 @@ func (r *GenericAPIReflector) PreProcessDelete(obj interface{}) interface{} {
 	return r.PreProcessingHandlers.DeleteFunc(obj)
 }
 
-func (r *GenericAPIReflector) SetInformers(reflectionType ri.ReflectionType, namespace, nattedNs string, localInformer, foreignInformer cache.SharedIndexInformer) {
+func (r *GenericAPIReflector) SetupHandlers(api apimgmt.ApiType, reflectionType ri.ReflectionType, namespace, nattedNs string) {
 	handlers := &cache.ResourceEventHandlerFuncs{
 		AddFunc: func(obj interface{}) {
 			if ok := r.PreProcessIsAllowed(obj); !ok {
@@ -128,13 +124,14 @@ func (r *GenericAPIReflector) SetInformers(reflectionType ri.ReflectionType, nam
 
 	switch reflectionType {
 	case ri.OutgoingReflection:
-		localInformer.AddEventHandler(handlers)
+		if err := r.CacheManager.AddHomeEventHandlers(api, namespace, handlers); err != nil {
+			klog.Errorf("error while setting up home Event handlers for api %v in namespace %v - ERR: %v", api, namespace, err)
+		}
 	case ri.IncomingReflection:
-		foreignInformer.AddEventHandler(handlers)
+		if err := r.CacheManager.AddForeignEventHandlers(api, nattedNs, handlers); err != nil {
+			klog.Errorf("error while setting up foreign Event handlers for api %v in namespace %v - ERR: %v", api, namespace, err)
+		}
 	}
-
-	r.LocalInformers[namespace] = localInformer
-	r.ForeignInformers[nattedNs] = foreignInformer
 }
 
 func (r *GenericAPIReflector) Inform(obj apimgmt.ApiEvent) {
@@ -159,31 +156,4 @@ func (r *GenericAPIReflector) SetPreProcessingHandlers(handlers ri.PreProcessing
 
 func (r *GenericAPIReflector) Keyer(namespace, name string) string {
 	return strings.Join([]string{namespace, name}, "/")
-}
-
-func (r *GenericAPIReflector) GetObjFromForeignCache(namespace, key string) (interface{}, error) {
-	informer := r.ForeignInformer(namespace)
-	if informer == nil {
-		return nil, errors.New("informer not yet instantiated")
-	}
-
-	obj, exists, err := informer.GetStore().GetByKey(key)
-	if err != nil {
-		return nil, errors.Wrap(err, "error while getting by key object from foreign cache")
-	}
-	if !exists {
-		err = r.ForeignInformer(namespace).GetStore().Resync()
-		if err != nil {
-			return nil, errors.Wrap(err, "error while resyncing foreign cache")
-		}
-		obj, exists, err = r.ForeignInformer(namespace).GetStore().GetByKey(key)
-		if err != nil {
-			return nil, errors.Wrap(err, "error while retrieving object from foreign cache")
-		}
-		if !exists {
-			return nil, errors.New("object not found after cache resync")
-		}
-	}
-
-	return obj, nil
 }

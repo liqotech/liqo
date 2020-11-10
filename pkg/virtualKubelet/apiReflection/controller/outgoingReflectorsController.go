@@ -7,9 +7,8 @@ import (
 	ri "github.com/liqotech/liqo/pkg/virtualKubelet/apiReflection/reflectors/reflectorsInterfaces"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/namespacesMapping"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/options"
-	"k8s.io/client-go/informers"
+	"github.com/liqotech/liqo/pkg/virtualKubelet/storage"
 	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/tools/cache"
 	"k8s.io/klog"
 	"sync"
 )
@@ -18,25 +17,25 @@ type OutgoingReflectorsController struct {
 	*ReflectorsController
 }
 
-func NewOutgoingReflectorsController(homeClient, foreignClient kubernetes.Interface,
+func NewOutgoingReflectorsController(homeClient, foreignClient kubernetes.Interface, cacheManager *storage.Manager,
 	outputChan chan apimgmt.ApiEvent,
 	namespaceNatting namespacesMapping.MapperController,
 	opts map[options.OptionKey]options.Option) OutGoingAPIReflectorsController {
 	controller := &OutgoingReflectorsController{
 		&ReflectorsController{
-			outputChan:               outputChan,
-			homeClient:               homeClient,
-			foreignClient:            foreignClient,
-			homeInformerFactories:    make(map[string]informers.SharedInformerFactory),
-			foreignInformerFactories: make(map[string]informers.SharedInformerFactory),
-			apiReflectors:            make(map[apimgmt.ApiType]ri.APIReflector),
-			namespaceNatting:         namespaceNatting,
-			namespacedStops:          make(map[string]chan struct{}),
-			reflectionGroup:          &sync.WaitGroup{},
+			reflectionType:   ri.OutgoingReflection,
+			outputChan:       outputChan,
+			homeClient:       homeClient,
+			foreignClient:    foreignClient,
+			apiReflectors:    make(map[apimgmt.ApiType]ri.APIReflector),
+			namespaceNatting: namespaceNatting,
+			namespacedStops:  make(map[string]chan struct{}),
+			reflectionGroup:  &sync.WaitGroup{},
+			cacheManager:     cacheManager,
 		},
 	}
 
-	for api := range outgoing.ApiMapping {
+	for api := range outgoing.ReflectorBuilders {
 		controller.apiReflectors[api] = controller.buildOutgoingReflector(api, opts)
 	}
 
@@ -49,11 +48,10 @@ func (c *OutgoingReflectorsController) buildOutgoingReflector(api apimgmt.ApiTyp
 		OutputChan:       c.outputChan,
 		ForeignClient:    c.foreignClient,
 		HomeClient:       c.homeClient,
-		LocalInformers:   make(map[string]cache.SharedIndexInformer),
-		ForeignInformers: make(map[string]cache.SharedIndexInformer),
+		CacheManager:     c.cacheManager,
 		NamespaceNatting: c.namespaceNatting,
 	}
-	specReflector := outgoing.ApiMapping[api](apiReflector, opts)
+	specReflector := outgoing.ReflectorBuilders[api](apiReflector, opts)
 	specReflector.SetSpecializedPreProcessingHandlers()
 
 	return specReflector
@@ -64,81 +62,14 @@ func (c *OutgoingReflectorsController) Start() {
 		select {
 		case ns := <-c.namespaceNatting.PollStartOutgoingReflection():
 			c.startNamespaceReflection(ns)
+			klog.V(2).Infof("outgoing reflection for namespace %v started", ns)
 		case ns := <-c.namespaceNatting.PollStopOutgoingReflection():
 			c.stopNamespaceReflection(ns)
+			klog.V(2).Infof("incoming reflection for namespace %v started", ns)
 		}
 	}
-}
-
-func (c *OutgoingReflectorsController) startNamespaceReflection(namespace string) {
-	nattedNs, err := c.namespaceNatting.NatNamespace(namespace, false)
-	if err != nil {
-		klog.Errorf("error while natting namespace - ERR: %v", err)
-		return
-	}
-
-	homeFactory := informers.NewSharedInformerFactoryWithOptions(c.homeClient, defaultResyncPeriod, informers.WithNamespace(namespace))
-	foreignFactory := informers.NewSharedInformerFactoryWithOptions(c.foreignClient, defaultResyncPeriod, informers.WithNamespace(nattedNs))
-
-	c.homeInformerFactories[namespace] = homeFactory
-	c.foreignInformerFactories[nattedNs] = foreignFactory
-
-	for api, handler := range outgoing.HomeInformerBuilders {
-		homeInformer := handler(homeFactory)
-		var foreignInformer cache.SharedIndexInformer
-
-		foreignHandler, ok := outgoing.ForeignInformerBuilders[api]
-		if ok {
-			foreignInformer = foreignHandler(foreignFactory)
-		} else {
-			foreignInformer = handler(foreignFactory)
-		}
-
-		homeIndexer := outgoing.HomeIndexers[api]
-		foreignIndexer, ok := outgoing.ForeignIndexers[api]
-		if !ok {
-			foreignIndexer = homeIndexer
-		}
-
-		if homeIndexer != nil {
-			if err := homeInformer.AddIndexers(homeIndexer()); err != nil {
-				klog.Errorf("Error while setting up home informer - ERR: %v", err)
-			}
-		}
-		if foreignIndexer != nil {
-			if err := foreignInformer.AddIndexers(foreignIndexer()); err != nil {
-				klog.Errorf("Error while setting up foreign informer - ERR: %v", err)
-			}
-		}
-
-		c.apiReflectors[api].(ri.OutgoingAPIReflector).SetInformers(ri.OutgoingReflection, namespace, nattedNs, homeInformer, foreignInformer)
-	}
-
-	c.namespacedStops[namespace] = make(chan struct{})
-	c.reflectionGroup.Add(1)
-	go func() {
-		c.homeInformerFactories[namespace].Start(c.namespacedStops[namespace])
-		c.foreignInformerFactories[nattedNs].Start(c.namespacedStops[namespace])
-
-		<-c.namespacedStops[namespace]
-
-		for _, reflector := range c.apiReflectors {
-			reflector.(ri.OutgoingAPIReflector).CleanupNamespace(namespace)
-		}
-
-		delete(c.homeInformerFactories, namespace)
-		delete(c.foreignInformerFactories, nattedNs)
-		c.reflectionGroup.Done()
-	}()
-
-	klog.V(2).Infof("Outgoing reflection for namespace %v started", namespace)
 }
 
 func (c *OutgoingReflectorsController) stopNamespaceReflection(namespace string) {
 	close(c.namespacedStops[namespace])
-}
-
-func (c *OutgoingReflectorsController) GetMirroringObject(api apimgmt.ApiType, namespace, name string) (interface{}, error) {
-	apiReflector := c.apiReflectors[api].(ri.OutgoingAPIReflector)
-	return apiReflector.GetObjFromForeignCache(namespace, apiReflector.Keyer(namespace, name))
 }

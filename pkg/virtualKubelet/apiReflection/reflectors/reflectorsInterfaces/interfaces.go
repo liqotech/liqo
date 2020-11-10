@@ -3,8 +3,8 @@ package reflectorsInterfaces
 import (
 	apimgmt "github.com/liqotech/liqo/pkg/virtualKubelet/apiReflection"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/namespacesMapping"
+	"github.com/liqotech/liqo/pkg/virtualKubelet/storage"
 	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/tools/cache"
 )
 
 type ReflectionType int
@@ -26,14 +26,14 @@ type APIReflector interface {
 
 	Inform(obj apimgmt.ApiEvent)
 	Keyer(namespace, name string) string
-	GetObjFromForeignCache(string, string) (interface{}, error)
-	LocalInformer(string) cache.SharedIndexInformer
-	ForeignInformer(string) cache.SharedIndexInformer
+
 	GetForeignClient() kubernetes.Interface
 	GetHomeClient() kubernetes.Interface
+	GetCacheManager() storage.CacheManagerReader
 	NattingTable() namespacesMapping.NamespaceNatter
-	SetInformers(reflectionType ReflectionType, namespace, nattedNs string, homeInformer, foreignInformer cache.SharedIndexInformer)
+	SetupHandlers(api apimgmt.ApiType, reflectionType ReflectionType, namespace, nattedNs string)
 	SetPreProcessingHandlers(PreProcessingHandlers)
+
 	SetInforming(handler func(interface{}))
 	PushToInforming(interface{})
 }
@@ -41,7 +41,6 @@ type APIReflector interface {
 type SpecializedAPIReflector interface {
 	SetSpecializedPreProcessingHandlers()
 	HandleEvent(interface{})
-	KeyerFromObj(obj interface{}, remoteNamespace string) string
 	CleanupNamespace(namespace string)
 }
 
@@ -53,9 +52,6 @@ type OutgoingAPIReflector interface {
 type IncomingAPIReflector interface {
 	APIReflector
 	SpecializedAPIReflector
-
-	GetMirroredObject(namespace, name string) interface{}
-	ListMirroredObjects(namespace string) []interface{}
 }
 
 type PreProcessingHandlers struct {

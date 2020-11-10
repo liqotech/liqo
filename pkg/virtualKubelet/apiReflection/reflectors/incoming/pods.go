@@ -2,18 +2,16 @@ package incoming
 
 import (
 	"context"
+	apimgmt "github.com/liqotech/liqo/pkg/virtualKubelet/apiReflection"
 	ri "github.com/liqotech/liqo/pkg/virtualKubelet/apiReflection/reflectors/reflectorsInterfaces"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/options"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/translation"
-	"github.com/pkg/errors"
 	corev1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/watch"
-	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/util/retry"
 	"k8s.io/klog"
-	"strings"
 )
 
 type PodsIncomingReflector struct {
@@ -54,23 +52,6 @@ func (r *PodsIncomingReflector) PreDelete(obj interface{}) interface{} {
 	return r.forgeTranslatedPod(obj)
 }
 
-func (r *PodsIncomingReflector) GetMirroredObject(namespace, name string) interface{} {
-	informer := r.ForeignInformer(namespace)
-	if informer == nil {
-		return r.GetPodFromServer(namespace, name)
-	}
-
-	key := r.Keyer(namespace, name)
-	obj, err := r.GetObjFromForeignCache(namespace, key)
-	if err != nil {
-		err = errors.Wrapf(err, "pod %v", key)
-		klog.Error(err)
-		return nil
-	}
-
-	return obj.(*corev1.Pod).DeepCopy()
-}
-
 func (r *PodsIncomingReflector) GetPodFromServer(namespace, name string) interface{} {
 	pod, err := r.GetForeignClient().CoreV1().Pods(namespace).Get(context.TODO(), name, metav1.GetOptions{})
 	if err != nil {
@@ -82,18 +63,6 @@ func (r *PodsIncomingReflector) GetPodFromServer(namespace, name string) interfa
 	return pod
 }
 
-func (r *PodsIncomingReflector) KeyerFromObj(obj interface{}, remoteNamespace string) string {
-	cm, ok := obj.(*corev1.Pod)
-	if !ok {
-		return ""
-	}
-	return strings.Join([]string{remoteNamespace, cm.Name}, "/")
-}
-
-func (r *PodsIncomingReflector) ListMirroredObjects(namespace string) []interface{} {
-	return r.ForeignInformer(namespace).GetStore().List()
-}
-
 func (r *PodsIncomingReflector) CleanupNamespace(namespace string) {
 	foreignNamespace, err := r.NattingTable().NatNamespace(namespace, false)
 	if err != nil {
@@ -101,14 +70,11 @@ func (r *PodsIncomingReflector) CleanupNamespace(namespace string) {
 		return
 	}
 
-	// resync for ensuring to be remotely aligned with the foreign cluster state
-	err = r.ForeignInformer(foreignNamespace).GetStore().Resync()
+	objects, err := r.GetCacheManager().ResyncListForeignNamespacedObject(apimgmt.Pods, foreignNamespace)
 	if err != nil {
-		klog.Errorf("error while resyncing pods foreign cache - ERR: %v", err)
+		klog.Errorf("error while listing remote objects in namespace %v", namespace)
 		return
 	}
-
-	objects := r.ForeignInformer(foreignNamespace).GetStore().List()
 
 	retriable := func(err error) bool {
 		switch kerrors.ReasonForError(err) {
@@ -138,19 +104,4 @@ func (r *PodsIncomingReflector) forgeTranslatedPod(obj interface{}) *corev1.Pod 
 	}
 
 	return translation.F2HTranslate(po, r.RemoteRemappedPodCIDR.Value().ToString(), nattedNs)
-}
-
-func AddPodsIndexers() cache.Indexers {
-	i := cache.Indexers{}
-	i["pods"] = func(obj interface{}) ([]string, error) {
-		po, ok := obj.(*corev1.Pod)
-		if !ok {
-			return []string{}, errors.New("cannot convert obj to pod")
-		}
-		return []string{
-			strings.Join([]string{po.Namespace, po.Name}, "/"),
-			po.Name,
-		}, nil
-	}
-	return i
 }

@@ -9,10 +9,8 @@ import (
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/watch"
-	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/util/retry"
 	"k8s.io/klog"
-	"strings"
 )
 
 type ServicesReflector struct {
@@ -66,14 +64,6 @@ func (r *ServicesReflector) HandleEvent(e interface{}) {
 	}
 }
 
-func (r *ServicesReflector) KeyerFromObj(obj interface{}, remoteNamespace string) string {
-	cm, ok := obj.(*corev1.Service)
-	if !ok {
-		return ""
-	}
-	return strings.Join([]string{remoteNamespace, cm.Name}, "/")
-}
-
 func (r *ServicesReflector) CleanupNamespace(localNamespace string) {
 	foreignNamespace, err := r.NattingTable().NatNamespace(localNamespace, false)
 	if err != nil {
@@ -81,14 +71,11 @@ func (r *ServicesReflector) CleanupNamespace(localNamespace string) {
 		return
 	}
 
-	// resync for ensuring to be remotely aligned with the foreign cluster state
-	err = r.ForeignInformer(foreignNamespace).GetStore().Resync()
+	objects, err := r.GetCacheManager().ResyncListForeignNamespacedObject(apimgmt.Services, foreignNamespace)
 	if err != nil {
-		klog.Errorf("error while resyncing services foreign cache - ERR: %v", err)
+		klog.Error(err)
 		return
 	}
-
-	objects := r.ForeignInformer(foreignNamespace).GetStore().List()
 
 	retriable := func(err error) bool {
 		switch kerrors.ReasonForError(err) {
@@ -142,6 +129,7 @@ func (r *ServicesReflector) PreAdd(obj interface{}) interface{} {
 
 func (r *ServicesReflector) PreUpdate(newObj interface{}, _ interface{}) interface{} {
 	newSvc := newObj.(*corev1.Service).DeepCopy()
+	newSvcName := newSvc.Name
 
 	nattedNs, err := r.NattingTable().NatNamespace(newSvc.Namespace, false)
 	if err != nil {
@@ -149,10 +137,9 @@ func (r *ServicesReflector) PreUpdate(newObj interface{}, _ interface{}) interfa
 		return nil
 	}
 
-	key := r.Keyer(nattedNs, newSvc.Name)
-	oldRemoteObj, err := r.GetObjFromForeignCache(nattedNs, key)
+	oldRemoteObj, err := r.GetCacheManager().GetForeignNamespacedObject(apimgmt.Services, nattedNs, newSvcName)
 	if err != nil {
-		err = errors.Wrapf(err, "service %v", key)
+		err = errors.Wrapf(err, "service %v/%v", nattedNs, newSvcName)
 		klog.Error(err)
 		return nil
 	}
@@ -207,18 +194,4 @@ func (r *ServicesReflector) isAllowed(obj interface{}) bool {
 		klog.V(4).Infof("service %v blacklisted", key)
 	}
 	return !ok
-}
-
-func addServicesIndexers() cache.Indexers {
-	i := cache.Indexers{}
-	i["services"] = func(obj interface{}) ([]string, error) {
-		svc, ok := obj.(*corev1.Service)
-		if !ok {
-			return []string{}, errors.New("cannot convert obj to service")
-		}
-		return []string{
-			strings.Join([]string{svc.Namespace, svc.Name}, "/"),
-		}, nil
-	}
-	return i
 }

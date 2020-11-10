@@ -5,6 +5,7 @@ import (
 	"github.com/liqotech/liqo/pkg/virtualKubelet/apiReflection"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/namespacesMapping"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/options"
+	"github.com/liqotech/liqo/pkg/virtualKubelet/storage"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/klog"
 	"sync"
@@ -15,14 +16,9 @@ const (
 	nIncomingReflectionWorkers = 2
 )
 
-type ApiControllerCacheManager interface {
-	GetMirroredObjectByKey(api apiReflection.ApiType, namespace string, name string) interface{}
-	GetMirroringObjectByKey(api apiReflection.ApiType, namespace string, name string) (interface{}, error)
-	ListMirroredObjects(api apiReflection.ApiType, namespace string) []interface{}
-}
-
 type Controller struct {
 	mapper                       namespacesMapping.MapperController
+	cacheManager                 *storage.Manager
 	outgoingReflectorsController OutGoingAPIReflectorsController
 	incomingReflectorsController IncomingAPIReflectorsController
 
@@ -43,16 +39,18 @@ func NewApiController(homeClient, foreignClient kubernetes.Interface, mapper nam
 
 	outgoingReflectionInforming := make(chan apiReflection.ApiEvent)
 	incomingReflectionInforming := make(chan apiReflection.ApiEvent)
+	cacheManager := storage.NewManager(homeClient, foreignClient)
 
 	c := &Controller{
 		mapper:                       mapper,
-		outgoingReflectorsController: NewOutgoingReflectorsController(homeClient, foreignClient, outgoingReflectionInforming, mapper, opts),
-		incomingReflectorsController: NewIncomingReflectorsController(homeClient, foreignClient, incomingReflectionInforming, mapper, opts),
+		outgoingReflectorsController: NewOutgoingReflectorsController(homeClient, foreignClient, cacheManager, outgoingReflectionInforming, mapper, opts),
+		incomingReflectorsController: NewIncomingReflectorsController(homeClient, foreignClient, cacheManager, incomingReflectionInforming, mapper, opts),
 		outgoingReflectionGroup:      &sync.WaitGroup{},
 		incomingReflectionGroup:      &sync.WaitGroup{},
 		mainControllerRoutine:        &sync.WaitGroup{},
 		outgoingReflectionInforming:  outgoingReflectionInforming,
 		incomingReflectionInforming:  incomingReflectionInforming,
+		cacheManager:                 cacheManager,
 		started:                      false,
 		stopController:               make(chan struct{}),
 	}
@@ -103,16 +101,8 @@ func (c *Controller) SetInformingFunc(api apiReflection.ApiType, handler func(in
 	c.incomingReflectorsController.SetInforming(api, handler)
 }
 
-func (c *Controller) GetMirroredObjectByKey(api apiReflection.ApiType, namespace string, name string) interface{} {
-	return c.incomingReflectorsController.GetMirroredObject(api, namespace, name)
-}
-
-func (c *Controller) GetMirroringObjectByKey(api apiReflection.ApiType, namespace string, name string) (interface{}, error) {
-	return c.outgoingReflectorsController.GetMirroringObject(api, namespace, name)
-}
-
-func (c *Controller) ListMirroredObjects(api apiReflection.ApiType, namespace string) []interface{} {
-	return c.incomingReflectorsController.ListMirroredObjects(api, namespace)
+func (c *Controller) CacheManager() *storage.Manager {
+	return c.cacheManager
 }
 
 func (c *Controller) StartController() {
