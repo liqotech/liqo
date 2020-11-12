@@ -3,6 +3,7 @@ package discovery
 import (
 	"context"
 	"errors"
+	"github.com/grandcat/zeroconf"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/klog"
 	"os"
@@ -29,29 +30,28 @@ func (txtData TxtData) Encode() ([]string, error) {
 	return res, nil
 }
 
-func Decode(address string, port string, data []string) (*TxtData, error) {
-	var res = TxtData{}
+func (txtData *TxtData) Decode(address string, port string, data []string) error {
 	for _, d := range data {
 		if strings.HasPrefix(d, "id=") {
-			res.ID = d[len("id="):]
+			txtData.ID = d[len("id="):]
 		} else if strings.HasPrefix(d, "namespace=") {
-			res.Namespace = d[len("namespace="):]
+			txtData.Namespace = d[len("namespace="):]
 		} else if strings.HasPrefix(d, "name=") {
-			res.Name = d[len("name="):]
+			txtData.Name = d[len("name="):]
 		} else if strings.HasPrefix(d, "url=") {
 			// used in LAN discovery
-			res.ApiUrl = d[len("url="):]
+			txtData.ApiUrl = d[len("url="):]
 		}
 	}
 
 	// used in WAN discovery
 	if address != "" && port != "" {
-		res.ApiUrl = "https://" + address + ":" + port
+		txtData.ApiUrl = "https://" + address + ":" + port
 	}
-	if res.ID == "" || res.Namespace == "" || res.ApiUrl == "" {
-		return nil, errors.New("TxtData missing required field")
+	if txtData.ID == "" || txtData.Namespace == "" || txtData.ApiUrl == "" {
+		return errors.New("TxtData missing required field")
 	}
-	return &res, nil
+	return nil
 }
 
 func (discovery *DiscoveryCtrl) GetTxtData() (*TxtData, error) {
@@ -100,4 +100,18 @@ func (discovery *DiscoveryCtrl) GetAPIUrl() (string, error) {
 	}
 
 	return "https://" + address + ":" + port, nil
+}
+
+func (txtData *TxtData) Get(discovery *DiscoveryCtrl, entry *zeroconf.ServiceEntry) error {
+	if discovery.isForeign(entry.AddrIPv4) {
+		err := txtData.Decode("", "", entry.Text)
+		if err != nil {
+			klog.Error(err)
+			return err
+		}
+		klog.V(4).Infof("Remote cluster found at %s", txtData.ApiUrl)
+		txtData.Ttl = entry.TTL
+		return nil
+	}
+	return nil
 }

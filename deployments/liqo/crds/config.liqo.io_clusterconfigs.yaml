@@ -138,6 +138,9 @@ spec:
                 type: object
               discoveryConfig:
                 properties:
+                  authService:
+                    default: _auth._tcp
+                    type: string
                   autojoin:
                     type: boolean
                   autojoinUntrusted:

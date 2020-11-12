@@ -107,7 +107,9 @@ type DiscoveryConfig struct {
 
 	Name    string `json:"name"`
 	Service string `json:"service"`
-	Domain  string `json:"domain"`
+	// +kubebuilder:default="_auth._tcp"
+	AuthService string `json:"authService,omitempty"`
+	Domain      string `json:"domain"`
 	// +kubebuilder:validation:Maximum=65355
 	// +kubebuilder:validation:Minimum=1
 	Port int `json:"port"`

@@ -16,4 +16,7 @@ func (discovery *DiscoveryCtrl) sendAnswer() {
 	if discovery.mdnsServer != nil {
 		discovery.mdnsServer.SendMulticast()
 	}
+	if discovery.mdnsServerAuth != nil {
+		discovery.mdnsServerAuth.SendMulticast()
+	}
 }

@@ -370,15 +370,16 @@ func testMergeClusters(t *testing.T) {
 	fc, ok := tmp.(*v1alpha1.ForeignCluster)
 	assert.Equal(t, ok, true)
 
-	txt := &discovery.TxtData{
-		ID:        fc.Spec.ClusterIdentity.ClusterID,
-		Namespace: fc.Spec.Namespace,
-		ApiUrl:    strings.Replace(fc.Spec.ApiUrl, "127.0.0.1", "127.0.0.2", -1),
-	}
-	fc, updated, err := clientCluster.discoveryCtrl.CheckUpdate(txt, fc, fc.Spec.DiscoveryType, nil)
+	data := discovery.NewDiscoveryData(
+		&discovery.TxtData{
+			ID:        fc.Spec.ClusterIdentity.ClusterID,
+			Namespace: fc.Spec.Namespace,
+			ApiUrl:    strings.Replace(fc.Spec.ApiUrl, "127.0.0.1", "127.0.0.2", -1),
+		}, nil)
+	fc, updated, err := clientCluster.discoveryCtrl.CheckUpdate(data, fc, fc.Spec.DiscoveryType, nil)
 	assert.NilError(t, err)
 	assert.Assert(t, updated)
-	assert.Equal(t, fc.Spec.ApiUrl, txt.ApiUrl, "API URL not changed")
+	assert.Equal(t, fc.Spec.ApiUrl, data.TxtData.ApiUrl, "API URL not changed")
 
 	time.Sleep(100 * time.Millisecond)
 

@@ -98,6 +98,11 @@ func (discovery *DiscoveryCtrl) handleConfiguration(config configv1alpha1.Discov
 			discovery.Config.Port = config.Port
 			reloadServer = true
 		}
+		if discovery.Config.AuthService != config.AuthService {
+			discovery.Config.AuthService = config.AuthService
+			reloadServer = true
+			reloadClient = true
+		}
 		if discovery.Config.Service != config.Service {
 			discovery.Config.Service = config.Service
 			reloadServer = true

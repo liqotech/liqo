@@ -35,7 +35,8 @@ func testTxtData(t *testing.T) {
 	txt, err := txtData.Encode()
 	assert.NilError(t, err, "Error encoding txtData to DNS format")
 
-	txtData2, err := discovery.Decode("127.0.0.1", strings.Split(serverCluster.cfg.Host, ":")[1], txt)
+	txtData2 := &discovery.TxtData{}
+	err = txtData2.Decode("127.0.0.1", strings.Split(serverCluster.cfg.Host, ":")[1], txt)
 	assert.NilError(t, err, "Error decoding txtData from DNS format")
 	assert.Equal(t, txtData, *txtData2, "TxtData before and after encoding doesn't match")
 }
@@ -51,25 +52,19 @@ func testMdns(t *testing.T) {
 
 	time.Sleep(1 * time.Second)
 
-	stopChan := make(chan bool, 1)
-
-	resultChan := make(chan *discovery.TxtData, 10)
+	resultChan := make(chan discovery.DiscoverableData, 10)
 	ctx, cancel := context.WithCancel(context.TODO())
 	defer cancel()
-	go clientCluster.discoveryCtrl.Resolve(ctx, service, domain, stopChan, resultChan)
+	go clientCluster.discoveryCtrl.Resolve(ctx, service, domain, resultChan, false)
 
 	hasTxts := false
 	select {
 	case <-resultChan:
 		hasTxts = true
-		stopChan <- true
 	case <-ctx.Done():
 		klog.Info("ctx.Done")
-		break
 	case <-time.NewTimer(10 * time.Second).C:
 		klog.Info("timeout")
-		stopChan <- true
-		break
 	}
 	assert.Assert(t, hasTxts)
 }
