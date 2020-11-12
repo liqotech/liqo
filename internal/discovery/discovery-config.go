@@ -29,13 +29,13 @@ func (discovery *DiscoveryCtrl) GetDiscoveryConfig(crdClient *crdClient.CRDClien
 }
 
 func (discovery *DiscoveryCtrl) handleDispatcherConfig(config configv1alpha1.DispatcherConfig) {
-	role, err := discovery.crdClient.Client().RbacV1().ClusterRoles().Get(context.TODO(), "crdReplicator-role", metav1.GetOptions{})
+	role, err := discovery.crdClient.Client().RbacV1().ClusterRoles().Get(context.TODO(), "crdreplicator-role", metav1.GetOptions{})
 	create := false
 	if errors.IsNotFound(err) {
 		// create it
 		role = &rbacv1.ClusterRole{
 			ObjectMeta: metav1.ObjectMeta{
-				Name: "crdReplicator-role",
+				Name: "crdreplicator-role",
 			},
 			Rules: []rbacv1.PolicyRule{},
 		}

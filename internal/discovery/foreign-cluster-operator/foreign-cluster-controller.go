@@ -593,7 +593,7 @@ func (r *ForeignClusterReconciler) getForeignConfig(clusterID string, owner *dis
 		return "", err
 	}
 
-	// crdReplicator role binding
+	// crdreplicator role binding
 	err = r.setDispatcherRole(clusterID, sa)
 	if err != nil {
 		return "", err
@@ -804,12 +804,12 @@ func (r *ForeignClusterReconciler) createRoleBindingIfNotExists(clusterID string
 }
 
 func (r *ForeignClusterReconciler) setDispatcherRole(clusterID string, sa *apiv1.ServiceAccount) error {
-	_, err := r.crdClient.Client().RbacV1().ClusterRoleBindings().Get(context.TODO(), clusterID+"-crdReplicator", metav1.GetOptions{})
+	_, err := r.crdClient.Client().RbacV1().ClusterRoleBindings().Get(context.TODO(), clusterID+"-crdreplicator", metav1.GetOptions{})
 	if errors.IsNotFound(err) {
 		// does not exist
 		rb := &rbacv1.ClusterRoleBinding{
 			ObjectMeta: metav1.ObjectMeta{
-				Name: clusterID + "-crdReplicator",
+				Name: clusterID + "-crdreplicator",
 				OwnerReferences: []metav1.OwnerReference{
 					{
 						APIVersion: "v1",
@@ -829,7 +829,7 @@ func (r *ForeignClusterReconciler) setDispatcherRole(clusterID string, sa *apiv1
 			RoleRef: rbacv1.RoleRef{
 				APIGroup: "rbac.authorization.k8s.io",
 				Kind:     "ClusterRole",
-				Name:     "crdReplicator-role",
+				Name:     "crdreplicator-role",
 			},
 		}
 		_, err = r.crdClient.Client().RbacV1().ClusterRoleBindings().Create(context.TODO(), rb, metav1.CreateOptions{})

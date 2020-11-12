@@ -57,4 +57,4 @@ dependencies:
 - name: crdReplicator
   version: "0.1.0"
   repository: file://subcharts/crdReplicator/
-  condition: crdReplicator.enabled
+  condition: crdreplicator.enabled

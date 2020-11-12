@@ -75,7 +75,7 @@ func startDispatcherOperator() {
 	}
 	err = dOperator.WatchConfiguration(newConfig, &configv1alpha1.GroupVersion)
 	if err != nil {
-		klog.Errorf("an error occurred while starting the configuration watcher of crdReplicator operator: %s", err)
+		klog.Errorf("an error occurred while starting the configuration watcher of crdreplicator operator: %s", err)
 		os.Exit(-1)
 	}
 	fc := getForeignClusterResource()
