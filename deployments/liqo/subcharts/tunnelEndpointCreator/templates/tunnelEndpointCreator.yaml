@@ -13,9 +13,17 @@ rules:
     - ""
     resources:
     - nodes
+    - secrets
+    - pods
+    - services
     verbs:
+    - create
+    - delete
     - get
     - list
+    - patch
+    - update
+    - watch
 
   - apiGroups:
     - net.liqo.io
@@ -139,9 +147,17 @@ spec:
         - image: {{ .Values.image.repository }}{{ .Values.global.suffix | default .Values.suffix }}:{{ .Values.global.version | default .Values.version }}
           imagePullPolicy: {{ .Values.image.pullPolicy }}
           name: tunnelendpointcreator-operator
+          securityContext:
+            privileged: true
+            capabilities:
+              add:
+                - NET_ADMIN
           command: ["/usr/bin/liqonet"]
           args:
             - "-run-as=tunnelEndpointCreator-operator"
+          volumeMounts:
+          - mountPath: /dev/net/tun
+            name: dev-net-tun
           resources:
             limits:
               cpu: 20m
@@ -150,4 +166,8 @@ spec:
               cpu: 20m
               memory: 50M
       restartPolicy: Always
+      volumes:
+      - name: dev-net-tun
+        hostPath:
+          path: /dev/net/tun
 status: {}

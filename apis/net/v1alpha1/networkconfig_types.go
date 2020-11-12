@@ -33,7 +33,11 @@ type NetworkConfigSpec struct {
 	//network subnet used in the local cluster for the pod IPs
 	PodCIDR string `json:"podCIDR"`
 	//public IP of the node where the VPN tunnel is created
-	TunnelPublicIP string `json:"tunnelPublicIP"`
+	EndpointIP string `json:"endpointIP"`
+	//vpn technology used to interconnect two clusters
+	BackendType string `json:"backendType"`
+	//connection parameters
+	BackendConfig map[string]string `json:"backend_config"`
 }
 
 // NetworkConfigStatus defines the observed state of NetworkConfig
@@ -72,7 +76,7 @@ func init() {
 	SchemeBuilder.Register(&NetworkConfig{}, &NetworkConfigList{})
 
 	crdClient.AddToRegistry("networkconfigs", &NetworkConfig{}, &NetworkConfigList{}, nil, schema.GroupResource{
-		Group:    GroupResource.Group,
+		Group:    TunnelEndpointGroupResource.Group,
 		Resource: "networkconfigs",
 	})
 }

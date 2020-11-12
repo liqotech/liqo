@@ -36,28 +36,57 @@ spec:
           spec:
             description: TunnelEndpointSpec defines the desired state of TunnelEndpoint
             properties:
+              backend_config:
+                additionalProperties:
+                  type: string
+                description: connection parameters
+                type: object
+              backendType:
+                description: vpn technology used to interconnect two clusters
+                type: string
               clusterID:
                 description: 'INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
-                  Important: Run "make" to regenerate code after modifying this file'
+                  Important: Run "make" to regenerate code after modifying this file
+                  the ID of the remote cluster that will receive this CRD'
+                type: string
+              endpointIP:
+                description: public IP of the node where the VPN tunnel is created
                 type: string
               podCIDR:
-                type: string
-              tunnelPublicIP:
+                description: network subnet used in the local cluster for the pod
+                  IPs
                 type: string
             required:
+            - backendType
+            - backend_config
             - clusterID
+            - endpointIP
             - podCIDR
-            - tunnelPublicIP
             type: object
           status:
             description: TunnelEndpointStatus defines the observed state of TunnelEndpoint
             properties:
-              NAT:
+              connection:
+                properties:
+                  peerConfiguration:
+                    additionalProperties:
+                      type: string
+                    type: object
+                  status:
+                    type: string
+                  statusMessage:
+                    type: string
+                type: object
+              incomingNAT:
                 type: boolean
+              localPodCIDR:
+                type: string
               localRemappedPodCIDR:
                 type: string
               localTunnelPublicIP:
                 type: string
+              outgoingNAT:
+                type: boolean
               phase:
                 description: 'INSERT ADDITIONAL STATUS FIELD - define observed state
                   of cluster Important: Run "make" to regenerate code after modifying

@@ -31,7 +31,9 @@ func getObj() *unstructured.Unstructured {
 			"spec": map[string]interface{}{
 				"clusterID":      "clusterID-test",
 				"podCIDR":        "10.0.0.0/12",
-				"tunnelPublicIP": "192.16.5.1",
+				"endpointIP":     "192.16.5.1",
+				"backendType":    "wireguard",
+				"backend_config": map[string]interface{}{},
 			},
 		},
 	}
@@ -231,7 +233,9 @@ func TestCRDReplicatorReconciler_ModifiedHandler(t *testing.T) {
 	newSpec := map[string]interface{}{
 		"clusterID":      "clusterID-test-modified",
 		"podCIDR":        "10.0.0.0/12",
-		"tunnelPublicIP": "192.16.5.1",
+		"endpointIP":     "192.16.5.1",
+		"backendType":    "wireguard",
+		"backend_config": map[string]interface{}{},
 	}
 	newStatus := map[string]interface{}{
 		"podCIDRNAT": "10.200.0.0/12",

@@ -1,7 +1,7 @@
 package test
 
 import (
-	controllers "github.com/liqotech/liqo/internal/liqonet"
+	"github.com/liqotech/liqo/internal/liqonet/tunnelEndpointCreator"
 	pkg "github.com/liqotech/liqo/pkg/virtualKubelet"
 	"time"
 )
@@ -12,7 +12,7 @@ const (
 	HostName              = "testHost"
 	NodeName              = "testNode"
 	AdvName               = pkg.AdvertisementPrefix + ForeignClusterId
-	TepName               = controllers.TunEndpointNamePrefix + ForeignClusterId
+	TepName               = tunnelEndpointCreator.TunEndpointNamePrefix + ForeignClusterId
 	EndpointsName         = "testEndpoints"
 	HomeClusterId         = "homeClusterID"
 	ForeignClusterId      = "foreignClusterID"

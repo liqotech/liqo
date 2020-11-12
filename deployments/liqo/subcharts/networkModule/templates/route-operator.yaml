@@ -2,21 +2,14 @@
 apiVersion: v1
 kind: ServiceAccount
 metadata:
-  name: route-operator-service-account
+  name: liqo-route-service-account
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
   creationTimestamp: null
-  name: route-operator-manager-role
+  name: liqo-route-manager-role
 rules:
-  - apiGroups:
-      - ""
-    resources:
-      - nodes
-    verbs:
-      - get
-      - list
   - apiGroups:
       - net.liqo.io
     resources:
@@ -56,34 +49,56 @@ rules:
     verbs:
       - create
       - patch
+  - apiGroups:
+      - ""
+    resources:
+      - secrets
+    verbs:
+      - create
+      - delete
+      - get
+      - list
+      - patch
+      - update
+      - watch
+  - apiGroups:
+      - ""
+    resources:
+      - pods
+      - services
+    verbs:
+      - list
+      - watch
+      - update
+      - get
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
 metadata:
-  name: route-operator-manager-rolebinding
+  name: liqo-route-manager-rolebinding
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
-  name: route-operator-manager-role
+  name: liqo-route-manager-role
 subjects:
   - kind: ServiceAccount
-    name: route-operator-service-account
+    name: liqo-route-service-account
     namespace: {{ .Release.Namespace }}
 ---
 apiVersion: apps/v1
 kind: DaemonSet
 metadata:
   labels:
-    run: route-operator
-  name: route-operator
+    run: liqo-route
+  name: liqo-route
 spec:
   selector:
     matchLabels:
-      run: route-operator
+      run: liqo-route
   template:
     metadata:
       labels:
-        run: route-operator
+        run: liqo-route
     spec:
       tolerations:
         - key: CriticalAddonsOnly
@@ -107,13 +122,13 @@ spec:
                     operator: NotIn
                     values:
                       - virtual-node
-      serviceAccountName: route-operator-service-account
+      serviceAccountName: liqo-route-service-account
       containers:
         - image: {{ .Values.routeOperator.image.repository }}{{ .Values.global.suffix | default .Values.suffix }}:{{ .Values.global.version | default .Values.version }}
           imagePullPolicy: {{ .Values.routeOperator.image.pullPolicy }}
-          name: route-operator
+          name: liqo-route
           command: ["/usr/bin/liqonet"]
-          args: ["-run-as=route-operator"]
+          args: ["-run-as=liqo-route"]
           resources:
             limits:
               cpu: 100m

@@ -26,24 +26,48 @@ import (
 type TunnelEndpointSpec struct {
 	// INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
 	// Important: Run "make" to regenerate code after modifying this file
-	ClusterID      string `json:"clusterID"`
-	PodCIDR        string `json:"podCIDR"`
-	TunnelPublicIP string `json:"tunnelPublicIP"`
+	//the ID of the remote cluster that will receive this CRD
+	ClusterID string `json:"clusterID"`
+	//network subnet used in the local cluster for the pod IPs
+	PodCIDR string `json:"podCIDR"`
+	//public IP of the node where the VPN tunnel is created
+	EndpointIP string `json:"endpointIP"`
+	//vpn technology used to interconnect two clusters
+	BackendType string `json:"backendType"`
+	//connection parameters
+	BackendConfig map[string]string `json:"backend_config"`
 }
 
 // TunnelEndpointStatus defines the observed state of TunnelEndpoint
 type TunnelEndpointStatus struct {
 	// INSERT ADDITIONAL STATUS FIELD - define observed state of cluster
 	// Important: Run "make" to regenerate code after modifying this file\
-	Phase                 string `json:"phase,omitempty"` //two phases: New, Processed
-	LocalRemappedPodCIDR  string `json:"localRemappedPodCIDR,omitempty"`
-	RemoteRemappedPodCIDR string `json:"remoteRemappedPodCIDR,omitempty"`
-	NATEnabled            bool   `json:"NAT,omitempty"`
-	RemoteTunnelPublicIP  string `json:"remoteTunnelPublicIP,omitempty"`
-	LocalTunnelPublicIP   string `json:"localTunnelPublicIP,omitempty"`
-	TunnelIFaceIndex      int    `json:"tunnelIFaceIndex,omitempty"`
-	TunnelIFaceName       string `json:"tunnelIFaceName,omitempty"`
+	Phase                 string     `json:"phase,omitempty"` //two phases: New, Processed
+	LocalRemappedPodCIDR  string     `json:"localRemappedPodCIDR,omitempty"`
+	LocalPodCIDR          string     `json:"localPodCIDR,omitempty"`
+	RemoteRemappedPodCIDR string     `json:"remoteRemappedPodCIDR,omitempty"`
+	OutgoingNAT           bool       `json:"outgoingNAT,omitempty"` // if true, the local podCIDR has been remapped by the remote cluster
+	IncomingNAT           bool       `json:"incomingNAT,omitempty"` // if true, the remote podCIDR has been remapped by the local cluster
+	RemoteEndpointIP      string     `json:"remoteTunnelPublicIP,omitempty"`
+	LocalEndpointIP       string     `json:"localTunnelPublicIP,omitempty"`
+	TunnelIFaceIndex      int        `json:"tunnelIFaceIndex,omitempty"`
+	TunnelIFaceName       string     `json:"tunnelIFaceName,omitempty"`
+	Connection            Connection `json:"connection,omitempty"`
 }
+
+type Connection struct {
+	Status            ConnectionStatus  `json:"status,omitempty"`
+	StatusMessage     string            `json:"statusMessage,omitempty"`
+	PeerConfiguration map[string]string `json:"peerConfiguration,omitempty"`
+}
+
+type ConnectionStatus string
+
+const (
+	Connected       ConnectionStatus = "connected"
+	Connecting      ConnectionStatus = "connecting"
+	ConnectionError ConnectionStatus = "error"
+)
 
 // +kubebuilder:object:root=true
 // +kubebuilder:subresource:status

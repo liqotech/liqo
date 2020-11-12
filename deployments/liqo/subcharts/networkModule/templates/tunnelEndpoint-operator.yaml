@@ -2,12 +2,12 @@
 apiVersion: v1
 kind: ServiceAccount
 metadata:
-  name: tunnel-operator-service-account
+  name: liqo-gateway-service-account
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
-  name: tunnel-operator-manager-role
+  name: liqo-gateway-manager-role
 rules:
   - apiGroups:
       - net.liqo.io
@@ -33,48 +33,68 @@ rules:
       - ""
     resources:
       - events
+      - secrets
     verbs:
       - create
+      - delete
+      - get
+      - list
       - patch
+      - update
+      - watch
+  - apiGroups:
+      - ""
+    resources:
+      - services
+      - pods
+    verbs:
+      - get
+      - list
+      - update
+      - watch
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
 metadata:
-  name: tunnel-operator-manager-rolebinding
+  name: liqo-gateway-manager-rolebinding
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
-  name: tunnel-operator-manager-role
+  name: liqo-gateway-manager-role
 subjects:
   - kind: ServiceAccount
-    name: tunnel-operator-service-account
+    name: liqo-gateway-service-account
     namespace: {{ .Release.Namespace }}
 ---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
   labels:
-    run: tunnel-operator
-  name: tunnel-operator
+    run: liqo-gateway
+    app: liqo-gateway
+  name: liqo-gateway
 spec:
   replicas: 1
   selector:
     matchLabels:
-      run: tunnel-operator
+      run: liqo-gateway
   strategy: {}
   template:
     metadata:
       labels:
-        run: tunnel-operator
+        run: liqo-gateway
+        app: liqo-gateway
+        net.liqo.io/gatewayPod: "true"
     spec:
-      nodeSelector: 
-        net.liqo.io/gateway: "true"
-      serviceAccountName: tunnel-operator-service-account
+      serviceAccountName: liqo-gateway-service-account
       containers:
         - image: {{ .Values.tunnelEndpointOperator.image.repository }}{{ .Values.global.suffix | default .Values.suffix }}:{{ .Values.global.version | default .Values.version }}
           imagePullPolicy: {{ .Values.tunnelEndpointOperator.image.pullPolicy }}
-          name: tunnel-operator
+          name: liqo-gateway
+          ports:
+          - containerPort: 5871
           command: ["/usr/bin/liqonet"]
+          args: ["-run-as=liqo-gateway"]
           resources:
             limits:
               cpu: 10m
@@ -93,9 +113,28 @@ spec:
               valueFrom:
                 fieldRef:
                   fieldPath: metadata.namespace
-            - name: LOCAL_TUNNEL_PUBLIC_IP
+            - name: POD_IP
               valueFrom:
                 fieldRef:
                   fieldPath: status.podIP
-      hostNetwork: true
+      hostNetwork: false
       restartPolicy: Always
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: wireguard-endpoint
+  labels:
+    net.liqo.io/gateway: "true"
+spec:
+  type: NodePort
+  ports:
+    - name: wireguard
+      port: 5871
+      targetPort: 5871
+      protocol: UDP
+    - name: wireguard-overlay
+      protocol: UDP
+      port: 51871
+  selector:
+    net.liqo.io/gatewayPod: "true"

@@ -19,7 +19,7 @@ func CreateTunnelEndpointClient(kubeconfig string) (*crdClient.CRDClient, error)
 		panic(err)
 	}
 
-	crdClient.AddToRegistry("tunnelendpoints", &TunnelEndpoint{}, &TunnelEndpointList{}, Keyer, GroupResource)
+	crdClient.AddToRegistry("tunnelendpoints", &TunnelEndpoint{}, &TunnelEndpointList{}, Keyer, TunnelEndpointGroupResource)
 
 	config, err = crdClient.NewKubeconfig(kubeconfig, &GroupVersion)
 	if err != nil {
