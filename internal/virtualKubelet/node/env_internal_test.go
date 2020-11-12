@@ -16,9 +16,6 @@ package node
 
 import (
 	"context"
-	test2 "github.com/liqotech/liqo/pkg/virtualKubelet/apiReflection/controller/test"
-	"github.com/liqotech/liqo/pkg/virtualKubelet/namespacesMapping/test"
-	"k8s.io/kubernetes/pkg/kubelet/envvars"
 	"sort"
 	"testing"
 
@@ -111,11 +108,6 @@ var (
 		invalidKey3: "will-be-skipped",
 		keyBaz:      "__baz__",
 	})
-)
-
-var (
-	namespaceMapper = test.NewMockNamespaceMapperController()
-	apiController   = &test2.MockController{}
 )
 
 // TestPopulatePodWithInitContainersUsingEnv populates the environment of a pod with four containers (two init containers, two containers) using ".env".
@@ -223,7 +215,7 @@ func TestPopulatePodWithInitContainersUsingEnv(t *testing.T) {
 	}
 
 	// Populate the pod's environment.
-	err := populateEnvironmentVariables(context.Background(), pod, namespaceMapper, apiController, rm, er)
+	err := populateEnvironmentVariables(context.Background(), pod, rm, er)
 	assert.Check(t, err)
 
 	// Make sure that all the containers' environments contain all the expected keys and values.
@@ -383,7 +375,7 @@ func TestPopulatePodWithInitContainersUsingEnvWithFieldRef(t *testing.T) {
 	}
 
 	// Populate the pod's environment.
-	err := populateEnvironmentVariables(context.Background(), pod, namespaceMapper, apiController, rm, er)
+	err := populateEnvironmentVariables(context.Background(), pod, rm, er)
 	assert.NilError(t, err)
 
 	// Make sure that all the containers' environments contain all the expected keys and values.
@@ -499,7 +491,7 @@ func TestPopulatePodWithInitContainersUsingEnvFrom(t *testing.T) {
 	}
 
 	// Populate the pod's environment.
-	err := populateEnvironmentVariables(context.Background(), pod, namespaceMapper, apiController, rm, er)
+	err := populateEnvironmentVariables(context.Background(), pod, rm, er)
 	assert.Check(t, err)
 
 	// Make sure that all the containers' environments contain all the expected keys and values.
@@ -578,7 +570,7 @@ func TestEnvFromTwoConfigMapsAndOneSecret(t *testing.T) {
 	}
 
 	// Populate the container's environment.
-	err := populateContainerEnvironment(context.Background(), pod, &pod.Spec.Containers[0], namespaceMapper, apiController, rm, er)
+	err := populateContainerEnvironment(context.Background(), pod, &pod.Spec.Containers[0], rm, er)
 	assert.Check(t, err)
 
 	// Make sure that the container's environment contains all the expected keys and values.
@@ -640,7 +632,7 @@ func TestEnvFromConfigMapAndSecretWithInvalidKeys(t *testing.T) {
 	}
 
 	// Populate the pods's environment.
-	err := populateEnvironmentVariables(context.Background(), pod, namespaceMapper, apiController, rm, er)
+	err := populateEnvironmentVariables(context.Background(), pod, rm, er)
 	assert.Check(t, err)
 
 	// Make sure that the container's environment has two variables (corresponding to the single valid key in both the configmap and the secret).
@@ -711,7 +703,7 @@ func TestEnvOverridesEnvFrom(t *testing.T) {
 	}
 
 	// Populate the pods's environment.
-	err := populateEnvironmentVariables(context.Background(), pod, namespaceMapper, apiController, rm, er)
+	err := populateEnvironmentVariables(context.Background(), pod, rm, er)
 	assert.Check(t, err)
 
 	// Make sure that the container's environment contains all the expected keys and values.
@@ -788,7 +780,7 @@ func TestEnvFromInexistentConfigMaps(t *testing.T) {
 	}
 
 	// Populate the pods's environment.
-	err := populateEnvironmentVariables(context.Background(), pod, namespaceMapper, apiController, rm, er)
+	err := populateEnvironmentVariables(context.Background(), pod, rm, er)
 	assert.Check(t, is.ErrorContains(err, ""))
 
 	// Make sure that two events have been recorded with the correct reason and message.
@@ -845,7 +837,7 @@ func TestEnvFromInexistentSecrets(t *testing.T) {
 	}
 
 	// Populate the pods's environment.
-	err := populateEnvironmentVariables(context.Background(), pod, namespaceMapper, apiController, rm, er)
+	err := populateEnvironmentVariables(context.Background(), pod, rm, er)
 	assert.Check(t, is.ErrorContains(err, ""))
 
 	// Make sure that two events have been recorded with the correct reason and message.
@@ -898,7 +890,7 @@ func TestEnvReferencingInexistentConfigMapKey(t *testing.T) {
 	}
 
 	// Populate the pods's environment.
-	err := populateEnvironmentVariables(context.Background(), pod, namespaceMapper, apiController, rm, er)
+	err := populateEnvironmentVariables(context.Background(), pod, rm, er)
 	assert.Check(t, is.ErrorContains(err, ""))
 
 	// Make sure that two events have been recorded with the correct reason and message.
@@ -948,7 +940,7 @@ func TestEnvReferencingInexistentSecretKey(t *testing.T) {
 	}
 
 	// Populate the pods's environment.
-	err := populateEnvironmentVariables(context.Background(), pod, namespaceMapper, apiController, rm, er)
+	err := populateEnvironmentVariables(context.Background(), pod, rm, er)
 	assert.Check(t, is.ErrorContains(err, ""))
 
 	// Make sure that two events have been recorded with the correct reason and message.
@@ -985,15 +977,6 @@ func TestServiceEnvVar(t *testing.T) {
 			},
 		},
 	}
-
-	remoteSvc := service2.DeepCopy()
-	var err error
-	remoteSvc.Namespace, err = namespaceMapper.NatNamespace(namespace, true)
-	assert.NilError(t, err)
-	remoteSvc.Spec.ClusterIP = "4.3.2.1" // change clusterIP to remote service, this is the IP that we want in remote pod env vars
-	apiController.AddMirroringObject(remoteSvc, remoteSvc.Name)
-	envs := envvars.FromServices([]*corev1.Service{remoteSvc})
-
 	testCases := []struct {
 		name               string          // the name of the test case
 		enableServiceLinks *bool           // enabling service links
@@ -1009,16 +992,16 @@ func TestServiceEnvVar(t *testing.T) {
 		{
 			name:               "ServiceLinks enabled",
 			enableServiceLinks: &bTrue,
-			expectedEnvs: append([]corev1.EnvVar{
+			expectedEnvs: []corev1.EnvVar{
 				{Name: envVarName1, Value: envVarValue1},
-			}, envs...),
+			},
 		},
 	}
 
 	for _, tc := range testCases {
 		pod.Spec.EnableServiceLinks = tc.enableServiceLinks
 
-		err := populateEnvironmentVariables(context.Background(), pod, namespaceMapper, apiController, rm, er)
+		err := populateEnvironmentVariables(context.Background(), pod, rm, er)
 		assert.NilError(t, err, "[%s]", tc.name)
 		assert.Check(t, is.DeepEqual(pod.Spec.Containers[0].Env, tc.expectedEnvs, sortOpt))
 	}
@@ -1061,7 +1044,7 @@ func TestComposingEnv(t *testing.T) {
 	}
 
 	// Populate the pods's environment.
-	err := populateEnvironmentVariables(context.Background(), pod, namespaceMapper, apiController, rm, er)
+	err := populateEnvironmentVariables(context.Background(), pod, rm, er)
 	assert.Check(t, err)
 
 	// Make sure that the container's environment contains all the expected keys and values.
