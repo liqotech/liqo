@@ -1,5 +1,11 @@
 name: "Installer Testing"
-on: [push]
+on:
+  push:
+    tags:
+      - 'v*'
+    branches:
+      - master
+  pull_request:
 jobs:
   installer-testing:
     name: "Installer Testing"
