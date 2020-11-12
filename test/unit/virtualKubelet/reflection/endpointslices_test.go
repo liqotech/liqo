@@ -2,6 +2,7 @@ package reflection
 
 import (
 	"context"
+	"github.com/liqotech/liqo/test/unit/virtualKubelet/utils"
 	"gotest.tools/assert"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/api/discovery/v1beta1"
@@ -11,7 +12,7 @@ import (
 )
 
 func TestEndpointAdd(t *testing.T) {
-	epReflector := InitTest("endpointSlices")
+	epReflector := utils.InitTest("endpointSlices")
 	if epReflector == nil {
 		t.Fail()
 	}
@@ -77,7 +78,7 @@ func TestEndpointAdd(t *testing.T) {
 }
 
 func TestEndpointAdd2(t *testing.T) {
-	epReflector := InitTest("endpointSlices")
+	epReflector := utils.InitTest("endpointSlices")
 	if epReflector == nil {
 		t.Fail()
 	}
