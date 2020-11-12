@@ -6,74 +6,77 @@ import (
 	"k8s.io/klog"
 	"net"
 	"os"
+	"reflect"
 	"time"
 )
 
 func (discovery *DiscoveryCtrl) StartResolver(stopChan <-chan bool) {
 	for {
 		if discovery.Config.EnableDiscovery {
-			discovery.Resolve(context.TODO(), discovery.Config.Service, discovery.Config.Domain, stopChan, nil)
+			ctx, cancel := context.WithCancel(context.TODO())
+			go discovery.Resolve(ctx, discovery.Config.Service, discovery.Config.Domain, nil, false)
+			go discovery.Resolve(ctx, "_auth._tcp", discovery.Config.Domain, nil, true)
+			select {
+			case <-stopChan:
+				cancel()
+			case <-time.NewTimer(time.Duration(discovery.resolveContextRefreshTime) * time.Minute).C:
+				cancel()
+			}
 		} else {
 			break
 		}
 	}
 }
 
-func (discovery *DiscoveryCtrl) Resolve(ctx context.Context, service string, domain string, stopChan <-chan bool, resultChan chan *TxtData) {
+func (discovery *DiscoveryCtrl) Resolve(ctx context.Context, service string, domain string, resultChan chan DiscoverableData, isAuth bool) {
 	resolver, err := zeroconf.NewResolver(zeroconf.SelectIPTraffic(zeroconf.IPv4))
 	if err != nil {
 		klog.Error(err, err.Error())
 		os.Exit(1)
 	}
 
-	entries := make(chan *zeroconf.ServiceEntry, 10)
-	go func(results <-chan *zeroconf.ServiceEntry) {
+	entries := make(chan *zeroconf.ServiceEntry)
+	go func(results <-chan *zeroconf.ServiceEntry, isAuth bool) {
 		for entry := range results {
-			data, err := discovery.getTxt(entry)
+			var data DiscoverableData
+			if isAuth {
+				data = &AuthData{}
+			} else {
+				data = &TxtData{}
+			}
+			err := data.Get(discovery, entry)
 			if err != nil {
-				klog.Error(err)
 				continue
 			}
 			if resultChan != nil {
 				resultChan <- data
 			}
-			if data != nil {
+			if !reflect.ValueOf(data).IsNil() {
 				// it is not a local cluster
 				klog.V(4).Infof("FC data: %v", data)
-				discovery.UpdateForeignLAN(data)
+				resolvedData.add(entry.Instance, data)
+				if resolvedData.isComplete(entry.Instance) {
+					dData, err := resolvedData.get(entry.Instance)
+					if err != nil {
+						klog.Error(err)
+						continue
+					}
+					if dData.TxtData.ID == discovery.ClusterId.GetClusterID() || dData.TxtData.ID == "" {
+						continue
+					}
+					discovery.UpdateForeignLAN(dData)
+				}
 			}
 		}
-	}(entries)
+	}(entries, isAuth)
 
-	ctx, cancel := context.WithCancel(ctx)
-	defer cancel()
 	err = resolver.Browse(ctx, service, domain, entries)
 	if err != nil {
 		klog.Error(err, err.Error())
 		os.Exit(1)
 	}
-	select {
-	case <-stopChan:
-		return
-	case <-time.NewTimer(time.Duration(discovery.resolveContextRefreshTime) * time.Minute).C:
-		return
-	case <-ctx.Done():
-		return
-	}
-}
-
-func (discovery *DiscoveryCtrl) getTxt(entry *zeroconf.ServiceEntry) (*TxtData, error) {
-	if discovery.isForeign(entry.AddrIPv4) {
-		txtData, err := Decode("", "", entry.Text)
-		if err != nil {
-			klog.Error(err)
-			return nil, err
-		}
-		klog.V(4).Infof("Remote cluster found at %s", txtData.ApiUrl)
-		txtData.Ttl = entry.TTL
-		return txtData, nil
-	}
-	return nil, nil
+	<-ctx.Done()
+	klog.Info("exit")
 }
 
 func (discovery *DiscoveryCtrl) getIPs() map[string]bool {

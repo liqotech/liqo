@@ -81,8 +81,8 @@ func ResolveWan(c *dns.Client, dnsAddr string, ptr *dns.PTR) (*discovery.TxtData
 		return nil, err
 	}
 
-	txtData, err := discovery.Decode(srv.Target, strconv.Itoa(int(srv.Port)), txt)
-	if err != nil {
+	txtData := &discovery.TxtData{}
+	if err = txtData.Decode(srv.Target, strconv.Itoa(int(srv.Port)), txt); err != nil {
 		klog.Error(err, err.Error())
 		return nil, err
 	}
