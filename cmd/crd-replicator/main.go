@@ -72,7 +72,7 @@ func main() {
 		RemoteDynSharedInformerFactory: make(map[string]dynamicinformer.DynamicSharedInformerFactory),
 	}
 	if err = d.SetupWithManager(mgr); err != nil {
-		klog.Error(err, "unable to setup the crdReplicator-operator")
+		klog.Error(err, "unable to setup the crdreplicator-operator")
 		os.Exit(1)
 	}
 	err = d.WatchConfiguration(cfg, &configv1alpha1.GroupVersion)
@@ -80,7 +80,7 @@ func main() {
 		klog.Error(err)
 		os.Exit(-1)
 	}
-	klog.Info("Starting crdReplicator-operator")
+	klog.Info("Starting crdreplicator-operator")
 	if err := mgr.Start(ctrl.SetupSignalHandler()); err != nil {
 		klog.Error(err, "problem running manager")
 		os.Exit(1)

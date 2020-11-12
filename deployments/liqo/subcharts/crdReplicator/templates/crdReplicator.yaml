@@ -108,7 +108,7 @@ spec:
         - image: {{ .Values.image.repository }}{{ .Values.global.suffix | default .Values.suffix }}:{{ .Values.global.version | default .Values.version }}
           imagePullPolicy: {{ .Values.image.pullPolicy }}
           name: crdreplicator-operator
-          command: ["/usr/bin/crdReplicator"]
+          command: ["/usr/bin/crd-replicator"]
           env:
             - name: NAMESPACE
               valueFrom:

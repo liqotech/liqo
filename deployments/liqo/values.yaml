@@ -87,7 +87,7 @@ liqodash:
 
 crdReplicator:
   image:
-    repository: "liqo/crdreplicator"
+    repository: "liqo/crd-replicator"
     pullPolicy: "IfNotPresent"
   enabled: true
 

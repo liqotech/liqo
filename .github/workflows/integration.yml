@@ -27,7 +27,7 @@ jobs:
         if [ "$GITHUB_EVENT_NAME" == "pull_request" ]; then
           echo "::set-output name=master::false"
           echo "::set-output name=commit_ref::${{ github.event.pull_request.head.sha }}"
-        elif [ ! -z VERSION ]; then
+        elif [ "${{ steps.get_version.outputs.VERSION }}" != "" ]; then
           echo "::set-output name=master::false"
           echo "::set-output name=commit_ref::${{ steps.get_version.outputs.VERSION }}"
         else
@@ -36,7 +36,7 @@ jobs:
         fi
 
         # The suffix to append to the repository name if not triggered by a push to master
-        [[ "${{ github.event_name }}" == "push" && -z VERSION ]] && \
+        [[ "${{ steps.get_version.outputs.VERSION }}" == "" ]] && \
           echo "::set-output name=repo-suffix::-ci" ||
           echo "::set-output name=repo-suffix::"
 
@@ -64,7 +64,7 @@ jobs:
         - init-pod-mutator
         - pod-mutator
         - peering-request-webhook-init
-        - crdreplicator
+        - crd-replicator
     steps:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v1
@@ -85,8 +85,8 @@ jobs:
         uses: docker/build-push-action@v2
         with:
           tags: |
-            liqo/${{ matrix.component }}:latest
-            liqo/${{ matrix.component }}:${{ needs.configure.outputs.commit_ref }}
+            liqo/${{ matrix.component }}${{ needs.configure.outputs.repo-suffix }}:latest
+            liqo/${{ matrix.component }}${{ needs.configure.outputs.repo-suffix }}:${{ needs.configure.outputs.commit_ref }}
           push: ${{ needs.configure.outputs.repo-push }}
           file: build/${{ matrix.component }}/Dockerfile
 
@@ -104,18 +104,7 @@ jobs:
        - uses: actions/checkout@v2
          with:
            ref: "${{ env.commit_ref }}"
-       - name: "Make scripts executable"
-         run: chmod +x ./scripts/utils/*
-       - name: "Set PR number"
-         run: echo "branch_owner=`git log -1 --format='%ae' $commit_ref^!`"
-       - name: "Install python dependencies"
-         run: pip install requests
-       - name: "Notify PR Event to Liqops"
-         run: |
-           curl -X POST https://api.github.com/repos/liqotech/${{ matrix.component }}/dispatches \
-           -u ${{ secrets.CI_TOKEN }} \
-           --data '
-       - name: Notify Event to CrownOps
+       - name: Notify Event to ${{ matrix.component }}
          uses: peter-evans/repository-dispatch@v1
          with:
            token: ${{ secrets.CI_TOKEN }}
@@ -214,7 +203,6 @@ jobs:
         curl -L -O "https://github.com/kubernetes-sigs/kubebuilder/releases/download/v${version}/kubebuilder_${version}_linux_${arch}.tar.gz"
         tar -zxvf kubebuilder_${version}_linux_${arch}.tar.gz
         mv kubebuilder_${version}_linux_${arch} kubebuilder && sudo mv kubebuilder /usr/local/
-        export PATH=$PATH:/usr/local/kubebuilder/bin
 
     - name: Get dependencies for Test execution
       run: |
