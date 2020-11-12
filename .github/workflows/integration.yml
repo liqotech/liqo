@@ -7,8 +7,47 @@ on:
       - master
   pull_request:
 jobs:
+  configure:
+    name: Preliminary configuration
+    runs-on: ubuntu-latest
+    outputs:
+      commit_ref: ${{ steps.configure.outputs.commit_ref }}
+      repo-suffix: ${{ steps.configure.outputs.repo-suffix }}
+      repo-push: ${{ steps.configure.outputs.repo-push }}
+      master: ${{ steps.configure.outputs.master }}
+    steps:
+    - name: Get the version
+      id: get_version
+      run: echo ::set-output name=VERSION::$(echo $GITHUB_REF | cut -d / -f 3)
+      if: startsWith(github.ref, 'refs/tags/v')
+    - name: Configure
+      id: configure
+      run: |
+        # The ref of the commit to checkout (do not use the merge commit if pull request)
+        if [ "$GITHUB_EVENT_NAME" == "pull_request" ]; then
+          echo "::set-output name=master::false"
+          echo "::set-output name=commit_ref::${{ github.event.pull_request.head.sha }}"
+        elif [ ! -z VERSION ]; then
+          echo "::set-output name=master::false"
+          echo "::set-output name=commit_ref::${{ steps.get_version.outputs.VERSION }}"
+        else
+          echo "::set-output name=master::true"
+          echo "::set-output name=commit_ref::${{ github.sha }}"
+        fi
+
+        # The suffix to append to the repository name if not triggered by a push to master
+        [[ "${{ github.event_name }}" == "push" && -z VERSION ]] && \
+          echo "::set-output name=repo-suffix::-ci" ||
+          echo "::set-output name=repo-suffix::"
+
+        # Do not push the resulting images to DockerHub if triggered by a fork
+        [[  "${{ github.event.repository.full_name }}" != 'liqotech/liqo' ]] && \
+            echo "::set-output name=repo-push::false" || \
+            echo "::set-output name=repo-push::true"
+
   build:
     runs-on: ubuntu-latest
+    needs: configure
     strategy:
       fail-fast: false
       matrix:
@@ -25,60 +64,36 @@ jobs:
         - init-pod-mutator
         - pod-mutator
         - peering-request-webhook-init
-        - crdReplicator
+        - crdreplicator
     steps:
-      - name: setup-docker
-        uses: docker-practice/actions-setup-docker@0.0.1
-      - name: Get the version
-        id: get_version
-        run: echo ::set-output name=VERSION::$(echo $GITHUB_REF | cut -d / -f 3)
-        if: github.event.repository.full_name == 'liqotech/liqo' && startsWith(github.ref, 'refs/tags/v')
-      - name: Set the commit to build
-        run: |
-          if [ "$GITHUB_EVENT_NAME" == "pull_request" ]; then
-            echo "commit_ref=${{ github.event.pull_request.head.sha }}" >> $GITHUB_ENV
-          elif [ ! -z ${{ steps.get_version.outputs.VERSION }} ]; then
-            echo "commit_ref=${{ steps.get_version.outputs.VERSION }}" >> $GITHUB_ENV
-          else
-            echo "commit_ref=${{ github.sha }}" >> $GITHUB_ENV
-          fi
-      - name: Check out code into the Go module directory
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v1
+
+      - name: Check out code
         uses: actions/checkout@v2
         with:
-          ref: "${{ env.commit_ref }}"
+          ref: "${{ needs.configure.outputs.commit_ref }}"
 
-      - name: Push ${{ matrix.component }} image (unversioned)
-        uses: elgohr/Publish-Docker-Github-Action@master
+      - name: Login to DockerHub
+        uses: docker/login-action@v1
         with:
-          name: liqo/${{ matrix.component }}-ci
           username: ${{ secrets.DOCKER_USERNAME }}
-          dockerfile: build/${{ matrix.component }}/Dockerfile
           password: ${{ secrets.DOCKER_PASSWORD }}
-          tags: "latest,${{ env.commit_ref }}"
-        if: github.event.repository.full_name == 'liqotech/liqo' && !startsWith(github.ref, 'refs/tags/v')
+        if: needs.configure.outputs.repo-push == 'true'
 
-      - name: Build and Publish ${{ matrix.component }} image (Versioned)
-        uses: elgohr/Publish-Docker-Github-Action@master
+      - name: Build (and Publish) ${{ matrix.component }} image
+        uses: docker/build-push-action@v2
         with:
-          name: liqo/${{ matrix.component }}
-          username: ${{ secrets.DOCKER_USERNAME }}
-          dockerfile: build/${{ matrix.component }}/Dockerfile
-          password: ${{ secrets.DOCKER_PASSWORD }}
-          tags: "latest,${{ steps.get_version.outputs.VERSION }}"
-        if: github.event.repository.full_name == 'liqotech/liqo' && startsWith(github.ref, 'refs/tags/v')
-
-      - name: Build Only ${{ matrix.component }} image (Forked Repositories)
-        uses: docker/build-push-action@v1
-        with:
-          name: liqo/${{ matrix.component }}-ci
-          dockerfile: build/${{ matrix.component }}/Dockerfile
-          push: false
-        if: github.ref != 'refs/heads/master' && github.event.pull_request.head.repo.full_name != 'liqotech/liqo' &&
-            !startsWith(github.ref, 'refs/tags/v')
+          tags: |
+            liqo/${{ matrix.component }}:latest
+            liqo/${{ matrix.component }}:${{ needs.configure.outputs.commit_ref }}
+          push: ${{ needs.configure.outputs.repo-push }}
+          file: build/${{ matrix.component }}/Dockerfile
 
   e2e-test-trigger:
      runs-on: ubuntu-latest
-     needs: [build]
+     needs: [build, configure]
+     if: needs.configure.outputs.repo-push == 'true' && github.event.pull_request.draft == false
      strategy:
        fail-fast: false
        matrix:
@@ -86,17 +101,6 @@ jobs:
          - liqops
          - doc-website
      steps:
-       - name: Get the version
-         id: get_version
-         run: echo ::set-output name=VERSION::$(echo $GITHUB_REF | cut -d / -f 3)
-         if: github.event.repository.full_name == 'liqotech/liqo' && startsWith(github.ref, 'refs/tags/v')
-       - name: Set the commit to build
-         run: |
-           if [ "$GITHUB_EVENT_NAME" == "pull_request" ]; then
-              echo "commit_ref=${{ github.event.pull_request.head.sha }}" >> $GITHUB_ENV
-           else
-              echo "commit_ref=${{ github.sha }}" >> $GITHUB_ENV
-           fi
        - uses: actions/checkout@v2
          with:
            ref: "${{ env.commit_ref }}"
@@ -106,18 +110,26 @@ jobs:
          run: echo "branch_owner=`git log -1 --format='%ae' $commit_ref^!`"
        - name: "Install python dependencies"
          run: pip install requests
-       - name: "Set branch name"
-         run: echo "branch_name=`echo ${GITHUB_REF#refs/*/}`" >> $GITHUB_ENV
        - name: "Notify PR Event to Liqops"
          run: |
            curl -X POST https://api.github.com/repos/liqotech/${{ matrix.component }}/dispatches \
            -u ${{ secrets.CI_TOKEN }} \
-           --data '{"event_type": "dev-event", "client_payload": { "actor": "${{ env.branch_owner }}", "version": "${{ steps.get_version.outputs.VERSION }}", "commit": "${{ env.commit_ref }}" }}'
-     if: github.event.pull_request.draft == false
+           --data '
+       - name: Notify Event to CrownOps
+         uses: peter-evans/repository-dispatch@v1
+         with:
+           token: ${{ secrets.CI_TOKEN }}
+           repository: liqotech/${{ matrix.component }}
+           event-type: "dev-event"
+           client-payload: |
+             {
+               "master": "${{ needs.configure.outputs.master }}",
+               "commit": "${{ needs.configure.outputs.commit_ref }}"
+             }
 
   release:
     runs-on: ubuntu-latest
-    needs: [build, test]
+    needs: [build, test, configure]
     if: github.event_name == 'push' && github.event.repository.full_name == 'liqotech/liqo' && startsWith(github.ref, 'refs/tags/v')
     steps:
       - name: Checkout
@@ -142,21 +154,21 @@ jobs:
         id: changelog
         with:
           from: ${{ steps.last-release.outputs.release }}
-          to: ${{ steps.version.outputs.version }}
+          to: ${{ needs.configure.outputs.commit_ref }}
         env:
           GITHUB_AUTH: ${{ secrets.CI_TOKEN }}
 
       - name: Save the CHANGELOG as a file
         run: |
           echo "${{ steps.changelog.outputs.changelog }}" > ./CHANGELOG.md
-          sed -i "1s/.*/## Changes since ${{ steps.last-release.outputs.release }}/" ./CHANGELOG.md
+          sed -i "1s/.*/## Changes since ${{ needs.configure.outputs.commit_ref }}/" ./CHANGELOG.md
 
       - name: Create release
         id: create_release
         uses: actions/create-release@v1
         with:
-          tag_name: ${{ needs.test.outputs.release_version }}
-          release_name: ${{ needs.test.outputs.release_version }}
+          tag_name: ${{ needs.configure.outputs.commit_ref }}
+          release_name: ${{ needs.configure.outputs.commit_ref }}
           body_path: ./CHANGELOG.md
         env:
           GITHUB_TOKEN: ${{ secrets.CI_TOKEN }}
@@ -176,35 +188,25 @@ jobs:
           github_token: ${{ secrets.CI_TOKEN }}
           overwrite: true
 
+
   test:
     name: Launch Test and Build Liqo Agent
     runs-on: ubuntu-20.04
-    outputs:
-      release_version: ${{ steps.get_version.outputs.VERSION }}
+    needs: configure
+    if: github.event.pull_request.draft == false
     steps:
-    - name: Get the version
-      id: get_version
-      run: echo "::set-output name=VERSION::$(echo $GITHUB_REF | cut -d / -f 3)"
-      if: github.event.repository.full_name == 'liqotech/liqo' && startsWith(github.ref, 'refs/tags/v')
 
-    - name: Set the commit to build
-      run: |
-        if [ "$GITHUB_EVENT_NAME" == "pull_request" ]; then
-           echo "commit_ref=${{ github.event.pull_request.head.sha }}" >> $GITHUB_ENV
-        elif [ ! -z ${{ steps.get_version.outputs.VERSION }} ]; then
-           echo "commit_ref=${{ steps.get_version.outputs.VERSION }}" >> $GITHUB_ENV
-        else
-           echo "commit_ref=${{ github.sha }}" >> $GITHUB_ENV
-        fi
     - name: Set up Go 1.14
       uses: actions/setup-go@v2
       with:
         go-version: 1.14
       id: go
+
     - name: Check out code into the Go module directory
       uses: actions/checkout@v2
       with:
-        ref: "${{ env.commit_ref }}"
+        ref: "${{ needs.configure.outputs.commit_ref }}"
+
     - name: Install Kubebuilder
       run: |
         version=2.3.1 # latest stable version
@@ -213,29 +215,37 @@ jobs:
         tar -zxvf kubebuilder_${version}_linux_${arch}.tar.gz
         mv kubebuilder_${version}_linux_${arch} kubebuilder && sudo mv kubebuilder /usr/local/
         export PATH=$PATH:/usr/local/kubebuilder/bin
-    - name: Get dependencies
+
+    - name: Get dependencies for Test execution
       run: |
         go get -u github.com/ory/go-acc
         go get -u github.com/cratonica/2goarray
+
     - name: install tray-agent dependencies
       run: |
         export DEBIAN_FRONTEND=noninteractive
         sudo apt update
         sudo apt-get -y install gcc libgtk-3-dev libappindicator3-dev libxapp-dev libwebkit2gtk-4.0-dev xclip
+
     - name: generate tray-agent icons
       run: |
         chmod +x ./scripts/tray-agent/make_icon.sh
         ./scripts/tray-agent/make_icon.sh
-    - run: go-acc ./... --ignore liqo/test/e2e
+
+    - name: Launch Test
+      run: go-acc ./... --ignore liqo/test/e2e
+
     - name: Send coverage
       uses: shogo82148/actions-goveralls@v1
       with:
         path-to-profile: coverage.txt
+
     - name: Build Agent asset
       run: |
         GO111MODULE=on CGO_ENABLED=1 GOOS=linux GOARCH=amd64 go build ./cmd/tray-agent/liqo-agent.go
         tar -czf liqo-agent.tar.gz liqo-agent
       if: github.event_name == 'push' && github.event.repository.full_name == 'liqotech/liqo' && startsWith(github.ref, 'refs/tags/v')
+
     - name: Upload Agent artifact
       uses: actions/upload-artifact@v2
       with:
@@ -244,4 +254,3 @@ jobs:
         retention-days: 1
         if-no-files-found: error
       if: github.event_name == 'push' && github.event.repository.full_name == 'liqotech/liqo' && startsWith(github.ref, 'refs/tags/v')
-    if: github.event.pull_request.draft == false
