@@ -1,5 +1,5 @@
 ---
-title: Exploit foreign resources
+title: Deploy simple resources
 weight: 3
 ---
 
