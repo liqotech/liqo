@@ -36,22 +36,32 @@ spec:
           spec:
             description: NetworkConfigSpec defines the desired state of NetworkConfig
             properties:
+              backend_config:
+                additionalProperties:
+                  type: string
+                description: connection parameters
+                type: object
+              backendType:
+                description: vpn technology used to interconnect two clusters
+                type: string
               clusterID:
                 description: 'INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
                   Important: Run "make" to regenerate code after modifying this file
                   the ID of the remote cluster that will receive this CRD'
                 type: string
+              endpointIP:
+                description: public IP of the node where the VPN tunnel is created
+                type: string
               podCIDR:
                 description: network subnet used in the local cluster for the pod
                   IPs
                 type: string
-              tunnelPublicIP:
-                description: public IP of the node where the VPN tunnel is created
-                type: string
             required:
+            - backendType
+            - backend_config
             - clusterID
+            - endpointIP
             - podCIDR
-            - tunnelPublicIP
             type: object
           status:
             description: NetworkConfigStatus defines the observed state of NetworkConfig

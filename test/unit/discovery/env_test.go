@@ -12,7 +12,6 @@ import (
 	peering_request_operator "github.com/liqotech/liqo/internal/peering-request-operator"
 	"github.com/liqotech/liqo/pkg/clusterID"
 	"github.com/liqotech/liqo/pkg/crdClient"
-	"github.com/liqotech/liqo/pkg/liqonet"
 	"github.com/miekg/dns"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -192,8 +191,8 @@ func getCluster() (*Cluster, manager.Manager, *configv1alpha1.ClusterConfig) {
 
 	netCfg := *cluster.cfg
 	netCfg.ContentConfig.GroupVersion = &nettypes.GroupVersion
-	crdClient.AddToRegistry("networkconfigs", &nettypes.NetworkConfig{}, &nettypes.NetworkConfigList{}, nil, nettypes.GroupResource)
-	crdClient.AddToRegistry("tunnelendpoints", &nettypes.TunnelEndpoint{}, &nettypes.TunnelEndpointList{}, nil, nettypes.GroupResource)
+	crdClient.AddToRegistry("networkconfigs", &nettypes.NetworkConfig{}, &nettypes.NetworkConfigList{}, nil, nettypes.TunnelEndpointGroupResource)
+	crdClient.AddToRegistry("tunnelendpoints", &nettypes.TunnelEndpoint{}, &nettypes.TunnelEndpointList{}, nil, nettypes.TunnelEndpointGroupResource)
 
 	err = v1alpha1.AddToScheme(scheme.Scheme)
 	if err != nil {
@@ -286,12 +285,6 @@ func getClusterConfig(config rest.Config) *configv1alpha1.ClusterConfig {
 			LiqonetConfig: configv1alpha1.LiqonetConfig{
 				ReservedSubnets: []string{"10.0.0.0/16"},
 				PodCIDR:         "192.168.1.1",
-				VxlanNetConfig: liqonet.VxlanNetConfig{
-					Network:    "",
-					DeviceName: "",
-					Port:       "",
-					Vni:        "",
-				},
 			},
 		},
 	}

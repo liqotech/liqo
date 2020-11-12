@@ -260,25 +260,6 @@ spec:
                     description: the subnet used by the cluster for the services,
                       in CIDR notation
                     type: string
-                  vxlanNetConfig:
-                    description: the configuration for the VXLAN overlay network which
-                      handles the traffic in the local cluster destined to remote
-                      peering clusters
-                    properties:
-                      DeviceName:
-                        type: string
-                      Network:
-                        type: string
-                      Port:
-                        type: string
-                      Vni:
-                        type: string
-                    required:
-                    - DeviceName
-                    - Network
-                    - Port
-                    - Vni
-                    type: object
                 required:
                 - podCIDR
                 - reservedSubnets

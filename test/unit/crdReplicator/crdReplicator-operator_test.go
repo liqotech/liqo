@@ -67,10 +67,11 @@ func getTunnelEndpointResource() *unstructured.Unstructured {
 				"labels": map[string]string{},
 			},
 			"spec": map[string]interface{}{
-				"clusterID":       "clusterID-test",
-				"podCIDR":         "10.0.0.0/12",
-				"tunnelPublicIP":  "192.16.5.1",
-				"tunnelPrivateIP": "192.168.4.1",
+				"clusterID":      "clusterID-test",
+				"podCIDR":        "10.0.0.0/12",
+				"endpointIP":     "192.16.5.1",
+				"backendType":    "wireguard",
+				"backend_config": map[string]interface{}{},
 			},
 		},
 	}

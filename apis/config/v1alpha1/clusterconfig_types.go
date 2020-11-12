@@ -18,7 +18,6 @@ package v1alpha1
 import (
 	"github.com/liqotech/liqo/pkg/crdClient"
 	"github.com/liqotech/liqo/pkg/labelPolicy"
-	"github.com/liqotech/liqo/pkg/liqonet"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/kubernetes/scheme"
@@ -139,8 +138,6 @@ type LiqonetConfig struct {
 	PodCIDR string `json:"podCIDR"`
 	//the subnet used by the cluster for the services, in CIDR notation
 	ServiceCIDR string `json:"serviceCIDR"`
-	//the configuration for the VXLAN overlay network which handles the traffic in the local cluster destined to remote peering clusters
-	VxlanNetConfig liqonet.VxlanNetConfig `json:"vxlanNetConfig,omitempty"`
 }
 
 //contains a list of resources identified by their GVR

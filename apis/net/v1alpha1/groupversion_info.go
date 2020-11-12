@@ -27,7 +27,9 @@ var (
 	// GroupVersion is group version used to register these objects
 	GroupVersion = schema.GroupVersion{Group: "net.liqo.io", Version: "v1alpha1"}
 
-	GroupResource = schema.GroupResource{Group: GroupVersion.Group, Resource: "tunnelendpoints"}
+	TunnelEndpointGroupResource = schema.GroupResource{Group: GroupVersion.Group, Resource: "tunnelendpoints"}
+
+	NetworkConfigGroupResource = schema.GroupVersionResource{Group: GroupVersion.Group, Version: GroupVersion.Version, Resource: "networkconfigs"}
 
 	// SchemeBuilder is used to add go types to the GroupVersionKind scheme
 	SchemeBuilder = &scheme.Builder{GroupVersion: GroupVersion}
