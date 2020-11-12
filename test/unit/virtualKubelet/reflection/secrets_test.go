@@ -1,6 +1,7 @@
 package reflection
 
 import (
+	"github.com/liqotech/liqo/test/unit/virtualKubelet/utils"
 	"gotest.tools/assert"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -8,7 +9,7 @@ import (
 )
 
 func TestSecretAdd(t *testing.T) {
-	secretsReflector := InitTest("secrets")
+	secretsReflector := utils.InitTest("secrets")
 
 	secret := v1.Secret{
 		TypeMeta: metav1.TypeMeta{},
@@ -28,7 +29,7 @@ func TestSecretAdd(t *testing.T) {
 }
 
 func TestSASecretAdd(t *testing.T) {
-	secretsReflector := InitTest("secrets")
+	secretsReflector := utils.InitTest("secrets")
 
 	secret := v1.Secret{
 		TypeMeta: metav1.TypeMeta{},
@@ -55,7 +56,7 @@ func TestSASecretAdd(t *testing.T) {
 }
 
 func TestSecretUpdate(t *testing.T) {
-	secretsReflector := InitTest("secrets")
+	secretsReflector := utils.InitTest("secrets")
 
 	secret := v1.Secret{
 		TypeMeta: metav1.TypeMeta{},

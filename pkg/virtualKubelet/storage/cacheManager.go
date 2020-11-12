@@ -85,7 +85,7 @@ func (cm *Manager) AddHomeEventHandlers(api apimgmt.ApiType, namespace string, h
 
 	apiCache := cm.homeInformers.Namespace(namespace)
 	if apiCache == nil {
-		return errors.Errorf("home cache for api %v in namespace %v set to nil", apimgmt.ApiNames[api], namespace)
+		return errors.Errorf("home cache for api %v in namespace %v not existing", apimgmt.ApiNames[api], namespace)
 	}
 
 	informer := apiCache.informer(api)
@@ -102,13 +102,9 @@ func (cm *Manager) AddForeignEventHandlers(api apimgmt.ApiType, namespace string
 	cm.foreignInformers.mutex.Lock()
 	defer cm.foreignInformers.mutex.Unlock()
 
-	if cm.homeInformers == nil {
-		return errors.New("foreign informer set to nil")
-	}
-
 	apiCache := cm.foreignInformers.Namespace(namespace)
 	if apiCache == nil {
-		return errors.Errorf("foreign cache for api %v in namespace %v set to nil", apimgmt.ApiNames[api], namespace)
+		return errors.Errorf("foreign cache for api %v in namespace %v not existing", apimgmt.ApiNames[api], namespace)
 	}
 
 	informer := apiCache.informer(api)

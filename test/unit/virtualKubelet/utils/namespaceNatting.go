@@ -1,4 +1,4 @@
-package reflection
+package utils
 
 import (
 	api "github.com/liqotech/liqo/pkg/virtualKubelet/apiReflection/reflectors"
@@ -30,8 +30,6 @@ func InitTest(typeRequired string) ri.APIReflector {
 		Api:              0,
 		OutputChan:       nil,
 		ForeignClient:    kubeClient,
-		LocalInformers:   nil,
-		ForeignInformers: nil,
 		NamespaceNatting: NewFakeNatter(),
 	}
 
