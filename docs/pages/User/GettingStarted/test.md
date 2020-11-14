@@ -1,5 +1,5 @@
 ---
-title: Deploy simple resources
+title: Use foreign resources
 weight: 3
 ---
 
