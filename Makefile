@@ -9,7 +9,7 @@ else
 GOBIN=$(shell go env GOBIN)
 endif
 
-gen: generate fmt vet manifests
+gen: generate agent-dependencies-gen fmt vet manifests
 
 #run all tests
 test: unit e2e
@@ -49,6 +49,11 @@ vet:
 # Generate code
 generate: controller-gen
 	$(CONTROLLER_GEN) object:headerFile="hack/boilerplate.go.txt" paths="./..."
+
+# Generate Liqo Agent dependencies
+agent-dependencies-gen:
+	chmod +x ./scripts/tray-agent/make_icon.sh
+	./scripts/tray-agent/make_icon.sh
 
 # find or download controller-gen
 # download controller-gen if necessary
