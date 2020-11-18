@@ -4,7 +4,7 @@ const (
 	Configmaps = iota
 	EndpointSlices
 	Pods
-	ReplicaControllers
+	ReplicaSets
 	Services
 	Secrets
 )
@@ -12,12 +12,12 @@ const (
 type ApiType int
 
 var ApiNames = map[ApiType]string{
-	Configmaps:         "configmaps",
-	EndpointSlices:     "endpointslices",
-	Pods:               "pods",
-	ReplicaControllers: "replicacontrollers",
-	Services:           "services",
-	Secrets:            "secrets",
+	Configmaps:     "configmaps",
+	EndpointSlices: "endpointslices",
+	Pods:           "pods",
+	ReplicaSets:    "replicasets",
+	Services:       "services",
+	Secrets:        "secrets",
 }
 
 const (

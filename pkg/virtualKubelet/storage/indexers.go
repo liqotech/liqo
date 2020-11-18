@@ -10,12 +10,12 @@ import (
 )
 
 var InformerIndexers = map[apimgmt.ApiType]func() cache.Indexers{
-	apimgmt.Configmaps:         configmapsIndexers,
-	apimgmt.EndpointSlices:     endpointSlicesIndexers,
-	apimgmt.Pods:               podsIndexers,
-	apimgmt.ReplicaControllers: replicaControllerIndexers,
-	apimgmt.Secrets:            secretsIndexers,
-	apimgmt.Services:           servicesIndexers,
+	apimgmt.Configmaps:     configmapsIndexers,
+	apimgmt.EndpointSlices: endpointSlicesIndexers,
+	apimgmt.Pods:           podsIndexers,
+	apimgmt.ReplicaSets:    replicaControllerIndexers,
+	apimgmt.Secrets:        secretsIndexers,
+	apimgmt.Services:       servicesIndexers,
 }
 
 func configmapsIndexers() cache.Indexers {
