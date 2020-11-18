@@ -2,26 +2,47 @@ package reflection
 
 import (
 	"context"
-	"github.com/liqotech/liqo/test/unit/virtualKubelet/utils"
+	apimgmt "github.com/liqotech/liqo/pkg/virtualKubelet/apiReflection"
+	api "github.com/liqotech/liqo/pkg/virtualKubelet/apiReflection/reflectors"
+	"github.com/liqotech/liqo/pkg/virtualKubelet/apiReflection/reflectors/outgoing"
+	"github.com/liqotech/liqo/pkg/virtualKubelet/namespacesMapping/test"
+	"github.com/liqotech/liqo/pkg/virtualKubelet/options/types"
+	storageTest "github.com/liqotech/liqo/pkg/virtualKubelet/storage/test"
 	"gotest.tools/assert"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/api/discovery/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/kubernetes/fake"
 	"k8s.io/klog"
 	"testing"
 )
 
 func TestEndpointAdd(t *testing.T) {
-	epReflector := utils.InitTest("endpointSlices")
-	if epReflector == nil {
-		t.Fail()
+	foreignClient := fake.NewSimpleClientset()
+	cacheManager := &storageTest.MockManager{
+		HomeCache:    map[string]map[apimgmt.ApiType]interface{}{},
+		ForeignCache: map[string]map[apimgmt.ApiType]interface{}{},
+	}
+	nattingTable := &test.MockNamespaceMapper{Cache: map[string]string{}}
+
+	Greflector := &api.GenericAPIReflector{
+		ForeignClient:    foreignClient,
+		NamespaceNatting: nattingTable,
+		CacheManager:     cacheManager,
 	}
 
-	epslice := v1beta1.EndpointSlice{
+	reflector := &outgoing.EndpointSlicesReflector{
+		APIReflector:         Greflector,
+		LocalRemappedPodCIDR: types.NewNetworkingOption("localRemappedPodCIDR", "10.0.0.0/16"),
+		NodeName:             types.NewNetworkingOption("NodeName", "vk-node"),
+	}
+	reflector.SetSpecializedPreProcessingHandlers()
+
+	epslice := &v1beta1.EndpointSlice{
 		TypeMeta: metav1.TypeMeta{},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "name",
-			Namespace: "namespace",
+			Namespace: "homeNamespace",
 			Labels: map[string]string{
 				"test": "true",
 			},
@@ -52,11 +73,11 @@ func TestEndpointAdd(t *testing.T) {
 		Ports: nil,
 	}
 
-	svc := v1.Service{
+	svc := &v1.Service{
 		TypeMeta: metav1.TypeMeta{},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "name",
-			Namespace: "test",
+			Namespace: "homeNamespace-natted",
 			Labels:    nil,
 			UID:       "f677f0a3-2ce8-4cae-810d-bbf3ea1d8671",
 		},
@@ -64,30 +85,46 @@ func TestEndpointAdd(t *testing.T) {
 		Status: v1.ServiceStatus{},
 	}
 
-	_, err := epReflector.GetForeignClient().CoreV1().Services("test").Create(context.TODO(), &svc, metav1.CreateOptions{})
+	_, _ = nattingTable.NatNamespace("homeNamespace", true)
+	_, err := reflector.GetForeignClient().CoreV1().Services("homeNamespace-natted").Create(context.TODO(), svc, metav1.CreateOptions{})
 	if err != nil {
 		klog.Error(err)
 		t.Fail()
 	}
 
-	postadd := epReflector.PreProcessAdd(&epslice).(*v1beta1.EndpointSlice)
+	postadd := reflector.PreProcessAdd(epslice).(*v1beta1.EndpointSlice)
 
-	assert.Equal(t, postadd.Namespace, "test", "Asserting namespace natting")
+	assert.Equal(t, postadd.Namespace, "homeNamespace-natted", "Asserting namespace natting")
 	assert.Equal(t, len(postadd.Endpoints), 1, "Asserting node-based filtering")
 	assert.Equal(t, postadd.Endpoints[0].Addresses[0], "10.0.0.15", "Asserting no pod IP natting")
 }
 
 func TestEndpointAdd2(t *testing.T) {
-	epReflector := utils.InitTest("endpointSlices")
-	if epReflector == nil {
-		t.Fail()
+	foreignClient := fake.NewSimpleClientset()
+	cacheManager := &storageTest.MockManager{
+		HomeCache:    map[string]map[apimgmt.ApiType]interface{}{},
+		ForeignCache: map[string]map[apimgmt.ApiType]interface{}{},
 	}
+	nattingTable := &test.MockNamespaceMapper{Cache: map[string]string{}}
+
+	Greflector := &api.GenericAPIReflector{
+		ForeignClient:    foreignClient,
+		NamespaceNatting: nattingTable,
+		CacheManager:     cacheManager,
+	}
+
+	reflector := &outgoing.EndpointSlicesReflector{
+		APIReflector:         Greflector,
+		LocalRemappedPodCIDR: types.NewNetworkingOption("localRemappedPodCIDR", "10.0.0.0/16"),
+		NodeName:             types.NewNetworkingOption("NodeName", "vk-node"),
+	}
+	reflector.SetSpecializedPreProcessingHandlers()
 
 	epslice := v1beta1.EndpointSlice{
 		TypeMeta: metav1.TypeMeta{},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "name",
-			Namespace: "namespace",
+			Namespace: "homeNamespace",
 			Labels: map[string]string{
 				"test": "true",
 			},
@@ -122,7 +159,7 @@ func TestEndpointAdd2(t *testing.T) {
 		TypeMeta: metav1.TypeMeta{},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "name",
-			Namespace: "test",
+			Namespace: "homeNamespace-natted",
 			Labels:    nil,
 			UID:       "f677f0a3-2ce8-4cae-810d-bbf3ea1d8671",
 		},
@@ -130,15 +167,16 @@ func TestEndpointAdd2(t *testing.T) {
 		Status: v1.ServiceStatus{},
 	}
 
-	_, err := epReflector.GetForeignClient().CoreV1().Services("test").Create(context.TODO(), &svc, metav1.CreateOptions{})
+	_, _ = nattingTable.NatNamespace("homeNamespace", true)
+	_, err := reflector.GetForeignClient().CoreV1().Services("homeNamespace-natted").Create(context.TODO(), &svc, metav1.CreateOptions{})
 	if err != nil {
 		klog.Error(err)
 		t.Fail()
 	}
 
-	postadd := epReflector.PreProcessAdd(&epslice).(*v1beta1.EndpointSlice)
+	postadd := reflector.PreProcessAdd(&epslice).(*v1beta1.EndpointSlice)
 
-	assert.Equal(t, postadd.Namespace, "test", "Asserting namespace natting")
+	assert.Equal(t, postadd.Namespace, "homeNamespace-natted", "Asserting namespace natting")
 	assert.Equal(t, len(postadd.Endpoints), 1, "Asserting node-based filtering")
 	assert.Equal(t, postadd.Endpoints[0].Addresses[0], "10.0.0.15", "Asserting pod IP natting")
 }
