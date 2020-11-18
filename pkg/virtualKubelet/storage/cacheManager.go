@@ -1,9 +1,11 @@
 package storage
 
 import (
+	"fmt"
 	apimgmt "github.com/liqotech/liqo/pkg/virtualKubelet/apiReflection"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/utils"
 	"github.com/pkg/errors"
+	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/cache"
@@ -85,12 +87,12 @@ func (cm *Manager) AddHomeEventHandlers(api apimgmt.ApiType, namespace string, h
 
 	apiCache := cm.homeInformers.Namespace(namespace)
 	if apiCache == nil {
-		return errors.Errorf("home cache for api %v in namespace %v not existing", apimgmt.ApiNames[api], namespace)
+		return kerrors.NewServiceUnavailable(fmt.Sprintf("home cache for api %v in namespace %v not existing", apimgmt.ApiNames[api], namespace))
 	}
 
 	informer := apiCache.informer(api)
 	if informer == nil {
-		return errors.Errorf("cannot set handlers, home informer for api %v in namespace %v does not exist", apimgmt.ApiNames[api], namespace)
+		return kerrors.NewServiceUnavailable(fmt.Sprintf("cannot set handlers, home informer for api %v in namespace %v does not exist", apimgmt.ApiNames[api], namespace))
 	}
 
 	informer.AddEventHandler(handlers)
@@ -119,7 +121,7 @@ func (cm *Manager) AddForeignEventHandlers(api apimgmt.ApiType, namespace string
 
 func (cm *Manager) GetHomeNamespacedObject(api apimgmt.ApiType, namespace, name string) (interface{}, error) {
 	if cm.homeInformers == nil {
-		return nil, errors.New("home informers set to nil")
+		return nil, kerrors.NewServiceUnavailable("home informers set to nil")
 	}
 
 	cm.homeInformers.mutex.RLock()
@@ -127,7 +129,7 @@ func (cm *Manager) GetHomeNamespacedObject(api apimgmt.ApiType, namespace, name 
 
 	apiCache := cm.homeInformers.Namespace(namespace)
 	if apiCache == nil {
-		return nil, errors.Errorf("home cache for api %v in namespace %v set to nil", apimgmt.ApiNames[api], namespace)
+		return nil, kerrors.NewServiceUnavailable(fmt.Sprintf("home cache for api %v in namespace %v set to nil", apimgmt.ApiNames[api], namespace))
 	}
 
 	return apiCache.getApi(api, utils.Keyer(namespace, name))
@@ -151,7 +153,7 @@ func (cm *Manager) GetForeignNamespacedObject(api apimgmt.ApiType, namespace, na
 
 func (cm *Manager) ListHomeNamespacedObject(api apimgmt.ApiType, namespace string) ([]interface{}, error) {
 	if cm.homeInformers == nil {
-		return nil, errors.New("home informers set to nil")
+		return nil, kerrors.NewServiceUnavailable("home informers set to nil")
 	}
 
 	cm.homeInformers.mutex.RLock()
@@ -159,7 +161,7 @@ func (cm *Manager) ListHomeNamespacedObject(api apimgmt.ApiType, namespace strin
 
 	apiCache := cm.homeInformers.Namespace(namespace)
 	if apiCache == nil {
-		return nil, errors.Errorf("home cache for api %v in namespace %v set to nil", apimgmt.ApiNames[api], namespace)
+		return nil, kerrors.NewServiceUnavailable(fmt.Sprintf("home cache for api %v in namespace %v set to nil", apimgmt.ApiNames[api], namespace))
 	}
 
 	objects, err := apiCache.listApi(api)

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/pkg/errors"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/util/retry"
@@ -21,9 +22,12 @@ func GetObject(informer cache.SharedIndexInformer, key string, backoff wait.Back
 	var object interface{}
 
 	fn := func() error {
-		obj, _, err := informer.GetIndexer().GetByKey(key)
+		obj, exists, err := informer.GetIndexer().GetByKey(key)
 		if err != nil {
 			return errors.Wrap(err, "error while getting by key object from foreign cache")
+		}
+		if !exists {
+			return kerrors.NewNotFound(schema.GroupResource{}, key)
 		}
 		object = obj
 		return nil
