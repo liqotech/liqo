@@ -1,4 +1,4 @@
-package storage
+package test
 
 import (
 	"github.com/liqotech/liqo/pkg/virtualKubelet/utils"

@@ -7,7 +7,7 @@ type MockNamespaceMapperController struct {
 func NewMockNamespaceMapperController() *MockNamespaceMapperController {
 	controller := &MockNamespaceMapperController{
 		mapper: &MockNamespaceMapper{
-			cache: map[string]string{},
+			Cache: map[string]string{},
 		},
 	}
 	return controller

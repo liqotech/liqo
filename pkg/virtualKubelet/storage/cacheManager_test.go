@@ -2,8 +2,8 @@ package storage
 
 import (
 	apimgmt "github.com/liqotech/liqo/pkg/virtualKubelet/apiReflection"
+	"github.com/liqotech/liqo/pkg/virtualKubelet/storage/test"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/utils"
-	. "github.com/liqotech/liqo/test/unit/virtualKubelet/storage"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	"k8s.io/client-go/kubernetes/fake"
@@ -31,9 +31,9 @@ var _ = Describe("CacheManager", func() {
 			})
 
 			It("checking AddHomeNamespace failure", func() {
-				err1 = manager1.AddHomeNamespace(HomeNamespace)
+				err1 = manager1.AddHomeNamespace(test.HomeNamespace)
 				Expect(err1).To(HaveOccurred())
-				err2 = manager1.AddForeignNamespace(ForeignNamespace)
+				err2 = manager1.AddForeignNamespace(test.ForeignNamespace)
 				Expect(err2).To(HaveOccurred())
 			})
 		})
@@ -66,15 +66,15 @@ var _ = Describe("CacheManager", func() {
 				)
 
 				BeforeEach(func() {
-					err = manager.AddHomeNamespace(HomeNamespace)
+					err = manager.AddHomeNamespace(test.HomeNamespace)
 					Expect(err).NotTo(HaveOccurred())
-					err = manager.AddForeignNamespace(ForeignNamespace)
+					err = manager.AddForeignNamespace(test.ForeignNamespace)
 					Expect(err).NotTo(HaveOccurred())
 				})
 
 				It("check ApiCaches existence", func() {
-					Expect(manager.homeInformers.Namespace(HomeNamespace)).NotTo(BeNil())
-					Expect(manager.foreignInformers.Namespace(ForeignNamespace)).NotTo(BeNil())
+					Expect(manager.homeInformers.Namespace(test.HomeNamespace)).NotTo(BeNil())
+					Expect(manager.foreignInformers.Namespace(test.ForeignNamespace)).NotTo(BeNil())
 				})
 
 				Context("with active namespace mapping", func() {
@@ -85,56 +85,56 @@ var _ = Describe("CacheManager", func() {
 
 					BeforeEach(func() {
 						By("start informers")
-						err = manager.StartHomeNamespace(HomeNamespace, stop)
+						err = manager.StartHomeNamespace(test.HomeNamespace, stop)
 						Expect(err).NotTo(HaveOccurred())
-						err = manager.StartForeignNamespace(ForeignNamespace, stop)
+						err = manager.StartForeignNamespace(test.ForeignNamespace, stop)
 						Expect(err).NotTo(HaveOccurred())
 
-						manager.homeInformers.informerFactories[HomeNamespace].WaitForCacheSync(stop)
-						manager.foreignInformers.informerFactories[ForeignNamespace].WaitForCacheSync(stop)
+						manager.homeInformers.informerFactories[test.HomeNamespace].WaitForCacheSync(stop)
+						manager.foreignInformers.informerFactories[test.ForeignNamespace].WaitForCacheSync(stop)
 					})
 
 					Context("getter functions", func() {
 						BeforeEach(func() {
 							By("create pods")
-							_ = manager.homeInformers.apiInformers[HomeNamespace].caches[apimgmt.Pods].GetIndexer().Add(Pods[utils.Keyer(HomeNamespace, Pod1)])
-							_ = manager.homeInformers.apiInformers[HomeNamespace].caches[apimgmt.Pods].GetIndexer().Add(Pods[utils.Keyer(HomeNamespace, Pod2)])
-							_ = manager.foreignInformers.apiInformers[ForeignNamespace].caches[apimgmt.Pods].GetIndexer().Add(Pods[utils.Keyer(ForeignNamespace, Pod1)])
-							_ = manager.foreignInformers.apiInformers[ForeignNamespace].caches[apimgmt.Pods].GetIndexer().Add(Pods[utils.Keyer(ForeignNamespace, Pod2)])
+							_ = manager.homeInformers.apiInformers[test.HomeNamespace].caches[apimgmt.Pods].GetIndexer().Add(test.Pods[utils.Keyer(test.HomeNamespace, test.Pod1)])
+							_ = manager.homeInformers.apiInformers[test.HomeNamespace].caches[apimgmt.Pods].GetIndexer().Add(test.Pods[utils.Keyer(test.HomeNamespace, test.Pod2)])
+							_ = manager.foreignInformers.apiInformers[test.ForeignNamespace].caches[apimgmt.Pods].GetIndexer().Add(test.Pods[utils.Keyer(test.ForeignNamespace, test.Pod1)])
+							_ = manager.foreignInformers.apiInformers[test.ForeignNamespace].caches[apimgmt.Pods].GetIndexer().Add(test.Pods[utils.Keyer(test.ForeignNamespace, test.Pod2)])
 						})
 
 						It("get Objects", func() {
 							By("home pod")
-							obj, err := manager.GetHomeNamespacedObject(apimgmt.Pods, HomeNamespace, Pod1)
+							obj, err := manager.GetHomeNamespacedObject(apimgmt.Pods, test.HomeNamespace, test.Pod1)
 							Expect(err).NotTo(HaveOccurred())
-							Expect(obj).To(Equal(Pods[utils.Keyer(HomeNamespace, Pod1)]))
+							Expect(obj).To(Equal(test.Pods[utils.Keyer(test.HomeNamespace, test.Pod1)]))
 
 							By("foreign pod")
-							obj, err = manager.GetForeignNamespacedObject(apimgmt.Pods, ForeignNamespace, Pod1)
+							obj, err = manager.GetForeignNamespacedObject(apimgmt.Pods, test.ForeignNamespace, test.Pod1)
 							Expect(err).NotTo(HaveOccurred())
-							Expect(obj).To(Equal(Pods[utils.Keyer(ForeignNamespace, Pod1)]))
+							Expect(obj).To(Equal(test.Pods[utils.Keyer(test.ForeignNamespace, test.Pod1)]))
 						})
 
 						It("List Objects", func() {
 							By("home pods")
-							objs, err := manager.ListHomeNamespacedObject(apimgmt.Pods, HomeNamespace)
+							objs, err := manager.ListHomeNamespacedObject(apimgmt.Pods, test.HomeNamespace)
 							Expect(err).NotTo(HaveOccurred())
 							Expect(len(objs)).To(Equal(2))
 
 							By("foreign pod")
-							objs, err = manager.ListForeignNamespacedObject(apimgmt.Pods, ForeignNamespace)
+							objs, err = manager.ListForeignNamespacedObject(apimgmt.Pods, test.ForeignNamespace)
 							Expect(err).NotTo(HaveOccurred())
 							Expect(len(objs)).To(Equal(2))
 						})
 
 						It("resync list objects", func() {
 							By("home pods")
-							objs, err := manager.ResyncListHomeNamespacedObject(apimgmt.Pods, HomeNamespace)
+							objs, err := manager.ResyncListHomeNamespacedObject(apimgmt.Pods, test.HomeNamespace)
 							Expect(err).NotTo(HaveOccurred())
 							Expect(len(objs)).To(Equal(2))
 
 							By("foreign pod")
-							objs, err = manager.ResyncListForeignNamespacedObject(apimgmt.Pods, ForeignNamespace)
+							objs, err = manager.ResyncListForeignNamespacedObject(apimgmt.Pods, test.ForeignNamespace)
 							Expect(err).NotTo(HaveOccurred())
 							Expect(len(objs)).To(Equal(2))
 						})
@@ -143,11 +143,11 @@ var _ = Describe("CacheManager", func() {
 					Context("Handlers setting", func() {
 						It("set handlers", func() {
 							By("home pods")
-							err = manager.AddHomeEventHandlers(apimgmt.Pods, HomeNamespace, homeHandlers)
+							err = manager.AddHomeEventHandlers(apimgmt.Pods, test.HomeNamespace, homeHandlers)
 							Expect(err).NotTo(HaveOccurred())
 
 							By("foreign pod")
-							err = manager.AddForeignEventHandlers(apimgmt.Pods, ForeignNamespace, foreignHandlers)
+							err = manager.AddForeignEventHandlers(apimgmt.Pods, test.ForeignNamespace, foreignHandlers)
 							Expect(err).NotTo(HaveOccurred())
 						})
 					})
@@ -156,31 +156,31 @@ var _ = Describe("CacheManager", func() {
 			Context("with incorrect namespace addiction", func() {
 				It("get Objects", func() {
 					By("home pod")
-					_, err = manager.GetHomeNamespacedObject(apimgmt.Pods, HomeNamespace, Pod1)
+					_, err = manager.GetHomeNamespacedObject(apimgmt.Pods, test.HomeNamespace, test.Pod1)
 					Expect(err).To(HaveOccurred())
 
 					By("foreign pod")
-					_, err = manager.GetForeignNamespacedObject(apimgmt.Pods, ForeignNamespace, Pod1)
+					_, err = manager.GetForeignNamespacedObject(apimgmt.Pods, test.ForeignNamespace, test.Pod1)
 					Expect(err).To(HaveOccurred())
 				})
 
 				It("List Objects", func() {
 					By("home pods")
-					_, err := manager.ListHomeNamespacedObject(apimgmt.Pods, HomeNamespace)
+					_, err := manager.ListHomeNamespacedObject(apimgmt.Pods, test.HomeNamespace)
 					Expect(err).To(HaveOccurred())
 
 					By("foreign pod")
-					_, err = manager.ListForeignNamespacedObject(apimgmt.Pods, ForeignNamespace)
+					_, err = manager.ListForeignNamespacedObject(apimgmt.Pods, test.ForeignNamespace)
 					Expect(err).To(HaveOccurred())
 				})
 
 				It("resync list objects", func() {
 					By("home pods")
-					_, err := manager.ResyncListHomeNamespacedObject(apimgmt.Pods, HomeNamespace)
+					_, err := manager.ResyncListHomeNamespacedObject(apimgmt.Pods, test.HomeNamespace)
 					Expect(err).To(HaveOccurred())
 
 					By("foreign pod")
-					_, err = manager.ResyncListForeignNamespacedObject(apimgmt.Pods, ForeignNamespace)
+					_, err = manager.ResyncListForeignNamespacedObject(apimgmt.Pods, test.ForeignNamespace)
 					Expect(err).To(HaveOccurred())
 				})
 			})
