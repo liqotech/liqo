@@ -25,11 +25,11 @@ jobs:
           chmod +x ./scripts/tray-agent/make_icon.sh
           ./scripts/tray-agent/make_icon.sh
       - name: golangci-lint
-        uses: golangci/golangci-lint-action@v1
+        uses: golangci/golangci-lint-action@v2
         with:
           # Required: the version of golangci-lint is required and must be specified without patch version: we always use the latest patch version.
-          version: v1.26
-          args: --timeout=600s -D unused,structcheck -E gosec,prealloc,gofmt,govet --skip-files "zz_generated.*.go"
+          version: v1.29.0
+          args: --timeout=600s -D unused,structcheck -E prealloc,gofmt,govet --skip-files "zz_generated.*.go"
   shelllint:
     name: shellLint
     runs-on: ubuntu-latest
