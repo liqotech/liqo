@@ -7,12 +7,12 @@ import (
 )
 
 var InformerBuilders = map[apimgmt.ApiType]func(informers.SharedInformerFactory) cache.SharedIndexInformer{
-	apimgmt.Configmaps:         configmapsInformerBuilder,
-	apimgmt.EndpointSlices:     endpointSlicesInformerBuilder,
-	apimgmt.Pods:               podsInformerBuilder,
-	apimgmt.ReplicaControllers: replicaControllersInformerBuilder,
-	apimgmt.Services:           servicesInformerBuilder,
-	apimgmt.Secrets:            secretsInformerBuilder,
+	apimgmt.Configmaps:     configmapsInformerBuilder,
+	apimgmt.EndpointSlices: endpointSlicesInformerBuilder,
+	apimgmt.Pods:           podsInformerBuilder,
+	apimgmt.ReplicaSets:    replicaSetsInformerBuilder,
+	apimgmt.Services:       servicesInformerBuilder,
+	apimgmt.Secrets:        secretsInformerBuilder,
 }
 
 func configmapsInformerBuilder(factory informers.SharedInformerFactory) cache.SharedIndexInformer {
@@ -27,8 +27,8 @@ func podsInformerBuilder(factory informers.SharedInformerFactory) cache.SharedIn
 	return factory.Core().V1().Pods().Informer()
 }
 
-func replicaControllersInformerBuilder(factory informers.SharedInformerFactory) cache.SharedIndexInformer {
-	return factory.Core().V1().ReplicationControllers().Informer()
+func replicaSetsInformerBuilder(factory informers.SharedInformerFactory) cache.SharedIndexInformer {
+	return factory.Apps().V1().ReplicaSets().Informer()
 }
 
 func servicesInformerBuilder(factory informers.SharedInformerFactory) cache.SharedIndexInformer {

@@ -8,6 +8,7 @@ require (
 	github.com/agrison/go-commons-lang v0.0.0-20200208220349-58e9fcb95174
 	github.com/apparentlymart/go-cidr v1.1.0
 	github.com/atotto/clipboard v0.1.2
+	github.com/containerd/ttrpc v1.0.2 // indirect
 	github.com/coreos/go-iptables v0.4.5
 	github.com/gen2brain/beeep v0.0.0-20200420150314-13046a26d502
 	github.com/gen2brain/dlgs v0.0.0-20200211102745-b9c2664df42f
