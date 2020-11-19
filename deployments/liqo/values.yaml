@@ -97,6 +97,12 @@ crdReplicator:
     pullPolicy: "IfNotPresent"
   enabled: true
 
+authService:
+  image:
+    repository: "liqo/auth-service"
+    pullPolicy: "IfNotPresent"
+  enabled: true
+
 global:
   configmapName: "liqo-configmap"
   dashboard_ingress: ""

@@ -83,6 +83,7 @@ func getClientCluster() *Cluster {
 		cluster.advClient,
 		cluster.clusterId,
 		10,
+		500,
 	)
 	cluster.discoveryCtrl.Config = &cc.Spec.DiscoveryConfig
 
@@ -149,6 +150,7 @@ func getServerCluster() *Cluster {
 		cluster.advClient,
 		cluster.clusterId,
 		10,
+		500,
 	)
 	cluster.discoveryCtrl.Config = &cc.Spec.DiscoveryConfig
 

@@ -58,3 +58,7 @@ dependencies:
   version: "0.1.0"
   repository: file://subcharts/crdReplicator/
   condition: crdreplicator.enabled
+- name: authService
+  version: "0.1.0"
+  repository: file://subcharts/authService/
+  condition: authService.enabled

@@ -2,11 +2,17 @@ package discovery
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"github.com/grandcat/zeroconf"
+	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/klog"
 	"net"
+)
+
+const (
+	authServiceName = "auth-service"
 )
 
 func (discovery *DiscoveryCtrl) Register() {
@@ -22,6 +28,12 @@ func (discovery *DiscoveryCtrl) Register() {
 			return
 		}
 
+		authPort, err := discovery.getAuthServicePort()
+		if err != nil {
+			klog.Error(err)
+			return
+		}
+
 		var ttl = discovery.Config.Ttl
 		discovery.serverMux.Lock()
 		discovery.mdnsServer, err = zeroconf.Register(fmt.Sprintf("%s_%s", discovery.Config.Name, discovery.ClusterId.GetClusterID()), discovery.Config.Service, discovery.Config.Domain, discovery.Config.Port, txt, discovery.getInterfaces(), ttl)
@@ -30,7 +42,7 @@ func (discovery *DiscoveryCtrl) Register() {
 			klog.Error(err)
 			return
 		}
-		discovery.mdnsServerAuth, err = zeroconf.Register(fmt.Sprintf("%s_%s", discovery.Config.Name, discovery.ClusterId.GetClusterID()), discovery.Config.AuthService, discovery.Config.Domain, 1234, nil, discovery.getInterfaces(), ttl)
+		discovery.mdnsServerAuth, err = zeroconf.Register(fmt.Sprintf("%s_%s", discovery.Config.Name, discovery.ClusterId.GetClusterID()), discovery.Config.AuthService, discovery.Config.Domain, authPort, nil, discovery.getInterfaces(), ttl)
 		discovery.serverMux.Unlock()
 		if err != nil {
 			klog.Error(err)
@@ -46,6 +58,27 @@ func (discovery *DiscoveryCtrl) shutdownServer() {
 	defer discovery.serverMux.Unlock()
 	discovery.mdnsServer.Shutdown()
 	discovery.mdnsServerAuth.Shutdown()
+}
+
+// get the NodePort of AuthService
+func (discovery *DiscoveryCtrl) getAuthServicePort() (int, error) {
+	svc, err := discovery.crdClient.Client().CoreV1().Services(discovery.Namespace).Get(context.TODO(), authServiceName, metav1.GetOptions{})
+	if err != nil {
+		klog.Error(err)
+		return 0, err
+	}
+
+	if svc.Spec.Type != v1.ServiceTypeNodePort {
+		err = fmt.Errorf("this service has not %s type", v1.ServiceTypeNodePort)
+		klog.Error(err)
+		return 0, err
+	}
+	if len(svc.Spec.Ports) == 0 || svc.Spec.Ports[0].NodePort == 0 {
+		err = errors.New("this service has no nodePort")
+		klog.Error(err)
+		return 0, err
+	}
+	return int(svc.Spec.Ports[0].NodePort), nil
 }
 
 func (discovery *DiscoveryCtrl) getInterfaces() []net.Interface {

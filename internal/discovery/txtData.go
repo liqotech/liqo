@@ -115,3 +115,7 @@ func (txtData *TxtData) Get(discovery *DiscoveryCtrl, entry *zeroconf.ServiceEnt
 	}
 	return nil
 }
+
+func (txtData *TxtData) IsComplete() bool {
+	return txtData.ApiUrl != "" && txtData.Namespace != "" && txtData.Name != "" && txtData.ID != ""
+}

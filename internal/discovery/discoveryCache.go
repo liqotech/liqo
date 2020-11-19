@@ -11,6 +11,7 @@ type discoveryData struct {
 	AuthData *AuthData
 }
 
+// cache used to match different services coming for the same Liqo instance
 type discoveryCache struct {
 	discoveredServices map[string]discoveryData
 	lock               sync.RWMutex
@@ -51,6 +52,14 @@ func (discoveryCache *discoveryCache) add(key string, data DiscoverableData) {
 		}
 		discoveryCache.discoveredServices[key] = oldData
 	}
+}
+
+// after that the ForeignCluster is create we can delete the entry in the cache,
+// the cache is clean again for the next discovery (and TTL update)
+func (discoveryCache *discoveryCache) delete(key string) {
+	discoveryCache.lock.Lock()
+	defer discoveryCache.lock.Unlock()
+	delete(discoveryCache.discoveredServices, key)
 }
 
 func (discoveryCache *discoveryCache) get(key string) (*discoveryData, error) {

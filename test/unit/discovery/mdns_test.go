@@ -5,8 +5,10 @@ import (
 	"github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	"github.com/liqotech/liqo/internal/discovery"
 	"gotest.tools/assert"
+	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/klog"
 	"strconv"
 	"strings"
@@ -17,6 +19,27 @@ import (
 var txtData discovery.TxtData
 
 func TestMdns(t *testing.T) {
+	authSvc := &v1.Service{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "auth-service",
+		},
+		Spec: v1.ServiceSpec{
+			Type: v1.ServiceTypeNodePort,
+			Ports: []v1.ServicePort{
+				{
+					Name:       "https",
+					Port:       12345,
+					TargetPort: intstr.FromInt(12345),
+					NodePort:   32123,
+				},
+			},
+		},
+	}
+	_, err := clientCluster.client.Client().CoreV1().Services(metav1.NamespaceDefault).Create(context.TODO(), authSvc, metav1.CreateOptions{})
+	if err != nil {
+		klog.Fatal(err)
+	}
+
 	t.Run("testTxtData", testTxtData)
 	t.Run("testMDNS", testMdns)
 	t.Run("testForeignClusterCreation", testForeignClusterCreation)

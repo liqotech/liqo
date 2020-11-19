@@ -18,6 +18,7 @@ package foreign_cluster_operator
 
 import (
 	"context"
+	"crypto/x509"
 	goerrors "errors"
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	nettypes "github.com/liqotech/liqo/apis/net/v1alpha1"
@@ -212,9 +213,11 @@ func (r *ForeignClusterReconciler) Reconcile(req ctrl.Request) (ctrl.Result, err
 				}, err
 			}
 
-			// PeeringRequest exists, set flag to true
-			fc.Status.Incoming.Joined = true
-			requireUpdate = true
+			if !fc.Status.Incoming.Joined {
+				// PeeringRequest exists, set flag to true
+				fc.Status.Incoming.Joined = true
+				requireUpdate = true
+			}
 
 			// check if kubeconfig secret exists
 			if pr.Spec.KubeConfigRef != nil && pr.Spec.KubeConfigRef.Name != "" && pr.Spec.KubeConfigRef.Namespace != "" {
@@ -394,11 +397,13 @@ func (r *ForeignClusterReconciler) Peer(fc *discoveryv1alpha1.ForeignCluster, fo
 		klog.Error(err)
 		return nil, err
 	}
-	fc.Status.Outgoing.Joined = true
-	fc.Status.Outgoing.RemotePeeringRequestName = pr.Name
-	// add finalizer
-	if !slice.ContainsString(fc.Finalizers, FinalizerString, nil) {
-		fc.Finalizers = append(fc.Finalizers, FinalizerString)
+	if pr != nil {
+		fc.Status.Outgoing.Joined = true
+		fc.Status.Outgoing.RemotePeeringRequestName = pr.Name
+		// add finalizer
+		if !slice.ContainsString(fc.Finalizers, FinalizerString, nil) {
+			fc.Finalizers = append(fc.Finalizers, FinalizerString)
+		}
 	}
 	return fc, nil
 }
@@ -465,6 +470,12 @@ func (r *ForeignClusterReconciler) checkJoined(fc *discoveryv1alpha1.ForeignClus
 	return fc, nil
 }
 
+// check if the error is due to a TLS certificate signed by unknown authority
+func isUnknownAuthority(err error) bool {
+	var err509 x509.UnknownAuthorityError
+	return goerrors.As(err, &err509)
+}
+
 func (r *ForeignClusterReconciler) createPeeringRequestIfNotExists(clusterID string, owner *discoveryv1alpha1.ForeignCluster, foreignClient *crdClient.CRDClient) (*discoveryv1alpha1.PeeringRequest, error) {
 	// get config to send to foreign cluster
 	fConfig, err := r.getForeignConfig(clusterID, owner)
@@ -476,8 +487,13 @@ func (r *ForeignClusterReconciler) createPeeringRequestIfNotExists(clusterID str
 
 	// check if a peering request with our cluster id already exists on remote cluster
 	tmp, err := foreignClient.Resource("peeringrequests").Get(localClusterID, metav1.GetOptions{})
-	if err != nil && !errors.IsNotFound(err) {
+	if err != nil && !errors.IsNotFound(err) && !isUnknownAuthority(err) {
 		return nil, err
+	}
+	if isUnknownAuthority(err) {
+		klog.V(4).Info("unknown authority")
+		owner.Status.TrustMode = discoveryv1alpha1.TrustModeUntrusted
+		return nil, nil
 	}
 	pr, ok := tmp.(*discoveryv1alpha1.PeeringRequest)
 	inf := errors.IsNotFound(err) || !ok // inf -> IsNotFound

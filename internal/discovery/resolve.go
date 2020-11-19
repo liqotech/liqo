@@ -15,7 +15,7 @@ func (discovery *DiscoveryCtrl) StartResolver(stopChan <-chan bool) {
 		if discovery.Config.EnableDiscovery {
 			ctx, cancel := context.WithCancel(context.TODO())
 			go discovery.Resolve(ctx, discovery.Config.Service, discovery.Config.Domain, nil, false)
-			go discovery.Resolve(ctx, "_auth._tcp", discovery.Config.Domain, nil, true)
+			go discovery.Resolve(ctx, discovery.Config.AuthService, discovery.Config.Domain, nil, true)
 			select {
 			case <-stopChan:
 				cancel()
@@ -51,11 +51,12 @@ func (discovery *DiscoveryCtrl) Resolve(ctx context.Context, service string, dom
 			if resultChan != nil {
 				resultChan <- data
 			}
-			if !reflect.ValueOf(data).IsNil() {
+			if !reflect.ValueOf(data).IsNil() && data.IsComplete() {
 				// it is not a local cluster
 				klog.V(4).Infof("FC data: %v", data)
 				resolvedData.add(entry.Instance, data)
 				if resolvedData.isComplete(entry.Instance) {
+					klog.V(4).Infof("%s is complete", entry.Instance)
 					dData, err := resolvedData.get(entry.Instance)
 					if err != nil {
 						klog.Error(err)
@@ -64,7 +65,9 @@ func (discovery *DiscoveryCtrl) Resolve(ctx context.Context, service string, dom
 					if dData.TxtData.ID == discovery.ClusterId.GetClusterID() || dData.TxtData.ID == "" {
 						continue
 					}
+					klog.V(4).Infof("update %s", entry.Instance)
 					discovery.UpdateForeignLAN(dData)
+					resolvedData.delete(entry.Instance)
 				}
 			}
 		}
@@ -76,7 +79,6 @@ func (discovery *DiscoveryCtrl) Resolve(ctx context.Context, service string, dom
 		os.Exit(1)
 	}
 	<-ctx.Done()
-	klog.Info("exit")
 }
 
 func (discovery *DiscoveryCtrl) getIPs() map[string]bool {

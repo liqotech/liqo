@@ -10,6 +10,7 @@ import (
 	"k8s.io/klog"
 	"os"
 	"sync"
+	"time"
 )
 
 type DiscoveryCtrl struct {
@@ -26,9 +27,11 @@ type DiscoveryCtrl struct {
 	mdnsServerAuth            *zeroconf.Server
 	serverMux                 sync.Mutex
 	resolveContextRefreshTime int
+
+	dialTcpTimeout time.Duration
 }
 
-func NewDiscoveryCtrl(namespace string, clusterId *clusterID.ClusterID, kubeconfigPath string, resolveContextRefreshTime int) (*DiscoveryCtrl, error) {
+func NewDiscoveryCtrl(namespace string, clusterId *clusterID.ClusterID, kubeconfigPath string, resolveContextRefreshTime int, dialTcpTimeout time.Duration) (*DiscoveryCtrl, error) {
 	config, err := crdClient.NewKubeconfig(kubeconfigPath, &discoveryv1alpha1.GroupVersion)
 	if err != nil {
 		return nil, err
@@ -50,6 +53,7 @@ func NewDiscoveryCtrl(namespace string, clusterId *clusterID.ClusterID, kubeconf
 		advClient,
 		clusterId,
 		resolveContextRefreshTime,
+		dialTcpTimeout,
 	)
 	if discoveryCtrl.GetDiscoveryConfig(nil, kubeconfigPath) != nil {
 		os.Exit(1)
@@ -57,7 +61,7 @@ func NewDiscoveryCtrl(namespace string, clusterId *clusterID.ClusterID, kubeconf
 	return &discoveryCtrl, nil
 }
 
-func GetDiscoveryCtrl(namespace string, crdClient *crdClient.CRDClient, advClient *crdClient.CRDClient, clusterId *clusterID.ClusterID, resolveContextRefreshTime int) DiscoveryCtrl {
+func GetDiscoveryCtrl(namespace string, crdClient *crdClient.CRDClient, advClient *crdClient.CRDClient, clusterId *clusterID.ClusterID, resolveContextRefreshTime int, dialTcpTimeout time.Duration) DiscoveryCtrl {
 	return DiscoveryCtrl{
 		Namespace:                 namespace,
 		crdClient:                 crdClient,
@@ -66,6 +70,7 @@ func GetDiscoveryCtrl(namespace string, crdClient *crdClient.CRDClient, advClien
 		stopMDNS:                  make(chan bool, 1),
 		stopMDNSClient:            make(chan bool, 1),
 		resolveContextRefreshTime: resolveContextRefreshTime,
+		dialTcpTimeout:            dialTcpTimeout,
 	}
 }
 
