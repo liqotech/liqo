@@ -91,6 +91,11 @@ func (cache *APICaches) getApi(api apimgmt.ApiType, key string) (interface{}, er
 	return utils.GetObject(cache.caches[api], key, defaultBackoff)
 }
 
+// listApiByIndex lists all the api matching a specific index
+func (cache *APICaches) listApiByIndex(api apimgmt.ApiType, key string) ([]interface{}, error) {
+	return utils.ListIndexedObjects(cache.caches[api], apimgmt.ApiNames[api], key)
+}
+
 // listApi lists the content of a given cached api
 func (cache *APICaches) listApi(api apimgmt.ApiType) ([]interface{}, error) {
 	return utils.ListObjects(cache.caches[api])

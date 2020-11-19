@@ -11,7 +11,7 @@ type NetworkingValue string
 const (
 	LocalRemappedPodCIDR  = "localRemappedPodCIDR"
 	RemoteRemappedPodCIDR = "remoteRemappedPodCIDR"
-	NodeName              = "nodeName"
+	VirtualNodeName       = "virtualNodeName"
 )
 
 func NewNetworkingOption(key NetworkingKey, value NetworkingValue) *NetworkingOption {

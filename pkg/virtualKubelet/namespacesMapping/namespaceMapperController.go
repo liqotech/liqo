@@ -14,6 +14,8 @@ type MapperController interface {
 	PollStartMapper() chan struct{}
 	PollStopMapper() chan struct{}
 	ReadyForRestart()
+	MappedNamespaces() map[string]string
+	WaitForSync()
 }
 
 type NamespaceReflectionController interface {

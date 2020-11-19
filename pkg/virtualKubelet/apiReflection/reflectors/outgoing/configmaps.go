@@ -4,6 +4,7 @@ import (
 	"context"
 	apimgmt "github.com/liqotech/liqo/pkg/virtualKubelet/apiReflection"
 	ri "github.com/liqotech/liqo/pkg/virtualKubelet/apiReflection/reflectors/reflectorsInterfaces"
+	"github.com/liqotech/liqo/pkg/virtualKubelet/forge"
 	"github.com/pkg/errors"
 	corev1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
@@ -88,51 +89,53 @@ func (r *ConfigmapsReflector) PreAdd(obj interface{}) interface{} {
 	for k, v := range cmLocal.Labels {
 		cmRemote.Labels[k] = v
 	}
-	cmRemote.Labels[apimgmt.LiqoLabelKey] = apimgmt.LiqoLabelValue
+	cmRemote.Labels[forge.LiqoReflectionKey] = forge.LiqoOutgoing
 
 	klog.V(3).Infof("PreAdd routine completed for configmap %v/%v", cmLocal.Namespace, cmLocal.Name)
 	return cmRemote
 }
 
 func (r *ConfigmapsReflector) PreUpdate(newObj, _ interface{}) interface{} {
-	newCm := newObj.(*corev1.ConfigMap).DeepCopy()
+	newHomeCm := newObj.(*corev1.ConfigMap).DeepCopy()
 
-	klog.V(3).Infof("PreUpdate routine started for configmap %v/%v", newCm.Namespace, newCm.Name)
+	klog.V(3).Infof("PreUpdate routine started for configmap %v/%v", newHomeCm.Namespace, newHomeCm.Name)
 
-	nattedNs, err := r.NattingTable().NatNamespace(newCm.Namespace, false)
+	nattedNs, err := r.NattingTable().NatNamespace(newHomeCm.Namespace, false)
 	if err != nil {
+		err = errors.Wrapf(err, "configmap %v/%v", nattedNs, newHomeCm.Name)
 		klog.Error(err)
 		return nil
 	}
 
-	oldRemoteObj, err := r.GetCacheManager().GetForeignNamespacedObject(apimgmt.Configmaps, nattedNs, newCm.Name)
+	oldForeignObj, err := r.GetCacheManager().GetForeignNamespacedObject(apimgmt.Configmaps, nattedNs, newHomeCm.Name)
 	if err != nil {
-		err = errors.Wrapf(err, "configmap %v/%v", nattedNs, newCm.Name)
+		err = errors.Wrapf(err, "configmap %v/%v", nattedNs, newHomeCm.Name)
 		klog.Error(err)
 		return nil
 	}
-	oldRemoteCm := oldRemoteObj.(*corev1.ConfigMap)
 
-	newCm.SetNamespace(nattedNs)
-	newCm.SetResourceVersion(oldRemoteCm.ResourceVersion)
-	newCm.SetUID(oldRemoteCm.UID)
-	if newCm.Labels == nil {
-		newCm.Labels = make(map[string]string)
+	oldRemoteCm := oldForeignObj.(*corev1.ConfigMap)
+
+	newHomeCm.SetNamespace(nattedNs)
+	newHomeCm.SetResourceVersion(oldRemoteCm.ResourceVersion)
+	newHomeCm.SetUID(oldRemoteCm.UID)
+	if newHomeCm.Labels == nil {
+		newHomeCm.Labels = make(map[string]string)
 	}
 	for k, v := range oldRemoteCm.Labels {
-		newCm.Labels[k] = v
+		newHomeCm.Labels[k] = v
 	}
-	newCm.Labels[apimgmt.LiqoLabelKey] = apimgmt.LiqoLabelValue
+	newHomeCm.Labels[forge.LiqoReflectionKey] = forge.LiqoOutgoing
 
-	if newCm.Annotations == nil {
-		newCm.Annotations = make(map[string]string)
+	if newHomeCm.Annotations == nil {
+		newHomeCm.Annotations = make(map[string]string)
 	}
 	for k, v := range oldRemoteCm.Annotations {
-		newCm.Annotations[k] = v
+		newHomeCm.Annotations[k] = v
 	}
 
-	klog.V(3).Infof("PreUpdate routine completed for configmap %v/%v", newCm.Namespace, newCm.Name)
-	return newCm
+	klog.V(3).Infof("PreUpdate routine completed for configmap %v/%v", newHomeCm.Namespace, newHomeCm.Name)
+	return newHomeCm
 }
 
 func (r *ConfigmapsReflector) PreDelete(obj interface{}) interface{} {

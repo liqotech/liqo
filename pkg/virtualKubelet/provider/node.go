@@ -7,7 +7,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-func (p *KubernetesProvider) ConfigureNode(ctx context.Context, n *v1.Node) {
+func (p *LiqoProvider) ConfigureNode(ctx context.Context, n *v1.Node) {
 	_, span := trace.StartSpan(ctx, "kubernetes.ConfigureNode") //nolint:ineffassign
 	defer span.End()
 
@@ -28,7 +28,7 @@ func (p *KubernetesProvider) ConfigureNode(ctx context.Context, n *v1.Node) {
 
 // NodeConditions returns a list of conditions (Ready, OutOfDisk, etc), for updates to the node status
 // within Kubernetes.
-func (p *KubernetesProvider) nodeConditions() []v1.NodeCondition {
+func (p *LiqoProvider) nodeConditions() []v1.NodeCondition {
 	// TODO: Make this configurable
 	return []v1.NodeCondition{
 		{
@@ -77,7 +77,7 @@ func (p *KubernetesProvider) nodeConditions() []v1.NodeCondition {
 
 // NodeAddresses returns a list of addresses for the node status
 // within Kubernetes.
-func (p *KubernetesProvider) nodeAddresses() []v1.NodeAddress {
+func (p *LiqoProvider) nodeAddresses() []v1.NodeAddress {
 	return []v1.NodeAddress{
 		{
 			Type:    "InternalIP",
@@ -88,7 +88,7 @@ func (p *KubernetesProvider) nodeAddresses() []v1.NodeAddress {
 
 // NodeDaemonEndpoints returns NodeDaemonEndpoints for the node status
 // within Kubernetes.
-func (p *KubernetesProvider) nodeDaemonEndpoints() v1.NodeDaemonEndpoints {
+func (p *LiqoProvider) nodeDaemonEndpoints() v1.NodeDaemonEndpoints {
 	return v1.NodeDaemonEndpoints{
 		KubeletEndpoint: v1.DaemonEndpoint{
 			Port: p.daemonEndpointPort,

@@ -1,5 +1,7 @@
 package virtualKubelet
 
+type ContextKey string
+
 const (
 	VirtualNodePrefix       = "liqo-"
 	VirtualKubeletPrefix    = "virtual-kubelet-"

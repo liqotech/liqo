@@ -4,8 +4,8 @@ import (
 	"context"
 	apimgmt "github.com/liqotech/liqo/pkg/virtualKubelet/apiReflection"
 	ri "github.com/liqotech/liqo/pkg/virtualKubelet/apiReflection/reflectors/reflectorsInterfaces"
+	"github.com/liqotech/liqo/pkg/virtualKubelet/forge"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/options"
-	"github.com/liqotech/liqo/pkg/virtualKubelet/translation"
 	"github.com/pkg/errors"
 	corev1 "k8s.io/api/core/v1"
 	discoveryv1beta1 "k8s.io/api/discovery/v1beta1"
@@ -24,7 +24,7 @@ type EndpointSlicesReflector struct {
 	ri.APIReflector
 
 	LocalRemappedPodCIDR options.ReadOnlyOption
-	NodeName             options.ReadOnlyOption
+	VirtualNodeName      options.ReadOnlyOption
 }
 
 func (r *EndpointSlicesReflector) SetSpecializedPreProcessingHandlers() {
@@ -119,7 +119,7 @@ func (r *EndpointSlicesReflector) PreAdd(obj interface{}) interface{} {
 			OwnerReferences: svcOwnerRef,
 		},
 		AddressType: discoveryv1beta1.AddressTypeIPv4,
-		Endpoints:   filterEndpoints(epLocal, string(r.LocalRemappedPodCIDR.Value()), string(r.NodeName.Value())),
+		Endpoints:   filterEndpoints(epLocal, string(r.LocalRemappedPodCIDR.Value()), string(r.VirtualNodeName.Value())),
 		Ports:       epLocal.Ports,
 	}
 
@@ -147,7 +147,7 @@ func (r *EndpointSlicesReflector) PreUpdate(newObj, _ interface{}) interface{} {
 	RemoteEpSlice.SetResourceVersion(RemoteEpSlice.ResourceVersion)
 	RemoteEpSlice.SetUID(RemoteEpSlice.UID)
 
-	RemoteEpSlice.Endpoints = filterEndpoints(endpointSliceHome, string(r.LocalRemappedPodCIDR.Value()), string(r.NodeName.Value()))
+	RemoteEpSlice.Endpoints = filterEndpoints(endpointSliceHome, string(r.LocalRemappedPodCIDR.Value()), string(r.VirtualNodeName.Value()))
 	RemoteEpSlice.Ports = endpointSliceHome.Ports
 
 	return RemoteEpSlice
@@ -172,7 +172,7 @@ func filterEndpoints(slice *discoveryv1beta1.EndpointSlice, podCidr string, node
 		t := v.Topology["kubernetes.io/hostname"]
 		if t != nodeName {
 			newEp := discoveryv1beta1.Endpoint{
-				Addresses:  []string{translation.ChangePodIp(podCidr, v.Addresses[0])},
+				Addresses:  []string{forge.ChangePodIp(podCidr, v.Addresses[0])},
 				Conditions: v.Conditions,
 				Hostname:   nil,
 				TargetRef:  nil,

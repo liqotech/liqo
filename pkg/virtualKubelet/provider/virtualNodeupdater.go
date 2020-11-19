@@ -19,7 +19,7 @@ import (
 	"strings"
 )
 
-func (p *KubernetesProvider) StartNodeUpdater(nodeRunner *node.NodeController) (chan struct{}, chan struct{}, error) {
+func (p *LiqoProvider) StartNodeUpdater(nodeRunner *node.NodeController) (chan struct{}, chan struct{}, error) {
 	stop := make(chan struct{}, 1)
 	advName := strings.Join([]string{virtualKubelet.AdvertisementPrefix, p.foreignClusterId}, "")
 	advWatcher, err := p.advClient.Resource("advertisements").Watch(metav1.ListOptions{
@@ -85,7 +85,7 @@ func (p *KubernetesProvider) StartNodeUpdater(nodeRunner *node.NodeController) (
 
 // The reconciliation function; every time this function is called,
 // the node status is updated by means of r.updateFromAdv
-func (p *KubernetesProvider) ReconcileNodeFromAdv(event watch.Event) error {
+func (p *LiqoProvider) ReconcileNodeFromAdv(event watch.Event) error {
 
 	adv, ok := event.Object.(*advtypes.Advertisement)
 	if !ok {
@@ -126,7 +126,7 @@ func (p *KubernetesProvider) ReconcileNodeFromAdv(event watch.Event) error {
 	return nil
 }
 
-func (p *KubernetesProvider) ReconcileNodeFromTep(event watch.Event) error {
+func (p *LiqoProvider) ReconcileNodeFromTep(event watch.Event) error {
 	tep, ok := event.Object.(*nettypes.TunnelEndpoint)
 	if !ok {
 		return errors.New("error in casting tunnel endpoint: recreate watcher")
@@ -158,7 +158,7 @@ func (p *KubernetesProvider) ReconcileNodeFromTep(event watch.Event) error {
 }
 
 // updateFromAdv gets and  advertisement and updates the node status accordingly
-func (p *KubernetesProvider) updateFromAdv(adv advtypes.Advertisement) error {
+func (p *LiqoProvider) updateFromAdv(adv advtypes.Advertisement) error {
 	var err error
 
 	var no *v1.Node
@@ -223,7 +223,7 @@ func mergeMaps(m1 map[string]string, m2 map[string]string) map[string]string {
 	return m1
 }
 
-func (p *KubernetesProvider) updateFromTep(tep nettypes.TunnelEndpoint) error {
+func (p *LiqoProvider) updateFromTep(tep nettypes.TunnelEndpoint) error {
 	if tep.Status.RemoteRemappedPodCIDR != "" && tep.Status.RemoteRemappedPodCIDR != "None" {
 		p.RemoteRemappedPodCidr.SetValue(options.OptionValue(tep.Status.RemoteRemappedPodCIDR))
 	} else {
@@ -267,7 +267,7 @@ func (p *KubernetesProvider) updateFromTep(tep nettypes.TunnelEndpoint) error {
 	return p.updateNode(no)
 }
 
-func (p *KubernetesProvider) updateNode(node *v1.Node) error {
+func (p *LiqoProvider) updateNode(node *v1.Node) error {
 	if p.RemoteRemappedPodCidr.Value() != "" && node.Status.Allocatable != nil {
 		// both the podCIDR and the resources have been set: the node is ready
 		for i, condition := range node.Status.Conditions {
@@ -306,7 +306,7 @@ func (p *KubernetesProvider) updateNode(node *v1.Node) error {
 	return p.nodeController.UpdateNodeFromOutside(false, node)
 }
 
-func (p *KubernetesProvider) handleAdvDelete(adv *advtypes.Advertisement) error {
+func (p *LiqoProvider) handleAdvDelete(adv *advtypes.Advertisement) error {
 	if err := p.apiController.StopController(); err != nil {
 		return err
 	}

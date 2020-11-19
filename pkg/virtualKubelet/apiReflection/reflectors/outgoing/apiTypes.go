@@ -22,7 +22,7 @@ func endpointslicesReflectorBuilder(reflector ri.APIReflector, opts map[options.
 	return &EndpointSlicesReflector{
 		APIReflector:         reflector,
 		LocalRemappedPodCIDR: opts[types.LocalRemappedPodCIDR],
-		NodeName:             opts[types.NodeName],
+		VirtualNodeName:      opts[types.VirtualNodeName],
 	}
 }
 

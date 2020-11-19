@@ -234,3 +234,45 @@ func (cm *Manager) ResyncListForeignNamespacedObject(api apimgmt.ApiType, namesp
 
 	return objects, nil
 }
+
+func (cm *Manager) ListHomeApiByIndex(api apimgmt.ApiType, namespace, index string) ([]interface{}, error) {
+	if cm.homeInformers == nil {
+		return nil, errors.New("home informers set to nil")
+	}
+
+	cm.homeInformers.mutex.RLock()
+	defer cm.homeInformers.mutex.RLock()
+
+	apiCache := cm.homeInformers.Namespace(namespace)
+	if apiCache == nil {
+		return nil, errors.Errorf("cache for api %v in namespace %v not existing", apimgmt.ApiNames[api], namespace)
+	}
+
+	objects, err := apiCache.listApiByIndex(api, index)
+	if err != nil {
+		return nil, err
+	}
+
+	return objects, nil
+}
+
+func (cm *Manager) ListForeignApiByIndex(api apimgmt.ApiType, namespace, index string) ([]interface{}, error) {
+	if cm.foreignInformers == nil {
+		return nil, errors.New("foreign informers set to nil")
+	}
+
+	cm.foreignInformers.mutex.RLock()
+	defer cm.foreignInformers.mutex.RUnlock()
+
+	apiCache := cm.foreignInformers.Namespace(namespace)
+	if apiCache == nil {
+		return nil, errors.Errorf("foreign cache for api %v in namespace %v set to nil", apimgmt.ApiNames[api], namespace)
+	}
+
+	objects, err := apiCache.listApiByIndex(api, index)
+	if err != nil {
+		return nil, err
+	}
+
+	return objects, nil
+}

@@ -7,7 +7,7 @@ import (
 
 func registerKubernetes(s *provider.Store) error {
 	return s.Register("kubernetes", func(cfg provider.InitConfig) (provider.Provider, error) { //nolint:errcheck
-		return liqoProvider.NewKubernetesProvider(
+		return liqoProvider.NewLiqoProvider(
 			cfg.NodeName,
 			cfg.ClusterId,
 			cfg.HomeClusterId,
