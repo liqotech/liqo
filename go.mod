@@ -9,9 +9,9 @@ require (
 	github.com/apparentlymart/go-cidr v1.1.0
 	github.com/atotto/clipboard v0.1.2
 	github.com/coreos/go-iptables v0.4.5
-	github.com/gen2brain/beeep v0.0.0-20200420150314-13046a26d502
-	github.com/gen2brain/dlgs v0.0.0-20200211102745-b9c2664df42f
-	github.com/getlantern/systray v0.0.0-20200324212034-d3ab4fd25d99
+	github.com/gen2brain/beeep v0.0.0-20200526185328-e9c15c258e28
+	github.com/gen2brain/dlgs v0.0.0-20201118155338-03fe7f81ad25
+	github.com/getlantern/systray v1.1.0
 	github.com/go-logr/logr v0.1.0
 	github.com/go-sql-driver/mysql v1.5.0 // indirect
 	github.com/google/go-cmp v0.5.1

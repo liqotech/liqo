@@ -61,7 +61,7 @@ func TestIndicatorRoutine(t *testing.T) {
 	assert.NotNil(t, a, "ACTION node is nil")
 	assert.True(t, a.IsVisible(), "ACTION node is not visible")
 	// test OPTION registration
-	a.AddOption("option test", "OPTION_TAG", nil)
+	a.AddOption("option test", "OPTION_TAG", "", false, nil)
 	o, ok2 := a.Option("OPTION_TAG")
 	assert.True(t, ok2, "OPTION not registered")
 	assert.NotNil(t, a, "OPTION node is nil")

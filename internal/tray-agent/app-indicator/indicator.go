@@ -82,11 +82,11 @@ func GetIndicator() *Indicator {
 		root.gProvider = GetGuiProvider()
 		root.SetIcon(IconLiqoNoConn)
 		root.SetLabel("")
-		root.menu = newMenuNode(NodeTypeRoot)
+		root.menu = newMenuNode(NodeTypeRoot, false, nil)
 		root.activeNode = root.menu
-		root.menuTitleNode = newMenuNode(NodeTypeTitle)
-		root.menuStatusNode = newMenuNode(NodeTypeStatus)
-		GetGuiProvider().AddSeparator()
+		root.menuTitleNode = newMenuNode(NodeTypeTitle, false, nil)
+		root.menuStatusNode = newMenuNode(NodeTypeStatus, false, nil)
+		//GetGuiProvider().AddSeparator()
 		root.quickMap = make(map[string]*MenuNode)
 		root.quitChan = make(chan struct{})
 		root.listeners = make(map[client.NotifyChannel]*Listener)
@@ -117,7 +117,7 @@ func GetIndicator() *Indicator {
 //	callback : callback function to be executed at each 'clicked' event. If callback == nil, the function can be set
 //	afterwards using (*Indicator).Connect() .
 func (i *Indicator) AddAction(title string, tag string, callback func(args ...interface{}), args ...interface{}) *MenuNode {
-	a := newMenuNode(NodeTypeAction)
+	a := newMenuNode(NodeTypeAction, false, nil)
 	a.parent = i.menu
 	a.SetTitle(title)
 	a.SetTag(tag)
@@ -212,7 +212,7 @@ func (i *Indicator) DeselectAction() {
 //	callback : callback function to be executed at each 'clicked' event. If callback == nil, the function can be set
 //	afterwards using (*MenuNode).Connect() .
 func (i *Indicator) AddQuick(title string, tag string, callback func(args ...interface{}), args ...interface{}) *MenuNode {
-	q := newMenuNode(NodeTypeQuick)
+	q := newMenuNode(NodeTypeQuick, false, nil)
 	q.parent = q
 	q.SetTitle(title)
 	q.SetTag(tag)

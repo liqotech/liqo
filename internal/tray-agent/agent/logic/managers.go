@@ -6,21 +6,10 @@ import (
 	"os/exec"
 )
 
-//set of action tags
-const (
-	aShowPeers = "A_SHOW_PEERS"
-)
-
-//set of options
-const (
-	oAddPeer = "O_ADD_PEER"
-)
-
 //OnReady is the routine orchestrating Liqo Agent execution.
 func OnReady() {
 	// Indicator configuration
 	i := app.GetIndicator()
-	i.SetMenuTitle("Liqo Agent")
 	i.RefreshStatus()
 	startListenerAdvertisements(i)
 	startQuickOnOff(i)
@@ -29,7 +18,6 @@ func OnReady() {
 	startQuickSetNotifications(i)
 	startQuickLiqoWebsite(i)
 	startQuickQuit(i)
-	startActionPeers(i)
 	//try to start Liqo and main ACTION
 	quickTurnOnOff(i)
 }
@@ -85,18 +73,6 @@ func startQuickQuit(i *app.Indicator) {
 		i := args[0].(*app.Indicator)
 		i.Quit()
 	}, i)
-}
-
-//startActionPeers is the wrapper function to register ACTION "Show available peers".
-func startActionPeers(i *app.Indicator) {
-	a := i.AddAction("Available Peers", aShowPeers, func(args ...interface{}) {
-		actionShowAdv()
-	})
-	if a != nil {
-		a.SetIsVisible(false)
-		a.AddOption("Add remote peer", oAddPeer, nil)
-	}
-
 }
 
 //LISTENERS
