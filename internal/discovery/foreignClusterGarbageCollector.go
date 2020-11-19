@@ -33,6 +33,7 @@ func (discovery *DiscoveryCtrl) CollectGarbage() error {
 
 	for _, fc := range fcs.Items {
 		if fc.IsExpired() {
+			klog.V(4).Infof("delete foreignCluster %v (TTL expired)", fc.Name)
 			err = discovery.crdClient.Resource("foreignclusters").Delete(fc.Name, metav1.DeleteOptions{})
 			if err != nil {
 				klog.Error(err)

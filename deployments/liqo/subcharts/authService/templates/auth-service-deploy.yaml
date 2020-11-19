@@ -2,132 +2,59 @@
 apiVersion: v1
 kind: ServiceAccount
 metadata:
-  name: discovery-sa
+  name: auth-service-sa
   namespace: {{ .Release.Namespace }}
   labels:
-    k8s-app: discovery
+    k8s-app: auth-service
     app: liqo.io
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
-  name: liqo-discovery
+  name: liqo-auth-service
 rules:
   - apiGroups:
-      - discovery.liqo.io
+      - ""
     resources:
-      - foreignclusters
-      - searchdomains
+      - nodes
     verbs:
       - get
       - list
-      - patch
-      - update
       - watch
+  - apiGroups:
+      - rbac.authorization.k8s.io
+    resources:
+      - clusterroles
+      - clusterrolebindings
+    verbs:
       - create
       - delete
+
+  # required to grant permissions
   - apiGroups:
       - discovery.liqo.io
     resources:
       - peeringrequests
     verbs:
       - get
-      - list
-      - watch
-  - apiGroups:
-      - config.liqo.io
-    resources:
-      - clusterconfigs
-    verbs:
-      - get
-      - list
-      - watch
       - create
-  - apiGroups:
-      - net.liqo.io
-    resources:
-      - networkconfigs
-      - tunnelendpoints
-    verbs:
-      - get
-      - list
-      - watch
-  - apiGroups:
-      - sharing.liqo.io
-    resources:
-      - advertisements
-    verbs:
-      - get
-      - list
-      - watch
       - delete
-  - apiGroups:
-      - ""
-    resources:
-      - nodes
-    verbs:
-      - list
-  - apiGroups:
-      - rbac.authorization.k8s.io
-    resources:
-      - clusterroles
-    verbs:
-      - get
-      - create
       - update
-  - apiGroups:
-      - rbac.authorization.k8s.io
-    resources:
-      - clusterrolebindings
-    verbs:
-      - get
-      - create
-
-  # to satisfy ClusterRoles creation
-  - apiGroups:
-      - ""
-      - sharing.liqo.io
-    resources:
-      - advertisements
-      - advertisements/status
-    verbs:
-      - get
-      - list
-      - create
-      - update
-      - delete
-      - watch
-  - apiGroups:
-      - net.liqo.io
-    resources:
-      - networkconfigs
-      - networkconfigs/status
-    verbs:
-      - "*"
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
 metadata:
-  name: liqo-discovery
+  name: liqo-auth-service
 rules:
   - apiGroups:
       - ""
     resources:
-      - services
-    verbs:
-      - get
-  - apiGroups:
-      - ""
-    resources:
-      - configmaps
       - secrets
     verbs:
       - get
       - list
       - watch
       - create
-      - update
-      - delete
   - apiGroups:
       - ""
     resources:
@@ -141,81 +68,84 @@ rules:
       - rbac.authorization.k8s.io
     resources:
       - roles
-    verbs:
-      - get
-      - create
-      - update
-  - apiGroups:
-      - rbac.authorization.k8s.io
-    resources:
       - rolebindings
     verbs:
-      - get
       - create
+      - delete
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
 metadata:
-  name: discovery
+  name: auth-service
   namespace: {{ .Release.Namespace }}
   labels:
-    k8s-app: discovery
+    k8s-app: auth-service
     app: liqo.io
 subjects:
   - kind: ServiceAccount
-    name: discovery-sa
+    name: auth-service-sa
     namespace: {{ .Release.Namespace }}
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: Role
-  name: liqo-discovery
+  name: liqo-auth-service
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
 metadata:
-  name: discovery
+  name: auth-service
   namespace: {{ .Release.Namespace }}
   labels:
-    k8s-app: discovery
+    k8s-app: auth-service
     app: liqo.io
 subjects:
   - kind: ServiceAccount
-    name: discovery-sa
+    name: auth-service-sa
     namespace: {{ .Release.Namespace }}
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
-  name: liqo-discovery
+  name: liqo-auth-service
 ---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
   labels:
-    run: discovery
+    run: auth-service
     app: liqo.io
-  name: discovery
+  name: auth-service
   namespace: {{ .Release.Namespace }}
 spec:
   replicas: 1
   selector:
     matchLabels:
-      run: discovery
+      run: auth-service
   template:
     metadata:
       labels:
-        run: discovery
+        run: auth-service
     spec:
-      serviceAccountName: discovery-sa
+      serviceAccountName: auth-service-sa
+      initContainers:
+        - name: cert-creator
+          image: nginx
+          volumeMounts:
+            - mountPath: '/certs'
+              name: certs
+          command: [ "/bin/sh" ]
+          args: [ "-c", 'openssl req -x509 -subj "/C=IT/ST=Turin/O=Liqo" -nodes -days 365 -newkey rsa:4096 -keyout /certs/key.pem -out /certs/cert.pem' ]
       containers:
         - image: {{ .Values.image.repository }}{{ .Values.global.suffix | default .Values.suffix }}:{{ .Values.global.version | default .Values.version }}
-          name: discovery
+          name: auth-service
           imagePullPolicy: {{ .Values.image.pullPolicy }}
-          command: ["/usr/bin/entrypoint.sh", "/usr/bin/discovery"]
+          command: ["/usr/bin/auth-service"]
           args:
           - "--namespace"
           - "$(POD_NAMESPACE)"
-          - "--requeueAfter"
+          - "--resyncSeconds"
           - "30"
+          - "--listeningPort"
+          - "5000"
           env:
             - name: POD_NAMESPACE
               valueFrom:
@@ -229,9 +159,6 @@ spec:
             - name: APISERVER_PORT
               value: {{ .Values.apiServerPort }}
             {{ end }}
-          volumeMounts:
-            - mountPath: /usr/local/share/ca-certificates
-              name: ca-certificates
           resources:
             limits:
               cpu: 50m
@@ -239,9 +166,26 @@ spec:
             requests:
               cpu: 50m
               memory: 50M
+          volumeMounts:
+            - mountPath: '/certs'
+              name: certs
       volumes:
-        - name: ca-certificates
-          configMap:
-            name: trusted-ca-certificates
-      hostNetwork: true
-
+        - name: certs
+          emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    run: auth-service
+  name: auth-service
+  namespace: {{ .Release.Namespace }}
+spec:
+  type: NodePort
+  selector:
+    run: auth-service
+  ports:
+    - name: https
+      protocol: TCP
+      port: 443
+      targetPort: 5000

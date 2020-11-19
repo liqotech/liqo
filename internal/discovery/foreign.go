@@ -25,9 +25,14 @@ func (discovery *DiscoveryCtrl) UpdateForeignLAN(data *discoveryData) {
 		return
 	}
 
-	err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
-		return discovery.createOrUpdate(data, nil, discoveryType, nil)
-	})
+	err := retry.OnError(
+		retry.DefaultRetry,
+		func(err error) bool {
+			return k8serror.IsConflict(err) || k8serror.IsAlreadyExists(err)
+		},
+		func() error {
+			return discovery.createOrUpdate(data, nil, discoveryType, nil)
+		})
 	if err != nil {
 		klog.Error(err)
 	}
@@ -42,11 +47,16 @@ func (discovery *DiscoveryCtrl) UpdateForeignWAN(data []*TxtData, sd *v1alpha1.S
 			continue
 		}
 
-		err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
-			return discovery.createOrUpdate(&discoveryData{ // TODO: discover auth service in wan discovery
-				TxtData: txtData,
-			}, sd, discoveryType, &createdUpdatedForeign)
-		})
+		err := retry.OnError(
+			retry.DefaultRetry,
+			func(err error) bool {
+				return k8serror.IsConflict(err) || k8serror.IsAlreadyExists(err)
+			},
+			func() error {
+				return discovery.createOrUpdate(&discoveryData{ // TODO: discover auth service in wan discovery
+					TxtData: txtData,
+				}, sd, discoveryType, &createdUpdatedForeign)
+			})
 		if err != nil {
 			continue
 		}
@@ -133,36 +143,51 @@ func (discovery *DiscoveryCtrl) createForeign(data *discoveryData, sd *v1alpha1.
 	return fc, err
 }
 
+// indicates that the remote cluster changed location, we have to reload all our infos about the remote cluster
+func needsToDeleteRemoteResources(fc *v1alpha1.ForeignCluster, data *discoveryData) bool {
+	return fc.Spec.ApiUrl != data.TxtData.ApiUrl || fc.Spec.Namespace != data.TxtData.Namespace
+}
+
 func (discovery *DiscoveryCtrl) CheckUpdate(data *discoveryData, fc *v1alpha1.ForeignCluster, discoveryType v1alpha1.DiscoveryType, searchDomain *v1alpha1.SearchDomain) (fcUpdated *v1alpha1.ForeignCluster, updated bool, err error) {
-	if fc.Spec.ApiUrl != data.TxtData.ApiUrl || fc.Spec.Namespace != data.TxtData.Namespace || fc.HasHigherPriority(discoveryType) {
+	needsToReload := needsToDeleteRemoteResources(fc, data)
+	higherPriority := fc.HasHigherPriority(discoveryType) // the remote cluster didn't move, but we discovered it with an higher priority discovery type
+	if needsToReload || higherPriority {
 		// something is changed in ForeignCluster specs, update it
 		fc.Spec.ApiUrl = data.TxtData.ApiUrl
 		fc.Spec.Namespace = data.TxtData.Namespace
 		fc.Spec.DiscoveryType = discoveryType
-		if searchDomain != nil && discoveryType == v1alpha1.WanDiscovery {
+		if higherPriority && discoveryType == v1alpha1.LanDiscovery {
+			// if the cluster was previously discovered with IncomingPeering discovery type, set join flag accordingly to LanDiscovery sets and set TTL
+			fc.Spec.Join = discovery.Config.AutoJoin
+			fc.Status.Ttl = data.TxtData.Ttl
+		} else if searchDomain != nil && discoveryType == v1alpha1.WanDiscovery {
 			fc.Spec.Join = searchDomain.Spec.AutoJoin
 		}
-		if fc.Status.Outgoing.CaDataRef != nil {
+		if needsToReload && fc.Status.Outgoing.CaDataRef != nil {
+			// delete it only if the remote cluster moved
 			err := discovery.crdClient.Client().CoreV1().Secrets(fc.Status.Outgoing.CaDataRef.Namespace).Delete(context.TODO(), fc.Status.Outgoing.CaDataRef.Name, metav1.DeleteOptions{})
 			if err != nil {
 				klog.Error(err)
 				return nil, false, err
 			}
+			fc.Status.Outgoing.CaDataRef = nil
 		}
-		fc.Status.Outgoing.CaDataRef = nil
 		fc.LastUpdateNow()
 		tmp, err := discovery.crdClient.Resource("foreignclusters").Update(fc.Name, fc, metav1.UpdateOptions{})
 		if err != nil {
 			klog.Error(err)
 			return nil, false, err
 		}
+		klog.V(4).Infof("TTL updated for ForeignCluster %v", fc.Name)
 		fc, ok := tmp.(*v1alpha1.ForeignCluster)
 		if !ok {
 			err = errors.New("retrieved object is not a ForeignCluster")
 			klog.Error(err)
 			return nil, false, err
 		}
-		if fc.Status.Outgoing.Advertisement != nil {
+		if needsToReload && fc.Status.Outgoing.Advertisement != nil {
+			// delete it only if the remote cluster moved
+
 			// changed ip in peered cluster, delete advertisement and wait for its recreation
 			// TODO: find more sophisticated logic to not remove all resources on remote cluster
 			advName := fc.Status.Outgoing.Advertisement.Name

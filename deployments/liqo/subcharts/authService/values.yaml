@@ -1,0 +1,14 @@
+# Default values for discoveryOperator.
+# This is a YAML-formatted file.
+# Declare variables to be passed into your templates.
+
+
+image:
+  repository: "liqo/auth-service"
+  pullPolicy: "IfNotPresent"
+
+suffix: ""
+version: "latest"
+
+apiServerIp: ""
+apiServerPort: ""

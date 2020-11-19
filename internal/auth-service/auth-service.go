@@ -58,7 +58,7 @@ func NewAuthServiceCtrl(namespace string, kubeconfigPath string, resyncTime time
 	}, nil
 }
 
-func (authService *AuthServiceCtrl) Start(listeningPort string) error {
+func (authService *AuthServiceCtrl) Start(listeningPort string, certFile string, keyFile string) error {
 	if err := authService.configureToken(); err != nil {
 		return err
 	}
@@ -67,7 +67,7 @@ func (authService *AuthServiceCtrl) Start(listeningPort string) error {
 
 	router.POST("/role", authService.role)
 
-	err := http.ListenAndServe(strings.Join([]string{":", listeningPort}, ""), router)
+	err := http.ListenAndServeTLS(strings.Join([]string{":", listeningPort}, ""), certFile, keyFile, router)
 	if err != nil {
 		klog.Error(err)
 		return err
