@@ -3,6 +3,8 @@ package util
 import (
 	"bytes"
 	"context"
+	"fmt"
+	"github.com/liqotech/liqo/pkg/virtualKubelet"
 	"gotest.tools/assert"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -110,11 +112,11 @@ func createTester() *Tester {
 	}
 }
 
-func WaitForPodToBeReady(client *kubernetes.Clientset, waitSeconds time.Duration, clusterID, namespace, podName string) bool {
+func WaitForPodToBeReady(location string, client *kubernetes.Clientset, waitSeconds time.Duration, clusterID, namespace, podName string) bool {
 	stop := make(chan bool, 1)
 	ready := make(chan bool, 1)
 	klog.Infof("%s -> waiting for pod %s on namespace %s to become ready", clusterID, podName, namespace)
-	go PodWatcher(client, clusterID, namespace, podName, ready, stop)
+	go PodWatcher(location, client, clusterID, namespace, podName, ready, stop)
 	select {
 	case isReady := <-ready:
 		return isReady
@@ -124,10 +126,24 @@ func WaitForPodToBeReady(client *kubernetes.Clientset, waitSeconds time.Duration
 	}
 }
 
-func PodWatcher(client *kubernetes.Clientset, clusterID, namespace, podName string, podReady, stopCh chan bool) {
-	watcher, err := client.CoreV1().Pods(namespace).Watch(context.TODO(), metav1.ListOptions{
-		FieldSelector: fields.OneTermEqualSelector(api.ObjectNameField, podName).String(),
-	})
+func PodWatcher(location string, client *kubernetes.Clientset, clusterID, namespace, podName string, podReady, stopCh chan bool) {
+	var watcher watch.Interface
+	var err error
+
+	// If the location is home, we know the exact name of the pod
+	// otherwise, we know the name of the shadowed copy of a foreign pod by using a specific label.
+	// This happens because the foreign pod are created by the foreign kube-controller, starting from a replicaset.
+	// Hence, we do not know the exact foreign pod name.
+	if location == "home" {
+		watcher, err = client.CoreV1().Pods(namespace).Watch(context.TODO(), metav1.ListOptions{
+			FieldSelector: fields.OneTermEqualSelector(api.ObjectNameField, podName).String(),
+		})
+	} else {
+		watcher, err = client.CoreV1().Pods(namespace).Watch(context.TODO(), metav1.ListOptions{
+			LabelSelector: fmt.Sprintf("%s=%s", virtualKubelet.ReflectedpodKey, podName),
+		})
+	}
+
 	if err != nil {
 		klog.Errorf("%s -> an error occurred while launching the watcher for pod %s: %s", clusterID, podName, err)
 		return

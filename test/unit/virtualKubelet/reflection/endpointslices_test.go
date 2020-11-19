@@ -34,7 +34,7 @@ func TestEndpointAdd(t *testing.T) {
 	reflector := &outgoing.EndpointSlicesReflector{
 		APIReflector:         Greflector,
 		LocalRemappedPodCIDR: types.NewNetworkingOption("localRemappedPodCIDR", "10.0.0.0/16"),
-		NodeName:             types.NewNetworkingOption("NodeName", "vk-node"),
+		VirtualNodeName:      types.NewNetworkingOption("VirtualNodeName", "vk-node"),
 	}
 	reflector.SetSpecializedPreProcessingHandlers()
 
@@ -116,7 +116,7 @@ func TestEndpointAdd2(t *testing.T) {
 	reflector := &outgoing.EndpointSlicesReflector{
 		APIReflector:         Greflector,
 		LocalRemappedPodCIDR: types.NewNetworkingOption("localRemappedPodCIDR", "10.0.0.0/16"),
-		NodeName:             types.NewNetworkingOption("NodeName", "vk-node"),
+		VirtualNodeName:      types.NewNetworkingOption("VirtualNodeName", "vk-node"),
 	}
 	reflector.SetSpecializedPreProcessingHandlers()
 

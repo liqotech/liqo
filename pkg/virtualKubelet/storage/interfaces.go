@@ -8,6 +8,7 @@ import (
 type APICacheInterface interface {
 	informer(apimgmt.ApiType) cache.SharedIndexInformer
 	getApi(apimgmt.ApiType, string) (interface{}, error)
+	listApiByIndex(apimgmt.ApiType, string) ([]interface{}, error)
 	listApi(apimgmt.ApiType) ([]interface{}, error)
 	resyncListObjects(apimgmt.ApiType) ([]interface{}, error)
 }
@@ -29,6 +30,8 @@ type CacheManagerReader interface {
 	ListForeignNamespacedObject(apimgmt.ApiType, string) ([]interface{}, error)
 	ResyncListHomeNamespacedObject(apimgmt.ApiType, string) ([]interface{}, error)
 	ResyncListForeignNamespacedObject(apimgmt.ApiType, string) ([]interface{}, error)
+	ListHomeApiByIndex(apimgmt.ApiType, string, string) ([]interface{}, error)
+	ListForeignApiByIndex(apimgmt.ApiType, string, string) ([]interface{}, error)
 }
 
 type CacheManagerReaderAdder interface {

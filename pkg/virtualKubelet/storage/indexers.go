@@ -2,7 +2,9 @@ package storage
 
 import (
 	"errors"
+	"github.com/liqotech/liqo/pkg/virtualKubelet"
 	apimgmt "github.com/liqotech/liqo/pkg/virtualKubelet/apiReflection"
+	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	discoveryv1beta1 "k8s.io/api/discovery/v1beta1"
 	"k8s.io/client-go/tools/cache"
@@ -13,7 +15,7 @@ var InformerIndexers = map[apimgmt.ApiType]func() cache.Indexers{
 	apimgmt.Configmaps:     configmapsIndexers,
 	apimgmt.EndpointSlices: endpointSlicesIndexers,
 	apimgmt.Pods:           podsIndexers,
-	apimgmt.ReplicaSets:    replicaControllerIndexers,
+	apimgmt.ReplicaSets:    replicasetsIndexers,
 	apimgmt.Secrets:        secretsIndexers,
 	apimgmt.Services:       servicesIndexers,
 }
@@ -53,24 +55,33 @@ func podsIndexers() cache.Indexers {
 		if !ok {
 			return []string{}, errors.New("cannot convert obj to pod")
 		}
-		return []string{
+		var label string
+		if po.Labels != nil {
+			label = po.Labels[virtualKubelet.ReflectedpodKey]
+		}
+
+		indices := []string{
 			strings.Join([]string{po.Namespace, po.Name}, "/"),
 			po.Name,
-		}, nil
+		}
+		if label != "" {
+			indices = append(indices, label)
+		}
+		return indices, nil
 	}
 	return i
 }
 
-func replicaControllerIndexers() cache.Indexers {
+func replicasetsIndexers() cache.Indexers {
 	i := cache.Indexers{}
-	i["replicationcontrollers"] = func(obj interface{}) ([]string, error) {
-		rc, ok := obj.(*corev1.ReplicationController)
+	i["replicasets"] = func(obj interface{}) ([]string, error) {
+		replicaset, ok := obj.(*appsv1.ReplicaSet)
 		if !ok {
-			return []string{}, errors.New("cannot convert obj to replicationController")
+			return []string{}, errors.New("cannot convert obj to replicaset")
 		}
 		return []string{
-			strings.Join([]string{rc.Namespace, rc.Name}, "/"),
-			rc.Name,
+			strings.Join([]string{replicaset.Namespace, replicaset.Name}, "/"),
+			replicaset.Name,
 		}, nil
 	}
 	return i

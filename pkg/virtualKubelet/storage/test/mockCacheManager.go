@@ -109,3 +109,11 @@ func (m *MockManager) ResyncListHomeNamespacedObject(apiType apimgmt.ApiType, s 
 func (m *MockManager) ResyncListForeignNamespacedObject(apiType apimgmt.ApiType, s string) ([]interface{}, error) {
 	panic("implement me")
 }
+
+func (m *MockManager) ListHomeApiByIndex(apiType apimgmt.ApiType, s string, s2 string) ([]interface{}, error) {
+	panic("implement me")
+}
+
+func (m *MockManager) ListForeignApiByIndex(apiType apimgmt.ApiType, s string, s2 string) ([]interface{}, error) {
+	panic("implement me")
+}

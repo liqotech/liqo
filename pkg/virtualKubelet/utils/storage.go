@@ -16,7 +16,7 @@ func Keyer(namespace, name string) string {
 
 func GetObject(informer cache.SharedIndexInformer, key string, backoff wait.Backoff) (interface{}, error) {
 	if informer == nil {
-		return nil, errors.New("informer not yet instantiated")
+		return nil, errors.New("informer not instantiated")
 	}
 
 	var object interface{}
@@ -44,9 +44,22 @@ func GetObject(informer cache.SharedIndexInformer, key string, backoff wait.Back
 	return object, nil
 }
 
+func ListIndexedObjects(informer cache.SharedIndexInformer, api, key string) ([]interface{}, error) {
+	if informer == nil {
+		return nil, errors.New("informer not instantiated")
+	}
+
+	objects, err := informer.GetIndexer().ByIndex(api, key)
+	if err != nil {
+		return nil, err
+	}
+
+	return objects, nil
+}
+
 func ListObjects(informer cache.SharedIndexInformer) ([]interface{}, error) {
 	if informer == nil {
-		return nil, errors.New("informer not yet instantiated")
+		return nil, errors.New("informer not instantiated")
 	}
 
 	return informer.GetIndexer().List(), nil
@@ -54,7 +67,7 @@ func ListObjects(informer cache.SharedIndexInformer) ([]interface{}, error) {
 
 func ResyncListObjects(informer cache.SharedIndexInformer) ([]interface{}, error) {
 	if informer == nil {
-		return nil, errors.New("informer not yet instantiated")
+		return nil, errors.New("informer not instantiated")
 	}
 
 	// resync for ensuring to be remotely aligned with the foreign cluster state

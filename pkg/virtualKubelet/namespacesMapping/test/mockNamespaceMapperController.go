@@ -1,49 +1,59 @@
 package test
 
+import "github.com/liqotech/liqo/pkg/virtualKubelet/namespacesMapping"
+
 type MockNamespaceMapperController struct {
-	mapper *MockNamespaceMapper
+	Mapper *MockNamespaceMapper
 }
 
-func NewMockNamespaceMapperController() *MockNamespaceMapperController {
+func NewMockNamespaceMapperController(mapper *MockNamespaceMapper) namespacesMapping.MapperController {
 	controller := &MockNamespaceMapperController{
-		mapper: &MockNamespaceMapper{
-			Cache: map[string]string{},
-		},
+		Mapper: mapper,
 	}
+
 	return controller
 }
 
 func (c *MockNamespaceMapperController) PollStartOutgoingReflection() chan string {
-	return make(chan string, 1)
+	panic("to implement")
 }
 
 func (c *MockNamespaceMapperController) PollStartIncomingReflection() chan string {
-	return make(chan string, 1)
+	panic("to implement")
 }
 
 func (c *MockNamespaceMapperController) PollStopOutgoingReflection() chan string {
-	return make(chan string, 1)
+	panic("to implement")
 }
 
 func (c *MockNamespaceMapperController) PollStopIncomingReflection() chan string {
-	return make(chan string, 1)
+	panic("to implement")
 }
 
 func (c *MockNamespaceMapperController) PollStartMapper() chan struct{} {
-	return make(chan struct{}, 1)
+	panic("to implement")
 }
 
 func (c *MockNamespaceMapperController) PollStopMapper() chan struct{} {
-	return make(chan struct{}, 1)
+	panic("to implement")
 }
 
 func (c *MockNamespaceMapperController) ReadyForRestart() {
+	panic("to implement")
 }
 
 func (c *MockNamespaceMapperController) NatNamespace(namespace string, create bool) (string, error) {
-	return c.mapper.NatNamespace(namespace, create)
+	return c.Mapper.NatNamespace(namespace, create)
 }
 
 func (c *MockNamespaceMapperController) DeNatNamespace(namespace string) (string, error) {
-	return c.mapper.DeNatNamespace(namespace)
+	return c.Mapper.DeNatNamespace(namespace)
+}
+
+func (c *MockNamespaceMapperController) MappedNamespaces() map[string]string {
+	panic("implement me")
+}
+
+func (c *MockNamespaceMapperController) WaitForSync() {
+	panic("implement me")
 }

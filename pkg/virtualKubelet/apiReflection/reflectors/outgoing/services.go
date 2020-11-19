@@ -4,6 +4,7 @@ import (
 	"context"
 	apimgmt "github.com/liqotech/liqo/pkg/virtualKubelet/apiReflection"
 	ri "github.com/liqotech/liqo/pkg/virtualKubelet/apiReflection/reflectors/reflectorsInterfaces"
+	"github.com/liqotech/liqo/pkg/virtualKubelet/forge"
 	"github.com/pkg/errors"
 	corev1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
@@ -121,7 +122,7 @@ func (r *ServicesReflector) PreAdd(obj interface{}) interface{} {
 	for k, v := range svcLocal.Labels {
 		svcRemote.Labels[k] = v
 	}
-	svcRemote.Labels[apimgmt.LiqoLabelKey] = apimgmt.LiqoLabelValue
+	svcRemote.Labels[forge.LiqoReflectionKey] = forge.LiqoOutgoing
 
 	klog.V(3).Infof("PreAdd routine completed for service %v/%v", svcLocal.Namespace, svcLocal.Name)
 	return svcRemote
@@ -143,28 +144,28 @@ func (r *ServicesReflector) PreUpdate(newObj interface{}, _ interface{}) interfa
 		klog.Error(err)
 		return nil
 	}
-	RemoteSvc := oldRemoteObj.(*corev1.Service).DeepCopy()
+	foreignSvc := oldRemoteObj.(*corev1.Service).DeepCopy()
 
-	if RemoteSvc.Labels == nil {
-		RemoteSvc.Labels = make(map[string]string)
+	if foreignSvc.Labels == nil {
+		foreignSvc.Labels = make(map[string]string)
 	}
 	for k, v := range newSvc.Labels {
-		RemoteSvc.Labels[k] = v
+		foreignSvc.Labels[k] = v
 	}
-	RemoteSvc.Labels[apimgmt.LiqoLabelKey] = apimgmt.LiqoLabelValue
+	foreignSvc.Labels[forge.LiqoReflectionKey] = forge.LiqoOutgoing
 
-	if RemoteSvc.Annotations == nil {
-		RemoteSvc.Annotations = make(map[string]string)
+	if foreignSvc.Annotations == nil {
+		foreignSvc.Annotations = make(map[string]string)
 	}
 	for k, v := range newSvc.Annotations {
-		RemoteSvc.Annotations[k] = v
+		foreignSvc.Annotations[k] = v
 	}
 
-	RemoteSvc.Spec.Ports = newSvc.Spec.Ports
-	RemoteSvc.Spec.Selector = newSvc.Spec.Selector
-	RemoteSvc.Spec.Type = newSvc.Spec.Type
+	foreignSvc.Spec.Ports = newSvc.Spec.Ports
+	foreignSvc.Spec.Selector = newSvc.Spec.Selector
+	foreignSvc.Spec.Type = newSvc.Spec.Type
 
-	return RemoteSvc
+	return foreignSvc
 }
 
 func (r *ServicesReflector) PreDelete(obj interface{}) interface{} {

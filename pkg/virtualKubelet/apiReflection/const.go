@@ -20,11 +20,6 @@ var ApiNames = map[ApiType]string{
 	Secrets:        "secrets",
 }
 
-const (
-	LiqoLabelKey   = "virtualkubelet.liqo.io/reflection"
-	LiqoLabelValue = "reflected"
-)
-
 type ApiEvent struct {
 	Event interface{}
 	Api   ApiType

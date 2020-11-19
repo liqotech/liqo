@@ -99,7 +99,7 @@ func addService(serviceMap *map[string]*v1.Service, cacheManager storage.CacheMa
 		return err
 	}
 	if tmp == nil {
-		klog.V(4).Infof("nil object for service %v in namespace %v", name, namespace)
+		klog.V(3).Infof("nil object for service %v in namespace %v", name, namespace)
 		return nil
 	}
 	remoteSvc := tmp.(*v1.Service)

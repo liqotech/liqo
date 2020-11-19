@@ -58,7 +58,7 @@ var _ = Describe("ReplicationControllers", func() {
 					ret := reflector.PreProcessAdd(c.input)
 					Expect(ret).To(BeNil())
 				},
-				Entry("", addTestcase{
+				Entry("with empty replicaset", addTestcase{
 					input: &appsv1.ReplicaSet{},
 				}),
 			)
@@ -74,7 +74,7 @@ var _ = Describe("ReplicationControllers", func() {
 					ret := reflector.PreProcessUpdate(c.newInput, c.oldInput)
 					Expect(ret).To(BeNil())
 				},
-				Entry("", updateTestcase{
+				Entry("empty replicasets", updateTestcase{
 					newInput: &appsv1.ReplicaSet{},
 					oldInput: &appsv1.ReplicaSet{},
 				}),
@@ -100,6 +100,7 @@ var _ = Describe("ReplicationControllers", func() {
 					ret := reflector.PreProcessDelete(c.input)
 					Expect(ret).To(Equal(c.expected))
 				},
+
 				Entry("", deleteTestcase{
 					input: &appsv1.ReplicaSet{
 						ObjectMeta: metav1.ObjectMeta{

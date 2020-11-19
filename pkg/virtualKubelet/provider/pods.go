@@ -6,12 +6,14 @@ import (
 	"github.com/liqotech/liqo/internal/utils/errdefs"
 	"github.com/liqotech/liqo/internal/utils/trace"
 	"github.com/liqotech/liqo/internal/virtualKubelet/node/api"
+	"github.com/liqotech/liqo/pkg/virtualKubelet"
 	apimgmgt "github.com/liqotech/liqo/pkg/virtualKubelet/apiReflection"
-	"github.com/liqotech/liqo/pkg/virtualKubelet/translation"
+	vkContext "github.com/liqotech/liqo/pkg/virtualKubelet/context"
+	"github.com/liqotech/liqo/pkg/virtualKubelet/forge"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/translation/serviceEnv"
 	"github.com/pkg/errors"
 	"io"
-	v1 "k8s.io/api/core/v1"
+	corev1 "k8s.io/api/core/v1"
 	kerror "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes/scheme"
@@ -23,122 +25,124 @@ import (
 )
 
 // CreatePod accepts a Pod definition and stores it in memory.
-func (p *KubernetesProvider) CreatePod(ctx context.Context, pod *v1.Pod) error {
-	// Add the pod's coordinates to the current span.
-	if pod == nil {
-		return errors.New("pod cannot be nil")
+func (p *LiqoProvider) CreatePod(_ context.Context, homePod *corev1.Pod) error {
+	if homePod == nil {
+		return errors.New("received nil homePod to create")
 	}
 
-	klog.Infof("receive CreatePod %q", pod.Name)
+	klog.V(3).Infof("PROVIDER: pod %s/%s asked to be created in the provider", homePod.Namespace, homePod.Name)
 
-	if pod.OwnerReferences != nil && len(pod.OwnerReferences) != 0 && pod.OwnerReferences[0].Kind == "DaemonSet" {
-		msg := fmt.Sprintf("Skip to create DaemonSet pod %q", pod.Name)
-		klog.Info(msg)
+	if homePod.OwnerReferences != nil && len(homePod.OwnerReferences) != 0 && homePod.OwnerReferences[0].Kind == "DaemonSet" {
+		klog.Infof("Skip to create DaemonSet homePod %q", homePod.Name)
 		return nil
 	}
 
-	nattedNS, err := p.namespaceMapper.NatNamespace(pod.Namespace, true)
+	foreignPod, err := forge.HomeToForeign(homePod, nil, forge.LiqoOutgoing)
 	if err != nil {
 		return err
 	}
 
-	podTranslated := translation.H2FTranslate(pod, nattedNS)
-
-	apiController, err := p.GetApiController()
+	foreignPod, err = serviceEnv.TranslateServiceEnvVariables(foreignPod.(*corev1.Pod), homePod.Namespace, homePod.Namespace, p.apiController.CacheManager())
 	if err != nil {
-		return err
-	}
-	podTranslated, err = serviceEnv.TranslateServiceEnvVariables(podTranslated, pod.Namespace, nattedNS, apiController.CacheManager())
-	if err != nil {
-		return err
+		klog.Error(err)
 	}
 
-	_, err = p.foreignClient.Client().CoreV1().Pods(podTranslated.Namespace).Create(context.TODO(), podTranslated, metav1.CreateOptions{})
+	foreignReplicaset := forge.ReplicasetFromPod(foreignPod.(*corev1.Pod))
+
+	_, err = p.foreignClient.AppsV1().ReplicaSets(foreignReplicaset.Namespace).Create(context.TODO(), foreignReplicaset, metav1.CreateOptions{})
 	if err != nil {
 		return err
 	}
-	klog.Infof("Pod %v/%v successfully created on remote cluster", podTranslated.Namespace, podTranslated.Name)
+
+	klog.V(3).Infof("PROVIDER: replicaset %v/%v successfully created on remote cluster", foreignReplicaset.Namespace, foreignReplicaset.Name)
 
 	return nil
 }
 
 // UpdatePod accepts a Pod definition and updates its reference.
-func (p *KubernetesProvider) UpdatePod(ctx context.Context, pod *v1.Pod) error {
+func (p *LiqoProvider) UpdatePod(_ context.Context, pod *corev1.Pod) error {
+	if pod == nil {
+		return errors.New("received nil pod to update")
+	}
+
+	klog.V(3).Infof("PROVIDER: pod %s/%s asked to be updated in the provider", pod.Namespace, pod.Name)
+
 	return nil
 }
 
 // DeletePod deletes the specified pod out of memory.
-func (p *KubernetesProvider) DeletePod(ctx context.Context, pod *v1.Pod) (err error) {
-	klog.Infof("receive DeletePod %q", pod.Name)
-	opts := &metav1.DeleteOptions{}
-
-	nattedNS, err := p.namespaceMapper.NatNamespace(pod.Namespace, false)
-	if err != nil {
-		return err
+func (p *LiqoProvider) DeletePod(ctx context.Context, pod *corev1.Pod) (err error) {
+	if pod == nil {
+		return errors.New("received nil pod to delete")
 	}
 
-	err = p.foreignClient.Client().CoreV1().Pods(nattedNS).Delete(context.TODO(), pod.Name, *opts)
-	if err != nil {
-		return errors.Wrap(err, "Unable to delete pod")
-	}
+	var foreignNamespace, replicasetName string
 
-	now := metav1.Now()
-	pod.Status.Phase = v1.PodSucceeded
-	pod.Status.Reason = "KubernetesProviderPodDeleted"
-	//
-	for idx := range pod.Status.ContainerStatuses {
-		pod.Status.ContainerStatuses[idx].Ready = false
-		// We fix to now the starting container when reconciliating a container which is
-		if pod.Status.ContainerStatuses[idx].State.Running == nil {
-			pod.Status.ContainerStatuses[idx].State.Running = &v1.ContainerStateRunning{StartedAt: now}
+	klog.V(3).Infof("PROVIDER: pod %s/%s asked to be deleted in the provider", pod.Namespace, pod.Name)
+
+	// if the caller of the functions is deleteDanglingPods, then the received pod is the foreign one,
+	// otherwise the received pod is the local one
+	if value, ok := vkContext.CallingFunction(ctx); ok && value == vkContext.DeleteDanglingPods {
+		foreignNamespace = pod.Namespace
+		if pod.Labels != nil {
+			replicasetName = pod.Labels[virtualKubelet.ReflectedpodKey]
 		}
-		pod.Status.ContainerStatuses[idx].State = v1.ContainerState{
-			Terminated: &v1.ContainerStateTerminated{
-				Message:    "Kubernetes provider terminated container upon deletion",
-				FinishedAt: now,
-				Reason:     "KubernetesProviderPodContainerDeleted",
-				StartedAt:  pod.Status.ContainerStatuses[idx].State.Running.StartedAt,
-			},
+		if replicasetName == "" {
+			klog.V(3).Infof("foreign pod %s/%s not deleted because unlabeled", pod.Namespace, pod.Name)
+			return nil
+		}
+	} else {
+		replicasetName = pod.Name
+		foreignNamespace, err = p.namespaceMapper.NatNamespace(pod.Namespace, false)
+		if err != nil {
+			return err
 		}
 	}
+
+	err = p.foreignClient.AppsV1().ReplicaSets(foreignNamespace).Delete(context.TODO(), replicasetName, metav1.DeleteOptions{})
+	if err != nil {
+		return errors.Wrap(err, "Unable to delete foreign replicaset")
+	}
+
+	klog.V(3).Infof("PROVIDER: replicaset %v/%v successfully deleted on remote cluster", foreignNamespace, pod.Name)
 
 	return nil
 }
 
 // GetPod returns a pod by name that is stored in memory.
-func (p *KubernetesProvider) GetPod(ctx context.Context, namespace, name string) (pod *v1.Pod, err error) {
-	klog.V(3).Infof("receive GetPod %q", name)
+func (p *LiqoProvider) GetPod(_ context.Context, namespace, name string) (pod *corev1.Pod, err error) {
+	klog.V(3).Infof("PROVIDER: pod %s/%s requested to the provider", namespace, name)
 
-	nattedNS, err := p.namespaceMapper.NatNamespace(namespace, false)
+	foreignNamespace, err := p.namespaceMapper.NatNamespace(namespace, false)
 	if err != nil {
 		return nil, err
 	}
 
-	foreignPod, err := p.apiController.CacheManager().GetForeignNamespacedObject(apimgmgt.Pods, nattedNS, name)
+	foreignObjects, err := p.apiController.CacheManager().ListForeignApiByIndex(apimgmgt.Pods, foreignNamespace, name)
 	if err != nil {
-		err = errors.Wrapf(err, "error while retrieving foreign pod")
 		klog.Error(err)
+		return nil, err
+	}
+	if len(foreignObjects) == 0 {
+		return nil, errdefs.NotFound(fmt.Sprintf("no objects indexed with key %s found", name))
+	}
+	if len(foreignObjects) > 1 {
+		return nil, errors.New("multiple objects indexed with the same index")
+	}
 
-		if kerror.IsNotFound(err) {
-			return nil, errdefs.NotFound(err.Error())
-		}
+	homePod, err := forge.ForeignToHome(foreignObjects[0].(*corev1.Pod), nil, forge.LiqoOutgoing)
+	if err != nil {
 		return nil, err
 	}
 
-	if foreignPod == nil {
-		if kerror.IsNotFound(err) {
-			return nil, errdefs.NotFoundf("pod \"%s/%s\" is not known to the provider", namespace, name)
-		}
-		return nil, errors.Wrap(err, "Unable to get pod")
-	}
-
-	podInverted := translation.F2HTranslate(foreignPod.(*v1.Pod), p.RemoteRemappedPodCidr.Value().ToString(), namespace)
-	return podInverted, nil
+	return homePod.(*corev1.Pod), nil
 }
 
 // GetPodStatus returns the status of a pod by name that is "running".
 // returns nil if a pod by that name is not found.
-func (p *KubernetesProvider) GetPodStatus(ctx context.Context, namespace, name string) (*v1.PodStatus, error) {
+func (p *LiqoProvider) GetPodStatus(_ context.Context, namespace, name string) (*corev1.PodStatus, error) {
+	klog.V(3).Infof("PROVIDER: pod %s/%s status requested to the provider", namespace, name)
+
 	nattedNS, err := p.namespaceMapper.NatNamespace(namespace, false)
 
 	if err != nil {
@@ -147,33 +151,52 @@ func (p *KubernetesProvider) GetPodStatus(ctx context.Context, namespace, name s
 
 	foreignPod, err := p.apiController.CacheManager().GetForeignNamespacedObject(apimgmgt.Pods, nattedNS, name)
 	if err != nil {
-		klog.Errorf("error while retrieving foreign pod - ERR: %v", err)
+		return nil, errors.Wrap(err, "error while retrieving foreign pod")
 	}
 
-	if err != nil {
-		return nil, errors.Wrap(err, "error getting status")
+	return &foreignPod.(*corev1.Pod).Status, nil
+}
+
+// GetPods returns a list of all pods known to be "running".
+func (p *LiqoProvider) GetPods(_ context.Context) ([]*corev1.Pod, error) {
+	klog.V(3).Infof("PROVIDER: foreign pod listing requested to the provider")
+
+	var homePods []*corev1.Pod
+
+	for _, foreignNamespace := range p.namespaceMapper.MappedNamespaces() {
+		pods, err := p.apiController.CacheManager().ListForeignNamespacedObject(apimgmgt.Pods, foreignNamespace)
+		if err != nil {
+			return nil, errors.New("Unable to get pods")
+		}
+
+		for _, pod := range pods {
+			homePod, err := forge.ForeignToHome(pod.(*corev1.Pod), nil, forge.LiqoOutgoing)
+			if err != nil {
+				return nil, err
+			}
+			homePods = append(homePods, homePod.(*corev1.Pod))
+		}
 	}
-	podOutput := translation.F2HTranslate(foreignPod.(*v1.Pod), p.RemoteRemappedPodCidr.Value().ToString(), namespace)
-	klog.Infof("receive GetPodStatus %q", name)
-	return &podOutput.Status, nil
+
+	return homePods, nil
 }
 
 // RunInContainer executes a command in a container in the pod, copying data
 // between in/out/err and the container's stdin/stdout/stderr.
-func (p *KubernetesProvider) RunInContainer(ctx context.Context, namespace string, podName string, containerName string, cmd []string, attach api.AttachIO) error {
+func (p *LiqoProvider) RunInContainer(_ context.Context, namespace string, podName string, containerName string, cmd []string, attach api.AttachIO) error {
 
 	nattedNS, err := p.namespaceMapper.NatNamespace(namespace, false)
 	if err != nil {
 		return err
 	}
 
-	req := p.foreignClient.Client().CoreV1().RESTClient().
+	req := p.foreignClient.CoreV1().RESTClient().
 		Post().
 		Namespace(nattedNS).
 		Resource("pods").
 		Name(podName).
 		SubResource("exec").
-		VersionedParams(&v1.PodExecOptions{
+		VersionedParams(&corev1.PodExecOptions{
 			Container: containerName,
 			Command:   cmd,
 			Stdin:     true,
@@ -201,16 +224,16 @@ func (p *KubernetesProvider) RunInContainer(ctx context.Context, namespace strin
 }
 
 // GetContainerLogs retrieves the logs of a container by name from the provider.
-func (p *KubernetesProvider) GetContainerLogs(ctx context.Context, namespace string, podName string, containerName string, opts api.ContainerLogOpts) (io.ReadCloser, error) {
+func (p *LiqoProvider) GetContainerLogs(_ context.Context, namespace string, podName string, containerName string, opts api.ContainerLogOpts) (io.ReadCloser, error) {
 	nattedNS, err := p.namespaceMapper.NatNamespace(namespace, false)
 	if err != nil {
 		return nil, err
 	}
 
-	options := &v1.PodLogOptions{
+	options := &corev1.PodLogOptions{
 		Container: containerName,
 	}
-	logs := p.foreignClient.Client().CoreV1().Pods(nattedNS).GetLogs(podName, options)
+	logs := p.foreignClient.CoreV1().Pods(nattedNS).GetLogs(podName, options)
 	stream, err := logs.Stream(context.TODO())
 	if err != nil {
 		return nil, fmt.Errorf("could not get stream from logs request: %v", err)
@@ -218,32 +241,8 @@ func (p *KubernetesProvider) GetContainerLogs(ctx context.Context, namespace str
 	return stream, nil
 }
 
-// GetPods returns a list of all pods known to be "running".
-func (p *KubernetesProvider) GetPods(ctx context.Context) ([]*v1.Pod, error) {
-	klog.Info("receive GetPods")
-
-	if p.foreignClient == nil {
-		return nil, nil
-	}
-
-	var podsHomeOut []*v1.Pod
-
-	for _, foreignNamespace := range p.namespaceMapper.MappedNamespaces() {
-		pods, err := p.apiController.CacheManager().ListForeignNamespacedObject(apimgmgt.Pods, foreignNamespace)
-		if err != nil {
-			return nil, errors.New("Unable to get pods")
-		}
-
-		for _, pod := range pods {
-			podsHomeOut = append(podsHomeOut, translation.H2FTranslate(pod.(*v1.Pod), foreignNamespace))
-		}
-	}
-
-	return podsHomeOut, nil
-}
-
 // GetStatsSummary returns dummy stats for all pods known by this provider.
-func (p *KubernetesProvider) GetStatsSummary(ctx context.Context) (*stats.Summary, error) {
+func (p *LiqoProvider) GetStatsSummary(ctx context.Context) (*stats.Summary, error) {
 	var span trace.Span
 	_, span = trace.StartSpan(ctx, "GetStatsSummary") //nolint: ineffassign
 	defer span.End()
@@ -261,7 +260,7 @@ func (p *KubernetesProvider) GetStatsSummary(ctx context.Context) (*stats.Summar
 	}
 
 	// Populate the Summary object with dummy stats for each pod known by this provider.
-	pods, err := p.foreignClient.Client().CoreV1().Pods("").List(context.TODO(), metav1.ListOptions{})
+	pods, err := p.foreignClient.CoreV1().Pods("").List(context.TODO(), metav1.ListOptions{})
 	if err != nil {
 		if kerror.IsNotFound(err) {
 			return nil, errdefs.NotFoundf("pods in \"%s\" is not known to the provider", "")
@@ -329,7 +328,7 @@ func (p *KubernetesProvider) GetStatsSummary(ctx context.Context) (*stats.Summar
 
 // NotifyPods is called to set a pod informing callback function. This should be called before any operations are ready
 // within the provider.
-func (p *KubernetesProvider) NotifyPods(ctx context.Context, notifier func(interface{})) {
+func (p *LiqoProvider) NotifyPods(_ context.Context, notifier func(interface{})) {
 	p.apiController.SetInformingFunc(apimgmgt.Pods, notifier)
 	p.notifier = notifier
 }

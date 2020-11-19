@@ -16,9 +16,17 @@ const (
 	nIncomingReflectionWorkers = 2
 )
 
+type ApiController interface {
+	SetInformingFunc(apiReflection.ApiType, func(interface{}))
+	CacheManager() storage.CacheManagerReaderAdder
+	StartController()
+	StopController() error
+	StopReflection(restart bool)
+}
+
 type Controller struct {
 	mapper                       namespacesMapping.MapperController
-	cacheManager                 *storage.Manager
+	cacheManager                 storage.CacheManagerReaderAdder
 	outgoingReflectorsController OutGoingAPIReflectorsController
 	incomingReflectorsController IncomingAPIReflectorsController
 
@@ -101,7 +109,7 @@ func (c *Controller) SetInformingFunc(api apiReflection.ApiType, handler func(in
 	c.incomingReflectorsController.SetInforming(api, handler)
 }
 
-func (c *Controller) CacheManager() *storage.Manager {
+func (c *Controller) CacheManager() storage.CacheManagerReaderAdder {
 	return c.cacheManager
 }
 

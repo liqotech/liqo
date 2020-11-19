@@ -17,8 +17,6 @@ package node
 import (
 	"context"
 	"fmt"
-	"github.com/liqotech/liqo/pkg/virtualKubelet/apiReflection/controller"
-	"github.com/liqotech/liqo/pkg/virtualKubelet/namespacesMapping"
 	"k8s.io/klog"
 	"strconv"
 	"sync"
@@ -28,6 +26,7 @@ import (
 	"github.com/liqotech/liqo/internal/utils/errdefs"
 	"github.com/liqotech/liqo/internal/utils/trace"
 	"github.com/liqotech/liqo/internal/virtualKubelet/manager"
+	vkContext "github.com/liqotech/liqo/pkg/virtualKubelet/context"
 	pkgerrors "github.com/pkg/errors"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -46,8 +45,6 @@ import (
 // github.com/netgroup-polito/liqo/internal/errdefs package in order for the
 // core logic to be able to understand the type of failure.
 type PodLifecycleHandler interface {
-	ReflectionHandler
-
 	// CreatePod takes a Kubernetes Pod and deploys it within the provider.
 	CreatePod(ctx context.Context, pod *corev1.Pod) error
 
@@ -89,11 +86,6 @@ type PodNotifier interface {
 	//
 	// NotifyPods will not block callers.
 	NotifyPods(context.Context, func(interface{}))
-}
-
-type ReflectionHandler interface {
-	GetNamespaceMapper() (*namespacesMapping.NamespaceMapperController, error)
-	GetApiController() (*controller.Controller, error)
 }
 
 // PodController is the controller implementation for Pod resources.
@@ -585,12 +577,11 @@ func (pc *PodController) deleteDanglingPods(ctx context.Context, threadiness int
 			// Add the pod's attributes to the current span.
 			ctx = addPodAttributes(ctx, span, pod)
 			// Actually delete the pod.
-			if err := pc.provider.DeletePod(ctx, pod.DeepCopy()); err != nil && !errdefs.IsNotFound(err) {
+			if err := pc.provider.DeletePod(vkContext.SetCallingFunction(ctx, "deleteDanglingPods"), pod.DeepCopy()); err != nil && !errdefs.IsNotFound(err) {
 				span.SetStatus(err)
 				klog.Errorf("failed to delete pod %q in provider", loggablePodName(pod))
-			} else {
-				klog.Infof("deleted leaked pod %q in provider", loggablePodName(pod))
 			}
+
 		}(ctx, pod)
 	}
 
