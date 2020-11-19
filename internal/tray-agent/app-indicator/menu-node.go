@@ -28,9 +28,9 @@ type NodeType int
 
 //set of defined NodeType kinds
 const (
-	//NodeTypeRoot represents a Nodetype of a ROOT MenuNode: root of the Menu Tree.
+	//NodeTypeRoot represents a NodeType of a ROOT MenuNode: root of the Menu Tree.
 	NodeTypeRoot NodeType = iota
-	//NodeTypeQuick represents a Nodetype of a QUICK MenuNode: simple shortcut to perform quick actions,
+	//NodeTypeQuick represents a NodeType of a QUICK MenuNode: simple shortcut to perform quick actions,
 	//e.g. navigation commands. It is always visible.
 	NodeTypeQuick
 	//NodeTypeAction represents a NodeType of an ACTION MenuNode: launches an application command.
@@ -56,7 +56,7 @@ type NodeIcon string
 const (
 	nodeIconQuick   = "❱ "
 	nodeIconAction  = "⬢ "
-	nodeIconOption  = "\t- "
+	nodeIconOption  = ""
 	nodeIconDefault = ""
 	nodeIconChecked = "✔ "
 )
@@ -64,9 +64,8 @@ const (
 // MenuNode is a stateful wrapper type that provides a better management of the
 // github.com/getlantern/systray/MenuItem type and additional features, such as submenus.
 type MenuNode struct {
-	// the item actually allocated and displayed on the menu stack. If item instanceof
-	// *github.com/getlantern/systray/MenuItem, it also contains the ClickedChan channel that reacts to the
-	// 'item clicked' event
+	// the Item actually allocated and displayed on the menu stack. It also contains
+	//the internal ClickedChan channel that reacts to the 'item clicked' event.
 	item Item
 	// the type of the MenuNode
 	nodeType NodeType
@@ -102,6 +101,9 @@ type MenuNode struct {
 	//if isInvalid==true, the content of the LIST MenuNode is no more up to date and has to be refreshed by application
 	//logic
 	isInvalid bool
+	//hasCheckbox determines whether the internal item has an embedded graphic checkbox that can be managed by means
+	//of its own methods. If not, (un)check operations are performed by using MenuNode implementations.
+	hasCheckbox bool
 	//text prefix that is prepended to the MenuNode title when it is shown in the menu
 	icon string
 	//text content of the menu item
@@ -109,13 +111,24 @@ type MenuNode struct {
 }
 
 //newMenuNode creates a MenuNode of type NodeType
-func newMenuNode(nodeType NodeType) *MenuNode {
-	n := MenuNode{nodeType: nodeType}
-	n.item = GetGuiProvider().AddMenuItem("")
+func newMenuNode(nodeType NodeType, withCheckbox bool, parent *MenuNode) *MenuNode {
+	n := MenuNode{nodeType: nodeType,
+		hasCheckbox: withCheckbox}
 	n.actionMap = make(map[string]*MenuNode)
 	n.optionMap = make(map[string]*MenuNode)
 	n.stopChan = make(chan struct{})
-	n.SetIsVisible(false)
+	/* Calls to the GuiProviderInterface differ according to hierarchy level constraints of each nodeType.
+	ROOT, QUICK, ACTION and TITLE types are level-0 graphic elements, while OPTION and LIST ones are always nested.
+	*/
+	if nodeType == NodeTypeOption || nodeType == NodeTypeList {
+		if parent == nil {
+			panic("attempted creation of nested MenuNode with nil parent")
+		}
+		n.item = GetGuiProvider().AddSubMenuItem(parent.item, withCheckbox)
+	} else {
+		n.item = GetGuiProvider().AddMenuItem(withCheckbox)
+	}
+	n.parent = &n
 	switch nodeType {
 	case NodeTypeQuick:
 		n.icon = nodeIconQuick
@@ -123,22 +136,22 @@ func newMenuNode(nodeType NodeType) *MenuNode {
 		n.icon = nodeIconAction
 	case NodeTypeOption:
 		n.icon = nodeIconOption
+		n.parent = parent
 	case NodeTypeRoot:
-		n.parent = &n
 		n.icon = nodeIconDefault
 	case NodeTypeTitle:
-		n.parent = &n
 		n.SetIsEnabled(false)
 		n.icon = nodeIconDefault
 	case NodeTypeList:
+		n.parent = parent
 		n.icon = nodeIconDefault
 	case NodeTypeStatus:
-		n.parent = &n
 		n.icon = nodeIconDefault
 		n.SetIsEnabled(false)
 	default:
-		n.icon = nodeIconDefault
+		panic("attempted creation of MenuNode with unknown NodeType")
 	}
+	n.SetIsVisible(false)
 	return &n
 }
 
@@ -208,7 +221,7 @@ func (n *MenuNode) UseListChild() *MenuNode {
 	*/
 	//there is at least one already allocated LIST node free to use
 	if !(n.listLen < n.listCap) {
-		ch := newMenuNode(NodeTypeList)
+		ch := newMenuNode(NodeTypeList, false, nil)
 		ch.parent = n
 		n.nodesList = append(n.nodesList, ch)
 		n.listCap++
@@ -239,8 +252,8 @@ func (n *MenuNode) DisuseListChild() {
 //
 //		callback : callback function to be executed at each 'clicked' event.
 //	If callback == nil, the function can be set afterwards using n.Connect() .
-func (n *MenuNode) AddOption(title string, tag string, callback func(args ...interface{}), args ...interface{}) *MenuNode {
-	o := newMenuNode(NodeTypeOption)
+func (n *MenuNode) AddOption(title string, tag string, withCheckbox bool, callback func(args ...interface{}), args ...interface{}) *MenuNode {
+	o := newMenuNode(NodeTypeOption, withCheckbox, nil)
 	o.SetTitle(title)
 	o.SetTag(tag)
 	o.parent = n
@@ -332,10 +345,14 @@ func (n *MenuNode) IsChecked() bool {
 //SetIsChecked (un)check the MenuNode.
 func (n *MenuNode) SetIsChecked(isChecked bool) {
 	if isChecked && !n.item.Checked() {
-		n.item.SetTitle(fmt.Sprintf("%s%s", nodeIconChecked, n.title))
+		if !n.hasCheckbox {
+			n.item.SetTitle(fmt.Sprintf("%s%s", nodeIconChecked, n.title))
+		}
 		n.item.Check()
 	} else if !isChecked && n.item.Checked() {
-		n.item.SetTitle(n.title)
+		if !n.hasCheckbox {
+			n.item.SetTitle(n.title)
+		}
 		n.item.Uncheck()
 	}
 }

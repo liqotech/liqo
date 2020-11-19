@@ -34,9 +34,6 @@ func TestOnReady(t *testing.T) {
 	assert.Truef(t, exist, "QUICK %s not registered", qDash)
 	_, exist = i.Quick(qNotify)
 	assert.Truef(t, exist, "QUICK %s not registered", qNotify)
-	//
-	_, exist = i.Action(aShowPeers)
-	assert.Truef(t, exist, "ACTION %s not registered", aShowPeers)
 
 	// test Listeners registrations
 	_, exist = i.Listener(client.ChanAdvNew)

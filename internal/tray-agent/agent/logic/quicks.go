@@ -31,11 +31,6 @@ func quickTurnOnOff(i *app.Indicator) {
 			i.Status().SetRunning(app.StatRunOn)
 			updateQuickTurnOnOff(i)
 			i.RefreshStatus()
-			//user can access the ACTION
-			if action, present := i.Action(aShowPeers); present {
-				action.SetIsVisible(true)
-			}
-			i.SelectAction(aShowPeers)
 		}
 	case app.StatRunOn:
 		//turning OFF Liqo
@@ -46,9 +41,6 @@ func quickTurnOnOff(i *app.Indicator) {
 		i.SetIcon(app.IconLiqoMain)
 		//the active ACTION is turned off
 		i.DeselectAction()
-		if action, present := i.Action(aShowPeers); present {
-			action.SetIsVisible(false)
-		}
 	}
 }
 

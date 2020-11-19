@@ -62,8 +62,23 @@ type GuiProviderInterface interface {
 	SetIcon(iconBytes []byte)
 	//SetTitle sets the content of the label next to the tray icon.
 	SetTitle(title string)
-	//AddMenuItem returns an Item, e.g. an entry of the tray menu. The menu works as a stack.
-	AddMenuItem(title string) Item
+	/*
+		AddMenuItem creates and returns an Item, e.g. an entry of the tray menu. The menu works as a stack with only 'push'
+		operation available. Use Item methods (e.g. Item.Hide()) to emulate 'pop' behavior.
+
+			withCheckbox = true has to be used on Linux builds to force the creation of an Item with an actual checkbox.
+			Otherwise the graphical behavior of Item.Check() is demanded to internal implementation.
+	*/
+	AddMenuItem(withCheckbox bool) Item
+	/*
+		AddSubMenuItem creates and returns a child Item for a parent Item so that it can be displayed as
+		a submenu element in the tray menu. Each Item submenu works as a stack with only 'push'
+		method available. Use Item methods (e.g. Item.Hide()) to emulate 'pop' behavior.
+
+			withCheckbox = true has to be used on Linux builds to force the creation of an Item with an actual checkbox.
+			Otherwise the graphical behavior of Item.Check() is demanded to internal implementation.
+	*/
+	AddSubMenuItem(parent Item, withCheckbox bool) Item
 	//Mocked returns whether the interaction with the OS graphic server is mocked.
 	Mocked() bool
 }
@@ -105,11 +120,33 @@ func (g *guiProvider) SetTitle(title string) {
 	}
 }
 
-func (g *guiProvider) AddMenuItem(title string) Item {
+func (g *guiProvider) AddMenuItem(withCheckbox bool) Item {
 	if !g.mocked {
-		return systray.AddMenuItem(title, "")
+		if withCheckbox {
+			return systray.AddMenuItemCheckbox("", "", false)
+		} else {
+			return systray.AddMenuItem("", "")
+		}
 	} else {
-		return &mockItem{clickChan: make(chan struct{}, 2)}
+		return &mockItem{
+			clickChan: make(chan struct{}, 2),
+		}
+	}
+}
+
+func (g *guiProvider) AddSubMenuItem(parent Item, withCheckbox bool) Item {
+	if parent == nil {
+		panic("invalid creation of child Item with nil parent")
+	}
+	if !g.mocked {
+		parentItem := parent.(*systray.MenuItem)
+		if withCheckbox {
+			return parentItem.AddSubMenuItemCheckbox("", "", false)
+		}
+		return parentItem.AddSubMenuItem("", "")
+	} else {
+		parentItem := parent.(*mockItem)
+		return parentItem.AddSubMenuItemCheckbox("", "", false)
 	}
 }
 
@@ -145,7 +182,29 @@ type mockItem struct {
 	checked   bool
 	disabled  bool
 	title     string
+	tooltip   string
 	clickChan chan struct{}
+}
+
+//AddSubMenuItem adds an Item as a nested menu entry.
+//This method is the mocked counterpart of systray.MenuItem 's method.
+func (i *mockItem) AddSubMenuItem(title string, tooltip string) Item {
+	return &mockItem{
+		title:     title,
+		tooltip:   tooltip,
+		clickChan: make(chan struct{}, 2),
+	}
+}
+
+//AddSubMenuItemCheckbox adds an Item as a nested menu entry with a graphic checkbox.
+//This method is the mocked counterpart of systray.MenuItem 's method.
+func (i *mockItem) AddSubMenuItemCheckbox(title string, tooltip string, checked bool) Item {
+	return &mockItem{
+		checked:   checked,
+		title:     title,
+		tooltip:   tooltip,
+		clickChan: make(chan struct{}, 2),
+	}
 }
 
 func (i *mockItem) Check() {
