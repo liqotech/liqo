@@ -41,7 +41,7 @@ jobs:
           echo "::set-output name=repo-suffix::"
 
         # Do not push the resulting images to DockerHub if triggered by a fork
-        [[  "${{ github.event.pull_request.head.repo.full_name }}" != 'liqotech/liqo' ]] && \
+        [[  "${{ github.event.pull_request.head.repo.full_name }}" != 'liqotech/liqo' && "$GITHUB_EVENT_NAME" == "pull_request" ]] && \
             echo "::set-output name=repo-push::false" || \
             echo "::set-output name=repo-push::true"
 
