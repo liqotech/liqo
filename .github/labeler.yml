@@ -19,14 +19,11 @@ networking:
 virtual-node:
   - build/virtual-kubelet/**/*
   - build/init-vkubelet/**/*
-  - cmd/virtual-kubelet/**/*
-  - internal/kubernetes/**/*
-  - internal/errdefs/**/*
-  - internal/manager/**/*
-  - internal/node/**/*
-  - internal/trace/**/*
-  - test/kubernetes_provider/**/*
   - build/pod-mutator/**/*
+  - cmd/virtual-kubelet/**/*
+  - internal/virtualKubelet/**/*
+  - pkg/virtualKubelet/**/*
+  - test/virtualKubelet/**/*
 
 discovery:
   - internal/discovery/**/*
