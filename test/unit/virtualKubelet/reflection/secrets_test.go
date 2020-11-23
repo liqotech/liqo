@@ -16,8 +16,8 @@ import (
 func TestSecretAdd(t *testing.T) {
 	foreignClient := fake.NewSimpleClientset()
 	cacheManager := &storageTest.MockManager{
-		HomeCache:    map[string]map[apimgmt.ApiType]interface{}{},
-		ForeignCache: map[string]map[apimgmt.ApiType]interface{}{},
+		HomeCache:    map[string]map[apimgmt.ApiType]map[string]metav1.Object{},
+		ForeignCache: map[string]map[apimgmt.ApiType]map[string]metav1.Object{},
 	}
 	nattingTable := &test.MockNamespaceMapper{Cache: map[string]string{}}
 
@@ -53,8 +53,8 @@ func TestSecretAdd(t *testing.T) {
 func TestSASecretAdd(t *testing.T) {
 	foreignClient := fake.NewSimpleClientset()
 	cacheManager := &storageTest.MockManager{
-		HomeCache:    map[string]map[apimgmt.ApiType]interface{}{},
-		ForeignCache: map[string]map[apimgmt.ApiType]interface{}{},
+		HomeCache:    map[string]map[apimgmt.ApiType]map[string]metav1.Object{},
+		ForeignCache: map[string]map[apimgmt.ApiType]map[string]metav1.Object{},
 	}
 	nattingTable := &test.MockNamespaceMapper{Cache: map[string]string{}}
 
@@ -97,8 +97,8 @@ func TestSASecretAdd(t *testing.T) {
 func TestSecretUpdate(t *testing.T) {
 	foreignClient := fake.NewSimpleClientset()
 	cacheManager := &storageTest.MockManager{
-		HomeCache:    map[string]map[apimgmt.ApiType]interface{}{},
-		ForeignCache: map[string]map[apimgmt.ApiType]interface{}{},
+		HomeCache:    map[string]map[apimgmt.ApiType]map[string]metav1.Object{},
+		ForeignCache: map[string]map[apimgmt.ApiType]map[string]metav1.Object{},
 	}
 	nattingTable := &test.MockNamespaceMapper{Cache: map[string]string{}}
 

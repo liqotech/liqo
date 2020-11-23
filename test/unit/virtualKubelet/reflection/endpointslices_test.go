@@ -20,8 +20,8 @@ import (
 func TestEndpointAdd(t *testing.T) {
 	foreignClient := fake.NewSimpleClientset()
 	cacheManager := &storageTest.MockManager{
-		HomeCache:    map[string]map[apimgmt.ApiType]interface{}{},
-		ForeignCache: map[string]map[apimgmt.ApiType]interface{}{},
+		HomeCache:    map[string]map[apimgmt.ApiType]map[string]metav1.Object{},
+		ForeignCache: map[string]map[apimgmt.ApiType]map[string]metav1.Object{},
 	}
 	nattingTable := &test.MockNamespaceMapper{Cache: map[string]string{}}
 
@@ -102,8 +102,8 @@ func TestEndpointAdd(t *testing.T) {
 func TestEndpointAdd2(t *testing.T) {
 	foreignClient := fake.NewSimpleClientset()
 	cacheManager := &storageTest.MockManager{
-		HomeCache:    map[string]map[apimgmt.ApiType]interface{}{},
-		ForeignCache: map[string]map[apimgmt.ApiType]interface{}{},
+		HomeCache:    map[string]map[apimgmt.ApiType]map[string]metav1.Object{},
+		ForeignCache: map[string]map[apimgmt.ApiType]map[string]metav1.Object{},
 	}
 	nattingTable := &test.MockNamespaceMapper{Cache: map[string]string{}}
 
