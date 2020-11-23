@@ -8,15 +8,12 @@ require (
 	github.com/agrison/go-commons-lang v0.0.0-20200208220349-58e9fcb95174
 	github.com/apparentlymart/go-cidr v1.1.0
 	github.com/atotto/clipboard v0.1.2
-	github.com/containerd/ttrpc v1.0.2 // indirect
 	github.com/coreos/go-iptables v0.4.5
-	github.com/fatih/color v1.10.0 // indirect
 	github.com/gen2brain/beeep v0.0.0-20200420150314-13046a26d502
 	github.com/gen2brain/dlgs v0.0.0-20200211102745-b9c2664df42f
 	github.com/getlantern/systray v0.0.0-20200324212034-d3ab4fd25d99
 	github.com/go-logr/logr v0.1.0
 	github.com/go-sql-driver/mysql v1.5.0 // indirect
-	github.com/gobuffalo/flect v0.2.2 // indirect
 	github.com/google/go-cmp v0.5.1
 	github.com/google/gofuzz v1.2.0 // indirect
 	github.com/google/uuid v1.1.1
@@ -58,7 +55,6 @@ require (
 	k8s.io/kubernetes v1.18.6
 	k8s.io/utils v0.0.0-20201110183641-67b214c5f920
 	sigs.k8s.io/controller-runtime v0.6.2
-	sigs.k8s.io/controller-tools v0.4.0 // indirect
 )
 
 replace k8s.io/legacy-cloud-providers => k8s.io/legacy-cloud-providers v0.18.6

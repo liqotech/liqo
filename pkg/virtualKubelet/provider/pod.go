@@ -8,6 +8,7 @@ import (
 	"github.com/liqotech/liqo/internal/virtualKubelet/node/api"
 	apimgmgt "github.com/liqotech/liqo/pkg/virtualKubelet/apiReflection"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/translation"
+	"github.com/liqotech/liqo/pkg/virtualKubelet/translation/serviceEnv"
 	"github.com/pkg/errors"
 	"io"
 	v1 "k8s.io/api/core/v1"
@@ -42,6 +43,15 @@ func (p *KubernetesProvider) CreatePod(ctx context.Context, pod *v1.Pod) error {
 	}
 
 	podTranslated := translation.H2FTranslate(pod, nattedNS)
+
+	apiController, err := p.GetApiController()
+	if err != nil {
+		return err
+	}
+	podTranslated, err = serviceEnv.TranslateServiceEnvVariables(podTranslated, pod.Namespace, nattedNS, apiController.CacheManager())
+	if err != nil {
+		return err
+	}
 
 	_, err = p.foreignClient.Client().CoreV1().Pods(podTranslated.Namespace).Create(context.TODO(), podTranslated, metav1.CreateOptions{})
 	if err != nil {
