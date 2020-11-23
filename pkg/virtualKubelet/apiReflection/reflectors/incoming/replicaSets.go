@@ -83,7 +83,7 @@ func (r *ReplicaSetsIncomingReflector) preDelete(obj interface{}) interface{} {
 		return nil
 	}
 
-	po, err := r.GetCacheManager().GetHomeNamespacedObject(apimgmt.Pods, homeNamespace, foreignReplicaSet.Name)
+	po, err := r.GetCacheManager().GetHomeNamespacedObject(apimgmt.Pods, homeNamespace, podName)
 	if err != nil {
 		klog.Error(err)
 		return nil
