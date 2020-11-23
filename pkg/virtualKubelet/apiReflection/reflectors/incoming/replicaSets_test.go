@@ -33,8 +33,8 @@ var _ = Describe("ReplicationControllers", func() {
 
 	BeforeEach(func() {
 		cacheManager = &storageTest.MockManager{
-			HomeCache:    map[string]map[apimgmt.ApiType]interface{}{},
-			ForeignCache: map[string]map[apimgmt.ApiType]interface{}{},
+			HomeCache:    map[string]map[apimgmt.ApiType]map[string]metav1.Object{},
+			ForeignCache: map[string]map[apimgmt.ApiType]map[string]metav1.Object{},
 		}
 		namespaceNattingTable = &test.MockNamespaceMapper{Cache: map[string]string{}}
 		genericReflector = &reflectors.GenericAPIReflector{
