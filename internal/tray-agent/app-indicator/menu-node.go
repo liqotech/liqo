@@ -10,19 +10,19 @@ import (
 
 NodeType distinguishes different kinds of MenuNodes:
 
-		ROOT: root of the Menu Tree.
+		ROOT:	root of the Menu Tree.
 
-		QUICK: simple shortcut to perform quick actions, e.g. navigation commands. It is always visible.
+		QUICK:	simple shortcut to perform quick actions, e.g. navigation commands. It is always visible.
 
-		ACTION: launch an application command. It can open command submenu (if present).
+		ACTION:	launch an application command. It can open command submenu (if present).
 
-		OPTION: submenu choice.
+		OPTION:	submenu choice.
 
-		LIST: placeholder item used to dynamically display application output.
+		LIST:	placeholder item used to dynamically display application output.
 
-		TITLE: node with special text formatting used to display menu header.
+		TITLE:	node with special text formatting used to display menu header.
 
-		STATUS: non clickable node that displays status information.
+		STATUS:	non clickable node that displays status information.
 */
 type NodeType int
 
@@ -49,7 +49,7 @@ const (
 	NodeTypeStatus
 )
 
-//NodeIcon represents a string prefix helping to graphically distinguish different kinds of Menu entries (NodeType)
+//NodeIcon represents a string prefix helping to graphically distinguish different kinds of Menu entries (NodeType).
 type NodeIcon string
 
 //literal prefix that can be prepended to a MenuNode title, identifying its NodeType or some feature
@@ -62,7 +62,7 @@ const (
 )
 
 // MenuNode is a stateful wrapper type that provides a better management of the
-// github.com/getlantern/systray/MenuItem type and additional features, such as submenus.
+// Item type and additional features, such as submenus.
 type MenuNode struct {
 	// the Item actually allocated and displayed on the menu stack. It also contains
 	//the internal ClickedChan channel that reacts to the 'item clicked' event.
@@ -77,19 +77,16 @@ type MenuNode struct {
 	stopped bool
 	// parent MenuNode in the menu tree hierarchy
 	parent *MenuNode
-	// nodesList stores the MenuNode children of type LIST. The node uses them to dynamically display to the user
-	// the output of application functions. Use these kind of MenuNodes by calling (*MenuNode).UseListChild() and
-	// (*MenuNode).DisuseListChild() methods:
+	// nodeList stores the MenuNode children of type LIST. The node uses them to dynamically display to the user
+	// the output of application functions. Use these kind of MenuNodes by calling UseListChild, FreeListChild
+	// and FreeListChildren methods:
 	//
-	//		child1 := node.UseListChild()
+	//		child1 := node.UseListChild(childTitle,childTag)
 	//
-	//		child1.DisuseListChild()
-	nodesList []*MenuNode
-	// current number of LIST MenuNode actually in use (isInvalid == false) with valid content
-	listLen int
-	// total number of LIST MenuNode allocated by the father MenuNode since Indicator start.
-	// Some of the LIST nodes may have their content invalid and have to be refreshed by application logic
-	listCap int
+	//		node.FreeListChild(childTag)
+	//
+	//		node.FreeListChildren()
+	nodeList *nodeList
 	//map that stores ACTION MenuNodes, associating them with their tag. This map is actually used only by the ROOT node.
 	actionMap map[string]*MenuNode
 	//map that stores OPTION MenuNodes, associating them with their tag. These nodes are used to create submenu choices
@@ -101,12 +98,13 @@ type MenuNode struct {
 	//if isInvalid==true, the content of the LIST MenuNode is no more up to date and has to be refreshed by application
 	//logic
 	isInvalid bool
-	//hasCheckbox determines whether the internal item has an embedded graphic checkbox that can be managed by means
-	//of its own methods. If not, (un)check operations are performed by using MenuNode implementations.
+	//hasCheckbox determines whether the internal item has an embedded graphic checkbox that can be directly managed
+	//by the internal Item. If not, (un)check operations are performed by using MenuNode own implementations.
 	hasCheckbox bool
 	//text prefix that is prepended to the MenuNode title when it is shown in the menu
 	icon string
-	//text content of the menu item
+	//text content of the menu item. This redundancy of information is due to the fact Item does not provide getters
+	//for the data.
 	title string
 }
 
@@ -169,7 +167,8 @@ func (n *MenuNode) Channel() chan struct{} {
 	}
 }
 
-//Connect instantiates a listener for the 'clicked' event of the node
+//Connect instantiates a listener for the 'clicked' event of the node.
+//If once == true, the event handler is at most executed once.
 func (n *MenuNode) Connect(once bool, callback func(args ...interface{}), args ...interface{}) {
 	if n.stopped {
 		n.stopChan = make(chan struct{})
@@ -212,53 +211,50 @@ func (n *MenuNode) Disconnect() {
 //------ LIST ------
 
 //UseListChild returns a child LIST MenuNode ready to use.
-func (n *MenuNode) UseListChild() *MenuNode {
-	/*
-		The github.com/getlantern/systray api, which this package relies on, does not allow to pop elements from the
-		menu stack.
-		Hence, when application logic needs more nodes than the ones already allocated, the method allocates them.
-		For the next requests, if the number of nodes is lower, the exceeding nodes are invalidated and hidden
-	*/
-	//there is at least one already allocated LIST node free to use
-	if !(n.listLen < n.listCap) {
-		ch := newMenuNode(NodeTypeList, false, nil)
-		ch.parent = n
-		n.nodesList = append(n.nodesList, ch)
-		n.listCap++
+//The node can use them to dynamically display to the user the output of application functions.
+func (n *MenuNode) UseListChild(title string, tag string) *MenuNode {
+	if n.nodeList == nil {
+		n.nodeList = newNodeList(n)
 	}
-	child := n.nodesList[n.listLen]
-	n.listLen++
-	child.isInvalid = false
-	return child
+	return n.nodeList.useNode(title, tag)
 }
 
-//DisuseListChild mark a LIST MenuNode as unused.
-func (n *MenuNode) DisuseListChild() {
-	n.isInvalid = true
-	n.SetTitle("")
-	n.SetTag("")
-	n.SetIsVisible(false)
-	n.parent.listLen--
-	n.Disconnect()
+//FreeListChild marks a LIST MenuNode as unused, graphically removing it from the submenu of MenuNode n in the tray menu.
+func (n *MenuNode) FreeListChild(tag string) {
+	if n.nodeList == nil {
+		return
+	}
+	n.nodeList.freeNode(tag)
+}
+
+//FreeListChildren applies FreeListChild() to each currently used LIST MenuNode.
+func (n *MenuNode) FreeListChildren() {
+	if n.nodeList == nil {
+		return
+	}
+	n.nodeList.freeAllNodes()
 }
 
 //------ OPTION ------
 
-//AddOption adds an OPTION to the MenuNode as a choice for the submenu. It is hidden by default.
+//AddOption adds an OPTION to the MenuNode as a choice for the submenu.
 //
 //		title : label displayed in the menu
 //
 //		tag : unique tag for the OPTION
 //
-//		callback : callback function to be executed at each 'clicked' event.
-//	If callback == nil, the function can be set afterwards using n.Connect() .
-func (n *MenuNode) AddOption(title string, tag string, withCheckbox bool, callback func(args ...interface{}), args ...interface{}) *MenuNode {
-	o := newMenuNode(NodeTypeOption, withCheckbox, nil)
+//		callback : callback function to be executed at each 'clicked' event. If callback == nil,
+//		the function can be set afterwards using n.Connect() .
+//
+//		withCheckbox : if true, add a graphic checkbox on the menu element.
+func (n *MenuNode) AddOption(title string, tag string, tooltip string, withCheckbox bool, callback func(args ...interface{}), args ...interface{}) *MenuNode {
+	o := newMenuNode(NodeTypeOption, withCheckbox, n)
 	o.SetTitle(title)
 	o.SetTag(tag)
+	o.SetTooltip(tooltip)
 	o.parent = n
 	n.optionMap[tag] = o
-	o.SetIsVisible(false)
+	o.SetIsVisible(true)
 	if callback != nil {
 		o.Connect(false, callback, args...)
 	}
@@ -293,6 +289,11 @@ func (n *MenuNode) Tag() string {
 //SetTag sets the the MenuNode tag.
 func (n *MenuNode) SetTag(tag string) {
 	n.tag = tag
+}
+
+//SetTooltip sets a 'mouse hover' tooltip for the MenuNode. This is a no-op for Linux builds.
+func (n *MenuNode) SetTooltip(tooltip string) {
+	n.item.SetTooltip(tooltip)
 }
 
 //IsInvalid returns if the content of the LIST MenuNode is no more up to date and has to be refreshed by application

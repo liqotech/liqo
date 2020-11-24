@@ -6,8 +6,8 @@ import (
 	"github.com/gen2brain/dlgs"
 	"github.com/liqotech/liqo/internal/tray-agent/agent/client"
 	app "github.com/liqotech/liqo/internal/tray-agent/app-indicator"
+	"github.com/skratchdot/open-golang/open"
 	"os"
-	"os/exec"
 	"strings"
 )
 
@@ -150,7 +150,7 @@ func quickConnectDashboard(i *app.Indicator) {
 		dashUrlBuilder.WriteString(":" + port)
 	}
 	dashUrl := dashUrlBuilder.String()
-	if err := exec.Command("xdg-open", dashUrl).Start(); err == nil {
+	if err := open.Run(dashUrl); err == nil {
 		//try to recover access token
 		if token, errNFound := ctrl.GetLiqoDashSecret(); errNFound == nil {
 			if err = clipboard.WriteAll(*token); err == nil {
