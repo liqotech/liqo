@@ -30,7 +30,7 @@ func F2HTranslate(podForeignIn *v1.Pod, newCidr, namespace string) (podHomeOut *
 	}
 
 	podHomeOut.SetCreationTimestamp(metav1.NewTime(t))
-	podHomeOut.Spec.NodeName = podForeignIn.Annotations["home_nodename"]
+	podHomeOut.OwnerReferences = nil
 	delete(podHomeOut.Annotations, "home_creationTimestamp")
 	delete(podHomeOut.Annotations, "home_resourceVersion")
 	delete(podHomeOut.Annotations, "home_uuid")

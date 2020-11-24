@@ -18,6 +18,7 @@ type PodsIncomingReflector struct {
 	ri.APIReflector
 
 	RemoteRemappedPodCIDR options.ReadOnlyOption
+	NodeName options.ReadOnlyOption
 }
 
 func (r *PodsIncomingReflector) SetSpecializedPreProcessingHandlers() {
@@ -41,7 +42,19 @@ func (r *PodsIncomingReflector) HandleEvent(e interface{}) {
 }
 
 func (r *PodsIncomingReflector) PreAdd(obj interface{}) interface{} {
-	return r.forgeTranslatedPod(obj)
+	/*return r.forgeTranslatedPod(obj)*/
+
+	pod := obj.(*corev1.Pod).DeepCopy()
+	homeNamespace, _ := r.NattingTable().DeNatNamespace(pod.Namespace)
+
+	foreignPod := translation.F2HTranslate(pod, r.RemoteRemappedPodCIDR.Value().ToString(), homeNamespace)
+	foreignPod.Spec.NodeName = r.NodeName.Value().ToString()
+	_, err := r.GetHomeClient().CoreV1().Pods(homeNamespace).Create(context.TODO(), foreignPod, metav1.CreateOptions{})
+	if err != nil {
+		klog.Error(err)
+	}
+
+	return nil
 }
 
 func (r *PodsIncomingReflector) PreUpdate(newObj, _ interface{}) interface{} {
