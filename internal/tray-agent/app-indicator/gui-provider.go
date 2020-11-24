@@ -33,7 +33,6 @@ func DestroyMockedIndicator() {
 	if mockedGui {
 		root = nil
 	}
-
 }
 
 //GetGuiProvider returns the guiProvider singleton that provides the functions to interact with the graphic server.
@@ -51,7 +50,7 @@ func GetGuiProvider() GuiProviderInterface {
 //GuiProviderInterface wraps the methods to interact with the OS graphic server and manage a tray icon with its menu.
 type GuiProviderInterface interface {
 	//Run initializes the GUI and starts the event loop, then invokes the onReady callback. It blocks until
-	//systray.Quit() is called. After Quit() call, it runs onExit() before exiting. It should be called before calling
+	//Quit() is called. After Quit() call, it runs onExit() before exiting. It should be called before
 	//any other method of the interface.
 	Run(onReady func(), onExit func())
 	//Quit exits the GUI runtime execution after Run() has been called.
@@ -174,6 +173,9 @@ type Item interface {
 	Hide()
 	//SetTitle sets the content of the Item that will be displayed in the menu.
 	SetTitle(title string)
+	//SetTooltip sets a tooltip for the Item displayed after a 'mouse hover' event.
+	//Currently, this is ineffective on Linux builds.
+	SetTooltip(tooltip string)
 }
 
 //mockItem implements a mock github.com/getlantern/systray/MenuItem
@@ -184,6 +186,10 @@ type mockItem struct {
 	title     string
 	tooltip   string
 	clickChan chan struct{}
+}
+
+func (i *mockItem) SetTooltip(tooltip string) {
+	i.tooltip = tooltip
 }
 
 //AddSubMenuItem adds an Item as a nested menu entry.

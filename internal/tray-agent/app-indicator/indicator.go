@@ -191,9 +191,7 @@ func (i *Indicator) DeselectAction() {
 				for _, option := range action.optionMap {
 					option.SetIsVisible(false)
 				}
-				for _, listNode := range action.nodesList {
-					listNode.DisuseListChild()
-				}
+				action.FreeListChildren()
 				//temporary workaround for current implementation of "Liqo Peers;
 				//the action is automatically managed.
 				action.SetIsEnabled(false)

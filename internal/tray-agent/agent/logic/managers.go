@@ -3,7 +3,7 @@ package logic
 import (
 	"github.com/liqotech/liqo/internal/tray-agent/agent/client"
 	app "github.com/liqotech/liqo/internal/tray-agent/app-indicator"
-	"os/exec"
+	"github.com/skratchdot/open-golang/open"
 )
 
 //OnReady is the routine orchestrating Liqo Agent execution.
@@ -47,15 +47,14 @@ func startQuickChangeMode(i *app.Indicator) {
 
 //startQuickLiqoWebsite is the wrapper function to register QUICK "About Liqo".
 func startQuickLiqoWebsite(i *app.Indicator) {
-	i.AddQuick("ⓘ About Liqo", qWeb, func(args ...interface{}) {
-		cmd := exec.Command("xdg-open", "http://liqo.io")
-		_ = cmd.Run()
+	i.AddQuick("ⓘ ABOUT LIQO", qWeb, func(args ...interface{}) {
+		_ = open.Start("http://liqo.io")
 	})
 }
 
 //startQuickDashboard is the wrapper function to register QUICK "LAUNCH Liqo Dash".
 func startQuickDashboard(i *app.Indicator) {
-	i.AddQuick("LiqoDash", qDash, func(args ...interface{}) {
+	i.AddQuick("LIQODASH", qDash, func(args ...interface{}) {
 		quickConnectDashboard(i)
 	})
 }
