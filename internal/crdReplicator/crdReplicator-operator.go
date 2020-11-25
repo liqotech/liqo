@@ -635,7 +635,7 @@ func (d *CRDReplicatorReconciler) UpdateResource(client dynamic.Interface, gvr s
 
 func (d *CRDReplicatorReconciler) DeleteResource(client dynamic.Interface, gvr schema.GroupVersionResource, obj *unstructured.Unstructured, clusterID string) error {
 	klog.Infof("%s -> deleting resource %s of type %s", clusterID, obj.GetName(), gvr.String())
-	err := client.Resource(gvr).Delete(context.TODO(), obj.GetName(), metav1.DeleteOptions{})
+	err := client.Resource(gvr).Namespace(obj.GetNamespace()).Delete(context.TODO(), obj.GetName(), metav1.DeleteOptions{})
 	if err != nil {
 		klog.Errorf("%s -> an error occurred while deleting resource %s of type %s: %s", clusterID, obj.GetName(), gvr.String(), err)
 		return err
