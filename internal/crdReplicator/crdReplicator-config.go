@@ -31,8 +31,8 @@ func (d *CRDReplicatorReconciler) UpdateConfig(cfg *configv1alpha1.ClusterConfig
 		klog.Info("updating the list of registered resources to be replicated")
 		d.UnregisteredResources = d.GetRemovedResources(resources)
 		d.RegisteredResources = resources
+		klog.Infof("%s -> current registered resources %s", d.ClusterID, d.RegisteredResources)
 	}
-	klog.Infof("%s -> current registered resources %s", d.ClusterID, d.RegisteredResources)
 }
 
 func (d *CRDReplicatorReconciler) GetConfig(cfg *configv1alpha1.ClusterConfig) []schema.GroupVersionResource {
