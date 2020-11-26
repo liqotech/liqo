@@ -19,7 +19,7 @@ Great for:
 
 Liqo is in an alpha version and not yet production-ready.
 
-Community Meeting: Monday 18.30 CET, 9.30 PST [here](https://meet.google.com/dyr-ieso-smu)
+Community Meeting: Monday 18.30 CET, 9.30 PST [here](https://meet.google.com/dyr-ieso-smu). [Convert to your timezone](https://www.thetimezoneconverter.com/?t=18:30&tz=CET%20%28Central%20European%20Time%29)
 
 # What is Liqo?
 
