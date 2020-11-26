@@ -20,6 +20,9 @@ set -o pipefail  # Fail if one of the piped commands fails
 #   - --purge:            purge all Liqo components from your cluster (i.e. including CRDs)
 #
 # Environment variables:
+#   - LIQO_REPO
+#
+#     the repository of Liqo to install. Defaults to "liqotech/liqo", but can be changed in case of forks.
 #
 #   - LIQO_VERSION
 #     the version of Liqo to install. It can be a released version, a commit SHA or 'master'.
@@ -48,7 +51,7 @@ set -o pipefail  # Fail if one of the piped commands fails
 EXIT_SUCCESS=0
 EXIT_FAILURE=1
 
-LIQO_REPO="liqotech/liqo"
+LIQO_REPO_DEFAULT="liqotech/liqo"
 LIQO_CHARTS_PATH="deployments/liqo"
 
 LIQO_DASHBOARD_REPO="liqotech/dashboard"
@@ -122,6 +125,7 @@ function help() {
 	  ${BOLD}-h, --help${RESET}:         display this help
 
 	${BLUE}${BOLD}Environment variables:${RESET}
+	  ${BOLD}LIQO_REPO${RESET}:          the repository of Liqo to install. Defaults to "liqotech/liqo", but can be changed in case of forks.
 	  ${BOLD}LIQO_VERSION${RESET}:       the version of Liqo to install. It can be a released version, a commit SHA or 'master'.
 
 	  ${BOLD}LIQO_NAMESPACE${RESET}:     the Kubernetes namespace where all Liqo components are created (defaults to liqo)
@@ -271,6 +275,9 @@ function setup_agent_environment() {
 }
 
 function setup_liqo_version() {
+	# Check if LIQO_REPO has been set
+	LIQO_REPO=${LIQO_REPO:-${LIQO_REPO_DEFAULT}}
+
 	# A specific commit has been requested: assuming development version and returning
 	if [[ "${LIQO_VERSION:-}" =~ ^[0-9a-f]{40}$ ]]; then
 		warn "[PRE-FLIGHT] [DOWNLOAD]" "A Liqo commit has been specified: using the development version"
@@ -286,7 +293,7 @@ function setup_liqo_version() {
 
 	# Obtain the list of Liqo tags
 	local LIQO_TAGS
-	LIQO_TAGS=$(get_repo_tags ${LIQO_REPO})
+	LIQO_TAGS=$(get_repo_tags "${LIQO_REPO}")
 
 	#Obtain the list of Liqo Dashboard tags
 	local LIQO_DASHBOARD_TAGS
@@ -309,7 +316,7 @@ function setup_liqo_version() {
 	else
 		# Using the version from master
 		warn "[PRE-FLIGHT] [DOWNLOAD]" "An unreleased version of Liqo is going to be downloaded"
-		LIQO_IMAGE_VERSION=$(get_repo_master_commit ${LIQO_REPO}) ||
+		LIQO_IMAGE_VERSION=$(get_repo_master_commit "${LIQO_REPO}") ||
 			fatal "[PRE-FLIGHT] [DOWNLOAD]" "Failed to retrieve the latest commit of the master branch"
 		LIQO_SUFFIX="-ci"
 
@@ -350,7 +357,7 @@ function download_helm() {
 function download_liqo() {
 	info "[PRE-FLIGHT] [DOWNLOAD]" "Downloading Liqo (version: ${LIQO_VERSION})"
 	command_exists tar || fatal "[PRE-FLIGHT] [DOWNLOAD]" "'tar' is not available"
-	local LIQO_DOWNLOAD_URL=https://github.com/liqotech/liqo/archive/${LIQO_VERSION}.tar.gz
+	local LIQO_DOWNLOAD_URL="https://github.com/${LIQO_REPO}/archive/${LIQO_VERSION}.tar.gz"
 	download "${LIQO_DOWNLOAD_URL}" | tar zxf - --directory="${TMPDIR}" --strip 1 2>/dev/null ||
 		fatal "[PRE-FLIGHT] [DOWNLOAD]" "Something went wrong while extracting the Liqo archive"
 }

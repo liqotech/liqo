@@ -179,6 +179,20 @@ setup() {
 	assert_output --partial "Internal error: incorrect parameters"
 }
 
+@test "setup_liqo_repo correctly configures the environment if a fork repository is specified" {
+	LIQO_VERSION="f2de258b07d8b507b461f55f87e17f1bb619f926"
+	function get_repo_master_commit() {
+			echo "b5de258b07d8b507b461f55f87e17f1bb619f926";
+	}
+
+	LIQO_REPO="trololo/liqo"
+	setup_liqo_version
+	assert_equal "${LIQO_REPO}" "trololo/liqo"
+
+	unset LIQO_REPO
+	setup_liqo_version
+	assert_equal "${LIQO_REPO}" "liqotech/liqo"
+}
 
 @test "setup_liqo_version correctly configures the environment if a commit is specified" {
 	LIQO_VERSION="f2de258b07d8b507b461f55f87e17f1bb619f926"
