@@ -210,6 +210,15 @@ func (n *MenuNode) Disconnect() {
 
 //------ LIST ------
 
+//ListChild returns a tagged LIST MenuNode from the ones currently in use.
+func (n *MenuNode) ListChild(tag string) (child *MenuNode, present bool) {
+	if n.nodeList == nil {
+		return nil, false
+	}
+	child, present = n.nodeList.usedNode(tag)
+	return
+}
+
 //UseListChild returns a child LIST MenuNode ready to use.
 //The node can use them to dynamically display to the user the output of application functions.
 func (n *MenuNode) UseListChild(title string, tag string) *MenuNode {
@@ -219,16 +228,28 @@ func (n *MenuNode) UseListChild(title string, tag string) *MenuNode {
 	return n.nodeList.useNode(title, tag)
 }
 
-//FreeListChild marks a LIST MenuNode as unused, graphically removing it from the submenu of MenuNode n in the tray menu.
+//FreeListChild marks a LIST MenuNode and its nested children as unused, graphically removing them
+//from the submenu of MenuNode n in the tray menu. This is a no-op in case of tagged child missing.
 func (n *MenuNode) FreeListChild(tag string) {
-	if n.nodeList == nil {
+	nl := n.nodeList
+	if nl == nil {
 		return
 	}
-	n.nodeList.freeNode(tag)
+	if node, present := nl.usedNode(tag); present {
+		node.FreeListChildren()
+		nl.Lock()
+		defer nl.Unlock()
+		nl.freeNode(tag)
+	}
 }
 
-//FreeListChildren applies FreeListChild() to each currently used LIST MenuNode.
+//FreeListChildren recursively marks all children LIST MenuNode as unused, graphically removing it
+//from the submenu of MenuNode n in the tray menu.
 func (n *MenuNode) FreeListChildren() {
+	/* The recursion of this method is made by a 2-steps process:
+	1) MenuNode.FreeListChildren() : exported function that checks nullity of its nodeList;
+	2) nodeList.freeAllNodes() : internal function calling FreeListChildren on each LIST child.
+	*/
 	if n.nodeList == nil {
 		return
 	}

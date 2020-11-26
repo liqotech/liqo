@@ -66,27 +66,37 @@ func TestIndicatorRoutine(t *testing.T) {
 	assert.True(t, ok2, "OPTION not registered")
 	assert.NotNil(t, a, "OPTION node is nil")
 	// test MenuNode operations
-	// test UseChild/DisuseChild()
+	// test LIST MenuNode operations
+	// - insertion
 	child1 := a.UseListChild("", "child1")
 	child2 := a.UseListChild("", "child2")
 	assert.NotNil(t, child1, "child node 1 creation failed")
 	assert.NotNil(t, child2, "child node 2 creation failed")
+	// - get
+	_, childPresent := a.ListChild("child1")
+	assert.True(t, childPresent, "failed retrieval of inserted LIST child")
 	assert.Equal(t, 0, a.nodeList.totFree, "there should be 0 free LIST children available")
 	assert.Equal(t, 2, len(a.nodeList.usedNodes), "there should be 2 LIST children used")
-	child2.FreeListChild("child2")
+	// - remove single child
+	a.FreeListChild("child2")
 	assert.Equal(t, 1, a.nodeList.totFree, "there should be 1 free LIST child available")
 	assert.Equal(t, 1, len(a.nodeList.usedNodes), "there should be 1 LIST child used")
+	// - remove all children
+	a.FreeListChildren()
+	assert.Equal(t, 2, a.nodeList.totFree, "there should be 1 free LIST child available")
+	assert.Equal(t, 0, len(a.nodeList.usedNodes), "there should be 1 LIST child used")
+
 	// test Disconnect()
 	assert.False(t, a.stopped, "node stopChan is closed before Disconnect()")
 	a.Disconnect()
 	assert.True(t, a.stopped, "node stopChan is not closed after Disconnect()")
 	// test getters/setters
 	oItem := o.item.(*mockItem)
-	assert.False(t, o.IsVisible(), "OPTION is visible")
+	assert.True(t, o.IsVisible(), "OPTION is hidden")
+	assert.True(t, oItem.Visible(), "item of visible MenuNode is marked not visible")
+	o.SetIsVisible(false)
+	assert.False(t, o.isVisible, "OPTION is not visible")
 	assert.False(t, oItem.Visible(), "item of hidden MenuNode is visible")
-	o.SetIsVisible(true)
-	assert.True(t, o.isVisible, "OPTION is not visible")
-	assert.True(t, oItem.Visible(), "item of hidden MenuNode is visible")
 	//
 	o.SetIsEnabled(false)
 	assert.False(t, o.IsEnabled(), "OPTION is enabled")
