@@ -20,7 +20,10 @@ type nodeList struct {
 	totFree int
 	//withCheckbox defines if LIST MenuNode elements are provided with a graphic checkbox.
 	withCheckbox bool
+	//Mutex used to protect operations on the nodeList.
 	sync.RWMutex
+	//WaitGroup used to parallelize LIST nodes cleaning.
+	sync.WaitGroup
 }
 
 //newNodeList creates a new nodeList for a parent MenuNode.
@@ -53,14 +56,18 @@ func (nl *nodeList) useNode(title string, tag string) *MenuNode {
 	return node
 }
 
+//usedNode retrieves, if present, a tagged LIST child in use.
+func (nl *nodeList) usedNode(tag string) (node *MenuNode, present bool) {
+	nl.RLock()
+	defer nl.RUnlock()
+	node, present = nl.usedNodes[tag]
+	return
+}
+
 //freeNode takes a LIST MenuNode away from the ones in use, making it available.
 func (nl *nodeList) freeNode(tag string) {
-	nl.Lock()
-	defer nl.Unlock()
 	node, ok := nl.usedNodes[tag]
 	if ok {
-		//recursively free all possible LIST children
-		node.FreeListChildren()
 		node.SetTitle("")
 		node.SetTag("")
 		node.SetIsVisible(false)
@@ -75,7 +82,13 @@ func (nl *nodeList) freeNode(tag string) {
 func (nl *nodeList) freeAllNodes() {
 	nl.Lock()
 	defer nl.Unlock()
-	for key := range nl.usedNodes {
-		nl.freeNode(key)
+	defer nl.Wait()
+	for tag, node := range nl.usedNodes {
+		nl.Add(1)
+		go func(n *MenuNode, str string) {
+			defer nl.Done()
+			n.FreeListChildren()
+			nl.freeNode(str)
+		}(node, tag)
 	}
 }
