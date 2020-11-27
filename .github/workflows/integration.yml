@@ -103,6 +103,7 @@ jobs:
       - name: Build (and Publish) ${{ matrix.component }} image
         uses: docker/build-push-action@v2
         with:
+          context: .
           tags: |
             liqo/${{ matrix.component }}${{ needs.configure.outputs.repo-suffix }}:latest
             liqo/${{ matrix.component }}${{ needs.configure.outputs.repo-suffix }}:${{ needs.configure.outputs.commit_ref }}
