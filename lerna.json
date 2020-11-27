@@ -1,6 +1,13 @@
 {
   "changelog": {
     "repo": "liqotech/liqo",
+    "labels": {
+      "kind/breaking": ":boom: Breaking Change",
+      "kind/feature": ":rocket: New Feature",
+      "kind/bug": ":bug: Bug Fix",
+      "kind/cleanup": ":broom: Code Refactoring",
+      "kind/docs": ":memo: Documentation"
+    },
     "ignoreCommitters": [
       "adamjensenbot"
     ]
