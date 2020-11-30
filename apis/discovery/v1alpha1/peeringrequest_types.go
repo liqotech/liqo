@@ -40,6 +40,8 @@ type PeeringRequestSpec struct {
 	Namespace string `json:"namespace"`
 	// KubeConfig file (with Advertisement creation role) secret reference
 	KubeConfigRef *v1.ObjectReference `json:"kubeConfigRef,omitempty"`
+	// Local auth service address
+	AuthUrl string `json:"authUrl"`
 }
 
 // PeeringRequestStatus defines the observed state of PeeringRequest

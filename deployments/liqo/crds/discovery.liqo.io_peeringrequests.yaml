@@ -22,21 +22,29 @@ spec:
         description: PeeringRequest is the Schema for the PeeringRequests API
         properties:
           apiVersion:
-            description: 'APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
+            description: 'APIVersion defines the versioned schema of this representation
+              of an object. Servers should convert recognized schemas to the latest
+              internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
             type: string
           kind:
-            description: 'Kind is a string value representing the REST resource this object represents. Servers may infer this from the endpoint the client submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
+            description: 'Kind is a string value representing the REST resource this
+              object represents. Servers may infer this from the endpoint the client
+              submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
             type: string
           metadata:
             type: object
           spec:
             description: PeeringRequestSpec defines the desired state of PeeringRequest
             properties:
+              authUrl:
+                description: Local auth service address
+                type: string
               clusterIdentity:
                 description: Foreign Cluster Identity
                 properties:
                   clusterID:
-                    description: Foreign Cluster ID, this is a unique identifier of that cluster
+                    description: Foreign Cluster ID, this is a unique identifier of
+                      that cluster
                     type: string
                   clusterName:
                     description: Foreign Cluster Name to be shown in GUIs
@@ -45,13 +53,24 @@ spec:
                 - clusterID
                 type: object
               kubeConfigRef:
-                description: KubeConfig file (with Advertisement creation role) secret reference
+                description: KubeConfig file (with Advertisement creation role) secret
+                  reference
                 properties:
                   apiVersion:
                     description: API version of the referent.
                     type: string
                   fieldPath:
-                    description: 'If referring to a piece of an object instead of an entire object, this string should contain a valid JSON/Go field access statement, such as desiredState.manifest.containers[2]. For example, if the object reference is to a container within a pod, this would take on a value like: "spec.containers{name}" (where "name" refers to the name of the container that triggered the event) or if no container name is specified "spec.containers[2]" (container with index 2 in this pod). This syntax is chosen only to have some well-defined way of referencing a part of an object. TODO: this design is not final and this field is subject to change in the future.'
+                    description: 'If referring to a piece of an object instead of
+                      an entire object, this string should contain a valid JSON/Go
+                      field access statement, such as desiredState.manifest.containers[2].
+                      For example, if the object reference is to a container within
+                      a pod, this would take on a value like: "spec.containers{name}"
+                      (where "name" refers to the name of the container that triggered
+                      the event) or if no container name is specified "spec.containers[2]"
+                      (container with index 2 in this pod). This syntax is chosen
+                      only to have some well-defined way of referencing a part of
+                      an object. TODO: this design is not final and this field is
+                      subject to change in the future.'
                     type: string
                   kind:
                     description: 'Kind of the referent. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
@@ -63,7 +82,8 @@ spec:
                     description: 'Namespace of the referent. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/namespaces/'
                     type: string
                   resourceVersion:
-                    description: 'Specific resourceVersion to which this reference is made, if any. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#concurrency-control-and-consistency'
+                    description: 'Specific resourceVersion to which this reference
+                      is made, if any. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#concurrency-control-and-consistency'
                     type: string
                   uid:
                     description: 'UID of the referent. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#uids'
@@ -73,6 +93,7 @@ spec:
                 description: Namespace where Liqo is deployed
                 type: string
             required:
+            - authUrl
             - clusterIdentity
             - namespace
             type: object
@@ -83,13 +104,16 @@ spec:
                 description: AdvPhase describes the phase of the Advertisement
                 type: string
               broadcasterRef:
-                description: DeploymentReference represents a Deployment Reference. It has enough information to retrieve deployment in any namespace
+                description: DeploymentReference represents a Deployment Reference.
+                  It has enough information to retrieve deployment in any namespace
                 properties:
                   name:
-                    description: Name is unique within a namespace to reference a deployment resource.
+                    description: Name is unique within a namespace to reference a
+                      deployment resource.
                     type: string
                   namespace:
-                    description: Namespace defines the space within which the deployment name must be unique.
+                    description: Namespace defines the space within which the deployment
+                      name must be unique.
                     type: string
                 type: object
             type: object

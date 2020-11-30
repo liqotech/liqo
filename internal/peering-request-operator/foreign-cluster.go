@@ -3,16 +3,22 @@ package peering_request_operator
 import (
 	"errors"
 	"github.com/liqotech/liqo/apis/discovery/v1alpha1"
+	"github.com/liqotech/liqo/pkg/discovery"
+	"github.com/liqotech/liqo/pkg/kubeconfig"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/rest"
 	"k8s.io/klog"
 	"k8s.io/utils/pointer"
+	"strings"
 )
 
 func (r *PeeringRequestReconciler) UpdateForeignCluster(pr *v1alpha1.PeeringRequest) error {
 	tmp, err := r.crdClient.Resource("foreignclusters").List(metav1.ListOptions{
-		LabelSelector: "cluster-id=" + pr.Spec.ClusterIdentity.ClusterID,
+		LabelSelector: strings.Join([]string{
+			discovery.ClusterIdLabel,
+			pr.Spec.ClusterIdentity.ClusterID,
+		}, "="),
 	})
 	if err != nil {
 		klog.Error(err, err.Error())
@@ -62,7 +68,7 @@ func (r *PeeringRequestReconciler) createForeignCluster(pr *v1alpha1.PeeringRequ
 
 	cnf, err = pr.GetConfig(r.crdClient.Client())
 	if err != nil {
-		if errors.As(err, &v1alpha1.LoadConfigError{}) {
+		if errors.As(err, &kubeconfig.LoadConfigError{}) {
 			klog.Warning("using default ForeignConfig")
 			cnf = r.ForeignConfig
 		} else {
@@ -81,6 +87,7 @@ func (r *PeeringRequestReconciler) createForeignCluster(pr *v1alpha1.PeeringRequ
 			Join:            false,
 			ApiUrl:          cnf.Host,
 			DiscoveryType:   v1alpha1.IncomingPeeringDiscovery,
+			AuthUrl:         pr.Spec.AuthUrl,
 		},
 		Status: v1alpha1.ForeignClusterStatus{
 			Incoming: v1alpha1.Incoming{

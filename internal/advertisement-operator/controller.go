@@ -23,6 +23,7 @@ import (
 	advtypes "github.com/liqotech/liqo/apis/sharing/v1alpha1"
 	advpkg "github.com/liqotech/liqo/pkg/advertisement-operator"
 	"github.com/liqotech/liqo/pkg/crdClient"
+	"github.com/liqotech/liqo/pkg/discovery"
 	objectreferences "github.com/liqotech/liqo/pkg/object-references"
 	"github.com/liqotech/liqo/pkg/virtualKubelet"
 	v1 "k8s.io/api/core/v1"
@@ -35,6 +36,7 @@ import (
 	"k8s.io/kubernetes/pkg/util/slice"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"strings"
 	"sync"
 	"time"
 )
@@ -164,7 +166,10 @@ func (r *AdvertisementReconciler) SetupWithManager(mgr ctrl.Manager) error {
 // set Advertisement reference in related ForeignCluster
 func (r *AdvertisementReconciler) UpdateForeignCluster(adv *advtypes.Advertisement) (error, bool) {
 	tmp, err := r.DiscoveryClient.Resource("foreignclusters").List(metav1.ListOptions{
-		LabelSelector: "cluster-id=" + adv.Spec.ClusterId,
+		LabelSelector: strings.Join([]string{
+			discovery.ClusterIdLabel,
+			adv.Spec.ClusterId,
+		}, "="),
 	})
 	if err != nil {
 		klog.Error(err, err.Error())

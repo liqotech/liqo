@@ -101,16 +101,14 @@ func testForeignClusterCreation(t *testing.T) {
 	assert.Equal(t, ok, true)
 	l := len(fcs.Items)
 
-	txts := []*discovery.TxtData{
-		{
-			ID:        "test",
-			Name:      "Test Cluster 1",
-			Namespace: "default",
-			ApiUrl:    "http://" + serverCluster.cfg.Host,
-		},
+	txts := &discovery.TxtData{
+		ID:        "test",
+		Name:      "Test Cluster 1",
+		Namespace: "default",
+		ApiUrl:    "http://" + serverCluster.cfg.Host,
 	}
 
-	clientCluster.discoveryCtrl.UpdateForeignWAN(txts, nil)
+	clientCluster.discoveryCtrl.UpdateForeignLAN(discovery.NewDiscoveryData(txts, discovery.NewAuthDataTest("127.0.0.1", 30001)))
 
 	time.Sleep(1 * time.Second)
 
@@ -127,8 +125,8 @@ func testForeignClusterCreation(t *testing.T) {
 	assert.Equal(t, ok, true)
 	assert.Equal(t, fc.Spec.ApiUrl, "http://"+serverCluster.cfg.Host, "ApiUrl doesn't match the specified one")
 	assert.Equal(t, fc.Spec.Namespace, "default", "Foreign Namesapce doesn't match the specified one")
-	assert.Equal(t, fc.Spec.ClusterIdentity.ClusterID, txts[0].ID)
-	assert.Equal(t, fc.Spec.ClusterIdentity.ClusterName, txts[0].Name)
+	assert.Equal(t, fc.Spec.ClusterIdentity.ClusterID, txts.ID)
+	assert.Equal(t, fc.Spec.ClusterIdentity.ClusterName, txts.Name)
 }
 
 // ------
@@ -151,6 +149,7 @@ func testTtl(t *testing.T) {
 			Namespace:     "default",
 			Join:          false,
 			ApiUrl:        "http://" + serverCluster.cfg.Host,
+			AuthUrl:       "fake://127.0.0.1:30001",
 			DiscoveryType: v1alpha1.LanDiscovery,
 		},
 		Status: v1alpha1.ForeignClusterStatus{

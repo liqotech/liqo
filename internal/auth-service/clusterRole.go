@@ -11,7 +11,7 @@ import (
 func (authService *AuthServiceCtrl) createClusterRole(remoteClusterId string, sa *v1.ServiceAccount) (*rbacv1.ClusterRole, error) {
 	role := &rbacv1.ClusterRole{
 		ObjectMeta: metav1.ObjectMeta{
-			Name: remoteClusterId,
+			Name: sa.Name,
 			OwnerReferences: []metav1.OwnerReference{
 				{
 					APIVersion: "v1",

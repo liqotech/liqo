@@ -22,10 +22,14 @@ spec:
         description: NetworkConfig is the Schema for the networkconfigs API
         properties:
           apiVersion:
-            description: 'APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
+            description: 'APIVersion defines the versioned schema of this representation
+              of an object. Servers should convert recognized schemas to the latest
+              internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
             type: string
           kind:
-            description: 'Kind is a string value representing the REST resource this object represents. Servers may infer this from the endpoint the client submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
+            description: 'Kind is a string value representing the REST resource this
+              object represents. Servers may infer this from the endpoint the client
+              submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
             type: string
           metadata:
             type: object
@@ -33,10 +37,13 @@ spec:
             description: NetworkConfigSpec defines the desired state of NetworkConfig
             properties:
               clusterID:
-                description: 'INSERT ADDITIONAL SPEC FIELDS - desired state of cluster Important: Run "make" to regenerate code after modifying this file the ID of the remote cluster that will receive this CRD'
+                description: 'INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
+                  Important: Run "make" to regenerate code after modifying this file
+                  the ID of the remote cluster that will receive this CRD'
                 type: string
               podCIDR:
-                description: network subnet used in the local cluster for the pod IPs
+                description: network subnet used in the local cluster for the pod
+                  IPs
                 type: string
               tunnelPublicIP:
                 description: public IP of the node where the VPN tunnel is created
@@ -50,10 +57,13 @@ spec:
             description: NetworkConfigStatus defines the observed state of NetworkConfig
             properties:
               natEnabled:
-                description: 'INSERT ADDITIONAL STATUS FIELD - define observed state of cluster Important: Run "make" to regenerate code after modifying this file indicates if the NAT is enabled for the remote cluster'
+                description: 'INSERT ADDITIONAL STATUS FIELD - define observed state
+                  of cluster Important: Run "make" to regenerate code after modifying
+                  this file indicates if the NAT is enabled for the remote cluster'
                 type: string
               podCIDRNAT:
-                description: the new subnet used to NAT the pods' subnet of the remote cluster
+                description: the new subnet used to NAT the pods' subnet of the remote
+                  cluster
                 type: string
             type: object
         type: object

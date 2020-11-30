@@ -1,9 +1,9 @@
 package discovery
 
 import (
-	"context"
 	"errors"
 	"github.com/liqotech/liqo/apis/discovery/v1alpha1"
+	discoveryPkg "github.com/liqotech/liqo/pkg/discovery"
 	k8serror "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -112,6 +112,7 @@ func (discovery *DiscoveryCtrl) createForeign(data *discoveryData, sd *v1alpha1.
 			Namespace:     data.TxtData.Namespace,
 			ApiUrl:        data.TxtData.ApiUrl,
 			DiscoveryType: discoveryType,
+			AuthUrl:       data.AuthData.GetUrl(),
 		},
 	}
 	fc.LastUpdateNow()
@@ -162,15 +163,6 @@ func (discovery *DiscoveryCtrl) CheckUpdate(data *discoveryData, fc *v1alpha1.Fo
 			fc.Status.Ttl = data.TxtData.Ttl
 		} else if searchDomain != nil && discoveryType == v1alpha1.WanDiscovery {
 			fc.Spec.Join = searchDomain.Spec.AutoJoin
-		}
-		if needsToReload && fc.Status.Outgoing.CaDataRef != nil {
-			// delete it only if the remote cluster moved
-			err := discovery.crdClient.Client().CoreV1().Secrets(fc.Status.Outgoing.CaDataRef.Namespace).Delete(context.TODO(), fc.Status.Outgoing.CaDataRef.Name, metav1.DeleteOptions{})
-			if err != nil {
-				klog.Error(err)
-				return nil, false, err
-			}
-			fc.Status.Outgoing.CaDataRef = nil
 		}
 		fc.LastUpdateNow()
 		tmp, err := discovery.crdClient.Resource("foreignclusters").Update(fc.Name, fc, metav1.UpdateOptions{})
@@ -233,7 +225,7 @@ func (discovery *DiscoveryCtrl) CheckUpdate(data *discoveryData, fc *v1alpha1.Fo
 
 func (discovery *DiscoveryCtrl) GetForeignClusterByID(clusterID string) (*v1alpha1.ForeignCluster, error) {
 	tmp, err := discovery.crdClient.Resource("foreignclusters").List(metav1.ListOptions{
-		LabelSelector: strings.Join([]string{"cluster-id", clusterID}, "="),
+		LabelSelector: strings.Join([]string{discoveryPkg.ClusterIdLabel, clusterID}, "="),
 	})
 	if err != nil {
 		return nil, err

@@ -2,6 +2,7 @@ package auth_service
 
 import (
 	"context"
+	"fmt"
 	v1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -57,7 +58,7 @@ func (authService *AuthServiceCtrl) getServiceAccountCompleted(remoteClusterId s
 }
 
 func (authService *AuthServiceCtrl) getServiceAccount(remoteClusterId string) (*v1.ServiceAccount, error) {
-	tmp, exists, err := authService.saInformer.GetStore().GetByKey(strings.Join([]string{authService.namespace, remoteClusterId}, "/"))
+	tmp, exists, err := authService.saInformer.GetStore().GetByKey(strings.Join([]string{authService.namespace, fmt.Sprintf("remote-%s", remoteClusterId)}, "/"))
 	if err != nil {
 		return nil, err
 	}
@@ -78,7 +79,7 @@ func (authService *AuthServiceCtrl) getServiceAccount(remoteClusterId string) (*
 func (authService *AuthServiceCtrl) createServiceAccount(remoteClusterId string) (*v1.ServiceAccount, error) {
 	sa := &v1.ServiceAccount{
 		ObjectMeta: metav1.ObjectMeta{
-			Name: remoteClusterId,
+			Name: fmt.Sprintf("remote-%s", remoteClusterId),
 		},
 	}
 	return authService.clientset.CoreV1().ServiceAccounts(authService.namespace).Create(context.TODO(), sa, metav1.CreateOptions{})

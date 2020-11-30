@@ -13,6 +13,9 @@ import (
 )
 
 func TestDns(t *testing.T) {
+	// TODO: this tests will be re-enabled in a future pr, when auth discovery in WAN will be completed
+	t.SkipNow()
+
 	t.Run("testDNS", testDns)
 	t.Run("testCNAME", testCname)
 	t.Run("testSDCreation", testSDCreation)
