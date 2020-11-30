@@ -19,6 +19,12 @@ const (
 	qWeb    = "Q_WEBSITE"
 	qNotify = "Q_NOTIFY"
 	qQuit   = "Q_QUIT"
+	qPeers  = "Q_PEERS"
+)
+
+// set of frequently used tags inside application logic
+const (
+	tagStatus = "status"
 )
 
 //quickTurnOnOff is the callback for the QUICK "START/STOP LIQO".

@@ -71,6 +71,7 @@ func (nl *nodeList) freeNode(tag string) {
 		node.SetTitle("")
 		node.SetTag("")
 		node.SetIsVisible(false)
+		node.SetIsEnabled(true)
 		node.Disconnect()
 		delete(nl.usedNodes, tag)
 		nl.freeNodes.Enqueue(node)

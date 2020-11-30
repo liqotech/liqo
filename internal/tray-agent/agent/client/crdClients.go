@@ -2,6 +2,7 @@ package client
 
 import (
 	"errors"
+	"fmt"
 	"github.com/liqotech/liqo/pkg/crdClient"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/tools/cache"
@@ -16,6 +17,8 @@ const (
 	CRClusterConfig CustomResource = "clusterconfigs"
 	//CRAdvertisement is the resource id for the Advertisement CRD.
 	CRAdvertisement CustomResource = "advertisements"
+	//CRForeignCluster is the resource id for the ForeignCluster CRD.
+	CRForeignCluster CustomResource = "foreignclusters"
 )
 
 //customResources contains all the registered CustomResource managed by the AgentController.
@@ -23,6 +26,7 @@ const (
 var customResources = []CustomResource{
 	CRClusterConfig,
 	CRAdvertisement,
+	CRForeignCluster,
 }
 
 //crdManager stores the resources necessary to manage the CRDs.
@@ -35,8 +39,8 @@ type crdManager struct {
 //required CRD.
 func (ctrl *AgentController) initCRDManager() error {
 	//struct init
-	mngr := &crdManager{clientMap: make(map[CustomResource]*CRDController)}
-	ctrl.crdManager = mngr
+	manager := &crdManager{clientMap: make(map[CustomResource]*CRDController)}
+	ctrl.crdManager = manager
 	kubeconfig, set := os.LookupEnv(EnvLiqoKConfig)
 	if !set {
 		return errors.New("no kubeconfig provided")
@@ -44,19 +48,20 @@ func (ctrl *AgentController) initCRDManager() error {
 	//creation of each single CRDController
 	var err error
 	var crdCtrl *CRDController
-	// - CLUSTERCONFIG
-	crdCtrl, err = createClusterConfigController(kubeconfig)
-	if err != nil {
-		return errors.New("connection error on clusterconfigs client creation")
+	for _, cr := range customResources {
+		switch cr {
+		case CRClusterConfig:
+			crdCtrl, err = createClusterConfigController(kubeconfig)
+		case CRAdvertisement:
+			crdCtrl, err = createAdvertisementController(kubeconfig)
+		case CRForeignCluster:
+			crdCtrl, err = createForeignClusterController(kubeconfig)
+		}
+		if err != nil {
+			return errors.New(fmt.Sprint("connection error on ", cr, " client creation"))
+		}
+		manager.clientMap[cr] = crdCtrl
 	}
-	mngr.clientMap[CRClusterConfig] = crdCtrl
-	// - ADVERTISEMENT
-	crdCtrl, err = createAdvertisementController(kubeconfig)
-	if err != nil {
-		return errors.New("connection error on advertisements client creation")
-	}
-	mngr.clientMap[CRAdvertisement] = crdCtrl
-	//
 	return nil
 }
 

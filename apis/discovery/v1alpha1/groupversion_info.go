@@ -34,6 +34,9 @@ var (
 
 	// AddToScheme adds the types in this group-version to the given scheme.
 	AddToScheme = SchemeBuilder.AddToScheme
+
+	//ForeignClusterGroupResource is the group resource used to register ForeignCluster CRD.
+	ForeignClusterGroupResource = schema.GroupResource{Group: GroupVersion.Group, Resource: "foreignclusters"}
 )
 
 func init() {

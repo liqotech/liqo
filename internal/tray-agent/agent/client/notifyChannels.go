@@ -16,6 +16,12 @@ const (
 	ChanAdvDeleted
 	//Notification channel id for the revocation of the 'ACCEPTED' status of an Advertisement
 	ChanAdvRevoked
+	//Notification channel id for the addition of a new peer discovered.
+	ChanPeerAdded
+	//Notification channel id for the removal of an available peer.
+	ChanPeerDeleted
+	//Notification channel id for an update of an available peer.
+	ChanPeerUpdated
 )
 
 //notifyChannelNames contains all the registered NotifyChannel managed by the AgentController.
@@ -25,4 +31,7 @@ var notifyChannelNames = []NotifyChannel{
 	ChanAdvAccepted,
 	ChanAdvDeleted,
 	ChanAdvRevoked,
+	ChanPeerAdded,
+	ChanPeerDeleted,
+	ChanPeerUpdated,
 }
