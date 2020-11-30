@@ -20,11 +20,12 @@ function setup_arch_and_os(){
     "mingw"*) OS='windows'; return ;;
   esac
 
-  # list is available at https://github.com/kubernetes-sigs/kind/releases
+  # list is available for kind at https://github.com/kubernetes-sigs/kind/releases
+  # kubectl supported architecture list is a superset of the Kind one. No need to further compatibility check.
   local supported="darwin-amd64\n\nlinux-amd64\nlinux-arm64\nlinux-ppc64le\nwindows-amd64"
   if ! echo "${supported}" | grep -q "${OS}-${ARCH}"; then
     echo "Error: No version of kind for '${OS}-${ARCH}'"
-    exit 1
+    return 1
   fi
 
 }
@@ -35,10 +36,31 @@ CLUSTER_NAME=cluster
 CLUSTER_NAME_1=${CLUSTER_NAME}1
 CLUSTER_NAME_2=${CLUSTER_NAME}2
 KIND_VERSION="v0.9.0"
+KUBECTL_DOWNLOAD=false
+
 echo "Downloading Kind ${KIND_VERSION}"
 TMPDIR=$(mktemp -d -t liqo-install.XXXXXXXXXX)
 BINDIR="${TMPDIR}/bin"
 mkdir -p "${BINDIR}"
+
+if ! command -v docker &> /dev/null;
+then
+	echo "MISSING REQUIREMENT: docker engine could not be found on your system. Please install docker engine to continue: https://docs.docker.com/get-docker/"
+	return 1
+fi
+
+if ! command -v kubectl &> /dev/null
+then
+    echo "WARNING: kubectl could not be found. Downloading and installing it locally..."
+    if ! curl --fail -Lo "${BINDIR}"/kubectl "https://storage.googleapis.com/kubernetes-release/release/$(curl -s https://storage.googleapis.com/kubernetes-release/release/stable.txt)/bin/${OS}/${ARCH}/kubectl"; then
+        echo "Error: Unable to download kubectl for '${OS}-${ARCH}'"
+    	return 1
+    fi
+    chmod +x "${BINDIR}"/kubectl
+    export PATH=${PATH}:${BINDIR}
+	KUBECTL_DOWNLOAD=true
+fi
+
 curl -Lo "${BINDIR}"/kind https://kind.sigs.k8s.io/dl/${KIND_VERSION}/kind-${OS}-${ARCH}
 chmod +x "${BINDIR}"/kind
 KIND="${BINDIR}/kind"
@@ -81,3 +103,8 @@ echo "- NAMESPACE=liqo"
 echo "If you want to select $CLUSTER_NAME_1, you should simply type:" 'export KUBECONFIG=$KUBECONFIG_1'
 # shellcheck disable=SC2016
 echo "If you want to select $CLUSTER_NAME_2, you should simply type:" 'export KUBECONFIG=$KUBECONFIG_2'
+if [ "$KUBECTL_DOWNLOAD" == "true" ]; then
+	echo "kubectl is now installed in ${BINDIR}/kubectl and has been added to your PATH. To make it available without explicitly setting the PATH variable"
+	echo "You can copy it to a system-wide location such as /usr/local/bin by typing:"
+	echo "sudo cp ${BINDIR}/kubectl /usr/local/bin"
+fi
