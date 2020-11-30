@@ -29,6 +29,7 @@ type ClusterConfigSpec struct {
 	//AdvertisementConfig defines the configuration for the advertisement protocol
 	AdvertisementConfig AdvertisementConfig `json:"advertisementConfig"`
 	DiscoveryConfig     DiscoveryConfig     `json:"discoveryConfig"`
+	AuthConfig          AuthConfig          `json:"authConfig"`
 	LiqonetConfig       LiqonetConfig       `json:"liqonetConfig"`
 	DispatcherConfig    DispatcherConfig    `json:"dispatcherConfig,omitempty"`
 	//AgentConfig defines the configuration for Liqo Agent.
@@ -107,7 +108,7 @@ type DiscoveryConfig struct {
 
 	Name    string `json:"name"`
 	Service string `json:"service"`
-	// +kubebuilder:default="_auth._tcp"
+	// +kubebuilder:default="_liqo_auth._tcp"
 	AuthService string `json:"authService,omitempty"`
 	Domain      string `json:"domain"`
 	// +kubebuilder:validation:Maximum=65355
@@ -121,6 +122,12 @@ type DiscoveryConfig struct {
 
 	AutoJoin          bool `json:"autojoin"`
 	AutoJoinUntrusted bool `json:"autojoinUntrusted"`
+}
+
+type AuthConfig struct {
+	// Allow remote clusters to get an identity with an empty token
+	// +kubebuilder:default=false
+	AllowEmptyToken bool `json:"allowEmptyToken,omitempty"`
 }
 
 type LiqonetConfig struct {

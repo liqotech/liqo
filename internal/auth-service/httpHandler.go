@@ -19,7 +19,7 @@ func (authService *AuthServiceCtrl) role(w http.ResponseWriter, r *http.Request,
 		return
 	}
 
-	roleRequest := &auth.RoleRequest{}
+	roleRequest := &auth.IdentityRequest{}
 	err = json.Unmarshal(bytes, roleRequest)
 	if err != nil {
 		klog.Error(err)
@@ -31,7 +31,10 @@ func (authService *AuthServiceCtrl) role(w http.ResponseWriter, r *http.Request,
 		klog.Error(err)
 		authService.handleError(w, err)
 		return
-	} else if token != roleRequest.Token {
+	} else if token != roleRequest.Token && !authService.validEmptyToken(roleRequest.Token) {
+		// token check fails if:
+		// 1. token is different from the correct one
+		// 2. token is empty but in the cluster config empty token is not allowed
 		err = &kerrors.StatusError{ErrStatus: metav1.Status{
 			Status: metav1.StatusFailure,
 			Code:   http.StatusForbidden,
@@ -56,7 +59,7 @@ func (authService *AuthServiceCtrl) role(w http.ResponseWriter, r *http.Request,
 		return
 	}
 
-	_, err = authService.createRoleBinding(roleRequest.ClusterID, sa, role)
+	_, err = authService.createRoleBinding(sa, role)
 	if err != nil {
 		klog.Error(err)
 		authService.handleError(w, err)
@@ -70,7 +73,7 @@ func (authService *AuthServiceCtrl) role(w http.ResponseWriter, r *http.Request,
 		return
 	}
 
-	_, err = authService.createClusterRoleBinding(roleRequest.ClusterID, sa, clusterRole)
+	_, err = authService.createClusterRoleBinding(sa, clusterRole)
 	if err != nil {
 		klog.Error(err)
 		authService.handleError(w, err)
@@ -99,9 +102,17 @@ func (authService *AuthServiceCtrl) role(w http.ResponseWriter, r *http.Request,
 	}
 }
 
+func (authService *AuthServiceCtrl) validEmptyToken(token string) bool {
+	return token == "" && authService.GetConfig().AllowEmptyToken
+}
+
 func (authService *AuthServiceCtrl) handleError(w http.ResponseWriter, err error) {
-	// TODO: switch on error type
-	authService.sendError(w, err.Error(), http.StatusInternalServerError)
+	switch err.(type) {
+	case *kerrors.StatusError:
+		authService.sendError(w, "forbidden", http.StatusForbidden)
+	default:
+		authService.sendError(w, err.Error(), http.StatusInternalServerError)
+	}
 }
 
 func (authService *AuthServiceCtrl) sendError(w http.ResponseWriter, resp interface{}, code int) {

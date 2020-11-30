@@ -25,13 +25,12 @@ import (
 
 var clientCluster *Cluster
 var serverCluster *Cluster
-var stopChan <-chan struct{}
+
+var stopChan = ctrl.SetupSignalHandler()
 
 func setUp() {
-	stopChan = ctrl.SetupSignalHandler()
-
-	clientCluster = getClientCluster()
-	serverCluster = getServerCluster()
+	clientCluster = getClientCluster(stopChan)
+	serverCluster = getServerCluster(stopChan)
 
 	clientCluster.fcReconciler.ForeignConfig = serverCluster.cfg
 	clientCluster.prReconciler.ForeignConfig = serverCluster.cfg
@@ -55,6 +54,10 @@ func tearDown() {
 }
 
 func TestMain(m *testing.M) {
+	_ = os.Setenv("APISERVER", "127.0.0.1")
+	_ = os.Setenv("AUTH_SVC_PORT", "30001")
+	_ = os.Setenv("TEST", "true")
+
 	setUp()
 	defer tearDown()
 
@@ -65,6 +68,8 @@ func TestMain(m *testing.M) {
 }
 
 func TestDiscovery(t *testing.T) {
+	t.Run("testSetupClusterID", testSetupClusterID)
+
 	t.Run("testClient", testClient)
 	t.Run("testDiscoveryConfig", testDiscoveryConfig)
 	t.Run("testPRConfig", testPRConfig)
@@ -96,6 +101,7 @@ func testClient(t *testing.T) {
 			Namespace:     "default",
 			Join:          false,
 			ApiUrl:        serverCluster.cfg.Host,
+			AuthUrl:       "fake://127.0.0.1:30001",
 			DiscoveryType: v1alpha1.ManualDiscovery,
 		},
 	}
@@ -318,6 +324,7 @@ func testBidirectionalJoin(t *testing.T) {
 			Namespace:     "default",
 			Join:          true,
 			ApiUrl:        serverCluster.cfg.Host,
+			AuthUrl:       "fake://127.0.0.1:30001",
 			DiscoveryType: v1alpha1.ManualDiscovery,
 		},
 	}
@@ -385,12 +392,8 @@ func testMergeClusters(t *testing.T) {
 
 	tmp, err = clientCluster.client.Resource("foreignclusters").Get("fc-test", metav1.GetOptions{})
 	assert.NilError(t, err, "Error retrieving ForeignCluster")
-	fc, ok = tmp.(*v1alpha1.ForeignCluster)
+	_, ok = tmp.(*v1alpha1.ForeignCluster)
 	assert.Equal(t, ok, true)
-
-	cfg, err := fc.GetConfig(clientCluster.client.Client())
-	assert.NilError(t, err, "Unable to load foreign CA Data")
-	assert.Assert(t, cfg != nil, "Unable to load foreign config")
 }
 
 // ------

@@ -30,8 +30,10 @@ spec:
     enableDiscovery: true
     name: MyLiqo
     port: 6443
-    service: _liqo._tcp
+    service: _liqo_api._tcp
     ttl: 90
+  authConfig:
+    allowEmptyToken: true
   liqonetConfig:
     podCIDR: {{ .Values.podCIDR }}
     serviceCIDR: {{ .Values.serviceCIDR }}

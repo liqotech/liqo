@@ -10,7 +10,7 @@ import (
 func (authService *AuthServiceCtrl) createRole(remoteClusterId string, sa *v1.ServiceAccount) (*rbacv1.Role, error) {
 	role := &rbacv1.Role{
 		ObjectMeta: metav1.ObjectMeta{
-			Name: remoteClusterId,
+			Name: sa.Name,
 			OwnerReferences: []metav1.OwnerReference{
 				{
 					APIVersion: "v1",
@@ -31,12 +31,6 @@ func (authService *AuthServiceCtrl) createRole(remoteClusterId string, sa *v1.Se
 				Resources:     []string{"secrets"},
 				Verbs:         []string{"get", "delete"},
 				ResourceNames: []string{remoteClusterId},
-			},
-			{
-				APIGroups:     []string{v1.SchemeGroupVersion.Group},
-				Resources:     []string{"secrets"},
-				Verbs:         []string{"get"},
-				ResourceNames: []string{"ca-data"},
 			},
 		},
 	}

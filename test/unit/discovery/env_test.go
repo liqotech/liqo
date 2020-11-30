@@ -43,7 +43,7 @@ type Cluster struct {
 	clusterId     *clusterID.ClusterID
 }
 
-func getClientCluster() *Cluster {
+func getClientCluster(stopChan <-chan struct{}) *Cluster {
 	cluster, mgr, cc := getCluster()
 	cluster.clusterId = clusterID.GetNewClusterID("client-cluster", cluster.client.Client())
 	cluster.fcReconciler = foreign_cluster_operator.GetFCReconciler(
@@ -110,7 +110,7 @@ func getClientCluster() *Cluster {
 	return cluster
 }
 
-func getServerCluster() *Cluster {
+func getServerCluster(stopChan <-chan struct{}) *Cluster {
 	cluster, mgr, cc := getCluster()
 	cluster.clusterId = clusterID.GetNewClusterID("server-cluster", cluster.client.Client())
 	cluster.fcReconciler = foreign_cluster_operator.GetFCReconciler(

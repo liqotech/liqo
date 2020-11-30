@@ -6,10 +6,6 @@ import (
 	"testing"
 )
 
-func TestClusterID(t *testing.T) {
-	t.Run("testSetupClusterID", testSetupClusterID)
-}
-
 func testSetupClusterID(t *testing.T) {
 	clID := clusterID.GetNewClusterID("", clientCluster.client.Client())
 	err := clID.SetupClusterID("default")

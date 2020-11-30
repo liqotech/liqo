@@ -45,8 +45,17 @@ const (
 	TrustModeUntrusted TrustMode = "Untrusted"
 )
 
+type AuthStatus string
+
 const (
-	LastUpdateAnnotation string = "LastUpdate"
+	AuthStatusPending      AuthStatus = "Pending"
+	AuthStatusAccepted     AuthStatus = "Accepted"
+	AuthStatusRefused      AuthStatus = "Refused"
+	AuthStatusEmptyRefused AuthStatus = "EmptyRefused"
+)
+
+const (
+	LastUpdateAnnotation string = "discovery.liqo.io/LastUpdate"
 )
 
 // ForeignClusterSpec defines the desired state of ForeignCluster
@@ -64,6 +73,8 @@ type ForeignClusterSpec struct {
 	ApiUrl string `json:"apiUrl"`
 	// How this ForeignCluster has been discovered
 	DiscoveryType DiscoveryType `json:"discoveryType"`
+	// URL where to contact foreign Auth service
+	AuthUrl string `json:"authUrl"`
 }
 
 type ClusterIdentity struct {
@@ -88,6 +99,10 @@ type ForeignClusterStatus struct {
 	TrustMode TrustMode `json:"trustMode,omitempty"`
 	// It stores most important network statuses
 	Network Network `json:"network,omitempty"`
+	// Authentication status
+	// +kubebuilder:validation:Enum="Pending";"Accepted";"Refused";"EmptyRefused"
+	// +kubebuilder:default="Pending"
+	AuthStatus AuthStatus `json:"authStatus,omitempty"`
 }
 
 type ResourceLink struct {
@@ -111,8 +126,6 @@ type Outgoing struct {
 	Joined bool `json:"joined"`
 	// Name of created PR
 	RemotePeeringRequestName string `json:"remote-peering-request-name,omitempty"`
-	// Object Reference to retrieved CaData Secret
-	CaDataRef *v1.ObjectReference `json:"caDataRef,omitempty"`
 	// Object Reference to created Advertisement CR
 	Advertisement *v1.ObjectReference `json:"advertisement,omitempty"`
 	// Indicates if related identity is available

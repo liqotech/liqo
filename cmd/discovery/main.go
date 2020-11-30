@@ -66,12 +66,6 @@ func main() {
 		os.Exit(1)
 	}
 
-	err = discoveryCtl.SetupCaData()
-	if err != nil {
-		klog.Error(err, err.Error())
-		os.Exit(1)
-	}
-
 	discoveryCtl.StartDiscovery()
 
 	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{

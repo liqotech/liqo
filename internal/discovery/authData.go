@@ -13,6 +13,15 @@ import (
 type AuthData struct {
 	address string
 	port    int
+	isTest  bool
+}
+
+func NewAuthDataTest(address string, port int) *AuthData {
+	return &AuthData{
+		address: address,
+		port:    port,
+		isTest:  true,
+	}
 }
 
 func (authData *AuthData) Get(discovery *DiscoveryCtrl, entry *zeroconf.ServiceEntry) error {
@@ -25,6 +34,13 @@ func (authData *AuthData) Get(discovery *DiscoveryCtrl, entry *zeroconf.ServiceE
 // check if both address and port are correctly set
 func (authData *AuthData) IsComplete() bool {
 	return authData.address != "" && authData.port > 0
+}
+
+func (authData *AuthData) GetUrl() string {
+	if authData.isTest {
+		return fmt.Sprintf("fake://%v:%v", authData.address, authData.port)
+	}
+	return fmt.Sprintf("https://%v:%v", authData.address, authData.port)
 }
 
 // populate the AuthData struct from a DNS entry

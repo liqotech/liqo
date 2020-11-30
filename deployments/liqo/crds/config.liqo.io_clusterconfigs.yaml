@@ -22,10 +22,14 @@ spec:
         description: ClusterConfig is the Schema for the clusterconfigs API
         properties:
           apiVersion:
-            description: 'APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
+            description: 'APIVersion defines the versioned schema of this representation
+              of an object. Servers should convert recognized schemas to the latest
+              internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
             type: string
           kind:
-            description: 'Kind is a string value representing the REST resource this object represents. Servers may infer this from the endpoint the client submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
+            description: 'Kind is a string value representing the REST resource this
+              object represents. Servers may infer this from the endpoint the client
+              submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
             type: string
           metadata:
             type: object
@@ -33,19 +37,30 @@ spec:
             description: ClusterConfigSpec defines the desired state of ClusterConfig
             properties:
               advertisementConfig:
-                description: AdvertisementConfig defines the configuration for the advertisement protocol
+                description: AdvertisementConfig defines the configuration for the
+                  advertisement protocol
                 properties:
                   ingoingConfig:
-                    description: IngoingConfig defines the behaviour for the acceptance of Advertisements from other clusters
+                    description: IngoingConfig defines the behaviour for the acceptance
+                      of Advertisements from other clusters
                     properties:
                       acceptPolicy:
-                        description: AcceptPolicy defines the policy to accept/refuse an Advertisement. Possible values are AutoAcceptMax and Manual. AutoAcceptMax means all the Advertisement received will be accepted until the MaxAcceptableAdvertisement limit is reached; Manual means every Advertisement received will need a manual accept/refuse, which can be done by updating its status.
+                        description: AcceptPolicy defines the policy to accept/refuse
+                          an Advertisement. Possible values are AutoAcceptMax and
+                          Manual. AutoAcceptMax means all the Advertisement received
+                          will be accepted until the MaxAcceptableAdvertisement limit
+                          is reached; Manual means every Advertisement received will
+                          need a manual accept/refuse, which can be done by updating
+                          its status.
                         enum:
                         - AutoAcceptMax
                         - Manual
                         type: string
                       maxAcceptableAdvertisement:
-                        description: MaxAcceptableAdvertisement defines the maximum number of Advertisements that can be accepted over time. The maximum value for this field is set to 1000000, a symbolic value that implements the AcceptAll policy.
+                        description: MaxAcceptableAdvertisement defines the maximum
+                          number of Advertisements that can be accepted over time.
+                          The maximum value for this field is set to 1000000, a symbolic
+                          value that implements the AcceptAll policy.
                         format: int32
                         maximum: 1000000
                         minimum: 0
@@ -55,19 +70,27 @@ spec:
                     - maxAcceptableAdvertisement
                     type: object
                   keepaliveRetryTime:
-                    description: After establishing a sharing with a foreign cluster, a keepalive mechanism starts, in order to know if the foreign cluster is reachable or not. KeepaliveRetryTime defines the time between an attempt to contact the foreign cluster and the next one.
+                    description: After establishing a sharing with a foreign cluster,
+                      a keepalive mechanism starts, in order to know if the foreign
+                      cluster is reachable or not. KeepaliveRetryTime defines the
+                      time between an attempt to contact the foreign cluster and the
+                      next one.
                     format: int32
                     minimum: 0
                     type: integer
                   keepaliveThreshold:
-                    description: KeepaliveThreshold defines the number of failed attempts to contact the foreign cluster your cluster will tolerate before deleting it.
+                    description: KeepaliveThreshold defines the number of failed attempts
+                      to contact the foreign cluster your cluster will tolerate before
+                      deleting it.
                     format: int32
                     minimum: 0
                     type: integer
                   labelPolicies:
-                    description: LabelPolicies contains the policies for each label to be added to remote virtual nodes
+                    description: LabelPolicies contains the policies for each label
+                      to be added to remote virtual nodes
                     items:
-                      description: LabelPolicy define a key-value structure to indicate which keys have to be aggregated and with which policy
+                      description: LabelPolicy define a key-value structure to indicate
+                        which keys have to be aggregated and with which policy
                       properties:
                         key:
                           description: Label Key to be aggregated in new virtual nodes
@@ -86,13 +109,21 @@ spec:
                       type: object
                     type: array
                   outgoingConfig:
-                    description: OutgoingConfig defines the behaviour for the creation of Advertisements on other clusters
+                    description: OutgoingConfig defines the behaviour for the creation
+                      of Advertisements on other clusters
                     properties:
                       enableBroadcaster:
-                        description: EnableBroadcaster flag allows you to enable/disable the broadcasting of your Advertisement to the foreign clusters. When EnableBroadcaster is set to false, the home cluster notifies to the foreign he wants to stop sharing resources. This will trigger the deletion of the virtual-kubelet and, after that, of the Advertisement,
+                        description: EnableBroadcaster flag allows you to enable/disable
+                          the broadcasting of your Advertisement to the foreign clusters.
+                          When EnableBroadcaster is set to false, the home cluster
+                          notifies to the foreign he wants to stop sharing resources.
+                          This will trigger the deletion of the virtual-kubelet and,
+                          after that, of the Advertisement,
                         type: boolean
                       resourceSharingPercentage:
-                        description: ResourceSharingPercentage defines the percentage of your cluster resources that you will share with foreign clusters.
+                        description: ResourceSharingPercentage defines the percentage
+                          of your cluster resources that you will share with foreign
+                          clusters.
                         format: int32
                         maximum: 100
                         minimum: 0
@@ -109,22 +140,26 @@ spec:
                 description: AgentConfig defines the configuration for Liqo Agent.
                 properties:
                   dashboardConfig:
-                    description: DashboardConfig contains the parameters required for Liqo Agent to provide access to LiqoDash
+                    description: DashboardConfig contains the parameters required
+                      for Liqo Agent to provide access to LiqoDash
                     properties:
                       appLabel:
-                        description: AppLabel defines the value of the 'app' label. All LiqoDash related resources are labelled with it.
+                        description: AppLabel defines the value of the 'app' label.
+                          All LiqoDash related resources are labelled with it.
                         type: string
                       ingress:
                         description: Ingress is the LiqoDash ingress name.
                         type: string
                       namespace:
-                        description: Namespace defines the namespace LiqoDash resources belongs to.
+                        description: Namespace defines the namespace LiqoDash resources
+                          belongs to.
                         type: string
                       service:
                         description: Service is the LiqoDash service name.
                         type: string
                       serviceAccount:
-                        description: ServiceAccount is the LiqoDash serviceAccount name.
+                        description: ServiceAccount is the LiqoDash serviceAccount
+                          name.
                         type: string
                     required:
                     - appLabel
@@ -136,17 +171,26 @@ spec:
                 required:
                 - dashboardConfig
                 type: object
+              authConfig:
+                properties:
+                  allowEmptyToken:
+                    default: false
+                    description: Allow remote clusters to get an identity with an
+                      empty token
+                    type: boolean
+                type: object
               discoveryConfig:
                 properties:
                   authService:
-                    default: _auth._tcp
+                    default: _liqo_auth._tcp
                     type: string
                   autojoin:
                     type: boolean
                   autojoinUntrusted:
                     type: boolean
                   clusterName:
-                    description: ClusterName is a nickname for your cluster that can be easily understood by a user
+                    description: ClusterName is a nickname for your cluster that can
+                      be easily understood by a user
                     type: string
                   domain:
                     type: string
@@ -181,7 +225,8 @@ spec:
                 properties:
                   resourcesToReplicate:
                     items:
-                      description: contains a list of resources identified by their GVR
+                      description: contains a list of resources identified by their
+                        GVR
                       properties:
                         group:
                           type: string
@@ -199,18 +244,26 @@ spec:
               liqonetConfig:
                 properties:
                   podCIDR:
-                    description: the subnet used by the cluster for the pods, in CIDR notation
+                    description: the subnet used by the cluster for the pods, in CIDR
+                      notation
                     type: string
                   reservedSubnets:
-                    description: This field is used by the IPAM embedded in the tunnelEndpointCreator. Subnets listed in this field are excluded from the list of possible subnets used for natting POD CIDR. Add here the subnets already used in your environment as a list in CIDR notation (e.g. [10.1.0.0/16, 10.200.1.0/24]).
+                    description: This field is used by the IPAM embedded in the tunnelEndpointCreator.
+                      Subnets listed in this field are excluded from the list of possible
+                      subnets used for natting POD CIDR. Add here the subnets already
+                      used in your environment as a list in CIDR notation (e.g. [10.1.0.0/16,
+                      10.200.1.0/24]).
                     items:
                       type: string
                     type: array
                   serviceCIDR:
-                    description: the subnet used by the cluster for the services, in CIDR notation
+                    description: the subnet used by the cluster for the services,
+                      in CIDR notation
                     type: string
                   vxlanNetConfig:
-                    description: the configuration for the VXLAN overlay network which handles the traffic in the local cluster destined to remote peering clusters
+                    description: the configuration for the VXLAN overlay network which
+                      handles the traffic in the local cluster destined to remote
+                      peering clusters
                     properties:
                       DeviceName:
                         type: string
@@ -234,6 +287,7 @@ spec:
             required:
             - advertisementConfig
             - agentConfig
+            - authConfig
             - discoveryConfig
             - liqonetConfig
             type: object

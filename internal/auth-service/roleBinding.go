@@ -7,10 +7,10 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-func (authService *AuthServiceCtrl) createRoleBinding(remoteClusterId string, sa *v1.ServiceAccount, role *rbacv1.Role) (*rbacv1.RoleBinding, error) {
+func (authService *AuthServiceCtrl) createRoleBinding(sa *v1.ServiceAccount, role *rbacv1.Role) (*rbacv1.RoleBinding, error) {
 	rb := &rbacv1.RoleBinding{
 		ObjectMeta: metav1.ObjectMeta{
-			Name: remoteClusterId,
+			Name: sa.Name,
 			OwnerReferences: []metav1.OwnerReference{
 				{
 					APIVersion: "v1",

@@ -92,6 +92,7 @@ func getForeignClusterResource() *unstructured.Unstructured {
 				"join":             true,
 				"namespace":        "default",
 				"apiUrl":           "https://192.168.2.100:6443",
+				"authUrl":          "https://192.168.2.100:30001",
 				"discoveryType":    "Manual",
 				"allowUntrustedCA": true,
 			},
