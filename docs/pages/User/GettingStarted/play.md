@@ -1,11 +1,11 @@
 ---
-title: Deploy a complex application
+title: Play with a micro-service application
 weight: 4
 ---
 
 So far, you tested Liqo with a simple `nginx` application, but Liqo can be used with more complex micro-services.
 
-##  Deploy a micro-service application with micro-services application
+##  Deploy a micro-service application in Liqo
 
 For a complete demo of the capabilities of Liqo, we can play with a micro-services application provided by [Google](https://github.com/GoogleCloudPlatform/microservices-demo), which includes multiple cooperating services:
 
@@ -27,7 +27,7 @@ Additionally, several other objects (e.g. `configmap` and `secrets`) inside a na
 Once the demo application manifest is applied, you can observe the creation of the different pods:
 
 ```
-watch kubectl get pods -n liqo-demo
+watch kubectl get pods -n liqo-demo -o wide
 ```
 
 At steady state, you should see an output similar to the following.
@@ -51,6 +51,7 @@ shippingservice-f47755f97-5jcpm          1/1     Running   0          12m   10.2
 ## Access the demo application
 
 Once the deployment is completed, you can start using the demo application and verify that everything works correctly even if its components are distributed across multiple Kubernetes clusters.
+
 By default, the frontend web-page is exposed through a `LoadBalancer` service, which can be inspected using:
 ```bash
 kubectl get service -n liqo-demo frontend-external
