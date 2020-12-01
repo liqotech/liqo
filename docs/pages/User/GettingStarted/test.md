@@ -1,11 +1,11 @@
 ---
-title: Use foreign resources
+title: Use resources available in a foreign cluster
 weight: 3
 ---
 
 This third step allows to verify that the resulting infrastructure works correctly.
 This is done by showing the deployment of a small *Hello World*  service in presence of two peered clusters (*home* and *foreign*).
-This demonstrates the capability of Liqo to start a pod either in the local (*home*) or remote (*foreign*) cluster, transparently, without any change in the user experience.
+This demonstrates the capability of Liqo to leverage resources available in a foreign cluster, and how it can start a pod either in the local (*home*) or remote (*foreign*) cluster, transparently, without any change in the user experience.
 
 ## Start an Hello World pod
 
@@ -134,7 +134,7 @@ Finally, you can also connect to the service through its _service name_, which e
 kubectl run --image=curlimages/curl curl -n default -it --rm --restart=Never -- curl --silent http://liqo-demo.liqo-demo | grep 'Server'
 ```
 
-Now, you are ready to move to the [next section](../further-steps). to deploy a more complex demo application.
+Now, you are ready to move to the [next section](../play), which plays with a more sophisticated application composed by multiple micro-services.
 
 > **Clean-up**: If you want to delete the deployed example, just issue:
 > ```

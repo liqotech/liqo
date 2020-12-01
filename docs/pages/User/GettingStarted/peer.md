@@ -162,7 +162,7 @@ EOF
 
 ### Presence of the virtual-node
 
-If the peering has been correctly performed, you should see a virtual node in addition to your physical nodes:
+If the peering has been correctly performed, you should see a virtual node (named `liqo-*`) in addition to your physical nodes:
 
 ```
 kubectl get nodes
