@@ -93,3 +93,10 @@ func (nl *nodeList) freeAllNodes() {
 		}(node, tag)
 	}
 }
+
+//usedNodeLen returns the number of LIST MenuNode currently in use.
+func (nl *nodeList) usedNodeLen() int {
+	nl.RLock()
+	defer nl.RLock()
+	return len(nl.usedNodes)
+}

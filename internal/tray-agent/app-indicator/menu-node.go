@@ -219,7 +219,7 @@ func (n *MenuNode) ListChild(tag string) (child *MenuNode, present bool) {
 	return
 }
 
-//UseListChild returns a child LIST MenuNode ready to use.
+//UseListChild returns a child LIST MenuNode ready to use and visible to users.
 //The node can use them to dynamically display to the user the output of application functions.
 func (n *MenuNode) UseListChild(title string, tag string) *MenuNode {
 	if n.nodeList == nil {
@@ -254,6 +254,14 @@ func (n *MenuNode) FreeListChildren() {
 		return
 	}
 	n.nodeList.freeAllNodes()
+}
+
+//ListChildrenLen returns the number of LIST MenuNode currently in use.
+func (n *MenuNode) ListChildrenLen() int {
+	if n.nodeList == nil {
+		return 0
+	}
+	return n.nodeList.usedNodeLen()
 }
 
 //------ OPTION ------
