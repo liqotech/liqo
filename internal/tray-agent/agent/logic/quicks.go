@@ -22,11 +22,6 @@ const (
 	qPeers  = "Q_PEERS"
 )
 
-// set of frequently used tags inside application logic
-const (
-	tagStatus = "status"
-)
-
 //quickTurnOnOff is the callback for the QUICK "START/STOP LIQO".
 func quickTurnOnOff(i *app.Indicator) {
 	runSt := i.Status().Running()

@@ -79,7 +79,7 @@ func startQuickQuit(i *app.Indicator) {
 
 //startQuickShowPeers is the wrapper function to register QUICK "PEERS".
 func startQuickShowPeers(i *app.Indicator) {
-	i.AddQuick("AVAILABLE PEERS", qPeers, nil)
+	i.AddQuick(titlePeers, qPeers, nil)
 }
 
 //LISTENERS
@@ -164,6 +164,8 @@ func startListenerPeersList(i *app.Indicator) {
 			peerNode := quickNode.UseListChild(clusterName, clusterID)
 			statusNode := peerNode.UseListChild(clusterID, tagStatus)
 			statusNode.SetIsEnabled(false)
+			//update the counter in the menu entry
+			refreshPeerCount(quickNode)
 		}
 	})
 	i.Listen(client.ChanPeerDeleted, i.AgentCtrl().NotifyChannel(client.ChanPeerDeleted), func(objName string, args ...interface{}) {
@@ -175,6 +177,8 @@ func startListenerPeersList(i *app.Indicator) {
 		//in this case it is not necessary to get the ClusterID information (which is the required key to access the
 		//dynamic list), since the ForeignCluster 'Name' metadata coincides with it.
 		quickNode.FreeListChild(objName)
+		//update the counter in the menu entry
+		refreshPeerCount(quickNode)
 	})
 	i.Listen(client.ChanPeerUpdated, i.AgentCtrl().NotifyChannel(client.ChanPeerUpdated), func(objName string, args ...interface{}) {
 		//retrieve Peer information
