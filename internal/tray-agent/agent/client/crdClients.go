@@ -2,7 +2,6 @@ package client
 
 import (
 	"errors"
-	"fmt"
 	"github.com/liqotech/liqo/pkg/crdClient"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/tools/cache"
@@ -45,23 +44,27 @@ func (ctrl *AgentController) initCRDManager() error {
 	if !set {
 		return errors.New("no kubeconfig provided")
 	}
-	//creation of each single CRDController
+	//creation of each single CRDController and registration to the manager
 	var err error
 	var crdCtrl *CRDController
-	for _, cr := range customResources {
-		switch cr {
-		case CRClusterConfig:
-			crdCtrl, err = createClusterConfigController(kubeconfig)
-		case CRAdvertisement:
-			crdCtrl, err = createAdvertisementController(kubeconfig)
-		case CRForeignCluster:
-			crdCtrl, err = createForeignClusterController(kubeconfig)
-		}
-		if err != nil {
-			return errors.New(fmt.Sprint("connection error on ", cr, " client creation"))
-		}
-		manager.clientMap[cr] = crdCtrl
+	//	CLUSTERCONFIG
+	crdCtrl, err = createClusterConfigController(kubeconfig)
+	if err != nil {
+		return errors.New("connection error on clusterconfigs client creation")
 	}
+	manager.clientMap[CRClusterConfig] = crdCtrl
+	//	ADVERTISEMENT
+	crdCtrl, err = createAdvertisementController(kubeconfig)
+	if err != nil {
+		return errors.New("connection error on advertisements client creation")
+	}
+	manager.clientMap[CRAdvertisement] = crdCtrl
+	//	FOREIGNCLUSTER
+	crdCtrl, err = createForeignClusterController(kubeconfig)
+	if err != nil {
+		return errors.New("connection error on foreignclusters client creation")
+	}
+	manager.clientMap[CRForeignCluster] = crdCtrl
 	return nil
 }
 

@@ -1,6 +1,8 @@
 package app_indicator
 
-import "github.com/liqotech/liqo/internal/tray-agent/agent/client"
+import (
+	"github.com/liqotech/liqo/internal/tray-agent/agent/client"
+)
 
 //Listener is an event listener that can react calling a specific callback.
 type Listener struct {
@@ -36,6 +38,12 @@ func (i *Indicator) Listen(tag client.NotifyChannel, notifyChan chan string, cal
 			case name, open := <-l.NotifyChan:
 				if open {
 					callback(name, args...)
+					//signal callback execution in test mode
+					if GetGuiProvider().Mocked() {
+						if et, testing := GetGuiProvider().GetEventTester(); testing {
+							et.Done()
+						}
+					}
 				}
 				//closing application
 			case <-i.quitChan:

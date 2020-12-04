@@ -41,7 +41,8 @@ func DestroyMockedIndicator() {
 func GetGuiProvider() GuiProviderInterface {
 	guiProviderOnce.Do(func() {
 		guiProviderInstance = &guiProvider{
-			mocked: mockedGui,
+			mocked:      mockedGui,
+			eventTester: &EventTester{},
 		}
 	})
 	return guiProviderInstance
@@ -80,13 +81,49 @@ type GuiProviderInterface interface {
 	AddSubMenuItem(parent Item, withCheckbox bool) Item
 	//Mocked returns whether the interaction with the OS graphic server is mocked.
 	Mocked() bool
+	//NewEventTester resets and return the EventTester. You can then call EventTester.Test() to start the testing
+	//mechanism for the events handled by the current Indicator instance. Read more on EventTester documentation.
+	NewEventTester() *EventTester
+	//GetEventTester returns current GuiProvider EventTester instance. Read more on EventTester documentation.
+	//
+	//If testing==true, the EventTester is currently registering the events handled by the Indicator instance in test mode.
+	GetEventTester() (eventTester *EventTester, testing bool)
+}
+
+/*EventTester is a WaitGroup-based data struct that enables testers to validate concurrent operations performed
+on an Indicator Listener (which reacts to specific events).
+
+During a test, after calling app-indicator.UseMockedGuiProvider(), you can call GetGuiProvider().NewEventTester() to
+create a new EventTester. After calling EventTester.Test(), each Listener calls a eventTest.Done() after the execution
+of the associated callback.
+
+Inside a test, use EventTester.Add() and EventTester.Wait() to synchronize the execution of Listeners callbacks.
+
+	...
+	eventTester := GetGuiProvider.NewEventTester()
+	eventTester.Test()
+	//test changes after a single callback
+	eventTester.Add(1)
+	// trigger Listener-bind callback
+	// wait for callback to return
+	eventTester.Wait()
+	//perform checks on changes and continue
+*/
+type EventTester struct {
+	sync.WaitGroup
+	testing bool
+}
+
+func (e *EventTester) Test() {
+	e.testing = true
 }
 
 //A guiProvider provides the function to interact with the OS graphic server.
 //It can act as a mocked provider if UseMockedGuiProvider() is previously called.
 type guiProvider struct {
 	//if mocked == true, guiProvider acts a mocked provider
-	mocked bool
+	mocked      bool
+	eventTester *EventTester
 }
 
 func (g *guiProvider) Run(onReady func(), onExit func()) {
@@ -151,6 +188,18 @@ func (g *guiProvider) AddSubMenuItem(parent Item, withCheckbox bool) Item {
 
 func (g *guiProvider) Mocked() bool {
 	return g.mocked
+}
+
+func (g *guiProvider) NewEventTester() *EventTester {
+	g.eventTester = &EventTester{}
+	return g.eventTester
+}
+
+func (g *guiProvider) GetEventTester() (*EventTester, bool) {
+	if !g.mocked {
+		return g.eventTester, false
+	}
+	return g.eventTester, g.eventTester.testing
 }
 
 //Item is an interface representing the actual item that gets pushed (and displayed) in the stack of the tray menu.
