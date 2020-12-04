@@ -1,8 +1,10 @@
 package reflectors
 
 import (
+	"context"
 	apimgmt "github.com/liqotech/liqo/pkg/virtualKubelet/apiReflection"
 	ri "github.com/liqotech/liqo/pkg/virtualKubelet/apiReflection/reflectors/reflectorsInterfaces"
+	vkContext "github.com/liqotech/liqo/pkg/virtualKubelet/context"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/namespacesMapping"
 	reflectionCache "github.com/liqotech/liqo/pkg/virtualKubelet/storage"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -43,11 +45,11 @@ func (r *GenericAPIReflector) NattingTable() namespacesMapping.NamespaceNatter {
 	return r.NamespaceNatting
 }
 
-func (r *GenericAPIReflector) PreProcessIsAllowed(obj interface{}) bool {
+func (r *GenericAPIReflector) PreProcessIsAllowed(ctx context.Context, obj interface{}) bool {
 	if r.PreProcessingHandlers.IsAllowed == nil {
 		return true
 	}
-	return r.PreProcessingHandlers.IsAllowed(obj)
+	return r.PreProcessingHandlers.IsAllowed(ctx, obj)
 }
 
 func (r *GenericAPIReflector) PreProcessAdd(obj interface{}) interface{} {
@@ -74,7 +76,7 @@ func (r *GenericAPIReflector) PreProcessDelete(obj interface{}) interface{} {
 func (r *GenericAPIReflector) SetupHandlers(api apimgmt.ApiType, reflectionType ri.ReflectionType, namespace, nattedNs string) {
 	handlers := &cache.ResourceEventHandlerFuncs{
 		AddFunc: func(obj interface{}) {
-			if ok := r.PreProcessIsAllowed(obj); !ok {
+			if ok := r.PreProcessIsAllowed(vkContext.SetIncomingMethod(context.TODO(), vkContext.IncomingAdded), obj); !ok {
 				return
 			}
 			o := r.PreProcessAdd(obj)
@@ -90,7 +92,7 @@ func (r *GenericAPIReflector) SetupHandlers(api apimgmt.ApiType, reflectionType 
 			})
 		},
 		UpdateFunc: func(oldObj, newObj interface{}) {
-			if ok := r.PreProcessIsAllowed(newObj); !ok {
+			if ok := r.PreProcessIsAllowed(vkContext.SetIncomingMethod(context.TODO(), vkContext.IncomingModified), newObj); !ok {
 				return
 			}
 			o := r.PreProcessUpdate(newObj, oldObj)
@@ -106,7 +108,7 @@ func (r *GenericAPIReflector) SetupHandlers(api apimgmt.ApiType, reflectionType 
 			})
 		},
 		DeleteFunc: func(obj interface{}) {
-			if ok := r.PreProcessIsAllowed(obj); !ok {
+			if ok := r.PreProcessIsAllowed(vkContext.SetIncomingMethod(context.TODO(), vkContext.IncomingDeleted), obj); !ok {
 				return
 			}
 			o := r.PreProcessDelete(obj)

@@ -3,6 +3,7 @@ package outgoing
 import (
 	"context"
 	apimgmt "github.com/liqotech/liqo/pkg/virtualKubelet/apiReflection"
+	"github.com/liqotech/liqo/pkg/virtualKubelet/apiReflection/reflectors"
 	ri "github.com/liqotech/liqo/pkg/virtualKubelet/apiReflection/reflectors/reflectorsInterfaces"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/forge"
 	"github.com/pkg/errors"
@@ -183,14 +184,14 @@ func (r *ServicesReflector) PreDelete(obj interface{}) interface{} {
 	return svcLocal
 }
 
-func (r *ServicesReflector) isAllowed(obj interface{}) bool {
+func (r *ServicesReflector) isAllowed(_ context.Context, obj interface{}) bool {
 	svc, ok := obj.(*corev1.Service)
 	if !ok {
 		klog.Error("cannot convert obj to service")
 		return false
 	}
 	key := r.Keyer(svc.Namespace, svc.Name)
-	_, ok = blacklist[apimgmt.Services][key]
+	_, ok = reflectors.Blacklist[apimgmt.Services][key]
 	if ok {
 		klog.V(4).Infof("service %v blacklisted", key)
 	}

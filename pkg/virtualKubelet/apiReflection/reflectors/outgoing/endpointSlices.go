@@ -3,6 +3,7 @@ package outgoing
 import (
 	"context"
 	apimgmt "github.com/liqotech/liqo/pkg/virtualKubelet/apiReflection"
+	"github.com/liqotech/liqo/pkg/virtualKubelet/apiReflection/reflectors"
 	ri "github.com/liqotech/liqo/pkg/virtualKubelet/apiReflection/reflectors/reflectorsInterfaces"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/forge"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/options"
@@ -98,7 +99,7 @@ func (r *EndpointSlicesReflector) PreAdd(obj interface{}) interface{} {
 	}
 	if err = retry.OnError(retry.DefaultBackoff, retriable, fn); err != nil {
 		klog.Errorf("error while retrieving service %v in endppointslices reflector - ERR: %v", key, err)
-		blacklist[apimgmt.EndpointSlices][key] = true
+		reflectors.Blacklist[apimgmt.EndpointSlices][key] = struct{}{}
 		return nil
 	}
 
@@ -216,14 +217,14 @@ func (r *EndpointSlicesReflector) CleanupNamespace(localNamespace string) {
 	}
 }
 
-func (r *EndpointSlicesReflector) isAllowed(obj interface{}) bool {
+func (r *EndpointSlicesReflector) isAllowed(_ context.Context, obj interface{}) bool {
 	eps, ok := obj.(*discoveryv1beta1.EndpointSlice)
 	if !ok {
 		klog.Error("cannot convert obj to service")
 		return false
 	}
 	key := r.Keyer(eps.Namespace, eps.Name)
-	_, ok = blacklist[apimgmt.EndpointSlices][key]
+	_, ok = reflectors.Blacklist[apimgmt.EndpointSlices][key]
 	if ok {
 		klog.V(4).Infof("endpointslice %v blacklisted", key)
 	}

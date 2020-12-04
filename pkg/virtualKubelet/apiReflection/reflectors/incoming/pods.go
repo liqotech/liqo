@@ -2,9 +2,12 @@ package incoming
 
 import (
 	"context"
+	"fmt"
 	"github.com/liqotech/liqo/pkg/virtualKubelet"
 	apimgmt "github.com/liqotech/liqo/pkg/virtualKubelet/apiReflection"
+	"github.com/liqotech/liqo/pkg/virtualKubelet/apiReflection/reflectors"
 	ri "github.com/liqotech/liqo/pkg/virtualKubelet/apiReflection/reflectors/reflectorsInterfaces"
+	vkContext "github.com/liqotech/liqo/pkg/virtualKubelet/context"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/forge"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/options"
 	"github.com/pkg/errors"
@@ -30,7 +33,9 @@ func (r *PodsIncomingReflector) SetSpecializedPreProcessingHandlers() {
 	r.SetPreProcessingHandlers(ri.PreProcessingHandlers{
 		AddFunc:    r.PreAdd,
 		UpdateFunc: r.PreUpdate,
-		DeleteFunc: r.PreDelete})
+		DeleteFunc: r.PreDelete,
+		IsAllowed:  r.isAllowed,
+	})
 }
 
 // HandleEvent is the final function call in charge of pushing the foreignPod to the vk internals
@@ -39,6 +44,11 @@ func (r *PodsIncomingReflector) HandleEvent(e interface{}) {
 	pod, ok := event.Object.(*corev1.Pod)
 	if !ok {
 		klog.Error("INCOMING REFLECTION: cannot cast object to pod")
+		return
+	}
+
+	if pod == nil {
+		klog.V(4).Info("INCOMING REFLECTION: received nil pod to process")
 		return
 	}
 
@@ -52,7 +62,7 @@ func (r *PodsIncomingReflector) HandleEvent(e interface{}) {
 func (r *PodsIncomingReflector) PreAdd(obj interface{}) interface{} {
 	foreignPod := obj.(*corev1.Pod)
 
-	homePod := r.preAddUpdate(foreignPod)
+	homePod := r.sharedPreRoutine(foreignPod)
 	if homePod == nil {
 		return nil
 	}
@@ -69,7 +79,7 @@ func (r *PodsIncomingReflector) PreUpdate(newObj, _ interface{}) interface{} {
 		return nil
 	}
 
-	homePod := r.preAddUpdate(foreignPod)
+	homePod := r.sharedPreRoutine(foreignPod)
 	if homePod == nil {
 		return nil
 	}
@@ -77,9 +87,9 @@ func (r *PodsIncomingReflector) PreUpdate(newObj, _ interface{}) interface{} {
 	return homePod
 }
 
-// preAddUpdate is a common function used by both PreAdd and PreUpdate. It is in charge of fetching the home pod from
+// sharedPreRoutine is a common function used by both PreAdd and PreUpdate. It is in charge of fetching the home pod from
 // the internal caches, updating its status and returning to the calling function
-func (r *PodsIncomingReflector) preAddUpdate(foreignPod *corev1.Pod) *corev1.Pod {
+func (r *PodsIncomingReflector) sharedPreRoutine(foreignPod *corev1.Pod) *corev1.Pod {
 	if foreignPod.Labels == nil {
 		return nil
 	}
@@ -102,6 +112,7 @@ func (r *PodsIncomingReflector) preAddUpdate(foreignPod *corev1.Pod) *corev1.Pod
 		return nil
 	}
 
+	// forge.ForeignToHomeStatus blacklists the received pod if the deletionTimestamp is set
 	homePod, err = forge.ForeignToHomeStatus(foreignPod, homePod.(runtime.Object).DeepCopyObject())
 	if err != nil {
 		klog.Error(err)
@@ -111,8 +122,13 @@ func (r *PodsIncomingReflector) preAddUpdate(foreignPod *corev1.Pod) *corev1.Pod
 	return homePod.(*corev1.Pod)
 }
 
-// TODO: add here custom unavailable status
-func (r *PodsIncomingReflector) PreDelete(_ interface{}) interface{} {
+// PreDelete removes the received object from the blacklist for freeing the occupied space
+func (r *PodsIncomingReflector) PreDelete(obj interface{}) interface{} {
+	foreignPod := obj.(*corev1.Pod)
+	foreignKey := fmt.Sprintf("%s/%s", foreignPod.Namespace, foreignPod.Name)
+	delete(reflectors.Blacklist[apimgmt.Pods], foreignKey)
+	klog.V(3).Infof("pod %s removed from blacklist because deleted", foreignKey)
+
 	return nil
 }
 
@@ -148,4 +164,25 @@ func (r *PodsIncomingReflector) CleanupNamespace(namespace string) {
 			klog.Errorf("Error while deleting remote pod %v/%v - ERR: %v", namespace, pod.Name, err)
 		}
 	}
+}
+
+// isAllowed checks that the received object has to be processed by the reflector.
+// if the event is a deletion, the reflector always handles it, because it has to remove the received object
+// from the blacklist.
+func (r *PodsIncomingReflector) isAllowed(ctx context.Context, obj interface{}) bool {
+	if value, ok := vkContext.IncomingMethod(ctx); ok && value == vkContext.IncomingDeleted {
+		return true
+	}
+
+	pod, ok := obj.(*corev1.Pod)
+	if !ok {
+		klog.Error("cannot convert obj to pod")
+		return false
+	}
+	key := r.Keyer(pod.Namespace, pod.Name)
+	_, ok = reflectors.Blacklist[apimgmt.Pods][key]
+	if ok {
+		klog.V(5).Infof("event for pod %v blacklisted", key)
+	}
+	return !ok
 }
