@@ -1,10 +1,14 @@
 package forge
 
 import (
+	"fmt"
 	"github.com/liqotech/liqo/pkg/virtualKubelet"
+	apimgmt "github.com/liqotech/liqo/pkg/virtualKubelet/apiReflection"
+	"github.com/liqotech/liqo/pkg/virtualKubelet/apiReflection/reflectors"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/klog"
 	"strings"
 )
 
@@ -50,6 +54,13 @@ func (f *apiForger) podStatusForeignToHome(foreignObj, homeObj runtime.Object) *
 		newIp := ChangePodIp(f.remoteRemappedPodCidr.Value().ToString(), foreignPod.Status.PodIP)
 		homePod.Status.PodIP = newIp
 		homePod.Status.PodIPs[0].IP = newIp
+	}
+
+	if foreignPod.DeletionTimestamp != nil {
+		homePod.DeletionTimestamp = nil
+		foreignKey := fmt.Sprintf("%s/%s", foreignPod.Namespace, foreignPod.Name)
+		reflectors.Blacklist[apimgmt.Pods][foreignKey] = struct{}{}
+		klog.V(3).Infof("pod %s blacklisted because marked for deletion", foreignKey)
 	}
 
 	return homePod

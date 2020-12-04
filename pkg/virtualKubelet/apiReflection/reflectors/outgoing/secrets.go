@@ -208,7 +208,7 @@ func (r *SecretsReflector) PreDelete(obj interface{}) interface{} {
 	return serviceLocal
 }
 
-func (r *SecretsReflector) isAllowed(obj interface{}) bool {
+func (r *SecretsReflector) isAllowed(_ context.Context, obj interface{}) bool {
 	sec, ok := obj.(*corev1.Secret)
 	if !ok {
 		klog.Error("cannot convert obj to secret")
