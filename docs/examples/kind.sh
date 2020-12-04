@@ -103,8 +103,8 @@ echo "- NAMESPACE=liqo"
 echo "If you want to select $CLUSTER_NAME_1, you should simply type:" 'export KUBECONFIG=$KUBECONFIG_1'
 # shellcheck disable=SC2016
 echo "If you want to select $CLUSTER_NAME_2, you should simply type:" 'export KUBECONFIG=$KUBECONFIG_2'
-if [ "$KUBECTL_DOWNLOAD" == "true" ]; then
-	echo "kubectl is now installed in ${BINDIR}/kubectl and has been added to your PATH. To make it available without explicitly setting the PATH variable"
+if [ "$KUBECTL_DOWNLOAD" = "true" ]; then
+	echo -e "\nkubectl is now installed in ${BINDIR}/kubectl and has been added to your PATH. To make it available without explicitly setting the PATH variable"
 	echo "You can copy it to a system-wide location such as /usr/local/bin by typing:"
 	echo "sudo cp ${BINDIR}/kubectl /usr/local/bin"
 fi
