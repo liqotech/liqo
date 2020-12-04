@@ -97,6 +97,6 @@ func (nl *nodeList) freeAllNodes() {
 //usedNodeLen returns the number of LIST MenuNode currently in use.
 func (nl *nodeList) usedNodeLen() int {
 	nl.RLock()
-	defer nl.RLock()
+	defer nl.RUnlock()
 	return len(nl.usedNodes)
 }

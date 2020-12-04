@@ -310,6 +310,11 @@ func (n *MenuNode) SetTitle(title string) {
 	n.title = title
 }
 
+//Title returns the text content of the menu entry. Eventual check tick for checked MenuNode is not included.
+func (n *MenuNode) Title() string {
+	return n.title
+}
+
 //Tag returns the MenuNode tag.
 func (n *MenuNode) Tag() string {
 	return n.tag

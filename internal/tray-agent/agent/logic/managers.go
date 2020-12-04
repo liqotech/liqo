@@ -79,7 +79,8 @@ func startQuickQuit(i *app.Indicator) {
 
 //startQuickShowPeers is the wrapper function to register QUICK "PEERS".
 func startQuickShowPeers(i *app.Indicator) {
-	i.AddQuick(titlePeers, qPeers, nil)
+	node := i.AddQuick(titlePeers, qPeers, nil)
+	refreshPeerCount(node)
 }
 
 //LISTENERS
