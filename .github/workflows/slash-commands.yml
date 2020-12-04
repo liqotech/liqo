@@ -29,5 +29,5 @@ jobs:
               {
                 "command": "ok-to-test",
                 "permission": "write"
-              },
+              }
             ]
