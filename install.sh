@@ -190,8 +190,11 @@ function darwin_install_gnu_tool(){
 									info "[PRE-FLIGHT][${OS}]" "package '${PACKAGE}' installed";
 									break;;
 						No ) fatal "[PRE-FLIGHT][${OS}] package '${PACKAGE}' is required. Abort";;
+						* ) warn "[PRE-FLIGHT][${OS}]" "Invalid selected option '${REPLY}'";;
 				esac
-		done
+		# select read input from stdin, if the script is piped (like in demo), the stdin is the pipe. Consequenty the select not works.
+		# To avoid this problem we read input from tty
+		done < /dev/tty
 	fi
 	info "[PRE-FLIGHT][${OS}]" "Add gnu tool provided by '${PACKAGE}' package to the PATH"
 	export PATH="${BINARY_PATH}:$PATH"
