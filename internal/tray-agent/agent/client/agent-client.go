@@ -61,7 +61,7 @@ type AgentController struct {
 	notifyChannels map[NotifyChannel]chan string
 	//kubeClient is a standard kubernetes client.
 	kubeClient kubernetes.Interface
-	//agentConf contains Liqo Agent configuration parameters.
+	//agentConf contains Liqo Agent configuration parameters acquired from the cluster.
 	agentConf *agentConfiguration
 	//crdManager manages CRD operations.
 	*crdManager
@@ -104,16 +104,19 @@ func (ctrl *AgentController) StopCaches() {
 	}
 }
 
-/*acquireKubeconfig sets the LIQO_KCONFIG env variable.
+/*acquireKubeconfig sets the EnvLiqoKConfig env variable.
 EnvLiqoKConfig represents the path of a kubeconfig file required to let
 the client connect to the local cluster.
 
-- As first option, the function uses the file path of the 'kubeconf' program argument.
+- At first, the function uses the file path of the 'kubeconf' program argument.
 
-- If that argument is not provided, it defaults to $HOME/.kube/config.
+- If that argument is not provided, it checks a valid kubeconfig path in the LocalConfig acquired from the config file.
 
-- If the resulting filepath does not exist, users are asked to manually
-select a valid one. Otherwise, EnvLiqoKConfig is not set.
+- If none of the two options are available, it defaults to $HOME/.kube/config.
+
+- If the selected path does not point to an existing file, users are asked to manually select a valid one.
+
+- At the end of the process, the env var EnvLiqoKConfig is set only if an existing file has been indicated.
 */
 func acquireKubeconfig() {
 	var path string
@@ -125,14 +128,26 @@ func acquireKubeconfig() {
 		path = "/test/path"
 		found = true
 	} else {
+		//CASE 1: use a command line parameter
 		kubePath := filepath.Join(os.Getenv("HOME"), ".kube")
+		defaultKubePath := filepath.Join(kubePath, "config")
 		flagOnce.Do(func() {
-			kubeconfArg = flag.String("kubeconf", filepath.Join(kubePath, "config"),
+			kubeconfArg = flag.String("kubeconf", defaultKubePath,
 				"[OPT] absolute path to the kubeconfig file."+
 					" Default = $HOME/.kube/config")
 			flag.Parse()
 		})
+		//CASE 2: no explicit parameter: check if a kubeconfig path has been indicated in a config file
+		if *kubeconfArg == defaultKubePath {
+			conf, valid := GetLocalConfig()
+			if valid && conf.Content.Kubeconfig != "" {
+				*kubeconfArg = conf.Content.Kubeconfig
+			}
+		}
+		//CASE 3: use default value
+		//check if selected path actually match a file
 		if _, err := os.Stat(*kubeconfArg); os.IsNotExist(err) {
+			//CASE 4: ask manual file selection
 			ok, _ := dlgs.Question("NO VALID KUBECONFIG FILE FOUND",
 				"Liqo could not find a valid kubeconfig file.\n "+
 					"Do you want to select one?", false)
