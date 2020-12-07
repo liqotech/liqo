@@ -45,6 +45,7 @@ require (
 	golang.org/x/sys v0.0.0-20201113233024-12cec1faf1ba
 	golang.org/x/text v0.3.4 // indirect
 	golang.org/x/tools v0.0.0-20201116002733-ac45abd4c88c
+	gopkg.in/yaml.v2 v2.3.0
 	gopkg.in/yaml.v3 v3.0.0-20200615113413-eeeca48fe776 // indirect
 	gotest.tools v2.2.0+incompatible
 	k8s.io/api v0.19.4

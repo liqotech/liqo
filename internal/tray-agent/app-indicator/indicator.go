@@ -94,6 +94,7 @@ func GetIndicator() *Indicator {
 		root.config = newConfig()
 		root.status = GetStatus()
 		root.RefreshStatus()
+		client.LoadLocalConfig()
 		root.agentCtrl = client.GetAgentController()
 		if !root.agentCtrl.Connected() {
 			root.ShowErrorNoConnection()
