@@ -2,6 +2,7 @@ package storage
 
 import (
 	"fmt"
+	"github.com/liqotech/liqo/internal/utils/errdefs"
 	apimgmt "github.com/liqotech/liqo/pkg/virtualKubelet/apiReflection"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/utils"
 	"github.com/pkg/errors"
@@ -235,7 +236,7 @@ func (cm *Manager) ResyncListForeignNamespacedObject(api apimgmt.ApiType, namesp
 	return objects, nil
 }
 
-func (cm *Manager) ListHomeApiByIndex(api apimgmt.ApiType, namespace, index string) ([]interface{}, error) {
+func (cm *Manager) GetHomeApiByIndex(api apimgmt.ApiType, namespace, index string) (interface{}, error) {
 	if cm.homeInformers == nil {
 		return nil, errors.New("home informers set to nil")
 	}
@@ -253,10 +254,17 @@ func (cm *Manager) ListHomeApiByIndex(api apimgmt.ApiType, namespace, index stri
 		return nil, err
 	}
 
-	return objects, nil
+	if len(objects) == 0 {
+		return nil, errdefs.NotFound(fmt.Sprintf("no objects indexed with key %s found", index))
+	}
+	if len(objects) > 1 {
+		return nil, errors.New("multiple objects indexed with the same index")
+	}
+
+	return objects[0], nil
 }
 
-func (cm *Manager) ListForeignApiByIndex(api apimgmt.ApiType, namespace, index string) ([]interface{}, error) {
+func (cm *Manager) GetForeignApiByIndex(api apimgmt.ApiType, namespace, index string) (interface{}, error) {
 	if cm.foreignInformers == nil {
 		return nil, errors.New("foreign informers set to nil")
 	}
@@ -274,5 +282,12 @@ func (cm *Manager) ListForeignApiByIndex(api apimgmt.ApiType, namespace, index s
 		return nil, err
 	}
 
-	return objects, nil
+	if len(objects) == 0 {
+		return nil, errdefs.NotFound(fmt.Sprintf("no objects indexed with key %s found", index))
+	}
+	if len(objects) > 1 {
+		return nil, errors.New("multiple objects indexed with the same index")
+	}
+
+	return objects[0], nil
 }
