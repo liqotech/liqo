@@ -118,24 +118,12 @@ func (p *LiqoProvider) GetPod(_ context.Context, namespace, name string) (pod *c
 		return nil, err
 	}
 
-	foreignObjects, err := p.apiController.CacheManager().ListForeignApiByIndex(apimgmgt.Pods, foreignNamespace, name)
+	foreignPod, err := p.apiController.CacheManager().GetForeignApiByIndex(apimgmgt.Pods, foreignNamespace, name)
 	if err != nil {
-		klog.Error(err)
-		return nil, err
-	}
-	if len(foreignObjects) == 0 {
-		return nil, errdefs.NotFound(fmt.Sprintf("no objects indexed with key %s found", name))
-	}
-	if len(foreignObjects) > 1 {
-		return nil, errors.New("multiple objects indexed with the same index")
+		return nil, errors.Wrap(err, "error while retrieving foreign pod")
 	}
 
-	homePod, err := forge.ForeignToHome(foreignObjects[0].(*corev1.Pod), nil, forge.LiqoOutgoing)
-	if err != nil {
-		return nil, err
-	}
-
-	return homePod.(*corev1.Pod), nil
+	return foreignPod.(*corev1.Pod), nil
 }
 
 // GetPodStatus returns the status of a pod by name that is "running".
@@ -143,13 +131,13 @@ func (p *LiqoProvider) GetPod(_ context.Context, namespace, name string) (pod *c
 func (p *LiqoProvider) GetPodStatus(_ context.Context, namespace, name string) (*corev1.PodStatus, error) {
 	klog.V(3).Infof("PROVIDER: pod %s/%s status requested to the provider", namespace, name)
 
-	nattedNS, err := p.namespaceMapper.NatNamespace(namespace, false)
+	foreignNamespace, err := p.namespaceMapper.NatNamespace(namespace, false)
 
 	if err != nil {
 		return nil, nil
 	}
 
-	foreignPod, err := p.apiController.CacheManager().GetForeignNamespacedObject(apimgmgt.Pods, nattedNS, name)
+	foreignPod, err := p.apiController.CacheManager().GetForeignApiByIndex(apimgmgt.Pods, foreignNamespace, name)
 	if err != nil {
 		return nil, errors.Wrap(err, "error while retrieving foreign pod")
 	}
@@ -183,18 +171,24 @@ func (p *LiqoProvider) GetPods(_ context.Context) ([]*corev1.Pod, error) {
 
 // RunInContainer executes a command in a container in the pod, copying data
 // between in/out/err and the container's stdin/stdout/stderr.
-func (p *LiqoProvider) RunInContainer(_ context.Context, namespace string, podName string, containerName string, cmd []string, attach api.AttachIO) error {
+func (p *LiqoProvider) RunInContainer(_ context.Context, homeNamespace string, homePodName string, containerName string, cmd []string, attach api.AttachIO) error {
 
-	nattedNS, err := p.namespaceMapper.NatNamespace(namespace, false)
+	foreignNamespace, err := p.namespaceMapper.NatNamespace(homeNamespace, false)
 	if err != nil {
 		return err
 	}
 
+	foreignObj, err := p.apiController.CacheManager().GetForeignApiByIndex(apimgmgt.Pods, foreignNamespace, homePodName)
+	if err != nil {
+		return errors.Wrap(err, "error while retrieving foreign pod")
+	}
+	foreignPod := foreignObj.(*corev1.Pod)
+
 	req := p.foreignClient.CoreV1().RESTClient().
 		Post().
-		Namespace(nattedNS).
+		Namespace(foreignNamespace).
 		Resource("pods").
-		Name(podName).
+		Name(foreignPod.Name).
 		SubResource("exec").
 		VersionedParams(&corev1.PodExecOptions{
 			Container: containerName,
@@ -224,16 +218,39 @@ func (p *LiqoProvider) RunInContainer(_ context.Context, namespace string, podNa
 }
 
 // GetContainerLogs retrieves the logs of a container by name from the provider.
-func (p *LiqoProvider) GetContainerLogs(_ context.Context, namespace string, podName string, containerName string, opts api.ContainerLogOpts) (io.ReadCloser, error) {
-	nattedNS, err := p.namespaceMapper.NatNamespace(namespace, false)
+func (p *LiqoProvider) GetContainerLogs(_ context.Context, homeNamespace string, homePodName string, containerName string, opts api.ContainerLogOpts) (io.ReadCloser, error) {
+	foreignNamespace, err := p.namespaceMapper.NatNamespace(homeNamespace, false)
 	if err != nil {
 		return nil, err
 	}
 
-	options := &corev1.PodLogOptions{
-		Container: containerName,
+	foreignObj, err := p.apiController.CacheManager().GetForeignApiByIndex(apimgmgt.Pods, foreignNamespace, homePodName)
+	if err != nil {
+		return nil, errors.Wrap(err, "error while retrieving foreign pod")
 	}
-	logs := p.foreignClient.CoreV1().Pods(nattedNS).GetLogs(podName, options)
+	foreignPod := foreignObj.(*corev1.Pod)
+
+	logOptions := &corev1.PodLogOptions{
+		Container:  containerName,
+		Follow:     opts.Follow,
+		Previous:   opts.Previous,
+		Timestamps: opts.Timestamps,
+	}
+
+	if opts.SinceSeconds > 0 {
+		logOptions.SinceSeconds = &opts.SinceSeconds
+	}
+	if !opts.SinceTime.IsZero() {
+		logOptions.SinceTime = &opts.SinceTime
+	}
+	if opts.LimitBytes > 0 {
+		logOptions.LimitBytes = &opts.LimitBytes
+	}
+	if opts.Tail > 0 {
+		logOptions.TailLines = &opts.Tail
+	}
+
+	logs := p.foreignClient.CoreV1().Pods(foreignNamespace).GetLogs(foreignPod.Name, logOptions)
 	stream, err := logs.Stream(context.TODO())
 	if err != nil {
 		return nil, fmt.Errorf("could not get stream from logs request: %v", err)
