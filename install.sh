@@ -322,8 +322,14 @@ function setup_agent_environment() {
 
 	# Directory containing the Agent binary.
 	AGENT_BIN_DIR="${HOME}/.local/bin"
+	# Liqo Agent root directory containing all resources related to Liqo.
+	AGENT_LIQO_DIR="${AGENT_XDG_DATA_DIR}/liqo"
+	# Name of the Liqo Agent config file.
+	AGENT_CONFIG_FILE_NAME="agent_conf.yaml"
+	# Filepath of the Liqo Agent config file.
+	AGENT_CONF_FILE_PATH="${AGENT_LIQO_DIR}/${AGENT_CONFIG_FILE_NAME}"
 	# Liqo subdirectory containing the notifications icons.
-	AGENT_ICONS_DIR="${AGENT_XDG_DATA_DIR}/liqo/icons"
+	AGENT_ICONS_DIR="${AGENT_LIQO_DIR}/icons"
 	# Directory storing the '.desktop' file.
 	AGENT_APP_DIR="${AGENT_XDG_DATA_DIR}/applications"
 	# Directory storing the scalable icon for the desktop application.
@@ -597,8 +603,20 @@ function install_agent() {
 		gio set "${AGENT_APP_DIR}/io.liqo.Agent.desktop" "metadata::trusted" yes
 		gio set "${AGENT_AUTOSTART_DIR}/io.liqo.Agent.desktop" "metadata::trusted" yes
 	fi
+	# f) If there are specific parameters needed by the Agent, these are written to a config file.
+	write_agent_config_file
 	info "[AGENT] [INSTALL]" "Installation complete!"
 	command_exists gtk-launch && gtk-launch io.liqo.Agent.desktop
+}
+
+function write_agent_config_file() {
+	# If there are configuration parameters whose value differs from default, write them down to the agent
+	# configuration file, creating or truncating the file if already present.
+	# Currently the only considered information is the kubeconfig file path (KUBECONFIG env var).
+	if [[ "${KUBECONFIG}" != "${HOME}/.kube/config" ]]; then
+		info "[AGENT] [INSTALL]" "writing Liqo Agent configuration file"
+		echo "kubeconfig: ${KUBECONFIG}" > "${AGENT_CONF_FILE_PATH}"
+	fi
 }
 
 function all_clusters_unjoined() {

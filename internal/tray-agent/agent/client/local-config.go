@@ -9,7 +9,7 @@ import (
 )
 
 //ConfigFilename is the basename of the Agent configuration file.
-const ConfigFilename = ".agent_conf.yaml"
+const ConfigFilename = "agent_conf.yaml"
 
 //fileConfig contains Liqo Agent configuration parameters acquired from the cluster.
 var fileConfig *LocalConfiguration
