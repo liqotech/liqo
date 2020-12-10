@@ -1,6 +1,7 @@
 package app_indicator
 
 import (
+	"github.com/liqotech/liqo/internal/tray-agent/agent/client"
 	"os"
 	"path/filepath"
 )
@@ -28,7 +29,7 @@ func newConfig() *config {
 		XDGBaseDir = filepath.Join(os.Getenv("HOME"), ".local/share")
 	}
 	liqoPath := filepath.Join(XDGBaseDir, "liqo")
-	if err := os.Setenv("LIQO_PATH", liqoPath); err != nil {
+	if err := os.Setenv(client.EnvLiqoPath, liqoPath); err != nil {
 		os.Exit(1)
 	}
 	conf := &config{notifyLevel: NotifyLevelMax, notifyIconPath: filepath.Join(liqoPath, "icons")}

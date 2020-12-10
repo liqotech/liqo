@@ -46,7 +46,7 @@ const (
 
 //Notify manages Indicator notification logic. Depending on the current NotifyLevel of the Indicator,
 //it changes the Indicator tray icon and displays a desktop banner, having title 'title' and 'message' as body.
-//If present in $LIQO_PATH, also 'notifyIcon' is shown inside the banner.
+//If present in client.EnvLiqoPath, also 'notifyIcon' is shown inside the banner.
 //
 //The "nil" values can be used for both 'notifyIcon' and 'indicatorIcon':
 //

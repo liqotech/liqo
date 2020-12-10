@@ -1,6 +1,7 @@
 package app_indicator
 
 import (
+	"github.com/liqotech/liqo/internal/tray-agent/agent/client"
 	"github.com/stretchr/testify/assert"
 	"os"
 	"testing"
@@ -33,7 +34,7 @@ func TestNewConfig(t *testing.T) {
 		t.Skip("it was not possible to set OS env variable")
 	}
 	conf := newConfig()
-	assert.Equal(t, "test/liqo", os.Getenv("LIQO_PATH"))
+	assert.Equal(t, "test/liqo", os.Getenv(client.EnvLiqoPath))
 	assert.Equal(t, 3, len(conf.notifyTranslateMap))
 	assert.Equal(t, 3, len(conf.notifyTranslateReverseMap))
 	// test config startup content
