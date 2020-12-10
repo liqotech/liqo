@@ -17,17 +17,6 @@ const (
 
 func (discovery *DiscoveryCtrl) Register() {
 	if discovery.Config.EnableAdvertisement {
-		txtData, err := discovery.GetTxtData()
-		if err != nil {
-			klog.Error(err)
-			return
-		}
-		txt, err := txtData.Encode()
-		if err != nil {
-			klog.Error(err)
-			return
-		}
-
 		authPort, err := discovery.getAuthServicePort()
 		if err != nil {
 			klog.Error(err)
@@ -36,13 +25,7 @@ func (discovery *DiscoveryCtrl) Register() {
 
 		var ttl = discovery.Config.Ttl
 		discovery.serverMux.Lock()
-		discovery.mdnsServer, err = zeroconf.Register(fmt.Sprintf("%s_%s", discovery.Config.Name, discovery.ClusterId.GetClusterID()), discovery.Config.Service, discovery.Config.Domain, discovery.Config.Port, txt, discovery.getInterfaces(), ttl)
-		if err != nil {
-			discovery.serverMux.Unlock()
-			klog.Error(err)
-			return
-		}
-		discovery.mdnsServerAuth, err = zeroconf.Register(fmt.Sprintf("%s_%s", discovery.Config.Name, discovery.ClusterId.GetClusterID()), discovery.Config.AuthService, discovery.Config.Domain, authPort, nil, discovery.getInterfaces(), ttl)
+		discovery.mdnsServerAuth, err = zeroconf.Register(discovery.ClusterId.GetClusterID(), discovery.Config.AuthService, discovery.Config.Domain, authPort, nil, discovery.getInterfaces(), ttl)
 		discovery.serverMux.Unlock()
 		if err != nil {
 			klog.Error(err)
@@ -56,7 +39,6 @@ func (discovery *DiscoveryCtrl) Register() {
 func (discovery *DiscoveryCtrl) shutdownServer() {
 	discovery.serverMux.Lock()
 	defer discovery.serverMux.Unlock()
-	discovery.mdnsServer.Shutdown()
 	discovery.mdnsServerAuth.Shutdown()
 }
 

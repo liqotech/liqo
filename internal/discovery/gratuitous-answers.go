@@ -13,9 +13,6 @@ func (discovery *DiscoveryCtrl) StartGratuitousAnswers() {
 func (discovery *DiscoveryCtrl) sendAnswer() {
 	discovery.serverMux.Lock()
 	defer discovery.serverMux.Unlock()
-	if discovery.mdnsServer != nil {
-		discovery.mdnsServer.SendMulticast()
-	}
 	if discovery.mdnsServerAuth != nil {
 		discovery.mdnsServerAuth.SendMulticast()
 	}

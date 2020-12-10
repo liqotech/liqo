@@ -10,6 +10,7 @@ func (authService *AuthServiceCtrl) GetAuthServiceConfig(kubeconfigPath string) 
 	isFirst := true
 	go clusterConfig.WatchConfiguration(func(configuration *configv1alpha1.ClusterConfig) {
 		authService.handleConfiguration(configuration.Spec.AuthConfig)
+		authService.handleDiscoveryConfiguration(configuration.Spec.DiscoveryConfig)
 		if isFirst {
 			isFirst = false
 			close(waitFirst)
@@ -28,4 +29,16 @@ func (authService *AuthServiceCtrl) GetConfig() *configv1alpha1.AuthConfig {
 	authService.configMutex.RLock()
 	defer authService.configMutex.RUnlock()
 	return authService.config.DeepCopy()
+}
+
+func (authService *AuthServiceCtrl) handleDiscoveryConfiguration(config configv1alpha1.DiscoveryConfig) {
+	authService.configMutex.Lock()
+	defer authService.configMutex.Unlock()
+	authService.discoveryConfig = config
+}
+
+func (authService *AuthServiceCtrl) GetDiscoveryConfig() configv1alpha1.DiscoveryConfig {
+	authService.configMutex.RLock()
+	defer authService.configMutex.RUnlock()
+	return authService.discoveryConfig
 }

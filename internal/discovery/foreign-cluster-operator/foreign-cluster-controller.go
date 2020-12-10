@@ -18,7 +18,6 @@ package foreign_cluster_operator
 
 import (
 	"context"
-	"crypto/x509"
 	goerrors "errors"
 	"fmt"
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
@@ -27,6 +26,7 @@ import (
 	"github.com/liqotech/liqo/internal/crdReplicator"
 	"github.com/liqotech/liqo/internal/discovery"
 	"github.com/liqotech/liqo/internal/discovery/kubeconfig"
+	"github.com/liqotech/liqo/internal/discovery/utils"
 	"github.com/liqotech/liqo/pkg/clusterID"
 	"github.com/liqotech/liqo/pkg/crdClient"
 	discoveryPkg "github.com/liqotech/liqo/pkg/discovery"
@@ -89,7 +89,10 @@ func (r *ForeignClusterReconciler) Reconcile(req ctrl.Request) (ctrl.Result, err
 	requireUpdate := false
 
 	// set trust property
-	if fc.Status.TrustMode == discoveryv1alpha1.TrustModeUnknown || fc.Status.TrustMode == "" {
+	// This will only be executed in the ForeignCluster CR has been added in a manual way,
+	// if it was discovered this field is set by the discovery process.
+	// We can consider to move it in a mutating webhook
+	if fc.Spec.TrustMode == discoveryPkg.TrustModeUnknown || fc.Spec.TrustMode == "" {
 		trust, err := fc.CheckTrusted()
 		if err != nil {
 			klog.Error(err)
@@ -99,14 +102,14 @@ func (r *ForeignClusterReconciler) Reconcile(req ctrl.Request) (ctrl.Result, err
 			}, err
 		}
 		if trust {
-			fc.Status.TrustMode = discoveryv1alpha1.TrustModeTrusted
+			fc.Spec.TrustMode = discoveryPkg.TrustModeTrusted
 		} else {
-			fc.Status.TrustMode = discoveryv1alpha1.TrustModeUntrusted
+			fc.Spec.TrustMode = discoveryPkg.TrustModeUntrusted
 		}
 		// set join flag
 		// if it was discovery with WAN discovery, this value is overwritten by SearchDomain value
-		if fc.Spec.DiscoveryType != discoveryv1alpha1.WanDiscovery && fc.Spec.DiscoveryType != discoveryv1alpha1.IncomingPeeringDiscovery && fc.Spec.DiscoveryType != discoveryv1alpha1.ManualDiscovery {
-			fc.Spec.Join = (r.getAutoJoin(fc) && fc.Status.TrustMode == discoveryv1alpha1.TrustModeTrusted) || (r.getAutoJoinUntrusted(fc) && fc.Status.TrustMode == discoveryv1alpha1.TrustModeUntrusted)
+		if fc.Spec.DiscoveryType != discoveryPkg.WanDiscovery && fc.Spec.DiscoveryType != discoveryPkg.IncomingPeeringDiscovery && fc.Spec.DiscoveryType != discoveryPkg.ManualDiscovery {
+			fc.Spec.Join = (r.getAutoJoin(fc) && fc.Spec.TrustMode == discoveryPkg.TrustModeTrusted) || (r.getAutoJoinUntrusted(fc) && fc.Spec.TrustMode == discoveryPkg.TrustModeUntrusted)
 		}
 
 		requireUpdate = true
@@ -246,7 +249,7 @@ func (r *ForeignClusterReconciler) Reconcile(req ctrl.Request) (ctrl.Result, err
 	}
 
 	// if it has been discovered thanks to incoming peeringRequest and it has no active connections, delete it
-	if fc.Spec.DiscoveryType == discoveryv1alpha1.IncomingPeeringDiscovery && fc.Status.Incoming.PeeringRequest == nil && fc.Status.Outgoing.Advertisement == nil {
+	if fc.Spec.DiscoveryType == discoveryPkg.IncomingPeeringDiscovery && fc.DeletionTimestamp.IsZero() && fc.Status.Incoming.PeeringRequest == nil && fc.Status.Outgoing.Advertisement == nil {
 		err = r.crdClient.Resource("foreignclusters").Delete(fc.Name, metav1.DeleteOptions{})
 		if err != nil {
 			klog.Error(err, err.Error())
@@ -435,13 +438,6 @@ func (r *ForeignClusterReconciler) checkJoined(fc *discoveryv1alpha1.ForeignClus
 	return fc, nil
 }
 
-// check if the error is due to a TLS certificate signed by unknown authority
-func isUnknownAuthority(err error) bool {
-	var err509 x509.UnknownAuthorityError
-	var err509Hostname x509.HostnameError
-	return goerrors.As(err, &err509) || goerrors.As(err, &err509Hostname)
-}
-
 func (r *ForeignClusterReconciler) getHomeAuthUrl() (string, error) {
 	address, _ := os.LookupEnv("APISERVER")
 
@@ -515,12 +511,12 @@ func (r *ForeignClusterReconciler) createPeeringRequestIfNotExists(clusterID str
 
 	// check if a peering request with our cluster id already exists on remote cluster
 	tmp, err := foreignClient.Resource("peeringrequests").Get(localClusterID, metav1.GetOptions{})
-	if err != nil && !errors.IsNotFound(err) && !isUnknownAuthority(err) {
+	if err != nil && !errors.IsNotFound(err) && !utils.IsUnknownAuthority(err) {
 		return nil, err
 	}
-	if isUnknownAuthority(err) {
+	if utils.IsUnknownAuthority(err) {
 		klog.V(4).Info("unknown authority")
-		owner.Status.TrustMode = discoveryv1alpha1.TrustModeUntrusted
+		owner.Spec.TrustMode = discoveryPkg.TrustModeUntrusted
 		return nil, nil
 	}
 	pr, ok := tmp.(*discoveryv1alpha1.PeeringRequest)

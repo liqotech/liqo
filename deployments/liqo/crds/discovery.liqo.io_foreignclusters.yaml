@@ -36,9 +36,6 @@ spec:
           spec:
             description: ForeignClusterSpec defines the desired state of ForeignCluster
             properties:
-              apiUrl:
-                description: URL where to contact foreign API server
-                type: string
               authUrl:
                 description: URL where to contact foreign Auth service
                 type: string
@@ -64,8 +61,15 @@ spec:
               namespace:
                 description: Namespace where Liqo is deployed
                 type: string
+              trustMode:
+                default: Unknown
+                description: Indicates if this remote cluster is trusted or not
+                enum:
+                - Unknown
+                - Trusted
+                - Untrusted
+                type: string
             required:
-            - apiUrl
             - authUrl
             - clusterIdentity
             - discoveryType
@@ -407,14 +411,6 @@ spec:
                 required:
                 - joined
                 type: object
-              trustMode:
-                default: Unknown
-                description: Indicates if this remote cluster is trusted or not
-                enum:
-                - Unknown
-                - Trusted
-                - Untrusted
-                type: string
               ttl:
                 description: If discoveryType is LAN and this counter reach 0 value,
                   this FC will be removed

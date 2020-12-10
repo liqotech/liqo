@@ -44,7 +44,7 @@ func (r *ForeignClusterReconciler) getRemoteClient(fc *discoveryv1alpha1.Foreign
 		config.NegotiatedSerializer = client_scheme.Codecs.WithoutConversion()
 		config.UserAgent = rest.DefaultKubernetesUserAgent()
 
-		fc.Status.AuthStatus = discoveryv1alpha1.AuthStatusAccepted
+		fc.Status.AuthStatus = discovery.AuthStatusAccepted
 
 		return crdClient.NewFromConfig(&config)
 	}
@@ -56,7 +56,7 @@ func (r *ForeignClusterReconciler) getRemoteClient(fc *discoveryv1alpha1.Foreign
 		return nil, err
 	}
 
-	if fc.Status.AuthStatus == discoveryv1alpha1.AuthStatusAccepted {
+	if fc.Status.AuthStatus == discovery.AuthStatusAccepted {
 		// TODO: handle this possibility
 		// this can happen if the role was accepted but the local secret has been removed
 		err := errors.New("auth status is accepted but there is no secret found")
@@ -65,7 +65,7 @@ func (r *ForeignClusterReconciler) getRemoteClient(fc *discoveryv1alpha1.Foreign
 	}
 
 	// not existing role
-	if fc.Status.AuthStatus == discoveryv1alpha1.AuthStatusPending || (fc.Status.AuthStatus == discoveryv1alpha1.AuthStatusEmptyRefused && r.getAuthToken(fc) != "") {
+	if fc.Status.AuthStatus == discovery.AuthStatusPending || (fc.Status.AuthStatus == discovery.AuthStatusEmptyRefused && r.getAuthToken(fc) != "") {
 		kubeconfigStr, err := r.askRemoteIdentity(fc)
 		if err != nil {
 			klog.Error(err)
@@ -123,7 +123,7 @@ func (r *ForeignClusterReconciler) getIdentity(fc *discoveryv1alpha1.ForeignClus
 	config.NegotiatedSerializer = client_scheme.Codecs.WithoutConversion()
 	config.UserAgent = rest.DefaultKubernetesUserAgent()
 
-	fc.Status.AuthStatus = discoveryv1alpha1.AuthStatusAccepted
+	fc.Status.AuthStatus = discovery.AuthStatusAccepted
 
 	return crdClient.NewFromConfig(config)
 }
@@ -178,14 +178,14 @@ func (r *ForeignClusterReconciler) askRemoteIdentity(fc *discoveryv1alpha1.Forei
 	}
 	switch resp.StatusCode {
 	case http.StatusCreated:
-		fc.Status.AuthStatus = discoveryv1alpha1.AuthStatusAccepted
+		fc.Status.AuthStatus = discovery.AuthStatusAccepted
 		klog.Info("Identity Created")
 		return string(body), nil
 	case http.StatusForbidden:
 		if token == "" {
-			fc.Status.AuthStatus = discoveryv1alpha1.AuthStatusEmptyRefused
+			fc.Status.AuthStatus = discovery.AuthStatusEmptyRefused
 		} else {
-			fc.Status.AuthStatus = discoveryv1alpha1.AuthStatusRefused
+			fc.Status.AuthStatus = discovery.AuthStatusRefused
 		}
 		klog.Info(string(body))
 		return "", nil

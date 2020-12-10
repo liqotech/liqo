@@ -3,12 +3,13 @@ package discovery
 import (
 	"errors"
 	"github.com/jinzhu/copier"
+	"github.com/liqotech/liqo/pkg/auth"
 	"sync"
 )
 
 type discoveryData struct {
-	TxtData  *TxtData
-	AuthData *AuthData
+	AuthData    *AuthData
+	ClusterInfo *auth.ClusterInfo
 }
 
 // cache used to match different services coming for the same Liqo instance
@@ -21,10 +22,10 @@ var resolvedData = discoveryCache{
 	discoveredServices: map[string]discoveryData{},
 }
 
-func NewDiscoveryData(txtData *TxtData, authData *AuthData) *discoveryData {
+func NewDiscoveryData(authData *AuthData, clusterInfo *auth.ClusterInfo) *discoveryData {
 	return &discoveryData{
-		TxtData:  txtData,
-		AuthData: authData,
+		AuthData:    authData,
+		ClusterInfo: clusterInfo,
 	}
 }
 
@@ -33,10 +34,6 @@ func (discoveryCache *discoveryCache) add(key string, data DiscoverableData) {
 	defer discoveryCache.lock.Unlock()
 	if _, ok := discoveryCache.discoveredServices[key]; !ok {
 		switch data := data.(type) {
-		case *TxtData:
-			discoveryCache.discoveredServices[key] = discoveryData{
-				TxtData: data,
-			}
 		case *AuthData:
 			discoveryCache.discoveredServices[key] = discoveryData{
 				AuthData: data,
@@ -45,8 +42,6 @@ func (discoveryCache *discoveryCache) add(key string, data DiscoverableData) {
 	} else {
 		oldData := discoveryCache.discoveredServices[key]
 		switch data := data.(type) {
-		case *TxtData:
-			oldData.TxtData = data
 		case *AuthData:
 			oldData.AuthData = data
 		}
@@ -87,5 +82,5 @@ func (discoveryCache *discoveryCache) isComplete(key string) bool {
 }
 
 func (discoveryData *discoveryData) isComplete() bool {
-	return discoveryData.TxtData != nil && discoveryData.AuthData != nil
+	return discoveryData.AuthData != nil
 }

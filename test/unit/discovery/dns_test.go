@@ -4,6 +4,7 @@ import (
 	"github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	"github.com/liqotech/liqo/internal/discovery"
 	search_domain_operator "github.com/liqotech/liqo/internal/discovery/search-domain-operator"
+	discoveryPkg "github.com/liqotech/liqo/pkg/discovery"
 	"gotest.tools/assert"
 	v12 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -95,8 +96,7 @@ func testSDCreation(t *testing.T) {
 			},
 			Namespace:     "default",
 			Join:          false,
-			ApiUrl:        serverCluster.cfg.Host,
-			DiscoveryType: v1alpha1.IncomingPeeringDiscovery,
+			DiscoveryType: discoveryPkg.IncomingPeeringDiscovery,
 		},
 		Status: v1alpha1.ForeignClusterStatus{
 			Incoming: v1alpha1.Incoming{
@@ -134,7 +134,7 @@ func testSDCreation(t *testing.T) {
 	assert.Equal(t, len(sds.Items), 1, "SearchDomain not created")
 
 	tmp, err = clientCluster.client.Resource("foreignclusters").List(metav1.ListOptions{
-		LabelSelector: strings.Join([]string{"discovery-type", string(v1alpha1.WanDiscovery)}, "="),
+		LabelSelector: strings.Join([]string{"discovery-type", string(discoveryPkg.WanDiscovery)}, "="),
 	})
 	assert.NilError(t, err, "Error listing ForeignClusters")
 	fcs, ok := tmp.(*v1alpha1.ForeignClusterList)
@@ -146,7 +146,7 @@ func testSDCreation(t *testing.T) {
 	assert.NilError(t, err)
 	fc, ok := tmp.(*v1alpha1.ForeignCluster)
 	assert.Assert(t, ok)
-	assert.Equal(t, fc.Spec.DiscoveryType, v1alpha1.WanDiscovery, "Discovery type was not set to WAN")
+	assert.Equal(t, fc.Spec.DiscoveryType, discoveryPkg.WanDiscovery, "Discovery type was not set to WAN")
 }
 
 // ------

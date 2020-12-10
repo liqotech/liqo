@@ -19,6 +19,7 @@ package v1alpha1
 import (
 	advtypes "github.com/liqotech/liqo/apis/sharing/v1alpha1"
 	"github.com/liqotech/liqo/pkg/crdClient"
+	"github.com/liqotech/liqo/pkg/discovery"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -27,36 +28,6 @@ import (
 
 // EDIT THIS FILE!  THIS IS SCAFFOLDING FOR YOU TO OWN!
 // NOTE: json tags are required.  Any new fields you add must have json tags for the fields to be serialized.
-
-type DiscoveryType string
-
-const (
-	LanDiscovery             DiscoveryType = "LAN"
-	WanDiscovery             DiscoveryType = "WAN"
-	ManualDiscovery          DiscoveryType = "Manual"
-	IncomingPeeringDiscovery DiscoveryType = "IncomingPeering"
-)
-
-type TrustMode string
-
-const (
-	TrustModeUnknown   TrustMode = "Unknown"
-	TrustModeTrusted   TrustMode = "Trusted"
-	TrustModeUntrusted TrustMode = "Untrusted"
-)
-
-type AuthStatus string
-
-const (
-	AuthStatusPending      AuthStatus = "Pending"
-	AuthStatusAccepted     AuthStatus = "Accepted"
-	AuthStatusRefused      AuthStatus = "Refused"
-	AuthStatusEmptyRefused AuthStatus = "EmptyRefused"
-)
-
-const (
-	LastUpdateAnnotation string = "discovery.liqo.io/LastUpdate"
-)
 
 // ForeignClusterSpec defines the desired state of ForeignCluster
 type ForeignClusterSpec struct {
@@ -69,12 +40,14 @@ type ForeignClusterSpec struct {
 	Namespace string `json:"namespace"`
 	// Enable join process to foreign cluster
 	Join bool `json:"join"`
-	// URL where to contact foreign API server
-	ApiUrl string `json:"apiUrl"`
 	// How this ForeignCluster has been discovered
-	DiscoveryType DiscoveryType `json:"discoveryType"`
+	DiscoveryType discovery.DiscoveryType `json:"discoveryType"`
 	// URL where to contact foreign Auth service
 	AuthUrl string `json:"authUrl"`
+	// +kubebuilder:validation:Enum="Unknown";"Trusted";"Untrusted"
+	// +kubebuilder:default="Unknown"
+	// Indicates if this remote cluster is trusted or not
+	TrustMode discovery.TrustMode `json:"trustMode,omitempty"`
 }
 
 type ClusterIdentity struct {
@@ -93,16 +66,12 @@ type ForeignClusterStatus struct {
 	Incoming Incoming `json:"incoming,omitempty"`
 	// If discoveryType is LAN and this counter reach 0 value, this FC will be removed
 	Ttl uint32 `json:"ttl,omitempty"`
-	// +kubebuilder:validation:Enum="Unknown";"Trusted";"Untrusted"
-	// +kubebuilder:default="Unknown"
-	// Indicates if this remote cluster is trusted or not
-	TrustMode TrustMode `json:"trustMode,omitempty"`
 	// It stores most important network statuses
 	Network Network `json:"network,omitempty"`
 	// Authentication status
 	// +kubebuilder:validation:Enum="Pending";"Accepted";"Refused";"EmptyRefused"
 	// +kubebuilder:default="Pending"
-	AuthStatus AuthStatus `json:"authStatus,omitempty"`
+	AuthStatus discovery.AuthStatus `json:"authStatus,omitempty"`
 }
 
 type ResourceLink struct {
