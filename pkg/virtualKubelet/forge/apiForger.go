@@ -49,6 +49,10 @@ func ReplicasetFromPod(pod *corev1.Pod) *appsv1.ReplicaSet {
 	return forger.replicasetFromPod(pod)
 }
 
+func ForeignReplicasetDeleted(pod *corev1.Pod) *corev1.Pod {
+	return forger.setPodToBeDeleted(pod)
+}
+
 type apiForger struct {
 	nattingTable namespacesMapping.NamespaceNatter
 

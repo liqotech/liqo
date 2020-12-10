@@ -1,7 +1,9 @@
 package provider
 
 import (
+	"bytes"
 	"context"
+	"flag"
 	"github.com/liqotech/liqo/internal/virtualKubelet/node"
 	apimgmt "github.com/liqotech/liqo/pkg/virtualKubelet/apiReflection"
 	test2 "github.com/liqotech/liqo/pkg/virtualKubelet/apiReflection/controller/test"
@@ -16,6 +18,8 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/fake"
+	"k8s.io/klog"
+	"strings"
 )
 
 var _ = Describe("Pods", func() {
@@ -75,7 +79,11 @@ var _ = Describe("Pods", func() {
 			})
 
 			Describe("delete pod", func() {
-				var replicaset *appsv1.ReplicaSet
+				var (
+					replicaset *appsv1.ReplicaSet
+					buffer     *bytes.Buffer
+					flags      *flag.FlagSet
+				)
 
 				BeforeEach(func() {
 					replicaset = &appsv1.ReplicaSet{
@@ -84,6 +92,12 @@ var _ = Describe("Pods", func() {
 							Namespace: "homeNamespace-natted",
 						},
 					}
+					buffer = &bytes.Buffer{}
+					flags = &flag.FlagSet{}
+					klog.InitFlags(flags)
+					_ = flags.Set("logtostderr", "false")
+					_ = flags.Set("v", "5")
+					klog.SetOutput(buffer)
 				})
 
 				It("with corresponding replicaset existing", func() {
@@ -94,7 +108,9 @@ var _ = Describe("Pods", func() {
 
 				It("without corresponding replicaset existing", func() {
 					err := provider.DeletePod(context.TODO(), pod)
-					Expect(err).To(HaveOccurred())
+					Expect(err).NotTo(HaveOccurred())
+					klog.Flush()
+					Expect(strings.Contains(buffer.String(), "replicaset homeNamespace-natted/testObject not deleted because not existing")).To(BeTrue())
 				})
 			})
 		})

@@ -23,7 +23,7 @@ import (
 	"strings"
 )
 
-var _ = Describe("ReplicationControllers", func() {
+var _ = Describe("Replicasets", func() {
 	var (
 		cacheManager          *storageTest.MockManager
 		namespaceNattingTable *test.MockNamespaceMapper
@@ -87,18 +87,25 @@ var _ = Describe("ReplicationControllers", func() {
 				expected *corev1.Pod
 			}
 
+			var homeClient kubernetes.Interface
+
 			BeforeEach(func() {
+				homeClient = fake.NewSimpleClientset()
 				_, err := namespaceNattingTable.NatNamespace("homeNamespace", true)
 				Expect(err).NotTo(HaveOccurred())
 				_ = cacheManager.AddHomeNamespace("homeNamespace")
 				_ = cacheManager.AddForeignNamespace("homeNamespace-natted")
+				genericReflector.HomeClient = homeClient
 			})
 
 			DescribeTable("pre delete test cases",
 				func(c deleteTestcase) {
 					cacheManager.AddHomeEntry("homeNamespace", apimgmt.Pods, c.expected)
-					ret := reflector.PreProcessDelete(c.input)
-					Expect(ret).To(Equal(c.expected))
+					_, _ = homeClient.CoreV1().Pods("homeNamespace").Create(context.TODO(), c.expected, metav1.CreateOptions{})
+
+					ret := reflector.PreProcessDelete(c.input).(*corev1.Pod)
+					Expect(ret.Name).To(Equal(c.expected.Name))
+					Expect(ret.Namespace).To(Equal(c.expected.Namespace))
 				},
 
 				Entry("", deleteTestcase{
@@ -107,13 +114,13 @@ var _ = Describe("ReplicationControllers", func() {
 							Name:      "replicaset1",
 							Namespace: "homeNamespace-natted",
 							Labels: map[string]string{
-								virtualKubelet.ReflectedpodKey: "homePodName",
+								virtualKubelet.ReflectedpodKey: "homePod",
 							},
 						},
 					},
 					expected: &corev1.Pod{
 						ObjectMeta: metav1.ObjectMeta{
-							Name:      "homePodName",
+							Name:      "homePod",
 							Namespace: "homeNamespace",
 						},
 					},
@@ -171,7 +178,7 @@ var _ = Describe("ReplicationControllers", func() {
 								Namespace: "homeNamespace",
 							}},
 					},
-					expectedOutput: "INCOMING REFLECTION: home pod homeNamespace/pod1 correctly deleted",
+					expectedOutput: "INCOMING REFLECTION: delete for replicaset related to home pod homeNamespace/pod1 processed",
 				}),
 				Entry("correct add event", handleEventTestCase{
 					input: watch.Event{
@@ -216,7 +223,7 @@ var _ = Describe("ReplicationControllers", func() {
 			It("failing delete", func() {
 				reflector.HandleEvent(event)
 				klog.Flush()
-				Expect(strings.Contains(buffer.String(), "INCOMING REFLECTION: error while deleting home pod homeNamespace/pod1")).To(BeTrue())
+				Expect(strings.Contains(buffer.String(), "INCOMING REFLECTION: delete for replicaset related to home pod homeNamespace/pod1 processed")).To(BeTrue())
 			})
 		})
 	})

@@ -66,6 +66,22 @@ func (f *apiForger) podStatusForeignToHome(foreignObj, homeObj runtime.Object) *
 	return homePod
 }
 
+// setPodToBeDeleted set the pod status such that it can be collected by the replicasetController,
+// setting the pod status to PodUnknwon and all the containers in terminated status.
+func (f *apiForger) setPodToBeDeleted(pod *corev1.Pod) *corev1.Pod {
+	now := metav1.Now()
+
+	pod.Status.Phase = corev1.PodUnknown
+	for i := range pod.Status.ContainerStatuses {
+		pod.Status.ContainerStatuses[i].State = corev1.ContainerState{
+			Terminated: &corev1.ContainerStateTerminated{},
+		}
+	}
+	pod.DeletionTimestamp = &now
+
+	return pod
+}
+
 func (f *apiForger) podHomeToForeign(homeObj, foreignObj runtime.Object, reflectionType string) (*corev1.Pod, error) {
 	var isNewObject bool
 	var homePod, foreignPod *corev1.Pod

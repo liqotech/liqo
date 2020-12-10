@@ -100,6 +100,10 @@ func (p *LiqoProvider) DeletePod(ctx context.Context, pod *corev1.Pod) (err erro
 	}
 
 	err = p.foreignClient.AppsV1().ReplicaSets(foreignNamespace).Delete(context.TODO(), replicasetName, metav1.DeleteOptions{})
+	if kerror.IsNotFound(err) {
+		klog.V(5).Infof("replicaset %v/%v not deleted because not existing", foreignNamespace, replicasetName)
+		return nil
+	}
 	if err != nil {
 		return errors.Wrap(err, "Unable to delete foreign replicaset")
 	}
@@ -347,5 +351,5 @@ func (p *LiqoProvider) GetStatsSummary(ctx context.Context) (*stats.Summary, err
 // within the provider.
 func (p *LiqoProvider) NotifyPods(_ context.Context, notifier func(interface{})) {
 	p.apiController.SetInformingFunc(apimgmgt.Pods, notifier)
-	p.notifier = notifier
+	p.apiController.SetInformingFunc(apimgmgt.ReplicaSets, notifier)
 }
