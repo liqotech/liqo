@@ -13,7 +13,9 @@ import (
 type AuthData struct {
 	address string
 	port    int
-	isTest  bool
+	ttl     uint32
+
+	isTest bool
 }
 
 func NewAuthDataTest(address string, port int) *AuthData {
@@ -62,6 +64,8 @@ func (authData *AuthData) Decode(entry *zeroconf.ServiceEntry, timeout time.Dura
 	// use the reachable IP
 	// this is the IP that will be contacted to get the required permissions from the remote cluster
 	authData.address = ip.String()
+
+	authData.ttl = entry.TTL
 	return nil
 }
 

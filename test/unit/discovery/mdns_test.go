@@ -4,6 +4,8 @@ import (
 	"context"
 	"github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	"github.com/liqotech/liqo/internal/discovery"
+	"github.com/liqotech/liqo/pkg/auth"
+	discoveryPkg "github.com/liqotech/liqo/pkg/discovery"
 	"gotest.tools/assert"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -67,7 +69,7 @@ func testTxtData(t *testing.T) {
 // ------
 // tests if mDNS service works
 func testMdns(t *testing.T) {
-	service := "_liqo._tcp"
+	service := "_liqo_auth._tcp"
 	domain := "local."
 
 	go clientCluster.discoveryCtrl.Register()
@@ -78,7 +80,7 @@ func testMdns(t *testing.T) {
 	resultChan := make(chan discovery.DiscoverableData, 10)
 	ctx, cancel := context.WithCancel(context.TODO())
 	defer cancel()
-	go clientCluster.discoveryCtrl.Resolve(ctx, service, domain, resultChan, false)
+	go clientCluster.discoveryCtrl.Resolve(ctx, service, domain, resultChan)
 
 	hasTxts := false
 	select {
@@ -108,7 +110,11 @@ func testForeignClusterCreation(t *testing.T) {
 		ApiUrl:    "http://" + serverCluster.cfg.Host,
 	}
 
-	clientCluster.discoveryCtrl.UpdateForeignLAN(discovery.NewDiscoveryData(txts, discovery.NewAuthDataTest("127.0.0.1", 30001)))
+	clientCluster.discoveryCtrl.UpdateForeignLAN(discovery.NewDiscoveryData(discovery.NewAuthDataTest("127.0.0.1", 30001), &auth.ClusterInfo{
+		ClusterID:      txts.ID,
+		ClusterName:    txts.Name,
+		GuestNamespace: txts.Namespace,
+	}), discoveryPkg.TrustModeUntrusted)
 
 	time.Sleep(1 * time.Second)
 
@@ -123,7 +129,7 @@ func testForeignClusterCreation(t *testing.T) {
 	assert.NilError(t, err, "Error retrieving ForeignCluster")
 	fc, ok := tmp.(*v1alpha1.ForeignCluster)
 	assert.Equal(t, ok, true)
-	assert.Equal(t, fc.Spec.ApiUrl, "http://"+serverCluster.cfg.Host, "ApiUrl doesn't match the specified one")
+	assert.Equal(t, fc.Spec.AuthUrl, "fake://127.0.0.1:30001", "AuthUrl doesn't match the specified one")
 	assert.Equal(t, fc.Spec.Namespace, "default", "Foreign Namesapce doesn't match the specified one")
 	assert.Equal(t, fc.Spec.ClusterIdentity.ClusterID, txts.ID)
 	assert.Equal(t, fc.Spec.ClusterIdentity.ClusterName, txts.Name)
@@ -136,10 +142,10 @@ func testTtl(t *testing.T) {
 		ObjectMeta: metav1.ObjectMeta{
 			Name: "fc-test-ttl",
 			Labels: map[string]string{
-				"discovery-type": string(v1alpha1.LanDiscovery),
+				"discovery-type": string(discoveryPkg.LanDiscovery),
 			},
 			Annotations: map[string]string{
-				v1alpha1.LastUpdateAnnotation: strconv.Itoa(int(time.Now().Unix())),
+				discoveryPkg.LastUpdateAnnotation: strconv.Itoa(int(time.Now().Unix())),
 			},
 		},
 		Spec: v1alpha1.ForeignClusterSpec{
@@ -148,13 +154,12 @@ func testTtl(t *testing.T) {
 			},
 			Namespace:     "default",
 			Join:          false,
-			ApiUrl:        "http://" + serverCluster.cfg.Host,
 			AuthUrl:       "fake://127.0.0.1:30001",
-			DiscoveryType: v1alpha1.LanDiscovery,
+			DiscoveryType: discoveryPkg.LanDiscovery,
+			TrustMode:     discoveryPkg.TrustModeUntrusted,
 		},
 		Status: v1alpha1.ForeignClusterStatus{
-			Ttl:       1,
-			TrustMode: v1alpha1.TrustModeUntrusted,
+			Ttl: 1,
 		},
 	}
 

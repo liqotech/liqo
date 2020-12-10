@@ -23,7 +23,6 @@ type DiscoveryCtrl struct {
 	advClient      *crdClient.CRDClient
 	ClusterId      *clusterID.ClusterID
 
-	mdnsServer                *zeroconf.Server
 	mdnsServerAuth            *zeroconf.Server
 	serverMux                 sync.Mutex
 	resolveContextRefreshTime int

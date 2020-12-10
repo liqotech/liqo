@@ -59,12 +59,14 @@ rules:
   - apiGroups:
       - ""
     resources:
+      - configmaps
       - secrets
     verbs:
       - get
       - list
       - watch
       - create
+      - update
       - delete
   - apiGroups:
       - ""

@@ -10,6 +10,9 @@ import (
 	"strings"
 )
 
+// TODO: delete this file
+// this can be done after WAN discovery changes in a next pr
+
 type TxtData struct {
 	ID        string
 	Name      string

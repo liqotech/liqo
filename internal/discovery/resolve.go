@@ -2,7 +2,12 @@ package discovery
 
 import (
 	"context"
+	"encoding/json"
 	"github.com/grandcat/zeroconf"
+	"github.com/liqotech/liqo/internal/discovery/utils"
+	"github.com/liqotech/liqo/pkg/auth"
+	discoveryPkg "github.com/liqotech/liqo/pkg/discovery"
+	"io/ioutil"
 	"k8s.io/klog"
 	"net"
 	"os"
@@ -14,8 +19,7 @@ func (discovery *DiscoveryCtrl) StartResolver(stopChan <-chan bool) {
 	for {
 		if discovery.Config.EnableDiscovery {
 			ctx, cancel := context.WithCancel(context.TODO())
-			go discovery.Resolve(ctx, discovery.Config.Service, discovery.Config.Domain, nil, false)
-			go discovery.Resolve(ctx, discovery.Config.AuthService, discovery.Config.Domain, nil, true)
+			go discovery.Resolve(ctx, discovery.Config.AuthService, discovery.Config.Domain, nil)
 			select {
 			case <-stopChan:
 				cancel()
@@ -28,7 +32,7 @@ func (discovery *DiscoveryCtrl) StartResolver(stopChan <-chan bool) {
 	}
 }
 
-func (discovery *DiscoveryCtrl) Resolve(ctx context.Context, service string, domain string, resultChan chan DiscoverableData, isAuth bool) {
+func (discovery *DiscoveryCtrl) Resolve(ctx context.Context, service string, domain string, resultChan chan DiscoverableData) {
 	resolver, err := zeroconf.NewResolver(zeroconf.SelectIPTraffic(zeroconf.IPv4))
 	if err != nil {
 		klog.Error(err, err.Error())
@@ -36,14 +40,9 @@ func (discovery *DiscoveryCtrl) Resolve(ctx context.Context, service string, dom
 	}
 
 	entries := make(chan *zeroconf.ServiceEntry)
-	go func(results <-chan *zeroconf.ServiceEntry, isAuth bool) {
+	go func(results <-chan *zeroconf.ServiceEntry) {
 		for entry := range results {
-			var data DiscoverableData
-			if isAuth {
-				data = &AuthData{}
-			} else {
-				data = &TxtData{}
-			}
+			var data DiscoverableData = &AuthData{}
 			err := data.Get(discovery, entry)
 			if err != nil {
 				continue
@@ -62,16 +61,22 @@ func (discovery *DiscoveryCtrl) Resolve(ctx context.Context, service string, dom
 						klog.Error(err)
 						continue
 					}
-					if dData.TxtData.ID == discovery.ClusterId.GetClusterID() || dData.TxtData.ID == "" {
+					var trustMode discoveryPkg.TrustMode
+					dData.ClusterInfo, trustMode, err = discovery.getClusterInfo(dData.AuthData)
+					if err != nil {
+						klog.Error(err)
+						continue
+					}
+					if dData.ClusterInfo.ClusterID == discovery.ClusterId.GetClusterID() || dData.ClusterInfo.ClusterID == "" {
 						continue
 					}
 					klog.V(4).Infof("update %s", entry.Instance)
-					discovery.UpdateForeignLAN(dData)
+					discovery.UpdateForeignLAN(dData, trustMode)
 					resolvedData.delete(entry.Instance)
 				}
 			}
 		}
-	}(entries, isAuth)
+	}(entries)
 
 	err = resolver.Browse(ctx, service, domain, entries)
 	if err != nil {
@@ -79,6 +84,28 @@ func (discovery *DiscoveryCtrl) Resolve(ctx context.Context, service string, dom
 		os.Exit(1)
 	}
 	<-ctx.Done()
+}
+
+func (discovery *DiscoveryCtrl) getClusterInfo(authData *AuthData) (*auth.ClusterInfo, discoveryPkg.TrustMode, error) {
+	resp, trustMode, err := utils.GetClusterInfo(authData.GetUrl())
+	if err != nil {
+		klog.Error(err)
+		return nil, "", err
+	}
+
+	respBytes, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		klog.Error(err)
+		return nil, "", err
+	}
+
+	var ids auth.ClusterInfo
+	if err = json.Unmarshal(respBytes, &ids); err != nil {
+		klog.Error(err)
+		return nil, "", err
+	}
+
+	return &ids, trustMode, nil
 }
 
 func (discovery *DiscoveryCtrl) getIPs() map[string]bool {

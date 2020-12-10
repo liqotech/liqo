@@ -328,7 +328,6 @@ func TestCreateNetConfigFromForeignClusterOutgoingJoined(t *testing.T) {
 			},
 			Namespace:     "",
 			Join:          false,
-			ApiUrl:        "",
 			DiscoveryType: "LAN",
 		},
 		Status: discoveryv1alpha1.ForeignClusterStatus{

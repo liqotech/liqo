@@ -3,6 +3,7 @@ package discovery
 import (
 	goerrors "errors"
 	"github.com/liqotech/liqo/apis/discovery/v1alpha1"
+	discoveryPkg "github.com/liqotech/liqo/pkg/discovery"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/klog"
 	"strings"
@@ -18,7 +19,7 @@ func (discovery *DiscoveryCtrl) StartGarbageCollector() {
 // The GarbageCollector deletes all ForeignClusters discovered with LAN that have expired TTL
 func (discovery *DiscoveryCtrl) CollectGarbage() error {
 	tmp, err := discovery.crdClient.Resource("foreignclusters").List(metav1.ListOptions{
-		LabelSelector: strings.Join([]string{"discovery-type", string(v1alpha1.LanDiscovery)}, "="),
+		LabelSelector: strings.Join([]string{"discovery-type", string(discoveryPkg.LanDiscovery)}, "="),
 	})
 	if err != nil {
 		klog.Error(err)

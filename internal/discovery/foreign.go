@@ -18,9 +18,9 @@ import (
 //   3a. if IP is different set new IP and delete CA data
 //   3b. else it is ok
 
-func (discovery *DiscoveryCtrl) UpdateForeignLAN(data *discoveryData) {
-	discoveryType := v1alpha1.LanDiscovery
-	if data.TxtData.ID == discovery.ClusterId.GetClusterID() {
+func (discovery *DiscoveryCtrl) UpdateForeignLAN(data *discoveryData, trustMode discoveryPkg.TrustMode) {
+	discoveryType := discoveryPkg.LanDiscovery
+	if data.ClusterInfo.ClusterID == discovery.ClusterId.GetClusterID() {
 		// is local cluster
 		return
 	}
@@ -31,7 +31,7 @@ func (discovery *DiscoveryCtrl) UpdateForeignLAN(data *discoveryData) {
 			return k8serror.IsConflict(err) || k8serror.IsAlreadyExists(err)
 		},
 		func() error {
-			return discovery.createOrUpdate(data, nil, discoveryType, nil)
+			return discovery.createOrUpdate(data, trustMode, nil, discoveryType, nil)
 		})
 	if err != nil {
 		klog.Error(err)
@@ -40,7 +40,7 @@ func (discovery *DiscoveryCtrl) UpdateForeignLAN(data *discoveryData) {
 
 func (discovery *DiscoveryCtrl) UpdateForeignWAN(data []*TxtData, sd *v1alpha1.SearchDomain) []*v1alpha1.ForeignCluster {
 	createdUpdatedForeign := []*v1alpha1.ForeignCluster{}
-	discoveryType := v1alpha1.WanDiscovery
+	discoveryType := discoveryPkg.WanDiscovery
 	for _, txtData := range data {
 		if txtData.ID == discovery.ClusterId.GetClusterID() {
 			// is local cluster
@@ -54,8 +54,8 @@ func (discovery *DiscoveryCtrl) UpdateForeignWAN(data []*TxtData, sd *v1alpha1.S
 			},
 			func() error {
 				return discovery.createOrUpdate(&discoveryData{ // TODO: discover auth service in wan discovery
-					TxtData: txtData,
-				}, sd, discoveryType, &createdUpdatedForeign)
+					//TxtData: txtData,
+				}, discoveryPkg.TrustModeUnknown, sd, discoveryType, &createdUpdatedForeign)
 			})
 		if err != nil {
 			continue
@@ -64,15 +64,15 @@ func (discovery *DiscoveryCtrl) UpdateForeignWAN(data []*TxtData, sd *v1alpha1.S
 	return createdUpdatedForeign
 }
 
-func (discovery *DiscoveryCtrl) createOrUpdate(data *discoveryData, sd *v1alpha1.SearchDomain, discoveryType v1alpha1.DiscoveryType, createdUpdatedForeign *[]*v1alpha1.ForeignCluster) error {
-	fc, err := discovery.GetForeignClusterByID(data.TxtData.ID)
+func (discovery *DiscoveryCtrl) createOrUpdate(data *discoveryData, trustMode discoveryPkg.TrustMode, sd *v1alpha1.SearchDomain, discoveryType discoveryPkg.DiscoveryType, createdUpdatedForeign *[]*v1alpha1.ForeignCluster) error {
+	fc, err := discovery.GetForeignClusterByID(data.ClusterInfo.ClusterID)
 	if k8serror.IsNotFound(err) {
-		fc, err := discovery.createForeign(data, sd, discoveryType)
+		fc, err := discovery.createForeign(data, trustMode, sd, discoveryType)
 		if err != nil {
 			klog.Error(err)
 			return err
 		}
-		klog.Infof("ForeignCluster %s created", data.TxtData.ID)
+		klog.Infof("ForeignCluster %s created", data.ClusterInfo.ClusterID)
 		if createdUpdatedForeign != nil {
 			*createdUpdatedForeign = append(*createdUpdatedForeign, fc)
 		}
@@ -86,7 +86,7 @@ func (discovery *DiscoveryCtrl) createOrUpdate(data *discoveryData, sd *v1alpha1
 			return err
 		}
 		if updated {
-			klog.Infof("ForeignCluster %s updated", data.TxtData.ID)
+			klog.Infof("ForeignCluster %s updated", data.ClusterInfo.ClusterID)
 			if createdUpdatedForeign != nil {
 				*createdUpdatedForeign = append(*createdUpdatedForeign, fc)
 			}
@@ -99,21 +99,26 @@ func (discovery *DiscoveryCtrl) createOrUpdate(data *discoveryData, sd *v1alpha1
 	return nil
 }
 
-func (discovery *DiscoveryCtrl) createForeign(data *discoveryData, sd *v1alpha1.SearchDomain, discoveryType v1alpha1.DiscoveryType) (*v1alpha1.ForeignCluster, error) {
+func (discovery *DiscoveryCtrl) createForeign(data *discoveryData, trustMode discoveryPkg.TrustMode, sd *v1alpha1.SearchDomain, discoveryType discoveryPkg.DiscoveryType) (*v1alpha1.ForeignCluster, error) {
 	fc := &v1alpha1.ForeignCluster{
 		ObjectMeta: metav1.ObjectMeta{
-			Name: data.TxtData.ID,
+			Name: data.ClusterInfo.ClusterID,
 		},
 		Spec: v1alpha1.ForeignClusterSpec{
 			ClusterIdentity: v1alpha1.ClusterIdentity{
-				ClusterID:   data.TxtData.ID,
-				ClusterName: data.TxtData.Name,
+				ClusterID:   data.ClusterInfo.ClusterID,
+				ClusterName: data.ClusterInfo.ClusterName,
 			},
-			Namespace:     data.TxtData.Namespace,
-			ApiUrl:        data.TxtData.ApiUrl,
+			Namespace:     data.ClusterInfo.GuestNamespace,
 			DiscoveryType: discoveryType,
 			AuthUrl:       data.AuthData.GetUrl(),
+			TrustMode:     trustMode,
 		},
+	}
+	if trustMode == discoveryPkg.TrustModeTrusted {
+		fc.Spec.Join = discovery.Config.AutoJoin
+	} else if trustMode == discoveryPkg.TrustModeUntrusted {
+		fc.Spec.Join = discovery.Config.AutoJoinUntrusted
 	}
 	fc.LastUpdateNow()
 
@@ -128,9 +133,9 @@ func (discovery *DiscoveryCtrl) createForeign(data *discoveryData, sd *v1alpha1.
 			},
 		}
 	}
-	if discoveryType == v1alpha1.LanDiscovery {
+	if discoveryType == discoveryPkg.LanDiscovery {
 		// set TTL
-		fc.Status.Ttl = data.TxtData.Ttl
+		fc.Status.Ttl = data.AuthData.ttl
 	}
 	tmp, err := discovery.crdClient.Resource("foreignclusters").Create(fc, metav1.CreateOptions{})
 	if err != nil {
@@ -144,24 +149,23 @@ func (discovery *DiscoveryCtrl) createForeign(data *discoveryData, sd *v1alpha1.
 	return fc, err
 }
 
-// indicates that the remote cluster changed location, we have to reload all our infos about the remote cluster
+// indicates that the remote cluster changed location, we have to reload all our info about the remote cluster
 func needsToDeleteRemoteResources(fc *v1alpha1.ForeignCluster, data *discoveryData) bool {
-	return fc.Spec.ApiUrl != data.TxtData.ApiUrl || fc.Spec.Namespace != data.TxtData.Namespace
+	return fc.Spec.Namespace != data.ClusterInfo.GuestNamespace
 }
 
-func (discovery *DiscoveryCtrl) CheckUpdate(data *discoveryData, fc *v1alpha1.ForeignCluster, discoveryType v1alpha1.DiscoveryType, searchDomain *v1alpha1.SearchDomain) (fcUpdated *v1alpha1.ForeignCluster, updated bool, err error) {
+func (discovery *DiscoveryCtrl) CheckUpdate(data *discoveryData, fc *v1alpha1.ForeignCluster, discoveryType discoveryPkg.DiscoveryType, searchDomain *v1alpha1.SearchDomain) (fcUpdated *v1alpha1.ForeignCluster, updated bool, err error) {
 	needsToReload := needsToDeleteRemoteResources(fc, data)
 	higherPriority := fc.HasHigherPriority(discoveryType) // the remote cluster didn't move, but we discovered it with an higher priority discovery type
 	if needsToReload || higherPriority {
 		// something is changed in ForeignCluster specs, update it
-		fc.Spec.ApiUrl = data.TxtData.ApiUrl
-		fc.Spec.Namespace = data.TxtData.Namespace
+		fc.Spec.Namespace = data.ClusterInfo.GuestNamespace
 		fc.Spec.DiscoveryType = discoveryType
-		if higherPriority && discoveryType == v1alpha1.LanDiscovery {
+		if higherPriority && discoveryType == discoveryPkg.LanDiscovery {
 			// if the cluster was previously discovered with IncomingPeering discovery type, set join flag accordingly to LanDiscovery sets and set TTL
 			fc.Spec.Join = discovery.Config.AutoJoin
-			fc.Status.Ttl = data.TxtData.Ttl
-		} else if searchDomain != nil && discoveryType == v1alpha1.WanDiscovery {
+			fc.Status.Ttl = data.AuthData.ttl
+		} else if searchDomain != nil && discoveryType == discoveryPkg.WanDiscovery {
 			fc.Spec.Join = searchDomain.Spec.AutoJoin
 		}
 		fc.LastUpdateNow()

@@ -1,46 +1,25 @@
 package v1alpha1
 
 import (
-	"context"
-	"crypto/x509"
-	goerrors "errors"
 	advtypes "github.com/liqotech/liqo/apis/sharing/v1alpha1"
+	"github.com/liqotech/liqo/internal/discovery/utils"
 	"github.com/liqotech/liqo/pkg/crdClient"
+	"github.com/liqotech/liqo/pkg/discovery"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/rest"
 	"k8s.io/klog"
-	"k8s.io/utils/pointer"
 	"strconv"
+	"strings"
 	"time"
 )
 
 func (fc *ForeignCluster) CheckTrusted() (bool, error) {
-	cnf := &rest.Config{
-		Host: fc.Spec.ApiUrl,
-		TLSClientConfig: rest.TLSClientConfig{
-			Insecure: false,
-		},
-	}
-	client, err := kubernetes.NewForConfig(cnf)
-	if err != nil {
-		return false, err
-	}
-	_, err = client.CoreV1().Nodes().List(context.TODO(), metav1.ListOptions{
-		TimeoutSeconds: pointer.Int64Ptr(1),
-	})
-	var err509 x509.UnknownAuthorityError
-	if errors.IsTimeout(err) {
-		// it can be more appropriate to set a different error
+	if strings.HasPrefix(fc.Spec.AuthUrl, "fake://") {
 		return false, nil
 	}
-	if err == nil || !goerrors.As(err, &err509) {
-		// if I can connect without a x509 error it is trusted
-		return true, nil
-	}
-	return false, nil
+	_, trustMode, err := utils.GetClusterInfo(fc.Spec.AuthUrl)
+	return trustMode == discovery.TrustModeTrusted, err
 }
 
 func (fc *ForeignCluster) SetAdvertisement(adv *advtypes.Advertisement, discoveryClient *crdClient.CRDClient) error {
@@ -75,8 +54,8 @@ func (fc *ForeignCluster) DeleteAdvertisement(advClient *crdClient.CRDClient) er
 // if we discovered a cluster with IncomingPeering we can upgrade this discovery
 // when we found it also in other way, for example inserting a SearchDomain or
 // adding it manually
-func (fc *ForeignCluster) HasHigherPriority(discoveryType DiscoveryType) bool {
-	return fc.Spec.DiscoveryType == IncomingPeeringDiscovery && discoveryType != IncomingPeeringDiscovery
+func (fc *ForeignCluster) HasHigherPriority(discoveryType discovery.DiscoveryType) bool {
+	return fc.Spec.DiscoveryType == discovery.IncomingPeeringDiscovery && discoveryType != discovery.IncomingPeeringDiscovery
 }
 
 // sets lastUpdate annotation to current time
@@ -85,7 +64,7 @@ func (fc *ForeignCluster) LastUpdateNow() {
 	if ann == nil {
 		ann = map[string]string{}
 	}
-	ann[LastUpdateAnnotation] = strconv.Itoa(int(time.Now().Unix()))
+	ann[discovery.LastUpdateAnnotation] = strconv.Itoa(int(time.Now().Unix()))
 	fc.SetAnnotations(ann)
 }
 
@@ -95,7 +74,7 @@ func (fc *ForeignCluster) IsExpired() bool {
 		return false
 	}
 
-	lastUpdate, ok := ann[LastUpdateAnnotation]
+	lastUpdate, ok := ann[discovery.LastUpdateAnnotation]
 	if !ok {
 		return false
 	}
