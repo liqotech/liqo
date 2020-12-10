@@ -19,6 +19,8 @@ const (
 	//EnvLiqoKConfig defines the env var containing the path of the kubeconfig file of the
 	//cluster associated to Liqo Agent.
 	EnvLiqoKConfig = "LIQO_KCONFIG"
+	//EnvLiqoPath defines the env var containing the path of the root directory of the Liqo Agent on the local file system.
+	EnvLiqoPath = "LIQO_PATH"
 )
 
 //AgentController singleton.
@@ -139,9 +141,10 @@ func acquireKubeconfig() {
 		})
 		//CASE 2: no explicit parameter: check if a kubeconfig path has been indicated in a config file
 		if *kubeconfArg == defaultKubePath {
-			conf, valid := GetLocalConfig()
-			if valid && conf.Content.Kubeconfig != "" {
-				*kubeconfArg = conf.Content.Kubeconfig
+			if conf, valid := GetLocalConfig(); valid {
+				if kubeconf := conf.GetKubeconfig(); kubeconf != "" {
+					*kubeconfArg = kubeconf
+				}
 			}
 		}
 		//CASE 3: use default value
@@ -156,6 +159,17 @@ func acquireKubeconfig() {
 				if selected {
 					path = filePath
 					found = true
+					//save new preferred choice to config file
+					//if there exist a valid configuration, update it. Otherwise create a new one.
+					config, valid := GetLocalConfig()
+					if !valid {
+						config = NewLocalConfig()
+						config.Valid = true
+					}
+					config.SetKubeconfig(filePath)
+					if err := SaveLocalConfig(); err != nil {
+						_, _ = dlgs.Warning("LIQO AGENT", "Liqo Agent could not save settings changes")
+					}
 				}
 			}
 		} else {
