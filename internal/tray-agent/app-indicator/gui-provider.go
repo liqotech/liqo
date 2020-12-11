@@ -91,11 +91,12 @@ type GuiProviderInterface interface {
 }
 
 /*EventTester is a WaitGroup-based data struct that enables testers to validate concurrent operations performed
-on an Indicator Listener (which reacts to specific events).
+by the callback associated to an Indicator Listener (which reacts to specific events) or a MenuNode (which reacts when
+the correspondent graphic menu entry is clicked).
 
 During a test, after calling app-indicator.UseMockedGuiProvider(), you can call GetGuiProvider().NewEventTester() to
-create a new EventTester. After calling EventTester.Test(), each Listener calls a eventTest.Done() after the execution
-of the associated callback.
+create a new EventTester. After calling EventTester.Test(), an EventTester.Done() is called after the execution of the
+associated callback of a Listener or a MenuNode (if MenuNode.Connect() has been previously called).
 
 Inside a test, use EventTester.Add() and EventTester.Wait() to synchronize the execution of Listeners callbacks.
 
