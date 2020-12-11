@@ -29,6 +29,16 @@ const (
 	IconLiqoNil
 )
 
+//graphicResource defines a graphic interaction handled by the Indicator.
+type graphicResource int
+
+//graphicResource currently handled by the Indicator.
+const (
+	resourceIcon graphicResource = iota
+	resourceLabel
+	resourceDesktop
+)
+
 //Run starts the Indicator execution, running the onReady() function. After Quit() call, it runs onExit() before
 //exiting. It should be called at the very beginning of main() to lock at main thread.
 func Run(onReady func(), onExit func()) {
@@ -73,12 +83,24 @@ type Indicator struct {
 	listeners map[client.NotifyChannel]*Listener
 	//map of all the instantiated Timers
 	timers map[string]*Timer
+	//graphicResource is the map containing the mutex to protect access to the graphic resources handled by the Indicator
+	//(e.g. tray icon, tray label and desktop notifications).
+	graphicResource map[graphicResource]*sync.RWMutex
 }
 
 //GetIndicator initializes and returns the Indicator singleton. This function should not be called before Run().
 func GetIndicator() *Indicator {
 	if root == nil {
-		root = &Indicator{}
+		root = &Indicator{
+			quickMap:        make(map[string]*MenuNode),
+			quitChan:        make(chan struct{}),
+			listeners:       make(map[client.NotifyChannel]*Listener),
+			timers:          make(map[string]*Timer),
+			graphicResource: make(map[graphicResource]*sync.RWMutex),
+		}
+		root.graphicResource[resourceIcon] = &sync.RWMutex{}
+		root.graphicResource[resourceLabel] = &sync.RWMutex{}
+		root.graphicResource[resourceDesktop] = &sync.RWMutex{}
 		root.gProvider = GetGuiProvider()
 		root.SetIcon(IconLiqoNoConn)
 		root.SetLabel("")
@@ -86,11 +108,6 @@ func GetIndicator() *Indicator {
 		root.activeNode = root.menu
 		root.menuTitleNode = newMenuNode(NodeTypeTitle, false, nil)
 		root.menuStatusNode = newMenuNode(NodeTypeStatus, false, nil)
-		//GetGuiProvider().AddSeparator()
-		root.quickMap = make(map[string]*MenuNode)
-		root.quitChan = make(chan struct{})
-		root.listeners = make(map[client.NotifyChannel]*Listener)
-		root.timers = make(map[string]*Timer)
 		root.config = newConfig()
 		root.status = GetStatus()
 		root.RefreshStatus()
@@ -141,7 +158,7 @@ func (i *Indicator) Action(tag string) (act *MenuNode, present bool) {
 func (i *Indicator) SelectAction(tag string) *MenuNode {
 	a, exist := i.menu.actionMap[tag]
 	if exist {
-		if i.activeNode == a || a.isDeactivated {
+		if i.activeNode == a || !a.IsEnabled() {
 			return a
 		}
 		i.activeNode = a
@@ -185,7 +202,7 @@ func (i *Indicator) DeselectAction() {
 				action.SetIsVisible(true)
 			} else {
 				action.SetIsVisible(true)
-				if !action.isDeactivated {
+				if action.IsEnabled() {
 					action.SetIsEnabled(true)
 				}
 				//hide all node sub-components
@@ -247,12 +264,16 @@ func (i *Indicator) SetMenuTitle(title string) {
 
 //Icon returns the icon-id of the Indicator tray icon currently set.
 func (i *Indicator) Icon() Icon {
+	gr := i.graphicResource[resourceIcon]
+	gr.RLock()
+	defer gr.RUnlock()
 	return i.icon
 }
 
 //SetIcon sets the Indicator tray icon. If 'ico' is not a valid argument or ico == IconLiqoNil,
 //SetIcon does nothing.
 func (i *Indicator) SetIcon(ico Icon) {
+	gr := i.graphicResource[resourceIcon]
 	var newIcon []byte
 	switch ico {
 	case IconLiqoNil:
@@ -280,17 +301,25 @@ func (i *Indicator) SetIcon(ico Icon) {
 	default:
 		return
 	}
+	gr.Lock()
+	defer gr.Unlock()
 	i.gProvider.SetIcon(newIcon)
 	i.icon = ico
 }
 
 //Label returns the text content of Indicator tray label.
 func (i *Indicator) Label() string {
+	gr := i.graphicResource[resourceLabel]
+	gr.RLock()
+	defer gr.RUnlock()
 	return i.label
 }
 
 //SetLabel sets the text content of Indicator tray label.
 func (i *Indicator) SetLabel(label string) {
+	gr := i.graphicResource[resourceLabel]
+	gr.Lock()
+	defer gr.Unlock()
 	i.label = label
 	i.gProvider.SetTitle(label)
 }

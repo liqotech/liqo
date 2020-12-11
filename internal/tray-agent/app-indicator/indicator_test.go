@@ -4,7 +4,6 @@ import (
 	"github.com/liqotech/liqo/internal/tray-agent/agent/client"
 	"github.com/stretchr/testify/assert"
 	"testing"
-	"time"
 )
 
 // test Indicator startup configuration and basic methods
@@ -108,12 +107,7 @@ func TestIndicatorRoutine(t *testing.T) {
 	o.SetIsChecked(false)
 	assert.False(t, o.IsChecked(), "OPTION is checked")
 	assert.Equal(t, o.title, oItem.Title(), "title of unchecked MenuNode not correctly reverted to normal")
-	//
-	o.SetIsDeactivated(true)
-	assert.True(t, o.IsDeactivated(), "OPTION is not deactivated")
-	o.SetIsDeactivated(false)
-	assert.False(t, o.IsDeactivated(), "OPTION is deactivated")
-	//
+
 	o.SetIsInvalid(true)
 	assert.True(t, o.IsInvalid(), "OPTION is not invalid")
 	o.SetIsInvalid(false)
@@ -140,6 +134,8 @@ func TestMenuNode_Connect(t *testing.T) {
 	DestroyMockedIndicator()
 	client.DestroyMockedAgentController()
 	i := GetIndicator()
+	et := GetGuiProvider().NewEventTester()
+	et.Test()
 	flagTest := false
 	o := i.AddQuick("test flag", "test", func(args ...interface{}) {
 		fp := args[0].(*bool)
@@ -147,8 +143,9 @@ func TestMenuNode_Connect(t *testing.T) {
 	}, &flagTest)
 	ch := o.Channel()
 	assert.NotNil(t, ch)
+	et.Add(1)
 	ch <- struct{}{}
-	time.Sleep(time.Second * 4)
+	et.Wait()
 	assert.True(t, flagTest, "Connect() callback not executed")
 	i.Quit()
 }

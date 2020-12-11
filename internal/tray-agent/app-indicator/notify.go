@@ -54,6 +54,9 @@ const (
 //
 //	IconLiqoNil : don't change current Indicator icon
 func (i *Indicator) Notify(title string, message string, notifyIcon NotifyIcon, indicatorIcon Icon) {
+	gr := i.graphicResource[resourceDesktop]
+	gr.Lock()
+	defer gr.Unlock()
 	switch i.config.notifyLevel {
 	case NotifyLevelOff:
 		return
@@ -144,6 +147,9 @@ func (i *Indicator) NotifyDeletedAdv(name string) {
 
 //ShowWarning displays a Warning window box.
 func (i *Indicator) ShowWarning(title, message string) {
+	gr := i.graphicResource[resourceDesktop]
+	gr.Lock()
+	defer gr.Unlock()
 	if !GetGuiProvider().Mocked() {
 		_, _ = dlgs.Warning(title, fmt.Sprintln(strutil.CenterText("", menuWidth*2), message))
 	}
@@ -158,6 +164,9 @@ func (i *Indicator) ShowWarningForbiddenTethered() {
 
 //ShowError displays an Error window box.
 func (i *Indicator) ShowError(title, message string) {
+	gr := i.graphicResource[resourceDesktop]
+	gr.Lock()
+	defer gr.Unlock()
 	if !GetGuiProvider().Mocked() {
 		_, _ = dlgs.Error(title, fmt.Sprintln(strutil.CenterText("", menuWidth*2), message))
 	}

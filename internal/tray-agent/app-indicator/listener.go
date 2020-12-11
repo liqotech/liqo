@@ -39,10 +39,8 @@ func (i *Indicator) Listen(tag client.NotifyChannel, notifyChan chan string, cal
 				if open {
 					callback(name, args...)
 					//signal callback execution in test mode
-					if GetGuiProvider().Mocked() {
-						if et, testing := GetGuiProvider().GetEventTester(); testing {
-							et.Done()
-						}
+					if et, testing := GetGuiProvider().GetEventTester(); testing {
+						et.Done()
 					}
 				}
 				//closing application

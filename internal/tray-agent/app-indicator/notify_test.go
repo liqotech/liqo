@@ -1,17 +1,17 @@
 package app_indicator
 
 import (
+	"github.com/liqotech/liqo/internal/tray-agent/agent/client"
 	"github.com/stretchr/testify/assert"
 	"testing"
 )
 
 func TestIndicator_NotificationSetLevel(t *testing.T) {
 	UseMockedGuiProvider()
-	i := &Indicator{
-		//default value: NotifyLevelMax
-		config:    newConfig(),
-		gProvider: GetGuiProvider(),
-	}
+	client.UseMockedAgentController()
+	DestroyMockedIndicator()
+	client.DestroyMockedAgentController()
+	i := GetIndicator()
 	i.NotificationSetLevel(NotifyLevelOff)
 	assert.Equalf(t, NotifyLevelOff, i.config.notifyLevel, "fail on setting "+
 		"NotifyLevelOff")
@@ -27,12 +27,10 @@ func TestIndicator_NotificationSetLevel(t *testing.T) {
 
 func TestIndicator_Notify(t *testing.T) {
 	UseMockedGuiProvider()
-	i := &Indicator{
-		//default value: NotifyLevelMax
-		config:    newConfig(),
-		icon:      IconLiqoMain,
-		gProvider: GetGuiProvider(),
-	}
+	client.UseMockedAgentController()
+	DestroyMockedIndicator()
+	client.DestroyMockedAgentController()
+	i := GetIndicator()
 	// test if any change happen when notifications are turned off
 	i.config.notifyLevel = NotifyLevelOff
 	i.Notify("", "", NotifyIconNil, IconLiqoOrange)
@@ -59,12 +57,10 @@ func TestIndicator_Notify(t *testing.T) {
 // test the set of pre-configured Notify*() methods
 func TestIndicator_NotifyFunctions(t *testing.T) {
 	UseMockedGuiProvider()
-	i := &Indicator{
-		//default value: NotifyLevelMax
-		config:    newConfig(),
-		icon:      IconLiqoMain,
-		gProvider: GetGuiProvider(),
-	}
+	client.UseMockedAgentController()
+	DestroyMockedIndicator()
+	client.DestroyMockedAgentController()
+	i := GetIndicator()
 	//test if Indicator icon correctly changes accordingly to each default Notify*() internal config
 	i.NotifyNoConnection()
 	assert.Equal(t, IconLiqoNoConn, i.icon, "NotifyNoConnection: indicator icon not correctly set")

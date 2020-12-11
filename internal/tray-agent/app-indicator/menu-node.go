@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/getlantern/systray"
 	"github.com/ozgio/strutil"
+	"sync"
 )
 
 /*NodeType defines the kind of a MenuNode, each one with specific features.
@@ -93,8 +94,6 @@ type MenuNode struct {
 	optionMap map[string]*MenuNode
 	//if isVisible==true, the MenuItem of the node is shown in the menu to the user
 	isVisible bool
-	//if isDeactivated==true, the user cannot interact with the MenuItem
-	isDeactivated bool
 	//if isInvalid==true, the content of the LIST MenuNode is no more up to date and has to be refreshed by application
 	//logic
 	isInvalid bool
@@ -106,6 +105,8 @@ type MenuNode struct {
 	//text content of the menu item. This redundancy of information is due to the fact Item does not provide getters
 	//for the data.
 	title string
+	//protection for concurrent access to MenuNode attributes.
+	sync.RWMutex
 }
 
 //newMenuNode creates a MenuNode of type NodeType
@@ -170,10 +171,12 @@ func (n *MenuNode) Channel() chan struct{} {
 //Connect instantiates a listener for the 'clicked' event of the node.
 //If once == true, the event handler is at most executed once.
 func (n *MenuNode) Connect(once bool, callback func(args ...interface{}), args ...interface{}) {
+	n.Lock()
 	if n.stopped {
 		n.stopChan = make(chan struct{})
 		n.stopped = false
 	}
+	n.Unlock()
 	var clickCh chan struct{}
 	switch n.item.(type) {
 	case *systray.MenuItem:
@@ -188,6 +191,9 @@ func (n *MenuNode) Connect(once bool, callback func(args ...interface{}), args .
 			select {
 			case <-clickCh:
 				callback(args...)
+				if et, testing := GetGuiProvider().GetEventTester(); testing {
+					et.Done()
+				}
 				if once {
 					return
 				}
@@ -202,6 +208,8 @@ func (n *MenuNode) Connect(once bool, callback func(args ...interface{}), args .
 
 //Disconnect removes the event handler (if any) from the MenuNode.
 func (n *MenuNode) Disconnect() {
+	n.Lock()
+	defer n.Unlock()
 	if !n.stopped {
 		close(n.stopChan)
 		n.stopped = true
@@ -212,6 +220,8 @@ func (n *MenuNode) Disconnect() {
 
 //ListChild returns a tagged LIST MenuNode from the ones currently in use.
 func (n *MenuNode) ListChild(tag string) (child *MenuNode, present bool) {
+	n.RLock()
+	defer n.RUnlock()
 	if n.nodeList == nil {
 		return nil, false
 	}
@@ -222,6 +232,8 @@ func (n *MenuNode) ListChild(tag string) (child *MenuNode, present bool) {
 //UseListChild returns a child LIST MenuNode ready to use and visible to users.
 //The node can use them to dynamically display to the user the output of application functions.
 func (n *MenuNode) UseListChild(title string, tag string) *MenuNode {
+	n.Lock()
+	defer n.Unlock()
 	if n.nodeList == nil {
 		n.nodeList = newNodeList(n)
 	}
@@ -231,6 +243,8 @@ func (n *MenuNode) UseListChild(title string, tag string) *MenuNode {
 //FreeListChild marks a LIST MenuNode and its nested children as unused, graphically removing them
 //from the submenu of MenuNode n in the tray menu. This is a no-op in case of tagged child missing.
 func (n *MenuNode) FreeListChild(tag string) {
+	n.RLock()
+	defer n.RUnlock()
 	nl := n.nodeList
 	if nl == nil {
 		return
@@ -246,6 +260,8 @@ func (n *MenuNode) FreeListChild(tag string) {
 //FreeListChildren recursively marks all children LIST MenuNode as unused, graphically removing it
 //from the submenu of MenuNode n in the tray menu.
 func (n *MenuNode) FreeListChildren() {
+	n.RLock()
+	defer n.RUnlock()
 	/* The recursion of this method is made by a 2-steps process:
 	1) MenuNode.FreeListChildren() : exported function that checks nullity of its nodeList;
 	2) nodeList.freeAllNodes() : internal function calling FreeListChildren on each LIST child.
@@ -258,6 +274,8 @@ func (n *MenuNode) FreeListChildren() {
 
 //ListChildrenLen returns the number of LIST MenuNode currently in use.
 func (n *MenuNode) ListChildrenLen() int {
+	n.RLock()
+	defer n.RUnlock()
 	if n.nodeList == nil {
 		return 0
 	}
@@ -281,17 +299,20 @@ func (n *MenuNode) AddOption(title string, tag string, tooltip string, withCheck
 	o.SetTitle(title)
 	o.SetTag(tag)
 	o.SetTooltip(tooltip)
-	o.parent = n
-	n.optionMap[tag] = o
 	o.SetIsVisible(true)
 	if callback != nil {
 		o.Connect(false, callback, args...)
 	}
+	n.Lock()
+	defer n.Unlock()
+	n.optionMap[tag] = o
 	return o
 }
 
 //Option returns the *MenuNode of the OPTION with this specific tag. If such OPTION does not exist, present = false.
 func (n *MenuNode) Option(tag string) (opt *MenuNode, present bool) {
+	n.RLock()
+	defer n.RUnlock()
 	opt, present = n.optionMap[tag]
 	return
 }
@@ -300,6 +321,8 @@ func (n *MenuNode) Option(tag string) (opt *MenuNode, present bool) {
 
 //SetTitle sets the text content of the MenuNode label.
 func (n *MenuNode) SetTitle(title string) {
+	n.Lock()
+	defer n.Unlock()
 	if n.nodeType == NodeTypeTitle {
 		//the TITLE MenuNode is also used to set the width of the entire menu window
 		n.item.SetTitle(strutil.CenterText(title, menuWidth))
@@ -312,43 +335,59 @@ func (n *MenuNode) SetTitle(title string) {
 
 //Title returns the text content of the menu entry. Eventual check tick for checked MenuNode is not included.
 func (n *MenuNode) Title() string {
+	n.RLock()
+	defer n.RUnlock()
 	return n.title
 }
 
 //Tag returns the MenuNode tag.
 func (n *MenuNode) Tag() string {
+	n.RLock()
+	defer n.RUnlock()
 	return n.tag
 }
 
 //SetTag sets the the MenuNode tag.
 func (n *MenuNode) SetTag(tag string) {
+	n.Lock()
+	defer n.Unlock()
 	n.tag = tag
 }
 
 //SetTooltip sets a 'mouse hover' tooltip for the MenuNode. This is a no-op for Linux builds.
 func (n *MenuNode) SetTooltip(tooltip string) {
+	n.Lock()
+	defer n.Unlock()
 	n.item.SetTooltip(tooltip)
 }
 
 //IsInvalid returns if the content of the LIST MenuNode is no more up to date and has to be refreshed by application
 //logic.
 func (n *MenuNode) IsInvalid() bool {
+	n.RLock()
+	defer n.RUnlock()
 	return n.isInvalid
 }
 
 //SetIsInvalid change the validity of MenuNode content. If isInvalid==true, the content of the LIST MenuNode is no more
 //up to date and has to be refreshed by application logic.
 func (n *MenuNode) SetIsInvalid(isInvalid bool) {
+	n.Lock()
+	defer n.Unlock()
 	n.isInvalid = isInvalid
 }
 
 //IsVisible returns if the MenuNode is currently displayed in the menu.
 func (n *MenuNode) IsVisible() bool {
+	n.RLock()
+	defer n.RUnlock()
 	return n.isVisible
 }
 
 //SetIsVisible change the MenuNode visibility in the menu.
 func (n *MenuNode) SetIsVisible(isVisible bool) {
+	n.Lock()
+	defer n.Unlock()
 	if isVisible {
 		n.item.Show()
 		n.isVisible = true
@@ -360,11 +399,15 @@ func (n *MenuNode) SetIsVisible(isVisible bool) {
 
 //IsEnabled returns if the MenuNode label is clickable by the user (if displayed).
 func (n *MenuNode) IsEnabled() bool {
+	n.RLock()
+	defer n.RUnlock()
 	return !n.item.Disabled()
 }
 
 //SetIsEnabled change MenuNode possibility to be clickable.
 func (n *MenuNode) SetIsEnabled(isEnabled bool) {
+	n.Lock()
+	defer n.Unlock()
 	if isEnabled {
 		n.item.Enable()
 	} else {
@@ -374,11 +417,15 @@ func (n *MenuNode) SetIsEnabled(isEnabled bool) {
 
 //IsChecked returns if MenuNode has been checked.
 func (n *MenuNode) IsChecked() bool {
+	n.RLock()
+	defer n.RUnlock()
 	return n.item.Checked()
 }
 
 //SetIsChecked (un)check the MenuNode.
 func (n *MenuNode) SetIsChecked(isChecked bool) {
+	n.Lock()
+	defer n.Unlock()
 	if isChecked && !n.item.Checked() {
 		if !n.hasCheckbox {
 			n.item.SetTitle(fmt.Sprintf("%s%s", nodeIconChecked, n.title))
@@ -390,16 +437,4 @@ func (n *MenuNode) SetIsChecked(isChecked bool) {
 		}
 		n.item.Uncheck()
 	}
-}
-
-//IsDeactivated returns if the user cannot interact with the MenuItem (isDeactivated).
-func (n *MenuNode) IsDeactivated() bool {
-	return n.isDeactivated
-}
-
-//if isDeactivated==true, the user cannot interact with the MenuItem (isDeactivated).
-func (n *MenuNode) SetIsDeactivated(isDeactivated bool) {
-	n.isDeactivated = isDeactivated
-	n.SetIsEnabled(!isDeactivated)
-	n.SetIsVisible(false)
 }
