@@ -337,7 +337,7 @@ func testBidirectionalJoin(t *testing.T) {
 	time.Sleep(1 * time.Second)
 
 	tmp, err := serverCluster.client.Resource("foreignclusters").List(metav1.ListOptions{
-		LabelSelector: strings.Join([]string{"discovery-type", string(discoveryPkg.IncomingPeeringDiscovery)}, "="),
+		LabelSelector: strings.Join([]string{discoveryPkg.DiscoveryTypeLabel, string(discoveryPkg.IncomingPeeringDiscovery)}, "="),
 	})
 	assert.NilError(t, err)
 	remoteFcList, ok := tmp.(*v1alpha1.ForeignClusterList)

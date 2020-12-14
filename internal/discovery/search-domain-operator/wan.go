@@ -6,12 +6,17 @@ import (
 	"github.com/miekg/dns"
 	"k8s.io/klog"
 	"net"
-	"strconv"
 	"time"
 )
 
-func Wan(dnsAddr string, name string) ([]*discovery.TxtData, error) {
-	txtData := []*discovery.TxtData{}
+// load a list of foreign AuthServices given a DNS domain name.
+// These foreign services have to be added in a PTR record for that domain name,
+// for example:
+// liqo.mycompany.com		myliqo1.mycompany.com, myliqo2.mycompany.com
+// can be 2 different clusters registered on a company domain.
+// For each cluster than we have to have a SRV record that specify the port where to contact that cluster
+func LoadAuthDataFromDNS(dnsAddr string, name string) ([]*discovery.AuthData, error) {
+	authData := []*discovery.AuthData{}
 
 	if dnsAddr == "" {
 		clientConfig, err := dns.ClientConfigFromFile("/etc/resolv.conf")
@@ -44,17 +49,17 @@ func Wan(dnsAddr string, name string) ([]*discovery.TxtData, error) {
 			klog.Warning("Not PTR record: ", ans)
 			continue
 		}
-		txt, err := ResolveWan(c, dnsAddr, ptr)
+		aData, err := ResolveWan(c, dnsAddr, ptr)
 		if err != nil {
 			klog.Error(err, err.Error())
 			return nil, err
 		}
-		txtData = append(txtData, txt)
+		authData = append(authData, aData)
 	}
-	return txtData, nil
+	return authData, nil
 }
 
-func ResolveWan(c *dns.Client, dnsAddr string, ptr *dns.PTR) (*discovery.TxtData, error) {
+func ResolveWan(c *dns.Client, dnsAddr string, ptr *dns.PTR) (*discovery.AuthData, error) {
 	// SRV query
 	msg := GetDnsMsg(ptr.Ptr, dns.TypeSRV)
 	in, _, err := c.Exchange(msg, dnsAddr)
@@ -68,26 +73,7 @@ func ResolveWan(c *dns.Client, dnsAddr string, ptr *dns.PTR) (*discovery.TxtData
 	}
 	srv := in.Answer[0].(*dns.SRV)
 
-	// TXT query
-	msg = GetDnsMsg(ptr.Ptr, dns.TypeTXT)
-	in, _, err = c.Exchange(msg, dnsAddr)
-	if err != nil {
-		klog.Error(err, err.Error())
-		return nil, err
-	}
-	txt, err := AnswerToTxt(in.Answer)
-	if err != nil {
-		klog.Error(err, err.Error())
-		return nil, err
-	}
-
-	txtData := &discovery.TxtData{}
-	if err = txtData.Decode(srv.Target, strconv.Itoa(int(srv.Port)), txt); err != nil {
-		klog.Error(err, err.Error())
-		return nil, err
-	}
-	txtData.Ttl = srv.Header().Ttl
-	return txtData, nil
+	return discovery.NewAuthData(srv.Target, int(srv.Port), srv.Hdr.Ttl), nil
 }
 
 func GetDnsMsg(name string, qType uint16) *dns.Msg {
@@ -101,16 +87,4 @@ func GetDnsMsg(name string, qType uint16) *dns.Msg {
 		Qclass: dns.ClassINET,
 	}
 	return msg
-}
-
-func AnswerToTxt(answers []dns.RR) ([]string, error) {
-	res := []string{}
-	for _, ans := range answers {
-		txt, ok := ans.(*dns.TXT)
-		if !ok {
-			return nil, errors.New("Not TXT record: " + ans.String())
-		}
-		res = append(res, txt.Txt...)
-	}
-	return res, nil
 }

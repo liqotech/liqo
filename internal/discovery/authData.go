@@ -18,6 +18,14 @@ type AuthData struct {
 	isTest bool
 }
 
+func NewAuthData(address string, port int, ttl uint32) *AuthData {
+	return &AuthData{
+		address: address,
+		port:    port,
+		ttl:     ttl,
+	}
+}
+
 func NewAuthDataTest(address string, port int) *AuthData {
 	return &AuthData{
 		address: address,

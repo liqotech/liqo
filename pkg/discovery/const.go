@@ -1,9 +1,11 @@
 package discovery
 
 const (
-	ClusterIdLabel      = "liqo.io/cluster-id"
-	AuthTokenLabel      = "liqo.io/auth-token"
-	RemoteIdentityLabel = "liqo.io/remote-identity"
+	ClusterIdLabel      = "discovery.liqo.io/cluster-id"
+	AuthTokenLabel      = "discovery.liqo.io/auth-token"
+	RemoteIdentityLabel = "discovery.liqo.io/remote-identity"
+	DiscoveryTypeLabel  = "discovery.liqo.io/discovery-type"
+	SearchDomainLabel   = "discovery.liqo.io/searchdomain"
 )
 
 type DiscoveryType string
