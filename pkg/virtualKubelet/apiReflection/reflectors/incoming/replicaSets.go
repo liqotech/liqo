@@ -2,6 +2,7 @@ package incoming
 
 import (
 	"context"
+	"fmt"
 	"github.com/liqotech/liqo/pkg/virtualKubelet"
 	apimgmt "github.com/liqotech/liqo/pkg/virtualKubelet/apiReflection"
 	ri "github.com/liqotech/liqo/pkg/virtualKubelet/apiReflection/reflectors/reflectorsInterfaces"
@@ -9,6 +10,7 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/klog"
 )
@@ -90,6 +92,21 @@ func (r *ReplicaSetsIncomingReflector) preDelete(obj interface{}) interface{} {
 	}
 
 	homePod := homeObjPo.(*corev1.Pod).DeepCopy()
+
+	// allow deletion of the related homePod by removing its finalizer
+	finalizerPatch := []byte(fmt.Sprintf(
+		`[{"op":"remove","path":"/metadata/finalizers","value":["%s"]}]`,
+		virtualKubelet.HomePodFinalizer))
+
+	_, err = r.GetHomeClient().CoreV1().Pods(homePod.Namespace).Patch(context.TODO(),
+		homePod.Name,
+		types.JSONPatchType,
+		finalizerPatch,
+		metav1.PatchOptions{})
+	if err != nil {
+		klog.Error(err)
+		return err
+	}
 
 	// if the DeletionTimestamp is already set, the replicaset deletion has been triggered by a homePod delete event,
 	// hence we have not to delete it

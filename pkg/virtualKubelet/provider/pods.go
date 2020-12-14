@@ -16,6 +16,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	kerror "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/tools/remotecommand"
 	"k8s.io/klog"
@@ -48,6 +49,21 @@ func (p *LiqoProvider) CreatePod(_ context.Context, homePod *corev1.Pod) error {
 	}
 
 	foreignReplicaset := forge.ReplicasetFromPod(foreignPod.(*corev1.Pod))
+
+	// add a finalizer to allow the pod to be garbage collected by the incoming replicaset reflector
+	finalizerPatch := []byte(fmt.Sprintf(
+		`[{"op":"add","path":"/metadata/finalizers","value":["%s"]}]`,
+		virtualKubelet.HomePodFinalizer))
+
+	_, err = p.nntClient.Client().CoreV1().Pods(homePod.Namespace).Patch(context.TODO(),
+		homePod.Name,
+		types.JSONPatchType,
+		finalizerPatch,
+		metav1.PatchOptions{})
+	if err != nil {
+		klog.Error(err)
+		return err
+	}
 
 	_, err = p.foreignClient.AppsV1().ReplicaSets(foreignReplicaset.Namespace).Create(context.TODO(), foreignReplicaset, metav1.CreateOptions{})
 	if err != nil {
