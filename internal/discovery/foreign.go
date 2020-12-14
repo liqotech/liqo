@@ -38,26 +38,38 @@ func (discovery *DiscoveryCtrl) UpdateForeignLAN(data *discoveryData, trustMode 
 	}
 }
 
-func (discovery *DiscoveryCtrl) UpdateForeignWAN(data []*TxtData, sd *v1alpha1.SearchDomain) []*v1alpha1.ForeignCluster {
+// update the list of known foreign clusters:
+// for each cluster retrieved with DNS discovery, if it is not the local cluster, check if it is already known, if not
+// create it. In both cases update the ForeignCluster TTL
+// This function also sets an owner reference and a label to the ForeignCluster pointing to the SearchDomain CR
+func (discovery *DiscoveryCtrl) UpdateForeignWAN(data []*AuthData, sd *v1alpha1.SearchDomain) []*v1alpha1.ForeignCluster {
 	createdUpdatedForeign := []*v1alpha1.ForeignCluster{}
 	discoveryType := discoveryPkg.WanDiscovery
-	for _, txtData := range data {
-		if txtData.ID == discovery.ClusterId.GetClusterID() {
+	for _, authData := range data {
+		clusterInfo, trustMode, err := discovery.getClusterInfo(authData)
+		if err != nil {
+			klog.Error(err)
+			continue
+		}
+
+		if clusterInfo.ClusterID == discovery.ClusterId.GetClusterID() {
 			// is local cluster
 			continue
 		}
 
-		err := retry.OnError(
+		err = retry.OnError(
 			retry.DefaultRetry,
 			func(err error) bool {
 				return k8serror.IsConflict(err) || k8serror.IsAlreadyExists(err)
 			},
 			func() error {
-				return discovery.createOrUpdate(&discoveryData{ // TODO: discover auth service in wan discovery
-					//TxtData: txtData,
-				}, discoveryPkg.TrustModeUnknown, sd, discoveryType, &createdUpdatedForeign)
+				return discovery.createOrUpdate(&discoveryData{
+					AuthData:    authData,
+					ClusterInfo: clusterInfo,
+				}, trustMode, sd, discoveryType, &createdUpdatedForeign)
 			})
 		if err != nil {
+			klog.Error(err)
 			continue
 		}
 	}
@@ -132,11 +144,13 @@ func (discovery *DiscoveryCtrl) createForeign(data *discoveryData, trustMode dis
 				UID:        sd.UID,
 			},
 		}
+		if fc.Labels == nil {
+			fc.Labels = map[string]string{}
+		}
+		fc.Labels[discoveryPkg.SearchDomainLabel] = sd.Name
 	}
-	if discoveryType == discoveryPkg.LanDiscovery {
-		// set TTL
-		fc.Status.Ttl = data.AuthData.ttl
-	}
+	// set TTL
+	fc.Status.Ttl = data.AuthData.ttl
 	tmp, err := discovery.crdClient.Resource("foreignclusters").Create(fc, metav1.CreateOptions{})
 	if err != nil {
 		klog.Error(err, err.Error())
@@ -167,6 +181,7 @@ func (discovery *DiscoveryCtrl) CheckUpdate(data *discoveryData, fc *v1alpha1.Fo
 			fc.Status.Ttl = data.AuthData.ttl
 		} else if searchDomain != nil && discoveryType == discoveryPkg.WanDiscovery {
 			fc.Spec.Join = searchDomain.Spec.AutoJoin
+			fc.Status.Ttl = data.AuthData.ttl
 		}
 		fc.LastUpdateNow()
 		tmp, err := discovery.crdClient.Resource("foreignclusters").Update(fc.Name, fc, metav1.UpdateOptions{})

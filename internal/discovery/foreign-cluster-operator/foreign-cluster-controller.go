@@ -119,8 +119,8 @@ func (r *ForeignClusterReconciler) Reconcile(req ctrl.Request) (ctrl.Result, err
 	if fc.ObjectMeta.Labels == nil {
 		fc.ObjectMeta.Labels = map[string]string{}
 	}
-	if fc.ObjectMeta.Labels["discovery-type"] == "" || fc.ObjectMeta.Labels["discovery-type"] != string(fc.Spec.DiscoveryType) {
-		fc.ObjectMeta.Labels["discovery-type"] = string(fc.Spec.DiscoveryType)
+	if fc.ObjectMeta.Labels[discoveryPkg.DiscoveryTypeLabel] == "" || fc.ObjectMeta.Labels[discoveryPkg.DiscoveryTypeLabel] != string(fc.Spec.DiscoveryType) {
+		fc.ObjectMeta.Labels[discoveryPkg.DiscoveryTypeLabel] = string(fc.Spec.DiscoveryType)
 		requireUpdate = true
 	}
 	// set cluster-id label to easy retrieve ForeignClusters by ClusterId,

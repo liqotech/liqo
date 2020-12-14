@@ -43,8 +43,6 @@ type SearchDomainStatus struct {
 	// INSERT ADDITIONAL STATUS FIELD - define observed state of cluster
 	// Important: Run "make" to regenerate code after modifying this file
 
-	// ForeignCluster created basing on this SearchDomain
-	ForeignClusters []v1.ObjectReference `json:"foreignClusters"`
 }
 
 // +kubebuilder:object:root=true
