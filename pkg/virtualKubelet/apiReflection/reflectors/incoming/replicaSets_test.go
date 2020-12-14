@@ -120,8 +120,9 @@ var _ = Describe("Replicasets", func() {
 					},
 					expected: &corev1.Pod{
 						ObjectMeta: metav1.ObjectMeta{
-							Name:      "homePod",
-							Namespace: "homeNamespace",
+							Name:       "homePod",
+							Namespace:  "homeNamespace",
+							Finalizers: []string{virtualKubelet.HomePodFinalizer},
 						},
 					},
 				}),

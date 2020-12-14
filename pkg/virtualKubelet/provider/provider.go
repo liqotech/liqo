@@ -26,7 +26,7 @@ type LiqoProvider struct { // nolint:golint]
 
 	advClient     *crdClient.CRDClient
 	tunEndClient  *crdClient.CRDClient
-	homeClient    *crdClient.CRDClient
+	nntClient     *crdClient.CRDClient
 	foreignClient kubernetes.Interface
 
 	operatingSystem    string
@@ -109,13 +109,12 @@ func NewLiqoProvider(nodeName, foreignClusterId, homeClusterId string, internalI
 		foreignClusterId:      foreignClusterId,
 		homeClusterID:         homeClusterId,
 		providerKubeconfig:    remoteKubeConfig,
-		homeClient:            client,
+		nntClient:             client,
 		foreignPodWatcherStop: make(chan struct{}, 1),
 		restConfig:            restConfig,
 		foreignClient:         foreignClient,
 		advClient:             advClient,
 		tunEndClient:          tepClient,
-
 		RemoteRemappedPodCidr: remoteRemappedPodCIDROpt,
 		LocalRemappedPodCidr:  localRemappedPodCIDROpt,
 	}

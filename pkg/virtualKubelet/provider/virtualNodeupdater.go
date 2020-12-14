@@ -134,7 +134,7 @@ func (p *LiqoProvider) ReconcileNodeFromTep(event watch.Event) error {
 	if event.Type == watch.Deleted {
 		klog.Infof("tunnelEndpoint %v deleted", tep.Name)
 		p.RemoteRemappedPodCidr.SetValue("")
-		no, err := p.homeClient.Client().CoreV1().Nodes().Get(context.TODO(), p.nodeName.Value().ToString(), metav1.GetOptions{})
+		no, err := p.nntClient.Client().CoreV1().Nodes().Get(context.TODO(), p.nodeName.Value().ToString(), metav1.GetOptions{})
 		if err != nil {
 			klog.Error(err)
 			return err
@@ -162,7 +162,7 @@ func (p *LiqoProvider) updateFromAdv(adv advtypes.Advertisement) error {
 	var err error
 
 	var no *v1.Node
-	if no, err = p.homeClient.Client().CoreV1().Nodes().Get(context.TODO(), p.nodeName.Value().ToString(), metav1.GetOptions{}); err != nil {
+	if no, err = p.nntClient.Client().CoreV1().Nodes().Get(context.TODO(), p.nodeName.Value().ToString(), metav1.GetOptions{}); err != nil {
 		return err
 	}
 
@@ -170,7 +170,7 @@ func (p *LiqoProvider) updateFromAdv(adv advtypes.Advertisement) error {
 		"cluster-id": p.foreignClusterId,
 	})
 	no.SetLabels(mergeMaps(no.GetLabels(), adv.Spec.Labels))
-	no, err = p.homeClient.Client().CoreV1().Nodes().Update(context.TODO(), no, metav1.UpdateOptions{})
+	no, err = p.nntClient.Client().CoreV1().Nodes().Update(context.TODO(), no, metav1.UpdateOptions{})
 	if err != nil {
 		return err
 	}
@@ -234,7 +234,7 @@ func (p *LiqoProvider) updateFromTep(tep nettypes.TunnelEndpoint) error {
 		p.LocalRemappedPodCidr.SetValue(options.OptionValue(tep.Status.LocalRemappedPodCIDR))
 	}
 
-	no, err := p.homeClient.Client().CoreV1().Nodes().Get(context.TODO(), p.nodeName.Value().ToString(), metav1.GetOptions{})
+	no, err := p.nntClient.Client().CoreV1().Nodes().Get(context.TODO(), p.nodeName.Value().ToString(), metav1.GetOptions{})
 	if err != nil {
 		return err
 	}
