@@ -439,7 +439,7 @@ func (r *ForeignClusterReconciler) checkJoined(fc *discoveryv1alpha1.ForeignClus
 }
 
 func (r *ForeignClusterReconciler) getHomeAuthUrl() (string, error) {
-	address, _ := os.LookupEnv("APISERVER")
+	address, _ := os.LookupEnv("AUTH_ADDR")
 
 	if address == "" {
 		nodes, err := r.crdClient.Client().CoreV1().Nodes().List(context.TODO(), metav1.ListOptions{})

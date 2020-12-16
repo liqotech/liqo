@@ -26,6 +26,7 @@ type AuthServiceCtrl struct {
 	saInformer     cache.SharedIndexInformer
 	nodeInformer   cache.SharedIndexInformer
 	secretInformer cache.SharedIndexInformer
+	useTls         bool
 
 	clusterId *clusterID.ClusterID
 
@@ -34,7 +35,7 @@ type AuthServiceCtrl struct {
 	configMutex     sync.RWMutex
 }
 
-func NewAuthServiceCtrl(namespace string, kubeconfigPath string, resyncTime time.Duration) (*AuthServiceCtrl, error) {
+func NewAuthServiceCtrl(namespace string, kubeconfigPath string, resyncTime time.Duration, useTls bool) (*AuthServiceCtrl, error) {
 	config, err := crdClient.NewKubeconfig(kubeconfigPath, &discoveryv1alpha1.GroupVersion)
 	if err != nil {
 		return nil, err
@@ -70,6 +71,7 @@ func NewAuthServiceCtrl(namespace string, kubeconfigPath string, resyncTime time
 		nodeInformer:   nodeInformer,
 		secretInformer: secretInformer,
 		clusterId:      clusterId,
+		useTls:         useTls,
 	}, nil
 }
 
@@ -83,7 +85,12 @@ func (authService *AuthServiceCtrl) Start(listeningPort string, certFile string,
 	router.POST("/identity", authService.role)
 	router.GET("/ids", authService.ids)
 
-	err := http.ListenAndServeTLS(strings.Join([]string{":", listeningPort}, ""), certFile, keyFile, router)
+	var err error
+	if authService.useTls {
+		err = http.ListenAndServeTLS(strings.Join([]string{":", listeningPort}, ""), certFile, keyFile, router)
+	} else {
+		err = http.ListenAndServe(strings.Join([]string{":", listeningPort}, ""), router)
+	}
 	if err != nil {
 		klog.Error(err)
 		return err

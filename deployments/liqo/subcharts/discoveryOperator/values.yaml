@@ -9,6 +9,3 @@ image:
 
 suffix: ""
 version: "latest"
-
-apiServerIp: ""
-apiServerPort: ""
