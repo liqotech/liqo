@@ -10,5 +10,7 @@ image:
 suffix: ""
 version: "latest"
 
-apiServerIp: ""
-apiServerPort: ""
+ingress:
+  enable: false
+  host: ""
+  class: ""

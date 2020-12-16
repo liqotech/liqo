@@ -18,6 +18,7 @@ func main() {
 	var listeningPort string
 	var certFile string
 	var keyFile string
+	var useTls bool
 
 	flag.StringVar(&namespace, "namespace", "default", "Namespace where your configs are stored.")
 	flag.StringVar(&kubeconfigPath, "kubeconfigPath", filepath.Join(os.Getenv("HOME"), ".kube", "config"), "For debug purpose, set path to local kubeconfig")
@@ -25,11 +26,12 @@ func main() {
 	flag.StringVar(&listeningPort, "listeningPort", "5000", "Sets the port where the service will listen")
 	flag.StringVar(&certFile, "certFile", "/certs/cert.pem", "Path to cert file")
 	flag.StringVar(&keyFile, "keyFile", "/certs/key.pem", "Path to key file")
+	flag.BoolVar(&useTls, "useTls", false, "Enable HTTPS server")
 	flag.Parse()
 
 	klog.Info("Namespace: ", namespace)
 
-	authService, err := auth_service.NewAuthServiceCtrl(namespace, kubeconfigPath, time.Duration(resyncSeconds)*time.Second)
+	authService, err := auth_service.NewAuthServiceCtrl(namespace, kubeconfigPath, time.Duration(resyncSeconds)*time.Second, useTls)
 	if err != nil {
 		klog.Error(err)
 		os.Exit(1)

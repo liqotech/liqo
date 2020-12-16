@@ -140,14 +140,16 @@ spec:
         run: auth-service
     spec:
       serviceAccountName: auth-service-sa
+      {{ if not .Values.ingress.enable }}
       initContainers:
         - name: cert-creator
-          image: nginx
+          image: nginx:1.19
           volumeMounts:
             - mountPath: '/certs'
               name: certs
           command: [ "/bin/sh" ]
           args: [ "-c", 'openssl req -x509 -subj "/C=IT/ST=Turin/O=Liqo" -nodes -days 365 -newkey rsa:4096 -keyout /certs/key.pem -out /certs/cert.pem' ]
+      {{ end }}
       containers:
         - image: {{ .Values.image.repository }}{{ .Values.global.suffix | default .Values.suffix }}:{{ .Values.global.version | default .Values.version }}
           name: auth-service
@@ -159,19 +161,24 @@ spec:
           - "--resyncSeconds"
           - "30"
           - "--listeningPort"
+          {{ if .Values.ingress.enable }}
           - "5000"
+          {{ else }}
+          - "443"
+          - "--useTls"
+          {{ end }}
           env:
             - name: POD_NAMESPACE
               valueFrom:
                 fieldRef:
                   fieldPath: metadata.namespace
-            {{ if .Values.apiServerIp }}
+            {{ if .Values.global.apiServer.ip }}
             - name: APISERVER
-              value: {{ .Values.apiServerIp }}
+              value: "{{ .Values.global.apiServer.ip }}"
             {{ end }}
-            {{ if .Values.apiServerPort }}
+            {{ if .Values.global.apiServer.port }}
             - name: APISERVER_PORT
-              value: {{ .Values.apiServerPort }}
+              value: "{{ .Values.global.apiServer.port }}"
             {{ end }}
           resources:
             limits:
@@ -195,11 +202,56 @@ metadata:
   name: auth-service
   namespace: {{ .Release.Namespace }}
 spec:
+  {{ if .Values.ingress.enable }}
+  type: ClusterIP
+  {{ else }}
   type: NodePort
+  {{ end }}
   selector:
     run: auth-service
   ports:
     - name: https
       protocol: TCP
-      port: 443
+      {{ if .Values.ingress.enable }}
+      port: 5000
       targetPort: 5000
+      {{ else }}
+      port: 443
+      targetPort: 443
+      {{ end }}
+---
+{{ if .Values.ingress.enable }}
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  labels:
+    run: auth-service
+  annotations:
+    {{ if (.Values.ingress.class) }}
+    kubernetes.io/ingress.class: {{ .Values.ingress.class }}
+    {{ end }}
+    nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
+  name: auth-service
+  namespace: {{ .Release.Namespace }}
+spec:
+  rules:
+    - http:
+        paths:
+          - backend:
+              service:
+                name: auth-service
+                port:
+                  number: 5000
+            path: /
+            pathType: Prefix
+      {{ if (.Values.ingress.host) }}
+      host: {{ .Values.ingress.host }}
+      {{ end }}
+  tls:
+    {{ if (.Values.ingress.host) }}
+    - hosts:
+      - {{ .Values.ingress.host }}
+    {{ else }}
+    - hosts: []
+    {{ end }}
+{{ end }}

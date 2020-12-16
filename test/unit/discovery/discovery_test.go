@@ -58,6 +58,7 @@ func TestMain(m *testing.M) {
 	_ = os.Setenv("APISERVER", "127.0.0.1")
 	_ = os.Setenv("AUTH_SVC_PORT", "30001")
 	_ = os.Setenv("TEST", "true")
+	_ = os.Setenv("AUTH_ADDR", "fake://localhost")
 
 	setUp()
 	defer tearDown()

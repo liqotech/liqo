@@ -9,6 +9,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/utils/pointer"
+	"os"
 	"strings"
 )
 
@@ -39,6 +40,30 @@ func GetBroadcasterDeployment(request *discoveryv1alpha1.PeeringRequest, nameSA 
 		clusterId,
 		"--service-account",
 		remoteSA,
+	}
+
+	// forward local environment variables to the broadcaster deployment, in particular:
+	// - POD_NAMESPACE: where this pod is running
+	// - APISERVER: used to override the default API Server address (the master IP), useful for managed kubernetes clusters
+	// - APISERVER_PORT: used to override the default API Server port (6443)
+	// these variables will be used by these pods to forge a new identity and a new kubeconfig for the foreign virtual kubelet
+	env := []v1.EnvVar{
+		{
+			Name:  "POD_NAMESPACE",
+			Value: namespace,
+		},
+	}
+	if val, exists := os.LookupEnv("APISERVER"); exists {
+		env = append(env, v1.EnvVar{
+			Name:  "APISERVER",
+			Value: val,
+		})
+	}
+	if val, exists := os.LookupEnv("APISERVER_PORT"); exists {
+		env = append(env, v1.EnvVar{
+			Name:  "APISERVER_PORT",
+			Value: val,
+		})
 	}
 
 	deploy := &appsv1.Deployment{
@@ -85,12 +110,7 @@ func GetBroadcasterDeployment(request *discoveryv1alpha1.PeeringRequest, nameSA 
 									"memory": resource.MustParse(broadcasterMemory),
 								},
 							},
-							Env: []v1.EnvVar{
-								{
-									Name:  "POD_NAMESPACE",
-									Value: namespace,
-								},
-							},
+							Env: env,
 						},
 					},
 					ServiceAccountName: nameSA,

@@ -102,6 +102,10 @@ authService:
     repository: "liqo/auth-service"
     pullPolicy: "IfNotPresent"
   enabled: true
+  ingress:
+    enable: false
+    host: ""
+    class: ""
 
 global:
   configmapName: "liqo-configmap"
@@ -109,3 +113,9 @@ global:
   dashboard_version: ""
   suffix: ""
   version: ""
+  apiServer:
+    ip: ""
+    port: ""
+  authServer:
+    ip: ""
+    port: ""

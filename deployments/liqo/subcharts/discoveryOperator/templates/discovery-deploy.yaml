@@ -221,13 +221,21 @@ spec:
               valueFrom:
                 fieldRef:
                   fieldPath: metadata.namespace
-            {{ if .Values.apiServerIp }}
+            {{ if .Values.global.apiServer.ip }}
             - name: APISERVER
-              value: {{ .Values.apiServerIp }}
+              value: "{{ .Values.global.apiServer.ip }}"
             {{ end }}
-            {{ if .Values.apiServerPort }}
+            {{ if .Values.global.apiServer.port }}
             - name: APISERVER_PORT
-              value: {{ .Values.apiServerPort }}
+              value: "{{ .Values.global.apiServer.port }}"
+            {{ end }}
+            {{ if .Values.global.authServer.ip }}
+            - name: AUTH_ADDR
+              value: "{{ .Values.global.authServer.ip }}"
+            {{ end }}
+            {{ if .Values.global.authServer.port }}
+            - name: AUTH_SVC_PORT
+              value: "{{ .Values.global.authServer.port }}"
             {{ end }}
           volumeMounts:
             - mountPath: /usr/local/share/ca-certificates
