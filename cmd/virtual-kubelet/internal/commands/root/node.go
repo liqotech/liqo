@@ -53,6 +53,12 @@ func NodeFromProvider(ctx context.Context, name string, taint *v1.Taint, p provi
 				Architecture:   "amd64",
 				KubeletVersion: version,
 			},
+			Conditions: []v1.NodeCondition{
+				{
+					Type: v1.NodeReady,
+					Status: v1.ConditionFalse,
+				},
+			},
 		},
 	}
 	if len(refs) > 0 {

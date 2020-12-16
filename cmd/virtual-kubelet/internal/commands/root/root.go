@@ -172,11 +172,17 @@ func runRootCommand(ctx context.Context, s *provider.Store, c *Opts) error {
 						return newErr
 					}
 					_, newErr = client.CoreV1().Nodes().Create(context.TODO(), newNode, metav1.CreateOptions{})
-					klog.Info("new node created")
+					if newErr != nil {
+						klog.Errorf("error while creating new node - ERR: %v", newErr)
+					} else {
+						klog.Info("new node created")
+					}
 				} else {
 					oldNode.Status = newNode.Status
 					_, newErr = client.CoreV1().Nodes().UpdateStatus(context.TODO(), oldNode, metav1.UpdateOptions{})
 					if newErr != nil {
+						klog.Errorf("error while updating the virtual node - ERR: %v", newErr)
+					} else {
 						klog.Info("node updated")
 					}
 				}

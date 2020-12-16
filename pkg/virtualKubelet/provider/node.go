@@ -23,7 +23,10 @@ func (p *LiqoProvider) ConfigureNode(ctx context.Context, n *v1.Node) {
 	n.Status.NodeInfo.OperatingSystem = os
 	n.Status.NodeInfo.Architecture = "amd64"
 	n.ObjectMeta.Labels["alpha.service-controller.kubernetes.io/exclude-balancer"] = "true"
-	n.Labels["type"] = "virtual-node"
+	n.ObjectMeta.Labels["node.kubernetes.io/exclude-from-external-load-balancers"] = "true"
+	n.ObjectMeta.Labels["kubernetes.azure.com/role"] = "agent"
+	n.ObjectMeta.Labels["node-role.kubernetes.io/agent"] = ""
+	n.ObjectMeta.Labels["type"] = "virtual-kubelet"
 }
 
 // NodeConditions returns a list of conditions (Ready, OutOfDisk, etc), for updates to the node status

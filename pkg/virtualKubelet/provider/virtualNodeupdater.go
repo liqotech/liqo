@@ -7,7 +7,6 @@ import (
 	advtypes "github.com/liqotech/liqo/apis/sharing/v1alpha1"
 	advertisementOperator "github.com/liqotech/liqo/internal/advertisement-operator"
 	"github.com/liqotech/liqo/internal/virtualKubelet/node"
-	"github.com/liqotech/liqo/pkg/virtualKubelet"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/options"
 	v1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
@@ -16,12 +15,12 @@ import (
 	"k8s.io/client-go/util/retry"
 	"k8s.io/klog"
 	"k8s.io/kubernetes/pkg/util/slice"
-	"strings"
+	"time"
 )
 
 func (p *LiqoProvider) StartNodeUpdater(nodeRunner *node.NodeController) (chan struct{}, chan struct{}, error) {
 	stop := make(chan struct{}, 1)
-	advName := strings.Join([]string{virtualKubelet.AdvertisementPrefix, p.foreignClusterId}, "")
+	/*advName := strings.Join([]string{virtualKubelet.AdvertisementPrefix, p.foreignClusterId}, "")
 	advWatcher, err := p.advClient.Resource("advertisements").Watch(metav1.ListOptions{
 		FieldSelector: strings.Join([]string{"metadata.name", advName}, "="),
 		Watch:         true,
@@ -36,7 +35,7 @@ func (p *LiqoProvider) StartNodeUpdater(nodeRunner *node.NodeController) (chan s
 	})
 	if err != nil {
 		return nil, nil, err
-	}
+	}*/
 
 	p.nodeController = nodeRunner
 
@@ -45,7 +44,8 @@ func (p *LiqoProvider) StartNodeUpdater(nodeRunner *node.NodeController) (chan s
 	go func() {
 		<-ready
 		for {
-			select {
+			time.Sleep(5 * time.Second)
+			/*select {
 			case ev := <-advWatcher.ResultChan():
 				err = p.ReconcileNodeFromAdv(ev)
 				if err != nil {
@@ -76,7 +76,7 @@ func (p *LiqoProvider) StartNodeUpdater(nodeRunner *node.NodeController) (chan s
 				advWatcher.Stop()
 				tepWatcher.Stop()
 				return
-			}
+			}*/
 		}
 	}()
 
