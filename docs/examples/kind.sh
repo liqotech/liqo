@@ -83,10 +83,10 @@ nodes:
 EOF
 
 echo "Creating cluster $CLUSTER_NAME_1..."
-${KIND} create cluster --name $CLUSTER_NAME_1 --kubeconfig liqo_kubeconf_1 --config liqo-cluster-config.yaml --wait 2m
+${KIND} -v 3 create cluster --name $CLUSTER_NAME_1 --kubeconfig liqo_kubeconf_1 --config liqo-cluster-config.yaml --wait 2m
 
 echo "Create cluster $CLUSTER_NAME_2..."
-${KIND} create cluster --name $CLUSTER_NAME_2 --kubeconfig liqo_kubeconf_2 --config liqo-cluster-config.yaml --wait 2m
+${KIND} -v 3 create cluster --name $CLUSTER_NAME_2 --kubeconfig liqo_kubeconf_2 --config liqo-cluster-config.yaml --wait 2m
 
 echo ----------------
 #Environment variables for E2E testing
