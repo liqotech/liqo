@@ -52,17 +52,17 @@ func (s *MutationServer) Mutate(body []byte, verbose bool) ([]byte, error) {
 			Value []corev1.Toleration `json:"value"`
 		}
 
+		tolerations := append(pod.Spec.Tolerations, corev1.Toleration{
+			Key:      "virtual-node.liqo.io/not-allowed",
+			Operator: "Exists",
+			Effect:   "NoExecute",
+		})
+
 		patch := []patchType{
 			{
-				Op:   "add",
-				Path: "/spec/tolerations",
-				Value: []corev1.Toleration{
-					{
-						Key:      "virtual-node.liqo.io/not-allowed",
-						Operator: "Exists",
-						Effect:   "NoExecute",
-					},
-				},
+				Op:    "add",
+				Path:  "/spec/tolerations",
+				Value: tolerations,
 			},
 		}
 		if resp.Patch, err = json.Marshal(patch); err != nil {
