@@ -26,6 +26,7 @@ require (
 	github.com/julienschmidt/httprouter v1.3.0
 	github.com/miekg/dns v1.1.27
 	github.com/mitchellh/go-homedir v1.1.0
+	github.com/modern-go/reflect2 v1.0.1
 	github.com/oleiade/lane v1.0.0
 	github.com/onsi/ginkgo v1.14.2
 	github.com/onsi/gomega v1.10.3

@@ -11,6 +11,7 @@ import (
 	vkContext "github.com/liqotech/liqo/pkg/virtualKubelet/context"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/forge"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/translation/serviceEnv"
+	"github.com/modern-go/reflect2"
 	"github.com/pkg/errors"
 	"io"
 	corev1 "k8s.io/api/core/v1"
@@ -27,8 +28,8 @@ import (
 
 // CreatePod accepts a Pod definition and stores it in memory.
 func (p *LiqoProvider) CreatePod(_ context.Context, homePod *corev1.Pod) error {
-	if homePod == nil {
-		return errors.New("received nil homePod to create")
+	if reflect2.IsNil(homePod) {
+		return errors.New("received nil pod to create")
 	}
 
 	klog.V(3).Infof("PROVIDER: pod %s/%s asked to be created in the provider", homePod.Namespace, homePod.Name)
@@ -77,7 +78,7 @@ func (p *LiqoProvider) CreatePod(_ context.Context, homePod *corev1.Pod) error {
 
 // UpdatePod accepts a Pod definition and updates its reference.
 func (p *LiqoProvider) UpdatePod(_ context.Context, pod *corev1.Pod) error {
-	if pod == nil {
+	if reflect2.IsNil(pod) {
 		return errors.New("received nil pod to update")
 	}
 
@@ -88,7 +89,7 @@ func (p *LiqoProvider) UpdatePod(_ context.Context, pod *corev1.Pod) error {
 
 // DeletePod deletes the specified pod out of memory.
 func (p *LiqoProvider) DeletePod(ctx context.Context, pod *corev1.Pod) (err error) {
-	if pod == nil {
+	if reflect2.IsNil(pod) {
 		return errors.New("received nil pod to delete")
 	}
 
