@@ -11,15 +11,17 @@ discovered peers.*/
 
 // set of frequently used tags inside application logic
 const (
-	tagStatus  = "status"
-	titlePeers = "PEERS"
+	tagStatus   = "status"
+	titlePeers  = "PEERS"
+	tagIncoming = "INCOMING PEERING"
+	tagOutgoing = "OUTGOING PEERING"
 )
 
 //refreshPeerCount updates the visual counter of the discovered peers (even not peered).
 //Currently the number if retrieved directly from the MenuNode. In a future update the Indicator.Status component
 //will provide it.
 func refreshPeerCount(quick *app.MenuNode) {
-	peerCount := quick.ListChildrenLen()
+	peerCount := app.GetIndicator().Status().Peers()
 	str := strings.Join([]string{"(", strconv.Itoa(peerCount), ")"}, "")
 	quick.SetTitle(strings.Join([]string{titlePeers, str}, " "))
 	//the menu entry is disabled when the counter reaches 0 to avoid useless clicks
@@ -28,5 +30,4 @@ func refreshPeerCount(quick *app.MenuNode) {
 	} else {
 		quick.SetIsEnabled(false)
 	}
-
 }

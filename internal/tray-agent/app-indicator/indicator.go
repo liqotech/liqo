@@ -325,14 +325,18 @@ func (i *Indicator) SetLabel(label string) {
 }
 
 //RefreshLabel updates the content of the Indicator label
-//with the total number of actual peerings.
+//with the total number of both incoming and outgoing peerings currently active.
 func (i *Indicator) RefreshLabel() {
-	n := i.status.ActivePeerings()
-	if n <= 0 {
-		i.SetLabel("")
-	} else {
-		i.SetLabel(fmt.Sprintf("(%v)", n))
+	st := i.Status()
+	in := st.Peerings(PeeringIncoming)
+	out := st.Peerings(PeeringOutgoing)
+	//since the label is graphically invasive, its content is displayed only when
+	//there is at least one active peering
+	if st.Running() && (in >= 0 || out >= 0) {
+		i.SetLabel(fmt.Sprintf("(I:%d/O:%d)", in, out))
+		return
 	}
+	i.SetLabel("")
 }
 
 //--------------

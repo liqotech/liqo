@@ -7,8 +7,6 @@ import (
 	"sync"
 )
 
-/*----- StatRun -----*/
-
 //StatRun defines the running status of Liqo.
 type StatRun bool
 
@@ -24,6 +22,16 @@ const (
 	statRunOffDescription = "OFF"
 	//textual description for the StatRunOn StatRun value.
 	statRunOnDescription = "ON"
+)
+
+//PeeringType defines a type of peering with a foreign cluster.
+type PeeringType bool
+
+const (
+	//PeeringIncoming defines a peering where the home cluster shares its own resources with a foreign cluster.
+	PeeringIncoming PeeringType = true
+	//PeeringOutgoing defines a peering where the home cluster is consuming the resources of a foreign cluster.
+	PeeringOutgoing PeeringType = false
 )
 
 //String converts in human-readable format the StatRun information.
@@ -140,24 +148,20 @@ type StatusInterface interface {
 	"Compare&Change" protection.
 	*/
 	IsTetheredCompliant() bool
-	//ConsumePeerings returns the number of active peerings where the Home cluster
-	//is consuming foreign resources.
-	ConsumePeerings() int
-	//IncConsumePeerings adds a consuming peering to the Indicator status.
-	//The operation is allowed only when Liqo is in AUTONOMOUS mode.
-	IncConsumePeerings()
-	//DecConsumePeerings removes a consuming peering from the Indicator status.
-	DecConsumePeerings()
-	//OfferPeerings returns the number of active peerings where the Home cluster is
-	//sharing its own resources.
-	OfferPeerings() int
-	//IncOfferPeerings adds an offering peering to the Indicator status.
-	//When Liqo is not in AUTONOMOUS mode, there can be at most 1 offering peering.
-	IncOfferPeerings()
-	//DecOfferPeerings removes an offering peering from the Indicator status.
-	DecOfferPeerings()
+	//IncDecPeerings increments (add = true) or decrements of 1 unit the number of active peerings of type peering.
+	//
+	//There can be PeeringOutgoing peerings only when Liqo is in StatModeAutonomous mode.
+	//
+	//There can be at most 1 PeeringIncoming peering when Liqo is not in StatModeAutonomous mode.
+	IncDecPeerings(peering PeeringType, add bool)
+	//Peerings returns the number of active peerings of type PeeringType.
+	Peerings(peering PeeringType) int
 	//ActivePeerings returns the amount of active peerings.
 	ActivePeerings() int
+	//Peers returns the number of Liqo peers discovered by the home cluster and currently available.
+	Peers() int
+	//IncDecPeers increments (add = true) or decrements the number of available peers.
+	IncDecPeers(add bool)
 	//GoString produces a textual digest on the main status data managed by
 	//a Status instance.
 	GoString() string
@@ -184,52 +188,54 @@ type Status struct {
 	running StatRun
 	//the current Liqo working mode.
 	mode StatMode
-	//current number of the active peerings used by the user for consuming foreign resources.
-	consumePeerings int
-	///current number of the active peerings where the user is sharing its own resources.
-	offerPeerings int
+	//total number of discovered peers.
+	peers int
+	//current number of the active peerings consuming foreign resources.
+	outgoingPeerings int
+	///current number of the active peerings sharing home resources.
+	incomingPeerings int
 	//mutex for the Status.
-	lock sync.RWMutex
+	sync.RWMutex
 }
 
 //IsTetheredCompliant checks if the TETHERED mode is eligible
 //accordingly to current status. The result can be used to display information.
 func (st *Status) IsTetheredCompliant() bool {
-	st.lock.RLock()
-	defer st.lock.RUnlock()
-	return st.offerPeerings <= 1 && st.consumePeerings <= 0
+	st.RLock()
+	defer st.RUnlock()
+	return st.incomingPeerings <= 1 && st.outgoingPeerings <= 0
 }
 
 //User returns the Liqo Name of the home cluster connected to the Agent.
 func (st *Status) User() string {
-	st.lock.RLock()
-	defer st.lock.RUnlock()
+	st.RLock()
+	defer st.RUnlock()
 	return st.user
 }
 
 //SetUser sets the Liqo Name of the home cluster connected to the Agent.
 func (st *Status) SetUser(user string) {
-	st.lock.Lock()
-	defer st.lock.Unlock()
+	st.Lock()
+	defer st.Unlock()
 	st.user = user
 }
 
 //Running returns the running status of Liqo.
 func (st *Status) Running() StatRun {
-	st.lock.RLock()
-	defer st.lock.RUnlock()
+	st.RLock()
+	defer st.RUnlock()
 	return st.running
 }
 
 //SetRunning changes the running status of Liqo. Transition to StatRunOff
 //implies the end of all active peerings.
 func (st *Status) SetRunning(running StatRun) {
-	st.lock.Lock()
-	defer st.lock.Unlock()
+	st.Lock()
+	defer st.Unlock()
 	if running != st.running {
 		if running == StatRunOff {
-			st.consumePeerings = 0
-			st.offerPeerings = 0
+			st.outgoingPeerings = 0
+			st.incomingPeerings = 0
 		}
 		st.running = running
 	}
@@ -237,23 +243,23 @@ func (st *Status) SetRunning(running StatRun) {
 
 //Mode returns the current working mode of Liqo.
 func (st *Status) Mode() StatMode {
-	st.lock.RLock()
-	defer st.lock.RUnlock()
+	st.RLock()
+	defer st.RUnlock()
 	return st.mode
 }
 
 //SetMode sets the working mode for Liqo.
 //If the operation is not allowed for current configuration, it returns an error.
 func (st *Status) SetMode(mode StatMode) error {
-	st.lock.Lock()
-	defer st.lock.Unlock()
+	st.Lock()
+	defer st.Unlock()
 	var err error
 	if mode != st.mode {
 		//it is always possible to revert back to autonomous mode
 		if mode == StatModeAutonomous {
 			st.mode = mode
 		} else if st.mode == StatModeAutonomous && mode == StatModeTethered {
-			if st.consumePeerings == 0 && st.offerPeerings <= 1 {
+			if st.outgoingPeerings == 0 && st.incomingPeerings <= 1 {
 				st.mode = mode
 			} else {
 				err = errors.New("tethered not allowed: there are active but not allowed peerings")
@@ -263,79 +269,87 @@ func (st *Status) SetMode(mode StatMode) error {
 	return err
 }
 
-//ConsumePeerings returns the number of active peerings where the Home cluster
-//is consuming foreign resources.
-func (st *Status) ConsumePeerings() int {
-	st.lock.RLock()
-	defer st.lock.RUnlock()
-	return st.consumePeerings
-}
-
-//IncConsumePeerings adds a consuming peering to the Indicator status.
-//The operation is allowed only when Liqo is in AUTONOMOUS mode.
-func (st *Status) IncConsumePeerings() {
-	st.lock.Lock()
-	defer st.lock.Unlock()
-	if st.mode == StatModeAutonomous {
-		st.consumePeerings += 1
+//IncDecPeerings increments (add = true) or decrements of 1 unit the number of active peerings of type peering.
+//
+//There can be PeeringOutgoing peerings only when Liqo is in StatModeAutonomous mode.
+//
+//There can be at most 1 PeeringIncoming peering when Liqo is not in StatModeAutonomous mode.
+func (st *Status) IncDecPeerings(peering PeeringType, add bool) {
+	st.Lock()
+	defer st.Unlock()
+	if peering == PeeringIncoming {
+		if add {
+			if st.mode == StatModeAutonomous || st.incomingPeerings < 1 {
+				st.incomingPeerings += 1
+			}
+		} else {
+			if st.incomingPeerings > 0 {
+				st.incomingPeerings -= 1
+			}
+		}
+	} else if peering == PeeringOutgoing {
+		if add {
+			if st.mode == StatModeAutonomous {
+				st.outgoingPeerings += 1
+			}
+		} else {
+			if st.outgoingPeerings > 0 {
+				st.outgoingPeerings -= 1
+			}
+		}
 	}
 }
 
-//DecConsumePeerings removes a consuming peering from the Indicator status.
-func (st *Status) DecConsumePeerings() {
-	st.lock.Lock()
-	defer st.lock.Unlock()
-	if st.consumePeerings > 0 {
-		st.consumePeerings -= 1
+//Peerings returns the number of active peerings of type PeeringType.
+func (st *Status) Peerings(peering PeeringType) int {
+	st.RLock()
+	defer st.RUnlock()
+	if peering == PeeringIncoming {
+		return st.incomingPeerings
+	} else {
+		return st.outgoingPeerings
 	}
 }
 
-//OfferPeerings returns the number of active peerings where the Home cluster is
-//sharing its own resources.
-func (st *Status) OfferPeerings() int {
-	st.lock.RLock()
-	defer st.lock.RUnlock()
-	return st.offerPeerings
+//Peers returns the number of Liqo peers discovered by the home cluster and currently available.
+func (st *Status) Peers() int {
+	st.RLock()
+	defer st.RUnlock()
+	return st.peers
 }
 
-//IncOfferPeerings adds an offering peering to the Indicator status.
-//When Liqo is not in AUTONOMOUS mode, there can be at most 1 offering peering.
-func (st *Status) IncOfferPeerings() {
-	st.lock.Lock()
-	defer st.lock.Unlock()
-	if st.mode == StatModeAutonomous || st.offerPeerings < 1 {
-		st.offerPeerings += 1
-	}
-}
-
-//DecOfferPeerings removes an offering peering from the Indicator status.
-func (st *Status) DecOfferPeerings() {
-	st.lock.Lock()
-	defer st.lock.Unlock()
-	if st.offerPeerings > 0 {
-		st.offerPeerings -= 1
+//IncDecPeers increments (add = true) or decrements the number of available peers.
+func (st *Status) IncDecPeers(add bool) {
+	st.Lock()
+	defer st.Unlock()
+	if add {
+		st.peers++
+	} else {
+		if st.peers > 0 {
+			st.peers--
+		}
 	}
 }
 
 //GoString produces a textual digest on the main status data managed by
 //a Status instance.
 func (st *Status) GoString() string {
-	st.lock.RLock()
-	defer st.lock.RUnlock()
+	st.RLock()
+	defer st.RUnlock()
 	str := strings.Builder{}
 	str.WriteString(fmt.Sprintln(st.user))
 	str.WriteString(fmt.Sprintf("Liqo is %v\n", st.running))
 	str.WriteString(fmt.Sprintf("%v mode\n", st.mode))
-	str.WriteString(fmt.Sprintf("%v consuming peerings\n", st.consumePeerings))
-	str.WriteString(fmt.Sprintf("%v offering peerings", st.offerPeerings))
+	str.WriteString(fmt.Sprintf("consuming from %v peers\n", st.outgoingPeerings))
+	str.WriteString(fmt.Sprintf("offering to %v peers", st.incomingPeerings))
 	return str.String()
 }
 
 //ActivePeerings returns the amount of active peerings.
 func (st *Status) ActivePeerings() int {
-	st.lock.RLock()
-	defer st.lock.RUnlock()
-	return st.offerPeerings + st.consumePeerings
+	st.RLock()
+	defer st.RUnlock()
+	return st.incomingPeerings + st.outgoingPeerings
 }
 
 //Status return the Indicator status.

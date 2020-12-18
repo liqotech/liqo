@@ -22,6 +22,11 @@ const (
 	ChanPeerDeleted
 	//Notification channel id for an update of an available peer.
 	ChanPeerUpdated
+	//todo the following channels will be merged into a single ChanPeering after changing the chan type of NotifyChannels from string to interface{}
+	ChanPeeringOutgoingNew
+	ChanPeeringOutgoingDelete
+	ChanPeeringIncomingNew
+	ChanPeeringIncomingDelete
 )
 
 //notifyChannelNames contains all the registered NotifyChannel managed by the AgentController.
@@ -34,4 +39,8 @@ var notifyChannelNames = []NotifyChannel{
 	ChanPeerAdded,
 	ChanPeerDeleted,
 	ChanPeerUpdated,
+	ChanPeeringOutgoingNew,
+	ChanPeeringOutgoingDelete,
+	ChanPeeringIncomingNew,
+	ChanPeeringIncomingDelete,
 }
