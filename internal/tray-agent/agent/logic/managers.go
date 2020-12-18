@@ -116,7 +116,7 @@ func startListenerAdvertisements(i *app.Indicator) {
 			}
 		}
 		i.NotifyAcceptedAdv(objName)
-		i.Status().IncConsumePeerings()
+		i.Status().IncDecPeerings(app.PeeringOutgoing, true)
 	})
 	i.Listen(client.ChanAdvRevoked, i.AgentCtrl().NotifyChannel(client.ChanAdvRevoked), func(objName string, args ...interface{}) {
 		ctrl := i.AgentCtrl()
@@ -132,11 +132,11 @@ func startListenerAdvertisements(i *app.Indicator) {
 			}
 		}
 		i.NotifyRevokedAdv(objName)
-		i.Status().DecConsumePeerings()
+		i.Status().IncDecPeerings(app.PeeringOutgoing, false)
 	})
 	i.Listen(client.ChanAdvDeleted, i.AgentCtrl().NotifyChannel(client.ChanAdvDeleted), func(objName string, args ...interface{}) {
 		i.NotifyDeletedAdv(objName)
-		i.Status().DecConsumePeerings()
+		i.Status().IncDecPeerings(app.PeeringOutgoing, false)
 	})
 }
 
@@ -165,7 +165,11 @@ func startListenerPeersList(i *app.Indicator) {
 			peerNode := quickNode.UseListChild(clusterName, clusterID)
 			statusNode := peerNode.UseListChild(clusterID, tagStatus)
 			statusNode.SetIsEnabled(false)
+			peerNode.UseListChild(tagIncoming, tagIncoming)
+			peerNode.UseListChild(tagOutgoing, tagOutgoing)
 			//update the counter in the menu entry
+			i.Status().IncDecPeers(true)
+			i.RefreshStatus()
 			refreshPeerCount(quickNode)
 		}
 	})
@@ -179,6 +183,8 @@ func startListenerPeersList(i *app.Indicator) {
 		//dynamic list), since the ForeignCluster 'Name' metadata coincides with it.
 		quickNode.FreeListChild(objName)
 		//update the counter in the menu entry
+		i.Status().IncDecPeers(false)
+		i.RefreshStatus()
 		refreshPeerCount(quickNode)
 	})
 	i.Listen(client.ChanPeerUpdated, i.AgentCtrl().NotifyChannel(client.ChanPeerUpdated), func(objName string, args ...interface{}) {
@@ -202,4 +208,11 @@ func startListenerPeersList(i *app.Indicator) {
 			peerNode.SetTitle(clusterName)
 		}
 	})
+}
+
+func startListenerPeerings(i *app.Indicator) {
+	i.Listen(client.ChanPeeringIncomingNew, i.AgentCtrl().NotifyChannel(client.ChanPeeringIncomingNew), listenNewIncomingPeering)
+	i.Listen(client.ChanPeeringIncomingDelete, i.AgentCtrl().NotifyChannel(client.ChanPeeringIncomingDelete), listenDeleteIncomingPeering)
+	i.Listen(client.ChanPeeringOutgoingNew, i.AgentCtrl().NotifyChannel(client.ChanPeeringOutgoingNew), listenNewOutgoingPeering)
+	i.Listen(client.ChanPeeringOutgoingDelete, i.AgentCtrl().NotifyChannel(client.ChanPeeringOutgoingDelete), listenDeleteOutgoingPeering)
 }

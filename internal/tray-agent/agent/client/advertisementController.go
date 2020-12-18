@@ -8,11 +8,7 @@ import (
 
 //createAdvertisementController creates a new CRDController for the Liqo Advertisement CRD.
 func createAdvertisementController(kubeconfig string) (*CRDController, error) {
-	controller := &CRDController{
-		addFunc:    advertisementAddFunc,
-		updateFunc: advertisementUpdateFunc,
-		deleteFunc: advertisementDeleteFunc,
-	}
+	controller := &CRDController{}
 	//init client
 	newClient, err := advertisementApi.CreateAdvertisementClient(kubeconfig, nil, false)
 	if err != nil {
