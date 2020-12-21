@@ -14,9 +14,21 @@ spec:
     listKind: AdvertisementList
     plural: advertisements
     singular: advertisement
+    shortNames:
+      - adv
   scope: Cluster
   versions:
-  - name: v1alpha1
+  - additionalPrinterColumns:
+    - jsonPath: .status.advertisementStatus
+      name: Status
+      type: string
+    - jsonPath: .spec.timeToLive
+      name: Expiration
+      type: string
+    - jsonPath: .status.vkCreated
+      name: VkCreated
+      type: boolean
+    name: v1alpha1
     schema:
       openAPIV3Schema:
         description: Advertisement is the Schema for the advertisements API
