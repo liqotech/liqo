@@ -16,6 +16,7 @@ import (
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
 	"k8s.io/klog"
+	metricsv "k8s.io/metrics/pkg/client/clientset/versioned"
 	"time"
 )
 
@@ -24,10 +25,11 @@ type LiqoProvider struct { // nolint:golint]
 	namespaceMapper namespacesMapping.MapperController
 	apiController   controller.ApiController
 
-	advClient     *crdClient.CRDClient
-	tunEndClient  *crdClient.CRDClient
-	nntClient     *crdClient.CRDClient
-	foreignClient kubernetes.Interface
+	advClient            *crdClient.CRDClient
+	tunEndClient         *crdClient.CRDClient
+	nntClient            *crdClient.CRDClient
+	foreignClient        kubernetes.Interface
+	foreignMetricsClient metricsv.Interface
 
 	operatingSystem    string
 	internalIP         string
@@ -82,6 +84,11 @@ func NewLiqoProvider(nodeName, foreignClusterId, homeClusterId string, internalI
 		return nil, err
 	}
 
+	foreignMetricsClient, err := metricsv.NewForConfig(restConfig)
+	if err != nil {
+		return nil, err
+	}
+
 	mapper, err := namespacesMapping.NewNamespaceMapperController(client, foreignClient, homeClusterId, foreignClusterId)
 	if err != nil {
 		klog.Fatal(err)
@@ -113,6 +120,7 @@ func NewLiqoProvider(nodeName, foreignClusterId, homeClusterId string, internalI
 		foreignPodWatcherStop: make(chan struct{}, 1),
 		restConfig:            restConfig,
 		foreignClient:         foreignClient,
+		foreignMetricsClient:  foreignMetricsClient,
 		advClient:             advClient,
 		tunEndClient:          tepClient,
 		RemoteRemappedPodCidr: remoteRemappedPodCIDROpt,

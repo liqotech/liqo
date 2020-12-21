@@ -60,6 +60,7 @@ require (
 	k8s.io/klog/v2 v2.0.0
 	k8s.io/kubectl v0.18.6
 	k8s.io/kubernetes v1.18.6
+	k8s.io/metrics v0.18.6
 	k8s.io/utils v0.0.0-20201110183641-67b214c5f920
 	sigs.k8s.io/controller-runtime v0.6.2
 )

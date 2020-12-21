@@ -18,6 +18,8 @@ import (
 type Provider interface {
 	node.PodLifecycleHandler
 
+	PodMetricsProvider
+
 	// GetContainerLogs retrieves the logs of a container by name from the provider.
 	GetContainerLogs(ctx context.Context, namespace, podName, containerName string, opts api.ContainerLogOpts) (io.ReadCloser, error)
 

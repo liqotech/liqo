@@ -123,7 +123,7 @@ func (r *ServicesReflector) PreAdd(obj interface{}) interface{} {
 	for k, v := range svcLocal.Labels {
 		svcRemote.Labels[k] = v
 	}
-	svcRemote.Labels[forge.LiqoReflectionKey] = forge.LiqoOutgoing
+	svcRemote.Labels[forge.LiqoOutgoingKey] = forge.LiqoNodeName()
 
 	klog.V(3).Infof("PreAdd routine completed for service %v/%v", svcLocal.Namespace, svcLocal.Name)
 	return svcRemote
@@ -153,7 +153,7 @@ func (r *ServicesReflector) PreUpdate(newObj interface{}, _ interface{}) interfa
 	for k, v := range newSvc.Labels {
 		foreignSvc.Labels[k] = v
 	}
-	foreignSvc.Labels[forge.LiqoReflectionKey] = forge.LiqoOutgoing
+	foreignSvc.Labels[forge.LiqoOutgoingKey] = forge.LiqoNodeName()
 
 	if foreignSvc.Annotations == nil {
 		foreignSvc.Annotations = make(map[string]string)
