@@ -77,6 +77,9 @@ type AdvertisementStatus struct {
 // +kubebuilder:resource:scope=Cluster
 
 // Advertisement is the Schema for the advertisements API
+// +kubebuilder:printcolumn:name="Status",type=string,JSONPath=`.status.advertisementStatus`
+// +kubebuilder:printcolumn:name="Expiration",type=string,JSONPath=`.spec.timeToLive`
+// +kubebuilder:printcolumn:name="VkCreated",type=boolean,JSONPath=`.status.vkCreated`
 type Advertisement struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
