@@ -44,6 +44,7 @@ func (tec *TunnelEndpointCreator) serviceHandlerAdd(obj interface{}) {
 	tec.Mutex.Lock()
 	defer tec.Mutex.Unlock()
 	var endpointIP, endpointPort string
+	portFound := false
 	objUnstruct, ok := obj.(*unstructured.Unstructured)
 	if !ok {
 		klog.Errorf("an error occurred while converting interface to unstructured object")
@@ -78,10 +79,8 @@ func (tec *TunnelEndpointCreator) serviceHandlerAdd(obj interface{}) {
 					return
 				}
 				endpointPort = strconv.Itoa(int(port.NodePort))
+				portFound = true
 				break
-			} else {
-				klog.Infof("the service %s of type nodePort with label %s set to %s does not have a port named %s", s.Name, serviceLabelKey, serviceLabelValue, wireguard.DriverName)
-				return
 			}
 		}
 	}
@@ -100,11 +99,13 @@ func (tec *TunnelEndpointCreator) serviceHandlerAdd(obj interface{}) {
 					return
 				}
 				endpointPort = strconv.Itoa(int(port.Port))
-			} else {
-				klog.Infof("the service %s of type loadBalancer with label %s set to %s does not have a port named %s", s.Name, serviceLabelKey, serviceLabelValue, wireguard.DriverName)
-				return
+				portFound = true
 			}
 		}
+	}
+	if !portFound {
+		klog.Infof("the service %s of type %s with label %s set to %s does not have a port named %s", s.Name, s.Spec.Type, serviceLabelKey, serviceLabelValue, wireguard.DriverName)
+		return
 	}
 	if endpointIP != tec.EndpointIP || endpointPort != tec.EndpointPort {
 		tec.EndpointPort = endpointPort
