@@ -215,16 +215,17 @@ func runRootCommand(ctx context.Context, s *provider.Store, c *Opts) error {
 	go podInformerFactory.Start(ctx.Done())
 	go scmInformerFactory.Start(ctx.Done())
 
-	cancelHTTP, err := setupHTTPServer(ctx, p, apiConfig)
+	cancelHTTP, err := setupHTTPServer(ctx, p, apiConfig, func(context.Context) ([]*corev1.Pod, error) {
+		return rm.GetPods(), nil
+	})
 	if err != nil {
-		return err
+		klog.Fatal(errors.Wrap(err, "error while setting up HTTP server"))
 	}
 	defer cancelHTTP()
 
 	go func() {
 		if err := pc.Run(ctx, c.PodSyncWorkers); err != nil && errors.Cause(err) != context.Canceled {
-			klog.Error(err, "error in pod controller running")
-			panic(nil)
+			klog.Fatal(errors.Wrap(err, "error in pod controller running"))
 		}
 	}()
 

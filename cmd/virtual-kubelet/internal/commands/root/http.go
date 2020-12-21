@@ -23,6 +23,7 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"time"
 
 	"github.com/liqotech/liqo/cmd/virtual-kubelet/internal/provider"
 	"github.com/liqotech/liqo/internal/virtualKubelet/node/api"
@@ -57,7 +58,7 @@ func loadTLSConfig(certPath, keyPath string) (*tls.Config, error) {
 	}, nil
 }
 
-func setupHTTPServer(ctx context.Context, p provider.Provider, cfg *apiServerConfig) (_ func(), retErr error) {
+func setupHTTPServer(ctx context.Context, p provider.Provider, cfg *apiServerConfig, getPodsFromKubernetes api.PodListerFunc) (_ func(), retErr error) {
 	var closers []io.Closer
 	cancel := func() {
 		for _, c := range closers {
@@ -85,10 +86,13 @@ func setupHTTPServer(ctx context.Context, p provider.Provider, cfg *apiServerCon
 		mux := http.NewServeMux()
 
 		podRoutes := api.PodHandlerConfig{
-			RunInContainer:   p.RunInContainer,
-			GetContainerLogs: p.GetContainerLogs,
-			GetPods:          p.GetPods,
+			RunInContainer:        p.RunInContainer,
+			GetContainerLogs:      p.GetContainerLogs,
+			GetPodsFromKubernetes: getPodsFromKubernetes,
+			GetStatsSummary:       p.GetStatsSummary,
+			GetPods:               p.GetPods,
 		}
+
 		api.AttachPodRoutes(podRoutes, mux, true)
 
 		s := &http.Server{
@@ -132,18 +136,19 @@ func serveHTTP(ctx context.Context, s *http.Server, l net.Listener, name string)
 		select {
 		case <-ctx.Done():
 		default:
-			klog.Error(err)
-
+			klog.Error(errors.Wrapf(err, "Error setting up %s http server", name))
 		}
 	}
 	l.Close()
 }
 
 type apiServerConfig struct {
-	CertPath    string
-	KeyPath     string
-	Addr        string
-	MetricsAddr string
+	CertPath              string
+	KeyPath               string
+	Addr                  string
+	MetricsAddr           string
+	StreamIdleTimeout     time.Duration
+	StreamCreationTimeout time.Duration
 }
 
 func getAPIConfig(c Opts) (*apiServerConfig, error) {

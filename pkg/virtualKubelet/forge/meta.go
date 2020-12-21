@@ -3,24 +3,31 @@ package forge
 import metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 const (
-	LiqoReflectionKey = "virtualkubelet.liqo.io/reflection"
+	LiqoOutgoingKey = "virtualkubelet.liqo.io/outgoing"
+	LiqoIncomingKey = "virtualkubelet.liqo.io/incoming"
+)
 
-	LiqoOutgoing = "outgoing"
-	LiqoIncoming = "incoming"
+var (
+	LiqoNodeName = func() string {
+		if forger.virtualNodeName == nil {
+			return ""
+		}
+		return forger.virtualNodeName.Value().ToString()
+	}
 )
 
 func (f *apiForger) forgeForeignMeta(homeMeta, foreignMeta *metav1.ObjectMeta, foreignNamespace, reflectionType string) {
 	forgeObjectMeta(homeMeta, foreignMeta)
 
 	foreignMeta.Namespace = foreignNamespace
-	foreignMeta.Labels[LiqoReflectionKey] = reflectionType
+	foreignMeta.Labels[reflectionType] = LiqoNodeName()
 }
 
 func (f *apiForger) forgeHomeMeta(foreignMeta, homeMeta *metav1.ObjectMeta, homeNamespace, reflectionType string) {
 	forgeObjectMeta(foreignMeta, homeMeta)
 
 	homeMeta.Namespace = homeNamespace
-	homeMeta.Labels[LiqoReflectionKey] = reflectionType
+	homeMeta.Labels[reflectionType] = LiqoNodeName()
 }
 
 func forgeObjectMeta(inMeta, outMeta *metav1.ObjectMeta) {

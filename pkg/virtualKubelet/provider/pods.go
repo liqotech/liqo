@@ -3,8 +3,6 @@ package provider
 import (
 	"context"
 	"fmt"
-	"github.com/liqotech/liqo/internal/utils/errdefs"
-	"github.com/liqotech/liqo/internal/utils/trace"
 	"github.com/liqotech/liqo/internal/virtualKubelet/node/api"
 	"github.com/liqotech/liqo/pkg/virtualKubelet"
 	apimgmgt "github.com/liqotech/liqo/pkg/virtualKubelet/apiReflection"
@@ -16,13 +14,13 @@ import (
 	"io"
 	corev1 "k8s.io/api/core/v1"
 	kerror "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/tools/remotecommand"
 	"k8s.io/klog"
 	stats "k8s.io/kubernetes/pkg/kubelet/apis/stats/v1alpha1"
-	"math/rand"
 	"time"
 )
 
@@ -39,7 +37,7 @@ func (p *LiqoProvider) CreatePod(_ context.Context, homePod *corev1.Pod) error {
 		return nil
 	}
 
-	foreignPod, err := forge.HomeToForeign(homePod, nil, forge.LiqoOutgoing)
+	foreignPod, err := forge.HomeToForeign(homePod, nil, forge.LiqoOutgoingKey)
 	if err != nil {
 		return err
 	}
@@ -179,7 +177,7 @@ func (p *LiqoProvider) GetPods(_ context.Context) ([]*corev1.Pod, error) {
 		}
 
 		for _, pod := range pods {
-			homePod, err := forge.ForeignToHome(pod.(*corev1.Pod), nil, forge.LiqoOutgoing)
+			homePod, err := forge.ForeignToHome(pod.(*corev1.Pod), nil, forge.LiqoNodeName())
 			if err != nil {
 				return nil, err
 			}
@@ -281,10 +279,6 @@ func (p *LiqoProvider) GetContainerLogs(_ context.Context, homeNamespace string,
 
 // GetStatsSummary returns dummy stats for all pods known by this provider.
 func (p *LiqoProvider) GetStatsSummary(ctx context.Context) (*stats.Summary, error) {
-	var span trace.Span
-	_, span = trace.StartSpan(ctx, "GetStatsSummary") //nolint: ineffassign
-	defer span.End()
-
 	// Grab the current timestamp so we can report it as the time the stats were generated.
 	t := metav1.NewTime(time.Now())
 
@@ -297,70 +291,117 @@ func (p *LiqoProvider) GetStatsSummary(ctx context.Context) (*stats.Summary, err
 		StartTime: metav1.NewTime(p.startTime),
 	}
 
-	// Populate the Summary object with dummy stats for each pod known by this provider.
-	pods, err := p.foreignClient.CoreV1().Pods("").List(context.TODO(), metav1.ListOptions{})
-	if err != nil {
-		if kerror.IsNotFound(err) {
-			return nil, errdefs.NotFoundf("pods in \"%s\" is not known to the provider", "")
-		}
-		return nil, errors.Wrap(err, "Unable to get pods")
-	}
-	for _, pod := range pods.Items {
-		var (
-			// totalUsageNanoCores will be populated with the sum of the values of UsageNanoCores computes across all containers in the pod.
-			totalUsageNanoCores uint64
-			// totalUsageBytes will be populated with the sum of the values of UsageBytes computed across all containers in the pod.
-			totalUsageBytes uint64
-		)
+	var (
+		// nodeTotalNanoCore will be populated with the sum of the values of UsageNanoCores computes across all
+		// containers in all the pods running in the remote cluster on behalf of this virtual node.
+		nodeTotalNanoCore uint64
+		// nodeTotalNanoBytes will be populated with the sum of the values of UsageBytes computed across all containers
+		// in all the pods running in the remote cluster on behalf of this virtual node.
+		nodeTotalNanoBytes uint64
+	)
 
-		// Create a PodStats object to populate with pod stats.
-		pss := stats.PodStats{
-			PodRef: stats.PodReference{
-				Name:      pod.Name,
-				Namespace: pod.Namespace,
-				UID:       string(pod.UID),
-			},
-			StartTime: pod.CreationTimestamp,
+	// iterates over all the mapped namespaces
+	for home, foreign := range p.namespaceMapper.MappedNamespaces() {
+		// get the metricses of the foreign pods in each namespace by filtering with the liqoOutgoingKey
+		podMetrics, err := p.foreignMetricsClient.MetricsV1beta1().PodMetricses(foreign).List(ctx, metav1.ListOptions{
+			LabelSelector: fmt.Sprintf("%s=%s", forge.LiqoOutgoingKey, forge.LiqoNodeName()),
+		})
+		if err != nil {
+			return nil, errors.Wrapf(err, "error while listing foreign pod metricses in namespace %s", foreign)
 		}
 
-		// Iterate over all containers in the current pod to compute dummy stats.
-		for _, container := range pod.Spec.Containers {
-			// Grab a dummy value to be used as the total CPU usage.
-			// The value should fit a uint32 in order to avoid overflows later on when computing pod stats.
-			dummyUsageNanoCores := uint64(rand.Uint32())
-			totalUsageNanoCores += dummyUsageNanoCores
-			// Create a dummy value to be used as the total RAM usage.
-			// The value should fit a uint32 in order to avoid overflows later on when computing pod stats.
-			dummyUsageBytes := uint64(rand.Uint32())
-			totalUsageBytes += dummyUsageBytes
-			// Append a ContainerStats object containing the dummy stats to the PodStats object.
-			pss.Containers = append(pss.Containers, stats.ContainerStats{
-				Name:      container.Name,
-				StartTime: pod.CreationTimestamp,
-				CPU: &stats.CPUStats{
-					Time:           t,
-					UsageNanoCores: &dummyUsageNanoCores,
+		for _, foreignPodMetrics := range podMetrics.Items {
+			// fetch foreign pod from cache
+			foreignObj, err := p.apiController.CacheManager().GetForeignNamespacedObject(apimgmgt.Pods, foreign, foreignPodMetrics.Name)
+			if err != nil {
+				return nil, errors.Errorf("error while retrieving foreign pod %s/%s from cache", foreign, foreignPodMetrics.Name)
+			}
+			// retrieve foreign pod name by the foreign pod label
+			foreignPod := foreignObj.(*corev1.Pod)
+			if foreignPod.Labels == nil {
+				return nil, errors.Errorf("error in foreign pod, empty %s label set in pod %s/%s", virtualKubelet.ReflectedpodKey, foreign, foreignPodMetrics.Name)
+			}
+			homePodName, ok := foreignPod.Labels[virtualKubelet.ReflectedpodKey]
+			if !ok {
+				return nil, errors.Errorf("error in foreign pod, missing %s label in pod %s/%s", virtualKubelet.ReflectedpodKey, foreign, foreignPodMetrics.Name)
+			}
+
+			// fetch home pod from cache
+			homeObj, err := p.apiController.CacheManager().GetHomeNamespacedObject(apimgmgt.Pods, home, homePodName)
+			if err != nil {
+				return nil, errors.Errorf("error while retrieving home pod %s/%s from cache", home, homePodName)
+			}
+			homePod := homeObj.(*corev1.Pod)
+
+			// Create a PodStats object to populate with pod stats.
+			podStats := stats.PodStats{
+				PodRef: stats.PodReference{
+					Name:      homePodName,
+					Namespace: home,
+					UID:       string(homePod.UID),
 				},
-				Memory: &stats.MemoryStats{
-					Time:       t,
-					UsageBytes: &dummyUsageBytes,
-				},
-			})
-		}
+				StartTime: homePod.CreationTimestamp,
+			}
 
-		// Populate the CPU and RAM stats for the pod and append the PodsStats object to the Summary object to be returned.
-		pss.CPU = &stats.CPUStats{
-			Time:           t,
-			UsageNanoCores: &totalUsageNanoCores,
+			var (
+				// totalUsageNanoCores will be populated with the sum of the values of UsageNanoCores computes across all containers in the pod.
+				totalUsageNanoCores uint64
+				// totalUsageBytes will be populated with the sum of the values of UsageBytes computed across all containers in the pod.
+				totalUsageBytes uint64
+			)
+
+			// Iterate over all containers in the current pod to get stats
+			for _, container := range foreignPodMetrics.Containers {
+
+				nanoCpuUsage := uint64(container.Usage.Cpu().ScaledValue(resource.Nano))
+				totalUsageNanoCores += nanoCpuUsage
+
+				nanoMemoryUsage := uint64(container.Usage.Memory().Value())
+				totalUsageBytes += nanoMemoryUsage
+
+				// Append a ContainerStats object containing the dummy stats to the PodStats object.
+				podStats.Containers = append(podStats.Containers, stats.ContainerStats{
+					Name:      container.Name,
+					StartTime: homePod.CreationTimestamp,
+					CPU: &stats.CPUStats{
+						Time:           t,
+						UsageNanoCores: &nanoCpuUsage,
+					},
+					Memory: &stats.MemoryStats{
+						Time:            t,
+						UsageBytes:      &nanoMemoryUsage,
+						WorkingSetBytes: &nanoMemoryUsage,
+					},
+				})
+			}
+
+			nodeTotalNanoCore += totalUsageNanoCores
+			nodeTotalNanoBytes += totalUsageBytes
+
+			// Populate the CPU and RAM stats for the pod and append the PodsStats object to the Summary object to be returned.
+			podStats.CPU = &stats.CPUStats{
+				Time:           t,
+				UsageNanoCores: &totalUsageNanoCores,
+			}
+			podStats.Memory = &stats.MemoryStats{
+				Time:            t,
+				UsageBytes:      &totalUsageBytes,
+				WorkingSetBytes: &totalUsageBytes,
+			}
+			res.Pods = append(res.Pods, podStats)
 		}
-		pss.Memory = &stats.MemoryStats{
-			Time:       t,
-			UsageBytes: &totalUsageBytes,
-		}
-		res.Pods = append(res.Pods, pss)
 	}
 
-	// Return the dummy stats.
+	res.Node.CPU = &stats.CPUStats{
+		Time:           t,
+		UsageNanoCores: &nodeTotalNanoCore,
+	}
+	res.Node.Memory = &stats.MemoryStats{
+		Time:            t,
+		UsageBytes:      &nodeTotalNanoBytes,
+		WorkingSetBytes: &nodeTotalNanoBytes,
+	}
+
 	return res, nil
 }
 
