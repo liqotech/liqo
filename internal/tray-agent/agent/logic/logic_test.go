@@ -38,57 +38,25 @@ func TestOnReady(t *testing.T) {
 	assert.Truef(t, exist, "QUICK %s not registered", qPeers)
 
 	// test Listeners registrations
-	_, exist = i.Listener(client.ChanAdvNew)
-	assert.True(t, exist, "Listener for NotifyChanType ChanAdvNew not registered")
-	_, exist = i.Listener(client.ChanAdvAccepted)
-	assert.True(t, exist, "Listener for NotifyChanType ChanAdvAccepted not registered")
-	_, exist = i.Listener(client.ChanAdvRevoked)
-	assert.True(t, exist, "Listener for NotifyChanType ChanAdvRevoked not registered")
-	_, exist = i.Listener(client.ChanAdvDeleted)
-	assert.True(t, exist, "Listener for NotifyChanType ChanAdvDeleted not registered")
-	i.Quit()
-}
 
-//test notification system for the Advertisements-related events, monitoring icon changes
-func TestAdvertisementNotify(t *testing.T) {
-	app.UseMockedGuiProvider()
-	client.UseMockedAgentController()
-	app.DestroyMockedIndicator()
-	client.DestroyMockedAgentController()
-	eventTester := app.GetGuiProvider().NewEventTester()
-	eventTester.Test()
-	i := app.GetIndicator()
-	startListenerAdvertisements(i)
-	assert.Equal(t, app.IconLiqoMain, i.Icon(), "startup Indicator icon is not IconLiqoMain")
-	ctrl := i.AgentCtrl()
-	if err := ctrl.StartCaches(); err != nil {
-		t.Fatal("caches not started")
-	}
-	testAdvName := "test"
-	//
-	eventTester.Add(1)
-	ctrl.NotifyChannel(client.ChanAdvNew) <- testAdvName
-	eventTester.Wait()
-	assert.Equal(t, app.IconLiqoOrange, i.Icon(), "Icon not correctly set on New Advertisement")
-	i.SetIcon(app.IconLiqoMain)
-	//
-	eventTester.Add(1)
-	ctrl.NotifyChannel(client.ChanAdvAccepted) <- testAdvName
-	eventTester.Wait()
-	assert.Equal(t, app.IconLiqoGreen, i.Icon(), "Icon not correctly set on Accepted Advertisement")
-	i.SetIcon(app.IconLiqoMain)
-	//
-	eventTester.Add(1)
-	ctrl.NotifyChannel(client.ChanAdvRevoked) <- testAdvName
-	eventTester.Wait()
-	assert.Equal(t, app.IconLiqoOrange, i.Icon(), "Icon not correctly set on Revoked Advertisement")
-	i.SetIcon(app.IconLiqoMain)
-	//
-	eventTester.Add(1)
-	ctrl.NotifyChannel(client.ChanAdvDeleted) <- testAdvName
-	eventTester.Wait()
-	assert.Equal(t, app.IconLiqoOrange, i.Icon(), "Icon not correctly set on Deleted Advertisement")
-	i.SetIcon(app.IconLiqoMain)
+	// test peers Listeners
+	_, exist = i.Listener(client.ChanPeerAdded)
+	assert.True(t, exist, "Listener for NotifyChanType ChanPeerAdded not registered")
+	_, exist = i.Listener(client.ChanPeerUpdated)
+	assert.True(t, exist, "Listener for NotifyChanType ChanPeerUpdated not registered")
+	_, exist = i.Listener(client.ChanPeerDeleted)
+	assert.True(t, exist, "Listener for NotifyChanType ChanPeerDeleted not registered")
+
+	// test peerings Listeners
+	_, exist = i.Listener(client.ChanPeeringIncomingNew)
+	assert.True(t, exist, "Listener for NotifyChanType ChanPeeringIncomingNew not registered")
+	_, exist = i.Listener(client.ChanPeeringOutgoingNew)
+	assert.True(t, exist, "Listener for NotifyChanType ChanPeeringOutgoingNew not registered")
+	_, exist = i.Listener(client.ChanPeeringIncomingDelete)
+	assert.True(t, exist, "Listener for NotifyChanType ChanPeeringIncomingDelete not registered")
+	_, exist = i.Listener(client.ChanPeeringOutgoingDelete)
+	assert.True(t, exist, "Listener for NotifyChanType ChanPeeringOutgoingDelete not registered")
+
 	i.Quit()
 }
 

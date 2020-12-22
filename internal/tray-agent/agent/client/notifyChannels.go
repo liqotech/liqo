@@ -8,16 +8,8 @@ type NotifyChannel int
 
 //NotifyChannel identifiers.
 const (
-	//Notification channel id for the creation of an Advertisement
-	ChanAdvNew NotifyChannel = iota
-	//Notification channel id for the acceptance of an Advertisement
-	ChanAdvAccepted
-	//Notification channel id for the deletion of an Advertisement
-	ChanAdvDeleted
-	//Notification channel id for the revocation of the 'ACCEPTED' status of an Advertisement
-	ChanAdvRevoked
 	//Notification channel id for the addition of a new peer discovered.
-	ChanPeerAdded
+	ChanPeerAdded NotifyChannel = iota
 	//Notification channel id for the removal of an available peer.
 	ChanPeerDeleted
 	//Notification channel id for an update of an available peer.
@@ -32,10 +24,6 @@ const (
 //notifyChannelNames contains all the registered NotifyChannel managed by the AgentController.
 //It is used for init and testing purposes.
 var notifyChannelNames = []NotifyChannel{
-	ChanAdvNew,
-	ChanAdvAccepted,
-	ChanAdvDeleted,
-	ChanAdvRevoked,
 	ChanPeerAdded,
 	ChanPeerDeleted,
 	ChanPeerUpdated,

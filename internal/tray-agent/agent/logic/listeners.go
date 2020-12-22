@@ -2,10 +2,14 @@ package logic
 
 import (
 	"fmt"
+	"github.com/liqotech/liqo/apis/discovery/v1alpha1"
+	"github.com/liqotech/liqo/internal/tray-agent/agent/client"
 	app "github.com/liqotech/liqo/internal/tray-agent/app-indicator"
 )
 
 //this file contains the callback functions for the Indicator listeners
+
+//******* PEERINGS *******
 
 func listenNewIncomingPeering(obj string, args ...interface{}) {
 	i := app.GetIndicator()
@@ -117,4 +121,76 @@ func listenDeleteOutgoingPeering(obj string, args ...interface{}) {
 	//todo next version of this feature will display a subelement containing shared resources
 	//notify peering disconnected
 	i.Notify("OUTGOING PEERING CLOSED", fmt.Sprintf("Stopped receiving resources from %s", obj), app.NotifyIconDefault, app.IconLiqoRed)
+}
+
+//******* PEERS *******
+
+func listenNewPeer(objName string, args ...interface{}) {
+	i := app.GetIndicator()
+	//retrieve Peer information
+	quickNode, present := i.Quick(qPeers)
+	if !present {
+		return
+	}
+	fcCtrl := i.AgentCtrl().Controller(client.CRForeignCluster)
+	obj, exist, err := fcCtrl.Store.GetByKey(objName)
+	if err == nil && exist {
+		fCluster := obj.(*v1alpha1.ForeignCluster)
+		clusterID := fCluster.Spec.ClusterIdentity.ClusterID
+		clusterName := fCluster.Spec.ClusterIdentity.ClusterName
+		//avoid potential duplicate
+		_, present = quickNode.ListChild(clusterID)
+		if present {
+			return
+		}
+		//show cluster name as main information. The clusterID is inserted inside a status sub-element for consultation.
+		peerNode := quickNode.UseListChild(clusterName, clusterID)
+		statusNode := peerNode.UseListChild(clusterID, tagStatus)
+		statusNode.SetIsEnabled(false)
+		peerNode.UseListChild(tagIncoming, tagIncoming)
+		peerNode.UseListChild(tagOutgoing, tagOutgoing)
+		//update the counter in the menu entry
+		i.Status().IncDecPeers(true)
+		i.RefreshStatus()
+		refreshPeerCount(quickNode)
+	}
+}
+
+func listenUpdatedPeer(objName string, args ...interface{}) {
+	i := app.GetIndicator()
+	//retrieve Peer information
+	quickNode, present := i.Quick(qPeers)
+	if !present {
+		return
+	}
+	//in this case it is not necessary to get the ClusterID information (which is the required key to access the
+	//dynamic list), since the ForeignCluster 'Name' metadata coincides with it.
+	quickNode.FreeListChild(objName)
+	//update the counter in the menu entry
+	i.Status().IncDecPeers(false)
+	i.RefreshStatus()
+	refreshPeerCount(quickNode)
+}
+
+func listenDeletedPeer(objName string, args ...interface{}) {
+	i := app.GetIndicator()
+	//retrieve Peer information
+	quickNode, present := i.Quick(qPeers)
+	if !present {
+		return
+	}
+	fcCtrl := i.AgentCtrl().Controller(client.CRForeignCluster)
+	obj, exist, err := fcCtrl.Store.GetByKey(objName)
+	if err == nil && exist {
+		fCluster := obj.(*v1alpha1.ForeignCluster)
+		clusterID := fCluster.Spec.ClusterIdentity.ClusterID
+		clusterName := fCluster.Spec.ClusterIdentity.ClusterName
+		var peerNode *app.MenuNode
+		peerNode, present = quickNode.ListChild(clusterID)
+		if !present {
+			return
+		}
+		//show cluster name as main information. The clusterID is inserted inside a status sub-element for consultation.
+		peerNode.SetTitle(clusterName)
+	}
 }

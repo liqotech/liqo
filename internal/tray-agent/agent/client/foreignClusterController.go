@@ -24,6 +24,12 @@ func createForeignClusterController(kubeconfig string) (*CRDController, error) {
 func foreignclusterAddFunc(obj interface{}) {
 	fc := obj.(*discovery.ForeignCluster)
 	agentCtrl.NotifyChannel(ChanPeerAdded) <- fc.Name
+	if outPeeringNew := fc.Status.Outgoing.Joined; outPeeringNew {
+		agentCtrl.NotifyChannel(ChanPeeringOutgoingNew) <- fc.Name
+	}
+	if inPeeringNew := fc.Status.Outgoing.Joined; inPeeringNew {
+		agentCtrl.NotifyChannel(ChanPeeringIncomingNew) <- fc.Name
+	}
 }
 
 //foreignclusterUpdateFunc is the UPDATE event handler for the ForeignCluster CRDController.
@@ -38,17 +44,17 @@ func foreignclusterUpdateFunc(oldObj interface{}, newObj interface{}) {
 	}
 	//monitor changes os peering operations
 	//outgoing
-	if outPeeringNew, outPeeringOld := fcNew.Status.Outgoing.Joined, fcOld.Status.Outgoing.Joined; outPeeringNew == true && outPeeringOld != outPeeringNew {
+	if outPeeringNew, outPeeringOld := fcNew.Status.Outgoing.Joined, fcOld.Status.Outgoing.Joined; outPeeringNew && outPeeringOld != outPeeringNew {
 		//new outgoing peering active
 		agentCtrl.NotifyChannel(ChanPeeringOutgoingNew) <- fcNew.Name
-	} else if outPeeringOld == true && outPeeringNew != outPeeringOld {
+	} else if outPeeringOld && outPeeringNew != outPeeringOld {
 		//outgoing peering torn down
 		agentCtrl.NotifyChannel(ChanPeeringOutgoingDelete) <- fcNew.Name
 	}
-	if inPeeringNew, inPeeringOld := fcNew.Status.Incoming.Joined, fcOld.Status.Incoming.Joined; inPeeringNew == true && inPeeringOld != inPeeringNew {
+	if inPeeringNew, inPeeringOld := fcNew.Status.Incoming.Joined, fcOld.Status.Incoming.Joined; inPeeringNew && inPeeringOld != inPeeringNew {
 		//new incoming peering active
 		agentCtrl.NotifyChannel(ChanPeeringIncomingNew) <- fcNew.Name
-	} else if inPeeringOld == true && inPeeringNew != inPeeringOld {
+	} else if inPeeringOld && inPeeringNew != inPeeringOld {
 		//incoming peering torn down
 		agentCtrl.NotifyChannel(ChanPeeringIncomingDelete) <- fcNew.Name
 	}
@@ -58,10 +64,10 @@ func foreignclusterUpdateFunc(oldObj interface{}, newObj interface{}) {
 //foreignclusterDeleteFunc is the DELETE event handler for the ForeignCluster CRDController.
 func foreignclusterDeleteFunc(obj interface{}) {
 	fc := obj.(*discovery.ForeignCluster)
-	if fc.Status.Outgoing.Joined == true {
+	if fc.Status.Outgoing.Joined {
 		agentCtrl.NotifyChannel(ChanPeeringOutgoingDelete) <- fc.Name
 	}
-	if fc.Status.Incoming.Joined == true {
+	if fc.Status.Incoming.Joined {
 		agentCtrl.NotifyChannel(ChanPeeringIncomingDelete) <- fc.Name
 	}
 	agentCtrl.NotifyChannel(ChanPeerDeleted) <- fc.Name
