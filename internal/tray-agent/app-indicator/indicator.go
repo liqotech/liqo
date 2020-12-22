@@ -332,8 +332,8 @@ func (i *Indicator) RefreshLabel() {
 	out := st.Peerings(PeeringOutgoing)
 	//since the label is graphically invasive, its content is displayed only when
 	//there is at least one active peering
-	if st.Running() && (in >= 0 || out >= 0) {
-		i.SetLabel(fmt.Sprintf("(I:%d/O:%d)", in, out))
+	if st.Running() && (in > 0 || out > 0) {
+		i.SetLabel(fmt.Sprintf("(IN:%d/OUT:%d)", in, out))
 		return
 	}
 	i.SetLabel("")

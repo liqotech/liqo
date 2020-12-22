@@ -19,33 +19,6 @@ func createAdvertisementController(kubeconfig string) (*CRDController, error) {
 	return controller, nil
 }
 
-//advertisementAddFunc is the ADD event handler for the Advertisement CRDController.
-func advertisementAddFunc(obj interface{}) {
-	newAdv := obj.(*advertisementApi.Advertisement)
-	if newAdv.Status.AdvertisementStatus == advertisementApi.AdvertisementAccepted {
-		agentCtrl.NotifyChannel(ChanAdvAccepted) <- newAdv.Name
-	} else {
-		agentCtrl.NotifyChannel(ChanAdvNew) <- newAdv.Name
-	}
-}
-
-//advertisementUpdateFunc is the UPDATE event handler for the Advertisement CRDController.
-func advertisementUpdateFunc(oldObj interface{}, newObj interface{}) {
-	oldAdv := oldObj.(*advertisementApi.Advertisement)
-	newAdv := newObj.(*advertisementApi.Advertisement)
-	if oldAdv.Status.AdvertisementStatus != advertisementApi.AdvertisementAccepted && newAdv.Status.AdvertisementStatus == advertisementApi.AdvertisementAccepted {
-		agentCtrl.NotifyChannel(ChanAdvAccepted) <- newAdv.Name
-	} else if oldAdv.Status.AdvertisementStatus == advertisementApi.AdvertisementAccepted && newAdv.Status.AdvertisementStatus != advertisementApi.AdvertisementAccepted {
-		agentCtrl.NotifyChannel(ChanAdvRevoked) <- newAdv.Name
-	}
-}
-
-//advertisementDeleteFunc is the DELETE event handler for the Advertisement CRDController.
-func advertisementDeleteFunc(obj interface{}) {
-	adv := obj.(*advertisementApi.Advertisement)
-	agentCtrl.NotifyChannel(ChanAdvDeleted) <- adv.Name
-}
-
 //DescribeAdvertisement provides a textual representation of an Advertisement CR
 //that can be displayed in a MenuNode.
 func DescribeAdvertisement(adv *advertisementApi.Advertisement) string {

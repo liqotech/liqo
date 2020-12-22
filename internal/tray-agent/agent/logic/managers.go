@@ -1,7 +1,6 @@
 package logic
 
 import (
-	"github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	"github.com/liqotech/liqo/internal/tray-agent/agent/client"
 	app "github.com/liqotech/liqo/internal/tray-agent/app-indicator"
 	"github.com/skratchdot/open-golang/open"
@@ -12,8 +11,8 @@ func OnReady() {
 	// Indicator configuration
 	i := app.GetIndicator()
 	i.RefreshStatus()
-	startListenerAdvertisements(i)
 	startListenerPeersList(i)
+	startListenerPeerings(i)
 	startQuickOnOff(i)
 	startQuickChangeMode(i)
 	startQuickDashboard(i)
@@ -85,129 +84,13 @@ func startQuickShowPeers(i *app.Indicator) {
 
 //LISTENERS
 
-// wrapper that starts the Listeners for the events regarding the Advertisement CRD
-func startListenerAdvertisements(i *app.Indicator) {
-	i.Listen(client.ChanAdvNew, i.AgentCtrl().NotifyChannel(client.ChanAdvNew), func(objName string, args ...interface{}) {
-		ctrl := i.AgentCtrl()
-		if !ctrl.Mocked() {
-			advStore := ctrl.Controller(client.CRAdvertisement).Store
-			_, exist, err := advStore.GetByKey(objName)
-			if err != nil {
-				i.NotifyNoConnection()
-				return
-			}
-			if !exist {
-				return
-			}
-		}
-		i.NotifyNewAdv(objName)
-	})
-	i.Listen(client.ChanAdvAccepted, i.AgentCtrl().NotifyChannel(client.ChanAdvAccepted), func(objName string, args ...interface{}) {
-		ctrl := i.AgentCtrl()
-		if !ctrl.Mocked() {
-			advStore := ctrl.Controller(client.CRAdvertisement).Store
-			_, exist, err := advStore.GetByKey(objName)
-			if err != nil {
-				i.NotifyNoConnection()
-				return
-			}
-			if !exist {
-				return
-			}
-		}
-		i.NotifyAcceptedAdv(objName)
-		i.Status().IncDecPeerings(app.PeeringOutgoing, true)
-	})
-	i.Listen(client.ChanAdvRevoked, i.AgentCtrl().NotifyChannel(client.ChanAdvRevoked), func(objName string, args ...interface{}) {
-		ctrl := i.AgentCtrl()
-		if !ctrl.Mocked() {
-			advStore := ctrl.Controller(client.CRAdvertisement).Store
-			_, exist, err := advStore.GetByKey(objName)
-			if err != nil {
-				i.NotifyNoConnection()
-				return
-			}
-			if !exist {
-				return
-			}
-		}
-		i.NotifyRevokedAdv(objName)
-		i.Status().IncDecPeerings(app.PeeringOutgoing, false)
-	})
-	i.Listen(client.ChanAdvDeleted, i.AgentCtrl().NotifyChannel(client.ChanAdvDeleted), func(objName string, args ...interface{}) {
-		i.NotifyDeletedAdv(objName)
-		i.Status().IncDecPeerings(app.PeeringOutgoing, false)
-	})
-}
-
 /*startListenerPeersList is a wrapper that starts the listeners regarding the dynamic listing of Liqo discovered Liqo peers.
   Since these listeners work on a specific QUICK MenuNode, the associated handlers works only if that QUICK
   is registered in the Indicator.*/
 func startListenerPeersList(i *app.Indicator) {
-	i.Listen(client.ChanPeerAdded, i.AgentCtrl().NotifyChannel(client.ChanPeerAdded), func(objName string, args ...interface{}) {
-		//retrieve Peer information
-		quickNode, present := i.Quick(qPeers)
-		if !present {
-			return
-		}
-		fcCtrl := i.AgentCtrl().Controller(client.CRForeignCluster)
-		obj, exist, err := fcCtrl.Store.GetByKey(objName)
-		if err == nil && exist {
-			fCluster := obj.(*v1alpha1.ForeignCluster)
-			clusterID := fCluster.Spec.ClusterIdentity.ClusterID
-			clusterName := fCluster.Spec.ClusterIdentity.ClusterName
-			//avoid potential duplicate
-			_, present = quickNode.ListChild(clusterID)
-			if present {
-				return
-			}
-			//show cluster name as main information. The clusterID is inserted inside a status sub-element for consultation.
-			peerNode := quickNode.UseListChild(clusterName, clusterID)
-			statusNode := peerNode.UseListChild(clusterID, tagStatus)
-			statusNode.SetIsEnabled(false)
-			peerNode.UseListChild(tagIncoming, tagIncoming)
-			peerNode.UseListChild(tagOutgoing, tagOutgoing)
-			//update the counter in the menu entry
-			i.Status().IncDecPeers(true)
-			i.RefreshStatus()
-			refreshPeerCount(quickNode)
-		}
-	})
-	i.Listen(client.ChanPeerDeleted, i.AgentCtrl().NotifyChannel(client.ChanPeerDeleted), func(objName string, args ...interface{}) {
-		//retrieve Peer information
-		quickNode, present := i.Quick(qPeers)
-		if !present {
-			return
-		}
-		//in this case it is not necessary to get the ClusterID information (which is the required key to access the
-		//dynamic list), since the ForeignCluster 'Name' metadata coincides with it.
-		quickNode.FreeListChild(objName)
-		//update the counter in the menu entry
-		i.Status().IncDecPeers(false)
-		i.RefreshStatus()
-		refreshPeerCount(quickNode)
-	})
-	i.Listen(client.ChanPeerUpdated, i.AgentCtrl().NotifyChannel(client.ChanPeerUpdated), func(objName string, args ...interface{}) {
-		//retrieve Peer information
-		quickNode, present := i.Quick(qPeers)
-		if !present {
-			return
-		}
-		fcCtrl := i.AgentCtrl().Controller(client.CRForeignCluster)
-		obj, exist, err := fcCtrl.Store.GetByKey(objName)
-		if err == nil && exist {
-			fCluster := obj.(*v1alpha1.ForeignCluster)
-			clusterID := fCluster.Spec.ClusterIdentity.ClusterID
-			clusterName := fCluster.Spec.ClusterIdentity.ClusterName
-			var peerNode *app.MenuNode
-			peerNode, present = quickNode.ListChild(clusterID)
-			if !present {
-				return
-			}
-			//show cluster name as main information. The clusterID is inserted inside a status sub-element for consultation.
-			peerNode.SetTitle(clusterName)
-		}
-	})
+	i.Listen(client.ChanPeerAdded, i.AgentCtrl().NotifyChannel(client.ChanPeerAdded), listenNewPeer)
+	i.Listen(client.ChanPeerDeleted, i.AgentCtrl().NotifyChannel(client.ChanPeerDeleted), listenUpdatedPeer)
+	i.Listen(client.ChanPeerUpdated, i.AgentCtrl().NotifyChannel(client.ChanPeerUpdated), listenDeletedPeer)
 }
 
 func startListenerPeerings(i *app.Indicator) {
