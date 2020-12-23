@@ -4,12 +4,17 @@ import (
 	apimgmt "github.com/liqotech/liqo/pkg/virtualKubelet/apiReflection"
 	"github.com/pkg/errors"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/tools/cache"
 )
 
 type MockManager struct {
 	HomeCache    map[string]map[apimgmt.ApiType]map[string]v1.Object
 	ForeignCache map[string]map[apimgmt.ApiType]map[string]v1.Object
+}
+
+func (m *MockManager) CheckNamespaceCaching(_ *wait.Backoff, _ string, _ string, _ apimgmt.ApiType) error {
+	return nil
 }
 
 func (m *MockManager) AddHomeEntry(namespace string, api apimgmt.ApiType, obj v1.Object) {

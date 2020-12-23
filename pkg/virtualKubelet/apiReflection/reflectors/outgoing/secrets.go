@@ -27,8 +27,6 @@ func (r *SecretsReflector) SetSpecializedPreProcessingHandlers() {
 }
 
 func (r *SecretsReflector) HandleEvent(e interface{}) {
-	var err error
-
 	event := e.(watch.Event)
 	secret, ok := event.Object.(*corev1.Secret)
 	if !ok {
@@ -41,7 +39,8 @@ func (r *SecretsReflector) HandleEvent(e interface{}) {
 	case watch.Added:
 		_, err := r.GetForeignClient().CoreV1().Secrets(secret.Namespace).Create(context.TODO(), secret, metav1.CreateOptions{})
 		if kerrors.IsAlreadyExists(err) {
-			klog.V(3).Infof("REFLECTION: The remote Secret %v/%v has not been created: %v", secret.Namespace, secret.Name, err)
+			klog.V(4).Infof("REFLECTION: The remote Secret %v/%v has not been created because already existing", secret.Namespace, secret.Name)
+			break
 		}
 		if err != nil && !kerrors.IsAlreadyExists(err) {
 			klog.Errorf("REFLECTION: Error while updating the remote Secret %v/%v - ERR: %v", secret.Namespace, secret.Name, err)
@@ -50,7 +49,10 @@ func (r *SecretsReflector) HandleEvent(e interface{}) {
 		}
 
 	case watch.Modified:
-		if _, err = r.GetForeignClient().CoreV1().Secrets(secret.Namespace).Update(context.TODO(), secret, metav1.UpdateOptions{}); err != nil {
+		if err := retry.RetryOnConflict(retry.DefaultBackoff, func() error {
+			_, newErr := r.GetForeignClient().CoreV1().Secrets(secret.Namespace).Update(context.TODO(), secret, metav1.UpdateOptions{})
+			return newErr
+		}); err != nil {
 			klog.Errorf("REFLECTION: Error while updating the remote Secret %v/%v - ERR: %v", secret.Namespace, secret.Name, err)
 		} else {
 			klog.V(3).Infof("REFLECTION: remote Secret %v/%v correctly updated", secret.Namespace, secret.Name)
@@ -72,7 +74,7 @@ func (r *SecretsReflector) CleanupNamespace(localNamespace string) {
 		return
 	}
 
-	objects, err := r.GetCacheManager().ResyncListForeignNamespacedObject(apimgmt.Secrets, foreignNamespace)
+	objects, err := r.GetCacheManager().ListForeignNamespacedObject(apimgmt.Secrets, foreignNamespace)
 	if err != nil {
 		klog.Error(err)
 		return

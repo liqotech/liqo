@@ -74,7 +74,6 @@ func (pc *PodController) createOrUpdatePod(ctx context.Context, pod *corev1.Pod)
 			pc.handleProviderError(ctx, span, origErr, pod)
 			return origErr
 		}
-		klog.V(3).Info("Created pod in provider")
 	}
 	return nil
 }
@@ -91,6 +90,11 @@ func podsEqual(pod1, pod2 *corev1.Pod) bool {
 	// - `objectmeta.annotations`
 	// compare the values of the pods to see if the values actually changed
 
+	var (
+		containers     = true
+		initContainers = true
+	)
+
 	if len(pod1.Annotations) == 0 {
 		pod1.Annotations = nil
 	}
@@ -104,8 +108,21 @@ func podsEqual(pod1, pod2 *corev1.Pod) bool {
 		pod2.Labels = nil
 	}
 
-	containers := cmp.Equal(pod1.Spec.Containers, pod2.Spec.Containers)
-	initContainers := cmp.Equal(pod1.Spec.InitContainers, pod2.Spec.InitContainers)
+	// since the only mutable fields in pods containers and initContainers are the images,
+	// we check only them
+	for i, c := range pod1.Spec.Containers {
+		if pod2.Spec.Containers[i].Image != c.Image {
+			containers = false
+			break
+		}
+	}
+	for i, c := range pod1.Spec.InitContainers {
+		if pod2.Spec.InitContainers[i].Image != c.Image {
+			initContainers = false
+			break
+		}
+	}
+
 	deadline := cmp.Equal(pod1.Spec.ActiveDeadlineSeconds, pod2.Spec.ActiveDeadlineSeconds)
 	tolerations := cmp.Equal(pod1.Spec.Tolerations, pod2.Spec.Tolerations)
 	labels := cmp.Equal(pod1.ObjectMeta.Labels, pod2.Labels)
@@ -124,6 +141,8 @@ func (pc *PodController) handleProviderError(ctx context.Context, span trace.Spa
 	case metav1.StatusReasonNotFound:
 		err := pc.client.Pods(pod.Namespace).Delete(context.TODO(), pod.Name, metav1.DeleteOptions{})
 		if err != nil {
+			err = pkgerrors.Wrapf(err, "setting provider failed, cannot delete local pod %s/%s", pod.Namespace, pod.Name)
+			klog.Error(err)
 			pc.setProviderFailed(ctx, span, origErr, pod)
 		}
 

@@ -40,11 +40,10 @@ func (r *ConfigmapsReflector) HandleEvent(e interface{}) {
 	case watch.Added:
 		_, err := r.GetForeignClient().CoreV1().ConfigMaps(cm.Namespace).Create(context.TODO(), cm, metav1.CreateOptions{})
 		if kerrors.IsAlreadyExists(err) {
-			klog.V(3).Infof("OUTGOING REFLECTION: The remote configmap %v/%v has not been created: %v", cm.Namespace, cm.Name, err)
+			klog.V(3).Infof("OUTGOING REFLECTION: The remote configmap %v/%v has not been created because already existing", cm.Namespace, cm.Name)
 			break
 		}
-
-		if err != nil && !kerrors.IsAlreadyExists(err) {
+		if err != nil {
 			klog.Errorf("OUTGOING REFLECTION: Error while updating the remote configmap %v/%v - ERR: %v", cm.Namespace, cm.Name, err)
 		} else {
 			klog.V(3).Infof("OUTGOING REFLECTION: remote configMap %v/%v correctly created", cm.Namespace, cm.Name)
@@ -160,7 +159,7 @@ func (r *ConfigmapsReflector) CleanupNamespace(localNamespace string) {
 		return
 	}
 
-	objects, err := r.GetCacheManager().ResyncListForeignNamespacedObject(apimgmt.Configmaps, foreignNamespace)
+	objects, err := r.GetCacheManager().ListForeignNamespacedObject(apimgmt.Configmaps, foreignNamespace)
 	if err != nil {
 		klog.Error(err)
 		return

@@ -15,10 +15,6 @@ func Keyer(namespace, name string) string {
 }
 
 func GetObject(informer cache.SharedIndexInformer, key string, backoff wait.Backoff) (interface{}, error) {
-	if informer == nil {
-		return nil, errors.New("informer not instantiated")
-	}
-
 	var object interface{}
 
 	fn := func() error {
