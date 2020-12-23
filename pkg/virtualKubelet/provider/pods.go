@@ -37,17 +37,25 @@ func (p *LiqoProvider) CreatePod(_ context.Context, homePod *corev1.Pod) error {
 		return nil
 	}
 
-	foreignPod, err := forge.HomeToForeign(homePod, nil, forge.LiqoOutgoingKey)
+	foreignObj, err := forge.HomeToForeign(homePod, nil, forge.LiqoOutgoingKey)
 	if err != nil {
 		return err
 	}
+	foreignPod := foreignObj.(*corev1.Pod)
 
-	foreignPod, err = serviceEnv.TranslateServiceEnvVariables(foreignPod.(*corev1.Pod), homePod.Namespace, homePod.Namespace, p.apiController.CacheManager())
+	foreignPod, err = serviceEnv.TranslateServiceEnvVariables(foreignPod, homePod.Namespace, foreignPod.Namespace, p.apiController.CacheManager())
 	if err != nil {
 		klog.Error(err)
+		return err
 	}
 
-	foreignReplicaset := forge.ReplicasetFromPod(foreignPod.(*corev1.Pod))
+	foreignReplicaset := forge.ReplicasetFromPod(foreignPod)
+
+	_, err = p.apiController.CacheManager().GetForeignApiByIndex(apimgmgt.Pods, foreignPod.Namespace, homePod.Name)
+	if err == nil {
+		klog.V(4).Infof("PROVIDER: creation of foreign replicaset %s/%s aborted, already existing", foreignReplicaset.Namespace, foreignReplicaset.Name)
+		return nil
+	}
 
 	// add a finalizer to allow the pod to be garbage collected by the incoming replicaset reflector
 	finalizerPatch := []byte(fmt.Sprintf(
@@ -65,6 +73,10 @@ func (p *LiqoProvider) CreatePod(_ context.Context, homePod *corev1.Pod) error {
 	}
 
 	_, err = p.foreignClient.AppsV1().ReplicaSets(foreignReplicaset.Namespace).Create(context.TODO(), foreignReplicaset, metav1.CreateOptions{})
+	if kerror.IsAlreadyExists(err) {
+		klog.V(4).Infof("PROVIDER: creation of foreign replicaset %s/%s aborted, already existing", foreignReplicaset.Namespace, foreignReplicaset.Name)
+		return nil
+	}
 	if err != nil {
 		return err
 	}
@@ -103,7 +115,7 @@ func (p *LiqoProvider) DeletePod(ctx context.Context, pod *corev1.Pod) (err erro
 			replicasetName = pod.Labels[virtualKubelet.ReflectedpodKey]
 		}
 		if replicasetName == "" {
-			klog.V(3).Infof("foreign pod %s/%s not deleted because unlabeled", pod.Namespace, pod.Name)
+			klog.V(3).Infof("home pod %s/%s foreign replica not deleted because unlabeled", pod.Namespace, pod.Name)
 			return nil
 		}
 	} else {
@@ -137,12 +149,19 @@ func (p *LiqoProvider) GetPod(_ context.Context, namespace, name string) (pod *c
 		return nil, err
 	}
 
-	foreignPod, err := p.apiController.CacheManager().GetForeignApiByIndex(apimgmgt.Pods, foreignNamespace, name)
+	_, err = p.apiController.CacheManager().GetForeignApiByIndex(apimgmgt.Pods, foreignNamespace, name)
 	if err != nil {
 		return nil, errors.Wrap(err, "error while retrieving foreign pod")
 	}
 
-	return foreignPod.(*corev1.Pod), nil
+	homePod, err := p.apiController.CacheManager().GetHomeNamespacedObject(apimgmgt.Pods, namespace, name)
+	if err != nil {
+		return nil, errors.Wrap(err, "error while retrieving home pod")
+	}
+
+	// if we want to enforce some foreign pod fields we should return a homePod having the fields to enforce
+	// taken from the foreign pod
+	return homePod.(*corev1.Pod), nil
 }
 
 // GetPodStatus returns the status of a pod by name that is "running".

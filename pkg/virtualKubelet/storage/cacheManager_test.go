@@ -129,12 +129,12 @@ var _ = Describe("CacheManager", func() {
 
 						It("resync list objects", func() {
 							By("home pods")
-							objs, err := manager.ResyncListHomeNamespacedObject(apimgmt.Pods, test.HomeNamespace)
+							objs, err := manager.ListHomeNamespacedObject(apimgmt.Pods, test.HomeNamespace)
 							Expect(err).NotTo(HaveOccurred())
 							Expect(len(objs)).To(Equal(2))
 
 							By("foreign pod")
-							objs, err = manager.ResyncListForeignNamespacedObject(apimgmt.Pods, test.ForeignNamespace)
+							objs, err = manager.ListForeignNamespacedObject(apimgmt.Pods, test.ForeignNamespace)
 							Expect(err).NotTo(HaveOccurred())
 							Expect(len(objs)).To(Equal(2))
 						})
@@ -176,11 +176,11 @@ var _ = Describe("CacheManager", func() {
 
 				It("resync list objects", func() {
 					By("home pods")
-					_, err := manager.ResyncListHomeNamespacedObject(apimgmt.Pods, test.HomeNamespace)
+					_, err := manager.ListHomeNamespacedObject(apimgmt.Pods, test.HomeNamespace)
 					Expect(err).To(HaveOccurred())
 
 					By("foreign pod")
-					_, err = manager.ResyncListForeignNamespacedObject(apimgmt.Pods, test.ForeignNamespace)
+					_, err = manager.ListForeignNamespacedObject(apimgmt.Pods, test.ForeignNamespace)
 					Expect(err).To(HaveOccurred())
 				})
 			})

@@ -28,8 +28,6 @@ func (r *ServicesReflector) SetSpecializedPreProcessingHandlers() {
 }
 
 func (r *ServicesReflector) HandleEvent(e interface{}) {
-	var err error
-
 	event := e.(watch.Event)
 	svc, ok := event.Object.(*corev1.Service)
 	if !ok {
@@ -42,16 +40,20 @@ func (r *ServicesReflector) HandleEvent(e interface{}) {
 	case watch.Added:
 		_, err := r.GetForeignClient().CoreV1().Services(svc.Namespace).Create(context.TODO(), svc, metav1.CreateOptions{})
 		if kerrors.IsAlreadyExists(err) {
-			klog.V(3).Infof("REFLECTION: The remote service %v/%v has not been created: %v", svc.Namespace, svc.Name, err)
+			klog.V(4).Infof("REFLECTION: The remote service %v/%v has not been created because already existing", svc.Namespace, svc.Name)
+			break
 		}
-		if err != nil && !kerrors.IsAlreadyExists(err) {
+		if err != nil {
 			klog.Errorf("REFLECTION: Error while creating the remote service %v/%v - ERR: %v", svc.Namespace, svc.Name, err)
 		} else {
 			klog.V(3).Infof("REFLECTION: remote service %v/%v correctly created", svc.Namespace, svc.Name)
 		}
 
 	case watch.Modified:
-		if _, err = r.GetForeignClient().CoreV1().Services(svc.Namespace).Update(context.TODO(), svc, metav1.UpdateOptions{}); err != nil {
+		if err := retry.RetryOnConflict(retry.DefaultBackoff, func() error {
+			_, newErr := r.GetForeignClient().CoreV1().Services(svc.Namespace).Update(context.TODO(), svc, metav1.UpdateOptions{})
+			return newErr
+		}); err != nil {
 			klog.Errorf("REFLECTION: Error while updating the remote service %v/%v - ERR: %v", svc.Namespace, svc.Name, err)
 		} else {
 			klog.V(3).Infof("REFLECTION: remote service %v/%v correctly updated", svc.Namespace, svc.Name)
@@ -73,7 +75,7 @@ func (r *ServicesReflector) CleanupNamespace(localNamespace string) {
 		return
 	}
 
-	objects, err := r.GetCacheManager().ResyncListForeignNamespacedObject(apimgmt.Services, foreignNamespace)
+	objects, err := r.GetCacheManager().ListForeignNamespacedObject(apimgmt.Services, foreignNamespace)
 	if err != nil {
 		klog.Error(err)
 		return

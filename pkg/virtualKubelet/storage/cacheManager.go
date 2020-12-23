@@ -7,15 +7,87 @@ import (
 	"github.com/liqotech/liqo/pkg/virtualKubelet/utils"
 	"github.com/pkg/errors"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/cache"
+	"k8s.io/client-go/util/retry"
+	"k8s.io/klog"
 	"sync"
 )
+
+type readyCaches struct {
+	sync.RWMutex
+	caches map[string]struct{}
+}
 
 type Manager struct {
 	homeInformers    *NamespacedAPICaches
 	foreignInformers *NamespacedAPICaches
+
+	homeReadyCaches    readyCaches
+	foreignReadyCaches readyCaches
+}
+
+func readinessKeyer(namespace string, api apimgmt.ApiType) string {
+	return fmt.Sprintf("%s/%s", namespace, apimgmt.ApiNames[api])
+}
+
+// checkNamespaceCaching checks if the caching of the requested informers has been started. It caches the result
+// for allowing a subsequent fast checks
+func checkNamespaceCaching(backoff *wait.Backoff, rc *readyCaches, informers *NamespacedAPICaches, namespace string, api apimgmt.ApiType) error {
+	checkFunc := func() error {
+		rc.RLock()
+		if _, ok := rc.caches[readinessKeyer(namespace, api)]; ok {
+			rc.RUnlock()
+		} else {
+			rc.RUnlock()
+
+			// home cache checks
+			if informers == nil {
+				return errors.New("informers set to nil")
+			}
+			informers.RLock()
+			defer informers.RUnlock()
+
+			apiCache := informers.Namespace(namespace)
+			if apiCache == nil {
+				return errdefs.Unavailablef("informers for api %v in namespace %v do not exist", apimgmt.ApiNames[api], namespace)
+			}
+			informer := apiCache.informer(api)
+			if informer == nil {
+				return errdefs.Unavailablef("informer for api %v in namespace %v does not exist", apimgmt.ApiNames[api], namespace)
+			}
+			if !informer.HasSynced() {
+				return errdefs.Unavailablef("informer for api %v in namespace %v not synced yet", apimgmt.ApiNames[api], namespace)
+			}
+
+			// cache readiness result for home cache
+			rc.Lock()
+			rc.caches[readinessKeyer(namespace, api)] = struct{}{}
+			rc.Unlock()
+		}
+
+		return nil
+	}
+
+	// if no backoff specified, we call the checkFunction only once
+	if backoff == nil {
+		return checkFunc()
+	}
+
+	// if the backoff has been set, we call a retry function on the check function by using the passed backoff
+	if err := retry.OnError(*backoff,
+		func(err error) bool {
+			klog.V(6).Infof("operation retried because of ERR: %s", err.Error())
+			return errdefs.IsUnavailable(err)
+		},
+		checkFunc,
+	); err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func NewManager(homeClient, foreignClient kubernetes.Interface) *Manager {
@@ -23,19 +95,25 @@ func NewManager(homeClient, foreignClient kubernetes.Interface) *Manager {
 		apiInformers:      make(map[string]*APICaches),
 		informerFactories: make(map[string]informers.SharedInformerFactory),
 		client:            homeClient,
-		mutex:             sync.RWMutex{},
 	}
 
 	foreignInformers := &NamespacedAPICaches{
 		apiInformers:      make(map[string]*APICaches),
 		informerFactories: make(map[string]informers.SharedInformerFactory),
 		client:            foreignClient,
-		mutex:             sync.RWMutex{},
 	}
 
 	manager := &Manager{
 		homeInformers:    homeInformers,
 		foreignInformers: foreignInformers,
+		homeReadyCaches: readyCaches{
+			RWMutex: sync.RWMutex{},
+			caches:  make(map[string]struct{}),
+		},
+		foreignReadyCaches: readyCaches{
+			RWMutex: sync.RWMutex{},
+			caches:  make(map[string]struct{}),
+		},
 	}
 
 	return manager
@@ -79,8 +157,8 @@ func (cm *Manager) RemoveNamespace(namespace string) {
 }
 
 func (cm *Manager) AddHomeEventHandlers(api apimgmt.ApiType, namespace string, handlers *cache.ResourceEventHandlerFuncs) error {
-	cm.homeInformers.mutex.Lock()
-	defer cm.homeInformers.mutex.Unlock()
+	cm.homeInformers.Lock()
+	defer cm.homeInformers.Unlock()
 
 	if cm.homeInformers == nil {
 		return errors.New("home informer set to nil")
@@ -102,8 +180,8 @@ func (cm *Manager) AddHomeEventHandlers(api apimgmt.ApiType, namespace string, h
 }
 
 func (cm *Manager) AddForeignEventHandlers(api apimgmt.ApiType, namespace string, handlers *cache.ResourceEventHandlerFuncs) error {
-	cm.foreignInformers.mutex.Lock()
-	defer cm.foreignInformers.mutex.Unlock()
+	cm.foreignInformers.Lock()
+	defer cm.foreignInformers.Unlock()
 
 	apiCache := cm.foreignInformers.Namespace(namespace)
 	if apiCache == nil {
@@ -121,50 +199,39 @@ func (cm *Manager) AddForeignEventHandlers(api apimgmt.ApiType, namespace string
 }
 
 func (cm *Manager) GetHomeNamespacedObject(api apimgmt.ApiType, namespace, name string) (interface{}, error) {
-	if cm.homeInformers == nil {
-		return nil, kerrors.NewServiceUnavailable("home informers set to nil")
+	err := checkNamespaceCaching(&defaultBackoff, &cm.homeReadyCaches, cm.homeInformers, namespace, api)
+	if err != nil {
+		return nil, err
 	}
-
-	cm.homeInformers.mutex.RLock()
-	defer cm.homeInformers.mutex.RUnlock()
+	cm.homeInformers.RLock()
+	defer cm.homeInformers.RUnlock()
 
 	apiCache := cm.homeInformers.Namespace(namespace)
-	if apiCache == nil {
-		return nil, kerrors.NewServiceUnavailable(fmt.Sprintf("home cache for api %v in namespace %v set to nil", apimgmt.ApiNames[api], namespace))
-	}
-
 	return apiCache.getApi(api, utils.Keyer(namespace, name))
 }
 
 func (cm *Manager) GetForeignNamespacedObject(api apimgmt.ApiType, namespace, name string) (interface{}, error) {
-	if cm.foreignInformers == nil {
-		return nil, errors.New("foreign informers set to nil")
+	err := checkNamespaceCaching(&defaultBackoff, &cm.foreignReadyCaches, cm.foreignInformers, namespace, api)
+	if err != nil {
+		return nil, err
 	}
 
-	cm.foreignInformers.mutex.RLock()
-	defer cm.foreignInformers.mutex.RUnlock()
+	cm.foreignInformers.RLock()
+	defer cm.foreignInformers.RUnlock()
 
 	apiCache := cm.foreignInformers.Namespace(namespace)
-	if apiCache == nil {
-		return nil, errors.Errorf("foreign cache for api %v in namespace %v set to nil", apimgmt.ApiNames[api], namespace)
-	}
-
 	return apiCache.getApi(api, utils.Keyer(namespace, name))
 }
 
 func (cm *Manager) ListHomeNamespacedObject(api apimgmt.ApiType, namespace string) ([]interface{}, error) {
-	if cm.homeInformers == nil {
-		return nil, kerrors.NewServiceUnavailable("home informers set to nil")
+	err := checkNamespaceCaching(&defaultBackoff, &cm.homeReadyCaches, cm.homeInformers, namespace, api)
+	if err != nil {
+		return nil, err
 	}
-
-	cm.homeInformers.mutex.RLock()
-	defer cm.homeInformers.mutex.RUnlock()
+	cm.homeInformers.RLock()
+	defer cm.homeInformers.RUnlock()
 
 	apiCache := cm.homeInformers.Namespace(namespace)
-	if apiCache == nil {
-		return nil, kerrors.NewServiceUnavailable(fmt.Sprintf("home cache for api %v in namespace %v set to nil", apimgmt.ApiNames[api], namespace))
-	}
-
 	objects, err := apiCache.listApi(api)
 	if err != nil {
 		return nil, err
@@ -174,18 +241,14 @@ func (cm *Manager) ListHomeNamespacedObject(api apimgmt.ApiType, namespace strin
 }
 
 func (cm *Manager) ListForeignNamespacedObject(api apimgmt.ApiType, namespace string) ([]interface{}, error) {
-	if cm.foreignInformers == nil {
-		return nil, errors.New("foreign informers set to nil")
+	err := checkNamespaceCaching(&defaultBackoff, &cm.foreignReadyCaches, cm.foreignInformers, namespace, api)
+	if err != nil {
+		return nil, err
 	}
-
-	cm.foreignInformers.mutex.RLock()
-	defer cm.foreignInformers.mutex.RUnlock()
+	cm.foreignInformers.RLock()
+	defer cm.foreignInformers.RUnlock()
 
 	apiCache := cm.foreignInformers.Namespace(namespace)
-	if apiCache == nil {
-		return nil, errors.Errorf("foreign cache for api %v in namespace %v set to nil", apimgmt.ApiNames[api], namespace)
-	}
-
 	objects, err := apiCache.listApi(api)
 	if err != nil {
 		return nil, err
@@ -194,61 +257,15 @@ func (cm *Manager) ListForeignNamespacedObject(api apimgmt.ApiType, namespace st
 	return objects, nil
 }
 
-func (cm *Manager) ResyncListHomeNamespacedObject(api apimgmt.ApiType, namespace string) ([]interface{}, error) {
-	if cm.homeInformers == nil {
-		return nil, errors.New("home informers set to nil")
-	}
-
-	cm.homeInformers.mutex.RLock()
-	defer cm.homeInformers.mutex.RLock()
-
-	apiCache := cm.homeInformers.Namespace(namespace)
-	if apiCache == nil {
-		return nil, errors.Errorf("cache for api %v in namespace %v not existing", apimgmt.ApiNames[api], namespace)
-	}
-
-	objects, err := apiCache.resyncListObjects(api)
-	if err != nil {
-		return nil, err
-	}
-
-	return objects, nil
-}
-
-func (cm *Manager) ResyncListForeignNamespacedObject(api apimgmt.ApiType, namespace string) ([]interface{}, error) {
-	if cm.foreignInformers == nil {
-		return nil, errors.New("foreign informers set to nil")
-	}
-
-	cm.foreignInformers.mutex.RLock()
-	defer cm.foreignInformers.mutex.RUnlock()
-
-	apiCache := cm.foreignInformers.Namespace(namespace)
-	if apiCache == nil {
-		return nil, errors.Errorf("cache for api %v in namespace %v not existing", apimgmt.ApiNames[api], namespace)
-	}
-
-	objects, err := apiCache.resyncListObjects(api)
-	if err != nil {
-		return nil, err
-	}
-
-	return objects, nil
-}
-
 func (cm *Manager) GetHomeApiByIndex(api apimgmt.ApiType, namespace, index string) (interface{}, error) {
-	if cm.homeInformers == nil {
-		return nil, errors.New("home informers set to nil")
+	err := checkNamespaceCaching(&defaultBackoff, &cm.homeReadyCaches, cm.homeInformers, namespace, api)
+	if err != nil {
+		return nil, err
 	}
-
-	cm.homeInformers.mutex.RLock()
-	defer cm.homeInformers.mutex.RLock()
+	cm.homeInformers.RLock()
+	defer cm.homeInformers.RUnlock()
 
 	apiCache := cm.homeInformers.Namespace(namespace)
-	if apiCache == nil {
-		return nil, errors.Errorf("cache for api %v in namespace %v not existing", apimgmt.ApiNames[api], namespace)
-	}
-
 	objects, err := apiCache.listApiByIndex(api, index)
 	if err != nil {
 		return nil, err
@@ -265,18 +282,14 @@ func (cm *Manager) GetHomeApiByIndex(api apimgmt.ApiType, namespace, index strin
 }
 
 func (cm *Manager) GetForeignApiByIndex(api apimgmt.ApiType, namespace, index string) (interface{}, error) {
-	if cm.foreignInformers == nil {
-		return nil, errors.New("foreign informers set to nil")
+	err := checkNamespaceCaching(&defaultBackoff, &cm.foreignReadyCaches, cm.foreignInformers, namespace, api)
+	if err != nil {
+		return nil, err
 	}
-
-	cm.foreignInformers.mutex.RLock()
-	defer cm.foreignInformers.mutex.RUnlock()
+	cm.foreignInformers.RLock()
+	defer cm.foreignInformers.RUnlock()
 
 	apiCache := cm.foreignInformers.Namespace(namespace)
-	if apiCache == nil {
-		return nil, errors.Errorf("foreign cache for api %v in namespace %v set to nil", apimgmt.ApiNames[api], namespace)
-	}
-
 	objects, err := apiCache.listApiByIndex(api, index)
 	if err != nil {
 		return nil, err

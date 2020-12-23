@@ -18,11 +18,11 @@ var (
 )
 
 type NamespacedAPICaches struct {
+	sync.RWMutex
+
 	apiInformers      map[string]*APICaches
 	informerFactories map[string]informers.SharedInformerFactory
 	client            kubernetes.Interface
-
-	mutex sync.RWMutex
 }
 
 func (ac *NamespacedAPICaches) Namespace(namespace string) *APICaches {
@@ -30,8 +30,8 @@ func (ac *NamespacedAPICaches) Namespace(namespace string) *APICaches {
 }
 
 func (ac *NamespacedAPICaches) AddNamespace(namespace string) error {
-	ac.mutex.Lock()
-	defer ac.mutex.Unlock()
+	ac.Lock()
+	defer ac.Unlock()
 
 	if ac.apiInformers == nil {
 		return errors.New("informers map set to nil")

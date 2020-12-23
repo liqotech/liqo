@@ -141,7 +141,7 @@ func (r *PodsIncomingReflector) CleanupNamespace(namespace string) {
 		return
 	}
 
-	objects, err := r.GetCacheManager().ResyncListForeignNamespacedObject(apimgmt.Pods, foreignNamespace)
+	objects, err := r.GetCacheManager().ListForeignNamespacedObject(apimgmt.Pods, foreignNamespace)
 	if err != nil {
 		klog.Errorf("error while listing remote objects in namespace %v", namespace)
 		return

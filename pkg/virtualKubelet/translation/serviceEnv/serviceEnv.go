@@ -3,6 +3,7 @@ package serviceEnv
 import (
 	apimgmgt "github.com/liqotech/liqo/pkg/virtualKubelet/apiReflection"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/storage"
+	"github.com/pkg/errors"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/klog"
 	v1helper "k8s.io/kubernetes/pkg/apis/core/v1/helper"
@@ -76,7 +77,8 @@ func getServiceEnvVarMap(ns string, enableServiceLinks bool, remoteNs string, ca
 
 		if service.Namespace == ns && enableServiceLinks {
 			if err = addService(&serviceMap, cacheManager, remoteNs, serviceName, true); err != nil {
-				klog.Error(err)
+				err := errors.Wrapf(err, "cannot add remote service")
+				klog.V(4).Info(err)
 				continue
 			}
 		}

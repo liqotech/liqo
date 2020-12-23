@@ -10,7 +10,7 @@ import (
 	"github.com/pkg/errors"
 	corev1 "k8s.io/api/core/v1"
 	discoveryv1beta1 "k8s.io/api/discovery/v1beta1"
-	kerror "k8s.io/apimachinery/pkg/api/errors"
+	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/util/retry"
@@ -37,33 +37,40 @@ func (r *EndpointSlicesReflector) SetSpecializedPreProcessingHandlers() {
 }
 
 func (r *EndpointSlicesReflector) HandleEvent(e interface{}) {
-	var err error
-
 	event := e.(watch.Event)
-	cm, ok := event.Object.(*discoveryv1beta1.EndpointSlice)
+	ep, ok := event.Object.(*discoveryv1beta1.EndpointSlice)
 	if !ok {
 		klog.Error("REFLECTION: cannot cast object to EndpointSlice")
 		return
 	}
-	key := r.Keyer(cm.Namespace, cm.Name)
+	key := r.Keyer(ep.Namespace, ep.Name)
 	klog.V(3).Infof("REFLECTION: received %v for EndpointSlice %v", event.Type, key)
 
 	switch event.Type {
 	case watch.Added:
-		if _, err := r.GetForeignClient().DiscoveryV1beta1().EndpointSlices(cm.Namespace).Create(context.TODO(), cm, metav1.CreateOptions{}); err != nil {
-			klog.Errorf("REFLECTION: Error while creating the remote EndpointSlice %v - ERR: %v", key, err)
+		_, err := r.GetForeignClient().DiscoveryV1beta1().EndpointSlices(ep.Namespace).Create(context.TODO(), ep, metav1.CreateOptions{})
+		if kerrors.IsAlreadyExists(err) {
+			klog.V(4).Infof("REFLECTION: The remote endpointslices %v/%v has not been created because already existing", ep.Namespace, ep.Name)
+			break
 		}
-		klog.V(3).Infof("REFLECTION: remote EndpointSlice %v correctly created", key)
+		if err != nil {
+			klog.Errorf("REFLECTION: Error while creating the remote EndpointSlice %v - ERR: %v", key, err)
+		} else {
+			klog.V(3).Infof("REFLECTION: remote EndpointSlice %v correctly created", key)
+		}
 
 	case watch.Modified:
-		if _, err = r.GetForeignClient().DiscoveryV1beta1().EndpointSlices(cm.Namespace).Update(context.TODO(), cm, metav1.UpdateOptions{}); err != nil {
+		if err := retry.RetryOnConflict(retry.DefaultBackoff, func() error {
+			_, newErr := r.GetForeignClient().DiscoveryV1beta1().EndpointSlices(ep.Namespace).Update(context.TODO(), ep, metav1.UpdateOptions{})
+			return newErr
+		}); err != nil {
 			klog.Errorf("REFLECTION: Error while updating the remote EndpointSlice %v - ERR: %v", key, err)
 		} else {
 			klog.V(3).Infof("REFLECTION: remote EndpointSlice %v correctly updated", key)
 		}
 
 	case watch.Deleted:
-		if err := r.GetForeignClient().DiscoveryV1beta1().EndpointSlices(cm.Namespace).Delete(context.TODO(), cm.Name, metav1.DeleteOptions{}); err != nil {
+		if err := r.GetForeignClient().DiscoveryV1beta1().EndpointSlices(ep.Namespace).Delete(context.TODO(), ep.Name, metav1.DeleteOptions{}); err != nil {
 			klog.Errorf("REFLECTION: Error while deleting the remote EndpointSlice %v - ERR: %v", key, err)
 		} else {
 			klog.V(3).Infof("REFLECTION: remote EndpointSlice %v correctly deleted", key)
@@ -91,7 +98,7 @@ func (r *EndpointSlicesReflector) PreAdd(obj interface{}) interface{} {
 	key := r.Keyer(nattedNs, svcName)
 
 	retriable := func(err error) bool {
-		return kerror.IsNotFound(err)
+		return kerrors.IsNotFound(err)
 	}
 	fn := func() error {
 		svc, err = r.GetForeignClient().CoreV1().Services(nattedNs).Get(context.TODO(), svcName, metav1.GetOptions{})
@@ -192,14 +199,14 @@ func (r *EndpointSlicesReflector) CleanupNamespace(localNamespace string) {
 		return
 	}
 
-	objects, err := r.GetCacheManager().ResyncListForeignNamespacedObject(apimgmt.EndpointSlices, foreignNamespace)
+	objects, err := r.GetCacheManager().ListForeignNamespacedObject(apimgmt.EndpointSlices, foreignNamespace)
 	if err != nil {
 		klog.Error(err)
 		return
 	}
 
 	retriable := func(err error) bool {
-		switch kerror.ReasonForError(err) {
+		switch kerrors.ReasonForError(err) {
 		case metav1.StatusReasonNotFound:
 			return false
 		default:
