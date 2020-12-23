@@ -123,11 +123,11 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
-  name: wireguard-endpoint
+  name: liqo-gateway-endpoint
   labels:
     net.liqo.io/gateway: "true"
 spec:
-  type: NodePort
+  type: {{ .Values.tunnelEndpointOperator.vpnEndpoint }}
   ports:
     - name: wireguard
       port: 5871

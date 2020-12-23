@@ -28,6 +28,7 @@ networkModule:
     image:
       repository: "liqo/liqonet"
       pullPolicy: "IfNotPresent"
+    vpnEndpoint: "NodePort"
   enabled: true
 
 #configuration values for the tunnelendpointCreator subchart

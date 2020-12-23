@@ -10,6 +10,7 @@ tunnelEndpointOperator:
   image:
     repository: "liqo/liqonet"
     pullPolicy: "IfNotPresent"
+  vpnEndpoint: "NodePort"
 
 suffix: ""
 version: "latest"
