@@ -34,7 +34,7 @@ func (p *LiqoProvider) nodeConditions() []v1.NodeCondition {
 	return []v1.NodeCondition{
 		{
 			Type:               "Ready",
-			Status:             v1.ConditionTrue,
+			Status:             v1.ConditionFalse,
 			LastHeartbeatTime:  metav1.Now(),
 			LastTransitionTime: metav1.Now(),
 			Reason:             "KubeletReady",
@@ -66,7 +66,7 @@ func (p *LiqoProvider) nodeConditions() []v1.NodeCondition {
 		},
 		{
 			Type:               "NetworkUnavailable",
-			Status:             v1.ConditionFalse,
+			Status:             v1.ConditionTrue,
 			LastHeartbeatTime:  metav1.Now(),
 			LastTransitionTime: metav1.Now(),
 			Reason:             "RouteCreated",
