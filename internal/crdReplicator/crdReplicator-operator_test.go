@@ -48,8 +48,8 @@ func getLabels() map[string]string {
 	}
 }
 
-func getCRDReplicator() CRDReplicatorReconciler {
-	return CRDReplicatorReconciler{
+func getCRDReplicator() Controller {
+	return Controller{
 		Scheme:                         nil,
 		ClusterID:                      localClusterID,
 		RemoteDynClients:               map[string]dynamic.Interface{remoteClusterID: dynClient},
@@ -59,7 +59,7 @@ func getCRDReplicator() CRDReplicatorReconciler {
 		RemoteWatchers:                 map[string]map[string]chan struct{}{},
 		LocalDynClient:                 dynClient,
 		LocalDynSharedInformerFactory:  localDynFac,
-		LocalWatchers:                  map[string]map[string]chan struct{}{},
+		LocalWatchers:                  map[string]chan struct{}{},
 	}
 }
 
@@ -180,13 +180,12 @@ func TestCRDReplicatorReconciler_StartAndStopWatchers(t *testing.T) {
 	d.RegisteredResources = test1
 	d.StartWatchers()
 	assert.Equal(t, 2, len(d.RemoteWatchers[remoteClusterID]), "it should be 2")
-	assert.Equal(t, 2, len(d.LocalWatchers[remoteClusterID]), "it should be 2")
+	assert.Equal(t, 2, len(d.LocalWatchers), "it should be 2")
 	for _, r := range test1 {
 		d.UnregisteredResources = append(d.UnregisteredResources, r.String())
 	}
 	d.StopWatchers()
 	assert.Equal(t, 0, len(d.RemoteWatchers[remoteClusterID]), "it should be 0")
-	assert.Equal(t, 0, len(d.LocalWatchers[remoteClusterID]), "it should be 0")
 	d.UnregisteredResources = []string{}
 
 }

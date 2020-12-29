@@ -35,7 +35,7 @@ func setupDispatcherOperator() error {
 	var err error
 	localDynClient := dynamic.NewForConfigOrDie(k8sManagerLocal.GetConfig())
 	localDynFac := dynamicinformer.NewFilteredDynamicSharedInformerFactory(localDynClient, crdReplicator.ResyncPeriod, metav1.NamespaceAll, crdReplicator.SetLabelsForLocalResources)
-	dOperator = &crdReplicator.CRDReplicatorReconciler{
+	dOperator = &crdReplicator.Controller{
 		Scheme:                         k8sManagerLocal.GetScheme(),
 		Client:                         k8sManagerLocal.GetClient(),
 		ClientSet:                      nil,
@@ -46,7 +46,7 @@ func setupDispatcherOperator() error {
 		RemoteDynSharedInformerFactory: peeringClustersDynFactories,
 		RegisteredResources:            nil,
 		UnregisteredResources:          nil,
-		LocalWatchers:                  make(map[string]map[string]chan struct{}),
+		LocalWatchers:                  make(map[string]chan struct{}),
 		RemoteWatchers:                 make(map[string]map[string]chan struct{}),
 	}
 	err = dOperator.SetupWithManager(k8sManagerLocal)

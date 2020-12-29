@@ -57,7 +57,7 @@ func main() {
 	}
 	dynClient := dynamic.NewForConfigOrDie(cfg)
 	dynFac := dynamicinformer.NewFilteredDynamicSharedInformerFactory(dynClient, crdReplicator.ResyncPeriod, metav1.NamespaceAll, crdReplicator.SetLabelsForLocalResources)
-	d := &crdReplicator.CRDReplicatorReconciler{
+	d := &crdReplicator.Controller{
 		Scheme:                         mgr.GetScheme(),
 		Client:                         mgr.GetClient(),
 		ClientSet:                      k8sClient,
@@ -67,7 +67,7 @@ func main() {
 		LocalDynSharedInformerFactory:  dynFac,
 		RegisteredResources:            nil,
 		UnregisteredResources:          nil,
-		LocalWatchers:                  make(map[string]map[string]chan struct{}),
+		LocalWatchers:                  make(map[string]chan struct{}),
 		RemoteWatchers:                 make(map[string]map[string]chan struct{}),
 		RemoteDynSharedInformerFactory: make(map[string]dynamicinformer.DynamicSharedInformerFactory),
 	}

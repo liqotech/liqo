@@ -9,7 +9,7 @@ import (
 )
 
 func TestDispatcherReconciler_GetConfig(t *testing.T) {
-	dispatcher := CRDReplicatorReconciler{}
+	dispatcher := Controller{}
 	//test 1
 	//the list of the resources to be replicated is 0, so we expect a 0 length list to be returned by the function
 	t1 := configv1alpha1.DispatcherConfig{ResourcesToReplicate: nil}
@@ -47,7 +47,7 @@ func TestDispatcherReconciler_GetConfig(t *testing.T) {
 }
 
 func TestDispatcherReconciler_GetRemovedResources(t *testing.T) {
-	dispatcher := CRDReplicatorReconciler{
+	dispatcher := Controller{
 		RegisteredResources: []schema.GroupVersionResource{
 			{
 				Group:    netv1alpha1.GroupVersion.Group,
@@ -105,7 +105,7 @@ func TestDispatcherReconciler_GetRemovedResources(t *testing.T) {
 }
 
 func TestDispatcherReconciler_UpdateConfig(t *testing.T) {
-	dispatcher := CRDReplicatorReconciler{}
+	dispatcher := Controller{}
 	//test 1
 	//the list of the resources to be replicated is 0, so we expect a 0 length list to be returned by the function
 	//and 0 elements removed
@@ -164,7 +164,7 @@ func TestDispatcherReconciler_UpdateConfig(t *testing.T) {
 
 //we test that if the *rest.config of the custer is not correct the function return the error
 func TestDispatcherReconciler_WatchConfiguration(t *testing.T) {
-	dispatcher := CRDReplicatorReconciler{}
+	dispatcher := Controller{}
 	//test1
 	//the group version is not correct and we expect an error
 	config := k8sManagerLocal.GetConfig()
