@@ -11,7 +11,7 @@ import (
 	"reflect"
 )
 
-func (d *CRDReplicatorReconciler) WatchConfiguration(config *rest.Config, gv *schema.GroupVersion) error {
+func (c *Controller) WatchConfiguration(config *rest.Config, gv *schema.GroupVersion) error {
 	config.ContentConfig.GroupVersion = gv
 	config.APIPath = "/apis"
 	config.NegotiatedSerializer = scheme.Codecs.WithoutConversion()
@@ -21,21 +21,21 @@ func (d *CRDReplicatorReconciler) WatchConfiguration(config *rest.Config, gv *sc
 		klog.Errorf("an error occurred while starting the watcher for the clusterConfig CRD: %s", err)
 		return err
 	}
-	go clusterConfig.WatchConfiguration(d.UpdateConfig, CRDclient, "")
+	go clusterConfig.WatchConfiguration(c.UpdateConfig, CRDclient, "")
 	return nil
 }
 
-func (d *CRDReplicatorReconciler) UpdateConfig(cfg *configv1alpha1.ClusterConfig) {
-	resources := d.GetConfig(cfg)
-	if !reflect.DeepEqual(d.RegisteredResources, resources) {
+func (c *Controller) UpdateConfig(cfg *configv1alpha1.ClusterConfig) {
+	resources := c.GetConfig(cfg)
+	if !reflect.DeepEqual(c.RegisteredResources, resources) {
 		klog.Info("updating the list of registered resources to be replicated")
-		d.UnregisteredResources = d.GetRemovedResources(resources)
-		d.RegisteredResources = resources
-		klog.Infof("%s -> current registered resources %s", d.ClusterID, d.RegisteredResources)
+		c.UnregisteredResources = c.GetRemovedResources(resources)
+		c.RegisteredResources = resources
+		klog.Infof("%s -> current registered resources %s", c.ClusterID, c.RegisteredResources)
 	}
 }
 
-func (d *CRDReplicatorReconciler) GetConfig(cfg *configv1alpha1.ClusterConfig) []schema.GroupVersionResource {
+func (c *Controller) GetConfig(cfg *configv1alpha1.ClusterConfig) []schema.GroupVersionResource {
 	resourceList := cfg.Spec.DispatcherConfig
 	config := []schema.GroupVersionResource{}
 	for _, res := range resourceList.ResourcesToReplicate {
@@ -48,7 +48,7 @@ func (d *CRDReplicatorReconciler) GetConfig(cfg *configv1alpha1.ClusterConfig) [
 	return config
 }
 
-func (d *CRDReplicatorReconciler) GetRemovedResources(resources []schema.GroupVersionResource) []string {
+func (c *Controller) GetRemovedResources(resources []schema.GroupVersionResource) []string {
 	oldRes := []string{}
 	diffRes := []string{}
 	newRes := []string{}
@@ -57,7 +57,7 @@ func (d *CRDReplicatorReconciler) GetRemovedResources(resources []schema.GroupVe
 		newRes = append(newRes, r.String())
 	}
 	//get the old resources
-	for _, r := range d.RegisteredResources {
+	for _, r := range c.RegisteredResources {
 		oldRes = append(oldRes, r.String())
 	}
 	//save in diffRes all the resources that appears in oldRes but not in newRes

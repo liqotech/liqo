@@ -39,7 +39,6 @@ rules:
       - get
       - patch
       - update
-
   - apiGroups:
     - discovery.liqo.io
     resources:
@@ -48,6 +47,7 @@ rules:
       - get
       - list
       - watch
+      - update
   - apiGroups:
       - discovery.liqo.io
     resources:
@@ -56,7 +56,6 @@ rules:
       - get
       - patch
       - update
-
   - apiGroups:
       - config.liqo.io
     resources:

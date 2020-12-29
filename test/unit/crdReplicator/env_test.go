@@ -35,7 +35,7 @@ var (
 	configClusterClient         *crdClient.CRDClient
 	k8sManagerLocal             ctrl.Manager
 	testEnvLocal                *envtest.Environment
-	dOperator                   *crdReplicator.CRDReplicatorReconciler
+	dOperator                   *crdReplicator.Controller
 )
 
 func TestMain(m *testing.M) {
