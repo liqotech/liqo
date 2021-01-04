@@ -121,6 +121,10 @@ func CreateVkDeployment(adv *advtypes.Advertisement, vkName, vkNamespace, vkImag
 									Name:      "POD_NAME",
 									ValueFrom: &v1.EnvVarSource{FieldRef: &v1.ObjectFieldSelector{FieldPath: "metadata.name", APIVersion: "v1"}},
 								},
+								{
+									Name:  "NODE_NAME",
+									Value: nodeName,
+								},
 							},
 							Args: []string{
 								"/etc/virtual-kubelet/certs",

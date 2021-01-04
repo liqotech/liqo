@@ -14,20 +14,17 @@ cat <<EOF | cfssl genkey - | cfssljson -bare server
   "hosts": [
     "${POD_IP}"
   ],
-  "CN": "${POD_NAME}",
+  "CN": "system:node:${NODE_NAME}",
   "names": [
       {
-	"C": "IT",
-  "O": "system:nodes",
-	"L": "Turin",
-	"OU": "Virtual Kubelet",
-  "ST": "Italy"
+  "O": "system:nodes"
       }
     ],
   "key": {
     "algo": "ecdsa",
     "size": 256
   }
+
 }
 EOF
 cat <<EOF | kubectl apply -f -
@@ -39,6 +36,7 @@ metadata:
      "liqo.io/csr": "true"
 spec:
   request: $(< server.csr base64 | tr -d '\n')
+  signerName: kubernetes.io/kubelet-serving
   usages:
   - digital signature
   - key encipherment
