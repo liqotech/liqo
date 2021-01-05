@@ -23,6 +23,7 @@ import (
 	tunnel_operator "github.com/liqotech/liqo/internal/liqonet/tunnel-operator"
 	"github.com/liqotech/liqo/internal/liqonet/tunnelEndpointCreator"
 	"github.com/liqotech/liqo/pkg/liqonet"
+	"github.com/liqotech/liqo/pkg/liqonet/wireguard"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
@@ -70,7 +71,12 @@ func main() {
 	clientset := kubernetes.NewForConfigOrDie(mgr.GetConfig())
 	switch runAs {
 	case route_operator.OperatorName:
-		r, err := route_operator.NewRouteController(mgr)
+		wgc, err := wireguard.NewWgClient()
+		if err != nil {
+			klog.Errorf("an error occurred while creating wireguard client: %v", err)
+			os.Exit(1)
+		}
+		r, err := route_operator.NewRouteController(mgr, wgc, wireguard.NewNetLinker())
 		if err != nil {
 			klog.Errorf("an error occurred while creating the route operator -> %v", err)
 			os.Exit(1)
@@ -86,7 +92,12 @@ func main() {
 			os.Exit(1)
 		}
 	case tunnel_operator.OperatorName:
-		tc, err := tunnel_operator.NewTunnelController(mgr)
+		wgc, err := wireguard.NewWgClient()
+		if err != nil {
+			klog.Errorf("an error occurred while creating wireguard client: %v", err)
+			os.Exit(1)
+		}
+		tc, err := tunnel_operator.NewTunnelController(mgr, wgc, wireguard.NewNetLinker())
 		if err != nil {
 			klog.Errorf("an error occurred while creating the tunnel controller: %v", err)
 			os.Exit(1)

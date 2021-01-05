@@ -9,7 +9,6 @@ require (
 	github.com/apparentlymart/go-cidr v1.1.0
 	github.com/atotto/clipboard v0.1.2
 	github.com/coreos/go-iptables v0.4.5
-	github.com/cratonica/2goarray v0.0.0-20190331194516-514510793eaa // indirect
 	github.com/gen2brain/beeep v0.0.0-20200526185328-e9c15c258e28
 	github.com/gen2brain/dlgs v0.0.0-20201118155338-03fe7f81ad25
 	github.com/getlantern/systray v1.1.0

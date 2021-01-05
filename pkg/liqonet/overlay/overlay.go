@@ -19,7 +19,7 @@ var (
 	wgMtu  = 1300
 )
 
-func CreateInterface(nodeName, namespace, ipAddr string, c *k8s.Clientset) (*wireguard.Wireguard, error) {
+func CreateInterface(nodeName, namespace, ipAddr string, c *k8s.Clientset, wgc wireguard.Client, nl wireguard.Netlinker) (*wireguard.Wireguard, error) {
 	secretName := strings.Join([]string{secretPrefix, nodeName}, "")
 	priv, pub, err := wireguard.GetKeys(secretName, namespace, c)
 	if err != nil {
@@ -33,7 +33,7 @@ func CreateInterface(nodeName, namespace, ipAddr string, c *k8s.Clientset) (*wir
 		PriKey:    &priv,
 		PubKey:    &pub,
 	}
-	wg, err := wireguard.NewWireguard(wgConfig)
+	wg, err := wireguard.NewWireguard(wgConfig, wgc, nl)
 	if err != nil {
 		return nil, err
 	}

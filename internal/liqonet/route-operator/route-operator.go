@@ -57,7 +57,7 @@ type RouteController struct {
 	DynClient dynamic.Interface
 }
 
-func NewRouteController(mgr ctrl.Manager) (*RouteController, error) {
+func NewRouteController(mgr ctrl.Manager, wgc wireguard.Client, nl wireguard.Netlinker) (*RouteController, error) {
 	dynClient := dynamic.NewForConfigOrDie(mgr.GetConfig())
 	clientSet := kubernetes.NewForConfigOrDie(mgr.GetConfig())
 	//get node name
@@ -77,7 +77,7 @@ func NewRouteController(mgr ctrl.Manager) (*RouteController, error) {
 		return nil, err
 	}
 	overlayIP := strings.Join([]string{overlay.GetOverlayIP(podIP.String()), "4"}, "/")
-	wg, err := overlay.CreateInterface(nodeName, namespace, overlayIP, clientSet)
+	wg, err := overlay.CreateInterface(nodeName, namespace, overlayIP, clientSet, wgc, nl)
 	if err != nil {
 		klog.Errorf("unable to create the controller: %v", err)
 		return nil, err
