@@ -115,6 +115,10 @@ func (discovery *DiscoveryCtrl) createForeign(data *discoveryData, trustMode dis
 	fc := &v1alpha1.ForeignCluster{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: data.ClusterInfo.ClusterID,
+			Labels: map[string]string{
+				discoveryPkg.DiscoveryTypeLabel: string(discoveryType),
+				discoveryPkg.ClusterIdLabel:     data.ClusterInfo.ClusterID,
+			},
 		},
 		Spec: v1alpha1.ForeignClusterSpec{
 			ClusterIdentity: v1alpha1.ClusterIdentity{
@@ -153,7 +157,7 @@ func (discovery *DiscoveryCtrl) createForeign(data *discoveryData, trustMode dis
 	fc.Status.Ttl = data.AuthData.ttl
 	tmp, err := discovery.crdClient.Resource("foreignclusters").Create(fc, metav1.CreateOptions{})
 	if err != nil {
-		klog.Error(err, err.Error())
+		klog.Error(err)
 		return nil, err
 	}
 	fc, ok := tmp.(*v1alpha1.ForeignCluster)
@@ -177,7 +181,7 @@ func (discovery *DiscoveryCtrl) CheckUpdate(data *discoveryData, fc *v1alpha1.Fo
 		fc.Spec.DiscoveryType = discoveryType
 		if higherPriority && discoveryType == discoveryPkg.LanDiscovery {
 			// if the cluster was previously discovered with IncomingPeering discovery type, set join flag accordingly to LanDiscovery sets and set TTL
-			fc.Spec.Join = discovery.Config.AutoJoin
+			fc.Spec.Join = fc.Spec.TrustMode == discoveryPkg.TrustModeTrusted && discovery.Config.AutoJoin || fc.Spec.TrustMode == discoveryPkg.TrustModeUntrusted && discovery.Config.AutoJoinUntrusted
 			fc.Status.Ttl = data.AuthData.ttl
 		} else if searchDomain != nil && discoveryType == discoveryPkg.WanDiscovery {
 			fc.Spec.Join = searchDomain.Spec.AutoJoin

@@ -20,22 +20,27 @@ import (
 	"sync"
 )
 
-type ClusterID struct {
+type ClusterID interface {
+	SetupClusterID(namespace string) error
+	GetClusterID() string
+}
+
+type ClusterIDImpl struct {
 	id string
 	m  sync.RWMutex
 
 	client kubernetes.Interface
 }
 
-func GetNewClusterID(id string, client kubernetes.Interface) *ClusterID {
-	return &ClusterID{
+func GetNewClusterID(id string, client kubernetes.Interface) ClusterID {
+	return &ClusterIDImpl{
 		id:     id,
 		m:      sync.RWMutex{},
 		client: client,
 	}
 }
 
-func NewClusterID(kubeconfigPath string) (*ClusterID, error) {
+func NewClusterID(kubeconfigPath string) (ClusterID, error) {
 	config, err := crdClient.NewKubeconfig(kubeconfigPath, &discoveryv1alpha1.GroupVersion)
 	if err != nil {
 		klog.Error(err, "unable to get kube config")
@@ -46,7 +51,7 @@ func NewClusterID(kubeconfigPath string) (*ClusterID, error) {
 		klog.Error(err, "unable to create crd client")
 		os.Exit(1)
 	}
-	clusterId := &ClusterID{
+	clusterId := &ClusterIDImpl{
 		client: crdClientVar.Client(),
 	}
 
@@ -107,7 +112,7 @@ func getClusterId(cm *v1.ConfigMap) string {
 	return cm.Data["cluster-id"]
 }
 
-func (cId *ClusterID) SetupClusterID(namespace string) error {
+func (cId *ClusterIDImpl) SetupClusterID(namespace string) error {
 	cm, err := cId.client.CoreV1().ConfigMaps(namespace).Get(context.TODO(), "cluster-id", metav1.GetOptions{})
 	if err != nil && !k8serror.IsNotFound(err) {
 		klog.Error(err)
@@ -129,14 +134,14 @@ func (cId *ClusterID) SetupClusterID(namespace string) error {
 	return nil
 }
 
-func (cId *ClusterID) GetClusterID() string {
+func (cId *ClusterIDImpl) GetClusterID() string {
 	cId.m.RLock()
 	res := cId.id
 	cId.m.RUnlock()
 	return res
 }
 
-func (cId *ClusterID) getMasterID() (string, error) {
+func (cId *ClusterIDImpl) getMasterID() (string, error) {
 	nodes, err := cId.client.CoreV1().Nodes().List(context.TODO(), metav1.ListOptions{
 		LabelSelector: "node-role.kubernetes.io/master",
 	})
@@ -153,7 +158,7 @@ func (cId *ClusterID) getMasterID() (string, error) {
 	return string(nodes.Items[0].UID), nil
 }
 
-func (cId *ClusterID) save(id string, namespace string) error {
+func (cId *ClusterIDImpl) save(id string, namespace string) error {
 	cm, err := cId.client.CoreV1().ConfigMaps(namespace).Get(context.TODO(), "cluster-id", metav1.GetOptions{})
 	if err != nil {
 		if k8serror.IsNotFound(err) {
@@ -182,7 +187,7 @@ func (cId *ClusterID) save(id string, namespace string) error {
 	return nil
 }
 
-func (cId *ClusterID) clusterIdUpdated(obj interface{}) {
+func (cId *ClusterIDImpl) clusterIdUpdated(obj interface{}) {
 	tmp := obj.(*v1.ConfigMap).Data["cluster-id"]
 	cId.m.RLock()
 	curr := cId.id

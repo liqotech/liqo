@@ -39,7 +39,7 @@ type Cluster struct {
 	fcReconciler  *foreign_cluster_operator.ForeignClusterReconciler
 	prReconciler  *peering_request_operator.PeeringRequestReconciler
 	sdReconciler  *search_domain_operator.SearchDomainReconciler
-	clusterId     *clusterID.ClusterID
+	clusterId     clusterID.ClusterID
 }
 
 func getClientCluster(stopChan <-chan struct{}) *Cluster {

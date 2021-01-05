@@ -71,7 +71,7 @@ func StartOperator(namespace string, broadcasterImage string, broadcasterService
 	}
 }
 
-func GetPRReconciler(scheme *runtime.Scheme, crdClient *crdClient.CRDClient, namespace string, clusterId *clusterID.ClusterID, broadcasterImage string, broadcasterServiceAccount string, vkServiceAccount string) *PeeringRequestReconciler {
+func GetPRReconciler(scheme *runtime.Scheme, crdClient *crdClient.CRDClient, namespace string, clusterId clusterID.ClusterID, broadcasterImage string, broadcasterServiceAccount string, vkServiceAccount string) *PeeringRequestReconciler {
 	return &PeeringRequestReconciler{
 		Scheme:                    scheme,
 		crdClient:                 crdClient,

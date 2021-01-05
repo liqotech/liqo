@@ -56,7 +56,7 @@ type ForeignClusterReconciler struct {
 	crdClient           *crdClient.CRDClient
 	advertisementClient *crdClient.CRDClient
 	networkClient       *crdClient.CRDClient
-	clusterID           *clusterID.ClusterID
+	clusterID           clusterID.ClusterID
 	RequeueAfter        time.Duration
 
 	DiscoveryCtrl *discovery.DiscoveryCtrl

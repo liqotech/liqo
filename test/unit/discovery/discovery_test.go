@@ -6,7 +6,6 @@ import (
 	configv1alpha1 "github.com/liqotech/liqo/apis/config/v1alpha1"
 	"github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	advtypes "github.com/liqotech/liqo/apis/sharing/v1alpha1"
-	"github.com/liqotech/liqo/internal/discovery"
 	foreign_cluster_operator "github.com/liqotech/liqo/internal/discovery/foreign-cluster-operator"
 	"github.com/liqotech/liqo/internal/discovery/kubeconfig"
 	peering_request_operator "github.com/liqotech/liqo/internal/peering-request-operator"
@@ -376,17 +375,17 @@ func testBidirectionalJoin(t *testing.T) {
 func testMergeClusters(t *testing.T) {
 	t.SkipNow()
 
-	tmp, err := clientCluster.client.Resource("foreignclusters").Get("fc-test", metav1.GetOptions{})
+	/*tmp, err := clientCluster.client.Resource("foreignclusters").Get("fc-test", metav1.GetOptions{})
 	assert.NilError(t, err, "Error retrieving ForeignCluster")
 	fc, ok := tmp.(*v1alpha1.ForeignCluster)
-	assert.Equal(t, ok, true)
+	assert.Equal(t, ok, true)*/
 
-	data := discovery.NewDiscoveryData(
-		/*&discovery.TxtData{
+	/*data := discovery.NewDiscoveryData(
+		/&discovery.TxtData{
 			ID:        fc.Spec.ClusterIdentity.ClusterID,
 			Namespace: fc.Spec.Namespace,
 			//ApiUrl:    strings.Replace(fc.Spec.ApiUrl, "127.0.0.1", "127.0.0.2", -1),
-		},*/nil, nil)
+		},/nil, nil)
 	fc, updated, err := clientCluster.discoveryCtrl.CheckUpdate(data, fc, fc.Spec.DiscoveryType, nil)
 	assert.NilError(t, err)
 	assert.Assert(t, updated)
@@ -397,7 +396,7 @@ func testMergeClusters(t *testing.T) {
 	tmp, err = clientCluster.client.Resource("foreignclusters").Get("fc-test", metav1.GetOptions{})
 	assert.NilError(t, err, "Error retrieving ForeignCluster")
 	_, ok = tmp.(*v1alpha1.ForeignCluster)
-	assert.Equal(t, ok, true)
+	assert.Equal(t, ok, true)*/
 }
 
 // ------
