@@ -14,8 +14,6 @@ type AuthData struct {
 	address string
 	port    int
 	ttl     uint32
-
-	isTest bool
 }
 
 func NewAuthData(address string, port int, ttl uint32) *AuthData {
@@ -30,7 +28,6 @@ func NewAuthDataTest(address string, port int) *AuthData {
 	return &AuthData{
 		address: address,
 		port:    port,
-		isTest:  true,
 	}
 }
 
@@ -47,9 +44,6 @@ func (authData *AuthData) IsComplete() bool {
 }
 
 func (authData *AuthData) GetUrl() string {
-	if authData.isTest {
-		return fmt.Sprintf("fake://%v:%v", authData.address, authData.port)
-	}
 	return fmt.Sprintf("https://%v:%v", authData.address, authData.port)
 }
 

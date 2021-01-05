@@ -38,7 +38,7 @@ type PeeringRequestReconciler struct {
 
 	crdClient                 *crdClient.CRDClient
 	Namespace                 string
-	clusterId                 *clusterID.ClusterID
+	clusterId                 clusterID.ClusterID
 	broadcasterImage          string
 	broadcasterServiceAccount string
 	vkServiceAccount          string

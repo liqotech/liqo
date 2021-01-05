@@ -28,7 +28,7 @@ type AuthServiceCtrl struct {
 	secretInformer cache.SharedIndexInformer
 	useTls         bool
 
-	clusterId *clusterID.ClusterID
+	clusterId clusterID.ClusterID
 
 	config          *v1alpha1.AuthConfig
 	discoveryConfig v1alpha1.DiscoveryConfig

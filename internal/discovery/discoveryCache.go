@@ -22,13 +22,6 @@ var resolvedData = discoveryCache{
 	discoveredServices: map[string]discoveryData{},
 }
 
-func NewDiscoveryData(authData *AuthData, clusterInfo *auth.ClusterInfo) *discoveryData {
-	return &discoveryData{
-		AuthData:    authData,
-		ClusterInfo: clusterInfo,
-	}
-}
-
 func (discoveryCache *discoveryCache) add(key string, data DiscoverableData) {
 	discoveryCache.lock.Lock()
 	defer discoveryCache.lock.Unlock()
