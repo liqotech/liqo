@@ -69,7 +69,7 @@ type TunnelController struct {
 // +kubebuilder:rbac:groups=net.liqo.io,resources=tunnelendpoints/status,verbs=get;update;patch
 
 //Instantiates and initializes the tunnel controller
-func NewTunnelController(mgr ctrl.Manager) (*TunnelController, error) {
+func NewTunnelController(mgr ctrl.Manager, wgc wireguard.Client, nl wireguard.Netlinker) (*TunnelController, error) {
 	clientSet := k8s.NewForConfigOrDie(mgr.GetConfig())
 	namespace, err := utils.GetPodNamespace()
 	if err != nil {
@@ -81,7 +81,7 @@ func NewTunnelController(mgr ctrl.Manager) (*TunnelController, error) {
 	}
 	overlayIP := strings.Join([]string{overlay.GetOverlayIP(podIP.String()), "4"}, "/")
 	//create overlay network interface
-	wg, err := overlay.CreateInterface(gatewayPodName, namespace, overlayIP, clientSet)
+	wg, err := overlay.CreateInterface(gatewayPodName, namespace, overlayIP, clientSet, wgc, nl)
 	if err != nil {
 		return nil, err
 	}

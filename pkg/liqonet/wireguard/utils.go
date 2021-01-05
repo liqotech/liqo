@@ -11,7 +11,7 @@ import (
 	k8s "k8s.io/client-go/kubernetes"
 )
 
-func GetKeys(secretName, namespace string, c *k8s.Clientset) (priv, pub wgtypes.Key, err error) {
+func GetKeys(secretName, namespace string, c k8s.Interface) (priv, pub wgtypes.Key, err error) {
 	//first we check if a secret containing valid keys already exists
 	s, err := c.CoreV1().Secrets(namespace).Get(context.Background(), secretName, metav1.GetOptions{})
 	if err != nil && !apierrors.IsNotFound(err) {
