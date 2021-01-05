@@ -53,9 +53,16 @@ spec:
                 - clusterID
                 type: object
               discoveryType:
+                default: Manual
                 description: How this ForeignCluster has been discovered
+                enum:
+                - LAN
+                - WAN
+                - Manual
+                - IncomingPeering
                 type: string
               join:
+                default: false
                 description: Enable join process to foreign cluster
                 type: boolean
               namespace:
@@ -71,10 +78,6 @@ spec:
                 type: string
             required:
             - authUrl
-            - clusterIdentity
-            - discoveryType
-            - join
-            - namespace
             type: object
           status:
             description: ForeignClusterStatus defines the observed state of ForeignCluster
