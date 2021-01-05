@@ -35,13 +35,16 @@ type ForeignClusterSpec struct {
 	// Important: Run "make" to regenerate code after modifying this file
 
 	// Foreign Cluster Identity
-	ClusterIdentity ClusterIdentity `json:"clusterIdentity"`
+	ClusterIdentity ClusterIdentity `json:"clusterIdentity,omitempty"`
 	// Namespace where Liqo is deployed
-	Namespace string `json:"namespace"`
+	Namespace string `json:"namespace,omitempty"`
 	// Enable join process to foreign cluster
-	Join bool `json:"join"`
+	// +kubebuilder:default=false
+	Join bool `json:"join,omitempty"`
+	// +kubebuilder:validation:Enum="LAN";"WAN";"Manual";"IncomingPeering"
+	// +kubebuilder:default="Manual"
 	// How this ForeignCluster has been discovered
-	DiscoveryType discovery.DiscoveryType `json:"discoveryType"`
+	DiscoveryType discovery.DiscoveryType `json:"discoveryType,omitempty"`
 	// URL where to contact foreign Auth service
 	AuthUrl string `json:"authUrl"`
 	// +kubebuilder:validation:Enum="Unknown";"Trusted";"Untrusted"

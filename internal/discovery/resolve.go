@@ -2,12 +2,10 @@ package discovery
 
 import (
 	"context"
-	"encoding/json"
 	"github.com/grandcat/zeroconf"
 	"github.com/liqotech/liqo/internal/discovery/utils"
 	"github.com/liqotech/liqo/pkg/auth"
 	discoveryPkg "github.com/liqotech/liqo/pkg/discovery"
-	"io/ioutil"
 	"k8s.io/klog"
 	"net"
 	"os"
@@ -87,25 +85,13 @@ func (discovery *DiscoveryCtrl) Resolve(ctx context.Context, service string, dom
 }
 
 func (discovery *DiscoveryCtrl) getClusterInfo(authData *AuthData) (*auth.ClusterInfo, discoveryPkg.TrustMode, error) {
-	resp, trustMode, err := utils.GetClusterInfo(authData.GetUrl())
+	ids, trustMode, err := utils.GetClusterInfo(authData.GetUrl())
 	if err != nil {
 		klog.Error(err)
 		return nil, "", err
 	}
 
-	respBytes, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		klog.Error(err)
-		return nil, "", err
-	}
-
-	var ids auth.ClusterInfo
-	if err = json.Unmarshal(respBytes, &ids); err != nil {
-		klog.Error(err)
-		return nil, "", err
-	}
-
-	return &ids, trustMode, nil
+	return ids, trustMode, nil
 }
 
 func (discovery *DiscoveryCtrl) getIPs() map[string]bool {

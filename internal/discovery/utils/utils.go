@@ -3,9 +3,13 @@ package utils
 import (
 	"crypto/tls"
 	"crypto/x509"
+	"encoding/json"
 	goerrors "errors"
 	"fmt"
+	"github.com/liqotech/liqo/pkg/auth"
 	"github.com/liqotech/liqo/pkg/discovery"
+	"io/ioutil"
+	"k8s.io/klog"
 	"net/http"
 )
 
@@ -18,7 +22,7 @@ func IsUnknownAuthority(err error) bool {
 
 // contact the remote cluster to get its info
 // it returns also if the remote cluster exposes a trusted certificate
-func GetClusterInfo(url string) (*http.Response, discovery.TrustMode, error) {
+func GetClusterInfo(url string) (*auth.ClusterInfo, discovery.TrustMode, error) {
 	trustMode := discovery.TrustModeTrusted
 	tr := &http.Transport{}
 	client := &http.Client{Transport: tr}
@@ -34,5 +38,18 @@ func GetClusterInfo(url string) (*http.Response, discovery.TrustMode, error) {
 	if err != nil {
 		return nil, discovery.TrustModeUnknown, err
 	}
-	return resp, trustMode, nil
+
+	respBytes, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		klog.Error(err)
+		return nil, "", err
+	}
+
+	var ids auth.ClusterInfo
+	if err = json.Unmarshal(respBytes, &ids); err != nil {
+		klog.Error(err)
+		return nil, "", err
+	}
+
+	return &ids, trustMode, nil
 }

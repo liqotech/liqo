@@ -88,6 +88,20 @@ func (r *ForeignClusterReconciler) Reconcile(req ctrl.Request) (ctrl.Result, err
 
 	requireUpdate := false
 
+	if r.needsClusterIdentityDefaulting(fc) {
+		// this ForeignCluster has not all the required fields, probably it has been added manually, so default to exposed values
+		if err = r.clusterIdentityDefaulting(fc); err != nil {
+			klog.Error(err)
+			return ctrl.Result{
+				Requeue:      true,
+				RequeueAfter: r.RequeueAfter,
+			}, err
+		} else {
+			// the resource has been updated, no need to requeue
+			return ctrl.Result{}, nil
+		}
+	}
+
 	// set trust property
 	// This will only be executed in the ForeignCluster CR has been added in a manual way,
 	// if it was discovered this field is set by the discovery process.
