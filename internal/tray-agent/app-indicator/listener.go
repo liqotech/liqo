@@ -10,13 +10,17 @@ type Listener struct {
 	Tag client.NotifyChannel
 	//StopChan lets control the Listener event loop
 	StopChan chan struct{}
-	//NotifyChan is the notification channel on which it listens to
-	NotifyChan chan string
+	//NotifyChan is the client.NotifyChannel on which it listens to
+	NotifyChan chan client.NotifyDataGeneric
 }
 
 //newListener returns a new Listener.
-func newListener(tag client.NotifyChannel, rcv chan string) *Listener {
-	l := Listener{StopChan: make(chan struct{}, 1), Tag: tag, NotifyChan: rcv}
+func newListener(tag client.NotifyChannel) *Listener {
+	ch := client.GetAgentController().NotifyChannel(tag)
+	if ch == nil {
+		panic("Indicator tried to listen to non existing NotifyChannel")
+	}
+	l := Listener{StopChan: make(chan struct{}, 1), Tag: tag, NotifyChan: ch}
 	return &l
 }
 
@@ -28,16 +32,18 @@ func (i *Indicator) Listener(tag client.NotifyChannel) (listener *Listener, pres
 }
 
 //Listen starts a Listener for a specific channel, executing callback when a notification arrives.
-func (i *Indicator) Listen(tag client.NotifyChannel, notifyChan chan string, callback func(objName string, args ...interface{}), args ...interface{}) {
-	l := newListener(tag, notifyChan)
+func (i *Indicator) Listen(tag client.NotifyChannel, callback func(data client.NotifyDataGeneric, args ...interface{}), args ...interface{}) {
+	l := newListener(tag)
 	i.listeners[tag] = l
 	go func() {
 		for {
 			select {
 			//exec handler
-			case name, open := <-l.NotifyChan:
-				if open {
-					callback(name, args...)
+			case data, open := <-l.NotifyChan:
+				/*While the Agent is OFF, the callback is not executed, in order not to update information
+				on status and tray menu or trigger notifications.*/
+				if open && i.Status().Running() == StatRunOn {
+					callback(data, args...)
 					//signal callback execution in test mode
 					if et, testing := GetGuiProvider().GetEventTester(); testing {
 						et.Done()

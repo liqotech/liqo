@@ -57,10 +57,14 @@ var kubeconfArg *string
 //flagOnce prevents the program arguments flag redefinition which would cause panic.
 var flagOnce sync.Once
 
+//NotifyChan is the wrapper type for generic data sent over a NotifyChannel. After receiving such element from a
+//chan, it is then possible to try its conversion into a specific type.
+type NotifyDataGeneric interface{}
+
 //AgentController is the data structure that manages Tray Agent interaction with the cluster.
 type AgentController struct {
 	//notifyChannels is a set of channels used by the cache logic to notify a watched event.
-	notifyChannels map[NotifyChannel]chan string
+	notifyChannels map[NotifyChannel]chan NotifyDataGeneric
 	//kubeClient is a standard kubernetes client.
 	kubeClient kubernetes.Interface
 	//agentConf contains Liqo Agent configuration parameters acquired from the cluster.
@@ -85,7 +89,7 @@ func (ctrl *AgentController) Connected() bool {
 }
 
 //NotifyChannel returns the NotifyChannel of type 'channelType'.
-func (ctrl *AgentController) NotifyChannel(channelType NotifyChannel) chan string {
+func (ctrl *AgentController) NotifyChannel(channelType NotifyChannel) chan NotifyDataGeneric {
 	return ctrl.notifyChannels[channelType]
 }
 
@@ -211,9 +215,9 @@ func GetAgentController() *AgentController {
 		}
 		agentCtrl.mocked = mockedController
 		//init the notifyChannels that are kept open during the entire Agent execution.
-		agentCtrl.notifyChannels = make(map[NotifyChannel]chan string)
+		agentCtrl.notifyChannels = make(map[NotifyChannel]chan NotifyDataGeneric)
 		for _, i := range notifyChannelNames {
-			agentCtrl.notifyChannels[i] = make(chan string, notifyBuffLength)
+			agentCtrl.notifyChannels[i] = make(chan NotifyDataGeneric, notifyBuffLength)
 		}
 		var err error
 		//acquire configuration, try to connect clients, start caches.
