@@ -11,6 +11,14 @@ import (
 	"k8s.io/klog"
 )
 
+type ConfigProvider interface {
+	GetConfig() *configv1alpha1.DiscoveryConfig
+}
+
+func (discovery *DiscoveryCtrl) GetConfig() *configv1alpha1.DiscoveryConfig {
+	return discovery.Config
+}
+
 func (discovery *DiscoveryCtrl) GetDiscoveryConfig(crdClient *crdClient.CRDClient, kubeconfigPath string) error {
 	waitFirst := make(chan bool)
 	isFirst := true

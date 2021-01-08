@@ -157,7 +157,7 @@ func (r *ForeignClusterReconciler) askRemoteIdentity(fc *discoveryv1alpha1.Forei
 	token := r.getAuthToken(fc)
 
 	roleRequest := auth.IdentityRequest{
-		ClusterID: r.DiscoveryCtrl.ClusterId.GetClusterID(),
+		ClusterID: r.clusterID.GetClusterID(),
 		Token:     token,
 	}
 	jsonRequest, err := json.Marshal(roleRequest)

@@ -19,6 +19,7 @@ import (
 	"k8s.io/klog"
 	"net"
 	"os"
+	"path/filepath"
 	"strconv"
 	"testing"
 	"time"
@@ -415,7 +416,7 @@ var _ = Describe("Discovery", func() {
 
 			BeforeEach(func() {
 				var err error
-				cluster, _, err = testUtils.NewTestCluster()
+				cluster, _, err = testUtils.NewTestCluster([]string{filepath.Join("..", "..", "deployments", "liqo", "crds")})
 				if err != nil {
 					By(err.Error())
 					os.Exit(1)
