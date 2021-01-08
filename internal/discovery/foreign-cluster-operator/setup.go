@@ -70,7 +70,7 @@ func StartOperator(mgr *manager.Manager, namespace string, requeueAfter time.Dur
 	}
 }
 
-func GetFCReconciler(scheme *runtime.Scheme, namespace string, crdClient *crdClient.CRDClient, advertisementClient *crdClient.CRDClient, networkClient *crdClient.CRDClient, clusterId clusterID.ClusterID, requeueAfter time.Duration, discoveryCtrl *discovery.DiscoveryCtrl) *ForeignClusterReconciler {
+func GetFCReconciler(scheme *runtime.Scheme, namespace string, crdClient *crdClient.CRDClient, advertisementClient *crdClient.CRDClient, networkClient *crdClient.CRDClient, clusterId clusterID.ClusterID, requeueAfter time.Duration, configProvider discovery.ConfigProvider) *ForeignClusterReconciler {
 	return &ForeignClusterReconciler{
 		Scheme:              scheme,
 		Namespace:           namespace,
@@ -80,6 +80,6 @@ func GetFCReconciler(scheme *runtime.Scheme, namespace string, crdClient *crdCli
 		clusterID:           clusterId,
 		ForeignConfig:       nil,
 		RequeueAfter:        requeueAfter,
-		DiscoveryCtrl:       discoveryCtrl,
+		ConfigProvider:      configProvider,
 	}
 }

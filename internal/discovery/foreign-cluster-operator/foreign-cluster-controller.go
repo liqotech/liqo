@@ -59,7 +59,7 @@ type ForeignClusterReconciler struct {
 	clusterID           clusterID.ClusterID
 	RequeueAfter        time.Duration
 
-	DiscoveryCtrl *discovery.DiscoveryCtrl
+	ConfigProvider discovery.ConfigProvider
 
 	// testing
 	ForeignConfig *rest.Config
@@ -554,7 +554,7 @@ func (r *ForeignClusterReconciler) createPeeringRequestIfNotExists(clusterID str
 				Spec: discoveryv1alpha1.PeeringRequestSpec{
 					ClusterIdentity: discoveryv1alpha1.ClusterIdentity{
 						ClusterID:   localClusterID,
-						ClusterName: r.DiscoveryCtrl.Config.ClusterName,
+						ClusterName: r.ConfigProvider.GetConfig().ClusterName,
 					},
 					Namespace:     r.Namespace,
 					KubeConfigRef: nil,
@@ -913,19 +913,19 @@ func (r *ForeignClusterReconciler) deletePeeringRequest(foreignClient *crdClient
 }
 
 func (r *ForeignClusterReconciler) getAutoJoin(fc *discoveryv1alpha1.ForeignCluster) bool {
-	if r.DiscoveryCtrl == nil || r.DiscoveryCtrl.Config == nil {
+	if r.ConfigProvider == nil || r.ConfigProvider.GetConfig() == nil {
 		klog.Warning("Discovery Config is not set, using default value")
 		return fc.Spec.Join
 	}
-	return r.DiscoveryCtrl.Config.AutoJoin
+	return r.ConfigProvider.GetConfig().AutoJoin
 }
 
 func (r *ForeignClusterReconciler) getAutoJoinUntrusted(fc *discoveryv1alpha1.ForeignCluster) bool {
-	if r.DiscoveryCtrl == nil || r.DiscoveryCtrl.Config == nil {
+	if r.ConfigProvider == nil || r.ConfigProvider.GetConfig() == nil {
 		klog.Warning("Discovery Config is not set, using default value")
 		return fc.Spec.Join
 	}
-	return r.DiscoveryCtrl.Config.AutoJoinUntrusted
+	return r.ConfigProvider.GetConfig().AutoJoinUntrusted
 }
 
 func (r *ForeignClusterReconciler) checkNetwork(fc *discoveryv1alpha1.ForeignCluster, requireUpdate *bool) error {
