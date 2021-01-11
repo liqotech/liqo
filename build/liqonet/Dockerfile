@@ -13,13 +13,9 @@ COPY . /go/src/github.com/liqotech/liqo
 WORKDIR /go/src/github.com/liqotech/liqo
 RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build ./cmd/liqonet/
 RUN cp liqonet /usr/bin/liqonet
-RUN git clone https://git.zx2c4.com/wireguard-go
-WORKDIR wireguard-go
-RUN make install
 
 FROM alpine
 RUN apk update && apk add iptables bash wireguard-tools tcpdump
 COPY --from=goBuilder /usr/bin/liqonet /usr/bin/liqonet
-COPY --from=goBuilder /usr/bin/wireguard-go /usr/bin/wireguard-go
 COPY --from=rustBuilder /home/rust/src/boringtun/target/x86_64-unknown-linux-musl/release/boringtun /usr/bin/boringtun
 ENTRYPOINT [ "/usr/bin/liqonet" ]

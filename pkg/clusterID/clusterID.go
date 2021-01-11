@@ -100,16 +100,32 @@ func NewClusterID(kubeconfigPath string) (*ClusterID, error) {
 	return clusterId, nil
 }
 
-func (cId *ClusterID) SetupClusterID(namespace string) error {
-	id, err := cId.getMasterID()
-	if err != nil {
-		klog.Warning(err, "cannot get UID from master, generating new one")
-		id = uuid.New().String()
+func getClusterId(cm *v1.ConfigMap) string {
+	if cm == nil {
+		return ""
 	}
-	err = cId.save(id, namespace)
-	if err != nil {
+	return cm.Data["cluster-id"]
+}
+
+func (cId *ClusterID) SetupClusterID(namespace string) error {
+	cm, err := cId.client.CoreV1().ConfigMaps(namespace).Get(context.TODO(), "cluster-id", metav1.GetOptions{})
+	if err != nil && !k8serror.IsNotFound(err) {
+		klog.Error(err)
 		return err
 	}
+	if k8serror.IsNotFound(err) || getClusterId(cm) == "" {
+		id, err := cId.getMasterID()
+		if err != nil {
+			klog.Warning(err, "cannot get UID from master, generating new one")
+			id = uuid.New().String()
+		}
+		err = cId.save(id, namespace)
+		if err != nil {
+			return err
+		}
+		return nil
+	}
+	cId.id = getClusterId(cm)
 	return nil
 }
 
