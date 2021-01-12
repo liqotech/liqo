@@ -96,10 +96,10 @@ spec:
         resources:
           limits:
             cpu: 100m
-            memory: 50M
+            memory: 150M
           requests:
             cpu: 100m
-            memory: 50M
+            memory: 150M
       containers:
       - name: podmutator
         image: {{ .Values.mutatingWebhook.image.repository }}{{ .Values.global.suffix | default .Values.suffix }}:{{ .Values.global.version | default .Values.version }}
