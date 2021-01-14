@@ -8,6 +8,7 @@ import (
 	"github.com/liqotech/liqo/pkg/crdClient"
 	"github.com/liqotech/liqo/pkg/labelPolicy"
 	pkg "github.com/liqotech/liqo/pkg/virtualKubelet"
+	"github.com/liqotech/liqo/pkg/virtualKubelet/forge"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/klog"
@@ -384,6 +385,11 @@ func GetAllPodsResources(nodeNonTerminatedPodsList *corev1.PodList) (requests co
 	for i, pod := range nodeNonTerminatedPodsList.Items {
 		if strings.HasPrefix(pod.Spec.NodeName, "liqo-") {
 			nodeNonTerminatedPodsList.Items[i] = corev1.Pod{}
+		} else if pod.Labels != nil {
+			if _, ok := pod.Labels[forge.LiqoOutgoingKey]; ok {
+				// TODO: is this pod offloaded by the cluster where we will send this advertisement?
+				nodeNonTerminatedPodsList.Items[i] = corev1.Pod{}
+			}
 		}
 	}
 	requests, limits = getPodsTotalRequestsAndLimits(nodeNonTerminatedPodsList)
