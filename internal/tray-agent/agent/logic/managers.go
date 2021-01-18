@@ -12,7 +12,6 @@ func OnReady() {
 	i := app.GetIndicator()
 	i.RefreshStatus()
 	startListenerPeersList(i)
-	startListenerPeerings(i)
 	startQuickOnOff(i)
 	startQuickChangeMode(i)
 	startQuickDashboard(i)
@@ -88,14 +87,7 @@ func startQuickShowPeers(i *app.Indicator) {
   Since these listeners work on a specific QUICK MenuNode, the associated handlers works only if that QUICK
   is registered in the Indicator.*/
 func startListenerPeersList(i *app.Indicator) {
-	i.Listen(client.ChanPeerAdded, i.AgentCtrl().NotifyChannel(client.ChanPeerAdded), listenNewPeer)
-	i.Listen(client.ChanPeerDeleted, i.AgentCtrl().NotifyChannel(client.ChanPeerDeleted), listenUpdatedPeer)
-	i.Listen(client.ChanPeerUpdated, i.AgentCtrl().NotifyChannel(client.ChanPeerUpdated), listenDeletedPeer)
-}
-
-func startListenerPeerings(i *app.Indicator) {
-	i.Listen(client.ChanPeeringIncomingNew, i.AgentCtrl().NotifyChannel(client.ChanPeeringIncomingNew), listenNewIncomingPeering)
-	i.Listen(client.ChanPeeringIncomingDelete, i.AgentCtrl().NotifyChannel(client.ChanPeeringIncomingDelete), listenDeleteIncomingPeering)
-	i.Listen(client.ChanPeeringOutgoingNew, i.AgentCtrl().NotifyChannel(client.ChanPeeringOutgoingNew), listenNewOutgoingPeering)
-	i.Listen(client.ChanPeeringOutgoingDelete, i.AgentCtrl().NotifyChannel(client.ChanPeeringOutgoingDelete), listenDeleteOutgoingPeering)
+	i.Listen(client.ChanPeerAdded, listenNewPeer)
+	i.Listen(client.ChanPeerUpdated, listenUpdatedPeer)
+	i.Listen(client.ChanPeerDeleted, listenDeletedPeer)
 }

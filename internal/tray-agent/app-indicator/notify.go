@@ -7,6 +7,8 @@ import (
 	"github.com/gen2brain/dlgs"
 	"github.com/ozgio/strutil"
 	"path/filepath"
+	"strconv"
+	"strings"
 )
 
 //NotifyLevel is the level of the indicator notification system:
@@ -14,6 +16,9 @@ type NotifyLevel int
 
 //NotifyIcon represents the Liqo set of icons displayed in the desktop banners.
 type NotifyIcon int
+
+//NotifyPeeringEvent defines a type of event regarding a peering with a foreign cluster.
+type NotifyPeeringEvent int
 
 //Allowed modes for the Indicator notification system
 const (
@@ -42,6 +47,13 @@ const (
 	NotifyIconWhite
 	NotifyIconError
 	NotifyIconWarning
+)
+
+const (
+	//NotifyEventPeeringOn defines the event of a peering that has been established.
+	NotifyEventPeeringOn NotifyPeeringEvent = iota
+	//NotifyEventPeeringOff defines the event of a peering that has been torn down.
+	NotifyEventPeeringOff
 )
 
 //Notify manages Indicator notification logic. Depending on the current NotifyLevel of the Indicator,
@@ -117,32 +129,48 @@ func (i *Indicator) NotifyNoConnection() {
 		NotifyIconWarning, IconLiqoNoConn)
 }
 
-//NotifyNewAdv is an already configured Notify() call to notify the creation of a
-//new Advertisement CRD in the cluster.
-func (i *Indicator) NotifyNewAdv(name string) {
-	i.Notify("Liqo Agent: NEW ADVERTISEMENT", fmt.Sprintf("You received a new advertisement %s", name),
-		NotifyIconDefault, IconLiqoOrange)
-}
-
-//NotifyAcceptedAdv is an already configured Notify() call to notify that an
-//Advertisement CRD in the cluster has changed its status in "ACCEPTED".
-func (i *Indicator) NotifyAcceptedAdv(name string) {
-	i.Notify("Liqo Agent: ACCEPTED ADVERTISEMENT", fmt.Sprintf("advertisement %s has been accepted", name),
-		NotifyIconDefault, IconLiqoGreen)
-}
-
-//NotifyRevokedAdv is an already configured Notify() call to notify that an Advertisement
-//CRD in the cluster is not in "ACCEPTED" status anymore.
-func (i *Indicator) NotifyRevokedAdv(name string) {
-	i.Notify("Liqo Agent: REVOKED ADVERTISEMENT", fmt.Sprintf("advertisement %s revoked", name),
-		NotifyIconDefault, IconLiqoOrange)
-}
-
-//NotifyDeletedAdv is an already configured Notify() call to notify that an Advertisement
-//CRD in the cluster has been deleted.
-func (i *Indicator) NotifyDeletedAdv(name string) {
-	i.Notify("Liqo Agent: DELETED ADVERTISEMENT", fmt.Sprintf("advertisement %s deleted", name),
-		NotifyIconDefault, IconLiqoOrange)
+//NotifyPeering is a semi-configured Notify() call to notify events related to peerings involving a specific peer.
+func (i *Indicator) NotifyPeering(direction PeeringType, event NotifyPeeringEvent, peer *PeerInfo) {
+	var (
+		header      []string
+		body        []string
+		peerName    string
+		desktopIcon NotifyIcon
+		trayIcon    Icon
+	)
+	peer.RLock()
+	defer peer.RUnlock()
+	if peer.Unknown {
+		peerName = strings.Join([]string{"UNKNOWN", strconv.Itoa(peer.UnknownId)}, " ")
+	} else {
+		peerName = peer.ClusterName
+	}
+	switch event {
+	case NotifyEventPeeringOn:
+		header = append(header, "NEW")
+		if direction == PeeringOutgoing {
+			header = append(header, "OUTGOING PEERING ESTABLISHED")
+			body = append(body, peerName, "is now sharing its resources")
+		} else {
+			header = append(header, "PEERING ACCEPTED")
+			body = append(body, "You are now sharing resources to", peerName)
+		}
+		desktopIcon = NotifyIconDefault
+		trayIcon = IconLiqoPurple
+	case NotifyEventPeeringOff:
+		if direction == PeeringOutgoing {
+			header = append(header, "OUTGOING")
+			body = append(body, peerName, "resources are no more available")
+		} else {
+			header = append(header, "INCOMING")
+			body = append(body, "You stopped sharing resources to", peerName)
+		}
+		header = append(header, "PEERING CLOSED")
+		desktopIcon = NotifyIconDefault
+		trayIcon = IconLiqoPurple
+		//expand for additional events
+	}
+	i.Notify(strings.Join(header, " "), strings.Join(body, " "), desktopIcon, trayIcon)
 }
 
 //ShowWarning displays a Warning window box.

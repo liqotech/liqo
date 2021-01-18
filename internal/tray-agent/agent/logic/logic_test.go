@@ -46,16 +46,6 @@ func TestOnReady(t *testing.T) {
 	assert.True(t, exist, "Listener for NotifyChanType ChanPeerUpdated not registered")
 	_, exist = i.Listener(client.ChanPeerDeleted)
 	assert.True(t, exist, "Listener for NotifyChanType ChanPeerDeleted not registered")
-
-	// test peerings Listeners
-	_, exist = i.Listener(client.ChanPeeringIncomingNew)
-	assert.True(t, exist, "Listener for NotifyChanType ChanPeeringIncomingNew not registered")
-	_, exist = i.Listener(client.ChanPeeringOutgoingNew)
-	assert.True(t, exist, "Listener for NotifyChanType ChanPeeringOutgoingNew not registered")
-	_, exist = i.Listener(client.ChanPeeringIncomingDelete)
-	assert.True(t, exist, "Listener for NotifyChanType ChanPeeringIncomingDelete not registered")
-	_, exist = i.Listener(client.ChanPeeringOutgoingDelete)
-	assert.True(t, exist, "Listener for NotifyChanType ChanPeeringOutgoingDelete not registered")
 }
 
 func TestPeersListeners(t *testing.T) {
@@ -82,14 +72,9 @@ func TestPeersListeners(t *testing.T) {
 	clusterName2 := "test2"
 	fc1 := test.CreateForeignCluster(clusterID1, clusterName1)
 	fcCtrl := i.AgentCtrl().Controller(client.CRForeignCluster)
-	//peerAddChan := i.AgentCtrl().NotifyChannel(client.ChanPeerAdded)
-	//peerUpdateChan := i.AgentCtrl().NotifyChannel(client.ChanPeerUpdated)
-	//peerDeleteChan := i.AgentCtrl().NotifyChannel(client.ChanPeerDeleted)
 	eventTester.Add(1)
 	err := fcCtrl.Store.Add(fc1)
 	eventTester.Wait()
-	//time.Sleep(time.Second * 3)
-	//peerAddChan <- clusterID1
 	assert.NoError(t, err, "ForeignCluster addition failed")
 
 	assert.True(t, quickNode.IsEnabled(), "peers menu entry should be enabled when 1+ ForeignCluster(s) exist [init phase]")

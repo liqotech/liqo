@@ -3,6 +3,7 @@ package app_indicator
 import (
 	"errors"
 	"fmt"
+	"github.com/liqotech/liqo/internal/tray-agent/agent/client"
 	"strings"
 	"sync"
 )
@@ -148,20 +149,22 @@ type StatusInterface interface {
 	"Compare&Change" protection.
 	*/
 	IsTetheredCompliant() bool
-	//IncDecPeerings increments (add = true) or decrements of 1 unit the number of active peerings of type peering.
-	//
-	//There can be PeeringOutgoing peerings only when Liqo is in StatModeAutonomous mode.
-	//
-	//There can be at most 1 PeeringIncoming peering when Liqo is not in StatModeAutonomous mode.
-	IncDecPeerings(peering PeeringType, add bool)
 	//Peerings returns the number of active peerings of type PeeringType.
 	Peerings(peering PeeringType) int
 	//ActivePeerings returns the amount of active peerings.
 	ActivePeerings() int
 	//Peers returns the number of Liqo peers discovered by the home cluster and currently available.
 	Peers() int
-	//IncDecPeers increments (add = true) or decrements the number of available peers.
-	IncDecPeers(add bool)
+	//Peer returns data related to a cluster if it is currently discovered by the home cluster.
+	Peer(clusterId string) (peer *PeerInfo, present bool)
+	//AddPeer registers a newly discovered peer. In case no info about the peer's common name is provided,
+	//a placeholder "unknown identifier" to allow the user to visual distinguish between unknown peers.
+	//When the number of unknown peers is decremented to 0, the identifier number is reset.
+	AddPeer(data *client.NotifyDataForeignCluster) *PeerInfo
+	//UpdatePeer updates and returns the internal information regarding a registered peer.
+	UpdatePeer(data *client.NotifyDataForeignCluster) *PeerInfo
+	//RemovePeer removes a peer from the currently registered ones.
+	RemovePeer(data *client.NotifyDataForeignCluster) *PeerInfo
 	//GoString produces a textual digest on the main status data managed by
 	//a Status instance.
 	GoString() string
@@ -174,7 +177,9 @@ func GetStatus() StatusInterface {
 			- OFF Liqo status
 			- Autonomous mode
 		Further changes are up to other Indicator components.*/
-		statusBlock = &Status{}
+		statusBlock = &Status{
+			peerList: make(map[string]*PeerInfo),
+		}
 	}
 	return statusBlock
 }
@@ -189,13 +194,185 @@ type Status struct {
 	//the current Liqo working mode.
 	mode StatMode
 	//total number of discovered peers.
-	peers int
+	discoveredPeers int
+	//unknownPeers counts the number of discovered peers whose ClusterName is currently unknown.
+	unknownPeers int
+	//unknownId is an monotonic serial number that distinguishes the unknown peers.
+	//It resets following the unknownPeers reset.
+	unknownId int
 	//current number of the active peerings consuming foreign resources.
 	outgoingPeerings int
 	///current number of the active peerings sharing home resources.
 	incomingPeerings int
+	//peerList stores details on the currently discovered peers, organized by their cluster id.
+	//This kind of information has its visual representation in the peers list of the tray menu.
+	peerList map[string]*PeerInfo
 	//mutex for the Status.
 	sync.RWMutex
+}
+
+//PeerInfo contains some basic information on a peer.
+type PeerInfo struct {
+	ClusterID   string
+	ClusterName string
+	//Unknown identifies whether the peer has no provided ClusterName.
+	//In this case, UnknownId contains a valid serial identifier.
+	Unknown bool
+	//UnknownId contains a serial number that identifies the peer in case no ClusterName is provided
+	//(Unknown == true).
+	UnknownId           int
+	OutPeeringConnected bool
+	InPeeringConnected  bool
+	sync.RWMutex
+}
+
+//incDecPeers increments (add = true) or decrements the number of available peers.
+func (st *Status) incDecPeers(add bool) {
+	if add {
+		st.discoveredPeers++
+	} else {
+		if st.discoveredPeers > 0 {
+			st.discoveredPeers--
+		}
+	}
+}
+
+//incDecUnknownPeers increments (add = true) the number of peers whose name is not known. After this number is
+//decremented to 0, GetUnknownId restarts the monotonic id generation by returning 1.
+func (st *Status) incDecUnknownPeers(add bool) {
+	if add {
+		st.unknownPeers++
+		st.unknownId++
+	} else {
+		if st.unknownPeers > 0 {
+			st.unknownPeers--
+			/*When the counter resets to 0, also unknownId is reset to 0. By using this implementation, an unknown Cluster
+			is guaranteed to keep the same incremental id as long as it is reachable after its discovery, in order to allow
+			the user a clear way to recognize it among the rest of the unknown ones.
+			When there are no unknown clusters left, it is reasonable to accept a new numbering.
+			*/
+			if st.unknownPeers == 0 {
+				st.unknownId = 0
+			}
+		}
+	}
+}
+
+//Peer returns data related to a cluster if it is currently discovered by the home cluster.
+func (st *Status) Peer(clusterId string) (peer *PeerInfo, present bool) {
+	st.RLock()
+	defer st.RUnlock()
+	peer, present = st.peerList[clusterId]
+	return
+}
+
+//AddPeer registers a newly discovered peer. In case no info about the peer's common name is provided,
+//a placeholder "unknown identifier" is assigned to allow the user to visually distinguish between different unknown peers.
+//When the number of unknown peers is decremented to 0, the identifier number is reset.
+func (st *Status) AddPeer(data *client.NotifyDataForeignCluster) *PeerInfo {
+	if data.ClusterID == "" {
+		panic("clusterId of a NotifyDataForeignCluster object should always be not empty")
+	}
+	peer := &PeerInfo{
+		ClusterID:           data.ClusterID,
+		OutPeeringConnected: data.OutPeering.Connected,
+		InPeeringConnected:  data.InPeering.Connected,
+	}
+	st.Lock()
+	defer st.Unlock()
+	//- manage peer name
+	if data.ClusterName != "" {
+		peer.ClusterName = data.ClusterName
+	} else {
+		//manage unknown cluster
+		peer.Unknown = true
+		st.incDecUnknownPeers(true)
+		//generate serial unknown serial identity
+		peer.UnknownId = st.unknownId
+	}
+	//- manage peerings
+	st.peerList[data.ClusterID] = peer
+	st.incDecPeers(true)
+	if data.OutPeering.Connected {
+		peer.OutPeeringConnected = true
+		st.incDecPeerings(PeeringOutgoing, true)
+	}
+	if data.InPeering.Connected {
+		peer.InPeeringConnected = true
+		st.incDecPeerings(PeeringIncoming, true)
+	}
+	return peer
+}
+
+//UpdatePeer updates and returns the internal information regarding a registered peer.
+func (st *Status) UpdatePeer(data *client.NotifyDataForeignCluster) *PeerInfo {
+	st.Lock()
+	defer st.Unlock()
+	peer, present := st.peerList[data.ClusterID]
+	if !present {
+		panic("updating information for non existing peer")
+	}
+	//- check changes on cluster name
+	if peer.Unknown && data.ClusterName != "" {
+		//a former unknown peer has been assigned a valid cluster name
+		st.incDecUnknownPeers(false)
+		peer.Unknown = false
+		peer.ClusterName = data.ClusterName
+	} else if !peer.Unknown && data.ClusterName == "" {
+		//the peer cluster name has been removed
+		st.incDecUnknownPeers(true)
+		peer.Unknown = true
+		peer.UnknownId = st.unknownId
+	}
+	//- check outgoing peering status
+	if !peer.OutPeeringConnected && data.OutPeering.Connected {
+		//new outgoing peering connected
+		peer.OutPeeringConnected = true
+		st.incDecPeerings(PeeringOutgoing, true)
+	} else if peer.OutPeeringConnected && !data.OutPeering.Connected {
+		//the outgoing peering is torn down
+		peer.OutPeeringConnected = false
+		st.incDecPeerings(PeeringOutgoing, false)
+	}
+	//- check incoming peering status
+	if !peer.InPeeringConnected && data.InPeering.Connected {
+		//new incoming peering connected
+		peer.InPeeringConnected = true
+		st.incDecPeerings(PeeringIncoming, true)
+	} else if peer.InPeeringConnected && !data.InPeering.Connected {
+		//the incoming peering is torn down
+		peer.InPeeringConnected = false
+		st.incDecPeerings(PeeringIncoming, false)
+	}
+	return peer
+}
+
+//RemovePeer removes a peer from the currently registered ones.
+func (st *Status) RemovePeer(data *client.NotifyDataForeignCluster) *PeerInfo {
+	st.Lock()
+	defer st.Unlock()
+	peer, present := st.peerList[data.ClusterID]
+	if !present {
+		//A missing peer can potentially be caused by an error or a previously performed delete operation.
+		//The function can safely recover from the error by ignoring the input data. This way the Status db
+		//keeps its consistency and the visual representation of the information on the tray menu will
+		//reconcile in short time.
+		return &PeerInfo{ClusterID: data.ClusterID}
+	}
+	//- check if peer had unknown identity
+	if peer.Unknown {
+		st.incDecUnknownPeers(false)
+	}
+	//- remove active peerings
+	if peer.OutPeeringConnected {
+		st.incDecPeerings(PeeringOutgoing, false)
+	}
+	if peer.InPeeringConnected {
+		st.incDecPeerings(PeeringIncoming, false)
+	}
+	delete(st.peerList, data.ClusterID)
+	st.incDecPeers(false)
+	return peer
 }
 
 //IsTetheredCompliant checks if the TETHERED mode is eligible
@@ -269,32 +446,30 @@ func (st *Status) SetMode(mode StatMode) error {
 	return err
 }
 
-//IncDecPeerings increments (add = true) or decrements of 1 unit the number of active peerings of type peering.
+//incDecPeerings increments (add = true) or decrements of 1 unit the number of active peerings of type peering.
 //
 //There can be PeeringOutgoing peerings only when Liqo is in StatModeAutonomous mode.
 //
 //There can be at most 1 PeeringIncoming peering when Liqo is not in StatModeAutonomous mode.
-func (st *Status) IncDecPeerings(peering PeeringType, add bool) {
-	st.Lock()
-	defer st.Unlock()
+func (st *Status) incDecPeerings(peering PeeringType, add bool) {
 	if peering == PeeringIncoming {
 		if add {
 			if st.mode == StatModeAutonomous || st.incomingPeerings < 1 {
-				st.incomingPeerings += 1
+				st.incomingPeerings++
 			}
 		} else {
 			if st.incomingPeerings > 0 {
-				st.incomingPeerings -= 1
+				st.incomingPeerings--
 			}
 		}
 	} else if peering == PeeringOutgoing {
 		if add {
 			if st.mode == StatModeAutonomous {
-				st.outgoingPeerings += 1
+				st.outgoingPeerings++
 			}
 		} else {
 			if st.outgoingPeerings > 0 {
-				st.outgoingPeerings -= 1
+				st.outgoingPeerings--
 			}
 		}
 	}
@@ -315,24 +490,17 @@ func (st *Status) Peerings(peering PeeringType) int {
 func (st *Status) Peers() int {
 	st.RLock()
 	defer st.RUnlock()
-	return st.peers
+	return st.discoveredPeers
 }
 
-//IncDecPeers increments (add = true) or decrements the number of available peers.
-func (st *Status) IncDecPeers(add bool) {
-	st.Lock()
-	defer st.Unlock()
-	if add {
-		st.peers++
-	} else {
-		if st.peers > 0 {
-			st.peers--
-		}
-	}
+//ActivePeerings returns the amount of active peerings.
+func (st *Status) ActivePeerings() int {
+	st.RLock()
+	defer st.RUnlock()
+	return st.incomingPeerings + st.outgoingPeerings
 }
 
-//GoString produces a textual digest on the main status data managed by
-//a Status instance.
+//GoString produces a textual digest on the main status data managed by a Status instance.
 func (st *Status) GoString() string {
 	st.RLock()
 	defer st.RUnlock()
@@ -343,13 +511,6 @@ func (st *Status) GoString() string {
 	str.WriteString(fmt.Sprintf("consuming from %v peers\n", st.outgoingPeerings))
 	str.WriteString(fmt.Sprintf("offering to %v peers", st.incomingPeerings))
 	return str.String()
-}
-
-//ActivePeerings returns the amount of active peerings.
-func (st *Status) ActivePeerings() int {
-	st.RLock()
-	defer st.RUnlock()
-	return st.incomingPeerings + st.outgoingPeerings
 }
 
 //Status return the Indicator status.
