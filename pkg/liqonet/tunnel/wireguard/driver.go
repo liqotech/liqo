@@ -228,6 +228,7 @@ func (w *wireguard) DisconnectFromEndpoint(tep *netv1alpha1.TunnelEndpoint) erro
 	}
 
 	klog.Infof("Done removing WireGuard peer with clusterID %s", tep.Spec.ClusterID)
+	delete(w.connections, tep.Spec.ClusterID)
 
 	return nil
 }
