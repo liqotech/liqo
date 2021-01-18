@@ -1,196 +1,133 @@
 package logic
 
 import (
-	"fmt"
-	"github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	"github.com/liqotech/liqo/internal/tray-agent/agent/client"
 	app "github.com/liqotech/liqo/internal/tray-agent/app-indicator"
+	"sync"
 )
 
 //this file contains the callback functions for the Indicator listeners
 
-//******* PEERINGS *******
-
-func listenNewIncomingPeering(obj string, args ...interface{}) {
-	i := app.GetIndicator()
-	st := i.Status()
-	//update Status model
-	st.IncDecPeerings(app.PeeringIncoming, true)
-	i.RefreshStatus()
-	//retrieve peering info
-	//retrieve Peer information
-	quickNode, present := i.Quick(qPeers)
-	if !present {
-		return
-	}
-	//update peer information in the list on the Incoming entry (peers -> this peer -> incoming peering)
-	var peerNode, iPeeringNode *app.MenuNode
-	peerNode, present = quickNode.ListChild(obj)
-	if !present {
-		return
-	}
-	iPeeringNode, present = peerNode.ListChild(tagIncoming)
-	if !present {
-		panic("no incoming MenuNode for a Peer element")
-	}
-	iPeeringNode.SetIsChecked(true)
-	//todo next version of this feature will display a subelement containing shared resources
-	//notify new peering
-	i.Notify("INCOMING PEERING ACCEPTED", fmt.Sprintf("You are offering resources to %s", obj), app.NotifyIconDefault, app.IconLiqoPurple)
-}
-
-func listenDeleteIncomingPeering(obj string, args ...interface{}) {
-	i := app.GetIndicator()
-	st := i.Status()
-	//update Status model
-	st.IncDecPeerings(app.PeeringIncoming, false)
-	i.RefreshStatus()
-	//retrieve peering info
-	//retrieve Peer information
-	quickNode, present := i.Quick(qPeers)
-	if !present {
-		return
-	}
-	//update peer information in the list on the Incoming entry (peers -> this peer -> incoming peering)
-	var peerNode, iPeeringNode *app.MenuNode
-	peerNode, present = quickNode.ListChild(obj)
-	if !present {
-		return
-	}
-	iPeeringNode, present = peerNode.ListChild(tagIncoming)
-	if !present {
-		panic("no incoming MenuNode for a Peer element")
-	}
-	iPeeringNode.SetIsChecked(false)
-	//todo next version of this feature will display a subelement containing shared resources
-	//notify peering disconnected
-	i.Notify("INCOMING PEERING CLOSED", fmt.Sprintf("Stopped sharing resources to %s", obj), app.NotifyIconDefault, app.IconLiqoRed)
-}
-
-func listenNewOutgoingPeering(obj string, args ...interface{}) {
-	i := app.GetIndicator()
-	st := i.Status()
-	//update Status model
-	st.IncDecPeerings(app.PeeringOutgoing, true)
-	i.RefreshStatus()
-	//retrieve peering info
-	//retrieve Peer information
-	quickNode, present := i.Quick(qPeers)
-	if !present {
-		return
-	}
-	//update peer information in the list on the Outgoing entry (peers -> this peer -> outgoing peering)
-	var peerNode, oPeeringNode *app.MenuNode
-	peerNode, present = quickNode.ListChild(obj)
-	if !present {
-		return
-	}
-	oPeeringNode, present = peerNode.ListChild(tagOutgoing)
-	if !present {
-		panic("no outgoing MenuNode for a Peer element")
-	}
-	oPeeringNode.SetIsChecked(true)
-	//todo next version of this feature will display a subelement containing shared resources
-	//notify new peering
-	i.Notify("OUTGOING PEERING ACCEPTED", fmt.Sprintf("You are receiving resources from %s", obj), app.NotifyIconDefault, app.IconLiqoPurple)
-}
-
-func listenDeleteOutgoingPeering(obj string, args ...interface{}) {
-	i := app.GetIndicator()
-	st := i.Status()
-	//update Status model
-	st.IncDecPeerings(app.PeeringOutgoing, false)
-	i.RefreshStatus()
-	//retrieve peering info
-	//retrieve Peer information
-	quickNode, present := i.Quick(qPeers)
-	if !present {
-		return
-	}
-	//update peer information in the list on the Incoming entry (peers -> this peer -> incoming peering)
-	var peerNode, oPeeringNode *app.MenuNode
-	peerNode, present = quickNode.ListChild(obj)
-	if !present {
-		return
-	}
-	oPeeringNode, present = peerNode.ListChild(tagOutgoing)
-	if !present {
-		panic("no outgoing MenuNode for a Peer element")
-	}
-	oPeeringNode.SetIsChecked(false)
-	//todo next version of this feature will display a subelement containing shared resources
-	//notify peering disconnected
-	i.Notify("OUTGOING PEERING CLOSED", fmt.Sprintf("Stopped receiving resources from %s", obj), app.NotifyIconDefault, app.IconLiqoRed)
-}
-
 //******* PEERS *******
 
-func listenNewPeer(objName string, args ...interface{}) {
+func listenNewPeer(data client.NotifyDataGeneric, _ ...interface{}) {
 	i := app.GetIndicator()
-	//retrieve Peer information
-	quickNode, present := i.Quick(qPeers)
-	if !present {
-		return
+	status := i.Status()
+	fcData, ok := data.(*client.NotifyDataForeignCluster)
+	if !ok {
+		panic("wrong NotifyData type for an event Listener")
 	}
-	fcCtrl := i.AgentCtrl().Controller(client.CRForeignCluster)
-	obj, exist, err := fcCtrl.Store.GetByKey(objName)
-	if err == nil && exist {
-		fCluster := obj.(*v1alpha1.ForeignCluster)
-		clusterID := fCluster.Spec.ClusterIdentity.ClusterID
-		clusterName := fCluster.Spec.ClusterIdentity.ClusterName
-		//avoid potential duplicate
-		_, present = quickNode.ListChild(clusterID)
-		if present {
-			return
-		}
-		//show cluster name as main information. The clusterID is inserted inside a status sub-element for consultation.
-		peerNode := quickNode.UseListChild(clusterName, clusterID)
-		statusNode := peerNode.UseListChild(clusterID, tagStatus)
-		statusNode.SetIsEnabled(false)
-		peerNode.UseListChild(tagIncoming, tagIncoming)
-		peerNode.UseListChild(tagOutgoing, tagOutgoing)
-		//update the counter in the menu entry
-		i.Status().IncDecPeers(true)
-		i.RefreshStatus()
-		refreshPeerCount(quickNode)
-	}
-}
-
-func listenUpdatedPeer(objName string, args ...interface{}) {
-	i := app.GetIndicator()
-	//retrieve Peer information
-	quickNode, present := i.Quick(qPeers)
-	if !present {
-		return
-	}
-	//in this case it is not necessary to get the ClusterID information (which is the required key to access the
-	//dynamic list), since the ForeignCluster 'Name' metadata coincides with it.
-	quickNode.FreeListChild(objName)
-	//update the counter in the menu entry
-	i.Status().IncDecPeers(false)
+	//1- store information on Indicator Status
+	peer := status.AddPeer(fcData)
+	peer.RLock()
+	defer peer.RUnlock()
+	//update content of the Status MenuNode in the tray menu
 	i.RefreshStatus()
-	refreshPeerCount(quickNode)
-}
 
-func listenDeletedPeer(objName string, args ...interface{}) {
-	i := app.GetIndicator()
-	//retrieve Peer information
+	//2- update information on tray menu
 	quickNode, present := i.Quick(qPeers)
 	if !present {
 		return
 	}
-	fcCtrl := i.AgentCtrl().Controller(client.CRForeignCluster)
-	obj, exist, err := fcCtrl.Store.GetByKey(objName)
-	if err == nil && exist {
-		fCluster := obj.(*v1alpha1.ForeignCluster)
-		clusterID := fCluster.Spec.ClusterIdentity.ClusterID
-		clusterName := fCluster.Spec.ClusterIdentity.ClusterName
-		var peerNode *app.MenuNode
-		peerNode, present = quickNode.ListChild(clusterID)
-		if !present {
-			return
-		}
-		//show cluster name as main information. The clusterID is inserted inside a status sub-element for consultation.
-		peerNode.SetTitle(clusterName)
+	//create a new entry in the dynamic list of the peer menu
+	newPeerNode := createPeerNode(quickNode, fcData)
+	//refresh content of the tray menu entry
+	wg := &sync.WaitGroup{}
+	wg.Add(2)
+	go refreshPeerInfo(newPeerNode, peer, fcData, wg)
+	go refreshPeeringInfo(newPeerNode, peer, fcData, wg)
+	wg.Wait()
+	refreshPeerCount(quickNode)
+
+	//3- notify selected events
+	if peer.OutPeeringConnected {
+		i.NotifyPeering(app.PeeringOutgoing, app.NotifyEventPeeringOn, peer)
 	}
+	if peer.InPeeringConnected {
+		i.NotifyPeering(app.PeeringIncoming, app.NotifyEventPeeringOn, peer)
+	}
+}
+
+func listenUpdatedPeer(data client.NotifyDataGeneric, _ ...interface{}) {
+	i := app.GetIndicator()
+	status := i.Status()
+	fcData, ok := data.(*client.NotifyDataForeignCluster)
+	if !ok {
+		panic("wrong NotifyData type for an event Listener")
+	}
+	//1- update peer data
+	peer := status.UpdatePeer(fcData)
+	peer.RLock()
+	defer peer.RUnlock()
+	//update content of the Status MenuNode in the tray menu
+	i.RefreshStatus()
+
+	//2- update information on tray menu
+	quickNode, present := i.Quick(qPeers)
+	if !present {
+		return
+	}
+	peerNode, present := quickNode.ListChild(peer.ClusterID)
+	if present {
+		//refresh content of the tray menu entry
+		wg := &sync.WaitGroup{}
+		wg.Add(2)
+		go refreshPeerInfo(peerNode, peer, fcData, wg)
+		go refreshPeeringInfo(peerNode, peer, fcData, wg)
+		wg.Wait()
+	}
+	refreshPeerCount(quickNode)
+
+	//3- notify selected events
+	if !fcData.OutPeering.Connected && peer.OutPeeringConnected {
+		i.NotifyPeering(app.PeeringOutgoing, app.NotifyEventPeeringOn, peer)
+	} else if fcData.OutPeering.Connected && !peer.OutPeeringConnected {
+		i.NotifyPeering(app.PeeringOutgoing, app.NotifyEventPeeringOff, peer)
+	}
+	if !fcData.InPeering.Connected && peer.InPeeringConnected {
+		i.NotifyPeering(app.PeeringIncoming, app.NotifyEventPeeringOn, peer)
+	} else if fcData.InPeering.Connected && !peer.InPeeringConnected {
+		i.NotifyPeering(app.PeeringIncoming, app.NotifyEventPeeringOff, peer)
+	}
+
+}
+
+func listenDeletedPeer(data client.NotifyDataGeneric, _ ...interface{}) {
+	i := app.GetIndicator()
+	status := i.Status()
+	fcData, ok := data.(*client.NotifyDataForeignCluster)
+	if !ok {
+		panic("wrong NotifyData type for an event Listener")
+	}
+	//1- update peer data
+	peer := status.RemovePeer(fcData)
+	peer.RLock()
+	defer peer.RUnlock()
+	//update content of the Status MenuNode in the tray menu
+	i.RefreshStatus()
+
+	//2- update information on tray menu
+	quickNode, present := i.Quick(qPeers)
+	if !present {
+		return
+	}
+	_, present = quickNode.ListChild(peer.ClusterID)
+	if present {
+		//remove peer node and all its sub elements
+		quickNode.FreeListChild(peer.ClusterID)
+	}
+	refreshPeerCount(quickNode)
+
+	//3- notify selected events
+	if !fcData.OutPeering.Connected && peer.OutPeeringConnected {
+		i.NotifyPeering(app.PeeringOutgoing, app.NotifyEventPeeringOn, peer)
+	} else if fcData.OutPeering.Connected && !peer.OutPeeringConnected {
+		i.NotifyPeering(app.PeeringOutgoing, app.NotifyEventPeeringOff, peer)
+	}
+	if !fcData.InPeering.Connected && peer.InPeeringConnected {
+		i.NotifyPeering(app.PeeringIncoming, app.NotifyEventPeeringOn, peer)
+	} else if fcData.InPeering.Connected && !peer.InPeeringConnected {
+		i.NotifyPeering(app.PeeringIncoming, app.NotifyEventPeeringOff, peer)
+	}
+
 }
