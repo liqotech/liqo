@@ -50,10 +50,6 @@ dependencies:
   version: "0.1.0"
   repository: file://subcharts/peeringRequestOperator/
   condition: peeringRequestOperator.enabled
-- name: liqoDash
-  version: "0.1.0"
-  repository: file://subcharts/liqoDash/
-  condition: liqoDash.enabled
 - name: crdReplicator
   version: "0.1.0"
   repository: file://subcharts/crdReplicator/

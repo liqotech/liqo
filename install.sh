@@ -66,6 +66,7 @@ LIQO_REPO_DEFAULT="liqotech/liqo"
 LIQO_CHARTS_PATH="deployments/liqo"
 
 LIQO_DASHBOARD_REPO="liqotech/dashboard"
+LIQO_DASHBOARD_CHARTS_PATH="kubernetes/dashboard_chart"
 
 LIQO_NAMESPACE_DEFAULT="liqo"
 CLUSTER_NAME_DEFAULT=$(printf "LiqoCluster%04d" $(( RANDOM%10000 )) )
@@ -370,21 +371,12 @@ function setup_liqo_version() {
 		warn "[PRE-FLIGHT] [DOWNLOAD]" "A Liqo commit has been specified: using the development version"
 		LIQO_IMAGE_VERSION=${LIQO_VERSION}
 		LIQO_SUFFIX="-ci"
-
-		# Using the Liqo Dashboard version from master
-		warn "[PRE-FLIGHT] [DOWNLOAD]" "An unreleased version of Liqo Dashboard is going to be downloaded"
-		LIQO_DASHBOARD_IMAGE_VERSION=$(get_repo_master_commit ${LIQO_DASHBOARD_REPO}) ||
-			fatal "[PRE-FLIGHT] [DOWNLOAD]" "Failed to retrieve the latest commit of the master branch"
 		return 0
 	fi
 
 	# Obtain the list of Liqo tags
 	local LIQO_TAGS
 	LIQO_TAGS=$(get_repo_tags "${LIQO_REPO}")
-
-	#Obtain the list of Liqo Dashboard tags
-	local LIQO_DASHBOARD_TAGS
-	LIQO_DASHBOARD_TAGS=$(get_repo_tags ${LIQO_DASHBOARD_REPO})
 
 	# If no version has been specified, select the latest tag (if available)
 	LIQO_VERSION=${LIQO_VERSION:-$(printf "%s" "${LIQO_TAGS}" | head --lines=1)}
@@ -395,21 +387,39 @@ function setup_liqo_version() {
 			fatal "[PRE-FLIGHT] [DOWNLOAD]" "The requested Liqo version '${LIQO_VERSION}' does not exist"
 		LIQO_IMAGE_VERSION=${LIQO_VERSION}
 
-		# Also check if the relative dashboard version exists
-		printf "%s" "${LIQO_DASHBOARD_TAGS}" | grep -P --silent "^${LIQO_VERSION}$" ||
-			fatal "[PRE-FLIGHT] [DOWNLOAD]" "The requested Liqo Dashboard version '${LIQO_VERSION}' does not exist"
-		LIQO_DASHBOARD_IMAGE_VERSION=${LIQO_VERSION}
-
 	else
 		# Using the version from master
 		warn "[PRE-FLIGHT] [DOWNLOAD]" "An unreleased version of Liqo is going to be downloaded"
 		LIQO_IMAGE_VERSION=$(get_repo_master_commit "${LIQO_REPO}") ||
 			fatal "[PRE-FLIGHT] [DOWNLOAD]" "Failed to retrieve the latest commit of the master branch"
 		LIQO_SUFFIX="-ci"
+	fi
+}
 
-		# Using the Liqo Dashboard version from master
-		warn "[PRE-FLIGHT] [DOWNLOAD]" "An unreleased version of Liqo Dashboard is going to be downloaded"
-		LIQO_DASHBOARD_IMAGE_VERSION=$(get_repo_master_commit ${LIQO_DASHBOARD_REPO}) ||
+function setup_liqodash_version() {
+	# A specific commit has been requested: assuming development version and returning
+	if [[ "${LIQO_DASHBOARD_VERSION:-}" =~ ^[0-9a-f]{40}$ ]]; then
+		warn "[PRE-FLIGHT] [DOWNLOAD]" "A LiqoDash commit has been specified: using the development version"
+		LIQO_DASHBOARD_IMAGE_VERSION=${LIQO_DASHBOARD_VERSION}
+		return 0
+	fi
+
+	# Obtain the list of LiqoDash tags
+	local LIQO_DASHBOARD_TAGS
+	LIQO_DASHBOARD_TAGS=$(get_repo_tags "${LIQO_DASHBOARD_REPO}")
+
+	# If no version has been specified, select the latest tag (if available)
+	LIQO_DASHBOARD_VERSION=${LIQO_DASHBOARD_VERSION:-$(printf "%s" "${LIQO_DASHBOARD_TAGS}" | head --lines=1)}
+
+	if [ "${LIQO_DASHBOARD_VERSION:=master}" != "master" ]; then
+		# A specific version has been requested: check if the version exists
+		printf "%s" "${LIQO_DASHBOARD_TAGS}" | grep -P --silent "^${LIQO_DASHBOARD_VERSION}$" ||
+			fatal "[PRE-FLIGHT] [DOWNLOAD]" "The requested Liqo version '${LIQO_DASHBOARD_VERSION}' does not exist"
+		LIQO_DASHBOARD_IMAGE_VERSION=${LIQO_DASHBOARD_VERSION}
+	else
+		# Using the version from master
+		warn "[PRE-FLIGHT] [DOWNLOAD]" "An unreleased version of Liqo is going to be downloaded"
+		LIQO_DASHBOARD_IMAGE_VERSION=$(get_repo_master_commit "${LIQO_DASHBOARD_REPO}") ||
 			fatal "[PRE-FLIGHT] [DOWNLOAD]" "Failed to retrieve the latest commit of the master branch"
 	fi
 }
@@ -449,6 +459,13 @@ function download_liqo() {
 		fatal "[PRE-FLIGHT] [DOWNLOAD]" "Something went wrong while extracting the Liqo archive"
 }
 
+function download_liqodash() {
+	info "[PRE-FLIGHT] [DOWNLOAD]" "Downloading LiqoDash (version: ${LIQO_DASHBOARD_VERSION})"
+	command_exists tar || fatal "[PRE-FLIGHT] [DOWNLOAD]" "'tar' is not available"
+	local LIQO_DASHBOARD_DOWNLOAD_URL="https://github.com/${LIQO_DASHBOARD_REPO}/archive/${LIQO_DASHBOARD_VERSION}.tar.gz"
+	download "${LIQO_DASHBOARD_DOWNLOAD_URL}" | tar zxf - --directory="${DASHDIR}" --strip 1 2>/dev/null ||
+		fatal "[PRE-FLIGHT] [DOWNLOAD]" "Something went wrong while extracting the LiqoDash archive"
+}
 
 function setup_kubectl() {
 	command_exists "kubectl" ||
@@ -468,6 +485,8 @@ function setup_tmpdir() {
 	TMPDIR=$(mktemp -d -t liqo-install.XXXXXXXXXX)
 	BINDIR="${TMPDIR}/bin"
 	mkdir --parent "${BINDIR}"
+	DASHDIR="${TMPDIR}/dashboard"
+	mkdir --parent "${DASHDIR}"
 
 	cleanup() {
 		local CODE=$?
@@ -574,8 +593,6 @@ function install_liqo() {
 	${HELM} install liqo --kube-context "${KUBECONFIG_CONTEXT}" --namespace "${LIQO_NAMESPACE}" "${LIQO_CHART}" \
 		--set global.version="${LIQO_IMAGE_VERSION}" --set global.suffix="${LIQO_SUFFIX:-}" --set clusterName="${CLUSTER_NAME}" \
 		--set podCIDR="${POD_CIDR}" --set serviceCIDR="${SERVICE_CIDR}" --set gatewayIP="${GATEWAY_IP}" \
-		--set global.dashboard_version="${LIQO_DASHBOARD_IMAGE_VERSION}" \
-		--set global.dashboard_ingress="${DASHBOARD_INGRESS:-}" \
 		--set authService.ingress.enable="${LIQO_ENABLE_INGRESS:-}" \
 		--set authService.ingress.host="${LIQO_AUTHSERVER_ADDR:-}" \
 		--set authService.ingress.class="${LIQO_INGRESS_CLASS:-}" \
@@ -586,6 +603,21 @@ function install_liqo() {
 			fatal "[INSTALL]" "Something went wrong while installing Liqo"
 
 	info "[INSTALL]" "Hooray! Liqo is now installed on your cluster"
+}
+
+function install_liqodash() {
+	info "[INSTALL]" "Installing LiqoDash on your cluster..."
+
+	local LIQO_DASHBOARD_CHART="${DASHDIR}/${LIQO_DASHBOARD_CHARTS_PATH}"
+	
+	${HELM} dependency update "${LIQO_DASHBOARD_CHART}" >/dev/null ||
+		fatal "[INSTALL]" "Something went wrong while installing LiqoDash"
+	${HELM} install liqo-dashboard --namespace "${LIQO_NAMESPACE}" "${LIQO_DASHBOARD_CHART}" \
+		--set version="${LIQO_DASHBOARD_IMAGE_VERSION:-}" \
+		--set ingress="${DASHBOARD_HOSTNAME:-}" >/dev/null ||
+			fatal "[INSTALL]" "Something went wrong while installing LiqoDash"
+
+	info "[INSTALL]" "Hooray! LiqoDash is now installed on your cluster"
 }
 
 function install_agent() {
@@ -723,6 +755,15 @@ function uninstall_liqo() {
 	set -e
 }
 
+function uninstall_liqodash() {
+	set +e
+
+	info "[UNINSTALL]" "Uninstalling LiqoDash from your cluster..."
+	${HELM} uninstall liqo-dashboard --namespace "${LIQO_NAMESPACE}" 1>/dev/null 2>&1
+	info "[UNINSTALL]" "LiqoDash has been correctly uninstalled from your cluster"
+	set -e
+}
+
 function uninstall_agent() {
 	setup_installation_platform
 	[[ "${INSTALLATION_PLATFORM}" != "linux" ]] && return 0
@@ -766,6 +807,8 @@ function main() {
 
 	setup_liqo_version
 	download_liqo
+	setup_liqodash_version
+	download_liqodash
 	download_helm
 
 	configure_namespace
@@ -774,8 +817,10 @@ function main() {
 		configure_installation_variables
 		configure_gateway_node
 		install_liqo
+		install_liqodash
 		install_agent
 	else
+		uninstall_liqodash
 		unjoin_clusters
 		uninstall_liqo
 		purge_liqo
