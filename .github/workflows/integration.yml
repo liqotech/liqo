@@ -17,7 +17,7 @@ jobs:
     outputs:
       commit_ref: ${{ steps.configure.outputs.commit_ref }}
       repo-suffix: ${{ steps.configure.outputs.repo-suffix }}
-      repo-push: ${{ steps.configure.outputs.repo-push }}
+      ok-to-continue: ${{ steps.configure.outputs.ok-to-continue }}
       master: ${{ steps.configure.outputs.master }}
       repo-name: ${{ steps.configure.outputs.repo-name }}
     steps:
@@ -46,16 +46,16 @@ jobs:
           echo "::set-output name=repo-suffix::"
 
         if [ "${{ github.event_name }}" != "pull_request_target" ]; then
-           echo "::set-output name=repo-push::true"
+           echo "::set-output name=ok-to-continue::true"
            echo "::set-output name=repo-name::${{ github.repository }}"
         elif [ "${{ github.event.pull_request.head.repo.full_name }}" == "${{ github.repository }}" ]; then
-           echo "::set-output name=repo-push::true"
+           echo "::set-output name=ok-to-continue::true"
            echo "::set-output name=repo-name::${{ github.repository }}"
         elif [ "${{ contains(github.event.pull_request.labels.*.name, 'ok-to-test') }}" == "true" ]; then
-           echo "::set-output name=repo-push::true"
+           echo "::set-output name=ok-to-continue::true"
            echo "::set-output name=repo-name::${{ github.event.pull_request.head.repo.full_name }}"
         else
-           echo "::set-output name=repo-push::false"
+           echo "::set-output name=ok-to-continue::false"
            echo "::set-output name=repo-name::${{ github.event.pull_request.head.repo.full_name }}"
         fi
 
@@ -63,6 +63,7 @@ jobs:
   build:
     runs-on: ubuntu-latest
     needs: configure
+    if: needs.configure.outputs.ok-to-continue == 'true'
     strategy:
       fail-fast: false
       matrix:
@@ -98,7 +99,6 @@ jobs:
         with:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_PASSWORD }}
-        if: needs.configure.outputs.repo-push == 'true'
 
       - name: Build (and Publish) ${{ matrix.component }} image
         uses: docker/build-push-action@v2
@@ -107,13 +107,13 @@ jobs:
           tags: |
             liqo/${{ matrix.component }}${{ needs.configure.outputs.repo-suffix }}:latest
             liqo/${{ matrix.component }}${{ needs.configure.outputs.repo-suffix }}:${{ needs.configure.outputs.commit_ref }}
-          push: ${{ needs.configure.outputs.repo-push }}
+          push: true
           file: build/${{ matrix.component }}/Dockerfile
 
   e2e-test-trigger:
      runs-on: ubuntu-latest
      needs: [build, configure]
-     if: needs.configure.outputs.repo-push == 'true' && github.event.pull_request.draft == false
+     if: needs.configure.outputs.ok-to-continue == 'true' && github.event.pull_request.draft == false
      strategy:
        fail-fast: false
        matrix:
@@ -205,7 +205,7 @@ jobs:
     name: Launch Test and Build Liqo Agent
     runs-on: ubuntu-20.04
     needs: configure
-    if: github.event.pull_request.draft == false
+    if: needs.configure.outputs.ok-to-continue == 'true' && github.event.pull_request.draft == false
     steps:
 
     - name: Set up Go 1.14
@@ -267,3 +267,21 @@ jobs:
         retention-days: 1
         if-no-files-found: error
       if: github.event_name == 'push' && github.event.repository.full_name == 'liqotech/liqo' && startsWith(github.ref, 'refs/tags/v')
+
+  wait-approve:
+    name: Wait for the ok-to-test label to test pr on fork
+    runs-on: ubuntu-20.04
+    needs: configure
+    if: needs.configure.outputs.ok-to-continue == 'false'
+    steps:
+      - name: Issue the greeting comment
+        uses: peter-evans/create-or-update-comment@v1
+        with:
+            token: ${{ secrets.CI_TOKEN }}
+            issue-number: ${{ github.event.pull_request.number }}
+            body: |
+              Hi @${{ github.event.pull_request.user.login }}. Thanks for your PR!
+
+              I'm waiting for a Liqo member to verify that this patch is reasonable to test. If it is, they should reply with /ok-to-test.
+
+              Once the patch is verified, the new status will be reflected by the ok-to-test label.
