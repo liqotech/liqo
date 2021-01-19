@@ -2,6 +2,7 @@ package forge
 
 import (
 	"fmt"
+	"github.com/liqotech/liqo/internal/liqonet/tunnelEndpointCreator"
 	"github.com/liqotech/liqo/pkg/virtualKubelet"
 	apimgmt "github.com/liqotech/liqo/pkg/virtualKubelet/apiReflection"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/apiReflection/reflectors"
@@ -183,7 +184,7 @@ func filterVolumeMounts(volumes []corev1.Volume, volumeMountsIn []corev1.VolumeM
 
 // ChangePodIp creates a new IP address obtained by means of the old IP address and the new podCIDR
 func ChangePodIp(newPodCidr string, oldPodIp string) (newPodIp string) {
-	if newPodCidr == "" {
+	if newPodCidr == tunnelEndpointCreator.DefaultPodCIDRValue {
 		return oldPodIp
 	}
 	//the last two slices are the suffix of the newPodIp

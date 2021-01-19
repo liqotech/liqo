@@ -59,36 +59,36 @@ func (r *ReplicaSetsIncomingReflector) HandleEvent(obj interface{}) {
 }
 
 // preAdd returns always nil beacuse the add events have to be ignored
-func (r *ReplicaSetsIncomingReflector) preAdd(_ interface{}) interface{} {
-	return nil
+func (r *ReplicaSetsIncomingReflector) preAdd(_ interface{}) (interface{}, watch.EventType) {
+	return nil, watch.Added
 }
 
 // preUpdate returns always nil beacuse the add events have to be ignored
-func (r *ReplicaSetsIncomingReflector) preUpdate(_, _ interface{}) interface{} {
-	return nil
+func (r *ReplicaSetsIncomingReflector) preUpdate(_, _ interface{}) (interface{}, watch.EventType) {
+	return nil, watch.Modified
 }
 
 // preDelete receives a replicaset, then gets the home pod named according to a replicaset label,
 // finally the pod is returned
-func (r *ReplicaSetsIncomingReflector) preDelete(obj interface{}) interface{} {
+func (r *ReplicaSetsIncomingReflector) preDelete(obj interface{}) (interface{}, watch.EventType) {
 	foreignReplicaSet := obj.(*appsv1.ReplicaSet).DeepCopy()
 
 	homeNamespace, err := r.NattingTable().DeNatNamespace(foreignReplicaSet.Namespace)
 	if err != nil {
 		klog.Error(err)
-		return nil
+		return nil, watch.Deleted
 	}
 
 	podName := foreignReplicaSet.Labels[virtualKubelet.ReflectedpodKey]
 	if podName == "" {
 		klog.V(4).Infof("INCOMING REFLECTION: label missing for replicaset %v/%v", foreignReplicaSet.Namespace, foreignReplicaSet.Name)
-		return nil
+		return nil, watch.Deleted
 	}
 
 	homeObjPo, err := r.GetCacheManager().GetHomeNamespacedObject(apimgmt.Pods, homeNamespace, podName)
 	if err != nil {
 		klog.Error(err)
-		return nil
+		return nil, watch.Deleted
 	}
 
 	homePod := homeObjPo.(*corev1.Pod).DeepCopy()
@@ -105,25 +105,25 @@ func (r *ReplicaSetsIncomingReflector) preDelete(obj interface{}) interface{} {
 		metav1.PatchOptions{})
 	if err != nil {
 		klog.Error(err)
-		return err
+		return nil, watch.Deleted
 	}
 
 	// if the DeletionTimestamp is already set, the replicaset deletion has been triggered by a homePod delete event,
 	// hence we have not to delete it
 	if homePod.DeletionTimestamp != nil {
-		return nil
+		return nil, watch.Deleted
 	}
 
 	// if a foreign replicaset has been deleted, first we trigger a delete event for the home pod
 	if err := r.GetHomeClient().CoreV1().Pods(homeNamespace).Delete(context.TODO(), podName, metav1.DeleteOptions{}); err != nil {
 		klog.Errorf("INCOMING REFLECTION: error while deleting home pod %s/%s", homeNamespace, podName)
-		return nil
+		return nil, watch.Deleted
 	}
 
 	// then we set all the containers in terminated status
 	homePod = forge.ForeignReplicasetDeleted(homePod)
 
-	return homePod
+	return homePod, watch.Deleted
 }
 
 // CleanupNamespace does nothing because the delete of the remote replicasets is already triggered by

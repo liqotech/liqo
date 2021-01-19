@@ -42,7 +42,7 @@ type Controller struct {
 	stopController chan struct{}
 }
 
-func NewApiController(homeClient, foreignClient kubernetes.Interface, mapper namespacesMapping.MapperController, opts map[options.OptionKey]options.Option) *Controller {
+func NewApiController(homeClient, foreignClient kubernetes.Interface, mapper namespacesMapping.MapperController, opts map[options.OptionKey]options.Option, tepReady chan struct{}) *Controller {
 	klog.V(2).Infof("starting reflection manager")
 
 	outgoingReflectionInforming := make(chan apiReflection.ApiEvent)
@@ -65,6 +65,7 @@ func NewApiController(homeClient, foreignClient kubernetes.Interface, mapper nam
 
 	c.mainControllerRoutine.Add(1)
 	go func() {
+		<-tepReady
 		for {
 			select {
 			case <-c.mapper.PollStartMapper():

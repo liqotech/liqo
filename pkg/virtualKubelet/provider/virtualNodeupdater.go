@@ -6,6 +6,7 @@ import (
 	nettypes "github.com/liqotech/liqo/apis/net/v1alpha1"
 	advtypes "github.com/liqotech/liqo/apis/sharing/v1alpha1"
 	advertisementOperator "github.com/liqotech/liqo/internal/advertisement-operator"
+	"github.com/liqotech/liqo/internal/liqonet/tunnelEndpointCreator"
 	"github.com/liqotech/liqo/internal/virtualKubelet/node"
 	"github.com/liqotech/liqo/pkg/virtualKubelet"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/options"
@@ -133,7 +134,7 @@ func (p *LiqoProvider) ReconcileNodeFromTep(event watch.Event) error {
 	}
 	if event.Type == watch.Deleted {
 		klog.Infof("tunnelEndpoint %v deleted", tep.Name)
-		p.RemoteRemappedPodCidr.SetValue("")
+		p.RemoteRemappedPodCidr.SetValue(tunnelEndpointCreator.DefaultPodCIDRValue)
 		no, err := p.nntClient.Client().CoreV1().Nodes().Get(context.TODO(), p.nodeName.Value().ToString(), metav1.GetOptions{})
 		if err != nil {
 			klog.Error(err)
@@ -224,14 +225,22 @@ func mergeMaps(m1 map[string]string, m2 map[string]string) map[string]string {
 }
 
 func (p *LiqoProvider) updateFromTep(tep nettypes.TunnelEndpoint) error {
-	if tep.Status.RemoteRemappedPodCIDR != "" && tep.Status.RemoteRemappedPodCIDR != "None" {
-		p.RemoteRemappedPodCidr.SetValue(options.OptionValue(tep.Status.RemoteRemappedPodCIDR))
-	} else {
-		p.RemoteRemappedPodCidr.SetValue(options.OptionValue(tep.Spec.PodCIDR))
+	var tepSet bool
+
+	// if tep.Status.CIDRs are not set yet, return
+	if tep.Status.RemoteRemappedPodCIDR == "" || tep.Status.LocalRemappedPodCIDR == "" {
+		return nil
+	}
+	if !p.RemoteRemappedPodCidr.IsSet() && !p.LocalRemappedPodCidr.IsSet() {
+		tepSet = true
 	}
 
-	if tep.Status.LocalRemappedPodCIDR != "" && tep.Status.LocalRemappedPodCIDR != "None" {
-		p.LocalRemappedPodCidr.SetValue(options.OptionValue(tep.Status.LocalRemappedPodCIDR))
+	// else set podCIDRS from TunnelEndpoint.Status
+	// Enforcement of their validity is performed in forge.changePodId
+	p.RemoteRemappedPodCidr.SetValue(options.OptionValue(tep.Status.RemoteRemappedPodCIDR))
+	p.LocalRemappedPodCidr.SetValue(options.OptionValue(tep.Status.LocalRemappedPodCIDR))
+	if tepSet {
+		close(p.tepReady)
 	}
 
 	no, err := p.nntClient.Client().CoreV1().Nodes().Get(context.TODO(), p.nodeName.Value().ToString(), metav1.GetOptions{})

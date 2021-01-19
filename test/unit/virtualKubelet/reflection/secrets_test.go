@@ -45,7 +45,9 @@ func TestSecretAdd(t *testing.T) {
 	}
 
 	_, _ = nattingTable.NatNamespace("homeNamespace", true)
-	postadd := reflector.PreProcessAdd(&secret).(*v1.Secret)
+
+	pa, _ := reflector.PreProcessAdd(&secret)
+	postadd := pa.(*v1.Secret)
 
 	assert.Equal(t, postadd.Namespace, "homeNamespace-natted")
 }
@@ -86,7 +88,9 @@ func TestSASecretAdd(t *testing.T) {
 	}
 
 	_, _ = nattingTable.NatNamespace("homeNamespace", true)
-	postadd := reflector.PreProcessAdd(&secret).(*v1.Secret)
+
+	pa, _ := reflector.PreProcessAdd(&secret)
+	postadd := pa.(*v1.Secret)
 
 	assert.Equal(t, postadd.Namespace, "homeNamespace-natted")
 	assert.Assert(t, len(postadd.Annotations) == 0, "service account annotation are not removed")
@@ -126,7 +130,9 @@ func TestSecretUpdate(t *testing.T) {
 	}
 
 	_, _ = nattingTable.NatNamespace("homeNamespace", true)
-	postadd := reflector.PreProcessAdd(&secret).(*v1.Secret)
+
+	pa, _ := reflector.PreProcessAdd(&secret)
+	postadd := pa.(*v1.Secret)
 
 	assert.Equal(t, postadd.Namespace, "homeNamespace-natted")
 }

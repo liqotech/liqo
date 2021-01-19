@@ -100,14 +100,14 @@ func (r *ServicesReflector) CleanupNamespace(localNamespace string) {
 	}
 }
 
-func (r *ServicesReflector) PreAdd(obj interface{}) interface{} {
+func (r *ServicesReflector) PreAdd(obj interface{}) (interface{}, watch.EventType) {
 	svcLocal := obj.(*corev1.Service)
 	klog.V(3).Infof("PreAdd routine started for service %v/%v", svcLocal.Namespace, svcLocal.Name)
 
 	nattedNs, err := r.NattingTable().NatNamespace(svcLocal.Namespace, false)
 	if err != nil {
 		klog.Error(err)
-		return nil
+		return nil, watch.Added
 	}
 
 	svcRemote := &corev1.Service{
@@ -128,24 +128,24 @@ func (r *ServicesReflector) PreAdd(obj interface{}) interface{} {
 	svcRemote.Labels[forge.LiqoOutgoingKey] = forge.LiqoNodeName()
 
 	klog.V(3).Infof("PreAdd routine completed for service %v/%v", svcLocal.Namespace, svcLocal.Name)
-	return svcRemote
+	return svcRemote, watch.Added
 }
 
-func (r *ServicesReflector) PreUpdate(newObj interface{}, _ interface{}) interface{} {
+func (r *ServicesReflector) PreUpdate(newObj interface{}, _ interface{}) (interface{}, watch.EventType) {
 	newSvc := newObj.(*corev1.Service).DeepCopy()
 	newSvcName := newSvc.Name
 
 	nattedNs, err := r.NattingTable().NatNamespace(newSvc.Namespace, false)
 	if err != nil {
 		klog.Error(err)
-		return nil
+		return nil, watch.Modified
 	}
 
 	oldRemoteObj, err := r.GetCacheManager().GetForeignNamespacedObject(apimgmt.Services, nattedNs, newSvcName)
 	if err != nil {
 		err = errors.Wrapf(err, "service %v/%v", nattedNs, newSvcName)
 		klog.Error(err)
-		return nil
+		return nil, watch.Modified
 	}
 	foreignSvc := oldRemoteObj.(*corev1.Service).DeepCopy()
 
@@ -168,22 +168,22 @@ func (r *ServicesReflector) PreUpdate(newObj interface{}, _ interface{}) interfa
 	foreignSvc.Spec.Selector = newSvc.Spec.Selector
 	foreignSvc.Spec.Type = newSvc.Spec.Type
 
-	return foreignSvc
+	return foreignSvc, watch.Modified
 }
 
-func (r *ServicesReflector) PreDelete(obj interface{}) interface{} {
+func (r *ServicesReflector) PreDelete(obj interface{}) (interface{}, watch.EventType) {
 	svcLocal := obj.(*corev1.Service).DeepCopy()
 	klog.V(3).Infof("PreDelete routine started for service %v/%v", svcLocal.Namespace, svcLocal.Name)
 
 	nattedNs, err := r.NattingTable().NatNamespace(svcLocal.Namespace, false)
 	if err != nil {
 		klog.Error(err)
-		return nil
+		return nil, watch.Deleted
 	}
 	svcLocal.Namespace = nattedNs
 
 	klog.V(3).Infof("PreDelete routine completed for service %v/%v", svcLocal.Namespace, svcLocal.Name)
-	return svcLocal
+	return svcLocal, watch.Deleted
 }
 
 func (r *ServicesReflector) isAllowed(_ context.Context, obj interface{}) bool {

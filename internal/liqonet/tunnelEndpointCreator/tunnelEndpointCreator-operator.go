@@ -51,7 +51,7 @@ import (
 const (
 	TunEndpointNamePrefix = "tun-endpoint-"
 	NetConfigNamePrefix   = "net-config-"
-	defaultPodCIDRValue   = "None"
+	DefaultPodCIDRValue   = "None"
 )
 
 var (
@@ -366,9 +366,9 @@ func (tec *TunnelEndpointCreator) processRemoteNetConfig(netConfig *netv1alpha1.
 			}
 		}
 	}
-	if netConfig.Status.PodCIDRNAT != defaultPodCIDRValue {
+	if netConfig.Status.PodCIDRNAT != DefaultPodCIDRValue {
 		//update netConfig status
-		netConfig.Status.PodCIDRNAT = defaultPodCIDRValue
+		netConfig.Status.PodCIDRNAT = DefaultPodCIDRValue
 		netConfig.Status.NATEnabled = "false"
 		err := tec.Status().Update(context.Background(), netConfig)
 		if err != nil {

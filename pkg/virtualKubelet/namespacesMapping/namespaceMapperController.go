@@ -56,6 +56,7 @@ func NewNamespaceMapperController(client crdClient.NamespacedCRDClientInterface,
 			restartReady:            make(chan struct{}, 100),
 		},
 	}
+
 	if err := controller.mapper.startNattingCache(client); err != nil {
 		return nil, err
 	}

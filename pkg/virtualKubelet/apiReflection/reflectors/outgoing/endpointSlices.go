@@ -78,12 +78,12 @@ func (r *EndpointSlicesReflector) HandleEvent(e interface{}) {
 	}
 }
 
-func (r *EndpointSlicesReflector) PreAdd(obj interface{}) interface{} {
+func (r *EndpointSlicesReflector) PreAdd(obj interface{}) (interface{}, watch.EventType) {
 	epLocal := obj.(*discoveryv1beta1.EndpointSlice).DeepCopy()
 	nattedNs, err := r.NattingTable().NatNamespace(epLocal.Namespace, false)
 	if err != nil {
 		klog.Error(err)
-		return nil
+		return nil, watch.Added
 	}
 
 	labels := map[string]string{
@@ -105,9 +105,9 @@ func (r *EndpointSlicesReflector) PreAdd(obj interface{}) interface{} {
 		return err
 	}
 	if err = retry.OnError(retry.DefaultBackoff, retriable, fn); err != nil {
-		klog.Errorf("error while retrieving service %v in endppointslices reflector - ERR: %v", key, err)
+		klog.Errorf("error while retrieving service %v in endpointslices reflector - ERR: %v", key, err)
 		reflectors.Blacklist[apimgmt.EndpointSlices][key] = struct{}{}
-		return nil
+		return nil, watch.Added
 	}
 
 	svcOwnerRef := []metav1.OwnerReference{
@@ -131,46 +131,47 @@ func (r *EndpointSlicesReflector) PreAdd(obj interface{}) interface{} {
 		Ports:       epLocal.Ports,
 	}
 
-	return epsRemote
+	return epsRemote, watch.Added
 }
 
-func (r *EndpointSlicesReflector) PreUpdate(newObj, _ interface{}) interface{} {
+func (r *EndpointSlicesReflector) PreUpdate(newObj, _ interface{}) (interface{}, watch.EventType) {
 	endpointSliceHome := newObj.(*discoveryv1beta1.EndpointSlice).DeepCopy()
 	endpointSliceName := endpointSliceHome.Name
 
 	nattedNs, err := r.NattingTable().NatNamespace(endpointSliceHome.Namespace, false)
 	if err != nil {
 		klog.Error(err)
-		return nil
+		return nil, watch.Modified
 	}
 	oldRemoteObj, err := r.GetCacheManager().GetForeignNamespacedObject(apimgmt.EndpointSlices, nattedNs, endpointSliceName)
+	if kerrors.IsNotFound(err) {
+		klog.Info("endpointslices preupdate routine: calling preAdd...")
+		return r.PreAdd(newObj)
+	}
+
 	if err != nil {
 		err = errors.Wrapf(err, "endpointslices %v/%v", nattedNs, endpointSliceName)
 		klog.Error(err)
-		return nil
+		return nil, watch.Modified
 	}
 	RemoteEpSlice := oldRemoteObj.(*discoveryv1beta1.EndpointSlice).DeepCopy()
-
-	RemoteEpSlice.SetNamespace(nattedNs)
-	RemoteEpSlice.SetResourceVersion(RemoteEpSlice.ResourceVersion)
-	RemoteEpSlice.SetUID(RemoteEpSlice.UID)
 
 	RemoteEpSlice.Endpoints = filterEndpoints(endpointSliceHome, string(r.LocalRemappedPodCIDR.Value()), string(r.VirtualNodeName.Value()))
 	RemoteEpSlice.Ports = endpointSliceHome.Ports
 
-	return RemoteEpSlice
+	return RemoteEpSlice, watch.Modified
 }
 
-func (r *EndpointSlicesReflector) PreDelete(obj interface{}) interface{} {
+func (r *EndpointSlicesReflector) PreDelete(obj interface{}) (interface{}, watch.EventType) {
 	endpointSliceLocal := obj.(*discoveryv1beta1.EndpointSlice)
 	nattedNs, err := r.NattingTable().NatNamespace(endpointSliceLocal.Namespace, false)
 	if err != nil {
 		klog.Error(err)
-		return nil
+		return nil, watch.Deleted
 	}
 	endpointSliceLocal.Namespace = nattedNs
 
-	return endpointSliceLocal
+	return endpointSliceLocal, watch.Deleted
 }
 
 func filterEndpoints(slice *discoveryv1beta1.EndpointSlice, podCidr string, nodeName string) []discoveryv1beta1.Endpoint {

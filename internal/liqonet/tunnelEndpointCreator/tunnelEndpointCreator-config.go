@@ -78,7 +78,7 @@ func (tec *TunnelEndpointCreator) GetClustersSubnets() (map[string]*net.IPNet, e
 		return nil, nil
 	}
 	for _, tunEnd := range tunEndList.Items {
-		if tunEnd.Status.LocalRemappedPodCIDR != "" && tunEnd.Status.LocalRemappedPodCIDR != defaultPodCIDRValue {
+		if tunEnd.Status.LocalRemappedPodCIDR != "" && tunEnd.Status.LocalRemappedPodCIDR != DefaultPodCIDRValue {
 			_, sn, err := net.ParseCIDR(tunEnd.Status.LocalRemappedPodCIDR)
 			if err != nil {
 				klog.Errorf("an error occurred while parsing the following cidr %s: %s", tunEnd.Status.LocalRemappedPodCIDR, err)
@@ -86,7 +86,7 @@ func (tec *TunnelEndpointCreator) GetClustersSubnets() (map[string]*net.IPNet, e
 			}
 			subnets[sn.String()] = sn
 			klog.Infof("subnet %s already reserved for cluster %s", tunEnd.Status.LocalRemappedPodCIDR, tunEnd.Spec.ClusterID)
-		} else if tunEnd.Status.LocalRemappedPodCIDR == defaultPodCIDRValue {
+		} else if tunEnd.Status.LocalRemappedPodCIDR == DefaultPodCIDRValue {
 			_, sn, err := net.ParseCIDR(tunEnd.Spec.PodCIDR)
 			if err != nil {
 				klog.Errorf("an error occurred while parsing the following cidr %s: %s", tunEnd.Spec.PodCIDR, err)

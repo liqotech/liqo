@@ -92,7 +92,8 @@ func TestEndpointAdd(t *testing.T) {
 		t.Fail()
 	}
 
-	postadd := reflector.PreProcessAdd(epslice).(*v1beta1.EndpointSlice)
+	pa, _ := reflector.PreProcessAdd(epslice)
+	postadd := pa.(*v1beta1.EndpointSlice)
 
 	assert.Equal(t, postadd.Namespace, "homeNamespace-natted", "Asserting namespace natting")
 	assert.Equal(t, len(postadd.Endpoints), 1, "Asserting node-based filtering")
@@ -120,7 +121,7 @@ func TestEndpointAdd2(t *testing.T) {
 	}
 	reflector.SetSpecializedPreProcessingHandlers()
 
-	epslice := v1beta1.EndpointSlice{
+	epslice := &v1beta1.EndpointSlice{
 		TypeMeta: metav1.TypeMeta{},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "name",
@@ -155,7 +156,7 @@ func TestEndpointAdd2(t *testing.T) {
 		Ports: nil,
 	}
 
-	svc := v1.Service{
+	svc := &v1.Service{
 		TypeMeta: metav1.TypeMeta{},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "name",
@@ -168,13 +169,14 @@ func TestEndpointAdd2(t *testing.T) {
 	}
 
 	_, _ = nattingTable.NatNamespace("homeNamespace", true)
-	_, err := reflector.GetForeignClient().CoreV1().Services("homeNamespace-natted").Create(context.TODO(), &svc, metav1.CreateOptions{})
+	_, err := reflector.GetForeignClient().CoreV1().Services("homeNamespace-natted").Create(context.TODO(), svc, metav1.CreateOptions{})
 	if err != nil {
 		klog.Error(err)
 		t.Fail()
 	}
 
-	postadd := reflector.PreProcessAdd(&epslice).(*v1beta1.EndpointSlice)
+	pa, _ := reflector.PreProcessAdd(epslice)
+	postadd := pa.(*v1beta1.EndpointSlice)
 
 	assert.Equal(t, postadd.Namespace, "homeNamespace-natted", "Asserting namespace natting")
 	assert.Equal(t, len(postadd.Endpoints), 1, "Asserting node-based filtering")

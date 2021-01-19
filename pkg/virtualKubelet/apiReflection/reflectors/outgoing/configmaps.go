@@ -65,14 +65,14 @@ func (r *ConfigmapsReflector) HandleEvent(e interface{}) {
 	}
 }
 
-func (r *ConfigmapsReflector) PreAdd(obj interface{}) interface{} {
+func (r *ConfigmapsReflector) PreAdd(obj interface{}) (interface{}, watch.EventType) {
 	cmLocal := obj.(*corev1.ConfigMap)
 	klog.V(3).Infof("PreAdd routine started for configmap %v/%v", cmLocal.Namespace, cmLocal.Name)
 
 	nattedNs, err := r.NattingTable().NatNamespace(cmLocal.Namespace, false)
 	if err != nil {
 		klog.Error(err)
-		return nil
+		return nil, watch.Added
 	}
 
 	cmRemote := &corev1.ConfigMap{
@@ -91,10 +91,10 @@ func (r *ConfigmapsReflector) PreAdd(obj interface{}) interface{} {
 	cmRemote.Labels[forge.LiqoOutgoingKey] = forge.LiqoNodeName()
 
 	klog.V(3).Infof("PreAdd routine completed for configmap %v/%v", cmLocal.Namespace, cmLocal.Name)
-	return cmRemote
+	return cmRemote, watch.Added
 }
 
-func (r *ConfigmapsReflector) PreUpdate(newObj, _ interface{}) interface{} {
+func (r *ConfigmapsReflector) PreUpdate(newObj, _ interface{}) (interface{}, watch.EventType) {
 	newHomeCm := newObj.(*corev1.ConfigMap).DeepCopy()
 
 	klog.V(3).Infof("PreUpdate routine started for configmap %v/%v", newHomeCm.Namespace, newHomeCm.Name)
@@ -103,14 +103,14 @@ func (r *ConfigmapsReflector) PreUpdate(newObj, _ interface{}) interface{} {
 	if err != nil {
 		err = errors.Wrapf(err, "configmap %v/%v", nattedNs, newHomeCm.Name)
 		klog.Error(err)
-		return nil
+		return nil, watch.Modified
 	}
 
 	oldForeignObj, err := r.GetCacheManager().GetForeignNamespacedObject(apimgmt.Configmaps, nattedNs, newHomeCm.Name)
 	if err != nil {
 		err = errors.Wrapf(err, "configmap %v/%v", nattedNs, newHomeCm.Name)
 		klog.Error(err)
-		return nil
+		return nil, watch.Modified
 	}
 
 	oldRemoteCm := oldForeignObj.(*corev1.ConfigMap)
@@ -134,22 +134,22 @@ func (r *ConfigmapsReflector) PreUpdate(newObj, _ interface{}) interface{} {
 	}
 
 	klog.V(3).Infof("PreUpdate routine completed for configmap %v/%v", newHomeCm.Namespace, newHomeCm.Name)
-	return newHomeCm
+	return newHomeCm, watch.Modified
 }
 
-func (r *ConfigmapsReflector) PreDelete(obj interface{}) interface{} {
+func (r *ConfigmapsReflector) PreDelete(obj interface{}) (interface{}, watch.EventType) {
 	cmLocal := obj.(*corev1.ConfigMap).DeepCopy()
 	klog.V(3).Infof("PreDelete routine started for configmap %v/%v", cmLocal.Namespace, cmLocal.Name)
 
 	nattedNs, err := r.NattingTable().NatNamespace(cmLocal.Namespace, false)
 	if err != nil {
 		klog.Error(err)
-		return nil
+		return nil, watch.Deleted
 	}
 	cmLocal.Namespace = nattedNs
 
 	klog.V(3).Infof("PreDelete routine completed for configmap %v/%v", cmLocal.Namespace, cmLocal.Name)
-	return cmLocal
+	return cmLocal, watch.Deleted
 }
 
 func (r *ConfigmapsReflector) CleanupNamespace(localNamespace string) {

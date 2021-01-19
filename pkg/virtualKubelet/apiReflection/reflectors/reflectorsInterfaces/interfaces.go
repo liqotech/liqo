@@ -5,6 +5,7 @@ import (
 	apimgmt "github.com/liqotech/liqo/pkg/virtualKubelet/apiReflection"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/namespacesMapping"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/storage"
+	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/kubernetes"
 )
 
@@ -17,9 +18,9 @@ const (
 
 type APIPreProcessing interface {
 	PreProcessIsAllowed(context.Context, interface{}) bool
-	PreProcessAdd(obj interface{}) interface{}
-	PreProcessUpdate(newObj, oldObj interface{}) interface{}
-	PreProcessDelete(obj interface{}) interface{}
+	PreProcessAdd(obj interface{}) (interface{}, watch.EventType)
+	PreProcessUpdate(newObj, oldObj interface{}) (interface{}, watch.EventType)
+	PreProcessDelete(obj interface{}) (interface{}, watch.EventType)
 }
 
 type APIReflector interface {
@@ -57,7 +58,7 @@ type IncomingAPIReflector interface {
 
 type PreProcessingHandlers struct {
 	IsAllowed  func(ctx context.Context, obj interface{}) bool
-	AddFunc    func(obj interface{}) interface{}
-	UpdateFunc func(newObj, oldObj interface{}) interface{}
-	DeleteFunc func(obj interface{}) interface{}
+	AddFunc    func(obj interface{}) (interface{}, watch.EventType)
+	UpdateFunc func(newObj, oldObj interface{}) (interface{}, watch.EventType)
+	DeleteFunc func(obj interface{}) (interface{}, watch.EventType)
 }

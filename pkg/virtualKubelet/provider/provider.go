@@ -25,6 +25,7 @@ type LiqoProvider struct { // nolint:golint]
 	namespaceMapper namespacesMapping.MapperController
 	apiController   controller.ApiController
 
+	tepReady             chan struct{}
 	advClient            *crdClient.CRDClient
 	tunEndClient         *crdClient.CRDClient
 	nntClient            *crdClient.CRDClient
@@ -106,8 +107,10 @@ func NewLiqoProvider(nodeName, foreignClusterId, homeClusterId string, internalI
 		localRemappedPodCIDROpt,
 		virtualNodeNameOpt)
 
+	tepReady := make(chan struct{})
+
 	provider := LiqoProvider{
-		apiController:         controller.NewApiController(client.Client(), foreignClient, mapper, opts),
+		apiController:         controller.NewApiController(client.Client(), foreignClient, mapper, opts, tepReady),
 		namespaceMapper:       mapper,
 		nodeName:              virtualNodeNameOpt,
 		internalIP:            internalIP,
@@ -125,6 +128,7 @@ func NewLiqoProvider(nodeName, foreignClusterId, homeClusterId string, internalI
 		tunEndClient:          tepClient,
 		RemoteRemappedPodCidr: remoteRemappedPodCIDROpt,
 		LocalRemappedPodCidr:  localRemappedPodCIDROpt,
+		tepReady:              tepReady,
 	}
 
 	return &provider, nil

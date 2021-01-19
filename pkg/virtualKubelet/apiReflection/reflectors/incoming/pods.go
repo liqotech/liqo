@@ -59,32 +59,32 @@ func (r *PodsIncomingReflector) HandleEvent(e interface{}) {
 
 // PreAdd is the pre-routine called in case of pod creation in the foreign cluster. It returns the home object with its
 // status updated
-func (r *PodsIncomingReflector) PreAdd(obj interface{}) interface{} {
+func (r *PodsIncomingReflector) PreAdd(obj interface{}) (interface{}, watch.EventType) {
 	foreignPod := obj.(*corev1.Pod)
 
 	homePod := r.sharedPreRoutine(foreignPod)
 	if homePod == nil {
-		return nil
+		return nil, watch.Added
 	}
 
-	return homePod
+	return homePod, watch.Added
 }
 
 // PreAdd is the pre-routine called in case of pod update in the foreign cluster. It returns the home object with its
 // status updated
-func (r *PodsIncomingReflector) PreUpdate(newObj, _ interface{}) interface{} {
+func (r *PodsIncomingReflector) PreUpdate(newObj, _ interface{}) (interface{}, watch.EventType) {
 	foreignPod := newObj.(*corev1.Pod)
 
 	if foreignPod == nil {
-		return nil
+		return nil, watch.Modified
 	}
 
 	homePod := r.sharedPreRoutine(foreignPod)
 	if homePod == nil {
-		return nil
+		return nil, watch.Modified
 	}
 
-	return homePod
+	return homePod, watch.Modified
 }
 
 // sharedPreRoutine is a common function used by both PreAdd and PreUpdate. It is in charge of fetching the home pod from
@@ -123,13 +123,13 @@ func (r *PodsIncomingReflector) sharedPreRoutine(foreignPod *corev1.Pod) *corev1
 }
 
 // PreDelete removes the received object from the blacklist for freeing the occupied space
-func (r *PodsIncomingReflector) PreDelete(obj interface{}) interface{} {
+func (r *PodsIncomingReflector) PreDelete(obj interface{}) (interface{}, watch.EventType) {
 	foreignPod := obj.(*corev1.Pod)
 	foreignKey := fmt.Sprintf("%s/%s", foreignPod.Namespace, foreignPod.Name)
 	delete(reflectors.Blacklist[apimgmt.Pods], foreignKey)
 	klog.V(3).Infof("pod %s removed from blacklist because deleted", foreignKey)
 
-	return nil
+	return nil, watch.Deleted
 }
 
 // CleanupNamespace is in charge of cleaning a local namespace from all the reflected objects. All the home objects in
