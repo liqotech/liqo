@@ -96,8 +96,6 @@ func (c *ReflectorsController) startNamespaceReflection(namespace string) {
 		for _, reflector := range c.apiReflectors {
 			reflector.(ri.SpecializedAPIReflector).CleanupNamespace(namespace)
 		}
-
-		c.cacheManager.RemoveNamespace(namespace)
 		c.reflectionGroup.Done()
 	}()
 }
