@@ -15,6 +15,7 @@ import (
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/util/retry"
 	"k8s.io/klog"
@@ -143,7 +144,7 @@ func (r *PodsIncomingReflector) CleanupNamespace(namespace string) {
 
 	objects, err := r.GetCacheManager().ListForeignNamespacedObject(apimgmt.Pods, foreignNamespace)
 	if err != nil {
-		klog.Errorf("error while listing remote objects in namespace %v", namespace)
+		klog.Errorf("error while listing foreign objects in namespace %v", foreignNamespace)
 		return
 	}
 
@@ -152,16 +153,40 @@ func (r *PodsIncomingReflector) CleanupNamespace(namespace string) {
 		case metav1.StatusReasonNotFound:
 			return false
 		default:
-			klog.Warningf("retrying while deleting pod because of- ERR; %v", err)
+			klog.Warningf("retrying while deleting pod because of ERR; %v", err)
 			return true
 		}
 	}
+
 	for _, obj := range objects {
-		pod := obj.(*corev1.Pod)
+		foreignPod := obj.(*corev1.Pod)
+		if foreignPod.Labels == nil {
+			continue
+		}
+
+		homePodName, ok := foreignPod.Labels[virtualKubelet.ReflectedpodKey]
+		if !ok {
+			continue
+		}
+		// allow deletion of the related homePod by removing its finalizer
+		finalizerPatch := []byte(fmt.Sprintf(
+			`[{"op":"remove","path":"/metadata/finalizers","value":["%s"]}]`,
+			virtualKubelet.HomePodFinalizer))
+
+		_, err = r.GetHomeClient().CoreV1().Pods(namespace).Patch(context.TODO(),
+			homePodName,
+			types.JSONPatchType,
+			finalizerPatch,
+			metav1.PatchOptions{})
+		if err != nil {
+			klog.Error(err)
+			continue
+		}
+
 		if err := retry.OnError(retry.DefaultBackoff, retriable, func() error {
-			return r.GetHomeClient().CoreV1().Pods(namespace).Delete(context.TODO(), pod.Name, metav1.DeleteOptions{})
+			return r.GetHomeClient().CoreV1().Pods(namespace).Delete(context.TODO(), homePodName, metav1.DeleteOptions{})
 		}); err != nil {
-			klog.Errorf("Error while deleting remote pod %v/%v - ERR: %v", namespace, pod.Name, err)
+			klog.Errorf("Error while deleting home pod %v/%v - ERR: %v", namespace, homePodName, err)
 		}
 	}
 }

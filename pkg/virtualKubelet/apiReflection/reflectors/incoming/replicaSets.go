@@ -9,9 +9,11 @@ import (
 	"github.com/liqotech/liqo/pkg/virtualKubelet/forge"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/watch"
+	"k8s.io/client-go/util/retry"
 	"k8s.io/klog"
 )
 
@@ -85,13 +87,13 @@ func (r *ReplicaSetsIncomingReflector) preDelete(obj interface{}) (interface{}, 
 		return nil, watch.Deleted
 	}
 
-	homeObjPo, err := r.GetCacheManager().GetHomeNamespacedObject(apimgmt.Pods, homeNamespace, podName)
+	homeObj, err := r.GetCacheManager().GetHomeNamespacedObject(apimgmt.Pods, homeNamespace, podName)
 	if err != nil {
 		klog.Error(err)
 		return nil, watch.Deleted
 	}
 
-	homePod := homeObjPo.(*corev1.Pod).DeepCopy()
+	homePod := homeObj.(*corev1.Pod).DeepCopy()
 
 	// allow deletion of the related homePod by removing its finalizer
 	finalizerPatch := []byte(fmt.Sprintf(
@@ -128,4 +130,40 @@ func (r *ReplicaSetsIncomingReflector) preDelete(obj interface{}) (interface{}, 
 
 // CleanupNamespace does nothing because the delete of the remote replicasets is already triggered by
 // pods incoming reflector with its CleanupNamespace implementation.
-func (r *ReplicaSetsIncomingReflector) CleanupNamespace(_ string) {}
+func (r *ReplicaSetsIncomingReflector) CleanupNamespace(namespace string) {
+	foreignNamespace, err := r.NattingTable().NatNamespace(namespace, false)
+	if err != nil {
+		klog.Error(err)
+		return
+	}
+
+	objects, err := r.GetCacheManager().ListForeignNamespacedObject(apimgmt.ReplicaSets, foreignNamespace)
+	if err != nil {
+		klog.Errorf("error while listing remote objects in namespace %v", namespace)
+		return
+	}
+
+	retriable := func(err error) bool {
+		switch kerrors.ReasonForError(err) {
+		case metav1.StatusReasonNotFound:
+			return false
+		default:
+			klog.Warningf("retrying while deleting rs because of ERR; %v", err)
+			return true
+		}
+	}
+	for _, obj := range objects {
+		rs := obj.(*appsv1.ReplicaSet)
+		if rs.Labels == nil {
+			continue
+		}
+		if _, ok := rs.Labels[forge.LiqoOutgoingKey]; !ok {
+			continue
+		}
+		if err := retry.OnError(retry.DefaultBackoff, retriable, func() error {
+			return r.GetForeignClient().AppsV1().ReplicaSets(foreignNamespace).Delete(context.TODO(), rs.Name, metav1.DeleteOptions{})
+		}); err != nil {
+			klog.Errorf("Error while deleting remote replicaset %v/%v - ERR: %v", namespace, rs.Name, err)
+		}
+	}
+}
