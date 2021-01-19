@@ -56,8 +56,6 @@ func TestOnReady(t *testing.T) {
 	assert.True(t, exist, "Listener for NotifyChanType ChanPeeringIncomingDelete not registered")
 	_, exist = i.Listener(client.ChanPeeringOutgoingDelete)
 	assert.True(t, exist, "Listener for NotifyChanType ChanPeeringOutgoingDelete not registered")
-
-	i.Quit()
 }
 
 func TestPeersListeners(t *testing.T) {
@@ -122,11 +120,9 @@ func TestPeersListeners(t *testing.T) {
 	eventTester.Wait()
 	//time.Sleep(time.Second * 3)
 	assert.NoError(t, err, "ForeignCluster deletion failed")
-	//peerDeleteChan <- clusterID1
 
 	//check peers list back at initial condition
 	endCount := quickNode.ListChildrenLen()
 	assert.Equal(t, 0, endCount, "peers list is not empty when 0 ForeignCluster(s) exist [init phase]")
 	assert.False(t, quickNode.IsEnabled(), "peers menu entry should be disabled when 0 ForeignCluster(s) exist")
-	i.Quit()
 }
