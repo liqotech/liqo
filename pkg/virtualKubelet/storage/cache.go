@@ -13,7 +13,7 @@ import (
 )
 
 var (
-	defaultResyncPeriod = 0 * time.Second
+	defaultResyncPeriod = 30 * time.Second
 	defaultBackoff      = retry.DefaultBackoff
 )
 

@@ -52,7 +52,7 @@ var _ = Describe("Pods", func() {
 
 				DescribeTable("pre add test cases",
 					func(c addTestcase) {
-						ret := reflector.PreProcessAdd(c.input)
+						ret, _ := reflector.PreProcessAdd(c.input)
 						Expect(ret).To(c.expectedOutput)
 					},
 
@@ -119,17 +119,17 @@ var _ = Describe("Pods", func() {
 				})
 
 				It("correct foreign pod added", func() {
-					ret := reflector.PreProcessAdd(foreignPod).(*corev1.Pod)
-					Expect(ret.Name).To(Equal(homePod.Name))
-					Expect(ret.Namespace).To(Equal(homePod.Namespace))
-					Expect(ret.Status).To(Equal(foreignPod.Status))
+					ret, _ := reflector.PreProcessAdd(foreignPod)
+					Expect(ret.(*corev1.Pod).Name).To(Equal(homePod.Name))
+					Expect(ret.(*corev1.Pod).Namespace).To(Equal(homePod.Namespace))
+					Expect(ret.(*corev1.Pod).Status).To(Equal(foreignPod.Status))
 				})
 
 				It("correct foreign pod updated", func() {
-					ret := reflector.PreProcessUpdate(foreignPod, nil).(*corev1.Pod)
-					Expect(ret.Name).To(Equal(homePod.Name))
-					Expect(ret.Namespace).To(Equal(homePod.Namespace))
-					Expect(ret.Status).To(Equal(foreignPod.Status))
+					ret, _ := reflector.PreProcessUpdate(foreignPod, nil)
+					Expect(ret.(*corev1.Pod).Name).To(Equal(homePod.Name))
+					Expect(ret.(*corev1.Pod).Namespace).To(Equal(homePod.Namespace))
+					Expect(ret.(*corev1.Pod).Status).To(Equal(foreignPod.Status))
 				})
 			})
 		})

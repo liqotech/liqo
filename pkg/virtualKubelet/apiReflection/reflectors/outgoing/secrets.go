@@ -99,14 +99,14 @@ func (r *SecretsReflector) CleanupNamespace(localNamespace string) {
 	}
 }
 
-func (r *SecretsReflector) PreAdd(obj interface{}) interface{} {
+func (r *SecretsReflector) PreAdd(obj interface{}) (interface{}, watch.EventType) {
 	secretLocal := obj.(*corev1.Secret).DeepCopy()
 	klog.V(3).Infof("PreAdd routine started for Secret %v/%v", secretLocal.Namespace, secretLocal.Name)
 
 	nattedNs, err := r.NattingTable().NatNamespace(secretLocal.Namespace, false)
 	if err != nil {
 		klog.Error(err)
-		return nil
+		return nil, watch.Added
 	}
 
 	secretRemote := &corev1.Secret{
@@ -142,24 +142,24 @@ func (r *SecretsReflector) PreAdd(obj interface{}) interface{} {
 	}
 
 	klog.V(3).Infof("PreAdd routine completed for secret %v/%v", secretLocal.Namespace, secretLocal.Name)
-	return secretRemote
+	return secretRemote, watch.Added
 }
 
-func (r *SecretsReflector) PreUpdate(newObj interface{}, _ interface{}) interface{} {
+func (r *SecretsReflector) PreUpdate(newObj interface{}, _ interface{}) (interface{}, watch.EventType) {
 	newSecret := newObj.(*corev1.Secret).DeepCopy()
 	secretName := newSecret.Name
 
 	nattedNs, err := r.NattingTable().NatNamespace(newSecret.Namespace, false)
 	if err != nil {
 		klog.Error(err)
-		return nil
+		return nil, watch.Modified
 	}
 
 	oldRemoteObj, err := r.GetCacheManager().GetForeignNamespacedObject(apimgmt.Secrets, nattedNs, secretName)
 	if err != nil {
 		err = errors.Wrapf(err, "secret %v%v", nattedNs, secretName)
 		klog.Error(err)
-		return nil
+		return nil, watch.Modified
 	}
 	oldRemoteSec := oldRemoteObj.(*corev1.Secret)
 
@@ -191,23 +191,23 @@ func (r *SecretsReflector) PreUpdate(newObj interface{}, _ interface{}) interfac
 
 	klog.V(3).Infof("PreUpdate routine completed for secret %v/%v", newSecret.Namespace, newSecret.Name)
 
-	return newSecret
+	return newSecret, watch.Modified
 }
 
-func (r *SecretsReflector) PreDelete(obj interface{}) interface{} {
-	serviceLocal := obj.(*corev1.Secret).DeepCopy()
+func (r *SecretsReflector) PreDelete(obj interface{}) (interface{}, watch.EventType) {
+	secretLocal := obj.(*corev1.Secret).DeepCopy()
 
-	klog.V(3).Infof("PreDelete routine started for secret %v/%v", serviceLocal.Namespace, serviceLocal.Name)
+	klog.V(3).Infof("PreDelete routine started for secret %v/%v", secretLocal.Namespace, secretLocal.Name)
 
-	nattedNs, err := r.NattingTable().NatNamespace(serviceLocal.Namespace, false)
+	nattedNs, err := r.NattingTable().NatNamespace(secretLocal.Namespace, false)
 	if err != nil {
 		klog.Error(err)
-		return nil
+		return nil, watch.Deleted
 	}
-	serviceLocal.Namespace = nattedNs
+	secretLocal.Namespace = nattedNs
 
-	klog.V(3).Infof("PreDelete routine completed for secret %v/%v", serviceLocal.Namespace, serviceLocal.Name)
-	return serviceLocal
+	klog.V(3).Infof("PreDelete routine completed for secret %v/%v", secretLocal.Namespace, secretLocal.Name)
+	return secretLocal, watch.Deleted
 }
 
 func (r *SecretsReflector) isAllowed(_ context.Context, obj interface{}) bool {

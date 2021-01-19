@@ -55,7 +55,7 @@ var _ = Describe("Replicasets", func() {
 
 			DescribeTable("pre add test cases",
 				func(c addTestcase) {
-					ret := reflector.PreProcessAdd(c.input)
+					ret, _ := reflector.PreProcessAdd(c.input)
 					Expect(ret).To(BeNil())
 				},
 				Entry("with empty replicaset", addTestcase{
@@ -71,7 +71,7 @@ var _ = Describe("Replicasets", func() {
 
 			DescribeTable("pre update test cases",
 				func(c updateTestcase) {
-					ret := reflector.PreProcessUpdate(c.newInput, c.oldInput)
+					ret, _ := reflector.PreProcessUpdate(c.newInput, c.oldInput)
 					Expect(ret).To(BeNil())
 				},
 				Entry("empty replicasets", updateTestcase{
@@ -103,9 +103,9 @@ var _ = Describe("Replicasets", func() {
 					cacheManager.AddHomeEntry("homeNamespace", apimgmt.Pods, c.expected)
 					_, _ = homeClient.CoreV1().Pods("homeNamespace").Create(context.TODO(), c.expected, metav1.CreateOptions{})
 
-					ret := reflector.PreProcessDelete(c.input).(*corev1.Pod)
-					Expect(ret.Name).To(Equal(c.expected.Name))
-					Expect(ret.Namespace).To(Equal(c.expected.Namespace))
+					ret, _ := reflector.PreProcessDelete(c.input)
+					Expect(ret.(*corev1.Pod).Name).To(Equal(c.expected.Name))
+					Expect(ret.(*corev1.Pod).Namespace).To(Equal(c.expected.Namespace))
 				},
 
 				Entry("", deleteTestcase{

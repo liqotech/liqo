@@ -12,6 +12,7 @@ type Option interface {
 	ReadOnlyOption
 
 	SetValue(OptionValue)
+	IsSet() bool
 }
 
 func (k OptionKey) ToString() string {

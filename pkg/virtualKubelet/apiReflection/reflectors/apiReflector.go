@@ -52,23 +52,23 @@ func (r *GenericAPIReflector) PreProcessIsAllowed(ctx context.Context, obj inter
 	return r.PreProcessingHandlers.IsAllowed(ctx, obj)
 }
 
-func (r *GenericAPIReflector) PreProcessAdd(obj interface{}) interface{} {
+func (r *GenericAPIReflector) PreProcessAdd(obj interface{}) (interface{}, watch.EventType) {
 	if r.PreProcessingHandlers.AddFunc == nil {
-		return obj
+		return obj, watch.Added
 	}
 	return r.PreProcessingHandlers.AddFunc(obj)
 }
 
-func (r *GenericAPIReflector) PreProcessUpdate(newObj, oldObj interface{}) interface{} {
+func (r *GenericAPIReflector) PreProcessUpdate(newObj, oldObj interface{}) (interface{}, watch.EventType) {
 	if r.PreProcessingHandlers.UpdateFunc == nil {
-		return newObj
+		return newObj, watch.Modified
 	}
 	return r.PreProcessingHandlers.UpdateFunc(newObj, oldObj)
 }
 
-func (r *GenericAPIReflector) PreProcessDelete(obj interface{}) interface{} {
+func (r *GenericAPIReflector) PreProcessDelete(obj interface{}) (interface{}, watch.EventType) {
 	if r.PreProcessingHandlers.DeleteFunc == nil {
-		return obj
+		return obj, watch.Deleted
 	}
 	return r.PreProcessingHandlers.DeleteFunc(obj)
 }
@@ -79,13 +79,13 @@ func (r *GenericAPIReflector) SetupHandlers(api apimgmt.ApiType, reflectionType 
 			if ok := r.PreProcessIsAllowed(vkContext.SetIncomingMethod(context.TODO(), vkContext.IncomingAdded), obj); !ok {
 				return
 			}
-			o := r.PreProcessAdd(obj)
+			o, event := r.PreProcessAdd(obj)
 			if o == nil {
 				return
 			}
 			r.Inform(apimgmt.ApiEvent{
 				Event: watch.Event{
-					Type:   watch.Added,
+					Type:   event,
 					Object: o.(runtime.Object),
 				},
 				Api: r.Api,
@@ -95,13 +95,13 @@ func (r *GenericAPIReflector) SetupHandlers(api apimgmt.ApiType, reflectionType 
 			if ok := r.PreProcessIsAllowed(vkContext.SetIncomingMethod(context.TODO(), vkContext.IncomingModified), newObj); !ok {
 				return
 			}
-			o := r.PreProcessUpdate(newObj, oldObj)
+			o, event := r.PreProcessUpdate(newObj, oldObj)
 			if o == nil {
 				return
 			}
 			r.Inform(apimgmt.ApiEvent{
 				Event: watch.Event{
-					Type:   watch.Modified,
+					Type:   event,
 					Object: o.(runtime.Object),
 				},
 				Api: r.Api,
@@ -111,13 +111,13 @@ func (r *GenericAPIReflector) SetupHandlers(api apimgmt.ApiType, reflectionType 
 			if ok := r.PreProcessIsAllowed(vkContext.SetIncomingMethod(context.TODO(), vkContext.IncomingDeleted), obj); !ok {
 				return
 			}
-			o := r.PreProcessDelete(obj)
+			o, event := r.PreProcessDelete(obj)
 			if o == nil {
 				return
 			}
 			r.Inform(apimgmt.ApiEvent{
 				Event: watch.Event{
-					Type:   watch.Deleted,
+					Type:   event,
 					Object: o.(runtime.Object),
 				},
 				Api: r.Api,

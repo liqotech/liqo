@@ -26,7 +26,8 @@ type NetworkingOption struct {
 	key   NetworkingKey
 	value NetworkingValue
 
-	lock sync.RWMutex
+	isSet bool
+	lock  sync.RWMutex
 }
 
 func (o *NetworkingOption) Key() options.OptionKey {
@@ -45,4 +46,12 @@ func (o *NetworkingOption) SetValue(v options.OptionValue) {
 	defer o.lock.Unlock()
 
 	o.value = NetworkingValue(v)
+	o.isSet = true
+}
+
+func (o *NetworkingOption) IsSet() bool {
+	o.lock.RLock()
+	defer o.lock.RUnlock()
+
+	return o.isSet
 }
