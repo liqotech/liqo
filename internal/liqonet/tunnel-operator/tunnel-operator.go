@@ -158,6 +158,8 @@ func (tc *TunnelController) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 			}
 			return result, nil
 		}
+		//if object is being deleted and does not have a finalizer we just return
+		return result, nil
 	}
 	con, err := tc.connectToPeer(&endpoint)
 	if err != nil {
