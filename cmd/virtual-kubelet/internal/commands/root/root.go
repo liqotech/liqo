@@ -16,16 +16,14 @@ package root
 
 import (
 	"context"
-	"github.com/liqotech/liqo/pkg/virtualKubelet"
-	"k8s.io/klog"
-	"os"
-	"path"
-	"strings"
-
+	"fmt"
+	"github.com/liqotech/liqo/apis/sharing/v1alpha1"
 	"github.com/liqotech/liqo/cmd/virtual-kubelet/internal/provider"
 	"github.com/liqotech/liqo/internal/utils/errdefs"
 	"github.com/liqotech/liqo/internal/virtualKubelet/manager"
 	"github.com/liqotech/liqo/internal/virtualKubelet/node"
+	"github.com/liqotech/liqo/pkg/crdClient"
+	"github.com/liqotech/liqo/pkg/virtualKubelet"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 	corev1 "k8s.io/api/core/v1"
@@ -33,12 +31,13 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
 	kubeinformers "k8s.io/client-go/informers"
-	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/kubernetes/typed/coordination/v1beta1"
-	"k8s.io/client-go/rest"
-	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/client-go/tools/record"
+	"k8s.io/klog"
+	"os"
+	"path"
+	"strings"
 )
 
 // NewCommand creates a new top-level command.
@@ -82,14 +81,14 @@ func runRootCommand(ctx context.Context, s *provider.Store, c *Opts) error {
 		}
 	}
 
-	client, err := newClient(c.HomeKubeconfig)
+	client, err := v1alpha1.CreateAdvertisementClient(c.HomeKubeconfig, nil, false)
 	if err != nil {
 		return err
 	}
 
 	// Create a shared informer factory for Kubernetes pods in the current namespace (if specified) and scheduled to the current node.
 	podInformerFactory := kubeinformers.NewSharedInformerFactoryWithOptions(
-		client,
+		client.Client(),
 		c.InformerResyncPeriod,
 		kubeinformers.WithTweakListOptions(func(options *metav1.ListOptions) {
 			options.FieldSelector = fields.OneTermEqualSelector("spec.nodeName", c.NodeName).String()
@@ -97,7 +96,7 @@ func runRootCommand(ctx context.Context, s *provider.Store, c *Opts) error {
 	podInformer := podInformerFactory.Core().V1().Pods()
 
 	// Create another shared informer factory for Kubernetes secrets and configmaps (not subject to any selectors).
-	scmInformerFactory := kubeinformers.NewSharedInformerFactoryWithOptions(client, c.InformerResyncPeriod)
+	scmInformerFactory := kubeinformers.NewSharedInformerFactoryWithOptions(client.Client(), c.InformerResyncPeriod)
 	// Create a secret informer and a config map informer so we can pass their listers to the resource manager.
 	secretInformer := scmInformerFactory.Core().V1().Secrets()
 	configMapInformer := scmInformerFactory.Core().V1().ConfigMaps()
@@ -141,11 +140,11 @@ func runRootCommand(ctx context.Context, s *provider.Store, c *Opts) error {
 
 	var leaseClient v1beta1.LeaseInterface
 	if c.EnableNodeLease {
-		leaseClient = client.CoordinationV1beta1().Leases(corev1.NamespaceNodeLease)
+		leaseClient = client.Client().CoordinationV1beta1().Leases(corev1.NamespaceNodeLease)
 	}
 
-	deployName := strings.Join([]string{virtualKubelet.VirtualKubeletPrefix, c.ForeignClusterId}, "")
-	refs := createOwnerReference(client, deployName, c.KubeletNamespace)
+	advName := strings.Join([]string{virtualKubelet.AdvertisementPrefix, c.ForeignClusterId}, "")
+	refs := createOwnerReference(client, advName, "")
 
 	var nodeRunner *node.NodeController
 
@@ -153,7 +152,7 @@ func runRootCommand(ctx context.Context, s *provider.Store, c *Opts) error {
 	nodeRunner, err = node.NewNodeController(
 		node.NaiveNodeProvider{},
 		pNode,
-		client.CoreV1().Nodes(),
+		client.Client().CoreV1().Nodes(),
 		node.WithNodeEnableLeaseV1Beta1(leaseClient, nil),
 		node.WithNodeStatusUpdateErrorHandler(
 			func(ctx context.Context, err error) error {
@@ -165,17 +164,17 @@ func runRootCommand(ctx context.Context, s *provider.Store, c *Opts) error {
 					newNode.SetOwnerReferences(refs)
 				}
 
-				oldNode, newErr := client.CoreV1().Nodes().Get(context.TODO(), newNode.Name, metav1.GetOptions{})
+				oldNode, newErr := client.Client().CoreV1().Nodes().Get(context.TODO(), newNode.Name, metav1.GetOptions{})
 				if newErr != nil {
 					if !k8serrors.IsNotFound(newErr) {
 						klog.Error(newErr, "node error")
 						return newErr
 					}
-					_, newErr = client.CoreV1().Nodes().Create(context.TODO(), newNode, metav1.CreateOptions{})
+					_, newErr = client.Client().CoreV1().Nodes().Create(context.TODO(), newNode, metav1.CreateOptions{})
 					klog.Info("new node created")
 				} else {
 					oldNode.Status = newNode.Status
-					_, newErr = client.CoreV1().Nodes().UpdateStatus(context.TODO(), oldNode, metav1.UpdateOptions{})
+					_, newErr = client.Client().CoreV1().Nodes().UpdateStatus(context.TODO(), oldNode, metav1.UpdateOptions{})
 					if newErr != nil {
 						klog.Info("node updated")
 					}
@@ -200,7 +199,7 @@ func runRootCommand(ctx context.Context, s *provider.Store, c *Opts) error {
 	eb := record.NewBroadcaster()
 
 	pc, err := node.NewPodController(node.PodControllerConfig{
-		PodClient:         client.CoreV1(),
+		PodClient:         client.Client().CoreV1(),
 		PodInformer:       podInformer,
 		EventRecorder:     eb.NewRecorder(scheme.Scheme, corev1.EventSource{Component: path.Join(pNode.Name, "pod-controller")}),
 		Provider:          p,
@@ -259,46 +258,19 @@ func runRootCommand(ctx context.Context, s *provider.Store, c *Opts) error {
 	return nil
 }
 
-func newClient(configPath string) (*kubernetes.Clientset, error) {
-	var config *rest.Config
-
-	// Check if the kubeConfig file exists.
-	if _, err := os.Stat(configPath); !os.IsNotExist(err) {
-		// Get the kubeconfig from the filepath.
-		config, err = clientcmd.BuildConfigFromFlags("", configPath)
-		if err != nil {
-			return nil, errors.Wrap(err, "error building client config")
-		}
-	} else {
-		// Set to in-cluster config.
-		config, err = rest.InClusterConfig()
-		if err != nil {
-			return nil, errors.Wrap(err, "error building in cluster config")
-		}
-	}
-
-	if masterURI := os.Getenv("MASTER_URI"); masterURI != "" {
-		config.Host = masterURI
-	}
-
-	return kubernetes.NewForConfig(config)
-}
-
-func createOwnerReference(c *kubernetes.Clientset, deployName, namespace string) []metav1.OwnerReference {
-	if d, err := c.AppsV1().Deployments(namespace).Get(context.TODO(), deployName, metav1.GetOptions{
-		TypeMeta: metav1.TypeMeta{Kind: "Deployment", APIVersion: metav1.SchemeGroupVersion.Version},
-	}); err != nil {
+func createOwnerReference(c *crdClient.CRDClient, advName, namespace string) []metav1.OwnerReference {
+	if d, err := c.Resource("advertisements").Namespace(namespace).Get(advName, metav1.GetOptions{}); err != nil {
 		if k8serrors.IsNotFound(err) {
-			klog.Info("virtual kubelet deployment not found, setting empty owner reference")
+			klog.Info("advertisement not found, setting empty owner reference")
 		}
 		return []metav1.OwnerReference{}
 	} else {
 		return []metav1.OwnerReference{
 			{
-				APIVersion: corev1.SchemeGroupVersion.Version,
-				Kind:       "Deployment",
-				Name:       deployName,
-				UID:        d.GetUID(),
+				APIVersion: fmt.Sprintf("%s/%s", v1alpha1.GroupVersion.Group, v1alpha1.GroupVersion.Version),
+				Kind:       "Advertisement",
+				Name:       advName,
+				UID:        d.(metav1.Object).GetUID(),
 			},
 		}
 	}
