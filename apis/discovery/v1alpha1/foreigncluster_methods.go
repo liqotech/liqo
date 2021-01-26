@@ -10,14 +10,10 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/klog"
 	"strconv"
-	"strings"
 	"time"
 )
 
 func (fc *ForeignCluster) CheckTrusted() (bool, error) {
-	if strings.HasPrefix(fc.Spec.AuthUrl, "fake://") {
-		return false, nil
-	}
 	_, trustMode, err := utils.GetClusterInfo(fc.Spec.AuthUrl)
 	return trustMode == discovery.TrustModeTrusted, err
 }
