@@ -17,6 +17,11 @@ const (
 	AuthTokenSecretName = "auth-token"
 )
 
+type tokenManager interface {
+	getToken() (string, error)
+	createToken() error
+}
+
 func (authService *AuthServiceCtrl) getToken() (string, error) {
 	obj, exists, err := authService.secretInformer.GetStore().GetByKey(strings.Join([]string{authService.namespace, AuthTokenSecretName}, "/"))
 	if err != nil {
