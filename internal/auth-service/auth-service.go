@@ -28,7 +28,8 @@ type AuthServiceCtrl struct {
 	secretInformer cache.SharedIndexInformer
 	useTls         bool
 
-	clusterId clusterID.ClusterID
+	credentialsValidator credentialsValidator
+	clusterId            clusterID.ClusterID
 
 	config          *v1alpha1.AuthConfig
 	discoveryConfig v1alpha1.DiscoveryConfig
@@ -65,13 +66,14 @@ func NewAuthServiceCtrl(namespace string, kubeconfigPath string, resyncTime time
 	informerFactory.WaitForCacheSync(wait.NeverStop)
 
 	return &AuthServiceCtrl{
-		namespace:      namespace,
-		clientset:      clientset,
-		saInformer:     saInformer,
-		nodeInformer:   nodeInformer,
-		secretInformer: secretInformer,
-		clusterId:      clusterId,
-		useTls:         useTls,
+		namespace:            namespace,
+		clientset:            clientset,
+		saInformer:           saInformer,
+		nodeInformer:         nodeInformer,
+		secretInformer:       secretInformer,
+		clusterId:            clusterId,
+		useTls:               useTls,
+		credentialsValidator: &tokenValidator{},
 	}, nil
 }
 
@@ -137,4 +139,12 @@ func (authService *AuthServiceCtrl) configureToken() error {
 		},
 	})
 	return nil
+}
+
+func (authService *AuthServiceCtrl) getConfigProvider() authConfigProvider {
+	return authService
+}
+
+func (authService *AuthServiceCtrl) getTokenManager() tokenManager {
+	return authService
 }

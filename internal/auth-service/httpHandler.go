@@ -6,7 +6,6 @@ import (
 	"github.com/liqotech/liqo/pkg/auth"
 	"io/ioutil"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/klog"
 	"net/http"
 )
@@ -19,27 +18,16 @@ func (authService *AuthServiceCtrl) role(w http.ResponseWriter, r *http.Request,
 		return
 	}
 
-	roleRequest := &auth.IdentityRequest{}
-	err = json.Unmarshal(bytes, roleRequest)
+	roleRequest := auth.IdentityRequest{}
+	err = json.Unmarshal(bytes, &roleRequest)
 	if err != nil {
 		klog.Error(err)
 		authService.handleError(w, err)
 		return
 	}
 
-	if token, err := authService.getToken(); err != nil {
-		klog.Error(err)
-		authService.handleError(w, err)
-		return
-	} else if token != roleRequest.Token && !authService.validEmptyToken(roleRequest.Token) {
-		// token check fails if:
-		// 1. token is different from the correct one
-		// 2. token is empty but in the cluster config empty token is not allowed
-		err = &kerrors.StatusError{ErrStatus: metav1.Status{
-			Status: metav1.StatusFailure,
-			Code:   http.StatusForbidden,
-			Reason: metav1.StatusReasonForbidden,
-		}}
+	// check that the provided credentials are valid
+	if err = authService.credentialsValidator.checkCredentials(&roleRequest, authService.getConfigProvider(), authService.getTokenManager()); err != nil {
 		klog.Error(err)
 		authService.handleError(w, err)
 		return
@@ -100,10 +88,6 @@ func (authService *AuthServiceCtrl) role(w http.ResponseWriter, r *http.Request,
 		klog.Error(err)
 		return
 	}
-}
-
-func (authService *AuthServiceCtrl) validEmptyToken(token string) bool {
-	return token == "" && authService.GetConfig().AllowEmptyToken
 }
 
 func (authService *AuthServiceCtrl) handleError(w http.ResponseWriter, err error) {

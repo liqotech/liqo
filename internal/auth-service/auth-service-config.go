@@ -5,6 +5,10 @@ import (
 	"github.com/liqotech/liqo/pkg/clusterConfig"
 )
 
+type authConfigProvider interface {
+	GetConfig() *configv1alpha1.AuthConfig
+}
+
 func (authService *AuthServiceCtrl) GetAuthServiceConfig(kubeconfigPath string) {
 	waitFirst := make(chan struct{})
 	isFirst := true
