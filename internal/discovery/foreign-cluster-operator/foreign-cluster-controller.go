@@ -507,10 +507,6 @@ func (r *ForeignClusterReconciler) getHomeAuthUrl() (string, error) {
 		port = fmt.Sprintf("%v", svc.Spec.Ports[0].NodePort)
 	}
 
-	_, ok := os.LookupEnv("TEST")
-	if ok {
-		return fmt.Sprintf("fake://%s:%v", address, port), nil
-	}
 	return fmt.Sprintf("https://%s:%v", address, port), nil
 }
 
