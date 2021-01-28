@@ -1,0 +1,23 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: podmutatoraccount
+  labels:
+    k8s-app: discovery
+    app: liqo.io
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: podmutatoraccount
+  labels:
+    k8s-app: discovery
+    app: liqo.io
+subjects:
+  - kind: ServiceAccount
+    name: podmutatoraccount
+    namespace: {{ .Release.Namespace }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: cluster-admin

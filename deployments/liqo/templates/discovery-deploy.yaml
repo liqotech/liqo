@@ -1,0 +1,67 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    run: discovery
+    app: liqo.io
+  name: discovery
+  namespace: {{ .Release.Namespace }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      run: discovery
+  template:
+    metadata:
+      labels:
+        run: discovery
+    spec:
+      serviceAccountName: discovery-sa
+      containers:
+        - image: {{ .Values.discoveryOperator.image.repository }}{{ default .Values.suffix }}:{{ default .Values.version }}
+          name: discovery
+          imagePullPolicy: {{ .Values.pullPolicy }}
+          command: ["/usr/bin/entrypoint.sh", "/usr/bin/discovery"]
+          args:
+          - "--namespace"
+          - "$(POD_NAMESPACE)"
+          - "--requeueAfter"
+          - "30"
+          env:
+            - name: POD_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            {{ if .Values.apiServer.ip }}
+            - name: APISERVER
+              value: "{{ .Values.apiServer.ip }}"
+            {{ end }}
+            {{ if .Values.apiServer.port }}
+            - name: APISERVER_PORT
+              value: "{{ .Values.apiServer.port }}"
+            {{ end }}
+            {{ if .Values.authServer.ip }}
+            - name: AUTH_ADDR
+              value: "{{ .Values.authServer.ip }}"
+            {{ end }}
+            {{ if .Values.authServer.port }}
+            - name: AUTH_SVC_PORT
+              value: "{{ .Values.authServer.port }}"
+            {{ end }}
+          volumeMounts:
+            - mountPath: /usr/local/share/ca-certificates
+              name: ca-certificates
+          resources:
+            limits:
+              cpu: 50m
+              memory: 50M
+            requests:
+              cpu: 50m
+              memory: 50M
+      volumes:
+        - name: ca-certificates
+          configMap:
+            name: trusted-ca-certificates
+      hostNetwork: true
+

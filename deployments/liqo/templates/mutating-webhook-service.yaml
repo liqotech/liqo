@@ -1,0 +1,14 @@
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: mutatepodtoleration
+  labels:
+    k8s-app: discovery
+    app: liqo.io
+spec:
+  selector:
+    app: mutatepodtoleration
+  ports:
+    - port: 443
+      targetPort: 8443

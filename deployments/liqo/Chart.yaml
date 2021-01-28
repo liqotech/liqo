@@ -21,40 +21,4 @@ version: 0.1.0
 appVersion: 1.16.0
 
 
-dependencies:
-- name: advertisementOperator
-  version: "0.1.0"
-  repository: file://subcharts/advertisementOperator/
-  condition: advertisementOperator.enabled
-- name: networkModule
-  version: "0.1.0"
-  repository: file://subcharts/networkModule/
-  condition: networkModule.enabled
-- name: tunnelEndpointCreator
-  version: "0.1.0"
-  repository: file://subcharts/tunnelEndpointCreator/
-  condition: tunnelEndpointCreator.enabled
-- name: schedulingNodeOperator
-  version: "0.1.0"
-  repository: file://subcharts/schedulingNodeOperator/
-  condition: schedulingNodeOperator.enabled
-- name: podMutator
-  version: "0.1.0"
-  repository: file://subcharts/podMutator/
-  condition: podMutator.enabled
-- name: discoveryOperator
-  version: "0.1.0"
-  repository: file://subcharts/discoveryOperator/
-  condition: discoveryOperator.enabled
-- name: peeringRequestOperator
-  version: "0.1.0"
-  repository: file://subcharts/peeringRequestOperator/
-  condition: peeringRequestOperator.enabled
-- name: crdReplicator
-  version: "0.1.0"
-  repository: file://subcharts/crdReplicator/
-  condition: crdreplicator.enabled
-- name: authService
-  version: "0.1.0"
-  repository: file://subcharts/authService/
-  condition: authService.enabled
+dependencies: []
