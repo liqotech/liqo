@@ -1,0 +1,73 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    run: auth-service
+    app: liqo.io
+  name: auth-service
+  namespace: {{ .Release.Namespace }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      run: auth-service
+  template:
+    metadata:
+      labels:
+        run: auth-service
+    spec:
+      serviceAccountName: auth-service-sa
+      {{ if not .Values.authService.ingress.enable }}
+      initContainers:
+        - name: cert-creator
+          image: nginx:1.19
+          volumeMounts:
+            - mountPath: '/certs'
+              name: certs
+          command: [ "/bin/sh" ]
+          args: [ "-c", 'openssl req -x509 -subj "/C=IT/ST=Turin/O=Liqo" -nodes -days 365 -newkey rsa:4096 -keyout /certs/key.pem -out /certs/cert.pem' ]
+      {{ end }}
+      containers:
+        - image: {{ .Values.authService.image.repository }}{{ default .Values.suffix }}:{{ default .Values.version }}
+          name: auth-service
+          imagePullPolicy: {{ .Values.pullPolicy }}
+          command: ["/usr/bin/auth-service"]
+          args:
+          - "--namespace"
+          - "$(POD_NAMESPACE)"
+          - "--resyncSeconds"
+          - "30"
+          - "--listeningPort"
+          {{ if .Values.authService.ingress.enable }}
+          - "5000"
+          {{ else }}
+          - "443"
+          - "--useTls"
+          {{ end }}
+          env:
+            - name: POD_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            {{ if .Values.apiServer.ip }}
+            - name: APISERVER
+              value: "{{ .Values.apiServer.ip }}"
+            {{ end }}
+            {{ if .Values.apiServer.port }}
+            - name: APISERVER_PORT
+              value: "{{ .Values.apiServer.port }}"
+            {{ end }}
+          resources:
+            limits:
+              cpu: 50m
+              memory: 50M
+            requests:
+              cpu: 50m
+              memory: 50M
+          volumeMounts:
+            - mountPath: '/certs'
+              name: certs
+      volumes:
+        - name: certs
+          emptyDir: {}

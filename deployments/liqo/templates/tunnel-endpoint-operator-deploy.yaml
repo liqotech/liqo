@@ -1,0 +1,57 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  creationTimestamp: null
+  labels:
+    run: tunnelendpointcreator-operator
+  name: tunnelendpointcreator-operator
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      run: tunnelendpointcreator-operator
+  strategy: {}
+  template:
+    metadata:
+      creationTimestamp: null
+      labels:
+        run: tunnelendpointcreator-operator
+    spec:
+      serviceAccountName: tunnelendpointcreator-operator-service-account
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+              - matchExpressions:
+                  - key: type
+                    operator: NotIn
+                    values:
+                      - virtual-node
+      containers:
+        - image: {{ .Values.networkModule.tunnelEndpointOperator.image.repository }}{{ default .Values.suffix }}:{{ default .Values.version }}
+          imagePullPolicy: {{ .Values.pullPolicy }}
+          name: tunnelendpointcreator-operator
+          securityContext:
+            privileged: true
+            capabilities:
+              add:
+                - NET_ADMIN
+          command: ["/usr/bin/liqonet"]
+          args:
+            - "-run-as=tunnelEndpointCreator-operator"
+          volumeMounts:
+          - mountPath: /dev/net/tun
+            name: dev-net-tun
+          resources:
+            limits:
+              cpu: 20m
+              memory: 50M
+            requests:
+              cpu: 20m
+              memory: 50M
+      restartPolicy: Always
+      volumes:
+      - name: dev-net-tun
+        hostPath:
+          path: /dev/net/tun

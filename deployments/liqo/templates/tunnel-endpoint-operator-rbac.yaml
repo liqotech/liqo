@@ -1,0 +1,67 @@
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: liqo-gateway-service-account
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: liqo-gateway-manager-role
+rules:
+  - apiGroups:
+      - net.liqo.io
+    resources:
+      - tunnelendpoints
+    verbs:
+      - create
+      - delete
+      - get
+      - list
+      - patch
+      - update
+      - watch
+  - apiGroups:
+      - net.liqo.io
+    resources:
+      - tunnelendpoints/status
+    verbs:
+      - get
+      - patch
+      - update
+  - apiGroups:
+      - ""
+    resources:
+      - events
+      - secrets
+    verbs:
+      - create
+      - delete
+      - get
+      - list
+      - patch
+      - update
+      - watch
+  - apiGroups:
+      - ""
+    resources:
+      - services
+      - pods
+    verbs:
+      - get
+      - list
+      - update
+      - watch
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: liqo-gateway-manager-rolebinding
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: liqo-gateway-manager-role
+subjects:
+  - kind: ServiceAccount
+    name: liqo-gateway-service-account
+    namespace: {{ .Release.Namespace }}

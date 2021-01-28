@@ -1,0 +1,54 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    run: liqo-gateway
+    app: liqo-gateway
+  name: liqo-gateway
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      run: liqo-gateway
+  strategy: {}
+  template:
+    metadata:
+      labels:
+        run: liqo-gateway
+        app: liqo-gateway
+        net.liqo.io/gatewayPod: "true"
+    spec:
+      serviceAccountName: liqo-gateway-service-account
+      containers:
+        - image: {{ .Values.networkModule.tunnelEndpointOperator.image.repository }}{{ default .Values.suffix }}:{{ default .Values.version }}
+          imagePullPolicy: {{ .Values.pullPolicy }}
+          name: liqo-gateway
+          ports:
+          - containerPort: 5871
+          command: ["/usr/bin/liqonet"]
+          args: ["-run-as=liqo-gateway"]
+          resources:
+            limits:
+              cpu: 10m
+              memory: 30M
+            requests:
+              cpu: 10m
+              memory: 30M
+          securityContext:
+            privileged: true
+          env:
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: POD_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            - name: POD_IP
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.podIP
+      hostNetwork: false
+      restartPolicy: Always

@@ -1,0 +1,19 @@
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: liqo-gateway-endpoint
+  labels:
+    net.liqo.io/gateway: "true"
+spec:
+  type: {{ .Values.networkModule.tunnelEndpointOperator.vpnEndpoint }}
+  ports:
+    - name: wireguard
+      port: 5871
+      targetPort: 5871
+      protocol: UDP
+    - name: wireguard-overlay
+      protocol: UDP
+      port: 51871
+  selector:
+    net.liqo.io/gatewayPod: "true"

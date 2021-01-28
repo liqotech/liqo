@@ -5,6 +5,18 @@
 ##### Needed
 suffix: ""
 version: "latest"
+pullPolicy: "IfNotPresent"
+podCIDR: ""
+serviceCIDR: ""
+configmapName: "liqo-configmap"
+dashboard_ingress: ""
+dashboard_version: ""
+apiServer:
+  ip: ""
+  port: ""
+authServer:
+  ip: ""
+  port: ""
 
 #configuration values for the adv subchart
 advertisementOperator:
@@ -47,13 +59,17 @@ schedulingNodeOperator:
 
 #configuration values for the mutatingWebhook subchart
 podMutator:
-  init-mutatingWebhook:
+  initMutatingWebhook:
     image:
       repository: "liqo/init-pod-mutator"
       pullPolicy: "IfNotPresent"
   mutatingWebhook:
     image:
       repository: "liqo/pod-mutator"
+      pullPolicy: "IfNotPresent"
+  secretCreation:
+    image:
+      repository: "liqo/secret-creation"
       pullPolicy: "IfNotPresent"
   enabled: true
 
@@ -69,14 +85,6 @@ peeringRequestOperator:
   operator:
     image:
       repository: "liqo/peering-request-operator"
-      pullPolicy: "IfNotPresent"
-  secretCreation:
-    image:
-      repository: "liqo/secret-creation"
-      pullPolicy: "IfNotPresent"
-  deployment:
-    image:
-      repository: "liqo/peering-request-webhook-init"
       pullPolicy: "IfNotPresent"
   enabled: true
 
@@ -108,15 +116,23 @@ authService:
     host: ""
     class: ""
 
-global:
-  configmapName: "liqo-configmap"
-  dashboard_ingress: ""
-  dashboard_version: ""
-  suffix: ""
-  version: ""
-  apiServer:
-    ip: ""
-    port: ""
-  authServer:
-    ip: ""
-    port: ""
+
+advController:
+  image:
+    repository: "liqo/advertisement-operator"
+    pullPolicy: "IfNotPresent"
+
+broadcaster:
+  image:
+    repository: "liqo/advertisement-broadcaster"
+    pullPolicy: "IfNotPresent"
+
+virtualKubelet:
+  image:
+    repository: "liqo/virtual-kubelet"
+    pullPolicy: "IfNotPresent"
+
+initVk:
+  image:
+    repository: "liqo/init-vkubelet"
+    pullPolicy: "IfNotPresent"
