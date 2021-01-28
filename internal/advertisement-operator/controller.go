@@ -95,6 +95,12 @@ func (r *AdvertisementReconciler) Reconcile(req ctrl.Request) (ctrl.Result, erro
 		}
 	}
 
+	// if the Advertisement is deleting and it was in accepted state, we have to decrease the counter
+	if r.isDeleting(&adv) && adv.Status.AdvertisementStatus == advtypes.AdvertisementAccepted {
+		r.AcceptedAdvNum--
+		klog.Infof("Currently accepted Advertisements: %v", r.AcceptedAdvNum)
+	}
+
 	// we do that on Advertisement creation
 	err, update := r.UpdateForeignCluster(&adv)
 	if err != nil {
@@ -161,6 +167,11 @@ func (r *AdvertisementReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&advtypes.Advertisement{}).
 		Complete(r)
+}
+
+// checks that the Advertisement is being deleted
+func (r *AdvertisementReconciler) isDeleting(adv *advtypes.Advertisement) bool {
+	return !adv.DeletionTimestamp.IsZero()
 }
 
 // set Advertisement reference in related ForeignCluster
