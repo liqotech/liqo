@@ -1,10 +1,18 @@
 package wireguard_test
 
 import (
+	"context"
+	wg "github.com/liqotech/liqo/pkg/liqonet/tunnel/wireguard"
+
+	//wg "github.com/liqotech/liqo/pkg/liqonet/tunnel/wireguard"
 	"github.com/liqotech/liqo/pkg/liqonet/wireguard"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/ginkgo/extensions/table"
 	. "github.com/onsi/gomega"
+	"golang.zx2c4.com/wireguard/wgctrl/wgtypes"
+	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	k8s "k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/kubernetes/fake"
 	"time"
 )
 
@@ -132,4 +140,122 @@ var _ = Describe("Wireguard newWireguard functions", func() {
 		}, true),
 	)
 
+})
+
+var _ = Describe("Wireguard utils", func() {
+	var (
+		priK, pubK wgtypes.Key
+		secretName = "test-secret"
+		namespace  = "test-namespace"
+		client     k8s.Interface
+		err        error
+	)
+	//for each test we call the same function with different inputs and check the returned values
+	//it is called for each test after the "BeforeEach" clauses which are used to configure the test case
+	//so, for each test the fake client is created containing a secret. After that the function is called
+	//thanks to the "JustBeforeEach" clause, and in the "It" section we check the results are as expected
+	JustBeforeEach(func() {
+		priK, pubK, err = wireguard.GetKeys(secretName, namespace, client)
+	})
+	Describe("Getting keys from secret", func() {
+		Context("The secret does not exist", func() {
+			BeforeEach(func() {
+				client = fake.NewSimpleClientset(getSecret("non-existing", namespace, priKey.String(), pubKey.String()))
+			})
+
+			It("Should create a new secret and generate a new pair of keys", func() {
+				s, e := client.CoreV1().Secrets(namespace).Get(context.Background(), secretName, v1.GetOptions{})
+				Expect(e).NotTo(HaveOccurred())
+				Expect(priK.String()).To(Equal(s.StringData[wg.PrivateKey]))
+				Expect(pubK.String()).To(Equal(s.StringData[wg.PublicKey]))
+			})
+
+			It("Should not error", func() {
+				Expect(err).NotTo(HaveOccurred())
+			})
+		})
+
+		Context("The secret exists and contains correct data", func() {
+			BeforeEach(func() {
+				client = fake.NewSimpleClientset(getSecret(secretName, namespace, priKey.String(), pubKey.String()))
+			})
+
+			It("Should retrieve the pair of keys from the existing secret", func() {
+				s, e := client.CoreV1().Secrets(namespace).Get(context.Background(), secretName, v1.GetOptions{})
+				Expect(e).NotTo(HaveOccurred())
+				Expect(priK.String()).To(Equal(s.StringData[wg.PrivateKey]))
+				Expect(pubK.String()).To(Equal(s.StringData[wg.PublicKey]))
+
+			})
+
+			It("Should not error", func() {
+				Expect(err).NotTo(HaveOccurred())
+			})
+		})
+
+		Context("The secret exists with an incorrect wrong publicKey", func() {
+			BeforeEach(func() {
+				client = fake.NewSimpleClientset(getSecret(secretName, namespace, priKey.String(), "incorrect"))
+			})
+
+			It("Should retrieve the pair of keys from the existing secret", func() {
+				_, e := client.CoreV1().Secrets(namespace).Get(context.Background(), secretName, v1.GetOptions{})
+				Expect(e).NotTo(HaveOccurred())
+			})
+
+			It("Should error", func() {
+				Expect(err).To(HaveOccurred())
+			})
+		})
+
+		Context("The secret exists with an incorrect privateKey", func() {
+			BeforeEach(func() {
+				client = fake.NewSimpleClientset(getSecret(secretName, namespace, "incorrect", pubKey.String()))
+			})
+
+			It("Should retrieve the pair of keys from the existing secret", func() {
+				_, e := client.CoreV1().Secrets(namespace).Get(context.Background(), secretName, v1.GetOptions{})
+				Expect(e).NotTo(HaveOccurred())
+			})
+
+			It("Should error", func() {
+				Expect(err).To(HaveOccurred())
+			})
+		})
+
+		Context("The secret exists without the privateKey entry in the data map", func() {
+			BeforeEach(func() {
+				s := getSecret(secretName, namespace, priKey.String(), pubKey.String())
+				delete(s.Data, wg.PrivateKey)
+				client = fake.NewSimpleClientset(s)
+			})
+
+			It("Should retrieve the pair of keys from the existing secret", func() {
+				_, e := client.CoreV1().Secrets(namespace).Get(context.Background(), secretName, v1.GetOptions{})
+				Expect(e).NotTo(HaveOccurred())
+			})
+
+			It("Should error", func() {
+				Expect(err).To(HaveOccurred())
+			})
+		})
+
+		Context("The secret exists without the publicKey entry in the data map", func() {
+			BeforeEach(func() {
+				s := getSecret(secretName, namespace, priKey.String(), pubKey.String())
+				delete(s.Data, wg.PublicKey)
+				client = fake.NewSimpleClientset(s)
+			})
+
+			It("Should retrieve the pair of keys from the existing secret", func() {
+				_, e := client.CoreV1().Secrets(namespace).Get(context.Background(), secretName, v1.GetOptions{})
+				Expect(e).NotTo(HaveOccurred())
+			})
+
+			It("Should error", func() {
+				Expect(err).To(HaveOccurred())
+			})
+		})
+
+	})
 })

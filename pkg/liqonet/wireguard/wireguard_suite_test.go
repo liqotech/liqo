@@ -1,8 +1,11 @@
 package wireguard_test
 
 import (
+	wg "github.com/liqotech/liqo/pkg/liqonet/tunnel/wireguard"
 	"github.com/liqotech/liqo/pkg/liqonet/wireguard"
 	"golang.zx2c4.com/wireguard/wgctrl/wgtypes"
+	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"testing"
 	"time"
 
@@ -16,9 +19,10 @@ var (
 	port   = 51194
 	ipAddr = "10.1.1.1/24"
 
-	pubKey   wgtypes.Key
-	devName  = "test-device"
-	wgConfig wireguard.WgConfig
+	pubKey, priKey wgtypes.Key
+	devName        = "test-device"
+	wgConfig       wireguard.WgConfig
+	getSecret      func(name, namespace, priKey, pubKey string) *corev1.Secret
 )
 
 func TestWireguard(t *testing.T) {
@@ -37,5 +41,15 @@ var _ = BeforeSuite(func() {
 		Port:      &port,
 		PriKey:    &priKey,
 		PubKey:    &pubKey,
+	}
+	getSecret = func(name, namespace, priKey, pubKey string) *corev1.Secret {
+		return &corev1.Secret{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      name,
+				Namespace: namespace,
+			},
+			StringData: map[string]string{wg.PublicKey: pubKey, wg.PrivateKey: priKey},
+			Data:       map[string][]byte{wg.PublicKey: []byte(pubKey), wg.PrivateKey: []byte(priKey)},
+		}
 	}
 })
