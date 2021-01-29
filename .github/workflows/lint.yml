@@ -18,12 +18,6 @@ jobs:
         uses: actions/setup-go@v2
         with:
           go-version: 1.14
-      - name: Install Go dependencies for icon generation
-        run: go get -u github.com/cratonica/2goarray
-      - name: Generate tray-agent icons
-        run: |
-          chmod +x ./scripts/tray-agent/make_icon.sh
-          ./scripts/tray-agent/make_icon.sh
       - name: golangci-lint
         uses: golangci/golangci-lint-action@v2
         with:
