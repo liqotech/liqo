@@ -591,15 +591,15 @@ function install_liqo() {
 	${HELM} dependency update "${LIQO_CHART}" >/dev/null ||
 		fatal "[INSTALL]" "Something went wrong while installing Liqo"
 	${HELM} install liqo --kube-context "${KUBECONFIG_CONTEXT}" --namespace "${LIQO_NAMESPACE}" "${LIQO_CHART}" \
-		--set global.version="${LIQO_IMAGE_VERSION}" --set global.suffix="${LIQO_SUFFIX:-}" --set clusterName="${CLUSTER_NAME}" \
+		--set version="${LIQO_IMAGE_VERSION}" --set suffix="${LIQO_SUFFIX:-}" --set clusterName="${CLUSTER_NAME}" \
 		--set podCIDR="${POD_CIDR}" --set serviceCIDR="${SERVICE_CIDR}" --set gatewayIP="${GATEWAY_IP}" \
 		--set authService.ingress.enable="${LIQO_ENABLE_INGRESS:-}" \
 		--set authService.ingress.host="${LIQO_AUTHSERVER_ADDR:-}" \
 		--set authService.ingress.class="${LIQO_INGRESS_CLASS:-}" \
-		--set global.apiServer.ip="${LIQO_APISERVER_ADDR:-}" \
-		--set global.apiServer.port="${LIQO_APISERVER_PORT:-}" \
-		--set global.authServer.ip="${LIQO_AUTHSERVER_ADDR:-}" \
-		--set global.authServer.port="${LIQO_AUTHSERVER_PORT:-}" >/dev/null ||
+		--set apiServer.ip="${LIQO_APISERVER_ADDR:-}" \
+		--set apiServer.port="${LIQO_APISERVER_PORT:-}" \
+		--set authServer.ip="${LIQO_AUTHSERVER_ADDR:-}" \
+		--set authServer.port="${LIQO_AUTHSERVER_PORT:-}" >/dev/null ||
 			fatal "[INSTALL]" "Something went wrong while installing Liqo"
 
 	info "[INSTALL]" "Hooray! Liqo is now installed on your cluster"
