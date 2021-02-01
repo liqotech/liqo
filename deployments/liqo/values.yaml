@@ -9,8 +9,6 @@ pullPolicy: "IfNotPresent"
 podCIDR: ""
 serviceCIDR: ""
 configmapName: "liqo-configmap"
-dashboard_ingress: ""
-dashboard_version: ""
 apiServer:
   ip: ""
   port: ""
@@ -87,18 +85,6 @@ peeringRequestOperator:
       repository: "liqo/peering-request-operator"
       pullPolicy: "IfNotPresent"
   enabled: true
-
-liqodash:
-  image:
-    repository: "liqo/dashboard"
-    pullPolicy: "IfNotPresent"
-  enabled: true
-  agentConfig:
-    service: "liqo-dashboard"
-    serviceAccount: "liqodash-admin-sa"
-    ingress: "liqo-dashboard-ingress"
-    appLabel: "liqo-dashboard"
-  version: "1.0"
 
 crdReplicator:
   image:
