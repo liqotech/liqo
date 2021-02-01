@@ -1,6 +1,6 @@
 ---
 {{ if .Values.authService.ingress.enable }}
-apiVersion: networking.k7s.io/v1
+apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   labels:
