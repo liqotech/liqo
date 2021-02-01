@@ -137,36 +137,27 @@ spec:
                 - outgoingConfig
                 type: object
               agentConfig:
-                description: AgentConfig defines the configuration for Liqo Agent.
+                description: "AgentConfig defines the configuration required by the
+                  LiqoAgent app to enable some features on a Liqo cluster. \n LiqoAgent
+                  (https://github.com/liqotech/liqo-agent) is an external desktop
+                  application that allows the user to interact more easily with a
+                  Liqo cluster."
                 properties:
                   dashboardConfig:
                     description: DashboardConfig contains the parameters required
-                      for Liqo Agent to provide access to LiqoDash
+                      by LiqoAgent to provide access to LiqoDash (https://github.com/liqotech/dashboard).
                     properties:
                       appLabel:
                         description: AppLabel defines the value of the 'app' label.
                           All LiqoDash related resources are labelled with it.
                         type: string
-                      ingress:
-                        description: Ingress is the LiqoDash ingress name.
-                        type: string
                       namespace:
                         description: Namespace defines the namespace LiqoDash resources
                           belongs to.
                         type: string
-                      service:
-                        description: Service is the LiqoDash service name.
-                        type: string
-                      serviceAccount:
-                        description: ServiceAccount is the LiqoDash serviceAccount
-                          name.
-                        type: string
                     required:
                     - appLabel
-                    - ingress
                     - namespace
-                    - service
-                    - serviceAccount
                     type: object
                 required:
                 - dashboardConfig

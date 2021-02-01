@@ -31,7 +31,11 @@ type ClusterConfigSpec struct {
 	AuthConfig          AuthConfig          `json:"authConfig"`
 	LiqonetConfig       LiqonetConfig       `json:"liqonetConfig"`
 	DispatcherConfig    DispatcherConfig    `json:"dispatcherConfig,omitempty"`
-	//AgentConfig defines the configuration for Liqo Agent.
+	//AgentConfig defines the configuration required by the LiqoAgent app to enable some features on
+	//a Liqo cluster.
+	//
+	//LiqoAgent (https://github.com/liqotech/liqo-agent) is an external desktop application that
+	//allows the user to interact more easily with a Liqo cluster.
 	AgentConfig AgentConfig `json:"agentConfig"`
 }
 
@@ -153,20 +157,14 @@ type DispatcherConfig struct {
 type DashboardConfig struct {
 	// Namespace defines the namespace LiqoDash resources belongs to.
 	Namespace string `json:"namespace"`
-	// Service is the LiqoDash service name.
-	Service string `json:"service"`
-	// ServiceAccount is the LiqoDash serviceAccount name.
-	ServiceAccount string `json:"serviceAccount"`
 	// AppLabel defines the value of the 'app' label. All LiqoDash
 	// related resources are labelled with it.
 	AppLabel string `json:"appLabel"`
-	// Ingress is the LiqoDash ingress name.
-	Ingress string `json:"ingress"`
 }
 
 type AgentConfig struct {
-	// DashboardConfig contains the parameters required for Liqo Agent
-	//to provide access to LiqoDash
+	//DashboardConfig contains the parameters required by LiqoAgent
+	//to provide access to LiqoDash (https://github.com/liqotech/dashboard).
 	DashboardConfig DashboardConfig `json:"dashboardConfig"`
 }
 

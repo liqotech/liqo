@@ -17,10 +17,7 @@ spec:
   agentConfig:
     dashboardConfig:
       namespace: {{ .Release.Namespace }}
-      service: {{ .Values.liqodash.agentConfig.service }}
-      serviceAccount: {{ .Values.liqodash.agentConfig.serviceAccount }}
-      ingress: {{ .Values.liqodash.agentConfig.ingress }}
-      appLabel: {{ .Values.liqodash.agentConfig.appLabel }}
+      appLabel: "liqo-dashboard"
   discoveryConfig:
     clusterName: {{ .Values.clusterName}}
     autojoin: true
