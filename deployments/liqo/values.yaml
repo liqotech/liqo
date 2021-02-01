@@ -96,7 +96,7 @@ discovery:
   # -- discovery image repository
   imageName: "liqo/discovery"
   config:
-    clusterName: "test"
+    clusterName: ""
     autojoin: true
     autojoinUntrusted: true
     domain: local.

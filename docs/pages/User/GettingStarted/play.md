@@ -1,6 +1,6 @@
 ---
 title: Play with a micro-service application
-weight: 4
+weight: 5
 ---
 
 So far, you tested Liqo with a simple `nginx` application, but Liqo can be used with more complex micro-services.

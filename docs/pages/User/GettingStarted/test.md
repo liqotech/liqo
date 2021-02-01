@@ -1,20 +1,20 @@
 ---
 title: Use resources available in a foreign cluster
-weight: 3
+weight: 4
 ---
 
-This third step allows to verify that the resulting infrastructure works correctly.
+This fourth step allows to verify that the resulting infrastructure works correctly.
 This is done by showing the deployment of a small *Hello World*  service in presence of two peered clusters (*home* and *foreign*).
 This demonstrates the capability of Liqo to leverage resources available in a foreign cluster, and how it can start a pod either in the local (*home*) or remote (*foreign*) cluster, transparently, without any change in the user experience.
 
-## Start an Hello World pod
+## Start a Hello World pod
 
 First, ensure you have configured your KUBECONFIG to point to your home cluster. Otherwise, set the `KUBECONFIG` variable to the correct value:
 ```shell script
 export KUBECONFIG=home-kubeconfig.yaml
 ```
 
-Now you have to create a namespace where your pod will be started and label it as ```liqo.io/enabled=true```. This label will tell the Kubernetes scheduler that the namespace spans across the foreign clusters as well; hence, pods started in the above namespaces are suitable for being executed on the foreign cluster.
+If you want to deploy an application schedulable on the Liqo node, you should create a namespace where your pod will be started and label it as ```liqo.io/enabled=true```. Indirectly, this label will tell the Kubernetes scheduler that the namespace spans across the foreign clusters as well.
 
 ```shell script
 kubectl create namespace liqo-demo
@@ -34,7 +34,7 @@ The complete `hello-world.yaml` file is as follows:
 {{% render-code file="static/examples/hello-world.yaml" language="yaml" %}}
 
 
-Differently from the traditional examples, the above deployment introduces an *affinity* constraint that forces Kubernetes to schedule the first pod (i.e. `nginx-local`) on a physical node, and the second one (i.e. `nginx-remote`) on a virtual node.
+Differently from the traditional examples, the above deployment introduces an *affinity* constraint. This forces Kubernetes to schedule the first pod (i.e. `nginx-local`) on a physical node, and the second one (i.e. `nginx-remote`) on a virtual node.
 Virtual nodes are like traditional Kubernetes nodes, but they represent foreign clusters and are labelled with `type: virtual-node`.
 
 In case the affinity constraint is not specified, the Kubernetes scheduler selects the best hosting node based on the available resources.
@@ -115,7 +115,8 @@ echo "Service IP: ${SVC_IP}"
 
 If you have direct connectivity with the home cluster from your host (e.g. you are running K3s locally), you can open a browser and directly check the connectivity to the service IP address.
 At the bottom of the displayed demo web-page, you should see the IP address and the hostname of the back-end that is serving the request (i.e. either the local or the remote pod).
-Try reloading the page and observe the differences: the hostname should alternate between `nginx-local` and `nginx-remote`, hence confirming that both pods are correctly leveraged by Kubernetes as back-ends of the service.
+
+If you try reloading the page, you can observe a difference: the hostname should alternate between `nginx-local` and `nginx-remote`. This change confirms that Kubernetes correctly leverage both pods as back-ends (i.e. endpoints) of the service.
 
 Similarly, you can also use `curl` to perform the same verification (execute this command multiple times to contact both endpoints):
 ```
@@ -134,7 +135,7 @@ Finally, you can also connect to the service through its _service name_, which e
 kubectl run --image=curlimages/curl curl -n default -it --rm --restart=Never -- curl --silent http://liqo-demo.liqo-demo | grep 'Server'
 ```
 
-Now, you are ready to move to the [next section](../play), which plays with a more sophisticated application composed by multiple micro-services.
+Now, you are ready to move to the [next section](../play), which plays with a more sophisticated application composed of multiple micro-services.
 
 > **Clean-up**: If you want to delete the deployed example, just issue:
 > ```
