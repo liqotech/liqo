@@ -1,3 +1,8 @@
+---
+title: Chart values
+weight: 5
+---
+
 ## Values
 
 | Key | Type | Default | Description |

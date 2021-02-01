@@ -1,0 +1,83 @@
+name: Check Generated Helm documentation
+on:
+  pull_request:
+    types:
+      - opened
+      - reopened
+      - synchronize
+
+jobs:
+  generated-helm-documentation:
+    name: Check Generated Helm Documentation
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+        with:
+          ref: "${{ github.event.pull_request.head.sha }}"
+          persist-credentials: false
+
+      - name: Setup helm-docs
+        run: |
+          version=1.5.0
+          arch=x86_64
+          curl -LO https://github.com/norwoodj/helm-docs/releases/download/v${version}/helm-docs_${version}_linux_${arch}.tar.gz
+          tar -zxvf helm-docs_${version}_linux_${arch}.tar.gz
+          sudo mv helm-docs /usr/local
+
+      - name: Run the automatic generation of helm-docs
+        working-directory: ./deployments/liqo
+        run: |
+          /usr/local/helm-docs -o new_README.md -t README.gotmpl
+
+      - name: Gather the helm-docs differences
+        id: helm-docs-diff
+        working-directory: ./deployments/liqo
+        run: |
+          output=$(diff README.md new_README.md | head -n 100 )
+          exit_code=$([ "${output}" ] && echo 1 || echo 0)
+
+          # Required to correctly manage multi-line outputs
+          output="${output//'%'/'%25'}"
+          output="${output//$'\n'/'%0A'}"
+          output="${output//$'\r'/'%0D'}"
+
+          # Store the different as step output
+          echo "::set-output name=diff::${output}"
+
+          # Trigger a failure in case the diff is not empty
+          exit ${exit_code}
+
+      - name: Log the error if the diff is not empty (in case the comment cannot be generated)
+        run: |
+          echo "The Helm README.md appear to be out-of-date."
+          echo
+          echo "Here it is an excerpt of the diff:"
+          echo "${{ steps.helm-docs-diff.outputs.diff }}"
+        if: failure()
+
+      - name: Issue a comment in case the diff is not empty
+        uses: peter-evans/create-or-update-comment@v1
+        with:
+          token: ${{ secrets.CI_TOKEN }}
+          issue-number: ${{ github.event.pull_request.number }}
+          body: |
+            The Helm README.md appears to be out-of-date.
+
+            Please, fetch the latest version of [helm-docs](https://github.com/norwoodj/helm-docs) and run
+            ```
+            cd deployments/liqo
+            helm-docs -t README.gotmpl
+            ```
+
+            <details>
+              <summary>Here it is an excerpt of the diff:</summary>
+
+              ```diff
+              ${{ steps.helm-docs-diff.outputs.diff }}
+              ```
+            </details>
+          reactions: confused
+        if: |
+          github.event_name != 'push' && failure() &&
+          github.event.pull_request.head.repo.full_name == github.repository

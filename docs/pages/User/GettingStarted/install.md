@@ -1,31 +1,23 @@
 ---
 title: Install Liqo
-weight: 1
+weight: 2
 ---
 
-## Install steps
+## Install 
 
-This procedure installs Liqo on your cluster, enabling it to share resources with other Liqo clusters.
+#### Simple Installation (One-liner)
 
-This procedure comes in two variants:
-* [Default install](#default-install): suitable if your Kubernetes cluster has been installed via `kubeadm`
-* [Custom install](#custom-install): suitable if you did not use `kubeadm` to install your Kubernetes, or you are running another distribution of Kubernetes (such as [K3s](https://k3s.io/)).
+Before installing Liqo, you have to set the right `kubeconfig` for your cluster properly. The Liqo installer leverages `kubectl`: by default kubectl refers to the default identity in `~/.kube/config` but you can override this configuration by exporting a `KUBECONFIG` variable.
 
-### Default install
-
-If your cluster has been installed via `kubeadm`, the Liqo Installer can automatically retrieve the parameters required by Liqo to start.
-Before installing, you have to properly set the `kubeconfig` for your cluster. The Liqo installer leverages `kubectl`: by default kubectl refers to the default identity in `~/.kube/config` but you can override this configuration by exporting a `KUBECONFIG` variable.
+For the clusters, we just deployed in the [previous step](../kind), we can simply
 
 For example:
-```
-export KUBECONFIG=my-kubeconfig.yaml
+
+```bash
+export KUBECONFIG=./liqo_kubeconf_1
 ```
 
 You can find more details about configuring `kubectl` in the [official documentation](https://kubernetes.io/docs/concepts/configuration/organize-cluster-access-kubeconfig/).
-
-Similarly to WiFi SSID, you can specify a nickname for your cluster by exporting the variable `CLUSTER_NAME`. 
-If you don't specify one, the installer will give you a cluster name in the form "LiqoClusterX", where X is a random number.
-Your cluster name can be modified after installation as explained [here](/user/configure/cluster-config#modify-your-cluster-name).
 
 Now, you can install Liqo by launching:
 
@@ -38,32 +30,16 @@ If you want to know more about possible customizations, you can show the help me
 curl -sL https://get.liqo.io | bash -s -- --help
 ```
 
-### Custom install (K3s)
+#### Install the second cluster
 
-If you did not use `kubeadm` to install your Kubernetes cluster, or you are running another distribution of Kubernetes (such as [K3s](https://k3s.io/)), you should explicitly define the parameters required by Liqo, by exporting the following variables **before** launching the installer:
+Similarly, as done on the first cluster, you can deploy Liqo on the second cluster:
 
-* `POD_CIDR`: range of IP addresses for the pod network (K3s default: 10.42.0.0/16)
-* `SERVICE_CIDR`: range of IP addresses for service VIPs (k3s default: 10.43.0.0/16)
-* `CLUSTER_NAME`: nickname for your cluster that will be seen by others. If you don't specify one, the installer will give you a cluster name in the form "LiqoClusterX", where X is a random number.
-Your cluster name can be modified after installation as explained [here](/user/configure/cluster-config#modify-your-cluster-name).
-
-Then, you can run the Liqo installer script, which will use the above settings to configure your Liqo instance.
-
-Please remember to export your K3s `kubeconfig` before launching the script, as presented in previous section. For K3s, the kubeconfig is normally stored in `/etc/rancher/k3s/k3s.yaml`
-
-A possible example of installation is the following (please replace the IP addresses with the ones related to your Kubernetes instance):
-```bash
-export KUBECONFIG=/etc/rancher/k3s/k3s.yaml
-export POD_CIDR=10.42.0.0/16
-export SERVICE_CIDR=10.43.0.0/16
+```
+export KUBECONFIG=./liqo_kubeconf_2
 curl -sL https://get.liqo.io | bash
 ```
 
-Obviously, you should have enough privileges to read the K3s kubeconfig file.
+## Enable cluster peering
 
-## Peer with another cluster
-
-In order to peer with another cluster, you need to have **two** Kubernetes clusters with Liqo enabled.
-Therefore you may need to repeat the above procedure on another cluster in order to get a second Liqo instance.
-
-Once you have two clusters ready, you can start the peering procedure, which is presented in the [next step](../peer).
+Now, you have two clusters with Liqo enabled. 
+Once you have two clusters ready, you can start the [peering procedure](../peer).

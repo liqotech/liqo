@@ -1,0 +1,24 @@
+apiVersion: v1
+entries:
+  liqo:
+  - apiVersion: v2
+    appVersion: v0.2alpha3
+    created: "2021-02-16T15:31:40.3133771+01:00"
+    description: A Helm chart for Liqo 
+    digest: d6bad72dde253e08333b6f603bdda92a86f6e2811022faaa62f74592cf60e80f
+    name: liqo
+    type: application
+    urls:
+    - liqo-0.2.0.tgz
+    version: 0.2.0
+  - apiVersion: v2
+    appVersion: v0.2alpha3
+    created: "2021-02-16T15:31:40.3087671+01:00"
+    description: A Helm chart for Liqo
+    digest: bb5891036ff27ca4ab8efa011e1ec8d928416eebf4686de6dfd97a452c80119b
+    name: liqo
+    type: application
+    urls:
+    - liqo-0.1.0.tgz
+    version: 0.1.0
+generated: "2021-02-16T15:31:40.3025479+01:00"
