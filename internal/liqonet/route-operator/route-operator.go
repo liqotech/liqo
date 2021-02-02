@@ -187,8 +187,8 @@ func (r *RouteController) SetupSignalHandlerForRouteOperator() (stopCh <-chan st
 	signal.Notify(c, utils.ShutdownSignals...)
 	go func(r *RouteController) {
 		<-c
-		close(stop)
 		r.deleteOverlayIFace()
+		close(stop)
 	}(r)
 	return stop
 }

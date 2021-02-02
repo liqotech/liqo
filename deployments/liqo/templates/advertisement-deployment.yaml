@@ -1,32 +1,28 @@
 ---
+{{- $advertisementConfig := (merge (dict "name" .Values.componentNames.advertisement "module" .Values.moduleNames.sharing) .) -}}
+
 apiVersion: apps/v1
 kind: Deployment
 metadata:
   namespace: {{ .Release.Namespace }}
   labels:
-    run: advertisement-operator
-    app: liqo.io
-  name: advertisement-operator
+    {{- include "liqo.labels" $advertisementConfig | nindent 4 }}
+  name: {{ include "liqo.prefixedName" $advertisementConfig }}
 spec:
   replicas: 1
   selector:
     matchLabels:
-      run: advertisement-operator
+      {{- include "liqo.selectorLabels" $advertisementConfig | nindent 6 }}
   template:
     metadata:
+      {{- with .Values.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
       labels:
-        run: advertisement-operator
+        {{- include "liqo.selectorLabels" $advertisementConfig | nindent 8 }}
     spec:
-      affinity:
-        nodeAffinity:
-          requiredDuringSchedulingIgnoredDuringExecution:
-            nodeSelectorTerms:
-              - matchExpressions:
-                  - key: type
-                    operator: NotIn
-                    values:
-                      - virtual-node
-      serviceAccountName: advertisement-operator
+      serviceAccountName: {{ include "liqo.prefixedName" $advertisementConfig }}
       containers:
       - image: {{ .Values.advController.image.repository }}{{ default .Values.suffix }}:{{ default .Values.version }}
         imagePullPolicy: {{ .Values.pullPolicy }}
