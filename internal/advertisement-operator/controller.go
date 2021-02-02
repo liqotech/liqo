@@ -64,8 +64,19 @@ type AdvertisementReconciler struct {
 
 // +kubebuilder:rbac:groups=sharing.liqo.io,resources=advertisements,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=sharing.liqo.io,resources=advertisements/status,verbs=get;update;patch
+// +kubebuilder:rbac:groups=discovery.liqo.io,resources=foreignclusters,verbs=get;list;watch;update;patch
+// +kubebuilder:rbac:groups=discovery.liqo.io,resources=foreignclusters/status,verbs=get;update;patch
+// +kubebuilder:rbac:groups=config.liqo.io,resources=clusterconfigs,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=config.liqo.io,resources=clusterconfigs/status,verbs=get;update;patch
+// +kubebuilder:rbac:groups=certificates.k8s.io,resources=certificatesigningrequests,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=certificates.k8s.io,resources=certificatesigningrequests/approval,verbs=get;update;patch
+// +kubebuilder:rbac:groups=certificates.k8s.io,resourceNames=kubernetes.io/legacy-unknown,resources=signers,verbs=approve
+// +kubebuilder:rbac:groups=rbac.authorization.k8s.io,resources=clusterrolebindings,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=core,resources=secrets,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=core,resources=deployments,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=core,resources=events,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=core,resources=events/status,verbs=get
+// +kubebuilder:rbac:groups=core,resources=serviceaccounts,verbs=get;list;watch;create;update;patch;delete
 
 func (r *AdvertisementReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 	ctx := context.Background()
@@ -132,6 +143,7 @@ func (r *AdvertisementReconciler) Reconcile(req ctrl.Request) (ctrl.Result, erro
 	if !adv.Status.VkCreated {
 		err := r.createVirtualKubelet(ctx, &adv)
 		if err != nil {
+			klog.Errorf("un error occurred while creating the virtual kubelet deployment: %v", err)
 			return ctrl.Result{}, err
 		}
 		klog.Info("Correct creation of virtual kubelet deployment for cluster " + adv.Spec.ClusterId)

@@ -16,6 +16,21 @@ authServer:
   ip: ""
   port: ""
 
+
+nameOverride: ""
+fullnameOverride: ""
+
+podAnnotations: {}
+podLabels: {}
+
+
+componentNames:
+  advertisement: "advertisement"
+
+moduleNames:
+  sharing: "sharing-protocol"
+
+
 #configuration values for the adv subchart
 advertisementOperator:
   advController:

@@ -38,6 +38,10 @@ purge: manifests
 manifests: controller-gen
 	$(CONTROLLER_GEN) $(CRD_OPTIONS) paths="./..." output:crd:artifacts:config=deployments/liqo/crds
 
+#Generate RBAC for each controller
+rbacs: controller-gen
+	$(CONTROLLER_GEN) $(CRD_OPTIONS) paths="./internal/advertisement-operator" rbac:roleName=liqo-advertisement output:rbac:stdout | sed -n '/rules/,$$p' > deployments/liqo/files/liqo-advertisement-rbac.yaml
+	$(CONTROLLER_GEN) $(CRD_OPTIONS) paths="./internal/liqonet/route-operator" rbac:roleName=liqo-route output:rbac:stdout | sed -n '/rules/,$$p' > deployments/liqo/files/liqo-route-rbac.yaml
 # Run go fmt against code
 fmt:
 	go fmt ./...

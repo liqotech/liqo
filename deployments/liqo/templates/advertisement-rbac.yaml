@@ -1,25 +1,26 @@
 ---
+{{- $advertisementConfig := (merge (dict "name" .Values.componentNames.advertisement "module" .Values.moduleNames.sharing) .) -}}
+
 apiVersion: v1
 kind: ServiceAccount
 metadata:
-  name: advertisement-operator
+  name: {{ include "liqo.prefixedName" $advertisementConfig }}
   namespace: {{ .Release.Namespace }}
   labels:
-    k8s-app: advertisement-operator
-    app: liqo.io
+    {{- include "liqo.labels" $advertisementConfig | nindent 4 }}
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
 metadata:
-  name: advertisement-operator
+  name: {{ include "liqo.prefixedName" $advertisementConfig }}
   labels:
-    k8s-app: advertisement-operator
-    app: liqo.io
+    {{- include "liqo.labels" $advertisementConfig | nindent 4 }}
 subjects:
   - kind: ServiceAccount
-    name: advertisement-operator
+    name: {{ include "liqo.prefixedName" $advertisementConfig }}
     namespace: {{ .Release.Namespace }}
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
   name: cluster-admin
+---
