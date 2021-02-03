@@ -30,9 +30,7 @@ Liqo leverages lerna-changelog to create the changelog of a certain version. PRs
 
 ### Local development
 
-Liqo components can be developed locally. We provide a [deployment script](/examples/kind.sh) to spawn multiple 
-kubernetes clusters by using [Kind](https://kind.sigs.k8s.io/) with Liqo installed. This script can be used as a starting
-point to improve/replace one Liqo component.
+We provide a [deployment script](/examples/kind.sh) to spawn multiple Kubernetes clusters by using [Kind](https://kind.sigs.k8s.io/) with Liqo installed. This script provides a starting point to improve/replace one Liqo component.
 
 ### Pull Requests
 
