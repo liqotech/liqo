@@ -1,0 +1,80 @@
+name: Check Generated Artifacts
+on:
+  pull_request:
+    types:
+      - opened
+      - reopened
+      - synchronize
+
+jobs:
+  generated-artifacts:
+    name: Check Generated Artifacts
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+        with:
+          ref: "${{ github.event.pull_request.head.sha }}"
+          persist-credentials: false
+
+      - name: Setup Go
+        uses: actions/setup-go@v1
+        with:
+          go-version: 1.15
+
+      - name: Run the automatic generation
+        working-directory: ./
+        run: |
+          make generate
+          make manifests
+
+      - name: Gather the differences
+        id: git-diff
+        run: |
+          output=$(git diff | head -n 100)
+          exit_code=$([ "${output}" ] && echo 1 || echo 0)
+
+          # Required to correctly manage multi-line outputs
+          output="${output//'%'/'%25'}"
+          output="${output//$'\n'/'%0A'}"
+          output="${output//$'\r'/'%0D'}"
+
+          # Store the different as step output
+          echo "::set-output name=diff::${output}"
+
+          # Trigger a failure in case the diff is not empty
+          exit ${exit_code}
+
+      - name: Log the error if the diff is not empty (in case the comment cannot be generated)
+        run: |
+          echo "The generated artifacts appear to be out-of-date."
+          echo
+          echo "Here it is an excerpt of the diff:"
+          echo "${{ steps.git-diff.outputs.diff }}"
+        if: failure()
+
+      - name: Issue a comment in case the diff is not empty
+        uses: peter-evans/create-or-update-comment@v1
+        with:
+          token: ${{ secrets.CI_TOKEN }}
+          issue-number: ${{ github.event.pull_request.number }}
+          body: |
+            The generated artifacts appear to be out-of-date.
+
+            Please, ensure you are using the correct version of `controller-gen` and re-run:
+            ```
+            make generate
+            make manifests
+            ```
+
+            <details>
+              <summary>Here it is an excerpt of the diff:</summary>
+
+              ```diff
+              ${{ steps.git-diff.outputs.diff }}
+              ```
+            </details>
+          reactions: confused
+        if: |
+          github.event_name != 'push' && failure() &&
+          github.event.pull_request.head.repo.full_name == github.repository
