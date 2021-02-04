@@ -224,6 +224,7 @@ func CreateOrUpdate(c client.Client, ctx context.Context, object interface{}) er
 				return err
 			}
 		}
+
 	case *v1.ConfigMap:
 		var cm v1.ConfigMap
 		err := c.Get(ctx, types.NamespacedName{

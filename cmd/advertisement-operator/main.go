@@ -39,7 +39,7 @@ import (
 
 const (
 	defaultNamespace   = "liqo"
-	defaultMetricsaddr = ":8080"
+	defaultMetricsaddr = ":9090"
 	defaultVKImage     = "liqo/virtual-kubelet"
 	defaultInitVKImage = "liqo/init-vkubelet"
 )
@@ -87,8 +87,8 @@ func main() {
 	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
 		MapperProvider:     mapperUtils.LiqoMapperProvider(scheme),
 		Scheme:             scheme,
-		MetricsBindAddress: "0",
 		LeaderElection:     enableLeaderElection,
+		MetricsBindAddress: metricsAddr,
 		Port:               9443,
 	})
 	if err != nil {

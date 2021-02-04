@@ -7,6 +7,7 @@ import (
 	advtypes "github.com/liqotech/liqo/apis/sharing/v1alpha1"
 	advertisementOperator "github.com/liqotech/liqo/internal/advertisement-operator"
 	"github.com/liqotech/liqo/internal/liqonet/tunnelEndpointCreator"
+	"github.com/liqotech/liqo/internal/monitoring"
 	"github.com/liqotech/liqo/internal/virtualKubelet/node"
 	"github.com/liqotech/liqo/pkg/virtualKubelet"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/options"
@@ -43,8 +44,15 @@ func (p *LiqoProvider) StartNodeUpdater(nodeRunner *node.NodeController) (chan s
 
 	ready := make(chan struct{}, 1)
 
+	monitoring.PeeringProcessExecutionStarted()
+	monitoring.PeeringProcessEventRegister(monitoring.VirtualKubelet, monitoring.CreateVirtualNode, monitoring.Start)
+
 	go func() {
 		<-ready
+
+		monitoring.PeeringProcessEventRegister(monitoring.VirtualKubelet, monitoring.WaitForAdvertisement, monitoring.Start)
+		monitoring.PeeringProcessEventRegister(monitoring.VirtualKubelet, monitoring.WaitForTunnelEndpoint, monitoring.Start)
+
 		for {
 			select {
 			case ev := <-advWatcher.ResultChan():
@@ -119,6 +127,7 @@ func (p *LiqoProvider) ReconcileNodeFromAdv(event watch.Event) error {
 	for {
 		if err := p.updateFromAdv(*adv); err == nil {
 			klog.Info("node correctly updated from advertisement")
+			monitoring.PeeringProcessEventRegister(monitoring.VirtualKubelet, monitoring.WaitForAdvertisement, monitoring.End)
 			break
 		} else {
 			klog.Errorf("node update from advertisement %v failed for reason %v; retry...", adv.Name, err)
@@ -240,6 +249,7 @@ func (p *LiqoProvider) updateFromTep(tep nettypes.TunnelEndpoint) error {
 	p.RemoteRemappedPodCidr.SetValue(options.OptionValue(tep.Status.RemoteRemappedPodCIDR))
 	p.LocalRemappedPodCidr.SetValue(options.OptionValue(tep.Status.LocalRemappedPodCIDR))
 	if tepSet {
+		monitoring.PeeringProcessEventRegister(monitoring.VirtualKubelet, monitoring.WaitForTunnelEndpoint, monitoring.End)
 		close(p.tepReady)
 	}
 

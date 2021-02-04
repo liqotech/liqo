@@ -98,6 +98,7 @@ func GetBroadcasterDeployment(request *discoveryv1alpha1.PeeringRequest, nameSA 
 				ObjectMeta: metav1.ObjectMeta{
 					Labels: map[string]string{
 						"app": strings.Join([]string{"broadcaster", request.Name}, "-"),
+						"run": "broadcaster",
 					},
 				},
 				Spec: v1.PodSpec{

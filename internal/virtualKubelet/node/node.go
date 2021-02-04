@@ -18,6 +18,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/liqotech/liqo/internal/monitoring"
 	"github.com/liqotech/liqo/internal/utils/log"
 	"k8s.io/klog"
 	"sync"
@@ -285,6 +286,7 @@ func (n *NodeController) controlLoop(ctx context.Context) error {
 			if err := n.updateStatus(ctx, false); err != nil {
 				log.G(ctx).WithError(err).Error("Error handling node status update")
 			}
+
 			t.Reset(timerResetDuration)
 		case <-statusTimer.C:
 			if err := n.updateStatus(ctx, false); err != nil {
@@ -430,6 +432,44 @@ func patchNodeStatus(nodes v1.NodeInterface, nodeName types.NodeName, oldNode *c
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to patch status %q for node %q: %v", patchBytes, nodeName, err)
 	}
+
+	// se newnode ha lo stato a ready e tutti gli altri 3 stati devono essere a false
+	// la funzione viee chiamata periodicamente
+	// controllare anche che lko stato dell'old sia a false
+	foundReadyCondition := false
+	countFalseCondition := 0
+	for _, s := range newNode.Status.Conditions {
+		if s.Type == corev1.NodeReady {
+			if s.Status == corev1.ConditionTrue {
+				foundReadyCondition = true
+			}
+		} else if s.Type == corev1.NodeMemoryPressure {
+			if s.Status == corev1.ConditionFalse {
+				countFalseCondition++
+			}
+		} else if s.Type == corev1.NodeDiskPressure {
+			if s.Status == corev1.ConditionFalse {
+				countFalseCondition++
+			}
+		} else if s.Type == corev1.NodeNetworkUnavailable {
+			if s.Status == corev1.ConditionFalse {
+				countFalseCondition++
+			}
+		}
+	}
+
+	if foundReadyCondition && countFalseCondition == 3 {
+		for _, s := range oldNode.Status.Conditions {
+			if s.Type == corev1.NodeReady {
+				if s.Status == corev1.ConditionFalse {
+					monitoring.PeeringProcessExecutionCompleted(monitoring.VirtualKubelet)
+					monitoring.PeeringProcessEventRegister(monitoring.VirtualKubelet, monitoring.CreateVirtualNode, monitoring.End)
+					break
+				}
+			}
+		}
+	}
+
 	return updatedNode, patchBytes, nil
 }
 

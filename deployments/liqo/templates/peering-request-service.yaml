@@ -1,0 +1,24 @@
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app: liqo.io
+    app.kubernetes.io/managed-by: Helm
+    run: peering-request-operator
+  name: peering-request-operator-service
+  namespace: liqo
+spec:
+  ports:
+    - name: web
+      port: 8443
+      protocol: TCP
+      targetPort: 8443
+    - name: metrics
+      port: 8090
+      protocol: TCP
+      targetPort: 8090
+  selector:
+    run: peering-request-operator
+  sessionAffinity: None
+  type: ClusterIP
+

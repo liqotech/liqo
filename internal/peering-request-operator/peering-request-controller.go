@@ -20,6 +20,7 @@ import (
 	"context"
 	"errors"
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
+	"github.com/liqotech/liqo/internal/monitoring"
 	"github.com/liqotech/liqo/pkg/clusterID"
 	"github.com/liqotech/liqo/pkg/crdClient"
 	object_references "github.com/liqotech/liqo/pkg/object-references"
@@ -94,6 +95,9 @@ func (r *PeeringRequestReconciler) Reconcile(req ctrl.Request) (ctrl.Result, err
 		}
 	}
 	if !exists {
+		monitoring.PeeringProcessExecutionStarted()
+		monitoring.PeeringProcessEventRegister(monitoring.PeeringRequestOperator, monitoring.CreateBroadcaster, monitoring.Start)
+
 		klog.Info("Deploy Broadcaster")
 		deploy := GetBroadcasterDeployment(pr, r.broadcasterServiceAccount, r.vkServiceAccount, r.Namespace, r.broadcasterImage, r.clusterId.GetClusterID())
 		deploy, err = r.crdClient.Client().AppsV1().Deployments(r.Namespace).Create(context.TODO(), deploy, metav1.CreateOptions{})
@@ -105,6 +109,9 @@ func (r *PeeringRequestReconciler) Reconcile(req ctrl.Request) (ctrl.Result, err
 			Namespace: deploy.Namespace,
 			Name:      deploy.Name,
 		}
+
+		monitoring.PeeringProcessExecutionCompleted(monitoring.PeeringRequestOperator)
+		monitoring.PeeringProcessEventRegister(monitoring.PeeringRequestOperator, monitoring.CreateBroadcaster, monitoring.End)
 	}
 
 	_, err = r.crdClient.Resource("peeringrequests").Update(pr.Name, pr, metav1.UpdateOptions{})

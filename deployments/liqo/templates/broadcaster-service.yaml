@@ -1,0 +1,17 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: broadcaster-service
+  namespace: liqo
+  labels:
+    app: liqo.io
+spec:
+  ports:
+    - port: 8090
+      protocol: TCP
+      targetPort: 8090
+      name: metrics
+  selector:
+    run: broadcaster
+  sessionAffinity: None
+  type: ClusterIP

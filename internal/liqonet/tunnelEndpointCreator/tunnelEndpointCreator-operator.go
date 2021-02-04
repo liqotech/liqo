@@ -27,6 +27,7 @@ import (
 
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	"github.com/liqotech/liqo/internal/crdReplicator"
+	"github.com/liqotech/liqo/internal/monitoring"
 	liqonet "github.com/liqotech/liqo/pkg/liqonet"
 	"github.com/liqotech/liqo/pkg/liqonet/tunnel/wireguard"
 	"github.com/liqotech/liqo/pkg/owner"
@@ -274,6 +275,12 @@ func (tec *TunnelEndpointCreator) createNetConfig(fc *discoveryv1alpha1.ForeignC
 		return err
 	}
 	klog.Infof("resource %s of type %s created", netConfig.Name, netv1alpha1.GroupVersion.String())
+
+	monitoring.PeeringProcessExecutionStarted()
+	monitoring.PeeringProcessEventRegister(monitoring.TunnelEndpointOperator, monitoring.CreateTunnelEndpoint, monitoring.Start)
+	monitoring.PeeringProcessEventRegister(monitoring.TunnelEndpointOperator, monitoring.ProcessRemoteNetworkConfig, monitoring.Start)
+	monitoring.PeeringProcessEventRegister(monitoring.TunnelEndpointOperator, monitoring.ProcessLocalNetworkConfig, monitoring.Start)
+
 	return nil
 }
 
@@ -354,6 +361,8 @@ func (tec *TunnelEndpointCreator) processRemoteNetConfig(netConfig *netv1alpha1.
 				klog.Errorf("an error occurred while updating the status of resource %s: %s", netConfig.Name, err)
 				return err
 			}
+
+			monitoring.PeeringProcessEventRegister(monitoring.TunnelEndpointOperator, monitoring.ProcessRemoteNetworkConfig, monitoring.End)
 		}
 		return nil
 	}
@@ -382,6 +391,8 @@ func (tec *TunnelEndpointCreator) processRemoteNetConfig(netConfig *netv1alpha1.
 			klog.Errorf("an error occurred while updating the status of resource %s: %s", netConfig.Name, err)
 			return err
 		}
+
+		monitoring.PeeringProcessEventRegister(monitoring.TunnelEndpointOperator, monitoring.ProcessRemoteNetworkConfig, monitoring.End)
 		return nil
 	}
 	return nil
@@ -436,6 +447,9 @@ func (tec *TunnelEndpointCreator) processLocalNetConfig(netConfig *netv1alpha1.N
 			return nil
 		}
 	}
+
+	monitoring.PeeringProcessEventRegister(monitoring.TunnelEndpointOperator, monitoring.ProcessLocalNetworkConfig, monitoring.End)
+
 	//at this point we have all the necessary parameters to create the tunnelEndpoint resource
 	remoteNetConf := netConfigList.Items[0]
 	netParam := networkParam{
@@ -604,6 +618,9 @@ func (tec *TunnelEndpointCreator) CreateTunnelEndpoint(param networkParam, owner
 		return err
 	} else {
 		klog.Infof("resource %s of type %s created", tep.Name, netv1alpha1.TunnelEndpointGroupResource)
+
+		monitoring.PeeringProcessEventRegister(monitoring.TunnelEndpointOperator, monitoring.CreateTunnelEndpoint, monitoring.End)
+		monitoring.PeeringProcessExecutionCompleted(monitoring.TunnelEndpointOperator)
 	}
 	return nil
 }
