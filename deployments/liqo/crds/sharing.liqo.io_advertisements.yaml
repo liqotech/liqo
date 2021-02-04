@@ -14,8 +14,6 @@ spec:
     listKind: AdvertisementList
     plural: advertisements
     singular: advertisement
-    shortNames:
-      - adv
   scope: Cluster
   versions:
   - additionalPrinterColumns:
