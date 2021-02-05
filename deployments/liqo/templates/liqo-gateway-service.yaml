@@ -1,12 +1,19 @@
 ---
+{{- $gatewayConfig := (merge (dict "name" (required ".Values.gateway.name is required" .Values.gateway.name) "module" (required ".Values.gateway.module is required" .Values.gateway.module)) .) -}}
+
 apiVersion: v1
 kind: Service
 metadata:
-  name: liqo-gateway-endpoint
+  name: {{ include "liqo.prefixedName" $gatewayConfig }}
+{{- if .Values.gateway.serviceAnnotations }}
+  annotations:
+    {{- toYaml .Values.gateway.serviceAnnotations | nindent 4 }}
+{{- end}}
   labels:
-    net.liqo.io/gateway: "true"
+    {{- include "liqo.labels" $gatewayConfig | nindent 4 }}
+    {{- include "liqo.gatewayServiceLabels" $gatewayConfig | nindent 4 }}
 spec:
-  type: {{ .Values.networkModule.tunnelEndpointOperator.vpnEndpoint }}
+  type: {{ .Values.gateway.serviceType }}
   ports:
     - name: wireguard
       port: 5871
@@ -16,4 +23,4 @@ spec:
       protocol: UDP
       port: 51871
   selector:
-    net.liqo.io/gatewayPod: "true"
+    {{- include "liqo.gatewayPodLabels" $gatewayConfig | nindent 4 }}

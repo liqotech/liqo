@@ -42,6 +42,7 @@ manifests: controller-gen
 rbacs: controller-gen
 	$(CONTROLLER_GEN) $(CRD_OPTIONS) paths="./internal/advertisement-operator" rbac:roleName=liqo-advertisement output:rbac:stdout | sed -n '/rules/,$$p' > deployments/liqo/files/liqo-advertisement-rbac.yaml
 	$(CONTROLLER_GEN) $(CRD_OPTIONS) paths="./internal/liqonet/route-operator" rbac:roleName=liqo-route output:rbac:stdout | sed -n '/rules/,$$p' > deployments/liqo/files/liqo-route-rbac.yaml
+	$(CONTROLLER_GEN) $(CRD_OPTIONS) paths="./internal/liqonet/tunnel-operator" rbac:roleName=liqo-gateway output:rbac:stdout | sed -n '/rules/,$$p' > deployments/liqo/files/liqo-gateway-rbac.yaml
 # Run go fmt against code
 fmt:
 	go fmt ./...

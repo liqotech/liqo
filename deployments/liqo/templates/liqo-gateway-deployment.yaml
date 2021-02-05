@@ -1,25 +1,31 @@
 ---
+{{- $gatewayConfig := (merge (dict "name" (required ".Values.gateway.name is required" .Values.gateway.name) "module" (required ".Values.gateway.module is required" .Values.gateway.module)) .) -}}
+
 apiVersion: apps/v1
 kind: Deployment
 metadata:
   labels:
-    run: liqo-gateway
-    app: liqo-gateway
-  name: liqo-gateway
+    {{- include "liqo.labels" $gatewayConfig | nindent 4 }}
+  name: {{ include "liqo.prefixedName" $gatewayConfig }}
 spec:
   replicas: 1
   selector:
     matchLabels:
-      run: liqo-gateway
-  strategy: {}
+      {{- include "liqo.selectorLabels" $gatewayConfig | nindent 6 }}
   template:
     metadata:
+    {{- if .Values.gateway.podAnnotations }}
+      annotations:
+      {{- toYaml .Values.gateway.podAnnotations | nindent 8 }}
+    {{- end }}
       labels:
-        run: liqo-gateway
-        app: liqo-gateway
-        net.liqo.io/gatewayPod: "true"
+        {{- include "liqo.labels" $gatewayConfig | nindent 8 }}
+        {{- include "liqo.gatewayPodLabels" . | nindent 8 }}
+        {{- if .Values.gateway.podLabels }}
+          {{- toYaml .Values.gateway.podLabels | nindent 8 }}
+        {{- end }}
     spec:
-      serviceAccountName: liqo-gateway-service-account
+      serviceAccountName: {{ include "liqo.prefixedName" $gatewayConfig }}
       containers:
         - image: {{ .Values.networkModule.tunnelEndpointOperator.image.repository }}{{ default .Values.suffix }}:{{ default .Values.version }}
           imagePullPolicy: {{ .Values.pullPolicy }}
@@ -50,5 +56,3 @@ spec:
               valueFrom:
                 fieldRef:
                   fieldPath: status.podIP
-      hostNetwork: false
-      restartPolicy: Always
