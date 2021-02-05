@@ -16,8 +16,8 @@ import (
 
 var (
 	podResource        = "pods"
-	podRouteLabelKey   = "run"
-	podRouteLabelValue = "liqo-route"
+	PodRouteLabelKey   = "app.kubernetes.io/name"
+	PodRouteLabelValue = "route"
 )
 
 func (r *RouteController) StartPodWatcher() {
@@ -80,12 +80,12 @@ func (r *RouteController) podHandlerUpdate(oldObj interface{}, newObj interface{
 func setGWPodSelectorLabel(options *metav1.ListOptions) {
 	if options == nil {
 		options = &metav1.ListOptions{}
-		newLabelSelector := []string{podRouteLabelKey, "=", podRouteLabelValue}
+		newLabelSelector := []string{PodRouteLabelKey, "=", PodRouteLabelValue}
 		options.LabelSelector = strings.Join(newLabelSelector, "")
 		return
 	}
 	if options.LabelSelector == "" {
-		newLabelSelector := []string{podRouteLabelKey, "=", podRouteLabelValue}
+		newLabelSelector := []string{PodRouteLabelKey, "=", PodRouteLabelValue}
 		options.LabelSelector = strings.Join(newLabelSelector, "")
 	}
 }

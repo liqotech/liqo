@@ -16,20 +16,31 @@ authServer:
   ip: ""
   port: ""
 
-
 nameOverride: ""
 fullnameOverride: ""
 
-podAnnotations: {}
-podLabels: {}
+advertisement:
+  name: "advertisement"
+  module: "sharing-protocol"
+  podAnnotations: {}
+  podLabels: {}
+  imageName: ""
 
+route:
+  name: "route"
+  module: "networking"
+  podAnnotations: {}
+  podLabels: {}
+  imageName: ""
 
-componentNames:
-  advertisement: "advertisement"
-
-moduleNames:
-  sharing: "sharing-protocol"
-
+gateway:
+  name: "gateway"
+  module: "networking"
+  podAnnotations: {}
+  podLabels: {}
+  imageName: ""
+  serviceAnnotations: {}
+  serviceType: "NodePort"
 
 #configuration values for the adv subchart
 advertisementOperator:
@@ -53,7 +64,6 @@ networkModule:
     image:
       repository: "liqo/liqonet"
       pullPolicy: "IfNotPresent"
-    vpnEndpoint: "NodePort"
   enabled: true
 
 #configuration values for the tunnelendpointCreator subchart

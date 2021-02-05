@@ -1,11 +1,10 @@
 ---
-{{- $advertisementConfig := (merge (dict "name" .Values.componentNames.advertisement "module" .Values.moduleNames.sharing) .) -}}
+{{- $advertisementConfig := (merge (dict "name" (required ".Values.advertisement.name is required" .Values.advertisement.name) "module" (required ".Values.advertisement.module is required" .Values.advertisement.module)) .) -}}
 
 apiVersion: v1
 kind: ServiceAccount
 metadata:
   name: {{ include "liqo.prefixedName" $advertisementConfig }}
-  namespace: {{ .Release.Namespace }}
   labels:
     {{- include "liqo.labels" $advertisementConfig | nindent 4 }}
 ---

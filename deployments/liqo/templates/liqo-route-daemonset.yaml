@@ -1,18 +1,27 @@
 ---
+{{- $routeConfig := (merge (dict "name" (required ".Values.route.name is required" .Values.route.name) "module" (required ".Values.route.module is required" .Values.route.module)) .) -}}
+
 apiVersion: apps/v1
 kind: DaemonSet
 metadata:
   labels:
-    run: liqo-route
-  name: liqo-route
+    {{- include "liqo.labels" $routeConfig | nindent 4 }}
+  name: {{ include "liqo.prefixedName" $routeConfig }}
 spec:
   selector:
     matchLabels:
-      run: liqo-route
+      {{- include "liqo.selectorLabels" $routeConfig | nindent 6 }}
   template:
     metadata:
+    {{- if .Values.route.podAnnotations }}
+      annotations:
+        {{- toYaml .Values.route.podAnnotations | nindent 8 }}
+    {{- end }}
       labels:
-        run: liqo-route
+        {{- include "liqo.selectorLabels" $routeConfig | nindent 8 }}
+        {{- if .Values.gateway.podLabels }}
+          {{- toYaml .Values.gateway.podLabels | nindent 8 }}
+        {{- end }}
     spec:
       tolerations:
         - key: CriticalAddonsOnly
@@ -27,20 +36,11 @@ spec:
           key: node.kubernetes.io/unreachable
           operator: Exists
           tolerationSeconds: 300
-      affinity:
-        nodeAffinity:
-          requiredDuringSchedulingIgnoredDuringExecution:
-            nodeSelectorTerms:
-              - matchExpressions:
-                  - key: type
-                    operator: NotIn
-                    values:
-                      - virtual-node
-      serviceAccountName: liqo-route-service-account
+      serviceAccountName: {{ include "liqo.prefixedName" $routeConfig }}
       containers:
         - image: {{ .Values.networkModule.routeOperator.image.repository }}{{ default .Values.suffix }}:{{ default .Values.version }}
           imagePullPolicy: {{ .Values.pullPolicy }}
-          name: liqo-route
+          name: {{ include "liqo.prefixedName" $routeConfig }}
           command: ["/usr/bin/liqonet"]
           args: ["-run-as=liqo-route"]
           resources:

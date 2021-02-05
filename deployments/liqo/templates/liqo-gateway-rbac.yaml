@@ -1,0 +1,34 @@
+---
+{{- $gatewayConfig := (merge (dict "name" (required ".Values.gateway.name is required" .Values.gateway.name) "module" (required ".Values.gateway.module is required" .Values.gateway.module)) .) -}}
+
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: {{ include "liqo.prefixedName" $gatewayConfig }}
+  labels:
+    {{- include "liqo.labels" $gatewayConfig | nindent 4 }}
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: {{ include "liqo.prefixedName" $gatewayConfig }}
+  labels:
+    {{- include "liqo.labels" $gatewayConfig | nindent 4 }}
+
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: {{ include "liqo.prefixedName" $gatewayConfig }}
+subjects:
+  - kind: ServiceAccount
+    name: {{ include "liqo.prefixedName" $gatewayConfig }}
+    namespace: {{ .Release.Namespace }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: {{ include "liqo.prefixedName" $gatewayConfig }}
+  labels:
+    {{- include "liqo.labels" $gatewayConfig | nindent 4 }}
+{{ .Files.Get (include "liqo.rbac-filename" (dict "prefix" ( include "liqo.prefixedName" $gatewayConfig))) }}

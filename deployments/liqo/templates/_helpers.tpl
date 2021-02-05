@@ -78,3 +78,20 @@ Create the file name of an rbac starting from a prefix, it accepts a dict which 
 {{- define "liqo.rbac-filename" -}}
 {{- printf "files/%s-%s" .prefix "rbac.yaml" }}
 {{- end }}
+
+
+{{/*
+Gateway pod labels
+*/}}
+{{- define "liqo.gatewayPodLabels" -}}
+net.liqo.io/gatewayPod: "true"
+{{- end }}
+
+{{/*
+Gateway service labels
+*/}}
+{{- define "liqo.gatewayServiceLabels" -}}
+net.liqo.io/gateway: "true"
+{{- end }}
+
+

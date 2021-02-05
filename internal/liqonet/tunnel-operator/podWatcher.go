@@ -1,6 +1,7 @@
 package tunnel_operator
 
 import (
+	route_operator "github.com/liqotech/liqo/internal/liqonet/route-operator"
 	"github.com/liqotech/liqo/pkg/liqonet/overlay"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -14,9 +15,7 @@ import (
 )
 
 var (
-	podRouteLabelKey   = "run"
-	podRouteLabelValue = "liqo-route"
-	keepalive          = 10 * time.Second
+	keepalive = 10 * time.Second
 )
 
 func (tc *TunnelController) StartPodWatcher() {
@@ -124,7 +123,7 @@ func (tc *TunnelController) podHandlerDelete(obj interface{}) {
 }
 
 func setPodSelectorLabel(options *metav1.ListOptions) {
-	labelSet := labels.Set{podRouteLabelKey: podRouteLabelValue}
+	labelSet := labels.Set{route_operator.PodRouteLabelKey: route_operator.PodRouteLabelValue}
 	if options == nil {
 		options = &metav1.ListOptions{}
 		options.LabelSelector = labels.SelectorFromSet(labelSet).String()

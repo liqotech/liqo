@@ -1,10 +1,9 @@
 ---
-{{- $advertisementConfig := (merge (dict "name" .Values.componentNames.advertisement "module" .Values.moduleNames.sharing) .) -}}
+{{- $advertisementConfig := (merge (dict "name" (required ".Values.advertisement.name is required" .Values.advertisement.name) "module" (required ".Values.advertisement.module is required" .Values.advertisement.module)) .) -}}
 
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  namespace: {{ .Release.Namespace }}
   labels:
     {{- include "liqo.labels" $advertisementConfig | nindent 4 }}
   name: {{ include "liqo.prefixedName" $advertisementConfig }}
@@ -15,12 +14,15 @@ spec:
       {{- include "liqo.selectorLabels" $advertisementConfig | nindent 6 }}
   template:
     metadata:
-      {{- with .Values.podAnnotations }}
+    {{- if .Values.advertisement.podAnnotations }}
       annotations:
-        {{- toYaml . | nindent 8 }}
-      {{- end }}
+      {{- toYaml .Values.advertisement.podAnnotations | nindent 8 }}
+    {{- end }}
       labels:
-        {{- include "liqo.selectorLabels" $advertisementConfig | nindent 8 }}
+        {{- include "liqo.labels" $advertisementConfig | nindent 8 }}
+        {{- if .Values.advertisement.podLabels }}
+          {{- toYaml .Values.advertisement.podLabels | nindent 8 }}
+        {{- end }}
     spec:
       serviceAccountName: {{ include "liqo.prefixedName" $advertisementConfig }}
       containers:
