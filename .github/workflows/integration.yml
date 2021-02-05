@@ -147,10 +147,6 @@ jobs:
           repository: "${{ needs.configure.outputs.repo-name }}"
           persist-credentials: false
 
-      - name: Get the Liqo version to be released
-        id: version
-        run: echo "version::${GITHUB_REF/refs\/tags\//}" >> $GITHUB_ENV
-
       - name: Get the latest Liqo release
         uses: pozetroninc/github-action-get-latest-release@v0.5.0
         id: last-release
