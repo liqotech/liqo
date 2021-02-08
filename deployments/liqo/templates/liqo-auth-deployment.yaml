@@ -1,24 +1,32 @@
 ---
+{{- $authConfig := (merge (dict "name" (required ".Values.auth.name is required" .Values.auth.name) "module" (required ".Values.auth.module is required" .Values.auth.module)) .) -}}
+
 apiVersion: apps/v1
 kind: Deployment
 metadata:
+  name: {{ include "liqo.prefixedName" $authConfig }}
   labels:
-    run: auth-service
-    app: liqo.io
-  name: auth-service
-  namespace: {{ .Release.Namespace }}
+    {{- include "liqo.labels" $authConfig | nindent 4 }}
 spec:
-  replicas: 1
   selector:
     matchLabels:
-      run: auth-service
+      {{- include "liqo.selectorLabels" $authConfig | nindent 6 }}
+      {{- include "liqo.authServiceLabels" . | nindent 6 }}
   template:
     metadata:
       labels:
-        run: auth-service
+        {{- include "liqo.selectorLabels" $authConfig | nindent 8 }}
+        {{- include "liqo.authServiceLabels" . | nindent 8 }}
+        {{- if .Values.auth.podLabels }}
+        {{- toYaml .Values.auth.podLabels | nindent 8 }}
+        {{- end }}
+      {{- if .Values.auth.podAnnotations }}
+      annotations:
+        {{- toYaml .Values.auth.podAnnotations | nindent 8 }}
+      {{- end }}
     spec:
-      serviceAccountName: auth-service-sa
-      {{ if not .Values.authService.ingress.enable }}
+      serviceAccountName: {{ include "liqo.prefixedName" $authConfig }}
+      {{- if not .Values.auth.ingress.enable }}
       initContainers:
         - name: cert-creator
           image: nginx:1.19
@@ -27,9 +35,9 @@ spec:
               name: certs
           command: [ "/bin/sh" ]
           args: [ "-c", 'openssl req -x509 -subj "/C=IT/ST=Turin/O=Liqo" -nodes -days 365 -newkey rsa:4096 -keyout /certs/key.pem -out /certs/cert.pem' ]
-      {{ end }}
+      {{- end }}
       containers:
-        - image: {{ .Values.authService.image.repository }}{{ default .Values.suffix }}:{{ default .Values.version }}
+        - image: {{ .Values.auth.imageName }}{{ default .Values.suffix }}:{{ default .Values.version }}
           name: auth-service
           imagePullPolicy: {{ .Values.pullPolicy }}
           command: ["/usr/bin/auth-service"]
@@ -39,25 +47,25 @@ spec:
           - "--resyncSeconds"
           - "30"
           - "--listeningPort"
-          {{ if .Values.authService.ingress.enable }}
+          {{- if .Values.auth.ingress.enable }}
           - "5000"
-          {{ else }}
+          {{- else }}
           - "443"
           - "--useTls"
-          {{ end }}
+          {{- end }}
           env:
             - name: POD_NAMESPACE
               valueFrom:
                 fieldRef:
                   fieldPath: metadata.namespace
-            {{ if .Values.apiServer.ip }}
+            {{- if .Values.apiServer.ip }}
             - name: APISERVER
               value: "{{ .Values.apiServer.ip }}"
-            {{ end }}
-            {{ if .Values.apiServer.port }}
+            {{- end }}
+            {{- if .Values.apiServer.port }}
             - name: APISERVER_PORT
               value: "{{ .Values.apiServer.port }}"
-            {{ end }}
+            {{- end }}
           resources:
             limits:
               cpu: 50m

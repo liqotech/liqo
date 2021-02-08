@@ -42,6 +42,26 @@ gateway:
   serviceAnnotations: {}
   serviceType: "NodePort"
 
+auth:
+  name: "auth"
+  module: "discovery"
+  podAnnotations:
+    testAnnotationKey: "testAnnotationValue"
+  podLabels:
+    testLabelKey: "testAnnotationValue"
+  imageName: "liqo/auth-service"
+  service:
+    type: "NodePort"
+    annotations:
+      testAnnotationKey: "testAnnotationValue"
+  ingress:
+    annotations: {}
+    enable: false
+    host: ""
+    class: ""
+  config:
+    allowEmptyToken: true
+
 #configuration values for the adv subchart
 advertisementOperator:
   advController:
@@ -120,10 +140,6 @@ authService:
     repository: "liqo/auth-service"
     pullPolicy: "IfNotPresent"
   enabled: true
-  ingress:
-    enable: false
-    host: ""
-    class: ""
 
 
 advController:

@@ -783,7 +783,7 @@ var _ = Describe("Discovery", func() {
 					// create the auth service
 					_, err := cluster.GetClient().Client().CoreV1().Services("default").Create(context.TODO(), &v1.Service{
 						ObjectMeta: metav1.ObjectMeta{
-							Name: authServiceName,
+							Name: AuthServiceName,
 						},
 						Spec: v1.ServiceSpec{
 							Type: v1.ServiceTypeNodePort,

@@ -88,6 +88,13 @@ net.liqo.io/gatewayPod: "true"
 {{- end }}
 
 {{/*
+Auth pod labels
+*/}}
+{{- define "liqo.authServiceLabels" -}}
+run: auth-service
+{{- end }}
+
+{{/*
 Gateway service labels
 */}}
 {{- define "liqo.gatewayServiceLabels" -}}

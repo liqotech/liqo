@@ -12,7 +12,7 @@ import (
 )
 
 const (
-	authServiceName = "auth-service"
+	AuthServiceName = "liqo-auth"
 )
 
 func (discovery *DiscoveryCtrl) Register() {
@@ -44,7 +44,7 @@ func (discovery *DiscoveryCtrl) shutdownServer() {
 
 // get the NodePort of AuthService
 func (discovery *DiscoveryCtrl) getAuthServicePort() (int, error) {
-	svc, err := discovery.crdClient.Client().CoreV1().Services(discovery.Namespace).Get(context.TODO(), authServiceName, metav1.GetOptions{})
+	svc, err := discovery.crdClient.Client().CoreV1().Services(discovery.Namespace).Get(context.TODO(), AuthServiceName, metav1.GetOptions{})
 	if err != nil {
 		klog.Error(err)
 		return 0, err
