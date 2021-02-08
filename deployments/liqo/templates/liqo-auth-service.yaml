@@ -1,0 +1,29 @@
+---
+{{- $authConfig := (merge (dict "name" (required ".Values.auth.name is required" .Values.auth.name) "module" (required ".Values.auth.module is required" .Values.auth.module)) .) -}}
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "liqo.prefixedName" $authConfig }}
+  labels:
+    {{- include "liqo.labels" $authConfig | nindent 4 }}
+    {{- include "liqo.authServiceLabels" . | nindent 4 }}
+  annotations:
+    {{- if .Values.auth.service.annotations }}
+    {{- toYaml .Values.auth.service.annotations | nindent 4}}
+    {{- end }}
+spec:
+  type: {{ .Values.auth.service.type }}
+  selector:
+    {{- include "liqo.selectorLabels" $authConfig | nindent 4 }}
+    {{- include "liqo.authServiceLabels" . | nindent 4 }}
+  ports:
+    - name: https
+      protocol: TCP
+      {{- if .Values.auth.ingress.enable }}
+      port: 5000
+      targetPort: 5000
+      {{- else }}
+      port: 443
+      targetPort: 443
+      {{- end }}

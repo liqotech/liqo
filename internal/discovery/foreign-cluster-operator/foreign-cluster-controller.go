@@ -490,7 +490,7 @@ func (r *ForeignClusterReconciler) getHomeAuthUrl() (string, error) {
 
 	port, _ := os.LookupEnv("AUTH_SVC_PORT")
 	if port == "" {
-		svc, err := r.crdClient.Client().CoreV1().Services(r.Namespace).Get(context.TODO(), "auth-service", metav1.GetOptions{})
+		svc, err := r.crdClient.Client().CoreV1().Services(r.Namespace).Get(context.TODO(), discovery.AuthServiceName, metav1.GetOptions{})
 		if err != nil {
 			klog.Error(err)
 			return "", err
@@ -499,7 +499,7 @@ func (r *ForeignClusterReconciler) getHomeAuthUrl() (string, error) {
 			err = errors.NewNotFound(schema.GroupResource{
 				Group:    apiv1.GroupName,
 				Resource: string(apiv1.ResourceServices),
-			}, "auth-service")
+			}, discovery.AuthServiceName)
 			klog.Error(err)
 			return "", err
 		}

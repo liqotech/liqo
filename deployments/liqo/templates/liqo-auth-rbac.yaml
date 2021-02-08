@@ -1,17 +1,19 @@
 ---
+{{- $authConfig := (merge (dict "name" (required ".Values.auth.name is required" .Values.auth.name) "module" (required ".Values.auth.module is required" .Values.auth.module)) .) -}}
+
 apiVersion: v1
 kind: ServiceAccount
 metadata:
-  name: auth-service-sa
-  namespace: {{ .Release.Namespace }}
+  name: {{ include "liqo.prefixedName" $authConfig }}
   labels:
-    k8s-app: auth-service
-    app: liqo.io
+    {{- include "liqo.labels" $authConfig | nindent 4 }}
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
-  name: liqo-auth-service
+  name: {{ include "liqo.prefixedName" $authConfig }}
+  labels:
+    {{- include "liqo.labels" $authConfig | nindent 4 }}
 rules:
   - apiGroups:
       - ""
@@ -38,7 +40,6 @@ rules:
       - list
       - watch
       - create
-
   # required to grant permissions
   - apiGroups:
       - discovery.liqo.io
@@ -54,7 +55,9 @@ rules:
 apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
 metadata:
-  name: liqo-auth-service
+  name: {{ include "liqo.prefixedName" $authConfig }}
+  labels:
+    {{- include "liqo.labels" $authConfig | nindent 4 }}
 rules:
   - apiGroups:
       - ""
@@ -90,33 +93,29 @@ rules:
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
 metadata:
-  name: auth-service
-  namespace: {{ .Release.Namespace }}
+  name: {{ include "liqo.prefixedName" $authConfig }}
   labels:
-    k8s-app: auth-service
-    app: liqo.io
+    {{- include "liqo.labels" $authConfig | nindent 4 }}
 subjects:
   - kind: ServiceAccount
-    name: auth-service-sa
+    name: {{ include "liqo.prefixedName" $authConfig }}
     namespace: {{ .Release.Namespace }}
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: Role
-  name: liqo-auth-service
+  name: {{ include "liqo.prefixedName" $authConfig }}
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
 metadata:
-  name: auth-service
-  namespace: {{ .Release.Namespace }}
+  name: {{ include "liqo.prefixedName" $authConfig }}
   labels:
-    k8s-app: auth-service
-    app: liqo.io
+    {{- include "liqo.labels" $authConfig | nindent 4 }}
 subjects:
   - kind: ServiceAccount
-    name: auth-service-sa
+    name: {{ include "liqo.prefixedName" $authConfig }}
     namespace: {{ .Release.Namespace }}
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
-  name: liqo-auth-service
+  name: {{ include "liqo.prefixedName" $authConfig }}

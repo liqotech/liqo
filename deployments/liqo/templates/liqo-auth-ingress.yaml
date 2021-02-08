@@ -1,0 +1,40 @@
+{{- $authConfig := (merge (dict "name" (required ".Values.auth.name is required" .Values.auth.name) "module" (required ".Values.auth.module is required" .Values.auth.module)) .) -}}
+
+{{- if .Values.auth.ingress.enable }}
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: {{ include "liqo.prefixedName" $authConfig }}
+  labels:
+    {{- include "liqo.labels" $authConfig | nindent 4 }}
+  {{- if or .Values.auth.ingress.annotations .Values.auth.ingress.class}}
+  annotations:
+  {{- if .Values.auth.ingress.annotations }}
+    {{- toYaml .Values.auth.ingress.annotations | nindent 4}}
+  {{- end }}
+  {{- if .Values.auth.ingress.class }}
+    kubernetes.io/ingress.class: {{ .Values.auth.ingress.class }}
+  {{- end }}
+  {{- end}}
+spec:
+  rules:
+    - http:
+        paths:
+          - backend:
+              service:
+                name: {{ include "liqo.prefixedName" $authConfig }}
+                port:
+                  number: 5000
+            path: /
+            pathType: Prefix
+      {{- if .Values.auth.ingress.host }}
+      host: {{ .Values.auth.ingress.host }}
+      {{- end }}
+  tls:
+    {{- if .Values.auth.ingress.host }}
+    - hosts:
+      - {{ .Values.auth.ingress.host }}
+    {{- else }}
+    - hosts: []
+    {{- end }}
+{{- end }}
