@@ -22,6 +22,20 @@ func (tec *TunnelEndpointCreator) GetConfiguration(config *configv1alpha1.Cluste
 	correctlyParsed := true
 	reservedSubnets := make(map[string]*net.IPNet)
 	liqonetConfig := config.Spec.LiqonetConfig
+	_, sn, err := net.ParseCIDR(config.Spec.LiqonetConfig.PodCIDR)
+	if err != nil {
+		klog.Errorf("an error occurred while parsing the podCIDR: %s", err)
+		return nil, err
+	} else {
+		reservedSubnets[sn.String()] = sn
+	}
+	_, sn, err = net.ParseCIDR(config.Spec.LiqonetConfig.ServiceCIDR)
+	if err != nil {
+		klog.Errorf("an error occurred while parsing the serviceCIDR: %s", err)
+		return nil, err
+	} else {
+		reservedSubnets[sn.String()] = sn
+	}
 	//check that the reserved subnets are in the right format
 	for _, subnet := range liqonetConfig.ReservedSubnets {
 		_, sn, err := net.ParseCIDR(subnet)

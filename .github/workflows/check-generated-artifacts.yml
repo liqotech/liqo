@@ -27,6 +27,7 @@ jobs:
         run: |
           make generate
           make manifests
+          make rbacs
 
       - name: Gather the differences
         id: git-diff

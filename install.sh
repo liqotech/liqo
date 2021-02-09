@@ -592,7 +592,7 @@ function install_liqo() {
 		fatal "[INSTALL]" "Something went wrong while installing Liqo"
 	${HELM} install liqo --kube-context "${KUBECONFIG_CONTEXT}" --namespace "${LIQO_NAMESPACE}" "${LIQO_CHART}" \
 		--set version="${LIQO_IMAGE_VERSION}" --set suffix="${LIQO_SUFFIX:-}" --set clusterName="${CLUSTER_NAME}" \
-		--set podCIDR="${POD_CIDR}" --set serviceCIDR="${SERVICE_CIDR}" --set gatewayIP="${GATEWAY_IP}" \
+		--set networkManager.config.podCIDR="${POD_CIDR}" --set networkManager.config.serviceCIDR="${SERVICE_CIDR}" \
 		--set authService.ingress.enable="${LIQO_ENABLE_INGRESS:-}" \
 		--set authService.ingress.host="${LIQO_AUTHSERVER_ADDR:-}" \
 		--set authService.ingress.class="${LIQO_INGRESS_CLASS:-}" \
@@ -707,7 +707,7 @@ function unjoin_clusters() {
 
 	# Globally disable the broadcaster
 	local CLUSTER_CONFIG_PATCH='{"spec":{"advertisementConfig":{"outgoingConfig":{"enableBroadcaster":false}}}}'
-	${KUBECTL} patch clusterconfig configuration --patch "${CLUSTER_CONFIG_PATCH}" --type 'merge' >/dev/null 2>&1
+	${KUBECTL} patch clusterconfig liqo-configuration --patch "${CLUSTER_CONFIG_PATCH}" --type 'merge' >/dev/null 2>&1
 
 	# Set join=false to all ForeignCluster resources
 	FOREIGN_CLUSTERS=$(${KUBECTL} get foreignclusters --output jsonpath="{.items[*].metadata.name}") 2>/dev/null

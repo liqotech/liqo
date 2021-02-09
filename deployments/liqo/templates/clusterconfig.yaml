@@ -1,44 +1,24 @@
+---
+{{- $config := (merge (dict "name" "configuration" "module" "configuration") .) -}}
+
 apiVersion: config.liqo.io/v1alpha1
 kind: ClusterConfig
 metadata:
-  name: configuration
+  name: {{ include "liqo.prefixedName" $config }}
   labels:
-    app: liqo.io
+    {{- include "liqo.labels" $config  | nindent 4 }}
 spec:
   advertisementConfig:
-    ingoingConfig:
-      acceptPolicy: AutoAcceptMax
-      maxAcceptableAdvertisement: 5
-    outgoingConfig:
-      resourceSharingPercentage: 30
-      enableBroadcaster: true
-    keepaliveThreshold: 3
-    keepaliveRetryTime: 20
+    {{- .Values.advertisement.config | toYaml | nindent 4 }}
+  discoveryConfig:
+    {{- .Values.discovery.config | toYaml | nindent 4 }}
+  authConfig:
+    {{- .Values.auth.config | toYaml | nindent 4 }}
+  liqonetConfig:
+    {{- .Values.networkManager.config | toYaml | nindent 4 }}
+  dispatcherConfig:
+    {{- .Values.crdReplicator.config | toYaml | nindent 4 }}
   agentConfig:
     dashboardConfig:
       namespace: {{ .Release.Namespace }}
       appLabel: "liqo-dashboard"
-  discoveryConfig:
-    clusterName: {{ .Values.clusterName }}
-    autojoin: true
-    autojoinUntrusted: true
-    domain: local.
-    enableAdvertisement: true
-    enableDiscovery: true
-    name: MyLiqo
-    port: 6443
-    service: _liqo_api._tcp
-    ttl: 90
-  authConfig:
-    allowEmptyToken: true
-  liqonetConfig:
-    podCIDR: {{ .Values.podCIDR }}
-    serviceCIDR: {{ .Values.serviceCIDR }}
-    reservedSubnets:
-    - {{ .Values.podCIDR }}
-    - {{ .Values.serviceCIDR }}
-  dispatcherConfig:
-    resourcesToReplicate:
-    - group: net.liqo.io
-      version: v1alpha1
-      resource: networkconfigs
