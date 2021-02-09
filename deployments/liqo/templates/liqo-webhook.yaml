@@ -1,19 +1,26 @@
+---
+{{- $webhookConfig := (merge (dict "name" (required ".Values.webhook.name is required" .Values.webhook.name) "module" (required ".Values.webhook.module is required" .Values.webhook.module)) .) -}}
+
 apiVersion: admissionregistration.k8s.io/v1
 kind: MutatingWebhookConfiguration
 metadata:
-  name: liqo-webhook
-  namespace: {{ .Release.Namespace }}
+  name: {{ include "liqo.prefixedName" $webhookConfig }}
   labels:
-    app: liqo-webhook
+    {{- include "liqo.labels" $webhookConfig | nindent 4 }}
+    {{- include "liqo.webhookServiceLabels" . | nindent 4 }}
+{{- if .Values.webhook.podAnnotations }}
+  annotations:
+  {{- toYaml .Values.webhook.mutatingWebhookConfiguration.annotations | nindent 8 }}
+{{- end }}
 webhooks:
-  - name: liqo-webhook.{{ .Release.Namespace }}.{{ .Values.liqoWebhook.webhookServiceName }}
+  - name: {{ include "liqo.prefixedName" $webhookConfig }}.{{ .Release.Namespace }}.{{ include "liqo.prefixedName" $webhookConfig }}
     admissionReviewVersions:
       - v1
       - v1beta1
     clientConfig:
       caBundle: eHh4Cg==
       service:
-        name: {{ .Values.liqoWebhook.webhookServiceName }}
+        name: {{ include "liqo.prefixedName" $webhookConfig }}
         namespace: {{ .Release.Namespace }}
         path: "/mutate"
         port: 443
@@ -28,4 +35,4 @@ webhooks:
     failurePolicy: Ignore
     namespaceSelector:
       matchLabels:
-        liqo.io/enabled: "true"
+        {{- toYaml .Values.webhook.mutatingWebhookConfiguration.namespaceSelector | nindent 8 }}

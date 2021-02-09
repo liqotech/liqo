@@ -1,27 +1,39 @@
+---
+{{- $webhookConfig := (merge (dict "name" (required ".Values.webhook.name is required" .Values.webhook.name) "module" (required ".Values.webhook.module is required" .Values.webhook.module)) .) -}}
+
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: liqo-webhook
-  namespace: {{ .Release.Namespace }}
+  name: {{ include "liqo.prefixedName" $webhookConfig }}
   labels:
-    app: liqo-webhook
+    {{- include "liqo.labels" $webhookConfig | nindent 4 }}
+    {{- include "liqo.webhookServiceLabels" . | nindent 4 }}
 spec:
   selector:
     matchLabels:
-      app: liqo-webhook
+      {{- include "liqo.selectorLabels" $webhookConfig | nindent 6 }}
+      {{- include "liqo.webhookServiceLabels" . | nindent 6 }}
   template:
     metadata:
       labels:
-        app: liqo-webhook
+        {{- include "liqo.labels" $webhookConfig | nindent 8 }}
+        {{- include "liqo.webhookServiceLabels" . | nindent 8 }}
+      {{- if .Values.webhook.pod.labels }}
+        {{- toYaml .Values.webhook.pod.labels | nindent 8 }}
+      {{- end }}
+      {{- if .Values.webhook.pod.annotations }}
+      annotations:
+        {{- toYaml .Values.webhook.pod.annotations | nindent 8 }}
+      {{- end }}
     spec:
-      serviceAccountName: liqo-webhook
+      serviceAccountName: {{ include "liqo.prefixedName" $webhookConfig }}
       initContainers:
         - name: webhook-configuration
-          image: {{ .Values.liqoWebhook.webhookConfiguration.image.repository }}{{ .Values.suffix }}:{{ default .Values.version }}
-          imagePullPolicy: {{ .Values.liqoWebhook.webhookConfiguration.image.pullPolicy }}
+          image: {{ .Values.webhook.init.imageName}}{{ .Values.suffix }}:{{ default .Values.version }}
+          imagePullPolicy: {{ .Values.pullPolicy }}
           args:
             - "--webhook-name"
-            - "liqo-webhook"
+            - {{ include "liqo.prefixedName" $webhookConfig }}
           env:
             - name: POD_NAME
               valueFrom:
@@ -36,15 +48,15 @@ spec:
               name: cert-volume
           resources:
             limits:
-              cpu: 1
-              memory: 100M
+              cpu: "1"
+              memory: "100M"
             requests:
-              cpu: 200m
-              memory: 100M
+              cpu: "200m"
+              memory: "100M"
       containers:
         - name: liqo-webhook
-          image: {{ .Values.liqoWebhook.webhook.image.repository }}{{ default .Values.suffix }}:{{ default .Values.version }}
-          imagePullPolicy: {{ .Values.liqoWebhook.webhook.image.pullPolicy }}
+          image: {{ .Values.webhook.imageName }}{{ default .Values.suffix }}:{{ default .Values.version }}
+          imagePullPolicy: {{ .Values.pullPolicy }}
           volumeMounts:
             - mountPath: /etc/ssl/liqo
               name: cert-volume

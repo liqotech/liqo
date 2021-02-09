@@ -93,6 +93,13 @@ run: auth-service
 {{- end }}
 
 {{/*
+Webhook pod labels
+*/}}
+{{- define "liqo.webhookServiceLabels" -}}
+webhook.liqo.io/backend: liqo-webhook
+{{- end }}
+
+{{/*
 Gateway service labels
 */}}
 {{- define "liqo.gatewayServiceLabels" -}}

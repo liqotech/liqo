@@ -29,6 +29,7 @@ spec:
       {{- if not .Values.auth.ingress.enable }}
       initContainers:
         - name: cert-creator
+          imagePullPolicy: {{ .Values.pullPolicy }}
           image: nginx:1.19
           volumeMounts:
             - mountPath: '/certs'
