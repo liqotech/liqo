@@ -91,7 +91,6 @@ discovery:
     service: _liqo_api._tcp
     ttl: 90
 
-
 auth:
   name: "auth"
   module: "discovery"
@@ -111,6 +110,27 @@ auth:
     class: ""
   config:
     allowEmptyToken: true
+
+webhook:
+  name: "webhook"
+  module: "webhook"
+  pod:
+    annotations:
+      testAnnotationKey: "testAnnotationValue"
+    labels:
+      testLabelKey: "testAnnotationValue"
+  imageName: "liqo/liqo-webhook"
+  init:
+    imageName: "liqo/webhook-configuration"
+  service:
+    type: "ClusterIP"
+    annotations:
+      testAnnotationKey: "testAnnotationValue"
+  mutatingWebhookConfiguration:
+    annotations:
+      testAnnotationKey: "testAnnotationValue"
+    namespaceSelector:
+      liqo.io/enabled: "true"
 
 #configuration values for the adv subchart
 advertisementOperator:
@@ -148,20 +168,6 @@ schedulingNodeOperator:
   image:
     repository: "liqo/scheduling-node-operator"
     pullPolicy: "IfNotPresent"
-  enabled: true
-
-#configuration values for the mutatingWebhook subchart
-liqoWebhook:
-  webhook:
-    image:
-      repository: "liqo/liqo-webhook"
-      pullPolicy: "IfNotPresent"
-  webhookConfiguration:
-    image:
-      repository: "liqo/webhook-configuration"
-      pullPolicy: "IfNotPresent"
-  webhookServiceName: "liqo-webhook"
-  certSecretName: "liqo-webhook-cert"
   enabled: true
 
 discoveryOperator:

@@ -1,17 +1,19 @@
+---
+{{- $webhookConfig := (merge (dict "name" (required ".Values.webhook.name is required" .Values.webhook.name) "module" (required ".Values.webhook.module is required" .Values.webhook.module)) .) -}}
+
 apiVersion: v1
 kind: ServiceAccount
 metadata:
-  name: liqo-webhook
+  name: {{ include "liqo.prefixedName" $webhookConfig }}
   labels:
-    app: liqo-webhook
+    {{- include "liqo.labels" $webhookConfig | nindent 4 }}
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
-  creationTimestamp: null
-  name: liqo-webhook
+  name: {{ include "liqo.prefixedName" $webhookConfig }}
   labels:
-    app: liqo-webhook
+    {{- include "liqo.labels" $webhookConfig | nindent 4 }}
 rules:
   - apiGroups:
       - ""
@@ -47,14 +49,14 @@ rules:
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
 metadata:
-  name: liqo-webhook
+  name: {{ include "liqo.prefixedName" $webhookConfig }}
   labels:
-    app: liqo-webhook
+    {{- include "liqo.labels" $webhookConfig | nindent 4 }}
 subjects:
   - kind: ServiceAccount
-    name: liqo-webhook
-    namespace: liqo
+    name: {{ include "liqo.prefixedName" $webhookConfig }}
+    namespace: {{ .Release.Namespace }}
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
-  name: liqo-webhook
+  name: {{ include "liqo.prefixedName" $webhookConfig }}

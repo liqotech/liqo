@@ -1,12 +1,22 @@
+---
+{{- $webhookConfig := (merge (dict "name" (required ".Values.webhook.name is required" .Values.webhook.name) "module" (required ".Values.webhook.module is required" .Values.webhook.module)) .) -}}
+
 apiVersion: v1
 kind: Service
 metadata:
-  name: {{ .Values.liqoWebhook.webhookServiceName }}
+  name: {{ include "liqo.prefixedName" $webhookConfig }}
   labels:
-    app: liqo-webhook
+    {{- include "liqo.labels" $webhookConfig | nindent 4 }}
+    {{- include "liqo.webhookServiceLabels" . | nindent 4 }}
+  {{- if .Values.webhook.service.annotations }}
+  annotations:
+    {{- toYaml .Values.webhook.service.annotations | nindent 4 }}
+  {{- end }}
 spec:
   selector:
-    app: liqo-webhook
+    {{- include "liqo.selectorLabels" $webhookConfig | nindent 4 }}
+    {{- include "liqo.webhookServiceLabels" . | nindent 4 }}
+  type: {{ .Values.webhook.service.type }}
   ports:
     - port: 443
       targetPort: 8443
