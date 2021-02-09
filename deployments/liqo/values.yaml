@@ -6,9 +6,6 @@
 suffix: ""
 version: "latest"
 pullPolicy: "IfNotPresent"
-podCIDR: ""
-serviceCIDR: ""
-configmapName: "liqo-configmap"
 apiServer:
   ip: ""
   port: ""
@@ -25,6 +22,15 @@ advertisement:
   podAnnotations: {}
   podLabels: {}
   imageName: ""
+  config:
+    ingoingConfig:
+      acceptPolicy: AutoAcceptMax
+      maxAcceptableAdvertisement: 5
+    outgoingConfig:
+      resourceSharingPercentage: 30
+      enableBroadcaster: true
+    keepaliveThreshold: 3
+    keepaliveRetryTime: 20
 
 route:
   name: "route"
@@ -39,8 +45,52 @@ gateway:
   podAnnotations: {}
   podLabels: {}
   imageName: ""
-  serviceAnnotations: {}
-  serviceType: "NodePort"
+  service:
+    type: "NodePort"
+    annotations: {}
+
+networkManager:
+  name: "network-manager"
+  module: "networking"
+  podAnnotations: {}
+  podLabels: {}
+  imageName: ""
+  config:
+    podCIDR: "10.244.0.0/16"
+    serviceCIDR: "10.0.0.0/16"
+    reservedSubnets: []
+
+crdReplicator:
+  name: "crd-replicator"
+  module: "replicating"
+  podAnnotations: {}
+  podLabels: {}
+  image:
+    repository: "liqo/crd-replicator"
+    pullPolicy: "IfNotPresent"
+  config:
+    resourcesToReplicate:
+      - group: net.liqo.io
+        version: v1alpha1
+        resource: networkconfigs
+
+discovery:
+  name: "discovery"
+  module: "discovery"
+  podAnnotations: {}
+  podLabels: {}
+  config:
+    clusterName: "test"
+    autojoin: true
+    autojoinUntrusted: true
+    domain: local.
+    enableAdvertisement: true
+    enableDiscovery: true
+    name: MyLiqo
+    port: 6443
+    service: _liqo_api._tcp
+    ttl: 90
+
 
 auth:
   name: "auth"
@@ -127,12 +177,6 @@ peeringRequestOperator:
     image:
       repository: "liqo/peering-request-operator"
       pullPolicy: "IfNotPresent"
-  enabled: true
-
-crdReplicator:
-  image:
-    repository: "liqo/crd-replicator"
-    pullPolicy: "IfNotPresent"
   enabled: true
 
 authService:

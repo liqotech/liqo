@@ -47,11 +47,9 @@ Create version used to select the liqo version to be installed .
 Common labels
 */}}
 {{- define "liqo.labels" -}}
-helm.sh/chart: {{ include "liqo.chart" . }}
 {{ include "liqo.selectorLabels" . }}
-{{- if .Chart.AppVersion }}
-app.kubernetes.io/version: {{ .Chart.AppVersion | quote }}
-{{- end }}
+helm.sh/chart: {{ include "liqo.chart" . }}
+app.kubernetes.io/version: {{ include "liqo.version" . }}
 app.kubernetes.io/managed-by: {{ .Release.Service }}
 {{- end }}
 
