@@ -63,8 +63,9 @@ networkManager:
 crdReplicator:
   name: "crd-replicator"
   module: "replicating"
-  podAnnotations: {}
-  podLabels: {}
+  pod:
+    annotations: {}
+    labels: {}
   image:
     repository: "liqo/crd-replicator"
     pullPolicy: "IfNotPresent"

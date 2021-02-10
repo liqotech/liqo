@@ -29,9 +29,6 @@ import (
 	"time"
 )
 
-// +kubebuilder:rbac:groups=discovery.liqo.io,resources=foreignclusters,verbs=get;list;watch;create;update;patch;delete
-// +kubebuilder:rbac:groups=discovery.liqo.io,resources=foreignclusters/status,verbs=get;update;patch
-
 var (
 	ResyncPeriod = 30 * time.Second
 	result       = ctrl.Result{
@@ -62,6 +59,14 @@ type Controller struct {
 	LocalWatchers                  map[string]chan struct{}                                //we save all the running watchers monitoring the local resources:(registeredResource, chan))
 	RemoteWatchers                 map[string]map[string]chan struct{}                     //for each peering cluster we save all the running watchers monitoring the replicated resources:(clusterID, (registeredResource, chan))
 }
+
+// +kubebuilder:rbac:groups=discovery.liqo.io,resources=foreignclusters,verbs=get;list;watch;update
+// +kubebuilder:rbac:groups=discovery.liqo.io,resources=foreignclusters/status,verbs=get
+// +kubebuilder:rbac:groups=core,resources=secrets,verbs=get;list
+// +kubebuilder:rbac:groups=core,resources=configmaps,verbs=get;list
+// +kubebuilder:rbac:groups=net.liqo.io,resources=networkconfigs,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=net.liqo.io,resources=networkconfigs/status,verbs=get;update;patch
+// +kubebuilder:rbac:groups=config.liqo.io,resources=clusterconfigs,verbs=get;list;watch
 
 func (c *Controller) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 	var fc v1alpha1.ForeignCluster
