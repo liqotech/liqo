@@ -1,0 +1,66 @@
+---
+{{- $peeringRequest := (merge (dict "name" (required ".Values.peeringRequest.name is required" .Values.peeringRequest.name) "module" (required ".Values.peeringRequest.module is required" .Values.peeringRequest.module)) .) -}}
+
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: {{ include "liqo.prefixedName" $peeringRequest }}
+  labels:
+    {{- include "liqo.labels" $peeringRequest | nindent 4 }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: {{ include "liqo.prefixedName" $peeringRequest }}
+{{ .Files.Get (include "liqo.rbac-filename" (dict "prefix" ( include "liqo.prefixedName" $peeringRequest))) }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: {{ include "liqo.prefixedName" $peeringRequest }}
+rules:
+  - apiGroups:
+      - ""
+    resources:
+      - configmaps
+    verbs:
+      - get
+      - list
+      - watch
+      - create
+      - update
+  - apiGroups:
+      - ""
+    resources:
+      - secrets
+    verbs:
+      - get
+      - patch
+      - create
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: {{ include "liqo.prefixedName" $peeringRequest }}
+subjects:
+  - kind: ServiceAccount
+    name: {{ include "liqo.prefixedName" $peeringRequest }}
+    namespace: {{ .Release.Namespace }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: {{ include "liqo.prefixedName" $peeringRequest }}
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: {{ include "liqo.prefixedName" $peeringRequest }}
+subjects:
+  - kind: ServiceAccount
+    name: {{ include "liqo.prefixedName" $peeringRequest }}
+    namespace: {{ .Release.Namespace }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: {{ include "liqo.prefixedName" $peeringRequest }}

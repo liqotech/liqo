@@ -22,6 +22,7 @@ advertisement:
   podAnnotations: {}
   podLabels: {}
   imageName: ""
+  broadcasterImageName: "liqo/advertisement-broadcaster"
   config:
     ingoingConfig:
       acceptPolicy: AutoAcceptMax
@@ -129,9 +130,19 @@ webhook:
       testAnnotationKey: "testAnnotationValue"
   mutatingWebhookConfiguration:
     annotations:
-      testAnnotationKey: "testAnnotationValue"
+      testAnnotationKey: "testLabelValue"
     namespaceSelector:
       liqo.io/enabled: "true"
+
+peeringRequest:
+  name: "peering-request"
+  module: "discovery"
+  pod:
+    annotations:
+      testAnnotationKey: "testAnnotationValue"
+    labels:
+      testLabelKey: "testLabelValue"
+  imageName:  "liqo/peering-request-operator"
 
 #configuration values for the adv subchart
 advertisementOperator:
@@ -177,13 +188,6 @@ discoveryOperator:
     pullPolicy: "IfNotPresent"
   apiServerIp: ""
   apiServerPort: ""
-  enabled: true
-
-peeringRequestOperator:
-  operator:
-    image:
-      repository: "liqo/peering-request-operator"
-      pullPolicy: "IfNotPresent"
   enabled: true
 
 authService:
