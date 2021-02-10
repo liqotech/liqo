@@ -1,116 +1,32 @@
+---
+{{- $netManagerConfig := (merge (dict "name" (required ".Values.networkManager.name" .Values.networkManager.name) "module" (required ".Values.networkManager.name is required" .Values.networkManager.module)) .) -}}
+
 apiVersion: v1
 kind: ServiceAccount
 metadata:
-  name: tunnelendpointcreator-operator-service-account
----
-apiVersion: rbac.authorization.k8s.io/v1
-kind: ClusterRole
-metadata:
-  creationTimestamp: null
-  name: tunnelendpointcreator-manager-role
-rules:
-  - apiGroups:
-    - ""
-    resources:
-    - nodes
-    - secrets
-    - pods
-    - services
-    verbs:
-    - create
-    - delete
-    - get
-    - list
-    - patch
-    - update
-    - watch
-
-  - apiGroups:
-    - net.liqo.io
-    resources:
-    - tunnelendpoints
-    verbs:
-    - create
-    - delete
-    - get
-    - list
-    - patch
-    - update
-    - watch
-  - apiGroups:
-    - net.liqo.io
-    resources:
-    - tunnelendpoints/status
-    verbs:
-    - get
-    - patch
-    - update
-
-  - apiGroups:
-      - discovery.liqo.io
-    resources:
-      - foreignclusters
-    verbs:
-      - create
-      - delete
-      - get
-      - list
-      - patch
-      - update
-      - watch
-  - apiGroups:
-      - discovery.liqo.io
-    resources:
-      - peeringrequests/status
-    verbs:
-      - get
-      - patch
-      - update
-
-  - apiGroups:
-      - config.liqo.io
-    resources:
-      - clusterconfigs
-    verbs:
-      - create
-      - delete
-      - get
-      - list
-      - patch
-      - update
-      - watch
-
-  - apiGroups:
-      - net.liqo.io
-    resources:
-      - networkconfigs
-    verbs:
-      - create
-      - delete
-      - get
-      - list
-      - patch
-      - update
-      - watch
-  - apiGroups:
-      - net.liqo.io
-    resources:
-      - networkconfigs/status
-    verbs:
-      - get
-      - patch
-      - update
+  name: {{ include "liqo.prefixedName" $netManagerConfig }}
+  labels:
+  {{- include "liqo.labels" $netManagerConfig | nindent 4 }}
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
 metadata:
-  name: tunnelendpointcreator-manager-rolebinding
+  name: {{ include "liqo.prefixedName" $netManagerConfig }}
+  labels:
+  {{- include "liqo.labels" $netManagerConfig | nindent 4 }}
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
-  name: tunnelendpointcreator-manager-role
+  name: {{ include "liqo.prefixedName" $netManagerConfig }}
 subjects:
   - kind: ServiceAccount
-    name: tunnelendpointcreator-operator-service-account
+    name: {{ include "liqo.prefixedName" $netManagerConfig }}
     namespace: {{ .Release.Namespace }}
 ---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: {{ include "liqo.prefixedName" $netManagerConfig }}
+  labels:
+  {{- include "liqo.labels" $netManagerConfig | nindent 4 }}
+{{ .Files.Get (include "liqo.rbac-filename" (dict "prefix" ( include "liqo.prefixedName" $netManagerConfig))) }}

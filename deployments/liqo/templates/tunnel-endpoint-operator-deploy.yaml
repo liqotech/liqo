@@ -1,48 +1,36 @@
 ---
+{{- $netManagerConfig := (merge (dict "name" (required ".Values.networkManager.name" .Values.networkManager.name) "module" (required ".Values.networkManager.name is required" .Values.networkManager.module)) .) -}}
+
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  creationTimestamp: null
+  name: {{ include "liqo.prefixedName" $netManagerConfig }}
   labels:
-    run: tunnelendpointcreator-operator
-  name: tunnelendpointcreator-operator
+  {{- include "liqo.labels" $netManagerConfig | nindent 4 }}
 spec:
-  replicas: 1
   selector:
     matchLabels:
-      run: tunnelendpointcreator-operator
-  strategy: {}
+      {{- include "liqo.selectorLabels" $netManagerConfig | nindent 6 }}
   template:
     metadata:
-      creationTimestamp: null
+    {{- if .Values.gateway.podAnnotations }}
+      annotations:
+        {{- toYaml .Values.gateway.podAnnotations | nindent 8 }}
+    {{- end }}
       labels:
-        run: tunnelendpointcreator-operator
+        {{- include "liqo.labels" $netManagerConfig | nindent 8 }}
+        {{- if .Values.gateway.podLabels }}
+          {{- toYaml .Values.gateway.podLabels | nindent 8 }}
+        {{- end }}
     spec:
-      serviceAccountName: tunnelendpointcreator-operator-service-account
-      affinity:
-        nodeAffinity:
-          requiredDuringSchedulingIgnoredDuringExecution:
-            nodeSelectorTerms:
-              - matchExpressions:
-                  - key: type
-                    operator: NotIn
-                    values:
-                      - virtual-node
+      serviceAccountName: {{ include "liqo.prefixedName" $netManagerConfig }}
       containers:
         - image: {{ .Values.networkModule.tunnelEndpointOperator.image.repository }}{{ default .Values.suffix }}:{{ default .Values.version }}
           imagePullPolicy: {{ .Values.pullPolicy }}
           name: tunnelendpointcreator-operator
-          securityContext:
-            privileged: true
-            capabilities:
-              add:
-                - NET_ADMIN
           command: ["/usr/bin/liqonet"]
           args:
             - "-run-as=tunnelEndpointCreator-operator"
-          volumeMounts:
-          - mountPath: /dev/net/tun
-            name: dev-net-tun
           resources:
             limits:
               cpu: 20m
@@ -50,8 +38,3 @@ spec:
             requests:
               cpu: 20m
               memory: 50M
-      restartPolicy: Always
-      volumes:
-      - name: dev-net-tun
-        hostPath:
-          path: /dev/net/tun
