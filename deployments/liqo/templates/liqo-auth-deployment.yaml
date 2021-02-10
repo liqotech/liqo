@@ -63,7 +63,7 @@ spec:
             - name: APISERVER
               value: "{{ .Values.apiServer.ip }}"
             {{- end }}
-            {{- if .Values.apiServer.port }}
+            {{- if .Values.apiServer.port  }}
             - name: APISERVER_PORT
               value: "{{ .Values.apiServer.port }}"
             {{- end }}

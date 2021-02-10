@@ -64,7 +64,9 @@ type AdvertisementReconciler struct {
 
 // +kubebuilder:rbac:groups=sharing.liqo.io,resources=advertisements,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=sharing.liqo.io,resources=advertisements/status,verbs=get;update;patch
+
 // +kubebuilder:rbac:groups=discovery.liqo.io,resources=foreignclusters,verbs=get;list;watch;update;patch
+
 // +kubebuilder:rbac:groups=discovery.liqo.io,resources=foreignclusters/status,verbs=get;update;patch
 // +kubebuilder:rbac:groups=config.liqo.io,resources=clusterconfigs,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=config.liqo.io,resources=clusterconfigs/status,verbs=get;update;patch
