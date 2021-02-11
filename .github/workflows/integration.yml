@@ -154,18 +154,36 @@ jobs:
           repository: ${{ github.repository }}
 
       - name: Generate the CHANGELOG
-        uses: RiskLedger/generate-changelog@v1.2
+        uses: heinrichreimer/github-changelog-generator-action@v2.2
         id: changelog
         with:
-          from: ${{ steps.last-release.outputs.release }}
-          to: ${{ needs.configure.outputs.commit_ref }}
-        env:
-          GITHUB_AUTH: ${{ secrets.CI_TOKEN }}
-
-      - name: Save the CHANGELOG as a file
-        run: |
-          echo "${{ steps.changelog.outputs.changelog }}" > ./CHANGELOG.md
-          sed -i "1s/.*/## Changes since ${{ needs.configure.outputs.commit_ref }}/" ./CHANGELOG.md
+          token: ${{ secrets.GITHUB_TOKEN }}
+          # Changelog will start from this tag.
+          sinceTag: ${{ steps.last-release.outputs.release }}
+          # Include pull-requests in changelog.
+          pullRequests: true
+          # Include pull requests without labels in changelog.
+          prWoLabels: true
+          # Add author of pull request at the end.
+          author: true
+          # Use GitHub tags instead of Markdown links for the author of an issue or pull-request.
+          usernamesAsGithubLogins: true
+          # Do not include compare link (Full Changelog) between older version and newer version.
+          compareLink: false
+          # Issues with the specified labels will be excluded from changelog.
+          excludeLabels: kind/no-changelog
+          # Define your own set of sections which overrides all default sections.
+          configureSections: '{
+              "breaking": {"labels": ["kind/breaking"], "prefix": "### :boom: Breaking Change"},
+              "feature": {"labels": ["kind/feature","kind/epic"], "prefix": "### :rocket: New Features"},
+              "bug": {"labels": ["kind/bug"], "prefix": "### :bug: Bug Fixes"},
+              "cleanup": {"labels": ["kind/cleanup"], "prefix": "### :broom: Code Refactoring"},
+              "docs": {"labels": ["kind/docs"], "prefix": "### :memo: Documentation"}
+            }'
+          # Do not include issues in the changelog
+          issues: false
+          # Run verbosely
+          verbose: true
 
       - name: Create release
         id: create_release
