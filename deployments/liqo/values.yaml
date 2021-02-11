@@ -79,8 +79,9 @@ crdReplicator:
 discovery:
   name: "discovery"
   module: "discovery"
-  podAnnotations: {}
-  podLabels: {}
+  pod:
+    annotations: {}
+    labels: {}
   config:
     clusterName: "test"
     autojoin: true

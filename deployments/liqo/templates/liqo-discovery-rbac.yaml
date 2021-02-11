@@ -1,0 +1,57 @@
+---
+{{- $discoveryConfig := (merge (dict "name" (required ".Values.discovery.name is required" .Values.discovery.name) "module" (required ".Values.discovery.module is required" .Values.discovery.module)) .) -}}
+
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: {{ include "liqo.prefixedName" $discoveryConfig}}
+  labels:
+  {{- include "liqo.labels" $discoveryConfig| nindent 4 }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: {{ include "liqo.prefixedName" $discoveryConfig}}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "liqo.labels" $discoveryConfig| nindent 4 }}
+subjects:
+  - kind: ServiceAccount
+    name: {{ include "liqo.prefixedName" $discoveryConfig}}
+    namespace: {{ .Release.Namespace }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: {{ include "liqo.prefixedName" $discoveryConfig}}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: {{ include "liqo.prefixedName" $discoveryConfig}}
+  labels:
+  {{- include "liqo.labels" $discoveryConfig| nindent 4 }}
+subjects:
+  - kind: ServiceAccount
+    name: {{ include "liqo.prefixedName" $discoveryConfig}}
+    namespace: {{ .Release.Namespace }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: {{ include "liqo.prefixedName" $discoveryConfig}}
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: {{ include "liqo.prefixedName" $discoveryConfig}}
+  labels:
+  {{- include "liqo.labels" $discoveryConfig| nindent 4 }}
+{{ .Files.Get ("files/liqo-discovery-ClusterRole.yaml") }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: {{ include "liqo.prefixedName" $discoveryConfig}}
+  labels:
+  {{- include "liqo.labels" $discoveryConfig| nindent 4 }}
+{{ .Files.Get ("files/liqo-discovery-Role.yaml") }}
