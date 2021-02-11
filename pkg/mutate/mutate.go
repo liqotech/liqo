@@ -9,6 +9,11 @@ import (
 	"k8s.io/klog"
 )
 
+//cluster-role
+// +kubebuilder:rbac:groups=admissionregistration.k8s.io,resources=mutatingwebhookconfigurations,verbs=get;list;update;patch
+//role
+// +kubebuilder:rbac:groups=core,namespace="do-not-care",resources=secrets,verbs=create;get;list;watch
+
 // Mutate mutates the object received via admReview and creates a response
 // that embeds a patch to the received pod
 func (s *MutationServer) Mutate(body []byte) ([]byte, error) {

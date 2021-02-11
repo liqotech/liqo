@@ -1,0 +1,42 @@
+rules:
+- apiGroups:
+  - config.liqo.io
+  resources:
+  - clusterconfigs
+  verbs:
+  - create
+  - get
+  - list
+  - watch
+- apiGroups:
+  - ""
+  resources:
+  - nodes
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - discovery.liqo.io
+  resources:
+  - peeringrequests
+  verbs:
+  - create
+  - delete
+  - get
+  - update
+- apiGroups:
+  - rbac.authorization.k8s.io
+  resources:
+  - clusterrolebindings
+  verbs:
+  - create
+  - delete
+- apiGroups:
+  - rbac.authorization.k8s.io
+  resources:
+  - clusterroles
+  verbs:
+  - create
+  - delete
+

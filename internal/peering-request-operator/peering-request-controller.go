@@ -53,6 +53,9 @@ type PeeringRequestReconciler struct {
 // +kubebuilder:rbac:groups=discovery.liqo.io,resources=foreignclusters,verbs=list;update;create
 // +kubebuilder:rbac:groups=certificates.k8s.io,resources=certificatesigningrequests,verbs=get;list;watch;create;update;create;patch
 // +kubebuilder:rbac:groups=apps,resources=deployments,verbs=get;list;watch;create;update;create;patch
+//role
+// +kubebuilder:rbac:groups=core,namespace="liqo",resources=configmaps,verbs=get;list;watch;create;update
+// +kubebuilder:rbac:groups=core,namespace="liqo",resources=secrets,verbs=get;patch;create
 
 func (r *PeeringRequestReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 	_ = context.Background()

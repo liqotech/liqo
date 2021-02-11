@@ -82,12 +82,18 @@ Create a name prefixed with the chart name, it accepts a dict which contains the
 {{- end }}
 
 {{/*
-Create the file name of an rbac starting from a prefix, it accepts a dict which contains the field "prefix".
+Create the file name of a role starting from a prefix, it accepts a dict which contains the field "prefix".
 */}}
-{{- define "liqo.rbac-filename" -}}
-{{- printf "files/%s-%s" .prefix "rbac.yaml" }}
+{{- define "liqo.role-filename" -}}
+{{- printf "files/%s-%s" .prefix "Role.yaml" }}
 {{- end }}
 
+{{/*
+Create the file name of a cluster role starting from a prefix, it accepts a dict which contains the field "prefix".
+*/}}
+{{- define "liqo.cluster-role-filename" -}}
+{{- printf "files/%s-%s" .prefix "ClusterRole.yaml" }}
+{{- end }}
 
 {{/*
 Gateway pod labels

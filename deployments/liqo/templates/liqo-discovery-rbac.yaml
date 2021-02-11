@@ -38,7 +38,6 @@ roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
   name: {{ include "liqo.prefixedName" $discoveryConfig}}
-
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
@@ -46,7 +45,7 @@ metadata:
   name: {{ include "liqo.prefixedName" $discoveryConfig}}
   labels:
   {{- include "liqo.labels" $discoveryConfig| nindent 4 }}
-{{ .Files.Get ("files/liqo-discovery-ClusterRole.yaml") }}
+{{ .Files.Get (include "liqo.cluster-role-filename" (dict "prefix" ( include "liqo.prefixedName" $discoveryConfig))) }}
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
@@ -54,4 +53,4 @@ metadata:
   name: {{ include "liqo.prefixedName" $discoveryConfig}}
   labels:
   {{- include "liqo.labels" $discoveryConfig| nindent 4 }}
-{{ .Files.Get ("files/liqo-discovery-Role.yaml") }}
+{{ .Files.Get (include "liqo.role-filename" (dict "prefix" ( include "liqo.prefixedName" $discoveryConfig))) }}

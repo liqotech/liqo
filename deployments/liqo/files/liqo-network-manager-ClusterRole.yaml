@@ -4,30 +4,43 @@ rules:
   resources:
   - clusterconfigs
   verbs:
+  - create
+  - delete
   - get
   - list
+  - patch
+  - update
   - watch
 - apiGroups:
   - ""
   resources:
-  - configmaps
+  - events
   verbs:
+  - create
+  - delete
   - get
   - list
+  - patch
+  - update
+  - watch
 - apiGroups:
   - ""
   resources:
-  - secrets
+  - nodes
   verbs:
   - get
   - list
+  - watch
 - apiGroups:
   - discovery.liqo.io
   resources:
   - foreignclusters
   verbs:
+  - create
+  - delete
   - get
   - list
+  - patch
   - update
   - watch
 - apiGroups:
@@ -36,6 +49,8 @@ rules:
   - foreignclusters/status
   verbs:
   - get
+  - patch
+  - update
 - apiGroups:
   - net.liqo.io
   resources:
@@ -56,3 +71,24 @@ rules:
   - get
   - patch
   - update
+- apiGroups:
+  - net.liqo.io
+  resources:
+  - tunnelendpoints
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - net.liqo.io
+  resources:
+  - tunnelendpoints/status
+  verbs:
+  - get
+  - patch
+  - update
+

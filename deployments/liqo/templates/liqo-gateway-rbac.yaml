@@ -15,7 +15,6 @@ metadata:
   name: {{ include "liqo.prefixedName" $gatewayConfig }}
   labels:
     {{- include "liqo.labels" $gatewayConfig | nindent 4 }}
-
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
@@ -31,4 +30,27 @@ metadata:
   name: {{ include "liqo.prefixedName" $gatewayConfig }}
   labels:
     {{- include "liqo.labels" $gatewayConfig | nindent 4 }}
-{{ .Files.Get (include "liqo.rbac-filename" (dict "prefix" ( include "liqo.prefixedName" $gatewayConfig))) }}
+{{ .Files.Get (include "liqo.cluster-role-filename" (dict "prefix" ( include "liqo.prefixedName" $gatewayConfig))) }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: {{ include "liqo.prefixedName" $gatewayConfig }}
+  labels:
+  {{- include "liqo.labels" $gatewayConfig | nindent 4 }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: {{ include "liqo.prefixedName" $gatewayConfig }}
+subjects:
+  - kind: ServiceAccount
+    name: {{ include "liqo.prefixedName" $gatewayConfig }}
+    namespace: {{ .Release.Namespace }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: {{ include "liqo.prefixedName" $gatewayConfig }}
+  labels:
+  {{- include "liqo.labels" $gatewayConfig | nindent 4 }}
+{{ .Files.Get (include "liqo.role-filename" (dict "prefix" ( include "liqo.prefixedName" $gatewayConfig))) }}
