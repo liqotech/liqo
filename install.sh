@@ -593,9 +593,9 @@ function install_liqo() {
 	${HELM} install liqo --kube-context "${KUBECONFIG_CONTEXT}" --namespace "${LIQO_NAMESPACE}" "${LIQO_CHART}" \
 		--set version="${LIQO_IMAGE_VERSION}" --set suffix="${LIQO_SUFFIX:-}" --set clusterName="${CLUSTER_NAME}" \
 		--set networkManager.config.podCIDR="${POD_CIDR}" --set networkManager.config.serviceCIDR="${SERVICE_CIDR}" \
-		--set authService.ingress.enable="${LIQO_ENABLE_INGRESS:-}" \
-		--set authService.ingress.host="${LIQO_AUTHSERVER_ADDR:-}" \
-		--set authService.ingress.class="${LIQO_INGRESS_CLASS:-}" \
+		--set auth.ingress.enable="${LIQO_ENABLE_INGRESS:-}" \
+		--set auth.ingress.host="${LIQO_AUTHSERVER_ADDR:-}" \
+		--set auth.ingress.class="${LIQO_INGRESS_CLASS:-}" \
 		--set apiServer.ip="${LIQO_APISERVER_ADDR:-}" \
 		--set apiServer.port="${LIQO_APISERVER_PORT:-}" \
 		--set authServer.ip="${LIQO_AUTHSERVER_ADDR:-}" \
