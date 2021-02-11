@@ -591,7 +591,7 @@ function install_liqo() {
 	${HELM} dependency update "${LIQO_CHART}" >/dev/null ||
 		fatal "[INSTALL]" "Something went wrong while installing Liqo"
 	${HELM} install liqo --kube-context "${KUBECONFIG_CONTEXT}" --namespace "${LIQO_NAMESPACE}" "${LIQO_CHART}" \
-		--set version="${LIQO_IMAGE_VERSION}" --set suffix="${LIQO_SUFFIX:-}" --set clusterName="${CLUSTER_NAME}" \
+		--set tag="${LIQO_IMAGE_VERSION}" --set suffix="${LIQO_SUFFIX:-}" --set clusterName="${CLUSTER_NAME}" \
 		--set networkManager.config.podCIDR="${POD_CIDR}" --set networkManager.config.serviceCIDR="${SERVICE_CIDR}" \
 		--set auth.ingress.enable="${LIQO_ENABLE_INGRESS:-}" \
 		--set auth.ingress.host="${LIQO_AUTHSERVER_ADDR:-}" \

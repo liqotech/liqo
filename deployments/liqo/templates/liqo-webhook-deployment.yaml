@@ -28,8 +28,8 @@ spec:
     spec:
       serviceAccountName: {{ include "liqo.prefixedName" $webhookConfig }}
       initContainers:
-        - name: webhook-configuration
-          image: {{ .Values.webhook.init.imageName}}{{ .Values.suffix }}:{{ default .Values.version }}
+        - name: {{ .Values.webhook.initContainer.name }}
+          image: {{ .Values.webhook.initContainer.imageName}}{{ include "liqo.suffix" $webhookConfig }}:{{ include "liqo.version" $webhookConfig }}
           imagePullPolicy: {{ .Values.pullPolicy }}
           args:
             - "--webhook-name"
@@ -54,8 +54,8 @@ spec:
               cpu: "200m"
               memory: "100M"
       containers:
-        - name: liqo-webhook
-          image: {{ .Values.webhook.imageName }}{{ default .Values.suffix }}:{{ default .Values.version }}
+        - name: {{ .Values.webhook.name }}
+          image: {{ .Values.webhook.imageName }}{{ include "liqo.suffix" $webhookConfig }}:{{ include "liqo.version" $webhookConfig }}
           imagePullPolicy: {{ .Values.pullPolicy }}
           volumeMounts:
             - mountPath: /etc/ssl/liqo

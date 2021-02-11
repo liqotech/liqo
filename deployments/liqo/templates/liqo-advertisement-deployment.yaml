@@ -14,21 +14,21 @@ spec:
       {{- include "liqo.selectorLabels" $advertisementConfig | nindent 6 }}
   template:
     metadata:
-    {{- if .Values.advertisement.podAnnotations }}
+    {{- if .Values.advertisement.pod.annotations }}
       annotations:
-      {{- toYaml .Values.advertisement.podAnnotations | nindent 8 }}
+      {{- toYaml .Values.advertisement.pod.annotations | nindent 8 }}
     {{- end }}
       labels:
         {{- include "liqo.labels" $advertisementConfig | nindent 8 }}
-        {{- if .Values.advertisement.podLabels }}
-          {{- toYaml .Values.advertisement.podLabels | nindent 8 }}
-        {{- end }}
+      {{- if .Values.advertisement.pod.labels }}
+        {{- toYaml .Values.advertisement.pod.labels | nindent 8 }}
+      {{- end }}
     spec:
       serviceAccountName: {{ include "liqo.prefixedName" $advertisementConfig }}
       containers:
-      - image: {{ .Values.advController.image.repository }}{{ default .Values.suffix }}:{{ default .Values.version }}
+      - image: {{ .Values.advertisement.imageName }}{{ include "liqo.suffix" $advertisementConfig }}:{{ include "liqo.version" $advertisementConfig }}
         imagePullPolicy: {{ .Values.pullPolicy }}
-        name: advertisement-operator
+        name: {{ .Values.advertisement.name }}
         command: ["/usr/bin/advertisement-operator"]
         args:
           - "--cluster-id"
@@ -36,9 +36,9 @@ spec:
           - "--kubelet-namespace"
           - "$(POD_NAMESPACE)"
           - "--kubelet-image"
-          - {{ .Values.virtualKubelet.image.repository }}{{ default .Values.suffix }}:{{ default .Values.version }}
+          - {{ .Values.virtualKubelet.imageName }}{{ include "liqo.suffix" $advertisementConfig }}:{{ include "liqo.version" $advertisementConfig }}
           - "--init-kubelet-image"
-          - {{ .Values.initVk.image.repository }}{{ default .Values.suffix }}:{{ default .Values.version }}
+          - {{ .Values.virtualKubelet.initContainer.imageName }}{{ include "liqo.suffix" $advertisementConfig }}:{{ include "liqo.version" $advertisementConfig }}
         env:
           - name: CLUSTER_ID
             valueFrom:

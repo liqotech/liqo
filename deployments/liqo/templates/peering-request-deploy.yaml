@@ -25,14 +25,14 @@ spec:
     spec:
       serviceAccountName: {{ include "liqo.prefixedName" $peeringRequest }}
       containers:
-        - image: {{ .Values.peeringRequest.imageName }}{{ default .Values.suffix }}:{{ default .Values.version }}
-          name: peering-request-operator
+        - image: {{ .Values.peeringRequest.imageName }}{{ include "liqo.suffix" $peeringRequest }}:{{ include "liqo.version" $peeringRequest }}
+          name: {{ .Values.peeringRequest.name }}
           imagePullPolicy: {{ .Values.pullPolicy }}
           ports:
             - containerPort: 8443
           args:
             - "--broadcaster-image"
-            - {{ .Values.advertisement.broadcasterImageName }}{{ default .Values.suffix }}:{{ default .Values.version }}
+            - {{ .Values.advertisement.broadcasterImageName }}{{ include "liqo.suffix" $peeringRequest }}:{{ include "liqo.version" $peeringRequest }}
           env:
             - name: POD_NAMESPACE
               valueFrom:

@@ -26,9 +26,9 @@ spec:
     spec:
       serviceAccountName: {{ include "liqo.prefixedName" $crdReplicatorConfig }}
       containers:
-        - image: {{ .Values.crdReplicator.image.repository }}{{ default .Values.suffix }}:{{ default .Values.version }}
+        - image: {{ .Values.crdReplicator.imageName }}{{ include "liqo.suffix" $crdReplicatorConfig }}:{{ include "liqo.version" $crdReplicatorConfig }}
           imagePullPolicy: {{ .Values.pullPolicy }}
-          name: crdreplicator-operator
+          name: {{ .Values.crdReplicator.name }}
           command: ["/usr/bin/crd-replicator"]
           env:
             - name: NAMESPACE
