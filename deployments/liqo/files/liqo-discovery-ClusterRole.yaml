@@ -1,0 +1,114 @@
+rules:
+- apiGroups:
+  - config.liqo.io
+  resources:
+  - clusterconfigs
+  verbs:
+  - create
+  - get
+  - list
+  - watch
+- apiGroups:
+  - ""
+  resources:
+  - nodes
+  verbs:
+  - list
+- apiGroups:
+  - discovery.liqo.io
+  resources:
+  - foreignclusters
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - discovery.liqo.io
+  resources:
+  - peeringrequests
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - discovery.liqo.io
+  resources:
+  - searchdomains
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - net.liqo.io
+  resources:
+  - networkconfigs
+  verbs:
+  - '*'
+- apiGroups:
+  - net.liqo.io
+  resources:
+  - networkconfigs/status
+  verbs:
+  - '*'
+- apiGroups:
+  - net.liqo.io
+  resources:
+  - tunnelendpoints
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - net.liqo.io
+  resources:
+  - tunnelendpoints/status
+  verbs:
+  - get
+  - update
+  - watch
+- apiGroups:
+  - rbac.authorization.k8s.io
+  resources:
+  - clusterrolebindings
+  verbs:
+  - create
+  - get
+- apiGroups:
+  - rbac.authorization.k8s.io
+  resources:
+  - clusterroles
+  verbs:
+  - create
+  - get
+  - update
+- apiGroups:
+  - sharing.liqo.io
+  resources:
+  - advertisements
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - update
+  - watch
+- apiGroups:
+  - sharing.liqo.io
+  resources:
+  - advertisements/status
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - update
+  - watch
+

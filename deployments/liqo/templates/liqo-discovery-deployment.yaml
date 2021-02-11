@@ -1,23 +1,22 @@
 ---
+{{- $discoveryConfig := (merge (dict "name" (required ".Values.discovery.name is required" .Values.discovery.name) "module" (required ".Values.discovery.module is required" .Values.discovery.module)) .) -}}
+
 apiVersion: apps/v1
 kind: Deployment
 metadata:
+  name: {{ include "liqo.prefixedName" $discoveryConfig}}
   labels:
-    run: discovery
-    app: liqo.io
-  name: discovery
-  namespace: {{ .Release.Namespace }}
+    {{- include "liqo.labels" $discoveryConfig| nindent 4 }}
 spec:
-  replicas: 1
   selector:
     matchLabels:
-      run: discovery
+      {{- include "liqo.labels" $discoveryConfig| nindent 6 }}
   template:
     metadata:
       labels:
-        run: discovery
+      {{- include "liqo.labels" $discoveryConfig| nindent 8 }}
     spec:
-      serviceAccountName: discovery-sa
+      serviceAccountName: {{ include "liqo.prefixedName" $discoveryConfig}}
       containers:
         - image: {{ .Values.discoveryOperator.image.repository }}{{ default .Values.suffix }}:{{ default .Values.version }}
           name: discovery
@@ -57,4 +56,3 @@ spec:
               cpu: 50m
               memory: 50M
       hostNetwork: true
-

@@ -46,6 +46,7 @@ rbacs: controller-gen
 	$(CONTROLLER_GEN) $(CRD_OPTIONS) paths="./internal/liqonet/tunnelEndpointCreator" rbac:roleName=liqo-network-manager output:rbac:stdout | sed -n '/rules/,$$p' > deployments/liqo/files/liqo-network-manager-rbac.yaml
 	$(CONTROLLER_GEN) $(CRD_OPTIONS) paths="./internal/crdReplicator" rbac:roleName=liqo-crd-replicator output:rbac:stdout | sed -n '/rules/,$$p' > deployments/liqo/files/liqo-crd-replicator-rbac.yaml
 	$(CONTROLLER_GEN) $(CRD_OPTIONS) paths="./internal/peering-request-operator" rbac:roleName=liqo-peering-request output:rbac:stdout | sed -n '/rules/,$$p' > deployments/liqo/files/liqo-peering-request-rbac.yaml
+	$(CONTROLLER_GEN) $(CRD_OPTIONS) paths="./internal/discovery/foreign-cluster-operator" rbac:roleName=liqo-discovery output:rbac:stdout | awk -v RS="---\n" 'NR>1{f="./deployments/liqo/files/liqo-discovery-" $$4 ".yaml";printf "%s",$$0 > f; close(f)}' &&  sed -i -n '/rules/,$$p' deployments/liqo/files/liqo-discovery-ClusterRole.yaml deployments/liqo/files/liqo-discovery-Role.yaml
 
 # Run go fmt against code
 fmt:
@@ -58,6 +59,7 @@ vet:
 # Generate code
 generate: controller-gen
 	$(CONTROLLER_GEN) object:headerFile="hack/boilerplate.go.txt" paths="./..."
+
 
 # find or download controller-gen
 # download controller-gen if necessary
