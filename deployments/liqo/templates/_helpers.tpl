@@ -34,12 +34,23 @@ Create chart name and version as used by the chart label.
 Create version used to select the liqo version to be installed .
 */}}
 {{- define "liqo.version" -}}
-{{- if .Values.version }}
-{{- .Values.version }}
+{{- if .Values.tag }}
+{{- .Values.tag }}
 {{- else if .Chart.AppVersion }}
 {{- .Chart.AppVersion }}
-{{ else }}
+{{- else }}
 {{- fail "At least one between .Values.version and .Chart.AppVersion should be set" }}
+{{- end }}
+{{- end }}
+
+{{/*
+Create version used to select the liqo version to be installed.
+*/}}
+{{- define "liqo.suffix" -}}
+{{- if or (eq .Values.tag "") (eq .Chart.AppVersion .Values.tag) }}
+{{- print "" }}
+{{- else }}
+{{- print "-ci" }}
 {{- end }}
 {{- end }}
 

@@ -13,14 +13,14 @@ spec:
       {{- include "liqo.selectorLabels" $routeConfig | nindent 6 }}
   template:
     metadata:
-    {{- if .Values.route.podAnnotations }}
+    {{- if .Values.route.pod.annotations }}
       annotations:
-        {{- toYaml .Values.route.podAnnotations | nindent 8 }}
+        {{- toYaml .Values.route.pod.annotations | nindent 8 }}
     {{- end }}
       labels:
         {{- include "liqo.selectorLabels" $routeConfig | nindent 8 }}
-        {{- if .Values.gateway.podLabels }}
-          {{- toYaml .Values.gateway.podLabels | nindent 8 }}
+        {{- if .Values.route.pod.labels }}
+          {{- toYaml .Values.route.pod.labels | nindent 8 }}
         {{- end }}
     spec:
       tolerations:
@@ -38,9 +38,9 @@ spec:
           tolerationSeconds: 300
       serviceAccountName: {{ include "liqo.prefixedName" $routeConfig }}
       containers:
-        - image: {{ .Values.networkModule.routeOperator.image.repository }}{{ default .Values.suffix }}:{{ default .Values.version }}
+        - image: {{ .Values.route.imageName }}{{ include "liqo.suffix" $routeConfig }}:{{ include "liqo.version" $routeConfig }}
           imagePullPolicy: {{ .Values.pullPolicy }}
-          name: {{ include "liqo.prefixedName" $routeConfig }}
+          name: {{ .Values.route.name }}
           command: ["/usr/bin/liqonet"]
           args: ["-run-as=liqo-route"]
           resources:
@@ -70,4 +70,3 @@ spec:
                fieldRef:
                  fieldPath: spec.nodeName
       hostNetwork: true
-      restartPolicy: Always

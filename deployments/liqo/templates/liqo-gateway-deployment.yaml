@@ -14,22 +14,22 @@ spec:
       {{- include "liqo.selectorLabels" $gatewayConfig | nindent 6 }}
   template:
     metadata:
-    {{- if .Values.gateway.podAnnotations }}
+    {{- if .Values.gateway.pod.annotations }}
       annotations:
-      {{- toYaml .Values.gateway.podAnnotations | nindent 8 }}
+      {{- toYaml .Values.gateway.pod.annotations | nindent 8 }}
     {{- end }}
       labels:
         {{- include "liqo.labels" $gatewayConfig | nindent 8 }}
         {{- include "liqo.gatewayPodLabels" . | nindent 8 }}
-        {{- if .Values.gateway.podLabels }}
-          {{- toYaml .Values.gateway.podLabels | nindent 8 }}
+        {{- if .Values.gateway.pod.labels }}
+          {{- toYaml .Values.gateway.pod.labels | nindent 8 }}
         {{- end }}
     spec:
       serviceAccountName: {{ include "liqo.prefixedName" $gatewayConfig }}
       containers:
-        - image: {{ .Values.networkModule.tunnelEndpointOperator.image.repository }}{{ default .Values.suffix }}:{{ default .Values.version }}
+        - image: {{ .Values.gateway.imageName }}{{ include "liqo.suffix" $gatewayConfig }}:{{ include "liqo.version" $gatewayConfig }}
           imagePullPolicy: {{ .Values.pullPolicy }}
-          name: liqo-gateway
+          name: {{ .Values.gateway.name }}
           ports:
           - containerPort: 5871
           command: ["/usr/bin/liqonet"]

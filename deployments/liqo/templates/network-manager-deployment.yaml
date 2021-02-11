@@ -13,19 +13,19 @@ spec:
       {{- include "liqo.selectorLabels" $netManagerConfig | nindent 6 }}
   template:
     metadata:
-    {{- if .Values.gateway.podAnnotations }}
+    {{- if .Values.networkManager.pod.annotations }}
       annotations:
-        {{- toYaml .Values.gateway.podAnnotations | nindent 8 }}
+        {{- toYaml .Values.networkManager.pod.annotations | nindent 8 }}
     {{- end }}
       labels:
         {{- include "liqo.labels" $netManagerConfig | nindent 8 }}
-        {{- if .Values.gateway.podLabels }}
-          {{- toYaml .Values.gateway.podLabels | nindent 8 }}
+        {{- if .Values.networkManager.pod.labels }}
+          {{- toYaml .Values.networkManager.pod.labels | nindent 8 }}
         {{- end }}
     spec:
       serviceAccountName: {{ include "liqo.prefixedName" $netManagerConfig }}
       containers:
-        - image: {{ .Values.networkModule.tunnelEndpointOperator.image.repository }}{{ default .Values.suffix }}:{{ default .Values.version }}
+        - image: {{ .Values.networkManager.imageName }}{{ include "liqo.suffix" $netManagerConfig }}:{{ include "liqo.version" $netManagerConfig }}
           imagePullPolicy: {{ .Values.pullPolicy }}
           name: tunnelendpointcreator-operator
           command: ["/usr/bin/liqonet"]

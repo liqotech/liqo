@@ -3,8 +3,7 @@
 # Declare variables to be passed into your templates.
 
 ##### Needed
-suffix: ""
-version: "latest"
+tag: ""
 pullPolicy: "IfNotPresent"
 apiServer:
   ip: ""
@@ -19,9 +18,10 @@ fullnameOverride: ""
 advertisement:
   name: "advertisement"
   module: "sharing-protocol"
-  podAnnotations: {}
-  podLabels: {}
-  imageName: ""
+  pod:
+    annotations: {}
+    labels: {}
+  imageName: "liqo/advertisement-operator"
   broadcasterImageName: "liqo/advertisement-broadcaster"
   config:
     ingoingConfig:
@@ -36,16 +36,18 @@ advertisement:
 route:
   name: "route"
   module: "networking"
-  podAnnotations: {}
-  podLabels: {}
-  imageName: ""
+  pod:
+    annotations: {}
+    labels: {}
+  imageName: "liqo/liqonet"
 
 gateway:
   name: "gateway"
   module: "networking"
-  podAnnotations: {}
-  podLabels: {}
-  imageName: ""
+  pod:
+    annotations: {}
+    labels: {}
+  imageName: "liqo/liqonet"
   service:
     type: "NodePort"
     annotations: {}
@@ -53,9 +55,10 @@ gateway:
 networkManager:
   name: "network-manager"
   module: "networking"
-  podAnnotations: {}
-  podLabels: {}
-  imageName: ""
+  pod:
+    annotations: {}
+    labels: {}
+  imageName: "liqo/liqonet"
   config:
     podCIDR: "10.244.0.0/16"
     serviceCIDR: "10.0.0.0/16"
@@ -67,9 +70,7 @@ crdReplicator:
   pod:
     annotations: {}
     labels: {}
-  image:
-    repository: "liqo/crd-replicator"
-    pullPolicy: "IfNotPresent"
+  imageName: "liqo/crd-replicator"
   config:
     resourcesToReplicate:
       - group: net.liqo.io
@@ -82,6 +83,7 @@ discovery:
   pod:
     annotations: {}
     labels: {}
+  imageName: "liqo/discovery"
   config:
     clusterName: "test"
     autojoin: true
@@ -97,15 +99,16 @@ discovery:
 auth:
   name: "auth"
   module: "discovery"
-  podAnnotations:
-    testAnnotationKey: "testAnnotationValue"
-  podLabels:
-    testLabelKey: "testAnnotationValue"
+  pod:
+    annotations: {}
+    labels: {}
   imageName: "liqo/auth-service"
+  initContainer:
+    name: "cert-creator"
+    imageName: nginx:1.19
   service:
     type: "NodePort"
-    annotations:
-      testAnnotationKey: "testAnnotationValue"
+    annotations: {}
   ingress:
     annotations: {}
     enable: false
@@ -118,12 +121,11 @@ webhook:
   name: "webhook"
   module: "webhook"
   pod:
-    annotations:
-      testAnnotationKey: "testAnnotationValue"
-    labels:
-      testLabelKey: "testAnnotationValue"
+    annotations: {}
+    labels: {}
   imageName: "liqo/liqo-webhook"
-  init:
+  initContainer:
+    name: "webhook-configuration"
     imageName: "liqo/webhook-configuration"
   service:
     type: "ClusterIP"
@@ -139,81 +141,11 @@ peeringRequest:
   name: "peering-request"
   module: "discovery"
   pod:
-    annotations:
-      testAnnotationKey: "testAnnotationValue"
-    labels:
-      testLabelKey: "testLabelValue"
+    annotations: {}
+    labels: {}
   imageName:  "liqo/peering-request-operator"
 
-#configuration values for the adv subchart
-advertisementOperator:
-  advController:
-    image:
-      repository: "liqo/advertisement-operator"
-      pullPolicy: "IfNotPresent"
-  broadcaster:
-    image:
-      repository: "liqo/advertisement-broadcaster"
-      pullPolicy: "IfNotPresent"
-  enabled: true
-
-#configuration values for the networkModule subchart
-networkModule:
-  routeOperator:
-    image:
-      repository: "liqo/liqonet"
-      pullPolicy: "IfNotPresent"
-  tunnelEndpointOperator:
-    image:
-      repository: "liqo/liqonet"
-      pullPolicy: "IfNotPresent"
-  enabled: true
-
-#configuration values for the tunnelendpointCreator subchart
-tunnelEndpointCreator:
-  image:
-    repository: "liqo/liqonet"
-    pullPolicy: "IfNotPresent"
-  enabled: true
-
-#configuration values for the schedulingNode subchart
-schedulingNodeOperator:
-  image:
-    repository: "liqo/scheduling-node-operator"
-    pullPolicy: "IfNotPresent"
-  enabled: true
-
-discoveryOperator:
-  image:
-    repository: "liqo/discovery"
-    pullPolicy: "IfNotPresent"
-  apiServerIp: ""
-  apiServerPort: ""
-  enabled: true
-
-authService:
-  image:
-    repository: "liqo/auth-service"
-    pullPolicy: "IfNotPresent"
-  enabled: true
-
-
-advController:
-  image:
-    repository: "liqo/advertisement-operator"
-    pullPolicy: "IfNotPresent"
-
-broadcaster:
-  image:
-    repository: "liqo/advertisement-broadcaster"
-    pullPolicy: "IfNotPresent"
-
 virtualKubelet:
-  image:
-    repository: "liqo/virtual-kubelet"
-    pullPolicy: "IfNotPresent"
-
-initVk:
-  image:
-    repository: "liqo/init-vkubelet"
-    pullPolicy: "IfNotPresent"
+  imageName: "liqo/virtual-kubelet"
+  initContainer:
+    imageName: "liqo/init-vkubelet"
