@@ -1,8 +1,38 @@
 rules:
 - apiGroups:
-  - config.liqo.io
+  - apps
   resources:
-  - clusterconfigs
+  - deployments
+  verbs:
+  - create
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - certificates.k8s.io
+  resources:
+  - certificatesigningrequests
+  verbs:
+  - create
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - discovery.liqo.io
+  resources:
+  - foreignclusters
+  verbs:
+  - create
+  - list
+  - update
+- apiGroups:
+  - discovery.liqo.io
+  resources:
+  - peeringrequests
   verbs:
   - create
   - delete
@@ -12,59 +42,11 @@ rules:
   - update
   - watch
 - apiGroups:
-  - ""
+  - discovery.liqo.io
   resources:
-  - events
-  verbs:
-  - create
-  - patch
-- apiGroups:
-  - ""
-  resources:
-  - pods
-  verbs:
-  - get
-  - list
-  - patch
-  - update
-  - watch
-- apiGroups:
-  - ""
-  resources:
-  - secrets
-  verbs:
-  - create
-  - delete
-  - get
-  - list
-  - patch
-  - update
-  - watch
-- apiGroups:
-  - ""
-  resources:
-  - services
-  verbs:
-  - get
-  - list
-  - patch
-  - update
-  - watch
-- apiGroups:
-  - net.liqo.io
-  resources:
-  - tunnelendpoints
-  verbs:
-  - get
-  - list
-  - patch
-  - update
-  - watch
-- apiGroups:
-  - net.liqo.io
-  resources:
-  - tunnelendpoints/status
+  - peeringrequests/status
   verbs:
   - get
   - patch
   - update
+

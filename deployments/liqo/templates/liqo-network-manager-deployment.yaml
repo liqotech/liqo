@@ -27,7 +27,7 @@ spec:
       containers:
         - image: {{ .Values.networkManager.imageName }}{{ include "liqo.suffix" $netManagerConfig }}:{{ include "liqo.version" $netManagerConfig }}
           imagePullPolicy: {{ .Values.pullPolicy }}
-          name: tunnelendpointcreator-operator
+          name: {{ .Values.networkManager.name }}
           command: ["/usr/bin/liqonet"]
           args:
             - "-run-as=tunnelEndpointCreator-operator"

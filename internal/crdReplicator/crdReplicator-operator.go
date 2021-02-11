@@ -60,13 +60,15 @@ type Controller struct {
 	RemoteWatchers                 map[string]map[string]chan struct{}                     //for each peering cluster we save all the running watchers monitoring the replicated resources:(clusterID, (registeredResource, chan))
 }
 
+//cluster-role
 // +kubebuilder:rbac:groups=discovery.liqo.io,resources=foreignclusters,verbs=get;list;watch;update
 // +kubebuilder:rbac:groups=discovery.liqo.io,resources=foreignclusters/status,verbs=get
-// +kubebuilder:rbac:groups=core,resources=secrets,verbs=get;list
-// +kubebuilder:rbac:groups=core,resources=configmaps,verbs=get;list
 // +kubebuilder:rbac:groups=net.liqo.io,resources=networkconfigs,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=net.liqo.io,resources=networkconfigs/status,verbs=get;update;patch
 // +kubebuilder:rbac:groups=config.liqo.io,resources=clusterconfigs,verbs=get;list;watch
+//role
+// +kubebuilder:rbac:groups=core,namespace="do-not-care",resources=secrets,verbs=get;list
+// +kubebuilder:rbac:groups=core,namespace="do-not-care",resources=configmaps,verbs=get;list
 
 func (c *Controller) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 	var fc v1alpha1.ForeignCluster

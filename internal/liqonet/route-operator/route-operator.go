@@ -95,13 +95,15 @@ func NewRouteController(mgr ctrl.Manager, wgc wireguard.Client, nl wireguard.Net
 	return r, nil
 }
 
+//cluster-role
 // +kubebuilder:rbac:groups=net.liqo.io,resources=tunnelendpoints,verbs=get;list;watch;update;patch
 // +kubebuilder:rbac:groups=net.liqo.io,resources=tunnelendpoints/status,verbs=get;update;patch
 // +kubebuilder:rbac:groups=config.liqo.io,resources=clusterconfigs,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=core,resources=events,verbs=create;patch
-// +kubebuilder:rbac:groups=core,resources=secrets,verbs=create;update;patch;get;list;watch;delete
-// +kubebuilder:rbac:groups=core,resources=pods,verbs=update;patch;get;list;watch
-// +kubebuilder:rbac:groups=core,resources=services,verbs=update;patch;get;list;watch
+//role
+// +kubebuilder:rbac:groups=core,namespace="do-not-care",resources=secrets,verbs=create;update;patch;get;list;watch;delete
+// +kubebuilder:rbac:groups=core,namespace="do-not-care",resources=pods,verbs=update;patch;get;list;watch
+// +kubebuilder:rbac:groups=core,namespace="do-not-care",resources=services,verbs=update;patch;get;list;watch
 
 func (r *RouteController) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 	ctx := context.Background()

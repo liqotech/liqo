@@ -14,43 +14,8 @@ metadata:
   name: {{ include "liqo.prefixedName" $authConfig }}
   labels:
     {{- include "liqo.labels" $authConfig | nindent 4 }}
-rules:
-  - apiGroups:
-      - ""
-    resources:
-      - nodes
-    verbs:
-      - get
-      - list
-      - watch
-  - apiGroups:
-      - rbac.authorization.k8s.io
-    resources:
-      - clusterroles
-      - clusterrolebindings
-    verbs:
-      - create
-      - delete
-  - apiGroups:
-      - config.liqo.io
-    resources:
-      - clusterconfigs
-    verbs:
-      - get
-      - list
-      - watch
-      - create
-  # required to grant permissions
-  - apiGroups:
-      - discovery.liqo.io
-    resources:
-      - peeringrequests
-    verbs:
-      - get
-      - create
-      - delete
-      - update
-      - delete
+{{ .Files.Get (include "liqo.cluster-role-filename" (dict "prefix" ( include "liqo.prefixedName" $authConfig))) }}
+
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
@@ -58,37 +23,7 @@ metadata:
   name: {{ include "liqo.prefixedName" $authConfig }}
   labels:
     {{- include "liqo.labels" $authConfig | nindent 4 }}
-rules:
-  - apiGroups:
-      - ""
-    resources:
-      - configmaps
-      - secrets
-    verbs:
-      - get
-      - list
-      - watch
-      - create
-      - update
-      - delete
-  - apiGroups:
-      - ""
-    resources:
-      - serviceaccounts
-    verbs:
-      - get
-      - list
-      - watch
-      - create
-      - delete
-  - apiGroups:
-      - rbac.authorization.k8s.io
-    resources:
-      - roles
-      - rolebindings
-    verbs:
-      - create
-      - delete
+{{ .Files.Get (include "liqo.role-filename" (dict "prefix" ( include "liqo.prefixedName" $authConfig))) }}
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
