@@ -1,6 +1,6 @@
-{{- $authConfig := (merge (dict "name" (required ".Values.auth.name is required" .Values.auth.name) "module" (required ".Values.auth.module is required" .Values.auth.module)) .) -}}
+{{- $authConfig := (merge (dict "name" "auth" "module" "discovery") .) -}}
 
-{{- if .Values.auth.ingress.enable }}
+  {{- if .Values.auth.ingress.enable }}
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:

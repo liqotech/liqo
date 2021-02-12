@@ -1,5 +1,5 @@
 ---
-{{- $advertisementConfig := (merge (dict "name" (required ".Values.advertisement.name is required" .Values.advertisement.name) "module" (required ".Values.advertisement.module is required" .Values.advertisement.module)) .) -}}
+{{- $advertisementConfig := (merge (dict "name" "advertisement" "module" "sharing-protocol") .) -}}
 
 apiVersion: v1
 kind: ServiceAccount

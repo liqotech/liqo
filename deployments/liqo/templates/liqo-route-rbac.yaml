@@ -1,5 +1,5 @@
 ---
-{{- $routeConfig := (merge (dict "name" (required ".Values.route.name is required" .Values.route.name) "module" (required ".Values.route.module is required" .Values.route.module)) .) -}}
+{{- $routeConfig := (merge (dict "name" "route" "module" "networking") .) -}}
 
 apiVersion: v1
 kind: ServiceAccount

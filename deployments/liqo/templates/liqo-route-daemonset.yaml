@@ -1,5 +1,5 @@
 ---
-{{- $routeConfig := (merge (dict "name" (required ".Values.route.name is required" .Values.route.name) "module" (required ".Values.route.module is required" .Values.route.module)) .) -}}
+{{- $routeConfig := (merge (dict "name" "route" "module" "networking") .) -}}
 
 apiVersion: apps/v1
 kind: DaemonSet
@@ -40,7 +40,7 @@ spec:
       containers:
         - image: {{ .Values.route.imageName }}{{ include "liqo.suffix" $routeConfig }}:{{ include "liqo.version" $routeConfig }}
           imagePullPolicy: {{ .Values.pullPolicy }}
-          name: {{ .Values.route.name }}
+          name: {{ $routeConfig.name }}
           command: ["/usr/bin/liqonet"]
           args: ["-run-as=liqo-route"]
           resources:

@@ -1,5 +1,5 @@
 ---
-{{- $webhookConfig := (merge (dict "name" (required ".Values.webhook.name is required" .Values.webhook.name) "module" (required ".Values.webhook.module is required" .Values.webhook.module)) .) -}}
+{{- $webhookConfig := (merge (dict "name" "webhook" "module" "webhook" "containerName" "webhook-configuration") .) -}}
 
 apiVersion: apps/v1
 kind: Deployment
@@ -28,7 +28,7 @@ spec:
     spec:
       serviceAccountName: {{ include "liqo.prefixedName" $webhookConfig }}
       initContainers:
-        - name: {{ .Values.webhook.initContainer.name }}
+        - name: {{ $webhookConfig.containerName }}
           image: {{ .Values.webhook.initContainer.imageName}}{{ include "liqo.suffix" $webhookConfig }}:{{ include "liqo.version" $webhookConfig }}
           imagePullPolicy: {{ .Values.pullPolicy }}
           args:
@@ -54,7 +54,7 @@ spec:
               cpu: "200m"
               memory: "100M"
       containers:
-        - name: {{ .Values.webhook.name }}
+        - name: {{ $webhookConfig.name }}
           image: {{ .Values.webhook.imageName }}{{ include "liqo.suffix" $webhookConfig }}:{{ include "liqo.version" $webhookConfig }}
           imagePullPolicy: {{ .Values.pullPolicy }}
           volumeMounts:

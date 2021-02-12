@@ -1,5 +1,5 @@
 ---
-{{- $authConfig := (merge (dict "name" (required ".Values.auth.name is required" .Values.auth.name) "module" (required ".Values.auth.module is required" .Values.auth.module)) .) -}}
+{{- $authConfig := (merge (dict "name" "auth" "module" "discovery" "containerName" "cert-creator") .) -}}
 
 apiVersion: apps/v1
 kind: Deployment
@@ -28,7 +28,7 @@ spec:
       serviceAccountName: {{ include "liqo.prefixedName" $authConfig }}
       {{- if not .Values.auth.ingress.enable }}
       initContainers:
-        - name: {{ .Values.auth.initContainer.name }}
+        - name: {{ $authConfig.containerName }}
           imagePullPolicy: {{ .Values.pullPolicy }}
           image: {{ .Values.auth.initContainer.imageName }}
           volumeMounts:
@@ -39,7 +39,7 @@ spec:
       {{- end }}
       containers:
         - image: {{ .Values.auth.imageName }}{{ include "liqo.suffix" $authConfig }}:{{ include "liqo.version" $authConfig }}
-          name: {{ .Values.auth.name }}
+          name: {{ $authConfig.name }}
           imagePullPolicy: {{ .Values.pullPolicy }}
           command: ["/usr/bin/auth-service"]
           args:

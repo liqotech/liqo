@@ -1,5 +1,5 @@
 ---
-{{- $peeringRequest := (merge (dict "name" (required ".Values.peeringRequest.name is required" .Values.peeringRequest.name) "module" (required ".Values.peeringRequest.module is required" .Values.peeringRequest.module)) .) -}}
+{{- $peeringRequest := (merge (dict "name" "peering-request" "module" "discovery") .) -}}
 
 apiVersion: v1
 kind: ServiceAccount

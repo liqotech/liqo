@@ -1,5 +1,5 @@
 ---
-{{- $netManagerConfig := (merge (dict "name" (required ".Values.networkManager.name" .Values.networkManager.name) "module" (required ".Values.networkManager.name is required" .Values.networkManager.module)) .) -}}
+{{- $netManagerConfig := (merge (dict "name" "network-manager" "module" "networking") .) -}}
 
 apiVersion: v1
 kind: ServiceAccount

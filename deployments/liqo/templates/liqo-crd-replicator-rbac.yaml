@@ -1,5 +1,5 @@
 ---
-{{- $crdReplicatorConfig := (merge (dict "name" (required ".Values.crdReplicator.name is required" .Values.crdReplicator.name) "module" (required ".Values.crdReplicator.module is required" .Values.crdReplicator.module)) .) -}}
+{{- $crdReplicatorConfig := (merge (dict "name" "crd-replicator" "module" "dispatcher") .) -}}
 
 apiVersion: v1
 kind: ServiceAccount

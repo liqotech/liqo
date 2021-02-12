@@ -1,5 +1,5 @@
 ---
-{{- $gatewayConfig := (merge (dict "name" (required ".Values.gateway.name is required" .Values.gateway.name) "module" (required ".Values.gateway.module is required" .Values.gateway.module)) .) -}}
+{{- $gatewayConfig := (merge (dict "name" "gateway" "module" "networking") .) -}}
 
 apiVersion: apps/v1
 kind: Deployment
@@ -29,7 +29,7 @@ spec:
       containers:
         - image: {{ .Values.gateway.imageName }}{{ include "liqo.suffix" $gatewayConfig }}:{{ include "liqo.version" $gatewayConfig }}
           imagePullPolicy: {{ .Values.pullPolicy }}
-          name: {{ .Values.gateway.name }}
+          name: {{ $gatewayConfig.name }}
           ports:
           - containerPort: 5871
           command: ["/usr/bin/liqonet"]
