@@ -3,23 +3,36 @@
 # Declare variables to be passed into your templates.
 
 ##### Needed
+
+# -- images' tag
 tag: ""
+# -- pullPolicy for liqo pods
 pullPolicy: "IfNotPresent"
 apiServer:
+  # -- remote API server IP address
   ip: ""
+  # -- remote API server port
   port: ""
 authServer:
+  # -- remote auth server IP address
   ip: ""
+  # -- remote auth server port
   port: ""
 
+# -- liqo name override
 nameOverride: ""
+# -- full liqo name override
 fullnameOverride: ""
 
 advertisement:
   pod:
+    # -- advertisement pod annotations
     annotations: {}
+    # -- advertisement pod labels
     labels: {}
+  # -- advertisement image repository
   imageName: "liqo/advertisement-operator"
+  # -- broadcaster image repository
   broadcasterImageName: "liqo/advertisement-broadcaster"
   config:
     ingoingConfig:
@@ -33,14 +46,20 @@ advertisement:
 
 route:
   pod:
+    # -- route pod annotations
     annotations: {}
+    # -- route pod labels
     labels: {}
+  # -- route image repository
   imageName: "liqo/liqonet"
 
 gateway:
   pod:
+    # -- gateway pod annotations
     annotations: {}
+    # -- gateway pod labels
     labels: {}
+  # -- gateway image repository
   imageName: "liqo/liqonet"
   service:
     type: "NodePort"
@@ -48,8 +67,11 @@ gateway:
 
 networkManager:
   pod:
+    # -- networkManager pod annotations
     annotations: {}
+    # -- networkManager pod labels
     labels: {}
+  # -- networkManager image repository
   imageName: "liqo/liqonet"
   config:
     podCIDR: "10.244.0.0/16"
@@ -58,8 +80,11 @@ networkManager:
 
 crdReplicator:
   pod:
+    # -- crdReplicator pod annotations
     annotations: {}
+    # -- crdReplicator pod labels
     labels: {}
+  # -- crdReplicator image repository
   imageName: "liqo/crd-replicator"
   config:
     resourcesToReplicate:
@@ -69,8 +94,11 @@ crdReplicator:
 
 discovery:
   pod:
+    # -- discovery pod annotations
     annotations: {}
+    # -- discovery pod labels
     labels: {}
+  # -- discovery image repository
   imageName: "liqo/discovery"
   config:
     clusterName: "test"
@@ -86,15 +114,22 @@ discovery:
 
 auth:
   pod:
+    # -- auth pod annotations
     annotations: {}
+    # -- auth pod labels
     labels: {}
+  # -- auth image repository
   imageName: "liqo/auth-service"
   initContainer:
+    # -- auth init container image repository
     imageName: nginx:1.19
   service:
+    # -- auth service type
     type: "NodePort"
+    # -- auth service annotations
     annotations: {}
   ingress:
+    # -- auth ingress annotations
     annotations: {}
     enable: false
     host: ""
@@ -104,28 +139,39 @@ auth:
 
 webhook:
   pod:
+    # -- webhook pod annotations
     annotations: {}
+    # -- webhook pod labels
     labels: {}
+  # -- webhook image repository
   imageName: "liqo/liqo-webhook"
   initContainer:
+    # -- webhook init container image repository
     imageName: "liqo/webhook-configuration"
   service:
+    # -- webhook service type
     type: "ClusterIP"
-    annotations:
-      testAnnotationKey: "testAnnotationValue"
+    # -- webhook service annotations
+    annotations: {}
   mutatingWebhookConfiguration:
-    annotations:
-      testAnnotationKey: "testLabelValue"
+    # -- mutatingWebhookConfiguration annotations
+    annotations: {}
+    # -- mutatingWebhookConfiguration namespace selector
     namespaceSelector:
       liqo.io/enabled: "true"
 
 peeringRequest:
   pod:
+    # -- peering request pod annotations
     annotations: {}
+    # -- peering request pod labels
     labels: {}
+  # -- peeringRequest image repository
   imageName:  "liqo/peering-request-operator"
 
 virtualKubelet:
+  # -- virtual kubelet image repository
   imageName: "liqo/virtual-kubelet"
   initContainer:
+    # -- virtual kubelet init container image repository
     imageName: "liqo/init-vkubelet"
