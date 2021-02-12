@@ -1,5 +1,5 @@
 ---
-{{- $discoveryConfig := (merge (dict "name" (required ".Values.discovery.name is required" .Values.discovery.name) "module" (required ".Values.discovery.module is required" .Values.discovery.module)) .) -}}
+{{- $discoveryConfig := (merge (dict "name" "discovery" "module" "discovery") .) -}}
 
 apiVersion: v1
 kind: ServiceAccount

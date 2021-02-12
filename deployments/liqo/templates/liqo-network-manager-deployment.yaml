@@ -1,5 +1,5 @@
 ---
-{{- $netManagerConfig := (merge (dict "name" (required ".Values.networkManager.name" .Values.networkManager.name) "module" (required ".Values.networkManager.name is required" .Values.networkManager.module)) .) -}}
+{{- $netManagerConfig := (merge (dict "name" "network-manager" "module" "networking") .) -}}
 
 apiVersion: apps/v1
 kind: Deployment
@@ -27,7 +27,7 @@ spec:
       containers:
         - image: {{ .Values.networkManager.imageName }}{{ include "liqo.suffix" $netManagerConfig }}:{{ include "liqo.version" $netManagerConfig }}
           imagePullPolicy: {{ .Values.pullPolicy }}
-          name: {{ .Values.networkManager.name }}
+          name: {{ $netManagerConfig.name }}
           command: ["/usr/bin/liqonet"]
           args:
             - "-run-as=tunnelEndpointCreator-operator"

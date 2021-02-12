@@ -1,5 +1,5 @@
 ---
-{{- $advertisementConfig := (merge (dict "name" (required ".Values.advertisement.name is required" .Values.advertisement.name) "module" (required ".Values.advertisement.module is required" .Values.advertisement.module)) .) -}}
+{{- $advertisementConfig := (merge (dict "name" "advertisement" "module" "sharing-protocol") .) -}}
 
 apiVersion: apps/v1
 kind: Deployment
@@ -28,7 +28,7 @@ spec:
       containers:
       - image: {{ .Values.advertisement.imageName }}{{ include "liqo.suffix" $advertisementConfig }}:{{ include "liqo.version" $advertisementConfig }}
         imagePullPolicy: {{ .Values.pullPolicy }}
-        name: {{ .Values.advertisement.name }}
+        name: {{ $advertisementConfig.name }}
         command: ["/usr/bin/advertisement-operator"]
         args:
           - "--cluster-id"

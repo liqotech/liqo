@@ -1,5 +1,5 @@
 ---
-{{- $authConfig := (merge (dict "name" (required ".Values.auth.name is required" .Values.auth.name) "module" (required ".Values.auth.module is required" .Values.auth.module)) .) -}}
+{{- $authConfig := (merge (dict "name" "auth" "module" "discovery") .) -}}
 
 apiVersion: v1
 kind: Service

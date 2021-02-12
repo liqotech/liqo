@@ -16,8 +16,6 @@ nameOverride: ""
 fullnameOverride: ""
 
 advertisement:
-  name: "advertisement"
-  module: "sharing-protocol"
   pod:
     annotations: {}
     labels: {}
@@ -34,16 +32,12 @@ advertisement:
     keepaliveRetryTime: 20
 
 route:
-  name: "route"
-  module: "networking"
   pod:
     annotations: {}
     labels: {}
   imageName: "liqo/liqonet"
 
 gateway:
-  name: "gateway"
-  module: "networking"
   pod:
     annotations: {}
     labels: {}
@@ -53,8 +47,6 @@ gateway:
     annotations: {}
 
 networkManager:
-  name: "network-manager"
-  module: "networking"
   pod:
     annotations: {}
     labels: {}
@@ -65,8 +57,6 @@ networkManager:
     reservedSubnets: []
 
 crdReplicator:
-  name: "crd-replicator"
-  module: "replicating"
   pod:
     annotations: {}
     labels: {}
@@ -78,8 +68,6 @@ crdReplicator:
         resource: networkconfigs
 
 discovery:
-  name: "discovery"
-  module: "discovery"
   pod:
     annotations: {}
     labels: {}
@@ -97,14 +85,11 @@ discovery:
     ttl: 90
 
 auth:
-  name: "auth"
-  module: "discovery"
   pod:
     annotations: {}
     labels: {}
   imageName: "liqo/auth-service"
   initContainer:
-    name: "cert-creator"
     imageName: nginx:1.19
   service:
     type: "NodePort"
@@ -118,14 +103,11 @@ auth:
     allowEmptyToken: true
 
 webhook:
-  name: "webhook"
-  module: "webhook"
   pod:
     annotations: {}
     labels: {}
   imageName: "liqo/liqo-webhook"
   initContainer:
-    name: "webhook-configuration"
     imageName: "liqo/webhook-configuration"
   service:
     type: "ClusterIP"
@@ -138,8 +120,6 @@ webhook:
       liqo.io/enabled: "true"
 
 peeringRequest:
-  name: "peering-request"
-  module: "discovery"
   pod:
     annotations: {}
     labels: {}

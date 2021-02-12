@@ -1,5 +1,5 @@
 ---
-{{- $peeringRequest := (merge (dict "name" (required ".Values.peeringRequest.name is required" .Values.peeringRequest.name) "module" (required ".Values.peeringRequest.module is required" .Values.peeringRequest.module)) .) -}}
+{{- $peeringRequest := (merge (dict "name" "peering-request" "module" "discovery") .) -}}
 
 apiVersion: apps/v1
 kind: Deployment
@@ -26,7 +26,7 @@ spec:
       serviceAccountName: {{ include "liqo.prefixedName" $peeringRequest }}
       containers:
         - image: {{ .Values.peeringRequest.imageName }}{{ include "liqo.suffix" $peeringRequest }}:{{ include "liqo.version" $peeringRequest }}
-          name: {{ .Values.peeringRequest.name }}
+          name: {{ $peeringRequest.name }}
           imagePullPolicy: {{ .Values.pullPolicy }}
           ports:
             - containerPort: 8443

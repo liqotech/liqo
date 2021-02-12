@@ -1,5 +1,5 @@
 ---
-{{- $crdReplicatorConfig := (merge (dict "name" (required ".Values.crdReplicator.name is required" .Values.crdReplicator.name) "module" (required ".Values.crdReplicator.module is required" .Values.crdReplicator.module)) .) -}}
+{{- $crdReplicatorConfig := (merge (dict "name" "crd-replicator" "module" "dispatcher") .) -}}
 
 apiVersion: apps/v1
 kind: Deployment
@@ -28,7 +28,7 @@ spec:
       containers:
         - image: {{ .Values.crdReplicator.imageName }}{{ include "liqo.suffix" $crdReplicatorConfig }}:{{ include "liqo.version" $crdReplicatorConfig }}
           imagePullPolicy: {{ .Values.pullPolicy }}
-          name: {{ .Values.crdReplicator.name }}
+          name: {{ $crdReplicatorConfig.name }}
           command: ["/usr/bin/crd-replicator"]
           env:
             - name: NAMESPACE

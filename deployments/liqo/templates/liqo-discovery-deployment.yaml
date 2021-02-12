@@ -1,5 +1,5 @@
 ---
-{{- $discoveryConfig := (merge (dict "name" (required ".Values.discovery.name is required" .Values.discovery.name) "module" (required ".Values.discovery.module is required" .Values.discovery.module)) .) -}}
+{{- $discoveryConfig := (merge (dict "name" "discovery" "module" "discovery") .) -}}
 
 apiVersion: apps/v1
 kind: Deployment
@@ -26,7 +26,7 @@ spec:
       serviceAccountName: {{ include "liqo.prefixedName" $discoveryConfig}}
       containers:
         - image: {{ .Values.discovery.imageName }}{{ include "liqo.suffix" $discoveryConfig }}:{{ include "liqo.version" $discoveryConfig }}
-          name: {{ .Values.discovery.name }}
+          name: {{ $discoveryConfig.name }}
           imagePullPolicy: {{ .Values.pullPolicy }}
           command: ["/usr/bin/entrypoint.sh", "/usr/bin/discovery"]
           args:

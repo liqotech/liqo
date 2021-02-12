@@ -1,5 +1,5 @@
 ---
-{{- $webhookConfig := (merge (dict "name" (required ".Values.webhook.name is required" .Values.webhook.name) "module" (required ".Values.webhook.module is required" .Values.webhook.module)) .) -}}
+{{- $webhookConfig := (merge (dict "name" "webhook" "module" "webhook") .) -}}
 
 apiVersion: v1
 kind: Service
