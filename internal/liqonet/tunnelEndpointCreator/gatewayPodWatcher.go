@@ -23,7 +23,7 @@ var (
 )
 
 func (tec *TunnelEndpointCreator) StartGWPodWatcher() {
-	dynFactory := dynamicinformer.NewFilteredDynamicSharedInformerFactory(tec.DynClient, 0, tec.Namespace, setGWPodSelectorLabel)
+	dynFactory := dynamicinformer.NewFilteredDynamicSharedInformerFactory(tec.DynClient, ResyncPeriod, tec.Namespace, setGWPodSelectorLabel)
 	go tec.Watcher(dynFactory, corev1.SchemeGroupVersion.WithResource(podResource), cache.ResourceEventHandlerFuncs{
 		AddFunc:    tec.gwPodHandlerAdd,
 		UpdateFunc: tec.gwPodHandlerUpdate,

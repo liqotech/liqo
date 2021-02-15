@@ -29,7 +29,7 @@ func (tec *TunnelEndpointCreator) StartSecretWatcher() {
 		klog.Errorf("unable to sync caches")
 		return
 	}
-	dynFactory := dynamicinformer.NewFilteredDynamicSharedInformerFactory(tec.DynClient, 0, tec.Namespace, setSecretFilteringLabel)
+	dynFactory := dynamicinformer.NewFilteredDynamicSharedInformerFactory(tec.DynClient, ResyncPeriod, tec.Namespace, setSecretFilteringLabel)
 	go tec.Watcher(dynFactory, corev1.SchemeGroupVersion.WithResource(secretResource), cache.ResourceEventHandlerFuncs{
 		AddFunc:    tec.secretHandlerAdd,
 		UpdateFunc: tec.secretHandlerUpdate,

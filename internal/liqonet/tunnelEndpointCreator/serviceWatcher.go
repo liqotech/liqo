@@ -33,7 +33,7 @@ func (tec *TunnelEndpointCreator) StartServiceWatcher() {
 		return
 	}
 
-	dynFactory := dynamicinformer.NewFilteredDynamicSharedInformerFactory(tec.DynClient, 0, tec.Namespace, setServiceFilteringLabel)
+	dynFactory := dynamicinformer.NewFilteredDynamicSharedInformerFactory(tec.DynClient, ResyncPeriod, tec.Namespace, setServiceFilteringLabel)
 	go tec.Watcher(dynFactory, corev1.SchemeGroupVersion.WithResource(serviceResource), cache.ResourceEventHandlerFuncs{
 		AddFunc:    tec.serviceHandlerAdd,
 		UpdateFunc: tec.serviceHandlerUpdate,

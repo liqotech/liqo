@@ -34,8 +34,9 @@ func (tc *TunnelController) podWatcher() {
 }
 
 func (tc *TunnelController) podHandlerAdd(obj interface{}) {
-	p, ok := obj.(*corev1.Pod)
 	var podName, nodeName string
+	var allowedIPs []string
+	p, ok := obj.(*corev1.Pod)
 	if !ok {
 		klog.Errorf("an error occurred while converting interface to unstructured object")
 		return
@@ -44,6 +45,12 @@ func (tc *TunnelController) podHandlerAdd(obj interface{}) {
 	nodeName = p.Spec.NodeName
 	//if pod is not ready just return
 	if !pod.IsPodReady(p) {
+		return
+	}
+	//check if the node.PodCIDR has been set
+	nodePodCIDR, ok := p.GetAnnotations()[overlay.NodeCIDRKeyAnnotation]
+	if !ok {
+		klog.Infof("PodCIDR for node %s not present as an annotation on pod %s", nodeName, podName)
 		return
 	}
 	//check if the the public key has been set
@@ -58,7 +65,13 @@ func (tc *TunnelController) podHandlerAdd(obj interface{}) {
 	}
 	overlayIP := strings.Join([]string{overlay.GetOverlayIP(p.Status.PodIP), "32"}, "/")
 	podIP := strings.Join([]string{p.Status.PodIP, "32"}, "/")
-	err := tc.wg.AddPeer(pubKey, p.Status.PodIP, overlay.WgListeningPort, []string{overlayIP, podIP}, &keepalive)
+	if nodePodCIDR != "" {
+		allowedIPs = append([]string{}, overlayIP, podIP, nodePodCIDR)
+	} else {
+		klog.Infof("the node podCIDR for node %s is not set, make sure that all the pod traffic leaving that node is source natted to the node's IP", p.Spec.NodeName)
+		allowedIPs = append([]string{}, overlayIP, podIP)
+	}
+	err := tc.wg.AddPeer(pubKey, p.Status.PodIP, overlay.WgListeningPort, allowedIPs, &keepalive)
 	if err != nil {
 		klog.Errorf("an error occurred while adding node %s to the overlay network: %v", nodeName, err)
 		return

@@ -7,11 +7,12 @@ import (
 )
 
 const (
-	secretPrefix     = "overlaykeys-"
-	WgInterfacename  = "liqo.overlay"
-	NetworkPrefix    = "240"
-	WgListeningPort  = "51871"
-	PubKeyAnnotation = "net.liqo.io/overlay.pubkey"
+	secretPrefix          = "overlaykeys-"
+	WgInterfacename       = "liqo.overlay"
+	NetworkPrefix         = "240"
+	WgListeningPort       = "51871"
+	PubKeyAnnotation      = "net.liqo.io/overlay.pubkey"
+	NodeCIDRKeyAnnotation = "net.liqo.io/node.cidr"
 )
 
 var (

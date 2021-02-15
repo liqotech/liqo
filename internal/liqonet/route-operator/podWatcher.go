@@ -48,8 +48,12 @@ func (r *RouteController) podHandlerAdd(obj interface{}) {
 	}
 	currentPubKey := r.wg.GetPubKey()
 	pubKey := p.GetAnnotations()[overlay.PubKeyAnnotation]
-	if pubKey != currentPubKey {
+	currentNodePodCIDR := r.nodePodCIDR
+	nodePodCIDR := p.GetAnnotations()[overlay.NodeCIDRKeyAnnotation]
+
+	if pubKey != currentPubKey || nodePodCIDR != currentNodePodCIDR {
 		pubKey = currentPubKey
+		nodePodCIDR = currentNodePodCIDR
 	} else {
 		return
 	}
@@ -63,6 +67,7 @@ func (r *RouteController) podHandlerAdd(obj interface{}) {
 			annotations = make(map[string]string)
 		}
 		annotations[overlay.PubKeyAnnotation] = pubKey
+		annotations[overlay.NodeCIDRKeyAnnotation] = nodePodCIDR
 		pod.SetAnnotations(annotations)
 		_, err = c.CoreV1().Pods(ns).Update(context.Background(), pod, metav1.UpdateOptions{})
 		return err
