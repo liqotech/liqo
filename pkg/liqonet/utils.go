@@ -49,6 +49,17 @@ func GetNodeName() (string, error) {
 	return nodeName, nil
 }
 
+func GetNodePodCIDR(nodeName string, clientSet kubernetes.Interface) (string, error) {
+	//get the node by name
+	node, err := clientSet.CoreV1().Nodes().Get(context.Background(), nodeName, metav1.GetOptions{})
+	if err != nil {
+		return "", err
+	}
+	//we do not check here if the field is set or not, it is done by the module who consumes it
+	//it is an optional field
+	return node.Spec.PodCIDR, nil
+}
+
 func GetInternalIPOfNode(node *corev1.Node) (string, error) {
 	var internalIp string
 	for _, address := range node.Status.Addresses {

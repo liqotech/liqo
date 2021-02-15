@@ -19,6 +19,12 @@ rules:
   - create
   - patch
 - apiGroups:
+  - ""
+  resources:
+  - nodes
+  verbs:
+  - get
+- apiGroups:
   - net.liqo.io
   resources:
   - tunnelendpoints

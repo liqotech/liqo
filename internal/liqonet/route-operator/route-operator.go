@@ -49,12 +49,13 @@ type RouteController struct {
 	client.Client
 	record.EventRecorder
 	utils.NetLink
-	clientSet *kubernetes.Clientset
-	nodeName  string
-	namespace string
-	podIP     string
-	wg        *wireguard.Wireguard
-	DynClient dynamic.Interface
+	clientSet   *kubernetes.Clientset
+	nodeName    string
+	namespace   string
+	podIP       string
+	nodePodCIDR string
+	wg          *wireguard.Wireguard
+	DynClient   dynamic.Interface
 }
 
 func NewRouteController(mgr ctrl.Manager, wgc wireguard.Client, nl wireguard.Netlinker) (*RouteController, error) {
@@ -71,6 +72,11 @@ func NewRouteController(mgr ctrl.Manager, wgc wireguard.Client, nl wireguard.Net
 		klog.Errorf("unable to create the controller: %v", err)
 		return nil, err
 	}
+	nodePodCIDR, err := utils.GetNodePodCIDR(nodeName, clientSet)
+	if err != nil {
+		klog.Errorf("unable to create the controller: %v", err)
+		return nil, err
+	}
 	namespace, err := utils.GetPodNamespace()
 	if err != nil {
 		klog.Errorf("unable to create the controller: %v", err)
@@ -83,13 +89,14 @@ func NewRouteController(mgr ctrl.Manager, wgc wireguard.Client, nl wireguard.Net
 		return nil, err
 	}
 	r := &RouteController{
-		Client:    mgr.GetClient(),
-		clientSet: clientSet,
-		podIP:     podIP.String(),
-		namespace: namespace,
-		wg:        wg,
-		nodeName:  nodeName,
-		DynClient: dynClient,
+		Client:      mgr.GetClient(),
+		clientSet:   clientSet,
+		podIP:       podIP.String(),
+		nodePodCIDR: nodePodCIDR,
+		namespace:   namespace,
+		wg:          wg,
+		nodeName:    nodeName,
+		DynClient:   dynClient,
 	}
 	r.setUpRouteManager(mgr.GetEventRecorderFor(strings.Join([]string{OperatorName, nodeName}, "-")))
 	return r, nil
@@ -100,6 +107,7 @@ func NewRouteController(mgr ctrl.Manager, wgc wireguard.Client, nl wireguard.Net
 // +kubebuilder:rbac:groups=net.liqo.io,resources=tunnelendpoints/status,verbs=get;update;patch
 // +kubebuilder:rbac:groups=config.liqo.io,resources=clusterconfigs,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=core,resources=events,verbs=create;patch
+// +kubebuilder:rbac:groups=core,resources=nodes,verbs=get
 //role
 // +kubebuilder:rbac:groups=core,namespace="do-not-care",resources=secrets,verbs=create;update;patch;get;list;watch;delete
 // +kubebuilder:rbac:groups=core,namespace="do-not-care",resources=pods,verbs=update;patch;get;list;watch
