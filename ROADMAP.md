@@ -12,7 +12,7 @@
 
 ## Next steps
 
-**Version 0.2** (expected Jan 15, 2021)
+**Version 0.2** (expected Feb 28, 2021)
 - Support for public cloud peering
   - Tenant authentication
   - Network interconnection
