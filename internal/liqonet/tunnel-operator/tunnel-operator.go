@@ -91,8 +91,20 @@ func NewTunnelController(mgr ctrl.Manager, wgc wireguard.Client, nl wireguard.Ne
 	if err != nil {
 		return nil, err
 	}
+	//create new custom routing table for the overlay iFace
+	if err = overlay.CreateRoutingTable(overlay.RoutingTableID, overlay.RoutingTableName); err != nil {
+		return nil, err
+	}
+	//enable reverse path filter for the overlay interface
+	if err = overlay.Enable_rp_filter(wg.GetDeviceName()); err != nil {
+		return nil, err
+	}
 	//enable ip forwarding
 	if err = utils.EnableIPForwarding(); err != nil {
+		return nil, err
+	}
+	//populate the custom routing table with the default route
+	if err = overlay.SetUpDefaultRoute(overlay.RoutingTableID, wg.GetLinkIndex()); err != nil {
 		return nil, err
 	}
 	//get name of the default interface
@@ -135,6 +147,7 @@ func (tc *TunnelController) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 		klog.Infof("%s -> resource %s is not ready", endpoint.Spec.ClusterID, endpoint.Name)
 		return result, nil
 	}
+	_, remotePodCIDR := utils.GetPodCIDRS(&endpoint)
 	// examine DeletionTimestamp to determine if object is under deletion
 	if endpoint.ObjectMeta.DeletionTimestamp.IsZero() {
 		if !utils.ContainsString(endpoint.ObjectMeta.Finalizers, tunnelEndpointFinalizer) {
@@ -156,6 +169,10 @@ func (tc *TunnelController) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 			if err := tc.RemoveRoutesPerCluster(&endpoint); err != nil {
 				return result, err
 			}
+			if err := overlay.RemovePolicyRoutingRule(overlay.RoutingTableID, remotePodCIDR); err != nil {
+				klog.Errorf("%s -> an error occurred while removing policy rule: %s", endpoint.Spec.ClusterID, err)
+				return result, err
+			}
 			//remove the finalizer from the list and update it.
 			endpoint.Finalizers = utils.RemoveString(endpoint.Finalizers, tunnelEndpointFinalizer)
 			if err := tc.Update(ctx, &endpoint); err != nil {
@@ -175,6 +192,10 @@ func (tc *TunnelController) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 		return result, err
 	}
 	if err := tc.EnsureRoutesPerCluster("liqo-wg", &endpoint); err != nil {
+		return result, err
+	}
+	if err = overlay.InsertPolicyRoutingRule(overlay.RoutingTableID, remotePodCIDR); err != nil {
+		klog.Errorf("%s -> an error occurred while inserting policy rule: %s", endpoint.Spec.ClusterID, err)
 		return result, err
 	}
 	if reflect.DeepEqual(*con, endpoint.Status.Connection) {
