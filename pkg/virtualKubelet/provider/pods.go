@@ -33,13 +33,14 @@ func (p *LiqoProvider) CreatePod(_ context.Context, homePod *corev1.Pod) error {
 	klog.V(3).Infof("PROVIDER: pod %s/%s asked to be created in the provider", homePod.Namespace, homePod.Name)
 
 	if homePod.OwnerReferences != nil && len(homePod.OwnerReferences) != 0 && homePod.OwnerReferences[0].Kind == "DaemonSet" {
-		klog.Infof("Skip to create DaemonSet homePod %q", homePod.Name)
+		klog.Infof("PROVIDER: Skip to create DaemonSet homePod %q", homePod.Name)
 		return nil
 	}
 
 	foreignObj, err := forge.HomeToForeign(homePod, nil, forge.LiqoOutgoingKey)
 	if err != nil {
-		return err
+		klog.V(4).Infof("PROVIDER: error while forging remote pod %s/%s because of error %v", homePod.Namespace, homePod.Name, err)
+		return nil
 	}
 	foreignPod := foreignObj.(*corev1.Pod)
 
@@ -50,12 +51,6 @@ func (p *LiqoProvider) CreatePod(_ context.Context, homePod *corev1.Pod) error {
 	}
 
 	foreignReplicaset := forge.ReplicasetFromPod(foreignPod)
-
-	_, err = p.apiController.CacheManager().GetForeignApiByIndex(apimgmgt.Pods, foreignPod.Namespace, homePod.Name)
-	if err == nil {
-		klog.V(4).Infof("PROVIDER: creation of foreign replicaset %s/%s aborted, already existing", foreignReplicaset.Namespace, foreignReplicaset.Name)
-		return nil
-	}
 
 	// add a finalizer to allow the pod to be garbage collected by the incoming replicaset reflector
 	finalizerPatch := []byte(fmt.Sprintf(
@@ -115,7 +110,7 @@ func (p *LiqoProvider) DeletePod(ctx context.Context, pod *corev1.Pod) (err erro
 			replicasetName = pod.Labels[virtualKubelet.ReflectedpodKey]
 		}
 		if replicasetName == "" {
-			klog.V(3).Infof("home pod %s/%s foreign replica not deleted because unlabeled", pod.Namespace, pod.Name)
+			klog.V(3).Infof("PROVIDER: home pod %s/%s foreign replica not deleted because unlabeled", pod.Namespace, pod.Name)
 			return nil
 		}
 	} else {
@@ -128,7 +123,7 @@ func (p *LiqoProvider) DeletePod(ctx context.Context, pod *corev1.Pod) (err erro
 
 	err = p.foreignClient.AppsV1().ReplicaSets(foreignNamespace).Delete(context.TODO(), replicasetName, metav1.DeleteOptions{})
 	if kerror.IsNotFound(err) {
-		klog.V(5).Infof("replicaset %v/%v not deleted because not existing", foreignNamespace, replicasetName)
+		klog.V(5).Infof("PROVIDER: replicaset %v/%v not deleted because not existing", foreignNamespace, replicasetName)
 		return nil
 	}
 	if err != nil {
@@ -142,21 +137,29 @@ func (p *LiqoProvider) DeletePod(ctx context.Context, pod *corev1.Pod) (err erro
 
 // GetPod returns a pod by name that is stored in memory.
 func (p *LiqoProvider) GetPod(_ context.Context, namespace, name string) (pod *corev1.Pod, err error) {
+	if reflect2.IsNil(pod) {
+		klog.V(4).Info("PROVIDER: received nil pod")
+		return nil, nil
+	}
+
 	klog.V(3).Infof("PROVIDER: pod %s/%s requested to the provider", namespace, name)
 
 	foreignNamespace, err := p.namespaceMapper.NatNamespace(namespace, false)
 	if err != nil {
-		return nil, err
+		klog.V(4).Infof("PROVIDER: cannot get remote pod %s/%s because of error %v, requeueing", pod.Namespace, pod.Name, err)
+		return nil, nil
 	}
 
 	_, err = p.apiController.CacheManager().GetForeignApiByIndex(apimgmgt.Pods, foreignNamespace, name)
 	if err != nil {
-		return nil, errors.Wrap(err, "error while retrieving foreign pod")
+		klog.V(4).Infof("PROVIDER: cannot get remote pod %s/%s because of error %v, requeueing", pod.Namespace, pod.Name, err)
+		return nil, nil
 	}
 
 	homePod, err := p.apiController.CacheManager().GetHomeNamespacedObject(apimgmgt.Pods, namespace, name)
 	if err != nil {
-		return nil, errors.Wrap(err, "error while retrieving home pod")
+		klog.V(4).Infof("PROVIDER: cannot get remote pod %s/%s because of error %v, requeueing", pod.Namespace, pod.Name, err)
+		return nil, nil
 	}
 
 	// if we want to enforce some foreign pod fields we should return a homePod having the fields to enforce
