@@ -10,13 +10,8 @@ tag: ""
 pullPolicy: "IfNotPresent"
 apiServer:
   # -- remote API server IP address
-  ip: ""
+  address: ""
   # -- remote API server port
-  port: ""
-authServer:
-  # -- remote auth server IP address
-  ip: ""
-  # -- remote auth server port
   port: ""
 
 # -- liqo name override
@@ -74,8 +69,8 @@ networkManager:
   # -- networkManager image repository
   imageName: "liqo/liqonet"
   config:
-    podCIDR: "10.244.0.0/16"
-    serviceCIDR: "10.0.0.0/16"
+    podCIDR: ""
+    serviceCIDR: ""
     reservedSubnets: []
 
 crdReplicator:
@@ -128,11 +123,13 @@ auth:
     type: "NodePort"
     # -- auth service annotations
     annotations: {}
+  tls: true
   ingress:
     # -- auth ingress annotations
     annotations: {}
     enable: false
     host: ""
+    port: ""
     class: ""
   config:
     allowEmptyToken: true
