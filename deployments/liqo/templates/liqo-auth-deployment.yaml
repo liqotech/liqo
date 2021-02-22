@@ -48,7 +48,7 @@ spec:
           - "--resyncSeconds"
           - "30"
           - "--listeningPort"
-          {{- if .Values.auth.ingress.enable }}
+          {{- if not .Values.auth.tls}}
           - "5000"
           {{- else }}
           - "443"
@@ -59,9 +59,9 @@ spec:
               valueFrom:
                 fieldRef:
                   fieldPath: metadata.namespace
-            {{- if .Values.apiServer.ip }}
+            {{- if .Values.apiServer.address }}
             - name: APISERVER
-              value: "{{ .Values.apiServer.ip }}"
+              value: "{{ .Values.apiServer.address }}"
             {{- end }}
             {{- if .Values.apiServer.port  }}
             - name: APISERVER_PORT

@@ -20,7 +20,7 @@ spec:
   ports:
     - name: https
       protocol: TCP
-      {{- if .Values.auth.ingress.enable }}
+      {{- if not .Values.auth.tls }}
       port: 5000
       targetPort: 5000
       {{- else }}

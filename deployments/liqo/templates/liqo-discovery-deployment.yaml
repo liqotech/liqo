@@ -39,21 +39,21 @@ spec:
               valueFrom:
                 fieldRef:
                   fieldPath: metadata.namespace
-            {{- if .Values.apiServer.ip }}
+            {{- if .Values.apiServer.address }}
             - name: APISERVER
-              value: "{{ .Values.apiServer.ip }}"
+              value: "{{ .Values.apiServer.address }}"
             {{- end }}
             {{- if .Values.apiServer.port }}
             - name: APISERVER_PORT
               value: "{{ .Values.apiServer.port }}"
             {{- end }}
-            {{- if .Values.authServer.ip }}
+            {{- if .Values.auth.ingress.host}}
             - name: AUTH_ADDR
-              value: "{{ .Values.authServer.ip }}"
+              value: "{{ .Values.auth.ingress.host }}"
             {{- end }}
-            {{- if .Values.authServer.port }}
+            {{- if .Values.auth.ingress.port }}
             - name: AUTH_SVC_PORT
-              value: "{{ .Values.authServer.port }}"
+              value: "{{ .Values.auth.ingress.port }}"
             {{- end }}
           resources:
             limits:
