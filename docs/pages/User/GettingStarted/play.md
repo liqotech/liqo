@@ -18,9 +18,9 @@ However, you can play with *affinity* constraints as presented in the [*exploit 
 
 Each demo component is exposed as a service and accessed by other components.
 However, given that nobody knows, a priori, where each service will be deployed (either locally or in the remote cluster), Liqo _replicates_ all Kubernetes services across both clusters, although the corresponding pod may be running only in one location.
-Hence, each micro-service deployed across clusters can reach the others seamlessly: independently from the cluster a pod is deployed in, each pod is able to contact other services and leverage the traditional Kubernetes discovery mechanisms (e.g. DNS, Environment variables).
+Hence, each micro-service deployed across clusters can reach the others seamlessly: independently from the cluster a pod is deployed in, each pod can contact other services and leverage the traditional Kubernetes discovery mechanisms (e.g. DNS, Environment variables).
 
-Additionally, several other objects (e.g. `configmap` and `secrets`) inside a namespace are replicated in the remote cluster, within the "virtual twin" namespace, thus, ensuring that complex applications can work seamlessly across clusters.
+Additionally, several other objects (e.g. `configmap` and `secrets`) inside a namespace are replicated in the remote cluster within the "virtual twin" namespace, thus, ensuring that complex applications can work seamlessly across clusters.
 
 ## Observe the application deployment
 

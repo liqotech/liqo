@@ -8,11 +8,9 @@ weight: 2
 * [Deploy Liqo](#deploy-liqo)
 * [Check that Liqo is Running](#check-that-liqo-is-running)
 
-## Introduction
-
 ### About GKE
 
-Google Kubernetes Engine (GKE) is a managed Kubernetes service which is available on the Goole Cloud. The GKE environment consists of multiple machines (specifically, Compute Engine instances) grouped together to form a cluster.
+Google Kubernetes Engine (GKE) is a managed Kubernetes service available on the Google Cloud. The GKE environment consists of multiple machines (specifically, Compute Engine instances) grouped together to form a cluster.
 
 ### Scenarios
 
@@ -32,9 +30,9 @@ The first step consists in accessing the Google Cloud [Console](https://cloud.go
 
 ![](/images/install/gke/01.png)
 
-Clicking on the `Create` button, you can create a new cluster. In the new panel appeared, you can select the desired name and a location for our cluster.
+Clicking on the `Create` button, you can create a new cluster. In the new panel, you can select the desired name and a location for your cluster.
 
-__NOTE__: So far, Liqo only supports Kubernetes >= 1.19.0 and clusters with a /16 pod CIDR. This parameters cannot be changed during the lifecycle of the cluster and should be carefully chosen at cluster creation.
+__NOTE__: So far, Liqo only supports Kubernetes >= 1.19.0 and clusters with a /16 pod CIDR. This parameter cannot be changed during the cluster's lifecycle and should be carefully chosen at cluster creation.
 
 ![](/images/install/gke/02.png)
 
@@ -67,12 +65,12 @@ In particular, we have to set the following values:
 
 | Variable               | Default | Description                                 |
 | ---------------------- | ------- | ------------------------------------------- |
-| `networkManager.config.podCIDR`             |         | the cluster Pod CIDR                        |
-| `networkManager.config.serviceCIDR`         |         | the cluster Service CIDR                    |
-| `auth.ingress.class`   |         | the [ingress class](https://kubernetes.io/docs/concepts/services-networking/ingress/#ingress-class) to be used by the Auth Service Ingress |
-| `apiServer.address`  |         | the hostname where to access the API server |
+| `networkManager.config.podCIDR`             |         | The cluster Pod CIDR                        |
+| `networkManager.config.serviceCIDR`         |         | The cluster Service CIDR                    |
+| `auth.ingress.class`   |         | The [ingress class](https://kubernetes.io/docs/concepts/services-networking/ingress/#ingress-class) to be used by the Auth Service Ingress |
+| `apiServer.address`  |         | The hostname where to access the API server |
 | `apiServer.port`  |  | the port where to access the API server     |
-| `auth.ingress.host` |         | the hostname where to access the Auth Service, the one exposed with the ingress, if it is not set the service will be exposed with a [NodePort Service](https://kubernetes.io/docs/concepts/services-networking/service/#nodeport) instead of an [Ingress](https://kubernetes.io/docs/concepts/services-networking/ingress/) |
+| `auth.ingress.host` |         | The hostname where to access the Auth Service, the one exposed with the ingress. If this parameter is not set, the service will be exposed with a [NodePort Service](https://kubernetes.io/docs/concepts/services-networking/service/#nodeport) instead of an [Ingress](https://kubernetes.io/docs/concepts/services-networking/ingress/) |
 | `auth.ingress.port` |  | the port where to access the Auth Service   |
 
 #### How can I know those variable values in GKE?

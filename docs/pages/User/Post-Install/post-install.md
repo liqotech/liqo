@@ -5,7 +5,7 @@ weight: 3
 
 ### Edit your cluster name
 
-The ClusterName is the nickname of your cluster, a simple and understandable name that the other clusters can see when they discover your.
+The ClusterName is your cluster's nickname, a simple and understandable name that the other clusters can see when they discover your.
 It is set during installation, but you can easily change it whenever you want by editing your `ClusterConfig`, through the dashboard or `kubectl`.
 
 To modify the `ClusterConfig` via kubectl use the following command:
@@ -31,7 +31,7 @@ kubectl label namespace liqo-demo liqo.io/enabled=true
 
 ### Advertisement configuration
 
-In this section you can configure your cluster behaviour regarding the Advertisement broadcasting and acceptance,
+In this section, you can configure your cluster behavior regarding Advertisement broadcasting and acceptance,
 and the parameters for the [keepalive check](#keepalive-check):
 * **OutgoingConfig** defines the behaviour for the creation of the Advertisement for other clusters.
   - `enableBroadcaster` flag allows you to enable/disable the broadcasting of your Advertisement to the foreign clusters your cluster knows

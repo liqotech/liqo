@@ -3,15 +3,13 @@ title: K3s
 weight: 3
 ---
 
-## Introduction
-
 ### About K3s
 
 [K3s](https://k3s.io) is a Kubernetes distribution packaged as a single binary. It is generally lighter than K8s: it can use sqlite3 as the default storage backend, it has no OS dependencies, etc. More information about K3s can be found on [its Github repository](https://github.com/k3s-io/k3s).
 
-K3s is a great choice with Liqo if you want to create a group small clusters in your LAN or exposed via your home router with a scalable cloud-managed Kubernetes cluster.
+K3s is an excellent choice with Liqo if you want to create a group of small clusters in your LAN or exposed via your home router with a scalable cloud-managed Kubernetes cluster.
 
-K3s has really low requirements in term of memory footprint and it is suitable to be installed on small PCs/Servers.
+K3s has low requirements in memory footprint and is suitable to be installed on small PCs/Servers.
 ### K3s Installation
 
 K3s installation can be found on the official [documentation website](https://rancher.com/docs/k3s/latest/en/installation/)
@@ -30,7 +28,7 @@ When installing LIQO on K3s, you should explicitly define the parameters require
 
 You can then run the Liqo installer script, which will use the above settings to configure your Liqo instance.
 
-*N.B.* Please remember to export your K3s `kubeconfig` before launching the script, as presented in previous section. For K3s, the kubeconfig is normally stored in `/etc/rancher/k3s/k3s.yaml`
+*N.B.* Please remember to export your K3s `kubeconfig` before launching the script, as presented in previous section. For K3s, the kubeconfig is stored in `/etc/rancher/k3s/k3s.yaml`
 
 #### Pre-requirements
 
@@ -60,9 +58,9 @@ The most important values you can set are the following:
 
 | Variable               | Default             | Description                                 |
 | ---------------------- | -------             | ------------------------------------------- |
-| networkManager.config.podCIDR         | 10.42.0.0/16        | the cluster Pod CIDR                        |
-| networkManager.config.serviceCIDR         | 10.43.0.0/16        | the cluster Service CIDR                    |
-| discovery.config.clusterName         |         | nickname for your cluster that will be seen by others. If you don't specify one, the installer will give you a cluster name in the form "LiqoClusterX", where X is a random number |
+| networkManager.config.podCIDR         | 10.42.0.0/16        | The cluster Pod CIDR                        |
+| networkManager.config.serviceCIDR         | 10.43.0.0/16        | The cluster Service CIDR                    |
+| discovery.config.clusterName         |         | Nickname for your cluster that will be seen by others. If you don't specify one, the installer will give you a cluster name in the form "LiqoClusterX", where X is a random number |
 
 You can modify the ```./liqo/values.yaml``` to obtain your desired configuration and install Liqo.
 

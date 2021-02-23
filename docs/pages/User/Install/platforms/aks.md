@@ -3,9 +3,6 @@ title: AKS
 weight: 1
 ---
 
-### Introduction
-
-This guide will show you how to install Liqo on your AKS cluster
 #### About AKS
 
 Azure Kubernetes Service (AKS) is a managed Kubernetes service, which is available on the Microsoft Azure public cloud.
