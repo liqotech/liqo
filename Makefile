@@ -9,11 +9,12 @@ else
 GOBIN=$(shell go env GOBIN)
 endif
 
+
+gen: generate fmt vet manifests rbacs docs
+
 #generate helm documentation
 docs: helm-docs
 	$(HELM_DOCS) -t deployments/liqo/README.gotmpl deployments/liqo
-
-gen: generate fmt vet manifests
 
 #run all tests
 test: unit e2e

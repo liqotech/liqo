@@ -69,9 +69,14 @@ networkManager:
   # -- networkManager image repository
   imageName: "liqo/liqonet"
   config:
+    # -- the subnet used by the cluster for the pods, in CIDR notation
     podCIDR: ""
+    # -- the subnet used by the cluster for the services, in CIDR notation
     serviceCIDR: ""
+    # -- this field is used by the IPAM embedded in the liqo-networkManager.Subnets listed in this field are excluded from the list of possible subnets used for natting POD CIDR. Add here the subnets already used in your environment as a list in CIDR notation (e.g. [10.1.0.0/16, 10.200.1.0/24]).
     reservedSubnets: []
+    # -- set this field to true if you are deploying liqo in GKE cluster
+    GKEProvider: false
 
 crdReplicator:
   pod:

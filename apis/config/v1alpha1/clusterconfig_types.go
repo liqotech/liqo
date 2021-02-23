@@ -142,6 +142,8 @@ type LiqonetConfig struct {
 	PodCIDR string `json:"podCIDR"`
 	//the subnet used by the cluster for the services, in CIDR notation
 	ServiceCIDR string `json:"serviceCIDR"`
+	//set this flag to true if you are using GKE with kubenet CNI
+	GKEProvider bool `json:"GKEProvider"`
 }
 
 //contains a list of resources identified by their GVR

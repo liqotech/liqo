@@ -102,6 +102,13 @@ func main() {
 			klog.Errorf("an error occurred while creating the tunnel controller: %v", err)
 			os.Exit(1)
 		}
+		//starting configuration watcher
+		config, err := ctrl.GetConfig()
+		if err != nil {
+			klog.Error(err)
+			os.Exit(2)
+		}
+		tc.WatchConfiguration(config, &clusterConfig.GroupVersion)
 		tc.StartPodWatcher()
 		tc.StartServiceWatcher()
 		if err := tc.CreateAndEnsureIPTablesChains(tc.DefaultIface); err != nil {

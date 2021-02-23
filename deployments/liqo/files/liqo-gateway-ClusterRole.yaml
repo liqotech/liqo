@@ -1,5 +1,11 @@
 rules:
 - apiGroups:
+  - config.liqo.io
+  resources:
+  - clusterconfigs
+  verbs:
+  - list
+- apiGroups:
   - ""
   resources:
   - events
