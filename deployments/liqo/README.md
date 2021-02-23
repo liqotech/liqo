@@ -53,9 +53,10 @@
 | gateway.service.annotations | object | `{}` |  |
 | gateway.service.type | string | `"NodePort"` |  |
 | nameOverride | string | `""` | liqo name override |
-| networkManager.config.podCIDR | string | `""` |  |
-| networkManager.config.reservedSubnets | list | `[]` |  |
-| networkManager.config.serviceCIDR | string | `""` |  |
+| networkManager.config.GKEProvider | bool | `false` | set this field to true if you are deploying liqo in GKE cluster |
+| networkManager.config.podCIDR | string | `""` | the subnet used by the cluster for the pods, in CIDR notation |
+| networkManager.config.reservedSubnets | list | `[]` | this field is used by the IPAM embedded in the liqo-networkManager.Subnets listed in this field are excluded from the list of possible subnets used for natting POD CIDR. Add here the subnets already used in your environment as a list in CIDR notation (e.g. [10.1.0.0/16, 10.200.1.0/24]). |
+| networkManager.config.serviceCIDR | string | `""` | the subnet used by the cluster for the services, in CIDR notation |
 | networkManager.imageName | string | `"liqo/liqonet"` | networkManager image repository |
 | networkManager.pod.annotations | object | `{}` | networkManager pod annotations |
 | networkManager.pod.labels | object | `{}` | networkManager pod labels |

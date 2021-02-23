@@ -61,6 +61,9 @@ type TunnelController struct {
 	drivers      map[string]tunnel.Driver
 	namespace    string
 	podIP        string
+	isGKE        bool
+	isConfigured bool
+	configChan   chan bool
 	stopPWChan   chan struct{}
 	stopSWChan   chan struct{}
 }
@@ -69,6 +72,7 @@ type TunnelController struct {
 // +kubebuilder:rbac:groups=net.liqo.io,resources=tunnelendpoints,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=net.liqo.io,resources=tunnelendpoints/status,verbs=get;update;patch
 // +kubebuilder:rbac:groups=core,resources=events,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=config.liqo.io,resources=clusterconfigs,verbs=list
 //role
 // +kubebuilder:rbac:groups=core,namespace="do-not-care",resources=secrets,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=core,namespace="do-not-care",resources=services,verbs=get;list;watch;update
@@ -120,6 +124,7 @@ func NewTunnelController(mgr ctrl.Manager, wgc wireguard.Client, nl wireguard.Ne
 		podIP:         podIP.String(),
 		DefaultIface:  iface,
 		wg:            wg,
+		configChan:    make(chan bool),
 	}
 	err = tc.SetUpTunnelDrivers()
 	if err != nil {
@@ -134,6 +139,9 @@ func NewTunnelController(mgr ctrl.Manager, wgc wireguard.Client, nl wireguard.Ne
 }
 
 func (tc *TunnelController) Reconcile(req ctrl.Request) (ctrl.Result, error) {
+	if !tc.isConfigured {
+		<-tc.configChan
+	}
 	ctx := context.Background()
 	var endpoint netv1alpha1.TunnelEndpoint
 	//name of our finalizer
@@ -169,9 +177,11 @@ func (tc *TunnelController) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 			if err := tc.RemoveRoutesPerCluster(&endpoint); err != nil {
 				return result, err
 			}
-			if err := overlay.RemovePolicyRoutingRule(overlay.RoutingTableID, remotePodCIDR); err != nil {
-				klog.Errorf("%s -> an error occurred while removing policy rule: %s", endpoint.Spec.ClusterID, err)
-				return result, err
+			if tc.isGKE {
+				if err := overlay.RemovePolicyRoutingRule(overlay.RoutingTableID, remotePodCIDR); err != nil {
+					klog.Errorf("%s -> an error occurred while removing policy rule: %s", endpoint.Spec.ClusterID, err)
+					return result, err
+				}
 			}
 			//remove the finalizer from the list and update it.
 			endpoint.Finalizers = utils.RemoveString(endpoint.Finalizers, tunnelEndpointFinalizer)
@@ -194,9 +204,11 @@ func (tc *TunnelController) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 	if err := tc.EnsureRoutesPerCluster("liqo-wg", &endpoint); err != nil {
 		return result, err
 	}
-	if err = overlay.InsertPolicyRoutingRule(overlay.RoutingTableID, remotePodCIDR); err != nil {
-		klog.Errorf("%s -> an error occurred while inserting policy rule: %s", endpoint.Spec.ClusterID, err)
-		return result, err
+	if tc.isGKE {
+		if err = overlay.InsertPolicyRoutingRule(overlay.RoutingTableID, remotePodCIDR); err != nil {
+			klog.Errorf("%s -> an error occurred while inserting policy rule: %s", endpoint.Spec.ClusterID, err)
+			return result, err
+		}
 	}
 	if reflect.DeepEqual(*con, endpoint.Status.Connection) {
 		return result, nil
