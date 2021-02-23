@@ -471,59 +471,114 @@ func (r *ForeignClusterReconciler) checkJoined(fc *discoveryv1alpha1.ForeignClus
 	return fc, nil
 }
 
-func (r *ForeignClusterReconciler) getHomeAuthUrl() (string, error) {
+// get the external address where the Authentication Service is reachable from the external world
+func (r *ForeignClusterReconciler) getAddress() (string, error) {
+	// this address can be overwritten setting this environment variable
 	address, _ := os.LookupEnv("AUTH_ADDR")
-
-	if address == "" {
-		nodes, err := r.crdClient.Client().CoreV1().Nodes().List(context.TODO(), metav1.ListOptions{})
-		if err != nil {
-			klog.Error(err)
-			return "", err
-		}
-		if len(nodes.Items) == 0 {
-			err = errors.NewNotFound(schema.GroupResource{
-				Group:    apiv1.GroupName,
-				Resource: "nodes",
-			}, "")
-			klog.Error(err)
-			return "", err
-		}
-
-		node := nodes.Items[0]
-		for _, addr := range node.Status.Addresses {
-			if addr.Type == apiv1.NodeExternalIP || addr.Type == apiv1.NodeInternalIP {
-				address = addr.Address
-				break
-			}
-		}
+	if address != "" {
+		return address, nil
 	}
 
-	if address == "" {
-		err := errors.NewNotFound(schema.GroupResource{
+	// get the authentication service
+	svc, err := r.crdClient.Client().CoreV1().Services(r.Namespace).Get(context.TODO(), discovery.AuthServiceName, metav1.GetOptions{})
+	if err != nil {
+		klog.Error(err)
+		return "", err
+	}
+	// if the service is exposed as LoadBalancer
+	if svc.Spec.Type == apiv1.ServiceTypeLoadBalancer {
+		// get the IP from the LoadBalancer service
+		if len(svc.Status.LoadBalancer.Ingress) == 0 {
+			// the service has no external IPs
+			err := goerrors.New("no valid external IP for LoadBalancer Service")
+			klog.Error(err)
+			return "", err
+		}
+		// return the external service IP
+		return svc.Status.LoadBalancer.Ingress[0].IP, nil
+	}
+
+	// get the IP from the Nodes, to be used with NodePort services
+	nodes, err := r.crdClient.Client().CoreV1().Nodes().List(context.TODO(), metav1.ListOptions{})
+	if err != nil {
+		klog.Error(err)
+		return "", err
+	}
+	if len(nodes.Items) == 0 {
+		// there are no node is the cluster, we cannot get the address on any of them
+		err = errors.NewNotFound(schema.GroupResource{
 			Group:    apiv1.GroupName,
 			Resource: "nodes",
-		}, "no valid ip")
+		}, "")
 		klog.Error(err)
 		return "", err
 	}
 
-	port, _ := os.LookupEnv("AUTH_SVC_PORT")
-	if port == "" {
-		svc, err := r.crdClient.Client().CoreV1().Services(r.Namespace).Get(context.TODO(), discovery.AuthServiceName, metav1.GetOptions{})
-		if err != nil {
-			klog.Error(err)
-			return "", err
+	node := nodes.Items[0]
+	for _, addr := range node.Status.Addresses {
+		// get the accresses that are IPs, other addresses (like the hostname) can not be reachable and valid for a remote host
+		if addr.Type == apiv1.NodeExternalIP || addr.Type == apiv1.NodeInternalIP {
+			return addr.Address, nil
 		}
-		if len(svc.Spec.Ports) == 0 {
-			err = errors.NewNotFound(schema.GroupResource{
-				Group:    apiv1.GroupName,
-				Resource: string(apiv1.ResourceServices),
-			}, discovery.AuthServiceName)
-			klog.Error(err)
-			return "", err
-		}
+	}
 
-		port = fmt.Sprintf("%v", svc.Spec.Ports[0].NodePort)
+	// we was not able to get an address in any of the previous cases:
+	// 1. no overwrite variable is set
+	// 2. the service is not of type LoadBalancer
+	// 3. there are no nodes in the cluster to get the IP for a NodePort service
+	err = errors.NewNotFound(schema.GroupResource{
+		Group:    apiv1.GroupName,
+		Resource: "nodes",
+	}, "no valid ip")
+	klog.Error(err)
+	return "", err
+}
+
+// get the external port where the Authentication Service is reachable from the external world
+func (r *ForeignClusterReconciler) getPort() (string, error) {
+	// this port can be overwritten setting this environment variable
+	port, _ := os.LookupEnv("AUTH_SVC_PORT")
+	if port != "" {
+		return port, nil
+	}
+
+	// get the authentication service
+	svc, err := r.crdClient.Client().CoreV1().Services(r.Namespace).Get(context.TODO(), discovery.AuthServiceName, metav1.GetOptions{})
+	if err != nil {
+		klog.Error(err)
+		return "", err
+	}
+	if len(svc.Spec.Ports) == 0 {
+		// the service has no available port, we cannot get it
+		err = errors.NewNotFound(schema.GroupResource{
+			Group:    apiv1.GroupName,
+			Resource: string(apiv1.ResourceServices),
+		}, discovery.AuthServiceName)
+		klog.Error(err)
+		return "", err
+	}
+
+	if svc.Spec.Type == apiv1.ServiceTypeLoadBalancer {
+		// return the LoadBalancer service external port
+		return fmt.Sprintf("%v", svc.Spec.Ports[0].Port), nil
+	} else if svc.Spec.Type == apiv1.ServiceTypeNodePort {
+		// return the NodePort service port
+		return fmt.Sprintf("%v", svc.Spec.Ports[0].NodePort), nil
+	} else {
+		// other service types. When we are using an Ingress we should not reach this code, because of the environment variable
+		return "", fmt.Errorf("you cannot expose the Auth Service with a %v Service. If you are using an Ingress, probably, there are configuration issues", svc.Spec.Type)
+	}
+}
+
+func (r *ForeignClusterReconciler) getHomeAuthUrl() (string, error) {
+	address, err := r.getAddress()
+	if err != nil {
+		return "", err
+	}
+
+	port, err := r.getPort()
+	if err != nil {
+		return "", err
 	}
 
 	return fmt.Sprintf("https://%s:%v", address, port), nil
