@@ -45,16 +45,16 @@ This means that 2 kind clusters are deployed and running on your host.
 
 Then, you can simply inspect the status of the clusters. To do so, you can export the `KUBECONFIG` variable to specify the identity file for kubectl and then contact the cluster.
 
-By default, the kubeconfigs of the two clusters are saved in the current directory (`./liqo_kubeconf_1`, `./liqo_kubeconf_2`) and both are already exported as environment variables .(`KUBECONFIG_1`,`KUBECONFIG_2`).
+By default, the kubeconfigs of the two clusters are saved in the current directory (`./liqo_kubeconf_1`, `./liqo_kubeconf_2`) and both are already exported as environment variables (`KUBECONFIG_1`,`KUBECONFIG_2`).
 
-For example, on the first cluster, you can get the available pods by simply typing:
+For example, on the first cluster, you can get the available pods by merely typing:
 
 ```bash
 export KUBECONFIG=$KUBECONFIG_1
 kubectl get pods -A
 ```
 
-Similarly, on the second cluster, you can observe the pods in execution on the second cluster:
+Similarly, on the second cluster, you can observe the pods in execution:
 
 ```bash
 export KUBECONFIG=$KUBECONFIG_2
@@ -77,6 +77,6 @@ kube-system          kube-scheduler-cluster1-control-plane            1/1     Ru
 local-path-storage   local-path-provisioner-78776bfc44-rk58g          1/1     Running   0          57m
 ```
 
-If the above commands return each an output similar to this, your clusters are up and ready.
+If the above commands return each output similar to this, your clusters are up and ready.
 
 Now, you can move forward to the [next step](../install): the installation of Liqo.

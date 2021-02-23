@@ -3,14 +3,12 @@ title: Kubeadm K8s
 weight: 3
 ---
 
-### Introduction
+### About Kubeadm
 
-### [About Kubeadm](https://k8s.io)
-
-Kubeadm is a tool built by the Kubernetes community to provide creating Kubernetes clusters. Kubeadm is used as the basis of most Kubernetes deployments and makes it easier to create conformant clusters.
+[Kubeadm](https://kubernetes.io/docs/setup/production-environment/tools/kubeadm/create-cluster-kubeadm/) is a tool built by the Kubernetes community to provide creating Kubernetes clusters. Kubeadm is used as the basis of most Kubernetes deployments and makes it easier to create conformant clusters.
 ### CNI Compatibility Matrix
 
-Kubeadm K8s is not provided by a default CNI plugin which can be installed after the initialization of the cluster.
+Kubeadm K8s does not install default CNI plugin which can be installed after the initialization of the cluster.
 
 Liqo supports several CNIs as mentioned in the following table:
 
@@ -155,4 +153,4 @@ helm install liqo liqo-helm/liqo --set clusterName="MyCluster" --set networkMana
 ```
 __NOTE__: You should check that `podCIDR` and `serviceCIDR` correspond to the one in your cluster. 
 
-If the clusters you would like to connect are in the same L2 broadcast domain, the Liqo discovery mechanism based on mDNS will handle the discovery automatically. If you have your clusters in different L3 domains, you have to manually create [manually a *foreign_cluster* resource]() or rely on [DNS discovery](/user/post-install/discovery#manual-configuration)
+If the clusters you would like to connect are in the same L2 broadcast domain, the Liqo discovery mechanism based on mDNS will handle the discovery automatically. If you have your clusters in different L3 domains, you have to manually create [manually a *foreign_cluster* resource](/user/post-install/discovery#manual-configuration) or rely on [DNS discovery](/user/post-install/discovery#).
