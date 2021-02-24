@@ -64,10 +64,9 @@ jobs:
           body: |
             The Helm README.md appears to be out-of-date.
 
-            Please, fetch the latest version of [helm-docs](https://github.com/norwoodj/helm-docs) and run
+            Please, run
             ```
-            cd deployments/liqo
-            helm-docs -t README.gotmpl
+            make docs
             ```
 
             <details>
