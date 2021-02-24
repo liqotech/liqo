@@ -122,17 +122,17 @@ var _ = Describe("Pods", func() {
 
 		It("create pod", func() {
 			err := provider.CreatePod(context.TODO(), nil)
-			Expect(err).To(HaveOccurred())
+			Expect(err).NotTo(HaveOccurred())
 		})
 
 		It("update pod", func() {
 			err := provider.UpdatePod(context.TODO(), nil)
-			Expect(err).To(HaveOccurred())
+			Expect(err).NotTo(HaveOccurred())
 		})
 
 		It("delete pod", func() {
 			err := provider.CreatePod(context.TODO(), nil)
-			Expect(err).To(HaveOccurred())
+			Expect(err).NotTo(HaveOccurred())
 		})
 	})
 })

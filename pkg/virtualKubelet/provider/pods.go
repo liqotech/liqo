@@ -27,7 +27,8 @@ import (
 // CreatePod accepts a Pod definition and stores it in memory.
 func (p *LiqoProvider) CreatePod(_ context.Context, homePod *corev1.Pod) error {
 	if reflect2.IsNil(homePod) {
-		return errors.New("received nil pod to create")
+		klog.V(4).Info("received nil pod to create")
+		return nil
 	}
 
 	klog.V(3).Infof("PROVIDER: pod %s/%s asked to be created in the provider", homePod.Namespace, homePod.Name)
@@ -46,8 +47,8 @@ func (p *LiqoProvider) CreatePod(_ context.Context, homePod *corev1.Pod) error {
 
 	foreignPod, err = serviceEnv.TranslateServiceEnvVariables(foreignPod, homePod.Namespace, foreignPod.Namespace, p.apiController.CacheManager())
 	if err != nil {
-		klog.Error(err)
-		return err
+		klog.V(4).Info(err)
+		return nil
 	}
 
 	foreignReplicaset := forge.ReplicasetFromPod(foreignPod)
@@ -64,7 +65,7 @@ func (p *LiqoProvider) CreatePod(_ context.Context, homePod *corev1.Pod) error {
 		metav1.PatchOptions{})
 	if err != nil {
 		klog.Error(err)
-		return err
+		return nil
 	}
 
 	_, err = p.foreignClient.AppsV1().ReplicaSets(foreignReplicaset.Namespace).Create(context.TODO(), foreignReplicaset, metav1.CreateOptions{})
@@ -73,7 +74,8 @@ func (p *LiqoProvider) CreatePod(_ context.Context, homePod *corev1.Pod) error {
 		return nil
 	}
 	if err != nil {
-		return err
+		klog.Error(err)
+		return nil
 	}
 
 	klog.V(3).Infof("PROVIDER: replicaset %v/%v successfully created on remote cluster", foreignReplicaset.Namespace, foreignReplicaset.Name)
@@ -84,7 +86,8 @@ func (p *LiqoProvider) CreatePod(_ context.Context, homePod *corev1.Pod) error {
 // UpdatePod accepts a Pod definition and updates its reference.
 func (p *LiqoProvider) UpdatePod(_ context.Context, pod *corev1.Pod) error {
 	if reflect2.IsNil(pod) {
-		return errors.New("received nil pod to update")
+		klog.V(4).Info("received nil pod to create")
+		return nil
 	}
 
 	klog.V(3).Infof("PROVIDER: pod %s/%s asked to be updated in the provider", pod.Namespace, pod.Name)
