@@ -66,6 +66,10 @@ func (r *PeeringRequestReconciler) createForeignCluster(pr *v1alpha1.PeeringRequ
 	fc := &v1alpha1.ForeignCluster{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: pr.Spec.ClusterIdentity.ClusterID,
+			Labels: map[string]string{
+				discovery.DiscoveryTypeLabel: string(discovery.IncomingPeeringDiscovery),
+				discovery.ClusterIdLabel:     pr.Spec.ClusterIdentity.ClusterID,
+			},
 		},
 		Spec: v1alpha1.ForeignClusterSpec{
 			ClusterIdentity: pr.Spec.ClusterIdentity,
