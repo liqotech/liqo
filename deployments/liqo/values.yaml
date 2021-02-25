@@ -137,7 +137,7 @@ auth:
     port: ""
     class: ""
   config:
-    allowEmptyToken: true
+    allowEmptyToken: false
 
 webhook:
   pod:
