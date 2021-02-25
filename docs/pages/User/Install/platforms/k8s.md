@@ -122,7 +122,7 @@ echo "SERVICE CIDR: $SERVICE_CIDR"
 
 ### On-premise Cluster behind NAT
 
-If your cluster is hosted on premise behind a NAT and you would like to connect your cluster with another via the Internet, you may use the following configuration:
+If your cluster is hosted on-premise behind a NAT and you would like to connect your cluster with another via the Internet, you may use the following configuration:
 
 | Variable | Value | Notes |
 | -------- | ------ | ----- |

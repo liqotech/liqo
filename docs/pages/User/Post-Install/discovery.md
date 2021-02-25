@@ -11,20 +11,21 @@ Specifically, you can rely on three different methods to peer with other cluster
 2. **DNS Discovery**: automatic discovery of the clusters associated with a specific DNS domain (e.g.; *liqo.io*). This is achieved by quering specific DNS entries. This looks similar to the discovery of voice-over-IP SIP servers and it is mostly oriented to big organizations that wish to adopt Liqo in production.
 3. **Manual Configuration**: manual addition of specific clusters to the list of known ones. This method is particularly appropriate outside LAN, without requiring any DNS configuration.
 
-> NOTE: read the [Authentication](../authentication) section for information about the inter-cluster authentication. If the remote cluster is requiring it, the authentication step is required to have the new Liqo node in your cluster
+After you have successfully discovered the clusters you want to peer with, you should read the [Authentication](../authentication) section to complete the peering performing the inter-cluster authentication. By default, Liqo enables it, and the authentication step is **required** to have a new Liqo node in your cluster.
 
 ## LAN Discovery
 
-Liqo is able to automatically discover any available clusters running on the same L2 Broadcast Domain, as well as to make your cluster discoverable by others.
+Liqo can automatically discover any available clusters running on the same L2 Broadcast Domain. Besides, mDNS discovery implies also that your cluster is discoverable by others.
 
-Using kubectl, you can also manually obtain the list of discovered foreign clusters:
+Using kubectl, you can manually obtain the list of discovered foreign clusters:
 
 ```bash
 kubectl get foreignclusters
 NAME                                   AGE
 ff5aa14a-dd6e-4fd2-80fe-eaecb827cf55   101m
 ```
-To check whether Liqo is configured to automatically attempt to peer with the foreign cluster, you can check the join property of the specific ForeignCluster resource:
+
+To check whether Liqo is configured to attempt to peer with the foreign cluster automatically, you can check the join property of the specific ForeignCluster resource:
 
 ```bash
 kubectl get foreignclusters ${FOREIGN_CLUSTER} --template={{.spec.join}}
@@ -49,7 +50,7 @@ kubectl patch foreignclusters "$foreignClusterName" \
 
 ### Enable and Disable the discovery on LAN
 
-The discovery on LAN can be enabled and disabled updating the flags in the ClusterConfig CR. Lan Discovery can be disabled to avoid unwanted peering with neighbors.
+The discovery on LAN can be enabled and disabled by updating the flags in the ClusterConfig CR. Lan Discovery can be disabled to avoid unwanted peering with neighbors.
 
 You can enable discovery, by patching:
 ```bash
@@ -67,6 +68,7 @@ kubectl patch clusterconfigs liqo-configuration \
 
 ## DNS Discovery
 
+In addition to LAN discovery, Liqo supports DNS-based discovery: such a mechanism is useful, for instance, when dealing with multiple clusters, which are dynamically spawned and decommissioned.
 The DNS discovery procedure requires two orthogonal actions to be enabled:
 
 1. Register your cluster into your DNS server to make it discoverable by others (the required parameters are available in the section below).
@@ -76,28 +78,26 @@ The DNS discovery procedure requires two orthogonal actions to be enabled:
 
 To allow the other clusters to peer with your cluster(s), you need to register a set of DNS records that specify the cluster(s) available in your domain, with the different parameters required to establish the connection.
 
-In a scenario where we have to manage the discovery of multiple clusters, it can be useful to manage the entire set updating it in a unique place.
+In a scenario where we have to manage multiple clusters' discovery, it can be useful to manage the entire set updating it in a unique place.
 We only have to know how the Authentication Service is reachable from the external world.
 
 #### Get the Required Values
 
 The first required value is or the __hostname__ or the __IP address__ where it is reachable.
-If you specified a name during the installation, it will be reachable with an Ingress (you can get it with `kubectl get ingress -n liqo`),
-if not it is exposed with a NodePort Service, so you can get one if the IPs of the nodes of your cluster (`kubectl get nodes -o wide`).
+If you specified a name during the installation, it would be reachable with an Ingress (you can get it with `kubectl get ingress -n liqo`),
+if an ingress is not configured, the other cluster is exposed with a NodePort Service, you can get one if the IPs of your cluster's nodes (`kubectl get nodes -o wide`).
 
-The second required value is the __port__ where it is reachable.
-If you are using an Ingress it should be reachable at port `443`. Otherwise if you are using a NodePort Service you can get the port executing
-`kubectl get service -n liqo auth-service`, an output example could be:
+The second required value is the __port__ where the remote cluster's auth service is reachable. For instance, if you are using an Ingress, it should by default be reachable at port `443`. Otherwise, if you are using a NodePort Service you can get the port executing `kubectl get service -n liqo auth-service`, an output example could be:
 
 ```txt
 NAME           TYPE       CLUSTER-IP    EXTERNAL-IP   PORT(S)         AGE
 auth-service   NodePort   10.81.20.99   <none>        443:30740/TCP   2m7s
 ```
-where "30740" is the port where the service is listening and can be contacted outside the cluster.
+
+In this example, "30740" is the port where the service is listening and can be contacted outside the cluster.
 
 #### DNS Configuration
 
-Now, it is possible to configure the records necessary to enable the DNS discovery process.
 In the following example, we present a `bind9`-like configuration for a hypothetical domain `example.com`. It exposes two Liqo-enabled cluster named `liqo-cluster` and `liqo-cluster-2`. The first one exposes the Auth Service at `1.2.3.4:443`, while the second at `2.3.4.1:8443`.
 
 ```txt
@@ -111,12 +111,12 @@ auth.server.example.com.      A       1.2.3.4
 auth.server-2.example.com.    A       2.3.4.1
 ```
 
-Remember to adapt the configuration according to your setup, modyfing the urls, ips and ports accordingly.
+Remember to adapt the configuration according to your setup, modifying the urls, ips and ports accordingly.
 
 {{%expand "Expand here to know more about the meaning of each record." %}}
 
 * the `PTR` record lists the Liqo clusters exposed for the specific domain (e.g. `liqo-cluster`).
-* the `SRV` record specifies the network parameters needed to connect to the Auth Service of the cluster. You should have a record for each cluster present in the `PTR` record.
+* the `SRV` record specifies the network parameters needed to connect to the cluster's Auth Service. You should have a record for each cluster present in the `PTR` record.
   Specifically, it has the following format:
   ```txt
    <cluster-name>._liqo._tcp.<domain>. SRV <priority> <weight> <auth-server-port> <auth-server-name>.
@@ -128,12 +128,12 @@ Remember to adapt the configuration according to your setup, modyfing the urls, 
 
 ### Connect to a remote cluster
 
-To leverage the DNS discovery to peer to a remote cluster, it is necessary to specify the remote domain called `SearchDomain`.
+To leverage the DNS discovery to peer to a remote cluster, it is necessary to specify the remote domain called `SearchDomain`. When a `SearchDomain` is configured, Liqo performs periodical queries on specific search domains looking for new clusters to peer with.
 For any `SearchDomain`, you need to configure the following parameters:
 
 1. **Domain**: the domain where the cluster you want to peer with is located.
 2. **Name**: a mnemonic name to identify the domain.
-3. **Join**: to specify whether to automatically trigger the peering procedure.
+3. **Join**: to specify whether to trigger the peering procedure automatically.
 
 Using kubectl, it is also possible to perform the following configuration. A `SearchDomain` for the `example.com` domain, may be look like:
 
@@ -153,7 +153,7 @@ EOF
 
 ### Forging the ForeignCluster
 
-In Liqo, remote clusters are defined as `ForeignClusters`
+In Liqo, remote clusters are defined as `ForeignClusters`.
 To add a new Foreign Cluster, the Auth Service URL is the only required value to make this cluster peerable from the external world.
 
 To get the address and the port where the Authentication Service is running, see the [Get the Required Values](#get-the-required-values) section.

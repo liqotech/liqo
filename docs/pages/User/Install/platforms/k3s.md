@@ -10,6 +10,7 @@ weight: 3
 K3s is an excellent choice with Liqo if you want to create a group of small clusters in your LAN or exposed via your home router with a scalable cloud-managed Kubernetes cluster.
 
 K3s has low requirements in memory footprint and is suitable to be installed on small PCs/Servers.
+
 ### K3s Installation
 
 K3s installation can be found on the official [documentation website](https://rancher.com/docs/k3s/latest/en/installation/)
@@ -73,9 +74,10 @@ or ALTERNATIVELY pass the desired parameters as extra-arguments:
 ```bash
 helm install liqo liqo-helm/liqo --set clusterName="MyCluster" --set networkManager.config.podCIDR="10.42.0.0/16" --set networkManager.config.serviceCIDR="10.43.0.0/16" ...
 ```
+
 ### On-premise Cluster behind NAT
 
-If your cluster is hosted on premise behind a NAT nd you would like to connect your cluster with another via the Internet,you should avoid to use ingress and use the following configuration:
+If your cluster is hosted on-premise behind a NAT and you would like to connect your cluster with another via the Internet; you should avoid to use ingress and use the following configuration:
 
 | Component | Variables | Value | Notes |
 | --------- | -------- | ------ | ----- |
