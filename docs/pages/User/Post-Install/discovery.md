@@ -1,6 +1,6 @@
 ---
 title: Add a new cluster to Liqo
-weight: 3
+weight: 2
 ---
 
 
@@ -10,6 +10,8 @@ Specifically, you can rely on three different methods to peer with other cluster
 1. **LAN Discovery**: automatic discovery of neighboring clusters available in the same LAN. This looks similar to the automatic discovery of Wi-Fi hotspots, and it is particularly suitable when your cluster is composed of a single node (e.g., in a combination with [K3s](https://k3s.io)).
 2. **DNS Discovery**: automatic discovery of the clusters associated with a specific DNS domain (e.g.; *liqo.io*). This is achieved by quering specific DNS entries. This looks similar to the discovery of voice-over-IP SIP servers and it is mostly oriented to big organizations that wish to adopt Liqo in production.
 3. **Manual Configuration**: manual addition of specific clusters to the list of known ones. This method is particularly appropriate outside LAN, without requiring any DNS configuration.
+
+> NOTE: read the [Authentication](../authentication) section for information about the inter-cluster authentication. If the remote cluster is requiring it, the authentication step is required to have the new Liqo node in your cluster
 
 ## LAN Discovery
 

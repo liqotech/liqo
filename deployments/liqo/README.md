@@ -14,7 +14,7 @@
 | advertisement.pod.labels | object | `{}` | advertisement pod labels |
 | apiServer.address | string | `""` | remote API server IP address |
 | apiServer.port | string | `""` | remote API server port |
-| auth.config.allowEmptyToken | bool | `true` |  |
+| auth.config.allowEmptyToken | bool | `false` |  |
 | auth.imageName | string | `"liqo/auth-service"` | auth image repository |
 | auth.ingress.annotations | object | `{}` | auth ingress annotations |
 | auth.ingress.class | string | `""` |  |

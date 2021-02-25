@@ -1,6 +1,6 @@
 ---
 title: Authentication
-weight: 2
+weight: 3
 ---
 
 The inter-cluster authentication procedure makes possible that a cluster can get an Identity (with an associated Role)

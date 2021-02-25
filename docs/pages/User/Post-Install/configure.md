@@ -1,6 +1,6 @@
 ---
-title: Post-Install 
-weight: 3
+title: Configure
+weight: 1
 ---
 
 ### Edit your cluster name
