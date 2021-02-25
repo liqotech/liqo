@@ -84,10 +84,11 @@ In particular, we have to set the following values:
 | `apiServer.port`  |   | the port where to access the API server     |
 | `auth.ingress.host` |         | the hostname where to access the Auth Service, the one exposed with the ingress, if it is not set the service will be exposed with a [NodePort Service](https://kubernetes.io/docs/concepts/services-networking/service/#nodeport) instead of an [Ingress](https://kubernetes.io/docs/concepts/services-networking/ingress/) |
 | `auth.ingress.port` |   | the port where to access the Auth Service   |
-
+__NOTE__: if at install time you changed the default values make sure to set the right ones
 #### How can I know those variable values in AKS?
 
-Some variables are the same for each AKS cluster.
+When installing LIQO on AKS, you should explicitly define the parameters required by Liqo, by setting the following values on the Helm chart  **before** installing it:
+
 
 | Variable               | Value                          | Notes                                  |
 | ---------------------- | ------------------------------ | -------------------------------------- |
@@ -96,6 +97,7 @@ Some variables are the same for each AKS cluster.
 | `auth.ingress.class`   | addon-http-application-routing | If you enabled the built-in AKS plugin |
 | `apiServer.port`  | 443                            |                                        |
 | `auth.ingress.port` | 443                            |                                        |
+__NOTE__: if at install time you changed the default values make sure to set the right ones
 
 The other two values can be found in the Azure Portal.
 

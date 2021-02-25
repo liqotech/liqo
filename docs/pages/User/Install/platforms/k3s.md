@@ -23,7 +23,7 @@ When installing LIQO on K3s, you should explicitly define the parameters require
 | `networkManager.config.podCIDR`             | 10.42.0.0/16        | The cluster Pod CIDR                        |
 | `networkManager.config.serviceCIDR`         | 10.43.0.0/16        | The cluster Service CIDR                    |
 | `discovery.config.clusterName`         |                     | Nickname for your cluster that others will see. If you don't specify one, the installer will give you a cluster name in the form "LiqoClusterX", where X is a random number |
-
+__NOTE__: if at install time you changed the default values make sure to export the right ones
 ### Install
 
 You can then run the Liqo installer script, which will use the above settings to configure your Liqo instance.
