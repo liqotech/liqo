@@ -147,12 +147,14 @@ spec:
 EOF
 ```
 
-## Manual Configuration'
+## Manual Configuration
 
 ### Forging the ForeignCluster
 
 In Liqo, remote clusters are defined as `ForeignClusters`
 To add a new Foreign Cluster, the Auth Service URL is the only required value to make this cluster peerable from the external world.
+
+To get the address and the port where the Authentication Service is running, see the [Get the Required Values](#get-the-required-values) section.
 
 An example of this resource can be:
 
@@ -163,7 +165,7 @@ metadata:
   name: my-cluster
 spec:
   join: true # optional (defaults to false)
-  authUrl: "https://34.71.59.19"
+  authUrl: "https://<ADDRESS>:<PORT>"
 ```
 
 When you create the ForeignCluster, the Liqo control plane will contact the `authURL` (i.e. the public URL of a cluster authentication server) to retrieve all the required cluster information.
@@ -173,7 +175,7 @@ When you create the ForeignCluster, the Liqo control plane will contact the `aut
 You can get the cluster configurations exposed by the Auth Service endpoint of the other cluster. This allows retrieving the information necessary to peer with the remote cluster.
 
 ```bash
-curl --insecure https://34.71.59.19/ids
+curl --insecure https://<ADDRESS>:<PORT>/ids
 ```
 
 ```json
