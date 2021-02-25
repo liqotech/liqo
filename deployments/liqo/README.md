@@ -14,7 +14,7 @@
 | advertisement.pod.labels | object | `{}` | advertisement pod labels |
 | apiServer.address | string | `""` | remote API server IP address |
 | apiServer.port | string | `""` | remote API server port |
-| auth.config.allowEmptyToken | bool | `false` |  |
+| auth.config.allowEmptyToken | bool | `false` | enable the authentication with an empty token. NB: use it only for testing installations |
 | auth.imageName | string | `"liqo/auth-service"` | auth image repository |
 | auth.ingress.annotations | object | `{}` | auth ingress annotations |
 | auth.ingress.class | string | `""` |  |
@@ -26,7 +26,7 @@
 | auth.pod.labels | object | `{}` | auth pod labels |
 | auth.service.annotations | object | `{}` | auth service annotations |
 | auth.service.type | string | `"NodePort"` | auth service type |
-| auth.tls | bool | `true` |  |
+| auth.tls | bool | `true` | enable TLS for the Authentication Service Pod |
 | crdReplicator.config.resourcesToReplicate[0].group | string | `"net.liqo.io"` |  |
 | crdReplicator.config.resourcesToReplicate[0].resource | string | `"networkconfigs"` |  |
 | crdReplicator.config.resourcesToReplicate[0].version | string | `"v1alpha1"` |  |

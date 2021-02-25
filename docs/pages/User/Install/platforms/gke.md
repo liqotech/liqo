@@ -10,7 +10,7 @@ weight: 2
 
 ### About GKE
 
-Google Kubernetes Engine (GKE) is a managed Kubernetes service available on the Google Cloud. The GKE environment consists of multiple machines (specifically, Compute Engine instances) grouped together to form a cluster.
+Google Kubernetes Engine (GKE) is a managed Kubernetes service available on the Google Cloud. The GKE environment consists of multiple machines (specifically, Compute Engine instances) grouped to form a cluster.
 
 ### Scenarios
 
@@ -42,7 +42,7 @@ GKE clusters are organized in node pools. A [node pool](https://cloud.google.com
 
 New node pools can be replaced and created during the cluster lifecycle. To be compatible with Liqo, your nodes should:
 
-* Disabl the ["Intranode Visibility"](https://cloud.google.com/kubernetes-engine/docs/how-to/intranode-visibility) feature.
+* Disable the ["Intranode Visibility"](https://cloud.google.com/kubernetes-engine/docs/how-to/intranode-visibility) feature.
 
 > NOTE: Liqo is fully compliant with Google [Preemptible Nodes](https://cloud.google.com/kubernetes-engine/docs/how-to/preemptible-vms)
 

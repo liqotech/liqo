@@ -128,6 +128,7 @@ auth:
     type: "NodePort"
     # -- auth service annotations
     annotations: {}
+  # -- enable TLS for the Authentication Service Pod
   tls: true
   ingress:
     # -- auth ingress annotations
@@ -137,6 +138,7 @@ auth:
     port: ""
     class: ""
   config:
+    # -- enable the authentication with an empty token. NB: use it only for testing installations
     allowEmptyToken: false
 
 webhook:
