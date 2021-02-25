@@ -42,16 +42,17 @@ spec:
   - key encipherment
   - server auth
 EOF
+
 echo "Wait for CSR to be signed"
 while true;
-  do
-     check=$(kubectl get certificatesigningrequests.certificates.k8s.io "${POD_NAME}" -o jsonpath='{.status.conditions[:1].type}')
-     if [[ $check == "Approved" ]]; then
-       echo "Approved!"
-       kubectl get csr "${POD_NAME}" -o jsonpath='{.status.certificate}' | base64 -d > server.crt
-       exit 0
-     fi
-     echo "Waiting for approval of CSR: ${POD_NAME}"
-     sleep 3
+do
+   cert=$(kubectl get csr "${POD_NAME}" -o jsonpath='{.status.certificate}')
+   if [[ -n $cert ]]; then
+     echo "certificate signed!"
+     echo "$cert" | base64 -d > server.crt
+     exit 0
+   fi
+   echo "Waiting for signing of CSR: ${POD_NAME}"
+   sleep 3
 done
 
