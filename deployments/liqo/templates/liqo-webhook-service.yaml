@@ -16,7 +16,7 @@ spec:
   selector:
     {{- include "liqo.selectorLabels" $webhookConfig | nindent 4 }}
     {{- include "liqo.webhookServiceLabels" . | nindent 4 }}
-  type: {{ .Values.webhook.service.type }}
+  type: ClusterIP
   ports:
     - port: 443
       targetPort: 8443

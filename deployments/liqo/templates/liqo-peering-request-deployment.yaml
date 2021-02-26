@@ -50,9 +50,12 @@ spec:
             - name: AUTH_ADDR
               value: "{{ .Values.auth.ingress.host }}"
             {{- end }}
-            {{- if .Values.auth.ingress.port }}
+            {{- if .Values.auth.portOverride }}
             - name: AUTH_SVC_PORT
-              value: "{{ .Values.auth.ingress.port }}"
+              value: "{{ .Values.auth.portOverride }}"
+            {{- else if .Values.auth.ingress.enable }}
+            - name: AUTH_SVC_PORT
+              value: "443"
             {{- end }}
           resources:
             limits:
