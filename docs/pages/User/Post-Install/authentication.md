@@ -10,6 +10,10 @@ Authentication mechanism prevents your cluster of being peered by anyone on the 
 More precisely, the inter-cluster authentication procedure makes the cluster accessible can get an Identity (with an associated Role)
 that makes it possible to create the required resources needed for the clusters' interconnection.
 
+While the token is not identifying any particular user or cluster, this new Identity will be uniquely assigned to who made the request,
+giving him a per-user access, only with permissions on its own resources. This new Identity will be used for any future request to the
+API Server when the peering will be enabled.
+
 ##  Configuration
 
 Liqo authentication can be configured with:
@@ -60,9 +64,10 @@ Discovery component and linkable to the correct ForeignCluster resource:
   find it in the ForeignCluster CR in `spec.clusterIdentity.clusterID`)
 * `discovery.liqo.io/auth-token` has to exist in the secret to tell to Liqo that an authentication token is stored in this secret
 
-An example script that, given the ForeignCluster resource name and the token, create the secret can be:
+This script creates the secret given the foreign cluster resource name given at the top, copy and past to create it.
 
 ```bash
+cat >authenticate.sh <<'EOL'
 #!/bin/bash
 
 set -e
@@ -72,6 +77,7 @@ if [ "$#" -ne 1 ]; then
   exit 1
 fi
 
+liqoNamespace="{$NAMESPACE:-liqo}"
 fcName="$1"
 
 clusterId=$(kubectl get foreignclusters "$fcName" \
@@ -86,14 +92,14 @@ read -r token
 secret_name="remote-token-$clusterId"
 
 kubectl create secret generic "$secret_name" \
-  -n liqo \
+  -n "$liqoNamespace" \
   --from-literal=token="$token"
 
 
 # label it
 
 kubectl label secret "$secret_name" \
-  -n liqo \
+  -n "$liqoNamespace" \
   discovery.liqo.io/cluster-id="$clusterId" \
   discovery.liqo.io/auth-token=""
 
@@ -103,6 +109,23 @@ kubectl label secret "$secret_name" \
 kubectl patch foreignclusters "$fcName" \
   --patch '{"status":{"authStatus":"Pending"}}' \
   --type 'merge'
+
+EOL
+
+chmod +x authenticate.sh
+```
+
+Now, you can use it executing the previously created `authenticate.sh` script.
+```bash
+./authenticate.sh <ForeignCluster CR name>
+```
+
+At the end you will have a new secret in your cluster that will trigger the request for a per-user Identity. Here we can see an example, with the required labels:
+```bash
+kubectl get secret -n liqo -l discovery.liqo.io/auth-token --show-labels 
+
+NAME                                                TYPE     DATA   AGE    LABELS
+remote-token-3114c478-173d-4344-8f01-eb21efb95aea   Opaque   1      100s   discovery.liqo.io/auth-token=,discovery.liqo.io/cluster-id=3114c478-173d-4344-8f01-eb21efb95aea
 ```
 
 ## Check the Auth Status
