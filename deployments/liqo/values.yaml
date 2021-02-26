@@ -57,6 +57,8 @@ gateway:
   # -- gateway image repository
   imageName: "liqo/liqonet"
   service:
+    # -- If you plan to use liqo over the Internet consider to change this field to "LoadBalancer".
+    # More generally, if your cluster nodes are not directly reachable by the cluster to whom you are peering then change it to "LoadBalancer"
     type: "NodePort"
     annotations: {}
 
@@ -73,7 +75,10 @@ networkManager:
     podCIDR: ""
     # -- the subnet used by the cluster for the services, in CIDR notation
     serviceCIDR: ""
-    # -- this field is used by the IPAM embedded in the liqo-networkManager.Subnets listed in this field are excluded from the list of possible subnets used for natting POD CIDR. Add here the subnets already used in your environment as a list in CIDR notation (e.g. [10.1.0.0/16, 10.200.1.0/24]).
+    # -- Usually the IPs used for the pods in k8s clusters belong to private subnets.
+    # In order to prevent IP conflicting between locally used private subnets in your infrastructure and private subnets belonging to remote clusters
+    # you need tell liqo the subnets used in your cluster. E.g if your cluster nodes belong to the 192.168.2.0/24 subnet then
+    # you should add that subnet to the reservedSubnets. PodCIDR and serviceCIDR used in the local cluster are automatically added to the reserved list.
     reservedSubnets: []
     # -- set this field to true if you are deploying liqo in GKE cluster
     GKEProvider: false
@@ -86,11 +91,6 @@ crdReplicator:
     labels: {}
   # -- crdReplicator image repository
   imageName: "liqo/crd-replicator"
-  config:
-    resourcesToReplicate:
-      - group: net.liqo.io
-        version: v1alpha1
-        resource: networkconfigs
 
 discovery:
   pod:

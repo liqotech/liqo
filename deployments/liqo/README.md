@@ -27,9 +27,6 @@
 | auth.service.annotations | object | `{}` | auth service annotations |
 | auth.service.type | string | `"NodePort"` | auth service type |
 | auth.tls | bool | `true` | enable TLS for the Authentication Service Pod |
-| crdReplicator.config.resourcesToReplicate[0].group | string | `"net.liqo.io"` |  |
-| crdReplicator.config.resourcesToReplicate[0].resource | string | `"networkconfigs"` |  |
-| crdReplicator.config.resourcesToReplicate[0].version | string | `"v1alpha1"` |  |
 | crdReplicator.imageName | string | `"liqo/crd-replicator"` | crdReplicator image repository |
 | crdReplicator.pod.annotations | object | `{}` | crdReplicator pod annotations |
 | crdReplicator.pod.labels | object | `{}` | crdReplicator pod labels |
@@ -51,11 +48,11 @@
 | gateway.pod.annotations | object | `{}` | gateway pod annotations |
 | gateway.pod.labels | object | `{}` | gateway pod labels |
 | gateway.service.annotations | object | `{}` |  |
-| gateway.service.type | string | `"NodePort"` |  |
+| gateway.service.type | string | `"NodePort"` | If you plan to use liqo over the Internet consider to change this field to "LoadBalancer". More generally, if your cluster nodes are not directly reachable by the cluster to whom you are peering then change it to "LoadBalancer" |
 | nameOverride | string | `""` | liqo name override |
 | networkManager.config.GKEProvider | bool | `false` | set this field to true if you are deploying liqo in GKE cluster |
 | networkManager.config.podCIDR | string | `""` | the subnet used by the cluster for the pods, in CIDR notation |
-| networkManager.config.reservedSubnets | list | `[]` | this field is used by the IPAM embedded in the liqo-networkManager.Subnets listed in this field are excluded from the list of possible subnets used for natting POD CIDR. Add here the subnets already used in your environment as a list in CIDR notation (e.g. [10.1.0.0/16, 10.200.1.0/24]). |
+| networkManager.config.reservedSubnets | list | `[]` | Usually the IPs used for the pods in k8s clusters belong to private subnets. In order to prevent IP conflicting between locally used private subnets in your infrastructure and private subnets belonging to remote clusters you need tell liqo the subnets used in your cluster. E.g if your cluster nodes belong to the 192.168.2.0/24 subnet then you should add that subnet to the reservedSubnets. PodCIDR and serviceCIDR used in the local cluster are automatically added to the reserved list. |
 | networkManager.config.serviceCIDR | string | `""` | the subnet used by the cluster for the services, in CIDR notation |
 | networkManager.imageName | string | `"liqo/liqonet"` | networkManager image repository |
 | networkManager.pod.annotations | object | `{}` | networkManager pod annotations |
