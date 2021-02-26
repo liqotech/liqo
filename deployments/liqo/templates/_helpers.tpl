@@ -59,19 +59,19 @@ Common labels
 */}}
 {{- define "liqo.labels" -}}
 {{ include "liqo.selectorLabels" . }}
-helm.sh/chart: {{ include "liqo.chart" . }}
-app.kubernetes.io/version: {{ include "liqo.version" . }}
-app.kubernetes.io/managed-by: {{ .Release.Service }}
+helm.sh/chart: {{ quote (include "liqo.chart" .) }}
+app.kubernetes.io/version: {{ quote (include "liqo.version" .) }}
+app.kubernetes.io/managed-by: {{ quote .Release.Service }}
 {{- end }}
 
 {{/*
 Selector labels, it accepts a dict which contains fields "name" and "module"
 */}}
 {{- define "liqo.selectorLabels" -}}
-app.kubernetes.io/name: {{ .name }}
-app.kubernetes.io/instance: {{ printf "%s-%s" .Release.Name .name }}
-app.kubernetes.io/component: {{ .module }}
-app.kubernetes.io/part-of: {{ include "liqo.name" . }}
+app.kubernetes.io/name: {{ quote .name }}
+app.kubernetes.io/instance: {{ quote (printf "%s-%s" .Release.Name .name) }}
+app.kubernetes.io/component: {{ quote .module }}
+app.kubernetes.io/part-of: {{ quote (include "liqo.name" .) }}
 {{- end }}
 
 {{/*
@@ -113,7 +113,7 @@ run: auth-service
 Webhook pod labels
 */}}
 {{- define "liqo.webhookServiceLabels" -}}
-webhook.liqo.io/backend: liqo-webhook
+webhook.liqo.io/backend: "liqo-webhook"
 {{- end }}
 
 {{/*
