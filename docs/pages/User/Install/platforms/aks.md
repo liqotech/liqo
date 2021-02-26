@@ -5,13 +5,13 @@ weight: 1
 
 #### About AKS
 
-Azure Kubernetes Service (AKS) is a managed Kubernetes service, which is available on the Microsoft Azure public cloud.
+Azure Kubernetes Service (AKS) is a managed Kubernetes service available on the Microsoft Azure public cloud.
 
 #### Scenarios
 
 This guide will show you how to install Liqo on your AKS cluster. AKS clusters have by default an Internet-exposed API Server and can easily expose LoadBalancer services using public IPs. As discussed in [Scenarios](/user/scenarios) section, those latter are the requirements to have a "public-exposed" cluster, which can be accessed by other Liqo instances.
 
-Liqo may be installed on a newly created clusters or on existing ones.
+Liqo may be installed on newly created clusters or existing ones.
 
 ### Installation
 
@@ -23,7 +23,7 @@ Access in the Azure [Portal](https://portal.azure.com/) to the [Kubernetes Servi
 
 ### Create a new Cluster
 
-Click on `Add` > `Add Kuberntes cluster` to create a new cluster. A new panel will appear.
+Click on `Add` > `Add Kubernetes cluster` to create a new cluster. A new panel will appear.
 
 Select the desired `Subscription` and `Resource Group`, choose a name, a region and an availability zone to assign to
 your cluster.
@@ -50,12 +50,12 @@ accessible from the external world.
 Azure has a built-in plugin that enable this feature, although it is not recommended for use in production, called
 [HTTP application routing](https://docs.microsoft.com/en-US/azure/aks/http-application-routing).
 
-To enable it on your cluster dashboard go in `Settings` > `Networking` and make sure that the _Enable HTTP application
-routing_ checkbox is enabled and click on the `Save` button.
+To enable it on your cluster dashboard, you should go in `Settings` > `Networking` and make sure that the _Enable HTTP application
+routing_ checkbox is enabled. Finally, you can persist the configuration by clicking on the `Save` button.
 
 ![](/images/install/aks/04.png)
 
-Azure will take some minutes to deploy required components and enable the required services.
+Azure will take some minutes to deploy the required components and enable the required services.
 
 When the operation is completed you will see a new [DNS zone](https://portal.azure.com/#blade/HubsExtension/BrowseResource/resourceType/Microsoft.Network%2FdnsZones)
 in the Azure Portal.
@@ -64,11 +64,10 @@ in the Azure Portal.
 
 Congratulations! Your AKS cluster is now ready to run Liqo!
 
-## Deploy Liqo
 
 ### Installation with Helm
 
-#### Values setting
+#### Set-up values
 
 In order to install Liqo, we need to configure some values of the Helm chart related to the accessibility of the cluster
 and its internal configuration.
@@ -77,41 +76,27 @@ In particular, we have to set the following values:
 
 | Variable               | Default | Description                                 |
 | ---------------------- | ------- | ------------------------------------------- |
-| `networkManager.config.podCIDR`             |         | the cluster Pod CIDR                        |
-| `networkManager.config.serviceCIDR`         |         | the cluster Service CIDR                    |
-| `auth.ingress.class`   |         | the [ingress class](https://kubernetes.io/docs/concepts/services-networking/ingress/#ingress-class) to be used by the Auth Service Ingress |
-| `apiServer.address`  |         | the address where to access the API server |
-| `apiServer.port`  |   | the port where to access the API server     |
-| `auth.ingress.host` |         | the hostname where to access the Auth Service, the one exposed with the ingress, if it is not set the service will be exposed with a [NodePort Service](https://kubernetes.io/docs/concepts/services-networking/service/#nodeport) instead of an [Ingress](https://kubernetes.io/docs/concepts/services-networking/ingress/) |
-| `auth.ingress.port` |   | the port where to access the Auth Service   |
-__NOTE__: if at install time you changed the default values make sure to set the right ones
-#### How can I know those variable values in AKS?
+| `networkManager.config.podCIDR`             |    10.244.0.0/16     | The cluster Pod CIDR                        |
+| `networkManager.config.serviceCIDR`         |    10.0.0.0/16     | The cluster Service CIDR                    |
+| `auth.ingress.class`   |   addon-http-application-routing      | The [ingress class](https://kubernetes.io/docs/concepts/services-networking/ingress/#ingress-class) to be used by the Auth Service Ingress |
+| `apiServer.address`  |         | The address where to access the API server |
+| `apiServer.port`  | 443 | the port where to access the API server     |
+| `auth.ingress.host` |         | The hostname where to access the Auth Service, the one exposed with the ingress, if it is not set the service will be exposed with a [NodePort Service](https://kubernetes.io/docs/concepts/services-networking/service/#nodeport) instead of an [Ingress](https://kubernetes.io/docs/concepts/services-networking/ingress/) |
+| `auth.ingress.port` | 443  | The port where to access the Auth Service   |
 
-When installing LIQO on AKS, you should explicitly define the parameters required by Liqo, by setting the following values on the Helm chart  **before** installing it:
-
-
-| Variable               | Value                          | Notes                                  |
-| ---------------------- | ------------------------------ | -------------------------------------- |
-| `networkManager.config.podCIDR`             | 10.244.0.0/16                  |                                        |
-| `networkManager.config.serviceCIDR`         | 10.0.0.0/16                    |                                        |
-| `auth.ingress.class`   | addon-http-application-routing | If you enabled the built-in AKS plugin |
-| `apiServer.port`  | 443                            |                                        |
-| `auth.ingress.port` | 443                            |                                        |
-__NOTE__: if at install time you changed the default values make sure to set the right ones
-
-The other two values can be found in the Azure Portal.
+>__NOTE__: if at cluster creation time you changed the default values, make sure to set the right ones.
 
 The `apiServer.address` con be found in our cluster overview as __API server address__
 
 ![](/images/install/aks/06.png)
 
 The `auth.ingress.host` is where the Liqo Auth Service will be reachable, so we have to export some hostname that we
-can manage. If you are using the AKS HTTP Application Routing a DNS zone should be available, so you can create a subdomain
+can manage. If you are using the AKS HTTP Application Routing, a DNS zone should be available so that you can create a subdomain
 on it.
 
 ![](/images/install/aks/07.png)
 
-In this case a viable hostname would be `auth.f83c28d9ce1449b2bb45.westeurope.aksapp.io`
+In the above screenshot, a viable hostname for the ingress would be `auth.f83c28d9ce1449b2bb45.westeurope.aksapp.io`.
 
 #### Deploy
 
@@ -120,20 +105,19 @@ You can install Liqo using helm 3.
 Firstly, you should add the official Liqo repository to your Helm Configuration:
 
 ```bash
-helm repo add liqo-helm https://helm.liqo.io/charts
+helm repo add liqo https://helm.liqo.io/charts
 ```
 
 If you are installing Liqo for the first time, you can download the default values.yaml file from the chart.
 
 ```bash
-helm fetch liqo-helm/liqo --untar
-less ./liqo/values.yaml
+helm show values liqo/liqo > ./values.yaml
 ```
 
-After, modify the ```./liqo/values.yaml``` as specified above to obtain the desired configuration and install Liqo.
+After modifying the `values.yaml` file with the desired values, as described in [the previous section](#setup-values), you can perform the Liqo installation by typing:
 
 ```bash
-helm install test liqo-helm/liqo -f ./liqo/values.yaml
+helm install liqo liqo/liqo -f ./liqo/values.yaml -n liqo --create-namespace
 ```
 
 #### Expose the Auth Service with a LoadBalancer Service

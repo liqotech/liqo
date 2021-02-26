@@ -65,32 +65,20 @@ In particular, we have to set the following values:
 
 | Variable               | Default | Description                                 |
 | ---------------------- | ------- | ------------------------------------------- |
-| `networkManager.config.podCIDR`             |         | The cluster Pod CIDR                        |
-| `networkManager.config.serviceCIDR`         |         | The cluster Service CIDR                    |
-| `networkManager.config.GKEProvider`         |         | A boolean value used to tell liqo if it is running on GKE                    |
-| `auth.ingress.class`   |         | The [ingress class](https://kubernetes.io/docs/concepts/services-networking/ingress/#ingress-class) to be used by the Auth Service Ingress |
+| `networkManager.config.podCIDR`             |  10.124.0.0/14        | The cluster Pod CIDR                        |
+| `networkManager.config.serviceCIDR`         |  10.0.0.0/20       | The cluster Service CIDR                    |
+| `networkManager.config.GKEProvider`         |  true       | A boolean value used to tell liqo if it is running on GKE                    |
+| `auth.ingress.class`   | \<YOUR INGRESS CLASS\>     | The [ingress class](https://kubernetes.io/docs/concepts/services-networking/ingress/#ingress-class) to be used by the Auth Service Ingress |
 | `apiServer.address`  |         | The hostname where to access the API server |
-| `apiServer.port`  |  | the port where to access the API server     |
+| `apiServer.port`  | 443 | the port where to access the API server     |
 | `auth.ingress.host` |         | The hostname where to access the Auth Service, the one exposed with the ingress. If this parameter is not set, the service will be exposed with a [NodePort Service](https://kubernetes.io/docs/concepts/services-networking/service/#nodeport) instead of an [Ingress](https://kubernetes.io/docs/concepts/services-networking/ingress/) |
-| `auth.ingress.port` |  | the port where to access the Auth Service   |
+| `auth.ingress.port` | 443  | the port where to access the Auth Service   |
 
-#### How can I know those variable values in GKE?
-
-When installing LIQO on GKE, you should explicitly define the parameters required by Liqo, by setting the following values on the Helm chart  **before** installing it:
-
-| Variable               | Value                          | Notes                                  |
-| ---------------------- | ------------------------------ | -------------------------------------- |
-| `networkManager.config.podCIDR`             | 10.124.0.0/14                  |                                        |
-| `networkManager.config.serviceCIDR`         | 10.0.0.0/20                    |                                        |
-| `networkManager.config.GKEProvider`         | true                            |
-| `auth.ingress.class`   | \<YOUR INGRESS CLASS\>         | If you have an Ingress Controller. If you are using a [LoadBalancer Service](#expose-the-auth-service-with-a-loadbalancer-service) do not export it |
-| `apiServer.port`  | 443                            |                                        |
-| `auth.ingress.port` | 443                            | If you have an Ingress Controller. If you are using a [LoadBalancer Service](#expose-the-auth-service-with-a-loadbalancer-service) do not export it |
 __NOTE__: if at install time you changed the default values make sure to set the right ones
 
 The other values can be found in the Google Cloud Console.
 
-The `apiServer.address` con be found in our cluster details as __Endpoint__
+The `apiServer.address` con be found in our cluster details as __Endpoint__.
 
 ![](/images/install/gke/04.png)
 
@@ -117,7 +105,7 @@ less ./liqo/values.yaml
 After, modify the ```./liqo/values.yaml``` as specified above to obtain the desired configuration and install Liqo.
 
 ```bash
-helm install test liqo-helm/liqo -f ./liqo/values.yaml
+helm install test liqo-helm/liqo -f ./liqo/values.yaml -n liqo --create-namespace
 ```
 
 #### Expose the Auth Service with a LoadBalancer Service

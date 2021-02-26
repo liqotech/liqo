@@ -3,14 +3,7 @@ title: Peer to a foreign cluster
 weight: 3
 ---
 
-Once Liqo is installed in your cluster, you can start establishing new *peerings*.
-Specifically, you can rely on three different methods to peer with other clusters:
-
-1. **LAN Discovery**: automatic discovery of neighboring clusters available in the same LAN. This looks similar to the automatic discovery of Wi-Fi hotspots and it is particularly suitable when your cluster is composed of a single node (e.g., [K3s](https://k3s.io)).
-2. **DNS Discovery**: automatic discovery of the clusters associated with a specific DNS domain (e.g.; *liqo.io*), by scraping the existence of specific DNS entries. This looks similar to the discovery of voice-over-IP SIP servers and it is mostly oriented to big organizations that wish to adopt Liqo in production.
-3. **Manual Configuration**: manual addition of specific clusters to the list of known ones. This method is particularly appropriate outside LAN, without requiring any DNS configuration.
-
-In this tutorial, we rely on LAN Discovery since our Kind clusters are in the same L2 broadcast domain.
+Once Liqo is installed in your cluster, you can start establishing new *peerings*. In this tutorial, we rely on [LAN Discovery](/user/post-install/discovery#lan-discovery) since our Kind clusters are in the same L2 broadcast domain.
 
 ## LAN Discovery
 
@@ -52,4 +45,4 @@ liqo-9a596a4b-591c-4ac6-8fd6-80258b4b3bf9 READY    agent    <-- This is the virt
 
 ## Verify that the resulting infrastructure works correctly
 
-You are now ready to verify that the resulting infrastructure works correctly, presented in the [next step](../test).
+You are now ready to verify that the resulting infrastructure works correctly, as presented in the [next step](../test).
