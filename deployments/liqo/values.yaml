@@ -2,22 +2,15 @@
 # This is a YAML-formatted file.
 # Declare variables to be passed into your templates.
 
-##### Needed
-
-# -- images' tag
+# -- Images' tag to select a development version of liqo instead of a release
 tag: ""
-# -- pullPolicy for liqo pods
+# -- The pullPolicy for liqo pods
 pullPolicy: "IfNotPresent"
 apiServer:
-  # -- remote API server IP address
+  # -- The address that must be used to contact your API server, it needs to be reachable from the clusters that you will peer with (defaults to your master IP)
   address: ""
-  # -- remote API server port
-  port: ""
-
-# -- liqo name override
-nameOverride: ""
-# -- full liqo name override
-fullnameOverride: ""
+  # -- The port that must be used to contact your API server
+  port: "6443"
 
 advertisement:
   pod:
@@ -30,14 +23,10 @@ advertisement:
   # -- broadcaster image repository
   broadcasterImageName: "liqo/advertisement-broadcaster"
   config:
-    ingoingConfig:
-      acceptPolicy: AutoAcceptMax
-      maxAcceptableAdvertisement: 5
-    outgoingConfig:
-      resourceSharingPercentage: 30
-      enableBroadcaster: true
-    keepaliveThreshold: 3
-    keepaliveRetryTime: 20
+    # -- It defines the percentage of available cluster resources that you are willing to share with foreign clusters.
+    resourceSharingPercentage: 30
+    # -- If set to false, the remote clusters will not be able to leverage your resources, but you will still be able to use theirs.
+    enableBroadcaster: true
 
 route:
   pod:
@@ -74,14 +63,14 @@ networkManager:
     # -- The subnet used by the cluster for the pods, in CIDR notation.
     # At the moment the internal IPAM used by liqo only supports podCIDRs with netmask /16 (255.255.0.0).
     podCIDR: ""
-    # -- the subnet used by the cluster for the services, in CIDR notation
+    # -- The subnet used by the cluster for the services, in CIDR notation
     serviceCIDR: ""
     # -- Usually the IPs used for the pods in k8s clusters belong to private subnets.
     # In order to prevent IP conflicting between locally used private subnets in your infrastructure and private subnets belonging to remote clusters
     # you need tell liqo the subnets used in your cluster. E.g if your cluster nodes belong to the 192.168.2.0/24 subnet then
     # you should add that subnet to the reservedSubnets. PodCIDR and serviceCIDR used in the local cluster are automatically added to the reserved list.
     reservedSubnets: []
-    # -- set this field to true if you are deploying liqo in GKE cluster
+    # -- Set this field to true if you are deploying liqo in GKE cluster
     GKEProvider: false
 
 crdReplicator:
@@ -102,15 +91,17 @@ discovery:
   # -- discovery image repository
   imageName: "liqo/discovery"
   config:
+    # -- Set a mnemonic name for your cluster
     clusterName: ""
+    # -- Automatically join discovered cluster exposing the Authentication Service with a valid certificate
     autojoin: true
+    # -- Automatically join discovered cluster exposing the Authentication Service with a self-signed certificate
     autojoinUntrusted: true
-    domain: local.
+    # -- Enable the mDNS advertisement on LANs, set to false to not be discoverable from other clusters in the same LAN
     enableAdvertisement: true
+    # -- Enable the mDNS discovery on LANs, set to false to not look for other clusters available in the same LAN
     enableDiscovery: true
-    name: MyLiqo
-    port: 6443
-    service: _liqo_api._tcp
+    # -- Time-to-live before an automatically discovered clusters is deleted from the list of available ones if no longer announced (in seconds)
     ttl: 90
 
 auth:
@@ -125,21 +116,29 @@ auth:
     # -- auth init container image repository
     imageName: nginx:1.19
   service:
-    # -- auth service type
+    # -- The type of service used to expose the Authentication Service
+    # If you are exposing this service with an Ingress consider to change it to ClusterIP,
+    # otherwise if you plan to use liqo over the Internet consider to change this field to "LoadBalancer".
+    # See https://doc.liqo.io/user/scenarios/ for more details.
     type: "NodePort"
     # -- auth service annotations
     annotations: {}
-  # -- enable TLS for the Authentication Service Pod
+  # -- Enable TLS for the Authentication Service Pod (using a self-signed certificate).
+  # If you are exposing this service with an Ingress consider to disable it or add the appropriate annotations to the Ingress resource.
   tls: true
+  # -- Overrides the port were your service is available, you should configure it if behind a NAT or using an Ingress with a port different from 443.
+  portOverride: ""
   ingress:
-    # -- auth ingress annotations
+    # -- Auth ingress annotations
     annotations: {}
+    # -- Whether to enable the creation of the Ingress resource
     enable: false
+    # -- Set the hostname for your ingress
     host: ""
-    port: ""
+    # -- Set your ingress class
     class: ""
   config:
-    # -- enable the authentication with an empty token. NB: use it only for testing installations
+    # -- Set to true to disable the authentication of discovered clusters. NB: use it only for testing installations
     allowEmptyToken: false
 
 webhook:
@@ -154,14 +153,12 @@ webhook:
     # -- webhook init container image repository
     imageName: "liqo/webhook-configuration"
   service:
-    # -- webhook service type
-    type: "ClusterIP"
     # -- webhook service annotations
     annotations: {}
   mutatingWebhookConfiguration:
     # -- mutatingWebhookConfiguration annotations
     annotations: {}
-    # -- mutatingWebhookConfiguration namespace selector
+    # -- The label that needs to be applied to a namespace to make it eligible for pod offloading in a remote cluster
     namespaceSelector:
       liqo.io/enabled: "true"
 
@@ -180,3 +177,8 @@ virtualKubelet:
   initContainer:
     # -- virtual kubelet init container image repository
     imageName: "liqo/init-vkubelet"
+
+# -- liqo name override
+nameOverride: ""
+# -- full liqo name override
+fullnameOverride: ""

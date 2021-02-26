@@ -9,9 +9,19 @@ metadata:
     {{- include "liqo.labels" $config  | nindent 4 }}
 spec:
   advertisementConfig:
-    {{- .Values.advertisement.config | toYaml | nindent 4 }}
+    ingoingConfig:
+      acceptPolicy: AutoAcceptMax
+      maxAcceptableAdvertisement: 1000000
+    keepaliveThreshold: 3
+    keepaliveRetryTime: 20
+    outgoingConfig:
+      {{- .Values.advertisement.config | toYaml | nindent 6 }}
   discoveryConfig:
     {{- .Values.discovery.config | toYaml | nindent 4 }}
+    domain: local.
+    name: MyLiqo
+    port: 6443
+    service: _liqo_api._tcp
   authConfig:
     {{- .Values.auth.config | toYaml | nindent 4 }}
   liqonetConfig:
