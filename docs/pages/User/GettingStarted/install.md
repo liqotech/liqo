@@ -8,9 +8,7 @@ weight: 2
 
 Before installing Liqo, you have to set the right `kubeconfig` for your cluster properly. The Liqo installer leverages `kubectl`: by default kubectl refers to the default identity in `~/.kube/config` but you can override this configuration by exporting a `KUBECONFIG` variable.
 
-For the clusters, we just deployed in the [previous step](../kind), we can simply
-
-For example:
+For the clusters, we just deployed in the [previous step](../kind), you can type:
 
 ```bash
 export KUBECONFIG=./liqo_kubeconf_1
@@ -40,5 +38,5 @@ curl -sL https://get.liqo.io | bash
 
 ## Enable cluster peering
 
-Now, you have two clusters with Liqo enabled. 
+Now, you have two clusters with Liqo enabled.
 Once you have two clusters ready, you can start the [peering procedure](../peer).

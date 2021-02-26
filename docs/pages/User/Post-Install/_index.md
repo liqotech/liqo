@@ -1,5 +1,5 @@
 ---
-title: Post-Install Configuration 
+title: Post-Install
 weight: 4
 ---
 

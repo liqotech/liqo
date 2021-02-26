@@ -1,5 +1,5 @@
 ---
-title: Uninstall Liqo
+title: Teardown the Playground
 weight: 6
 ---
 
@@ -24,3 +24,13 @@ curl -sL https://raw.githubusercontent.com/liqotech/liqo/master/install.sh | bas
 ### What happens to my deployed applications?
 
 During the uninstallation procedure, the home cluster *de-peers* from each peered cluster, hence giving up to the foreign used resources. Nonetheless, the offloaded applications are automatically rescheduled on the local cluster: you will see them running locally in a few minutes.
+
+
+### Destroy clusters
+
+To teardown the kind clusters, you can issue:
+
+```bash
+kind delete cluster --name cluster1
+kind delete cluster --name cluster2
+```

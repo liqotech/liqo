@@ -114,9 +114,9 @@ echo "Service IP: ${SVC_IP}"
 ```
 
 If you have direct connectivity with the home cluster from your host (e.g. you are running K3s locally), you can open a browser and directly check the connectivity to the service IP address.
-At the bottom of the displayed demo web-page, you should see the IP address and the hostname of the back-end that is serving the request (i.e. either the local or the remote pod).
+At the bottom of the displayed demo web-page, you should see the IP address and the hostname of the back-end that is serving the request (i.e., either the local or the remote pod).
 
-If you try reloading the page, you can observe a difference: the hostname should alternate between `nginx-local` and `nginx-remote`. This change confirms that Kubernetes correctly leverage both pods as back-ends (i.e. endpoints) of the service.
+If you try reloading the page, you can observe a difference: the hostname should alternate between `nginx-local` and `nginx-remote`. This change confirms that Kubernetes correctly leverage both pods as back-ends (i.e., endpoints) of the service.
 
 Similarly, you can also use `curl` to perform the same verification (execute this command multiple times to contact both endpoints):
 ```

@@ -7,18 +7,15 @@ weight: 2
 
 Liqo can be installed either in private or local clusters. Its configuration depends on the type of connectivity between the two clusters.
 
-### Types
+### Peering Requirements
 
-Liqo relies on the following services that must be exposed outside the cluster:
+Liqo relies on the following services to perform cluster peerings:
 
-* Authentication server: Liqo authentication endpoint
-* API server: The API Server of Kubernetes
-* VPN gateway: Liqo Network endpoint
+* **Authentication server**: Liqo authentication endpoint.
+* **API server**: The API Server of Kubernetes
+* **VPN gateway**: Liqo Network endpoint
 
-Those services exposure are distribution independent (K8s, K3s, AKS, GKE) and can be summarized as follows:
-
-### Examples
-
+Those services have to be accessible from the other clusters to peer with them. This may change the way you would like to have them exposed.
 Below it is possible to find some common scenarios that Liqo can handle. Once you identify yours, you can go ahead to the install section to find the installation instruction for your distribution.
 
 ### Cloud to cloud
@@ -37,7 +34,7 @@ Two managed clusters peered together through the internet. It is possible to hav
 
 ![](/images/scenarios/on-prem-to-cloud.svg)
 
-On-premise cluster (K3s or K8s) exposed through the internet peered with a Managed cluster (AKS or GKE).
+On-premise cluster (K3s or K8s) exposed through the Internet peered with a Managed cluster (AKS or GKE).
 
 |  | Cluster A (On-prem) | Cluster B (Cloud) |
 | --------- | -------- |  ---------       |
@@ -45,19 +42,7 @@ On-premise cluster (K3s or K8s) exposed through the internet peered with a Manag
 | **API server** | Ingress/Public IP | Provided |
 | **VPN gateway** | LoadBalancer | LoadBalancer |
 
-### On-premise behind NAT to cloud
-
-![](/images/scenarios/on-prem-nat-to-cloud.svg)
-
-On-premise cluster (K3s or K8s) exposed through a NAT over the internet peered with a managed cluster (AKS or GKE).
-
-|  | Cluster A (On-prem behind NAT) | Cluster B (Cloud) |
-| --------- | -------- |  ---------       |
-| **Auth Server** |  NodePort with port-forwarding | LoadBalancer/ingress |
-| **API server** | Port-forwarding | Provided |
-| **VPN gateway** | NodePort with port-forwarding | LoadBalancer |
-
-### On-premise to on-premise (LAN)
+### On-premise to on-premise
 
 ![](/images/scenarios/on-prem-to-on-prem.svg)
 
@@ -69,3 +54,15 @@ From the discovery perspective, if the clusters you would like to connect are in
 | **Auth Server** |  NodePort | NodePort |
 | **API server** | Exposed | Exposed |
 | **VPN gateway** | NodePort | NodePort |
+
+### On-premise behind NAT to cloud
+
+![](/images/scenarios/on-prem-nat-to-cloud.svg)
+
+On-premise cluster (K3s or K8s) exposed through a NAT over the Internet peered with a managed cluster (AKS or GKE).
+
+|  | Cluster A (On-prem behind NAT) | Cluster B (Cloud) |
+| --------- | -------- |  ---------       |
+| **Auth Server** |  NodePort with port-forwarding | LoadBalancer/ingress |
+| **API server** | Port-forwarding | Provided |
+| **VPN gateway** | NodePort with port-forwarding | LoadBalancer |

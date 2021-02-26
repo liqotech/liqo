@@ -1,5 +1,5 @@
 ---
-title: Provision the Liqo Playground 
+title: Provision the Liqo Playground
 weight: 1
 ---
 
@@ -9,7 +9,7 @@ Before testing Liqo, we should create a pair of clusters to use it.
 
 The Liqo playground set-up has the following requirements:
 
-* You should have installed [Docker](https://docker.io) on your machine. The following guide is compatible with Mac Os X and Windows (with Docker Desktop).
+* You should have installed [Docker](https://docker.io) on your machine. The following guide is also compatible with Mac Os X and Windows (with Docker Desktop).
 
 * [Kubectl](https://kubernetes.io/docs/tasks/tools/install-kubectl/), the official Kubernetes client, is not mandatory for this step, but is strongly recommended to explore the playground and for next steps.
 
