@@ -71,7 +71,8 @@ networkManager:
   # -- networkManager image repository
   imageName: "liqo/liqonet"
   config:
-    # -- the subnet used by the cluster for the pods, in CIDR notation
+    # -- The subnet used by the cluster for the pods, in CIDR notation.
+    # At the moment the internal IPAM used by liqo only supports podCIDRs with netmask /16 (255.255.0.0).
     podCIDR: ""
     # -- the subnet used by the cluster for the services, in CIDR notation
     serviceCIDR: ""

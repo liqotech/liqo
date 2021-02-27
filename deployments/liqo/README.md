@@ -51,7 +51,7 @@
 | gateway.service.type | string | `"NodePort"` | If you plan to use liqo over the Internet consider to change this field to "LoadBalancer". More generally, if your cluster nodes are not directly reachable by the cluster to whom you are peering then change it to "LoadBalancer" |
 | nameOverride | string | `""` | liqo name override |
 | networkManager.config.GKEProvider | bool | `false` | set this field to true if you are deploying liqo in GKE cluster |
-| networkManager.config.podCIDR | string | `""` | the subnet used by the cluster for the pods, in CIDR notation |
+| networkManager.config.podCIDR | string | `""` | The subnet used by the cluster for the pods, in CIDR notation. At the moment the internal IPAM used by liqo only supports podCIDRs with netmask /16 (255.255.0.0). |
 | networkManager.config.reservedSubnets | list | `[]` | Usually the IPs used for the pods in k8s clusters belong to private subnets. In order to prevent IP conflicting between locally used private subnets in your infrastructure and private subnets belonging to remote clusters you need tell liqo the subnets used in your cluster. E.g if your cluster nodes belong to the 192.168.2.0/24 subnet then you should add that subnet to the reservedSubnets. PodCIDR and serviceCIDR used in the local cluster are automatically added to the reserved list. |
 | networkManager.config.serviceCIDR | string | `""` | the subnet used by the cluster for the services, in CIDR notation |
 | networkManager.imageName | string | `"liqo/liqonet"` | networkManager image repository |

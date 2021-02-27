@@ -4,7 +4,11 @@ rules:
   resources:
   - clusterconfigs
   verbs:
+  - create
+  - get
   - list
+  - update
+  - watch
 - apiGroups:
   - ""
   resources:
