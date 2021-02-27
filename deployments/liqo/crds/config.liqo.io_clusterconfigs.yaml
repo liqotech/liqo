@@ -235,12 +235,14 @@ spec:
               liqonetConfig:
                 properties:
                   GKEProvider:
-                    description: set this flag to true if you are using GKE with kubenet
-                      CNI
+                    default: false
+                    description: set this flag to true if you are using GKE, default
+                      value is "false"
                     type: boolean
                   podCIDR:
                     description: the subnet used by the cluster for the pods, in CIDR
-                      notation
+                      notation at this moment only /16 subnets are supported
+                    pattern: ^([0-9]{1,3}.){3}[0-9]{1,3}(/(16))
                     type: string
                   reservedSubnets:
                     description: This field is used by the IPAM embedded in the tunnelEndpointCreator.
@@ -254,6 +256,7 @@ spec:
                   serviceCIDR:
                     description: the subnet used by the cluster for the services,
                       in CIDR notation
+                    pattern: ^([0-9]{1,3}.){3}[0-9]{1,3}(/([0-9]|[1-2][0-9]|3[0-2]))$
                     type: string
                 required:
                 - GKEProvider
