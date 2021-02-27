@@ -5,69 +5,87 @@ weight: 3
 
 ## Introduction
 
-The Liqo **authentication mechanism** allows your cluster to control who can peer to it. This is particularly important if your cluster exposes its services to the Internet, hence avoding that unknown organizations establish a peering with your cluster.
+The Liqo **authentication mechanism** allows your cluster to control who can peer to it. This is particularly important 
+if your cluster exposes its services to the Internet, hence avoiding that unknown organizations establish a peering with 
+your cluster. The Authentication is similar to the bootstrap TLS: a unique secret is used to get an identity to be 
+authenticated with.
 
-This mechanism is organized in two phases:
-  1. A **token** is exchanged first, enabling the target cluster to recognize that the cluster is peering with has the proper credentials (the token, in fact)
-  2. Upon the previous exchange, the target cluster creates an **Identity** (with an associated Role) and returns it to the connecting cluster. This identity will be used by the originating cluster to identify itself with the foreign cluster, which will use it to control the use of the resources on a per-cluster base.
+##  Disable the authentication
 
-In fact, while the token is not identifying any particular user or cluster, this new Identity will be uniquely assigned to who made the request, giving him a per-user access, only with permissions on its own resources. This new Identity will be used for any future request to the API Server when the peering will be enabled.
-
-##  Configuration
-
-Liqo authentication can be configured in the following ways:
-
-* __Empty Token__: any peering request will be accepted. In other words, this mode allow anybody to connect to your cluster without any authentication mechanism.
-* __Token Matching__ *Default*: a request will be accepted if and only if it contains an exact token. Similarly to bootstrapt TLS mechanism, the token has to be delivered out of band.
-
-## Setting the Authentication Method
-
-The Authentication method can be set at install time or changed at any time afterwards.
-The Helm chart requires a token-based authenticaion by default.
-If you want to change it to the `empty token` mode, you can edit the ClusterConfig resource with the following command:
+The authentication in Liqo is enabled by default; in some environments, such as playgrounds or development contexts, you
+may want to disable it. To do so, use the following command:
 
 ```bash
-kubectl edit clusterconfig
+kubectl patch clusterconfig liqo-configuration --patch '{"spec":{"authConfig":{"allowEmptyToken": "false"}}}' --type 'merge'
 ```
 
-and change the field `authConfig` as follows:
-```yaml
-spec:
-  authConfig:
-    allowEmptyToken: true
-```
+> __NOTE__: Disabling authentication will automatically accept peering with any other Liqo instances in the network your 
+cluster is exposed to.
 
-__NOTE__: Enabling `allowEmptyToken` will accept peering with any other Liqo instance on the network your cluster is exposed.
+## Authentication mechanism
 
+The inter-cluster authentication is on a 2-step basis:
+1. Get the authentication token of the foreign cluster.
+2. Create a new secret in the home cluster with the authentication token and label it. This operation
+will trigger the following authentication procedure:
+    3. The discovery component posts the authentication token to the authentication server
+    4. The authentication server compares the received token with the correct one; if the two are matching, the
+peering cluster is authenticated.
+    5. the authentication server creates a set of permissions, forges an identity bound to them, and gives it to the 
+peering cluster.
 
-### Get the Remote Cluster token
+This new Identity will be uniquely assigned to who made the request, giving him per-user access, only with permissions 
+on its resources. It will be used for any future request to the API Server once the peering will be enabled.
 
-If you have the access to the remote cluster, you can get the token required for the authentication running this example
-script in the remote cluster:
+Below, the 2 steps are detailed:
+
+#### 1. Get the foreign cluster token
+
+> __NOTE__: Since a secret token is required for peering, you can authenticate with another cluster if and only if you
+> have access to that cluster. Keep the secret confidential! Everyone with that token can peer with your cluster and use
+> your resources.
+
+To get the authentication token of the foreign cluster, set the kubeconfig to use the foreign cluster and type:
 
 ```bash
 token=$(kubectl get secret -n liqo auth-token -o jsonpath="{.data.token}" | base64 -d)
-echo -e "Token:\t$token"
+echo "Token: $token"
 ```
 
-that will print you something like:
+The output should be similar to:
+
 ```txt
-Token:	502da93c20bb07ff289e4db7f0a9e12e2254a071f37ef6d580070715d38271c2429a4cbe2610202c79062f260eb0de96a881bb3b88eb3cd5222f8238f3e9928e
+Token: 502da93c20bb07ff289e4db7f0a9e12e2254a071f37ef6d580070715d38271c2429a4cbe2610202c79062f260eb0de96a881bb3b88eb3cd5222f8238f3e9928e
 ```
 
-> NOTE: keep it confidential! Everyone with this token can peer with your cluster and use your resources.
+### 2. Create a secret in the home cluster
 
-### Insert the token to authenticate the Home Cluster
+In the home cluster you have to provide the token to Liqo.
 
-Now, in the home cluster you have to provide the token to Liqo.
-To do so, you should create a Secret containing the token value obtained on the remote cluster and to add two labels to make it visible to the
-Discovery component and linkable to the correct ForeignCluster resource:
+To perform this operation:
+1. fetch the cluster-id from the ForeignCluster resource
+2. Create the secret resource in the home cluster and label it.
 
-* `discovery.liqo.io/cluster-id` has to be set equals to the clusterID of the cluster that we want to peer (you can
-  find it in the ForeignCluster CR in `spec.clusterIdentity.clusterID`)
-* `discovery.liqo.io/auth-token` has to exist in the secret to tell to Liqo that an authentication token is stored in this secret
+#### Fetch the foreign cluster-id
 
-This script creates the secret given the foreign cluster resource name given at the top, copy and past to create it.
+Each Liqo cluster is uniquely identified by a cluster-id. Once a new Liqo cluster has been discovered, a new 
+ForeignCluster resource is created in your cluster. The cluster-id of the foreign cluster is part of the specific 
+ForeignCluster. To get the id of the cluster you want to authenticate with, identify the corresponding ForeignCluster 
+and type:
+
+```bash
+FOREIGN_CLUSTER_ID=$(kubectl get foreigncluster <foreign-cluster> -o=jsonpath="{['spec.clusterIdentity.clusterID']})"
+```
+
+>__NOTE__: in v0.2 the foreign cluster resource name is the cluster-id, therefore it is enough to list the
+>ForeignClusters and get the desired one's name. This will change in future releases.
+
+#### Create the secret
+
+Once you identified the cluster-id of the cluster you want to authenticate with, create the secret with the 
+authentication token as follows:
+
+First create a script by running:
 
 ```bash
 cat >authenticate.sh <<'EOL'
@@ -118,12 +136,13 @@ EOL
 chmod +x authenticate.sh
 ```
 
-Now, you can use it executing the previously created `authenticate.sh` script.
+then, launch the script providing the foreign cluster-id:
 ```bash
-./authenticate.sh <ForeignCluster CR name>
+./authenticate.sh $FOREIGN_CLUSTER_ID
 ```
 
-At the end you will have a new secret in your cluster that will trigger the request for a per-user Identity. Here we can see an example, with the required labels:
+You can see the created secret by typing:
+
 ```bash
 kubectl get secret -n liqo -l discovery.liqo.io/auth-token --show-labels 
 
@@ -131,9 +150,12 @@ NAME                                                TYPE     DATA   AGE    LABEL
 remote-token-3114c478-173d-4344-8f01-eb21efb95aea   Opaque   1      100s   discovery.liqo.io/auth-token=,discovery.liqo.io/cluster-id=3114c478-173d-4344-8f01-eb21efb95aea
 ```
 
+The secret creation triggers authentication procedure of the discovery component: it will post the authentication token
+embedded in the secret previously forged to the authentication server of the foreign cluster. 
+
 ## Check the Auth Status
 
-You can check the current Auth status in the ForeignCluster resource status with the command:
+The outcome of the authorization procedure can be found in the corresponding foreignCluster resource by typing:
 
 ```bash
 kubectl get foreignclusters.discovery.liqo.io <FC NAME> -o jsonpath="{.status.authStatus}"
@@ -152,20 +174,6 @@ The result will be one of the following:
 
 ## Troubleshooting
 
-### Get and Insert Authentication Credentials
-
-After having added a cluster as documented in the [previous section](../discovery), you have to configure the correct token for the cluster.
-
-If in the remote cluster the `emptyToken` is disabled, you will see in the home cluster, in the ForeignCluster resource
-status, something like:
-```yaml
-status:
-  authStatus: EmptyRefused
-```
-
-This means that the Discovery component made an attempt to get an Identity with an empty token, but the remote cluster
-refused it.
-
 ### Which resources will be created during the process?
 
 Some Kubernetes resources will be created in both the clusters involved in this process.
@@ -174,7 +182,7 @@ Some Kubernetes resources will be created in both the clusters involved in this 
 
 | Resource | Name                     | Description |
 | -------- | ------------------------ | ----------- |
-| Secret   | remote-token-$CLUSTER_ID | A secret containing a token to authenticate to a remote cluster    |
+| Secret   | remote-token-$FOREIGN_CLUSTER_ID | A secret containing a token to authenticate to a remote cluster    |
 | Secret   | remote-identity-*        | A secret containing the identity retrieved from the remote cluster |
 
 > NOTE: these Secret will not be deleted after the ForeignCluster deletion. Do not delete the "remote identit" Secret,
@@ -184,11 +192,11 @@ Some Kubernetes resources will be created in both the clusters involved in this 
 
 | Resource           | Name               | Description |
 | ------------------ | ------------------ | ----------- |
-| ServiceAccount     | remote-$CLUSTER_ID | The service account assigned to the home cluster |
-| Role               | remote-$CLUSTER_ID | This allows to manage _Secrets_ with a name equals to the clusterID in the `liqoGuestNamespace` (`liqo` by default) |
-| ClusterRole        | remote-$CLUSTER_ID | This allows to manage _PeeringRequests_ with a name equals to the clusterID |
-| RoleBinding        | remote-$CLUSTER_ID | Link between the Role and the ServiceAccount |
-| ClusterRoleBinding | remote-$CLUSTER_ID | Link between the ClusterRole and the ServiceAccount |
+| ServiceAccount     | remote-$FOREIGN_CLUSTER_ID | The service account assigned to the home cluster |
+| Role               | remote-$FOREIGN_CLUSTER_ID | This allows to manage _Secrets_ with a name equals to the clusterID in the `liqoGuestNamespace` (`liqo` by default) |
+| ClusterRole        | remote-$FOREIGN_CLUSTER_ID | This allows to manage _PeeringRequests_ with a name equals to the clusterID |
+| RoleBinding        | remote-$FOREIGN_CLUSTER_ID | Link between the Role and the ServiceAccount |
+| ClusterRoleBinding | remote-$FOREIGN_CLUSTER_ID | Link between the ClusterRole and the ServiceAccount |
 
 > NOTE: delete the ServiceAccount if a remote cluster has lost its Secret containing the Identity, in that way a new
 > ServiceAccount will be created are shared with that cluster.
