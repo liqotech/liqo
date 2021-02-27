@@ -28,10 +28,10 @@ The inter-cluster authentication is on a 2-step basis:
 1. Get the authentication token of the foreign cluster.
 2. Create a new secret in the home cluster with the authentication token and label it. This operation
 will trigger the following authentication procedure:
-    3. The discovery component posts the authentication token to the authentication server
-    4. The authentication server compares the received token with the correct one; if the two are matching, the
+    1. The discovery component posts the authentication token to the authentication server
+    2. The authentication server compares the received token with the correct one; if the two are matching, the
 peering cluster is authenticated.
-    5. the authentication server creates a set of permissions, forges an identity bound to them, and gives it to the 
+    3. the authentication server creates a set of permissions, forges an identity bound to them, and gives it to the 
 peering cluster.
 
 This new Identity will be uniquely assigned to who made the request, giving him per-user access, only with permissions 
@@ -39,7 +39,7 @@ on its resources. It will be used for any future request to the API Server once 
 
 Below, the 2 steps are detailed:
 
-#### 1. Get the foreign cluster token
+### 1. Get the foreign cluster token
 
 > __NOTE__: Since a secret token is required for peering, you can authenticate with another cluster if and only if you
 > have access to that cluster. Keep the secret confidential! Everyone with that token can peer with your cluster and use
@@ -66,7 +66,7 @@ To perform this operation:
 1. fetch the cluster-id from the ForeignCluster resource
 2. Create the secret resource in the home cluster and label it.
 
-#### Fetch the foreign cluster-id
+#### 1.1 Fetch the foreign cluster-id
 
 Each Liqo cluster is uniquely identified by a cluster-id. Once a new Liqo cluster has been discovered, a new 
 ForeignCluster resource is created in your cluster. The cluster-id of the foreign cluster is part of the specific 
@@ -80,7 +80,7 @@ FOREIGN_CLUSTER_ID=$(kubectl get foreigncluster <foreign-cluster> -o=jsonpath="{
 >__NOTE__: in v0.2 the foreign cluster resource name is the cluster-id, therefore it is enough to list the
 >ForeignClusters and get the desired one's name. This will change in future releases.
 
-#### Create the secret
+#### 1.2 Create the secret
 
 Once you identified the cluster-id of the cluster you want to authenticate with, create the secret with the 
 authentication token as follows:
