@@ -5,58 +5,70 @@ weight: 3
 
 ## Introduction
 
-Authentication mechanism prevents your cluster of being peered by anyone on the network you are exposed on. This is particularly important if your cluster exposes its services to the Internet.
+Authentication mechanism provides you a way to get sure only the cluster you want to peer with are able to do. The
+Authentication is similar to the bootstrap TLS: a unique secret is used to get an identity to be authenticated with.
+This prevents your cluster from being peered by anyone on the network you are exposed to; it is particularly important
+if your cluster exposes to the Internet.
 
-More precisely, the inter-cluster authentication procedure makes the cluster accessible can get an Identity (with an associated Role)
-that makes it possible to create the required resources needed for the clusters' interconnection.
+##  Disable the authentication
 
-While the token is not identifying any particular user or cluster, this new Identity will be uniquely assigned to who made the request,
-giving him a per-user access, only with permissions on its own resources. This new Identity will be used for any future request to the
-API Server when the peering will be enabled.
+The authentication in Liqo is enabled by default; in some environments, such as playgrounds or development contexts, you
+may want to disable it. To do so, use the following command:
 
-##  Configuration
-
-Liqo authentication can be configured with:
-
-* __Empty Token__: any peering request will be accepted.
-* __Token Matching__ *Default*: a request will be accepted if and only if it contains an exact token. Similarly to bootstrapt TLS mechanism, the token has to be delivered out of band.
-
-## Setting the Authentication Method
-
-The Authentication method can be set at install time and changed any time afterwards. The chart helm has the flag enabled by default. If you want to change it afterwards, you can select the authentication method editing the ClusterConfig resource with the following command:
 ```bash
-kubectl edit clusterconfig
+kubectl patch clusterconfig liqo-configuration --patch '{"spec":{"authConfig":{"allowEmptyToken": "false"}}}' --type 'merge'
 ```
 
-and changing the field:
-```yaml
-spec:
-  authConfig:
-    allowEmptyToken: true
-```
+> __NOTE__: Disabling authentication will automatically accept peering with any other Liqo instances in the network your 
+cluster is exposed to.
 
-__NOTE__: Enabling `allowEmptyToken` will accept peering with any other Liqo instance on the network your cluster is exposed.
+## Authentication mechanism
 
-### Get the Remote Cluster token
+The inter-cluster authentication is on a 5-step basis:
+1. Get the authentication token of the foreign cluster.
+2. Create a new secret in the home cluster with the authentication token (specified below) and label it. This operation
+will trigger the discovery authentication procedure beginning.
+3. The discovery component posts the authentication token to the authentication server
+4. The authentication server compares the received token with the correct one; if the two are matching, the
+peering cluster is authenticated.
+5. the authentication server creates a set of permissions, forges an identity bound to them, and gives it to the 
+peering cluster.
 
-If you have the access to the remote cluster, you can get the token required for the authentication running this example
-script in the remote cluster:
+This new Identity will be uniquely assigned to who made the request, giving him per-user access, only with permissions 
+on its resources. It will be used for any future request to the API Server once the peering will be enabled.
+
+Below, the 5 steps are detailed:
+
+#### 1. Get the foreign cluster token
+
+> __NOTE__: Since a secret token is required for peering, you can authenticate with another cluster if and only if you
+> have access to that cluster. Keep the secret confidential! Everyone with that token can peer with your cluster and use
+> your resources.
+
+To get the authentication token of the foreign cluster, set the kubeconfig to use the foreign cluster and type:
 
 ```bash
 token=$(kubectl get secret -n liqo auth-token -o jsonpath="{.data.token}" | base64 -d)
-echo -e "Token:\t$token"
 ```
 
-that will print you something like:
+The token should be similar to:
+
 ```txt
 Token:	502da93c20bb07ff289e4db7f0a9e12e2254a071f37ef6d580070715d38271c2429a4cbe2610202c79062f260eb0de96a881bb3b88eb3cd5222f8238f3e9928e
 ```
 
-> NOTE: keep it confidential! Everyone with this token can peer with your cluster and use your resources.
+### 2. Create a secret in the home cluster
 
-### Insert the token to authenticate the Home Cluster
+In the home cluster you have to provide the token to Liqo.
 
-Now, in the home cluster you have to provide the token to Liqo.
+To perform this operation:
+1. fetch the cluster-id from the ForeignCluster resource
+2. Create the secret resource in the home cluster and label it.
+
+#### Fetch the foreign cluster-id
+
+
+
 To do so, you should create a Secret containing the token value obtained on the remote cluster and to add two labels to make it visible to the
 Discovery component and linkable to the correct ForeignCluster resource:
 
