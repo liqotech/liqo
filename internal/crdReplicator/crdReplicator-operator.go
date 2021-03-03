@@ -76,7 +76,7 @@ func (c *Controller) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 	c.StartWatchers()
 	defer c.StopWatchers()
 	err := c.Get(ctx, req.NamespacedName, &fc)
-	if err != nil && apierrors.IsNotFound(err) {
+	if err != nil && !apierrors.IsNotFound(err) {
 		klog.Errorf("%s -> unable to retrieve resource %s: %s", c.ClusterID, req.NamespacedName, err)
 		return result, err
 	}
