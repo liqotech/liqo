@@ -18,7 +18,7 @@ jobs:
       - name: Gather the website docs differences
         id: docs-diff
         run: |
-          sed '1 { /^---/ { :a N; /\n---\n/! ba; d} }' docs/pages/User/Install/helm_values.md > deployments/liqo/docs_README.md
+          sed '1 { /^---/ { :a N; /\n---\n/! ba; d} }' docs/pages/User/Install/chart_values.md > deployments/liqo/docs_README.md
           output=$(diff deployments/liqo/README.md deployments/liqo/docs_README.md | head -n 100)
           exit_code=$([ "${output}" ] && echo 1 || echo 0)
 
@@ -49,7 +49,7 @@ jobs:
           body: |
             The website documentations of Helm appears to be out-of-date.
 
-            Please, replace the documentation in `docs/pages/User/Install/helm_values.md` with the one in `/deployments/liqo/README.md`
+            Please, replace the documentation in `docs/pages/User/Install/chart_values.md` with the one in `/deployments/liqo/README.md`
             while mantaining the Hugo header as follows:
             ```
             ---
