@@ -42,6 +42,10 @@
 | gateway.pod.labels | object | `{}` | gateway pod labels |
 | gateway.service.annotations | object | `{}` |  |
 | gateway.service.type | string | `"NodePort"` | If you plan to use liqo over the Internet consider to change this field to "LoadBalancer". More generally, if your cluster nodes are not directly reachable by the cluster to whom you are peering then change it to "LoadBalancer" |
+| monitoring.enable | bool | `true` | Enable Prometheus motoring for Liqo NOTE: Prometheus CRDs have to be installed previously |
+| monitoring.metrics.discoveryPort | int | `8092` | Set the port exposing your metrics in the Discovery component, it has to be different due to a port collision in hostNetwork Pods |
+| monitoring.metrics.port | int | `8091` | Set the port exposing your metrics |
+| monitoring.scrape | string | `"100ms"` | Prometheus Service scraping period |
 | nameOverride | string | `""` | liqo name override |
 | networkManager.config.GKEProvider | bool | `false` | Set this field to true if you are deploying liqo in GKE cluster |
 | networkManager.config.podCIDR | string | `""` | The subnet used by the cluster for the pods, in CIDR notation. At the moment the internal IPAM used by liqo only supports podCIDRs with netmask /16 (255.255.0.0). |

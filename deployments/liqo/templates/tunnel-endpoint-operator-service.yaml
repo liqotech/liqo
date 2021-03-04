@@ -1,20 +1,39 @@
+{{- $netManagerConfig := (merge (dict "name" "network-manager" "module" "networking") .) -}}
+
+{{- if .Values.monitoring.enable}}
+
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: tunnelendpointoperator-service
+  namespace: {{ .Release.Namespace }}
+  labels:
+  {{- include "liqo.selectorLabels" $netManagerConfig | nindent 4 }}
+spec:
+  selector:
+    matchLabels:
+  {{- include "liqo.selectorLabels" $netManagerConfig | nindent 8 }}
+  endpoints:
+    - port: metrics
+      interval: {{ .Values.monitoring.scrape }}
+---
+
 apiVersion: v1
 kind: Service
 metadata:
   labels:
-    app.kubernetes.io/managed-by: Helm
-    run: tunnelendpointcreator-operator
-    app: liqo.io
+  {{- include "liqo.selectorLabels" $netManagerConfig | nindent 4 }}
   name: tunnelendpointoperator-service
-  namespace: liqo
+  namespace: {{ .Release.Namespace }}
 spec:
   ports:
-    - port: 8090
+    - port: {{ .Values.monitoring.metrics.port }}
       protocol: TCP
-      targetPort: 8090
+      targetPort: {{ .Values.monitoring.metrics.port }}
       name: metrics
   selector:
-    run: tunnelendpointcreator-operator
+  {{- include "liqo.selectorLabels" $netManagerConfig | nindent 4 }}
   sessionAffinity: None
   type: ClusterIP
 
+{{- end}}

@@ -1,17 +1,38 @@
+{{- if .Values.monitoring.enable }}
+
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: broadcaster-service
+  namespace: {{ .Release.Namespace }}
+  labels:
+    run: broadcaster
+spec:
+  selector:
+    matchLabels:
+      run: broadcaster
+  endpoints:
+    - port: metrics
+      interval: {{ .Values.monitoring.scrape }}
+---
+
 apiVersion: v1
 kind: Service
 metadata:
   name: broadcaster-service
-  namespace: liqo
+  namespace: {{ .Release.Namespace }}
   labels:
     app: liqo.io
+    run: broadcaster
 spec:
   ports:
-    - port: 8090
+    - port: {{ .Values.monitoring.metrics.port }}
       protocol: TCP
-      targetPort: 8090
+      targetPort: {{ .Values.monitoring.metrics.port }}
       name: metrics
   selector:
     run: broadcaster
   sessionAffinity: None
   type: ClusterIP
+
+{{- end }}

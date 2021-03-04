@@ -92,6 +92,7 @@ func (r *ForeignClusterReconciler) Reconcile(req ctrl.Request) (ctrl.Result, err
 	_ = context.Background()
 
 	monitoring.PeeringProcessExecutionStarted()
+	monitoring.GetDiscoveryProcessMonitoring().Start()
 
 	klog.V(4).Infof("Reconciling ForeignCluster %s", req.Name)
 

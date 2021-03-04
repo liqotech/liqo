@@ -8,6 +8,7 @@ import (
 	"github.com/liqotech/liqo/internal/discovery"
 	foreign_cluster_operator "github.com/liqotech/liqo/internal/discovery/foreign-cluster-operator"
 	search_domain_operator "github.com/liqotech/liqo/internal/discovery/search-domain-operator"
+	"github.com/liqotech/liqo/internal/monitoring"
 	"github.com/liqotech/liqo/pkg/clusterID"
 	"github.com/liqotech/liqo/pkg/mapperUtils"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -82,6 +83,8 @@ func main() {
 		klog.Error(err, "unable to start manager")
 		os.Exit(1)
 	}
+
+	monitoring.Serve(":8092")
 
 	klog.Info("Starting SearchDomain operator")
 	search_domain_operator.StartOperator(&mgr, time.Duration(requeueAfter)*time.Second, discoveryCtl, kubeconfigPath)

@@ -1,20 +1,39 @@
+{{- $advertisementConfig := (merge (dict "name" "advertisement" "module" "sharing-protocol") .) -}}
+
+{{- if .Values.monitoring.enable }}
+
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: advertisement-operator-service
+  namespace: {{ .Release.Namespace }}
+  labels:
+  {{- include "liqo.selectorLabels" $advertisementConfig | nindent 4 }}
+spec:
+  selector:
+    matchLabels:
+  {{- include "liqo.selectorLabels" $advertisementConfig | nindent 8 }}
+  endpoints:
+    - port: metrics
+      interval: {{ .Values.monitoring.scrape }}
+---
+
 apiVersion: v1
 kind: Service
 metadata:
   labels:
-    app: liqo.io
-    app.kubernetes.io/managed-by: Helm
-    run: advertisement-operator
+  {{- include "liqo.selectorLabels" $advertisementConfig | nindent 4 }}
   name: advertisement-operator-service
-  namespace: liqo
+  namespace: {{ .Release.Namespace }}
 spec:
   ports:
     - name: metrics
-      port: 8090
+      port: {{ .Values.monitoring.metrics.port }}
       protocol: TCP
-      targetPort: 8090
+      targetPort: {{ .Values.monitoring.metrics.port }}
   selector:
-    run: advertisement-operator
+  {{- include "liqo.selectorLabels" $advertisementConfig | nindent 4 }}
   sessionAffinity: None
   type: ClusterIP
 
+{{- end }}

@@ -3,6 +3,7 @@ package discovery
 import (
 	"errors"
 	"github.com/liqotech/liqo/apis/discovery/v1alpha1"
+	"github.com/liqotech/liqo/internal/monitoring"
 	discoveryPkg "github.com/liqotech/liqo/pkg/discovery"
 	k8serror "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -88,6 +89,7 @@ func (discovery *DiscoveryCtrl) createOrUpdate(data *discoveryData, trustMode di
 		if createdUpdatedForeign != nil {
 			*createdUpdatedForeign = append(*createdUpdatedForeign, fc)
 		}
+		monitoring.GetDiscoveryProcessMonitoring().Complete(monitoring.DiscoveryCreateForeignCluster)
 	} else if err == nil {
 		var updated bool
 		fc, updated, err = discovery.CheckUpdate(data, fc, discoveryType, sd)
@@ -102,6 +104,7 @@ func (discovery *DiscoveryCtrl) createOrUpdate(data *discoveryData, trustMode di
 			if createdUpdatedForeign != nil {
 				*createdUpdatedForeign = append(*createdUpdatedForeign, fc)
 			}
+			monitoring.GetDiscoveryProcessMonitoring().Complete(monitoring.DiscoveryUpdateForeignCluster)
 		}
 	} else {
 		// unhandled errors

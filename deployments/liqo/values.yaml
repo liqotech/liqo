@@ -184,3 +184,16 @@ virtualKubelet:
 nameOverride: ""
 # -- full liqo name override
 fullnameOverride: ""
+
+monitoring:
+  # -- Enable Prometheus motoring for Liqo
+  # NOTE: Prometheus CRDs have to be installed previously
+  enable: true
+  # -- Prometheus Service scraping period
+  scrape: 100ms
+  metrics:
+    # -- Set the port exposing your metrics
+    port: 8091
+    # -- Set the port exposing your metrics in the Discovery component, it has to be different
+    # due to a port collision in hostNetwork Pods
+    discoveryPort: 8092

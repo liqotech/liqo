@@ -52,8 +52,8 @@ spec:
             {{- end }}
           resources:
             limits:
-              cpu: 100m
+              cpu: 150m
               memory: 50M
             requests:
-              cpu: 100m
+              cpu: 150m
               memory: 50M

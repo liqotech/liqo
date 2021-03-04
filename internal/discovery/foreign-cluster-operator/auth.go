@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
+	"github.com/liqotech/liqo/internal/monitoring"
 	"github.com/liqotech/liqo/pkg/auth"
 	"github.com/liqotech/liqo/pkg/crdClient"
 	"github.com/liqotech/liqo/pkg/discovery"
@@ -64,6 +65,8 @@ func (r *ForeignClusterReconciler) getRemoteClient(fc *discoveryv1alpha1.Foreign
 		return nil, err
 	}
 
+	monitoring.GetDiscoveryProcessMonitoring().EventRegister(monitoring.Discovery, monitoring.RetrieveRemoteIdentity, monitoring.Start)
+
 	// not existing role
 	if fc.Status.AuthStatus == discovery.AuthStatusPending || (fc.Status.AuthStatus == discovery.AuthStatusEmptyRefused && r.getAuthToken(fc) != "") {
 		kubeconfigStr, err := r.askRemoteIdentity(fc)
@@ -84,6 +87,9 @@ func (r *ForeignClusterReconciler) getRemoteClient(fc *discoveryv1alpha1.Foreign
 			klog.Error(err)
 			return nil, err
 		}
+
+		monitoring.GetDiscoveryProcessMonitoring().EventRegister(monitoring.Discovery, monitoring.RetrieveRemoteIdentity, monitoring.End)
+		monitoring.GetDiscoveryProcessMonitoring().Complete(monitoring.DiscoveryRetrieveIdentity)
 
 		return nil, nil
 	}

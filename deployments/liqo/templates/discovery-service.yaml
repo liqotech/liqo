@@ -1,18 +1,39 @@
+{{- $discoveryConfig := (merge (dict "name" "discovery" "module" "discovery") .) -}}
+
+{{- if .Values.monitoring.enable }}
+
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: discovery-service
+  namespace: {{ .Release.Namespace }}
+  labels:
+  {{- include "liqo.selectorLabels" $discoveryConfig | nindent 4 }}
+spec:
+  selector:
+    matchLabels:
+  {{- include "liqo.selectorLabels" $discoveryConfig | nindent 8 }}
+  endpoints:
+    - port: metrics
+      interval: {{ .Values.monitoring.scrape }}
+---
+
 apiVersion: v1
 kind: Service
 metadata:
   labels:
-    app: liqo.io
+  {{- include "liqo.selectorLabels" $discoveryConfig | nindent 4 }}
   name: discovery-service
-  namespace: liqo
+  namespace: {{ .Release.Namespace }}
 spec:
   ports:
-    - port: 8090
+    - port: {{ .Values.monitoring.metrics.discoveryPort }}
       protocol: TCP
-      targetPort: 8090
+      targetPort: {{ .Values.monitoring.metrics.discoveryPort }}
       name: metrics
   selector:
-    run: discovery
+  {{- include "liqo.selectorLabels" $discoveryConfig | nindent 4 }}
   sessionAffinity: None
   type: ClusterIP
 
+{{- end }}

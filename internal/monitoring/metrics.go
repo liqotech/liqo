@@ -3,9 +3,12 @@ package monitoring
 import (
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
+	"k8s.io/klog"
 	"net/http"
 	"time"
 )
+
+// TODO: use kubebuilder metric endpoint https://book.kubebuilder.io/reference/metrics.html#publishing-additional-metrics
 
 var (
 	peeringProcessTime = prometheus.NewHistogramVec(
@@ -34,6 +37,8 @@ var (
 	// start events are usually called within Reconcile functions, this map prevents to have multiple start event and only one end event
 	consistencyStartEventMap = createConsistencyEventMap(true)
 	consistencyEndEventMap   = createConsistencyEventMap(false)
+
+	discoveryMonitoring discoveryProcessMonitoring
 )
 
 func init() {
@@ -41,20 +46,35 @@ func init() {
 	prometheus.MustRegister(peeringProcessTime)
 	prometheus.MustRegister(peeringEvents)
 
+	discoveryMonitoring.init()
+
+	http.Handle("/metrics", promhttp.HandlerFor(
+		prometheus.DefaultGatherer,
+		promhttp.HandlerOpts{
+			// Opt into OpenMetrics to support exemplars.
+			EnableOpenMetrics: true,
+		},
+	))
+
 	go func() {
-
-		http.Handle("/metrics", promhttp.HandlerFor(
-			prometheus.DefaultGatherer,
-			promhttp.HandlerOpts{
-				// Opt into OpenMetrics to support exemplars.
-				EnableOpenMetrics: true,
-			},
-		))
-
 		// There may be multiple calls to the init function, the first one will succeed in the port binding
 		// the following ones will fail. One HTTP handler will always be available
-		_ = http.ListenAndServe(":8090", nil)
+		err := http.ListenAndServe(":8091", nil)
+		klog.Warning(err)
 	}()
+}
+
+func Serve(port string) {
+	go func() {
+		// There may be multiple calls to the init function, the first one will succeed in the port binding
+		// the following ones will fail. One HTTP handler will always be available
+		err := http.ListenAndServe(port, nil)
+		klog.Warning(err)
+	}()
+}
+
+func GetDiscoveryProcessMonitoring() ProcessMonitoring {
+	return &discoveryMonitoring
 }
 
 func PeeringProcessExecutionStarted() {

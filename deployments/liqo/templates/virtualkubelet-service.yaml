@@ -1,18 +1,37 @@
+{{- if .Values.monitoring.enable }}
+
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: virtual-kubelet-service
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app: virtual-kubelet
+spec:
+  selector:
+    matchLabels:
+      app: virtual-kubelet
+  endpoints:
+    - port: metrics
+      interval: {{ .Values.monitoring.scrape }}
+---
+
 apiVersion: v1
 kind: Service
 metadata:
   name: virtual-kubelet-service
-  namespace: liqo
+  namespace: {{ .Release.Namespace }}
   labels:
-    app: liqo.io
+    app: virtual-kubelet
 spec:
   ports:
-    - port: 8090
+    - port: {{ .Values.monitoring.metrics.port }}
       protocol: TCP
-      targetPort: 8090
+      targetPort: {{ .Values.monitoring.metrics.port }}
       name: metrics
   selector:
     app: virtual-kubelet
   sessionAffinity: None
   type: ClusterIP
 
+{{- end }}

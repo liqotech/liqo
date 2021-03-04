@@ -8,6 +8,8 @@ metadata:
   labels:
     {{- include "liqo.labels" $discoveryConfig| nindent 4 }}
 spec:
+  strategy:
+    type: Recreate
   selector:
     matchLabels:
       {{- include "liqo.selectorLabels" $discoveryConfig | nindent 6 }}
@@ -41,9 +43,9 @@ spec:
                   fieldPath: metadata.namespace
           resources:
             limits:
-              cpu: 50m
+              cpu: 150m
               memory: 50M
             requests:
-              cpu: 50m
+              cpu: 150m
               memory: 50M
       hostNetwork: true

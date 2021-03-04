@@ -10,6 +10,14 @@ const (
 	AdvertisementOperator
 	TunnelEndpointOperator
 
+	// Discovery Subcomponents
+	Discovery
+	DiscoveryMDNS
+	DiscoveryGetClusterInfo
+	DiscoveryCreateForeignCluster
+	DiscoveryUpdateForeignCluster
+	DiscoveryRetrieveIdentity
+
 	// always keep this as the last liqo component
 	lastComponent
 )
@@ -20,7 +28,13 @@ func (l LiqoComponent) String() string {
 		"ForeignClusterOperator",
 		"PeeringRequestOperator",
 		"AdvertisementOperator",
-		"TunnelEndpointOperator"}[l]
+		"TunnelEndpointOperator",
+		"Discovery",
+		"DiscoveryMDNS",
+		"DiscoveryGetClusterInfo",
+		"DiscoveryCreateForeignCluster",
+		"DiscoveryUpdateForeignCluster",
+		"DiscoveryRetrieveIdentity"}[l]
 }
 
 type EventStatus int
@@ -54,6 +68,11 @@ const (
 	ProcessLocalNetworkConfig
 	ProcessRemoteNetworkConfig
 
+	MDNSPacketReceived
+	GetClusterInfo
+	CreateForeignCluster
+	RetrieveRemoteIdentity
+
 	// always keep this as the last event type
 	lastEvent
 )
@@ -74,5 +93,10 @@ func (l EventType) String() string {
 		"CreateVirtualNode",
 		"CreateTunnelEndpoint",
 		"ProcessLocalNetworkConfig",
-		"ProcessRemoteNetworkConfig"}[l]
+		"ProcessRemoteNetworkConfig",
+
+		"MDNSPacketReceived",
+		"GetClusterInfo",
+		"CreateForeignCluster",
+		"RetrieveRemoteIdentity"}[l]
 }
