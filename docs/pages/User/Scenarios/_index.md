@@ -49,7 +49,7 @@ On-premise cluster (K3s or K8s) exposed through the Internet peered with a Manag
 On-premise cluster (K3s or K8s) peered with another on-premise cluster (K3s or K8s) in the same LAN.
 From the discovery perspective, if the clusters you would like to connect are in the same L2 broadcast domain, the Liqo discovery mechanism based on mDNS will handle the discovery automatically. If you have your clusters in different L3 domains, you have to manually [create](/user/post-install/discovery#forging-the-foreigncluster) a *foreign_cluster* resource or rely on [DNS discovery](/user/post-install/discovery#manual-configuration).
 
-|  | Cluster A (On-prem behind NAT) | Cluster B (Cloud) |
+|  | Cluster A (On-prem) | Cluster B (On-prem) |
 | --------- | -------- |  ---------       |
 | **Auth Server** |  NodePort | NodePort |
 | **API server** | Exposed | Exposed |
