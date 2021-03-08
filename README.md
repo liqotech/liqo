@@ -94,7 +94,7 @@ kubectl get nodes
 
 #### __Use__ the resources
 
-Create a new namespace and label it to tell Liqo that the pods there created are suitable for offloading in the remote cluster.
+Create a new namespace and label it to tell Liqo that the pods created in that namespace are suitable for offloading in the remote cluster.
 
 ```bash
 kubectl create namespace liqo-demo
