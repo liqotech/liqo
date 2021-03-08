@@ -143,7 +143,7 @@ To get involved with the Liqo community, join the slack [channel](https://join.s
 
 |![notification](docs/images/readme/bell-outline-badged.svg) Community Meeting|
 |------------------|
-|Liqo holds weekly community meeting on Monday, 5.30pm CET, 9.30am PST. To join the community meeting, follow this [link](https://meet.google.com/dyr-ieso-smu). Convert to your timezone [here](https://www.thetimezoneconverter.com/?t=17:30&tz=UTC%20%28Universal%20Time%20Coordinated%29).|
+|Liqo holds weekly community meeting on Monday, 5.30pm UTC (6.30 CET, 9.30am PST). To join the community meeting, follow this [link](https://meet.google.com/dyr-ieso-smu). Convert to your timezone [here](https://www.thetimezoneconverter.com/?t=17:30&tz=UTC%20%28Universal%20Time%20Coordinated%29).|
 
 ## License
 
