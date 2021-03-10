@@ -16,7 +16,17 @@ spec:
     singular: tunnelendpoint
   scope: Cluster
   versions:
-  - name: v1alpha1
+  - additionalPrinterColumns:
+    - jsonPath: .spec.endpointIP
+      name: Endpoint IP
+      type: string
+    - jsonPath: .spec.backendType
+      name: Backend type
+      type: string
+    - jsonPath: .status.connection.status
+      name: Connection status
+      type: string
+    name: v1alpha1
     schema:
       openAPIV3Schema:
         description: TunnelEndpoint is the Schema for the endpoints API
