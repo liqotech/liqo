@@ -74,6 +74,9 @@ const (
 // +kubebuilder:resource:scope=Cluster
 
 // TunnelEndpoint is the Schema for the endpoints API
+// +kubebuilder:printcolumn:name="Endpoint IP",type=string,JSONPath=`.spec.endpointIP`
+// +kubebuilder:printcolumn:name="Backend type",type=string,JSONPath=`.spec.backendType`
+// +kubebuilder:printcolumn:name="Connection status",type=string,JSONPath=`.status.connection.status`
 type TunnelEndpoint struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`

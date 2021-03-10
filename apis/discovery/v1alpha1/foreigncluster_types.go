@@ -125,6 +125,9 @@ type Incoming struct {
 // +kubebuilder:resource:scope=Cluster
 
 // ForeignCluster is the Schema for the foreignclusters API
+// +kubebuilder:printcolumn:name="Outgoing joined",type=string,JSONPath=`.status.outgoing.joined`
+// +kubebuilder:printcolumn:name="Incoming joined",type=string,JSONPath=`.status.incoming.joined`
+// +kubebuilder:printcolumn:name="Authentication status",type=string,JSONPath=`.status.authStatus`
 type ForeignCluster struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
