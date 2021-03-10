@@ -63,11 +63,11 @@ one if the IPs of your cluster's nodes (`kubectl get nodes -o wide`).
 
 The __port__ where the remote cluster's auth service is reachable, if you are
 using an Ingress, it should be `443` by default. Otherwise, if you are using a NodePort Service you 
-can get the port executing `kubectl get service -n liqo auth-service`, an output example could be:
+can get the port executing `kubectl get service -n liqo liqo-auth`, an output example could be:
 
 ```txt
 NAME           TYPE       CLUSTER-IP    EXTERNAL-IP   PORT(S)         AGE
-auth-service   NodePort   10.81.20.99   <none>        443:30740/TCP   2m7s
+liqo-auth   NodePort   10.81.20.99   <none>        443:30740/TCP   2m7s
 ```
 
 An example of `ForeignCluster` resource can be:
