@@ -21,3 +21,4 @@ bin
 *.swo
 *~
 *.tgz
+.vscode

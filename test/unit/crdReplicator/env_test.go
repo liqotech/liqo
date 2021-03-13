@@ -213,7 +213,7 @@ func getClusterConfig() *configv1alpha1.ClusterConfig {
 			LiqonetConfig: configv1alpha1.LiqonetConfig{
 				PodCIDR:         "10.0.0.0/16",
 				ServiceCIDR:     "10.96.0.0/12",
-				ReservedSubnets: []string{"10.0.0.0/16"},
+				ReservedSubnets: []configv1alpha1.ReservedSubnet{"10.0.0.0/16"},
 			},
 			DispatcherConfig: configv1alpha1.DispatcherConfig{ResourcesToReplicate: []configv1alpha1.Resource{{
 				Group:    netv1alpha1.GroupVersion.Group,

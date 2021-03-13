@@ -39,6 +39,9 @@ type ClusterConfigSpec struct {
 	AgentConfig AgentConfig `json:"agentConfig"`
 }
 
+// +kubebuilder:validation:Pattern="^([0-9]{1,3}.){3}[0-9]{1,3}(/([0-9]|[1-2][0-9]|3[0-2]))$"
+type ReservedSubnet string
+
 //AdvertisementConfig defines the configuration for the advertisement protocol
 type AdvertisementConfig struct {
 	//OutgoingConfig defines the behaviour for the creation of Advertisements on other clusters
@@ -137,10 +140,9 @@ type LiqonetConfig struct {
 	//This field is used by the IPAM embedded in the tunnelEndpointCreator.
 	//Subnets listed in this field are excluded from the list of possible subnets used for natting POD CIDR.
 	//Add here the subnets already used in your environment as a list in CIDR notation (e.g. [10.1.0.0/16, 10.200.1.0/24]).
-	ReservedSubnets []string `json:"reservedSubnets"`
+	ReservedSubnets []ReservedSubnet `json:"reservedSubnets"`
 	//the subnet used by the cluster for the pods, in CIDR notation
-	//at this moment only /16 subnets are supported
-	// +kubebuilder:validation:Pattern="^([0-9]{1,3}.){3}[0-9]{1,3}(/(16))"
+	// +kubebuilder:validation:Pattern="^([0-9]{1,3}.){3}[0-9]{1,3}(/([0-9]|[1-2][0-9]|3[0-2]))$"
 	PodCIDR string `json:"podCIDR"`
 	//the subnet used by the cluster for the services, in CIDR notation
 	// +kubebuilder:validation:Pattern="^([0-9]{1,3}.){3}[0-9]{1,3}(/([0-9]|[1-2][0-9]|3[0-2]))$"
