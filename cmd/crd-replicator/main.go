@@ -2,6 +2,9 @@ package main
 
 import (
 	"flag"
+	"os"
+	"time"
+
 	configv1alpha1 "github.com/liqotech/liqo/apis/config/v1alpha1"
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	"github.com/liqotech/liqo/internal/crdReplicator"
@@ -9,12 +12,12 @@ import (
 	"github.com/liqotech/liqo/pkg/mapperUtils"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/dynamic/dynamicinformer"
 	"k8s.io/client-go/kubernetes"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/klog/v2"
-	"os"
 	ctrl "sigs.k8s.io/controller-runtime"
 )
 
@@ -50,7 +53,16 @@ func main() {
 		klog.Errorf("namespace env variable not set, please set it in manifest file of the operator")
 		os.Exit(-1)
 	}
-	clusterID, err := util.GetClusterID(k8sClient, clusterIDConfMap, namespaceName)
+
+	// 7 attempts with 30 seconds sleep between one another
+	// for a total of 3 minutes
+	backoff := wait.Backoff{
+		Steps:    7,
+		Duration: 30 * time.Second,
+		Factor:   1.0,
+		Jitter:   0,
+	}
+	clusterID, err := util.GetClusterID(k8sClient, clusterIDConfMap, namespaceName, backoff)
 	if err != nil {
 		klog.Errorf("an error occurred while retrieving the clusterID: %s", err)
 		os.Exit(-1)
