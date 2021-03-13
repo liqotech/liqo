@@ -3,7 +3,7 @@ ENV PATH /go/bin:/usr/local/go/bin:$PATH
 ENV GOPATH /go
 COPY . /go/src/github.com/liqotech/liqo
 WORKDIR /go/src/github.com/liqotech/liqo
-RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build ./cmd/liqo-webhook/
+RUN CGO_ENABLED=0 GOOS=linux GOARCH=$(go env GOARCH) go build ./cmd/liqo-webhook/
 RUN cp liqo-webhook /usr/bin/liqo-webhook
 
 FROM ubuntu
