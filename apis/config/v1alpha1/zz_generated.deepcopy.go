@@ -271,7 +271,7 @@ func (in *LiqonetConfig) DeepCopyInto(out *LiqonetConfig) {
 	*out = *in
 	if in.ReservedSubnets != nil {
 		in, out := &in.ReservedSubnets, &out.ReservedSubnets
-		*out = make([]string, len(*in))
+		*out = make([]ReservedSubnet, len(*in))
 		copy(*out, *in)
 	}
 }

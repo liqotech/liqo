@@ -1,21 +1,20 @@
 package liqonet
 
 import (
-	"bytes"
 	"context"
 	"fmt"
-	"github.com/apparentlymart/go-cidr/cidr"
+	"io/ioutil"
+	"net"
+	"os"
+	"syscall"
+
 	"github.com/liqotech/liqo/internal/utils/errdefs"
 	"github.com/vishvananda/netlink"
 	"golang.org/x/tools/go/ssa/interp/testdata/src/errors"
-	"io/ioutil"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/klog"
-	"net"
-	"os"
-	"syscall"
 )
 
 var (
@@ -94,27 +93,6 @@ func RemoveString(slice []string, s string) (result []string) {
 		result = append(result, item)
 	}
 	return
-}
-
-func VerifyNoOverlap(subnets map[string]*net.IPNet, newNet *net.IPNet) bool {
-	firstLastIP := make([][]net.IP, 1)
-
-	for _, value := range subnets {
-		if bytes.Compare(value.Mask, newNet.Mask) <= 0 {
-			first, last := cidr.AddressRange(newNet)
-			firstLastIP[0] = []net.IP{first, last}
-			if value.Contains(firstLastIP[0][0]) || value.Contains(firstLastIP[0][1]) {
-				return true
-			}
-		} else {
-			first, last := cidr.AddressRange(value)
-			firstLastIP[0] = []net.IP{first, last}
-			if newNet.Contains(firstLastIP[0][0]) || newNet.Contains(firstLastIP[0][1]) {
-				return true
-			}
-		}
-	}
-	return false
 }
 
 func GetClusterID(client *kubernetes.Clientset, cmName, namespace string) (string, error) {
