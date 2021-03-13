@@ -3,7 +3,7 @@ ENV PATH /go/bin:/usr/local/go/bin:$PATH
 ENV GOPATH /go
 COPY . /go/src/github.com/liqotech/liqo
 WORKDIR /go/src/github.com/liqotech/liqo
-RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build ./cmd/peering-request-operator/
+RUN CGO_ENABLED=0 GOOS=linux GOARCH=$(go env GOARCH) go build ./cmd/peering-request-operator/
 RUN cp peering-request-operator /usr/bin/peering-request-operator
 
 FROM scratch

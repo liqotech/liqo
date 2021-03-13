@@ -6,7 +6,7 @@ COPY . /go/src/github.com/liqotech/liqo
 WORKDIR /go/src/github.com/liqotech/liqo
 
 ARG BUILD_TAGS=""
-RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build ./cmd/virtual-kubelet/
+RUN CGO_ENABLED=0 GOOS=linux GOARCH=$(go env GOARCH) go build ./cmd/virtual-kubelet/
 RUN cp virtual-kubelet /usr/bin/virtual-kubelet
 
 FROM busybox

@@ -11,7 +11,7 @@ ENV GOPATH /go
 RUN apk update && apk add git make
 COPY . /go/src/github.com/liqotech/liqo
 WORKDIR /go/src/github.com/liqotech/liqo
-RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build ./cmd/liqonet/
+RUN CGO_ENABLED=0 GOOS=linux GOARCH=$(go env GOARCH) go build ./cmd/liqonet/
 RUN cp liqonet /usr/bin/liqonet
 
 FROM alpine
