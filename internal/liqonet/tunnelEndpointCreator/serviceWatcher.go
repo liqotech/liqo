@@ -26,8 +26,7 @@ var (
 )
 
 func (tec *TunnelEndpointCreator) StartServiceWatcher() {
-	chacheChan := make(chan struct{})
-	started := tec.Manager.GetCache().WaitForCacheSync(chacheChan)
+	started := tec.Manager.GetCache().WaitForCacheSync(context.TODO())
 	if !started {
 		klog.Errorf("unable to sync caches")
 		return

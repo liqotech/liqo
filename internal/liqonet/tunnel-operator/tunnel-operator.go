@@ -138,7 +138,7 @@ func NewTunnelController(mgr ctrl.Manager, wgc wireguard.Client, nl wireguard.Ne
 	return tc, nil
 }
 
-func (tc *TunnelController) Reconcile(req ctrl.Request) (ctrl.Result, error) {
+func (tc *TunnelController) Reconcile(_ context.Context, req ctrl.Request) (ctrl.Result, error) {
 	if !tc.isConfigured {
 		<-tc.configChan
 	}
@@ -299,8 +299,8 @@ func (tc *TunnelController) EnsureIPTablesRulesPerCluster(tep *netv1alpha1.Tunne
 
 // SetupSignalHandlerForRouteOperator registers for SIGTERM, SIGINT, SIGKILL. A stop channel is returned
 // which is closed on one of these signals.
-func (tc *TunnelController) SetupSignalHandlerForTunnelOperator() (stopCh <-chan struct{}) {
-	stop := make(chan struct{})
+func (tc *TunnelController) SetupSignalHandlerForTunnelOperator() context.Context {
+	ctx, stop := context.WithCancel(context.TODO())
 	c := make(chan os.Signal, 1)
 	signal.Notify(c, utils.ShutdownSignals...)
 	go func(r *TunnelController) {
@@ -310,9 +310,9 @@ func (tc *TunnelController) SetupSignalHandlerForTunnelOperator() (stopCh <-chan
 		close(tc.stopPWChan)
 		r.RemoveAllTunnels()
 		<-c
-		close(stop)
+		stop()
 	}(tc)
-	return stop
+	return ctx
 }
 
 func (tc *TunnelController) SetupWithManager(mgr ctrl.Manager) error {

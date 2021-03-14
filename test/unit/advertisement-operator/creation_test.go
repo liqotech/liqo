@@ -102,14 +102,14 @@ func createFakeKubebuilderClient() (client.Client, record.EventRecorder) {
 		panic(err)
 	}
 
-	cacheStarted := make(chan struct{})
+	ctx := context.TODO()
 	go func() {
-		if err = manager.Start(cacheStarted); err != nil {
+		if err = manager.Start(ctx); err != nil {
 			klog.Error(err)
 			panic(err)
 		}
 	}()
-	manager.GetCache().WaitForCacheSync(cacheStarted)
+	manager.GetCache().WaitForCacheSync(ctx)
 	return manager.GetClient(), manager.GetEventRecorderFor("AdvertisementOperator")
 }
 

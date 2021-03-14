@@ -23,11 +23,11 @@ import (
 
 	"github.com/gorilla/mux"
 	"github.com/liqotech/liqo/internal/utils/errdefs"
+	"github.com/liqotech/liqo/internal/virtualKubelet/kubernetes/remotecommand"
 	"github.com/pkg/errors"
 	"k8s.io/apimachinery/pkg/types"
 	remoteutils "k8s.io/client-go/tools/remotecommand"
 	api "k8s.io/kubernetes/pkg/apis/core"
-	"k8s.io/kubernetes/pkg/kubelet/server/remotecommand"
 )
 
 // ContainerExecHandlerFunc defines the handler function used for "execing" into a

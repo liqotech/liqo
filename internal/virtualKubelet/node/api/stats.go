@@ -20,7 +20,7 @@ import (
 	"net/http"
 
 	"github.com/pkg/errors"
-	stats "k8s.io/kubernetes/pkg/kubelet/apis/stats/v1alpha1"
+	stats "k8s.io/kubelet/pkg/apis/stats/v1alpha1"
 )
 
 // PodStatsSummaryHandlerFunc defines the handler for getting pod stats summaries

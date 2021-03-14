@@ -7,7 +7,7 @@ import (
 	"github.com/liqotech/liqo/internal/virtualKubelet/node"
 	"github.com/liqotech/liqo/internal/virtualKubelet/node/api"
 	corev1 "k8s.io/api/core/v1"
-	stats "k8s.io/kubernetes/pkg/kubelet/apis/stats/v1alpha1"
+	stats "k8s.io/kubelet/pkg/apis/stats/v1alpha1"
 )
 
 // PodLifecycleHandler defines the interface used by the PodController to react

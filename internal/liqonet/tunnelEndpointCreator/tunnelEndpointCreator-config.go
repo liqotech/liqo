@@ -76,8 +76,7 @@ func (tec *TunnelEndpointCreator) GetClustersSubnets() (map[string]*net.IPNet, e
 	subnets := make(map[string]*net.IPNet)
 
 	//if the error is ErrCacheNotStarted we retry until the chaches are ready
-	chacheChan := make(chan struct{})
-	started := tec.Manager.GetCache().WaitForCacheSync(chacheChan)
+	started := tec.Manager.GetCache().WaitForCacheSync(context.TODO())
 	if !started {
 		return nil, fmt.Errorf("unable to sync caches")
 	}

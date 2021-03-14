@@ -1,6 +1,7 @@
 package search_domain_operator
 
 import (
+	"context"
 	"errors"
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	"github.com/liqotech/liqo/internal/discovery"
@@ -23,7 +24,7 @@ type SearchDomainReconciler struct {
 	DnsAddress string
 }
 
-func (r *SearchDomainReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
+func (r *SearchDomainReconciler) Reconcile(_ context.Context, req ctrl.Request) (ctrl.Result, error) {
 	klog.Info("Reconciling SearchDomain " + req.Name)
 
 	tmp, err := r.crdClient.Resource("searchdomains").Get(req.Name, metav1.GetOptions{})

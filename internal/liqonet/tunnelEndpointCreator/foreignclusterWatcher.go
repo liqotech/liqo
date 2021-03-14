@@ -1,6 +1,7 @@
 package tunnelEndpointCreator
 
 import (
+	"context"
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -16,8 +17,7 @@ func (tec *TunnelEndpointCreator) StartForeignClusterWatcher() {
 		tec.WaitConfig.Wait()
 		klog.Infof("Operator configured: ForeignClusterWatcher is now starting")
 	}
-	chacheChan := make(chan struct{})
-	started := tec.Manager.GetCache().WaitForCacheSync(chacheChan)
+	started := tec.Manager.GetCache().WaitForCacheSync(context.TODO())
 	if !started {
 		klog.Errorf("unable to sync caches")
 		return

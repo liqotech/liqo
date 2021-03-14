@@ -113,7 +113,7 @@ func NewRouteController(mgr ctrl.Manager, wgc wireguard.Client, nl wireguard.Net
 // +kubebuilder:rbac:groups=core,namespace="do-not-care",resources=pods,verbs=update;patch;get;list;watch
 // +kubebuilder:rbac:groups=core,namespace="do-not-care",resources=services,verbs=update;patch;get;list;watch
 
-func (r *RouteController) Reconcile(req ctrl.Request) (ctrl.Result, error) {
+func (r *RouteController) Reconcile(_ context.Context, req ctrl.Request) (ctrl.Result, error) {
 	ctx := context.Background()
 	var tep netv1alpha1.TunnelEndpoint
 	//name of our finalizer
@@ -195,16 +195,16 @@ func (r *RouteController) SetupWithManager(mgr ctrl.Manager) error {
 
 // SetupSignalHandlerForRouteOperator registers for SIGTERM, SIGINT. A stop channel is returned
 // which is closed on one of these signals.
-func (r *RouteController) SetupSignalHandlerForRouteOperator() (stopCh <-chan struct{}) {
-	stop := make(chan struct{})
+func (r *RouteController) SetupSignalHandlerForRouteOperator() context.Context {
+	ctx, stop := context.WithCancel(context.TODO())
 	c := make(chan os.Signal, 1)
 	signal.Notify(c, utils.ShutdownSignals...)
 	go func(r *RouteController) {
 		<-c
 		r.deleteOverlayIFace()
-		close(stop)
+		stop()
 	}(r)
-	return stop
+	return ctx
 }
 
 func (r *RouteController) Watcher(sharedDynFactory dynamicinformer.DynamicSharedInformerFactory, resourceType schema.GroupVersionResource, handlerFuncs cache.ResourceEventHandlerFuncs, stopCh chan struct{}) {

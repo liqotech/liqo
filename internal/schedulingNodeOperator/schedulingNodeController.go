@@ -36,7 +36,7 @@ type SchedulingNodeReconciler struct {
 // +kubebuilder:rbac:groups=scheduling.liqo.io,resources=schedulingnodes,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=scheduling.liqo.io,resources=schedulingnodes/status,verbs=get;update;patch
 
-func (r *SchedulingNodeReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
+func (r *SchedulingNodeReconciler) Reconcile(_ context.Context, req ctrl.Request) (ctrl.Result, error) {
 	ctx := context.Background()
 	log := r.Log.WithValues("schedulingnode", req.NamespacedName)
 
