@@ -72,8 +72,10 @@ func (r *ForeignClusterReconciler) getRemoteClient(fc *discoveryv1alpha1.Foreign
 			return nil, err
 		}
 		if kubeconfigStr == "" {
+			klog.V(4).Infof("[%v] Empty kubeconfig string", fc.Spec.ClusterIdentity.ClusterID)
 			return nil, nil
 		}
+		klog.V(4).Infof("[%v] Creating kubeconfig", fc.Spec.ClusterIdentity.ClusterID)
 		_, err = kubeconfig.CreateSecret(r.crdClient.Client(), r.Namespace, kubeconfigStr, map[string]string{
 			discovery.ClusterIdLabel:      fc.Spec.ClusterIdentity.ClusterID,
 			discovery.RemoteIdentityLabel: "",
@@ -86,7 +88,7 @@ func (r *ForeignClusterReconciler) getRemoteClient(fc *discoveryv1alpha1.Foreign
 		return nil, nil
 	}
 
-	klog.V(4).Info("no available identity")
+	klog.V(4).Infof("[%v] no available identity", fc.Spec.ClusterIdentity.ClusterID)
 	return nil, nil
 }
 
@@ -165,6 +167,7 @@ func (r *ForeignClusterReconciler) askRemoteIdentity(fc *discoveryv1alpha1.Forei
 		klog.Error(err)
 		return "", err
 	}
+	klog.V(4).Infof("[%v] Sending json request: %v", fc.Spec.ClusterIdentity.ClusterID, string(jsonRequest))
 
 	resp, err := sendRequest(fmt.Sprintf("%s/identity", fc.Spec.AuthUrl), bytes.NewBuffer(jsonRequest))
 	if err != nil {
@@ -179,7 +182,9 @@ func (r *ForeignClusterReconciler) askRemoteIdentity(fc *discoveryv1alpha1.Forei
 	switch resp.StatusCode {
 	case http.StatusCreated:
 		fc.Status.AuthStatus = discovery.AuthStatusAccepted
-		klog.Info("Identity Created")
+		klog.V(8).Infof("[%v] Received body: %v", fc.Spec.ClusterIdentity.ClusterID, string(body))
+		klog.V(4).Infof("[%v] Status Code: %v", fc.Spec.ClusterIdentity.ClusterID, resp.StatusCode)
+		klog.Infof("[%v] Identity Created", fc.Spec.ClusterIdentity.ClusterID)
 		return string(body), nil
 	case http.StatusForbidden:
 		if token == "" {
@@ -187,10 +192,12 @@ func (r *ForeignClusterReconciler) askRemoteIdentity(fc *discoveryv1alpha1.Forei
 		} else {
 			fc.Status.AuthStatus = discovery.AuthStatusRefused
 		}
-		klog.Info(string(body))
+		klog.Infof("[%v] Received body: %v", fc.Spec.ClusterIdentity.ClusterID, string(body))
+		klog.Infof("[%v] Status Code: %v", fc.Spec.ClusterIdentity.ClusterID, resp.StatusCode)
 		return "", nil
 	default:
-		klog.Info(string(body))
+		klog.Infof("[%v] Received body: %v", fc.Spec.ClusterIdentity.ClusterID, string(body))
+		klog.Infof("[%v] Status Code: %v", fc.Spec.ClusterIdentity.ClusterID, resp.StatusCode)
 		return "", errors.New(string(body))
 	}
 }

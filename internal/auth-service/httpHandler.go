@@ -27,12 +27,14 @@ func (authService *AuthServiceCtrl) role(w http.ResponseWriter, r *http.Request,
 	}
 
 	// check that the provided credentials are valid
+	klog.V(4).Info("Checking credentials")
 	if err = authService.credentialsValidator.checkCredentials(&roleRequest, authService.getConfigProvider(), authService.getTokenManager()); err != nil {
 		klog.Error(err)
 		authService.handleError(w, err)
 		return
 	}
 
+	klog.Infof("Create ServiceAccount remote-%v", roleRequest.ClusterID)
 	sa, err := authService.createServiceAccount(roleRequest.ClusterID)
 	if err != nil {
 		klog.Error(err)
@@ -40,6 +42,7 @@ func (authService *AuthServiceCtrl) role(w http.ResponseWriter, r *http.Request,
 		return
 	}
 
+	klog.Infof("Create Role %v", sa.Name)
 	role, err := authService.createRole(roleRequest.ClusterID, sa)
 	if err != nil {
 		klog.Error(err)
@@ -47,6 +50,7 @@ func (authService *AuthServiceCtrl) role(w http.ResponseWriter, r *http.Request,
 		return
 	}
 
+	klog.Infof("Create RoleBinding %v", sa.Name)
 	_, err = authService.createRoleBinding(sa, role)
 	if err != nil {
 		klog.Error(err)
@@ -54,6 +58,7 @@ func (authService *AuthServiceCtrl) role(w http.ResponseWriter, r *http.Request,
 		return
 	}
 
+	klog.Infof("Create ClusterRole %v", sa.Name)
 	clusterRole, err := authService.createClusterRole(roleRequest.ClusterID, sa)
 	if err != nil {
 		klog.Error(err)
@@ -61,6 +66,7 @@ func (authService *AuthServiceCtrl) role(w http.ResponseWriter, r *http.Request,
 		return
 	}
 
+	klog.Infof("Create ClusterRoleBinding %v", sa.Name)
 	_, err = authService.createClusterRoleBinding(sa, clusterRole)
 	if err != nil {
 		klog.Error(err)
@@ -68,12 +74,14 @@ func (authService *AuthServiceCtrl) role(w http.ResponseWriter, r *http.Request,
 		return
 	}
 
+	klog.Infof("Wait for complete ServiceAccount remote-%v", roleRequest.ClusterID)
 	sa, err = authService.getServiceAccountCompleted(roleRequest.ClusterID)
 	if err != nil {
 		klog.Error(err)
 		authService.handleError(w, err)
 		return
 	}
+	klog.Infof("ServiceAccount remote-%v Ready", sa.Name)
 
 	kubeconfig, err := authService.createKubeConfig(sa)
 	if err != nil {
@@ -81,6 +89,7 @@ func (authService *AuthServiceCtrl) role(w http.ResponseWriter, r *http.Request,
 		authService.handleError(w, err)
 		return
 	}
+	klog.V(8).Infof("Kubeconfig created: %v", kubeconfig)
 
 	w.WriteHeader(http.StatusCreated)
 	_, err = w.Write([]byte(kubeconfig))
