@@ -408,7 +408,7 @@ func (r *ForeignClusterReconciler) Update(fc *discoveryv1alpha1.ForeignCluster) 
 
 func (r *ForeignClusterReconciler) Peer(fc *discoveryv1alpha1.ForeignCluster, foreignDiscoveryClient *crdClient.CRDClient) (*discoveryv1alpha1.ForeignCluster, error) {
 	// create PeeringRequest
-	klog.Info("Creating PeeringRequest")
+	klog.Infof("[%v] Creating PeeringRequest", fc.Spec.ClusterIdentity.ClusterID)
 	pr, err := r.createPeeringRequestIfNotExists(fc.Name, fc, foreignDiscoveryClient)
 	if err != nil {
 		klog.Error(err)
@@ -427,7 +427,7 @@ func (r *ForeignClusterReconciler) Peer(fc *discoveryv1alpha1.ForeignCluster, fo
 
 func (r *ForeignClusterReconciler) Unpeer(fc *discoveryv1alpha1.ForeignCluster, foreignDiscoveryClient *crdClient.CRDClient) (*discoveryv1alpha1.ForeignCluster, error) {
 	// peering request has to be removed
-	klog.Info("Deleting PeeringRequest")
+	klog.Infof("[%v] Deleting PeeringRequest", fc.Spec.ClusterIdentity.ClusterID)
 	err := r.deletePeeringRequest(foreignDiscoveryClient, fc)
 	if err != nil && !errors.IsNotFound(err) {
 		klog.Error(err)

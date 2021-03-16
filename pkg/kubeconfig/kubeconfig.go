@@ -42,10 +42,12 @@ func CreateSecret(client kubernetes.Interface, namespace string, kubeconfig stri
 			"kubeconfig": kubeconfig,
 		},
 	}
+	klog.V(8).Infof("Kubeconfig secret: %v", identitySecret)
 	identitySecret, err := client.CoreV1().Secrets(namespace).Create(context.TODO(), identitySecret, metav1.CreateOptions{})
 	if err != nil {
 		klog.Error(err)
 		return nil, err
 	}
+	klog.V(4).Infof("Identity secret created: %v", identitySecret.Name)
 	return identitySecret, nil
 }

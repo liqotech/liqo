@@ -44,6 +44,8 @@ func main() {
 	flag.StringVar(&kubeconfigPath, "kubeconfigPath", filepath.Join(os.Getenv("HOME"), ".kube", "config"), "For debug purpose, set path to local kubeconfig")
 	flag.IntVar(&resolveContextRefreshTime, "resolveContextRefreshTime", 10, "Period after that mDNS resolve context is refreshed (minutes)")
 	flag.Int64Var(&dialTcpTimeout, "dialTcpTimeout", 500, "Time to wait for a TCP connection to a remote cluster before to consider it as not reachable (milliseconds)")
+
+	klog.InitFlags(nil)
 	flag.Parse()
 
 	klog.Info("Namespace: ", namespace)

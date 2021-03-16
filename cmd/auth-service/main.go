@@ -27,6 +27,8 @@ func main() {
 	flag.StringVar(&certFile, "certFile", "/certs/cert.pem", "Path to cert file")
 	flag.StringVar(&keyFile, "keyFile", "/certs/key.pem", "Path to key file")
 	flag.BoolVar(&useTls, "useTls", false, "Enable HTTPS server")
+
+	klog.InitFlags(nil)
 	flag.Parse()
 
 	klog.Info("Namespace: ", namespace)
