@@ -6,6 +6,6 @@ WORKDIR /go/src/github.com/liqotech/liqo
 RUN CGO_ENABLED=0 GOOS=linux GOARCH=$(go env GOARCH) go build ./cmd/advertisement-operator/
 RUN cp advertisement-operator /usr/bin/advertisement-operator
 
-FROM scratch
+FROM alpine:3.12.4
 COPY --from=builder /usr/bin/advertisement-operator /usr/bin/advertisement-operator
 ENTRYPOINT [ "/usr/bin/advertisement-operator" ]
