@@ -6,6 +6,6 @@ WORKDIR /go/src/github.com/liqotech/liqo
 RUN CGO_ENABLED=0 GOOS=linux GOARCH=$(go env GOARCH) go build ./cmd/schedulingNodeOperator/
 RUN cp schedulingNodeOperator /usr/bin/schedulingNodeOperator
 
-FROM alpine:3.12.4
+FROM alpine:3.13.2
 COPY --from=builder /usr/bin/schedulingNodeOperator /usr/bin/schedulingNodeOperator
 ENTRYPOINT [ "/usr/bin/schedulingNodeOperator" ]

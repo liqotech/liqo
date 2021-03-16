@@ -6,7 +6,7 @@ WORKDIR /go/src/github.com/liqotech/liqo
 RUN CGO_ENABLED=0 GOOS=linux GOARCH=$(go env GOARCH) go build ./cmd/discovery/
 RUN cp discovery /usr/bin/discovery
 
-FROM alpine:3.12
+FROM alpine:3.13.2
 RUN apk update && apk add --no-cache ca-certificates bash && rm -rf /var/cache/apk/*
 COPY scripts/discovery/entrypoint.sh /usr/bin/entrypoint.sh
 COPY --from=builder /usr/bin/discovery /usr/bin/discovery

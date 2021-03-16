@@ -114,7 +114,7 @@ auth:
   imageName: "liqo/auth-service"
   initContainer:
     # -- auth init container image repository
-    imageName: nginx:1.19
+    imageName: "liqo/cert-creator" 
   service:
     # -- The type of service used to expose the Authentication Service
     # If you are exposing this service with an Ingress consider to change it to ClusterIP,

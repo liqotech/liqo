@@ -30,12 +30,32 @@ spec:
       initContainers:
         - name: {{ $authConfig.containerName }}
           imagePullPolicy: {{ .Values.pullPolicy }}
-          image: {{ .Values.auth.initContainer.imageName }}
+          image: {{ .Values.auth.initContainer.imageName }}{{ include "liqo.suffix" $authConfig }}:{{ include "liqo.version" $authConfig }}
           volumeMounts:
             - mountPath: '/certs'
               name: certs
-          command: [ "/bin/sh" ]
-          args: [ "-c", 'openssl req -x509 -subj "/C=IT/ST=Turin/O=Liqo" -nodes -days 365 -newkey rsa:4096 -keyout /certs/key.pem -out /certs/cert.pem' ]
+          command: [ "/usr/bin/openssl" ]
+          args:
+            - req
+            - -x509
+            - -subj
+            - /C=IT/ST=Turin/O=Liqo
+            - -nodes
+            - -days
+            - "365"
+            - -newkey
+            - rsa:4096
+            - -keyout
+            - /certs/key.pem
+            - -out
+            - /certs/cert.pem
+          resources:
+            limits:
+              cpu: "1"
+              memory: "100M"
+            requests:
+              cpu: "200m"
+              memory: "100M"
       {{- end }}
       containers:
         - image: {{ .Values.auth.imageName }}{{ include "liqo.suffix" $authConfig }}:{{ include "liqo.version" $authConfig }}
@@ -69,10 +89,10 @@ spec:
             {{- end }}
           resources:
             limits:
-              cpu: 50m
+              cpu: 100m
               memory: 50M
             requests:
-              cpu: 50m
+              cpu: 100m
               memory: 50M
           volumeMounts:
             - mountPath: '/certs'
