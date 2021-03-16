@@ -6,6 +6,6 @@ WORKDIR /go/src/github.com/liqotech/liqo
 RUN CGO_ENABLED=0 GOOS=linux GOARCH=$(go env GOARCH) go build ./cmd/peering-request-operator/
 RUN cp peering-request-operator /usr/bin/peering-request-operator
 
-FROM alpine:3.12.4
+FROM alpine:3.13.2
 COPY --from=builder /usr/bin/peering-request-operator /usr/bin/peering-request-operator
 ENTRYPOINT [ "/usr/bin/peering-request-operator" ]

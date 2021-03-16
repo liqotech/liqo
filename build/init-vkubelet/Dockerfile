@@ -1,4 +1,4 @@
-FROM alpine:3.12.4
+FROM alpine:3.13.2
 RUN apk add --update --no-cache curl bash && \
    apk add --update --no-cache -X http://dl-cdn.alpinelinux.org/alpine/edge/testing cfssl && \
   rm -rf /var/cache/apk/

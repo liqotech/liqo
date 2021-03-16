@@ -16,7 +16,7 @@
 | auth.ingress.class | string | `""` | Set your ingress class |
 | auth.ingress.enable | bool | `false` | Whether to enable the creation of the Ingress resource |
 | auth.ingress.host | string | `""` | Set the hostname for your ingress |
-| auth.initContainer.imageName | string | `"nginx:1.19"` | auth init container image repository |
+| auth.initContainer.imageName | string | `"liqo/cert-creator"` | auth init container image repository |
 | auth.pod.annotations | object | `{}` | auth pod annotations |
 | auth.pod.labels | object | `{}` | auth pod labels |
 | auth.portOverride | string | `""` | Overrides the port were your service is available, you should configure it if behind a NAT or using an Ingress with a port different from 443. |

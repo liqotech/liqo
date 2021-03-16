@@ -67,17 +67,18 @@ jobs:
       fail-fast: false
       matrix:
         component:
-        - virtual-kubelet
-        - liqonet
         - advertisement-broadcaster
         - advertisement-operator
-        - init-vkubelet
-        - scheduling-node-operator
-        - discovery
-        - peering-request-operator
-        - liqo-webhook
-        - crd-replicator
         - auth-service
+        - cert-creator
+        - crd-replicator
+        - discovery
+        - init-vkubelet
+        - liqonet
+        - liqo-webhook
+        - peering-request-operator
+        - scheduling-node-operator
+        - virtual-kubelet
         - webhook-configuration
     steps:
       - name: Set up QEMU
