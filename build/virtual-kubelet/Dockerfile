@@ -9,7 +9,7 @@ ARG BUILD_TAGS=""
 RUN CGO_ENABLED=0 GOOS=linux GOARCH=$(go env GOARCH) go build ./cmd/virtual-kubelet/
 RUN cp virtual-kubelet /usr/bin/virtual-kubelet
 
-FROM busybox
+FROM alpine:3.12.4
 COPY --from=builder /usr/bin/virtual-kubelet /usr/bin/virtual-kubelet
 COPY --from=builder /etc/ssl/certs/ /etc/ssl/certs
 ENTRYPOINT [ "/usr/bin/virtual-kubelet" ]

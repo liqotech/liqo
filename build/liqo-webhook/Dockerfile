@@ -6,6 +6,6 @@ WORKDIR /go/src/github.com/liqotech/liqo
 RUN CGO_ENABLED=0 GOOS=linux GOARCH=$(go env GOARCH) go build ./cmd/liqo-webhook/
 RUN cp liqo-webhook /usr/bin/liqo-webhook
 
-FROM ubuntu
+FROM alpine:3.12.4
 COPY --from=builder /usr/bin/liqo-webhook /usr/bin/liqo-webhook
 ENTRYPOINT [ "/usr/bin/liqo-webhook" ]

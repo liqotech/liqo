@@ -6,6 +6,6 @@ WORKDIR /go/src/github.com/liqotech/liqo
 RUN CGO_ENABLED=0 GOOS=linux GOARCH=$(go env GOARCH) go build ./cmd/auth-service/
 RUN cp auth-service /usr/bin/auth-service
 
-FROM scratch
+FROM alpine:3.12.4
 COPY --from=builder /usr/bin/auth-service /usr/bin/auth-service
 ENTRYPOINT [ "/usr/bin/auth-service" ]
