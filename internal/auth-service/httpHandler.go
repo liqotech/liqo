@@ -51,7 +51,7 @@ func (authService *AuthServiceCtrl) role(w http.ResponseWriter, r *http.Request,
 	}
 
 	klog.Infof("Create RoleBinding %v", sa.Name)
-	_, err = authService.createRoleBinding(sa, role)
+	_, err = authService.createRoleBinding(sa, role, roleRequest.ClusterID)
 	if err != nil {
 		klog.Error(err)
 		authService.handleError(w, err)
@@ -67,7 +67,7 @@ func (authService *AuthServiceCtrl) role(w http.ResponseWriter, r *http.Request,
 	}
 
 	klog.Infof("Create ClusterRoleBinding %v", sa.Name)
-	_, err = authService.createClusterRoleBinding(sa, clusterRole)
+	_, err = authService.createClusterRoleBinding(sa, clusterRole, roleRequest.ClusterID)
 	if err != nil {
 		klog.Error(err)
 		authService.handleError(w, err)

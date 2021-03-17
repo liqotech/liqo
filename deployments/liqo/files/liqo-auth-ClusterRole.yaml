@@ -32,6 +32,8 @@ rules:
   verbs:
   - create
   - delete
+  - deletecollection
+  - list
 - apiGroups:
   - rbac.authorization.k8s.io
   resources:
@@ -39,4 +41,6 @@ rules:
   verbs:
   - create
   - delete
+  - deletecollection
+  - list
 

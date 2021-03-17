@@ -6,6 +6,8 @@ const (
 	RemoteIdentityLabel = "discovery.liqo.io/remote-identity"
 	DiscoveryTypeLabel  = "discovery.liqo.io/discovery-type"
 	SearchDomainLabel   = "discovery.liqo.io/searchdomain"
+	LiqoManagedLabel    = "discovery.liqo.io/liqo-managed"
+	GarbageCollection   = "discovery.liqo.io/garbage-collection"
 )
 
 type DiscoveryType string

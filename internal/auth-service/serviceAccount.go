@@ -3,6 +3,7 @@ package auth_service
 import (
 	"context"
 	"fmt"
+	"github.com/liqotech/liqo/pkg/discovery"
 	v1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -80,6 +81,14 @@ func (authService *AuthServiceCtrl) createServiceAccount(remoteClusterId string)
 	sa := &v1.ServiceAccount{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: fmt.Sprintf("remote-%s", remoteClusterId),
+			Labels: map[string]string{
+				discovery.LiqoManagedLabel: "true",
+				discovery.ClusterIdLabel:   remoteClusterId,
+			},
+			// used to do garbage collection on cluster scoped resources (i.e. ClusterRole and ClusterRoleBinding)
+			Finalizers: []string{
+				discovery.GarbageCollection,
+			},
 		},
 	}
 	return authService.clientset.CoreV1().ServiceAccounts(authService.namespace).Create(context.TODO(), sa, metav1.CreateOptions{})
