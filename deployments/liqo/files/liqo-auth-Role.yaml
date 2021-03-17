@@ -30,6 +30,7 @@ rules:
   - delete
   - get
   - list
+  - update
   - watch
 - apiGroups:
   - rbac.authorization.k8s.io

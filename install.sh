@@ -630,6 +630,17 @@ function uninstall_liqodash() {
 	set -e
 }
 
+function purge_liqo_preuninstall() {
+  [ "${PURGE_LIQO}" = true ] || return 0
+
+  # Do not fail in case of errors, to avoid exiting if Liqo had already been (partially) uninstalled
+	set +e
+
+	${KUBECTL} delete serviceaccounts -n "${LIQO_NAMESPACE}" -l "discovery.liqo.io/liqo-managed" 1>/dev/null 2>&1
+
+	set -e
+}
+
 function purge_liqo() {
 	[ "${PURGE_LIQO}" = true ] || return 0
 
@@ -685,6 +696,7 @@ function main() {
 	else
 		uninstall_liqodash
 		unjoin_clusters
+		purge_liqo_preuninstall
 		uninstall_liqo
 		purge_liqo
 		launch_agent_installer --uninstall

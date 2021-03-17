@@ -3,6 +3,7 @@ package auth_service
 import (
 	"context"
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
+	"github.com/liqotech/liqo/pkg/discovery"
 	v1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -19,6 +20,10 @@ func (authService *AuthServiceCtrl) createClusterRole(remoteClusterId string, sa
 					Name:       sa.Name,
 					UID:        sa.UID,
 				},
+			},
+			Labels: map[string]string{
+				discovery.LiqoManagedLabel: "true",
+				discovery.ClusterIdLabel:   remoteClusterId,
 			},
 		},
 		Rules: []rbacv1.PolicyRule{

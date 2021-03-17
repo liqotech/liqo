@@ -5,8 +5,10 @@ import (
 	"github.com/julienschmidt/httprouter"
 	"github.com/liqotech/liqo/apis/config/v1alpha1"
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
+	garbage_collection "github.com/liqotech/liqo/internal/auth-service/garbage-collection"
 	"github.com/liqotech/liqo/pkg/clusterID"
 	"github.com/liqotech/liqo/pkg/crdClient"
+	"github.com/liqotech/liqo/pkg/discovery"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/wait"
@@ -15,6 +17,7 @@ import (
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/klog"
 	"net/http"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"strings"
 	"sync"
 	"time"
@@ -22,14 +25,14 @@ import (
 
 //cluster-role
 // +kubebuilder:rbac:groups=core,resources=nodes,verbs=get;list;watch
-// +kubebuilder:rbac:groups=rbac.authorization.k8s.io,resources=clusterroles,verbs=create;delete
-// +kubebuilder:rbac:groups=rbac.authorization.k8s.io,resources=clusterrolebindings,verbs=create;delete
+// +kubebuilder:rbac:groups=rbac.authorization.k8s.io,resources=clusterroles,verbs=create;delete;list;deletecollection
+// +kubebuilder:rbac:groups=rbac.authorization.k8s.io,resources=clusterrolebindings,verbs=create;delete;list;deletecollection
 // +kubebuilder:rbac:groups=config.liqo.io,resources=clusterconfigs,verbs=get;list;watch;create
 // +kubebuilder:rbac:groups=discovery.liqo.io,resources=peeringrequests,verbs=get;create;update;delete
 //role
 // +kubebuilder:rbac:groups=core,namespace="do-not-care",resources=secrets,verbs=create;update;get;list;watch;delete
 // +kubebuilder:rbac:groups=core,namespace="do-not-care",resources=configmaps,verbs=create;update;get;list;watch;delete
-// +kubebuilder:rbac:groups=core,namespace="do-not-care",resources=serviceaccounts,verbs=get;list;watch;create;delete
+// +kubebuilder:rbac:groups=core,namespace="do-not-care",resources=serviceaccounts,verbs=get;list;watch;create;delete;update
 // +kubebuilder:rbac:groups=rbac.authorization.k8s.io,namespace="do-not-care",resources=roles,verbs=create;delete
 // +kubebuilder:rbac:groups=rbac.authorization.k8s.io,namespace="do-not-care",resources=rolebindings,verbs=create;delete
 
@@ -62,7 +65,17 @@ func NewAuthServiceCtrl(namespace string, kubeconfigPath string, resyncTime time
 	informerFactory := informers.NewSharedInformerFactoryWithOptions(clientset, resyncTime, informers.WithNamespace(namespace))
 
 	saInformer := informerFactory.Core().V1().ServiceAccounts().Informer()
-	saInformer.AddEventHandler(cache.ResourceEventHandlerFuncs{})
+	saInformer.AddEventHandler(cache.ResourceEventHandlerFuncs{
+		UpdateFunc: func(oldObj interface{}, newObj interface{}) {
+			if sa, ok := newObj.(*v1.ServiceAccount); ok {
+				if !sa.GetDeletionTimestamp().IsZero() && controllerutil.ContainsFinalizer(sa, discovery.GarbageCollection) {
+					garbage_collection.OnDeleteServiceAccount(clientset, sa)
+				}
+			} else {
+				klog.Error("Error decoding ServiceAccount")
+			}
+		},
+	})
 
 	nodeInformer := informerFactory.Core().V1().Nodes().Informer()
 	nodeInformer.AddEventHandler(cache.ResourceEventHandlerFuncs{})
