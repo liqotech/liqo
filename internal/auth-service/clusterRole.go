@@ -13,14 +13,6 @@ func (authService *AuthServiceCtrl) createClusterRole(remoteClusterId string, sa
 	role := &rbacv1.ClusterRole{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: sa.Name,
-			OwnerReferences: []metav1.OwnerReference{
-				{
-					APIVersion: "v1",
-					Kind:       "ServiceAccount",
-					Name:       sa.Name,
-					UID:        sa.UID,
-				},
-			},
 			Labels: map[string]string{
 				discovery.LiqoManagedLabel: "true",
 				discovery.ClusterIdLabel:   remoteClusterId,

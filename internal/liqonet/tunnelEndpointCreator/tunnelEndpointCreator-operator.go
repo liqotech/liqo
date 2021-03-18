@@ -237,7 +237,7 @@ func (tec *TunnelEndpointCreator) createNetConfig(fc *discoveryv1alpha1.ForeignC
 			},
 			OwnerReferences: []metav1.OwnerReference{
 				{
-					APIVersion: "v1alpha1",
+					APIVersion: fmt.Sprintf("%s/%s", discoveryv1alpha1.GroupVersion.Group, discoveryv1alpha1.GroupVersion.Version),
 					Kind:       "ForeignCluster",
 					Name:       fc.Name,
 					UID:        fc.UID,

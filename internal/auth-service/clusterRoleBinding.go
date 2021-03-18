@@ -12,14 +12,6 @@ func (authService *AuthServiceCtrl) createClusterRoleBinding(sa *v1.ServiceAccou
 	rb := &rbacv1.ClusterRoleBinding{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: sa.Name,
-			OwnerReferences: []metav1.OwnerReference{
-				{
-					APIVersion: "v1",
-					Kind:       "ServiceAccount",
-					Name:       sa.Name,
-					UID:        sa.UID,
-				},
-			},
 			Labels: map[string]string{
 				discovery.LiqoManagedLabel: "true",
 				discovery.ClusterIdLabel:   remoteClusterId,
