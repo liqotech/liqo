@@ -22,6 +22,7 @@ import (
 	"fmt"
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	nettypes "github.com/liqotech/liqo/apis/net/v1alpha1"
+	netv1alpha1 "github.com/liqotech/liqo/apis/net/v1alpha1"
 	advtypes "github.com/liqotech/liqo/apis/sharing/v1alpha1"
 	"github.com/liqotech/liqo/internal/crdReplicator"
 	"github.com/liqotech/liqo/internal/discovery"
@@ -647,7 +648,7 @@ func (r *ForeignClusterReconciler) createPeeringRequestIfNotExists(clusterID str
 				GenerateName: strings.Join([]string{"pr", r.clusterID.GetClusterID(), ""}, "-"),
 				OwnerReferences: []metav1.OwnerReference{
 					{
-						APIVersion: "discovery.liqo.io/v1alpha1",
+						APIVersion: fmt.Sprintf("%s/%s", discoveryv1alpha1.GroupVersion.Group, discoveryv1alpha1.GroupVersion.Version),
 						Kind:       "PeeringRequest",
 						Name:       pr.Name,
 						UID:        pr.UID,
@@ -723,7 +724,7 @@ func (r *ForeignClusterReconciler) getForeignConfig(clusterID string, owner *dis
 	}
 
 	// crdreplicator role binding
-	err = r.setDispatcherRole(clusterID, sa)
+	err = r.setDispatcherRole(clusterID, sa, owner)
 	if err != nil {
 		return "", err
 	}
@@ -773,7 +774,7 @@ func (r *ForeignClusterReconciler) createClusterRoleIfNotExists(clusterID string
 				Name: clusterID,
 				OwnerReferences: []metav1.OwnerReference{
 					{
-						APIVersion: "v1alpha1",
+						APIVersion: fmt.Sprintf("%s/%s", discoveryv1alpha1.GroupVersion.Group, discoveryv1alpha1.GroupVersion.Version),
 						Kind:       "ForeignCluster",
 						Name:       owner.Name,
 						UID:        owner.UID,
@@ -806,7 +807,7 @@ func (r *ForeignClusterReconciler) createRoleIfNotExists(clusterID string, owner
 				Name: clusterID,
 				OwnerReferences: []metav1.OwnerReference{
 					{
-						APIVersion: "v1alpha1",
+						APIVersion: fmt.Sprintf("%s/%s", discoveryv1alpha1.GroupVersion.Group, discoveryv1alpha1.GroupVersion.Version),
 						Kind:       "ForeignCluster",
 						Name:       owner.Name,
 						UID:        owner.UID,
@@ -839,7 +840,7 @@ func (r *ForeignClusterReconciler) createServiceAccountIfNotExists(clusterID str
 				Name: clusterID,
 				OwnerReferences: []metav1.OwnerReference{
 					{
-						APIVersion: "v1alpha1",
+						APIVersion: fmt.Sprintf("%s/%s", discoveryv1alpha1.GroupVersion.Group, discoveryv1alpha1.GroupVersion.Version),
 						Kind:       "ForeignCluster",
 						Name:       owner.Name,
 						UID:        owner.UID,
@@ -865,7 +866,7 @@ func (r *ForeignClusterReconciler) createClusterRoleBindingIfNotExists(clusterID
 				Name: clusterID,
 				OwnerReferences: []metav1.OwnerReference{
 					{
-						APIVersion: "v1alpha1",
+						APIVersion: fmt.Sprintf("%s/%s", discoveryv1alpha1.GroupVersion.Group, discoveryv1alpha1.GroupVersion.Version),
 						Kind:       "ForeignCluster",
 						Name:       owner.Name,
 						UID:        owner.UID,
@@ -903,7 +904,7 @@ func (r *ForeignClusterReconciler) createRoleBindingIfNotExists(clusterID string
 				Name: clusterID,
 				OwnerReferences: []metav1.OwnerReference{
 					{
-						APIVersion: "v1alpha1",
+						APIVersion: fmt.Sprintf("%s/%s", discoveryv1alpha1.GroupVersion.Group, discoveryv1alpha1.GroupVersion.Version),
 						Kind:       "ForeignCluster",
 						Name:       owner.Name,
 						UID:        owner.UID,
@@ -932,7 +933,7 @@ func (r *ForeignClusterReconciler) createRoleBindingIfNotExists(clusterID string
 	}
 }
 
-func (r *ForeignClusterReconciler) setDispatcherRole(clusterID string, sa *apiv1.ServiceAccount) error {
+func (r *ForeignClusterReconciler) setDispatcherRole(clusterID string, sa *apiv1.ServiceAccount, owner *discoveryv1alpha1.ForeignCluster) error {
 	_, err := r.crdClient.Client().RbacV1().ClusterRoleBindings().Get(context.TODO(), clusterID+"-crdreplicator", metav1.GetOptions{})
 	if errors.IsNotFound(err) {
 		// does not exist
@@ -941,10 +942,10 @@ func (r *ForeignClusterReconciler) setDispatcherRole(clusterID string, sa *apiv1
 				Name: clusterID + "-crdreplicator",
 				OwnerReferences: []metav1.OwnerReference{
 					{
-						APIVersion: "v1",
-						Kind:       "ServiceAccount",
-						Name:       sa.Name,
-						UID:        sa.UID,
+						APIVersion: fmt.Sprintf("%s/%s", discoveryv1alpha1.GroupVersion.Group, discoveryv1alpha1.GroupVersion.Version),
+						Kind:       "ForeignCluster",
+						Name:       owner.Name,
+						UID:        owner.UID,
 					},
 				},
 			},
@@ -1038,7 +1039,7 @@ func (r *ForeignClusterReconciler) updateNetwork(labelSelector string, resourceL
 			Kind:       "NetworkConfig",
 			Name:       ncf.Name,
 			UID:        ncf.UID,
-			APIVersion: "v1alpha1",
+			APIVersion: fmt.Sprintf("%s/%s", netv1alpha1.GroupVersion.Group, netv1alpha1.GroupVersion.Version),
 		}
 		*requireUpdate = true
 	}
@@ -1072,7 +1073,7 @@ func (r *ForeignClusterReconciler) checkTEP(fc *discoveryv1alpha1.ForeignCluster
 			Kind:       "TunnelEndpoints",
 			Name:       tep.Name,
 			UID:        tep.UID,
-			APIVersion: "v1alpha1",
+			APIVersion: fmt.Sprintf("%s/%s", netv1alpha1.GroupVersion.Group, netv1alpha1.GroupVersion.Version),
 		}
 		*requireUpdate = true
 	}

@@ -2,6 +2,7 @@ package peering_request_operator
 
 import (
 	"context"
+	"fmt"
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	appsv1 "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
@@ -72,7 +73,7 @@ func GetBroadcasterDeployment(request *discoveryv1alpha1.PeeringRequest, nameSA 
 			Namespace:    namespace,
 			OwnerReferences: []metav1.OwnerReference{
 				{
-					APIVersion: "v1alpha1",
+					APIVersion: fmt.Sprintf("%s/%s", discoveryv1alpha1.GroupVersion.Group, discoveryv1alpha1.GroupVersion.Version),
 					Kind:       "PeeringRequest",
 					Name:       request.Name,
 					UID:        request.UID,

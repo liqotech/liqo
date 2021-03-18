@@ -18,6 +18,7 @@ package advertisementOperator
 import (
 	"context"
 	goerrors "errors"
+	"fmt"
 	configv1alpha1 "github.com/liqotech/liqo/apis/config/v1alpha1"
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	advtypes "github.com/liqotech/liqo/apis/sharing/v1alpha1"
@@ -235,7 +236,7 @@ func (r *AdvertisementReconciler) UpdateForeignCluster(adv *advtypes.Advertiseme
 		// add owner reference
 		controller := true
 		adv.OwnerReferences = append(adv.OwnerReferences, metav1.OwnerReference{
-			APIVersion: "discovery.liqo.io/v1",
+			APIVersion: fmt.Sprintf("%s/%s", discoveryv1alpha1.GroupVersion.Group, discoveryv1alpha1.GroupVersion.Version),
 			Kind:       "ForeignCluster",
 			Name:       fc.Name,
 			UID:        fc.UID,
