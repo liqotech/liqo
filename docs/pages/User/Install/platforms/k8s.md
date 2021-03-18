@@ -90,7 +90,7 @@ You can install Liqo using helm 3.
 Firstly, you should add the official Liqo repository to your Helm Configuration:
 
 ```bash
-helm repo add liqo https://helm.liqo.io
+helm repo add liqo https://helm.liqo.io/
 ```
 
 If you are installing Liqo for the first time, you can download the default values.yaml file from the chart.
@@ -143,10 +143,10 @@ If you have a full-fledged cluster with support service Load Balancers with exte
 
 | Variables | Value/Notes |
 | -------- | ----------- |
-| `auth.service.type`  | CluserIp |
+| `auth.service.type`  | ClusterIp |
 | `auth.ingress.enable` | true  |
 | `authServer.host`     | true  |
-| `apiserver.address` |  The IP/host other cluster can use to access the cluster |
+| `apiserver.address` |  The IP/host other clusters can use to access the cluster |
 | `apiserver.port` |  The IP/host other clusters can use to access the cluster  |
 | `gateway.service.type` | LoadBalancer |
 
@@ -160,4 +160,4 @@ helm install liqo liqo-helm/liqo -n liqo --create-namespace  --set clusterName="
 
 __NOTE__: You should check that `podCIDR` and `serviceCIDR` correspond to the one in your cluster.
 
-If the clusters you would like to connect are in the same L2 broadcast domain, the Liqo discovery mechanism based on mDNS will handle the discovery automatically. If you have your clusters in different L3 domains, you have to manually create [manually a *foreign_cluster* resource](/user/post-install/discovery#manual-configuration) or rely on [DNS discovery](/user/post-install/discovery#).
+If the clusters you would like to connect are in the same L2 broadcast domain, the Liqo discovery mechanism based on mDNS will handle the discovery automatically. If you have your clusters in different L3 domains, you have to manually create [a *foreign_cluster* resource](/user/post-install/discovery#manual-configuration) or rely on [DNS discovery](/user/post-install/discovery#).
