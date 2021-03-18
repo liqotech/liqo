@@ -47,7 +47,7 @@ Azure will take some minutes to deploy your cluster.
 When your cluster has been completely deployed, you have to enable an ingress controller to make the Liqo Auth Service
 accessible from the external world.
 
-Azure has a built-in plugin that enable this feature, although it is not recommended for use in production, called
+Azure has a built-in plugin that enables this feature, although it is not recommended for use in production, called
 [HTTP application routing](https://docs.microsoft.com/en-US/azure/aks/http-application-routing).
 
 To enable it on your cluster dashboard, you should go in `Settings` > `Networking` and make sure that the _Enable HTTP application
@@ -105,7 +105,7 @@ You can install Liqo using helm 3.
 Firstly, you should add the official Liqo repository to your Helm Configuration:
 
 ```bash
-helm repo add liqo https://helm.liqo.io/charts
+helm repo add liqo https://helm.liqo.io/
 ```
 
 If you are installing Liqo for the first time, you can download the default values.yaml file from the chart.
@@ -117,13 +117,13 @@ helm show values liqo/liqo > ./values.yaml
 After modifying the `values.yaml` file with the desired values, as described in [the previous section](#setup-values), you can perform the Liqo installation by typing:
 
 ```bash
-helm install liqo liqo/liqo -f ./liqo/values.yaml -n liqo --create-namespace
+helm install liqo liqo/liqo -f ./values.yaml -n liqo --create-namespace
 ```
 
 #### Expose the Auth Service with a LoadBalancer Service
 
 To make the Auth Service reachable without the needing of an Ingress and a Domain Name, you can change the `auth-service`
-Service type from `NodePort` to `LoadBalancer` by setting the value `.gateway.service.type` to `LoadBalancer`.
+Service type from `NodePort` to `LoadBalancer` by setting the value `.auth.service.type` to `LoadBalancer`.
 
 ## Check that Liqo is Running
 

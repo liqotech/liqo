@@ -36,7 +36,7 @@ Firstly, you should add the official Liqo repository to your Helm Configuration:
 helm repo add liqo https://helm.liqo.io/
 ```
 
-If you are installing Liqo for the first time, you can download the default values.yaml file from the chart.
+If you are installing Liqo for the first time, you can download the default ```values.yaml``` file from the chart.
 
 ```bash
 helm show values liqo/liqo > ./values.yaml
@@ -58,7 +58,7 @@ If you want to connect your cluster with another K3s/K8s in the same LAN, you do
 helm install liqo liqo/liqo -n liqo --create-namespace --set clusterName="MyCluster" --set networkManager.config.podCIDR="10.42.0.0/16" --set networkManager.config.serviceCIDR="10.43.0.0/16"
 ```
 
-If the clusters you would like to connect are in the same L2 broadcast domain, the Liqo discovery mechanism based on mDNS will handle the discovery automatically. If you have your clusters in different L3 domains, you have to manually create [manually a *foreign_cluster* resource](/user/post-install/discovery) or rely on [DNS discovery](/user/post-install/discovery#manual-configuration).
+If the clusters you would like to connect are in the same L2 broadcast domain, the Liqo discovery mechanism based on mDNS will handle the discovery automatically. If you have your clusters in different L3 domains, you have to manually create [a *foreign_cluster* resource](/user/post-install/discovery) or rely on [DNS discovery](/user/post-install/discovery#manual-configuration).
 
 #### On-premise Cluster behind NAT
 
@@ -73,10 +73,10 @@ If your cluster is hosted on-premise behind a NAT and you would like to connect 
 
 #### Helm Install
 
-You can modify the ```./liqo/values.yaml``` to obtain your desired configuration and install Liqo.
+You can modify the ```./values.yaml``` to obtain your desired configuration and install Liqo.
 
 ```bash
-helm install liqo liqo/liqo -f ./liqo/values.yaml -n liqo --create-namespace
+helm install liqo liqo/liqo -f ./values.yaml -n liqo --create-namespace
 ```
 
 or ALTERNATIVELY pass the desired parameters as extra-arguments:

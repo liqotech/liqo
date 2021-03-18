@@ -92,26 +92,25 @@ You can install Liqo using helm 3.
 Firstly, you should add the official Liqo repository to your Helm Configuration:
 
 ```bash
-helm repo add liqo-helm https://helm.liqo.io/charts
+helm repo add liqo https://helm.liqo.io/
 ```
 
 If you are installing Liqo for the first time, you can download the default values.yaml file from the chart.
 
 ```bash
-helm fetch liqo-helm/liqo --untar
-less ./liqo/values.yaml
+helm show values liqo/liqo > ./values.yaml
 ```
 
-After, modify the ```./liqo/values.yaml``` as specified above to obtain the desired configuration and install Liqo.
+After, modify the ```values.yaml``` as specified above to obtain the desired configuration and install Liqo.
 
 ```bash
-helm install test liqo-helm/liqo -f ./liqo/values.yaml -n liqo --create-namespace
+helm install liqo liqo/liqo -f ./values.yaml -n liqo --create-namespace
 ```
 
 #### Expose the Auth Service with a LoadBalancer Service
 
 To make the Auth Service reachable without the needing of an Ingress and a Domain Name, you can change the `auth-service`
-Service type from `NodePort` to `LoadBalancer` by setting the value `.gateway.service.type` to `LoadBalancer`.
+Service type from `NodePort` to `LoadBalancer` by setting the value `.auth.service.type` to `LoadBalancer`.
 
 ## Check that Liqo is Running
 
