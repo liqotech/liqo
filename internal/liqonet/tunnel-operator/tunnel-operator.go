@@ -96,7 +96,7 @@ func NewTunnelController(mgr ctrl.Manager, wgc wireguard.Client, nl wireguard.Ne
 		return nil, err
 	}
 	//create new custom routing table for the overlay iFace
-	if err = overlay.CreateRoutingTable(overlay.RoutingTableID, overlay.RoutingTableName); err != nil {
+	if err = utils.CreateRoutingTable(overlay.RoutingTableID, overlay.RoutingTableName); err != nil {
 		return nil, err
 	}
 	//enable reverse path filter for the overlay interface
@@ -178,7 +178,7 @@ func (tc *TunnelController) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 				return result, err
 			}
 			if tc.isGKE {
-				if err := overlay.RemovePolicyRoutingRule(overlay.RoutingTableID, remotePodCIDR); err != nil {
+				if err := utils.RemovePolicyRoutingRule(overlay.RoutingTableID, remotePodCIDR, ""); err != nil {
 					klog.Errorf("%s -> an error occurred while removing policy rule: %s", endpoint.Spec.ClusterID, err)
 					return result, err
 				}
@@ -205,7 +205,7 @@ func (tc *TunnelController) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 		return result, err
 	}
 	if tc.isGKE {
-		if err = overlay.InsertPolicyRoutingRule(overlay.RoutingTableID, remotePodCIDR); err != nil {
+		if err = utils.InsertPolicyRoutingRule(overlay.RoutingTableID, remotePodCIDR, ""); err != nil {
 			klog.Errorf("%s -> an error occurred while inserting policy rule: %s", endpoint.Spec.ClusterID, err)
 			return result, err
 		}
