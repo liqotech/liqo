@@ -18,7 +18,7 @@ import (
 	"context"
 	netv1alpha1 "github.com/liqotech/liqo/apis/net/v1alpha1"
 	utils "github.com/liqotech/liqo/pkg/liqonet"
-	"github.com/liqotech/liqo/pkg/liqonet/overlay"
+	direct_routing "github.com/liqotech/liqo/pkg/liqonet/direct-routing"
 	"github.com/liqotech/liqo/pkg/liqonet/wireguard"
 	k8sApiErrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -58,7 +58,10 @@ type RouteController struct {
 	DynClient   dynamic.Interface
 }
 
-func NewRouteController(mgr ctrl.Manager, wgc wireguard.Client, nl wireguard.Netlinker) (*RouteController, error) {
+func NewRouteController(mgr ctrl.Manager, wgc wireguard.Client, nl wireguard.Netlinker, directRouting bool) (*RouteController, error) {
+	var wg *wireguard.Wireguard
+	var routeManager utils.NetLink
+	var err error
 	dynClient := dynamic.NewForConfigOrDie(mgr.GetConfig())
 	clientSet := kubernetes.NewForConfigOrDie(mgr.GetConfig())
 	//get node name
@@ -67,6 +70,7 @@ func NewRouteController(mgr ctrl.Manager, wgc wireguard.Client, nl wireguard.Net
 		klog.Errorf("unable to create the controller: %v", err)
 		return nil, err
 	}
+	eventRecorderName := strings.Join([]string{OperatorName, nodeName}, "-")
 	podIP, err := utils.GetPodIP()
 	if err != nil {
 		klog.Errorf("unable to create the controller: %v", err)
@@ -82,11 +86,11 @@ func NewRouteController(mgr ctrl.Manager, wgc wireguard.Client, nl wireguard.Net
 		klog.Errorf("unable to create the controller: %v", err)
 		return nil, err
 	}
-	overlayIP := strings.Join([]string{overlay.GetOverlayIP(podIP.String()), "4"}, "/")
-	wg, err := overlay.CreateInterface(nodeName, namespace, overlayIP, clientSet, wgc, nl)
-	if err != nil {
-		klog.Errorf("unable to create the controller: %v", err)
-		return nil, err
+	if directRouting{
+		if routeManager, err = direct_routing.NewDirectRouteManager(utils.RoutingTableName, utils.RoutingTableID, mgr.GetEventRecorderFor(eventRecorderName)); err != nil{
+			klog.Errorf("unable to create the controller: %v", err)
+			return nil, err
+		}
 	}
 	r := &RouteController{
 		Client:      mgr.GetClient(),
@@ -97,8 +101,8 @@ func NewRouteController(mgr ctrl.Manager, wgc wireguard.Client, nl wireguard.Net
 		wg:          wg,
 		nodeName:    nodeName,
 		DynClient:   dynClient,
+		NetLink: routeManager,
 	}
-	r.setUpRouteManager(mgr.GetEventRecorderFor(strings.Join([]string{OperatorName, nodeName}, "-")))
 	return r, nil
 }
 
@@ -161,7 +165,7 @@ func (r *RouteController) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 		}
 		return result, nil
 	}
-	if err := r.EnsureRoutesPerCluster(r.wg.GetDeviceName(), &tep); err != nil {
+	if err := r.EnsureRoutesPerCluster("", &tep); err != nil {
 		return result, err
 	}
 	return result, nil

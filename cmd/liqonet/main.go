@@ -51,13 +51,16 @@ func init() {
 func main() {
 	var metricsAddr string
 	var enableLeaderElection bool
+	var directRouting bool
 	var runAs string
 
 	flag.StringVar(&metricsAddr, "metrics-addr", ":0", "The address the metric endpoint binds to.")
 	flag.BoolVar(&enableLeaderElection, "enable-leader-election", false,
 		"Enable leader election for controller manager. Enabling this will ensure there is only one active controller manager.")
 	flag.StringVar(&runAs, "run-as", "tunnel-operator", "The accepted values are: liqo-gateway, liqo-route, tunnelEndpointCreator-operator. The default value is \"tunnel-operator\"")
+	flag.BoolVar(&directRouting, "direct-routing", false, "Enable direct routing in order to send traffic to the liqo gateway pod")
 	flag.Parse()
+	directRouting = true
 	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
 		MapperProvider:     mapperUtils.LiqoMapperProvider(scheme),
 		Scheme:             scheme,
@@ -78,13 +81,15 @@ func main() {
 			klog.Errorf("an error occurred while creating wireguard client: %v", err)
 			os.Exit(1)
 		}
-		r, err := route_operator.NewRouteController(mgr, wgc, wireguard.NewNetLinker())
+		r, err := route_operator.NewRouteController(mgr, wgc, wireguard.NewNetLinker(), directRouting)
 		if err != nil {
 			klog.Errorf("an error occurred while creating the route operator -> %v", err)
 			os.Exit(1)
 		}
-		r.StartPodWatcher()
-		r.StartServiceWatcher()
+		if !directRouting{
+			r.StartServiceWatcher()
+			r.StartPodWatcher()
+		}
 		if err = r.SetupWithManager(mgr); err != nil {
 			klog.Errorf("unable to setup controller: %s", err)
 			os.Exit(1)
@@ -99,7 +104,7 @@ func main() {
 			klog.Errorf("an error occurred while creating wireguard client: %v", err)
 			os.Exit(1)
 		}
-		tc, err := tunnel_operator.NewTunnelController(mgr, wgc, wireguard.NewNetLinker())
+		tc, err := tunnel_operator.NewTunnelController(mgr, wgc, wireguard.NewNetLinker(), directRouting)
 		if err != nil {
 			klog.Errorf("an error occurred while creating the tunnel controller: %v", err)
 			os.Exit(1)
@@ -111,8 +116,10 @@ func main() {
 			os.Exit(2)
 		}
 		tc.WatchConfiguration(config, &clusterConfig.GroupVersion)
-		tc.StartPodWatcher()
-		tc.StartServiceWatcher()
+		if !directRouting{
+			tc.StartPodWatcher()
+			tc.StartServiceWatcher()
+		}
 		if err := tc.CreateAndEnsureIPTablesChains(tc.DefaultIface); err != nil {
 			klog.Errorf("an error occurred while creating iptables handler: %v", err)
 			os.Exit(1)

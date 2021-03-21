@@ -79,7 +79,8 @@ type TunnelController struct {
 // +kubebuilder:rbac:groups=core,namespace="do-not-care",resources=pods,verbs=get;list;watch;update
 
 //Instantiates and initializes the tunnel controller
-func NewTunnelController(mgr ctrl.Manager, wgc wireguard.Client, nl wireguard.Netlinker) (*TunnelController, error) {
+func NewTunnelController(mgr ctrl.Manager, wgc wireguard.Client, nl wireguard.Netlinker, directRouting bool) (*TunnelController, error) {
+	var wg *wireguard.Wireguard
 	clientSet := k8s.NewForConfigOrDie(mgr.GetConfig())
 	namespace, err := utils.GetPodNamespace()
 	if err != nil {
@@ -89,32 +90,36 @@ func NewTunnelController(mgr ctrl.Manager, wgc wireguard.Client, nl wireguard.Ne
 	if err != nil {
 		return nil, err
 	}
-	overlayIP := strings.Join([]string{overlay.GetOverlayIP(podIP.String()), "4"}, "/")
-	//create overlay network interface
-	wg, err := overlay.CreateInterface(gatewayPodName, namespace, overlayIP, clientSet, wgc, nl)
+	//get name of the default interface
+	defaultIface, err := utils.GetDefaultIfaceName()
 	if err != nil {
-		return nil, err
-	}
-	//create new custom routing table for the overlay iFace
-	if err = utils.CreateRoutingTable(overlay.RoutingTableID, overlay.RoutingTableName); err != nil {
-		return nil, err
-	}
-	//enable reverse path filter for the overlay interface
-	if err = overlay.Enable_rp_filter(wg.GetDeviceName()); err != nil {
 		return nil, err
 	}
 	//enable ip forwarding
 	if err = utils.EnableIPForwarding(); err != nil {
 		return nil, err
 	}
-	//populate the custom routing table with the default route
-	if err = overlay.SetUpDefaultRoute(overlay.RoutingTableID, wg.GetLinkIndex()); err != nil {
-		return nil, err
-	}
-	//get name of the default interface
-	iface, err := utils.GetDefaultIfaceName()
-	if err != nil {
-		return nil, err
+	if directRouting{
+		utils.EnableProxyArp(defaultIface)
+	}else{
+		overlayIP := strings.Join([]string{overlay.GetOverlayIP(podIP.String()), "4"}, "/")
+		//create overlay network interface
+		wg, err = overlay.CreateInterface(gatewayPodName, namespace, overlayIP, clientSet, wgc, nl)
+		if err != nil {
+			return nil, err
+		}
+		//create new custom routing table for the overlay iFace
+		if err = utils.CreateRoutingTable(overlay.RoutingTableID, overlay.RoutingTableName); err != nil {
+			return nil, err
+		}
+		//enable reverse path filter for the overlay interface
+		if err = overlay.Enable_rp_filter(wg.GetDeviceName()); err != nil {
+			return nil, err
+		}
+		//populate the custom routing table with the default route
+		if err = overlay.SetUpDefaultRoute(overlay.RoutingTableID, wg.GetLinkIndex()); err != nil {
+			return nil, err
+		}
 	}
 	tc := &TunnelController{
 		Client:        mgr.GetClient(),
@@ -122,7 +127,7 @@ func NewTunnelController(mgr ctrl.Manager, wgc wireguard.Client, nl wireguard.Ne
 		k8sClient:     clientSet,
 		namespace:     namespace,
 		podIP:         podIP.String(),
-		DefaultIface:  iface,
+		DefaultIface:  defaultIface,
 		wg:            wg,
 		configChan:    make(chan bool),
 	}
@@ -155,7 +160,6 @@ func (tc *TunnelController) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 		klog.Infof("%s -> resource %s is not ready", endpoint.Spec.ClusterID, endpoint.Name)
 		return result, nil
 	}
-	_, remotePodCIDR := utils.GetPodCIDRS(&endpoint)
 	// examine DeletionTimestamp to determine if object is under deletion
 	if endpoint.ObjectMeta.DeletionTimestamp.IsZero() {
 		if !utils.ContainsString(endpoint.ObjectMeta.Finalizers, tunnelEndpointFinalizer) {
@@ -176,12 +180,6 @@ func (tc *TunnelController) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 			}
 			if err := tc.RemoveRoutesPerCluster(&endpoint); err != nil {
 				return result, err
-			}
-			if tc.isGKE {
-				if err := utils.RemovePolicyRoutingRule(overlay.RoutingTableID, remotePodCIDR, ""); err != nil {
-					klog.Errorf("%s -> an error occurred while removing policy rule: %s", endpoint.Spec.ClusterID, err)
-					return result, err
-				}
 			}
 			//remove the finalizer from the list and update it.
 			endpoint.Finalizers = utils.RemoveString(endpoint.Finalizers, tunnelEndpointFinalizer)
@@ -204,16 +202,11 @@ func (tc *TunnelController) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 	if err := tc.EnsureRoutesPerCluster("liqo-wg", &endpoint); err != nil {
 		return result, err
 	}
-	if tc.isGKE {
-		if err = utils.InsertPolicyRoutingRule(overlay.RoutingTableID, remotePodCIDR, ""); err != nil {
-			klog.Errorf("%s -> an error occurred while inserting policy rule: %s", endpoint.Spec.ClusterID, err)
-			return result, err
-		}
-	}
-	if reflect.DeepEqual(*con, endpoint.Status.Connection) {
+	if reflect.DeepEqual(*con, endpoint.Status.Connection) && tc.podIP == endpoint.Status.GatewayPodIP {
 		return result, nil
 	}
 	endpoint.Status.Connection = *con
+	endpoint.Status.GatewayPodIP = tc.podIP
 	if err = tc.Status().Update(context.Background(), &endpoint); err != nil {
 		klog.Errorf("%s -> an error occurred while updating status of resource %s: %s", endpoint.Spec.ClusterID, endpoint.Name, err)
 		return result, err
