@@ -48,8 +48,9 @@ type TunnelEndpointStatus struct {
 	RemoteRemappedPodCIDR string     `json:"remoteRemappedPodCIDR,omitempty"`
 	OutgoingNAT           bool       `json:"outgoingNAT,omitempty"` // if true, the local podCIDR has been remapped by the remote cluster
 	IncomingNAT           bool       `json:"incomingNAT,omitempty"` // if true, the remote podCIDR has been remapped by the local cluster
-	RemoteEndpointIP      string     `json:"remoteTunnelPublicIP,omitempty"`
-	LocalEndpointIP       string     `json:"localTunnelPublicIP,omitempty"`
+	RemoteEndpointIP      string     `json:"remoteEndpointIP,omitempty"`
+	LocalEndpointIP       string     `json:"localEndpointIP,omitempty"`
+	GatewayPodIP          string     `json:"gatewayPodIP,omitempty"`
 	TunnelIFaceIndex      int        `json:"tunnelIFaceIndex,omitempty"`
 	TunnelIFaceName       string     `json:"tunnelIFaceName,omitempty"`
 	Connection            Connection `json:"connection,omitempty"`
@@ -65,7 +66,6 @@ type ConnectionStatus string
 
 const (
 	Connected       ConnectionStatus = "connected"
-	Connecting      ConnectionStatus = "connecting"
 	ConnectionError ConnectionStatus = "error"
 )
 

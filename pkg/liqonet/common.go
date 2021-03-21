@@ -3,6 +3,7 @@ package liqonet
 import (
 	"github.com/vishvananda/netlink"
 	"golang.org/x/sys/unix"
+	"io/ioutil"
 	"k8s.io/klog"
 	"net"
 	"os"
@@ -37,64 +38,31 @@ func CreateRoutingTable(tableID int, tableName string) error {
 	return nil
 }
 
-func InsertPolicyRoutingRule(tableID int, fromSubnet string, toSubnet string) error {
-	var src, dst *net.IPNet
-	var err error
-	if fromSubnet != "" {
-		_, src, err = net.ParseCIDR(fromSubnet)
-		if err != nil {
-			klog.Errorf("an error occurred parsing CIDR %s while inserting policy routing rule: %v", fromSubnet, err)
-			return err
-		}
-	}
-	if toSubnet != "" {
-		_, dst, err = net.ParseCIDR(toSubnet)
-		if err != nil {
-			klog.Errorf("an error occurred parsing CIDR %s while inserting policy routing rule: %v", fromSubnet, err)
-			return err
-		}
-	}
+func InsertPolicyRoutingRule(tableID int, fromSubnet, toSubnet *net.IPNet) (*netlink.Rule, error) {
 	//get existing rules
 	rules, err := netlink.RuleList(netlink.FAMILY_V4)
 	if err != nil {
 		klog.Errorf("an error occurred while listing the policy routing rules: %v", err)
-		return err
+		return nil, err
 	}
 	//check if the rule already exists
 	for _, r := range rules {
-		if reflect.DeepEqual(dst, r.Dst) && reflect.DeepEqual(src, r.Src) && r.Table == tableID {
-			return nil
+		if reflect.DeepEqual(toSubnet, r.Dst) && reflect.DeepEqual(fromSubnet, r.Src) && r.Table == tableID {
+			return nil, unix.EEXIST
 		}
 	}
 	rule := netlink.NewRule()
 	rule.Table = tableID
-	rule.Src = src
-	rule.Dst = dst
+	rule.Src = fromSubnet
+	rule.Dst = toSubnet
 	klog.Infof("inserting policy routing rule {%s}", rule.String())
-	if err := netlink.RuleAdd(rule); err != nil && err != unix.EEXIST {
-		klog.Errorf("an error occurred while inserting policy routing rule {%s}: %v", rule.String(), err)
-		return err
+	if err := netlink.RuleAdd(rule); err != nil {
+		return nil, err
 	}
-	return nil
+	return rule, nil
 }
 
-func RemovePolicyRoutingRule(tableID int, fromSubnet, toSubnet string) error {
-	var src, dst *net.IPNet
-	var err error
-	if fromSubnet != "" {
-		_, src, err = net.ParseCIDR(fromSubnet)
-		if err != nil {
-			klog.Errorf("an error occurred parsing CIDR %s while inserting policy routing rule: %v", fromSubnet, err)
-			return err
-		}
-	}
-	if toSubnet != "" {
-		_, dst, err = net.ParseCIDR(toSubnet)
-		if err != nil {
-			klog.Errorf("an error occurred parsing CIDR %s while inserting policy routing rule: %v", fromSubnet, err)
-			return err
-		}
-	}
+func RemovePolicyRoutingRule(tableID int, fromSubnet, toSubnet *net.IPNet) error {
 	//get existing rules
 	rules, err := netlink.RuleList(netlink.FAMILY_V4)
 	if err != nil {
@@ -103,13 +71,25 @@ func RemovePolicyRoutingRule(tableID int, fromSubnet, toSubnet string) error {
 	}
 	//check if the rule already exists
 	for _, r := range rules {
-		if reflect.DeepEqual(dst, r.Dst) && reflect.DeepEqual(src, r.Src) && r.Table == tableID {
+		if reflect.DeepEqual(toSubnet, r.Dst) && reflect.DeepEqual(fromSubnet, r.Src) && r.Table == tableID {
 			klog.Infof("removing policy routing rule {%s}", r.String())
 			if err := netlink.RuleDel(&r); err != nil && err != unix.ESRCH {
 				klog.Errorf("an error occurred while removing policy routing rule {%s}: %v", r.String(), err)
 				return err
 			}
 		}
+	}
+	return nil
+}
+
+//this function enables the proxy arp for a given network interface
+func EnableProxyArp(ifaceName string) error {
+	klog.Infof("enabling proxy arp for interface %s", ifaceName)
+	proxyArpFilePath := strings.Join([]string{"/proc/sys/net/ipv4/conf/", ifaceName, "/proxy_arp"}, "")
+	err := ioutil.WriteFile(proxyArpFilePath, []byte("1"), 0600)
+	if err != nil {
+		klog.Errorf("an error occurred while writing to file %s: %v", proxyArpFilePath, err)
+		return err
 	}
 	return nil
 }

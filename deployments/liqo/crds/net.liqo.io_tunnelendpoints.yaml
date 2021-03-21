@@ -87,13 +87,15 @@ spec:
                   statusMessage:
                     type: string
                 type: object
+              gatewayPodIP:
+                type: string
               incomingNAT:
                 type: boolean
+              localEndpointIP:
+                type: string
               localPodCIDR:
                 type: string
               localRemappedPodCIDR:
-                type: string
-              localTunnelPublicIP:
                 type: string
               outgoingNAT:
                 type: boolean
@@ -102,9 +104,9 @@ spec:
                   of cluster Important: Run "make" to regenerate code after modifying
                   this file\'
                 type: string
-              remoteRemappedPodCIDR:
+              remoteEndpointIP:
                 type: string
-              remoteTunnelPublicIP:
+              remoteRemappedPodCIDR:
                 type: string
               tunnelIFaceIndex:
                 type: integer
