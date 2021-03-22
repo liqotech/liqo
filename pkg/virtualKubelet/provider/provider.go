@@ -6,6 +6,7 @@ import (
 	nattingv1 "github.com/liqotech/liqo/apis/virtualKubelet/v1alpha1"
 	"github.com/liqotech/liqo/internal/virtualKubelet/node"
 	"github.com/liqotech/liqo/pkg/crdClient"
+	"github.com/liqotech/liqo/pkg/virtualKubelet"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/apiReflection/controller"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/forge"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/namespacesMapping"
@@ -60,12 +61,15 @@ func NewLiqoProvider(nodeName, foreignClusterId, homeClusterId string, internalI
 		return nil, err
 	}
 
-	client, err := nattingv1.CreateClient(kubeconfig)
+	client, err := nattingv1.CreateClient(kubeconfig, func(config *rest.Config) {
+		config.QPS = virtualKubelet.HOME_CLIENT_QPS
+		config.Burst = virtualKubelet.HOME_CLIENTS_BURST
+	})
 	if err != nil {
 		return nil, err
 	}
 
-	advClient, err := advtypes.CreateAdvertisementClient(kubeconfig, nil, true)
+	advClient, err := advtypes.CreateAdvertisementClient(kubeconfig, nil, true, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -75,7 +79,10 @@ func NewLiqoProvider(nodeName, foreignClusterId, homeClusterId string, internalI
 		return nil, err
 	}
 
-	restConfig, err := crdClient.NewKubeconfig(remoteKubeConfig, &schema.GroupVersion{})
+	restConfig, err := crdClient.NewKubeconfig(remoteKubeConfig, &schema.GroupVersion{}, func(config *rest.Config) {
+		config.QPS = virtualKubelet.FOREIGN_CLIENT_QPS
+		config.Burst = virtualKubelet.FOREIGN_CLIENT_BURST
+	})
 	if err != nil {
 		return nil, err
 	}

@@ -53,7 +53,7 @@ type AuthServiceCtrl struct {
 }
 
 func NewAuthServiceCtrl(namespace string, kubeconfigPath string, resyncTime time.Duration, useTls bool) (*AuthServiceCtrl, error) {
-	config, err := crdClient.NewKubeconfig(kubeconfigPath, &discoveryv1alpha1.GroupVersion)
+	config, err := crdClient.NewKubeconfig(kubeconfigPath, &discoveryv1alpha1.GroupVersion, nil)
 	if err != nil {
 		return nil, err
 	}

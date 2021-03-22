@@ -14,7 +14,7 @@ import (
 func WatchConfiguration(handler func(*configv1alpha1.ClusterConfig), client *crdClient.CRDClient, kubeconfigPath string) {
 	var rsyncPeriod = 5 * time.Minute
 	if client == nil {
-		config, err := crdClient.NewKubeconfig(kubeconfigPath, &configv1alpha1.GroupVersion)
+		config, err := crdClient.NewKubeconfig(kubeconfigPath, &configv1alpha1.GroupVersion, nil)
 		if err != nil {
 			klog.Error(err, err.Error())
 			os.Exit(1)
@@ -65,5 +65,4 @@ func WatchConfiguration(handler func(*configv1alpha1.ClusterConfig), client *crd
 		os.Exit(1)
 	}
 	klog.Info("Cluster Config Informer initialized")
-
 }

@@ -24,7 +24,7 @@ func init() {
 }
 
 func StartOperator(mgr *manager.Manager, requeueAfter time.Duration, discoveryCtrl *discovery.DiscoveryCtrl, kubeconfigPath string) {
-	config, err := crdClient.NewKubeconfig(kubeconfigPath, &discoveryv1alpha1.GroupVersion)
+	config, err := crdClient.NewKubeconfig(kubeconfigPath, &discoveryv1alpha1.GroupVersion, nil)
 	if err != nil {
 		klog.Error(err, "unable to get kube config")
 		os.Exit(1)
