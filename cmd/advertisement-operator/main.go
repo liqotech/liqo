@@ -106,7 +106,7 @@ func main() {
 	go csrApprover.WatchCSR(clientset, "liqo.io/csr=true", 5*time.Second)
 
 	// get the number of already accepted advertisements
-	advClient, err := advtypes.CreateAdvertisementClient(localKubeconfig, nil, true)
+	advClient, err := advtypes.CreateAdvertisementClient(localKubeconfig, nil, true, nil)
 	if err != nil {
 		klog.Errorln(err, "unable to create local client for Advertisement")
 		os.Exit(1)
@@ -123,7 +123,7 @@ func main() {
 		}
 	}
 
-	discoveryConfig, err := crdClient.NewKubeconfig(localKubeconfig, &discoveryv1alpha1.GroupVersion)
+	discoveryConfig, err := crdClient.NewKubeconfig(localKubeconfig, &discoveryv1alpha1.GroupVersion, nil)
 	if err != nil {
 		klog.Error(err, "unable to get kube config")
 		os.Exit(1)

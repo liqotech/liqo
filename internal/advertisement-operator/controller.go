@@ -383,7 +383,7 @@ func (r *AdvertisementReconciler) checkClusterStatus(adv advtypes.Advertisement)
 		return err
 	}
 
-	remoteClient, err := advtypes.CreateAdvertisementClient("", remoteKubeconfig, true)
+	remoteClient, err := advtypes.CreateAdvertisementClient("", remoteKubeconfig, true, nil)
 	if err != nil {
 		return err
 	}

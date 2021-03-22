@@ -41,7 +41,7 @@ func GetNewClusterID(id string, client kubernetes.Interface) ClusterID {
 }
 
 func NewClusterID(kubeconfigPath string) (ClusterID, error) {
-	config, err := crdClient.NewKubeconfig(kubeconfigPath, &discoveryv1alpha1.GroupVersion)
+	config, err := crdClient.NewKubeconfig(kubeconfigPath, &discoveryv1alpha1.GroupVersion, nil)
 	if err != nil {
 		klog.Error(err, "unable to get kube config")
 		os.Exit(1)

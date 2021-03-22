@@ -33,6 +33,7 @@ import (
 	kubeinformers "k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/kubernetes/typed/coordination/v1beta1"
+	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/record"
 	"k8s.io/klog"
 	"os"
@@ -81,7 +82,10 @@ func runRootCommand(ctx context.Context, s *provider.Store, c *Opts) error {
 		}
 	}
 
-	client, err := v1alpha1.CreateAdvertisementClient(c.HomeKubeconfig, nil, false)
+	client, err := v1alpha1.CreateAdvertisementClient(c.HomeKubeconfig, nil, false, func(config *rest.Config) {
+		config.QPS = virtualKubelet.HOME_CLIENT_QPS
+		config.Burst = virtualKubelet.HOME_CLIENTS_BURST
+	})
 	if err != nil {
 		return err
 	}

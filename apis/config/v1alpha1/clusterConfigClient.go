@@ -21,7 +21,7 @@ func CreateClusterConfigClient(kubeconfig string, watchResources bool) (*crdClie
 
 	crdClient.AddToRegistry("clusterconfigs", &ClusterConfig{}, &ClusterConfigList{}, Keyer, GroupResource)
 
-	config, err = crdClient.NewKubeconfig(kubeconfig, &GroupVersion)
+	config, err = crdClient.NewKubeconfig(kubeconfig, &GroupVersion, nil)
 	if err != nil {
 		panic(err)
 	}

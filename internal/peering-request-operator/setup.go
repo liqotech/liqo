@@ -36,7 +36,7 @@ func StartOperator(namespace string, broadcasterImage string, broadcasterService
 		os.Exit(1)
 	}
 
-	config, err := crdClient.NewKubeconfig(kubeconfigPath, &discoveryv1alpha1.GroupVersion)
+	config, err := crdClient.NewKubeconfig(kubeconfigPath, &discoveryv1alpha1.GroupVersion, nil)
 	if err != nil {
 		klog.Error(err, "unable to get kube config")
 		os.Exit(1)
