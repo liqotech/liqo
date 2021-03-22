@@ -3,11 +3,17 @@ package mutate
 import (
 	"encoding/json"
 	"fmt"
-	v1beta1 "k8s.io/api/admission/v1beta1"
+	admissionv1beta1 "k8s.io/api/admission/v1beta1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/klog"
 )
+
+type patchType struct {
+	Op    string              `json:"op"`
+	Path  string              `json:"path"`
+	Value []corev1.Toleration `json:"value"`
+}
 
 //cluster-role
 // +kubebuilder:rbac:groups=admissionregistration.k8s.io,resources=mutatingwebhookconfigurations,verbs=get;list;update;patch
@@ -19,10 +25,8 @@ import (
 func (s *MutationServer) Mutate(body []byte) ([]byte, error) {
 	var err error
 
-	klog.Infof("recv: %s\n", string(body))
-
 	// unmarshal request into AdmissionReview struct
-	admReview := v1beta1.AdmissionReview{}
+	admReview := admissionv1beta1.AdmissionReview{}
 	if err := json.Unmarshal(body, &admReview); err != nil {
 		return nil, fmt.Errorf("unmarshaling request failed with %s", err)
 	}
@@ -30,61 +34,57 @@ func (s *MutationServer) Mutate(body []byte) ([]byte, error) {
 	var pod *corev1.Pod
 
 	responseBody := []byte{}
-	ar := admReview.Request
-	resp := v1beta1.AdmissionResponse{}
+	admissionReviewRequest := admReview.Request
+	resp := admissionv1beta1.AdmissionResponse{}
 
-	if ar != nil {
-
-		// get the Pod object and unmarshal it into its struct, if we cannot, we might as well stop here
-		if err := json.Unmarshal(ar.Object.Raw, &pod); err != nil {
-			return nil, fmt.Errorf("unable unmarshal pod json object %v", err)
-		}
-
-		// set response options
-		resp.Allowed = true
-		resp.UID = ar.UID
-		pT := v1beta1.PatchTypeJSONPatch
-		resp.PatchType = &pT // it's annoying that this needs to be a pointer as you cannot give a pointer to a constant?
-
-		resp.AuditAnnotations = map[string]string{
-			"liqo": "this pod is allowed to run in liqo",
-		}
-
-		type patchType struct {
-			Op    string              `json:"op"`
-			Path  string              `json:"path"`
-			Value []corev1.Toleration `json:"value"`
-		}
-
-		tolerations := append(pod.Spec.Tolerations, corev1.Toleration{
-			Key:      "virtual-node.liqo.io/not-allowed",
-			Operator: "Exists",
-			Effect:   "NoExecute",
-		})
-
-		patch := []patchType{
-			{
-				Op:    "add",
-				Path:  "/spec/tolerations",
-				Value: tolerations,
-			},
-		}
-		if resp.Patch, err = json.Marshal(patch); err != nil {
-			return nil, err
-		}
-
-		resp.Result = &metav1.Status{
-			Status: "Success",
-		}
-
-		admReview.Response = &resp
-		responseBody, err = json.Marshal(admReview)
-		if err != nil {
-			return nil, err
-		}
+	if admissionReviewRequest == nil {
+		return responseBody, fmt.Errorf("received admissionReview with empty request")
 	}
 
-	klog.Infof("resp: %s\n", string(responseBody))
+	// get the Pod object and unmarshal it into its struct, if we cannot, we might as well stop here
+	if err := json.Unmarshal(admissionReviewRequest.Object.Raw, &pod); err != nil {
+		return nil, fmt.Errorf("unable unmarshal pod json object %v", err)
+	}
+
+	// set response options
+	resp.Allowed = true
+	resp.UID = admissionReviewRequest.UID
+	patchStrategy := admissionv1beta1.PatchTypeJSONPatch
+	resp.PatchType = &patchStrategy
+
+	resp.AuditAnnotations = map[string]string{
+		"liqo": "this pod is allowed to run in liqo",
+	}
+
+	tolerations := append(pod.Spec.Tolerations, corev1.Toleration{
+		Key:      "virtual-node.liqo.io/not-allowed",
+		Operator: "Exists",
+		Effect:   "NoExecute",
+	})
+
+	patch := []patchType{
+		{
+			Op:    "add",
+			Path:  "/spec/tolerations",
+			Value: tolerations,
+		},
+	}
+	if resp.Patch, err = json.Marshal(patch); err != nil {
+		return nil, err
+	}
+
+	resp.Result = &metav1.Status{
+		Status: "Success",
+	}
+
+	admReview.Response = &resp
+	responseBody, err = json.Marshal(admReview)
+	if err != nil {
+		return nil, err
+	}
+
+	klog.Infof("pod %s/%s patched", pod.Namespace, pod.Name)
+	klog.V(8).Infof("response: %s", string(responseBody))
 
 	return responseBody, nil
 }
