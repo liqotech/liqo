@@ -12,7 +12,7 @@ import (
 )
 
 func WatchConfiguration(handler func(*configv1alpha1.ClusterConfig), client *crdClient.CRDClient, kubeconfigPath string) {
-	var rsyncPeriod = 1 * time.Second
+	var rsyncPeriod = 5 * time.Minute
 	if client == nil {
 		config, err := crdClient.NewKubeconfig(kubeconfigPath, &configv1alpha1.GroupVersion)
 		if err != nil {

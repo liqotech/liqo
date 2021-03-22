@@ -16,12 +16,13 @@ import (
 type DiscoveryCtrl struct {
 	Namespace string
 
-	Config         *configv1alpha1.DiscoveryConfig
-	stopMDNS       chan bool
-	stopMDNSClient chan bool
-	crdClient      *crdClient.CRDClient
-	advClient      *crdClient.CRDClient
-	ClusterId      clusterID.ClusterID
+	Config              *configv1alpha1.DiscoveryConfig
+	crdReplicatorConfig *configv1alpha1.DispatcherConfig
+	stopMDNS            chan bool
+	stopMDNSClient      chan bool
+	crdClient           *crdClient.CRDClient
+	advClient           *crdClient.CRDClient
+	ClusterId           clusterID.ClusterID
 
 	mdnsServerAuth            *zeroconf.Server
 	serverMux                 sync.Mutex

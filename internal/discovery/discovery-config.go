@@ -9,6 +9,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/klog"
+	"reflect"
 )
 
 type ConfigProvider interface {
@@ -37,6 +38,12 @@ func (discovery *DiscoveryCtrl) GetDiscoveryConfig(crdClient *crdClient.CRDClien
 }
 
 func (discovery *DiscoveryCtrl) handleDispatcherConfig(config configv1alpha1.DispatcherConfig) {
+	if reflect.DeepEqual(&config, discovery.crdReplicatorConfig) {
+		klog.V(6).Info("New and old crdReplicator configs are deep equals")
+		klog.V(8).Infof("Old config: %v\nNew config: %v", discovery.crdReplicatorConfig, config)
+		return
+	}
+
 	role, err := discovery.crdClient.Client().RbacV1().ClusterRoles().Get(context.TODO(), "crdreplicator-role", metav1.GetOptions{})
 	create := false
 	if errors.IsNotFound(err) {
@@ -74,6 +81,8 @@ func (discovery *DiscoveryCtrl) handleDispatcherConfig(config configv1alpha1.Dis
 		klog.Error(err)
 		return
 	}
+
+	discovery.crdReplicatorConfig = config.DeepCopy()
 }
 
 func (discovery *DiscoveryCtrl) handleConfiguration(config configv1alpha1.DiscoveryConfig) {
