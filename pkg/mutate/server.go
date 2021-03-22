@@ -2,10 +2,8 @@ package mutate
 
 import (
 	"fmt"
-	"html"
 	"io/ioutil"
 	"k8s.io/klog"
-	"log"
 	"net/http"
 	"time"
 )
@@ -27,7 +25,6 @@ func NewMutationServer(c *MutationConfig) (*MutationServer, error) {
 	s.config = c
 
 	s.mux = http.NewServeMux()
-	s.mux.HandleFunc("/", handleRoot)
 	s.mux.HandleFunc("/mutate", s.handleMutate)
 
 	s.server = &http.Server{
@@ -39,10 +36,6 @@ func NewMutationServer(c *MutationConfig) (*MutationServer, error) {
 	}
 
 	return s, nil
-}
-
-func handleRoot(w http.ResponseWriter, r *http.Request) {
-	_, _ = fmt.Fprintf(w, "hello %q", html.EscapeString(r.URL.Path))
 }
 
 func (s *MutationServer) handleMutate(w http.ResponseWriter, r *http.Request) {
@@ -71,11 +64,11 @@ func (s *MutationServer) handleMutate(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *MutationServer) sendError(err error, w http.ResponseWriter) {
-	log.Println(err)
+	klog.Error(err)
 	w.WriteHeader(http.StatusInternalServerError)
 	_, _ = fmt.Fprintf(w, "%s", err)
 }
 
 func (s *MutationServer) Serve() {
-	log.Fatal(s.server.ListenAndServeTLS(s.config.CertFile, s.config.KeyFile))
+	klog.Fatal(s.server.ListenAndServeTLS(s.config.CertFile, s.config.KeyFile))
 }
