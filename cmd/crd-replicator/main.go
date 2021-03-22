@@ -6,6 +6,7 @@ import (
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	"github.com/liqotech/liqo/internal/crdReplicator"
 	util "github.com/liqotech/liqo/pkg/liqonet"
+	"github.com/liqotech/liqo/pkg/mapperUtils"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/dynamic"
@@ -32,6 +33,7 @@ func main() {
 	flag.Parse()
 	cfg := ctrl.GetConfigOrDie()
 	mgr, err := ctrl.NewManager(cfg, ctrl.Options{
+		MapperProvider: mapperUtils.LiqoMapperProvider(scheme),
 		Scheme:         scheme,
 		Port:           9443,
 		LeaderElection: false,

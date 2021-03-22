@@ -78,7 +78,7 @@ func init() {
 		panic(err)
 	}
 	crdClient.AddToRegistry("peeringrequests", &PeeringRequest{}, &PeeringRequestList{}, nil, schema.GroupResource{
-		Group:    v1.SchemeGroupVersion.Group,
+		Group:    GroupVersion.Group,
 		Resource: "peeringrequests",
 	})
 }
