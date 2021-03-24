@@ -95,8 +95,8 @@ func (r *PeeringRequestReconciler) Reconcile(req ctrl.Request) (ctrl.Result, err
 		}
 	}
 	if !exists {
-		monitoring.PeeringProcessExecutionStarted()
-		monitoring.PeeringProcessEventRegister(monitoring.PeeringRequestOperator, monitoring.CreateBroadcaster, monitoring.Start)
+		monitoring.GetPeeringProcessMonitoring().Start()
+		monitoring.GetPeeringProcessMonitoring().EventRegister(monitoring.PeeringRequestOperator, monitoring.CreateBroadcaster, monitoring.Start)
 
 		klog.Info("Deploy Broadcaster")
 		deploy := GetBroadcasterDeployment(pr, r.broadcasterServiceAccount, r.vkServiceAccount, r.Namespace, r.broadcasterImage, r.clusterId.GetClusterID())
@@ -110,8 +110,8 @@ func (r *PeeringRequestReconciler) Reconcile(req ctrl.Request) (ctrl.Result, err
 			Name:      deploy.Name,
 		}
 
-		monitoring.PeeringProcessExecutionCompleted(monitoring.PeeringRequestOperator)
-		monitoring.PeeringProcessEventRegister(monitoring.PeeringRequestOperator, monitoring.CreateBroadcaster, monitoring.End)
+		monitoring.GetPeeringProcessMonitoring().Complete(monitoring.PeeringRequestOperator)
+		monitoring.GetPeeringProcessMonitoring().EventRegister(monitoring.PeeringRequestOperator, monitoring.CreateBroadcaster, monitoring.End)
 	}
 
 	_, err = r.crdClient.Resource("peeringrequests").Update(pr.Name, pr, metav1.UpdateOptions{})

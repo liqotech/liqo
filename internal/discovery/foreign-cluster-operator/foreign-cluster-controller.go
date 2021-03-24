@@ -91,7 +91,7 @@ type ForeignClusterReconciler struct {
 func (r *ForeignClusterReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 	_ = context.Background()
 
-	monitoring.PeeringProcessExecutionStarted()
+	monitoring.GetPeeringProcessMonitoring().Start()
 	monitoring.GetDiscoveryProcessMonitoring().Start()
 
 	klog.V(4).Infof("Reconciling ForeignCluster %s", req.Name)
@@ -113,7 +113,7 @@ func (r *ForeignClusterReconciler) Reconcile(req ctrl.Request) (ctrl.Result, err
 	// check if the Join flag is set true and the Status of the join process is false
 	if fc.Spec.Join && !fc.Status.Outgoing.Joined {
 		// expose the metric to monitor the Begin of the Creation of the Reering Request
-		monitoring.PeeringProcessEventRegister(monitoring.ForeignClusterOperator, monitoring.CreatePeeringRequest, monitoring.Start)
+		monitoring.GetPeeringProcessMonitoring().EventRegister(monitoring.ForeignClusterOperator, monitoring.CreatePeeringRequest, monitoring.Start)
 		startJoinProcess = true
 	}
 
@@ -177,7 +177,7 @@ func (r *ForeignClusterReconciler) Reconcile(req ctrl.Request) (ctrl.Result, err
 
 	// check for NetworkConfigs
 	if startJoinProcess {
-		monitoring.PeeringProcessEventRegister(monitoring.ForeignClusterOperator, monitoring.CheckNetworkConfigs, monitoring.Start)
+		monitoring.GetPeeringProcessMonitoring().EventRegister(monitoring.ForeignClusterOperator, monitoring.CheckNetworkConfigs, monitoring.Start)
 	}
 	err = r.checkNetwork(fc, &requireUpdate)
 	if err != nil {
@@ -188,12 +188,12 @@ func (r *ForeignClusterReconciler) Reconcile(req ctrl.Request) (ctrl.Result, err
 		}, err
 	}
 	if startJoinProcess {
-		monitoring.PeeringProcessEventRegister(monitoring.ForeignClusterOperator, monitoring.CheckNetworkConfigs, monitoring.End)
+		monitoring.GetPeeringProcessMonitoring().EventRegister(monitoring.ForeignClusterOperator, monitoring.CheckNetworkConfigs, monitoring.End)
 	}
 
 	// check for TunnelEndpoints
 	if startJoinProcess {
-		monitoring.PeeringProcessEventRegister(monitoring.ForeignClusterOperator, monitoring.CheckTunnelEndpoints, monitoring.Start)
+		monitoring.GetPeeringProcessMonitoring().EventRegister(monitoring.ForeignClusterOperator, monitoring.CheckTunnelEndpoints, monitoring.Start)
 	}
 	err = r.checkTEP(fc, &requireUpdate)
 	if err != nil {
@@ -204,12 +204,12 @@ func (r *ForeignClusterReconciler) Reconcile(req ctrl.Request) (ctrl.Result, err
 		}, err
 	}
 	if startJoinProcess {
-		monitoring.PeeringProcessEventRegister(monitoring.ForeignClusterOperator, monitoring.CheckTunnelEndpoints, monitoring.End)
+		monitoring.GetPeeringProcessMonitoring().EventRegister(monitoring.ForeignClusterOperator, monitoring.CheckTunnelEndpoints, monitoring.End)
 	}
 
 	// check if linked advertisement exists
 	if startJoinProcess {
-		monitoring.PeeringProcessEventRegister(monitoring.ForeignClusterOperator, monitoring.CheckAdvertisement, monitoring.Start)
+		monitoring.GetPeeringProcessMonitoring().EventRegister(monitoring.ForeignClusterOperator, monitoring.CheckAdvertisement, monitoring.Start)
 	}
 	if fc.Status.Outgoing.Advertisement != nil {
 		tmp, err = r.advertisementClient.Resource("advertisements").Get(fc.Status.Outgoing.Advertisement.Name, metav1.GetOptions{})
@@ -259,12 +259,12 @@ func (r *ForeignClusterReconciler) Reconcile(req ctrl.Request) (ctrl.Result, err
 		}
 	}
 	if startJoinProcess {
-		monitoring.PeeringProcessEventRegister(monitoring.ForeignClusterOperator, monitoring.CheckAdvertisement, monitoring.End)
+		monitoring.GetPeeringProcessMonitoring().EventRegister(monitoring.ForeignClusterOperator, monitoring.CheckAdvertisement, monitoring.End)
 	}
 
 	// check if linked peeringRequest exists
 	if startJoinProcess {
-		monitoring.PeeringProcessEventRegister(monitoring.ForeignClusterOperator, monitoring.CheckPeeringRequest, monitoring.Start)
+		monitoring.GetPeeringProcessMonitoring().EventRegister(monitoring.ForeignClusterOperator, monitoring.CheckPeeringRequest, monitoring.Start)
 	}
 	if fc.Status.Incoming.PeeringRequest != nil {
 		tmp, err = r.crdClient.Resource("peeringrequests").Get(fc.Status.Incoming.PeeringRequest.Name, metav1.GetOptions{})
@@ -314,7 +314,7 @@ func (r *ForeignClusterReconciler) Reconcile(req ctrl.Request) (ctrl.Result, err
 		}
 	}
 	if startJoinProcess {
-		monitoring.PeeringProcessEventRegister(monitoring.ForeignClusterOperator, monitoring.CheckPeeringRequest, monitoring.End)
+		monitoring.GetPeeringProcessMonitoring().EventRegister(monitoring.ForeignClusterOperator, monitoring.CheckPeeringRequest, monitoring.End)
 	}
 
 	// if it has been discovered thanks to incoming peeringRequest and it has no active connections, delete it
@@ -671,8 +671,8 @@ func (r *ForeignClusterReconciler) createPeeringRequestIfNotExists(clusterID str
 			if err != nil {
 				return nil, err
 			}
-			monitoring.PeeringProcessExecutionCompleted(monitoring.ForeignClusterOperator)
-			monitoring.PeeringProcessEventRegister(monitoring.ForeignClusterOperator, monitoring.CreatePeeringRequest, monitoring.End)
+			monitoring.GetPeeringProcessMonitoring().Complete(monitoring.ForeignClusterOperator)
+			monitoring.GetPeeringProcessMonitoring().EventRegister(monitoring.ForeignClusterOperator, monitoring.CreatePeeringRequest, monitoring.End)
 
 			var ok bool
 			pr, ok = tmp.(*discoveryv1alpha1.PeeringRequest)

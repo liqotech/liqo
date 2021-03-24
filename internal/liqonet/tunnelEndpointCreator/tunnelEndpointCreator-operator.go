@@ -276,10 +276,10 @@ func (tec *TunnelEndpointCreator) createNetConfig(fc *discoveryv1alpha1.ForeignC
 	}
 	klog.Infof("resource %s of type %s created", netConfig.Name, netv1alpha1.GroupVersion.String())
 
-	monitoring.PeeringProcessExecutionStarted()
-	monitoring.PeeringProcessEventRegister(monitoring.TunnelEndpointOperator, monitoring.CreateTunnelEndpoint, monitoring.Start)
-	monitoring.PeeringProcessEventRegister(monitoring.TunnelEndpointOperator, monitoring.ProcessRemoteNetworkConfig, monitoring.Start)
-	monitoring.PeeringProcessEventRegister(monitoring.TunnelEndpointOperator, monitoring.ProcessLocalNetworkConfig, monitoring.Start)
+	monitoring.GetPeeringProcessMonitoring().Start()
+	monitoring.GetPeeringProcessMonitoring().EventRegister(monitoring.TunnelEndpointOperator, monitoring.CreateTunnelEndpoint, monitoring.Start)
+	monitoring.GetPeeringProcessMonitoring().EventRegister(monitoring.TunnelEndpointOperator, monitoring.ProcessRemoteNetworkConfig, monitoring.Start)
+	monitoring.GetPeeringProcessMonitoring().EventRegister(monitoring.TunnelEndpointOperator, monitoring.ProcessLocalNetworkConfig, monitoring.Start)
 
 	return nil
 }
@@ -362,7 +362,7 @@ func (tec *TunnelEndpointCreator) processRemoteNetConfig(netConfig *netv1alpha1.
 				return err
 			}
 
-			monitoring.PeeringProcessEventRegister(monitoring.TunnelEndpointOperator, monitoring.ProcessRemoteNetworkConfig, monitoring.End)
+			monitoring.GetPeeringProcessMonitoring().EventRegister(monitoring.TunnelEndpointOperator, monitoring.ProcessRemoteNetworkConfig, monitoring.End)
 		}
 		return nil
 	}
@@ -392,7 +392,7 @@ func (tec *TunnelEndpointCreator) processRemoteNetConfig(netConfig *netv1alpha1.
 			return err
 		}
 
-		monitoring.PeeringProcessEventRegister(monitoring.TunnelEndpointOperator, monitoring.ProcessRemoteNetworkConfig, monitoring.End)
+		monitoring.GetPeeringProcessMonitoring().EventRegister(monitoring.TunnelEndpointOperator, monitoring.ProcessRemoteNetworkConfig, monitoring.End)
 		return nil
 	}
 	return nil
@@ -448,7 +448,7 @@ func (tec *TunnelEndpointCreator) processLocalNetConfig(netConfig *netv1alpha1.N
 		}
 	}
 
-	monitoring.PeeringProcessEventRegister(monitoring.TunnelEndpointOperator, monitoring.ProcessLocalNetworkConfig, monitoring.End)
+	monitoring.GetPeeringProcessMonitoring().EventRegister(monitoring.TunnelEndpointOperator, monitoring.ProcessLocalNetworkConfig, monitoring.End)
 
 	//at this point we have all the necessary parameters to create the tunnelEndpoint resource
 	remoteNetConf := netConfigList.Items[0]
@@ -619,8 +619,8 @@ func (tec *TunnelEndpointCreator) CreateTunnelEndpoint(param networkParam, owner
 	} else {
 		klog.Infof("resource %s of type %s created", tep.Name, netv1alpha1.TunnelEndpointGroupResource)
 
-		monitoring.PeeringProcessEventRegister(monitoring.TunnelEndpointOperator, monitoring.CreateTunnelEndpoint, monitoring.End)
-		monitoring.PeeringProcessExecutionCompleted(monitoring.TunnelEndpointOperator)
+		monitoring.GetPeeringProcessMonitoring().EventRegister(monitoring.TunnelEndpointOperator, monitoring.CreateTunnelEndpoint, monitoring.End)
+		monitoring.GetPeeringProcessMonitoring().Complete(monitoring.TunnelEndpointOperator)
 	}
 	return nil
 }

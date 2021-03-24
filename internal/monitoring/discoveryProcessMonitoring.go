@@ -2,6 +2,7 @@ package monitoring
 
 import (
 	"github.com/prometheus/client_golang/prometheus"
+	"sigs.k8s.io/controller-runtime/pkg/metrics"
 	"time"
 )
 
@@ -14,7 +15,7 @@ type discoveryProcessMonitoring struct {
 	consistencyEndEventMap   map[string]bool
 }
 
-func (mon *discoveryProcessMonitoring) init() {
+func (mon *discoveryProcessMonitoring) init(useKubebuilder bool) error {
 	mon.discoveryProcessTime = prometheus.NewHistogramVec(
 		prometheus.HistogramOpts{
 			Name:    "liqo_discovery_process_execution_time",
@@ -40,8 +41,23 @@ func (mon *discoveryProcessMonitoring) init() {
 	mon.consistencyStartEventMap = createConsistencyEventMap(true)
 	mon.consistencyEndEventMap = createConsistencyEventMap(false)
 
-	prometheus.MustRegister(mon.discoveryProcessTime)
-	prometheus.MustRegister(mon.discoveryEvents)
+	if useKubebuilder {
+		if err := metrics.Registry.Register(mon.discoveryProcessTime); err != nil {
+			return err
+		}
+		if err := metrics.Registry.Register(mon.discoveryEvents); err != nil {
+			return err
+		}
+	} else {
+		if err := prometheus.Register(mon.discoveryProcessTime); err != nil {
+			return err
+		}
+		if err := prometheus.Register(mon.discoveryEvents); err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 func (mon *discoveryProcessMonitoring) Start() {

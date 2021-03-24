@@ -73,18 +73,22 @@ func main() {
 	discoveryCtl.StartDiscovery()
 
 	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
-		MapperProvider:   mapperUtils.LiqoMapperProvider(scheme),
-		Scheme:           scheme,
-		Port:             9443,
-		LeaderElection:   false,
-		LeaderElectionID: "b3156c4e.liqo.io",
+		MapperProvider:     mapperUtils.LiqoMapperProvider(scheme),
+		Scheme:             scheme,
+		Port:               9443,
+		LeaderElection:     false,
+		LeaderElectionID:   "b3156c4e.liqo.io",
+		MetricsBindAddress: ":8092",
 	})
 	if err != nil {
 		klog.Error(err, "unable to start manager")
 		os.Exit(1)
 	}
 
-	monitoring.Serve(":8092")
+	klog.Info("Starting metrics client using default Kubebuilder Metric Endpoint")
+	if err := monitoring.InitWithKubebuilderEndpoint(); err != nil {
+		klog.Warning(err)
+	}
 
 	klog.Info("Starting SearchDomain operator")
 	search_domain_operator.StartOperator(&mgr, time.Duration(requeueAfter)*time.Second, discoveryCtl, kubeconfigPath)

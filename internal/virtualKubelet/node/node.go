@@ -462,8 +462,8 @@ func patchNodeStatus(nodes v1.NodeInterface, nodeName types.NodeName, oldNode *c
 		for _, s := range oldNode.Status.Conditions {
 			if s.Type == corev1.NodeReady {
 				if s.Status == corev1.ConditionFalse {
-					monitoring.PeeringProcessExecutionCompleted(monitoring.VirtualKubelet)
-					monitoring.PeeringProcessEventRegister(monitoring.VirtualKubelet, monitoring.CreateVirtualNode, monitoring.End)
+					monitoring.GetPeeringProcessMonitoring().Complete(monitoring.VirtualKubelet)
+					monitoring.GetPeeringProcessMonitoring().EventRegister(monitoring.VirtualKubelet, monitoring.CreateVirtualNode, monitoring.End)
 					break
 				}
 			}

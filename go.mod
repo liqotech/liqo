@@ -5,7 +5,6 @@ go 1.13
 require (
 	contrib.go.opencensus.io/exporter/jaeger v0.2.0
 	contrib.go.opencensus.io/exporter/ocagent v0.7.0
-	github.com/apparentlymart/go-cidr v1.1.0
 	github.com/coreos/go-iptables v0.4.5
 	github.com/go-logr/logr v0.4.0
 	github.com/go-logr/zapr v0.4.0 // indirect
@@ -25,7 +24,7 @@ require (
 	github.com/onsi/ginkgo v1.15.2
 	github.com/onsi/gomega v1.11.0
 	github.com/pkg/errors v0.9.1
-	github.com/prometheus/client_golang v1.8.0 // indirect
+	github.com/prometheus/client_golang v1.8.0
 	github.com/prometheus/common v0.15.0 // indirect
 	github.com/sirupsen/logrus v1.8.1
 	github.com/spf13/cobra v1.1.1
@@ -56,7 +55,6 @@ require (
 	k8s.io/metrics v0.18.6
 	k8s.io/utils v0.0.0-20201110183641-67b214c5f920
 	sigs.k8s.io/controller-runtime v0.6.2
-	sigs.k8s.io/kind v0.10.0 // indirect
 )
 
 replace k8s.io/legacy-cloud-providers => k8s.io/legacy-cloud-providers v0.18.6

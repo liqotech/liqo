@@ -2,6 +2,7 @@ package peering_request_operator
 
 import (
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
+	"github.com/liqotech/liqo/internal/monitoring"
 	"github.com/liqotech/liqo/pkg/clusterID"
 	"github.com/liqotech/liqo/pkg/crdClient"
 	"github.com/liqotech/liqo/pkg/mapperUtils"
@@ -25,11 +26,12 @@ func init() {
 
 func StartOperator(namespace string, broadcasterImage string, broadcasterServiceAccount string, vkServiceAccount string, kubeconfigPath string) {
 	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
-		MapperProvider:   mapperUtils.LiqoMapperProvider(scheme),
-		Scheme:           scheme,
-		Port:             9443,
-		LeaderElection:   false,
-		LeaderElectionID: "b3156c4e.liqo.io",
+		MapperProvider:     mapperUtils.LiqoMapperProvider(scheme),
+		Scheme:             scheme,
+		Port:               9443,
+		LeaderElection:     false,
+		LeaderElectionID:   "b3156c4e.liqo.io",
+		MetricsBindAddress: ":8091",
 	})
 	if err != nil {
 		klog.Error(err, "unable to start manager")
@@ -51,6 +53,11 @@ func StartOperator(namespace string, broadcasterImage string, broadcasterService
 	if err != nil {
 		klog.Error(err, "unable to get clusterID")
 		os.Exit(1)
+	}
+
+	klog.Info("Starting metrics client using default Kubebuilder Metric Endpoint")
+	if err := monitoring.InitWithKubebuilderEndpoint(); err != nil {
+		klog.Warning(err)
 	}
 
 	if err = (GetPRReconciler(

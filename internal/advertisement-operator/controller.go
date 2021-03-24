@@ -84,7 +84,7 @@ type AdvertisementReconciler struct {
 
 func (r *AdvertisementReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 	ctx := context.Background()
-	monitoring.PeeringProcessExecutionStarted()
+	monitoring.GetPeeringProcessMonitoring().Start()
 
 	// start the advertisement garbage collector
 	go r.garbaceCollector.Do(func() {
@@ -146,7 +146,7 @@ func (r *AdvertisementReconciler) Reconcile(req ctrl.Request) (ctrl.Result, erro
 	}
 
 	if !adv.Status.VkCreated {
-		monitoring.PeeringProcessEventRegister(monitoring.AdvertisementOperator, monitoring.CreateVirtualKubelet, monitoring.Start)
+		monitoring.GetPeeringProcessMonitoring().EventRegister(monitoring.AdvertisementOperator, monitoring.CreateVirtualKubelet, monitoring.Start)
 
 		err := r.createVirtualKubelet(ctx, &adv)
 		if err != nil {
@@ -350,8 +350,8 @@ func (r *AdvertisementReconciler) createVirtualKubelet(ctx context.Context, adv 
 	if err := r.Status().Update(ctx, adv); err != nil {
 		klog.Error(err)
 	} else {
-		monitoring.PeeringProcessExecutionCompleted(monitoring.AdvertisementOperator)
-		monitoring.PeeringProcessEventRegister(monitoring.AdvertisementOperator, monitoring.CreateVirtualKubelet, monitoring.End)
+		monitoring.GetPeeringProcessMonitoring().Complete(monitoring.AdvertisementOperator)
+		monitoring.GetPeeringProcessMonitoring().EventRegister(monitoring.AdvertisementOperator, monitoring.CreateVirtualKubelet, monitoring.End)
 	}
 	return nil
 }

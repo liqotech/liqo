@@ -53,7 +53,7 @@ func main() {
 	var enableLeaderElection bool
 	var runAs string
 
-	flag.StringVar(&metricsAddr, "metrics-addr", ":0", "The address the metric endpoint binds to.")
+	flag.StringVar(&metricsAddr, "metrics-addr", ":8091", "The address the metric endpoint binds to.")
 	flag.BoolVar(&enableLeaderElection, "enable-leader-election", false,
 		"Enable leader election for controller manager. Enabling this will ensure there is only one active controller manager.")
 	flag.StringVar(&runAs, "run-as", "tunnel-operator", "The accepted values are: liqo-gateway, liqo-route, tunnelEndpointCreator-operator. The default value is \"tunnel-operator\"")

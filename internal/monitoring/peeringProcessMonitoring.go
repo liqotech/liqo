@@ -2,6 +2,7 @@ package monitoring
 
 import (
 	"github.com/prometheus/client_golang/prometheus"
+	"sigs.k8s.io/controller-runtime/pkg/metrics"
 	"time"
 )
 
@@ -14,7 +15,7 @@ type peeringProcessMonitoring struct {
 	consistencyEndEventMap   map[string]bool
 }
 
-func (mon *peeringProcessMonitoring) init() {
+func (mon *peeringProcessMonitoring) init(useKubebuilder bool) error {
 	mon.peeringProcessTime = prometheus.NewHistogramVec(
 		prometheus.HistogramOpts{
 			Name:    "liqo_peering_process_execution_time",
@@ -40,8 +41,23 @@ func (mon *peeringProcessMonitoring) init() {
 	mon.consistencyStartEventMap = createConsistencyEventMap(true)
 	mon.consistencyEndEventMap = createConsistencyEventMap(false)
 
-	prometheus.MustRegister(mon.peeringProcessTime)
-	prometheus.MustRegister(mon.peeringEvents)
+	if useKubebuilder {
+		if err := metrics.Registry.Register(mon.peeringProcessTime); err != nil {
+			return err
+		}
+		if err := metrics.Registry.Register(mon.peeringEvents); err != nil {
+			return err
+		}
+	} else {
+		if err := prometheus.Register(mon.peeringProcessTime); err != nil {
+			return err
+		}
+		if err := prometheus.Register(mon.peeringEvents); err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 func (mon *peeringProcessMonitoring) Start() {

@@ -18,6 +18,7 @@ package main
 import (
 	"flag"
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
+	"github.com/liqotech/liqo/internal/monitoring"
 	"github.com/liqotech/liqo/pkg/crdClient"
 	"github.com/liqotech/liqo/pkg/mapperUtils"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -39,7 +40,7 @@ import (
 
 const (
 	defaultNamespace   = "liqo"
-	defaultMetricsaddr = ":9090"
+	defaultMetricsaddr = ":8091"
 	defaultVKImage     = "liqo/virtual-kubelet"
 	defaultInitVKImage = "liqo/init-vkubelet"
 )
@@ -94,6 +95,11 @@ func main() {
 	if err != nil {
 		klog.Error(err)
 		os.Exit(1)
+	}
+
+	klog.Info("Starting metrics client using default Kubebuilder Metric Endpoint")
+	if err := monitoring.InitWithKubebuilderEndpoint(); err != nil {
+		klog.Warning(err)
 	}
 
 	// New Client For CSR Auto-approval
