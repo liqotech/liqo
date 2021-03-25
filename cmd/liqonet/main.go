@@ -129,6 +129,11 @@ func main() {
 
 	case "tunnelEndpointCreator-operator":
 		dynClient := dynamic.NewForConfigOrDie(mgr.GetConfig())
+		ipam := liqonetOperator.NewIPAM()
+		err = ipam.Init(liqonetOperator.Pools, dynClient)
+		if err != nil {
+			klog.Errorf("cannot init IPAM:%s", err.Error())
+		}
 		r := &tunnelEndpointCreator.TunnelEndpointCreator{
 			Client:                     mgr.GetClient(),
 			Scheme:                     mgr.GetScheme(),
@@ -142,7 +147,7 @@ func main() {
 			ForeignClusterStartWatcher: make(chan bool, 1),
 			ForeignClusterStopWatcher:  make(chan struct{}),
 
-			IPManager:    liqonetOperator.NewIPAM(),
+			IPManager:    ipam,
 			RetryTimeout: 30 * time.Second,
 		}
 		r.WaitConfig.Add(3)
