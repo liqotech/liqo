@@ -31,6 +31,8 @@ var (
 
 	NetworkConfigGroupResource = schema.GroupVersionResource{Group: GroupVersion.Group, Version: GroupVersion.Version, Resource: "networkconfigs"}
 
+	IpamGroupResource = schema.GroupVersionResource{Group: GroupVersion.Group, Version: GroupVersion.Version, Resource: "ipamstorages"}
+
 	// SchemeBuilder is used to add go types to the GroupVersionKind scheme
 	SchemeBuilder = &scheme.Builder{GroupVersion: GroupVersion}
 

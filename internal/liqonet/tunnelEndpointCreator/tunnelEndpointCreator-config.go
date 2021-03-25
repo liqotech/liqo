@@ -1,22 +1,17 @@
 package tunnelEndpointCreator
 
 import (
-	"context"
-	"fmt"
 	"os"
 	"reflect"
 
 	configv1alpha1 "github.com/liqotech/liqo/apis/config/v1alpha1"
-	netv1alpha1 "github.com/liqotech/liqo/apis/net/v1alpha1"
 	"github.com/liqotech/liqo/pkg/clusterConfig"
 	"github.com/liqotech/liqo/pkg/crdClient"
-	liqonetOperator "github.com/liqotech/liqo/pkg/liqonet"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
 	"k8s.io/klog"
 	"k8s.io/kubernetes/pkg/util/slice"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 func (tec *TunnelEndpointCreator) SetNetParameters(config *configv1alpha1.ClusterConfig) {
@@ -32,60 +27,19 @@ func (tec *TunnelEndpointCreator) SetNetParameters(config *configv1alpha1.Cluste
 	}
 }
 
-//it returns the subnets used by the foreign clusters
-//get the list of all tunnelEndpoint CR and saves the address space assigned to the
-//foreign cluster.
-func (tec *TunnelEndpointCreator) GetClustersSubnets() (map[string]string, error) {
-	ctx := context.Background()
-	var err error
-	var tunEndList netv1alpha1.TunnelEndpointList
-	subnets := make(map[string]string)
-
-	//if the error is ErrCacheNotStarted we retry until the chaches are ready
-	chacheChan := make(chan struct{})
-	started := tec.Manager.GetCache().WaitForCacheSync(chacheChan)
-	if !started {
-		return nil, fmt.Errorf("unable to sync caches")
-	}
-
-	err = tec.Client.List(ctx, &tunEndList, &client.ListOptions{})
-	if err != nil {
-		klog.Errorf("unable to get the list of tunnelEndpoint custom resources -> %s", err)
-		return nil, err
-	}
-	//if the list is empty return a nil slice and nil error
-	if tunEndList.Items == nil {
-		return nil, nil
-	}
-	for _, tunEnd := range tunEndList.Items {
-		if tunEnd.Status.LocalRemappedPodCIDR != "" && tunEnd.Status.LocalRemappedPodCIDR != DefaultPodCIDRValue {
-			subnets[tunEnd.Spec.ClusterID] = tunEnd.Status.LocalRemappedPodCIDR
-			klog.Infof("subnet %s already reserved for cluster %s", tunEnd.Status.LocalRemappedPodCIDR, tunEnd.Spec.ClusterID)
-		} else if tunEnd.Status.LocalRemappedPodCIDR == DefaultPodCIDRValue {
-			subnets[tunEnd.Spec.ClusterID] = tunEnd.Spec.PodCIDR
-			klog.Infof("subnet %s already reserved for cluster %s", tunEnd.Spec.PodCIDR, tunEnd.Spec.ClusterID)
-		}
-	}
-	return subnets, nil
-}
-
-func (tec *TunnelEndpointCreator) InitConfiguration(reservedSubnets []string, clusterSubnets map[string]string) error {
-	if err := tec.IPManager.Init(reservedSubnets, liqonetOperator.Pools, clusterSubnets); err != nil {
-		klog.Errorf("an error occurred while initializing the IP manager -> err")
-		return err
-	}
-	tec.ReservedSubnets = reservedSubnets
-	return nil
-}
-
 // Helper func that returns a true if the subnet slice passed as first parameter contains the subnet passed as second parameter. Otherwise it returns false
 func (tec *TunnelEndpointCreator) subnetSliceContains(subnetSlice []string, network string) bool {
 	return slice.ContainsString(subnetSlice, network, nil)
 }
 
-// Helper func that remove a subnet from the configuration file
-func (tec *TunnelEndpointCreator) removeSubnetFromConfig(network string) []string {
-	return slice.RemoveString(tec.ReservedSubnets, network, nil)
+// Helper func that removes a subnet from the configuration file
+func (tec *TunnelEndpointCreator) removeSubnetFromConfig(network string) {
+	tec.ReservedSubnets = slice.RemoveString(tec.ReservedSubnets, network, nil)
+}
+
+// Helper func that adds a subnet from the configuration file
+func (tec *TunnelEndpointCreator) addSubnetFromConfig(network string) {
+	tec.ReservedSubnets = append(tec.ReservedSubnets, network)
 }
 
 func (tec *TunnelEndpointCreator) UpdateConfiguration(reservedSubnets []string) error {
@@ -115,20 +69,21 @@ func (tec *TunnelEndpointCreator) UpdateConfiguration(reservedSubnets []string) 
 	if len(removedSubnets) > 0 {
 		for _, subnet := range removedSubnets {
 			//free subnet in ipam
+			klog.Infof("Freeing reserved subnet %s", subnet)
 			if err := tec.IPManager.FreeReservedSubnet(subnet); err != nil {
 				return err
 			}
 			//remove the subnet from the reserved ones
 			tec.removeSubnetFromConfig(subnet)
-			klog.Infof("Freeing reserved subnet %s", subnet)
 		}
 	}
 	if len(addedSubnets) > 0 {
 		for _, subnet := range addedSubnets {
-			klog.Infof("New subnet %s has to be reserved", subnet)
+			klog.Infof("Reserving subnet %s", subnet)
 			if err := tec.IPManager.AcquireReservedSubnet(subnet); err != nil {
 				return err
 			}
+			tec.addSubnetFromConfig(subnet)
 		}
 	}
 	return nil
@@ -159,24 +114,10 @@ func (tec *TunnelEndpointCreator) WatchConfiguration(config *rest.Config, gv *sc
 			klog.Error(err)
 			return
 		}
-		//this section is executed at start-up time
-		if !tec.IpamConfigured {
-			//get subnets used by foreign clusters
-			clusterSubnets, err := tec.GetClustersSubnets()
-			if err != nil {
-				klog.Error(err)
-				return
-			}
-			if err := tec.InitConfiguration(reservedSubnets, clusterSubnets); err != nil {
-				klog.Error(err)
-				return
-			}
-			tec.IpamConfigured = true
-		} else {
-			if err := tec.UpdateConfiguration(reservedSubnets); err != nil {
-				klog.Error(err)
-				return
-			}
+		err = tec.UpdateConfiguration(reservedSubnets)
+		if err != nil {
+			klog.Error(err)
+			return
 		}
 		tec.SetNetParameters(configuration)
 		if !tec.cfgConfigured {
