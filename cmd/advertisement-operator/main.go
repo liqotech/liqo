@@ -19,6 +19,7 @@ import (
 	"flag"
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	"github.com/liqotech/liqo/pkg/crdClient"
+	namectrl "github.com/liqotech/liqo/pkg/liqo-controller-manager/namespace-controller"
 	"github.com/liqotech/liqo/pkg/mapperUtils"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -150,6 +151,16 @@ func main() {
 	}
 
 	if err = r.SetupWithManager(mgr); err != nil {
+		klog.Error(err)
+		os.Exit(1)
+	}
+
+	r2 := &namectrl.NamespaceReconciler{
+		Client: mgr.GetClient(),
+		Scheme: mgr.GetScheme(),
+	}
+
+	if err = r2.SetupWithManager(mgr); err != nil {
 		klog.Error(err)
 		os.Exit(1)
 	}
