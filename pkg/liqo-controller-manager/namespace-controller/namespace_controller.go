@@ -97,7 +97,7 @@ func (r *NamespaceReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 					}
 
 					if i == dim && found {
-						klog.Infof("----------------------Create namespace for that remote cluter")
+						klog.Infof("---------------------- Create namespace for that remote cluter")
 						// TODO 1: remove from "erase" this virtual node
 					}
 
@@ -108,7 +108,7 @@ func (r *NamespaceReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 	}
 
 	if erase {
-		klog.Infof("----------------------Delete all unnecessary mapping in NNT")
+		klog.Infof("---------------------- Delete all unnecessary mapping in NNT")
 	}
 
 	return ctrl.Result{}, nil
@@ -129,6 +129,7 @@ func updateMappingLabel(old map[string]string, new map[string]string) bool {
 // 1 -- add/delete labels
 // 2 -- update the value of mapping.liqo.io label only
 // 3 -- delete namespaces
+// 4 -- (?) io posso già creare un namespace con le label giuste, anche questo caso va monitorato, un po' strano ma può succedere
 func manageLabelPredicate() predicate.Predicate {
 	return predicate.Funcs{
 		UpdateFunc: func(e event.UpdateEvent) bool {

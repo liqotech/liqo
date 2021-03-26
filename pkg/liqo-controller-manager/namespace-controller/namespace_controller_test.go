@@ -19,8 +19,8 @@ var _ = Describe("Namespace controller", func() {
 
 	// Define utility constants for object names and testing timeouts/durations and intervals.
 	const (
-		NamespaceName = "pluto"
-		timeout       = time.Second * 10
+		NamespaceName = "namespace-test"
+		timeout       = time.Second * 30  // valore alto per non avere fallimenti di questo tipo
 		interval      = time.Millisecond * 250
 	)
 
@@ -44,7 +44,7 @@ var _ = Describe("Namespace controller", func() {
 
 
 
-	// tests which add labels
+	// ADD LABELS CASES
 	Context("When adding some labels", func() {
 
 		ctx := context.Background()
@@ -64,23 +64,30 @@ var _ = Describe("Namespace controller", func() {
 				},
 			}
 
-			By("By creating a new Namespace")
+			By("Try to create new Namespace " + NamespaceName)
 			Expect(k8sClient.Create(ctx, namespace)).Should(Succeed())
+			buffer.Reset() // without this doen't work
 		})
 
-		//AfterEach(func(){
-		//	Expect(k8sClient.Delete(ctx, namespace.DeepCopyObject())).Should(Succeed())
-		//	buffer.Reset() // without this doen't work
-		//})
+		AfterEach(func(){
+			By("Try to delete namespace "+NamespaceName)
+			// non riesco a eliminare il namespace qua, in nessun modo
+			//Expect(k8sClient.Delete(ctx, namespace)).Should(Succeed())
+			buffer.Reset() // without this doen't work
+		})
+
+
+
+
+
+
 
 		It("Adding a new label which is not relevant for us", func() {
+			createdNamespace:= &corev1.Namespace{}
 
-			namespaceLookupKey := types.NamespacedName{Name: NamespaceName}
-			createdNamespace := &corev1.Namespace{}
-
-			// We'll need to retry getting this newly created Namespace, given that creation may not immediately happen.
+			By("Try to get namespace " + NamespaceName)
 			Eventually(func() bool {
-				err := k8sClient.Get(ctx, namespaceLookupKey, createdNamespace)
+				err := k8sClient.Get(ctx, types.NamespacedName{Name: NamespaceName}, createdNamespace)
 				if err != nil {
 					return false
 				}
@@ -89,45 +96,51 @@ var _ = Describe("Namespace controller", func() {
 
 
 			By("Try to patch it.")
-			// We'll need to retry patching this newly created Namespace, given that creation may not immediately happen.
-			patch := []byte(`{"metadata":{"labels":{"random2": "random-value2"}}}`)
-			Eventually(func() bool {
-				err := k8sClient.Patch(ctx, createdNamespace,client.RawPatch(types.StrategicMergePatchType, patch))
-				if err != nil {
-					return false
-				}
-				return true
-			}, timeout, interval).Should(BeTrue())
+			patch := []byte(`{"metadata":{"labels":{"random-2": "random-value2"}}}`)
+			Expect(k8sClient.Patch(ctx, createdNamespace,client.RawPatch(types.StrategicMergePatchType, patch))).Should(Succeed())
 
 
+			// il problema grosso è che può essere che il controllore vada troppo lento, c'è un modo per sincronizzare con channel (?)
+			By("Try to catch right log.")
 			Eventually(func() bool {
 				klog.Flush()
-				return strings.Contains(buffer.String(), "----------------------Delete all unnecessary mapping in NNT")
+				return strings.Contains(buffer.String(), "---------------------- Delete all unnecessary mapping in NNT")
 			}, timeout, interval).Should(BeTrue())
 
 
 			By("Try to delete namespace.")
-			k8sClient.Delete(ctx, createdNamespace)
+			Expect(k8sClient.Delete(ctx, createdNamespace)).Should(Succeed())
+
+			//Eventually(func() bool {
+			//	err := k8sClient.Delete(ctx, createdNamespace)
+			//	if err != nil &&  !errors.IsNotFound(err) {
+			//		return false
+			//	}
+			//	return true
+			//}, timeout, interval).Should(BeTrue())
+
+
+			By("Try to catch right log.")
 			Eventually(func() bool {
 				klog.Flush()
 				return strings.Contains(buffer.String(), "---------------------- I have to delete all entries from NNT, if present")
 			}, timeout, interval).Should(BeTrue())
 
-			buffer.Reset()
-
 		})
 
 
 
 
-		It("Adding a new label which is not relevant for us", func() {
 
-			namespaceLookupKey := types.NamespacedName{Name: NamespaceName}
-			createdNamespace := &corev1.Namespace{}
 
-			// We'll need to retry getting this newly created Namespace, given that creation may not immediately happen.
+
+
+		It("Adding a mapping.liqo.io label", func() {
+			createdNamespace:= &corev1.Namespace{}
+
+			By("Try to get namespace " + NamespaceName)
 			Eventually(func() bool {
-				err := k8sClient.Get(ctx, namespaceLookupKey, createdNamespace)
+				err := k8sClient.Get(ctx, types.NamespacedName{Name: NamespaceName}, createdNamespace)
 				if err != nil {
 					return false
 				}
@@ -136,10 +149,47 @@ var _ = Describe("Namespace controller", func() {
 
 
 			By("Try to patch it.")
-			// We'll need to retry patching this newly created Namespace, given that creation may not immediately happen.
 			patch := []byte(`{"metadata":{"labels":{"mapping.liqo.io": "random"}}}`)
+			Expect(k8sClient.Patch(ctx, createdNamespace,client.RawPatch(types.StrategicMergePatchType, patch))).Should(Succeed())
+
+			By("Try to catch right log.")
 			Eventually(func() bool {
-				err := k8sClient.Patch(ctx, createdNamespace,client.RawPatch(types.StrategicMergePatchType, patch))
+				klog.Flush()
+				return strings.Contains(buffer.String(), "---------------------- Watch for virtual-nodes labels")
+			}, timeout, interval).Should(BeTrue())
+
+			By("Try to catch right log.")
+			Eventually(func() bool {
+				klog.Flush()
+				return strings.Contains(buffer.String(), "---------------------- Delete all unnecessary mapping in NNT")
+			}, timeout, interval).Should(BeTrue())
+
+			By("Try to delete namespace.")
+			Expect(k8sClient.Delete(ctx, createdNamespace)).Should(Succeed())
+
+			//Eventually(func() bool {
+			//	err := k8sClient.Delete(ctx, createdNamespace)
+			//	if err != nil &&  !errors.IsNotFound(err) {
+			//		return false
+			//	}
+			//	return true
+			//}, timeout, interval).Should(BeTrue())
+
+			By("Try to catch log.")
+			Eventually(func() bool {
+				klog.Flush()
+				return strings.Contains(buffer.String(), "---------------------- I have to delete all entries from NNT, if present")
+			}, timeout, interval).Should(BeTrue())
+
+		})
+
+
+		It("Adding 'mapping.liqo.io' label and 'offloading.liqo.io' label", func() {
+			createdNamespace:= &corev1.Namespace{}
+
+			By("Try to get namespace " + NamespaceName)
+			Eventually(func() bool {
+				err := k8sClient.Get(ctx, types.NamespacedName{Name: NamespaceName}, createdNamespace)
 				if err != nil {
 					return false
 				}
@@ -147,21 +197,120 @@ var _ = Describe("Namespace controller", func() {
 			}, timeout, interval).Should(BeTrue())
 
 
+			By("Try to patch it.")
+			patch := []byte(`{"metadata":{"labels":{"mapping.liqo.io": "random","offloading.liqo.io":""}}}`)
+			Expect(k8sClient.Patch(ctx, createdNamespace,client.RawPatch(types.StrategicMergePatchType, patch))).Should(Succeed())
+
+			By("Try to catch right log.")
+			Eventually(func() bool {
+				klog.Flush()
+				return strings.Contains(buffer.String(), "---------------------- I have to create remote namespaces on all virtual nodes, if they aren't already present")
+			}, timeout, interval).Should(BeTrue())
+
+			Expect(strings.Contains(buffer.String(), "---------------------- Delete all unnecessary mapping in NNT")).ShouldNot(BeTrue())
+
+			By("Try to delete namespace.")
+			Expect(k8sClient.Delete(ctx, createdNamespace)).Should(Succeed())
+
+			//Eventually(func() bool {
+			//	err := k8sClient.Delete(ctx, createdNamespace)
+			//	if err != nil &&  !errors.IsNotFound(err) {
+			//		return false
+			//	}
+			//	return true
+			//}, timeout, interval).Should(BeTrue())
+
+			Eventually(func() bool {
+				klog.Flush()
+				return strings.Contains(buffer.String(), "---------------------- I have to delete all entries from NNT, if present")
+			}, timeout, interval).Should(BeTrue())
+
+		})
+
+
+
+		It("Adding 'mapping.liqo.io' label and 'offloading.liqo.io/cluster-1' label", func() {
+			createdNamespace:= &corev1.Namespace{}
+
+			By("Try to get namespace " + NamespaceName)
+			Eventually(func() bool {
+				err := k8sClient.Get(ctx, types.NamespacedName{Name: NamespaceName}, createdNamespace)
+				if err != nil {
+					return false
+				}
+				return true
+			}, timeout, interval).Should(BeTrue())
+
+
+			By("Try to patch it.")
+			patch := []byte(`{"metadata":{"labels":{"mapping.liqo.io": "random","offloading.liqo.io/cluster-1":""}}}`)
+			Expect(k8sClient.Patch(ctx, createdNamespace,client.RawPatch(types.StrategicMergePatchType, patch))).Should(Succeed())
+
+			By("Try to catch right log.")
 			Eventually(func() bool {
 				klog.Flush()
 				return strings.Contains(buffer.String(), "---------------------- Watch for virtual-nodes labels")
 			}, timeout, interval).Should(BeTrue())
 
 
+			By("Try to catch right log.")
+			Eventually(func() bool {
+				klog.Flush()
+				return strings.Contains(buffer.String(), "---------------------- Create namespace for that remote cluter")
+			}, timeout, interval).Should(BeTrue())
+
+			By("Try to catch right log.")
+			Eventually(func() bool {
+				klog.Flush()
+				return strings.Contains(buffer.String(), "---------------------- Delete all unnecessary mapping in NNT")
+			}, timeout, interval).Should(BeTrue())
+
+
 			By("Try to delete namespace.")
-			k8sClient.Delete(ctx, createdNamespace)
+			Expect(k8sClient.Delete(ctx, createdNamespace)).Should(Succeed())
+
+
 			Eventually(func() bool {
 				klog.Flush()
 				return strings.Contains(buffer.String(), "---------------------- I have to delete all entries from NNT, if present")
 			}, timeout, interval).Should(BeTrue())
 
-			buffer.Reset()
+		})
 
+
+
+
+
+	})
+
+	Context("When remove some labels", func() {
+
+		ctx := context.Background()
+
+		BeforeEach(func() {
+			namespace = &corev1.Namespace{
+				TypeMeta: metav1.TypeMeta{
+					APIVersion: "v1",
+					Kind:       "Namespace",
+				},
+				ObjectMeta: metav1.ObjectMeta{
+					Name: NamespaceName,
+					Labels: map[string]string{
+						"random": "random-value",
+					},
+				},
+			}
+
+			By("Try to create new Namespace " + NamespaceName)
+			Expect(k8sClient.Create(ctx, namespace)).Should(Succeed())
+			buffer.Reset() // without this doen't work
+		})
+
+		AfterEach(func() {
+			By("Try to delete namespace " + NamespaceName)
+			// non riesco a eliminare il namespace qua, in nessun modo
+			//Expect(k8sClient.Delete(ctx, namespace)).Should(Succeed())
+			buffer.Reset() // without this doen't work
 		})
 
 	})
