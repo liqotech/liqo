@@ -132,6 +132,79 @@ func (w *Wireguard) AddPeer(pubkey, endpointIP, listeningPort string, allowedIPs
 	return nil
 }
 
+func (w *Wireguard) AddAllowedIPs(pubKey, allowedIPs string) error {
+	_, subnet, err := net.ParseCIDR(allowedIPs)
+	if err != nil {
+		return err
+	}
+	peer, err := w.getPeer(pubKey)
+	if err != nil {
+		return err
+	}
+	//check if the peer already contains the allowedIPs
+	if peer.AllowedIPs != nil {
+		for _, IPs := range peer.AllowedIPs {
+			if reflect.DeepEqual(IPs, subnet) {
+				return nil
+			}
+		}
+	}
+
+	peerCfg := []wgtypes.PeerConfig{
+		{
+			PublicKey:  peer.PublicKey,
+			UpdateOnly: true,
+			AllowedIPs: []net.IPNet{*subnet},
+		},
+	}
+	err = w.configureDevice(w.GetDeviceName(), wgtypes.Config{
+		ReplacePeers: false,
+		Peers:        peerCfg,
+	})
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (w *Wireguard) RemoveAllowedIPs(pubKey, allowedIPs string) error {
+	_, subnet, err := net.ParseCIDR(allowedIPs)
+	if err != nil {
+		return err
+	}
+	peer, err := w.getPeer(pubKey)
+	if err != nil {
+		return err
+	}
+
+	newAllowedIPs := make([]net.IPNet, 0, len(peer.AllowedIPs))
+	//if allowed ips is empty then do nothing
+	if peer.AllowedIPs == nil {
+		return nil
+	}
+	for _, IPs := range peer.AllowedIPs {
+		if reflect.DeepEqual(IPs, subnet) {
+			continue
+		}
+		newAllowedIPs = append(newAllowedIPs, IPs)
+	}
+	peerCfg := []wgtypes.PeerConfig{
+		{
+			PublicKey:  peer.PublicKey,
+			UpdateOnly: true,
+			AllowedIPs: newAllowedIPs,
+		},
+	}
+	err = w.configureDevice(w.GetDeviceName(), wgtypes.Config{
+		ReplacePeers: false,
+		Peers:        peerCfg,
+	})
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
 // it removes a peer with a given public key from the wireguard device
 func (w *Wireguard) RemovePeer(pubKey string) error {
 	key, err := wgtypes.ParseKey(pubKey)

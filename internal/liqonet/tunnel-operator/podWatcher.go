@@ -47,12 +47,6 @@ func (tc *TunnelController) podHandlerAdd(obj interface{}) {
 	if !pod.IsPodReady(p) {
 		return
 	}
-	//check if the node.PodCIDR has been set
-	nodePodCIDR, ok := p.GetAnnotations()[overlay.NodeCIDRKeyAnnotation]
-	if !ok {
-		klog.Infof("PodCIDR for node %s not present as an annotation on pod %s", nodeName, podName)
-		return
-	}
 	//check if the the public key has been set
 	pubKey, ok := p.GetAnnotations()[overlay.PubKeyAnnotation]
 	if !ok {
@@ -65,17 +59,14 @@ func (tc *TunnelController) podHandlerAdd(obj interface{}) {
 	}
 	overlayIP := strings.Join([]string{overlay.GetOverlayIP(p.Status.PodIP), "32"}, "/")
 	podIP := strings.Join([]string{p.Status.PodIP, "32"}, "/")
-	if nodePodCIDR != "" {
-		allowedIPs = append([]string{}, overlayIP, podIP, nodePodCIDR)
-	} else {
-		klog.Infof("the node podCIDR for node %s is not set, make sure that all the pod traffic leaving that node is source natted to the node's IP", p.Spec.NodeName)
-		allowedIPs = append([]string{}, overlayIP, podIP)
-	}
+
+	allowedIPs = append([]string{}, overlayIP, podIP)
 	err := tc.wg.AddPeer(pubKey, p.Status.PodIP, overlay.WgListeningPort, allowedIPs, &keepalive)
 	if err != nil {
 		klog.Errorf("an error occurred while adding node %s to the overlay network: %v", nodeName, err)
 		return
 	}
+	tc.overlayPeers[p.Spec.NodeName] = pubKey
 	klog.Infof("node %s at %s:%s with public key '%s' added to wireguard interface", nodeName, podIP, overlay.WgListeningPort, pubKey)
 }
 
