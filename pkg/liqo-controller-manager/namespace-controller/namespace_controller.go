@@ -29,6 +29,12 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 )
 
+// TODO: put constant value instead of labels
+// TODO: watch also the case of Namespace Creation, now is not managed
+
+
+
+
 type NamespaceReconciler struct {
 	client.Client
 	Scheme *runtime.Scheme
