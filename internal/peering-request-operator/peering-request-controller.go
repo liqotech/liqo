@@ -24,6 +24,7 @@ import (
 	"github.com/liqotech/liqo/pkg/crdClient"
 	object_references "github.com/liqotech/liqo/pkg/object-references"
 	appsv1 "k8s.io/api/apps/v1"
+	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/rest"
@@ -96,7 +97,7 @@ func (r *PeeringRequestReconciler) Reconcile(req ctrl.Request) (ctrl.Result, err
 		klog.Info("Deploy Broadcaster")
 		deploy := GetBroadcasterDeployment(pr, r.broadcasterServiceAccount, r.vkServiceAccount, r.Namespace, r.broadcasterImage, r.clusterId.GetClusterID())
 		deploy, err = r.crdClient.Client().AppsV1().Deployments(r.Namespace).Create(context.TODO(), deploy, metav1.CreateOptions{})
-		if err != nil {
+		if err != nil && !k8serrors.IsAlreadyExists(err) {
 			klog.Error(err, err.Error())
 			return ctrl.Result{RequeueAfter: r.retryTimeout}, err
 		}
