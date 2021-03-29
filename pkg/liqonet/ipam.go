@@ -89,7 +89,11 @@ func (liqoIPAM *IPAM) AcquireReservedSubnet(reservedNetwork string) error {
 	if err != nil {
 		return err
 	}
-	if ok {
+	if ok && reservedNetwork == pool {
+		klog.Errorf("Network %s is equal to a pool", reservedNetwork)
+		return fmt.Errorf("network %s is equal to a pool so it cannot be reserved", reservedNetwork)
+	}
+	if ok && reservedNetwork != pool {
 		klog.Infof("Network %s is contained in pool %s", reservedNetwork, pool)
 		if _, err := liqoIPAM.ipam.AcquireSpecificChildPrefix(pool, reservedNetwork); err != nil {
 			klog.Infof("Network %s has already been reserved", reservedNetwork)
@@ -150,8 +154,9 @@ func (liqoIPAM *IPAM) GetSubnetPerCluster(network, clusterID string) (string, er
 	_, err := liqoIPAM.ipam.NewPrefix(network)
 	if err != nil && !strings.Contains(err.Error(), "overlaps") {
 		/* Overlapping is not considered an error in this context. */
-		return "", fmt.Errorf("Cannot reserve network %s:%w", network, err)
+		return "", fmt.Errorf("cannot reserve network %s:%w", network, err)
 	}
+
 	if err == nil {
 		klog.Infof("Network %s successfully assigned for cluster %s", network, clusterID)
 		liqoIPAM.SubnetPerCluster[clusterID] = network
@@ -163,7 +168,18 @@ func (liqoIPAM *IPAM) GetSubnetPerCluster(network, clusterID string) (string, er
 	if err != nil {
 		return "", err
 	}
-	if ok {
+	if ok && network == pool {
+		klog.Infof("Network %s is equal to a pool, looking for a mapping..", network)
+		mappedNetwork, ok = liqoIPAM.mapNetwork(network)
+		if !ok {
+			return "", fmt.Errorf("Cannot assign any network to cluster %s", clusterID)
+		}
+		klog.Infof("Network %s successfully mapped to network %s", mappedNetwork, network)
+		klog.Infof("Network %s successfully assigned to cluster %s", mappedNetwork, clusterID)
+		liqoIPAM.SubnetPerCluster[clusterID] = mappedNetwork
+		return mappedNetwork, nil
+	}
+	if ok && network != pool {
 		klog.Infof("Network %s belongs to pool %s, trying to acquire it...", network, pool)
 		_, err := liqoIPAM.ipam.AcquireSpecificChildPrefix(pool, network)
 		if err != nil && !strings.Contains(err.Error(), "is not available") {
@@ -193,7 +209,7 @@ func (liqoIPAM *IPAM) GetSubnetPerCluster(network, clusterID string) (string, er
 // mapNetwork allocates a suitable (same mask length) network used to map the network received as first parameter which probably cannot be used due to some collision with existing networks
 func (liqoIPAM *IPAM) mapNetwork(network string) (string, bool) {
 	for _, pool := range liqoIPAM.pools {
-		klog.Infof("Trying to acquire a child prefix from prefix %s (mask lenght=%d)", pool, getMask(network))
+		klog.Infof("Trying to acquire a child prefix from prefix %s (mask length=%d)", pool, getMask(network))
 		if mappedNetwork, err := liqoIPAM.ipam.AcquireChildPrefix(pool, getMask(network)); err == nil {
 			klog.Infof("Network %s has been mapped to network %s", network, mappedNetwork)
 			return mappedNetwork.String(), true
