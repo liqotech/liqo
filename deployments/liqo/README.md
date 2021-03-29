@@ -10,6 +10,7 @@
 | advertisement.pod.labels | object | `{}` | advertisement pod labels |
 | apiServer.address | string | `""` | The address that must be used to contact your API server, it needs to be reachable from the clusters that you will peer with (defaults to your master IP) |
 | apiServer.port | string | `"6443"` | The port that must be used to contact your API server |
+| apiServer.trustedCA | bool | `false` | Indicates that the API Server is exposing a certificate issued by a trusted Certification Authority |
 | auth.config.allowEmptyToken | bool | `false` | Set to true to disable the authentication of discovered clusters. NB: use it only for testing installations |
 | auth.imageName | string | `"liqo/auth-service"` | auth image repository |
 | auth.ingress.annotations | object | `{}` | Auth ingress annotations |

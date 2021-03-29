@@ -26,11 +26,11 @@ import (
 	advtypes "github.com/liqotech/liqo/apis/sharing/v1alpha1"
 	"github.com/liqotech/liqo/internal/crdReplicator"
 	"github.com/liqotech/liqo/internal/discovery"
-	"github.com/liqotech/liqo/internal/discovery/kubeconfig"
 	"github.com/liqotech/liqo/internal/discovery/utils"
 	"github.com/liqotech/liqo/pkg/clusterID"
 	"github.com/liqotech/liqo/pkg/crdClient"
 	discoveryPkg "github.com/liqotech/liqo/pkg/discovery"
+	"github.com/liqotech/liqo/pkg/kubeconfig"
 	apiv1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -41,7 +41,6 @@ import (
 	"k8s.io/client-go/util/retry"
 	"k8s.io/klog"
 	"k8s.io/kubernetes/pkg/util/slice"
-	"os"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"strings"
 	"time"
@@ -475,7 +474,7 @@ func (r *ForeignClusterReconciler) checkJoined(fc *discoveryv1alpha1.ForeignClus
 // get the external address where the Authentication Service is reachable from the external world
 func (r *ForeignClusterReconciler) getAddress() (string, error) {
 	// this address can be overwritten setting this environment variable
-	address, _ := os.LookupEnv("AUTH_ADDR")
+	address := r.ConfigProvider.GetConfig().AuthServiceAddress
 	if address != "" {
 		return address, nil
 	}
@@ -538,7 +537,7 @@ func (r *ForeignClusterReconciler) getAddress() (string, error) {
 // get the external port where the Authentication Service is reachable from the external world
 func (r *ForeignClusterReconciler) getPort() (string, error) {
 	// this port can be overwritten setting this environment variable
-	port, _ := os.LookupEnv("AUTH_SVC_PORT")
+	port := r.ConfigProvider.GetConfig().AuthServicePort
 	if port != "" {
 		return port, nil
 	}
@@ -761,7 +760,7 @@ func (r *ForeignClusterReconciler) getForeignConfig(clusterID string, owner *dis
 			}
 		}
 	}
-	cnf, err := kubeconfig.CreateKubeConfig(r.crdClient.Client(), clusterID, r.Namespace)
+	cnf, err := kubeconfig.CreateKubeConfig(r.ConfigProvider, r.crdClient.Client(), clusterID, r.Namespace)
 	return cnf, err
 }
 

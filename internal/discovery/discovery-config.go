@@ -14,10 +14,19 @@ import (
 
 type ConfigProvider interface {
 	GetConfig() *configv1alpha1.DiscoveryConfig
+	GetApiServerConfig() *configv1alpha1.ApiServerConfig
 }
 
 func (discovery *DiscoveryCtrl) GetConfig() *configv1alpha1.DiscoveryConfig {
+	discovery.configMutex.RLock()
+	defer discovery.configMutex.RUnlock()
 	return discovery.Config
+}
+
+func (discovery *DiscoveryCtrl) GetApiServerConfig() *configv1alpha1.ApiServerConfig {
+	discovery.configMutex.RLock()
+	defer discovery.configMutex.RUnlock()
+	return discovery.apiServerConfig
 }
 
 func (discovery *DiscoveryCtrl) GetDiscoveryConfig(crdClient *crdClient.CRDClient, kubeconfigPath string) error {
@@ -26,6 +35,7 @@ func (discovery *DiscoveryCtrl) GetDiscoveryConfig(crdClient *crdClient.CRDClien
 	go clusterConfig.WatchConfiguration(func(configuration *configv1alpha1.ClusterConfig) {
 		discovery.handleConfiguration(configuration.Spec.DiscoveryConfig)
 		discovery.handleDispatcherConfig(configuration.Spec.DispatcherConfig)
+		discovery.handleApiServerConfig(configuration.Spec.ApiServerConfig)
 		if isFirst {
 			waitFirst <- true
 			isFirst = false
@@ -37,7 +47,23 @@ func (discovery *DiscoveryCtrl) GetDiscoveryConfig(crdClient *crdClient.CRDClien
 	return nil
 }
 
+func (discovery *DiscoveryCtrl) handleApiServerConfig(config configv1alpha1.ApiServerConfig) {
+	discovery.configMutex.Lock()
+	defer discovery.configMutex.Unlock()
+
+	if reflect.DeepEqual(&config, discovery.apiServerConfig) {
+		klog.V(6).Info("New and old apiServer configs are deep equals")
+		klog.V(8).Infof("Old config: %v\nNew config: %v", discovery.apiServerConfig, config)
+		return
+	}
+
+	discovery.apiServerConfig = config.DeepCopy()
+}
+
 func (discovery *DiscoveryCtrl) handleDispatcherConfig(config configv1alpha1.DispatcherConfig) {
+	discovery.configMutex.Lock()
+	defer discovery.configMutex.Unlock()
+
 	if reflect.DeepEqual(&config, discovery.crdReplicatorConfig) {
 		klog.V(6).Info("New and old crdReplicator configs are deep equals")
 		klog.V(8).Infof("Old config: %v\nNew config: %v", discovery.crdReplicatorConfig, config)
@@ -86,6 +112,9 @@ func (discovery *DiscoveryCtrl) handleDispatcherConfig(config configv1alpha1.Dis
 }
 
 func (discovery *DiscoveryCtrl) handleConfiguration(config configv1alpha1.DiscoveryConfig) {
+	discovery.configMutex.Lock()
+	defer discovery.configMutex.Unlock()
+
 	reloadServer := false
 	reloadClient := false
 	if discovery.Config == nil {

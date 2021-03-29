@@ -66,6 +66,12 @@ func GetBroadcasterDeployment(request *discoveryv1alpha1.PeeringRequest, nameSA 
 			Value: val,
 		})
 	}
+	if val, exists := os.LookupEnv("APISERVER_TRUSTED"); exists {
+		env = append(env, v1.EnvVar{
+			Name:  "APISERVER_TRUSTED",
+			Value: val,
+		})
+	}
 
 	deploy := &appsv1.Deployment{
 		ObjectMeta: metav1.ObjectMeta{

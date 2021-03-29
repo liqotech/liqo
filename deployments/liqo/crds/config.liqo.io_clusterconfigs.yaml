@@ -162,6 +162,15 @@ spec:
                 required:
                 - dashboardConfig
                 type: object
+              apiServerConfig:
+                properties:
+                  address:
+                    type: string
+                  port:
+                    type: string
+                  trustedCA:
+                    type: boolean
+                type: object
               authConfig:
                 properties:
                   allowEmptyToken:
@@ -174,6 +183,10 @@ spec:
                 properties:
                   authService:
                     default: _liqo_auth._tcp
+                    type: string
+                  authServiceAddress:
+                    type: string
+                  authServicePort:
                     type: string
                   autojoin:
                     type: boolean

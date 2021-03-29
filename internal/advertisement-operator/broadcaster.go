@@ -3,15 +3,16 @@ package advertisementOperator
 import (
 	"context"
 	"errors"
-	"github.com/liqotech/liqo/internal/discovery/kubeconfig"
 	advpkg "github.com/liqotech/liqo/pkg/advertisement-operator"
 	"github.com/liqotech/liqo/pkg/crdClient"
+	"github.com/liqotech/liqo/pkg/kubeconfig"
 	"github.com/liqotech/liqo/pkg/labelPolicy"
 	pkg "github.com/liqotech/liqo/pkg/virtualKubelet"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/forge"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/klog"
+	"os"
 	"strings"
 	"sync"
 	"time"
@@ -48,6 +49,16 @@ type AdvResources struct {
 	Limits        corev1.ResourceList
 	Images        []corev1.ContainerImage
 	Labels        map[string]string
+}
+
+type apiConfigProviderEnv struct{}
+
+func (p *apiConfigProviderEnv) GetApiServerConfig() *configv1alpha1.ApiServerConfig {
+	return &configv1alpha1.ApiServerConfig{
+		Address:   os.Getenv("APISERVER"),
+		Port:      os.Getenv("APISERVER_PORT"),
+		TrustedCA: os.Getenv("APISERVER_TRUSTED") == "true",
+	}
 }
 
 // start the broadcaster which sends Advertisement messages
@@ -132,7 +143,7 @@ func StartBroadcaster(homeClusterId, localKubeconfigPath, peeringRequestName, sa
 	kubeconfigSecretName := pkg.VirtualKubeletSecPrefix + homeClusterId
 
 	// create the kubeconfig to allow the foreign cluster to create resources on local cluster
-	kubeconfigForForeignCluster, err := kubeconfig.CreateKubeConfig(localClient.Client(), saName, pr.Spec.Namespace)
+	kubeconfigForForeignCluster, err := kubeconfig.CreateKubeConfig(&apiConfigProviderEnv{}, localClient.Client(), saName, pr.Spec.Namespace)
 	if err != nil {
 		klog.Errorln(err, "Unable to create Kubeconfig")
 		return err

@@ -48,6 +48,7 @@ type AuthServiceCtrl struct {
 	clusterId            clusterID.ClusterID
 
 	config          *v1alpha1.AuthConfig
+	apiServerConfig *v1alpha1.ApiServerConfig
 	discoveryConfig v1alpha1.DiscoveryConfig
 	configMutex     sync.RWMutex
 }

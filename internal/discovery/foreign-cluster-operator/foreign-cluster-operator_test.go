@@ -21,7 +21,17 @@ type configMock struct {
 }
 
 func (c *configMock) GetConfig() *v1alpha1.DiscoveryConfig {
+	c.config.AuthServiceAddress = "127.0.0.1"
+	c.config.AuthServicePort = "8443"
 	return &c.config
+}
+
+func (c *configMock) GetApiServerConfig() *v1alpha1.ApiServerConfig {
+	return &v1alpha1.ApiServerConfig{
+		Address:   os.Getenv("APISERVER"),
+		Port:      os.Getenv("APISERVER_PORT"),
+		TrustedCA: false,
+	}
 }
 
 func TestForeignClusterOperator(t *testing.T) {
@@ -73,9 +83,6 @@ var _ = Describe("ForeignClusterOperator", func() {
 			RequeueAfter:        300,
 			ConfigProvider:      &config,
 		}
-
-		_ = os.Setenv("AUTH_ADDR", "127.0.0.1")
-		_ = os.Setenv("AUTH_SVC_PORT", "8443")
 	})
 
 	AfterEach(func() {

@@ -8,6 +8,8 @@ metadata:
   labels:
     {{- include "liqo.labels" $config  | nindent 4 }}
 spec:
+  apiServerConfig:
+    {{- .Values.apiServer | toYaml | nindent 4 }}
   advertisementConfig:
     ingoingConfig:
       acceptPolicy: AutoAcceptMax
@@ -22,6 +24,14 @@ spec:
     name: MyLiqo
     port: 6443
     service: _liqo_api._tcp
+    {{- if .Values.auth.ingress.host}}
+    authServiceAddress: "{{ .Values.auth.ingress.host }}"
+    {{- end }}
+    {{- if .Values.auth.portOverride }}
+    authServicePort: "{{ .Values.auth.portOverride }}"
+    {{- else if .Values.auth.ingress.enable }}
+    authServicePort: "443"
+    {{- end }}
   authConfig:
     {{- .Values.auth.config | toYaml | nindent 4 }}
   liqonetConfig:

@@ -11,6 +11,10 @@ import (
 	"time"
 )
 
+type ApiServerConfigProvider interface {
+	GetApiServerConfig() *configv1alpha1.ApiServerConfig
+}
+
 func WatchConfiguration(handler func(*configv1alpha1.ClusterConfig), client *crdClient.CRDClient, kubeconfigPath string) {
 	var rsyncPeriod = 5 * time.Minute
 	if client == nil {
