@@ -11,6 +11,8 @@ apiServer:
   address: ""
   # -- The port that must be used to contact your API server
   port: "6443"
+  # -- Indicates that the API Server is exposing a certificate issued by a trusted Certification Authority
+  trustedCA: false
 
 advertisement:
   pod:

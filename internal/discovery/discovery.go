@@ -16,8 +16,10 @@ import (
 type DiscoveryCtrl struct {
 	Namespace string
 
+	configMutex         sync.RWMutex
 	Config              *configv1alpha1.DiscoveryConfig
 	crdReplicatorConfig *configv1alpha1.DispatcherConfig
+	apiServerConfig     *configv1alpha1.ApiServerConfig
 	stopMDNS            chan bool
 	stopMDNSClient      chan bool
 	crdClient           *crdClient.CRDClient

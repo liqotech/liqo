@@ -25,6 +25,7 @@ import (
 
 // ClusterConfigSpec defines the desired state of ClusterConfig
 type ClusterConfigSpec struct {
+	ApiServerConfig ApiServerConfig `json:"apiServerConfig,omitempty"`
 	//AdvertisementConfig defines the configuration for the advertisement protocol
 	AdvertisementConfig AdvertisementConfig `json:"advertisementConfig"`
 	DiscoveryConfig     DiscoveryConfig     `json:"discoveryConfig"`
@@ -106,6 +107,12 @@ type LabelPolicy struct {
 	Policy labelPolicy.LabelPolicyType `json:"policy,omitempty"`
 }
 
+type ApiServerConfig struct {
+	Address   string `json:"address,omitempty"`
+	Port      string `json:"port,omitempty"`
+	TrustedCA bool   `json:"trustedCA,omitempty"`
+}
+
 type DiscoveryConfig struct {
 	// ClusterName is a nickname for your cluster that can be easily understood by a user
 	ClusterName string `json:"clusterName,omitempty"`
@@ -128,6 +135,9 @@ type DiscoveryConfig struct {
 
 	AutoJoin          bool `json:"autojoin"`
 	AutoJoinUntrusted bool `json:"autojoinUntrusted"`
+
+	AuthServiceAddress string `json:"authServiceAddress,omitempty"`
+	AuthServicePort    string `json:"authServicePort,omitempty"`
 }
 
 type AuthConfig struct {

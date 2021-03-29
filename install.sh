@@ -535,10 +535,10 @@ function install_liqo() {
 		--set auth.ingress.enable="${LIQO_ENABLE_INGRESS:-}" \
 		--set auth.ingress.host="${LIQO_AUTHSERVER_ADDR:-}" \
 		--set auth.ingress.class="${LIQO_INGRESS_CLASS:-}" \
-		--set apiServer.ip="${LIQO_APISERVER_ADDR:-}" \
+		--set apiServer.address="${LIQO_APISERVER_ADDR:-}" \
 		--set apiServer.port="${LIQO_APISERVER_PORT:-}" \
-		--set authServer.ip="${LIQO_AUTHSERVER_ADDR:-}" \
-		--set authServer.port="${LIQO_AUTHSERVER_PORT:-}" >/dev/null ||
+		--set auth.ingress.host="${LIQO_AUTHSERVER_ADDR:-}" \
+		--set auth.portOverride="${LIQO_AUTHSERVER_PORT:-}" >/dev/null ||
 			fatal "[INSTALL]" "Something went wrong while installing Liqo"
 
 	info "[INSTALL]" "Hooray! Liqo is now installed on your cluster"
