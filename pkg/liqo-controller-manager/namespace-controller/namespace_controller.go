@@ -14,13 +14,12 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package namespaceController
+package controllers
 
 import (
 	"context"
-	"k8s.io/apimachinery/pkg/api/errors"
-
 	"k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/klog"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -30,15 +29,18 @@ import (
 )
 
 // TODO: put constant value instead of labels
-// TODO: watch also the case of Namespace Creation, now is not managed
-
-
-
+// TODO: watch also the case of Namespace Creation, now is not managed, important !!!
 
 type NamespaceReconciler struct {
 	client.Client
 	Scheme *runtime.Scheme
 }
+
+const (
+	mappingLabel          = "mapping.liqo.io"
+	offloadingLabel       = "offloading.liqo.io"
+	offloadingPrefixLabel = "offloading.liqo.io/"
+)
 
 // TO EVALUATE: when is necessary to update namespace natting table (NNT), if the name exposed in mapping.liqo.io label,
 // is different from the already present, client will change the label value to the old one. For users is not possible
@@ -47,7 +49,7 @@ type NamespaceReconciler struct {
 func (r *NamespaceReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 	ctx := context.Background()
 
-
+	// TODO: add namespace Finalizer
 	var namespace v1.Namespace
 	if err := r.Get(ctx, req.NamespacedName, &namespace); err != nil {
 		if errors.IsNotFound(err) {
@@ -61,16 +63,16 @@ func (r *NamespaceReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 
 	labels := namespace.Labels
 
-	// TODO 1: var "erase" will become a map/vector with some references to all virtual nodes on which, remote namespace
-	//         mustn't be present
+	// TODO : var "erase" will become a map/vector with some references to all virtual nodes on which, remote namespace
+	//        mustn't be present
 	erase := true
 
 	// 1. If mapping.liqo.io label is not present there are no remote namespaces associated with this one, erase is full
-	if _, ok := labels["mapping.liqo.io"]; ok {
+	if _, ok := labels[mappingLabel]; ok {
 
 		// 2.a If offloading.liqo.io is present there are remote namespaces on all virual nodes
-		if _, ok := labels["offloading.liqo.io"]; ok {
-			erase = false // TODO 1: erase must be empty, i will have remote namespaces on all virtual nodes
+		if _, ok := labels[offloadingLabel]; ok {
+			erase = false // TODO : erase must be empty, i will have remote namespaces on all virtual nodes
 			klog.Infof("---------------------- I have to create remote namespaces on all virtual nodes, if they aren't already present")
 		} else {
 
@@ -82,6 +84,7 @@ func (r *NamespaceReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 
 			nodes := &v1.NodeList{}
 			if err := r.List(context.Background(), nodes, client.MatchingLabels{"type": "virtual-node"}); err != nil {
+				//if err := r.List(context.Background(), nodes); err != nil {
 				klog.Error(err, "Unable to list virtual nodes")
 				return ctrl.Result{}, err
 			}
@@ -90,11 +93,11 @@ func (r *NamespaceReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 				i := 0
 				found := false
 				dim := len(node.Labels)
-				for key, _ := range node.Labels {
+				for key := range node.Labels {
 					i++
 					// I have to check only the offloading.liqo.io/ labels
 					// virtual nodes will always have these offloading.liqo.io/ labels
-					if len(key) > 18 && key[0:19] == "offloading.liqo.io/" {
+					if len(key) > 18 && key[0:19] == offloadingPrefixLabel {
 						if _, ok := labels[key]; !ok {
 							break
 						} else {
@@ -104,7 +107,7 @@ func (r *NamespaceReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 
 					if i == dim && found {
 						klog.Infof("---------------------- Create namespace for that remote cluter")
-						// TODO 1: remove from "erase" this virtual node
+						// TODO : remove from "erase" this virtual node
 					}
 
 				}
@@ -117,37 +120,46 @@ func (r *NamespaceReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 		klog.Infof("---------------------- Delete all unnecessary mapping in NNT")
 	}
 
+	klog.Flush()
 	return ctrl.Result{}, nil
 }
 
 // This function is useful only if we decide to accept the renaming of namespaces in "mapping.liqo.io" label.
 // If we don't want to change the name of namespaces, in function reconcile when we check that the name in the NNT is
 // different from the new name, with client we change the value of the new inserted label
-func updateMappingLabel(old map[string]string, new map[string]string) bool {
+func mappingLabelUpdate(old map[string]string, new map[string]string) bool {
 	ret := false
-	if val1, ok := old["mapping.liqo.io"]; ok {
-		ret = val1 != new["mapping.liqo.io"]
+	if val1, ok := old[mappingLabel]; ok {
+		ret = val1 != new[mappingLabel]
 	}
 	return ret
 }
 
+// only a simple check in order to avoid useless overhead
+func mappingLabelPresence(labels map[string]string) bool {
+	_, ok := labels[mappingLabel]
+	return ok
+}
+
 // Events not filtered:
-// 1 -- add/delete labels
-// 2 -- update the value of mapping.liqo.io label only
-// 3 -- delete namespaces
-// 4 -- (?) io posso già creare un namespace con le label giuste, anche questo caso va monitorato, un po' strano ma può succedere
+// 1 -- add/delete labels, and mappingLabel is present before or after the update
+// 2 -- update the value of mappingLabel label only
+// 3 -- add namespace with at least mappingLabel
 func manageLabelPredicate() predicate.Predicate {
 	return predicate.Funcs{
 		UpdateFunc: func(e event.UpdateEvent) bool {
 			oldLabels := e.MetaOld.GetLabels()
 			newLabels := e.MetaNew.GetLabels()
-			return (len(oldLabels) != len(newLabels)) || updateMappingLabel(oldLabels, newLabels)
+			return ((len(oldLabels) != len(newLabels)) && (mappingLabelPresence(oldLabels) || mappingLabelPresence(newLabels))) || mappingLabelUpdate(oldLabels, newLabels)
+		},
+		DeleteFunc: func(e event.DeleteEvent) bool {
+			return false // i want to use only finalizer
 		},
 		CreateFunc: func(e event.CreateEvent) bool {
-			return false
+			return mappingLabelPresence(e.Meta.GetLabels())
 		},
-		GenericFunc: func(event.GenericEvent) bool {
-			return false
+		GenericFunc: func(e event.GenericEvent) bool {
+			return false // to evaluate, now we don't consider this
 		},
 	}
 }
