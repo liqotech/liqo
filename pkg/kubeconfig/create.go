@@ -3,7 +3,9 @@ package kubeconfig
 import (
 	"context"
 	"errors"
+
 	"github.com/liqotech/liqo/pkg/clusterConfig"
+	"github.com/liqotech/liqo/pkg/discovery"
 	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -26,14 +28,19 @@ func CreateKubeConfigFromServiceAccount(apiServerConfigProvider clusterConfig.Ap
 			LabelSelector: "node-role.kubernetes.io/master",
 		})
 		if err != nil {
+			klog.Error(err)
 			return "", err
 		}
-		if len(nodes.Items) == 0 || len(nodes.Items[0].Status.Addresses) == 0 {
+		if len(nodes.Items) == 0 {
 			err = errors.New("no APISERVER env variable found and no master node found, one of the two values must be present")
-			klog.Error(err, err.Error())
+			klog.Error(err)
 			return "", err
 		}
-		address = nodes.Items[0].Status.Addresses[0].Address
+		address, err = discovery.GetAddressFromNodeList(nodes.Items)
+		if err != nil {
+			klog.Error(err)
+			return "", err
+		}
 	}
 
 	port := apiServerConfigProvider.GetApiServerConfig().Port
@@ -54,6 +61,7 @@ func CreateKubeConfigFromServiceAccount(apiServerConfigProvider clusterConfig.Ap
 	cnf := kubeconfigutil.CreateWithToken(server, "service-cluster", serviceAccount.Name, caCrt, token)
 	r, err := runtime.Encode(clientcmdlatest.Codec, cnf)
 	if err != nil {
+		klog.Error(err)
 		return "", err
 	}
 	return string(r), nil

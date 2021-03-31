@@ -494,8 +494,18 @@ func (r *ForeignClusterReconciler) getAddress() (string, error) {
 			klog.Error(err)
 			return "", err
 		}
+		lbIngress := svc.Status.LoadBalancer.Ingress[0]
 		// return the external service IP
-		return svc.Status.LoadBalancer.Ingress[0].IP, nil
+		if hostname := lbIngress.Hostname; hostname != "" {
+			return hostname, nil
+		} else if ip := lbIngress.IP; ip != "" {
+			return ip, nil
+		} else {
+			// the service has no external IPs
+			err := goerrors.New("no valid external IP for LoadBalancer Service")
+			klog.Error(err)
+			return "", err
+		}
 	}
 
 	// get the IP from the Nodes, to be used with NodePort services
@@ -515,23 +525,12 @@ func (r *ForeignClusterReconciler) getAddress() (string, error) {
 	}
 
 	node := nodes.Items[0]
-	for _, addr := range node.Status.Addresses {
-		// get the accresses that are IPs, other addresses (like the hostname) can not be reachable and valid for a remote host
-		if addr.Type == apiv1.NodeExternalIP || addr.Type == apiv1.NodeInternalIP {
-			return addr.Address, nil
-		}
-	}
+	return discoveryPkg.GetAddress(&node)
 
-	// we was not able to get an address in any of the previous cases:
+	// when an error occurs, it means that we was not able to get an address in any of the previous cases:
 	// 1. no overwrite variable is set
 	// 2. the service is not of type LoadBalancer
 	// 3. there are no nodes in the cluster to get the IP for a NodePort service
-	err = errors.NewNotFound(schema.GroupResource{
-		Group:    apiv1.GroupName,
-		Resource: "nodes",
-	}, "no valid ip")
-	klog.Error(err)
-	return "", err
 }
 
 // get the external port where the Authentication Service is reachable from the external world
