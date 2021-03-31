@@ -205,6 +205,17 @@ jobs:
           body_path: ./CHANGELOG.md
         env:
           GITHUB_TOKEN: ${{ secrets.CI_TOKEN }}
+      
+      - name: Trigger Chart Upload
+        uses: peter-evans/repository-dispatch@v1
+        with:
+          token: ${{ secrets.CI_TOKEN }}
+          repository: liqotech/liqops
+          event-type: "release"
+          client-payload: |
+             {
+               "version": "${{ needs.configure.outputs.commit_ref }}",
+             }
 
   test:
     name: Launch Test
