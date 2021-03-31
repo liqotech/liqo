@@ -209,7 +209,6 @@ setup() {
 	setup_liqo_version
 	assert_equal "${LIQO_VERSION}" "f2de258b07d8b507b461f55f87e17f1bb619f926"
 	assert_equal "${LIQO_IMAGE_VERSION}" "f2de258b07d8b507b461f55f87e17f1bb619f926"
-	assert_equal "${LIQO_SUFFIX}" "-ci"
 }
 
 @test "setup_liqo_version correctly configures the environment if master is specified" {
@@ -230,7 +229,6 @@ setup() {
 	setup_liqo_version
 	assert_equal "${LIQO_VERSION}" "master"
 	assert_equal "${LIQO_IMAGE_VERSION}" "f2de258b07d8b507b461f55f87e17f1bb619f926"
-	assert_equal "${LIQO_SUFFIX}" "-ci"
 }
 
 @test "setup_liqo_version correctly configures the environment if a version is specified" {
@@ -242,7 +240,6 @@ setup() {
 	setup_liqo_version
 	assert_equal "${LIQO_VERSION}" "v0.1.0-alpha"
 	assert_equal "${LIQO_IMAGE_VERSION}" "v0.1.0-alpha"
-	assert [ -z "${LIQO_SUFFIX:-}" ]
 }
 
 @test "setup_liqo_version correctly detects whether a version is available or not" {
@@ -275,7 +272,6 @@ setup() {
 	setup_liqo_version
 	assert_equal "${LIQO_VERSION}" "v1.0.0"
 	assert_equal "${LIQO_IMAGE_VERSION}" "v1.0.0"
-	assert [ -z "${LIQO_SUFFIX:-}" ]
 
 	function get_repo_tags() { echo ""; }
 	function get_repo_master_commit() { 
@@ -288,7 +284,6 @@ setup() {
 	setup_liqo_version
 	assert_equal "${LIQO_VERSION}" "master"
 	assert_equal "${LIQO_IMAGE_VERSION}" "f2de258b07d8b507b461f55f87e17f1bb619f926"
-	assert_equal "${LIQO_SUFFIX}" "-ci"
 }
 
 @test "setup_kubectl correctly detects whether kubectl is available or not" {

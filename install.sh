@@ -60,6 +60,10 @@ set -o pipefail  # Fail if one of the piped commands fails
 #     when this variable is 'true', it triggers the LiqoAgent (un)installer according to main options of this script.
 #     LiqoAgent is a desktop application (currently just for linux-based desktop environments) providing an easy way
 #     to manage Liqo through a simple graphical user interface. Learn more at https://github.com/liqotech/liqo-agent.
+#   - LIQO_DASHBOARD
+#     when this variable is 'true', it triggers the LiqoDashboard (un)installer according to main options of this script.
+#     LiqoDash is a desktop application (currently just for linux-based desktop environments) providing an easy way
+#     to manage Liqo through a simple graphical user interface. Learn more at https://github.com/liqotech/liqo-dashboard.
 
 EXIT_SUCCESS=0
 EXIT_FAILURE=1
@@ -162,6 +166,8 @@ function help() {
 	                                     (if --uninstall or --purge option is specified, it will be uninstalled).
 	                                     LiqoAgent is a desktop application (currently just for linux-based desktop environments) providing an easy way
 	                                     to manage Liqo through a simple graphical user interface. Learn more at https://github.com/liqotech/liqo-agent.
+	  ${BOLD}LIQO_DASHBOARD{RESET}:      set this variable to 'true' to trigger also the (un)installer of LiqoDashboard latest version on your cluster
+	                                     (if --uninstall or --purge option is specified, it will be uninstalled).
 	EOF
 }
 
@@ -303,38 +309,40 @@ function get_repo_master_commit() {
 function setup_liqo_version() {
 	# Check if LIQO_REPO has been set
 	LIQO_REPO=${LIQO_REPO:-${LIQO_REPO_DEFAULT}}
+	# Obtain the list of Liqo tags
+	local LIQO_TAGS
+	LIQO_TAGS=$(get_repo_tags "${LIQO_REPO}")
+
 
 	# A specific commit has been requested: assuming development version and returning
 	if [[ "${LIQO_VERSION:-}" =~ ^[0-9a-f]{40}$ ]]; then
 		warn "[PRE-FLIGHT] [DOWNLOAD]" "A Liqo commit has been specified: using the development version"
 		LIQO_IMAGE_VERSION=${LIQO_VERSION}
-		LIQO_SUFFIX="-ci"
+		LIQO_CHART_VERSION=$(printf "%s" "${LIQO_TAGS}" | head --lines=1)+git
 		return 0
 	fi
 
-	# Obtain the list of Liqo tags
-	local LIQO_TAGS
-	LIQO_TAGS=$(get_repo_tags "${LIQO_REPO}")
-
 	# If no version has been specified, select the latest tag (if available)
 	LIQO_VERSION=${LIQO_VERSION:-$(printf "%s" "${LIQO_TAGS}" | head --lines=1)}
+
 
 	if [ "${LIQO_VERSION:=master}" != "master" ]; then
 		# A specific version has been requested: check if the version exists
 		printf "%s" "${LIQO_TAGS}" | grep -P --silent "^${LIQO_VERSION}$" ||
 			fatal "[PRE-FLIGHT] [DOWNLOAD]" "The requested Liqo version '${LIQO_VERSION}' does not exist"
 		LIQO_IMAGE_VERSION=${LIQO_VERSION}
-
+		LIQO_CHART_VERSION=${LIQO_VERSION}
 	else
 		# Using the version from master
 		warn "[PRE-FLIGHT] [DOWNLOAD]" "An unreleased version of Liqo is going to be downloaded"
 		LIQO_IMAGE_VERSION=$(get_repo_master_commit "${LIQO_REPO}") ||
 			fatal "[PRE-FLIGHT] [DOWNLOAD]" "Failed to retrieve the latest commit of the master branch"
-		LIQO_SUFFIX="-ci"
+		LIQO_CHART_VERSION=$(printf "%s" "${LIQO_TAGS}" | head --lines=1)+git
 	fi
 }
 
 function setup_liqodash_version() {
+	[[ "${LIQO_DASHBOARD:-}" != "true" ]] && return 0
 	# A specific commit has been requested: assuming development version and returning
 	if [[ "${LIQO_DASHBOARD_VERSION:-}" =~ ^[0-9a-f]{40}$ ]]; then
 		warn "[PRE-FLIGHT] [DOWNLOAD]" "A LiqoDash commit has been specified: using the development version"
@@ -378,7 +386,7 @@ function download() {
 }
 
 function download_helm() {
-	local HELM_VERSION=v3.3.4
+	local HELM_VERSION=v3.5.3
 	local HELM_ARCHIVE=helm-${HELM_VERSION}-${OS}-${ARCH}.tar.gz
 	local HELM_URL=https://get.helm.sh/${HELM_ARCHIVE}
 
@@ -398,6 +406,7 @@ function download_liqo() {
 }
 
 function download_liqodash() {
+	[[ "${LIQO_DASHBOARD:-}" != "true" ]] && return 0
 	info "[PRE-FLIGHT] [DOWNLOAD]" "Downloading LiqoDash (version: ${LIQO_DASHBOARD_VERSION})"
 	command_exists tar || fatal "[PRE-FLIGHT] [DOWNLOAD]" "'tar' is not available"
 	local LIQO_DASHBOARD_DOWNLOAD_URL="https://github.com/${LIQO_DASHBOARD_REPO}/archive/${LIQO_DASHBOARD_VERSION}.tar.gz"
@@ -495,41 +504,18 @@ function configure_installation_variables() {
 	fi
 }
 
-function configure_gateway_node() {
-	local GATEWAY_LABEL="net.liqo.io/gateway=true"
-
-	# Check whether there is already a node labeled as gateway
-	GATEWAY=$(${KUBECTL} get node --selector "${GATEWAY_LABEL}" --output jsonpath="{.items[*].metadata.name}" 2>/dev/null) ||
-		fatal "[INSTALL] [CONFIGURE]" "Failed to detect whether a gateway node is already configured"
-
-	if [ "$(wc --words <<< "${GATEWAY}")" -ge 2 ]; then
-		fatal "[INSTALL] [CONFIGURE]" "More than one cluster node is labeled as gateway"
-	fi
-
-	if [ -z "${GATEWAY}" ]; then
-		# If not, select one node as gateway and label it accordingly
-		GATEWAY=$(${KUBECTL} get node --output jsonpath="{.items[-1].metadata.name}" 2>/dev/null) ||
-			fatal "[INSTALL] [CONFIGURE]" "Failed to retrieve a candidate gateway node"
-		${KUBECTL} label node "${GATEWAY}" "${GATEWAY_LABEL}" >/dev/null ||
-			fatal "[INSTALL] [CONFIGURE]" "Failed to label node ${GATEWAY} as gateway"
-	fi
-
-	GATEWAY_IP=$(${KUBECTL} get node "${GATEWAY}" -o jsonpath="{.status.addresses[0].address}" 2>/dev/null) ||
-		fatal "[INSTALL] [CONFIGURE]" "Failed to retrieve the IP address of the gateway node"
-	info "[INSTALL] [CONFIGURE]" "Gateway node: ${GATEWAY} (${GATEWAY_IP})"
-}
-
 function install_liqo() {
 	info "[INSTALL]" "Installing Liqo on your cluster..."
 
 	# Ignore errors that may occur if the namespace already exists
 	${KUBECTL} create namespace "${LIQO_NAMESPACE}" 1>/dev/null 2>&1 || true
-
 	local LIQO_CHART="${TMPDIR}/${LIQO_CHARTS_PATH}"
-	${HELM} dependency update "${LIQO_CHART}" >/dev/null ||
-		fatal "[INSTALL]" "Something went wrong while installing Liqo"
-	${HELM} install liqo --kube-context "${KUBECONFIG_CONTEXT}" --namespace "${LIQO_NAMESPACE}" "${LIQO_CHART}" \
-		--set tag="${LIQO_IMAGE_VERSION}" --set suffix="${LIQO_SUFFIX:-}" --set clusterName="${CLUSTER_NAME}" \
+	info "[INSTALL]" "Packaging the chart..."
+	${HELM} package --version="${LIQO_CHART_VERSION}" --app-version="${LIQO_CHART_VERSION}" "${LIQO_CHART}" >/dev/null ||
+			fatal "[INSTALL]" "Something went wrong while installing Liqo"
+
+	${HELM} install liqo --kube-context "${KUBECONFIG_CONTEXT}" --namespace "${LIQO_NAMESPACE}" "liqo-${LIQO_CHART_VERSION}.tgz" \
+		--set tag="${LIQO_IMAGE_VERSION}"  --set discovery.Config.clusterName="${CLUSTER_NAME}" \
 		--set networkManager.config.podCIDR="${POD_CIDR}" --set networkManager.config.serviceCIDR="${SERVICE_CIDR}" \
 		--set auth.config.allowEmptyToken=true \
 		--set auth.ingress.enable="${LIQO_ENABLE_INGRESS:-}" \
@@ -545,6 +531,7 @@ function install_liqo() {
 }
 
 function install_liqodash() {
+	[[ "${LIQO_DASHBOARD:-}" != "true" ]] && return 0
 	info "[INSTALL]" "Installing LiqoDash on your cluster..."
 
 	local LIQO_DASHBOARD_CHART="${DASHDIR}/${LIQO_DASHBOARD_CHARTS_PATH}"
@@ -613,9 +600,6 @@ function uninstall_liqo() {
 
 	${KUBECTL} delete certificatesigningrequest "peering-request-operator.${LIQO_NAMESPACE}" 1>/dev/null 2>&1
 	${KUBECTL} delete certificatesigningrequest "mutatepodtoleration.${LIQO_NAMESPACE}" 1>/dev/null 2>&1
-
-	local GATEWAY_LABEL="net.liqo.io/gateway"
-	${KUBECTL} label nodes --selector ${GATEWAY_LABEL} ${GATEWAY_LABEL}- 1>/dev/null 2>&1
 
 	info "[UNINSTALL]" "Liqo has been correctly uninstalled from your cluster"
 	set -e
@@ -689,7 +673,6 @@ function main() {
 
 	if [[ ${INSTALL_LIQO} = true ]]; then
 		configure_installation_variables
-		configure_gateway_node
 		install_liqo
 		install_liqodash
 		launch_agent_installer
