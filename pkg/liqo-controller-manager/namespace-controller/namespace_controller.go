@@ -17,8 +17,8 @@ limitations under the License.
 package controllers
 
 import (
-	namespaceresourcesv1 "github.com/liqotech/liqo/apis/virtualKubelet/v1"
 	"context"
+	namespaceresourcesv1 "github.com/liqotech/liqo/apis/virtualKubelet/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -60,7 +60,6 @@ func containsString(slice []string, s string) bool {
 	}
 	return false
 }
-
 
 func (r *NamespaceReconciler) removeRemoteNamespaces(localName string, nms map[string]*namespaceresourcesv1.NamespaceMap) error {
 
