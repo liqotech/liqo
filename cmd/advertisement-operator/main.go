@@ -20,6 +20,7 @@ import (
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	"github.com/liqotech/liqo/pkg/crdClient"
 	namectrl "github.com/liqotech/liqo/pkg/liqo-controller-manager/namespace-controller"
+	virtualnodectrl "github.com/liqotech/liqo/pkg/liqo-controller-manager/virtualNode-controller"
 	"github.com/liqotech/liqo/pkg/mapperUtils"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -75,8 +76,7 @@ func main() {
 	flag.Parse()
 
 	if clusterId == "" {
-		klog.Error("Cluster ID must be provided")
-		os.Exit(1)
+		klog.Fatal("Cluster ID must be provided")
 	}
 
 	if localKubeconfig != "" {
@@ -93,24 +93,21 @@ func main() {
 		Port:               9443,
 	})
 	if err != nil {
-		klog.Error(err)
-		os.Exit(1)
+		klog.Fatal(err)
 	}
 
 	// New Client For CSR Auto-approval
 	config := ctrl.GetConfigOrDie()
 	clientset, err := kubernetes.NewForConfig(config)
 	if err != nil {
-		klog.Error(err)
-		os.Exit(1)
+		klog.Fatal(err)
 	}
 	go csrApprover.WatchCSR(clientset, "liqo.io/csr=true", 5*time.Second)
 
 	// get the number of already accepted advertisements
 	advClient, err := advtypes.CreateAdvertisementClient(localKubeconfig, nil, true, nil)
 	if err != nil {
-		klog.Errorln(err, "unable to create local client for Advertisement")
-		os.Exit(1)
+		klog.Fatal(err, "unable to create local client for Advertisement")
 	}
 	var acceptedAdv int32
 	advList, err := advClient.Resource("advertisements").List(metav1.ListOptions{})
@@ -126,13 +123,11 @@ func main() {
 
 	discoveryConfig, err := crdClient.NewKubeconfig(localKubeconfig, &discoveryv1alpha1.GroupVersion, nil)
 	if err != nil {
-		klog.Error(err, "unable to get kube config")
-		os.Exit(1)
+		klog.Fatal(err, "unable to get kube config")
 	}
 	discoveryClient, err := crdClient.NewFromConfig(discoveryConfig)
 	if err != nil {
-		klog.Errorln(err, "unable to create local client for Discovery")
-		os.Exit(1)
+		klog.Fatal(err, "unable to create local client for Discovery")
 	}
 
 	r := &advop.AdvertisementReconciler{
@@ -151,8 +146,7 @@ func main() {
 	}
 
 	if err = r.SetupWithManager(mgr); err != nil {
-		klog.Error(err)
-		os.Exit(1)
+		klog.Fatal(err)
 	}
 
 	r2 := &namectrl.NamespaceReconciler{
@@ -161,17 +155,24 @@ func main() {
 	}
 
 	if err = r2.SetupWithManager(mgr); err != nil {
-		klog.Error(err)
-		os.Exit(1)
+		klog.Fatal(err)
+	}
+
+	r3 := &virtualnodectrl.VirtualNodeReconciler{
+		Client: mgr.GetClient(),
+		Scheme: mgr.GetScheme(),
+	}
+
+	if err = r3.SetupWithManager(mgr); err != nil {
+		klog.Fatal(err)
 	}
 	// +kubebuilder:scaffold:builder
 
 	r.WatchConfiguration(localKubeconfig, nil)
 
-	klog.Info("starting manager as advertisement-operator")
-	if err := mgr.Start(ctrl.SetupSignalHandler()); err != nil {
-		klog.Error(err)
-		os.Exit(1)
+	klog.Infof("starting manager as advertisement-operator")
+	if err = mgr.Start(ctrl.SetupSignalHandler()); err != nil {
+		klog.Fatal(err)
 	}
 
 }

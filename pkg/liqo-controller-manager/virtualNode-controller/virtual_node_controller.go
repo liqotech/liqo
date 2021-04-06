@@ -211,10 +211,10 @@ func createOrDeleteNamespaceMap() predicate.Predicate {
 			}
 			////////////////
 			// quando l'update successivo della namespaceMap arriva il deletion timestamp è già tornato a nil
-			if !(e.MetaNew.GetDeletionTimestamp().IsZero()) == false {
-				klog.Infof("    Update -> " + e.MetaNew.GetName() + "  --> non devo partire")
-			} else {
+			if !(e.MetaNew.GetDeletionTimestamp().IsZero()) {
 				klog.Infof("    Update -> " + e.MetaNew.GetName() + "  --> parto")
+			} else {
+				klog.Infof("    Update -> " + e.MetaNew.GetName() + "  --> non devo partire")
 			}
 			/////////////////
 			return !(e.MetaNew.GetDeletionTimestamp().IsZero())
@@ -225,9 +225,11 @@ func createOrDeleteNamespaceMap() predicate.Predicate {
 			}
 
 			value, ok := (e.Meta.GetLabels())["type"]
+			/////////////////
 			if ok && value == "virtual-node" {
 				klog.Infof("    Create -> " + e.Meta.GetName() + "  --> entro")
 			}
+			////////////////
 			return ok && value == "virtual-node"
 		},
 		DeleteFunc: func(e event.DeleteEvent) bool {

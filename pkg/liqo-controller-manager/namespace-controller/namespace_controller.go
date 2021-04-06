@@ -27,6 +27,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
+	"strings"
 )
 
 type NamespaceReconciler struct {
@@ -196,12 +197,12 @@ func (r *NamespaceReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 		return ctrl.Result{}, nil
 	}
 
-	erase := make(map[string]*namespaceresourcesv1.NamespaceMap)
+	removeMappings := make(map[string]*namespaceresourcesv1.NamespaceMap)
 	for i, namespaceMap := range namespaceMaps.Items {
-		erase[namespaceMap.Spec.RemoteClusterId] = &(namespaceMaps.Items[i])
+		removeMappings[namespaceMap.Spec.RemoteClusterId] = &(namespaceMaps.Items[i])
 	}
 
-	d := len(erase)
+	allMaps := len(removeMappings)
 
 	if namespace.GetDeletionTimestamp().IsZero() {
 		if !containsString(namespace.GetFinalizers(), namespaceFinalizer) {
@@ -214,7 +215,7 @@ func (r *NamespaceReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 	} else {
 		if containsString(namespace.GetFinalizers(), namespaceFinalizer) {
 
-			if err := r.removeRemoteNamespaces(namespace.GetName(), erase); err != nil {
+			if err := r.removeRemoteNamespaces(namespace.GetName(), removeMappings); err != nil {
 				return ctrl.Result{}, err
 			}
 
@@ -233,20 +234,18 @@ func (r *NamespaceReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 		return ctrl.Result{}, nil
 	}
 
-	labels := namespace.Labels
-
-	// 1. If mapping.liqo.io label is not present there are no remote namespaces associated with this one, erase is full
-	if remoteNamespaceName, ok := labels[mappingLabel]; ok {
+	// 1. If mapping.liqo.io label is not present there are no remote namespaces associated with this one, removeMappings is full
+	if remoteNamespaceName, ok := namespace.GetLabels()[mappingLabel]; ok {
 
 		// 2.a If offloading.liqo.io is present there are remote namespaces on all virual nodes
-		if _, ok = labels[offloadingLabel]; ok {
+		if _, ok = namespace.GetLabels()[offloadingLabel]; ok {
 			klog.Infof("Create on all clusters")
 			if err := r.createRemoteNamespaces(namespace, remoteNamespaceName, namespaceMaps); err != nil {
 				return ctrl.Result{}, err
 			}
 
-			for k := range erase {
-				delete(erase, k)
+			for k := range removeMappings {
+				delete(removeMappings, k)
 			}
 
 		} else {
@@ -275,11 +274,10 @@ func (r *NamespaceReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 				found := false
 				dim := len(node.Labels)
 				id := node.Annotations[clusterId]
-
 				for key := range node.Labels {
 					i++
-					if len(key) > 18 && key[0:19] == offloadingPrefixLabel {
-						if _, ok = labels[key]; !ok {
+					if strings.HasPrefix(key, offloadingPrefixLabel) {
+						if _, ok = namespace.GetLabels()[key]; !ok {
 							klog.Infof("Not create remote namespace on: " + id)
 							break
 						} else {
@@ -289,10 +287,10 @@ func (r *NamespaceReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 
 					if i == dim && found {
 						klog.Infof("Create namespace for remote cluster: " + id)
-						if err := r.createRemoteNamespace(namespace, remoteNamespaceName, erase[id]); err != nil {
+						if err := r.createRemoteNamespace(namespace, remoteNamespaceName, removeMappings[id]); err != nil {
 							return ctrl.Result{}, err
 						}
-						delete(erase, id)
+						delete(removeMappings, id)
 					}
 
 				}
@@ -301,15 +299,15 @@ func (r *NamespaceReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 
 	}
 
-	if len(erase) > 0 {
+	if len(removeMappings) > 0 {
 		klog.Infof("Delete all unnecessary mapping in NNT")
-		if err := r.removeRemoteNamespaces(namespace.GetName(), erase); err != nil {
+		if err := r.removeRemoteNamespaces(namespace.GetName(), removeMappings); err != nil {
 			return ctrl.Result{}, err
 		}
 	}
 
 	// TODO: is useful ?
-	if len(erase) == d {
+	if len(removeMappings) == allMaps {
 		// finalizer no more useful on this namespace
 		if containsString(namespace.GetFinalizers(), namespaceFinalizer) {
 			namespace.SetFinalizers(removeString(namespace.GetFinalizers(), namespaceFinalizer))
@@ -327,10 +325,10 @@ func (r *NamespaceReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 // This function is useful only if we decide to accept the renaming of namespaces in "mapping.liqo.io" label.
 // If we don't want to change the name of namespaces, in function reconcile when we check that the name in the NNT is
 // different from the new name, with client we change the value of the new inserted label
-func mappingLabelUpdate(old map[string]string, new map[string]string) bool {
+func mappingLabelUpdate(oldLabels map[string]string, newLabels map[string]string) bool {
 	ret := false
-	if val1, ok := old[mappingLabel]; ok {
-		ret = val1 != new[mappingLabel]
+	if val1, ok := oldLabels[mappingLabel]; ok {
+		ret = val1 != newLabels[mappingLabel]
 	}
 	return ret
 }
@@ -365,6 +363,7 @@ func manageLabelPredicate() predicate.Predicate {
 		DeleteFunc: func(e event.DeleteEvent) bool {
 			return false
 		},
+		// TODO: accept events of this type ?
 		GenericFunc: func(e event.GenericEvent) bool {
 			return true
 		},
