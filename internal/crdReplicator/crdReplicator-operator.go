@@ -243,11 +243,11 @@ func (c *Controller) Watcher(dynFac dynamicinformer.DynamicSharedInformerFactory
 
 func (c *Controller) getGVR(obj *unstructured.Unstructured) schema.GroupVersionResource {
 	gvk := obj.GroupVersionKind()
-	resuource := strings.ToLower(gvk.Kind)
+	resource := strings.ToLower(gvk.Kind)
 	gvr := schema.GroupVersionResource{
 		Group:    gvk.Group,
 		Version:  gvk.Version,
-		Resource: resuource + "s",
+		Resource: resource + "s",
 	}
 	return gvr
 }
