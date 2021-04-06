@@ -91,13 +91,13 @@ func GetBroadcasterDeployment(request *discoveryv1alpha1.PeeringRequest, nameSA 
 			Replicas: pointer.Int32Ptr(1),
 			Selector: &metav1.LabelSelector{
 				MatchLabels: map[string]string{
-					"app": strings.Join([]string{"broadcaster", request.Name}, "-"),
+					"app": "broadcaster",
 				},
 			},
 			Template: v1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
 					Labels: map[string]string{
-						"app": strings.Join([]string{"broadcaster", request.Name}, "-"),
+						"app": "broadcaster",
 					},
 				},
 				Spec: v1.PodSpec{

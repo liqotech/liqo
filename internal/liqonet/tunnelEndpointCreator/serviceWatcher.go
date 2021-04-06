@@ -119,7 +119,7 @@ func (tec *TunnelEndpointCreator) serviceHandlerAdd(obj interface{}) {
 		labels := client.MatchingLabels{crdReplicator.LocalLabelSelector: "true"}
 		err = tec.Client.List(context.Background(), netConfigs, labels)
 		if err != nil {
-			klog.Errorf("unable to retrieve the existing resources of type %s in order to update the publicKey for the vpn backend: %v", netv1alpha1.NetworkConfigGroupResource.String(), err)
+			klog.Errorf("unable to retrieve the existing resources of type %s in order to update the publicKey for the vpn backend: %v", netv1alpha1.NetworkConfigGroupVersionResource.String(), err)
 			return
 		}
 		for _, nc := range netConfigs.Items {
@@ -129,7 +129,7 @@ func (tec *TunnelEndpointCreator) serviceHandlerAdd(obj interface{}) {
 					Name: nc.GetName(),
 				}, &netConfig)
 				if err != nil {
-					klog.Errorf("an error occurred while retrieving resource of type %s named %s: %v", netv1alpha1.NetworkConfigGroupResource.String(), nc.GetName(), err)
+					klog.Errorf("an error occurred while retrieving resource of type %s named %s: %v", netv1alpha1.NetworkConfigGroupVersionResource.String(), nc.GetName(), err)
 					return err
 				}
 				netConfig.Spec.BackendConfig[wireguard.ListeningPort] = endpointPort

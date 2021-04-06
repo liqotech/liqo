@@ -123,4 +123,12 @@ Gateway service labels
 net.liqo.io/gateway: "true"
 {{- end }}
 
+{{/*
+Pre-delete hook Annotations
+*/}}
+{{- define "liqo.preDeleteAnnotations" -}}
+"helm.sh/hook": pre-delete
+"helm.sh/hook-weight": "-5"
+"helm.sh/hook-delete-policy": before-hook-creation,hook-succeeded
+{{- end }}
 
