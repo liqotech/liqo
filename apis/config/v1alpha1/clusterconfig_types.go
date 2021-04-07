@@ -41,7 +41,7 @@ type ClusterConfigSpec struct {
 }
 
 // +kubebuilder:validation:Pattern="^([0-9]{1,3}.){3}[0-9]{1,3}(/([0-9]|[1-2][0-9]|3[0-2]))$"
-type ReservedSubnet string
+type CIDR string
 
 //AdvertisementConfig defines the configuration for the advertisement protocol
 type AdvertisementConfig struct {
@@ -150,7 +150,7 @@ type LiqonetConfig struct {
 	//This field is used by the IPAM embedded in the tunnelEndpointCreator.
 	//Subnets listed in this field are excluded from the list of possible subnets used for natting POD CIDR.
 	//Add here the subnets already used in your environment as a list in CIDR notation (e.g. [10.1.0.0/16, 10.200.1.0/24]).
-	ReservedSubnets []ReservedSubnet `json:"reservedSubnets"`
+	ReservedSubnets []CIDR `json:"reservedSubnets"`
 	//the subnet used by the cluster for the pods, in CIDR notation
 	// +kubebuilder:validation:Pattern="^([0-9]{1,3}.){3}[0-9]{1,3}(/([0-9]|[1-2][0-9]|3[0-2]))$"
 	PodCIDR string `json:"podCIDR"`
@@ -160,6 +160,8 @@ type LiqonetConfig struct {
 	//set this flag to true if you are using GKE, default value is "false"
 	// +kubebuilder:default=false
 	GKEProvider bool `json:"GKEProvider"`
+	// Set of additional user-defined network pools. Default set of network pools is: [192.168.0.0/16, 10.0.0.0/8, 172.16.0.0/12]
+	AdditionalPools []CIDR `json:"additionalPools"`
 }
 
 //contains a list of resources identified by their GVR

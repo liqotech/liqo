@@ -287,7 +287,12 @@ func (in *LiqonetConfig) DeepCopyInto(out *LiqonetConfig) {
 	*out = *in
 	if in.ReservedSubnets != nil {
 		in, out := &in.ReservedSubnets, &out.ReservedSubnets
-		*out = make([]ReservedSubnet, len(*in))
+		*out = make([]CIDR, len(*in))
+		copy(*out, *in)
+	}
+	if in.AdditionalPools != nil {
+		in, out := &in.AdditionalPools, &out.AdditionalPools
+		*out = make([]CIDR, len(*in))
 		copy(*out, *in)
 	}
 }

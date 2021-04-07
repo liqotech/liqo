@@ -87,6 +87,7 @@ type TunnelEndpointCreator struct {
 	ServiceCIDR                string
 	netParamPerCluster         map[string]networkParam
 	ReservedSubnets            []string
+	AdditionalPools            []string
 	IPManager                  liqonet.Ipam
 	Mutex                      sync.Mutex
 	WaitConfig                 *sync.WaitGroup

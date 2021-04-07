@@ -1,6 +1,8 @@
 package liqonet_test
 
 import (
+	"fmt"
+
 	"github.com/liqotech/liqo/pkg/liqonet"
 	. "github.com/onsi/ginkgo"
 	"github.com/onsi/gomega"
@@ -124,7 +126,7 @@ var _ = Describe("Ipam", func() {
 				})
 			})
 		})
-		Context("When the remote clusters asks for a subnet which is equal to a pool", func() {
+		Context("When the remote cluster asks for a subnet which is equal to a pool", func() {
 			It("should map it to another network", func() {
 				network, err := ipam.GetSubnetPerCluster("172.16.0.0/12", "cluster1")
 				gomega.Expect(err).To(gomega.BeNil())
@@ -248,6 +250,118 @@ var _ = Describe("Ipam", func() {
 			network, err = ipam.GetSubnetPerCluster("10.0.1.0/24", "cluster2")
 			gomega.Expect(err).To(gomega.BeNil())
 			gomega.Expect(network).ToNot(gomega.Equal("10.0.1.0/24"))
+		})
+	})
+	Describe("AddNetworkPool", func() {
+		Context("Trying to add a default network pool", func() {
+			It("Should generate an error", func() {
+				err := ipam.AddNetworkPool("10.0.0.0/8")
+				gomega.Expect(err).ToNot(gomega.BeNil())
+			})
+		})
+		Context("Trying to add twice the same network pool", func() {
+			It("Should generate an error", func() {
+				err := ipam.AddNetworkPool("11.0.0.0/8")
+				gomega.Expect(err).To(gomega.BeNil())
+				err = ipam.AddNetworkPool("11.0.0.0/8")
+				gomega.Expect(err).ToNot(gomega.BeNil())
+			})
+		})
+		Context("After adding a new network pool", func() {
+			It("Should be possible to use that pool for cluster networks", func() {
+				// Reserve default network pools
+				for _, network := range liqonet.Pools {
+					err := ipam.AcquireReservedSubnet(network)
+					gomega.Expect(err).To(gomega.BeNil())
+				}
+
+				// Add new network pool
+				err := ipam.AddNetworkPool("11.0.0.0/8")
+				gomega.Expect(err).To(gomega.BeNil())
+
+				// Reserve a given network
+				err = ipam.AcquireReservedSubnet("12.0.0.0/24")
+				gomega.Expect(err).To(gomega.BeNil())
+
+				// IPAM should use 11.0.0.0/8 to map the cluster network
+				network, err := ipam.GetSubnetPerCluster("12.0.0.0/24", "cluster1")
+				gomega.Expect(err).To(gomega.BeNil())
+				gomega.Expect(network).To(gomega.HavePrefix("11"))
+				gomega.Expect(network).To(gomega.HaveSuffix("/24"))
+			})
+		})
+		Context("Trying to add a network pool that overlaps with a reserved network", func() {
+			It("Should generate an error", func() {
+				err := ipam.AcquireReservedSubnet("11.0.0.0/8")
+				gomega.Expect(err).To(gomega.BeNil())
+				err = ipam.AddNetworkPool("11.0.0.0/16")
+				gomega.Expect(err).ToNot(gomega.BeNil())
+			})
+		})
+	})
+	Describe("RemoveNetworkPool", func() {
+		Context("Remove a network pool that does not exist", func() {
+			It("Should return an error", func() {
+				err := ipam.RemoveNetworkPool("11.0.0.0/8")
+				gomega.Expect(err).ToNot(gomega.BeNil())
+			})
+		})
+		Context("Remove a network pool that exists", func() {
+			It("Should successfully remove the network pool", func() {
+				// Reserve default network pools
+				for _, network := range liqonet.Pools {
+					err := ipam.AcquireReservedSubnet(network)
+					gomega.Expect(err).To(gomega.BeNil())
+				}
+
+				// Add new network pool
+				err := ipam.AddNetworkPool("11.0.0.0/8")
+				gomega.Expect(err).To(gomega.BeNil())
+
+				// Remove network pool
+				err = ipam.RemoveNetworkPool("11.0.0.0/8")
+				gomega.Expect(err).To(gomega.BeNil())
+
+				// Reserve a given network
+				err = ipam.AcquireReservedSubnet("12.0.0.0/24")
+				gomega.Expect(err).To(gomega.BeNil())
+
+				// Should fail to assign a network to cluster
+				_, err = ipam.GetSubnetPerCluster("12.0.0.0/24", "cluster1")
+				gomega.Expect(err).ToNot(gomega.BeNil())
+			})
+		})
+		Context("Remove a network pool that is a default one", func() {
+			It("Should generate an error", func() {
+				err := ipam.RemoveNetworkPool("10.0.0.0/8")
+				gomega.Expect(err).ToNot(gomega.BeNil())
+			})
+		})
+		Context("Remove a network pool that is used for a cluster", func() {
+			It("Should generate an error", func() {
+				// Reserve default network pools
+				for _, network := range liqonet.Pools {
+					err := ipam.AcquireReservedSubnet(network)
+					gomega.Expect(err).To(gomega.BeNil())
+				}
+
+				// Add new network pool
+				err := ipam.AddNetworkPool("11.0.0.0/8")
+				gomega.Expect(err).To(gomega.BeNil())
+
+				// Reserve a given network
+				err = ipam.AcquireReservedSubnet("12.0.0.0/24")
+				gomega.Expect(err).To(gomega.BeNil())
+
+				// IPAM should use 11.0.0.0/8 to map the cluster network
+				network, err := ipam.GetSubnetPerCluster("12.0.0.0/24", "cluster1")
+				gomega.Expect(err).To(gomega.BeNil())
+				gomega.Expect(network).To(gomega.HavePrefix("11"))
+				gomega.Expect(network).To(gomega.HaveSuffix("/24"))
+
+				err = ipam.RemoveNetworkPool("11.0.0.0/8")
+				gomega.Expect(err).To(gomega.MatchError(fmt.Sprintf("cannot remove network pool 11.0.0.0/8 because it overlaps with network %s of cluster cluster1", network)))
+			})
 		})
 	})
 })

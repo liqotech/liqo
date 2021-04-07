@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"k8s.io/client-go/dynamic"
+	"k8s.io/kubernetes/pkg/util/slice"
 
 	goipam "github.com/metal-stack/go-ipam"
 	"inet.af/netaddr"
@@ -18,6 +19,8 @@ type Ipam interface {
 	FreeSubnetPerCluster(clusterID string) error
 	AcquireReservedSubnet(network string) error
 	FreeReservedSubnet(network string) error
+	AddNetworkPool(network string) error
+	RemoveNetworkPool(network string) error
 }
 
 /* IPAM implementation */
@@ -113,16 +116,14 @@ func (liqoIPAM *IPAM) AcquireReservedSubnet(reservedNetwork string) error {
 	if ok && reservedNetwork != pool {
 		klog.Infof("Network %s is contained in pool %s", reservedNetwork, pool)
 		if _, err := liqoIPAM.ipam.AcquireSpecificChildPrefix(pool, reservedNetwork); err != nil {
-			klog.Infof("Network %s has already been reserved", reservedNetwork)
-			return nil
+			return fmt.Errorf("cannot reserve network %s:%w", reservedNetwork, err)
 		}
 		klog.Infof("Network %s has successfully been reserved", reservedNetwork)
 		return nil
 	}
 	klog.Infof("Network %s is not contained in any pool", reservedNetwork)
 	if _, err := liqoIPAM.ipam.NewPrefix(reservedNetwork); err != nil {
-		klog.Infof("Network %s has already been reserved", reservedNetwork)
-		return nil
+		return fmt.Errorf("cannot reserve network %s:%w", reservedNetwork, err)
 	}
 	klog.Infof("Network %s has successfully been reserved.", reservedNetwork)
 	return nil
@@ -138,6 +139,21 @@ func (liqoIPAM *IPAM) overlapsWithCluster(network string) (string, bool, error) 
 		if err := liqoIPAM.ipam.PrefixesOverlapping([]string{clusterSubnet}, []string{network}); err != nil {
 			//overlaps
 			return cluster, true, nil
+		}
+	}
+	return "", false, nil
+}
+
+func (liqoIPAM *IPAM) overlapsWithPool(network string) (string, bool, error) {
+	// Get resource
+	pools, err := liqoIPAM.ipamStorage.getPools()
+	if err != nil {
+		return "", false, fmt.Errorf("cannot get Ipam config: %w", err)
+	}
+	for _, pool := range pools {
+		if err := liqoIPAM.ipam.PrefixesOverlapping([]string{pool}, []string{network}); err != nil {
+			//overlaps
+			return pool, true, nil
 		}
 	}
 	return "", false, nil
@@ -321,5 +337,99 @@ func (liqoIPAM *IPAM) FreeSubnetPerCluster(clusterID string) error {
 		return err
 	}
 	klog.Infof("Network assigned to cluster %s has just been freed", clusterID)
+	return nil
+}
+
+// AddNetworkPool adds a network to the set of network pools
+func (liqoIPAM *IPAM) AddNetworkPool(network string) error {
+	// Get resource
+	ipamPools, err := liqoIPAM.ipamStorage.getPools()
+	if err != nil {
+		return fmt.Errorf("cannot get Ipam config: %w", err)
+	}
+	// Check overlapping with existing pools
+	// Either this and the following checks are carried out also within NewPrefix. Perform them here permits a more detailed error description.
+	pool, overlaps, err := liqoIPAM.overlapsWithPool(network)
+	if err != nil {
+		return fmt.Errorf("cannot establish if new network pool overlaps with existing network pools:%w", err)
+	}
+	if overlaps {
+		return fmt.Errorf("cannot add new network pool %s because it overlaps with existing network pool %s", network, pool)
+	}
+	// Check overlapping with cluster subnets
+	cluster, overlaps, err := liqoIPAM.overlapsWithCluster(network)
+	if err != nil {
+		return fmt.Errorf("cannot establish if new network pool overlaps with a reserved subnet:%w", err)
+	}
+	if overlaps {
+		return fmt.Errorf("cannot add network pool %s because it overlaps with network of cluster %s", network, cluster)
+	}
+	// Add network pool
+	_, err = liqoIPAM.ipam.NewPrefix(network)
+	if err != nil {
+		return fmt.Errorf("cannot add network pool %s:%w", network, err)
+	}
+	ipamPools = append(ipamPools, network)
+	klog.Infof("Network pool %s added to IPAM", network)
+	// Update configuration
+	err = liqoIPAM.ipamStorage.updatePools(ipamPools)
+	if err != nil {
+		return fmt.Errorf("cannot update Ipam configuration:%w", err)
+	}
+	return nil
+}
+
+// RemoveNetworkPool removes a network from the set of network pools
+func (liqoIPAM *IPAM) RemoveNetworkPool(network string) error {
+	// Get resource
+	ipamPools, err := liqoIPAM.ipamStorage.getPools()
+	if err != nil {
+		return fmt.Errorf("cannot get Ipam config: %w", err)
+	}
+	// Get cluster subnets
+	clusterSubnet, err := liqoIPAM.ipamStorage.getClusterSubnet()
+	if err != nil {
+		return fmt.Errorf("cannot get cluster subnets: %w", err)
+	}
+	// Check existence
+	if exists := slice.ContainsString(ipamPools, network, nil); !exists {
+		return fmt.Errorf("network %s is not a network pool", network)
+	}
+	// Cannot remove a default one
+	if contains := slice.ContainsString(Pools, network, nil); contains {
+		return fmt.Errorf("cannot remove a default network pool")
+	}
+	// Check overlapping with cluster networks
+	cluster, overlaps, err := liqoIPAM.overlapsWithCluster(network)
+	if err != nil {
+		return fmt.Errorf("cannot check if network pool %s overlaps with cluster networks:%w", network, err)
+	}
+	if overlaps {
+		return fmt.Errorf("cannot remove network pool %s because it overlaps with network %s of cluster %s", network, clusterSubnet[cluster], cluster)
+	}
+	// Release it
+	_, err = liqoIPAM.ipam.DeletePrefix(network)
+	if err != nil {
+		return fmt.Errorf("cannot remove network pool %s:%w", network, err)
+	}
+	// Delete it
+	var i int
+	for index, value := range ipamPools {
+		if value == network {
+			i = index
+			break
+		}
+	}
+	if i == (len(ipamPools) - 1) {
+		ipamPools = ipamPools[:len(ipamPools)-1]
+	} else {
+		copy(ipamPools[i:], ipamPools[i+1:])
+		ipamPools = ipamPools[:len(ipamPools)-1]
+	}
+	err = liqoIPAM.ipamStorage.updatePools(ipamPools)
+	if err != nil {
+		return fmt.Errorf("cannot update Ipam configuration:%w", err)
+	}
+	klog.Infof("Network pool %s has just been removed", network)
 	return nil
 }
