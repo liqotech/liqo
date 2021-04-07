@@ -2,7 +2,7 @@ package liqonet
 
 import (
 	"fmt"
-	"strconv"
+	"net"
 	"strings"
 
 	"k8s.io/client-go/dynamic"
@@ -89,8 +89,26 @@ func (liqoIPAM *IPAM) AcquireReservedSubnet(reservedNetwork string) error {
 		return err
 	}
 	if ok && reservedNetwork == pool {
-		klog.Errorf("Network %s is equal to a pool", reservedNetwork)
-		return fmt.Errorf("network %s is equal to a pool so it cannot be reserved", reservedNetwork)
+		// AcquireSpecificChildPrefix returns an error if parent and child cidr have the same mask length
+		// A possible workaround is to acquire the network in 2 steps, dividing the parent in 2 subnets with mask
+		// length equal to the parent cidr mask + 1
+		klog.Infof("Network %s is equal to a pool, acquiring first half..", reservedNetwork)
+		mask, err := getMask(reservedNetwork)
+		if err != nil {
+			return fmt.Errorf("cannot retrieve mask lenght from cidr:%w", err)
+		}
+		mask += 1
+		_, err = liqoIPAM.ipam.AcquireChildPrefix(pool, mask)
+		if err != nil {
+			return fmt.Errorf("cannot acquire first half of pool %s", pool)
+		}
+		klog.Infof("Acquiring second half..")
+		_, err = liqoIPAM.ipam.AcquireChildPrefix(pool, mask)
+		if err != nil {
+			return fmt.Errorf("cannot acquire second half of pool %s", pool)
+		}
+		klog.Infof("Network %s has successfully been reserved", reservedNetwork)
+		return nil
 	}
 	if ok && reservedNetwork != pool {
 		klog.Infof("Network %s is contained in pool %s", reservedNetwork, pool)
@@ -240,8 +258,12 @@ func (liqoIPAM *IPAM) mapNetwork(network string) (string, error) {
 		return "", fmt.Errorf("cannot get Ipam config: %w", err)
 	}
 	for _, pool := range pools {
-		klog.Infof("Trying to acquire a child prefix from prefix %s (mask lenght=%d)", pool, getMask(network))
-		if mappedNetwork, err := liqoIPAM.ipam.AcquireChildPrefix(pool, getMask(network)); err == nil {
+		mask, err := getMask(network)
+		if err != nil {
+			return "", fmt.Errorf("cannot get mask from cidr:%w", err)
+		}
+		klog.Infof("Trying to acquire a child prefix from prefix %s (mask lenght=%d)", pool, mask)
+		if mappedNetwork, err := liqoIPAM.ipam.AcquireChildPrefix(pool, mask); err == nil {
 			klog.Infof("Network %s has been mapped to network %s", network, mappedNetwork)
 			return mappedNetwork.String(), nil
 		}
@@ -249,11 +271,14 @@ func (liqoIPAM *IPAM) mapNetwork(network string) (string, error) {
 	return "", fmt.Errorf("there are no more networks available")
 }
 
-/* Helper function to get a mask from a net.IPNet */
-func getMask(network string) uint8 {
-	stringMask := network[len(network)-2:]
-	mask, _ := strconv.ParseInt(stringMask, 10, 8)
-	return uint8(mask)
+/* Helper function to get a mask from a CIDR */
+func getMask(network string) (uint8, error) {
+	_, net, err := net.ParseCIDR(network)
+	if err != nil {
+		return 0, err
+	}
+	ones, _ := net.Mask.Size()
+	return uint8(ones), nil
 }
 
 /* FreeReservedSubnet marks as free a reserved subnet */

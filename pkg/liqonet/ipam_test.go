@@ -22,6 +22,18 @@ var _ = Describe("Ipam", func() {
 	})
 
 	Describe("AcquireReservedSubnet", func() {
+		Context("When the reserved network equals a network pool", func() {
+			It("Should successfully reserve the subnet", func() {
+				// Reserve network
+				err := ipam.AcquireReservedSubnet("10.0.0.0/8")
+				gomega.Expect(err).To(gomega.BeNil())
+				// Try to get a cluster network in that pool
+				p, err := ipam.GetSubnetPerCluster("10.0.2.0/24", "cluster1")
+				gomega.Expect(err).To(gomega.BeNil())
+				// It should have been mapped to a new network belonging to a different pool
+				gomega.Expect(p).ToNot(gomega.HavePrefix("10."))
+			})
+		})
 		Context("When the reserved network belongs to a pool", func() {
 			It("Should not be possible to acquire the same network for a cluster", func() {
 				err := ipam.AcquireReservedSubnet("10.244.0.0/24")
