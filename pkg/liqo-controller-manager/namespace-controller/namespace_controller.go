@@ -14,11 +14,11 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package controllers
+package namespace_controller
 
 import (
-	"context"
 	namespaceresourcesv1 "github.com/liqotech/liqo/apis/virtualKubelet/v1"
+	"context"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -36,12 +36,15 @@ type NamespaceReconciler struct {
 }
 
 const (
+	clusterId             = "cluster-id"
 	mappingLabel          = "mapping.liqo.io"
 	offloadingLabel       = "offloading.liqo.io"
 	offloadingPrefixLabel = "offloading.liqo.io/"
 	namespaceFinalizer    = "namespace.liqo.io/finalizer"
-	clusterId             = "cluster-id"
 )
+
+// Todo: function "removeString" and "containsString" already defined in node_controller and also some constant are
+//       already defined, where is the right place to define it ?
 
 func removeString(slice []string, s string) (result []string) {
 	for _, item := range slice {
@@ -66,6 +69,7 @@ func (r *NamespaceReconciler) removeRemoteNamespaces(localName string, nms map[s
 
 	for _, nm := range nms {
 
+		// TODO: must become a new function removeRemoteNamespace()
 		if remoteName, ok := nm.Status.NattingTable[localName]; ok {
 			//payload := []patchStringValue{{
 			//	Op:    "remove",
@@ -268,10 +272,8 @@ func (r *NamespaceReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 				return ctrl.Result{}, nil
 			}
 
-			// TODO: "found" variable shouldn't be useful anymore, virtual node must have necessary labels at creation (or not?)
 			for _, node := range nodes.Items {
 				i := 0
-				found := false
 				dim := len(node.Labels)
 				id := node.Annotations[clusterId]
 				for key := range node.Labels {
@@ -280,12 +282,10 @@ func (r *NamespaceReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 						if _, ok = namespace.GetLabels()[key]; !ok {
 							klog.Infof("Not create remote namespace on: " + id)
 							break
-						} else {
-							found = true // found will be no more necessary with only virtual nodes
 						}
 					}
 
-					if i == dim && found {
+					if i == dim {
 						klog.Infof("Create namespace for remote cluster: " + id)
 						if err := r.createRemoteNamespace(namespace, remoteNamespaceName, removeMappings[id]); err != nil {
 							return ctrl.Result{}, err
@@ -363,10 +363,10 @@ func manageLabelPredicate() predicate.Predicate {
 		DeleteFunc: func(e event.DeleteEvent) bool {
 			return false
 		},
-		// TODO: accept events of this type ?
-		GenericFunc: func(e event.GenericEvent) bool {
-			return true
-		},
+		//// TODO: accept events of this type ?
+		//GenericFunc: func(e event.GenericEvent) bool {
+		//	return false
+		//},
 	}
 }
 

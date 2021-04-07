@@ -14,11 +14,11 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package controllers
+package virtualNode_controller
 
 import (
-	"context"
 	namespaceresourcesv1 "github.com/liqotech/liqo/apis/virtualKubelet/v1"
+	"context"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -35,7 +35,7 @@ import (
 
 const (
 	clusterId             = "cluster-id"
-	namespaceName         = "default" // TODO: define in which namespace namespaceMaps must be created
+	mapNamespaceName      = "default" // TODO: define in which namespace namespaceMaps must be created
 	namespaceMapFinalizer = "namespacemap.liqo.io/finalizer"
 	virtualNodeFinalizer  = "virtualnode.liqo.io/finalizer"
 )
@@ -103,7 +103,7 @@ func (r *VirtualNodeReconciler) namespaceMapDeletionLogic(nm *namespaceresources
 func (r *VirtualNodeReconciler) namespaceMapLifecycle(nm *namespaceresourcesv1.NamespaceMap, n *corev1.Node) error {
 	remoteClusterId := (n.GetAnnotations())[clusterId]
 
-	if err := r.Get(context.TODO(), types.NamespacedName{Namespace: namespaceName, Name: remoteClusterId}, nm); err != nil {
+	if err := r.Get(context.TODO(), types.NamespacedName{Namespace: mapNamespaceName, Name: remoteClusterId}, nm); err != nil {
 
 		klog.Infof(" create NamespaceMap for " + n.Name + "\n")
 		nm = &namespaceresourcesv1.NamespaceMap{
@@ -113,7 +113,7 @@ func (r *VirtualNodeReconciler) namespaceMapLifecycle(nm *namespaceresourcesv1.N
 			},
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      remoteClusterId,
-				Namespace: namespaceName,
+				Namespace: mapNamespaceName,
 			},
 			Spec: namespaceresourcesv1.NamespaceMapSpec{
 				RemoteClusterId: remoteClusterId,
@@ -147,7 +147,7 @@ func (r *VirtualNodeReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error)
 	node := &corev1.Node{}
 	if err := r.Get(ctx, req.NamespacedName, node); err != nil {
 		if errors.IsNotFound(err) {
-			klog.Errorln(err, " -------------- Node not found --------------")
+			klog.Infof(" -------------- Node not found --------------")
 			return ctrl.Result{}, client.IgnoreNotFound(err)
 		} else {
 			klog.Errorln(err, " -------------- Unable to get the node --------------")
@@ -203,20 +203,12 @@ func createOrDeleteNamespaceMap() predicate.Predicate {
 			// triggers reconcile only when deletionTimestamp is setted for Virtual node and for namespaceMap
 
 			// this avoid update events for non-virtual nodes
-			if e.ObjectNew.GetObjectKind().GroupVersionKind().Kind != "NamespaceMap" {
-				value, ok := (e.MetaNew.GetLabels())["type"]
-				if ok == false || value != "virtual-node" {
+			if e.MetaNew.GetNamespace() != mapNamespaceName {
+				if value, ok := (e.MetaNew.GetLabels())["type"]; !ok || value != "virtual-node" {
 					return false
 				}
 			}
-			////////////////
-			// quando l'update successivo della namespaceMap arriva il deletion timestamp è già tornato a nil
-			if !(e.MetaNew.GetDeletionTimestamp().IsZero()) {
-				klog.Infof("    Update -> " + e.MetaNew.GetName() + "  --> parto")
-			} else {
-				klog.Infof("    Update -> " + e.MetaNew.GetName() + "  --> non devo partire")
-			}
-			/////////////////
+
 			return !(e.MetaNew.GetDeletionTimestamp().IsZero())
 		},
 		CreateFunc: func(e event.CreateEvent) bool {
@@ -225,11 +217,6 @@ func createOrDeleteNamespaceMap() predicate.Predicate {
 			}
 
 			value, ok := (e.Meta.GetLabels())["type"]
-			/////////////////
-			if ok && value == "virtual-node" {
-				klog.Infof("    Create -> " + e.Meta.GetName() + "  --> entro")
-			}
-			////////////////
 			return ok && value == "virtual-node"
 		},
 		DeleteFunc: func(e event.DeleteEvent) bool {
