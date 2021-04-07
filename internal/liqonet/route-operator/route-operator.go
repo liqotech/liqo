@@ -49,12 +49,12 @@ type RouteController struct {
 	client.Client
 	record.EventRecorder
 	utils.NetLink
-	clientSet   *kubernetes.Clientset
+	clientSet   kubernetes.Interface
 	nodeName    string
 	namespace   string
 	podIP       string
 	nodePodCIDR string
-	wg          *wireguard.Wireguard
+	overlay     overlay.Overlay
 	DynClient   dynamic.Interface
 }
 
@@ -82,8 +82,7 @@ func NewRouteController(mgr ctrl.Manager, wgc wireguard.Client, nl wireguard.Net
 		klog.Errorf("unable to create the controller: %v", err)
 		return nil, err
 	}
-	overlayIP := strings.Join([]string{overlay.GetOverlayIP(podIP.String()), "4"}, "/")
-	wg, err := overlay.CreateInterface(nodeName, namespace, overlayIP, clientSet, wgc, nl)
+	ov, err := overlay.NewWireguardOverlay(nodeName, namespace, podIP.String(), clientSet, wgc, nl)
 	if err != nil {
 		klog.Errorf("unable to create the controller: %v", err)
 		return nil, err
@@ -94,7 +93,7 @@ func NewRouteController(mgr ctrl.Manager, wgc wireguard.Client, nl wireguard.Net
 		podIP:       podIP.String(),
 		nodePodCIDR: nodePodCIDR,
 		namespace:   namespace,
-		wg:          wg,
+		overlay:     ov,
 		nodeName:    nodeName,
 		DynClient:   dynClient,
 	}
@@ -161,7 +160,7 @@ func (r *RouteController) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 		}
 		return result, nil
 	}
-	if err := r.EnsureRoutesPerCluster(r.wg.GetDeviceName(), &tep); err != nil {
+	if err := r.EnsureRoutesPerCluster(r.overlay.GetDeviceName(), &tep); err != nil {
 		return result, err
 	}
 	return result, nil
@@ -170,9 +169,9 @@ func (r *RouteController) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 //this function deletes the vxlan interface in host where the route operator is running
 //the error is not returned because the function is called ad exit time
 func (r *RouteController) deleteOverlayIFace() {
-	err := utils.DeleteIFaceByIndex(r.wg.GetLinkIndex())
+	err := utils.DeleteIFaceByIndex(r.overlay.GetDeviceIndex())
 	if err != nil {
-		klog.Errorf("unable to remove network interface %s: %s", r.wg.GetDeviceName(), err)
+		klog.Errorf("unable to remove network interface %s: %s", r.overlay.GetDeviceName(), err)
 	}
 }
 

@@ -46,7 +46,7 @@ func (r *RouteController) podHandlerAdd(obj interface{}) {
 	if p.Status.PodIP != r.podIP {
 		return
 	}
-	currentPubKey := r.wg.GetPubKey()
+	currentPubKey := r.overlay.GetPubKey()
 	pubKey := p.GetAnnotations()[overlay.PubKeyAnnotation]
 	currentNodePodCIDR := r.nodePodCIDR
 	nodePodCIDR := p.GetAnnotations()[overlay.NodeCIDRKeyAnnotation]

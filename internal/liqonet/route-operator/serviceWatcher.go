@@ -10,14 +10,12 @@ import (
 	"k8s.io/client-go/dynamic/dynamicinformer"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/klog/v2"
-	"time"
 )
 
 var (
 	serviceResource   = "services"
 	serviceLabelKey   = "net.liqo.io/gateway"
 	serviceLabelValue = "true"
-	keepalive         = 10 * time.Second
 )
 
 func (r *RouteController) StartServiceWatcher() {
@@ -57,8 +55,15 @@ func (r *RouteController) serviceHandlerAdd(obj interface{}) {
 		klog.Infof("overlay public key has not been set yep in service %s", s.Name)
 		return
 	}
+	peer := overlay.OverlayPeer{
+		Name:          s.Name,
+		PubKey:        pubKey,
+		IpAddr:        endpointIP,
+		ListeningPort: endpointPort,
+		AllowedIPs:    []string{"0.0.0.0/0"},
+	}
 	//check if the peer has been configured
-	err = r.wg.AddPeer(pubKey, endpointIP, endpointPort, []string{"0.0.0.0/0"}, &keepalive)
+	err = r.overlay.AddPeer(peer)
 	if err != nil {
 		klog.Error(err)
 		return

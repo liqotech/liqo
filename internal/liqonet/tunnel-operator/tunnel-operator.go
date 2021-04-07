@@ -56,9 +56,8 @@ type TunnelController struct {
 	utils.NetLink
 	utils.IPTablesHandler
 	DefaultIface string
-	k8sClient    *k8s.Clientset
-	wg           *wireguard.Wireguard
-	overlayPeers map[string]string
+	k8sClient    k8s.Interface
+	ov *overlay.Overlay
 	drivers      map[string]tunnel.Driver
 	namespace    string
 	podIP        string
@@ -127,7 +126,6 @@ func NewTunnelController(mgr ctrl.Manager, wgc wireguard.Client, nl wireguard.Ne
 		DefaultIface:  iface,
 		wg:            wg,
 		configChan:    make(chan bool),
-		overlayPeers:  make(map[string]string),
 	}
 	err = tc.SetUpTunnelDrivers()
 	if err != nil {

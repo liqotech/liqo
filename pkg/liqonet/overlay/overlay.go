@@ -24,10 +24,23 @@ const (
 	RoutingTableName      = "liqo"
 )
 
-var (
-	wgPort = 51871
-	wgMtu  = 1300
-)
+type Overlay interface {
+	AddPeer(peer OverlayPeer) error
+	RemovePeer(peer OverlayPeer) error
+	AddSubnet(peerName, podIP string) error
+	RemoveSubnet(peerName, podIP string) error
+	GetDeviceName() string
+	GetDeviceIndex() int
+	GetPubKey() string
+}
+
+type OverlayPeer struct {
+	Name          string
+	PubKey        string
+	IpAddr        string
+	ListeningPort string
+	AllowedIPs    []string
+}
 
 func CreateInterface(nodeName, namespace, ipAddr string, c *k8s.Clientset, wgc wireguard.Client, nl wireguard.Netlinker) (*wireguard.Wireguard, error) {
 	secretName := strings.Join([]string{secretPrefix, nodeName}, "")
