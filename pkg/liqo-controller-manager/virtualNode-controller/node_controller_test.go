@@ -1,8 +1,8 @@
 package virtualNode_controller
 
 import (
-	namespaceresourcesv1 "github.com/liqotech/liqo/apis/virtualKubelet/v1"
 	"context"
+	namespaceresourcesv1 "github.com/liqotech/liqo/apis/virtualKubelet/v1"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	"k8s.io/apimachinery/pkg/api/errors"

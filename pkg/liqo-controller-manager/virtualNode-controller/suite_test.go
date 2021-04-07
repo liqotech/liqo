@@ -13,10 +13,10 @@ limitations under the License.
 package virtualNode_controller
 
 import (
-	namespaceresourcesv1 "github.com/liqotech/liqo/apis/virtualKubelet/v1"
 	"bytes"
 	"context"
 	"flag"
+	namespaceresourcesv1 "github.com/liqotech/liqo/apis/virtualKubelet/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"path/filepath"
 	ctrl "sigs.k8s.io/controller-runtime"
