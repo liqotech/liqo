@@ -3,6 +3,11 @@ package crdReplicator
 import (
 	"context"
 	"fmt"
+	"os"
+	"path/filepath"
+	"testing"
+	"time"
+
 	configv1alpha1 "github.com/liqotech/liqo/apis/config/v1alpha1"
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	netv1alpha1 "github.com/liqotech/liqo/apis/net/v1alpha1"
@@ -15,12 +20,8 @@ import (
 	"k8s.io/client-go/rest"
 	"k8s.io/klog/v2"
 	"k8s.io/kubectl/pkg/scheme"
-	"os"
-	"path/filepath"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/envtest"
-	"testing"
-	"time"
 )
 
 var (
@@ -213,7 +214,8 @@ func getClusterConfig() *configv1alpha1.ClusterConfig {
 			LiqonetConfig: configv1alpha1.LiqonetConfig{
 				PodCIDR:         "10.0.0.0/16",
 				ServiceCIDR:     "10.96.0.0/12",
-				ReservedSubnets: []configv1alpha1.ReservedSubnet{"10.0.0.0/16"},
+				ReservedSubnets: []configv1alpha1.CIDR{"10.0.0.0/16"},
+				AdditionalPools: []configv1alpha1.CIDR{},
 			},
 			DispatcherConfig: configv1alpha1.DispatcherConfig{ResourcesToReplicate: []configv1alpha1.Resource{{
 				Group:    netv1alpha1.GroupVersion.Group,

@@ -143,6 +143,7 @@ func main() {
 			Namespace:                  "liqo",
 			WaitConfig:                 &sync.WaitGroup{},
 			ReservedSubnets:            make([]string, 0),
+			AdditionalPools:            make([]string, 0),
 			Configured:                 make(chan bool, 1),
 			ForeignClusterStartWatcher: make(chan bool, 1),
 			ForeignClusterStopWatcher:  make(chan struct{}),
