@@ -2,6 +2,9 @@ package forge
 
 import (
 	"fmt"
+	"net"
+	"strings"
+
 	"github.com/liqotech/liqo/internal/liqonet/tunnelEndpointCreator"
 	"github.com/liqotech/liqo/pkg/virtualKubelet"
 	apimgmt "github.com/liqotech/liqo/pkg/virtualKubelet/apiReflection"
@@ -10,7 +13,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/klog"
-	"strings"
 )
 
 const affinitySelector = "virtual-node"
@@ -52,7 +54,10 @@ func (f *apiForger) podStatusForeignToHome(foreignObj, homeObj runtime.Object) *
 
 	homePod.Status = foreignPod.Status
 	if homePod.Status.PodIP != "" {
-		newIp := ChangePodIp(f.remoteRemappedPodCidr.Value().ToString(), foreignPod.Status.PodIP)
+		newIp, err := ChangePodIp(f.remoteRemappedPodCidr.Value().ToString(), foreignPod.Status.PodIP)
+		if err != nil {
+			klog.Error(err)
+		}
 		homePod.Status.PodIP = newIp
 		homePod.Status.PodIPs[0].IP = newIp
 	}
@@ -183,30 +188,34 @@ func filterVolumeMounts(volumes []corev1.Volume, volumeMountsIn []corev1.VolumeM
 }
 
 // ChangePodIp creates a new IP address obtained by means of the old IP address and the new podCIDR
-func ChangePodIp(newPodCidr string, oldPodIp string) (newPodIp string) {
+func ChangePodIp(newPodCidr string, oldPodIp string) (newPodIp string, err error) {
 	if newPodCidr == tunnelEndpointCreator.DefaultPodCIDRValue {
-		return oldPodIp
+		return oldPodIp, nil
 	}
-	//the last two slices are the suffix of the newPodIp
-	oldPodIpTokenized := strings.Split(oldPodIp, ".")
-	newPodCidrTokenized := strings.Split(newPodCidr, "/")
-	//the first two slices are the prefix of the newPodIP
-	ipFromPodCidrTokenized := strings.Split(newPodCidrTokenized[0], ".")
-	//used to build the new IP
-	var newPodIpBuilder strings.Builder
-	for i, s := range ipFromPodCidrTokenized {
-		if i < 2 {
-			newPodIpBuilder.WriteString(s)
-			newPodIpBuilder.WriteString(".")
-		}
+	// Parse newPodCidr
+	ip, network, err := net.ParseCIDR(newPodCidr)
+	if err != nil {
+		return "", err
 	}
-	for i, s := range oldPodIpTokenized {
-		if i > 1 && i < 4 {
-			newPodIpBuilder.WriteString(s)
-			newPodIpBuilder.WriteString(".")
-		}
+	// Get mask
+	mask := network.Mask
+	// Get slice of bytes for newPodCidr
+	// Type net.IP has underlying type []byte
+	newIP := ip.To4()
+	// Get oldPodIp as slice of bytes
+	oldIP := net.ParseIP(oldPodIp)
+	if oldIP == nil {
+		return "", fmt.Errorf("cannot parse oldIp")
 	}
-	return strings.TrimSuffix(newPodIpBuilder.String(), ".")
+	oldIP = oldIP.To4()
+	// Substitute the last 32-mask bits of newPodCidr(newIP) with bits taken by the old ip
+	for i := 0; i < len(mask); i++ {
+		// Step 1: NOT(mask[i]) = mask[i] ^ 0xff. They are the 'host' bits
+		// Step 2: BITWISE AND between the host bits and oldIP[i] zeroes the network bits in oldIP[i]
+		// Step 3: BITWISE OR copies the result of step 2 in newIP[i]
+		newIP[i] |= (mask[i] ^ 0xff) & oldIP[i]
+	}
+	return net.IP(newIP).String(), nil
 }
 
 func forgeAffinity() *corev1.Affinity {

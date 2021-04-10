@@ -2,6 +2,7 @@ package outgoing
 
 import (
 	"context"
+
 	apimgmt "github.com/liqotech/liqo/pkg/virtualKubelet/apiReflection"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/apiReflection/reflectors"
 	ri "github.com/liqotech/liqo/pkg/virtualKubelet/apiReflection/reflectors/reflectorsInterfaces"
@@ -180,8 +181,12 @@ func filterEndpoints(slice *discoveryv1beta1.EndpointSlice, podCidr string, node
 	for _, v := range slice.Endpoints {
 		t := v.Topology["kubernetes.io/hostname"]
 		if t != nodeName {
+			ip, err := forge.ChangePodIp(podCidr, v.Addresses[0])
+			if err != nil {
+				klog.Error(err)
+			}
 			newEp := discoveryv1beta1.Endpoint{
-				Addresses:  []string{forge.ChangePodIp(podCidr, v.Addresses[0])},
+				Addresses:  []string{ip},
 				Conditions: v.Conditions,
 				Hostname:   nil,
 				TargetRef:  nil,
