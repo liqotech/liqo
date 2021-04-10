@@ -71,7 +71,7 @@ func (r *VirtualNodeReconciler) setOwner(nm *namespaceresourcesv1.NamespaceMap, 
 		Kind:               "Node",
 		Name:               n.GetName(),
 		UID:                n.GetUID(),
-		Controller:         pointer.BoolPtr(true), //senza non riesce a capire chi è il controller da chiamare con il reconcile
+		Controller:         pointer.BoolPtr(true), // without this don't know which controller must be called on deletion
 	}))
 }
 
@@ -101,36 +101,39 @@ func (r *VirtualNodeReconciler) namespaceMapDeletionLogic(nm *namespaceresources
 }
 
 func (r *VirtualNodeReconciler) namespaceMapLifecycle(nm *namespaceresourcesv1.NamespaceMap, n *corev1.Node) error {
-	remoteClusterId := (n.GetAnnotations())[clusterId]
 
-	if err := r.Get(context.TODO(), types.NamespacedName{Namespace: mapNamespaceName, Name: remoteClusterId}, nm); err != nil {
+	if err := r.Get(context.TODO(), types.NamespacedName{Namespace: mapNamespaceName, Name: n.GetAnnotations()[clusterId]}, nm); err != nil {
+		if errors.IsNotFound(err) {
 
-		klog.Infof(" create NamespaceMap for " + n.Name + "\n")
-		nm = &namespaceresourcesv1.NamespaceMap{
-			TypeMeta: metav1.TypeMeta{
-				APIVersion: "namespaceresources.liqo.io/v1",
-				Kind:       "NamespaceMap",
-			},
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      remoteClusterId,
-				Namespace: mapNamespaceName,
-			},
-			Spec: namespaceresourcesv1.NamespaceMapSpec{
-				RemoteClusterId: remoteClusterId,
-			},
-		}
+			klog.Infof(" create NamespaceMap for " + n.Name + "\n")
+			nm = &namespaceresourcesv1.NamespaceMap{
+				TypeMeta: metav1.TypeMeta{
+					APIVersion: "namespaceresources.liqo.io/v1",
+					Kind:       "NamespaceMap",
+				},
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      n.GetAnnotations()[clusterId],
+					Namespace: mapNamespaceName,
+				},
+				Spec: namespaceresourcesv1.NamespaceMapSpec{
+					RemoteClusterId: n.GetAnnotations()[clusterId],
+				},
+			}
 
-		nm.SetFinalizers(append(nm.GetFinalizers(), namespaceMapFinalizer))
-		r.setOwner(nm, n)
+			nm.SetFinalizers(append(nm.GetFinalizers(), namespaceMapFinalizer))
+			r.setOwner(nm, n)
 
-		if err = r.Create(context.TODO(), nm); err != nil {
-			klog.Errorln(err, " -------------- Problems in NamespaceMap creation --------------")
+			if err = r.Create(context.TODO(), nm); err != nil {
+				klog.Errorln(err, " -------------- Problems in NamespaceMap creation --------------")
+				return err
+			}
+		} else {
+			klog.Errorln(err, " -------------- Unable to get NamespaceMap --------------")
 			return err
 		}
-
 	}
 
-	// se entro qui significa che l'oggetto è stato cancellato
+	// if true namespaceMap is being deleted
 	if !nm.GetDeletionTimestamp().IsZero() {
 		return r.namespaceMapDeletionLogic(nm)
 	}
@@ -157,14 +160,14 @@ func (r *VirtualNodeReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error)
 
 	nm := &namespaceresourcesv1.NamespaceMap{}
 	if err := r.namespaceMapLifecycle(nm, node); err != nil {
-		klog.Errorln(err, " -------------- Unable to List of NamespaceMaps --------------")
+		klog.Errorln(err, " -------------- Unable to get NamespaceMap --------------")
 		return ctrl.Result{}, err
 	}
 
 	if node.GetDeletionTimestamp().IsZero() {
 		if !containsString(node.GetFinalizers(), virtualNodeFinalizer) {
 			node.SetFinalizers(append(node.GetFinalizers(), virtualNodeFinalizer))
-			// TODO: also with patch i have conflict, others controllores update this node
+			// TODO: also with patch i have conflict, others controllores update this node (is possible to avoid it?)
 			if err := r.Patch(context.TODO(), node, client.Merge); err != nil {
 				klog.Errorln(err, " -------------- Unable to add finalizer --------------")
 				return ctrl.Result{}, err
@@ -200,9 +203,8 @@ func (r *VirtualNodeReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error)
 func createOrDeleteNamespaceMap() predicate.Predicate {
 	return predicate.Funcs{
 		UpdateFunc: func(e event.UpdateEvent) bool {
-			// triggers reconcile only when deletionTimestamp is setted for Virtual node and for namespaceMap
 
-			// this avoid update events for non-virtual nodes
+			// this avoid update events for nodes which are not virtual
 			if e.MetaNew.GetNamespace() != mapNamespaceName {
 				if value, ok := (e.MetaNew.GetLabels())["type"]; !ok || value != "virtual-node" {
 					return false
@@ -222,6 +224,7 @@ func createOrDeleteNamespaceMap() predicate.Predicate {
 		DeleteFunc: func(e event.DeleteEvent) bool {
 			return false
 		},
+		// Todo: to evaluate if remove also this
 		GenericFunc: func(e event.GenericEvent) bool {
 			return false
 		},
@@ -233,6 +236,6 @@ func (r *VirtualNodeReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		For(&corev1.Node{}).
 		Owns(&namespaceresourcesv1.NamespaceMap{}).
 		WithEventFilter(createOrDeleteNamespaceMap()).
-		WithOptions(controller.Options{MaxConcurrentReconciles: 0}). // only for the moment
+		WithOptions(controller.Options{MaxConcurrentReconciles: 0}). // for the moment no concurrency
 		Complete(r)
 }

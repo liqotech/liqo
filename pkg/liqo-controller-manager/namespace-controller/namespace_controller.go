@@ -65,66 +65,39 @@ func containsString(slice []string, s string) bool {
 	return false
 }
 
-func (r *NamespaceReconciler) removeRemoteNamespaces(localName string, nms map[string]*namespaceresourcesv1.NamespaceMap) error {
+func (r *NamespaceReconciler) removeRemoteNamespace(localName string, nm *namespaceresourcesv1.NamespaceMap) error {
 
-	for _, nm := range nms {
+	if remoteName, ok := nm.Status.NattingTable[localName]; ok {
 
-		// TODO: must become a new function removeRemoteNamespace()
-		if remoteName, ok := nm.Status.NattingTable[localName]; ok {
-			//payload := []patchStringValue{{
-			//	Op:    "remove",
-			//	Path:  "/spec/deNattingTable",
-			//	Value: deNat,
-			//}}
-			//payloadBytes, _ := json.Marshal(payload)
-			//if err := r.Patch(context.Background(), &e,client.RawPatch(types.JSONPatchType, payloadBytes)); err != nil {
-			//	klog.Error(err, " --> Unable to Update namespaceNattingTables")
-			//}
-
-			//payload = []patchStringValue{{
-			//	Op:    "remove",
-			//	Path:  "/spec/nattingTable",
-			//	Value: name,
-			//}}
-			//payloadBytes, _ = json.Marshal(payload)
-			//if err := r.Patch(context.Background(), &e,client.RawPatch(types.JSONPatchType, payloadBytes)); err != nil {
-			//	klog.Error(err, " --> Unable to Update namespaceNattingTables")
-			//}
-
-			//entry := make(map[string]string)
-			//entry["pippo"] = deNat
-			//payload := []patchMapValue{{
-			//	Op:    "add",
-			//	Path:  "/spec/deNattingTable",
-			//	Value: entry,
-			//}}
-			//payloadBytes, _ := json.Marshal(payload)
-			//if err := r.Patch(context.Background(), &e,client.RawPatch(types.JSONPatchType, payloadBytes)); err != nil {
-			//	klog.Error(err, " --> Unable to Update namespaceNattingTables")
-			//}
-
-			delete(nm.Status.NattingTable, localName)
-			delete(nm.Status.DeNattingTable, remoteName)
-			// TODO: Update to Patch.apply()
-			if err := r.Update(context.TODO(), nm); err != nil {
-				klog.Errorln(err, " -------------- Unable to update NamespaceMap --------------")
-				return err
-			}
-			klog.Infof("Entries deleted correctly")
-
-			// ----------------- REMOVE REMOTE NAMESPACE ---------------------
-			// ---------------------------------------------------- still todo
-			// ---------------------------------------------------------------
-
+		delete(nm.Status.NattingTable, localName)
+		delete(nm.Status.DeNattingTable, remoteName)
+		// TODO: Update to Patch.apply()
+		if err := r.Update(context.TODO(), nm); err != nil {
+			klog.Errorln(err, " -------------- Unable to update NamespaceMap --------------")
+			return err
 		}
+		klog.Infof("Entries deleted correctly")
+
+		// ----------------- REMOVE REMOTE NAMESPACE ---------------------
+		// ---------------------------------------------------- still todo
+		// ---------------------------------------------------------------
+
 	}
 
 	return nil
 }
 
-func (r *NamespaceReconciler) createRemoteNamespace(n *corev1.Namespace, remoteName string, nm *namespaceresourcesv1.NamespaceMap) error {
+func (r *NamespaceReconciler) removeRemoteNamespaces(localName string, nms map[string]*namespaceresourcesv1.NamespaceMap) error {
 
-	localName := n.GetName()
+	for _, nm := range nms {
+		if err := r.removeRemoteNamespace(localName, nm); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (r *NamespaceReconciler) createRemoteNamespace(n *corev1.Namespace, remoteName string, nm *namespaceresourcesv1.NamespaceMap) error {
 
 	if nm.Status.NattingTable == nil {
 		nm.Status.NattingTable = map[string]string{}
@@ -134,10 +107,10 @@ func (r *NamespaceReconciler) createRemoteNamespace(n *corev1.Namespace, remoteN
 		nm.Status.DeNattingTable = map[string]string{}
 	}
 
-	if oldValue, ok := nm.Status.NattingTable[localName]; ok {
+	if oldValue, ok := nm.Status.NattingTable[n.GetName()]; ok {
 		// case in which mapping is already present but with different name
 		if oldValue != remoteName {
-			n.Labels[mappingLabel] = oldValue // TODO: this triggers again reconcile, to consider how to avoid, also if there is no problem to trigger it again
+			n.GetLabels()[mappingLabel] = oldValue //  this triggers again reconcile, to consider how to avoid, also if there is no problem to trigger it again
 			// TODO: Update to Patch
 			if err := r.Update(context.TODO(), n); err != nil {
 				klog.Errorln(err, " -------------- Unable to update mapping label --------------")
@@ -146,8 +119,8 @@ func (r *NamespaceReconciler) createRemoteNamespace(n *corev1.Namespace, remoteN
 		}
 	} else {
 		// case in which there is no mapping
-		nm.Status.NattingTable[localName] = remoteName
-		nm.Status.DeNattingTable[remoteName] = localName
+		nm.Status.NattingTable[n.GetName()] = remoteName
+		nm.Status.DeNattingTable[remoteName] = n.GetName()
 
 		// ----------------- CREATE REMOTE NAMESPACE ---------------------
 		// ---------------------------------------------------- still todo
@@ -165,11 +138,9 @@ func (r *NamespaceReconciler) createRemoteNamespace(n *corev1.Namespace, remoteN
 func (r *NamespaceReconciler) createRemoteNamespaces(n *corev1.Namespace, remoteName string, nms *namespaceresourcesv1.NamespaceMapList) error {
 
 	for _, nm := range nms.Items {
-
 		if err := r.createRemoteNamespace(n, remoteName, &nm); err != nil {
 			return err
 		}
-
 	}
 	return nil
 }
@@ -233,8 +204,8 @@ func (r *NamespaceReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 			}
 		}
 
-		// Stop reconciliation as the item is being deleted
-		klog.Infof("Success!!")
+		// Stop reconciliation as the namespace is being deleted
+		klog.Infof("Namespace deleted!!")
 		return ctrl.Result{}, nil
 	}
 
@@ -306,7 +277,7 @@ func (r *NamespaceReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 		}
 	}
 
-	// TODO: is useful ?
+	// TODO: namespaces which are not mapped on any cluster, shouldn't have 'namespaceFinalizer', (good idea or not?)
 	if len(removeMappings) == allMaps {
 		// finalizer no more useful on this namespace
 		if containsString(namespace.GetFinalizers(), namespaceFinalizer) {
@@ -322,9 +293,8 @@ func (r *NamespaceReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 	return ctrl.Result{}, nil
 }
 
-// This function is useful only if we decide to accept the renaming of namespaces in "mapping.liqo.io" label.
-// If we don't want to change the name of namespaces, in function reconcile when we check that the name in the NNT is
-// different from the new name, with client we change the value of the new inserted label
+// If we don't want to change the name of remote namespaces, in function reconcile when we check that the name in the NNT is
+// different from the new name, with runtime-client we can change the value of the new inserted label to the old one
 func mappingLabelUpdate(oldLabels map[string]string, newLabels map[string]string) bool {
 	ret := false
 	if val1, ok := oldLabels[mappingLabel]; ok {
@@ -333,7 +303,6 @@ func mappingLabelUpdate(oldLabels map[string]string, newLabels map[string]string
 	return ret
 }
 
-// only a simple check in order to avoid useless overhead
 func mappingLabelPresence(labels map[string]string) bool {
 	_, ok := labels[mappingLabel]
 	return ok

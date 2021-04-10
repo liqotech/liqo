@@ -10,10 +10,9 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package virtualNode_controller
+package namespace_controller
 
 import (
-	"bytes"
 	"context"
 	"flag"
 	namespaceresourcesv1 "github.com/liqotech/liqo/apis/virtualKubelet/v1"
@@ -42,21 +41,30 @@ var k8sClient client.Client
 var testEnv *envtest.Environment
 
 const (
-	nameVirtualNode1          = "virtual-node-1"
-	nameVirtualNode2          = "virtual-node-2"
-	nameSimpleNode            = "simple-node"
-	remoteClusterId1          = "6a0e9f-b52-4ed0"
-	remoteClusterId2          = "899890-dsd-323"
-	remoteClusterIdSimpleNode = "909030-sd-3231"
+	nameVirtualNode1    = "virtual-node-1"
+	nameVirtualNode2    = "virtual-node-2"
+	nameNamespaceTest   = "namespace-test"
+	nameRemoteNamespace = "namespace-test-remoto"
+	mapNamespaceName    = "default" // TODO: define in which namespace namespaceMaps must be created
+
+	remoteClusterId1 = "6a0e9f-b52-4ed0"
+	remoteClusterId2 = "899890-dsd-323"
+
+	randomLabel              = "random"
+	offloadingCluster1Label1 = "offloading.liqo.io/cluster-1"
+	offloadingCluster1Label2 = "offloading.liqo.io/AWS"
+	offloadingCluster2Label1 = "offloading.liqo.io/cluster-2"
+	offloadingCluster2Label2 = "offloading.liqo.io/GKE"
 )
 
 var (
 	ctx          context.Context
+	namespace    *corev1.Namespace
+	nm1          *namespaceresourcesv1.NamespaceMap
+	nm2          *namespaceresourcesv1.NamespaceMap
 	virtualNode1 *corev1.Node
 	virtualNode2 *corev1.Node
-	simpleNode   *corev1.Node
 	flags        *flag.FlagSet
-	buffer       *bytes.Buffer
 )
 
 func TestAPIs(t *testing.T) {
@@ -77,13 +85,9 @@ var _ = BeforeSuite(func(done Done) {
 		//AttachControlPlaneOutput: true,
 	}
 
-	buffer = &bytes.Buffer{}
 	flags = &flag.FlagSet{}
 	klog.InitFlags(flags)
 	_ = flags.Set("v", "2")
-	_ = flags.Set("logtostderr", "false")
-	klog.SetOutput(buffer)
-	buffer.Reset()
 
 	var err error
 	cfg, err = testEnv.Start()
@@ -102,7 +106,7 @@ var _ = BeforeSuite(func(done Done) {
 	})
 	Expect(err).ToNot(HaveOccurred())
 
-	err = (&VirtualNodeReconciler{
+	err = (&NamespaceReconciler{
 		Client: k8sManager.GetClient(),
 		Scheme: k8sManager.GetScheme(),
 	}).SetupWithManager(k8sManager)
@@ -116,6 +120,19 @@ var _ = BeforeSuite(func(done Done) {
 	k8sClient = k8sManager.GetClient()
 	Expect(k8sClient).ToNot(BeNil())
 
+	namespace = &corev1.Namespace{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "v1",
+			Kind:       "Namespace",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name: nameNamespaceTest,
+			Labels: map[string]string{
+				randomLabel: "",
+			},
+		},
+	}
+
 	virtualNode1 = &corev1.Node{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "v1",
@@ -127,9 +144,9 @@ var _ = BeforeSuite(func(done Done) {
 				"cluster-id": remoteClusterId1,
 			},
 			Labels: map[string]string{
-				"type":                         "virtual-node",
-				"offloading.liqo.io/cluster-1": "",
-				"offloading.liqo.io/AWS":       "",
+				"type":                   "virtual-node",
+				offloadingCluster1Label1: "",
+				offloadingCluster1Label2: "",
 			},
 		},
 	}
@@ -145,34 +162,46 @@ var _ = BeforeSuite(func(done Done) {
 				"cluster-id": remoteClusterId2,
 			},
 			Labels: map[string]string{
-				"type":                         "virtual-node",
-				"offloading.liqo.io/cluster-2": "",
-				"offloading.liqo.io/GKE":       "",
+				"type":                   "virtual-node",
+				offloadingCluster2Label1: "",
+				offloadingCluster2Label2: "",
 			},
 		},
 	}
 
-	simpleNode = &corev1.Node{
+	nm1 = &namespaceresourcesv1.NamespaceMap{
 		TypeMeta: metav1.TypeMeta{
-			APIVersion: "v1",
-			Kind:       "Node",
+			APIVersion: "namespaceresources.liqo.io/v1",
+			Kind:       "NamespaceMap",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name: nameSimpleNode,
-			Annotations: map[string]string{
-				"cluster-id": remoteClusterIdSimpleNode,
-			},
-			Labels: map[string]string{
-				"offloading.liqo.io/cluster-1": "",
-				"offloading.liqo.io/AWS":       "",
-			},
+			Name:      remoteClusterId1,
+			Namespace: mapNamespaceName,
+		},
+		Spec: namespaceresourcesv1.NamespaceMapSpec{
+			RemoteClusterId: remoteClusterId1,
 		},
 	}
 
-	// create 2 virtual-nodes and 1 simple node (not virtual)
+	nm2 = &namespaceresourcesv1.NamespaceMap{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "namespaceresources.liqo.io/v1",
+			Kind:       "NamespaceMap",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      remoteClusterId2,
+			Namespace: mapNamespaceName,
+		},
+		Spec: namespaceresourcesv1.NamespaceMapSpec{
+			RemoteClusterId: remoteClusterId2,
+		},
+	}
+
 	Expect(k8sClient.Create(context.TODO(), virtualNode1)).Should(Succeed())
 	Expect(k8sClient.Create(context.TODO(), virtualNode2)).Should(Succeed())
-	Expect(k8sClient.Create(context.TODO(), simpleNode)).Should(Succeed())
+	Expect(k8sClient.Create(context.TODO(), nm1)).Should(Succeed())
+	Expect(k8sClient.Create(context.TODO(), nm2)).Should(Succeed())
+	Expect(k8sClient.Create(context.TODO(), namespace)).Should(Succeed())
 
 	close(done)
 }, 60)

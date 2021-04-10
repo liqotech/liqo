@@ -53,7 +53,7 @@ var _ = Describe("VirtualNode controller", func() {
 				return true
 			}, timeout, interval).Should(BeTrue())
 
-			By("Try to get first virtual-node: " + nameVirtualNode2)
+			By("Try to get second virtual-node: " + nameVirtualNode2)
 			Eventually(func() bool {
 				if err := k8sClient.Get(ctx, types.NamespacedName{Name: nameVirtualNode2}, virtualNode2); err != nil {
 					return false
@@ -228,6 +228,8 @@ var _ = Describe("VirtualNode controller", func() {
 		nm = &namespaceresourcesv1.NamespaceMap{}
 
 		It("Check absence of NamespaceMaps and of finalizer", func() {
+
+			By("Try to get not virtual-node: " + nameSimpleNode)
 			Eventually(func() bool {
 				if err := k8sClient.Get(ctx, types.NamespacedName{Name: nameSimpleNode}, simpleNode); err != nil {
 					return false
@@ -235,6 +237,7 @@ var _ = Describe("VirtualNode controller", func() {
 				return true
 			}, timeout, interval).Should(BeTrue())
 
+			By("Check absence of NamespaceMap: " + remoteClusterIdSimpleNode)
 			Consistently(func() bool {
 				if err := k8sClient.Get(ctx, types.NamespacedName{Name: remoteClusterIdSimpleNode, Namespace: mapNamespaceName}, nm); err != nil {
 					if errors.IsNotFound(err) {
@@ -244,8 +247,11 @@ var _ = Describe("VirtualNode controller", func() {
 				return false
 			}, timeout/5, interval).Should(BeTrue())
 
+			By("Check absence of finalizer: " + virtualNodeFinalizer)
 			Consistently(func() bool {
-				_ = k8sClient.Get(ctx, types.NamespacedName{Name: nameSimpleNode}, simpleNode)
+				if err := k8sClient.Get(ctx, types.NamespacedName{Name: nameSimpleNode}, simpleNode); err != nil {
+					return true
+				}
 				return containsString(simpleNode.GetFinalizers(), virtualNodeFinalizer)
 			}, timeout/5, interval).ShouldNot(BeTrue())
 
