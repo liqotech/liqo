@@ -26,6 +26,8 @@ func CreateTunnelEndpointClient(kubeconfig string) (*crdClient.CRDClient, error)
 		panic(err)
 	}
 
+	config.QPS = 100
+	config.Burst = 100
 	clientSet, err := crdClient.NewFromConfig(config)
 	if err != nil {
 		return nil, err

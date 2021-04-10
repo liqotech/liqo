@@ -20,6 +20,9 @@ import (
 	"context"
 	goerrors "errors"
 	"fmt"
+	"strings"
+	"time"
+
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	nettypes "github.com/liqotech/liqo/apis/net/v1alpha1"
 	netv1alpha1 "github.com/liqotech/liqo/apis/net/v1alpha1"
@@ -43,8 +46,7 @@ import (
 	"k8s.io/klog"
 	"k8s.io/kubernetes/pkg/util/slice"
 	ctrl "sigs.k8s.io/controller-runtime"
-	"strings"
-	"time"
+	"sigs.k8s.io/controller-runtime/pkg/controller"
 )
 
 const FinalizerString = "foreigncluster.discovery.liqo.io/peered"
@@ -92,7 +94,6 @@ func (r *ForeignClusterReconciler) Reconcile(req ctrl.Request) (ctrl.Result, err
 	_ = context.Background()
 
 	monitoring.GetPeeringProcessMonitoring().Start()
-	monitoring.GetDiscoveryProcessMonitoring().Start()
 
 	klog.V(4).Infof("Reconciling ForeignCluster %s", req.Name)
 
@@ -489,6 +490,9 @@ func (r *ForeignClusterReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		For(&discoveryv1alpha1.ForeignCluster{}).
 		Owns(&advtypes.Advertisement{}).
 		Owns(&discoveryv1alpha1.PeeringRequest{}).
+		WithOptions(controller.Options{
+			MaxConcurrentReconciles: 10,
+		}).
 		Complete(r)
 }
 

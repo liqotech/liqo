@@ -32,6 +32,8 @@ func StartOperator(mgr *manager.Manager, namespace string, requeueAfter time.Dur
 		klog.Error(err, "unable to get kube config")
 		os.Exit(1)
 	}
+	config.QPS = 100
+	config.Burst = 100
 	discoveryClient, err := crdClient.NewFromConfig(config)
 	if err != nil {
 		klog.Error(err, "unable to create crd client")

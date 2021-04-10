@@ -41,50 +41,52 @@ func (discovery *DiscoveryCtrl) Resolve(ctx context.Context, service string, dom
 	entries := make(chan *zeroconf.ServiceEntry)
 	go func(results <-chan *zeroconf.ServiceEntry) {
 		for entry := range results {
-			monitoring.GetDiscoveryProcessMonitoring().Start()
-			monitoring.GetDiscoveryProcessMonitoring().EventRegister(monitoring.Discovery, monitoring.MDNSPacketReceived, monitoring.Start)
-			var data DiscoverableData = &AuthData{}
-			err := data.Get(discovery, entry)
-			if err != nil {
-				continue
-			}
-			if resultChan != nil {
-				resultChan <- data
-			}
-			if !reflect.ValueOf(data).IsNil() && data.IsComplete() {
-				// it is not a local cluster
-				klog.V(4).Infof("FC data: %v", data)
-				resolvedData.add(entry.Instance, data)
-				if resolvedData.isComplete(entry.Instance) {
-					monitoring.GetDiscoveryProcessMonitoring().EventRegister(monitoring.Discovery, monitoring.MDNSPacketReceived, monitoring.End)
-					monitoring.GetDiscoveryProcessMonitoring().Complete(monitoring.DiscoveryMDNS)
-					monitoring.GetDiscoveryProcessMonitoring().Start()
-					monitoring.GetDiscoveryProcessMonitoring().EventRegister(monitoring.Discovery, monitoring.GetClusterInfo, monitoring.Start)
-					klog.V(4).Infof("%s is complete", entry.Instance)
-					dData, err := resolvedData.get(entry.Instance)
-					if err != nil {
-						klog.Error(err)
-						continue
-					}
-					var trustMode discoveryPkg.TrustMode
-					dData.ClusterInfo, trustMode, err = discovery.getClusterInfo(dData.AuthData)
-					if err != nil {
-						klog.Error(err)
-						continue
-					}
-					if dData.ClusterInfo.ClusterID == discovery.ClusterId.GetClusterID() || dData.ClusterInfo.ClusterID == "" {
-						continue
-					}
-					monitoring.GetDiscoveryProcessMonitoring().EventRegister(monitoring.Discovery, monitoring.GetClusterInfo, monitoring.End)
-					monitoring.GetDiscoveryProcessMonitoring().Complete(monitoring.DiscoveryGetClusterInfo)
-					monitoring.GetDiscoveryProcessMonitoring().Start()
-					monitoring.GetDiscoveryProcessMonitoring().EventRegister(monitoring.Discovery, monitoring.CreateForeignCluster, monitoring.Start)
-					klog.V(4).Infof("update %s", entry.Instance)
-					discovery.UpdateForeignLAN(dData, trustMode)
-					monitoring.GetDiscoveryProcessMonitoring().EventRegister(monitoring.Discovery, monitoring.CreateForeignCluster, monitoring.End)
-					resolvedData.delete(entry.Instance)
+			go func(entry zeroconf.ServiceEntry) {
+				monitoring.GetDiscoveryProcessMonitoring().StartComp(monitoring.DiscoveryMDNS)
+				monitoring.GetDiscoveryProcessMonitoring().EventRegister(monitoring.Discovery, monitoring.MDNSPacketReceived, monitoring.Start)
+				var data DiscoverableData = &AuthData{}
+				err := data.Get(discovery, &entry)
+				if err != nil {
+					return
 				}
-			}
+				if resultChan != nil {
+					resultChan <- data
+				}
+				if !reflect.ValueOf(data).IsNil() && data.IsComplete() {
+					// it is not a local cluster
+					klog.V(4).Infof("FC data: %v", data)
+					resolvedData.add(entry.Instance, data)
+					if resolvedData.isComplete(entry.Instance) {
+						monitoring.GetDiscoveryProcessMonitoring().EventRegister(monitoring.Discovery, monitoring.MDNSPacketReceived, monitoring.End)
+						monitoring.GetDiscoveryProcessMonitoring().Complete(monitoring.DiscoveryMDNS)
+						monitoring.GetDiscoveryProcessMonitoring().StartComp(monitoring.DiscoveryGetClusterInfo)
+						monitoring.GetDiscoveryProcessMonitoring().EventRegister(monitoring.Discovery, monitoring.GetClusterInfo, monitoring.Start)
+						klog.V(4).Infof("%s is complete", entry.Instance)
+						dData, err := resolvedData.get(entry.Instance)
+						if err != nil {
+							klog.Error(err)
+							return
+						}
+						var trustMode discoveryPkg.TrustMode
+						dData.ClusterInfo, trustMode, err = discovery.getClusterInfo(dData.AuthData)
+						if err != nil {
+							klog.Error(err)
+							return
+						}
+						if dData.ClusterInfo.ClusterID == discovery.ClusterId.GetClusterID() || dData.ClusterInfo.ClusterID == "" {
+							return
+						}
+						monitoring.GetDiscoveryProcessMonitoring().EventRegister(monitoring.Discovery, monitoring.GetClusterInfo, monitoring.End)
+						monitoring.GetDiscoveryProcessMonitoring().Complete(monitoring.DiscoveryGetClusterInfo)
+						monitoring.GetDiscoveryProcessMonitoring().StartComp(monitoring.DiscoveryCreateForeignCluster)
+						monitoring.GetDiscoveryProcessMonitoring().EventRegister(monitoring.Discovery, monitoring.CreateForeignCluster, monitoring.Start)
+						klog.V(4).Infof("update %s", entry.Instance)
+						discovery.UpdateForeignLAN(dData, trustMode)
+						monitoring.GetDiscoveryProcessMonitoring().EventRegister(monitoring.Discovery, monitoring.CreateForeignCluster, monitoring.End)
+						resolvedData.delete(entry.Instance)
+					}
+				}
+			}(*entry)
 		}
 	}(entries)
 

@@ -65,6 +65,7 @@ func (r *ForeignClusterReconciler) getRemoteClient(fc *discoveryv1alpha1.Foreign
 		return nil, err
 	}
 
+	monitoring.GetDiscoveryProcessMonitoring().StartComp(monitoring.DiscoveryRetrieveIdentity)
 	monitoring.GetDiscoveryProcessMonitoring().EventRegister(monitoring.Discovery, monitoring.RetrieveRemoteIdentity, monitoring.Start)
 
 	// not existing role

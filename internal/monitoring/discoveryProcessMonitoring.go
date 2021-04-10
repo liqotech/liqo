@@ -1,18 +1,22 @@
 package monitoring
 
 import (
+	"sync"
+	"time"
+
 	"github.com/prometheus/client_golang/prometheus"
 	"sigs.k8s.io/controller-runtime/pkg/metrics"
-	"time"
 )
 
 type discoveryProcessMonitoring struct {
 	discoveryProcessTime     *prometheus.HistogramVec
 	discoveryEvents          *prometheus.GaugeVec
-	startProcessingTime      time.Time
+	startProcessingTime      map[string]time.Time
 	initMap                  map[string]bool
 	consistencyStartEventMap map[string]bool
 	consistencyEndEventMap   map[string]bool
+	counter map[string]int
+	genMutex sync.Mutex
 }
 
 func (mon *discoveryProcessMonitoring) init(useKubebuilder bool) error {
@@ -60,12 +64,43 @@ func (mon *discoveryProcessMonitoring) init(useKubebuilder bool) error {
 	return nil
 }
 
+func (mon *discoveryProcessMonitoring) StartComp(component LiqoComponent) {
+	mon.genMutex.Lock()
+	defer mon.genMutex.Unlock()
+	if mon.counter == nil || mon.startProcessingTime == nil {
+		mon.counter = map[string]int{}
+		mon.startProcessingTime = map[string]time.Time{}
+	}
+	if v, ok := mon.counter[component.String()]; !ok {
+		mon.counter[component.String()] = 0
+		mon.startProcessingTime[component.String()] = time.Now()
+	} else if v == 0 {
+		mon.startProcessingTime[component.String()] = time.Now()
+	}
+	mon.counter[component.String()] += 1
+}
+
 func (mon *discoveryProcessMonitoring) Start() {
-	mon.startProcessingTime = time.Now()
+	mon.genMutex.Lock()
+	defer mon.genMutex.Unlock()
+	mon.startProcessingTime[""] = time.Now()
 }
 
 func (mon *discoveryProcessMonitoring) Complete(component LiqoComponent) {
-	processingTimeMS := (time.Now().UnixNano() - mon.startProcessingTime.UnixNano()) / 1000000
+	mon.genMutex.Lock()
+	defer mon.genMutex.Unlock()
+	if mon.counter == nil || mon.startProcessingTime == nil {
+		mon.counter = map[string]int{}
+		mon.startProcessingTime = map[string]time.Time{}
+	}
+	if v, ok := mon.counter[component.String()]; !ok {
+		mon.counter[component.String()] = 0
+		mon.startProcessingTime[component.String()] = time.Now()
+	} else if v == 0 {
+		mon.startProcessingTime[component.String()] = time.Now()
+	}
+	mon.counter[component.String()] -= 1
+	processingTimeMS := (time.Now().UnixNano() - mon.startProcessingTime[component.String()].UnixNano()) / 1000000
 	mon.discoveryProcessTime.WithLabelValues(component.String()).Observe(float64(processingTimeMS))
 }
 

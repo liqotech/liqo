@@ -38,6 +38,8 @@ func NewDiscoveryCtrl(namespace string, clusterId clusterID.ClusterID, kubeconfi
 	if err != nil {
 		return nil, err
 	}
+	config.QPS = 100
+	config.Burst = 100
 	discoveryClient, err := crdClient.NewFromConfig(config)
 	if err != nil {
 		return nil, err

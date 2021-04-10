@@ -60,6 +60,10 @@ func (mon *peeringProcessMonitoring) init(useKubebuilder bool) error {
 	return nil
 }
 
+func (mon *peeringProcessMonitoring) StartComp(component LiqoComponent) {
+	panic("Not implemented")
+}
+
 func (mon *peeringProcessMonitoring) Start() {
 	mon.startProcessingTime = time.Now()
 }
