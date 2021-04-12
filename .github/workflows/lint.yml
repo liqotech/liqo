@@ -12,8 +12,6 @@ jobs:
     runs-on: ubuntu-20.04
     steps:
       - uses: actions/checkout@v2
-      - name: Install dependencies
-        run:  sudo apt update && sudo apt-get -y install gcc tar wget libgtk-3-dev libappindicator3-dev libxapp-dev libwebkit2gtk-4.0-dev build-essential
       - name: Set up Go 1.14
         uses: actions/setup-go@v2
         with:
