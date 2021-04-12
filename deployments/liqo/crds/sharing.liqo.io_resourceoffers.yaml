@@ -73,99 +73,11 @@ spec:
                   - names
                   type: object
                 type: array
-              kubeConfigRef:
-                description: SecretReference represents a Secret Reference. It has
-                  enough information to retrieve secret in any namespace
-                properties:
-                  name:
-                    description: Name is unique within a namespace to reference a
-                      secret resource.
-                    type: string
-                  namespace:
-                    description: Namespace defines the space within which the secret
-                      name must be unique.
-                    type: string
-                type: object
               labels:
                 additionalProperties:
                   type: string
                 description: Labels contains the label to be added to the virtual
                   node.
-                type: object
-              limitRange:
-                description: LimitRange contains the limits for every kind of resource
-                  (cpu, memory...).
-                properties:
-                  limits:
-                    description: Limits is the list of LimitRangeItem objects that
-                      are enforced.
-                    items:
-                      description: LimitRangeItem defines a min/max usage limit for
-                        any resource that matches on kind.
-                      properties:
-                        default:
-                          additionalProperties:
-                            anyOf:
-                            - type: integer
-                            - type: string
-                            pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
-                            x-kubernetes-int-or-string: true
-                          description: Default resource requirement limit value by
-                            resource name if resource limit is omitted.
-                          type: object
-                        defaultRequest:
-                          additionalProperties:
-                            anyOf:
-                            - type: integer
-                            - type: string
-                            pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
-                            x-kubernetes-int-or-string: true
-                          description: DefaultRequest is the default resource requirement
-                            request value by resource name if resource request is
-                            omitted.
-                          type: object
-                        max:
-                          additionalProperties:
-                            anyOf:
-                            - type: integer
-                            - type: string
-                            pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
-                            x-kubernetes-int-or-string: true
-                          description: Max usage constraints on this kind by resource
-                            name.
-                          type: object
-                        maxLimitRequestRatio:
-                          additionalProperties:
-                            anyOf:
-                            - type: integer
-                            - type: string
-                            pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
-                            x-kubernetes-int-or-string: true
-                          description: MaxLimitRequestRatio if specified, the named
-                            resource must have a request and limit that are both non-zero
-                            where limit divided by request is less than or equal to
-                            the enumerated value; this represents the max burst for
-                            the named resource.
-                          type: object
-                        min:
-                          additionalProperties:
-                            anyOf:
-                            - type: integer
-                            - type: string
-                            pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
-                            x-kubernetes-int-or-string: true
-                          description: Min usage constraints on this kind by resource
-                            name.
-                          type: object
-                        type:
-                          description: Type of resource that this limit applies to.
-                          type: string
-                      required:
-                      - type
-                      type: object
-                    type: array
-                required:
-                - limits
                 type: object
               neighbors:
                 additionalProperties:
@@ -274,7 +186,6 @@ spec:
                 type: string
             required:
             - clusterId
-            - kubeConfigRef
             - timeToLive
             - timestamp
             type: object

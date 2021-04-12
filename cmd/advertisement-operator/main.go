@@ -15,6 +15,7 @@ package main
 import (
 	"flag"
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
+	resourceRequestOperator "github.com/liqotech/liqo/internal/resource-request-operator"
 	"github.com/liqotech/liqo/pkg/crdClient"
 	"github.com/liqotech/liqo/pkg/mapperUtils"
 	"github.com/liqotech/liqo/pkg/vkMachinery"
@@ -54,6 +55,8 @@ func init() {
 	_ = advtypes.AddToScheme(scheme)
 
 	_ = netv1alpha1.AddToScheme(scheme)
+
+	_ = discoveryv1alpha1.AddToScheme(scheme)
 
 	// +kubebuilder:scaffold:scheme
 }
@@ -152,6 +155,18 @@ func main() {
 		klog.Error(err)
 		os.Exit(1)
 	}
+
+	resourceRequestReconciler := &resourceRequestOperator.ResourceRequestReconciler{
+		Client:    mgr.GetClient(),
+		Scheme:    mgr.GetScheme(),
+		ClusterId: clusterId,
+	}
+
+	if err = resourceRequestReconciler.SetupWithManager(mgr); err != nil {
+		klog.Fatal(err)
+	}
+
+	// +kubebuilder:scaffold:builder
 
 	c := make(chan struct{})
 	var wg = &sync.WaitGroup{}

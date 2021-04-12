@@ -235,7 +235,6 @@ func (in *ResourceOfferSpec) DeepCopyInto(out *ResourceOfferSpec) {
 			(*in)[i].DeepCopyInto(&(*out)[i])
 		}
 	}
-	in.LimitRange.DeepCopyInto(&out.LimitRange)
 	in.ResourceQuota.DeepCopyInto(&out.ResourceQuota)
 	if in.Labels != nil {
 		in, out := &in.Labels, &out.Labels
@@ -275,7 +274,6 @@ func (in *ResourceOfferSpec) DeepCopyInto(out *ResourceOfferSpec) {
 			(*out)[key] = val.DeepCopy()
 		}
 	}
-	out.KubeConfigRef = in.KubeConfigRef
 	in.Timestamp.DeepCopyInto(&out.Timestamp)
 	in.TimeToLive.DeepCopyInto(&out.TimeToLive)
 }
