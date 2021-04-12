@@ -13,8 +13,6 @@ type ResourceOfferSpec struct {
 	ClusterId string `json:"clusterId"`
 	// Images is the list of the images already stored in the cluster.
 	Images []corev1.ContainerImage `json:"images,omitempty"`
-	// LimitRange contains the limits for every kind of resource (cpu, memory...).
-	LimitRange corev1.LimitRangeSpec `json:"limitRange,omitempty"`
 	// ResourceQuota contains the quantity of resources made available by the cluster.
 	ResourceQuota corev1.ResourceQuotaSpec `json:"resourceQuota,omitempty"`
 	// Labels contains the label to be added to the virtual node.
@@ -24,8 +22,7 @@ type ResourceOfferSpec struct {
 	// Properties can contain any additional information about the cluster.
 	Properties map[corev1.ResourceName]string `json:"properties,omitempty"`
 	// Prices contains the possible prices for every kind of resource (cpu, memory, image).
-	Prices        corev1.ResourceList    `json:"prices,omitempty"`
-	KubeConfigRef corev1.SecretReference `json:"kubeConfigRef"`
+	Prices corev1.ResourceList `json:"prices,omitempty"`
 	// Timestamp is the time instant when this ResourceOffer was created.
 	Timestamp metav1.Time `json:"timestamp"`
 	// TimeToLive is the time instant until this ResourceOffer will be valid.
