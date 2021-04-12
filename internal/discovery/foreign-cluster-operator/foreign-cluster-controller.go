@@ -26,11 +26,11 @@ import (
 	advtypes "github.com/liqotech/liqo/apis/sharing/v1alpha1"
 	"github.com/liqotech/liqo/internal/crdReplicator"
 	"github.com/liqotech/liqo/internal/discovery"
-	"github.com/liqotech/liqo/internal/discovery/kubeconfig"
 	"github.com/liqotech/liqo/internal/discovery/utils"
 	"github.com/liqotech/liqo/pkg/clusterID"
 	"github.com/liqotech/liqo/pkg/crdClient"
 	discoveryPkg "github.com/liqotech/liqo/pkg/discovery"
+	"github.com/liqotech/liqo/pkg/kubeconfig"
 	apiv1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -41,7 +41,6 @@ import (
 	"k8s.io/client-go/util/retry"
 	"k8s.io/klog"
 	"k8s.io/kubernetes/pkg/util/slice"
-	"os"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"strings"
 	"time"
@@ -475,7 +474,7 @@ func (r *ForeignClusterReconciler) checkJoined(fc *discoveryv1alpha1.ForeignClus
 // get the external address where the Authentication Service is reachable from the external world
 func (r *ForeignClusterReconciler) getAddress() (string, error) {
 	// this address can be overwritten setting this environment variable
-	address, _ := os.LookupEnv("AUTH_ADDR")
+	address := r.ConfigProvider.GetConfig().AuthServiceAddress
 	if address != "" {
 		return address, nil
 	}
@@ -495,8 +494,18 @@ func (r *ForeignClusterReconciler) getAddress() (string, error) {
 			klog.Error(err)
 			return "", err
 		}
+		lbIngress := svc.Status.LoadBalancer.Ingress[0]
 		// return the external service IP
-		return svc.Status.LoadBalancer.Ingress[0].IP, nil
+		if hostname := lbIngress.Hostname; hostname != "" {
+			return hostname, nil
+		} else if ip := lbIngress.IP; ip != "" {
+			return ip, nil
+		} else {
+			// the service has no external IPs
+			err := goerrors.New("no valid external IP for LoadBalancer Service")
+			klog.Error(err)
+			return "", err
+		}
 	}
 
 	// get the IP from the Nodes, to be used with NodePort services
@@ -516,29 +525,18 @@ func (r *ForeignClusterReconciler) getAddress() (string, error) {
 	}
 
 	node := nodes.Items[0]
-	for _, addr := range node.Status.Addresses {
-		// get the accresses that are IPs, other addresses (like the hostname) can not be reachable and valid for a remote host
-		if addr.Type == apiv1.NodeExternalIP || addr.Type == apiv1.NodeInternalIP {
-			return addr.Address, nil
-		}
-	}
+	return discoveryPkg.GetAddress(&node)
 
-	// we was not able to get an address in any of the previous cases:
+	// when an error occurs, it means that we was not able to get an address in any of the previous cases:
 	// 1. no overwrite variable is set
 	// 2. the service is not of type LoadBalancer
 	// 3. there are no nodes in the cluster to get the IP for a NodePort service
-	err = errors.NewNotFound(schema.GroupResource{
-		Group:    apiv1.GroupName,
-		Resource: "nodes",
-	}, "no valid ip")
-	klog.Error(err)
-	return "", err
 }
 
 // get the external port where the Authentication Service is reachable from the external world
 func (r *ForeignClusterReconciler) getPort() (string, error) {
 	// this port can be overwritten setting this environment variable
-	port, _ := os.LookupEnv("AUTH_SVC_PORT")
+	port := r.ConfigProvider.GetConfig().AuthServicePort
 	if port != "" {
 		return port, nil
 	}
@@ -761,7 +759,7 @@ func (r *ForeignClusterReconciler) getForeignConfig(clusterID string, owner *dis
 			}
 		}
 	}
-	cnf, err := kubeconfig.CreateKubeConfig(r.crdClient.Client(), clusterID, r.Namespace)
+	cnf, err := kubeconfig.CreateKubeConfig(r.ConfigProvider, r.crdClient.Client(), clusterID, r.Namespace)
 	return cnf, err
 }
 

@@ -4,6 +4,7 @@ import (
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	"github.com/liqotech/liqo/pkg/clusterID"
 	"github.com/liqotech/liqo/pkg/crdClient"
+	"github.com/liqotech/liqo/pkg/mapperUtils"
 	"k8s.io/apimachinery/pkg/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/klog"
@@ -24,6 +25,7 @@ func init() {
 
 func StartOperator(namespace string, broadcasterImage string, broadcasterServiceAccount string, vkServiceAccount string, kubeconfigPath string) {
 	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
+		MapperProvider:   mapperUtils.LiqoMapperProvider(scheme),
 		Scheme:           scheme,
 		Port:             9443,
 		LeaderElection:   false,
@@ -34,7 +36,7 @@ func StartOperator(namespace string, broadcasterImage string, broadcasterService
 		os.Exit(1)
 	}
 
-	config, err := crdClient.NewKubeconfig(kubeconfigPath, &discoveryv1alpha1.GroupVersion)
+	config, err := crdClient.NewKubeconfig(kubeconfigPath, &discoveryv1alpha1.GroupVersion, nil)
 	if err != nil {
 		klog.Error(err, "unable to get kube config")
 		os.Exit(1)

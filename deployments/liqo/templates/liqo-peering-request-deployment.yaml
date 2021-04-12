@@ -46,16 +46,9 @@ spec:
             - name: APISERVER_PORT
               value: "{{ .Values.apiServer.port }}"
             {{- end }}
-            {{- if .Values.auth.ingress.host}}
-            - name: AUTH_ADDR
-              value: "{{ .Values.auth.ingress.host }}"
-            {{- end }}
-            {{- if .Values.auth.portOverride }}
-            - name: AUTH_SVC_PORT
-              value: "{{ .Values.auth.portOverride }}"
-            {{- else if .Values.auth.ingress.enable }}
-            - name: AUTH_SVC_PORT
-              value: "443"
+            {{- if .Values.apiServer.trustedCA }}
+            - name: APISERVER_TRUSTED
+              value: "{{ .Values.apiServer.trustedCA }}"
             {{- end }}
           resources:
             limits:

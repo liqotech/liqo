@@ -9,6 +9,7 @@ import (
 	foreign_cluster_operator "github.com/liqotech/liqo/internal/discovery/foreign-cluster-operator"
 	search_domain_operator "github.com/liqotech/liqo/internal/discovery/search-domain-operator"
 	"github.com/liqotech/liqo/pkg/clusterID"
+	"github.com/liqotech/liqo/pkg/mapperUtils"
 	"k8s.io/apimachinery/pkg/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/klog"
@@ -71,6 +72,7 @@ func main() {
 	discoveryCtl.StartDiscovery()
 
 	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
+		MapperProvider:   mapperUtils.LiqoMapperProvider(scheme),
 		Scheme:           scheme,
 		Port:             9443,
 		LeaderElection:   false,

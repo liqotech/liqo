@@ -162,6 +162,15 @@ spec:
                 required:
                 - dashboardConfig
                 type: object
+              apiServerConfig:
+                properties:
+                  address:
+                    type: string
+                  port:
+                    type: string
+                  trustedCA:
+                    type: boolean
+                type: object
               authConfig:
                 properties:
                   allowEmptyToken:
@@ -174,6 +183,10 @@ spec:
                 properties:
                   authService:
                     default: _liqo_auth._tcp
+                    type: string
+                  authServiceAddress:
+                    type: string
+                  authServicePort:
                     type: string
                   autojoin:
                     type: boolean
@@ -239,10 +252,17 @@ spec:
                     description: set this flag to true if you are using GKE, default
                       value is "false"
                     type: boolean
+                  additionalPools:
+                    description: 'Set of additional user-defined network pools. Default
+                      set of network pools is: [192.168.0.0/16, 10.0.0.0/8, 172.16.0.0/12]'
+                    items:
+                      pattern: ^([0-9]{1,3}.){3}[0-9]{1,3}(/([0-9]|[1-2][0-9]|3[0-2]))$
+                      type: string
+                    type: array
                   podCIDR:
                     description: the subnet used by the cluster for the pods, in CIDR
-                      notation at this moment only /16 subnets are supported
-                    pattern: ^([0-9]{1,3}.){3}[0-9]{1,3}(/(16))
+                      notation
+                    pattern: ^([0-9]{1,3}.){3}[0-9]{1,3}(/([0-9]|[1-2][0-9]|3[0-2]))$
                     type: string
                   reservedSubnets:
                     description: This field is used by the IPAM embedded in the tunnelEndpointCreator.
@@ -251,6 +271,7 @@ spec:
                       used in your environment as a list in CIDR notation (e.g. [10.1.0.0/16,
                       10.200.1.0/24]).
                     items:
+                      pattern: ^([0-9]{1,3}.){3}[0-9]{1,3}(/([0-9]|[1-2][0-9]|3[0-2]))$
                       type: string
                     type: array
                   serviceCIDR:
@@ -260,6 +281,7 @@ spec:
                     type: string
                 required:
                 - GKEProvider
+                - additionalPools
                 - podCIDR
                 - reservedSubnets
                 - serviceCIDR

@@ -25,13 +25,13 @@ func createBroadcaster(configv1alpha1 configv1alpha1.ClusterConfigSpec) advop.Ad
 	// set the client in fake mode
 	crdClient.Fake = true
 	// create fake client for the home cluster
-	homeClient, err := advtypes.CreateAdvertisementClient("", nil, true)
+	homeClient, err := advtypes.CreateAdvertisementClient("", nil, true, nil)
 	if err != nil {
 		panic(err)
 	}
 
 	// create the fake client for the foreign cluster
-	foreignClient, err := advtypes.CreateAdvertisementClient("", nil, true)
+	foreignClient, err := advtypes.CreateAdvertisementClient("", nil, true, nil)
 	if err != nil {
 		panic(err)
 	}

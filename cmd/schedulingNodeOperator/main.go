@@ -18,6 +18,7 @@ package main
 
 import (
 	"flag"
+	"github.com/liqotech/liqo/pkg/mapperUtils"
 	"os"
 
 	"k8s.io/apimachinery/pkg/runtime"
@@ -56,6 +57,7 @@ func main() {
 	ctrl.SetLogger(zap.New(zap.UseDevMode(true)))
 
 	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
+		MapperProvider:     mapperUtils.LiqoMapperProvider(scheme),
 		Scheme:             scheme,
 		MetricsBindAddress: metricsAddr,
 		Port:               9443,

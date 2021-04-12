@@ -20,6 +20,7 @@ jobs:
       ok-to-continue: ${{ steps.configure.outputs.ok-to-continue }}
       master: ${{ steps.configure.outputs.master }}
       repo-name: ${{ steps.configure.outputs.repo-name }}
+      architectures: ${{ steps.configure.outputs.architectures }}
     steps:
     - name: Get the version
       id: get_version
@@ -31,12 +32,15 @@ jobs:
         # The ref of the commit to checkout (do not use the merge commit if pull request)
         if [ "${{ github.event_name }}" == "pull_request_target" ]; then
           echo "::set-output name=master::false"
+          echo "::set-output name=architectures::linux/amd64"
           echo "::set-output name=commit_ref::${{ github.event.pull_request.head.sha }}"
         elif [ "${{ steps.get_version.outputs.VERSION }}" != "" ]; then
           echo "::set-output name=master::false"
+          echo "::set-output name=architectures::linux/amd64,linux/arm64"
           echo "::set-output name=commit_ref::${{ steps.get_version.outputs.VERSION }}"
         else
           echo "::set-output name=master::true"
+          echo "::set-output name=architectures::linux/amd64,linux/arm64"
           echo "::set-output name=commit_ref::${{ github.sha }}"
         fi
 
@@ -107,7 +111,7 @@ jobs:
         uses: docker/build-push-action@v2
         with:
           context: .
-          platforms: linux/amd64,linux/arm64
+          platforms: ${{ needs.configure.outputs.architectures }}
           tags: |
             liqo/${{ matrix.component }}${{ needs.configure.outputs.repo-suffix }}:latest
             liqo/${{ matrix.component }}${{ needs.configure.outputs.repo-suffix }}:${{ needs.configure.outputs.commit_ref }}
@@ -201,6 +205,17 @@ jobs:
           body_path: ./CHANGELOG.md
         env:
           GITHUB_TOKEN: ${{ secrets.CI_TOKEN }}
+      
+      - name: Trigger Chart Upload
+        uses: peter-evans/repository-dispatch@v1
+        with:
+          token: ${{ secrets.CI_TOKEN }}
+          repository: liqotech/liqops
+          event-type: "release"
+          client-payload: |
+             {
+               "version": "${{ needs.configure.outputs.commit_ref }}",
+             }
 
   test:
     name: Launch Test

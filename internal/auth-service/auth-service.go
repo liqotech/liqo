@@ -48,12 +48,13 @@ type AuthServiceCtrl struct {
 	clusterId            clusterID.ClusterID
 
 	config          *v1alpha1.AuthConfig
+	apiServerConfig *v1alpha1.ApiServerConfig
 	discoveryConfig v1alpha1.DiscoveryConfig
 	configMutex     sync.RWMutex
 }
 
 func NewAuthServiceCtrl(namespace string, kubeconfigPath string, resyncTime time.Duration, useTls bool) (*AuthServiceCtrl, error) {
-	config, err := crdClient.NewKubeconfig(kubeconfigPath, &discoveryv1alpha1.GroupVersion)
+	config, err := crdClient.NewKubeconfig(kubeconfigPath, &discoveryv1alpha1.GroupVersion, nil)
 	if err != nil {
 		return nil, err
 	}

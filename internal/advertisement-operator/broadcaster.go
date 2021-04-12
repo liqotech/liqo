@@ -3,15 +3,16 @@ package advertisementOperator
 import (
 	"context"
 	"errors"
-	"github.com/liqotech/liqo/internal/discovery/kubeconfig"
 	advpkg "github.com/liqotech/liqo/pkg/advertisement-operator"
 	"github.com/liqotech/liqo/pkg/crdClient"
+	"github.com/liqotech/liqo/pkg/kubeconfig"
 	"github.com/liqotech/liqo/pkg/labelPolicy"
 	pkg "github.com/liqotech/liqo/pkg/virtualKubelet"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/forge"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/klog"
+	"os"
 	"strings"
 	"sync"
 	"time"
@@ -50,6 +51,16 @@ type AdvResources struct {
 	Labels        map[string]string
 }
 
+type apiConfigProviderEnv struct{}
+
+func (p *apiConfigProviderEnv) GetApiServerConfig() *configv1alpha1.ApiServerConfig {
+	return &configv1alpha1.ApiServerConfig{
+		Address:   os.Getenv("APISERVER"),
+		Port:      os.Getenv("APISERVER_PORT"),
+		TrustedCA: os.Getenv("APISERVER_TRUSTED") == "true",
+	}
+}
+
 // start the broadcaster which sends Advertisement messages
 // it reads the Secret to get the kubeconfig to the remote cluster and create a client for it
 // parameters
@@ -61,14 +72,14 @@ func StartBroadcaster(homeClusterId, localKubeconfigPath, peeringRequestName, sa
 	klog.V(6).Info("starting broadcaster")
 
 	// create the Advertisement client to the local cluster
-	localClient, err := advtypes.CreateAdvertisementClient(localKubeconfigPath, nil, true)
+	localClient, err := advtypes.CreateAdvertisementClient(localKubeconfigPath, nil, true, nil)
 	if err != nil {
 		klog.Errorln(err, "Unable to create client to local cluster")
 		return err
 	}
 
 	// create the discovery client
-	config, err := crdClient.NewKubeconfig(localKubeconfigPath, &discoveryv1alpha1.GroupVersion)
+	config, err := crdClient.NewKubeconfig(localKubeconfigPath, &discoveryv1alpha1.GroupVersion, nil)
 	if err != nil {
 		klog.Error(err, err.Error())
 		return err
@@ -105,7 +116,7 @@ func StartBroadcaster(homeClusterId, localKubeconfigPath, peeringRequestName, sa
 
 	// create a CRD-client to the foreign cluster
 	for retry = 0; retry < 3; retry++ {
-		remoteClient, err = advtypes.CreateAdvertisementClient("", secretForAdvertisementCreation, true)
+		remoteClient, err = advtypes.CreateAdvertisementClient("", secretForAdvertisementCreation, true, nil)
 		if err != nil {
 			klog.Errorln(err, "Unable to create client to remote cluster "+foreignClusterId+". Retry in 1 minute")
 			time.Sleep(1 * time.Minute)
@@ -132,7 +143,7 @@ func StartBroadcaster(homeClusterId, localKubeconfigPath, peeringRequestName, sa
 	kubeconfigSecretName := pkg.VirtualKubeletSecPrefix + homeClusterId
 
 	// create the kubeconfig to allow the foreign cluster to create resources on local cluster
-	kubeconfigForForeignCluster, err := kubeconfig.CreateKubeConfig(localClient.Client(), saName, pr.Spec.Namespace)
+	kubeconfigForForeignCluster, err := kubeconfig.CreateKubeConfig(&apiConfigProviderEnv{}, localClient.Client(), saName, pr.Spec.Namespace)
 	if err != nil {
 		klog.Errorln(err, "Unable to create Kubeconfig")
 		return err

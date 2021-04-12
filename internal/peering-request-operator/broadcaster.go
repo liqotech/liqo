@@ -66,11 +66,17 @@ func GetBroadcasterDeployment(request *discoveryv1alpha1.PeeringRequest, nameSA 
 			Value: val,
 		})
 	}
+	if val, exists := os.LookupEnv("APISERVER_TRUSTED"); exists {
+		env = append(env, v1.EnvVar{
+			Name:  "APISERVER_TRUSTED",
+			Value: val,
+		})
+	}
 
 	deploy := &appsv1.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
-			GenerateName: strings.Join([]string{"broadcaster", request.Name, ""}, "-"),
-			Namespace:    namespace,
+			Name:      strings.Join([]string{"broadcaster", request.Name}, "-"),
+			Namespace: namespace,
 			OwnerReferences: []metav1.OwnerReference{
 				{
 					APIVersion: fmt.Sprintf("%s/%s", discoveryv1alpha1.GroupVersion.Group, discoveryv1alpha1.GroupVersion.Version),
@@ -85,19 +91,19 @@ func GetBroadcasterDeployment(request *discoveryv1alpha1.PeeringRequest, nameSA 
 			Replicas: pointer.Int32Ptr(1),
 			Selector: &metav1.LabelSelector{
 				MatchLabels: map[string]string{
-					"app": "broadcaster-" + request.Name,
+					"app": strings.Join([]string{"broadcaster", request.Name}, "-"),
 				},
 			},
 			Template: v1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
 					Labels: map[string]string{
-						"app": "broadcaster-" + request.Name,
+						"app": strings.Join([]string{"broadcaster", request.Name}, "-"),
 					},
 				},
 				Spec: v1.PodSpec{
 					Containers: []v1.Container{
 						{
-							Name:            "broadcaster-" + request.Name,
+							Name:            strings.Join([]string{"broadcaster", request.Name}, "-"),
 							Image:           image,
 							ImagePullPolicy: v1.PullAlways,
 							Args:            args,

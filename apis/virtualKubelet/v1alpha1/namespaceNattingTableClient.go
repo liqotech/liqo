@@ -8,7 +8,7 @@ import (
 	"k8s.io/client-go/rest"
 )
 
-func CreateClient(kubeconfig string) (*crdClient.CRDClient, error) {
+func CreateClient(kubeconfig string, configOptions func(config *rest.Config)) (*crdClient.CRDClient, error) {
 	var config *rest.Config
 	var err error
 
@@ -16,7 +16,7 @@ func CreateClient(kubeconfig string) (*crdClient.CRDClient, error) {
 		panic(err)
 	}
 
-	config, err = crdClient.NewKubeconfig(kubeconfig, &GroupVersion)
+	config, err = crdClient.NewKubeconfig(kubeconfig, &GroupVersion, configOptions)
 	if err != nil {
 		panic(err)
 	}

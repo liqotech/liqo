@@ -21,7 +21,6 @@ package v1alpha1
 
 import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
-	k8sScheme "k8s.io/client-go/kubernetes/scheme"
 	"sigs.k8s.io/controller-runtime/pkg/scheme"
 )
 
@@ -40,7 +39,3 @@ var (
 	//ForeignClusterGroupResource is the group resource used to register ForeignCluster CRD.
 	ForeignClusterGroupResource = schema.GroupResource{Group: GroupVersion.Group, Resource: "foreignclusters"}
 )
-
-func init() {
-	_ = AddToScheme(k8sScheme.Scheme)
-}

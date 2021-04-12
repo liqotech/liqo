@@ -24,7 +24,7 @@ func CreatePeeringRequestClient(kubeconfig string) (*crdClient.CRDClient, error)
 
 	crdClient.AddToRegistry("peeringrequests", &PeeringRequest{}, &PeeringRequestList{}, Keyer, GroupResource)
 
-	config, err = crdClient.NewKubeconfig(kubeconfig, &GroupVersion)
+	config, err = crdClient.NewKubeconfig(kubeconfig, &GroupVersion, nil)
 	if err != nil {
 		panic(err)
 	}

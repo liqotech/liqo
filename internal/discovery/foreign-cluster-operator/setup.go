@@ -27,7 +27,7 @@ func init() {
 }
 
 func StartOperator(mgr *manager.Manager, namespace string, requeueAfter time.Duration, discoveryCtrl *discovery.DiscoveryCtrl, kubeconfigPath string) {
-	config, err := crdClient.NewKubeconfig(kubeconfigPath, &discoveryv1alpha1.GroupVersion)
+	config, err := crdClient.NewKubeconfig(kubeconfigPath, &discoveryv1alpha1.GroupVersion, nil)
 	if err != nil {
 		klog.Error(err, "unable to get kube config")
 		os.Exit(1)
@@ -43,7 +43,7 @@ func StartOperator(mgr *manager.Manager, namespace string, requeueAfter time.Dur
 		os.Exit(1)
 	}
 
-	advClient, err := advtypes.CreateAdvertisementClient(kubeconfigPath, nil, true)
+	advClient, err := advtypes.CreateAdvertisementClient(kubeconfigPath, nil, true, nil)
 	if err != nil {
 		klog.Error(err, "unable to create local client for Advertisement")
 		os.Exit(1)

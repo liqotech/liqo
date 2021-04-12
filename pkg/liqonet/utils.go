@@ -1,17 +1,18 @@
 package liqonet
 
 import (
-	"bytes"
 	"context"
 	"fmt"
-	"github.com/apparentlymart/go-cidr/cidr"
 	"github.com/liqotech/liqo/internal/utils/errdefs"
 	"github.com/vishvananda/netlink"
 	"golang.org/x/tools/go/ssa/interp/testdata/src/errors"
 	"io/ioutil"
 	corev1 "k8s.io/api/core/v1"
+	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/util/retry"
 	"k8s.io/klog"
 	"net"
 	"os"
@@ -96,34 +97,27 @@ func RemoveString(slice []string, s string) (result []string) {
 	return
 }
 
-func VerifyNoOverlap(subnets map[string]*net.IPNet, newNet *net.IPNet) bool {
-	firstLastIP := make([][]net.IP, 1)
-
-	for _, value := range subnets {
-		if bytes.Compare(value.Mask, newNet.Mask) <= 0 {
-			first, last := cidr.AddressRange(newNet)
-			firstLastIP[0] = []net.IP{first, last}
-			if value.Contains(firstLastIP[0][0]) || value.Contains(firstLastIP[0][1]) {
-				return true
-			}
-		} else {
-			first, last := cidr.AddressRange(value)
-			firstLastIP[0] = []net.IP{first, last}
-			if newNet.Contains(firstLastIP[0][0]) || newNet.Contains(firstLastIP[0][1]) {
-				return true
-			}
-		}
-	}
-	return false
-}
-
-func GetClusterID(client *kubernetes.Clientset, cmName, namespace string) (string, error) {
+func GetClusterID(client kubernetes.Interface, cmName, namespace string, backoff wait.Backoff) (string, error) {
 	cmClient := client.CoreV1().ConfigMaps(namespace)
-	cm, err := cmClient.Get(context.TODO(), cmName, metav1.GetOptions{})
-	if err != nil {
-		return "", err
+	var cm *corev1.ConfigMap
+	var err error
+
+	notFound := func(error) bool {
+		klog.V(4).Info("Error while getting ClusterID ConfigMap. Retrying...")
+		return k8serrors.IsNotFound(err)
 	}
+
+	klog.Info("Getting ClusterID from ConfigMap...")
+	retryErr := retry.OnError(backoff, notFound, func() error {
+		cm, err = cmClient.Get(context.TODO(), cmName, metav1.GetOptions{})
+		return err
+	})
+	if retryErr != nil {
+		return "", retryErr
+	}
+
 	clusterID := cm.Data[cmName]
+	klog.Infof("ClusterID is '%s'", clusterID)
 	return clusterID, nil
 }
 

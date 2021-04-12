@@ -30,7 +30,7 @@ type CRDClient struct {
 	Stop   chan struct{}
 }
 
-func NewKubeconfig(configPath string, gv *schema.GroupVersion) (*rest.Config, error) {
+func NewKubeconfig(configPath string, gv *schema.GroupVersion, configOptions func(config *rest.Config)) (*rest.Config, error) {
 	config := &rest.Config{}
 
 	if !Fake {
@@ -56,6 +56,10 @@ func NewKubeconfig(configPath string, gv *schema.GroupVersion) (*rest.Config, er
 	config.APIPath = "/apis"
 	config.NegotiatedSerializer = scheme.Codecs.WithoutConversion()
 	config.UserAgent = rest.DefaultKubernetesUserAgent()
+
+	if configOptions != nil {
+		configOptions(config)
+	}
 
 	return config, nil
 }

@@ -1,20 +1,25 @@
 package clusterConfig
 
 import (
+	"os"
+	"time"
+
 	configv1alpha1 "github.com/liqotech/liqo/apis/config/v1alpha1"
 	"github.com/liqotech/liqo/pkg/crdClient"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/klog"
-	"os"
-	"time"
 )
 
+type ApiServerConfigProvider interface {
+	GetApiServerConfig() *configv1alpha1.ApiServerConfig
+}
+
 func WatchConfiguration(handler func(*configv1alpha1.ClusterConfig), client *crdClient.CRDClient, kubeconfigPath string) {
-	var rsyncPeriod = 1 * time.Second
+	var rsyncPeriod = 30 * time.Second
 	if client == nil {
-		config, err := crdClient.NewKubeconfig(kubeconfigPath, &configv1alpha1.GroupVersion)
+		config, err := crdClient.NewKubeconfig(kubeconfigPath, &configv1alpha1.GroupVersion, nil)
 		if err != nil {
 			klog.Error(err, err.Error())
 			os.Exit(1)
@@ -65,5 +70,4 @@ func WatchConfiguration(handler func(*configv1alpha1.ClusterConfig), client *crd
 		os.Exit(1)
 	}
 	klog.Info("Cluster Config Informer initialized")
-
 }

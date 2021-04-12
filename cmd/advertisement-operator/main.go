@@ -19,6 +19,7 @@ import (
 	"flag"
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	"github.com/liqotech/liqo/pkg/crdClient"
+	"github.com/liqotech/liqo/pkg/mapperUtils"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/kubernetes"
@@ -84,6 +85,7 @@ func main() {
 	}
 
 	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
+		MapperProvider:     mapperUtils.LiqoMapperProvider(scheme),
 		Scheme:             scheme,
 		MetricsBindAddress: "0",
 		LeaderElection:     enableLeaderElection,
@@ -104,7 +106,7 @@ func main() {
 	go csrApprover.WatchCSR(clientset, "liqo.io/csr=true", 5*time.Second)
 
 	// get the number of already accepted advertisements
-	advClient, err := advtypes.CreateAdvertisementClient(localKubeconfig, nil, true)
+	advClient, err := advtypes.CreateAdvertisementClient(localKubeconfig, nil, true, nil)
 	if err != nil {
 		klog.Errorln(err, "unable to create local client for Advertisement")
 		os.Exit(1)
@@ -121,7 +123,7 @@ func main() {
 		}
 	}
 
-	discoveryConfig, err := crdClient.NewKubeconfig(localKubeconfig, &discoveryv1alpha1.GroupVersion)
+	discoveryConfig, err := crdClient.NewKubeconfig(localKubeconfig, &discoveryv1alpha1.GroupVersion, nil)
 	if err != nil {
 		klog.Error(err, "unable to get kube config")
 		os.Exit(1)

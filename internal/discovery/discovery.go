@@ -16,12 +16,15 @@ import (
 type DiscoveryCtrl struct {
 	Namespace string
 
-	Config         *configv1alpha1.DiscoveryConfig
-	stopMDNS       chan bool
-	stopMDNSClient chan bool
-	crdClient      *crdClient.CRDClient
-	advClient      *crdClient.CRDClient
-	ClusterId      clusterID.ClusterID
+	configMutex         sync.RWMutex
+	Config              *configv1alpha1.DiscoveryConfig
+	crdReplicatorConfig *configv1alpha1.DispatcherConfig
+	apiServerConfig     *configv1alpha1.ApiServerConfig
+	stopMDNS            chan bool
+	stopMDNSClient      chan bool
+	crdClient           *crdClient.CRDClient
+	advClient           *crdClient.CRDClient
+	ClusterId           clusterID.ClusterID
 
 	mdnsServerAuth            *zeroconf.Server
 	serverMux                 sync.Mutex
@@ -31,7 +34,7 @@ type DiscoveryCtrl struct {
 }
 
 func NewDiscoveryCtrl(namespace string, clusterId clusterID.ClusterID, kubeconfigPath string, resolveContextRefreshTime int, dialTcpTimeout time.Duration) (*DiscoveryCtrl, error) {
-	config, err := crdClient.NewKubeconfig(kubeconfigPath, &discoveryv1alpha1.GroupVersion)
+	config, err := crdClient.NewKubeconfig(kubeconfigPath, &discoveryv1alpha1.GroupVersion, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -40,7 +43,7 @@ func NewDiscoveryCtrl(namespace string, clusterId clusterID.ClusterID, kubeconfi
 		return nil, err
 	}
 
-	advClient, err := advtypes.CreateAdvertisementClient(kubeconfigPath, nil, true)
+	advClient, err := advtypes.CreateAdvertisementClient(kubeconfigPath, nil, true, nil)
 	if err != nil {
 		klog.Error(err, "unable to create local client for Advertisement")
 		os.Exit(1)

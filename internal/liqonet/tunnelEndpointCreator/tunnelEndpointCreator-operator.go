@@ -18,6 +18,13 @@ package tunnelEndpointCreator
 import (
 	"context"
 	"fmt"
+	"os"
+	"os/signal"
+	"reflect"
+	"strings"
+	"sync"
+	"time"
+
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	"github.com/liqotech/liqo/internal/crdReplicator"
 	liqonet "github.com/liqotech/liqo/pkg/liqonet"
@@ -33,13 +40,6 @@ import (
 	"k8s.io/client-go/util/retry"
 	"k8s.io/klog"
 	"k8s.io/utils/pointer"
-	"net"
-	"os"
-	"os/signal"
-	"reflect"
-	"strings"
-	"sync"
-	"time"
 
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -86,8 +86,9 @@ type TunnelEndpointCreator struct {
 	PodCIDR                    string
 	ServiceCIDR                string
 	netParamPerCluster         map[string]networkParam
-	ReservedSubnets            map[string]*net.IPNet
-	IPManager                  liqonet.IpManager
+	ReservedSubnets            []string
+	AdditionalPools            []string
+	IPManager                  liqonet.Ipam
 	Mutex                      sync.Mutex
 	WaitConfig                 *sync.WaitGroup
 	IpamConfigured             bool
@@ -112,6 +113,7 @@ type TunnelEndpointCreator struct {
 // +kubebuilder:rbac:groups=net.liqo.io,resources=tunnelendpoints/status,verbs=get;update;patch
 // +kubebuilder:rbac:groups=net.liqo.io,resources=networkconfigs,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=net.liqo.io,resources=networkconfigs/status,verbs=get;update;patch
+// +kubebuilder:rbac:groups=net.liqo.io,resources=ipamstorages,verbs=get;list;create;update;patch
 // +kubebuilder:rbac:groups=discovery.liqo.io,resources=foreignclusters,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=discovery.liqo.io,resources=foreignclusters/status,verbs=get;update;patch
 // +kubebuilder:rbac:groups=config.liqo.io,resources=clusterconfigs,verbs=get;list;watch;create;update;patch;delete
@@ -180,7 +182,9 @@ func (tec *TunnelEndpointCreator) Reconcile(req ctrl.Request) (ctrl.Result, erro
 			}
 		}
 		//remove the reserved ip for the cluster
-		tec.IPManager.RemoveReservedSubnet(netConfig.Spec.ClusterID)
+		if err := tec.IPManager.FreeSubnetPerCluster(netConfig.Spec.ClusterID); err != nil {
+			klog.Errorf("cannot free subnet of cluster %s", netConfig.Spec.ClusterID)
+		}
 		return result, nil
 	}
 
@@ -332,27 +336,19 @@ func (tec *TunnelEndpointCreator) GetNetworkConfig(destinationClusterID string) 
 }
 
 func (tec *TunnelEndpointCreator) processRemoteNetConfig(netConfig *netv1alpha1.NetworkConfig) error {
-	//check if the PodCidr of the remote cluster overlaps with any of the subnets on the local cluster
-	_, clusterSubnet, err := net.ParseCIDR(netConfig.Spec.PodCIDR)
-	if err != nil {
-		klog.Errorf("an error occurred while parsing the PodCIDR of resource %s: %s", netConfig.Name, err)
-		return err
-	}
-	tec.Mutex.Lock()
-	defer tec.Mutex.Unlock()
 	//networkconfigs resources received from remote clusters contains the clusterID of the destination cluster,
 	//so in order to take the clusterID of the sender we need to retrieve it from the labels.
-	newSubnet, err := tec.IPManager.GetNewSubnetPerCluster(clusterSubnet, netConfig.Labels[crdReplicator.RemoteLabelSelector])
+	newSubnet, err := tec.IPManager.GetSubnetPerCluster(netConfig.Spec.PodCIDR, netConfig.Labels[crdReplicator.RemoteLabelSelector])
 	if err != nil {
 		klog.Errorf("an error occurred while getting a new subnet for resource %s: %s", netConfig.Name, err)
 		return err
 	}
 
 	//if they are different, the NAT is needed and a new subnet have been reserved for the peering cluster
-	if newSubnet.String() != clusterSubnet.String() {
-		if newSubnet.String() != netConfig.Status.PodCIDRNAT {
+	if newSubnet != netConfig.Spec.PodCIDR {
+		if newSubnet != netConfig.Status.PodCIDRNAT {
 			//update netConfig status
-			netConfig.Status.PodCIDRNAT = newSubnet.String()
+			netConfig.Status.PodCIDRNAT = newSubnet
 			netConfig.Status.NATEnabled = "true"
 			err := tec.Status().Update(context.Background(), netConfig)
 			if err != nil {

@@ -17,24 +17,25 @@ package main
 
 import (
 	"flag"
+	"os"
+	"sync"
+	"time"
+
 	clusterConfig "github.com/liqotech/liqo/apis/config/v1alpha1"
 	netv1alpha1 "github.com/liqotech/liqo/apis/net/v1alpha1"
 	route_operator "github.com/liqotech/liqo/internal/liqonet/route-operator"
 	tunnel_operator "github.com/liqotech/liqo/internal/liqonet/tunnel-operator"
 	"github.com/liqotech/liqo/internal/liqonet/tunnelEndpointCreator"
-	"github.com/liqotech/liqo/pkg/liqonet"
+	liqonetOperator "github.com/liqotech/liqo/pkg/liqonet"
 	"github.com/liqotech/liqo/pkg/liqonet/wireguard"
+	"github.com/liqotech/liqo/pkg/mapperUtils"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
 	"k8s.io/klog/v2"
-	"net"
-	"os"
 	ctrl "sigs.k8s.io/controller-runtime"
-	"sync"
-	"time"
 	// +kubebuilder:scaffold:imports
 )
 
@@ -58,6 +59,7 @@ func main() {
 	flag.StringVar(&runAs, "run-as", "tunnel-operator", "The accepted values are: liqo-gateway, liqo-route, tunnelEndpointCreator-operator. The default value is \"tunnel-operator\"")
 	flag.Parse()
 	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
+		MapperProvider:     mapperUtils.LiqoMapperProvider(scheme),
 		Scheme:             scheme,
 		MetricsBindAddress: metricsAddr,
 		LeaderElection:     enableLeaderElection,
@@ -127,6 +129,11 @@ func main() {
 
 	case "tunnelEndpointCreator-operator":
 		dynClient := dynamic.NewForConfigOrDie(mgr.GetConfig())
+		ipam := liqonetOperator.NewIPAM()
+		err = ipam.Init(liqonetOperator.Pools, dynClient)
+		if err != nil {
+			klog.Errorf("cannot init IPAM:%s", err.Error())
+		}
 		r := &tunnelEndpointCreator.TunnelEndpointCreator{
 			Client:                     mgr.GetClient(),
 			Scheme:                     mgr.GetScheme(),
@@ -135,17 +142,13 @@ func main() {
 			Manager:                    mgr,
 			Namespace:                  "liqo",
 			WaitConfig:                 &sync.WaitGroup{},
-			ReservedSubnets:            make(map[string]*net.IPNet),
+			ReservedSubnets:            make([]string, 0),
+			AdditionalPools:            make([]string, 0),
 			Configured:                 make(chan bool, 1),
 			ForeignClusterStartWatcher: make(chan bool, 1),
 			ForeignClusterStopWatcher:  make(chan struct{}),
 
-			IPManager: liqonet.IpManager{
-				UsedSubnets:        make(map[string]*net.IPNet),
-				FreeSubnets:        make(map[string]*net.IPNet),
-				SubnetPerCluster:   make(map[string]*net.IPNet),
-				ConflictingSubnets: make(map[string]*net.IPNet),
-			},
+			IPManager:    ipam,
 			RetryTimeout: 30 * time.Second,
 		}
 		r.WaitConfig.Add(3)
