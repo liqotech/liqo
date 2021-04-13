@@ -18,6 +18,7 @@ import (
 	mapsv1alpha1 "github.com/liqotech/liqo/apis/virtualKubelet/v1alpha1"
 	"github.com/liqotech/liqo/pkg/crdClient"
 	namectrl "github.com/liqotech/liqo/pkg/liqo-controller-manager/namespace-controller"
+	virtualNodectrl "github.com/liqotech/liqo/pkg/liqo-controller-manager/virtualNode-controller"
 	"github.com/liqotech/liqo/pkg/mapperUtils"
 	"github.com/liqotech/liqo/pkg/vkMachinery"
 	"github.com/liqotech/liqo/pkg/vkMachinery/csr"
@@ -137,7 +138,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	r := &advop.AdvertisementReconciler{
+	advertisementReconciler := &advop.AdvertisementReconciler{
 		Client:           mgr.GetClient(),
 		Scheme:           mgr.GetScheme(),
 		EventsRecorder:   mgr.GetEventRecorderFor("AdvertisementOperator"),
@@ -151,30 +152,39 @@ func main() {
 		RetryTimeout:     1 * time.Minute,
 	}
 
-	if err = r.SetupWithManager(mgr); err != nil {
+	if err = advertisementReconciler.SetupWithManager(mgr); err != nil {
 		klog.Error(err)
 		os.Exit(1)
 	}
 
-	r2 := &namectrl.NamespaceReconciler{
+	namespaceReconciler := &namectrl.NamespaceReconciler{
 		Client: mgr.GetClient(),
 		Scheme: mgr.GetScheme(),
 	}
 
-	if err = r2.SetupWithManager(mgr); err != nil {
+	if err = namespaceReconciler.SetupWithManager(mgr); err != nil {
 		klog.Fatal(err)
 	}
 	// +kubebuilder:scaffold:builder
 
+	virtualNodeReconciler := &virtualNodectrl.VirtualNodeReconciler{
+		Client: mgr.GetClient(),
+		Scheme: mgr.GetScheme(),
+	}
+
+	if err = virtualNodeReconciler.SetupWithManager(mgr); err != nil {
+		klog.Fatal(err)
+	}
+
 	c := make(chan struct{})
 	var wg = &sync.WaitGroup{}
-	client, err := r.InitCRDClient(localKubeconfig)
+	client, err := advertisementReconciler.InitCRDClient(localKubeconfig)
 	if err != nil {
 		os.Exit(1)
 	}
 	wg.Add(2)
-	go r.CleanOldAdvertisements(c, wg)
-	go r.WatchConfiguration(localKubeconfig, client, wg)
+	go advertisementReconciler.CleanOldAdvertisements(c, wg)
+	go advertisementReconciler.WatchConfiguration(localKubeconfig, client, wg)
 
 	klog.Info("starting manager as advertisement-operator")
 	if err := mgr.Start(ctrl.SetupSignalHandler()); err != nil {
