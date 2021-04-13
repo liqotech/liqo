@@ -20,7 +20,6 @@ import (
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	"github.com/liqotech/liqo/pkg/crdClient"
 	namectrl "github.com/liqotech/liqo/pkg/liqo-controller-manager/namespace-controller"
-	virtualnodectrl "github.com/liqotech/liqo/pkg/liqo-controller-manager/virtualNode-controller"
 	"github.com/liqotech/liqo/pkg/mapperUtils"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -158,14 +157,7 @@ func main() {
 		klog.Fatal(err)
 	}
 
-	r3 := &virtualnodectrl.VirtualNodeReconciler{
-		Client: mgr.GetClient(),
-		Scheme: mgr.GetScheme(),
-	}
 
-	if err = r3.SetupWithManager(mgr); err != nil {
-		klog.Fatal(err)
-	}
 	// +kubebuilder:scaffold:builder
 
 	r.WatchConfiguration(localKubeconfig, nil)
