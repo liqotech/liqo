@@ -157,7 +157,6 @@ func main() {
 		klog.Fatal(err)
 	}
 
-
 	// +kubebuilder:scaffold:builder
 
 	r.WatchConfiguration(localKubeconfig, nil)
