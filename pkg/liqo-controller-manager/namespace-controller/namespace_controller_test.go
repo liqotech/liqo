@@ -6,6 +6,7 @@ import (
 	. "github.com/onsi/gomega"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"k8s.io/kubernetes/pkg/util/slice"
 	"time"
 )
 
@@ -35,7 +36,6 @@ var _ = Describe("Namespace controller", func() {
 			delete(namespace.GetLabels(), offloadingCluster2Label2)
 			namespace.GetLabels()[randomLabel] = ""
 
-			// Todo: Update to Patch.apply()
 			if err := k8sClient.Update(ctx, namespace); err != nil {
 				return false
 			}
@@ -80,31 +80,6 @@ var _ = Describe("Namespace controller", func() {
 
 	Context("Adding some labels and checking state of NamespaceMaps", func() {
 
-		It("Adding "+mappingLabel+" label and check if finalizer "+namespaceFinalizer+" is removed from "+nameNamespaceTest, func() {
-
-			Eventually(func() bool {
-				By("Try to get Namespace: " + nameNamespaceTest)
-				if err := k8sClient.Get(ctx, types.NamespacedName{Name: nameNamespaceTest}, namespace); err != nil {
-					return false
-				}
-				namespace.GetLabels()[mappingLabel] = nameRemoteNamespace
-				By("Try to patch: " + nameNamespaceTest)
-				if err := k8sClient.Patch(ctx, namespace, client.Merge); err != nil {
-					return false
-				}
-				return true
-			}, timeout, interval).Should(BeTrue())
-
-			By("Check absence of " + namespaceFinalizer)
-			Eventually(func() bool {
-				if err := k8sClient.Get(ctx, types.NamespacedName{Name: nameNamespaceTest}, namespace); err != nil {
-					return true
-				}
-				return containsString(namespace.GetFinalizers(), namespaceFinalizer)
-			}, timeout, interval).ShouldNot(BeTrue())
-
-		})
-
 		It("Adding "+mappingLabel+" and "+offloadingLabel+" , check presence of finalizer: "+namespaceFinalizer, func() {
 
 			By("Try to get Namespace: " + nameNamespaceTest)
@@ -127,7 +102,7 @@ var _ = Describe("Namespace controller", func() {
 				if err := k8sClient.Get(ctx, types.NamespacedName{Name: nameNamespaceTest}, namespace); err != nil {
 					return false
 				}
-				return containsString(namespace.GetFinalizers(), namespaceFinalizer)
+				return slice.ContainsString(namespace.GetFinalizers(), namespaceFinalizer, nil)
 			}, timeout, interval).Should(BeTrue())
 
 		})
@@ -322,7 +297,6 @@ var _ = Describe("Namespace controller", func() {
 				namespace.GetLabels()[mappingLabel] = "new-value-remote-namespace-test"
 
 				By("Update " + mappingLabel)
-				// Todo: to evaluate if use client.Merge or client.Apply with Patch
 				if err := k8sClient.Update(ctx, namespace); err != nil {
 					return false
 				}
@@ -354,7 +328,6 @@ var _ = Describe("Namespace controller", func() {
 				namespace.GetLabels()[mappingLabel] = nameRemoteNamespace
 				namespace.GetLabels()[offloadingLabel] = ""
 
-				// Todo: Update to Patch.apply()
 				if err := k8sClient.Update(ctx, namespace); err != nil {
 					return false
 				}

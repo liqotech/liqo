@@ -19,10 +19,12 @@ package namespace_controller
 import (
 	"context"
 	namespaceresourcesv1 "github.com/liqotech/liqo/apis/virtualKubelet/v1"
+	liqoctrl "github.com/liqotech/liqo/pkg/liqo-controller-manager"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/klog"
+	"k8s.io/kubernetes/pkg/util/slice"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/event"
@@ -36,34 +38,11 @@ type NamespaceReconciler struct {
 }
 
 const (
-	clusterId             = "cluster-id"
 	mappingLabel          = "mapping.liqo.io"
 	offloadingLabel       = "offloading.liqo.io"
 	offloadingPrefixLabel = "offloading.liqo.io/"
 	namespaceFinalizer    = "namespace.liqo.io/finalizer"
 )
-
-// Todo: function "removeString" and "containsString" already defined in node_controller and also some constant are
-//       already defined, where is the right place to define it ?
-
-func removeString(slice []string, s string) (result []string) {
-	for _, item := range slice {
-		if item == s {
-			continue
-		}
-		result = append(result, item)
-	}
-	return
-}
-
-func containsString(slice []string, s string) bool {
-	for _, item := range slice {
-		if item == s {
-			return true
-		}
-	}
-	return false
-}
 
 func (r *NamespaceReconciler) removeRemoteNamespace(localName string, nm *namespaceresourcesv1.NamespaceMap) error {
 
@@ -71,7 +50,6 @@ func (r *NamespaceReconciler) removeRemoteNamespace(localName string, nm *namesp
 
 		delete(nm.Status.NattingTable, localName)
 		delete(nm.Status.DeNattingTable, remoteName)
-		// TODO: Update to Patch.apply()
 		if err := r.Update(context.TODO(), nm); err != nil {
 			klog.Errorln(err, " -------------- Unable to update NamespaceMap --------------")
 			return err
@@ -108,17 +86,14 @@ func (r *NamespaceReconciler) createRemoteNamespace(n *corev1.Namespace, remoteN
 	}
 
 	if oldValue, ok := nm.Status.NattingTable[n.GetName()]; ok {
-		// case in which mapping is already present but with different name
 		if oldValue != remoteName {
-			n.GetLabels()[mappingLabel] = oldValue //  this triggers again reconcile, to consider how to avoid, also if there is no problem to trigger it again
-			// TODO: Update to Patch
+			n.GetLabels()[mappingLabel] = oldValue
 			if err := r.Update(context.TODO(), n); err != nil {
 				klog.Errorln(err, " -------------- Unable to update mapping label --------------")
 				return err
 			}
 		}
 	} else {
-		// case in which there is no mapping
 		nm.Status.NattingTable[n.GetName()] = remoteName
 		nm.Status.DeNattingTable[remoteName] = n.GetName()
 
@@ -161,12 +136,10 @@ func (r *NamespaceReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 
 	namespaceMaps := &namespaceresourcesv1.NamespaceMapList{}
 	if err := r.List(context.Background(), namespaceMaps); err != nil {
-		// if there are no namespaceMaps in the cluster, List doesn't trigger an error
 		klog.Errorln(err, " -------------- Unable to List NamespaceMaps --------------")
 		return ctrl.Result{}, err
 	}
 
-	// TODO: in case of no namespaceMap, do nothing
 	if len(namespaceMaps.Items) == 0 {
 		klog.Infof("No namespaceMaps at the moment")
 		return ctrl.Result{}, nil
@@ -177,10 +150,8 @@ func (r *NamespaceReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 		removeMappings[namespaceMap.Spec.RemoteClusterId] = &(namespaceMaps.Items[i])
 	}
 
-	allMaps := len(removeMappings)
-
 	if namespace.GetDeletionTimestamp().IsZero() {
-		if !containsString(namespace.GetFinalizers(), namespaceFinalizer) {
+		if !slice.ContainsString(namespace.GetFinalizers(), namespaceFinalizer, nil) {
 			namespace.SetFinalizers(append(namespace.GetFinalizers(), namespaceFinalizer))
 			if err := r.Patch(context.TODO(), namespace, client.Merge); err != nil {
 				klog.Errorln(err, " -------------- Unable to add finalizer --------------")
@@ -188,7 +159,7 @@ func (r *NamespaceReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 			}
 		}
 	} else {
-		if containsString(namespace.GetFinalizers(), namespaceFinalizer) {
+		if slice.ContainsString(namespace.GetFinalizers(), namespaceFinalizer, nil) {
 
 			if err := r.removeRemoteNamespaces(namespace.GetName(), removeMappings); err != nil {
 				return ctrl.Result{}, err
@@ -196,15 +167,13 @@ func (r *NamespaceReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 
 			klog.Infof("Someone try to delete namespace, ok delete!!")
 
-			namespace.SetFinalizers(removeString(namespace.GetFinalizers(), namespaceFinalizer))
-			// TODO: Update to patch.apply()
+			namespace.SetFinalizers(slice.RemoveString(namespace.GetFinalizers(), namespaceFinalizer, nil))
 			if err := r.Update(context.Background(), namespace); err != nil {
 				klog.Errorln(err, " -------------- Unable to remove finalizer --------------")
 				return ctrl.Result{}, err
 			}
 		}
 
-		// Stop reconciliation as the namespace is being deleted
 		klog.Infof("Namespace deleted!!")
 		return ctrl.Result{}, nil
 	}
@@ -237,7 +206,6 @@ func (r *NamespaceReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 				return ctrl.Result{}, err
 			}
 
-			// TODO: in case of no virtualNode, do nothing
 			if len(nodes.Items) == 0 {
 				klog.Infof("No VirtualNode at the moment")
 				return ctrl.Result{}, nil
@@ -246,7 +214,7 @@ func (r *NamespaceReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 			for _, node := range nodes.Items {
 				i := 0
 				dim := len(node.Labels)
-				id := node.Annotations[clusterId]
+				id := node.Annotations[liqoctrl.VirtualNodeClusterId]
 				for key := range node.Labels {
 					i++
 					if strings.HasPrefix(key, offloadingPrefixLabel) {
@@ -277,24 +245,9 @@ func (r *NamespaceReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 		}
 	}
 
-	// TODO: namespaces which are not mapped on any cluster, shouldn't have 'namespaceFinalizer', (good idea or not?)
-	if len(removeMappings) == allMaps {
-		// finalizer no more useful on this namespace
-		if containsString(namespace.GetFinalizers(), namespaceFinalizer) {
-			namespace.SetFinalizers(removeString(namespace.GetFinalizers(), namespaceFinalizer))
-			// TODO: Update to patch.apply()
-			if err := r.Update(context.Background(), namespace); err != nil {
-				klog.Errorln(err, " -------------- Unable to remove finalizer --------------")
-				return ctrl.Result{}, err
-			}
-		}
-	}
-
 	return ctrl.Result{}, nil
 }
 
-// If we don't want to change the name of remote namespaces, in function reconcile when we check that the name in the NNT is
-// different from the new name, with runtime-client we can change the value of the new inserted label to the old one
 func mappingLabelUpdate(oldLabels map[string]string, newLabels map[string]string) bool {
 	ret := false
 	if val1, ok := oldLabels[mappingLabel]; ok {
@@ -317,8 +270,7 @@ func manageLabelPredicate() predicate.Predicate {
 	return predicate.Funcs{
 		UpdateFunc: func(e event.UpdateEvent) bool {
 
-			// if namespace doesn't have my finalizer, i don't care of it
-			if !(e.MetaNew.GetDeletionTimestamp().IsZero()) && containsString(e.MetaNew.GetFinalizers(), namespaceFinalizer) {
+			if !(e.MetaNew.GetDeletionTimestamp().IsZero()) && slice.ContainsString(e.MetaNew.GetFinalizers(), namespaceFinalizer, nil) {
 				return true
 			}
 
@@ -332,10 +284,6 @@ func manageLabelPredicate() predicate.Predicate {
 		DeleteFunc: func(e event.DeleteEvent) bool {
 			return false
 		},
-		//// TODO: accept events of this type ?
-		//GenericFunc: func(e event.GenericEvent) bool {
-		//	return false
-		//},
 	}
 }
 

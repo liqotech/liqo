@@ -28,7 +28,6 @@ type NamespaceMapSpec struct {
 	// INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
 	// Important: Run "make" to regenerate code after modifying this file
 
-	// ATTENZIONE POTREBBE ESSERE 30 LA maxLength (da ricontrollare!!)
 	// +kubebuilder:validation:MaxLength=50
 	// +kubebuilder:validation:MinLength=1
 	RemoteClusterId string `json:"remoteClusterId"`

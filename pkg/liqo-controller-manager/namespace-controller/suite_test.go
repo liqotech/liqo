@@ -45,7 +45,7 @@ const (
 	nameVirtualNode2    = "virtual-node-2"
 	nameNamespaceTest   = "namespace-test"
 	nameRemoteNamespace = "namespace-test-remoto"
-	mapNamespaceName    = "default" // TODO: define in which namespace namespaceMaps must be created
+	mapNamespaceName    = "default"
 
 	remoteClusterId1 = "6a0e9f-b52-4ed0"
 	remoteClusterId2 = "899890-dsd-323"
@@ -78,11 +78,9 @@ func TestAPIs(t *testing.T) {
 var _ = BeforeSuite(func(done Done) {
 
 	By("bootstrapping test environment")
-	//useCluster := true
+	// Todo: i have to import this also in liqo repository but where i put config/crd ?
 	testEnv = &envtest.Environment{
-		//UseExistingCluster: &useCluster,
 		CRDDirectoryPaths: []string{filepath.Join("..", "..", "config", "crd", "bases")},
-		//AttachControlPlaneOutput: true,
 	}
 
 	flags = &flag.FlagSet{}
@@ -211,3 +209,4 @@ var _ = AfterSuite(func() {
 	err := testEnv.Stop()
 	Expect(err).ToNot(HaveOccurred())
 })
+
