@@ -5,8 +5,8 @@ import (
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	"k8s.io/apimachinery/pkg/types"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 	"k8s.io/kubernetes/pkg/util/slice"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	"time"
 )
 
