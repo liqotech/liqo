@@ -39,42 +39,51 @@ spec:
               backend_config:
                 additionalProperties:
                   type: string
-                description: connection parameters
+                description: Connection parameters
                 type: object
               backendType:
-                description: vpn technology used to interconnect two clusters
+                description: Vpn technology used to interconnect two clusters
                 type: string
               clusterID:
-                description: 'INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
-                  Important: Run "make" to regenerate code after modifying this file
-                  the ID of the remote cluster that will receive this CRD'
+                description: The ID of the remote cluster that will receive this CRD
                 type: string
               endpointIP:
-                description: public IP of the node where the VPN tunnel is created
+                description: Public IP of the node where the VPN tunnel is created
+                type: string
+              externalCIDR:
+                description: Network used for local service endpoints
                 type: string
               podCIDR:
-                description: network subnet used in the local cluster for the pod
-                  IPs
+                description: Network used in the local cluster for the pod IPs
                 type: string
             required:
             - backendType
             - backend_config
             - clusterID
             - endpointIP
+            - externalCIDR
             - podCIDR
             type: object
           status:
             description: NetworkConfigStatus defines the observed state of NetworkConfig
             properties:
-              natEnabled:
-                description: 'INSERT ADDITIONAL STATUS FIELD - define observed state
-                  of cluster Important: Run "make" to regenerate code after modifying
-                  this file indicates if the NAT is enabled for the remote cluster'
+              externalCIDRNAT:
+                description: The new subnet used to NAT the externalCIDR of the remote
+                  cluster. The original ExternalCIDR may have been mapped to this
+                  network by the remote cluster.
                 type: string
               podCIDRNAT:
-                description: the new subnet used to NAT the pods' subnet of the remote
-                  cluster
+                description: The new subnet used to NAT the podCidr of the remote
+                  cluster. The original PodCidr may have been mapped to this network
+                  by the remote cluster.
                 type: string
+              processed:
+                default: false
+                description: Indicates if this network config has been processed by
+                  the remote cluster
+                type: boolean
+            required:
+            - processed
             type: object
         type: object
     served: true

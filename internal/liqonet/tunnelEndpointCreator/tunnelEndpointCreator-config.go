@@ -7,6 +7,7 @@ import (
 	configv1alpha1 "github.com/liqotech/liqo/apis/config/v1alpha1"
 	"github.com/liqotech/liqo/pkg/clusterConfig"
 	"github.com/liqotech/liqo/pkg/crdClient"
+	"github.com/liqotech/liqo/pkg/liqonet"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
@@ -17,13 +18,21 @@ import (
 func (tec *TunnelEndpointCreator) SetNetParameters(config *configv1alpha1.ClusterConfig) {
 	podCIDR := config.Spec.LiqonetConfig.PodCIDR
 	serviceCIDR := config.Spec.LiqonetConfig.ServiceCIDR
+	externalCIDR, err := tec.IPManager.GetClusterExternalCIDR(liqonet.GetMask(podCIDR))
+	if err != nil {
+		klog.Error(err)
+	}
 	if tec.PodCIDR != podCIDR {
-		klog.Infof("setting podCIDR to %s", podCIDR)
+		klog.Infof("PodCIDR set to %s", podCIDR)
 		tec.PodCIDR = podCIDR
 	}
 	if tec.ServiceCIDR != serviceCIDR {
-		klog.Infof("setting serviceCIDR to %s", serviceCIDR)
+		klog.Infof("ServiceCIDR set to %s", serviceCIDR)
 		tec.ServiceCIDR = serviceCIDR
+	}
+	if tec.ExternalCIDR != externalCIDR {
+		klog.Infof("ExternalCIDR set to %s", externalCIDR)
+		tec.ExternalCIDR = externalCIDR
 	}
 }
 

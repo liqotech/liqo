@@ -16,6 +16,11 @@ package route_operator
 
 import (
 	"context"
+	"os"
+	"os/signal"
+	"strings"
+	"time"
+
 	netv1alpha1 "github.com/liqotech/liqo/apis/net/v1alpha1"
 	utils "github.com/liqotech/liqo/pkg/liqonet"
 	"github.com/liqotech/liqo/pkg/liqonet/overlay"
@@ -28,14 +33,10 @@ import (
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/tools/record"
 	"k8s.io/klog"
-	"os"
-	"os/signal"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
-	"strings"
-	"time"
 )
 
 var (
@@ -127,7 +128,7 @@ func (r *RouteController) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 		return result, err
 	}
 	//Here we check that the tunnelEndpoint resource has been fully processed. If not we do nothing.
-	if tep.Status.RemoteRemappedPodCIDR == "" {
+	if tep.Status.RemoteNATPodCIDR == "" {
 		return result, nil
 	}
 	clusterID := tep.Spec.ClusterID

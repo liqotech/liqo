@@ -2,11 +2,12 @@ package liqonet
 
 import (
 	"fmt"
+	"net"
+	"strings"
+
 	"github.com/coreos/go-iptables/iptables"
 	netv1alpha1 "github.com/liqotech/liqo/apis/net/v1alpha1"
 	"k8s.io/klog/v2"
-	"net"
-	"strings"
 )
 
 const (
@@ -327,12 +328,12 @@ func insertRulesIfNotPresent(ipt IPTables, clusterID, table, chain string, rules
 
 func GetPodCIDRS(tep *netv1alpha1.TunnelEndpoint) (string, string) {
 	var remotePodCIDR, localRemappedPodCIDR string
-	if tep.Status.RemoteRemappedPodCIDR != defaultPodCIDRValue {
-		remotePodCIDR = tep.Status.RemoteRemappedPodCIDR
+	if tep.Status.RemoteNATPodCIDR != defaultPodCIDRValue {
+		remotePodCIDR = tep.Status.RemoteNATPodCIDR
 	} else {
 		remotePodCIDR = tep.Spec.PodCIDR
 	}
-	localRemappedPodCIDR = tep.Status.LocalRemappedPodCIDR
+	localRemappedPodCIDR = tep.Status.LocalNATPodCIDR
 	return localRemappedPodCIDR, remotePodCIDR
 }
 

@@ -4,6 +4,13 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"net"
+	"os"
+	"os/exec"
+	"strconv"
+	"syscall"
+	"time"
+
 	netv1alpha1 "github.com/liqotech/liqo/apis/net/v1alpha1"
 	"github.com/liqotech/liqo/pkg/liqonet/tunnel"
 	"github.com/vishvananda/netlink"
@@ -15,12 +22,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	k8s "k8s.io/client-go/kubernetes"
 	"k8s.io/klog/v2"
-	"net"
-	"os"
-	"os/exec"
-	"strconv"
-	"syscall"
-	"time"
 )
 
 const (
@@ -294,8 +295,8 @@ func (w *wireguard) setWGLink() error {
 func getAllowedIPs(tep *netv1alpha1.TunnelEndpoint) (*net.IPNet, error) {
 	var remoteSubnet string
 	//check if the remote podCIDR has been remapped
-	if tep.Status.RemoteRemappedPodCIDR != "None" {
-		remoteSubnet = tep.Status.RemoteRemappedPodCIDR
+	if tep.Status.RemoteNATPodCIDR != "None" {
+		remoteSubnet = tep.Status.RemoteNATPodCIDR
 	} else {
 		remoteSubnet = tep.Spec.PodCIDR
 	}

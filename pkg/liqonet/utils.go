@@ -132,13 +132,10 @@ func EnableIPForwarding() error {
 }
 
 /* Helper function to get a mask from a CIDR */
-func GetMask(network string) (uint8, error) {
-	_, net, err := net.ParseCIDR(network)
-	if err != nil {
-		return 0, err
-	}
+func GetMask(network string) uint8 {
+	_, net, _ := net.ParseCIDR(network)
 	ones, _ := net.Mask.Size()
-	return uint8(ones), nil
+	return uint8(ones)
 }
 
 /* Helper function that forges a new cidr from a network cidr and a mask */
@@ -196,5 +193,10 @@ func DeleteIFaceByIndex(ifaceIndex int) error {
 		klog.Errorf("unable to delete the tunnel after the tunnelEndpoint CR has been removed: %v", err)
 		return err
 	}
+	return err
+}
+
+func IsValidCidr(cidr string) error {
+	_, _, err := net.ParseCIDR(cidr)
 	return err
 }

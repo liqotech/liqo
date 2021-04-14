@@ -1,6 +1,8 @@
 package provider
 
 import (
+	"time"
+
 	nettypes "github.com/liqotech/liqo/apis/net/v1alpha1"
 	advtypes "github.com/liqotech/liqo/apis/sharing/v1alpha1"
 	nattingv1 "github.com/liqotech/liqo/apis/virtualKubelet/v1alpha1"
@@ -18,7 +20,6 @@ import (
 	"k8s.io/client-go/rest"
 	"k8s.io/klog"
 	metricsv "k8s.io/metrics/pkg/client/clientset/versioned"
-	"time"
 )
 
 // LiqoProvider implements the virtual-kubelet provider interface and stores pods in memory.

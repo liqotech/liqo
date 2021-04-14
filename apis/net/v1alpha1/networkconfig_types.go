@@ -28,15 +28,18 @@ import (
 type NetworkConfigSpec struct {
 	// INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
 	// Important: Run "make" to regenerate code after modifying this file
-	//the ID of the remote cluster that will receive this CRD
+
+	// The ID of the remote cluster that will receive this CRD
 	ClusterID string `json:"clusterID"`
-	//network subnet used in the local cluster for the pod IPs
+	// Network used in the local cluster for the pod IPs
 	PodCIDR string `json:"podCIDR"`
-	//public IP of the node where the VPN tunnel is created
+	// Network used for local service endpoints
+	ExternalCIDR string `json:"externalCIDR"`
+	// Public IP of the node where the VPN tunnel is created
 	EndpointIP string `json:"endpointIP"`
-	//vpn technology used to interconnect two clusters
+	// Vpn technology used to interconnect two clusters
 	BackendType string `json:"backendType"`
-	//connection parameters
+	// Connection parameters
 	BackendConfig map[string]string `json:"backend_config"`
 }
 
@@ -44,10 +47,14 @@ type NetworkConfigSpec struct {
 type NetworkConfigStatus struct {
 	// INSERT ADDITIONAL STATUS FIELD - define observed state of cluster
 	// Important: Run "make" to regenerate code after modifying this file
-	//indicates if the NAT is enabled for the remote cluster
-	NATEnabled string `json:"natEnabled,omitempty"`
-	//the new subnet used to NAT the pods' subnet of the remote cluster
+
+	// Indicates if this network config has been processed by the remote cluster
+	// +kubebuilder:default=false
+	Processed bool `json:"processed"`
+	// The new subnet used to NAT the podCidr of the remote cluster. The original PodCidr may have been mapped to this network by the remote cluster.
 	PodCIDRNAT string `json:"podCIDRNAT,omitempty"`
+	// The new subnet used to NAT the externalCIDR of the remote cluster. The original ExternalCIDR may have been mapped to this network by the remote cluster.
+	ExternalCIDRNAT string `json:"externalCIDRNAT,omitempty"`
 }
 
 // +kubebuilder:object:root=true

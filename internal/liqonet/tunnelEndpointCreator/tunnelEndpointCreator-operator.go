@@ -49,9 +49,10 @@ import (
 )
 
 const (
-	TunEndpointNamePrefix = "tun-endpoint-"
-	NetConfigNamePrefix   = "net-config-"
-	DefaultPodCIDRValue   = "None"
+	TunEndpointNamePrefix    = "tun-endpoint-"
+	NetConfigNamePrefix      = "net-config-"
+	DefaultPodCIDRValue      = "None"
+	DefaultExternalCIDRValue = "None"
 )
 
 var (
@@ -64,15 +65,19 @@ var (
 )
 
 type networkParam struct {
-	remoteClusterID  string
-	remoteEndpointIP string
-	remotePodCIDR    string
-	remoteNatPodCIDR string
-	localEndpointIP  string
-	localNatPodCIDR  string
-	localPodCIDR     string
-	backendType      string
-	backendConfig    map[string]string
+	remoteClusterID       string
+	remoteEndpointIP      string
+	remotePodCIDR         string
+	remoteNatPodCIDR      string
+	remoteExternalCIDR    string
+	remoteNatExternalCIDR string
+	localEndpointIP       string
+	localNatPodCIDR       string
+	localPodCIDR          string
+	localExternalCIDR     string
+	localNatExternalCIDR  string
+	backendType           string
+	backendConfig         map[string]string
 }
 
 type TunnelEndpointCreator struct {
@@ -85,6 +90,7 @@ type TunnelEndpointCreator struct {
 	EndpointPort               string
 	PodCIDR                    string
 	ServiceCIDR                string
+	ExternalCIDR               string
 	netParamPerCluster         map[string]networkParam
 	ReservedSubnets            []string
 	AdditionalPools            []string
@@ -181,9 +187,9 @@ func (tec *TunnelEndpointCreator) Reconcile(req ctrl.Request) (ctrl.Result, erro
 				return result, err
 			}
 		}
-		//remove the reserved ip for the cluster
-		if err := tec.IPManager.FreeSubnetPerCluster(netConfig.Spec.ClusterID); err != nil {
-			klog.Errorf("cannot free subnet of cluster %s", netConfig.Spec.ClusterID)
+		//remove the reserved networks for the cluster
+		if err := tec.IPManager.FreeSubnetsPerCluster(netConfig.Spec.ClusterID); err != nil {
+			klog.Errorf("cannot free networks assigned to cluster %s", netConfig.Spec.ClusterID)
 		}
 		return result, nil
 	}
@@ -250,10 +256,11 @@ func (tec *TunnelEndpointCreator) createNetConfig(fc *discoveryv1alpha1.ForeignC
 			},
 		},
 		Spec: netv1alpha1.NetworkConfigSpec{
-			ClusterID:   clusterID,
-			PodCIDR:     tec.PodCIDR,
-			EndpointIP:  tec.EndpointIP,
-			BackendType: wireguard.DriverName,
+			ClusterID:    clusterID,
+			PodCIDR:      tec.PodCIDR,
+			ExternalCIDR: tec.ExternalCIDR,
+			EndpointIP:   tec.EndpointIP,
+			BackendType:  wireguard.DriverName,
 			BackendConfig: map[string]string{
 				wireguard.PublicKey:     tec.wgPubKey,
 				wireguard.ListeningPort: tec.EndpointPort,
@@ -336,27 +343,39 @@ func (tec *TunnelEndpointCreator) GetNetworkConfig(destinationClusterID string) 
 }
 
 func (tec *TunnelEndpointCreator) processRemoteNetConfig(netConfig *netv1alpha1.NetworkConfig) error {
-	//networkconfigs resources received from remote clusters contains the clusterID of the destination cluster,
-	//so in order to take the clusterID of the sender we need to retrieve it from the labels.
-	newSubnet, err := tec.IPManager.GetSubnetPerCluster(netConfig.Spec.PodCIDR, netConfig.Labels[crdReplicator.RemoteLabelSelector])
+	var toBeUpdated bool
+	// Networkconfigs resource have a Spec.ClusterID field that contains the clusterID of the destination cluster(the local cluster in this case)
+	// In order to take the ClusterID of the sender we need to retrieve it from the labels.
+	podCIDR, externalCIDR, err := tec.IPManager.GetSubnetsPerCluster(netConfig.Spec.PodCIDR, netConfig.Spec.ExternalCIDR, netConfig.Labels[crdReplicator.RemoteLabelSelector])
 	if err != nil {
 		klog.Errorf("an error occurred while getting a new subnet for resource %s: %s", netConfig.Name, err)
 		return err
 	}
 
-	//if they are different, the NAT is needed and a new subnet have been reserved for the peering cluster
-	if newSubnet != netConfig.Spec.PodCIDR {
-		if newSubnet != netConfig.Status.PodCIDRNAT {
-			//update netConfig status
-			netConfig.Status.PodCIDRNAT = newSubnet
-			netConfig.Status.NATEnabled = "true"
-			err := tec.Status().Update(context.Background(), netConfig)
-			if err != nil {
-				klog.Errorf("an error occurred while updating the status of resource %s: %s", netConfig.Name, err)
-				return err
-			}
+	// Following inner if statements guarrante that we update the resource only if we need to
+	if podCIDR != netConfig.Spec.PodCIDR {
+		// Local cluster has remapped the PodCIDR of the remote cluster because of conflicts
+		if podCIDR != netConfig.Status.PodCIDRNAT {
+			toBeUpdated = true
 		}
-		return nil
+	} else {
+		// Local cluster has not remapped the PodCIDR
+		if netConfig.Status.PodCIDRNAT != DefaultPodCIDRValue {
+			toBeUpdated = true
+			podCIDR = "None"
+		}
+	}
+	if externalCIDR != netConfig.Spec.ExternalCIDR {
+		// Local cluster has remapped the ExternalCIDR of the remote cluster because of conflicts
+		if externalCIDR != netConfig.Status.ExternalCIDRNAT {
+			toBeUpdated = true
+		}
+	} else {
+		// Local cluster has not remapped the ExternalCIDR
+		if netConfig.Status.ExternalCIDRNAT != DefaultExternalCIDRValue {
+			toBeUpdated = true
+			externalCIDR = "None"
+		}
 	}
 	if owner.GetOwnerByKind(&netConfig.OwnerReferences, "ForeignCluster") == nil {
 		// if it has no owner of kind ForeignCluster, add it
@@ -372,18 +391,19 @@ func (tec *TunnelEndpointCreator) processRemoteNetConfig(netConfig *netv1alpha1.
 				klog.Error(err)
 				return err
 			}
+			return nil
 		}
 	}
-	if netConfig.Status.PodCIDRNAT != DefaultPodCIDRValue {
-		//update netConfig status
-		netConfig.Status.PodCIDRNAT = DefaultPodCIDRValue
-		netConfig.Status.NATEnabled = "false"
+
+	if toBeUpdated {
+		netConfig.Status.Processed = true
+		netConfig.Status.PodCIDRNAT = podCIDR
+		netConfig.Status.ExternalCIDRNAT = externalCIDR
 		err := tec.Status().Update(context.Background(), netConfig)
 		if err != nil {
 			klog.Errorf("an error occurred while updating the status of resource %s: %s", netConfig.Name, err)
 			return err
 		}
-		return nil
 	}
 	return nil
 }
@@ -413,7 +433,7 @@ func (tec *TunnelEndpointCreator) processLocalNetConfig(netConfig *netv1alpha1.N
 		return nil
 	}
 	//check if the resource has been processed by the remote cluster
-	if netConfig.Status.PodCIDRNAT == "" {
+	if !netConfig.Status.Processed {
 		return nil
 	}
 	//we get the remote netconfig related to this one
@@ -433,22 +453,30 @@ func (tec *TunnelEndpointCreator) processLocalNetConfig(netConfig *netv1alpha1.N
 		}
 	} else {
 		//check if it has been processed by the operator
-		if netConfigList.Items[0].Status.NATEnabled == "" {
+		if !netConfigList.Items[0].Status.Processed {
 			return nil
 		}
+	}
+	// Store ExternalCIDR used in remote cluster
+	if err := tec.IPManager.AddExternalCIDRPerCluster(netConfig.Status.ExternalCIDRNAT, netConfig.Spec.ClusterID); err != nil {
+		klog.Error(err)
 	}
 	//at this point we have all the necessary parameters to create the tunnelEndpoint resource
 	remoteNetConf := netConfigList.Items[0]
 	netParam := networkParam{
-		remoteClusterID:  netConfig.Spec.ClusterID,
-		remoteEndpointIP: remoteNetConf.Spec.EndpointIP,
-		remotePodCIDR:    remoteNetConf.Spec.PodCIDR,
-		remoteNatPodCIDR: remoteNetConf.Status.PodCIDRNAT,
-		localNatPodCIDR:  netConfig.Status.PodCIDRNAT,
-		localEndpointIP:  netConfig.Spec.EndpointIP,
-		localPodCIDR:     netConfig.Spec.PodCIDR,
-		backendType:      remoteNetConf.Spec.BackendType,
-		backendConfig:    remoteNetConf.Spec.BackendConfig,
+		remoteClusterID:       netConfig.Spec.ClusterID,
+		remoteEndpointIP:      remoteNetConf.Spec.EndpointIP,
+		remotePodCIDR:         remoteNetConf.Spec.PodCIDR,
+		remoteNatPodCIDR:      remoteNetConf.Status.PodCIDRNAT,
+		remoteExternalCIDR:    remoteNetConf.Spec.ExternalCIDR,
+		remoteNatExternalCIDR: remoteNetConf.Status.ExternalCIDRNAT,
+		localNatPodCIDR:       netConfig.Status.PodCIDRNAT,
+		localEndpointIP:       netConfig.Spec.EndpointIP,
+		localPodCIDR:          netConfig.Spec.PodCIDR,
+		localExternalCIDR:     netConfig.Spec.ExternalCIDR,
+		localNatExternalCIDR:  netConfig.Status.ExternalCIDRNAT,
+		backendType:           remoteNetConf.Spec.BackendType,
+		backendConfig:         remoteNetConf.Spec.BackendConfig,
 	}
 	fcOwner := owner.GetOwnerByKind(&netConfig.OwnerReferences, "ForeignCluster")
 	if err := tec.ProcessTunnelEndpoint(netParam, fcOwner); err != nil {
@@ -503,6 +531,10 @@ func (tec *TunnelEndpointCreator) UpdateSpecTunnelEndpoint(param networkParam) e
 			tep.Spec.PodCIDR = param.remotePodCIDR
 			toBeUpdated = true
 		}
+		if tep.Spec.ExternalCIDR != param.remoteExternalCIDR {
+			tep.Spec.ExternalCIDR = param.remoteExternalCIDR
+			toBeUpdated = true
+		}
 		if !reflect.DeepEqual(tep.Spec.BackendConfig, param.backendConfig) {
 			tep.Spec.BackendConfig = param.backendConfig
 			toBeUpdated = true
@@ -534,12 +566,12 @@ func (tec *TunnelEndpointCreator) UpdateStatusTunnelEndpoint(param networkParam)
 			return apierrors.NewNotFound(netv1alpha1.TunnelEndpointGroupResource, strings.Join([]string{"tunnelEndpoint for cluster:", param.remoteClusterID}, " "))
 		}
 		//check if there are fields to be updated
-		if tep.Status.LocalRemappedPodCIDR != param.localNatPodCIDR {
-			tep.Status.LocalRemappedPodCIDR = param.localNatPodCIDR
+		if tep.Status.LocalNATPodCIDR != param.localNatPodCIDR {
+			tep.Status.LocalNATPodCIDR = param.localNatPodCIDR
 			toBeUpdated = true
 		}
-		if tep.Status.RemoteRemappedPodCIDR != param.remoteNatPodCIDR {
-			tep.Status.RemoteRemappedPodCIDR = param.remoteNatPodCIDR
+		if tep.Status.RemoteNATPodCIDR != param.remoteNatPodCIDR {
+			tep.Status.RemoteNATPodCIDR = param.remoteNatPodCIDR
 			toBeUpdated = true
 		}
 		if tep.Status.LocalEndpointIP != param.localEndpointIP {
@@ -552,6 +584,18 @@ func (tec *TunnelEndpointCreator) UpdateStatusTunnelEndpoint(param networkParam)
 		}
 		if tep.Status.LocalPodCIDR != param.localPodCIDR {
 			tep.Status.LocalPodCIDR = param.localPodCIDR
+			toBeUpdated = true
+		}
+		if tep.Status.LocalExternalCIDR != param.localExternalCIDR {
+			tep.Status.LocalExternalCIDR = param.localExternalCIDR
+			toBeUpdated = true
+		}
+		if tep.Status.LocalNATExternalCIDR != param.localNatExternalCIDR {
+			tep.Status.LocalNATExternalCIDR = param.localNatExternalCIDR
+			toBeUpdated = true
+		}
+		if tep.Status.RemoteNATExternalCIDR != param.remoteNatExternalCIDR {
+			tep.Status.RemoteNATExternalCIDR = param.remoteNatExternalCIDR
 			toBeUpdated = true
 		}
 		if tep.Status.Phase != "Ready" {
@@ -583,17 +627,21 @@ func (tec *TunnelEndpointCreator) CreateTunnelEndpoint(param networkParam, owner
 		Spec: netv1alpha1.TunnelEndpointSpec{
 			ClusterID:     param.remoteClusterID,
 			PodCIDR:       param.remotePodCIDR,
+			ExternalCIDR:  param.remoteExternalCIDR,
 			EndpointIP:    param.remoteEndpointIP,
 			BackendType:   param.backendType,
 			BackendConfig: param.backendConfig,
 		},
 		Status: netv1alpha1.TunnelEndpointStatus{
 			Phase:                 "Ready",
-			LocalRemappedPodCIDR:  param.localNatPodCIDR,
-			RemoteRemappedPodCIDR: param.remoteNatPodCIDR,
+			LocalPodCIDR:          param.localPodCIDR,
+			LocalNATPodCIDR:       param.localNatPodCIDR,
+			LocalExternalCIDR:     param.localExternalCIDR,
+			LocalNATExternalCIDR:  param.localNatExternalCIDR,
+			RemoteNATExternalCIDR: param.remoteNatExternalCIDR,
+			RemoteNATPodCIDR:      param.remoteNatPodCIDR,
 			RemoteEndpointIP:      param.remoteEndpointIP,
 			LocalEndpointIP:       param.localEndpointIP,
-			LocalPodCIDR:          param.localPodCIDR,
 		},
 	}
 	if owner != nil {
@@ -603,9 +651,9 @@ func (tec *TunnelEndpointCreator) CreateTunnelEndpoint(param networkParam, owner
 	if err != nil {
 		klog.Errorf("an error occurred while creating resource %s of type %s: %s", tep.Name, netv1alpha1.TunnelEndpointGroupResource, err)
 		return err
-	} else {
-		klog.Infof("resource %s of type %s created", tep.Name, netv1alpha1.TunnelEndpointGroupResource)
 	}
+	klog.Infof("resource %s of type %s created", tep.Name, netv1alpha1.TunnelEndpointGroupResource)
+
 	return nil
 }
 
