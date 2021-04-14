@@ -3,10 +3,15 @@ package liqonet
 import (
 	"context"
 	"fmt"
+	"io/ioutil"
+	"net"
+	"os"
+	"syscall"
+
 	"github.com/liqotech/liqo/internal/utils/errdefs"
 	"github.com/vishvananda/netlink"
 	"golang.org/x/tools/go/ssa/interp/testdata/src/errors"
-	"io/ioutil"
+	"inet.af/netaddr"
 	corev1 "k8s.io/api/core/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -14,9 +19,6 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/util/retry"
 	"k8s.io/klog"
-	"net"
-	"os"
-	"syscall"
 )
 
 var (
@@ -127,6 +129,39 @@ func EnableIPForwarding() error {
 		return fmt.Errorf("unable to enable ip forwaring in the gateway pod: %v", err)
 	}
 	return nil
+}
+
+/* Helper function to get a mask from a CIDR */
+func GetMask(network string) (uint8, error) {
+	_, net, err := net.ParseCIDR(network)
+	if err != nil {
+		return 0, err
+	}
+	ones, _ := net.Mask.Size()
+	return uint8(ones), nil
+}
+
+/* Helper function that forges a new cidr from a network cidr and a mask */
+func SetMask(network string, mask uint8) (string, error) {
+	_, n, err := net.ParseCIDR(network)
+	if err != nil {
+		return "", err
+	}
+	newMask := net.CIDRMask(int(mask), 32)
+	n.Mask = newMask
+	return n.String(), nil
+}
+
+func Next(network string) (string, error) {
+	prefix, err := netaddr.ParseIPPrefix(network)
+	if err != nil {
+		return "", err
+	}
+	// Step 1: Get last IP address of network
+	// Step 2: Get next IP address
+	firstIP := prefix.Range().To.Next()
+	prefix.IP = firstIP
+	return prefix.String(), nil
 }
 
 func GetDefaultIfaceName() (string, error) {
