@@ -34,7 +34,7 @@ spec:
           metadata:
             type: object
           spec:
-            description: PeeringRequestSpec defines the desired state of PeeringRequest
+            description: ResourceRequestSpec defines the desired state of ResourceRequest
             properties:
               authUrl:
                 description: Local auth service address
@@ -98,7 +98,7 @@ spec:
             - namespace
             type: object
           status:
-            description: PeeringRequestStatus defines the observed state of PeeringRequest
+            description: ResourceRequestStatus defines the observed state of ResourceRequest
             properties:
               advertisementStatus:
                 description: AdvPhase describes the phase of the Advertisement
