@@ -2,7 +2,6 @@ package liqonet
 
 import (
 	"fmt"
-	"net"
 	"strings"
 
 	"k8s.io/client-go/dynamic"
@@ -74,6 +73,29 @@ func (liqoIPAM *IPAM) Init(pools []string, dynClient dynamic.Interface) error {
 	return nil
 }
 
+// reservePoolInHalves handles the special case in which a network pool has to be entirely reserved
+// Since AcquireSpecificChildPrefix would return an error, reservePoolInHalves acquires the two
+// halves of the network pool
+func (liqoIPAM *IPAM) reservePoolInHalves(pool string) error {
+	klog.Infof("Network %s is equal to a network pool, acquiring first half..", pool)
+	mask, err := GetMask(pool)
+	if err != nil {
+		return fmt.Errorf("cannot retrieve mask lenght from cidr:%w", err)
+	}
+	mask += 1
+	_, err = liqoIPAM.ipam.AcquireChildPrefix(pool, mask)
+	if err != nil {
+		return fmt.Errorf("cannot acquire first half of pool %s", pool)
+	}
+	klog.Infof("Acquiring second half..")
+	_, err = liqoIPAM.ipam.AcquireChildPrefix(pool, mask)
+	if err != nil {
+		return fmt.Errorf("cannot acquire second half of pool %s", pool)
+	}
+	klog.Infof("Network %s has successfully been reserved", pool)
+	return nil
+}
+
 /* AcquireReservedNetwork marks as used the network received as parameter */
 func (liqoIPAM *IPAM) AcquireReservedSubnet(reservedNetwork string) error {
 	klog.Infof("Request to reserve network %s has been received", reservedNetwork)
@@ -92,26 +114,7 @@ func (liqoIPAM *IPAM) AcquireReservedSubnet(reservedNetwork string) error {
 		return err
 	}
 	if ok && reservedNetwork == pool {
-		// AcquireSpecificChildPrefix returns an error if parent and child cidr have the same mask length
-		// A possible workaround is to acquire the network in 2 steps, dividing the parent in 2 subnets with mask
-		// length equal to the parent cidr mask + 1
-		klog.Infof("Network %s is equal to a pool, acquiring first half..", reservedNetwork)
-		mask, err := getMask(reservedNetwork)
-		if err != nil {
-			return fmt.Errorf("cannot retrieve mask lenght from cidr:%w", err)
-		}
-		mask += 1
-		_, err = liqoIPAM.ipam.AcquireChildPrefix(pool, mask)
-		if err != nil {
-			return fmt.Errorf("cannot acquire first half of pool %s", pool)
-		}
-		klog.Infof("Acquiring second half..")
-		_, err = liqoIPAM.ipam.AcquireChildPrefix(pool, mask)
-		if err != nil {
-			return fmt.Errorf("cannot acquire second half of pool %s", pool)
-		}
-		klog.Infof("Network %s has successfully been reserved", reservedNetwork)
-		return nil
+		return liqoIPAM.reservePoolInHalves(pool)
 	}
 	if ok && reservedNetwork != pool {
 		klog.Infof("Network %s is contained in pool %s", reservedNetwork, pool)
@@ -187,6 +190,20 @@ func (liqoIPAM *IPAM) getPoolFromNetwork(network string) (string, bool, error) {
 	return "", false, nil
 }
 
+func (liqoIPAM *IPAM) clusterSubnetEqualToPool(pool, clusterID string) (string, error) {
+	klog.Infof("Network %s is equal to a pool, looking for a mapping..", pool)
+	mappedNetwork, err := liqoIPAM.mapNetwork(pool)
+	if err != nil {
+		klog.Infof("Mapping not found, acquiring the entire network pool..")
+		err = liqoIPAM.reservePoolInHalves(pool)
+		if err != nil {
+			return "", fmt.Errorf("cannot get any network for cluster %s", clusterID)
+		}
+		return pool, nil
+	}
+	return mappedNetwork, nil
+}
+
 /* GetSubnetPerCluster tries to reserve the network received as parameter for cluster clusterID. If it cannot allocate the network itself, GetSubnetPerCluster maps it to a new network. The network returned can be the original network, or the mapped network */
 func (liqoIPAM *IPAM) GetSubnetPerCluster(network, clusterID string) (string, error) {
 	var mappedNetwork string
@@ -220,10 +237,13 @@ func (liqoIPAM *IPAM) GetSubnetPerCluster(network, clusterID string) (string, er
 		return "", err
 	}
 	if ok && network == pool {
-		klog.Infof("Network %s is equal to a pool, looking for a mapping..", network)
-		mappedNetwork, err = liqoIPAM.mapNetwork(network)
+		/* GetSubnetPerCluster could behave as AcquireReservedSubnet does in this condition, but in this case
+		is better to look first for a mapping rather than acquire the entire network pool.
+		Consider the impact of having a network pool n completely filled and multiple clusters asking for
+		networks in n. This would create the necessity of nat-ting the traffic towards these clusters. */
+		mappedNetwork, err = liqoIPAM.clusterSubnetEqualToPool(pool, clusterID)
 		if err != nil {
-			return "", fmt.Errorf("Cannot assign any network to cluster %s", clusterID)
+			return "", err
 		}
 		klog.Infof("Network %s successfully mapped to network %s", mappedNetwork, network)
 		klog.Infof("Network %s successfully assigned to cluster %s", mappedNetwork, clusterID)
@@ -274,7 +294,7 @@ func (liqoIPAM *IPAM) mapNetwork(network string) (string, error) {
 		return "", fmt.Errorf("cannot get Ipam config: %w", err)
 	}
 	for _, pool := range pools {
-		mask, err := getMask(network)
+		mask, err := GetMask(network)
 		if err != nil {
 			return "", fmt.Errorf("cannot get mask from cidr:%w", err)
 		}
@@ -287,23 +307,59 @@ func (liqoIPAM *IPAM) mapNetwork(network string) (string, error) {
 	return "", fmt.Errorf("there are no more networks available")
 }
 
-/* Helper function to get a mask from a CIDR */
-func getMask(network string) (uint8, error) {
-	_, net, err := net.ParseCIDR(network)
+func (liqoIPAM *IPAM) freePoolInHalves(pool string) error {
+	// Get halves mask length
+	mask, err := GetMask(pool)
 	if err != nil {
-		return 0, err
+		return fmt.Errorf("cannot retrieve mask lenght from cidr:%w", err)
 	}
-	ones, _ := net.Mask.Size()
-	return uint8(ones), nil
+	mask += 1
+
+	// Get first half CIDR
+	halfCidr, err := SetMask(pool, mask)
+	if err != nil {
+		return err
+	}
+
+	klog.Infof("Network %s is equal to a network pool, freeing first half..", pool)
+	err = liqoIPAM.ipam.ReleaseChildPrefix(liqoIPAM.ipam.PrefixFrom(halfCidr))
+	if err != nil {
+		return fmt.Errorf("cannot free first half of pool %s", pool)
+	}
+
+	// Get second half CIDR
+	halfCidr, err = Next(halfCidr)
+	if err != nil {
+		return err
+	}
+	klog.Infof("Freeing second half..")
+	err = liqoIPAM.ipam.ReleaseChildPrefix(liqoIPAM.ipam.PrefixFrom(halfCidr))
+	if err != nil {
+		return fmt.Errorf("cannot free second half of pool %s", pool)
+	}
+	klog.Infof("Network %s has successfully been freed", pool)
+	return nil
 }
 
 /* FreeReservedSubnet marks as free a reserved subnet */
 func (liqoIPAM *IPAM) FreeReservedSubnet(network string) error {
 	var p *goipam.Prefix
+
+	// Check existence
 	if p = liqoIPAM.ipam.PrefixFrom(network); p == nil {
 		return fmt.Errorf("network %s is already available", network)
 	}
-	//Network exists, try to release it as a child prefix
+
+	// Check if it is equal to a network pool
+	pool, ok, err := liqoIPAM.getPoolFromNetwork(network)
+	if err != nil {
+		return err
+	}
+	if ok && pool == network {
+		return liqoIPAM.freePoolInHalves(pool)
+	}
+
+	// Try to release it as a child prefix
 	if err := liqoIPAM.ipam.ReleaseChildPrefix(p); err != nil {
 		klog.Infof("Cannot release subnet %s previously allocated from the pools", network)
 		// It is not a child prefix, then it is a parent prefix, so delete it
@@ -313,6 +369,15 @@ func (liqoIPAM *IPAM) FreeReservedSubnet(network string) error {
 		}
 	}
 	klog.Infof("Network %s has just been freed", network)
+	return nil
+}
+
+func (liqoIPAM *IPAM) deleteClusterSubnet(clusterID string, clusterSubnet map[string]string) error {
+	delete(clusterSubnet, clusterID)
+	if err := liqoIPAM.ipamStorage.updateClusterSubnet(clusterSubnet); err != nil {
+		return err
+	}
+	klog.Infof("Network assigned to cluster %s has just been freed", clusterID)
 	return nil
 }
 
@@ -329,15 +394,22 @@ func (liqoIPAM *IPAM) FreeSubnetPerCluster(clusterID string) error {
 		//Network does not exists
 		return fmt.Errorf("network is not assigned to any cluster")
 	}
+	// Check if it is equal to a network pool
+	pool, ok, err := liqoIPAM.getPoolFromNetwork(subnet)
+	if err != nil {
+		return err
+	}
+	if ok && pool == subnet {
+		err := liqoIPAM.freePoolInHalves(pool)
+		if err != nil {
+			return err
+		}
+		return liqoIPAM.deleteClusterSubnet(clusterID, clusterSubnet)
+	}
 	if err := liqoIPAM.FreeReservedSubnet(subnet); err != nil {
 		return err
 	}
-	delete(clusterSubnet, clusterID)
-	if err := liqoIPAM.ipamStorage.updateClusterSubnet(clusterSubnet); err != nil {
-		return err
-	}
-	klog.Infof("Network assigned to cluster %s has just been freed", clusterID)
-	return nil
+	return liqoIPAM.deleteClusterSubnet(clusterID, clusterSubnet)
 }
 
 // AddNetworkPool adds a network to the set of network pools
