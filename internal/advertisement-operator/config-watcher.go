@@ -9,6 +9,7 @@ import (
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/klog"
+	"sync"
 	"time"
 )
 
@@ -70,8 +71,9 @@ func (b *AdvertisementBroadcaster) updateAdvertisement() {
 	}
 }
 
-func (r *AdvertisementReconciler) WatchConfiguration(kubeconfigPath string, client *crdClient.CRDClient) {
-	go clusterConfig.WatchConfiguration(func(configuration *configv1alpha1.ClusterConfig) {
+func (r *AdvertisementReconciler) WatchConfiguration(kubeconfigPath string, client *crdClient.CRDClient, wg *sync.WaitGroup) {
+	defer wg.Done()
+	clusterConfig.WatchConfiguration(func(configuration *configv1alpha1.ClusterConfig) {
 		newConfig := configuration.Spec.AdvertisementConfig
 		if newConfig.IngoingConfig != r.ClusterConfig.IngoingConfig {
 			// the config update is related to the advertisement operator
@@ -144,4 +146,19 @@ func contains(arr []configv1alpha1.LabelPolicy, el configv1alpha1.LabelPolicy) b
 		}
 	}
 	return false
+}
+
+func (r *AdvertisementReconciler) InitCRDClient(kubeconfigPath string) (*crdClient.CRDClient, error) {
+	config, err := crdClient.NewKubeconfig(kubeconfigPath, &configv1alpha1.GroupVersion, nil)
+	if err != nil {
+		klog.Error(err, err.Error())
+		return nil, err
+	}
+
+	client, err := crdClient.NewFromConfig(config)
+	if err != nil {
+		klog.Error(err, err.Error())
+		return nil, err
+	}
+	return client, nil
 }

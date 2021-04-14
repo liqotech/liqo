@@ -27,7 +27,6 @@ func createReconciler(acceptedAdv, maxAcceptableAdv int32, acceptPolicy configv1
 		Scheme:           nil,
 		EventsRecorder:   evRecorder,
 		KubeletNamespace: "",
-		KindEnvironment:  false,
 		VKImage:          "",
 		InitVKImage:      "",
 		HomeClusterId:    "",

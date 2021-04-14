@@ -1,0 +1,41 @@
+# Source: liqo/templates/pre-delete-job.yaml
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: liqo-pre-delete
+  labels:
+    app.kubernetes.io/name: "pre-delete"
+    app.kubernetes.io/instance: "RELEASE-NAME-pre-delete"
+    app.kubernetes.io/component: "discovery"
+    app.kubernetes.io/part-of: "liqo"
+    helm.sh/chart: "liqo-0.2.1"
+    app.kubernetes.io/version: "0.2.1"
+    app.kubernetes.io/managed-by: "Helm"
+  annotations:
+    # This is what defines this resource as a hook. Without this line, the
+    # job is considered part of the release.
+    "helm.sh/hook": pre-delete
+    "helm.sh/hook-weight": "-5"
+    "helm.sh/hook-delete-policy": hook-succeeded
+spec:
+  template:
+    metadata:
+      name: liqo-pre-delete
+      labels:
+        app.kubernetes.io/name: "pre-delete"
+        app.kubernetes.io/instance: "RELEASE-NAME-pre-delete"
+        app.kubernetes.io/component: "discovery"
+        app.kubernetes.io/part-of: "liqo"
+        helm.sh/chart: "liqo-0.2.1"
+        app.kubernetes.io/version: "0.2.1"
+        app.kubernetes.io/managed-by: "Helm"
+    spec:
+      restartPolicy: Never
+      serviceAccountName: liqo-discovery
+      containers:
+      - name: post-delete-job
+        image: "liqo/init-vkubelet"
+        command: 
+        - sh
+        - -c
+        - "curl -L https://get.liqo.io | bash -s -- --purge --uninstall"

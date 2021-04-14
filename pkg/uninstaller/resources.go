@@ -5,6 +5,8 @@ import (
 	clusterconfigV1alpha1 "github.com/liqotech/liqo/apis/config/v1alpha1"
 	discoveryV1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	"github.com/liqotech/liqo/apis/net/v1alpha1"
+	advertisementOperator "github.com/liqotech/liqo/pkg/advertisement-operator"
+	"k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -29,11 +31,7 @@ type resultType struct {
 }
 
 var (
-	podGVR = schema.GroupVersionResource{
-		Group:    "",
-		Version:  "v1",
-		Resource: "pods",
-	}
+	podGVR = v1.SchemeGroupVersion.WithResource("pods")
 
 	toCheck = []toCheckDeleted{
 		{
@@ -47,7 +45,7 @@ var (
 		{
 			gvr: podGVR,
 			labelSelector: metav1.LabelSelector{
-				MatchLabels: map[string]string{"app": "virtual-kubelet"},
+				MatchLabels: advertisementOperator.KubeletBaseLabels,
 			},
 		},
 		{
@@ -65,12 +63,12 @@ func UnjoinClusters(client dynamic.Interface) error {
 	if err != nil {
 		return err
 	}
-	klog.V(8).Info("Getting ForeignClusters list")
+	klog.V(5).Info("Getting ForeignClusters list")
 	var foreign discoveryV1alpha1.ForeignClusterList
 	if err := runtime.DefaultUnstructuredConverter.FromUnstructured(t.UnstructuredContent(), &foreign); err != nil {
 		return err
 	}
-	klog.V(8).Infof("Unjoin %v ForeignClusters", len(foreign.Items))
+	klog.V(5).Infof("Unjoin %v ForeignClusters", len(foreign.Items))
 	for _, item := range foreign.Items {
 		patch := []byte(`{"spec": {"join": false}}`)
 		_, err = r1.Namespace(item.Namespace).Patch(context.TODO(), item.Name, types.MergePatchType, patch, metav1.PatchOptions{})
@@ -87,12 +85,12 @@ func DisableBroadcasting(client dynamic.Interface) error {
 	if err != nil {
 		return err
 	}
-	klog.V(8).Infof("Getting clusterConfigs")
+	klog.V(5).Infof("Getting clusterConfigs")
 	var clusterconfigs clusterconfigV1alpha1.ClusterConfigList
 	if err := runtime.DefaultUnstructuredConverter.FromUnstructured(t.UnstructuredContent(), &clusterconfigs); err != nil {
 		return err
 	}
-	klog.V(8).Infof("Patching ClusterConfigs")
+	klog.V(5).Infof("Patching ClusterConfigs")
 	for _, item := range clusterconfigs.Items {
 		patch := []byte(`{"spec": {"advertisementConfig": { "outgoingConfig" : { "enableBroadcaster" : false}}}}`)
 		_, err = r1.Namespace(item.Namespace).Patch(context.TODO(), item.Name, types.MergePatchType, patch, metav1.PatchOptions{})
@@ -177,7 +175,9 @@ func WaitForCompletion(client dynamic.Interface, toCheck toCheckDeleted, result 
 			if value {
 				res.Success = true
 				close(quit)
-			} else if wError != nil {
+			}
+			if wError != nil {
+				klog.Infof("Error while waiting for deletion of resource %s: %s", toCheck.gvr.GroupResource(), wError.Error())
 				close(quit)
 			}
 			printLabels, _ := generateLabelString(toCheck.labelSelector)

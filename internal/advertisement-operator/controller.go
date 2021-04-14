@@ -27,8 +27,7 @@ import (
 	"github.com/liqotech/liqo/pkg/discovery"
 	objectreferences "github.com/liqotech/liqo/pkg/object-references"
 	"github.com/liqotech/liqo/pkg/virtualKubelet"
-	v1 "k8s.io/api/core/v1"
-	rbacv1 "k8s.io/api/rbac/v1"
+	appsv1 "k8s.io/api/apps/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -37,12 +36,14 @@ import (
 	"k8s.io/kubernetes/pkg/util/slice"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"strings"
 	"sync"
 	"time"
 )
 
 const FinalizerString = "advertisement.sharing.liqo.io/virtual-kubelet"
+const cleanTimeout = 10 * time.Minute
 
 // AdvertisementReconciler reconciles a Advertisement object
 type AdvertisementReconciler struct {
@@ -50,7 +51,6 @@ type AdvertisementReconciler struct {
 	Scheme             *runtime.Scheme
 	EventsRecorder     record.EventRecorder
 	KubeletNamespace   string
-	KindEnvironment    bool
 	VKImage            string
 	InitVKImage        string
 	HomeClusterId      string
@@ -59,7 +59,7 @@ type AdvertisementReconciler struct {
 	AdvClient          *crdClient.CRDClient
 	DiscoveryClient    *crdClient.CRDClient
 	RetryTimeout       time.Duration
-	garbaceCollector   sync.Once
+	garbageCollector   sync.Once
 	checkRemoteCluster map[string]*sync.Once
 }
 
@@ -83,11 +83,6 @@ type AdvertisementReconciler struct {
 
 func (r *AdvertisementReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 	ctx := context.Background()
-
-	// start the advertisement garbage collector
-	go r.garbaceCollector.Do(func() {
-		r.cleanOldAdvertisements()
-	})
 
 	// initialize the checkRemoteCluster map
 	if r.checkRemoteCluster == nil {
@@ -287,53 +282,57 @@ func (r *AdvertisementReconciler) UpdateAdvertisement(adv *advtypes.Advertisemen
 
 func (r *AdvertisementReconciler) createVirtualKubelet(ctx context.Context, adv *advtypes.Advertisement) error {
 
-	secRef := adv.Spec.KubeConfigRef
-	_, err := r.AdvClient.Client().CoreV1().Secrets(secRef.Namespace).Get(context.Background(), secRef.Name, metav1.GetOptions{})
-	if errors.IsNotFound(err) {
-		klog.Errorf("Cannot find secret %v in namespace %v for the virtual kubelet; error: %v", secRef.Name, secRef.Namespace, err)
-		return err
-	}
 	name := virtualKubelet.VirtualKubeletPrefix + adv.Spec.ClusterId
 	nodeName := virtualKubelet.VirtualNodePrefix + adv.Spec.ClusterId
+
+	if err := r.CheckKubeconfigExistence(adv); err != nil {
+		return err
+	}
+
 	// Create the base resources
-	vkSa := &v1.ServiceAccount{
-		TypeMeta: metav1.TypeMeta{},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:            name,
-			Namespace:       r.KubeletNamespace,
-			OwnerReferences: advpkg.GetOwnerReference(adv),
-		},
-	}
-	err = advpkg.CreateOrUpdate(r.Client, ctx, vkSa)
+	vkServiceAccount := advpkg.ForgeVKServiceAccount(name, r.KubeletNamespace)
+	op, err := controllerutil.CreateOrUpdate(context.TODO(), r.Client, vkServiceAccount, func() error {
+		return controllerutil.SetControllerReference(adv, vkServiceAccount, r.Scheme)
+	})
 	if err != nil {
 		return err
 	}
-	vkCrb := &rbacv1.ClusterRoleBinding{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:            name,
-			OwnerReferences: advpkg.GetOwnerReference(adv),
-		},
-		Subjects: []rbacv1.Subject{
-			{Kind: "ServiceAccount", APIGroup: "", Name: name, Namespace: r.KubeletNamespace},
-		},
-		RoleRef: rbacv1.RoleRef{
-			APIGroup: "rbac.authorization.k8s.io",
-			Kind:     "ClusterRole",
-			Name:     "cluster-admin",
-		},
-	}
-	err = advpkg.CreateOrUpdate(r.Client, ctx, vkCrb)
+	klog.V(5).Infof("ServiceAccount %s reconciled: %s", vkServiceAccount.Name, op)
+
+	vkClusterRoleBinding := advpkg.ForgeVKClusterRoleBinding(name, r.KubeletNamespace)
+	op, err = controllerutil.CreateOrUpdate(context.TODO(), r.Client, vkClusterRoleBinding, func() error {
+		return controllerutil.SetControllerReference(adv, vkClusterRoleBinding, r.Scheme)
+	})
 	if err != nil {
 		return err
 	}
+	klog.V(5).Infof("ClusterRoleBinding %s reconciled: %s", vkClusterRoleBinding.Name, op)
+
 	// Create the virtual Kubelet
-	deploy := advpkg.CreateVkDeployment(adv, name, r.KubeletNamespace, r.VKImage, r.InitVKImage, nodeName, r.HomeClusterId)
-	err = advpkg.CreateOrUpdate(r.Client, ctx, deploy)
+	vkDeployment, err := advpkg.CreateVkDeployment(adv, name, r.KubeletNamespace, r.VKImage, r.InitVKImage, nodeName, r.HomeClusterId)
 	if err != nil {
 		return err
 	}
 
-	r.recordEvent("launching virtual-kubelet for cluster "+adv.Spec.ClusterId, "Normal", "VkCreated", adv)
+	op, err = controllerutil.CreateOrUpdate(context.TODO(), r.Client, vkDeployment, func() error {
+		return controllerutil.SetControllerReference(adv, vkDeployment, r.Scheme)
+	})
+	if err != nil {
+		return err
+	}
+	klog.V(5).Infof("Deployment %s reconciled: %s", vkDeployment.Name, op)
+
+	r.recordEvent("Launching virtual-kubelet for cluster: "+adv.Spec.ClusterId, "Normal", "VkCreated", adv)
+
+	setAdvertisementReferences(adv, vkDeployment, nodeName)
+
+	if err := r.Status().Update(ctx, adv); err != nil {
+		klog.Error(err)
+	}
+	return nil
+}
+
+func setAdvertisementReferences(adv *advtypes.Advertisement, deploy *appsv1.Deployment, nodeName string) {
 	adv.Status.VkCreated = true
 	adv.Status.VkReference = objectreferences.DeploymentReference{
 		Namespace: deploy.Namespace,
@@ -342,10 +341,6 @@ func (r *AdvertisementReconciler) createVirtualKubelet(ctx context.Context, adv 
 	adv.Status.VnodeReference = objectreferences.NodeReference{
 		Name: nodeName,
 	}
-	if err := r.Status().Update(ctx, adv); err != nil {
-		klog.Error(err)
-	}
-	return nil
 }
 
 func (r *AdvertisementReconciler) recordEvent(msg string, eventType string, eventReason string, adv *advtypes.Advertisement) {
@@ -353,26 +348,32 @@ func (r *AdvertisementReconciler) recordEvent(msg string, eventType string, even
 	r.EventsRecorder.Event(adv, eventType, eventReason, msg)
 }
 
-func (r *AdvertisementReconciler) cleanOldAdvertisements() {
+func (r *AdvertisementReconciler) CleanOldAdvertisements(quit chan struct{}, wg *sync.WaitGroup) {
+	defer wg.Done()
 	var advList advtypes.AdvertisementList
+	ticker := time.NewTicker(cleanTimeout)
 	// every 10 minutes list advertisements and deletes the expired ones
 	for {
-		if err := r.Client.List(context.Background(), &advList, &client.ListOptions{}); err != nil {
-			klog.Error(err)
-			continue
-		}
-		for i := range advList.Items {
-			adv := advList.Items[i]
-			now := metav1.NewTime(time.Now())
-			if adv.Spec.TimeToLive.Before(now.DeepCopy()) {
-				// gracefully delete the Advertisement
-				if err := r.Delete(context.Background(), &adv); err != nil {
-					klog.Error(err)
-				}
-				klog.Infof("Adv %v expired. TimeToLive was %v", adv.Name, adv.Spec.TimeToLive)
+		select {
+		case <-ticker.C:
+			if err := r.Client.List(context.Background(), &advList, &client.ListOptions{}); err != nil {
+				klog.Error(err)
+				continue
 			}
+			for _, item := range advList.Items {
+				now := metav1.NewTime(time.Now())
+				if item.Spec.TimeToLive.Before(now.DeepCopy()) {
+					// gracefully delete the Advertisement
+					if err := r.Delete(context.Background(), &item); err != nil {
+						klog.Error(err)
+					}
+					klog.V(3).Infof("Advertisement %v expired. TimeToLive was %v", item.Name, item.Spec.TimeToLive)
+				}
+			}
+		case <-quit:
+			ticker.Stop()
+			break
 		}
-		time.Sleep(10 * time.Minute)
 	}
 }
 
@@ -400,4 +401,12 @@ func (r *AdvertisementReconciler) checkClusterStatus(adv advtypes.Advertisement)
 		}
 		time.Sleep(time.Duration(r.ClusterConfig.KeepaliveRetryTime) * time.Second)
 	}
+}
+
+func (r *AdvertisementReconciler) CheckKubeconfigExistence(adv *advtypes.Advertisement) error {
+	_, err := r.AdvClient.Client().CoreV1().Secrets(adv.Spec.KubeConfigRef.Namespace).Get(context.Background(), adv.Spec.KubeConfigRef.Name, metav1.GetOptions{})
+	if errors.IsNotFound(err) {
+		klog.Errorf("Cannot find secret %v in namespace %v for the virtual kubelet; error: %v", adv.Spec.KubeConfigRef.Namespace, adv.Spec.KubeConfigRef.Namespace, err)
+	}
+	return err
 }
