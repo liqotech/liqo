@@ -3,6 +3,8 @@ package provider
 import (
 	"context"
 	"errors"
+	"strings"
+
 	nettypes "github.com/liqotech/liqo/apis/net/v1alpha1"
 	advtypes "github.com/liqotech/liqo/apis/sharing/v1alpha1"
 	advertisementOperator "github.com/liqotech/liqo/internal/advertisement-operator"
@@ -17,7 +19,6 @@ import (
 	"k8s.io/client-go/util/retry"
 	"k8s.io/klog"
 	"k8s.io/kubernetes/pkg/util/slice"
-	"strings"
 )
 
 func (p *LiqoProvider) StartNodeUpdater(nodeRunner *module.NodeController) (chan struct{}, chan struct{}, error) {
@@ -228,7 +229,7 @@ func (p *LiqoProvider) updateFromTep(tep nettypes.TunnelEndpoint) error {
 	var tepSet bool
 
 	// if tep.Status.CIDRs are not set yet, return
-	if tep.Status.RemoteRemappedPodCIDR == "" || tep.Status.LocalRemappedPodCIDR == "" {
+	if tep.Status.RemoteNATPodCIDR == "" || tep.Status.LocalNATPodCIDR == "" {
 		return nil
 	}
 	if !p.RemoteRemappedPodCidr.IsSet() && !p.LocalRemappedPodCidr.IsSet() {
@@ -237,8 +238,8 @@ func (p *LiqoProvider) updateFromTep(tep nettypes.TunnelEndpoint) error {
 
 	// else set podCIDRS from TunnelEndpoint.Status
 	// Enforcement of their validity is performed in forge.changePodId
-	p.RemoteRemappedPodCidr.SetValue(options.OptionValue(tep.Status.RemoteRemappedPodCIDR))
-	p.LocalRemappedPodCidr.SetValue(options.OptionValue(tep.Status.LocalRemappedPodCIDR))
+	p.RemoteRemappedPodCidr.SetValue(options.OptionValue(tep.Status.RemoteNATPodCIDR))
+	p.LocalRemappedPodCidr.SetValue(options.OptionValue(tep.Status.LocalNATPodCIDR))
 	if tepSet {
 		close(p.tepReady)
 	}

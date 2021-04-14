@@ -19,15 +19,18 @@ import (
 
 const IPAMNamePrefix = "ipamstorage-"
 
-const clusterSubnetUpdate = "clusterSubnet"
+const clusterSubnetUpdate = "clusterSubnets"
 const poolsUpdate = "pools"
 const prefixesUpdate = "prefixes"
+const externalCIDRUpdate = "externalCIDR"
 
 type IpamStorage interface {
-	updateClusterSubnet(clusterSubnet map[string]string) error
+	updateClusterSubnets(clusterSubnet map[string]netv1alpha1.Subnets) error
 	updatePools(pools []string) error
-	getClusterSubnet() (map[string]string, error)
+	updateExternalCIDR(externalCIDR string) error
+	getClusterSubnets() (map[string]netv1alpha1.Subnets, error)
 	getPools() ([]string, error)
+	getExternalCIDR() (string, error)
 	goipam.Storage
 }
 
@@ -57,9 +60,9 @@ func NewIPAMStorage(dynClient dynamic.Interface) (*IPAMStorage, error) {
 				Labels:       map[string]string{"net.liqo.io/ipamstorage": "true"},
 			},
 			Spec: netv1alpha1.IpamSpec{
-				Prefixes:      make(map[string][]byte),
-				Pools:         make([]string, 0),
-				ClusterSubnet: make(map[string]string),
+				Prefixes:       make(map[string][]byte),
+				Pools:          make([]string, 0),
+				ClusterSubnets: make(map[string]netv1alpha1.Subnets),
 			},
 		}
 		unstructuredIpam, err := runtime.DefaultUnstructuredConverter.ToUnstructured(ipam)
@@ -194,14 +197,17 @@ func (ipamStorage *IPAMStorage) DeletePrefix(prefix goipam.Prefix) (goipam.Prefi
 	return prefix, err
 }
 
-func (ipamStorage *IPAMStorage) updateClusterSubnet(clusterSubnet map[string]string) error {
-	return ipamStorage.updateConfig(clusterSubnetUpdate, clusterSubnet)
+func (ipamStorage *IPAMStorage) updateClusterSubnets(clusterSubnets map[string]netv1alpha1.Subnets) error {
+	return ipamStorage.updateConfig(clusterSubnetUpdate, clusterSubnets)
 }
 func (ipamStorage *IPAMStorage) updatePools(pools []string) error {
 	return ipamStorage.updateConfig(poolsUpdate, pools)
 }
 func (ipamStorage *IPAMStorage) updatePrefixes(prefixes map[string][]byte) error {
 	return ipamStorage.updateConfig(prefixesUpdate, prefixes)
+}
+func (ipamStorage *IPAMStorage) updateExternalCIDR(externalCIDR string) error {
+	return ipamStorage.updateConfig(externalCIDRUpdate, externalCIDR)
 }
 
 func (ipamStorage *IPAMStorage) updateConfig(updateType string, data interface{}) error {
@@ -228,7 +234,6 @@ func (ipamStorage *IPAMStorage) updateConfig(updateType string, data interface{}
 		klog.Error(err)
 		return nil
 	}
-	klog.Infof("Resource %s of type %s successfully updated", ipamStorage.resourceName, netv1alpha1.GroupVersion)
 	return nil
 }
 
@@ -240,12 +245,20 @@ func (ipamStorage *IPAMStorage) getPools() ([]string, error) {
 	return ipam.Spec.Pools, nil
 }
 
-func (ipamStorage *IPAMStorage) getClusterSubnet() (map[string]string, error) {
+func (ipamStorage *IPAMStorage) getClusterSubnets() (map[string]netv1alpha1.Subnets, error) {
 	ipam, err := ipamStorage.getConfig()
 	if err != nil {
-		return map[string]string{}, err
+		return map[string]netv1alpha1.Subnets{}, err
 	}
-	return ipam.Spec.ClusterSubnet, nil
+	return ipam.Spec.ClusterSubnets, nil
+}
+
+func (ipamStorage *IPAMStorage) getExternalCIDR() (string, error) {
+	ipam, err := ipamStorage.getConfig()
+	if err != nil {
+		return "", err
+	}
+	return ipam.Spec.ExternalCIDR, nil
 }
 
 func (ipamStorage *IPAMStorage) getConfig() (*netv1alpha1.IpamStorage, error) {

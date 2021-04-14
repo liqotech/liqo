@@ -36,12 +36,31 @@ spec:
           spec:
             description: IpamSpec defines the desired state of Ipam
             properties:
-              clusterSubnet:
+              clusterSubnets:
                 additionalProperties:
-                  type: string
+                  properties:
+                    localExternalCIDR:
+                      description: Network used in local cluster for remote service
+                        endpoints
+                      type: string
+                    podCIDR:
+                      type: string
+                    remoteExternalCIDR:
+                      description: Network used in remote cluster for local service
+                        endpoints
+                      type: string
+                  required:
+                  - localExternalCIDR
+                  - podCIDR
+                  - remoteExternalCIDR
+                  type: object
                 description: Map used to keep track of networks assigned to clusters.
-                  Key is the cluster, value is the network.
+                  Key is the remote cluster ID, value is a the set of networks used
+                  by the remote cluster.
                 type: object
+              externalCIDR:
+                description: Cluster ExternalCIDR
+                type: string
               pools:
                 description: Network pools
                 items:
@@ -56,7 +75,8 @@ spec:
                   Map consumed by go-ipam module. Key is prefic cidr, value is a Prefix'
                 type: object
             required:
-            - clusterSubnet
+            - clusterSubnets
+            - externalCIDR
             - pools
             - prefixes
             type: object

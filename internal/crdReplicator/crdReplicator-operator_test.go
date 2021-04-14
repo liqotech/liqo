@@ -2,6 +2,9 @@ package crdReplicator
 
 import (
 	"context"
+	"testing"
+	"time"
+
 	netv1alpha1 "github.com/liqotech/liqo/apis/net/v1alpha1"
 	"github.com/stretchr/testify/assert"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -10,8 +13,6 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/dynamic/dynamicinformer"
-	"testing"
-	"time"
 )
 
 var (
@@ -31,6 +32,7 @@ func getObj() *unstructured.Unstructured {
 			"spec": map[string]interface{}{
 				"clusterID":      "clusterID-test",
 				"podCIDR":        "10.0.0.0/12",
+				"externalCIDR":   "192.168.0.0/24",
 				"endpointIP":     "192.16.5.1",
 				"backendType":    "wireguard",
 				"backend_config": map[string]interface{}{},
@@ -151,7 +153,7 @@ func TestCRDReplicatorReconciler_UpdateResource(t *testing.T) {
 	//we update the status section
 	//we expect a nil error and the status section of the resource on the server to be equal as we set it
 	newStatus := map[string]interface{}{
-		"natEnabled": "true",
+		"processed": true,
 	}
 	err = unstructured.SetNestedMap(obj.Object, newStatus, "status")
 	assert.Nil(t, err, "error should be nil")
@@ -232,12 +234,15 @@ func TestCRDReplicatorReconciler_ModifiedHandler(t *testing.T) {
 	newSpec := map[string]interface{}{
 		"clusterID":      "clusterID-test-modified",
 		"podCIDR":        "10.0.0.0/12",
+		"externalCIDR":   "192.168.0.0/24",
 		"endpointIP":     "192.16.5.1",
 		"backendType":    "wireguard",
 		"backend_config": map[string]interface{}{},
 	}
 	newStatus := map[string]interface{}{
-		"podCIDRNAT": "10.200.0.0/12",
+		"podCIDRNAT":      "10.200.0.0/12",
+		"externalCIDRNAT": "None",
+		"processed":       true,
 	}
 	err = unstructured.SetNestedMap(obj.Object, newSpec, "spec")
 	assert.Nil(t, err)
@@ -330,7 +335,7 @@ func TestGetSpec(t *testing.T) {
 
 func TestGetStatus(t *testing.T) {
 	status := map[string]interface{}{
-		"natEnabled": true,
+		"processed": true,
 	}
 	//test 1
 	//we have an object with a status field

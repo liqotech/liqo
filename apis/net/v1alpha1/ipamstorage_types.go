@@ -23,6 +23,14 @@ import (
 // EDIT THIS FILE!  THIS IS SCAFFOLDING FOR YOU TO OWN!
 // NOTE: json tags are required.  Any new fields you add must have json tags for the fields to be serialized.
 
+type Subnets struct {
+	PodCIDR string `json:"podCIDR"`
+	// Network used in remote cluster for local service endpoints
+	RemoteExternalCIDR string `json:"remoteExternalCIDR"`
+	// Network used in local cluster for remote service endpoints
+	LocalExternalCIDR string `json:"localExternalCIDR"`
+}
+
 // IpamSpec defines the desired state of Ipam
 type IpamSpec struct {
 	// INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
@@ -31,8 +39,10 @@ type IpamSpec struct {
 	Prefixes map[string][]byte `json:"prefixes"`
 	// Network pools
 	Pools []string `json:"pools"`
-	// Map used to keep track of networks assigned to clusters. Key is the cluster, value is the network.
-	ClusterSubnet map[string]string `json:"clusterSubnet"`
+	// Map used to keep track of networks assigned to clusters. Key is the remote cluster ID, value is a the set of networks used by the remote cluster.
+	ClusterSubnets map[string]Subnets `json:"clusterSubnets"`
+	// Cluster ExternalCIDR
+	ExternalCIDR string `json:"externalCIDR"`
 }
 
 // +kubebuilder:object:root=true

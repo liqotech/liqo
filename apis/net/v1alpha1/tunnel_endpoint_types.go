@@ -28,8 +28,10 @@ type TunnelEndpointSpec struct {
 	// Important: Run "make" to regenerate code after modifying this file
 	//the ID of the remote cluster that will receive this CRD
 	ClusterID string `json:"clusterID"`
-	//network subnet used in the local cluster for the pod IPs
+	// PodCIDR of remote cluster
 	PodCIDR string `json:"podCIDR"`
+	// ExternalCIDR of remote cluster
+	ExternalCIDR string `json:"externalCIDR"`
 	//public IP of the node where the VPN tunnel is created
 	EndpointIP string `json:"endpointIP"`
 	//vpn technology used to interconnect two clusters
@@ -42,12 +44,20 @@ type TunnelEndpointSpec struct {
 type TunnelEndpointStatus struct {
 	// INSERT ADDITIONAL STATUS FIELD - define observed state of cluster
 	// Important: Run "make" to regenerate code after modifying this file\
-	Phase                 string     `json:"phase,omitempty"` //two phases: New, Processed
-	LocalRemappedPodCIDR  string     `json:"localRemappedPodCIDR,omitempty"`
-	LocalPodCIDR          string     `json:"localPodCIDR,omitempty"`
-	RemoteRemappedPodCIDR string     `json:"remoteRemappedPodCIDR,omitempty"`
-	OutgoingNAT           bool       `json:"outgoingNAT,omitempty"` // if true, the local podCIDR has been remapped by the remote cluster
-	IncomingNAT           bool       `json:"incomingNAT,omitempty"` // if true, the remote podCIDR has been remapped by the local cluster
+
+	Phase string `json:"phase,omitempty"`
+	// PodCIDR of local cluster
+	LocalPodCIDR string `json:"localPodCIDR,omitempty"`
+	// Network used in the remote cluster to map the local PodCIDR, in case of conflicts(in the remote cluster). Default is "None"
+	LocalNATPodCIDR string `json:"localNATPodCIDR,omitempty"`
+	// Network used in the local cluster to map the remote cluster PodCIDR, in case of conflicts with Spec.PodCIDR. Default is "None".
+	RemoteNATPodCIDR string `json:"remoteNATPodCIDR,omitempty"`
+	// ExternalCIDR of local cluster
+	LocalExternalCIDR string `json:"localExternalCIDR,omitempty"`
+	// Network used in the remote cluster to map the local ExternalCIDR, in case of conflicts(in the remote cluster). Default is "None"
+	LocalNATExternalCIDR string `json:"localNATExternalCIDR,omitempty"`
+	// Network used in the local cluster to map the remote cluster ExternalCIDR, in case of conflicts with Spec.ExternalCIDR. Default is "None".
+	RemoteNATExternalCIDR string     `json:"remoteNATExternalCIDR,omitempty"`
 	RemoteEndpointIP      string     `json:"remoteTunnelPublicIP,omitempty"`
 	LocalEndpointIP       string     `json:"localTunnelPublicIP,omitempty"`
 	TunnelIFaceIndex      int        `json:"tunnelIFaceIndex,omitempty"`

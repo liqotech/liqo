@@ -2,6 +2,10 @@ package crdReplicator
 
 import (
 	"context"
+	"reflect"
+	"testing"
+	"time"
+
 	netv1alpha1 "github.com/liqotech/liqo/apis/net/v1alpha1"
 	"github.com/liqotech/liqo/internal/crdReplicator"
 	"github.com/stretchr/testify/assert"
@@ -13,9 +17,6 @@ import (
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/dynamic/dynamicinformer"
 	"k8s.io/klog/v2"
-	"reflect"
-	"testing"
-	"time"
 )
 
 var (
@@ -69,6 +70,7 @@ func getTunnelEndpointResource() *unstructured.Unstructured {
 			"spec": map[string]interface{}{
 				"clusterID":      "clusterID-test",
 				"podCIDR":        "10.0.0.0/12",
+				"externalCIDR":   "172.16.0.0/16",
 				"endpointIP":     "192.16.5.1",
 				"backendType":    "wireguard",
 				"backend_config": map[string]interface{}{},

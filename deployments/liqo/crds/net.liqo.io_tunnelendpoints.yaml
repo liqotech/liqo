@@ -62,15 +62,18 @@ spec:
               endpointIP:
                 description: public IP of the node where the VPN tunnel is created
                 type: string
+              externalCIDR:
+                description: ExternalCIDR of remote cluster
+                type: string
               podCIDR:
-                description: network subnet used in the local cluster for the pod
-                  IPs
+                description: PodCIDR of remote cluster
                 type: string
             required:
             - backendType
             - backend_config
             - clusterID
             - endpointIP
+            - externalCIDR
             - podCIDR
             type: object
           status:
@@ -87,22 +90,32 @@ spec:
                   statusMessage:
                     type: string
                 type: object
-              incomingNAT:
-                type: boolean
-              localPodCIDR:
+              localExternalCIDR:
+                description: ExternalCIDR of local cluster
                 type: string
-              localRemappedPodCIDR:
+              localNATExternalCIDR:
+                description: Network used in the remote cluster to map the local ExternalCIDR,
+                  in case of conflicts(in the remote cluster). Default is "None"
+                type: string
+              localNATPodCIDR:
+                description: Network used in the remote cluster to map the local PodCIDR,
+                  in case of conflicts(in the remote cluster). Default is "None"
+                type: string
+              localPodCIDR:
+                description: PodCIDR of local cluster
                 type: string
               localTunnelPublicIP:
                 type: string
-              outgoingNAT:
-                type: boolean
               phase:
-                description: 'INSERT ADDITIONAL STATUS FIELD - define observed state
-                  of cluster Important: Run "make" to regenerate code after modifying
-                  this file\'
                 type: string
-              remoteRemappedPodCIDR:
+              remoteNATExternalCIDR:
+                description: Network used in the local cluster to map the remote cluster
+                  ExternalCIDR, in case of conflicts with Spec.ExternalCIDR. Default
+                  is "None".
+                type: string
+              remoteNATPodCIDR:
+                description: Network used in the local cluster to map the remote cluster
+                  PodCIDR, in case of conflicts with Spec.PodCIDR. Default is "None".
                 type: string
               remoteTunnelPublicIP:
                 type: string
