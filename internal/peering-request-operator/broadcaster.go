@@ -19,6 +19,10 @@ const (
 	broadcasterMemory = "50M"
 )
 
+var BroadcasterBaseLabels = map[string]string{
+	"app": "broadcaster",
+}
+
 func (r *PeeringRequestReconciler) BroadcasterExists(request *discoveryv1alpha1.PeeringRequest) (bool, error) {
 	_, err := r.crdClient.Client().AppsV1().Deployments(request.Status.BroadcasterRef.Namespace).Get(context.TODO(), request.Status.BroadcasterRef.Name, metav1.GetOptions{})
 	if k8serrors.IsNotFound(err) {
@@ -90,15 +94,11 @@ func GetBroadcasterDeployment(request *discoveryv1alpha1.PeeringRequest, nameSA 
 		Spec: appsv1.DeploymentSpec{
 			Replicas: pointer.Int32Ptr(1),
 			Selector: &metav1.LabelSelector{
-				MatchLabels: map[string]string{
-					"app": "broadcaster",
-				},
+				MatchLabels: BroadcasterBaseLabels,
 			},
 			Template: v1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
-					Labels: map[string]string{
-						"app": "broadcaster",
-					},
+					Labels: BroadcasterBaseLabels,
 				},
 				Spec: v1.PodSpec{
 					Containers: []v1.Container{

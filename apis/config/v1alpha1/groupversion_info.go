@@ -32,7 +32,7 @@ var (
 	ClusterConfigGroupVersionResource = schema.GroupVersionResource{
 		Group:    GroupVersion.Group,
 		Resource: "clusterconfigs",
-		Version:  "v1alpha1",
+		Version:  GroupVersion.Version,
 	}
 
 	// SchemeBuilder is used to add go types to the GroupVersionKind scheme

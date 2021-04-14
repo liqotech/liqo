@@ -5,7 +5,7 @@ on:
       - 'v*'
     branches:
       - master
-  pull_request:
+  pull_request_target:
     types:
       - opened
       - reopened
@@ -30,7 +30,7 @@ jobs:
       id: configure
       run: |
         # The ref of the commit to checkout (do not use the merge commit if pull request)
-        if [ "${{ github.event_name }}" == "pull_request" ]; then
+        if [ "${{ github.event_name }}" == "pull_request_target" ]; then
           echo "::set-output name=master::false"
           echo "::set-output name=architectures::linux/amd64"
           echo "::set-output name=commit_ref::${{ github.event.pull_request.head.sha }}"

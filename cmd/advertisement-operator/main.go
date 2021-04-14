@@ -27,6 +27,7 @@ import (
 	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
 	"k8s.io/klog"
 	"os"
+	"sync"
 	"time"
 
 	netv1alpha1 "github.com/liqotech/liqo/apis/net/v1alpha1"
@@ -61,7 +62,6 @@ func main() {
 	var metricsAddr, localKubeconfig, clusterId string
 	var enableLeaderElection bool
 	var kubeletNamespace, kubeletImage, initKubeletImage string
-	var runsInKindEnv bool
 
 	flag.StringVar(&metricsAddr, "metrics-addr", defaultMetricsaddr, "The address the metric endpoint binds to.")
 	flag.BoolVar(&enableLeaderElection, "enable-leader-election", false, "Enable leader election for controller manager. Enabling this will ensure there is only one active controller manager.")
@@ -70,7 +70,6 @@ func main() {
 	flag.StringVar(&kubeletNamespace, "kubelet-namespace", defaultNamespace, "Name of the namespace where Virtual kubelets will be spawned ( the namespace is default if not specified otherwise)")
 	flag.StringVar(&kubeletImage, "kubelet-image", defaultVKImage, "The image of the virtual kubelet to be deployed")
 	flag.StringVar(&initKubeletImage, "init-kubelet-image", defaultInitVKImage, "The image of the virtual kubelet init container to be deployed")
-	flag.BoolVar(&runsInKindEnv, "run-in-kind", false, "The cluster in which the controller runs is managed by kind")
 	flag.Parse()
 
 	if clusterId == "" {
@@ -138,7 +137,6 @@ func main() {
 		Client:           mgr.GetClient(),
 		Scheme:           mgr.GetScheme(),
 		EventsRecorder:   mgr.GetEventRecorderFor("AdvertisementOperator"),
-		KindEnvironment:  runsInKindEnv,
 		KubeletNamespace: kubeletNamespace,
 		VKImage:          kubeletImage,
 		InitVKImage:      initKubeletImage,
@@ -155,12 +153,22 @@ func main() {
 	}
 	// +kubebuilder:scaffold:builder
 
-	r.WatchConfiguration(localKubeconfig, nil)
+	c := make(chan struct{})
+	var wg = &sync.WaitGroup{}
+	client, err := r.InitCRDClient(localKubeconfig)
+	if err != nil {
+		os.Exit(1)
+	}
+	wg.Add(2)
+	go r.CleanOldAdvertisements(c, wg)
+	go r.WatchConfiguration(localKubeconfig, client, wg)
 
 	klog.Info("starting manager as advertisement-operator")
 	if err := mgr.Start(ctrl.SetupSignalHandler()); err != nil {
 		klog.Error(err)
 		os.Exit(1)
 	}
-
+	close(c)
+	close(client.Stop)
+	wg.Wait()
 }
