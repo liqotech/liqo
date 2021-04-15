@@ -2,9 +2,9 @@ package serviceEnv
 
 import (
 	gocmp "github.com/google/go-cmp/cmp"
-	testutil "github.com/liqotech/liqo/internal/virtualKubelet/test/util"
 	apimgmt "github.com/liqotech/liqo/pkg/virtualKubelet/apiReflection"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/storage/test"
+	testutil "github.com/liqotech/liqo/pkg/virtualKubelet/test/util"
 	"gotest.tools/assert"
 	is "gotest.tools/assert/cmp"
 	corev1 "k8s.io/api/core/v1"

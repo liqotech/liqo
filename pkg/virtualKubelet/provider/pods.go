@@ -3,11 +3,11 @@ package provider
 import (
 	"context"
 	"fmt"
-	"github.com/liqotech/liqo/internal/virtualKubelet/node/api"
 	"github.com/liqotech/liqo/pkg/virtualKubelet"
 	apimgmgt "github.com/liqotech/liqo/pkg/virtualKubelet/apiReflection"
 	vkContext "github.com/liqotech/liqo/pkg/virtualKubelet/context"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/forge"
+	"github.com/liqotech/liqo/pkg/virtualKubelet/node/api"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/translation/serviceEnv"
 	"github.com/modern-go/reflect2"
 	"github.com/pkg/errors"

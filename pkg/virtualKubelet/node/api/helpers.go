@@ -16,10 +16,10 @@ package api
 
 import (
 	"io"
+	"k8s.io/klog/v2"
 	"net/http"
 
 	"github.com/liqotech/liqo/internal/utils/errdefs"
-	"github.com/liqotech/liqo/internal/utils/log"
 )
 
 type handlerFunc func(http.ResponseWriter, *http.Request) error
@@ -34,12 +34,11 @@ func handleError(f handlerFunc) http.HandlerFunc {
 		code := httpStatusCode(err)
 		w.WriteHeader(code)
 		io.WriteString(w, err.Error()) //nolint:errcheck
-		logger := log.G(req.Context()).WithError(err).WithField("httpStatusCode", code)
 
 		if code >= 500 {
-			logger.Error("Internal server error on request")
+			klog.Error(err, " - Internal server error on request")
 		} else {
-			logger.Debug("Error on request")
+			klog.V(4).Info("Error on request")
 		}
 	}
 }

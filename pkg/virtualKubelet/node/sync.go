@@ -2,13 +2,11 @@ package node
 
 import (
 	"context"
-	"github.com/liqotech/liqo/internal/utils/log"
-	"k8s.io/klog"
+	"k8s.io/klog/v2"
 	"sync"
 	"time"
 
 	"github.com/liqotech/liqo/internal/utils/errdefs"
-	"github.com/liqotech/liqo/internal/utils/trace"
 	"github.com/pkg/errors"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -54,7 +52,7 @@ func (p *syncProviderWrapper) _deletePodKey(ctx context.Context, key string) {
 }
 
 func (p *syncProviderWrapper) DeletePod(ctx context.Context, pod *corev1.Pod) error {
-	log.G(ctx).Debug("syncProviderWrappper.DeletePod")
+	klog.V(4).Info("syncProviderWrappper.DeletePod")
 	key, err := cache.MetaNamespaceKeyFunc(pod)
 	if err != nil {
 		return err
@@ -62,7 +60,7 @@ func (p *syncProviderWrapper) DeletePod(ctx context.Context, pod *corev1.Pod) er
 
 	p.deletedPods.Store(key, pod)
 	if err := p.PodLifecycleHandler.DeletePod(ctx, pod.DeepCopy()); err != nil {
-		log.G(ctx).WithField("key", key).WithError(err).Debug("Removed key from deleted pods cache")
+		klog.V(4).Info("%v - Removed key %s from deleted pods cache", err, key)
 		// We aren't going to actually delete the pod from the provider since there is an error so delete it from our cache,
 		// otherwise we could end up leaking pods in our deletion cache.
 		// Delete will be retried by the pod controller.
@@ -71,7 +69,7 @@ func (p *syncProviderWrapper) DeletePod(ctx context.Context, pod *corev1.Pod) er
 	}
 
 	if shouldSkipPodStatusUpdate(pod) {
-		log.G(ctx).Debug("skipping pod status update for terminated pod")
+		klog.V(4).Info("skipping pod status update for terminated pod")
 		return nil
 	}
 
@@ -91,7 +89,7 @@ func (p *syncProviderWrapper) DeletePod(ctx context.Context, pod *corev1.Pod) er
 	updated.Status.Reason = statusTerminatedReason
 
 	p.notify(updated)
-	log.G(ctx).Debug("Notified pod terminal pod status")
+	klog.V(4).Info("Notified pod terminal pod status")
 
 	return nil
 }
@@ -107,11 +105,11 @@ func (p *syncProviderWrapper) run(ctx context.Context) {
 	}
 
 	for {
-		log.G(ctx).Debug("Pod status update loop start")
+		klog.V(4).Info("Pod status update loop start")
 		timer.Reset(interval)
 		select {
 		case <-ctx.Done():
-			log.G(ctx).WithError(ctx.Err()).Debug("sync wrapper loop exiting")
+			klog.V(4).Info(ctx.Err(), " - sync wrapper loop exiting")
 			return
 		case <-timer.C:
 		}
@@ -120,44 +118,32 @@ func (p *syncProviderWrapper) run(ctx context.Context) {
 }
 
 func (p *syncProviderWrapper) syncPodStatuses(ctx context.Context) {
-	ctx, span := trace.StartSpan(ctx, "syncProviderWrapper.syncPodStatuses")
-	defer span.End()
 
 	// Update all the pods with the provider status.
 	pods, err := p.l.List(labels.Everything())
 	if err != nil {
 		err = errors.Wrap(err, "error getting pod list from kubernetes")
-		span.SetStatus(err)
-		log.G(ctx).WithError(err).Error("Error updating pod statuses")
+		klog.Error(err, "Error updating pod statuses")
 		return
 	}
-	ctx = span.WithField(ctx, "nPods", int64(len(pods)))
 
 	for _, pod := range pods {
 		if shouldSkipPodStatusUpdate(pod) {
-			log.G(ctx).Debug("Skipping pod status update")
+			klog.V(4).Info("Skipping pod status update")
 			continue
 		}
 
 		if err := p.updatePodStatus(ctx, pod); err != nil {
-			log.G(ctx).WithFields(map[string]interface{}{
-				"name":      pod.Name,
-				"namespace": pod.Namespace,
-			}).WithError(err).Error("Could not fetch pod status")
+			klog.Errorf("%v - Could not fetch pod %s/%s status", err, pod.Name, pod.Namespace)
 		}
 	}
 }
 
 func (p *syncProviderWrapper) updatePodStatus(ctx context.Context, podFromKubernetes *corev1.Pod) error {
-	ctx, span := trace.StartSpan(ctx, "syncProviderWrapper.updatePodStatus")
-	defer span.End()
-	ctx = addPodAttributes(ctx, span, podFromKubernetes)
-
 	var statusErr error
 	podStatus, err := p.PodLifecycleHandler.GetPodStatus(ctx, podFromKubernetes.Namespace, podFromKubernetes.Name)
 	if err != nil {
 		if !errdefs.IsNotFound(err) {
-			span.SetStatus(err)
 			return err
 		}
 		statusErr = err
@@ -171,17 +157,15 @@ func (p *syncProviderWrapper) updatePodStatus(ctx context.Context, podFromKubern
 
 	key, err := cache.MetaNamespaceKeyFunc(podFromKubernetes)
 	if err != nil {
-		span.SetStatus(err)
 		return err
 	}
 
 	if _, exists := p.deletedPods.Load(key); exists {
-		log.G(ctx).Debug("pod is in known deleted state, ignoring")
+		klog.V(4).Info("pod is in known deleted state, ignoring")
 		return nil
 	}
 
 	if podFromKubernetes.Status.Phase != corev1.PodRunning && time.Since(podFromKubernetes.ObjectMeta.CreationTimestamp.Time) <= time.Minute {
-		span.SetStatus(statusErr)
 		return statusErr
 	}
 
@@ -208,7 +192,7 @@ func (p *syncProviderWrapper) updatePodStatus(ctx context.Context, podFromKubern
 		podStatus.ContainerStatuses[i].State.Running = nil
 	}
 
-	log.G(ctx).Debug("Setting pod not found on pod status")
+	klog.V(4).Info("Setting pod not found on pod status")
 	pod := podFromKubernetes.DeepCopy()
 	podStatus.DeepCopyInto(&pod.Status)
 	p.notify(pod)

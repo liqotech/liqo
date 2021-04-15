@@ -18,12 +18,10 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/liqotech/liqo/internal/utils/log"
-	"k8s.io/klog"
+	"k8s.io/klog/v2"
 	"sync"
 	"time"
 
-	"github.com/liqotech/liqo/internal/utils/trace"
 	pkgerrors "github.com/pkg/errors"
 	coord "k8s.io/api/coordination/v1beta1"
 	corev1 "k8s.io/api/core/v1"
@@ -216,7 +214,7 @@ func (n *NodeController) Run(ctx context.Context) error {
 	}
 	n.lease = l
 
-	log.G(ctx).Debug("Created node lease")
+	klog.V(4).Infof("Created lease for node s", n.n.Name)
 	return n.controlLoop(ctx)
 }
 
@@ -274,7 +272,7 @@ func (n *NodeController) controlLoop(ctx context.Context) error {
 				t = statusTimer
 			}
 
-			log.G(ctx).Debug("Received node status update")
+			klog.V(4).Infof("Received status update for node %s", n.n.Name)
 			// Performing a status update so stop/reset the status update timer in this
 			// branch otherwise there could be an unnecessary status update.
 			if !t.Stop() {
@@ -283,19 +281,19 @@ func (n *NodeController) controlLoop(ctx context.Context) error {
 
 			n.n.Status = updated.Status
 			if err := n.updateStatus(ctx, false); err != nil {
-				log.G(ctx).WithError(err).Error("Error handling node status update")
+				klog.Error(err, " - Error handling node status update")
 			}
 			t.Reset(timerResetDuration)
 		case <-statusTimer.C:
 			if err := n.updateStatus(ctx, false); err != nil {
-				log.G(ctx).WithError(err).Error("Error handling node status update")
+				klog.Error(err, " - Error handling node status update")
 			}
 			statusTimer.Reset(n.statusInterval)
 		case <-pingTimer.C:
 			if err := n.handlePing(ctx); err != nil {
-				log.G(ctx).WithError(err).Error("Error while handling node ping")
+				klog.Error(err, " - Error while handling node ping")
 			} else {
-				log.G(ctx).Debug("Successful node ping")
+				klog.V(4).Info("Successful node ping")
 			}
 			pingTimer.Reset(n.pingInterval)
 		}
@@ -303,12 +301,6 @@ func (n *NodeController) controlLoop(ctx context.Context) error {
 }
 
 func (n *NodeController) handlePing(ctx context.Context) (retErr error) {
-	ctx, span := trace.StartSpan(ctx, "node.handlePing")
-	defer span.End()
-	defer func() {
-		span.SetStatus(retErr)
-	}()
-
 	if err := n.p.Ping(ctx); err != nil {
 		return pkgerrors.Wrap(err, "error while pinging the node provider")
 	}
@@ -365,11 +357,11 @@ func ensureLease(ctx context.Context, leases v1beta1.LeaseInterface, lease *coor
 	if err != nil {
 		switch {
 		case errors.IsNotFound(err):
-			log.G(ctx).WithError(err).Info("Node lease not supported")
+			klog.Error(err, " - Node lease not supported")
 			return nil, err
 		case errors.IsAlreadyExists(err):
 			if err := leases.Delete(context.TODO(), lease.Name, metav1.DeleteOptions{}); err != nil && !errors.IsNotFound(err) {
-				log.G(ctx).WithError(err).Error("could not delete old node lease")
+				klog.Error(err, " - could not delete old node lease")
 				return nil, pkgerrors.Wrap(err, "old lease exists but could not delete it")
 			}
 			l, err = leases.Create(context.TODO(), lease, metav1.CreateOptions{})
@@ -385,31 +377,18 @@ func ensureLease(ctx context.Context, leases v1beta1.LeaseInterface, lease *coor
 // that node leases are not supported, if this is the case, call updateNodeStatus
 // instead.
 func updateNodeLease(ctx context.Context, leases v1beta1.LeaseInterface, lease *coord.Lease) (*coord.Lease, error) {
-	ctx, span := trace.StartSpan(ctx, "node.UpdateNodeLease")
-	defer span.End()
-
-	ctx = span.WithFields(ctx, log.Fields{
-		"lease.name": lease.Name,
-		"lease.time": lease.Spec.RenewTime,
-	})
-
-	if lease.Spec.LeaseDurationSeconds != nil {
-		ctx = span.WithField(ctx, "lease.expiresSeconds", *lease.Spec.LeaseDurationSeconds)
-	}
-
 	l, err := leases.Update(context.TODO(), lease, metav1.UpdateOptions{})
 	if err != nil {
 		if errors.IsNotFound(err) {
-			log.G(ctx).Debug("lease not found")
+			klog.V(4).Infof("lease %s/%s not found", lease.Namespace, lease.Name)
 			l, err = ensureLease(ctx, leases, lease)
 		}
 		if err != nil {
-			span.SetStatus(err)
 			return nil, err
 		}
-		log.G(ctx).Debug("created new lease")
+		klog.V(4).Infof("created new lease %s%s", lease.Namespace, lease.Name)
 	} else {
-		log.G(ctx).Debug("updated lease")
+		klog.V(4).Infof("updated lease %s/%s", lease.Namespace, lease.Name)
 	}
 
 	return l, nil
@@ -463,12 +442,6 @@ func preparePatchBytesforNodeStatus(nodeName types.NodeName, oldNode *corev1.Nod
 // If you use this function, it is up to you to synchronize this with other operations.
 // This reduces the time to second-level precision.
 func updateNodeStatus(ctx context.Context, nodes v1.NodeInterface, n *corev1.Node) (_ *corev1.Node, retErr error) {
-	ctx, span := trace.StartSpan(ctx, "updateNodeStatus")
-	defer func() {
-		span.End()
-		span.SetStatus(retErr)
-	}()
-
 	var node *corev1.Node
 
 	oldNode, err := nodes.Get(context.TODO(), n.Name, emptyGetOptions)
@@ -476,12 +449,10 @@ func updateNodeStatus(ctx context.Context, nodes v1.NodeInterface, n *corev1.Nod
 		return nil, err
 	}
 
-	log.G(ctx).Debug("got node from api server")
+	klog.V(4).Infof("got node %s from api server", n.Name)
 	node = oldNode.DeepCopy()
 	node.ResourceVersion = ""
 	node.Status = n.Status
-
-	ctx = addNodeAttributes(ctx, span, node)
 
 	// Patch the node status to merge other changes on the node.
 	updated, _, err := patchNodeStatus(nodes, types.NodeName(n.Name), oldNode, node)
@@ -489,9 +460,7 @@ func updateNodeStatus(ctx context.Context, nodes v1.NodeInterface, n *corev1.Nod
 		return nil, err
 	}
 
-	log.G(ctx).WithField("node.resourceVersion", updated.ResourceVersion).
-		WithField("node.Status.Conditions", updated.Status.Conditions).
-		Debug("updated node status in api server")
+	klog.V(4).Infof("updated node %s status in api server", n.Name)
 	return updated, nil
 }
 
@@ -557,13 +526,4 @@ func (t taintsStringer) String() string {
 		}
 	}
 	return s
-}
-
-func addNodeAttributes(ctx context.Context, span trace.Span, n *corev1.Node) context.Context {
-	return span.WithFields(ctx, log.Fields{
-		"node.UID":     string(n.UID),
-		"node.name":    n.Name,
-		"node.cluster": n.ClusterName,
-		"node.taints":  taintsStringer(n.Spec.Taints),
-	})
 }

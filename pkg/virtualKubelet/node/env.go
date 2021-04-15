@@ -17,8 +17,7 @@ package node
 import (
 	"context"
 	"fmt"
-	"github.com/liqotech/liqo/internal/utils/log"
-	"k8s.io/klog"
+	"k8s.io/klog/v2"
 	"sort"
 	"strings"
 
@@ -30,7 +29,7 @@ import (
 	fieldpath "k8s.io/kubernetes/pkg/fieldpath"
 	"k8s.io/kubernetes/third_party/forked/golang/expansion"
 
-	"github.com/liqotech/liqo/internal/virtualKubelet/manager"
+	"github.com/liqotech/liqo/pkg/virtualKubelet/manager"
 )
 
 const (
@@ -194,7 +193,7 @@ loop:
 					if errors.IsNotFound(err) {
 						recorder.Eventf(pod, corev1.EventTypeWarning, ReasonOptionalSecretNotFound, "secret %q not found", ef.Name)
 					} else {
-						log.G(ctx).Warnf("failed to read secret %q: %v", ef.Name, err)
+						klog.Warningf("failed to read secret %q: %v", ef.Name, err)
 						recorder.Eventf(pod, corev1.EventTypeWarning, ReasonFailedToReadOptionalSecret, "failed to read secret %q", ef.Name)
 					}
 					// Continue on to the next reference.
@@ -273,7 +272,7 @@ loop:
 					if errors.IsNotFound(err) {
 						recorder.Eventf(pod, corev1.EventTypeWarning, ReasonOptionalConfigMapNotFound, "skipping optional envvar %q: configmap %q not found", env.Name, vf.Name)
 					} else {
-						log.G(ctx).Warnf("failed to read configmap %q: %v", vf.Name, err)
+						klog.Warningf("failed to read configmap %q: %v", vf.Name, err)
 						recorder.Eventf(pod, corev1.EventTypeWarning, ReasonFailedToReadOptionalConfigMap, "skipping optional envvar %q: failed to read configmap %q", env.Name, vf.Name)
 					}
 					// Continue on to the next reference.
@@ -325,7 +324,7 @@ loop:
 					if errors.IsNotFound(err) {
 						recorder.Eventf(pod, corev1.EventTypeWarning, ReasonOptionalSecretNotFound, "skipping optional envvar %q: secret %q not found", env.Name, vf.Name)
 					} else {
-						log.G(ctx).Warnf("failed to read secret %q: %v", vf.Name, err)
+						klog.Warningf("failed to read secret %q: %v", vf.Name, err)
 						recorder.Eventf(pod, corev1.EventTypeWarning, ReasonFailedToReadOptionalSecret, "skipping optional envvar %q: failed to read secret %q", env.Name, vf.Name)
 					}
 					// Continue on to the next reference.
