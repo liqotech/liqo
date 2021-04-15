@@ -43,7 +43,7 @@ func (tc *TunnelController) serviceHandlerAdd(obj interface{}) {
 		klog.Errorf("the service %s in namespace %s is of type %s, only types of %s and %s are accepted", s.GetName(), s.GetNamespace(), s.Spec.Type, corev1.ServiceTypeLoadBalancer, corev1.ServiceTypeNodePort)
 		return
 	}
-	currentPubKey := tc.wg.GetPubKey()
+	currentPubKey := tc.overlay.GetPubKey()
 	pubKey := s.GetAnnotations()[overlay.PubKeyAnnotation]
 	if pubKey != currentPubKey {
 		pubKey = currentPubKey

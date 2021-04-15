@@ -11,11 +11,6 @@ import (
 	"k8s.io/klog/v2"
 	"k8s.io/kubernetes/pkg/api/v1/pod"
 	"strings"
-	"time"
-)
-
-var (
-	keepalive = 10 * time.Second
 )
 
 func (tc *TunnelController) StartPodWatcher() {
@@ -61,12 +56,18 @@ func (tc *TunnelController) podHandlerAdd(obj interface{}) {
 	podIP := strings.Join([]string{p.Status.PodIP, "32"}, "/")
 
 	allowedIPs = append([]string{}, overlayIP, podIP)
-	err := tc.wg.AddPeer(pubKey, p.Status.PodIP, overlay.WgListeningPort, allowedIPs, &keepalive)
+	peer := overlay.OverlayPeer{
+		Name:          nodeName,
+		PubKey:        pubKey,
+		IpAddr:        p.Status.PodIP,
+		ListeningPort: overlay.WgListeningPort,
+		AllowedIPs:    allowedIPs,
+	}
+	err := tc.overlay.AddPeer(peer)
 	if err != nil {
 		klog.Errorf("an error occurred while adding node %s to the overlay network: %v", nodeName, err)
 		return
 	}
-	tc.overlayPeers[p.Spec.NodeName] = pubKey
 	klog.Infof("node %s at %s:%s with public key '%s' added to wireguard interface", nodeName, podIP, overlay.WgListeningPort, pubKey)
 }
 
@@ -95,9 +96,12 @@ func (tc *TunnelController) podHandlerUpdate(oldObj interface{}, newObj interfac
 		klog.Warningf("the public key for node %s in pod %s has been removed. if you want to change the key for this node consider to delete the secret containing its keys and then restart the pod", nodeName, podName)
 		return
 	}
+	peer := overlay.OverlayPeer{
+		PubKey: pOldPubKey,
+	}
 	//in case of an updated key than we remove the old configuration for the current peer
 	if pOldPubKey != pNewPubKey {
-		if err := tc.wg.RemovePeer(pOldPubKey); err != nil {
+		if err := tc.overlay.RemovePeer(peer); err != nil {
 			klog.Errorf("an error occurred while removing old configuration from wireguard interface or peer %s: %v", nodeName, err)
 			return
 		}
@@ -119,7 +123,10 @@ func (tc *TunnelController) podHandlerDelete(obj interface{}) {
 	if !ok {
 		return
 	}
-	if err := tc.wg.RemovePeer(pubKey); err != nil {
+	peer := overlay.OverlayPeer{
+		PubKey: pubKey,
+	}
+	if err := tc.overlay.RemovePeer(peer); err != nil {
 		klog.Errorf("an error occurred while removing old configuration from wireguard interface or peer %s: %v", nodeName, err)
 		return
 	}

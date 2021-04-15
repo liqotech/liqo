@@ -8,6 +8,7 @@ import (
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
 	"k8s.io/klog/v2"
+	"net"
 	"os"
 )
 
@@ -26,6 +27,12 @@ func (tc *TunnelController) WatchConfiguration(config *rest.Config, gv *schema.G
 
 		//this section is executed at start-up time
 		if !tc.isConfigured {
+			_, netCIDR, err := net.ParseCIDR(configuration.Spec.LiqonetConfig.PodCIDR)
+			if err != nil {
+				klog.Errorf("an error occurred while parsing podCIDR %s: %v", configuration.Spec.LiqonetConfig.PodCIDR, err)
+				return
+			}
+			tc.podCIDR = netCIDR
 			tc.isGKE = configuration.Spec.LiqonetConfig.GKEProvider
 			tc.configChan <- true
 			tc.isConfigured = true

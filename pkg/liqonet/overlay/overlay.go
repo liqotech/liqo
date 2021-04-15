@@ -27,7 +27,7 @@ const (
 type Overlay interface {
 	AddPeer(peer OverlayPeer) error
 	RemovePeer(peer OverlayPeer) error
-	AddSubnet(peerName, podIP string) error
+	AddSubnet(peerName, podIP string, podCIDR *net.IPNet) error
 	RemoveSubnet(peerName, podIP string) error
 	GetDeviceName() string
 	GetDeviceIndex() int

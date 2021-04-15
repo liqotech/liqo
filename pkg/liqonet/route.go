@@ -36,14 +36,14 @@ func (rm *RouteManager) EnsureRoutesPerCluster(iface string, tep *netv1alpha1.Tu
 			return nil
 		}
 		//remove the old route
-		err := rm.delRoute(existing)
+		err := rm.DelRoute(existing)
 		if err != nil {
 			klog.Errorf("%s -> unable to remove outdated route '%s': %s", clusterID, remotePodCIDR, err)
 			rm.Eventf(tep, "Warning", "Processing", "unable to remove outdated route: %s", err.Error())
 			return err
 		}
 	}
-	route, err := rm.addRoute(remotePodCIDR, "", iface, false)
+	route, err := rm.AddRoute(remotePodCIDR, "", iface, false)
 	if err != nil {
 		klog.Errorf("%s -> unable to configure route: %s", clusterID, err)
 		rm.Eventf(tep, "Warning", "Processing", "unable to configure route: %s", err.Error())
@@ -60,7 +60,7 @@ func (rm *RouteManager) RemoveRoutesPerCluster(tep *netv1alpha1.TunnelEndpoint) 
 	clusterID := tep.Spec.ClusterID
 	route, ok := rm.getRoute(clusterID)
 	if ok {
-		err := rm.delRoute(route)
+		err := rm.DelRoute(route)
 		if err != nil {
 			rm.Eventf(tep, "Warning", "Processing", "unable to remove route: %s", err.Error())
 			klog.Errorf("%s -> unable to remove route '%s': %v", clusterID, route.String(), err)
@@ -87,7 +87,7 @@ func (rm *RouteManager) deleteRouteFromCache(clusterID string) {
 	delete(rm.routesPerRemoteCluster, clusterID)
 }
 
-func (rm *RouteManager) addRoute(dst string, gw string, deviceName string, onLink bool) (netlink.Route, error) {
+func (rm *RouteManager) AddRoute(dst string, gw string, deviceName string, onLink bool) (netlink.Route, error) {
 	var route netlink.Route
 	//convert destination in *net.IPNet
 	_, destinationNet, err := net.ParseCIDR(dst)
@@ -114,7 +114,7 @@ func (rm *RouteManager) addRoute(dst string, gw string, deviceName string, onLin
 	return route, nil
 }
 
-func (rm *RouteManager) delRoute(route netlink.Route) error {
+func (rm *RouteManager) DelRoute(route netlink.Route) error {
 	//try to remove all the routes for that ip
 	err := netlink.RouteDel(&route)
 	if err != nil {

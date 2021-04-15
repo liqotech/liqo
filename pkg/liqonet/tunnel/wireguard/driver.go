@@ -59,7 +59,7 @@ type wireguard struct {
 }
 
 // NewDriver creates a new WireGuard driver
-func NewDriver(k8sClient *k8s.Clientset, namespace string) (tunnel.Driver, error) {
+func NewDriver(k8sClient k8s.Interface, namespace string) (tunnel.Driver, error) {
 	var err error
 	w := wireguard{
 		connections: make(map[string]*netv1alpha1.Connection),
@@ -351,7 +351,7 @@ func newConnectionOnError(msg string) *netv1alpha1.Connection {
 	}
 }
 
-func (w *wireguard) setKeys(c *k8s.Clientset, namespace string) error {
+func (w *wireguard) setKeys(c k8s.Interface, namespace string) error {
 	var priv, pub wgtypes.Key
 	//first we check if a secret containing valid keys already exists
 	s, err := c.CoreV1().Secrets(namespace).Get(context.Background(), keysName, metav1.GetOptions{})

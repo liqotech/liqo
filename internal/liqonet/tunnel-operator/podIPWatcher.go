@@ -5,7 +5,6 @@ import (
 	"k8s.io/client-go/informers"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/klog/v2"
-	"strings"
 )
 
 func (tc *TunnelController) StartPodIPWatcher() {
@@ -38,19 +37,12 @@ func (tc *TunnelController) podIPHandlerAdd(obj interface{}) {
 		klog.Infof("ip address for pod %s running on node %s not set", podName, nodeName)
 		return
 	}
-	//get key of the overlay peer where the pod is running
-	peerKey, ok := tc.overlayPeers[nodeName]
-	if !ok {
-		klog.Infof("node %s has not been added to the overlay yet", nodeName)
-		return
-	}
-	allowedIPs := strings.Join([]string{p.Status.PodIP, "32"}, "/")
-	err := tc.wg.AddAllowedIPs(peerKey, allowedIPs)
+	err := tc.overlay.AddSubnet(nodeName, p.Status.PodIP, tc.podCIDR)
 	if err != nil {
-		klog.Errorf("an error occurred while adding subnet %s to the allowedIPs for peer %s: %v", allowedIPs, nodeName, err)
+		klog.Error(err)
 		return
 	}
-	klog.Infof("subnet %s added to the allowedIPs for peer %s", allowedIPs, nodeName)
+	klog.Infof("routing information for pod %s with ip %s configured to use peer %s", p.Name, p.Status.PodIP, nodeName)
 }
 
 func (tc *TunnelController) podIPHandlerUpdate(oldObj interface{}, newObj interface{}) {
@@ -72,17 +64,10 @@ func (tc *TunnelController) podIPHandlerDelete(obj interface{}) {
 		klog.Infof("ip address for pod %s running on node %s not set", podName, nodeName)
 		return
 	}
-	//get key of the overlay peer where the pod is running
-	peerKey, ok := tc.overlayPeers[nodeName]
-	if !ok {
-		klog.Infof("node %s has not been added to the overlay yet", nodeName)
-		return
-	}
-	allowedIPs := strings.Join([]string{p.Status.PodIP, "32"}, "/")
-	err := tc.wg.RemoveAllowedIPs(peerKey, allowedIPs)
+	err := tc.overlay.RemoveSubnet(nodeName, p.Status.PodIP)
 	if err != nil {
-		klog.Errorf("an error occurred while removing subnet %s from the allowedIPs for peer %s: %v", allowedIPs, nodeName, err)
+		klog.Error(err)
 		return
 	}
-	klog.Infof("subnet %s removed from the allowedIPs for peer %s", allowedIPs, nodeName)
+	klog.Infof("routing information for pod %s with ip %s removed from peer %s", p.Name, p.Status.PodIP, nodeName)
 }

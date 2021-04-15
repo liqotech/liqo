@@ -2,9 +2,12 @@ package overlay
 
 import (
 	"fmt"
+	"github.com/liqotech/liqo/pkg/liqonet"
 	"github.com/liqotech/liqo/pkg/liqonet/wireguard"
+	"github.com/vishvananda/netlink"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/klog"
+	"net"
 	"strings"
 	"time"
 )
@@ -77,17 +80,25 @@ func (ov *Wireguard) RemovePeer(peer OverlayPeer) error {
 	return nil
 }
 
-func (ov *Wireguard) AddSubnet(peerName, podIP string) error {
+func (ov *Wireguard) AddSubnet(peerName, podIP string, podCIDR *net.IPNet) error {
 	//check if there is a configured peer for the given nodeName
 	pubKey, ok := ov.peers[peerName]
 	if !ok {
 		klog.Infof("no peer found with name %s, unable to add route for IP %s", peerName, podIP)
 		return nil
 	}
+	if !podCIDR.Contains(net.ParseIP(podIP)) {
+		return nil
+	}
 	allowedIPs := strings.Join([]string{podIP, "32"}, "/")
 	err := ov.wg.AddAllowedIPs(pubKey, allowedIPs)
 	if err != nil {
 		klog.Errorf("an error occurred while adding subnet %s to the allowedIPs for peer %s: %v", allowedIPs, peerName, err)
+		return err
+	}
+	rm := liqonet.RouteManager{}
+	if _, err := rm.AddRoute(allowedIPs, "", ov.GetDeviceName(), false); err != nil {
+		klog.Errorf("an error occurred while adding route for subnet %s on interface %s: %v", allowedIPs, ov.GetDeviceName(), err)
 		return err
 	}
 	return nil
@@ -105,6 +116,15 @@ func (ov *Wireguard) RemoveSubnet(peerName, podIP string) error {
 	if err != nil {
 		klog.Errorf("an error occurred while removing subnet %s to the allowedIPs for peer %s: %v", allowedIPs, peerName, err)
 		return err
+	}
+	_, dstNet, err := net.ParseCIDR(allowedIPs)
+	if err != nil {
+		klog.Errorf("an error occurred while parsing subnet %s: %v", allowedIPs, err)
+		return err
+	}
+	rm := liqonet.RouteManager{}
+	if err := rm.DelRoute(netlink.Route{Dst: dstNet}); err != nil {
+		klog.Errorf("an error occurred while removing route for subnet %s on interface %s: %v", allowedIPs, ov.GetDeviceName(), err)
 	}
 	return nil
 }

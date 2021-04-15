@@ -7,7 +7,7 @@ import (
 )
 
 // Function prototype to create a new driver
-type DriverCreateFunc func(k8sClientset *k8s.Clientset, namespace string) (Driver, error)
+type DriverCreateFunc func(k8sClientset k8s.Interface, namespace string) (Driver, error)
 
 // Static map of supported drivers
 var Drivers = map[string]DriverCreateFunc{}
