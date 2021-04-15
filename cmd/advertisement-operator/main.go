@@ -1,11 +1,8 @@
 /*
-
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
-
     http://www.apache.org/licenses/LICENSE-2.0
-
 Unless required by applicable law or agreed to in writing, software
 distributed under the License is distributed on an "AS IS" BASIS,
 WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -18,7 +15,9 @@ package main
 import (
 	"flag"
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
+	mapsv1alpha1 "github.com/liqotech/liqo/apis/virtualKubelet/v1alpha1"
 	"github.com/liqotech/liqo/pkg/crdClient"
+	namectrl "github.com/liqotech/liqo/pkg/liqo-controller-manager/namespace-controller"
 	"github.com/liqotech/liqo/pkg/mapperUtils"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -55,6 +54,8 @@ func init() {
 	_ = advtypes.AddToScheme(scheme)
 
 	_ = netv1alpha1.AddToScheme(scheme)
+
+	_ = mapsv1alpha1.AddToScheme(scheme)
 	// +kubebuilder:scaffold:scheme
 }
 
@@ -150,6 +151,15 @@ func main() {
 	if err = r.SetupWithManager(mgr); err != nil {
 		klog.Error(err)
 		os.Exit(1)
+	}
+
+	r2 := &namectrl.NamespaceReconciler{
+		Client: mgr.GetClient(),
+		Scheme: mgr.GetScheme(),
+	}
+
+	if err = r2.SetupWithManager(mgr); err != nil {
+		klog.Fatal(err)
 	}
 	// +kubebuilder:scaffold:builder
 
