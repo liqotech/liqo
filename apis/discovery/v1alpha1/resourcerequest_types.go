@@ -41,8 +41,8 @@ type ResourceRequest struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
-	Spec   PeeringRequestSpec   `json:"spec,omitempty"`
-	Status PeeringRequestStatus `json:"status,omitempty"`
+	Spec   ResourceRequestSpec   `json:"spec,omitempty"`
+	Status ResourceRequestStatus `json:"status,omitempty"`
 }
 
 // +kubebuilder:object:root=true
