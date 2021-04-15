@@ -30,6 +30,8 @@ var (
 
 	GroupResource = schema.GroupResource{Group: GroupVersion.Group, Resource: "namespacenattingtables"}
 
+	NamespaceMapGroupResource = schema.GroupResource{Group: GroupVersion.Group, Resource: "namespacemaps"}
+
 	// SchemeBuilder is used to add go types to the GroupVersionKind scheme
 	SchemeBuilder = &scheme.Builder{GroupVersion: GroupVersion}
 
