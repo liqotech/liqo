@@ -18,7 +18,6 @@ import (
 	"context"
 	"k8s.io/klog"
 
-	"github.com/liqotech/liqo/internal/utils/trace"
 	pkgerrors "github.com/pkg/errors"
 	"k8s.io/client-go/util/workqueue"
 )
@@ -31,9 +30,6 @@ const (
 type queueHandler func(ctx context.Context, key string) error
 
 func handleQueueItem(ctx context.Context, q workqueue.RateLimitingInterface, handler queueHandler) bool {
-	ctx, span := trace.StartSpan(ctx, "handleQueueItem")
-	defer span.End()
-
 	obj, shutdown := q.Get()
 	if shutdown {
 		return false
@@ -60,8 +56,6 @@ func handleQueueItem(ctx context.Context, q workqueue.RateLimitingInterface, han
 			return nil
 		}
 
-		// Add the current key as an attribute to the current span.
-		ctx = span.WithField(ctx, "key", key)
 		// Run the syncHandler, passing it the namespace/name string of the Pod resource to be synced.
 		if err := handler(ctx, key); err != nil {
 			if q.NumRequeues(key) < maxRetries {
@@ -80,8 +74,6 @@ func handleQueueItem(ctx context.Context, q workqueue.RateLimitingInterface, han
 	}(obj)
 
 	if err != nil {
-		// We've actually hit an error, so we set the span's status based on the error.
-		span.SetStatus(err)
 		klog.Error(err)
 		return true
 	}
@@ -95,11 +87,5 @@ func (pc *PodController) runSyncPodStatusFromProviderWorker(ctx context.Context,
 }
 
 func (pc *PodController) processPodStatusUpdate(ctx context.Context, workerID string, q workqueue.RateLimitingInterface) bool {
-	ctx, span := trace.StartSpan(ctx, "processPodStatusUpdate")
-	defer span.End()
-
-	// Add the ID of the current worker as an attribute to the current span.
-	ctx = span.WithField(ctx, "workerID", workerID)
-
 	return handleQueueItem(ctx, q, pc.podStatusHandler)
 }

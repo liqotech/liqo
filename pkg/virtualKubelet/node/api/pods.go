@@ -18,7 +18,6 @@ import (
 	"context"
 	"net/http"
 
-	"github.com/liqotech/liqo/internal/utils/log"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/serializer"
@@ -33,7 +32,6 @@ func HandleRunningPods(getPods PodListerFunc) http.HandlerFunc {
 
 	return handleError(func(w http.ResponseWriter, req *http.Request) error {
 		ctx := req.Context()
-		ctx = log.WithLogger(ctx, log.L)
 		pods, err := getPods(ctx)
 		if err != nil {
 			return err

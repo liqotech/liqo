@@ -17,8 +17,6 @@ package node
 import (
 	"context"
 	"github.com/google/go-cmp/cmp"
-	"github.com/liqotech/liqo/internal/utils/log"
-	"github.com/liqotech/liqo/internal/utils/trace"
 	pkgerrors "github.com/pkg/errors"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -33,25 +31,11 @@ const (
 	podStatusReasonProviderFailed = "ProviderFailed"
 )
 
-func addPodAttributes(ctx context.Context, span trace.Span, pod *corev1.Pod) context.Context {
-	return span.WithFields(ctx, nil)
-}
-
 func (pc *PodController) createOrUpdatePod(ctx context.Context, pod *corev1.Pod) error {
-
-	ctx, span := trace.StartSpan(ctx, "createOrUpdatePod")
-	defer span.End()
-	addPodAttributes(ctx, span, pod)
-
-	ctx = span.WithFields(ctx, log.Fields{
-		"pod":       pod.GetName(),
-		"namespace": pod.GetNamespace(),
-	})
 
 	// We do this so we don't mutate the pod from the informer cache
 	pod = pod.DeepCopy()
 	if err := populateEnvironmentVariables(ctx, pod, pc.resourceManager, pc.recorder); err != nil {
-		span.SetStatus(err)
 		return err
 	}
 
@@ -65,13 +49,13 @@ func (pc *PodController) createOrUpdatePod(ctx context.Context, pod *corev1.Pod)
 	if podFromProvider, _ := pc.provider.GetPod(ctx, pod.Namespace, pod.Name); podFromProvider != nil {
 		if !podsEqual(podFromProvider, podForProvider) {
 			if origErr := pc.provider.UpdatePod(ctx, podForProvider); origErr != nil {
-				pc.handleProviderError(ctx, span, origErr, pod)
+				pc.handleProviderError(ctx, origErr, pod)
 				return origErr
 			}
 		}
 	} else {
 		if origErr := pc.provider.CreatePod(ctx, podForProvider); origErr != nil {
-			pc.handleProviderError(ctx, span, origErr, pod)
+			pc.handleProviderError(ctx, origErr, pod)
 			return origErr
 		}
 	}
@@ -131,7 +115,7 @@ func podsEqual(pod1, pod2 *corev1.Pod) bool {
 	return containers && initContainers && deadline && tolerations && labels && annotations
 }
 
-func (pc *PodController) handleProviderError(ctx context.Context, span trace.Span, origErr error, pod *corev1.Pod) {
+func (pc *PodController) handleProviderError(ctx context.Context, origErr error, pod *corev1.Pod) {
 
 	// For now this switch case keeps in consideration only the error
 	// of type notFound and handles it properly (by deleting the local pod)
@@ -143,7 +127,7 @@ func (pc *PodController) handleProviderError(ctx context.Context, span trace.Spa
 		if err != nil {
 			err = pkgerrors.Wrapf(err, "setting provider failed, cannot delete local pod %s/%s", pod.Namespace, pod.Name)
 			klog.Error(err)
-			pc.setProviderFailed(ctx, span, origErr, pod)
+			pc.setProviderFailed(ctx, origErr, pod)
 		}
 
 	case metav1.StatusReasonServiceUnavailable, metav1.StatusReasonAlreadyExists:
@@ -158,11 +142,11 @@ func (pc *PodController) handleProviderError(ctx context.Context, span trace.Spa
 		klog.V(4).Info(origErr.Error())
 
 	default:
-		pc.setProviderFailed(ctx, span, origErr, pod)
+		pc.setProviderFailed(ctx, origErr, pod)
 	}
 }
 
-func (pc *PodController) setProviderFailed(ctx context.Context, span trace.Span, origErr error, pod *corev1.Pod) {
+func (pc *PodController) setProviderFailed(ctx context.Context, origErr error, pod *corev1.Pod) {
 	podPhase := corev1.PodPending
 	if pod.Spec.RestartPolicy == corev1.RestartPolicyNever {
 		podPhase = corev1.PodFailed
@@ -179,17 +163,11 @@ func (pc *PodController) setProviderFailed(ctx context.Context, span trace.Span,
 	} else {
 		klog.Info("Updated k8s pod status")
 	}
-	span.SetStatus(origErr)
 }
 
 func (pc *PodController) deletePod(ctx context.Context, pod *corev1.Pod) error {
-	ctx, span := trace.StartSpan(ctx, "deletePod")
-	defer span.End()
-	ctx = addPodAttributes(ctx, span, pod)
-
 	err := pc.provider.DeletePod(ctx, pod.DeepCopy())
 	if err != nil {
-		span.SetStatus(err)
 		return err
 	}
 
@@ -251,12 +229,7 @@ func (pc *PodController) enqueuePodStatusUpdate(ctx context.Context, q workqueue
 }
 
 func (pc *PodController) podStatusHandler(ctx context.Context, key string) (retErr error) {
-	ctx, span := trace.StartSpan(ctx, "podStatusHandler")
-	defer span.End()
-
-	ctx = span.WithField(ctx, "key", key)
 	defer func() {
-		span.SetStatus(retErr)
 		if retErr != nil {
 			klog.Error("Error processing pod status update")
 		}
@@ -280,19 +253,11 @@ func (pc *PodController) podStatusHandler(ctx context.Context, key string) (retE
 }
 
 func (pc *PodController) deletePodHandler(ctx context.Context, key string) (retErr error) {
-	ctx, span := trace.StartSpan(ctx, "processDeletionReconcilationWorkItem")
-	defer span.End()
-
 	namespace, name, err := cache.SplitMetaNamespaceKey(key)
-	ctx = span.WithFields(ctx, log.Fields{
-		"namespace": namespace,
-		"name":      name,
-	})
 
 	if err != nil {
 		// Log the error as a warning, but do not requeue the key as it is invalid.
 		klog.Info(pkgerrors.Wrapf(err, "invalid resource key: %q", key))
-		span.SetStatus(err)
 		return nil
 	}
 
@@ -310,7 +275,6 @@ func (pc *PodController) deletePodHandler(ctx context.Context, key string) (retE
 		return nil
 	}
 	if err != nil {
-		span.SetStatus(err)
 		return err
 	}
 
@@ -325,7 +289,6 @@ func (pc *PodController) deletePodHandler(ctx context.Context, key string) (retE
 		return nil
 	}
 	if err != nil {
-		span.SetStatus(err)
 		return err
 	}
 	return nil

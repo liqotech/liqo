@@ -47,8 +47,6 @@ func init() {
 	// We neet to set log.L because new spans derive their loggers from log.L
 	sl := logrus.StandardLogger()
 	sl.SetLevel(logrus.DebugLevel)
-	newLogger := logruslogger.FromLogrus(logrus.NewEntry(sl))
-	log.L = newLogger
 }
 
 // fakeDiscardingRecorder discards all events. Silently.

@@ -19,7 +19,7 @@ import (
 	"testing"
 	"time"
 
-	testutil "github.com/liqotech/liqo/internal/virtualKubelet/test/util"
+	testutil "github.com/liqotech/liqo/pkg/virtualKubelet/test/util"
 	"gotest.tools/assert"
 	is "gotest.tools/assert/cmp"
 	corev1 "k8s.io/api/core/v1"

@@ -29,7 +29,6 @@ import (
 
 	"github.com/liqotech/liqo/cmd/virtual-kubelet/internal/commands/root"
 	"github.com/liqotech/liqo/cmd/virtual-kubelet/internal/provider"
-	"github.com/liqotech/liqo/internal/utils/log"
 	"github.com/spf13/cobra"
 )
 
@@ -103,26 +102,26 @@ func getK8sVersion(ctx context.Context, defaultConfigPath string) string {
 		// Get the kubeconfig from the filepath.
 		config, err = clientcmd.BuildConfigFromFlags("", configPath)
 		if err != nil {
-			log.G(ctx).Warnf("Cannot read k8s version: using default version %v; error: %v", defaultK8sVersion, err)
+			klog.Warningf("Cannot read k8s version: using default version %v; error: %v", defaultK8sVersion, err)
 			return defaultK8sVersion
 		}
 	} else {
 		// Set to in-cluster config.
 		config, err = rest.InClusterConfig()
 		if err != nil {
-			log.G(ctx).Warnf("Cannot read k8s version: using default version %v; error: %v", defaultK8sVersion, err)
+			klog.Warningf("Cannot read k8s version: using default version %v; error: %v", defaultK8sVersion, err)
 			return defaultK8sVersion
 		}
 	}
 
 	c, err := discovery.NewDiscoveryClientForConfig(config)
 	if err != nil {
-		log.G(ctx).Warnf("Cannot read k8s version: using default version %v; error: %v", defaultK8sVersion, err)
+		klog.Warningf("Cannot read k8s version: using default version %v; error: %v", defaultK8sVersion, err)
 		return defaultK8sVersion
 	}
 	v, err := c.ServerVersion()
 	if err != nil {
-		log.G(ctx).Warnf("Cannot read k8s version: using default version %v; error: %v", defaultK8sVersion, err)
+		klog.Warningf("Cannot read k8s version: using default version %v; error: %v", defaultK8sVersion, err)
 		return defaultK8sVersion
 	}
 

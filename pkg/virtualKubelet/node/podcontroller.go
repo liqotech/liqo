@@ -24,9 +24,8 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/liqotech/liqo/internal/utils/errdefs"
-	"github.com/liqotech/liqo/internal/utils/trace"
-	"github.com/liqotech/liqo/internal/virtualKubelet/manager"
 	vkContext "github.com/liqotech/liqo/pkg/virtualKubelet/context"
+	"github.com/liqotech/liqo/pkg/virtualKubelet/manager"
 	pkgerrors "github.com/pkg/errors"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -374,24 +373,12 @@ func (pc *PodController) runSyncPodsFromKubernetesWorker(ctx context.Context, wo
 
 // processNextWorkItem will read a single work item off the work queue and attempt to process it,by calling the syncHandler.
 func (pc *PodController) processNextWorkItem(ctx context.Context, workerID string, q workqueue.RateLimitingInterface) bool {
-
-	// We create a span only after popping from the queue so that we can get an adequate picture of how long it took to process the item.
-	ctx, span := trace.StartSpan(ctx, "processNextWorkItem")
-	defer span.End()
-
 	// Add the ID of the current worker as an attribute to the current span.
-	ctx = span.WithField(ctx, "workerId", workerID)
 	return handleQueueItem(ctx, q, pc.syncHandler)
 }
 
 // syncHandler compares the actual state with the desired, and attempts to converge the two.
 func (pc *PodController) syncHandler(ctx context.Context, key string) error {
-	ctx, span := trace.StartSpan(ctx, "syncHandler")
-	defer span.End()
-
-	// Add the current key as an attribute to the current span.
-	ctx = span.WithField(ctx, "key", key)
-
 	// Convert the namespace/name string into a distinct namespace and name.
 	namespace, name, err := cache.SplitMetaNamespaceKey(key)
 	if err != nil {
@@ -407,14 +394,12 @@ func (pc *PodController) syncHandler(ctx context.Context, key string) error {
 			// We've failed to fetch the pod from the lister, but the error is not a 404.
 			// Hence, we add the key back to the work queue so we can retry processing it later.
 			err := pkgerrors.Wrapf(err, "failed to fetch pod with key %q from lister", key)
-			span.SetStatus(err)
 			return err
 		}
 
 		pod, err = pc.provider.GetPod(ctx, namespace, name)
 		if err != nil && !errdefs.IsNotFound(err) {
 			err = pkgerrors.Wrapf(err, "failed to fetch pod with key %q from provider", key)
-			span.SetStatus(err)
 			return err
 		}
 		if errdefs.IsNotFound(err) || pod == nil {
@@ -427,7 +412,6 @@ func (pc *PodController) syncHandler(ctx context.Context, key string) error {
 		}
 		if err != nil {
 			err = pkgerrors.Wrapf(err, "failed to delete pod %q in the provider", loggablePodNameFromCoordinates(namespace, name))
-			span.SetStatus(err)
 		}
 		return err
 
@@ -438,12 +422,6 @@ func (pc *PodController) syncHandler(ctx context.Context, key string) error {
 
 // syncPodInProvider tries and reconciles the state of a pod by comparing its Kubernetes representation and the provider's representation.
 func (pc *PodController) syncPodInProvider(ctx context.Context, pod *corev1.Pod, key string) (retErr error) {
-	ctx, span := trace.StartSpan(ctx, "syncPodInProvider")
-	defer span.End()
-
-	// Add the pod's attributes to the current span.
-	ctx = addPodAttributes(ctx, span, pod)
-
 	// If the pod('s containers) is no longer in a running state then we force-delete the pod from API server
 	// more context is here: https://github.com/liqotech/liqo/pull/760
 	if pod.DeletionTimestamp != nil && !running(&pod.Status) {
@@ -480,7 +458,6 @@ func (pc *PodController) syncPodInProvider(ctx context.Context, pod *corev1.Pod,
 			klog.Info("Pod not found in provider")
 		} else if err != nil {
 			err := pkgerrors.Wrapf(err, "failed to delete pod %q in the provider", loggablePodName(pod))
-			span.SetStatus(err)
 			return err
 		}
 
@@ -497,7 +474,6 @@ func (pc *PodController) syncPodInProvider(ctx context.Context, pod *corev1.Pod,
 	// Create or update the pod in the provider.
 	if err := pc.createOrUpdatePod(ctx, pod); err != nil {
 		err := pkgerrors.Wrapf(err, "failed to sync pod %q in the provider", loggablePodName(pod))
-		span.SetStatus(err)
 		return err
 	}
 	return nil
@@ -512,26 +488,15 @@ func (pc *PodController) runDeletionReconcilationWorker(ctx context.Context, wor
 
 // processDeletionReconcilationWorkItem  will read a single work item off the work queue and attempt to process it,by calling the deletionReconcilation.
 func (pc *PodController) processDeletionReconcilationWorkItem(ctx context.Context, workerID string, q workqueue.RateLimitingInterface) bool {
-
-	// We create a span only after popping from the queue so that we can get an adequate picture of how long it took to process the item.
-	ctx, span := trace.StartSpan(ctx, "processDeletionReconcilationWorkItem")
-	defer span.End()
-
-	// Add the ID of the current worker as an attribute to the current span.
-	ctx = span.WithField(ctx, "workerId", workerID)
 	return handleQueueItem(ctx, q, pc.deletePodHandler)
 }
 
 // deleteDanglingPods checks whether the provider knows about any pods which Kubernetes doesn't know about, and deletes them.
 func (pc *PodController) deleteDanglingPods(ctx context.Context, threadiness int) {
-	ctx, span := trace.StartSpan(ctx, "deleteDanglingPods")
-	defer span.End()
-
 	// Grab the list of pods known to the provider.
 	pps, err := pc.provider.GetPods(ctx)
 	if err != nil {
 		err := pkgerrors.Wrap(err, "failed to fetch the list of pods from the provider")
-		span.SetStatus(err)
 		klog.Error(err)
 		return
 	}
@@ -550,7 +515,6 @@ func (pc *PodController) deleteDanglingPods(ctx context.Context, threadiness int
 			}
 			// For some reason we couldn't fetch the pod from the lister, so we propagate the error.
 			err := pkgerrors.Wrap(err, "failed to fetch pod from the lister")
-			span.SetStatus(err)
 			klog.Error(err)
 			return
 		}
@@ -566,19 +530,14 @@ func (pc *PodController) deleteDanglingPods(ctx context.Context, threadiness int
 		go func(ctx context.Context, pod *corev1.Pod) {
 			defer wg.Done()
 
-			ctx, span := trace.StartSpan(ctx, "deleteDanglingPod")
-			defer span.End()
-
 			semaphore <- struct{}{}
 			defer func() {
 				<-semaphore
 			}()
 
 			// Add the pod's attributes to the current span.
-			ctx = addPodAttributes(ctx, span, pod)
 			// Actually delete the pod.
 			if err := pc.provider.DeletePod(vkContext.SetCallingFunction(ctx, "deleteDanglingPods"), pod.DeepCopy()); err != nil && !errdefs.IsNotFound(err) {
-				span.SetStatus(err)
 				klog.Errorf("failed to delete pod %q in provider", loggablePodName(pod))
 			}
 

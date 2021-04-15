@@ -4,7 +4,7 @@ import (
 	"sync"
 
 	"github.com/liqotech/liqo/internal/utils/errdefs"
-	"github.com/liqotech/liqo/internal/virtualKubelet/manager"
+	"github.com/liqotech/liqo/pkg/virtualKubelet/manager"
 )
 
 // Store is used for registering/fetching providers

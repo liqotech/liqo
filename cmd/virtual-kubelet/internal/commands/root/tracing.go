@@ -17,6 +17,7 @@ package root
 import (
 	"context"
 	"github.com/liqotech/liqo/cmd/virtual-kubelet/internal/provider"
+	"k8s.io/klog/v2"
 	"net"
 	"net/http"
 	"os"
@@ -24,7 +25,6 @@ import (
 	"strings"
 
 	"github.com/liqotech/liqo/internal/utils/errdefs"
-	"github.com/liqotech/liqo/internal/utils/log"
 	"github.com/pkg/errors"
 	octrace "go.opencensus.io/trace"
 	"go.opencensus.io/zpages"
@@ -95,11 +95,11 @@ func setupTracing(ctx context.Context, c Opts) error {
 func setupZpages(ctx context.Context) {
 	p := os.Getenv("ZPAGES_PORT")
 	if p == "" {
-		log.G(ctx).Error("Missing ZPAGES_PORT env var, cannot setup zpages endpoint")
+		klog.Error("Missing ZPAGES_PORT env var, cannot setup zpages endpoint")
 	}
 	listener, err := net.Listen("tcp", p)
 	if err != nil {
-		log.G(ctx).WithError(err).Error("Cannot bind to ZPAGES PORT, cannot setup listener")
+		klog.Error(err, " - Cannot bind to ZPAGES PORT, cannot setup listener")
 		return
 	}
 	mux := http.NewServeMux()
@@ -110,6 +110,6 @@ func setupZpages(ctx context.Context) {
 		if e == http.ErrServerClosed {
 			return
 		}
-		log.G(ctx).WithError(e).Error("Zpages server exited")
+		klog.Error(e, " - Zpages server exited")
 	}()
 }
