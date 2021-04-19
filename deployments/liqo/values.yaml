@@ -181,7 +181,7 @@ virtualKubelet:
   imageName: "liqo/virtual-kubelet"
   initContainer:
     # -- virtual kubelet init container image repository
-    imageName: "liqo/init-vkubelet"
+    imageName: "liqo/init-virtual-kubelet"
 
 # -- liqo name override
 nameOverride: ""

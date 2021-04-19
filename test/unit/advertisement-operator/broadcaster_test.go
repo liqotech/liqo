@@ -7,9 +7,9 @@ import (
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	advtypes "github.com/liqotech/liqo/apis/sharing/v1alpha1"
 	advop "github.com/liqotech/liqo/internal/advertisement-operator"
-	advpkg "github.com/liqotech/liqo/pkg/advertisement-operator"
 	"github.com/liqotech/liqo/pkg/crdClient"
 	liqoControllerManager "github.com/liqotech/liqo/pkg/liqo-controller-manager"
+	"github.com/liqotech/liqo/pkg/utils"
 	pkg "github.com/liqotech/liqo/pkg/virtualKubelet"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/provider/test"
 	"github.com/stretchr/testify/assert"
@@ -322,7 +322,7 @@ func TestSendAdvertisement(t *testing.T) {
 
 	secretForeign, err := b.RemoteClient.Client().CoreV1().Secrets(b.KubeconfigSecretForForeign.Namespace).Get(context.TODO(), b.KubeconfigSecretForForeign.Name, metav1.GetOptions{})
 	assert.Nil(t, err)
-	assert.Equal(t, secretForeign.OwnerReferences, advpkg.GetOwnerReference(adv2))
+	assert.Equal(t, secretForeign.OwnerReferences, utils.GetOwnerReference(adv2))
 
 	// update adv on foreign cluster
 	adv.Spec.ResourceQuota.Hard[corev1.ResourceCPU] = resource.MustParse("10")

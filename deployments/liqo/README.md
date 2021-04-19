@@ -60,7 +60,7 @@
 | route.pod.labels | object | `{}` | route pod labels |
 | tag | string | `""` | Images' tag to select a development version of liqo instead of a release |
 | virtualKubelet.imageName | string | `"liqo/virtual-kubelet"` | virtual kubelet image repository |
-| virtualKubelet.initContainer.imageName | string | `"liqo/init-vkubelet"` | virtual kubelet init container image repository |
+| virtualKubelet.initContainer.imageName | string | `"liqo/init-virtual-kubelet"` | virtual kubelet init container image repository |
 | webhook.imageName | string | `"liqo/liqo-webhook"` | webhook image repository |
 | webhook.initContainer.imageName | string | `"liqo/webhook-configuration"` | webhook init container image repository |
 | webhook.mutatingWebhookConfiguration.annotations | object | `{}` | mutatingWebhookConfiguration annotations |

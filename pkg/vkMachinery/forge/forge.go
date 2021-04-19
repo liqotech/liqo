@@ -1,8 +1,9 @@
-package advertisementOperator
+package forge
 
 import (
 	advtypes "github.com/liqotech/liqo/apis/sharing/v1alpha1"
 	liqoControllerManager "github.com/liqotech/liqo/pkg/liqo-controller-manager"
+	vk "github.com/liqotech/liqo/pkg/vkMachinery"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 )
@@ -58,7 +59,7 @@ func forgeVKInitContainers(nodeName string, initVKImage string) []v1.Container {
 			Name:      "crt-generator",
 			Image:     initVKImage,
 			Command: []string{
-				"/usr/bin/local/kubelet-setup.sh",
+				"/usr/bin/init-virtual-kubelet",
 			},
 			Env: []v1.EnvVar{
 				{
@@ -74,13 +75,10 @@ func forgeVKInitContainers(nodeName string, initVKImage string) []v1.Container {
 					Value: nodeName,
 				},
 			},
-			Args: []string{
-				"/etc/virtual-kubelet/certs",
-			},
 			VolumeMounts: []v1.VolumeMount{
 				{
 					Name:      "virtual-kubelet-crt",
-					MountPath: "/etc/virtual-kubelet/certs",
+					MountPath: vk.VKCertsRootPath,
 				},
 			},
 		},
@@ -115,7 +113,7 @@ func forgeVKContainers(vkImage string, adv *advtypes.Advertisement, nodeName str
 		},
 		{
 			Name:      "virtual-kubelet-crt",
-			MountPath: "/etc/virtual-kubelet/certs",
+			MountPath: vk.VKCertsRootPath,
 		},
 	}
 
@@ -130,11 +128,11 @@ func forgeVKContainers(vkImage string, adv *advtypes.Advertisement, nodeName str
 			Env: []v1.EnvVar{
 				{
 					Name:  "APISERVER_CERT_LOCATION",
-					Value: "/etc/virtual-kubelet/certs/server.crt",
+					Value: vk.CertLocation,
 				},
 				{
 					Name:  "APISERVER_KEY_LOCATION",
-					Value: "/etc/virtual-kubelet/certs/server-key.pem",
+					Value: vk.KeyLocation,
 				},
 				{
 					Name:      "VKUBELET_POD_IP",

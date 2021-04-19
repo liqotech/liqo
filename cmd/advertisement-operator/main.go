@@ -19,7 +19,10 @@ import (
 	"github.com/liqotech/liqo/pkg/crdClient"
 	namectrl "github.com/liqotech/liqo/pkg/liqo-controller-manager/namespace-controller"
 	"github.com/liqotech/liqo/pkg/mapperUtils"
+	"github.com/liqotech/liqo/pkg/vkMachinery"
+	"github.com/liqotech/liqo/pkg/vkMachinery/csr"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/kubernetes"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
@@ -32,7 +35,6 @@ import (
 	netv1alpha1 "github.com/liqotech/liqo/apis/net/v1alpha1"
 	advtypes "github.com/liqotech/liqo/apis/sharing/v1alpha1"
 	advop "github.com/liqotech/liqo/internal/advertisement-operator"
-	"github.com/liqotech/liqo/pkg/csrApprover"
 	ctrl "sigs.k8s.io/controller-runtime"
 	// +kubebuilder:scaffold:imports
 )
@@ -41,7 +43,7 @@ const (
 	defaultNamespace   = "liqo"
 	defaultMetricsaddr = ":8080"
 	defaultVKImage     = "liqo/virtual-kubelet"
-	defaultInitVKImage = "liqo/init-vkubelet"
+	defaultInitVKImage = "liqo/init-virtual-kubelet"
 )
 
 var (
@@ -63,6 +65,7 @@ func main() {
 	var metricsAddr, localKubeconfig, clusterId string
 	var enableLeaderElection bool
 	var kubeletNamespace, kubeletImage, initKubeletImage string
+	var resyncPeriod = 5 * time.Second
 
 	flag.StringVar(&metricsAddr, "metrics-addr", defaultMetricsaddr, "The address the metric endpoint binds to.")
 	flag.BoolVar(&enableLeaderElection, "enable-leader-election", false, "Enable leader election for controller manager. Enabling this will ensure there is only one active controller manager.")
@@ -103,7 +106,7 @@ func main() {
 		klog.Error(err)
 		os.Exit(1)
 	}
-	go csrApprover.WatchCSR(clientset, "liqo.io/csr=true", 5*time.Second)
+	go csr.WatchCSR(clientset, labels.SelectorFromSet(vkMachinery.CsrLabels).String(), resyncPeriod)
 
 	// get the number of already accepted advertisements
 	advClient, err := advtypes.CreateAdvertisementClient(localKubeconfig, nil, true, nil)

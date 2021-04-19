@@ -18,7 +18,7 @@ networking:
 
 virtual-node:
   - build/virtual-kubelet/**/*
-  - build/init-vkubelet/**/*
+  - build/init-virtual-kubelet/**/*
   - build/pod-mutator/**/*
   - cmd/virtual-kubelet/**/*
   - internal/virtualKubelet/**/*
