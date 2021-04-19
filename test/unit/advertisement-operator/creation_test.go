@@ -2,7 +2,7 @@ package advertisement_operator
 
 import (
 	advtypes "github.com/liqotech/liqo/apis/sharing/v1alpha1"
-	pkg "github.com/liqotech/liqo/pkg/advertisement-operator"
+	"github.com/liqotech/liqo/pkg/vkMachinery/forge"
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -104,7 +104,7 @@ func TestCreateVkDeployment(t *testing.T) {
 	initVkImage := "liqo/init-vk"
 	homeClusterId := "cluster2"
 
-	deploy, err := pkg.CreateVkDeployment(adv, vkName, vkNamespace, vkImage, initVkImage, nodeName, homeClusterId)
+	deploy, err := forge.CreateVkDeployment(adv, vkName, vkNamespace, vkImage, initVkImage, nodeName, homeClusterId)
 
 	assert.Equal(t, err, nil)
 	assert.Equal(t, vkName, deploy.Name)

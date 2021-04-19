@@ -5,7 +5,7 @@ import (
 	clusterconfigV1alpha1 "github.com/liqotech/liqo/apis/config/v1alpha1"
 	discoveryV1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	"github.com/liqotech/liqo/apis/net/v1alpha1"
-	advertisementOperator "github.com/liqotech/liqo/pkg/advertisement-operator"
+	"github.com/liqotech/liqo/pkg/vkMachinery"
 	"k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -45,7 +45,7 @@ var (
 		{
 			gvr: podGVR,
 			labelSelector: metav1.LabelSelector{
-				MatchLabels: advertisementOperator.KubeletBaseLabels,
+				MatchLabels: vkMachinery.KubeletBaseLabels,
 			},
 		},
 		{

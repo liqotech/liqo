@@ -9,11 +9,11 @@ import (
 	"sync"
 	"time"
 
-	advpkg "github.com/liqotech/liqo/pkg/advertisement-operator"
 	"github.com/liqotech/liqo/pkg/crdClient"
 	"github.com/liqotech/liqo/pkg/kubeconfig"
 	"github.com/liqotech/liqo/pkg/labelPolicy"
 	liqoControllerManager "github.com/liqotech/liqo/pkg/liqo-controller-manager"
+	"github.com/liqotech/liqo/pkg/utils"
 	pkg "github.com/liqotech/liqo/pkg/virtualKubelet"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/forge"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
@@ -339,7 +339,7 @@ func (b *AdvertisementBroadcaster) SendAdvertisementToForeignCluster(advToCreate
 			adv.Kind = "Advertisement"
 			adv.APIVersion = advtypes.GroupVersion.String()
 
-			secretForeign.SetOwnerReferences(advpkg.GetOwnerReference(adv))
+			secretForeign.SetOwnerReferences(utils.GetOwnerReference(adv))
 			_, err = b.RemoteClient.Client().CoreV1().Secrets(secretForeign.Namespace).Update(context.TODO(), secretForeign, metav1.UpdateOptions{})
 			if err != nil {
 				klog.Errorln(err, "Unable to update secret "+b.KubeconfigSecretForForeign.Name)

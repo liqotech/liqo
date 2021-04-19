@@ -77,7 +77,7 @@ jobs:
         - cert-creator
         - crd-replicator
         - discovery
-        - init-vkubelet
+        - init-virtual-kubelet
         - liqonet
         - liqo-webhook
         - peering-request-operator

@@ -1,20 +1,13 @@
-package advertisementOperator
+package forge
 
 import (
 	advtypes "github.com/liqotech/liqo/apis/sharing/v1alpha1"
+	"github.com/liqotech/liqo/pkg/vkMachinery"
 	appsv1 "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
-
-var KubeletBaseLabels = map[string]string{
-	"app.kubernetes.io/name":       "virtual-kubelet",
-	"app.kubernetes.io/instance":   "virtual-kubelet",
-	"app.kubernetes.io/managed-by": "advertisement-operator",
-	"app.kubernetes.io/component":  "virtual-kubelet",
-	"app.kubernetes.io/part-of":    "liqo",
-}
 
 // create deployment for a virtual-kubelet
 func CreateVkDeployment(adv *advtypes.Advertisement, vkName, vkNamespace, vkImage, initVKImage, nodeName, homeClusterId string) (*appsv1.Deployment, error) {
@@ -42,7 +35,7 @@ func ForgeVKLabels(adv *advtypes.Advertisement) map[string]string {
 	kubeletDynamicLabels := map[string]string{
 		"liqo.io/cluster-id": adv.Spec.ClusterId,
 	}
-	return merge(KubeletBaseLabels, kubeletDynamicLabels)
+	return merge(vkMachinery.KubeletBaseLabels, kubeletDynamicLabels)
 }
 
 func merge(m map[string]string, ms ...map[string]string) map[string]string {

@@ -2,7 +2,7 @@ package advertisement_operator
 
 import (
 	advtypes "github.com/liqotech/liqo/apis/sharing/v1alpha1"
-	pkg "github.com/liqotech/liqo/pkg/advertisement-operator"
+	"github.com/liqotech/liqo/pkg/utils"
 	"github.com/stretchr/testify/assert"
 	appsv1 "k8s.io/api/apps/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -20,7 +20,7 @@ func TestGetDeployOwnerRef(t *testing.T) {
 			UID:  "id1",
 		},
 	}
-	ownerRef := pkg.GetOwnerReference(deploy)
+	ownerRef := utils.GetOwnerReference(deploy)
 	assert.Len(t, ownerRef, 1)
 	assert.Equal(t, deploy.Kind, ownerRef[0].Kind)
 	assert.Equal(t, deploy.APIVersion, ownerRef[0].APIVersion)
@@ -39,7 +39,7 @@ func TestGetAdvertisementOwnerRef(t *testing.T) {
 			UID:  "id2",
 		},
 	}
-	ownerRef := pkg.GetOwnerReference(adv)
+	ownerRef := utils.GetOwnerReference(adv)
 	assert.Len(t, ownerRef, 1)
 	assert.Equal(t, adv.Kind, ownerRef[0].Kind)
 	assert.Equal(t, adv.APIVersion, ownerRef[0].APIVersion)

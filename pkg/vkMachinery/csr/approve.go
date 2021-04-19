@@ -1,4 +1,4 @@
-package csrApprover
+package csr
 
 import (
 	"context"

@@ -22,11 +22,11 @@ import (
 	configv1alpha1 "github.com/liqotech/liqo/apis/config/v1alpha1"
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	advtypes "github.com/liqotech/liqo/apis/sharing/v1alpha1"
-	advpkg "github.com/liqotech/liqo/pkg/advertisement-operator"
 	"github.com/liqotech/liqo/pkg/crdClient"
 	"github.com/liqotech/liqo/pkg/discovery"
 	objectreferences "github.com/liqotech/liqo/pkg/object-references"
 	"github.com/liqotech/liqo/pkg/virtualKubelet"
+	"github.com/liqotech/liqo/pkg/vkMachinery/forge"
 	appsv1 "k8s.io/api/apps/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -290,7 +290,7 @@ func (r *AdvertisementReconciler) createVirtualKubelet(ctx context.Context, adv 
 	}
 
 	// Create the base resources
-	vkServiceAccount := advpkg.ForgeVKServiceAccount(name, r.KubeletNamespace)
+	vkServiceAccount := forge.ForgeVKServiceAccount(name, r.KubeletNamespace)
 	op, err := controllerutil.CreateOrUpdate(context.TODO(), r.Client, vkServiceAccount, func() error {
 		return controllerutil.SetControllerReference(adv, vkServiceAccount, r.Scheme)
 	})
@@ -299,7 +299,7 @@ func (r *AdvertisementReconciler) createVirtualKubelet(ctx context.Context, adv 
 	}
 	klog.V(5).Infof("ServiceAccount %s reconciled: %s", vkServiceAccount.Name, op)
 
-	vkClusterRoleBinding := advpkg.ForgeVKClusterRoleBinding(name, r.KubeletNamespace)
+	vkClusterRoleBinding := forge.ForgeVKClusterRoleBinding(name, r.KubeletNamespace)
 	op, err = controllerutil.CreateOrUpdate(context.TODO(), r.Client, vkClusterRoleBinding, func() error {
 		return controllerutil.SetControllerReference(adv, vkClusterRoleBinding, r.Scheme)
 	})
@@ -309,7 +309,7 @@ func (r *AdvertisementReconciler) createVirtualKubelet(ctx context.Context, adv 
 	klog.V(5).Infof("ClusterRoleBinding %s reconciled: %s", vkClusterRoleBinding.Name, op)
 
 	// Create the virtual Kubelet
-	vkDeployment, err := advpkg.CreateVkDeployment(adv, name, r.KubeletNamespace, r.VKImage, r.InitVKImage, nodeName, r.HomeClusterId)
+	vkDeployment, err := forge.CreateVkDeployment(adv, name, r.KubeletNamespace, r.VKImage, r.InitVKImage, nodeName, r.HomeClusterId)
 	if err != nil {
 		return err
 	}
