@@ -10,7 +10,6 @@ import (
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/klog/v2"
 	"k8s.io/kubernetes/pkg/api/v1/pod"
-	"strings"
 )
 
 func (tc *TunnelController) StartPodWatcher() {
@@ -30,7 +29,7 @@ func (tc *TunnelController) podWatcher() {
 
 func (tc *TunnelController) podHandlerAdd(obj interface{}) {
 	var podName, nodeName string
-	var allowedIPs []string
+	//var allowedIPs []string
 	p, ok := obj.(*corev1.Pod)
 	if !ok {
 		klog.Errorf("an error occurred while converting interface to unstructured object")
@@ -42,14 +41,14 @@ func (tc *TunnelController) podHandlerAdd(obj interface{}) {
 	if !pod.IsPodReady(p) {
 		return
 	}
-	//check if the the public key has been set
-	pubKey, ok := p.GetAnnotations()[overlay.PubKeyAnnotation]
-	if !ok {
-		klog.Infof("wireguard public key for pod %s running on node %s not present", podName, nodeName)
-		return
-	}
 	if p.Status.PodIP == "" {
 		klog.Infof("ip address for pod %s running on node %s not set", podName, nodeName)
+		return
+	}
+	//check if the the public key has been set
+	/*pubKey, ok := p.GetAnnotations()[overlay.PubKeyAnnotation]
+	if !ok {
+		klog.Infof("wireguard public key for pod %s running on node %s not present", podName, nodeName)
 		return
 	}
 	overlayIP := strings.Join([]string{overlay.GetOverlayIP(p.Status.PodIP), "32"}, "/")
@@ -62,29 +61,34 @@ func (tc *TunnelController) podHandlerAdd(obj interface{}) {
 		IpAddr:        p.Status.PodIP,
 		ListeningPort: overlay.WgListeningPort,
 		AllowedIPs:    allowedIPs,
+	}*/
+	peer := overlay.OverlayPeer{
+		Name:   nodeName,
+		IpAddr: p.Status.PodIP,
 	}
 	err := tc.overlay.AddPeer(peer)
 	if err != nil {
 		klog.Errorf("an error occurred while adding node %s to the overlay network: %v", nodeName, err)
 		return
 	}
-	klog.Infof("node %s at %s:%s with public key '%s' added to wireguard interface", nodeName, podIP, overlay.WgListeningPort, pubKey)
+	//klog.Infof("node %s at %s:%s with public key '%s' added to wireguard interface", nodeName, podIP, overlay.WgListeningPort, pubKey)
+	klog.Infof("creating GRE tunnel with node %s having ip %s", nodeName, p.Status.PodIP)
 }
 
 func (tc *TunnelController) podHandlerUpdate(oldObj interface{}, newObj interface{}) {
-	pOld, ok := oldObj.(*corev1.Pod)
-	if !ok {
-		klog.Errorf("an error occurred while converting interface to 'corev1.Pod' object")
-		return
-	}
-	nodeName := pOld.Spec.NodeName
-	podName := pOld.Name
-	pNew, ok := newObj.(*corev1.Pod)
-	if !ok {
-		klog.Errorf("an error occurred while converting interface to 'corev1.Pod' object")
-		return
-	}
-	//check if the the public key has been set
+	/*	pOld, ok := oldObj.(*corev1.Pod)
+		if !ok {
+			klog.Errorf("an error occurred while converting interface to 'corev1.Pod' object")
+			return
+		}
+		nodeName := pOld.Spec.NodeName
+		//podName := pOld.Name
+		pNew, ok := newObj.(*corev1.Pod)
+		if !ok {
+			klog.Errorf("an error occurred while converting interface to 'corev1.Pod' object")
+			return
+		}*/
+	/*//check if the the public key has been set
 	pOldPubKey, ok := pOld.GetAnnotations()[overlay.PubKeyAnnotation]
 	if !ok {
 		tc.podHandlerAdd(newObj)
@@ -102,16 +106,18 @@ func (tc *TunnelController) podHandlerUpdate(oldObj interface{}, newObj interfac
 	//in case of an updated key than we remove the old configuration for the current peer
 	if pOldPubKey != pNewPubKey {
 		if err := tc.overlay.RemovePeer(peer); err != nil {
-			klog.Errorf("an error occurred while removing old configuration from wireguard interface or peer %s: %v", nodeName, err)
+			klog.Errorf("an error occurred while removing old configuration from wireguard interface of peer %s: %v", nodeName, err)
 			return
 		}
 		klog.Infof("removing old configuration from wireguard interface for peer %s", nodeName)
 		tc.podHandlerAdd(newObj)
-	}
+	}*/
+	tc.podHandlerAdd(newObj)
+
 }
 
 func (tc *TunnelController) podHandlerDelete(obj interface{}) {
-	p, ok := obj.(*corev1.Pod)
+	/*p, ok := obj.(*corev1.Pod)
 	var nodeName string
 	if !ok {
 		klog.Errorf("an error occurred while converting interface to unstructured object")
@@ -130,7 +136,23 @@ func (tc *TunnelController) podHandlerDelete(obj interface{}) {
 		klog.Errorf("an error occurred while removing old configuration from wireguard interface or peer %s: %v", nodeName, err)
 		return
 	}
-	klog.Infof("removing configuration from wireguard interface for peer %s", nodeName)
+	klog.Infof("removing configuration from wireguard interface for peer %s", nodeName)*/
+	var nodeName string
+	p, ok := obj.(*corev1.Pod)
+	if !ok {
+		klog.Errorf("an error occurred while converting interface to unstructured object")
+		return
+	}
+	nodeName = p.Spec.NodeName
+	peer := overlay.OverlayPeer{
+		Name: nodeName,
+	}
+	err := tc.overlay.RemovePeer(peer)
+	if err != nil {
+		klog.Infof("an error occurred while removing GRE tunnel for gateway peer %s: %v", nodeName, err)
+		return
+	}
+	klog.Infof("GRE tunnel for gateway %s removed", nodeName)
 }
 
 func setPodSelectorLabel(options *metav1.ListOptions) {

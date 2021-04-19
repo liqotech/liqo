@@ -125,6 +125,7 @@ func (ov *Wireguard) RemoveSubnet(peerName, podIP string) error {
 	rm := liqonet.RouteManager{}
 	if err := rm.DelRoute(netlink.Route{Dst: dstNet}); err != nil {
 		klog.Errorf("an error occurred while removing route for subnet %s on interface %s: %v", allowedIPs, ov.GetDeviceName(), err)
+		return err
 	}
 	return nil
 }

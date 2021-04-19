@@ -83,23 +83,24 @@ type TunnelController struct {
 //Instantiates and initializes the tunnel controller
 func NewTunnelController(mgr ctrl.Manager, wgc wireguard.Client, nl wireguard.Netlinker) (*TunnelController, error) {
 	clientSet := k8s.NewForConfigOrDie(mgr.GetConfig())
-	namespace, err := utils.GetPodNamespace()
-	if err != nil {
+	//namespace, err := utils.GetPodNamespace()
+	/*if err != nil {
 		return nil, err
-	}
+	}*/
 	podIP, err := utils.GetPodIP()
 	if err != nil {
 		return nil, err
 	}
 	//create overlay network interface
-	ov, err := overlay.NewWireguardOverlay(gatewayPodName, namespace, podIP.String(), clientSet, wgc, nl)
+	//ov, err := overlay.NewWireguardOverlay(gatewayPodName, namespace, podIP.String(), clientSet, wgc, nl)
+	ov, err := overlay.NewGretunOverlay(gatewayPodName, podIP.String(), true)
 	if err != nil {
 		return nil, err
 	}
 	//enable reverse path filter for the overlay interface
-	if err = overlay.Enable_rp_filter(ov.GetDeviceName()); err != nil {
+	/*if err = overlay.Enable_rp_filter(ov.GetDeviceName()); err != nil {
 		return nil, err
-	}
+	}*/
 	//enable ip forwarding
 	if err = utils.EnableIPForwarding(); err != nil {
 		return nil, err

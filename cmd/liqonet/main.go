@@ -84,7 +84,8 @@ func main() {
 			os.Exit(1)
 		}
 		r.StartPodWatcher()
-		r.StartServiceWatcher()
+		//r.StartServiceWatcher()
+		r.StartGatewayWatcher()
 		if err = r.SetupWithManager(mgr); err != nil {
 			klog.Errorf("unable to setup controller: %s", err)
 			os.Exit(1)

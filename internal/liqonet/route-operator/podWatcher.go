@@ -6,12 +6,12 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/dynamic/dynamicinformer"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/util/retry"
 	"k8s.io/klog/v2"
-	"strings"
 )
 
 var (
@@ -83,14 +83,16 @@ func (r *RouteController) podHandlerUpdate(oldObj interface{}, newObj interface{
 }
 
 func setGWPodSelectorLabel(options *metav1.ListOptions) {
+	labelSet := labels.Set{PodGatewayLabelKey: PodGatewayLabelValue}
 	if options == nil {
 		options = &metav1.ListOptions{}
-		newLabelSelector := []string{PodRouteLabelKey, "=", PodRouteLabelValue}
-		options.LabelSelector = strings.Join(newLabelSelector, "")
+		options.LabelSelector = labels.SelectorFromSet(labelSet).String()
 		return
 	}
-	if options.LabelSelector == "" {
-		newLabelSelector := []string{PodRouteLabelKey, "=", PodRouteLabelValue}
-		options.LabelSelector = strings.Join(newLabelSelector, "")
+	set, err := labels.ConvertSelectorToLabelsMap(options.LabelSelector)
+	if err != nil {
+		klog.Errorf("unable to get existing label selector: %v", err)
+		return
 	}
+	options.LabelSelector = labels.Merge(set, labelSet).String()
 }

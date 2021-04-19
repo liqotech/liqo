@@ -73,7 +73,7 @@ func Enable_rp_filter(ifaceName string) error {
 	klog.Infof("enabling reverse path filter for interface %s", ifaceName)
 	rpFilterFilePath := strings.Join([]string{"/proc/sys/net/ipv4/conf/", ifaceName, "/rp_filter"}, "")
 	// Enable loose mode reverse path filtering on the overlay interface.
-	err := ioutil.WriteFile(rpFilterFilePath, []byte("2"), 0600)
+	err := ioutil.WriteFile(rpFilterFilePath, []byte("0"), 0600)
 	if err != nil {
 		klog.Errorf("an error occurred while writing to file %s: %v", rpFilterFilePath, err)
 		return err

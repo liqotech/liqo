@@ -40,7 +40,10 @@ import (
 
 var (
 	resyncPeriod = 30 * time.Second
-	result       = ctrl.Result{}
+	result       = ctrl.Result{
+		Requeue:      false,
+		RequeueAfter: resyncPeriod,
+	}
 	OperatorName = "liqo-route"
 )
 
@@ -82,7 +85,8 @@ func NewRouteController(mgr ctrl.Manager, wgc wireguard.Client, nl wireguard.Net
 		klog.Errorf("unable to create the controller: %v", err)
 		return nil, err
 	}
-	ov, err := overlay.NewWireguardOverlay(nodeName, namespace, podIP.String(), clientSet, wgc, nl)
+	//ov, err := overlay.NewWireguardOverlay(nodeName, namespace, podIP.String(), clientSet, wgc, nl)
+	ov, err := overlay.NewGretunOverlay(nodeName, podIP.String(), false)
 	if err != nil {
 		klog.Errorf("unable to create the controller: %v", err)
 		return nil, err
@@ -116,7 +120,7 @@ func (r *RouteController) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 	ctx := context.Background()
 	var tep netv1alpha1.TunnelEndpoint
 	//name of our finalizer
-	routeOperatorFinalizer := strings.Join([]string{OperatorName, r.nodeName, "liqo.io"}, "-")
+	routeOperatorFinalizer := strings.Join([]string{OperatorName, r.podIP, "liqo.io"}, "-")
 	var err error
 	if err = r.Get(ctx, req.NamespacedName, &tep); err != nil && k8sApiErrors.IsNotFound(err) {
 		klog.Errorf("unable to fetch resource %s :%v", req.String(), err)

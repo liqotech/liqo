@@ -31,8 +31,13 @@ func (rm *RouteManager) EnsureRoutesPerCluster(iface string, tep *netv1alpha1.Tu
 	_, remotePodCIDR := GetPodCIDRS(tep)
 	existing, ok := rm.getRoute(clusterID)
 	//check if the network parameters are the same and if we need to remove the old route and add the new one
+	link, err := netlink.LinkByName(iface)
+	if err != nil {
+		return err
+	}
 	if ok {
-		if existing.Dst.String() == remotePodCIDR {
+		if existing.Dst.String() == remotePodCIDR && link.Attrs().Index == existing.LinkIndex {
+			klog.Infof("route for %s on interface %s already configured", remotePodCIDR, iface)
 			return nil
 		}
 		//remove the old route
