@@ -20,6 +20,9 @@ import (
 	"context"
 	goerrors "errors"
 	"fmt"
+	"strings"
+	"time"
+
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	nettypes "github.com/liqotech/liqo/apis/net/v1alpha1"
 	netv1alpha1 "github.com/liqotech/liqo/apis/net/v1alpha1"
@@ -42,8 +45,6 @@ import (
 	"k8s.io/klog"
 	"k8s.io/kubernetes/pkg/util/slice"
 	ctrl "sigs.k8s.io/controller-runtime"
-	"strings"
-	"time"
 )
 
 const FinalizerString = "foreigncluster.discovery.liqo.io/peered"
@@ -508,8 +509,29 @@ func (r *ForeignClusterReconciler) getAddress() (string, error) {
 		}
 	}
 
+	// only physical nodes
+	//
+	// we need to get an address from a physical node, if we have established peerings in the past with other clusters,
+	// we may have some virtual nodes in our cluster. Since their IPs will not be reachable from other clusters, we cannot use them
+	// as address for a local NodePort Service
+	labelSelector, err := metav1.LabelSelectorAsSelector(&metav1.LabelSelector{
+		MatchExpressions: []metav1.LabelSelectorRequirement{
+			{
+				Key:      "type",
+				Operator: metav1.LabelSelectorOpNotIn,
+				Values:   []string{"virtual-node"},
+			},
+		},
+	})
+	if err != nil {
+		klog.Error(err)
+		return "", err
+	}
+
 	// get the IP from the Nodes, to be used with NodePort services
-	nodes, err := r.crdClient.Client().CoreV1().Nodes().List(context.TODO(), metav1.ListOptions{})
+	nodes, err := r.crdClient.Client().CoreV1().Nodes().List(context.TODO(), metav1.ListOptions{
+		LabelSelector: labelSelector.String(),
+	})
 	if err != nil {
 		klog.Error(err)
 		return "", err
