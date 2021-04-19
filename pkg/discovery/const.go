@@ -1,6 +1,9 @@
 package discovery
 
 const (
+	TenantControlNamespaceLabel = "discovery.liqo.io/tenant-control-namespace"
+	ClusterRoleLabel            = "discovery.liqo.io/cluster-role"
+
 	ClusterIdLabel      = "discovery.liqo.io/cluster-id"
 	AuthTokenLabel      = "discovery.liqo.io/auth-token"
 	RemoteIdentityLabel = "discovery.liqo.io/remote-identity"
