@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	liqoControllerManager "github.com/liqotech/liqo/pkg/liqo-controller-manager"
 	"github.com/liqotech/liqo/pkg/virtualKubelet"
 	"github.com/liqotech/liqo/test/e2e/util"
 	"github.com/stretchr/testify/assert"
@@ -26,7 +27,7 @@ var (
 	namespaceNameCl1   = "test-connectivity-cl1"
 	namespaceNameCl2   = "test-connectivity-cl2"
 	//label to list only the real nodes excluding the virtual ones
-	labelSelectorNodes = "type!=virtual-node"
+	labelSelectorNodes = fmt.Sprintf("%v!=%v", liqoControllerManager.TypeLabel, liqoControllerManager.TypeNode)
 	//TODO: use the retry mechanism of curl without sleeping before running the command
 	command = "curl -s -o /dev/null -w '%{http_code}' "
 )
@@ -282,9 +283,9 @@ func DeployRemotePod(image, podName, namespace string) *v1.Pod {
 				NodeAffinity: &v1.NodeAffinity{
 					RequiredDuringSchedulingIgnoredDuringExecution: &v1.NodeSelector{NodeSelectorTerms: []v1.NodeSelectorTerm{{
 						MatchExpressions: []v1.NodeSelectorRequirement{{
-							Key:      "type",
+							Key:      liqoControllerManager.TypeLabel,
 							Operator: "In",
-							Values:   []string{"virtual-node"},
+							Values:   []string{liqoControllerManager.TypeNode},
 						}},
 						MatchFields: nil,
 					}}},
@@ -319,9 +320,9 @@ func DeployLocalPod(image, podName, namespace string) *v1.Pod {
 				NodeAffinity: &v1.NodeAffinity{
 					RequiredDuringSchedulingIgnoredDuringExecution: &v1.NodeSelector{NodeSelectorTerms: []v1.NodeSelectorTerm{{
 						MatchExpressions: []v1.NodeSelectorRequirement{{
-							Key:      "type",
+							Key:      liqoControllerManager.TypeLabel,
 							Operator: "NotIn",
-							Values:   []string{"virtual-node"},
+							Values:   []string{liqoControllerManager.TypeNode},
 						}},
 						MatchFields: nil,
 					}}},

@@ -2,6 +2,7 @@ package advertisementOperator
 
 import (
 	advtypes "github.com/liqotech/liqo/apis/sharing/v1alpha1"
+	liqoControllerManager "github.com/liqotech/liqo/pkg/liqo-controller-manager"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 )
@@ -19,9 +20,9 @@ func forgeVKAffinity() *v1.Affinity {
 					{
 						MatchExpressions: []v1.NodeSelectorRequirement{
 							{
-								Key:      "type",
+								Key:      liqoControllerManager.TypeNode,
 								Operator: v1.NodeSelectorOpNotIn,
-								Values:   []string{"virtual-node"},
+								Values:   []string{liqoControllerManager.TypeNode},
 							},
 						},
 					},

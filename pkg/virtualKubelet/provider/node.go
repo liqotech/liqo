@@ -2,6 +2,7 @@ package provider
 
 import (
 	"context"
+	liqoControllerManager "github.com/liqotech/liqo/pkg/liqo-controller-manager"
 	"go.opencensus.io/trace"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -24,7 +25,7 @@ func (p *LiqoProvider) ConfigureNode(ctx context.Context, n *v1.Node) {
 	n.Status.NodeInfo.Architecture = "amd64"
 	n.ObjectMeta.Labels["alpha.service-controller.kubernetes.io/exclude-balancer"] = "true"
 	n.ObjectMeta.Labels["node.kubernetes.io/exclude-from-external-load-balancers"] = "true"
-	n.Labels["type"] = "virtual-node"
+	n.Labels[liqoControllerManager.TypeLabel] = liqoControllerManager.TypeNode
 }
 
 // NodeConditions returns a list of conditions (Ready, OutOfDisk, etc), for updates to the node status
