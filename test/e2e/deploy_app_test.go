@@ -12,6 +12,7 @@ import (
 
 	http_helper "github.com/gruntwork-io/terratest/modules/http-helper"
 	"github.com/gruntwork-io/terratest/modules/k8s"
+	liqoControllerManager "github.com/liqotech/liqo/pkg/liqo-controller-manager"
 )
 
 const (
@@ -91,7 +92,7 @@ func getNodes(t *testing.T, options *k8s.KubectlOptions) []v1.Node {
 	assert.NilError(t, err)
 
 	nodes, err := clientset.CoreV1().Nodes().List(context.TODO(), metav1.ListOptions{
-		LabelSelector: "type!=virtual-node,!net.liqo.io/gateway",
+		LabelSelector: fmt.Sprintf("%v!=%v,!net.liqo.io/gateway", liqoControllerManager.TypeLabel, liqoControllerManager.TypeNode),
 	})
 	assert.NilError(t, err)
 	return nodes.Items

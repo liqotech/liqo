@@ -34,6 +34,7 @@ import (
 	"github.com/liqotech/liqo/pkg/crdClient"
 	discoveryPkg "github.com/liqotech/liqo/pkg/discovery"
 	"github.com/liqotech/liqo/pkg/kubeconfig"
+	liqoControllerManager "github.com/liqotech/liqo/pkg/liqo-controller-manager"
 	apiv1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -517,9 +518,9 @@ func (r *ForeignClusterReconciler) getAddress() (string, error) {
 	labelSelector, err := metav1.LabelSelectorAsSelector(&metav1.LabelSelector{
 		MatchExpressions: []metav1.LabelSelectorRequirement{
 			{
-				Key:      "type",
+				Key:      liqoControllerManager.TypeLabel,
 				Operator: metav1.LabelSelectorOpNotIn,
-				Values:   []string{"virtual-node"},
+				Values:   []string{liqoControllerManager.TypeNode},
 			},
 		},
 	})

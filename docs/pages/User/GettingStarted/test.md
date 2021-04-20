@@ -35,7 +35,7 @@ The complete `hello-world.yaml` file is as follows:
 
 
 Differently from the traditional examples, the above deployment introduces an *affinity* constraint. This forces Kubernetes to schedule the first pod (i.e. `nginx-local`) on a physical node, and the second one (i.e. `nginx-remote`) on a virtual node.
-Virtual nodes are like traditional Kubernetes nodes, but they represent foreign clusters and are labelled with `type: virtual-node`.
+Virtual nodes are like traditional Kubernetes nodes, but they represent foreign clusters and are labelled with `liqo.io/type: virtual-node`.
 
 In case the affinity constraint is not specified, the Kubernetes scheduler selects the best hosting node based on the available resources.
 Hence, each pod can be scheduled either in the *home* cluster or in the *foreign* cluster.
