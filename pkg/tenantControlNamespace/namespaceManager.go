@@ -48,7 +48,12 @@ func (nm *tenantControlNamespaceManager) CreateNamespace(clusterID string) (*v1.
 			},
 		},
 	}
-	return nm.client.CoreV1().Namespaces().Create(context.TODO(), ns, metav1.CreateOptions{})
+	if ns, err = nm.client.CoreV1().Namespaces().Create(context.TODO(), ns, metav1.CreateOptions{}); err != nil {
+		klog.Error(err)
+		return nil, err
+	}
+	klog.V(4).Infof("Namespace %v created for the remote cluster %v", ns.Name, clusterID)
+	return ns, nil
 }
 
 // get a Tenant Control Namespace given the clusterID
@@ -70,7 +75,8 @@ func (nm *tenantControlNamespaceManager) GetNamespace(clusterID string) (*v1.Nam
 
 	if nItems := len(namespaces.Items); nItems == 0 {
 		err = kerrors.NewNotFound(v1.Resource("Namespace"), clusterID)
-		klog.Error(err)
+		// do not log it always, since it is also used in the preliminary stage of the create method
+		klog.V(4).Info(err)
 		return nil, err
 	} else if nItems > 1 {
 		err = fmt.Errorf("multiple tenant control namespaces found for clusterID %v", clusterID)
