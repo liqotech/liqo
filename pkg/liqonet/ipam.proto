@@ -1,0 +1,24 @@
+syntax="proto3";
+option go_package = "./liqonet";
+
+service ipam {
+    rpc MapEndpointIP (MapRequest) returns (MapResponse);
+    rpc UnmapEndpointIP (UnmapRequest) returns (UnmapResponse);
+}
+
+message MapRequest {
+    string clusterID = 1;
+    string ip = 2;
+}
+
+message MapResponse {
+    string ip = 1;
+}
+
+message UnmapRequest {
+    string clusterID = 1;
+    string ip = 2;
+}
+
+message UnmapResponse {}
+

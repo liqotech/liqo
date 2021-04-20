@@ -2,7 +2,6 @@ package forge
 
 import (
 	"fmt"
-	"net"
 	"strings"
 
 	corev1 "k8s.io/api/core/v1"
@@ -11,6 +10,7 @@ import (
 	"k8s.io/klog"
 
 	liqoconst "github.com/liqotech/liqo/pkg/consts"
+	liqonet "github.com/liqotech/liqo/pkg/liqonet"
 	"github.com/liqotech/liqo/pkg/virtualKubelet"
 	apimgmt "github.com/liqotech/liqo/pkg/virtualKubelet/apiReflection"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/apiReflection/reflectors"
@@ -55,12 +55,12 @@ func (f *apiForger) podStatusForeignToHome(foreignObj, homeObj runtime.Object) *
 
 	homePod.Status = foreignPod.Status
 	if homePod.Status.PodIP != "" {
-		newIp, err := ChangePodIp(f.remoteRemappedPodCidr.Value().ToString(), foreignPod.Status.PodIP)
+		newIP, err := liqonet.MapIPToNetwork(f.remoteRemappedPodCidr.Value().ToString(), foreignPod.Status.PodIP)
 		if err != nil {
 			klog.Error(err)
 		}
-		homePod.Status.PodIP = newIp
-		homePod.Status.PodIPs[0].IP = newIp
+		homePod.Status.PodIP = newIP
+		homePod.Status.PodIPs[0].IP = newIP
 	}
 
 	if foreignPod.DeletionTimestamp != nil {
@@ -186,37 +186,6 @@ func filterVolumeMounts(volumes []corev1.Volume, volumeMountsIn []corev1.VolumeM
 		}
 	}
 	return volumeMounts
-}
-
-// ChangePodIp creates a new IP address obtained by means of the old IP address and the new podCIDR.
-func ChangePodIp(newPodCidr string, oldPodIp string) (newPodIp string, err error) {
-	if newPodCidr == liqoconst.DefaultCIDRValue {
-		return oldPodIp, nil
-	}
-	// Parse newPodCidr
-	ip, network, err := net.ParseCIDR(newPodCidr)
-	if err != nil {
-		return "", err
-	}
-	// Get mask
-	mask := network.Mask
-	// Get slice of bytes for newPodCidr
-	// Type net.IP has underlying type []byte
-	newIP := ip.To4()
-	// Get oldPodIp as slice of bytes
-	oldIP := net.ParseIP(oldPodIp)
-	if oldIP == nil {
-		return "", fmt.Errorf("cannot parse oldIp")
-	}
-	oldIP = oldIP.To4()
-	// Substitute the last 32-mask bits of newPodCidr(newIP) with bits taken by the old ip
-	for i := 0; i < len(mask); i++ {
-		// Step 1: NOT(mask[i]) = mask[i] ^ 0xff. They are the 'host' bits
-		// Step 2: BITWISE AND between the host bits and oldIP[i] zeroes the network bits in oldIP[i]
-		// Step 3: BITWISE OR copies the result of step 2 in newIP[i]
-		newIP[i] |= (mask[i] ^ 0xff) & oldIP[i]
-	}
-	return net.IP(newIP).String(), nil
 }
 
 func forgeAffinity() *corev1.Affinity {

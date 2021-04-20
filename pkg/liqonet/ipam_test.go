@@ -1,8 +1,14 @@
 package liqonet_test
 
 import (
+	"context"
+	"fmt"
+	"strings"
+
+	"math/rand"
+
 	. "github.com/onsi/ginkgo"
-	"github.com/onsi/gomega"
+	. "github.com/onsi/gomega"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/dynamic"
@@ -44,6 +50,7 @@ func fillNetworkPool(pool string, ipam *liqonet.IPAM) error {
 }
 
 var _ = Describe("Ipam", func() {
+	rand.Seed(1)
 
 	BeforeEach(func() {
 		scheme := runtime.NewScheme()
@@ -61,8 +68,11 @@ var _ = Describe("Ipam", func() {
 		m[s] = "ipamstoragesList"
 		dynClient = fake.NewSimpleDynamicClientWithCustomListKinds(scheme, m, &liqonetapi.IpamStorage{})
 		ipam = liqonet.NewIPAM()
-		err := ipam.Init(liqonet.Pools, dynClient)
-		gomega.Expect(err).To(gomega.BeNil())
+		err := ipam.Init(liqonet.Pools, dynClient, 2000+rand.Intn(2000))
+		Expect(err).To(BeNil())
+	})
+	AfterEach(func() {
+		ipam.StopGRPCServer()
 	})
 
 	Describe("AcquireReservedSubnet", func() {
@@ -70,38 +80,38 @@ var _ = Describe("Ipam", func() {
 			It("Should successfully reserve the subnet", func() {
 				// Reserve network
 				err := ipam.AcquireReservedSubnet("10.0.0.0/8")
-				gomega.Expect(err).To(gomega.BeNil())
+				Expect(err).To(BeNil())
 				// Try to get a cluster network in that pool
 				p, _, err := ipam.GetSubnetsPerCluster("10.0.2.0/24", "192.168.0.0/24", "cluster1")
-				gomega.Expect(err).To(gomega.BeNil())
+				Expect(err).To(BeNil())
 				// p should have been mapped to a new network belonging to a different pool
-				gomega.Expect(p).ToNot(gomega.HavePrefix("10."))
+				Expect(p).ToNot(HavePrefix("10."))
 			})
 		})
 		Context("When the reserved network belongs to a pool", func() {
 			It("Should not be possible to acquire the same network for a cluster", func() {
 				err := ipam.AcquireReservedSubnet("10.244.0.0/24")
-				gomega.Expect(err).To(gomega.BeNil())
+				Expect(err).To(BeNil())
 				p, e, err := ipam.GetSubnetsPerCluster("10.244.0.0/24", "192.168.0.0/24", "cluster1")
-				gomega.Expect(err).To(gomega.BeNil())
-				gomega.Expect(p).ToNot(gomega.Equal("10.0.2.0/24"))
-				gomega.Expect(e).To(gomega.Equal("192.168.0.0/24"))
+				Expect(err).To(BeNil())
+				Expect(p).ToNot(Equal("10.0.2.0/24"))
+				Expect(e).To(Equal("192.168.0.0/24"))
 			})
 			It("Should not be possible to acquire a larger network that contains it for a cluster", func() {
 				err := ipam.AcquireReservedSubnet("10.0.0.0/24")
-				gomega.Expect(err).To(gomega.BeNil())
+				Expect(err).To(BeNil())
 				p, e, err := ipam.GetSubnetsPerCluster("10.0.0.0/16", "192.168.0.0/24", "cluster1")
-				gomega.Expect(err).To(gomega.BeNil())
-				gomega.Expect(p).ToNot(gomega.Equal("10.0.0.0/16"))
-				gomega.Expect(e).To(gomega.Equal("192.168.0.0/24"))
+				Expect(err).To(BeNil())
+				Expect(p).ToNot(Equal("10.0.0.0/16"))
+				Expect(e).To(Equal("192.168.0.0/24"))
 			})
 			It("Should not be possible to acquire a smaller network contained by it for a cluster", func() {
 				err := ipam.AcquireReservedSubnet("10.0.2.0/24")
-				gomega.Expect(err).To(gomega.BeNil())
+				Expect(err).To(BeNil())
 				p, e, err := ipam.GetSubnetsPerCluster("10.0.2.0/25", "192.168.0.0/24", "cluster1")
-				gomega.Expect(err).To(gomega.BeNil())
-				gomega.Expect(p).ToNot(gomega.Equal("10.0.2.0/25"))
-				gomega.Expect(e).To(gomega.Equal("192.168.0.0/24"))
+				Expect(err).To(BeNil())
+				Expect(p).ToNot(Equal("10.0.2.0/25"))
+				Expect(e).To(Equal("192.168.0.0/24"))
 			})
 		})
 	})
@@ -111,24 +121,24 @@ var _ = Describe("Ipam", func() {
 			Context("and the subnets have not already been assigned to any other cluster", func() {
 				It("Should allocate the subnets without mapping", func() {
 					p, e, err := ipam.GetSubnetsPerCluster("11.0.0.0/16", "11.1.0.0/16", "cluster1")
-					gomega.Expect(err).To(gomega.BeNil())
-					gomega.Expect(p).To(gomega.Equal("11.0.0.0/16"))
-					gomega.Expect(e).To(gomega.Equal("11.1.0.0/16"))
+					Expect(err).To(BeNil())
+					Expect(p).To(Equal("11.0.0.0/16"))
+					Expect(e).To(Equal("11.1.0.0/16"))
 				})
 			})
 			Context("and the subnets have already been assigned to another cluster", func() {
 				Context("and there are available networks with the same mask length in one pool", func() {
 					It("should map the requested networks", func() {
 						p, e, err := ipam.GetSubnetsPerCluster("11.0.0.0/16", "11.1.0.0/16", "cluster1")
-						gomega.Expect(err).To(gomega.BeNil())
-						gomega.Expect(p).To(gomega.Equal("11.0.0.0/16"))
-						gomega.Expect(e).To(gomega.Equal("11.1.0.0/16"))
+						Expect(err).To(BeNil())
+						Expect(p).To(Equal("11.0.0.0/16"))
+						Expect(e).To(Equal("11.1.0.0/16"))
 						p, e, err = ipam.GetSubnetsPerCluster("11.0.0.0/16", "11.1.0.0/16", "cluster2")
-						gomega.Expect(err).To(gomega.BeNil())
-						gomega.Expect(p).ToNot(gomega.HavePrefix("11."))
-						gomega.Expect(p).To(gomega.HaveSuffix("/16"))
-						gomega.Expect(e).ToNot(gomega.HavePrefix("11."))
-						gomega.Expect(e).To(gomega.HaveSuffix("/16"))
+						Expect(err).To(BeNil())
+						Expect(p).ToNot(HavePrefix("11."))
+						Expect(p).To(HaveSuffix("/16"))
+						Expect(e).ToNot(HavePrefix("11."))
+						Expect(e).To(HaveSuffix("/16"))
 					})
 				})
 			})
@@ -137,8 +147,8 @@ var _ = Describe("Ipam", func() {
 			Context("and remaining network pools are not filled", func() {
 				It("should map it to another network", func() {
 					p, _, err := ipam.GetSubnetsPerCluster("172.16.0.0/12", "10.0.0.0/24", "cluster1")
-					gomega.Expect(err).To(gomega.BeNil())
-					gomega.Expect(p).ToNot(gomega.Equal("172.16.0.0/12"))
+					Expect(err).To(BeNil())
+					Expect(p).ToNot(Equal("172.16.0.0/12"))
 				})
 			})
 			Context("and remaining network pools are filled", func() {
@@ -146,21 +156,21 @@ var _ = Describe("Ipam", func() {
 					It("should not allocate any network", func() {
 						// Fill pool #1
 						err := fillNetworkPool(liqonet.Pools[0], ipam)
-						gomega.Expect(err).To(gomega.BeNil())
+						Expect(err).To(BeNil())
 
 						// Fill pool #2
 						err = fillNetworkPool(liqonet.Pools[1], ipam)
-						gomega.Expect(err).To(gomega.BeNil())
+						Expect(err).To(BeNil())
 
 						// Acquire a portion of the network pool
 						p, e, err := ipam.GetSubnetsPerCluster("172.16.0.0/24", "172.16.1.0/24", "cluster5")
-						gomega.Expect(err).To(gomega.BeNil())
-						gomega.Expect(p).To(gomega.Equal("172.16.0.0/24"))
-						gomega.Expect(e).To(gomega.Equal("172.16.1.0/24"))
+						Expect(err).To(BeNil())
+						Expect(p).To(Equal("172.16.0.0/24"))
+						Expect(e).To(Equal("172.16.1.0/24"))
 
 						// Acquire network pool
 						_, _, err = ipam.GetSubnetsPerCluster("172.16.0.0/12", "10.0.0.0/24", "cluster6")
-						gomega.Expect(err).ToNot(gomega.BeNil())
+						Expect(err).ToNot(BeNil())
 					})
 				})
 			})
@@ -170,72 +180,72 @@ var _ = Describe("Ipam", func() {
 				It("should not allocate the network (externalCidr not available: podCidr requested should be available after the call)", func() {
 					// Fill pool #2
 					err := fillNetworkPool(liqonet.Pools[1], ipam)
-					gomega.Expect(err).To(gomega.BeNil())
+					Expect(err).To(BeNil())
 
 					// Fill pool #3
 					err = fillNetworkPool(liqonet.Pools[2], ipam)
-					gomega.Expect(err).To(gomega.BeNil())
+					Expect(err).To(BeNil())
 
 					// Fill 1st half of pool #1
 					err = ipam.AcquireReservedSubnet("10.0.0.0/9")
-					gomega.Expect(err).To(gomega.BeNil())
+					Expect(err).To(BeNil())
 
 					// Cluster network request
 					_, _, err = ipam.GetSubnetsPerCluster("10.128.0.0/9", "192.168.1.0/24", "cluster7")
-					gomega.Expect(err).ToNot(gomega.BeNil())
+					Expect(err).ToNot(BeNil())
 
 					// Check if requested podCidr is available
 					err = ipam.AcquireReservedSubnet("10.128.0.0/9")
-					gomega.Expect(err).To(gomega.BeNil())
+					Expect(err).To(BeNil())
 				})
 				It("should not allocate the network (both)", func() {
 					// Fill pool #1
 					err := fillNetworkPool(liqonet.Pools[0], ipam)
-					gomega.Expect(err).To(gomega.BeNil())
+					Expect(err).To(BeNil())
 
 					// Fill pool #2
 					err = fillNetworkPool(liqonet.Pools[1], ipam)
-					gomega.Expect(err).To(gomega.BeNil())
+					Expect(err).To(BeNil())
 
 					// Fill pool #3
 					err = fillNetworkPool(liqonet.Pools[2], ipam)
-					gomega.Expect(err).To(gomega.BeNil())
+					Expect(err).To(BeNil())
 
 					// Cluster network request
 					_, _, err = ipam.GetSubnetsPerCluster("10.1.0.0/16", "10.0.0.0/24", "cluster7")
-					gomega.Expect(err).ToNot(gomega.BeNil())
+					Expect(err).ToNot(BeNil())
 				})
 			})
 			Context("and the subnet has not already been assigned to any other cluster", func() {
 				It("Should allocate the subnet itself, without mapping", func() {
 					p, e, err := ipam.GetSubnetsPerCluster("10.0.0.0/16", "10.1.0.0/16", "cluster1")
-					gomega.Expect(err).To(gomega.BeNil())
-					gomega.Expect(p).To(gomega.Equal("10.0.0.0/16"))
-					gomega.Expect(e).To(gomega.Equal("10.1.0.0/16"))
+					Expect(err).To(BeNil())
+					Expect(p).To(Equal("10.0.0.0/16"))
+					Expect(e).To(Equal("10.1.0.0/16"))
 				})
 			})
 			Context("and the subnet has already been assigned to another cluster", func() {
 				Context("and there is an available network with the same mask length in one pool", func() {
 					It("should map the requested network to another network taken by the pool", func() {
 						p, e, err := ipam.GetSubnetsPerCluster("10.0.0.0/16", "10.1.0.0/16", "cluster1")
-						gomega.Expect(err).To(gomega.BeNil())
-						gomega.Expect(p).To(gomega.Equal("10.0.0.0/16"))
-						gomega.Expect(e).To(gomega.Equal("10.1.0.0/16"))
+						Expect(err).To(BeNil())
+						Expect(p).To(Equal("10.0.0.0/16"))
+						Expect(e).To(Equal("10.1.0.0/16"))
 						p, e, err = ipam.GetSubnetsPerCluster("10.0.0.0/16", "10.1.0.0/16", "clustere")
-						gomega.Expect(err).To(gomega.BeNil())
-						gomega.Expect(p).ToNot(gomega.Equal("10.0.0.0/16"))
-						gomega.Expect(e).ToNot(gomega.Equal("10.1.0.0/16"))
+						Expect(err).To(BeNil())
+						Expect(p).ToNot(Equal("10.0.0.0/16"))
+						Expect(e).ToNot(Equal("10.1.0.0/16"))
 					})
 				})
 				Context("and there is not an available network with the same mask length in any pool", func() {
 					It("should fail to allocate the network", func() {
 
 						p, _, err := ipam.GetSubnetsPerCluster("10.0.0.0/9", "10.1.0.0/16", "cluster1")
-						gomega.Expect(err).To(gomega.BeNil())
-						gomega.Expect(p).To(gomega.Equal("10.0.0.0/9"))
+						Expect(err).To(BeNil())
+						Expect(p).To(Equal("10.0.0.0/9"))
 
 						_, _, err = ipam.GetSubnetsPerCluster("10.0.0.0/9", "10.3.0.0/16", "cluster2")
-						gomega.Expect(err).ToNot(gomega.BeNil())
+						Expect(err).ToNot(BeNil())
 					})
 				})
 			})
@@ -245,21 +255,21 @@ var _ = Describe("Ipam", func() {
 		Context("Freeing cluster networks that exist", func() {
 			It("Should successfully free the subnets", func() {
 				p, e, err := ipam.GetSubnetsPerCluster("10.0.1.0/24", "10.0.2.0/24", "cluster1")
-				gomega.Expect(err).To(gomega.BeNil())
-				gomega.Expect(p).To(gomega.Equal("10.0.1.0/24"))
-				gomega.Expect(e).To(gomega.Equal("10.0.2.0/24"))
+				Expect(err).To(BeNil())
+				Expect(p).To(Equal("10.0.1.0/24"))
+				Expect(e).To(Equal("10.0.2.0/24"))
 				err = ipam.FreeSubnetsPerCluster("cluster1")
-				gomega.Expect(err).To(gomega.BeNil())
+				Expect(err).To(BeNil())
 				p, e, err = ipam.GetSubnetsPerCluster("10.0.1.0/24", "10.0.2.0/24", "cluster1")
-				gomega.Expect(err).To(gomega.BeNil())
-				gomega.Expect(p).To(gomega.Equal("10.0.1.0/24"))
-				gomega.Expect(e).To(gomega.Equal("10.0.2.0/24"))
+				Expect(err).To(BeNil())
+				Expect(p).To(Equal("10.0.1.0/24"))
+				Expect(e).To(Equal("10.0.2.0/24"))
 			})
 		})
 		Context("Freeing a cluster network that does not exists", func() {
 			It("Should return no errors", func() {
 				err := ipam.FreeSubnetsPerCluster("cluster1")
-				gomega.Expect(err).To(gomega.BeNil())
+				Expect(err).To(BeNil())
 			})
 		})
 	})
@@ -267,29 +277,29 @@ var _ = Describe("Ipam", func() {
 		Context("Freeing a network that has been reserved previously", func() {
 			It("Should successfully free the subnet", func() {
 				err := ipam.AcquireReservedSubnet("10.0.1.0/24")
-				gomega.Expect(err).To(gomega.BeNil())
+				Expect(err).To(BeNil())
 				err = ipam.FreeReservedSubnet("10.0.1.0/24")
-				gomega.Expect(err).To(gomega.BeNil())
+				Expect(err).To(BeNil())
 				err = ipam.AcquireReservedSubnet("10.0.1.0/24")
-				gomega.Expect(err).To(gomega.BeNil())
+				Expect(err).To(BeNil())
 			})
 		})
 		Context("Freeing a cluster network that does not exists", func() {
 			It("Should return no errors", func() {
 				err := ipam.FreeReservedSubnet("10.0.1.0/24")
-				gomega.Expect(err).To(gomega.BeNil())
+				Expect(err).To(BeNil())
 			})
 		})
 		Context("Freeing a reserved subnet equal to a network pool", func() {
 			It("Should make available the network pool", func() {
 				err := ipam.AcquireReservedSubnet("10.0.0.0/8")
-				gomega.Expect(err).To(gomega.BeNil())
+				Expect(err).To(BeNil())
 				err = ipam.FreeReservedSubnet("10.0.0.0/8")
-				gomega.Expect(err).To(gomega.BeNil())
+				Expect(err).To(BeNil())
 				p, e, err := ipam.GetSubnetsPerCluster("10.0.0.0/16", "10.2.0.0/16", "cluster1")
-				gomega.Expect(err).To(gomega.BeNil())
-				gomega.Expect(p).To(gomega.Equal("10.0.0.0/16"))
-				gomega.Expect(e).To(gomega.Equal("10.2.0.0/16"))
+				Expect(err).To(BeNil())
+				Expect(p).To(Equal("10.0.0.0/16"))
+				Expect(e).To(Equal("10.2.0.0/16"))
 			})
 		})
 	})
@@ -297,35 +307,36 @@ var _ = Describe("Ipam", func() {
 		It("ipam should retrieve configuration by resource", func() {
 			// Assign networks to cluster
 			p, e, err := ipam.GetSubnetsPerCluster("10.0.1.0/24", "10.0.2.0/24", "cluster1")
-			gomega.Expect(err).To(gomega.BeNil())
-			gomega.Expect(p).To(gomega.Equal("10.0.1.0/24"))
-			gomega.Expect(e).To(gomega.Equal("10.0.2.0/24"))
+			Expect(err).To(BeNil())
+			Expect(p).To(Equal("10.0.1.0/24"))
+			Expect(e).To(Equal("10.0.2.0/24"))
 
 			// Simulate re-scheduling
+			ipam.StopGRPCServer()
 			ipam = liqonet.NewIPAM()
-			err = ipam.Init(liqonet.Pools, dynClient)
-			gomega.Expect(err).To(gomega.BeNil())
+			err = ipam.Init(liqonet.Pools, dynClient, 2000+rand.Intn(2000))
+			Expect(err).To(BeNil())
 
 			// Another cluster asks for the same networks
 			p, e, err = ipam.GetSubnetsPerCluster("10.0.1.0/24", "10.0.2.0/24", "cluster2")
-			gomega.Expect(err).To(gomega.BeNil())
-			gomega.Expect(p).ToNot(gomega.Equal("10.0.1.0/24"))
-			gomega.Expect(e).ToNot(gomega.Equal("10.0.2.0/24"))
+			Expect(err).To(BeNil())
+			Expect(p).ToNot(Equal("10.0.1.0/24"))
+			Expect(e).ToNot(Equal("10.0.2.0/24"))
 		})
 	})
 	Describe("AddNetworkPool", func() {
 		Context("Trying to add a default network pool", func() {
 			It("Should generate an error", func() {
 				err := ipam.AddNetworkPool("10.0.0.0/8")
-				gomega.Expect(err).ToNot(gomega.BeNil())
+				Expect(err).ToNot(BeNil())
 			})
 		})
 		Context("Trying to add twice the same network pool", func() {
 			It("Should generate an error", func() {
 				err := ipam.AddNetworkPool("11.0.0.0/8")
-				gomega.Expect(err).To(gomega.BeNil())
+				Expect(err).To(BeNil())
 				err = ipam.AddNetworkPool("11.0.0.0/8")
-				gomega.Expect(err).ToNot(gomega.BeNil())
+				Expect(err).ToNot(BeNil())
 			})
 		})
 		Context("After adding a new network pool", func() {
@@ -333,36 +344,36 @@ var _ = Describe("Ipam", func() {
 				// Reserve default network pools
 				for _, network := range liqonet.Pools {
 					err := fillNetworkPool(network, ipam)
-					gomega.Expect(err).To(gomega.BeNil())
+					Expect(err).To(BeNil())
 				}
 
 				// Add new network pool
 				err := ipam.AddNetworkPool("11.0.0.0/8")
-				gomega.Expect(err).To(gomega.BeNil())
+				Expect(err).To(BeNil())
 
 				// Reserve a given network
 				err = ipam.AcquireReservedSubnet("12.0.0.0/24")
-				gomega.Expect(err).To(gomega.BeNil())
+				Expect(err).To(BeNil())
 
 				// Reserve a given network
 				err = ipam.AcquireReservedSubnet("12.0.1.0/24")
-				gomega.Expect(err).To(gomega.BeNil())
+				Expect(err).To(BeNil())
 
 				// IPAM should use 11.0.0.0/8 to map the cluster network
 				p, e, err := ipam.GetSubnetsPerCluster("12.0.0.0/24", "12.0.1.0/24", "cluster1")
-				gomega.Expect(err).To(gomega.BeNil())
-				gomega.Expect(p).To(gomega.HavePrefix("11"))
-				gomega.Expect(p).To(gomega.HaveSuffix("/24"))
-				gomega.Expect(e).To(gomega.HavePrefix("11"))
-				gomega.Expect(e).To(gomega.HaveSuffix("/24"))
+				Expect(err).To(BeNil())
+				Expect(p).To(HavePrefix("11"))
+				Expect(p).To(HaveSuffix("/24"))
+				Expect(e).To(HavePrefix("11"))
+				Expect(e).To(HaveSuffix("/24"))
 			})
 		})
 		Context("Trying to add a network pool that overlaps with a reserved network", func() {
 			It("Should generate an error", func() {
 				err := ipam.AcquireReservedSubnet("11.0.0.0/8")
-				gomega.Expect(err).To(gomega.BeNil())
+				Expect(err).To(BeNil())
 				err = ipam.AddNetworkPool("11.0.0.0/16")
-				gomega.Expect(err).ToNot(gomega.BeNil())
+				Expect(err).ToNot(BeNil())
 			})
 		})
 	})
@@ -370,7 +381,7 @@ var _ = Describe("Ipam", func() {
 		Context("Remove a network pool that does not exist", func() {
 			It("Should return an error", func() {
 				err := ipam.RemoveNetworkPool("11.0.0.0/8")
-				gomega.Expect(err).ToNot(gomega.BeNil())
+				Expect(err).ToNot(BeNil())
 			})
 		})
 		Context("Remove a network pool that exists", func() {
@@ -378,34 +389,34 @@ var _ = Describe("Ipam", func() {
 				// Reserve default network pools
 				for _, network := range liqonet.Pools {
 					err := ipam.AcquireReservedSubnet(network)
-					gomega.Expect(err).To(gomega.BeNil())
+					Expect(err).To(BeNil())
 				}
 
 				// Add new network pool
 				err := ipam.AddNetworkPool("11.0.0.0/8")
-				gomega.Expect(err).To(gomega.BeNil())
+				Expect(err).To(BeNil())
 
 				// Remove network pool
 				err = ipam.RemoveNetworkPool("11.0.0.0/8")
-				gomega.Expect(err).To(gomega.BeNil())
+				Expect(err).To(BeNil())
 
 				// Reserve a given network
 				err = ipam.AcquireReservedSubnet("12.0.0.0/24")
-				gomega.Expect(err).To(gomega.BeNil())
+				Expect(err).To(BeNil())
 
 				// Reserve a given network
 				err = ipam.AcquireReservedSubnet("12.0.1.0/24")
-				gomega.Expect(err).To(gomega.BeNil())
+				Expect(err).To(BeNil())
 
 				// Should fail to assign a network to cluster
 				_, _, err = ipam.GetSubnetsPerCluster("12.0.0.0/24", "12.0.1.0/24", "cluster1")
-				gomega.Expect(err).ToNot(gomega.BeNil())
+				Expect(err).ToNot(BeNil())
 			})
 		})
 		Context("Remove a network pool that is a default one", func() {
 			It("Should generate an error", func() {
 				err := ipam.RemoveNetworkPool("10.0.0.0/8")
-				gomega.Expect(err).ToNot(gomega.BeNil())
+				Expect(err).ToNot(BeNil())
 			})
 		})
 		Context("Remove a network pool that is used for a cluster", func() {
@@ -413,64 +424,497 @@ var _ = Describe("Ipam", func() {
 				// Reserve default network pools
 				for _, network := range liqonet.Pools {
 					err := ipam.AcquireReservedSubnet(network)
-					gomega.Expect(err).To(gomega.BeNil())
+					Expect(err).To(BeNil())
 				}
 
 				// Add new network pool
 				err := ipam.AddNetworkPool("11.0.0.0/8")
-				gomega.Expect(err).To(gomega.BeNil())
+				Expect(err).To(BeNil())
 
 				// Reserve a network
 				err = ipam.AcquireReservedSubnet("12.0.0.0/24")
-				gomega.Expect(err).To(gomega.BeNil())
+				Expect(err).To(BeNil())
 
 				// Reserve a network
 				err = ipam.AcquireReservedSubnet("12.0.1.0/24")
-				gomega.Expect(err).To(gomega.BeNil())
+				Expect(err).To(BeNil())
 
 				// IPAM should use 11.0.0.0/8 to map the cluster network
 				p, e, err := ipam.GetSubnetsPerCluster("12.0.0.0/24", "12.0.1.0/24", "cluster1")
-				gomega.Expect(err).To(gomega.BeNil())
-				gomega.Expect(p).To(gomega.HavePrefix("11"))
-				gomega.Expect(p).To(gomega.HaveSuffix("/24"))
-				gomega.Expect(e).To(gomega.HavePrefix("11"))
-				gomega.Expect(e).To(gomega.HaveSuffix("/24"))
+				Expect(err).To(BeNil())
+				Expect(p).To(HavePrefix("11"))
+				Expect(p).To(HaveSuffix("/24"))
+				Expect(e).To(HavePrefix("11"))
+				Expect(e).To(HaveSuffix("/24"))
 
 				err = ipam.RemoveNetworkPool("11.0.0.0/8")
-				gomega.Expect(err).ToNot(gomega.BeNil())
-			})
-		})
-	})
-	Describe("AddExternalCIDRPerCluster", func() {
-		Context("If the remote externalCIDR does not exist yet", func() {
-			It("should return no errors", func() {
-				err := ipam.AddExternalCIDRPerCluster("10.0.0.0/24", "cluster1")
-				gomega.Expect(err).To(gomega.BeNil())
-			})
-		})
-		Context("If the remote ExternalCIDR already exists", func() {
-			It("should return no errors", func() {
-				err := ipam.AddExternalCIDRPerCluster("10.0.0.0/24", "cluster1")
-				gomega.Expect(err).To(gomega.BeNil())
-				err = ipam.AddExternalCIDRPerCluster("10.0.0.0/24", "cluster1")
-				gomega.Expect(err).To(gomega.BeNil())
+				Expect(err).ToNot(BeNil())
 			})
 		})
 	})
 
-	Describe("RemoveExternalCIDRPerCluster", func() {
-		Context("If the remote externalCIDR does not exist", func() {
+	Describe("AddLocalSubnetsPerCluster", func() {
+		Context("If the networks do not exist yet", func() {
 			It("should return no errors", func() {
-				err := ipam.RemoveExternalCIDRPerCluster("cluster1")
-				gomega.Expect(err).To(gomega.BeNil())
+				err := ipam.AddLocalSubnetsPerCluster("10.0.0.0/24", "192.168.0.0/24", "cluster1")
+				Expect(err).To(BeNil())
 			})
 		})
-		Context("If the remote ExternalCIDR already exists", func() {
+		Context("If the networks already exist", func() {
 			It("should return no errors", func() {
-				err := ipam.AddExternalCIDRPerCluster("10.0.0.0/24", "cluster1")
-				gomega.Expect(err).To(gomega.BeNil())
-				err = ipam.RemoveExternalCIDRPerCluster("cluster1")
-				gomega.Expect(err).To(gomega.BeNil())
+				err := ipam.AddLocalSubnetsPerCluster("10.0.0.0/24", "192.168.0.0/24", "cluster1")
+				Expect(err).To(BeNil())
+				err = ipam.AddLocalSubnetsPerCluster("10.0.0.0/24", "192.168.0.0/24", "cluster1")
+				Expect(err).To(BeNil())
+			})
+		})
+	})
+
+	Describe("RemoveLocalSubnetsPerCluster", func() {
+		Context("If the networks do not exist", func() {
+			It("should return no errors", func() {
+				err := ipam.RemoveLocalSubnetsPerCluster("cluster1")
+				Expect(err).To(BeNil())
+			})
+		})
+		Context("If the networks exist", func() {
+			It("should return no errors", func() {
+				err := ipam.AddLocalSubnetsPerCluster("10.0.0.0/24", "192.168.0.0/24", "cluster1")
+				Expect(err).To(BeNil())
+				err = ipam.RemoveLocalSubnetsPerCluster("cluster1")
+				Expect(err).To(BeNil())
+			})
+		})
+	})
+
+	Describe("GetExternalCIDR", func() {
+		Context("Invoking it twice", func() {
+			It("should return no errors", func() {
+				e, err := ipam.GetExternalCIDR(24)
+				Expect(err).To(BeNil())
+				Expect(e).To(HaveSuffix("/24"))
+				_, err = ipam.GetExternalCIDR(24)
+				Expect(err).To(BeNil())
+			})
+		})
+		Context("Using a valid mask length", func() {
+			It("should return no errors", func() {
+				e, err := ipam.GetExternalCIDR(24)
+				Expect(err).To(BeNil())
+				Expect(e).To(HaveSuffix("/24"))
+			})
+		})
+		Context("Using an invalid mask length", func() {
+			It("should return an error", func() {
+				_, err := ipam.GetExternalCIDR(33)
+				Expect(err).ToNot(BeNil())
+			})
+		})
+	})
+
+	Describe("SetPodCIDR", func() {
+		Context("Invoking func for the first time", func() {
+			It("should return no errors", func() {
+				err := ipam.SetPodCIDR("10.0.0.0/24")
+				Expect(err).To(BeNil())
+			})
+		})
+		Context("Later invocation with the same PodCIDR", func() {
+			It("should return no errors", func() {
+				err := ipam.SetPodCIDR("10.0.0.0/24")
+				Expect(err).To(BeNil())
+				err = ipam.SetPodCIDR("10.0.0.0/24")
+				Expect(err).To(BeNil())
+			})
+		})
+		Context("Later invocation with a different PodCIDR", func() {
+			It("should return no errors", func() {
+				err := ipam.SetPodCIDR("10.0.0.0/24")
+				Expect(err).To(BeNil())
+				err = ipam.SetPodCIDR("10.0.1.0/24")
+				Expect(err).ToNot(BeNil())
+			})
+		})
+		Context("Using a reserved network", func() {
+			It("should return an error", func() {
+				err := ipam.AcquireReservedSubnet("10.0.1.0/24")
+				Expect(err).To(BeNil())
+				err = ipam.SetPodCIDR("10.0.1.0/24")
+				Expect(err).ToNot(BeNil())
+			})
+		})
+	})
+	Describe("SetServiceCIDR", func() {
+		Context("Invoking func for the first time", func() {
+			It("should return no errors", func() {
+				err := ipam.SetServiceCIDR("10.0.0.0/24")
+				Expect(err).To(BeNil())
+			})
+		})
+		Context("Later invocation with the same ServiceCIDR", func() {
+			It("should return no errors", func() {
+				err := ipam.SetServiceCIDR("10.0.0.0/24")
+				Expect(err).To(BeNil())
+				err = ipam.SetServiceCIDR("10.0.0.0/24")
+				Expect(err).To(BeNil())
+			})
+		})
+		Context("Later invocation with a different ServiceCIDR", func() {
+			It("should return no errors", func() {
+				err := ipam.SetServiceCIDR("10.0.0.0/24")
+				Expect(err).To(BeNil())
+				err = ipam.SetServiceCIDR("10.0.1.0/24")
+				Expect(err).ToNot(BeNil())
+			})
+		})
+		Context("Using a reserved network", func() {
+			It("should return an error", func() {
+				err := ipam.AcquireReservedSubnet("10.0.1.0/24")
+				Expect(err).To(BeNil())
+				err = ipam.SetServiceCIDR("10.0.1.0/24")
+				Expect(err).ToNot(BeNil())
+			})
+		})
+	})
+	Describe("MapEndpointIP", func() {
+		Context("If the endpoint IP belongs to local PodCIDR", func() {
+			Context("and the remote cluster has not remapped the local PodCIDR", func() {
+				It("should return the same IP address", func() {
+					// Set PodCIDR
+					err := ipam.SetPodCIDR("10.0.0.0/24")
+					Expect(err).To(BeNil())
+
+					// Remote cluster has not remapped local PodCIDR
+					err = ipam.AddLocalSubnetsPerCluster("None", "None", "cluster1")
+					Expect(err).To(BeNil())
+
+					response, err := ipam.MapEndpointIP(context.Background(), &liqonet.MapRequest{
+						ClusterID: "cluster1",
+						Ip:        "10.0.0.1",
+					})
+					Expect(err).To(BeNil())
+					Expect(response.GetIp()).To(Equal("10.0.0.1"))
+				})
+			})
+			Context("and the remote cluster has remapped the local PodCIDR", func() {
+				It("should map the endpoint IP using the remapped PodCIDR", func() {
+					// Set PodCIDR
+					err := ipam.SetPodCIDR("10.0.0.0/24")
+					Expect(err).To(BeNil())
+
+					// Remote cluster has remapped local PodCIDR
+					err = ipam.AddLocalSubnetsPerCluster("192.168.0.0/24", "None", "cluster1")
+					Expect(err).To(BeNil())
+
+					response, err := ipam.MapEndpointIP(context.Background(), &liqonet.MapRequest{
+						ClusterID: "cluster1",
+						Ip:        "10.0.0.1",
+					})
+					Expect(err).To(BeNil())
+					Expect(response.GetIp()).To(Equal("192.168.0.1"))
+				})
+			})
+		})
+		Context("If the endpoint IP does not belong to local PodCIDR", func() {
+			Context("and the remote cluster has not remapped the local ExternalCIDR", func() {
+				It("should map the endpoint IP to a new IP belonging to local ExternalCIDR", func() {
+					// Set PodCIDR
+					err := ipam.SetPodCIDR("10.0.0.0/24")
+					Expect(err).To(BeNil())
+
+					// Set ExternalCIDR
+					externalCIDR, err := ipam.GetExternalCIDR(24)
+					Expect(err).To(BeNil())
+					Expect(externalCIDR).To(HaveSuffix("/24"))
+
+					// Remote cluster has not remapped local ExternalCIDR
+					err = ipam.AddLocalSubnetsPerCluster("None", "None", "cluster1")
+					Expect(err).To(BeNil())
+
+					response, err := ipam.MapEndpointIP(context.Background(), &liqonet.MapRequest{
+						ClusterID: "cluster1",
+						Ip:        "20.0.0.1",
+					})
+					Expect(err).To(BeNil())
+					slicedPrefix := strings.SplitN(externalCIDR, ".", 4)
+					slicedPrefix = slicedPrefix[:len(slicedPrefix)-1]
+					Expect(response.GetIp()).To(HavePrefix(strings.Join(slicedPrefix, ".")))
+				})
+				It("should return the same IP if more remote clusters ask for the same endpoint", func() {
+					// Set PodCIDR
+					err := ipam.SetPodCIDR("10.0.0.0/24")
+					Expect(err).To(BeNil())
+
+					// Set ExternalCIDR
+					externalCIDR, err := ipam.GetExternalCIDR(24)
+					Expect(err).To(BeNil())
+					Expect(externalCIDR).To(HaveSuffix("/24"))
+
+					err = ipam.AddLocalSubnetsPerCluster("None", "None", "cluster1")
+					Expect(err).To(BeNil())
+					err = ipam.AddLocalSubnetsPerCluster("None", "None", "cluster2")
+					Expect(err).To(BeNil())
+
+					// Reflection cluster1
+					response, err := ipam.MapEndpointIP(context.Background(), &liqonet.MapRequest{
+						ClusterID: "cluster1",
+						Ip:        "20.0.0.1",
+					})
+					Expect(err).To(BeNil())
+					slicedPrefix := strings.SplitN(externalCIDR, ".", 4)
+					slicedPrefix = slicedPrefix[:len(slicedPrefix)-1]
+					Expect(response.GetIp()).To(HavePrefix(strings.Join(slicedPrefix, ".")))
+					expectedIp := response.GetIp()
+
+					// Reflection cluster2
+					response, err = ipam.MapEndpointIP(context.Background(), &liqonet.MapRequest{
+						ClusterID: "cluster1",
+						Ip:        "20.0.0.1",
+					})
+					Expect(err).To(BeNil())
+					Expect(response.GetIp()).To(Equal(expectedIp))
+				})
+			})
+			Context("and the remote cluster has remapped the local ExternalCIDR", func() {
+				It("should map the endpoint IP to a new IP belonging to the remapped ExternalCIDR", func() {
+					// Set PodCIDR
+					err := ipam.SetPodCIDR("10.0.0.0/24")
+					Expect(err).To(BeNil())
+
+					// Set ExternalCIDR
+					e, err := ipam.GetExternalCIDR(24)
+					Expect(err).To(BeNil())
+					Expect(e).To(HaveSuffix("/24"))
+
+					// Remote cluster has remapped local ExternalCIDR
+					err = ipam.AddLocalSubnetsPerCluster("None", "192.168.0.0/24", "cluster1")
+					Expect(err).To(BeNil())
+
+					response, err := ipam.MapEndpointIP(context.Background(), &liqonet.MapRequest{
+						ClusterID: "cluster1",
+						Ip:        "20.0.0.1",
+					})
+					Expect(err).To(BeNil())
+					Expect(response.GetIp()).To(HavePrefix("192.168.0."))
+				})
+			})
+			Context("and the ExternalCIDR has not any more available IPs", func() {
+				It("should return an error", func() {
+					var response *liqonet.MapResponse
+					var err error
+					// Set PodCIDR
+					err = ipam.SetPodCIDR("10.0.0.0/24")
+					Expect(err).To(BeNil())
+
+					// Set ExternalCIDR
+					externalCIDR, err := ipam.GetExternalCIDR(24)
+					Expect(err).To(BeNil())
+					Expect(externalCIDR).To(HaveSuffix("/24"))
+					slicedPrefix := strings.SplitN(externalCIDR, ".", 4)
+					slicedPrefix = slicedPrefix[:len(slicedPrefix)-1]
+
+					// Remote cluster has not remapped local ExternalCIDR
+					err = ipam.AddLocalSubnetsPerCluster("None", "None", "cluster1")
+					Expect(err).To(BeNil())
+
+					// Fill up ExternalCIDR
+					for i := 0; i < 254; i++ {
+						response, err = ipam.MapEndpointIP(context.Background(), &liqonet.MapRequest{
+							ClusterID: "cluster1",
+							Ip:        fmt.Sprintf("20.0.0.%d", i),
+						})
+						Expect(err).To(BeNil())
+						Expect(response.GetIp()).To(HavePrefix(strings.Join(slicedPrefix, ".")))
+					}
+
+					_, err = ipam.MapEndpointIP(context.Background(), &liqonet.MapRequest{
+						ClusterID: "cluster1",
+						Ip:        "3.100.0.9",
+					})
+					Expect(err).ToNot(BeNil())
+				})
+			})
+			Context("Using an invalid endpointIP", func() {
+				It("should return an error", func() {
+					_, err := ipam.MapEndpointIP(context.Background(), &liqonet.MapRequest{
+						ClusterID: "cluster1",
+						Ip:        "30.0.9",
+					})
+					Expect(err).ToNot(BeNil())
+				})
+			})
+			Context("If the local PodCIDR is not set", func() {
+				It("should return an error", func() {
+					_, err := ipam.MapEndpointIP(context.Background(), &liqonet.MapRequest{
+						ClusterID: "cluster1",
+						Ip:        "30.0.4.9",
+					})
+					Expect(err.Error()).To(ContainSubstring("cluster PodCIDR is not set"))
+				})
+			})
+			Context("If the remote cluster has not a PodCIDR set", func() {
+				It("should return an error", func() {
+					// Set PodCIDR
+					err := ipam.SetPodCIDR("10.0.0.0/24")
+					Expect(err).To(BeNil())
+
+					_, err = ipam.MapEndpointIP(context.Background(), &liqonet.MapRequest{
+						ClusterID: "cluster1",
+						Ip:        "10.0.0.9",
+					})
+					Expect(err.Error()).To(ContainSubstring("remote cluster cluster1 has not a local NAT PodCIDR"))
+				})
+			})
+			Context("If the remote cluster has not an ExternalCIDR set", func() {
+				It("should return an error", func() {
+					// Set PodCIDR
+					err := ipam.SetPodCIDR("10.0.0.0/24")
+					Expect(err).To(BeNil())
+
+					_, err = ipam.MapEndpointIP(context.Background(), &liqonet.MapRequest{
+						ClusterID: "cluster1",
+						Ip:        "30.0.4.9",
+					})
+					Expect(err.Error()).To(ContainSubstring("remote cluster cluster1 has not a remote ExternalCIDR"))
+				})
+			})
+		})
+	})
+	Describe("UnmapEndpointIP", func() {
+		Context("If there are no more clusters using an endpointIP", func() {
+			It("should free the relative IP", func() {
+				// Set PodCIDR
+				err := ipam.SetPodCIDR("10.0.0.0/24")
+				Expect(err).To(BeNil())
+
+				// Set ExternalCIDR
+				externalCIDR, err := ipam.GetExternalCIDR(24)
+				Expect(err).To(BeNil())
+				Expect(externalCIDR).To(HaveSuffix("/24"))
+				slicedPrefix := strings.SplitN(externalCIDR, ".", 4)
+				slicedPrefix = slicedPrefix[:len(slicedPrefix)-1]
+
+				err = ipam.AddLocalSubnetsPerCluster("None", "None", "cluster1")
+				Expect(err).To(BeNil())
+				err = ipam.AddLocalSubnetsPerCluster("None", "None", "cluster2")
+				Expect(err).To(BeNil())
+
+				// Reflection in cluster1
+				response, err := ipam.MapEndpointIP(context.Background(), &liqonet.MapRequest{
+					ClusterID: "cluster1",
+					Ip:        "20.0.0.1",
+				})
+				Expect(err).To(BeNil())
+				Expect(response.GetIp()).To(HavePrefix(strings.Join(slicedPrefix, ".")))
+				ip := response.GetIp()
+
+				// Reflection in cluster2
+				_, err = ipam.MapEndpointIP(context.Background(), &liqonet.MapRequest{
+					ClusterID: "cluster2",
+					Ip:        "20.0.0.1",
+				})
+				Expect(err).To(BeNil())
+
+				// Terminate reflection in cluster1
+				_, err = ipam.UnmapEndpointIP(context.Background(), &liqonet.UnmapRequest{
+					ClusterID: "cluster1",
+					Ip:        "20.0.0.1",
+				})
+				Expect(err).To(BeNil())
+
+				// Terminate reflection in cluster2
+				_, err = ipam.UnmapEndpointIP(context.Background(), &liqonet.UnmapRequest{
+					ClusterID: "cluster2",
+					Ip:        "20.0.0.1",
+				})
+				Expect(err).To(BeNil())
+
+				/* In order to check if the IP has been freed, simulate further reflections
+				till the ExternalCIDR has no more IPs and check if the returned IP is equal to
+				the freed IP.
+				An alternative could be to overwrite the stdout and check
+				existence of the log "IP has been freed".*/
+				var found bool
+				for i := 0; i < 254; i++ {
+					err = ipam.AddLocalSubnetsPerCluster("None", "None", fmt.Sprintf("c%d", i))
+					Expect(err).To(BeNil())
+					r, err := ipam.MapEndpointIP(context.Background(), &liqonet.MapRequest{
+						ClusterID: fmt.Sprintf("c%d", i),
+						Ip:        fmt.Sprintf("30.0.0.%d", i),
+					})
+					Expect(err).To(BeNil())
+					if r.GetIp() == ip {
+						found = true
+						break
+					}
+				}
+				if !found {
+					Fail("ip has not been freed")
+				}
+			})
+		})
+		Context("If there are other clusters using an endpointIP", func() {
+			It("should not free the relative IP", func() {
+				// Set PodCIDR
+				err := ipam.SetPodCIDR("10.0.0.0/24")
+				Expect(err).To(BeNil())
+
+				// Set ExternalCIDR
+				externalCIDR, err := ipam.GetExternalCIDR(24)
+				Expect(err).To(BeNil())
+				Expect(externalCIDR).To(HaveSuffix("/24"))
+				slicedPrefix := strings.SplitN(externalCIDR, ".", 4)
+				slicedPrefix = slicedPrefix[:len(slicedPrefix)-1]
+
+				err = ipam.AddLocalSubnetsPerCluster("None", "None", "cluster1")
+				Expect(err).To(BeNil())
+				err = ipam.AddLocalSubnetsPerCluster("None", "None", "cluster2")
+				Expect(err).To(BeNil())
+
+				// Reflection in cluster1
+				response, err := ipam.MapEndpointIP(context.Background(), &liqonet.MapRequest{
+					ClusterID: "cluster1",
+					Ip:        "20.0.0.1",
+				})
+				Expect(err).To(BeNil())
+				Expect(response.GetIp()).To(HavePrefix(strings.Join(slicedPrefix, ".")))
+				ip := response.GetIp()
+
+				// Reflection in cluster2
+				_, err = ipam.MapEndpointIP(context.Background(), &liqonet.MapRequest{
+					ClusterID: "cluster2",
+					Ip:        "20.0.0.1",
+				})
+				Expect(err).To(BeNil())
+
+				// Terminate reflection in cluster2
+				_, err = ipam.UnmapEndpointIP(context.Background(), &liqonet.UnmapRequest{
+					ClusterID: "cluster2",
+					Ip:        "20.0.0.1",
+				})
+				Expect(err).To(BeNil())
+
+				/* In order to check if the IP has been freed, simulate further reflections
+				till the ExternalCIDR has no more IPs and check if the returned IP is equal to
+				the freed IP.
+				An alternative could be to overwrite the stdout and check
+				existence of the log "IP has been freed".*/
+				var found bool
+				for i := 0; i < 254; i++ {
+					err = ipam.AddLocalSubnetsPerCluster("None", "None", fmt.Sprintf("c%d", i))
+					Expect(err).To(BeNil())
+					r, _ := ipam.MapEndpointIP(context.Background(), &liqonet.MapRequest{
+						ClusterID: fmt.Sprintf("c%d", i),
+						Ip:        fmt.Sprintf("30.0.0.%d", i),
+					})
+					if r != nil && r.GetIp() == ip {
+						found = true
+						break
+					}
+				}
+				if found {
+					Fail("ip has been freed")
+				}
 			})
 		})
 	})

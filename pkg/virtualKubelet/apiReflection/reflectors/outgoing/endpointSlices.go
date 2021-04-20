@@ -2,6 +2,7 @@ package outgoing
 
 import (
 	"context"
+	"strings"
 
 	"github.com/pkg/errors"
 	corev1 "k8s.io/api/core/v1"
@@ -12,10 +13,10 @@ import (
 	"k8s.io/client-go/util/retry"
 	"k8s.io/klog"
 
+	"github.com/liqotech/liqo/pkg/liqonet"
 	apimgmt "github.com/liqotech/liqo/pkg/virtualKubelet/apiReflection"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/apiReflection/reflectors"
 	ri "github.com/liqotech/liqo/pkg/virtualKubelet/apiReflection/reflectors/reflectorsInterfaces"
-	"github.com/liqotech/liqo/pkg/virtualKubelet/forge"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/options"
 )
 
@@ -28,6 +29,7 @@ type EndpointSlicesReflector struct {
 
 	LocalRemappedPodCIDR options.ReadOnlyOption
 	VirtualNodeName      options.ReadOnlyOption
+	IpamClient           liqonet.IpamClient
 }
 
 func (r *EndpointSlicesReflector) SetSpecializedPreProcessingHandlers() {
@@ -129,7 +131,7 @@ func (r *EndpointSlicesReflector) PreAdd(obj interface{}) (interface{}, watch.Ev
 			OwnerReferences: svcOwnerRef,
 		},
 		AddressType: discoveryv1beta1.AddressTypeIPv4,
-		Endpoints:   filterEndpoints(epLocal, string(r.LocalRemappedPodCIDR.Value()), string(r.VirtualNodeName.Value())),
+		Endpoints:   filterEndpoints(epLocal, r.IpamClient, string(r.VirtualNodeName.Value())),
 		Ports:       epLocal.Ports,
 	}
 
@@ -158,13 +160,14 @@ func (r *EndpointSlicesReflector) PreUpdate(newObj, _ interface{}) (interface{},
 	}
 	RemoteEpSlice := oldRemoteObj.(*discoveryv1beta1.EndpointSlice).DeepCopy()
 
-	RemoteEpSlice.Endpoints = filterEndpoints(endpointSliceHome, string(r.LocalRemappedPodCIDR.Value()), string(r.VirtualNodeName.Value()))
+	RemoteEpSlice.Endpoints = filterEndpoints(endpointSliceHome, r.IpamClient, string(r.VirtualNodeName.Value()))
 	RemoteEpSlice.Ports = endpointSliceHome.Ports
 
 	return RemoteEpSlice, watch.Modified
 }
 
 func (r *EndpointSlicesReflector) PreDelete(obj interface{}) (interface{}, watch.EventType) {
+	clusterID := strings.TrimPrefix(string(r.VirtualNodeName.Value()), "liqo-")
 	endpointSliceLocal := obj.(*discoveryv1beta1.EndpointSlice)
 	nattedNs, err := r.NattingTable().NatNamespace(endpointSliceLocal.Namespace, false)
 	if err != nil {
@@ -173,21 +176,29 @@ func (r *EndpointSlicesReflector) PreDelete(obj interface{}) (interface{}, watch
 	}
 	endpointSliceLocal.Namespace = nattedNs
 
+	for _, endpoint := range endpointSliceLocal.Endpoints {
+		_, err := r.IpamClient.UnmapEndpointIP(context.Background(), &liqonet.UnmapRequest{ClusterID: clusterID, Ip: endpoint.Addresses[0]})
+		if err != nil {
+			klog.Error(err)
+		}
+	}
+
 	return endpointSliceLocal, watch.Deleted
 }
 
-func filterEndpoints(slice *discoveryv1beta1.EndpointSlice, podCidr string, nodeName string) []discoveryv1beta1.Endpoint {
+func filterEndpoints(slice *discoveryv1beta1.EndpointSlice, ipamClient liqonet.IpamClient, nodeName string) []discoveryv1beta1.Endpoint {
 	var epList []discoveryv1beta1.Endpoint
 	// Two possibilities: (1) exclude all virtual nodes (2)
 	for _, v := range slice.Endpoints {
 		t := v.Topology["kubernetes.io/hostname"]
 		if t != nodeName {
-			ip, err := forge.ChangePodIp(podCidr, v.Addresses[0])
+			response, err := ipamClient.MapEndpointIP(context.Background(),
+				&liqonet.MapRequest{ClusterID: strings.TrimPrefix(nodeName, "liqo-"), Ip: v.Addresses[0]})
 			if err != nil {
 				klog.Error(err)
 			}
 			newEp := discoveryv1beta1.Endpoint{
-				Addresses:  []string{ip},
+				Addresses:  []string{response.GetIp()},
 				Conditions: v.Conditions,
 				Hostname:   nil,
 				TargetRef:  nil,

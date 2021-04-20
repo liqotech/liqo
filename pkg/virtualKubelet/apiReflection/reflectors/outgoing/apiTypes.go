@@ -1,6 +1,13 @@
 package outgoing
 
 import (
+	"fmt"
+
+	"google.golang.org/grpc"
+	"k8s.io/klog"
+
+	liqoconst "github.com/liqotech/liqo/pkg/consts"
+	"github.com/liqotech/liqo/pkg/liqonet"
 	apimgmt "github.com/liqotech/liqo/pkg/virtualKubelet/apiReflection"
 	ri "github.com/liqotech/liqo/pkg/virtualKubelet/apiReflection/reflectors/reflectorsInterfaces"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/options"
@@ -19,10 +26,19 @@ func configmapsReflectorBuilder(reflector ri.APIReflector, _ map[options.OptionK
 }
 
 func endpointslicesReflectorBuilder(reflector ri.APIReflector, opts map[options.OptionKey]options.Option) ri.OutgoingAPIReflector {
+	conn, err := grpc.Dial(fmt.Sprintf("%s:%d", liqoconst.NetworkManagerServiceName, liqoconst.NetworkManagerIpamPort),
+		grpc.WithInsecure(),
+		grpc.WithBlock())
+	if err != nil {
+		klog.Error(err)
+	}
+	ipamClient := liqonet.NewIpamClient(conn)
+
 	return &EndpointSlicesReflector{
 		APIReflector:         reflector,
 		LocalRemappedPodCIDR: opts[types.LocalRemappedPodCIDR],
 		VirtualNodeName:      opts[types.VirtualNodeName],
+		IpamClient:           ipamClient,
 	}
 }
 

@@ -79,6 +79,28 @@ vet:
 generate: controller-gen
 	$(CONTROLLER_GEN) object:headerFile="hack/boilerplate.go.txt" paths="./..."
 
+# Generate gRPC files
+grpc: protoc
+	$(PROTOC) --go_out=. --go_opt=paths=source_relative --go-grpc_out=. --go-grpc_opt=paths=source_relative pkg/liqonet/ipam.proto
+
+protoc:
+ifeq (, $(shell which protoc))
+	@{ \
+	PB_REL="https://github.com/protocolbuffers/protobuf/releases" ;\
+	version=3.15.5 ;\
+	arch=x86_64 ;\
+	curl -LO $${PB_REL}/download/v$${version}/protoc-$${version}-linux-$${arch}.zip ;\
+	unzip protoc-$${version}-linux-$${arch}.zip -d $${HOME}/.local ;\
+	rm protoc-$${version}-linux-$${arch}.zip ;\
+	PROTOC_TMP_DIR=$$(mktemp -d) ;\
+	cd $$PROTOC_TMP_DIR ;\
+	go mod init tmp ;\
+	go get google.golang.org/protobuf/cmd/protoc-gen-go ;\
+	go get google.golang.org/grpc/cmd/protoc-gen-go-grpc ;\
+	rm -rf $$PROTOC_TMP_DIR ;\
+	}
+endif
+PROTOC=$(shell which protoc)	
 
 # find or download controller-gen
 # download controller-gen if necessary

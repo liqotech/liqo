@@ -191,6 +191,9 @@ func (tec *TunnelEndpointCreator) Reconcile(ctx context.Context, req ctrl.Reques
 		if err := tec.IPManager.FreeSubnetsPerCluster(netConfig.Spec.ClusterID); err != nil {
 			klog.Errorf("cannot free networks assigned to cluster %s", netConfig.Spec.ClusterID)
 		}
+		if err := tec.IPManager.RemoveLocalSubnetsPerCluster(netConfig.Spec.ClusterID); err != nil {
+			klog.Errorf("cannot delete local subnets assigned to cluster %s", netConfig.Spec.ClusterID)
+		}
 		return result, nil
 	}
 
@@ -222,6 +225,8 @@ func (tec *TunnelEndpointCreator) SetupSignalHandlerForTunEndCreator() context.C
 	go func(r *TunnelEndpointCreator) {
 		sig := <-c
 		klog.Infof("received signal: %s", sig.String())
+		// Stop IPAM gRPC server.
+		tec.IPManager.StopGRPCServer()
 		// closing shared informers
 		close(r.ForeignClusterStopWatcher)
 		done()
@@ -472,10 +477,19 @@ func (tec *TunnelEndpointCreator) processLocalNetConfig(netConfig *netv1alpha1.N
 	if !netConfigList.Items[0].Status.Processed {
 		return nil
 	}
-	// Store ExternalCIDR used in remote cluster
-	if err := tec.IPManager.AddExternalCIDRPerCluster(netConfig.Status.ExternalCIDRNAT,
-		netConfig.Spec.ClusterID); err != nil {
-		klog.Error(err)
+
+	retryError := retry.RetryOnConflict(retry.DefaultRetry, func() error {
+		// Store subnets used in remote cluster
+		if err := tec.IPManager.AddLocalSubnetsPerCluster(netConfig.Status.PodCIDRNAT,
+			netConfig.Status.ExternalCIDRNAT,
+			netConfig.Spec.ClusterID); err != nil {
+			return err
+		}
+		return nil
+	})
+	if retryError != nil {
+		klog.Error(retryError)
+		return retryError
 	}
 	// at this point we have all the necessary parameters to create the tunnelEndpoint resource
 	remoteNetConf := netConfigList.Items[0]
