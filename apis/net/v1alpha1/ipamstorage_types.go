@@ -23,12 +23,27 @@ import (
 // EDIT THIS FILE!  THIS IS SCAFFOLDING FOR YOU TO OWN!
 // NOTE: json tags are required.  Any new fields you add must have json tags for the fields to be serialized.
 
+// Subnets type contains relevant networks related to a remote cluster.
 type Subnets struct {
-	PodCIDR string `json:"podCIDR"`
-	// Network used in remote cluster for local service endpoints.
-	RemoteExternalCIDR string `json:"remoteExternalCIDR"`
+	// Network used in the remote cluster for local Pods. Default is "None": this means remote cluster uses local cluster PodCIDR.
+	LocalNATPodCIDR string `json:"localNATPodCIDR"`
+	// Network used for Pods in the remote cluster.
+	RemotePodCIDR string `json:"remotePodCIDR"`
+	// Network used in remote cluster for local service endpoints. Default is "None": this means remote cluster uses local cluster ExternalCIDR.
+	LocalNATExternalCIDR string `json:"localNATExternalCIDR"`
 	// Network used in local cluster for remote service endpoints.
-	LocalExternalCIDR string `json:"localExternalCIDR"`
+	RemoteExternalCIDR string `json:"remoteExternalCIDR"`
+}
+
+// ClusterMapping is an empty struct.
+type ClusterMapping struct{}
+
+// EndpointMapping describes a relation between an enpoint IP and an IP belonging to ExternalCIDR.
+type EndpointMapping struct {
+	// IP belonging to cluster ExtenalCIDR assigned to this endpoint.
+	IP string `json:"ip"`
+	// Set of clusters to which this endpoint has been reflected. Only the key, which is the ClusterID, is useful.
+	ClusterMappings map[string]ClusterMapping `json:"clusterMappings"`
 }
 
 // IpamSpec defines the desired state of Ipam.
@@ -44,6 +59,12 @@ type IpamSpec struct {
 	ClusterSubnets map[string]Subnets `json:"clusterSubnets"`
 	// Cluster ExternalCIDR
 	ExternalCIDR string `json:"externalCIDR"`
+	// Endpoint IP mappings. Key is the IP address of the local endpoint, value is the IP of the remote endpoint, so it belongs to an ExternalCIDR
+	EndpointMappings map[string]EndpointMapping `json:"endpointMappings"`
+	// Cluster PodCIDR
+	PodCIDR string `json:"podCIDR"`
+	// ServiceCIDR
+	ServiceCIDR string `json:"serviceCIDR"`
 }
 
 // +kubebuilder:object:root=true

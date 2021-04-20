@@ -19,15 +19,21 @@ import (
 func (tec *TunnelEndpointCreator) setNetParameters(config *configv1alpha1.ClusterConfig) {
 	podCIDR := config.Spec.LiqonetConfig.PodCIDR
 	serviceCIDR := config.Spec.LiqonetConfig.ServiceCIDR
-	externalCIDR, err := tec.IPManager.GetClusterExternalCIDR(liqonet.GetMask(podCIDR))
+	externalCIDR, err := tec.IPManager.GetExternalCIDR(liqonet.GetMask(podCIDR))
 	if err != nil {
 		klog.Error(err)
 	}
 	if tec.PodCIDR != podCIDR {
+		if err := tec.IPManager.SetPodCIDR(podCIDR); err != nil {
+			klog.Error(err)
+		}
 		klog.Infof("PodCIDR set to %s", podCIDR)
 		tec.PodCIDR = podCIDR
 	}
 	if tec.ServiceCIDR != serviceCIDR {
+		if err := tec.IPManager.SetServiceCIDR(serviceCIDR); err != nil {
+			klog.Error(err)
+		}
 		klog.Infof("ServiceCIDR set to %s", serviceCIDR)
 		tec.ServiceCIDR = serviceCIDR
 	}
@@ -156,7 +162,6 @@ func (tec *TunnelEndpointCreator) updatePools(additionalPools []string) error {
 func (tec *TunnelEndpointCreator) getReservedSubnets(config *configv1alpha1.ClusterConfig) []string {
 	reservedSubnets := make([]string, 0)
 	liqonetConfig := config.Spec.LiqonetConfig
-	reservedSubnets = append(reservedSubnets, liqonetConfig.PodCIDR, liqonetConfig.ServiceCIDR)
 	// Cast CIDR to normal string and append
 	for _, cidr := range liqonetConfig.ReservedSubnets {
 		reservedSubnets = append(reservedSubnets, string(cidr))
@@ -189,6 +194,7 @@ func (tec *TunnelEndpointCreator) WatchConfiguration(config *rest.Config, gv *sc
 	go utils.WatchConfiguration(func(configuration *configv1alpha1.ClusterConfig) {
 		reservedSubnets := tec.getReservedSubnets(configuration)
 		additionalPools := tec.getAdditionalPools(configuration)
+		tec.setNetParameters(configuration)
 		err = tec.updateReservedSubnets(reservedSubnets)
 		if err != nil {
 			klog.Error(err)
@@ -199,7 +205,6 @@ func (tec *TunnelEndpointCreator) WatchConfiguration(config *rest.Config, gv *sc
 			klog.Error(err)
 			return
 		}
-		tec.setNetParameters(configuration)
 		if !tec.cfgConfigured {
 			tec.WaitConfig.Done()
 			klog.Infof("called done on waitgroup")

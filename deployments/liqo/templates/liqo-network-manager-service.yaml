@@ -1,0 +1,18 @@
+---
+{{- $netManagerConfig := (merge (dict "name" "network-manager" "module" "networking") .) -}}
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "liqo.prefixedName" $netManagerConfig }}
+  labels:
+    {{- include "liqo.labels" $netManagerConfig | nindent 4 }}
+spec:
+  # This service is made to be consumed within the cluster, in particular by the virtual kubelet
+  type: ClusterIP
+  ports:
+    - name: ipam-api
+      port: 6000
+      protocol: TCP
+  selector:
+    {{- include "liqo.selectorLabels" $netManagerConfig | nindent 4 }}

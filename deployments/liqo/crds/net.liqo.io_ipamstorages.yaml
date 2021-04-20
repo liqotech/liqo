@@ -38,28 +38,65 @@ spec:
             properties:
               clusterSubnets:
                 additionalProperties:
+                  description: Subnets type contains relevant networks related to
+                    a remote cluster.
                   properties:
-                    localExternalCIDR:
+                    localNATExternalCIDR:
+                      description: 'Network used in remote cluster for local service
+                        endpoints. Default is "None": this means remote cluster uses
+                        local cluster ExternalCIDR.'
+                      type: string
+                    localNATPodCIDR:
+                      description: 'Network used in the remote cluster for local Pods.
+                        Default is "None": this means remote cluster uses local cluster
+                        PodCIDR.'
+                      type: string
+                    remoteExternalCIDR:
                       description: Network used in local cluster for remote service
                         endpoints.
                       type: string
-                    podCIDR:
-                      type: string
-                    remoteExternalCIDR:
-                      description: Network used in remote cluster for local service
-                        endpoints.
+                    remotePodCIDR:
+                      description: Network used for Pods in the remote cluster.
                       type: string
                   required:
-                  - localExternalCIDR
-                  - podCIDR
+                  - localNATExternalCIDR
+                  - localNATPodCIDR
                   - remoteExternalCIDR
+                  - remotePodCIDR
                   type: object
                 description: Map used to keep track of networks assigned to clusters.
                   Key is the remote cluster ID, value is a the set of networks used
                   by the remote cluster.
                 type: object
+              endpointMappings:
+                additionalProperties:
+                  description: EndpointMapping describes a relation between an enpoint
+                    IP and an IP belonging to ExternalCIDR.
+                  properties:
+                    clusterMappings:
+                      additionalProperties:
+                        description: ClusterMapping is an empty struct.
+                        type: object
+                      description: Set of clusters to which this endpoint has been
+                        reflected. Only the key, which is the ClusterID, is useful.
+                      type: object
+                    ip:
+                      description: IP belonging to cluster ExtenalCIDR assigned to
+                        this endpoint.
+                      type: string
+                  required:
+                  - clusterMappings
+                  - ip
+                  type: object
+                description: Endpoint IP mappings. Key is the IP address of the local
+                  endpoint, value is the IP of the remote endpoint, so it belongs
+                  to an ExternalCIDR
+                type: object
               externalCIDR:
                 description: Cluster ExternalCIDR
+                type: string
+              podCIDR:
+                description: Cluster PodCIDR
                 type: string
               pools:
                 description: Network pools.
@@ -74,11 +111,17 @@ spec:
                   Important: Run "make" to regenerate code after modifying this file
                   Map consumed by go-ipam module. Key is prefic cidr, value is a Prefix.'
                 type: object
+              serviceCIDR:
+                description: ServiceCIDR
+                type: string
             required:
             - clusterSubnets
+            - endpointMappings
             - externalCIDR
+            - podCIDR
             - pools
             - prefixes
+            - serviceCIDR
             type: object
         type: object
     served: true

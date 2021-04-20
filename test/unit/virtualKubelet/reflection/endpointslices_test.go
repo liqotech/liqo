@@ -11,6 +11,8 @@ import (
 	"k8s.io/client-go/kubernetes/fake"
 	"k8s.io/klog"
 
+	liqonetTest "github.com/liqotech/liqo/pkg/liqonet/test"
+
 	apimgmt "github.com/liqotech/liqo/pkg/virtualKubelet/apiReflection"
 	api "github.com/liqotech/liqo/pkg/virtualKubelet/apiReflection/reflectors"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/apiReflection/reflectors/outgoing"
@@ -37,6 +39,7 @@ func TestEndpointAdd(t *testing.T) {
 		APIReflector:         Greflector,
 		LocalRemappedPodCIDR: types.NewNetworkingOption("localRemappedPodCIDR", "10.0.0.0/16"),
 		VirtualNodeName:      types.NewNetworkingOption("VirtualNodeName", "vk-node"),
+		IpamClient:           &liqonetTest.MockIpam{RemappedPodCIDR: "10.0.0.0/16"},
 	}
 	reflector.SetSpecializedPreProcessingHandlers()
 
@@ -120,6 +123,7 @@ func TestEndpointAdd2(t *testing.T) {
 		APIReflector:         Greflector,
 		LocalRemappedPodCIDR: types.NewNetworkingOption("localRemappedPodCIDR", "10.0.0.0/16"),
 		VirtualNodeName:      types.NewNetworkingOption("VirtualNodeName", "vk-node"),
+		IpamClient:           &liqonetTest.MockIpam{RemappedPodCIDR: "10.0.0.0/16"},
 	}
 	reflector.SetSpecializedPreProcessingHandlers()
 

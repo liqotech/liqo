@@ -20,6 +20,7 @@ import (
 	"k8s.io/klog"
 
 	"github.com/liqotech/liqo/internal/utils/errdefs"
+	liqoconst "github.com/liqotech/liqo/pkg/consts"
 )
 
 var (
@@ -27,7 +28,38 @@ var (
 	ShutdownSignals = []os.Signal{os.Interrupt, syscall.SIGTERM, syscall.SIGKILL}
 )
 
-// GetPodIP gets the ip of the pod passed as an environment variable.
+// MapIPToNetwork creates a new IP address obtained by means of the old IP address and the new network.
+func MapIPToNetwork(newNetwork, oldIP string) (newIP string, err error) {
+	if newNetwork == liqoconst.DefaultCIDRValue {
+		return oldIP, nil
+	}
+	// Parse newNetwork
+	ip, network, err := net.ParseCIDR(newNetwork)
+	if err != nil {
+		return "", err
+	}
+	// Get mask
+	mask := network.Mask
+	// Get slice of bytes for newNetwork
+	// Type net.IP has underlying type []byte
+	parsedNewIP := ip.To4()
+	// Get oldIP as slice of bytes
+	parsedOldIP := net.ParseIP(oldIP)
+	if parsedOldIP == nil {
+		return "", fmt.Errorf("cannot parse oldIP")
+	}
+	parsedOldIP = parsedOldIP.To4()
+	// Substitute the last 32-mask bits of newNetwork with bits taken by the old ip
+	for i := 0; i < len(mask); i++ {
+		// Step 1: NOT(mask[i]) = mask[i] ^ 0xff. They are the 'host' bits
+		// Step 2: BITWISE AND between the host bits and parsedOldIP[i] zeroes the network bits in parsedOldIP[i]
+		// Step 3: BITWISE OR copies the result of step 2 in newIP[i]
+		parsedNewIP[i] |= (mask[i] ^ 0xff) & parsedOldIP[i]
+	}
+	newIP = parsedNewIP.String()
+	return
+}
+
 func GetPodIP() (net.IP, error) {
 	ipAddress, isSet := os.LookupEnv("POD_IP")
 	if !isSet {
@@ -140,14 +172,14 @@ func EnableIPForwarding() error {
 	return nil
 }
 
-// GetMask helper function to get a mask from a CIDR.
+// GetMask retrieves the mask from a CIDR.
 func GetMask(network string) uint8 {
 	_, net, _ := net.ParseCIDR(network)
 	ones, _ := net.Mask.Size()
 	return uint8(ones)
 }
 
-// SetMask helper function that forges a new cidr from a network cidr and a mask.
+// SetMask forges a new cidr from a network cidr and a mask.
 func SetMask(network string, mask uint8) (string, error) {
 	_, n, err := net.ParseCIDR(network)
 	if err != nil {
@@ -207,7 +239,7 @@ func DeleteIFaceByIndex(ifaceIndex int) error {
 	return err
 }
 
-// IsValidCIDR return en error if the subnet passed in not in the CIDR notation.
+// IsValidCIDR returns an error if the received CIDR is invalid.
 func IsValidCIDR(cidr string) error {
 	_, _, err := net.ParseCIDR(cidr)
 	return err

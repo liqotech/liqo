@@ -29,6 +29,9 @@ spec:
           imagePullPolicy: {{ .Values.pullPolicy }}
           name: {{ $netManagerConfig.name }}
           command: ["/usr/bin/liqonet"]
+          ports:
+            - name: ipam-api
+              containerPort: 6000
           args:
             - "-run-as=tunnelEndpointCreator-operator"
           resources:

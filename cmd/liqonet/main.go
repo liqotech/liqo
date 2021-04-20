@@ -34,6 +34,7 @@ import (
 	route_operator "github.com/liqotech/liqo/internal/liqonet/route-operator"
 	tunnel_operator "github.com/liqotech/liqo/internal/liqonet/tunnel-operator"
 	"github.com/liqotech/liqo/internal/liqonet/tunnelEndpointCreator"
+	liqoconst "github.com/liqotech/liqo/pkg/consts"
 	liqonetOperator "github.com/liqotech/liqo/pkg/liqonet"
 	"github.com/liqotech/liqo/pkg/liqonet/wireguard"
 	"github.com/liqotech/liqo/pkg/mapperUtils"
@@ -132,9 +133,9 @@ func main() {
 	case "tunnelEndpointCreator-operator":
 		dynClient := dynamic.NewForConfigOrDie(mgr.GetConfig())
 		ipam := liqonetOperator.NewIPAM()
-		err = ipam.Init(liqonetOperator.Pools, dynClient)
+		err = ipam.Init(liqonetOperator.Pools, dynClient, liqoconst.NetworkManagerIpamPort)
 		if err != nil {
-			klog.Errorf("cannot init IPAM:%s", err.Error())
+			klog.Errorf("cannot init IPAM:%w", err)
 		}
 		r := &tunnelEndpointCreator.TunnelEndpointCreator{
 			Client:                     mgr.GetClient(),

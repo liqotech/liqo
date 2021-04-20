@@ -18,20 +18,31 @@ import (
 	netv1alpha1 "github.com/liqotech/liqo/apis/net/v1alpha1"
 )
 
-const ipamNamePrefix = "ipamstorage-"
-const clusterSubnetUpdate = "clusterSubnets"
-const poolsUpdate = "pools"
-const prefixesUpdate = "prefixes"
-const externalCIDRUpdate = "externalCIDR"
+const (
+	ipamNamePrefix         = "ipamstorage-"
+	clusterSubnetUpdate    = "clusterSubnets"
+	poolsUpdate            = "pools"
+	prefixesUpdate         = "prefixes"
+	externalCIDRUpdate     = "externalCIDR"
+	endpointMappingsUpdate = "endpointMappings"
+	podCIDRUpdate          = "podCIDR"
+	serviceCIDRUpdate      = "serviceCIDR"
+)
 
 // IpamStorage is the interface to be implemented to enforce persistency in IPAM.
 type IpamStorage interface {
 	updateClusterSubnets(clusterSubnet map[string]netv1alpha1.Subnets) error
 	updatePools(pools []string) error
 	updateExternalCIDR(externalCIDR string) error
+	updateEndpointMappings(endpoints map[string]netv1alpha1.EndpointMapping) error
+	updatePodCIDR(podCIDR string) error
+	updateServiceCIDR(serviceCIDR string) error
 	getClusterSubnets() (map[string]netv1alpha1.Subnets, error)
 	getPools() ([]string, error)
 	getExternalCIDR() (string, error)
+	getEndpointMappings() (map[string]netv1alpha1.EndpointMapping, error)
+	getPodCIDR() (string, error)
+	getServiceCIDR() (string, error)
 	goipam.Storage
 }
 
@@ -41,7 +52,8 @@ type IPAMStorage struct {
 	resourceName string
 }
 
-// NewIPAMStorage inits the storage of the IPAM module, retrieving an existing ipamStorage resource or creating a new one.
+// NewIPAMStorage inits the storage of the IPAM module,
+// retrieving an existing ipamStorage resource or creating a new one.
 func NewIPAMStorage(dynClient dynamic.Interface) (*IPAMStorage, error) {
 	klog.Infof("Init IPAM storage..")
 	ipamStorage := &IPAMStorage{}
@@ -63,9 +75,10 @@ func NewIPAMStorage(dynClient dynamic.Interface) (*IPAMStorage, error) {
 				Labels:       map[string]string{"net.liqo.io/ipamstorage": "true"},
 			},
 			Spec: netv1alpha1.IpamSpec{
-				Prefixes:       make(map[string][]byte),
-				Pools:          make([]string, 0),
-				ClusterSubnets: make(map[string]netv1alpha1.Subnets),
+				Prefixes:         make(map[string][]byte),
+				Pools:            make([]string, 0),
+				ClusterSubnets:   make(map[string]netv1alpha1.Subnets),
+				EndpointMappings: make(map[string]netv1alpha1.EndpointMapping),
 			},
 		}
 		unstructuredIpam, err := runtime.DefaultUnstructuredConverter.ToUnstructured(ipam)
@@ -220,6 +233,15 @@ func (ipamStorage *IPAMStorage) updatePrefixes(prefixes map[string][]byte) error
 func (ipamStorage *IPAMStorage) updateExternalCIDR(externalCIDR string) error {
 	return ipamStorage.updateConfig(externalCIDRUpdate, externalCIDR)
 }
+func (ipamStorage *IPAMStorage) updateEndpointMappings(endpoints map[string]netv1alpha1.EndpointMapping) error {
+	return ipamStorage.updateConfig(endpointMappingsUpdate, endpoints)
+}
+func (ipamStorage *IPAMStorage) updatePodCIDR(podCIDR string) error {
+	return ipamStorage.updateConfig(podCIDRUpdate, podCIDR)
+}
+func (ipamStorage *IPAMStorage) updateServiceCIDR(serviceCIDR string) error {
+	return ipamStorage.updateConfig(serviceCIDRUpdate, serviceCIDR)
+}
 
 func (ipamStorage *IPAMStorage) updateConfig(updateType string, data interface{}) error {
 	jsonData, err := json.Marshal(data)
@@ -270,6 +292,27 @@ func (ipamStorage *IPAMStorage) getExternalCIDR() (string, error) {
 		return "", err
 	}
 	return ipam.Spec.ExternalCIDR, nil
+}
+func (ipamStorage *IPAMStorage) getEndpointMappings() (map[string]netv1alpha1.EndpointMapping, error) {
+	ipam, err := ipamStorage.getConfig()
+	if err != nil {
+		return nil, err
+	}
+	return ipam.Spec.EndpointMappings, nil
+}
+func (ipamStorage *IPAMStorage) getPodCIDR() (string, error) {
+	ipam, err := ipamStorage.getConfig()
+	if err != nil {
+		return "", err
+	}
+	return ipam.Spec.PodCIDR, nil
+}
+func (ipamStorage *IPAMStorage) getServiceCIDR() (string, error) {
+	ipam, err := ipamStorage.getConfig()
+	if err != nil {
+		return "", err
+	}
+	return ipam.Spec.ServiceCIDR, nil
 }
 
 func (ipamStorage *IPAMStorage) getConfig() (*netv1alpha1.IpamStorage, error) {
