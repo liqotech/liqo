@@ -1,0 +1,31 @@
+{{- $peeringBasic := (merge (dict "name" "remote-peering-basic" "module" "discovery") .) -}}
+{{- $peeringIncoming := (merge (dict "name" "remote-peering-incoming" "module" "discovery") .) -}}
+{{- $peeringOutgoing := (merge (dict "name" "remote-peering-outgoing" "module" "discovery") .) -}}
+
+# to be enabled with the creation of the Tenant Control Namespace,
+# this ClusterRole has the basic permissions to give to a remote cluster
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: {{ include "liqo.prefixedName" $peeringBasic }}
+{{ .Files.Get (include "liqo.cluster-role-filename" (dict "prefix" ( include "liqo.prefixedName" $peeringBasic))) }}
+
+---
+# to be enabled when a ResourceRequest has been accepted,
+# this ClusterRole has the permissions required to a remote cluster to manage an outgoing peering (incoming for the local cluster),
+# when the Pods will be offloaded to the local cluster
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: {{ include "liqo.prefixedName" $peeringIncoming }}
+{{ .Files.Get (include "liqo.cluster-role-filename" (dict "prefix" ( include "liqo.prefixedName" $peeringIncoming))) }}
+
+---
+# to be enabled when we send a ResourceRequest,
+# this ClusterRole has the permissions required to a remote cluster to manage an incoming peering (outgoing for the local cluster),
+# when the Pods will be offloaded from the local cluster
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: {{ include "liqo.prefixedName" $peeringOutgoing }}
+{{ .Files.Get (include "liqo.cluster-role-filename" (dict "prefix" ( include "liqo.prefixedName" $peeringOutgoing))) }}

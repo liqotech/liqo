@@ -1,0 +1,23 @@
+rules:
+- apiGroups:
+  - net.liqo.io
+  resources:
+  - networkconfigs
+  verbs:
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - net.liqo.io
+  resources:
+  - networkconfigs/status
+  verbs:
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
