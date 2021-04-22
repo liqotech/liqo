@@ -2,10 +2,10 @@ package provider
 
 import (
 	"context"
+	"github.com/liqotech/liqo/pkg/virtualKubelet/node/module"
+	"github.com/liqotech/liqo/pkg/virtualKubelet/node/module/api"
 	"io"
 
-	"github.com/liqotech/liqo/pkg/virtualKubelet/node"
-	"github.com/liqotech/liqo/pkg/virtualKubelet/node/api"
 	v1 "k8s.io/api/core/v1"
 	stats "k8s.io/kubernetes/pkg/kubelet/apis/stats/v1alpha1"
 )
@@ -13,10 +13,10 @@ import (
 // Provider contains the methods required to implement a virtual-kubelet provider.
 //
 // Errors produced by these methods should implement an interface from
-// github.com/netgroup-polito/liqo/internal/errdefs package in order for the
+// github.com/netgroup-polito/liqo/cmdInternal/errdefs package in order for the
 // core logic to be able to understand the type of failure.
 type Provider interface {
-	node.PodLifecycleHandler
+	module.PodLifecycleHandler
 
 	PodMetricsProvider
 
@@ -31,7 +31,7 @@ type Provider interface {
 	// will be used for Kubernetes.
 	ConfigureNode(context.Context, *v1.Node)
 
-	StartNodeUpdater(nodeRunner *node.NodeController) (chan struct{}, chan struct{}, error)
+	StartNodeUpdater(nodeRunner *module.NodeController) (chan struct{}, chan struct{}, error)
 }
 
 // PodMetricsProvider is an optional interface that providers can implement to expose pod stats

@@ -18,6 +18,8 @@ import (
 	"context"
 	"crypto/tls"
 	"fmt"
+	"github.com/liqotech/liqo/cmd/virtual-kubelet/provider"
+	"github.com/liqotech/liqo/pkg/virtualKubelet/node/module/api"
 	"io"
 	"k8s.io/klog"
 	"net"
@@ -25,8 +27,6 @@ import (
 	"os"
 	"time"
 
-	"github.com/liqotech/liqo/cmd/virtual-kubelet/internal/provider"
-	"github.com/liqotech/liqo/pkg/virtualKubelet/node/api"
 	"github.com/pkg/errors"
 )
 

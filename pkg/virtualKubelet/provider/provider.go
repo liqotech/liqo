@@ -9,7 +9,7 @@ import (
 	"github.com/liqotech/liqo/pkg/virtualKubelet/apiReflection/controller"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/forge"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/namespacesMapping"
-	"github.com/liqotech/liqo/pkg/virtualKubelet/node"
+	"github.com/liqotech/liqo/pkg/virtualKubelet/node/module"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/options"
 	optTypes "github.com/liqotech/liqo/pkg/virtualKubelet/options/types"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -40,7 +40,7 @@ type LiqoProvider struct { // nolint:golint]
 	notifier           func(interface{})
 	foreignClusterId   string
 	homeClusterID      string
-	nodeController     *node.NodeController
+	nodeController     *module.NodeController
 	providerKubeconfig string
 	restConfig         *rest.Config
 

@@ -60,4 +60,4 @@ only implements the HTTP handlers that you can use in whatever way you want.
 This uses open-cenesus to implement tracing (but no internal metrics yet) which
 is propagated through the context. This is passed on even to the providers.
 */
-package node
+package module

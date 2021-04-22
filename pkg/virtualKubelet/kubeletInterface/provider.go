@@ -2,10 +2,10 @@ package kubeletInterface
 
 import (
 	"context"
+	"github.com/liqotech/liqo/pkg/virtualKubelet/node/module"
+	"github.com/liqotech/liqo/pkg/virtualKubelet/node/module/api"
 	"io"
 
-	"github.com/liqotech/liqo/pkg/virtualKubelet/node"
-	"github.com/liqotech/liqo/pkg/virtualKubelet/node/api"
 	corev1 "k8s.io/api/core/v1"
 	stats "k8s.io/kubernetes/pkg/kubelet/apis/stats/v1alpha1"
 )
@@ -71,7 +71,7 @@ type Provider interface {
 	// will be used for Kubernetes.
 	ConfigureNode(context.Context, *corev1.Node)
 
-	StartNodeUpdater(nodeRunner *node.NodeController) (chan struct{}, chan struct{}, error)
+	StartNodeUpdater(nodeRunner *module.NodeController) (chan struct{}, chan struct{}, error)
 }
 
 // PodMetricsProvider is an optional interface that providers can implement to expose pod stats
