@@ -18,12 +18,13 @@ import (
 	"context"
 	"fmt"
 	"github.com/liqotech/liqo/apis/sharing/v1alpha1"
-	"github.com/liqotech/liqo/cmd/virtual-kubelet/internal/provider"
+	"github.com/liqotech/liqo/cmd/virtual-kubelet/provider"
 	"github.com/liqotech/liqo/internal/utils/errdefs"
 	"github.com/liqotech/liqo/pkg/crdClient"
 	"github.com/liqotech/liqo/pkg/virtualKubelet"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/manager"
-	"github.com/liqotech/liqo/pkg/virtualKubelet/node"
+	"github.com/liqotech/liqo/pkg/virtualKubelet/node/module"
+	nodeProvider "github.com/liqotech/liqo/pkg/virtualKubelet/node/provider"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 	corev1 "k8s.io/api/core/v1"
@@ -71,15 +72,6 @@ func runRootCommand(ctx context.Context, s *provider.Store, c *Opts) error {
 
 	if c.PodSyncWorkers == 0 {
 		return errdefs.InvalidInput("pod sync workers must be greater than 0")
-	}
-
-	var taint *corev1.Taint
-	if !c.DisableTaint {
-		var err error
-		taint, err = getTaint(*c)
-		if err != nil {
-			return err
-		}
 	}
 
 	client, err := v1alpha1.CreateAdvertisementClient(c.HomeKubeconfig, nil, false, func(config *rest.Config) {
@@ -150,15 +142,20 @@ func runRootCommand(ctx context.Context, s *provider.Store, c *Opts) error {
 	advName := strings.Join([]string{virtualKubelet.AdvertisementPrefix, c.ForeignClusterId}, "")
 	refs := createOwnerReference(client, advName, "")
 
-	var nodeRunner *node.NodeController
+	var nodeRunner *module.NodeController
 
-	pNode := NodeFromProvider(ctx, c.NodeName, taint, p, c.Version, refs)
-	nodeRunner, err = node.NewNodeController(
-		node.NaiveNodeProvider{},
+	pNode, err := nodeProvider.NodeFromProvider(ctx, c.NodeName, p, c.Version, refs)
+	if err != nil {
+		klog.Error(err)
+		os.Exit(1)
+	}
+
+	nodeRunner, err = module.NewNodeController(
+		module.NaiveNodeProvider{},
 		pNode,
 		client.Client().CoreV1().Nodes(),
-		node.WithNodeEnableLeaseV1Beta1(leaseClient, nil),
-		node.WithNodeStatusUpdateErrorHandler(
+		module.WithNodeEnableLeaseV1Beta1(leaseClient, nil),
+		module.WithNodeStatusUpdateErrorHandler(
 			func(ctx context.Context, err error) error {
 				klog.Info("node setting up")
 				newNode := pNode.DeepCopy()
@@ -202,7 +199,7 @@ func runRootCommand(ctx context.Context, s *provider.Store, c *Opts) error {
 
 	eb := record.NewBroadcaster()
 
-	pc, err := node.NewPodController(node.PodControllerConfig{
+	pc, err := module.NewPodController(module.PodControllerConfig{
 		PodClient:         client.Client().CoreV1(),
 		PodInformer:       podInformer,
 		EventRecorder:     eb.NewRecorder(scheme.Scheme, corev1.EventSource{Component: path.Join(pNode.Name, "pod-controller")}),

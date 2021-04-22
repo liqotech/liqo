@@ -1,7 +1,7 @@
 package main
 
 import (
-	"github.com/liqotech/liqo/cmd/virtual-kubelet/internal/provider"
+	"github.com/liqotech/liqo/cmd/virtual-kubelet/provider"
 	liqoProvider "github.com/liqotech/liqo/pkg/virtualKubelet/provider"
 )
 

@@ -7,7 +7,7 @@ import (
 	apimgmgt "github.com/liqotech/liqo/pkg/virtualKubelet/apiReflection"
 	vkContext "github.com/liqotech/liqo/pkg/virtualKubelet/context"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/forge"
-	"github.com/liqotech/liqo/pkg/virtualKubelet/node/api"
+	"github.com/liqotech/liqo/pkg/virtualKubelet/node/module/api"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/translation/serviceEnv"
 	"github.com/modern-go/reflect2"
 	"github.com/pkg/errors"

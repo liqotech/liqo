@@ -16,6 +16,8 @@ package main
 
 import (
 	"context"
+	"github.com/liqotech/liqo/cmd/virtual-kubelet/provider"
+	"github.com/liqotech/liqo/cmd/virtual-kubelet/root"
 	"k8s.io/client-go/discovery"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
@@ -27,8 +29,6 @@ import (
 	"path/filepath"
 	"syscall"
 
-	"github.com/liqotech/liqo/cmd/virtual-kubelet/internal/commands/root"
-	"github.com/liqotech/liqo/cmd/virtual-kubelet/internal/provider"
 	"github.com/spf13/cobra"
 )
 

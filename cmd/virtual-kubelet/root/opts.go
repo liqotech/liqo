@@ -22,7 +22,6 @@ import (
 
 	"github.com/mitchellh/go-homedir"
 	"github.com/pkg/errors"
-	corev1 "k8s.io/api/core/v1"
 )
 
 // Defaults for root command options
@@ -32,11 +31,8 @@ const (
 	DefaultMetricsAddr          = ":10255"
 	DefaultListenPort           = 10250
 	DefaultPodSyncWorkers       = 10
-	DefaultKubeNamespace        = corev1.NamespaceAll
 	DefaultKubeClusterDomain    = "cluster.local"
 
-	DefaultTaintEffect      = string(corev1.TaintEffectNoSchedule)
-	DefaultTaintKey         = "virtual-kubelet.io/provider"
 	DefaultKubeletNamespace = "default"
 	DefaultHomeClusterId    = "cluster1"
 )
@@ -60,10 +56,6 @@ type Opts struct {
 
 	HomeKubeconfig    string
 	ForeignKubeconfig string
-
-	TaintKey     string
-	TaintEffect  string
-	DisableTaint bool
 
 	MetricsAddr string
 
@@ -92,10 +84,6 @@ type Opts struct {
 // SetDefaultOpts sets default options for unset values on the passed in option struct.
 // Fields tht are already set will not be modified.
 func SetDefaultOpts(c *Opts) error {
-	if c.NodeName == "" {
-		c.NodeName = getEnv("DEFAULT_NODE_NAME", DefaultNodeName)
-	}
-
 	if c.InformerResyncPeriod == 0 {
 		c.InformerResyncPeriod = DefaultInformerResyncPeriod
 	}
@@ -126,13 +114,6 @@ func SetDefaultOpts(c *Opts) error {
 
 	if c.KubeClusterDomain == "" {
 		c.KubeClusterDomain = DefaultKubeClusterDomain
-	}
-
-	if c.TaintKey == "" {
-		c.TaintKey = DefaultTaintKey
-	}
-	if c.TaintEffect == "" {
-		c.TaintEffect = DefaultTaintEffect
 	}
 	if c.KubeletNamespace == "" {
 		c.KubeletNamespace = DefaultKubeletNamespace

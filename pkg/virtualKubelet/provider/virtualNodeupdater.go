@@ -8,7 +8,7 @@ import (
 	advertisementOperator "github.com/liqotech/liqo/internal/advertisement-operator"
 	"github.com/liqotech/liqo/internal/liqonet/tunnelEndpointCreator"
 	"github.com/liqotech/liqo/pkg/virtualKubelet"
-	"github.com/liqotech/liqo/pkg/virtualKubelet/node"
+	"github.com/liqotech/liqo/pkg/virtualKubelet/node/module"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/options"
 	v1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
@@ -20,7 +20,7 @@ import (
 	"strings"
 )
 
-func (p *LiqoProvider) StartNodeUpdater(nodeRunner *node.NodeController) (chan struct{}, chan struct{}, error) {
+func (p *LiqoProvider) StartNodeUpdater(nodeRunner *module.NodeController) (chan struct{}, chan struct{}, error) {
 	stop := make(chan struct{}, 1)
 	advName := strings.Join([]string{virtualKubelet.AdvertisementPrefix, p.foreignClusterId}, "")
 	advWatcher, err := p.advClient.Resource("advertisements").Watch(metav1.ListOptions{

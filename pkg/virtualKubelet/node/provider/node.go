@@ -12,31 +12,41 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package root
+package provider
 
 import (
 	"context"
+	"github.com/liqotech/liqo/cmd/virtual-kubelet/provider"
+	"os"
 	"strings"
 
-	"github.com/liqotech/liqo/cmd/virtual-kubelet/internal/provider"
 	"github.com/liqotech/liqo/internal/utils/errdefs"
 	corev1 "k8s.io/api/core/v1"
-	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-const osLabel = "beta.kubernetes.io/os"
+const (
+	osLabel     = "beta.kubernetes.io/os"
+	taintKey    = "VKUBELET_TAINT_KEY"
+	taintValue  = "VKUBELET_TAINT_VALUE"
+	taintEffect = "VKUBELET_TAINT_EFFECT"
+)
 
 // NodeFromProvider builds a kubernetes node object from a provider
 // This is a temporary solution until node stuff actually split off from the provider interface itself.
-func NodeFromProvider(ctx context.Context, name string, taint *v1.Taint, p provider.Provider, version string, refs []metav1.OwnerReference) *v1.Node {
-	taints := make([]v1.Taint, 0)
+func NodeFromProvider(ctx context.Context, name string, p provider.Provider, version string, refs []metav1.OwnerReference) (*corev1.Node, error) {
+	taints := make([]corev1.Taint, 0)
+
+	taint, err := buildTaint()
+	if err != nil {
+		return nil, err
+	}
 
 	if taint != nil {
 		taints = append(taints, *taint)
 	}
 
-	node := &v1.Node{
+	node := &corev1.Node{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: name,
 			Labels: map[string]string{
@@ -45,11 +55,11 @@ func NodeFromProvider(ctx context.Context, name string, taint *v1.Taint, p provi
 				"kubernetes.io/hostname": name,
 			},
 		},
-		Spec: v1.NodeSpec{
+		Spec: corev1.NodeSpec{
 			Taints: taints,
 		},
-		Status: v1.NodeStatus{
-			NodeInfo: v1.NodeSystemInfo{
+		Status: corev1.NodeStatus{
+			NodeInfo: corev1.NodeSystemInfo{
 				Architecture:   "amd64",
 				KubeletVersion: version,
 			},
@@ -63,27 +73,21 @@ func NodeFromProvider(ctx context.Context, name string, taint *v1.Taint, p provi
 	if _, ok := node.ObjectMeta.Labels[osLabel]; !ok {
 		node.ObjectMeta.Labels[osLabel] = strings.ToLower(node.Status.NodeInfo.OperatingSystem)
 	}
-	return node
+
+	return node, nil
 }
 
-// getTaint creates a taint using the provided key/value.
+// buildTaint creates a taint using the provided key/value.
 // Taint effect is read from the environment
 // The taint key/value may be overwritten by the environment.
-func getTaint(c Opts) (*corev1.Taint, error) {
-	value := c.Provider
+func buildTaint() (*corev1.Taint, error) {
+	keyEnv, ok1 := os.LookupEnv(taintKey)
+	valueEnv, ok2 := os.LookupEnv(taintValue)
+	effectEnv, ok3 := os.LookupEnv(taintEffect)
 
-	key := c.TaintKey
-	if key == "" {
-		key = DefaultTaintKey
+	if !ok1 || !ok2 || !ok3 {
+		return nil, nil
 	}
-
-	if c.TaintEffect == "" {
-		c.TaintEffect = DefaultTaintEffect
-	}
-
-	key = getEnv("VKUBELET_TAINT_KEY", key)
-	value = getEnv("VKUBELET_TAINT_VALUE", value)
-	effectEnv := getEnv("VKUBELET_TAINT_EFFECT", string(c.TaintEffect))
 
 	var effect corev1.TaintEffect
 	switch effectEnv {
@@ -98,8 +102,8 @@ func getTaint(c Opts) (*corev1.Taint, error) {
 	}
 
 	return &corev1.Taint{
-		Key:    key,
-		Value:  value,
+		Key:    keyEnv,
+		Value:  valueEnv,
 		Effect: effect,
 	}, nil
 }

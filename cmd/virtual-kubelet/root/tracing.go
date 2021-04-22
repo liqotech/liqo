@@ -16,7 +16,7 @@ package root
 
 import (
 	"context"
-	"github.com/liqotech/liqo/cmd/virtual-kubelet/internal/provider"
+	"github.com/liqotech/liqo/cmd/virtual-kubelet/provider"
 	"k8s.io/klog/v2"
 	"net"
 	"net/http"
