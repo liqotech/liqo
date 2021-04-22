@@ -1,8 +1,8 @@
 package identityManager
 
 import (
-	"context"
 	"crypto/x509"
+	"encoding/base64"
 	"encoding/pem"
 	"os"
 	"path/filepath"
@@ -11,17 +11,14 @@ import (
 
 	"github.com/liqotech/liqo/pkg/clusterID/test"
 	"github.com/liqotech/liqo/pkg/discovery"
+	idManTest "github.com/liqotech/liqo/pkg/identityManager/testUtils"
 	"github.com/liqotech/liqo/pkg/tenantControlNamespace"
 	"github.com/liqotech/liqo/pkg/testUtils"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
-	certv1beta1 "k8s.io/api/certificates/v1beta1"
 	v1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/watch"
+	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/tools/cache"
 )
 
 func TestIdentityManager(t *testing.T) {
@@ -143,30 +140,8 @@ var _ = Describe("IdentityManager", func() {
 			csrBytes, err = identityManager.GetSigningRequest(remoteClusterID)
 			Expect(err).To(BeNil())
 
-			// we need an informer to fill the certificate field, since no api server is running
-			informer := cache.NewSharedIndexInformer(&cache.ListWatch{
-				ListFunc: func(options metav1.ListOptions) (runtime.Object, error) {
-					return client.CertificatesV1beta1().CertificateSigningRequests().List(context.TODO(), options)
-				},
-				WatchFunc: func(options metav1.ListOptions) (watch.Interface, error) {
-					return client.CertificatesV1beta1().CertificateSigningRequests().Watch(context.TODO(), options)
-				},
-			}, &certv1beta1.CertificateSigningRequest{}, 0, cache.Indexers{})
-
 			stopChan = make(chan struct{})
-			informer.AddEventHandler(cache.ResourceEventHandlerFuncs{
-				UpdateFunc: func(oldObj interface{}, newObj interface{}) {
-					csr, ok := newObj.(*certv1beta1.CertificateSigningRequest)
-					Expect(ok).To(BeTrue())
-
-					if csr.Status.Certificate == nil {
-						csr.Status.Certificate = []byte("test")
-						_, _ = client.CertificatesV1beta1().CertificateSigningRequests().UpdateStatus(context.TODO(), csr, metav1.UpdateOptions{})
-					}
-				},
-			})
-
-			go informer.Run(stopChan)
+			idManTest.StartTestApprover(client, stopChan)
 		})
 
 		AfterEach(func() {
@@ -174,10 +149,33 @@ var _ = Describe("IdentityManager", func() {
 		})
 
 		It("Approve Signing Request", func() {
-			certificate, err := identityManager.ApproveSigningRequest(csrBytes)
+			certificate, err := identityManager.ApproveSigningRequest(remoteClusterID, base64.StdEncoding.EncodeToString(csrBytes))
 			Expect(err).To(BeNil())
 			Expect(certificate).NotTo(BeNil())
 			Expect(certificate).To(Equal([]byte("test")))
+		})
+
+		It("Retrieve Remote Certificate", func() {
+			certificate, err := identityManager.GetRemoteCertificate(remoteClusterID, base64.StdEncoding.EncodeToString(csrBytes))
+			Expect(err).To(BeNil())
+			Expect(certificate).NotTo(BeNil())
+			Expect(certificate).To(Equal([]byte("test")))
+		})
+
+		It("Retrieve Remote Certificate wrong clusterID", func() {
+			certificate, err := identityManager.GetRemoteCertificate("fake", base64.StdEncoding.EncodeToString(csrBytes))
+			Expect(err).NotTo(BeNil())
+			Expect(kerrors.IsNotFound(err)).To(BeTrue())
+			Expect(kerrors.IsBadRequest(err)).To(BeFalse())
+			Expect(certificate).To(BeNil())
+		})
+
+		It("Retrieve Remote Certificate wrong CSR", func() {
+			certificate, err := identityManager.GetRemoteCertificate(remoteClusterID, base64.StdEncoding.EncodeToString([]byte("fake")))
+			Expect(err).NotTo(BeNil())
+			Expect(kerrors.IsNotFound(err)).To(BeFalse())
+			Expect(kerrors.IsBadRequest(err)).To(BeTrue())
+			Expect(certificate).To(BeNil())
 		})
 
 	})

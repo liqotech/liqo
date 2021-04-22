@@ -1,4 +1,4 @@
-package csr
+package certificateSigningRequest
 
 import (
 	"context"
@@ -9,7 +9,7 @@ import (
 	"testing"
 )
 
-func TestNewNamespaceWithSuffix(t *testing.T) {
+func TestApproveSigningRequest(t *testing.T) {
 	//setup
 	certificateToValidate := certificatesv1beta1.CertificateSigningRequest{
 		TypeMeta: v1.TypeMeta{},
@@ -28,7 +28,7 @@ func TestNewNamespaceWithSuffix(t *testing.T) {
 	if err != nil {
 		t.Fail()
 	}
-	err = approveCSR(c, &certificateToValidate)
+	err = ApproveCSR(c, &certificateToValidate, "LiqoApproval", "This CSR was approved by Liqo Advertisement Operator")
 	if err != nil {
 		t.Fail()
 	}

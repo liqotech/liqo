@@ -7,11 +7,6 @@ import (
 	"reflect"
 )
 
-type authConfigProvider interface {
-	GetConfig() *configv1alpha1.AuthConfig
-	GetApiServerConfig() *configv1alpha1.ApiServerConfig
-}
-
 func (authService *AuthServiceCtrl) GetAuthServiceConfig(kubeconfigPath string) {
 	waitFirst := make(chan struct{})
 	isFirst := true

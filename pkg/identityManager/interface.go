@@ -21,5 +21,6 @@ type localManager interface {
 
 // interface that allows to manage the identity in the target cluster, where this identity has to be used
 type remoteManager interface {
-	ApproveSigningRequest(signingRequest []byte) (certificate []byte, err error)
+	ApproveSigningRequest(clusterID string, signingRequest string) (certificate []byte, err error)
+	GetRemoteCertificate(clusterID string, signingRequest string) (certificate []byte, err error)
 }

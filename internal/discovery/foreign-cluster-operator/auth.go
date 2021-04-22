@@ -158,7 +158,7 @@ func (r *ForeignClusterReconciler) getAuthToken(fc *discoveryv1alpha1.ForeignClu
 func (r *ForeignClusterReconciler) askRemoteIdentity(fc *discoveryv1alpha1.ForeignCluster) (string, error) {
 	token := r.getAuthToken(fc)
 
-	roleRequest := auth.IdentityRequest{
+	roleRequest := auth.ServiceAccountIdentityRequest{
 		ClusterID: r.clusterID.GetClusterID(),
 		Token:     token,
 	}

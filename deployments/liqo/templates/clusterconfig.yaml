@@ -1,6 +1,10 @@
 ---
 {{- $config := (merge (dict "name" "configuration" "module" "configuration") .) -}}
 
+{{- $peeringBasic := (merge (dict "name" "remote-peering-basic" "module" "discovery") .) -}}
+{{- $peeringIncoming := (merge (dict "name" "remote-peering-incoming" "module" "discovery") .) -}}
+{{- $peeringOutgoing := (merge (dict "name" "remote-peering-outgoing" "module" "discovery") .) -}}
+
 apiVersion: config.liqo.io/v1alpha1
 kind: ClusterConfig
 metadata:
@@ -34,6 +38,13 @@ spec:
     {{- end }}
   authConfig:
     {{- .Values.auth.config | toYaml | nindent 4 }}
+    peeringPermission:
+      basic:
+      - {{ include "liqo.prefixedName" $peeringBasic }}
+      incoming:
+      - {{ include "liqo.prefixedName" $peeringIncoming }}
+      outgoing:
+      - {{ include "liqo.prefixedName" $peeringOutgoing }}
   liqonetConfig:
     {{- .Values.networkManager.config | toYaml | nindent 4 }}
   dispatcherConfig:

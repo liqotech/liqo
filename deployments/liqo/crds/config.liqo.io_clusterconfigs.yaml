@@ -178,6 +178,36 @@ spec:
                     description: Allow remote clusters to get an identity with an
                       empty token
                     type: boolean
+                  peeringPermission:
+                    description: Set the ClusterRoles to bind in the different peering
+                      stages
+                    properties:
+                      basic:
+                        description: to be enabled with the creation of the Tenant
+                          Control Namespace, these ClusterRoles have the basic permissions
+                          to give to a remote cluster
+                        items:
+                          type: string
+                        type: array
+                      incoming:
+                        description: to be enabled when a ResourceRequest has been
+                          accepted, these ClusterRoles have the permissions required
+                          to a remote cluster to manage an outgoing peering (incoming
+                          for the local cluster), when the Pods will be offloaded
+                          to the local cluster
+                        items:
+                          type: string
+                        type: array
+                      outgoing:
+                        description: to be enabled when we send a ResourceRequest,
+                          these ClusterRoles have the permissions required to a remote
+                          cluster to manage an incoming peering (outgoing for the
+                          local cluster), when the Pods will be offloaded from the
+                          local cluster
+                        items:
+                          type: string
+                        type: array
+                    type: object
                 type: object
               discoveryConfig:
                 properties:

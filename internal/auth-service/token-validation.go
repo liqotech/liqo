@@ -9,15 +9,16 @@ import (
 )
 
 type credentialsValidator interface {
-	checkCredentials(roleRequest *auth.IdentityRequest, configProvider authConfigProvider, tokenManager tokenManager) error
+	checkCredentials(roleRequest auth.IdentityRequest, configProvider auth.AuthConfigProvider, tokenManager tokenManager) error
 
-	validEmptyToken(configProvider authConfigProvider) bool
+	validEmptyToken(configProvider auth.AuthConfigProvider) bool
 	validToken(tokenManager tokenManager, token string) (bool, error)
 }
 
 type tokenValidator struct{}
 
-func (tokenValidator *tokenValidator) checkCredentials(roleRequest *auth.IdentityRequest, configProvider authConfigProvider, tokenManager tokenManager) error {
+// checkCredentials checks if the provided token is valid for the local cluster given an IdentityRequest
+func (tokenValidator *tokenValidator) checkCredentials(roleRequest auth.IdentityRequest, configProvider auth.AuthConfigProvider, tokenManager tokenManager) error {
 	// token check fails if:
 	// 1. token is different from the correct one
 	// 2. token is empty but in the cluster config empty token is not allowed
@@ -25,7 +26,7 @@ func (tokenValidator *tokenValidator) checkCredentials(roleRequest *auth.Identit
 	if tokenValidator.validEmptyToken(configProvider) {
 		return nil
 	}
-	if valid, err := tokenValidator.validToken(tokenManager, roleRequest.Token); err != nil {
+	if valid, err := tokenValidator.validToken(tokenManager, roleRequest.GetToken()); err != nil {
 		klog.Error(err)
 		return err
 	} else if valid {
@@ -41,10 +42,12 @@ func (tokenValidator *tokenValidator) checkCredentials(roleRequest *auth.Identit
 	}
 }
 
-func (tokenValidator *tokenValidator) validEmptyToken(configProvider authConfigProvider) bool {
+// validEmptyToken checks if the empty token is accepted
+func (tokenValidator *tokenValidator) validEmptyToken(configProvider auth.AuthConfigProvider) bool {
 	return configProvider.GetConfig().AllowEmptyToken
 }
 
+// validToken checks if the token provided is valid
 func (tokenValidator *tokenValidator) validToken(tokenManager tokenManager, token string) (bool, error) {
 	correctToken, err := tokenManager.getToken()
 	if err != nil {
