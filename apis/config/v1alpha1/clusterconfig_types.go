@@ -140,10 +140,22 @@ type DiscoveryConfig struct {
 	AuthServicePort    string `json:"authServicePort,omitempty"`
 }
 
+type PeeringPermission struct {
+	// to be enabled with the creation of the Tenant Control Namespace, these ClusterRoles have the basic permissions to give to a remote cluster
+	Basic []string `json:"basic,omitempty"`
+	// to be enabled when a ResourceRequest has been accepted, these ClusterRoles have the permissions required to a remote cluster to manage an outgoing peering (incoming for the local cluster), when the Pods will be offloaded to the local cluster
+	Incoming []string `json:"incoming,omitempty"`
+	// to be enabled when we send a ResourceRequest, these ClusterRoles have the permissions required to a remote cluster to manage an incoming peering (outgoing for the local cluster), when the Pods will be offloaded from the local cluster
+	Outgoing []string `json:"outgoing,omitempty"`
+}
+
 type AuthConfig struct {
 	// Allow remote clusters to get an identity with an empty token
 	// +kubebuilder:default=false
 	AllowEmptyToken bool `json:"allowEmptyToken,omitempty"`
+
+	// Set the ClusterRoles to bind in the different peering stages
+	PeeringPermission *PeeringPermission `json:"peeringPermission,omitempty"`
 }
 
 type LiqonetConfig struct {

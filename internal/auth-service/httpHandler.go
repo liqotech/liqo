@@ -18,7 +18,7 @@ func (authService *AuthServiceCtrl) role(w http.ResponseWriter, r *http.Request,
 		return
 	}
 
-	roleRequest := auth.IdentityRequest{}
+	roleRequest := auth.ServiceAccountIdentityRequest{}
 	err = json.Unmarshal(bytes, &roleRequest)
 	if err != nil {
 		klog.Error(err)

@@ -1,21 +1,37 @@
 package auth_service
 
 import (
+	"context"
+	"crypto/rand"
+	"crypto/rsa"
+	"crypto/x509"
+	"crypto/x509/pkix"
+	"encoding/asn1"
+	"encoding/base64"
+	"encoding/pem"
+	"os"
+	"path/filepath"
+	"strings"
+	"testing"
+	"time"
+
 	"github.com/liqotech/liqo/apis/config/v1alpha1"
 	"github.com/liqotech/liqo/pkg/auth"
 	"github.com/liqotech/liqo/pkg/clusterID/test"
+	"github.com/liqotech/liqo/pkg/identityManager"
+	idManTest "github.com/liqotech/liqo/pkg/identityManager/testUtils"
+	"github.com/liqotech/liqo/pkg/tenantControlNamespace"
 	"github.com/liqotech/liqo/pkg/testUtils"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/ginkgo/extensions/table"
 	. "github.com/onsi/gomega"
 	"github.com/onsi/gomega/types"
+	rbacv1 "k8s.io/api/rbac/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/informers"
 	"k8s.io/client-go/tools/cache"
-	"os"
-	"path/filepath"
-	"testing"
-	"time"
+	"k8s.io/klog"
 )
 
 func TestAuth(t *testing.T) {
@@ -36,6 +52,53 @@ func (man *tokenManagerMock) createToken() error {
 	return nil
 }
 
+// getHost get the address given the address:port string
+func getHost(address string) string {
+	return strings.Split(address, ":")[0]
+}
+
+// getPort get the port given the address:port string
+func getPort(address string) string {
+	return strings.Split(address, ":")[1]
+}
+
+// getCSR get a CertificateSigningRequest for testing purposes
+func getCSR(localClusterID string) (csrBytes []byte, err error) {
+	key, err := rsa.GenerateKey(rand.Reader, 2048)
+	if err != nil {
+		klog.Error(err)
+		return nil, err
+	}
+
+	subj := pkix.Name{
+		CommonName:   localClusterID,
+		Organization: []string{"Liqo"},
+	}
+	rawSubj := subj.ToRDNSequence()
+
+	asn1Subj, err := asn1.Marshal(rawSubj)
+	if err != nil {
+		klog.Error(err)
+		return nil, err
+	}
+
+	template := x509.CertificateRequest{
+		RawSubject:         asn1Subj,
+		SignatureAlgorithm: x509.SHA256WithRSA,
+	}
+
+	csrBytes, err = x509.CreateCertificateRequest(rand.Reader, &template, key)
+	if err != nil {
+		klog.Error(err)
+		return nil, err
+	}
+	csrBytes = pem.EncodeToMemory(&pem.Block{
+		Type:  "CERTIFICATE REQUEST",
+		Bytes: csrBytes,
+	})
+	return csrBytes, nil
+}
+
 var _ = Describe("Auth", func() {
 
 	var (
@@ -46,6 +109,8 @@ var _ = Describe("Auth", func() {
 		tMan tokenManagerMock
 
 		stopChan chan struct{}
+
+		csr []byte
 	)
 
 	BeforeSuite(func() {
@@ -77,16 +142,40 @@ var _ = Describe("Auth", func() {
 		informerFactory.Start(stopChan)
 		informerFactory.WaitForCacheSync(wait.NeverStop)
 
+		namespaceManager := tenantControlNamespace.NewTenantControlNamespaceManager(cluster.GetClient().Client())
+		identityManager := identityManager.NewCertificateIdentityManager(cluster.GetClient().Client(), &clusterID, namespaceManager)
+
 		authService = AuthServiceCtrl{
 			namespace:            "default",
+			restConfig:           cluster.GetClient().Config(),
 			clientset:            cluster.GetClient().Client(),
 			saInformer:           saInformer,
 			nodeInformer:         nodeInformer,
 			secretInformer:       secretInformer,
 			clusterId:            &clusterID,
+			namespaceManager:     namespaceManager,
+			identityManager:      identityManager,
 			useTls:               false,
 			credentialsValidator: &tokenValidator{},
+			apiServerConfig: &v1alpha1.ApiServerConfig{
+				Address:   getHost(cluster.GetCfg().Host),
+				Port:      getPort(cluster.GetCfg().Host),
+				TrustedCA: false,
+			},
 		}
+
+		clusterRole := &rbacv1.ClusterRole{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: "test",
+			},
+		}
+		_, err = cluster.GetClient().Client().RbacV1().ClusterRoles().Create(context.TODO(), clusterRole, metav1.CreateOptions{})
+		if err != nil {
+			By(err.Error())
+			os.Exit(1)
+		}
+
+		idManTest.StartTestApprover(cluster.GetClient().Client(), stopChan)
 	})
 
 	AfterSuite(func() {
@@ -118,7 +207,7 @@ var _ = Describe("Auth", func() {
 	Context("Credential Validator", func() {
 
 		type credentialValidatorTestcase struct {
-			credentials    auth.IdentityRequest
+			credentials    auth.ServiceAccountIdentityRequest
 			config         v1alpha1.AuthConfig
 			expectedOutput types.GomegaMatcher
 		}
@@ -131,7 +220,7 @@ var _ = Describe("Auth", func() {
 			},
 
 			Entry("empty token accepted", credentialValidatorTestcase{
-				credentials: auth.IdentityRequest{
+				credentials: auth.ServiceAccountIdentityRequest{
 					Token:     "",
 					ClusterID: "test1",
 				},
@@ -142,7 +231,7 @@ var _ = Describe("Auth", func() {
 			}),
 
 			Entry("empty token refused", credentialValidatorTestcase{
-				credentials: auth.IdentityRequest{
+				credentials: auth.ServiceAccountIdentityRequest{
 					Token:     "",
 					ClusterID: "test1",
 				},
@@ -153,7 +242,7 @@ var _ = Describe("Auth", func() {
 			}),
 
 			Entry("token accepted", credentialValidatorTestcase{
-				credentials: auth.IdentityRequest{
+				credentials: auth.ServiceAccountIdentityRequest{
 					Token:     "token",
 					ClusterID: "test1",
 				},
@@ -164,7 +253,7 @@ var _ = Describe("Auth", func() {
 			}),
 
 			Entry("token refused", credentialValidatorTestcase{
-				credentials: auth.IdentityRequest{
+				credentials: auth.ServiceAccountIdentityRequest{
 					Token:     "token-wrong",
 					ClusterID: "test1",
 				},
@@ -205,6 +294,85 @@ var _ = Describe("Auth", func() {
 				expectedOutput: BeNil(),
 			}),
 		)
+
+	})
+
+	Context("Certificate Identity Creation", func() {
+
+		var (
+			oldConfig *v1alpha1.AuthConfig
+		)
+
+		type certificateTestcase struct {
+			request          auth.CertificateIdentityRequest
+			expectedOutput   types.GomegaMatcher
+			expectedResponse func(*auth.CertificateIdentityResponse)
+		}
+
+		BeforeEach(func() {
+			oldConfig = authService.config.DeepCopy()
+			authService.config.AllowEmptyToken = true
+		})
+
+		AfterEach(func() {
+			authService.config = oldConfig.DeepCopy()
+		})
+
+		DescribeTable("Certificate Identity Creation table",
+			func(c certificateTestcase) {
+				csr, err := getCSR(authService.clusterId.GetClusterID())
+				Expect(err).To(BeNil())
+				c.request.CertificateSigningRequest = base64.StdEncoding.EncodeToString(csr)
+
+				response, err := authService.handleIdentity(c.request)
+				Expect(err).To(c.expectedOutput)
+				c.expectedResponse(response)
+			},
+
+			Entry("first creation", certificateTestcase{
+				request: auth.CertificateIdentityRequest{
+					ClusterID:                 "cluster1",
+					CertificateSigningRequest: string(csr),
+				},
+				expectedOutput: BeNil(),
+				expectedResponse: func(resp *auth.CertificateIdentityResponse) {
+					Expect(resp).NotTo(BeNil())
+				},
+			}),
+
+			Entry("second creation", certificateTestcase{
+				request: auth.CertificateIdentityRequest{
+					ClusterID:                 "cluster1",
+					CertificateSigningRequest: string(csr),
+				},
+				expectedOutput: HaveOccurred(),
+				expectedResponse: func(resp *auth.CertificateIdentityResponse) {
+					Expect(resp).To(BeNil())
+				},
+			}),
+
+			Entry("create different one", certificateTestcase{
+				request: auth.CertificateIdentityRequest{
+					ClusterID:                 "cluster2",
+					CertificateSigningRequest: string(csr),
+				},
+				expectedOutput: BeNil(),
+				expectedResponse: func(resp *auth.CertificateIdentityResponse) {
+					Expect(resp).NotTo(BeNil())
+				},
+			}),
+		)
+
+		It("Populate permission", func() {
+			authService.config.PeeringPermission = &v1alpha1.PeeringPermission{
+				Basic: []string{"test"},
+			}
+
+			err := authService.populatePermission()
+			Expect(err).To(BeNil())
+			Expect(len(authService.peeringPermission.Basic)).To(Equal(1))
+			Expect(authService.peeringPermission.Basic[0].Name).To(Equal("test"))
+		})
 
 	})
 

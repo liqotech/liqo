@@ -3,6 +3,7 @@ package kubeconfig
 import (
 	"context"
 	"errors"
+	"fmt"
 
 	"github.com/liqotech/liqo/pkg/clusterConfig"
 	"github.com/liqotech/liqo/pkg/discovery"
@@ -22,6 +23,38 @@ func CreateKubeConfigFromServiceAccount(apiServerConfigProvider clusterConfig.Ap
 		return "", err
 	}
 
+	token := string(secret.Data["token"])
+
+	server, err := GetApiServerURL(apiServerConfigProvider, clientset)
+	if err != nil {
+		klog.Error(err)
+		return "", err
+	}
+
+	var caCrt []byte
+	if apiServerConfigProvider.GetApiServerConfig().TrustedCA {
+		caCrt = nil
+	} else {
+		caCrt = secret.Data["ca.crt"]
+	}
+
+	cnf := kubeconfigutil.CreateWithToken(server, "service-cluster", serviceAccount.Name, caCrt, token)
+	r, err := runtime.Encode(clientcmdlatest.Codec, cnf)
+	if err != nil {
+		klog.Error(err)
+		return "", err
+	}
+	return string(r), nil
+}
+
+// Get the ApiServerURL.
+// Retrieving the address in the order:
+// 1. from the ClusterConfig
+// 2. from the IP address of a master node
+// And the port in the order:
+// 1. from the ClusterConfig
+// 2. defaults to 6443
+func GetApiServerURL(apiServerConfigProvider clusterConfig.ApiServerConfigProvider, clientset kubernetes.Interface) (string, error) {
 	address := apiServerConfigProvider.GetApiServerConfig().Address
 	if address == "" {
 		nodes, err := clientset.CoreV1().Nodes().List(context.TODO(), v1.ListOptions{
@@ -48,23 +81,7 @@ func CreateKubeConfigFromServiceAccount(apiServerConfigProvider clusterConfig.Ap
 		port = "6443"
 	}
 
-	token := string(secret.Data["token"])
-	server := "https://" + address + ":" + port
-
-	var caCrt []byte
-	if apiServerConfigProvider.GetApiServerConfig().TrustedCA {
-		caCrt = nil
-	} else {
-		caCrt = secret.Data["ca.crt"]
-	}
-
-	cnf := kubeconfigutil.CreateWithToken(server, "service-cluster", serviceAccount.Name, caCrt, token)
-	r, err := runtime.Encode(clientcmdlatest.Codec, cnf)
-	if err != nil {
-		klog.Error(err)
-		return "", err
-	}
-	return string(r), nil
+	return fmt.Sprintf("https://%v:%v", address, port), nil
 }
 
 // this function creates a kube-config file for a specified ServiceAccount

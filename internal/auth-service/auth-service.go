@@ -2,33 +2,46 @@ package auth_service
 
 import (
 	"context"
+	"net/http"
+	"strings"
+	"sync"
+	"time"
+
 	"github.com/julienschmidt/httprouter"
 	"github.com/liqotech/liqo/apis/config/v1alpha1"
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	garbage_collection "github.com/liqotech/liqo/internal/auth-service/garbage-collection"
+	"github.com/liqotech/liqo/pkg/auth"
 	"github.com/liqotech/liqo/pkg/clusterID"
 	"github.com/liqotech/liqo/pkg/crdClient"
 	"github.com/liqotech/liqo/pkg/discovery"
+	"github.com/liqotech/liqo/pkg/identityManager"
+	peeringRoles "github.com/liqotech/liqo/pkg/peering-roles"
+	"github.com/liqotech/liqo/pkg/tenantControlNamespace"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/klog"
-	"net/http"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
-	"strings"
-	"sync"
-	"time"
 )
 
 //cluster-role
 // +kubebuilder:rbac:groups=core,resources=nodes,verbs=get;list;watch
-// +kubebuilder:rbac:groups=rbac.authorization.k8s.io,resources=clusterroles,verbs=create;delete;list;deletecollection
+// +kubebuilder:rbac:groups=core,resources=namespaces,verbs=get;list;watch;create
+// +kubebuilder:rbac:groups=rbac.authorization.k8s.io,resources=clusterroles,verbs=create;delete;list;deletecollection;get
 // +kubebuilder:rbac:groups=rbac.authorization.k8s.io,resources=clusterrolebindings,verbs=create;delete;list;deletecollection
 // +kubebuilder:rbac:groups=config.liqo.io,resources=clusterconfigs,verbs=get;list;watch;create
 // +kubebuilder:rbac:groups=discovery.liqo.io,resources=peeringrequests,verbs=get;create;update;delete
+// +kubebuilder:rbac:groups=certificates.k8s.io,resources=certificatesigningrequests,verbs=get;create;list;watch
+// +kubebuilder:rbac:groups=certificates.k8s.io,resources=certificatesigningrequests/approval,verbs=update
+// +kubebuilder:rbac:groups=certificates.k8s.io,resources=signers,verbs=approve
+// tenant control namespace management
+// +kubebuilder:rbac:groups=core,resources=secrets,verbs=get;list;create;delete
+// +kubebuilder:rbac:groups=rbac.authorization.k8s.io,resources=rolebindings,verbs=create;deletecollection
 //role
 // +kubebuilder:rbac:groups=core,namespace="do-not-care",resources=secrets,verbs=create;update;get;list;watch;delete
 // +kubebuilder:rbac:groups=core,namespace="do-not-care",resources=configmaps,verbs=create;update;get;list;watch;delete
@@ -38,6 +51,7 @@ import (
 
 type AuthServiceCtrl struct {
 	namespace      string
+	restConfig     *rest.Config
 	clientset      kubernetes.Interface
 	saInformer     cache.SharedIndexInformer
 	nodeInformer   cache.SharedIndexInformer
@@ -46,11 +60,15 @@ type AuthServiceCtrl struct {
 
 	credentialsValidator credentialsValidator
 	clusterId            clusterID.ClusterID
+	namespaceManager     tenantControlNamespace.TenantControlNamespaceManager
+	identityManager      identityManager.IdentityManager
 
 	config          *v1alpha1.AuthConfig
 	apiServerConfig *v1alpha1.ApiServerConfig
 	discoveryConfig v1alpha1.DiscoveryConfig
 	configMutex     sync.RWMutex
+
+	peeringPermission peeringRoles.PeeringPermission
 }
 
 func NewAuthServiceCtrl(namespace string, kubeconfigPath string, resyncTime time.Duration, useTls bool) (*AuthServiceCtrl, error) {
@@ -92,13 +110,19 @@ func NewAuthServiceCtrl(namespace string, kubeconfigPath string, resyncTime time
 	informerFactory.Start(wait.NeverStop)
 	informerFactory.WaitForCacheSync(wait.NeverStop)
 
+	namespaceManager := tenantControlNamespace.NewTenantControlNamespaceManager(clientset)
+	identityManager := identityManager.NewCertificateIdentityManager(clientset, clusterId, namespaceManager)
+
 	return &AuthServiceCtrl{
 		namespace:            namespace,
+		restConfig:           config,
 		clientset:            clientset,
 		saInformer:           saInformer,
 		nodeInformer:         nodeInformer,
 		secretInformer:       secretInformer,
 		clusterId:            clusterId,
+		namespaceManager:     namespaceManager,
+		identityManager:      identityManager,
 		useTls:               useTls,
 		credentialsValidator: &tokenValidator{},
 	}, nil
@@ -109,8 +133,14 @@ func (authService *AuthServiceCtrl) Start(listeningPort string, certFile string,
 		return err
 	}
 
+	// populate the lists of ClusterRoles to bind in the different peering states
+	if err := authService.populatePermission(); err != nil {
+		return err
+	}
+
 	router := httprouter.New()
 
+	router.POST("/identity/certificate", authService.identity)
 	router.POST("/identity", authService.role)
 	router.GET("/ids", authService.ids)
 
@@ -168,10 +198,24 @@ func (authService *AuthServiceCtrl) configureToken() error {
 	return nil
 }
 
-func (authService *AuthServiceCtrl) getConfigProvider() authConfigProvider {
+func (authService *AuthServiceCtrl) getConfigProvider() auth.AuthConfigProvider {
 	return authService
 }
 
 func (authService *AuthServiceCtrl) getTokenManager() tokenManager {
 	return authService
+}
+
+// populatePermission populates the list of ClusterRoles to bind in the different peering phases reading the ClusterConfig CR
+func (authService *AuthServiceCtrl) populatePermission() error {
+	peeringPermission, err := peeringRoles.GetPeeringPermission(authService.clientset, authService)
+	if err != nil {
+		klog.Error(err)
+		return err
+	}
+
+	if peeringPermission != nil {
+		authService.peeringPermission = *peeringPermission
+	}
+	return nil
 }
