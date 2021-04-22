@@ -101,6 +101,13 @@ jobs:
           repository: "${{ needs.configure.outputs.repo-name }}"
           persist-credentials: false
 
+      - name: Cache Docker layers
+        uses: actions/cache@v2
+        with:
+          path: /tmp/.buildx-cache
+          key: ${{ runner.os }}-${{ matrix.component }}-buildx-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-${{ matrix.component }}-buildx-
 
       - name: Login to DockerHub
         uses: docker/login-action@v1
@@ -118,7 +125,17 @@ jobs:
             liqo/${{ matrix.component }}${{ needs.configure.outputs.repo-suffix }}:${{ needs.configure.outputs.commit_ref }}
           push: true
           file: build/${{ matrix.component }}/Dockerfile
-
+          cache-from: type=local,src=/tmp/.buildx-cache
+          cache-to: type=local,dest=/tmp/.buildx-cache-new
+        # This ugly bit is necessary if you don't want your cache to grow forever
+        # till it hits GitHub's limit of 5GB.
+        # Temp fix
+        # https://github.com/docker/build-push-action/issues/252
+        # https://github.com/moby/buildkit/issues/1896
+      - name: Move cache
+        run: |
+          rm -rf /tmp/.buildx-cache
+          mv /tmp/.buildx-cache-new /tmp/.buildx-cache
   e2e-test-trigger:
      runs-on: ubuntu-latest
      needs: [build, configure]
