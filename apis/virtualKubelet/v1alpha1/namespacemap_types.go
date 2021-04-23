@@ -20,24 +20,35 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-// EDIT THIS FILE!  THIS IS SCAFFOLDING FOR YOU TO OWN!
-// NOTE: json tags are required.  Any new fields you add must have json tags for the fields to be serialized.
+type mappingPhase string
+
+const (
+	MappingAccepted mappingPhase = "Accepted"
+	MappingRefused  mappingPhase = "Refused"
+)
+
+type RemoteNamespaceStatus struct {
+	// RemoteNamespace is the name chosen by the user at creation time (when he puts labels on his local namespace)
+	RemoteNamespace string `json:"remoteNamespace,omitempty"`
+	// Phase is the remote Namespace's actual status (Accepted,Refused)
+	Phase mappingPhase `json:"phase,omitempty"`
+}
 
 // NamespaceMapSpec defines the desired state of NamespaceMap
 type NamespaceMapSpec struct {
-	// INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
-	// Important: Run "make" to regenerate code after modifying this file
 
+	// DesiredMapping is filled by NamespaceController when a user requires to offload a remote namespace, every entry
+	// of the map represents the localNamespaceName[key]-remoteNamespaceName[value] association. When a new entry is
+	// created the NamespaceMap Controller tries to create the associated remote namespace.
+	DesiredMapping map[string]string `json:"desiredMapping,omitempty"`
 }
 
 // NamespaceMapStatus defines the observed state of NamespaceMap
 type NamespaceMapStatus struct {
-	// INSERT ADDITIONAL STATUS FIELD - define observed state of cluster
-	// Important: Run "make" to regenerate code after modifying this file
 
-	// NattingTable is used to monitor remote Namespaces creation, it allows virtualKubelet to know how many local namespaces
-	// are offloaded on the remote cluster associated to this NamespaceMap. key = local namespace name , value = remote namespace name
-	NattingTable map[string]string `json:"nattingTable,omitempty"`
+	// CurrentMapping is filled by NamespaceMap Controller, when a new remote namespace's creation is requested. The key
+	// is the local namespace name, while the value is a summary of new remote namespace's status
+	CurrentMapping map[string]RemoteNamespaceStatus `json:"currentMapping,omitempty"`
 }
 
 // +kubebuilder:object:root=true

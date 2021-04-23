@@ -32,8 +32,7 @@ import (
 )
 
 const (
-	namespaceMapFinalizer = "namespacemap.liqo.io/finalizer"
-	virtualNodeFinalizer  = "virtualnode-controller.liqo.io/finalizer"
+	virtualNodeControllerFinalizer = "virtualnode-controller.liqo.io/finalizer"
 )
 
 type VirtualNodeReconciler struct {
@@ -52,10 +51,10 @@ func (r *VirtualNodeReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error)
 		return ctrl.Result{}, client.IgnoreNotFound(err)
 	}
 
-	if !ctrlutils.ContainsFinalizer(node, virtualNodeFinalizer) {
-		ctrlutils.AddFinalizer(node, virtualNodeFinalizer)
+	if !ctrlutils.ContainsFinalizer(node, virtualNodeControllerFinalizer) {
+		ctrlutils.AddFinalizer(node, virtualNodeControllerFinalizer)
 		if err := r.Patch(context.TODO(), node, client.Merge); err != nil {
-			klog.Errorf("%s --> Unable to add '%s' to the virtual node '%s'", err, virtualNodeFinalizer, node.GetName())
+			klog.Errorf("%s --> Unable to add '%s' to the virtual node '%s'", err, virtualNodeControllerFinalizer, node.GetName())
 			return ctrl.Result{}, err
 		}
 	}
@@ -73,14 +72,14 @@ func (r *VirtualNodeReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error)
 
 		// delete all NamespaceMaps associated with this node, in normal conditions only one
 		for _, nm := range nms.Items {
-			if err := r.removeNamespaceMapFinalizer(nm); err != nil {
+			if err := r.removeAllDesiredMappings(nm); err != nil {
 				return ctrl.Result{}, err
 			}
 		}
 
-		ctrlutils.RemoveFinalizer(node, virtualNodeFinalizer)
+		ctrlutils.RemoveFinalizer(node, virtualNodeControllerFinalizer)
 		if err := r.Update(context.TODO(), node); err != nil {
-			klog.Errorf(" %s --> Unable to remove %s from the virtual node '%s'", err, virtualNodeFinalizer, node.GetName())
+			klog.Errorf(" %s --> Unable to remove %s from the virtual node '%s'", err, virtualNodeControllerFinalizer, node.GetName())
 			return ctrl.Result{}, err
 		}
 		klog.Infof("Finalizer is correctly removed from the virtual node '%s'", node.GetName())

@@ -62,7 +62,6 @@ const (
 
 var (
 	nms          *mapsv1alpha1.NamespaceMapList
-	ctx          context.Context
 	virtualNode1 *corev1.Node
 	virtualNode2 *corev1.Node
 	simpleNode   *corev1.Node
@@ -180,7 +179,7 @@ var _ = BeforeSuite(func(done Done) {
 
 	mapNamespace = &corev1.Namespace{}
 	Eventually(func() bool {
-		if err = k8sClient.Get(ctx, types.NamespacedName{Name: const_ctrl.MapNamespaceName}, mapNamespace); err != nil {
+		if err = k8sClient.Get(context.TODO(), types.NamespacedName{Name: const_ctrl.MapNamespaceName}, mapNamespace); err != nil {
 			if errors.IsNotFound(err) {
 				if err = k8sClient.Create(context.TODO(), virtualNode1); err == nil {
 					return true

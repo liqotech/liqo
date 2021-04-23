@@ -167,7 +167,7 @@ var _ = BeforeSuite(func(done Done) {
 
 	nm1 = &mapsv1alpha1.NamespaceMap{
 		TypeMeta: metav1.TypeMeta{
-			APIVersion: "namespaceresources.liqo.io/v1",
+			APIVersion: "virtualKubelet.liqo.io/v1alpha1",
 			Kind:       "NamespaceMap",
 		},
 		ObjectMeta: metav1.ObjectMeta{
@@ -181,7 +181,7 @@ var _ = BeforeSuite(func(done Done) {
 
 	nm2 = &mapsv1alpha1.NamespaceMap{
 		TypeMeta: metav1.TypeMeta{
-			APIVersion: "namespaceresources.liqo.io/v1",
+			APIVersion: "virtualKubelet.liqo.io/v1alpha1",
 			Kind:       "NamespaceMap",
 		},
 		ObjectMeta: metav1.ObjectMeta{

@@ -23,9 +23,9 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/klog"
-	"k8s.io/kubernetes/pkg/util/slice"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	ctrlutils "sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 )
 
 type NamespaceReconciler struct {
@@ -34,17 +34,17 @@ type NamespaceReconciler struct {
 }
 
 const (
-	mappingLabel          = "mapping.liqo.io"
-	offloadingLabel       = "offloading.liqo.io"
-	offloadingPrefixLabel = "offloading.liqo.io/"
-	namespaceFinalizer    = "namespace-controller.liqo.io/finalizer"
+	mappingLabel                 = "mapping.liqo.io"
+	offloadingLabel              = "offloading.liqo.io"
+	offloadingPrefixLabel        = "offloading.liqo.io/"
+	namespaceControllerFinalizer = "namespace-controller.liqo.io/finalizer"
 )
 
 func (r *NamespaceReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 
 	namespace := &corev1.Namespace{}
 	if err := r.Get(context.TODO(), req.NamespacedName, namespace); err != nil {
-		klog.Error(err, " --> Unable to get namespace")
+		klog.Errorf("%s --> Unable to get namespace '%s'", err, req.Name)
 		return ctrl.Result{}, client.IgnoreNotFound(err)
 	}
 
@@ -55,7 +55,7 @@ func (r *NamespaceReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 	}
 
 	if len(namespaceMaps.Items) == 0 {
-		klog.Info(" No namespaceMaps at the moment")
+		klog.Info(" No namespaceMaps at the moment in the cluster")
 		return ctrl.Result{}, nil
 	}
 
@@ -64,31 +64,29 @@ func (r *NamespaceReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 		removeMappings[namespaceMap.GetLabels()[const_ctrl.VirtualNodeClusterId]] = namespaceMap
 	}
 
-	if namespace.GetDeletionTimestamp().IsZero() {
-		if !slice.ContainsString(namespace.GetFinalizers(), namespaceFinalizer, nil) {
-			namespace.SetFinalizers(append(namespace.GetFinalizers(), namespaceFinalizer))
-			if err := r.Patch(context.TODO(), namespace, client.Merge); err != nil {
-				klog.Error(err, " --> Unable to add finalizer")
-				return ctrl.Result{}, err
-			}
+	if !namespace.GetDeletionTimestamp().IsZero() {
+
+		klog.Infof("The namespace '%s' is requested to be deleted", namespace.GetName())
+		if err := r.removeDesiredMappings(namespace.GetName(), removeMappings); err != nil {
+			return ctrl.Result{}, err
 		}
-	} else {
-		if slice.ContainsString(namespace.GetFinalizers(), namespaceFinalizer, nil) {
+		ctrlutils.RemoveFinalizer(namespace, namespaceControllerFinalizer)
 
-			if err := r.removeRemoteNamespaces(namespace.GetName(), removeMappings); err != nil {
-				return ctrl.Result{}, err
-			}
-
-			klog.Info(" Someone try to delete namespace, ok delete!!")
-
-			namespace.SetFinalizers(slice.RemoveString(namespace.GetFinalizers(), namespaceFinalizer, nil))
-			if err := r.Update(context.TODO(), namespace); err != nil {
-				klog.Error(err, " --> Unable to remove finalizer")
-				return ctrl.Result{}, err
-			}
+		if err := r.Update(context.TODO(), namespace); err != nil {
+			klog.Errorf("%s --> Unable to remove finalizer from namespace '%s'", err, namespace.GetName())
+			return ctrl.Result{}, err
 		}
+		klog.Infof("Finalizer is correctly removed from namespace'%s'", namespace.GetName())
 
 		return ctrl.Result{}, nil
+	}
+
+	if !ctrlutils.ContainsFinalizer(namespace, namespaceControllerFinalizer) {
+		ctrlutils.AddFinalizer(namespace, namespaceControllerFinalizer)
+		if err := r.Patch(context.TODO(), namespace, client.Merge); err != nil {
+			klog.Errorf(" %s --> Unable to add finalizer on namespace '%s'", err, namespace.GetName())
+			return ctrl.Result{}, err
+		}
 	}
 
 	// 1. If mapping.liqo.io label is not present there are no remote namespaces associated with this namespace, removeMappings is full
@@ -97,7 +95,7 @@ func (r *NamespaceReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 		// 2.a If offloading.liqo.io is present there are remote namespaces on all virtual nodes
 		if _, ok = namespace.GetLabels()[offloadingLabel]; ok {
 			klog.Infof(" Offload namespace '%s' on all remote clusters", namespace.GetName())
-			if err := r.createRemoteNamespaces(namespace, remoteNamespaceName, removeMappings); err != nil {
+			if err := r.addDesiredMappings(namespace, remoteNamespaceName, removeMappings); err != nil {
 				return ctrl.Result{}, err
 			}
 
@@ -122,7 +120,7 @@ func (r *NamespaceReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 
 			for _, node := range nodes.Items {
 				if checkOffloadingLabels(namespace, &node) {
-					if err := r.createRemoteNamespace(namespace, remoteNamespaceName, removeMappings[node.Annotations[const_ctrl.VirtualNodeClusterId]]); err != nil {
+					if err := r.addDesiredMapping(namespace, remoteNamespaceName, removeMappings[node.Annotations[const_ctrl.VirtualNodeClusterId]]); err != nil {
 						return ctrl.Result{}, err
 					}
 					delete(removeMappings, node.Annotations[const_ctrl.VirtualNodeClusterId])
@@ -135,8 +133,8 @@ func (r *NamespaceReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 	}
 
 	if len(removeMappings) > 0 {
-		klog.Info(" Delete all unnecessary mapping in NamespaceMaps")
-		if err := r.removeRemoteNamespaces(namespace.GetName(), removeMappings); err != nil {
+		klog.Info(" Delete all unnecessary entries in NamespaceMaps")
+		if err := r.removeDesiredMappings(namespace.GetName(), removeMappings); err != nil {
 			return ctrl.Result{}, err
 		}
 	}

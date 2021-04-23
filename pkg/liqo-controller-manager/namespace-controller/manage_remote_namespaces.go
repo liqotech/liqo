@@ -9,25 +9,25 @@ import (
 )
 
 // Removes right entry from one NamespaceMap
-func (r *NamespaceReconciler) removeRemoteNamespace(localName string, nm mapsv1alpha1.NamespaceMap) error {
+func (r *NamespaceReconciler) removeDesiredMapping(localName string, nm mapsv1alpha1.NamespaceMap) error {
 
-	if _, ok := nm.Status.NattingTable[localName]; ok {
-		delete(nm.Status.NattingTable, localName)
+	if _, ok := nm.Spec.DesiredMapping[localName]; ok {
+		delete(nm.Spec.DesiredMapping, localName)
 		if err := r.Update(context.TODO(), &nm); err != nil {
-			klog.Error(err, " --> Unable to update NamespaceMap")
+			klog.Errorf("%s --> Unable to update NamespaceMap '%s'", err, nm.GetName())
 			return err
 		}
-		klog.Info(" Entries deleted correctly")
+		klog.Infof(" Entries deleted correctly from '%s'", nm.GetName())
 	}
 
 	return nil
 }
 
 // Removes right entries from more than one NamespaceMap (it depends on len(nms))
-func (r *NamespaceReconciler) removeRemoteNamespaces(localName string, nms map[string]mapsv1alpha1.NamespaceMap) error {
+func (r *NamespaceReconciler) removeDesiredMappings(localName string, nms map[string]mapsv1alpha1.NamespaceMap) error {
 
 	for _, nm := range nms {
-		if err := r.removeRemoteNamespace(localName, nm); err != nil {
+		if err := r.removeDesiredMapping(localName, nm); err != nil {
 			return err
 		}
 	}
@@ -35,37 +35,39 @@ func (r *NamespaceReconciler) removeRemoteNamespaces(localName string, nms map[s
 }
 
 // Adds right entry on one NamespaceMap, if it isn't already there
-func (r *NamespaceReconciler) createRemoteNamespace(n *corev1.Namespace, remoteName string, nm mapsv1alpha1.NamespaceMap) error {
+func (r *NamespaceReconciler) addDesiredMapping(n *corev1.Namespace, remoteName string, nm mapsv1alpha1.NamespaceMap) error {
 
-	if nm.Status.NattingTable == nil {
-		nm.Status.NattingTable = map[string]string{}
+	if nm.Spec.DesiredMapping == nil {
+		nm.Spec.DesiredMapping = map[string]string{}
 	}
 
-	if oldValue, ok := nm.Status.NattingTable[n.GetName()]; ok {
+	if oldValue, ok := nm.Spec.DesiredMapping[n.GetName()]; ok {
 		// if entries are already here, but mappingLabel has a different value from the previous one, we force again the old value.
 		// Common user cannot change remote namespace name while the namespace is offloaded onto remote clusters
 		if oldValue != remoteName {
 			n.GetLabels()[mappingLabel] = oldValue
 			if err := r.Update(context.TODO(), n); err != nil {
-				klog.Error(err, " --> Unable to update mapping label")
+				klog.Errorf("%s --> Unable to update '%s' label for namespace '%s' ", err, mappingLabel, nm.GetName())
 				return err
 			}
+			klog.Infof("Label '%s' successfully updated on namespace '%s' ", mappingLabel, nm.GetName())
 		}
 	} else {
-		nm.Status.NattingTable[n.GetName()] = remoteName
+		nm.Spec.DesiredMapping[n.GetName()] = remoteName
 		if err := r.Patch(context.TODO(), &nm, client.Merge); err != nil {
-			klog.Error(err, " --> Unable to add entries in NamespaceMap")
+			klog.Errorf("%s --> Unable to add entry for namespace '%s' on NamespaceMap '%s'", err, n.GetName(), nm.GetName())
 			return err
 		}
+		klog.Infof("Entry for namespace '%s' successfully added on NamespaceMap '%s' ", n.GetName(), nm.GetName())
 	}
 	return nil
 }
 
-// Adds right entries on more than one NamespaceMap (it depends on len(nms)), if they aren't already there
-func (r *NamespaceReconciler) createRemoteNamespaces(n *corev1.Namespace, remoteName string, nms map[string]mapsv1alpha1.NamespaceMap) error {
+// Adds right entries on more than one NamespaceMap (it depends on len(nms)), if entries aren't already there
+func (r *NamespaceReconciler) addDesiredMappings(n *corev1.Namespace, remoteName string, nms map[string]mapsv1alpha1.NamespaceMap) error {
 
 	for _, nm := range nms {
-		if err := r.createRemoteNamespace(n, remoteName, nm); err != nil {
+		if err := r.addDesiredMapping(n, remoteName, nm); err != nil {
 			return err
 		}
 	}
