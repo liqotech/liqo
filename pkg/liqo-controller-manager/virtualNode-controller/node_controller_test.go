@@ -18,13 +18,12 @@ import (
 )
 
 const (
-	testLabel = "test/key"
-	testValue = "test-value"
+	testLabel = "namespace1"
+	testValue = "namespace1-remote"
 )
 
 var _ = Describe("VirtualNode controller", func() {
 
-	ctx = context.TODO()
 	nms = &mapsv1alpha1.NamespaceMapList{}
 
 	Context("Check if resources VirtualNodes and NamespaceMaps are correctly initialized", func() {
@@ -44,7 +43,7 @@ var _ = Describe("VirtualNode controller", func() {
 
 			By(fmt.Sprintf("Try to get virtual-node: %s", nameVirtualNode1))
 			Eventually(func() bool {
-				if err := k8sClient.Get(ctx, types.NamespacedName{Name: nameVirtualNode1}, virtualNode1); err != nil {
+				if err := k8sClient.Get(context.TODO(), types.NamespacedName{Name: nameVirtualNode1}, virtualNode1); err != nil {
 					return false
 				}
 				return true
@@ -63,7 +62,7 @@ var _ = Describe("VirtualNode controller", func() {
 
 			By(fmt.Sprintf("Try to get virtual-node: %s", nameVirtualNode2))
 			Eventually(func() bool {
-				if err := k8sClient.Get(ctx, types.NamespacedName{Name: nameVirtualNode2}, virtualNode2); err != nil {
+				if err := k8sClient.Get(context.TODO(), types.NamespacedName{Name: nameVirtualNode2}, virtualNode2); err != nil {
 					return false
 				}
 				return true
@@ -75,7 +74,7 @@ var _ = Describe("VirtualNode controller", func() {
 
 			By(fmt.Sprintf("Try to get virtual-node: %s", nameVirtualNode1))
 			Eventually(func() bool {
-				if err := k8sClient.Get(ctx, types.NamespacedName{Name: nameVirtualNode1}, virtualNode1); err != nil {
+				if err := k8sClient.Get(context.TODO(), types.NamespacedName{Name: nameVirtualNode1}, virtualNode1); err != nil {
 					return false
 				}
 				return true
@@ -105,15 +104,15 @@ var _ = Describe("VirtualNode controller", func() {
 			Expect(nms.Items[0].GetOwnerReferences()).To(ContainElement(expectedOwnerReference))
 
 			By(fmt.Sprintf("Try to check presence of finalizer in NamespaceMap: %s", nms.Items[0].GetName()))
-			Expect(nms.Items[0].GetFinalizers()).To(ContainElement(namespaceMapFinalizer))
+			Expect(nms.Items[0].GetFinalizers()).To(ContainElement(virtualNodeControllerFinalizer))
 
 			By(fmt.Sprintf("Try to check presence of finalizer in VirtualNode: %s", virtualNode1.GetName()))
 			// i have to update my node instance, because finalizer could be updated after my first get
 			Eventually(func() bool {
-				if err := k8sClient.Get(ctx, types.NamespacedName{Name: nameVirtualNode1}, virtualNode1); err != nil {
+				if err := k8sClient.Get(context.TODO(), types.NamespacedName{Name: nameVirtualNode1}, virtualNode1); err != nil {
 					return false
 				}
-				return slice.ContainsString(virtualNode1.GetFinalizers(), virtualNodeFinalizer, nil)
+				return slice.ContainsString(virtualNode1.GetFinalizers(), virtualNodeControllerFinalizer, nil)
 			}, timeout, interval).Should(BeTrue())
 
 		})
@@ -122,7 +121,7 @@ var _ = Describe("VirtualNode controller", func() {
 
 			By(fmt.Sprintf("Try to get virtual-node: %s", nameVirtualNode2))
 			Eventually(func() bool {
-				if err := k8sClient.Get(ctx, types.NamespacedName{Name: nameVirtualNode2}, virtualNode2); err != nil {
+				if err := k8sClient.Get(context.TODO(), types.NamespacedName{Name: nameVirtualNode2}, virtualNode2); err != nil {
 					return false
 				}
 				return true
@@ -152,15 +151,15 @@ var _ = Describe("VirtualNode controller", func() {
 			Expect(nms.Items[0].GetOwnerReferences()).To(ContainElement(expectedOwnerReference))
 
 			By(fmt.Sprintf("Try to check presence of finalizer in NamespaceMap: %s", nms.Items[0].GetName()))
-			Expect(nms.Items[0].GetFinalizers()).To(ContainElement(namespaceMapFinalizer))
+			Expect(nms.Items[0].GetFinalizers()).To(ContainElement(virtualNodeControllerFinalizer))
 
 			By(fmt.Sprintf("Try to check presence of finalizer in VirtualNode: %s", virtualNode2.GetName()))
 			// i have to update my node instance, because finalizer could be updated after my first get
 			Eventually(func() bool {
-				if err := k8sClient.Get(ctx, types.NamespacedName{Name: nameVirtualNode2}, virtualNode2); err != nil {
+				if err := k8sClient.Get(context.TODO(), types.NamespacedName{Name: nameVirtualNode2}, virtualNode2); err != nil {
 					return false
 				}
-				return slice.ContainsString(virtualNode2.GetFinalizers(), virtualNodeFinalizer, nil)
+				return slice.ContainsString(virtualNode2.GetFinalizers(), virtualNodeControllerFinalizer, nil)
 			}, timeout, interval).Should(BeTrue())
 
 		})
@@ -169,13 +168,11 @@ var _ = Describe("VirtualNode controller", func() {
 
 	Context("Check if a non-virtual node is monitored", func() {
 
-		ctx = context.TODO()
-
 		It("Check absence of NamespaceMap and of finalizer", func() {
 
 			By(fmt.Sprintf("Try to get not virtual-node: %s", nameSimpleNode))
 			Eventually(func() bool {
-				if err := k8sClient.Get(ctx, types.NamespacedName{Name: nameSimpleNode}, simpleNode); err != nil {
+				if err := k8sClient.Get(context.TODO(), types.NamespacedName{Name: nameSimpleNode}, simpleNode); err != nil {
 					return false
 				}
 				return true
@@ -192,12 +189,12 @@ var _ = Describe("VirtualNode controller", func() {
 				return false
 			}, timeout/5, interval).Should(BeTrue())
 
-			By(fmt.Sprintf("Check absence of finalizer %s: ", virtualNodeFinalizer))
+			By(fmt.Sprintf("Check absence of finalizer %s: ", virtualNodeControllerFinalizer))
 			Consistently(func() bool {
-				if err := k8sClient.Get(ctx, types.NamespacedName{Name: nameSimpleNode}, simpleNode); err != nil {
+				if err := k8sClient.Get(context.TODO(), types.NamespacedName{Name: nameSimpleNode}, simpleNode); err != nil {
 					return true
 				}
-				return slice.ContainsString(simpleNode.GetFinalizers(), virtualNodeFinalizer, nil)
+				return slice.ContainsString(simpleNode.GetFinalizers(), virtualNodeControllerFinalizer, nil)
 			}, timeout/5, interval).ShouldNot(BeTrue())
 
 		})
@@ -205,8 +202,6 @@ var _ = Describe("VirtualNode controller", func() {
 	})
 
 	Context("Check deletion lifecycle of Namespacemaps and virtual-nodes ", func() {
-
-		ctx = context.TODO()
 
 		BeforeEach(func() {
 			buffer.Reset()
@@ -217,25 +212,35 @@ var _ = Describe("VirtualNode controller", func() {
 			oldName := ""
 			By(fmt.Sprintf("Try to delete NamespaceMap associated to: %s", remoteClusterId1))
 			Eventually(func() bool {
-				if err := k8sClient.List(context.TODO(), nms, client.InNamespace(const_ctrl.MapNamespaceName), client.MatchingLabels{const_ctrl.VirtualNodeClusterId: remoteClusterId1}); err != nil {
+				if err := k8sClient.List(context.TODO(), nms, client.MatchingLabels{const_ctrl.VirtualNodeClusterId: remoteClusterId1}); err != nil {
 					return false
 				}
 				if len(nms.Items) != 1 {
 					return false
 				}
 
-				if nms.Items[0].Status.NattingTable == nil {
-					nms.Items[0].Status.NattingTable = map[string]string{}
+				if nms.Items[0].Spec.DesiredMapping == nil {
+					nms.Items[0].Spec.DesiredMapping = map[string]string{}
 				}
-				nms.Items[0].Status.NattingTable[testLabel] = testValue
+
+				// random state
+				if nms.Items[0].Status.CurrentMapping == nil {
+					nms.Items[0].Status.CurrentMapping = map[string]mapsv1alpha1.RemoteNamespaceStatus{}
+				}
+				nms.Items[0].Spec.DesiredMapping[testLabel] = testValue
+				nms.Items[0].Status.CurrentMapping[testLabel] = mapsv1alpha1.RemoteNamespaceStatus{
+					RemoteNamespace: testValue,
+					Phase:           mapsv1alpha1.MappingAccepted,
+				}
+
 				By(fmt.Sprintf("Try to update NamespaceMap: %s", nms.Items[0].GetName()))
-				if err := k8sClient.Update(ctx, &nms.Items[0]); err != nil {
+				if err := k8sClient.Update(context.TODO(), &nms.Items[0]); err != nil {
 					return false
 				}
 
 				oldName = nms.Items[0].GetName()
 				By(fmt.Sprintf("Try to delete NamespaceMap: %s", nms.Items[0].GetName()))
-				if err := k8sClient.Delete(ctx, &nms.Items[0]); err != nil {
+				if err := k8sClient.Delete(context.TODO(), &nms.Items[0]); err != nil {
 					return false
 				}
 				return true
@@ -249,7 +254,8 @@ var _ = Describe("VirtualNode controller", func() {
 				if len(nms.Items) != 1 {
 					return false
 				}
-				if oldName != nms.Items[0].GetName() && nms.Items[0].Status.NattingTable[testLabel] == testValue {
+				if oldName != nms.Items[0].GetName() && nms.Items[0].Spec.DesiredMapping[testLabel] == testValue &&
+					nms.Items[0].Status.CurrentMapping[testLabel].RemoteNamespace == testValue && nms.Items[0].Status.CurrentMapping[testLabel].Phase == mapsv1alpha1.MappingAccepted {
 					return true
 				}
 				return false
@@ -269,18 +275,27 @@ var _ = Describe("VirtualNode controller", func() {
 					return false
 				}
 
-				if nms.Items[0].Status.NattingTable == nil {
-					nms.Items[0].Status.NattingTable = map[string]string{}
+				if nms.Items[0].Spec.DesiredMapping == nil {
+					nms.Items[0].Spec.DesiredMapping = map[string]string{}
 				}
-				nms.Items[0].Status.NattingTable[testLabel] = testValue
+
+				if nms.Items[0].Status.CurrentMapping == nil {
+					nms.Items[0].Status.CurrentMapping = map[string]mapsv1alpha1.RemoteNamespaceStatus{}
+				}
+				nms.Items[0].Spec.DesiredMapping[testLabel] = testValue
+				nms.Items[0].Status.CurrentMapping[testLabel] = mapsv1alpha1.RemoteNamespaceStatus{
+					RemoteNamespace: testValue,
+					Phase:           mapsv1alpha1.MappingAccepted,
+				}
+
 				By(fmt.Sprintf("Try to update NamespaceMap: %s", nms.Items[0].GetName()))
-				if err := k8sClient.Update(ctx, &nms.Items[0]); err != nil {
+				if err := k8sClient.Update(context.TODO(), &nms.Items[0]); err != nil {
 					return false
 				}
 
 				oldName = nms.Items[0].GetName()
 				By(fmt.Sprintf("Try to delete NamespaceMap: %s", nms.Items[0].GetName()))
-				if err := k8sClient.Delete(ctx, &nms.Items[0]); err != nil {
+				if err := k8sClient.Delete(context.TODO(), &nms.Items[0]); err != nil {
 					return false
 				}
 				return true
@@ -294,7 +309,8 @@ var _ = Describe("VirtualNode controller", func() {
 				if len(nms.Items) != 1 {
 					return false
 				}
-				if oldName != nms.Items[0].GetName() && nms.Items[0].Status.NattingTable[testLabel] == testValue {
+				if oldName != nms.Items[0].GetName() && nms.Items[0].Spec.DesiredMapping[testLabel] == testValue &&
+					nms.Items[0].Status.CurrentMapping[testLabel].RemoteNamespace == testValue && nms.Items[0].Status.CurrentMapping[testLabel].Phase == mapsv1alpha1.MappingAccepted {
 					return true
 				}
 				return false
@@ -306,10 +322,10 @@ var _ = Describe("VirtualNode controller", func() {
 
 			By(fmt.Sprintf("Try to delete virtual-node: %s", nameVirtualNode1))
 			Eventually(func() bool {
-				if err := k8sClient.Get(ctx, types.NamespacedName{Name: nameVirtualNode1}, virtualNode1); err != nil {
+				if err := k8sClient.Get(context.TODO(), types.NamespacedName{Name: nameVirtualNode1}, virtualNode1); err != nil {
 					return false
 				}
-				if err := k8sClient.Delete(ctx, virtualNode1); err != nil {
+				if err := k8sClient.Delete(context.TODO(), virtualNode1); err != nil {
 					return false
 				}
 				return true
@@ -322,7 +338,7 @@ var _ = Describe("VirtualNode controller", func() {
 
 			By(fmt.Sprintf("Try to get if virtual-node %s is removed", nameVirtualNode1))
 			Eventually(func() bool {
-				if err := k8sClient.Get(ctx, types.NamespacedName{Name: nameVirtualNode1}, virtualNode1); err != nil {
+				if err := k8sClient.Get(context.TODO(), types.NamespacedName{Name: nameVirtualNode1}, virtualNode1); err != nil {
 					if errors.IsNotFound(err) {
 						return true
 					}
@@ -335,10 +351,10 @@ var _ = Describe("VirtualNode controller", func() {
 
 			By(fmt.Sprintf("Try to delete virtual-node: %s", nameVirtualNode2))
 			Eventually(func() bool {
-				if err := k8sClient.Get(ctx, types.NamespacedName{Name: nameVirtualNode2}, virtualNode2); err != nil {
+				if err := k8sClient.Get(context.TODO(), types.NamespacedName{Name: nameVirtualNode2}, virtualNode2); err != nil {
 					return false
 				}
-				if err := k8sClient.Delete(ctx, virtualNode2); err != nil {
+				if err := k8sClient.Delete(context.TODO(), virtualNode2); err != nil {
 					return false
 				}
 				return true
@@ -351,7 +367,7 @@ var _ = Describe("VirtualNode controller", func() {
 
 			By(fmt.Sprintf("Try to get if virtual-node %s is removed", nameVirtualNode2))
 			Eventually(func() bool {
-				if err := k8sClient.Get(ctx, types.NamespacedName{Name: nameVirtualNode2}, virtualNode2); err != nil {
+				if err := k8sClient.Get(context.TODO(), types.NamespacedName{Name: nameVirtualNode2}, virtualNode2); err != nil {
 					if errors.IsNotFound(err) {
 						return true
 					}

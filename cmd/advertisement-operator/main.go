@@ -15,10 +15,7 @@ package main
 import (
 	"flag"
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
-	mapsv1alpha1 "github.com/liqotech/liqo/apis/virtualKubelet/v1alpha1"
 	"github.com/liqotech/liqo/pkg/crdClient"
-	namectrl "github.com/liqotech/liqo/pkg/liqo-controller-manager/namespace-controller"
-	virtualNodectrl "github.com/liqotech/liqo/pkg/liqo-controller-manager/virtualNode-controller"
 	"github.com/liqotech/liqo/pkg/mapperUtils"
 	"github.com/liqotech/liqo/pkg/vkMachinery"
 	"github.com/liqotech/liqo/pkg/vkMachinery/csr"
@@ -58,7 +55,6 @@ func init() {
 
 	_ = netv1alpha1.AddToScheme(scheme)
 
-	_ = mapsv1alpha1.AddToScheme(scheme)
 	// +kubebuilder:scaffold:scheme
 }
 
@@ -155,25 +151,6 @@ func main() {
 	if err = advertisementReconciler.SetupWithManager(mgr); err != nil {
 		klog.Error(err)
 		os.Exit(1)
-	}
-
-	namespaceReconciler := &namectrl.NamespaceReconciler{
-		Client: mgr.GetClient(),
-		Scheme: mgr.GetScheme(),
-	}
-
-	if err = namespaceReconciler.SetupWithManager(mgr); err != nil {
-		klog.Fatal(err)
-	}
-	// +kubebuilder:scaffold:builder
-
-	virtualNodeReconciler := &virtualNodectrl.VirtualNodeReconciler{
-		Client: mgr.GetClient(),
-		Scheme: mgr.GetScheme(),
-	}
-
-	if err = virtualNodeReconciler.SetupWithManager(mgr); err != nil {
-		klog.Fatal(err)
 	}
 
 	c := make(chan struct{})

@@ -35,17 +35,35 @@ spec:
             type: object
           spec:
             description: NamespaceMapSpec defines the desired state of NamespaceMap
+            properties:
+              desiredMapping:
+                additionalProperties:
+                  type: string
+                description: DesiredMapping is filled by NamespaceController when
+                  a user requires to offload a remote namespace, every entry of the
+                  map represents the localNamespaceName[key]-remoteNamespaceName[value]
+                  association. When a new entry is created the NamespaceMap Controller
+                  tries to create the associated remote namespace.
+                type: object
             type: object
           status:
             description: NamespaceMapStatus defines the observed state of NamespaceMap
             properties:
-              nattingTable:
+              currentMapping:
                 additionalProperties:
-                  type: string
-                description: NattingTable is used to monitor remote Namespaces creation,
-                  it allows virtualKubelet to know how many local namespaces are offloaded
-                  on the remote cluster associated to this NamespaceMap. key = local
-                  namespace name , value = remote namespace name
+                  properties:
+                    phase:
+                      description: Phase is the remote Namespace's actual status (Accepted,Refused)
+                      type: string
+                    remoteNamespace:
+                      description: RemoteNamespace is the name chosen by the user
+                        at creation time (when he puts labels on his local namespace)
+                      type: string
+                  type: object
+                description: CurrentMapping is filled by NamespaceMap Controller,
+                  when a new remote namespace's creation is requested. The key is
+                  the local namespace name, while the value is a summary of new remote
+                  namespace's status
                 type: object
             type: object
         type: object

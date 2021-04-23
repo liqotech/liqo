@@ -46,14 +46,14 @@ func mappingLabelPresence(labels map[string]string) bool {
 func manageLabelPredicate() predicate.Predicate {
 	return predicate.Funcs{
 		UpdateFunc: func(e event.UpdateEvent) bool {
-			// if a namespace with namespaceFinalizer is deleted, trigger Reconcile
-			if !(e.MetaNew.GetDeletionTimestamp().IsZero()) && slice.ContainsString(e.MetaNew.GetFinalizers(), namespaceFinalizer, nil) {
+			// if a namespace with namespaceControllerFinalizer is deleted, trigger Reconcile
+			if !(e.MetaNew.GetDeletionTimestamp().IsZero()) && slice.ContainsString(e.MetaNew.GetFinalizers(), namespaceControllerFinalizer, nil) {
 				return true
 			}
 
 			// if the number of labels is changed after the event, and before or after the event there was mappingLabel, maybe controller has to do something, so trigger it
 			// ||
-			// if mappingLabel value is changed while the namespace is offloaded, controller has to force mappingLabel to its old value (see createRemoteNamespace function)
+			// if mappingLabel value is changed while the namespace is offloaded, controller has to force mappingLabel to its old value (see addDesiredMapping function)
 			return ((len(e.MetaOld.GetLabels()) != len(e.MetaNew.GetLabels())) && (mappingLabelPresence(e.MetaOld.GetLabels()) ||
 				mappingLabelPresence(e.MetaNew.GetLabels()))) || mappingLabelUpdate(e.MetaOld.GetLabels(), e.MetaNew.GetLabels())
 		},

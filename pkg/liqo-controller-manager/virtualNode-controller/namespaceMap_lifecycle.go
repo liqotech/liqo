@@ -14,9 +14,29 @@ import (
 	"time"
 )
 
+func (r *VirtualNodeReconciler) removeAllDesiredMappings(nm mapsv1alpha1.NamespaceMap) error {
+
+	for localName := range nm.Spec.DesiredMapping {
+		delete(nm.Spec.DesiredMapping, localName)
+	}
+
+	ctrlutils.RemoveFinalizer(&nm, virtualNodeControllerFinalizer)
+	klog.Infof("The NamespaceMap '%s' is requested to be deleted", nm.GetName())
+
+	if err := r.Update(context.TODO(), &nm); err != nil {
+		klog.Errorf(" %s --> Problems while removing finalizer from '%s'", err, nm.GetName())
+		return err
+	}
+	klog.Infof("Finalizer is correctly removed from the NamespaceMap '%s'", nm.GetName())
+
+	return nil
+}
+
 // remove Finalizer and Update the NamespaceMap
-func (r *VirtualNodeReconciler) removeNamespaceMapFinalizer(nm mapsv1alpha1.NamespaceMap) error {
-	ctrlutils.RemoveFinalizer(&nm, namespaceMapFinalizer)
+func (r *VirtualNodeReconciler) removeNamespaceMapFinalizers(nm mapsv1alpha1.NamespaceMap) error {
+	ctrlutils.RemoveFinalizer(&nm, virtualNodeControllerFinalizer)
+	ctrlutils.RemoveFinalizer(&nm, constctrl.NamespaceMapControllerFinalizer)
+
 	klog.Infof("The NamespaceMap '%s' is requested to be deleted", nm.GetName())
 
 	if err := r.Update(context.TODO(), &nm); err != nil {
@@ -31,12 +51,15 @@ func (r *VirtualNodeReconciler) removeNamespaceMapFinalizer(nm mapsv1alpha1.Name
 }
 
 // create a new NamespaceMap with Finalizer and OwnerReference
-func (r *VirtualNodeReconciler) createNamespaceMap(n corev1.Node, s mapsv1alpha1.NamespaceMapStatus) error {
+func (r *VirtualNodeReconciler) createNamespaceMap(n corev1.Node, stat mapsv1alpha1.NamespaceMapStatus, spec mapsv1alpha1.NamespaceMapSpec) error {
+
+	if _, ok := n.GetAnnotations()[constctrl.VirtualNodeClusterId]; !ok {
+		err := fmt.Errorf("label '%s' is not found on node '%s'", constctrl.VirtualNodeClusterId, n.GetName())
+		klog.Error(err)
+		return err
+	}
+
 	nm := &mapsv1alpha1.NamespaceMap{
-		TypeMeta: metav1.TypeMeta{
-			APIVersion: "namespaceresources.liqo.io/v1",
-			Kind:       "NamespaceMap",
-		},
 		ObjectMeta: metav1.ObjectMeta{
 			GenerateName: fmt.Sprintf("%s-", n.GetAnnotations()[constctrl.VirtualNodeClusterId]),
 			Namespace:    constctrl.MapNamespaceName,
@@ -44,10 +67,15 @@ func (r *VirtualNodeReconciler) createNamespaceMap(n corev1.Node, s mapsv1alpha1
 				constctrl.VirtualNodeClusterId: n.GetAnnotations()[constctrl.VirtualNodeClusterId],
 			},
 		},
-		Status: s,
+		Spec:   spec,
+		Status: stat,
 	}
 
-	ctrlutils.AddFinalizer(nm, namespaceMapFinalizer)
+	if len(nm.Status.CurrentMapping) > 0 {
+		ctrlutils.AddFinalizer(nm, constctrl.NamespaceMapControllerFinalizer)
+	}
+
+	ctrlutils.AddFinalizer(nm, virtualNodeControllerFinalizer)
 	if err := ctrlutils.SetControllerReference(&n, nm, r.Scheme); err != nil {
 		return err
 	}
@@ -64,11 +92,11 @@ func (r *VirtualNodeReconciler) createNamespaceMap(n corev1.Node, s mapsv1alpha1
 func (r *VirtualNodeReconciler) regenerateNamespaceMap(nm mapsv1alpha1.NamespaceMap, n corev1.Node) error {
 
 	// create a new namespaceMap with same Status but with different Name
-	if err := r.createNamespaceMap(n, nm.Status); err != nil {
+	if err := r.createNamespaceMap(n, nm.Status, nm.Spec); err != nil {
 		return err
 	}
 
-	if err := r.removeNamespaceMapFinalizer(nm); err != nil {
+	if err := r.removeNamespaceMapFinalizers(nm); err != nil {
 		return err
 	}
 	return nil
@@ -85,7 +113,7 @@ func (r *VirtualNodeReconciler) namespaceMapLifecycle(n corev1.Node) error {
 	}
 
 	if len(nms.Items) == 0 {
-		return r.createNamespaceMap(n, mapsv1alpha1.NamespaceMapStatus{})
+		return r.createNamespaceMap(n, mapsv1alpha1.NamespaceMapStatus{}, mapsv1alpha1.NamespaceMapSpec{})
 	}
 
 	if len(nms.Items) == 1 {
@@ -116,7 +144,7 @@ func (r *VirtualNodeReconciler) namespaceMapLifecycle(n corev1.Node) error {
 					}
 					continue
 				}
-				if err := r.removeNamespaceMapFinalizer(nm); err != nil {
+				if err := r.removeNamespaceMapFinalizers(nm); err != nil {
 					return err
 				}
 			}

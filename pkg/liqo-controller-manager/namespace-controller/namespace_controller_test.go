@@ -56,8 +56,8 @@ var _ = Describe("Namespace controller", func() {
 				if len(nms.Items) != 1 {
 					return false
 				}
-				By("Check status of NattingTable")
-				if _, ok := nms.Items[0].Status.NattingTable[nameNamespaceTest]; !ok {
+				By("Check Desired Mapping")
+				if _, ok := nms.Items[0].Spec.DesiredMapping[nameNamespaceTest]; !ok {
 					return true
 				}
 				return false
@@ -71,8 +71,8 @@ var _ = Describe("Namespace controller", func() {
 				if len(nms.Items) != 1 {
 					return false
 				}
-				By("Check status of NattingTable")
-				if _, ok := nms.Items[0].Status.NattingTable[nameNamespaceTest]; !ok {
+				By("Check Desired Mapping")
+				if _, ok := nms.Items[0].Spec.DesiredMapping[nameNamespaceTest]; !ok {
 					return true
 				}
 				return false
@@ -80,7 +80,7 @@ var _ = Describe("Namespace controller", func() {
 
 		})
 
-		It(fmt.Sprintf("Adding %s and %s , check presence of finalizer: %s", mappingLabel, offloadingLabel, namespaceFinalizer), func() {
+		It(fmt.Sprintf("Adding %s and %s , check presence of finalizer: %s", mappingLabel, offloadingLabel, namespaceControllerFinalizer), func() {
 
 			By(fmt.Sprintf("Try to get Namespace: %s", nameNamespaceTest))
 			Eventually(func() bool {
@@ -102,12 +102,12 @@ var _ = Describe("Namespace controller", func() {
 				if err := k8sClient.Get(ctx, types.NamespacedName{Name: nameNamespaceTest}, namespace); err != nil {
 					return false
 				}
-				return slice.ContainsString(namespace.GetFinalizers(), namespaceFinalizer, nil)
+				return slice.ContainsString(namespace.GetFinalizers(), namespaceControllerFinalizer, nil)
 			}, timeout, interval).Should(BeTrue())
 
 		})
 
-		It(fmt.Sprintf("Adding %s and %s , check NamespaceMaps status", mappingLabel, offloadingLabel), func() {
+		It(fmt.Sprintf("Adding %s and %s , check NamespaceMaps desired mappings", mappingLabel, offloadingLabel), func() {
 
 			By(fmt.Sprintf("Try to get Namespace: %s", nameNamespaceTest))
 			Eventually(func() bool {
@@ -132,8 +132,8 @@ var _ = Describe("Namespace controller", func() {
 				if len(nms.Items) != 1 {
 					return false
 				}
-				By("Check status of NattingTable")
-				if value, ok := nms.Items[0].Status.NattingTable[nameNamespaceTest]; ok && value == nameRemoteNamespace {
+				By("Check Desired Mappings")
+				if value, ok := nms.Items[0].Spec.DesiredMapping[nameNamespaceTest]; ok && value == nameRemoteNamespace {
 					return true
 				}
 				return false
@@ -147,8 +147,8 @@ var _ = Describe("Namespace controller", func() {
 				if len(nms.Items) != 1 {
 					return false
 				}
-				By("Check status of NattingTable")
-				if value, ok := nms.Items[0].Status.NattingTable[nameNamespaceTest]; ok && value == nameRemoteNamespace {
+				By("Check Desired Mappings")
+				if value, ok := nms.Items[0].Spec.DesiredMapping[nameNamespaceTest]; ok && value == nameRemoteNamespace {
 					return true
 				}
 				return false
@@ -183,8 +183,8 @@ var _ = Describe("Namespace controller", func() {
 				if len(nms.Items) != 1 {
 					return false
 				}
-				By("Check status of NattingTable")
-				if value, ok := nms.Items[0].Status.NattingTable[nameNamespaceTest]; ok && value == nameRemoteNamespace {
+				By("Check Desired Mappings")
+				if value, ok := nms.Items[0].Spec.DesiredMapping[nameNamespaceTest]; ok && value == nameRemoteNamespace {
 					return true
 				}
 				return false
@@ -220,8 +220,8 @@ var _ = Describe("Namespace controller", func() {
 					return false
 				}
 
-				By("Check status of NattingTable")
-				if value, ok := nms.Items[0].Status.NattingTable[nameNamespaceTest]; ok && value == nameRemoteNamespace {
+				By("Check Desired Mappings")
+				if value, ok := nms.Items[0].Spec.DesiredMapping[nameNamespaceTest]; ok && value == nameRemoteNamespace {
 					return true
 				}
 				return false
@@ -237,8 +237,8 @@ var _ = Describe("Namespace controller", func() {
 					return true
 				}
 
-				By("Check status of NattingTable")
-				if value, ok := nms.Items[0].Status.NattingTable[nameNamespaceTest]; ok && value == nameRemoteNamespace {
+				By("Check Desired Mappings")
+				if value, ok := nms.Items[0].Spec.DesiredMapping[nameNamespaceTest]; ok && value == nameRemoteNamespace {
 					return true
 				}
 				return false
@@ -272,8 +272,8 @@ var _ = Describe("Namespace controller", func() {
 					return false
 				}
 
-				By("Check status of NattingTable")
-				if value, ok := nms.Items[0].Status.NattingTable[nameNamespaceTest]; ok && value == nameRemoteNamespace {
+				By("Check Desired Mappings")
+				if value, ok := nms.Items[0].Spec.DesiredMapping[nameNamespaceTest]; ok && value == nameRemoteNamespace {
 					return true
 				}
 				return false
@@ -289,7 +289,7 @@ var _ = Describe("Namespace controller", func() {
 				}
 
 				By("Check status of NattingTable")
-				if value, ok := nms.Items[0].Status.NattingTable[nameNamespaceTest]; ok && value == nameRemoteNamespace {
+				if value, ok := nms.Items[0].Spec.DesiredMapping[nameNamespaceTest]; ok && value == nameRemoteNamespace {
 					return true
 				}
 				return false
@@ -354,8 +354,8 @@ var _ = Describe("Namespace controller", func() {
 					return false
 				}
 
-				By("Check status of NattingTable")
-				if value, ok := nms.Items[0].Status.NattingTable[nameNamespaceTest]; ok && value == nameRemoteNamespace {
+				By("Check Desired Mappings")
+				if value, ok := nms.Items[0].Spec.DesiredMapping[nameNamespaceTest]; ok && value == nameRemoteNamespace {
 					return true
 				}
 				return false
@@ -370,8 +370,8 @@ var _ = Describe("Namespace controller", func() {
 					return false
 				}
 
-				By("Check status of NattingTable")
-				if value, ok := nms.Items[0].Status.NattingTable[nameNamespaceTest]; ok && value == nameRemoteNamespace {
+				By("Check Desired Mappings")
+				if value, ok := nms.Items[0].Spec.DesiredMapping[nameNamespaceTest]; ok && value == nameRemoteNamespace {
 					return true
 				}
 				return false
@@ -403,8 +403,8 @@ var _ = Describe("Namespace controller", func() {
 					return false
 				}
 
-				By("Check status of NattingTable")
-				if _, ok := nms.Items[0].Status.NattingTable[nameNamespaceTest]; !ok {
+				By("Check Desired Mappings")
+				if _, ok := nms.Items[0].Spec.DesiredMapping[nameNamespaceTest]; !ok {
 					return true
 				}
 				return false
@@ -420,8 +420,8 @@ var _ = Describe("Namespace controller", func() {
 					return false
 				}
 
-				By("Check status of NattingTable")
-				if _, ok := nms.Items[0].Status.NattingTable[nameNamespaceTest]; !ok {
+				By("Check Desired Mappings")
+				if _, ok := nms.Items[0].Spec.DesiredMapping[nameNamespaceTest]; !ok {
 					return true
 				}
 				return false
@@ -453,8 +453,8 @@ var _ = Describe("Namespace controller", func() {
 					return false
 				}
 
-				By("Check status of NattingTable")
-				if _, ok := nms.Items[0].Status.NattingTable[nameNamespaceTest]; !ok {
+				By("Check Desired Mappings")
+				if _, ok := nms.Items[0].Spec.DesiredMapping[nameNamespaceTest]; !ok {
 					return true
 				}
 				return false
@@ -470,8 +470,8 @@ var _ = Describe("Namespace controller", func() {
 					return false
 				}
 
-				By("Check status of NattingTable")
-				if _, ok := nms.Items[0].Status.NattingTable[nameNamespaceTest]; !ok {
+				By("Check Desired Mappings")
+				if _, ok := nms.Items[0].Spec.DesiredMapping[nameNamespaceTest]; !ok {
 					return true
 				}
 				return false
