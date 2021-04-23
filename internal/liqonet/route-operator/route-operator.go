@@ -86,8 +86,8 @@ func NewRouteController(mgr ctrl.Manager, wgc wireguard.Client, nl wireguard.Net
 		klog.Errorf("unable to create the controller: %v", err)
 		return nil, err
 	}
-	if directRouting{
-		if routeManager, err = direct_routing.NewDirectRouteManager(utils.RoutingTableName, utils.RoutingTableID, mgr.GetEventRecorderFor(eventRecorderName)); err != nil{
+	if directRouting {
+		if routeManager, err = direct_routing.NewDirectRouteManager(utils.RoutingTableName, utils.RoutingTableID, mgr.GetEventRecorderFor(eventRecorderName)); err != nil {
 			klog.Errorf("unable to create the controller: %v", err)
 			return nil, err
 		}
@@ -101,7 +101,7 @@ func NewRouteController(mgr ctrl.Manager, wgc wireguard.Client, nl wireguard.Net
 		wg:          wg,
 		nodeName:    nodeName,
 		DynClient:   dynClient,
-		NetLink: routeManager,
+		NetLink:     routeManager,
 	}
 	return r, nil
 }
@@ -120,8 +120,9 @@ func NewRouteController(mgr ctrl.Manager, wgc wireguard.Client, nl wireguard.Net
 func (r *RouteController) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 	ctx := context.Background()
 	var tep netv1alpha1.TunnelEndpoint
+	var ifaceName string
 	//name of our finalizer
-	routeOperatorFinalizer := strings.Join([]string{OperatorName, r.nodeName, "liqo.io"}, "-")
+	routeOperatorFinalizer := strings.Join([]string{OperatorName, r.podIP, "liqo.io"}, "-")
 	var err error
 	if err = r.Get(ctx, req.NamespacedName, &tep); err != nil && k8sApiErrors.IsNotFound(err) {
 		klog.Errorf("unable to fetch resource %s :%v", req.String(), err)
@@ -133,6 +134,10 @@ func (r *RouteController) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 	//Here we check that the tunnelEndpoint resource has been fully processed. If not we do nothing.
 	if tep.Status.RemoteRemappedPodCIDR == "" {
 		return result, nil
+	}
+	if r.podIP == tep.Status.GatewayPodIP {
+		klog.Infof("%s -> running on same host as gateway, setting name of ifaces at 'liqo.host'", tep.Spec.ClusterID)
+		ifaceName = "liqo.host"
 	}
 	clusterID := tep.Spec.ClusterID
 	// examine DeletionTimestamp to determine if object is under deletion
@@ -165,7 +170,7 @@ func (r *RouteController) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 		}
 		return result, nil
 	}
-	if err := r.EnsureRoutesPerCluster("", &tep); err != nil {
+	if err := r.EnsureRoutesPerCluster(ifaceName, &tep); err != nil {
 		return result, err
 	}
 	return result, nil

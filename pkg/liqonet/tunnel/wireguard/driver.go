@@ -31,7 +31,7 @@ const (
 	AllowedIPs        = "allowedIPs"       // AllowedIPs is the key of the allowedIPs entry in the back-end map
 	deviceName        = "liqo-wg"          // name of the network interface
 	DriverName        = "wireguard"        // name of the driver which is also used as the type of the backend in tunnelendpoint CRD
-	keysName          = "wireguard-pubkey" // name of the secret that contains the public key used by wireguard
+	keysName          = "wireguard-pubkey" // name of the secret that contains the public key used by Wireguard
 	KeysLabel         = "net.liqo.io/key"  // label for the secret that contains the public key
 	defaultPort       = 5871
 	KeepAliveInterval = 10 * time.Second
@@ -51,7 +51,7 @@ type wgConfig struct {
 	pubKey wgtypes.Key
 }
 
-type wireguard struct {
+type Wireguard struct {
 	connections map[string]*netv1alpha1.Connection
 	client      *wgctrl.Client
 	link        netlink.Link
@@ -61,7 +61,7 @@ type wireguard struct {
 // NewDriver creates a new WireGuard driver
 func NewDriver(k8sClient *k8s.Clientset, namespace string) (tunnel.Driver, error) {
 	var err error
-	w := wireguard{
+	w := Wireguard{
 		connections: make(map[string]*netv1alpha1.Connection),
 		conf: wgConfig{
 			port: defaultPort,
@@ -111,7 +111,7 @@ func NewDriver(k8sClient *k8s.Clientset, namespace string) (tunnel.Driver, error
 	return &w, nil
 }
 
-func (w *wireguard) Init() error {
+func (w *Wireguard) Init() error {
 	// ip link set $DefaultDeviceName up
 	if err := netlink.LinkSetUp(w.link); err != nil {
 		return fmt.Errorf("failed to bring up WireGuard device: %v", err)
@@ -126,7 +126,7 @@ func (w *wireguard) Init() error {
 	return nil
 }
 
-func (w *wireguard) ConnectToEndpoint(tep *netv1alpha1.TunnelEndpoint) (*netv1alpha1.Connection, error) {
+func (w *Wireguard) ConnectToEndpoint(tep *netv1alpha1.TunnelEndpoint) (*netv1alpha1.Connection, error) {
 	// parse allowed IPs
 	allowedIPs, err := getAllowedIPs(tep)
 	if err != nil {
@@ -199,7 +199,7 @@ func (w *wireguard) ConnectToEndpoint(tep *netv1alpha1.TunnelEndpoint) (*netv1al
 	return c, nil
 }
 
-func (w *wireguard) DisconnectFromEndpoint(tep *netv1alpha1.TunnelEndpoint) error {
+func (w *Wireguard) DisconnectFromEndpoint(tep *netv1alpha1.TunnelEndpoint) error {
 	klog.Infof("Removing connection with cluster %s", tep.Spec.ClusterID)
 
 	s, found := tep.Status.Connection.PeerConfiguration[PublicKey]
@@ -233,7 +233,7 @@ func (w *wireguard) DisconnectFromEndpoint(tep *netv1alpha1.TunnelEndpoint) erro
 	return nil
 }
 
-func (w *wireguard) Close() error {
+func (w *Wireguard) Close() error {
 	//it removes the wireguard interface
 	var err error
 	if link, err := netlink.LinkByName(deviceName); err == nil {
@@ -250,7 +250,7 @@ func (w *wireguard) Close() error {
 }
 
 // Create new wg link
-func (w *wireguard) setWGLink() error {
+func (w *Wireguard) setWGLink() error {
 	var err error
 	// delete existing wg device if needed
 	if link, err := netlink.LinkByName(deviceName); err == nil {
@@ -351,7 +351,7 @@ func newConnectionOnError(msg string) *netv1alpha1.Connection {
 	}
 }
 
-func (w *wireguard) setKeys(c *k8s.Clientset, namespace string) error {
+func (w *Wireguard) setKeys(c *k8s.Clientset, namespace string) error {
 	var priv, pub wgtypes.Key
 	//first we check if a secret containing valid keys already exists
 	s, err := c.CoreV1().Secrets(namespace).Get(context.Background(), keysName, metav1.GetOptions{})
@@ -400,5 +400,17 @@ func (w *wireguard) setKeys(c *k8s.Clientset, namespace string) error {
 	}
 	w.conf.pubKey = pub
 	w.conf.priKey = priv
+	return nil
+}
+
+func (w *Wireguard) SetNewClient() error {
+	c, err := wgctrl.New()
+	if err != nil {
+		if os.IsNotExist(err) {
+			return fmt.Errorf("wgctrl is not available on this system")
+		}
+		return fmt.Errorf("failed to open wgctl client: %v", err)
+	}
+	w.client = c
 	return nil
 }

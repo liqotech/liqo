@@ -86,7 +86,7 @@ func main() {
 			klog.Errorf("an error occurred while creating the route operator -> %v", err)
 			os.Exit(1)
 		}
-		if !directRouting{
+		if !directRouting {
 			r.StartServiceWatcher()
 			r.StartPodWatcher()
 		}
@@ -116,7 +116,7 @@ func main() {
 			os.Exit(2)
 		}
 		tc.WatchConfiguration(config, &clusterConfig.GroupVersion)
-		if !directRouting{
+		if !directRouting {
 			tc.StartPodWatcher()
 			tc.StartServiceWatcher()
 		}

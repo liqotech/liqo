@@ -17,18 +17,25 @@ package tunnel_operator
 import (
 	"context"
 	"fmt"
+	"github.com/containernetworking/plugins/pkg/ip"
+	"github.com/containernetworking/plugins/pkg/ns"
 	netv1alpha1 "github.com/liqotech/liqo/apis/net/v1alpha1"
 	utils "github.com/liqotech/liqo/pkg/liqonet"
 	"github.com/liqotech/liqo/pkg/liqonet/overlay"
 	"github.com/liqotech/liqo/pkg/liqonet/tunnel"
-	_ "github.com/liqotech/liqo/pkg/liqonet/tunnel/wireguard"
+	tunnelwg "github.com/liqotech/liqo/pkg/liqonet/tunnel/wireguard"
 	"github.com/liqotech/liqo/pkg/liqonet/wireguard"
+	"github.com/vishvananda/netlink"
+	"github.com/vishvananda/netns"
+	"golang.org/x/sys/unix"
 	k8s "k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/record"
 	"k8s.io/klog"
+	"net"
 	"os"
 	"os/signal"
 	"reflect"
+	"runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/event"
@@ -66,6 +73,8 @@ type TunnelController struct {
 	configChan   chan bool
 	stopPWChan   chan struct{}
 	stopSWChan   chan struct{}
+	hostNS       ns.NetNS
+	gatewayNS    ns.NetNS
 }
 
 //cluster-role
@@ -81,6 +90,7 @@ type TunnelController struct {
 //Instantiates and initializes the tunnel controller
 func NewTunnelController(mgr ctrl.Manager, wgc wireguard.Client, nl wireguard.Netlinker, directRouting bool) (*TunnelController, error) {
 	var wg *wireguard.Wireguard
+	var gatewayNS, hostNS ns.NetNS
 	clientSet := k8s.NewForConfigOrDie(mgr.GetConfig())
 	namespace, err := utils.GetPodNamespace()
 	if err != nil {
@@ -99,9 +109,41 @@ func NewTunnelController(mgr ctrl.Manager, wgc wireguard.Client, nl wireguard.Ne
 	if err = utils.EnableIPForwarding(); err != nil {
 		return nil, err
 	}
-	if directRouting{
-		utils.EnableProxyArp(defaultIface)
-	}else{
+	if directRouting {
+		hostNS, err = ns.GetCurrentNS()
+		if err != nil {
+			klog.Errorf("an error occurred while getting host namespace: %v", err)
+			return nil, err
+		}
+		gatewayNS, err = createGatewayNS("liqo-gateway")
+		if err != nil {
+			klog.Errorf("an error occurred while getting host namespace: %v", err)
+			return nil, err
+		}
+		if err := createVethPair(gatewayNS); err != nil {
+			return nil, err
+		}
+		if err := utils.EnableProxyArp("liqo.host"); err != nil {
+			return nil, err
+		}
+		if err := enableArpProxyGW("liqo.gateway", gatewayNS); err != nil {
+			return nil, err
+		}
+		if err := enableIPForwardingGW(gatewayNS); err != nil {
+			return nil, err
+		}
+
+		if err := addRouteGW("0.0.0.0/0", "", "liqo.gateway", false, gatewayNS); err != nil {
+			return nil, err
+		}
+		if err := addrAdd("liqo.host", &netlink.Addr{IPNet: &net.IPNet{IP: net.IPv4(240, 100, 100, 1), Mask: net.CIDRMask(24, 32)}}); err != nil {
+			return nil, err
+		}
+		if err := addrAddGW("liqo.gateway", &netlink.Addr{IPNet: &net.IPNet{IP: net.IPv4(240, 100, 100, 2), Mask: net.CIDRMask(24, 32)}}, gatewayNS); err != nil {
+			return nil, err
+		}
+
+	} else {
 		overlayIP := strings.Join([]string{overlay.GetOverlayIP(podIP.String()), "4"}, "/")
 		//create overlay network interface
 		wg, err = overlay.CreateInterface(gatewayPodName, namespace, overlayIP, clientSet, wgc, nl)
@@ -130,6 +172,8 @@ func NewTunnelController(mgr ctrl.Manager, wgc wireguard.Client, nl wireguard.Ne
 		DefaultIface:  defaultIface,
 		wg:            wg,
 		configChan:    make(chan bool),
+		hostNS:        hostNS,
+		gatewayNS:     gatewayNS,
 	}
 	err = tc.SetUpTunnelDrivers()
 	if err != nil {
@@ -147,6 +191,9 @@ func (tc *TunnelController) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 	if !tc.isConfigured {
 		<-tc.configChan
 	}
+	runtime.LockOSThread()
+	defer runtime.UnlockOSThread()
+
 	ctx := context.Background()
 	var endpoint netv1alpha1.TunnelEndpoint
 	//name of our finalizer
@@ -159,6 +206,10 @@ func (tc *TunnelController) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 	if endpoint.Status.Phase != "Ready" {
 		klog.Infof("%s -> resource %s is not ready", endpoint.Spec.ClusterID, endpoint.Name)
 		return result, nil
+	}
+	if err := tc.gatewayNS.Set(); err != nil {
+		klog.Errorf("%s -> an error occurred while changing netns to gateway: %v", endpoint.Spec.ClusterID, err)
+		return ctrl.Result{}, err
 	}
 	// examine DeletionTimestamp to determine if object is under deletion
 	if endpoint.ObjectMeta.DeletionTimestamp.IsZero() {
@@ -296,12 +347,12 @@ func (tc *TunnelController) SetupSignalHandlerForTunnelOperator() (stopCh <-chan
 	stop := make(chan struct{})
 	c := make(chan os.Signal, 1)
 	signal.Notify(c, utils.ShutdownSignals...)
-	go func(r *TunnelController) {
+	go func(tc *TunnelController) {
 		sig := <-c
 		klog.Infof("received signal %s: cleaning up", sig.String())
 		close(tc.stopSWChan)
 		close(tc.stopPWChan)
-		r.RemoveAllTunnels()
+		_ = removeGatewayNS("liqo-gateway")
 		<-c
 		close(stop)
 	}(tc)
@@ -338,6 +389,31 @@ func (tc *TunnelController) SetUpTunnelDrivers() error {
 		klog.V(3).Infof("Driver for %s tunnel created and initialized", tunnelType)
 		tc.drivers[tunnelType] = d
 	}
+	//mv wireguard interface in the gateway network namespace
+	link, err := netlink.LinkByName("liqo-wg")
+	if err != nil {
+		return err
+	}
+	if err = netlink.LinkSetNsFd(link, int(tc.gatewayNS.Fd())); err != nil {
+		return fmt.Errorf("failed to move wireguard interfacte to gateway netns: %v", err)
+	}
+	runtime.LockOSThread()
+	if err != tc.gatewayNS.Set() {
+		return fmt.Errorf("failed to set gateway netns:%v", err)
+	}
+	link, err = netlink.LinkByName("liqo-wg")
+	if err != nil {
+		return err
+	}
+	err = netlink.LinkSetUp(link)
+	if err != nil {
+		return fmt.Errorf("failed to set wireguard iface up in gateway netns:%v", err)
+	}
+	w := tc.drivers["wireguard"]
+	wg := w.(*tunnelwg.Wireguard)
+	if err := wg.SetNewClient(); err != nil {
+		return fmt.Errorf("an error occurred while setting new client in tunnel driver")
+	}
 	return nil
 }
 
@@ -352,4 +428,142 @@ func (tc *TunnelController) SetUpIPTablesHandler() error {
 
 func (tc *TunnelController) SetUpRouteManager(recorder record.EventRecorder) {
 	tc.NetLink = utils.NewRouteManager(recorder)
+}
+
+func createVethPair(gatewayNS ns.NetNS) error {
+	var vethPair = func(hostNS ns.NetNS) error {
+		_, _, err := ip.SetupVethWithName("liqo.gateway", "liqo.host", 1500, hostNS)
+		if err != nil {
+			klog.Errorf("an error occurred while creating veth pair between host and gateway namespace")
+			return err
+		}
+		return nil
+	}
+	if err := gatewayNS.Do(vethPair); err != nil {
+		return err
+	}
+	return nil
+}
+
+func addRouteGW(dst string, gw string, deviceName string, onLink bool, gatewayNS ns.NetNS) error {
+	var addRoute = func(hostNS ns.NetNS) error {
+		_, err := AddRoute(dst, gw, deviceName, onLink)
+		return err
+	}
+	if err := gatewayNS.Do(addRoute); err != nil {
+		return err
+	}
+	return nil
+}
+
+func AddRoute(dst string, gw string, deviceName string, onLink bool) (netlink.Route, error) {
+	var route netlink.Route
+	//convert destination in *net.IPNet
+	_, destinationNet, err := net.ParseCIDR(dst)
+	if err != nil {
+		return route, err
+	}
+	gateway := net.ParseIP(gw)
+	iface, err := netlink.LinkByName(deviceName)
+	if err != nil {
+		return route, err
+	}
+	if onLink {
+		route = netlink.Route{LinkIndex: iface.Attrs().Index, Dst: destinationNet, Gw: gateway, Flags: unix.RTNH_F_ONLINK}
+
+		if err := netlink.RouteAdd(&route); err != nil && err != unix.EEXIST {
+			return route, err
+		}
+	} else {
+		route = netlink.Route{LinkIndex: iface.Attrs().Index, Dst: destinationNet, Gw: gateway}
+		if err := netlink.RouteAdd(&route); err != nil && err != unix.EEXIST {
+			return route, err
+		}
+	}
+	return route, nil
+}
+
+func enableArpProxyGW(iFaceName string, gatewayNS ns.NetNS) error {
+	var proxyArp = func(hostNS ns.NetNS) error {
+		return utils.EnableProxyArp(iFaceName)
+	}
+	if err := gatewayNS.Do(proxyArp); err != nil {
+		return err
+	}
+	return nil
+}
+func enableIPForwardingGW(gatewayNS ns.NetNS) error {
+	var ipForwarding = func(host ns.NetNS) error {
+		return utils.EnableIPForwarding()
+	}
+	if err := gatewayNS.Do(ipForwarding); err != nil {
+		return err
+	}
+	return nil
+}
+
+func createGatewayNS(name string) (ns.NetNS, error) {
+	runtime.LockOSThread()
+	defer runtime.UnlockOSThread()
+	//get host namespace
+	origin, err := netns.Get()
+	if err != nil {
+		return nil, err
+	}
+	gatewayNS, err := netns.NewNamed(name)
+	if err != nil {
+		klog.Errorf("an error occurred while creating the gateway namespace: %v", err)
+		er, ok := err.(*os.PathError)
+		if ok {
+			if er.Err == unix.EEXIST {
+				klog.Infof("please manually remove the network namespace named %s", name)
+			}
+		}
+		return nil, err
+	}
+	//set the new created namespace
+	if err := netns.Set(gatewayNS); err != nil {
+		return nil, err
+	}
+	//we get the gateway net namespace as an ns.NetNS type
+	gatewayNetNS, err := ns.GetCurrentNS()
+	if err != nil {
+		klog.Errorf("an error occurred while retrieving the gateway namespace: %v", err)
+		return nil, err
+	}
+	if err := netns.Set(origin); err != nil {
+		return nil, err
+	}
+	return gatewayNetNS, nil
+}
+
+func removeGatewayNS(name string) error {
+	if err := netns.DeleteNamed(name); err != nil {
+		klog.Errorf("an error occurred while removing network namespace with name %s: %v", name, err)
+		return err
+	}
+	return nil
+}
+
+func addrAdd(name string, addr *netlink.Addr) error {
+	//first get link by name
+	link, err := netlink.LinkByName(name)
+	if err != nil {
+		return fmt.Errorf("an error occurred while getting link %s while adding address: %v", name, err)
+	}
+	if err := netlink.AddrAdd(link, addr); err != nil {
+		return fmt.Errorf("an error occurred while adding addr %s to link %s: %v", addr.String(), link.Attrs().Name, err)
+	}
+	return nil
+}
+
+func addrAddGW(name string, addr *netlink.Addr, gatewayNS ns.NetNS) error {
+	var addAdr = func(hostNS ns.NetNS) error {
+		err := addrAdd(name, addr)
+		return err
+	}
+	if err := gatewayNS.Do(addAdr); err != nil {
+		return err
+	}
+	return nil
 }

@@ -12,25 +12,24 @@ import (
 	"reflect"
 )
 
-
 type DirectRouteManager struct {
 	record.EventRecorder
 	routesPerRemoteCluster map[string]netlink.Route
-	rulesPerRemoteCluster map[string]*netlink.Rule
-	routingTableID int
+	rulesPerRemoteCluster  map[string]*netlink.Rule
+	routingTableID         int
 }
 
 func NewDirectRouteManager(routingTableName string, routingTableID int, recorder record.EventRecorder) (liqonet.NetLink, error) {
 	//first we create the routing table
-	if err := liqonet.CreateRoutingTable(routingTableID, routingTableName); err != nil{
+	if err := liqonet.CreateRoutingTable(routingTableID, routingTableName); err != nil {
 		klog.Errorf("un error occurred while creating routing table with ID %d and name %s", routingTableID, routingTableName)
 		return nil, err
 	}
 	return &DirectRouteManager{
 		EventRecorder:          recorder,
 		routesPerRemoteCluster: make(map[string]netlink.Route),
-		rulesPerRemoteCluster: make(map[string]*netlink.Rule),
-		routingTableID: routingTableID,
+		rulesPerRemoteCluster:  make(map[string]*netlink.Rule),
+		routingTableID:         routingTableID,
 	}, nil
 }
 
@@ -47,7 +46,7 @@ func (rm *DirectRouteManager) deleteRoute(clusterID string) {
 	delete(rm.routesPerRemoteCluster, clusterID)
 }
 
-func (rm *DirectRouteManager) getRule(clusterID string)(*netlink.Rule, bool){
+func (rm *DirectRouteManager) getRule(clusterID string) (*netlink.Rule, bool) {
 	rule, ok := rm.rulesPerRemoteCluster[clusterID]
 	return rule, ok
 }
@@ -56,7 +55,7 @@ func (rm *DirectRouteManager) setRule(clusterID string, rule *netlink.Rule) {
 	rm.rulesPerRemoteCluster[clusterID] = rule
 }
 
-func (rm *DirectRouteManager) deleteRule(clusterID string){
+func (rm *DirectRouteManager) deleteRule(clusterID string) {
 	delete(rm.rulesPerRemoteCluster, clusterID)
 }
 
@@ -64,25 +63,30 @@ func (rm *DirectRouteManager) EnsureRoutesPerCluster(iface string, tep *netv1alp
 	//first we get the required parameters from the tep
 	var dstNet *net.IPNet
 	var err error
+	var ifaceIndex int
+	var route netlink.Route
 	clusterID := tep.Spec.ClusterID
-	gwPodIP := net.ParseIP(tep.Status.GatewayPodIP)
 	_, remotePodCIDR := liqonet.GetPodCIDRS(tep)
-	if _, dstNet, err = net.ParseCIDR(remotePodCIDR); err != nil{
+	if _, dstNet, err = net.ParseCIDR(remotePodCIDR); err != nil {
 		klog.Errorf("%s -> unable to parse remote podCIDR %s: %v", clusterID, remotePodCIDR, err)
 		return err
 	}
 	//we try to get the gateway ip and link index used to reach the gatewayPod
-	rGwIP, rIfIndex, rFlags, err := GetNextHop(gwPodIP.String())
-	if err != nil{
-		klog.Errorf("%s -> an error occurred while getting the route to the gateway pod: %v", clusterID, err)
-		return err
+	/*	rGwIP, rIfIndex, rFlags, err := GetNextHop(gwPodIP.String())
+		if err != nil{
+			klog.Errorf("%s -> an error occurred while getting the route to the gateway pod: %v", clusterID, err)
+			return err
+		}*/
+	gwIP := net.ParseIP(tep.Status.GatewayPodIP)
+	if gwIP == nil {
+		return fmt.Errorf("an error occurred while parsing gateway pod IP %s", tep.Status.GatewayPodIP)
 	}
 	existingRoute, ok := rm.getRoute(clusterID)
 	//check if the network parameters are the same and if we need to remove the old route and add the new one
 	if ok {
-		if !reflect.DeepEqual(existingRoute.Dst, dstNet) && !reflect.DeepEqual(existingRoute.Gw, rGwIP) && existingRoute.LinkIndex != rIfIndex && existingRoute.Flags != rFlags{
+		if !reflect.DeepEqual(existingRoute.Dst, dstNet) && !reflect.DeepEqual(existingRoute.Gw, gwIP) {
 			//remove the old route
-			if err := netlink.RouteDel(&existingRoute);err != nil && err != unix.ESRCH{
+			if err := netlink.RouteDel(&existingRoute); err != nil && err != unix.ESRCH {
 				klog.Errorf("%s -> unable to remove outdated route '%s': %s", clusterID, remotePodCIDR, err)
 				rm.Eventf(tep, "Warning", "Processing", "unable to remove outdated route: %s", err.Error())
 				return err
@@ -90,27 +94,39 @@ func (rm *DirectRouteManager) EnsureRoutesPerCluster(iface string, tep *netv1alp
 			rm.deleteRoute(clusterID)
 		}
 	}
-	route := netlink.Route{
-		LinkIndex: rIfIndex,
-		Dst:       dstNet,
-		Gw:        rGwIP,
-		Table:     liqonet.RoutingTableID,
-		Flags:     rFlags,
+	if iface != "" {
+		link, err := netlink.LinkByName(iface)
+		if err != nil {
+			return err
+		}
+		ifaceIndex = link.Attrs().Index
+		route = netlink.Route{
+			Dst:       dstNet,
+			Table:     liqonet.RoutingTableID,
+			LinkIndex: ifaceIndex,
+		}
+	} else {
+		route = netlink.Route{
+			Dst:   dstNet,
+			Gw:    gwIP,
+			Table: liqonet.RoutingTableID,
+		}
 	}
-	if err := netlink.RouteAdd(&route); err != nil && err != unix.EEXIST{
+
+	if err := netlink.RouteAdd(&route); err != nil && err != unix.EEXIST {
 		klog.Errorf("%s -> unable to configure route: %s", clusterID, err)
 		rm.Eventf(tep, "Warning", "Processing", "unable to configure route: %s", err.Error())
 		return err
-	}else if err == nil{
+	} else if err == nil {
 		rm.setRoute(clusterID, route)
 		rm.Event(tep, "Normal", "Processing", "route configured")
 		klog.Infof("%s -> route '%s' correctly configured", clusterID, route.String())
 	}
 
 	existingRule, ok := rm.getRule(clusterID)
-	if ok{
-		if !reflect.DeepEqual(existingRule.Dst, dstNet){
-			if err := liqonet.RemovePolicyRoutingRule(liqonet.RoutingTableID, nil, dstNet); err != nil{
+	if ok {
+		if !reflect.DeepEqual(existingRule.Dst, dstNet) {
+			if err := liqonet.RemovePolicyRoutingRule(liqonet.RoutingTableID, nil, dstNet); err != nil {
 				klog.Errorf("%s -> unable to remove outdated policy routing rule: %s", clusterID, err)
 				rm.Eventf(tep, "Warning", "Processing", "unable to remove outdated policy routing rule: %s", err.Error())
 				return err
@@ -118,11 +134,11 @@ func (rm *DirectRouteManager) EnsureRoutesPerCluster(iface string, tep *netv1alp
 			rm.deleteRule(clusterID)
 		}
 	}
-	if rule, err := liqonet.InsertPolicyRoutingRule(liqonet.RoutingTableID, nil, dstNet); err != nil && err != unix.EEXIST{
+	if rule, err := liqonet.InsertPolicyRoutingRule(liqonet.RoutingTableID, nil, dstNet); err != nil && err != unix.EEXIST {
 		klog.Errorf("%s -> unable to configure policy routing rule: %v", clusterID, err)
 		rm.Eventf(tep, "Warning", "Processing", "unable to configure policy routing rule: %s", err.Error())
 		return err
-	}else if err == nil{
+	} else if err == nil {
 		rm.setRule(clusterID, rule)
 		rm.Event(tep, "Normal", "Processing", "policy routing rule configured")
 		klog.Infof("%s -> policy routing rule '%s' correctly configured", clusterID, rule.String())
