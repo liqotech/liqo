@@ -271,7 +271,7 @@ jobs:
       run: go-acc ./... --ignore liqo/test/e2e
 
     - name: Send coverage
-      uses: shogo82148/actions-goveralls@v1
+      uses: shogo82148/actions-goveralls@v1.4.3
       with:
         path-to-profile: coverage.txt
 
