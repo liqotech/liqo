@@ -1,7 +1,6 @@
 package main
 
 import (
-	"flag"
 	"github.com/liqotech/liqo/pkg/uninstaller"
 	"github.com/pkg/errors"
 	"k8s.io/client-go/dynamic"
@@ -13,11 +12,12 @@ import (
 )
 
 func main() {
-	var kubeconfigPath string
 	var config *rest.Config
-	klog.Info("Loading client config")
-	flag.StringVar(&kubeconfigPath, "kubeconfigPath", filepath.Join(os.Getenv("HOME"), ".kube", "config"), "For debug purpose, set path to local kubeconfig")
-	flag.Parse()
+
+	kubeconfigPath, ok := os.LookupEnv("KUBECONFIG")
+	if !ok {
+		kubeconfigPath = filepath.Join(os.Getenv("HOME"), ".kube", "config")
+	}
 
 	klog.Infof("Loading dynamic client: %s", kubeconfigPath)
 	config, err := userConfig(kubeconfigPath)
