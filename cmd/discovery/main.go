@@ -15,8 +15,8 @@ import (
 	nettypes "github.com/liqotech/liqo/apis/net/v1alpha1"
 	advtypes "github.com/liqotech/liqo/apis/sharing/v1alpha1"
 	"github.com/liqotech/liqo/internal/discovery"
-	foreign_cluster_operator "github.com/liqotech/liqo/internal/discovery/foreign-cluster-operator"
-	search_domain_operator "github.com/liqotech/liqo/internal/discovery/search-domain-operator"
+	foreignclusteroperator "github.com/liqotech/liqo/internal/discovery/foreign-cluster-operator"
+	searchdomainoperator "github.com/liqotech/liqo/internal/discovery/search-domain-operator"
 	"github.com/liqotech/liqo/pkg/clusterid"
 	"github.com/liqotech/liqo/pkg/mapperUtils"
 )
@@ -41,6 +41,7 @@ func main() {
 	var kubeconfigPath string
 	var resolveContextRefreshTime int // minutes
 	var dialTCPTimeout int64          // milliseconds
+	var useNewAuth bool
 
 	flag.StringVar(&namespace, "namespace", "default", "Namespace where your configs are stored.")
 	flag.Int64Var(&requeueAfter, "requeueAfter", 30, "Period after that PeeringRequests status is rechecked (seconds)")
@@ -50,6 +51,8 @@ func main() {
 		"resolveContextRefreshTime", 10, "Period after that mDNS resolve context is refreshed (minutes)")
 	flag.Int64Var(&dialTCPTimeout,
 		"dialTcpTimeout", 500, "Time to wait for a TCP connection to a remote cluster before to consider it as not reachable (milliseconds)")
+	flag.BoolVar(&useNewAuth,
+		"useNewAuth", false, "Enable the new authentication flow, with certificates and namespaced resources")
 
 	klog.InitFlags(nil)
 	flag.Parse()
@@ -90,10 +93,10 @@ func main() {
 	}
 
 	klog.Info("Starting SearchDomain operator")
-	search_domain_operator.StartOperator(mgr, time.Duration(requeueAfter)*time.Second, discoveryCtl, kubeconfigPath)
+	searchdomainoperator.StartOperator(mgr, time.Duration(requeueAfter)*time.Second, discoveryCtl, kubeconfigPath)
 
 	klog.Info("Starting ForeignCluster operator")
-	foreign_cluster_operator.StartOperator(mgr, namespace, time.Duration(requeueAfter)*time.Second, discoveryCtl, kubeconfigPath)
+	foreignclusteroperator.StartOperator(mgr, namespace, time.Duration(requeueAfter)*time.Second, discoveryCtl, kubeconfigPath, useNewAuth)
 
 	if err := mgr.Start(ctrl.SetupSignalHandler()); err != nil {
 		klog.Error(err, "problem running manager")

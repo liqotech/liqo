@@ -17,7 +17,11 @@ const (
 const (
 	identitySecretRoot      = "liqo-identity"
 	remoteCertificateSecret = "liqo-remote-certificate"
-	privateKeySecretKey     = "private-key"
-	csrSecretKey            = "csr"
-	certificateSecretKey    = "certificate"
+
+	privateKeySecretKey   = "private-key"
+	csrSecretKey          = "csr"
+	certificateSecretKey  = "certificate"
+	apiServerURLSecretKey = "apiServerUrl"
+	apiServerCaSecretKey  = "apiServerCa"
+	namespaceSecretKey    = "namespace"
 )

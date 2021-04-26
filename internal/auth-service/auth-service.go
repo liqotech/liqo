@@ -144,9 +144,9 @@ func (authService *Controller) Start(listeningPort, certFile, keyFile string) er
 
 	router := httprouter.New()
 
-	router.POST("/identity/certificate", authService.identity)
-	router.POST("/identity", authService.role)
-	router.GET("/ids", authService.ids)
+	router.POST(auth.CertIdentityURI, authService.identity)
+	router.POST(auth.IdentityURI, authService.role)
+	router.GET(auth.IdsURI, authService.ids)
 
 	var err error
 	if authService.useTLS {

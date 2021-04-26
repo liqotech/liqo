@@ -1,7 +1,6 @@
 package v1alpha1
 
 import (
-	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/kubernetes/scheme"
@@ -21,10 +20,6 @@ type ResourceRequestSpec struct {
 
 	// Foreign Cluster Identity
 	ClusterIdentity ClusterIdentity `json:"clusterIdentity"`
-	// Namespace where Liqo is deployed
-	Namespace string `json:"namespace"`
-	// KubeConfig file (with Advertisement creation role) secret reference
-	KubeConfigRef *v1.ObjectReference `json:"kubeConfigRef,omitempty"`
 	// Local auth service address
 	AuthURL string `json:"authUrl"`
 }
@@ -62,7 +57,7 @@ func init() {
 		panic(err)
 	}
 	crdclient.AddToRegistry("resourcerequests", &ResourceRequest{}, &ResourceRequestList{}, nil, schema.GroupResource{
-		Group:    v1.SchemeGroupVersion.Group,
+		Group:    GroupVersion.Group,
 		Resource: "resourcerequests",
 	})
 }

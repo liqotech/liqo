@@ -31,8 +31,8 @@ func (authService *Controller) handleConfiguration(config *configv1alpha1.AuthCo
 	authService.config = config.DeepCopy()
 }
 
-// GetConfig returns the configuration of the local Authentication service.
-func (authService *Controller) GetConfig() *configv1alpha1.AuthConfig {
+// GetAuthConfig returns the configuration of the local Authentication service.
+func (authService *Controller) GetAuthConfig() *configv1alpha1.AuthConfig {
 	authService.configMutex.RLock()
 	defer authService.configMutex.RUnlock()
 	return authService.config.DeepCopy()

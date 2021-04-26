@@ -193,3 +193,6 @@ virtualKubelet:
 nameOverride: ""
 # -- full liqo name override
 fullnameOverride: ""
+
+# -- enable experimental new authentication flow
+useNewAuth: false

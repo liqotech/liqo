@@ -23,17 +23,6 @@ import (
 	"strings"
 	"time"
 
-	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
-	netv1alpha1 "github.com/liqotech/liqo/apis/net/v1alpha1"
-	advtypes "github.com/liqotech/liqo/apis/sharing/v1alpha1"
-	"github.com/liqotech/liqo/internal/crdReplicator"
-	"github.com/liqotech/liqo/internal/discovery"
-	"github.com/liqotech/liqo/internal/discovery/utils"
-	liqoconst "github.com/liqotech/liqo/pkg/consts"
-	crdclient "github.com/liqotech/liqo/pkg/crdClient"
-	discoveryPkg "github.com/liqotech/liqo/pkg/discovery"
-	"github.com/liqotech/liqo/pkg/kubeconfig"
-
 	apiv1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -46,7 +35,21 @@ import (
 	"k8s.io/kubernetes/pkg/util/slice"
 	ctrl "sigs.k8s.io/controller-runtime"
 
+	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
+	netv1alpha1 "github.com/liqotech/liqo/apis/net/v1alpha1"
+	advtypes "github.com/liqotech/liqo/apis/sharing/v1alpha1"
+	"github.com/liqotech/liqo/internal/crdReplicator"
+	"github.com/liqotech/liqo/internal/discovery"
+	"github.com/liqotech/liqo/internal/discovery/utils"
+	"github.com/liqotech/liqo/pkg/auth"
 	"github.com/liqotech/liqo/pkg/clusterid"
+	liqoconst "github.com/liqotech/liqo/pkg/consts"
+	crdclient "github.com/liqotech/liqo/pkg/crdClient"
+	discoveryPkg "github.com/liqotech/liqo/pkg/discovery"
+	identitymanager "github.com/liqotech/liqo/pkg/identityManager"
+	"github.com/liqotech/liqo/pkg/kubeconfig"
+	peeringRoles "github.com/liqotech/liqo/pkg/peering-roles"
+	tenantcontrolnamespace "github.com/liqotech/liqo/pkg/tenantControlNamespace"
 )
 
 // FinalizerString is added as finalizer for peered ForeignClusters.
@@ -63,7 +66,14 @@ type ForeignClusterReconciler struct {
 	clusterID           clusterid.ClusterID
 	RequeueAfter        time.Duration
 
-	ConfigProvider discovery.ConfigProvider
+	namespaceManager tenantcontrolnamespace.TenantControlNamespaceManager
+	identityManager  identitymanager.IdentityManager
+	useNewAuth       bool
+
+	peeringPermission peeringRoles.PeeringPermission
+
+	ConfigProvider     discovery.ConfigProvider
+	AuthConfigProvider auth.ConfigProvider
 
 	// testing
 	ForeignConfig *rest.Config
@@ -73,6 +83,7 @@ type ForeignClusterReconciler struct {
 // +kubebuilder:rbac:groups=discovery.liqo.io,resources=foreignclusters,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=discovery.liqo.io,resources=searchdomains,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=discovery.liqo.io,resources=peeringrequests,verbs=get;list;watch
+// +kubebuilder:rbac:groups=discovery.liqo.io,resources=resourcerequests,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=config.liqo.io,resources=clusterconfigs,verbs=get;list;watch;create
 // +kubebuilder:rbac:groups=net.liqo.io,resources=networkconfigs,verbs=*
 // +kubebuilder:rbac:groups=net.liqo.io,resources=networkconfigs/status,verbs=*
@@ -83,6 +94,10 @@ type ForeignClusterReconciler struct {
 // +kubebuilder:rbac:groups=core,resources=nodes,verbs=list
 // +kubebuilder:rbac:groups=rbac.authorization.k8s.io,resources=clusterroles,verbs=get;create;update
 // +kubebuilder:rbac:groups=rbac.authorization.k8s.io,resources=clusterrolebindings,verbs=get;create
+// tenant control namespace management
+// +kubebuilder:rbac:groups=core,resources=namespaces,verbs=get;list;watch;create
+// +kubebuilder:rbac:groups=core,resources=secrets,verbs=get;list;create;delete;update
+// +kubebuilder:rbac:groups=rbac.authorization.k8s.io,resources=rolebindings,verbs=create;deletecollection
 // role
 // +kubebuilder:rbac:groups=core,namespace="liqo",resources=services,verbs=get
 // +kubebuilder:rbac:groups=core,namespace="liqo",resources=configmaps,verbs=get;list;watch;create;update;delete
@@ -173,6 +188,19 @@ func (r *ForeignClusterReconciler) Reconcile( //nolint:gocyclo // this function 
 	if fc.ObjectMeta.Labels[discoveryPkg.ClusterIDLabel] == "" {
 		fc.ObjectMeta.Labels[discoveryPkg.ClusterIDLabel] = fc.Spec.ClusterIdentity.ClusterID
 		requireUpdate = true
+	}
+
+	if r.useNewAuth {
+		// create the local TenantControlNamespace if it has not been created
+		if update, err := r.createLocalTenantControlNamespace(fc); err != nil {
+			klog.Error(err)
+			return ctrl.Result{
+				Requeue:      true,
+				RequeueAfter: r.RequeueAfter,
+			}, err
+		} else if update {
+			requireUpdate = true
+		}
 	}
 
 	// check for NetworkConfigs
@@ -314,6 +342,7 @@ func (r *ForeignClusterReconciler) Reconcile( //nolint:gocyclo // this function 
 		return ctrl.Result{}, nil
 	}
 
+	// TODO: it's probably better to refactor it when we will remove the old authentication, we will need no more a remote client
 	foreignDiscoveryClient, err := r.getRemoteClient(fc, &discoveryv1alpha1.GroupVersion)
 	if err != nil {
 		klog.Error(err)
@@ -327,7 +356,7 @@ func (r *ForeignClusterReconciler) Reconcile( //nolint:gocyclo // this function 
 
 	// if join is required (both automatically or by user) and status is not set to joined
 	// create new peering request
-	if foreignDiscoveryClient != nil && fc.Spec.Join && !fc.Status.Outgoing.Joined {
+	if (foreignDiscoveryClient != nil || r.useNewAuth) && fc.Spec.Join && !fc.Status.Outgoing.Joined {
 		fc, err = r.Peer(fc, foreignDiscoveryClient)
 		if err != nil {
 			return ctrl.Result{
@@ -341,7 +370,7 @@ func (r *ForeignClusterReconciler) Reconcile( //nolint:gocyclo // this function 
 	// if join is no more required and status is set to joined
 	// or if this foreign cluster is being deleted
 	// delete peering request
-	if foreignDiscoveryClient != nil && (!fc.Spec.Join || !fc.DeletionTimestamp.IsZero()) && fc.Status.Outgoing.Joined {
+	if (foreignDiscoveryClient != nil || r.useNewAuth) && (!fc.Spec.Join || !fc.DeletionTimestamp.IsZero()) && fc.Status.Outgoing.Joined {
 		fc, err = r.Unpeer(fc, foreignDiscoveryClient)
 		if err != nil {
 			return ctrl.Result{
@@ -374,7 +403,7 @@ func (r *ForeignClusterReconciler) Reconcile( //nolint:gocyclo // this function 
 	}
 
 	// check if peering request really exists on foreign cluster
-	if foreignDiscoveryClient != nil && fc.Spec.Join && fc.Status.Outgoing.Joined {
+	if (foreignDiscoveryClient != nil || r.useNewAuth) && fc.Spec.Join && fc.Status.Outgoing.Joined {
 		_, err = r.checkJoined(fc, foreignDiscoveryClient)
 		if err != nil {
 			klog.Error(err, err.Error())
@@ -428,6 +457,11 @@ func (r *ForeignClusterReconciler) update(fc *discoveryv1alpha1.ForeignCluster) 
 func (r *ForeignClusterReconciler) Peer(
 	fc *discoveryv1alpha1.ForeignCluster,
 	foreignDiscoveryClient *crdclient.CRDClient) (*discoveryv1alpha1.ForeignCluster, error) {
+
+	if r.useNewAuth {
+		return r.peerNamespaced(fc)
+	}
+
 	// create PeeringRequest
 	klog.Infof("[%v] Creating PeeringRequest", fc.Spec.ClusterIdentity.ClusterID)
 	pr, err := r.createPeeringRequestIfNotExists(fc.Name, fc, foreignDiscoveryClient)
@@ -446,9 +480,30 @@ func (r *ForeignClusterReconciler) Peer(
 	return fc, nil
 }
 
+// peerNamespaced enables the peering creating the resources in the correct TenantControlNamespace.
+func (r *ForeignClusterReconciler) peerNamespaced(foreignCluster *discoveryv1alpha1.ForeignCluster) (*discoveryv1alpha1.ForeignCluster, error) {
+	// create ResourceRequest
+	klog.Infof("[%v] Creating ResourceRequest", foreignCluster.Spec.ClusterIdentity.ClusterID)
+	resourceRequest, err := r.createResourceRequest(foreignCluster)
+	if err != nil {
+		klog.Error(err)
+		return nil, err
+	}
+
+	if resourceRequest != nil {
+		foreignCluster.Status.Outgoing.Joined = true
+	}
+	return foreignCluster, nil
+}
+
 // Unpeer removes the peering with a remote cluster.
 func (r *ForeignClusterReconciler) Unpeer(fc *discoveryv1alpha1.ForeignCluster,
 	foreignDiscoveryClient *crdclient.CRDClient) (*discoveryv1alpha1.ForeignCluster, error) {
+
+	if r.useNewAuth {
+		return r.unpeerNamespaced(fc)
+	}
+
 	// peering request has to be removed
 	klog.Infof("[%v] Deleting PeeringRequest", fc.Spec.ClusterIdentity.ClusterID)
 	err := r.deletePeeringRequest(foreignDiscoveryClient, fc)
@@ -470,6 +525,20 @@ func (r *ForeignClusterReconciler) Unpeer(fc *discoveryv1alpha1.ForeignCluster,
 	return fc, nil
 }
 
+// unpeerNamespaced disables the peering deleting the resources in the correct TenantControlNamespace.
+func (r *ForeignClusterReconciler) unpeerNamespaced(foreignCluster *discoveryv1alpha1.ForeignCluster) (*discoveryv1alpha1.ForeignCluster, error) {
+	// resource request has to be removed
+	klog.Infof("[%v] Deleting ResourceRequest", foreignCluster.Spec.ClusterIdentity.ClusterID)
+	err := r.deleteResourceRequest(foreignCluster)
+	if err != nil && !errors.IsNotFound(err) {
+		klog.Error(err)
+		return nil, err
+	}
+
+	foreignCluster.Status.Outgoing.Joined = false
+	return foreignCluster, nil
+}
+
 // SetupWithManager assigns the operator to a manager.
 func (r *ForeignClusterReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
@@ -479,10 +548,27 @@ func (r *ForeignClusterReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		Complete(r)
 }
 
+// checkJoined checks the outgoing join status of a cluster.
 func (r *ForeignClusterReconciler) checkJoined(fc *discoveryv1alpha1.ForeignCluster,
 	foreignDiscoveryClient *crdclient.CRDClient) (*discoveryv1alpha1.ForeignCluster, error) {
-	_, err := foreignDiscoveryClient.Resource("peeringrequests").Get(
-		fc.Status.Outgoing.RemotePeeringRequestName, &metav1.GetOptions{})
+
+	if r.useNewAuth {
+		_, err := r.crdClient.Resource("resourcerequests").Namespace(
+			fc.Status.TenantControlNamespace.Local).Get(r.clusterID.GetClusterID(), &metav1.GetOptions{})
+		if err != nil {
+			fc.Status.Outgoing.Joined = false
+			if slice.ContainsString(fc.Finalizers, FinalizerString, nil) {
+				fc.Finalizers = slice.RemoveString(fc.Finalizers, FinalizerString, nil)
+			}
+			fc, err = r.update(fc)
+			if err != nil {
+				return nil, err
+			}
+		}
+		return fc, nil
+	}
+
+	_, err := foreignDiscoveryClient.Resource("peeringrequests").Get(fc.Status.Outgoing.RemotePeeringRequestName, &metav1.GetOptions{})
 	if err != nil {
 		fc.Status.Outgoing.Joined = false
 		fc.Status.Outgoing.RemotePeeringRequestName = ""

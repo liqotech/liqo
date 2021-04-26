@@ -11,9 +11,28 @@ rules:
 - apiGroups:
   - ""
   resources:
+  - namespaces
+  verbs:
+  - create
+  - get
+  - list
+  - watch
+- apiGroups:
+  - ""
+  resources:
   - nodes
   verbs:
   - list
+- apiGroups:
+  - ""
+  resources:
+  - secrets
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - update
 - apiGroups:
   - discovery.liqo.io
   resources:
@@ -33,6 +52,18 @@ rules:
   verbs:
   - get
   - list
+  - watch
+- apiGroups:
+  - discovery.liqo.io
+  resources:
+  - resourcerequests
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
   - watch
 - apiGroups:
   - discovery.liqo.io
@@ -89,6 +120,13 @@ rules:
   - create
   - get
   - update
+- apiGroups:
+  - rbac.authorization.k8s.io
+  resources:
+  - rolebindings
+  verbs:
+  - create
+  - deletecollection
 - apiGroups:
   - sharing.liqo.io
   resources:

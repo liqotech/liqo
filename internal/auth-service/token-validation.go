@@ -49,7 +49,7 @@ func (tokenValidator *tokenValidator) checkCredentials(
 
 // validEmptyToken checks if the empty token is accepted.
 func (tokenValidator *tokenValidator) validEmptyToken(configProvider auth.ConfigProvider) bool {
-	return configProvider.GetConfig().AllowEmptyToken
+	return configProvider.GetAuthConfig().AllowEmptyToken
 }
 
 // validToken checks if the token provided is valid.
