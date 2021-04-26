@@ -27,6 +27,13 @@ func (discovery *Controller) GetConfig() *configv1alpha1.DiscoveryConfig {
 	return discovery.Config
 }
 
+// GetAuthConfig returns the authentication configuration.
+func (discovery *Controller) GetAuthConfig() *configv1alpha1.AuthConfig {
+	discovery.configMutex.RLock()
+	defer discovery.configMutex.RUnlock()
+	return discovery.authConfig
+}
+
 // GetAPIServerConfig returns the configuration of the local APIServer (address, port).
 func (discovery *Controller) GetAPIServerConfig() *configv1alpha1.APIServerConfig {
 	discovery.configMutex.RLock()
@@ -41,6 +48,7 @@ func (discovery *Controller) getDiscoveryConfig(client *crdclient.CRDClient, kub
 		discovery.handleConfiguration(&configuration.Spec.DiscoveryConfig)
 		discovery.handleDispatcherConfig(&configuration.Spec.DispatcherConfig)
 		discovery.handleAPIServerConfig(&configuration.Spec.APIServerConfig)
+		discovery.handleAuthConfig(&configuration.Spec.AuthConfig)
 		if isFirst {
 			waitFirst <- true
 			isFirst = false
@@ -50,6 +58,19 @@ func (discovery *Controller) getDiscoveryConfig(client *crdclient.CRDClient, kub
 	close(waitFirst)
 
 	return nil
+}
+
+func (discovery *Controller) handleAuthConfig(config *configv1alpha1.AuthConfig) {
+	discovery.configMutex.Lock()
+	defer discovery.configMutex.Unlock()
+
+	if reflect.DeepEqual(&config, discovery.authConfig) {
+		klog.V(6).Info("New and old auth configs are deep equals")
+		klog.V(8).Infof("Old config: %v\nNew config: %v", discovery.authConfig, config)
+		return
+	}
+
+	discovery.authConfig = config.DeepCopy()
 }
 
 func (discovery *Controller) handleAPIServerConfig(config *configv1alpha1.APIServerConfig) {

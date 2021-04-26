@@ -37,7 +37,7 @@ func GetPeeringPermission(client kubernetes.Interface, config auth.ConfigProvide
 		return &PeeringPermission{}, nil
 	}
 
-	peeringPermission := config.GetConfig().PeeringPermission
+	peeringPermission := config.GetAuthConfig().PeeringPermission
 
 	if peeringPermission == nil {
 		klog.Warning("no peering permission set in the ClusterConfig CR")

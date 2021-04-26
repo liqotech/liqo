@@ -9,13 +9,16 @@ import (
 	"k8s.io/klog"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 
-	"github.com/liqotech/liqo/pkg/clusterid"
-
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	nettypes "github.com/liqotech/liqo/apis/net/v1alpha1"
 	advtypes "github.com/liqotech/liqo/apis/sharing/v1alpha1"
 	"github.com/liqotech/liqo/internal/discovery"
+	"github.com/liqotech/liqo/pkg/auth"
+	"github.com/liqotech/liqo/pkg/clusterid"
 	crdclient "github.com/liqotech/liqo/pkg/crdClient"
+	identitymanager "github.com/liqotech/liqo/pkg/identityManager"
+	peeringroles "github.com/liqotech/liqo/pkg/peering-roles"
+	tenantcontrolnamespace "github.com/liqotech/liqo/pkg/tenantControlNamespace"
 )
 
 var (
@@ -31,7 +34,7 @@ func init() {
 // StartOperator setups the ForeignCluster operator.
 func StartOperator(
 	mgr manager.Manager, namespace string, requeueAfter time.Duration,
-	discoveryCtrl *discovery.Controller, kubeconfigPath string) {
+	discoveryCtrl *discovery.Controller, kubeconfigPath string, useNewAuth bool) {
 	config, err := crdclient.NewKubeconfig(kubeconfigPath, &discoveryv1alpha1.GroupVersion, nil)
 	if err != nil {
 		klog.Error(err, "unable to get kube config")
@@ -42,7 +45,7 @@ func StartOperator(
 		klog.Error(err, "unable to create crd client")
 		os.Exit(1)
 	}
-	localclusterID, err := clusterid.NewClusterID(kubeconfigPath)
+	localClusterID, err := clusterid.NewClusterID(kubeconfigPath)
 	if err != nil {
 		klog.Error(err, "unable to get clusterid")
 		os.Exit(1)
@@ -60,15 +63,22 @@ func StartOperator(
 		os.Exit(1)
 	}
 
+	namespaceManager := tenantcontrolnamespace.NewTenantControlNamespaceManager(discoveryClient.Client())
+	idManager := identitymanager.NewCertificateIdentityManager(discoveryClient.Client(), localClusterID, namespaceManager)
+
 	if err = (getFCReconciler(
 		mgr.GetScheme(),
 		namespace,
 		discoveryClient,
 		advClient,
 		networkClient,
-		localclusterID,
+		localClusterID,
 		requeueAfter,
 		discoveryCtrl,
+		discoveryCtrl,
+		namespaceManager,
+		idManager,
+		useNewAuth,
 	)).SetupWithManager(mgr); err != nil {
 		klog.Error(err, "unable to create controller", "controller", "ForeignCluster")
 		os.Exit(1)
@@ -80,8 +90,12 @@ func getFCReconciler(scheme *runtime.Scheme,
 	client, advertisementClient, networkClient *crdclient.CRDClient,
 	localClusterID clusterid.ClusterID,
 	requeueAfter time.Duration,
-	configProvider discovery.ConfigProvider) *ForeignClusterReconciler {
-	return &ForeignClusterReconciler{
+	configProvider discovery.ConfigProvider,
+	authConfigProvider auth.ConfigProvider,
+	namespaceManager tenantcontrolnamespace.TenantControlNamespaceManager,
+	idManager identitymanager.IdentityManager,
+	useNewAuth bool) *ForeignClusterReconciler {
+	reconciler := &ForeignClusterReconciler{
 		Scheme:              scheme,
 		Namespace:           namespace,
 		crdClient:           client,
@@ -91,5 +105,31 @@ func getFCReconciler(scheme *runtime.Scheme,
 		ForeignConfig:       nil,
 		RequeueAfter:        requeueAfter,
 		ConfigProvider:      configProvider,
+		AuthConfigProvider:  authConfigProvider,
+		namespaceManager:    namespaceManager,
+		identityManager:     idManager,
+		useNewAuth:          useNewAuth,
 	}
+
+	// populate the lists of ClusterRoles to bind in the different peering states
+	if err := reconciler.populatePermission(); err != nil {
+		klog.Errorf("unable to populate peering permission: %v", err)
+		os.Exit(1)
+	}
+
+	return reconciler
+}
+
+// populatePermission populates the list of ClusterRoles to bind in the different peering phases reading the ClusterConfig CR.
+func (r *ForeignClusterReconciler) populatePermission() error {
+	peeringPermission, err := peeringroles.GetPeeringPermission(r.crdClient.Client(), r.AuthConfigProvider)
+	if err != nil {
+		klog.Error(err)
+		return err
+	}
+
+	if peeringPermission != nil {
+		r.peeringPermission = *peeringPermission
+	}
+	return nil
 }

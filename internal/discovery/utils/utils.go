@@ -31,7 +31,7 @@ func GetClusterInfo(url string) (*auth.ClusterInfo, discovery.TrustMode, error) 
 	trustMode := discovery.TrustModeTrusted
 	tr := &http.Transport{}
 	client := &http.Client{Transport: tr}
-	resp, err := httpGet(context.TODO(), client, fmt.Sprintf("%s/ids", url))
+	resp, err := httpGet(context.TODO(), client, fmt.Sprintf("%s%s", url, auth.IdsURI))
 	if resp != nil {
 		defer resp.Body.Close()
 	}
@@ -41,7 +41,7 @@ func GetClusterInfo(url string) (*auth.ClusterInfo, discovery.TrustMode, error) 
 			TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
 		}
 		client := &http.Client{Transport: tr}
-		resp, err = httpGet(context.TODO(), client, fmt.Sprintf("%s/ids", url))
+		resp, err = httpGet(context.TODO(), client, fmt.Sprintf("%s%s", url, auth.IdsURI))
 		if resp != nil {
 			defer resp.Body.Close()
 		}

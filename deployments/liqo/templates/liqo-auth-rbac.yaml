@@ -1,10 +1,6 @@
 ---
 {{- $authConfig := (merge (dict "name" "auth" "module" "discovery") .) -}}
 
-{{- $peeringBasic := (merge (dict "name" "remote-peering-basic" "module" "discovery") .) -}}
-{{- $peeringIncoming := (merge (dict "name" "remote-peering-incoming" "module" "discovery") .) -}}
-{{- $peeringOutgoing := (merge (dict "name" "remote-peering-outgoing" "module" "discovery") .) -}}
-
 apiVersion: v1
 kind: ServiceAccount
 metadata:
@@ -58,51 +54,3 @@ roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
   name: {{ include "liqo.prefixedName" $authConfig }}
-
----
-# tenant control namespace management
-
-apiVersion: rbac.authorization.k8s.io/v1
-kind: ClusterRoleBinding
-metadata:
-  name: {{ include "liqo.prefixedName" $peeringBasic }}
-  labels:
-    {{- include "liqo.labels" $authConfig | nindent 4 }}
-subjects:
-  - kind: ServiceAccount
-    name: {{ include "liqo.prefixedName" $authConfig }}
-    namespace: {{ .Release.Namespace }}
-roleRef:
-  apiGroup: rbac.authorization.k8s.io
-  kind: ClusterRole
-  name: {{ include "liqo.prefixedName" $peeringBasic }}
----
-apiVersion: rbac.authorization.k8s.io/v1
-kind: ClusterRoleBinding
-metadata:
-  name: {{ include "liqo.prefixedName" $peeringIncoming }}
-  labels:
-    {{- include "liqo.labels" $authConfig | nindent 4 }}
-subjects:
-  - kind: ServiceAccount
-    name: {{ include "liqo.prefixedName" $authConfig }}
-    namespace: {{ .Release.Namespace }}
-roleRef:
-  apiGroup: rbac.authorization.k8s.io
-  kind: ClusterRole
-  name: {{ include "liqo.prefixedName" $peeringIncoming }}
----
-apiVersion: rbac.authorization.k8s.io/v1
-kind: ClusterRoleBinding
-metadata:
-  name: {{ include "liqo.prefixedName" $peeringOutgoing }}
-  labels:
-    {{- include "liqo.labels" $authConfig | nindent 4 }}
-subjects:
-  - kind: ServiceAccount
-    name: {{ include "liqo.prefixedName" $authConfig }}
-    namespace: {{ .Release.Namespace }}
-roleRef:
-  apiGroup: rbac.authorization.k8s.io
-  kind: ClusterRole
-  name: {{ include "liqo.prefixedName" $peeringOutgoing }}

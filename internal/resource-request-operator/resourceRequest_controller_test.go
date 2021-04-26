@@ -39,7 +39,6 @@ var _ = Describe("ResourceRequest controller", func() {
 					ClusterIdentity: discoveryv1alpha1.ClusterIdentity{
 						ClusterID: "2468825c-0f62-44d7-bed1-9a7bc331c0b0",
 					},
-					Namespace: ResourcesNamespace,
 				},
 			}
 

@@ -426,6 +426,16 @@ spec:
                 required:
                 - joined
                 type: object
+              tenantControlNamespace:
+                description: TenantControlNamespaces names in the peered clusters
+                properties:
+                  local:
+                    description: local TenantNamespace name
+                    type: string
+                  remote:
+                    description: remote TenantNamespace name
+                    type: string
+                type: object
               ttl:
                 description: If discoveryType is LAN and this counter reach 0 value,
                   this FC will be removed.

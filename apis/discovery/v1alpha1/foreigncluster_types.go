@@ -66,6 +66,9 @@ type ForeignClusterStatus struct {
 	// INSERT ADDITIONAL STATUS FIELD - define observed state of cluster
 	// Important: Run "make" to regenerate code after modifying this file
 
+	// TenantControlNamespaces names in the peered clusters
+	TenantControlNamespace *TenantControlNamespace `json:"tenantControlNamespace,omitempty"`
+
 	Outgoing Outgoing `json:"outgoing,omitempty"`
 	Incoming Incoming `json:"incoming,omitempty"`
 	// If discoveryType is LAN and this counter reach 0 value, this FC will be removed.
@@ -76,6 +79,15 @@ type ForeignClusterStatus struct {
 	// +kubebuilder:validation:Enum="Pending";"Accepted";"Refused";"EmptyRefused"
 	// +kubebuilder:default="Pending"
 	AuthStatus discovery.AuthStatus `json:"authStatus,omitempty"`
+}
+
+// TenantControlNamespace contains the names of the local and the remote
+// namespaces assigned to the pair of clusters.
+type TenantControlNamespace struct {
+	// local TenantNamespace name
+	Local string `json:"local,omitempty"`
+	// remote TenantNamespace name
+	Remote string `json:"remote,omitempty"`
 }
 
 // ResourceLink contains information on the reference of an kubernetes resource.
