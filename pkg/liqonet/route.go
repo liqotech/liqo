@@ -2,6 +2,7 @@ package liqonet
 
 import (
 	netv1alpha1 "github.com/liqotech/liqo/apis/net/v1alpha1"
+	"github.com/liqotech/liqo/pkg/liqonet/overlay"
 	"github.com/vishvananda/netlink"
 	"golang.org/x/sys/unix"
 	"k8s.io/client-go/tools/record"
@@ -27,12 +28,18 @@ func NewRouteManager(recorder record.EventRecorder) NetLink {
 }
 
 func (rm *RouteManager) EnsureRoutesPerCluster(iface string, tep *netv1alpha1.TunnelEndpoint) error {
+	var gw string
 	clusterID := tep.Spec.ClusterID
 	_, remotePodCIDR := GetPodCIDRS(tep)
 	existing, ok := rm.getRoute(clusterID)
 	//check if the network parameters are the same and if we need to remove the old route and add the new one
+	//get the iface link
+	link, err := netlink.LinkByName(iface)
+	if err != nil {
+		return err
+	}
 	if ok {
-		if existing.Dst.String() == remotePodCIDR {
+		if existing.Dst.String() == remotePodCIDR && existing.LinkIndex == link.Attrs().Index {
 			return nil
 		}
 		//remove the old route
@@ -43,7 +50,10 @@ func (rm *RouteManager) EnsureRoutesPerCluster(iface string, tep *netv1alpha1.Tu
 			return err
 		}
 	}
-	route, err := rm.addRoute(remotePodCIDR, "", iface, false)
+	if iface != "liqo-wg" && iface != "liqo.host" {
+		gw = overlay.GetOverlayIP(tep.Status.GatewayPodIP)
+	}
+	route, err := rm.addRoute(remotePodCIDR, gw, iface, false)
 	if err != nil {
 		klog.Errorf("%s -> unable to configure route: %s", clusterID, err)
 		rm.Eventf(tep, "Warning", "Processing", "unable to configure route: %s", err.Error())

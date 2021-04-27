@@ -109,7 +109,7 @@ func NewTunnelController(mgr ctrl.Manager, wgc wireguard.Client, nl wireguard.Ne
 	if err = utils.EnableIPForwarding(); err != nil {
 		return nil, err
 	}
-	if directRouting {
+	if true {
 		hostNS, err = ns.GetCurrentNS()
 		if err != nil {
 			klog.Errorf("an error occurred while getting host namespace: %v", err)
@@ -136,10 +136,10 @@ func NewTunnelController(mgr ctrl.Manager, wgc wireguard.Client, nl wireguard.Ne
 		if err := addRouteGW("0.0.0.0/0", "", "liqo.gateway", false, gatewayNS); err != nil {
 			return nil, err
 		}
-		if err := addrAdd("liqo.host", &netlink.Addr{IPNet: &net.IPNet{IP: net.IPv4(240, 100, 100, 1), Mask: net.CIDRMask(24, 32)}}); err != nil {
+		if err := addrAdd("liqo.host", &netlink.Addr{IPNet: &net.IPNet{IP: net.IPv4(169, 254, 100, 1), Mask: net.CIDRMask(24, 32)}}); err != nil {
 			return nil, err
 		}
-		if err := addrAddGW("liqo.gateway", &netlink.Addr{IPNet: &net.IPNet{IP: net.IPv4(240, 100, 100, 2), Mask: net.CIDRMask(24, 32)}}, gatewayNS); err != nil {
+		if err := addrAddGW("liqo.gateway", &netlink.Addr{IPNet: &net.IPNet{IP: net.IPv4(169, 254, 100, 2), Mask: net.CIDRMask(24, 32)}}, gatewayNS); err != nil {
 			return nil, err
 		}
 
@@ -350,8 +350,8 @@ func (tc *TunnelController) SetupSignalHandlerForTunnelOperator() (stopCh <-chan
 	go func(tc *TunnelController) {
 		sig := <-c
 		klog.Infof("received signal %s: cleaning up", sig.String())
-		close(tc.stopSWChan)
-		close(tc.stopPWChan)
+		//close(tc.stopSWChan)
+		//close(tc.stopPWChan)
 		_ = removeGatewayNS("liqo-gateway")
 		<-c
 		close(stop)
@@ -432,7 +432,7 @@ func (tc *TunnelController) SetUpRouteManager(recorder record.EventRecorder) {
 
 func createVethPair(gatewayNS ns.NetNS) error {
 	var vethPair = func(hostNS ns.NetNS) error {
-		_, _, err := ip.SetupVethWithName("liqo.gateway", "liqo.host", 1500, hostNS)
+		_, _, err := ip.SetupVethWithName("liqo.gateway", "liqo.host", tunnelwg.LinkMTU, hostNS)
 		if err != nil {
 			klog.Errorf("an error occurred while creating veth pair between host and gateway namespace")
 			return err

@@ -19,6 +19,8 @@ import (
 	netv1alpha1 "github.com/liqotech/liqo/apis/net/v1alpha1"
 	utils "github.com/liqotech/liqo/pkg/liqonet"
 	direct_routing "github.com/liqotech/liqo/pkg/liqonet/direct-routing"
+	"github.com/liqotech/liqo/pkg/liqonet/overlay"
+	tunnelwg "github.com/liqotech/liqo/pkg/liqonet/tunnel/wireguard"
 	"github.com/liqotech/liqo/pkg/liqonet/wireguard"
 	k8sApiErrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -28,6 +30,7 @@ import (
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/tools/record"
 	"k8s.io/klog"
+	"net"
 	"os"
 	"os/signal"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -49,17 +52,20 @@ type RouteController struct {
 	client.Client
 	record.EventRecorder
 	utils.NetLink
-	clientSet   *kubernetes.Clientset
-	nodeName    string
-	namespace   string
-	podIP       string
-	nodePodCIDR string
-	wg          *wireguard.Wireguard
-	DynClient   dynamic.Interface
+	clientSet     *kubernetes.Clientset
+	nodeName      string
+	namespace     string
+	podIP         string
+	nodePodCIDR   string
+	wg            *wireguard.Wireguard
+	DynClient     dynamic.Interface
+	vxlan         *overlay.VxlanDevice
+	directRouting bool
 }
 
 func NewRouteController(mgr ctrl.Manager, wgc wireguard.Client, nl wireguard.Netlinker, directRouting bool) (*RouteController, error) {
 	var wg *wireguard.Wireguard
+	var vxlan *overlay.VxlanDevice
 	var routeManager utils.NetLink
 	var err error
 	dynClient := dynamic.NewForConfigOrDie(mgr.GetConfig())
@@ -76,11 +82,11 @@ func NewRouteController(mgr ctrl.Manager, wgc wireguard.Client, nl wireguard.Net
 		klog.Errorf("unable to create the controller: %v", err)
 		return nil, err
 	}
-	nodePodCIDR, err := utils.GetNodePodCIDR(nodeName, clientSet)
+	/*nodePodCIDR, err := utils.GetNodePodCIDR(nodeName, clientSet)
 	if err != nil {
 		klog.Errorf("unable to create the controller: %v", err)
 		return nil, err
-	}
+	}*/
 	namespace, err := utils.GetPodNamespace()
 	if err != nil {
 		klog.Errorf("unable to create the controller: %v", err)
@@ -91,17 +97,52 @@ func NewRouteController(mgr ctrl.Manager, wgc wireguard.Client, nl wireguard.Net
 			klog.Errorf("unable to create the controller: %v", err)
 			return nil, err
 		}
+	} else {
+		routeManager = utils.NewRouteManager(mgr.GetEventRecorderFor(eventRecorderName))
+		//create vxlan device
+		vxlan, err = overlay.NewVXLANDevice(&overlay.VxlanDeviceAttrs{
+			Vni:      200,
+			Name:     "liqo.vxlan",
+			VtepPort: 4789,
+			VtepAddr: podIP,
+			Mtu:      tunnelwg.LinkMTU,
+		})
+		if err != nil {
+			klog.Errorf("unable to create the vxlan interface: %v", err)
+			return nil, err
+		}
+		overlayIP := overlay.GetOverlayIP(podIP.String())
+		ip, ipNet, err := net.ParseCIDR(overlayIP + "/4")
+		if err != nil {
+			klog.Errorf("un error occurred while parsing CIDR %s: %v", overlayIP, err)
+			return nil, err
+		}
+		if err = vxlan.ConfigureIPAddress(ip, ipNet); err != nil {
+			klog.Errorf("un error occurred while configuring ipaddr %s for interface %s: %v", ip.String(), vxlan.Link.Name, err)
+			return nil, err
+		}
+		//enable rp filter for vxlan device
+		if err = overlay.Enable_rp_filter(vxlan.Link.Name); err != nil {
+			klog.Errorf("unable to enable rp filter for interface %s: %v", vxlan.Link.Name, err)
+			return nil, err
+		}
+		if defaultIface, err := utils.GetDefaultIfaceName(); err != nil {
+			klog.Errorf("unable to enable rp filter for interface %s: %v", defaultIface, err)
+			return nil, err
+		}
 	}
 	r := &RouteController{
-		Client:      mgr.GetClient(),
-		clientSet:   clientSet,
-		podIP:       podIP.String(),
-		nodePodCIDR: nodePodCIDR,
-		namespace:   namespace,
-		wg:          wg,
-		nodeName:    nodeName,
-		DynClient:   dynClient,
-		NetLink:     routeManager,
+		Client:    mgr.GetClient(),
+		clientSet: clientSet,
+		podIP:     podIP.String(),
+		//nodePodCIDR:   nodePodCIDR,
+		namespace:     namespace,
+		wg:            wg,
+		nodeName:      nodeName,
+		DynClient:     dynClient,
+		NetLink:       routeManager,
+		vxlan:         vxlan,
+		directRouting: directRouting,
 	}
 	return r, nil
 }
@@ -133,6 +174,12 @@ func (r *RouteController) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 	}
 	//Here we check that the tunnelEndpoint resource has been fully processed. If not we do nothing.
 	if tep.Status.RemoteRemappedPodCIDR == "" {
+		return result, nil
+	}
+	if !r.directRouting {
+		ifaceName = r.vxlan.Link.Name
+	}
+	if tep.Status.GatewayPodIP == "" {
 		return result, nil
 	}
 	if r.podIP == tep.Status.GatewayPodIP {
@@ -210,7 +257,8 @@ func (r *RouteController) SetupSignalHandlerForRouteOperator() (stopCh <-chan st
 	signal.Notify(c, utils.ShutdownSignals...)
 	go func(r *RouteController) {
 		<-c
-		r.deleteOverlayIFace()
+		//r.deleteOverlayIFace()
+		_ = r.vxlan.DeleteVxLanIface()
 		close(stop)
 	}(r)
 	return stop

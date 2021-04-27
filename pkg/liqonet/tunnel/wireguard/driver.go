@@ -35,6 +35,7 @@ const (
 	KeysLabel         = "net.liqo.io/key"  // label for the secret that contains the public key
 	defaultPort       = 5871
 	KeepAliveInterval = 10 * time.Second
+	LinkMTU           = 1420
 )
 
 //registering the driver as available
@@ -117,7 +118,7 @@ func (w *Wireguard) Init() error {
 		return fmt.Errorf("failed to bring up WireGuard device: %v", err)
 	}
 
-	if err := netlink.LinkSetMTU(w.link, 1300); err != nil {
+	if err := netlink.LinkSetMTU(w.link, LinkMTU); err != nil {
 		return fmt.Errorf("failed to set mtu for interface %s: %v", deviceName, err)
 	}
 

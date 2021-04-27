@@ -60,7 +60,7 @@ func main() {
 	flag.StringVar(&runAs, "run-as", "tunnel-operator", "The accepted values are: liqo-gateway, liqo-route, tunnelEndpointCreator-operator. The default value is \"tunnel-operator\"")
 	flag.BoolVar(&directRouting, "direct-routing", false, "Enable direct routing in order to send traffic to the liqo gateway pod")
 	flag.Parse()
-	directRouting = true
+	//directRouting = true
 	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
 		MapperProvider:     mapperUtils.LiqoMapperProvider(scheme),
 		Scheme:             scheme,
@@ -116,7 +116,7 @@ func main() {
 			os.Exit(2)
 		}
 		tc.WatchConfiguration(config, &clusterConfig.GroupVersion)
-		if !directRouting {
+		if directRouting {
 			tc.StartPodWatcher()
 			tc.StartServiceWatcher()
 		}
