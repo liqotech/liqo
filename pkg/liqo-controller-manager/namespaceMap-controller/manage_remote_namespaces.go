@@ -2,6 +2,7 @@ package namespaceMap_controller
 
 import (
 	"context"
+	"fmt"
 	mapsv1alpha1 "github.com/liqotech/liqo/apis/virtualKubelet/v1alpha1"
 	liqoconst "github.com/liqotech/liqo/pkg/consts"
 	corev1 "k8s.io/api/core/v1"
@@ -66,19 +67,23 @@ func (r *NamespaceMapReconciler) manageRemoteNamespaces(nm *mapsv1alpha1.Namespa
 
 	// if DesiredMapping field has more entries than CurrentMapping, is necessary to create new remote namespaces
 	for localName, remoteName := range nm.Spec.DesiredMapping {
-		if _, ok := nm.Status.CurrentMapping[localName]; !ok {
+		if remoteStatus, ok := nm.Status.CurrentMapping[localName]; !ok || (ok && remoteStatus.Phase != mapsv1alpha1.MappingAccepted) {
+			namespacePhase := mapsv1alpha1.MappingAccepted
 			if err := r.createRemoteNamespace(nm.Labels[liqoconst.VirtualNodeClusterId], remoteName); err != nil {
-				return err
+				namespacePhase = mapsv1alpha1.MappingRefused
 			}
 			nm.Status.CurrentMapping[localName] = mapsv1alpha1.RemoteNamespaceStatus{
 				RemoteNamespace: remoteName,
-				Phase:           mapsv1alpha1.MappingAccepted,
+				Phase:           namespacePhase,
 			}
-			if err := r.Update(context.TODO(), nm); err != nil {
+			if errUpdate := r.Update(context.TODO(), nm); errUpdate != nil {
 				klog.Errorf("unable to update NamespaceMap '%s' Status", nm.Name)
-				return err
+				return errUpdate
 			}
-			klog.Infof("Status of NamespaceMap '%s' is correctly updated, new remote Namespace '%s'", nm.Name, remoteName)
+			klog.Infof("Status of Namespace '%s' is correctly updated", localName)
+			if namespacePhase != mapsv1alpha1.MappingAccepted {
+				return fmt.Errorf("namespace '%s' cannot be created on cluster '%s'", localName, nm.Labels[liqoconst.VirtualNodeClusterId])
+			}
 		}
 	}
 
@@ -95,7 +100,6 @@ func (r *NamespaceMapReconciler) manageRemoteNamespaces(nm *mapsv1alpha1.Namespa
 				return err
 			}
 			klog.Infof("Status of NamespaceMap '%s' is correctly updated, delete remote Namespace '%s'", nm.Name, remoteStatus.RemoteNamespace)
-
 		}
 	}
 
