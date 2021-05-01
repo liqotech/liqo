@@ -148,7 +148,7 @@ func forgeVKContainers(
 				},
 				{
 					Name:  "VKUBELET_TAINT_KEY",
-					Value: "virtual-node.liqo.io/not-allowed",
+					Value: liqoconst.VirtualNodeTolerationKey,
 				},
 				{
 					Name:  "VKUBELET_TAINT_VALUE",

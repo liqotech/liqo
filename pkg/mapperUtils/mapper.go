@@ -14,6 +14,7 @@ import (
 	configv1alpha1 "github.com/liqotech/liqo/apis/config/v1alpha1"
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	netv1alpha1 "github.com/liqotech/liqo/apis/net/v1alpha1"
+	offv1alpha1 "github.com/liqotech/liqo/apis/offloading/v1alpha1"
 	sharingv1alpha1 "github.com/liqotech/liqo/apis/sharing/v1alpha1"
 	virtualKubeletv1alpha1 "github.com/liqotech/liqo/apis/virtualKubelet/v1alpha1"
 )
@@ -66,7 +67,9 @@ func addDefaults(dClient *discovery.DiscoveryClient, mapper *meta.DefaultRESTMap
 	if err = addGroup(dClient, virtualKubeletv1alpha1.GroupVersion, mapper); err != nil {
 		return err
 	}
-
+	if err = addGroup(dClient, offv1alpha1.GroupVersion, mapper); err != nil {
+		return err
+	}
 	// Kubernetes groups
 	if err = addGroup(dClient, corev1.SchemeGroupVersion, mapper); err != nil {
 		return err

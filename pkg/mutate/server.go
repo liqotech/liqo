@@ -1,12 +1,19 @@
 package mutate
 
 import (
+	"context"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"net/http"
 	"time"
 
-	"k8s.io/klog"
+	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/klog/v2"
+	"sigs.k8s.io/controller-runtime/pkg/client"
+
+	offv1alpha1 "github.com/liqotech/liqo/apis/offloading/v1alpha1"
+	cachedclient "github.com/liqotech/liqo/pkg/utils/cachedClient"
 )
 
 type MutationConfig struct {
@@ -18,12 +25,23 @@ type MutationServer struct {
 	mux    *http.ServeMux
 	server *http.Server
 
-	config *MutationConfig
+	webhookClient client.Client
+	config        *MutationConfig
 }
 
-func NewMutationServer(c *MutationConfig) (*MutationServer, error) {
+// NewMutationServer creates a new mutation server.
+func NewMutationServer(ctx context.Context, c *MutationConfig) (*MutationServer, error) {
 	s := &MutationServer{}
 	s.config = c
+
+	// This scheme is necessary for the WebhookClient.
+	scheme := runtime.NewScheme()
+	_ = offv1alpha1.AddToScheme(scheme)
+
+	var err error
+	if s.webhookClient, err = cachedclient.GetCachedClient(ctx, scheme); err != nil {
+		return nil, err
+	}
 
 	s.mux = http.NewServeMux()
 	s.mux.HandleFunc("/mutate", s.handleMutate)
@@ -70,6 +88,18 @@ func (s *MutationServer) sendError(err error, w http.ResponseWriter) {
 	_, _ = fmt.Fprintf(w, "%s", err)
 }
 
+// Serve is a wrapper function for ListenAndServeTLS.
 func (s *MutationServer) Serve() {
-	klog.Fatal(s.server.ListenAndServeTLS(s.config.CertFile, s.config.KeyFile))
+	if err := s.server.ListenAndServeTLS(s.config.CertFile, s.config.KeyFile); !errors.Is(err, http.ErrServerClosed) {
+		// Error starting or closing listener:
+		klog.Fatalf("HTTP server ListenAndServe: %v", err)
+	}
+}
+
+// Shutdown gracefully shuts down the server without interrupting any active connections.
+func (s *MutationServer) Shutdown(ctx context.Context) {
+	if err := s.server.Shutdown(ctx); err != nil {
+		// Error from closing listeners, or context timeout:
+		klog.Errorf("HTTP server Shutdown: %v", err)
+	}
 }

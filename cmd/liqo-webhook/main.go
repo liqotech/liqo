@@ -1,24 +1,47 @@
 package main
 
 import (
-	"log"
+	"context"
+	"os/signal"
+	"syscall"
+	"time"
 
-	"k8s.io/klog"
+	"k8s.io/klog/v2"
 
 	"github.com/liqotech/liqo/pkg/mutate"
 )
 
+const gracefulPeriod = 5 * time.Second
+
 func main() {
 	config := &mutate.MutationConfig{}
-
 	setOptions(config)
 
-	log.Println("Starting server ...")
+	klog.Info("Starting server ...")
 
-	s, err := mutate.NewMutationServer(config)
+	ctx, cancel := context.WithCancel(context.Background())
+	ctxSignal, stop := signal.NotifyContext(ctx, syscall.SIGINT, syscall.SIGTERM)
+
+	s, err := mutate.NewMutationServer(ctx, config)
 	if err != nil {
 		klog.Fatal(err)
 	}
 
+	go func() {
+		defer cancel()
+
+		<-ctxSignal.Done()
+		// Restore default signal handler.
+		stop()
+
+		ctxShutdown, cancelShutdown := context.WithTimeout(ctx, gracefulPeriod)
+		defer cancelShutdown()
+
+		klog.Info("Received signal, shutting down")
+		s.Shutdown(ctxShutdown)
+	}()
+
 	s.Serve()
+	<-ctx.Done()
+	klog.Info("Liqo webhook cleanly shutdown")
 }

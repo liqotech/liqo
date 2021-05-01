@@ -4,21 +4,19 @@ import (
 	"encoding/json"
 	"fmt"
 
+	"gomodules.xyz/jsonpatch/v2"
 	admissionv1beta1 "k8s.io/api/admission/v1beta1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/klog"
-)
+	"k8s.io/klog/v2"
 
-type patchType struct {
-	Op    string              `json:"op"`
-	Path  string              `json:"path"`
-	Value []corev1.Toleration `json:"value"`
-}
+	liqoconst "github.com/liqotech/liqo/pkg/consts"
+)
 
 // cluster-role
 // +kubebuilder:rbac:groups=admissionregistration.k8s.io,resources=mutatingwebhookconfigurations,verbs=get;list;update;patch
-// role
+// +kubebuilder:rbac:groups=offloading.liqo.io,resources=namespaceoffloadings,verbs=get;list;watch
+//role
 // +kubebuilder:rbac:groups=core,namespace="do-not-care",resources=secrets,verbs=create;get;list;watch
 
 // Mutate mutates the object received via admReview and creates a response
@@ -26,9 +24,9 @@ type patchType struct {
 func (s *MutationServer) Mutate(body []byte) ([]byte, error) {
 	var err error
 
-	// unmarshal request into AdmissionReview struct
+	// Unmarshal request into AdmissionReview struct.
 	admReview := admissionv1beta1.AdmissionReview{}
-	if err := json.Unmarshal(body, &admReview); err != nil {
+	if err = json.Unmarshal(body, &admReview); err != nil {
 		return nil, fmt.Errorf("unmarshaling request failed with %s", err)
 	}
 
@@ -42,8 +40,8 @@ func (s *MutationServer) Mutate(body []byte) ([]byte, error) {
 		return responseBody, fmt.Errorf("received admissionReview with empty request")
 	}
 
-	// get the Pod object and unmarshal it into its struct, if we cannot, we might as well stop here
-	if err := json.Unmarshal(admissionReviewRequest.Object.Raw, &pod); err != nil {
+	// Get the Pod object and unmarshal it into its struct, if we cannot, we might as well stop here
+	if err = json.Unmarshal(admissionReviewRequest.Object.Raw, &pod); err != nil {
 		return nil, fmt.Errorf("unable unmarshal pod json object %v", err)
 	}
 
@@ -57,20 +55,32 @@ func (s *MutationServer) Mutate(body []byte) ([]byte, error) {
 		"liqo": "this pod is allowed to run in liqo",
 	}
 
-	tolerations := append(pod.Spec.Tolerations, corev1.Toleration{
-		Key:      "virtual-node.liqo.io/not-allowed",
-		Operator: "Exists",
-		Effect:   "NoExecute",
+	original, err := json.Marshal(pod)
+	if err != nil {
+		klog.Error(err)
+		return nil, err
+	}
+
+	pod.Spec.Tolerations = append(pod.Spec.Tolerations, corev1.Toleration{
+		Key:      liqoconst.VirtualNodeTolerationKey,
+		Operator: corev1.TolerationOpExists,
+		Effect:   corev1.TaintEffectNoExecute,
 	})
 
-	patch := []patchType{
-		{
-			Op:    "add",
-			Path:  "/spec/tolerations",
-			Value: tolerations,
-		},
+	target, err := json.Marshal(pod)
+	if err != nil {
+		klog.Error(err)
+		return nil, err
 	}
-	if resp.Patch, err = json.Marshal(patch); err != nil {
+
+	ops, err := jsonpatch.CreatePatch(original, target)
+	if err != nil {
+		klog.Error(err)
+		return nil, err
+	}
+
+	if resp.Patch, err = json.Marshal(ops); err != nil {
+		klog.Error(err)
 		return nil, err
 	}
 
