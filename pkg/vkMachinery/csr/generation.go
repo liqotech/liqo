@@ -57,7 +57,7 @@ func WaitForApproval(client k8s.Interface, name string) ([]byte, error) {
 	for {
 		select {
 		case <-timeout.C:
-			return nil, fmt.Errorf("Timeout elapsed waiting for the certificate %s to be forged", name)
+			return nil, fmt.Errorf("timeout elapsed waiting for the certificate %s to be forged", name)
 		case <-ticker.C:
 			crt, err := client.CertificatesV1beta1().CertificateSigningRequests().Get(context.TODO(), name, metav1.GetOptions{})
 			if err != nil {

@@ -372,9 +372,10 @@ func (r *AdvertisementReconciler) CleanOldAdvertisements(quit chan struct{}, wg 
 			}
 		case <-quit:
 			ticker.Stop()
-			break
+			return
 		}
 	}
+
 }
 
 func (r *AdvertisementReconciler) checkClusterStatus(adv advtypes.Advertisement) error {

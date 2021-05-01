@@ -60,12 +60,12 @@ func (r *ReplicaSetsIncomingReflector) HandleEvent(obj interface{}) {
 	}
 }
 
-// preAdd returns always nil beacuse the add events have to be ignored
+// preAdd returns always nil because the add events have to be ignored
 func (r *ReplicaSetsIncomingReflector) preAdd(_ interface{}) (interface{}, watch.EventType) {
 	return nil, watch.Added
 }
 
-// preUpdate returns always nil beacuse the add events have to be ignored
+// preUpdate returns always nil because the add events have to be ignored
 func (r *ReplicaSetsIncomingReflector) preUpdate(_, _ interface{}) (interface{}, watch.EventType) {
 	return nil, watch.Modified
 }
