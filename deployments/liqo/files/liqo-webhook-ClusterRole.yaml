@@ -8,4 +8,12 @@ rules:
   - list
   - patch
   - update
+- apiGroups:
+  - offloading.liqo.io
+  resources:
+  - namespaceoffloadings
+  verbs:
+  - get
+  - list
+  - watch
 

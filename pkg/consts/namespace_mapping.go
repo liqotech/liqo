@@ -8,6 +8,7 @@ const (
 	// TypeLabel is the key of a Liqo label that identifies different types of nodes.
 	TypeLabel = "liqo.io/type"
 	// TypeNode is the value of a Liqo label that identifies Liqo virtual nodes.
+	// todo: change to VirtualNodeType
 	TypeNode = "virtual-node"
 	// NamespaceMapControllerFinalizer is the finalizer inserted on NamespaceMap by NamespaceMap Controller.
 	// todo: has to be removed after VirtualNode Controller refactor

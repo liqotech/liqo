@@ -9,7 +9,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/kubernetes/pkg/util/slice"
 	"k8s.io/utils/pointer"
@@ -105,7 +104,7 @@ var _ = Describe("VirtualNode controller", func() {
 				return len(nms.Items) == 1
 			}, timeout, interval).Should(BeTrue())
 
-			expectedOwnerReference := v1.OwnerReference{
+			expectedOwnerReference := metav1.OwnerReference{
 				APIVersion:         "v1",
 				BlockOwnerDeletion: pointer.BoolPtr(true),
 				Kind:               "Node",
@@ -145,7 +144,7 @@ var _ = Describe("VirtualNode controller", func() {
 				return len(nms.Items) == 1
 			}, timeout, interval).Should(BeTrue())
 
-			expectedOwnerReference := v1.OwnerReference{
+			expectedOwnerReference := metav1.OwnerReference{
 				APIVersion:         "v1",
 				BlockOwnerDeletion: pointer.BoolPtr(true),
 				Kind:               "Node",
