@@ -12,8 +12,8 @@ import (
 	"github.com/liqotech/liqo/pkg/crdClient"
 	"github.com/liqotech/liqo/pkg/kubeconfig"
 	"github.com/liqotech/liqo/pkg/labelPolicy"
-	liqoControllerManager "github.com/liqotech/liqo/pkg/liqo-controller-manager"
 	"github.com/liqotech/liqo/pkg/utils"
+	liqocontrollerutils "github.com/liqotech/liqo/pkg/utils"
 	pkg "github.com/liqotech/liqo/pkg/virtualKubelet"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/forge"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
@@ -270,12 +270,12 @@ func (b *AdvertisementBroadcaster) CreateAdvertisement(advRes *AdvResources) adv
 
 func (b *AdvertisementBroadcaster) GetResourcesForAdv() (advRes *AdvResources, err error) {
 	// get physical and virtual nodes in the cluster
-	physicalNodes, err := b.LocalClient.Client().CoreV1().Nodes().List(context.TODO(), metav1.ListOptions{LabelSelector: fmt.Sprintf("%v != %v", liqoControllerManager.TypeLabel, liqoControllerManager.TypeNode)})
+	physicalNodes, err := b.LocalClient.Client().CoreV1().Nodes().List(context.TODO(), metav1.ListOptions{LabelSelector: fmt.Sprintf("%v != %v", liqocontrollerutils.TypeLabel, liqocontrollerutils.TypeNode)})
 	if err != nil {
 		klog.Errorln("Could not get physical nodes, retry in 1 minute")
 		return nil, err
 	}
-	virtualNodes, err := b.LocalClient.Client().CoreV1().Nodes().List(context.TODO(), metav1.ListOptions{LabelSelector: fmt.Sprintf("%v = %v", liqoControllerManager.TypeLabel, liqoControllerManager.TypeNode)})
+	virtualNodes, err := b.LocalClient.Client().CoreV1().Nodes().List(context.TODO(), metav1.ListOptions{LabelSelector: fmt.Sprintf("%v = %v", liqocontrollerutils.TypeLabel, liqocontrollerutils.TypeNode)})
 	if err != nil {
 		klog.Errorln("Could not get virtual nodes, retry in 1 minute")
 		return nil, err

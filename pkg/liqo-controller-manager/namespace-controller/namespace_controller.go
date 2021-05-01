@@ -19,7 +19,7 @@ package namespace_controller
 import (
 	"context"
 	mapsv1alpha1 "github.com/liqotech/liqo/apis/virtualKubelet/v1alpha1"
-	const_ctrl "github.com/liqotech/liqo/pkg/liqo-controller-manager"
+	liqocontrollerutils "github.com/liqotech/liqo/pkg/utils"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/klog"
@@ -38,6 +38,8 @@ const (
 	offloadingLabel              = "offloading.liqo.io"
 	offloadingPrefixLabel        = "offloading.liqo.io/"
 	namespaceControllerFinalizer = "namespace-controller.liqo.io/finalizer"
+	mappingAnnotationDefaulting  = "mapping.liqo.io/defaulting"
+	mappingAnnotationRenaming    = "mapping.liqo.io/renaming"
 )
 
 func (r *NamespaceReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
@@ -61,7 +63,7 @@ func (r *NamespaceReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 
 	removeMappings := make(map[string]mapsv1alpha1.NamespaceMap)
 	for _, namespaceMap := range namespaceMaps.Items {
-		removeMappings[namespaceMap.GetLabels()[const_ctrl.VirtualNodeClusterId]] = namespaceMap
+		removeMappings[namespaceMap.GetLabels()[liqocontrollerutils.VirtualNodeClusterId]] = namespaceMap
 	}
 
 	if !namespace.GetDeletionTimestamp().IsZero() {
@@ -92,6 +94,11 @@ func (r *NamespaceReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 	// 1. If mapping.liqo.io label is not present there are no remote namespaces associated with this namespace, removeMappings is full
 	if remoteNamespaceName, ok := namespace.GetLabels()[mappingLabel]; ok {
 
+		// If user does not specify a remote name for his namespace, a default name is used
+		if remoteNamespaceName == "" {
+			return ctrl.Result{}, r.checkMappingLabelDefaulting(namespace)
+		}
+
 		// 2.a If offloading.liqo.io is present there are remote namespaces on all virtual nodes
 		if _, ok = namespace.GetLabels()[offloadingLabel]; ok {
 			klog.Infof(" Offload namespace '%s' on all remote clusters", namespace.GetName())
@@ -108,7 +115,7 @@ func (r *NamespaceReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 			// 2.b Iterate on all virtual nodes' labels, if the namespace has all the requested labels, is necessary to
 			// offload it onto remote cluster associated with the virtual node
 			nodes := &corev1.NodeList{}
-			if err := r.List(context.TODO(), nodes, client.MatchingLabels{const_ctrl.TypeLabel: const_ctrl.TypeNode}); err != nil {
+			if err := r.List(context.TODO(), nodes, client.MatchingLabels{liqocontrollerutils.TypeLabel: liqocontrollerutils.TypeNode}); err != nil {
 				klog.Error(err, " --> Unable to List all virtual nodes")
 				return ctrl.Result{}, err
 			}
@@ -120,11 +127,11 @@ func (r *NamespaceReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 
 			for _, node := range nodes.Items {
 				if checkOffloadingLabels(namespace, &node) {
-					if err := r.addDesiredMapping(namespace, remoteNamespaceName, removeMappings[node.Annotations[const_ctrl.VirtualNodeClusterId]]); err != nil {
+					if err := r.addDesiredMapping(namespace, remoteNamespaceName, removeMappings[node.Annotations[liqocontrollerutils.VirtualNodeClusterId]]); err != nil {
 						return ctrl.Result{}, err
 					}
-					delete(removeMappings, node.Annotations[const_ctrl.VirtualNodeClusterId])
-					klog.Infof(" Offload namespace '%s' on remote cluster: %s", namespace.GetName(), node.Annotations[const_ctrl.VirtualNodeClusterId])
+					delete(removeMappings, node.Annotations[liqocontrollerutils.VirtualNodeClusterId])
+					klog.Infof(" Offload namespace '%s' on remote cluster: %s", namespace.GetName(), node.Annotations[liqocontrollerutils.VirtualNodeClusterId])
 				}
 
 			}

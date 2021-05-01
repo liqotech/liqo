@@ -1,7 +1,9 @@
 package namespace_controller
 
 import (
-	const_ctrl "github.com/liqotech/liqo/pkg/liqo-controller-manager"
+	"context"
+	"fmt"
+	liqocontrollerutils "github.com/liqotech/liqo/pkg/utils"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/klog"
 	"k8s.io/kubernetes/pkg/util/slice"
@@ -10,12 +12,35 @@ import (
 	"strings"
 )
 
+// This function sets remote Namespace name to default value "localName-clusterID" , and adds an Annotation to notify user
+func (r *NamespaceReconciler) checkMappingLabelDefaulting(n *corev1.Namespace) error {
+	clustedID, err := liqocontrollerutils.GetClusterID(r.Client)
+	if err != nil {
+		return err
+	}
+
+	n.Labels[mappingLabel] = fmt.Sprintf("%s-%s", n.Name, clustedID)
+
+	if n.GetAnnotations() == nil {
+		n.Annotations = map[string]string{}
+	}
+	n.GetAnnotations()[mappingAnnotationDefaulting] = fmt.Sprintf("You have not specified a name for your remote Namespace, this is your default name: [%s]. Please read our documentation for more info [%s]",
+		n.GetLabels()[mappingLabel], liqocontrollerutils.DocumentationUrl)
+
+	if err = r.Update(context.TODO(), n); err != nil {
+		klog.Errorf("%s --> Unable to update '%s' label on Namespace '%s'", err, mappingLabel, n.GetName())
+		return err
+	}
+	klog.Infof("'%s' of namespace '%s' updated with success", mappingLabel, n.GetName())
+	return nil
+}
+
 // Checks if Namespace has all offloading Labels of a specific node
 func checkOffloadingLabels(na *corev1.Namespace, n *corev1.Node) bool {
 	for key := range n.GetLabels() {
 		if strings.HasPrefix(key, offloadingPrefixLabel) {
 			if _, ok := na.GetLabels()[key]; !ok {
-				klog.Infof(" Namespace '%s' cannot be offloaded on remote cluster: %s", na.GetName(), n.Annotations[const_ctrl.VirtualNodeClusterId])
+				klog.Infof(" Namespace '%s' cannot be offloaded on remote cluster: %s", na.GetName(), n.Annotations[liqocontrollerutils.VirtualNodeClusterId])
 				return false
 			}
 		}

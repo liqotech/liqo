@@ -17,7 +17,7 @@ import (
 	"context"
 	"flag"
 	mapsv1alpha1 "github.com/liqotech/liqo/apis/virtualKubelet/v1alpha1"
-	const_ctrl "github.com/liqotech/liqo/pkg/liqo-controller-manager"
+	liqocontrollerutils "github.com/liqotech/liqo/pkg/utils"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -132,12 +132,12 @@ var _ = BeforeSuite(func(done Done) {
 		ObjectMeta: metav1.ObjectMeta{
 			Name: nameVirtualNode1,
 			Annotations: map[string]string{
-				const_ctrl.VirtualNodeClusterId: remoteClusterId1,
+				liqocontrollerutils.VirtualNodeClusterId: remoteClusterId1,
 			},
 			Labels: map[string]string{
-				const_ctrl.TypeLabel:     const_ctrl.TypeNode,
-				offloadingCluster1Label1: "",
-				offloadingCluster1Label2: "",
+				liqocontrollerutils.TypeLabel: liqocontrollerutils.TypeNode,
+				offloadingCluster1Label1:      "",
+				offloadingCluster1Label2:      "",
 			},
 		},
 	}
@@ -150,12 +150,12 @@ var _ = BeforeSuite(func(done Done) {
 		ObjectMeta: metav1.ObjectMeta{
 			Name: nameVirtualNode2,
 			Annotations: map[string]string{
-				const_ctrl.VirtualNodeClusterId: remoteClusterId2,
+				liqocontrollerutils.VirtualNodeClusterId: remoteClusterId2,
 			},
 			Labels: map[string]string{
-				const_ctrl.TypeLabel:     const_ctrl.TypeNode,
-				offloadingCluster2Label1: "",
-				offloadingCluster2Label2: "",
+				liqocontrollerutils.TypeLabel: liqocontrollerutils.TypeNode,
+				offloadingCluster2Label1:      "",
+				offloadingCluster2Label2:      "",
 			},
 		},
 	}
@@ -168,7 +168,7 @@ var _ = BeforeSuite(func(done Done) {
 		ObjectMeta: metav1.ObjectMeta{
 			Name: nameSimpleNode,
 			Annotations: map[string]string{
-				const_ctrl.VirtualNodeClusterId: remoteClusterIdSimpleNode,
+				liqocontrollerutils.VirtualNodeClusterId: remoteClusterIdSimpleNode,
 			},
 			Labels: map[string]string{
 				offloadingCluster1Label1: "",
@@ -179,7 +179,7 @@ var _ = BeforeSuite(func(done Done) {
 
 	mapNamespace = &corev1.Namespace{}
 	Eventually(func() bool {
-		if err = k8sClient.Get(context.TODO(), types.NamespacedName{Name: const_ctrl.MapNamespaceName}, mapNamespace); err != nil {
+		if err = k8sClient.Get(context.TODO(), types.NamespacedName{Name: liqocontrollerutils.MapNamespaceName}, mapNamespace); err != nil {
 			if errors.IsNotFound(err) {
 				if err = k8sClient.Create(context.TODO(), virtualNode1); err == nil {
 					return true

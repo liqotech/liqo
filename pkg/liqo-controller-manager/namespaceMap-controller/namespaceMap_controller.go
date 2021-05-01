@@ -19,7 +19,7 @@ package namespaceMap_controller
 import (
 	"context"
 	mapsv1alpha1 "github.com/liqotech/liqo/apis/virtualKubelet/v1alpha1"
-	const_ctrl "github.com/liqotech/liqo/pkg/liqo-controller-manager"
+	liqocontrollerutils "github.com/liqotech/liqo/pkg/utils"
 	"k8s.io/apimachinery/pkg/api/meta"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/klog"
@@ -49,10 +49,10 @@ func (r *NamespaceMapReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error
 		return ctrl.Result{}, client.IgnoreNotFound(err)
 	}
 
-	if !ctrlutils.ContainsFinalizer(namespaceMap, const_ctrl.NamespaceMapControllerFinalizer) {
-		ctrlutils.AddFinalizer(namespaceMap, const_ctrl.NamespaceMapControllerFinalizer)
+	if !ctrlutils.ContainsFinalizer(namespaceMap, liqocontrollerutils.NamespaceMapControllerFinalizer) {
+		ctrlutils.AddFinalizer(namespaceMap, liqocontrollerutils.NamespaceMapControllerFinalizer)
 		if err := r.Patch(context.TODO(), namespaceMap, client.Merge); err != nil {
-			klog.Errorf("%s --> Unable to add '%s' to the NamespaceMap '%s'", err, const_ctrl.NamespaceMapControllerFinalizer, namespaceMap.GetName())
+			klog.Errorf("%s --> Unable to add '%s' to the NamespaceMap '%s'", err, liqocontrollerutils.NamespaceMapControllerFinalizer, namespaceMap.GetName())
 			return ctrl.Result{}, err
 		}
 		klog.Infof("Finalizer correctly added on NamespaceMap '%s'", namespaceMap.GetName())
@@ -63,9 +63,9 @@ func (r *NamespaceMapReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error
 	}
 
 	if len(namespaceMap.Status.CurrentMapping) == 0 {
-		ctrlutils.RemoveFinalizer(namespaceMap, const_ctrl.NamespaceMapControllerFinalizer)
+		ctrlutils.RemoveFinalizer(namespaceMap, liqocontrollerutils.NamespaceMapControllerFinalizer)
 		if err := r.Update(context.TODO(), namespaceMap); err != nil {
-			klog.Errorf("%s --> Unable to remove '%s' from NamespaceMap '%s'", err, const_ctrl.NamespaceMapControllerFinalizer, namespaceMap.GetName())
+			klog.Errorf("%s --> Unable to remove '%s' from NamespaceMap '%s'", err, liqocontrollerutils.NamespaceMapControllerFinalizer, namespaceMap.GetName())
 			return ctrl.Result{}, err
 		}
 		klog.Infof("Finalizer correctly removed from NamespaceMap '%s'", namespaceMap.GetName())

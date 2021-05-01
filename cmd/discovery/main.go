@@ -6,8 +6,8 @@ import (
 	nettypes "github.com/liqotech/liqo/apis/net/v1alpha1"
 	advtypes "github.com/liqotech/liqo/apis/sharing/v1alpha1"
 	"github.com/liqotech/liqo/internal/discovery"
-	foreign_cluster_operator "github.com/liqotech/liqo/internal/discovery/foreign-cluster-operator"
-	search_domain_operator "github.com/liqotech/liqo/internal/discovery/search-domain-operator"
+	foreignclusteroperator "github.com/liqotech/liqo/internal/discovery/foreign-cluster-operator"
+	searchdomainoperator "github.com/liqotech/liqo/internal/discovery/search-domain-operator"
 	"github.com/liqotech/liqo/pkg/clusterID"
 	"github.com/liqotech/liqo/pkg/mapperUtils"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -84,10 +84,10 @@ func main() {
 	}
 
 	klog.Info("Starting SearchDomain operator")
-	search_domain_operator.StartOperator(&mgr, time.Duration(requeueAfter)*time.Second, discoveryCtl, kubeconfigPath)
+	searchdomainoperator.StartOperator(&mgr, time.Duration(requeueAfter)*time.Second, discoveryCtl, kubeconfigPath)
 
 	klog.Info("Starting ForeignCluster operator")
-	foreign_cluster_operator.StartOperator(&mgr, namespace, time.Duration(requeueAfter)*time.Second, discoveryCtl, kubeconfigPath)
+	foreignclusteroperator.StartOperator(&mgr, namespace, time.Duration(requeueAfter)*time.Second, discoveryCtl, kubeconfigPath)
 
 	if err := mgr.Start(ctrl.SetupSignalHandler()); err != nil {
 		klog.Error(err, "problem running manager")

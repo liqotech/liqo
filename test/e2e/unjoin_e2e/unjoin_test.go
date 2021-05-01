@@ -3,9 +3,9 @@ package unjoin_e2e
 import (
 	context2 "context"
 	"fmt"
+	liqocontrollerutils "github.com/liqotech/liqo/pkg/utils"
 	"testing"
 
-	liqoControllerManager "github.com/liqotech/liqo/pkg/liqo-controller-manager"
 	"github.com/liqotech/liqo/test/e2e/util"
 	"gotest.tools/assert"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -32,7 +32,7 @@ func NoPods(clientset *kubernetes.Clientset, namespace string, t *testing.T, clu
 
 func NoJoined(clientset *kubernetes.Clientset, t *testing.T, clustername string) {
 	nodes, err := clientset.CoreV1().Nodes().List(context2.TODO(), metav1.ListOptions{
-		LabelSelector: fmt.Sprintf("%v=%v", liqoControllerManager.TypeLabel, liqoControllerManager.TypeNode),
+		LabelSelector: fmt.Sprintf("%v=%v", liqocontrollerutils.TypeLabel, liqocontrollerutils.TypeNode),
 	})
 	if err != nil {
 		klog.Error(err)

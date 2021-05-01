@@ -19,7 +19,7 @@ package virtualNode_controller
 import (
 	"context"
 	mapsv1alpha1 "github.com/liqotech/liqo/apis/virtualKubelet/v1alpha1"
-	constctrl "github.com/liqotech/liqo/pkg/liqo-controller-manager"
+	liqocontrollerutils "github.com/liqotech/liqo/pkg/utils"
 	ctrlutils "sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
 	corev1 "k8s.io/api/core/v1"
@@ -64,8 +64,8 @@ func (r *VirtualNodeReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error)
 		klog.Infof("The virtual node '%s' is requested to be deleted", node.GetName())
 
 		nms := &mapsv1alpha1.NamespaceMapList{}
-		if err := r.List(context.TODO(), nms, client.InNamespace(constctrl.MapNamespaceName),
-			client.MatchingLabels{constctrl.VirtualNodeClusterId: node.GetAnnotations()[constctrl.VirtualNodeClusterId]}); err != nil {
+		if err := r.List(context.TODO(), nms, client.InNamespace(liqocontrollerutils.MapNamespaceName),
+			client.MatchingLabels{liqocontrollerutils.VirtualNodeClusterId: node.GetAnnotations()[liqocontrollerutils.VirtualNodeClusterId]}); err != nil {
 			klog.Errorf("%s --> Unable to List NamespaceMaps of virtual node '%s'", err, node.GetName())
 			return ctrl.Result{}, err
 		}
@@ -103,7 +103,7 @@ func filterVirtualNodes() predicate.Predicate {
 			// if the resource has no namespace, it surely a node, so we have to check if it is virtual or not, we are
 			// interested only in virtual-nodes' deletion, not common nodes' deletion.
 			if e.MetaNew.GetNamespace() == "" {
-				if value, ok := (e.MetaNew.GetLabels())[constctrl.TypeLabel]; !ok || value != constctrl.TypeNode {
+				if value, ok := (e.MetaNew.GetLabels())[liqocontrollerutils.TypeLabel]; !ok || value != liqocontrollerutils.TypeNode {
 					return false
 				}
 			}
@@ -113,7 +113,7 @@ func filterVirtualNodes() predicate.Predicate {
 		CreateFunc: func(e event.CreateEvent) bool {
 			// listen only virtual-node creation, not simple node
 			if e.Meta.GetNamespace() == "" {
-				if value, ok := (e.Meta.GetLabels())[constctrl.TypeLabel]; !ok || value != constctrl.TypeNode {
+				if value, ok := (e.Meta.GetLabels())[liqocontrollerutils.TypeLabel]; !ok || value != liqocontrollerutils.TypeNode {
 					return false
 				}
 			}
@@ -125,7 +125,7 @@ func filterVirtualNodes() predicate.Predicate {
 		},
 		GenericFunc: func(e event.GenericEvent) bool {
 			if e.Meta.GetNamespace() == "" {
-				if value, ok := (e.Meta.GetLabels())[constctrl.TypeLabel]; !ok || value != constctrl.TypeNode {
+				if value, ok := (e.Meta.GetLabels())[liqocontrollerutils.TypeLabel]; !ok || value != liqocontrollerutils.TypeNode {
 					return false
 				}
 			}

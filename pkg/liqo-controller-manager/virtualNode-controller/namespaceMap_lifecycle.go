@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 	mapsv1alpha1 "github.com/liqotech/liqo/apis/virtualKubelet/v1alpha1"
-	constctrl "github.com/liqotech/liqo/pkg/liqo-controller-manager"
+	liqocontrollerutils "github.com/liqotech/liqo/pkg/utils"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/klog"
@@ -35,7 +35,7 @@ func (r *VirtualNodeReconciler) removeAllDesiredMappings(nm mapsv1alpha1.Namespa
 // remove Finalizer and Update the NamespaceMap
 func (r *VirtualNodeReconciler) removeNamespaceMapFinalizers(nm mapsv1alpha1.NamespaceMap) error {
 	ctrlutils.RemoveFinalizer(&nm, virtualNodeControllerFinalizer)
-	ctrlutils.RemoveFinalizer(&nm, constctrl.NamespaceMapControllerFinalizer)
+	ctrlutils.RemoveFinalizer(&nm, liqocontrollerutils.NamespaceMapControllerFinalizer)
 
 	klog.Infof("The NamespaceMap '%s' is requested to be deleted", nm.GetName())
 
@@ -53,18 +53,18 @@ func (r *VirtualNodeReconciler) removeNamespaceMapFinalizers(nm mapsv1alpha1.Nam
 // create a new NamespaceMap with Finalizer and OwnerReference
 func (r *VirtualNodeReconciler) createNamespaceMap(n corev1.Node, stat mapsv1alpha1.NamespaceMapStatus, spec mapsv1alpha1.NamespaceMapSpec) error {
 
-	if _, ok := n.GetAnnotations()[constctrl.VirtualNodeClusterId]; !ok {
-		err := fmt.Errorf("label '%s' is not found on node '%s'", constctrl.VirtualNodeClusterId, n.GetName())
+	if _, ok := n.GetAnnotations()[liqocontrollerutils.VirtualNodeClusterId]; !ok {
+		err := fmt.Errorf("annotation '%s' is not found on node '%s'", liqocontrollerutils.VirtualNodeClusterId, n.GetName())
 		klog.Error(err)
 		return err
 	}
 
 	nm := &mapsv1alpha1.NamespaceMap{
 		ObjectMeta: metav1.ObjectMeta{
-			GenerateName: fmt.Sprintf("%s-", n.GetAnnotations()[constctrl.VirtualNodeClusterId]),
-			Namespace:    constctrl.MapNamespaceName,
+			GenerateName: fmt.Sprintf("%s-", n.GetAnnotations()[liqocontrollerutils.VirtualNodeClusterId]),
+			Namespace:    liqocontrollerutils.MapNamespaceName,
 			Labels: map[string]string{
-				constctrl.VirtualNodeClusterId: n.GetAnnotations()[constctrl.VirtualNodeClusterId],
+				liqocontrollerutils.VirtualNodeClusterId: n.GetAnnotations()[liqocontrollerutils.VirtualNodeClusterId],
 			},
 		},
 		Spec:   spec,
@@ -72,7 +72,7 @@ func (r *VirtualNodeReconciler) createNamespaceMap(n corev1.Node, stat mapsv1alp
 	}
 
 	if len(nm.Status.CurrentMapping) > 0 {
-		ctrlutils.AddFinalizer(nm, constctrl.NamespaceMapControllerFinalizer)
+		ctrlutils.AddFinalizer(nm, liqocontrollerutils.NamespaceMapControllerFinalizer)
 	}
 
 	ctrlutils.AddFinalizer(nm, virtualNodeControllerFinalizer)
@@ -106,8 +106,8 @@ func (r *VirtualNodeReconciler) regenerateNamespaceMap(nm mapsv1alpha1.Namespace
 func (r *VirtualNodeReconciler) namespaceMapLifecycle(n corev1.Node) error {
 
 	nms := &mapsv1alpha1.NamespaceMapList{}
-	if err := r.List(context.TODO(), nms, client.InNamespace(constctrl.MapNamespaceName),
-		client.MatchingLabels{constctrl.VirtualNodeClusterId: n.GetAnnotations()[constctrl.VirtualNodeClusterId]}); err != nil {
+	if err := r.List(context.TODO(), nms, client.InNamespace(liqocontrollerutils.MapNamespaceName),
+		client.MatchingLabels{liqocontrollerutils.VirtualNodeClusterId: n.GetAnnotations()[liqocontrollerutils.VirtualNodeClusterId]}); err != nil {
 		klog.Errorf("%s --> Unable to List NamespaceMaps of virtual node '%s'", err, n.GetName())
 		return err
 	}

@@ -8,8 +8,8 @@ import (
 	advtypes "github.com/liqotech/liqo/apis/sharing/v1alpha1"
 	advop "github.com/liqotech/liqo/internal/advertisement-operator"
 	"github.com/liqotech/liqo/pkg/crdClient"
-	liqoControllerManager "github.com/liqotech/liqo/pkg/liqo-controller-manager"
 	"github.com/liqotech/liqo/pkg/utils"
+	liqocontrollerutils "github.com/liqotech/liqo/pkg/utils"
 	pkg "github.com/liqotech/liqo/pkg/virtualKubelet"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/provider/test"
 	"github.com/stretchr/testify/assert"
@@ -113,7 +113,7 @@ func createFakeResources() (physicalNodes *corev1.NodeList, virtualNodes *corev1
 			vNodes[v] = corev1.Node{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:   "liqo-cluster" + strconv.Itoa(v),
-					Labels: map[string]string{liqoControllerManager.TypeLabel: liqoControllerManager.TypeNode},
+					Labels: map[string]string{liqocontrollerutils.TypeLabel: liqocontrollerutils.TypeNode},
 				},
 				Spec: corev1.NodeSpec{
 					PodCIDR: fmt.Sprintf("%d.%d.%d.%d/%d", i, i, i, i, 16),
