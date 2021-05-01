@@ -224,10 +224,10 @@ func (b *AdvertisementBroadcaster) CreateAdvertisement(advRes *AdvResources) adv
 
 	// set prices field
 	prices := ComputePrices(advRes.Images)
-	// use virtual nodes to build neighbours
-	neighbours := make(map[corev1.ResourceName]corev1.ResourceList)
+	// use virtual nodes to build neighbors
+	neighbors := make(map[corev1.ResourceName]corev1.ResourceList)
 	for _, vnode := range advRes.VirtualNodes.Items {
-		neighbours[corev1.ResourceName(vnode.Name)] = vnode.Status.Allocatable
+		neighbors[corev1.ResourceName(vnode.Name)] = vnode.Status.Allocatable
 	}
 
 	adv := advtypes.Advertisement{
@@ -255,7 +255,7 @@ func (b *AdvertisementBroadcaster) CreateAdvertisement(advRes *AdvResources) adv
 				ScopeSelector: nil,
 			},
 			Labels:     advRes.Labels,
-			Neighbors:  neighbours,
+			Neighbors:  neighbors,
 			Properties: nil,
 			Prices:     prices,
 			KubeConfigRef: corev1.SecretReference{

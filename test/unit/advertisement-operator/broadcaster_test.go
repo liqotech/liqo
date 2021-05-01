@@ -196,10 +196,10 @@ func prepareAdv(b *advop.AdvertisementBroadcaster) advtypes.Advertisement {
 	pNodes, vNodes, images, _, pods := createFakeResources()
 	reqs, limits := advop.GetAllPodsResources(pods)
 	availability, _ := advop.ComputeAnnouncedResources(pNodes, reqs, int64(b.ClusterConfig.AdvertisementConfig.OutgoingConfig.ResourceSharingPercentage))
-	neighbours := make(map[corev1.ResourceName]corev1.ResourceList)
+	neighbors := make(map[corev1.ResourceName]corev1.ResourceList)
 	labels := make(map[string]string)
 	for _, vNode := range vNodes.Items {
-		neighbours[corev1.ResourceName(vNode.Name)] = vNode.Status.Allocatable
+		neighbors[corev1.ResourceName(vNode.Name)] = vNode.Status.Allocatable
 	}
 	return b.CreateAdvertisement(&advop.AdvResources{PhysicalNodes: pNodes, VirtualNodes: vNodes, Availability: availability, Limits: limits, Images: images, Labels: labels})
 }
@@ -258,10 +258,10 @@ func TestCreateAdvertisement(t *testing.T) {
 	sharingPercentage := int32(50)
 	reqs, limits := advop.GetAllPodsResources(pods)
 	availability, _ := advop.ComputeAnnouncedResources(pNodes, reqs, int64(sharingPercentage))
-	neighbours := make(map[corev1.ResourceName]corev1.ResourceList)
+	neighbors := make(map[corev1.ResourceName]corev1.ResourceList)
 	labels := make(map[string]string)
 	for _, vNode := range vNodes.Items {
-		neighbours[corev1.ResourceName(vNode.Name)] = vNode.Status.Allocatable
+		neighbors[corev1.ResourceName(vNode.Name)] = vNode.Status.Allocatable
 	}
 
 	config := createFakeClusterConfig()
@@ -279,7 +279,7 @@ func TestCreateAdvertisement(t *testing.T) {
 	assert.Equal(t, images, adv.Spec.Images)
 	assert.Equal(t, availability, adv.Spec.ResourceQuota.Hard)
 	assert.Equal(t, limits, adv.Spec.LimitRange.Limits[0].Max)
-	assert.Equal(t, neighbours, adv.Spec.Neighbors)
+	assert.Equal(t, neighbors, adv.Spec.Neighbors)
 	assert.Empty(t, adv.Status, "Status should not be set")
 }
 
