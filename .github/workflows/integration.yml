@@ -232,7 +232,7 @@ jobs:
           event-type: "release"
           client-payload: |
              {
-               "version": "${{ needs.configure.outputs.commit_ref }}",
+               "version": "${{ needs.configure.outputs.commit_ref }}"
              }
 
   test:
