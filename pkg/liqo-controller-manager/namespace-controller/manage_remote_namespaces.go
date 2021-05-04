@@ -51,7 +51,7 @@ func (r *NamespaceReconciler) addDesiredMapping(n *corev1.Namespace, remoteName 
 			if n.GetAnnotations() == nil {
 				n.Annotations = map[string]string{}
 			}
-			n.GetAnnotations()[mappingAnnotationRenaming] = fmt.Sprintf("You cannot change the value of label [%s] because namespace's offload has already started with name [%s]. Please read our documentation for more info [%s]",
+			n.GetAnnotations()[mappingAnnotationRenaming] = fmt.Sprintf("You cannot change the value of label [%s] because the namespace is already offloaded with name [%s]. Please read our documentation for more info [%s]",
 				mappingLabel, oldValue, liqocontrollerutils.DocumentationUrl)
 
 			if err := r.Update(context.TODO(), n); err != nil {
