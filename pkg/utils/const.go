@@ -6,5 +6,5 @@ const (
 	TypeLabel                       = "liqo.io/type"
 	TypeNode                        = "virtual-node"
 	NamespaceMapControllerFinalizer = "namespacemap-controller.liqo.io/finalizer"
-	DocumentationUrl                = "https://github.com/liqotech/liqo/tree/master/docs"
+	DocumentationUrl                = "https://doc.liqo.io/"
 )
