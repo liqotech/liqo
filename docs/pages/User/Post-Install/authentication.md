@@ -74,7 +74,7 @@ ForeignCluster. To get the id of the cluster you want to authenticate with, iden
 and type:
 
 ```bash
-FOREIGN_CLUSTER_ID=$(kubectl get foreigncluster <foreign-cluster> -o=jsonpath="{['spec.clusterIdentity.clusterID']})"
+FOREIGN_CLUSTER_ID=$(kubectl get foreigncluster <foreign-cluster> -o=jsonpath="{['spec.clusterIdentity.clusterID']}")
 ```
 
 >__NOTE__: in v0.2 the foreign cluster resource name is the cluster-id, therefore it is enough to list the
@@ -98,7 +98,7 @@ if [ "$#" -ne 1 ]; then
   exit 1
 fi
 
-liqoNamespace="{$NAMESPACE:-liqo}"
+liqoNamespace="${NAMESPACE:-liqo}"
 fcName="$1"
 
 clusterId=$(kubectl get foreignclusters "$fcName" \
