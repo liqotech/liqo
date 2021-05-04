@@ -118,7 +118,7 @@ func (discovery *Controller) handleDispatcherConfig(config *configv1alpha1.Dispa
 	rules := []rbacv1.PolicyRule{}
 	for _, res := range config.ResourcesToReplicate {
 		rules = append(rules, rbacv1.PolicyRule{
-			Verbs:     []string{"*"},
+			Verbs:     []string{"get", "update", "patch", "list", "watch", "delete", "create"},
 			APIGroups: []string{res.Group},
 			Resources: []string{res.Resource, res.Resource + "/status"},
 		})

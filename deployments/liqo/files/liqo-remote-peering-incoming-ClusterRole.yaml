@@ -4,6 +4,7 @@ rules:
   resources:
   - networkconfigs
   verbs:
+  - create
   - delete
   - get
   - list
@@ -15,6 +16,7 @@ rules:
   resources:
   - networkconfigs/status
   verbs:
+  - create
   - delete
   - get
   - list

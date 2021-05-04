@@ -9,6 +9,7 @@ import (
 	"k8s.io/klog"
 
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
+	"github.com/liqotech/liqo/internal/crdReplicator"
 )
 
 // createResourceRequest creates a resource request to be sent to the specified ForeignCluster.
@@ -48,6 +49,10 @@ func (r *ForeignClusterReconciler) createResourceRequest(
 						Name: foreignCluster.Name,
 						UID:  foreignCluster.UID,
 					},
+				},
+				Labels: map[string]string{
+					crdReplicator.LocalLabelSelector: "true",
+					crdReplicator.DestinationLabel:   remoteClusterID,
 				},
 			},
 			Spec: discoveryv1alpha1.ResourceRequestSpec{

@@ -31,6 +31,7 @@ type ResourceRequestStatus struct {
 }
 
 // +kubebuilder:object:root=true
+// +kubebuilder:subresource:status
 
 // ResourceRequest is the Schema for the ResourceRequests API.
 type ResourceRequest struct {
