@@ -7,8 +7,9 @@ import (
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	advtypes "github.com/liqotech/liqo/apis/sharing/v1alpha1"
 	advop "github.com/liqotech/liqo/internal/advertisement-operator"
+	liqoconst "github.com/liqotech/liqo/pkg/consts"
 	"github.com/liqotech/liqo/pkg/crdClient"
-	liqoControllerManager "github.com/liqotech/liqo/pkg/liqo-controller-manager"
+
 	"github.com/liqotech/liqo/pkg/utils"
 	pkg "github.com/liqotech/liqo/pkg/virtualKubelet"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/provider/test"
@@ -113,7 +114,7 @@ func createFakeResources() (physicalNodes *corev1.NodeList, virtualNodes *corev1
 			vNodes[v] = corev1.Node{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:   "liqo-cluster" + strconv.Itoa(v),
-					Labels: map[string]string{liqoControllerManager.TypeLabel: liqoControllerManager.TypeNode},
+					Labels: map[string]string{liqoconst.TypeLabel: liqoconst.TypeNode},
 				},
 				Spec: corev1.NodeSpec{
 					PodCIDR: fmt.Sprintf("%d.%d.%d.%d/%d", i, i, i, i, 16),

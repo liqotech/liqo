@@ -17,7 +17,7 @@ import (
 	"flag"
 	"fmt"
 	mapsv1alpha1 "github.com/liqotech/liqo/apis/virtualKubelet/v1alpha1"
-	const_ctrl "github.com/liqotech/liqo/pkg/liqo-controller-manager"
+	liqoconst "github.com/liqotech/liqo/pkg/consts"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"path/filepath"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -137,10 +137,10 @@ var _ = BeforeSuite(func(done Done) {
 		ObjectMeta: metav1.ObjectMeta{
 			Name: nameVirtualNode1,
 			Annotations: map[string]string{
-				const_ctrl.VirtualNodeClusterId: remoteClusterId1,
+				liqoconst.VirtualNodeClusterId: remoteClusterId1,
 			},
 			Labels: map[string]string{
-				const_ctrl.TypeLabel:     const_ctrl.TypeNode,
+				liqoconst.TypeLabel:      liqoconst.TypeNode,
 				offloadingCluster1Label1: "",
 				offloadingCluster1Label2: "",
 			},
@@ -155,10 +155,10 @@ var _ = BeforeSuite(func(done Done) {
 		ObjectMeta: metav1.ObjectMeta{
 			Name: nameVirtualNode2,
 			Annotations: map[string]string{
-				const_ctrl.VirtualNodeClusterId: remoteClusterId2,
+				liqoconst.VirtualNodeClusterId: remoteClusterId2,
 			},
 			Labels: map[string]string{
-				const_ctrl.TypeLabel:     const_ctrl.TypeNode,
+				liqoconst.TypeLabel:      liqoconst.TypeNode,
 				offloadingCluster2Label1: "",
 				offloadingCluster2Label2: "",
 			},
@@ -174,7 +174,7 @@ var _ = BeforeSuite(func(done Done) {
 			GenerateName: fmt.Sprintf("%s-", remoteClusterId1),
 			Namespace:    mapNamespaceName,
 			Labels: map[string]string{
-				const_ctrl.VirtualNodeClusterId: remoteClusterId1,
+				liqoconst.VirtualNodeClusterId: remoteClusterId1,
 			},
 		},
 	}
@@ -188,7 +188,7 @@ var _ = BeforeSuite(func(done Done) {
 			GenerateName: fmt.Sprintf("%s-", remoteClusterId2),
 			Namespace:    mapNamespaceName,
 			Labels: map[string]string{
-				const_ctrl.VirtualNodeClusterId: remoteClusterId2,
+				liqoconst.VirtualNodeClusterId: remoteClusterId2,
 			},
 		},
 	}

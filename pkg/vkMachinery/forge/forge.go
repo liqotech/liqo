@@ -2,7 +2,7 @@ package forge
 
 import (
 	advtypes "github.com/liqotech/liqo/apis/sharing/v1alpha1"
-	liqoControllerManager "github.com/liqotech/liqo/pkg/liqo-controller-manager"
+	liqoconst "github.com/liqotech/liqo/pkg/consts"
 	vk "github.com/liqotech/liqo/pkg/vkMachinery"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
@@ -21,9 +21,9 @@ func forgeVKAffinity() *v1.Affinity {
 					{
 						MatchExpressions: []v1.NodeSelectorRequirement{
 							{
-								Key:      liqoControllerManager.TypeNode,
+								Key:      liqoconst.TypeNode,
 								Operator: v1.NodeSelectorOpNotIn,
-								Values:   []string{liqoControllerManager.TypeNode},
+								Values:   []string{liqoconst.TypeNode},
 							},
 						},
 					},
