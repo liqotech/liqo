@@ -348,7 +348,8 @@ func (r *AdvertisementReconciler) recordEvent(msg string, eventType string, even
 	r.EventsRecorder.Event(adv, eventType, eventReason, msg)
 }
 
-func (r *AdvertisementReconciler) CleanOldAdvertisements(quit chan struct{}, wg *sync.WaitGroup) {
+// CleanOldAdvertisements deletes old advertisements.
+func (r *AdvertisementReconciler) CleanOldAdvertisements(quit <-chan struct{}, wg *sync.WaitGroup) {
 	defer wg.Done()
 	var advList advtypes.AdvertisementList
 	ticker := time.NewTicker(cleanTimeout)
