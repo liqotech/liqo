@@ -4,7 +4,6 @@ import (
 	"context"
 	"time"
 
-	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/klog/v2"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -16,17 +15,10 @@ import (
 // ResourceRequestReconciler reconciles a ResourceRequest object.
 type ResourceRequestReconciler struct {
 	client.Client
-	Scheme    *runtime.Scheme
-	ClusterID string
+	Scheme      *runtime.Scheme
+	ClusterID   string
+	Broadcaster *Broadcaster
 }
-
-// ResourceToOffer is a custom struct to encapsulate cluster's ResourceList.
-type ResourceToOffer struct {
-	Offers corev1.ResourceList
-}
-
-// ResourceToOffer is a placeholder var with fake cluster resources.
-var resources ResourceToOffer
 
 const (
 	offerPrefix = "resourceoffer-"

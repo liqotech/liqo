@@ -5,7 +5,6 @@ import (
 	"time"
 
 	corev1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/klog/v2"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
@@ -15,9 +14,9 @@ import (
 	"github.com/liqotech/liqo/pkg/discovery"
 )
 
-// this function generate an empty offer.
+// generateResourceOffer generates a new local ResourceOffer.
 func (r *ResourceRequestReconciler) generateResourceOffer(request *discoveryv1alpha1.ResourceRequest) error {
-	err := r.computeResources()
+	resources, err := r.Broadcaster.ReadResources()
 	if err != nil {
 		return err
 	}
@@ -38,7 +37,7 @@ func (r *ResourceRequestReconciler) generateResourceOffer(request *discoveryv1al
 			ClusterId: r.ClusterID,
 			Images:    []corev1.ContainerImage{},
 			ResourceQuota: corev1.ResourceQuotaSpec{
-				Hard: resources.Offers,
+				Hard: resources,
 			},
 			Timestamp:  creationTime,
 			TimeToLive: metav1.NewTime(creationTime.Add(timeToLive)),
@@ -51,15 +50,5 @@ func (r *ResourceRequestReconciler) generateResourceOffer(request *discoveryv1al
 		return err
 	}
 	klog.Infof("%s -> %s Offer: %s", r.ClusterID, op, offer.ObjectMeta.Name)
-	return nil
-}
-
-// this function returns all resource available that will be offered to remote cluster.
-func (r *ResourceRequestReconciler) computeResources() error {
-	// placeholder for future logic
-	limits := corev1.ResourceList{}
-	limits[corev1.ResourceCPU] = *resource.NewQuantity(2, "2")
-	limits[corev1.ResourceMemory] = *resource.NewQuantity(1, "2m")
-	resources.Offers = limits
 	return nil
 }

@@ -13,6 +13,7 @@ limitations under the License.
 package main
 
 import (
+	"context"
 	"flag"
 	"os"
 	"sync"
@@ -172,10 +173,18 @@ func main() {
 		os.Exit(1)
 	}
 
+	newBroadcaster := &resourceRequestOperator.Broadcaster{}
+
+	if err := newBroadcaster.SetupBroadcaster(clientset, time.Duration(resyncPeriod)); err != nil {
+		klog.Error(err)
+		os.Exit(1)
+	}
+
 	resourceRequestReconciler := &resourceRequestOperator.ResourceRequestReconciler{
-		Client:    mgr.GetClient(),
-		Scheme:    mgr.GetScheme(),
-		ClusterID: clusterId,
+		Client:      mgr.GetClient(),
+		Scheme:      mgr.GetScheme(),
+		ClusterID:   clusterId,
+		Broadcaster: newBroadcaster,
 	}
 
 	if err = resourceRequestReconciler.SetupWithManager(mgr); err != nil {
@@ -198,16 +207,18 @@ func main() {
 		os.Exit(1)
 	}
 
-	c := make(chan struct{})
 	var wg = &sync.WaitGroup{}
 	client, err := advertisementReconciler.InitCRDClient(localKubeconfig)
 	if err != nil {
 		os.Exit(1)
 	}
-	wg.Add(3)
-	go advertisementReconciler.CleanOldAdvertisements(c, wg)
+	wg.Add(5)
+	ctx, cancel := context.WithCancel(context.Background())
+	go advertisementReconciler.CleanOldAdvertisements(ctx.Done(), wg)
 	// TODO: this configuration watcher will be refactored before the release 0.3
 	go advertisementReconciler.WatchConfiguration(localKubeconfig, client, wg)
+	go newBroadcaster.WatchConfiguration(localKubeconfig, client, wg)
+	go newBroadcaster.StartBroadcaster(ctx, wg)
 	go resourceOfferReconciler.WatchConfiguration(localKubeconfig, client, wg)
 
 	klog.Info("starting manager as advertisementoperator")
@@ -215,7 +226,8 @@ func main() {
 		klog.Error(err)
 		os.Exit(1)
 	}
-	close(c)
+
 	close(client.Stop)
+	cancel()
 	wg.Wait()
 }
