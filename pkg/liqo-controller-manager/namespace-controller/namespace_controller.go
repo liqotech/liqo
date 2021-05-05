@@ -19,7 +19,8 @@ package namespace_controller
 import (
 	"context"
 	mapsv1alpha1 "github.com/liqotech/liqo/apis/virtualKubelet/v1alpha1"
-	const_ctrl "github.com/liqotech/liqo/pkg/liqo-controller-manager"
+	liqoconst "github.com/liqotech/liqo/pkg/consts"
+
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/klog"
@@ -61,7 +62,7 @@ func (r *NamespaceReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 
 	removeMappings := make(map[string]mapsv1alpha1.NamespaceMap)
 	for _, namespaceMap := range namespaceMaps.Items {
-		removeMappings[namespaceMap.GetLabels()[const_ctrl.VirtualNodeClusterId]] = namespaceMap
+		removeMappings[namespaceMap.GetLabels()[liqoconst.VirtualNodeClusterId]] = namespaceMap
 	}
 
 	if !namespace.GetDeletionTimestamp().IsZero() {
@@ -108,7 +109,7 @@ func (r *NamespaceReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 			// 2.b Iterate on all virtual nodes' labels, if the namespace has all the requested labels, is necessary to
 			// offload it onto remote cluster associated with the virtual node
 			nodes := &corev1.NodeList{}
-			if err := r.List(context.TODO(), nodes, client.MatchingLabels{const_ctrl.TypeLabel: const_ctrl.TypeNode}); err != nil {
+			if err := r.List(context.TODO(), nodes, client.MatchingLabels{liqoconst.TypeLabel: liqoconst.TypeNode}); err != nil {
 				klog.Error(err, " --> Unable to List all virtual nodes")
 				return ctrl.Result{}, err
 			}
@@ -120,11 +121,11 @@ func (r *NamespaceReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 
 			for _, node := range nodes.Items {
 				if checkOffloadingLabels(namespace, &node) {
-					if err := r.addDesiredMapping(namespace, remoteNamespaceName, removeMappings[node.Annotations[const_ctrl.VirtualNodeClusterId]]); err != nil {
+					if err := r.addDesiredMapping(namespace, remoteNamespaceName, removeMappings[node.Annotations[liqoconst.VirtualNodeClusterId]]); err != nil {
 						return ctrl.Result{}, err
 					}
-					delete(removeMappings, node.Annotations[const_ctrl.VirtualNodeClusterId])
-					klog.Infof(" Offload namespace '%s' on remote cluster: %s", namespace.GetName(), node.Annotations[const_ctrl.VirtualNodeClusterId])
+					delete(removeMappings, node.Annotations[liqoconst.VirtualNodeClusterId])
+					klog.Infof(" Offload namespace '%s' on remote cluster: %s", namespace.GetName(), node.Annotations[liqoconst.VirtualNodeClusterId])
 				}
 
 			}

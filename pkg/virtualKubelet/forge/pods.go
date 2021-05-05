@@ -6,7 +6,7 @@ import (
 	"strings"
 
 	"github.com/liqotech/liqo/internal/liqonet/tunnelEndpointCreator"
-	liqoControllerManager "github.com/liqotech/liqo/pkg/liqo-controller-manager"
+	liqoconst "github.com/liqotech/liqo/pkg/consts"
 	"github.com/liqotech/liqo/pkg/virtualKubelet"
 	apimgmt "github.com/liqotech/liqo/pkg/virtualKubelet/apiReflection"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/apiReflection/reflectors"
@@ -16,7 +16,7 @@ import (
 	"k8s.io/klog"
 )
 
-const affinitySelector = liqoControllerManager.TypeNode
+const affinitySelector = liqoconst.TypeNode
 
 func (f *apiForger) podForeignToHome(foreignObj, homeObj runtime.Object, reflectionType string) (*corev1.Pod, error) {
 	var isNewObject bool
@@ -227,7 +227,7 @@ func forgeAffinity() *corev1.Affinity {
 					{
 						MatchExpressions: []corev1.NodeSelectorRequirement{
 							{
-								Key:      liqoControllerManager.TypeLabel,
+								Key:      liqoconst.TypeLabel,
 								Operator: corev1.NodeSelectorOpNotIn,
 								Values:   []string{affinitySelector},
 							},

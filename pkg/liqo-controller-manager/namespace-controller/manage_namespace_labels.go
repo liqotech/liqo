@@ -1,7 +1,7 @@
 package namespace_controller
 
 import (
-	const_ctrl "github.com/liqotech/liqo/pkg/liqo-controller-manager"
+	liqoconst "github.com/liqotech/liqo/pkg/consts"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/klog"
 	"k8s.io/kubernetes/pkg/util/slice"
@@ -15,7 +15,7 @@ func checkOffloadingLabels(na *corev1.Namespace, n *corev1.Node) bool {
 	for key := range n.GetLabels() {
 		if strings.HasPrefix(key, offloadingPrefixLabel) {
 			if _, ok := na.GetLabels()[key]; !ok {
-				klog.Infof(" Namespace '%s' cannot be offloaded on remote cluster: %s", na.GetName(), n.Annotations[const_ctrl.VirtualNodeClusterId])
+				klog.Infof(" Namespace '%s' cannot be offloaded on remote cluster: %s", na.GetName(), n.Annotations[liqoconst.VirtualNodeClusterId])
 				return false
 			}
 		}

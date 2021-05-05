@@ -3,7 +3,7 @@ package namespaceMap_controller
 import (
 	"context"
 	mapsv1alpha1 "github.com/liqotech/liqo/apis/virtualKubelet/v1alpha1"
-	const_ctrl "github.com/liqotech/liqo/pkg/liqo-controller-manager"
+	liqoconst "github.com/liqotech/liqo/pkg/consts"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -67,7 +67,7 @@ func (r *NamespaceMapReconciler) manageRemoteNamespaces(nm *mapsv1alpha1.Namespa
 	// if DesiredMapping field has more entries than CurrentMapping, is necessary to create new remote namespaces
 	for localName, remoteName := range nm.Spec.DesiredMapping {
 		if _, ok := nm.Status.CurrentMapping[localName]; !ok {
-			if err := r.createRemoteNamespace(nm.Labels[const_ctrl.VirtualNodeClusterId], remoteName); err != nil {
+			if err := r.createRemoteNamespace(nm.Labels[liqoconst.VirtualNodeClusterId], remoteName); err != nil {
 				return err
 			}
 			nm.Status.CurrentMapping[localName] = mapsv1alpha1.RemoteNamespaceStatus{
@@ -85,7 +85,7 @@ func (r *NamespaceMapReconciler) manageRemoteNamespaces(nm *mapsv1alpha1.Namespa
 	// if DesiredMapping field has less entries than CurrentMapping, is necessary to remove some remote namespaces
 	for localName, remoteStatus := range nm.Status.CurrentMapping {
 		if _, ok := nm.Spec.DesiredMapping[localName]; !ok {
-			if err := r.deleteRemoteNamespace(nm.Labels[const_ctrl.VirtualNodeClusterId], remoteStatus.RemoteNamespace); err != nil {
+			if err := r.deleteRemoteNamespace(nm.Labels[liqoconst.VirtualNodeClusterId], remoteStatus.RemoteNamespace); err != nil {
 				return err
 			}
 			// Update Map status
