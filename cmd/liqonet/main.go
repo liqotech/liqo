@@ -120,6 +120,8 @@ func main() {
 			tc.StartPodWatcher()
 			tc.StartServiceWatcher()
 		}
+		tc.StartPodIPWatcher()
+		tc.StartNodeWatcher()
 		if err := tc.CreateAndEnsureIPTablesChains(tc.DefaultIface); err != nil {
 			klog.Errorf("an error occurred while creating iptables handler: %v", err)
 			os.Exit(1)
@@ -127,6 +129,10 @@ func main() {
 		if err = tc.SetupWithManager(mgr); err != nil {
 			klog.Errorf("unable to setup tunnel controller: %s", err)
 			os.Exit(1)
+		}
+		if err := tc.HostNS.Set(); err != nil{
+			klog.Errorf("failet to set host netns: %v", err)
+			os.Exit(2)
 		}
 		klog.Info("Starting manager as Tunnel-Operator")
 		if err := mgr.Start(tc.SetupSignalHandlerForTunnelOperator()); err != nil {

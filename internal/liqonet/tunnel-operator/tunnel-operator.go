@@ -41,6 +41,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -73,8 +74,10 @@ type TunnelController struct {
 	configChan   chan bool
 	stopPWChan   chan struct{}
 	stopSWChan   chan struct{}
-	hostNS       ns.NetNS
+	HostNS       ns.NetNS
 	gatewayNS    ns.NetNS
+	nodeIPMutex sync.Mutex
+	nodeIPs map[string]string
 }
 
 //cluster-role
@@ -142,6 +145,10 @@ func NewTunnelController(mgr ctrl.Manager, wgc wireguard.Client, nl wireguard.Ne
 		if err := addrAddGW("liqo.gateway", &netlink.Addr{IPNet: &net.IPNet{IP: net.IPv4(169, 254, 100, 2), Mask: net.CIDRMask(24, 32)}}, gatewayNS); err != nil {
 			return nil, err
 		}
+		//create new custom routing table for the overlay iFace
+		if err = utils.CreateRoutingTable(overlay.RoutingTableID, overlay.RoutingTableName); err != nil {
+			return nil, err
+		}
 
 	} else {
 		overlayIP := strings.Join([]string{overlay.GetOverlayIP(podIP.String()), "4"}, "/")
@@ -172,8 +179,9 @@ func NewTunnelController(mgr ctrl.Manager, wgc wireguard.Client, nl wireguard.Ne
 		DefaultIface:  defaultIface,
 		wg:            wg,
 		configChan:    make(chan bool),
-		hostNS:        hostNS,
+		HostNS:        hostNS,
 		gatewayNS:     gatewayNS,
+		nodeIPs: make(map[string]string),
 	}
 	err = tc.SetUpTunnelDrivers()
 	if err != nil {
@@ -253,11 +261,28 @@ func (tc *TunnelController) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 	if err := tc.EnsureRoutesPerCluster("liqo-wg", &endpoint); err != nil {
 		return result, err
 	}
+
+	//set host's netns
+	if err := tc.HostNS.Set();err != nil{
+		klog.Errorf("%s -> an error occurred while changing netns to host: %v", endpoint.Spec.ClusterID, err)
+		return ctrl.Result{}, err
+	}
+	_, remotePodCIDR := utils.GetPodCIDRS(&endpoint)
+	_, src, err := net.ParseCIDR(remotePodCIDR)
+	if err != nil{
+		klog.Errorf("%s -> an error occurred while parsing remote podCIDR %s: %v", endpoint.Spec.ClusterID, remotePodCIDR, err)
+		return result, err
+	}
+	if _, err := utils.InsertPolicyRoutingRule(utils.RoutingTableID, src, nil); err != nil && err != unix.EEXIST {
+		klog.Errorf("%s -> unable to configure policy routing rule: %v", endpoint.Spec.ClusterID, err)
+		return result, err
+	}
 	if reflect.DeepEqual(*con, endpoint.Status.Connection) && tc.podIP == endpoint.Status.GatewayPodIP {
 		return result, nil
 	}
 	endpoint.Status.Connection = *con
 	endpoint.Status.GatewayPodIP = tc.podIP
+
 	if err = tc.Status().Update(context.Background(), &endpoint); err != nil {
 		klog.Errorf("%s -> an error occurred while updating status of resource %s: %s", endpoint.Spec.ClusterID, endpoint.Name, err)
 		return result, err
@@ -353,6 +378,16 @@ func (tc *TunnelController) SetupSignalHandlerForTunnelOperator() (stopCh <-chan
 		//close(tc.stopSWChan)
 		//close(tc.stopPWChan)
 		_ = removeGatewayNS("liqo-gateway")
+		routes, _ := netlink.RouteListFiltered(netlink.FAMILY_V4, &netlink.Route{Table: utils.RoutingTableID}, netlink.RT_FILTER_TABLE)
+		for _, r := range routes{
+			_ = netlink.RouteDel(&r)
+		}
+		rules, _ := netlink.RuleList(netlink.FAMILY_V4)
+		for _, rl := range rules {
+			if rl.Table == utils.RoutingTableID{
+				_ = netlink.RuleDel(&rl)
+			}
+		}
 		<-c
 		close(stop)
 	}(tc)
@@ -398,7 +433,7 @@ func (tc *TunnelController) SetUpTunnelDrivers() error {
 		return fmt.Errorf("failed to move wireguard interfacte to gateway netns: %v", err)
 	}
 	runtime.LockOSThread()
-	if err != tc.gatewayNS.Set() {
+	if err := tc.gatewayNS.Set(); err != nil {
 		return fmt.Errorf("failed to set gateway netns:%v", err)
 	}
 	link, err = netlink.LinkByName("liqo-wg")

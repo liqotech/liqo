@@ -38,20 +38,34 @@ func (rm *RouteManager) EnsureRoutesPerCluster(iface string, tep *netv1alpha1.Tu
 	if err != nil {
 		return err
 	}
-	if ok {
-		if existing.Dst.String() == remotePodCIDR && existing.LinkIndex == link.Attrs().Index {
-			return nil
-		}
-		//remove the old route
-		err := rm.delRoute(existing)
-		if err != nil {
-			klog.Errorf("%s -> unable to remove outdated route '%s': %s", clusterID, remotePodCIDR, err)
-			rm.Eventf(tep, "Warning", "Processing", "unable to remove outdated route: %s", err.Error())
-			return err
-		}
-	}
+
 	if iface != "liqo-wg" && iface != "liqo.host" {
 		gw = overlay.GetOverlayIP(tep.Status.GatewayPodIP)
+		if ok {
+			if existing.Dst.String() == remotePodCIDR && existing.LinkIndex == link.Attrs().Index && existing.Gw.String() == gw{
+				return nil
+			}
+			//remove the old route
+			err := rm.delRoute(existing)
+			if err != nil {
+				klog.Errorf("%s -> unable to remove outdated route '%s': %s", clusterID, remotePodCIDR, err)
+				rm.Eventf(tep, "Warning", "Processing", "unable to remove outdated route: %s", err.Error())
+				return err
+			}
+		}
+	}else {
+		if ok {
+			if existing.Dst.String() == remotePodCIDR && existing.LinkIndex == link.Attrs().Index {
+				return nil
+			}
+			//remove the old route
+			err := rm.delRoute(existing)
+			if err != nil {
+				klog.Errorf("%s -> unable to remove outdated route '%s': %s", clusterID, remotePodCIDR, err)
+				rm.Eventf(tep, "Warning", "Processing", "unable to remove outdated route: %s", err.Error())
+				return err
+			}
+		}
 	}
 	route, err := rm.addRoute(remotePodCIDR, gw, iface, false)
 	if err != nil {
