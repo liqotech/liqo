@@ -222,6 +222,12 @@ spec:
                     type: boolean
                   autojoinUntrusted:
                     type: boolean
+                  clusterLabels:
+                    additionalProperties:
+                      type: string
+                    description: ClusterLabels is a set of labels which characterizes
+                      the local cluster when exposed remotely as a virtual node.
+                    type: object
                   clusterName:
                     description: ClusterName is a nickname for your cluster that can
                       be easily understood by a user

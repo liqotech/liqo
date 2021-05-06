@@ -98,6 +98,12 @@ discovery:
   config:
     # -- Set a mnemonic name for your cluster
     clusterName: ""
+    # -- A set of labels which characterizes the local cluster when exposed remotely as a virtual node.
+    # It is suggested to specify the distinguishing characteristics that may be used to decide whether to offload pods on this cluster.
+    clusterLabels: {}
+     # topology.kubernetes.io/zone: us-east-1
+     # liqo.io/provider: your-provider
+
     # -- Automatically join discovered cluster exposing the Authentication Service with a valid certificate
     autojoin: true
     # -- Automatically join discovered cluster exposing the Authentication Service with a self-signed certificate

@@ -118,6 +118,8 @@ type DiscoveryConfig struct {
 	// ClusterName is a nickname for your cluster that can be easily understood by a user
 	ClusterName string `json:"clusterName,omitempty"`
 
+	// ClusterLabels is a set of labels which characterizes the local cluster when exposed remotely as a virtual node.
+	ClusterLabels map[string]string `json:"clusterLabels,omitempty"`
 	// --- mDNS ---
 
 	Name    string `json:"name"`

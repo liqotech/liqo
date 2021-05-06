@@ -29,6 +29,7 @@
 | crdReplicator.pod.labels | object | `{}` | crdReplicator pod labels |
 | discovery.config.autojoin | bool | `true` | Automatically join discovered cluster exposing the Authentication Service with a valid certificate |
 | discovery.config.autojoinUntrusted | bool | `true` | Automatically join discovered cluster exposing the Authentication Service with a self-signed certificate |
+| discovery.config.clusterLabels | object | `{}` | A set of labels which characterizes the local cluster when exposed remotely as a virtual node. It is suggested to specify the distinguishing characteristics that may be used to decide whether to offload pods on this cluster. |
 | discovery.config.clusterName | string | `""` | Set a mnemonic name for your cluster |
 | discovery.config.enableAdvertisement | bool | `true` | Enable the mDNS advertisement on LANs, set to false to not be discoverable from other clusters in the same LAN |
 | discovery.config.enableDiscovery | bool | `true` | Enable the mDNS discovery on LANs, set to false to not look for other clusters available in the same LAN |
