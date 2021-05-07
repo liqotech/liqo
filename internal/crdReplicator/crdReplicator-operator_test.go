@@ -14,6 +14,7 @@ import (
 	"k8s.io/client-go/dynamic/dynamicinformer"
 
 	netv1alpha1 "github.com/liqotech/liqo/apis/net/v1alpha1"
+	"github.com/liqotech/liqo/pkg/consts"
 )
 
 var (
@@ -171,21 +172,27 @@ func TestCRDReplicatorReconciler_StartAndStopWatchers(t *testing.T) {
 	d := getCRDReplicator()
 	//we add two kind of resources to be watched
 	//then unregister them and check that the watchers have been closed as well
-	test1 := []schema.GroupVersionResource{{
-		Group:    netv1alpha1.GroupVersion.Group,
-		Version:  netv1alpha1.GroupVersion.Version,
-		Resource: "networkconfigs",
+	test1 := []resourceToReplicate{{
+		groupVersionResource: schema.GroupVersionResource{
+			Group:    netv1alpha1.GroupVersion.Group,
+			Version:  netv1alpha1.GroupVersion.Version,
+			Resource: "networkconfigs",
+		},
+		peeringPhase: consts.PeeringPhaseEstablished,
 	}, {
-		Group:    netv1alpha1.GroupVersion.Group,
-		Version:  netv1alpha1.GroupVersion.Version,
-		Resource: "tunnelendpoints",
+		groupVersionResource: schema.GroupVersionResource{
+			Group:    netv1alpha1.GroupVersion.Group,
+			Version:  netv1alpha1.GroupVersion.Version,
+			Resource: "tunnelendpoints",
+		},
+		peeringPhase: consts.PeeringPhaseEstablished,
 	}}
 	d.RegisteredResources = test1
 	d.StartWatchers()
 	assert.Equal(t, 2, len(d.RemoteWatchers[remoteClusterID]), "it should be 2")
 	assert.Equal(t, 2, len(d.LocalWatchers), "it should be 2")
 	for _, r := range test1 {
-		d.UnregisteredResources = append(d.UnregisteredResources, r.String())
+		d.UnregisteredResources = append(d.UnregisteredResources, r.groupVersionResource.String())
 	}
 	d.StopWatchers()
 	assert.Equal(t, 0, len(d.RemoteWatchers[remoteClusterID]), "it should be 0")

@@ -8,6 +8,7 @@ import (
 
 	configv1alpha1 "github.com/liqotech/liqo/apis/config/v1alpha1"
 	netv1alpha1 "github.com/liqotech/liqo/apis/net/v1alpha1"
+	"github.com/liqotech/liqo/pkg/consts"
 )
 
 func TestDispatcherReconciler_GetConfig(t *testing.T) {
@@ -50,50 +51,70 @@ func TestDispatcherReconciler_GetConfig(t *testing.T) {
 
 func TestDispatcherReconciler_GetRemovedResources(t *testing.T) {
 	dispatcher := Controller{
-		RegisteredResources: []schema.GroupVersionResource{
+		RegisteredResources: []resourceToReplicate{
 			{
-				Group:    netv1alpha1.GroupVersion.Group,
-				Version:  netv1alpha1.GroupVersion.Version,
-				Resource: "networkconfigs",
+				groupVersionResource: schema.GroupVersionResource{
+					Group:    netv1alpha1.GroupVersion.Group,
+					Version:  netv1alpha1.GroupVersion.Version,
+					Resource: "networkconfigs",
+				},
+				peeringPhase: consts.PeeringPhaseEstablished,
 			},
 			{
-				Group:    netv1alpha1.GroupVersion.Group,
-				Version:  netv1alpha1.GroupVersion.Version,
-				Resource: "tunnelendpoints",
+				groupVersionResource: schema.GroupVersionResource{
+					Group:    netv1alpha1.GroupVersion.Group,
+					Version:  netv1alpha1.GroupVersion.Version,
+					Resource: "tunnelendpoints",
+				},
+				peeringPhase: consts.PeeringPhaseEstablished,
 			},
 		},
 	}
 	// test 1
 	// the configuration does not change, is the same
 	// so we expect expect to get a 0 length list
-	t1 := []schema.GroupVersionResource{
+	t1 := []resourceToReplicate{
 		{
-			Group:    netv1alpha1.GroupVersion.Group,
-			Version:  netv1alpha1.GroupVersion.Version,
-			Resource: "networkconfigs"},
+			groupVersionResource: schema.GroupVersionResource{
+				Group:    netv1alpha1.GroupVersion.Group,
+				Version:  netv1alpha1.GroupVersion.Version,
+				Resource: "networkconfigs",
+			},
+			peeringPhase: consts.PeeringPhaseEstablished,
+		},
 		{
-			Group:    netv1alpha1.GroupVersion.Group,
-			Version:  netv1alpha1.GroupVersion.Version,
-			Resource: "tunnelendpoints",
+			groupVersionResource: schema.GroupVersionResource{
+				Group:    netv1alpha1.GroupVersion.Group,
+				Version:  netv1alpha1.GroupVersion.Version,
+				Resource: "tunnelendpoints",
+			},
+			peeringPhase: consts.PeeringPhaseEstablished,
 		},
 	}
 	// test2
 	// we remove a resource from the configuration and add a new one to it
 	// so we expect to get a list with 1 element
-	t2 := []schema.GroupVersionResource{
+	t2 := []resourceToReplicate{
 		{
-			Group:    netv1alpha1.GroupVersion.Group,
-			Version:  netv1alpha1.GroupVersion.Version,
-			Resource: "networkconfigs"},
+			groupVersionResource: schema.GroupVersionResource{
+				Group:    netv1alpha1.GroupVersion.Group,
+				Version:  netv1alpha1.GroupVersion.Version,
+				Resource: "networkconfigs",
+			},
+			peeringPhase: consts.PeeringPhaseEstablished,
+		},
 		{
-			Group:    netv1alpha1.GroupVersion.Group,
-			Version:  netv1alpha1.GroupVersion.Version,
-			Resource: "tunnelendpoints-wrong",
+			groupVersionResource: schema.GroupVersionResource{
+				Group:    netv1alpha1.GroupVersion.Group,
+				Version:  netv1alpha1.GroupVersion.Version,
+				Resource: "tunnelendpoints-wrong",
+			},
+			peeringPhase: consts.PeeringPhaseEstablished,
 		},
 	}
 
 	tests := []struct {
-		config           []schema.GroupVersionResource
+		config           []resourceToReplicate
 		expectedElements int
 	}{
 		{t1, 0},

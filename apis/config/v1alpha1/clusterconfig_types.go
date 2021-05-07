@@ -20,6 +20,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/kubernetes/scheme"
 
+	"github.com/liqotech/liqo/pkg/consts"
 	crdclient "github.com/liqotech/liqo/pkg/crdClient"
 	"github.com/liqotech/liqo/pkg/labelPolicy"
 )
@@ -206,6 +207,10 @@ type Resource struct {
 	Group    string `json:"group"`
 	Version  string `json:"version"`
 	Resource string `json:"resource"`
+
+	// +kubebuilder:validation:Enum="All";"Established";"Incoming";"Outgoing";"Bidirectional"
+	// +kubebuilder:default="All"
+	PeeringPhase consts.PeeringPhase `json:"peeringPhase,omitempty"`
 }
 
 // DispatcherConfig defines the configuration of the CRDReplicator.

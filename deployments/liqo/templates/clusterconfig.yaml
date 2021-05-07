@@ -49,15 +49,18 @@ spec:
     {{- .Values.networkManager.config | toYaml | nindent 4 }}
   dispatcherConfig:
     resourcesToReplicate:
-    #- group: net.liqo.io
-    #  version: v1alpha1
-    #  resource: networkconfigs
+    - group: net.liqo.io
+      version: v1alpha1
+      resource: networkconfigs
+      peeringPhase: Established
     - group: discovery.liqo.io
       version: v1alpha1
       resource: resourcerequests
-    #- group: sharing.liqo.io
-    #  version: v1alpha1
-    #  resource: resourceoffers
+      peeringPhase: All
+    - group: sharing.liqo.io
+      version: v1alpha1
+      resource: resourceoffers
+      peeringPhase: Incoming
   agentConfig:
     dashboardConfig:
       namespace: {{ .Release.Namespace }}

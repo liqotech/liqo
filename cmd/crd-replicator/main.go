@@ -19,10 +19,10 @@ import (
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	"github.com/liqotech/liqo/internal/crdReplicator"
 	"github.com/liqotech/liqo/pkg/clusterid"
-	"github.com/liqotech/liqo/pkg/identityManager"
+	identitymanager "github.com/liqotech/liqo/pkg/identityManager"
 	util "github.com/liqotech/liqo/pkg/liqonet"
 	"github.com/liqotech/liqo/pkg/mapperUtils"
-	"github.com/liqotech/liqo/pkg/tenantControlNamespace"
+	tenantcontrolnamespace "github.com/liqotech/liqo/pkg/tenantControlNamespace"
 )
 
 var (
@@ -79,7 +79,7 @@ func main() {
 		klog.Infof("setting local clusterID to: %s", clusterId)
 	}
 	clusterIdInterface := clusterid.NewStaticClusterID(clusterId)
-	namespaceManager := tenantControlNamespace.NewTenantControlNamespaceManager(k8sClient)
+	namespaceManager := tenantcontrolnamespace.NewTenantControlNamespaceManager(k8sClient)
 	dynClient := dynamic.NewForConfigOrDie(cfg)
 	dynFac := dynamicinformer.NewFilteredDynamicSharedInformerFactory(dynClient, crdReplicator.ResyncPeriod, metav1.NamespaceAll, crdReplicator.SetLabelsForLocalResources)
 	d := &crdReplicator.Controller{
@@ -96,8 +96,7 @@ func main() {
 		RemoteWatchers:                 make(map[string]map[string]chan struct{}),
 		RemoteDynSharedInformerFactory: make(map[string]dynamicinformer.DynamicSharedInformerFactory),
 		UseNewAuth:                     useNewAuth,
-		NamespaceManager:               namespaceManager,
-		IdentityManager:                identityManager.NewCertificateIdentityManager(k8sClient, clusterIdInterface, namespaceManager),
+		IdentityManager:                identitymanager.NewCertificateIdentityManager(k8sClient, clusterIdInterface, namespaceManager),
 		LocalToRemoteNamespaceMapper:   map[string]string{},
 		RemoteToLocalNamespaceMapper:   map[string]string{},
 	}

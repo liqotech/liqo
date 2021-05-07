@@ -277,6 +277,15 @@ spec:
                       properties:
                         group:
                           type: string
+                        peeringPhase:
+                          default: All
+                          enum:
+                          - All
+                          - Established
+                          - Incoming
+                          - Outgoing
+                          - Bidirectional
+                          type: string
                         resource:
                           type: string
                         version:
