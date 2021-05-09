@@ -29,7 +29,7 @@ endif
 
 # Run unit tests
 unit: test-container
-	docker run --mount type=bind,src=$(shell pwd),dst=/go/src/liqo -w /go/src/liqo --rm liqo-test
+	docker run --cap-add=NET_ADMIN --mount type=bind,src=$(shell pwd),dst=/go/src/liqo -w /go/src/liqo --rm liqo-test
 
 # Run e2e tests
 e2e: gen
@@ -101,7 +101,7 @@ ifeq (, $(shell which protoc))
 	rm -rf $$PROTOC_TMP_DIR ;\
 	}
 endif
-PROTOC=$(shell which protoc)	
+PROTOC=$(shell which protoc)
 
 # find or download controller-gen
 # download controller-gen if necessary

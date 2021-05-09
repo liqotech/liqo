@@ -80,16 +80,22 @@ spec:
             description: TunnelEndpointStatus defines the observed state of TunnelEndpoint.
             properties:
               connection:
+                description: Connection holds the configuration and status of a vpn
+                  tunnel connecting to remote cluster.
                 properties:
                   peerConfiguration:
                     additionalProperties:
                       type: string
                     type: object
                   status:
+                    description: ConnectionStatus type that describes the status of
+                      vpn connection with a remote cluster.
                     type: string
                   statusMessage:
                     type: string
                 type: object
+              gatewayIP:
+                type: string
               localExternalCIDR:
                 description: ExternalCIDR of local cluster.
                 type: string
@@ -122,6 +128,10 @@ spec:
               tunnelIFaceIndex:
                 type: integer
               tunnelIFaceName:
+                type: string
+              vethIFaceIndex:
+                type: integer
+              vethIFaceName:
                 type: string
             type: object
         type: object
