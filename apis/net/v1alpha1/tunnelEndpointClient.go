@@ -12,7 +12,7 @@ import (
 	crdclient "github.com/liqotech/liqo/pkg/crdClient"
 )
 
-// create a client for TunnelEndpoint CR using a provided kubeconfig.
+// CreateTunnelEndpointClient creates a client for TunnelEndpoint CR using a provided kubeconfig.
 func CreateTunnelEndpointClient(kubeconfig string) (*crdclient.CRDClient, error) {
 	var config *rest.Config
 	var err error

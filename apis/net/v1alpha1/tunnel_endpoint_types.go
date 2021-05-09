@@ -67,20 +67,28 @@ type TunnelEndpointStatus struct {
 	LocalEndpointIP       string     `json:"localTunnelPublicIP,omitempty"`
 	TunnelIFaceIndex      int        `json:"tunnelIFaceIndex,omitempty"`
 	TunnelIFaceName       string     `json:"tunnelIFaceName,omitempty"`
+	VethIFaceIndex        int        `json:"vethIFaceIndex,omitempty"`
+	VethIFaceName         string     `json:"vethIFaceName,omitempty"`
+	GatewayIP             string     `json:"gatewayIP,omitempty"`
 	Connection            Connection `json:"connection,omitempty"`
 }
 
+// Connection holds the configuration and status of a vpn tunnel connecting to remote cluster.
 type Connection struct {
 	Status            ConnectionStatus  `json:"status,omitempty"`
 	StatusMessage     string            `json:"statusMessage,omitempty"`
 	PeerConfiguration map[string]string `json:"peerConfiguration,omitempty"`
 }
 
+// ConnectionStatus type that describes the status of vpn connection with a remote cluster.
 type ConnectionStatus string
 
 const (
-	Connected       ConnectionStatus = "connected"
-	Connecting      ConnectionStatus = "connecting"
+	// Connected used when the connection is up and running.
+	Connected ConnectionStatus = "connected"
+	// Connecting used as temporary status while waiting for the vpn tunnel to come up.
+	Connecting ConnectionStatus = "connecting"
+	// ConnectionError used to se the status in case of errors.
 	ConnectionError ConnectionStatus = "error"
 )
 
