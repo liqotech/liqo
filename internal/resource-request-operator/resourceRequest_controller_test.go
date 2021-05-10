@@ -1,4 +1,4 @@
-package resourceRequestOperator
+package resourcerequestoperator
 
 import (
 	"context"
