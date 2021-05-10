@@ -27,18 +27,19 @@ import (
 	"github.com/liqotech/liqo/pkg/kubeconfig"
 )
 
-// get a client to the remote cluster
+// get a client to the remote cluster.
 // if the ForeignCluster has a reference to the secret's role, load the configurations from that secret
-// else try to get a role from the remote cluster
+// else try to get a role from the remote cluster.
 //
 // first of all, if the status is pending we can try to get a role with an empty token, if the remote cluster allows it
-// the status will become accepted
+// the status will become accepted.
 //
-// if our status is EmptyRefused, this means that the remote cluster refused out request with the empty token, so we will
-// wait to have a token to ask for the role again
+// if our status is EmptyRefused, this means that the remote cluster refused out request with the empty token,
+// so we will wait to have a token to ask for the role again.
 //
-// while we are waiting for that secret this function will return no error, but an empty client
-func (r *ForeignClusterReconciler) getRemoteClient(fc *discoveryv1alpha1.ForeignCluster, gv *schema.GroupVersion) (*crdClient.CRDClient, error) {
+// while we are waiting for that secret this function will return no error, but an empty client.
+func (r *ForeignClusterReconciler) getRemoteClient(
+	fc *discoveryv1alpha1.ForeignCluster, gv *schema.GroupVersion) (*crdClient.CRDClient, error) {
 	if strings.HasPrefix(fc.Spec.AuthUrl, "fake://") {
 		config := *r.ForeignConfig
 
@@ -98,7 +99,8 @@ func (r *ForeignClusterReconciler) getRemoteClient(fc *discoveryv1alpha1.Foreign
 }
 
 // load remote identity from a secret
-func (r *ForeignClusterReconciler) getIdentity(fc *discoveryv1alpha1.ForeignCluster, gv *schema.GroupVersion) (*crdClient.CRDClient, error) {
+func (r *ForeignClusterReconciler) getIdentity(
+	fc *discoveryv1alpha1.ForeignCluster, gv *schema.GroupVersion) (*crdClient.CRDClient, error) {
 	secrets, err := r.crdClient.Client().CoreV1().Secrets(r.Namespace).List(context.TODO(), metav1.ListOptions{
 		LabelSelector: strings.Join([]string{
 			strings.Join([]string{discovery.ClusterIDLabel, fc.Spec.ClusterIdentity.ClusterID}, "="),

@@ -38,7 +38,7 @@ func LoadAuthDataFromDNS(dnsAddr, name string) ([]*discovery.AuthData, error) {
 	c.DialTimeout = 30 * time.Second
 
 	// PTR query
-	msg := GetDnsMsg(name, dns.TypePTR)
+	msg := getDNSMsg(name, dns.TypePTR)
 	in, _, err := c.Exchange(msg, dnsAddr)
 	if err != nil {
 		klog.Error(err, err.Error())
@@ -51,7 +51,7 @@ func LoadAuthDataFromDNS(dnsAddr, name string) ([]*discovery.AuthData, error) {
 			klog.Warning("Not PTR record: ", ans)
 			continue
 		}
-		aData, err := ResolveWan(c, dnsAddr, ptr)
+		aData, err := resolveWan(c, dnsAddr, ptr)
 		if err != nil {
 			klog.Error(err, err.Error())
 			return nil, err
@@ -61,9 +61,9 @@ func LoadAuthDataFromDNS(dnsAddr, name string) ([]*discovery.AuthData, error) {
 	return authData, nil
 }
 
-func ResolveWan(c *dns.Client, dnsAddr string, ptr *dns.PTR) (*discovery.AuthData, error) {
+func resolveWan(c *dns.Client, dnsAddr string, ptr *dns.PTR) (*discovery.AuthData, error) {
 	// SRV query
-	msg := GetDnsMsg(ptr.Ptr, dns.TypeSRV)
+	msg := getDNSMsg(ptr.Ptr, dns.TypeSRV)
 	in, _, err := c.Exchange(msg, dnsAddr)
 	if err != nil {
 		klog.Error(err, err.Error())
@@ -78,7 +78,7 @@ func ResolveWan(c *dns.Client, dnsAddr string, ptr *dns.PTR) (*discovery.AuthDat
 	return discovery.NewAuthData(srv.Target, int(srv.Port), srv.Hdr.Ttl), nil
 }
 
-func GetDnsMsg(name string, qType uint16) *dns.Msg {
+func getDNSMsg(name string, qType uint16) *dns.Msg {
 	msg := new(dns.Msg)
 	msg.Id = dns.Id()
 	msg.RecursionDesired = true

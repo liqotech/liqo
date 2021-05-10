@@ -1,4 +1,4 @@
-package garbage_collection
+package garbagecollection
 
 import (
 	"context"
@@ -15,45 +15,49 @@ import (
 	"github.com/liqotech/liqo/pkg/discovery"
 )
 
-// delete ClusterRoles and ClusterRoleBindings related to a ServiceAccount. We cannot do it setting an OwnerReference
-// on them and let the Kubernetes garbage collector to do that, due to the fact they (cluster scoped resources) need
-// to be deleted after the deletion of a ServiceAccount (namespaced resource). See https://kubernetes.io/docs/concepts/workloads/controllers/garbage-collection/#owners-and-dependents
+// OnDeleteServiceAccount deletes ClusterRoles and ClusterRoleBindings related to a ServiceAccount.
+// We cannot do it setting an OwnerReference on them and let the Kubernetes garbage collector to do that,
+// due to the fact they (cluster scoped resources) need
+// to be deleted after the deletion of a ServiceAccount (namespaced resource).
+// See https://kubernetes.io/docs/concepts/workloads/controllers/garbage-collection/#owners-and-dependents
 // to have more details on how OwnerReferences are handled by Kubernetes >= 1.20
 func OnDeleteServiceAccount(client kubernetes.Interface, serviceAccount *v1.ServiceAccount) {
 	if liqoManaged, ok := serviceAccount.Labels[discovery.LiqoManagedLabel]; !ok || liqoManaged != "true" {
-		// it is not a Liqo Managed ServiceAccount
+		// it is not a Liqo Managed ServiceAccount.
 		return
 	}
 
-	remoteClusterId, ok := serviceAccount.Labels[discovery.ClusterIDLabel]
+	remoteClusterID, ok := serviceAccount.Labels[discovery.ClusterIDLabel]
 	if !ok {
-		klog.Errorf("No %v label is set on ServiceAccount %v/%v", discovery.ClusterIDLabel, serviceAccount.Namespace, serviceAccount.Name)
+		klog.Errorf("No %v label is set on ServiceAccount %v/%v",
+			discovery.ClusterIDLabel, serviceAccount.Namespace, serviceAccount.Name)
 		return
 	}
 
-	klog.Infof("[%v] Purging ServiceAccount", remoteClusterId)
+	klog.Infof("[%v] Purging ServiceAccount", remoteClusterID)
 
 	labelSelector := metav1.LabelSelector{
 		MatchLabels: map[string]string{
 			discovery.LiqoManagedLabel: "true",
-			discovery.ClusterIDLabel:   remoteClusterId,
+			discovery.ClusterIDLabel:   remoteClusterID,
 		},
 	}
 
-	// delete ClusterRoleBindings
+	// delete ClusterRoleBindings.
 	if err := retry.OnError(retry.DefaultRetry, func(err error) bool {
 		klog.V(4).Infof("%v, retrying...", err)
 		return true
 	}, func() error {
-		return client.RbacV1().ClusterRoleBindings().DeleteCollection(context.TODO(), metav1.DeleteOptions{}, metav1.ListOptions{
-			LabelSelector: labels.Set(labelSelector.MatchLabels).String(),
-		})
+		return client.RbacV1().ClusterRoleBindings().DeleteCollection(
+			context.TODO(), metav1.DeleteOptions{}, metav1.ListOptions{
+				LabelSelector: labels.Set(labelSelector.MatchLabels).String(),
+			})
 	}); err != nil {
 		klog.Error(err)
 		return
 	}
 
-	// delete ClusterRoles
+	// delete ClusterRoles.
 	if err := retry.OnError(retry.DefaultRetry, func(err error) bool {
 		klog.V(4).Infof("%v, retrying...", err)
 		return true
@@ -66,7 +70,7 @@ func OnDeleteServiceAccount(client kubernetes.Interface, serviceAccount *v1.Serv
 		return
 	}
 
-	// remove the finalizer
+	// remove the finalizer.
 	finalizerPatch := []byte(fmt.Sprintf(
 		`[{"op":"remove","path":"/metadata/finalizers","value":["%s"]}]`,
 		discovery.GarbageCollection))
@@ -80,5 +84,5 @@ func OnDeleteServiceAccount(client kubernetes.Interface, serviceAccount *v1.Serv
 		return
 	}
 
-	klog.Infof("[%v] ServiceAccount successfully purged", remoteClusterId)
+	klog.Infof("[%v] ServiceAccount successfully purged", remoteClusterID)
 }

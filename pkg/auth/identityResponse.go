@@ -12,26 +12,29 @@ import (
 	"github.com/liqotech/liqo/pkg/kubeconfig"
 )
 
+// CertificateIdentityResponse is the response on a certificate identity request.
 type CertificateIdentityResponse struct {
 	Namespace    string `json:"namespace"`
 	Certificate  string `json:"certificate"`
-	ApiServerUrl string `json:"apiServerUrl"`
-	ApiServerCA  string `json:"apiServerCA,omitempty"`
+	APIServerURL string `json:"apiServerUrl"`
+	APIServerCA  string `json:"apiServerCA,omitempty"`
 }
 
-// NewCertificateIdentityResponse makes a new CertificateIdentityResponse
-func NewCertificateIdentityResponse(namespace string, certificate []byte, apiServerConfigProvider clusterConfig.ApiServerConfigProvider, clientset kubernetes.Interface, restConfig *rest.Config) (*CertificateIdentityResponse, error) {
-	apiServerUrl, err := kubeconfig.GetApiServerURL(apiServerConfigProvider, clientset)
+// NewCertificateIdentityResponse makes a new CertificateIdentityResponse.
+func NewCertificateIdentityResponse(
+	namespace string, certificate []byte, apiServerConfigProvider clusterConfig.ApiServerConfigProvider,
+	clientset kubernetes.Interface, restConfig *rest.Config) (*CertificateIdentityResponse, error) {
+	apiServerURL, err := kubeconfig.GetApiServerURL(apiServerConfigProvider, clientset)
 	if err != nil {
 		klog.Error(err)
 		return nil, err
 	}
 
 	var apiServerCa string
-	if apiServerConfigProvider.GetApiServerConfig().TrustedCA {
+	if apiServerConfigProvider.GetAPIServerConfig().TrustedCA {
 		apiServerCa = ""
 	} else {
-		apiServerCa, err = getApiServerCa(restConfig)
+		apiServerCa, err = getAPIServerCA(restConfig)
 		if err != nil {
 			klog.Error(err)
 			return nil, err
@@ -41,19 +44,19 @@ func NewCertificateIdentityResponse(namespace string, certificate []byte, apiSer
 	return &CertificateIdentityResponse{
 		Namespace:    namespace,
 		Certificate:  base64.StdEncoding.EncodeToString(certificate),
-		ApiServerUrl: apiServerUrl,
-		ApiServerCA:  apiServerCa,
+		APIServerURL: apiServerURL,
+		APIServerCA:  apiServerCa,
 	}, nil
 }
 
-// getApiServerCa retrieves the ApiServerCA.
-// It can take it from the CAData in the restConfig, or reading it from the CAFile
-func getApiServerCa(restConfig *rest.Config) (string, error) {
+// getAPIServerCA retrieves the ApiServerCA.
+// It can take it from the CAData in the restConfig, or reading it from the CAFile.
+func getAPIServerCA(restConfig *rest.Config) (string, error) {
 	if restConfig.CAData != nil && len(restConfig.CAData) > 0 {
-		// CAData available in the restConfig, encode and return it
+		// CAData available in the restConfig, encode and return it.
 		return base64.StdEncoding.EncodeToString(restConfig.CAData), nil
 	} else if restConfig.CAFile != "" {
-		// CAData is not available, read it from the CAFile
+		// CAData is not available, read it from the CAFile.
 		dat, err := ioutil.ReadFile(restConfig.CAFile)
 		if err != nil {
 			klog.Error(err)

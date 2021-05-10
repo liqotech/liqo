@@ -15,7 +15,7 @@ import (
 )
 
 const (
-	AuthTokenSecretName = "auth-token"
+	authTokenSecretName = "auth-token"
 )
 
 type tokenManager interface {
@@ -24,7 +24,7 @@ type tokenManager interface {
 }
 
 func (authService *AuthServiceCtrl) getToken() (string, error) {
-	obj, exists, err := authService.secretInformer.GetStore().GetByKey(strings.Join([]string{authService.namespace, AuthTokenSecretName}, "/"))
+	obj, exists, err := authService.secretInformer.GetStore().GetByKey(strings.Join([]string{authService.namespace, authTokenSecretName}, "/"))
 	if err != nil {
 		klog.Error(err)
 		return "", err
@@ -32,7 +32,7 @@ func (authService *AuthServiceCtrl) getToken() (string, error) {
 		err = kerrors.NewNotFound(schema.GroupResource{
 			Group:    "v1",
 			Resource: "secrets",
-		}, AuthTokenSecretName)
+		}, authTokenSecretName)
 		klog.Error(err)
 		return "", err
 	}
@@ -42,7 +42,7 @@ func (authService *AuthServiceCtrl) getToken() (string, error) {
 		err = kerrors.NewNotFound(schema.GroupResource{
 			Group:    "v1",
 			Resource: "secrets",
-		}, AuthTokenSecretName)
+		}, authTokenSecretName)
 		klog.Error(err)
 		return "", err
 	}
@@ -51,7 +51,7 @@ func (authService *AuthServiceCtrl) getToken() (string, error) {
 }
 
 func (authService *AuthServiceCtrl) createToken() error {
-	_, exists, _ := authService.secretInformer.GetStore().GetByKey(strings.Join([]string{authService.namespace, AuthTokenSecretName}, "/"))
+	_, exists, _ := authService.secretInformer.GetStore().GetByKey(strings.Join([]string{authService.namespace, authTokenSecretName}, "/"))
 	if !exists {
 		token, err := generateToken()
 		if err != nil {
@@ -60,7 +60,7 @@ func (authService *AuthServiceCtrl) createToken() error {
 
 		secret := &v1.Secret{
 			ObjectMeta: metav1.ObjectMeta{
-				Name: AuthTokenSecretName,
+				Name: authTokenSecretName,
 			},
 			StringData: map[string]string{
 				"token": token,

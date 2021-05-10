@@ -2,6 +2,7 @@ package auth_service
 
 import (
 	"encoding/json"
+	"errors"
 	"io/ioutil"
 	"net/http"
 
@@ -30,7 +31,8 @@ func (authService *AuthServiceCtrl) role(w http.ResponseWriter, r *http.Request,
 
 	// check that the provided credentials are valid
 	klog.V(4).Info("Checking credentials")
-	if err = authService.credentialsValidator.checkCredentials(&roleRequest, authService.getConfigProvider(), authService.getTokenManager()); err != nil {
+	if err = authService.credentialsValidator.checkCredentials(
+		&roleRequest, authService.getConfigProvider(), authService.getTokenManager()); err != nil {
 		klog.Error(err)
 		authService.handleError(w, err)
 		return
@@ -102,10 +104,9 @@ func (authService *AuthServiceCtrl) role(w http.ResponseWriter, r *http.Request,
 }
 
 func (authService *AuthServiceCtrl) handleError(w http.ResponseWriter, err error) {
-	switch err.(type) {
-	case *kerrors.StatusError:
+	if errors.Is(err, &kerrors.StatusError{}) {
 		authService.sendError(w, "forbidden", http.StatusForbidden)
-	default:
+	} else {
 		authService.sendError(w, err.Error(), http.StatusInternalServerError)
 	}
 }

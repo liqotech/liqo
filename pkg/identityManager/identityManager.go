@@ -13,7 +13,7 @@ type certificateIdentityManager struct {
 	namespaceManager tenantControlNamespace.TenantControlNamespaceManager
 }
 
-// get a new certificate identity manager
+// NewCertificateIdentityManager gets a new certificate identity manager.
 func NewCertificateIdentityManager(client kubernetes.Interface, localClusterID clusterID.ClusterID, namespaceManager tenantControlNamespace.TenantControlNamespaceManager) IdentityManager {
 	return &certificateIdentityManager{
 		client:           client,

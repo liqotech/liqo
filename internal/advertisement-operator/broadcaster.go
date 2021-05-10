@@ -59,7 +59,7 @@ type AdvResources struct {
 
 type apiConfigProviderEnv struct{}
 
-func (p *apiConfigProviderEnv) GetApiServerConfig() *configv1alpha1.ApiServerConfig {
+func (p *apiConfigProviderEnv) GetAPIServerConfig() *configv1alpha1.ApiServerConfig {
 	return &configv1alpha1.ApiServerConfig{
 		Address:   os.Getenv("APISERVER"),
 		Port:      os.Getenv("APISERVER_PORT"),

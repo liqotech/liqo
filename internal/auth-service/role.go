@@ -10,7 +10,7 @@ import (
 	"github.com/liqotech/liqo/pkg/discovery"
 )
 
-func (authService *AuthServiceCtrl) createRole(remoteClusterId string, sa *v1.ServiceAccount) (*rbacv1.Role, error) {
+func (authService *AuthServiceCtrl) createRole(remoteClusterID string, sa *v1.ServiceAccount) (*rbacv1.Role, error) {
 	role := &rbacv1.Role{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: sa.Name,
@@ -24,7 +24,7 @@ func (authService *AuthServiceCtrl) createRole(remoteClusterId string, sa *v1.Se
 			},
 			Labels: map[string]string{
 				discovery.LiqoManagedLabel: "true",
-				discovery.ClusterIDLabel:   remoteClusterId,
+				discovery.ClusterIDLabel:   remoteClusterID,
 			},
 		},
 		Rules: []rbacv1.PolicyRule{
@@ -37,7 +37,7 @@ func (authService *AuthServiceCtrl) createRole(remoteClusterId string, sa *v1.Se
 				APIGroups:     []string{v1.SchemeGroupVersion.Group},
 				Resources:     []string{"secrets"},
 				Verbs:         []string{"get", "delete"},
-				ResourceNames: []string{remoteClusterId},
+				ResourceNames: []string{remoteClusterID},
 			},
 		},
 	}

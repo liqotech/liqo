@@ -13,10 +13,11 @@ import (
 )
 
 const (
+	// AuthServiceName is the name of authentication service.
 	AuthServiceName = "liqo-auth"
 )
 
-func (discovery *DiscoveryCtrl) Register() {
+func (discovery *Controller) register() {
 	if discovery.Config.EnableAdvertisement {
 		authPort, err := discovery.getAuthServicePort()
 		if err != nil {
@@ -26,7 +27,11 @@ func (discovery *DiscoveryCtrl) Register() {
 
 		var ttl = discovery.Config.Ttl
 		discovery.serverMux.Lock()
-		discovery.mdnsServerAuth, err = zeroconf.Register(discovery.ClusterId.GetClusterID(), discovery.Config.AuthService, discovery.Config.Domain, authPort, nil, discovery.getInterfaces(), ttl)
+		discovery.mdnsServerAuth, err = zeroconf.Register(
+			discovery.ClusterId.GetClusterID(),
+			discovery.Config.AuthService,
+			discovery.Config.Domain,
+			authPort, nil, discovery.getInterfaces(), ttl)
 		discovery.serverMux.Unlock()
 		if err != nil {
 			klog.Error(err)
@@ -37,14 +42,14 @@ func (discovery *DiscoveryCtrl) Register() {
 	}
 }
 
-func (discovery *DiscoveryCtrl) shutdownServer() {
+func (discovery *Controller) shutdownServer() {
 	discovery.serverMux.Lock()
 	defer discovery.serverMux.Unlock()
 	discovery.mdnsServerAuth.Shutdown()
 }
 
 // get the NodePort of AuthService
-func (discovery *DiscoveryCtrl) getAuthServicePort() (int, error) {
+func (discovery *Controller) getAuthServicePort() (int, error) {
 	svc, err := discovery.crdClient.Client().CoreV1().Services(discovery.Namespace).Get(context.TODO(), AuthServiceName, metav1.GetOptions{})
 	if err != nil {
 		klog.Error(err)
@@ -64,7 +69,7 @@ func (discovery *DiscoveryCtrl) getAuthServicePort() (int, error) {
 	return int(svc.Spec.Ports[0].NodePort), nil
 }
 
-func (discovery *DiscoveryCtrl) getInterfaces() []net.Interface {
+func (discovery *Controller) getInterfaces() []net.Interface {
 	var interfaces []net.Interface
 	ifaces, err := net.Interfaces()
 	if err != nil {
@@ -103,7 +108,7 @@ func (discovery *DiscoveryCtrl) getInterfaces() []net.Interface {
 	return interfaces
 }
 
-func (discovery *DiscoveryCtrl) getPodNets() ([]*net.IPNet, error) {
+func (discovery *Controller) getPodNets() ([]*net.IPNet, error) {
 	nodes, err := discovery.crdClient.Client().CoreV1().Nodes().List(context.TODO(), metav1.ListOptions{})
 	if err != nil {
 		return nil, err

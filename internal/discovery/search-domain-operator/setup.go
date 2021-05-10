@@ -6,7 +6,6 @@ import (
 
 	"k8s.io/apimachinery/pkg/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
-	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
 	"k8s.io/klog"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 
@@ -25,7 +24,8 @@ func init() {
 	// +kubebuilder:scaffold:scheme
 }
 
-func StartOperator(mgr manager.Manager, requeueAfter time.Duration, discoveryCtrl *discovery.DiscoveryCtrl, kubeconfigPath string) {
+// StartOperator setups the SearchDomain operator.
+func StartOperator(mgr manager.Manager, requeueAfter time.Duration, discoveryCtrl *discovery.Controller, kubeconfigPath string) {
 	config, err := crdClient.NewKubeconfig(kubeconfigPath, &discoveryv1alpha1.GroupVersion, nil)
 	if err != nil {
 		klog.Error(err, "unable to get kube config")
@@ -37,7 +37,7 @@ func StartOperator(mgr manager.Manager, requeueAfter time.Duration, discoveryCtr
 		os.Exit(1)
 	}
 
-	if err = (GetSDReconciler(
+	if err = (getSDReconciler(
 		mgr.GetScheme(),
 		client,
 		discoveryCtrl,
@@ -48,7 +48,8 @@ func StartOperator(mgr manager.Manager, requeueAfter time.Duration, discoveryCtr
 	}
 }
 
-func GetSDReconciler(scheme *runtime.Scheme, client *crdClient.CRDClient, discoveryCtrl *discovery.DiscoveryCtrl, requeueAfter time.Duration) *SearchDomainReconciler {
+func getSDReconciler(scheme *runtime.Scheme, client *crdClient.CRDClient,
+	discoveryCtrl *discovery.Controller, requeueAfter time.Duration) *SearchDomainReconciler {
 	return &SearchDomainReconciler{
 		Scheme:        scheme,
 		requeueAfter:  requeueAfter,

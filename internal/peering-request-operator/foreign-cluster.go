@@ -78,7 +78,7 @@ func (r *PeeringRequestReconciler) createForeignCluster(pr *v1alpha1.PeeringRequ
 			Namespace:       pr.Spec.Namespace,
 			Join:            false,
 			DiscoveryType:   discovery.IncomingPeeringDiscovery,
-			AuthUrl:         pr.Spec.AuthUrl,
+			AuthUrl:         pr.Spec.AuthURL,
 		},
 		Status: v1alpha1.ForeignClusterStatus{
 			Incoming: v1alpha1.Incoming{

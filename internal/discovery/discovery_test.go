@@ -62,7 +62,7 @@ var _ = Describe("Discovery", func() {
 			DescribeTable("DNS entry table",
 				func(c decodeTestcase) {
 					var data AuthData
-					err := data.Decode(c.input, 1*time.Second)
+					err := data.decode(c.input, 1*time.Second)
 					Expect(err).To(c.expectedOutput)
 				},
 
@@ -111,7 +111,7 @@ var _ = Describe("Discovery", func() {
 			It("check that the data are correct", func() {
 				By("Decode AuthData")
 				var data AuthData
-				err := data.Decode(&entry, 1*time.Second)
+				err := data.decode(&entry, 1*time.Second)
 				Expect(err).To(BeNil())
 
 				targetData := AuthData{
@@ -168,10 +168,10 @@ var _ = Describe("Discovery", func() {
 			By("Get Url")
 
 			var data AuthData
-			err := data.Decode(&entry, 1*time.Second)
+			err := data.decode(&entry, 1*time.Second)
 			Expect(err).To(BeNil())
 
-			url := data.GetUrl()
+			url := data.getURL()
 			Expect(url).To(Equal("https://8.8.8.8:53"))
 		})
 
@@ -245,14 +245,14 @@ var _ = Describe("Discovery", func() {
 	Describe("DiscoveryCtrl", func() {
 
 		var (
-			discoveryCtrl DiscoveryCtrl
+			discoveryCtrl Controller
 		)
 
 		BeforeEach(func() {
 			clusterID := &test.ClusterIDMock{}
 			_ = clusterID.SetupClusterID("default")
 
-			discoveryCtrl = DiscoveryCtrl{
+			discoveryCtrl = Controller{
 				Namespace: "default",
 				Config: &v1alpha1.DiscoveryConfig{
 					AuthService:         "_liqo_auth._tcp",
@@ -447,7 +447,7 @@ var _ = Describe("Discovery", func() {
 
 				DescribeTable("UpdateForeign table",
 					func(c updateForeignTestcase) {
-						discoveryCtrl.UpdateForeignLAN(&c.data, c.trustMode)
+						discoveryCtrl.updateForeignLAN(&c.data, c.trustMode)
 						obj, err := discoveryCtrl.crdClient.Resource("foreignclusters").List(&metav1.ListOptions{})
 						Expect(err).To(BeNil())
 						Expect(obj).NotTo(BeNil())
@@ -518,7 +518,7 @@ var _ = Describe("Discovery", func() {
 				)
 
 				BeforeEach(func() {
-					discoveryCtrl.UpdateForeignLAN(&discoveryData{
+					discoveryCtrl.updateForeignLAN(&discoveryData{
 						AuthData: NewAuthData("1.2.3.4", 1234, 30),
 						ClusterInfo: &auth.ClusterInfo{
 							ClusterID:      "foreign-cluster",
@@ -539,7 +539,7 @@ var _ = Describe("Discovery", func() {
 
 				DescribeTable("UpdateForeign table",
 					func(c updateForeignTestcase) {
-						discoveryCtrl.UpdateForeignLAN(&c.data, c.trustMode)
+						discoveryCtrl.updateForeignLAN(&c.data, c.trustMode)
 						obj, err := discoveryCtrl.crdClient.Resource("foreignclusters").List(&metav1.ListOptions{})
 						Expect(err).To(BeNil())
 						Expect(obj).NotTo(BeNil())
@@ -622,7 +622,7 @@ var _ = Describe("Discovery", func() {
 
 				DescribeTable("UpdateForeign table",
 					func(c updateForeignTestcase) {
-						discoveryCtrl.UpdateForeignLAN(&c.data, c.trustMode)
+						discoveryCtrl.updateForeignLAN(&c.data, c.trustMode)
 						obj, err := discoveryCtrl.crdClient.Resource("foreignclusters").List(&metav1.ListOptions{})
 						Expect(err).To(BeNil())
 						Expect(obj).NotTo(BeNil())
@@ -813,7 +813,7 @@ var _ = Describe("Discovery", func() {
 					// register
 					registerExit := make(chan bool, 1)
 					go func() {
-						discoveryCtrl.Register()
+						discoveryCtrl.register()
 						registerExit <- true
 					}()
 
@@ -821,15 +821,15 @@ var _ = Describe("Discovery", func() {
 					ctx, cancel := context.WithCancel(context.TODO())
 					defer cancel()
 
-					resultChan := make(chan DiscoverableData)
+					resultChan := make(chan discoverableData)
 
 					resolveExit := make(chan bool, 1)
 					go func() {
-						discoveryCtrl.Resolve(ctx, discoveryCtrl.Config.AuthService, discoveryCtrl.Config.Domain, resultChan)
+						discoveryCtrl.resolve(ctx, discoveryCtrl.Config.AuthService, discoveryCtrl.Config.Domain, resultChan)
 						resolveExit <- true
 					}()
 
-					var data DiscoverableData = nil
+					var data discoverableData = nil
 					select {
 					case data = <-resultChan:
 						break

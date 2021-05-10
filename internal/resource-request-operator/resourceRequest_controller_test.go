@@ -35,7 +35,7 @@ var _ = Describe("ResourceRequest controller", func() {
 					Namespace: ResourcesNamespace,
 				},
 				Spec: discoveryv1alpha1.ResourceRequestSpec{
-					AuthUrl: "https://127.0.0.1:39087",
+					AuthURL: "https://127.0.0.1:39087",
 					ClusterIdentity: discoveryv1alpha1.ClusterIdentity{
 						ClusterID: "2468825c-0f62-44d7-bed1-9a7bc331c0b0",
 					},

@@ -33,9 +33,9 @@ func (authService *AuthServiceCtrl) ids(w http.ResponseWriter, r *http.Request, 
 }
 
 func (authService *AuthServiceCtrl) getIdsResponse() *auth.ClusterInfo {
-	conf := authService.GetDiscoveryConfig()
+	conf := authService.getDiscoveryConfig()
 	return &auth.ClusterInfo{
-		ClusterID:      authService.clusterId.GetClusterID(),
+		ClusterID:      authService.localClusterID.GetClusterID(),
 		ClusterName:    conf.ClusterName,
 		GuestNamespace: auth.LiqoGuestNamespace,
 	}

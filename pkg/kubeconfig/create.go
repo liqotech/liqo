@@ -33,7 +33,7 @@ func CreateKubeConfigFromServiceAccount(apiServerConfigProvider clusterConfig.Ap
 	}
 
 	var caCrt []byte
-	if apiServerConfigProvider.GetApiServerConfig().TrustedCA {
+	if apiServerConfigProvider.GetAPIServerConfig().TrustedCA {
 		caCrt = nil
 	} else {
 		caCrt = secret.Data["ca.crt"]
@@ -56,7 +56,7 @@ func CreateKubeConfigFromServiceAccount(apiServerConfigProvider clusterConfig.Ap
 // 1. from the ClusterConfig
 // 2. defaults to 6443
 func GetApiServerURL(apiServerConfigProvider clusterConfig.ApiServerConfigProvider, clientset kubernetes.Interface) (string, error) {
-	address := apiServerConfigProvider.GetApiServerConfig().Address
+	address := apiServerConfigProvider.GetAPIServerConfig().Address
 	if address == "" {
 		nodes, err := clientset.CoreV1().Nodes().List(context.TODO(), v1.ListOptions{
 			LabelSelector: "node-role.kubernetes.io/master",
@@ -77,7 +77,7 @@ func GetApiServerURL(apiServerConfigProvider clusterConfig.ApiServerConfigProvid
 		}
 	}
 
-	port := apiServerConfigProvider.GetApiServerConfig().Port
+	port := apiServerConfigProvider.GetAPIServerConfig().Port
 	if port == "" {
 		port = "6443"
 	}

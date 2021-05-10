@@ -20,7 +20,8 @@ type credentialsValidator interface {
 type tokenValidator struct{}
 
 // checkCredentials checks if the provided token is valid for the local cluster given an IdentityRequest
-func (tokenValidator *tokenValidator) checkCredentials(roleRequest auth.IdentityRequest, configProvider auth.AuthConfigProvider, tokenManager tokenManager) error {
+func (tokenValidator *tokenValidator) checkCredentials(
+	roleRequest auth.IdentityRequest, configProvider auth.AuthConfigProvider, tokenManager tokenManager) error {
 	// token check fails if:
 	// 1. token is different from the correct one
 	// 2. token is empty but in the cluster config empty token is not allowed
