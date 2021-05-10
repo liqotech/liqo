@@ -38,10 +38,12 @@ func (r *ForeignClusterReconciler) clusterIdentityDefaulting(fc *v1alpha1.Foreig
 
 	fc.Spec.TrustMode = trustMode
 
-	klog.V(4).Infof("New values:\n\tNamespace:\t%v\n\tClusterId:\t%v\n\tClusterName:\t%v\n\tTrustMode:\t%v", fc.Spec.Namespace, fc.Spec.ClusterIdentity.ClusterID, fc.Spec.ClusterIdentity.ClusterName, fc.Spec.TrustMode)
+	klog.V(4).Infof("New values:\n\tNamespace:\t%v\n\tClusterId:\t%v\n\tClusterName:\t%v\n\tTrustMode:\t%v",
+		fc.Spec.Namespace, fc.Spec.ClusterIdentity.ClusterID,
+		fc.Spec.ClusterIdentity.ClusterName, fc.Spec.TrustMode)
 
 	// update the ForeignCluster
-	if _, err = r.crdClient.Resource("foreignclusters").Update(fc.Name, fc, metav1.UpdateOptions{}); err != nil {
+	if _, err = r.crdClient.Resource("foreignclusters").Update(fc.Name, fc, &metav1.UpdateOptions{}); err != nil {
 		klog.Error(err)
 		return err
 	}

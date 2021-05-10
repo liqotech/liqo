@@ -1,6 +1,7 @@
 package utils
 
 import (
+	"context"
 	"crypto/tls"
 	"crypto/x509"
 	"encoding/json"
@@ -28,14 +29,20 @@ func GetClusterInfo(url string) (*auth.ClusterInfo, discovery.TrustMode, error) 
 	trustMode := discovery.TrustModeTrusted
 	tr := &http.Transport{}
 	client := &http.Client{Transport: tr}
-	resp, err := client.Get(fmt.Sprintf("%s/ids", url))
+	resp, err := httpGet(context.TODO(), client, fmt.Sprintf("%s/ids", url))
+	if resp != nil {
+		defer resp.Body.Close()
+	}
 	if IsUnknownAuthority(err) {
 		trustMode = discovery.TrustModeUntrusted
 		tr := &http.Transport{
 			TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
 		}
 		client := &http.Client{Transport: tr}
-		resp, err = client.Get(fmt.Sprintf("%s/ids", url))
+		resp, err = httpGet(context.TODO(), client, fmt.Sprintf("%s/ids", url))
+		if resp != nil {
+			defer resp.Body.Close()
+		}
 	}
 	if err != nil {
 		return nil, discovery.TrustModeUnknown, err
@@ -54,4 +61,13 @@ func GetClusterInfo(url string) (*auth.ClusterInfo, discovery.TrustMode, error) 
 	}
 
 	return &ids, trustMode, nil
+}
+
+func httpGet(ctx context.Context, client *http.Client, url string) (resp *http.Response, err error) {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+	if err != nil {
+		klog.Error(err)
+		return nil, err
+	}
+	return client.Do(req)
 }

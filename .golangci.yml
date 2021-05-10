@@ -97,6 +97,7 @@ linters:
   # - wsl
 
 issues:
+  max-issues-per-linter: 0
   # Disable the default exclude patterns (as they disable the mandatory comments)
   exclude-use-default: false
   exclude:
@@ -107,3 +108,8 @@ issues:
     - linters:
         - govet
       text: 'declaration of "(err|ctx)" shadows declaration at'
+    - linters:
+        - gosec
+      # Disable the check to test that HTTP clients are not using an insecure TLS connection.
+      # We need it to contact the remote authentication services exposing a self-signed certificate
+      text: TLS InsecureSkipVerify set true.

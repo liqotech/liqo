@@ -45,14 +45,14 @@ func TestWatchAdvertisementAcceptance(t *testing.T) {
 		},
 		Status: discoveryv1alpha1.PeeringRequestStatus{},
 	}
-	_, err := b.DiscoveryClient.Resource("peeringrequests").Create(&pr, v1.CreateOptions{})
+	_, err := b.DiscoveryClient.Resource("peeringrequests").Create(&pr, &v1.CreateOptions{})
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	// create fake advertisement on cluster foreign
 	homeAdv := prepareAdv(&b)
-	_, err = b.RemoteClient.Resource("advertisements").Create(&homeAdv, v1.CreateOptions{})
+	_, err = b.RemoteClient.Resource("advertisements").Create(&homeAdv, &v1.CreateOptions{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -63,7 +63,7 @@ func TestWatchAdvertisementAcceptance(t *testing.T) {
 
 	// set adv status and update it: this will trigger the watcher
 	homeAdv.Status.AdvertisementStatus = advtypes.AdvertisementAccepted
-	_, err = b.RemoteClient.Resource("advertisements").Update(homeAdv.Name, &homeAdv, v1.UpdateOptions{})
+	_, err = b.RemoteClient.Resource("advertisements").Update(homeAdv.Name, &homeAdv, &v1.UpdateOptions{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -73,7 +73,7 @@ func TestWatchAdvertisementAcceptance(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	tmp, err := b.DiscoveryClient.Resource("peeringrequests").Get(b.PeeringRequestName, v1.GetOptions{})
+	tmp, err := b.DiscoveryClient.Resource("peeringrequests").Get(b.PeeringRequestName, &v1.GetOptions{})
 	if err != nil {
 		t.Fatal(err)
 	}

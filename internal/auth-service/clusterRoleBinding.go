@@ -16,7 +16,7 @@ func (authService *AuthServiceCtrl) createClusterRoleBinding(sa *v1.ServiceAccou
 			Name: sa.Name,
 			Labels: map[string]string{
 				discovery.LiqoManagedLabel: "true",
-				discovery.ClusterIdLabel:   remoteClusterId,
+				discovery.ClusterIDLabel:   remoteClusterId,
 			},
 		},
 		Subjects: []rbacv1.Subject{

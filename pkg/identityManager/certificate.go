@@ -83,7 +83,7 @@ func (certManager *certificateIdentityManager) getSecret(remoteClusterID string)
 	labelSelector := metav1.LabelSelector{
 		MatchLabels: map[string]string{
 			localIdentitySecretLabel: "true",
-			discovery.ClusterIdLabel: remoteClusterID,
+			discovery.ClusterIDLabel: remoteClusterID,
 		},
 	}
 	secretList, err := certManager.client.CoreV1().Secrets(namespace.Name).List(context.TODO(), metav1.ListOptions{
@@ -168,7 +168,7 @@ func (certManager *certificateIdentityManager) createIdentityInNamespace(remoteC
 			Namespace:    namespace,
 			Labels: map[string]string{
 				localIdentitySecretLabel: "true",
-				discovery.ClusterIdLabel: remoteClusterID,
+				discovery.ClusterIDLabel: remoteClusterID,
 			},
 			Annotations: map[string]string{
 				// one year starting from now

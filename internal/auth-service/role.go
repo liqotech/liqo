@@ -24,7 +24,7 @@ func (authService *AuthServiceCtrl) createRole(remoteClusterId string, sa *v1.Se
 			},
 			Labels: map[string]string{
 				discovery.LiqoManagedLabel: "true",
-				discovery.ClusterIdLabel:   remoteClusterId,
+				discovery.ClusterIDLabel:   remoteClusterId,
 			},
 		},
 		Rules: []rbacv1.PolicyRule{

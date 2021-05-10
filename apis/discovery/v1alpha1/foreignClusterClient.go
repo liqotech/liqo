@@ -17,7 +17,8 @@ func CreateForeignClusterClient(kubeconfig string) (*crdClient.CRDClient, error)
 	if err = AddToScheme(scheme.Scheme); err != nil {
 		panic(err)
 	}
-	crdClient.AddToRegistry("foreignclusters", &ForeignCluster{}, &ForeignClusterList{}, ForeignClusterKeyer, ForeignClusterGroupResource)
+	crdClient.AddToRegistry("foreignclusters", &ForeignCluster{},
+		&ForeignClusterList{}, ForeignClusterKeyer, ForeignClusterGroupResource)
 	config, err = crdClient.NewKubeconfig(kubeconfig, &GroupVersion, nil)
 	if err != nil {
 		panic(err)

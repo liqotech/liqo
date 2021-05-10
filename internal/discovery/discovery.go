@@ -65,10 +65,10 @@ func NewDiscoveryCtrl(namespace string, clusterId clusterID.ClusterID, kubeconfi
 	return &discoveryCtrl, nil
 }
 
-func GetDiscoveryCtrl(namespace string, crdClient *crdClient.CRDClient, advClient *crdClient.CRDClient, clusterId clusterID.ClusterID, resolveContextRefreshTime int, dialTcpTimeout time.Duration) DiscoveryCtrl {
+func GetDiscoveryCtrl(namespace string, client *crdClient.CRDClient, advClient *crdClient.CRDClient, clusterId clusterID.ClusterID, resolveContextRefreshTime int, dialTcpTimeout time.Duration) DiscoveryCtrl {
 	return DiscoveryCtrl{
 		Namespace:                 namespace,
-		crdClient:                 crdClient,
+		crdClient:                 client,
 		advClient:                 advClient,
 		ClusterId:                 clusterId,
 		stopMDNS:                  make(chan bool, 1),

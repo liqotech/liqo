@@ -146,15 +146,15 @@ func (certManager *certificateIdentityManager) getCertificate(csr *certv1beta1.C
 
 	// define a function that will check if a generic object is a CSR with a issued certificate
 	checkCertificate := func(obj interface{}) bool {
-		csr, ok := obj.(*certv1beta1.CertificateSigningRequest)
+		certificateSigningRequest, ok := obj.(*certv1beta1.CertificateSigningRequest)
 		if !ok {
 			klog.Errorf("this object is not a CertificateSigningRequest: %v", obj)
 			return false
 		}
 
-		res := (csr.Status.Certificate != nil && len(csr.Status.Certificate) > 0)
+		res := (certificateSigningRequest.Status.Certificate != nil && len(certificateSigningRequest.Status.Certificate) > 0)
 		if res {
-			certificate = csr.Status.Certificate
+			certificate = certificateSigningRequest.Status.Certificate
 		}
 		return res
 	}

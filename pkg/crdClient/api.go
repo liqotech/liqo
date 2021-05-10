@@ -28,7 +28,7 @@ func (c *Client) Namespace(namespace string) CrdClientInterface {
 	return c
 }
 
-func (c *Client) Get(name string, opts metav1.GetOptions) (runtime.Object, error) {
+func (c *Client) Get(name string, opts *metav1.GetOptions) (runtime.Object, error) {
 	result := reflect.New(c.resource.SingularType).Interface()
 	var namespaced bool
 	if c.ns != "" {
@@ -38,7 +38,7 @@ func (c *Client) Get(name string, opts metav1.GetOptions) (runtime.Object, error
 	err := c.Client.
 		Get().
 		Resource(c.api).
-		VersionedParams(&opts, scheme.ParameterCodec).
+		VersionedParams(opts, scheme.ParameterCodec).
 		NamespaceIfScoped(c.ns, namespaced).
 		Name(name).
 		Do(context.TODO()).
@@ -47,7 +47,7 @@ func (c *Client) Get(name string, opts metav1.GetOptions) (runtime.Object, error
 	return result.(runtime.Object), err
 }
 
-func (c *Client) List(opts metav1.ListOptions) (runtime.Object, error) {
+func (c *Client) List(opts *metav1.ListOptions) (runtime.Object, error) {
 	result := reflect.New(c.resource.PluralType).Interface()
 	var namespaced bool
 	if c.ns != "" {
@@ -57,7 +57,7 @@ func (c *Client) List(opts metav1.ListOptions) (runtime.Object, error) {
 	err := c.Client.
 		Get().
 		Resource(c.api).
-		VersionedParams(&opts, scheme.ParameterCodec).
+		VersionedParams(opts, scheme.ParameterCodec).
 		NamespaceIfScoped(c.ns, namespaced).
 		Do(context.TODO()).
 		Into(result.(runtime.Object))
@@ -65,7 +65,7 @@ func (c *Client) List(opts metav1.ListOptions) (runtime.Object, error) {
 	return result.(runtime.Object), err
 }
 
-func (c *Client) Watch(opts metav1.ListOptions) (watch.Interface, error) {
+func (c *Client) Watch(opts *metav1.ListOptions) (watch.Interface, error) {
 	var timeout time.Duration
 	if opts.TimeoutSeconds != nil {
 		timeout = time.Duration(*opts.TimeoutSeconds) * time.Second
@@ -80,13 +80,13 @@ func (c *Client) Watch(opts metav1.ListOptions) (watch.Interface, error) {
 	return c.Client.
 		Get().
 		Resource(c.api).
-		VersionedParams(&opts, scheme.ParameterCodec).
+		VersionedParams(opts, scheme.ParameterCodec).
 		NamespaceIfScoped(c.ns, namespaced).
 		Timeout(timeout).
 		Watch(context.TODO())
 }
 
-func (c *Client) Create(obj runtime.Object, opts metav1.CreateOptions) (runtime.Object, error) {
+func (c *Client) Create(obj runtime.Object, opts *metav1.CreateOptions) (runtime.Object, error) {
 	result := reflect.New(c.resource.SingularType).Interface()
 
 	var namespaced bool
@@ -97,7 +97,7 @@ func (c *Client) Create(obj runtime.Object, opts metav1.CreateOptions) (runtime.
 	err := c.Client.
 		Post().
 		Resource(c.api).
-		VersionedParams(&opts, scheme.ParameterCodec).
+		VersionedParams(opts, scheme.ParameterCodec).
 		NamespaceIfScoped(c.ns, namespaced).
 		Body(obj).
 		Do(context.TODO()).
@@ -106,7 +106,7 @@ func (c *Client) Create(obj runtime.Object, opts metav1.CreateOptions) (runtime.
 	return result.(runtime.Object), err
 }
 
-func (c *Client) Delete(name string, opts metav1.DeleteOptions) error {
+func (c *Client) Delete(name string, opts *metav1.DeleteOptions) error {
 	var namespaced bool
 	if c.ns != "" {
 		namespaced = true
@@ -115,15 +115,15 @@ func (c *Client) Delete(name string, opts metav1.DeleteOptions) error {
 	return c.Client.
 		Delete().
 		Resource(c.api).
-		VersionedParams(&opts, scheme.ParameterCodec).
+		VersionedParams(opts, scheme.ParameterCodec).
 		NamespaceIfScoped(c.ns, namespaced).
 		Name(name).
-		Body(&opts).
+		Body(opts).
 		Do(context.TODO()).
 		Error()
 }
 
-func (c *Client) Update(name string, obj runtime.Object, opts metav1.UpdateOptions) (runtime.Object, error) {
+func (c *Client) Update(name string, obj runtime.Object, opts *metav1.UpdateOptions) (runtime.Object, error) {
 	result := reflect.New(c.resource.SingularType).Interface()
 
 	var namespaced bool
@@ -133,7 +133,7 @@ func (c *Client) Update(name string, obj runtime.Object, opts metav1.UpdateOptio
 
 	err := c.Client.Put().
 		Resource(c.api).
-		VersionedParams(&opts, scheme.ParameterCodec).
+		VersionedParams(opts, scheme.ParameterCodec).
 		NamespaceIfScoped(c.ns, namespaced).
 		Name(name).
 		Body(obj).
@@ -143,7 +143,7 @@ func (c *Client) Update(name string, obj runtime.Object, opts metav1.UpdateOptio
 	return result.(runtime.Object), err
 }
 
-func (c *Client) UpdateStatus(name string, obj runtime.Object, opts metav1.UpdateOptions) (runtime.Object, error) {
+func (c *Client) UpdateStatus(name string, obj runtime.Object, opts *metav1.UpdateOptions) (runtime.Object, error) {
 	result := reflect.New(c.resource.SingularType).Interface()
 
 	var namespaced bool
@@ -153,7 +153,7 @@ func (c *Client) UpdateStatus(name string, obj runtime.Object, opts metav1.Updat
 
 	err := c.Client.Put().
 		Resource(c.api).
-		VersionedParams(&opts, scheme.ParameterCodec).
+		VersionedParams(opts, scheme.ParameterCodec).
 		NamespaceIfScoped(c.ns, namespaced).
 		Name(name).
 		SubResource("status").

@@ -32,7 +32,7 @@ func (r *ResourceRequestReconciler) generateResourceOffer(request *discoveryv1al
 	op, err := controllerutil.CreateOrUpdate(context.Background(), r.Client, offer, func() error {
 
 		offer.Labels = map[string]string{
-			discovery.ClusterIdLabel: request.Spec.ClusterIdentity.ClusterID,
+			discovery.ClusterIDLabel: request.Spec.ClusterIdentity.ClusterID,
 		}
 		creationTime := metav1.NewTime(time.Now())
 		spec := sharingv1alpha1.ResourceOfferSpec{

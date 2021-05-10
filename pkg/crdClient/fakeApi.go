@@ -23,7 +23,7 @@ func (c *FakeClient) Namespace(namespace string) CrdClientInterface {
 	return c
 }
 
-func (c *FakeClient) Get(name string, _ metav1.GetOptions) (runtime.Object, error) {
+func (c *FakeClient) Get(name string, _ *metav1.GetOptions) (runtime.Object, error) {
 
 	result, found, err := c.storage.GetByKey(name)
 	if !found {
@@ -33,15 +33,15 @@ func (c *FakeClient) Get(name string, _ metav1.GetOptions) (runtime.Object, erro
 	return result.(runtime.Object), err
 }
 
-func (c *FakeClient) List(_ metav1.ListOptions) (runtime.Object, error) {
+func (c *FakeClient) List(_ *metav1.ListOptions) (runtime.Object, error) {
 	panic("to implement")
 }
 
-func (c *FakeClient) Watch(_ metav1.ListOptions) (watch.Interface, error) {
+func (c *FakeClient) Watch(_ *metav1.ListOptions) (watch.Interface, error) {
 	return c.storage.watcher, nil
 }
 
-func (c *FakeClient) Create(obj runtime.Object, _ metav1.CreateOptions) (runtime.Object, error) {
+func (c *FakeClient) Create(obj runtime.Object, _ *metav1.CreateOptions) (runtime.Object, error) {
 	err := c.storage.Add(obj)
 	if err != nil {
 		return nil, err
@@ -50,8 +50,8 @@ func (c *FakeClient) Create(obj runtime.Object, _ metav1.CreateOptions) (runtime
 	return obj, nil
 }
 
-func (c *FakeClient) Delete(name string, opts metav1.DeleteOptions) error {
-	obj, err := c.Get(name, metav1.GetOptions{})
+func (c *FakeClient) Delete(name string, opts *metav1.DeleteOptions) error {
+	obj, err := c.Get(name, &metav1.GetOptions{})
 	if err != nil {
 		return err
 	}
@@ -62,7 +62,7 @@ func (c *FakeClient) Delete(name string, opts metav1.DeleteOptions) error {
 	return nil
 }
 
-func (c *FakeClient) Update(name string, obj runtime.Object, _ metav1.UpdateOptions) (runtime.Object, error) {
+func (c *FakeClient) Update(name string, obj runtime.Object, _ *metav1.UpdateOptions) (runtime.Object, error) {
 	err := c.storage.Update(obj)
 	if err != nil {
 		return nil, err
@@ -79,7 +79,7 @@ func (c *FakeClient) Update(name string, obj runtime.Object, _ metav1.UpdateOpti
 	return result.(runtime.Object), nil
 }
 
-func (c *FakeClient) UpdateStatus(name string, obj runtime.Object, opts metav1.UpdateOptions) (runtime.Object, error) {
+func (c *FakeClient) UpdateStatus(name string, obj runtime.Object, opts *metav1.UpdateOptions) (runtime.Object, error) {
 	err := c.storage.Update(obj)
 	if err != nil {
 		return nil, err

@@ -108,7 +108,7 @@ var _ = Describe("ForeignClusterOperator", func() {
 
 		DescribeTable("Peer table",
 			func(c peerTestcase) {
-				obj, err := controller.crdClient.Resource("foreignclusters").Create(&c.fc, metav1.CreateOptions{})
+				obj, err := controller.crdClient.Resource("foreignclusters").Create(&c.fc, &metav1.CreateOptions{})
 				Expect(err).To(BeNil())
 				Expect(obj).NotTo(BeNil())
 
@@ -123,7 +123,7 @@ var _ = Describe("ForeignClusterOperator", func() {
 				Expect(fc.Status.Outgoing).To(c.expectedOutgoing)
 				Expect(fc.Status.Incoming).To(c.expectedIncoming)
 
-				obj, err = controller.crdClient.Resource("peeringrequests").List(metav1.ListOptions{})
+				obj, err = controller.crdClient.Resource("peeringrequests").List(&metav1.ListOptions{})
 				Expect(err).To(BeNil())
 				Expect(obj).NotTo(BeNil())
 
@@ -140,7 +140,7 @@ var _ = Describe("ForeignClusterOperator", func() {
 						Name: "foreign-cluster",
 						Labels: map[string]string{
 							discovery.DiscoveryTypeLabel: string(discovery.ManualDiscovery),
-							discovery.ClusterIdLabel:     "foreign-cluster",
+							discovery.ClusterIDLabel:     "foreign-cluster",
 						},
 					},
 					Spec: v1alpha12.ForeignClusterSpec{
@@ -179,7 +179,7 @@ var _ = Describe("ForeignClusterOperator", func() {
 
 		DescribeTable("Unpeer table",
 			func(c unpeerTestcase) {
-				obj, err := controller.crdClient.Resource("foreignclusters").Create(&c.fc, metav1.CreateOptions{})
+				obj, err := controller.crdClient.Resource("foreignclusters").Create(&c.fc, &metav1.CreateOptions{})
 				Expect(err).To(BeNil())
 				Expect(obj).NotTo(BeNil())
 
@@ -187,7 +187,7 @@ var _ = Describe("ForeignClusterOperator", func() {
 				Expect(ok).To(BeTrue())
 				Expect(fc).NotTo(BeNil())
 
-				obj, err = controller.crdClient.Resource("peeringrequests").Create(&c.pr, metav1.CreateOptions{})
+				obj, err = controller.crdClient.Resource("peeringrequests").Create(&c.pr, &metav1.CreateOptions{})
 				Expect(err).To(BeNil())
 				Expect(obj).NotTo(BeNil())
 
@@ -202,7 +202,7 @@ var _ = Describe("ForeignClusterOperator", func() {
 				Expect(fc.Status.Outgoing).To(c.expectedOutgoing)
 				Expect(fc.Status.Incoming).To(c.expectedIncoming)
 
-				obj, err = controller.crdClient.Resource("peeringrequests").List(metav1.ListOptions{})
+				obj, err = controller.crdClient.Resource("peeringrequests").List(&metav1.ListOptions{})
 				Expect(err).To(BeNil())
 				Expect(obj).NotTo(BeNil())
 
@@ -219,7 +219,7 @@ var _ = Describe("ForeignClusterOperator", func() {
 						Name: "foreign-cluster",
 						Labels: map[string]string{
 							discovery.DiscoveryTypeLabel: string(discovery.ManualDiscovery),
-							discovery.ClusterIdLabel:     "foreign-cluster",
+							discovery.ClusterIDLabel:     "foreign-cluster",
 						},
 					},
 					Spec: v1alpha12.ForeignClusterSpec{

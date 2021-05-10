@@ -21,6 +21,7 @@ import (
 
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	"github.com/liqotech/liqo/pkg/auth"
+	"github.com/liqotech/liqo/pkg/consts"
 	"github.com/liqotech/liqo/pkg/crdClient"
 	"github.com/liqotech/liqo/pkg/discovery"
 	"github.com/liqotech/liqo/pkg/kubeconfig"
@@ -42,7 +43,7 @@ func (r *ForeignClusterReconciler) getRemoteClient(fc *discoveryv1alpha1.Foreign
 		config := *r.ForeignConfig
 
 		config.ContentConfig.GroupVersion = gv
-		config.APIPath = "/apis"
+		config.APIPath = consts.ApisPath
 		config.NegotiatedSerializer = client_scheme.Codecs.WithoutConversion()
 		config.UserAgent = rest.DefaultKubernetesUserAgent()
 
@@ -67,7 +68,9 @@ func (r *ForeignClusterReconciler) getRemoteClient(fc *discoveryv1alpha1.Foreign
 	}
 
 	// not existing role
-	if fc.Status.AuthStatus == discovery.AuthStatusPending || (fc.Status.AuthStatus == discovery.AuthStatusEmptyRefused && r.getAuthToken(fc) != "") {
+	isPending := fc.Status.AuthStatus == discovery.AuthStatusPending
+	isRefused := fc.Status.AuthStatus == discovery.AuthStatusEmptyRefused
+	if isPending || (isRefused && r.getAuthToken(fc) != "") {
 		kubeconfigStr, err := r.askRemoteIdentity(fc)
 		if err != nil {
 			klog.Error(err)
@@ -79,7 +82,7 @@ func (r *ForeignClusterReconciler) getRemoteClient(fc *discoveryv1alpha1.Foreign
 		}
 		klog.V(4).Infof("[%v] Creating kubeconfig", fc.Spec.ClusterIdentity.ClusterID)
 		_, err = kubeconfig.CreateSecret(r.crdClient.Client(), r.Namespace, kubeconfigStr, map[string]string{
-			discovery.ClusterIdLabel:      fc.Spec.ClusterIdentity.ClusterID,
+			discovery.ClusterIDLabel:      fc.Spec.ClusterIdentity.ClusterID,
 			discovery.RemoteIdentityLabel: "",
 		})
 		if err != nil {
@@ -98,7 +101,7 @@ func (r *ForeignClusterReconciler) getRemoteClient(fc *discoveryv1alpha1.Foreign
 func (r *ForeignClusterReconciler) getIdentity(fc *discoveryv1alpha1.ForeignCluster, gv *schema.GroupVersion) (*crdClient.CRDClient, error) {
 	secrets, err := r.crdClient.Client().CoreV1().Secrets(r.Namespace).List(context.TODO(), metav1.ListOptions{
 		LabelSelector: strings.Join([]string{
-			strings.Join([]string{discovery.ClusterIdLabel, fc.Spec.ClusterIdentity.ClusterID}, "="),
+			strings.Join([]string{discovery.ClusterIDLabel, fc.Spec.ClusterIdentity.ClusterID}, "="),
 			discovery.RemoteIdentityLabel,
 		}, ","),
 	})
@@ -137,7 +140,7 @@ func (r *ForeignClusterReconciler) getAuthToken(fc *discoveryv1alpha1.ForeignClu
 	tokenSecrets, err := r.crdClient.Client().CoreV1().Secrets(r.Namespace).List(context.TODO(), metav1.ListOptions{
 		LabelSelector: strings.Join(
 			[]string{
-				strings.Join([]string{discovery.ClusterIdLabel, fc.Spec.ClusterIdentity.ClusterID}, "="),
+				strings.Join([]string{discovery.ClusterIDLabel, fc.Spec.ClusterIdentity.ClusterID}, "="),
 				discovery.AuthTokenLabel,
 			},
 			",",
@@ -148,8 +151,8 @@ func (r *ForeignClusterReconciler) getAuthToken(fc *discoveryv1alpha1.ForeignClu
 		return ""
 	}
 
-	for _, tokenSecret := range tokenSecrets.Items {
-		if token, found := tokenSecret.Data["token"]; found {
+	for i := range tokenSecrets.Items {
+		if token, found := tokenSecrets.Items[i].Data["token"]; found {
 			return string(token)
 		}
 	}
@@ -176,6 +179,7 @@ func (r *ForeignClusterReconciler) askRemoteIdentity(fc *discoveryv1alpha1.Forei
 		klog.Error(err)
 		return "", err
 	}
+	defer resp.Body.Close()
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
 		klog.Error(err)
@@ -210,5 +214,11 @@ func sendRequest(url string, payload *bytes.Buffer) (*http.Response, error) {
 		TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
 	}
 	client := &http.Client{Transport: tr}
-	return client.Post(url, "text/plain", payload)
+	req, err := http.NewRequestWithContext(context.TODO(), http.MethodPost, url, payload)
+	if err != nil {
+		klog.Error(err)
+		return nil, err
+	}
+	req.Header.Set("Content-Type", "text/plain")
+	return client.Do(req)
 }

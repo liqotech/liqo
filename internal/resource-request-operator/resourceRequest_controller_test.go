@@ -64,7 +64,7 @@ var _ = Describe("ResourceRequest controller", func() {
 			}, timeout, interval).Should(BeTrue())
 
 			Expect(createdResourceOffer.Name).Should(ContainSubstring(clusterId))
-			Expect(createdResourceOffer.Labels[discovery.ClusterIdLabel]).Should(Equal(createdResourceRequest.Spec.ClusterIdentity.ClusterID))
+			Expect(createdResourceOffer.Labels[discovery.ClusterIDLabel]).Should(Equal(createdResourceRequest.Spec.ClusterIdentity.ClusterID))
 
 			By("Checking OwnerReference for Garbage Collector")
 			Expect(createdResourceOffer.GetOwnerReferences()).ShouldNot(HaveLen(0))

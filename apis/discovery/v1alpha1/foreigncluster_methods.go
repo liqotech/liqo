@@ -29,7 +29,7 @@ func (fc *ForeignCluster) SetAdvertisement(adv *advtypes.Advertisement, discover
 			UID:        adv.UID,
 			APIVersion: "sharing.liqo.io/v1alpha1",
 		}
-		_, err := discoveryClient.Resource("foreignclusters").Update(fc.Name, fc, metav1.UpdateOptions{})
+		_, err := discoveryClient.Resource("foreignclusters").Update(fc.Name, fc, &metav1.UpdateOptions{})
 		if err != nil {
 			klog.Error(err, err.Error())
 			return err
@@ -40,7 +40,7 @@ func (fc *ForeignCluster) SetAdvertisement(adv *advtypes.Advertisement, discover
 
 func (fc *ForeignCluster) DeleteAdvertisement(advClient *crdClient.CRDClient) error {
 	if fc.Status.Outgoing.Advertisement != nil {
-		err := advClient.Resource("advertisements").Delete(fc.Status.Outgoing.Advertisement.Name, metav1.DeleteOptions{})
+		err := advClient.Resource("advertisements").Delete(fc.Status.Outgoing.Advertisement.Name, &metav1.DeleteOptions{})
 		if err != nil && !errors.IsNotFound(err) {
 			return err
 		}
@@ -53,7 +53,9 @@ func (fc *ForeignCluster) DeleteAdvertisement(advClient *crdClient.CRDClient) er
 // when we found it also in other way, for example inserting a SearchDomain or
 // adding it manually
 func (fc *ForeignCluster) HasHigherPriority(discoveryType discovery.DiscoveryType) bool {
-	return fc.Spec.DiscoveryType == discovery.IncomingPeeringDiscovery && discoveryType != discovery.IncomingPeeringDiscovery
+	b1 := fc.Spec.DiscoveryType == discovery.IncomingPeeringDiscovery
+	b2 := discoveryType != discovery.IncomingPeeringDiscovery
+	return b1 && b2
 }
 
 // sets lastUpdate annotation to current time

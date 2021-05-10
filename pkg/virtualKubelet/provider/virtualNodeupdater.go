@@ -25,7 +25,7 @@ import (
 func (p *LiqoProvider) StartNodeUpdater(nodeRunner *module.NodeController) (chan struct{}, chan struct{}, error) {
 	stop := make(chan struct{}, 1)
 	advName := strings.Join([]string{virtualKubelet.AdvertisementPrefix, p.foreignClusterId}, "")
-	advWatcher, err := p.advClient.Resource("advertisements").Watch(metav1.ListOptions{
+	advWatcher, err := p.advClient.Resource("advertisements").Watch(&metav1.ListOptions{
 		FieldSelector: strings.Join([]string{"metadata.name", advName}, "="),
 		Watch:         true,
 	})
@@ -33,7 +33,7 @@ func (p *LiqoProvider) StartNodeUpdater(nodeRunner *module.NodeController) (chan
 		return nil, nil, err
 	}
 
-	tepWatcher, err := p.tunEndClient.Resource("tunnelendpoints").Watch(metav1.ListOptions{
+	tepWatcher, err := p.tunEndClient.Resource("tunnelendpoints").Watch(&metav1.ListOptions{
 		LabelSelector: strings.Join([]string{"clusterID", p.foreignClusterId}, "="),
 		Watch:         true,
 	})
@@ -54,7 +54,7 @@ func (p *LiqoProvider) StartNodeUpdater(nodeRunner *module.NodeController) (chan
 				if err != nil {
 					klog.Error(err)
 					advWatcher.Stop()
-					advWatcher, err = p.advClient.Resource("advertisements").Watch(metav1.ListOptions{
+					advWatcher, err = p.advClient.Resource("advertisements").Watch(&metav1.ListOptions{
 						FieldSelector: strings.Join([]string{"metadata.name", advName}, "="),
 						Watch:         true,
 					})
@@ -67,7 +67,7 @@ func (p *LiqoProvider) StartNodeUpdater(nodeRunner *module.NodeController) (chan
 				if err != nil {
 					klog.Error(err)
 					tepWatcher.Stop()
-					tepWatcher, err = p.tunEndClient.Resource("tunnelendpoints").Watch(metav1.ListOptions{
+					tepWatcher, err = p.tunEndClient.Resource("tunnelendpoints").Watch(&metav1.ListOptions{
 						LabelSelector: strings.Join([]string{"clusterID", p.foreignClusterId}, "="),
 						Watch:         true,
 					})
@@ -339,7 +339,7 @@ func (p *LiqoProvider) handleAdvDelete(adv *advtypes.Advertisement) error {
 	}
 
 	if err := retry.OnError(retry.DefaultBackoff, retriable, func() error {
-		_, err := p.advClient.Resource("advertisements").Update(adv.Name, adv, metav1.UpdateOptions{})
+		_, err := p.advClient.Resource("advertisements").Update(adv.Name, adv, &metav1.UpdateOptions{})
 		return err
 	}); err != nil {
 		return err

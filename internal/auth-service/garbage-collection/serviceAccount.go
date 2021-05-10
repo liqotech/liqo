@@ -25,9 +25,9 @@ func OnDeleteServiceAccount(client kubernetes.Interface, serviceAccount *v1.Serv
 		return
 	}
 
-	remoteClusterId, ok := serviceAccount.Labels[discovery.ClusterIdLabel]
+	remoteClusterId, ok := serviceAccount.Labels[discovery.ClusterIDLabel]
 	if !ok {
-		klog.Errorf("No %v label is set on ServiceAccount %v/%v", discovery.ClusterIdLabel, serviceAccount.Namespace, serviceAccount.Name)
+		klog.Errorf("No %v label is set on ServiceAccount %v/%v", discovery.ClusterIDLabel, serviceAccount.Namespace, serviceAccount.Name)
 		return
 	}
 
@@ -36,7 +36,7 @@ func OnDeleteServiceAccount(client kubernetes.Interface, serviceAccount *v1.Serv
 	labelSelector := metav1.LabelSelector{
 		MatchLabels: map[string]string{
 			discovery.LiqoManagedLabel: "true",
-			discovery.ClusterIdLabel:   remoteClusterId,
+			discovery.ClusterIDLabel:   remoteClusterId,
 		},
 	}
 

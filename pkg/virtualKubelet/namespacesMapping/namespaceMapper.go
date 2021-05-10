@@ -128,7 +128,7 @@ func (m *NamespaceMapper) NatNamespace(namespace string, create bool) (string, e
 		}
 
 		if err := retry.OnError(retry.DefaultRetry, retriable, func() error {
-			_, err := m.homeClient.Resource("namespacenattingtables").Update(nattingTable.Name, nattingTable, metav1.UpdateOptions{})
+			_, err := m.homeClient.Resource("namespacenattingtables").Update(nattingTable.Name, nattingTable, &metav1.UpdateOptions{})
 			return err
 		}); err != nil {
 			return "", err
@@ -180,7 +180,7 @@ func (m *NamespaceMapper) getMappedNamespaces() (map[string]string, error) {
 }
 
 func (m *NamespaceMapper) createNattingTable(name string) error {
-	_, err := m.homeClient.Resource("namespacenattingtables").Get(name, metav1.GetOptions{})
+	_, err := m.homeClient.Resource("namespacenattingtables").Get(name, &metav1.GetOptions{})
 	if err == nil {
 		return nil
 	}
@@ -202,7 +202,7 @@ func (m *NamespaceMapper) createNattingTable(name string) error {
 		},
 	}
 
-	_, err = m.homeClient.Resource("namespacenattingtables").Create(table, metav1.CreateOptions{})
+	_, err = m.homeClient.Resource("namespacenattingtables").Create(table, &metav1.CreateOptions{})
 
 	if err != nil && kerror.IsAlreadyExists(err) {
 		return nil

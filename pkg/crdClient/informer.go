@@ -36,12 +36,12 @@ func WatchRealResources(clientSet NamespacedCRDClientInterface,
 
 	listFunc := func(ls metav1.ListOptions) (result runtime.Object, err error) {
 		ls = lo
-		return clientSet.Resource(resource).Namespace(namespace).List(ls)
+		return clientSet.Resource(resource).Namespace(namespace).List(&ls)
 	}
 
 	watchFunc := func(ls metav1.ListOptions) (watch.Interface, error) {
 		ls = lo
-		return clientSet.Resource(resource).Namespace(namespace).Watch(ls)
+		return clientSet.Resource(resource).Namespace(namespace).Watch(&ls)
 	}
 	res, ok := Registry[resource]
 	if !ok {

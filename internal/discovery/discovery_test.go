@@ -306,7 +306,7 @@ var _ = Describe("Discovery", func() {
 						}
 					}()
 
-					discoveryCtrl.handleConfiguration(c.changedConfig)
+					discoveryCtrl.handleConfiguration(&c.changedConfig)
 
 					Expect(<-hasItemsServer).To(c.expectedOutputServer)
 					Expect(<-hasItemsClient).To(c.expectedOutputClient)
@@ -448,7 +448,7 @@ var _ = Describe("Discovery", func() {
 				DescribeTable("UpdateForeign table",
 					func(c updateForeignTestcase) {
 						discoveryCtrl.UpdateForeignLAN(&c.data, c.trustMode)
-						obj, err := discoveryCtrl.crdClient.Resource("foreignclusters").List(metav1.ListOptions{})
+						obj, err := discoveryCtrl.crdClient.Resource("foreignclusters").List(&metav1.ListOptions{})
 						Expect(err).To(BeNil())
 						Expect(obj).NotTo(BeNil())
 
@@ -527,7 +527,7 @@ var _ = Describe("Discovery", func() {
 						},
 					}, discovery.TrustModeUntrusted)
 
-					obj, _ := discoveryCtrl.crdClient.Resource("foreignclusters").List(metav1.ListOptions{})
+					obj, _ := discoveryCtrl.crdClient.Resource("foreignclusters").List(&metav1.ListOptions{})
 					fcs, _ := obj.(*v1alpha12.ForeignClusterList)
 					fc := fcs.Items[0]
 
@@ -540,7 +540,7 @@ var _ = Describe("Discovery", func() {
 				DescribeTable("UpdateForeign table",
 					func(c updateForeignTestcase) {
 						discoveryCtrl.UpdateForeignLAN(&c.data, c.trustMode)
-						obj, err := discoveryCtrl.crdClient.Resource("foreignclusters").List(metav1.ListOptions{})
+						obj, err := discoveryCtrl.crdClient.Resource("foreignclusters").List(&metav1.ListOptions{})
 						Expect(err).To(BeNil())
 						Expect(obj).NotTo(BeNil())
 
@@ -598,7 +598,7 @@ var _ = Describe("Discovery", func() {
 							Name: "foreign-cluster",
 							Labels: map[string]string{
 								discovery.DiscoveryTypeLabel: string(discovery.IncomingPeeringDiscovery),
-								discovery.ClusterIdLabel:     "foreign-cluster",
+								discovery.ClusterIDLabel:     "foreign-cluster",
 							},
 						},
 						Spec: v1alpha12.ForeignClusterSpec{
@@ -613,7 +613,7 @@ var _ = Describe("Discovery", func() {
 						},
 					}
 
-					_, err := discoveryCtrl.crdClient.Resource("foreignclusters").Create(fc, metav1.CreateOptions{})
+					_, err := discoveryCtrl.crdClient.Resource("foreignclusters").Create(fc, &metav1.CreateOptions{})
 					if err != nil {
 						klog.Error(err)
 						os.Exit(1)
@@ -623,7 +623,7 @@ var _ = Describe("Discovery", func() {
 				DescribeTable("UpdateForeign table",
 					func(c updateForeignTestcase) {
 						discoveryCtrl.UpdateForeignLAN(&c.data, c.trustMode)
-						obj, err := discoveryCtrl.crdClient.Resource("foreignclusters").List(metav1.ListOptions{})
+						obj, err := discoveryCtrl.crdClient.Resource("foreignclusters").List(&metav1.ListOptions{})
 						Expect(err).To(BeNil())
 						Expect(obj).NotTo(BeNil())
 
@@ -667,13 +667,13 @@ var _ = Describe("Discovery", func() {
 
 				DescribeTable("GarbageCollector table",
 					func(c garbageCollectorTestcase) {
-						_, err := discoveryCtrl.crdClient.Resource("foreignclusters").Create(&c.fc, metav1.CreateOptions{})
+						_, err := discoveryCtrl.crdClient.Resource("foreignclusters").Create(&c.fc, &metav1.CreateOptions{})
 						Expect(err).To(BeNil())
 
 						err = discoveryCtrl.CollectGarbage()
 						Expect(err).To(BeNil())
 
-						obj, err := discoveryCtrl.crdClient.Resource("foreignclusters").List(metav1.ListOptions{})
+						obj, err := discoveryCtrl.crdClient.Resource("foreignclusters").List(&metav1.ListOptions{})
 						Expect(err).To(BeNil())
 						Expect(obj).NotTo(BeNil())
 
@@ -688,7 +688,7 @@ var _ = Describe("Discovery", func() {
 								Name: "foreign-cluster",
 								Labels: map[string]string{
 									discovery.DiscoveryTypeLabel: string(discovery.LanDiscovery),
-									discovery.ClusterIdLabel:     "foreign-cluster",
+									discovery.ClusterIDLabel:     "foreign-cluster",
 								},
 								Annotations: map[string]string{
 									discovery.LastUpdateAnnotation: strconv.Itoa(int(time.Now().Unix())),
@@ -718,7 +718,7 @@ var _ = Describe("Discovery", func() {
 								Name: "foreign-cluster",
 								Labels: map[string]string{
 									discovery.DiscoveryTypeLabel: string(discovery.LanDiscovery),
-									discovery.ClusterIdLabel:     "foreign-cluster",
+									discovery.ClusterIDLabel:     "foreign-cluster",
 								},
 								Annotations: map[string]string{
 									discovery.LastUpdateAnnotation: strconv.Itoa(int(time.Now().Unix()) - 600),
@@ -748,7 +748,7 @@ var _ = Describe("Discovery", func() {
 								Name: "foreign-cluster",
 								Labels: map[string]string{
 									discovery.DiscoveryTypeLabel: string(discovery.ManualDiscovery),
-									discovery.ClusterIdLabel:     "foreign-cluster",
+									discovery.ClusterIDLabel:     "foreign-cluster",
 								},
 								Annotations: map[string]string{
 									discovery.LastUpdateAnnotation: strconv.Itoa(int(time.Now().Unix()) - 600),

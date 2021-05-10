@@ -164,7 +164,7 @@ func setupEnv() {
 	}
 	configClusterClient = getConfigClusterCRDClient(newConfig)
 	cc := getClusterConfig()
-	_, err = configClusterClient.Resource("clusterconfigs").Create(cc, metav1.CreateOptions{})
+	_, err = configClusterClient.Resource("clusterconfigs").Create(cc, &metav1.CreateOptions{})
 	if err != nil {
 		klog.Error(err, err.Error())
 		os.Exit(-1)

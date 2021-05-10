@@ -188,9 +188,9 @@ func (r *AdvertisementReconciler) isDeleting(adv *advtypes.Advertisement) bool {
 
 // set Advertisement reference in related ForeignCluster
 func (r *AdvertisementReconciler) UpdateForeignCluster(adv *advtypes.Advertisement) (error, bool) {
-	tmp, err := r.DiscoveryClient.Resource("foreignclusters").List(metav1.ListOptions{
+	tmp, err := r.DiscoveryClient.Resource("foreignclusters").List(&metav1.ListOptions{
 		LabelSelector: strings.Join([]string{
-			discovery.ClusterIdLabel,
+			discovery.ClusterIDLabel,
 			adv.Spec.ClusterId,
 		}, "="),
 	})
