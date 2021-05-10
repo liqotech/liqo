@@ -40,7 +40,7 @@ import (
 // while we are waiting for that secret this function will return no error, but an empty client.
 func (r *ForeignClusterReconciler) getRemoteClient(
 	fc *discoveryv1alpha1.ForeignCluster, gv *schema.GroupVersion) (*crdClient.CRDClient, error) {
-	if strings.HasPrefix(fc.Spec.AuthUrl, "fake://") {
+	if strings.HasPrefix(fc.Spec.AuthURL, "fake://") {
 		config := *r.ForeignConfig
 
 		config.ContentConfig.GroupVersion = gv
@@ -137,7 +137,7 @@ func (r *ForeignClusterReconciler) getIdentity(
 	return crdClient.NewFromConfig(config)
 }
 
-// load the auth token form a labelled secret.
+// load the auth token form a labeled secret.
 func (r *ForeignClusterReconciler) getAuthToken(fc *discoveryv1alpha1.ForeignCluster) string {
 	tokenSecrets, err := r.crdClient.Client().CoreV1().Secrets(r.Namespace).List(context.TODO(), metav1.ListOptions{
 		LabelSelector: strings.Join(
@@ -176,7 +176,7 @@ func (r *ForeignClusterReconciler) askRemoteIdentity(fc *discoveryv1alpha1.Forei
 	}
 	klog.V(4).Infof("[%v] Sending json request: %v", fc.Spec.ClusterIdentity.ClusterID, string(jsonRequest))
 
-	resp, err := sendRequest(fmt.Sprintf("%s/identity", fc.Spec.AuthUrl), bytes.NewBuffer(jsonRequest))
+	resp, err := sendRequest(fmt.Sprintf("%s/identity", fc.Spec.AuthURL), bytes.NewBuffer(jsonRequest))
 	if err != nil {
 		klog.Error(err)
 		return "", err

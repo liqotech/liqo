@@ -1,14 +1,16 @@
 package broadcaster
 
 import (
-	configv1alpha1 "github.com/liqotech/liqo/apis/config/v1alpha1"
-	"github.com/liqotech/liqo/pkg/labelPolicy"
+	"strings"
+
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
-	"strings"
+
+	configv1alpha1 "github.com/liqotech/liqo/apis/config/v1alpha1"
+	"github.com/liqotech/liqo/pkg/labelPolicy"
 )
 
-// GetNodeImages retrieves available images on a specific image
+// GetNodeImages retrieves available images on a specific image.
 func GetNodeImages(node corev1.Node) []corev1.ContainerImage {
 	m := make(map[string]corev1.ContainerImage)
 

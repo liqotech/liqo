@@ -39,17 +39,17 @@ const (
 	KeepAliveInterval = 10 * time.Second
 )
 
-//registering the driver as available.
+// registering the driver as available.
 func init() {
 	tunnel.AddDriver(DriverName, NewDriver)
 }
 
 type wgConfig struct {
-	//listening port
+	// listening port
 	port int
-	//private key
+	// private key
 	priKey wgtypes.Key
-	//public key
+	// public key
 	pubKey wgtypes.Key
 }
 
@@ -150,7 +150,7 @@ func (w *wireguard) ConnectToEndpoint(tep *netv1alpha1.TunnelEndpoint) (*netv1al
 	// delete or update old peers for ClusterID
 	oldCon, found := w.connections[tep.Spec.ClusterID]
 	if found {
-		//check if the peer configuration is updated
+		// check if the peer configuration is updated
 		if allowedIPs.String() == oldCon.PeerConfiguration[AllowedIPs] && remoteKey.String() == oldCon.PeerConfiguration[PublicKey] &&
 			endpoint.IP.String() == oldCon.PeerConfiguration[EndpointIP] && strconv.Itoa(endpoint.Port) == oldCon.PeerConfiguration[ListeningPort] {
 			return oldCon, nil
@@ -236,7 +236,7 @@ func (w *wireguard) DisconnectFromEndpoint(tep *netv1alpha1.TunnelEndpoint) erro
 }
 
 func (w *wireguard) Close() error {
-	//it removes the wireguard interface
+	// it removes the wireguard interface
 	var err error
 	if link, err := netlink.LinkByName(deviceName); err == nil {
 		// delete existing device
@@ -295,7 +295,7 @@ func (w *wireguard) setWGLink() error {
 
 func getAllowedIPs(tep *netv1alpha1.TunnelEndpoint) (*net.IPNet, error) {
 	var remoteSubnet string
-	//check if the remote podCIDR has been remapped
+	// check if the remote podCIDR has been remapped
 	if tep.Status.RemoteNATPodCIDR != "None" {
 		remoteSubnet = tep.Status.RemoteNATPodCIDR
 	} else {
@@ -324,17 +324,17 @@ func getKey(tep *netv1alpha1.TunnelEndpoint) (*wgtypes.Key, error) {
 }
 
 func getEndpoint(tep *netv1alpha1.TunnelEndpoint) (*net.UDPAddr, error) {
-	//get port
+	// get port
 	port, found := tep.Spec.BackendConfig[ListeningPort]
 	if !found {
 		return nil, fmt.Errorf("tunnelEndpoint is missing listening port")
 	}
-	//convert port from string to int
+	// convert port from string to int
 	listeningPort, err := strconv.ParseInt(port, 10, 32)
 	if err != nil {
 		return nil, fmt.Errorf("error while converting port %s to int: %v", port, err)
 	}
-	//get endpoint ip
+	// get endpoint ip
 	remoteIP := net.ParseIP(tep.Spec.EndpointIP)
 	if remoteIP == nil {
 		return nil, fmt.Errorf("failed to parse remote IP %s", tep.Spec.EndpointIP)
@@ -355,12 +355,12 @@ func newConnectionOnError(msg string) *netv1alpha1.Connection {
 
 func (w *wireguard) setKeys(c *k8s.Clientset, namespace string) error {
 	var priv, pub wgtypes.Key
-	//first we check if a secret containing valid keys already exists
+	// first we check if a secret containing valid keys already exists
 	s, err := c.CoreV1().Secrets(namespace).Get(context.Background(), keysName, metav1.GetOptions{})
 	if err != nil && !apierrors.IsNotFound(err) {
 		return err
 	}
-	//if the secret does not exist then keys are generated and saved into a secret
+	// if the secret does not exist then keys are generated and saved into a secret
 	if apierrors.IsNotFound(err) {
 		// generate private and public keys
 		if priv, err = wgtypes.GeneratePrivateKey(); err != nil {
@@ -383,7 +383,7 @@ func (w *wireguard) setKeys(c *k8s.Clientset, namespace string) error {
 		}
 		return nil
 	}
-	//get the keys from the existing secret and set them
+	// get the keys from the existing secret and set them
 	privKey, found := s.Data[PrivateKey]
 	if !found {
 		return fmt.Errorf("no data with key '%s' found in secret %s", PrivateKey, keysName)

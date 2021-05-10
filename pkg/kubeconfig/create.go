@@ -5,8 +5,6 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/liqotech/liqo/pkg/utils"
-
 	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -16,6 +14,7 @@ import (
 	kubeconfigutil "k8s.io/kubernetes/cmd/kubeadm/app/util/kubeconfig"
 
 	"github.com/liqotech/liqo/pkg/discovery"
+	"github.com/liqotech/liqo/pkg/utils"
 )
 
 // this function creates a kube-config file for a specified ServiceAccount.

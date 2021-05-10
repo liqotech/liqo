@@ -26,7 +26,7 @@ type namespaceNTCache struct {
 	nattingTableName string
 }
 
-// NamespaceMapper embeds data and clients for namespace mapping
+// NamespaceMapper embeds data and clients for namespace mapping.
 type NamespaceMapper struct {
 	homeClient    crdClient.NamespacedCRDClientInterface
 	foreignClient kubernetes.Interface

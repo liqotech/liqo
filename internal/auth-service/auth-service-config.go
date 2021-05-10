@@ -3,11 +3,10 @@ package auth_service
 import (
 	"reflect"
 
-	"github.com/liqotech/liqo/pkg/utils"
-
 	"k8s.io/klog"
 
 	configv1alpha1 "github.com/liqotech/liqo/apis/config/v1alpha1"
+	"github.com/liqotech/liqo/pkg/utils"
 )
 
 // GetAuthServiceConfig starts the watcher to ClusterConfing CR.

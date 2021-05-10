@@ -25,8 +25,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/liqotech/liqo/pkg/utils"
-
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -37,19 +36,17 @@ import (
 	"k8s.io/client-go/util/retry"
 	"k8s.io/klog"
 	"k8s.io/utils/pointer"
-
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+
+	netv1alpha1 "github.com/liqotech/liqo/apis/net/v1alpha1"
 
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	"github.com/liqotech/liqo/internal/crdReplicator"
 	liqoconst "github.com/liqotech/liqo/pkg/consts"
 	liqonet "github.com/liqotech/liqo/pkg/liqonet"
 	"github.com/liqotech/liqo/pkg/liqonet/tunnel/wireguard"
-
-	apierrors "k8s.io/apimachinery/pkg/api/errors"
-
-	netv1alpha1 "github.com/liqotech/liqo/apis/net/v1alpha1"
+	"github.com/liqotech/liqo/pkg/utils"
 )
 
 const (
@@ -116,8 +113,8 @@ type TunnelEndpointCreator struct {
 	RetryTimeout               time.Duration
 }
 
-//rbac for the net.liqo.io api
-//cluster-role
+// rbac for the net.liqo.io api
+// cluster-role
 // +kubebuilder:rbac:groups=net.liqo.io,resources=tunnelendpoints,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=net.liqo.io,resources=tunnelendpoints/status,verbs=get;update;patch
 // +kubebuilder:rbac:groups=net.liqo.io,resources=networkconfigs,verbs=get;list;watch;create;update;patch;delete
@@ -128,7 +125,7 @@ type TunnelEndpointCreator struct {
 // +kubebuilder:rbac:groups=config.liqo.io,resources=clusterconfigs,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=core,resources=nodes,verbs=get;list;watch
 // +kubebuilder:rbac:groups=core,resources=events,verbs=get;list;watch;create;update;patch;delete
-//role
+// role
 // +kubebuilder:rbac:groups=core,namespace="do-not-care",resources=secrets,verbs=get;list;watch
 // +kubebuilder:rbac:groups=core,namespace="do-not-care",resources=services,verbs=get;list;watch;update
 // +kubebuilder:rbac:groups=core,namespace="do-not-care",resources=pods,verbs=get;list;watch
@@ -226,7 +223,7 @@ func (tec *TunnelEndpointCreator) SetupSignalHandlerForTunEndCreator() (stopCh <
 	go func(r *TunnelEndpointCreator) {
 		sig := <-c
 		klog.Infof("received signal: %s", sig.String())
-		//closing shared informers
+		// closing shared informers
 		close(r.ForeignClusterStopWatcher)
 		close(stop)
 	}(tec)
@@ -240,7 +237,7 @@ func (tec *TunnelEndpointCreator) Watcher(sharedDynFactory dynamicinformer.Dynam
 	stopCh chan struct{}) {
 	dynInformer := sharedDynFactory.ForResource(resourceType)
 	klog.Infof("starting watcher for %s", resourceType.String())
-	//adding handlers to the informer
+	// adding handlers to the informer
 	dynInformer.Informer().AddEventHandler(handlerFuncs)
 	dynInformer.Informer().Run(stopCh)
 }
@@ -277,7 +274,7 @@ func (tec *TunnelEndpointCreator) createNetConfig(fc *discoveryv1alpha1.ForeignC
 		},
 		Status: netv1alpha1.NetworkConfigStatus{},
 	}
-	//check if the resource for the remote cluster already exists
+	// check if the resource for the remote cluster already exists
 	_, exists, err := tec.GetNetworkConfig(clusterID)
 	if err != nil {
 		return err
@@ -428,7 +425,7 @@ func (tec *TunnelEndpointCreator) processRemoteNetConfig(netConfig *netv1alpha1.
 }
 
 func (tec *TunnelEndpointCreator) processLocalNetConfig(netConfig *netv1alpha1.NetworkConfig) error {
-	//first check that this is the only resource for the remote cluster
+	// first check that this is the only resource for the remote cluster
 	netConfigList := &netv1alpha1.NetworkConfigList{}
 	labels := client.MatchingLabels{crdReplicator.DestinationLabel: netConfig.Labels[crdReplicator.DestinationLabel]}
 	err := tec.List(context.Background(), netConfigList, labels)
@@ -452,11 +449,11 @@ func (tec *TunnelEndpointCreator) processLocalNetConfig(netConfig *netv1alpha1.N
 		}
 		return nil
 	}
-	//check if the resource has been processed by the remote cluster
+	// check if the resource has been processed by the remote cluster
 	if !netConfig.Status.Processed {
 		return nil
 	}
-	//we get the remote netconfig related to this one
+	// we get the remote netconfig related to this one
 	netConfigList = &netv1alpha1.NetworkConfigList{}
 	labels = client.MatchingLabels{crdReplicator.RemoteLabelSelector: netConfig.Spec.ClusterID}
 	err = tec.List(context.Background(), netConfigList, labels)
@@ -481,7 +478,7 @@ func (tec *TunnelEndpointCreator) processLocalNetConfig(netConfig *netv1alpha1.N
 		netConfig.Spec.ClusterID); err != nil {
 		klog.Error(err)
 	}
-	//at this point we have all the necessary parameters to create the tunnelEndpoint resource
+	// at this point we have all the necessary parameters to create the tunnelEndpoint resource
 	remoteNetConf := netConfigList.Items[0]
 	netParam := networkParam{
 		remoteClusterID:       netConfig.Spec.ClusterID,
@@ -507,7 +504,7 @@ func (tec *TunnelEndpointCreator) processLocalNetConfig(netConfig *netv1alpha1.N
 }
 
 func (tec *TunnelEndpointCreator) processTunnelEndpoint(param *networkParam, ownerRef *metav1.OwnerReference) error {
-	//try to get the tunnelEndpoint, it may not exist
+	// try to get the tunnelEndpoint, it may not exist
 	_, found, err := tec.GetTunnelEndpoint(param.remoteClusterID)
 	if err != nil {
 		klog.Errorf("an error occurred while getting resource tunnelEndpoint for cluster %s: %s", param.remoteClusterID, err)
@@ -529,7 +526,7 @@ func (tec *TunnelEndpointCreator) updateSpecTunnelEndpoint(param *networkParam) 
 	var tep *netv1alpha1.TunnelEndpoint
 	var found bool
 	var err error
-	//here we recover from conflicting resource versions
+	// here we recover from conflicting resource versions
 	retryError := retry.RetryOnConflict(retry.DefaultRetry, func() error {
 		toBeUpdated := false
 		tep, found, err = tec.GetTunnelEndpoint(param.remoteClusterID)
@@ -540,7 +537,7 @@ func (tec *TunnelEndpointCreator) updateSpecTunnelEndpoint(param *networkParam) 
 			return apierrors.NewNotFound(netv1alpha1.TunnelEndpointGroupResource,
 				strings.Join([]string{"tunnelEndpoint for cluster:", param.remoteClusterID}, " "))
 		}
-		//check if there are fields to be updated
+		// check if there are fields to be updated
 		if tep.Spec.ClusterID != param.remoteClusterID {
 			tep.Spec.ClusterID = param.remoteClusterID
 			toBeUpdated = true
@@ -579,7 +576,7 @@ func (tec *TunnelEndpointCreator) updateStatusTunnelEndpoint(param *networkParam
 	var found bool
 	var err error
 
-	//here we recover from conflicting resource versions
+	// here we recover from conflicting resource versions
 	retryError := retry.RetryOnConflict(retry.DefaultRetry, func() error {
 		toBeUpdated := false
 		tep, found, err = tec.GetTunnelEndpoint(param.remoteClusterID)
@@ -590,7 +587,7 @@ func (tec *TunnelEndpointCreator) updateStatusTunnelEndpoint(param *networkParam
 			return apierrors.NewNotFound(netv1alpha1.TunnelEndpointGroupResource,
 				strings.Join([]string{"tunnelEndpoint for cluster:", param.remoteClusterID}, " "))
 		}
-		//check if there are fields to be updated
+		// check if there are fields to be updated
 		if tep.Status.LocalNATPodCIDR != param.localNatPodCIDR {
 			tep.Status.LocalNATPodCIDR = param.localNatPodCIDR
 			toBeUpdated = true
@@ -641,12 +638,12 @@ func (tec *TunnelEndpointCreator) updateStatusTunnelEndpoint(param *networkParam
 }
 
 func (tec *TunnelEndpointCreator) createTunnelEndpoint(param *networkParam, ownerRef *metav1.OwnerReference) error {
-	//here we create it
+	// here we create it
 	tep := &netv1alpha1.TunnelEndpoint{
 		ObjectMeta: metav1.ObjectMeta{
 			GenerateName: tunEndpointNamePrefix,
 			Labels: map[string]string{
-				"clusterid": param.remoteClusterID,
+				liqoconst.ClusterIDLabelName: param.remoteClusterID,
 			},
 		},
 		Spec: netv1alpha1.TunnelEndpointSpec{
@@ -690,7 +687,7 @@ func (tec *TunnelEndpointCreator) GetTunnelEndpoint(destinationClusterID string)
 	error) {
 	clusterID := destinationClusterID
 	tunEndpointList := &netv1alpha1.TunnelEndpointList{}
-	labels := client.MatchingLabels{"clusterid": clusterID}
+	labels := client.MatchingLabels{liqoconst.ClusterIDLabelName: clusterID}
 	err := tec.List(context.Background(), tunEndpointList, labels)
 	if err != nil {
 		klog.Errorf("an error occurred while listing resources: %s", err)

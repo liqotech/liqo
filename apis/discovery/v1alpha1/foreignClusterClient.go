@@ -10,7 +10,7 @@ import (
 	"github.com/liqotech/liqo/pkg/crdClient"
 )
 
-//CreateForeignClusterClient creates a client for ForeignCluster CR using a provided kubeconfig.
+// CreateForeignClusterClient creates a client for ForeignCluster CR using a provided kubeconfig.
 func CreateForeignClusterClient(kubeconfig string) (*crdClient.CRDClient, error) {
 	var config *rest.Config
 	var err error

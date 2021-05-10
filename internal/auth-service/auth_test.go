@@ -15,8 +15,6 @@ import (
 	"testing"
 	"time"
 
-	testUtils2 "github.com/liqotech/liqo/pkg/utils/testUtils"
-
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/ginkgo/extensions/table"
 	. "github.com/onsi/gomega"
@@ -34,6 +32,7 @@ import (
 	"github.com/liqotech/liqo/pkg/identityManager"
 	idManTest "github.com/liqotech/liqo/pkg/identityManager/testUtils"
 	"github.com/liqotech/liqo/pkg/tenantControlNamespace"
+	testUtils2 "github.com/liqotech/liqo/pkg/utils/testUtils"
 )
 
 func TestAuth(t *testing.T) {

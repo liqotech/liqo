@@ -3,6 +3,7 @@ package advertisement_operator
 import (
 	"context"
 	"fmt"
+
 	"github.com/liqotech/liqo/internal/advertisementoperator/broadcaster"
 
 	configv1alpha1 "github.com/liqotech/liqo/apis/config/v1alpha1"

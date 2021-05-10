@@ -2,8 +2,9 @@ package main
 
 import (
 	"flag"
-	"github.com/liqotech/liqo/internal/advertisementoperator/broadcaster"
 	"os"
+
+	"github.com/liqotech/liqo/internal/advertisementoperator/broadcaster"
 
 	"k8s.io/klog/v2"
 )

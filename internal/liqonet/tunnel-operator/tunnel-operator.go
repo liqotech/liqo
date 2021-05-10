@@ -47,7 +47,7 @@ var (
 
 const (
 	OperatorName            = "liqo-gateway"
-	gatewayPodName          = "gateway-pod" //used to name the secret containing the keys of the overlay wireguard interface
+	gatewayPodName          = "gateway-pod" // used to name the secret containing the keys of the overlay wireguard interface
 	tunnelEndpointFinalizer = OperatorName + ".liqo.io"
 )
 
@@ -71,17 +71,17 @@ type TunnelController struct {
 	stopSWChan   chan struct{}
 }
 
-//cluster-role
+// cluster-role
 // +kubebuilder:rbac:groups=net.liqo.io,resources=tunnelendpoints,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=net.liqo.io,resources=tunnelendpoints/status,verbs=get;update;patch
 // +kubebuilder:rbac:groups=core,resources=events,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=config.liqo.io,resources=clusterconfigs,verbs=get;list;watch;create;update
-//role
+// role
 // +kubebuilder:rbac:groups=core,namespace="do-not-care",resources=secrets,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=core,namespace="do-not-care",resources=services,verbs=get;list;watch;update
 // +kubebuilder:rbac:groups=core,namespace="do-not-care",resources=pods,verbs=get;list;watch;update
 
-//Instantiates and initializes the tunnel controller.
+// Instantiates and initializes the tunnel controller.
 func NewTunnelController(mgr ctrl.Manager, wgc wireguard.Client, nl wireguard.Netlinker) (*TunnelController, error) {
 	clientSet := k8s.NewForConfigOrDie(mgr.GetConfig())
 	namespace, err := utils.GetPodNamespace()
@@ -93,28 +93,28 @@ func NewTunnelController(mgr ctrl.Manager, wgc wireguard.Client, nl wireguard.Ne
 		return nil, err
 	}
 	overlayIP := strings.Join([]string{overlay.GetOverlayIP(podIP.String()), "4"}, "/")
-	//create overlay network interface
+	// create overlay network interface
 	wg, err := overlay.CreateInterface(gatewayPodName, namespace, overlayIP, clientSet, wgc, nl)
 	if err != nil {
 		return nil, err
 	}
-	//create new custom routing table for the overlay iFace
+	// create new custom routing table for the overlay iFace
 	if err = overlay.CreateRoutingTable(overlay.RoutingTableID, overlay.RoutingTableName); err != nil {
 		return nil, err
 	}
-	//enable reverse path filter for the overlay interface
+	// enable reverse path filter for the overlay interface
 	if err = overlay.Enable_rp_filter(wg.GetDeviceName()); err != nil {
 		return nil, err
 	}
-	//enable ip forwarding
+	// enable ip forwarding
 	if err = utils.EnableIPForwarding(); err != nil {
 		return nil, err
 	}
-	//populate the custom routing table with the default route
+	// populate the custom routing table with the default route
 	if err = overlay.SetUpDefaultRoute(overlay.RoutingTableID, wg.GetLinkIndex()); err != nil {
 		return nil, err
 	}
-	//get name of the default interface
+	// get name of the default interface
 	iface, err := utils.GetDefaultIfaceName()
 	if err != nil {
 		return nil, err
@@ -147,13 +147,13 @@ func (tc *TunnelController) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 	}
 	ctx := context.Background()
 	var endpoint netv1alpha1.TunnelEndpoint
-	//name of our finalizer
+	// name of our finalizer
 	if err := tc.Get(ctx, req.NamespacedName, &endpoint); err != nil {
 		klog.Errorf("unable to fetch resource %s: %s", req.Name, err)
 		return ctrl.Result{}, client.IgnoreNotFound(err)
 	}
-	//we wait for the resource to be ready. The resource is created in two steps, first the spec and metadata fields
-	//then the status field. so we wait for the status to be ready.
+	// we wait for the resource to be ready. The resource is created in two steps, first the spec and metadata fields
+	// then the status field. so we wait for the status to be ready.
 	if endpoint.Status.Phase != liqoconst.TepReady {
 		klog.Infof("%s -> resource %s is not ready", endpoint.Spec.ClusterID, endpoint.Name)
 		return result, nil
@@ -172,7 +172,7 @@ func (tc *TunnelController) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 			}
 		}
 	} else {
-		//the object is being deleted
+		// the object is being deleted
 		if utils.ContainsString(endpoint.Finalizers, tunnelEndpointFinalizer) {
 			if err := tc.disconnectFromPeer(&endpoint); err != nil {
 				return ctrl.Result{}, err
@@ -186,7 +186,7 @@ func (tc *TunnelController) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 					return result, err
 				}
 			}
-			//remove the finalizer from the list and update it.
+			// remove the finalizer from the list and update it.
 			endpoint.Finalizers = utils.RemoveString(endpoint.Finalizers, tunnelEndpointFinalizer)
 			if err := tc.Update(ctx, &endpoint); err != nil {
 				klog.Errorf("an error occurred while updating resource %s after the finalizer has been removed: %s", endpoint.Name, err)
@@ -194,7 +194,7 @@ func (tc *TunnelController) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 			}
 			return result, nil
 		}
-		//if object is being deleted and does not have a finalizer we just return
+		// if object is being deleted and does not have a finalizer we just return
 		return result, nil
 	}
 	con, err := tc.connectToPeer(&endpoint)
@@ -226,7 +226,7 @@ func (tc *TunnelController) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 
 func (tc *TunnelController) connectToPeer(ep *netv1alpha1.TunnelEndpoint) (*netv1alpha1.Connection, error) {
 	clusterID := ep.Spec.ClusterID
-	//retrieve driver based on backend type
+	// retrieve driver based on backend type
 	driver, ok := tc.drivers[ep.Spec.BackendType]
 	if !ok {
 		klog.Errorf("%s -> no registered driver of type %s found for resources %s", clusterID, ep.Spec.BackendType, ep.Name)
@@ -248,14 +248,14 @@ func (tc *TunnelController) connectToPeer(ep *netv1alpha1.TunnelEndpoint) (*netv
 
 func (tc *TunnelController) disconnectFromPeer(ep *netv1alpha1.TunnelEndpoint) error {
 	clusterID := ep.Spec.ClusterID
-	//retrieve driver based on backend type
+	// retrieve driver based on backend type
 	driver, ok := tc.drivers[ep.Spec.BackendType]
 	if !ok {
 		klog.Errorf("%s -> no registered driver of type %s found for resources %s", clusterID, ep.Spec.BackendType, ep.Name)
 		return fmt.Errorf("no registered driver of type %s found", ep.Spec.BackendType)
 	}
 	if err := driver.DisconnectFromEndpoint(ep); err != nil {
-		//record an event and return
+		// record an event and return
 		tc.Eventf(ep, "Warning", "Processing", "unable to close connection: %v", err)
 		klog.Errorf("%s -> an error occurred while closing vpn connection: %v", clusterID, err)
 		return err
@@ -265,9 +265,9 @@ func (tc *TunnelController) disconnectFromPeer(ep *netv1alpha1.TunnelEndpoint) e
 	return nil
 }
 
-//used to remove all the tunnel interfaces when the controller is closed
-//it does not return an error, but just logs them, cause we can not recover from
-//them at exit time.
+// used to remove all the tunnel interfaces when the controller is closed
+// it does not return an error, but just logs them, cause we can not recover from
+// them at exit time.
 func (tc *TunnelController) RemoveAllTunnels() {
 	for driverType, driver := range tc.drivers {
 		err := driver.Close()
@@ -321,8 +321,8 @@ func (tc *TunnelController) SetupSignalHandlerForTunnelOperator() (stopCh <-chan
 func (tc *TunnelController) SetupWithManager(mgr ctrl.Manager) error {
 	resourceToBeProccesedPredicate := predicate.Funcs{
 		DeleteFunc: func(e event.DeleteEvent) bool {
-			//finalizers are used to check if a resource is being deleted, and perform there the needed actions
-			//we don't want to reconcile on the delete of a resource.
+			// finalizers are used to check if a resource is being deleted, and perform there the needed actions
+			// we don't want to reconcile on the delete of a resource.
 			return false
 		},
 	}
@@ -331,7 +331,7 @@ func (tc *TunnelController) SetupWithManager(mgr ctrl.Manager) error {
 		Complete(tc)
 }
 
-//for each registered tunnel implementation it creates and initializes the driver.
+// for each registered tunnel implementation it creates and initializes the driver.
 func (tc *TunnelController) SetUpTunnelDrivers() error {
 	tc.drivers = make(map[string]tunnel.Driver)
 	for tunnelType, createDriverFunc := range tunnel.Drivers {

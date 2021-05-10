@@ -23,8 +23,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/liqotech/liqo/pkg/clusterid"
-
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	netv1alpha1 "github.com/liqotech/liqo/apis/net/v1alpha1"
 	advtypes "github.com/liqotech/liqo/apis/sharing/v1alpha1"
@@ -47,6 +45,8 @@ import (
 	"k8s.io/klog"
 	"k8s.io/kubernetes/pkg/util/slice"
 	ctrl "sigs.k8s.io/controller-runtime"
+
+	"github.com/liqotech/liqo/pkg/clusterid"
 )
 
 // FinalizerString is added as finalizer for peered ForeignClusters.
@@ -69,7 +69,7 @@ type ForeignClusterReconciler struct {
 	ForeignConfig *rest.Config
 }
 
-//clusterRole
+// clusterRole
 // +kubebuilder:rbac:groups=discovery.liqo.io,resources=foreignclusters,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=discovery.liqo.io,resources=searchdomains,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=discovery.liqo.io,resources=peeringrequests,verbs=get;list;watch
@@ -83,7 +83,7 @@ type ForeignClusterReconciler struct {
 // +kubebuilder:rbac:groups=core,resources=nodes,verbs=list
 // +kubebuilder:rbac:groups=rbac.authorization.k8s.io,resources=clusterroles,verbs=get;create;update
 // +kubebuilder:rbac:groups=rbac.authorization.k8s.io,resources=clusterrolebindings,verbs=get;create
-//role
+// role
 // +kubebuilder:rbac:groups=core,namespace="liqo",resources=services,verbs=get
 // +kubebuilder:rbac:groups=core,namespace="liqo",resources=configmaps,verbs=get;list;watch;create;update;delete
 // +kubebuilder:rbac:groups=core,namespace="liqo",resources=serviceaccounts,verbs=get;list;watch;create
@@ -1096,7 +1096,7 @@ func (r *ForeignClusterReconciler) updateNetwork(labelSelector string, resourceL
 
 func (r *ForeignClusterReconciler) checkTEP(fc *discoveryv1alpha1.ForeignCluster, requireUpdate *bool) error {
 	tmp, err := r.networkClient.Resource("tunnelendpoints").List(&metav1.ListOptions{
-		LabelSelector: strings.Join([]string{"clusterid", fc.Spec.ClusterIdentity.ClusterID}, "="),
+		LabelSelector: strings.Join([]string{liqoconst.ClusterIDLabelName, fc.Spec.ClusterIdentity.ClusterID}, "="),
 	})
 	if err != nil {
 		klog.Error(err)

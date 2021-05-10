@@ -23,26 +23,18 @@ import (
 	"github.com/liqotech/liqo/pkg/crdClient"
 )
 
-// ClusterID defines the basic methods to interact with cluster identifier
+// ClusterID defines the basic methods to interact with cluster identifier.
 type ClusterID interface {
 	SetupClusterID(namespace string) error
 	GetClusterID() string
 }
 
-// ClusterIDImpl implements the basic structure to safely manipulate ClusterID
+// ClusterIDImpl implements the basic structure to safely manipulate ClusterID.
 type ClusterIDImpl struct {
 	id string
 	m  sync.RWMutex
 
 	client kubernetes.Interface
-}
-
-func GetNewClusterID(id string, client kubernetes.Interface) ClusterID {
-	return &ClusterIDImpl{
-		id:     id,
-		m:      sync.RWMutex{},
-		client: client,
-	}
 }
 
 // NewClusterID generates a new clusterid and returns it.
@@ -64,7 +56,7 @@ func NewClusterID(kubeconfigPath string) (ClusterID, error) {
 	namespace, found := os.LookupEnv("POD_NAMESPACE")
 	if !found {
 		klog.Info("POD_NAMESPACE not set")
-		data, err := ioutil.ReadFile(serviceAccount)
+		data, err := ioutil.ReadFile(consts.ServiceAccount)
 		if err != nil {
 			klog.Error(err, "Unable to get namespace")
 			os.Exit(1)
@@ -115,10 +107,10 @@ func getClusterId(cm *v1.ConfigMap) string {
 	if cm == nil {
 		return ""
 	}
-	return cm.Data[configMapKey]
+	return cm.Data[consts.ConfigMapKey]
 }
 
-// SetupClusterID sets a new clusterid
+// SetupClusterID sets a new clusterid.
 func (cId *ClusterIDImpl) SetupClusterID(namespace string) error {
 	cm, err := cId.client.CoreV1().ConfigMaps(namespace).Get(context.TODO(), consts.ClusterIDconfigMapName,
 		metav1.GetOptions{})
@@ -142,7 +134,7 @@ func (cId *ClusterIDImpl) SetupClusterID(namespace string) error {
 	return nil
 }
 
-// GetClusterID retrieves the clusterid
+// GetClusterID retrieves the clusterid.
 func (cId *ClusterIDImpl) GetClusterID() string {
 	cId.m.RLock()
 	res := cId.id
@@ -152,7 +144,7 @@ func (cId *ClusterIDImpl) GetClusterID() string {
 
 func (cId *ClusterIDImpl) getMasterID() (string, error) {
 	nodes, err := cId.client.CoreV1().Nodes().List(context.TODO(), metav1.ListOptions{
-		LabelSelector: masterLabel,
+		LabelSelector: consts.MasterLabel,
 	})
 	if err != nil {
 		return "", err
@@ -167,7 +159,7 @@ func (cId *ClusterIDImpl) getMasterID() (string, error) {
 	return string(nodes.Items[0].UID), nil
 }
 
-// saveToConfigMap stores the clusterid in the detailed configMap
+// saveToConfigMap stores the clusterid in the detailed configMap.
 func (cId *ClusterIDImpl) saveToConfigMap(id, namespace string) error {
 	cm, err := cId.client.CoreV1().ConfigMaps(namespace).Get(context.TODO(), consts.ClusterIDconfigMapName,
 		metav1.GetOptions{})
@@ -179,7 +171,7 @@ func (cId *ClusterIDImpl) saveToConfigMap(id, namespace string) error {
 					Name: consts.ClusterIDconfigMapName,
 				},
 				Data: map[string]string{
-					configMapKey: id,
+					consts.ConfigMapKey: id,
 				},
 			}
 			cId.id = id
@@ -190,15 +182,15 @@ func (cId *ClusterIDImpl) saveToConfigMap(id, namespace string) error {
 		return err
 	}
 	// already exists, update it if needed
-	if cm.Data[configMapKey] != id {
-		cm.Data[configMapKey] = id
+	if cm.Data[consts.ConfigMapKey] != id {
+		cm.Data[consts.ConfigMapKey] = id
 		_, err := cId.client.CoreV1().ConfigMaps(namespace).Update(context.TODO(), cm, metav1.UpdateOptions{})
 		return err
 	}
 	return nil
 }
 
-// UpdateClusterID updates the clusterid values
+// UpdateClusterID updates the clusterid values.
 func (cId *ClusterIDImpl) UpdateClusterID(obj interface{}) {
 	tmp := obj.(*v1.ConfigMap).Data[consts.ClusterIDconfigMapName]
 	cId.m.RLock()

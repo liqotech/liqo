@@ -16,7 +16,7 @@ import (
 )
 
 func (fc *ForeignCluster) CheckTrusted() (bool, error) {
-	_, trustMode, err := utils.GetClusterInfo(fc.Spec.AuthUrl)
+	_, trustMode, err := utils.GetClusterInfo(fc.Spec.AuthURL)
 	return trustMode == discovery.TrustModeTrusted, err
 }
 

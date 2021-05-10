@@ -13,11 +13,10 @@ import (
 	"k8s.io/klog"
 	"k8s.io/kubernetes/pkg/util/slice"
 
-	liqoconst "github.com/liqotech/liqo/pkg/consts"
-
 	nettypes "github.com/liqotech/liqo/apis/net/v1alpha1"
 	advtypes "github.com/liqotech/liqo/apis/sharing/v1alpha1"
 	advertisementOperator "github.com/liqotech/liqo/internal/advertisementoperator"
+	liqoconst "github.com/liqotech/liqo/pkg/consts"
 	"github.com/liqotech/liqo/pkg/virtualKubelet"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/node/module"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/options"
@@ -35,7 +34,7 @@ func (p *LiqoProvider) StartNodeUpdater(nodeRunner *module.NodeController) (chan
 	}
 
 	tepWatcher, err := p.tunEndClient.Resource("tunnelendpoints").Watch(&metav1.ListOptions{
-		LabelSelector: strings.Join([]string{"clusterid", p.foreignClusterId}, "="),
+		LabelSelector: strings.Join([]string{liqoconst.ClusterIDLabelName, p.foreignClusterId}, "="),
 		Watch:         true,
 	})
 	if err != nil {
@@ -69,7 +68,7 @@ func (p *LiqoProvider) StartNodeUpdater(nodeRunner *module.NodeController) (chan
 					klog.Error(err)
 					tepWatcher.Stop()
 					tepWatcher, err = p.tunEndClient.Resource("tunnelendpoints").Watch(&metav1.ListOptions{
-						LabelSelector: strings.Join([]string{"clusterid", p.foreignClusterId}, "="),
+						LabelSelector: strings.Join([]string{liqoconst.ClusterIDLabelName, p.foreignClusterId}, "="),
 						Watch:         true,
 					})
 					if err != nil {

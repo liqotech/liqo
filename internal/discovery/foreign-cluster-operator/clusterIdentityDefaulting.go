@@ -20,7 +20,7 @@ func (r *ForeignClusterReconciler) needsClusterIdentityDefaulting(fc *v1alpha1.F
 // if it returns no error, the ForeignCluster CR has been updated.
 func (r *ForeignClusterReconciler) clusterIdentityDefaulting(fc *v1alpha1.ForeignCluster) error {
 	klog.V(4).Infof("Defaulting ClusterIdentity values for ForeignCluster %v", fc.Name)
-	ids, trustMode, err := utils.GetClusterInfo(fc.Spec.AuthUrl)
+	ids, trustMode, err := utils.GetClusterInfo(fc.Spec.AuthURL)
 	if err != nil {
 		klog.Error(err)
 		return err

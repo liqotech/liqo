@@ -4,8 +4,6 @@ import (
 	"context"
 	"reflect"
 
-	"github.com/liqotech/liqo/pkg/utils"
-
 	rbacv1 "k8s.io/api/rbac/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -13,6 +11,7 @@ import (
 
 	configv1alpha1 "github.com/liqotech/liqo/apis/config/v1alpha1"
 	"github.com/liqotech/liqo/pkg/crdClient"
+	"github.com/liqotech/liqo/pkg/utils"
 )
 
 // ConfigProvider interface provides methods to access the Discovery and API Server configuration.

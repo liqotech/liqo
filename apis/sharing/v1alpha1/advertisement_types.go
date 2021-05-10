@@ -54,9 +54,9 @@ type AdvertisementSpec struct {
 type AdvPhase string
 
 const (
-	// AdvertisementAccepted models the Accepted value of an advertisement
+	// AdvertisementAccepted models the Accepted value of an advertisement.
 	AdvertisementAccepted AdvPhase = "Accepted"
-	// AdvertisementRefused models the Refused value of an advertisement
+	// AdvertisementRefused models the Refused value of an advertisement.
 	AdvertisementRefused AdvPhase = "Refused"
 )
 

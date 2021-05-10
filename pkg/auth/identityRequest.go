@@ -8,13 +8,13 @@ type IdentityRequest interface {
 
 // ServiceAccountIdentityRequest is the request for a new ServiceAccount validation.
 type ServiceAccountIdentityRequest struct {
-	ClusterID string `json:"clusterid"`
+	ClusterID string `json:"clusterID"`
 	Token     string `json:"token"`
 }
 
 // CertificateIdentityRequest is the request for a new certificate validation.
 type CertificateIdentityRequest struct {
-	ClusterID                 string `json:"clusterid"`
+	ClusterID                 string `json:"clusterID"`
 	Token                     string `json:"token"`
 	CertificateSigningRequest string `json:"certificateSigningRequest"`
 }

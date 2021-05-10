@@ -12,11 +12,11 @@ import (
 
 func TestDispatcherReconciler_GetConfig(t *testing.T) {
 	dispatcher := Controller{}
-	//test 1
-	//the list of the resources to be replicated is 0, so we expect a 0 length list to be returned by the function
+	// test 1
+	// the list of the resources to be replicated is 0, so we expect a 0 length list to be returned by the function
 	t1 := configv1alpha1.DispatcherConfig{ResourcesToReplicate: nil}
-	//test 2
-	//the list of the resources to be replicated contains 2 elements, so we expect  two elements in the list to be returned by the function
+	// test 2
+	// the list of the resources to be replicated contains 2 elements, so we expect  two elements in the list to be returned by the function
 	t2 := configv1alpha1.DispatcherConfig{ResourcesToReplicate: []configv1alpha1.Resource{
 		{
 			Group:    netv1alpha1.GroupVersion.Group,
@@ -63,9 +63,9 @@ func TestDispatcherReconciler_GetRemovedResources(t *testing.T) {
 			},
 		},
 	}
-	//test 1
-	//the configuration does not change, is the same
-	//so we expect expect to get a 0 length list
+	// test 1
+	// the configuration does not change, is the same
+	// so we expect expect to get a 0 length list
 	t1 := []schema.GroupVersionResource{
 		{
 			Group:    netv1alpha1.GroupVersion.Group,
@@ -77,9 +77,9 @@ func TestDispatcherReconciler_GetRemovedResources(t *testing.T) {
 			Resource: "tunnelendpoints",
 		},
 	}
-	//test2
-	//we remove a resource from the configuration and add a new one to it
-	//so we expect to get a list with 1 element
+	// test2
+	// we remove a resource from the configuration and add a new one to it
+	// so we expect to get a list with 1 element
 	t2 := []schema.GroupVersionResource{
 		{
 			Group:    netv1alpha1.GroupVersion.Group,
@@ -108,13 +108,13 @@ func TestDispatcherReconciler_GetRemovedResources(t *testing.T) {
 
 func TestDispatcherReconciler_UpdateConfig(t *testing.T) {
 	dispatcher := Controller{}
-	//test 1
-	//the list of the resources to be replicated is 0, so we expect a 0 length list to be returned by the function
-	//and 0 elements removed
+	// test 1
+	// the list of the resources to be replicated is 0, so we expect a 0 length list to be returned by the function
+	// and 0 elements removed
 	t1 := configv1alpha1.DispatcherConfig{ResourcesToReplicate: nil}
-	//test 2
-	//the list of the resources to be replicated contains 2 elements, so we expect  two elements in the list to be returned by the function
-	//and 0 elements removed
+	// test 2
+	// the list of the resources to be replicated contains 2 elements, so we expect  two elements in the list to be returned by the function
+	// and 0 elements removed
 	t2 := configv1alpha1.DispatcherConfig{ResourcesToReplicate: []configv1alpha1.Resource{
 		{
 			Group:    netv1alpha1.GroupVersion.Group,
@@ -127,9 +127,9 @@ func TestDispatcherReconciler_UpdateConfig(t *testing.T) {
 		},
 	}}
 
-	//test 3
-	//we remove an existing element and add a new one. we expect to have 2 elements in the registeredResources
-	//and 1 element removedResources
+	// test 3
+	// we remove an existing element and add a new one. we expect to have 2 elements in the registeredResources
+	// and 1 element removedResources
 	t3 := configv1alpha1.DispatcherConfig{ResourcesToReplicate: []configv1alpha1.Resource{
 		{
 			Group:    netv1alpha1.GroupVersion.Group,
@@ -164,17 +164,17 @@ func TestDispatcherReconciler_UpdateConfig(t *testing.T) {
 	}
 }
 
-//we test that if the *rest.config of the custer is not correct the function return the error
+// we test that if the *rest.config of the custer is not correct the function return the error
 func TestDispatcherReconciler_WatchConfiguration(t *testing.T) {
 	dispatcher := Controller{}
-	//test1
-	//the group version is not correct and we expect an error
+	// test1
+	// the group version is not correct and we expect an error
 	config := k8sManagerLocal.GetConfig()
 	err := dispatcher.WatchConfiguration(config, nil)
 	assert.NotNil(t, err, "error should be not nil")
 
-	//test2
-	//the group version is not correct and we expect an error
+	// test2
+	// the group version is not correct and we expect an error
 	err = dispatcher.WatchConfiguration(config, &configv1alpha1.GroupVersion)
 	assert.Nil(t, err, "error should be not nil")
 }

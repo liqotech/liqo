@@ -57,7 +57,7 @@ func GetOverlayIP(ip string) string {
 	return strings.Join([]string{NetworkPrefix, tokens[1], tokens[2], tokens[3]}, ".")
 }
 
-//this function enables the rp_filter for the overlay interface on the gateway node.
+// this function enables the rp_filter for the overlay interface on the gateway node.
 func Enable_rp_filter(ifaceName string) error {
 	klog.Infof("enabling reverse path filter for interface %s", ifaceName)
 	rpFilterFilePath := strings.Join([]string{"/proc/sys/net/ipv4/conf/", ifaceName, "/rp_filter"}, "")
@@ -70,20 +70,20 @@ func Enable_rp_filter(ifaceName string) error {
 	return nil
 }
 
-//create a new routing table with the given ID and name.
+// create a new routing table with the given ID and name.
 func CreateRoutingTable(tableID int, tableName string) error {
 	klog.Infof("creating routing table with ID %d and name %s", tableID, tableName)
-	//file path
+	// file path
 	rtTableFilePath := "/etc/iproute2/rt_tables"
 	data := strings.Join([]string{strconv.Itoa(tableID), tableName}, "\t")
-	//open the file
+	// open the file
 	file, err := os.OpenFile(rtTableFilePath, os.O_WRONLY|os.O_APPEND, 0644)
 	if err != nil {
 		klog.Errorf("an error occurred while opening file %s: %v", rtTableFilePath, err)
 		return err
 	}
 	defer file.Close()
-	//write data to file
+	// write data to file
 	if _, err := file.WriteString(data); err != nil {
 		klog.Errorf("an error occurred while writing to file %s: %v", rtTableFilePath, err)
 		return err
@@ -115,13 +115,13 @@ func InsertPolicyRoutingRule(tableID int, fromSubnet string) error {
 		klog.Errorf("an error occurred parsing CIDR %s while inserting policy routing rule: %v", fromSubnet, err)
 		return err
 	}
-	//get existing rules
+	// get existing rules
 	rules, err := netlink.RuleList(netlink.FAMILY_V4)
 	if err != nil {
 		klog.Errorf("an error occurred while listing the policy routing rules: %v", err)
 		return err
 	}
-	//check if the rule already exists
+	// check if the rule already exists
 	for _, r := range rules {
 		if r.Src != nil {
 			if r.Src.String() == subnet.String() && r.Table == tableID {
@@ -146,13 +146,13 @@ func RemovePolicyRoutingRule(tableID int, fromSubnet string) error {
 		klog.Errorf("an error occurred parsing CIDR %s while removing policy routing rule: %v", fromSubnet, err)
 		return err
 	}
-	//get existing rules
+	// get existing rules
 	rules, err := netlink.RuleList(netlink.FAMILY_V4)
 	if err != nil {
 		klog.Errorf("an error occurred while listing the policy routing rules: %v", err)
 		return err
 	}
-	//check if the rule already exists
+	// check if the rule already exists
 	for _, r := range rules {
 		if r.Src != nil {
 			if r.Src.String() == subnet.String() && r.Table == tableID {

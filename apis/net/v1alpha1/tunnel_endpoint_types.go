@@ -27,7 +27,7 @@ type TunnelEndpointSpec struct {
 	// INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
 	// Important: Run "make" to regenerate code after modifying this file
 	// The ID of the remote cluster that will receive this CRD.
-	ClusterID string `json:"clusterid"`
+	ClusterID string `json:"clusterID"`
 	// PodCIDR of remote cluster.
 	PodCIDR string `json:"podCIDR"`
 	// ExternalCIDR of remote cluster.

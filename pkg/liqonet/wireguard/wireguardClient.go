@@ -7,8 +7,8 @@ import (
 	"golang.zx2c4.com/wireguard/wgctrl/wgtypes"
 )
 
-//a simple interface that implements some of the methods of wgctrl.Client interface.
-//a fake implementation is used for the unit tests.
+// a simple interface that implements some of the methods of wgctrl.Client interface.
+// a fake implementation is used for the unit tests.
 type Client interface {
 	configureDevice(name string, cfg wgtypes.Config) error
 	device(name string) (*wgtypes.Device, error)
