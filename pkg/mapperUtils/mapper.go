@@ -14,7 +14,6 @@ import (
 	configv1alpha1 "github.com/liqotech/liqo/apis/config/v1alpha1"
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	netv1alpha1 "github.com/liqotech/liqo/apis/net/v1alpha1"
-	schedulingv1alpha1 "github.com/liqotech/liqo/apis/scheduling/v1alpha1"
 	sharingv1alpha1 "github.com/liqotech/liqo/apis/sharing/v1alpha1"
 	virtualKubeletv1alpha1 "github.com/liqotech/liqo/apis/virtualKubelet/v1alpha1"
 )
@@ -59,9 +58,6 @@ func addDefaults(dClient *discovery.DiscoveryClient, mapper *meta.DefaultRESTMap
 		return err
 	}
 	if err = addGroup(dClient, netv1alpha1.GroupVersion, mapper); err != nil {
-		return err
-	}
-	if err = addGroup(dClient, schedulingv1alpha1.GroupVersion, mapper); err != nil {
 		return err
 	}
 	if err = addGroup(dClient, sharingv1alpha1.GroupVersion, mapper); err != nil {
