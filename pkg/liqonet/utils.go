@@ -132,14 +132,14 @@ func EnableIPForwarding() error {
 	return nil
 }
 
-/* Helper function to get a mask from a CIDR */
+/* Helper function to get a mask from a CIDR. */
 func GetMask(network string) uint8 {
 	_, net, _ := net.ParseCIDR(network)
 	ones, _ := net.Mask.Size()
 	return uint8(ones)
 }
 
-/* Helper function that forges a new cidr from a network cidr and a mask */
+/* Helper function that forges a new cidr from a network cidr and a mask. */
 func SetMask(network string, mask uint8) (string, error) {
 	_, n, err := net.ParseCIDR(network)
 	if err != nil {

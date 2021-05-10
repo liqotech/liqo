@@ -35,7 +35,7 @@ import (
 // container in a pod.
 type ContainerExecHandlerFunc func(ctx context.Context, namespace, podName, containerName string, cmd []string, attach AttachIO) error
 
-// AttachIO is used to pass in streams to attach to a container process
+// AttachIO is used to pass in streams to attach to a container process.
 type AttachIO interface {
 	Stdin() io.Reader
 	Stdout() io.WriteCloser
@@ -60,17 +60,17 @@ type ContainerExecHandlerConfig struct {
 }
 
 // ContainerExecHandlerOption configures a ContainerExecHandlerConfig
-// It is used as functional options passed to `HandleContainerExec`
+// It is used as functional options passed to `HandleContainerExec`.
 type ContainerExecHandlerOption func(*ContainerExecHandlerConfig)
 
-// WithExecStreamIdleTimeout sets the idle timeout for a container exec stream
+// WithExecStreamIdleTimeout sets the idle timeout for a container exec stream.
 func WithExecStreamIdleTimeout(dur time.Duration) ContainerExecHandlerOption {
 	return func(cfg *ContainerExecHandlerConfig) {
 		cfg.StreamIdleTimeout = dur
 	}
 }
 
-// WithExecStreamCreationTimeout sets the creation timeout for a container exec stream
+// WithExecStreamCreationTimeout sets the creation timeout for a container exec stream.
 func WithExecStreamCreationTimeout(dur time.Duration) ContainerExecHandlerOption {
 	return func(cfg *ContainerExecHandlerConfig) {
 		cfg.StreamCreationTimeout = dur
@@ -79,7 +79,7 @@ func WithExecStreamCreationTimeout(dur time.Duration) ContainerExecHandlerOption
 
 // HandleContainerExec makes an http handler func from a Provider which execs a command in a pod's container
 // Note that this handler currently depends on gorrilla/mux to get url parts as variables.
-// TODO(@cpuguy83): don't force gorilla/mux on consumers of this function
+// TODO(@cpuguy83): don't force gorilla/mux on consumers of this function.
 func HandleContainerExec(h ContainerExecHandlerFunc, opts ...ContainerExecHandlerOption) http.HandlerFunc {
 	if h == nil {
 		return NotImplemented
@@ -155,7 +155,6 @@ func getExecOptions(req *http.Request) (*remotecommand.Options, error) {
 		Stderr: stderr,
 		TTY:    tty,
 	}, nil
-
 }
 
 type containerExecContext struct {
@@ -165,9 +164,8 @@ type containerExecContext struct {
 }
 
 // ExecInContainer Implements remotecommand.Executor
-// This is called by remotecommand.ServeExec
+// This is called by remotecommand.ServeExec.
 func (c *containerExecContext) ExecInContainer(name string, uid types.UID, container string, cmd []string, in io.Reader, out, err io.WriteCloser, tty bool, resize <-chan remoteutils.TerminalSize, timeout time.Duration) error {
-
 	eio := &execIO{
 		tty:    tty,
 		stdin:  in,

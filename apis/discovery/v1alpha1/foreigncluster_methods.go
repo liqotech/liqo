@@ -49,16 +49,15 @@ func (fc *ForeignCluster) DeleteAdvertisement(advClient *crdClient.CRDClient) er
 	return nil
 }
 
-// if we discovered a cluster with IncomingPeering we can upgrade this discovery
-// when we found it also in other way, for example inserting a SearchDomain or
-// adding it manually
+// HasHigherPriority upgrades the discovery type. If we discovered a cluster with IncomingPeering, we can upgrade this
+// discovery when we found it also in other way, for example inserting a SearchDomain or adding it manually.
 func (fc *ForeignCluster) HasHigherPriority(discoveryType discovery.Type) bool {
 	b1 := fc.Spec.DiscoveryType == discovery.IncomingPeeringDiscovery
 	b2 := discoveryType != discovery.IncomingPeeringDiscovery
 	return b1 && b2
 }
 
-// sets lastUpdate annotation to current time
+// LastUpdateNow sets lastUpdate annotation to current time.
 func (fc *ForeignCluster) LastUpdateNow() {
 	ann := fc.GetAnnotations()
 	if ann == nil {
@@ -84,5 +83,5 @@ func (fc *ForeignCluster) IsExpired() bool {
 		return true
 	}
 	now := time.Now().Unix()
-	return int64(lu+int(fc.Status.Ttl)) < now
+	return int64(lu+int(fc.Status.TTL)) < now
 }

@@ -31,7 +31,7 @@ import (
 	"github.com/liqotech/liqo/internal/utils/errdefs"
 )
 
-// ContainerLogsHandlerFunc is used in place of backend implementations for getting container logs
+// ContainerLogsHandlerFunc is used in place of backend implementations for getting container logs.
 type ContainerLogsHandlerFunc func(ctx context.Context, namespace, podName, containerName string, opts ContainerLogOpts) (io.ReadCloser, error)
 
 // ContainerLogOpts are used to pass along options to be set on the container
@@ -106,7 +106,7 @@ func parseLogOptions(q url.Values) (opts ContainerLogOpts, err error) {
 	return opts, nil
 }
 
-// HandleContainerLogs creates an http handler function from a provider to serve logs from a pod
+// HandleContainerLogs creates an http handler function from a provider to serve logs from a pod.
 func HandleContainerLogs(h ContainerLogsHandlerFunc) http.HandlerFunc {
 	if h == nil {
 		return NotImplemented

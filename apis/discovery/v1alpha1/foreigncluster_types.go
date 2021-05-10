@@ -29,102 +29,102 @@ import (
 // EDIT THIS FILE!  THIS IS SCAFFOLDING FOR YOU TO OWN!
 // NOTE: json tags are required.  Any new fields you add must have json tags for the fields to be serialized.
 
-// ForeignClusterSpec defines the desired state of ForeignCluster
+// ForeignClusterSpec defines the desired state of ForeignCluster.
 type ForeignClusterSpec struct {
 	// INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
 	// Important: Run "make" to regenerate code after modifying this file
 
-	// Foreign Cluster Identity
+	// Foreign Cluster Identity.
 	ClusterIdentity ClusterIdentity `json:"clusterIdentity,omitempty"`
-	// Namespace where Liqo is deployed
+	// Namespace where Liqo is deployed.
 	Namespace string `json:"namespace,omitempty"`
-	// Enable join process to foreign cluster
+	// Enable join process to foreign cluster.
 	// +kubebuilder:default=false
 	Join bool `json:"join,omitempty"`
 	// +kubebuilder:validation:Enum="LAN";"WAN";"Manual";"IncomingPeering"
 	// +kubebuilder:default="Manual"
-	// How this ForeignCluster has been discovered
+	// How this ForeignCluster has been discovered.
 	DiscoveryType discovery.Type `json:"discoveryType,omitempty"`
-	// URL where to contact foreign Auth service
+	// URL where to contact foreign Auth service.
 	AuthUrl string `json:"authUrl"`
 	// +kubebuilder:validation:Enum="Unknown";"Trusted";"Untrusted"
 	// +kubebuilder:default="Unknown"
-	// Indicates if this remote cluster is trusted or not
+	// Indicates if this remote cluster is trusted or not.
 	TrustMode discovery.TrustMode `json:"trustMode,omitempty"`
 }
 
 type ClusterIdentity struct {
-	// Foreign Cluster ID, this is a unique identifier of that cluster
+	// Foreign Cluster ID, this is a unique identifier of that cluster.
 	ClusterID string `json:"clusterID"`
-	// Foreign Cluster Name to be shown in GUIs
+	// Foreign Cluster Name to be shown in GUIs.
 	ClusterName string `json:"clusterName,omitempty"`
 }
 
-// ForeignClusterStatus defines the observed state of ForeignCluster
+// ForeignClusterStatus defines the observed state of ForeignCluster.
 type ForeignClusterStatus struct {
 	// INSERT ADDITIONAL STATUS FIELD - define observed state of cluster
 	// Important: Run "make" to regenerate code after modifying this file
 
 	Outgoing Outgoing `json:"outgoing,omitempty"`
 	Incoming Incoming `json:"incoming,omitempty"`
-	// If discoveryType is LAN and this counter reach 0 value, this FC will be removed
-	Ttl uint32 `json:"ttl,omitempty"`
-	// It stores most important network statuses
+	// If discoveryType is LAN and this counter reach 0 value, this FC will be removed.
+	TTL uint32 `json:"ttl,omitempty"`
+	// It stores most important network statuses.
 	Network Network `json:"network,omitempty"`
-	// Authentication status
+	// Authentication status.
 	// +kubebuilder:validation:Enum="Pending";"Accepted";"Refused";"EmptyRefused"
 	// +kubebuilder:default="Pending"
 	AuthStatus discovery.AuthStatus `json:"authStatus,omitempty"`
 }
 
 type ResourceLink struct {
-	// Indicates if the resource is available
+	// Indicates if the resource is available.
 	Available bool `json:"available"`
-	// Object Reference to the resource
+	// Object Reference to the resource.
 	Reference *v1.ObjectReference `json:"reference,omitempty"`
 }
 
 type Network struct {
-	// Local NetworkConfig link
+	// Local NetworkConfig link.
 	LocalNetworkConfig ResourceLink `json:"localNetworkConfig"`
-	// Remote NetworkConfig link
+	// Remote NetworkConfig link.
 	RemoteNetworkConfig ResourceLink `json:"remoteNetworkConfig"`
-	// TunnelEndpoint link
+	// TunnelEndpoint link.
 	TunnelEndpoint ResourceLink `json:"tunnelEndpoint"`
 }
 
 type Outgoing struct {
-	// Indicates if peering request has been created and this remote cluster is sharing its resources to us
+	// Indicates if peering request has been created and this remote cluster is sharing its resources to us.
 	Joined bool `json:"joined"`
-	// Name of created PR
+	// Name of created PR.
 	RemotePeeringRequestName string `json:"remote-peering-request-name,omitempty"`
-	// Object Reference to created Advertisement CR
+	// Object Reference to created Advertisement CR.
 	Advertisement *v1.ObjectReference `json:"advertisement,omitempty"`
-	// Indicates if related identity is available
+	// Indicates if related identity is available.
 	AvailableIdentity bool `json:"availableIdentity,omitempty"`
-	// Object reference to related identity
+	// Object reference to related identity.
 	IdentityRef *v1.ObjectReference `json:"identityRef,omitempty"`
-	// Advertisement status
+	// Advertisement status.
 	AdvertisementStatus advtypes.AdvPhase `json:"advertisementStatus,omitempty"`
 }
 
 type Incoming struct {
-	// Indicates if peering request has been created and this remote cluster is using our local resources
+	// Indicates if peering request has been created and this remote cluster is using our local resources.
 	Joined bool `json:"joined"`
-	// Object Reference to created PeeringRequest CR
+	// Object Reference to created PeeringRequest CR.
 	PeeringRequest *v1.ObjectReference `json:"peeringRequest,omitempty"`
-	// Indicates if related identity is available
+	// Indicates if related identity is available.
 	AvailableIdentity bool `json:"availableIdentity,omitempty"`
-	// Object reference to related identity
+	// Object reference to related identity.
 	IdentityRef *v1.ObjectReference `json:"identityRef,omitempty"`
-	// Status of Advertisement created from this PeeringRequest
+	// Status of Advertisement created from this PeeringRequest.
 	AdvertisementStatus advtypes.AdvPhase `json:"advertisementStatus,omitempty"`
 }
 
 // +kubebuilder:object:root=true
 // +kubebuilder:resource:scope=Cluster
 
-// ForeignCluster is the Schema for the foreignclusters API
+// ForeignCluster is the Schema for the foreignclusters API.
 // +kubebuilder:printcolumn:name="Outgoing joined",type=string,JSONPath=`.status.outgoing.joined`
 // +kubebuilder:printcolumn:name="Incoming joined",type=string,JSONPath=`.status.incoming.joined`
 // +kubebuilder:printcolumn:name="Authentication status",type=string,JSONPath=`.status.authStatus`
@@ -138,7 +138,7 @@ type ForeignCluster struct {
 
 // +kubebuilder:object:root=true
 
-// ForeignClusterList contains a list of ForeignCluster
+// ForeignClusterList contains a list of ForeignCluster.
 type ForeignClusterList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`
@@ -152,5 +152,4 @@ func init() {
 		panic(err)
 	}
 	crdClient.AddToRegistry("foreignclusters", &ForeignCluster{}, &ForeignClusterList{}, nil, ForeignClusterGroupResource)
-
 }

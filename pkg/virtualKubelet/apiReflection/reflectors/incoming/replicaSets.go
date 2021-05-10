@@ -19,7 +19,7 @@ import (
 	"github.com/liqotech/liqo/pkg/virtualKubelet/forge"
 )
 
-// ReplicaSetsIncomingReflector is in charge of reflecting remote replicasets status change in the home cluster
+// ReplicaSetsIncomingReflector is in charge of reflecting remote replicasets status change in the home cluster.
 type ReplicaSetsIncomingReflector struct {
 	ri.APIReflector
 }
@@ -35,7 +35,7 @@ func (r *ReplicaSetsIncomingReflector) SetSpecializedPreProcessingHandlers() {
 // HandleEvent takes the replicaset event and performs an operation in the home cluster.
 // The only event to be handled by this reflector is the deletion of a replicaset
 // Once a delete event is received, the object embedded in the received struct is a pod
-// to be deleted in the home cluster
+// to be deleted in the home cluster.
 func (r *ReplicaSetsIncomingReflector) HandleEvent(obj interface{}) {
 	event, ok := obj.(watch.Event)
 	if !ok {
@@ -62,18 +62,18 @@ func (r *ReplicaSetsIncomingReflector) HandleEvent(obj interface{}) {
 	}
 }
 
-// preAdd returns always nil because the add events have to be ignored
+// preAdd returns always nil because the add events have to be ignored.
 func (r *ReplicaSetsIncomingReflector) preAdd(_ interface{}) (interface{}, watch.EventType) {
 	return nil, watch.Added
 }
 
-// preUpdate returns always nil because the add events have to be ignored
+// preUpdate returns always nil because the add events have to be ignored.
 func (r *ReplicaSetsIncomingReflector) preUpdate(_, _ interface{}) (interface{}, watch.EventType) {
 	return nil, watch.Modified
 }
 
 // preDelete receives a replicaset, then gets the home pod named according to a replicaset label,
-// finally the pod is returned
+// finally the pod is returned.
 func (r *ReplicaSetsIncomingReflector) preDelete(obj interface{}) (interface{}, watch.EventType) {
 	foreignReplicaSet := obj.(*appsv1.ReplicaSet).DeepCopy()
 

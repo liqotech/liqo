@@ -69,7 +69,6 @@ const (
 // populateEnvironmentVariables populates the environment of each container (and init container) in the specified pod.
 // TODO Make this the single exported function of a "pkg/environment" package in the future.
 func populateEnvironmentVariables(ctx context.Context, pod *corev1.Pod, rm *manager.ResourceManager, recorder record.EventRecorder) error {
-
 	// Populate each init container's environment.
 	for idx := range pod.Spec.InitContainers {
 		if err := populateContainerEnvironment(ctx, pod, &pod.Spec.InitContainers[idx], rm, recorder); err != nil {
@@ -241,7 +240,6 @@ loop:
 
 // makeEnvironmentMap returns a map representing the resolved environment of the specified container after being populated from the entries in the ".env" and ".envFrom" field.
 func makeEnvironmentMap(ctx context.Context, pod *corev1.Pod, container *corev1.Container, rm *manager.ResourceManager, recorder record.EventRecorder, res map[string]string) error {
-
 	svcEnv := map[string]string{}
 	// If the variable's Value is set, expand the `$(var)` references to other
 	// variables in the .Value field; the sources of variables are the declared
@@ -404,7 +402,6 @@ func podFieldSelectorRuntimeValue(fs *corev1.ObjectFieldSelector, pod *corev1.Po
 		return pod.Spec.NodeName, nil
 	case "spec.serviceAccountName":
 		return pod.Spec.ServiceAccountName, nil
-
 	}
 	return fieldpath.ExtractFieldPathAsString(pod, internalFieldPath)
 }

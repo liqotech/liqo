@@ -27,7 +27,7 @@ func init() {
 	// +kubebuilder:scaffold:scheme
 }
 
-// StartOperator setups the ForeignCluster operator
+// StartOperator setups the ForeignCluster operator.
 func StartOperator(
 	mgr manager.Manager, namespace string, requeueAfter time.Duration,
 	discoveryCtrl *discovery.Controller, kubeconfigPath string) {

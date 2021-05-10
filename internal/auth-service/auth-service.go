@@ -66,7 +66,7 @@ type AuthServiceCtrl struct {
 	identityManager      identityManager.IdentityManager
 
 	config          *v1alpha1.AuthConfig
-	apiServerConfig *v1alpha1.ApiServerConfig
+	apiServerConfig *v1alpha1.APIServerConfig
 	discoveryConfig v1alpha1.DiscoveryConfig
 	configMutex     sync.RWMutex
 

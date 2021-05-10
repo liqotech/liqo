@@ -45,7 +45,7 @@ import (
 )
 
 // NewCommand creates a new top-level command.
-// This command is used to start the virtual-kubelet daemon
+// This command is used to start the virtual-kubelet daemon.
 func NewCommand(ctx context.Context, name string, s *provider.Store, c *Opts) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   name,

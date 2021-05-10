@@ -32,7 +32,7 @@ import (
 	liqoconst "github.com/liqotech/liqo/pkg/consts"
 )
 
-// NamespaceMapReconciler creates remote namespaces and updates NamespaceMaps
+// NamespaceMapReconciler creates remote namespaces and updates NamespaceMaps.
 type NamespaceMapReconciler struct {
 	client.Client
 	Scheme        *runtime.Scheme
@@ -45,7 +45,7 @@ const (
 )
 
 // Reconcile adds/removes NamespaceMap finalizer, and checks differences
-// between DesiredMapping and CurrentMapping
+// between DesiredMapping and CurrentMapping.
 func (r *NamespaceMapReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 	namespaceMap := &mapsv1alpha1.NamespaceMap{}
 	if err := r.Get(context.TODO(), req.NamespacedName, namespaceMap); err != nil {
@@ -80,7 +80,7 @@ func (r *NamespaceMapReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error
 }
 
 // The Controller is triggered only when the number of entries in DesiredMapping changes, so only when
-// a namespace's request is added or removed
+// a namespace's request is added or removed.
 func manageDesiredMappings() predicate.Predicate {
 	return predicate.Funcs{
 		UpdateFunc: func(e event.UpdateEvent) bool {
@@ -96,7 +96,7 @@ func manageDesiredMappings() predicate.Predicate {
 	}
 }
 
-// SetupWithManager monitors only updates on NamespaceMap
+// SetupWithManager monitors only updates on NamespaceMap.
 func (r *NamespaceMapReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&mapsv1alpha1.NamespaceMap{}).

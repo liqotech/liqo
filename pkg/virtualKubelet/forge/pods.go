@@ -175,7 +175,7 @@ func forgeVolumes(volumesIn []corev1.Volume) []corev1.Volume {
 	return volumesOut
 }
 
-// remove from volumeMountsIn all the volumeMounts with name not contained in volumes
+// remove from volumeMountsIn all the volumeMounts with name not contained in volumes.
 func filterVolumeMounts(volumes []corev1.Volume, volumeMountsIn []corev1.VolumeMount) []corev1.VolumeMount {
 	volumeMounts := make([]corev1.VolumeMount, 0)
 	for _, vm := range volumeMountsIn {
@@ -188,7 +188,7 @@ func filterVolumeMounts(volumes []corev1.Volume, volumeMountsIn []corev1.VolumeM
 	return volumeMounts
 }
 
-// ChangePodIp creates a new IP address obtained by means of the old IP address and the new podCIDR
+// ChangePodIp creates a new IP address obtained by means of the old IP address and the new podCIDR.
 func ChangePodIp(newPodCidr string, oldPodIp string) (newPodIp string, err error) {
 	if newPodCidr == liqoconst.DefaultCIDRValue {
 		return oldPodIp, nil

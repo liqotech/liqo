@@ -43,7 +43,7 @@ func (discovery *Controller) updateForeignLAN(data *discoveryData, trustMode dis
 // UpdateForeignWAN updates the list of known foreign clusters:
 // for each cluster retrieved with DNS discovery, if it is not the local cluster, check if it is already known, if not
 // create it. In both cases update the ForeignCluster TTL
-// This function also sets an owner reference and a label to the ForeignCluster pointing to the SearchDomain CR
+// This function also sets an owner reference and a label to the ForeignCluster pointing to the SearchDomain CR.
 func (discovery *Controller) UpdateForeignWAN(data []*AuthData, sd *v1alpha1.SearchDomain) []*v1alpha1.ForeignCluster {
 	createdUpdatedForeign := []*v1alpha1.ForeignCluster{}
 	discoveryType := discoveryPkg.WanDiscovery
@@ -84,7 +84,7 @@ func (discovery *Controller) createOrUpdate(data *discoveryData, trustMode disco
 	sd *v1alpha1.SearchDomain, discoveryType discoveryPkg.Type, createdUpdatedForeign *[]*v1alpha1.ForeignCluster) error {
 	fc, err := discovery.getForeignClusterByID(data.ClusterInfo.ClusterID)
 	if k8serror.IsNotFound(err) {
-		fc, err = discovery.createForeign(data, trustMode, sd, discoveryType)
+		fc, err := discovery.createForeign(data, trustMode, sd, discoveryType)
 		if err != nil {
 			klog.Error(err)
 			return err
@@ -161,7 +161,7 @@ func (discovery *Controller) createForeign(
 		fc.Labels[discoveryPkg.SearchDomainLabel] = sd.Name
 	}
 	// set TTL
-	fc.Status.Ttl = data.AuthData.ttl
+	fc.Status.TTL = data.AuthData.ttl
 	tmp, err := discovery.crdClient.Resource("foreignclusters").Create(fc, &metav1.CreateOptions{})
 	if err != nil {
 		klog.Error(err)
@@ -174,7 +174,7 @@ func (discovery *Controller) createForeign(
 	return fc, err
 }
 
-// indicates that the remote cluster changed location, we have to reload all our info about the remote cluster
+// indicates that the remote cluster changed location, we have to reload all our info about the remote cluster.
 func needsToDeleteRemoteResources(fc *v1alpha1.ForeignCluster, data *discoveryData) bool {
 	return fc.Spec.Namespace != data.ClusterInfo.GuestNamespace
 }
@@ -195,10 +195,10 @@ func (discovery *Controller) checkUpdate(
 			joinTrusted := fc.Spec.TrustMode == discoveryPkg.TrustModeTrusted && discovery.Config.AutoJoin
 			joinUntrusted := fc.Spec.TrustMode == discoveryPkg.TrustModeUntrusted && discovery.Config.AutoJoinUntrusted
 			fc.Spec.Join = joinTrusted || joinUntrusted
-			fc.Status.Ttl = data.AuthData.ttl
+			fc.Status.TTL = data.AuthData.ttl
 		} else if searchDomain != nil && discoveryType == discoveryPkg.WanDiscovery {
 			fc.Spec.Join = searchDomain.Spec.AutoJoin
-			fc.Status.Ttl = data.AuthData.ttl
+			fc.Status.TTL = data.AuthData.ttl
 		}
 		fc.LastUpdateNow()
 		tmp, err := discovery.crdClient.Resource("foreignclusters").Update(fc.Name, fc, &metav1.UpdateOptions{})

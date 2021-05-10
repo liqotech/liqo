@@ -46,7 +46,7 @@ type PodHandlerConfig struct {
 func PodHandler(p PodHandlerConfig, debug bool) http.Handler {
 	r := mux.NewRouter()
 
-	// This matches the behaviour in the reference kubelet
+	// This matches the behavior in the reference kubelet
 	r.StrictSlash(true)
 	if debug {
 		r.HandleFunc("/runningpods/", HandleRunningPods(p.GetPods)).Methods("GET")
@@ -126,13 +126,13 @@ func InstrumentHandler(h http.Handler) http.Handler {
 	}
 }
 
-// NotFound provides a handler for cases where the requested endpoint doesn't exist
+// NotFound provides a handler for cases where the requested endpoint doesn't exist.
 func NotFound(w http.ResponseWriter, r *http.Request) {
 	klog.V(4).Info("404 request not found")
 	http.Error(w, "404 request not found", http.StatusNotFound)
 }
 
-// NotImplemented provides a handler for cases where a provider does not implement a given API
+// NotImplemented provides a handler for cases where a provider does not implement a given API.
 func NotImplemented(w http.ResponseWriter, r *http.Request) {
 	klog.V(4).Info("501 not implemented")
 	http.Error(w, "501 not implemented", http.StatusNotImplemented)

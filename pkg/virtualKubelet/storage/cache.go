@@ -78,32 +78,32 @@ func (ac *NamespacedAPICaches) removeNamespace(namespace string) {
 	delete(ac.informerFactories, namespace)
 }
 
-// APICaches represents a set of informers for a set of APIs
+// APICaches represents a set of informers for a set of APIs.
 type APICaches struct {
 	caches map[apimgmt.ApiType]cache.SharedIndexInformer
 }
 
-// informer retrieves the cache for a specific api. If the cache does not exist, it returns nil
+// informer retrieves the cache for a specific api. If the cache does not exist, it returns nil.
 func (cache *APICaches) informer(api apimgmt.ApiType) cache.SharedIndexInformer {
 	return cache.caches[api]
 }
 
-// getApi gets a specific given object for a specific given api
+// getApi gets a specific given object for a specific given api.
 func (cache *APICaches) getApi(api apimgmt.ApiType, key string) (interface{}, error) {
 	return utils.GetObject(cache.caches[api], key, defaultBackoff)
 }
 
-// listApiByIndex lists all the api matching a specific index
+// listApiByIndex lists all the api matching a specific index.
 func (cache *APICaches) listApiByIndex(api apimgmt.ApiType, key string) ([]interface{}, error) {
 	return utils.ListIndexedObjects(cache.caches[api], apimgmt.ApiNames[api], key)
 }
 
-// listApi lists the content of a given cached api
+// listApi lists the content of a given cached api.
 func (cache *APICaches) listApi(api apimgmt.ApiType) ([]interface{}, error) {
 	return utils.ListObjects(cache.caches[api])
 }
 
-// resyncListObjects resync the cache of a given api, then lists the content of that cached api
+// resyncListObjects resync the cache of a given api, then lists the content of that cached api.
 func (cache *APICaches) resyncListObjects(api apimgmt.ApiType) ([]interface{}, error) {
 	return utils.ResyncListObjects(cache.caches[api])
 }

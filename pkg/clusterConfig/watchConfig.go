@@ -14,7 +14,7 @@ import (
 )
 
 type ApiServerConfigProvider interface {
-	GetAPIServerConfig() *configv1alpha1.ApiServerConfig
+	GetAPIServerConfig() *configv1alpha1.APIServerConfig
 }
 
 func WatchConfiguration(handler func(*configv1alpha1.ClusterConfig), client *crdClient.CRDClient, kubeconfigPath string) {

@@ -28,8 +28,8 @@ func (c *configMock) GetConfig() *v1alpha1.DiscoveryConfig {
 	return &c.config
 }
 
-func (c *configMock) GetAPIServerConfig() *v1alpha1.ApiServerConfig {
-	return &v1alpha1.ApiServerConfig{
+func (c *configMock) GetAPIServerConfig() *v1alpha1.APIServerConfig {
+	return &v1alpha1.APIServerConfig{
 		Address:   os.Getenv("APISERVER"),
 		Port:      os.Getenv("APISERVER_PORT"),
 		TrustedCA: false,
@@ -71,7 +71,7 @@ var _ = Describe("ForeignClusterOperator", func() {
 			Name:                "MyLiqo",
 			Port:                6443,
 			Service:             "_liqo_api._tcp",
-			Ttl:                 90,
+			TTL:                 90,
 		}
 
 		controller = ForeignClusterReconciler{

@@ -12,28 +12,25 @@ import (
 )
 
 // WatchResources is a wrapper cache function that allows to create either a real cache
-// or a fake one, depending on the global variable Fake
+// or a fake one, depending on the global variable Fake.
 func WatchResources(clientSet NamespacedCRDClientInterface,
 	resource, namespace string,
 	resyncPeriod time.Duration,
 	handlers cache.ResourceEventHandlerFuncs,
 	lo metav1.ListOptions) (cache.Store, chan struct{}, error) {
-
 	if Fake {
-
 		return WatchfakeResources(resource, handlers)
 	} else {
 		return WatchRealResources(clientSet, resource, namespace, resyncPeriod, handlers, lo)
 	}
 }
 
-// Watch RealResources creates
+// Watch RealResources creates.
 func WatchRealResources(clientSet NamespacedCRDClientInterface,
 	resource, namespace string,
 	resyncPeriod time.Duration,
 	handlers cache.ResourceEventHandlerFuncs,
 	lo metav1.ListOptions) (cache.Store, chan struct{}, error) {
-
 	listFunc := func(ls metav1.ListOptions) (result runtime.Object, err error) {
 		ls = lo
 		return clientSet.Resource(resource).Namespace(namespace).List(&ls)

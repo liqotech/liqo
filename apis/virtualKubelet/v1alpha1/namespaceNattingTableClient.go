@@ -37,6 +37,7 @@ func CreateClient(kubeconfig string, configOptions func(config *rest.Config)) (*
 	return clientSet, nil
 }
 
+// Keyer returns a key element to index ClusterConfig CR.
 func Keyer(obj runtime.Object) (string, error) {
 	ns, ok := obj.(*NamespaceNattingTable)
 	if !ok {

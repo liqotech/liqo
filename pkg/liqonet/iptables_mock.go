@@ -101,7 +101,7 @@ func (m *MockIPTables) prependRule(x []IPtableRule, y IPtableRule) []IPtableRule
 	return x
 }
 
-//this mock function prepends even if the index is different than 1
+//this mock function prepends even if the index is different than 1.
 func (m *MockIPTables) Insert(table string, chain string, pos int, rulespec ...string) error {
 	m.Rules = m.prependRule(m.Rules, IPtableRule{
 		Table:    table,

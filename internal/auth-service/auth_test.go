@@ -158,7 +158,7 @@ var _ = Describe("Auth", func() {
 			identityManager:      identityManager,
 			useTLS:               false,
 			credentialsValidator: &tokenValidator{},
-			apiServerConfig: &v1alpha1.ApiServerConfig{
+			apiServerConfig: &v1alpha1.APIServerConfig{
 				Address:   getHost(cluster.GetCfg().Host),
 				Port:      getPort(cluster.GetCfg().Host),
 				TrustedCA: false,

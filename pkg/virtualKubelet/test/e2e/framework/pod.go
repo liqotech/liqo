@@ -113,7 +113,7 @@ func (f *Framework) WaitUntilPodDeleted(namespace, name string) (*corev1.Pod, er
 	})
 }
 
-// WaitUntilPodInPhase blocks until the pod with the specified name and namespace is in one of the specified phases
+// WaitUntilPodInPhase blocks until the pod with the specified name and namespace is in one of the specified phases.
 func (f *Framework) WaitUntilPodInPhase(namespace, name string, phases ...corev1.PodPhase) (*corev1.Pod, error) {
 	return f.WaitUntilPodCondition(namespace, name, func(event watchapi.Event) (bool, error) {
 		pod := event.Object.(*corev1.Pod)
@@ -164,7 +164,7 @@ func (f *Framework) WaitUntilPodEventWithReason(pod *corev1.Pod, reason string) 
 	return nil
 }
 
-// GetRunningPods gets the running pods from the provider of the virtual kubelet
+// GetRunningPods gets the running pods from the provider of the virtual kubelet.
 func (f *Framework) GetRunningPods() (*corev1.PodList, error) {
 	result := &corev1.PodList{}
 
@@ -184,7 +184,7 @@ func (f *Framework) GetRunningPods() (*corev1.PodList, error) {
 // stripParentTestName strips out the parent's test name from the input (in the form of 'TestParent/TestChild').
 // Some test cases use their name as the pod name for testing purpose, and sometimes it might exceed 63
 // characters (Kubernetes's limit for pod name). This function ensures that we strip out the parent's
-// test name to decrease the length of the pod name
+// test name to decrease the length of the pod name.
 func stripParentTestName(name string) string {
 	parts := strings.Split(name, "/")
 	if len(parts) == 1 {

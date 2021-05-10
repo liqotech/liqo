@@ -12,7 +12,7 @@ import (
 	"github.com/liqotech/liqo/pkg/crdClient"
 )
 
-// create a client for TunnelEndpoint CR using a provided kubeconfig
+// create a client for TunnelEndpoint CR using a provided kubeconfig.
 func CreateTunnelEndpointClient(kubeconfig string) (*crdClient.CRDClient, error) {
 	var config *rest.Config
 	var err error
@@ -21,7 +21,8 @@ func CreateTunnelEndpointClient(kubeconfig string) (*crdClient.CRDClient, error)
 		panic(err)
 	}
 
-	crdClient.AddToRegistry("tunnelendpoints", &TunnelEndpoint{}, &TunnelEndpointList{}, Keyer, TunnelEndpointGroupResource)
+	crdClient.AddToRegistry("tunnelendpoints", &TunnelEndpoint{}, &TunnelEndpointList{},
+		Keyer, TunnelEndpointGroupResource)
 
 	config, err = crdClient.NewKubeconfig(kubeconfig, &GroupVersion, nil)
 	if err != nil {
@@ -50,6 +51,7 @@ func CreateTunnelEndpointClient(kubeconfig string) (*crdClient.CRDClient, error)
 	return clientSet, nil
 }
 
+// Keyer returns a key element to index ClusterConfig CR.
 func Keyer(obj runtime.Object) (string, error) {
 	tunEnd, ok := obj.(*TunnelEndpoint)
 	if !ok {

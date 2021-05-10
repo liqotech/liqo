@@ -29,7 +29,7 @@ spec:
     name: v1alpha1
     schema:
       openAPIV3Schema:
-        description: ForeignCluster is the Schema for the foreignclusters API
+        description: ForeignCluster is the Schema for the foreignclusters API.
         properties:
           apiVersion:
             description: 'APIVersion defines the versioned schema of this representation
@@ -44,27 +44,27 @@ spec:
           metadata:
             type: object
           spec:
-            description: ForeignClusterSpec defines the desired state of ForeignCluster
+            description: ForeignClusterSpec defines the desired state of ForeignCluster.
             properties:
               authUrl:
-                description: URL where to contact foreign Auth service
+                description: URL where to contact foreign Auth service.
                 type: string
               clusterIdentity:
-                description: Foreign Cluster Identity
+                description: Foreign Cluster Identity.
                 properties:
                   clusterID:
                     description: Foreign Cluster ID, this is a unique identifier of
-                      that cluster
+                      that cluster.
                     type: string
                   clusterName:
-                    description: Foreign Cluster Name to be shown in GUIs
+                    description: Foreign Cluster Name to be shown in GUIs.
                     type: string
                 required:
                 - clusterID
                 type: object
               discoveryType:
                 default: Manual
-                description: How this ForeignCluster has been discovered
+                description: How this ForeignCluster has been discovered.
                 enum:
                 - LAN
                 - WAN
@@ -73,14 +73,14 @@ spec:
                 type: string
               join:
                 default: false
-                description: Enable join process to foreign cluster
+                description: Enable join process to foreign cluster.
                 type: boolean
               namespace:
-                description: Namespace where Liqo is deployed
+                description: Namespace where Liqo is deployed.
                 type: string
               trustMode:
                 default: Unknown
-                description: Indicates if this remote cluster is trusted or not
+                description: Indicates if this remote cluster is trusted or not.
                 enum:
                 - Unknown
                 - Trusted
@@ -90,11 +90,11 @@ spec:
             - authUrl
             type: object
           status:
-            description: ForeignClusterStatus defines the observed state of ForeignCluster
+            description: ForeignClusterStatus defines the observed state of ForeignCluster.
             properties:
               authStatus:
                 default: Pending
-                description: Authentication status
+                description: Authentication status.
                 enum:
                 - Pending
                 - Accepted
@@ -104,13 +104,13 @@ spec:
               incoming:
                 properties:
                   advertisementStatus:
-                    description: Status of Advertisement created from this PeeringRequest
+                    description: Status of Advertisement created from this PeeringRequest.
                     type: string
                   availableIdentity:
-                    description: Indicates if related identity is available
+                    description: Indicates if related identity is available.
                     type: boolean
                   identityRef:
-                    description: Object reference to related identity
+                    description: Object reference to related identity.
                     properties:
                       apiVersion:
                         description: API version of the referent.
@@ -147,10 +147,10 @@ spec:
                     type: object
                   joined:
                     description: Indicates if peering request has been created and
-                      this remote cluster is using our local resources
+                      this remote cluster is using our local resources.
                     type: boolean
                   peeringRequest:
-                    description: Object Reference to created PeeringRequest CR
+                    description: Object Reference to created PeeringRequest CR.
                     properties:
                       apiVersion:
                         description: API version of the referent.
@@ -189,16 +189,16 @@ spec:
                 - joined
                 type: object
               network:
-                description: It stores most important network statuses
+                description: It stores most important network statuses.
                 properties:
                   localNetworkConfig:
-                    description: Local NetworkConfig link
+                    description: Local NetworkConfig link.
                     properties:
                       available:
-                        description: Indicates if the resource is available
+                        description: Indicates if the resource is available.
                         type: boolean
                       reference:
-                        description: Object Reference to the resource
+                        description: Object Reference to the resource.
                         properties:
                           apiVersion:
                             description: API version of the referent.
@@ -238,13 +238,13 @@ spec:
                     - available
                     type: object
                   remoteNetworkConfig:
-                    description: Remote NetworkConfig link
+                    description: Remote NetworkConfig link.
                     properties:
                       available:
-                        description: Indicates if the resource is available
+                        description: Indicates if the resource is available.
                         type: boolean
                       reference:
-                        description: Object Reference to the resource
+                        description: Object Reference to the resource.
                         properties:
                           apiVersion:
                             description: API version of the referent.
@@ -284,13 +284,13 @@ spec:
                     - available
                     type: object
                   tunnelEndpoint:
-                    description: TunnelEndpoint link
+                    description: TunnelEndpoint link.
                     properties:
                       available:
-                        description: Indicates if the resource is available
+                        description: Indicates if the resource is available.
                         type: boolean
                       reference:
-                        description: Object Reference to the resource
+                        description: Object Reference to the resource.
                         properties:
                           apiVersion:
                             description: API version of the referent.
@@ -337,7 +337,7 @@ spec:
               outgoing:
                 properties:
                   advertisement:
-                    description: Object Reference to created Advertisement CR
+                    description: Object Reference to created Advertisement CR.
                     properties:
                       apiVersion:
                         description: API version of the referent.
@@ -373,13 +373,13 @@ spec:
                         type: string
                     type: object
                   advertisementStatus:
-                    description: Advertisement status
+                    description: Advertisement status.
                     type: string
                   availableIdentity:
-                    description: Indicates if related identity is available
+                    description: Indicates if related identity is available.
                     type: boolean
                   identityRef:
-                    description: Object reference to related identity
+                    description: Object reference to related identity.
                     properties:
                       apiVersion:
                         description: API version of the referent.
@@ -416,17 +416,17 @@ spec:
                     type: object
                   joined:
                     description: Indicates if peering request has been created and
-                      this remote cluster is sharing its resources to us
+                      this remote cluster is sharing its resources to us.
                     type: boolean
                   remote-peering-request-name:
-                    description: Name of created PR
+                    description: Name of created PR.
                     type: string
                 required:
                 - joined
                 type: object
               ttl:
                 description: If discoveryType is LAN and this counter reach 0 value,
-                  this FC will be removed
+                  this FC will be removed.
                 format: int32
                 type: integer
             type: object

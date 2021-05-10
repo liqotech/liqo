@@ -29,7 +29,7 @@ const (
 	MappingRefused mappingPhase = "Refused"
 )
 
-// RemoteNamespaceStatus contains some information about remote namespace status
+// RemoteNamespaceStatus contains some information about remote namespace status.
 type RemoteNamespaceStatus struct {
 	// RemoteNamespace is the name chosen by the user at creation time (when he puts mapping label on his local namespace).
 	RemoteNamespace string `json:"remoteNamespace,omitempty"`
@@ -46,17 +46,17 @@ type NamespaceMapSpec struct {
 	DesiredMapping map[string]string `json:"desiredMapping,omitempty"`
 }
 
-// NamespaceMapStatus defines the observed state of NamespaceMap
+// NamespaceMapStatus defines the observed state of NamespaceMap.
 type NamespaceMapStatus struct {
 
 	// CurrentMapping is filled by NamespaceMap Controller, when a new remote namespace's creation is requested. The key
-	// is the local namespace name, while the value is a summary of new remote namespace's status
+	// is the local namespace name, while the value is a summary of new remote namespace's status.
 	CurrentMapping map[string]RemoteNamespaceStatus `json:"currentMapping,omitempty"`
 }
 
 // +kubebuilder:object:root=true
 
-// NamespaceMap is the Schema for the namespacemaps API
+// NamespaceMap is the Schema for the namespacemaps API.
 type NamespaceMap struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
@@ -67,7 +67,7 @@ type NamespaceMap struct {
 
 // +kubebuilder:object:root=true
 
-// NamespaceMapList contains a list of NamespaceMap
+// NamespaceMapList contains a list of NamespaceMap.
 type NamespaceMapList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`

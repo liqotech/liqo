@@ -29,7 +29,7 @@ spec:
     name: v1alpha1
     schema:
       openAPIV3Schema:
-        description: Advertisement is the Schema for the advertisements API
+        description: Advertisement is the Schema for the advertisements API.
         properties:
           apiVersion:
             description: 'APIVersion defines the versioned schema of this representation
@@ -44,7 +44,7 @@ spec:
           metadata:
             type: object
           spec:
-            description: AdvertisementSpec defines the desired state of Advertisement
+            description: AdvertisementSpec defines the desired state of Advertisement.
             properties:
               clusterId:
                 description: ClusterId is the identifier of the cluster that is sending
@@ -277,7 +277,7 @@ spec:
             - timestamp
             type: object
           status:
-            description: AdvertisementStatus defines the observed state of Advertisement
+            description: AdvertisementStatus defines the observed state of Advertisement.
             properties:
               advertisementStatus:
                 description: AdvertisementStatus is the status of this Advertisement.
@@ -309,7 +309,7 @@ spec:
                 type: object
               vnodeReference:
                 description: VnodeReference is a reference to the virtual node linked
-                  to this Advertisement
+                  to this Advertisement.
                 properties:
                   name:
                     description: Name is unique to reference a node resource.

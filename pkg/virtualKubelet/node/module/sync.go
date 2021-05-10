@@ -120,7 +120,6 @@ func (p *syncProviderWrapper) run(ctx context.Context) {
 }
 
 func (p *syncProviderWrapper) syncPodStatuses(ctx context.Context) {
-
 	// Update all the pods with the provider status.
 	pods, err := p.l.List(labels.Everything())
 	if err != nil {

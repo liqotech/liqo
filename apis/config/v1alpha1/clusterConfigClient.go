@@ -12,7 +12,7 @@ import (
 	"github.com/liqotech/liqo/pkg/crdClient"
 )
 
-// create a client for ClusterConfig CR using a provided kubeconfig
+// CreateClusterConfigClient creates a client for ClusterConfig CR using a provided kubeconfig.
 func CreateClusterConfigClient(kubeconfig string, watchResources bool) (*crdClient.CRDClient, error) {
 	var config *rest.Config
 	var err error
@@ -47,11 +47,11 @@ func CreateClusterConfigClient(kubeconfig string, watchResources bool) (*crdClie
 
 		clientSet.Store = store
 		clientSet.Stop = stop
-
 	}
 	return clientSet, nil
 }
 
+// Keyer returns a key element to index ClusterConfig CR.
 func Keyer(obj runtime.Object) (string, error) {
 	config, ok := obj.(*ClusterConfig)
 	if !ok {

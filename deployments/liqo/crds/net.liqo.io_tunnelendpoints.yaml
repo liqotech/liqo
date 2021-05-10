@@ -29,7 +29,7 @@ spec:
     name: v1alpha1
     schema:
       openAPIV3Schema:
-        description: TunnelEndpoint is the Schema for the endpoints API
+        description: TunnelEndpoint is the Schema for the endpoints API.
         properties:
           apiVersion:
             description: 'APIVersion defines the versioned schema of this representation
@@ -44,29 +44,29 @@ spec:
           metadata:
             type: object
           spec:
-            description: TunnelEndpointSpec defines the desired state of TunnelEndpoint
+            description: TunnelEndpointSpec defines the desired state of TunnelEndpoint.
             properties:
               backend_config:
                 additionalProperties:
                   type: string
-                description: connection parameters
+                description: Connection parameters.
                 type: object
               backendType:
-                description: vpn technology used to interconnect two clusters
+                description: Vpn technology used to interconnect two clusters.
                 type: string
               clusterID:
                 description: 'INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
                   Important: Run "make" to regenerate code after modifying this file
-                  the ID of the remote cluster that will receive this CRD'
+                  The ID of the remote cluster that will receive this CRD.'
                 type: string
               endpointIP:
-                description: public IP of the node where the VPN tunnel is created
+                description: Public IP of the node where the VPN tunnel is created.
                 type: string
               externalCIDR:
-                description: ExternalCIDR of remote cluster
+                description: ExternalCIDR of remote cluster.
                 type: string
               podCIDR:
-                description: PodCIDR of remote cluster
+                description: PodCIDR of remote cluster.
                 type: string
             required:
             - backendType
@@ -77,7 +77,7 @@ spec:
             - podCIDR
             type: object
           status:
-            description: TunnelEndpointStatus defines the observed state of TunnelEndpoint
+            description: TunnelEndpointStatus defines the observed state of TunnelEndpoint.
             properties:
               connection:
                 properties:
@@ -91,18 +91,18 @@ spec:
                     type: string
                 type: object
               localExternalCIDR:
-                description: ExternalCIDR of local cluster
+                description: ExternalCIDR of local cluster.
                 type: string
               localNATExternalCIDR:
                 description: Network used in the remote cluster to map the local ExternalCIDR,
-                  in case of conflicts(in the remote cluster). Default is "None"
+                  in case of conflicts(in the remote cluster). Default is "None".
                 type: string
               localNATPodCIDR:
                 description: Network used in the remote cluster to map the local PodCIDR,
-                  in case of conflicts(in the remote cluster). Default is "None"
+                  in case of conflicts(in the remote cluster). Default is "None".
                 type: string
               localPodCIDR:
-                description: PodCIDR of local cluster
+                description: PodCIDR of local cluster.
                 type: string
               localTunnelPublicIP:
                 type: string

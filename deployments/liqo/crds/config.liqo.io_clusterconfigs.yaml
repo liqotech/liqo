@@ -19,7 +19,7 @@ spec:
   - name: v1alpha1
     schema:
       openAPIV3Schema:
-        description: ClusterConfig is the Schema for the clusterconfigs API
+        description: ClusterConfig is the Schema for the clusterconfigs API.
         properties:
           apiVersion:
             description: 'APIVersion defines the versioned schema of this representation
@@ -34,15 +34,15 @@ spec:
           metadata:
             type: object
           spec:
-            description: ClusterConfigSpec defines the desired state of ClusterConfig
+            description: ClusterConfigSpec defines the desired state of ClusterConfig.
             properties:
               advertisementConfig:
                 description: AdvertisementConfig defines the configuration for the
-                  advertisement protocol
+                  advertisement protocol.
                 properties:
                   ingoingConfig:
-                    description: IngoingConfig defines the behaviour for the acceptance
-                      of Advertisements from other clusters
+                    description: IngoingConfig defines the behavior for the acceptance
+                      of Advertisements from other clusters.
                     properties:
                       acceptPolicy:
                         description: AcceptPolicy defines the policy to accept/refuse
@@ -87,10 +87,10 @@ spec:
                     type: integer
                   labelPolicies:
                     description: LabelPolicies contains the policies for each label
-                      to be added to remote virtual nodes
+                      to be added to remote virtual nodes.
                     items:
                       description: LabelPolicy define a key-value structure to indicate
-                        which keys have to be aggregated and with which policy
+                        which keys have to be aggregated and with which policy.
                       properties:
                         key:
                           description: Label Key to be aggregated in new virtual nodes
@@ -109,12 +109,12 @@ spec:
                       type: object
                     type: array
                   outgoingConfig:
-                    description: OutgoingConfig defines the behaviour for the creation
-                      of Advertisements on other clusters
+                    description: OutgoingConfig defines the behavior for the creation
+                      of Advertisements on other clusters.
                     properties:
                       enableBroadcaster:
                         description: EnableBroadcaster flag allows you to enable/disable
-                          the broadcasting of your Advertisement to the foreign clusters.
+                          the broadcasting of your Advertisement to the foreign. clusters.
                           When EnableBroadcaster is set to false, the home cluster
                           notifies to the foreign he wants to stop sharing resources.
                           This will trigger the deletion of the virtual-kubelet and,
@@ -149,7 +149,7 @@ spec:
                     properties:
                       appLabel:
                         description: AppLabel defines the value of the 'app' label.
-                          All LiqoDash related resources are labelled with it.
+                          All LiqoDash related resources are labeled with it.
                         type: string
                       namespace:
                         description: Namespace defines the namespace LiqoDash resources
@@ -163,6 +163,8 @@ spec:
                 - dashboardConfig
                 type: object
               apiServerConfig:
+                description: APIServerConfig defines the configuration of the cluster
+                  APIServer.
                 properties:
                   address:
                     type: string
@@ -172,6 +174,8 @@ spec:
                     type: boolean
                 type: object
               authConfig:
+                description: AuthConfig defines the configuration of the Authentication
+                  Server.
                 properties:
                   allowEmptyToken:
                     default: false
@@ -183,33 +187,35 @@ spec:
                       stages
                     properties:
                       basic:
-                        description: to be enabled with the creation of the Tenant
-                          Control Namespace, these ClusterRoles have the basic permissions
-                          to give to a remote cluster
+                        description: The list of ClusterRoles to be enabled with the
+                          creation of the Tenant Control Namespace, these ClusterRoles
+                          have the basic permissions to give to a remote cluster
                         items:
                           type: string
                         type: array
                       incoming:
-                        description: to be enabled when a ResourceRequest has been
-                          accepted, these ClusterRoles have the permissions required
-                          to a remote cluster to manage an outgoing peering (incoming
-                          for the local cluster), when the Pods will be offloaded
-                          to the local cluster
+                        description: The list of ClusterRoles be enabled when a ResourceRequest
+                          has been accepted, these ClusterRoles have the permissions
+                          required to a remote cluster to manage an outgoing peering
+                          (incoming for the local cluster), when the Pods will be
+                          offloaded to the local cluster
                         items:
                           type: string
                         type: array
                       outgoing:
-                        description: to be enabled when we send a ResourceRequest,
-                          these ClusterRoles have the permissions required to a remote
-                          cluster to manage an incoming peering (outgoing for the
-                          local cluster), when the Pods will be offloaded from the
-                          local cluster
+                        description: The list of ClusterRoles to be enabled when we
+                          send a ResourceRequest, these ClusterRoles have the permissions
+                          required to a remote cluster to manage an incoming peering
+                          (outgoing for the local cluster), when the Pods will be
+                          offloaded from the local cluster
                         items:
                           type: string
                         type: array
                     type: object
                 type: object
               discoveryConfig:
+                description: DiscoveryConfig defines the configuration of the Discovery
+                  logic.
                 properties:
                   authService:
                     default: _liqo_auth._tcp
@@ -256,11 +262,12 @@ spec:
                 - ttl
                 type: object
               dispatcherConfig:
+                description: DispatcherConfig defines the configuration of the CRDReplicator.
                 properties:
                   resourcesToReplicate:
                     items:
-                      description: contains a list of resources identified by their
-                        GVR
+                      description: Resource contains a list of resources identified
+                        by their GVR.
                       properties:
                         group:
                           type: string
@@ -276,10 +283,11 @@ spec:
                     type: array
                 type: object
               liqonetConfig:
+                description: LiqonetConfig defines the configuration of the Liqo Networking.
                 properties:
                   GKEProvider:
                     default: false
-                    description: set this flag to true if you are using GKE, default
+                    description: Set this flag to true if you are using GKE, default
                       value is "false"
                     type: boolean
                   additionalPools:
@@ -290,7 +298,7 @@ spec:
                       type: string
                     type: array
                   podCIDR:
-                    description: the subnet used by the cluster for the pods, in CIDR
+                    description: The subnet used by the cluster for the pods, in CIDR
                       notation
                     pattern: ^([0-9]{1,3}.){3}[0-9]{1,3}(/([0-9]|[1-2][0-9]|3[0-2]))$
                     type: string
@@ -305,7 +313,7 @@ spec:
                       type: string
                     type: array
                   serviceCIDR:
-                    description: the subnet used by the cluster for the services,
+                    description: The subnet used by the cluster for the services,
                       in CIDR notation
                     pattern: ^([0-9]{1,3}.){3}[0-9]{1,3}(/([0-9]|[1-2][0-9]|3[0-2]))$
                     type: string
@@ -324,7 +332,7 @@ spec:
             - liqonetConfig
             type: object
           status:
-            description: ClusterConfigStatus defines the observed state of ClusterConfig
+            description: ClusterConfigStatus defines the observed state of ClusterConfig.
             type: object
         type: object
     served: true

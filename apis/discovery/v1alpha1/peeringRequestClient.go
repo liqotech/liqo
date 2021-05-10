@@ -13,7 +13,7 @@ import (
 	"github.com/liqotech/liqo/pkg/crdClient"
 )
 
-// create a client for ClusterConfig CR using a provided kubeconfig
+// CreatePeeringRequestClient create a client for ClusterConfig CR using a provided kubeconfig.
 func CreatePeeringRequestClient(kubeconfig string) (*crdClient.CRDClient, error) {
 	var config *rest.Config
 	var err error
@@ -53,6 +53,7 @@ func CreatePeeringRequestClient(kubeconfig string) (*crdClient.CRDClient, error)
 	return clientSet, nil
 }
 
+// Keyer returns a key element to index PeeringRequest CR.
 func Keyer(obj runtime.Object) (string, error) {
 	config, ok := obj.(*PeeringRequest)
 	if !ok {

@@ -13,7 +13,7 @@ import (
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 )
 
-// ResourceRequestReconciler reconciles a ResourceRequest object
+// ResourceRequestReconciler reconciles a ResourceRequest object.
 type ResourceRequestReconciler struct {
 	client.Client
 	Scheme    *runtime.Scheme

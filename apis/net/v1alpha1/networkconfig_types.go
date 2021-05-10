@@ -25,36 +25,38 @@ import (
 // EDIT THIS FILE!  THIS IS SCAFFOLDING FOR YOU TO OWN!
 // NOTE: json tags are required.  Any new fields you add must have json tags for the fields to be serialized.
 
-// NetworkConfigSpec defines the desired state of NetworkConfig
+// NetworkConfigSpec defines the desired state of NetworkConfig.
 type NetworkConfigSpec struct {
 	// INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
 	// Important: Run "make" to regenerate code after modifying this file
 
-	// The ID of the remote cluster that will receive this CRD
+	// The ID of the remote cluster that will receive this CRD.
 	ClusterID string `json:"clusterID"`
-	// Network used in the local cluster for the pod IPs
+	// Network used in the local cluster for the pod IPs.
 	PodCIDR string `json:"podCIDR"`
-	// Network used for local service endpoints
+	// Network used for local service endpoints.
 	ExternalCIDR string `json:"externalCIDR"`
-	// Public IP of the node where the VPN tunnel is created
+	// Public IP of the node where the VPN tunnel is created.
 	EndpointIP string `json:"endpointIP"`
-	// Vpn technology used to interconnect two clusters
+	// Vpn technology used to interconnect two clusters.
 	BackendType string `json:"backendType"`
 	// Connection parameters
 	BackendConfig map[string]string `json:"backend_config"`
 }
 
-// NetworkConfigStatus defines the observed state of NetworkConfig
+// NetworkConfigStatus defines the observed state of NetworkConfig.
 type NetworkConfigStatus struct {
 	// INSERT ADDITIONAL STATUS FIELD - define observed state of cluster
 	// Important: Run "make" to regenerate code after modifying this file
 
-	// Indicates if this network config has been processed by the remote cluster
+	// Indicates if this network config has been processed by the remote cluster.
 	// +kubebuilder:default=false
 	Processed bool `json:"processed"`
-	// The new subnet used to NAT the podCidr of the remote cluster. The original PodCidr may have been mapped to this network by the remote cluster.
+	// The new subnet used to NAT the podCidr of the remote cluster. The original PodCidr may have been mapped to this
+	// network by the remote cluster.
 	PodCIDRNAT string `json:"podCIDRNAT,omitempty"`
-	// The new subnet used to NAT the externalCIDR of the remote cluster. The original ExternalCIDR may have been mapped to this network by the remote cluster.
+	// The new subnet used to NAT the externalCIDR of the remote cluster. The original ExternalCIDR may have been mapped
+	// to this network by the remote cluster.
 	ExternalCIDRNAT string `json:"externalCIDRNAT,omitempty"`
 }
 
@@ -62,7 +64,7 @@ type NetworkConfigStatus struct {
 // +kubebuilder:subresource:status
 // +kubebuilder:resource:scope=Cluster
 
-// NetworkConfig is the Schema for the networkconfigs API
+// NetworkConfig is the Schema for the networkconfigs API.
 type NetworkConfig struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
@@ -73,7 +75,7 @@ type NetworkConfig struct {
 
 // +kubebuilder:object:root=true
 
-// NetworkConfigList contains a list of NetworkConfig
+// NetworkConfigList contains a list of NetworkConfig.
 type NetworkConfigList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`

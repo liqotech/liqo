@@ -20,7 +20,7 @@ import (
 
 type LiqoMapper func(c *rest.Config) (meta.RESTMapper, error)
 
-// get the default liqo mapper
+// get the default liqo mapper.
 func LiqoMapperProvider(scheme *runtime.Scheme, additionalGroupVersions ...schema.GroupVersion) LiqoMapper {
 	mapper := meta.NewDefaultRESTMapper(scheme.PrioritizedVersionsAllGroups())
 
@@ -46,7 +46,7 @@ func LiqoMapperProvider(scheme *runtime.Scheme, additionalGroupVersions ...schem
 	}
 }
 
-// add most used groups to the mapper, this includes all Liqo groups with core/v1, apps/v1 and rbac/v1
+// add most used groups to the mapper, this includes all Liqo groups with core/v1, apps/v1 and rbac/v1.
 func addDefaults(dClient *discovery.DiscoveryClient, mapper *meta.DefaultRESTMapper) error {
 	var err error
 
@@ -80,7 +80,7 @@ func addDefaults(dClient *discovery.DiscoveryClient, mapper *meta.DefaultRESTMap
 	return nil
 }
 
-// add all the resources in the specified groupVersion to the mapper
+// add all the resources in the specified groupVersion to the mapper.
 func addGroup(dClient *discovery.DiscoveryClient, groupVersion schema.GroupVersion, mapper *meta.DefaultRESTMapper) error {
 	res, err := dClient.ServerResourcesForGroupVersion(groupVersion.String())
 	if err != nil {

@@ -34,7 +34,7 @@ func (r *VirtualNodeReconciler) removeAllDesiredMappings(nm *mapsv1alpha1.Namesp
 	return nil
 }
 
-// remove Finalizer and Update the NamespaceMap
+// remove Finalizer and Update the NamespaceMap.
 func (r *VirtualNodeReconciler) removeNamespaceMapFinalizers(nm *mapsv1alpha1.NamespaceMap) error {
 	ctrlutils.RemoveFinalizer(nm, virtualNodeControllerFinalizer)
 	ctrlutils.RemoveFinalizer(nm, liqoconst.NamespaceMapControllerFinalizer)
@@ -52,7 +52,7 @@ func (r *VirtualNodeReconciler) removeNamespaceMapFinalizers(nm *mapsv1alpha1.Na
 	return nil
 }
 
-// create a new NamespaceMap with Finalizer and OwnerReference
+// create a new NamespaceMap with Finalizer and OwnerReference.
 func (r *VirtualNodeReconciler) createNamespaceMap(n *corev1.Node, stat mapsv1alpha1.NamespaceMapStatus,
 	spec mapsv1alpha1.NamespaceMapSpec) error {
 	if _, ok := n.GetAnnotations()[liqoconst.RemoteClusterID]; !ok {
@@ -90,7 +90,7 @@ func (r *VirtualNodeReconciler) createNamespaceMap(n *corev1.Node, stat mapsv1al
 	return nil
 }
 
-// first create a new NamespaceMap which preserves the Status and then delete the other
+// first create a new NamespaceMap which preserves the Status and then delete the other.
 func (r *VirtualNodeReconciler) regenerateNamespaceMap(nm *mapsv1alpha1.NamespaceMap, n *corev1.Node) error {
 	// create a new namespaceMap with same Status but with different Name
 	if err := r.createNamespaceMap(n, nm.Status, nm.Spec); err != nil {
@@ -103,7 +103,7 @@ func (r *VirtualNodeReconciler) regenerateNamespaceMap(nm *mapsv1alpha1.Namespac
 	return nil
 }
 
-// This function manages NamespaceMaps Lifecycle on the basis of NamespaceMaps' number
+// This function manages NamespaceMaps Lifecycle on the basis of NamespaceMaps' number.
 func (r *VirtualNodeReconciler) namespaceMapLifecycle(n *corev1.Node) error {
 	nms := &mapsv1alpha1.NamespaceMapList{}
 	if err := r.List(context.TODO(), nms, client.InNamespace(liqoconst.MapNamespaceName),

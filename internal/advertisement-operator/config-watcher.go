@@ -57,7 +57,6 @@ func (b *AdvertisementBroadcaster) WatchConfiguration(kubeconfigPath string, cli
 			b.ClusterConfig.AdvertisementConfig.LabelPolicies = configuration.Spec.AdvertisementConfig.LabelPolicies
 			b.updateAdvertisement()
 		}
-
 	}, client, kubeconfigPath)
 }
 
@@ -106,7 +105,6 @@ func (r *AdvertisementReconciler) WatchConfiguration(kubeconfigPath string, clie
 }
 
 func (r *AdvertisementReconciler) ManageMaximumUpdate(newConfig configv1alpha1.AdvertisementConfig, advList *advtypes.AdvertisementList) (error, advtypes.AdvertisementList) {
-
 	advToUpdate := advtypes.AdvertisementList{Items: []advtypes.Advertisement{}}
 	if newConfig.IngoingConfig.MaxAcceptableAdvertisement > r.ClusterConfig.IngoingConfig.MaxAcceptableAdvertisement {
 		// the maximum has increased: check if there are refused advertisements which now can be accepted

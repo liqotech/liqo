@@ -35,12 +35,12 @@ func AsInvalidInput(err error) error {
 	return &invalidInputError{err}
 }
 
-// InvalidInput makes an ErrInvalidInput from the provided error message
+// InvalidInput makes an ErrInvalidInput from the provided error message.
 func InvalidInput(msg string) error {
 	return &invalidInputError{errors.New(msg)}
 }
 
-// InvalidInputf makes an ErrInvalidInput from the provided error format and args
+// InvalidInputf makes an ErrInvalidInput from the provided error format and args.
 func InvalidInputf(format string, args ...interface{}) error {
 	return &invalidInputError{fmt.Errorf(format, args...)}
 }

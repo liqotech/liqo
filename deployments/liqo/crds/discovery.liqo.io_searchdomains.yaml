@@ -19,7 +19,7 @@ spec:
   - name: v1alpha1
     schema:
       openAPIV3Schema:
-        description: SearchDomain is the Schema for the SearchDomains API
+        description: SearchDomain is the Schema for the SearchDomains API.
         properties:
           apiVersion:
             description: 'APIVersion defines the versioned schema of this representation
@@ -34,7 +34,7 @@ spec:
           metadata:
             type: object
           spec:
-            description: SearchDomainSpec defines the desired state of SearchDomain
+            description: SearchDomainSpec defines the desired state of SearchDomain.
             properties:
               autojoin:
                 description: Enable join process for retrieved clusters
@@ -47,7 +47,7 @@ spec:
             - domain
             type: object
           status:
-            description: SearchDomainStatus defines the observed state of SearchDomain
+            description: SearchDomainStatus defines the observed state of SearchDomain.
             type: object
         type: object
     served: true

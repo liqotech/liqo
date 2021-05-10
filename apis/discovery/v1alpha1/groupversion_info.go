@@ -25,10 +25,10 @@ import (
 )
 
 var (
-	// GroupVersion is group version used to register these objects
+	// GroupVersion is group version used to register these objects.
 	GroupVersion = schema.GroupVersion{Group: "discovery.liqo.io", Version: "v1alpha1"}
 
-	// SchemeBuilder is used to add go types to the GroupVersionKind scheme
+	// SchemeBuilder is used to add go types to the GroupVersionKind scheme.
 	SchemeBuilder = &scheme.Builder{GroupVersion: GroupVersion}
 
 	ForeignClusterGroupVersionResource = schema.GroupVersionResource{Group: GroupVersion.Group, Version: GroupVersion.Version, Resource: "foreignclusters"}

@@ -25,7 +25,7 @@ func (discovery *Controller) register() {
 			return
 		}
 
-		var ttl = discovery.Config.Ttl
+		var ttl = discovery.Config.TTL
 		discovery.serverMux.Lock()
 		discovery.mdnsServerAuth, err = zeroconf.Register(
 			discovery.ClusterId.GetClusterID(),
@@ -48,7 +48,7 @@ func (discovery *Controller) shutdownServer() {
 	discovery.mdnsServerAuth.Shutdown()
 }
 
-// get the NodePort of AuthService
+// get the NodePort of AuthService.
 func (discovery *Controller) getAuthServicePort() (int, error) {
 	svc, err := discovery.crdClient.Client().CoreV1().Services(discovery.Namespace).Get(context.TODO(), AuthServiceName, metav1.GetOptions{})
 	if err != nil {

@@ -23,10 +23,10 @@ import (
 	stats "k8s.io/kubernetes/pkg/kubelet/apis/stats/v1alpha1"
 )
 
-// PodStatsSummaryHandlerFunc defines the handler for getting pod stats summaries
+// PodStatsSummaryHandlerFunc defines the handler for getting pod stats summaries.
 type PodStatsSummaryHandlerFunc func(context.Context) (*stats.Summary, error)
 
-// HandlePodStatsSummary makes an HTTP handler for implementing the kubelet summary stats endpoint
+// HandlePodStatsSummary makes an HTTP handler for implementing the kubelet summary stats endpoint.
 func HandlePodStatsSummary(h PodStatsSummaryHandlerFunc) http.HandlerFunc {
 	if h == nil {
 		return NotImplemented
@@ -42,7 +42,7 @@ func HandlePodStatsSummary(h PodStatsSummaryHandlerFunc) http.HandlerFunc {
 
 		b, err := json.Marshal(stats)
 		if err != nil {
-			return errors.Wrap(err, "error marshalling stats")
+			return errors.Wrap(err, "error marshaling stats")
 		}
 
 		if _, err := w.Write(b); err != nil {

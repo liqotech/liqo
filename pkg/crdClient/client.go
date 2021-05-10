@@ -3,7 +3,6 @@ package crdClient
 import (
 	"os"
 
-	"github.com/liqotech/liqo/pkg/consts"
 	"github.com/pkg/errors"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -15,6 +14,8 @@ import (
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/tools/clientcmd"
 	clientcmdapi "k8s.io/client-go/tools/clientcmd/api"
+
+	"github.com/liqotech/liqo/pkg/consts"
 )
 
 var Fake bool

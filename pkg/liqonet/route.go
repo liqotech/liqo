@@ -57,7 +57,7 @@ func (rm *RouteManager) EnsureRoutesPerCluster(iface string, tep *netv1alpha1.Tu
 	return nil
 }
 
-//used to remove the routes when a tunnelEndpoint CR is removed
+//used to remove the routes when a tunnelEndpoint CR is removed.
 func (rm *RouteManager) RemoveRoutesPerCluster(tep *netv1alpha1.TunnelEndpoint) error {
 	clusterID := tep.Spec.ClusterID
 	route, ok := rm.getRoute(clusterID)

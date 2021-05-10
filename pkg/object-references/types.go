@@ -1,7 +1,7 @@
 package object_references
 
 // DeploymentReference represents a Deployment Reference. It has enough information to retrieve deployment
-// in any namespace
+// in any namespace.
 type DeploymentReference struct {
 	// Name is unique within a namespace to reference a deployment resource.
 	// +optional
@@ -11,7 +11,7 @@ type DeploymentReference struct {
 	Namespace string `json:"namespace,omitempty" protobuf:"bytes,2,opt,name=namespace"`
 }
 
-// NodeReference represents a Node Reference. It has enough information to retrieve a node
+// NodeReference represents a Node Reference. It has enough information to retrieve a node.
 type NodeReference struct {
 	// Name is unique to reference a node resource.
 	// +optional

@@ -19,7 +19,7 @@ spec:
   - name: v1alpha1
     schema:
       openAPIV3Schema:
-        description: NetworkConfig is the Schema for the networkconfigs API
+        description: NetworkConfig is the Schema for the networkconfigs API.
         properties:
           apiVersion:
             description: 'APIVersion defines the versioned schema of this representation
@@ -34,7 +34,7 @@ spec:
           metadata:
             type: object
           spec:
-            description: NetworkConfigSpec defines the desired state of NetworkConfig
+            description: NetworkConfigSpec defines the desired state of NetworkConfig.
             properties:
               backend_config:
                 additionalProperties:
@@ -42,19 +42,19 @@ spec:
                 description: Connection parameters
                 type: object
               backendType:
-                description: Vpn technology used to interconnect two clusters
+                description: Vpn technology used to interconnect two clusters.
                 type: string
               clusterID:
-                description: The ID of the remote cluster that will receive this CRD
+                description: The ID of the remote cluster that will receive this CRD.
                 type: string
               endpointIP:
-                description: Public IP of the node where the VPN tunnel is created
+                description: Public IP of the node where the VPN tunnel is created.
                 type: string
               externalCIDR:
-                description: Network used for local service endpoints
+                description: Network used for local service endpoints.
                 type: string
               podCIDR:
-                description: Network used in the local cluster for the pod IPs
+                description: Network used in the local cluster for the pod IPs.
                 type: string
             required:
             - backendType
@@ -65,7 +65,7 @@ spec:
             - podCIDR
             type: object
           status:
-            description: NetworkConfigStatus defines the observed state of NetworkConfig
+            description: NetworkConfigStatus defines the observed state of NetworkConfig.
             properties:
               externalCIDRNAT:
                 description: The new subnet used to NAT the externalCIDR of the remote
@@ -80,7 +80,7 @@ spec:
               processed:
                 default: false
                 description: Indicates if this network config has been processed by
-                  the remote cluster
+                  the remote cluster.
                 type: boolean
             required:
             - processed

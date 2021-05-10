@@ -8,7 +8,7 @@ import (
 
 // NewFakeCustomInformer creates a new FakeCustomInformer, registers the callbacks
 // and start the watching routine that implements the caching functionality
-// and the callbak notifications
+// and the callbak notifications.
 func NewFakeCustomInformer(handlers cache.ResourceEventHandlerFuncs,
 	keyer KeyerFunc,
 	groupResource schema.GroupResource) (cache.Store, chan struct{}) {

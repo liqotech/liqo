@@ -6,7 +6,7 @@ import (
 )
 
 // ErrUnavailable is an error interface which denotes whether the operation failed due
-// to the unavailability of a resource
+// to the unavailability of a resource.
 type ErrUnavailable interface {
 	Unavailable() bool
 	error
@@ -35,12 +35,12 @@ func AsUnavailableError(err error) error {
 	return &unavailableError{err}
 }
 
-// InvalidInput makes an ErrInvalidInput from the provided error message
+// InvalidInput makes an ErrInvalidInput from the provided error message.
 func Unavailable(msg string) error {
 	return &unavailableError{errors.New(msg)}
 }
 
-// InvalidInputf makes an ErrInvalidInput from the provided error format and args
+// InvalidInputf makes an ErrInvalidInput from the provided error format and args.
 func Unavailablef(format string, args ...interface{}) error {
 	return &unavailableError{fmt.Errorf(format, args...)}
 }

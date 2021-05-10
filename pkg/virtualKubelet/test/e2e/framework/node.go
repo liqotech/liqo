@@ -43,7 +43,7 @@ func (f *Framework) WaitUntilNodeCondition(fn watch.ConditionFunc) error {
 	return nil
 }
 
-// DeleteNode deletes the vk node used by the framework
+// DeleteNode deletes the vk node used by the framework.
 func (f *Framework) DeleteNode() error {
 	var gracePeriod int64
 	propagation := metav1.DeletePropagationBackground
@@ -54,7 +54,7 @@ func (f *Framework) DeleteNode() error {
 	return f.KubeClient.CoreV1().Nodes().Delete(context.TODO(), f.NodeName, opts)
 }
 
-// GetNode gets the vk nodeused by the framework
+// GetNode gets the vk nodeused by the framework.
 func (f *Framework) GetNode() (*corev1.Node, error) {
 	return f.KubeClient.CoreV1().Nodes().Get(context.TODO(), f.NodeName, metav1.GetOptions{})
 }

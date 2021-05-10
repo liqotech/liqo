@@ -57,7 +57,7 @@ func GetOverlayIP(ip string) string {
 	return strings.Join([]string{NetworkPrefix, tokens[1], tokens[2], tokens[3]}, ".")
 }
 
-//this function enables the rp_filter for the overlay interface on the gateway node
+//this function enables the rp_filter for the overlay interface on the gateway node.
 func Enable_rp_filter(ifaceName string) error {
 	klog.Infof("enabling reverse path filter for interface %s", ifaceName)
 	rpFilterFilePath := strings.Join([]string{"/proc/sys/net/ipv4/conf/", ifaceName, "/rp_filter"}, "")
@@ -70,7 +70,7 @@ func Enable_rp_filter(ifaceName string) error {
 	return nil
 }
 
-//create a new routing table with the given ID and name
+//create a new routing table with the given ID and name.
 func CreateRoutingTable(tableID int, tableName string) error {
 	klog.Infof("creating routing table with ID %d and name %s", tableID, tableName)
 	//file path

@@ -10,7 +10,7 @@ const (
 	ReflectedpodKey         = "virtualkubelet.liqo.io/source-pod"
 	HomePodFinalizer        = "virtual-kubelet.liqo.io/provider"
 
-	// Clients configuration
+	// Clients configuration.
 	HOME_CLIENT_QPS      = 1000
 	HOME_CLIENTS_BURST   = 5000
 	FOREIGN_CLIENT_QPS   = 1000

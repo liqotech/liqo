@@ -24,7 +24,6 @@ func (c *FakeClient) Namespace(namespace string) CrdClientInterface {
 }
 
 func (c *FakeClient) Get(name string, _ *metav1.GetOptions) (runtime.Object, error) {
-
 	result, found, err := c.storage.GetByKey(name)
 	if !found {
 		return nil, kerrors.NewNotFound(c.storage.groupResource, name)

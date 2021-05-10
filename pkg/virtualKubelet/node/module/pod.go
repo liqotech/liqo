@@ -33,7 +33,6 @@ const (
 )
 
 func (pc *PodController) createOrUpdatePod(ctx context.Context, pod *corev1.Pod) error {
-
 	// We do this so we don't mutate the pod from the informer cache
 	pod = pod.DeepCopy()
 	if err := populateEnvironmentVariables(ctx, pod, pc.resourceManager, pc.recorder); err != nil {
@@ -117,7 +116,6 @@ func podsEqual(pod1, pod2 *corev1.Pod) bool {
 }
 
 func (pc *PodController) handleProviderError(ctx context.Context, origErr error, pod *corev1.Pod) {
-
 	// For now this switch case keeps in consideration only the error
 	// of type notFound and handles it properly (by deleting the local pod)
 	// if in further investigations we notice different error types,

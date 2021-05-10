@@ -24,66 +24,74 @@ import (
 	"github.com/liqotech/liqo/pkg/labelPolicy"
 )
 
-// ClusterConfigSpec defines the desired state of ClusterConfig
+// ClusterConfigSpec defines the desired state of ClusterConfig.
 type ClusterConfigSpec struct {
-	ApiServerConfig ApiServerConfig `json:"apiServerConfig,omitempty"`
-	//AdvertisementConfig defines the configuration for the advertisement protocol
+	APIServerConfig APIServerConfig `json:"apiServerConfig,omitempty"`
+	// AdvertisementConfig defines the configuration for the advertisement protocol.
 	AdvertisementConfig AdvertisementConfig `json:"advertisementConfig"`
 	DiscoveryConfig     DiscoveryConfig     `json:"discoveryConfig"`
 	AuthConfig          AuthConfig          `json:"authConfig"`
 	LiqonetConfig       LiqonetConfig       `json:"liqonetConfig"`
 	DispatcherConfig    DispatcherConfig    `json:"dispatcherConfig,omitempty"`
-	//AgentConfig defines the configuration required by the LiqoAgent app to enable some features on
-	//a Liqo cluster.
+	// AgentConfig defines the configuration required by the LiqoAgent app to enable some features on
+	// a Liqo cluster.
 	//
-	//LiqoAgent (https://github.com/liqotech/liqo-agent) is an external desktop application that
-	//allows the user to interact more easily with a Liqo cluster.
+	// LiqoAgent (https://github.com/liqotech/liqo-agent) is an external desktop application that
+	// allows the user to interact more easily with a Liqo cluster.
 	AgentConfig AgentConfig `json:"agentConfig"`
 }
 
 // +kubebuilder:validation:Pattern="^([0-9]{1,3}.){3}[0-9]{1,3}(/([0-9]|[1-2][0-9]|3[0-2]))$"
 type CIDR string
 
-//AdvertisementConfig defines the configuration for the advertisement protocol
+// AdvertisementConfig defines the configuration for the advertisement protocol.
 type AdvertisementConfig struct {
-	//OutgoingConfig defines the behaviour for the creation of Advertisements on other clusters
+	// OutgoingConfig defines the behavior for the creation of Advertisements on other clusters.
 	OutgoingConfig BroadcasterConfig `json:"outgoingConfig"`
-	//IngoingConfig defines the behaviour for the acceptance of Advertisements from other clusters
+	// IngoingConfig defines the behavior for the acceptance of Advertisements from other clusters.
 	IngoingConfig AdvOperatorConfig `json:"ingoingConfig"`
-	//KeepaliveThreshold defines the number of failed attempts to contact the foreign cluster your cluster will tolerate before deleting it.
+	// KeepaliveThreshold defines the number of failed attempts to contact the foreign cluster your cluster will
+	// tolerate before deleting it.
 	// +kubebuilder:validation:Minimum=0
 	KeepaliveThreshold int32 `json:"keepaliveThreshold,omitempty"`
-	//After establishing a sharing with a foreign cluster, a keepalive mechanism starts, in order to know if the foreign cluster is reachable or not.
-	//KeepaliveRetryTime defines the time between an attempt to contact the foreign cluster and the next one.
+	// After establishing a sharing with a foreign cluster, a keepalive mechanism starts, in order to know if the
+	// foreign cluster is reachable or not.
+	// KeepaliveRetryTime defines the time between an attempt to contact the foreign cluster and the next one.
 	// +kubebuilder:validation:Minimum=0
 	KeepaliveRetryTime int32 `json:"keepaliveRetryTime,omitempty"`
-	// LabelPolicies contains the policies for each label to be added to remote virtual nodes
+	// LabelPolicies contains the policies for each label to be added to remote virtual nodes.
 	LabelPolicies []LabelPolicy `json:"labelPolicies,omitempty"`
 }
 
+// BroadcasterConfig defines the configuration for the broadcasting protocol.
 type BroadcasterConfig struct {
-	//ResourceSharingPercentage defines the percentage of your cluster resources that you will share with foreign clusters.
+	// ResourceSharingPercentage defines the percentage of your cluster resources that you will share with foreign
+	// clusters.
 	// +kubebuilder:validation:Maximum=100
 	// +kubebuilder:validation:Minimum=0
 	ResourceSharingPercentage int32 `json:"resourceSharingPercentage"`
-	//EnableBroadcaster flag allows you to enable/disable the broadcasting of your Advertisement to the foreign clusters.
-	//When EnableBroadcaster is set to false, the home cluster notifies to the foreign he wants to stop sharing resources.
-	//This will trigger the deletion of the virtual-kubelet and, after that, of the Advertisement,
+	// EnableBroadcaster flag allows you to enable/disable the broadcasting of your Advertisement to the foreign.
+	// clusters.
+	// When EnableBroadcaster is set to false, the home cluster notifies to the foreign he wants to stop sharing
+	// resources.
+	// This will trigger the deletion of the virtual-kubelet and, after that, of the Advertisement,
 	EnableBroadcaster bool `json:"enableBroadcaster"`
 }
 
-// AcceptPolicy defines the policy to accept/refuse an Advertisement
+// AcceptPolicy defines the policy to accept/refuse an Advertisement.
 type AcceptPolicy string
 
 const (
-	// AutoAcceptMax means all the Advertisement received will be accepted until the MaxAcceptableAdvertisement limit is reached
-	// AutoAcceptAll can be achieved by setting MaxAcceptableAdvertisement to 1000000
-	// AutoRefuseAll can be achieved by setting MaxAcceptableAdvertisement to 0
+	// AutoAcceptMax means all the Advertisement received will be accepted until the MaxAcceptableAdvertisement limit is
+	// reached. AutoAcceptAll can be achieved by setting MaxAcceptableAdvertisement to 1000000.
+	// AutoRefuseAll can be achieved by setting MaxAcceptableAdvertisement to 0.
 	AutoAcceptMax AcceptPolicy = "AutoAcceptMax"
-	// ManualAccept means every Advertisement received will need a manual accept/refuse, which can be done by updating its status
+	// ManualAccept means every Advertisement received will need a manual accept/refuse, which can be done by updating
+	// its status.
 	ManualAccept AcceptPolicy = "Manual"
 )
 
+// AdvOperatorConfig defines the configuration of the AdvertisementOperator.
 type AdvOperatorConfig struct {
 	// MaxAcceptableAdvertisement defines the maximum number of Advertisements that can be accepted over time.
 	// The maximum value for this field is set to 1000000, a symbolic value that implements the AcceptAll policy.
@@ -92,13 +100,14 @@ type AdvOperatorConfig struct {
 	MaxAcceptableAdvertisement int32 `json:"maxAcceptableAdvertisement"`
 	// AcceptPolicy defines the policy to accept/refuse an Advertisement.
 	// Possible values are AutoAcceptMax and Manual.
-	// AutoAcceptMax means all the Advertisement received will be accepted until the MaxAcceptableAdvertisement limit is reached;
-	// Manual means every Advertisement received will need a manual accept/refuse, which can be done by updating its status.
+	// AutoAcceptMax means all the Advertisement received will be accepted until the MaxAcceptableAdvertisement limit
+	// is reached; Manual means every Advertisement received will need a manual accept/refuse, which can be done by
+	// updating its status.
 	// +kubebuilder:validation:Enum="AutoAcceptMax";"Manual"
 	AcceptPolicy AcceptPolicy `json:"acceptPolicy"`
 }
 
-// LabelPolicy define a key-value structure to indicate which keys have to be aggregated and with which policy
+// LabelPolicy define a key-value structure to indicate which keys have to be aggregated and with which policy.
 type LabelPolicy struct {
 	// Label Key to be aggregated in new virtual nodes
 	Key string `json:"key"`
@@ -108,12 +117,14 @@ type LabelPolicy struct {
 	Policy labelPolicy.LabelPolicyType `json:"policy,omitempty"`
 }
 
-type ApiServerConfig struct {
+// APIServerConfig defines the configuration of the cluster APIServer.
+type APIServerConfig struct {
 	Address   string `json:"address,omitempty"`
 	Port      string `json:"port,omitempty"`
 	TrustedCA bool   `json:"trustedCA,omitempty"`
 }
 
+// DiscoveryConfig defines the configuration of the Discovery logic.
 type DiscoveryConfig struct {
 	// ClusterName is a nickname for your cluster that can be easily understood by a user
 	ClusterName string `json:"clusterName,omitempty"`
@@ -129,7 +140,7 @@ type DiscoveryConfig struct {
 	// +kubebuilder:validation:Minimum=1
 	Port int `json:"port"`
 	// +kubebuilder:validation:Minimum=30
-	Ttl uint32 `json:"ttl"`
+	TTL uint32 `json:"ttl"`
 
 	EnableDiscovery     bool `json:"enableDiscovery"`
 	EnableAdvertisement bool `json:"enableAdvertisement"`
@@ -141,15 +152,23 @@ type DiscoveryConfig struct {
 	AuthServicePort    string `json:"authServicePort,omitempty"`
 }
 
+// PeeringPermission collects the list of ClusterRoles to be attributed to foreign cluster in the different steps of
+// peering.
 type PeeringPermission struct {
-	// to be enabled with the creation of the Tenant Control Namespace, these ClusterRoles have the basic permissions to give to a remote cluster
+	// The list of ClusterRoles to be enabled with the creation of the Tenant Control Namespace, these ClusterRoles
+	// have the basic permissions to give to a remote cluster
 	Basic []string `json:"basic,omitempty"`
-	// to be enabled when a ResourceRequest has been accepted, these ClusterRoles have the permissions required to a remote cluster to manage an outgoing peering (incoming for the local cluster), when the Pods will be offloaded to the local cluster
+	// The list of ClusterRoles be enabled when a ResourceRequest has been accepted, these ClusterRoles have the
+	// permissions required to a remote cluster to manage an outgoing peering (incoming for the local cluster), when the
+	// Pods will be offloaded to the local cluster
 	Incoming []string `json:"incoming,omitempty"`
-	// to be enabled when we send a ResourceRequest, these ClusterRoles have the permissions required to a remote cluster to manage an incoming peering (outgoing for the local cluster), when the Pods will be offloaded from the local cluster
+	// The list of ClusterRoles to be enabled when we send a ResourceRequest, these ClusterRoles have the permissions
+	// required to a remote cluster to manage an incoming peering (outgoing for the local cluster), when the Pods will
+	// be offloaded from the local cluster
 	Outgoing []string `json:"outgoing,omitempty"`
 }
 
+// AuthConfig defines the configuration of the Authentication Server.
 type AuthConfig struct {
 	// Allow remote clusters to get an identity with an empty token
 	// +kubebuilder:default=false
@@ -159,49 +178,56 @@ type AuthConfig struct {
 	PeeringPermission *PeeringPermission `json:"peeringPermission,omitempty"`
 }
 
+// LiqonetConfig defines the configuration of the Liqo Networking.
 type LiqonetConfig struct {
-	//This field is used by the IPAM embedded in the tunnelEndpointCreator.
-	//Subnets listed in this field are excluded from the list of possible subnets used for natting POD CIDR.
-	//Add here the subnets already used in your environment as a list in CIDR notation (e.g. [10.1.0.0/16, 10.200.1.0/24]).
+	// This field is used by the IPAM embedded in the tunnelEndpointCreator.
+	// Subnets listed in this field are excluded from the list of possible subnets used for natting POD CIDR.
+	// Add here the subnets already used in your environment as a list in CIDR notation
+	// (e.g. [10.1.0.0/16, 10.200.1.0/24]).
 	ReservedSubnets []CIDR `json:"reservedSubnets"`
-	//the subnet used by the cluster for the pods, in CIDR notation
+	// The subnet used by the cluster for the pods, in CIDR notation
 	// +kubebuilder:validation:Pattern="^([0-9]{1,3}.){3}[0-9]{1,3}(/([0-9]|[1-2][0-9]|3[0-2]))$"
 	PodCIDR string `json:"podCIDR"`
-	//the subnet used by the cluster for the services, in CIDR notation
+	// The subnet used by the cluster for the services, in CIDR notation
 	// +kubebuilder:validation:Pattern="^([0-9]{1,3}.){3}[0-9]{1,3}(/([0-9]|[1-2][0-9]|3[0-2]))$"
 	ServiceCIDR string `json:"serviceCIDR"`
-	//set this flag to true if you are using GKE, default value is "false"
+	// Set this flag to true if you are using GKE, default value is "false"
 	// +kubebuilder:default=false
 	GKEProvider bool `json:"GKEProvider"`
-	// Set of additional user-defined network pools. Default set of network pools is: [192.168.0.0/16, 10.0.0.0/8, 172.16.0.0/12]
+	// Set of additional user-defined network pools.
+	// Default set of network pools is: [192.168.0.0/16, 10.0.0.0/8, 172.16.0.0/12]
 	AdditionalPools []CIDR `json:"additionalPools"`
 }
 
-//contains a list of resources identified by their GVR
+// Resource contains a list of resources identified by their GVR.
 type Resource struct {
 	Group    string `json:"group"`
 	Version  string `json:"version"`
 	Resource string `json:"resource"`
 }
+
+// DispatcherConfig defines the configuration of the CRDReplicator.
 type DispatcherConfig struct {
 	ResourcesToReplicate []Resource `json:"resourcesToReplicate,omitempty"`
 }
 
+// DashboardConfig defines the configuration of the Dashboard.
 type DashboardConfig struct {
 	// Namespace defines the namespace LiqoDash resources belongs to.
 	Namespace string `json:"namespace"`
 	// AppLabel defines the value of the 'app' label. All LiqoDash
-	// related resources are labelled with it.
+	// related resources are labeled with it.
 	AppLabel string `json:"appLabel"`
 }
 
+// AgentConfig defines the configuration of the Liqo Agent.
 type AgentConfig struct {
-	//DashboardConfig contains the parameters required by LiqoAgent
-	//to provide access to LiqoDash (https://github.com/liqotech/dashboard).
+	// DashboardConfig contains the parameters required by LiqoAgent
+	// to provide access to LiqoDash (https://github.com/liqotech/dashboard).
 	DashboardConfig DashboardConfig `json:"dashboardConfig"`
 }
 
-// ClusterConfigStatus defines the observed state of ClusterConfig
+// ClusterConfigStatus defines the observed state of ClusterConfig.
 type ClusterConfigStatus struct {
 }
 
@@ -209,7 +235,7 @@ type ClusterConfigStatus struct {
 // +kubebuilder:subresource:status
 // +kubebuilder:resource:scope=Cluster
 
-// ClusterConfig is the Schema for the clusterconfigs API
+// ClusterConfig is the Schema for the clusterconfigs API.
 type ClusterConfig struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
@@ -220,7 +246,7 @@ type ClusterConfig struct {
 
 // +kubebuilder:object:root=true
 
-// ClusterConfigList contains a list of ClusterConfig
+// ClusterConfigList contains a list of ClusterConfig.
 type ClusterConfigList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`
@@ -233,8 +259,9 @@ func init() {
 	if err := AddToScheme(scheme.Scheme); err != nil {
 		panic(err)
 	}
-	crdClient.AddToRegistry("clusterconfigs", &ClusterConfig{}, &ClusterConfigList{}, nil, schema.GroupResource{
-		Group:    GroupVersion.Group,
-		Resource: "clusterconfigs",
-	})
+	crdClient.AddToRegistry("clusterconfigs", &ClusterConfig{}, &ClusterConfigList{},
+		nil, schema.GroupResource{
+			Group:    GroupVersion.Group,
+			Resource: "clusterconfigs",
+		})
 }

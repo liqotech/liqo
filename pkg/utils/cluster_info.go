@@ -15,7 +15,6 @@ const (
 )
 
 func GetClusterID(c client.Client) (string, error) {
-
 	configMap := &corev1.ConfigMap{}
 	if err := c.Get(context.TODO(), types.NamespacedName{Namespace: configMapNamespace, Name: clusterIDConfMap}, configMap); err != nil {
 		klog.Errorf("%s, unable to get ConfigMap '%s' in namespace '%s'", err, clusterIDConfMap, configMapNamespace)

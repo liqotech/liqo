@@ -35,7 +35,7 @@ import (
 	object_references "github.com/liqotech/liqo/pkg/object-references"
 )
 
-// PeeringRequestReconciler reconciles a PeeringRequest object
+// PeeringRequestReconciler reconciles a PeeringRequest object.
 type PeeringRequestReconciler struct {
 	Scheme *runtime.Scheme
 

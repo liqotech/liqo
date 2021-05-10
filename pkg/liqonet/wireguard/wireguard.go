@@ -69,7 +69,7 @@ func NewWireguard(config WgConfig, c Client, nl Netlinker) (*Wireguard, error) {
 	return w, nil
 }
 
-// it adds a new peer with the given configuration to the wireguard device
+// it adds a new peer with the given configuration to the wireguard device.
 func (w *Wireguard) AddPeer(pubkey, endpointIP, listeningPort string, allowedIPs []string, keepAlive *time.Duration) error {
 	key, err := wgtypes.ParseKey(pubkey)
 	if err != nil {
@@ -134,7 +134,7 @@ func (w *Wireguard) AddPeer(pubkey, endpointIP, listeningPort string, allowedIPs
 	return nil
 }
 
-// it removes a peer with a given public key from the wireguard device
+// it removes a peer with a given public key from the wireguard device.
 func (w *Wireguard) RemovePeer(pubKey string) error {
 	key, err := wgtypes.ParseKey(pubKey)
 	if err != nil {
@@ -156,7 +156,7 @@ func (w *Wireguard) RemovePeer(pubKey string) error {
 	return nil
 }
 
-// returns all the peers configured for the given wireguard device
+// returns all the peers configured for the given wireguard device.
 func (w *Wireguard) getPeers() ([]wgtypes.Peer, error) {
 	d, err := w.device(w.GetDeviceName())
 	if err != nil {
@@ -165,7 +165,7 @@ func (w *Wireguard) getPeers() ([]wgtypes.Peer, error) {
 	return d.Peers, nil
 }
 
-// given a public key it returns the peer which has the same key
+// given a public key it returns the peer which has the same key.
 func (w *Wireguard) getPeer(pubKey string) (wgtypes.Peer, error) {
 	var peer wgtypes.Peer
 	peers, err := w.getPeers()
@@ -180,17 +180,17 @@ func (w *Wireguard) getPeer(pubKey string) (wgtypes.Peer, error) {
 	return peer, errdefs.NotFoundf("peer with public key '%s' not found for wireguard device '%s'", pubKey, w.GetDeviceName())
 }
 
-// get name of the wireguard device
+// get name of the wireguard device.
 func (w *Wireguard) GetDeviceName() string {
 	return w.getLinkName()
 }
 
-// get link index of the wireguard device
+// get link index of the wireguard device.
 func (w *Wireguard) GetLinkIndex() int {
 	return w.getLinkIndex()
 }
 
-// get public key of the wireguard device
+// get public key of the wireguard device.
 func (w *Wireguard) GetPubKey() string {
 	return w.conf.PubKey.String()
 }

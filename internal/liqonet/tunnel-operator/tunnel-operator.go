@@ -51,7 +51,7 @@ const (
 	tunnelEndpointFinalizer = OperatorName + ".liqo.io"
 )
 
-// TunnelController reconciles a TunnelEndpoint object
+// TunnelController reconciles a TunnelEndpoint object.
 type TunnelController struct {
 	client.Client
 	record.EventRecorder
@@ -81,7 +81,7 @@ type TunnelController struct {
 // +kubebuilder:rbac:groups=core,namespace="do-not-care",resources=services,verbs=get;list;watch;update
 // +kubebuilder:rbac:groups=core,namespace="do-not-care",resources=pods,verbs=get;list;watch;update
 
-//Instantiates and initializes the tunnel controller
+//Instantiates and initializes the tunnel controller.
 func NewTunnelController(mgr ctrl.Manager, wgc wireguard.Client, nl wireguard.Netlinker) (*TunnelController, error) {
 	clientSet := k8s.NewForConfigOrDie(mgr.GetConfig())
 	namespace, err := utils.GetPodNamespace()
@@ -267,7 +267,7 @@ func (tc *TunnelController) disconnectFromPeer(ep *netv1alpha1.TunnelEndpoint) e
 
 //used to remove all the tunnel interfaces when the controller is closed
 //it does not return an error, but just logs them, cause we can not recover from
-//them at exit time
+//them at exit time.
 func (tc *TunnelController) RemoveAllTunnels() {
 	for driverType, driver := range tc.drivers {
 		err := driver.Close()
@@ -331,7 +331,7 @@ func (tc *TunnelController) SetupWithManager(mgr ctrl.Manager) error {
 		Complete(tc)
 }
 
-//for each registered tunnel implementation it creates and initializes the driver
+//for each registered tunnel implementation it creates and initializes the driver.
 func (tc *TunnelController) SetUpTunnelDrivers() error {
 	tc.drivers = make(map[string]tunnel.Driver)
 	for tunnelType, createDriverFunc := range tunnel.Drivers {

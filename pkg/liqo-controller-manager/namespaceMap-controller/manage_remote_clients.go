@@ -15,7 +15,7 @@ import (
 	discoveryV1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 )
 
-// This function returns a rest.Config from a Kubeconfig contained in a Secret
+// This function returns a rest.Config from a Kubeconfig contained in a Secret.
 func (r *NamespaceMapReconciler) getKubeConfig(reference *corev1.ObjectReference) (*rest.Config, error) {
 	if reference == nil {
 		return nil, fmt.Errorf("must specify reference")

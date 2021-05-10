@@ -12,7 +12,7 @@ import (
 	discoveryV1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 )
 
-// getForeignList retrieve the list of available ForeignCluster and return it as a ForeignClusterList object
+// getForeignList retrieve the list of available ForeignCluster and return it as a ForeignClusterList object.
 func getForeignList(client dynamic.Interface) (*discoveryV1alpha1.ForeignClusterList, error) {
 	r1 := client.Resource(discoveryV1alpha1.ForeignClusterGroupVersionResource)
 	t, err := r1.Namespace("").List(context.TODO(), metav1.ListOptions{TypeMeta: metav1.TypeMeta{}})
@@ -27,7 +27,7 @@ func getForeignList(client dynamic.Interface) (*discoveryV1alpha1.ForeignCluster
 	return foreign, nil
 }
 
-// checkPeeringsStatus verifies if all clusters have not active peerings
+// checkPeeringsStatus verifies if all clusters have not active peerings.
 func checkPeeringsStatus(foreign *discoveryV1alpha1.ForeignClusterList) bool {
 	var returnValue = true
 	for _, item := range foreign.Items {
@@ -39,7 +39,7 @@ func checkPeeringsStatus(foreign *discoveryV1alpha1.ForeignClusterList) bool {
 	return returnValue
 }
 
-// generateLabelString converts labelSelector to string
+// generateLabelString converts labelSelector to string.
 func generateLabelString(labelSelector metav1.LabelSelector) (string, error) {
 	labelMap, err := metav1.LabelSelectorAsMap(&labelSelector)
 	if err != nil {

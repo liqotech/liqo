@@ -20,7 +20,7 @@ spec:
     schema:
       openAPIV3Schema:
         description: NamespaceNattingTable is the Schema for the namespacenattingtables
-          API
+          API.
         properties:
           apiVersion:
             description: 'APIVersion defines the versioned schema of this representation
@@ -35,7 +35,7 @@ spec:
           metadata:
             type: object
           spec:
-            description: NamespaceNattingTableSpec defines the desired state of NamespaceNattingTable
+            description: NamespaceNattingTableSpec defines the desired state of NamespaceNattingTable.
             properties:
               clusterId:
                 type: string
@@ -52,7 +52,7 @@ spec:
             type: object
           status:
             description: NamespaceNattingTableStatus defines the observed state of
-              NamespaceNattingTable
+              NamespaceNattingTable.
             type: object
         type: object
     served: true

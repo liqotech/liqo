@@ -265,7 +265,7 @@ var _ = Describe("Discovery", func() {
 					Name:                "MyLiqo",
 					Port:                6443,
 					Service:             "_liqo_api._tcp",
-					Ttl:                 90,
+					TTL:                 90,
 				},
 				ClusterId:      clusterID,
 				stopMDNS:       make(chan bool, 1),
@@ -326,7 +326,7 @@ var _ = Describe("Discovery", func() {
 						Name:                "MyLiqo",
 						Port:                6443,
 						Service:             "_liqo_api._tcp",
-						Ttl:                 90,
+						TTL:                 90,
 					},
 					changedConfig: v1alpha1.DiscoveryConfig{
 						ClusterName:         "Name",
@@ -338,7 +338,7 @@ var _ = Describe("Discovery", func() {
 						Name:                "MyLiqo",
 						Port:                6443,
 						Service:             "_liqo_api._tcp",
-						Ttl:                 90,
+						TTL:                 90,
 					},
 					expectedOutputServer: BeFalse(),
 					expectedOutputClient: BeFalse(),
@@ -355,7 +355,7 @@ var _ = Describe("Discovery", func() {
 						Name:                "MyLiqo",
 						Port:                6443,
 						Service:             "_liqo_api._tcp",
-						Ttl:                 90,
+						TTL:                 90,
 					},
 					changedConfig: v1alpha1.DiscoveryConfig{
 						ClusterName:         "Name",
@@ -367,7 +367,7 @@ var _ = Describe("Discovery", func() {
 						Name:                "MyLiqo",
 						Port:                443,
 						Service:             "_liqo_api._tcp",
-						Ttl:                 90,
+						TTL:                 90,
 					},
 					expectedOutputServer: BeTrue(),
 					expectedOutputClient: BeFalse(),
@@ -384,7 +384,7 @@ var _ = Describe("Discovery", func() {
 						Name:                "MyLiqo",
 						Port:                6443,
 						Service:             "_liqo_api._tcp",
-						Ttl:                 90,
+						TTL:                 90,
 					},
 					changedConfig: v1alpha1.DiscoveryConfig{
 						ClusterName:         "Name",
@@ -396,7 +396,7 @@ var _ = Describe("Discovery", func() {
 						Name:                "MyLiqo",
 						Port:                6443,
 						Service:             "_test._liqo_api._tcp",
-						Ttl:                 90,
+						TTL:                 90,
 					},
 					expectedOutputServer: BeTrue(),
 					expectedOutputClient: BeTrue(),
@@ -705,7 +705,7 @@ var _ = Describe("Discovery", func() {
 								TrustMode:     discovery.TrustModeUntrusted,
 							},
 							Status: v1alpha12.ForeignClusterStatus{
-								Ttl: 300,
+								TTL: 300,
 							},
 						},
 
@@ -735,7 +735,7 @@ var _ = Describe("Discovery", func() {
 								TrustMode:     discovery.TrustModeUntrusted,
 							},
 							Status: v1alpha12.ForeignClusterStatus{
-								Ttl: 300,
+								TTL: 300,
 							},
 						},
 
@@ -765,7 +765,7 @@ var _ = Describe("Discovery", func() {
 								TrustMode:     discovery.TrustModeUntrusted,
 							},
 							Status: v1alpha12.ForeignClusterStatus{
-								Ttl: 300,
+								TTL: 300,
 							},
 						},
 

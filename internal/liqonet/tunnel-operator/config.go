@@ -25,7 +25,6 @@ func (tc *TunnelController) WatchConfiguration(config *rest.Config, gv *schema.G
 	}
 
 	go clusterConfig.WatchConfiguration(func(configuration *configv1alpha1.ClusterConfig) {
-
 		//this section is executed at start-up time
 		if !tc.isConfigured {
 			tc.isGKE = configuration.Spec.LiqonetConfig.GKEProvider

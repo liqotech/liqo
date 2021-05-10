@@ -22,7 +22,7 @@ import (
 	object_references "github.com/liqotech/liqo/pkg/object-references"
 )
 
-// AdvertisementSpec defines the desired state of Advertisement
+// AdvertisementSpec defines the desired state of Advertisement.
 type AdvertisementSpec struct {
 	// ClusterId is the identifier of the cluster that is sending this Advertisement.
 	// It is the uid of the first master node in you cluster.
@@ -35,7 +35,8 @@ type AdvertisementSpec struct {
 	ResourceQuota corev1.ResourceQuotaSpec `json:"resourceQuota,omitempty"`
 	// Labels contains the label to be added to the virtual node.
 	Labels map[string]string `json:"labels,omitempty"`
-	// Neighbors is a map where the key is the name of a virtual node (representing a foreign cluster) and the value are the resources allocatable on that node.
+	// Neighbors is a map where the key is the name of a virtual node (representing a foreign cluster) and the value
+	// are the resources allocatable on that node.
 	Neighbors map[corev1.ResourceName]corev1.ResourceList `json:"neighbors,omitempty"`
 	// Properties can contain any additional information about the cluster.
 	Properties map[corev1.ResourceName]string `json:"properties,omitempty"`
@@ -49,7 +50,7 @@ type AdvertisementSpec struct {
 	TimeToLive metav1.Time `json:"timeToLive"`
 }
 
-// AdvPhase describes the phase of the Advertisement
+// AdvPhase describes the phase of the Advertisement.
 type AdvPhase string
 
 const (
@@ -57,10 +58,11 @@ const (
 	AdvertisementRefused  AdvPhase = "Refused"
 )
 
-// AdvertisementStatus defines the observed state of Advertisement
+// AdvertisementStatus defines the observed state of Advertisement.
 type AdvertisementStatus struct {
 	// AdvertisementStatus is the status of this Advertisement.
-	// When the adv is created it is checked by the operator, which sets this field to "Accepted" or "Refused" on tha base of cluster configuration.
+	// When the adv is created it is checked by the operator, which sets this field to "Accepted" or "Refused" on tha
+	// base of cluster configuration.
 	// If the Advertisement is accepted a virtual-kubelet for the foreign cluster will be created.
 	// +kubebuilder:validation:Enum="";"Accepted";"Refused"
 	AdvertisementStatus AdvPhase `json:"advertisementStatus"`
@@ -68,7 +70,7 @@ type AdvertisementStatus struct {
 	VkCreated bool `json:"vkCreated"`
 	// VkReference is a reference to the deployment running the virtual-kubelet.
 	VkReference object_references.DeploymentReference `json:"vkReference,omitempty"`
-	// VnodeReference is a reference to the virtual node linked to this Advertisement
+	// VnodeReference is a reference to the virtual node linked to this Advertisement.
 	VnodeReference object_references.NodeReference `json:"vnodeReference,omitempty"`
 }
 
@@ -77,7 +79,7 @@ type AdvertisementStatus struct {
 // +kubebuilder:resource:shortName="adv"
 // +kubebuilder:resource:scope=Cluster
 
-// Advertisement is the Schema for the advertisements API
+// Advertisement is the Schema for the advertisements API.
 // +kubebuilder:printcolumn:name="Status",type=string,JSONPath=`.status.advertisementStatus`
 // +kubebuilder:printcolumn:name="Expiration",type=string,JSONPath=`.spec.timeToLive`
 // +kubebuilder:printcolumn:name="VkCreated",type=boolean,JSONPath=`.status.vkCreated`
@@ -91,7 +93,7 @@ type Advertisement struct {
 
 // +kubebuilder:object:root=true
 
-// AdvertisementList contains a list of Advertisement
+// AdvertisementList contains a list of Advertisement.
 type AdvertisementList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`

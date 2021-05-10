@@ -22,7 +22,7 @@ import (
 )
 
 // GenerateVKCertificateBundle generates respectively a key and a CSR in PEM format compliant
-// with the K8s kubelet-serving signer taking a name as input
+// with the K8s kubelet-serving signer taking a name as input.
 func GenerateVKCertificateBundle(name string) (csrPEM []byte, keyPEM []byte, err error) {
 	// Generate a new private key.
 	privateKey, err := ecdsa.GenerateKey(elliptic.P256(), cryptorand.Reader)
@@ -75,7 +75,7 @@ func WaitForApproval(client k8s.Interface, name string) ([]byte, error) {
 	}
 }
 
-// GenerateCSR generate a certificates/v1beta1 CSR resource for a virtual-kubelet name and PEM CSR
+// GenerateCSR generate a certificates/v1beta1 CSR resource for a virtual-kubelet name and PEM CSR.
 func GenerateVKCSR(name string, csr []byte) *certificatesv1beta1.CertificateSigningRequest {
 	signerName := "kubernetes.io/kubelet-serving"
 	return &certificatesv1beta1.CertificateSigningRequest{

@@ -98,7 +98,7 @@ func (r *ForeignClusterReconciler) getRemoteClient(
 	return nil, nil
 }
 
-// load remote identity from a secret
+// load remote identity from a secret.
 func (r *ForeignClusterReconciler) getIdentity(
 	fc *discoveryv1alpha1.ForeignCluster, gv *schema.GroupVersion) (*crdClient.CRDClient, error) {
 	secrets, err := r.crdClient.Client().CoreV1().Secrets(r.Namespace).List(context.TODO(), metav1.ListOptions{
@@ -137,7 +137,7 @@ func (r *ForeignClusterReconciler) getIdentity(
 	return crdClient.NewFromConfig(config)
 }
 
-// load the auth token form a labelled secret
+// load the auth token form a labelled secret.
 func (r *ForeignClusterReconciler) getAuthToken(fc *discoveryv1alpha1.ForeignCluster) string {
 	tokenSecrets, err := r.crdClient.Client().CoreV1().Secrets(r.Namespace).List(context.TODO(), metav1.ListOptions{
 		LabelSelector: strings.Join(
@@ -161,7 +161,7 @@ func (r *ForeignClusterReconciler) getAuthToken(fc *discoveryv1alpha1.ForeignClu
 	return ""
 }
 
-// send HTTP request to get the identity from the remote cluster
+// send HTTP request to get the identity from the remote cluster.
 func (r *ForeignClusterReconciler) askRemoteIdentity(fc *discoveryv1alpha1.ForeignCluster) (string, error) {
 	token := r.getAuthToken(fc)
 

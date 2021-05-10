@@ -45,7 +45,6 @@ func (wgc *wgClientFake) configureDevice(name string, cfg wgtypes.Config) error 
 }
 
 func (wgc *wgClientFake) device(name string) (*wgtypes.Device, error) {
-
 	if wgc.dev.Name != name {
 		return nil, errdefs.NotFoundf("device named %s not found", name)
 	}

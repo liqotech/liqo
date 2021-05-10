@@ -28,7 +28,7 @@ import (
 	ctrlutils "sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 )
 
-// NamespaceReconciler changes DesiredMapping field of NamespaceMaps if a remote Namespace must be created or deleted
+// NamespaceReconciler changes DesiredMapping field of NamespaceMaps if a remote Namespace must be created or deleted.
 type NamespaceReconciler struct {
 	client.Client
 	Scheme *runtime.Scheme
@@ -41,7 +41,7 @@ const (
 	namespaceControllerFinalizer = "namespace-controller.liqo.io/finalizer"
 )
 
-// Reconcile checks presence of right labels on the Namespace
+// Reconcile checks presence of right labels on the Namespace.
 func (r *NamespaceReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 	namespace := &corev1.Namespace{}
 	if err := r.Get(context.TODO(), req.NamespacedName, namespace); err != nil {
@@ -141,7 +141,7 @@ func (r *NamespaceReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 	return ctrl.Result{}, nil
 }
 
-// SetupWithManager reconciles only when namespace has at least mapping.liqo.io label
+// SetupWithManager reconciles only when namespace has at least mapping.liqo.io label.
 func (r *NamespaceReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&corev1.Namespace{}).

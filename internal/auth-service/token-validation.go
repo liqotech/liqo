@@ -19,7 +19,7 @@ type credentialsValidator interface {
 
 type tokenValidator struct{}
 
-// checkCredentials checks if the provided token is valid for the local cluster given an IdentityRequest
+// checkCredentials checks if the provided token is valid for the local cluster given an IdentityRequest.
 func (tokenValidator *tokenValidator) checkCredentials(
 	roleRequest auth.IdentityRequest, configProvider auth.AuthConfigProvider, tokenManager tokenManager) error {
 	// token check fails if:
@@ -45,12 +45,12 @@ func (tokenValidator *tokenValidator) checkCredentials(
 	}
 }
 
-// validEmptyToken checks if the empty token is accepted
+// validEmptyToken checks if the empty token is accepted.
 func (tokenValidator *tokenValidator) validEmptyToken(configProvider auth.AuthConfigProvider) bool {
 	return configProvider.GetConfig().AllowEmptyToken
 }
 
-// validToken checks if the token provided is valid
+// validToken checks if the token provided is valid.
 func (tokenValidator *tokenValidator) validToken(tokenManager tokenManager, token string) (bool, error) {
 	correctToken, err := tokenManager.getToken()
 	if err != nil {
