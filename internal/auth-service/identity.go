@@ -1,4 +1,4 @@
-package auth_service
+package authservice
 
 import (
 	"encoding/json"
@@ -59,7 +59,8 @@ func (authService *AuthServiceCtrl) handleIdentity(
 
 	// check that the provided credentials are valid
 	klog.V(4).Info("Checking credentials")
-	if err = authService.credentialsValidator.checkCredentials(&identityRequest, authService.getConfigProvider(), authService.getTokenManager()); err != nil {
+	if err = authService.credentialsValidator.checkCredentials(
+		&identityRequest, authService.getConfigProvider(), authService.getTokenManager()); err != nil {
 		klog.Error(err)
 		return nil, err
 	}
@@ -72,7 +73,8 @@ func (authService *AuthServiceCtrl) handleIdentity(
 	}
 
 	// check that there is no available certificate for that clusterID
-	if _, err = authService.identityManager.GetRemoteCertificate(identityRequest.ClusterID, identityRequest.CertificateSigningRequest); err == nil {
+	if _, err = authService.identityManager.GetRemoteCertificate(
+		identityRequest.ClusterID, identityRequest.CertificateSigningRequest); err == nil {
 		klog.Info("multiple identity validations with unique clusterID")
 		err = &kerrors.StatusError{ErrStatus: metav1.Status{
 			Status: metav1.StatusFailure,
@@ -87,7 +89,8 @@ func (authService *AuthServiceCtrl) handleIdentity(
 	}
 
 	// issue certificate request
-	certificate, err := authService.identityManager.ApproveSigningRequest(identityRequest.ClusterID, identityRequest.CertificateSigningRequest)
+	certificate, err := authService.identityManager.ApproveSigningRequest(
+		identityRequest.ClusterID, identityRequest.CertificateSigningRequest)
 	if err != nil {
 		klog.Error(err)
 		return nil, err

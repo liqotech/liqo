@@ -1,4 +1,4 @@
-package auth_service
+package authservice
 
 import (
 	"context"
@@ -202,7 +202,7 @@ func (authService *AuthServiceCtrl) configureToken() error {
 	return nil
 }
 
-func (authService *AuthServiceCtrl) getConfigProvider() auth.AuthConfigProvider {
+func (authService *AuthServiceCtrl) getConfigProvider() auth.ConfigProvider {
 	return authService
 }
 
@@ -210,7 +210,8 @@ func (authService *AuthServiceCtrl) getTokenManager() tokenManager {
 	return authService
 }
 
-// populatePermission populates the list of ClusterRoles to bind in the different peering phases reading the ClusterConfig CR.
+// populatePermission populates the list of ClusterRoles to bind
+// in the different peering phases reading the ClusterConfig CR.
 func (authService *AuthServiceCtrl) populatePermission() error {
 	peeringPermission, err := peeringRoles.GetPeeringPermission(authService.clientset, authService)
 	if err != nil {

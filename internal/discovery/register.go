@@ -28,7 +28,7 @@ func (discovery *Controller) register() {
 		var ttl = discovery.Config.TTL
 		discovery.serverMux.Lock()
 		discovery.mdnsServerAuth, err = zeroconf.Register(
-			discovery.ClusterId.GetClusterID(),
+			discovery.LocalClusterID.GetClusterID(),
 			discovery.Config.AuthService,
 			discovery.Config.Domain,
 			authPort, nil, discovery.getInterfaces(), ttl)
@@ -114,8 +114,8 @@ func (discovery *Controller) getPodNets() ([]*net.IPNet, error) {
 		return nil, err
 	}
 	res := make([]*net.IPNet, 0, len(nodes.Items))
-	for _, n := range nodes.Items {
-		_, ipnet, err := net.ParseCIDR(n.Spec.PodCIDR)
+	for i := range nodes.Items {
+		_, ipnet, err := net.ParseCIDR(nodes.Items[i].Spec.PodCIDR)
 		if err != nil {
 			klog.Error(err, err.Error())
 			continue

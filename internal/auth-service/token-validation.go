@@ -1,4 +1,4 @@
-package auth_service
+package authservice
 
 import (
 	"net/http"
@@ -11,9 +11,9 @@ import (
 )
 
 type credentialsValidator interface {
-	checkCredentials(roleRequest auth.IdentityRequest, configProvider auth.AuthConfigProvider, tokenManager tokenManager) error
+	checkCredentials(roleRequest auth.IdentityRequest, configProvider auth.ConfigProvider, tokenManager tokenManager) error
 
-	validEmptyToken(configProvider auth.AuthConfigProvider) bool
+	validEmptyToken(configProvider auth.ConfigProvider) bool
 	validToken(tokenManager tokenManager, token string) (bool, error)
 }
 
@@ -21,7 +21,7 @@ type tokenValidator struct{}
 
 // checkCredentials checks if the provided token is valid for the local cluster given an IdentityRequest.
 func (tokenValidator *tokenValidator) checkCredentials(
-	roleRequest auth.IdentityRequest, configProvider auth.AuthConfigProvider, tokenManager tokenManager) error {
+	roleRequest auth.IdentityRequest, configProvider auth.ConfigProvider, tokenManager tokenManager) error {
 	// token check fails if:
 	// 1. token is different from the correct one
 	// 2. token is empty but in the cluster config empty token is not allowed
@@ -29,12 +29,13 @@ func (tokenValidator *tokenValidator) checkCredentials(
 	if tokenValidator.validEmptyToken(configProvider) {
 		return nil
 	}
-	if valid, err := tokenValidator.validToken(tokenManager, roleRequest.GetToken()); err != nil {
+
+	valid, err := tokenValidator.validToken(tokenManager, roleRequest.GetToken())
+	if err != nil {
 		klog.Error(err)
 		return err
-	} else if valid {
-		return nil
-	} else {
+	}
+	if !valid {
 		err = &kerrors.StatusError{ErrStatus: metav1.Status{
 			Status: metav1.StatusFailure,
 			Code:   http.StatusForbidden,
@@ -43,10 +44,11 @@ func (tokenValidator *tokenValidator) checkCredentials(
 		klog.Error(err)
 		return err
 	}
+	return nil
 }
 
 // validEmptyToken checks if the empty token is accepted.
-func (tokenValidator *tokenValidator) validEmptyToken(configProvider auth.AuthConfigProvider) bool {
+func (tokenValidator *tokenValidator) validEmptyToken(configProvider auth.ConfigProvider) bool {
 	return configProvider.GetConfig().AllowEmptyToken
 }
 

@@ -1,4 +1,4 @@
-package foreign_cluster_operator
+package foreignclusteroperator
 
 import (
 	"os"

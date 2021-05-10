@@ -22,7 +22,7 @@ import (
 //   3b. else it is ok
 func (discovery *Controller) updateForeignLAN(data *discoveryData, trustMode discoveryPkg.TrustMode) {
 	discoveryType := discoveryPkg.LanDiscovery
-	if data.ClusterInfo.ClusterID == discovery.ClusterId.GetClusterID() {
+	if data.ClusterInfo.ClusterID == discovery.LocalClusterID.GetClusterID() {
 		// is local cluster
 		return
 	}
@@ -54,7 +54,7 @@ func (discovery *Controller) UpdateForeignWAN(data []*AuthData, sd *v1alpha1.Sea
 			continue
 		}
 
-		if clusterInfo.ClusterID == discovery.ClusterId.GetClusterID() {
+		if clusterInfo.ClusterID == discovery.LocalClusterID.GetClusterID() {
 			// is local cluster
 			continue
 		}
@@ -84,7 +84,7 @@ func (discovery *Controller) createOrUpdate(data *discoveryData, trustMode disco
 	sd *v1alpha1.SearchDomain, discoveryType discoveryPkg.Type, createdUpdatedForeign *[]*v1alpha1.ForeignCluster) error {
 	fc, err := discovery.getForeignClusterByID(data.ClusterInfo.ClusterID)
 	if k8serror.IsNotFound(err) {
-		fc, err := discovery.createForeign(data, trustMode, sd, discoveryType)
+		fc, err = discovery.createForeign(data, trustMode, sd, discoveryType)
 		if err != nil {
 			klog.Error(err)
 			return err
@@ -93,7 +93,8 @@ func (discovery *Controller) createOrUpdate(data *discoveryData, trustMode disco
 		if createdUpdatedForeign != nil {
 			*createdUpdatedForeign = append(*createdUpdatedForeign, fc)
 		}
-	} else if err == nil {
+	}
+	if err == nil {
 		var updated bool
 		fc, updated, err = discovery.checkUpdate(data, fc, discoveryType, sd)
 		if err != nil {
@@ -240,24 +241,23 @@ func (discovery *Controller) checkUpdate(
 			}
 		}
 		return fc, true, nil
-	} else {
-		// update "lastUpdate" annotation
-		fc.LastUpdateNow()
-		tmp, err := discovery.crdClient.Resource("foreignclusters").Update(fc.Name, fc, &metav1.UpdateOptions{})
-		if err != nil {
-			if !k8serror.IsConflict(err) {
-				klog.Error(err)
-			}
-			return nil, false, err
-		}
-		var ok bool
-		if fc, ok = tmp.(*v1alpha1.ForeignCluster); !ok {
-			err = errors.New("retrieved object is not a ForeignCluster")
-			klog.Error(err)
-			return nil, false, err
-		}
-		return fc, false, nil
 	}
+	// update "lastUpdate" annotation
+	fc.LastUpdateNow()
+	tmp, err := discovery.crdClient.Resource("foreignclusters").Update(fc.Name, fc, &metav1.UpdateOptions{})
+	if err != nil {
+		if !k8serror.IsConflict(err) {
+			klog.Error(err)
+		}
+		return nil, false, err
+	}
+	var ok bool
+	if fc, ok = tmp.(*v1alpha1.ForeignCluster); !ok {
+		err = errors.New("retrieved object is not a ForeignCluster")
+		klog.Error(err)
+		return nil, false, err
+	}
+	return fc, false, nil
 }
 
 func (discovery *Controller) getForeignClusterByID(clusterID string) (*v1alpha1.ForeignCluster, error) {

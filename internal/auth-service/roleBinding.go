@@ -1,4 +1,4 @@
-package auth_service
+package authservice
 
 import (
 	"context"
@@ -10,7 +10,8 @@ import (
 	"github.com/liqotech/liqo/pkg/discovery"
 )
 
-func (authService *AuthServiceCtrl) createRoleBinding(sa *v1.ServiceAccount, role *rbacv1.Role, remoteClusterID string) (*rbacv1.RoleBinding, error) {
+func (authService *AuthServiceCtrl) createRoleBinding(
+	sa *v1.ServiceAccount, role *rbacv1.Role, remoteClusterID string) (*rbacv1.RoleBinding, error) {
 	rb := &rbacv1.RoleBinding{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: sa.Name,
@@ -40,5 +41,6 @@ func (authService *AuthServiceCtrl) createRoleBinding(sa *v1.ServiceAccount, rol
 			Name:     role.Name,
 		},
 	}
-	return authService.clientset.RbacV1().RoleBindings(authService.namespace).Create(context.TODO(), rb, metav1.CreateOptions{})
+	return authService.clientset.RbacV1().RoleBindings(
+		authService.namespace).Create(context.TODO(), rb, metav1.CreateOptions{})
 }

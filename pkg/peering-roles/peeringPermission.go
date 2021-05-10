@@ -1,4 +1,4 @@
-package peeringRoles
+package peeringroles
 
 import (
 	"context"
@@ -12,17 +12,26 @@ import (
 	"github.com/liqotech/liqo/pkg/auth"
 )
 
+// PeeringPermission contains the reference to the ClusterRoles
+// to bind in the different peering phases.
 type PeeringPermission struct {
-	// to be enabled with the creation of the Tenant Control Namespace, these ClusterRoles have the basic permissions to give to a remote cluster
+	// to be enabled with the creation of the Tenant Control Namespace,
+	// these ClusterRoles have the basic permissions to give to a remote cluster
 	Basic []*rbacv1.ClusterRole
-	// to be enabled when a ResourceRequest has been accepted, these ClusterRoles have the permissions required to a remote cluster to manage an outgoing peering (incoming for the local cluster), when the Pods will be offloaded to the local cluster
+	// to be enabled when a ResourceRequest has been accepted,
+	// these ClusterRoles have the permissions required to a remote cluster
+	// to manage an outgoing peering (incoming for the local cluster),
+	// when the Pods will be offloaded to the local cluster
 	Incoming []*rbacv1.ClusterRole
-	// to be enabled when we send a ResourceRequest, these ClusterRoles have the permissions required to a remote cluster to manage an incoming peering (outgoing for the local cluster), when the Pods will be offloaded from the local cluster
+	// to be enabled when we send a ResourceRequest,
+	// these ClusterRoles have the permissions required to a remote cluster
+	// to manage an incoming peering (outgoing for the local cluster),
+	// when the Pods will be offloaded from the local cluster
 	Outgoing []*rbacv1.ClusterRole
 }
 
 // GetPeeringPermission populates a PeeringPermission with the ClusterRole names provided by the configuration.
-func GetPeeringPermission(client kubernetes.Interface, config auth.AuthConfigProvider) (*PeeringPermission, error) {
+func GetPeeringPermission(client kubernetes.Interface, config auth.ConfigProvider) (*PeeringPermission, error) {
 	if config == nil || reflect.ValueOf(config).IsNil() {
 		klog.Warning("no ClusterConfig set")
 		return &PeeringPermission{}, nil

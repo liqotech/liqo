@@ -55,7 +55,8 @@ func getAPIServerCA(restConfig *rest.Config) (string, error) {
 	if restConfig.CAData != nil && len(restConfig.CAData) > 0 {
 		// CAData available in the restConfig, encode and return it.
 		return base64.StdEncoding.EncodeToString(restConfig.CAData), nil
-	} else if restConfig.CAFile != "" {
+	}
+	if restConfig.CAFile != "" {
 		// CAData is not available, read it from the CAFile.
 		dat, err := ioutil.ReadFile(restConfig.CAFile)
 		if err != nil {
@@ -63,8 +64,7 @@ func getAPIServerCA(restConfig *rest.Config) (string, error) {
 			return "", err
 		}
 		return base64.StdEncoding.EncodeToString(dat), nil
-	} else {
-		klog.Warning("empty CA data")
-		return "", nil
 	}
+	klog.Warning("empty CA data")
+	return "", nil
 }

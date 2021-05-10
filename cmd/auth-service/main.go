@@ -36,7 +36,8 @@ func main() {
 
 	klog.Info("Namespace: ", namespace)
 
-	authService, err := authservice.NewAuthServiceCtrl(namespace, kubeconfigPath, time.Duration(resyncSeconds)*time.Second, useTLS)
+	authService, err := authservice.NewAuthServiceCtrl(
+		namespace, kubeconfigPath, time.Duration(resyncSeconds)*time.Second, useTLS)
 	if err != nil {
 		klog.Error(err)
 		os.Exit(1)

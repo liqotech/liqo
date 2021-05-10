@@ -1,4 +1,4 @@
-package auth_service
+package authservice
 
 import (
 	"context"
@@ -11,7 +11,8 @@ import (
 	"github.com/liqotech/liqo/pkg/discovery"
 )
 
-func (authService *AuthServiceCtrl) createClusterRole(remoteClusterID string, sa *v1.ServiceAccount) (*rbacv1.ClusterRole, error) {
+func (authService *AuthServiceCtrl) createClusterRole(
+	remoteClusterID string, sa *v1.ServiceAccount) (*rbacv1.ClusterRole, error) {
 	role := &rbacv1.ClusterRole{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: sa.Name,

@@ -1,4 +1,4 @@
-package auth_service
+package authservice
 
 import (
 	"context"
@@ -18,13 +18,15 @@ import (
 )
 
 func isNoContent(err error) bool {
-	if errors.Is(err, &kerrors.StatusError{}) {
-		return err.(*kerrors.StatusError).ErrStatus.Code == http.StatusNoContent
+	errStatus := &kerrors.StatusError{}
+	if errors.As(err, &errStatus) {
+		return errStatus.ErrStatus.Code == http.StatusNoContent
 	}
 	return false
 }
 
-func (authService *AuthServiceCtrl) getServiceAccountCompleted(remoteClusterID string) (sa *v1.ServiceAccount, err error) {
+func (authService *AuthServiceCtrl) getServiceAccountCompleted(
+	remoteClusterID string) (sa *v1.ServiceAccount, err error) {
 	err = retry.OnError(
 		retry.DefaultBackoff,
 		func(err error) bool {
@@ -94,5 +96,6 @@ func (authService *AuthServiceCtrl) createServiceAccount(remoteClusterID string)
 			},
 		},
 	}
-	return authService.clientset.CoreV1().ServiceAccounts(authService.namespace).Create(context.TODO(), sa, metav1.CreateOptions{})
+	return authService.clientset.CoreV1().ServiceAccounts(
+		authService.namespace).Create(context.TODO(), sa, metav1.CreateOptions{})
 }
