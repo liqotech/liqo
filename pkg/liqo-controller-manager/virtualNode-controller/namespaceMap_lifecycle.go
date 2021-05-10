@@ -1,4 +1,4 @@
-package virtualNode_controller
+package virtualnodectrl
 
 import (
 	"context"
@@ -17,16 +17,15 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-func (r *VirtualNodeReconciler) removeAllDesiredMappings(nm mapsv1alpha1.NamespaceMap) error {
-
+func (r *VirtualNodeReconciler) removeAllDesiredMappings(nm *mapsv1alpha1.NamespaceMap) error {
 	for localName := range nm.Spec.DesiredMapping {
 		delete(nm.Spec.DesiredMapping, localName)
 	}
 
-	ctrlutils.RemoveFinalizer(&nm, virtualNodeControllerFinalizer)
+	ctrlutils.RemoveFinalizer(nm, virtualNodeControllerFinalizer)
 	klog.Infof("The NamespaceMap '%s' is requested to be deleted", nm.GetName())
 
-	if err := r.Update(context.TODO(), &nm); err != nil {
+	if err := r.Update(context.TODO(), nm); err != nil {
 		klog.Errorf(" %s --> Problems while removing finalizer from '%s'", err, nm.GetName())
 		return err
 	}
@@ -36,13 +35,13 @@ func (r *VirtualNodeReconciler) removeAllDesiredMappings(nm mapsv1alpha1.Namespa
 }
 
 // remove Finalizer and Update the NamespaceMap
-func (r *VirtualNodeReconciler) removeNamespaceMapFinalizers(nm mapsv1alpha1.NamespaceMap) error {
-	ctrlutils.RemoveFinalizer(&nm, virtualNodeControllerFinalizer)
-	ctrlutils.RemoveFinalizer(&nm, liqoconst.NamespaceMapControllerFinalizer)
+func (r *VirtualNodeReconciler) removeNamespaceMapFinalizers(nm *mapsv1alpha1.NamespaceMap) error {
+	ctrlutils.RemoveFinalizer(nm, virtualNodeControllerFinalizer)
+	ctrlutils.RemoveFinalizer(nm, liqoconst.NamespaceMapControllerFinalizer)
 
 	klog.Infof("The NamespaceMap '%s' is requested to be deleted", nm.GetName())
 
-	if err := r.Update(context.TODO(), &nm); err != nil {
+	if err := r.Update(context.TODO(), nm); err != nil {
 		// WARNING: Is possible that this Update is called on a resource that is no more here
 		// it doesn't return "NotFound" but "Conflict"
 		klog.Errorf(" %s --> Problems while removing finalizer from '%s'", err, nm.GetName())
@@ -54,20 +53,20 @@ func (r *VirtualNodeReconciler) removeNamespaceMapFinalizers(nm mapsv1alpha1.Nam
 }
 
 // create a new NamespaceMap with Finalizer and OwnerReference
-func (r *VirtualNodeReconciler) createNamespaceMap(n corev1.Node, stat mapsv1alpha1.NamespaceMapStatus, spec mapsv1alpha1.NamespaceMapSpec) error {
-
-	if _, ok := n.GetAnnotations()[liqoconst.VirtualNodeClusterId]; !ok {
-		err := fmt.Errorf("label '%s' is not found on node '%s'", liqoconst.VirtualNodeClusterId, n.GetName())
+func (r *VirtualNodeReconciler) createNamespaceMap(n *corev1.Node, stat mapsv1alpha1.NamespaceMapStatus,
+	spec mapsv1alpha1.NamespaceMapSpec) error {
+	if _, ok := n.GetAnnotations()[liqoconst.RemoteClusterID]; !ok {
+		err := fmt.Errorf("label '%s' is not found on node '%s'", liqoconst.RemoteClusterID, n.GetName())
 		klog.Error(err)
 		return err
 	}
 
 	nm := &mapsv1alpha1.NamespaceMap{
 		ObjectMeta: metav1.ObjectMeta{
-			GenerateName: fmt.Sprintf("%s-", n.GetAnnotations()[liqoconst.VirtualNodeClusterId]),
+			GenerateName: fmt.Sprintf("%s-", n.GetAnnotations()[liqoconst.RemoteClusterID]),
 			Namespace:    liqoconst.MapNamespaceName,
 			Labels: map[string]string{
-				liqoconst.VirtualNodeClusterId: n.GetAnnotations()[liqoconst.VirtualNodeClusterId],
+				liqoconst.RemoteClusterID: n.GetAnnotations()[liqoconst.RemoteClusterID],
 			},
 		},
 		Spec:   spec,
@@ -79,7 +78,7 @@ func (r *VirtualNodeReconciler) createNamespaceMap(n corev1.Node, stat mapsv1alp
 	}
 
 	ctrlutils.AddFinalizer(nm, virtualNodeControllerFinalizer)
-	if err := ctrlutils.SetControllerReference(&n, nm, r.Scheme); err != nil {
+	if err := ctrlutils.SetControllerReference(n, nm, r.Scheme); err != nil {
 		return err
 	}
 
@@ -92,8 +91,7 @@ func (r *VirtualNodeReconciler) createNamespaceMap(n corev1.Node, stat mapsv1alp
 }
 
 // first create a new NamespaceMap which preserves the Status and then delete the other
-func (r *VirtualNodeReconciler) regenerateNamespaceMap(nm mapsv1alpha1.NamespaceMap, n corev1.Node) error {
-
+func (r *VirtualNodeReconciler) regenerateNamespaceMap(nm *mapsv1alpha1.NamespaceMap, n *corev1.Node) error {
 	// create a new namespaceMap with same Status but with different Name
 	if err := r.createNamespaceMap(n, nm.Status, nm.Spec); err != nil {
 		return err
@@ -106,11 +104,10 @@ func (r *VirtualNodeReconciler) regenerateNamespaceMap(nm mapsv1alpha1.Namespace
 }
 
 // This function manages NamespaceMaps Lifecycle on the basis of NamespaceMaps' number
-func (r *VirtualNodeReconciler) namespaceMapLifecycle(n corev1.Node) error {
-
+func (r *VirtualNodeReconciler) namespaceMapLifecycle(n *corev1.Node) error {
 	nms := &mapsv1alpha1.NamespaceMapList{}
 	if err := r.List(context.TODO(), nms, client.InNamespace(liqoconst.MapNamespaceName),
-		client.MatchingLabels{liqoconst.VirtualNodeClusterId: n.GetAnnotations()[liqoconst.VirtualNodeClusterId]}); err != nil {
+		client.MatchingLabels{liqoconst.RemoteClusterID: n.GetAnnotations()[liqoconst.RemoteClusterID]}); err != nil {
 		klog.Errorf("%s --> Unable to List NamespaceMaps of virtual node '%s'", err, n.GetName())
 		return err
 	}
@@ -121,39 +118,36 @@ func (r *VirtualNodeReconciler) namespaceMapLifecycle(n corev1.Node) error {
 
 	if len(nms.Items) == 1 {
 		if !nms.Items[0].GetDeletionTimestamp().IsZero() {
-			return r.regenerateNamespaceMap(nms.Items[0], n)
+			return r.regenerateNamespaceMap(&nms.Items[0], n)
 		}
 		return nil
 	}
 
 	if len(nms.Items) > 1 {
-
 		oldestCreation := metav1.Time{Time: time.Now()}
 		var oldestMap int
 
-		for i, nm := range nms.Items {
-			if nm.CreationTimestamp.Before(&oldestCreation) && nm.DeletionTimestamp.IsZero() {
-				oldestCreation = nm.CreationTimestamp
+		for i := range nms.Items {
+			if nms.Items[i].CreationTimestamp.Before(&oldestCreation) && nms.Items[i].DeletionTimestamp.IsZero() {
+				oldestCreation = nms.Items[i].CreationTimestamp
 				oldestMap = i
 			}
 		}
 
-		for i, nm := range nms.Items {
+		for i := range nms.Items {
 			if i != oldestMap {
-				if nm.GetDeletionTimestamp().IsZero() {
-					if err := r.Delete(context.TODO(), &nm); err != nil {
-						klog.Errorf(" %s --> Unable to remove NamespaceMap '%s'", err, nm.GetName())
+				if nms.Items[i].GetDeletionTimestamp().IsZero() {
+					if err := r.Delete(context.TODO(), &nms.Items[i]); err != nil {
+						klog.Errorf(" %s --> Unable to remove NamespaceMap '%s'", err, nms.Items[i].GetName())
 						return err
 					}
 					continue
 				}
-				if err := r.removeNamespaceMapFinalizers(nm); err != nil {
+				if err := r.removeNamespaceMapFinalizers(&nms.Items[i]); err != nil {
 					return err
 				}
 			}
 		}
-
 	}
-
 	return nil
 }

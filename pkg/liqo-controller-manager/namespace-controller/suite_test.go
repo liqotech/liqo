@@ -10,7 +10,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package namespace_controller
+package namespacectrl
 
 import (
 	"context"
@@ -41,7 +41,7 @@ const (
 	nameVirtualNode1    = "virtual-node-1"
 	nameVirtualNode2    = "virtual-node-2"
 	nameNamespaceTest   = "namespace-test"
-	nameRemoteNamespace = "namespace-test-remoto"
+	nameRemoteNamespace = "namespace-test-remote"
 	mapNamespaceName    = "default"
 
 	remoteClusterId1 = "6a0e9f-b52-4ed0"
@@ -139,7 +139,7 @@ var _ = BeforeSuite(func(done Done) {
 		ObjectMeta: metav1.ObjectMeta{
 			Name: nameVirtualNode1,
 			Annotations: map[string]string{
-				liqoconst.VirtualNodeClusterId: remoteClusterId1,
+				liqoconst.RemoteClusterID: remoteClusterId1,
 			},
 			Labels: map[string]string{
 				liqoconst.TypeLabel:      liqoconst.TypeNode,
@@ -157,7 +157,7 @@ var _ = BeforeSuite(func(done Done) {
 		ObjectMeta: metav1.ObjectMeta{
 			Name: nameVirtualNode2,
 			Annotations: map[string]string{
-				liqoconst.VirtualNodeClusterId: remoteClusterId2,
+				liqoconst.RemoteClusterID: remoteClusterId2,
 			},
 			Labels: map[string]string{
 				liqoconst.TypeLabel:      liqoconst.TypeNode,
@@ -176,7 +176,7 @@ var _ = BeforeSuite(func(done Done) {
 			GenerateName: fmt.Sprintf("%s-", remoteClusterId1),
 			Namespace:    mapNamespaceName,
 			Labels: map[string]string{
-				liqoconst.VirtualNodeClusterId: remoteClusterId1,
+				liqoconst.RemoteClusterID: remoteClusterId1,
 			},
 		},
 	}
@@ -190,7 +190,7 @@ var _ = BeforeSuite(func(done Done) {
 			GenerateName: fmt.Sprintf("%s-", remoteClusterId2),
 			Namespace:    mapNamespaceName,
 			Labels: map[string]string{
-				liqoconst.VirtualNodeClusterId: remoteClusterId2,
+				liqoconst.RemoteClusterID: remoteClusterId2,
 			},
 		},
 	}

@@ -10,7 +10,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package virtualNode_controller
+package virtualnodectrl
 
 import (
 	"bytes"
@@ -135,7 +135,7 @@ var _ = BeforeSuite(func(done Done) {
 		ObjectMeta: metav1.ObjectMeta{
 			Name: nameVirtualNode1,
 			Annotations: map[string]string{
-				liqoconst.VirtualNodeClusterId: remoteClusterId1,
+				liqoconst.RemoteClusterID: remoteClusterId1,
 			},
 			Labels: map[string]string{
 				liqoconst.TypeLabel:      liqoconst.TypeNode,
@@ -153,7 +153,7 @@ var _ = BeforeSuite(func(done Done) {
 		ObjectMeta: metav1.ObjectMeta{
 			Name: nameVirtualNode2,
 			Annotations: map[string]string{
-				liqoconst.VirtualNodeClusterId: remoteClusterId2,
+				liqoconst.RemoteClusterID: remoteClusterId2,
 			},
 			Labels: map[string]string{
 				liqoconst.TypeLabel:      liqoconst.TypeNode,
@@ -171,7 +171,7 @@ var _ = BeforeSuite(func(done Done) {
 		ObjectMeta: metav1.ObjectMeta{
 			Name: nameSimpleNode,
 			Annotations: map[string]string{
-				liqoconst.VirtualNodeClusterId: remoteClusterIdSimpleNode,
+				liqoconst.RemoteClusterID: remoteClusterIdSimpleNode,
 			},
 			Labels: map[string]string{
 				offloadingCluster1Label1: "",
@@ -182,7 +182,8 @@ var _ = BeforeSuite(func(done Done) {
 
 	mapNamespace = &corev1.Namespace{}
 	Eventually(func() bool {
-		if err = k8sClient.Get(context.TODO(), types.NamespacedName{Name: liqoconst.MapNamespaceName}, mapNamespace); err != nil {
+		if err = k8sClient.Get(context.TODO(), types.NamespacedName{Name: liqoconst.MapNamespaceName},
+			mapNamespace); err != nil {
 			if errors.IsNotFound(err) {
 				if err = k8sClient.Create(context.TODO(), virtualNode1); err == nil {
 					return true

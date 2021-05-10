@@ -23,18 +23,21 @@ import (
 type mappingPhase string
 
 const (
+	// MappingAccepted indicates that a remote namespace is successfully created.
 	MappingAccepted mappingPhase = "Accepted"
-	MappingRefused  mappingPhase = "Refused"
+	// MappingRefused indicates that at the moment is impossible to create a remote namespace.
+	MappingRefused mappingPhase = "Refused"
 )
 
+// RemoteNamespaceStatus contains some information about remote namespace status
 type RemoteNamespaceStatus struct {
-	// RemoteNamespace is the name chosen by the user at creation time (when he puts labels on his local namespace)
+	// RemoteNamespace is the name chosen by the user at creation time (when he puts mapping label on his local namespace).
 	RemoteNamespace string `json:"remoteNamespace,omitempty"`
-	// Phase is the remote Namespace's actual status (Accepted,Refused)
+	// Phase is the remote Namespace's actual status (Accepted,Refused).
 	Phase mappingPhase `json:"phase,omitempty"`
 }
 
-// NamespaceMapSpec defines the desired state of NamespaceMap
+// NamespaceMapSpec defines the desired state of NamespaceMap.
 type NamespaceMapSpec struct {
 
 	// DesiredMapping is filled by NamespaceController when a user requires to offload a remote namespace, every entry
