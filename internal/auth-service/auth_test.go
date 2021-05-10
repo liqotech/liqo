@@ -15,13 +15,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/liqotech/liqo/apis/config/v1alpha1"
-	"github.com/liqotech/liqo/pkg/auth"
-	"github.com/liqotech/liqo/pkg/clusterID/test"
-	"github.com/liqotech/liqo/pkg/identityManager"
-	idManTest "github.com/liqotech/liqo/pkg/identityManager/testUtils"
-	"github.com/liqotech/liqo/pkg/tenantControlNamespace"
-	"github.com/liqotech/liqo/pkg/testUtils"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/ginkgo/extensions/table"
 	. "github.com/onsi/gomega"
@@ -32,6 +25,14 @@ import (
 	"k8s.io/client-go/informers"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/klog"
+
+	"github.com/liqotech/liqo/apis/config/v1alpha1"
+	"github.com/liqotech/liqo/pkg/auth"
+	"github.com/liqotech/liqo/pkg/clusterID/test"
+	"github.com/liqotech/liqo/pkg/identityManager"
+	idManTest "github.com/liqotech/liqo/pkg/identityManager/testUtils"
+	"github.com/liqotech/liqo/pkg/tenantControlNamespace"
+	"github.com/liqotech/liqo/pkg/testUtils"
 )
 
 func TestAuth(t *testing.T) {

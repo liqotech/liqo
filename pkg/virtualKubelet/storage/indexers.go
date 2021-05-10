@@ -2,13 +2,15 @@ package storage
 
 import (
 	"errors"
-	"github.com/liqotech/liqo/pkg/virtualKubelet"
-	apimgmt "github.com/liqotech/liqo/pkg/virtualKubelet/apiReflection"
+	"strings"
+
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	discoveryv1beta1 "k8s.io/api/discovery/v1beta1"
 	"k8s.io/client-go/tools/cache"
-	"strings"
+
+	"github.com/liqotech/liqo/pkg/virtualKubelet"
+	apimgmt "github.com/liqotech/liqo/pkg/virtualKubelet/apiReflection"
 )
 
 var InformerIndexers = map[apimgmt.ApiType]func() cache.Indexers{

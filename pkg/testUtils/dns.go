@@ -1,10 +1,11 @@
 package testUtils
 
 import (
-	"github.com/miekg/dns"
-	"k8s.io/klog"
 	"net"
 	"os"
+
+	"github.com/miekg/dns"
+	"k8s.io/klog"
 )
 
 type DnsServer struct {

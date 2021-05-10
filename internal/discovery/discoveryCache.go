@@ -2,9 +2,11 @@ package discovery
 
 import (
 	"errors"
-	"github.com/jinzhu/copier"
-	"github.com/liqotech/liqo/pkg/auth"
 	"sync"
+
+	"github.com/jinzhu/copier"
+
+	"github.com/liqotech/liqo/pkg/auth"
 )
 
 type discoveryData struct {

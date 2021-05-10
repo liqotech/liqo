@@ -1,16 +1,18 @@
 package advertisementOperator
 
 import (
+	"sync"
+	"time"
+
+	k8serrors "k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/klog"
+
 	configv1alpha1 "github.com/liqotech/liqo/apis/config/v1alpha1"
 	advtypes "github.com/liqotech/liqo/apis/sharing/v1alpha1"
 	"github.com/liqotech/liqo/pkg/clusterConfig"
 	"github.com/liqotech/liqo/pkg/crdClient"
 	pkg "github.com/liqotech/liqo/pkg/virtualKubelet"
-	k8serrors "k8s.io/apimachinery/pkg/api/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/klog"
-	"sync"
-	"time"
 )
 
 func (b *AdvertisementBroadcaster) WatchConfiguration(kubeconfigPath string, client *crdClient.CRDClient) {

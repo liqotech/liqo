@@ -3,6 +3,13 @@ package provider
 import (
 	"time"
 
+	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/client-go/kubernetes"
+	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
+	"k8s.io/client-go/rest"
+	"k8s.io/klog"
+	metricsv "k8s.io/metrics/pkg/client/clientset/versioned"
+
 	nettypes "github.com/liqotech/liqo/apis/net/v1alpha1"
 	advtypes "github.com/liqotech/liqo/apis/sharing/v1alpha1"
 	nattingv1 "github.com/liqotech/liqo/apis/virtualKubelet/v1alpha1"
@@ -14,12 +21,6 @@ import (
 	"github.com/liqotech/liqo/pkg/virtualKubelet/node/module"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/options"
 	optTypes "github.com/liqotech/liqo/pkg/virtualKubelet/options/types"
-	"k8s.io/apimachinery/pkg/runtime/schema"
-	"k8s.io/client-go/kubernetes"
-	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
-	"k8s.io/client-go/rest"
-	"k8s.io/klog"
-	metricsv "k8s.io/metrics/pkg/client/clientset/versioned"
 )
 
 // LiqoProvider implements the virtual-kubelet provider interface and stores pods in memory.
@@ -38,7 +39,6 @@ type LiqoProvider struct { // nolint:golint]
 	internalIP         string
 	daemonEndpointPort int32
 	startTime          time.Time
-	notifier           func(interface{})
 	foreignClusterId   string
 	homeClusterID      string
 	nodeController     *module.NodeController
@@ -50,8 +50,6 @@ type LiqoProvider struct { // nolint:golint]
 	LocalRemappedPodCidr  options.Option
 
 	foreignPodWatcherStop chan struct{}
-	nodeUpdateStop        chan struct{}
-	nodeReady             chan struct{}
 }
 
 // NewKubernetesProviderKubernetes creates a new KubernetesV0Provider. Kubernetes legacy provider does not implement the new asynchronous podnotifier interface

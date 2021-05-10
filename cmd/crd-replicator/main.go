@@ -5,11 +5,6 @@ import (
 	"os"
 	"time"
 
-	configv1alpha1 "github.com/liqotech/liqo/apis/config/v1alpha1"
-	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
-	"github.com/liqotech/liqo/internal/crdReplicator"
-	util "github.com/liqotech/liqo/pkg/liqonet"
-	"github.com/liqotech/liqo/pkg/mapperUtils"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/wait"
@@ -19,6 +14,12 @@ import (
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/klog/v2"
 	ctrl "sigs.k8s.io/controller-runtime"
+
+	configv1alpha1 "github.com/liqotech/liqo/apis/config/v1alpha1"
+	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
+	"github.com/liqotech/liqo/internal/crdReplicator"
+	util "github.com/liqotech/liqo/pkg/liqonet"
+	"github.com/liqotech/liqo/pkg/mapperUtils"
 )
 
 var (

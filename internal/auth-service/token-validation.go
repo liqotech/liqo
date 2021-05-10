@@ -1,11 +1,13 @@
 package auth_service
 
 import (
-	"github.com/liqotech/liqo/pkg/auth"
+	"net/http"
+
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/klog"
-	"net/http"
+
+	"github.com/liqotech/liqo/pkg/auth"
 )
 
 type credentialsValidator interface {

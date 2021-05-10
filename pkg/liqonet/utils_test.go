@@ -4,13 +4,14 @@ import (
 	"context"
 	"time"
 
-	"github.com/liqotech/liqo/pkg/liqonet"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/kubernetes/fake"
+
+	"github.com/liqotech/liqo/pkg/liqonet"
 )
 
 var _ = Describe("Liqonet", func() {

@@ -1,13 +1,15 @@
 package namespace_controller
 
 import (
-	liqoconst "github.com/liqotech/liqo/pkg/consts"
+	"strings"
+
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/klog"
 	"k8s.io/kubernetes/pkg/util/slice"
 	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
-	"strings"
+
+	liqoconst "github.com/liqotech/liqo/pkg/consts"
 )
 
 // Checks if Namespace has all offloading Labels of a specific node

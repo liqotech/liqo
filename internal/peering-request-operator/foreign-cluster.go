@@ -2,13 +2,15 @@ package peering_request_operator
 
 import (
 	"errors"
-	"github.com/liqotech/liqo/apis/discovery/v1alpha1"
-	"github.com/liqotech/liqo/pkg/discovery"
+	"strings"
+
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/klog"
 	"k8s.io/utils/pointer"
-	"strings"
+
+	"github.com/liqotech/liqo/apis/discovery/v1alpha1"
+	"github.com/liqotech/liqo/pkg/discovery"
 )
 
 func (r *PeeringRequestReconciler) UpdateForeignCluster(pr *v1alpha1.PeeringRequest) error {

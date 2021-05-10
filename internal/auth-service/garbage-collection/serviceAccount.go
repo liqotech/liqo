@@ -3,7 +3,7 @@ package garbage_collection
 import (
 	"context"
 	"fmt"
-	"github.com/liqotech/liqo/pkg/discovery"
+
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
@@ -11,6 +11,8 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/util/retry"
 	"k8s.io/klog"
+
+	"github.com/liqotech/liqo/pkg/discovery"
 )
 
 // delete ClusterRoles and ClusterRoleBindings related to a ServiceAccount. We cannot do it setting an OwnerReference

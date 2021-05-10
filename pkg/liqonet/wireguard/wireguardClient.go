@@ -2,6 +2,7 @@ package wireguard
 
 import (
 	"fmt"
+
 	"golang.zx2c4.com/wireguard/wgctrl"
 	"golang.zx2c4.com/wireguard/wgctrl/wgtypes"
 )

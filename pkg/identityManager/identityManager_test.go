@@ -9,16 +9,17 @@ import (
 	"testing"
 	"time"
 
-	"github.com/liqotech/liqo/pkg/clusterID/test"
-	"github.com/liqotech/liqo/pkg/discovery"
-	idManTest "github.com/liqotech/liqo/pkg/identityManager/testUtils"
-	"github.com/liqotech/liqo/pkg/tenantControlNamespace"
-	"github.com/liqotech/liqo/pkg/testUtils"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	v1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/client-go/kubernetes"
+
+	"github.com/liqotech/liqo/pkg/clusterID/test"
+	"github.com/liqotech/liqo/pkg/discovery"
+	idManTest "github.com/liqotech/liqo/pkg/identityManager/testUtils"
+	"github.com/liqotech/liqo/pkg/tenantControlNamespace"
+	"github.com/liqotech/liqo/pkg/testUtils"
 )
 
 func TestIdentityManager(t *testing.T) {

@@ -1,8 +1,9 @@
 package auth_service
 
 import (
-	"github.com/liqotech/liqo/pkg/kubeconfig"
 	v1 "k8s.io/api/core/v1"
+
+	"github.com/liqotech/liqo/pkg/kubeconfig"
 )
 
 // this function creates a kube-config file for a specified ServiceAccount

@@ -1,12 +1,13 @@
 package forge
 
 import (
-	advtypes "github.com/liqotech/liqo/apis/sharing/v1alpha1"
-	"github.com/liqotech/liqo/pkg/vkMachinery"
 	appsv1 "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
+	advtypes "github.com/liqotech/liqo/apis/sharing/v1alpha1"
+	"github.com/liqotech/liqo/pkg/vkMachinery"
 )
 
 // create deployment for a virtual-kubelet

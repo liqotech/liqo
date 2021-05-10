@@ -1,12 +1,14 @@
 package liqonet
 
 import (
-	netv1alpha1 "github.com/liqotech/liqo/apis/net/v1alpha1"
+	"net"
+
 	"github.com/vishvananda/netlink"
 	"golang.org/x/sys/unix"
 	"k8s.io/client-go/tools/record"
 	"k8s.io/klog/v2"
-	"net"
+
+	netv1alpha1 "github.com/liqotech/liqo/apis/net/v1alpha1"
 )
 
 type NetLink interface {

@@ -3,15 +3,11 @@ package provider
 import (
 	"context"
 	"fmt"
-	"github.com/liqotech/liqo/pkg/virtualKubelet"
-	apimgmgt "github.com/liqotech/liqo/pkg/virtualKubelet/apiReflection"
-	vkContext "github.com/liqotech/liqo/pkg/virtualKubelet/context"
-	"github.com/liqotech/liqo/pkg/virtualKubelet/forge"
-	"github.com/liqotech/liqo/pkg/virtualKubelet/node/module/api"
-	"github.com/liqotech/liqo/pkg/virtualKubelet/translation/serviceEnv"
+	"io"
+	"time"
+
 	"github.com/modern-go/reflect2"
 	"github.com/pkg/errors"
-	"io"
 	corev1 "k8s.io/api/core/v1"
 	kerror "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/resource"
@@ -21,7 +17,13 @@ import (
 	"k8s.io/client-go/tools/remotecommand"
 	"k8s.io/klog"
 	stats "k8s.io/kubernetes/pkg/kubelet/apis/stats/v1alpha1"
-	"time"
+
+	"github.com/liqotech/liqo/pkg/virtualKubelet"
+	apimgmgt "github.com/liqotech/liqo/pkg/virtualKubelet/apiReflection"
+	vkContext "github.com/liqotech/liqo/pkg/virtualKubelet/context"
+	"github.com/liqotech/liqo/pkg/virtualKubelet/forge"
+	"github.com/liqotech/liqo/pkg/virtualKubelet/node/module/api"
+	"github.com/liqotech/liqo/pkg/virtualKubelet/translation/serviceEnv"
 )
 
 // CreatePod accepts a Pod definition and stores it in memory.

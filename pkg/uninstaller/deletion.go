@@ -2,13 +2,15 @@ package uninstaller
 
 import (
 	"context"
-	clusterconfigV1alpha1 "github.com/liqotech/liqo/apis/config/v1alpha1"
-	discoveryV1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
+
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/klog/v2"
+
+	clusterconfigV1alpha1 "github.com/liqotech/liqo/apis/config/v1alpha1"
+	discoveryV1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 )
 
 // UnjoinClusters disables outgoing peerings with available clusters

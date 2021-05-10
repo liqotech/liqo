@@ -18,8 +18,7 @@ package namespaceMap_controller
 
 import (
 	"context"
-	mapsv1alpha1 "github.com/liqotech/liqo/apis/virtualKubelet/v1alpha1"
-	liqoconst "github.com/liqotech/liqo/pkg/consts"
+
 	"k8s.io/apimachinery/pkg/api/meta"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/klog"
@@ -28,6 +27,9 @@ import (
 	ctrlutils "sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
+
+	mapsv1alpha1 "github.com/liqotech/liqo/apis/virtualKubelet/v1alpha1"
+	liqoconst "github.com/liqotech/liqo/pkg/consts"
 )
 
 type NamespaceMapReconciler struct {

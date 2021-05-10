@@ -1,9 +1,10 @@
 package test
 
 import (
-	"github.com/liqotech/liqo/pkg/virtualKubelet/utils"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
+	"github.com/liqotech/liqo/pkg/virtualKubelet/utils"
 )
 
 const (

@@ -2,14 +2,16 @@ package discovery
 
 import (
 	"errors"
-	"github.com/liqotech/liqo/apis/discovery/v1alpha1"
-	discoveryPkg "github.com/liqotech/liqo/pkg/discovery"
+	"strings"
+
 	k8serror "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/util/retry"
 	"k8s.io/klog"
-	"strings"
+
+	"github.com/liqotech/liqo/apis/discovery/v1alpha1"
+	discoveryPkg "github.com/liqotech/liqo/pkg/discovery"
 )
 
 // 1. checks if cluster ID is already known

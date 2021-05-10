@@ -18,9 +18,10 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"k8s.io/klog/v2"
 	"sync"
 	"time"
+
+	"k8s.io/klog/v2"
 
 	pkgerrors "github.com/pkg/errors"
 	coord "k8s.io/api/coordination/v1beta1"
@@ -512,18 +513,4 @@ func (NaiveNodeProvider) Ping(ctx context.Context) error {
 // This NaiveNodeProvider does not support updating node status and so this
 // function is a no-op.
 func (NaiveNodeProvider) NotifyNodeStatus(ctx context.Context, f func(*corev1.Node)) {
-}
-
-type taintsStringer []corev1.Taint
-
-func (t taintsStringer) String() string {
-	var s string
-	for _, taint := range t {
-		if s == "" {
-			s = taint.Key + "=" + taint.Value + ":" + string(taint.Effect)
-		} else {
-			s += ", " + taint.Key + "=" + taint.Value + ":" + string(taint.Effect)
-		}
-	}
-	return s
 }

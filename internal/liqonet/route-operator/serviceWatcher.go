@@ -1,7 +1,8 @@
 package route_operator
 
 import (
-	"github.com/liqotech/liqo/pkg/liqonet/overlay"
+	"time"
+
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -10,7 +11,8 @@ import (
 	"k8s.io/client-go/dynamic/dynamicinformer"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/klog/v2"
-	"time"
+
+	"github.com/liqotech/liqo/pkg/liqonet/overlay"
 )
 
 var (

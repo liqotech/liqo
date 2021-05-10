@@ -18,9 +18,11 @@ package virtualNode_controller
 
 import (
 	"context"
+
+	ctrlutils "sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
+
 	mapsv1alpha1 "github.com/liqotech/liqo/apis/virtualKubelet/v1alpha1"
 	liqoconst "github.com/liqotech/liqo/pkg/consts"
-	ctrlutils "sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"

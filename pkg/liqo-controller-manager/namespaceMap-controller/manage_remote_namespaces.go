@@ -2,12 +2,14 @@ package namespaceMap_controller
 
 import (
 	"context"
-	mapsv1alpha1 "github.com/liqotech/liqo/apis/virtualKubelet/v1alpha1"
-	liqoconst "github.com/liqotech/liqo/pkg/consts"
+
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/klog"
+
+	mapsv1alpha1 "github.com/liqotech/liqo/apis/virtualKubelet/v1alpha1"
+	liqoconst "github.com/liqotech/liqo/pkg/consts"
 )
 
 // This function creates a new Namespace onto the remote cluster, the right client to use is chosen

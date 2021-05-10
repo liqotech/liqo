@@ -2,13 +2,15 @@ package discovery
 
 import (
 	goerrors "errors"
-	"github.com/liqotech/liqo/apis/discovery/v1alpha1"
-	discoveryPkg "github.com/liqotech/liqo/pkg/discovery"
+	"time"
+
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/selection"
 	"k8s.io/klog"
-	"time"
+
+	"github.com/liqotech/liqo/apis/discovery/v1alpha1"
+	discoveryPkg "github.com/liqotech/liqo/pkg/discovery"
 )
 
 func (discovery *DiscoveryCtrl) StartGarbageCollector() {

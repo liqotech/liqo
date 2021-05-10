@@ -3,15 +3,18 @@ package virtualNode_controller
 import (
 	"context"
 	"fmt"
-	mapsv1alpha1 "github.com/liqotech/liqo/apis/virtualKubelet/v1alpha1"
-	liqoconst "github.com/liqotech/liqo/pkg/consts"
+
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/klog"
 	ctrlutils "sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
-	"sigs.k8s.io/controller-runtime/pkg/client"
+	mapsv1alpha1 "github.com/liqotech/liqo/apis/virtualKubelet/v1alpha1"
+	liqoconst "github.com/liqotech/liqo/pkg/consts"
+
 	"time"
+
+	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 func (r *VirtualNodeReconciler) removeAllDesiredMappings(nm mapsv1alpha1.NamespaceMap) error {

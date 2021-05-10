@@ -1,16 +1,18 @@
 package discovery
 
 import (
+	"os"
+	"sync"
+	"time"
+
 	"github.com/grandcat/zeroconf"
+	"k8s.io/klog"
+
 	configv1alpha1 "github.com/liqotech/liqo/apis/config/v1alpha1"
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	advtypes "github.com/liqotech/liqo/apis/sharing/v1alpha1"
 	"github.com/liqotech/liqo/pkg/clusterID"
 	"github.com/liqotech/liqo/pkg/crdClient"
-	"k8s.io/klog"
-	"os"
-	"sync"
-	"time"
 )
 
 type DiscoveryCtrl struct {

@@ -2,13 +2,14 @@ package crdClient
 
 import (
 	"errors"
+	"sync"
+
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/klog"
-	"sync"
 )
 
 // FakeInformer is an implementation of the cache.FakeCustomStore that

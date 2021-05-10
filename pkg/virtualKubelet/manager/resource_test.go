@@ -17,13 +17,14 @@ package manager_test
 import (
 	"testing"
 
-	"github.com/liqotech/liqo/pkg/virtualKubelet/manager"
-	testutil "github.com/liqotech/liqo/pkg/virtualKubelet/test/util"
 	"gotest.tools/assert"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	corev1listers "k8s.io/client-go/listers/core/v1"
 	"k8s.io/client-go/tools/cache"
+
+	"github.com/liqotech/liqo/pkg/virtualKubelet/manager"
+	testutil "github.com/liqotech/liqo/pkg/virtualKubelet/test/util"
 )
 
 // TestGetPods verifies that the resource manager acts as a passthrough to a pod lister.

@@ -19,13 +19,14 @@ import (
 	"testing"
 	"time"
 
-	testutil "github.com/liqotech/liqo/pkg/virtualKubelet/test/util"
 	"gotest.tools/assert"
 	is "gotest.tools/assert/cmp"
 	corev1 "k8s.io/api/core/v1"
 	kubeinformers "k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes/fake"
 	"k8s.io/client-go/util/workqueue"
+
+	testutil "github.com/liqotech/liqo/pkg/virtualKubelet/test/util"
 )
 
 type TestController struct {

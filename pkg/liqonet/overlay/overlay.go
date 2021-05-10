@@ -1,16 +1,18 @@
 package overlay
 
 import (
-	"github.com/liqotech/liqo/pkg/liqonet/wireguard"
-	"github.com/vishvananda/netlink"
-	"golang.org/x/sys/unix"
 	"io/ioutil"
-	k8s "k8s.io/client-go/kubernetes"
-	"k8s.io/klog"
 	"net"
 	"os"
 	"strconv"
 	"strings"
+
+	"github.com/vishvananda/netlink"
+	"golang.org/x/sys/unix"
+	k8s "k8s.io/client-go/kubernetes"
+	"k8s.io/klog"
+
+	"github.com/liqotech/liqo/pkg/liqonet/wireguard"
 )
 
 const (

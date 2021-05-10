@@ -17,15 +17,13 @@ package module
 import (
 	"context"
 	"fmt"
-	"k8s.io/klog"
 	"strconv"
 	"sync"
 	"time"
 
+	"k8s.io/klog"
+
 	"github.com/google/go-cmp/cmp"
-	"github.com/liqotech/liqo/internal/utils/errdefs"
-	vkContext "github.com/liqotech/liqo/pkg/virtualKubelet/context"
-	"github.com/liqotech/liqo/pkg/virtualKubelet/manager"
 	pkgerrors "github.com/pkg/errors"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -35,6 +33,10 @@ import (
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/tools/record"
 	"k8s.io/client-go/util/workqueue"
+
+	"github.com/liqotech/liqo/internal/utils/errdefs"
+	vkContext "github.com/liqotech/liqo/pkg/virtualKubelet/context"
+	"github.com/liqotech/liqo/pkg/virtualKubelet/manager"
 )
 
 // PodLifecycleHandler defines the interface used by the PodController to react
@@ -212,7 +214,7 @@ type asyncProvider interface {
 
 // Run will set up the event handlers for types we are interested in, as well
 // as syncing informer caches and starting workers.  It will block until the
-// context is cancelled, at which point it will shutdown the work queue and
+// context is canceled, at which point it will shutdown the work queue and
 // wait for workers to finish processing their current work items prior to
 // returning.
 //

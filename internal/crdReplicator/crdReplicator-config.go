@@ -1,14 +1,16 @@
 package crdReplicator
 
 import (
-	configv1alpha1 "github.com/liqotech/liqo/apis/config/v1alpha1"
-	"github.com/liqotech/liqo/pkg/clusterConfig"
-	"github.com/liqotech/liqo/pkg/crdClient"
+	"reflect"
+
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
 	"k8s.io/klog/v2"
-	"reflect"
+
+	configv1alpha1 "github.com/liqotech/liqo/apis/config/v1alpha1"
+	"github.com/liqotech/liqo/pkg/clusterConfig"
+	"github.com/liqotech/liqo/pkg/crdClient"
 )
 
 func (c *Controller) WatchConfiguration(config *rest.Config, gv *schema.GroupVersion) error {

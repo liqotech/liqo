@@ -4,7 +4,11 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"github.com/liqotech/liqo/pkg/virtualKubelet"
+	"os"
+	"sync"
+	"testing"
+	"time"
+
 	"gotest.tools/assert"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -19,10 +23,8 @@ import (
 	"k8s.io/klog"
 	"k8s.io/kubernetes/pkg/api/v1/pod"
 	api "k8s.io/kubernetes/pkg/apis/core"
-	"os"
-	"sync"
-	"testing"
-	"time"
+
+	"github.com/liqotech/liqo/pkg/virtualKubelet"
 )
 
 type Tester struct {

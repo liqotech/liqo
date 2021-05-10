@@ -3,10 +3,13 @@ package clusterID
 import (
 	"context"
 	"errors"
-	"github.com/google/uuid"
-	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
-	"github.com/liqotech/liqo/pkg/crdClient"
 	"io/ioutil"
+	"os"
+	"sort"
+	"strings"
+	"sync"
+
+	"github.com/google/uuid"
 	v1 "k8s.io/api/core/v1"
 	k8serror "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -14,10 +17,9 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/klog"
-	"os"
-	"sort"
-	"strings"
-	"sync"
+
+	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
+	"github.com/liqotech/liqo/pkg/crdClient"
 )
 
 type ClusterID interface {

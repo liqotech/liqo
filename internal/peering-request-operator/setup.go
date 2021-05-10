@@ -1,16 +1,18 @@
 package peering_request_operator
 
 import (
+	"os"
+	"time"
+
+	"k8s.io/apimachinery/pkg/runtime"
+	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
+	"k8s.io/klog"
+	ctrl "sigs.k8s.io/controller-runtime"
+
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	"github.com/liqotech/liqo/pkg/clusterID"
 	"github.com/liqotech/liqo/pkg/crdClient"
 	"github.com/liqotech/liqo/pkg/mapperUtils"
-	"k8s.io/apimachinery/pkg/runtime"
-	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
-	"k8s.io/klog"
-	"os"
-	ctrl "sigs.k8s.io/controller-runtime"
-	"time"
 )
 
 var (

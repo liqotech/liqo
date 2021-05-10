@@ -2,19 +2,21 @@ package reflection
 
 import (
 	"context"
-	apimgmt "github.com/liqotech/liqo/pkg/virtualKubelet/apiReflection"
-	api "github.com/liqotech/liqo/pkg/virtualKubelet/apiReflection/reflectors"
-	"github.com/liqotech/liqo/pkg/virtualKubelet/apiReflection/reflectors/outgoing"
-	"github.com/liqotech/liqo/pkg/virtualKubelet/namespacesMapping/test"
-	"github.com/liqotech/liqo/pkg/virtualKubelet/options/types"
-	storageTest "github.com/liqotech/liqo/pkg/virtualKubelet/storage/test"
+	"testing"
+
 	"gotest.tools/assert"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/api/discovery/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes/fake"
 	"k8s.io/klog"
-	"testing"
+
+	apimgmt "github.com/liqotech/liqo/pkg/virtualKubelet/apiReflection"
+	api "github.com/liqotech/liqo/pkg/virtualKubelet/apiReflection/reflectors"
+	"github.com/liqotech/liqo/pkg/virtualKubelet/apiReflection/reflectors/outgoing"
+	"github.com/liqotech/liqo/pkg/virtualKubelet/namespacesMapping/test"
+	"github.com/liqotech/liqo/pkg/virtualKubelet/options/types"
+	storageTest "github.com/liqotech/liqo/pkg/virtualKubelet/storage/test"
 )
 
 func TestEndpointAdd(t *testing.T) {

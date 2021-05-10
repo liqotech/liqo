@@ -1,19 +1,21 @@
 package foreign_cluster_operator
 
 import (
-	"github.com/liqotech/liqo/apis/config/v1alpha1"
-	v1alpha12 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
-	"github.com/liqotech/liqo/pkg/clusterID/test"
-	"github.com/liqotech/liqo/pkg/discovery"
-	"github.com/liqotech/liqo/pkg/testUtils"
+	"os"
+	"path/filepath"
+	"testing"
+
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/ginkgo/extensions/table"
 	. "github.com/onsi/gomega"
 	"github.com/onsi/gomega/types"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"os"
-	"path/filepath"
-	"testing"
+
+	"github.com/liqotech/liqo/apis/config/v1alpha1"
+	v1alpha12 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
+	"github.com/liqotech/liqo/pkg/clusterID/test"
+	"github.com/liqotech/liqo/pkg/discovery"
+	"github.com/liqotech/liqo/pkg/testUtils"
 )
 
 type configMock struct {

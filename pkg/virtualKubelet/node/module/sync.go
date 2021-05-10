@@ -2,17 +2,19 @@ package module
 
 import (
 	"context"
-	"k8s.io/klog/v2"
 	"sync"
 	"time"
 
-	"github.com/liqotech/liqo/internal/utils/errdefs"
+	"k8s.io/klog/v2"
+
 	"github.com/pkg/errors"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	corev1listers "k8s.io/client-go/listers/core/v1"
 	"k8s.io/client-go/tools/cache"
+
+	"github.com/liqotech/liqo/internal/utils/errdefs"
 )
 
 const (

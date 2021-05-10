@@ -7,9 +7,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/liqotech/liqo/internal/utils/errdefs"
-	"github.com/liqotech/liqo/internal/utils/log"
-	logruslogger "github.com/liqotech/liqo/internal/utils/log/logrus"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"gotest.tools/assert"
@@ -28,6 +25,10 @@ import (
 	"k8s.io/client-go/tools/record"
 	watchutils "k8s.io/client-go/tools/watch"
 	"k8s.io/klog"
+
+	"github.com/liqotech/liqo/internal/utils/errdefs"
+	"github.com/liqotech/liqo/internal/utils/log"
+	logruslogger "github.com/liqotech/liqo/internal/utils/log/logrus"
 )
 
 var (

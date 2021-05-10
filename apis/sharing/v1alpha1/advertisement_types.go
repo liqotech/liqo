@@ -16,9 +16,10 @@ limitations under the License.
 package v1alpha1
 
 import (
-	object_references "github.com/liqotech/liqo/pkg/object-references"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
+	object_references "github.com/liqotech/liqo/pkg/object-references"
 )
 
 // AdvertisementSpec defines the desired state of Advertisement

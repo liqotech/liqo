@@ -3,6 +3,7 @@ package advertisement_operator
 import (
 	"context"
 	"fmt"
+
 	configv1alpha1 "github.com/liqotech/liqo/apis/config/v1alpha1"
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	advtypes "github.com/liqotech/liqo/apis/sharing/v1alpha1"
@@ -10,17 +11,19 @@ import (
 	liqoconst "github.com/liqotech/liqo/pkg/consts"
 	"github.com/liqotech/liqo/pkg/crdClient"
 
-	"github.com/liqotech/liqo/pkg/utils"
-	pkg "github.com/liqotech/liqo/pkg/virtualKubelet"
-	"github.com/liqotech/liqo/pkg/virtualKubelet/provider/test"
+	"strconv"
+	"testing"
+	"time"
+
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"strconv"
-	"testing"
-	"time"
+
+	"github.com/liqotech/liqo/pkg/utils"
+	pkg "github.com/liqotech/liqo/pkg/virtualKubelet"
+	"github.com/liqotech/liqo/pkg/virtualKubelet/provider/test"
 )
 
 func createBroadcaster(configv1alpha1 configv1alpha1.ClusterConfigSpec) advop.AdvertisementBroadcaster {

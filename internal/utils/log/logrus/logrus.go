@@ -18,8 +18,9 @@
 package logrus
 
 import (
-	"github.com/liqotech/liqo/internal/utils/log"
 	"github.com/sirupsen/logrus"
+
+	"github.com/liqotech/liqo/internal/utils/log"
 )
 
 // Adapter implements the `log.Logger` interface for logrus

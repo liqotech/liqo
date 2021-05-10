@@ -16,6 +16,7 @@ package module
 
 import (
 	"context"
+
 	"github.com/google/go-cmp/cmp"
 	pkgerrors "github.com/pkg/errors"
 	corev1 "k8s.io/api/core/v1"

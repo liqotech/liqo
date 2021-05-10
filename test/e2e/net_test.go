@@ -4,18 +4,21 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+
 	liqoconst "github.com/liqotech/liqo/pkg/consts"
 
-	"github.com/liqotech/liqo/pkg/virtualKubelet"
-	"github.com/liqotech/liqo/test/e2e/util"
-	"github.com/stretchr/testify/assert"
-	v1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/klog"
 	"os/exec"
 	"strconv"
 	"testing"
 	"time"
+
+	"github.com/stretchr/testify/assert"
+	v1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/klog"
+
+	"github.com/liqotech/liqo/pkg/virtualKubelet"
+	"github.com/liqotech/liqo/test/e2e/util"
 )
 
 var (

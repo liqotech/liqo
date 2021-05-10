@@ -17,8 +17,9 @@ package logrus
 import (
 	"testing"
 
-	"github.com/liqotech/liqo/internal/utils/log"
 	"github.com/sirupsen/logrus"
+
+	"github.com/liqotech/liqo/internal/utils/log"
 )
 
 func TestImplementsLoggerInterface(t *testing.T) {

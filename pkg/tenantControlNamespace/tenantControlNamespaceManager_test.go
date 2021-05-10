@@ -8,8 +8,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/liqotech/liqo/pkg/discovery"
-	"github.com/liqotech/liqo/pkg/testUtils"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	v1 "k8s.io/api/core/v1"
@@ -17,6 +15,9 @@ import (
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
+
+	"github.com/liqotech/liqo/pkg/discovery"
+	"github.com/liqotech/liqo/pkg/testUtils"
 )
 
 func TestTenantControlNamespace(t *testing.T) {

@@ -1,11 +1,13 @@
 package search_domain_operator
 
 import (
-	"github.com/liqotech/liqo/internal/discovery"
-	"github.com/liqotech/liqo/pkg/testUtils"
+	"testing"
+
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
-	"testing"
+
+	"github.com/liqotech/liqo/internal/discovery"
+	"github.com/liqotech/liqo/pkg/testUtils"
 )
 
 func TestWan(t *testing.T) {

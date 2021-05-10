@@ -6,11 +6,13 @@ import (
 	"encoding/json"
 	goerrors "errors"
 	"fmt"
+	"io/ioutil"
+	"net/http"
+
+	"k8s.io/klog"
+
 	"github.com/liqotech/liqo/pkg/auth"
 	"github.com/liqotech/liqo/pkg/discovery"
-	"io/ioutil"
-	"k8s.io/klog"
-	"net/http"
 )
 
 // check if the error is due to a TLS certificate signed by unknown authority

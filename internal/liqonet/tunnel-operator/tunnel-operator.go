@@ -17,24 +17,26 @@ package tunnel_operator
 import (
 	"context"
 	"fmt"
+	"os"
+	"os/signal"
+	"reflect"
+	"strings"
+	"time"
+
+	k8s "k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/tools/record"
+	"k8s.io/klog"
+	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/event"
+	"sigs.k8s.io/controller-runtime/pkg/predicate"
+
 	netv1alpha1 "github.com/liqotech/liqo/apis/net/v1alpha1"
 	utils "github.com/liqotech/liqo/pkg/liqonet"
 	"github.com/liqotech/liqo/pkg/liqonet/overlay"
 	"github.com/liqotech/liqo/pkg/liqonet/tunnel"
 	_ "github.com/liqotech/liqo/pkg/liqonet/tunnel/wireguard"
 	"github.com/liqotech/liqo/pkg/liqonet/wireguard"
-	k8s "k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/tools/record"
-	"k8s.io/klog"
-	"os"
-	"os/signal"
-	"reflect"
-	ctrl "sigs.k8s.io/controller-runtime"
-	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/event"
-	"sigs.k8s.io/controller-runtime/pkg/predicate"
-	"strings"
-	"time"
 )
 
 var (

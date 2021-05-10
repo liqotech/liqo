@@ -4,15 +4,17 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"github.com/liqotech/liqo/pkg/webhookConfiguration"
+	"os"
+	"path"
+
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/klog"
-	"os"
-	"path"
 	"sigs.k8s.io/controller-runtime/pkg/client/config"
+
+	"github.com/liqotech/liqo/pkg/webhookConfiguration"
 )
 
 const (

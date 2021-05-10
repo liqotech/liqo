@@ -2,13 +2,15 @@ package controller
 
 import (
 	"errors"
+	"sync"
+
+	"k8s.io/client-go/kubernetes"
+	"k8s.io/klog"
+
 	"github.com/liqotech/liqo/pkg/virtualKubelet/apiReflection"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/namespacesMapping"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/options"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/storage"
-	"k8s.io/client-go/kubernetes"
-	"k8s.io/klog"
-	"sync"
 )
 
 const (

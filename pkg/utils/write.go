@@ -1,10 +1,11 @@
 package utils
 
 import (
+	"os"
+
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/klog/v2"
-	"os"
 )
 
 func WriteFile(filepath string, content []byte) error {

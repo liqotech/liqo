@@ -3,9 +3,10 @@ package mutate
 import (
 	"fmt"
 	"io/ioutil"
-	"k8s.io/klog"
 	"net/http"
 	"time"
+
+	"k8s.io/klog"
 )
 
 type MutationConfig struct {

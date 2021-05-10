@@ -2,10 +2,7 @@ package outgoing
 
 import (
 	"context"
-	apimgmt "github.com/liqotech/liqo/pkg/virtualKubelet/apiReflection"
-	"github.com/liqotech/liqo/pkg/virtualKubelet/apiReflection/reflectors"
-	ri "github.com/liqotech/liqo/pkg/virtualKubelet/apiReflection/reflectors/reflectorsInterfaces"
-	"github.com/liqotech/liqo/pkg/virtualKubelet/forge"
+
 	"github.com/pkg/errors"
 	corev1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
@@ -13,6 +10,11 @@ import (
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/util/retry"
 	"k8s.io/klog"
+
+	apimgmt "github.com/liqotech/liqo/pkg/virtualKubelet/apiReflection"
+	"github.com/liqotech/liqo/pkg/virtualKubelet/apiReflection/reflectors"
+	ri "github.com/liqotech/liqo/pkg/virtualKubelet/apiReflection/reflectors/reflectorsInterfaces"
+	"github.com/liqotech/liqo/pkg/virtualKubelet/forge"
 )
 
 type ServicesReflector struct {

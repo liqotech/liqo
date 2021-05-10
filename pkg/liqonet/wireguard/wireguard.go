@@ -2,13 +2,15 @@ package wireguard
 
 import (
 	"fmt"
-	"github.com/liqotech/liqo/internal/utils/errdefs"
-	"golang.zx2c4.com/wireguard/wgctrl/wgtypes"
-	"k8s.io/klog/v2"
 	"net"
 	"reflect"
 	"strconv"
 	"time"
+
+	"golang.zx2c4.com/wireguard/wgctrl/wgtypes"
+	"k8s.io/klog/v2"
+
+	"github.com/liqotech/liqo/internal/utils/errdefs"
 )
 
 type WgConfig struct {

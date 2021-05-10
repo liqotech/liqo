@@ -16,16 +16,18 @@ import (
 	"bytes"
 	"context"
 	"flag"
+
 	mapsv1alpha1 "github.com/liqotech/liqo/apis/virtualKubelet/v1alpha1"
 	liqoconst "github.com/liqotech/liqo/pkg/consts"
+
+	"path/filepath"
+	"testing"
+	"time"
 
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
-	"path/filepath"
 	ctrl "sigs.k8s.io/controller-runtime"
-	"testing"
-	"time"
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"

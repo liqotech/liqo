@@ -2,12 +2,14 @@ package auth_service
 
 import (
 	"encoding/json"
-	"github.com/julienschmidt/httprouter"
-	"github.com/liqotech/liqo/pkg/auth"
 	"io/ioutil"
+	"net/http"
+
+	"github.com/julienschmidt/httprouter"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/klog"
-	"net/http"
+
+	"github.com/liqotech/liqo/pkg/auth"
 )
 
 func (authService *AuthServiceCtrl) role(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {

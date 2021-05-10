@@ -1,10 +1,11 @@
 package utils
 
 import (
-	advtypes "github.com/liqotech/liqo/apis/sharing/v1alpha1"
 	appsv1 "k8s.io/api/apps/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/klog"
+
+	advtypes "github.com/liqotech/liqo/apis/sharing/v1alpha1"
 )
 
 func GetOwnerReference(object interface{}) []metav1.OwnerReference {

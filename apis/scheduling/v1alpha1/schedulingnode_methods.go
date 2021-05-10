@@ -1,9 +1,10 @@
 package v1alpha1
 
 import (
+	"strings"
+
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
-	"strings"
 )
 
 // we'd like to have crd cluster-scoped, but there is an issue in that. Additional investigation required

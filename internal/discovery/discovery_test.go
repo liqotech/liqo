@@ -2,13 +2,14 @@ package discovery
 
 import (
 	"context"
+	"net"
+	"os"
+	"path/filepath"
+	"strconv"
+	"testing"
+	"time"
+
 	"github.com/grandcat/zeroconf"
-	"github.com/liqotech/liqo/apis/config/v1alpha1"
-	v1alpha12 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
-	"github.com/liqotech/liqo/pkg/auth"
-	"github.com/liqotech/liqo/pkg/clusterID/test"
-	"github.com/liqotech/liqo/pkg/discovery"
-	"github.com/liqotech/liqo/pkg/testUtils"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/ginkgo/extensions/table"
 	. "github.com/onsi/gomega"
@@ -17,12 +18,13 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/klog"
-	"net"
-	"os"
-	"path/filepath"
-	"strconv"
-	"testing"
-	"time"
+
+	"github.com/liqotech/liqo/apis/config/v1alpha1"
+	v1alpha12 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
+	"github.com/liqotech/liqo/pkg/auth"
+	"github.com/liqotech/liqo/pkg/clusterID/test"
+	"github.com/liqotech/liqo/pkg/discovery"
+	"github.com/liqotech/liqo/pkg/testUtils"
 )
 
 func TestDiscovery(t *testing.T) {

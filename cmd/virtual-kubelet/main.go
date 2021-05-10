@@ -16,18 +16,20 @@ package main
 
 import (
 	"context"
-	"github.com/liqotech/liqo/cmd/virtual-kubelet/provider"
-	"github.com/liqotech/liqo/cmd/virtual-kubelet/root"
-	"k8s.io/client-go/discovery"
-	"k8s.io/client-go/rest"
-	"k8s.io/client-go/tools/clientcmd"
-	"k8s.io/klog/v2"
 	"net/http"
 	"net/http/pprof"
 	"os"
 	"os/signal"
 	"path/filepath"
 	"syscall"
+
+	"k8s.io/client-go/discovery"
+	"k8s.io/client-go/rest"
+	"k8s.io/client-go/tools/clientcmd"
+	"k8s.io/klog/v2"
+
+	"github.com/liqotech/liqo/cmd/virtual-kubelet/provider"
+	"github.com/liqotech/liqo/cmd/virtual-kubelet/root"
 
 	"github.com/spf13/cobra"
 )

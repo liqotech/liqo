@@ -17,14 +17,10 @@ package root
 import (
 	"context"
 	"fmt"
-	"github.com/liqotech/liqo/apis/sharing/v1alpha1"
-	"github.com/liqotech/liqo/cmd/virtual-kubelet/provider"
-	"github.com/liqotech/liqo/internal/utils/errdefs"
-	"github.com/liqotech/liqo/pkg/crdClient"
-	"github.com/liqotech/liqo/pkg/virtualKubelet"
-	"github.com/liqotech/liqo/pkg/virtualKubelet/manager"
-	"github.com/liqotech/liqo/pkg/virtualKubelet/node/module"
-	nodeProvider "github.com/liqotech/liqo/pkg/virtualKubelet/node/provider"
+	"os"
+	"path"
+	"strings"
+
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 	corev1 "k8s.io/api/core/v1"
@@ -37,9 +33,15 @@ import (
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/record"
 	"k8s.io/klog"
-	"os"
-	"path"
-	"strings"
+
+	"github.com/liqotech/liqo/apis/sharing/v1alpha1"
+	"github.com/liqotech/liqo/cmd/virtual-kubelet/provider"
+	"github.com/liqotech/liqo/internal/utils/errdefs"
+	"github.com/liqotech/liqo/pkg/crdClient"
+	"github.com/liqotech/liqo/pkg/virtualKubelet"
+	"github.com/liqotech/liqo/pkg/virtualKubelet/manager"
+	"github.com/liqotech/liqo/pkg/virtualKubelet/node/module"
+	nodeProvider "github.com/liqotech/liqo/pkg/virtualKubelet/node/provider"
 )
 
 // NewCommand creates a new top-level command.
@@ -105,10 +107,6 @@ func runRootCommand(ctx context.Context, s *provider.Store, c *Opts) error {
 
 	apiConfig, err := getAPIConfig(*c)
 	if err != nil {
-		return err
-	}
-
-	if err := setupTracing(ctx, *c); err != nil {
 		return err
 	}
 

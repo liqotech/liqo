@@ -68,7 +68,6 @@ type Opts struct {
 
 	TraceExporters  []string
 	TraceSampleRate string
-	TraceConfig     TracingExporterOptions
 
 	// Startup Timeout is how long to wait for the kubelet to start
 	StartupTimeout time.Duration
@@ -94,10 +93,6 @@ func SetDefaultOpts(c *Opts) error {
 
 	if c.PodSyncWorkers == 0 {
 		c.PodSyncWorkers = DefaultPodSyncWorkers
-	}
-
-	if c.TraceConfig.ServiceName == "" {
-		c.TraceConfig.ServiceName = DefaultNodeName
 	}
 
 	if c.ListenPort == 0 {

@@ -2,13 +2,15 @@ package v1alpha1
 
 import (
 	"errors"
-	"github.com/liqotech/liqo/pkg/crdClient"
+
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/cache"
+
+	"github.com/liqotech/liqo/pkg/crdClient"
 )
 
 // create a client for Advertisement CR using a provided kubeconfig

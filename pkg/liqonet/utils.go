@@ -8,7 +8,6 @@ import (
 	"os"
 	"syscall"
 
-	"github.com/liqotech/liqo/internal/utils/errdefs"
 	"github.com/vishvananda/netlink"
 	"golang.org/x/tools/go/ssa/interp/testdata/src/errors"
 	"inet.af/netaddr"
@@ -19,6 +18,8 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/util/retry"
 	"k8s.io/klog"
+
+	"github.com/liqotech/liqo/internal/utils/errdefs"
 )
 
 var (

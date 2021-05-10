@@ -3,8 +3,10 @@ package crdReplicator
 import (
 	"context"
 	"fmt"
-	"github.com/liqotech/liqo/apis/discovery/v1alpha1"
-	utils "github.com/liqotech/liqo/pkg/liqonet"
+	"reflect"
+	"strings"
+	"time"
+
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -20,13 +22,13 @@ import (
 	clientcmdapi "k8s.io/client-go/tools/clientcmd/api"
 	"k8s.io/client-go/util/retry"
 	"k8s.io/klog/v2"
-	"reflect"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
-	"strings"
-	"time"
+
+	"github.com/liqotech/liqo/apis/discovery/v1alpha1"
+	utils "github.com/liqotech/liqo/pkg/liqonet"
 )
 
 var (

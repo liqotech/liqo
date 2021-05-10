@@ -1,13 +1,15 @@
 package wireguard_test
 
 import (
-	wg "github.com/liqotech/liqo/pkg/liqonet/tunnel/wireguard"
-	"github.com/liqotech/liqo/pkg/liqonet/wireguard"
+	"testing"
+	"time"
+
 	"golang.zx2c4.com/wireguard/wgctrl/wgtypes"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"testing"
-	"time"
+
+	wg "github.com/liqotech/liqo/pkg/liqonet/tunnel/wireguard"
+	"github.com/liqotech/liqo/pkg/liqonet/wireguard"
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"

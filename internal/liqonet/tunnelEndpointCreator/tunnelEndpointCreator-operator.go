@@ -25,11 +25,6 @@ import (
 	"sync"
 	"time"
 
-	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
-	"github.com/liqotech/liqo/internal/crdReplicator"
-	liqonet "github.com/liqotech/liqo/pkg/liqonet"
-	"github.com/liqotech/liqo/pkg/liqonet/tunnel/wireguard"
-	"github.com/liqotech/liqo/pkg/owner"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -41,11 +36,18 @@ import (
 	"k8s.io/klog"
 	"k8s.io/utils/pointer"
 
+	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
+	"github.com/liqotech/liqo/internal/crdReplicator"
+	liqonet "github.com/liqotech/liqo/pkg/liqonet"
+	"github.com/liqotech/liqo/pkg/liqonet/tunnel/wireguard"
+	"github.com/liqotech/liqo/pkg/owner"
+
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	netv1alpha1 "github.com/liqotech/liqo/apis/net/v1alpha1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
+
+	netv1alpha1 "github.com/liqotech/liqo/apis/net/v1alpha1"
 )
 
 const (

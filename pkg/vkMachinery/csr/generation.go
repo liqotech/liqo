@@ -9,14 +9,16 @@ import (
 	"crypto/x509/pkix"
 	"encoding/pem"
 	"fmt"
-	vk "github.com/liqotech/liqo/pkg/vkMachinery"
+	"time"
+
 	certificatesv1beta1 "k8s.io/api/certificates/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	k8s "k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/util/cert"
 	"k8s.io/client-go/util/keyutil"
 	"k8s.io/klog/v2"
-	"time"
+
+	vk "github.com/liqotech/liqo/pkg/vkMachinery"
 )
 
 // GenerateVKCertificateBundle generates respectively a key and a CSR in PEM format compliant

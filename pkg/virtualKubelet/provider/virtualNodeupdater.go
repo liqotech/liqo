@@ -5,13 +5,6 @@ import (
 	"errors"
 	"strings"
 
-	nettypes "github.com/liqotech/liqo/apis/net/v1alpha1"
-	advtypes "github.com/liqotech/liqo/apis/sharing/v1alpha1"
-	advertisementOperator "github.com/liqotech/liqo/internal/advertisement-operator"
-	"github.com/liqotech/liqo/internal/liqonet/tunnelEndpointCreator"
-	"github.com/liqotech/liqo/pkg/virtualKubelet"
-	"github.com/liqotech/liqo/pkg/virtualKubelet/node/module"
-	"github.com/liqotech/liqo/pkg/virtualKubelet/options"
 	v1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -19,6 +12,14 @@ import (
 	"k8s.io/client-go/util/retry"
 	"k8s.io/klog"
 	"k8s.io/kubernetes/pkg/util/slice"
+
+	nettypes "github.com/liqotech/liqo/apis/net/v1alpha1"
+	advtypes "github.com/liqotech/liqo/apis/sharing/v1alpha1"
+	advertisementOperator "github.com/liqotech/liqo/internal/advertisement-operator"
+	"github.com/liqotech/liqo/internal/liqonet/tunnelEndpointCreator"
+	"github.com/liqotech/liqo/pkg/virtualKubelet"
+	"github.com/liqotech/liqo/pkg/virtualKubelet/node/module"
+	"github.com/liqotech/liqo/pkg/virtualKubelet/options"
 )
 
 func (p *LiqoProvider) StartNodeUpdater(nodeRunner *module.NodeController) (chan struct{}, chan struct{}, error) {

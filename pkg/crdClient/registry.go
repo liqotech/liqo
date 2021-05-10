@@ -1,9 +1,10 @@
 package crdClient
 
 import (
+	"reflect"
+
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
-	"reflect"
 )
 
 type KeyerFunc func(obj runtime.Object) (string, error)

@@ -6,10 +6,11 @@ import (
 	"net/http"
 
 	"github.com/julienschmidt/httprouter"
-	"github.com/liqotech/liqo/pkg/auth"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/klog"
+
+	"github.com/liqotech/liqo/pkg/auth"
 )
 
 // identity handles the certificate identity http request

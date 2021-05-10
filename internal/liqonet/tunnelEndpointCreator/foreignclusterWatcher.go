@@ -1,12 +1,13 @@
 package tunnelEndpointCreator
 
 import (
-	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/dynamic/dynamicinformer"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/klog/v2"
+
+	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 )
 
 func (tec *TunnelEndpointCreator) StartForeignClusterWatcher() {

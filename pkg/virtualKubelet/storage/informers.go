@@ -1,9 +1,10 @@
 package storage
 
 import (
-	apimgmt "github.com/liqotech/liqo/pkg/virtualKubelet/apiReflection"
 	"k8s.io/client-go/informers"
 	"k8s.io/client-go/tools/cache"
+
+	apimgmt "github.com/liqotech/liqo/pkg/virtualKubelet/apiReflection"
 )
 
 var InformerBuilders = map[apimgmt.ApiType]func(informers.SharedInformerFactory) cache.SharedIndexInformer{

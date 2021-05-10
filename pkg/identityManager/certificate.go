@@ -14,11 +14,12 @@ import (
 	"strings"
 	"time"
 
-	"github.com/liqotech/liqo/pkg/discovery"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/klog/v2"
+
+	"github.com/liqotech/liqo/pkg/discovery"
 )
 
 // create a new key and a new csr to be used as an identity to authenticate with a remote cluster

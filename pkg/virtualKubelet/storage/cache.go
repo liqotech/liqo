@@ -2,14 +2,16 @@ package storage
 
 import (
 	"errors"
-	apimgmt "github.com/liqotech/liqo/pkg/virtualKubelet/apiReflection"
-	"github.com/liqotech/liqo/pkg/virtualKubelet/utils"
+	"sync"
+	"time"
+
 	"k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/util/retry"
-	"sync"
-	"time"
+
+	apimgmt "github.com/liqotech/liqo/pkg/virtualKubelet/apiReflection"
+	"github.com/liqotech/liqo/pkg/virtualKubelet/utils"
 )
 
 var (

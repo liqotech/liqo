@@ -2,13 +2,14 @@ package uninstaller
 
 import (
 	"context"
+	"sync"
+	"time"
+
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/klog/v2"
-	"sync"
-	"time"
 )
 
 // WaitForResources waits until existing peerings are disabled and associated resources are removed.

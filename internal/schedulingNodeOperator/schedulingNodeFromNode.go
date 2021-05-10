@@ -2,12 +2,14 @@ package schedulingNodeOperator
 
 import (
 	"context"
-	"github.com/liqotech/liqo/apis/scheduling/v1alpha1"
-	advtypes "github.com/liqotech/liqo/apis/sharing/v1alpha1"
+	"strings"
+
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/types"
-	"strings"
+
+	"github.com/liqotech/liqo/apis/scheduling/v1alpha1"
+	advtypes "github.com/liqotech/liqo/apis/sharing/v1alpha1"
 )
 
 // CreateOrUpdateFromNode takes a node and creates a new scheduling Node if the

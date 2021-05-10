@@ -1,10 +1,12 @@
 package auth_service
 
 import (
+	"reflect"
+
+	"k8s.io/klog"
+
 	configv1alpha1 "github.com/liqotech/liqo/apis/config/v1alpha1"
 	"github.com/liqotech/liqo/pkg/clusterConfig"
-	"k8s.io/klog"
-	"reflect"
 )
 
 func (authService *AuthServiceCtrl) GetAuthServiceConfig(kubeconfigPath string) {

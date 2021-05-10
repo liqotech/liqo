@@ -2,12 +2,14 @@ package e2e
 
 import (
 	context2 "context"
-	"github.com/liqotech/liqo/test/e2e/util"
+	"testing"
+
 	"github.com/stretchr/testify/assert"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/klog"
-	"testing"
+
+	"github.com/liqotech/liqo/test/e2e/util"
 )
 
 func testJoin(t *testing.T) {

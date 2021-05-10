@@ -6,8 +6,9 @@ import (
 	"strings"
 
 	"github.com/coreos/go-iptables/iptables"
-	netv1alpha1 "github.com/liqotech/liqo/apis/net/v1alpha1"
 	"k8s.io/klog/v2"
+
+	netv1alpha1 "github.com/liqotech/liqo/apis/net/v1alpha1"
 )
 
 const (

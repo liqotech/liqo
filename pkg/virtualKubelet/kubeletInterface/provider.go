@@ -2,9 +2,10 @@ package kubeletInterface
 
 import (
 	"context"
+	"io"
+
 	"github.com/liqotech/liqo/pkg/virtualKubelet/node/module"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/node/module/api"
-	"io"
 
 	corev1 "k8s.io/api/core/v1"
 	stats "k8s.io/kubernetes/pkg/kubelet/apis/stats/v1alpha1"

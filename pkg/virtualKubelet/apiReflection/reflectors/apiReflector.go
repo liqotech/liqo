@@ -2,17 +2,19 @@ package reflectors
 
 import (
 	"context"
-	apimgmt "github.com/liqotech/liqo/pkg/virtualKubelet/apiReflection"
-	ri "github.com/liqotech/liqo/pkg/virtualKubelet/apiReflection/reflectors/reflectorsInterfaces"
-	vkContext "github.com/liqotech/liqo/pkg/virtualKubelet/context"
-	"github.com/liqotech/liqo/pkg/virtualKubelet/namespacesMapping"
-	reflectionCache "github.com/liqotech/liqo/pkg/virtualKubelet/storage"
+	"strings"
+
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/klog"
-	"strings"
+
+	apimgmt "github.com/liqotech/liqo/pkg/virtualKubelet/apiReflection"
+	ri "github.com/liqotech/liqo/pkg/virtualKubelet/apiReflection/reflectors/reflectorsInterfaces"
+	vkContext "github.com/liqotech/liqo/pkg/virtualKubelet/context"
+	"github.com/liqotech/liqo/pkg/virtualKubelet/namespacesMapping"
+	reflectionCache "github.com/liqotech/liqo/pkg/virtualKubelet/storage"
 )
 
 type GenericAPIReflector struct {
