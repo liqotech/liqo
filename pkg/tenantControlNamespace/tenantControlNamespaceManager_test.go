@@ -3,6 +3,7 @@ package tenantControlNamespace
 import (
 	"context"
 	"fmt"
+	testUtils2 "github.com/liqotech/liqo/pkg/utils/testUtils"
 	"os"
 	"path/filepath"
 	"strings"
@@ -17,7 +18,6 @@ import (
 	"k8s.io/client-go/kubernetes"
 
 	"github.com/liqotech/liqo/pkg/discovery"
-	"github.com/liqotech/liqo/pkg/testUtils"
 )
 
 func TestTenantControlNamespace(t *testing.T) {
@@ -28,7 +28,7 @@ func TestTenantControlNamespace(t *testing.T) {
 var _ = Describe("TenantControlNamespace", func() {
 
 	var (
-		cluster   testUtils.Cluster
+		cluster   testUtils2.Cluster
 		clusterID string
 
 		namespaceManager TenantControlNamespaceManager
@@ -38,7 +38,7 @@ var _ = Describe("TenantControlNamespace", func() {
 		clusterID = "testCreation"
 
 		var err error
-		cluster, _, err = testUtils.NewTestCluster([]string{filepath.Join("..", "..", "deployments", "liqo", "crds")})
+		cluster, _, err = testUtils2.NewTestCluster([]string{filepath.Join("..", "..", "deployments", "liqo", "crds")})
 		if err != nil {
 			By(err.Error())
 			os.Exit(1)

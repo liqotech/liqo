@@ -18,6 +18,7 @@ package tunnelEndpointCreator
 import (
 	"context"
 	"fmt"
+	"github.com/liqotech/liqo/pkg/utils"
 	"os"
 	"os/signal"
 	"reflect"
@@ -41,8 +42,6 @@ import (
 	liqoconst "github.com/liqotech/liqo/pkg/consts"
 	liqonet "github.com/liqotech/liqo/pkg/liqonet"
 	"github.com/liqotech/liqo/pkg/liqonet/tunnel/wireguard"
-	"github.com/liqotech/liqo/pkg/owner"
-
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
@@ -395,7 +394,7 @@ func (tec *TunnelEndpointCreator) processRemoteNetConfig(netConfig *netv1alpha1.
 			externalCIDR = liqoconst.DefaultCIDRValue
 		}
 	}
-	if owner.GetOwnerByKind(&netConfig.OwnerReferences, "ForeignCluster") == nil {
+	if utils.GetOwnerByKind(&netConfig.OwnerReferences, "ForeignCluster") == nil {
 		// if it has no owner of kind ForeignCluster, add it
 		own, err := tec.getFCOwner(netConfig)
 		if err != nil {
@@ -497,7 +496,7 @@ func (tec *TunnelEndpointCreator) processLocalNetConfig(netConfig *netv1alpha1.N
 		backendType:           remoteNetConf.Spec.BackendType,
 		backendConfig:         remoteNetConf.Spec.BackendConfig,
 	}
-	fcOwner := owner.GetOwnerByKind(&netConfig.OwnerReferences, "ForeignCluster")
+	fcOwner := utils.GetOwnerByKind(&netConfig.OwnerReferences, "ForeignCluster")
 	if err := tec.processTunnelEndpoint(&netParam, fcOwner); err != nil {
 		klog.Errorf("an error occurred while processing the tunnelEndpoint: %s", err)
 		return err

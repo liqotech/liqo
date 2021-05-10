@@ -9,6 +9,7 @@ import (
 	"encoding/asn1"
 	"encoding/base64"
 	"encoding/pem"
+	testUtils2 "github.com/liqotech/liqo/pkg/utils/testUtils"
 	"os"
 	"path/filepath"
 	"strings"
@@ -32,7 +33,6 @@ import (
 	"github.com/liqotech/liqo/pkg/identityManager"
 	idManTest "github.com/liqotech/liqo/pkg/identityManager/testUtils"
 	"github.com/liqotech/liqo/pkg/tenantControlNamespace"
-	"github.com/liqotech/liqo/pkg/testUtils"
 )
 
 func TestAuth(t *testing.T) {
@@ -103,7 +103,7 @@ func getCSR(localClusterID string) (csrBytes []byte, err error) {
 var _ = Describe("Auth", func() {
 
 	var (
-		cluster     testUtils.Cluster
+		cluster     testUtils2.Cluster
 		clusterID   test.ClusterIDMock
 		authService AuthServiceCtrl
 
@@ -119,7 +119,7 @@ var _ = Describe("Auth", func() {
 		_ = tMan.createToken()
 
 		var err error
-		cluster, _, err = testUtils.NewTestCluster([]string{filepath.Join("..", "..", "deployments", "liqo", "crds")})
+		cluster, _, err = testUtils2.NewTestCluster([]string{filepath.Join("..", "..", "deployments", "liqo", "crds")})
 		if err != nil {
 			By(err.Error())
 			os.Exit(1)
