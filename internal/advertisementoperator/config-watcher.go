@@ -1,7 +1,6 @@
 package advertisementoperator
 
 import (
-	"github.com/liqotech/liqo/pkg/utils"
 	"sync"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -10,9 +9,10 @@ import (
 	configv1alpha1 "github.com/liqotech/liqo/apis/config/v1alpha1"
 	advtypes "github.com/liqotech/liqo/apis/sharing/v1alpha1"
 	"github.com/liqotech/liqo/pkg/crdClient"
+	"github.com/liqotech/liqo/pkg/utils"
 )
 
-// WatchConfiguration watches a ClusterConfig for reconciling updates on ClusterConfig
+// WatchConfiguration watches a ClusterConfig for reconciling updates on ClusterConfig.
 func (r *AdvertisementReconciler) WatchConfiguration(kubeconfigPath string, client *crdClient.CRDClient, wg *sync.WaitGroup) {
 	defer wg.Done()
 	utils.WatchConfiguration(func(configuration *configv1alpha1.ClusterConfig) {

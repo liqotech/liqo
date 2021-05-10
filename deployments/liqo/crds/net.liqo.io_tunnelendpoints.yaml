@@ -54,7 +54,7 @@ spec:
               backendType:
                 description: Vpn technology used to interconnect two clusters.
                 type: string
-              clusterid:
+              clusterID:
                 description: 'INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
                   Important: Run "make" to regenerate code after modifying this file
                   The ID of the remote cluster that will receive this CRD.'
@@ -71,7 +71,7 @@ spec:
             required:
             - backendType
             - backend_config
-            - clusterid
+            - clusterID
             - endpointIP
             - externalCIDR
             - podCIDR

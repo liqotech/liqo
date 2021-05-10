@@ -5,8 +5,6 @@ import (
 	"path/filepath"
 	"testing"
 
-	testUtils2 "github.com/liqotech/liqo/pkg/utils/testUtils"
-
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/ginkgo/extensions/table"
 	. "github.com/onsi/gomega"
@@ -17,6 +15,7 @@ import (
 	v1alpha12 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	"github.com/liqotech/liqo/pkg/clusterid/test"
 	"github.com/liqotech/liqo/pkg/discovery"
+	testUtils2 "github.com/liqotech/liqo/pkg/utils/testUtils"
 )
 
 type configMock struct {
@@ -151,7 +150,7 @@ var _ = Describe("ForeignClusterOperator", func() {
 						},
 						Namespace:     "liqo",
 						DiscoveryType: discovery.ManualDiscovery,
-						AuthUrl:       "",
+						AuthURL:       "",
 						TrustMode:     discovery.TrustModeUntrusted,
 					},
 				},
@@ -230,7 +229,7 @@ var _ = Describe("ForeignClusterOperator", func() {
 						},
 						Namespace:     "liqo",
 						DiscoveryType: discovery.ManualDiscovery,
-						AuthUrl:       "",
+						AuthURL:       "",
 						TrustMode:     discovery.TrustModeUntrusted,
 					},
 					Status: v1alpha12.ForeignClusterStatus{

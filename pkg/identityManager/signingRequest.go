@@ -8,8 +8,6 @@ import (
 	"strings"
 	"time"
 
-	certificateSigningRequest2 "github.com/liqotech/liqo/pkg/utils/certificateSigningRequest"
-
 	certv1beta1 "k8s.io/api/certificates/v1beta1"
 	v1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
@@ -21,6 +19,8 @@ import (
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/klog/v2"
 	"k8s.io/utils/pointer"
+
+	certificateSigningRequest2 "github.com/liqotech/liqo/pkg/utils/certificateSigningRequest"
 )
 
 // random package initialization.

@@ -4,8 +4,6 @@ import (
 	"os"
 	"reflect"
 
-	"github.com/liqotech/liqo/pkg/utils"
-
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
@@ -15,6 +13,7 @@ import (
 	configv1alpha1 "github.com/liqotech/liqo/apis/config/v1alpha1"
 	"github.com/liqotech/liqo/pkg/crdClient"
 	"github.com/liqotech/liqo/pkg/liqonet"
+	"github.com/liqotech/liqo/pkg/utils"
 )
 
 func (tec *TunnelEndpointCreator) setNetParameters(config *configv1alpha1.ClusterConfig) {

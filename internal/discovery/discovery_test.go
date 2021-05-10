@@ -608,7 +608,7 @@ var _ = Describe("Discovery", func() {
 							},
 							Namespace:     "liqo",
 							DiscoveryType: discovery.IncomingPeeringDiscovery,
-							AuthUrl:       "",
+							AuthURL:       "",
 							TrustMode:     discovery.TrustModeUntrusted,
 						},
 					}
@@ -701,7 +701,7 @@ var _ = Describe("Discovery", func() {
 								},
 								Namespace:     "liqo",
 								DiscoveryType: discovery.LanDiscovery,
-								AuthUrl:       "",
+								AuthURL:       "",
 								TrustMode:     discovery.TrustModeUntrusted,
 							},
 							Status: v1alpha12.ForeignClusterStatus{
@@ -731,7 +731,7 @@ var _ = Describe("Discovery", func() {
 								},
 								Namespace:     "liqo",
 								DiscoveryType: discovery.LanDiscovery,
-								AuthUrl:       "",
+								AuthURL:       "",
 								TrustMode:     discovery.TrustModeUntrusted,
 							},
 							Status: v1alpha12.ForeignClusterStatus{
@@ -761,7 +761,7 @@ var _ = Describe("Discovery", func() {
 								},
 								Namespace:     "liqo",
 								DiscoveryType: discovery.ManualDiscovery,
-								AuthUrl:       "",
+								AuthURL:       "",
 								TrustMode:     discovery.TrustModeUntrusted,
 							},
 							Status: v1alpha12.ForeignClusterStatus{

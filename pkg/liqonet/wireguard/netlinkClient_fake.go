@@ -39,8 +39,8 @@ func (nld *netlinkDeviceFake) createLink(linkName string) error {
 	return nil
 }
 
-//adds the ip address to the interface
-//ip address in cidr notation: x.x.x.x/x.
+// adds the ip address to the interface
+// ip address in cidr notation: x.x.x.x/x.
 func (nld *netlinkDeviceFake) addIP(ipAddr string) error {
 	ip, err := netlink.ParseIPNet(ipAddr)
 	nld.ip = *ip

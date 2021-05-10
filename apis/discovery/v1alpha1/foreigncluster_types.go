@@ -46,7 +46,7 @@ type ForeignClusterSpec struct {
 	// How this ForeignCluster has been discovered.
 	DiscoveryType discovery.Type `json:"discoveryType,omitempty"`
 	// URL where to contact foreign Auth service.
-	AuthUrl string `json:"authUrl"`
+	AuthURL string `json:"authUrl"`
 	// +kubebuilder:validation:Enum="Unknown";"Trusted";"Untrusted"
 	// +kubebuilder:default="Unknown"
 	// Indicates if this remote cluster is trusted or not.
@@ -55,7 +55,7 @@ type ForeignClusterSpec struct {
 
 type ClusterIdentity struct {
 	// Foreign Cluster ID, this is a unique identifier of that cluster.
-	ClusterID string `json:"clusterid"`
+	ClusterID string `json:"clusterID"`
 	// Foreign Cluster Name to be shown in GUIs.
 	ClusterName string `json:"clusterName,omitempty"`
 }

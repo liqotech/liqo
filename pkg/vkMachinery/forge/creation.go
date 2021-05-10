@@ -10,7 +10,7 @@ import (
 	"github.com/liqotech/liqo/pkg/vkMachinery"
 )
 
-// create deployment for a virtual-kubelet.
+// CreateVkDeployment creates the deployment for a virtual-kubelet.
 func CreateVkDeployment(adv *advtypes.Advertisement, vkName, vkNamespace, vkImage, initVKImage, nodeName, homeClusterId string) (*appsv1.Deployment, error) {
 	vkLabels := ForgeVKLabels(adv)
 	return &appsv1.Deployment{

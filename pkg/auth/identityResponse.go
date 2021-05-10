@@ -4,13 +4,12 @@ import (
 	"encoding/base64"
 	"io/ioutil"
 
-	"github.com/liqotech/liqo/pkg/utils"
-
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/klog/v2"
 
 	"github.com/liqotech/liqo/pkg/kubeconfig"
+	"github.com/liqotech/liqo/pkg/utils"
 )
 
 // CertificateIdentityResponse is the response on a certificate identity request.

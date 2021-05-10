@@ -32,12 +32,12 @@ func (rm *RouteManager) EnsureRoutesPerCluster(iface string, tep *netv1alpha1.Tu
 	clusterID := tep.Spec.ClusterID
 	_, remotePodCIDR := GetPodCIDRS(tep)
 	existing, ok := rm.getRoute(clusterID)
-	//check if the network parameters are the same and if we need to remove the old route and add the new one
+	// check if the network parameters are the same and if we need to remove the old route and add the new one
 	if ok {
 		if existing.Dst.String() == remotePodCIDR {
 			return nil
 		}
-		//remove the old route
+		// remove the old route
 		err := rm.delRoute(existing)
 		if err != nil {
 			klog.Errorf("%s -> unable to remove outdated route '%s': %s", clusterID, remotePodCIDR, err)
@@ -57,7 +57,7 @@ func (rm *RouteManager) EnsureRoutesPerCluster(iface string, tep *netv1alpha1.Tu
 	return nil
 }
 
-//used to remove the routes when a tunnelEndpoint CR is removed.
+// used to remove the routes when a tunnelEndpoint CR is removed.
 func (rm *RouteManager) RemoveRoutesPerCluster(tep *netv1alpha1.TunnelEndpoint) error {
 	clusterID := tep.Spec.ClusterID
 	route, ok := rm.getRoute(clusterID)
@@ -70,7 +70,7 @@ func (rm *RouteManager) RemoveRoutesPerCluster(tep *netv1alpha1.TunnelEndpoint) 
 		}
 		rm.Event(tep, "Normal", "Processing", "route correctly removed")
 		klog.Infof("%s -> route '%s' correctly removed", clusterID, route.String())
-		//remove route from the map
+		// remove route from the map
 		rm.deleteRouteFromCache(clusterID)
 	}
 	return nil
@@ -91,7 +91,7 @@ func (rm *RouteManager) deleteRouteFromCache(clusterID string) {
 
 func (rm *RouteManager) addRoute(dst string, gw string, deviceName string, onLink bool) (netlink.Route, error) {
 	var route netlink.Route
-	//convert destination in *net.IPNet
+	// convert destination in *net.IPNet
 	_, destinationNet, err := net.ParseCIDR(dst)
 	if err != nil {
 		return route, err
@@ -117,11 +117,11 @@ func (rm *RouteManager) addRoute(dst string, gw string, deviceName string, onLin
 }
 
 func (rm *RouteManager) delRoute(route netlink.Route) error {
-	//try to remove all the routes for that ip
+	// try to remove all the routes for that ip
 	err := netlink.RouteDel(&route)
 	if err != nil {
 		if err == unix.ESRCH {
-			//it means the route does not exist so we are done
+			// it means the route does not exist so we are done
 			return nil
 		}
 		return err

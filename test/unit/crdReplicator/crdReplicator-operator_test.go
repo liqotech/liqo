@@ -42,7 +42,7 @@ func setupDispatcherOperator() error {
 		Client:                         k8sManagerLocal.GetClient(),
 		ClientSet:                      nil,
 		ClusterID:                      localClusterID,
-		RemoteDynClients:               peeringClustersDynClients, //we already populate the dynamicClients of the peering clusters
+		RemoteDynClients:               peeringClustersDynClients, // we already populate the dynamicClients of the peering clusters
 		LocalDynClient:                 localDynClient,
 		LocalDynSharedInformerFactory:  localDynFac,
 		RemoteDynSharedInformerFactory: peeringClustersDynFactories,
@@ -69,7 +69,7 @@ func getTunnelEndpointResource() *unstructured.Unstructured {
 				"labels": map[string]string{},
 			},
 			"spec": map[string]interface{}{
-				"clusterid":      "clusterid-test",
+				"clusterID":      "clusterid-test",
 				"podCIDR":        "10.0.0.0/12",
 				"externalCIDR":   "172.16.0.0/16",
 				"endpointIP":     "192.16.5.1",
@@ -91,7 +91,7 @@ func getForeignClusterResource() *unstructured.Unstructured {
 			},
 			"spec": map[string]interface{}{
 				"clusterIdentity": map[string]interface{}{
-					"clusterid": "foreign-cluster",
+					"clusterID": "foreign-cluster",
 				},
 				"join":             true,
 				"namespace":        "default",
@@ -111,44 +111,44 @@ func cleanUp(t *testing.T, localResources map[string]*netv1alpha1.TunnelEndpoint
 		assert.Nil(t, err, "should be nil")
 		time.Sleep(10 * time.Second)
 	}
-	//check that the resources have been removed from the peering clusters
+	// check that the resources have been removed from the peering clusters
 	for clusterID, dynClient := range peeringClustersDynClients {
 		_, err := dynClient.Resource(tunGVR).Get(context.TODO(), localResources[clusterID].Name, metav1.GetOptions{})
 		assert.True(t, apierrors.IsNotFound(err), "error should be not found")
 	}
 }
 
-//the dynamicClients to the peering clusters are created from the foreignCluster
-//while testing we already have those dynamicClients so the foreignCluster resource
-//is used only to trigger the reconcile logic
+// the dynamicClients to the peering clusters are created from the foreignCluster
+// while testing we already have those dynamicClients so the foreignCluster resource
+// is used only to trigger the reconcile logic
 
-//we create a resource which type has been registered for the replication
-//but we don't label it, so we expect to not find it on the remote clusters
+// we create a resource which type has been registered for the replication
+// but we don't label it, so we expect to not find it on the remote clusters
 func TestReplication1(t *testing.T) {
 	time.Sleep(10 * time.Second)
-	//first we create a tunnelEndpoint on the localCluster
+	// first we create a tunnelEndpoint on the localCluster
 	tun := getTunnelEndpointResource()
 	newTun, err := dOperator.LocalDynClient.Resource(tunGVR).Create(context.TODO(), tun, metav1.CreateOptions{})
 	assert.Nil(t, err, "error should be nil")
 
 	time.Sleep(2 * time.Second)
-	//check that the resource does not exist on the remote clusters
+	// check that the resource does not exist on the remote clusters
 	for _, dynClient := range peeringClustersDynClients {
 		_, err := dynClient.Resource(tunGVR).Get(context.TODO(), tun.GetName(), metav1.GetOptions{})
 		assert.True(t, apierrors.IsNotFound(err), "error should be not found")
 	}
-	//delete resources
+	// delete resources
 	err = dOperator.LocalDynClient.Resource(tunGVR).Delete(context.TODO(), newTun.GetName(), metav1.DeleteOptions{})
 	assert.Nil(t, err, "error should be nil")
 
 }
 
-//we create a resource which type has been registered for the replication
-//we label it to be replicated on all the three clusters, so we expect to not find it on the remote clusters
+// we create a resource which type has been registered for the replication
+// we label it to be replicated on all the three clusters, so we expect to not find it on the remote clusters
 func TestReplication2(t *testing.T) {
 	time.Sleep(10 * time.Second)
 	localResources := map[string]*netv1alpha1.TunnelEndpoint{}
-	//we create the resource on the localcluster to be replicated on all the peeringClusters
+	// we create the resource on the localcluster to be replicated on all the peeringClusters
 	for clusterID := range peeringClustersTestEnvs {
 		tun := getTunnelEndpointResource()
 		tun.SetName(clusterID)
@@ -165,28 +165,28 @@ func TestReplication2(t *testing.T) {
 	}
 
 	time.Sleep(10 * time.Second)
-	//check that the replication happened on the peering clusters and that the spec is the same.
+	// check that the replication happened on the peering clusters and that the spec is the same.
 	for clusterID, dynClient := range peeringClustersDynClients {
 		typedTun := &netv1alpha1.TunnelEndpoint{}
 		remTun, err := dynClient.Resource(tunGVR).Get(context.TODO(), localResources[clusterID].Name, metav1.GetOptions{})
 		assert.Nil(t, err, "error should be nil")
 		err = runtime.DefaultUnstructuredConverter.FromUnstructured(remTun.Object, typedTun)
 		assert.Nil(t, err, "error should be nil")
-		//check that the local and the replicated one are the same
+		// check that the local and the replicated one are the same
 		assert.True(t, reflect.DeepEqual(typedTun.Spec, localResources[clusterID].Spec))
 	}
-	//here we remove all the resources on the local cluster and check that also the remote ones have been removed
+	// here we remove all the resources on the local cluster and check that also the remote ones have been removed
 	cleanUp(t, localResources)
 	time.Sleep(3 * time.Second)
 }
 
-//we create a resource which type has been registered for the replication
-//we label it to be replicated on all the three clusters, so we expect to find it on the remote clusters
-//we update the status on the peering clusters and expect it to be replicated on the local cluster as well
+// we create a resource which type has been registered for the replication
+// we label it to be replicated on all the three clusters, so we expect to find it on the remote clusters
+// we update the status on the peering clusters and expect it to be replicated on the local cluster as well
 func TestReplication4(t *testing.T) {
 	time.Sleep(10 * time.Second)
 	localResources := map[string]*netv1alpha1.TunnelEndpoint{}
-	//we create the resource on the localcluster to be replicated on all the peeringClusters
+	// we create the resource on the localcluster to be replicated on all the peeringClusters
 	for clusterID := range peeringClustersTestEnvs {
 		tun := getTunnelEndpointResource()
 		tun.SetName(clusterID)
@@ -203,18 +203,18 @@ func TestReplication4(t *testing.T) {
 	}
 
 	time.Sleep(10 * time.Second)
-	//check that the resources have been replicated on the peering clusters
+	// check that the resources have been replicated on the peering clusters
 	for clusterID, dynClient := range peeringClustersDynClients {
 		remTun, err := dynClient.Resource(tunGVR).Get(context.TODO(), localResources[clusterID].Name, metav1.GetOptions{})
 		assert.Nil(t, err, "error should be nil")
 		typedTun := &netv1alpha1.TunnelEndpoint{}
 		err = runtime.DefaultUnstructuredConverter.FromUnstructured(remTun.Object, typedTun)
 		assert.Nil(t, err, "error should be nil")
-		//check that the local and the replicated one are the same
+		// check that the local and the replicated one are the same
 		assert.True(t, reflect.DeepEqual(typedTun.Spec, localResources[clusterID].Spec))
 	}
 
-	//here we update the status of the remote instances
+	// here we update the status of the remote instances
 	for clusterID, tun := range localResources {
 		status := map[string]interface{}{
 			"phase": "Ready",
@@ -228,30 +228,30 @@ func TestReplication4(t *testing.T) {
 		time.Sleep(10 * time.Second)
 	}
 
-	//retrieve the local resources from the local cluster and check if the update has been replicated
+	// retrieve the local resources from the local cluster and check if the update has been replicated
 	for _, tun := range localResources {
 		remTun, err := dOperator.LocalDynClient.Resource(tunGVR).Get(context.TODO(), tun.GetName(), metav1.GetOptions{})
 		assert.Nil(t, err, "error should be nil")
 		typedTun := &netv1alpha1.TunnelEndpoint{}
 		err = runtime.DefaultUnstructuredConverter.FromUnstructured(remTun.Object, typedTun)
 		assert.Nil(t, err, "error should be nil")
-		//check that the local and the replicated one are the same
+		// check that the local and the replicated one are the same
 		assert.Equal(t, "Ready", typedTun.Status.Phase, "phase on remote resources should be set to 'Ready'")
 	}
-	//here we remove all the resources on the local cluster and check that also the remote ones have been removed
+	// here we remove all the resources on the local cluster and check that also the remote ones have been removed
 	cleanUp(t, localResources)
 
-	//err = dOperator.LocalDynClient.Resource(fcGVR).Delete(context.TODO(), newFc.GetName(), metav1.DeleteOptions{})
+	// err = dOperator.LocalDynClient.Resource(fcGVR).Delete(context.TODO(), newFc.GetName(), metav1.DeleteOptions{})
 	time.Sleep(3 * time.Second)
 }
 
-//we create a resource which type has been registered for the replication
-//we label it to be replicated on all the three clusters, so we expect to not find it on the remote clusters
-//we update the status and expect it to be replicated on the peering clusters as well
+// we create a resource which type has been registered for the replication
+// we label it to be replicated on all the three clusters, so we expect to not find it on the remote clusters
+// we update the status and expect it to be replicated on the peering clusters as well
 func TestReplication3(t *testing.T) {
 	time.Sleep(10 * time.Second)
 	localResources := map[string]*netv1alpha1.TunnelEndpoint{}
-	//we create the resource on the localcluster to be replicated on all the peeringClusters
+	// we create the resource on the localcluster to be replicated on all the peeringClusters
 	for clusterID := range peeringClustersTestEnvs {
 		tun := getTunnelEndpointResource()
 		tun.SetName(clusterID)
@@ -268,18 +268,18 @@ func TestReplication3(t *testing.T) {
 	}
 	time.Sleep(10 * time.Second)
 
-	//check that the resources have been replicated on the peering clusters
+	// check that the resources have been replicated on the peering clusters
 	for clusterID, dynClient := range peeringClustersDynClients {
 		remTun, err := dynClient.Resource(tunGVR).Get(context.TODO(), localResources[clusterID].Name, metav1.GetOptions{})
 		assert.Nil(t, err, "error should be nil")
 		typedTun := &netv1alpha1.TunnelEndpoint{}
 		err = runtime.DefaultUnstructuredConverter.FromUnstructured(remTun.Object, typedTun)
 		assert.Nil(t, err, "error should be nil")
-		//check that the local and the replicated one are the same
+		// check that the local and the replicated one are the same
 		assert.True(t, reflect.DeepEqual(typedTun.Spec, localResources[clusterID].Spec))
 	}
 
-	//here we update the status of the local instances
+	// here we update the status of the local instances
 	for _, tun := range localResources {
 		status := map[string]interface{}{
 			"phase": "Ready",
@@ -293,17 +293,17 @@ func TestReplication3(t *testing.T) {
 		time.Sleep(10 * time.Second)
 	}
 
-	//retrieve the replicated resources from the peering cluster and check if the update is present
+	// retrieve the replicated resources from the peering cluster and check if the update is present
 	for clusterID, dynClient := range peeringClustersDynClients {
 		remTun, err := dynClient.Resource(tunGVR).Get(context.TODO(), localResources[clusterID].Name, metav1.GetOptions{})
 		assert.Nil(t, err, "error should be nil")
 		typedTun := &netv1alpha1.TunnelEndpoint{}
 		err = runtime.DefaultUnstructuredConverter.FromUnstructured(remTun.Object, typedTun)
 		assert.Nil(t, err, "error should be nil")
-		//check that the local and the replicated one are the same
+		// check that the local and the replicated one are the same
 		assert.True(t, reflect.DeepEqual(typedTun.Spec, localResources[clusterID].Spec))
 		assert.Equal(t, "Ready", typedTun.Status.Phase, "phase on remote resources should be set to 'Ready'")
 	}
-	//here we remove all the resources on the local cluster and check that also the remote ones have been removed
+	// here we remove all the resources on the local cluster and check that also the remote ones have been removed
 	cleanUp(t, localResources)
 }

@@ -63,7 +63,7 @@ type RouteController struct {
 func NewRouteController(mgr ctrl.Manager, wgc wireguard.Client, nl wireguard.Netlinker) (*RouteController, error) {
 	dynClient := dynamic.NewForConfigOrDie(mgr.GetConfig())
 	clientSet := kubernetes.NewForConfigOrDie(mgr.GetConfig())
-	//get node name
+	// get node name
 	nodeName, err := utils.GetNodeName()
 	if err != nil {
 		klog.Errorf("unable to create the controller: %v", err)
@@ -104,13 +104,13 @@ func NewRouteController(mgr ctrl.Manager, wgc wireguard.Client, nl wireguard.Net
 	return r, nil
 }
 
-//cluster-role
+// cluster-role
 // +kubebuilder:rbac:groups=net.liqo.io,resources=tunnelendpoints,verbs=get;list;watch;update;patch
 // +kubebuilder:rbac:groups=net.liqo.io,resources=tunnelendpoints/status,verbs=get;update;patch
 // +kubebuilder:rbac:groups=config.liqo.io,resources=clusterconfigs,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=core,resources=events,verbs=create;patch
 // +kubebuilder:rbac:groups=core,resources=nodes,verbs=get
-//role
+// role
 // +kubebuilder:rbac:groups=core,namespace="do-not-care",resources=secrets,verbs=create;update;patch;get;list;watch;delete
 // +kubebuilder:rbac:groups=core,namespace="do-not-care",resources=pods,verbs=update;patch;get;list;watch
 // +kubebuilder:rbac:groups=core,namespace="do-not-care",resources=services,verbs=update;patch;get;list;watch
@@ -118,7 +118,7 @@ func NewRouteController(mgr ctrl.Manager, wgc wireguard.Client, nl wireguard.Net
 func (r *RouteController) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 	ctx := context.Background()
 	var tep netv1alpha1.TunnelEndpoint
-	//name of our finalizer
+	// name of our finalizer
 	routeOperatorFinalizer := strings.Join([]string{OperatorName, r.nodeName, "liqo.io"}, "-")
 	var err error
 	if err = r.Get(ctx, req.NamespacedName, &tep); err != nil && k8sApiErrors.IsNotFound(err) {
@@ -128,7 +128,7 @@ func (r *RouteController) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 	if k8sApiErrors.IsNotFound(err) {
 		return result, err
 	}
-	//Here we check that the tunnelEndpoint resource has been fully processed. If not we do nothing.
+	// Here we check that the tunnelEndpoint resource has been fully processed. If not we do nothing.
 	if tep.Status.RemoteNATPodCIDR == "" {
 		return result, nil
 	}
@@ -146,15 +146,15 @@ func (r *RouteController) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 			}
 		}
 	} else {
-		//the object is being deleted
-		//if we encounter an error while removing the routes than we record an
-		//event on the resource to notify the user
-		//the finalizer is not removed
+		// the object is being deleted
+		// if we encounter an error while removing the routes than we record an
+		// event on the resource to notify the user
+		// the finalizer is not removed
 		if utils.ContainsString(tep.Finalizers, routeOperatorFinalizer) {
 			if err := r.RemoveRoutesPerCluster(&tep); err != nil {
 				return result, err
 			}
-			//remove the finalizer from the list and update it.
+			// remove the finalizer from the list and update it.
 			tep.Finalizers = utils.RemoveString(tep.Finalizers, routeOperatorFinalizer)
 			if err := r.Update(ctx, &tep); err != nil {
 				klog.Errorf("%s -> unable to remove finalizers from resource %s: %s", clusterID, req.String(), err)
@@ -169,8 +169,8 @@ func (r *RouteController) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 	return result, nil
 }
 
-//this function deletes the vxlan interface in host where the route operator is running
-//the error is not returned because the function is called ad exit time.
+// this function deletes the vxlan interface in host where the route operator is running
+// the error is not returned because the function is called ad exit time.
 func (r *RouteController) deleteOverlayIFace() {
 	err := utils.DeleteIFaceByIndex(r.wg.GetLinkIndex())
 	if err != nil {
@@ -185,8 +185,8 @@ func (r *RouteController) setUpRouteManager(recorder record.EventRecorder) {
 func (r *RouteController) SetupWithManager(mgr ctrl.Manager) error {
 	resourceToBeProccesedPredicate := predicate.Funcs{
 		DeleteFunc: func(e event.DeleteEvent) bool {
-			//finalizers are used to check if a resource is being deleted, and perform there the needed actions
-			//we don't want to reconcile on the delete of a resource.
+			// finalizers are used to check if a resource is being deleted, and perform there the needed actions
+			// we don't want to reconcile on the delete of a resource.
 			return false
 		},
 	}
@@ -212,7 +212,7 @@ func (r *RouteController) SetupSignalHandlerForRouteOperator() (stopCh <-chan st
 func (r *RouteController) Watcher(sharedDynFactory dynamicinformer.DynamicSharedInformerFactory, resourceType schema.GroupVersionResource, handlerFuncs cache.ResourceEventHandlerFuncs, stopCh chan struct{}) {
 	klog.Infof("starting watcher for %s", resourceType.String())
 	dynInformer := sharedDynFactory.ForResource(resourceType)
-	//adding handlers to the informer
+	// adding handlers to the informer
 	dynInformer.Informer().AddEventHandler(handlerFuncs)
 	dynInformer.Informer().Run(stopCh)
 }

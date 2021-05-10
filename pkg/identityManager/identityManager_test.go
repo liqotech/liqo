@@ -9,8 +9,6 @@ import (
 	"testing"
 	"time"
 
-	testUtils2 "github.com/liqotech/liqo/pkg/utils/testUtils"
-
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	v1 "k8s.io/api/core/v1"
@@ -21,6 +19,7 @@ import (
 	"github.com/liqotech/liqo/pkg/discovery"
 	idManTest "github.com/liqotech/liqo/pkg/identityManager/testUtils"
 	"github.com/liqotech/liqo/pkg/tenantControlNamespace"
+	testUtils2 "github.com/liqotech/liqo/pkg/utils/testUtils"
 )
 
 func TestIdentityManager(t *testing.T) {

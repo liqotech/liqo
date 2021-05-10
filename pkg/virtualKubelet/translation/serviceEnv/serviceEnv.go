@@ -96,7 +96,8 @@ func getServiceEnvVarMap(ns string, enableServiceLinks bool, remoteNs string, ca
 	return envVars, nil
 }
 
-func addService(serviceMap *map[string]*v1.Service, cacheManager storage.CacheManagerReader, namespace string, name string, checkNamespace bool) error {
+func addService(serviceMap *map[string]*v1.Service, cacheManager storage.CacheManagerReader, namespace string,
+	name string, checkNamespace bool) error {
 	tmp, err := cacheManager.GetForeignNamespacedObject(apimgmgt.Services, namespace, name)
 	if err != nil {
 		return err

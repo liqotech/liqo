@@ -8,8 +8,6 @@ import (
 	"strings"
 	"testing"
 
-	testUtils2 "github.com/liqotech/liqo/pkg/utils/testUtils"
-
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	v1 "k8s.io/api/core/v1"
@@ -19,6 +17,7 @@ import (
 	"k8s.io/client-go/kubernetes"
 
 	"github.com/liqotech/liqo/pkg/discovery"
+	testUtils2 "github.com/liqotech/liqo/pkg/utils/testUtils"
 )
 
 func TestTenantControlNamespace(t *testing.T) {

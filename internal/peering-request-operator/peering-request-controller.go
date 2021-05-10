@@ -21,8 +21,6 @@ import (
 	"errors"
 	"time"
 
-	"github.com/liqotech/liqo/pkg/clusterid"
-
 	appsv1 "k8s.io/api/apps/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -32,6 +30,7 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
+	"github.com/liqotech/liqo/pkg/clusterid"
 	"github.com/liqotech/liqo/pkg/crdClient"
 	object_references "github.com/liqotech/liqo/pkg/object-references"
 )
@@ -57,7 +56,7 @@ type PeeringRequestReconciler struct {
 // +kubebuilder:rbac:groups=discovery.liqo.io,resources=foreignclusters,verbs=list;update;create
 // +kubebuilder:rbac:groups=certificates.k8s.io,resources=certificatesigningrequests,verbs=get;list;watch;create;update;create;patch
 // +kubebuilder:rbac:groups=apps,resources=deployments,verbs=get;list;watch;create;update;create;patch
-//role
+// role
 // +kubebuilder:rbac:groups=core,namespace="liqo",resources=configmaps,verbs=get;list;watch;create;update
 // +kubebuilder:rbac:groups=core,namespace="liqo",resources=secrets,verbs=get;patch;create
 

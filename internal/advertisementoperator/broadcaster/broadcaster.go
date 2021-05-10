@@ -9,28 +9,26 @@ import (
 	"sync"
 	"time"
 
-	liqoconst "github.com/liqotech/liqo/pkg/consts"
-	"github.com/liqotech/liqo/pkg/crdClient"
-	"github.com/liqotech/liqo/pkg/kubeconfig"
-	k8serrors "k8s.io/apimachinery/pkg/api/errors"
-	"k8s.io/apimachinery/pkg/fields"
-	"k8s.io/klog"
-
-	"github.com/liqotech/liqo/pkg/utils"
-	pkg "github.com/liqotech/liqo/pkg/virtualKubelet"
-	"github.com/liqotech/liqo/pkg/virtualKubelet/forge"
-
 	corev1 "k8s.io/api/core/v1"
+	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/fields"
+	"k8s.io/klog"
 	resourcehelper "k8s.io/kubectl/pkg/util/resource"
 
 	configv1alpha1 "github.com/liqotech/liqo/apis/config/v1alpha1"
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	advtypes "github.com/liqotech/liqo/apis/sharing/v1alpha1"
+	liqoconst "github.com/liqotech/liqo/pkg/consts"
+	"github.com/liqotech/liqo/pkg/crdClient"
+	"github.com/liqotech/liqo/pkg/kubeconfig"
+	"github.com/liqotech/liqo/pkg/utils"
+	pkg "github.com/liqotech/liqo/pkg/virtualKubelet"
+	"github.com/liqotech/liqo/pkg/virtualKubelet/forge"
 )
 
-// AdvertisementBroadcaster models data and structures needed by a broadcaster instance
+// AdvertisementBroadcaster models data and structures needed by a broadcaster instance.
 type AdvertisementBroadcaster struct {
 	// local-related variables
 	LocalClient     *crdClient.CRDClient
@@ -46,7 +44,7 @@ type AdvertisementBroadcaster struct {
 	mutex              sync.Mutex
 }
 
-// AdvResources contains all resources to be returned in an advertisement
+// AdvResources contains all resources to be returned in an advertisement.
 type AdvResources struct {
 	PhysicalNodes *corev1.NodeList
 	VirtualNodes  *corev1.NodeList

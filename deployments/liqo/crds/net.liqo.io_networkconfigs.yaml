@@ -44,7 +44,7 @@ spec:
               backendType:
                 description: Vpn technology used to interconnect two clusters.
                 type: string
-              clusterid:
+              clusterID:
                 description: The ID of the remote cluster that will receive this CRD.
                 type: string
               endpointIP:
@@ -59,7 +59,7 @@ spec:
             required:
             - backendType
             - backend_config
-            - clusterid
+            - clusterID
             - endpointIP
             - externalCIDR
             - podCIDR

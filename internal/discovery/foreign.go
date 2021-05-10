@@ -134,7 +134,7 @@ func (discovery *Controller) createForeign(
 			},
 			Namespace:     data.ClusterInfo.GuestNamespace,
 			DiscoveryType: discoveryType,
-			AuthUrl:       data.AuthData.getURL(),
+			AuthURL:       data.AuthData.getURL(),
 			TrustMode:     trustMode,
 		},
 	}
