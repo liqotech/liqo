@@ -38,6 +38,7 @@ import (
 
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	"github.com/liqotech/liqo/internal/crdReplicator"
+	liqoconst "github.com/liqotech/liqo/pkg/consts"
 	liqonet "github.com/liqotech/liqo/pkg/liqonet"
 	"github.com/liqotech/liqo/pkg/liqonet/tunnel/wireguard"
 	"github.com/liqotech/liqo/pkg/owner"
@@ -51,13 +52,12 @@ import (
 )
 
 const (
-	TunEndpointNamePrefix    = "tun-endpoint-"
-	NetConfigNamePrefix      = "net-config-"
-	DefaultPodCIDRValue      = "None"
-	DefaultExternalCIDRValue = "None"
+	tunEndpointNamePrefix = "tun-endpoint-"
+	netConfigNamePrefix   = "net-config-"
 )
 
 var (
+	// ResyncPeriod for watchers
 	ResyncPeriod = 30 * time.Second
 
 	result = ctrl.Result{
@@ -82,6 +82,7 @@ type networkParam struct {
 	backendConfig         map[string]string
 }
 
+// TunnelEndpointCreator manages the most of liqo networking.
 type TunnelEndpointCreator struct {
 	client.Client
 	ClientSet                  *k8s.Clientset
@@ -93,7 +94,6 @@ type TunnelEndpointCreator struct {
 	PodCIDR                    string
 	ServiceCIDR                string
 	ExternalCIDR               string
-	netParamPerCluster         map[string]networkParam
 	ReservedSubnets            []string
 	AdditionalPools            []string
 	IPManager                  liqonet.Ipam
@@ -132,6 +132,7 @@ type TunnelEndpointCreator struct {
 // +kubebuilder:rbac:groups=core,namespace="do-not-care",resources=services,verbs=get;list;watch;update
 // +kubebuilder:rbac:groups=core,namespace="do-not-care",resources=pods,verbs=get;list;watch
 
+// Reconciler method
 func (tec *TunnelEndpointCreator) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 	if !tec.IsConfigured {
 		klog.Infof("the operator is waiting to be configured")
@@ -156,14 +157,14 @@ func (tec *TunnelEndpointCreator) Reconcile(req ctrl.Request) (ctrl.Result, erro
 			// The object is not being deleted, so if it does not have our finalizer,
 			// then lets add the finalizer and update the object. This is equivalent
 			// registering our finalizer.
-			netConfig.ObjectMeta.Finalizers = append(netConfig.Finalizers, tunnelEndpointCreatorFinalizer)
+			netConfig.ObjectMeta.Finalizers = append(netConfig.ObjectMeta.Finalizers, tunnelEndpointCreatorFinalizer)
 			if err := tec.Update(ctx, &netConfig); err != nil {
-				//while updating we check if the a resource version conflict happened
-				//which means the version of the object we have is outdated.
-				//a solution could be to return an error and requeue the object for later process
-				//but if the object has been changed by another instance of the controller running in
-				//another host it already has been put in the working queue so decide to forget the
-				//current version and process the next item in the queue assured that we handle the object later
+				// while updating we check if the a resource version conflict happened
+				// which means the version of the object we have is outdated.
+				// a solution could be to return an error and requeue the object for later process
+				// but if the object has been changed by another instance of the controller running in
+				// another host it already has been put in the working queue so decide to forget the
+				// current version and process the next item in the queue assured that we handle the object later
 				if apierrors.IsConflict(err) {
 					return ctrl.Result{}, nil
 				}
@@ -173,13 +174,13 @@ func (tec *TunnelEndpointCreator) Reconcile(req ctrl.Request) (ctrl.Result, erro
 			return result, nil
 		}
 	} else {
-		//the object is being deleted
+		// the object is being deleted
 		if err := tec.deleteTunEndpoint(&netConfig); err != nil {
 			klog.Errorf("an error occurred while deleting tunnel endpoint related to %s: %s", netConfig.Name, err)
 			return result, err
 		}
 		if liqonet.ContainsString(netConfig.Finalizers, tunnelEndpointCreatorFinalizer) {
-			//remove the finalizer from the list and update it.
+			// remove the finalizer from the list and update it.
 			netConfig.Finalizers = liqonet.RemoveString(netConfig.Finalizers, tunnelEndpointCreatorFinalizer)
 			if err := tec.Update(ctx, &netConfig); err != nil {
 				if apierrors.IsConflict(err) {
@@ -189,14 +190,14 @@ func (tec *TunnelEndpointCreator) Reconcile(req ctrl.Request) (ctrl.Result, erro
 				return result, err
 			}
 		}
-		//remove the reserved networks for the cluster
+		// remove the reserved networks for the cluster
 		if err := tec.IPManager.FreeSubnetsPerCluster(netConfig.Spec.ClusterID); err != nil {
 			klog.Errorf("cannot free networks assigned to cluster %s", netConfig.Spec.ClusterID)
 		}
 		return result, nil
 	}
 
-	//check if the netconfig is local or remote
+	// check if the netconfig is local or remote
 	labels := netConfig.GetLabels()
 	if val, ok := labels[crdReplicator.LocalLabelSelector]; ok && val == "true" {
 		return result, tec.processLocalNetConfig(&netConfig)
@@ -207,13 +208,14 @@ func (tec *TunnelEndpointCreator) Reconcile(req ctrl.Request) (ctrl.Result, erro
 	return result, nil
 }
 
+// SetupWithManager informs the manager that the tunnelEndpointCreator will deal with networkconfigs
 func (tec *TunnelEndpointCreator) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&netv1alpha1.NetworkConfig{}).
 		Complete(tec)
 }
 
-// SetupSignalHandlerForTunnelEndpointCreator registers for SIGTERM, SIGINT, SIGKILL. A stop channel is returned
+// SetupSignalHandlerForTunEndCreator registers for SIGTERM, SIGINT, SIGKILL. A stop channel is returned
 // which is closed on one of these signals.
 func (tec *TunnelEndpointCreator) SetupSignalHandlerForTunEndCreator() (stopCh <-chan struct{}) {
 	klog.Infof("starting signal handler for tunnelEndpointCreator-operator")
@@ -230,7 +232,11 @@ func (tec *TunnelEndpointCreator) SetupSignalHandlerForTunEndCreator() (stopCh <
 	return stop
 }
 
-func (tec *TunnelEndpointCreator) Watcher(sharedDynFactory dynamicinformer.DynamicSharedInformerFactory, resourceType schema.GroupVersionResource, handlerFuncs cache.ResourceEventHandlerFuncs, stopCh chan struct{}) {
+// Watcher for resources
+func (tec *TunnelEndpointCreator) Watcher(sharedDynFactory dynamicinformer.DynamicSharedInformerFactory,
+	resourceType schema.GroupVersionResource,
+	handlerFuncs cache.ResourceEventHandlerFuncs,
+	stopCh chan struct{}) {
 	dynInformer := sharedDynFactory.ForResource(resourceType)
 	klog.Infof("starting watcher for %s", resourceType.String())
 	//adding handlers to the informer
@@ -242,7 +248,7 @@ func (tec *TunnelEndpointCreator) createNetConfig(fc *discoveryv1alpha1.ForeignC
 	clusterID := fc.Spec.ClusterIdentity.ClusterID
 	netConfig := netv1alpha1.NetworkConfig{
 		ObjectMeta: metav1.ObjectMeta{
-			GenerateName: NetConfigNamePrefix,
+			GenerateName: netConfigNamePrefix,
 			Labels: map[string]string{
 				crdReplicator.LocalLabelSelector: "true",
 				crdReplicator.DestinationLabel:   clusterID,
@@ -280,7 +286,8 @@ func (tec *TunnelEndpointCreator) createNetConfig(fc *discoveryv1alpha1.ForeignC
 	}
 	err = tec.Create(context.TODO(), &netConfig)
 	if err != nil {
-		klog.Errorf("an error occurred while creating resource %s of type %s: %s", netConfig.Name, netv1alpha1.GroupVersion.String(), err)
+		klog.Errorf("an error occurred while creating resource %s of type %s: %s",
+			netConfig.Name, netv1alpha1.GroupVersion.String(), err)
 		return err
 	}
 	klog.Infof("resource %s of type %s created", netConfig.Name, netv1alpha1.GroupVersion.String())
@@ -298,33 +305,39 @@ func (tec *TunnelEndpointCreator) deleteNetConfig(fc *discoveryv1alpha1.ForeignC
 	}
 	if len(netConfigList.Items) != 1 {
 		if len(netConfigList.Items) == 0 {
-			klog.Infof("nothing to remove: a resource of type %s for remote cluster %s not found", netv1alpha1.GroupVersion.String(), clusterID)
+			klog.Infof("nothing to remove: a resource of type %s for remote cluster %s not found",
+				netv1alpha1.GroupVersion.String(), clusterID)
 			return nil
-		} else {
-			klog.Errorf("more than one instances of type %s exists for remote cluster %s", netv1alpha1.GroupVersion.String(), clusterID)
-			return fmt.Errorf("multiple instances of %s for remote cluster %s", netv1alpha1.GroupVersion.String(), clusterID)
 		}
+		klog.Errorf("more than one instances of type %s exists for remote cluster %s",
+			netv1alpha1.GroupVersion.String(), clusterID)
+		return fmt.Errorf("multiple instances of %s for remote cluster %s", netv1alpha1.GroupVersion.String(), clusterID)
 	}
 	netConfig := netConfigList.Items[0]
 	err = tec.Delete(context.Background(), &netConfig)
 	if err != nil {
-		klog.Errorf("an error occurred while deleting resource %s of type %s: %s", netConfig.Name, netv1alpha1.GroupVersion.String(), err)
+		klog.Errorf("an error occurred while deleting resource %s of type %s: %s",
+			netConfig.Name, netv1alpha1.GroupVersion.String(), err)
 		return err
-	} else {
-		klog.Infof("resource %s of type %s deleted", netConfig.Name, netv1alpha1.GroupVersion.String())
 	}
+	klog.Infof("resource %s of type %s deleted", netConfig.Name, netv1alpha1.GroupVersion.String())
 	err = tec.deleteTunEndpoint(&netConfig)
 	if err != nil {
-		klog.Errorf("an error occurred while deleting resource %s of type %s: %s", strings.Join([]string{TunEndpointNamePrefix, netConfig.Spec.ClusterID}, ""), netv1alpha1.GroupVersion.String(), err)
+		klog.Errorf("an error occurred while deleting resource %s of type %s: %s",
+			strings.Join([]string{tunEndpointNamePrefix, netConfig.Spec.ClusterID}, ""), netv1alpha1.GroupVersion.String(), err)
 		return err
-	} else {
-		klog.Infof("resource %s of type %s deleted", strings.Join([]string{TunEndpointNamePrefix, netConfig.Spec.ClusterID}, ""), netv1alpha1.GroupVersion.String())
-		return nil
 	}
-
+	klog.Infof("resource %s of type %s deleted",
+		strings.Join([]string{tunEndpointNamePrefix, netConfig.Spec.ClusterID}, ""),
+		netv1alpha1.GroupVersion.String())
+	return nil
 }
 
-func (tec *TunnelEndpointCreator) GetNetworkConfig(destinationClusterID string) (*netv1alpha1.NetworkConfig, bool, error) {
+// GetNetworkConfig returns the network config for a specific cluster
+func (tec *TunnelEndpointCreator) GetNetworkConfig(destinationClusterID string) (
+	*netv1alpha1.NetworkConfig,
+	bool,
+	error) {
 	clusterID := destinationClusterID
 	networkConfigList := &netv1alpha1.NetworkConfigList{}
 	labels := client.MatchingLabels{crdReplicator.DestinationLabel: clusterID}
@@ -336,19 +349,22 @@ func (tec *TunnelEndpointCreator) GetNetworkConfig(destinationClusterID string) 
 	if len(networkConfigList.Items) != 1 {
 		if len(networkConfigList.Items) == 0 {
 			return nil, false, nil
-		} else {
-			klog.Errorf("more than one instances of type %s exists for remote cluster %s", netv1alpha1.GroupVersion.String(), clusterID)
-			return nil, false, fmt.Errorf("multiple instances of %s for remote cluster %s", netv1alpha1.GroupVersion.String(), clusterID)
 		}
+		klog.Errorf("more than one instances of type %s exists for remote cluster %s",
+			netv1alpha1.GroupVersion.String(), clusterID)
+		return nil, false, fmt.Errorf("multiple instances of %s for remote cluster %s",
+			netv1alpha1.GroupVersion.String(), clusterID)
 	}
 	return &networkConfigList.Items[0], true, nil
 }
 
 func (tec *TunnelEndpointCreator) processRemoteNetConfig(netConfig *netv1alpha1.NetworkConfig) error {
 	var toBeUpdated bool
-	// Networkconfigs resource have a Spec.ClusterID field that contains the clusterID of the destination cluster(the local cluster in this case)
+	// Networkconfigs resource have a Spec.ClusterID field that contains
+	// the clusterID of the destination cluster(the local cluster in this case)
 	// In order to take the ClusterID of the sender we need to retrieve it from the labels.
-	podCIDR, externalCIDR, err := tec.IPManager.GetSubnetsPerCluster(netConfig.Spec.PodCIDR, netConfig.Spec.ExternalCIDR, netConfig.Labels[crdReplicator.RemoteLabelSelector])
+	podCIDR, externalCIDR, err := tec.IPManager.GetSubnetsPerCluster(netConfig.Spec.PodCIDR,
+		netConfig.Spec.ExternalCIDR, netConfig.Labels[crdReplicator.RemoteLabelSelector])
 	if err != nil {
 		klog.Errorf("an error occurred while getting a new subnet for resource %s: %s", netConfig.Name, err)
 		return err
@@ -362,9 +378,9 @@ func (tec *TunnelEndpointCreator) processRemoteNetConfig(netConfig *netv1alpha1.
 		}
 	} else {
 		// Local cluster has not remapped the PodCIDR
-		if netConfig.Status.PodCIDRNAT != DefaultPodCIDRValue {
+		if netConfig.Status.PodCIDRNAT != liqoconst.DefaultCIDRValue {
 			toBeUpdated = true
-			podCIDR = "None"
+			podCIDR = liqoconst.DefaultCIDRValue
 		}
 	}
 	if externalCIDR != netConfig.Spec.ExternalCIDR {
@@ -374,9 +390,9 @@ func (tec *TunnelEndpointCreator) processRemoteNetConfig(netConfig *netv1alpha1.
 		}
 	} else {
 		// Local cluster has not remapped the ExternalCIDR
-		if netConfig.Status.ExternalCIDRNAT != DefaultExternalCIDRValue {
+		if netConfig.Status.ExternalCIDRNAT != liqoconst.DefaultCIDRValue {
 			toBeUpdated = true
-			externalCIDR = "None"
+			externalCIDR = liqoconst.DefaultCIDRValue
 		}
 	}
 	if owner.GetOwnerByKind(&netConfig.OwnerReferences, "ForeignCluster") == nil {
@@ -423,12 +439,13 @@ func (tec *TunnelEndpointCreator) processLocalNetConfig(netConfig *netv1alpha1.N
 		if len(netConfigList.Items) == 0 {
 			return nil
 		}
-		klog.Warningf("more than one instances of type %s exists for remote cluster %s, deleting them", netv1alpha1.GroupVersion.String(), netConfig.Spec.ClusterID)
-		for _, netConfig := range netConfigList.Items {
-			nc := netConfig
-			klog.Infof("deleting resource %s with GVR %s, because it is duplicated", netConfig.Name, netConfig.GroupVersionKind().String())
-			if err := tec.Delete(context.Background(), &nc); err != nil {
-				klog.Errorf("an error occurred while deleting resource %s: %v", netConfig.Name, err)
+		klog.Warningf("more than one instances of type %s exists for remote cluster %s, deleting them",
+			netv1alpha1.GroupVersion.String(), netConfig.Spec.ClusterID)
+		for i := range netConfigList.Items {
+			klog.Infof("deleting resource %s with GVR %s, because it is duplicated",
+				netConfigList.Items[i].Name, netConfigList.Items[i].GroupVersionKind().String())
+			if err := tec.Delete(context.Background(), &netConfigList.Items[i]); err != nil {
+				klog.Errorf("an error occurred while deleting resource %s: %v", netConfigList.Items[i].Name, err)
 				return err
 			}
 		}
@@ -449,18 +466,18 @@ func (tec *TunnelEndpointCreator) processLocalNetConfig(netConfig *netv1alpha1.N
 	if len(netConfigList.Items) != 1 {
 		if len(netConfigList.Items) == 0 {
 			return nil
-		} else {
-			klog.Errorf("more than one instances of type %s exists for remote cluster %s", netv1alpha1.GroupVersion.String(), netConfig.Spec.ClusterID)
-			return fmt.Errorf("multiple instances of %s for remote cluster %s", netv1alpha1.GroupVersion.String(), netConfig.Spec.ClusterID)
 		}
-	} else {
-		//check if it has been processed by the operator
-		if !netConfigList.Items[0].Status.Processed {
-			return nil
-		}
+		klog.Errorf("more than one instances of type %s exists for remote cluster %s",
+			netv1alpha1.GroupVersion.String(), netConfig.Spec.ClusterID)
+		return fmt.Errorf("multiple instances of %s for remote cluster %s",
+			netv1alpha1.GroupVersion.String(), netConfig.Spec.ClusterID)
+	}
+	if !netConfigList.Items[0].Status.Processed {
+		return nil
 	}
 	// Store ExternalCIDR used in remote cluster
-	if err := tec.IPManager.AddExternalCIDRPerCluster(netConfig.Status.ExternalCIDRNAT, netConfig.Spec.ClusterID); err != nil {
+	if err := tec.IPManager.AddExternalCIDRPerCluster(netConfig.Status.ExternalCIDRNAT,
+		netConfig.Spec.ClusterID); err != nil {
 		klog.Error(err)
 	}
 	//at this point we have all the necessary parameters to create the tunnelEndpoint resource
@@ -481,14 +498,14 @@ func (tec *TunnelEndpointCreator) processLocalNetConfig(netConfig *netv1alpha1.N
 		backendConfig:         remoteNetConf.Spec.BackendConfig,
 	}
 	fcOwner := owner.GetOwnerByKind(&netConfig.OwnerReferences, "ForeignCluster")
-	if err := tec.ProcessTunnelEndpoint(netParam, fcOwner); err != nil {
+	if err := tec.processTunnelEndpoint(&netParam, fcOwner); err != nil {
 		klog.Errorf("an error occurred while processing the tunnelEndpoint: %s", err)
 		return err
 	}
 	return nil
 }
 
-func (tec *TunnelEndpointCreator) ProcessTunnelEndpoint(param networkParam, owner *metav1.OwnerReference) error {
+func (tec *TunnelEndpointCreator) processTunnelEndpoint(param *networkParam, ownerRef *metav1.OwnerReference) error {
 	//try to get the tunnelEndpoint, it may not exist
 	_, found, err := tec.GetTunnelEndpoint(param.remoteClusterID)
 	if err != nil {
@@ -496,29 +513,31 @@ func (tec *TunnelEndpointCreator) ProcessTunnelEndpoint(param networkParam, owne
 		return err
 	}
 	if !found {
-		return tec.CreateTunnelEndpoint(param, owner)
-	} else {
-		if err := tec.UpdateSpecTunnelEndpoint(param); err != nil {
-			return err
-		}
-		if err := tec.UpdateStatusTunnelEndpoint(param); err != nil {
-			return err
-		}
-		return nil
+		return tec.createTunnelEndpoint(param, ownerRef)
 	}
+	if err := tec.updateSpecTunnelEndpoint(param); err != nil {
+		return err
+	}
+	if err := tec.updateStatusTunnelEndpoint(param); err != nil {
+		return err
+	}
+	return nil
 }
 
-func (tec *TunnelEndpointCreator) UpdateSpecTunnelEndpoint(param networkParam) error {
-	tep := &netv1alpha1.TunnelEndpoint{}
+func (tec *TunnelEndpointCreator) updateSpecTunnelEndpoint(param *networkParam) error {
+	var tep *netv1alpha1.TunnelEndpoint
+	var found bool
+	var err error
 	//here we recover from conflicting resource versions
 	retryError := retry.RetryOnConflict(retry.DefaultRetry, func() error {
 		toBeUpdated := false
-		tep, found, err := tec.GetTunnelEndpoint(param.remoteClusterID)
+		tep, found, err = tec.GetTunnelEndpoint(param.remoteClusterID)
 		if err != nil {
 			return err
 		}
 		if !found {
-			return apierrors.NewNotFound(netv1alpha1.TunnelEndpointGroupResource, strings.Join([]string{"tunnelEndpoint for cluster:", param.remoteClusterID}, " "))
+			return apierrors.NewNotFound(netv1alpha1.TunnelEndpointGroupResource,
+				strings.Join([]string{"tunnelEndpoint for cluster:", param.remoteClusterID}, " "))
 		}
 		//check if there are fields to be updated
 		if tep.Spec.ClusterID != param.remoteClusterID {
@@ -554,18 +573,21 @@ func (tec *TunnelEndpointCreator) UpdateSpecTunnelEndpoint(param networkParam) e
 	return nil
 }
 
-func (tec *TunnelEndpointCreator) UpdateStatusTunnelEndpoint(param networkParam) error {
-	tep := &netv1alpha1.TunnelEndpoint{}
+func (tec *TunnelEndpointCreator) updateStatusTunnelEndpoint(param *networkParam) error {
+	var tep *netv1alpha1.TunnelEndpoint
+	var found bool
+	var err error
 
 	//here we recover from conflicting resource versions
 	retryError := retry.RetryOnConflict(retry.DefaultRetry, func() error {
 		toBeUpdated := false
-		tep, found, err := tec.GetTunnelEndpoint(param.remoteClusterID)
+		tep, found, err = tec.GetTunnelEndpoint(param.remoteClusterID)
 		if err != nil {
 			return err
 		}
 		if !found {
-			return apierrors.NewNotFound(netv1alpha1.TunnelEndpointGroupResource, strings.Join([]string{"tunnelEndpoint for cluster:", param.remoteClusterID}, " "))
+			return apierrors.NewNotFound(netv1alpha1.TunnelEndpointGroupResource,
+				strings.Join([]string{"tunnelEndpoint for cluster:", param.remoteClusterID}, " "))
 		}
 		//check if there are fields to be updated
 		if tep.Status.LocalNATPodCIDR != param.localNatPodCIDR {
@@ -600,8 +622,8 @@ func (tec *TunnelEndpointCreator) UpdateStatusTunnelEndpoint(param networkParam)
 			tep.Status.RemoteNATExternalCIDR = param.remoteNatExternalCIDR
 			toBeUpdated = true
 		}
-		if tep.Status.Phase != "Ready" {
-			tep.Status.Phase = "Ready"
+		if tep.Status.Phase != liqoconst.TepReady {
+			tep.Status.Phase = liqoconst.TepReady
 			toBeUpdated = true
 		}
 		if toBeUpdated {
@@ -617,11 +639,11 @@ func (tec *TunnelEndpointCreator) UpdateStatusTunnelEndpoint(param networkParam)
 	return nil
 }
 
-func (tec *TunnelEndpointCreator) CreateTunnelEndpoint(param networkParam, owner *metav1.OwnerReference) error {
+func (tec *TunnelEndpointCreator) createTunnelEndpoint(param *networkParam, ownerRef *metav1.OwnerReference) error {
 	//here we create it
 	tep := &netv1alpha1.TunnelEndpoint{
 		ObjectMeta: metav1.ObjectMeta{
-			GenerateName: TunEndpointNamePrefix,
+			GenerateName: tunEndpointNamePrefix,
 			Labels: map[string]string{
 				"clusterID": param.remoteClusterID,
 			},
@@ -635,7 +657,7 @@ func (tec *TunnelEndpointCreator) CreateTunnelEndpoint(param networkParam, owner
 			BackendConfig: param.backendConfig,
 		},
 		Status: netv1alpha1.TunnelEndpointStatus{
-			Phase:                 "Ready",
+			Phase:                 liqoconst.TepReady,
 			LocalPodCIDR:          param.localPodCIDR,
 			LocalNATPodCIDR:       param.localNatPodCIDR,
 			LocalExternalCIDR:     param.localExternalCIDR,
@@ -646,12 +668,13 @@ func (tec *TunnelEndpointCreator) CreateTunnelEndpoint(param networkParam, owner
 			LocalEndpointIP:       param.localEndpointIP,
 		},
 	}
-	if owner != nil {
-		tep.OwnerReferences = append(tep.OwnerReferences, *owner)
+	if ownerRef != nil {
+		tep.OwnerReferences = append(tep.OwnerReferences, *ownerRef)
 	}
 	err := tec.Create(context.Background(), tep)
 	if err != nil {
-		klog.Errorf("an error occurred while creating resource %s of type %s: %s", tep.Name, netv1alpha1.TunnelEndpointGroupResource, err)
+		klog.Errorf("an error occurred while creating resource %s of type %s: %s",
+			tep.Name, netv1alpha1.TunnelEndpointGroupResource, err)
 		return err
 	}
 	klog.Infof("resource %s of type %s created", tep.Name, netv1alpha1.TunnelEndpointGroupResource)
@@ -659,7 +682,11 @@ func (tec *TunnelEndpointCreator) CreateTunnelEndpoint(param networkParam, owner
 	return nil
 }
 
-func (tec *TunnelEndpointCreator) GetTunnelEndpoint(destinationClusterID string) (*netv1alpha1.TunnelEndpoint, bool, error) {
+// GetTunnelEndpoint retrieves the tunnelEndpoint resource related to a cluster
+func (tec *TunnelEndpointCreator) GetTunnelEndpoint(destinationClusterID string) (
+	*netv1alpha1.TunnelEndpoint,
+	bool,
+	error) {
 	clusterID := destinationClusterID
 	tunEndpointList := &netv1alpha1.TunnelEndpointList{}
 	labels := client.MatchingLabels{"clusterID": clusterID}
@@ -671,10 +698,11 @@ func (tec *TunnelEndpointCreator) GetTunnelEndpoint(destinationClusterID string)
 	if len(tunEndpointList.Items) != 1 {
 		if len(tunEndpointList.Items) == 0 {
 			return nil, false, nil
-		} else {
-			klog.Errorf("more than one instances of type %s exists for remote cluster %s", netv1alpha1.GroupVersion.String(), clusterID)
-			return nil, false, fmt.Errorf("multiple instances of %s for remote cluster %s", netv1alpha1.GroupVersion.String(), clusterID)
 		}
+		klog.Errorf("more than one instances of type %s exists for remote cluster %s",
+			netv1alpha1.GroupVersion.String(), clusterID)
+		return nil, false, fmt.Errorf("multiple instances of %s for remote cluster %s",
+			netv1alpha1.GroupVersion.String(), clusterID)
 	}
 	return &tunEndpointList.Items[0], true, nil
 }
@@ -692,11 +720,11 @@ func (tec *TunnelEndpointCreator) deleteTunEndpoint(netConfig *netv1alpha1.Netwo
 	}
 	err = tec.Delete(ctx, tep)
 	if err != nil {
-		return fmt.Errorf("unable to delete endpoint %s in namespace %s : %v", tep.Name, tep.Namespace, err)
-	} else {
-		klog.Infof("resource %s of type %s for remote cluster %s has been removed", tep.Name, netv1alpha1.GroupVersion.String(), clusterID)
-		return nil
+		return fmt.Errorf("unable to delete endpoint %s in namespace %s : %w", tep.Name, tep.Namespace, err)
 	}
+	klog.Infof("resource %s of type %s for remote cluster %s has been removed",
+		tep.Name, netv1alpha1.GroupVersion.String(), clusterID)
+	return nil
 }
 
 func (tec *TunnelEndpointCreator) getFCOwner(netConfig *netv1alpha1.NetworkConfig) (*metav1.OwnerReference, error) {

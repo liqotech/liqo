@@ -32,6 +32,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 
 	netv1alpha1 "github.com/liqotech/liqo/apis/net/v1alpha1"
+	liqoconst "github.com/liqotech/liqo/pkg/consts"
 	utils "github.com/liqotech/liqo/pkg/liqonet"
 	"github.com/liqotech/liqo/pkg/liqonet/overlay"
 	"github.com/liqotech/liqo/pkg/liqonet/tunnel"
@@ -153,7 +154,7 @@ func (tc *TunnelController) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 	}
 	//we wait for the resource to be ready. The resource is created in two steps, first the spec and metadata fields
 	//then the status field. so we wait for the status to be ready.
-	if endpoint.Status.Phase != "Ready" {
+	if endpoint.Status.Phase != liqoconst.TepReady {
 		klog.Infof("%s -> resource %s is not ready", endpoint.Spec.ClusterID, endpoint.Name)
 		return result, nil
 	}

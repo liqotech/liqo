@@ -93,7 +93,7 @@ func (liqoIPAM *IPAM) Init(pools []string, dynClient dynamic.Interface) error {
 func (liqoIPAM *IPAM) reservePoolInHalves(pool string) error {
 	klog.Infof("Network %s is equal to a network pool, acquiring first half..", pool)
 	mask := GetMask(pool)
-	mask += 1
+	mask++
 	_, err := liqoIPAM.ipam.AcquireChildPrefix(pool, mask)
 	if err != nil {
 		return fmt.Errorf("cannot acquire first half of pool %s", pool)
@@ -115,7 +115,8 @@ func (liqoIPAM *IPAM) AcquireReservedSubnet(reservedNetwork string) error {
 		return fmt.Errorf("cannot acquire network %s:%w", reservedNetwork, err)
 	}
 	if overlaps {
-		return fmt.Errorf("network %s cannot be reserved because it overlaps with network of cluster %s", reservedNetwork, cluster)
+		return fmt.Errorf("network %s cannot be reserved because it overlaps with network of cluster %s",
+			reservedNetwork, cluster)
 	}
 	pool, ok, err := liqoIPAM.getPoolFromNetwork(reservedNetwork)
 	if err != nil {
@@ -138,70 +139,105 @@ func (liqoIPAM *IPAM) AcquireReservedSubnet(reservedNetwork string) error {
 	return nil
 }
 
-func (liqoIPAM *IPAM) overlapsWithCluster(network string) (string, bool, error) {
+func (liqoIPAM *IPAM) overlapsWithNetwork(newNetwork, network string) (overlaps bool, err error) {
+	if network == "" {
+		return
+	}
+	if err = liqoIPAM.ipam.PrefixesOverlapping([]string{network}, []string{newNetwork}); err != nil {
+		//overlaps
+		overlaps = true
+		err = nil
+		return
+	}
+	return
+}
+
+func (liqoIPAM *IPAM) overlapsWithCluster(network string) (overlappingCluster string, overlaps bool, err error) {
 	// Get cluster subnets
 	clusterSubnets, err := liqoIPAM.ipamStorage.getClusterSubnets()
 	if err != nil {
-		return "", false, fmt.Errorf("cannot get Ipam config: %w", err)
+		err = fmt.Errorf("cannot get Ipam config: %w", err)
+		return
 	}
 	for cluster, clusterSubnet := range clusterSubnets {
-		if err := liqoIPAM.ipam.PrefixesOverlapping([]string{clusterSubnet.PodCIDR}, []string{network}); err != nil && clusterSubnet.PodCIDR != "" {
-			//overlaps
-			return cluster, true, nil
+		overlaps, err = liqoIPAM.overlapsWithNetwork(network, clusterSubnet.PodCIDR)
+		if err != nil {
+			return
 		}
-		if err := liqoIPAM.ipam.PrefixesOverlapping([]string{clusterSubnet.LocalExternalCIDR}, []string{network}); err != nil && clusterSubnet.LocalExternalCIDR != "" {
-			//overlaps
-			return cluster, true, nil
+		if overlaps {
+			overlappingCluster = cluster
+			return
 		}
-		if err := liqoIPAM.ipam.PrefixesOverlapping([]string{clusterSubnet.RemoteExternalCIDR}, []string{network}); err != nil && clusterSubnet.RemoteExternalCIDR != "" {
-			//overlaps
-			return cluster, true, nil
+		overlaps, err = liqoIPAM.overlapsWithNetwork(network, clusterSubnet.LocalExternalCIDR)
+		if err != nil {
+			return
+		}
+		if overlaps {
+			overlappingCluster = cluster
+			return
+		}
+		overlaps, err = liqoIPAM.overlapsWithNetwork(network, clusterSubnet.RemoteExternalCIDR)
+		if err != nil {
+			return
+		}
+		if overlaps {
+			overlappingCluster = cluster
+			return
 		}
 	}
-	return "", false, nil
+	return overlappingCluster, overlaps, err
 }
 
-func (liqoIPAM *IPAM) overlapsWithPool(network string) (string, bool, error) {
+func (liqoIPAM *IPAM) overlapsWithPool(network string) (overlappingPool string, overlaps bool, err error) {
 	// Get resource
 	pools, err := liqoIPAM.ipamStorage.getPools()
 	if err != nil {
-		return "", false, fmt.Errorf("cannot get Ipam config: %w", err)
+		err = fmt.Errorf("cannot get Ipam config: %w", err)
+		return
 	}
 	for _, pool := range pools {
-		if err := liqoIPAM.ipam.PrefixesOverlapping([]string{pool}, []string{network}); err != nil {
-			//overlaps
-			return pool, true, nil
+		overlaps, err = liqoIPAM.overlapsWithNetwork(network, pool)
+		if err != nil {
+			return
+		}
+		if overlaps {
+			overlappingPool = pool
+			return
 		}
 	}
-	return "", false, nil
+	return
 }
 
-/* Function that receives a network as parameter and returns the pool to which this network belongs to. The second return parameter is a boolean: it is false if the network does not belong to any pool */
-func (liqoIPAM *IPAM) getPoolFromNetwork(network string) (string, bool, error) {
+/* Function that receives a network as parameter and returns the pool to which this network belongs to */
+func (liqoIPAM *IPAM) getPoolFromNetwork(network string) (networkPool string, success bool, err error) {
 	var poolIPset netaddr.IPSetBuilder
+	var c netaddr.IPPrefix
 	// Get resource
 	pools, err := liqoIPAM.ipamStorage.getPools()
 	if err != nil {
-		return "", false, fmt.Errorf("cannot get Ipam config: %w", err)
+		err = fmt.Errorf("cannot get Ipam config: %w", err)
+		return
 	}
 	// Build IPSet for new network
 	ipprefix, err := netaddr.ParseIPPrefix(network)
 	if err != nil {
-		return "", false, err
+		return
 	}
 	for _, pool := range pools {
 		// Build IPSet for pool
-		c, err := netaddr.ParseIPPrefix(pool)
+		c, err = netaddr.ParseIPPrefix(pool)
 		if err != nil {
-			return "", false, err
+			return
 		}
 		poolIPset.AddPrefix(c)
 		// Check if the pool contains network
 		if poolIPset.IPSet().ContainsPrefix(ipprefix) {
-			return pool, true, nil
+			networkPool = pool
+			success = true
+			return
 		}
 	}
-	return "", false, nil
+	return
 }
 
 func (liqoIPAM *IPAM) clusterSubnetEqualToPool(pool string) (string, error) {
@@ -218,7 +254,8 @@ func (liqoIPAM *IPAM) clusterSubnetEqualToPool(pool string) (string, error) {
 	return mappedNetwork, nil
 }
 
-// getOrRemapNetwork first tries to acquire the received network. If conflicts are found, a new mapped network is returned.
+// getOrRemapNetwork first tries to acquire the received network.
+// If conflicts are found, a new mapped network is returned.
 func (liqoIPAM *IPAM) getOrRemapNetwork(network string) (string, error) {
 	var mappedNetwork string
 	klog.Infof("Allocating network %s", network)
@@ -243,7 +280,7 @@ func (liqoIPAM *IPAM) getOrRemapNetwork(network string) (string, error) {
 		is better to look first for a mapping rather than acquire the entire network pool.
 		Consider the impact of having a network pool n completely filled and multiple clusters asking for
 		networks in n. This would create the necessity of nat-ting the traffic towards these clusters. */
-		mappedNetwork, err := liqoIPAM.clusterSubnetEqualToPool(pool)
+		mappedNetwork, err = liqoIPAM.clusterSubnetEqualToPool(pool)
 		if err != nil {
 			return "", err
 		}
@@ -269,10 +306,15 @@ func (liqoIPAM *IPAM) getOrRemapNetwork(network string) (string, error) {
 	return mappedNetwork, nil
 }
 
-// GetSubnetPerCluster receives a PodCIDR, and a Cluster ID and returns a PodCIDR and an ExternalCIDR.
-// The PodCIDR can be either the received one or a new one, if conflicts have been found.
-// The same happens for ExternalCIDR
-func (liqoIPAM *IPAM) GetSubnetsPerCluster(podCidr, externalCIDR, clusterID string) (string, string, error) {
+/*
+GetSubnetsPerCluster receives a PodCIDR, and a Cluster ID and returns a PodCIDR and an ExternalCIDR.
+The PodCIDR can be either the received one or a new one, if conflicts have been found.
+The same happens for ExternalCIDR
+*/
+func (liqoIPAM *IPAM) GetSubnetsPerCluster(
+	podCidr,
+	externalCIDR,
+	clusterID string) (mappedPodCIDR, mappedExternalCIDR string, err error) {
 	var exists bool
 	// Get subnets of clusters
 	clusterSubnets, err := liqoIPAM.ipamStorage.getClusterSubnets()
@@ -295,12 +337,12 @@ func (liqoIPAM *IPAM) GetSubnetsPerCluster(podCidr, externalCIDR, clusterID stri
 	klog.Infof("Cluster networks allocation request received: %s", clusterID)
 
 	// Get PodCidr
-	mappedPodCidr, err := liqoIPAM.getOrRemapNetwork(podCidr)
+	mappedPodCIDR, err = liqoIPAM.getOrRemapNetwork(podCidr)
 	if err != nil {
 		return "", "", fmt.Errorf("cannot get a PodCIDR for cluster %s:%w", clusterID, err)
 	}
 
-	klog.Infof("PodCIDR %s has been assigned to cluster %s", mappedPodCidr, clusterID)
+	klog.Infof("PodCIDR %s has been assigned to cluster %s", mappedPodCIDR, clusterID)
 
 	// Check if externalCIDR is a valid CIDR
 	err = IsValidCidr(externalCIDR)
@@ -309,9 +351,9 @@ func (liqoIPAM *IPAM) GetSubnetsPerCluster(podCidr, externalCIDR, clusterID stri
 	}
 
 	// Get ExternalCIDR
-	mappedExternalCIDR, err := liqoIPAM.getOrRemapNetwork(externalCIDR)
+	mappedExternalCIDR, err = liqoIPAM.getOrRemapNetwork(externalCIDR)
 	if err != nil {
-		_ = liqoIPAM.FreeReservedSubnet(mappedPodCidr)
+		_ = liqoIPAM.FreeReservedSubnet(mappedPodCIDR)
 		return "", "", fmt.Errorf("cannot get an ExternalCIDR for cluster %s:%w", clusterID, err)
 	}
 
@@ -320,24 +362,24 @@ func (liqoIPAM *IPAM) GetSubnetsPerCluster(podCidr, externalCIDR, clusterID stri
 	if !exists {
 		// Create cluster network configuration
 		subnets = netv1alpha1.Subnets{
-			PodCIDR:            mappedPodCidr,
+			PodCIDR:            mappedPodCIDR,
 			LocalExternalCIDR:  mappedExternalCIDR,
 			RemoteExternalCIDR: "",
 		}
 	} else {
 		// Update cluster network configuration
-		subnets.PodCIDR = mappedPodCidr
+		subnets.PodCIDR = mappedPodCIDR
 		subnets.LocalExternalCIDR = mappedExternalCIDR
 	}
 	clusterSubnets[clusterID] = subnets
 
 	// Push it in clusterSubnets
 	if err := liqoIPAM.ipamStorage.updateClusterSubnets(clusterSubnets); err != nil {
-		_ = liqoIPAM.FreeReservedSubnet(mappedPodCidr)
+		_ = liqoIPAM.FreeReservedSubnet(mappedPodCIDR)
 		_ = liqoIPAM.FreeReservedSubnet(externalCIDR)
 		return "", "", fmt.Errorf("cannot update cluster subnets:%w", err)
 	}
-	return mappedPodCidr, mappedExternalCIDR, nil
+	return mappedPodCIDR, mappedExternalCIDR, nil
 }
 
 // getNetworkFromPool returns a network with mask length equal to mask taken by a network pool
@@ -360,7 +402,7 @@ func (liqoIPAM *IPAM) getNetworkFromPool(mask uint8) (string, error) {
 func (liqoIPAM *IPAM) freePoolInHalves(pool string) error {
 	// Get halves mask length
 	mask := GetMask(pool)
-	mask += 1
+	mask++
 
 	// Get first half CIDR
 	halfCidr, err := SetMask(pool, mask)
@@ -420,7 +462,8 @@ func (liqoIPAM *IPAM) FreeReservedSubnet(network string) error {
 }
 
 // eventuallyDeleteClusterSubnet deletes cluster entry from cluster subnets if all fields are deleted (empty string)
-func (liqoIPAM *IPAM) eventuallyDeleteClusterSubnet(clusterID string, clusterSubnets map[string]netv1alpha1.Subnets) error {
+func (liqoIPAM *IPAM) eventuallyDeleteClusterSubnet(clusterID string,
+	clusterSubnets map[string]netv1alpha1.Subnets) error {
 	// Get entry of cluster
 	subnets := clusterSubnets[clusterID]
 
@@ -480,7 +523,8 @@ func (liqoIPAM *IPAM) AddNetworkPool(network string) error {
 		return fmt.Errorf("cannot get Ipam config: %w", err)
 	}
 	// Check overlapping with existing pools
-	// Either this and the following checks are carried out also within NewPrefix. Perform them here permits a more detailed error description.
+	// Either this and the following checks are carried out also within NewPrefix.
+	// Perform them here permits a more detailed error description.
 	pool, overlaps, err := liqoIPAM.overlapsWithPool(network)
 	if err != nil {
 		return fmt.Errorf("cannot establish if new network pool overlaps with existing network pools:%w", err)
@@ -537,7 +581,8 @@ func (liqoIPAM *IPAM) RemoveNetworkPool(network string) error {
 		return fmt.Errorf("cannot check if network pool %s overlaps with cluster networks:%w", network, err)
 	}
 	if overlaps {
-		return fmt.Errorf("cannot remove network pool %s because it overlaps with network %s of cluster %s", network, clusterSubnets[cluster], cluster)
+		return fmt.Errorf("cannot remove network pool %s because it overlaps with network %s of cluster %s",
+			network, clusterSubnets[cluster], cluster)
 	}
 	// Release it
 	_, err = liqoIPAM.ipam.DeletePrefix(network)

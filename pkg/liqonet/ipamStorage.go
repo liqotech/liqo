@@ -18,13 +18,13 @@ import (
 	netv1alpha1 "github.com/liqotech/liqo/apis/net/v1alpha1"
 )
 
-const IPAMNamePrefix = "ipamstorage-"
-
+const ipamNamePrefix = "ipamstorage-"
 const clusterSubnetUpdate = "clusterSubnets"
 const poolsUpdate = "pools"
 const prefixesUpdate = "prefixes"
 const externalCIDRUpdate = "externalCIDR"
 
+// IpamStorage is the interface to be implemented to enforce persistency in IPAM
 type IpamStorage interface {
 	updateClusterSubnets(clusterSubnet map[string]netv1alpha1.Subnets) error
 	updatePools(pools []string) error
@@ -35,11 +35,13 @@ type IpamStorage interface {
 	goipam.Storage
 }
 
+// IPAMStorage is an implementation of IpamStorage that takes advantage of the CRD IpamStorage
 type IPAMStorage struct {
 	dynClient    dynamic.Interface
 	resourceName string
 }
 
+// NewIPAMStorage inits the storage of the IPAM module, retrieving an existing ipamStorage resource or creating a new one
 func NewIPAMStorage(dynClient dynamic.Interface) (*IPAMStorage, error) {
 	klog.Infof("Init IPAM storage..")
 	ipamStorage := &IPAMStorage{}
@@ -57,7 +59,7 @@ func NewIPAMStorage(dynClient dynamic.Interface) (*IPAMStorage, error) {
 				Kind:       "IpamStorage",
 			},
 			ObjectMeta: metav1.ObjectMeta{
-				GenerateName: IPAMNamePrefix,
+				GenerateName: ipamNamePrefix,
 				Labels:       map[string]string{"net.liqo.io/ipamstorage": "true"},
 			},
 			Spec: netv1alpha1.IpamSpec{
@@ -71,7 +73,9 @@ func NewIPAMStorage(dynClient dynamic.Interface) (*IPAMStorage, error) {
 			klog.Errorf("cannot map ipam resource to unstructured resource: %s", err.Error())
 			return nil, err
 		}
-		up, err := ipamStorage.dynClient.Resource(netv1alpha1.IpamGroupResource).Create(context.Background(), &unstructured.Unstructured{Object: unstructuredIpam}, metav1.CreateOptions{})
+		up, err := ipamStorage.dynClient.
+			Resource(netv1alpha1.IpamGroupResource).
+			Create(context.Background(), &unstructured.Unstructured{Object: unstructuredIpam}, metav1.CreateOptions{})
 		if err != nil {
 			klog.Errorf("cannot create ipam resource: %s", err.Error())
 			return nil, err
@@ -86,6 +90,7 @@ func NewIPAMStorage(dynClient dynamic.Interface) (*IPAMStorage, error) {
 	return ipamStorage, nil
 }
 
+// CreatePrefix creates a new Prefix in ipamStorage resource
 func (ipamStorage *IPAMStorage) CreatePrefix(prefix goipam.Prefix) (goipam.Prefix, error) {
 	ipam, err := ipamStorage.getConfig()
 	if err != nil {
@@ -106,6 +111,7 @@ func (ipamStorage *IPAMStorage) CreatePrefix(prefix goipam.Prefix) (goipam.Prefi
 	return prefix, err
 }
 
+// ReadPrefix retrieves a specific Prefix from ipamStorage resource
 func (ipamStorage *IPAMStorage) ReadPrefix(prefix string) (goipam.Prefix, error) {
 	var p goipam.Prefix
 	ipam, err := ipamStorage.getConfig()
@@ -122,6 +128,7 @@ func (ipamStorage *IPAMStorage) ReadPrefix(prefix string) (goipam.Prefix, error)
 	return p, nil
 }
 
+// ReadAllPrefixes retrieves all prefixes from ipamStorage resource
 func (ipamStorage *IPAMStorage) ReadAllPrefixes() ([]goipam.Prefix, error) {
 	list := make([]goipam.Prefix, 0)
 	ipam, err := ipamStorage.getConfig()
@@ -139,6 +146,7 @@ func (ipamStorage *IPAMStorage) ReadAllPrefixes() ([]goipam.Prefix, error) {
 	return list, err
 }
 
+// ReadAllPrefixCidrs retrieves all prefix CIDR from ipamStorage resource
 func (ipamStorage *IPAMStorage) ReadAllPrefixCidrs() ([]string, error) {
 	list := make([]string, 0)
 	ipam, err := ipamStorage.getConfig()
@@ -156,6 +164,7 @@ func (ipamStorage *IPAMStorage) ReadAllPrefixCidrs() ([]string, error) {
 	return list, err
 }
 
+// UpdatePrefix updates a Prefix in ipamStorage resource
 func (ipamStorage *IPAMStorage) UpdatePrefix(prefix goipam.Prefix) (goipam.Prefix, error) {
 	if prefix.Cidr == "" {
 		return goipam.Prefix{}, fmt.Errorf("prefix not present:%v", prefix)
@@ -179,6 +188,7 @@ func (ipamStorage *IPAMStorage) UpdatePrefix(prefix goipam.Prefix) (goipam.Prefi
 	return prefix, nil
 }
 
+// DeletePrefix deletes a Prefix from ipamStorage resource
 func (ipamStorage *IPAMStorage) DeletePrefix(prefix goipam.Prefix) (goipam.Prefix, error) {
 	if prefix.Cidr == "" {
 		return goipam.Prefix{}, fmt.Errorf("prefix not present:%v", prefix)
@@ -264,7 +274,9 @@ func (ipamStorage *IPAMStorage) getExternalCIDR() (string, error) {
 
 func (ipamStorage *IPAMStorage) getConfig() (*netv1alpha1.IpamStorage, error) {
 	res := &netv1alpha1.IpamStorage{}
-	list, err := ipamStorage.dynClient.Resource(netv1alpha1.IpamGroupResource).List(context.Background(), metav1.ListOptions{LabelSelector: "net.liqo.io/ipamstorage"})
+	list, err := ipamStorage.dynClient.
+		Resource(netv1alpha1.IpamGroupResource).
+		List(context.Background(), metav1.ListOptions{LabelSelector: "net.liqo.io/ipamstorage"})
 	if err != nil {
 		klog.Errorf(err.Error())
 		return nil, fmt.Errorf("unable to get configuration: %w", err)
@@ -279,7 +291,8 @@ func (ipamStorage *IPAMStorage) getConfig() (*netv1alpha1.IpamStorage, error) {
 	if err != nil {
 		return nil, fmt.Errorf("cannot map unstructured resource to ipam storage resource:%w", err)
 	}
-	// The following check allows user to define its own ipam resource. If properly labeled, the module IPAM will take its configuration from the new resource
+	// The following check allows user to define its own ipam resource.
+	// If properly labeled, the module IPAM will take its configuration from the new resource
 	if res.Name != ipamStorage.resourceName && ipamStorage.resourceName != "" {
 		klog.Infof("IPAM configuration resource is %s now", res.Name)
 		ipamStorage.resourceName = res.Name
