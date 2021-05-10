@@ -81,7 +81,6 @@ jobs:
         - liqonet
         - liqo-webhook
         - peering-request-operator
-        - scheduling-node-operator
         - uninstaller
         - virtual-kubelet
         - webhook-configuration
