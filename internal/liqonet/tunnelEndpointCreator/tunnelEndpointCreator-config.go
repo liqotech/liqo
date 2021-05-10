@@ -16,7 +16,7 @@ import (
 	"github.com/liqotech/liqo/pkg/liqonet"
 )
 
-func (tec *TunnelEndpointCreator) SetNetParameters(config *configv1alpha1.ClusterConfig) {
+func (tec *TunnelEndpointCreator) setNetParameters(config *configv1alpha1.ClusterConfig) {
 	podCIDR := config.Spec.LiqonetConfig.PodCIDR
 	serviceCIDR := config.Spec.LiqonetConfig.ServiceCIDR
 	externalCIDR, err := tec.IPManager.GetClusterExternalCIDR(liqonet.GetMask(podCIDR))
@@ -65,13 +65,17 @@ func (tec *TunnelEndpointCreator) addNetworkPool(network string) {
 // getDifferences returns a boolean telling if the 2 slices received as parameters differs and eventually it returns
 // a slice containing networks not present in the 1st slice and present in the 2nd and another one containing
 // networks present in the 1st and not present in the 2nd.
-func (tec *TunnelEndpointCreator) getDifferences(currentConfig, newConfig []string) ([]string, []string, bool) {
-	addedSubnets := make([]string, 0)
-	removedSubnets := make([]string, 0)
+func (tec *TunnelEndpointCreator) getDifferences(currentConfig, newConfig []string) (addedSubnets,
+	removedSubnets []string,
+	differs bool) {
 	//If the configuration is the same return
 	if reflect.DeepEqual(currentConfig, newConfig) {
-		return nil, nil, false
+		return
 	}
+
+	addedSubnets = make([]string, 0)
+	removedSubnets = make([]string, 0)
+	differs = true
 
 	for _, network := range newConfig {
 		if contained := tec.subnetSliceContains(currentConfig, network); !contained {
@@ -84,10 +88,10 @@ func (tec *TunnelEndpointCreator) getDifferences(currentConfig, newConfig []stri
 			removedSubnets = append(removedSubnets, network)
 		}
 	}
-	return addedSubnets, removedSubnets, true
+	return
 }
 
-func (tec *TunnelEndpointCreator) UpdateReservedSubnets(reservedSubnets []string) error {
+func (tec *TunnelEndpointCreator) updateReservedSubnets(reservedSubnets []string) error {
 	addedSubnets, removedSubnets, differs := tec.getDifferences(tec.ReservedSubnets, reservedSubnets)
 
 	if !differs {
@@ -118,7 +122,7 @@ func (tec *TunnelEndpointCreator) UpdateReservedSubnets(reservedSubnets []string
 	return nil
 }
 
-func (tec *TunnelEndpointCreator) UpdatePools(additionalPools []string) error {
+func (tec *TunnelEndpointCreator) updatePools(additionalPools []string) error {
 	addedSubnets, removedSubnets, differs := tec.getDifferences(tec.AdditionalPools, additionalPools)
 
 	if !differs {
@@ -149,11 +153,10 @@ func (tec *TunnelEndpointCreator) UpdatePools(additionalPools []string) error {
 	return nil
 }
 
-func (tec *TunnelEndpointCreator) GetReservedSubnets(config *configv1alpha1.ClusterConfig) []string {
+func (tec *TunnelEndpointCreator) getReservedSubnets(config *configv1alpha1.ClusterConfig) []string {
 	reservedSubnets := make([]string, 0)
 	liqonetConfig := config.Spec.LiqonetConfig
-	reservedSubnets = append(reservedSubnets, liqonetConfig.PodCIDR)
-	reservedSubnets = append(reservedSubnets, liqonetConfig.ServiceCIDR)
+	reservedSubnets = append(reservedSubnets, liqonetConfig.PodCIDR, liqonetConfig.ServiceCIDR)
 	// Cast CIDR to normal string and append
 	for _, cidr := range liqonetConfig.ReservedSubnets {
 		reservedSubnets = append(reservedSubnets, string(cidr))
@@ -161,7 +164,7 @@ func (tec *TunnelEndpointCreator) GetReservedSubnets(config *configv1alpha1.Clus
 	return reservedSubnets
 }
 
-func (tec *TunnelEndpointCreator) GetAdditionalPools(config *configv1alpha1.ClusterConfig) []string {
+func (tec *TunnelEndpointCreator) getAdditionalPools(config *configv1alpha1.ClusterConfig) []string {
 	additionalPools := make([]string, 0)
 	liqonetConfig := config.Spec.LiqonetConfig
 	// Cast CIDR to normal string and append
@@ -171,6 +174,7 @@ func (tec *TunnelEndpointCreator) GetAdditionalPools(config *configv1alpha1.Clus
 	return additionalPools
 }
 
+// WatchConfiguration start watcher of clusterconfig resource
 func (tec *TunnelEndpointCreator) WatchConfiguration(config *rest.Config, gv *schema.GroupVersion) {
 	config.ContentConfig.GroupVersion = gv
 	config.APIPath = "/apis"
@@ -183,27 +187,23 @@ func (tec *TunnelEndpointCreator) WatchConfiguration(config *rest.Config, gv *sc
 	}
 
 	go clusterConfig.WatchConfiguration(func(configuration *configv1alpha1.ClusterConfig) {
-		reservedSubnets := tec.GetReservedSubnets(configuration)
-		additionalPools := tec.GetAdditionalPools(configuration)
-		err = tec.UpdateReservedSubnets(reservedSubnets)
+		reservedSubnets := tec.getReservedSubnets(configuration)
+		additionalPools := tec.getAdditionalPools(configuration)
+		err = tec.updateReservedSubnets(reservedSubnets)
 		if err != nil {
 			klog.Error(err)
 			return
 		}
-		err = tec.UpdatePools(additionalPools)
+		err = tec.updatePools(additionalPools)
 		if err != nil {
 			klog.Error(err)
 			return
 		}
-		tec.SetNetParameters(configuration)
+		tec.setNetParameters(configuration)
 		if !tec.cfgConfigured {
 			tec.WaitConfig.Done()
 			klog.Infof("called done on waitgroup")
 			tec.cfgConfigured = true
 		}
-		/*if !tec.RunningWatchers {
-			tec.ForeignClusterStartWatcher <- true
-		}*/
-
 	}, CRDclient, "")
 }

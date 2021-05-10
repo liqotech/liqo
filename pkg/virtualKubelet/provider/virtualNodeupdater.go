@@ -13,10 +13,11 @@ import (
 	"k8s.io/klog"
 	"k8s.io/kubernetes/pkg/util/slice"
 
+	liqoconst "github.com/liqotech/liqo/pkg/consts"
+
 	nettypes "github.com/liqotech/liqo/apis/net/v1alpha1"
 	advtypes "github.com/liqotech/liqo/apis/sharing/v1alpha1"
 	advertisementOperator "github.com/liqotech/liqo/internal/advertisement-operator"
-	"github.com/liqotech/liqo/internal/liqonet/tunnelEndpointCreator"
 	"github.com/liqotech/liqo/pkg/virtualKubelet"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/node/module"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/options"
@@ -136,7 +137,7 @@ func (p *LiqoProvider) ReconcileNodeFromTep(event watch.Event) error {
 	}
 	if event.Type == watch.Deleted {
 		klog.Infof("tunnelEndpoint %v deleted", tep.Name)
-		p.RemoteRemappedPodCidr.SetValue(tunnelEndpointCreator.DefaultPodCIDRValue)
+		p.RemoteRemappedPodCidr.SetValue(liqoconst.DefaultCIDRValue)
 		no, err := p.nntClient.Client().CoreV1().Nodes().Get(context.TODO(), p.nodeName.Value().ToString(), metav1.GetOptions{})
 		if err != nil {
 			klog.Error(err)
