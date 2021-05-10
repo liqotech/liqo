@@ -57,18 +57,18 @@ func main() {
 	klog.Info("Namespace: ", namespace)
 	klog.Info("RequeueAfter: ", requeueAfter)
 
-	cID, err := clusterid.NewClusterID(kubeconfigPath)
+	localClusterID, err := clusterid.NewClusterID(kubeconfigPath)
 	if err != nil {
 		klog.Error(err, err.Error())
 		os.Exit(1)
 	}
-	err = cID.SetupClusterID(namespace)
+	err = localClusterID.SetupClusterID(namespace)
 	if err != nil {
 		klog.Error(err, err.Error())
 		os.Exit(1)
 	}
 
-	discoveryCtl, err := discovery.NewDiscoveryCtrl(namespace, cID, kubeconfigPath,
+	discoveryCtl, err := discovery.NewDiscoveryCtrl(namespace, localClusterID, kubeconfigPath,
 		resolveContextRefreshTime, time.Duration(dialTCPTimeout)*time.Millisecond)
 	if err != nil {
 		klog.Error(err, err.Error())

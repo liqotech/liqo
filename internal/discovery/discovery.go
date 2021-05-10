@@ -27,7 +27,7 @@ type Controller struct {
 	stopMDNSClient      chan bool
 	crdClient           *crdClient.CRDClient
 	advClient           *crdClient.CRDClient
-	ClusterId           clusterid.ClusterID
+	LocalClusterID      clusterid.ClusterID
 
 	mdnsServerAuth            *zeroconf.Server
 	serverMux                 sync.Mutex
@@ -75,7 +75,7 @@ func getDiscoveryCtrl(namespace string, client, advClient *crdClient.CRDClient,
 		Namespace:                 namespace,
 		crdClient:                 client,
 		advClient:                 advClient,
-		ClusterId:                 localClusterID,
+		LocalClusterID:            localClusterID,
 		stopMDNS:                  make(chan bool, 1),
 		stopMDNSClient:            make(chan bool, 1),
 		resolveContextRefreshTime: resolveContextRefreshTime,

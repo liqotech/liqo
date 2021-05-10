@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package foreign_cluster_operator
+package foreignclusteroperator
 
 import (
 	"context"
@@ -120,10 +120,9 @@ func (r *ForeignClusterReconciler) Reconcile(req ctrl.Request) (ctrl.Result, err
 				Requeue:      true,
 				RequeueAfter: r.RequeueAfter,
 			}, err
-		} else {
-			// the resource has been updated, no need to requeue
-			return ctrl.Result{}, nil
 		}
+		// the resource has been updated, no need to requeue
+		return ctrl.Result{}, nil
 	}
 
 	// set trust property
@@ -162,7 +161,9 @@ func (r *ForeignClusterReconciler) Reconcile(req ctrl.Request) (ctrl.Result, err
 	if fc.ObjectMeta.Labels == nil {
 		fc.ObjectMeta.Labels = map[string]string{}
 	}
-	if fc.ObjectMeta.Labels[discoveryPkg.DiscoveryTypeLabel] == "" || fc.ObjectMeta.Labels[discoveryPkg.DiscoveryTypeLabel] != string(fc.Spec.DiscoveryType) {
+	noLabel := fc.ObjectMeta.Labels[discoveryPkg.DiscoveryTypeLabel] == ""
+	differentLabel := fc.ObjectMeta.Labels[discoveryPkg.DiscoveryTypeLabel] != string(fc.Spec.DiscoveryType)
+	if noLabel || differentLabel {
 		fc.ObjectMeta.Labels[discoveryPkg.DiscoveryTypeLabel] = string(fc.Spec.DiscoveryType)
 		requireUpdate = true
 	}
@@ -605,16 +606,16 @@ func (r *ForeignClusterReconciler) getPort() (string, error) {
 	if svc.Spec.Type == apiv1.ServiceTypeLoadBalancer {
 		// return the LoadBalancer service external port
 		return fmt.Sprintf("%v", svc.Spec.Ports[0].Port), nil
-	} else if svc.Spec.Type == apiv1.ServiceTypeNodePort {
+	}
+	if svc.Spec.Type == apiv1.ServiceTypeNodePort {
 		// return the NodePort service port
 		return fmt.Sprintf("%v", svc.Spec.Ports[0].NodePort), nil
-	} else {
-		// other service types. When we are using an Ingress we should not reach this code, because of the environment variable
-		return "",
-			fmt.Errorf(
-				"you cannot expose the Auth Service with a %v Service. If you are using an Ingress, probably, there are configuration issues",
-				svc.Spec.Type)
 	}
+	// other service types. When we are using an Ingress we should not reach this code, because of the environment variable
+	return "",
+		fmt.Errorf(
+			"you cannot expose the Auth Service with a %v Service. If you are using an Ingress, probably, there are configuration issues",
+			svc.Spec.Type)
 }
 
 func (r *ForeignClusterReconciler) getHomeAuthURL() (string, error) {
@@ -835,15 +836,16 @@ func (r *ForeignClusterReconciler) createClusterRoleIfNotExists(remoteClusterID 
 			},
 		}
 		return r.crdClient.Client().RbacV1().ClusterRoles().Create(context.TODO(), role, metav1.CreateOptions{})
-	} else if err != nil {
+	}
+	if err != nil {
 		klog.Error(err)
 		return nil, err
-	} else {
-		return role, nil
 	}
+	return role, nil
 }
 
-func (r *ForeignClusterReconciler) createRoleIfNotExists(remoteClusterID string, owner *discoveryv1alpha1.ForeignCluster) (*rbacv1.Role, error) {
+func (r *ForeignClusterReconciler) createRoleIfNotExists(
+	remoteClusterID string, owner *discoveryv1alpha1.ForeignCluster) (*rbacv1.Role, error) {
 	role, err := r.crdClient.Client().RbacV1().Roles(r.Namespace).Get(context.TODO(), remoteClusterID, metav1.GetOptions{})
 	if errors.IsNotFound(err) {
 		// does not exist
@@ -868,12 +870,12 @@ func (r *ForeignClusterReconciler) createRoleIfNotExists(remoteClusterID string,
 			},
 		}
 		return r.crdClient.Client().RbacV1().Roles(r.Namespace).Create(context.TODO(), role, metav1.CreateOptions{})
-	} else if err != nil {
+	}
+	if err != nil {
 		klog.Error(err)
 		return nil, err
-	} else {
-		return role, nil
 	}
+	return role, nil
 }
 
 func (r *ForeignClusterReconciler) createServiceAccountIfNotExists(
@@ -895,15 +897,16 @@ func (r *ForeignClusterReconciler) createServiceAccountIfNotExists(
 			},
 		}
 		return r.crdClient.Client().CoreV1().ServiceAccounts(r.Namespace).Create(context.TODO(), sa, metav1.CreateOptions{})
-	} else if err != nil {
+	}
+	if err != nil {
 		klog.Error(err)
 		return nil, err
-	} else {
-		return sa, nil
 	}
+	return sa, nil
 }
 
-func (r *ForeignClusterReconciler) createClusterRoleBindingIfNotExists(remoteClusterID string, owner *discoveryv1alpha1.ForeignCluster) (*rbacv1.ClusterRoleBinding, error) {
+func (r *ForeignClusterReconciler) createClusterRoleBindingIfNotExists(
+	remoteClusterID string, owner *discoveryv1alpha1.ForeignCluster) (*rbacv1.ClusterRoleBinding, error) {
 	rb, err := r.crdClient.Client().RbacV1().ClusterRoleBindings().Get(context.TODO(), remoteClusterID, metav1.GetOptions{})
 	if errors.IsNotFound(err) {
 		// does not exist
@@ -933,12 +936,12 @@ func (r *ForeignClusterReconciler) createClusterRoleBindingIfNotExists(remoteClu
 			},
 		}
 		return r.crdClient.Client().RbacV1().ClusterRoleBindings().Create(context.TODO(), rb, metav1.CreateOptions{})
-	} else if err != nil {
+	}
+	if err != nil {
 		klog.Error(err)
 		return nil, err
-	} else {
-		return rb, nil
 	}
+	return rb, nil
 }
 
 func (r *ForeignClusterReconciler) createRoleBindingIfNotExists(
@@ -972,15 +975,16 @@ func (r *ForeignClusterReconciler) createRoleBindingIfNotExists(
 			},
 		}
 		return r.crdClient.Client().RbacV1().RoleBindings(r.Namespace).Create(context.TODO(), rb, metav1.CreateOptions{})
-	} else if err != nil {
+	}
+	if err != nil {
 		klog.Error(err)
 		return nil, err
-	} else {
-		return rb, nil
 	}
+	return rb, nil
 }
 
-func (r *ForeignClusterReconciler) setDispatcherRole(remoteClusterID string, sa *apiv1.ServiceAccount, owner *discoveryv1alpha1.ForeignCluster) error {
+func (r *ForeignClusterReconciler) setDispatcherRole(remoteClusterID string,
+	sa *apiv1.ServiceAccount, owner *discoveryv1alpha1.ForeignCluster) error {
 	_, err := r.crdClient.Client().RbacV1().ClusterRoleBindings().Get(
 		context.TODO(), remoteClusterID+"-crdreplicator", metav1.GetOptions{})
 	if errors.IsNotFound(err) {
@@ -1015,12 +1019,12 @@ func (r *ForeignClusterReconciler) setDispatcherRole(remoteClusterID string, sa 
 			klog.Error(err)
 		}
 		return err
-	} else if err != nil {
+	}
+	if err != nil {
 		klog.Error(err)
 		return err
-	} else {
-		return nil
 	}
+	return nil
 }
 
 func (r *ForeignClusterReconciler) deleteAdvertisement(fc *discoveryv1alpha1.ForeignCluster) error {
@@ -1060,7 +1064,8 @@ func (r *ForeignClusterReconciler) checkNetwork(fc *discoveryv1alpha1.ForeignClu
 	return r.updateNetwork(labelSelector, &fc.Status.Network.RemoteNetworkConfig, requireUpdate)
 }
 
-func (r *ForeignClusterReconciler) updateNetwork(labelSelector string, resourceLink *discoveryv1alpha1.ResourceLink, requireUpdate *bool) error {
+func (r *ForeignClusterReconciler) updateNetwork(
+	labelSelector string, resourceLink *discoveryv1alpha1.ResourceLink, requireUpdate *bool) error {
 	tmp, err := r.networkClient.Resource("networkconfigs").List(&metav1.ListOptions{
 		LabelSelector: labelSelector,
 	})

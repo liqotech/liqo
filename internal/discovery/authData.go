@@ -27,7 +27,7 @@ func NewAuthData(address string, port int, ttl uint32) *AuthData {
 	}
 }
 
-// NewAuthData creates a new AuthData struct for testing purposes.
+// NewAuthDataTest creates a new AuthData struct for testing purposes.
 func NewAuthDataTest(address string, port int) *AuthData {
 	return &AuthData{
 		address: address,

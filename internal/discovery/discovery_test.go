@@ -267,7 +267,7 @@ var _ = Describe("Discovery", func() {
 					Service:             "_liqo_api._tcp",
 					TTL:                 90,
 				},
-				ClusterId:      cID,
+				LocalClusterID: cID,
 				stopMDNS:       make(chan bool, 1),
 				stopMDNSClient: make(chan bool, 1),
 			}
@@ -670,7 +670,7 @@ var _ = Describe("Discovery", func() {
 						_, err := discoveryCtrl.crdClient.Resource("foreignclusters").Create(&c.fc, &metav1.CreateOptions{})
 						Expect(err).To(BeNil())
 
-						err = discoveryCtrl.CollectGarbage()
+						err = discoveryCtrl.collectGarbage()
 						Expect(err).To(BeNil())
 
 						obj, err := discoveryCtrl.crdClient.Resource("foreignclusters").List(&metav1.ListOptions{})
@@ -780,7 +780,7 @@ var _ = Describe("Discovery", func() {
 					discoveryCtrl.Config.EnableDiscovery = true
 					discoveryCtrl.Config.EnableAdvertisement = true
 
-					_ = discoveryCtrl.ClusterId.SetupClusterID("default")
+					_ = discoveryCtrl.LocalClusterID.SetupClusterID("default")
 
 					// create the auth service
 					_, err := cluster.GetClient().Client().CoreV1().Services("default").Create(context.TODO(), &v1.Service{

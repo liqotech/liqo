@@ -53,25 +53,27 @@ func (discoveryCache *discoveryCache) delete(key string) {
 func (discoveryCache *discoveryCache) get(key string) (*discoveryData, error) {
 	discoveryCache.lock.RLock()
 	defer discoveryCache.lock.RUnlock()
-	if v, ok := discoveryCache.discoveredServices[key]; !ok {
+	v, ok := discoveryCache.discoveredServices[key]
+	if !ok {
 		return nil, errors.New("key not found")
-	} else {
-		res := &discoveryData{}
-		if err := copier.Copy(res, v); err != nil {
-			return nil, err
-		}
-		return res, nil
 	}
+
+	res := &discoveryData{}
+	if err := copier.Copy(res, v); err != nil {
+		return nil, err
+	}
+	return res, nil
 }
 
 func (discoveryCache *discoveryCache) isComplete(key string) bool {
 	discoveryCache.lock.RLock()
 	defer discoveryCache.lock.RUnlock()
-	if v, ok := discoveryCache.discoveredServices[key]; !ok {
+	v, ok := discoveryCache.discoveredServices[key]
+	if !ok {
 		return false
-	} else {
-		return v.isComplete()
 	}
+
+	return v.isComplete()
 }
 
 func (discoveryData *discoveryData) isComplete() bool {

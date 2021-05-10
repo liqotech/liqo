@@ -1,4 +1,4 @@
-package auth_service
+package authservice
 
 import (
 	"context"
@@ -24,7 +24,10 @@ type tokenManager interface {
 }
 
 func (authService *AuthServiceCtrl) getToken() (string, error) {
-	obj, exists, err := authService.secretInformer.GetStore().GetByKey(strings.Join([]string{authService.namespace, authTokenSecretName}, "/"))
+	obj, exists, err := authService.secretInformer.GetStore().GetByKey(
+		strings.Join([]string{
+			authService.namespace,
+			authTokenSecretName}, "/"))
 	if err != nil {
 		klog.Error(err)
 		return "", err
@@ -51,7 +54,10 @@ func (authService *AuthServiceCtrl) getToken() (string, error) {
 }
 
 func (authService *AuthServiceCtrl) createToken() error {
-	_, exists, _ := authService.secretInformer.GetStore().GetByKey(strings.Join([]string{authService.namespace, authTokenSecretName}, "/"))
+	_, exists, _ := authService.secretInformer.GetStore().GetByKey(
+		strings.Join([]string{
+			authService.namespace,
+			authTokenSecretName}, "/"))
 	if !exists {
 		token, err := generateToken()
 		if err != nil {
@@ -66,7 +72,8 @@ func (authService *AuthServiceCtrl) createToken() error {
 				"token": token,
 			},
 		}
-		_, err = authService.clientset.CoreV1().Secrets(authService.namespace).Create(context.TODO(), secret, metav1.CreateOptions{})
+		_, err = authService.clientset.CoreV1().Secrets(
+			authService.namespace).Create(context.TODO(), secret, metav1.CreateOptions{})
 		if err != nil && !kerrors.IsAlreadyExists(err) {
 			klog.Error(err)
 			return err

@@ -1,4 +1,4 @@
-package search_domain_operator
+package searchdomainoperator
 
 import (
 	"testing"

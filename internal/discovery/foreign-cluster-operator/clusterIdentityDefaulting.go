@@ -1,4 +1,4 @@
-package foreign_cluster_operator
+package foreignclusteroperator
 
 import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"

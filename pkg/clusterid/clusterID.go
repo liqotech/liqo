@@ -49,7 +49,7 @@ func NewClusterID(kubeconfigPath string) (ClusterID, error) {
 		klog.Error(err, "unable to create crd client")
 		os.Exit(1)
 	}
-	clusterID := &ClusterIDImpl{
+	newClusterID := &ClusterIDImpl{
 		client: crdClientVar.Client(),
 	}
 
@@ -68,7 +68,7 @@ func NewClusterID(kubeconfigPath string) (ClusterID, error) {
 	}
 
 	watchlist := cache.NewListWatchFromClient(
-		clusterID.client.CoreV1().RESTClient(),
+		newClusterID.client.CoreV1().RESTClient(),
 		"configmaps",
 		namespace,
 		fields.SelectorFromSet(fields.Set{
@@ -81,15 +81,15 @@ func NewClusterID(kubeconfigPath string) (ClusterID, error) {
 		0,
 		cache.ResourceEventHandlerFuncs{
 			AddFunc: func(obj interface{}) {
-				clusterID.UpdateClusterID(obj)
+				newClusterID.updateClusterID(obj)
 			},
 			DeleteFunc: func(obj interface{}) {
-				clusterID.m.Lock()
-				clusterID.id = ""
-				clusterID.m.Unlock()
+				newClusterID.m.Lock()
+				newClusterID.id = ""
+				newClusterID.m.Unlock()
 			},
 			UpdateFunc: func(oldObj, newObj interface{}) {
-				clusterID.UpdateClusterID(newObj)
+				newClusterID.updateClusterID(newObj)
 			},
 		},
 	)
@@ -100,10 +100,10 @@ func NewClusterID(kubeconfigPath string) (ClusterID, error) {
 		controller.Run(stop)
 	}()
 
-	return clusterID, nil
+	return newClusterID, nil
 }
 
-func getClusterId(cm *v1.ConfigMap) string {
+func getClusterID(cm *v1.ConfigMap) string {
 	if cm == nil {
 		return ""
 	}
@@ -118,7 +118,7 @@ func (cId *ClusterIDImpl) SetupClusterID(namespace string) error {
 		klog.Error(err)
 		return err
 	}
-	if k8serror.IsNotFound(err) || getClusterId(cm) == "" {
+	if k8serror.IsNotFound(err) || getClusterID(cm) == "" {
 		id, err := cId.getMasterID()
 		if err != nil {
 			klog.Warning(err, "cannot get UID from master, generating new one")
@@ -130,7 +130,7 @@ func (cId *ClusterIDImpl) SetupClusterID(namespace string) error {
 		}
 		return nil
 	}
-	cId.id = getClusterId(cm)
+	cId.id = getClusterID(cm)
 	return nil
 }
 
@@ -190,8 +190,8 @@ func (cId *ClusterIDImpl) saveToConfigMap(id, namespace string) error {
 	return nil
 }
 
-// UpdateClusterID updates the clusterid values.
-func (cId *ClusterIDImpl) UpdateClusterID(obj interface{}) {
+// updateClusterID updates the clusterid values.
+func (cId *ClusterIDImpl) updateClusterID(obj interface{}) {
 	tmp := obj.(*v1.ConfigMap).Data[consts.ClusterIDconfigMapName]
 	cId.m.RLock()
 	curr := cId.id
