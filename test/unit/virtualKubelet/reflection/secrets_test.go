@@ -1,16 +1,18 @@
 package reflection
 
 import (
+	"testing"
+
+	"gotest.tools/assert"
+	v1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/kubernetes/fake"
+
 	apimgmt "github.com/liqotech/liqo/pkg/virtualKubelet/apiReflection"
 	api "github.com/liqotech/liqo/pkg/virtualKubelet/apiReflection/reflectors"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/apiReflection/reflectors/outgoing"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/namespacesMapping/test"
 	storageTest "github.com/liqotech/liqo/pkg/virtualKubelet/storage/test"
-	"gotest.tools/assert"
-	v1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/client-go/kubernetes/fake"
-	"testing"
 )
 
 func TestSecretAdd(t *testing.T) {

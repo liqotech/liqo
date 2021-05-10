@@ -2,11 +2,13 @@ package main
 
 import (
 	"flag"
-	auth_service "github.com/liqotech/liqo/internal/auth-service"
-	"k8s.io/klog"
 	"os"
 	"path/filepath"
 	"time"
+
+	"k8s.io/klog"
+
+	auth_service "github.com/liqotech/liqo/internal/auth-service"
 )
 
 func main() {

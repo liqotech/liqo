@@ -2,16 +2,18 @@ package main
 
 import (
 	"context"
-	"github.com/liqotech/liqo/pkg/utils"
-	vk "github.com/liqotech/liqo/pkg/vkMachinery"
-	"github.com/liqotech/liqo/pkg/vkMachinery/csr"
+	"os"
+	"path/filepath"
+
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/klog/v2"
-	"os"
-	"path/filepath"
+
+	"github.com/liqotech/liqo/pkg/utils"
+	vk "github.com/liqotech/liqo/pkg/vkMachinery"
+	"github.com/liqotech/liqo/pkg/vkMachinery/csr"
 )
 
 func main() {

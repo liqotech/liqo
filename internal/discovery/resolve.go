@@ -2,15 +2,17 @@ package discovery
 
 import (
 	"context"
-	"github.com/grandcat/zeroconf"
-	"github.com/liqotech/liqo/internal/discovery/utils"
-	"github.com/liqotech/liqo/pkg/auth"
-	discoveryPkg "github.com/liqotech/liqo/pkg/discovery"
-	"k8s.io/klog"
 	"net"
 	"os"
 	"reflect"
 	"time"
+
+	"github.com/grandcat/zeroconf"
+	"k8s.io/klog"
+
+	"github.com/liqotech/liqo/internal/discovery/utils"
+	"github.com/liqotech/liqo/pkg/auth"
+	discoveryPkg "github.com/liqotech/liqo/pkg/discovery"
 )
 
 func (discovery *DiscoveryCtrl) StartResolver(stopChan <-chan bool) {

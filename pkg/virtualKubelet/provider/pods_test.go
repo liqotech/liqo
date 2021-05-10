@@ -4,12 +4,8 @@ import (
 	"bytes"
 	"context"
 	"flag"
-	apimgmt "github.com/liqotech/liqo/pkg/virtualKubelet/apiReflection"
-	test2 "github.com/liqotech/liqo/pkg/virtualKubelet/apiReflection/controller/test"
-	"github.com/liqotech/liqo/pkg/virtualKubelet/forge"
-	"github.com/liqotech/liqo/pkg/virtualKubelet/namespacesMapping"
-	"github.com/liqotech/liqo/pkg/virtualKubelet/namespacesMapping/test"
-	test3 "github.com/liqotech/liqo/pkg/virtualKubelet/storage/test"
+	"strings"
+
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	appsv1 "k8s.io/api/apps/v1"
@@ -18,7 +14,13 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/fake"
 	"k8s.io/klog"
-	"strings"
+
+	apimgmt "github.com/liqotech/liqo/pkg/virtualKubelet/apiReflection"
+	test2 "github.com/liqotech/liqo/pkg/virtualKubelet/apiReflection/controller/test"
+	"github.com/liqotech/liqo/pkg/virtualKubelet/forge"
+	"github.com/liqotech/liqo/pkg/virtualKubelet/namespacesMapping"
+	"github.com/liqotech/liqo/pkg/virtualKubelet/namespacesMapping/test"
+	test3 "github.com/liqotech/liqo/pkg/virtualKubelet/storage/test"
 )
 
 var _ = Describe("Pods", func() {

@@ -17,16 +17,18 @@ package api
 import (
 	"context"
 	"io"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/klog"
 	"net/http"
 	"net/url"
 	"strconv"
 	"time"
 
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/klog"
+
 	"github.com/gorilla/mux"
-	"github.com/liqotech/liqo/internal/utils/errdefs"
 	"github.com/pkg/errors"
+
+	"github.com/liqotech/liqo/internal/utils/errdefs"
 )
 
 // ContainerLogsHandlerFunc is used in place of backend implementations for getting container logs

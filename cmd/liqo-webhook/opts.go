@@ -1,8 +1,9 @@
 package main
 
 import (
-	"github.com/liqotech/liqo/pkg/mutate"
 	"os"
+
+	"github.com/liqotech/liqo/pkg/mutate"
 )
 
 const (

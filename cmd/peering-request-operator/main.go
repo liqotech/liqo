@@ -2,10 +2,12 @@ package main
 
 import (
 	"flag"
-	peering_request_operator "github.com/liqotech/liqo/internal/peering-request-operator"
-	"k8s.io/klog"
 	"os"
 	"path/filepath"
+
+	"k8s.io/klog"
+
+	peering_request_operator "github.com/liqotech/liqo/internal/peering-request-operator"
 )
 
 func main() {

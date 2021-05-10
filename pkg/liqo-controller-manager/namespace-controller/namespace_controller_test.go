@@ -3,15 +3,17 @@ package namespace_controller
 import (
 	"context"
 	"fmt"
+
 	mapsv1alpha1 "github.com/liqotech/liqo/apis/virtualKubelet/v1alpha1"
 	liqoconst "github.com/liqotech/liqo/pkg/consts"
+
+	"time"
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/kubernetes/pkg/util/slice"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"time"
 )
 
 var _ = Describe("Namespace controller", func() {

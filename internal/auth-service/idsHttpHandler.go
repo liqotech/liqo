@@ -2,10 +2,12 @@ package auth_service
 
 import (
 	"encoding/json"
-	"github.com/julienschmidt/httprouter"
-	"github.com/liqotech/liqo/pkg/auth"
-	"k8s.io/klog"
 	"net/http"
+
+	"github.com/julienschmidt/httprouter"
+	"k8s.io/klog"
+
+	"github.com/liqotech/liqo/pkg/auth"
 )
 
 // this HTTP handler returns home cluster information to the foreign clusters that are asking for them

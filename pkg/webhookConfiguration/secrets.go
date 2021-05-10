@@ -9,12 +9,13 @@ import (
 	"encoding/base64"
 	"encoding/pem"
 	"fmt"
-	"k8s.io/klog/v2"
 	"math/big"
 	"math/rand"
 	"os"
 	"strings"
 	"time"
+
+	"k8s.io/klog/v2"
 )
 
 type SecretsType struct {

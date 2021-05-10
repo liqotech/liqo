@@ -3,13 +3,7 @@ package incoming
 import (
 	"context"
 	"fmt"
-	"github.com/liqotech/liqo/pkg/virtualKubelet"
-	apimgmt "github.com/liqotech/liqo/pkg/virtualKubelet/apiReflection"
-	"github.com/liqotech/liqo/pkg/virtualKubelet/apiReflection/reflectors"
-	ri "github.com/liqotech/liqo/pkg/virtualKubelet/apiReflection/reflectors/reflectorsInterfaces"
-	vkContext "github.com/liqotech/liqo/pkg/virtualKubelet/context"
-	"github.com/liqotech/liqo/pkg/virtualKubelet/forge"
-	"github.com/liqotech/liqo/pkg/virtualKubelet/options"
+
 	"github.com/pkg/errors"
 	corev1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
@@ -19,6 +13,14 @@ import (
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/util/retry"
 	"k8s.io/klog"
+
+	"github.com/liqotech/liqo/pkg/virtualKubelet"
+	apimgmt "github.com/liqotech/liqo/pkg/virtualKubelet/apiReflection"
+	"github.com/liqotech/liqo/pkg/virtualKubelet/apiReflection/reflectors"
+	ri "github.com/liqotech/liqo/pkg/virtualKubelet/apiReflection/reflectors/reflectorsInterfaces"
+	vkContext "github.com/liqotech/liqo/pkg/virtualKubelet/context"
+	"github.com/liqotech/liqo/pkg/virtualKubelet/forge"
+	"github.com/liqotech/liqo/pkg/virtualKubelet/options"
 )
 
 // PodsIncomingReflector is the incoming reflector in charge of detecting status change in foreign pods

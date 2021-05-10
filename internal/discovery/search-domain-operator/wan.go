@@ -2,11 +2,13 @@ package search_domain_operator
 
 import (
 	"errors"
-	"github.com/liqotech/liqo/internal/discovery"
-	"github.com/miekg/dns"
-	"k8s.io/klog"
 	"net"
 	"time"
+
+	"github.com/miekg/dns"
+	"k8s.io/klog"
+
+	"github.com/liqotech/liqo/internal/discovery"
 )
 
 // load a list of foreign AuthServices given a DNS domain name.

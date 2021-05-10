@@ -15,11 +15,12 @@
 package api
 
 import (
+	"net/http"
+
 	"github.com/gorilla/mux"
 	"go.opencensus.io/plugin/ochttp"
 	"go.opencensus.io/plugin/ochttp/propagation/b3"
 	"k8s.io/klog/v2"
-	"net/http"
 )
 
 // ServeMux defines an interface used to attach routes to an existing http

@@ -1,14 +1,16 @@
 package tunnel_operator
 
 import (
-	configv1alpha1 "github.com/liqotech/liqo/apis/config/v1alpha1"
-	"github.com/liqotech/liqo/pkg/clusterConfig"
-	"github.com/liqotech/liqo/pkg/crdClient"
+	"os"
+
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
 	"k8s.io/klog/v2"
-	"os"
+
+	configv1alpha1 "github.com/liqotech/liqo/apis/config/v1alpha1"
+	"github.com/liqotech/liqo/pkg/clusterConfig"
+	"github.com/liqotech/liqo/pkg/crdClient"
 )
 
 func (tc *TunnelController) WatchConfiguration(config *rest.Config, gv *schema.GroupVersion) {

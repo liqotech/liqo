@@ -1,9 +1,10 @@
 package identityManager
 
 import (
+	"k8s.io/client-go/kubernetes"
+
 	"github.com/liqotech/liqo/pkg/clusterID"
 	"github.com/liqotech/liqo/pkg/tenantControlNamespace"
-	"k8s.io/client-go/kubernetes"
 )
 
 type certificateIdentityManager struct {

@@ -1,8 +1,9 @@
 package tunnel_operator
 
 import (
-	route_operator "github.com/liqotech/liqo/internal/liqonet/route-operator"
-	"github.com/liqotech/liqo/pkg/liqonet/overlay"
+	"strings"
+	"time"
+
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
@@ -10,8 +11,9 @@ import (
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/klog/v2"
 	"k8s.io/kubernetes/pkg/api/v1/pod"
-	"strings"
-	"time"
+
+	route_operator "github.com/liqotech/liqo/internal/liqonet/route-operator"
+	"github.com/liqotech/liqo/pkg/liqonet/overlay"
 )
 
 var (

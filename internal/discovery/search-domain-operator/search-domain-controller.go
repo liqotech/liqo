@@ -2,15 +2,17 @@ package search_domain_operator
 
 import (
 	"errors"
-	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
-	"github.com/liqotech/liqo/internal/discovery"
-	"github.com/liqotech/liqo/pkg/crdClient"
+	"time"
+
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/klog"
 	ctrl "sigs.k8s.io/controller-runtime"
-	"time"
+
+	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
+	"github.com/liqotech/liqo/internal/discovery"
+	"github.com/liqotech/liqo/pkg/crdClient"
 )
 
 type SearchDomainReconciler struct {

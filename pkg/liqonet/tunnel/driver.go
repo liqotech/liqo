@@ -1,9 +1,10 @@
 package tunnel
 
 import (
-	netv1alpha1 "github.com/liqotech/liqo/apis/net/v1alpha1"
 	k8s "k8s.io/client-go/kubernetes"
 	"k8s.io/klog/v2"
+
+	netv1alpha1 "github.com/liqotech/liqo/apis/net/v1alpha1"
 )
 
 // Function prototype to create a new driver

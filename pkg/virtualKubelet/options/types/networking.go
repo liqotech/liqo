@@ -1,8 +1,9 @@
 package types
 
 import (
-	"github.com/liqotech/liqo/pkg/virtualKubelet/options"
 	"sync"
+
+	"github.com/liqotech/liqo/pkg/virtualKubelet/options"
 )
 
 type NetworkingKey string

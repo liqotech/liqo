@@ -2,12 +2,13 @@ package crdClient
 
 import (
 	"fmt"
+	"reflect"
+	"time"
+
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/tools/cache"
-	"reflect"
-	"time"
 )
 
 // WatchResources is a wrapper cache function that allows to create either a real cache

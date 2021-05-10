@@ -1,11 +1,12 @@
 package test
 
 import (
-	apimgmt "github.com/liqotech/liqo/pkg/virtualKubelet/apiReflection"
 	"github.com/pkg/errors"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/tools/cache"
+
+	apimgmt "github.com/liqotech/liqo/pkg/virtualKubelet/apiReflection"
 )
 
 type MockManager struct {

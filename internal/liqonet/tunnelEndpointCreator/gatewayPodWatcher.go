@@ -3,7 +3,8 @@ package tunnelEndpointCreator
 import (
 	"context"
 	"fmt"
-	"github.com/liqotech/liqo/pkg/liqonet"
+	"strings"
+
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -13,7 +14,8 @@ import (
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/util/retry"
 	"k8s.io/klog/v2"
-	"strings"
+
+	"github.com/liqotech/liqo/pkg/liqonet"
 )
 
 var (

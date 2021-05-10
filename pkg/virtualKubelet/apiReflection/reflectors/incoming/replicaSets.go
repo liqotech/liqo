@@ -3,10 +3,7 @@ package incoming
 import (
 	"context"
 	"fmt"
-	"github.com/liqotech/liqo/pkg/virtualKubelet"
-	apimgmt "github.com/liqotech/liqo/pkg/virtualKubelet/apiReflection"
-	ri "github.com/liqotech/liqo/pkg/virtualKubelet/apiReflection/reflectors/reflectorsInterfaces"
-	"github.com/liqotech/liqo/pkg/virtualKubelet/forge"
+
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
@@ -15,6 +12,11 @@ import (
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/util/retry"
 	"k8s.io/klog"
+
+	"github.com/liqotech/liqo/pkg/virtualKubelet"
+	apimgmt "github.com/liqotech/liqo/pkg/virtualKubelet/apiReflection"
+	ri "github.com/liqotech/liqo/pkg/virtualKubelet/apiReflection/reflectors/reflectorsInterfaces"
+	"github.com/liqotech/liqo/pkg/virtualKubelet/forge"
 )
 
 // ReplicaSetsIncomingReflector is in charge of reflecting remote replicasets status change in the home cluster

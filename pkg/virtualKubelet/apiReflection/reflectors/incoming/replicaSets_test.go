@@ -4,12 +4,8 @@ import (
 	"bytes"
 	"context"
 	"flag"
-	"github.com/liqotech/liqo/pkg/virtualKubelet"
-	apimgmt "github.com/liqotech/liqo/pkg/virtualKubelet/apiReflection"
-	"github.com/liqotech/liqo/pkg/virtualKubelet/apiReflection/reflectors"
-	"github.com/liqotech/liqo/pkg/virtualKubelet/apiReflection/reflectors/incoming"
-	"github.com/liqotech/liqo/pkg/virtualKubelet/namespacesMapping/test"
-	storageTest "github.com/liqotech/liqo/pkg/virtualKubelet/storage/test"
+	"strings"
+
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/ginkgo/extensions/table"
 	. "github.com/onsi/gomega"
@@ -20,7 +16,13 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/fake"
 	"k8s.io/klog"
-	"strings"
+
+	"github.com/liqotech/liqo/pkg/virtualKubelet"
+	apimgmt "github.com/liqotech/liqo/pkg/virtualKubelet/apiReflection"
+	"github.com/liqotech/liqo/pkg/virtualKubelet/apiReflection/reflectors"
+	"github.com/liqotech/liqo/pkg/virtualKubelet/apiReflection/reflectors/incoming"
+	"github.com/liqotech/liqo/pkg/virtualKubelet/namespacesMapping/test"
+	storageTest "github.com/liqotech/liqo/pkg/virtualKubelet/storage/test"
 )
 
 var _ = Describe("Replicasets", func() {

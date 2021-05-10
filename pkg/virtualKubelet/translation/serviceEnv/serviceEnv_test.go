@@ -1,18 +1,20 @@
 package serviceEnv
 
 import (
+	"sort"
+	"testing"
+
 	gocmp "github.com/google/go-cmp/cmp"
-	apimgmt "github.com/liqotech/liqo/pkg/virtualKubelet/apiReflection"
-	"github.com/liqotech/liqo/pkg/virtualKubelet/storage/test"
-	testutil "github.com/liqotech/liqo/pkg/virtualKubelet/test/util"
 	"gotest.tools/assert"
 	is "gotest.tools/assert/cmp"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/kubernetes/pkg/kubelet/envvars"
 	"k8s.io/utils/pointer"
-	"sort"
-	"testing"
+
+	apimgmt "github.com/liqotech/liqo/pkg/virtualKubelet/apiReflection"
+	"github.com/liqotech/liqo/pkg/virtualKubelet/storage/test"
+	testutil "github.com/liqotech/liqo/pkg/virtualKubelet/test/util"
 )
 
 var cacheReader = &test.MockManager{

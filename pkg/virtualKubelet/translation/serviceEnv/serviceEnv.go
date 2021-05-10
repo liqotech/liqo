@@ -1,13 +1,14 @@
 package serviceEnv
 
 import (
-	apimgmgt "github.com/liqotech/liqo/pkg/virtualKubelet/apiReflection"
-	"github.com/liqotech/liqo/pkg/virtualKubelet/storage"
 	"github.com/pkg/errors"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/klog"
 	v1helper "k8s.io/kubernetes/pkg/apis/core/v1/helper"
 	"k8s.io/kubernetes/pkg/kubelet/envvars"
+
+	apimgmgt "github.com/liqotech/liqo/pkg/virtualKubelet/apiReflection"
+	"github.com/liqotech/liqo/pkg/virtualKubelet/storage"
 )
 
 func TranslateServiceEnvVariables(pod *v1.Pod, localNS string, nattedNS string, cacheManager storage.CacheManagerReader) (*v1.Pod, error) {

@@ -3,10 +3,11 @@ package wireguard
 import (
 	"bytes"
 	"fmt"
+	"os/exec"
+
 	"github.com/vishvananda/netlink"
 	"golang.org/x/sys/unix"
 	"k8s.io/klog/v2"
-	"os/exec"
 )
 
 const (

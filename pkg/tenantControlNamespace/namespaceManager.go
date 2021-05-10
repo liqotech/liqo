@@ -5,13 +5,14 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/liqotech/liqo/pkg/discovery"
 	v1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/klog/v2"
+
+	"github.com/liqotech/liqo/pkg/discovery"
 )
 
 type tenantControlNamespaceManager struct {

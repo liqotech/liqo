@@ -2,7 +2,7 @@ package tunnel_operator
 
 import (
 	"context"
-	"github.com/liqotech/liqo/pkg/liqonet/overlay"
+
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
@@ -10,6 +10,8 @@ import (
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/util/retry"
 	"k8s.io/klog/v2"
+
+	"github.com/liqotech/liqo/pkg/liqonet/overlay"
 )
 
 var (

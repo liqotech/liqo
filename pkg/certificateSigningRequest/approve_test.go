@@ -2,11 +2,12 @@ package certificateSigningRequest
 
 import (
 	"context"
+	"testing"
+
 	"github.com/stretchr/testify/assert"
 	certificatesv1beta1 "k8s.io/api/certificates/v1beta1"
-	"k8s.io/apimachinery/pkg/apis/meta/v1"
+	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	testclient "k8s.io/client-go/kubernetes/fake"
-	"testing"
 )
 
 func TestApproveSigningRequest(t *testing.T) {

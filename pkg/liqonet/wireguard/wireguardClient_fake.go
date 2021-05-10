@@ -1,9 +1,11 @@
 package wireguard
 
 import (
-	"github.com/liqotech/liqo/internal/utils/errdefs"
-	"golang.zx2c4.com/wireguard/wgctrl/wgtypes"
 	"time"
+
+	"golang.zx2c4.com/wireguard/wgctrl/wgtypes"
+
+	"github.com/liqotech/liqo/internal/utils/errdefs"
 )
 
 type wgClientFake struct {

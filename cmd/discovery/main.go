@@ -2,6 +2,15 @@ package main
 
 import (
 	"flag"
+	"os"
+	"path/filepath"
+	"time"
+
+	"k8s.io/apimachinery/pkg/runtime"
+	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
+	"k8s.io/klog"
+	ctrl "sigs.k8s.io/controller-runtime"
+
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	nettypes "github.com/liqotech/liqo/apis/net/v1alpha1"
 	advtypes "github.com/liqotech/liqo/apis/sharing/v1alpha1"
@@ -10,13 +19,6 @@ import (
 	search_domain_operator "github.com/liqotech/liqo/internal/discovery/search-domain-operator"
 	"github.com/liqotech/liqo/pkg/clusterID"
 	"github.com/liqotech/liqo/pkg/mapperUtils"
-	"k8s.io/apimachinery/pkg/runtime"
-	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
-	"k8s.io/klog"
-	"os"
-	"path/filepath"
-	ctrl "sigs.k8s.io/controller-runtime"
-	"time"
 )
 
 var (

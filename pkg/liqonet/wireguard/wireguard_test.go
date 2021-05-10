@@ -2,10 +2,12 @@ package wireguard_test
 
 import (
 	"context"
+
 	wg "github.com/liqotech/liqo/pkg/liqonet/tunnel/wireguard"
 
 	//wg "github.com/liqotech/liqo/pkg/liqonet/tunnel/wireguard"
-	"github.com/liqotech/liqo/pkg/liqonet/wireguard"
+	"time"
+
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/ginkgo/extensions/table"
 	. "github.com/onsi/gomega"
@@ -13,7 +15,8 @@ import (
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	k8s "k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/fake"
-	"time"
+
+	"github.com/liqotech/liqo/pkg/liqonet/wireguard"
 )
 
 var _ = Describe("Wireguard", func() {

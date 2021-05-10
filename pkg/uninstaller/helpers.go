@@ -2,12 +2,14 @@ package uninstaller
 
 import (
 	"context"
-	discoveryV1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
+
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/klog/v2"
+
+	discoveryV1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 )
 
 // getForeignList retrieve the list of available ForeignCluster and return it as a ForeignClusterList object

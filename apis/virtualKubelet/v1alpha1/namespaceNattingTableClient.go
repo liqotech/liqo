@@ -2,10 +2,12 @@ package v1alpha1
 
 import (
 	"errors"
-	"github.com/liqotech/liqo/pkg/crdClient"
+
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
+
+	"github.com/liqotech/liqo/pkg/crdClient"
 )
 
 func CreateClient(kubeconfig string, configOptions func(config *rest.Config)) (*crdClient.CRDClient, error) {

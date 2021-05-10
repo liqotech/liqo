@@ -33,7 +33,7 @@ There are two primary controllers, the node runner and the pod runner.
 		// handle error
 	}
 
-After calling start, cancelling the passed in context will shutdown the
+After calling start, canceling the passed in context will shutdown the
 controller.
 Note this example elides error handling.
 

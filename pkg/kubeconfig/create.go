@@ -5,8 +5,6 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/liqotech/liqo/pkg/clusterConfig"
-	"github.com/liqotech/liqo/pkg/discovery"
 	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -14,6 +12,9 @@ import (
 	clientcmdlatest "k8s.io/client-go/tools/clientcmd/api/latest"
 	"k8s.io/klog"
 	kubeconfigutil "k8s.io/kubernetes/cmd/kubeadm/app/util/kubeconfig"
+
+	"github.com/liqotech/liqo/pkg/clusterConfig"
+	"github.com/liqotech/liqo/pkg/discovery"
 )
 
 // this function creates a kube-config file for a specified ServiceAccount

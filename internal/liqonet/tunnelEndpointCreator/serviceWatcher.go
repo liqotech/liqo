@@ -2,9 +2,9 @@ package tunnelEndpointCreator
 
 import (
 	"context"
-	netv1alpha1 "github.com/liqotech/liqo/apis/net/v1alpha1"
-	"github.com/liqotech/liqo/internal/crdReplicator"
-	"github.com/liqotech/liqo/pkg/liqonet/tunnel/wireguard"
+	"strconv"
+	"strings"
+
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -14,8 +14,10 @@ import (
 	"k8s.io/client-go/util/retry"
 	"k8s.io/klog/v2"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"strconv"
-	"strings"
+
+	netv1alpha1 "github.com/liqotech/liqo/apis/net/v1alpha1"
+	"github.com/liqotech/liqo/internal/crdReplicator"
+	"github.com/liqotech/liqo/pkg/liqonet/tunnel/wireguard"
 )
 
 var (

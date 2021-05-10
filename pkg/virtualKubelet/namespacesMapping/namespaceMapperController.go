@@ -1,9 +1,10 @@
 package namespacesMapping
 
 import (
-	"github.com/liqotech/liqo/pkg/crdClient"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/klog"
+
+	"github.com/liqotech/liqo/pkg/crdClient"
 )
 
 type MapperController interface {

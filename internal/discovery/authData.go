@@ -3,11 +3,12 @@ package discovery
 import (
 	"errors"
 	"fmt"
-	"github.com/grandcat/zeroconf"
-	"k8s.io/klog"
 	"net"
 	"sync"
 	"time"
+
+	"github.com/grandcat/zeroconf"
+	"k8s.io/klog"
 )
 
 type AuthData struct {

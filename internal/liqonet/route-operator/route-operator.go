@@ -21,10 +21,6 @@ import (
 	"strings"
 	"time"
 
-	netv1alpha1 "github.com/liqotech/liqo/apis/net/v1alpha1"
-	utils "github.com/liqotech/liqo/pkg/liqonet"
-	"github.com/liqotech/liqo/pkg/liqonet/overlay"
-	"github.com/liqotech/liqo/pkg/liqonet/wireguard"
 	k8sApiErrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/dynamic"
@@ -37,6 +33,11 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
+
+	netv1alpha1 "github.com/liqotech/liqo/apis/net/v1alpha1"
+	utils "github.com/liqotech/liqo/pkg/liqonet"
+	"github.com/liqotech/liqo/pkg/liqonet/overlay"
+	"github.com/liqotech/liqo/pkg/liqonet/wireguard"
 )
 
 var (

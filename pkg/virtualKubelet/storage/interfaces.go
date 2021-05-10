@@ -1,8 +1,9 @@
 package storage
 
 import (
-	apimgmt "github.com/liqotech/liqo/pkg/virtualKubelet/apiReflection"
 	"k8s.io/client-go/tools/cache"
+
+	apimgmt "github.com/liqotech/liqo/pkg/virtualKubelet/apiReflection"
 )
 
 type APICacheInterface interface {

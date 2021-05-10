@@ -2,10 +2,7 @@ package testUtils
 
 import (
 	"context"
-	"github.com/liqotech/liqo/apis/discovery/v1alpha1"
-	nettypes "github.com/liqotech/liqo/apis/net/v1alpha1"
-	advtypes "github.com/liqotech/liqo/apis/sharing/v1alpha1"
-	"github.com/liqotech/liqo/pkg/crdClient"
+
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes/scheme"
@@ -14,6 +11,11 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/envtest"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
+
+	"github.com/liqotech/liqo/apis/discovery/v1alpha1"
+	nettypes "github.com/liqotech/liqo/apis/net/v1alpha1"
+	advtypes "github.com/liqotech/liqo/apis/sharing/v1alpha1"
+	"github.com/liqotech/liqo/pkg/crdClient"
 )
 
 type Cluster struct {

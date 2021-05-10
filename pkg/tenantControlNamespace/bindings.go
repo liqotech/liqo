@@ -4,12 +4,13 @@ import (
 	"context"
 	"strings"
 
-	"github.com/liqotech/liqo/pkg/discovery"
 	v1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/klog/v2"
+
+	"github.com/liqotech/liqo/pkg/discovery"
 )
 
 // add the bindings for the remote clusterID for the given ClusterRoles

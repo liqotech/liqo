@@ -1,15 +1,17 @@
 package forge
 
 import (
-	"github.com/liqotech/liqo/pkg/virtualKubelet/namespacesMapping"
-	"github.com/liqotech/liqo/pkg/virtualKubelet/options"
-	"github.com/liqotech/liqo/pkg/virtualKubelet/options/types"
+	"reflect"
+
 	"github.com/pkg/errors"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	discoveryv1beta1 "k8s.io/api/discovery/v1beta1"
 	"k8s.io/apimachinery/pkg/runtime"
-	"reflect"
+
+	"github.com/liqotech/liqo/pkg/virtualKubelet/namespacesMapping"
+	"github.com/liqotech/liqo/pkg/virtualKubelet/options"
+	"github.com/liqotech/liqo/pkg/virtualKubelet/options/types"
 )
 
 func ForeignToHomeStatus(foreignObj, homeObj runtime.Object) (runtime.Object, error) {

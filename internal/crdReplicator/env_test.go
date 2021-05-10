@@ -1,21 +1,24 @@
 package crdReplicator
 
 import (
-	netv1alpha1 "github.com/liqotech/liqo/apis/net/v1alpha1"
+	"strings"
+	"time"
+
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/dynamic/dynamicinformer"
-	"strings"
-	"time"
+
+	netv1alpha1 "github.com/liqotech/liqo/apis/net/v1alpha1"
+
+	"os"
+	"path/filepath"
+	"testing"
 
 	"k8s.io/klog/v2"
 	"k8s.io/kubectl/pkg/scheme"
-	"os"
-	"path/filepath"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/envtest"
-	"testing"
 )
 
 var (

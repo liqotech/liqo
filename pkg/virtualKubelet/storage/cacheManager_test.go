@@ -1,13 +1,14 @@
 package storage
 
 import (
-	apimgmt "github.com/liqotech/liqo/pkg/virtualKubelet/apiReflection"
-	"github.com/liqotech/liqo/pkg/virtualKubelet/storage/test"
-	"github.com/liqotech/liqo/pkg/virtualKubelet/utils"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	"k8s.io/client-go/kubernetes/fake"
 	"k8s.io/client-go/tools/cache"
+
+	apimgmt "github.com/liqotech/liqo/pkg/virtualKubelet/apiReflection"
+	"github.com/liqotech/liqo/pkg/virtualKubelet/storage/test"
+	"github.com/liqotech/liqo/pkg/virtualKubelet/utils"
 )
 
 var _ = Describe("CacheManager", func() {

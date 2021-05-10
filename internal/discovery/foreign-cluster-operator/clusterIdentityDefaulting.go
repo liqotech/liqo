@@ -1,10 +1,11 @@
 package foreign_cluster_operator
 
 import (
-	"github.com/liqotech/liqo/apis/discovery/v1alpha1"
-	"github.com/liqotech/liqo/internal/discovery/utils"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/klog"
+
+	"github.com/liqotech/liqo/apis/discovery/v1alpha1"
+	"github.com/liqotech/liqo/internal/discovery/utils"
 )
 
 // check if the ForeignCluster CR does not have a value in one of the required fields (Namespace and ClusterID)

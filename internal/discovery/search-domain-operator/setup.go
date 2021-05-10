@@ -1,16 +1,18 @@
 package search_domain_operator
 
 import (
-	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
-	"github.com/liqotech/liqo/internal/discovery"
-	"github.com/liqotech/liqo/pkg/crdClient"
+	"os"
+	"time"
+
 	"k8s.io/apimachinery/pkg/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
 	"k8s.io/klog"
-	"os"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
-	"time"
+
+	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
+	"github.com/liqotech/liqo/internal/discovery"
+	"github.com/liqotech/liqo/pkg/crdClient"
 )
 
 var (

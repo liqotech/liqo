@@ -16,11 +16,12 @@ limitations under the License.
 package v1alpha1
 
 import (
-	"github.com/liqotech/liqo/pkg/crdClient"
-	"github.com/liqotech/liqo/pkg/labelPolicy"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/kubernetes/scheme"
+
+	"github.com/liqotech/liqo/pkg/crdClient"
+	"github.com/liqotech/liqo/pkg/labelPolicy"
 )
 
 // ClusterConfigSpec defines the desired state of ClusterConfig

@@ -2,9 +2,8 @@ package storage
 
 import (
 	"fmt"
-	"github.com/liqotech/liqo/internal/utils/errdefs"
-	apimgmt "github.com/liqotech/liqo/pkg/virtualKubelet/apiReflection"
-	"github.com/liqotech/liqo/pkg/virtualKubelet/utils"
+	"sync"
+
 	"github.com/pkg/errors"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/util/wait"
@@ -13,7 +12,10 @@ import (
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/util/retry"
 	"k8s.io/klog"
-	"sync"
+
+	"github.com/liqotech/liqo/internal/utils/errdefs"
+	apimgmt "github.com/liqotech/liqo/pkg/virtualKubelet/apiReflection"
+	"github.com/liqotech/liqo/pkg/virtualKubelet/utils"
 )
 
 type readyCaches struct {

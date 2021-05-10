@@ -18,8 +18,9 @@ package main
 
 import (
 	"flag"
-	"github.com/liqotech/liqo/pkg/mapperUtils"
 	"os"
+
+	"github.com/liqotech/liqo/pkg/mapperUtils"
 
 	"k8s.io/apimachinery/pkg/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"

@@ -1,15 +1,17 @@
 package advertisement_operator
 
 import (
+	"strconv"
+	"testing"
+
+	"github.com/stretchr/testify/assert"
+	v12 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/resource"
+
 	configv1alpha1 "github.com/liqotech/liqo/apis/config/v1alpha1"
 	advtypes "github.com/liqotech/liqo/apis/sharing/v1alpha1"
 	advop "github.com/liqotech/liqo/internal/advertisement-operator"
 	"github.com/liqotech/liqo/pkg/crdClient"
-	"github.com/stretchr/testify/assert"
-	v12 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/api/resource"
-	"strconv"
-	"testing"
 )
 
 func createReconciler(acceptedAdv, maxAcceptableAdv int32, acceptPolicy configv1alpha1.AcceptPolicy) advop.AdvertisementReconciler {

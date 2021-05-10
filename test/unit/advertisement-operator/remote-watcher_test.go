@@ -1,13 +1,15 @@
 package advertisement_operator
 
 import (
+	"testing"
+	"time"
+
+	"github.com/stretchr/testify/assert"
+	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	advtypes "github.com/liqotech/liqo/apis/sharing/v1alpha1"
 	pkg "github.com/liqotech/liqo/pkg/virtualKubelet"
-	"github.com/stretchr/testify/assert"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"testing"
-	"time"
 )
 
 func TestWatchAdvertisementAcceptance(t *testing.T) {

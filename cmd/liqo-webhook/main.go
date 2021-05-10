@@ -1,9 +1,11 @@
 package main
 
 import (
-	"github.com/liqotech/liqo/pkg/mutate"
-	"k8s.io/klog"
 	"log"
+
+	"k8s.io/klog"
+
+	"github.com/liqotech/liqo/pkg/mutate"
 )
 
 func main() {

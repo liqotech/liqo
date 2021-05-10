@@ -5,12 +5,13 @@ import (
 	"fmt"
 	"testing"
 
-	liqoconst "github.com/liqotech/liqo/pkg/consts"
-	"github.com/liqotech/liqo/test/e2e/util"
 	"gotest.tools/assert"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/klog"
+
+	liqoconst "github.com/liqotech/liqo/pkg/consts"
+	"github.com/liqotech/liqo/test/e2e/util"
 )
 
 func TestUnjoin(t *testing.T) {

@@ -1,10 +1,11 @@
 package liqonet
 
 import (
-	"github.com/vishvananda/netlink"
-	"golang.org/x/sys/unix"
 	"net"
 	"reflect"
+
+	"github.com/vishvananda/netlink"
+	"golang.org/x/sys/unix"
 )
 
 type MockRouteManager struct {

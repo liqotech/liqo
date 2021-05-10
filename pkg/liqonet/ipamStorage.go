@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"fmt"
 
-	netv1alpha1 "github.com/liqotech/liqo/apis/net/v1alpha1"
 	goipam "github.com/metal-stack/go-ipam"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -15,6 +14,8 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/klog"
+
+	netv1alpha1 "github.com/liqotech/liqo/apis/net/v1alpha1"
 )
 
 const IPAMNamePrefix = "ipamstorage-"

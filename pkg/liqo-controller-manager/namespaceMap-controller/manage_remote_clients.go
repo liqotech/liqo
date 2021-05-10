@@ -3,7 +3,7 @@ package namespaceMap_controller
 import (
 	"context"
 	"fmt"
-	discoveryV1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
+
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/rest"
@@ -11,6 +11,8 @@ import (
 	clientcmdapi "k8s.io/client-go/tools/clientcmd/api"
 	"k8s.io/klog"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+
+	discoveryV1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 )
 
 // This function returns a rest.Config from a Kubeconfig contained in a Secret

@@ -2,10 +2,11 @@ package discovery
 
 import (
 	"context"
+	"os"
+
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/klog"
-	"os"
 )
 
 var trustedWatchRunning = false

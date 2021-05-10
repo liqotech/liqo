@@ -3,9 +3,11 @@ package peering_request_operator
 import (
 	"context"
 	"errors"
-	"github.com/liqotech/liqo/pkg/crdClient"
+
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/klog"
+
+	"github.com/liqotech/liqo/pkg/crdClient"
 )
 
 type Config struct {

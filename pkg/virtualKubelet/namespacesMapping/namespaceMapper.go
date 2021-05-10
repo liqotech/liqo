@@ -3,8 +3,9 @@ package namespacesMapping
 import (
 	"context"
 	"errors"
-	nattingv1 "github.com/liqotech/liqo/apis/virtualKubelet/v1alpha1"
-	"github.com/liqotech/liqo/pkg/crdClient"
+	"strings"
+	"time"
+
 	v1 "k8s.io/api/core/v1"
 	kerror "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -12,8 +13,9 @@ import (
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/util/retry"
 	"k8s.io/klog"
-	"strings"
-	"time"
+
+	nattingv1 "github.com/liqotech/liqo/apis/virtualKubelet/v1alpha1"
+	"github.com/liqotech/liqo/pkg/crdClient"
 )
 
 var cacheResyncPeriod = 10 * time.Second

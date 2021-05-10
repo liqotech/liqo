@@ -1,11 +1,13 @@
 package crdReplicator
 
 import (
-	configv1alpha1 "github.com/liqotech/liqo/apis/config/v1alpha1"
-	netv1alpha1 "github.com/liqotech/liqo/apis/net/v1alpha1"
+	"testing"
+
 	"github.com/stretchr/testify/assert"
 	"k8s.io/apimachinery/pkg/runtime/schema"
-	"testing"
+
+	configv1alpha1 "github.com/liqotech/liqo/apis/config/v1alpha1"
+	netv1alpha1 "github.com/liqotech/liqo/apis/net/v1alpha1"
 )
 
 func TestDispatcherReconciler_GetConfig(t *testing.T) {

@@ -16,13 +16,15 @@ package provider
 
 import (
 	"context"
-	"github.com/liqotech/liqo/cmd/virtual-kubelet/provider"
 	"os"
 	"strings"
 
-	"github.com/liqotech/liqo/internal/utils/errdefs"
+	"github.com/liqotech/liqo/cmd/virtual-kubelet/provider"
+
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
+	"github.com/liqotech/liqo/internal/utils/errdefs"
 )
 
 const (

@@ -1,13 +1,15 @@
 package uninstaller
 
 import (
-	"github.com/liqotech/liqo/apis/net/v1alpha1"
-	peering_request_operator "github.com/liqotech/liqo/internal/peering-request-operator"
-	"github.com/liqotech/liqo/pkg/vkMachinery"
+	"time"
+
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
-	"time"
+
+	"github.com/liqotech/liqo/apis/net/v1alpha1"
+	peering_request_operator "github.com/liqotech/liqo/internal/peering-request-operator"
+	"github.com/liqotech/liqo/pkg/vkMachinery"
 )
 
 const TickerInterval = 5 * time.Second
@@ -20,9 +22,8 @@ type toCheckDeleted struct {
 }
 
 type resultType struct {
-	Resource  toCheckDeleted
-	Success   bool
-	condition string
+	Resource toCheckDeleted
+	Success  bool
 }
 
 var (

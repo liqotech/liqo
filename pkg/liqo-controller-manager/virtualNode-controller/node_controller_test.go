@@ -6,6 +6,8 @@ import (
 
 	"context"
 	"fmt"
+	"strings"
+
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -14,7 +16,6 @@ import (
 	"k8s.io/kubernetes/pkg/util/slice"
 	"k8s.io/utils/pointer"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"strings"
 )
 
 const (

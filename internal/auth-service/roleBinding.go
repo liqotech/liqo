@@ -2,10 +2,12 @@ package auth_service
 
 import (
 	"context"
-	"github.com/liqotech/liqo/pkg/discovery"
+
 	v1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
+	"github.com/liqotech/liqo/pkg/discovery"
 )
 
 func (authService *AuthServiceCtrl) createRoleBinding(sa *v1.ServiceAccount, role *rbacv1.Role, remoteClusterId string) (*rbacv1.RoleBinding, error) {

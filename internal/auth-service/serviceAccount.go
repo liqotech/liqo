@@ -3,15 +3,17 @@ package auth_service
 import (
 	"context"
 	"fmt"
-	"github.com/liqotech/liqo/pkg/discovery"
+	"net/http"
+	"strings"
+
 	v1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/util/retry"
 	"k8s.io/klog"
-	"net/http"
-	"strings"
+
+	"github.com/liqotech/liqo/pkg/discovery"
 )
 
 func isNoContent(err error) bool {

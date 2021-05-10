@@ -1,12 +1,13 @@
 package liqonet_test
 
 import (
-	"github.com/liqotech/liqo/pkg/liqonet"
 	. "github.com/onsi/ginkgo"
 	"github.com/onsi/gomega"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/dynamic/fake"
+
+	"github.com/liqotech/liqo/pkg/liqonet"
 )
 
 var ipam *liqonet.IPAM

@@ -1,6 +1,11 @@
 package controller
 
 import (
+	"sync"
+
+	"k8s.io/client-go/kubernetes"
+	"k8s.io/klog"
+
 	apimgmt "github.com/liqotech/liqo/pkg/virtualKubelet/apiReflection"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/apiReflection/reflectors/incoming"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/apiReflection/reflectors/outgoing"
@@ -8,9 +13,6 @@ import (
 	"github.com/liqotech/liqo/pkg/virtualKubelet/namespacesMapping"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/options"
 	reflectionCache "github.com/liqotech/liqo/pkg/virtualKubelet/storage"
-	"k8s.io/client-go/kubernetes"
-	"k8s.io/klog"
-	"sync"
 )
 
 type APIReflectorsController interface {

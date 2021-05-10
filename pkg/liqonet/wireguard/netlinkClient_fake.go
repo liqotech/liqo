@@ -2,8 +2,9 @@ package wireguard
 
 import (
 	"fmt"
-	"github.com/vishvananda/netlink"
 	"net"
+
+	"github.com/vishvananda/netlink"
 )
 
 type netlinkDeviceFake struct {

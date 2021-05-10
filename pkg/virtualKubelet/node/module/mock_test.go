@@ -3,15 +3,17 @@ package module
 import (
 	"context"
 	"fmt"
-	"github.com/liqotech/liqo/pkg/virtualKubelet/apiReflection/controller"
-	"github.com/liqotech/liqo/pkg/virtualKubelet/namespacesMapping"
 	"sync"
 	"time"
 
-	"github.com/liqotech/liqo/internal/utils/errdefs"
-	"github.com/liqotech/liqo/internal/utils/log"
+	"github.com/liqotech/liqo/pkg/virtualKubelet/apiReflection/controller"
+	"github.com/liqotech/liqo/pkg/virtualKubelet/namespacesMapping"
+
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
+	"github.com/liqotech/liqo/internal/utils/errdefs"
+	"github.com/liqotech/liqo/internal/utils/log"
 )
 
 const (

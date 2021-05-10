@@ -4,11 +4,12 @@ import (
 	"encoding/base64"
 	"io/ioutil"
 
-	"github.com/liqotech/liqo/pkg/clusterConfig"
-	"github.com/liqotech/liqo/pkg/kubeconfig"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/klog/v2"
+
+	"github.com/liqotech/liqo/pkg/clusterConfig"
+	"github.com/liqotech/liqo/pkg/kubeconfig"
 )
 
 type CertificateIdentityResponse struct {
