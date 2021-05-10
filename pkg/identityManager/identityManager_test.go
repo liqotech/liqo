@@ -4,6 +4,7 @@ import (
 	"crypto/x509"
 	"encoding/base64"
 	"encoding/pem"
+	testUtils2 "github.com/liqotech/liqo/pkg/utils/testUtils"
 	"os"
 	"path/filepath"
 	"testing"
@@ -19,7 +20,6 @@ import (
 	"github.com/liqotech/liqo/pkg/discovery"
 	idManTest "github.com/liqotech/liqo/pkg/identityManager/testUtils"
 	"github.com/liqotech/liqo/pkg/tenantControlNamespace"
-	"github.com/liqotech/liqo/pkg/testUtils"
 )
 
 func TestIdentityManager(t *testing.T) {
@@ -30,7 +30,7 @@ func TestIdentityManager(t *testing.T) {
 var _ = Describe("IdentityManager", func() {
 
 	var (
-		cluster         testUtils.Cluster
+		cluster         testUtils2.Cluster
 		client          kubernetes.Interface
 		localClusterID  test.ClusterIDMock
 		remoteClusterID string
@@ -48,7 +48,7 @@ var _ = Describe("IdentityManager", func() {
 		remoteClusterID = "remoteID"
 
 		var err error
-		cluster, _, err = testUtils.NewTestCluster([]string{filepath.Join("..", "..", "deployments", "liqo", "crds")})
+		cluster, _, err = testUtils2.NewTestCluster([]string{filepath.Join("..", "..", "deployments", "liqo", "crds")})
 		if err != nil {
 			By(err.Error())
 			os.Exit(1)

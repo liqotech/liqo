@@ -1,13 +1,13 @@
 package search_domain_operator
 
 import (
+	testUtils2 "github.com/liqotech/liqo/pkg/utils/testUtils"
 	"testing"
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 
 	"github.com/liqotech/liqo/internal/discovery"
-	"github.com/liqotech/liqo/pkg/testUtils"
 )
 
 func TestWan(t *testing.T) {
@@ -18,11 +18,11 @@ func TestWan(t *testing.T) {
 var _ = Describe("Wan", func() {
 
 	var (
-		dnsServer testUtils.DnsServer
+		dnsServer testUtils2.DnsServer
 	)
 
 	BeforeSuite(func() {
-		dnsServer = testUtils.DnsServer{}
+		dnsServer = testUtils2.DnsServer{}
 		dnsServer.Serve()
 	})
 

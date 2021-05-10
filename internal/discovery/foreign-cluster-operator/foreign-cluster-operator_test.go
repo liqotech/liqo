@@ -1,6 +1,7 @@
 package foreign_cluster_operator
 
 import (
+	testUtils2 "github.com/liqotech/liqo/pkg/utils/testUtils"
 	"os"
 	"path/filepath"
 	"testing"
@@ -15,7 +16,6 @@ import (
 	v1alpha12 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	"github.com/liqotech/liqo/pkg/clusterID/test"
 	"github.com/liqotech/liqo/pkg/discovery"
-	"github.com/liqotech/liqo/pkg/testUtils"
 )
 
 type configMock struct {
@@ -44,14 +44,14 @@ func TestForeignClusterOperator(t *testing.T) {
 var _ = Describe("ForeignClusterOperator", func() {
 
 	var (
-		cluster    testUtils.Cluster
+		cluster    testUtils2.Cluster
 		controller ForeignClusterReconciler
 		config     configMock
 	)
 
 	BeforeEach(func() {
 		var err error
-		cluster, _, err = testUtils.NewTestCluster([]string{filepath.Join("..", "..", "..", "deployments", "liqo", "crds")})
+		cluster, _, err = testUtils2.NewTestCluster([]string{filepath.Join("..", "..", "..", "deployments", "liqo", "crds")})
 		if err != nil {
 			By(err.Error())
 			os.Exit(1)

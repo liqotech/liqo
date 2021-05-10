@@ -2,6 +2,7 @@ package discovery
 
 import (
 	"context"
+	testUtils2 "github.com/liqotech/liqo/pkg/utils/testUtils"
 	"net"
 	"os"
 	"path/filepath"
@@ -24,7 +25,6 @@ import (
 	"github.com/liqotech/liqo/pkg/auth"
 	"github.com/liqotech/liqo/pkg/clusterID/test"
 	"github.com/liqotech/liqo/pkg/discovery"
-	"github.com/liqotech/liqo/pkg/testUtils"
 )
 
 func TestDiscovery(t *testing.T) {
@@ -407,7 +407,7 @@ var _ = Describe("Discovery", func() {
 		Describe("ForeignCluster management", func() {
 
 			var (
-				cluster   testUtils.Cluster
+				cluster   testUtils2.Cluster
 				clusterId test.ClusterIDMock
 			)
 
@@ -418,7 +418,7 @@ var _ = Describe("Discovery", func() {
 
 			BeforeEach(func() {
 				var err error
-				cluster, _, err = testUtils.NewTestCluster([]string{filepath.Join("..", "..", "deployments", "liqo", "crds")})
+				cluster, _, err = testUtils2.NewTestCluster([]string{filepath.Join("..", "..", "deployments", "liqo", "crds")})
 				if err != nil {
 					By(err.Error())
 					os.Exit(1)
