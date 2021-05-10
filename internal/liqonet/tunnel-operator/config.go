@@ -3,13 +3,14 @@ package tunnel_operator
 import (
 	"os"
 
+	"github.com/liqotech/liqo/pkg/utils"
+
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
 	"k8s.io/klog/v2"
 
 	configv1alpha1 "github.com/liqotech/liqo/apis/config/v1alpha1"
-	"github.com/liqotech/liqo/pkg/clusterConfig"
 	"github.com/liqotech/liqo/pkg/crdClient"
 )
 
@@ -24,7 +25,7 @@ func (tc *TunnelController) WatchConfiguration(config *rest.Config, gv *schema.G
 		os.Exit(1)
 	}
 
-	go clusterConfig.WatchConfiguration(func(configuration *configv1alpha1.ClusterConfig) {
+	go utils.WatchConfiguration(func(configuration *configv1alpha1.ClusterConfig) {
 		//this section is executed at start-up time
 		if !tc.isConfigured {
 			tc.isGKE = configuration.Spec.LiqonetConfig.GKEProvider

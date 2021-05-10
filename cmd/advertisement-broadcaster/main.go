@@ -2,9 +2,8 @@ package main
 
 import (
 	"flag"
+	"github.com/liqotech/liqo/internal/advertisementoperator/broadcaster"
 	"os"
-
-	advop "github.com/liqotech/liqo/internal/advertisement-operator"
 
 	"k8s.io/klog/v2"
 )
@@ -29,7 +28,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	err := advop.StartBroadcaster(clusterID, localKubeconfig, peeringRequestName, saName)
+	err := broadcaster.StartBroadcaster(clusterID, localKubeconfig, peeringRequestName, saName)
 	if err != nil {
 		klog.Errorln(err, "Unable to start broadcaster: exiting")
 		os.Exit(1)

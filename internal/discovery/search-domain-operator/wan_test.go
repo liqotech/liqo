@@ -1,8 +1,9 @@
 package search_domain_operator
 
 import (
-	testUtils2 "github.com/liqotech/liqo/pkg/utils/testUtils"
 	"testing"
+
+	testUtils2 "github.com/liqotech/liqo/pkg/utils/testUtils"
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"

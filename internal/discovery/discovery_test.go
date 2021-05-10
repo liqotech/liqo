@@ -2,7 +2,6 @@ package discovery
 
 import (
 	"context"
-	testUtils2 "github.com/liqotech/liqo/pkg/utils/testUtils"
 	"net"
 	"os"
 	"path/filepath"
@@ -23,8 +22,9 @@ import (
 	"github.com/liqotech/liqo/apis/config/v1alpha1"
 	v1alpha12 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	"github.com/liqotech/liqo/pkg/auth"
-	"github.com/liqotech/liqo/pkg/clusterID/test"
+	"github.com/liqotech/liqo/pkg/clusterid/test"
 	"github.com/liqotech/liqo/pkg/discovery"
+	testUtils2 "github.com/liqotech/liqo/pkg/utils/testUtils"
 )
 
 func TestDiscovery(t *testing.T) {
@@ -249,8 +249,8 @@ var _ = Describe("Discovery", func() {
 		)
 
 		BeforeEach(func() {
-			clusterID := &test.ClusterIDMock{}
-			_ = clusterID.SetupClusterID("default")
+			cID := &test.ClusterIDMock{}
+			_ = cID.SetupClusterID("default")
 
 			discoveryCtrl = Controller{
 				Namespace: "default",
@@ -267,7 +267,7 @@ var _ = Describe("Discovery", func() {
 					Service:             "_liqo_api._tcp",
 					TTL:                 90,
 				},
-				ClusterId:      clusterID,
+				ClusterId:      cID,
 				stopMDNS:       make(chan bool, 1),
 				stopMDNSClient: make(chan bool, 1),
 			}
@@ -407,13 +407,13 @@ var _ = Describe("Discovery", func() {
 		Describe("ForeignCluster management", func() {
 
 			var (
-				cluster   testUtils2.Cluster
-				clusterId test.ClusterIDMock
+				cluster testUtils2.Cluster
+				cID     test.ClusterIDMock
 			)
 
 			BeforeSuite(func() {
-				clusterId = test.ClusterIDMock{}
-				_ = clusterId.SetupClusterID("default")
+				cID = test.ClusterIDMock{}
+				_ = cID.SetupClusterID("default")
 			})
 
 			BeforeEach(func() {

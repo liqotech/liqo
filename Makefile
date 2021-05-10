@@ -45,7 +45,7 @@ manifests: controller-gen
 
 #Generate RBAC for each controller
 rbacs: controller-gen
-	$(CONTROLLER_GEN) $(CRD_OPTIONS) paths="./internal/advertisement-operator" rbac:roleName=liqo-advertisement output:rbac:stdout | sed -n '/rules/,$$p' > deployments/liqo/files/liqo-advertisement-rbac.yaml
+	$(CONTROLLER_GEN) $(CRD_OPTIONS) paths="./internal/advertisementoperator" rbac:roleName=liqo-advertisement output:rbac:stdout | sed -n '/rules/,$$p' > deployments/liqo/files/liqo-advertisement-rbac.yaml
 	$(CONTROLLER_GEN) $(CRD_OPTIONS) paths="./internal/liqonet/route-operator" rbac:roleName=liqo-route output:rbac:stdout | awk -v RS="---\n" 'NR>1{f="./deployments/liqo/files/liqo-route-" $$4 ".yaml";printf "%s",$$0 > f; close(f)}' &&  sed -i -n '/rules/,$$p' deployments/liqo/files/liqo-route-ClusterRole.yaml deployments/liqo/files/liqo-route-Role.yaml
 	$(CONTROLLER_GEN) $(CRD_OPTIONS) paths="./internal/liqonet/tunnel-operator" rbac:roleName=liqo-gateway output:rbac:stdout | awk -v RS="---\n" 'NR>1{f="./deployments/liqo/files/liqo-gateway-" $$4 ".yaml";printf "%s",$$0 > f; close(f)}' &&  sed -i -n '/rules/,$$p' deployments/liqo/files/liqo-gateway-ClusterRole.yaml deployments/liqo/files/liqo-gateway-Role.yaml
 	$(CONTROLLER_GEN) $(CRD_OPTIONS) paths="./internal/liqonet/tunnelEndpointCreator" rbac:roleName=liqo-network-manager output:rbac:stdout | awk -v RS="---\n" 'NR>1{f="./deployments/liqo/files/liqo-network-manager-" $$4 ".yaml";printf "%s",$$0 > f; close(f)}' &&  sed -i -n '/rules/,$$p' deployments/liqo/files/liqo-network-manager-ClusterRole.yaml deployments/liqo/files/liqo-network-manager-Role.yaml

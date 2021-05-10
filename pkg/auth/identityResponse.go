@@ -4,11 +4,12 @@ import (
 	"encoding/base64"
 	"io/ioutil"
 
+	"github.com/liqotech/liqo/pkg/utils"
+
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/klog/v2"
 
-	"github.com/liqotech/liqo/pkg/clusterConfig"
 	"github.com/liqotech/liqo/pkg/kubeconfig"
 )
 
@@ -22,7 +23,7 @@ type CertificateIdentityResponse struct {
 
 // NewCertificateIdentityResponse makes a new CertificateIdentityResponse.
 func NewCertificateIdentityResponse(
-	namespace string, certificate []byte, apiServerConfigProvider clusterConfig.ApiServerConfigProvider,
+	namespace string, certificate []byte, apiServerConfigProvider utils.ApiServerConfigProvider,
 	clientset kubernetes.Interface, restConfig *rest.Config) (*CertificateIdentityResponse, error) {
 	apiServerURL, err := kubeconfig.GetApiServerURL(apiServerConfigProvider, clientset)
 	if err != nil {

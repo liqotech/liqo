@@ -30,7 +30,7 @@ import (
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	netv1alpha1 "github.com/liqotech/liqo/apis/net/v1alpha1"
 	advtypes "github.com/liqotech/liqo/apis/sharing/v1alpha1"
-	advop "github.com/liqotech/liqo/internal/advertisement-operator"
+	advop "github.com/liqotech/liqo/internal/advertisementoperator"
 	resourceRequestOperator "github.com/liqotech/liqo/internal/resource-request-operator"
 	"github.com/liqotech/liqo/pkg/crdClient"
 	"github.com/liqotech/liqo/pkg/mapperUtils"
@@ -179,7 +179,7 @@ func main() {
 	go advertisementReconciler.CleanOldAdvertisements(c, wg)
 	go advertisementReconciler.WatchConfiguration(localKubeconfig, client, wg)
 
-	klog.Info("starting manager as advertisement-operator")
+	klog.Info("starting manager as advertisementoperator")
 	if err := mgr.Start(ctrl.SetupSignalHandler()); err != nil {
 		klog.Error(err)
 		os.Exit(1)

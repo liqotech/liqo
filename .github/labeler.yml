@@ -36,7 +36,7 @@ advertisement_management:
   - build/advertisement-operator/**/*
   - cmd/advertisement-operator/**/*
   - cmd/advertisement-broadcaster/**/*
-  - internal/advertisement-operator/**/*
+  - internal/advertisementoperator/**/*
   - pkg/adevertisement-operator/**/*
   - test/unit/advertisement-operator
 

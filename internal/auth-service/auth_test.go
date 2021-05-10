@@ -9,12 +9,13 @@ import (
 	"encoding/asn1"
 	"encoding/base64"
 	"encoding/pem"
-	testUtils2 "github.com/liqotech/liqo/pkg/utils/testUtils"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 	"time"
+
+	testUtils2 "github.com/liqotech/liqo/pkg/utils/testUtils"
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/ginkgo/extensions/table"
@@ -29,7 +30,7 @@ import (
 
 	"github.com/liqotech/liqo/apis/config/v1alpha1"
 	"github.com/liqotech/liqo/pkg/auth"
-	"github.com/liqotech/liqo/pkg/clusterID/test"
+	"github.com/liqotech/liqo/pkg/clusterid/test"
 	"github.com/liqotech/liqo/pkg/identityManager"
 	idManTest "github.com/liqotech/liqo/pkg/identityManager/testUtils"
 	"github.com/liqotech/liqo/pkg/tenantControlNamespace"

@@ -31,7 +31,7 @@ type NetworkConfigSpec struct {
 	// Important: Run "make" to regenerate code after modifying this file
 
 	// The ID of the remote cluster that will receive this CRD.
-	ClusterID string `json:"clusterID"`
+	ClusterID string `json:"clusterid"`
 	// Network used in the local cluster for the pod IPs.
 	PodCIDR string `json:"podCIDR"`
 	// Network used for local service endpoints.

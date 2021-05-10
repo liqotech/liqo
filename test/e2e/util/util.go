@@ -188,7 +188,7 @@ func getClusterID(client *kubernetes.Clientset, namespace string) (string, error
 		return "", err
 	}
 	clusterID := cm.Data[clusterIDConfMap]
-	klog.Infof("got clusterID %s", clusterID)
+	klog.Infof("got clusterid %s", clusterID)
 	return clusterID, nil
 }
 

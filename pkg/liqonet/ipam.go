@@ -479,7 +479,7 @@ func (liqoIPAM *IPAM) eventuallyDeleteClusterSubnet(clusterID string,
 	return nil
 }
 
-/* FreeSubnetPerCluster marks as free the network previously allocated for cluster clusterID. */
+/* FreeSubnetPerCluster marks as free the network previously allocated for cluster clusterid. */
 func (liqoIPAM *IPAM) FreeSubnetsPerCluster(clusterID string) error {
 	var subnets netv1alpha1.Subnets
 	var exists bool

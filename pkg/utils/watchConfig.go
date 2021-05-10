@@ -1,4 +1,4 @@
-package clusterConfig
+package utils
 
 import (
 	"os"

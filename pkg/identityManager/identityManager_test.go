@@ -4,11 +4,12 @@ import (
 	"crypto/x509"
 	"encoding/base64"
 	"encoding/pem"
-	testUtils2 "github.com/liqotech/liqo/pkg/utils/testUtils"
 	"os"
 	"path/filepath"
 	"testing"
 	"time"
+
+	testUtils2 "github.com/liqotech/liqo/pkg/utils/testUtils"
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
@@ -16,7 +17,7 @@ import (
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/client-go/kubernetes"
 
-	"github.com/liqotech/liqo/pkg/clusterID/test"
+	"github.com/liqotech/liqo/pkg/clusterid/test"
 	"github.com/liqotech/liqo/pkg/discovery"
 	idManTest "github.com/liqotech/liqo/pkg/identityManager/testUtils"
 	"github.com/liqotech/liqo/pkg/tenantControlNamespace"
@@ -163,7 +164,7 @@ var _ = Describe("IdentityManager", func() {
 			Expect(certificate).To(Equal([]byte("test")))
 		})
 
-		It("Retrieve Remote Certificate wrong clusterID", func() {
+		It("Retrieve Remote Certificate wrong clusterid", func() {
 			certificate, err := identityManager.GetRemoteCertificate("fake", base64.StdEncoding.EncodeToString(csrBytes))
 			Expect(err).NotTo(BeNil())
 			Expect(kerrors.IsNotFound(err)).To(BeTrue())

@@ -65,10 +65,10 @@ func main() {
 	}
 	clusterID, err := util.GetClusterID(k8sClient, clusterIDConfMap, namespaceName, backoff)
 	if err != nil {
-		klog.Errorf("an error occurred while retrieving the clusterID: %s", err)
+		klog.Errorf("an error occurred while retrieving the clusterid: %s", err)
 		os.Exit(-1)
 	} else {
-		klog.Infof("setting local clusterID to: %s", clusterID)
+		klog.Infof("setting local clusterid to: %s", clusterID)
 	}
 	dynClient := dynamic.NewForConfigOrDie(cfg)
 	dynFac := dynamicinformer.NewFilteredDynamicSharedInformerFactory(dynClient, crdReplicator.ResyncPeriod, metav1.NamespaceAll, crdReplicator.SetLabelsForLocalResources)

@@ -26,13 +26,14 @@ type namespaceNTCache struct {
 	nattingTableName string
 }
 
+// NamespaceMapper embeds data and clients for namespace mapping
 type NamespaceMapper struct {
 	homeClient    crdClient.NamespacedCRDClientInterface
 	foreignClient kubernetes.Interface
 
 	cache            namespaceNTCache
-	foreignClusterId string
-	homeClusterId    string
+	foreignClusterID string
+	homeClusterID    string
 
 	startOutgoingReflection chan string
 	startIncomingReflection chan string
@@ -55,7 +56,7 @@ func (m *NamespaceMapper) startNattingCache(clientSet crdClient.NamespacedCRDCli
 		DeleteFunc: func(obj interface{}) {
 			m.stopMapper <- struct{}{}
 			<-m.restartReady
-			if err := m.createNattingTable(m.foreignClusterId); err != nil {
+			if err := m.createNattingTable(m.foreignClusterID); err != nil {
 				klog.Error(err, "cannot create nattingTable")
 			}
 		},
@@ -81,7 +82,7 @@ func (nt *namespaceNTCache) WaitNamespaceNattingTableSync() {
 }
 
 func (m *NamespaceMapper) NatNamespace(namespace string, create bool) (string, error) {
-	nt, exists, err := m.cache.Store.GetByKey(m.foreignClusterId)
+	nt, exists, err := m.cache.Store.GetByKey(m.foreignClusterID)
 	if err != nil {
 		return "", err
 	}
@@ -97,7 +98,7 @@ func (m *NamespaceMapper) NatNamespace(namespace string, create bool) (string, e
 	}
 
 	if !ok && create {
-		nattedNS = strings.Join([]string{namespace, m.homeClusterId}, "-")
+		nattedNS = strings.Join([]string{namespace, m.homeClusterID}, "-")
 		if nattingTable.Spec.NattingTable == nil {
 			nattingTable.Spec.NattingTable = make(map[string]string)
 			nattingTable.Spec.DeNattingTable = make(map[string]string)
@@ -114,7 +115,7 @@ func (m *NamespaceMapper) NatNamespace(namespace string, create bool) (string, e
 				klog.Errorf("error while resyncing cache - ERR: %v", err)
 				return false
 			}
-			nt, ok, err = m.cache.Store.GetByKey(m.foreignClusterId)
+			nt, ok, err = m.cache.Store.GetByKey(m.foreignClusterID)
 			if !ok {
 				klog.Errorf("error while fetching namespaceNattingTable, not existing")
 				return false
@@ -150,7 +151,7 @@ func (m *NamespaceMapper) NatNamespace(namespace string, create bool) (string, e
 }
 
 func (m *NamespaceMapper) DeNatNamespace(namespace string) (string, error) {
-	nt, exists, err := m.cache.Store.GetByKey(m.foreignClusterId)
+	nt, exists, err := m.cache.Store.GetByKey(m.foreignClusterID)
 	if err != nil {
 		return "", err
 	}
@@ -167,7 +168,7 @@ func (m *NamespaceMapper) DeNatNamespace(namespace string) (string, error) {
 }
 
 func (m *NamespaceMapper) getMappedNamespaces() (map[string]string, error) {
-	obj, exists, err := m.cache.Store.GetByKey(m.foreignClusterId)
+	obj, exists, err := m.cache.Store.GetByKey(m.foreignClusterID)
 	if err != nil {
 		return nil, err
 	}

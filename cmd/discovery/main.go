@@ -17,7 +17,7 @@ import (
 	"github.com/liqotech/liqo/internal/discovery"
 	foreign_cluster_operator "github.com/liqotech/liqo/internal/discovery/foreign-cluster-operator"
 	search_domain_operator "github.com/liqotech/liqo/internal/discovery/search-domain-operator"
-	"github.com/liqotech/liqo/pkg/clusterID"
+	"github.com/liqotech/liqo/pkg/clusterid"
 	"github.com/liqotech/liqo/pkg/mapperUtils"
 )
 
@@ -57,18 +57,18 @@ func main() {
 	klog.Info("Namespace: ", namespace)
 	klog.Info("RequeueAfter: ", requeueAfter)
 
-	clusterId, err := clusterID.NewClusterID(kubeconfigPath)
+	cID, err := clusterid.NewClusterID(kubeconfigPath)
 	if err != nil {
 		klog.Error(err, err.Error())
 		os.Exit(1)
 	}
-	err = clusterId.SetupClusterID(namespace)
+	err = cID.SetupClusterID(namespace)
 	if err != nil {
 		klog.Error(err, err.Error())
 		os.Exit(1)
 	}
 
-	discoveryCtl, err := discovery.NewDiscoveryCtrl(namespace, clusterId, kubeconfigPath,
+	discoveryCtl, err := discovery.NewDiscoveryCtrl(namespace, cID, kubeconfigPath,
 		resolveContextRefreshTime, time.Duration(dialTCPTimeout)*time.Millisecond)
 	if err != nil {
 		klog.Error(err, err.Error())

@@ -59,7 +59,7 @@ type Controller struct {
 	RegisteredResources            []schema.GroupVersionResource                           //a list of GVRs of resources to be replicated
 	UnregisteredResources          []string                                                //each time a resource is removed from the configuration it is saved in this list, it stays here until the associated watcher, if running, is stopped
 	LocalWatchers                  map[string]chan struct{}                                //we save all the running watchers monitoring the local resources:(registeredResource, chan))
-	RemoteWatchers                 map[string]map[string]chan struct{}                     //for each peering cluster we save all the running watchers monitoring the replicated resources:(clusterID, (registeredResource, chan))
+	RemoteWatchers                 map[string]map[string]chan struct{}                     //for each peering cluster we save all the running watchers monitoring the replicated resources:(clusterid, (registeredResource, chan))
 }
 
 //cluster-role
@@ -434,7 +434,7 @@ func (c *Controller) UpdateLabels(labels map[string]string) map[string]string {
 	labels[LocalLabelSelector] = "false"
 	//setting replication status to true
 	labels[ReplicationStatuslabel] = "true"
-	//setting originID i.e clusterID of home cluster
+	//setting originID i.e clusterid of home cluster
 	labels[RemoteLabelSelector] = c.ClusterID
 	return labels
 }

@@ -21,6 +21,8 @@ import (
 	"errors"
 	"time"
 
+	"github.com/liqotech/liqo/pkg/clusterid"
+
 	appsv1 "k8s.io/api/apps/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -30,7 +32,6 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
-	"github.com/liqotech/liqo/pkg/clusterID"
 	"github.com/liqotech/liqo/pkg/crdClient"
 	object_references "github.com/liqotech/liqo/pkg/object-references"
 )
@@ -41,7 +42,7 @@ type PeeringRequestReconciler struct {
 
 	crdClient                 *crdClient.CRDClient
 	Namespace                 string
-	clusterId                 clusterID.ClusterID
+	clusterID                 clusterid.ClusterID
 	broadcasterImage          string
 	broadcasterServiceAccount string
 	vkServiceAccount          string
@@ -97,7 +98,7 @@ func (r *PeeringRequestReconciler) Reconcile(req ctrl.Request) (ctrl.Result, err
 	}
 	if !exists {
 		klog.Info("Deploy Broadcaster")
-		deploy := GetBroadcasterDeployment(pr, r.broadcasterServiceAccount, r.vkServiceAccount, r.Namespace, r.broadcasterImage, r.clusterId.GetClusterID())
+		deploy := GetBroadcasterDeployment(pr, r.broadcasterServiceAccount, r.vkServiceAccount, r.Namespace, r.broadcasterImage, r.clusterID.GetClusterID())
 		deploy, err = r.crdClient.Client().AppsV1().Deployments(r.Namespace).Create(context.TODO(), deploy, metav1.CreateOptions{})
 		if err != nil && !k8serrors.IsAlreadyExists(err) {
 			klog.Error(err, err.Error())

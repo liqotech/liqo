@@ -46,8 +46,8 @@ func NewNamespaceMapperController(client crdClient.NamespacedCRDClientInterface,
 				nattingTableName: foreignClusterId,
 			},
 			foreignClient:           foreignClient,
-			homeClusterId:           homeClusterId,
-			foreignClusterId:        foreignClusterId,
+			homeClusterID:           homeClusterId,
+			foreignClusterID:        foreignClusterId,
 			startOutgoingReflection: make(chan string, 100),
 			startIncomingReflection: make(chan string, 100),
 			stopIncomingReflection:  make(chan string, 100),
@@ -61,7 +61,7 @@ func NewNamespaceMapperController(client crdClient.NamespacedCRDClientInterface,
 	if err := controller.mapper.startNattingCache(client); err != nil {
 		return nil, err
 	}
-	if err := controller.mapper.createNattingTable(controller.mapper.foreignClusterId); err != nil {
+	if err := controller.mapper.createNattingTable(controller.mapper.foreignClusterID); err != nil {
 		klog.Error(err, "cannot initialize namespaceNattingTable")
 	}
 

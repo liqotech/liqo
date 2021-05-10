@@ -9,11 +9,12 @@ import (
 	"k8s.io/klog"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 
+	"github.com/liqotech/liqo/pkg/clusterid"
+
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	nettypes "github.com/liqotech/liqo/apis/net/v1alpha1"
 	advtypes "github.com/liqotech/liqo/apis/sharing/v1alpha1"
 	"github.com/liqotech/liqo/internal/discovery"
-	"github.com/liqotech/liqo/pkg/clusterID"
 	"github.com/liqotech/liqo/pkg/crdClient"
 )
 
@@ -41,9 +42,9 @@ func StartOperator(
 		klog.Error(err, "unable to create crd client")
 		os.Exit(1)
 	}
-	localclusterID, err := clusterID.NewClusterID(kubeconfigPath)
+	localclusterID, err := clusterid.NewClusterID(kubeconfigPath)
 	if err != nil {
-		klog.Error(err, "unable to get clusterID")
+		klog.Error(err, "unable to get clusterid")
 		os.Exit(1)
 	}
 
@@ -77,7 +78,7 @@ func StartOperator(
 func getFCReconciler(scheme *runtime.Scheme,
 	namespace string,
 	client, advertisementClient, networkClient *crdClient.CRDClient,
-	localClusterID clusterID.ClusterID,
+	localClusterID clusterid.ClusterID,
 	requeueAfter time.Duration,
 	configProvider discovery.ConfigProvider) *ForeignClusterReconciler {
 	return &ForeignClusterReconciler{

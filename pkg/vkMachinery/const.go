@@ -14,7 +14,7 @@ var CsrLabels = map[string]string{
 var KubeletBaseLabels = map[string]string{
 	"app.kubernetes.io/name":       "virtual-kubelet",
 	"app.kubernetes.io/instance":   "virtual-kubelet",
-	"app.kubernetes.io/managed-by": "advertisement-operator",
+	"app.kubernetes.io/managed-by": "advertisementoperator",
 	"app.kubernetes.io/component":  "virtual-kubelet",
 	"app.kubernetes.io/part-of":    "liqo",
 }

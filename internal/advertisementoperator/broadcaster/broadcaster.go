@@ -1,4 +1,4 @@
-package advertisementOperator
+package broadcaster
 
 import (
 	"context"
@@ -12,8 +12,6 @@ import (
 	liqoconst "github.com/liqotech/liqo/pkg/consts"
 	"github.com/liqotech/liqo/pkg/crdClient"
 	"github.com/liqotech/liqo/pkg/kubeconfig"
-	"github.com/liqotech/liqo/pkg/labelPolicy"
-
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/klog"
@@ -32,6 +30,7 @@ import (
 	advtypes "github.com/liqotech/liqo/apis/sharing/v1alpha1"
 )
 
+// AdvertisementBroadcaster models data and structures needed by a broadcaster instance
 type AdvertisementBroadcaster struct {
 	// local-related variables
 	LocalClient     *crdClient.CRDClient
@@ -40,14 +39,14 @@ type AdvertisementBroadcaster struct {
 	KubeconfigSecretForForeign *corev1.Secret       // secret containing the kubeconfig that will be sent to the foreign cluster
 	RemoteClient               *crdClient.CRDClient // client to create Advertisements and Secrets on the foreign cluster
 	// configuration variables
-	HomeClusterId      string
-	ForeignClusterId   string
+	HomeClusterID      string
+	ForeignClusterID   string
 	PeeringRequestName string
 	ClusterConfig      configv1alpha1.ClusterConfigSpec
 	mutex              sync.Mutex
 }
 
-// convenience struct, to be returned in func.
+// AdvResources contains all resources to be returned in an advertisement
 type AdvResources struct {
 	PhysicalNodes *corev1.NodeList
 	VirtualNodes  *corev1.NodeList
@@ -67,14 +66,17 @@ func (p *apiConfigProviderEnv) GetAPIServerConfig() *configv1alpha1.APIServerCon
 	}
 }
 
-// start the broadcaster which sends Advertisement messages
+// StartBroadcaster start the broadcaster which sends Advertisement messages
 // it reads the Secret to get the kubeconfig to the remote cluster and create a client for it
 // parameters
 // - homeClusterId: the cluster ID of your cluster (must be a UUID)
-// - localKubeconfigPath: the path to the kubeconfig of the local cluster. Set it only when you are debugging and need to launch the program as a process and not inside Kubernetes
-// - peeringRequestName: the name of the PeeringRequest containing the reference to the secret with the kubeconfig for creating Advertisements CR on foreign cluster
-// - saName: The name of the ServiceAccount used to create the kubeconfig that will be sent to the foreign cluster with the permissions to create resources on local cluster.
-func StartBroadcaster(homeClusterId, localKubeconfigPath, peeringRequestName, saName string) error {
+// - localKubeconfigPath: the path to the kubeconfig of the local cluster. Set it only when you are debugging and need
+//   to launch the program as a process and not inside Kubernetes
+// - peeringRequestName: the name of the PeeringRequest containing the reference to the secret with the kubeconfig for
+//   creating Advertisements CR on foreign cluster
+// - saName: The name of the ServiceAccount used to create the kubeconfig that will be sent to the foreign cluster with
+//   the permissions to create resources on local cluster.
+func StartBroadcaster(homeClusterID, localKubeconfigPath, peeringRequestName, saName string) error {
 	klog.V(6).Info("starting broadcaster")
 
 	// create the Advertisement client to the local cluster
@@ -110,7 +112,8 @@ func StartBroadcaster(homeClusterId, localKubeconfigPath, peeringRequestName, sa
 	foreignClusterId := pr.Name
 
 	// get the Secret with the permission to create Advertisements and Secrets on foreign cluster
-	secretForAdvertisementCreation, err := localClient.Client().CoreV1().Secrets(pr.Spec.KubeConfigRef.Namespace).Get(context.TODO(), pr.Spec.KubeConfigRef.Name, metav1.GetOptions{})
+	secretForAdvertisementCreation, err := localClient.Client().CoreV1().Secrets(pr.Spec.KubeConfigRef.Namespace).
+		Get(context.TODO(), pr.Spec.KubeConfigRef.Name, metav1.GetOptions{})
 	if err != nil {
 		klog.Errorln(err, "Unable to get PeeringRequest secret")
 		return err
@@ -133,20 +136,19 @@ func StartBroadcaster(homeClusterId, localKubeconfigPath, peeringRequestName, sa
 	if retry == 3 {
 		klog.Errorln(err, "Failed to create client to remote cluster "+foreignClusterId)
 		return err
-	} else {
-		klog.Info("Correctly created client to remote cluster " + foreignClusterId)
 	}
 
+	klog.Info("Correctly created client to remote cluster " + foreignClusterId)
 	broadcaster := AdvertisementBroadcaster{
 		LocalClient:        localClient,
 		DiscoveryClient:    discoveryClient,
 		RemoteClient:       remoteClient,
-		HomeClusterId:      homeClusterId,
-		ForeignClusterId:   pr.Name,
+		HomeClusterID:      homeClusterID,
+		ForeignClusterID:   pr.Name,
 		PeeringRequestName: peeringRequestName,
 	}
 
-	kubeconfigSecretName := pkg.VirtualKubeletSecPrefix + homeClusterId
+	kubeconfigSecretName := pkg.VirtualKubeletSecPrefix + homeClusterID
 
 	// create the kubeconfig to allow the foreign cluster to create resources on local cluster
 	kubeconfigForForeignCluster, err := kubeconfig.CreateKubeConfig(&apiConfigProviderEnv{}, localClient.Client(), saName, pr.Spec.Namespace)
@@ -189,7 +191,7 @@ func (b *AdvertisementBroadcaster) GenerateAdvertisement() {
 	for {
 		_, err := b.SendSecretToForeignCluster(b.KubeconfigSecretForForeign)
 		if err != nil {
-			klog.Errorln(err, "Error while sending Secret for virtual-kubelet to cluster "+b.ForeignClusterId)
+			klog.Errorln(err, "Error while sending Secret for virtual-kubelet to cluster "+b.ForeignClusterID)
 			time.Sleep(1 * time.Minute)
 			continue
 		}
@@ -205,7 +207,7 @@ func (b *AdvertisementBroadcaster) GenerateAdvertisement() {
 		advToCreate := b.CreateAdvertisement(advRes)
 		adv, err := b.SendAdvertisementToForeignCluster(advToCreate)
 		if err != nil {
-			klog.Errorln(err, "Error while sending Advertisement to cluster "+b.ForeignClusterId)
+			klog.Errorln(err, "Error while sending Advertisement to cluster "+b.ForeignClusterID)
 			time.Sleep(1 * time.Minute)
 			continue
 		}
@@ -231,10 +233,10 @@ func (b *AdvertisementBroadcaster) CreateAdvertisement(advRes *AdvResources) adv
 
 	adv := advtypes.Advertisement{
 		ObjectMeta: metav1.ObjectMeta{
-			Name: pkg.AdvertisementPrefix + b.HomeClusterId,
+			Name: pkg.AdvertisementPrefix + b.HomeClusterID,
 		},
 		Spec: advtypes.AdvertisementSpec{
-			ClusterId: b.HomeClusterId,
+			ClusterId: b.HomeClusterID,
 			Images:    advRes.Images,
 			LimitRange: corev1.LimitRangeSpec{
 				Limits: []corev1.LimitRangeItem{
@@ -270,12 +272,14 @@ func (b *AdvertisementBroadcaster) CreateAdvertisement(advRes *AdvResources) adv
 
 func (b *AdvertisementBroadcaster) GetResourcesForAdv() (advRes *AdvResources, err error) {
 	// get physical and virtual nodes in the cluster
-	physicalNodes, err := b.LocalClient.Client().CoreV1().Nodes().List(context.TODO(), metav1.ListOptions{LabelSelector: fmt.Sprintf("%v != %v", liqoconst.TypeLabel, liqoconst.TypeNode)})
+	physicalNodes, err := b.LocalClient.Client().CoreV1().Nodes().List(context.TODO(),
+		metav1.ListOptions{LabelSelector: fmt.Sprintf("%v != %v", liqoconst.TypeLabel, liqoconst.TypeNode)})
 	if err != nil {
 		klog.Errorln("Could not get physical nodes, retry in 1 minute")
 		return nil, err
 	}
-	virtualNodes, err := b.LocalClient.Client().CoreV1().Nodes().List(context.TODO(), metav1.ListOptions{LabelSelector: fmt.Sprintf("%v = %v", liqoconst.TypeLabel, liqoconst.TypeNode)})
+	virtualNodes, err := b.LocalClient.Client().CoreV1().Nodes().List(context.TODO(),
+		metav1.ListOptions{LabelSelector: fmt.Sprintf("%v = %v", liqoconst.TypeLabel, liqoconst.TypeNode)})
 	if err != nil {
 		klog.Errorln("Could not get virtual nodes, retry in 1 minute")
 		return nil, err
@@ -285,14 +289,16 @@ func (b *AdvertisementBroadcaster) GetResourcesForAdv() (advRes *AdvResources, e
 	if err != nil {
 		return nil, err
 	}
-	nodeNonTerminatedPodsList, err := b.LocalClient.Client().CoreV1().Pods("").List(context.TODO(), metav1.ListOptions{FieldSelector: fieldSelector.String()})
+	nodeNonTerminatedPodsList, err := b.LocalClient.Client().CoreV1().Pods("").List(context.TODO(),
+		metav1.ListOptions{FieldSelector: fieldSelector.String()})
 	if err != nil {
 		klog.Errorln("Could not list pods, retry in 1 minute")
 		return nil, err
 	}
 	reqs, limits := GetAllPodsResources(nodeNonTerminatedPodsList)
 	// compute resources to be announced to the other cluster
-	availability, images := ComputeAnnouncedResources(physicalNodes, reqs, int64(b.ClusterConfig.AdvertisementConfig.OutgoingConfig.ResourceSharingPercentage))
+	availability, images := ComputeAnnouncedResources(physicalNodes, reqs,
+		int64(b.ClusterConfig.AdvertisementConfig.OutgoingConfig.ResourceSharingPercentage))
 
 	labels := GetLabels(physicalNodes, b.ClusterConfig.AdvertisementConfig.LabelPolicies)
 
@@ -323,19 +329,20 @@ func (b *AdvertisementBroadcaster) SendAdvertisementToForeignCluster(advToCreate
 			return nil, err
 		}
 	} else if k8serrors.IsNotFound(err) {
-		secretForeign, err := b.RemoteClient.Client().CoreV1().Secrets(b.KubeconfigSecretForForeign.Namespace).Get(context.TODO(), b.KubeconfigSecretForForeign.Name, metav1.GetOptions{})
+		secretForeign, err := b.RemoteClient.Client().CoreV1().Secrets(b.KubeconfigSecretForForeign.Namespace).Get(context.TODO(),
+			b.KubeconfigSecretForForeign.Name, metav1.GetOptions{})
 		if err != nil {
 			return nil, err
 		}
 		// Advertisement not found, create it
 		obj, err := b.RemoteClient.Resource("advertisements").Create(&advToCreate, &metav1.CreateOptions{})
 		if err != nil {
-			klog.Errorln("Unable to create Advertisement " + advToCreate.Name + " on remote cluster " + b.ForeignClusterId)
+			klog.Errorln("Unable to create Advertisement " + advToCreate.Name + " on remote cluster " + b.ForeignClusterID)
 			return nil, err
 		} else {
 			// Advertisement created, set the owner reference of the secret so that it is deleted when the adv is removed
 			adv = obj.(*advtypes.Advertisement)
-			klog.Info("Correctly created advertisement on remote cluster " + b.ForeignClusterId)
+			klog.Info("Correctly created advertisement on remote cluster " + b.ForeignClusterID)
 			adv.Kind = "Advertisement"
 			adv.APIVersion = advtypes.GroupVersion.String()
 
@@ -360,10 +367,10 @@ func (b *AdvertisementBroadcaster) SendSecretToForeignCluster(secret *corev1.Sec
 		secret.SetUID(secretForeign.UID)
 		secretForeign, err = b.RemoteClient.Client().CoreV1().Secrets(secret.Namespace).Update(context.TODO(), secret, metav1.UpdateOptions{})
 		if err != nil {
-			klog.Errorf("Unable to update secret %v on remote cluster %v; error: %v", secret.Name, b.ForeignClusterId, err)
+			klog.Errorf("Unable to update secret %v on remote cluster %v; error: %v", secret.Name, b.ForeignClusterID, err)
 			return nil, err
 		}
-		klog.Infof("Correctly updated secret %v on remote cluster %v", secret.Name, b.ForeignClusterId)
+		klog.Infof("Correctly updated secret %v on remote cluster %v", secret.Name, b.ForeignClusterID)
 	} else if k8serrors.IsNotFound(err) {
 		// secret not found, create it
 		secret.SetResourceVersion("")
@@ -371,10 +378,10 @@ func (b *AdvertisementBroadcaster) SendSecretToForeignCluster(secret *corev1.Sec
 		secretForeign, err = b.RemoteClient.Client().CoreV1().Secrets(secret.Namespace).Create(context.TODO(), secret, metav1.CreateOptions{})
 		if err != nil {
 			// secret not created, without it the vk cannot be launched: just log and exit
-			klog.Errorf("Unable to create secret %v on remote cluster %v; error: %v", secret.Name, b.ForeignClusterId, err)
+			klog.Errorf("Unable to create secret %v on remote cluster %v; error: %v", secret.Name, b.ForeignClusterID, err)
 			return nil, err
 		}
-		klog.Infof("Correctly created secret %v on remote cluster %v", secret.Name, b.ForeignClusterId)
+		klog.Infof("Correctly created secret %v on remote cluster %v", secret.Name, b.ForeignClusterID)
 	} else {
 		klog.Errorln("Unexpected error while getting Secret " + secret.Name)
 		return nil, err
@@ -383,7 +390,7 @@ func (b *AdvertisementBroadcaster) SendSecretToForeignCluster(secret *corev1.Sec
 }
 
 func (b *AdvertisementBroadcaster) NotifyAdvertisementDeletion() error {
-	advName := pkg.AdvertisementPrefix + b.HomeClusterId
+	advName := pkg.AdvertisementPrefix + b.HomeClusterID
 	// delete adv to inform the vk to do the cleanup
 	err := b.RemoteClient.Resource("advertisements").Delete(advName, &metav1.DeleteOptions{})
 	if err != nil {
@@ -393,7 +400,7 @@ func (b *AdvertisementBroadcaster) NotifyAdvertisementDeletion() error {
 	return nil
 }
 
-// get resources used by pods on physical nodes.
+// GetAllPodsResources get resources used by pods on physical nodes.
 func GetAllPodsResources(nodeNonTerminatedPodsList *corev1.PodList) (requests corev1.ResourceList, limits corev1.ResourceList) {
 	// remove pods on virtual nodes
 	for i, pod := range nodeNonTerminatedPodsList.Items {
@@ -435,7 +442,7 @@ func getPodsTotalRequestsAndLimits(podList *corev1.PodList) (reqs map[corev1.Res
 	return
 }
 
-// get cluster resources (cpu, ram, pods, ...) and images.
+// GetClusterResources get cluster resources (cpu, ram, pods, ...) and images.
 func GetClusterResources(nodes []corev1.Node) (corev1.ResourceList, []corev1.ContainerImage) {
 	clusterImages := make([]corev1.ContainerImage, 0)
 
@@ -461,80 +468,4 @@ func addResourceLists(dst *corev1.ResourceList, toAdd *corev1.ResourceList) {
 			(*dst)[k] = v.DeepCopy()
 		}
 	}
-}
-
-func GetNodeImages(node corev1.Node) []corev1.ContainerImage {
-	m := make(map[string]corev1.ContainerImage)
-
-	for _, image := range node.Status.Images {
-		for _, name := range image.Names {
-			// TODO: policy to decide which images to announce
-			if !strings.Contains(name, "k8s") {
-				m[name] = image
-			}
-		}
-	}
-	images := make([]corev1.ContainerImage, len(m))
-	i := 0
-	for _, image := range m {
-		images[i] = image
-		i++
-	}
-	return images
-}
-
-// get labels for advertisement.
-func GetLabels(physicalNodes *corev1.NodeList, labelPolicies []configv1alpha1.LabelPolicy) (labels map[string]string) {
-	labels = make(map[string]string)
-	if labelPolicies == nil {
-		return labels
-	}
-	for _, lblPol := range labelPolicies {
-		if val, insert := labelPolicy.GetInstance(lblPol.Policy).Process(physicalNodes, lblPol.Key); insert {
-			labels[lblPol.Key] = val
-		}
-	}
-	return labels
-}
-
-// create announced resources for advertisement.
-func ComputeAnnouncedResources(physicalNodes *corev1.NodeList, reqs corev1.ResourceList, sharingPercentage int64) (availability corev1.ResourceList, images []corev1.ContainerImage) {
-	// get allocatable resources in all the physical nodes
-	allocatable, images := GetClusterResources(physicalNodes.Items)
-
-	// subtract used resources from available ones to have available resources
-	availability = allocatable.DeepCopy()
-	for k, v := range availability {
-		if req, ok := reqs[k]; ok {
-			v.Sub(req)
-		}
-		if v.Value() < 0 {
-			v.Set(0)
-		}
-		if k == corev1.ResourceCPU {
-			// use millis
-			v.SetScaled(v.MilliValue()*sharingPercentage/100, resource.Milli)
-		} else if k == corev1.ResourceMemory {
-			// use mega
-			v.SetScaled(v.ScaledValue(resource.Mega)*sharingPercentage/100, resource.Mega)
-		} else {
-			v.Set(v.Value() * sharingPercentage / 100)
-		}
-		availability[k] = v
-	}
-	return availability, images
-}
-
-// create prices resource for advertisement.
-func ComputePrices(images []corev1.ContainerImage) corev1.ResourceList {
-	//TODO: logic to set prices
-	prices := corev1.ResourceList{}
-	prices[corev1.ResourceCPU] = *resource.NewQuantity(1, resource.DecimalSI)
-	prices[corev1.ResourceMemory] = resource.MustParse("2m")
-	for _, image := range images {
-		for _, name := range image.Names {
-			prices[corev1.ResourceName(name)] = *resource.NewQuantity(5, resource.DecimalSI)
-		}
-	}
-	return prices
 }

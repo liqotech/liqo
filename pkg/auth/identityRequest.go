@@ -8,18 +8,18 @@ type IdentityRequest interface {
 
 // ServiceAccountIdentityRequest is the request for a new ServiceAccount validation.
 type ServiceAccountIdentityRequest struct {
-	ClusterID string `json:"clusterID"`
+	ClusterID string `json:"clusterid"`
 	Token     string `json:"token"`
 }
 
 // CertificateIdentityRequest is the request for a new certificate validation.
 type CertificateIdentityRequest struct {
-	ClusterID                 string `json:"clusterID"`
+	ClusterID                 string `json:"clusterid"`
 	Token                     string `json:"token"`
 	CertificateSigningRequest string `json:"certificateSigningRequest"`
 }
 
-// GetClusterID returns the clusterID.
+// GetClusterID returns the clusterid.
 func (saIdentityRequest *ServiceAccountIdentityRequest) GetClusterID() string {
 	return saIdentityRequest.ClusterID
 }
@@ -29,7 +29,7 @@ func (saIdentityRequest *ServiceAccountIdentityRequest) GetToken() string {
 	return saIdentityRequest.Token
 }
 
-// GetClusterID returns the clusterID.
+// GetClusterID returns the clusterid.
 func (certIdentityRequest *CertificateIdentityRequest) GetClusterID() string {
 	return certIdentityRequest.ClusterID
 }

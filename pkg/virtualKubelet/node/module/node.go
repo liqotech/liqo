@@ -74,7 +74,7 @@ func NewNodeController(p NodeProvider, node *corev1.Node, nodes v1.NodeInterface
 }
 
 // NodeControllerOpt are the functional options used for configuring a node.
-type NodeControllerOpt func(*NodeController) error // nolint: golint
+type NodeControllerOpt func(*NodeController) error // nolint:golint
 
 // WithNodeEnableLeaseV1Beta1 enables support for v1beta1 leases.
 // If client is nil, leases will not be enabled.

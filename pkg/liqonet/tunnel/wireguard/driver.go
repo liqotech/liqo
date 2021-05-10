@@ -163,7 +163,7 @@ func (w *wireguard) ConnectToEndpoint(tep *netv1alpha1.TunnelEndpoint) (*netv1al
 			}},
 		})
 		if err != nil {
-			return newConnectionOnError(err.Error()), fmt.Errorf("failed to configure peer with clusterID %s: %v", tep.Spec.ClusterID, err)
+			return newConnectionOnError(err.Error()), fmt.Errorf("failed to configure peer with clusterid %s: %v", tep.Spec.ClusterID, err)
 		}
 	} else {
 		klog.Infof("Connecting cluster %s endpoint %s with publicKey %s",
@@ -187,7 +187,7 @@ func (w *wireguard) ConnectToEndpoint(tep *netv1alpha1.TunnelEndpoint) (*netv1al
 		Peers:        peerCfg,
 	})
 	if err != nil {
-		return newConnectionOnError(err.Error()), fmt.Errorf("failed to configure peer with clusterID %s: %v", tep.Spec.ClusterID, err)
+		return newConnectionOnError(err.Error()), fmt.Errorf("failed to configure peer with clusterid %s: %v", tep.Spec.ClusterID, err)
 	}
 	//
 	c := &netv1alpha1.Connection{
@@ -226,10 +226,10 @@ func (w *wireguard) DisconnectFromEndpoint(tep *netv1alpha1.TunnelEndpoint) erro
 		Peers:        peerCfg,
 	})
 	if err != nil {
-		return fmt.Errorf("failed to remove WireGuard peer with clusterID %s: %v", tep.Spec.ClusterID, err)
+		return fmt.Errorf("failed to remove WireGuard peer with clusterid %s: %v", tep.Spec.ClusterID, err)
 	}
 
-	klog.Infof("Done removing WireGuard peer with clusterID %s", tep.Spec.ClusterID)
+	klog.Infof("Done removing WireGuard peer with clusterid %s", tep.Spec.ClusterID)
 	delete(w.connections, tep.Spec.ClusterID)
 
 	return nil

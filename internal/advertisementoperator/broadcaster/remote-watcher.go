@@ -1,4 +1,4 @@
-package advertisementOperator
+package broadcaster
 
 import (
 	"os"
