@@ -88,9 +88,8 @@ func (p *LiqoProvider) StartNodeUpdater(nodeRunner *module.NodeController) (chan
 }
 
 // The reconciliation function; every time this function is called,
-// the node status is updated by means of r.updateFromAdv
+// the node status is updated by means of r.updateFromAdv.
 func (p *LiqoProvider) ReconcileNodeFromAdv(event watch.Event) error {
-
 	adv, ok := event.Object.(*advtypes.Advertisement)
 	if !ok {
 		return errors.New("error in casting advertisement: recreate watcher")
@@ -161,7 +160,7 @@ func (p *LiqoProvider) ReconcileNodeFromTep(event watch.Event) error {
 	return nil
 }
 
-// updateFromAdv gets and  advertisement and updates the node status accordingly
+// updateFromAdv gets and  advertisement and updates the node status accordingly.
 func (p *LiqoProvider) updateFromAdv(adv advtypes.Advertisement) error {
 	var err error
 

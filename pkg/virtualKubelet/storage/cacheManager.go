@@ -36,7 +36,7 @@ func readinessKeyer(namespace string, api apimgmt.ApiType) string {
 }
 
 // checkNamespaceCaching checks if the caching of the requested informers has been started. It caches the result
-// for allowing a subsequent fast checks
+// for allowing a subsequent fast checks.
 func checkNamespaceCaching(backoff *wait.Backoff, rc *readyCaches, informers *NamespacedAPICaches, namespace string, api apimgmt.ApiType) error {
 	checkFunc := func() error {
 		rc.RLock()

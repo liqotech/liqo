@@ -35,7 +35,7 @@ type Provider interface {
 	StartNodeUpdater(nodeRunner *module.NodeController) (chan struct{}, chan struct{}, error)
 }
 
-// PodMetricsProvider is an optional interface that providers can implement to expose pod stats
+// PodMetricsProvider is an optional interface that providers can implement to expose pod stats.
 type PodMetricsProvider interface {
 	GetStatsSummary(context.Context) (*stats.Summary, error)
 }

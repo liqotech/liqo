@@ -25,21 +25,22 @@ import (
 
 type Subnets struct {
 	PodCIDR string `json:"podCIDR"`
-	// Network used in remote cluster for local service endpoints
+	// Network used in remote cluster for local service endpoints.
 	RemoteExternalCIDR string `json:"remoteExternalCIDR"`
-	// Network used in local cluster for remote service endpoints
+	// Network used in local cluster for remote service endpoints.
 	LocalExternalCIDR string `json:"localExternalCIDR"`
 }
 
-// IpamSpec defines the desired state of Ipam
+// IpamSpec defines the desired state of Ipam.
 type IpamSpec struct {
 	// INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
 	// Important: Run "make" to regenerate code after modifying this file
-	// Map consumed by go-ipam module. Key is prefic cidr, value is a Prefix
+	// Map consumed by go-ipam module. Key is prefic cidr, value is a Prefix.
 	Prefixes map[string][]byte `json:"prefixes"`
-	// Network pools
+	// Network pools.
 	Pools []string `json:"pools"`
-	// Map used to keep track of networks assigned to clusters. Key is the remote cluster ID, value is a the set of networks used by the remote cluster.
+	// Map used to keep track of networks assigned to clusters. Key is the remote cluster ID, value is a the set of
+	// networks used by the remote cluster.
 	ClusterSubnets map[string]Subnets `json:"clusterSubnets"`
 	// Cluster ExternalCIDR
 	ExternalCIDR string `json:"externalCIDR"`
@@ -48,7 +49,7 @@ type IpamSpec struct {
 // +kubebuilder:object:root=true
 // +kubebuilder:resource:scope=Cluster
 
-// Ipam is the Schema for the ipams API
+// IpamStorage is the Schema for the ipams API.
 type IpamStorage struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
@@ -58,7 +59,7 @@ type IpamStorage struct {
 
 // +kubebuilder:object:root=true
 
-// IpamList contains a list of Ipam
+// IpamList contains a list of Ipam.
 type IpamList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`

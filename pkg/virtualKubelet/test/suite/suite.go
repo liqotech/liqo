@@ -7,25 +7,25 @@ import (
 	"testing"
 )
 
-// TestFunc defines the test function in a test case
+// TestFunc defines the test function in a test case.
 type TestFunc func(*testing.T)
 
-// SetUpFunc sets up provider-specific resource in the test suite
+// SetUpFunc sets up provider-specific resource in the test suite.
 type SetUpFunc func() error
 
-// TeardownFunc tears down provider-specific resources from the test suite
+// TeardownFunc tears down provider-specific resources from the test suite.
 type TeardownFunc func() error
 
-// ShouldSkipTestFunc determines whether the test suite should skip certain tests
+// ShouldSkipTestFunc determines whether the test suite should skip certain tests.
 type ShouldSkipTestFunc func(string) bool
 
-// TestSuite contains methods that defines the lifecycle of a test suite
+// TestSuite contains methods that defines the lifecycle of a test suite.
 type TestSuite interface {
 	Setup()
 	Teardown()
 }
 
-// TestSkipper allows providers to skip certain tests
+// TestSkipper allows providers to skip certain tests.
 type TestSkipper interface {
 	ShouldSkipTest(string) bool
 }
@@ -35,7 +35,7 @@ type testCase struct {
 	f    TestFunc
 }
 
-// Run runs tests registered in the test suite
+// Run runs tests registered in the test suite.
 func Run(t *testing.T, ts TestSuite) {
 	defer failOnPanic(t)
 
@@ -69,14 +69,14 @@ func Run(t *testing.T, ts TestSuite) {
 	}
 }
 
-// failOnPanic recovers panic occurred in the test suite and marks the test / test suite as failed
+// failOnPanic recovers panic occurred in the test suite and marks the test / test suite as failed.
 func failOnPanic(t *testing.T) {
 	if r := recover(); r != nil {
 		t.Fatalf("%v\n%s", r, debug.Stack())
 	}
 }
 
-// isValidTestFunc determines whether or not a given method is a valid test function
+// isValidTestFunc determines whether or not a given method is a valid test function.
 func isValidTestFunc(method reflect.Method) bool {
 	return strings.HasPrefix(method.Name, "Test") && // Test function name must start with "Test",
 		method.Type.NumIn() == 2 && // the number of function input should be 2 (*TestSuite ts and t *testing.T),

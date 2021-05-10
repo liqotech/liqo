@@ -73,7 +73,7 @@ func NewNodeController(p NodeProvider, node *corev1.Node, nodes v1.NodeInterface
 	return n, nil
 }
 
-// NodeControllerOpt are the functional options used for configuring a node
+// NodeControllerOpt are the functional options used for configuring a node.
 type NodeControllerOpt func(*NodeController) error // nolint: golint
 
 // WithNodeEnableLeaseV1Beta1 enables support for v1beta1 leases.
@@ -395,11 +395,11 @@ func updateNodeLease(ctx context.Context, leases v1beta1.LeaseInterface, lease *
 	return l, nil
 }
 
-// just so we don't have to allocate this on every get request
+// just so we don't have to allocate this on every get request.
 var emptyGetOptions = metav1.GetOptions{}
 
 // patchNodeStatus patches node status.
-// Copied from github.com/kubernetes/kubernetes/pkg/util/node
+// Copied from github.com/kubernetes/kubernetes/pkg/util/node.
 func patchNodeStatus(nodes v1.NodeInterface, nodeName types.NodeName, oldNode *corev1.Node, newNode *corev1.Node) (*corev1.Node, []byte, error) {
 	patchBytes, err := preparePatchBytesforNodeStatus(nodeName, oldNode, newNode)
 	if err != nil {

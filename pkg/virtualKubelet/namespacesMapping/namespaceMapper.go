@@ -223,7 +223,6 @@ func (m *NamespaceMapper) manageReflections(oldObj interface{}, newObj interface
 
 	for localNs, remoteNs := range newNattingTable {
 		if _, ok := oldNattingTable[localNs]; !ok {
-
 			ns := &v1.Namespace{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: remoteNs,

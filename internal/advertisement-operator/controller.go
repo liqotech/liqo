@@ -47,7 +47,7 @@ import (
 const FinalizerString = "advertisement.sharing.liqo.io/virtual-kubelet"
 const cleanTimeout = 10 * time.Minute
 
-// AdvertisementReconciler reconciles a Advertisement object
+// AdvertisementReconciler reconciles a Advertisement object.
 type AdvertisementReconciler struct {
 	client.Client
 	Scheme             *runtime.Scheme
@@ -181,12 +181,12 @@ func (r *AdvertisementReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		Complete(r)
 }
 
-// checks that the Advertisement is being deleted
+// checks that the Advertisement is being deleted.
 func (r *AdvertisementReconciler) isDeleting(adv *advtypes.Advertisement) bool {
 	return !adv.DeletionTimestamp.IsZero()
 }
 
-// set Advertisement reference in related ForeignCluster
+// set Advertisement reference in related ForeignCluster.
 func (r *AdvertisementReconciler) UpdateForeignCluster(adv *advtypes.Advertisement) (error, bool) {
 	tmp, err := r.DiscoveryClient.Resource("foreignclusters").List(&metav1.ListOptions{
 		LabelSelector: strings.Join([]string{
@@ -243,7 +243,7 @@ func (r *AdvertisementReconciler) UpdateForeignCluster(adv *advtypes.Advertiseme
 	return nil, !contains
 }
 
-// check if the advertisement is interesting and set its status accordingly
+// check if the advertisement is interesting and set its status accordingly.
 func (r *AdvertisementReconciler) CheckAdvertisement(adv *advtypes.Advertisement) {
 	// if announced resources are negative, always refuse the Adv
 	for _, v := range adv.Spec.ResourceQuota.Hard {
@@ -283,7 +283,6 @@ func (r *AdvertisementReconciler) UpdateAdvertisement(adv *advtypes.Advertisemen
 }
 
 func (r *AdvertisementReconciler) createVirtualKubelet(ctx context.Context, adv *advtypes.Advertisement) error {
-
 	name := virtualKubelet.VirtualKubeletPrefix + adv.Spec.ClusterId
 	nodeName := virtualKubelet.VirtualNodePrefix + adv.Spec.ClusterId
 
@@ -377,7 +376,6 @@ func (r *AdvertisementReconciler) CleanOldAdvertisements(quit chan struct{}, wg 
 			return
 		}
 	}
-
 }
 
 func (r *AdvertisementReconciler) checkClusterStatus(adv advtypes.Advertisement) error {

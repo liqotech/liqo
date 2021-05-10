@@ -24,7 +24,7 @@ import (
 	"github.com/pkg/errors"
 )
 
-// Defaults for root command options
+// Defaults for root command options.
 const (
 	DefaultNodeName             = "virtual-kubelet"
 	DefaultInformerResyncPeriod = 1 * time.Minute
@@ -41,7 +41,7 @@ const (
 // It is used for setting flag values.
 //
 // You can set the default options by creating a new `Opts` struct and passing
-// it into `SetDefaultOpts`
+// it into `SetDefaultOpts`.
 type Opts struct {
 	// Domain suffix to append to search domains for the pods created by virtual-kubelet
 	KubeClusterDomain string

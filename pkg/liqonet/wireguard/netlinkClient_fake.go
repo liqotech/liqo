@@ -40,7 +40,7 @@ func (nld *netlinkDeviceFake) createLink(linkName string) error {
 }
 
 //adds the ip address to the interface
-//ip address in cidr notation: x.x.x.x/x
+//ip address in cidr notation: x.x.x.x/x.
 func (nld *netlinkDeviceFake) addIP(ipAddr string) error {
 	ip, err := netlink.ParseIPNet(ipAddr)
 	nld.ip = *ip
@@ -61,7 +61,7 @@ func (nld *netlinkDeviceFake) setMTU(mtu int) error {
 	return nil
 }
 
-// get link index of the wireguard device
+// get link index of the wireguard device.
 func (nld *netlinkDeviceFake) getLinkIndex() int {
 	return nld.link.Attrs().Index
 }

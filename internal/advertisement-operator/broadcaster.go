@@ -47,7 +47,7 @@ type AdvertisementBroadcaster struct {
 	mutex              sync.Mutex
 }
 
-// convenience struct, to be returned in func
+// convenience struct, to be returned in func.
 type AdvResources struct {
 	PhysicalNodes *corev1.NodeList
 	VirtualNodes  *corev1.NodeList
@@ -59,8 +59,8 @@ type AdvResources struct {
 
 type apiConfigProviderEnv struct{}
 
-func (p *apiConfigProviderEnv) GetAPIServerConfig() *configv1alpha1.ApiServerConfig {
-	return &configv1alpha1.ApiServerConfig{
+func (p *apiConfigProviderEnv) GetAPIServerConfig() *configv1alpha1.APIServerConfig {
+	return &configv1alpha1.APIServerConfig{
 		Address:   os.Getenv("APISERVER"),
 		Port:      os.Getenv("APISERVER_PORT"),
 		TrustedCA: os.Getenv("APISERVER_TRUSTED") == "true",
@@ -73,7 +73,7 @@ func (p *apiConfigProviderEnv) GetAPIServerConfig() *configv1alpha1.ApiServerCon
 // - homeClusterId: the cluster ID of your cluster (must be a UUID)
 // - localKubeconfigPath: the path to the kubeconfig of the local cluster. Set it only when you are debugging and need to launch the program as a process and not inside Kubernetes
 // - peeringRequestName: the name of the PeeringRequest containing the reference to the secret with the kubeconfig for creating Advertisements CR on foreign cluster
-// - saName: The name of the ServiceAccount used to create the kubeconfig that will be sent to the foreign cluster with the permissions to create resources on local cluster
+// - saName: The name of the ServiceAccount used to create the kubeconfig that will be sent to the foreign cluster with the permissions to create resources on local cluster.
 func StartBroadcaster(homeClusterId, localKubeconfigPath, peeringRequestName, saName string) error {
 	klog.V(6).Info("starting broadcaster")
 
@@ -180,12 +180,10 @@ func StartBroadcaster(homeClusterId, localKubeconfigPath, peeringRequestName, sa
 	broadcaster.GenerateAdvertisement()
 	// if we come here there has been an error while the broadcaster was running
 	return errors.New("error while running Advertisement Broadcaster")
-
 }
 
-// generate an Advertisement message every 10 minutes and post it to remote clusters
+// GenerateAdvertisement generates an Advertisement message every 10 minutes and post it to remote clusters.
 func (b *AdvertisementBroadcaster) GenerateAdvertisement() {
-
 	var once sync.Once
 
 	for {
@@ -221,9 +219,8 @@ func (b *AdvertisementBroadcaster) GenerateAdvertisement() {
 	}
 }
 
-// create advertisement message
+// CreateAdvertisement creates advertisement message.
 func (b *AdvertisementBroadcaster) CreateAdvertisement(advRes *AdvResources) advtypes.Advertisement {
-
 	// set prices field
 	prices := ComputePrices(advRes.Images)
 	// use virtual nodes to build neighbors
@@ -396,7 +393,7 @@ func (b *AdvertisementBroadcaster) NotifyAdvertisementDeletion() error {
 	return nil
 }
 
-// get resources used by pods on physical nodes
+// get resources used by pods on physical nodes.
 func GetAllPodsResources(nodeNonTerminatedPodsList *corev1.PodList) (requests corev1.ResourceList, limits corev1.ResourceList) {
 	// remove pods on virtual nodes
 	for i, pod := range nodeNonTerminatedPodsList.Items {
@@ -438,7 +435,7 @@ func getPodsTotalRequestsAndLimits(podList *corev1.PodList) (reqs map[corev1.Res
 	return
 }
 
-// get cluster resources (cpu, ram, pods, ...) and images
+// get cluster resources (cpu, ram, pods, ...) and images.
 func GetClusterResources(nodes []corev1.Node) (corev1.ResourceList, []corev1.ContainerImage) {
 	clusterImages := make([]corev1.ContainerImage, 0)
 
@@ -486,7 +483,7 @@ func GetNodeImages(node corev1.Node) []corev1.ContainerImage {
 	return images
 }
 
-// get labels for advertisement
+// get labels for advertisement.
 func GetLabels(physicalNodes *corev1.NodeList, labelPolicies []configv1alpha1.LabelPolicy) (labels map[string]string) {
 	labels = make(map[string]string)
 	if labelPolicies == nil {
@@ -500,7 +497,7 @@ func GetLabels(physicalNodes *corev1.NodeList, labelPolicies []configv1alpha1.La
 	return labels
 }
 
-// create announced resources for advertisement
+// create announced resources for advertisement.
 func ComputeAnnouncedResources(physicalNodes *corev1.NodeList, reqs corev1.ResourceList, sharingPercentage int64) (availability corev1.ResourceList, images []corev1.ContainerImage) {
 	// get allocatable resources in all the physical nodes
 	allocatable, images := GetClusterResources(physicalNodes.Items)
@@ -528,7 +525,7 @@ func ComputeAnnouncedResources(physicalNodes *corev1.NodeList, reqs corev1.Resou
 	return availability, images
 }
 
-// create prices resource for advertisement
+// create prices resource for advertisement.
 func ComputePrices(images []corev1.ContainerImage) corev1.ResourceList {
 	//TODO: logic to set prices
 	prices := corev1.ResourceList{}

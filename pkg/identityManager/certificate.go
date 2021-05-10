@@ -33,7 +33,7 @@ func (certManager *certificateIdentityManager) CreateIdentity(remoteClusterID st
 	return certManager.createIdentityInNamespace(remoteClusterID, namespace.Name)
 }
 
-// get the CertificateSigningRequest for a remote cluster
+// get the CertificateSigningRequest for a remote cluster.
 func (certManager *certificateIdentityManager) GetSigningRequest(remoteClusterID string) ([]byte, error) {
 	secret, err := certManager.getSecret(remoteClusterID)
 	if err != nil {
@@ -51,7 +51,7 @@ func (certManager *certificateIdentityManager) GetSigningRequest(remoteClusterID
 	return csrBytes, nil
 }
 
-// store the certificate issued by a remote authority for the specified remoteClusterID
+// store the certificate issued by a remote authority for the specified remoteClusterID.
 func (certManager *certificateIdentityManager) StoreCertificate(remoteClusterID string, certificate []byte) error {
 	secret, err := certManager.getSecret(remoteClusterID)
 	if err != nil {
@@ -72,7 +72,7 @@ func (certManager *certificateIdentityManager) StoreCertificate(remoteClusterID 
 	return nil
 }
 
-// retrieve the identity secret given the clusterID
+// retrieve the identity secret given the clusterID.
 func (certManager *certificateIdentityManager) getSecret(remoteClusterID string) (*v1.Secret, error) {
 	namespace, err := certManager.namespaceManager.GetNamespace(remoteClusterID)
 	if err != nil {
@@ -111,7 +111,7 @@ func (certManager *certificateIdentityManager) getSecret(remoteClusterID string)
 	return &secrets[0], nil
 }
 
-// generate a key and a certificate signing request
+// generate a key and a certificate signing request.
 func (certManager *certificateIdentityManager) createCSR() (keyBytes []byte, csrBytes []byte, err error) {
 	key, err := rsa.GenerateKey(rand.Reader, keyLength)
 	if err != nil {
@@ -154,7 +154,7 @@ func (certManager *certificateIdentityManager) createCSR() (keyBytes []byte, csr
 	return keyBytes, csrBytes, nil
 }
 
-// create a new key and a new csr to be used as an identity to authenticate with a remote cluster in a given namespace
+// create a new key and a new csr to be used as an identity to authenticate with a remote cluster in a given namespace.
 func (certManager *certificateIdentityManager) createIdentityInNamespace(remoteClusterID string, namespace string) (*v1.Secret, error) {
 	key, csrBytes, err := certManager.createCSR()
 	if err != nil {
@@ -184,7 +184,7 @@ func (certManager *certificateIdentityManager) createIdentityInNamespace(remoteC
 	return certManager.client.CoreV1().Secrets(namespace).Create(context.TODO(), secret, metav1.CreateOptions{})
 }
 
-// read the expire time from the annotations of the secret
+// read the expire time from the annotations of the secret.
 func getExpireTime(secret *v1.Secret) int64 {
 	now := time.Now().Unix()
 	if secret.Annotations == nil {

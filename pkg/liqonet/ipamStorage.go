@@ -24,7 +24,7 @@ const poolsUpdate = "pools"
 const prefixesUpdate = "prefixes"
 const externalCIDRUpdate = "externalCIDR"
 
-// IpamStorage is the interface to be implemented to enforce persistency in IPAM
+// IpamStorage is the interface to be implemented to enforce persistency in IPAM.
 type IpamStorage interface {
 	updateClusterSubnets(clusterSubnet map[string]netv1alpha1.Subnets) error
 	updatePools(pools []string) error
@@ -35,13 +35,13 @@ type IpamStorage interface {
 	goipam.Storage
 }
 
-// IPAMStorage is an implementation of IpamStorage that takes advantage of the CRD IpamStorage
+// IPAMStorage is an implementation of IpamStorage that takes advantage of the CRD IpamStorage.
 type IPAMStorage struct {
 	dynClient    dynamic.Interface
 	resourceName string
 }
 
-// NewIPAMStorage inits the storage of the IPAM module, retrieving an existing ipamStorage resource or creating a new one
+// NewIPAMStorage inits the storage of the IPAM module, retrieving an existing ipamStorage resource or creating a new one.
 func NewIPAMStorage(dynClient dynamic.Interface) (*IPAMStorage, error) {
 	klog.Infof("Init IPAM storage..")
 	ipamStorage := &IPAMStorage{}
@@ -90,7 +90,7 @@ func NewIPAMStorage(dynClient dynamic.Interface) (*IPAMStorage, error) {
 	return ipamStorage, nil
 }
 
-// CreatePrefix creates a new Prefix in ipamStorage resource
+// CreatePrefix creates a new Prefix in ipamStorage resource.
 func (ipamStorage *IPAMStorage) CreatePrefix(prefix goipam.Prefix) (goipam.Prefix, error) {
 	ipam, err := ipamStorage.getConfig()
 	if err != nil {
@@ -111,7 +111,7 @@ func (ipamStorage *IPAMStorage) CreatePrefix(prefix goipam.Prefix) (goipam.Prefi
 	return prefix, err
 }
 
-// ReadPrefix retrieves a specific Prefix from ipamStorage resource
+// ReadPrefix retrieves a specific Prefix from ipamStorage resource.
 func (ipamStorage *IPAMStorage) ReadPrefix(prefix string) (goipam.Prefix, error) {
 	var p goipam.Prefix
 	ipam, err := ipamStorage.getConfig()
@@ -128,7 +128,7 @@ func (ipamStorage *IPAMStorage) ReadPrefix(prefix string) (goipam.Prefix, error)
 	return p, nil
 }
 
-// ReadAllPrefixes retrieves all prefixes from ipamStorage resource
+// ReadAllPrefixes retrieves all prefixes from ipamStorage resource.
 func (ipamStorage *IPAMStorage) ReadAllPrefixes() ([]goipam.Prefix, error) {
 	list := make([]goipam.Prefix, 0)
 	ipam, err := ipamStorage.getConfig()
@@ -146,7 +146,7 @@ func (ipamStorage *IPAMStorage) ReadAllPrefixes() ([]goipam.Prefix, error) {
 	return list, err
 }
 
-// ReadAllPrefixCidrs retrieves all prefix CIDR from ipamStorage resource
+// ReadAllPrefixCidrs retrieves all prefix CIDR from ipamStorage resource.
 func (ipamStorage *IPAMStorage) ReadAllPrefixCidrs() ([]string, error) {
 	list := make([]string, 0)
 	ipam, err := ipamStorage.getConfig()
@@ -164,7 +164,7 @@ func (ipamStorage *IPAMStorage) ReadAllPrefixCidrs() ([]string, error) {
 	return list, err
 }
 
-// UpdatePrefix updates a Prefix in ipamStorage resource
+// UpdatePrefix updates a Prefix in ipamStorage resource.
 func (ipamStorage *IPAMStorage) UpdatePrefix(prefix goipam.Prefix) (goipam.Prefix, error) {
 	if prefix.Cidr == "" {
 		return goipam.Prefix{}, fmt.Errorf("prefix not present:%v", prefix)
@@ -188,7 +188,7 @@ func (ipamStorage *IPAMStorage) UpdatePrefix(prefix goipam.Prefix) (goipam.Prefi
 	return prefix, nil
 }
 
-// DeletePrefix deletes a Prefix from ipamStorage resource
+// DeletePrefix deletes a Prefix from ipamStorage resource.
 func (ipamStorage *IPAMStorage) DeletePrefix(prefix goipam.Prefix) (goipam.Prefix, error) {
 	if prefix.Cidr == "" {
 		return goipam.Prefix{}, fmt.Errorf("prefix not present:%v", prefix)

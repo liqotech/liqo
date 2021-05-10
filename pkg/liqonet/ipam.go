@@ -14,7 +14,7 @@ import (
 	"k8s.io/klog"
 )
 
-/* IPAM Interface */
+/* IPAM Interface. */
 type Ipam interface {
 	// GetSubnetsPerCluster stores and reserves PodCIDR and ExternalCIDR for a remote cluster.
 	GetSubnetsPerCluster(podCidr, externalCIDR, clusterID string) (string, string, error)
@@ -36,25 +36,25 @@ type Ipam interface {
 	GetClusterExternalCIDR(mask uint8) (string, error)
 }
 
-/* IPAM implementation */
+/* IPAM implementation. */
 type IPAM struct {
 	ipam        goipam.Ipamer
 	ipamStorage IpamStorage
 }
 
-/* NewIPAM returns a IPAM instance */
+/* NewIPAM returns a IPAM instance. */
 func NewIPAM() *IPAM {
 	return &IPAM{}
 }
 
-/* Constant slice containing private IPv4 networks */
+/* Constant slice containing private IPv4 networks. */
 var Pools = []string{
 	"10.0.0.0/8",
 	"192.168.0.0/16",
 	"172.16.0.0/12",
 }
 
-/* Init uses the Ipam resource to retrieve and allocate reserved networks */
+/* Init uses the Ipam resource to retrieve and allocate reserved networks. */
 func (liqoIPAM *IPAM) Init(pools []string, dynClient dynamic.Interface) error {
 	var err error
 	// Set up storage
@@ -89,7 +89,7 @@ func (liqoIPAM *IPAM) Init(pools []string, dynClient dynamic.Interface) error {
 
 // reservePoolInHalves handles the special case in which a network pool has to be entirely reserved
 // Since AcquireSpecificChildPrefix would return an error, reservePoolInHalves acquires the two
-// halves of the network pool
+// halves of the network pool.
 func (liqoIPAM *IPAM) reservePoolInHalves(pool string) error {
 	klog.Infof("Network %s is equal to a network pool, acquiring first half..", pool)
 	mask := GetMask(pool)
@@ -107,7 +107,7 @@ func (liqoIPAM *IPAM) reservePoolInHalves(pool string) error {
 	return nil
 }
 
-/* AcquireReservedNetwork marks as used the network received as parameter */
+/* AcquireReservedNetwork marks as used the network received as parameter. */
 func (liqoIPAM *IPAM) AcquireReservedSubnet(reservedNetwork string) error {
 	klog.Infof("Request to reserve network %s has been received", reservedNetwork)
 	cluster, overlaps, err := liqoIPAM.overlapsWithCluster(reservedNetwork)
@@ -208,7 +208,7 @@ func (liqoIPAM *IPAM) overlapsWithPool(network string) (overlappingPool string, 
 	return
 }
 
-/* Function that receives a network as parameter and returns the pool to which this network belongs to */
+/* Function that receives a network as parameter and returns the pool to which this network belongs to. */
 func (liqoIPAM *IPAM) getPoolFromNetwork(network string) (networkPool string, success bool, err error) {
 	var poolIPset netaddr.IPSetBuilder
 	var c netaddr.IPPrefix
@@ -309,7 +309,7 @@ func (liqoIPAM *IPAM) getOrRemapNetwork(network string) (string, error) {
 /*
 GetSubnetsPerCluster receives a PodCIDR, and a Cluster ID and returns a PodCIDR and an ExternalCIDR.
 The PodCIDR can be either the received one or a new one, if conflicts have been found.
-The same happens for ExternalCIDR
+The same happens for ExternalCIDR.
 */
 func (liqoIPAM *IPAM) GetSubnetsPerCluster(
 	podCidr,
@@ -382,7 +382,7 @@ func (liqoIPAM *IPAM) GetSubnetsPerCluster(
 	return mappedPodCIDR, mappedExternalCIDR, nil
 }
 
-// getNetworkFromPool returns a network with mask length equal to mask taken by a network pool
+// getNetworkFromPool returns a network with mask length equal to mask taken by a network pool.
 func (liqoIPAM *IPAM) getNetworkFromPool(mask uint8) (string, error) {
 	// Get network pools
 	pools, err := liqoIPAM.ipamStorage.getPools()
@@ -430,7 +430,7 @@ func (liqoIPAM *IPAM) freePoolInHalves(pool string) error {
 	return nil
 }
 
-/* FreeReservedSubnet marks as free a reserved subnet */
+/* FreeReservedSubnet marks as free a reserved subnet. */
 func (liqoIPAM *IPAM) FreeReservedSubnet(network string) error {
 	var p *goipam.Prefix
 
@@ -461,7 +461,7 @@ func (liqoIPAM *IPAM) FreeReservedSubnet(network string) error {
 	return nil
 }
 
-// eventuallyDeleteClusterSubnet deletes cluster entry from cluster subnets if all fields are deleted (empty string)
+// eventuallyDeleteClusterSubnet deletes cluster entry from cluster subnets if all fields are deleted (empty string).
 func (liqoIPAM *IPAM) eventuallyDeleteClusterSubnet(clusterID string,
 	clusterSubnets map[string]netv1alpha1.Subnets) error {
 	// Get entry of cluster
@@ -479,7 +479,7 @@ func (liqoIPAM *IPAM) eventuallyDeleteClusterSubnet(clusterID string,
 	return nil
 }
 
-/* FreeSubnetPerCluster marks as free the network previously allocated for cluster clusterID */
+/* FreeSubnetPerCluster marks as free the network previously allocated for cluster clusterID. */
 func (liqoIPAM *IPAM) FreeSubnetsPerCluster(clusterID string) error {
 	var subnets netv1alpha1.Subnets
 	var exists bool
@@ -515,7 +515,7 @@ func (liqoIPAM *IPAM) FreeSubnetsPerCluster(clusterID string) error {
 	return nil
 }
 
-// AddNetworkPool adds a network to the set of network pools
+// AddNetworkPool adds a network to the set of network pools.
 func (liqoIPAM *IPAM) AddNetworkPool(network string) error {
 	// Get resource
 	ipamPools, err := liqoIPAM.ipamStorage.getPools()
@@ -555,7 +555,7 @@ func (liqoIPAM *IPAM) AddNetworkPool(network string) error {
 	return nil
 }
 
-// RemoveNetworkPool removes a network from the set of network pools
+// RemoveNetworkPool removes a network from the set of network pools.
 func (liqoIPAM *IPAM) RemoveNetworkPool(network string) error {
 	// Get resource
 	ipamPools, err := liqoIPAM.ipamStorage.getPools()
@@ -612,7 +612,7 @@ func (liqoIPAM *IPAM) RemoveNetworkPool(network string) error {
 }
 
 // AddExternalCIDRPerCluster stores (without reserving) an ExternalCIDR for a remote cluster
-// since this network is used in the remote cluster
+// since this network is used in the remote cluster.
 func (liqoIPAM *IPAM) AddExternalCIDRPerCluster(network, clusterID string) error {
 	var exists bool
 	var subnets netv1alpha1.Subnets
@@ -646,7 +646,7 @@ func (liqoIPAM *IPAM) AddExternalCIDRPerCluster(network, clusterID string) error
 	return nil
 }
 
-// RemoveExternalCIDRPerCluster deletes an ExternalCIDR for a cluster
+// RemoveExternalCIDRPerCluster deletes an ExternalCIDR for a cluster.
 func (liqoIPAM *IPAM) RemoveExternalCIDRPerCluster(clusterID string) error {
 	var exists bool
 	var subnets netv1alpha1.Subnets
@@ -672,7 +672,7 @@ func (liqoIPAM *IPAM) RemoveExternalCIDRPerCluster(clusterID string) error {
 	return nil
 }
 
-// GetClusterExternalCIDR eventually choose and returns the local cluster's ExternalCIDR
+// GetClusterExternalCIDR eventually choose and returns the local cluster's ExternalCIDR.
 func (liqoIPAM *IPAM) GetClusterExternalCIDR(mask uint8) (string, error) {
 	var externalCIDR string
 	var err error

@@ -35,12 +35,12 @@ func AsNotFound(err error) error {
 	return &notFoundError{err}
 }
 
-// NotFound makes an ErrNotFound from the provided error message
+// NotFound makes an ErrNotFound from the provided error message.
 func NotFound(msg string) error {
 	return &notFoundError{errors.New(msg)}
 }
 
-// NotFoundf makes an ErrNotFound from the provided error format and args
+// NotFoundf makes an ErrNotFound from the provided error format and args.
 func NotFoundf(format string, args ...interface{}) error {
 	return &notFoundError{fmt.Errorf(format, args...)}
 }

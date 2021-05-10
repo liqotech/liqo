@@ -13,11 +13,12 @@ import (
 	"github.com/liqotech/liqo/pkg/crdClient"
 )
 
-// create a client for Advertisement CR using a provided kubeconfig
-// - secret != nil                     : the kubeconfig is extracted from the secret
-// - secret == nil && kubeconfig == "" : use an in-cluster configuration
-// - secret == nil && kubeconfig != "" : read the kubeconfig from the provided filepath
-func CreateAdvertisementClient(kubeconfig string, secret *v1.Secret, watchResources bool, configOptions func(config *rest.Config)) (*crdClient.CRDClient, error) {
+// create a client for Advertisement CR using a provided kubeconfig:
+// - secret != nil                     : the kubeconfig is extracted from the secret.
+// - secret == nil && kubeconfig == "" : use an in-cluster configuration.
+// - secret == nil && kubeconfig != "" : read the kubeconfig from the provided filepath.
+func CreateAdvertisementClient(kubeconfig string, secret *v1.Secret, watchResources bool,
+	configOptions func(config *rest.Config)) (*crdClient.CRDClient, error) {
 	var config *rest.Config
 	var err error
 
@@ -62,6 +63,7 @@ func CreateAdvertisementClient(kubeconfig string, secret *v1.Secret, watchResour
 	return clientSet, nil
 }
 
+// Keyer returns a key for the advertisement resource.
 func Keyer(obj runtime.Object) (string, error) {
 	adv, ok := obj.(*Advertisement)
 	if !ok {

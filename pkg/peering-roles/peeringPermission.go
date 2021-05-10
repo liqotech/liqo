@@ -21,7 +21,7 @@ type PeeringPermission struct {
 	Outgoing []*rbacv1.ClusterRole
 }
 
-// GetPeeringPermission populates a PeeringPermission with the ClusterRole names provided by the configuration
+// GetPeeringPermission populates a PeeringPermission with the ClusterRole names provided by the configuration.
 func GetPeeringPermission(client kubernetes.Interface, config auth.AuthConfigProvider) (*PeeringPermission, error) {
 	if config == nil || reflect.ValueOf(config).IsNil() {
 		klog.Warning("no ClusterConfig set")
@@ -60,7 +60,7 @@ func GetPeeringPermission(client kubernetes.Interface, config auth.AuthConfigPro
 	}, nil
 }
 
-// getClusterRoles gets a ClusterRole given the name
+// getClusterRoles gets a ClusterRole given the name.
 func getClusterRoles(client kubernetes.Interface, names []string) ([]*rbacv1.ClusterRole, error) {
 	if names == nil {
 		return []*rbacv1.ClusterRole{}, nil

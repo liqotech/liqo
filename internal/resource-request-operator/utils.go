@@ -15,7 +15,7 @@ import (
 	"github.com/liqotech/liqo/pkg/discovery"
 )
 
-// this function generate an empty offer
+// this function generate an empty offer.
 func (r *ResourceRequestReconciler) generateResourceOffer(request *discoveryv1alpha1.ResourceRequest) error {
 	err := r.computeResources()
 	if err != nil {
@@ -30,7 +30,6 @@ func (r *ResourceRequestReconciler) generateResourceOffer(request *discoveryv1al
 	}
 
 	op, err := controllerutil.CreateOrUpdate(context.Background(), r.Client, offer, func() error {
-
 		offer.Labels = map[string]string{
 			discovery.ClusterIDLabel: request.Spec.ClusterIdentity.ClusterID,
 		}
@@ -55,7 +54,7 @@ func (r *ResourceRequestReconciler) generateResourceOffer(request *discoveryv1al
 	return nil
 }
 
-// this function returns all resource available that will be offered to remote cluster
+// this function returns all resource available that will be offered to remote cluster.
 func (r *ResourceRequestReconciler) computeResources() error {
 	//placeholder for future logic
 	limits := corev1.ResourceList{}

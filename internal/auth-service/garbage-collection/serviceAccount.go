@@ -20,7 +20,7 @@ import (
 // due to the fact they (cluster scoped resources) need
 // to be deleted after the deletion of a ServiceAccount (namespaced resource).
 // See https://kubernetes.io/docs/concepts/workloads/controllers/garbage-collection/#owners-and-dependents
-// to have more details on how OwnerReferences are handled by Kubernetes >= 1.20
+// to have more details on how OwnerReferences are handled by Kubernetes >= 1.20.
 func OnDeleteServiceAccount(client kubernetes.Interface, serviceAccount *v1.ServiceAccount) {
 	if liqoManaged, ok := serviceAccount.Labels[discovery.LiqoManagedLabel]; !ok || liqoManaged != "true" {
 		// it is not a Liqo Managed ServiceAccount.

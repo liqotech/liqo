@@ -150,7 +150,6 @@ func (c *Controller) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 			return result, nil
 		}
 		return result, c.setUpConnectionToPeeringCluster(config, remoteClusterID)
-
 	} else if fc.Status.Incoming.AvailableIdentity {
 		//retrieve the config
 		config, err := c.getKubeConfig(c.ClientSet, fc.Status.Incoming.IdentityRef, remoteClusterID)
@@ -350,7 +349,7 @@ func (c *Controller) StartWatchers() {
 	}
 }
 
-//Stops all the watchers for the resources that have been unregistered
+//Stops all the watchers for the resources that have been unregistered.
 func (c *Controller) StopWatchers() {
 	//stop all remote watchers for unregistered resources
 	for remCluster, watchers := range c.RemoteWatchers {
@@ -362,7 +361,6 @@ func (c *Controller) StopWatchers() {
 					klog.Infof("%s -> stopping remote watcher for resource: %s", remCluster, res)
 				}
 			}
-
 		}
 		c.RemoteWatchers[remCluster] = watchers
 	}
@@ -441,7 +439,7 @@ func (c *Controller) UpdateLabels(labels map[string]string) map[string]string {
 	return labels
 }
 
-//checks if the spec and status of two resources are the same
+//checks if the spec and status of two resources are the same.
 func areEqual(local, remote *unstructured.Unstructured) bool {
 	localSpec, b, err := unstructured.NestedMap(local.Object, "spec")
 	if !b || err != nil {
@@ -691,7 +689,7 @@ func (c *Controller) DeleteResource(client dynamic.Interface, gvr schema.GroupVe
 	return nil
 }
 
-//updates the spec field of a resource
+//updates the spec field of a resource.
 func (c *Controller) UpdateSpec(client dynamic.Interface, gvr schema.GroupVersionResource, obj *unstructured.Unstructured, clusterID string, spec map[string]interface{}) error {
 	res := &unstructured.Unstructured{}
 	retryError := retry.RetryOnConflict(retry.DefaultRetry, func() error {
@@ -721,7 +719,7 @@ func (c *Controller) UpdateSpec(client dynamic.Interface, gvr schema.GroupVersio
 	return nil
 }
 
-//updates the status field of a resource
+//updates the status field of a resource.
 func (c *Controller) UpdateStatus(client dynamic.Interface, gvr schema.GroupVersionResource, obj *unstructured.Unstructured, clusterID string, status map[string]interface{}) error {
 	res := &unstructured.Unstructured{}
 	retryError := retry.RetryOnConflict(retry.DefaultRetry, func() error {

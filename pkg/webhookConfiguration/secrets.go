@@ -139,7 +139,7 @@ func (s *SecretsType) WriteFiles(certFile, keyFile string) error {
 	return nil
 }
 
-// WriteFile writes data in the file at the given path
+// WriteFile writes data in the file at the given path.
 func WriteFile(filepath string, sCert *bytes.Buffer) error {
 	f, err := os.Create(filepath)
 	if err != nil {
@@ -154,12 +154,12 @@ func WriteFile(filepath string, sCert *bytes.Buffer) error {
 	return nil
 }
 
-// ServerCertPEM returns the server certificate in PEM format
+// ServerCertPEM returns the server certificate in PEM format.
 func (s *SecretsType) ServerCertPEM() []byte {
 	return s.serverCertPEM.Bytes()
 }
 
-// ServerKeyPEM returns the server key in PEM format
+// ServerKeyPEM returns the server key in PEM format.
 func (s *SecretsType) ServerKeyPEM() []byte {
 	return s.serverKeyPEM.Bytes()
 }

@@ -12,7 +12,6 @@ const (
 )
 
 func setOptions(c *mutate.MutationConfig) {
-
 	if c.KeyFile = os.Getenv("LIQO_KEY"); c.KeyFile == "" {
 		c.KeyFile = defaultKeyFile
 	}

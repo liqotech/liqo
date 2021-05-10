@@ -23,13 +23,13 @@ import (
 	"github.com/liqotech/liqo/pkg/certificateSigningRequest"
 )
 
-// random package initialization
+// random package initialization.
 func init() {
 	rand.Seed(time.Now().UnixNano())
 }
 
 // GetRemoteCertificate retrieves a certificate issued in the past,
-// given the clusterID and the signingRequest
+// given the clusterID and the signingRequest.
 func (certManager *certificateIdentityManager) GetRemoteCertificate(clusterID string, signingRequest string) (certificate []byte, err error) {
 	namespace, err := certManager.namespaceManager.GetNamespace(clusterID)
 	if err != nil {
@@ -140,7 +140,7 @@ func (certManager *certificateIdentityManager) ApproveSigningRequest(clusterID s
 }
 
 // getCertificate retrieves the certificate given the CertificateSigningRequest and its randomID.
-// If the certificate is not ready yet, it will wait for it (with a timeout)
+// If the certificate is not ready yet, it will wait for it (with a timeout).
 func (certManager *certificateIdentityManager) getCertificate(csr *certv1beta1.CertificateSigningRequest, randomID string) ([]byte, error) {
 	var certificate []byte
 
@@ -210,7 +210,7 @@ func (certManager *certificateIdentityManager) getCertificate(csr *certv1beta1.C
 	}
 }
 
-// storeRemoteCertificate stores the issued certificate in a Secret in the TenantControlNamespace
+// storeRemoteCertificate stores the issued certificate in a Secret in the TenantControlNamespace.
 func (certManager *certificateIdentityManager) storeRemoteCertificate(clusterID string, signingRequest []byte, certificate []byte) (*v1.Secret, error) {
 	namespace, err := certManager.namespaceManager.GetNamespace(clusterID)
 	if err != nil {

@@ -41,7 +41,6 @@ func WaitForResources(client dynamic.Interface) error {
 			klog.Errorf("All peerings have been correctly deleted")
 			return nil
 		}
-
 	}
 
 	return nil
@@ -132,5 +131,4 @@ func CheckObjectsDeletion(client dynamic.Interface, objectsToCheck toCheckDelete
 	}
 
 	return false, nil
-
 }

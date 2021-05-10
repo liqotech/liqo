@@ -30,7 +30,7 @@ import (
 // EDIT THIS FILE!  THIS IS SCAFFOLDING FOR YOU TO OWN!
 // NOTE: json tags are required.  Any new fields you add must have json tags for the fields to be serialized.
 
-// PeeringRequestSpec defines the desired state of PeeringRequest
+// PeeringRequestSpec defines the desired state of PeeringRequest.
 type PeeringRequestSpec struct {
 	// INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
 	// Important: Run "make" to regenerate code after modifying this file
@@ -45,7 +45,7 @@ type PeeringRequestSpec struct {
 	AuthURL string `json:"authUrl"`
 }
 
-// PeeringRequestStatus defines the observed state of PeeringRequest
+// PeeringRequestStatus defines the observed state of PeeringRequest.
 type PeeringRequestStatus struct {
 	BroadcasterRef      *object_references.DeploymentReference `json:"broadcasterRef,omitempty"`
 	AdvertisementStatus advtypes.AdvPhase                      `json:"advertisementStatus,omitempty"`
@@ -54,7 +54,7 @@ type PeeringRequestStatus struct {
 // +kubebuilder:object:root=true
 // +kubebuilder:resource:scope=Cluster
 
-// PeeringRequest is the Schema for the PeeringRequests API
+// PeeringRequest is the Schema for the PeeringRequests API.
 type PeeringRequest struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
@@ -65,7 +65,7 @@ type PeeringRequest struct {
 
 // +kubebuilder:object:root=true
 
-// PeeringRequestList contains a list of PeeringRequest
+// PeeringRequestList contains a list of PeeringRequest.
 type PeeringRequestList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`

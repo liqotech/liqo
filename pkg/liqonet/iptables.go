@@ -74,7 +74,7 @@ func NewIPTablesHandler() (IPTablesHandler, error) {
 //create LIQONET-FORWARD in the filter table and insert it in the "FORWARD" chain
 //create LIQONET-POSTROUTING in the nat table and insert it in the "POSTROUTING" chain
 //create LIQONET-INPUT in the filter table and insert it in the input chain
-//insert the rulespec which allows in input all the udp traffic incoming for the vxlan in the LIQONET-INPUT chain
+//insert the rulespec which allows in input all the udp traffic incoming for the vxlan in the LIQONET-INPUT chain.
 func (h IPTablesHandler) CreateAndEnsureIPTablesChains(defaultIfaceName string) error {
 	var err error
 	ipt := h.ipt

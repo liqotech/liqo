@@ -478,7 +478,6 @@ func (r *ForeignClusterReconciler) SetupWithManager(mgr ctrl.Manager) error {
 
 func (r *ForeignClusterReconciler) checkJoined(fc *discoveryv1alpha1.ForeignCluster,
 	foreignDiscoveryClient *crdClient.CRDClient) (*discoveryv1alpha1.ForeignCluster, error) {
-
 	_, err := foreignDiscoveryClient.Resource("peeringrequests").Get(
 		fc.Status.Outgoing.RemotePeeringRequestName, &metav1.GetOptions{})
 	if err != nil {
@@ -495,7 +494,7 @@ func (r *ForeignClusterReconciler) checkJoined(fc *discoveryv1alpha1.ForeignClus
 	return fc, nil
 }
 
-// get the external address where the Authentication Service is reachable from the external world
+// get the external address where the Authentication Service is reachable from the external world.
 func (r *ForeignClusterReconciler) getAddress() (string, error) {
 	// this address can be overwritten setting this environment variable
 	address := r.ConfigProvider.GetConfig().AuthServiceAddress
@@ -578,7 +577,7 @@ func (r *ForeignClusterReconciler) getAddress() (string, error) {
 	// 3. there are no nodes in the cluster to get the IP for a NodePort service
 }
 
-// get the external port where the Authentication Service is reachable from the external world
+// get the external port where the Authentication Service is reachable from the external world.
 func (r *ForeignClusterReconciler) getPort() (string, error) {
 	// this port can be overwritten setting this environment variable
 	port := r.ConfigProvider.GetConfig().AuthServicePort
@@ -746,7 +745,7 @@ func (r *ForeignClusterReconciler) createPeeringRequestIfNotExists(remoteCluster
 	return pr, nil
 }
 
-// this function return a kube-config file to send to foreign cluster and crate everything needed for it
+// this function return a kube-config file to send to foreign cluster and crate everything needed for it.
 func (r *ForeignClusterReconciler) getForeignConfig(remoteClusterID string, owner *discoveryv1alpha1.ForeignCluster) (string, error) {
 	_, err := r.createClusterRoleIfNotExists(remoteClusterID, owner)
 	if err != nil {

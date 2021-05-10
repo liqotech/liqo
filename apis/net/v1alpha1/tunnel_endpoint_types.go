@@ -22,41 +22,46 @@ import (
 // EDIT THIS FILE!  THIS IS SCAFFOLDING FOR YOU TO OWN!
 // NOTE: json tags are required.  Any new fields you add must have json tags for the fields to be serialized.
 
-// TunnelEndpointSpec defines the desired state of TunnelEndpoint
+// TunnelEndpointSpec defines the desired state of TunnelEndpoint.
 type TunnelEndpointSpec struct {
 	// INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
 	// Important: Run "make" to regenerate code after modifying this file
-	//the ID of the remote cluster that will receive this CRD
+	// The ID of the remote cluster that will receive this CRD.
 	ClusterID string `json:"clusterID"`
-	// PodCIDR of remote cluster
+	// PodCIDR of remote cluster.
 	PodCIDR string `json:"podCIDR"`
-	// ExternalCIDR of remote cluster
+	// ExternalCIDR of remote cluster.
 	ExternalCIDR string `json:"externalCIDR"`
-	//public IP of the node where the VPN tunnel is created
+	// Public IP of the node where the VPN tunnel is created.
 	EndpointIP string `json:"endpointIP"`
-	//vpn technology used to interconnect two clusters
+	// Vpn technology used to interconnect two clusters.
 	BackendType string `json:"backendType"`
-	//connection parameters
+	// Connection parameters.
 	BackendConfig map[string]string `json:"backend_config"`
 }
 
-// TunnelEndpointStatus defines the observed state of TunnelEndpoint
+// TunnelEndpointStatus defines the observed state of TunnelEndpoint.
 type TunnelEndpointStatus struct {
 	// INSERT ADDITIONAL STATUS FIELD - define observed state of cluster
 	// Important: Run "make" to regenerate code after modifying this file\
 
 	Phase string `json:"phase,omitempty"`
-	// PodCIDR of local cluster
+	// PodCIDR of local cluster.
 	LocalPodCIDR string `json:"localPodCIDR,omitempty"`
-	// Network used in the remote cluster to map the local PodCIDR, in case of conflicts(in the remote cluster). Default is "None"
+	// Network used in the remote cluster to map the local PodCIDR, in case of conflicts(in the remote cluster).
+	// Default is "None".
 	LocalNATPodCIDR string `json:"localNATPodCIDR,omitempty"`
-	// Network used in the local cluster to map the remote cluster PodCIDR, in case of conflicts with Spec.PodCIDR. Default is "None".
+	// Network used in the local cluster to map the remote cluster PodCIDR, in case of conflicts with Spec.PodCIDR.
+	// Default is "None".
 	RemoteNATPodCIDR string `json:"remoteNATPodCIDR,omitempty"`
-	// ExternalCIDR of local cluster
+	// ExternalCIDR of local cluster.
 	LocalExternalCIDR string `json:"localExternalCIDR,omitempty"`
-	// Network used in the remote cluster to map the local ExternalCIDR, in case of conflicts(in the remote cluster). Default is "None"
+	// Network used in the remote cluster to map the local ExternalCIDR, in case of conflicts(in the remote cluster).
+	// Default is "None".
 	LocalNATExternalCIDR string `json:"localNATExternalCIDR,omitempty"`
-	// Network used in the local cluster to map the remote cluster ExternalCIDR, in case of conflicts with Spec.ExternalCIDR. Default is "None".
+	// Network used in the local cluster to map the remote cluster ExternalCIDR, in case of conflicts with
+	// Spec.ExternalCIDR.
+	// Default is "None".
 	RemoteNATExternalCIDR string     `json:"remoteNATExternalCIDR,omitempty"`
 	RemoteEndpointIP      string     `json:"remoteTunnelPublicIP,omitempty"`
 	LocalEndpointIP       string     `json:"localTunnelPublicIP,omitempty"`
@@ -83,7 +88,7 @@ const (
 // +kubebuilder:subresource:status
 // +kubebuilder:resource:scope=Cluster
 
-// TunnelEndpoint is the Schema for the endpoints API
+// TunnelEndpoint is the Schema for the endpoints API.
 // +kubebuilder:printcolumn:name="Endpoint IP",type=string,JSONPath=`.spec.endpointIP`
 // +kubebuilder:printcolumn:name="Backend type",type=string,JSONPath=`.spec.backendType`
 // +kubebuilder:printcolumn:name="Connection status",type=string,JSONPath=`.status.connection.status`
@@ -97,7 +102,7 @@ type TunnelEndpoint struct {
 
 // +kubebuilder:object:root=true
 
-// TunnelEndpointList contains a list of TunnelEndpoint
+// TunnelEndpointList contains a list of TunnelEndpoint.
 type TunnelEndpointList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`

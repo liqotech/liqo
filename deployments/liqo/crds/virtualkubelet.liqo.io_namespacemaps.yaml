@@ -19,7 +19,7 @@ spec:
   - name: v1alpha1
     schema:
       openAPIV3Schema:
-        description: NamespaceMap is the Schema for the namespacemaps API
+        description: NamespaceMap is the Schema for the namespacemaps API.
         properties:
           apiVersion:
             description: 'APIVersion defines the versioned schema of this representation
@@ -47,12 +47,12 @@ spec:
                 type: object
             type: object
           status:
-            description: NamespaceMapStatus defines the observed state of NamespaceMap
+            description: NamespaceMapStatus defines the observed state of NamespaceMap.
             properties:
               currentMapping:
                 additionalProperties:
                   description: RemoteNamespaceStatus contains some information about
-                    remote namespace status
+                    remote namespace status.
                   properties:
                     phase:
                       description: Phase is the remote Namespace's actual status (Accepted,Refused).
@@ -66,7 +66,7 @@ spec:
                 description: CurrentMapping is filled by NamespaceMap Controller,
                   when a new remote namespace's creation is requested. The key is
                   the local namespace name, while the value is a summary of new remote
-                  namespace's status
+                  namespace's status.
                 type: object
             type: object
         type: object

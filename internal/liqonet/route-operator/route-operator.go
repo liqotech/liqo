@@ -46,7 +46,7 @@ var (
 	OperatorName = "liqo-route"
 )
 
-// RouteController reconciles a TunnelEndpoint object
+// RouteController reconciles a TunnelEndpoint object.
 type RouteController struct {
 	client.Client
 	record.EventRecorder
@@ -170,7 +170,7 @@ func (r *RouteController) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 }
 
 //this function deletes the vxlan interface in host where the route operator is running
-//the error is not returned because the function is called ad exit time
+//the error is not returned because the function is called ad exit time.
 func (r *RouteController) deleteOverlayIFace() {
 	err := utils.DeleteIFaceByIndex(r.wg.GetLinkIndex())
 	if err != nil {

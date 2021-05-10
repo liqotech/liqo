@@ -19,7 +19,7 @@ spec:
   - name: v1alpha1
     schema:
       openAPIV3Schema:
-        description: Ipam is the Schema for the ipams API
+        description: IpamStorage is the Schema for the ipams API.
         properties:
           apiVersion:
             description: 'APIVersion defines the versioned schema of this representation
@@ -34,20 +34,20 @@ spec:
           metadata:
             type: object
           spec:
-            description: IpamSpec defines the desired state of Ipam
+            description: IpamSpec defines the desired state of Ipam.
             properties:
               clusterSubnets:
                 additionalProperties:
                   properties:
                     localExternalCIDR:
                       description: Network used in local cluster for remote service
-                        endpoints
+                        endpoints.
                       type: string
                     podCIDR:
                       type: string
                     remoteExternalCIDR:
                       description: Network used in remote cluster for local service
-                        endpoints
+                        endpoints.
                       type: string
                   required:
                   - localExternalCIDR
@@ -62,7 +62,7 @@ spec:
                 description: Cluster ExternalCIDR
                 type: string
               pools:
-                description: Network pools
+                description: Network pools.
                 items:
                   type: string
                 type: array
@@ -72,7 +72,7 @@ spec:
                   type: string
                 description: 'INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
                   Important: Run "make" to regenerate code after modifying this file
-                  Map consumed by go-ipam module. Key is prefic cidr, value is a Prefix'
+                  Map consumed by go-ipam module. Key is prefic cidr, value is a Prefix.'
                 type: object
             required:
             - clusterSubnets

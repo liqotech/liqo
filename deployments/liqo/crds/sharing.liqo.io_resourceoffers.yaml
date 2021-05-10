@@ -31,7 +31,7 @@ spec:
     name: v1alpha1
     schema:
       openAPIV3Schema:
-        description: ResourceOffer is the Schema for the resourceOffers API
+        description: ResourceOffer is the Schema for the resourceOffers API.
         properties:
           apiVersion:
             description: 'APIVersion defines the versioned schema of this representation
@@ -46,7 +46,7 @@ spec:
           metadata:
             type: object
           spec:
-            description: ResourceOfferSpec defines the desired state of ResourceOffer
+            description: ResourceOfferSpec defines the desired state of ResourceOffer.
             properties:
               clusterId:
                 description: ClusterId is the identifier of the cluster that is sending
@@ -190,7 +190,7 @@ spec:
             - timestamp
             type: object
           status:
-            description: ResourceOfferStatus defines the observed state of ResourceOffer
+            description: ResourceOfferStatus defines the observed state of ResourceOffer.
             properties:
               resourceOfferStatus:
                 description: ResourceOfferStatus is the status of this ResourceOffer.

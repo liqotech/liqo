@@ -13,7 +13,7 @@ import (
 )
 
 // This function creates a new Namespace onto the remote cluster, the right client to use is chosen
-// by NamespaceMap's cluster-id
+// by NamespaceMap's cluster-id.
 func (r *NamespaceMapReconciler) createRemoteNamespace(clusterID, remoteName string) error {
 	if err := r.checkRemoteClientPresence(clusterID); err != nil {
 		return err
@@ -35,7 +35,7 @@ func (r *NamespaceMapReconciler) createRemoteNamespace(clusterID, remoteName str
 }
 
 // This function  Namespace onto the remote cluster, the right client to use is chosen
-// by NamespaceMap's cluster-id
+// by NamespaceMap's cluster-id.
 func (r *NamespaceMapReconciler) deleteRemoteNamespace(clusterID, remoteName string) error {
 	if err := r.checkRemoteClientPresence(clusterID); err != nil {
 		return err
@@ -58,7 +58,7 @@ func (r *NamespaceMapReconciler) deleteRemoteNamespace(clusterID, remoteName str
 }
 
 // This function checks if there are Namespaces that have to be created or deleted, in accordance with DesiredMapping
-// and CurrentMapping fields
+// and CurrentMapping fields.
 func (r *NamespaceMapReconciler) manageRemoteNamespaces(nm *mapsv1alpha1.NamespaceMap) error {
 	if nm.Status.CurrentMapping == nil {
 		nm.Status.CurrentMapping = map[string]mapsv1alpha1.RemoteNamespaceStatus{}

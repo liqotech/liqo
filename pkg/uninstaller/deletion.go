@@ -13,7 +13,7 @@ import (
 	discoveryV1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 )
 
-// UnjoinClusters disables outgoing peerings with available clusters
+// UnjoinClusters disables outgoing peerings with available clusters.
 func UnjoinClusters(client dynamic.Interface) error {
 	foreign, err := getForeignList(client)
 	if err != nil {
@@ -31,7 +31,7 @@ func UnjoinClusters(client dynamic.Interface) error {
 	return nil
 }
 
-// DisableBroadcasting disables broadcasting of advertisements from the ClusterConfig
+// DisableBroadcasting disables broadcasting of advertisements from the ClusterConfig.
 func DisableBroadcasting(client dynamic.Interface) error {
 	r1 := client.Resource(clusterconfigV1alpha1.ClusterConfigGroupVersionResource)
 	t, err := r1.Namespace("").List(context.TODO(), metav1.ListOptions{TypeMeta: metav1.TypeMeta{}})

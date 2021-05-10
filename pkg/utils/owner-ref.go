@@ -9,7 +9,6 @@ import (
 )
 
 func GetOwnerReference(object interface{}) []metav1.OwnerReference {
-
 	ownerRef := make([]metav1.OwnerReference, 1)
 
 	switch obj := object.(type) {

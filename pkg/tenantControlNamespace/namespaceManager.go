@@ -19,7 +19,7 @@ type tenantControlNamespaceManager struct {
 	client kubernetes.Interface
 }
 
-// create a new TenantControlNamespaceManager object
+// create a new TenantControlNamespaceManager object.
 func NewTenantControlNamespaceManager(client kubernetes.Interface) TenantControlNamespaceManager {
 	return &tenantControlNamespaceManager{
 		client: client,
@@ -27,7 +27,7 @@ func NewTenantControlNamespaceManager(client kubernetes.Interface) TenantControl
 }
 
 // create a new Tenant Control Namespace given the clusterID
-// This method is idempotent, multiple calls of it will not lead to multiple namespace creations
+// This method is idempotent, multiple calls of it will not lead to multiple namespace creations.
 func (nm *tenantControlNamespaceManager) CreateNamespace(clusterID string) (*v1.Namespace, error) {
 	// first check that it does not exist yet
 	ns, err := nm.GetNamespace(clusterID)
@@ -57,7 +57,7 @@ func (nm *tenantControlNamespaceManager) CreateNamespace(clusterID string) (*v1.
 	return ns, nil
 }
 
-// get a Tenant Control Namespace given the clusterID
+// get a Tenant Control Namespace given the clusterID.
 func (nm *tenantControlNamespaceManager) GetNamespace(clusterID string) (*v1.Namespace, error) {
 	labelSelector := metav1.LabelSelector{
 		MatchLabels: map[string]string{

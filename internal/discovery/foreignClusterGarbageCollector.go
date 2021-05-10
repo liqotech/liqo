@@ -19,7 +19,7 @@ func (discovery *Controller) startGarbageCollector() {
 	}
 }
 
-// The GarbageCollector deletes all ForeignClusters discovered with LAN and WAN that have expired TTL
+// The GarbageCollector deletes all ForeignClusters discovered with LAN and WAN that have expired TTL.
 func (discovery *Controller) CollectGarbage() error {
 	req, err := labels.NewRequirement(discoveryPkg.DiscoveryTypeLabel, selection.In, []string{
 		string(discoveryPkg.LanDiscovery),

@@ -24,14 +24,14 @@ import (
 )
 
 // PodsIncomingReflector is the incoming reflector in charge of detecting status change in foreign pods
-// and pushing the updated object to the vk internals
+// and pushing the updated object to the vk internals.
 type PodsIncomingReflector struct {
 	ri.APIReflector
 
 	RemoteRemappedPodCIDR options.ReadOnlyOption
 }
 
-// SetSpecializedPreProcessingHandlers allows to set the pre-routine handlers for the PodsIncomingReflector
+// SetSpecializedPreProcessingHandlers allows to set the pre-routine handlers for the PodsIncomingReflector.
 func (r *PodsIncomingReflector) SetSpecializedPreProcessingHandlers() {
 	r.SetPreProcessingHandlers(ri.PreProcessingHandlers{
 		AddFunc:    r.PreAdd,
@@ -41,7 +41,7 @@ func (r *PodsIncomingReflector) SetSpecializedPreProcessingHandlers() {
 	})
 }
 
-// HandleEvent is the final function call in charge of pushing the foreignPod to the vk internals
+// HandleEvent is the final function call in charge of pushing the foreignPod to the vk internals.
 func (r *PodsIncomingReflector) HandleEvent(e interface{}) {
 	event := e.(watch.Event)
 	pod, ok := event.Object.(*corev1.Pod)
@@ -61,7 +61,7 @@ func (r *PodsIncomingReflector) HandleEvent(e interface{}) {
 }
 
 // PreAdd is the pre-routine called in case of pod creation in the foreign cluster. It returns the home object with its
-// status updated
+// status updated.
 func (r *PodsIncomingReflector) PreAdd(obj interface{}) (interface{}, watch.EventType) {
 	foreignPod := obj.(*corev1.Pod)
 
@@ -74,7 +74,7 @@ func (r *PodsIncomingReflector) PreAdd(obj interface{}) (interface{}, watch.Even
 }
 
 // PreAdd is the pre-routine called in case of pod update in the foreign cluster. It returns the home object with its
-// status updated
+// status updated.
 func (r *PodsIncomingReflector) PreUpdate(newObj, _ interface{}) (interface{}, watch.EventType) {
 	foreignPod := newObj.(*corev1.Pod)
 
@@ -91,7 +91,7 @@ func (r *PodsIncomingReflector) PreUpdate(newObj, _ interface{}) (interface{}, w
 }
 
 // sharedPreRoutine is a common function used by both PreAdd and PreUpdate. It is in charge of fetching the home pod from
-// the internal caches, updating its status and returning to the calling function
+// the internal caches, updating its status and returning to the calling function.
 func (r *PodsIncomingReflector) sharedPreRoutine(foreignPod *corev1.Pod) *corev1.Pod {
 	if foreignPod.Labels == nil {
 		return nil
@@ -125,7 +125,7 @@ func (r *PodsIncomingReflector) sharedPreRoutine(foreignPod *corev1.Pod) *corev1
 	return homePod.(*corev1.Pod)
 }
 
-// PreDelete removes the received object from the blacklist for freeing the occupied space
+// PreDelete removes the received object from the blacklist for freeing the occupied space.
 func (r *PodsIncomingReflector) PreDelete(obj interface{}) (interface{}, watch.EventType) {
 	foreignPod := obj.(*corev1.Pod)
 	foreignKey := fmt.Sprintf("%s/%s", foreignPod.Namespace, foreignPod.Name)
@@ -136,7 +136,7 @@ func (r *PodsIncomingReflector) PreDelete(obj interface{}) (interface{}, watch.E
 }
 
 // CleanupNamespace is in charge of cleaning a local namespace from all the reflected objects. All the home objects in
-// the home namespace are fetched and deleted locally. Their deletion will implies the delete of the remote replicasets
+// the home namespace are fetched and deleted locally. Their deletion will implies the delete of the remote replicasets.
 func (r *PodsIncomingReflector) CleanupNamespace(namespace string) {
 	foreignNamespace, err := r.NattingTable().NatNamespace(namespace, false)
 	if err != nil {

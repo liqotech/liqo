@@ -7,7 +7,7 @@ import (
 	"github.com/liqotech/liqo/pkg/virtualKubelet/manager"
 )
 
-// Store is used for registering/fetching providers
+// Store is used for registering/fetching providers.
 type Store struct {
 	mu sync.Mutex
 	ls map[string]InitFunc
@@ -19,7 +19,7 @@ func NewStore() *Store {
 	}
 }
 
-// Register registers a providers init func by name
+// Register registers a providers init func by name.
 func (s *Store) Register(name string, f InitFunc) error {
 	if f == nil {
 		return errdefs.InvalidInput("provided init function cannot not be nil")
@@ -39,7 +39,7 @@ func (s *Store) Get(name string) InitFunc {
 	return f
 }
 
-// List lists all the registered providers
+// List lists all the registered providers.
 func (s *Store) List() []string {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -52,7 +52,7 @@ func (s *Store) List() []string {
 	return ls
 }
 
-// Exists returns if there is an init function registered under the provided name
+// Exists returns if there is an init function registered under the provided name.
 func (s *Store) Exists(name string) bool {
 	s.mu.Lock()
 	_, ok := s.ls[name]

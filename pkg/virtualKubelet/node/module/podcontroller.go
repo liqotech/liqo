@@ -416,7 +416,6 @@ func (pc *PodController) syncHandler(ctx context.Context, key string) error {
 			err = pkgerrors.Wrapf(err, "failed to delete pod %q in the provider", loggablePodNameFromCoordinates(namespace, name))
 		}
 		return err
-
 	}
 	// At this point we know the Pod resource has either been created or updated (which includes being marked for deletion).
 	return pc.syncPodInProvider(ctx, pod, key)
@@ -542,7 +541,6 @@ func (pc *PodController) deleteDanglingPods(ctx context.Context, threadiness int
 			if err := pc.provider.DeletePod(vkContext.SetCallingFunction(ctx, "deleteDanglingPods"), pod.DeepCopy()); err != nil && !errdefs.IsNotFound(err) {
 				klog.Errorf("failed to delete pod %q in provider", loggablePodName(pod))
 			}
-
 		}(ctx, pod)
 	}
 
@@ -566,7 +564,7 @@ func loggablePodNameFromCoordinates(namespace, name string) string {
 	return fmt.Sprintf("%s/%s", namespace, name)
 }
 
-// podsEffectivelyEqual compares two pods, and ignores the pod status, and the resource version
+// podsEffectivelyEqual compares two pods, and ignores the pod status, and the resource version.
 func podsEffectivelyEqual(p1, p2 *corev1.Pod) bool {
 	filterForResourceVersion := func(p cmp.Path) bool {
 		if p.String() == "ObjectMeta.ResourceVersion" {

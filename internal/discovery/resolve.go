@@ -118,7 +118,7 @@ func (discovery *Controller) getIPs() map[string]bool {
 	return myIps
 }
 
-// a cluster is considered as foreign if it has at least one IP different from our IPs
+// a cluster is considered as foreign if it has at least one IP different from our IPs.
 func (discovery *Controller) isForeign(foreignIPs []net.IP) bool {
 	myIps := discovery.getIPs()
 	for _, fIP := range foreignIPs {

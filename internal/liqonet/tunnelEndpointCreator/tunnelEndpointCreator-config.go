@@ -37,27 +37,27 @@ func (tec *TunnelEndpointCreator) setNetParameters(config *configv1alpha1.Cluste
 	}
 }
 
-// Helper func that returns a true if the subnet slice passed as first parameter contains the subnet passed as second parameter. Otherwise it returns false
+// Helper func that returns a true if the subnet slice passed as first parameter contains the subnet passed as second parameter. Otherwise it returns false.
 func (tec *TunnelEndpointCreator) subnetSliceContains(subnetSlice []string, network string) bool {
 	return slice.ContainsString(subnetSlice, network, nil)
 }
 
-// Helper func that removes a subnet from the configuration file
+// Helper func that removes a subnet from the configuration file.
 func (tec *TunnelEndpointCreator) removeReservedSubnet(network string) {
 	tec.ReservedSubnets = slice.RemoveString(tec.ReservedSubnets, network, nil)
 }
 
-// Helper func that adds a subnet from the configuration file
+// Helper func that adds a subnet from the configuration file.
 func (tec *TunnelEndpointCreator) addReservedSubnet(network string) {
 	tec.ReservedSubnets = append(tec.ReservedSubnets, network)
 }
 
-// Helper func that removes a network pool from the configuration file
+// Helper func that removes a network pool from the configuration file.
 func (tec *TunnelEndpointCreator) removeNetworkPool(network string) {
 	tec.AdditionalPools = slice.RemoveString(tec.AdditionalPools, network, nil)
 }
 
-// Helper func that adds a network pool from the configuration file
+// Helper func that adds a network pool from the configuration file.
 func (tec *TunnelEndpointCreator) addNetworkPool(network string) {
 	tec.AdditionalPools = append(tec.AdditionalPools, network)
 }
@@ -174,7 +174,7 @@ func (tec *TunnelEndpointCreator) getAdditionalPools(config *configv1alpha1.Clus
 	return additionalPools
 }
 
-// WatchConfiguration start watcher of clusterconfig resource
+// WatchConfiguration start watcher of clusterconfig resource.
 func (tec *TunnelEndpointCreator) WatchConfiguration(config *rest.Config, gv *schema.GroupVersion) {
 	config.ContentConfig.GroupVersion = gv
 	config.APIPath = "/apis"

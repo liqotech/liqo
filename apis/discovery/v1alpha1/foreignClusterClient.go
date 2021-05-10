@@ -30,6 +30,7 @@ func CreateForeignClusterClient(kubeconfig string) (*crdClient.CRDClient, error)
 	return clientSet, nil
 }
 
+// ForeignClusterKeyer returns a key element to index ForeignCluster CR.
 func ForeignClusterKeyer(obj runtime.Object) (string, error) {
 	fc, ok := obj.(*ForeignCluster)
 	if !ok {

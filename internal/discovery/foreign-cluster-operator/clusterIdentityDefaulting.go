@@ -9,7 +9,7 @@ import (
 )
 
 // check if the ForeignCluster CR does not have a value in one of the required fields (Namespace and ClusterID)
-// and needs a value defaulting
+// and needs a value defaulting.
 func (r *ForeignClusterReconciler) needsClusterIdentityDefaulting(fc *v1alpha1.ForeignCluster) bool {
 	return fc.Spec.Namespace == "" || fc.Spec.ClusterIdentity.ClusterID == ""
 }
@@ -17,7 +17,7 @@ func (r *ForeignClusterReconciler) needsClusterIdentityDefaulting(fc *v1alpha1.F
 // load the default values for that ForeignCluster basing on the AuthUrl value, an HTTP request is sent and the retrieved
 // values are applied for the following fields (if they are empty): Namespace, ClusterIdentity.ClusterID, ClusterIdentity.Namespace
 // and the TrustMode
-// if it returns no error, the ForeignCluster CR has been updated
+// if it returns no error, the ForeignCluster CR has been updated.
 func (r *ForeignClusterReconciler) clusterIdentityDefaulting(fc *v1alpha1.ForeignCluster) error {
 	klog.V(4).Infof("Defaulting ClusterIdentity values for ForeignCluster %v", fc.Name)
 	ids, trustMode, err := utils.GetClusterInfo(fc.Spec.AuthUrl)

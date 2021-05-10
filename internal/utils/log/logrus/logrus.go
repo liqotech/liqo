@@ -23,12 +23,12 @@ import (
 	"github.com/liqotech/liqo/internal/utils/log"
 )
 
-// Adapter implements the `log.Logger` interface for logrus
+// Adapter implements the `log.Logger` interface for logrus.
 type Adapter struct {
 	*logrus.Entry
 }
 
-// FromLogrus creates a new `log.Logger` from the provided entry
+// FromLogrus creates a new `log.Logger` from the provided entry.
 func FromLogrus(entry *logrus.Entry) log.Logger {
 	return &Adapter{entry}
 }
@@ -43,7 +43,7 @@ func (l *Adapter) WithFields(f log.Fields) log.Logger {
 	return FromLogrus(l.Entry.WithFields(logrus.Fields(f)))
 }
 
-// WithError adds an error to the log entry
+// WithError adds an error to the log entry.
 func (l *Adapter) WithError(err error) log.Logger {
 	return FromLogrus(l.Entry.WithError(err))
 }

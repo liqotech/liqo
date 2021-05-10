@@ -11,7 +11,6 @@ import (
 )
 
 func (tec *TunnelEndpointCreator) StartForeignClusterWatcher() {
-
 	if !tec.IsConfigured {
 		klog.Infof("ForeignClusterWatcher is waiting for the operator to be configured")
 		tec.WaitConfig.Wait()

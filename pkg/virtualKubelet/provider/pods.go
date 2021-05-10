@@ -218,7 +218,6 @@ func (p *LiqoProvider) GetPods(_ context.Context) ([]*corev1.Pod, error) {
 // RunInContainer executes a command in a container in the pod, copying data
 // between in/out/err and the container's stdin/stdout/stderr.
 func (p *LiqoProvider) RunInContainer(_ context.Context, homeNamespace string, homePodName string, containerName string, cmd []string, attach api.AttachIO) error {
-
 	foreignNamespace, err := p.namespaceMapper.NatNamespace(homeNamespace, false)
 	if err != nil {
 		return err
@@ -379,7 +378,6 @@ func (p *LiqoProvider) GetStatsSummary(ctx context.Context) (*stats.Summary, err
 
 			// Iterate over all containers in the current pod to get stats
 			for _, container := range foreignPodMetrics.Containers {
-
 				nanoCpuUsage := uint64(container.Usage.Cpu().ScaledValue(resource.Nano))
 				totalUsageNanoCores += nanoCpuUsage
 

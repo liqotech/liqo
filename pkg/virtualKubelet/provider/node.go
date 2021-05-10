@@ -76,7 +76,6 @@ func (p *LiqoProvider) nodeConditions() []v1.NodeCondition {
 			Message:            "RouteController created a route",
 		},
 	}
-
 }
 
 // NodeAddresses returns a list of addresses for the node status

@@ -22,7 +22,7 @@ import (
 	mapsv1alpha1 "github.com/liqotech/liqo/apis/virtualKubelet/v1alpha1"
 )
 
-// Removes right entry from one NamespaceMap
+// Removes right entry from one NamespaceMap.
 func (r *NamespaceReconciler) removeDesiredMapping(localName string, nm *mapsv1alpha1.NamespaceMap) error {
 	if _, ok := nm.Spec.DesiredMapping[localName]; ok {
 		delete(nm.Spec.DesiredMapping, localName)
@@ -36,7 +36,7 @@ func (r *NamespaceReconciler) removeDesiredMapping(localName string, nm *mapsv1a
 	return nil
 }
 
-// Removes right entries from more than one NamespaceMap (it depends on len(nms))
+// Removes right entries from more than one NamespaceMap (it depends on len(nms)).
 func (r *NamespaceReconciler) removeDesiredMappings(localName string, nms map[string]*mapsv1alpha1.NamespaceMap) error {
 	for _, nm := range nms {
 		if err := r.removeDesiredMapping(localName, nm); err != nil {
@@ -46,7 +46,7 @@ func (r *NamespaceReconciler) removeDesiredMappings(localName string, nms map[st
 	return nil
 }
 
-// Adds right entry on one NamespaceMap, if it isn't already there
+// Adds right entry on one NamespaceMap, if it isn't already there.
 func (r *NamespaceReconciler) addDesiredMapping(n *corev1.Namespace, remoteName string,
 	nm *mapsv1alpha1.NamespaceMap) error {
 	if nm.Spec.DesiredMapping == nil {
@@ -79,7 +79,7 @@ func (r *NamespaceReconciler) addDesiredMapping(n *corev1.Namespace, remoteName 
 	return nil
 }
 
-// Adds right entries on more than one NamespaceMap (it depends on len(nms)), if entries aren't already there
+// Adds right entries on more than one NamespaceMap (it depends on len(nms)), if entries aren't already there.
 func (r *NamespaceReconciler) addDesiredMappings(n *corev1.Namespace, remoteName string,
 	nms map[string]*mapsv1alpha1.NamespaceMap) error {
 	for _, nm := range nms {

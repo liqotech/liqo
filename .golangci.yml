@@ -5,6 +5,8 @@ run:
     - ".*_test.go"
 
 linters-settings:
+  lll:
+    line-length: 150
   gomodguard:
     blocked:
       modules:
@@ -97,7 +99,9 @@ linters:
   # - wsl
 
 issues:
+  #fix: true
   max-issues-per-linter: 0
+  max-same-issues: 0
   # Disable the default exclude patterns (as they disable the mandatory comments)
   max-issues-per-linter: 0
   max-same-issues: 0

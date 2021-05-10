@@ -14,7 +14,7 @@ import (
 // it returns a JSON encoded ClusterInfo struct with the following fields:
 // - clusterID		-> the id of the home cluster
 // - clusterName	-> the custom name for the home cluster (to be displayed in GUIs)
-// - guestNamespace	-> the namespace where to create secrets and resources to be shared with the home cluster
+// - guestNamespace	-> the namespace where to create secrets and resources to be shared with the home cluster.
 func (authService *AuthServiceCtrl) ids(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 	idsResponse := authService.getIdsResponse()
 

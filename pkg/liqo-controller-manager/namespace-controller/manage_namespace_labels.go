@@ -24,7 +24,7 @@ import (
 	liqoconst "github.com/liqotech/liqo/pkg/consts"
 )
 
-// Checks if Namespace has all offloading Labels of a specific node
+// Checks if Namespace has all offloading Labels of a specific node.
 func checkOffloadingLabels(na *corev1.Namespace, n *corev1.Node) bool {
 	for key := range n.GetLabels() {
 		if strings.HasPrefix(key, offloadingPrefixLabel) {
@@ -38,7 +38,7 @@ func checkOffloadingLabels(na *corev1.Namespace, n *corev1.Node) bool {
 	return true
 }
 
-// Checks if mappingLabel value is changed from the previous one
+// Checks if mappingLabel value is changed from the previous one.
 func mappingLabelUpdate(oldLabels, newLabels map[string]string) bool {
 	ret := false
 	if val1, ok := oldLabels[mappingLabel]; ok {
@@ -47,7 +47,7 @@ func mappingLabelUpdate(oldLabels, newLabels map[string]string) bool {
 	return ret
 }
 
-// Checks if the Namespace which triggers an Event, contains mappingLabel
+// Checks if the Namespace which triggers an Event, contains mappingLabel.
 func mappingLabelPresence(labels map[string]string) bool {
 	_, ok := labels[mappingLabel]
 	return ok
@@ -57,7 +57,7 @@ func mappingLabelPresence(labels map[string]string) bool {
 // 1 -- deletion timestamp is updated on a relevant namespace (only that ones with my finalizer)
 // 2 -- add/delete labels, and mappingLabel is present before or after the update
 // 3 -- update the value of mappingLabel label only
-// 4 -- add namespace with at least mappingLabel
+// 4 -- add namespace with at least mappingLabel.
 func manageLabelPredicate() predicate.Predicate {
 	return predicate.Funcs{
 		UpdateFunc: func(e event.UpdateEvent) bool {

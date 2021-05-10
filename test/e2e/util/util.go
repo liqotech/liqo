@@ -193,7 +193,6 @@ func getClusterID(client *kubernetes.Clientset, namespace string) (string, error
 }
 
 func ExecCmd(config *rest.Config, client *kubernetes.Clientset, podName, namespace, command string) (string, string, error) {
-
 	cmd := []string{
 		"sh",
 		"-c",
@@ -226,7 +225,6 @@ func ExecCmd(config *rest.Config, client *kubernetes.Clientset, podName, namespa
 		return "", "", err
 	}
 	return stdout.String(), stderr.String(), err
-
 }
 
 func CreateNamespace(client *kubernetes.Clientset, clusterID string, name string) (*v1.Namespace, error) {

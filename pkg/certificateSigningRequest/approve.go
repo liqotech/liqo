@@ -8,7 +8,7 @@ import (
 	k8s "k8s.io/client-go/kubernetes"
 )
 
-// ApproveCSR approves the provided CertificateSigningRequest
+// ApproveCSR approves the provided CertificateSigningRequest.
 func ApproveCSR(clientSet k8s.Interface, csr *certificatesv1beta1.CertificateSigningRequest, reason string, message string) error {
 	// certificate already added to CSR
 	if csr.Status.Certificate != nil {

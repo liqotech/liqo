@@ -19,7 +19,7 @@ spec:
   - name: v1alpha1
     schema:
       openAPIV3Schema:
-        description: ResourceRequest is the Schema for the ResourceRequests API
+        description: ResourceRequest is the Schema for the ResourceRequests API.
         properties:
           apiVersion:
             description: 'APIVersion defines the versioned schema of this representation
@@ -34,7 +34,7 @@ spec:
           metadata:
             type: object
           spec:
-            description: ResourceRequestSpec defines the desired state of ResourceRequest
+            description: ResourceRequestSpec defines the desired state of ResourceRequest.
             properties:
               authUrl:
                 description: Local auth service address
@@ -44,10 +44,10 @@ spec:
                 properties:
                   clusterID:
                     description: Foreign Cluster ID, this is a unique identifier of
-                      that cluster
+                      that cluster.
                     type: string
                   clusterName:
-                    description: Foreign Cluster Name to be shown in GUIs
+                    description: Foreign Cluster Name to be shown in GUIs.
                     type: string
                 required:
                 - clusterID
@@ -98,14 +98,14 @@ spec:
             - namespace
             type: object
           status:
-            description: ResourceRequestStatus defines the observed state of ResourceRequest
+            description: ResourceRequestStatus defines the observed state of ResourceRequest.
             properties:
               advertisementStatus:
-                description: AdvPhase describes the phase of the Advertisement
+                description: AdvPhase describes the phase of the Advertisement.
                 type: string
               broadcasterRef:
                 description: DeploymentReference represents a Deployment Reference.
-                  It has enough information to retrieve deployment in any namespace
+                  It has enough information to retrieve deployment in any namespace.
                 properties:
                   name:
                     description: Name is unique within a namespace to reference a

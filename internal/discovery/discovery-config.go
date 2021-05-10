@@ -17,7 +17,7 @@ import (
 // ConfigProvider interface provides methods to access the Discovery and API Server configuration.
 type ConfigProvider interface {
 	GetConfig() *configv1alpha1.DiscoveryConfig
-	GetAPIServerConfig() *configv1alpha1.ApiServerConfig
+	GetAPIServerConfig() *configv1alpha1.APIServerConfig
 }
 
 // GetConfig returns the configuration of the discovery component.
@@ -28,7 +28,7 @@ func (discovery *Controller) GetConfig() *configv1alpha1.DiscoveryConfig {
 }
 
 // GetAPIServerConfig returns the configuration of the local APIServer (address, port).
-func (discovery *Controller) GetAPIServerConfig() *configv1alpha1.ApiServerConfig {
+func (discovery *Controller) GetAPIServerConfig() *configv1alpha1.APIServerConfig {
 	discovery.configMutex.RLock()
 	defer discovery.configMutex.RUnlock()
 	return discovery.apiServerConfig
@@ -40,7 +40,7 @@ func (discovery *Controller) getDiscoveryConfig(client *crdClient.CRDClient, kub
 	go clusterConfig.WatchConfiguration(func(configuration *configv1alpha1.ClusterConfig) {
 		discovery.handleConfiguration(&configuration.Spec.DiscoveryConfig)
 		discovery.handleDispatcherConfig(&configuration.Spec.DispatcherConfig)
-		discovery.handleAPIServerConfig(&configuration.Spec.ApiServerConfig)
+		discovery.handleAPIServerConfig(&configuration.Spec.APIServerConfig)
 		if isFirst {
 			waitFirst <- true
 			isFirst = false
@@ -52,7 +52,7 @@ func (discovery *Controller) getDiscoveryConfig(client *crdClient.CRDClient, kub
 	return nil
 }
 
-func (discovery *Controller) handleAPIServerConfig(config *configv1alpha1.ApiServerConfig) {
+func (discovery *Controller) handleAPIServerConfig(config *configv1alpha1.APIServerConfig) {
 	discovery.configMutex.Lock()
 	defer discovery.configMutex.Unlock()
 
@@ -75,7 +75,8 @@ func (discovery *Controller) handleDispatcherConfig(config *configv1alpha1.Dispa
 		return
 	}
 
-	role, err := discovery.crdClient.Client().RbacV1().ClusterRoles().Get(context.TODO(), "crdreplicator-role", metav1.GetOptions{})
+	role, err := discovery.crdClient.Client().RbacV1().ClusterRoles().Get(context.TODO(), "crdreplicator-role",
+		metav1.GetOptions{})
 	create := false
 	if errors.IsNotFound(err) {
 		// create it
@@ -159,8 +160,8 @@ func (discovery *Controller) handleConfiguration(config *configv1alpha1.Discover
 			reloadServer = true
 			reloadClient = true
 		}
-		if discovery.Config.Ttl != config.Ttl {
-			discovery.Config.Ttl = config.Ttl
+		if discovery.Config.TTL != config.TTL {
+			discovery.Config.TTL = config.TTL
 			reloadServer = true
 		}
 		if discovery.Config.AutoJoin != config.AutoJoin {

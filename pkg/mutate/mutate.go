@@ -22,7 +22,7 @@ type patchType struct {
 // +kubebuilder:rbac:groups=core,namespace="do-not-care",resources=secrets,verbs=create;get;list;watch
 
 // Mutate mutates the object received via admReview and creates a response
-// that embeds a patch to the received pod
+// that embeds a patch to the received pod.
 func (s *MutationServer) Mutate(body []byte) ([]byte, error) {
 	var err error
 

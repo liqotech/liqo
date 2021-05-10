@@ -24,17 +24,27 @@ import (
 )
 
 var (
-	// GroupVersion is group version used to register these objects
+	// GroupVersion is group version used to register these objects.
 	GroupVersion = schema.GroupVersion{Group: "net.liqo.io", Version: "v1alpha1"}
 
-	TunnelEndpointGroupResource        = schema.GroupResource{Group: GroupVersion.Group, Resource: "tunnelendpoints"}
-	TunnelEndpointGroupVersionResource = schema.GroupVersionResource{Group: GroupVersion.Group, Resource: "tunnelendpoints"}
+	// TunnelEndpointGroupResource is group resource used to register tunnel endpoints.
+	TunnelEndpointGroupResource = schema.GroupResource{Group: GroupVersion.Group,
+		Resource: "tunnelendpoints"}
 
-	NetworkConfigGroupVersionResource = schema.GroupVersionResource{Group: GroupVersion.Group, Version: GroupVersion.Version, Resource: "networkconfigs"}
+	// TunnelEndpointGroupVersionResource is group resource version used to tunnelEndpoint objects.
+	TunnelEndpointGroupVersionResource = schema.GroupVersionResource{Group: GroupVersion.Group,
+		Resource: "tunnelendpoints"}
 
-	IpamGroupResource = schema.GroupVersionResource{Group: GroupVersion.Group, Version: GroupVersion.Version, Resource: "ipamstorages"}
+	// NetworkConfigGroupVersionResource is group resource version used to networkConfig objects.
+	NetworkConfigGroupVersionResource = schema.GroupVersionResource{Group: GroupVersion.Group,
+		Version:  GroupVersion.Version,
+		Resource: "networkconfigs"}
 
-	// SchemeBuilder is used to add go types to the GroupVersionKind scheme
+	// IpamGroupResource is group resource used to register ipamstorages.
+	IpamGroupResource = schema.GroupVersionResource{Group: GroupVersion.Group, Version: GroupVersion.Version,
+		Resource: "ipamstorages"}
+
+	// SchemeBuilder is used to add go types to the GroupVersionKind scheme.
 	SchemeBuilder = &scheme.Builder{GroupVersion: GroupVersion}
 
 	// AddToScheme adds the types in this group-version to the given scheme.

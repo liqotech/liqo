@@ -52,7 +52,7 @@ type LiqoProvider struct { // nolint:golint]
 	foreignPodWatcherStop chan struct{}
 }
 
-// NewKubernetesProviderKubernetes creates a new KubernetesV0Provider. Kubernetes legacy provider does not implement the new asynchronous podnotifier interface
+// NewKubernetesProviderKubernetes creates a new KubernetesV0Provider. Kubernetes legacy provider does not implement the new asynchronous podnotifier interface.
 func NewLiqoProvider(nodeName, foreignClusterId, homeClusterId string, internalIP string, daemonEndpointPort int32, kubeconfig, remoteKubeConfig string) (*LiqoProvider, error) {
 	var err error
 

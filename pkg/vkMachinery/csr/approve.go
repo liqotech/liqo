@@ -14,7 +14,6 @@ import (
 )
 
 func WatchCSR(clientset k8s.Interface, label string, resyncPeriod time.Duration) {
-
 	stop := make(chan struct{})
 	lo := func(options *metav1.ListOptions) {
 		options.LabelSelector = label

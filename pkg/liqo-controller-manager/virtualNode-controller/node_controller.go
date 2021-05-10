@@ -37,7 +37,7 @@ const (
 	virtualNodeControllerFinalizer = "virtualnode-controller.liqo.io/finalizer"
 )
 
-// VirtualNodeReconciler manage NamespaceMap lifecycle
+// VirtualNodeReconciler manage NamespaceMap lifecycle.
 type VirtualNodeReconciler struct {
 	client.Client
 	Scheme *runtime.Scheme
@@ -46,7 +46,7 @@ type VirtualNodeReconciler struct {
 // +kubebuilder:rbac:groups=core,resources=nodes,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=core,resources=nodes/status,verbs=get;update;patch
 
-// Reconcile checks if virtual-node must be deleted or manages its NamespaceMap
+// Reconcile checks if virtual-node must be deleted or manages its NamespaceMap.
 func (r *VirtualNodeReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 	node := &corev1.Node{}
 	if err := r.Get(context.TODO(), req.NamespacedName, node); err != nil {
@@ -100,7 +100,7 @@ func (r *VirtualNodeReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error)
 // Events not filtered:
 // 1 -- creation of a new Virtual-node
 // 2 -- creation of a new NamespaceMap
-// 3 -- update deletionTimestamp on NamespaceMap or on Virtual-node, due to deletion request
+// 3 -- update deletionTimestamp on NamespaceMap or on Virtual-node, due to deletion request.
 func filterVirtualNodes() predicate.Predicate {
 	return predicate.Funcs{
 		UpdateFunc: func(e event.UpdateEvent) bool {
@@ -138,7 +138,7 @@ func filterVirtualNodes() predicate.Predicate {
 	}
 }
 
-// SetupWithManager monitors Virtual-nodes and their associated NamespaceMaps
+// SetupWithManager monitors Virtual-nodes and their associated NamespaceMaps.
 func (r *VirtualNodeReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&corev1.Node{}).

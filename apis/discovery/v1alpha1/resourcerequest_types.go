@@ -14,7 +14,7 @@ import (
 // EDIT THIS FILE!  THIS IS SCAFFOLDING FOR YOU TO OWN!
 // NOTE: json tags are required.  Any new fields you add must have json tags for the fields to be serialized.
 
-// ResourceRequestSpec defines the desired state of ResourceRequest
+// ResourceRequestSpec defines the desired state of ResourceRequest.
 type ResourceRequestSpec struct {
 	// INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
 	// Important: Run "make" to regenerate code after modifying this file
@@ -29,7 +29,7 @@ type ResourceRequestSpec struct {
 	AuthURL string `json:"authUrl"`
 }
 
-// ResourceRequestStatus defines the observed state of ResourceRequest
+// ResourceRequestStatus defines the observed state of ResourceRequest.
 type ResourceRequestStatus struct {
 	BroadcasterRef      *object_references.DeploymentReference `json:"broadcasterRef,omitempty"`
 	AdvertisementStatus advtypes.AdvPhase                      `json:"advertisementStatus,omitempty"`
@@ -37,7 +37,7 @@ type ResourceRequestStatus struct {
 
 // +kubebuilder:object:root=true
 
-// ResourceRequest is the Schema for the ResourceRequests API
+// ResourceRequest is the Schema for the ResourceRequests API.
 type ResourceRequest struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
@@ -48,7 +48,7 @@ type ResourceRequest struct {
 
 // +kubebuilder:object:root=true
 
-// ResourceRequestList contains a list of ResourceRequest
+// ResourceRequestList contains a list of ResourceRequest.
 type ResourceRequestList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`

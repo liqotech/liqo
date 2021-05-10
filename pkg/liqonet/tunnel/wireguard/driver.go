@@ -39,7 +39,7 @@ const (
 	KeepAliveInterval = 10 * time.Second
 )
 
-//registering the driver as available
+//registering the driver as available.
 func init() {
 	tunnel.AddDriver(DriverName, NewDriver)
 }
@@ -60,7 +60,7 @@ type wireguard struct {
 	conf        wgConfig
 }
 
-// NewDriver creates a new WireGuard driver
+// NewDriver creates a new WireGuard driver.
 func NewDriver(k8sClient *k8s.Clientset, namespace string) (tunnel.Driver, error) {
 	var err error
 	w := wireguard{
@@ -251,7 +251,7 @@ func (w *wireguard) Close() error {
 	return fmt.Errorf("failed to delete existng WireGuard device: %v", err)
 }
 
-// Create new wg link
+// Create new wg link.
 func (w *wireguard) setWGLink() error {
 	var err error
 	// delete existing wg device if needed

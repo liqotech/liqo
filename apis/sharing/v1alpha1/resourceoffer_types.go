@@ -7,7 +7,7 @@ import (
 	object_references "github.com/liqotech/liqo/pkg/object-references"
 )
 
-// ResourceOfferSpec defines the desired state of ResourceOffer
+// ResourceOfferSpec defines the desired state of ResourceOffer.
 type ResourceOfferSpec struct {
 	// ClusterId is the identifier of the cluster that is sending this ResourceOffer.
 	// It is the uid of the first master node in you cluster.
@@ -31,7 +31,7 @@ type ResourceOfferSpec struct {
 	TimeToLive metav1.Time `json:"timeToLive"`
 }
 
-// OfferPhase describes the phase of the ResourceOffer
+// OfferPhase describes the phase of the ResourceOffer.
 type OfferPhase string
 
 const (
@@ -39,7 +39,7 @@ const (
 	ResourceOfferRefused  OfferPhase = "Refused"
 )
 
-// ResourceOfferStatus defines the observed state of ResourceOffer
+// ResourceOfferStatus defines the observed state of ResourceOffer.
 type ResourceOfferStatus struct {
 	// ResourceOfferStatus is the status of this ResourceOffer.
 	// When the offer is created it is checked by the operator, which sets this field to "Accepted" or "Refused" on tha base of cluster configuration.
@@ -58,7 +58,7 @@ type ResourceOfferStatus struct {
 // +kubebuilder:subresource:status
 // +kubebuilder:resource:shortName="offer"
 
-// ResourceOffer is the Schema for the resourceOffers API
+// ResourceOffer is the Schema for the resourceOffers API.
 // +kubebuilder:printcolumn:name="Status",type=string,JSONPath=`.status.resourceOfferStatus`
 // +kubebuilder:printcolumn:name="Expiration",type=string,JSONPath=`.spec.timeToLive`
 // +kubebuilder:printcolumn:name="VkCreated",type=boolean,JSONPath=`.status.vkCreated`
@@ -72,7 +72,7 @@ type ResourceOffer struct {
 
 // +kubebuilder:object:root=true
 
-// ResourceOfferList contains a list of ResourceOffer
+// ResourceOfferList contains a list of ResourceOffer.
 type ResourceOfferList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`

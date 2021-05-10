@@ -57,7 +57,7 @@ const (
 )
 
 var (
-	// ResyncPeriod for watchers
+	// ResyncPeriod for watchers.
 	ResyncPeriod = 30 * time.Second
 
 	result = ctrl.Result{
@@ -132,7 +132,7 @@ type TunnelEndpointCreator struct {
 // +kubebuilder:rbac:groups=core,namespace="do-not-care",resources=services,verbs=get;list;watch;update
 // +kubebuilder:rbac:groups=core,namespace="do-not-care",resources=pods,verbs=get;list;watch
 
-// Reconciler method
+// Reconciler method.
 func (tec *TunnelEndpointCreator) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 	if !tec.IsConfigured {
 		klog.Infof("the operator is waiting to be configured")
@@ -208,7 +208,7 @@ func (tec *TunnelEndpointCreator) Reconcile(req ctrl.Request) (ctrl.Result, erro
 	return result, nil
 }
 
-// SetupWithManager informs the manager that the tunnelEndpointCreator will deal with networkconfigs
+// SetupWithManager informs the manager that the tunnelEndpointCreator will deal with networkconfigs.
 func (tec *TunnelEndpointCreator) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&netv1alpha1.NetworkConfig{}).
@@ -232,7 +232,7 @@ func (tec *TunnelEndpointCreator) SetupSignalHandlerForTunEndCreator() (stopCh <
 	return stop
 }
 
-// Watcher for resources
+// Watcher for resources.
 func (tec *TunnelEndpointCreator) Watcher(sharedDynFactory dynamicinformer.DynamicSharedInformerFactory,
 	resourceType schema.GroupVersionResource,
 	handlerFuncs cache.ResourceEventHandlerFuncs,
@@ -333,7 +333,7 @@ func (tec *TunnelEndpointCreator) deleteNetConfig(fc *discoveryv1alpha1.ForeignC
 	return nil
 }
 
-// GetNetworkConfig returns the network config for a specific cluster
+// GetNetworkConfig returns the network config for a specific cluster.
 func (tec *TunnelEndpointCreator) GetNetworkConfig(destinationClusterID string) (
 	*netv1alpha1.NetworkConfig,
 	bool,
@@ -682,7 +682,7 @@ func (tec *TunnelEndpointCreator) createTunnelEndpoint(param *networkParam, owne
 	return nil
 }
 
-// GetTunnelEndpoint retrieves the tunnelEndpoint resource related to a cluster
+// GetTunnelEndpoint retrieves the tunnelEndpoint resource related to a cluster.
 func (tec *TunnelEndpointCreator) GetTunnelEndpoint(destinationClusterID string) (
 	*netv1alpha1.TunnelEndpoint,
 	bool,

@@ -210,7 +210,7 @@ func getClusterConfig() *configv1alpha1.ClusterConfig {
 				Name:                "MyLiqo",
 				Port:                6443,
 				Service:             "_liqo._tcp",
-				Ttl:                 30,
+				TTL:                 30,
 			},
 			LiqonetConfig: configv1alpha1.LiqonetConfig{
 				PodCIDR:         "10.0.0.0/16",
