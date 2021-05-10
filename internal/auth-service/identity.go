@@ -53,7 +53,8 @@ func (authService *AuthServiceCtrl) identity(w http.ResponseWriter, r *http.Requ
 }
 
 // handleIdentity creates a certificate and a CertificateIdentityResponse, given a CertificateIdentityRequest
-func (authService *AuthServiceCtrl) handleIdentity(identityRequest auth.CertificateIdentityRequest) (*auth.CertificateIdentityResponse, error) {
+func (authService *AuthServiceCtrl) handleIdentity(
+	identityRequest auth.CertificateIdentityRequest) (*auth.CertificateIdentityResponse, error) {
 	var err error
 
 	// check that the provided credentials are valid
@@ -93,13 +94,15 @@ func (authService *AuthServiceCtrl) handleIdentity(identityRequest auth.Certific
 	}
 
 	// bind basic permission required to start the peering
-	if _, err = authService.namespaceManager.BindClusterRoles(identityRequest.GetClusterID(), authService.peeringPermission.Basic...); err != nil {
+	if _, err = authService.namespaceManager.BindClusterRoles(
+		identityRequest.GetClusterID(), authService.peeringPermission.Basic...); err != nil {
 		klog.Error(err)
 		return nil, err
 	}
 
 	// make the response to send to the remote cluster
-	response, err := auth.NewCertificateIdentityResponse(namespace.Name, certificate, authService.getConfigProvider(), authService.clientset, authService.restConfig)
+	response, err := auth.NewCertificateIdentityResponse(
+		namespace.Name, certificate, authService.getConfigProvider(), authService.clientset, authService.restConfig)
 	if err != nil {
 		klog.Error(err)
 		return nil, err

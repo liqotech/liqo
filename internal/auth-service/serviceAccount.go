@@ -2,6 +2,7 @@ package auth_service
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/http"
 	"strings"
@@ -17,14 +18,13 @@ import (
 )
 
 func isNoContent(err error) bool {
-	switch t := err.(type) {
-	case *kerrors.StatusError:
-		return t.ErrStatus.Code == http.StatusNoContent
+	if errors.Is(err, &kerrors.StatusError{}) {
+		return err.(*kerrors.StatusError).ErrStatus.Code == http.StatusNoContent
 	}
 	return false
 }
 
-func (authService *AuthServiceCtrl) getServiceAccountCompleted(remoteClusterId string) (sa *v1.ServiceAccount, err error) {
+func (authService *AuthServiceCtrl) getServiceAccountCompleted(remoteClusterID string) (sa *v1.ServiceAccount, err error) {
 	err = retry.OnError(
 		retry.DefaultBackoff,
 		func(err error) bool {
@@ -36,13 +36,13 @@ func (authService *AuthServiceCtrl) getServiceAccountCompleted(remoteClusterId s
 			return kerrors.IsNotFound(err)
 		},
 		func() error {
-			sa, err = authService.getServiceAccount(remoteClusterId)
+			sa, err = authService.getServiceAccount(remoteClusterID)
 			return err
 		},
 	)
 
 	err = retry.OnError(retry.DefaultBackoff, isNoContent, func() error {
-		sa, err = authService.getServiceAccount(remoteClusterId)
+		sa, err = authService.getServiceAccount(remoteClusterID)
 		if err != nil {
 			return err
 		}
@@ -60,32 +60,33 @@ func (authService *AuthServiceCtrl) getServiceAccountCompleted(remoteClusterId s
 	return sa, err
 }
 
-func (authService *AuthServiceCtrl) getServiceAccount(remoteClusterId string) (*v1.ServiceAccount, error) {
-	tmp, exists, err := authService.saInformer.GetStore().GetByKey(strings.Join([]string{authService.namespace, fmt.Sprintf("remote-%s", remoteClusterId)}, "/"))
+func (authService *AuthServiceCtrl) getServiceAccount(remoteClusterID string) (*v1.ServiceAccount, error) {
+	tmp, exists, err := authService.saInformer.GetStore().GetByKey(
+		strings.Join([]string{authService.namespace, fmt.Sprintf("remote-%s", remoteClusterID)}, "/"))
 	if err != nil {
 		return nil, err
 	}
 	if !exists {
 		return nil, kerrors.NewNotFound(schema.GroupResource{
 			Resource: "serviceaccounts",
-		}, remoteClusterId)
+		}, remoteClusterID)
 	}
 	sa, ok := tmp.(*v1.ServiceAccount)
 	if !ok {
 		return nil, kerrors.NewNotFound(schema.GroupResource{
 			Resource: "serviceaccounts",
-		}, remoteClusterId)
+		}, remoteClusterID)
 	}
 	return sa, nil
 }
 
-func (authService *AuthServiceCtrl) createServiceAccount(remoteClusterId string) (*v1.ServiceAccount, error) {
+func (authService *AuthServiceCtrl) createServiceAccount(remoteClusterID string) (*v1.ServiceAccount, error) {
 	sa := &v1.ServiceAccount{
 		ObjectMeta: metav1.ObjectMeta{
-			Name: fmt.Sprintf("remote-%s", remoteClusterId),
+			Name: fmt.Sprintf("remote-%s", remoteClusterID),
 			Labels: map[string]string{
 				discovery.LiqoManagedLabel: "true",
-				discovery.ClusterIDLabel:   remoteClusterId,
+				discovery.ClusterIDLabel:   remoteClusterID,
 			},
 			// used to do garbage collection on cluster scoped resources (i.e. ClusterRole and ClusterRoleBinding)
 			Finalizers: []string{

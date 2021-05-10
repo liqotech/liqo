@@ -28,7 +28,7 @@ func (c *configMock) GetConfig() *v1alpha1.DiscoveryConfig {
 	return &c.config
 }
 
-func (c *configMock) GetApiServerConfig() *v1alpha1.ApiServerConfig {
+func (c *configMock) GetAPIServerConfig() *v1alpha1.ApiServerConfig {
 	return &v1alpha1.ApiServerConfig{
 		Address:   os.Getenv("APISERVER"),
 		Port:      os.Getenv("APISERVER_PORT"),
@@ -250,7 +250,7 @@ var _ = Describe("ForeignClusterOperator", func() {
 							ClusterName: "Name",
 						},
 						Namespace: "default",
-						AuthUrl:   "",
+						AuthURL:   "",
 					},
 				},
 				expectedPeeringLength: Equal(0),

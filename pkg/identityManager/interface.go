@@ -5,6 +5,7 @@ import (
 	"k8s.io/client-go/rest"
 )
 
+// IdentityManager interface provides the methods to manage identities for the remote clusters
 type IdentityManager interface {
 	localManager
 	remoteManager

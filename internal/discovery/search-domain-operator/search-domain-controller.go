@@ -15,16 +15,18 @@ import (
 	"github.com/liqotech/liqo/pkg/crdClient"
 )
 
+// SearchDomainReconciler is the reconciler manager for SearchDomain resources.
 type SearchDomainReconciler struct {
 	Scheme *runtime.Scheme
 
 	requeueAfter  time.Duration
 	crdClient     *crdClient.CRDClient
-	DiscoveryCtrl *discovery.DiscoveryCtrl
+	DiscoveryCtrl *discovery.Controller
 
-	DnsAddress string
+	DNSAddress string
 }
 
+// Reconcile reconciles SearchDomain resources.
 func (r *SearchDomainReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 	klog.Info("Reconciling SearchDomain " + req.Name)
 
@@ -50,7 +52,7 @@ func (r *SearchDomainReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error
 		}, err
 	}
 
-	authData, err := LoadAuthDataFromDNS(r.DnsAddress, sd.Spec.Domain)
+	authData, err := LoadAuthDataFromDNS(r.DNSAddress, sd.Spec.Domain)
 	if err != nil {
 		klog.Error(err, err.Error())
 		return ctrl.Result{
@@ -67,6 +69,7 @@ func (r *SearchDomainReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error
 	}, nil
 }
 
+// SetupWithManager assigns the operator to a manager.
 func (r *SearchDomainReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&discoveryv1alpha1.SearchDomain{}).

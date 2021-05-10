@@ -26,7 +26,7 @@ type ResourceRequestSpec struct {
 	// KubeConfig file (with Advertisement creation role) secret reference
 	KubeConfigRef *v1.ObjectReference `json:"kubeConfigRef,omitempty"`
 	// Local auth service address
-	AuthUrl string `json:"authUrl"`
+	AuthURL string `json:"authUrl"`
 }
 
 // ResourceRequestStatus defines the observed state of ResourceRequest

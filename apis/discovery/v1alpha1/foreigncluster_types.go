@@ -44,7 +44,7 @@ type ForeignClusterSpec struct {
 	// +kubebuilder:validation:Enum="LAN";"WAN";"Manual";"IncomingPeering"
 	// +kubebuilder:default="Manual"
 	// How this ForeignCluster has been discovered
-	DiscoveryType discovery.DiscoveryType `json:"discoveryType,omitempty"`
+	DiscoveryType discovery.Type `json:"discoveryType,omitempty"`
 	// URL where to contact foreign Auth service
 	AuthUrl string `json:"authUrl"`
 	// +kubebuilder:validation:Enum="Unknown";"Trusted";"Untrusted"

@@ -9,13 +9,14 @@ import (
 	"github.com/liqotech/liqo/pkg/clusterConfig"
 )
 
+// GetAuthServiceConfig starts the watcher to ClusterConfing CR
 func (authService *AuthServiceCtrl) GetAuthServiceConfig(kubeconfigPath string) {
 	waitFirst := make(chan struct{})
 	isFirst := true
 	go clusterConfig.WatchConfiguration(func(configuration *configv1alpha1.ClusterConfig) {
-		authService.handleConfiguration(configuration.Spec.AuthConfig)
-		authService.handleDiscoveryConfiguration(configuration.Spec.DiscoveryConfig)
-		authService.handleApiServerConfiguration(configuration.Spec.ApiServerConfig)
+		authService.handleConfiguration(&configuration.Spec.AuthConfig)
+		authService.handleDiscoveryConfiguration(&configuration.Spec.DiscoveryConfig)
+		authService.handleAPIServerConfiguration(&configuration.Spec.ApiServerConfig)
 		if isFirst {
 			isFirst = false
 			close(waitFirst)
@@ -24,31 +25,33 @@ func (authService *AuthServiceCtrl) GetAuthServiceConfig(kubeconfigPath string) 
 	<-waitFirst
 }
 
-func (authService *AuthServiceCtrl) handleConfiguration(config configv1alpha1.AuthConfig) {
+func (authService *AuthServiceCtrl) handleConfiguration(config *configv1alpha1.AuthConfig) {
 	authService.configMutex.Lock()
 	defer authService.configMutex.Unlock()
 	authService.config = config.DeepCopy()
 }
 
+// GetConfig returns the configuration of the local Authentication service
 func (authService *AuthServiceCtrl) GetConfig() *configv1alpha1.AuthConfig {
 	authService.configMutex.RLock()
 	defer authService.configMutex.RUnlock()
 	return authService.config.DeepCopy()
 }
 
-func (authService *AuthServiceCtrl) GetApiServerConfig() *configv1alpha1.ApiServerConfig {
+// GetAPIServerConfig returns the configuration of the local APIServer (address, port)
+func (authService *AuthServiceCtrl) GetAPIServerConfig() *configv1alpha1.ApiServerConfig {
 	authService.configMutex.RLock()
 	defer authService.configMutex.RUnlock()
 	return authService.apiServerConfig.DeepCopy()
 }
 
-func (authService *AuthServiceCtrl) handleDiscoveryConfiguration(config configv1alpha1.DiscoveryConfig) {
+func (authService *AuthServiceCtrl) handleDiscoveryConfiguration(config *configv1alpha1.DiscoveryConfig) {
 	authService.configMutex.Lock()
 	defer authService.configMutex.Unlock()
-	authService.discoveryConfig = config
+	authService.discoveryConfig = *config.DeepCopy()
 }
 
-func (authService *AuthServiceCtrl) handleApiServerConfiguration(config configv1alpha1.ApiServerConfig) {
+func (authService *AuthServiceCtrl) handleAPIServerConfiguration(config *configv1alpha1.ApiServerConfig) {
 	authService.configMutex.Lock()
 	defer authService.configMutex.Unlock()
 
@@ -61,7 +64,7 @@ func (authService *AuthServiceCtrl) handleApiServerConfiguration(config configv1
 	authService.apiServerConfig = config.DeepCopy()
 }
 
-func (authService *AuthServiceCtrl) GetDiscoveryConfig() configv1alpha1.DiscoveryConfig {
+func (authService *AuthServiceCtrl) getDiscoveryConfig() configv1alpha1.DiscoveryConfig {
 	authService.configMutex.RLock()
 	defer authService.configMutex.RUnlock()
 	return authService.discoveryConfig

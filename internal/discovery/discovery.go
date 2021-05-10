@@ -15,7 +15,8 @@ import (
 	"github.com/liqotech/liqo/pkg/crdClient"
 )
 
-type DiscoveryCtrl struct {
+// Controller is the controller for the discovery functionalities.
+type Controller struct {
 	Namespace string
 
 	configMutex         sync.RWMutex
@@ -32,10 +33,13 @@ type DiscoveryCtrl struct {
 	serverMux                 sync.Mutex
 	resolveContextRefreshTime int
 
-	dialTcpTimeout time.Duration
+	dialTCPTimeout time.Duration
 }
 
-func NewDiscoveryCtrl(namespace string, clusterId clusterID.ClusterID, kubeconfigPath string, resolveContextRefreshTime int, dialTcpTimeout time.Duration) (*DiscoveryCtrl, error) {
+// NewDiscoveryCtrl returns a new discovery controller.
+func NewDiscoveryCtrl(
+	namespace string, localClusterID clusterID.ClusterID, kubeconfigPath string,
+	resolveContextRefreshTime int, dialTCPTimeout time.Duration) (*Controller, error) {
 	config, err := crdClient.NewKubeconfig(kubeconfigPath, &discoveryv1alpha1.GroupVersion, nil)
 	if err != nil {
 		return nil, err
@@ -51,37 +55,38 @@ func NewDiscoveryCtrl(namespace string, clusterId clusterID.ClusterID, kubeconfi
 		os.Exit(1)
 	}
 
-	discoveryCtrl := GetDiscoveryCtrl(
+	discoveryCtrl := getDiscoveryCtrl(
 		namespace,
 		discoveryClient,
 		advClient,
-		clusterId,
+		localClusterID,
 		resolveContextRefreshTime,
-		dialTcpTimeout,
+		dialTCPTimeout,
 	)
-	if discoveryCtrl.GetDiscoveryConfig(nil, kubeconfigPath) != nil {
+	if discoveryCtrl.getDiscoveryConfig(nil, kubeconfigPath) != nil {
 		os.Exit(1)
 	}
 	return &discoveryCtrl, nil
 }
 
-func GetDiscoveryCtrl(namespace string, client *crdClient.CRDClient, advClient *crdClient.CRDClient, clusterId clusterID.ClusterID, resolveContextRefreshTime int, dialTcpTimeout time.Duration) DiscoveryCtrl {
-	return DiscoveryCtrl{
+func getDiscoveryCtrl(namespace string, client, advClient *crdClient.CRDClient,
+	localClusterID clusterID.ClusterID, resolveContextRefreshTime int, dialTCPTimeout time.Duration) Controller {
+	return Controller{
 		Namespace:                 namespace,
 		crdClient:                 client,
 		advClient:                 advClient,
-		ClusterId:                 clusterId,
+		ClusterId:                 localClusterID,
 		stopMDNS:                  make(chan bool, 1),
 		stopMDNSClient:            make(chan bool, 1),
 		resolveContextRefreshTime: resolveContextRefreshTime,
-		dialTcpTimeout:            dialTcpTimeout,
+		dialTCPTimeout:            dialTCPTimeout,
 	}
 }
 
-// Start register and resolver goroutines
-func (discovery *DiscoveryCtrl) StartDiscovery() {
-	go discovery.Register()
-	go discovery.StartResolver(discovery.stopMDNSClient)
-	go discovery.StartGratuitousAnswers()
-	go discovery.StartGarbageCollector()
+// StartDiscovery starts register and resolver goroutines.
+func (discovery *Controller) StartDiscovery() {
+	go discovery.register()
+	go discovery.startResolver(discovery.stopMDNSClient)
+	go discovery.startGratuitousAnswers()
+	go discovery.startGarbageCollector()
 }

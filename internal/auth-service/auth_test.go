@@ -153,10 +153,10 @@ var _ = Describe("Auth", func() {
 			saInformer:           saInformer,
 			nodeInformer:         nodeInformer,
 			secretInformer:       secretInformer,
-			clusterId:            &clusterID,
+			localClusterID:       &clusterID,
 			namespaceManager:     namespaceManager,
 			identityManager:      identityManager,
-			useTls:               false,
+			useTLS:               false,
 			credentialsValidator: &tokenValidator{},
 			apiServerConfig: &v1alpha1.ApiServerConfig{
 				Address:   getHost(cluster.GetCfg().Host),
@@ -321,7 +321,7 @@ var _ = Describe("Auth", func() {
 
 		DescribeTable("Certificate Identity Creation table",
 			func(c certificateTestcase) {
-				csr, err := getCSR(authService.clusterId.GetClusterID())
+				csr, err := getCSR(authService.localClusterID.GetClusterID())
 				Expect(err).To(BeNil())
 				c.request.CertificateSigningRequest = base64.StdEncoding.EncodeToString(csr)
 

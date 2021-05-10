@@ -28,7 +28,9 @@ func init() {
 }
 
 // StartOperator setups the ForeignCluster operator
-func StartOperator(mgr manager.Manager, namespace string, requeueAfter time.Duration, discoveryCtrl *discovery.DiscoveryCtrl, kubeconfigPath string) {
+func StartOperator(
+	mgr manager.Manager, namespace string, requeueAfter time.Duration,
+	discoveryCtrl *discovery.Controller, kubeconfigPath string) {
 	config, err := crdClient.NewKubeconfig(kubeconfigPath, &discoveryv1alpha1.GroupVersion, nil)
 	if err != nil {
 		klog.Error(err, "unable to get kube config")
@@ -39,7 +41,7 @@ func StartOperator(mgr manager.Manager, namespace string, requeueAfter time.Dura
 		klog.Error(err, "unable to create crd client")
 		os.Exit(1)
 	}
-	clusterId, err := clusterID.NewClusterID(kubeconfigPath)
+	localclusterID, err := clusterID.NewClusterID(kubeconfigPath)
 	if err != nil {
 		klog.Error(err, "unable to get clusterID")
 		os.Exit(1)
@@ -57,13 +59,13 @@ func StartOperator(mgr manager.Manager, namespace string, requeueAfter time.Dura
 		os.Exit(1)
 	}
 
-	if err = (GetFCReconciler(
+	if err = (getFCReconciler(
 		mgr.GetScheme(),
 		namespace,
 		discoveryClient,
 		advClient,
 		networkClient,
-		clusterId,
+		localclusterID,
 		requeueAfter,
 		discoveryCtrl,
 	)).SetupWithManager(mgr); err != nil {
@@ -72,14 +74,19 @@ func StartOperator(mgr manager.Manager, namespace string, requeueAfter time.Dura
 	}
 }
 
-func GetFCReconciler(scheme *runtime.Scheme, namespace string, client *crdClient.CRDClient, advertisementClient *crdClient.CRDClient, networkClient *crdClient.CRDClient, clusterId clusterID.ClusterID, requeueAfter time.Duration, configProvider discovery.ConfigProvider) *ForeignClusterReconciler {
+func getFCReconciler(scheme *runtime.Scheme,
+	namespace string,
+	client, advertisementClient, networkClient *crdClient.CRDClient,
+	localClusterID clusterID.ClusterID,
+	requeueAfter time.Duration,
+	configProvider discovery.ConfigProvider) *ForeignClusterReconciler {
 	return &ForeignClusterReconciler{
 		Scheme:              scheme,
 		Namespace:           namespace,
 		crdClient:           client,
 		advertisementClient: advertisementClient,
 		networkClient:       networkClient,
-		clusterID:           clusterId,
+		clusterID:           localClusterID,
 		ForeignConfig:       nil,
 		RequeueAfter:        requeueAfter,
 		ConfigProvider:      configProvider,

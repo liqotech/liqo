@@ -13,14 +13,14 @@ import (
 	discoveryPkg "github.com/liqotech/liqo/pkg/discovery"
 )
 
-func (discovery *DiscoveryCtrl) StartGarbageCollector() {
+func (discovery *Controller) startGarbageCollector() {
 	for range time.NewTicker(30 * time.Second).C {
 		_ = discovery.CollectGarbage()
 	}
 }
 
 // The GarbageCollector deletes all ForeignClusters discovered with LAN and WAN that have expired TTL
-func (discovery *DiscoveryCtrl) CollectGarbage() error {
+func (discovery *Controller) CollectGarbage() error {
 	req, err := labels.NewRequirement(discoveryPkg.DiscoveryTypeLabel, selection.In, []string{
 		string(discoveryPkg.LanDiscovery),
 		string(discoveryPkg.WanDiscovery),

@@ -15,7 +15,7 @@ var preferOrder = []v1.NodeAddressType{
 	v1.NodeHostName,
 }
 
-// GetAddressFromNodeList returns an address from a Node pool
+// GetAddressFromNodeList returns an address from a Node pool.
 func GetAddressFromNodeList(nodes []v1.Node) (string, error) {
 	for _, addrType := range preferOrder {
 		for i := range nodes {
@@ -31,7 +31,7 @@ func GetAddressFromNodeList(nodes []v1.Node) (string, error) {
 	return "", fmt.Errorf("no address found")
 }
 
-// GetAddress returns an address for a Node
+// GetAddress returns an address for a Node.
 func GetAddress(node *v1.Node) (string, error) {
 	return GetAddressFromNodeList([]v1.Node{
 		*node,

@@ -22,7 +22,7 @@ import (
 	"github.com/liqotech/liqo/pkg/discovery"
 )
 
-// create a new key and a new csr to be used as an identity to authenticate with a remote cluster
+// CreateIdentity creates a new key and a new csr to be used as an identity to authenticate with a remote cluster.
 func (certManager *certificateIdentityManager) CreateIdentity(remoteClusterID string) (*v1.Secret, error) {
 	namespace, err := certManager.namespaceManager.GetNamespace(remoteClusterID)
 	if err != nil {

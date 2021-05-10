@@ -15,11 +15,11 @@ import (
 	discoveryPkg "github.com/liqotech/liqo/pkg/discovery"
 )
 
-func (discovery *DiscoveryCtrl) StartResolver(stopChan <-chan bool) {
+func (discovery *Controller) startResolver(stopChan <-chan bool) {
 	for {
 		if discovery.Config.EnableDiscovery {
 			ctx, cancel := context.WithCancel(context.TODO())
-			go discovery.Resolve(ctx, discovery.Config.AuthService, discovery.Config.Domain, nil)
+			go discovery.resolve(ctx, discovery.Config.AuthService, discovery.Config.Domain, nil)
 			select {
 			case <-stopChan:
 				cancel()
@@ -32,7 +32,7 @@ func (discovery *DiscoveryCtrl) StartResolver(stopChan <-chan bool) {
 	}
 }
 
-func (discovery *DiscoveryCtrl) Resolve(ctx context.Context, service string, domain string, resultChan chan DiscoverableData) {
+func (discovery *Controller) resolve(ctx context.Context, service, domain string, resultChan chan discoverableData) {
 	resolver, err := zeroconf.NewResolver(zeroconf.SelectIPTraffic(zeroconf.IPv4))
 	if err != nil {
 		klog.Error(err, err.Error())
@@ -42,7 +42,7 @@ func (discovery *DiscoveryCtrl) Resolve(ctx context.Context, service string, dom
 	entries := make(chan *zeroconf.ServiceEntry)
 	go func(results <-chan *zeroconf.ServiceEntry) {
 		for entry := range results {
-			var data DiscoverableData = &AuthData{}
+			var data discoverableData = &AuthData{}
 			err := data.Get(discovery, entry)
 			if err != nil {
 				continue
@@ -71,7 +71,7 @@ func (discovery *DiscoveryCtrl) Resolve(ctx context.Context, service string, dom
 						continue
 					}
 					klog.V(4).Infof("update %s", entry.Instance)
-					discovery.UpdateForeignLAN(dData, trustMode)
+					discovery.updateForeignLAN(dData, trustMode)
 					resolvedData.delete(entry.Instance)
 				}
 			}
@@ -86,8 +86,8 @@ func (discovery *DiscoveryCtrl) Resolve(ctx context.Context, service string, dom
 	<-ctx.Done()
 }
 
-func (discovery *DiscoveryCtrl) getClusterInfo(authData *AuthData) (*auth.ClusterInfo, discoveryPkg.TrustMode, error) {
-	ids, trustMode, err := utils.GetClusterInfo(authData.GetUrl())
+func (discovery *Controller) getClusterInfo(authData *AuthData) (*auth.ClusterInfo, discoveryPkg.TrustMode, error) {
+	ids, trustMode, err := utils.GetClusterInfo(authData.getURL())
 	if err != nil {
 		klog.Error(err)
 		return nil, "", err
@@ -96,7 +96,7 @@ func (discovery *DiscoveryCtrl) getClusterInfo(authData *AuthData) (*auth.Cluste
 	return ids, trustMode, nil
 }
 
-func (discovery *DiscoveryCtrl) getIPs() map[string]bool {
+func (discovery *Controller) getIPs() map[string]bool {
 	myIps := map[string]bool{}
 	ifaces, err := net.Interfaces()
 	if err != nil {
@@ -119,10 +119,10 @@ func (discovery *DiscoveryCtrl) getIPs() map[string]bool {
 }
 
 // a cluster is considered as foreign if it has at least one IP different from our IPs
-func (discovery *DiscoveryCtrl) isForeign(foreignIps []net.IP) bool {
+func (discovery *Controller) isForeign(foreignIPs []net.IP) bool {
 	myIps := discovery.getIPs()
-	for _, fIp := range foreignIps {
-		if !myIps[fIp.String()] {
+	for _, fIP := range foreignIPs {
+		if !myIps[fIP.String()] {
 			return true
 		}
 	}

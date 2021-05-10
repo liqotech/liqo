@@ -10,7 +10,7 @@ import (
 	"github.com/liqotech/liqo/pkg/discovery"
 )
 
-func (authService *AuthServiceCtrl) createRoleBinding(sa *v1.ServiceAccount, role *rbacv1.Role, remoteClusterId string) (*rbacv1.RoleBinding, error) {
+func (authService *AuthServiceCtrl) createRoleBinding(sa *v1.ServiceAccount, role *rbacv1.Role, remoteClusterID string) (*rbacv1.RoleBinding, error) {
 	rb := &rbacv1.RoleBinding{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: sa.Name,
@@ -24,7 +24,7 @@ func (authService *AuthServiceCtrl) createRoleBinding(sa *v1.ServiceAccount, rol
 			},
 			Labels: map[string]string{
 				discovery.LiqoManagedLabel: "true",
-				discovery.ClusterIDLabel:   remoteClusterId,
+				discovery.ClusterIDLabel:   remoteClusterID,
 			},
 		},
 		Subjects: []rbacv1.Subject{

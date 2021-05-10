@@ -52,7 +52,7 @@ func (fc *ForeignCluster) DeleteAdvertisement(advClient *crdClient.CRDClient) er
 // if we discovered a cluster with IncomingPeering we can upgrade this discovery
 // when we found it also in other way, for example inserting a SearchDomain or
 // adding it manually
-func (fc *ForeignCluster) HasHigherPriority(discoveryType discovery.DiscoveryType) bool {
+func (fc *ForeignCluster) HasHigherPriority(discoveryType discovery.Type) bool {
 	b1 := fc.Spec.DiscoveryType == discovery.IncomingPeeringDiscovery
 	b2 := discoveryType != discovery.IncomingPeeringDiscovery
 	return b1 && b2

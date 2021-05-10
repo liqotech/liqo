@@ -50,6 +50,7 @@ import (
 // +kubebuilder:rbac:groups=rbac.authorization.k8s.io,namespace="do-not-care",resources=roles,verbs=create;delete
 // +kubebuilder:rbac:groups=rbac.authorization.k8s.io,namespace="do-not-care",resources=rolebindings,verbs=create;delete
 
+// AuthServiceCtrl is the controller for the Authentication Service.
 type AuthServiceCtrl struct {
 	namespace      string
 	restConfig     *rest.Config
@@ -57,10 +58,10 @@ type AuthServiceCtrl struct {
 	saInformer     cache.SharedIndexInformer
 	nodeInformer   cache.SharedIndexInformer
 	secretInformer cache.SharedIndexInformer
-	useTls         bool
+	useTLS         bool
 
 	credentialsValidator credentialsValidator
-	clusterId            clusterID.ClusterID
+	localClusterID       clusterID.ClusterID
 	namespaceManager     tenantControlNamespace.TenantControlNamespaceManager
 	identityManager      identityManager.IdentityManager
 
@@ -72,7 +73,8 @@ type AuthServiceCtrl struct {
 	peeringPermission peeringRoles.PeeringPermission
 }
 
-func NewAuthServiceCtrl(namespace string, kubeconfigPath string, resyncTime time.Duration, useTls bool) (*AuthServiceCtrl, error) {
+// NewAuthServiceCtrl creates a new Auth Controller.
+func NewAuthServiceCtrl(namespace, kubeconfigPath string, resyncTime time.Duration, useTLS bool) (*AuthServiceCtrl, error) {
 	config, err := crdClient.NewKubeconfig(kubeconfigPath, &discoveryv1alpha1.GroupVersion, nil)
 	if err != nil {
 		return nil, err
@@ -103,7 +105,7 @@ func NewAuthServiceCtrl(namespace string, kubeconfigPath string, resyncTime time
 	secretInformer := informerFactory.Core().V1().Secrets().Informer()
 	secretInformer.AddEventHandler(cache.ResourceEventHandlerFuncs{})
 
-	clusterId, err := clusterID.NewClusterID(kubeconfigPath)
+	localClusterID, err := clusterID.NewClusterID(kubeconfigPath)
 	if err != nil {
 		return nil, err
 	}
@@ -112,7 +114,7 @@ func NewAuthServiceCtrl(namespace string, kubeconfigPath string, resyncTime time
 	informerFactory.WaitForCacheSync(wait.NeverStop)
 
 	namespaceManager := tenantControlNamespace.NewTenantControlNamespaceManager(clientset)
-	identityManager := identityManager.NewCertificateIdentityManager(clientset, clusterId, namespaceManager)
+	idManager := identityManager.NewCertificateIdentityManager(clientset, localClusterID, namespaceManager)
 
 	return &AuthServiceCtrl{
 		namespace:            namespace,
@@ -121,20 +123,21 @@ func NewAuthServiceCtrl(namespace string, kubeconfigPath string, resyncTime time
 		saInformer:           saInformer,
 		nodeInformer:         nodeInformer,
 		secretInformer:       secretInformer,
-		clusterId:            clusterId,
+		localClusterID:       localClusterID,
 		namespaceManager:     namespaceManager,
-		identityManager:      identityManager,
-		useTls:               useTls,
+		identityManager:      idManager,
+		useTLS:               useTLS,
 		credentialsValidator: &tokenValidator{},
 	}, nil
 }
 
-func (authService *AuthServiceCtrl) Start(listeningPort string, certFile string, keyFile string) error {
+// Start starts the authentication service.
+func (authService *AuthServiceCtrl) Start(listeningPort, certFile, keyFile string) error {
 	if err := authService.configureToken(); err != nil {
 		return err
 	}
 
-	// populate the lists of ClusterRoles to bind in the different peering states
+	// populate the lists of ClusterRoles to bind in the different peering states.
 	if err := authService.populatePermission(); err != nil {
 		return err
 	}
@@ -146,7 +149,7 @@ func (authService *AuthServiceCtrl) Start(listeningPort string, certFile string,
 	router.GET("/ids", authService.ids)
 
 	var err error
-	if authService.useTls {
+	if authService.useTLS {
 		err = http.ListenAndServeTLS(strings.Join([]string{":", listeningPort}, ""), certFile, keyFile, router)
 	} else {
 		err = http.ListenAndServe(strings.Join([]string{":", listeningPort}, ""), router)
@@ -169,7 +172,7 @@ func (authService *AuthServiceCtrl) configureToken() error {
 			if !ok {
 				return
 			}
-			if newSecret.Name != AuthTokenSecretName {
+			if newSecret.Name != authTokenSecretName {
 				return
 			}
 
@@ -186,7 +189,7 @@ func (authService *AuthServiceCtrl) configureToken() error {
 			if !ok {
 				return
 			}
-			if newSecret.Name != AuthTokenSecretName {
+			if newSecret.Name != authTokenSecretName {
 				return
 			}
 
@@ -207,7 +210,7 @@ func (authService *AuthServiceCtrl) getTokenManager() tokenManager {
 	return authService
 }
 
-// populatePermission populates the list of ClusterRoles to bind in the different peering phases reading the ClusterConfig CR
+// populatePermission populates the list of ClusterRoles to bind in the different peering phases reading the ClusterConfig CR.
 func (authService *AuthServiceCtrl) populatePermission() error {
 	peeringPermission, err := peeringRoles.GetPeeringPermission(authService.clientset, authService)
 	if err != nil {

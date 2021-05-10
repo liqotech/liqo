@@ -14,42 +14,45 @@ import (
 	"github.com/liqotech/liqo/pkg/crdClient"
 )
 
+// ConfigProvider interface provides methods to access the Discovery and API Server configuration.
 type ConfigProvider interface {
 	GetConfig() *configv1alpha1.DiscoveryConfig
-	GetApiServerConfig() *configv1alpha1.ApiServerConfig
+	GetAPIServerConfig() *configv1alpha1.ApiServerConfig
 }
 
-func (discovery *DiscoveryCtrl) GetConfig() *configv1alpha1.DiscoveryConfig {
+// GetConfig returns the configuration of the discovery component.
+func (discovery *Controller) GetConfig() *configv1alpha1.DiscoveryConfig {
 	discovery.configMutex.RLock()
 	defer discovery.configMutex.RUnlock()
 	return discovery.Config
 }
 
-func (discovery *DiscoveryCtrl) GetApiServerConfig() *configv1alpha1.ApiServerConfig {
+// GetAPIServerConfig returns the configuration of the local APIServer (address, port).
+func (discovery *Controller) GetAPIServerConfig() *configv1alpha1.ApiServerConfig {
 	discovery.configMutex.RLock()
 	defer discovery.configMutex.RUnlock()
 	return discovery.apiServerConfig
 }
 
-func (discovery *DiscoveryCtrl) GetDiscoveryConfig(crdClient *crdClient.CRDClient, kubeconfigPath string) error {
+func (discovery *Controller) getDiscoveryConfig(client *crdClient.CRDClient, kubeconfigPath string) error {
 	waitFirst := make(chan bool)
 	isFirst := true
 	go clusterConfig.WatchConfiguration(func(configuration *configv1alpha1.ClusterConfig) {
 		discovery.handleConfiguration(&configuration.Spec.DiscoveryConfig)
 		discovery.handleDispatcherConfig(&configuration.Spec.DispatcherConfig)
-		discovery.handleApiServerConfig(&configuration.Spec.ApiServerConfig)
+		discovery.handleAPIServerConfig(&configuration.Spec.ApiServerConfig)
 		if isFirst {
 			waitFirst <- true
 			isFirst = false
 		}
-	}, crdClient, kubeconfigPath)
+	}, client, kubeconfigPath)
 	<-waitFirst
 	close(waitFirst)
 
 	return nil
 }
 
-func (discovery *DiscoveryCtrl) handleApiServerConfig(config *configv1alpha1.ApiServerConfig) {
+func (discovery *Controller) handleAPIServerConfig(config *configv1alpha1.ApiServerConfig) {
 	discovery.configMutex.Lock()
 	defer discovery.configMutex.Unlock()
 
@@ -62,7 +65,7 @@ func (discovery *DiscoveryCtrl) handleApiServerConfig(config *configv1alpha1.Api
 	discovery.apiServerConfig = config.DeepCopy()
 }
 
-func (discovery *DiscoveryCtrl) handleDispatcherConfig(config *configv1alpha1.DispatcherConfig) {
+func (discovery *Controller) handleDispatcherConfig(config *configv1alpha1.DispatcherConfig) {
 	discovery.configMutex.Lock()
 	defer discovery.configMutex.Unlock()
 
@@ -113,7 +116,7 @@ func (discovery *DiscoveryCtrl) handleDispatcherConfig(config *configv1alpha1.Di
 	discovery.crdReplicatorConfig = config.DeepCopy()
 }
 
-func (discovery *DiscoveryCtrl) handleConfiguration(config *configv1alpha1.DiscoveryConfig) {
+func (discovery *Controller) handleConfiguration(config *configv1alpha1.DiscoveryConfig) {
 	discovery.configMutex.Lock()
 	defer discovery.configMutex.Unlock()
 
@@ -181,22 +184,22 @@ func (discovery *DiscoveryCtrl) handleConfiguration(config *configv1alpha1.Disco
 	}
 }
 
-func (discovery *DiscoveryCtrl) reloadServer() {
+func (discovery *Controller) reloadServer() {
 	klog.Info("Reload mDNS server")
 	discovery.stopMDNS <- true
 	if discovery.Config.EnableAdvertisement {
 		close(discovery.stopMDNS)
 		discovery.stopMDNS = make(chan bool, 1)
-		go discovery.Register()
+		go discovery.register()
 	}
 }
 
-func (discovery *DiscoveryCtrl) reloadClient() {
+func (discovery *Controller) reloadClient() {
 	klog.Info("Reload mDNS client")
 	discovery.stopMDNSClient <- true
 	if discovery.Config.EnableDiscovery {
 		close(discovery.stopMDNSClient)
 		discovery.stopMDNSClient = make(chan bool, 1)
-		go discovery.StartResolver(discovery.stopMDNSClient)
+		go discovery.startResolver(discovery.stopMDNSClient)
 	}
 }
