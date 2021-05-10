@@ -97,7 +97,7 @@ func StartBroadcaster(homeClusterId, localKubeconfigPath, peeringRequestName, sa
 	}
 
 	// get the PeeringRequest from the foreign cluster which requested resources
-	tmp, err := discoveryClient.Resource("peeringrequests").Get(peeringRequestName, metav1.GetOptions{})
+	tmp, err := discoveryClient.Resource("peeringrequests").Get(peeringRequestName, &metav1.GetOptions{})
 	if err != nil {
 		klog.Errorln(err, "Unable to get PeeringRequest "+peeringRequestName)
 		return err
@@ -315,12 +315,12 @@ func (b *AdvertisementBroadcaster) SendAdvertisementToForeignCluster(advToCreate
 	var adv *advtypes.Advertisement
 
 	// try to get the Advertisement on remote cluster
-	obj, err := b.RemoteClient.Resource("advertisements").Get(advToCreate.Name, metav1.GetOptions{})
+	obj, err := b.RemoteClient.Resource("advertisements").Get(advToCreate.Name, &metav1.GetOptions{})
 	if err == nil {
 		// Advertisement already created, update it
 		adv = obj.(*advtypes.Advertisement)
 		advToCreate.ObjectMeta = adv.ObjectMeta
-		_, err = b.RemoteClient.Resource("advertisements").Update(adv.Name, &advToCreate, metav1.UpdateOptions{})
+		_, err = b.RemoteClient.Resource("advertisements").Update(adv.Name, &advToCreate, &metav1.UpdateOptions{})
 		if err != nil {
 			klog.Errorln("Unable to update Advertisement " + advToCreate.Name)
 			return nil, err
@@ -331,7 +331,7 @@ func (b *AdvertisementBroadcaster) SendAdvertisementToForeignCluster(advToCreate
 			return nil, err
 		}
 		// Advertisement not found, create it
-		obj, err := b.RemoteClient.Resource("advertisements").Create(&advToCreate, metav1.CreateOptions{})
+		obj, err := b.RemoteClient.Resource("advertisements").Create(&advToCreate, &metav1.CreateOptions{})
 		if err != nil {
 			klog.Errorln("Unable to create Advertisement " + advToCreate.Name + " on remote cluster " + b.ForeignClusterId)
 			return nil, err
@@ -388,7 +388,7 @@ func (b *AdvertisementBroadcaster) SendSecretToForeignCluster(secret *corev1.Sec
 func (b *AdvertisementBroadcaster) NotifyAdvertisementDeletion() error {
 	advName := pkg.AdvertisementPrefix + b.HomeClusterId
 	// delete adv to inform the vk to do the cleanup
-	err := b.RemoteClient.Resource("advertisements").Delete(advName, metav1.DeleteOptions{})
+	err := b.RemoteClient.Resource("advertisements").Delete(advName, &metav1.DeleteOptions{})
 	if err != nil {
 		klog.Error("Unable to delete Advertisement " + advName)
 		return err

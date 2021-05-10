@@ -29,7 +29,7 @@ func (discovery *DiscoveryCtrl) CollectGarbage() error {
 		klog.Error(err)
 		return err
 	}
-	tmp, err := discovery.crdClient.Resource("foreignclusters").List(metav1.ListOptions{
+	tmp, err := discovery.crdClient.Resource("foreignclusters").List(&metav1.ListOptions{
 		LabelSelector: labels.NewSelector().Add(*req).String(),
 	})
 	if err != nil {
@@ -43,10 +43,10 @@ func (discovery *DiscoveryCtrl) CollectGarbage() error {
 		return err
 	}
 
-	for _, fc := range fcs.Items {
-		if fc.IsExpired() {
-			klog.V(4).Infof("delete foreignCluster %v (TTL expired)", fc.Name)
-			err = discovery.crdClient.Resource("foreignclusters").Delete(fc.Name, metav1.DeleteOptions{})
+	for i := range fcs.Items {
+		if fcs.Items[i].IsExpired() {
+			klog.V(4).Infof("delete foreignCluster %v (TTL expired)", fcs.Items[i].Name)
+			err = discovery.crdClient.Resource("foreignclusters").Delete(fcs.Items[i].Name, &metav1.DeleteOptions{})
 			if err != nil {
 				klog.Error(err)
 				continue

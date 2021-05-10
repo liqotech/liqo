@@ -3,6 +3,7 @@ package crdClient
 import (
 	"os"
 
+	"github.com/liqotech/liqo/pkg/consts"
 	"github.com/pkg/errors"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -54,7 +55,7 @@ func NewKubeconfig(configPath string, gv *schema.GroupVersion, configOptions fun
 	}
 
 	config.ContentConfig.GroupVersion = gv
-	config.APIPath = "/apis"
+	config.APIPath = consts.ApisPath
 	config.NegotiatedSerializer = scheme.Codecs.WithoutConversion()
 	config.UserAgent = rest.DefaultKubernetesUserAgent()
 

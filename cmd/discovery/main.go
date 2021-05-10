@@ -40,13 +40,16 @@ func main() {
 	var requeueAfter int64 // seconds
 	var kubeconfigPath string
 	var resolveContextRefreshTime int // minutes
-	var dialTcpTimeout int64          // milliseconds
+	var dialTCPTimeout int64          // milliseconds
 
 	flag.StringVar(&namespace, "namespace", "default", "Namespace where your configs are stored.")
 	flag.Int64Var(&requeueAfter, "requeueAfter", 30, "Period after that PeeringRequests status is rechecked (seconds)")
-	flag.StringVar(&kubeconfigPath, "kubeconfigPath", filepath.Join(os.Getenv("HOME"), ".kube", "config"), "For debug purpose, set path to local kubeconfig")
-	flag.IntVar(&resolveContextRefreshTime, "resolveContextRefreshTime", 10, "Period after that mDNS resolve context is refreshed (minutes)")
-	flag.Int64Var(&dialTcpTimeout, "dialTcpTimeout", 500, "Time to wait for a TCP connection to a remote cluster before to consider it as not reachable (milliseconds)")
+	flag.StringVar(&kubeconfigPath,
+		"kubeconfigPath", filepath.Join(os.Getenv("HOME"), ".kube", "config"), "For debug purpose, set path to local kubeconfig")
+	flag.IntVar(&resolveContextRefreshTime,
+		"resolveContextRefreshTime", 10, "Period after that mDNS resolve context is refreshed (minutes)")
+	flag.Int64Var(&dialTCPTimeout,
+		"dialTcpTimeout", 500, "Time to wait for a TCP connection to a remote cluster before to consider it as not reachable (milliseconds)")
 
 	klog.InitFlags(nil)
 	flag.Parse()
@@ -65,7 +68,8 @@ func main() {
 		os.Exit(1)
 	}
 
-	discoveryCtl, err := discovery.NewDiscoveryCtrl(namespace, clusterId, kubeconfigPath, resolveContextRefreshTime, time.Duration(dialTcpTimeout)*time.Millisecond)
+	discoveryCtl, err := discovery.NewDiscoveryCtrl(namespace, clusterId, kubeconfigPath,
+		resolveContextRefreshTime, time.Duration(dialTCPTimeout)*time.Millisecond)
 	if err != nil {
 		klog.Error(err, err.Error())
 		os.Exit(1)
@@ -86,10 +90,10 @@ func main() {
 	}
 
 	klog.Info("Starting SearchDomain operator")
-	search_domain_operator.StartOperator(&mgr, time.Duration(requeueAfter)*time.Second, discoveryCtl, kubeconfigPath)
+	search_domain_operator.StartOperator(mgr, time.Duration(requeueAfter)*time.Second, discoveryCtl, kubeconfigPath)
 
 	klog.Info("Starting ForeignCluster operator")
-	foreign_cluster_operator.StartOperator(&mgr, namespace, time.Duration(requeueAfter)*time.Second, discoveryCtl, kubeconfigPath)
+	foreign_cluster_operator.StartOperator(mgr, namespace, time.Duration(requeueAfter)*time.Second, discoveryCtl, kubeconfigPath)
 
 	if err := mgr.Start(ctrl.SetupSignalHandler()); err != nil {
 		klog.Error(err, "problem running manager")

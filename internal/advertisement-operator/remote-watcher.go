@@ -68,7 +68,7 @@ func (b *AdvertisementBroadcaster) handlerFunc(obj interface{}) {
 
 func (b *AdvertisementBroadcaster) saveAdvStatus(adv *advtypes.Advertisement) error {
 	// get the PeeringRequest from the foreign cluster which requested resources
-	tmp, err := b.DiscoveryClient.Resource("peeringrequests").Get(b.PeeringRequestName, metav1.GetOptions{})
+	tmp, err := b.DiscoveryClient.Resource("peeringrequests").Get(b.PeeringRequestName, &metav1.GetOptions{})
 	if err != nil {
 		return err
 	}
@@ -76,7 +76,7 @@ func (b *AdvertisementBroadcaster) saveAdvStatus(adv *advtypes.Advertisement) er
 
 	// save the advertisement status (ACCEPTED/REFUSED) in the PeeringRequest
 	pr.Status.AdvertisementStatus = adv.Status.AdvertisementStatus
-	_, err = b.DiscoveryClient.Resource("peeringrequests").Update(pr.Name, pr, metav1.UpdateOptions{})
+	_, err = b.DiscoveryClient.Resource("peeringrequests").Update(pr.Name, pr, &metav1.UpdateOptions{})
 	if err != nil {
 		return err
 	}

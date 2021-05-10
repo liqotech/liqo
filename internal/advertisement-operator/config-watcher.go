@@ -30,14 +30,14 @@ func (b *AdvertisementBroadcaster) WatchConfiguration(kubeconfigPath string, cli
 				// wait for advertisement to be deleted to delete the peering request
 				for retry := 0; retry < 3; retry++ {
 					advName := pkg.AdvertisementPrefix + b.HomeClusterId
-					if _, err := b.RemoteClient.Resource("advertisements").Get(advName, metav1.GetOptions{}); err != nil && k8serrors.IsNotFound(err) {
+					if _, err := b.RemoteClient.Resource("advertisements").Get(advName, &metav1.GetOptions{}); err != nil && k8serrors.IsNotFound(err) {
 						break
 					}
 					time.Sleep(30 * time.Second)
 				}
 			}
 			// delete the peering request to delete the broadcaster
-			if err := b.DiscoveryClient.Resource("peeringrequests").Delete(b.PeeringRequestName, metav1.DeleteOptions{}); err != nil {
+			if err := b.DiscoveryClient.Resource("peeringrequests").Delete(b.PeeringRequestName, &metav1.DeleteOptions{}); err != nil {
 				klog.Error("Unable to delete PeeringRequest " + b.PeeringRequestName)
 			}
 			return
@@ -80,7 +80,7 @@ func (r *AdvertisementReconciler) WatchConfiguration(kubeconfigPath string, clie
 		if newConfig.IngoingConfig != r.ClusterConfig.IngoingConfig {
 			// the config update is related to the advertisement operator
 			// list all advertisements
-			obj, err := r.AdvClient.Resource("advertisements").List(metav1.ListOptions{})
+			obj, err := r.AdvClient.Resource("advertisements").List(&metav1.ListOptions{})
 			if err != nil {
 				klog.Error(err, "Unable to apply configuration: error listing Advertisements")
 				return

@@ -24,7 +24,6 @@ import (
 	"time"
 
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
-	nettypes "github.com/liqotech/liqo/apis/net/v1alpha1"
 	netv1alpha1 "github.com/liqotech/liqo/apis/net/v1alpha1"
 	advtypes "github.com/liqotech/liqo/apis/sharing/v1alpha1"
 	"github.com/liqotech/liqo/internal/crdReplicator"
@@ -95,7 +94,7 @@ func (r *ForeignClusterReconciler) Reconcile(req ctrl.Request) (ctrl.Result, err
 
 	klog.V(4).Infof("Reconciling ForeignCluster %s", req.Name)
 
-	tmp, err := r.crdClient.Resource("foreignclusters").Get(req.Name, metav1.GetOptions{})
+	tmp, err := r.crdClient.Resource("foreignclusters").Get(req.Name, &metav1.GetOptions{})
 	if err != nil {
 		return ctrl.Result{}, nil
 	}
@@ -144,8 +143,13 @@ func (r *ForeignClusterReconciler) Reconcile(req ctrl.Request) (ctrl.Result, err
 		}
 		// set join flag
 		// if it was discovery with WAN discovery, this value is overwritten by SearchDomain value
-		if fc.Spec.DiscoveryType != discoveryPkg.WanDiscovery && fc.Spec.DiscoveryType != discoveryPkg.IncomingPeeringDiscovery && fc.Spec.DiscoveryType != discoveryPkg.ManualDiscovery {
-			fc.Spec.Join = (r.getAutoJoin(fc) && fc.Spec.TrustMode == discoveryPkg.TrustModeTrusted) || (r.getAutoJoinUntrusted(fc) && fc.Spec.TrustMode == discoveryPkg.TrustModeUntrusted)
+		isWan := fc.Spec.DiscoveryType == discoveryPkg.WanDiscovery
+		isIncoming := fc.Spec.DiscoveryType == discoveryPkg.IncomingPeeringDiscovery
+		isManual := fc.Spec.DiscoveryType == discoveryPkg.ManualDiscovery
+		if !isWan && !isIncoming && !isManual {
+			joinTrusted := r.getAutoJoin(fc) && fc.Spec.TrustMode == discoveryPkg.TrustModeTrusted
+			joinUntrusted := r.getAutoJoinUntrusted(fc) && fc.Spec.TrustMode == discoveryPkg.TrustModeUntrusted
+			fc.Spec.Join = joinTrusted || joinUntrusted
 		}
 
 		requireUpdate = true
@@ -161,8 +165,8 @@ func (r *ForeignClusterReconciler) Reconcile(req ctrl.Request) (ctrl.Result, err
 	}
 	// set cluster-id label to easy retrieve ForeignClusters by ClusterId,
 	// if it is added manually, the name maybe not coincide with ClusterId
-	if fc.ObjectMeta.Labels[discoveryPkg.ClusterIdLabel] == "" {
-		fc.ObjectMeta.Labels[discoveryPkg.ClusterIdLabel] = fc.Spec.ClusterIdentity.ClusterID
+	if fc.ObjectMeta.Labels[discoveryPkg.ClusterIDLabel] == "" {
+		fc.ObjectMeta.Labels[discoveryPkg.ClusterIDLabel] = fc.Spec.ClusterIdentity.ClusterID
 		requireUpdate = true
 	}
 
@@ -188,7 +192,7 @@ func (r *ForeignClusterReconciler) Reconcile(req ctrl.Request) (ctrl.Result, err
 
 	// check if linked advertisement exists
 	if fc.Status.Outgoing.Advertisement != nil {
-		tmp, err = r.advertisementClient.Resource("advertisements").Get(fc.Status.Outgoing.Advertisement.Name, metav1.GetOptions{})
+		tmp, err = r.advertisementClient.Resource("advertisements").Get(fc.Status.Outgoing.Advertisement.Name, &metav1.GetOptions{})
 		if errors.IsNotFound(err) {
 			fc.Status.Outgoing.Advertisement = nil
 			fc.Status.Outgoing.AvailableIdentity = false
@@ -210,7 +214,9 @@ func (r *ForeignClusterReconciler) Reconcile(req ctrl.Request) (ctrl.Result, err
 				}, err
 			}
 			if adv.Spec.KubeConfigRef.Name != "" && adv.Spec.KubeConfigRef.Namespace != "" {
-				_, err = r.crdClient.Client().CoreV1().Secrets(adv.Spec.KubeConfigRef.Namespace).Get(context.TODO(), adv.Spec.KubeConfigRef.Name, metav1.GetOptions{})
+				_, err = r.crdClient.Client().CoreV1().Secrets(
+					adv.Spec.KubeConfigRef.Namespace).Get(
+						context.TODO(), adv.Spec.KubeConfigRef.Name, metav1.GetOptions{})
 				available := err == nil
 				if fc.Status.Outgoing.AvailableIdentity != available {
 					fc.Status.Outgoing.AvailableIdentity = available
@@ -237,7 +243,7 @@ func (r *ForeignClusterReconciler) Reconcile(req ctrl.Request) (ctrl.Result, err
 
 	// check if linked peeringRequest exists
 	if fc.Status.Incoming.PeeringRequest != nil {
-		tmp, err = r.crdClient.Resource("peeringrequests").Get(fc.Status.Incoming.PeeringRequest.Name, metav1.GetOptions{})
+		tmp, err = r.crdClient.Resource("peeringrequests").Get(fc.Status.Incoming.PeeringRequest.Name, &metav1.GetOptions{})
 		if errors.IsNotFound(err) {
 			fc.Status.Incoming.PeeringRequest = nil
 			fc.Status.Incoming.AvailableIdentity = false
@@ -285,8 +291,11 @@ func (r *ForeignClusterReconciler) Reconcile(req ctrl.Request) (ctrl.Result, err
 	}
 
 	// if it has been discovered thanks to incoming peeringRequest and it has no active connections, delete it
-	if fc.Spec.DiscoveryType == discoveryPkg.IncomingPeeringDiscovery && fc.DeletionTimestamp.IsZero() && fc.Status.Incoming.PeeringRequest == nil && fc.Status.Outgoing.Advertisement == nil {
-		err = r.crdClient.Resource("foreignclusters").Delete(fc.Name, metav1.DeleteOptions{})
+	isIncomingDiscovery := fc.Spec.DiscoveryType == discoveryPkg.IncomingPeeringDiscovery
+	isNotDeleting := fc.DeletionTimestamp.IsZero()
+	hasPeering := fc.Status.Incoming.PeeringRequest == nil && fc.Status.Outgoing.Advertisement == nil
+	if isIncomingDiscovery && isNotDeleting && hasPeering {
+		err = r.crdClient.Resource("foreignclusters").Delete(fc.Name, &metav1.DeleteOptions{})
 		if err != nil {
 			klog.Error(err, err.Error())
 			return ctrl.Result{
@@ -379,7 +388,7 @@ func (r *ForeignClusterReconciler) Reconcile(req ctrl.Request) (ctrl.Result, err
 
 func (r *ForeignClusterReconciler) Update(fc *discoveryv1alpha1.ForeignCluster) (*discoveryv1alpha1.ForeignCluster, error) {
 	err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
-		if tmp, err := r.crdClient.Resource("foreignclusters").Update(fc.Name, fc, metav1.UpdateOptions{}); err == nil {
+		if tmp, err := r.crdClient.Resource("foreignclusters").Update(fc.Name, fc, &metav1.UpdateOptions{}); err == nil {
 			var ok bool
 			fc, ok = tmp.(*discoveryv1alpha1.ForeignCluster)
 			if !ok {
@@ -391,7 +400,7 @@ func (r *ForeignClusterReconciler) Update(fc *discoveryv1alpha1.ForeignCluster) 
 		} else if !errors.IsConflict(err) {
 			return err
 		}
-		tmp, err := r.crdClient.Resource("foreignclusters").Get(fc.Name, metav1.GetOptions{})
+		tmp, err := r.crdClient.Resource("foreignclusters").Get(fc.Name, &metav1.GetOptions{})
 		if err != nil {
 			klog.Error(err)
 			return err
@@ -409,6 +418,7 @@ func (r *ForeignClusterReconciler) Update(fc *discoveryv1alpha1.ForeignCluster) 
 	return fc, err
 }
 
+// Peer creates the peering with a remote cluster
 func (r *ForeignClusterReconciler) Peer(fc *discoveryv1alpha1.ForeignCluster, foreignDiscoveryClient *crdClient.CRDClient) (*discoveryv1alpha1.ForeignCluster, error) {
 	// create PeeringRequest
 	klog.Infof("[%v] Creating PeeringRequest", fc.Spec.ClusterIdentity.ClusterID)
@@ -428,7 +438,9 @@ func (r *ForeignClusterReconciler) Peer(fc *discoveryv1alpha1.ForeignCluster, fo
 	return fc, nil
 }
 
-func (r *ForeignClusterReconciler) Unpeer(fc *discoveryv1alpha1.ForeignCluster, foreignDiscoveryClient *crdClient.CRDClient) (*discoveryv1alpha1.ForeignCluster, error) {
+// Unpeer removes the peering with a remote cluster
+func (r *ForeignClusterReconciler) Unpeer(fc *discoveryv1alpha1.ForeignCluster,
+	foreignDiscoveryClient *crdClient.CRDClient) (*discoveryv1alpha1.ForeignCluster, error) {
 	// peering request has to be removed
 	klog.Infof("[%v] Deleting PeeringRequest", fc.Spec.ClusterIdentity.ClusterID)
 	err := r.deletePeeringRequest(foreignDiscoveryClient, fc)
@@ -450,6 +462,7 @@ func (r *ForeignClusterReconciler) Unpeer(fc *discoveryv1alpha1.ForeignCluster, 
 	return fc, nil
 }
 
+// SetupWithManager assigns the operator to a manager
 func (r *ForeignClusterReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&discoveryv1alpha1.ForeignCluster{}).
@@ -458,8 +471,11 @@ func (r *ForeignClusterReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		Complete(r)
 }
 
-func (r *ForeignClusterReconciler) checkJoined(fc *discoveryv1alpha1.ForeignCluster, foreignDiscoveryClient *crdClient.CRDClient) (*discoveryv1alpha1.ForeignCluster, error) {
-	_, err := foreignDiscoveryClient.Resource("peeringrequests").Get(fc.Status.Outgoing.RemotePeeringRequestName, metav1.GetOptions{})
+func (r *ForeignClusterReconciler) checkJoined(fc *discoveryv1alpha1.ForeignCluster,
+	foreignDiscoveryClient *crdClient.CRDClient) (*discoveryv1alpha1.ForeignCluster, error) {
+
+	_, err := foreignDiscoveryClient.Resource("peeringrequests").Get(
+		fc.Status.Outgoing.RemotePeeringRequestName, &metav1.GetOptions{})
 	if err != nil {
 		fc.Status.Outgoing.Joined = false
 		fc.Status.Outgoing.RemotePeeringRequestName = ""
@@ -589,11 +605,14 @@ func (r *ForeignClusterReconciler) getPort() (string, error) {
 		return fmt.Sprintf("%v", svc.Spec.Ports[0].NodePort), nil
 	} else {
 		// other service types. When we are using an Ingress we should not reach this code, because of the environment variable
-		return "", fmt.Errorf("you cannot expose the Auth Service with a %v Service. If you are using an Ingress, probably, there are configuration issues", svc.Spec.Type)
+		return "",
+			fmt.Errorf(
+				"you cannot expose the Auth Service with a %v Service. If you are using an Ingress, probably, there are configuration issues",
+				svc.Spec.Type)
 	}
 }
 
-func (r *ForeignClusterReconciler) getHomeAuthUrl() (string, error) {
+func (r *ForeignClusterReconciler) getHomeAuthURL() (string, error) {
 	address, err := r.getAddress()
 	if err != nil {
 		return "", err
@@ -607,9 +626,10 @@ func (r *ForeignClusterReconciler) getHomeAuthUrl() (string, error) {
 	return fmt.Sprintf("https://%s:%v", address, port), nil
 }
 
-func (r *ForeignClusterReconciler) createPeeringRequestIfNotExists(clusterID string, owner *discoveryv1alpha1.ForeignCluster, foreignClient *crdClient.CRDClient) (*discoveryv1alpha1.PeeringRequest, error) {
+func (r *ForeignClusterReconciler) createPeeringRequestIfNotExists(remoteClusterID string,
+	owner *discoveryv1alpha1.ForeignCluster, foreignClient *crdClient.CRDClient) (*discoveryv1alpha1.PeeringRequest, error) {
 	// get config to send to foreign cluster
-	fConfig, err := r.getForeignConfig(clusterID, owner)
+	fConfig, err := r.getForeignConfig(remoteClusterID, owner)
 	if err != nil {
 		return nil, err
 	}
@@ -617,7 +637,7 @@ func (r *ForeignClusterReconciler) createPeeringRequestIfNotExists(clusterID str
 	localClusterID := r.clusterID.GetClusterID()
 
 	// check if a peering request with our cluster id already exists on remote cluster
-	tmp, err := foreignClient.Resource("peeringrequests").Get(localClusterID, metav1.GetOptions{})
+	tmp, err := foreignClient.Resource("peeringrequests").Get(localClusterID, &metav1.GetOptions{})
 	if err != nil && !errors.IsNotFound(err) && !utils.IsUnknownAuthority(err) {
 		return nil, err
 	}
@@ -632,7 +652,7 @@ func (r *ForeignClusterReconciler) createPeeringRequestIfNotExists(clusterID str
 	if inf || pr.Spec.KubeConfigRef == nil {
 		if inf {
 			// does not exist -> create new peering request
-			authUrl, err := r.getHomeAuthUrl()
+			authURL, err := r.getHomeAuthURL()
 			if err != nil {
 				return nil, err
 			}
@@ -651,14 +671,13 @@ func (r *ForeignClusterReconciler) createPeeringRequestIfNotExists(clusterID str
 					},
 					Namespace:     r.Namespace,
 					KubeConfigRef: nil,
-					AuthUrl:       authUrl,
+					AuthUrl:       authURL,
 				},
 			}
-			tmp, err = foreignClient.Resource("peeringrequests").Create(pr, metav1.CreateOptions{})
+			tmp, err = foreignClient.Resource("peeringrequests").Create(pr, &metav1.CreateOptions{})
 			if err != nil {
 				return nil, err
 			}
-			var ok bool
 			pr, ok = tmp.(*discoveryv1alpha1.PeeringRequest)
 			if !ok {
 				return nil, goerrors.New("created object is not a ForeignCluster")
@@ -685,7 +704,7 @@ func (r *ForeignClusterReconciler) createPeeringRequestIfNotExists(clusterID str
 		if err != nil {
 			klog.Error(err)
 			// there was an error during secret creation, delete peering request
-			err2 := foreignClient.Resource("peeringrequests").Delete(pr.Name, metav1.DeleteOptions{})
+			err2 := foreignClient.Resource("peeringrequests").Delete(pr.Name, &metav1.DeleteOptions{})
 			if err2 != nil {
 				klog.Error(err2)
 				return nil, err2
@@ -701,11 +720,11 @@ func (r *ForeignClusterReconciler) createPeeringRequestIfNotExists(clusterID str
 		}
 		pr.TypeMeta.Kind = "PeeringRequest"
 		pr.TypeMeta.APIVersion = "discovery.liqo.io/v1alpha1"
-		tmp, err = foreignClient.Resource("peeringrequests").Update(pr.Name, pr, metav1.UpdateOptions{})
+		tmp, err = foreignClient.Resource("peeringrequests").Update(pr.Name, pr, &metav1.UpdateOptions{})
 		if err != nil {
 			klog.Error(err)
 			// delete peering request, also secret will be deleted by garbage collector
-			err2 := foreignClient.Resource("peeringrequests").Delete(pr.Name, metav1.DeleteOptions{})
+			err2 := foreignClient.Resource("peeringrequests").Delete(pr.Name, &metav1.DeleteOptions{})
 			if err2 != nil {
 				klog.Error(err2)
 				return nil, err2
@@ -723,30 +742,30 @@ func (r *ForeignClusterReconciler) createPeeringRequestIfNotExists(clusterID str
 }
 
 // this function return a kube-config file to send to foreign cluster and crate everything needed for it
-func (r *ForeignClusterReconciler) getForeignConfig(clusterID string, owner *discoveryv1alpha1.ForeignCluster) (string, error) {
-	_, err := r.createClusterRoleIfNotExists(clusterID, owner)
+func (r *ForeignClusterReconciler) getForeignConfig(remoteClusterID string, owner *discoveryv1alpha1.ForeignCluster) (string, error) {
+	_, err := r.createClusterRoleIfNotExists(remoteClusterID, owner)
 	if err != nil {
 		return "", err
 	}
-	_, err = r.createRoleIfNotExists(clusterID, owner)
+	_, err = r.createRoleIfNotExists(remoteClusterID, owner)
 	if err != nil {
 		return "", err
 	}
-	sa, err := r.createServiceAccountIfNotExists(clusterID, owner)
+	sa, err := r.createServiceAccountIfNotExists(remoteClusterID, owner)
 	if err != nil {
 		return "", err
 	}
-	_, err = r.createClusterRoleBindingIfNotExists(clusterID, owner)
+	_, err = r.createClusterRoleBindingIfNotExists(remoteClusterID, owner)
 	if err != nil {
 		return "", err
 	}
-	_, err = r.createRoleBindingIfNotExists(clusterID, owner)
+	_, err = r.createRoleBindingIfNotExists(remoteClusterID, owner)
 	if err != nil {
 		return "", err
 	}
 
 	// crdreplicator role binding
-	err = r.setDispatcherRole(clusterID, sa, owner)
+	err = r.setDispatcherRole(remoteClusterID, sa, owner)
 	if err != nil {
 		return "", err
 	}
@@ -754,7 +773,7 @@ func (r *ForeignClusterReconciler) getForeignConfig(clusterID string, owner *dis
 	// check if ServiceAccount already has a secret, wait if not
 	if len(sa.Secrets) == 0 {
 		wa, err := r.crdClient.Client().CoreV1().ServiceAccounts(r.Namespace).Watch(context.TODO(), metav1.ListOptions{
-			FieldSelector: "metadata.name=" + clusterID,
+			FieldSelector: "metadata.name=" + remoteClusterID,
 		})
 		if err != nil {
 			return "", err
@@ -769,9 +788,7 @@ func (r *ForeignClusterReconciler) getForeignConfig(clusterID string, owner *dis
 				_sa := s.Object.(*apiv1.ServiceAccount)
 				if _sa.Name == sa.Name && len(_sa.Secrets) > 0 {
 					iterate = false
-					break
 				}
-				break
 			case <-timeout.C:
 				// try to use default config
 				if r.ForeignConfig != nil {
@@ -783,17 +800,18 @@ func (r *ForeignClusterReconciler) getForeignConfig(clusterID string, owner *dis
 			}
 		}
 	}
-	cnf, err := kubeconfig.CreateKubeConfig(r.ConfigProvider, r.crdClient.Client(), clusterID, r.Namespace)
+	cnf, err := kubeconfig.CreateKubeConfig(r.ConfigProvider, r.crdClient.Client(), remoteClusterID, r.Namespace)
 	return cnf, err
 }
 
-func (r *ForeignClusterReconciler) createClusterRoleIfNotExists(clusterID string, owner *discoveryv1alpha1.ForeignCluster) (*rbacv1.ClusterRole, error) {
-	role, err := r.crdClient.Client().RbacV1().ClusterRoles().Get(context.TODO(), clusterID, metav1.GetOptions{})
+func (r *ForeignClusterReconciler) createClusterRoleIfNotExists(remoteClusterID string,
+	owner *discoveryv1alpha1.ForeignCluster) (*rbacv1.ClusterRole, error) {
+	role, err := r.crdClient.Client().RbacV1().ClusterRoles().Get(context.TODO(), remoteClusterID, metav1.GetOptions{})
 	if errors.IsNotFound(err) {
 		// does not exist
 		role = &rbacv1.ClusterRole{
 			ObjectMeta: metav1.ObjectMeta{
-				Name: clusterID,
+				Name: remoteClusterID,
 				OwnerReferences: []metav1.OwnerReference{
 					{
 						APIVersion: fmt.Sprintf("%s/%s", discoveryv1alpha1.GroupVersion.Group, discoveryv1alpha1.GroupVersion.Version),
@@ -820,13 +838,13 @@ func (r *ForeignClusterReconciler) createClusterRoleIfNotExists(clusterID string
 	}
 }
 
-func (r *ForeignClusterReconciler) createRoleIfNotExists(clusterID string, owner *discoveryv1alpha1.ForeignCluster) (*rbacv1.Role, error) {
-	role, err := r.crdClient.Client().RbacV1().Roles(r.Namespace).Get(context.TODO(), clusterID, metav1.GetOptions{})
+func (r *ForeignClusterReconciler) createRoleIfNotExists(remoteClusterID string, owner *discoveryv1alpha1.ForeignCluster) (*rbacv1.Role, error) {
+	role, err := r.crdClient.Client().RbacV1().Roles(r.Namespace).Get(context.TODO(), remoteClusterID, metav1.GetOptions{})
 	if errors.IsNotFound(err) {
 		// does not exist
 		role = &rbacv1.Role{
 			ObjectMeta: metav1.ObjectMeta{
-				Name: clusterID,
+				Name: remoteClusterID,
 				OwnerReferences: []metav1.OwnerReference{
 					{
 						APIVersion: fmt.Sprintf("%s/%s", discoveryv1alpha1.GroupVersion.Group, discoveryv1alpha1.GroupVersion.Version),
@@ -853,13 +871,13 @@ func (r *ForeignClusterReconciler) createRoleIfNotExists(clusterID string, owner
 	}
 }
 
-func (r *ForeignClusterReconciler) createServiceAccountIfNotExists(clusterID string, owner *discoveryv1alpha1.ForeignCluster) (*apiv1.ServiceAccount, error) {
-	sa, err := r.crdClient.Client().CoreV1().ServiceAccounts(r.Namespace).Get(context.TODO(), clusterID, metav1.GetOptions{})
+func (r *ForeignClusterReconciler) createServiceAccountIfNotExists(remoteClusterID string, owner *discoveryv1alpha1.ForeignCluster) (*apiv1.ServiceAccount, error) {
+	sa, err := r.crdClient.Client().CoreV1().ServiceAccounts(r.Namespace).Get(context.TODO(), remoteClusterID, metav1.GetOptions{})
 	if errors.IsNotFound(err) {
 		// does not exist
 		sa = &apiv1.ServiceAccount{
 			ObjectMeta: metav1.ObjectMeta{
-				Name: clusterID,
+				Name: remoteClusterID,
 				OwnerReferences: []metav1.OwnerReference{
 					{
 						APIVersion: fmt.Sprintf("%s/%s", discoveryv1alpha1.GroupVersion.Group, discoveryv1alpha1.GroupVersion.Version),
@@ -1002,7 +1020,7 @@ func (r *ForeignClusterReconciler) deleteAdvertisement(fc *discoveryv1alpha1.For
 }
 
 func (r *ForeignClusterReconciler) deletePeeringRequest(foreignClient *crdClient.CRDClient, fc *discoveryv1alpha1.ForeignCluster) error {
-	return foreignClient.Resource("peeringrequests").Delete(fc.Status.Outgoing.RemotePeeringRequestName, metav1.DeleteOptions{})
+	return foreignClient.Resource("peeringrequests").Delete(fc.Status.Outgoing.RemotePeeringRequestName, &metav1.DeleteOptions{})
 }
 
 func (r *ForeignClusterReconciler) getAutoJoin(fc *discoveryv1alpha1.ForeignCluster) bool {
@@ -1035,14 +1053,14 @@ func (r *ForeignClusterReconciler) checkNetwork(fc *discoveryv1alpha1.ForeignClu
 }
 
 func (r *ForeignClusterReconciler) updateNetwork(labelSelector string, resourceLink *discoveryv1alpha1.ResourceLink, requireUpdate *bool) error {
-	tmp, err := r.networkClient.Resource("networkconfigs").List(metav1.ListOptions{
+	tmp, err := r.networkClient.Resource("networkconfigs").List(&metav1.ListOptions{
 		LabelSelector: labelSelector,
 	})
 	if err != nil {
 		klog.Error(err)
 		return err
 	}
-	ncfs, ok := tmp.(*nettypes.NetworkConfigList)
+	ncfs, ok := tmp.(*netv1alpha1.NetworkConfigList)
 	if !ok {
 		err = goerrors.New("retrieved object is not a NetworkConfig")
 		klog.Error(err)
@@ -1069,14 +1087,14 @@ func (r *ForeignClusterReconciler) updateNetwork(labelSelector string, resourceL
 }
 
 func (r *ForeignClusterReconciler) checkTEP(fc *discoveryv1alpha1.ForeignCluster, requireUpdate *bool) error {
-	tmp, err := r.networkClient.Resource("tunnelendpoints").List(metav1.ListOptions{
+	tmp, err := r.networkClient.Resource("tunnelendpoints").List(&metav1.ListOptions{
 		LabelSelector: strings.Join([]string{"clusterID", fc.Spec.ClusterIdentity.ClusterID}, "="),
 	})
 	if err != nil {
 		klog.Error(err)
 		return err
 	}
-	teps, ok := tmp.(*nettypes.TunnelEndpointList)
+	teps, ok := tmp.(*netv1alpha1.TunnelEndpointList)
 	if !ok {
 		err = goerrors.New("retrieved object is not a TunnelEndpoint")
 		klog.Error(err)

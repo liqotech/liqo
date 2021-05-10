@@ -369,6 +369,6 @@ func TestNotifyAdvertisementDeletion(t *testing.T) {
 	err = waitEvent(b.RemoteClient, "advertisements", adv2.Name)
 	assert.Nil(t, err)
 
-	_, err = b.RemoteClient.Resource("advertisements").Get(adv2.Name, metav1.GetOptions{})
+	_, err = b.RemoteClient.Resource("advertisements").Get(adv2.Name, &metav1.GetOptions{})
 	assert.Equal(t, k8serrors.IsNotFound(err), true, "Advertisement has not been deleted")
 }

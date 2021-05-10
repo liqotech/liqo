@@ -65,7 +65,7 @@ func (r *PeeringRequestReconciler) Reconcile(req ctrl.Request) (ctrl.Result, err
 
 	klog.Info("Reconciling PeeringRequest " + req.Name)
 
-	tmp, err := r.crdClient.Resource("peeringrequests").Get(req.Name, metav1.GetOptions{})
+	tmp, err := r.crdClient.Resource("peeringrequests").Get(req.Name, &metav1.GetOptions{})
 	if err != nil {
 		// TODO: has been removed
 		klog.Info(err, "Destroy peering")
@@ -109,7 +109,7 @@ func (r *PeeringRequestReconciler) Reconcile(req ctrl.Request) (ctrl.Result, err
 		}
 	}
 
-	_, err = r.crdClient.Resource("peeringrequests").Update(pr.Name, pr, metav1.UpdateOptions{})
+	_, err = r.crdClient.Resource("peeringrequests").Update(pr.Name, pr, &metav1.UpdateOptions{})
 	if err != nil {
 		klog.Error(err, err.Error())
 		return ctrl.Result{RequeueAfter: r.retryTimeout}, err

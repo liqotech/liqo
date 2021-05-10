@@ -28,7 +28,7 @@ type SearchDomainReconciler struct {
 func (r *SearchDomainReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 	klog.Info("Reconciling SearchDomain " + req.Name)
 
-	tmp, err := r.crdClient.Resource("searchdomains").Get(req.Name, metav1.GetOptions{})
+	tmp, err := r.crdClient.Resource("searchdomains").Get(req.Name, &metav1.GetOptions{})
 	if err != nil {
 		if k8serrors.IsNotFound(err) {
 			// has been deleted

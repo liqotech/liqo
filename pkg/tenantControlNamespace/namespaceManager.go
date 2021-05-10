@@ -44,7 +44,7 @@ func (nm *tenantControlNamespaceManager) CreateNamespace(clusterID string) (*v1.
 		ObjectMeta: metav1.ObjectMeta{
 			GenerateName: strings.Join([]string{tenantControlNamespaceRoot, ""}, "-"),
 			Labels: map[string]string{
-				discovery.ClusterIdLabel:              clusterID,
+				discovery.ClusterIDLabel:              clusterID,
 				discovery.TenantControlNamespaceLabel: "true",
 			},
 		},
@@ -61,7 +61,7 @@ func (nm *tenantControlNamespaceManager) CreateNamespace(clusterID string) (*v1.
 func (nm *tenantControlNamespaceManager) GetNamespace(clusterID string) (*v1.Namespace, error) {
 	labelSelector := metav1.LabelSelector{
 		MatchLabels: map[string]string{
-			discovery.ClusterIdLabel:              clusterID,
+			discovery.ClusterIDLabel:              clusterID,
 			discovery.TenantControlNamespaceLabel: "true",
 		},
 	}

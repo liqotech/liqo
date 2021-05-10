@@ -6,7 +6,6 @@ import (
 
 	"k8s.io/apimachinery/pkg/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
-	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
 	"k8s.io/klog"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 
@@ -28,7 +27,8 @@ func init() {
 	// +kubebuilder:scaffold:scheme
 }
 
-func StartOperator(mgr *manager.Manager, namespace string, requeueAfter time.Duration, discoveryCtrl *discovery.DiscoveryCtrl, kubeconfigPath string) {
+// StartOperator setups the ForeignCluster operator
+func StartOperator(mgr manager.Manager, namespace string, requeueAfter time.Duration, discoveryCtrl *discovery.DiscoveryCtrl, kubeconfigPath string) {
 	config, err := crdClient.NewKubeconfig(kubeconfigPath, &discoveryv1alpha1.GroupVersion, nil)
 	if err != nil {
 		klog.Error(err, "unable to get kube config")
@@ -58,7 +58,7 @@ func StartOperator(mgr *manager.Manager, namespace string, requeueAfter time.Dur
 	}
 
 	if err = (GetFCReconciler(
-		(*mgr).GetScheme(),
+		mgr.GetScheme(),
 		namespace,
 		discoveryClient,
 		advClient,
@@ -66,17 +66,17 @@ func StartOperator(mgr *manager.Manager, namespace string, requeueAfter time.Dur
 		clusterId,
 		requeueAfter,
 		discoveryCtrl,
-	)).SetupWithManager(*mgr); err != nil {
+	)).SetupWithManager(mgr); err != nil {
 		klog.Error(err, "unable to create controller", "controller", "ForeignCluster")
 		os.Exit(1)
 	}
 }
 
-func GetFCReconciler(scheme *runtime.Scheme, namespace string, crdClient *crdClient.CRDClient, advertisementClient *crdClient.CRDClient, networkClient *crdClient.CRDClient, clusterId clusterID.ClusterID, requeueAfter time.Duration, configProvider discovery.ConfigProvider) *ForeignClusterReconciler {
+func GetFCReconciler(scheme *runtime.Scheme, namespace string, client *crdClient.CRDClient, advertisementClient *crdClient.CRDClient, networkClient *crdClient.CRDClient, clusterId clusterID.ClusterID, requeueAfter time.Duration, configProvider discovery.ConfigProvider) *ForeignClusterReconciler {
 	return &ForeignClusterReconciler{
 		Scheme:              scheme,
 		Namespace:           namespace,
-		crdClient:           crdClient,
+		crdClient:           client,
 		advertisementClient: advertisementClient,
 		networkClient:       networkClient,
 		clusterID:           clusterId,

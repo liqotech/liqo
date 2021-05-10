@@ -116,7 +116,7 @@ func main() {
 		os.Exit(1)
 	}
 	var acceptedAdv int32
-	advList, err := advClient.Resource("advertisements").List(metav1.ListOptions{})
+	advList, err := advClient.Resource("advertisements").List(&metav1.ListOptions{})
 	if err != nil {
 		klog.Error(err)
 	} else {

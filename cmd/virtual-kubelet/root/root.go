@@ -258,7 +258,7 @@ func runRootCommand(ctx context.Context, s *provider.Store, c *Opts) error {
 }
 
 func createOwnerReference(c *crdClient.CRDClient, advName, namespace string) []metav1.OwnerReference {
-	if d, err := c.Resource("advertisements").Namespace(namespace).Get(advName, metav1.GetOptions{}); err != nil {
+	if d, err := c.Resource("advertisements").Namespace(namespace).Get(advName, &metav1.GetOptions{}); err != nil {
 		if k8serrors.IsNotFound(err) {
 			klog.Info("advertisement not found, setting empty owner reference")
 		}

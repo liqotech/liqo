@@ -85,7 +85,7 @@ var _ = Describe("IdentityManager", func() {
 			Expect(secret.Labels).NotTo(BeNil())
 			_, ok := secret.Labels[localIdentitySecretLabel]
 			Expect(ok).To(BeTrue())
-			v, ok := secret.Labels[discovery.ClusterIdLabel]
+			v, ok := secret.Labels[discovery.ClusterIDLabel]
 			Expect(ok).To(BeTrue())
 			Expect(v).To(Equal(remoteClusterID))
 

@@ -59,6 +59,8 @@ func (discovery *DiscoveryCtrl) UpdateForeignWAN(data []*AuthData, sd *v1alpha1.
 			continue
 		}
 
+		data := *authData
+
 		err = retry.OnError(
 			retry.DefaultRetry,
 			func(err error) bool {
@@ -66,7 +68,7 @@ func (discovery *DiscoveryCtrl) UpdateForeignWAN(data []*AuthData, sd *v1alpha1.
 			},
 			func() error {
 				return discovery.createOrUpdate(&discoveryData{
-					AuthData:    authData,
+					AuthData:    &data,
 					ClusterInfo: clusterInfo,
 				}, trustMode, sd, discoveryType, &createdUpdatedForeign)
 			})
@@ -81,7 +83,7 @@ func (discovery *DiscoveryCtrl) UpdateForeignWAN(data []*AuthData, sd *v1alpha1.
 func (discovery *DiscoveryCtrl) createOrUpdate(data *discoveryData, trustMode discoveryPkg.TrustMode, sd *v1alpha1.SearchDomain, discoveryType discoveryPkg.DiscoveryType, createdUpdatedForeign *[]*v1alpha1.ForeignCluster) error {
 	fc, err := discovery.GetForeignClusterByID(data.ClusterInfo.ClusterID)
 	if k8serror.IsNotFound(err) {
-		fc, err := discovery.createForeign(data, trustMode, sd, discoveryType)
+		fc, err = discovery.createForeign(data, trustMode, sd, discoveryType)
 		if err != nil {
 			klog.Error(err)
 			return err
@@ -119,7 +121,7 @@ func (discovery *DiscoveryCtrl) createForeign(data *discoveryData, trustMode dis
 			Name: data.ClusterInfo.ClusterID,
 			Labels: map[string]string{
 				discoveryPkg.DiscoveryTypeLabel: string(discoveryType),
-				discoveryPkg.ClusterIdLabel:     data.ClusterInfo.ClusterID,
+				discoveryPkg.ClusterIDLabel:     data.ClusterInfo.ClusterID,
 			},
 		},
 		Spec: v1alpha1.ForeignClusterSpec{
@@ -157,7 +159,7 @@ func (discovery *DiscoveryCtrl) createForeign(data *discoveryData, trustMode dis
 	}
 	// set TTL
 	fc.Status.Ttl = data.AuthData.ttl
-	tmp, err := discovery.crdClient.Resource("foreignclusters").Create(fc, metav1.CreateOptions{})
+	tmp, err := discovery.crdClient.Resource("foreignclusters").Create(fc, &metav1.CreateOptions{})
 	if err != nil {
 		klog.Error(err)
 		return nil, err
@@ -190,13 +192,14 @@ func (discovery *DiscoveryCtrl) CheckUpdate(data *discoveryData, fc *v1alpha1.Fo
 			fc.Status.Ttl = data.AuthData.ttl
 		}
 		fc.LastUpdateNow()
-		tmp, err := discovery.crdClient.Resource("foreignclusters").Update(fc.Name, fc, metav1.UpdateOptions{})
+		tmp, err := discovery.crdClient.Resource("foreignclusters").Update(fc.Name, fc, &metav1.UpdateOptions{})
 		if err != nil {
 			klog.Error(err)
 			return nil, false, err
 		}
 		klog.V(4).Infof("TTL updated for ForeignCluster %v", fc.Name)
-		fc, ok := tmp.(*v1alpha1.ForeignCluster)
+		var ok bool
+		fc, ok = tmp.(*v1alpha1.ForeignCluster)
 		if !ok {
 			err = errors.New("retrieved object is not a ForeignCluster")
 			klog.Error(err)
@@ -210,7 +213,7 @@ func (discovery *DiscoveryCtrl) CheckUpdate(data *discoveryData, fc *v1alpha1.Fo
 			advName := fc.Status.Outgoing.Advertisement.Name
 			fc.Status.Outgoing.Advertisement = nil
 			// updating it before adv delete will avoid us to set to false join flag
-			tmp, err = discovery.crdClient.Resource("foreignclusters").Update(fc.Name, fc, metav1.UpdateOptions{})
+			tmp, err = discovery.crdClient.Resource("foreignclusters").Update(fc.Name, fc, &metav1.UpdateOptions{})
 			if err != nil {
 				klog.Error(err)
 				return nil, false, err
@@ -221,7 +224,7 @@ func (discovery *DiscoveryCtrl) CheckUpdate(data *discoveryData, fc *v1alpha1.Fo
 				klog.Error(err)
 				return nil, false, err
 			}
-			err = discovery.advClient.Resource("advertisements").Delete(advName, metav1.DeleteOptions{})
+			err = discovery.advClient.Resource("advertisements").Delete(advName, &metav1.DeleteOptions{})
 			if err != nil {
 				klog.Error(err)
 				return nil, false, err
@@ -231,7 +234,7 @@ func (discovery *DiscoveryCtrl) CheckUpdate(data *discoveryData, fc *v1alpha1.Fo
 	} else {
 		// update "lastUpdate" annotation
 		fc.LastUpdateNow()
-		tmp, err := discovery.crdClient.Resource("foreignclusters").Update(fc.Name, fc, metav1.UpdateOptions{})
+		tmp, err := discovery.crdClient.Resource("foreignclusters").Update(fc.Name, fc, &metav1.UpdateOptions{})
 		if err != nil {
 			if !k8serror.IsConflict(err) {
 				klog.Error(err)
@@ -249,8 +252,8 @@ func (discovery *DiscoveryCtrl) CheckUpdate(data *discoveryData, fc *v1alpha1.Fo
 }
 
 func (discovery *DiscoveryCtrl) GetForeignClusterByID(clusterID string) (*v1alpha1.ForeignCluster, error) {
-	tmp, err := discovery.crdClient.Resource("foreignclusters").List(metav1.ListOptions{
-		LabelSelector: strings.Join([]string{discoveryPkg.ClusterIdLabel, clusterID}, "="),
+	tmp, err := discovery.crdClient.Resource("foreignclusters").List(&metav1.ListOptions{
+		LabelSelector: strings.Join([]string{discoveryPkg.ClusterIDLabel, clusterID}, "="),
 	})
 	if err != nil {
 		return nil, err

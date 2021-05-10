@@ -56,7 +56,7 @@ func WatchConfiguration(handler func(*configv1alpha1.ClusterConfig), client *crd
 			klog.Error("please, do not delete ClusterConfigs")
 			configuration := config.(*configv1alpha1.ClusterConfig)
 			configuration.ResourceVersion = ""
-			_, err = client.Resource("clusterconfigs").Create(configuration, metav1.CreateOptions{})
+			_, err = client.Resource("clusterconfigs").Create(configuration, &metav1.CreateOptions{})
 			if err != nil && !errors.IsAlreadyExists(err) {
 				klog.Error(err, err.Error())
 			}

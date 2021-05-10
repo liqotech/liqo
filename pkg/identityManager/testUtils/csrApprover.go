@@ -34,7 +34,8 @@ func StartTestApprover(client kubernetes.Interface, stopChan <-chan struct{}) {
 
 			if csr.Status.Certificate == nil {
 				csr.Status.Certificate = []byte("test")
-				_, _ = client.CertificatesV1beta1().CertificateSigningRequests().UpdateStatus(context.TODO(), csr, metav1.UpdateOptions{})
+				_, _ = client.CertificatesV1beta1().CertificateSigningRequests().UpdateStatus(
+					context.TODO(), csr, metav1.UpdateOptions{})
 			}
 		},
 	})

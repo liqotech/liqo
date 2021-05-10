@@ -25,34 +25,34 @@ func init() {
 	// +kubebuilder:scaffold:scheme
 }
 
-func StartOperator(mgr *manager.Manager, requeueAfter time.Duration, discoveryCtrl *discovery.DiscoveryCtrl, kubeconfigPath string) {
+func StartOperator(mgr manager.Manager, requeueAfter time.Duration, discoveryCtrl *discovery.DiscoveryCtrl, kubeconfigPath string) {
 	config, err := crdClient.NewKubeconfig(kubeconfigPath, &discoveryv1alpha1.GroupVersion, nil)
 	if err != nil {
 		klog.Error(err, "unable to get kube config")
 		os.Exit(1)
 	}
-	crdClient, err := crdClient.NewFromConfig(config)
+	client, err := crdClient.NewFromConfig(config)
 	if err != nil {
 		klog.Error(err, "unable to create crd client")
 		os.Exit(1)
 	}
 
 	if err = (GetSDReconciler(
-		(*mgr).GetScheme(),
-		crdClient,
+		mgr.GetScheme(),
+		client,
 		discoveryCtrl,
 		requeueAfter,
-	)).SetupWithManager(*mgr); err != nil {
+	)).SetupWithManager(mgr); err != nil {
 		klog.Error(err, "unable to create controller", "controller", "ForeignCluster")
 		os.Exit(1)
 	}
 }
 
-func GetSDReconciler(scheme *runtime.Scheme, crdClient *crdClient.CRDClient, discoveryCtrl *discovery.DiscoveryCtrl, requeueAfter time.Duration) *SearchDomainReconciler {
+func GetSDReconciler(scheme *runtime.Scheme, client *crdClient.CRDClient, discoveryCtrl *discovery.DiscoveryCtrl, requeueAfter time.Duration) *SearchDomainReconciler {
 	return &SearchDomainReconciler{
 		Scheme:        scheme,
 		requeueAfter:  requeueAfter,
-		crdClient:     crdClient,
+		crdClient:     client,
 		DiscoveryCtrl: discoveryCtrl,
 	}
 }

@@ -39,7 +39,7 @@ func (r *PeeringRequestReconciler) BroadcasterExists(request *discoveryv1alpha1.
 	return true, nil
 }
 
-func GetBroadcasterDeployment(request *discoveryv1alpha1.PeeringRequest, nameSA string, remoteSA string, namespace string, image string, clusterId string) *appsv1.Deployment {
+func GetBroadcasterDeployment(request *discoveryv1alpha1.PeeringRequest, nameSA, remoteSA, namespace, image, clusterId string) *appsv1.Deployment {
 	args := []string{
 		"--peering-request",
 		request.Name,

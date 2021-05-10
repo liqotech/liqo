@@ -15,11 +15,11 @@ var preferOrder = []v1.NodeAddressType{
 	v1.NodeHostName,
 }
 
-// return an address from a Node pool
+// GetAddressFromNodeList returns an address from a Node pool
 func GetAddressFromNodeList(nodes []v1.Node) (string, error) {
 	for _, addrType := range preferOrder {
-		for _, node := range nodes {
-			if addr, err := getAddressByType(&node, addrType); err != nil {
+		for i := range nodes {
+			if addr, err := getAddressByType(&nodes[i], addrType); err != nil {
 				klog.V(4).Info(err.Error())
 				continue
 			} else {
@@ -31,7 +31,7 @@ func GetAddressFromNodeList(nodes []v1.Node) (string, error) {
 	return "", fmt.Errorf("no address found")
 }
 
-// return an address for a Node
+// GetAddress returns an address for a Node
 func GetAddress(node *v1.Node) (string, error) {
 	return GetAddressFromNodeList([]v1.Node{
 		*node,

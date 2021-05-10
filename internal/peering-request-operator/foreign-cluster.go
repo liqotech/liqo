@@ -14,9 +14,9 @@ import (
 )
 
 func (r *PeeringRequestReconciler) UpdateForeignCluster(pr *v1alpha1.PeeringRequest) error {
-	tmp, err := r.crdClient.Resource("foreignclusters").List(metav1.ListOptions{
+	tmp, err := r.crdClient.Resource("foreignclusters").List(&metav1.ListOptions{
 		LabelSelector: strings.Join([]string{
-			discovery.ClusterIdLabel,
+			discovery.ClusterIDLabel,
 			pr.Spec.ClusterIdentity.ClusterID,
 		}, "="),
 	})
@@ -52,7 +52,7 @@ func (r *PeeringRequestReconciler) UpdateForeignCluster(pr *v1alpha1.PeeringRequ
 			UID:        pr.UID,
 			APIVersion: pr.APIVersion,
 		}
-		_, err = r.crdClient.Resource("foreignclusters").Update(fc.Name, fc, metav1.UpdateOptions{})
+		_, err = r.crdClient.Resource("foreignclusters").Update(fc.Name, fc, &metav1.UpdateOptions{})
 		if err != nil {
 			klog.Error(err, err.Error())
 			return err
@@ -70,7 +70,7 @@ func (r *PeeringRequestReconciler) createForeignCluster(pr *v1alpha1.PeeringRequ
 			Name: pr.Spec.ClusterIdentity.ClusterID,
 			Labels: map[string]string{
 				discovery.DiscoveryTypeLabel: string(discovery.IncomingPeeringDiscovery),
-				discovery.ClusterIdLabel:     pr.Spec.ClusterIdentity.ClusterID,
+				discovery.ClusterIDLabel:     pr.Spec.ClusterIdentity.ClusterID,
 			},
 		},
 		Spec: v1alpha1.ForeignClusterSpec{
@@ -92,7 +92,7 @@ func (r *PeeringRequestReconciler) createForeignCluster(pr *v1alpha1.PeeringRequ
 		},
 	}
 
-	tmp, err := r.crdClient.Resource("foreignclusters").Create(fc, metav1.CreateOptions{})
+	tmp, err := r.crdClient.Resource("foreignclusters").Create(fc, &metav1.CreateOptions{})
 	if err != nil {
 		klog.Error(err, err.Error())
 		return nil, err

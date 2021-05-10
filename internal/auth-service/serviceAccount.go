@@ -85,7 +85,7 @@ func (authService *AuthServiceCtrl) createServiceAccount(remoteClusterId string)
 			Name: fmt.Sprintf("remote-%s", remoteClusterId),
 			Labels: map[string]string{
 				discovery.LiqoManagedLabel: "true",
-				discovery.ClusterIdLabel:   remoteClusterId,
+				discovery.ClusterIDLabel:   remoteClusterId,
 			},
 			// used to do garbage collection on cluster scoped resources (i.e. ClusterRole and ClusterRoleBinding)
 			Finalizers: []string{
