@@ -68,7 +68,7 @@ linters:
   # - goerr113
     - gofmt
     - goimports
-    - golint
+  # - golint
     - gomodguard
   # - gomnd
     - goprintffuncname

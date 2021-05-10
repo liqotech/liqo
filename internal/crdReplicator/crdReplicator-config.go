@@ -3,13 +3,14 @@ package crdReplicator
 import (
 	"reflect"
 
+	"github.com/liqotech/liqo/pkg/utils"
+
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
 	"k8s.io/klog/v2"
 
 	configv1alpha1 "github.com/liqotech/liqo/apis/config/v1alpha1"
-	"github.com/liqotech/liqo/pkg/clusterConfig"
 	"github.com/liqotech/liqo/pkg/crdClient"
 )
 
@@ -23,7 +24,7 @@ func (c *Controller) WatchConfiguration(config *rest.Config, gv *schema.GroupVer
 		klog.Errorf("an error occurred while starting the watcher for the clusterConfig CRD: %s", err)
 		return err
 	}
-	go clusterConfig.WatchConfiguration(c.UpdateConfig, CRDclient, "")
+	go utils.WatchConfiguration(c.UpdateConfig, CRDclient, "")
 	return nil
 }
 

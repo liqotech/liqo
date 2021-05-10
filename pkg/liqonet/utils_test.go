@@ -70,7 +70,7 @@ var _ = Describe("Liqonet", func() {
 			})
 		})
 		Context("When it has been already created", func() {
-			It("should return immediately the clusterID value", func() {
+			It("should return immediately the clusterid value", func() {
 				_, err := clientset.CoreV1().ConfigMaps(ns).Create(
 					context.TODO(),
 					&configMap,

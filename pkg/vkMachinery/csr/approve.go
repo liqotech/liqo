@@ -3,14 +3,14 @@ package csr
 import (
 	"time"
 
+	certificateSigningRequest2 "github.com/liqotech/liqo/pkg/utils/certificateSigningRequest"
+
 	certificatesv1beta1 "k8s.io/api/certificates/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/informers"
 	k8s "k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/klog"
-
-	"github.com/liqotech/liqo/pkg/certificateSigningRequest"
 )
 
 func WatchCSR(clientset k8s.Interface, label string, resyncPeriod time.Duration) {
@@ -30,7 +30,7 @@ func WatchCSR(clientset k8s.Interface, label string, resyncPeriod time.Duration)
 				klog.Error("Unable to cast object")
 				return
 			}
-			err := certificateSigningRequest.ApproveCSR(clientset, csr, "LiqoApproval", "This CSR was approved by Liqo Advertisement Operator")
+			err := certificateSigningRequest2.ApproveCSR(clientset, csr, "LiqoApproval", "This CSR was approved by Liqo Advertisement Operator")
 			if err != nil {
 				klog.Error(err)
 			} else {

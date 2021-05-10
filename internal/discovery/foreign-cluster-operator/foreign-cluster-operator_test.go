@@ -1,10 +1,11 @@
 package foreign_cluster_operator
 
 import (
-	testUtils2 "github.com/liqotech/liqo/pkg/utils/testUtils"
 	"os"
 	"path/filepath"
 	"testing"
+
+	testUtils2 "github.com/liqotech/liqo/pkg/utils/testUtils"
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/ginkgo/extensions/table"
@@ -14,7 +15,7 @@ import (
 
 	"github.com/liqotech/liqo/apis/config/v1alpha1"
 	v1alpha12 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
-	"github.com/liqotech/liqo/pkg/clusterID/test"
+	"github.com/liqotech/liqo/pkg/clusterid/test"
 	"github.com/liqotech/liqo/pkg/discovery"
 )
 
@@ -57,8 +58,8 @@ var _ = Describe("ForeignClusterOperator", func() {
 			os.Exit(1)
 		}
 
-		clusterId := &test.ClusterIDMock{}
-		_ = clusterId.SetupClusterID("default")
+		cID := &test.ClusterIDMock{}
+		_ = cID.SetupClusterID("default")
 
 		config.config = v1alpha1.DiscoveryConfig{
 			AuthService:         "_liqo_auth._tcp",
@@ -80,7 +81,7 @@ var _ = Describe("ForeignClusterOperator", func() {
 			crdClient:           cluster.GetClient(),
 			advertisementClient: cluster.GetAdvClient(),
 			networkClient:       cluster.GetNetClient(),
-			clusterID:           clusterId,
+			clusterID:           cID,
 			ForeignConfig:       cluster.GetCfg(),
 			RequeueAfter:        300,
 			ConfigProvider:      &config,

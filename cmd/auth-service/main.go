@@ -8,7 +8,7 @@ import (
 
 	"k8s.io/klog"
 
-	auth_service "github.com/liqotech/liqo/internal/auth-service"
+	authservice "github.com/liqotech/liqo/internal/auth-service"
 )
 
 func main() {
@@ -36,7 +36,7 @@ func main() {
 
 	klog.Info("Namespace: ", namespace)
 
-	authService, err := auth_service.NewAuthServiceCtrl(namespace, kubeconfigPath, time.Duration(resyncSeconds)*time.Second, useTLS)
+	authService, err := authservice.NewAuthServiceCtrl(namespace, kubeconfigPath, time.Duration(resyncSeconds)*time.Second, useTLS)
 	if err != nil {
 		klog.Error(err)
 		os.Exit(1)

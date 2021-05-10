@@ -8,6 +8,8 @@ import (
 	"strings"
 	"time"
 
+	certificateSigningRequest2 "github.com/liqotech/liqo/pkg/utils/certificateSigningRequest"
+
 	certv1beta1 "k8s.io/api/certificates/v1beta1"
 	v1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
@@ -19,8 +21,6 @@ import (
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/klog/v2"
 	"k8s.io/utils/pointer"
-
-	"github.com/liqotech/liqo/pkg/certificateSigningRequest"
 )
 
 // random package initialization.
@@ -29,7 +29,7 @@ func init() {
 }
 
 // GetRemoteCertificate retrieves a certificate issued in the past,
-// given the clusterID and the signingRequest.
+// given the clusterid and the signingRequest.
 func (certManager *certificateIdentityManager) GetRemoteCertificate(clusterID string, signingRequest string) (certificate []byte, err error) {
 	namespace, err := certManager.namespaceManager.GetNamespace(clusterID)
 	if err != nil {
@@ -119,7 +119,7 @@ func (certManager *certificateIdentityManager) ApproveSigningRequest(clusterID s
 	}
 
 	// approve the CertificateSigningRequest
-	if err = certificateSigningRequest.ApproveCSR(certManager.client, cert, "IdentityManagerApproval", "This CSR was approved by Liqo Identity Manager"); err != nil {
+	if err = certificateSigningRequest2.ApproveCSR(certManager.client, cert, "IdentityManagerApproval", "This CSR was approved by Liqo Identity Manager"); err != nil {
 		klog.Error(err)
 		return nil, err
 	}

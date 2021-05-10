@@ -10,7 +10,7 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
-	"github.com/liqotech/liqo/pkg/clusterID"
+	"github.com/liqotech/liqo/pkg/clusterid"
 	"github.com/liqotech/liqo/pkg/crdClient"
 	"github.com/liqotech/liqo/pkg/mapperUtils"
 )
@@ -49,9 +49,9 @@ func StartOperator(namespace string, broadcasterImage string, broadcasterService
 		os.Exit(1)
 	}
 
-	clusterId, err := clusterID.NewClusterID(kubeconfigPath)
+	clusterId, err := clusterid.NewClusterID(kubeconfigPath)
 	if err != nil {
-		klog.Error(err, "unable to get clusterID")
+		klog.Error(err, "unable to get clusterid")
 		os.Exit(1)
 	}
 
@@ -75,12 +75,12 @@ func StartOperator(namespace string, broadcasterImage string, broadcasterService
 	}
 }
 
-func GetPRReconciler(scheme *runtime.Scheme, crdClient *crdClient.CRDClient, namespace string, clusterId clusterID.ClusterID, broadcasterImage string, broadcasterServiceAccount string, vkServiceAccount string) *PeeringRequestReconciler {
+func GetPRReconciler(scheme *runtime.Scheme, crdClient *crdClient.CRDClient, namespace string, clusterId clusterid.ClusterID, broadcasterImage string, broadcasterServiceAccount string, vkServiceAccount string) *PeeringRequestReconciler {
 	return &PeeringRequestReconciler{
 		Scheme:                    scheme,
 		crdClient:                 crdClient,
 		Namespace:                 namespace,
-		clusterId:                 clusterId,
+		clusterID:                 clusterId,
 		broadcasterImage:          broadcasterImage,
 		broadcasterServiceAccount: broadcasterServiceAccount,
 		vkServiceAccount:          vkServiceAccount,

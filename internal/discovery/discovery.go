@@ -11,7 +11,7 @@ import (
 	configv1alpha1 "github.com/liqotech/liqo/apis/config/v1alpha1"
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	advtypes "github.com/liqotech/liqo/apis/sharing/v1alpha1"
-	"github.com/liqotech/liqo/pkg/clusterID"
+	"github.com/liqotech/liqo/pkg/clusterid"
 	"github.com/liqotech/liqo/pkg/crdClient"
 )
 
@@ -27,7 +27,7 @@ type Controller struct {
 	stopMDNSClient      chan bool
 	crdClient           *crdClient.CRDClient
 	advClient           *crdClient.CRDClient
-	ClusterId           clusterID.ClusterID
+	ClusterId           clusterid.ClusterID
 
 	mdnsServerAuth            *zeroconf.Server
 	serverMux                 sync.Mutex
@@ -38,7 +38,7 @@ type Controller struct {
 
 // NewDiscoveryCtrl returns a new discovery controller.
 func NewDiscoveryCtrl(
-	namespace string, localClusterID clusterID.ClusterID, kubeconfigPath string,
+	namespace string, localClusterID clusterid.ClusterID, kubeconfigPath string,
 	resolveContextRefreshTime int, dialTCPTimeout time.Duration) (*Controller, error) {
 	config, err := crdClient.NewKubeconfig(kubeconfigPath, &discoveryv1alpha1.GroupVersion, nil)
 	if err != nil {
@@ -70,7 +70,7 @@ func NewDiscoveryCtrl(
 }
 
 func getDiscoveryCtrl(namespace string, client, advClient *crdClient.CRDClient,
-	localClusterID clusterID.ClusterID, resolveContextRefreshTime int, dialTCPTimeout time.Duration) Controller {
+	localClusterID clusterid.ClusterID, resolveContextRefreshTime int, dialTCPTimeout time.Duration) Controller {
 	return Controller{
 		Namespace:                 namespace,
 		crdClient:                 client,

@@ -3,17 +3,18 @@ package auth_service
 import (
 	"reflect"
 
+	"github.com/liqotech/liqo/pkg/utils"
+
 	"k8s.io/klog"
 
 	configv1alpha1 "github.com/liqotech/liqo/apis/config/v1alpha1"
-	"github.com/liqotech/liqo/pkg/clusterConfig"
 )
 
 // GetAuthServiceConfig starts the watcher to ClusterConfing CR.
 func (authService *AuthServiceCtrl) GetAuthServiceConfig(kubeconfigPath string) {
 	waitFirst := make(chan struct{})
 	isFirst := true
-	go clusterConfig.WatchConfiguration(func(configuration *configv1alpha1.ClusterConfig) {
+	go utils.WatchConfiguration(func(configuration *configv1alpha1.ClusterConfig) {
 		authService.handleConfiguration(&configuration.Spec.AuthConfig)
 		authService.handleDiscoveryConfiguration(&configuration.Spec.DiscoveryConfig)
 		authService.handleAPIServerConfiguration(&configuration.Spec.APIServerConfig)

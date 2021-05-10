@@ -43,7 +43,7 @@ func (certManager *certificateIdentityManager) GetSigningRequest(remoteClusterID
 
 	csrBytes, ok := secret.Data[csrSecretKey]
 	if !ok {
-		err = fmt.Errorf("csr not found in secret %v/%v for clusterID %v", secret.Namespace, secret.Name, remoteClusterID)
+		err = fmt.Errorf("csr not found in secret %v/%v for clusterid %v", secret.Namespace, secret.Name, remoteClusterID)
 		klog.Error(err)
 		return nil, err
 	}
@@ -72,7 +72,7 @@ func (certManager *certificateIdentityManager) StoreCertificate(remoteClusterID 
 	return nil
 }
 
-// retrieve the identity secret given the clusterID.
+// retrieve the identity secret given the clusterid.
 func (certManager *certificateIdentityManager) getSecret(remoteClusterID string) (*v1.Secret, error) {
 	namespace, err := certManager.namespaceManager.GetNamespace(remoteClusterID)
 	if err != nil {

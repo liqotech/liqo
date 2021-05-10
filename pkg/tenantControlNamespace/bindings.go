@@ -13,7 +13,7 @@ import (
 	"github.com/liqotech/liqo/pkg/discovery"
 )
 
-// add the bindings for the remote clusterID for the given ClusterRoles
+// add the bindings for the remote clusterid for the given ClusterRoles
 // This method creates RoleBindings in the Tenant Control Namespace for a remote identity.
 func (nm *tenantControlNamespaceManager) BindClusterRoles(clusterID string, clusterRoles ...*rbacv1.ClusterRole) ([]*rbacv1.RoleBinding, error) {
 	namespace, err := nm.GetNamespace(clusterID)
@@ -33,7 +33,7 @@ func (nm *tenantControlNamespaceManager) BindClusterRoles(clusterID string, clus
 	return bindings, nil
 }
 
-// remove the bindings for the remote clusterID for the given ClusterRoles
+// remove the bindings for the remote clusterid for the given ClusterRoles
 // This method deletes RoleBindings in the Tenant Control Namespace for a remote identity.
 func (nm *tenantControlNamespaceManager) UnbindClusterRoles(clusterID string, clusterRoles ...string) error {
 	namespace, err := nm.GetNamespace(clusterID)
@@ -51,7 +51,7 @@ func (nm *tenantControlNamespaceManager) UnbindClusterRoles(clusterID string, cl
 	return nil
 }
 
-// create a RoleBinding for the given clusterID in the given Namespace.
+// create a RoleBinding for the given clusterid in the given Namespace.
 func (nm *tenantControlNamespaceManager) bindClusterRole(clusterID string, namespace *v1.Namespace, clusterRole *rbacv1.ClusterRole) (*rbacv1.RoleBinding, error) {
 	ownerRef := metav1.OwnerReference{
 		APIVersion: rbacv1.SchemeGroupVersion.String(),

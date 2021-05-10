@@ -3,11 +3,12 @@ package tenantControlNamespace
 import (
 	"context"
 	"fmt"
-	testUtils2 "github.com/liqotech/liqo/pkg/utils/testUtils"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
+
+	testUtils2 "github.com/liqotech/liqo/pkg/utils/testUtils"
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"

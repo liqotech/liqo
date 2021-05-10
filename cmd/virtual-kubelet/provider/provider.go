@@ -14,7 +14,7 @@ import (
 // Provider contains the methods required to implement a virtual-kubelet provider.
 //
 // Errors produced by these methods should implement an interface from
-// github.com/netgroup-polito/liqo/cmdInternal/errdefs package in order for the
+// github.com/liqotech/liqo/cmdInternal/errdefs package in order for the
 // core logic to be able to understand the type of failure.
 type Provider interface {
 	module.PodLifecycleHandler

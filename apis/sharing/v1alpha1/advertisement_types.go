@@ -19,7 +19,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	object_references "github.com/liqotech/liqo/pkg/object-references"
+	objectreferences "github.com/liqotech/liqo/pkg/object-references"
 )
 
 // AdvertisementSpec defines the desired state of Advertisement.
@@ -54,8 +54,10 @@ type AdvertisementSpec struct {
 type AdvPhase string
 
 const (
+	// AdvertisementAccepted models the Accepted value of an advertisement
 	AdvertisementAccepted AdvPhase = "Accepted"
-	AdvertisementRefused  AdvPhase = "Refused"
+	// AdvertisementRefused models the Refused value of an advertisement
+	AdvertisementRefused AdvPhase = "Refused"
 )
 
 // AdvertisementStatus defines the observed state of Advertisement.
@@ -69,9 +71,9 @@ type AdvertisementStatus struct {
 	// VkCreated indicates if the virtual-kubelet for this Advertisement has been created or not.
 	VkCreated bool `json:"vkCreated"`
 	// VkReference is a reference to the deployment running the virtual-kubelet.
-	VkReference object_references.DeploymentReference `json:"vkReference,omitempty"`
+	VkReference objectreferences.DeploymentReference `json:"vkReference,omitempty"`
 	// VnodeReference is a reference to the virtual node linked to this Advertisement.
-	VnodeReference object_references.NodeReference `json:"vnodeReference,omitempty"`
+	VnodeReference objectreferences.NodeReference `json:"vnodeReference,omitempty"`
 }
 
 // +kubebuilder:object:root=true

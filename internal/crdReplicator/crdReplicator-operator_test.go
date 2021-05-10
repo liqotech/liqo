@@ -31,7 +31,7 @@ func getObj() *unstructured.Unstructured {
 				"labels": map[string]string{},
 			},
 			"spec": map[string]interface{}{
-				"clusterID":      "clusterID-test",
+				"clusterid":      "clusterid-test",
 				"podCIDR":        "10.0.0.0/12",
 				"externalCIDR":   "192.168.0.0/24",
 				"endpointIP":     "192.16.5.1",
@@ -233,7 +233,7 @@ func TestCRDReplicatorReconciler_ModifiedHandler(t *testing.T) {
 	//the modified resource already exists on the cluster
 	//we expect the resource to be modified and the error to be nil
 	newSpec := map[string]interface{}{
-		"clusterID":      "clusterID-test-modified",
+		"clusterid":      "clusterid-test-modified",
 		"podCIDR":        "10.0.0.0/12",
 		"externalCIDR":   "192.168.0.0/24",
 		"endpointIP":     "192.16.5.1",
@@ -309,7 +309,7 @@ func TestCRDReplicatorReconciler_DeletedHandler(t *testing.T) {
 
 func TestGetSpec(t *testing.T) {
 	spec := map[string]interface{}{
-		"clusterID": "clusterID-test",
+		"clusterid": "clusterid-test",
 	}
 	//test 1
 	//we have an object with a spec field

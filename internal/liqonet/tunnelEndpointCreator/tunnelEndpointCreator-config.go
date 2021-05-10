@@ -4,6 +4,8 @@ import (
 	"os"
 	"reflect"
 
+	"github.com/liqotech/liqo/pkg/utils"
+
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
@@ -11,7 +13,6 @@ import (
 	"k8s.io/kubernetes/pkg/util/slice"
 
 	configv1alpha1 "github.com/liqotech/liqo/apis/config/v1alpha1"
-	"github.com/liqotech/liqo/pkg/clusterConfig"
 	"github.com/liqotech/liqo/pkg/crdClient"
 	"github.com/liqotech/liqo/pkg/liqonet"
 )
@@ -186,7 +187,7 @@ func (tec *TunnelEndpointCreator) WatchConfiguration(config *rest.Config, gv *sc
 		os.Exit(1)
 	}
 
-	go clusterConfig.WatchConfiguration(func(configuration *configv1alpha1.ClusterConfig) {
+	go utils.WatchConfiguration(func(configuration *configv1alpha1.ClusterConfig) {
 		reservedSubnets := tec.getReservedSubnets(configuration)
 		additionalPools := tec.getAdditionalPools(configuration)
 		err = tec.updateReservedSubnets(reservedSubnets)

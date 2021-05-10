@@ -26,7 +26,7 @@ func NewTenantControlNamespaceManager(client kubernetes.Interface) TenantControl
 	}
 }
 
-// create a new Tenant Control Namespace given the clusterID
+// create a new Tenant Control Namespace given the clusterid
 // This method is idempotent, multiple calls of it will not lead to multiple namespace creations.
 func (nm *tenantControlNamespaceManager) CreateNamespace(clusterID string) (*v1.Namespace, error) {
 	// first check that it does not exist yet
@@ -57,7 +57,7 @@ func (nm *tenantControlNamespaceManager) CreateNamespace(clusterID string) (*v1.
 	return ns, nil
 }
 
-// get a Tenant Control Namespace given the clusterID.
+// get a Tenant Control Namespace given the clusterid.
 func (nm *tenantControlNamespaceManager) GetNamespace(clusterID string) (*v1.Namespace, error) {
 	labelSelector := metav1.LabelSelector{
 		MatchLabels: map[string]string{
@@ -80,7 +80,7 @@ func (nm *tenantControlNamespaceManager) GetNamespace(clusterID string) (*v1.Nam
 		klog.V(4).Info(err)
 		return nil, err
 	} else if nItems > 1 {
-		err = fmt.Errorf("multiple tenant control namespaces found for clusterID %v", clusterID)
+		err = fmt.Errorf("multiple tenant control namespaces found for clusterid %v", clusterID)
 		klog.Error(err)
 		return nil, err
 	}

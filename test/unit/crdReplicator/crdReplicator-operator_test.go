@@ -69,7 +69,7 @@ func getTunnelEndpointResource() *unstructured.Unstructured {
 				"labels": map[string]string{},
 			},
 			"spec": map[string]interface{}{
-				"clusterID":      "clusterID-test",
+				"clusterid":      "clusterid-test",
 				"podCIDR":        "10.0.0.0/12",
 				"externalCIDR":   "172.16.0.0/16",
 				"endpointIP":     "192.16.5.1",
@@ -91,7 +91,7 @@ func getForeignClusterResource() *unstructured.Unstructured {
 			},
 			"spec": map[string]interface{}{
 				"clusterIdentity": map[string]interface{}{
-					"clusterID": "foreign-cluster",
+					"clusterid": "foreign-cluster",
 				},
 				"join":             true,
 				"namespace":        "default",

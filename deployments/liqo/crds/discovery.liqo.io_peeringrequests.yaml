@@ -42,15 +42,15 @@ spec:
               clusterIdentity:
                 description: Foreign Cluster Identity
                 properties:
-                  clusterID:
-                    description: Foreign Cluster ID, this is a unique identifier of
-                      that cluster.
-                    type: string
                   clusterName:
                     description: Foreign Cluster Name to be shown in GUIs.
                     type: string
+                  clusterid:
+                    description: Foreign Cluster ID, this is a unique identifier of
+                      that cluster.
+                    type: string
                 required:
-                - clusterID
+                - clusterid
                 type: object
               kubeConfigRef:
                 description: KubeConfig file (with Advertisement creation role) secret

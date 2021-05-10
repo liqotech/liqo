@@ -19,7 +19,7 @@ func TestWatchAdvertisementAcceptance(t *testing.T) {
 	// reset the store, which is needs to be created in WatchAdvertisement method
 	b.RemoteClient.Store = nil
 	// launch the watcher
-	advName := pkg.AdvertisementPrefix + b.HomeClusterId
+	advName := pkg.AdvertisementPrefix + b.HomeClusterID
 	go b.WatchAdvertisement(advName)
 	// Waiting for the correct initialization of the client
 	deadline := time.Now().Add(10 * time.Second)

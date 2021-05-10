@@ -5,7 +5,7 @@
 | advertisement.broadcasterImageName | string | `"liqo/advertisement-broadcaster"` | broadcaster image repository |
 | advertisement.config.enableBroadcaster | bool | `true` | If set to false, the remote clusters will not be able to leverage your resources, but you will still be able to use theirs. |
 | advertisement.config.resourceSharingPercentage | int | `30` | It defines the percentage of available cluster resources that you are willing to share with foreign clusters. |
-| advertisement.imageName | string | `"liqo/advertisement-operator"` | advertisement image repository |
+| advertisement.imageName | string | `"liqo/advertisementoperator"` | advertisement image repository |
 | advertisement.pod.annotations | object | `{}` | advertisement pod annotations |
 | advertisement.pod.labels | object | `{}` | advertisement pod labels |
 | apiServer.address | string | `""` | The address that must be used to contact your API server, it needs to be reachable from the clusters that you will peer with (defaults to your master IP) |

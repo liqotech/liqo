@@ -43,7 +43,7 @@ import (
 // to new and changed pods scheduled to the node that is being managed.
 //
 // Errors produced by these methods should implement an interface from
-// github.com/netgroup-polito/liqo/internal/errdefs package in order for the
+// github.com/liqotech/liqo/internal/errdefs package in order for the
 // core logic to be able to understand the type of failure.
 type PodLifecycleHandler interface {
 	// CreatePod takes a Kubernetes Pod and deploys it within the provider.

@@ -18,13 +18,14 @@ package tunnelEndpointCreator
 import (
 	"context"
 	"fmt"
-	"github.com/liqotech/liqo/pkg/utils"
 	"os"
 	"os/signal"
 	"reflect"
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/liqotech/liqo/pkg/utils"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -37,13 +38,14 @@ import (
 	"k8s.io/klog"
 	"k8s.io/utils/pointer"
 
+	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/client"
+
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	"github.com/liqotech/liqo/internal/crdReplicator"
 	liqoconst "github.com/liqotech/liqo/pkg/consts"
 	liqonet "github.com/liqotech/liqo/pkg/liqonet"
 	"github.com/liqotech/liqo/pkg/liqonet/tunnel/wireguard"
-	ctrl "sigs.k8s.io/controller-runtime"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 
@@ -360,7 +362,7 @@ func (tec *TunnelEndpointCreator) GetNetworkConfig(destinationClusterID string) 
 func (tec *TunnelEndpointCreator) processRemoteNetConfig(netConfig *netv1alpha1.NetworkConfig) error {
 	var toBeUpdated bool
 	// Networkconfigs resource have a Spec.ClusterID field that contains
-	// the clusterID of the destination cluster(the local cluster in this case)
+	// the clusterid of the destination cluster(the local cluster in this case)
 	// In order to take the ClusterID of the sender we need to retrieve it from the labels.
 	podCIDR, externalCIDR, err := tec.IPManager.GetSubnetsPerCluster(netConfig.Spec.PodCIDR,
 		netConfig.Spec.ExternalCIDR, netConfig.Labels[crdReplicator.RemoteLabelSelector])
@@ -644,7 +646,7 @@ func (tec *TunnelEndpointCreator) createTunnelEndpoint(param *networkParam, owne
 		ObjectMeta: metav1.ObjectMeta{
 			GenerateName: tunEndpointNamePrefix,
 			Labels: map[string]string{
-				"clusterID": param.remoteClusterID,
+				"clusterid": param.remoteClusterID,
 			},
 		},
 		Spec: netv1alpha1.TunnelEndpointSpec{
@@ -688,7 +690,7 @@ func (tec *TunnelEndpointCreator) GetTunnelEndpoint(destinationClusterID string)
 	error) {
 	clusterID := destinationClusterID
 	tunEndpointList := &netv1alpha1.TunnelEndpointList{}
-	labels := client.MatchingLabels{"clusterID": clusterID}
+	labels := client.MatchingLabels{"clusterid": clusterID}
 	err := tec.List(context.Background(), tunEndpointList, labels)
 	if err != nil {
 		klog.Errorf("an error occurred while listing resources: %s", err)

@@ -55,7 +55,7 @@ type ForeignClusterSpec struct {
 
 type ClusterIdentity struct {
 	// Foreign Cluster ID, this is a unique identifier of that cluster.
-	ClusterID string `json:"clusterID"`
+	ClusterID string `json:"clusterid"`
 	// Foreign Cluster Name to be shown in GUIs.
 	ClusterName string `json:"clusterName,omitempty"`
 }

@@ -22,7 +22,7 @@ import (
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	garbage_collection "github.com/liqotech/liqo/internal/auth-service/garbage-collection"
 	"github.com/liqotech/liqo/pkg/auth"
-	"github.com/liqotech/liqo/pkg/clusterID"
+	"github.com/liqotech/liqo/pkg/clusterid"
 	"github.com/liqotech/liqo/pkg/crdClient"
 	"github.com/liqotech/liqo/pkg/discovery"
 	"github.com/liqotech/liqo/pkg/identityManager"
@@ -61,7 +61,7 @@ type AuthServiceCtrl struct {
 	useTLS         bool
 
 	credentialsValidator credentialsValidator
-	localClusterID       clusterID.ClusterID
+	localClusterID       clusterid.ClusterID
 	namespaceManager     tenantControlNamespace.TenantControlNamespaceManager
 	identityManager      identityManager.IdentityManager
 
@@ -105,7 +105,7 @@ func NewAuthServiceCtrl(namespace, kubeconfigPath string, resyncTime time.Durati
 	secretInformer := informerFactory.Core().V1().Secrets().Informer()
 	secretInformer.AddEventHandler(cache.ResourceEventHandlerFuncs{})
 
-	localClusterID, err := clusterID.NewClusterID(kubeconfigPath)
+	localClusterID, err := clusterid.NewClusterID(kubeconfigPath)
 	if err != nil {
 		return nil, err
 	}

@@ -4,13 +4,14 @@ import (
 	"context"
 	"reflect"
 
+	"github.com/liqotech/liqo/pkg/utils"
+
 	rbacv1 "k8s.io/api/rbac/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/klog"
 
 	configv1alpha1 "github.com/liqotech/liqo/apis/config/v1alpha1"
-	"github.com/liqotech/liqo/pkg/clusterConfig"
 	"github.com/liqotech/liqo/pkg/crdClient"
 )
 
@@ -37,7 +38,7 @@ func (discovery *Controller) GetAPIServerConfig() *configv1alpha1.APIServerConfi
 func (discovery *Controller) getDiscoveryConfig(client *crdClient.CRDClient, kubeconfigPath string) error {
 	waitFirst := make(chan bool)
 	isFirst := true
-	go clusterConfig.WatchConfiguration(func(configuration *configv1alpha1.ClusterConfig) {
+	go utils.WatchConfiguration(func(configuration *configv1alpha1.ClusterConfig) {
 		discovery.handleConfiguration(&configuration.Spec.DiscoveryConfig)
 		discovery.handleDispatcherConfig(&configuration.Spec.DispatcherConfig)
 		discovery.handleAPIServerConfig(&configuration.Spec.APIServerConfig)

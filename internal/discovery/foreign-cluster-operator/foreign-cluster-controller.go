@@ -23,13 +23,14 @@ import (
 	"strings"
 	"time"
 
+	"github.com/liqotech/liqo/pkg/clusterid"
+
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	netv1alpha1 "github.com/liqotech/liqo/apis/net/v1alpha1"
 	advtypes "github.com/liqotech/liqo/apis/sharing/v1alpha1"
 	"github.com/liqotech/liqo/internal/crdReplicator"
 	"github.com/liqotech/liqo/internal/discovery"
 	"github.com/liqotech/liqo/internal/discovery/utils"
-	"github.com/liqotech/liqo/pkg/clusterID"
 	liqoconst "github.com/liqotech/liqo/pkg/consts"
 	"github.com/liqotech/liqo/pkg/crdClient"
 	discoveryPkg "github.com/liqotech/liqo/pkg/discovery"
@@ -59,7 +60,7 @@ type ForeignClusterReconciler struct {
 	crdClient           *crdClient.CRDClient
 	advertisementClient *crdClient.CRDClient
 	networkClient       *crdClient.CRDClient
-	clusterID           clusterID.ClusterID
+	clusterID           clusterid.ClusterID
 	RequeueAfter        time.Duration
 
 	ConfigProvider discovery.ConfigProvider
@@ -1095,7 +1096,7 @@ func (r *ForeignClusterReconciler) updateNetwork(labelSelector string, resourceL
 
 func (r *ForeignClusterReconciler) checkTEP(fc *discoveryv1alpha1.ForeignCluster, requireUpdate *bool) error {
 	tmp, err := r.networkClient.Resource("tunnelendpoints").List(&metav1.ListOptions{
-		LabelSelector: strings.Join([]string{"clusterID", fc.Spec.ClusterIdentity.ClusterID}, "="),
+		LabelSelector: strings.Join([]string{"clusterid", fc.Spec.ClusterIdentity.ClusterID}, "="),
 	})
 	if err != nil {
 		klog.Error(err)

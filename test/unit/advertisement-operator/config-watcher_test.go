@@ -233,7 +233,7 @@ func testManageMaximumUpdate(t *testing.T) {
 
 	// TRUE TEST
 	// test the true branch of ManageMaximumUpdate
-	err, advToUpdate := r.ManageMaximumUpdate(config.Spec.AdvertisementConfig, &advList)
+	advToUpdate, err := r.ManageMaximumUpdate(config.Spec.AdvertisementConfig, &advList)
 	assert.Nil(t, err)
 	assert.NotEmpty(t, advToUpdate)
 	assert.NotEmpty(t, advToUpdate.Items)
@@ -247,7 +247,7 @@ func testManageMaximumUpdate(t *testing.T) {
 	// FALSE TEST
 	// apply again the same configuration
 	// we enter in the false branch of ManageMaximumUpdate but nothing should change
-	err, advToUpdate = r.ManageMaximumUpdate(config.Spec.AdvertisementConfig, &advList)
+	advToUpdate, err = r.ManageMaximumUpdate(config.Spec.AdvertisementConfig, &advList)
 	assert.Nil(t, err)
 	assert.NotEmpty(t, advToUpdate)
 	assert.Empty(t, advToUpdate.Items)
@@ -268,7 +268,7 @@ func testManageMaximumUpdate(t *testing.T) {
 		},
 	}
 
-	err, advToUpdate = r.ManageMaximumUpdate(config.Spec.AdvertisementConfig, &advList)
+	advToUpdate, err = r.ManageMaximumUpdate(config.Spec.AdvertisementConfig, &advList)
 	assert.Nil(t, err)
 	assert.NotEmpty(t, advToUpdate)
 	assert.Empty(t, advToUpdate.Items)
