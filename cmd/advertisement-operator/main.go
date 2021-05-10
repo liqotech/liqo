@@ -160,7 +160,7 @@ func main() {
 	resourceRequestReconciler := &resourceRequestOperator.ResourceRequestReconciler{
 		Client:    mgr.GetClient(),
 		Scheme:    mgr.GetScheme(),
-		ClusterId: clusterId,
+		ClusterID: clusterId,
 	}
 
 	if err = resourceRequestReconciler.SetupWithManager(mgr); err != nil {

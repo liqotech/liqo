@@ -1,4 +1,4 @@
-package resourceRequestOperator
+package resourcerequestoperator
 
 import (
 	"context"
@@ -25,7 +25,7 @@ func (r *ResourceRequestReconciler) generateResourceOffer(request *discoveryv1al
 	offer := &sharingv1alpha1.ResourceOffer{
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace: request.GetNamespace(),
-			Name:      offerPrefix + r.ClusterId,
+			Name:      offerPrefix + r.ClusterID,
 		},
 	}
 
@@ -35,7 +35,7 @@ func (r *ResourceRequestReconciler) generateResourceOffer(request *discoveryv1al
 		}
 		creationTime := metav1.NewTime(time.Now())
 		spec := sharingv1alpha1.ResourceOfferSpec{
-			ClusterId: r.ClusterId,
+			ClusterId: r.ClusterID,
 			Images:    []corev1.ContainerImage{},
 			ResourceQuota: corev1.ResourceQuotaSpec{
 				Hard: resources.Offers,
@@ -50,13 +50,13 @@ func (r *ResourceRequestReconciler) generateResourceOffer(request *discoveryv1al
 	if err != nil {
 		return err
 	}
-	klog.Infof("%s -> %s Offer: %s", r.ClusterId, op, offer.ObjectMeta.Name)
+	klog.Infof("%s -> %s Offer: %s", r.ClusterID, op, offer.ObjectMeta.Name)
 	return nil
 }
 
 // this function returns all resource available that will be offered to remote cluster.
 func (r *ResourceRequestReconciler) computeResources() error {
-	//placeholder for future logic
+	// placeholder for future logic
 	limits := corev1.ResourceList{}
 	limits[corev1.ResourceCPU] = *resource.NewQuantity(2, "2")
 	limits[corev1.ResourceMemory] = *resource.NewQuantity(1, "2m")

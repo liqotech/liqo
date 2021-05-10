@@ -1,4 +1,4 @@
-package resourceRequestOperator
+package resourcerequestoperator
 
 import (
 	"path/filepath"
@@ -63,7 +63,7 @@ var _ = BeforeSuite(func(done Done) {
 	err = (&ResourceRequestReconciler{
 		Client:    k8sManager.GetClient(),
 		Scheme:    k8sManager.GetScheme(),
-		ClusterId: clusterId,
+		ClusterID: clusterId,
 	}).SetupWithManager(k8sManager)
 	Expect(err).ToNot(HaveOccurred())
 
