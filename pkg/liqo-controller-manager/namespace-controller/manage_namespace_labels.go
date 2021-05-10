@@ -1,4 +1,16 @@
-package namespace_controller
+/*
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+   http://www.apache.org/licenses/LICENSE-2.0
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
+package namespacectrl
 
 import (
 	"strings"
@@ -17,7 +29,8 @@ func checkOffloadingLabels(na *corev1.Namespace, n *corev1.Node) bool {
 	for key := range n.GetLabels() {
 		if strings.HasPrefix(key, offloadingPrefixLabel) {
 			if _, ok := na.GetLabels()[key]; !ok {
-				klog.Infof(" Namespace '%s' cannot be offloaded on remote cluster: %s", na.GetName(), n.Annotations[liqoconst.VirtualNodeClusterId])
+				klog.Infof(" Namespace '%s' cannot be offloaded on remote cluster: %s", na.GetName(),
+					n.Annotations[liqoconst.RemoteClusterID])
 				return false
 			}
 		}
@@ -26,7 +39,7 @@ func checkOffloadingLabels(na *corev1.Namespace, n *corev1.Node) bool {
 }
 
 // Checks if mappingLabel value is changed from the previous one
-func mappingLabelUpdate(oldLabels map[string]string, newLabels map[string]string) bool {
+func mappingLabelUpdate(oldLabels, newLabels map[string]string) bool {
 	ret := false
 	if val1, ok := oldLabels[mappingLabel]; ok {
 		ret = val1 != newLabels[mappingLabel]
@@ -49,15 +62,20 @@ func manageLabelPredicate() predicate.Predicate {
 	return predicate.Funcs{
 		UpdateFunc: func(e event.UpdateEvent) bool {
 			// if a namespace with namespaceControllerFinalizer is deleted, trigger Reconcile
-			if !(e.MetaNew.GetDeletionTimestamp().IsZero()) && slice.ContainsString(e.MetaNew.GetFinalizers(), namespaceControllerFinalizer, nil) {
+			if !(e.MetaNew.GetDeletionTimestamp().IsZero()) && slice.ContainsString(e.MetaNew.GetFinalizers(),
+				namespaceControllerFinalizer, nil) {
 				return true
 			}
 
-			// if the number of labels is changed after the event, and before or after the event there was mappingLabel, maybe controller has to do something, so trigger it
+			// if the number of labels is changed after the event, and before or after the event there was mappingLabel,
+			// maybe controller has to do something, so trigger it
 			// ||
-			// if mappingLabel value is changed while the namespace is offloaded, controller has to force mappingLabel to its old value (see addDesiredMapping function)
-			return ((len(e.MetaOld.GetLabels()) != len(e.MetaNew.GetLabels())) && (mappingLabelPresence(e.MetaOld.GetLabels()) ||
-				mappingLabelPresence(e.MetaNew.GetLabels()))) || mappingLabelUpdate(e.MetaOld.GetLabels(), e.MetaNew.GetLabels())
+			// if mappingLabel value is changed while the namespace is offloaded, controller has to force mappingLabel
+			// to its old value (see addDesiredMapping function)
+			return ((len(e.MetaOld.GetLabels()) != len(e.MetaNew.GetLabels())) &&
+				(mappingLabelPresence(e.MetaOld.GetLabels()) ||
+					mappingLabelPresence(e.MetaNew.GetLabels()))) ||
+				mappingLabelUpdate(e.MetaOld.GetLabels(), e.MetaNew.GetLabels())
 		},
 		CreateFunc: func(e event.CreateEvent) bool {
 			return mappingLabelPresence(e.Meta.GetLabels())

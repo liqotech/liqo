@@ -1,4 +1,4 @@
-package namespace_controller
+package namespacectrl
 
 import (
 	"context"
@@ -53,7 +53,8 @@ var _ = Describe("Namespace controller", func() {
 
 			By(fmt.Sprintf("Check if NamespaceMap associated to %s is cleaned by the controller", remoteClusterId1))
 			Eventually(func() bool {
-				if err := k8sClient.List(context.TODO(), nms, client.InNamespace(liqoconst.MapNamespaceName), client.MatchingLabels{liqoconst.VirtualNodeClusterId: remoteClusterId1}); err != nil {
+				if err := k8sClient.List(context.TODO(), nms, client.InNamespace(liqoconst.MapNamespaceName),
+					client.MatchingLabels{liqoconst.RemoteClusterID: remoteClusterId1}); err != nil {
 					return false
 				}
 				if len(nms.Items) != 1 {
@@ -68,7 +69,8 @@ var _ = Describe("Namespace controller", func() {
 
 			By(fmt.Sprintf("Check if NamespaceMap associated to %s is cleaned by the controller ", remoteClusterId2))
 			Eventually(func() bool {
-				if err := k8sClient.List(context.TODO(), nms, client.InNamespace(liqoconst.MapNamespaceName), client.MatchingLabels{liqoconst.VirtualNodeClusterId: remoteClusterId2}); err != nil {
+				if err := k8sClient.List(context.TODO(), nms, client.InNamespace(liqoconst.MapNamespaceName),
+					client.MatchingLabels{liqoconst.RemoteClusterID: remoteClusterId2}); err != nil {
 					return false
 				}
 				if len(nms.Items) != 1 {
@@ -83,7 +85,8 @@ var _ = Describe("Namespace controller", func() {
 
 		})
 
-		It(fmt.Sprintf("Adding %s and %s , check presence of finalizer: %s", mappingLabel, offloadingLabel, namespaceControllerFinalizer), func() {
+		It(fmt.Sprintf("Adding %s and %s , check presence of finalizer: %s",
+			mappingLabel, offloadingLabel, namespaceControllerFinalizer), func() {
 
 			By(fmt.Sprintf("Try to get Namespace: %s", nameNamespaceTest))
 			Eventually(func() bool {
@@ -129,7 +132,8 @@ var _ = Describe("Namespace controller", func() {
 
 			By(fmt.Sprintf("Try to get NamespaceMap associated to: %s", remoteClusterId1))
 			Eventually(func() bool {
-				if err := k8sClient.List(context.TODO(), nms, client.InNamespace(liqoconst.MapNamespaceName), client.MatchingLabels{liqoconst.VirtualNodeClusterId: remoteClusterId1}); err != nil {
+				if err := k8sClient.List(context.TODO(), nms, client.InNamespace(liqoconst.MapNamespaceName),
+					client.MatchingLabels{liqoconst.RemoteClusterID: remoteClusterId1}); err != nil {
 					return false
 				}
 				if len(nms.Items) != 1 {
@@ -144,7 +148,8 @@ var _ = Describe("Namespace controller", func() {
 
 			By(fmt.Sprintf("Try to get NamespaceMap: associated to %s", remoteClusterId2))
 			Eventually(func() bool {
-				if err := k8sClient.List(context.TODO(), nms, client.InNamespace(liqoconst.MapNamespaceName), client.MatchingLabels{liqoconst.VirtualNodeClusterId: remoteClusterId2}); err != nil {
+				if err := k8sClient.List(context.TODO(), nms, client.InNamespace(liqoconst.MapNamespaceName),
+					client.MatchingLabels{liqoconst.RemoteClusterID: remoteClusterId2}); err != nil {
 					return false
 				}
 				if len(nms.Items) != 1 {
@@ -159,7 +164,8 @@ var _ = Describe("Namespace controller", func() {
 
 		})
 
-		It(fmt.Sprintf("Adding %s, %s and all labels for %s, check NamespaceMaps status", mappingLabel, offloadingLabel, nameVirtualNode1), func() {
+		It(fmt.Sprintf("Adding %s, %s and all labels for %s, check NamespaceMaps status",
+			mappingLabel, offloadingLabel, nameVirtualNode1), func() {
 
 			By(fmt.Sprintf("Try to get Namespace: %s", nameNamespaceTest))
 			Eventually(func() bool {
@@ -180,7 +186,7 @@ var _ = Describe("Namespace controller", func() {
 
 			By(fmt.Sprintf("Check if entry is also on NamespaceMap associated to: %s", remoteClusterId2))
 			Eventually(func() bool {
-				if err := k8sClient.List(context.TODO(), nms, client.InNamespace(liqoconst.MapNamespaceName), client.MatchingLabels{liqoconst.VirtualNodeClusterId: remoteClusterId2}); err != nil {
+				if err := k8sClient.List(context.TODO(), nms, client.InNamespace(liqoconst.MapNamespaceName), client.MatchingLabels{liqoconst.RemoteClusterID: remoteClusterId2}); err != nil {
 					return false
 				}
 				if len(nms.Items) != 1 {
@@ -196,7 +202,8 @@ var _ = Describe("Namespace controller", func() {
 
 		})
 
-		It(fmt.Sprintf("Adding %s and all labels for %s, check NamespaceMaps status", mappingLabel, nameVirtualNode1), func() {
+		It(fmt.Sprintf("Adding %s and all labels for %s, check NamespaceMaps status",
+			mappingLabel, nameVirtualNode1), func() {
 
 			By(fmt.Sprintf("Try to get Namespace: %s", nameNamespaceTest))
 			Eventually(func() bool {
@@ -216,7 +223,7 @@ var _ = Describe("Namespace controller", func() {
 
 			By(fmt.Sprintf("Try to get NamespaceMap associated to %s", remoteClusterId1))
 			Eventually(func() bool {
-				if err := k8sClient.List(context.TODO(), nms, client.InNamespace(liqoconst.MapNamespaceName), client.MatchingLabels{liqoconst.VirtualNodeClusterId: remoteClusterId1}); err != nil {
+				if err := k8sClient.List(context.TODO(), nms, client.InNamespace(liqoconst.MapNamespaceName), client.MatchingLabels{liqoconst.RemoteClusterID: remoteClusterId1}); err != nil {
 					return false
 				}
 				if len(nms.Items) != 1 {
@@ -233,7 +240,7 @@ var _ = Describe("Namespace controller", func() {
 
 			By(fmt.Sprintf("Try to get NamespaceMap associated to %s", remoteClusterId2))
 			Consistently(func() bool {
-				if err := k8sClient.List(context.TODO(), nms, client.InNamespace(liqoconst.MapNamespaceName), client.MatchingLabels{liqoconst.VirtualNodeClusterId: remoteClusterId2}); err != nil {
+				if err := k8sClient.List(context.TODO(), nms, client.InNamespace(liqoconst.MapNamespaceName), client.MatchingLabels{liqoconst.RemoteClusterID: remoteClusterId2}); err != nil {
 					return true
 				}
 				if len(nms.Items) != 1 {
@@ -249,7 +256,8 @@ var _ = Describe("Namespace controller", func() {
 
 		})
 
-		It(fmt.Sprintf("Update %s  value and check if the namespace's label is automatically patched to old value", mappingLabel), func() {
+		It(fmt.Sprintf("Update %s  value and check if label is automatically patched to old value",
+			mappingLabel), func() {
 
 			By(fmt.Sprintf("Try to get Namespace: %s", nameNamespaceTest))
 			Eventually(func() bool {
@@ -268,7 +276,8 @@ var _ = Describe("Namespace controller", func() {
 
 			By(fmt.Sprintf("Try to get NamespaceMap associated to: %s", remoteClusterId1))
 			Eventually(func() bool {
-				if err := k8sClient.List(context.TODO(), nms, client.InNamespace(liqoconst.MapNamespaceName), client.MatchingLabels{liqoconst.VirtualNodeClusterId: remoteClusterId1}); err != nil {
+				if err := k8sClient.List(context.TODO(), nms, client.InNamespace(liqoconst.MapNamespaceName),
+					client.MatchingLabels{liqoconst.RemoteClusterID: remoteClusterId1}); err != nil {
 					return false
 				}
 				if len(nms.Items) != 1 {
@@ -284,7 +293,8 @@ var _ = Describe("Namespace controller", func() {
 
 			By(fmt.Sprintf("Try to get NamespaceMap associated to: %s", remoteClusterId2))
 			Eventually(func() bool {
-				if err := k8sClient.List(context.TODO(), nms, client.InNamespace(liqoconst.MapNamespaceName), client.MatchingLabels{liqoconst.VirtualNodeClusterId: remoteClusterId2}); err != nil {
+				if err := k8sClient.List(context.TODO(), nms, client.InNamespace(liqoconst.MapNamespaceName),
+					client.MatchingLabels{liqoconst.RemoteClusterID: remoteClusterId2}); err != nil {
 					return false
 				}
 				if len(nms.Items) != 1 {
@@ -350,7 +360,8 @@ var _ = Describe("Namespace controller", func() {
 
 			By(fmt.Sprintf("Try to get NamespaceMap associated to: %s", remoteClusterId1))
 			Eventually(func() bool {
-				if err := k8sClient.List(context.TODO(), nms, client.InNamespace(liqoconst.MapNamespaceName), client.MatchingLabels{liqoconst.VirtualNodeClusterId: remoteClusterId1}); err != nil {
+				if err := k8sClient.List(context.TODO(), nms, client.InNamespace(liqoconst.MapNamespaceName),
+					client.MatchingLabels{liqoconst.RemoteClusterID: remoteClusterId1}); err != nil {
 					return false
 				}
 				if len(nms.Items) != 1 {
@@ -366,7 +377,8 @@ var _ = Describe("Namespace controller", func() {
 
 			By(fmt.Sprintf("Try to get NamespaceMap associated to: %s", remoteClusterId2))
 			Eventually(func() bool {
-				if err := k8sClient.List(context.TODO(), nms, client.InNamespace(liqoconst.MapNamespaceName), client.MatchingLabels{liqoconst.VirtualNodeClusterId: remoteClusterId2}); err != nil {
+				if err := k8sClient.List(context.TODO(), nms, client.InNamespace(liqoconst.MapNamespaceName),
+					client.MatchingLabels{liqoconst.RemoteClusterID: remoteClusterId2}); err != nil {
 					return false
 				}
 				if len(nms.Items) != 1 {
@@ -399,7 +411,8 @@ var _ = Describe("Namespace controller", func() {
 
 			By(fmt.Sprintf("Check if NamespaceMap associated to %s is cleaned by the controller", remoteClusterId1))
 			Eventually(func() bool {
-				if err := k8sClient.List(context.TODO(), nms, client.InNamespace(liqoconst.MapNamespaceName), client.MatchingLabels{liqoconst.VirtualNodeClusterId: remoteClusterId1}); err != nil {
+				if err := k8sClient.List(context.TODO(), nms, client.InNamespace(liqoconst.MapNamespaceName),
+					client.MatchingLabels{liqoconst.RemoteClusterID: remoteClusterId1}); err != nil {
 					return false
 				}
 				if len(nms.Items) != 1 {
@@ -416,7 +429,8 @@ var _ = Describe("Namespace controller", func() {
 
 			By(fmt.Sprintf("Check if NamespaceMap associated to %s is cleaned by the controller", remoteClusterId2))
 			Eventually(func() bool {
-				if err := k8sClient.List(context.TODO(), nms, client.InNamespace(liqoconst.MapNamespaceName), client.MatchingLabels{liqoconst.VirtualNodeClusterId: remoteClusterId2}); err != nil {
+				if err := k8sClient.List(context.TODO(), nms, client.InNamespace(liqoconst.MapNamespaceName),
+					client.MatchingLabels{liqoconst.RemoteClusterID: remoteClusterId2}); err != nil {
 					return false
 				}
 				if len(nms.Items) != 1 {
@@ -449,7 +463,8 @@ var _ = Describe("Namespace controller", func() {
 
 			By(fmt.Sprintf("Check if NamespaceMap associated to %s is cleaned by the controller", remoteClusterId1))
 			Eventually(func() bool {
-				if err := k8sClient.List(context.TODO(), nms, client.InNamespace(liqoconst.MapNamespaceName), client.MatchingLabels{liqoconst.VirtualNodeClusterId: remoteClusterId1}); err != nil {
+				if err := k8sClient.List(context.TODO(), nms, client.InNamespace(liqoconst.MapNamespaceName),
+					client.MatchingLabels{liqoconst.RemoteClusterID: remoteClusterId1}); err != nil {
 					return false
 				}
 				if len(nms.Items) != 1 {
@@ -466,7 +481,8 @@ var _ = Describe("Namespace controller", func() {
 
 			By(fmt.Sprintf("Check if NamespaceMap associated to %s is cleaned by the controller", remoteClusterId2))
 			Eventually(func() bool {
-				if err := k8sClient.List(context.TODO(), nms, client.InNamespace(liqoconst.MapNamespaceName), client.MatchingLabels{liqoconst.VirtualNodeClusterId: remoteClusterId2}); err != nil {
+				if err := k8sClient.List(context.TODO(), nms, client.InNamespace(liqoconst.MapNamespaceName),
+					client.MatchingLabels{liqoconst.RemoteClusterID: remoteClusterId2}); err != nil {
 					return false
 				}
 				if len(nms.Items) != 1 {

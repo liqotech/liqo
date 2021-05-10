@@ -34,7 +34,7 @@ spec:
           metadata:
             type: object
           spec:
-            description: NamespaceMapSpec defines the desired state of NamespaceMap
+            description: NamespaceMapSpec defines the desired state of NamespaceMap.
             properties:
               desiredMapping:
                 additionalProperties:
@@ -51,13 +51,16 @@ spec:
             properties:
               currentMapping:
                 additionalProperties:
+                  description: RemoteNamespaceStatus contains some information about
+                    remote namespace status
                   properties:
                     phase:
-                      description: Phase is the remote Namespace's actual status (Accepted,Refused)
+                      description: Phase is the remote Namespace's actual status (Accepted,Refused).
                       type: string
                     remoteNamespace:
                       description: RemoteNamespace is the name chosen by the user
-                        at creation time (when he puts labels on his local namespace)
+                        at creation time (when he puts mapping label on his local
+                        namespace).
                       type: string
                   type: object
                 description: CurrentMapping is filled by NamespaceMap Controller,

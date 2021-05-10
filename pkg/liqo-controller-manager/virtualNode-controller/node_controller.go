@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package virtualNode_controller
+package virtualnodectrl
 
 import (
 	"context"
@@ -37,6 +37,7 @@ const (
 	virtualNodeControllerFinalizer = "virtualnode-controller.liqo.io/finalizer"
 )
 
+// VirtualNodeReconciler manage NamespaceMap lifecycle
 type VirtualNodeReconciler struct {
 	client.Client
 	Scheme *runtime.Scheme
@@ -45,8 +46,8 @@ type VirtualNodeReconciler struct {
 // +kubebuilder:rbac:groups=core,resources=nodes,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=core,resources=nodes/status,verbs=get;update;patch
 
+// Reconcile checks if virtual-node must be deleted or manages its NamespaceMap
 func (r *VirtualNodeReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
-
 	node := &corev1.Node{}
 	if err := r.Get(context.TODO(), req.NamespacedName, node); err != nil {
 		klog.Errorf(" %s --> Unable to get virtual-node '%s'", err, req.Name)
@@ -56,39 +57,40 @@ func (r *VirtualNodeReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error)
 	if !ctrlutils.ContainsFinalizer(node, virtualNodeControllerFinalizer) {
 		ctrlutils.AddFinalizer(node, virtualNodeControllerFinalizer)
 		if err := r.Patch(context.TODO(), node, client.Merge); err != nil {
-			klog.Errorf("%s --> Unable to add '%s' to the virtual node '%s'", err, virtualNodeControllerFinalizer, node.GetName())
+			klog.Errorf("%s --> Unable to add '%s' to the virtual node '%s'",
+				err, virtualNodeControllerFinalizer, node.GetName())
 			return ctrl.Result{}, err
 		}
 	}
 
 	if !node.GetDeletionTimestamp().IsZero() {
-
 		klog.Infof("The virtual node '%s' is requested to be deleted", node.GetName())
 
 		nms := &mapsv1alpha1.NamespaceMapList{}
 		if err := r.List(context.TODO(), nms, client.InNamespace(liqoconst.MapNamespaceName),
-			client.MatchingLabels{liqoconst.VirtualNodeClusterId: node.GetAnnotations()[liqoconst.VirtualNodeClusterId]}); err != nil {
+			client.MatchingLabels{liqoconst.RemoteClusterID: node.GetAnnotations()[liqoconst.RemoteClusterID]}); err != nil {
 			klog.Errorf("%s --> Unable to List NamespaceMaps of virtual node '%s'", err, node.GetName())
 			return ctrl.Result{}, err
 		}
 
 		// delete all NamespaceMaps associated with this node, in normal conditions only one
-		for _, nm := range nms.Items {
-			if err := r.removeAllDesiredMappings(nm); err != nil {
+		for i := range nms.Items {
+			if err := r.removeAllDesiredMappings(&nms.Items[i]); err != nil {
 				return ctrl.Result{}, err
 			}
 		}
 
 		ctrlutils.RemoveFinalizer(node, virtualNodeControllerFinalizer)
 		if err := r.Update(context.TODO(), node); err != nil {
-			klog.Errorf(" %s --> Unable to remove %s from the virtual node '%s'", err, virtualNodeControllerFinalizer, node.GetName())
+			klog.Errorf(" %s --> Unable to remove %s from the virtual node '%s'",
+				err, virtualNodeControllerFinalizer, node.GetName())
 			return ctrl.Result{}, err
 		}
 		klog.Infof("Finalizer is correctly removed from the virtual node '%s'", node.GetName())
 		return ctrl.Result{}, nil
 	}
 
-	if err := r.namespaceMapLifecycle(*node); err != nil {
+	if err := r.namespaceMapLifecycle(node); err != nil {
 		return ctrl.Result{}, err
 	}
 
@@ -136,6 +138,7 @@ func filterVirtualNodes() predicate.Predicate {
 	}
 }
 
+// SetupWithManager monitors Virtual-nodes and their associated NamespaceMaps
 func (r *VirtualNodeReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&corev1.Node{}).

@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package namespaceMap_controller
+package namespacemapctrl
 
 import (
 	"context"
@@ -32,6 +32,7 @@ import (
 	liqoconst "github.com/liqotech/liqo/pkg/consts"
 )
 
+// NamespaceMapReconciler creates remote namespaces and updates NamespaceMaps
 type NamespaceMapReconciler struct {
 	client.Client
 	Scheme        *runtime.Scheme
@@ -40,11 +41,12 @@ type NamespaceMapReconciler struct {
 }
 
 const (
-	clusterIdForeign = "discovery.liqo.io/cluster-id"
+	clusterIDForeign = "discovery.liqo.io/cluster-id"
 )
 
+// Reconcile adds/removes NamespaceMap finalizer, and checks differences
+// between DesiredMapping and CurrentMapping
 func (r *NamespaceMapReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
-
 	namespaceMap := &mapsv1alpha1.NamespaceMap{}
 	if err := r.Get(context.TODO(), req.NamespacedName, namespaceMap); err != nil {
 		klog.Errorf("%s --> Unable to get NamespaceMap '%s'", err, req.Name)
@@ -54,7 +56,7 @@ func (r *NamespaceMapReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error
 	if !ctrlutils.ContainsFinalizer(namespaceMap, liqoconst.NamespaceMapControllerFinalizer) {
 		ctrlutils.AddFinalizer(namespaceMap, liqoconst.NamespaceMapControllerFinalizer)
 		if err := r.Patch(context.TODO(), namespaceMap, client.Merge); err != nil {
-			klog.Errorf("%s --> Unable to add '%s' to the NamespaceMap '%s'", err, liqoconst.NamespaceMapControllerFinalizer, namespaceMap.GetName())
+			klog.Errorf("%s --> Unable to add finalizer to the NamespaceMap '%s'", err, namespaceMap.GetName())
 			return ctrl.Result{}, err
 		}
 		klog.Infof("Finalizer correctly added on NamespaceMap '%s'", namespaceMap.GetName())
@@ -67,7 +69,8 @@ func (r *NamespaceMapReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error
 	if len(namespaceMap.Status.CurrentMapping) == 0 {
 		ctrlutils.RemoveFinalizer(namespaceMap, liqoconst.NamespaceMapControllerFinalizer)
 		if err := r.Update(context.TODO(), namespaceMap); err != nil {
-			klog.Errorf("%s --> Unable to remove '%s' from NamespaceMap '%s'", err, liqoconst.NamespaceMapControllerFinalizer, namespaceMap.GetName())
+			klog.Errorf("%s --> Unable to remove '%s' from NamespaceMap '%s'", err,
+				liqoconst.NamespaceMapControllerFinalizer, namespaceMap.GetName())
 			return ctrl.Result{}, err
 		}
 		klog.Infof("Finalizer correctly removed from NamespaceMap '%s'", namespaceMap.GetName())
@@ -81,7 +84,8 @@ func (r *NamespaceMapReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error
 func manageDesiredMappings() predicate.Predicate {
 	return predicate.Funcs{
 		UpdateFunc: func(e event.UpdateEvent) bool {
-			return len(e.ObjectOld.(*mapsv1alpha1.NamespaceMap).Spec.DesiredMapping) != len(e.ObjectNew.(*mapsv1alpha1.NamespaceMap).Spec.DesiredMapping)
+			return len(e.ObjectOld.(*mapsv1alpha1.NamespaceMap).Spec.DesiredMapping) !=
+				len(e.ObjectNew.(*mapsv1alpha1.NamespaceMap).Spec.DesiredMapping)
 		},
 		CreateFunc: func(e event.CreateEvent) bool {
 			return false
@@ -92,6 +96,7 @@ func manageDesiredMappings() predicate.Predicate {
 	}
 }
 
+// SetupWithManager monitors only updates on NamespaceMap
 func (r *NamespaceMapReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&mapsv1alpha1.NamespaceMap{}).
