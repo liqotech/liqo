@@ -329,7 +329,7 @@ func (liqoIPAM *IPAM) GetSubnetsPerCluster(
 	}
 
 	// Check if podCidr is a valid CIDR
-	err = IsValidCidr(podCidr)
+	err = IsValidCIDR(podCidr)
 	if err != nil {
 		return "", "", fmt.Errorf("PodCidr is an invalid CIDR:%w", err)
 	}
@@ -345,7 +345,7 @@ func (liqoIPAM *IPAM) GetSubnetsPerCluster(
 	klog.Infof("PodCIDR %s has been assigned to cluster %s", mappedPodCIDR, clusterID)
 
 	// Check if externalCIDR is a valid CIDR
-	err = IsValidCidr(externalCIDR)
+	err = IsValidCIDR(externalCIDR)
 	if err != nil {
 		return "", "", fmt.Errorf("ExternalCIDR is an invalid CIDR:%w", err)
 	}

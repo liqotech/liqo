@@ -12,7 +12,8 @@ type wgClientFake struct {
 	dev wgtypes.Device
 }
 
-func NewWgClientFake(deviceName string) (*wgClientFake, error) {
+// NewWgClientFake creates a fake client for wireguard.
+func NewWgClientFake(deviceName string) (Client, error) {
 	return &wgClientFake{wgtypes.Device{Name: deviceName}}, nil
 }
 
@@ -34,8 +35,8 @@ func (wgc *wgClientFake) configureDevice(name string, cfg wgtypes.Config) error 
 			})
 			return nil
 		}
-		for i, p := range wgc.dev.Peers {
-			if peer.PublicKey == p.PublicKey {
+		for i := range wgc.dev.Peers {
+			if peer.PublicKey == wgc.dev.Peers[i].PublicKey {
 				wgc.dev.Peers[i] = wgc.dev.Peers[len(wgc.dev.Peers)-1]
 				wgc.dev.Peers = wgc.dev.Peers[:len(wgc.dev.Peers)-1]
 			}

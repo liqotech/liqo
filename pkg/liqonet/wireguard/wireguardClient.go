@@ -7,8 +7,8 @@ import (
 	"golang.zx2c4.com/wireguard/wgctrl/wgtypes"
 )
 
-// a simple interface that implements some of the methods of wgctrl.Client interface.
-// a fake implementation is used for the unit tests.
+// Client a simple interface that implements some of the methods of wgctrl.Client interface.
+// A fake implementation is used for the unit tests.
 type Client interface {
 	configureDevice(name string, cfg wgtypes.Config) error
 	device(name string) (*wgtypes.Device, error)
@@ -19,11 +19,12 @@ type wgClient struct {
 	c *wgctrl.Client
 }
 
-func NewWgClient() (*wgClient, error) {
+// NewWgClient creates a new client to interact with wireguard.
+func NewWgClient() (Client, error) {
 	var c *wgctrl.Client
 	var err error
 	if c, err = wgctrl.New(); err != nil {
-		return nil, fmt.Errorf("unable to create wireguard client: %v", err)
+		return nil, fmt.Errorf("unable to create wireguard client: %w", err)
 	}
 	return &wgClient{c}, nil
 }

@@ -4,12 +4,14 @@ import (
 	"strings"
 )
 
+// MockIPTables implementation of the IPTables interface used for test purposes.
 type MockIPTables struct {
-	Rules  []IPtableRule
+	Rules  []IPTableRule
 	Chains []IPTableChain
 }
 
-func (m *MockIPTables) Exists(table string, chain string, rulespec ...string) (bool, error) {
+// Exists checks if a given rulespec exists.
+func (m *MockIPTables) Exists(table, chain string, rulespec ...string) (bool, error) {
 	for _, rule := range m.Rules {
 		if rule.Table == table && rule.Chain == chain && strings.Join(rule.RuleSpec, " ") == strings.Join(rulespec, " ") {
 			return true, nil
@@ -18,20 +20,21 @@ func (m *MockIPTables) Exists(table string, chain string, rulespec ...string) (b
 	return false, nil
 }
 
-func (m *MockIPTables) AppendUnique(table string, chain string, rulespec ...string) error {
-	r := IPtableRule{
+// AppendUnique appends a rule only if it does not exist.
+func (m *MockIPTables) AppendUnique(table, chain string, rulespec ...string) error {
+	r := IPTableRule{
 		Table:    table,
 		Chain:    chain,
 		RuleSpec: rulespec,
 	}
 	if m.containsRule(r) {
 		return nil
-	} else {
-		m.Rules = append(m.Rules, r)
-		return nil
 	}
+	m.Rules = append(m.Rules, r)
+	return nil
 }
 
+// ListChains lists all the chains for a given table.
 func (m *MockIPTables) ListChains(table string) ([]string, error) {
 	var chains []string
 	for _, chain := range m.Chains {
@@ -42,7 +45,8 @@ func (m *MockIPTables) ListChains(table string) ([]string, error) {
 	return chains, nil
 }
 
-func (m *MockIPTables) NewChain(table string, chain string) error {
+// NewChain creates a new chain in ghe given table.
+func (m *MockIPTables) NewChain(table, chain string) error {
 	m.Chains = append(m.Chains, IPTableChain{
 		Table: table,
 		Name:  chain,
@@ -50,16 +54,7 @@ func (m *MockIPTables) NewChain(table string, chain string) error {
 	return nil
 }
 
-func (m *MockIPTables) containsChain(chain IPTableChain) bool {
-	for _, ch := range m.Chains {
-		if ch.Table == chain.Table && ch.Name == chain.Name {
-			return true
-		}
-	}
-	return false
-}
-
-func (m *MockIPTables) ruleIndex(table string, chain string, rulespec []string) int {
+func (m *MockIPTables) ruleIndex(table, chain string, rulespec []string) int {
 	for i, rule := range m.Rules {
 		if rule.Table == table && rule.Chain == chain && strings.Join(rule.RuleSpec, " ") == strings.Join(rulespec, " ") {
 			return i
@@ -68,16 +63,7 @@ func (m *MockIPTables) ruleIndex(table string, chain string, rulespec []string) 
 	return -1
 }
 
-func (m *MockIPTables) chainIndex(table string, name string) int {
-	for i, chain := range m.Chains {
-		if chain.Table == table && chain.Name == name {
-			return i
-		}
-	}
-	return -1
-}
-
-func (m *MockIPTables) containsRule(rule IPtableRule) bool {
+func (m *MockIPTables) containsRule(rule IPTableRule) bool {
 	for _, r := range m.Rules {
 		if r.Table == rule.Table && r.Chain == rule.Chain && strings.Join(r.RuleSpec, " ") == strings.Join(rule.RuleSpec, " ") {
 			return true
@@ -86,7 +72,8 @@ func (m *MockIPTables) containsRule(rule IPtableRule) bool {
 	return false
 }
 
-func (m *MockIPTables) Delete(table string, chain string, rulespec ...string) error {
+// Delete deletes the given rulespec.
+func (m *MockIPTables) Delete(table, chain string, rulespec ...string) error {
 	var ruleIndex = m.ruleIndex(table, chain, rulespec)
 	if ruleIndex != -1 {
 		m.Rules = append(m.Rules[:ruleIndex], m.Rules[ruleIndex+1:]...)
@@ -94,16 +81,17 @@ func (m *MockIPTables) Delete(table string, chain string, rulespec ...string) er
 	return nil
 }
 
-func (m *MockIPTables) prependRule(x []IPtableRule, y IPtableRule) []IPtableRule {
-	x = append(x, IPtableRule{})
+func (m *MockIPTables) prependRule(x []IPTableRule, y IPTableRule) []IPTableRule {
+	x = append(x, IPTableRule{})
 	copy(x[1:], x)
 	x[0] = y
 	return x
 }
 
+// Insert inserts a new rulespec
 // this mock function prepends even if the index is different than 1.
-func (m *MockIPTables) Insert(table string, chain string, pos int, rulespec ...string) error {
-	m.Rules = m.prependRule(m.Rules, IPtableRule{
+func (m *MockIPTables) Insert(table, chain string, pos int, rulespec ...string) error {
+	m.Rules = m.prependRule(m.Rules, IPTableRule{
 		Table:    table,
 		Chain:    chain,
 		RuleSpec: rulespec,
@@ -111,6 +99,7 @@ func (m *MockIPTables) Insert(table string, chain string, pos int, rulespec ...s
 	return nil
 }
 
+// List lists all the existing rulespecs.
 func (m *MockIPTables) List(table, chain string) ([]string, error) {
 	var rules []string
 	for _, rule := range m.Rules {
@@ -121,6 +110,7 @@ func (m *MockIPTables) List(table, chain string) ([]string, error) {
 	return rules, nil
 }
 
+// ClearChain removes all the rulespecs for a given chain.
 func (m *MockIPTables) ClearChain(table, chain string) error {
 	for _, rule := range m.Rules {
 		if rule.Table == table && rule.Chain == chain {
@@ -133,6 +123,7 @@ func (m *MockIPTables) ClearChain(table, chain string) error {
 	return nil
 }
 
+// DeleteChain deletes the given chain.
 func (m *MockIPTables) DeleteChain(table, chain string) error {
 	for i, ch := range m.Chains {
 		if ch.Table == table && ch.Name == chain {

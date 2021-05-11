@@ -16,6 +16,7 @@ type netlinkDeviceFake struct {
 	errorOnSetMTU bool
 }
 
+// NewNetLinkerFake returns a fake implementation of the NetLinker interface.
 func NewNetLinkerFake(errOnCreate, errOnAddIP, errOnSetMtu bool) Netlinker {
 	return &netlinkDeviceFake{link: nil,
 		errorOnCreate: errOnCreate,

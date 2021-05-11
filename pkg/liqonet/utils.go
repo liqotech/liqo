@@ -23,9 +23,11 @@ import (
 )
 
 var (
+	// ShutdownSignals signals used to terminate the programs.
 	ShutdownSignals = []os.Signal{os.Interrupt, syscall.SIGTERM, syscall.SIGKILL}
 )
 
+// GetPodIP gets the ip of the pod passed as an environment variable.
 func GetPodIP() (net.IP, error) {
 	ipAddress, isSet := os.LookupEnv("POD_IP")
 	if !isSet {
@@ -37,6 +39,7 @@ func GetPodIP() (net.IP, error) {
 	return net.ParseIP(ipAddress), nil
 }
 
+// GetPodNamespace gets the namespace of the pod passed as an environment variable.
 func GetPodNamespace() (string, error) {
 	namespace, isSet := os.LookupEnv("POD_NAMESPACE")
 	if !isSet {
@@ -45,6 +48,7 @@ func GetPodNamespace() (string, error) {
 	return namespace, nil
 }
 
+// GetNodeName gets the name of the node where the pod is running passed as an environment variable.
 func GetNodeName() (string, error) {
 	nodeName, isSet := os.LookupEnv("NODE_NAME")
 	if !isSet {
@@ -53,17 +57,19 @@ func GetNodeName() (string, error) {
 	return nodeName, nil
 }
 
+// GetNodePodCIDR gets the subnet assigned to the node as podCIDR.
 func GetNodePodCIDR(nodeName string, clientSet kubernetes.Interface) (string, error) {
-	//get the node by name
+	// get the node by name
 	node, err := clientSet.CoreV1().Nodes().Get(context.Background(), nodeName, metav1.GetOptions{})
 	if err != nil {
 		return "", err
 	}
-	//we do not check here if the field is set or not, it is done by the module who consumes it
-	//it is an optional field
+	// we do not check here if the field is set or not, it is done by the module who consumes it
+	// it is an optional field
 	return node.Spec.PodCIDR, nil
 }
 
+// GetInternalIPOfNode returns the first internal ip of the node if any is set.
 func GetInternalIPOfNode(node *corev1.Node) (string, error) {
 	var internalIp string
 	for _, address := range node.Status.Addresses {
@@ -79,7 +85,7 @@ func GetInternalIPOfNode(node *corev1.Node) (string, error) {
 	return internalIp, nil
 }
 
-// Helper functions to check if a string is contained in a slice of strings.
+// ContainsString helper function to check if a string is contained in a slice of strings.
 func ContainsString(slice []string, s string) bool {
 	for _, item := range slice {
 		if item == s {
@@ -89,7 +95,7 @@ func ContainsString(slice []string, s string) bool {
 	return false
 }
 
-// Helper functions to check and remove string from a slice of strings.
+// RemoveString Helper function to check and remove string from a slice of strings.
 func RemoveString(slice []string, s string) (result []string) {
 	for _, item := range slice {
 		if item == s {
@@ -100,6 +106,7 @@ func RemoveString(slice []string, s string) (result []string) {
 	return
 }
 
+// GetClusterID returns the the clusterID et in the given config map.
 func GetClusterID(client kubernetes.Interface, cmName, namespace string, backoff wait.Backoff) (string, error) {
 	cmClient := client.CoreV1().ConfigMaps(namespace)
 	var cm *corev1.ConfigMap
@@ -124,6 +131,7 @@ func GetClusterID(client kubernetes.Interface, cmName, namespace string, backoff
 	return clusterID, nil
 }
 
+// EnableIPForwarding enables ipv4 forwarding on the node/pod where it is called.
 func EnableIPForwarding() error {
 	err := ioutil.WriteFile("/proc/sys/net/ipv4/ip_forward", []byte("1"), 0600)
 	if err != nil {
@@ -132,14 +140,14 @@ func EnableIPForwarding() error {
 	return nil
 }
 
-/* Helper function to get a mask from a CIDR. */
+// GetMask helper function to get a mask from a CIDR.
 func GetMask(network string) uint8 {
 	_, net, _ := net.ParseCIDR(network)
 	ones, _ := net.Mask.Size()
 	return uint8(ones)
 }
 
-/* Helper function that forges a new cidr from a network cidr and a mask. */
+// SetMask helper function that forges a new cidr from a network cidr and a mask.
 func SetMask(network string, mask uint8) (string, error) {
 	_, n, err := net.ParseCIDR(network)
 	if err != nil {
@@ -162,9 +170,10 @@ func Next(network string) (string, error) {
 	return prefix.String(), nil
 }
 
+// GetDefaultIfaceName returns the name of the interfaces that has the default route configured.
 func GetDefaultIfaceName() (string, error) {
-	//search for the default route and return the link associated to the route
-	//we consider only the ipv4 routes
+	// search for the default route and return the link associated to the route
+	// we consider only the ipv4 routes
 	routes, err := netlink.RouteList(nil, netlink.FAMILY_V4)
 	if err != nil {
 		return "", err
@@ -175,7 +184,7 @@ func GetDefaultIfaceName() (string, error) {
 			break
 		}
 	}
-	//get default link
+	// get default link
 	defualtIface, err := netlink.LinkByIndex(route.LinkIndex)
 	if err != nil {
 		return "", err
@@ -183,13 +192,14 @@ func GetDefaultIfaceName() (string, error) {
 	return defualtIface.Attrs().Name, nil
 }
 
+// DeleteIFaceByIndex deletes the interface that has the given index.
 func DeleteIFaceByIndex(ifaceIndex int) error {
 	existingIface, err := netlink.LinkByIndex(ifaceIndex)
 	if err != nil {
 		klog.Errorf("unable to retrieve tunnel interface: %v", err)
 		return err
 	}
-	//Remove the existing gre interface
+	// Remove the existing gre interface
 	if err = netlink.LinkDel(existingIface); err != nil {
 		klog.Errorf("unable to delete the tunnel after the tunnelEndpoint CR has been removed: %v", err)
 		return err
@@ -197,7 +207,8 @@ func DeleteIFaceByIndex(ifaceIndex int) error {
 	return err
 }
 
-func IsValidCidr(cidr string) error {
+// IsValidCIDR return en error if the subnet passed in not in the CIDR notation.
+func IsValidCIDR(cidr string) error {
 	_, _, err := net.ParseCIDR(cidr)
 	return err
 }
