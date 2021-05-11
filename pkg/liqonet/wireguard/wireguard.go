@@ -13,21 +13,30 @@ import (
 	"github.com/liqotech/liqo/internal/utils/errdefs"
 )
 
+// WgConfig struct used to hold the configuration of wireguard device that we want to create.
 type WgConfig struct {
-	Name      string       //device name
-	IPAddress string       //ip address in CIDR notation (x.x.x.x/xx)
-	Mtu       int          //mtu to be set on interface
-	Port      *int         //listening port
-	PriKey    *wgtypes.Key //private key
-	PubKey    *wgtypes.Key //public key
+	// Name the name used for the device.
+	Name string
+	// IPAddress address for the interface in CIDR notation (x.x.x.x/xx).
+	IPAddress string
+	// MTU size of the mtu to be set on interface.
+	Mtu int
+	// Port listening port of wireguard.
+	Port *int
+	// PriKey private key of the interface.
+	PriKey *wgtypes.Key
+	// PubKey public key of the interface.
+	PubKey *wgtypes.Key
 }
 
+// Wireguard models the wireguard device.
 type Wireguard struct {
 	Client             // client used to interact with the wireguard implementation in use
 	Netlinker          // the wireguard link living in the network namespace
 	conf      WgConfig // wireguard configuration
 }
 
+// NewWireguard creates a new wireguard device.
 func NewWireguard(config WgConfig, c Client, nl Netlinker) (*Wireguard, error) {
 	var err error
 	w := &Wireguard{
@@ -48,7 +57,7 @@ func NewWireguard(config WgConfig, c Client, nl Netlinker) (*Wireguard, error) {
 			w.Client = nil
 		}
 	}()
-	//configures the device
+	// configures the device
 	peerConfigs := make([]wgtypes.PeerConfig, 0)
 	cfg := wgtypes.Config{
 		PrivateKey:   config.PriKey,
@@ -69,7 +78,7 @@ func NewWireguard(config WgConfig, c Client, nl Netlinker) (*Wireguard, error) {
 	return w, nil
 }
 
-// it adds a new peer with the given configuration to the wireguard device.
+// AddPeer it adds a new peer with the given configuration to the wireguard device.
 func (w *Wireguard) AddPeer(pubkey, endpointIP, listeningPort string, allowedIPs []string, keepAlive *time.Duration) error {
 	key, err := wgtypes.ParseKey(pubkey)
 	if err != nil {
@@ -79,7 +88,7 @@ func (w *Wireguard) AddPeer(pubkey, endpointIP, listeningPort string, allowedIPs
 	if epIP == nil {
 		return fmt.Errorf("while parsing endpoint IP %s we got nil values, it sees to be an invalid value", endpointIP)
 	}
-	//convert port from string to int
+	// convert port from string to int
 	port, err := strconv.ParseInt(listeningPort, 10, 0)
 	if err != nil {
 		return err
@@ -93,7 +102,7 @@ func (w *Wireguard) AddPeer(pubkey, endpointIP, listeningPort string, allowedIPs
 		IPs = append(IPs, *s)
 	}
 
-	//check if the peer exists
+	// check if the peer exists
 	oldPeer, err := w.getPeer(pubkey)
 	if err != nil && !errdefs.IsNotFound(err) {
 		return err
@@ -134,7 +143,7 @@ func (w *Wireguard) AddPeer(pubkey, endpointIP, listeningPort string, allowedIPs
 	return nil
 }
 
-// it removes a peer with a given public key from the wireguard device.
+// RemovePeer it removes a peer with a given public key from the wireguard device.
 func (w *Wireguard) RemovePeer(pubKey string) error {
 	key, err := wgtypes.ParseKey(pubKey)
 	if err != nil {
@@ -172,25 +181,25 @@ func (w *Wireguard) getPeer(pubKey string) (wgtypes.Peer, error) {
 	if err != nil {
 		return peer, err
 	}
-	for _, p := range peers {
-		if p.PublicKey.String() == pubKey {
-			return p, nil
+	for i := range peers {
+		if peers[i].PublicKey.String() == pubKey {
+			return peers[i], nil
 		}
 	}
 	return peer, errdefs.NotFoundf("peer with public key '%s' not found for wireguard device '%s'", pubKey, w.GetDeviceName())
 }
 
-// get name of the wireguard device.
+// GetDeviceName gets the name of the wireguard device.
 func (w *Wireguard) GetDeviceName() string {
 	return w.getLinkName()
 }
 
-// get link index of the wireguard device.
+// GetLinkIndex gets link index of the wireguard device.
 func (w *Wireguard) GetLinkIndex() int {
 	return w.getLinkIndex()
 }
 
-// get public key of the wireguard device.
+// GetPubKey gets public key of the wireguard device.
 func (w *Wireguard) GetPubKey() string {
 	return w.conf.PubKey.String()
 }

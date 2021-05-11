@@ -7,13 +7,13 @@ import (
 	netv1alpha1 "github.com/liqotech/liqo/apis/net/v1alpha1"
 )
 
-// Function prototype to create a new driver.
+// DriverCreateFunc function prototype to create a new driver.
 type DriverCreateFunc func(k8sClientset *k8s.Clientset, namespace string) (Driver, error)
 
-// Static map of supported drivers.
+// Drivers static map of supported drivers.
 var Drivers = map[string]DriverCreateFunc{}
 
-// Adds a supported driver, prints a fatal error in the case of double registration.
+// AddDriver adds a supported driver to the drivers map, prints a fatal error in the case of double registration.
 func AddDriver(name string, driverCreate DriverCreateFunc) {
 	if Drivers[name] != nil {
 		klog.Fatalf("Multiple tunnel drivers attempting to register with name %q", name)
@@ -22,6 +22,7 @@ func AddDriver(name string, driverCreate DriverCreateFunc) {
 	Drivers[name] = driverCreate
 }
 
+// Driver the interface needed to be implemented by new vpn drivers.
 type Driver interface {
 	Init() error
 

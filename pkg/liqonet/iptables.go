@@ -12,30 +12,43 @@ import (
 )
 
 const (
-	LiqonetPostroutingChain              = "LIQO-POSTROUTING"
-	LiqonetPreroutingChain               = "LIQO-PREROUTING"
-	LiqonetForwardingChain               = "LIQO-FORWARD"
-	LiqonetInputChain                    = "LIQO-INPUT"
+	// LiqonetPostroutingChain is the name of the postrouting chain inserted by liqo.
+	LiqonetPostroutingChain = "LIQO-POSTROUTING"
+	// LiqonetPreroutingChain is the naame of the prerouting chain inserted by liqo.
+	LiqonetPreroutingChain = "LIQO-PREROUTING"
+	// LiqonetForwardingChain is the name of the forwarding chain inserted by liqo.
+	LiqonetForwardingChain = "LIQO-FORWARD"
+	// LiqonetInputChain is the name of the input chain inserted by liqo.
+	LiqonetInputChain = "LIQO-INPUT"
+	// LiqonetPostroutingClusterChainPrefix the prefix used to name the postrouting chains for a specific cluster.
 	LiqonetPostroutingClusterChainPrefix = "LIQO-PSTRT-CLS-"
-	LiqonetPreroutingClusterChainPrefix  = "LIQO-PRRT-CLS-"
-	LiqonetForwardingClusterChainPrefix  = "LIQO-FRWD-CLS-"
-	LiqonetInputClusterChainPrefix       = "LIQO-INPT-CLS-"
-	NatTable                             = "nat"
-	FilterTable                          = "filter"
-	defaultPodCIDRValue                  = "None"
+	// LiqonetPreroutingClusterChainPrefix prefix used to name the prerouting chains for a specific cluster.
+	LiqonetPreroutingClusterChainPrefix = "LIQO-PRRT-CLS-"
+	// LiqonetForwardingClusterChainPrefix prefix used to name the forwarding chains for a specific cluster.
+	LiqonetForwardingClusterChainPrefix = "LIQO-FRWD-CLS-"
+	// LiqonetInputClusterChainPrefix prefix used to name the input chains for a specific cluster.
+	LiqonetInputClusterChainPrefix = "LIQO-INPT-CLS-"
+	// NatTable constant used for the "nat" table.
+	NatTable = "nat"
+	// FilterTable constant used for the "filter" table.
+	FilterTable         = "filter"
+	defaultPodCIDRValue = "None"
 )
 
-type IPtableRule struct {
+// IPTableRule struct that holds all the information of an iptables rule.
+type IPTableRule struct {
 	Table    string
 	Chain    string
 	RuleSpec []string
 }
 
+// IPTableChain Struct that holds all the information of an iptables chain.
 type IPTableChain struct {
 	Table string
 	Name  string
 }
 
+// Struct that holds all the information of an iptables rulespec.
 type rulespec struct {
 	chainName string
 	rulespec  string
@@ -43,6 +56,8 @@ type rulespec struct {
 	chain     string
 }
 
+// IPTables interface which has a subset of the methods of "github.com/coreos/go-iptables/iptables" package.
+// This interface is used in order to mock the implementation for the unit tests.
 type IPTables interface {
 	Insert(table string, chain string, pos int, rulespec ...string) error
 	Delete(table string, chain string, rulespec ...string) error
@@ -55,10 +70,12 @@ type IPTables interface {
 	DeleteChain(table, chain string) error
 }
 
+// IPTablesHandler a handler that exposes all the functions needed to configure the iptables chains and rules.
 type IPTablesHandler struct {
 	ipt IPTables
 }
 
+// NewIPTablesHandler return the iptables handler used to configure the iptables rules.
 func NewIPTablesHandler() (IPTablesHandler, error) {
 	ipt, err := iptables.New()
 	if err != nil {
@@ -69,11 +86,11 @@ func NewIPTablesHandler() (IPTablesHandler, error) {
 	}, err
 }
 
-// this function is called at startup of the operator
+// CreateAndEnsureIPTablesChains function is called at startup of the operator.
 // here we:
-// create LIQONET-FORWARD in the filter table and insert it in the "FORWARD" chain
-// create LIQONET-POSTROUTING in the nat table and insert it in the "POSTROUTING" chain
-// create LIQONET-INPUT in the filter table and insert it in the input chain
+// create LIQONET-FORWARD in the filter table and insert it in the "FORWARD" chain.
+// create LIQONET-POSTROUTING in the nat table and insert it in the "POSTROUTING" chain.
+// create LIQONET-INPUT in the filter table and insert it in the input chain.
 // insert the rulespec which allows in input all the udp traffic incoming for the vxlan in the LIQONET-INPUT chain.
 func (h IPTablesHandler) CreateAndEnsureIPTablesChains(defaultIfaceName string) error {
 	var err error
@@ -135,6 +152,8 @@ func (h IPTablesHandler) CreateAndEnsureIPTablesChains(defaultIfaceName string) 
 	return nil
 }
 
+// EnsureChainRulespecs makes sure that the general chains for the given cluster exist.
+// if the chains do not exist than they are created.
 func (h IPTablesHandler) EnsureChainRulespecs(tep *netv1alpha1.TunnelEndpoint) error {
 	chains := getChainRulespecs(tep)
 	clusterID := tep.Spec.ClusterID
@@ -168,6 +187,7 @@ func (h IPTablesHandler) EnsureChainRulespecs(tep *netv1alpha1.TunnelEndpoint) e
 	return nil
 }
 
+// EnsurePostroutingRules makes sure that the postrouting rules for a given cluster are in place and updated.
 func (h IPTablesHandler) EnsurePostroutingRules(isGateway bool, tep *netv1alpha1.TunnelEndpoint) error {
 	clusterID := tep.Spec.ClusterID
 	postRoutingChain := strings.Join([]string{LiqonetPostroutingClusterChainPrefix, strings.Split(clusterID, "-")[0]}, "")
@@ -184,6 +204,7 @@ func (h IPTablesHandler) EnsurePostroutingRules(isGateway bool, tep *netv1alpha1
 	return updateRulesPerChain(h.ipt, clusterID, postRoutingChain, NatTable, existingRules, rules)
 }
 
+// EnsurePreroutingRules makes sure that the prerouting rules for a given cluster are in place and updated.
 func (h IPTablesHandler) EnsurePreroutingRules(tep *netv1alpha1.TunnelEndpoint) error {
 	localPodCIDR := tep.Status.LocalPodCIDR
 	// check if we need to NAT the incoming traffic from the peering cluster
@@ -205,14 +226,14 @@ func (h IPTablesHandler) EnsurePreroutingRules(tep *netv1alpha1.TunnelEndpoint) 
 	return updateRulesPerChain(h.ipt, clusterID, preRoutingChain, NatTable, existingRules, rules)
 }
 
-func createIptablesChainIfNotExists(ipt IPTables, table string, newChain string) error {
+func createIptablesChainIfNotExists(ipt IPTables, table, newChain string) error {
 	// get existing chains
-	chains_list, err := ipt.ListChains(table)
+	chainsList, err := ipt.ListChains(table)
 	if err != nil {
-		return fmt.Errorf("imposible to retrieve chains in table -> %s : %v", table, err)
+		return fmt.Errorf("imposible to retrieve chains in table -> %s : %w", table, err)
 	}
 	// if the chain exists do nothing
-	for _, chain := range chains_list {
+	for _, chain := range chainsList {
 		if chain == newChain {
 			return nil
 		}
@@ -220,17 +241,17 @@ func createIptablesChainIfNotExists(ipt IPTables, table string, newChain string)
 	// if we come here the chain does not exist so we insert it
 	err = ipt.NewChain(table, newChain)
 	if err != nil {
-		return fmt.Errorf("unable to create %s chain in %s table: %v", newChain, table, err)
+		return fmt.Errorf("unable to create %s chain in %s table: %w", newChain, table, err)
 	}
 	klog.Infof("created chain %s in table %s", newChain, table)
 	return nil
 }
 
-func insertIptablesRulespecIfNotExists(ipt IPTables, table string, chain string, ruleSpec []string) error {
+func insertIptablesRulespecIfNotExists(ipt IPTables, table, chain string, ruleSpec []string) error {
 	// get the list of rulespecs for the specified chain
 	rulesList, err := ipt.List(table, chain)
 	if err != nil {
-		return fmt.Errorf("unable to get the rules in %s chain in %s table : %v", chain, table, err)
+		return fmt.Errorf("unable to get the rules in %s chain in %s table : %w", chain, table, err)
 	}
 	// here we check if the rulespec exists and at the same time if it exists more then once
 	numOccurrences := 0
@@ -243,28 +264,30 @@ func insertIptablesRulespecIfNotExists(ipt IPTables, table string, chain string,
 	if numOccurrences > 1 {
 		for i := 0; i < numOccurrences; i++ {
 			if err = ipt.Delete(table, chain, ruleSpec...); err != nil {
-				return fmt.Errorf("unable to delete iptable rule \"%s\": %v", strings.Join(ruleSpec, " "), err)
+				return fmt.Errorf("unable to delete iptable rule \"%s\": %w", strings.Join(ruleSpec, " "), err)
 			}
 		}
 		if err = ipt.Insert(table, chain, 1, ruleSpec...); err != nil {
-			return fmt.Errorf("unable to inserte iptable rule \"%s\": %v", strings.Join(ruleSpec, " "), err)
+			return fmt.Errorf("unable to inserte iptable rule \"%s\": %w", strings.Join(ruleSpec, " "), err)
 		}
-	} else if numOccurrences == 1 {
+	}
+	if numOccurrences == 1 {
 		// if the occurrence is one then check the position and if not at the first one we delete and reinsert it
 		if strings.Contains(rulesList[0], strings.Join(ruleSpec, " ")) {
 			return nil
 		}
 		if err = ipt.Delete(table, chain, ruleSpec...); err != nil {
-			return fmt.Errorf("unable to delete iptable rule \"%s\": %v", strings.Join(ruleSpec, " "), err)
+			return fmt.Errorf("unable to delete iptable rule \"%s\": %w", strings.Join(ruleSpec, " "), err)
 		}
 		if err = ipt.Insert(table, chain, 1, ruleSpec...); err != nil {
-			return fmt.Errorf("unable to inserte iptable rule \"%s\": %v", strings.Join(ruleSpec, " "), err)
+			return fmt.Errorf("unable to inserte iptable rule \"%s\": %w", strings.Join(ruleSpec, " "), err)
 		}
 		return nil
-	} else if numOccurrences == 0 {
+	}
+	if numOccurrences == 0 {
 		// if the occurrence is zero then insert the rule in first position
 		if err = ipt.Insert(table, chain, 1, ruleSpec...); err != nil {
-			return fmt.Errorf("unable to inserte iptable rule \"%s\": %v", strings.Join(ruleSpec, " "), err)
+			return fmt.Errorf("unable to inserte iptable rule \"%s\": %w", strings.Join(ruleSpec, " "), err)
 		}
 		klog.Infof("installed rulespec '%s' in chain %s of table %s", strings.Join(ruleSpec, " "), chain, table)
 	}
@@ -327,8 +350,9 @@ func insertRulesIfNotPresent(ipt IPTables, clusterID, table, chain string, rules
 	return nil
 }
 
-func GetPodCIDRS(tep *netv1alpha1.TunnelEndpoint) (string, string) {
-	var remotePodCIDR, localRemappedPodCIDR string
+// GetPodCIDRS for a given tep the function retrieves the values for localPodCIDR and remotePodCIDR.
+// Their values depend if the NAT is required or not.
+func GetPodCIDRS(tep *netv1alpha1.TunnelEndpoint) (localRemappedPodCIDR, remotePodCIDR string) {
 	if tep.Status.RemoteNATPodCIDR != defaultPodCIDRValue {
 		remotePodCIDR = tep.Status.RemoteNATPodCIDR
 	} else {
@@ -348,7 +372,8 @@ func getPostroutingRules(isGateway bool, tep *netv1alpha1.TunnelEndpoint) ([]str
 			// in this case it is the podCIDR to which the local podCIDR has bee remapped by the remote peering cluster
 			natIP, _, err := net.ParseCIDR(localRemappedPodCIDR)
 			if err != nil {
-				klog.Errorf("%s -> unable to get the IP from localPodCidr %s used to NAT the traffic from localhosts to remote hosts", clusterID, localRemappedPodCIDR)
+				klog.Errorf("%s -> unable to get the IP from localPodCidr %s used to NAT the traffic from localhosts to remote hosts",
+					clusterID, localRemappedPodCIDR)
 				return nil, err
 			}
 			return []string{

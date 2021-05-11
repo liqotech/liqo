@@ -3,6 +3,7 @@ package wireguard
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"net"
 	"os"
@@ -26,16 +27,26 @@ import (
 )
 
 const (
-	PublicKey         = "publicKey"        // PublicKey is the key of publicKey entry in back-end map and also for the secret containing the wireguard keys
-	PrivateKey        = "privateKey"       // PrivateKey is the key of private for the secret containing the wireguard keys
-	EndpointIP        = "endpointIP"       // EndpointIP is the key of the endpointIP entry in back-end map
-	ListeningPort     = "port"             // ListeningPort is the key of the listeningPort entry in the back-end map
-	AllowedIPs        = "allowedIPs"       // AllowedIPs is the key of the allowedIPs entry in the back-end map
-	deviceName        = "liqo-wg"          // name of the network interface
-	DriverName        = "wireguard"        // name of the driver which is also used as the type of the backend in tunnelendpoint CRD
-	keysName          = "wireguard-pubkey" // name of the secret that contains the public key used by wireguard
-	KeysLabel         = "net.liqo.io/key"  // label for the secret that contains the public key
-	defaultPort       = 5871
+	// PublicKey is the key of publicKey entry in back-end map and also for the secret containing the wireguard keys.
+	PublicKey = "publicKey"
+	// PrivateKey is the key of private for the secret containing the wireguard keys.
+	PrivateKey = "privateKey"
+	// EndpointIP is the key of the endpointIP entry in back-end map.
+	EndpointIP = "endpointIP"
+	// ListeningPort is the key of the listeningPort entry in the back-end map.
+	ListeningPort = "port"
+	// AllowedIPs is the key of the allowedIPs entry in the back-end map.
+	AllowedIPs = "allowedIPs"
+	// name of the network interface.
+	deviceName = "liqo-wg"
+	// DriverName  name of the driver which is also used as the type of the backend in tunnelendpoint CRD.
+	DriverName = "wireguard"
+	// name of the secret that contains the public key used by wireguard.
+	keysName = "wireguard-pubkey"
+	// KeysLabel label for the secret that contains the public key.
+	KeysLabel   = "net.liqo.io/key"
+	defaultPort = 5871
+	// KeepAliveInterval interval used to send keepalive checks for the wireguard tunnels.
 	KeepAliveInterval = 10 * time.Second
 )
 
@@ -45,11 +56,11 @@ func init() {
 }
 
 type wgConfig struct {
-	// listening port
+	// listening port.
 	port int
-	// private key
+	// private key.
 	priKey wgtypes.Key
-	// public key
+	// public key.
 	pubKey wgtypes.Key
 }
 
@@ -74,22 +85,21 @@ func NewDriver(k8sClient *k8s.Clientset, namespace string) (tunnel.Driver, error
 		return nil, err
 	}
 	if err = w.setWGLink(); err != nil {
-		return nil, fmt.Errorf("failed to setup %s link: %v", DriverName, err)
+		return nil, fmt.Errorf("failed to setup %s link: %w", DriverName, err)
 	}
 
-	// create controller
+	// create controller.
 	if w.client, err = wgctrl.New(); err != nil {
 		if os.IsNotExist(err) {
 			return nil, fmt.Errorf("wgctrl is not available on this system")
 		}
-
-		return nil, fmt.Errorf("failed to open wgctl client: %v", err)
+		return nil, fmt.Errorf("failed to open wgctl client: %w", err)
 	}
 
 	defer func() {
 		if err != nil {
 			if e := w.client.Close(); e != nil {
-				klog.Errorf("Failed to close client %v", e)
+				klog.Errorf("Failed to close client %w", e)
 			}
 
 			w.client = nil
@@ -97,7 +107,7 @@ func NewDriver(k8sClient *k8s.Clientset, namespace string) (tunnel.Driver, error
 	}()
 
 	port := defaultPort
-	// configure the device. still not up
+	// configure the device. the device is still down.
 	peerConfigs := make([]wgtypes.PeerConfig, 0)
 	cfg := wgtypes.Config{
 		PrivateKey:   &w.conf.priKey,
@@ -107,20 +117,20 @@ func NewDriver(k8sClient *k8s.Clientset, namespace string) (tunnel.Driver, error
 		Peers:        peerConfigs,
 	}
 	if err = w.client.ConfigureDevice(deviceName, cfg); err != nil {
-		return nil, fmt.Errorf("failed to configure WireGuard device: %v", err)
+		return nil, fmt.Errorf("failed to configure WireGuard device: %w", err)
 	}
 	klog.Infof("created %s interface named %s with publicKey %s", DriverName, deviceName, w.conf.pubKey.String())
 	return &w, nil
 }
 
 func (w *wireguard) Init() error {
-	// ip link set $DefaultDeviceName up
+	// ip link set $DefaultDeviceName up.
 	if err := netlink.LinkSetUp(w.link); err != nil {
-		return fmt.Errorf("failed to bring up WireGuard device: %v", err)
+		return fmt.Errorf("failed to bring up WireGuard device: %w", err)
 	}
 
 	if err := netlink.LinkSetMTU(w.link, 1300); err != nil {
-		return fmt.Errorf("failed to set mtu for interface %s: %v", deviceName, err)
+		return fmt.Errorf("failed to set mtu for interface %s: %w", deviceName, err)
 	}
 
 	klog.Infof("%s interface named %s, is up on i/f number %d, listening on port :%d, with key %s", DriverName,
@@ -129,28 +139,28 @@ func (w *wireguard) Init() error {
 }
 
 func (w *wireguard) ConnectToEndpoint(tep *netv1alpha1.TunnelEndpoint) (*netv1alpha1.Connection, error) {
-	// parse allowed IPs
+	// parse allowed IPs.
 	allowedIPs, err := getAllowedIPs(tep)
 	if err != nil {
 		return newConnectionOnError(err.Error()), err
 	}
 
-	// parse remote public key
+	// parse remote public key.
 	remoteKey, err := getKey(tep)
 	if err != nil {
 		return newConnectionOnError(err.Error()), err
 	}
 
-	// parse remote endpoint
+	// parse remote endpoint.
 	endpoint, err := getEndpoint(tep)
 	if err != nil {
 		return newConnectionOnError(err.Error()), err
 	}
 
-	// delete or update old peers for ClusterID
+	// delete or update old peers for ClusterID.
 	oldCon, found := w.connections[tep.Spec.ClusterID]
 	if found {
-		// check if the peer configuration is updated
+		// check if the peer configuration is updated.
 		if allowedIPs.String() == oldCon.PeerConfiguration[AllowedIPs] && remoteKey.String() == oldCon.PeerConfiguration[PublicKey] &&
 			endpoint.IP.String() == oldCon.PeerConfiguration[EndpointIP] && strconv.Itoa(endpoint.Port) == oldCon.PeerConfiguration[ListeningPort] {
 			return oldCon, nil
@@ -163,7 +173,7 @@ func (w *wireguard) ConnectToEndpoint(tep *netv1alpha1.TunnelEndpoint) (*netv1al
 			}},
 		})
 		if err != nil {
-			return newConnectionOnError(err.Error()), fmt.Errorf("failed to configure peer with clusterid %s: %v", tep.Spec.ClusterID, err)
+			return newConnectionOnError(err.Error()), fmt.Errorf("failed to configure peer with clusterid %s: %w", tep.Spec.ClusterID, err)
 		}
 	} else {
 		klog.Infof("Connecting cluster %s endpoint %s with publicKey %s",
@@ -171,7 +181,7 @@ func (w *wireguard) ConnectToEndpoint(tep *netv1alpha1.TunnelEndpoint) (*netv1al
 	}
 
 	ka := KeepAliveInterval
-	// configure peer
+	// configure peer.
 	peerCfg := []wgtypes.PeerConfig{{
 		PublicKey:                   *remoteKey,
 		Remove:                      false,
@@ -187,7 +197,7 @@ func (w *wireguard) ConnectToEndpoint(tep *netv1alpha1.TunnelEndpoint) (*netv1al
 		Peers:        peerCfg,
 	})
 	if err != nil {
-		return newConnectionOnError(err.Error()), fmt.Errorf("failed to configure peer with clusterid %s: %v", tep.Spec.ClusterID, err)
+		return newConnectionOnError(err.Error()), fmt.Errorf("failed to configure peer with clusterid %s: %w", tep.Spec.ClusterID, err)
 	}
 	//
 	c := &netv1alpha1.Connection{
@@ -212,7 +222,7 @@ func (w *wireguard) DisconnectFromEndpoint(tep *netv1alpha1.TunnelEndpoint) erro
 
 	key, err := wgtypes.ParseKey(s)
 	if err != nil {
-		return fmt.Errorf("failed to parse public key %s: %v", s, err)
+		return fmt.Errorf("failed to parse public key %s: %w", s, err)
 	}
 
 	peerCfg := []wgtypes.PeerConfig{
@@ -226,7 +236,7 @@ func (w *wireguard) DisconnectFromEndpoint(tep *netv1alpha1.TunnelEndpoint) erro
 		Peers:        peerCfg,
 	})
 	if err != nil {
-		return fmt.Errorf("failed to remove WireGuard peer with clusterid %s: %v", tep.Spec.ClusterID, err)
+		return fmt.Errorf("failed to remove WireGuard peer with clusterid %s: %w", tep.Spec.ClusterID, err)
 	}
 
 	klog.Infof("Done removing WireGuard peer with clusterid %s", tep.Spec.ClusterID)
@@ -236,32 +246,32 @@ func (w *wireguard) DisconnectFromEndpoint(tep *netv1alpha1.TunnelEndpoint) erro
 }
 
 func (w *wireguard) Close() error {
-	// it removes the wireguard interface
+	// it removes the wireguard interface.
 	var err error
 	if link, err := netlink.LinkByName(deviceName); err == nil {
 		// delete existing device
 		if err := netlink.LinkDel(link); err != nil {
-			return fmt.Errorf("failed to delete existing WireGuard device: %v", err)
+			return fmt.Errorf("failed to delete existing WireGuard device: %w", err)
 		}
 		return nil
 	}
-	if err == syscall.ESRCH {
+	if errors.Is(err, syscall.ESRCH) {
 		return nil
 	}
-	return fmt.Errorf("failed to delete existng WireGuard device: %v", err)
+	return fmt.Errorf("failed to delete existng WireGuard device: %w", err)
 }
 
 // Create new wg link.
 func (w *wireguard) setWGLink() error {
 	var err error
-	// delete existing wg device if needed
+	// delete existing wg device if needed.
 	if link, err := netlink.LinkByName(deviceName); err == nil {
-		// delete existing device
+		// delete existing device.
 		if err := netlink.LinkDel(link); err != nil {
-			return fmt.Errorf("failed to delete existing WireGuard device: %v", err)
+			return fmt.Errorf("failed to delete existing WireGuard device: %w", err)
 		}
 	}
-	// create the wg device (ip link add dev $DefaultDeviceName type wireguard)
+	// create the wg device (ip link add dev $DefaultDeviceName type wireguard).
 	la := netlink.NewLinkAttrs()
 	la.Name = deviceName
 	la.MTU = 1300
@@ -270,10 +280,10 @@ func (w *wireguard) setWGLink() error {
 		LinkType:  "wireguard",
 	}
 
-	if err = netlink.LinkAdd(link); err != nil && err != unix.EOPNOTSUPP {
-		return fmt.Errorf("failed to add wireguard device '%s': %v", deviceName, err)
+	if err = netlink.LinkAdd(link); err != nil && !errors.Is(err, unix.EOPNOTSUPP) {
+		return fmt.Errorf("failed to add wireguard device '%s': %w", deviceName, err)
 	}
-	if err == unix.EOPNOTSUPP {
+	if errors.Is(err, unix.EOPNOTSUPP) {
 		klog.Warningf("wireguard kernel module not present, falling back to the userspace implementation")
 		cmd := exec.Command("/usr/bin/boringtun", deviceName, "--disable-drop-privileges", "true")
 		var stdout, stderr bytes.Buffer
@@ -283,10 +293,10 @@ func (w *wireguard) setWGLink() error {
 		if err != nil {
 			outStr, errStr := stdout.String(), stderr.String()
 			fmt.Printf("out:\n%s\nerr:\n%s\n", outStr, errStr)
-			return fmt.Errorf("failed to add wireguard devices '%s': %v", deviceName, err)
+			return fmt.Errorf("failed to add wireguard devices '%s': %w", deviceName, err)
 		}
 		if w.link, err = netlink.LinkByName(deviceName); err != nil {
-			return fmt.Errorf("failed to get wireguard device '%s': %v", deviceName, err)
+			return fmt.Errorf("failed to get wireguard device '%s': %w", deviceName, err)
 		}
 	}
 	w.link = link
@@ -295,7 +305,7 @@ func (w *wireguard) setWGLink() error {
 
 func getAllowedIPs(tep *netv1alpha1.TunnelEndpoint) (*net.IPNet, error) {
 	var remoteSubnet string
-	// check if the remote podCIDR has been remapped
+	// check if the remote podCIDR has been remapped.
 	if tep.Status.RemoteNATPodCIDR != "None" {
 		remoteSubnet = tep.Status.RemoteNATPodCIDR
 	} else {
@@ -304,7 +314,7 @@ func getAllowedIPs(tep *netv1alpha1.TunnelEndpoint) (*net.IPNet, error) {
 
 	_, cidr, err := net.ParseCIDR(remoteSubnet)
 	if err != nil {
-		return nil, fmt.Errorf("unable to parse podCIDR %s for cluster %s: %v", remoteSubnet, tep.Spec.ClusterID, err)
+		return nil, fmt.Errorf("unable to parse podCIDR %s for cluster %s: %w", remoteSubnet, tep.Spec.ClusterID, err)
 	}
 	return cidr, nil
 }
@@ -317,7 +327,7 @@ func getKey(tep *netv1alpha1.TunnelEndpoint) (*wgtypes.Key, error) {
 
 	key, err := wgtypes.ParseKey(s)
 	if err != nil {
-		return nil, fmt.Errorf("failed to parse public key %s: %v", s, err)
+		return nil, fmt.Errorf("failed to parse public key %s: %w", s, err)
 	}
 
 	return &key, nil
@@ -332,9 +342,9 @@ func getEndpoint(tep *netv1alpha1.TunnelEndpoint) (*net.UDPAddr, error) {
 	// convert port from string to int
 	listeningPort, err := strconv.ParseInt(port, 10, 32)
 	if err != nil {
-		return nil, fmt.Errorf("error while converting port %s to int: %v", port, err)
+		return nil, fmt.Errorf("error while converting port %s to int: %w", port, err)
 	}
-	// get endpoint ip
+	// get endpoint ip.
 	remoteIP := net.ParseIP(tep.Spec.EndpointIP)
 	if remoteIP == nil {
 		return nil, fmt.Errorf("failed to parse remote IP %s", tep.Spec.EndpointIP)
@@ -355,16 +365,16 @@ func newConnectionOnError(msg string) *netv1alpha1.Connection {
 
 func (w *wireguard) setKeys(c *k8s.Clientset, namespace string) error {
 	var priv, pub wgtypes.Key
-	// first we check if a secret containing valid keys already exists
+	// first we check if a secret containing valid keys already exists.
 	s, err := c.CoreV1().Secrets(namespace).Get(context.Background(), keysName, metav1.GetOptions{})
 	if err != nil && !apierrors.IsNotFound(err) {
 		return err
 	}
-	// if the secret does not exist then keys are generated and saved into a secret
+	// if the secret does not exist then keys are generated and saved into a secret.
 	if apierrors.IsNotFound(err) {
 		// generate private and public keys
 		if priv, err = wgtypes.GeneratePrivateKey(); err != nil {
-			return fmt.Errorf("error generating private key for wireguard backend: %v", err)
+			return fmt.Errorf("error generating private key for wireguard backend: %w", err)
 		}
 		pub = priv.PublicKey()
 		w.conf.pubKey = pub
@@ -379,18 +389,18 @@ func (w *wireguard) setKeys(c *k8s.Clientset, namespace string) error {
 		}
 		_, err = c.CoreV1().Secrets(namespace).Create(context.Background(), &pKey, metav1.CreateOptions{})
 		if err != nil {
-			return fmt.Errorf("failed to create the secret with name %s: %v", keysName, err)
+			return fmt.Errorf("failed to create the secret with name %s: %w", keysName, err)
 		}
 		return nil
 	}
-	// get the keys from the existing secret and set them
+	// get the keys from the existing secret and set them.
 	privKey, found := s.Data[PrivateKey]
 	if !found {
 		return fmt.Errorf("no data with key '%s' found in secret %s", PrivateKey, keysName)
 	}
 	priv, err = wgtypes.ParseKey(string(privKey))
 	if err != nil {
-		return fmt.Errorf("an error occurred while parsing the private key for the wireguard driver :%v", err)
+		return fmt.Errorf("an error occurred while parsing the private key for the wireguard driver :%w", err)
 	}
 	pubKey, found := s.Data[PublicKey]
 	if !found {
@@ -398,7 +408,7 @@ func (w *wireguard) setKeys(c *k8s.Clientset, namespace string) error {
 	}
 	pub, err = wgtypes.ParseKey(string(pubKey))
 	if err != nil {
-		return fmt.Errorf("an error occurred while parsing the public key for the wireguard driver :%v", err)
+		return fmt.Errorf("an error occurred while parsing the public key for the wireguard driver :%w", err)
 	}
 	w.conf.pubKey = pub
 	w.conf.priKey = priv

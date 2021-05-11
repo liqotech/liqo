@@ -2,6 +2,7 @@ package wireguard
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"os/exec"
 
@@ -14,6 +15,7 @@ const (
 	wgLinkType = "wireguard"
 )
 
+// Netlinker simple interface to manage a network interface in linux.
 type Netlinker interface {
 	getLinkIndex() int
 	createLink(linkName string) error
@@ -26,6 +28,7 @@ type netlinkDevice struct {
 	link netlink.Link
 }
 
+// NewNetLinker returns an implementation of the NetLinker interface.
 func NewNetLinker() Netlinker {
 	return &netlinkDevice{link: nil}
 }
@@ -35,7 +38,7 @@ func (nld *netlinkDevice) createLink(linkName string) error {
 	if link, err := netlink.LinkByName(linkName); err == nil {
 		// delete existing device
 		if err := netlink.LinkDel(link); err != nil {
-			return fmt.Errorf("failed to delete existing wireguard device '%s': %v", linkName, err)
+			return fmt.Errorf("failed to delete existing wireguard device '%s': %w", linkName, err)
 		}
 	}
 	// create the wg device (ip link add dev $DefaultlinkName type wireguard)
@@ -45,12 +48,12 @@ func (nld *netlinkDevice) createLink(linkName string) error {
 		LinkAttrs: la,
 		LinkType:  wgLinkType,
 	}
-	if err = netlink.LinkAdd(link); err != nil && err != unix.EOPNOTSUPP {
-		return fmt.Errorf("failed to add wireguard device '%s': %v", linkName, err)
+	if err = netlink.LinkAdd(link); err != nil && !errors.Is(err, unix.EOPNOTSUPP) {
+		return fmt.Errorf("failed to add wireguard device '%s': %w", linkName, err)
 	}
-	if err == unix.EOPNOTSUPP {
+	if errors.Is(err, unix.EOPNOTSUPP) {
 		klog.Warningf("wireguard kernel module not present, falling back to the userspace implementation")
-		cmd := exec.Command("/usr/bin/boringtun", linkName, "--disable-drop-privileges", "true")
+		cmd := exec.Command("/usr/bin/boringtun", "liqo-wg", "--disable-drop-privileges", "true")
 		var stdout, stderr bytes.Buffer
 		cmd.Stdout = &stdout
 		cmd.Stderr = &stderr
@@ -58,16 +61,16 @@ func (nld *netlinkDevice) createLink(linkName string) error {
 		if err != nil {
 			outStr, errStr := stdout.String(), stderr.String()
 			fmt.Printf("out:\n%s\nerr:\n%s\n", outStr, errStr)
-			return fmt.Errorf("failed to add wireguard devices '%s': %v", linkName, err)
+			return fmt.Errorf("failed to add wireguard devices '%s': %w", linkName, err)
 		}
 		if nld.link, err = netlink.LinkByName(linkName); err != nil {
-			return fmt.Errorf("failed to get wireguard device '%s': %v", linkName, err)
+			return fmt.Errorf("failed to get wireguard device '%s': %w", linkName, err)
 		}
 	}
 	nld.link = link
 	// ip link set $w.getName up
 	if err := netlink.LinkSetUp(nld.link); err != nil {
-		return fmt.Errorf("failed to bring up wireguard device '%s': %v", linkName, err)
+		return fmt.Errorf("failed to bring up wireguard device '%s': %w", linkName, err)
 	}
 	return nil
 }
@@ -81,14 +84,14 @@ func (nld *netlinkDevice) addIP(ipAddr string) error {
 	}
 	err = netlink.AddrAdd(nld.link, &netlink.Addr{IPNet: ipNet})
 	if err != nil {
-		return fmt.Errorf("failed to add ip address %s to interface %s: %v", ipAddr, nld.link.Attrs().Name, err)
+		return fmt.Errorf("failed to add ip address %s to interface %s: %w", ipAddr, nld.link.Attrs().Name, err)
 	}
 	return nil
 }
 
 func (nld *netlinkDevice) setMTU(mtu int) error {
 	if err := netlink.LinkSetMTU(nld.link, mtu); err != nil {
-		return fmt.Errorf("failed to set mtu on interface %s: %v", nld.link.Attrs().Name, err)
+		return fmt.Errorf("failed to set mtu on interface %s: %w", nld.link.Attrs().Name, err)
 	}
 	return nil
 }
