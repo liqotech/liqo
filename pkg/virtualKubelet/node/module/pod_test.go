@@ -19,6 +19,7 @@ import (
 	"testing"
 	"time"
 
+	"golang.org/x/time/rate"
 	"gotest.tools/assert"
 	is "gotest.tools/assert/cmp"
 	corev1 "k8s.io/api/core/v1"
@@ -41,20 +42,41 @@ func newTestController() *TestController {
 	rm := testutil.FakeResourceManager()
 	p := newMockProvider()
 	iFactory := kubeinformers.NewSharedInformerFactoryWithOptions(fk8s, 10*time.Minute)
+	podController, err := NewPodController(PodControllerConfig{
+		PodClient:         fk8s.CoreV1(),
+		PodInformer:       iFactory.Core().V1().Pods(),
+		EventRecorder:     testutil.FakeEventRecorder(5),
+		Provider:          p,
+		ConfigMapInformer: iFactory.Core().V1().ConfigMaps(),
+		SecretInformer:    iFactory.Core().V1().Secrets(),
+		ServiceInformer:   iFactory.Core().V1().Services(),
+		SyncPodsFromKubernetesRateLimiter: workqueue.NewMaxOfRateLimiter(
+			// The default upper bound is 1000 seconds. Let's not use that.
+			workqueue.NewItemExponentialFailureRateLimiter(5*time.Millisecond, 10*time.Millisecond),
+			&workqueue.BucketRateLimiter{Limiter: rate.NewLimiter(rate.Limit(10), 100)},
+		),
+		SyncPodStatusFromProviderRateLimiter: workqueue.NewMaxOfRateLimiter(
+			// The default upper bound is 1000 seconds. Let's not use that.
+			workqueue.NewItemExponentialFailureRateLimiter(5*time.Millisecond, 10*time.Millisecond),
+			&workqueue.BucketRateLimiter{Limiter: rate.NewLimiter(rate.Limit(10), 100)},
+		),
+		DeletePodsFromKubernetesRateLimiter: workqueue.NewMaxOfRateLimiter(
+			// The default upper bound is 1000 seconds. Let's not use that.
+			workqueue.NewItemExponentialFailureRateLimiter(5*time.Millisecond, 10*time.Millisecond),
+			&workqueue.BucketRateLimiter{Limiter: rate.NewLimiter(rate.Limit(10), 100)},
+		),
+	})
+
+	if err != nil {
+		panic(err)
+	}
+	// Override the resource manager in the contructor with our own.
+	podController.resourceManager = rm
+
 	return &TestController{
-		PodController: &PodController{
-			client:          fk8s.CoreV1(),
-			provider:        p,
-			resourceManager: rm,
-			recorder:        testutil.FakeEventRecorder(5),
-			k8sQ:            workqueue.NewRateLimitingQueue(workqueue.DefaultControllerRateLimiter()),
-			deletionQ:       workqueue.NewRateLimitingQueue(workqueue.DefaultControllerRateLimiter()),
-			done:            make(chan struct{}),
-			ready:           make(chan struct{}),
-			podsInformer:    iFactory.Core().V1().Pods(),
-		},
-		mock:   p,
-		client: fk8s,
+		PodController: podController,
+		mock:          p,
+		client:        fk8s,
 	}
 }
 
