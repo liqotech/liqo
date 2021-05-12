@@ -24,7 +24,6 @@ import (
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/tools/cache"
-	"k8s.io/client-go/util/workqueue"
 	"k8s.io/klog"
 )
 
@@ -213,7 +212,7 @@ func (pc *PodController) updatePodStatus(ctx context.Context, podFromKubernetes 
 
 // enqueuePodStatusUpdate updates our pod status map, and marks the pod as dirty in the workqueue. The pod must be DeepCopy'd
 // prior to enqueuePodStatusUpdate.
-func (pc *PodController) enqueuePodStatusUpdate(ctx context.Context, q workqueue.RateLimitingInterface, pod *corev1.Pod) {
+func (pc *PodController) enqueuePodStatusUpdate(ctx context.Context, pod *corev1.Pod) {
 	if key, err := cache.MetaNamespaceKeyFunc(pod); err != nil {
 		klog.Error(err, "Error getting pod meta namespace key")
 	} else {
@@ -222,12 +221,12 @@ func (pc *PodController) enqueuePodStatusUpdate(ctx context.Context, q workqueue
 			kpod.Lock()
 			kpod.lastPodStatusReceivedFromProvider = pod
 			kpod.Unlock()
-			q.AddRateLimited(key)
+			pc.syncPodStatusFromProvider.Enqueue(key)
 		}
 	}
 }
 
-func (pc *PodController) podStatusHandler(ctx context.Context, key string) (retErr error) {
+func (pc *PodController) syncPodStatusFromProviderHandler(ctx context.Context, key string) (retErr error) {
 	defer func() {
 		if retErr != nil {
 			klog.Error("Error processing pod status update")
@@ -251,7 +250,7 @@ func (pc *PodController) podStatusHandler(ctx context.Context, key string) (retE
 	return pc.updatePodStatus(ctx, pod, key)
 }
 
-func (pc *PodController) deletePodHandler(ctx context.Context, key string) (retErr error) {
+func (pc *PodController) deletePodsFromKubernetesHandler(ctx context.Context, key string) (retErr error) {
 	namespace, name, err := cache.SplitMetaNamespaceKey(key)
 
 	if err != nil {
