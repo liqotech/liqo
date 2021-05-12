@@ -61,7 +61,7 @@ rbacs: controller-gen
 # Run go fmt against code
 fmt:
 	go fmt ./...
-	goimports -local github.com/liqotech/liqo -w .
+	find $(pwd) -type f -name '*.go' -a ! -name '*zz_generated*' -exec goimports -local github.com/liqotech/liqo -w {} \;
 
 # Run go vet against code
 vet:
