@@ -292,7 +292,7 @@ func wireUpSystem(ctx context.Context, provider PodLifecycleHandler, f testFunct
 	}
 
 	var err error
-	sys.pc, err = NewPodController(sys.podControllerConfig)
+	sys.pc, err = NewPodController(&sys.podControllerConfig)
 	if err != nil {
 		return err
 	}

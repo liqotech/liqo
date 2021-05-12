@@ -172,7 +172,7 @@ type PodControllerConfig struct {
 }
 
 // NewPodController creates a new pod controller with the provided config.
-func NewPodController(cfg PodControllerConfig) (*PodController, error) {
+func NewPodController(cfg *PodControllerConfig) (*PodController, error) {
 	if cfg.PodClient == nil {
 		return nil, errdefs.InvalidInput("missing core client")
 	}
