@@ -20,6 +20,7 @@ jobs:
       - name: golangci-lint
         uses: golangci/golangci-lint-action@v2.5.2
         with:
+          only-new-issues: true
           version: v1.34.0
           args: --timeout=600s
   shelllint:
