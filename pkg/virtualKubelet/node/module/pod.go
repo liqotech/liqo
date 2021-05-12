@@ -21,7 +21,6 @@ import (
 	pkgerrors "github.com/pkg/errors"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
-	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/klog"
@@ -93,14 +92,14 @@ func podsEqual(pod1, pod2 *corev1.Pod) bool {
 
 	// since the only mutable fields in pods containers and initContainers are the images,
 	// we check only them
-	for i, c := range pod1.Spec.Containers {
-		if pod2.Spec.Containers[i].Image != c.Image {
+	for i := range pod1.Spec.Containers {
+		if pod2.Spec.Containers[i].Image != pod1.Spec.Containers[i].Image {
 			containers = false
 			break
 		}
 	}
-	for i, c := range pod1.Spec.InitContainers {
-		if pod2.Spec.InitContainers[i].Image != c.Image {
+	for i := range pod1.Spec.InitContainers {
+		if pod2.Spec.InitContainers[i].Image != pod1.Spec.InitContainers[i].Image {
 			initContainers = false
 			break
 		}
@@ -119,7 +118,7 @@ func (pc *PodController) handleProviderError(ctx context.Context, origErr error,
 	// of type notFound and handles it properly (by deleting the local pod)
 	// if in further investigations we notice different error types,
 	// the related cases should be added here
-	switch kerrors.ReasonForError(origErr) {
+	switch errors.ReasonForError(origErr) {
 	case metav1.StatusReasonNotFound:
 		err := pc.client.Pods(pod.Namespace).Delete(context.TODO(), pod.Name, metav1.DeleteOptions{})
 		if err != nil {
@@ -215,14 +214,12 @@ func (pc *PodController) updatePodStatus(ctx context.Context, podFromKubernetes 
 func (pc *PodController) enqueuePodStatusUpdate(ctx context.Context, pod *corev1.Pod) {
 	if key, err := cache.MetaNamespaceKeyFunc(pod); err != nil {
 		klog.Error(err, "Error getting pod meta namespace key")
-	} else {
-		if obj, ok := pc.knownPods.Load(key); ok {
-			kpod := obj.(*knownPod)
-			kpod.Lock()
-			kpod.lastPodStatusReceivedFromProvider = pod
-			kpod.Unlock()
-			pc.syncPodStatusFromProvider.Enqueue(key)
-		}
+	} else if obj, ok := pc.knownPods.Load(key); ok {
+		kpod := obj.(*knownPod)
+		kpod.Lock()
+		kpod.lastPodStatusReceivedFromProvider = pod
+		kpod.Unlock()
+		pc.syncPodStatusFromProvider.Enqueue(key)
 	}
 }
 

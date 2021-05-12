@@ -42,7 +42,7 @@ func newTestController() *TestController {
 	rm := testutil.FakeResourceManager()
 	p := newMockProvider()
 	iFactory := kubeinformers.NewSharedInformerFactoryWithOptions(fk8s, 10*time.Minute)
-	podController, err := NewPodController(PodControllerConfig{
+	podController, err := NewPodController(&PodControllerConfig{
 		PodClient:         fk8s.CoreV1(),
 		PodInformer:       iFactory.Core().V1().Pods(),
 		EventRecorder:     testutil.FakeEventRecorder(5),

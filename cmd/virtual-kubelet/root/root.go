@@ -198,7 +198,7 @@ func runRootCommand(ctx context.Context, s *provider.Store, c *Opts) error {
 
 	eb := record.NewBroadcaster()
 
-	pc, err := module.NewPodController(module.PodControllerConfig{
+	pc, err := module.NewPodController(&module.PodControllerConfig{
 		PodClient:                            client.Client().CoreV1(),
 		PodInformer:                          podInformer,
 		EventRecorder:                        eb.NewRecorder(scheme.Scheme, corev1.EventSource{Component: path.Join(pNode.Name, "pod-controller")}),
