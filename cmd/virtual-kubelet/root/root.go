@@ -20,6 +20,7 @@ import (
 	"os"
 	"path"
 	"strings"
+	"time"
 
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
@@ -32,6 +33,7 @@ import (
 	"k8s.io/client-go/kubernetes/typed/coordination/v1beta1"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/record"
+	"k8s.io/client-go/util/workqueue"
 	"k8s.io/klog"
 
 	"github.com/liqotech/liqo/apis/sharing/v1alpha1"
@@ -197,13 +199,16 @@ func runRootCommand(ctx context.Context, s *provider.Store, c *Opts) error {
 	eb := record.NewBroadcaster()
 
 	pc, err := module.NewPodController(module.PodControllerConfig{
-		PodClient:         client.Client().CoreV1(),
-		PodInformer:       podInformer,
-		EventRecorder:     eb.NewRecorder(scheme.Scheme, corev1.EventSource{Component: path.Join(pNode.Name, "pod-controller")}),
-		Provider:          p,
-		SecretInformer:    secretInformer,
-		ConfigMapInformer: configMapInformer,
-		ServiceInformer:   serviceInformer,
+		PodClient:                            client.Client().CoreV1(),
+		PodInformer:                          podInformer,
+		EventRecorder:                        eb.NewRecorder(scheme.Scheme, corev1.EventSource{Component: path.Join(pNode.Name, "pod-controller")}),
+		Provider:                             p,
+		SecretInformer:                       secretInformer,
+		ConfigMapInformer:                    configMapInformer,
+		ServiceInformer:                      serviceInformer,
+		SyncPodsFromKubernetesRateLimiter:    newPodControllerWorkqueueRateLimiter(),
+		SyncPodStatusFromProviderRateLimiter: newPodControllerWorkqueueRateLimiter(),
+		DeletePodsFromKubernetesRateLimiter:  newPodControllerWorkqueueRateLimiter(),
 	})
 	if err != nil {
 		return errors.Wrap(err, "error setting up pod controller")
@@ -273,4 +278,12 @@ func createOwnerReference(c *crdclient.CRDClient, advName, namespace string) []m
 			UID:        d.(metav1.Object).GetUID(),
 		},
 	}
+}
+
+// newPodControllerWorkqueueRateLimiter returns a new custom rate limiter to be assigned to the pod controller workqueues.
+// Differently from the standard workqueue.DefaultControllerRateLimiter(), composed of an overall bucket rate limiter
+// and a per-item exponential rate limiter to address failures, this includes only the latter component. Hance avoiding
+// performance limitations when processing a high number of pods in parallel.
+func newPodControllerWorkqueueRateLimiter() workqueue.RateLimiter {
+	return workqueue.NewItemExponentialFailureRateLimiter(5*time.Millisecond, 1000*time.Second)
 }
