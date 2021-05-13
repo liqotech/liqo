@@ -5,7 +5,7 @@ WORKDIR boringtun
 RUN rustup target add x86_64-unknown-linux-musl
 RUN cargo build --bin boringtun --release
 
-FROM golang:1.14-alpine AS goBuilder
+FROM golang:1.16-alpine AS goBuilder
 ENV PATH /go/bin:/usr/local/go/bin:$PATH
 ENV GOPATH /go
 RUN apk update && apk add git make
