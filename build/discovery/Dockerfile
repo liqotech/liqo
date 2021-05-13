@@ -1,4 +1,4 @@
-FROM golang:1.14 as builder
+FROM golang:1.16 as builder
 ENV PATH /go/bin:/usr/local/go/bin:$PATH
 ENV GOPATH /go
 COPY . /go/src/github.com/liqotech/liqo
