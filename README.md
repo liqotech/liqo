@@ -1,10 +1,10 @@
 <p align="center">
-  <img src=https://github.com/liqotech/liqo/workflows/Go/badge.svg>
-  <img src=https://goreportcard.com/badge/github.com/liqotech/liqo>
-  <img src=https://coveralls.io/repos/github/liqotech/liqo/badge.svg?branch=master>
+  <a href="https://github.com/liqotech/liqo/actions"><img src="https://github.com/liqotech/liqo/workflows/Go/badge.svg" alt="Integration Pipeline Status"></a>
+  <a href="https://goreportcard.com/github.com/liqotech/liqo"><img src=https://goreportcard.com/badge/github.com/liqotech/liqo></a>
+  <a href="https://coveralls.io/repos/github/liqotech/liqo" alt="Liqo Test Coverage"></a><img src=https://coveralls.io/repos/github/liqotech/liqo/badge.svg?branch=master></a>
   <img src=https://app.fossa.com/api/projects/git%2Bgithub.com%2Fliqotech%2Fliqo.svg?type=shield>
-  <img src=https://img.shields.io/badge/slack-liqo.io-yellow>
-  <img src=https://img.shields.io/twitter/url/https/twitter.com/liqo_io.svg?style=social&label=Follow%20%40liqo_io>
+  <a href="https://join.slack.com/t/liqo-io/shared_invite/zt-h20212gg-g24YvN6MKiD9bacFeqZttQ"><img src=https://img.shields.io/badge/slack-liqo.io-yellow></a>
+  <a href="https://twitter.com/liqo_io"><img src=https://img.shields.io/twitter/url/https/twitter.com/liqo_io.svg?style=social&label=Follow%20%40liqo_io></a>
 
   <br />
   <br />
@@ -13,11 +13,12 @@
     <img alt="Liqo Logo" src="https://doc.liqo.io/images/logo-liqo-blue.svg" height="80">
   </a>
 
-  <h3 align="center">A <a href=https://github.com/kubernetes/kubernetes>Kubernetes</a> platform about dynamic and decentralized multi-cluster</h3>
-
+  <h3 align="center">Enable dynamic and seamless Kubernetes multi-cluster topologies</h3>
   <br />
+  <br />
+</p>
 
-  <p align="center">
+<p align="center">
     <a href="https://doc.liqo.io/"><strong>Explore the docs »</strong></a>
     <br />
     <br />
@@ -26,10 +27,9 @@
     <a href="https://github.com/liqotech/liqo/issues/new?assignees=&labels=&template=bug_report.md&title=">Report Bug</a>
     ·
     <a href="https://github.com/liqotech/liqo/issues/new?assignees=&labels=enhancement&template=feature_request.md&title=%5BFeature%5D">Request Feature</a>
-  </p>
-
-  
 </p>
+
+
 
 ## About the project
 Liqo is a platform to enable dynamic and decentralized resource sharing across Kubernetes clusters, either on-prem or managed. Liqo allows to run pods on a remote cluster seamlessly and without any modification of Kubernetes and the applications. With Liqo it is possible to extend the control plane of a Kubernetes cluster across the cluster's boundaries, making multi-cluster native and transparent: collapse an entire remote cluster to a virtual local node, by allowing workloads offloading and resource management compliant with the standard Kubernetes approach.
@@ -147,10 +147,12 @@ To get involved with the Liqo community, join the slack [channel](https://join.s
 
 ## License
 
-Distributed under the Apache-2.0 License. See [License](LICENSE) for more information.
+This project includes code from the  Virtual Kubelet project https://github.com/virtual-kubelet/virtual-kubelet, licensed under the Apache 2.0 license.
+
+Liqo is distributed under the Apache-2.0 License. See [License](LICENSE) for more information.
 
 [![FOSSA Status](https://app.fossa.com/api/projects/git%2Bgithub.com%2Fliqotech%2Fliqo.svg?type=large)](https://app.fossa.com/projects/git%2Bgithub.com%2Fliqotech%2Fliqo?ref=badge_large)
 
 <p align="center">
-Liqo is a project kicked off at Polytechnic of Turin (Italy) and actively maintained with :heart: by this open-source community.
+Liqo is a project kicked off at Polytechnic of Turin (Italy) and actively maintained with :heart: by all the Liqoers.
 </p>
