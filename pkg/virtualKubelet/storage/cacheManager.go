@@ -24,6 +24,8 @@ type readyCaches struct {
 	caches map[string]struct{}
 }
 
+// Manager is a structure which wraps the informers used to interact with the home
+// and the foreign cluster, together with the associated caches.
 type Manager struct {
 	homeInformers    *NamespacedAPICaches
 	foreignInformers *NamespacedAPICaches
@@ -38,7 +40,7 @@ func readinessKeyer(namespace string, api apimgmt.ApiType) string {
 
 // checkNamespaceCaching checks if the caching of the requested informers has been started. It caches the result
 // for allowing a subsequent fast checks.
-func checkNamespaceCaching(backoff *wait.Backoff, rc *readyCaches, informers *NamespacedAPICaches, namespace string, api apimgmt.ApiType) error {
+func checkNamespaceCaching(backoff *wait.Backoff, rc *readyCaches, caches *NamespacedAPICaches, namespace string, api apimgmt.ApiType) error {
 	checkFunc := func() error {
 		rc.RLock()
 		if _, ok := rc.caches[readinessKeyer(namespace, api)]; ok {
@@ -47,13 +49,13 @@ func checkNamespaceCaching(backoff *wait.Backoff, rc *readyCaches, informers *Na
 			rc.RUnlock()
 
 			// home cache checks
-			if informers == nil {
+			if caches == nil {
 				return errors.New("informers set to nil")
 			}
-			informers.RLock()
-			defer informers.RUnlock()
+			caches.RLock()
+			defer caches.RUnlock()
 
-			apiCache := informers.Namespace(namespace)
+			apiCache := caches.Namespace(namespace)
 			if apiCache == nil {
 				return errdefs.Unavailablef("informers for api %v in namespace %v do not exist", apimgmt.ApiNames[api], namespace)
 			}
@@ -93,6 +95,7 @@ func checkNamespaceCaching(backoff *wait.Backoff, rc *readyCaches, informers *Na
 	return nil
 }
 
+// NewManager creates a new Manager instance for a given tuple of home and foreign clients.
 func NewManager(homeClient, foreignClient kubernetes.Interface, resyncPeriod time.Duration) *Manager {
 	homeInformers := &NamespacedAPICaches{
 		apiInformers:      make(map[string]*APICaches),
@@ -124,6 +127,7 @@ func NewManager(homeClient, foreignClient kubernetes.Interface, resyncPeriod tim
 	return manager
 }
 
+// AddHomeNamespace adds a given home namespace to the list of observed ones.
 func (cm *Manager) AddHomeNamespace(namespace string) error {
 	if cm.homeInformers == nil {
 		return errors.New("home informers set to nil")
@@ -132,6 +136,7 @@ func (cm *Manager) AddHomeNamespace(namespace string) error {
 	return cm.homeInformers.AddNamespace(namespace)
 }
 
+// AddForeignNamespace adds a given foreign namespace to the list of observed ones.
 func (cm *Manager) AddForeignNamespace(namespace string) error {
 	if cm.foreignInformers == nil {
 		return errors.New("foreign informers set to nil")
@@ -140,6 +145,7 @@ func (cm *Manager) AddForeignNamespace(namespace string) error {
 	return cm.foreignInformers.AddNamespace(namespace)
 }
 
+// StartHomeNamespace starts observing a given home namespace (after having been added).
 func (cm *Manager) StartHomeNamespace(homeNamespace string, stop chan struct{}) error {
 	if cm.homeInformers == nil {
 		return errors.New("home informers set to nil")
@@ -148,6 +154,7 @@ func (cm *Manager) StartHomeNamespace(homeNamespace string, stop chan struct{}) 
 	return cm.homeInformers.startNamespace(homeNamespace, stop)
 }
 
+// StartForeignNamespace starts observing a given foreign namespace (after having been added).
 func (cm *Manager) StartForeignNamespace(foreignNamespace string, stop chan struct{}) error {
 	if cm.foreignInformers == nil {
 		return errors.New("foreign informers set to nil")
@@ -156,11 +163,13 @@ func (cm *Manager) StartForeignNamespace(foreignNamespace string, stop chan stru
 	return cm.foreignInformers.startNamespace(foreignNamespace, stop)
 }
 
+// RemoveNamespace removes a namespace from the list of observed ones.
 func (cm *Manager) RemoveNamespace(namespace string) {
 	cm.homeInformers.removeNamespace(namespace)
 	cm.foreignInformers.removeNamespace(namespace)
 }
 
+// AddHomeEventHandlers configures the handlers executed on events triggered by modifications of a given API in a home namespace.
 func (cm *Manager) AddHomeEventHandlers(api apimgmt.ApiType, namespace string, handlers *cache.ResourceEventHandlerFuncs) error {
 	cm.homeInformers.Lock()
 	defer cm.homeInformers.Unlock()
@@ -176,7 +185,8 @@ func (cm *Manager) AddHomeEventHandlers(api apimgmt.ApiType, namespace string, h
 
 	informer := apiCache.informer(api)
 	if informer == nil {
-		return kerrors.NewServiceUnavailable(fmt.Sprintf("cannot set handlers, home informer for api %v in namespace %v does not exist", apimgmt.ApiNames[api], namespace))
+		return kerrors.NewServiceUnavailable(
+			fmt.Sprintf("cannot set handlers, home informer for api %v in namespace %v does not exist", apimgmt.ApiNames[api], namespace))
 	}
 
 	informer.AddEventHandler(handlers)
@@ -184,6 +194,7 @@ func (cm *Manager) AddHomeEventHandlers(api apimgmt.ApiType, namespace string, h
 	return nil
 }
 
+// AddForeignEventHandlers configures the handlers executed on events triggered by modifications of a given API in a foreign namespace.
 func (cm *Manager) AddForeignEventHandlers(api apimgmt.ApiType, namespace string, handlers *cache.ResourceEventHandlerFuncs) error {
 	cm.foreignInformers.Lock()
 	defer cm.foreignInformers.Unlock()
@@ -203,6 +214,7 @@ func (cm *Manager) AddForeignEventHandlers(api apimgmt.ApiType, namespace string
 	return nil
 }
 
+// GetHomeNamespacedObject retrieves a given cached object from the home cluster.
 func (cm *Manager) GetHomeNamespacedObject(api apimgmt.ApiType, namespace, name string) (interface{}, error) {
 	err := checkNamespaceCaching(&defaultBackoff, &cm.homeReadyCaches, cm.homeInformers, namespace, api)
 	if err != nil {
@@ -212,9 +224,10 @@ func (cm *Manager) GetHomeNamespacedObject(api apimgmt.ApiType, namespace, name 
 	defer cm.homeInformers.RUnlock()
 
 	apiCache := cm.homeInformers.Namespace(namespace)
-	return apiCache.getApi(api, utils.Keyer(namespace, name))
+	return apiCache.getAPI(api, utils.Keyer(namespace, name))
 }
 
+// GetForeignNamespacedObject retrieves a given cached object from the foreign cluster.
 func (cm *Manager) GetForeignNamespacedObject(api apimgmt.ApiType, namespace, name string) (interface{}, error) {
 	err := checkNamespaceCaching(&defaultBackoff, &cm.foreignReadyCaches, cm.foreignInformers, namespace, api)
 	if err != nil {
@@ -225,9 +238,10 @@ func (cm *Manager) GetForeignNamespacedObject(api apimgmt.ApiType, namespace, na
 	defer cm.foreignInformers.RUnlock()
 
 	apiCache := cm.foreignInformers.Namespace(namespace)
-	return apiCache.getApi(api, utils.Keyer(namespace, name))
+	return apiCache.getAPI(api, utils.Keyer(namespace, name))
 }
 
+// ListHomeNamespacedObject lists the cached objects in a namespace in the home cluster.
 func (cm *Manager) ListHomeNamespacedObject(api apimgmt.ApiType, namespace string) ([]interface{}, error) {
 	err := checkNamespaceCaching(&defaultBackoff, &cm.homeReadyCaches, cm.homeInformers, namespace, api)
 	if err != nil {
@@ -237,7 +251,7 @@ func (cm *Manager) ListHomeNamespacedObject(api apimgmt.ApiType, namespace strin
 	defer cm.homeInformers.RUnlock()
 
 	apiCache := cm.homeInformers.Namespace(namespace)
-	objects, err := apiCache.listApi(api)
+	objects, err := apiCache.listAPI(api)
 	if err != nil {
 		return nil, err
 	}
@@ -245,6 +259,7 @@ func (cm *Manager) ListHomeNamespacedObject(api apimgmt.ApiType, namespace strin
 	return objects, nil
 }
 
+// ListForeignNamespacedObject lists the APIs in a namespace in the foreign cluster.
 func (cm *Manager) ListForeignNamespacedObject(api apimgmt.ApiType, namespace string) ([]interface{}, error) {
 	err := checkNamespaceCaching(&defaultBackoff, &cm.foreignReadyCaches, cm.foreignInformers, namespace, api)
 	if err != nil {
@@ -254,7 +269,7 @@ func (cm *Manager) ListForeignNamespacedObject(api apimgmt.ApiType, namespace st
 	defer cm.foreignInformers.RUnlock()
 
 	apiCache := cm.foreignInformers.Namespace(namespace)
-	objects, err := apiCache.listApi(api)
+	objects, err := apiCache.listAPI(api)
 	if err != nil {
 		return nil, err
 	}
@@ -262,7 +277,8 @@ func (cm *Manager) ListForeignNamespacedObject(api apimgmt.ApiType, namespace st
 	return objects, nil
 }
 
-func (cm *Manager) GetHomeApiByIndex(api apimgmt.ApiType, namespace, index string) (interface{}, error) {
+// GetHomeAPIByIndex lists the cached objects matching a given index, in a namespace in the home cache.
+func (cm *Manager) GetHomeAPIByIndex(api apimgmt.ApiType, namespace, index string) (interface{}, error) {
 	err := checkNamespaceCaching(&defaultBackoff, &cm.homeReadyCaches, cm.homeInformers, namespace, api)
 	if err != nil {
 		return nil, err
@@ -271,7 +287,7 @@ func (cm *Manager) GetHomeApiByIndex(api apimgmt.ApiType, namespace, index strin
 	defer cm.homeInformers.RUnlock()
 
 	apiCache := cm.homeInformers.Namespace(namespace)
-	objects, err := apiCache.listApiByIndex(api, index)
+	objects, err := apiCache.listAPIByIndex(api, index)
 	if err != nil {
 		return nil, err
 	}
@@ -286,7 +302,8 @@ func (cm *Manager) GetHomeApiByIndex(api apimgmt.ApiType, namespace, index strin
 	return objects[0], nil
 }
 
-func (cm *Manager) GetForeignApiByIndex(api apimgmt.ApiType, namespace, index string) (interface{}, error) {
+// GetForeignAPIByIndex lists the cached objects matching a given index, in a namespace in the foreign cache.
+func (cm *Manager) GetForeignAPIByIndex(api apimgmt.ApiType, namespace, index string) (interface{}, error) {
 	err := checkNamespaceCaching(&defaultBackoff, &cm.foreignReadyCaches, cm.foreignInformers, namespace, api)
 	if err != nil {
 		return nil, err
@@ -295,7 +312,7 @@ func (cm *Manager) GetForeignApiByIndex(api apimgmt.ApiType, namespace, index st
 	defer cm.foreignInformers.RUnlock()
 
 	apiCache := cm.foreignInformers.Namespace(namespace)
-	objects, err := apiCache.listApiByIndex(api, index)
+	objects, err := apiCache.listAPIByIndex(api, index)
 	if err != nil {
 		return nil, err
 	}

@@ -155,7 +155,7 @@ func (p *LiqoProvider) GetPod(_ context.Context, namespace, name string) (pod *c
 		return nil, nil
 	}
 
-	_, err = p.apiController.CacheManager().GetForeignApiByIndex(apimgmgt.Pods, foreignNamespace, name)
+	_, err = p.apiController.CacheManager().GetForeignAPIByIndex(apimgmgt.Pods, foreignNamespace, name)
 	if err != nil {
 		klog.V(4).Infof("PROVIDER: cannot get remote pod %s/%s because of error %v, requeueing", pod.Namespace, pod.Name, err)
 		return nil, nil
@@ -183,7 +183,7 @@ func (p *LiqoProvider) GetPodStatus(_ context.Context, namespace, name string) (
 		return nil, nil
 	}
 
-	foreignPod, err := p.apiController.CacheManager().GetForeignApiByIndex(apimgmgt.Pods, foreignNamespace, name)
+	foreignPod, err := p.apiController.CacheManager().GetForeignAPIByIndex(apimgmgt.Pods, foreignNamespace, name)
 	if err != nil {
 		return nil, errors.Wrap(err, "error while retrieving foreign pod")
 	}
@@ -223,7 +223,7 @@ func (p *LiqoProvider) RunInContainer(_ context.Context, homeNamespace string, h
 		return err
 	}
 
-	foreignObj, err := p.apiController.CacheManager().GetForeignApiByIndex(apimgmgt.Pods, foreignNamespace, homePodName)
+	foreignObj, err := p.apiController.CacheManager().GetForeignAPIByIndex(apimgmgt.Pods, foreignNamespace, homePodName)
 	if err != nil {
 		return errors.Wrap(err, "error while retrieving foreign pod")
 	}
@@ -269,7 +269,7 @@ func (p *LiqoProvider) GetContainerLogs(_ context.Context, homeNamespace string,
 		return nil, err
 	}
 
-	foreignObj, err := p.apiController.CacheManager().GetForeignApiByIndex(apimgmgt.Pods, foreignNamespace, homePodName)
+	foreignObj, err := p.apiController.CacheManager().GetForeignAPIByIndex(apimgmgt.Pods, foreignNamespace, homePodName)
 	if err != nil {
 		return nil, errors.Wrap(err, "error while retrieving foreign pod")
 	}

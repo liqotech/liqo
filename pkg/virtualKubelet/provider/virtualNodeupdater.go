@@ -24,7 +24,7 @@ import (
 
 func (p *LiqoProvider) StartNodeUpdater(nodeRunner *module.NodeController) (chan struct{}, chan struct{}, error) {
 	stop := make(chan struct{}, 1)
-	advName := strings.Join([]string{virtualKubelet.AdvertisementPrefix, p.foreignClusterId}, "")
+	advName := strings.Join([]string{virtualKubelet.AdvertisementPrefix, p.foreignClusterID}, "")
 	advWatcher, err := p.advClient.Resource("advertisements").Watch(&metav1.ListOptions{
 		FieldSelector: strings.Join([]string{"metadata.name", advName}, "="),
 		Watch:         true,
@@ -34,7 +34,7 @@ func (p *LiqoProvider) StartNodeUpdater(nodeRunner *module.NodeController) (chan
 	}
 
 	tepWatcher, err := p.tunEndClient.Resource("tunnelendpoints").Watch(&metav1.ListOptions{
-		LabelSelector: strings.Join([]string{liqoconst.ClusterIDLabelName, p.foreignClusterId}, "="),
+		LabelSelector: strings.Join([]string{liqoconst.ClusterIDLabelName, p.foreignClusterID}, "="),
 		Watch:         true,
 	})
 	if err != nil {
@@ -68,7 +68,7 @@ func (p *LiqoProvider) StartNodeUpdater(nodeRunner *module.NodeController) (chan
 					klog.Error(err)
 					tepWatcher.Stop()
 					tepWatcher, err = p.tunEndClient.Resource("tunnelendpoints").Watch(&metav1.ListOptions{
-						LabelSelector: strings.Join([]string{liqoconst.ClusterIDLabelName, p.foreignClusterId}, "="),
+						LabelSelector: strings.Join([]string{liqoconst.ClusterIDLabelName, p.foreignClusterID}, "="),
 						Watch:         true,
 					})
 					if err != nil {
@@ -169,7 +169,7 @@ func (p *LiqoProvider) updateFromAdv(adv advtypes.Advertisement) error {
 	}
 
 	no.SetAnnotations(map[string]string{
-		"cluster-id": p.foreignClusterId,
+		"cluster-id": p.foreignClusterID,
 	})
 	no.SetLabels(mergeMaps(no.GetLabels(), adv.Spec.Labels))
 	no, err = p.nntClient.Client().CoreV1().Nodes().Update(context.TODO(), no, metav1.UpdateOptions{})

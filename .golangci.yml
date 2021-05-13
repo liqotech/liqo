@@ -5,6 +5,10 @@ run:
     - ".*_test.go"
 
 linters-settings:
+  exhaustive:
+    check-generated: false
+    default-signifies-exhaustive: true
+
   lll:
     line-length: 150
   gomodguard:
@@ -56,6 +60,7 @@ linters:
     - errcheck
     - errorlint
     - exhaustive
+    - exportloopref
   # - funlen
   # - gochecknoglobals
   # - gochecknoinits
@@ -85,7 +90,6 @@ linters:
     - nolintlint
   # - prealloc
     - rowserrcheck
-    - scopelint
     - staticcheck
     - structcheck
     - stylecheck
@@ -100,11 +104,11 @@ linters:
 
 issues:
   #fix: true
+
   max-issues-per-linter: 0
   max-same-issues: 0
+
   # Disable the default exclude patterns (as they disable the mandatory comments)
-  max-issues-per-linter: 0
-  max-same-issues: 0
   exclude-use-default: false
   exclude:
     # errcheck: Almost all programs ignore errors on these functions and in most cases it's ok

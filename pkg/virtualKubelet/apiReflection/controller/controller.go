@@ -19,7 +19,8 @@ const (
 	nIncomingReflectionWorkers = 2
 )
 
-type ApiController interface {
+// APIController defines the interface exposed by a controller implementing API reflection.
+type APIController interface {
 	SetInformingFunc(apiReflection.ApiType, func(interface{}))
 	CacheManager() storage.CacheManagerReaderAdder
 	StartController()
@@ -27,6 +28,7 @@ type ApiController interface {
 	StopReflection(restart bool)
 }
 
+// Controller is a concrete implementation of the ApiController interface.
 type Controller struct {
 	mapper                       namespacesMapping.MapperController
 	cacheManager                 storage.CacheManagerReaderAdder
@@ -45,7 +47,9 @@ type Controller struct {
 	stopController chan struct{}
 }
 
-func NewApiController(homeClient, foreignClient kubernetes.Interface, informerResyncPeriod time.Duration, mapper namespacesMapping.MapperController, opts map[options.OptionKey]options.Option, tepReady chan struct{}) *Controller {
+// NewAPIController returns a Controller instance for a given set of home and foreign clients.
+func NewAPIController(homeClient, foreignClient kubernetes.Interface, informerResyncPeriod time.Duration,
+	mapper namespacesMapping.MapperController, opts map[options.OptionKey]options.Option, tepReady chan struct{}) *Controller {
 	klog.V(2).Infof("starting reflection manager")
 
 	outgoingReflectionInforming := make(chan apiReflection.ApiEvent)
@@ -109,14 +113,17 @@ func (c *Controller) incomingReflectionControlLoop() {
 	}
 }
 
+// SetInformingFunc configures the handlers triggered for a certain API type by incoming reflection events.
 func (c *Controller) SetInformingFunc(api apiReflection.ApiType, handler func(interface{})) {
 	c.incomingReflectorsController.SetInforming(api, handler)
 }
 
+// CacheManager returns the CacheManager associated with the controller.
 func (c *Controller) CacheManager() storage.CacheManagerReaderAdder {
 	return c.cacheManager
 }
 
+// StartController spawns the worker threads and starts the reflection control loops.
 func (c *Controller) StartController() {
 	klog.V(2).Info("starting api controller")
 
@@ -139,6 +146,7 @@ func (c *Controller) StartController() {
 	klog.V(2).Infof("api controller started with %v workers", nOutgoingReflectionWorkers)
 }
 
+// StopController stops the controller and the reflection control loops.
 func (c *Controller) StopController() error {
 	select {
 	case <-c.stopController:
@@ -154,6 +162,7 @@ func (c *Controller) StopController() error {
 	return nil
 }
 
+// StopReflection stops the reflection control loops, optionally restarting them.
 func (c *Controller) StopReflection(restart bool) {
 	klog.V(2).Info("stopping reflection manager")
 

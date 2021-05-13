@@ -14,6 +14,7 @@ type Store struct {
 	ls map[string]InitFunc
 }
 
+// NewStore creates a new Store instance.
 func NewStore() *Store {
 	return &Store{
 		ls: make(map[string]InitFunc),
@@ -63,16 +64,17 @@ func (s *Store) Exists(name string) bool {
 
 // InitConfig is the config passed to initialize a registered provider.
 type InitConfig struct {
-	ConfigPath           string
 	NodeName             string
 	InternalIP           string
 	DaemonPort           int32
 	KubeClusterDomain    string
 	ResourceManager      *manager.ResourceManager
-	ClusterId            string
+	HomeKubeConfig       string
 	RemoteKubeConfig     string
-	HomeClusterId        string
+	HomeClusterID        string
+	RemoteClusterID      string
 	InformerResyncPeriod time.Duration
 }
 
+// InitFunc defines the signature of the function creating a Provider instance based on the corresponding configuration.
 type InitFunc func(InitConfig) (Provider, error)
