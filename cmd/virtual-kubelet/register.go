@@ -15,6 +15,7 @@ func registerKubernetes(s *provider.Store) error {
 			cfg.DaemonPort,
 			cfg.ConfigPath,
 			cfg.RemoteKubeConfig,
+			cfg.InformerResyncPeriod,
 		)
 	})
 }

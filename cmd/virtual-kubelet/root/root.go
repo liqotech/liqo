@@ -111,15 +111,16 @@ func runRootCommand(ctx context.Context, s *provider.Store, c *Opts) error {
 	}
 
 	initConfig := provider.InitConfig{
-		ConfigPath:        c.HomeKubeconfig,
-		NodeName:          c.NodeName,
-		ResourceManager:   rm,
-		DaemonPort:        c.ListenPort,
-		InternalIP:        os.Getenv("VKUBELET_POD_IP"),
-		KubeClusterDomain: c.KubeClusterDomain,
-		ClusterId:         c.ForeignClusterId,
-		HomeClusterId:     c.HomeClusterId,
-		RemoteKubeConfig:  c.ForeignKubeconfig,
+		ConfigPath:           c.HomeKubeconfig,
+		NodeName:             c.NodeName,
+		ResourceManager:      rm,
+		DaemonPort:           c.ListenPort,
+		InternalIP:           os.Getenv("VKUBELET_POD_IP"),
+		KubeClusterDomain:    c.KubeClusterDomain,
+		ClusterId:            c.ForeignClusterId,
+		HomeClusterId:        c.HomeClusterId,
+		RemoteKubeConfig:     c.ForeignKubeconfig,
+		InformerResyncPeriod: c.InformerResyncPeriod,
 	}
 
 	pInit := s.Get(c.Provider)

@@ -53,7 +53,7 @@ type LiqoProvider struct { // nolint:golint]
 }
 
 // NewKubernetesProviderKubernetes creates a new KubernetesV0Provider. Kubernetes legacy provider does not implement the new asynchronous podnotifier interface.
-func NewLiqoProvider(nodeName, foreignClusterId, homeClusterId string, internalIP string, daemonEndpointPort int32, kubeconfig, remoteKubeConfig string) (*LiqoProvider, error) {
+func NewLiqoProvider(nodeName, foreignClusterId, homeClusterId string, internalIP string, daemonEndpointPort int32, kubeconfig, remoteKubeConfig string, informerResyncPeriod time.Duration) (*LiqoProvider, error) {
 	var err error
 
 	if err = nattingv1.AddToScheme(clientgoscheme.Scheme); err != nil {
@@ -116,7 +116,7 @@ func NewLiqoProvider(nodeName, foreignClusterId, homeClusterId string, internalI
 	tepReady := make(chan struct{})
 
 	provider := LiqoProvider{
-		apiController:         controller.NewApiController(client.Client(), foreignClient, mapper, opts, tepReady),
+		apiController:         controller.NewApiController(client.Client(), foreignClient, informerResyncPeriod, mapper, opts, tepReady),
 		namespaceMapper:       mapper,
 		nodeName:              virtualNodeNameOpt,
 		internalIP:            internalIP,

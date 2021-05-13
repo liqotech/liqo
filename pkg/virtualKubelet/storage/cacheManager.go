@@ -3,6 +3,7 @@ package storage
 import (
 	"fmt"
 	"sync"
+	"time"
 
 	"github.com/pkg/errors"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
@@ -92,17 +93,19 @@ func checkNamespaceCaching(backoff *wait.Backoff, rc *readyCaches, informers *Na
 	return nil
 }
 
-func NewManager(homeClient, foreignClient kubernetes.Interface) *Manager {
+func NewManager(homeClient, foreignClient kubernetes.Interface, resyncPeriod time.Duration) *Manager {
 	homeInformers := &NamespacedAPICaches{
 		apiInformers:      make(map[string]*APICaches),
 		informerFactories: make(map[string]informers.SharedInformerFactory),
 		client:            homeClient,
+		resyncPeriod:      resyncPeriod,
 	}
 
 	foreignInformers := &NamespacedAPICaches{
 		apiInformers:      make(map[string]*APICaches),
 		informerFactories: make(map[string]informers.SharedInformerFactory),
 		client:            foreignClient,
+		resyncPeriod:      resyncPeriod,
 	}
 
 	manager := &Manager{
