@@ -111,14 +111,14 @@ func runRootCommand(ctx context.Context, s *provider.Store, c *Opts) error {
 	}
 
 	initConfig := provider.InitConfig{
-		ConfigPath:           c.HomeKubeconfig,
+		HomeKubeConfig:       c.HomeKubeconfig,
 		NodeName:             c.NodeName,
 		ResourceManager:      rm,
 		DaemonPort:           c.ListenPort,
 		InternalIP:           os.Getenv("VKUBELET_POD_IP"),
 		KubeClusterDomain:    c.KubeClusterDomain,
-		ClusterId:            c.ForeignClusterId,
-		HomeClusterId:        c.HomeClusterId,
+		RemoteClusterID:      c.ForeignClusterId,
+		HomeClusterID:        c.HomeClusterId,
 		RemoteKubeConfig:     c.ForeignKubeconfig,
 		InformerResyncPeriod: c.InformerResyncPeriod,
 	}
@@ -145,8 +145,7 @@ func runRootCommand(ctx context.Context, s *provider.Store, c *Opts) error {
 
 	pNode, err := nodeProvider.NodeFromProvider(ctx, c.NodeName, p, c.Version, refs)
 	if err != nil {
-		klog.Error(err)
-		os.Exit(1)
+		klog.Fatal(err)
 	}
 
 	nodeRunner, err = module.NewNodeController(
@@ -187,8 +186,7 @@ func runRootCommand(ctx context.Context, s *provider.Store, c *Opts) error {
 			}),
 	)
 	if err != nil {
-		klog.Error("cannot create the node controller")
-		os.Exit(1)
+		klog.Fatal("cannot create the node controller")
 	}
 
 	nodeReady, _, err := p.StartNodeUpdater(nodeRunner)
@@ -223,7 +221,7 @@ func runRootCommand(ctx context.Context, s *provider.Store, c *Opts) error {
 	defer cancelHTTP()
 
 	go func() {
-		if err := pc.Run(ctx, c.PodSyncWorkers); err != nil && errors.Cause(err) != context.Canceled {
+		if err := pc.Run(ctx, c.PodSyncWorkers); err != nil && errors.Is(err, context.Canceled) {
 			klog.Fatal(errors.Wrap(err, "error in pod controller running"))
 		}
 	}()
@@ -259,19 +257,20 @@ func runRootCommand(ctx context.Context, s *provider.Store, c *Opts) error {
 }
 
 func createOwnerReference(c *crdClient.CRDClient, advName, namespace string) []metav1.OwnerReference {
-	if d, err := c.Resource("advertisements").Namespace(namespace).Get(advName, &metav1.GetOptions{}); err != nil {
+	d, err := c.Resource("advertisements").Namespace(namespace).Get(advName, &metav1.GetOptions{})
+	if err != nil {
 		if k8serrors.IsNotFound(err) {
 			klog.Info("advertisement not found, setting empty owner reference")
 		}
 		return []metav1.OwnerReference{}
-	} else {
-		return []metav1.OwnerReference{
-			{
-				APIVersion: fmt.Sprintf("%s/%s", v1alpha1.GroupVersion.Group, v1alpha1.GroupVersion.Version),
-				Kind:       "Advertisement",
-				Name:       advName,
-				UID:        d.(metav1.Object).GetUID(),
-			},
-		}
+	}
+
+	return []metav1.OwnerReference{
+		{
+			APIVersion: fmt.Sprintf("%s/%s", v1alpha1.GroupVersion.Group, v1alpha1.GroupVersion.Version),
+			Kind:       "Advertisement",
+			Name:       advName,
+			UID:        d.(metav1.Object).GetUID(),
+		},
 	}
 }

@@ -24,9 +24,9 @@ import (
 )
 
 // LiqoProvider implements the virtual-kubelet provider interface and stores pods in memory.
-type LiqoProvider struct { // nolint:golint]
+type LiqoProvider struct {
 	namespaceMapper namespacesMapping.MapperController
-	apiController   controller.ApiController
+	apiController   controller.APIController
 
 	tepReady             chan struct{}
 	advClient            *crdClient.CRDClient
@@ -39,8 +39,8 @@ type LiqoProvider struct { // nolint:golint]
 	internalIP         string
 	daemonEndpointPort int32
 	startTime          time.Time
-	foreignClusterId   string
 	homeClusterID      string
+	foreignClusterID   string
 	nodeController     *module.NodeController
 	providerKubeconfig string
 	restConfig         *rest.Config
@@ -52,8 +52,9 @@ type LiqoProvider struct { // nolint:golint]
 	foreignPodWatcherStop chan struct{}
 }
 
-// NewKubernetesProviderKubernetes creates a new KubernetesV0Provider. Kubernetes legacy provider does not implement the new asynchronous podnotifier interface.
-func NewLiqoProvider(nodeName, foreignClusterId, homeClusterId string, internalIP string, daemonEndpointPort int32, kubeconfig, remoteKubeConfig string, informerResyncPeriod time.Duration) (*LiqoProvider, error) {
+// NewLiqoProvider creates a new NewLiqoProvider instance.
+func NewLiqoProvider(nodeName, foreignClusterID, homeClusterID, internalIP string, daemonEndpointPort int32, kubeconfig,
+	remoteKubeConfig string, informerResyncPeriod time.Duration) (*LiqoProvider, error) {
 	var err error
 
 	if err = nattingv1.AddToScheme(clientgoscheme.Scheme); err != nil {
@@ -96,7 +97,7 @@ func NewLiqoProvider(nodeName, foreignClusterId, homeClusterId string, internalI
 		return nil, err
 	}
 
-	mapper, err := namespacesMapping.NewNamespaceMapperController(client, foreignClient, homeClusterId, foreignClusterId)
+	mapper, err := namespacesMapping.NewNamespaceMapperController(client, foreignClient, homeClusterID, foreignClusterID)
 	if err != nil {
 		klog.Fatal(err)
 	}
@@ -116,14 +117,14 @@ func NewLiqoProvider(nodeName, foreignClusterId, homeClusterId string, internalI
 	tepReady := make(chan struct{})
 
 	provider := LiqoProvider{
-		apiController:         controller.NewApiController(client.Client(), foreignClient, informerResyncPeriod, mapper, opts, tepReady),
+		apiController:         controller.NewAPIController(client.Client(), foreignClient, informerResyncPeriod, mapper, opts, tepReady),
 		namespaceMapper:       mapper,
 		nodeName:              virtualNodeNameOpt,
 		internalIP:            internalIP,
 		daemonEndpointPort:    daemonEndpointPort,
 		startTime:             time.Now(),
-		foreignClusterId:      foreignClusterId,
-		homeClusterID:         homeClusterId,
+		foreignClusterID:      foreignClusterID,
+		homeClusterID:         homeClusterID,
 		providerKubeconfig:    remoteKubeConfig,
 		nntClient:             client,
 		foreignPodWatcherStop: make(chan struct{}, 1),

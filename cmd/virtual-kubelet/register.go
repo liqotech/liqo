@@ -6,14 +6,14 @@ import (
 )
 
 func registerKubernetes(s *provider.Store) error {
-	return s.Register("kubernetes", func(cfg provider.InitConfig) (provider.Provider, error) { //nolint:errcheck
+	return s.Register("kubernetes", func(cfg provider.InitConfig) (provider.Provider, error) {
 		return liqoProvider.NewLiqoProvider(
 			cfg.NodeName,
-			cfg.ClusterId,
-			cfg.HomeClusterId,
+			cfg.RemoteClusterID,
+			cfg.HomeClusterID,
 			cfg.InternalIP,
 			cfg.DaemonPort,
-			cfg.ConfigPath,
+			cfg.HomeKubeConfig,
 			cfg.RemoteKubeConfig,
 			cfg.InformerResyncPeriod,
 		)

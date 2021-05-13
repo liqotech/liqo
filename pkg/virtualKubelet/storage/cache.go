@@ -7,7 +7,7 @@ import (
 
 	"k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/tools/cache"
+	clientgocache "k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/util/retry"
 
 	apimgmt "github.com/liqotech/liqo/pkg/virtualKubelet/apiReflection"
@@ -46,7 +46,7 @@ func (ac *NamespacedAPICaches) AddNamespace(namespace string) error {
 	}
 
 	ac.apiInformers[namespace] = &APICaches{
-		caches: make(map[apimgmt.ApiType]cache.SharedIndexInformer),
+		caches: make(map[apimgmt.ApiType]clientgocache.SharedIndexInformer),
 	}
 
 	factory := informers.NewSharedInformerFactoryWithOptions(ac.client, ac.resyncPeriod, informers.WithNamespace(namespace))
@@ -80,26 +80,26 @@ func (ac *NamespacedAPICaches) removeNamespace(namespace string) {
 
 // APICaches represents a set of informers for a set of APIs.
 type APICaches struct {
-	caches map[apimgmt.ApiType]cache.SharedIndexInformer
+	caches map[apimgmt.ApiType]clientgocache.SharedIndexInformer
 }
 
 // informer retrieves the cache for a specific api. If the cache does not exist, it returns nil.
-func (cache *APICaches) informer(api apimgmt.ApiType) cache.SharedIndexInformer {
+func (cache *APICaches) informer(api apimgmt.ApiType) clientgocache.SharedIndexInformer {
 	return cache.caches[api]
 }
 
-// getApi gets a specific given object for a specific given api.
-func (cache *APICaches) getApi(api apimgmt.ApiType, key string) (interface{}, error) {
+// getAPI gets a specific given object for a specific given api.
+func (cache *APICaches) getAPI(api apimgmt.ApiType, key string) (interface{}, error) {
 	return utils.GetObject(cache.caches[api], key, defaultBackoff)
 }
 
-// listApiByIndex lists all the api matching a specific index.
-func (cache *APICaches) listApiByIndex(api apimgmt.ApiType, key string) ([]interface{}, error) {
+// listAPIByIndex lists all the api matching a specific index.
+func (cache *APICaches) listAPIByIndex(api apimgmt.ApiType, key string) ([]interface{}, error) {
 	return utils.ListIndexedObjects(cache.caches[api], apimgmt.ApiNames[api], key)
 }
 
-// listApi lists the content of a given cached api.
-func (cache *APICaches) listApi(api apimgmt.ApiType) ([]interface{}, error) {
+// listAPI lists the content of a given cached api.
+func (cache *APICaches) listAPI(api apimgmt.ApiType) ([]interface{}, error) {
 	return utils.ListObjects(cache.caches[api])
 }
 

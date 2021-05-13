@@ -116,10 +116,12 @@ func (m *MockManager) ResyncListForeignNamespacedObject(apiType apimgmt.ApiType,
 	panic("implement me")
 }
 
-func (m *MockManager) GetHomeApiByIndex(apiType apimgmt.ApiType, s string, s2 string) (interface{}, error) {
+// GetHomeAPIByIndex is a mock implementation of the corresponding function (unimplemented).
+func (m *MockManager) GetHomeAPIByIndex(apiType apimgmt.ApiType, s, s2 string) (interface{}, error) {
 	panic("implement me")
 }
 
-func (m *MockManager) GetForeignApiByIndex(apiType apimgmt.ApiType, s string, s2 string) (interface{}, error) {
+// GetForeignAPIByIndex is a mock implementation of the corresponding function (unimplemented).
+func (m *MockManager) GetForeignAPIByIndex(apiType apimgmt.ApiType, s, s2 string) (interface{}, error) {
 	panic("implement me")
 }

@@ -29,8 +29,8 @@ type CacheManagerReader interface {
 	GetForeignNamespacedObject(apimgmt.ApiType, string, string) (interface{}, error)
 	ListHomeNamespacedObject(apimgmt.ApiType, string) ([]interface{}, error)
 	ListForeignNamespacedObject(apimgmt.ApiType, string) ([]interface{}, error)
-	GetHomeApiByIndex(apimgmt.ApiType, string, string) (interface{}, error)
-	GetForeignApiByIndex(apimgmt.ApiType, string, string) (interface{}, error)
+	GetHomeAPIByIndex(apimgmt.ApiType, string, string) (interface{}, error)
+	GetForeignAPIByIndex(apimgmt.ApiType, string, string) (interface{}, error)
 }
 
 type CacheManagerReaderAdder interface {
