@@ -15,8 +15,7 @@ import (
 )
 
 var (
-	defaultResyncPeriod = 30 * time.Second
-	defaultBackoff      = retry.DefaultBackoff
+	defaultBackoff = retry.DefaultBackoff
 )
 
 type NamespacedAPICaches struct {
@@ -25,6 +24,7 @@ type NamespacedAPICaches struct {
 	apiInformers      map[string]*APICaches
 	informerFactories map[string]informers.SharedInformerFactory
 	client            kubernetes.Interface
+	resyncPeriod      time.Duration
 }
 
 func (ac *NamespacedAPICaches) Namespace(namespace string) *APICaches {
@@ -49,7 +49,7 @@ func (ac *NamespacedAPICaches) AddNamespace(namespace string) error {
 		caches: make(map[apimgmt.ApiType]cache.SharedIndexInformer),
 	}
 
-	factory := informers.NewSharedInformerFactoryWithOptions(ac.client, defaultResyncPeriod, informers.WithNamespace(namespace))
+	factory := informers.NewSharedInformerFactoryWithOptions(ac.client, ac.resyncPeriod, informers.WithNamespace(namespace))
 	for api, builder := range InformerBuilders {
 		informer := builder(factory)
 		if indexers, ok := InformerIndexers[api]; ok {

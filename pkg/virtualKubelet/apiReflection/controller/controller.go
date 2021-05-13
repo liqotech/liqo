@@ -3,6 +3,7 @@ package controller
 import (
 	"errors"
 	"sync"
+	"time"
 
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/klog"
@@ -44,12 +45,12 @@ type Controller struct {
 	stopController chan struct{}
 }
 
-func NewApiController(homeClient, foreignClient kubernetes.Interface, mapper namespacesMapping.MapperController, opts map[options.OptionKey]options.Option, tepReady chan struct{}) *Controller {
+func NewApiController(homeClient, foreignClient kubernetes.Interface, informerResyncPeriod time.Duration, mapper namespacesMapping.MapperController, opts map[options.OptionKey]options.Option, tepReady chan struct{}) *Controller {
 	klog.V(2).Infof("starting reflection manager")
 
 	outgoingReflectionInforming := make(chan apiReflection.ApiEvent)
 	incomingReflectionInforming := make(chan apiReflection.ApiEvent)
-	cacheManager := storage.NewManager(homeClient, foreignClient)
+	cacheManager := storage.NewManager(homeClient, foreignClient, informerResyncPeriod)
 
 	c := &Controller{
 		mapper:                       mapper,

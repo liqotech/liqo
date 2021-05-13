@@ -2,6 +2,7 @@ package provider
 
 import (
 	"sync"
+	"time"
 
 	"github.com/liqotech/liqo/internal/utils/errdefs"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/manager"
@@ -62,15 +63,16 @@ func (s *Store) Exists(name string) bool {
 
 // InitConfig is the config passed to initialize a registered provider.
 type InitConfig struct {
-	ConfigPath        string
-	NodeName          string
-	InternalIP        string
-	DaemonPort        int32
-	KubeClusterDomain string
-	ResourceManager   *manager.ResourceManager
-	ClusterId         string
-	RemoteKubeConfig  string
-	HomeClusterId     string
+	ConfigPath           string
+	NodeName             string
+	InternalIP           string
+	DaemonPort           int32
+	KubeClusterDomain    string
+	ResourceManager      *manager.ResourceManager
+	ClusterId            string
+	RemoteKubeConfig     string
+	HomeClusterId        string
+	InformerResyncPeriod time.Duration
 }
 
 type InitFunc func(InitConfig) (Provider, error)

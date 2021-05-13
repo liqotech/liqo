@@ -1,6 +1,8 @@
 package storage
 
 import (
+	"time"
+
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	"k8s.io/client-go/kubernetes/fake"
@@ -40,13 +42,14 @@ var _ = Describe("CacheManager", func() {
 		})
 
 		Context("cache manager correctly formed", func() {
+			const informerResyncPeriod = 1 * time.Minute
 			var (
 				manager *Manager
 				err     error
 			)
 
 			BeforeEach(func() {
-				manager = NewManager(homeClient, foreignClient)
+				manager = NewManager(homeClient, foreignClient, informerResyncPeriod)
 			})
 
 			Context("cache Manager check", func() {
