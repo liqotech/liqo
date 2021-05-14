@@ -141,11 +141,10 @@ func NewTunnelController(mgr ctrl.Manager, wgc wireguard.Client, nl wireguard.Ne
 	return tc, nil
 }
 
-func (tc *TunnelController) Reconcile(req ctrl.Request) (ctrl.Result, error) {
+func (tc *TunnelController) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	if !tc.isConfigured {
 		<-tc.configChan
 	}
-	ctx := context.Background()
 	var endpoint netv1alpha1.TunnelEndpoint
 	// name of our finalizer
 	if err := tc.Get(ctx, req.NamespacedName, &endpoint); err != nil {

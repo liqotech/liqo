@@ -14,9 +14,9 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes/scheme"
-	"k8s.io/client-go/tools/remotecommand"
+	"k8s.io/kubernetes/pkg/kubelet/cri/streaming/remotecommand"
 	"k8s.io/klog"
-	stats "k8s.io/kubernetes/pkg/kubelet/apis/stats/v1alpha1"
+	stats "k8s.io/kubelet/pkg/apis/stats/v1alpha1"
 
 	"github.com/liqotech/liqo/pkg/virtualKubelet"
 	apimgmgt "github.com/liqotech/liqo/pkg/virtualKubelet/apiReflection"

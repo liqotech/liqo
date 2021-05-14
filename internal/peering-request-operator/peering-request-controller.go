@@ -60,9 +60,7 @@ type PeeringRequestReconciler struct {
 // +kubebuilder:rbac:groups=core,namespace="liqo",resources=configmaps,verbs=get;list;watch;create;update
 // +kubebuilder:rbac:groups=core,namespace="liqo",resources=secrets,verbs=get;patch;create
 
-func (r *PeeringRequestReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
-	_ = context.Background()
-
+func (r *PeeringRequestReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	klog.Info("Reconciling PeeringRequest " + req.Name)
 
 	tmp, err := r.crdClient.Resource("peeringrequests").Get(req.Name, &metav1.GetOptions{})

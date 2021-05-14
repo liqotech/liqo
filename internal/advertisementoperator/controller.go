@@ -83,8 +83,7 @@ type AdvertisementReconciler struct {
 // +kubebuilder:rbac:groups=core,resources=events/status,verbs=get
 // +kubebuilder:rbac:groups=core,resources=serviceaccounts,verbs=get;list;watch;create;update;patch;delete
 
-func (r *AdvertisementReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
-	ctx := context.Background()
+func (r *AdvertisementReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 
 	// initialize the checkRemoteCluster map
 	if r.checkRemoteCluster == nil {

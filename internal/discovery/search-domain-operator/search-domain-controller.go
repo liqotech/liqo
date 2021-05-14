@@ -1,6 +1,7 @@
 package searchdomainoperator
 
 import (
+	"context"
 	"errors"
 	"time"
 
@@ -27,7 +28,7 @@ type SearchDomainReconciler struct {
 }
 
 // Reconcile reconciles SearchDomain resources.
-func (r *SearchDomainReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
+func (r *SearchDomainReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	klog.Info("Reconciling SearchDomain " + req.Name)
 
 	tmp, err := r.crdClient.Resource("searchdomains").Get(req.Name, &metav1.GetOptions{})
