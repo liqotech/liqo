@@ -17,11 +17,11 @@ type localManager interface {
 	GetSigningRequest(remoteClusterID string) ([]byte, error)
 	StoreCertificate(remoteClusterID string, certificate []byte) error
 
-	GetConfig(remoteClusterID string, masterUrl string) (*rest.Config, error)
+	GetConfig(remoteClusterID, masterURL string) (*rest.Config, error)
 }
 
 // interface that allows to manage the identity in the target cluster, where this identity has to be used.
 type remoteManager interface {
-	ApproveSigningRequest(clusterID string, signingRequest string) (certificate []byte, err error)
-	GetRemoteCertificate(clusterID string, signingRequest string) (certificate []byte, err error)
+	ApproveSigningRequest(clusterID, signingRequest string) (certificate []byte, err error)
+	GetRemoteCertificate(clusterID, signingRequest string) (certificate []byte, err error)
 }

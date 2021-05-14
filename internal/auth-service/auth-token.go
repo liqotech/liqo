@@ -23,7 +23,7 @@ type tokenManager interface {
 	createToken() error
 }
 
-func (authService *AuthServiceCtrl) getToken() (string, error) {
+func (authService *Controller) getToken() (string, error) {
 	obj, exists, err := authService.secretInformer.GetStore().GetByKey(
 		strings.Join([]string{
 			authService.namespace,
@@ -53,7 +53,7 @@ func (authService *AuthServiceCtrl) getToken() (string, error) {
 	return authService.getTokenFromSecret(secret.DeepCopy())
 }
 
-func (authService *AuthServiceCtrl) createToken() error {
+func (authService *Controller) createToken() error {
 	_, exists, _ := authService.secretInformer.GetStore().GetByKey(
 		strings.Join([]string{
 			authService.namespace,
@@ -82,7 +82,7 @@ func (authService *AuthServiceCtrl) createToken() error {
 	return nil
 }
 
-func (authService *AuthServiceCtrl) getTokenFromSecret(secret *v1.Secret) (string, error) {
+func (authService *Controller) getTokenFromSecret(secret *v1.Secret) (string, error) {
 	v, ok := secret.Data["token"]
 	if !ok {
 		// TODO: specialise secret type

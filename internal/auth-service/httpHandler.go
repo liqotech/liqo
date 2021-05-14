@@ -13,7 +13,7 @@ import (
 	"github.com/liqotech/liqo/pkg/auth"
 )
 
-func (authService *AuthServiceCtrl) role(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
+func (authService *Controller) role(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 	bytes, err := ioutil.ReadAll(r.Body)
 	if err != nil {
 		klog.Error(err)
@@ -103,7 +103,7 @@ func (authService *AuthServiceCtrl) role(w http.ResponseWriter, r *http.Request,
 	}
 }
 
-func (authService *AuthServiceCtrl) handleError(w http.ResponseWriter, err error) {
+func (authService *Controller) handleError(w http.ResponseWriter, err error) {
 	if errors.Is(err, &kerrors.StatusError{}) {
 		authService.sendError(w, "forbidden", http.StatusForbidden)
 	} else {
@@ -111,7 +111,7 @@ func (authService *AuthServiceCtrl) handleError(w http.ResponseWriter, err error
 	}
 }
 
-func (authService *AuthServiceCtrl) sendError(w http.ResponseWriter, resp interface{}, code int) {
+func (authService *Controller) sendError(w http.ResponseWriter, resp interface{}, code int) {
 	bytes := []byte{}
 	var err error
 	if resp != nil {

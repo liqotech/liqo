@@ -10,7 +10,7 @@ import (
 )
 
 // GetAuthServiceConfig starts the watcher to ClusterConfing CR.
-func (authService *AuthServiceCtrl) GetAuthServiceConfig(kubeconfigPath string) {
+func (authService *Controller) GetAuthServiceConfig(kubeconfigPath string) {
 	waitFirst := make(chan struct{})
 	isFirst := true
 	go utils.WatchConfiguration(func(configuration *configv1alpha1.ClusterConfig) {
@@ -25,33 +25,33 @@ func (authService *AuthServiceCtrl) GetAuthServiceConfig(kubeconfigPath string) 
 	<-waitFirst
 }
 
-func (authService *AuthServiceCtrl) handleConfiguration(config *configv1alpha1.AuthConfig) {
+func (authService *Controller) handleConfiguration(config *configv1alpha1.AuthConfig) {
 	authService.configMutex.Lock()
 	defer authService.configMutex.Unlock()
 	authService.config = config.DeepCopy()
 }
 
 // GetConfig returns the configuration of the local Authentication service.
-func (authService *AuthServiceCtrl) GetConfig() *configv1alpha1.AuthConfig {
+func (authService *Controller) GetConfig() *configv1alpha1.AuthConfig {
 	authService.configMutex.RLock()
 	defer authService.configMutex.RUnlock()
 	return authService.config.DeepCopy()
 }
 
 // GetAPIServerConfig returns the configuration of the local APIServer (address, port).
-func (authService *AuthServiceCtrl) GetAPIServerConfig() *configv1alpha1.APIServerConfig {
+func (authService *Controller) GetAPIServerConfig() *configv1alpha1.APIServerConfig {
 	authService.configMutex.RLock()
 	defer authService.configMutex.RUnlock()
 	return authService.apiServerConfig.DeepCopy()
 }
 
-func (authService *AuthServiceCtrl) handleDiscoveryConfiguration(config *configv1alpha1.DiscoveryConfig) {
+func (authService *Controller) handleDiscoveryConfiguration(config *configv1alpha1.DiscoveryConfig) {
 	authService.configMutex.Lock()
 	defer authService.configMutex.Unlock()
 	authService.discoveryConfig = *config.DeepCopy()
 }
 
-func (authService *AuthServiceCtrl) handleAPIServerConfiguration(config *configv1alpha1.APIServerConfig) {
+func (authService *Controller) handleAPIServerConfiguration(config *configv1alpha1.APIServerConfig) {
 	authService.configMutex.Lock()
 	defer authService.configMutex.Unlock()
 
@@ -64,7 +64,7 @@ func (authService *AuthServiceCtrl) handleAPIServerConfiguration(config *configv
 	authService.apiServerConfig = config.DeepCopy()
 }
 
-func (authService *AuthServiceCtrl) getDiscoveryConfig() configv1alpha1.DiscoveryConfig {
+func (authService *Controller) getDiscoveryConfig() configv1alpha1.DiscoveryConfig {
 	authService.configMutex.RLock()
 	defer authService.configMutex.RUnlock()
 	return authService.discoveryConfig

@@ -11,6 +11,7 @@ import (
 	"github.com/liqotech/liqo/pkg/kubeconfig"
 )
 
+// GetConfig returns a rest config object reading it form the kubeconfig secret.
 func (pr *PeeringRequest) GetConfig(clientset kubernetes.Interface) (*rest.Config, error) {
 	return getConfig(clientset, pr.Spec.KubeConfigRef)
 }

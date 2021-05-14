@@ -10,7 +10,7 @@ import (
 	"github.com/liqotech/liqo/pkg/discovery"
 )
 
-func (authService *AuthServiceCtrl) createRole(remoteClusterID string, sa *v1.ServiceAccount) (*rbacv1.Role, error) {
+func (authService *Controller) createRole(remoteClusterID string, sa *v1.ServiceAccount) (*rbacv1.Role, error) {
 	role := &rbacv1.Role{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: sa.Name,

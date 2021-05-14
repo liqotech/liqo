@@ -49,7 +49,7 @@ func StartOperator(namespace string, broadcasterImage string, broadcasterService
 		os.Exit(1)
 	}
 
-	clusterId, err := clusterid.NewClusterID(kubeconfigPath)
+	clusterID, err := clusterid.NewClusterID(kubeconfigPath)
 	if err != nil {
 		klog.Error(err, "unable to get clusterid")
 		os.Exit(1)
@@ -59,7 +59,7 @@ func StartOperator(namespace string, broadcasterImage string, broadcasterService
 		mgr.GetScheme(),
 		client,
 		namespace,
-		clusterId,
+		clusterID,
 		broadcasterImage,
 		broadcasterServiceAccount,
 		vkServiceAccount,

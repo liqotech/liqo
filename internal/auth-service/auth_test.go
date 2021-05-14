@@ -105,7 +105,7 @@ var _ = Describe("Auth", func() {
 	var (
 		cluster     testUtils2.Cluster
 		clusterID   test.ClusterIDMock
-		authService AuthServiceCtrl
+		authService Controller
 
 		tMan tokenManagerMock
 
@@ -146,7 +146,7 @@ var _ = Describe("Auth", func() {
 		namespaceManager := tenantcontrolnamespace.NewTenantControlNamespaceManager(cluster.GetClient().Client())
 		identityManager := identitymanager.NewCertificateIdentityManager(cluster.GetClient().Client(), &clusterID, namespaceManager)
 
-		authService = AuthServiceCtrl{
+		authService = Controller{
 			namespace:            "default",
 			restConfig:           cluster.GetClient().Config(),
 			clientset:            cluster.GetClient().Client(),
