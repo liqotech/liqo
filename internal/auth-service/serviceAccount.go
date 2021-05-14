@@ -25,7 +25,7 @@ func isNoContent(err error) bool {
 	return false
 }
 
-func (authService *AuthServiceCtrl) getServiceAccountCompleted(
+func (authService *Controller) getServiceAccountCompleted(
 	remoteClusterID string) (sa *v1.ServiceAccount, err error) {
 	err = retry.OnError(
 		retry.DefaultBackoff,
@@ -62,7 +62,7 @@ func (authService *AuthServiceCtrl) getServiceAccountCompleted(
 	return sa, err
 }
 
-func (authService *AuthServiceCtrl) getServiceAccount(remoteClusterID string) (*v1.ServiceAccount, error) {
+func (authService *Controller) getServiceAccount(remoteClusterID string) (*v1.ServiceAccount, error) {
 	tmp, exists, err := authService.saInformer.GetStore().GetByKey(
 		strings.Join([]string{authService.namespace, fmt.Sprintf("remote-%s", remoteClusterID)}, "/"))
 	if err != nil {
@@ -82,7 +82,7 @@ func (authService *AuthServiceCtrl) getServiceAccount(remoteClusterID string) (*
 	return sa, nil
 }
 
-func (authService *AuthServiceCtrl) createServiceAccount(remoteClusterID string) (*v1.ServiceAccount, error) {
+func (authService *Controller) createServiceAccount(remoteClusterID string) (*v1.ServiceAccount, error) {
 	sa := &v1.ServiceAccount{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: fmt.Sprintf("remote-%s", remoteClusterID),

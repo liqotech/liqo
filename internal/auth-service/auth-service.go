@@ -50,8 +50,8 @@ import (
 // +kubebuilder:rbac:groups=rbac.authorization.k8s.io,namespace="do-not-care",resources=roles,verbs=create;delete
 // +kubebuilder:rbac:groups=rbac.authorization.k8s.io,namespace="do-not-care",resources=rolebindings,verbs=create;delete
 
-// AuthServiceCtrl is the controller for the Authentication Service.
-type AuthServiceCtrl struct {
+// Controller is the controller for the Authentication Service.
+type Controller struct {
 	namespace      string
 	restConfig     *rest.Config
 	clientset      kubernetes.Interface
@@ -74,7 +74,7 @@ type AuthServiceCtrl struct {
 }
 
 // NewAuthServiceCtrl creates a new Auth Controller.
-func NewAuthServiceCtrl(namespace, kubeconfigPath string, resyncTime time.Duration, useTLS bool) (*AuthServiceCtrl, error) {
+func NewAuthServiceCtrl(namespace, kubeconfigPath string, resyncTime time.Duration, useTLS bool) (*Controller, error) {
 	config, err := crdclient.NewKubeconfig(kubeconfigPath, &discoveryv1alpha1.GroupVersion, nil)
 	if err != nil {
 		return nil, err
@@ -116,7 +116,7 @@ func NewAuthServiceCtrl(namespace, kubeconfigPath string, resyncTime time.Durati
 	namespaceManager := tenantcontrolnamespace.NewTenantControlNamespaceManager(clientset)
 	idManager := identitymanager.NewCertificateIdentityManager(clientset, localClusterID, namespaceManager)
 
-	return &AuthServiceCtrl{
+	return &Controller{
 		namespace:            namespace,
 		restConfig:           config,
 		clientset:            clientset,
@@ -132,7 +132,7 @@ func NewAuthServiceCtrl(namespace, kubeconfigPath string, resyncTime time.Durati
 }
 
 // Start starts the authentication service.
-func (authService *AuthServiceCtrl) Start(listeningPort, certFile, keyFile string) error {
+func (authService *Controller) Start(listeningPort, certFile, keyFile string) error {
 	if err := authService.configureToken(); err != nil {
 		return err
 	}
@@ -161,7 +161,7 @@ func (authService *AuthServiceCtrl) Start(listeningPort, certFile, keyFile strin
 	return nil
 }
 
-func (authService *AuthServiceCtrl) configureToken() error {
+func (authService *Controller) configureToken() error {
 	if err := authService.createToken(); err != nil {
 		return err
 	}
@@ -202,17 +202,17 @@ func (authService *AuthServiceCtrl) configureToken() error {
 	return nil
 }
 
-func (authService *AuthServiceCtrl) getConfigProvider() auth.ConfigProvider {
+func (authService *Controller) getConfigProvider() auth.ConfigProvider {
 	return authService
 }
 
-func (authService *AuthServiceCtrl) getTokenManager() tokenManager {
+func (authService *Controller) getTokenManager() tokenManager {
 	return authService
 }
 
 // populatePermission populates the list of ClusterRoles to bind
 // in the different peering phases reading the ClusterConfig CR.
-func (authService *AuthServiceCtrl) populatePermission() error {
+func (authService *Controller) populatePermission() error {
 	peeringPermission, err := peeringRoles.GetPeeringPermission(authService.clientset, authService)
 	if err != nil {
 		klog.Error(err)

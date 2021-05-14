@@ -53,6 +53,7 @@ type ForeignClusterSpec struct {
 	TrustMode discovery.TrustMode `json:"trustMode,omitempty"`
 }
 
+// ClusterIdentity contains the information about a remote cluster (ID and Name).
 type ClusterIdentity struct {
 	// Foreign Cluster ID, this is a unique identifier of that cluster.
 	ClusterID string `json:"clusterID"`
@@ -77,6 +78,7 @@ type ForeignClusterStatus struct {
 	AuthStatus discovery.AuthStatus `json:"authStatus,omitempty"`
 }
 
+// ResourceLink contains information on the reference of an kubernetes resource.
 type ResourceLink struct {
 	// Indicates if the resource is available.
 	Available bool `json:"available"`
@@ -84,6 +86,7 @@ type ResourceLink struct {
 	Reference *v1.ObjectReference `json:"reference,omitempty"`
 }
 
+// Network contains the information on the network status.
 type Network struct {
 	// Local NetworkConfig link.
 	LocalNetworkConfig ResourceLink `json:"localNetworkConfig"`
@@ -93,6 +96,7 @@ type Network struct {
 	TunnelEndpoint ResourceLink `json:"tunnelEndpoint"`
 }
 
+// Outgoing contains the status of the outgoing peering.
 type Outgoing struct {
 	// Indicates if peering request has been created and this remote cluster is sharing its resources to us.
 	Joined bool `json:"joined"`
@@ -108,6 +112,7 @@ type Outgoing struct {
 	AdvertisementStatus advtypes.AdvPhase `json:"advertisementStatus,omitempty"`
 }
 
+// Incoming contains the status of the incoming peering.
 type Incoming struct {
 	// Indicates if peering request has been created and this remote cluster is using our local resources.
 	Joined bool `json:"joined"`

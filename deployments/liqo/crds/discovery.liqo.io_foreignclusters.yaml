@@ -102,6 +102,7 @@ spec:
                 - EmptyRefused
                 type: string
               incoming:
+                description: Incoming contains the status of the incoming peering.
                 properties:
                   advertisementStatus:
                     description: Status of Advertisement created from this PeeringRequest.
@@ -335,6 +336,7 @@ spec:
                 - tunnelEndpoint
                 type: object
               outgoing:
+                description: Outgoing contains the status of the outgoing peering.
                 properties:
                   advertisement:
                     description: Object Reference to created Advertisement CR.

@@ -1,3 +1,5 @@
+// Package utils contains functions useful for the discovery component,
+// in particular during the communications with a remote cluster.
 package utils
 
 import (
@@ -16,7 +18,7 @@ import (
 	"github.com/liqotech/liqo/pkg/discovery"
 )
 
-// check if the error is due to a TLS certificate signed by unknown authority.
+// IsUnknownAuthority checks if the error is due to a TLS certificate signed by unknown authority.
 func IsUnknownAuthority(err error) bool {
 	var err509 x509.UnknownAuthorityError
 	var err509Hostname x509.HostnameError

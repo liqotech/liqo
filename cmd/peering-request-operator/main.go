@@ -16,10 +16,14 @@ func main() {
 	var broadcasterImage, broadcasterServiceAccount, vkServiceAccount string
 	var kubeconfigPath string
 
-	flag.StringVar(&broadcasterImage, "broadcaster-image", "liqo/advertisement-broadcaster", "Broadcaster-operator image name")
-	flag.StringVar(&broadcasterServiceAccount, "broadcaster-sa", "broadcaster", "Broadcaster-operator ServiceAccount name")
-	flag.StringVar(&vkServiceAccount, "vk-sa", "vk-remote", "Remote VirtualKubelet ServiceAccount name")
-	flag.StringVar(&kubeconfigPath, "kubeconfigPath", filepath.Join(os.Getenv("HOME"), ".kube", "config"), "For debug purpose, set path to local kubeconfig")
+	flag.StringVar(&broadcasterImage,
+		"broadcaster-image", "liqo/advertisement-broadcaster", "Broadcaster-operator image name")
+	flag.StringVar(&broadcasterServiceAccount,
+		"broadcaster-sa", "broadcaster", "Broadcaster-operator ServiceAccount name")
+	flag.StringVar(&vkServiceAccount,
+		"vk-sa", "vk-remote", "Remote VirtualKubelet ServiceAccount name")
+	flag.StringVar(&kubeconfigPath,
+		"kubeconfigPath", filepath.Join(os.Getenv("HOME"), ".kube", "config"), "For debug purpose, set path to local kubeconfig")
 	flag.Parse()
 
 	namespace, ok := os.LookupEnv("POD_NAMESPACE")

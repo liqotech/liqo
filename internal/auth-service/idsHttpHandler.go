@@ -15,7 +15,7 @@ import (
 // - clusterID		-> the id of the home cluster.
 // - clusterName	-> the custom name for the home cluster (to be displayed in GUIs).
 // - guestNamespace	-> the namespace where to create secrets and resources to be shared with the home cluster.
-func (authService *AuthServiceCtrl) ids(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
+func (authService *Controller) ids(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 	idsResponse := authService.getIdsResponse()
 
 	res, err := json.Marshal(idsResponse)
@@ -32,7 +32,7 @@ func (authService *AuthServiceCtrl) ids(w http.ResponseWriter, r *http.Request, 
 	}
 }
 
-func (authService *AuthServiceCtrl) getIdsResponse() *auth.ClusterInfo {
+func (authService *Controller) getIdsResponse() *auth.ClusterInfo {
 	conf := authService.getDiscoveryConfig()
 	return &auth.ClusterInfo{
 		ClusterID:      authService.localClusterID.GetClusterID(),

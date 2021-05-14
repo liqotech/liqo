@@ -198,10 +198,10 @@ func getExpireTime(secret *v1.Secret) int64 {
 		return now
 	}
 
-	if n, err := strconv.ParseInt(timeStr, 10, 64); err != nil {
+	n, err := strconv.ParseInt(timeStr, 10, 64)
+	if err != nil {
 		klog.Warning(err)
 		return now
-	} else {
-		return n
 	}
+	return n
 }

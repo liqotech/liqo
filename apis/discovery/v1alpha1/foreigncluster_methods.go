@@ -15,6 +15,8 @@ import (
 	"github.com/liqotech/liqo/pkg/discovery"
 )
 
+// CheckTrusted checks if a remote cluster is exposing the authentication endpoint
+// with a certificate issued by a trusted CA or not.
 func (fc *ForeignCluster) CheckTrusted() (bool, error) {
 	_, trustMode, err := utils.GetClusterInfo(fc.Spec.AuthURL)
 	return trustMode == discovery.TrustModeTrusted, err
@@ -69,6 +71,7 @@ func (fc *ForeignCluster) LastUpdateNow() {
 	fc.SetAnnotations(ann)
 }
 
+// IsExpired checks if this foreign cluster has been updated before the end of its TimeToLive.
 func (fc *ForeignCluster) IsExpired() bool {
 	ann := fc.GetAnnotations()
 	if ann == nil {

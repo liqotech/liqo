@@ -14,7 +14,7 @@ import (
 )
 
 // identity handles the certificate identity http request.
-func (authService *AuthServiceCtrl) identity(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
+func (authService *Controller) identity(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 	bytes, err := ioutil.ReadAll(r.Body)
 	if err != nil {
 		klog.Error(err)
@@ -53,7 +53,7 @@ func (authService *AuthServiceCtrl) identity(w http.ResponseWriter, r *http.Requ
 }
 
 // handleIdentity creates a certificate and a CertificateIdentityResponse, given a CertificateIdentityRequest.
-func (authService *AuthServiceCtrl) handleIdentity(
+func (authService *Controller) handleIdentity(
 	identityRequest auth.CertificateIdentityRequest) (*auth.CertificateIdentityResponse, error) {
 	var err error
 

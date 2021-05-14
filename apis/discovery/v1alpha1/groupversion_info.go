@@ -31,11 +31,16 @@ var (
 	// SchemeBuilder is used to add go types to the GroupVersionKind scheme.
 	SchemeBuilder = &scheme.Builder{GroupVersion: GroupVersion}
 
-	ForeignClusterGroupVersionResource = schema.GroupVersionResource{Group: GroupVersion.Group, Version: GroupVersion.Version, Resource: "foreignclusters"}
+	// ForeignClusterGroupVersionResource is the group version resource used to register ForeignCluster CRD.
+	ForeignClusterGroupVersionResource = schema.GroupVersionResource{
+		Group:    GroupVersion.Group,
+		Version:  GroupVersion.Version,
+		Resource: "foreignclusters",
+	}
 
 	// AddToScheme adds the types in this group-version to the given scheme.
 	AddToScheme = SchemeBuilder.AddToScheme
 
-	//ForeignClusterGroupResource is the group resource used to register ForeignCluster CRD.
+	// ForeignClusterGroupResource is the group resource used to register ForeignCluster CRD.
 	ForeignClusterGroupResource = schema.GroupResource{Group: GroupVersion.Group, Resource: "foreignclusters"}
 )
