@@ -1,6 +1,8 @@
 package tunnelEndpointCreator
 
 import (
+	"context"
+
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/dynamic/dynamicinformer"
@@ -16,8 +18,8 @@ func (tec *TunnelEndpointCreator) StartForeignClusterWatcher() {
 		tec.WaitConfig.Wait()
 		klog.Infof("Operator configured: ForeignClusterWatcher is now starting")
 	}
-	chacheChan := make(chan struct{})
-	started := tec.Manager.GetCache().WaitForCacheSync(chacheChan)
+	ctx := context.Background()
+	started := tec.Manager.GetCache().WaitForCacheSync(ctx)
 	if !started {
 		klog.Errorf("unable to sync caches")
 		return

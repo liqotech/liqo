@@ -5,7 +5,6 @@ go 1.16
 require (
 	cloud.google.com/go v0.56.0 // indirect
 	github.com/coreos/go-iptables v0.4.5
-	github.com/go-logr/zapr v0.4.0 // indirect
 	github.com/google/go-cmp v0.5.3
 	github.com/google/gofuzz v1.2.0 // indirect
 	github.com/google/uuid v1.2.0
@@ -21,8 +20,6 @@ require (
 	github.com/onsi/ginkgo v1.15.2
 	github.com/onsi/gomega v1.11.0
 	github.com/pkg/errors v0.9.1
-	github.com/prometheus/client_golang v1.8.0 // indirect
-	github.com/prometheus/common v0.15.0 // indirect
 	github.com/sirupsen/logrus v1.8.1
 	github.com/spf13/cobra v1.1.1
 	github.com/spf13/pflag v1.0.5
@@ -30,7 +27,6 @@ require (
 	github.com/vishvananda/netlink v1.1.0
 	go.opencensus.io v0.23.0
 	go.uber.org/multierr v1.6.0 // indirect
-	go.uber.org/zap v1.16.0 // indirect
 	golang.org/x/sys v0.0.0-20210317225723-c4fcb01b228e
 	golang.org/x/tools v0.1.0
 	golang.zx2c4.com/wireguard/wgctrl v0.0.0-20200609130330-bd2cb7843e1b
@@ -46,7 +42,7 @@ require (
 	k8s.io/kubernetes v1.21.0
 	k8s.io/metrics v0.21.0
 	k8s.io/utils v0.0.0-20210111153108-fddb29f9d009
-	sigs.k8s.io/controller-runtime v0.8.3
+	sigs.k8s.io/controller-runtime v0.9.0-beta.2
 )
 
 replace k8s.io/legacy-cloud-providers => k8s.io/legacy-cloud-providers v0.21.0

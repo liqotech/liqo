@@ -42,7 +42,7 @@ const (
 )
 
 // Reconcile checks presence of right labels on the Namespace.
-func (r *NamespaceReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
+func (r *NamespaceReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	namespace := &corev1.Namespace{}
 	if err := r.Get(context.TODO(), req.NamespacedName, namespace); err != nil {
 		klog.Errorf("%s --> Unable to get namespace '%s'", err, req.Name)

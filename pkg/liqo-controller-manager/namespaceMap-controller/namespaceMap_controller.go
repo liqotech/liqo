@@ -46,7 +46,7 @@ const (
 
 // Reconcile adds/removes NamespaceMap finalizer, and checks differences
 // between DesiredMapping and CurrentMapping.
-func (r *NamespaceMapReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
+func (r *NamespaceMapReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	namespaceMap := &mapsv1alpha1.NamespaceMap{}
 	if err := r.Get(context.TODO(), req.NamespacedName, namespaceMap); err != nil {
 		klog.Errorf("%s --> Unable to get NamespaceMap '%s'", err, req.Name)

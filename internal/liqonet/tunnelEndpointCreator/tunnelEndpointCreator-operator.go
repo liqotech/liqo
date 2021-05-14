@@ -214,9 +214,9 @@ func (tec *TunnelEndpointCreator) SetupWithManager(mgr ctrl.Manager) error {
 
 // SetupSignalHandlerForTunEndCreator registers for SIGTERM, SIGINT, SIGKILL. A stop channel is returned
 // which is closed on one of these signals.
-func (tec *TunnelEndpointCreator) SetupSignalHandlerForTunEndCreator() (stopCh <-chan struct{}) {
+func (tec *TunnelEndpointCreator) SetupSignalHandlerForTunEndCreator() context.Context {
 	klog.Infof("starting signal handler for tunnelEndpointCreator-operator")
-	stop := make(chan struct{})
+	ctx, done := context.WithCancel(context.Background())
 	c := make(chan os.Signal, 1)
 	signal.Notify(c, liqonet.ShutdownSignals...)
 	go func(r *TunnelEndpointCreator) {
@@ -224,9 +224,9 @@ func (tec *TunnelEndpointCreator) SetupSignalHandlerForTunEndCreator() (stopCh <
 		klog.Infof("received signal: %s", sig.String())
 		// closing shared informers
 		close(r.ForeignClusterStopWatcher)
-		close(stop)
+		done()
 	}(tec)
-	return stop
+	return ctx
 }
 
 // Watcher for resources.

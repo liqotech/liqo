@@ -55,14 +55,14 @@ func startDispatcherOperator() {
 		klog.Error(err)
 		os.Exit(-1)
 	}
-	cacheStartedLocal := make(chan struct{})
+	ctx := context.TODO()
 	go func() {
 		if err = k8sManagerLocal.Start(ctrl.SetupSignalHandler()); err != nil {
 			klog.Error(err)
 			panic(err)
 		}
 	}()
-	started := k8sManagerLocal.GetCache().WaitForCacheSync(cacheStartedLocal)
+	started := k8sManagerLocal.GetCache().WaitForCacheSync(ctx)
 	if !started {
 		klog.Errorf("an error occurred while waiting for the chache to start")
 		os.Exit(-1)

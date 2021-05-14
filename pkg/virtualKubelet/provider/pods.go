@@ -14,7 +14,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes/scheme"
-	"k8s.io/kubernetes/pkg/kubelet/cri/streaming/remotecommand"
+	remotecommandclient "k8s.io/client-go/tools/remotecommand"
 	"k8s.io/klog"
 	stats "k8s.io/kubelet/pkg/apis/stats/v1alpha1"
 
@@ -244,12 +244,12 @@ func (p *LiqoProvider) RunInContainer(_ context.Context, homeNamespace string, h
 			TTY:       true,
 		}, scheme.ParameterCodec)
 
-	exec, err := remotecommand.NewSPDYExecutor(p.restConfig, "POST", req.URL())
+	exec, err := remotecommandclient.NewSPDYExecutor(p.restConfig, "POST", req.URL())
 	if err != nil {
 		return fmt.Errorf("could not make remote command: %v", err)
 	}
 
-	err = exec.Stream(remotecommand.StreamOptions{
+	err = exec.Stream(remotecommandclient.StreamOptions{
 		Stdin:  attach.Stdin(),
 		Stdout: attach.Stdout(),
 		Stderr: attach.Stderr(),
