@@ -76,6 +76,11 @@ func getServiceEnvVarMap(ns string, enableServiceLinks bool, remoteNs string, ca
 		}
 		serviceName := service.Name
 
+		// Skipping the default/kubernetes service, as not reflected in the foreign namespace.
+		if service.Namespace == v1.NamespaceDefault && service.Name == "kubernetes" && remoteNs != v1.NamespaceDefault {
+			continue
+		}
+
 		if service.Namespace == ns && enableServiceLinks {
 			if err = addService(&serviceMap, cacheManager, remoteNs, serviceName, true); err != nil {
 				err := errors.Wrapf(err, "cannot add remote service")
