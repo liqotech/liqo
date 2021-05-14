@@ -11,7 +11,7 @@ import (
 	"k8s.io/kubernetes/pkg/util/slice"
 
 	configv1alpha1 "github.com/liqotech/liqo/apis/config/v1alpha1"
-	"github.com/liqotech/liqo/pkg/crdClient"
+	crdclient "github.com/liqotech/liqo/pkg/crdClient"
 	"github.com/liqotech/liqo/pkg/liqonet"
 	"github.com/liqotech/liqo/pkg/utils"
 )
@@ -180,7 +180,7 @@ func (tec *TunnelEndpointCreator) WatchConfiguration(config *rest.Config, gv *sc
 	config.APIPath = "/apis"
 	config.NegotiatedSerializer = scheme.Codecs.WithoutConversion()
 	config.UserAgent = rest.DefaultKubernetesUserAgent()
-	CRDclient, err := crdClient.NewFromConfig(config)
+	CRDclient, err := crdclient.NewFromConfig(config)
 	if err != nil {
 		klog.Error(err, err.Error())
 		os.Exit(1)

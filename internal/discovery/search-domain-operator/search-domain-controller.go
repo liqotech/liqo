@@ -12,7 +12,7 @@ import (
 
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	"github.com/liqotech/liqo/internal/discovery"
-	"github.com/liqotech/liqo/pkg/crdClient"
+	crdclient "github.com/liqotech/liqo/pkg/crdClient"
 )
 
 // SearchDomainReconciler is the reconciler manager for SearchDomain resources.
@@ -20,7 +20,7 @@ type SearchDomainReconciler struct {
 	Scheme *runtime.Scheme
 
 	requeueAfter  time.Duration
-	crdClient     *crdClient.CRDClient
+	crdClient     *crdclient.CRDClient
 	DiscoveryCtrl *discovery.Controller
 
 	DNSAddress string

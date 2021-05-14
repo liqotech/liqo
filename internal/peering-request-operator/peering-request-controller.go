@@ -31,7 +31,7 @@ import (
 
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	"github.com/liqotech/liqo/pkg/clusterid"
-	"github.com/liqotech/liqo/pkg/crdClient"
+	crdclient "github.com/liqotech/liqo/pkg/crdClient"
 	object_references "github.com/liqotech/liqo/pkg/object-references"
 )
 
@@ -39,7 +39,7 @@ import (
 type PeeringRequestReconciler struct {
 	Scheme *runtime.Scheme
 
-	crdClient                 *crdClient.CRDClient
+	crdClient                 *crdclient.CRDClient
 	Namespace                 string
 	clusterID                 clusterid.ClusterID
 	broadcasterImage          string

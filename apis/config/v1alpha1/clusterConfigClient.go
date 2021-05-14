@@ -9,11 +9,11 @@ import (
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/cache"
 
-	"github.com/liqotech/liqo/pkg/crdClient"
+	crdclient "github.com/liqotech/liqo/pkg/crdClient"
 )
 
 // CreateClusterConfigClient creates a client for ClusterConfig CR using a provided kubeconfig.
-func CreateClusterConfigClient(kubeconfig string, watchResources bool) (*crdClient.CRDClient, error) {
+func CreateClusterConfigClient(kubeconfig string, watchResources bool) (*crdclient.CRDClient, error) {
 	var config *rest.Config
 	var err error
 
@@ -21,20 +21,20 @@ func CreateClusterConfigClient(kubeconfig string, watchResources bool) (*crdClie
 		panic(err)
 	}
 
-	crdClient.AddToRegistry("clusterconfigs", &ClusterConfig{}, &ClusterConfigList{}, Keyer, ClusterConfigGroupResource)
+	crdclient.AddToRegistry("clusterconfigs", &ClusterConfig{}, &ClusterConfigList{}, Keyer, ClusterConfigGroupResource)
 
-	config, err = crdClient.NewKubeconfig(kubeconfig, &GroupVersion, nil)
+	config, err = crdclient.NewKubeconfig(kubeconfig, &GroupVersion, nil)
 	if err != nil {
 		panic(err)
 	}
 
-	clientSet, err := crdClient.NewFromConfig(config)
+	clientSet, err := crdclient.NewFromConfig(config)
 	if err != nil {
 		return nil, err
 	}
 
 	if watchResources {
-		store, stop, err := crdClient.WatchResources(clientSet,
+		store, stop, err := crdclient.WatchResources(clientSet,
 			"clusterconfigs",
 			"",
 			0,

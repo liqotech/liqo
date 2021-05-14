@@ -13,7 +13,7 @@ import (
 	nettypes "github.com/liqotech/liqo/apis/net/v1alpha1"
 	advtypes "github.com/liqotech/liqo/apis/sharing/v1alpha1"
 	nattingv1 "github.com/liqotech/liqo/apis/virtualKubelet/v1alpha1"
-	"github.com/liqotech/liqo/pkg/crdClient"
+	crdclient "github.com/liqotech/liqo/pkg/crdClient"
 	"github.com/liqotech/liqo/pkg/virtualKubelet"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/apiReflection/controller"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/forge"
@@ -29,9 +29,9 @@ type LiqoProvider struct {
 	apiController   controller.APIController
 
 	tepReady             chan struct{}
-	advClient            *crdClient.CRDClient
-	tunEndClient         *crdClient.CRDClient
-	nntClient            *crdClient.CRDClient
+	advClient            *crdclient.CRDClient
+	tunEndClient         *crdclient.CRDClient
+	nntClient            *crdclient.CRDClient
 	foreignClient        kubernetes.Interface
 	foreignMetricsClient metricsv.Interface
 
@@ -79,7 +79,7 @@ func NewLiqoProvider(nodeName, foreignClusterID, homeClusterID, internalIP strin
 		return nil, err
 	}
 
-	restConfig, err := crdClient.NewKubeconfig(remoteKubeConfig, &schema.GroupVersion{}, func(config *rest.Config) {
+	restConfig, err := crdclient.NewKubeconfig(remoteKubeConfig, &schema.GroupVersion{}, func(config *rest.Config) {
 		config.QPS = virtualKubelet.FOREIGN_CLIENT_QPS
 		config.Burst = virtualKubelet.FOREIGN_CLIENT_BURST
 	})

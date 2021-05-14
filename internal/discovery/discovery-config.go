@@ -10,7 +10,7 @@ import (
 	"k8s.io/klog"
 
 	configv1alpha1 "github.com/liqotech/liqo/apis/config/v1alpha1"
-	"github.com/liqotech/liqo/pkg/crdClient"
+	crdclient "github.com/liqotech/liqo/pkg/crdClient"
 	"github.com/liqotech/liqo/pkg/utils"
 )
 
@@ -34,7 +34,7 @@ func (discovery *Controller) GetAPIServerConfig() *configv1alpha1.APIServerConfi
 	return discovery.apiServerConfig
 }
 
-func (discovery *Controller) getDiscoveryConfig(client *crdClient.CRDClient, kubeconfigPath string) error {
+func (discovery *Controller) getDiscoveryConfig(client *crdclient.CRDClient, kubeconfigPath string) error {
 	waitFirst := make(chan bool)
 	isFirst := true
 	go utils.WatchConfiguration(func(configuration *configv1alpha1.ClusterConfig) {

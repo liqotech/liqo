@@ -7,10 +7,11 @@ import (
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
 
-	"github.com/liqotech/liqo/pkg/crdClient"
+	crdclient "github.com/liqotech/liqo/pkg/crdClient"
 )
 
-func CreateClient(kubeconfig string, configOptions func(config *rest.Config)) (*crdClient.CRDClient, error) {
+// CreateClient creates a new client for the virtualkubelet.liqo.io group.
+func CreateClient(kubeconfig string, configOptions func(config *rest.Config)) (*crdclient.CRDClient, error) {
 	var config *rest.Config
 	var err error
 
@@ -18,17 +19,17 @@ func CreateClient(kubeconfig string, configOptions func(config *rest.Config)) (*
 		panic(err)
 	}
 
-	config, err = crdClient.NewKubeconfig(kubeconfig, &GroupVersion, configOptions)
+	config, err = crdclient.NewKubeconfig(kubeconfig, &GroupVersion, configOptions)
 	if err != nil {
 		panic(err)
 	}
 
-	clientSet, err := crdClient.NewFromConfig(config)
+	clientSet, err := crdclient.NewFromConfig(config)
 	if err != nil {
 		return nil, err
 	}
 
-	crdClient.AddToRegistry("namespacenattingtables",
+	crdclient.AddToRegistry("namespacenattingtables",
 		&NamespaceNattingTable{},
 		&NamespaceNattingTableList{},
 		Keyer,

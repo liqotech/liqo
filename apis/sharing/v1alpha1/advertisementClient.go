@@ -10,7 +10,7 @@ import (
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/cache"
 
-	"github.com/liqotech/liqo/pkg/crdClient"
+	crdclient "github.com/liqotech/liqo/pkg/crdClient"
 )
 
 // create a client for Advertisement CR using a provided kubeconfig:
@@ -18,7 +18,7 @@ import (
 // - secret == nil && kubeconfig == "" : use an in-cluster configuration.
 // - secret == nil && kubeconfig != "" : read the kubeconfig from the provided filepath.
 func CreateAdvertisementClient(kubeconfig string, secret *v1.Secret, watchResources bool,
-	configOptions func(config *rest.Config)) (*crdClient.CRDClient, error) {
+	configOptions func(config *rest.Config)) (*crdclient.CRDClient, error) {
 	var config *rest.Config
 	var err error
 
@@ -26,27 +26,27 @@ func CreateAdvertisementClient(kubeconfig string, secret *v1.Secret, watchResour
 		panic(err)
 	}
 
-	crdClient.AddToRegistry("advertisements", &Advertisement{}, &AdvertisementList{}, Keyer, GroupResource)
+	crdclient.AddToRegistry("advertisements", &Advertisement{}, &AdvertisementList{}, Keyer, GroupResource)
 
 	if secret == nil {
-		config, err = crdClient.NewKubeconfig(kubeconfig, &GroupVersion, configOptions)
+		config, err = crdclient.NewKubeconfig(kubeconfig, &GroupVersion, configOptions)
 		if err != nil {
 			panic(err)
 		}
 	} else {
-		config, err = crdClient.NewKubeconfigFromSecret(secret, &GroupVersion)
+		config, err = crdclient.NewKubeconfigFromSecret(secret, &GroupVersion)
 		if err != nil {
 			panic(err)
 		}
 	}
 
-	clientSet, err := crdClient.NewFromConfig(config)
+	clientSet, err := crdclient.NewFromConfig(config)
 	if err != nil {
 		return nil, err
 	}
 
-	if crdClient.Fake && watchResources {
-		store, stop, err := crdClient.WatchResources(clientSet,
+	if crdclient.Fake && watchResources {
+		store, stop, err := crdclient.WatchResources(clientSet,
 			"advertisements",
 			"",
 			0,

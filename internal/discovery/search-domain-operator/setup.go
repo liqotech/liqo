@@ -11,7 +11,7 @@ import (
 
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	"github.com/liqotech/liqo/internal/discovery"
-	"github.com/liqotech/liqo/pkg/crdClient"
+	crdclient "github.com/liqotech/liqo/pkg/crdClient"
 )
 
 var (
@@ -26,12 +26,12 @@ func init() {
 
 // StartOperator setups the SearchDomain operator.
 func StartOperator(mgr manager.Manager, requeueAfter time.Duration, discoveryCtrl *discovery.Controller, kubeconfigPath string) {
-	config, err := crdClient.NewKubeconfig(kubeconfigPath, &discoveryv1alpha1.GroupVersion, nil)
+	config, err := crdclient.NewKubeconfig(kubeconfigPath, &discoveryv1alpha1.GroupVersion, nil)
 	if err != nil {
 		klog.Error(err, "unable to get kube config")
 		os.Exit(1)
 	}
-	client, err := crdClient.NewFromConfig(config)
+	client, err := crdclient.NewFromConfig(config)
 	if err != nil {
 		klog.Error(err, "unable to create crd client")
 		os.Exit(1)
@@ -48,7 +48,7 @@ func StartOperator(mgr manager.Manager, requeueAfter time.Duration, discoveryCtr
 	}
 }
 
-func getSDReconciler(scheme *runtime.Scheme, client *crdClient.CRDClient,
+func getSDReconciler(scheme *runtime.Scheme, client *crdclient.CRDClient,
 	discoveryCtrl *discovery.Controller, requeueAfter time.Duration) *SearchDomainReconciler {
 	return &SearchDomainReconciler{
 		Scheme:        scheme,

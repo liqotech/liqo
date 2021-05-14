@@ -22,7 +22,7 @@ import (
 	"k8s.io/client-go/kubernetes/scheme"
 
 	advtypes "github.com/liqotech/liqo/apis/sharing/v1alpha1"
-	"github.com/liqotech/liqo/pkg/crdClient"
+	crdclient "github.com/liqotech/liqo/pkg/crdClient"
 	"github.com/liqotech/liqo/pkg/discovery"
 )
 
@@ -151,5 +151,5 @@ func init() {
 	if err := AddToScheme(scheme.Scheme); err != nil {
 		panic(err)
 	}
-	crdClient.AddToRegistry("foreignclusters", &ForeignCluster{}, &ForeignClusterList{}, nil, ForeignClusterGroupResource)
+	crdclient.AddToRegistry("foreignclusters", &ForeignCluster{}, &ForeignClusterList{}, nil, ForeignClusterGroupResource)
 }

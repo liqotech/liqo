@@ -17,7 +17,7 @@ import (
 
 	configv1alpha1 "github.com/liqotech/liqo/apis/config/v1alpha1"
 	advtypes "github.com/liqotech/liqo/apis/sharing/v1alpha1"
-	"github.com/liqotech/liqo/pkg/crdClient"
+	crdclient "github.com/liqotech/liqo/pkg/crdClient"
 )
 
 func createFakeClusterConfig() configv1alpha1.ClusterConfig {
@@ -165,7 +165,7 @@ func testDisableBroadcaster(t *testing.T) {
 	assert.Equal(t, k8serrors.IsNotFound(err), true, "Advertisement has not been deleted")
 }
 
-func waitEvent(client *crdClient.CRDClient, resourcetype string, name string) error {
+func waitEvent(client *crdclient.CRDClient, resourcetype string, name string) error {
 	var timeout int64 = 10
 	watcher, err := client.Resource(resourcetype).Watch(&v1.ListOptions{
 		FieldSelector:  fields.OneTermEqualSelector(api.ObjectNameField, name).String(),

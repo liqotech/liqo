@@ -10,7 +10,7 @@ import (
 
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	advtypes "github.com/liqotech/liqo/apis/sharing/v1alpha1"
-	"github.com/liqotech/liqo/pkg/crdClient"
+	crdclient "github.com/liqotech/liqo/pkg/crdClient"
 )
 
 func (b *AdvertisementBroadcaster) WatchAdvertisement(homeAdvName string) {
@@ -36,7 +36,7 @@ func (b *AdvertisementBroadcaster) WatchAdvertisement(homeAdvName string) {
 		},
 	}
 
-	b.RemoteClient.Store, b.RemoteClient.Stop, err = crdClient.WatchResources(b.RemoteClient,
+	b.RemoteClient.Store, b.RemoteClient.Stop, err = crdclient.WatchResources(b.RemoteClient,
 		"advertisements",
 		"",
 		resyncPeriod,

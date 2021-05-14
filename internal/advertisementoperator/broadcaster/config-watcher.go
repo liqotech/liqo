@@ -8,12 +8,13 @@ import (
 	"k8s.io/klog/v2"
 
 	configv1alpha1 "github.com/liqotech/liqo/apis/config/v1alpha1"
-	"github.com/liqotech/liqo/pkg/crdClient"
+	crdclient "github.com/liqotech/liqo/pkg/crdClient"
 	"github.com/liqotech/liqo/pkg/utils"
 	pkg "github.com/liqotech/liqo/pkg/virtualKubelet"
 )
 
-func (b *AdvertisementBroadcaster) WatchConfiguration(kubeconfigPath string, client *crdClient.CRDClient) {
+// WatchConfiguration watches for changes in advertisement configuration.
+func (b *AdvertisementBroadcaster) WatchConfiguration(kubeconfigPath string, client *crdclient.CRDClient) {
 	go utils.WatchConfiguration(func(configuration *configv1alpha1.ClusterConfig) {
 		newConfig := configuration.Spec.AdvertisementConfig.OutgoingConfig
 		if !newConfig.EnableBroadcaster {

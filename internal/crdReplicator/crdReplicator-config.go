@@ -9,7 +9,7 @@ import (
 	"k8s.io/klog/v2"
 
 	configv1alpha1 "github.com/liqotech/liqo/apis/config/v1alpha1"
-	"github.com/liqotech/liqo/pkg/crdClient"
+	crdclient "github.com/liqotech/liqo/pkg/crdClient"
 	"github.com/liqotech/liqo/pkg/utils"
 )
 
@@ -18,7 +18,7 @@ func (c *Controller) WatchConfiguration(config *rest.Config, gv *schema.GroupVer
 	config.APIPath = "/apis"
 	config.NegotiatedSerializer = scheme.Codecs.WithoutConversion()
 	config.UserAgent = rest.DefaultKubernetesUserAgent()
-	CRDclient, err := crdClient.NewFromConfig(config)
+	CRDclient, err := crdclient.NewFromConfig(config)
 	if err != nil {
 		klog.Errorf("an error occurred while starting the watcher for the clusterConfig CRD: %s", err)
 		return err

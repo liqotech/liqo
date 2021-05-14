@@ -21,7 +21,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/kubernetes/scheme"
 
-	"github.com/liqotech/liqo/pkg/crdClient"
+	crdclient "github.com/liqotech/liqo/pkg/crdClient"
 )
 
 // EDIT THIS FILE!  THIS IS SCAFFOLDING FOR YOU TO OWN!
@@ -72,7 +72,7 @@ func init() {
 	if err := AddToScheme(scheme.Scheme); err != nil {
 		panic(err)
 	}
-	crdClient.AddToRegistry("searchdomains", &SearchDomain{}, &SearchDomainList{}, nil, schema.GroupResource{
+	crdclient.AddToRegistry("searchdomains", &SearchDomain{}, &SearchDomainList{}, nil, schema.GroupResource{
 		Group:    GroupVersion.Group,
 		Resource: "searchdomains",
 	})

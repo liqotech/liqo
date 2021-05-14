@@ -22,7 +22,7 @@ import (
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	"github.com/liqotech/liqo/pkg/auth"
 	"github.com/liqotech/liqo/pkg/consts"
-	"github.com/liqotech/liqo/pkg/crdClient"
+	crdclient "github.com/liqotech/liqo/pkg/crdClient"
 	"github.com/liqotech/liqo/pkg/discovery"
 	"github.com/liqotech/liqo/pkg/kubeconfig"
 )
@@ -39,7 +39,7 @@ import (
 //
 // while we are waiting for that secret this function will return no error, but an empty client.
 func (r *ForeignClusterReconciler) getRemoteClient(
-	fc *discoveryv1alpha1.ForeignCluster, gv *schema.GroupVersion) (*crdClient.CRDClient, error) {
+	fc *discoveryv1alpha1.ForeignCluster, gv *schema.GroupVersion) (*crdclient.CRDClient, error) {
 	if strings.HasPrefix(fc.Spec.AuthURL, "fake://") {
 		config := *r.ForeignConfig
 
@@ -50,7 +50,7 @@ func (r *ForeignClusterReconciler) getRemoteClient(
 
 		fc.Status.AuthStatus = discovery.AuthStatusAccepted
 
-		return crdClient.NewFromConfig(&config)
+		return crdclient.NewFromConfig(&config)
 	}
 
 	if client, err := r.getIdentity(fc, gv); err == nil {
@@ -100,7 +100,7 @@ func (r *ForeignClusterReconciler) getRemoteClient(
 
 // load remote identity from a secret.
 func (r *ForeignClusterReconciler) getIdentity(
-	fc *discoveryv1alpha1.ForeignCluster, gv *schema.GroupVersion) (*crdClient.CRDClient, error) {
+	fc *discoveryv1alpha1.ForeignCluster, gv *schema.GroupVersion) (*crdclient.CRDClient, error) {
 	secrets, err := r.crdClient.Client().CoreV1().Secrets(r.Namespace).List(context.TODO(), metav1.ListOptions{
 		LabelSelector: strings.Join([]string{
 			strings.Join([]string{discovery.ClusterIDLabel, fc.Spec.ClusterIdentity.ClusterID}, "="),
@@ -134,7 +134,7 @@ func (r *ForeignClusterReconciler) getIdentity(
 
 	fc.Status.AuthStatus = discovery.AuthStatusAccepted
 
-	return crdClient.NewFromConfig(config)
+	return crdclient.NewFromConfig(config)
 }
 
 // load the auth token form a labeled secret.

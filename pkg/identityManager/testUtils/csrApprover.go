@@ -1,4 +1,4 @@
-package identityManagerTestUtils
+package identitymanagertestutils
 
 import (
 	"context"

@@ -7,14 +7,15 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/klog"
 
-	"github.com/liqotech/liqo/pkg/crdClient"
+	crdclient "github.com/liqotech/liqo/pkg/crdClient"
 )
 
 type Config struct {
 	AllowAll bool `json:"allowAll"`
 }
 
-func GetConfig(crdClient *crdClient.CRDClient, namespace string) (*Config, error) {
+// GetConfig returns the peering request configurations.
+func GetConfig(crdClient *crdclient.CRDClient, namespace string) (*Config, error) {
 	conf := &Config{}
 
 	configMap, err := crdClient.Client().CoreV1().ConfigMaps(namespace).Get(context.TODO(), "peering-request-operator-cm", metav1.GetOptions{})

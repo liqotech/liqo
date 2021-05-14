@@ -1,4 +1,4 @@
-package identityManager
+package identitymanager
 
 import (
 	v1 "k8s.io/api/core/v1"

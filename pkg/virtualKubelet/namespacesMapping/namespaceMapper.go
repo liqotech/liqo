@@ -15,7 +15,7 @@ import (
 	"k8s.io/klog"
 
 	nattingv1 "github.com/liqotech/liqo/apis/virtualKubelet/v1alpha1"
-	"github.com/liqotech/liqo/pkg/crdClient"
+	crdclient "github.com/liqotech/liqo/pkg/crdClient"
 )
 
 var cacheResyncPeriod = 10 * time.Second
@@ -28,7 +28,7 @@ type namespaceNTCache struct {
 
 // NamespaceMapper embeds data and clients for namespace mapping.
 type NamespaceMapper struct {
-	homeClient    crdClient.NamespacedCRDClientInterface
+	homeClient    crdclient.NamespacedCRDClientInterface
 	foreignClient kubernetes.Interface
 
 	cache            namespaceNTCache
@@ -44,7 +44,7 @@ type NamespaceMapper struct {
 	restartReady            chan struct{}
 }
 
-func (m *NamespaceMapper) startNattingCache(clientSet crdClient.NamespacedCRDClientInterface) error {
+func (m *NamespaceMapper) startNattingCache(clientSet crdclient.NamespacedCRDClientInterface) error {
 	var err error
 
 	ehf := cache.ResourceEventHandlerFuncs{
@@ -63,7 +63,7 @@ func (m *NamespaceMapper) startNattingCache(clientSet crdClient.NamespacedCRDCli
 	}
 	lo := metav1.ListOptions{FieldSelector: strings.Join([]string{"metadata.name", m.cache.nattingTableName}, "=")}
 
-	m.cache.Store, m.cache.Controller, err = crdClient.WatchResources(clientSet,
+	m.cache.Store, m.cache.Controller, err = crdclient.WatchResources(clientSet,
 		"namespacenattingtables", "",
 		cacheResyncPeriod, ehf, lo)
 	if err != nil {

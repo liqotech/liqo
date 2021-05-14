@@ -9,7 +9,7 @@ import (
 	"k8s.io/klog/v2"
 
 	configv1alpha1 "github.com/liqotech/liqo/apis/config/v1alpha1"
-	"github.com/liqotech/liqo/pkg/crdClient"
+	crdclient "github.com/liqotech/liqo/pkg/crdClient"
 	"github.com/liqotech/liqo/pkg/utils"
 )
 
@@ -18,7 +18,7 @@ func (tc *TunnelController) WatchConfiguration(config *rest.Config, gv *schema.G
 	config.APIPath = "/apis"
 	config.NegotiatedSerializer = scheme.Codecs.WithoutConversion()
 	config.UserAgent = rest.DefaultKubernetesUserAgent()
-	CRDclient, err := crdClient.NewFromConfig(config)
+	CRDclient, err := crdclient.NewFromConfig(config)
 	if err != nil {
 		klog.Error(err, err.Error())
 		os.Exit(1)

@@ -30,7 +30,7 @@ import (
 	"github.com/liqotech/liqo/internal/discovery"
 	"github.com/liqotech/liqo/internal/discovery/utils"
 	liqoconst "github.com/liqotech/liqo/pkg/consts"
-	"github.com/liqotech/liqo/pkg/crdClient"
+	crdclient "github.com/liqotech/liqo/pkg/crdClient"
 	discoveryPkg "github.com/liqotech/liqo/pkg/discovery"
 	"github.com/liqotech/liqo/pkg/kubeconfig"
 
@@ -57,9 +57,9 @@ type ForeignClusterReconciler struct {
 	Scheme *runtime.Scheme
 
 	Namespace           string
-	crdClient           *crdClient.CRDClient
-	advertisementClient *crdClient.CRDClient
-	networkClient       *crdClient.CRDClient
+	crdClient           *crdclient.CRDClient
+	advertisementClient *crdclient.CRDClient
+	networkClient       *crdclient.CRDClient
 	clusterID           clusterid.ClusterID
 	RequeueAfter        time.Duration
 
@@ -426,7 +426,7 @@ func (r *ForeignClusterReconciler) update(fc *discoveryv1alpha1.ForeignCluster) 
 // Peer creates the peering with a remote cluster.
 func (r *ForeignClusterReconciler) Peer(
 	fc *discoveryv1alpha1.ForeignCluster,
-	foreignDiscoveryClient *crdClient.CRDClient) (*discoveryv1alpha1.ForeignCluster, error) {
+	foreignDiscoveryClient *crdclient.CRDClient) (*discoveryv1alpha1.ForeignCluster, error) {
 	// create PeeringRequest
 	klog.Infof("[%v] Creating PeeringRequest", fc.Spec.ClusterIdentity.ClusterID)
 	pr, err := r.createPeeringRequestIfNotExists(fc.Name, fc, foreignDiscoveryClient)
@@ -447,7 +447,7 @@ func (r *ForeignClusterReconciler) Peer(
 
 // Unpeer removes the peering with a remote cluster.
 func (r *ForeignClusterReconciler) Unpeer(fc *discoveryv1alpha1.ForeignCluster,
-	foreignDiscoveryClient *crdClient.CRDClient) (*discoveryv1alpha1.ForeignCluster, error) {
+	foreignDiscoveryClient *crdclient.CRDClient) (*discoveryv1alpha1.ForeignCluster, error) {
 	// peering request has to be removed
 	klog.Infof("[%v] Deleting PeeringRequest", fc.Spec.ClusterIdentity.ClusterID)
 	err := r.deletePeeringRequest(foreignDiscoveryClient, fc)
@@ -479,7 +479,7 @@ func (r *ForeignClusterReconciler) SetupWithManager(mgr ctrl.Manager) error {
 }
 
 func (r *ForeignClusterReconciler) checkJoined(fc *discoveryv1alpha1.ForeignCluster,
-	foreignDiscoveryClient *crdClient.CRDClient) (*discoveryv1alpha1.ForeignCluster, error) {
+	foreignDiscoveryClient *crdclient.CRDClient) (*discoveryv1alpha1.ForeignCluster, error) {
 	_, err := foreignDiscoveryClient.Resource("peeringrequests").Get(
 		fc.Status.Outgoing.RemotePeeringRequestName, &metav1.GetOptions{})
 	if err != nil {
@@ -633,7 +633,7 @@ func (r *ForeignClusterReconciler) getHomeAuthURL() (string, error) {
 }
 
 func (r *ForeignClusterReconciler) createPeeringRequestIfNotExists(remoteClusterID string,
-	owner *discoveryv1alpha1.ForeignCluster, foreignClient *crdClient.CRDClient) (*discoveryv1alpha1.PeeringRequest, error) {
+	owner *discoveryv1alpha1.ForeignCluster, foreignClient *crdclient.CRDClient) (*discoveryv1alpha1.PeeringRequest, error) {
 	// get config to send to foreign cluster
 	fConfig, err := r.getForeignConfig(remoteClusterID, owner)
 	if err != nil {
@@ -1031,7 +1031,7 @@ func (r *ForeignClusterReconciler) deleteAdvertisement(fc *discoveryv1alpha1.For
 	return fc.DeleteAdvertisement(r.advertisementClient)
 }
 
-func (r *ForeignClusterReconciler) deletePeeringRequest(foreignClient *crdClient.CRDClient, fc *discoveryv1alpha1.ForeignCluster) error {
+func (r *ForeignClusterReconciler) deletePeeringRequest(foreignClient *crdclient.CRDClient, fc *discoveryv1alpha1.ForeignCluster) error {
 	return foreignClient.Resource("peeringrequests").Delete(fc.Status.Outgoing.RemotePeeringRequestName, &metav1.DeleteOptions{})
 }
 

@@ -1,4 +1,4 @@
-package crdClient
+package crdclient
 
 import (
 	"context"

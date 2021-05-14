@@ -20,7 +20,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/kubernetes/scheme"
 
-	"github.com/liqotech/liqo/pkg/crdClient"
+	crdclient "github.com/liqotech/liqo/pkg/crdClient"
 	"github.com/liqotech/liqo/pkg/labelPolicy"
 )
 
@@ -261,7 +261,7 @@ func init() {
 	if err := AddToScheme(scheme.Scheme); err != nil {
 		panic(err)
 	}
-	crdClient.AddToRegistry("clusterconfigs", &ClusterConfig{}, &ClusterConfigList{},
+	crdclient.AddToRegistry("clusterconfigs", &ClusterConfig{}, &ClusterConfigList{},
 		nil, schema.GroupResource{
 			Group:    GroupVersion.Group,
 			Resource: "clusterconfigs",

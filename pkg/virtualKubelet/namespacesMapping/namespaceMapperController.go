@@ -4,7 +4,7 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/klog"
 
-	"github.com/liqotech/liqo/pkg/crdClient"
+	crdclient "github.com/liqotech/liqo/pkg/crdClient"
 )
 
 type MapperController interface {
@@ -38,16 +38,18 @@ type NamespaceMapperController struct {
 	mapper *NamespaceMapper
 }
 
-func NewNamespaceMapperController(client crdClient.NamespacedCRDClientInterface, foreignClient kubernetes.Interface, homeClusterId, foreignClusterId string) (*NamespaceMapperController, error) {
+// NewNamespaceMapperController builds and returns a new NewNamespaceMapperController.
+func NewNamespaceMapperController(client crdclient.NamespacedCRDClientInterface,
+	foreignClient kubernetes.Interface, homeClusterID, foreignClusterID string) (*NamespaceMapperController, error) {
 	controller := &NamespaceMapperController{
 		mapper: &NamespaceMapper{
 			homeClient: client,
 			cache: namespaceNTCache{
-				nattingTableName: foreignClusterId,
+				nattingTableName: foreignClusterID,
 			},
 			foreignClient:           foreignClient,
-			homeClusterID:           homeClusterId,
-			foreignClusterID:        foreignClusterId,
+			homeClusterID:           homeClusterID,
+			foreignClusterID:        foreignClusterID,
 			startOutgoingReflection: make(chan string, 100),
 			startIncomingReflection: make(chan string, 100),
 			stopIncomingReflection:  make(chan string, 100),

@@ -37,7 +37,7 @@ import (
 	configv1alpha1 "github.com/liqotech/liqo/apis/config/v1alpha1"
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	advtypes "github.com/liqotech/liqo/apis/sharing/v1alpha1"
-	"github.com/liqotech/liqo/pkg/crdClient"
+	crdclient "github.com/liqotech/liqo/pkg/crdClient"
 	"github.com/liqotech/liqo/pkg/discovery"
 	objectreferences "github.com/liqotech/liqo/pkg/object-references"
 	"github.com/liqotech/liqo/pkg/virtualKubelet"
@@ -58,8 +58,8 @@ type AdvertisementReconciler struct {
 	HomeClusterId      string
 	AcceptedAdvNum     int32
 	ClusterConfig      configv1alpha1.AdvertisementConfig
-	AdvClient          *crdClient.CRDClient
-	DiscoveryClient    *crdClient.CRDClient
+	AdvClient          *crdclient.CRDClient
+	DiscoveryClient    *crdclient.CRDClient
 	RetryTimeout       time.Duration
 	garbageCollector   sync.Once
 	checkRemoteCluster map[string]*sync.Once

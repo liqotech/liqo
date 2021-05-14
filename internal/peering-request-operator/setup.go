@@ -11,7 +11,7 @@ import (
 
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	"github.com/liqotech/liqo/pkg/clusterid"
-	"github.com/liqotech/liqo/pkg/crdClient"
+	crdclient "github.com/liqotech/liqo/pkg/crdClient"
 	"github.com/liqotech/liqo/pkg/mapperUtils"
 )
 
@@ -38,12 +38,12 @@ func StartOperator(namespace string, broadcasterImage string, broadcasterService
 		os.Exit(1)
 	}
 
-	config, err := crdClient.NewKubeconfig(kubeconfigPath, &discoveryv1alpha1.GroupVersion, nil)
+	config, err := crdclient.NewKubeconfig(kubeconfigPath, &discoveryv1alpha1.GroupVersion, nil)
 	if err != nil {
 		klog.Error(err, "unable to get kube config")
 		os.Exit(1)
 	}
-	client, err := crdClient.NewFromConfig(config)
+	client, err := crdclient.NewFromConfig(config)
 	if err != nil {
 		klog.Error(err, "unable to create crd client")
 		os.Exit(1)
@@ -75,12 +75,14 @@ func StartOperator(namespace string, broadcasterImage string, broadcasterService
 	}
 }
 
-func GetPRReconciler(scheme *runtime.Scheme, crdClient *crdClient.CRDClient, namespace string, clusterId clusterid.ClusterID, broadcasterImage string, broadcasterServiceAccount string, vkServiceAccount string) *PeeringRequestReconciler {
+// GetPRReconciler builds and returns a PeeringRequestReconciler.
+func GetPRReconciler(scheme *runtime.Scheme, crdClient *crdclient.CRDClient, namespace string,
+	clusterID clusterid.ClusterID, broadcasterImage, broadcasterServiceAccount, vkServiceAccount string) *PeeringRequestReconciler {
 	return &PeeringRequestReconciler{
 		Scheme:                    scheme,
 		crdClient:                 crdClient,
 		Namespace:                 namespace,
-		clusterID:                 clusterId,
+		clusterID:                 clusterID,
 		broadcasterImage:          broadcasterImage,
 		broadcasterServiceAccount: broadcasterServiceAccount,
 		vkServiceAccount:          vkServiceAccount,
