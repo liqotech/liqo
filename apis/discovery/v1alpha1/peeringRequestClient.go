@@ -10,11 +10,11 @@ import (
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/cache"
 
-	"github.com/liqotech/liqo/pkg/crdClient"
+	crdclient "github.com/liqotech/liqo/pkg/crdClient"
 )
 
 // CreatePeeringRequestClient create a client for ClusterConfig CR using a provided kubeconfig.
-func CreatePeeringRequestClient(kubeconfig string) (*crdClient.CRDClient, error) {
+func CreatePeeringRequestClient(kubeconfig string) (*crdclient.CRDClient, error) {
 	var config *rest.Config
 	var err error
 
@@ -24,19 +24,19 @@ func CreatePeeringRequestClient(kubeconfig string) (*crdClient.CRDClient, error)
 
 	GroupResource := schema.GroupResource{Group: GroupVersion.Group, Resource: "peeringrequests"}
 
-	crdClient.AddToRegistry("peeringrequests", &PeeringRequest{}, &PeeringRequestList{}, Keyer, GroupResource)
+	crdclient.AddToRegistry("peeringrequests", &PeeringRequest{}, &PeeringRequestList{}, Keyer, GroupResource)
 
-	config, err = crdClient.NewKubeconfig(kubeconfig, &GroupVersion, nil)
+	config, err = crdclient.NewKubeconfig(kubeconfig, &GroupVersion, nil)
 	if err != nil {
 		panic(err)
 	}
 
-	clientSet, err := crdClient.NewFromConfig(config)
+	clientSet, err := crdclient.NewFromConfig(config)
 	if err != nil {
 		return nil, err
 	}
 
-	store, stop, err := crdClient.WatchResources(clientSet,
+	store, stop, err := crdclient.WatchResources(clientSet,
 		"peeringrequests",
 		"",
 		0,

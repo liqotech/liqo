@@ -37,7 +37,7 @@ import (
 	"github.com/liqotech/liqo/apis/sharing/v1alpha1"
 	"github.com/liqotech/liqo/cmd/virtual-kubelet/provider"
 	"github.com/liqotech/liqo/internal/utils/errdefs"
-	"github.com/liqotech/liqo/pkg/crdClient"
+	crdclient "github.com/liqotech/liqo/pkg/crdClient"
 	"github.com/liqotech/liqo/pkg/virtualKubelet"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/manager"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/node/module"
@@ -256,7 +256,7 @@ func runRootCommand(ctx context.Context, s *provider.Store, c *Opts) error {
 	return nil
 }
 
-func createOwnerReference(c *crdClient.CRDClient, advName, namespace string) []metav1.OwnerReference {
+func createOwnerReference(c *crdclient.CRDClient, advName, namespace string) []metav1.OwnerReference {
 	d, err := c.Resource("advertisements").Namespace(namespace).Get(advName, &metav1.GetOptions{})
 	if err != nil {
 		if k8serrors.IsNotFound(err) {

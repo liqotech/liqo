@@ -23,11 +23,11 @@ import (
 	garbage_collection "github.com/liqotech/liqo/internal/auth-service/garbage-collection"
 	"github.com/liqotech/liqo/pkg/auth"
 	"github.com/liqotech/liqo/pkg/clusterid"
-	"github.com/liqotech/liqo/pkg/crdClient"
+	crdclient "github.com/liqotech/liqo/pkg/crdClient"
 	"github.com/liqotech/liqo/pkg/discovery"
-	"github.com/liqotech/liqo/pkg/identityManager"
+	identitymanager "github.com/liqotech/liqo/pkg/identityManager"
 	peeringRoles "github.com/liqotech/liqo/pkg/peering-roles"
-	"github.com/liqotech/liqo/pkg/tenantControlNamespace"
+	tenantcontrolnamespace "github.com/liqotech/liqo/pkg/tenantControlNamespace"
 )
 
 // cluster-role
@@ -62,8 +62,8 @@ type AuthServiceCtrl struct {
 
 	credentialsValidator credentialsValidator
 	localClusterID       clusterid.ClusterID
-	namespaceManager     tenantControlNamespace.TenantControlNamespaceManager
-	identityManager      identityManager.IdentityManager
+	namespaceManager     tenantcontrolnamespace.TenantControlNamespaceManager
+	identityManager      identitymanager.IdentityManager
 
 	config          *v1alpha1.AuthConfig
 	apiServerConfig *v1alpha1.APIServerConfig
@@ -75,7 +75,7 @@ type AuthServiceCtrl struct {
 
 // NewAuthServiceCtrl creates a new Auth Controller.
 func NewAuthServiceCtrl(namespace, kubeconfigPath string, resyncTime time.Duration, useTLS bool) (*AuthServiceCtrl, error) {
-	config, err := crdClient.NewKubeconfig(kubeconfigPath, &discoveryv1alpha1.GroupVersion, nil)
+	config, err := crdclient.NewKubeconfig(kubeconfigPath, &discoveryv1alpha1.GroupVersion, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -113,8 +113,8 @@ func NewAuthServiceCtrl(namespace, kubeconfigPath string, resyncTime time.Durati
 	informerFactory.Start(wait.NeverStop)
 	informerFactory.WaitForCacheSync(wait.NeverStop)
 
-	namespaceManager := tenantControlNamespace.NewTenantControlNamespaceManager(clientset)
-	idManager := identityManager.NewCertificateIdentityManager(clientset, localClusterID, namespaceManager)
+	namespaceManager := tenantcontrolnamespace.NewTenantControlNamespaceManager(clientset)
+	idManager := identitymanager.NewCertificateIdentityManager(clientset, localClusterID, namespaceManager)
 
 	return &AuthServiceCtrl{
 		namespace:            namespace,

@@ -15,7 +15,7 @@ import (
 	nettypes "github.com/liqotech/liqo/apis/net/v1alpha1"
 	advtypes "github.com/liqotech/liqo/apis/sharing/v1alpha1"
 	"github.com/liqotech/liqo/internal/discovery"
-	"github.com/liqotech/liqo/pkg/crdClient"
+	crdclient "github.com/liqotech/liqo/pkg/crdClient"
 )
 
 var (
@@ -32,12 +32,12 @@ func init() {
 func StartOperator(
 	mgr manager.Manager, namespace string, requeueAfter time.Duration,
 	discoveryCtrl *discovery.Controller, kubeconfigPath string) {
-	config, err := crdClient.NewKubeconfig(kubeconfigPath, &discoveryv1alpha1.GroupVersion, nil)
+	config, err := crdclient.NewKubeconfig(kubeconfigPath, &discoveryv1alpha1.GroupVersion, nil)
 	if err != nil {
 		klog.Error(err, "unable to get kube config")
 		os.Exit(1)
 	}
-	discoveryClient, err := crdClient.NewFromConfig(config)
+	discoveryClient, err := crdclient.NewFromConfig(config)
 	if err != nil {
 		klog.Error(err, "unable to create crd client")
 		os.Exit(1)
@@ -77,7 +77,7 @@ func StartOperator(
 
 func getFCReconciler(scheme *runtime.Scheme,
 	namespace string,
-	client, advertisementClient, networkClient *crdClient.CRDClient,
+	client, advertisementClient, networkClient *crdclient.CRDClient,
 	localClusterID clusterid.ClusterID,
 	requeueAfter time.Duration,
 	configProvider discovery.ConfigProvider) *ForeignClusterReconciler {

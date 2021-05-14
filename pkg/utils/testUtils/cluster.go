@@ -15,30 +15,34 @@ import (
 	"github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	nettypes "github.com/liqotech/liqo/apis/net/v1alpha1"
 	advtypes "github.com/liqotech/liqo/apis/sharing/v1alpha1"
-	"github.com/liqotech/liqo/pkg/crdClient"
+	crdclient "github.com/liqotech/liqo/pkg/crdClient"
 )
 
 type Cluster struct {
 	env       *envtest.Environment
 	cfg       *rest.Config
-	client    *crdClient.CRDClient
-	advClient *crdClient.CRDClient
-	netClient *crdClient.CRDClient
+	client    *crdclient.CRDClient
+	advClient *crdclient.CRDClient
+	netClient *crdclient.CRDClient
 }
 
+// GetEnv returns the test environment.
 func (c *Cluster) GetEnv() *envtest.Environment {
 	return c.env
 }
 
-func (c *Cluster) GetClient() *crdClient.CRDClient {
+// GetClient returns the crd client.
+func (c *Cluster) GetClient() *crdclient.CRDClient {
 	return c.client
 }
 
-func (c *Cluster) GetAdvClient() *crdClient.CRDClient {
+// GetAdvClient returns the advertisement crd client.
+func (c *Cluster) GetAdvClient() *crdclient.CRDClient {
 	return c.advClient
 }
 
-func (c *Cluster) GetNetClient() *crdClient.CRDClient {
+// GetNetClient returns the networking crd client.
+func (c *Cluster) GetNetClient() *crdclient.CRDClient {
 	return c.netClient
 }
 
@@ -70,12 +74,12 @@ func NewTestCluster(crdPath []string) (Cluster, manager.Manager, error) {
 
 	advCfg := *cluster.cfg
 	advCfg.ContentConfig.GroupVersion = &advtypes.GroupVersion
-	crdClient.AddToRegistry("advertisements", &advtypes.Advertisement{}, &advtypes.AdvertisementList{}, nil, advtypes.GroupResource)
+	crdclient.AddToRegistry("advertisements", &advtypes.Advertisement{}, &advtypes.AdvertisementList{}, nil, advtypes.GroupResource)
 
 	netCfg := *cluster.cfg
 	netCfg.ContentConfig.GroupVersion = &nettypes.GroupVersion
-	crdClient.AddToRegistry("networkconfigs", &nettypes.NetworkConfig{}, &nettypes.NetworkConfigList{}, nil, nettypes.TunnelEndpointGroupResource)
-	crdClient.AddToRegistry("tunnelendpoints", &nettypes.TunnelEndpoint{}, &nettypes.TunnelEndpointList{}, nil, nettypes.TunnelEndpointGroupResource)
+	crdclient.AddToRegistry("networkconfigs", &nettypes.NetworkConfig{}, &nettypes.NetworkConfigList{}, nil, nettypes.TunnelEndpointGroupResource)
+	crdclient.AddToRegistry("tunnelendpoints", &nettypes.TunnelEndpoint{}, &nettypes.TunnelEndpointList{}, nil, nettypes.TunnelEndpointGroupResource)
 
 	err = v1alpha1.AddToScheme(scheme.Scheme)
 	if err != nil {
@@ -93,17 +97,17 @@ func NewTestCluster(crdPath []string) (Cluster, manager.Manager, error) {
 		return Cluster{}, nil, err
 	}
 
-	cluster.client, err = crdClient.NewFromConfig(cluster.cfg)
+	cluster.client, err = crdclient.NewFromConfig(cluster.cfg)
 	if err != nil {
 		klog.Error(err)
 		return Cluster{}, nil, err
 	}
-	cluster.advClient, err = crdClient.NewFromConfig(&advCfg)
+	cluster.advClient, err = crdclient.NewFromConfig(&advCfg)
 	if err != nil {
 		klog.Error(err)
 		return Cluster{}, nil, err
 	}
-	cluster.netClient, err = crdClient.NewFromConfig(&netCfg)
+	cluster.netClient, err = crdclient.NewFromConfig(&netCfg)
 	if err != nil {
 		klog.Error(err)
 		return Cluster{}, nil, err

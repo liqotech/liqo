@@ -29,9 +29,9 @@ import (
 	"github.com/liqotech/liqo/apis/config/v1alpha1"
 	"github.com/liqotech/liqo/pkg/auth"
 	"github.com/liqotech/liqo/pkg/clusterid/test"
-	"github.com/liqotech/liqo/pkg/identityManager"
+	identitymanager "github.com/liqotech/liqo/pkg/identityManager"
 	idManTest "github.com/liqotech/liqo/pkg/identityManager/testUtils"
-	"github.com/liqotech/liqo/pkg/tenantControlNamespace"
+	tenantcontrolnamespace "github.com/liqotech/liqo/pkg/tenantControlNamespace"
 	testUtils2 "github.com/liqotech/liqo/pkg/utils/testUtils"
 )
 
@@ -143,8 +143,8 @@ var _ = Describe("Auth", func() {
 		informerFactory.Start(stopChan)
 		informerFactory.WaitForCacheSync(wait.NeverStop)
 
-		namespaceManager := tenantControlNamespace.NewTenantControlNamespaceManager(cluster.GetClient().Client())
-		identityManager := identityManager.NewCertificateIdentityManager(cluster.GetClient().Client(), &clusterID, namespaceManager)
+		namespaceManager := tenantcontrolnamespace.NewTenantControlNamespaceManager(cluster.GetClient().Client())
+		identityManager := identitymanager.NewCertificateIdentityManager(cluster.GetClient().Client(), &clusterID, namespaceManager)
 
 		authService = AuthServiceCtrl{
 			namespace:            "default",

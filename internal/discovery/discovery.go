@@ -12,7 +12,7 @@ import (
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	advtypes "github.com/liqotech/liqo/apis/sharing/v1alpha1"
 	"github.com/liqotech/liqo/pkg/clusterid"
-	"github.com/liqotech/liqo/pkg/crdClient"
+	crdclient "github.com/liqotech/liqo/pkg/crdClient"
 )
 
 // Controller is the controller for the discovery functionalities.
@@ -25,8 +25,8 @@ type Controller struct {
 	apiServerConfig     *configv1alpha1.APIServerConfig
 	stopMDNS            chan bool
 	stopMDNSClient      chan bool
-	crdClient           *crdClient.CRDClient
-	advClient           *crdClient.CRDClient
+	crdClient           *crdclient.CRDClient
+	advClient           *crdclient.CRDClient
 	LocalClusterID      clusterid.ClusterID
 
 	mdnsServerAuth            *zeroconf.Server
@@ -40,11 +40,11 @@ type Controller struct {
 func NewDiscoveryCtrl(
 	namespace string, localClusterID clusterid.ClusterID, kubeconfigPath string,
 	resolveContextRefreshTime int, dialTCPTimeout time.Duration) (*Controller, error) {
-	config, err := crdClient.NewKubeconfig(kubeconfigPath, &discoveryv1alpha1.GroupVersion, nil)
+	config, err := crdclient.NewKubeconfig(kubeconfigPath, &discoveryv1alpha1.GroupVersion, nil)
 	if err != nil {
 		return nil, err
 	}
-	discoveryClient, err := crdClient.NewFromConfig(config)
+	discoveryClient, err := crdclient.NewFromConfig(config)
 	if err != nil {
 		return nil, err
 	}
@@ -69,7 +69,7 @@ func NewDiscoveryCtrl(
 	return &discoveryCtrl, nil
 }
 
-func getDiscoveryCtrl(namespace string, client, advClient *crdClient.CRDClient,
+func getDiscoveryCtrl(namespace string, client, advClient *crdclient.CRDClient,
 	localClusterID clusterid.ClusterID, resolveContextRefreshTime int, dialTCPTimeout time.Duration) Controller {
 	return Controller{
 		Namespace:                 namespace,

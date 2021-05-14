@@ -11,13 +11,13 @@ import (
 	configv1alpha1 "github.com/liqotech/liqo/apis/config/v1alpha1"
 	advtypes "github.com/liqotech/liqo/apis/sharing/v1alpha1"
 	advop "github.com/liqotech/liqo/internal/advertisementoperator"
-	"github.com/liqotech/liqo/pkg/crdClient"
+	crdclient "github.com/liqotech/liqo/pkg/crdClient"
 )
 
 func createReconciler(acceptedAdv, maxAcceptableAdv int32, acceptPolicy configv1alpha1.AcceptPolicy) advop.AdvertisementReconciler {
 	c, evRecorder := createFakeKubebuilderClient()
 	// set the client in fake mode
-	crdClient.Fake = true
+	crdclient.Fake = true
 	// create fake client for the home cluster
 	advClient, err := advtypes.CreateAdvertisementClient("", nil, true, nil)
 	if err != nil {

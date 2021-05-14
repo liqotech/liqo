@@ -32,7 +32,7 @@ import (
 	advtypes "github.com/liqotech/liqo/apis/sharing/v1alpha1"
 	advop "github.com/liqotech/liqo/internal/advertisementoperator"
 	resourceRequestOperator "github.com/liqotech/liqo/internal/resource-request-operator"
-	"github.com/liqotech/liqo/pkg/crdClient"
+	crdclient "github.com/liqotech/liqo/pkg/crdClient"
 	"github.com/liqotech/liqo/pkg/mapperUtils"
 	"github.com/liqotech/liqo/pkg/vkMachinery"
 	"github.com/liqotech/liqo/pkg/vkMachinery/csr"
@@ -127,12 +127,12 @@ func main() {
 		}
 	}
 
-	discoveryConfig, err := crdClient.NewKubeconfig(localKubeconfig, &discoveryv1alpha1.GroupVersion, nil)
+	discoveryConfig, err := crdclient.NewKubeconfig(localKubeconfig, &discoveryv1alpha1.GroupVersion, nil)
 	if err != nil {
 		klog.Error(err, "unable to get kube config")
 		os.Exit(1)
 	}
-	discoveryClient, err := crdClient.NewFromConfig(discoveryConfig)
+	discoveryClient, err := crdclient.NewFromConfig(discoveryConfig)
 	if err != nil {
 		klog.Errorln(err, "unable to create local client for Discovery")
 		os.Exit(1)

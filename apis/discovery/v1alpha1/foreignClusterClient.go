@@ -7,23 +7,23 @@ import (
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
 
-	"github.com/liqotech/liqo/pkg/crdClient"
+	crdclient "github.com/liqotech/liqo/pkg/crdClient"
 )
 
 // CreateForeignClusterClient creates a client for ForeignCluster CR using a provided kubeconfig.
-func CreateForeignClusterClient(kubeconfig string) (*crdClient.CRDClient, error) {
+func CreateForeignClusterClient(kubeconfig string) (*crdclient.CRDClient, error) {
 	var config *rest.Config
 	var err error
 	if err = AddToScheme(scheme.Scheme); err != nil {
 		panic(err)
 	}
-	crdClient.AddToRegistry("foreignclusters", &ForeignCluster{},
+	crdclient.AddToRegistry("foreignclusters", &ForeignCluster{},
 		&ForeignClusterList{}, ForeignClusterKeyer, ForeignClusterGroupResource)
-	config, err = crdClient.NewKubeconfig(kubeconfig, &GroupVersion, nil)
+	config, err = crdclient.NewKubeconfig(kubeconfig, &GroupVersion, nil)
 	if err != nil {
 		panic(err)
 	}
-	clientSet, err := crdClient.NewFromConfig(config)
+	clientSet, err := crdclient.NewFromConfig(config)
 	if err != nil {
 		return nil, err
 	}

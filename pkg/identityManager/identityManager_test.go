@@ -1,4 +1,4 @@
-package identityManager
+package identitymanager
 
 import (
 	"crypto/x509"
@@ -18,7 +18,7 @@ import (
 	"github.com/liqotech/liqo/pkg/clusterid/test"
 	"github.com/liqotech/liqo/pkg/discovery"
 	idManTest "github.com/liqotech/liqo/pkg/identityManager/testUtils"
-	"github.com/liqotech/liqo/pkg/tenantControlNamespace"
+	tenantcontrolnamespace "github.com/liqotech/liqo/pkg/tenantControlNamespace"
 	testUtils2 "github.com/liqotech/liqo/pkg/utils/testUtils"
 )
 
@@ -38,7 +38,7 @@ var _ = Describe("IdentityManager", func() {
 		namespace *v1.Namespace
 
 		identityManager  IdentityManager
-		namespaceManager tenantControlNamespace.TenantControlNamespaceManager
+		namespaceManager tenantcontrolnamespace.TenantControlNamespaceManager
 	)
 
 	BeforeSuite(func() {
@@ -56,7 +56,7 @@ var _ = Describe("IdentityManager", func() {
 
 		client = cluster.GetClient().Client()
 
-		namespaceManager = tenantControlNamespace.NewTenantControlNamespaceManager(client)
+		namespaceManager = tenantcontrolnamespace.NewTenantControlNamespaceManager(client)
 		identityManager = NewCertificateIdentityManager(cluster.GetClient().Client(), &localClusterID, namespaceManager)
 
 		namespace, err = namespaceManager.CreateNamespace(remoteClusterID)

@@ -8,12 +8,12 @@ import (
 
 	configv1alpha1 "github.com/liqotech/liqo/apis/config/v1alpha1"
 	advtypes "github.com/liqotech/liqo/apis/sharing/v1alpha1"
-	"github.com/liqotech/liqo/pkg/crdClient"
+	crdclient "github.com/liqotech/liqo/pkg/crdClient"
 	"github.com/liqotech/liqo/pkg/utils"
 )
 
 // WatchConfiguration watches a ClusterConfig for reconciling updates on ClusterConfig.
-func (r *AdvertisementReconciler) WatchConfiguration(kubeconfigPath string, client *crdClient.CRDClient, wg *sync.WaitGroup) {
+func (r *AdvertisementReconciler) WatchConfiguration(kubeconfigPath string, client *crdclient.CRDClient, wg *sync.WaitGroup) {
 	defer wg.Done()
 	utils.WatchConfiguration(func(configuration *configv1alpha1.ClusterConfig) {
 		newConfig := configuration.Spec.AdvertisementConfig
@@ -70,14 +70,15 @@ func (r *AdvertisementReconciler) ManageMaximumUpdate(newConfig configv1alpha1.A
 	return advToUpdate, nil
 }
 
-func (r *AdvertisementReconciler) InitCRDClient(kubeconfigPath string) (*crdClient.CRDClient, error) {
-	config, err := crdClient.NewKubeconfig(kubeconfigPath, &configv1alpha1.GroupVersion, nil)
+// InitCRDClient initializes the crd client.
+func (r *AdvertisementReconciler) InitCRDClient(kubeconfigPath string) (*crdclient.CRDClient, error) {
+	config, err := crdclient.NewKubeconfig(kubeconfigPath, &configv1alpha1.GroupVersion, nil)
 	if err != nil {
 		klog.Error(err, err.Error())
 		return nil, err
 	}
 
-	client, err := crdClient.NewFromConfig(config)
+	client, err := crdclient.NewFromConfig(config)
 	if err != nil {
 		klog.Error(err, err.Error())
 		return nil, err

@@ -19,7 +19,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 
-	"github.com/liqotech/liqo/pkg/crdClient"
+	crdclient "github.com/liqotech/liqo/pkg/crdClient"
 )
 
 // EDIT THIS FILE!  THIS IS SCAFFOLDING FOR YOU TO OWN!
@@ -85,7 +85,7 @@ type NetworkConfigList struct {
 func init() {
 	SchemeBuilder.Register(&NetworkConfig{}, &NetworkConfigList{})
 
-	crdClient.AddToRegistry("networkconfigs", &NetworkConfig{}, &NetworkConfigList{}, nil, schema.GroupResource{
+	crdclient.AddToRegistry("networkconfigs", &NetworkConfig{}, &NetworkConfigList{}, nil, schema.GroupResource{
 		Group:    TunnelEndpointGroupResource.Group,
 		Resource: "networkconfigs",
 	})

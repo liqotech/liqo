@@ -11,7 +11,7 @@ import (
 	advtypes "github.com/liqotech/liqo/apis/sharing/v1alpha1"
 	advop "github.com/liqotech/liqo/internal/advertisementoperator"
 	liqoconst "github.com/liqotech/liqo/pkg/consts"
-	"github.com/liqotech/liqo/pkg/crdClient"
+	crdclient "github.com/liqotech/liqo/pkg/crdClient"
 
 	"strconv"
 	"testing"
@@ -30,7 +30,7 @@ import (
 
 func createBroadcaster(configv1alpha1 configv1alpha1.ClusterConfigSpec) broadcaster.AdvertisementBroadcaster {
 	// set the client in fake mode
-	crdClient.Fake = true
+	crdclient.Fake = true
 	// create fake client for the home cluster
 	homeClient, err := advtypes.CreateAdvertisementClient("", nil, true, nil)
 	if err != nil {
@@ -176,7 +176,7 @@ func createFakeResources() (physicalNodes *corev1.NodeList, virtualNodes *corev1
 	return physicalNodes, virtualNodes, images, sum, podList
 }
 
-func createResourcesOnCluster(client *crdClient.CRDClient, pNodes *corev1.NodeList, vNodes *corev1.NodeList, pods *corev1.PodList) error {
+func createResourcesOnCluster(client *crdclient.CRDClient, pNodes *corev1.NodeList, vNodes *corev1.NodeList, pods *corev1.PodList) error {
 	// create resources on home cluster
 	for i := 0; i < len(pNodes.Items); i++ {
 		_, err := client.Client().CoreV1().Nodes().Create(context.TODO(), &pNodes.Items[i], metav1.CreateOptions{})

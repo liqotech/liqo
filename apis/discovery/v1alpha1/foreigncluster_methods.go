@@ -11,7 +11,7 @@ import (
 
 	advtypes "github.com/liqotech/liqo/apis/sharing/v1alpha1"
 	"github.com/liqotech/liqo/internal/discovery/utils"
-	"github.com/liqotech/liqo/pkg/crdClient"
+	crdclient "github.com/liqotech/liqo/pkg/crdClient"
 	"github.com/liqotech/liqo/pkg/discovery"
 )
 
@@ -20,7 +20,8 @@ func (fc *ForeignCluster) CheckTrusted() (bool, error) {
 	return trustMode == discovery.TrustModeTrusted, err
 }
 
-func (fc *ForeignCluster) SetAdvertisement(adv *advtypes.Advertisement, discoveryClient *crdClient.CRDClient) error {
+// SetAdvertisement sets the advertisement reference in the ForeignCluster.
+func (fc *ForeignCluster) SetAdvertisement(adv *advtypes.Advertisement, discoveryClient *crdclient.CRDClient) error {
 	if fc.Status.Outgoing.Advertisement == nil {
 		// Advertisement has not been set in ForeignCluster yet
 		fc.Status.Outgoing.Advertisement = &v1.ObjectReference{
@@ -38,7 +39,8 @@ func (fc *ForeignCluster) SetAdvertisement(adv *advtypes.Advertisement, discover
 	return nil
 }
 
-func (fc *ForeignCluster) DeleteAdvertisement(advClient *crdClient.CRDClient) error {
+// DeleteAdvertisement deletes the advertisement reference from the ForeignCluster.
+func (fc *ForeignCluster) DeleteAdvertisement(advClient *crdclient.CRDClient) error {
 	if fc.Status.Outgoing.Advertisement != nil {
 		err := advClient.Resource("advertisements").Delete(fc.Status.Outgoing.Advertisement.Name, &metav1.DeleteOptions{})
 		if err != nil && !errors.IsNotFound(err) {

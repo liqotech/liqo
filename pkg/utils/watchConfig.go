@@ -10,23 +10,24 @@ import (
 	"k8s.io/klog"
 
 	configv1alpha1 "github.com/liqotech/liqo/apis/config/v1alpha1"
-	"github.com/liqotech/liqo/pkg/crdClient"
+	crdclient "github.com/liqotech/liqo/pkg/crdClient"
 )
 
 type ApiServerConfigProvider interface {
 	GetAPIServerConfig() *configv1alpha1.APIServerConfig
 }
 
-func WatchConfiguration(handler func(*configv1alpha1.ClusterConfig), client *crdClient.CRDClient, kubeconfigPath string) {
+// WatchConfiguration watches the ClusterConfig CR, and calls the handler funcition on updates.
+func WatchConfiguration(handler func(*configv1alpha1.ClusterConfig), client *crdclient.CRDClient, kubeconfigPath string) {
 	var rsyncPeriod = 30 * time.Second
 	if client == nil {
-		config, err := crdClient.NewKubeconfig(kubeconfigPath, &configv1alpha1.GroupVersion, nil)
+		config, err := crdclient.NewKubeconfig(kubeconfigPath, &configv1alpha1.GroupVersion, nil)
 		if err != nil {
 			klog.Error(err, err.Error())
 			os.Exit(1)
 		}
 
-		client, err = crdClient.NewFromConfig(config)
+		client, err = crdclient.NewFromConfig(config)
 		if err != nil {
 			klog.Error(err, err.Error())
 			os.Exit(1)
@@ -63,7 +64,7 @@ func WatchConfiguration(handler func(*configv1alpha1.ClusterConfig), client *crd
 		},
 	}
 	lo := metav1.ListOptions{}
-	client.Store, client.Stop, err = crdClient.WatchResources(client,
+	client.Store, client.Stop, err = crdclient.WatchResources(client,
 		"clusterconfigs", "",
 		rsyncPeriod, ehf, lo)
 	if err != nil {

@@ -22,7 +22,7 @@ import (
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	netv1alpha1 "github.com/liqotech/liqo/apis/net/v1alpha1"
 	"github.com/liqotech/liqo/internal/crdReplicator"
-	"github.com/liqotech/liqo/pkg/crdClient"
+	crdclient "github.com/liqotech/liqo/pkg/crdClient"
 )
 
 var (
@@ -34,7 +34,7 @@ var (
 	peeringClustersManagers     = map[string]ctrl.Manager{}
 	peeringClustersDynClients   = map[string]dynamic.Interface{}
 	peeringClustersDynFactories = map[string]dynamicinformer.DynamicSharedInformerFactory{}
-	configClusterClient         *crdClient.CRDClient
+	configClusterClient         *crdclient.CRDClient
 	k8sManagerLocal             ctrl.Manager
 	testEnvLocal                *envtest.Environment
 	dOperator                   *crdReplicator.Controller
@@ -87,13 +87,13 @@ func startDispatcherOperator() {
 	}
 }
 
-func getConfigClusterCRDClient(config *rest.Config) *crdClient.CRDClient {
+func getConfigClusterCRDClient(config *rest.Config) *crdclient.CRDClient {
 	newConfig := config
 	newConfig.ContentConfig.GroupVersion = &configv1alpha1.GroupVersion
 	newConfig.APIPath = "/apis"
 	newConfig.NegotiatedSerializer = clientgoscheme.Codecs.WithoutConversion()
 	newConfig.UserAgent = rest.DefaultKubernetesUserAgent()
-	CRDclient, err := crdClient.NewFromConfig(newConfig)
+	CRDclient, err := crdclient.NewFromConfig(newConfig)
 	if err != nil {
 		klog.Error(err, err.Error())
 		os.Exit(1)

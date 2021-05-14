@@ -1,4 +1,4 @@
-package tenantControlNamespace
+package tenantcontrolnamespace
 
 const (
 	tenantControlNamespaceRoot = "liqo-tenant-control"

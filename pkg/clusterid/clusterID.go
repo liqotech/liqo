@@ -20,7 +20,7 @@ import (
 
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	"github.com/liqotech/liqo/pkg/consts"
-	"github.com/liqotech/liqo/pkg/crdClient"
+	crdclient "github.com/liqotech/liqo/pkg/crdClient"
 )
 
 // ClusterID defines the basic methods to interact with cluster identifier.
@@ -39,12 +39,12 @@ type ClusterIDImpl struct {
 
 // NewClusterID generates a new clusterid and returns it.
 func NewClusterID(kubeconfigPath string) (ClusterID, error) {
-	config, err := crdClient.NewKubeconfig(kubeconfigPath, &discoveryv1alpha1.GroupVersion, nil)
+	config, err := crdclient.NewKubeconfig(kubeconfigPath, &discoveryv1alpha1.GroupVersion, nil)
 	if err != nil {
 		klog.Error(err, "unable to get kube config")
 		os.Exit(1)
 	}
-	crdClientVar, err := crdClient.NewFromConfig(config)
+	crdClientVar, err := crdclient.NewFromConfig(config)
 	if err != nil {
 		klog.Error(err, "unable to create crd client")
 		os.Exit(1)

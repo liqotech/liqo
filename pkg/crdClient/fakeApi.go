@@ -1,4 +1,4 @@
-package crdClient
+package crdclient
 
 import (
 	kerrors "k8s.io/apimachinery/pkg/api/errors"

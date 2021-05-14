@@ -21,7 +21,7 @@ import (
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	advtypes "github.com/liqotech/liqo/apis/sharing/v1alpha1"
 	liqoconst "github.com/liqotech/liqo/pkg/consts"
-	"github.com/liqotech/liqo/pkg/crdClient"
+	crdclient "github.com/liqotech/liqo/pkg/crdClient"
 	"github.com/liqotech/liqo/pkg/kubeconfig"
 	"github.com/liqotech/liqo/pkg/utils"
 	pkg "github.com/liqotech/liqo/pkg/virtualKubelet"
@@ -31,11 +31,11 @@ import (
 // AdvertisementBroadcaster models data and structures needed by a broadcaster instance.
 type AdvertisementBroadcaster struct {
 	// local-related variables
-	LocalClient     *crdClient.CRDClient
-	DiscoveryClient *crdClient.CRDClient
+	LocalClient     *crdclient.CRDClient
+	DiscoveryClient *crdclient.CRDClient
 	// remote-related variables
 	KubeconfigSecretForForeign *corev1.Secret       // secret containing the kubeconfig that will be sent to the foreign cluster
-	RemoteClient               *crdClient.CRDClient // client to create Advertisements and Secrets on the foreign cluster
+	RemoteClient               *crdclient.CRDClient // client to create Advertisements and Secrets on the foreign cluster
 	// configuration variables
 	HomeClusterID      string
 	ForeignClusterID   string
@@ -85,12 +85,12 @@ func StartBroadcaster(homeClusterID, localKubeconfigPath, peeringRequestName, sa
 	}
 
 	// create the discovery client
-	config, err := crdClient.NewKubeconfig(localKubeconfigPath, &discoveryv1alpha1.GroupVersion, nil)
+	config, err := crdclient.NewKubeconfig(localKubeconfigPath, &discoveryv1alpha1.GroupVersion, nil)
 	if err != nil {
 		klog.Error(err, err.Error())
 		return err
 	}
-	discoveryClient, err := crdClient.NewFromConfig(config)
+	discoveryClient, err := crdclient.NewFromConfig(config)
 	if err != nil {
 		klog.Error(err, err.Error())
 		return err
@@ -118,7 +118,7 @@ func StartBroadcaster(homeClusterID, localKubeconfigPath, peeringRequestName, sa
 	}
 
 	// create the Advertisement client to the remote cluster, using the retrieved Secret
-	var remoteClient *crdClient.CRDClient
+	var remoteClient *crdclient.CRDClient
 	var retry int
 
 	// create a CRD-client to the foreign cluster

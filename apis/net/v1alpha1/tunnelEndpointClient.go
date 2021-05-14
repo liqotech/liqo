@@ -9,11 +9,11 @@ import (
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/cache"
 
-	"github.com/liqotech/liqo/pkg/crdClient"
+	crdclient "github.com/liqotech/liqo/pkg/crdClient"
 )
 
 // create a client for TunnelEndpoint CR using a provided kubeconfig.
-func CreateTunnelEndpointClient(kubeconfig string) (*crdClient.CRDClient, error) {
+func CreateTunnelEndpointClient(kubeconfig string) (*crdclient.CRDClient, error) {
 	var config *rest.Config
 	var err error
 
@@ -21,20 +21,20 @@ func CreateTunnelEndpointClient(kubeconfig string) (*crdClient.CRDClient, error)
 		panic(err)
 	}
 
-	crdClient.AddToRegistry("tunnelendpoints", &TunnelEndpoint{}, &TunnelEndpointList{},
+	crdclient.AddToRegistry("tunnelendpoints", &TunnelEndpoint{}, &TunnelEndpointList{},
 		Keyer, TunnelEndpointGroupResource)
 
-	config, err = crdClient.NewKubeconfig(kubeconfig, &GroupVersion, nil)
+	config, err = crdclient.NewKubeconfig(kubeconfig, &GroupVersion, nil)
 	if err != nil {
 		panic(err)
 	}
 
-	clientSet, err := crdClient.NewFromConfig(config)
+	clientSet, err := crdclient.NewFromConfig(config)
 	if err != nil {
 		return nil, err
 	}
 
-	store, stop, err := crdClient.WatchResources(clientSet,
+	store, stop, err := crdclient.WatchResources(clientSet,
 		"tunnelendpoints",
 		"",
 		0,

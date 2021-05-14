@@ -1,4 +1,4 @@
-package identityManager
+package identitymanager
 
 import "k8s.io/client-go/rest"
 
