@@ -39,8 +39,7 @@ const (
 // +kubebuilder:rbac:groups=sharing.liqo.io,resources=resourceOffers/status,verbs=get;update;patch
 
 // Reconcile is the main function of the controller which reconciles ResourceRequest resources.
-func (r *ResourceRequestReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
-	ctx := context.Background()
+func (r *ResourceRequestReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 
 	var resourceRequest discoveryv1alpha1.ResourceRequest
 	err := r.Get(ctx, req.NamespacedName, &resourceRequest)

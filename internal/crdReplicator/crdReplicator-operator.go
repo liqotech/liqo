@@ -72,9 +72,8 @@ type Controller struct {
 // +kubebuilder:rbac:groups=core,namespace="do-not-care",resources=secrets,verbs=get;list
 // +kubebuilder:rbac:groups=core,namespace="do-not-care",resources=configmaps,verbs=get;list
 
-func (c *Controller) Reconcile(req ctrl.Request) (ctrl.Result, error) {
+func (c *Controller) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	var fc v1alpha1.ForeignCluster
-	ctx := context.Background()
 	c.StartWatchers()
 	defer c.StopWatchers()
 	err := c.Get(ctx, req.NamespacedName, &fc)

@@ -107,10 +107,7 @@ type ForeignClusterReconciler struct {
 // +kubebuilder:rbac:groups=rbac.authorization.k8s.io,namespace="liqo",resources=rolebindings,verbs=get;create
 
 // Reconcile reconciles ForeignCluster resources.
-func (r *ForeignClusterReconciler) Reconcile( //nolint:gocyclo // this function will be refactored in the future
-	req ctrl.Request) (ctrl.Result, error) {
-	_ = context.Background()
-
+func (r *ForeignClusterReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	klog.V(4).Infof("Reconciling ForeignCluster %s", req.Name)
 
 	tmp, err := r.crdClient.Resource("foreignclusters").Get(req.Name, &metav1.GetOptions{})

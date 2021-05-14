@@ -24,9 +24,9 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/pkg/errors"
 	"k8s.io/apimachinery/pkg/types"
-	remoteutils "k8s.io/client-go/tools/remotecommand"
+	remoteutils "k8s.io/kubernetes/pkg/kubelet/cri/streaming/remotecommand"
 	api "k8s.io/kubernetes/pkg/apis/core"
-	"k8s.io/kubernetes/pkg/kubelet/server/remotecommand"
+	"k8s.io/kubernetes/pkg/kubelet/cri/streaming/remotecommand"
 
 	"github.com/liqotech/liqo/internal/utils/errdefs"
 )

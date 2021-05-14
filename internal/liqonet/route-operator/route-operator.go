@@ -115,8 +115,7 @@ func NewRouteController(mgr ctrl.Manager, wgc wireguard.Client, nl wireguard.Net
 // +kubebuilder:rbac:groups=core,namespace="do-not-care",resources=pods,verbs=update;patch;get;list;watch
 // +kubebuilder:rbac:groups=core,namespace="do-not-care",resources=services,verbs=update;patch;get;list;watch
 
-func (r *RouteController) Reconcile(req ctrl.Request) (ctrl.Result, error) {
-	ctx := context.Background()
+func (r *RouteController) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	var tep netv1alpha1.TunnelEndpoint
 	// name of our finalizer
 	routeOperatorFinalizer := strings.Join([]string{OperatorName, r.nodeName, "liqo.io"}, "-")

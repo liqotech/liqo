@@ -131,14 +131,13 @@ type TunnelEndpointCreator struct {
 // +kubebuilder:rbac:groups=core,namespace="do-not-care",resources=pods,verbs=get;list;watch
 
 // Reconciler method.
-func (tec *TunnelEndpointCreator) Reconcile(req ctrl.Request) (ctrl.Result, error) {
+func (tec *TunnelEndpointCreator) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	if !tec.IsConfigured {
 		klog.Infof("the operator is waiting to be configured")
 		tec.WaitConfig.Wait()
 		klog.Infof("operator configured")
 		tec.IsConfigured = true
 	}
-	ctx := context.Background()
 	tunnelEndpointCreatorFinalizer := "tunnelEndpointCreator-Finalizer.liqonet.liqo.io"
 	// get networkConfig
 	var netConfig netv1alpha1.NetworkConfig
