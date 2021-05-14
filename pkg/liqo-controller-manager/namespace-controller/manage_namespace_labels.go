@@ -62,7 +62,7 @@ func manageLabelPredicate() predicate.Predicate {
 	return predicate.Funcs{
 		UpdateFunc: func(e event.UpdateEvent) bool {
 			// if a namespace with namespaceControllerFinalizer is deleted, trigger Reconcile
-			if !(e.MetaNew.GetDeletionTimestamp().IsZero()) && slice.ContainsString(e.MetaNew.GetFinalizers(),
+			if !(e.ObjectNew.GetDeletionTimestamp().IsZero()) && slice.ContainsString(e.ObjectNew.GetFinalizers(),
 				namespaceControllerFinalizer, nil) {
 				return true
 			}
@@ -72,13 +72,13 @@ func manageLabelPredicate() predicate.Predicate {
 			// ||
 			// if mappingLabel value is changed while the namespace is offloaded, controller has to force mappingLabel
 			// to its old value (see addDesiredMapping function)
-			return ((len(e.MetaOld.GetLabels()) != len(e.MetaNew.GetLabels())) &&
-				(mappingLabelPresence(e.MetaOld.GetLabels()) ||
-					mappingLabelPresence(e.MetaNew.GetLabels()))) ||
-				mappingLabelUpdate(e.MetaOld.GetLabels(), e.MetaNew.GetLabels())
+			return ((len(e.ObjectOld.GetLabels()) != len(e.ObjectNew.GetLabels())) &&
+				(mappingLabelPresence(e.ObjectOld.GetLabels()) ||
+					mappingLabelPresence(e.ObjectNew.GetLabels()))) ||
+				mappingLabelUpdate(e.ObjectOld.GetLabels(), e.ObjectNew.GetLabels())
 		},
 		CreateFunc: func(e event.CreateEvent) bool {
-			return mappingLabelPresence(e.Meta.GetLabels())
+			return mappingLabelPresence(e.Object.GetLabels())
 		},
 		DeleteFunc: func(e event.DeleteEvent) bool {
 			return false

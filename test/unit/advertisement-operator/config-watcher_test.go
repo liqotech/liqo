@@ -8,11 +8,11 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/klog"
-	api "k8s.io/kubernetes/pkg/apis/core"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	configv1alpha1 "github.com/liqotech/liqo/apis/config/v1alpha1"
@@ -168,7 +168,7 @@ func testDisableBroadcaster(t *testing.T) {
 func waitEvent(client *crdclient.CRDClient, resourcetype string, name string) error {
 	var timeout int64 = 10
 	watcher, err := client.Resource(resourcetype).Watch(&v1.ListOptions{
-		FieldSelector:  fields.OneTermEqualSelector(api.ObjectNameField, name).String(),
+		FieldSelector:  fields.OneTermEqualSelector(metav1.ObjectNameField, name).String(),
 		TimeoutSeconds: &timeout,
 	})
 	if err != nil {

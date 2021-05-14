@@ -24,7 +24,7 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/pkg/errors"
 	"k8s.io/apimachinery/pkg/types"
-	remoteutils "k8s.io/kubernetes/pkg/kubelet/cri/streaming/remotecommand"
+	remotecommandclient "k8s.io/client-go/tools/remotecommand"
 	api "k8s.io/kubernetes/pkg/apis/core"
 	"k8s.io/kubernetes/pkg/kubelet/cri/streaming/remotecommand"
 
@@ -165,7 +165,7 @@ type containerExecContext struct {
 
 // ExecInContainer Implements remotecommand.Executor
 // This is called by remotecommand.ServeExec.
-func (c *containerExecContext) ExecInContainer(name string, uid types.UID, container string, cmd []string, in io.Reader, out, err io.WriteCloser, tty bool, resize <-chan remoteutils.TerminalSize, timeout time.Duration) error {
+func (c *containerExecContext) ExecInContainer(name string, uid types.UID, container string, cmd []string, in io.Reader, out, err io.WriteCloser, tty bool, resize <-chan remotecommandclient.TerminalSize, timeout time.Duration) error {
 	eio := &execIO{
 		tty:    tty,
 		stdin:  in,
@@ -182,7 +182,7 @@ func (c *containerExecContext) ExecInContainer(name string, uid types.UID, conta
 
 	if tty {
 		go func() {
-			send := func(s remoteutils.TerminalSize) bool {
+			send := func(s remotecommandclient.TerminalSize) bool {
 				select {
 				case eio.chResize <- TermSize{Width: s.Width, Height: s.Height}:
 					return false

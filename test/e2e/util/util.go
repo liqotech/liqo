@@ -19,10 +19,9 @@ import (
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
-	"k8s.io/kubernetes/pkg/kubelet/cri/streaming/remotecommand"
+	remotecommandclient "k8s.io/client-go/tools/remotecommand"
 	"k8s.io/klog"
 	"k8s.io/kubernetes/pkg/api/v1/pod"
-	api "k8s.io/kubernetes/pkg/apis/core"
 
 	"github.com/liqotech/liqo/pkg/virtualKubelet"
 )
@@ -138,7 +137,7 @@ func PodWatcher(location string, client *kubernetes.Clientset, clusterID, namesp
 	// Hence, we do not know the exact foreign pod name.
 	if location == "home" {
 		watcher, err = client.CoreV1().Pods(namespace).Watch(context.TODO(), metav1.ListOptions{
-			FieldSelector: fields.OneTermEqualSelector(api.ObjectNameField, podName).String(),
+			FieldSelector: fields.OneTermEqualSelector(metav1.ObjectNameField, podName).String(),
 		})
 	} else {
 		watcher, err = client.CoreV1().Pods(namespace).Watch(context.TODO(), metav1.ListOptions{
@@ -212,11 +211,11 @@ func ExecCmd(config *rest.Config, client *kubernetes.Clientset, podName, namespa
 	}, scheme.ParameterCodec)
 
 	var stdout, stderr bytes.Buffer
-	exec, err := remotecommand.NewSPDYExecutor(config, "POST", req.URL())
+	exec, err := remotecommandclient.NewSPDYExecutor(config, "POST", req.URL())
 	if err != nil {
 		return "", "", err
 	}
-	err = exec.Stream(remotecommand.StreamOptions{
+	err = exec.Stream(remotecommandclient.StreamOptions{
 		Stdin:  nil,
 		Stdout: &stdout,
 		Stderr: &stderr,

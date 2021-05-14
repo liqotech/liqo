@@ -47,7 +47,7 @@ type VirtualNodeReconciler struct {
 // +kubebuilder:rbac:groups=core,resources=nodes/status,verbs=get;update;patch
 
 // Reconcile checks if virtual-node must be deleted or manages its NamespaceMap.
-func (r *VirtualNodeReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
+func (r *VirtualNodeReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	node := &corev1.Node{}
 	if err := r.Get(context.TODO(), req.NamespacedName, node); err != nil {
 		klog.Errorf(" %s --> Unable to get virtual-node '%s'", err, req.Name)
@@ -106,18 +106,18 @@ func filterVirtualNodes() predicate.Predicate {
 		UpdateFunc: func(e event.UpdateEvent) bool {
 			// if the resource has no namespace, it surely a node, so we have to check if it is virtual or not, we are
 			// interested only in virtual-nodes' deletion, not common nodes' deletion.
-			if e.MetaNew.GetNamespace() == "" {
-				if value, ok := (e.MetaNew.GetLabels())[liqoconst.TypeLabel]; !ok || value != liqoconst.TypeNode {
+			if e.ObjectNew.GetNamespace() == "" {
+				if value, ok := (e.ObjectNew.GetLabels())[liqoconst.TypeLabel]; !ok || value != liqoconst.TypeNode {
 					return false
 				}
 			}
 			// so here we monitor only NamespaceMaps' and virtual-nodes' deletion
-			return !(e.MetaNew.GetDeletionTimestamp().IsZero())
+			return !(e.ObjectNew.GetDeletionTimestamp().IsZero())
 		},
 		CreateFunc: func(e event.CreateEvent) bool {
 			// listen only virtual-node creation, not simple node
-			if e.Meta.GetNamespace() == "" {
-				if value, ok := (e.Meta.GetLabels())[liqoconst.TypeLabel]; !ok || value != liqoconst.TypeNode {
+			if e.Object.GetNamespace() == "" {
+				if value, ok := (e.Object.GetLabels())[liqoconst.TypeLabel]; !ok || value != liqoconst.TypeNode {
 					return false
 				}
 			}
@@ -128,12 +128,12 @@ func filterVirtualNodes() predicate.Predicate {
 			return false
 		},
 		GenericFunc: func(e event.GenericEvent) bool {
-			if e.Meta.GetNamespace() == "" {
-				if value, ok := (e.Meta.GetLabels())[liqoconst.TypeLabel]; !ok || value != liqoconst.TypeNode {
+			if e.Object.GetNamespace() == "" {
+				if value, ok := (e.Object.GetLabels())[liqoconst.TypeLabel]; !ok || value != liqoconst.TypeNode {
 					return false
 				}
 			}
-			return !(e.Meta.GetDeletionTimestamp().IsZero())
+			return !(e.Object.GetDeletionTimestamp().IsZero())
 		},
 	}
 }

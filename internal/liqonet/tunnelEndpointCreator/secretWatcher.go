@@ -25,8 +25,8 @@ var (
 )
 
 func (tec *TunnelEndpointCreator) StartSecretWatcher() {
-	chacheChan := make(chan struct{})
-	started := tec.Manager.GetCache().WaitForCacheSync(chacheChan)
+	ctx := context.Background()
+	started := tec.Manager.GetCache().WaitForCacheSync(ctx)
 	if !started {
 		klog.Errorf("unable to sync caches")
 		return
