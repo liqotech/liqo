@@ -19,9 +19,17 @@ docs: helm-docs
 #run all tests
 test: unit e2e
 
+# Check if test image exists
+test-container:
+ifeq (, $(shell docker image ls | grep liqo-test))
+	@{ \
+	docker build -t liqo-test build/liqo-test/ ; \
+	}
+endif
+
 # Run unit tests
-unit: gen
-	go test $(shell go list ./... | grep -v "e2e")
+unit: test-container gen
+	docker run --mount type=bind,src=$(shell pwd),dst=/go/src/liqo -w /go/src/liqo --rm liqo-test
 
 # Run e2e tests
 e2e: gen
