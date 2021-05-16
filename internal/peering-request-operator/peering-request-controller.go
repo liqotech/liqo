@@ -60,6 +60,7 @@ type PeeringRequestReconciler struct {
 // +kubebuilder:rbac:groups=core,namespace="liqo",resources=configmaps,verbs=get;list;watch;create;update
 // +kubebuilder:rbac:groups=core,namespace="liqo",resources=secrets,verbs=get;patch;create
 
+// Reconcile reconciles requests occurred on PeeringRequest objects.
 func (r *PeeringRequestReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	klog.Info("Reconciling PeeringRequest " + req.Name)
 

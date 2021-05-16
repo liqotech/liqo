@@ -4,10 +4,13 @@ import (
 	. "github.com/onsi/ginkgo"
 	"github.com/onsi/gomega"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/dynamic/fake"
 
 	"github.com/liqotech/liqo/pkg/liqonet"
+
+	liqonetapi "github.com/liqotech/liqo/apis/net/v1alpha1"
 )
 
 var ipam *liqonet.IPAM
@@ -43,7 +46,20 @@ func fillNetworkPool(pool string, ipam *liqonet.IPAM) error {
 var _ = Describe("Ipam", func() {
 
 	BeforeEach(func() {
-		dynClient = fake.NewSimpleDynamicClient(runtime.NewScheme())
+		scheme := runtime.NewScheme()
+		scheme.AddKnownTypeWithName(schema.GroupVersionKind{
+			Group:   "net.liqo.io",
+			Version: "v1alpha1",
+			Kind:    "ipamstorages",
+		}, &liqonetapi.IpamStorage{})
+		s := schema.GroupVersionResource{
+			Group:    "net.liqo.io",
+			Version:  "v1alpha1",
+			Resource: "ipamstorages",
+		}
+		var m = make(map[schema.GroupVersionResource]string)
+		m[s] = "ipamstoragesList"
+		dynClient = fake.NewSimpleDynamicClientWithCustomListKinds(scheme, m, &liqonetapi.IpamStorage{})
 		ipam = liqonet.NewIPAM()
 		err := ipam.Init(liqonet.Pools, dynClient)
 		gomega.Expect(err).To(gomega.BeNil())

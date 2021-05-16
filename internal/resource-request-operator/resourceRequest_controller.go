@@ -40,7 +40,6 @@ const (
 
 // Reconcile is the main function of the controller which reconciles ResourceRequest resources.
 func (r *ResourceRequestReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-
 	var resourceRequest discoveryv1alpha1.ResourceRequest
 	err := r.Get(ctx, req.NamespacedName, &resourceRequest)
 	if err != nil {

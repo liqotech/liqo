@@ -115,6 +115,7 @@ func NewRouteController(mgr ctrl.Manager, wgc wireguard.Client, nl wireguard.Net
 // +kubebuilder:rbac:groups=core,namespace="do-not-care",resources=pods,verbs=update;patch;get;list;watch
 // +kubebuilder:rbac:groups=core,namespace="do-not-care",resources=services,verbs=update;patch;get;list;watch
 
+// Reconcile handle requests on TunnelEndpoint object to create and configure routes on Nodes.
 func (r *RouteController) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	var tep netv1alpha1.TunnelEndpoint
 	// name of our finalizer
@@ -138,7 +139,7 @@ func (r *RouteController) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 			// The object is not being deleted, so if it does not have our finalizer,
 			// then lets add the finalizer and update the object. This is equivalent
 			// registering our finalizer.
-			tep.ObjectMeta.Finalizers = append(tep.Finalizers, routeOperatorFinalizer)
+			tep.ObjectMeta.Finalizers = append(tep.ObjectMeta.Finalizers, routeOperatorFinalizer)
 			if err := r.Update(ctx, &tep); err != nil {
 				klog.Errorf("%s -> unable to add finalizers to resource %s: %s", clusterID, req.String(), err)
 				return result, err
@@ -196,19 +197,21 @@ func (r *RouteController) SetupWithManager(mgr ctrl.Manager) error {
 
 // SetupSignalHandlerForRouteOperator registers for SIGTERM, SIGINT. A stop channel is returned
 // which is closed on one of these signals.
-func (r *RouteController) SetupSignalHandlerForRouteOperator() (stopCh <-chan struct{}) {
-	stop := make(chan struct{})
+func (r *RouteController) SetupSignalHandlerForRouteOperator() context.Context {
+	ctx, done := context.WithCancel(context.Background())
 	c := make(chan os.Signal, 1)
 	signal.Notify(c, utils.ShutdownSignals...)
 	go func(r *RouteController) {
 		<-c
 		r.deleteOverlayIFace()
-		close(stop)
+		done()
 	}(r)
-	return stop
+	return ctx
 }
 
-func (r *RouteController) Watcher(sharedDynFactory dynamicinformer.DynamicSharedInformerFactory, resourceType schema.GroupVersionResource, handlerFuncs cache.ResourceEventHandlerFuncs, stopCh chan struct{}) {
+// Watcher initializes a dynamic informer for a resourceType passed as parameter with the handlerFuncs passed as parameters.
+func (r *RouteController) Watcher(sharedDynFactory dynamicinformer.DynamicSharedInformerFactory,
+	resourceType schema.GroupVersionResource, handlerFuncs cache.ResourceEventHandlerFuncs, stopCh chan struct{}) {
 	klog.Infof("starting watcher for %s", resourceType.String())
 	dynInformer := sharedDynFactory.ForResource(resourceType)
 	// adding handlers to the informer

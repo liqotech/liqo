@@ -4,12 +4,11 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/liqotech/liqo/internal/advertisementoperator/broadcaster"
-
 	configv1alpha1 "github.com/liqotech/liqo/apis/config/v1alpha1"
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	advtypes "github.com/liqotech/liqo/apis/sharing/v1alpha1"
 	advop "github.com/liqotech/liqo/internal/advertisementoperator"
+	"github.com/liqotech/liqo/internal/advertisementoperator/broadcaster"
 	liqoconst "github.com/liqotech/liqo/pkg/consts"
 	crdclient "github.com/liqotech/liqo/pkg/crdClient"
 
@@ -215,8 +214,11 @@ func TestGetClusterResources(t *testing.T) {
 	sumM := sum.DeepCopy()
 	sumM.SetScaled(sumM.Value(), resource.Mega)
 	res, images2 := broadcaster.GetClusterResources(pNodes.Items)
+	//q.Format = resource.BinarySI
+	q := resource.Quantity{}
+	q.Format = resource.BinarySI
 
-	assert.Empty(t, res.StorageEphemeral(), "StorageEphemeral was not set so it should be null")
+	assert.Equal(t, &q, res.StorageEphemeral(), "StorageEphemeral was not set so it should be null")
 	assert.Equal(t, *res.Cpu(), sum)
 	assert.Equal(t, *res.Memory(), sumM)
 	assert.Equal(t, *res.Pods(), sum)
