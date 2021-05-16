@@ -39,7 +39,7 @@ import (
 //
 // Note: Implementers can choose to manage a node themselves, in which case
 // it is not needed to provide an implementation for this interface.
-type NodeProvider interface { //nolint:golint
+type NodeProvider interface {
 	// Ping checks if the node is still active.
 	// This is intended to be lightweight as it will be called periodically as a
 	// heartbeat to keep the node marked as ready in Kubernetes.
@@ -74,7 +74,7 @@ func NewNodeController(p NodeProvider, node *corev1.Node, nodes v1.NodeInterface
 }
 
 // NodeControllerOpt are the functional options used for configuring a node.
-type NodeControllerOpt func(*NodeController) error // nolint:golint
+type NodeControllerOpt func(*NodeController) error
 
 // WithNodeEnableLeaseV1Beta1 enables support for v1beta1 leases.
 // If client is nil, leases will not be enabled.
@@ -142,7 +142,7 @@ type ErrorHandler func(context.Context, error) error
 // NodeController deals with creating and managing a node object in Kubernetes.
 // It can register a node with Kubernetes and periodically update its status.
 // NodeController manages a single node entity.
-type NodeController struct { // nolint: golint
+type NodeController struct {
 	p NodeProvider
 	n *corev1.Node
 

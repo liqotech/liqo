@@ -83,8 +83,8 @@ type AdvertisementReconciler struct {
 // +kubebuilder:rbac:groups=core,resources=events/status,verbs=get
 // +kubebuilder:rbac:groups=core,resources=serviceaccounts,verbs=get;list;watch;create;update;patch;delete
 
+// Reconcile reconciles requests occurred on Advertisement objects.
 func (r *AdvertisementReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-
 	// initialize the checkRemoteCluster map
 	if r.checkRemoteCluster == nil {
 		r.checkRemoteCluster = make(map[string]*sync.Once)

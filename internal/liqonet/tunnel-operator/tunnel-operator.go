@@ -81,7 +81,7 @@ type TunnelController struct {
 // +kubebuilder:rbac:groups=core,namespace="do-not-care",resources=services,verbs=get;list;watch;update
 // +kubebuilder:rbac:groups=core,namespace="do-not-care",resources=pods,verbs=get;list;watch;update
 
-// Instantiates and initializes the tunnel controller.
+// NewTunnelController instantiates and initializes the tunnel controller.
 func NewTunnelController(mgr ctrl.Manager, wgc wireguard.Client, nl wireguard.Netlinker) (*TunnelController, error) {
 	clientSet := k8s.NewForConfigOrDie(mgr.GetConfig())
 	namespace, err := utils.GetPodNamespace()
@@ -141,6 +141,7 @@ func NewTunnelController(mgr ctrl.Manager, wgc wireguard.Client, nl wireguard.Ne
 	return tc, nil
 }
 
+// Reconcile reconciles requests occurred on TunnelEndpoint objects.
 func (tc *TunnelController) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	if !tc.isConfigured {
 		<-tc.configChan
@@ -301,8 +302,8 @@ func (tc *TunnelController) EnsureIPTablesRulesPerCluster(tep *netv1alpha1.Tunne
 
 // SetupSignalHandlerForRouteOperator registers for SIGTERM, SIGINT, SIGKILL. A stop channel is returned
 // which is closed on one of these signals.
-func (tc *TunnelController) SetupSignalHandlerForTunnelOperator() (stopCh <-chan struct{}) {
-	stop := make(chan struct{})
+func (tc *TunnelController) SetupSignalHandlerForTunnelOperator() context.Context {
+	ctx, done := context.WithCancel(context.Background())
 	c := make(chan os.Signal, 1)
 	signal.Notify(c, utils.ShutdownSignals...)
 	go func(r *TunnelController) {
@@ -312,9 +313,9 @@ func (tc *TunnelController) SetupSignalHandlerForTunnelOperator() (stopCh <-chan
 		close(tc.stopPWChan)
 		r.RemoveAllTunnels()
 		<-c
-		close(stop)
+		done()
 	}(tc)
-	return stop
+	return ctx
 }
 
 func (tc *TunnelController) SetupWithManager(mgr ctrl.Manager) error {

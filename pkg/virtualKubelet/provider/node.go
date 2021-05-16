@@ -11,7 +11,7 @@ import (
 )
 
 func (p *LiqoProvider) ConfigureNode(ctx context.Context, n *v1.Node) {
-	_, span := trace.StartSpan(ctx, "kubernetes.ConfigureNode") //nolint:ineffassign
+	_, span := trace.StartSpan(ctx, "kubernetes.ConfigureNode")
 	defer span.End()
 
 	n.Status.Capacity = v1.ResourceList{}

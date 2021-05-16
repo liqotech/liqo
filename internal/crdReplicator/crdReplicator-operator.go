@@ -72,6 +72,7 @@ type Controller struct {
 // +kubebuilder:rbac:groups=core,namespace="do-not-care",resources=secrets,verbs=get;list
 // +kubebuilder:rbac:groups=core,namespace="do-not-care",resources=configmaps,verbs=get;list
 
+// Reconcile handles requests for subscribed types of object.
 func (c *Controller) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	var fc v1alpha1.ForeignCluster
 	c.StartWatchers()

@@ -163,9 +163,9 @@ type containerExecContext struct {
 	ctx                       context.Context
 }
 
-// ExecInContainer Implements remotecommand.Executor
-// This is called by remotecommand.ServeExec.
-func (c *containerExecContext) ExecInContainer(name string, uid types.UID, container string, cmd []string, in io.Reader, out, err io.WriteCloser, tty bool, resize <-chan remotecommandclient.TerminalSize, timeout time.Duration) error {
+// ExecInContainer Implements remotecommand.Executor. This is called by remotecommand.ServeExec.
+func (c *containerExecContext) ExecInContainer(name string, uid types.UID, container string, cmd []string,
+	in io.Reader, out, err io.WriteCloser, tty bool, resize <-chan remotecommandclient.TerminalSize, timeout time.Duration) error {
 	eio := &execIO{
 		tty:    tty,
 		stdin:  in,
