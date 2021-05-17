@@ -73,3 +73,31 @@ func (certManager *certificateIdentityManager) GetConfig(remoteClusterID, namesp
 		},
 	}, nil
 }
+
+// GetRemoteTenantNamespace returns the tenant control namespace that
+// the remote cluster assigned to this peering.
+func (certManager *certificateIdentityManager) GetRemoteTenantNamespace(remoteClusterID, namespace string) (string, error) {
+	var secret *v1.Secret
+	var err error
+
+	if namespace == "" {
+		secret, err = certManager.getSecret(remoteClusterID)
+	} else {
+		secret, err = certManager.getSecretInNamespace(remoteClusterID, namespace)
+	}
+	if err != nil {
+		klog.Error(err)
+		return "", err
+	}
+
+	remoteNamespace, ok := secret.Data[namespaceSecretKey]
+	if !ok {
+		klog.Errorf("key %v not found in secret %v/%v", namespaceSecretKey, secret.Namespace, secret.Name)
+		err = kerrors.NewNotFound(schema.GroupResource{
+			Group:    "v1",
+			Resource: "secrets",
+		}, remoteClusterID)
+		return "", err
+	}
+	return string(remoteNamespace), nil
+}

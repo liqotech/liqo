@@ -107,6 +107,28 @@ func (r *ForeignClusterReconciler) getRemoteClient(
 	return nil, nil
 }
 
+func (r *ForeignClusterReconciler) getRemoteTenantNamespace(fc *discoveryv1alpha1.ForeignCluster) (bool, error) {
+	if !r.useNewAuth {
+		return false, nil
+	}
+
+	remoteNamespace, err := r.identityManager.GetRemoteTenantNamespace(
+		fc.Spec.ClusterIdentity.ClusterID, fc.Status.TenantControlNamespace.Local)
+	if err != nil {
+		klog.Error(err)
+		return false, err
+	}
+
+	if fc.Status.TenantControlNamespace == nil {
+		fc.Status.TenantControlNamespace = &discoveryv1alpha1.TenantControlNamespace{}
+	}
+	if fc.Status.TenantControlNamespace.Remote != remoteNamespace {
+		fc.Status.TenantControlNamespace.Remote = remoteNamespace
+		return true, nil
+	}
+	return false, nil
+}
+
 // getIdentity loads the remote identity from a secret.
 func (r *ForeignClusterReconciler) getIdentity(
 	fc *discoveryv1alpha1.ForeignCluster, gv *schema.GroupVersion) (*crdclient.CRDClient, error) {
