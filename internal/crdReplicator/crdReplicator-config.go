@@ -1,4 +1,4 @@
-package crdReplicator
+package crdreplicator
 
 import (
 	"reflect"
@@ -13,6 +13,7 @@ import (
 	"github.com/liqotech/liqo/pkg/utils"
 )
 
+// WatchConfiguration starts a goroutine to watch the cluster configuration.
 func (c *Controller) WatchConfiguration(config *rest.Config, gv *schema.GroupVersion) error {
 	config.ContentConfig.GroupVersion = gv
 	config.APIPath = "/apis"
@@ -27,6 +28,7 @@ func (c *Controller) WatchConfiguration(config *rest.Config, gv *schema.GroupVer
 	return nil
 }
 
+// UpdateConfig updates the local configration copy.
 func (c *Controller) UpdateConfig(cfg *configv1alpha1.ClusterConfig) {
 	resources := c.GetConfig(cfg)
 	if !reflect.DeepEqual(c.RegisteredResources, resources) {
@@ -37,6 +39,7 @@ func (c *Controller) UpdateConfig(cfg *configv1alpha1.ClusterConfig) {
 	}
 }
 
+// GetConfig returns the list of resources that need replication.
 func (c *Controller) GetConfig(cfg *configv1alpha1.ClusterConfig) []resourceToReplicate {
 	resourceList := cfg.Spec.DispatcherConfig
 	config := []resourceToReplicate{}
@@ -53,6 +56,7 @@ func (c *Controller) GetConfig(cfg *configv1alpha1.ClusterConfig) []resourceToRe
 	return config
 }
 
+// GetRemovedResources returns the resources where the replication is no more required.
 func (c *Controller) GetRemovedResources(resources []resourceToReplicate) []string {
 	oldRes := []string{}
 	diffRes := []string{}

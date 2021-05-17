@@ -16,7 +16,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	netv1alpha1 "github.com/liqotech/liqo/apis/net/v1alpha1"
-	"github.com/liqotech/liqo/internal/crdReplicator"
+	crdreplicator "github.com/liqotech/liqo/internal/crdReplicator"
 	"github.com/liqotech/liqo/pkg/liqonet/tunnel/wireguard"
 )
 
@@ -73,7 +73,7 @@ func (tec *TunnelEndpointCreator) secretHandlerAdd(obj interface{}) {
 		tec.wgConfigured = true
 	}
 	netConfigs := &netv1alpha1.NetworkConfigList{}
-	labels := client.MatchingLabels{crdReplicator.LocalLabelSelector: "true"}
+	labels := client.MatchingLabels{crdreplicator.LocalLabelSelector: "true"}
 	err = tec.Client.List(context.Background(), netConfigs, labels)
 	if err != nil {
 		klog.Errorf("unable to retrieve the existing resources of type %s in order to update the publicKey for the vpn backend: %v", netv1alpha1.NetworkConfigGroupVersionResource.String(), err)

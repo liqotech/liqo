@@ -1,4 +1,4 @@
-package crdReplicator
+package crdreplicator
 
 import (
 	"k8s.io/klog/v2"
@@ -32,20 +32,21 @@ func (c *Controller) setPeeringPhase(clusterID string, phase consts.PeeringPhase
 func getPeeringPhase(fc *discoveryv1alpha1.ForeignCluster) consts.PeeringPhase {
 	if fc.Status.Incoming.Joined && fc.Status.Outgoing.Joined {
 		return consts.PeeringPhaseBidirectional
-	} else if fc.Status.Incoming.Joined {
-		return consts.PeeringPhaseIncoming
-	} else if fc.Status.Outgoing.Joined {
-		return consts.PeeringPhaseOutgoing
-	} else {
-		return consts.PeeringPhaseNone
 	}
+	if fc.Status.Incoming.Joined {
+		return consts.PeeringPhaseIncoming
+	}
+	if fc.Status.Outgoing.Joined {
+		return consts.PeeringPhaseOutgoing
+	}
+	return consts.PeeringPhaseNone
 }
 
 func isReplicationEnabled(peeringPhase consts.PeeringPhase, resource resourceToReplicate) bool {
 	switch resource.peeringPhase {
 	case consts.PeeringPhaseNone:
 		return false
-	case consts.PeeringPhaseAll:
+	case consts.PeeringPhaseAny:
 		return true
 	case consts.PeeringPhaseBidirectional:
 		return peeringPhase == consts.PeeringPhaseBidirectional

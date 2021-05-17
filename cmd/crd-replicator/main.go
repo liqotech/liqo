@@ -17,7 +17,7 @@ import (
 
 	configv1alpha1 "github.com/liqotech/liqo/apis/config/v1alpha1"
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
-	"github.com/liqotech/liqo/internal/crdReplicator"
+	crdreplicator "github.com/liqotech/liqo/internal/crdReplicator"
 	"github.com/liqotech/liqo/pkg/clusterid"
 	identitymanager "github.com/liqotech/liqo/pkg/identityManager"
 	util "github.com/liqotech/liqo/pkg/liqonet"
@@ -81,8 +81,8 @@ func main() {
 	clusterIdInterface := clusterid.NewStaticClusterID(clusterId)
 	namespaceManager := tenantcontrolnamespace.NewTenantControlNamespaceManager(k8sClient)
 	dynClient := dynamic.NewForConfigOrDie(cfg)
-	dynFac := dynamicinformer.NewFilteredDynamicSharedInformerFactory(dynClient, crdReplicator.ResyncPeriod, metav1.NamespaceAll, crdReplicator.SetLabelsForLocalResources)
-	d := &crdReplicator.Controller{
+	dynFac := dynamicinformer.NewFilteredDynamicSharedInformerFactory(dynClient, crdreplicator.ResyncPeriod, metav1.NamespaceAll, crdreplicator.SetLabelsForLocalResources)
+	d := &crdreplicator.Controller{
 		Scheme:                         mgr.GetScheme(),
 		Client:                         mgr.GetClient(),
 		ClientSet:                      k8sClient,

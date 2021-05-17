@@ -21,7 +21,7 @@ import (
 	configv1alpha1 "github.com/liqotech/liqo/apis/config/v1alpha1"
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	netv1alpha1 "github.com/liqotech/liqo/apis/net/v1alpha1"
-	"github.com/liqotech/liqo/internal/crdReplicator"
+	crdreplicator "github.com/liqotech/liqo/internal/crdReplicator"
 	crdclient "github.com/liqotech/liqo/pkg/crdClient"
 )
 
@@ -37,7 +37,7 @@ var (
 	configClusterClient         *crdclient.CRDClient
 	k8sManagerLocal             ctrl.Manager
 	testEnvLocal                *envtest.Environment
-	dOperator                   *crdReplicator.Controller
+	dOperator                   *crdreplicator.Controller
 )
 
 func TestMain(m *testing.M) {
@@ -133,9 +133,9 @@ func setupEnv() {
 		peeringClustersManagers[peeringClusterID] = manager
 		dynClient := dynamic.NewForConfigOrDie(manager.GetConfig())
 		peeringClustersDynClients[peeringClusterID] = dynClient
-		dynFac := dynamicinformer.NewFilteredDynamicSharedInformerFactory(dynClient, crdReplicator.ResyncPeriod, metav1.NamespaceAll, func(options *metav1.ListOptions) {
+		dynFac := dynamicinformer.NewFilteredDynamicSharedInformerFactory(dynClient, crdreplicator.ResyncPeriod, metav1.NamespaceAll, func(options *metav1.ListOptions) {
 			//we want to watch only the resources that have been created by us on the remote cluster
-			options.LabelSelector = crdReplicator.RemoteLabelSelector + "=" + localClusterID
+			options.LabelSelector = crdreplicator.RemoteLabelSelector + "=" + localClusterID
 		})
 		peeringClustersDynFactories[peeringClusterID] = dynFac
 	}

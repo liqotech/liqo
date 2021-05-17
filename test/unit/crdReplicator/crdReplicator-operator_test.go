@@ -17,7 +17,7 @@ import (
 	"k8s.io/klog/v2"
 
 	netv1alpha1 "github.com/liqotech/liqo/apis/net/v1alpha1"
-	"github.com/liqotech/liqo/internal/crdReplicator"
+	crdreplicator "github.com/liqotech/liqo/internal/crdReplicator"
 )
 
 var (
@@ -36,8 +36,8 @@ var (
 func setupDispatcherOperator() error {
 	var err error
 	localDynClient := dynamic.NewForConfigOrDie(k8sManagerLocal.GetConfig())
-	localDynFac := dynamicinformer.NewFilteredDynamicSharedInformerFactory(localDynClient, crdReplicator.ResyncPeriod, metav1.NamespaceAll, crdReplicator.SetLabelsForLocalResources)
-	dOperator = &crdReplicator.Controller{
+	localDynFac := dynamicinformer.NewFilteredDynamicSharedInformerFactory(localDynClient, crdreplicator.ResyncPeriod, metav1.NamespaceAll, crdreplicator.SetLabelsForLocalResources)
+	dOperator = &crdreplicator.Controller{
 		Scheme:                         k8sManagerLocal.GetScheme(),
 		Client:                         k8sManagerLocal.GetClient(),
 		ClientSet:                      nil,
@@ -153,8 +153,8 @@ func TestReplication2(t *testing.T) {
 		tun := getTunnelEndpointResource()
 		tun.SetName(clusterID)
 		tun.SetLabels(map[string]string{
-			crdReplicator.DestinationLabel:   clusterID,
-			crdReplicator.LocalLabelSelector: "true",
+			crdreplicator.DestinationLabel:   clusterID,
+			crdreplicator.LocalLabelSelector: "true",
 		})
 		newTun, err := dOperator.LocalDynClient.Resource(tunGVR).Create(context.TODO(), tun, metav1.CreateOptions{})
 		assert.Nil(t, err, "error should be nil")
@@ -191,8 +191,8 @@ func TestReplication4(t *testing.T) {
 		tun := getTunnelEndpointResource()
 		tun.SetName(clusterID)
 		tun.SetLabels(map[string]string{
-			crdReplicator.DestinationLabel:   clusterID,
-			crdReplicator.LocalLabelSelector: "true",
+			crdreplicator.DestinationLabel:   clusterID,
+			crdreplicator.LocalLabelSelector: "true",
 		})
 		newTun, err := dOperator.LocalDynClient.Resource(tunGVR).Create(context.TODO(), tun, metav1.CreateOptions{})
 		assert.Nil(t, err, "error should be nil")
@@ -256,8 +256,8 @@ func TestReplication3(t *testing.T) {
 		tun := getTunnelEndpointResource()
 		tun.SetName(clusterID)
 		tun.SetLabels(map[string]string{
-			crdReplicator.DestinationLabel:   clusterID,
-			crdReplicator.LocalLabelSelector: "true",
+			crdreplicator.DestinationLabel:   clusterID,
+			crdreplicator.LocalLabelSelector: "true",
 		})
 		newTun, err := dOperator.LocalDynClient.Resource(tunGVR).Create(context.TODO(), tun, metav1.CreateOptions{})
 		assert.Nil(t, err, "error should be nil")
