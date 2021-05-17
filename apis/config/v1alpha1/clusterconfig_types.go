@@ -208,8 +208,8 @@ type Resource struct {
 	Version  string `json:"version"`
 	Resource string `json:"resource"`
 
-	// +kubebuilder:validation:Enum="All";"Established";"Incoming";"Outgoing";"Bidirectional"
-	// +kubebuilder:default="All"
+	// +kubebuilder:validation:Enum="Any";"Established";"Incoming";"Outgoing";"Bidirectional"
+	// +kubebuilder:default="Any"
 	PeeringPhase consts.PeeringPhase `json:"peeringPhase,omitempty"`
 }
 

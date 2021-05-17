@@ -356,7 +356,7 @@ func (r *ForeignClusterReconciler) Reconcile( //nolint:gocyclo // this function 
 
 	// if join is required (both automatically or by user) and status is not set to joined
 	// create new peering request
-	if (foreignDiscoveryClient != nil || r.useNewAuth) && fc.Spec.Join && !fc.Status.Outgoing.Joined {
+	if (foreignDiscoveryClient != nil || r.useNewAuth) && fc.Spec.Join && !fc.Status.Outgoing.Joined && fc.DeletionTimestamp.IsZero() {
 		fc, err = r.Peer(fc, foreignDiscoveryClient)
 		if err != nil {
 			return ctrl.Result{
@@ -556,6 +556,7 @@ func (r *ForeignClusterReconciler) checkJoined(fc *discoveryv1alpha1.ForeignClus
 		_, err := r.crdClient.Resource("resourcerequests").Namespace(
 			fc.Status.TenantControlNamespace.Local).Get(r.clusterID.GetClusterID(), &metav1.GetOptions{})
 		if err != nil {
+			klog.Error(err)
 			fc.Status.Outgoing.Joined = false
 			if slice.ContainsString(fc.Finalizers, FinalizerString, nil) {
 				fc.Finalizers = slice.RemoveString(fc.Finalizers, FinalizerString, nil)

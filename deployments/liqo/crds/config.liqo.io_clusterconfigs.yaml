@@ -278,11 +278,11 @@ spec:
                         group:
                           type: string
                         peeringPhase:
-                          default: All
+                          default: Any
                           description: PeeringPhase contains the status of the peering
                             with a remote cluster.
                           enum:
-                          - All
+                          - Any
                           - Established
                           - Incoming
                           - Outgoing

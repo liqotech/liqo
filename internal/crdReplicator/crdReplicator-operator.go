@@ -31,6 +31,7 @@ import (
 	"github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	"github.com/liqotech/liqo/pkg/consts"
 	identitymanager "github.com/liqotech/liqo/pkg/identityManager"
+	utils "github.com/liqotech/liqo/pkg/liqonet"
 )
 
 var (
@@ -86,6 +87,9 @@ type Controller struct {
 // +kubebuilder:rbac:groups=core,namespace="do-not-care",resources=secrets,verbs=get;list
 // +kubebuilder:rbac:groups=core,namespace="do-not-care",resources=configmaps,verbs=get;list
 
+// identity management
+// +kubebuilder:rbac:groups=core,resources=secrets,verbs=get;list
+
 func (c *Controller) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 	var fc v1alpha1.ForeignCluster
 	ctx := context.Background()
@@ -101,7 +105,7 @@ func (c *Controller) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 	}
 	remoteClusterID := fc.Spec.ClusterIdentity.ClusterID
 	// examine DeletionTimestamp to determine if object is under deletion
-	/*if fc.ObjectMeta.DeletionTimestamp.IsZero() {
+	if fc.ObjectMeta.DeletionTimestamp.IsZero() {
 		// the finalizer is added only if a join is active with the remote cluster
 		if !fc.Status.Incoming.Joined && !fc.Status.Outgoing.Joined {
 			if utils.ContainsString(fc.ObjectMeta.Finalizers, finalizer) {
@@ -112,7 +116,7 @@ func (c *Controller) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 				}
 				return result, nil
 			}
-			return result, nil
+			// return result, nil
 		}
 		if !utils.ContainsString(fc.ObjectMeta.Finalizers, finalizer) {
 			fc.ObjectMeta.Finalizers = append(fc.Finalizers, finalizer)
@@ -146,7 +150,7 @@ func (c *Controller) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 			}
 			return result, nil
 		}
-	}*/
+	}
 	// check if the client already exists
 	// check if the dynamic dynamic client and informer factory exists
 	_, dynClientOk := c.RemoteDynClients[remoteClusterID]
