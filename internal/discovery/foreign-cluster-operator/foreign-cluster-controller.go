@@ -497,7 +497,6 @@ func (r *ForeignClusterReconciler) Peer(
 // peerNamespaced enables the peering creating the resources in the correct TenantControlNamespace.
 func (r *ForeignClusterReconciler) peerNamespaced(foreignCluster *discoveryv1alpha1.ForeignCluster) (*discoveryv1alpha1.ForeignCluster, error) {
 	// create ResourceRequest
-	klog.Infof("[%v] Creating ResourceRequest", foreignCluster.Spec.ClusterIdentity.ClusterID)
 	resourceRequest, err := r.createResourceRequest(foreignCluster)
 	if err != nil {
 		klog.Error(err)
@@ -550,6 +549,7 @@ func (r *ForeignClusterReconciler) unpeerNamespaced(foreignCluster *discoveryv1a
 	}
 
 	foreignCluster.Status.Outgoing.Joined = false
+	klog.Infof("[%v] ResourceRequest Deleted", foreignCluster.Spec.ClusterIdentity.ClusterID)
 	return foreignCluster, nil
 }
 

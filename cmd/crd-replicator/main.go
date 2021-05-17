@@ -71,22 +71,23 @@ func main() {
 		Factor:   1.0,
 		Jitter:   0,
 	}
-	clusterId, err := util.GetClusterID(k8sClient, clusterIDConfMap, namespaceName, backoff)
+	localClusterID, err := util.GetClusterID(k8sClient, clusterIDConfMap, namespaceName, backoff)
 	if err != nil {
 		klog.Errorf("an error occurred while retrieving the clusterID: %s", err)
 		os.Exit(-1)
 	} else {
-		klog.Infof("setting local clusterID to: %s", clusterId)
+		klog.Infof("setting local clusterID to: %s", localClusterID)
 	}
-	clusterIdInterface := clusterid.NewStaticClusterID(clusterId)
+	clusterIDInterface := clusterid.NewStaticClusterID(localClusterID)
 	namespaceManager := tenantcontrolnamespace.NewTenantControlNamespaceManager(k8sClient)
 	dynClient := dynamic.NewForConfigOrDie(cfg)
-	dynFac := dynamicinformer.NewFilteredDynamicSharedInformerFactory(dynClient, crdreplicator.ResyncPeriod, metav1.NamespaceAll, crdreplicator.SetLabelsForLocalResources)
+	dynFac := dynamicinformer.NewFilteredDynamicSharedInformerFactory(
+		dynClient, crdreplicator.ResyncPeriod, metav1.NamespaceAll, crdreplicator.SetLabelsForLocalResources)
 	d := &crdreplicator.Controller{
 		Scheme:                         mgr.GetScheme(),
 		Client:                         mgr.GetClient(),
 		ClientSet:                      k8sClient,
-		ClusterID:                      clusterId,
+		ClusterID:                      localClusterID,
 		RemoteDynClients:               make(map[string]dynamic.Interface),
 		LocalDynClient:                 dynClient,
 		LocalDynSharedInformerFactory:  dynFac,
@@ -96,7 +97,7 @@ func main() {
 		RemoteWatchers:                 make(map[string]map[string]chan struct{}),
 		RemoteDynSharedInformerFactory: make(map[string]dynamicinformer.DynamicSharedInformerFactory),
 		UseNewAuth:                     useNewAuth,
-		IdentityManager:                identitymanager.NewCertificateIdentityManager(k8sClient, clusterIdInterface, namespaceManager),
+		IdentityManager:                identitymanager.NewCertificateIdentityManager(k8sClient, clusterIDInterface, namespaceManager),
 		LocalToRemoteNamespaceMapper:   map[string]string{},
 		RemoteToLocalNamespaceMapper:   map[string]string{},
 	}

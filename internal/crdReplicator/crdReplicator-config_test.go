@@ -44,7 +44,7 @@ func TestDispatcherReconciler_GetConfig(t *testing.T) {
 			},
 			Status: configv1alpha1.ClusterConfigStatus{},
 		}
-		res := dispatcher.GetConfig(cfg)
+		res := dispatcher.getConfig(cfg)
 		assert.Equal(t, test.expectedElements, len(res), "length should be equal")
 	}
 }

@@ -27,6 +27,7 @@ func (r *ForeignClusterReconciler) createResourceRequest(
 	resourceRequest, ok := tmp.(*discoveryv1alpha1.ResourceRequest)
 	// if resource request does not exists
 	if errors.IsNotFound(err) || !ok {
+		klog.Infof("[%v] Creating ResourceRequest", foreignCluster.Spec.ClusterIdentity.ClusterID)
 		if _, err = r.namespaceManager.BindClusterRoles(remoteClusterID, r.peeringPermission.Outgoing...); err != nil {
 			klog.Error(err)
 			return nil, err
@@ -73,6 +74,7 @@ func (r *ForeignClusterReconciler) createResourceRequest(
 		if !ok {
 			return nil, goerrors.New("created object is not a ResourceRequest")
 		}
+		klog.Infof("[%v] ResourceRequest Created", foreignCluster.Spec.ClusterIdentity.ClusterID)
 	}
 	// already exists
 	return resourceRequest, nil

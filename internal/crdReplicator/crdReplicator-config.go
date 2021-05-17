@@ -30,7 +30,7 @@ func (c *Controller) WatchConfiguration(config *rest.Config, gv *schema.GroupVer
 
 // UpdateConfig updates the local configration copy.
 func (c *Controller) UpdateConfig(cfg *configv1alpha1.ClusterConfig) {
-	resources := c.GetConfig(cfg)
+	resources := c.getConfig(cfg)
 	if !reflect.DeepEqual(c.RegisteredResources, resources) {
 		klog.Info("updating the list of registered resources to be replicated")
 		c.UnregisteredResources = c.GetRemovedResources(resources)
@@ -39,8 +39,8 @@ func (c *Controller) UpdateConfig(cfg *configv1alpha1.ClusterConfig) {
 	}
 }
 
-// GetConfig returns the list of resources that need replication.
-func (c *Controller) GetConfig(cfg *configv1alpha1.ClusterConfig) []resourceToReplicate {
+// getConfig returns the list of resources that need replication.
+func (c *Controller) getConfig(cfg *configv1alpha1.ClusterConfig) []resourceToReplicate {
 	resourceList := cfg.Spec.DispatcherConfig
 	config := []resourceToReplicate{}
 	for _, res := range resourceList.ResourcesToReplicate {

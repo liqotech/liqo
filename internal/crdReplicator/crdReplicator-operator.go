@@ -64,14 +64,22 @@ type Controller struct {
 	RemoteDynSharedInformerFactory map[string]dynamicinformer.DynamicSharedInformerFactory // for each remote cluster we save the dynamic shared informer factory
 	LocalDynClient                 dynamic.Interface                                       // dynamic client pointing to the local API server
 	LocalDynSharedInformerFactory  dynamicinformer.DynamicSharedInformerFactory            // local dynamic shared informer factory
-	RegisteredResources            []resourceToReplicate                                   // a list of GVRs of resources to be replicated, with the associated peering phase when the replication has to occur
-	UnregisteredResources          []string                                                // each time a resource is removed from the configuration it is saved in this list, it stays here until the associated watcher, if running, is stopped
-	LocalWatchers                  map[string]chan struct{}                                // we save all the running watchers monitoring the local resources:(registeredResource, chan))
-	RemoteWatchers                 map[string]map[string]chan struct{}                     // for each peering cluster we save all the running watchers monitoring the replicated resources:(clusterID, (registeredResource, chan))
+	// RegisteredResources is a list of GVRs of resources to be replicated, with the associated peering phase when the replication has to occur.
+	RegisteredResources []resourceToReplicate
+	// UnregisteredResources, each time a resource is removed from the configuration it is saved in this list, it stays here until the associated watcher, if running, is stopped.
+	UnregisteredResources []string
+	// LocalWatchers, we save all the running watchers monitoring the local resources:(registeredResource, chan)).
+	LocalWatchers map[string]chan struct{}
+	// RemoteWatchers, for each peering cluster we save all the running watchers monitoring the replicated resources:(clusterID, (registeredResource, chan)).
+	RemoteWatchers map[string]map[string]chan struct{}
 
-	UseNewAuth                   bool
-	IdentityManager              identitymanager.IdentityManager
+	// UseNewAuth indicates if the new authentication is enabled.
+	UseNewAuth bool
+	// IdentityManager is an interface to manager remote identities, and to get the rest config.
+	IdentityManager identitymanager.IdentityManager
+	// LocalToRemoteNamespaceMapper maps local namespaces to remote ones.
 	LocalToRemoteNamespaceMapper map[string]string
+	// RemoteToLocalNamespaceMapper maps remtoe namespaces to local ones.
 	RemoteToLocalNamespaceMapper map[string]string
 	peeringPhases                map[string]consts.PeeringPhase
 	peeringPhasesMutex           sync.RWMutex
@@ -116,7 +124,6 @@ func (c *Controller) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 				}
 				return result, nil
 			}
-			// return result, nil
 		}
 		if !utils.ContainsString(fc.ObjectMeta.Finalizers, finalizer) {
 			fc.ObjectMeta.Finalizers = append(fc.Finalizers, finalizer)
@@ -166,12 +173,14 @@ func (c *Controller) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 
 	if c.UseNewAuth {
 		if fc.Status.TenantControlNamespace == nil || fc.Status.TenantControlNamespace.Local == "" || fc.Status.TenantControlNamespace.Remote == "" {
-			klog.V(4).Infof("%s -> tenantControlNamespace is not set in resource %s for remote peering cluster %s", c.ClusterID, req.NamespacedName, remoteClusterID)
+			klog.V(4).Infof("%s -> tenantControlNamespace is not set in resource %s for remote peering cluster %s",
+				c.ClusterID, req.NamespacedName, remoteClusterID)
 			return result, nil
 		}
 		config, err := c.IdentityManager.GetConfig(remoteClusterID, fc.Status.TenantControlNamespace.Local)
 		if err != nil {
-			klog.Errorf("%s -> unable to retrieve config from resource %s for remote peering cluster %s: %s", c.ClusterID, req.NamespacedName, remoteClusterID, err)
+			klog.Errorf("%s -> unable to retrieve config from resource %s for remote peering cluster %s: %s",
+				c.ClusterID, req.NamespacedName, remoteClusterID, err)
 			return result, nil
 		}
 		return result, c.setUpConnectionToPeeringCluster(config, remoteClusterID, &fc)
@@ -183,7 +192,8 @@ func (c *Controller) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 		// retrieve the config
 		config, err := c.getKubeConfig(c.ClientSet, fc.Status.Outgoing.IdentityRef, remoteClusterID)
 		if err != nil {
-			klog.Errorf("%s -> unable to retrieve config from resource %s for remote peering cluster %s: %s", c.ClusterID, req.NamespacedName, remoteClusterID, err)
+			klog.Errorf("%s -> unable to retrieve config from resource %s for remote peering cluster %s: %s",
+				c.ClusterID, req.NamespacedName, remoteClusterID, err)
 			return result, nil
 		}
 		return result, c.setUpConnectionToPeeringCluster(config, remoteClusterID, &fc)
@@ -191,7 +201,8 @@ func (c *Controller) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 		// retrieve the config
 		config, err := c.getKubeConfig(c.ClientSet, fc.Status.Incoming.IdentityRef, remoteClusterID)
 		if err != nil {
-			klog.Errorf("%s -> unable to retrieve config from resource %s for remote peering cluster %s: %s", c.ClusterID, req.NamespacedName, remoteClusterID, err)
+			klog.Errorf("%s -> unable to retrieve config from resource %s for remote peering cluster %s: %s",
+				c.ClusterID, req.NamespacedName, remoteClusterID, err)
 			return result, err
 		}
 		return result, c.setUpConnectionToPeeringCluster(config, remoteClusterID, &fc)
@@ -212,7 +223,8 @@ func (c *Controller) SetupWithManager(mgr ctrl.Manager) error {
 
 func (c *Controller) getKubeConfig(clientset kubernetes.Interface, reference *corev1.ObjectReference, remoteClusterID string) (*rest.Config, error) {
 	if reference == nil {
-		return nil, fmt.Errorf("%s -> object reference for the secret containing kubeconfig of foreign cluster %s not set yet", c.ClusterID, remoteClusterID)
+		return nil, fmt.Errorf("%s -> object reference for the secret containing kubeconfig of foreign cluster %s not set yet",
+			c.ClusterID, remoteClusterID)
 	}
 	secret, err := clientset.CoreV1().Secrets(reference.Namespace).Get(context.TODO(), reference.Name, metav1.GetOptions{})
 	if err != nil {
@@ -252,7 +264,8 @@ func (c *Controller) setUpConnectionToPeeringCluster(config *rest.Config, remote
 	}
 	// check if the dynamic shared informer factory exists
 	if _, ok := c.RemoteDynSharedInformerFactory[remoteClusterID]; !ok {
-		f := dynamicinformer.NewFilteredDynamicSharedInformerFactory(c.RemoteDynClients[remoteClusterID], ResyncPeriod, remoteNamespace, c.SetLabelsForRemoteResources)
+		f := dynamicinformer.NewFilteredDynamicSharedInformerFactory(
+			c.RemoteDynClients[remoteClusterID], ResyncPeriod, remoteNamespace, c.SetLabelsForRemoteResources)
 		c.RemoteDynSharedInformerFactory[remoteClusterID] = f
 		klog.Infof("%s -> dynamic shared informer factory created", remoteClusterID)
 	}

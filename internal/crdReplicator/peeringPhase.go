@@ -15,9 +15,8 @@ func (c *Controller) getPeeringPhase(clusterID string) consts.PeeringPhase {
 	}
 	if phase, ok := c.peeringPhases[clusterID]; ok {
 		return phase
-	} else {
-		return consts.PeeringPhaseNone
 	}
+	return consts.PeeringPhaseNone
 }
 
 func (c *Controller) setPeeringPhase(clusterID string, phase consts.PeeringPhase) {
@@ -55,7 +54,10 @@ func isReplicationEnabled(peeringPhase consts.PeeringPhase, resource resourceToR
 	case consts.PeeringPhaseOutgoing:
 		return peeringPhase == consts.PeeringPhaseBidirectional || peeringPhase == consts.PeeringPhaseOutgoing
 	case consts.PeeringPhaseEstablished:
-		return peeringPhase == consts.PeeringPhaseBidirectional || peeringPhase == consts.PeeringPhaseIncoming || peeringPhase == consts.PeeringPhaseOutgoing
+		bidirectional := peeringPhase == consts.PeeringPhaseBidirectional
+		incoming := peeringPhase == consts.PeeringPhaseIncoming
+		outgoing := peeringPhase == consts.PeeringPhaseOutgoing
+		return bidirectional || incoming || outgoing
 	default:
 		klog.Info("unknown peeringPhase %v", resource.peeringPhase)
 		return false
