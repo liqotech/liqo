@@ -17,9 +17,12 @@ import (
 
 	configv1alpha1 "github.com/liqotech/liqo/apis/config/v1alpha1"
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
-	"github.com/liqotech/liqo/internal/crdReplicator"
+	crdreplicator "github.com/liqotech/liqo/internal/crdReplicator"
+	"github.com/liqotech/liqo/pkg/clusterid"
+	identitymanager "github.com/liqotech/liqo/pkg/identityManager"
 	util "github.com/liqotech/liqo/pkg/liqonet"
 	"github.com/liqotech/liqo/pkg/mapperUtils"
+	tenantcontrolnamespace "github.com/liqotech/liqo/pkg/tenantControlNamespace"
 )
 
 var (
@@ -34,7 +37,14 @@ func init() {
 }
 
 func main() {
+	var useNewAuth bool
+
+	flag.BoolVar(&useNewAuth, "useNewAuth", false, "Enable the new authentication flow, with certificates and namespaced resources")
+	klog.InitFlags(nil)
 	flag.Parse()
+
+	flag.Parse()
+
 	cfg := ctrl.GetConfigOrDie()
 	mgr, err := ctrl.NewManager(cfg, ctrl.Options{
 		MapperProvider: mapperUtils.LiqoMapperProvider(scheme),
@@ -70,9 +80,12 @@ func main() {
 	} else {
 		klog.Infof("setting local clusterID to: %s", clusterID)
 	}
+	clusterIDInterface := clusterid.NewStaticClusterID(clusterID)
+	namespaceManager := tenantcontrolnamespace.NewTenantControlNamespaceManager(k8sClient)
 	dynClient := dynamic.NewForConfigOrDie(cfg)
-	dynFac := dynamicinformer.NewFilteredDynamicSharedInformerFactory(dynClient, crdReplicator.ResyncPeriod, metav1.NamespaceAll, crdReplicator.SetLabelsForLocalResources)
-	d := &crdReplicator.Controller{
+	dynFac := dynamicinformer.NewFilteredDynamicSharedInformerFactory(
+		dynClient, crdreplicator.ResyncPeriod, metav1.NamespaceAll, crdreplicator.SetLabelsForLocalResources)
+	d := &crdreplicator.Controller{
 		Scheme:                         mgr.GetScheme(),
 		Client:                         mgr.GetClient(),
 		ClientSet:                      k8sClient,
@@ -85,6 +98,12 @@ func main() {
 		LocalWatchers:                  make(map[string]chan struct{}),
 		RemoteWatchers:                 make(map[string]map[string]chan struct{}),
 		RemoteDynSharedInformerFactory: make(map[string]dynamicinformer.DynamicSharedInformerFactory),
+		UseNewAuth:                     useNewAuth,
+		NamespaceManager:               namespaceManager,
+		IdentityManager: identitymanager.NewCertificateIdentityManager(
+			k8sClient, clusterIDInterface, namespaceManager),
+		LocalToRemoteNamespaceMapper: map[string]string{},
+		RemoteToLocalNamespaceMapper: map[string]string{},
 	}
 	if err = d.SetupWithManager(mgr); err != nil {
 		klog.Error(err, "unable to setup the crdreplicator-operator")

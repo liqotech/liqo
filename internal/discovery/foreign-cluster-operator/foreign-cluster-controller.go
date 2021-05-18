@@ -38,7 +38,7 @@ import (
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	netv1alpha1 "github.com/liqotech/liqo/apis/net/v1alpha1"
 	advtypes "github.com/liqotech/liqo/apis/sharing/v1alpha1"
-	"github.com/liqotech/liqo/internal/crdReplicator"
+	crdreplicator "github.com/liqotech/liqo/internal/crdReplicator"
 	"github.com/liqotech/liqo/internal/discovery"
 	"github.com/liqotech/liqo/internal/discovery/utils"
 	"github.com/liqotech/liqo/pkg/auth"
@@ -1152,14 +1152,14 @@ func (r *ForeignClusterReconciler) getAutoJoinUntrusted(fc *discoveryv1alpha1.Fo
 
 func (r *ForeignClusterReconciler) checkNetwork(fc *discoveryv1alpha1.ForeignCluster, requireUpdate *bool) error {
 	// local NetworkConfig
-	labelSelector := strings.Join([]string{crdReplicator.DestinationLabel, fc.Spec.ClusterIdentity.ClusterID}, "=")
+	labelSelector := strings.Join([]string{crdreplicator.DestinationLabel, fc.Spec.ClusterIdentity.ClusterID}, "=")
 	if err := r.updateNetwork(labelSelector, &fc.Status.Network.LocalNetworkConfig, requireUpdate); err != nil {
 		klog.Error(err)
 		return err
 	}
 
 	// remote NetworkConfig
-	labelSelector = strings.Join([]string{crdReplicator.RemoteLabelSelector, fc.Spec.ClusterIdentity.ClusterID}, "=")
+	labelSelector = strings.Join([]string{crdreplicator.RemoteLabelSelector, fc.Spec.ClusterIdentity.ClusterID}, "=")
 	return r.updateNetwork(labelSelector, &fc.Status.Network.RemoteNetworkConfig, requireUpdate)
 }
 

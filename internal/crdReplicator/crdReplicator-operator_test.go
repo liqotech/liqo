@@ -1,4 +1,4 @@
-package crdReplicator
+package crdreplicator
 
 import (
 	"context"
@@ -14,6 +14,9 @@ import (
 	"k8s.io/client-go/dynamic/dynamicinformer"
 
 	netv1alpha1 "github.com/liqotech/liqo/apis/net/v1alpha1"
+	"github.com/liqotech/liqo/pkg/clusterid"
+	identitymanager "github.com/liqotech/liqo/pkg/identityManager"
+	tenantcontrolnamespace "github.com/liqotech/liqo/pkg/tenantControlNamespace"
 )
 
 var (
@@ -52,6 +55,8 @@ func getLabels() map[string]string {
 }
 
 func getCRDReplicator() Controller {
+	tenantmanager := tenantcontrolnamespace.NewTenantControlNamespaceManager(k8sclient)
+	clusterIDInterface := clusterid.NewStaticClusterID(localClusterID)
 	return Controller{
 		Scheme:                         nil,
 		ClusterID:                      localClusterID,
@@ -63,6 +68,12 @@ func getCRDReplicator() Controller {
 		LocalDynClient:                 dynClient,
 		LocalDynSharedInformerFactory:  localDynFac,
 		LocalWatchers:                  map[string]chan struct{}{},
+
+		UseNewAuth:                   false,
+		NamespaceManager:             tenantmanager,
+		IdentityManager:              identitymanager.NewCertificateIdentityManager(k8sclient, clusterIDInterface, tenantmanager),
+		LocalToRemoteNamespaceMapper: map[string]string{},
+		RemoteToLocalNamespaceMapper: map[string]string{},
 	}
 }
 
@@ -359,4 +370,31 @@ func TestGetStatus(t *testing.T) {
 	objStatus, err = getStatus(test2, clusterID)
 	assert.Nil(t, err, "error should be nil")
 	assert.Nil(t, objStatus, "the spec should be nil")
+}
+
+func TestNamespaceTranslation(t *testing.T) {
+	d := getCRDReplicator()
+
+	localNamespace := "local"
+	remoteNamespace := "remote"
+	otherNamespace := "other"
+
+	d.LocalToRemoteNamespaceMapper[localNamespace] = remoteNamespace
+	d.RemoteToLocalNamespaceMapper[remoteNamespace] = localNamespace
+
+	// namespaces present in the map
+
+	mappedNamespace := d.localToRemoteNamespace(localNamespace)
+	assert.Equal(t, mappedNamespace, remoteNamespace, "these namespace names have to be equal")
+
+	demappedNamespace := d.remoteToLocalNamespace(mappedNamespace)
+	assert.Equal(t, demappedNamespace, localNamespace, "these namespace names have to be equal")
+
+	// namespaces not present in the map
+
+	mappedNamespace = d.localToRemoteNamespace(otherNamespace)
+	assert.Equal(t, mappedNamespace, otherNamespace, "these namespace names have to be equal")
+
+	demappedNamespace = d.remoteToLocalNamespace(mappedNamespace)
+	assert.Equal(t, demappedNamespace, otherNamespace, "these namespace names have to be equal")
 }

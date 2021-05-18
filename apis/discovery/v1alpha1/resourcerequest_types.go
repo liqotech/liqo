@@ -42,6 +42,7 @@ type ResourceRequest struct {
 }
 
 // +kubebuilder:object:root=true
+// +kubebuilder:subresource:status
 
 // ResourceRequestList contains a list of ResourceRequest.
 type ResourceRequestList struct {

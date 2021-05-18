@@ -1,4 +1,4 @@
-package crdReplicator
+package crdreplicator
 
 import (
 	"context"
@@ -28,7 +28,9 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 
 	"github.com/liqotech/liqo/apis/discovery/v1alpha1"
+	identitymanager "github.com/liqotech/liqo/pkg/identityManager"
 	utils "github.com/liqotech/liqo/pkg/liqonet"
+	tenantcontrolnamespace "github.com/liqotech/liqo/pkg/tenantControlNamespace"
 )
 
 var (
@@ -60,6 +62,12 @@ type Controller struct {
 	UnregisteredResources          []string                                                // each time a resource is removed from the configuration it is saved in this list, it stays here until the associated watcher, if running, is stopped
 	LocalWatchers                  map[string]chan struct{}                                // we save all the running watchers monitoring the local resources:(registeredResource, chan))
 	RemoteWatchers                 map[string]map[string]chan struct{}                     // for each peering cluster we save all the running watchers monitoring the replicated resources:(clusterID, (registeredResource, chan))
+
+	UseNewAuth                   bool
+	NamespaceManager             tenantcontrolnamespace.TenantControlNamespaceManager
+	IdentityManager              identitymanager.IdentityManager
+	LocalToRemoteNamespaceMapper map[string]string
+	RemoteToLocalNamespaceMapper map[string]string
 }
 
 // cluster-role
@@ -140,6 +148,22 @@ func (c *Controller) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	if dynClientOk && dynFacOk {
 		return result, nil
 	}
+
+	if c.UseNewAuth {
+		if fc.Status.TenantControlNamespace.Local == "" || fc.Status.TenantControlNamespace.Remote == "" {
+			klog.V(4).Infof("%s -> tenantControlNamespace is not set in resource %s for remote peering cluster %s",
+				c.ClusterID, req.NamespacedName, remoteClusterID)
+			return result, nil
+		}
+		config, err := c.IdentityManager.GetConfig(remoteClusterID, fc.Status.TenantControlNamespace.Local)
+		if err != nil {
+			klog.Errorf("%s -> unable to retrieve config from resource %s for remote peering cluster %s: %s",
+				c.ClusterID, req.NamespacedName, remoteClusterID, err)
+			return result, nil
+		}
+		return result, c.setUpConnectionToPeeringCluster(config, remoteClusterID, &fc)
+	}
+
 	// check if the config of the peering cluster is ready
 	// first we check the outgoing connection
 	if fc.Status.Outgoing.AvailableIdentity {
@@ -149,7 +173,7 @@ func (c *Controller) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 			klog.Errorf("%s -> unable to retrieve config from resource %s for remote peering cluster %s: %s", c.ClusterID, req.NamespacedName, remoteClusterID, err)
 			return result, nil
 		}
-		return result, c.setUpConnectionToPeeringCluster(config, remoteClusterID)
+		return result, c.setUpConnectionToPeeringCluster(config, remoteClusterID, &fc)
 	} else if fc.Status.Incoming.AvailableIdentity {
 		// retrieve the config
 		config, err := c.getKubeConfig(c.ClientSet, fc.Status.Incoming.IdentityRef, remoteClusterID)
@@ -157,7 +181,7 @@ func (c *Controller) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 			klog.Errorf("%s -> unable to retrieve config from resource %s for remote peering cluster %s: %s", c.ClusterID, req.NamespacedName, remoteClusterID, err)
 			return result, err
 		}
-		return result, c.setUpConnectionToPeeringCluster(config, remoteClusterID)
+		return result, c.setUpConnectionToPeeringCluster(config, remoteClusterID, &fc)
 	}
 	return result, nil
 }
@@ -191,7 +215,16 @@ func (c *Controller) getKubeConfig(clientset kubernetes.Interface, reference *co
 	return cnf, nil
 }
 
-func (c *Controller) setUpConnectionToPeeringCluster(config *rest.Config, remoteClusterID string) error {
+func (c *Controller) setUpConnectionToPeeringCluster(config *rest.Config, remoteClusterID string, fc *v1alpha1.ForeignCluster) error {
+	var remoteNamespace string
+	if c.UseNewAuth {
+		c.LocalToRemoteNamespaceMapper[fc.Status.TenantControlNamespace.Local] = fc.Status.TenantControlNamespace.Remote
+		c.RemoteToLocalNamespaceMapper[fc.Status.TenantControlNamespace.Remote] = fc.Status.TenantControlNamespace.Local
+		remoteNamespace = fc.Status.TenantControlNamespace.Remote
+	} else {
+		remoteNamespace = metav1.NamespaceAll
+	}
+
 	// check if the dynamic dynamic client exists
 	if _, ok := c.RemoteDynClients[remoteClusterID]; !ok {
 		dynClient, err := dynamic.NewForConfig(config)
@@ -206,7 +239,8 @@ func (c *Controller) setUpConnectionToPeeringCluster(config *rest.Config, remote
 	}
 	// check if the dynamic shared informer factory exists
 	if _, ok := c.RemoteDynSharedInformerFactory[remoteClusterID]; !ok {
-		f := dynamicinformer.NewFilteredDynamicSharedInformerFactory(c.RemoteDynClients[remoteClusterID], ResyncPeriod, metav1.NamespaceAll, c.SetLabelsForRemoteResources)
+		f := dynamicinformer.NewFilteredDynamicSharedInformerFactory(
+			c.RemoteDynClients[remoteClusterID], ResyncPeriod, remoteNamespace, c.SetLabelsForRemoteResources)
 		c.RemoteDynSharedInformerFactory[remoteClusterID] = f
 		klog.Infof("%s -> dynamic shared informer factory created", remoteClusterID)
 	}
@@ -267,10 +301,13 @@ func (c *Controller) remoteModifiedWrapper(oldObj, newObj interface{}) {
 func (c *Controller) RemoteResourceModifiedHandler(obj *unstructured.Unstructured, gvr schema.GroupVersionResource, remoteClusterId string) {
 	name := obj.GetName()
 	namespace := obj.GetNamespace()
+
+	localNamespace := c.remoteToLocalNamespace(namespace)
+
 	localDynClient := c.LocalDynClient
 	clusterID := c.ClusterID
 	// we check if the resource exists in the local cluster
-	localObj, found, err := c.GetResource(localDynClient, gvr, name, namespace, clusterID)
+	localObj, found, err := c.GetResource(localDynClient, gvr, name, localNamespace, clusterID)
 	if err != nil {
 		klog.Errorf("%s -> an error occurred while getting resource %s of type %s: %s", clusterID, name, gvr.String(), err)
 		return
@@ -279,8 +316,8 @@ func (c *Controller) RemoteResourceModifiedHandler(obj *unstructured.Unstructure
 	// do nothing? remove the remote replication?
 	// current choice -> remove the remote one as well
 	if !found {
-		klog.Infof("%s -> resource %s in namespace %s of type %s not found", clusterID, name, namespace, gvr.String())
-		klog.Infof("%s -> removing resource %s in namespace %s of type %s", remoteClusterId, name, namespace, gvr.String())
+		klog.Infof("%s -> resource %s in namespace %s of type %s not found", clusterID, name, localNamespace, gvr.String())
+		klog.Infof("%s -> removing resource %s in namespace %s of type %s", remoteClusterId, name, localNamespace, gvr.String())
 		err := c.DeleteResource(c.RemoteDynClients[remoteClusterId], gvr, obj, remoteClusterId)
 		if err != nil {
 			return
@@ -380,6 +417,7 @@ func (c *Controller) CreateResource(client dynamic.Interface, gvr schema.GroupVe
 	// check if the resource exists
 	name := obj.GetName()
 	namespace := obj.GetNamespace()
+
 	klog.Infof("%s -> creating resource %s of type %s", clusterID, name, gvr.String())
 	r, found, err := c.GetResource(client, gvr, name, namespace, clusterID)
 	if err != nil {
@@ -523,6 +561,10 @@ func (c *Controller) AddedHandler(obj *unstructured.Unstructured, gvr schema.Gro
 		klog.Infof("%s -> resource %s %s of type %s has not a destination label with the ID of the peering cluster", c.ClusterID, obj.GetName(), obj.GetNamespace(), gvr.String())
 		return
 	}
+
+	remoteNamespace := c.localToRemoteNamespace(obj.GetNamespace())
+	obj.SetNamespace(remoteNamespace)
+
 	if dynClient, ok := c.RemoteDynClients[remoteClusterID]; !ok {
 		klog.Infof("%s -> a connection to the peering cluster with id: %s does not exist", c.ClusterID, remoteClusterID)
 		return
@@ -560,6 +602,10 @@ func (c *Controller) ModifiedHandler(obj *unstructured.Unstructured, gvr schema.
 		name := obj.GetName()
 		namespace := obj.GetNamespace()
 		clusterID := remoteClusterID
+
+		namespace = c.localToRemoteNamespace(namespace)
+		obj.SetNamespace(namespace)
+
 		// we check if the resource exists in the remote cluster
 		_, found, err := c.GetResource(dynClient, gvr, name, namespace, clusterID)
 		if err != nil {
@@ -609,6 +655,10 @@ func (c *Controller) DeletedHandler(obj *unstructured.Unstructured, gvr schema.G
 		namespace := obj.GetNamespace()
 		dynClient := dynClient
 		clusterID := remoteClusterID
+
+		namespace = c.localToRemoteNamespace(namespace)
+		obj.SetNamespace(namespace)
+
 		// we check if the resource exists in the remote cluster
 		_, found, err := c.GetResource(dynClient, gvr, name, namespace, clusterID)
 		if err != nil {
