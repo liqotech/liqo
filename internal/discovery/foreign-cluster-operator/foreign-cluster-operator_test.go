@@ -347,7 +347,7 @@ var _ = Describe("ForeignClusterOperator", func() {
 						TrustMode:     discovery.TrustModeUntrusted,
 					},
 					Status: v1alpha12.ForeignClusterStatus{
-						TenantControlNamespace: &v1alpha12.TenantControlNamespace{},
+						TenantControlNamespace: v1alpha12.TenantControlNamespace{},
 					},
 				},
 				expectedPeeringLength: Equal(1),
@@ -449,7 +449,7 @@ var _ = Describe("ForeignClusterOperator", func() {
 							Joined: true,
 						},
 						Incoming:               v1alpha12.Incoming{},
-						TenantControlNamespace: &v1alpha12.TenantControlNamespace{},
+						TenantControlNamespace: v1alpha12.TenantControlNamespace{},
 					},
 				},
 				rr: v1alpha12.ResourceRequest{

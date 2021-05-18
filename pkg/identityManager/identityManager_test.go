@@ -4,6 +4,7 @@ import (
 	"crypto/x509"
 	"encoding/base64"
 	"encoding/pem"
+	"fmt"
 	"os"
 	"path/filepath"
 	"testing"
@@ -14,13 +15,39 @@ import (
 	v1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/rest"
 
+	configv1alpha1 "github.com/liqotech/liqo/apis/config/v1alpha1"
+	"github.com/liqotech/liqo/pkg/auth"
 	"github.com/liqotech/liqo/pkg/clusterid/test"
 	"github.com/liqotech/liqo/pkg/discovery"
 	idManTest "github.com/liqotech/liqo/pkg/identityManager/testUtils"
 	tenantcontrolnamespace "github.com/liqotech/liqo/pkg/tenantControlNamespace"
-	testUtils2 "github.com/liqotech/liqo/pkg/utils/testUtils"
+	"github.com/liqotech/liqo/pkg/utils"
+	testUtils "github.com/liqotech/liqo/pkg/utils/testUtils"
 )
+
+type mockApiServerConfigProvider struct {
+	address   string
+	port      string
+	trustedCA bool
+}
+
+func newMockApiServerConfigProvider(address, port string, trustedCA bool) utils.ApiServerConfigProvider {
+	return &mockApiServerConfigProvider{
+		address:   address,
+		port:      port,
+		trustedCA: trustedCA,
+	}
+}
+
+func (mock *mockApiServerConfigProvider) GetAPIServerConfig() *configv1alpha1.APIServerConfig {
+	return &configv1alpha1.APIServerConfig{
+		Address:   mock.address,
+		Port:      mock.port,
+		TrustedCA: mock.trustedCA,
+	}
+}
 
 func TestIdentityManager(t *testing.T) {
 	RegisterFailHandler(Fail)
@@ -30,8 +57,9 @@ func TestIdentityManager(t *testing.T) {
 var _ = Describe("IdentityManager", func() {
 
 	var (
-		cluster         testUtils2.Cluster
+		cluster         testUtils.Cluster
 		client          kubernetes.Interface
+		restConfig      *rest.Config
 		localClusterID  test.ClusterIDMock
 		remoteClusterID string
 
@@ -48,13 +76,14 @@ var _ = Describe("IdentityManager", func() {
 		remoteClusterID = "remoteID"
 
 		var err error
-		cluster, _, err = testUtils2.NewTestCluster([]string{filepath.Join("..", "..", "deployments", "liqo", "crds")})
+		cluster, _, err = testUtils.NewTestCluster([]string{filepath.Join("..", "..", "deployments", "liqo", "crds")})
 		if err != nil {
 			By(err.Error())
 			os.Exit(1)
 		}
 
 		client = cluster.GetClient().Client()
+		restConfig = cluster.GetCfg()
 
 		namespaceManager = tenantcontrolnamespace.NewTenantControlNamespaceManager(client)
 		identityManager = NewCertificateIdentityManager(cluster.GetClient().Client(), &localClusterID, namespaceManager)
@@ -177,6 +206,36 @@ var _ = Describe("IdentityManager", func() {
 			Expect(kerrors.IsNotFound(err)).To(BeFalse())
 			Expect(kerrors.IsBadRequest(err)).To(BeTrue())
 			Expect(certificate).To(BeNil())
+		})
+
+	})
+
+	Context("Storage", func() {
+
+		It("StoreCertificate", func() {
+			apiServerConfig := newMockApiServerConfigProvider("127.0.0.1", "6443", false)
+
+			identityResponse, err := auth.NewCertificateIdentityResponse(
+				"remoteNamespace", []byte("cert"), apiServerConfig, client, restConfig)
+			Expect(err).To(BeNil())
+
+			// store the certificate in the secret
+			err = identityManager.StoreCertificate(remoteClusterID, *identityResponse)
+			Expect(err).To(BeNil())
+
+			// retrieve rest config
+			cnf, err := identityManager.GetConfig(remoteClusterID, "")
+			Expect(err).To(BeNil())
+			Expect(cnf).NotTo(BeNil())
+			Expect(cnf.Host).To(Equal(
+				fmt.Sprintf(
+					"https://%v:%v", apiServerConfig.GetAPIServerConfig().Address,
+					apiServerConfig.GetAPIServerConfig().Port)))
+
+			// retrieve the remote tenant namespace
+			remoteNamespace, err := identityManager.GetRemoteTenantNamespace(remoteClusterID, "")
+			Expect(err).To(BeNil())
+			Expect(remoteNamespace).To(Equal("remoteNamespace"))
 		})
 
 	})
