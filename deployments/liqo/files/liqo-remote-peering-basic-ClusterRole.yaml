@@ -4,6 +4,7 @@ rules:
   resources:
   - resourcerequests
   verbs:
+  - create
   - delete
   - get
   - list
@@ -15,6 +16,7 @@ rules:
   resources:
   - resourcerequests/status
   verbs:
+  - create
   - delete
   - get
   - list

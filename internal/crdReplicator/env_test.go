@@ -1,4 +1,4 @@
-package crdReplicator
+package crdreplicator
 
 import (
 	"strings"
@@ -8,6 +8,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/dynamic/dynamicinformer"
+	"k8s.io/client-go/kubernetes"
 
 	netv1alpha1 "github.com/liqotech/liqo/apis/net/v1alpha1"
 
@@ -24,6 +25,7 @@ import (
 var (
 	k8sManagerLocal ctrl.Manager
 	testEnvLocal    *envtest.Environment
+	k8sclient       kubernetes.Interface
 	dynClient       dynamic.Interface
 	dynFac          dynamicinformer.DynamicSharedInformerFactory
 	localDynFac     dynamicinformer.DynamicSharedInformerFactory
@@ -51,6 +53,8 @@ func setupEnv() {
 		klog.Error(err, "an error occurred while setting up the local testing environment")
 		os.Exit(-1)
 	}
+
+	k8sclient = kubernetes.NewForConfigOrDie(configLocal)
 
 	k8sManagerLocal, err = ctrl.NewManager(configLocal, ctrl.Options{
 		Scheme:             scheme.Scheme,

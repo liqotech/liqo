@@ -42,7 +42,7 @@ import (
 	netv1alpha1 "github.com/liqotech/liqo/apis/net/v1alpha1"
 
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
-	"github.com/liqotech/liqo/internal/crdReplicator"
+	crdreplicator "github.com/liqotech/liqo/internal/crdReplicator"
 	liqoconst "github.com/liqotech/liqo/pkg/consts"
 	liqonet "github.com/liqotech/liqo/pkg/liqonet"
 	"github.com/liqotech/liqo/pkg/liqonet/tunnel/wireguard"
@@ -199,10 +199,10 @@ func (tec *TunnelEndpointCreator) Reconcile(ctx context.Context, req ctrl.Reques
 
 	// check if the netconfig is local or remote
 	labels := netConfig.GetLabels()
-	if val, ok := labels[crdReplicator.LocalLabelSelector]; ok && val == "true" {
+	if val, ok := labels[crdreplicator.LocalLabelSelector]; ok && val == "true" {
 		return result, tec.processLocalNetConfig(&netConfig)
 	}
-	if _, ok := labels[crdReplicator.RemoteLabelSelector]; ok {
+	if _, ok := labels[crdreplicator.RemoteLabelSelector]; ok {
 		return result, tec.processRemoteNetConfig(&netConfig)
 	}
 	return result, nil
@@ -252,8 +252,8 @@ func (tec *TunnelEndpointCreator) createNetConfig(fc *discoveryv1alpha1.ForeignC
 		ObjectMeta: metav1.ObjectMeta{
 			GenerateName: netConfigNamePrefix,
 			Labels: map[string]string{
-				crdReplicator.LocalLabelSelector: "true",
-				crdReplicator.DestinationLabel:   clusterID,
+				crdreplicator.LocalLabelSelector: "true",
+				crdreplicator.DestinationLabel:   clusterID,
 			},
 			OwnerReferences: []metav1.OwnerReference{
 				{
@@ -299,7 +299,7 @@ func (tec *TunnelEndpointCreator) createNetConfig(fc *discoveryv1alpha1.ForeignC
 func (tec *TunnelEndpointCreator) deleteNetConfig(fc *discoveryv1alpha1.ForeignCluster) error {
 	clusterID := fc.Spec.ClusterIdentity.ClusterID
 	netConfigList := &netv1alpha1.NetworkConfigList{}
-	labels := client.MatchingLabels{crdReplicator.DestinationLabel: clusterID}
+	labels := client.MatchingLabels{crdreplicator.DestinationLabel: clusterID}
 	err := tec.List(context.Background(), netConfigList, labels)
 	if err != nil {
 		klog.Errorf("an error occurred while listing resources: %s", err)
@@ -342,7 +342,7 @@ func (tec *TunnelEndpointCreator) GetNetworkConfig(destinationClusterID string) 
 	error) {
 	clusterID := destinationClusterID
 	networkConfigList := &netv1alpha1.NetworkConfigList{}
-	labels := client.MatchingLabels{crdReplicator.DestinationLabel: clusterID}
+	labels := client.MatchingLabels{crdreplicator.DestinationLabel: clusterID}
 	err := tec.List(context.Background(), networkConfigList, labels)
 	if err != nil {
 		klog.Errorf("an error occurred while listing resources of type %s: %s", netv1alpha1.GroupVersion, err)
@@ -366,7 +366,7 @@ func (tec *TunnelEndpointCreator) processRemoteNetConfig(netConfig *netv1alpha1.
 	// the clusterid of the destination cluster(the local cluster in this case)
 	// In order to take the ClusterID of the sender we need to retrieve it from the labels.
 	podCIDR, externalCIDR, err := tec.IPManager.GetSubnetsPerCluster(netConfig.Spec.PodCIDR,
-		netConfig.Spec.ExternalCIDR, netConfig.Labels[crdReplicator.RemoteLabelSelector])
+		netConfig.Spec.ExternalCIDR, netConfig.Labels[crdreplicator.RemoteLabelSelector])
 	if err != nil {
 		klog.Errorf("an error occurred while getting a new subnet for resource %s: %s", netConfig.Name, err)
 		return err
@@ -431,7 +431,7 @@ func (tec *TunnelEndpointCreator) processRemoteNetConfig(netConfig *netv1alpha1.
 func (tec *TunnelEndpointCreator) processLocalNetConfig(netConfig *netv1alpha1.NetworkConfig) error {
 	// first check that this is the only resource for the remote cluster
 	netConfigList := &netv1alpha1.NetworkConfigList{}
-	labels := client.MatchingLabels{crdReplicator.DestinationLabel: netConfig.Labels[crdReplicator.DestinationLabel]}
+	labels := client.MatchingLabels{crdreplicator.DestinationLabel: netConfig.Labels[crdreplicator.DestinationLabel]}
 	err := tec.List(context.Background(), netConfigList, labels)
 	if err != nil {
 		klog.Errorf("an error occurred while listing resources: %s", err)
@@ -459,7 +459,7 @@ func (tec *TunnelEndpointCreator) processLocalNetConfig(netConfig *netv1alpha1.N
 	}
 	// we get the remote netconfig related to this one
 	netConfigList = &netv1alpha1.NetworkConfigList{}
-	labels = client.MatchingLabels{crdReplicator.RemoteLabelSelector: netConfig.Spec.ClusterID}
+	labels = client.MatchingLabels{crdreplicator.RemoteLabelSelector: netConfig.Spec.ClusterID}
 	err = tec.List(context.Background(), netConfigList, labels)
 	if err != nil {
 		klog.Errorf("an error occurred while listing resources: %s", err)

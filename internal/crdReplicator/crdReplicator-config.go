@@ -1,4 +1,4 @@
-package crdReplicator
+package crdreplicator
 
 import (
 	"reflect"
