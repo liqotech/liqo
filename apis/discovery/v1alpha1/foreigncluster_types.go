@@ -67,7 +67,8 @@ type ForeignClusterStatus struct {
 	// Important: Run "make" to regenerate code after modifying this file
 
 	// TenantControlNamespaces names in the peered clusters
-	TenantControlNamespace *TenantControlNamespace `json:"tenantControlNamespace,omitempty"`
+	// +kubebuilder:validation:Optional
+	TenantControlNamespace TenantControlNamespace `json:"tenantControlNamespace"`
 
 	Outgoing Outgoing `json:"outgoing,omitempty"`
 	Incoming Incoming `json:"incoming,omitempty"`

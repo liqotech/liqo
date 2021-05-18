@@ -20,6 +20,7 @@ type localManager interface {
 	StoreCertificate(remoteClusterID string, identityResponse auth.CertificateIdentityResponse) error
 
 	GetConfig(remoteClusterID string, namespace string) (*rest.Config, error)
+	GetRemoteTenantNamespace(remoteClusterID string, namespace string) (string, error)
 }
 
 // interface that allows to manage the identity in the target cluster, where this identity has to be used.

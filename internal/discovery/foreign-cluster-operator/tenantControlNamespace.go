@@ -18,10 +18,6 @@ func (r *ForeignClusterReconciler) createLocalTenantControlNamespace(foreignClus
 	}
 
 	requireUpdate = false
-	if foreignCluster.Status.TenantControlNamespace == nil {
-		foreignCluster.Status.TenantControlNamespace = &v1alpha1.TenantControlNamespace{}
-		requireUpdate = true
-	}
 	if foreignCluster.Status.TenantControlNamespace.Local != namespace.Name {
 		foreignCluster.Status.TenantControlNamespace.Local = namespace.Name
 		requireUpdate = true

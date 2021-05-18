@@ -107,6 +107,27 @@ func (r *ForeignClusterReconciler) getRemoteClient(
 	return nil, nil
 }
 
+// fetchRemoteTenantNamespace fetches the remote tenant namespace name form the local identity secret
+// and loads it in the ForeignCluster.
+func (r *ForeignClusterReconciler) fetchRemoteTenantNamespace(fc *discoveryv1alpha1.ForeignCluster) (update bool, err error) {
+	if !r.useNewAuth {
+		return false, nil
+	}
+
+	remoteNamespace, err := r.identityManager.GetRemoteTenantNamespace(
+		fc.Spec.ClusterIdentity.ClusterID, fc.Status.TenantControlNamespace.Local)
+	if err != nil {
+		klog.Error(err)
+		return false, err
+	}
+
+	if fc.Status.TenantControlNamespace.Remote != remoteNamespace {
+		fc.Status.TenantControlNamespace.Remote = remoteNamespace
+		return true, nil
+	}
+	return false, nil
+}
+
 // getIdentity loads the remote identity from a secret.
 func (r *ForeignClusterReconciler) getIdentity(
 	fc *discoveryv1alpha1.ForeignCluster, gv *schema.GroupVersion) (*crdclient.CRDClient, error) {

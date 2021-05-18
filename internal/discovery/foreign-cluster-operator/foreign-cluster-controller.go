@@ -352,9 +352,23 @@ func (r *ForeignClusterReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 		requireUpdate = true
 	}
 
+	if update, err := r.fetchRemoteTenantNamespace(fc); err != nil {
+		klog.Error(err)
+		return ctrl.Result{
+			Requeue:      true,
+			RequeueAfter: r.RequeueAfter,
+		}, err
+	} else if update {
+		requireUpdate = true
+	}
+	remoteNamespace := ""
+	if r.useNewAuth {
+		remoteNamespace = fc.Status.TenantControlNamespace.Remote
+	}
+
 	// if join is required (both automatically or by user) and status is not set to joined
 	// create new peering request
-	if (foreignDiscoveryClient != nil || r.useNewAuth) && fc.Spec.Join && !fc.Status.Outgoing.Joined {
+	if (foreignDiscoveryClient != nil || remoteNamespace != "") && fc.Spec.Join && !fc.Status.Outgoing.Joined {
 		fc, err = r.Peer(fc, foreignDiscoveryClient)
 		if err != nil {
 			return ctrl.Result{
@@ -368,7 +382,7 @@ func (r *ForeignClusterReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 	// if join is no more required and status is set to joined
 	// or if this foreign cluster is being deleted
 	// delete peering request
-	if (foreignDiscoveryClient != nil || r.useNewAuth) && (!fc.Spec.Join || !fc.DeletionTimestamp.IsZero()) && fc.Status.Outgoing.Joined {
+	if (foreignDiscoveryClient != nil || remoteNamespace != "") && (!fc.Spec.Join || !fc.DeletionTimestamp.IsZero()) && fc.Status.Outgoing.Joined {
 		fc, err = r.Unpeer(fc, foreignDiscoveryClient)
 		if err != nil {
 			return ctrl.Result{
@@ -401,7 +415,7 @@ func (r *ForeignClusterReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 	}
 
 	// check if peering request really exists on foreign cluster
-	if (foreignDiscoveryClient != nil || r.useNewAuth) && fc.Spec.Join && fc.Status.Outgoing.Joined {
+	if (foreignDiscoveryClient != nil || remoteNamespace != "") && fc.Spec.Join && fc.Status.Outgoing.Joined {
 		_, err = r.checkJoined(fc, foreignDiscoveryClient)
 		if err != nil {
 			klog.Error(err, err.Error())
