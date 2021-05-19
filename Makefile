@@ -28,7 +28,7 @@ ifeq (, $(shell docker image ls | grep liqo-test))
 endif
 
 # Run unit tests
-unit: test-container gen
+unit: test-container
 	docker run --mount type=bind,src=$(shell pwd),dst=/go/src/liqo -w /go/src/liqo --rm liqo-test
 
 # Run e2e tests

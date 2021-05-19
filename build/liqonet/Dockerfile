@@ -5,11 +5,14 @@ WORKDIR boringtun
 RUN rustup target add x86_64-unknown-linux-musl
 RUN cargo build --bin boringtun --release
 
-FROM golang:1.16-alpine AS goBuilder
+FROM golang:1.16 AS goBuilder
 ENV PATH /go/bin:/usr/local/go/bin:$PATH
 ENV GOPATH /go
-RUN apk update && apk add git make
-COPY . /go/src/github.com/liqotech/liqo
+WORKDIR /go/src/github.com/liqotech/liqo
+COPY go.mod ./go.mod
+COPY go.sum ./go.sum
+RUN  go mod download
+COPY . ./
 WORKDIR /go/src/github.com/liqotech/liqo
 RUN CGO_ENABLED=0 GOOS=linux GOARCH=$(go env GOARCH) go build ./cmd/liqonet/
 RUN cp liqonet /usr/bin/liqonet

@@ -76,6 +76,7 @@ jobs:
         - auth-service
         - cert-creator
         - crd-replicator
+        - liqo-test
         - discovery
         - init-virtual-kubelet
         - liqonet
@@ -237,7 +238,7 @@ jobs:
   test:
     name: Launch Test
     runs-on: ubuntu-20.04
-    needs: configure
+    needs: [configure, build]
     if: needs.configure.outputs.ok-to-continue == 'true' && github.event.pull_request.draft == false
     steps:
 
@@ -254,20 +255,22 @@ jobs:
         repository: "${{ needs.configure.outputs.repo-name }}"
         persist-credentials: false
 
-    - name: Install Kubebuilder
-      run: |
-        version=2.3.1 # latest stable version
-        arch=amd64
-        curl -L -O "https://github.com/kubernetes-sigs/kubebuilder/releases/download/v${version}/kubebuilder_${version}_linux_${arch}.tar.gz"
-        tar -zxvf kubebuilder_${version}_linux_${arch}.tar.gz
-        mv kubebuilder_${version}_linux_${arch} kubebuilder && sudo mv kubebuilder /usr/local/
+    - name: Login to DockerHub
+      uses: docker/login-action@v1
+      with:
+        username: ${{ secrets.DOCKER_USERNAME }}
+        password: ${{ secrets.DOCKER_PASSWORD }}
 
-    - name: Get dependencies for Test execution
-      run: |
-        go get -u github.com/ory/go-acc
-
-    - name: Launch Test
-      run: go-acc ./... --ignore liqo/test/e2e
+    - name: Launch Test (Docker Container)
+      uses: addnab/docker-run-action@v3
+      with:
+        options: |
+            --mount type=bind,src=${{ github.workspace }},dst=/go/src/liqotech/liqo
+            --workdir /go/src/liqotech/liqo
+            --cap-add=NET_ADMIN
+        image: liqo/liqo-test${{ needs.configure.outputs.repo-suffix }}:${{ needs.configure.outputs.commit_ref }}
+        run: |
+          go-acc ./... --ignore liqo/test/e2e
 
     - name: Send coverage
       uses: shogo82148/actions-goveralls@v1.4.3
