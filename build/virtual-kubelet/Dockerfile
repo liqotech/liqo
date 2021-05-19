@@ -1,11 +1,11 @@
 FROM golang:1.16 as builder
-
 ENV PATH /go/bin:/usr/local/go/bin:$PATH
 ENV GOPATH /go
-COPY . /go/src/github.com/liqotech/liqo
 WORKDIR /go/src/github.com/liqotech/liqo
-
-ARG BUILD_TAGS=""
+COPY go.mod ./go.mod
+COPY go.sum ./go.sum
+RUN  go mod download
+COPY . ./
 RUN CGO_ENABLED=0 GOOS=linux GOARCH=$(go env GOARCH) go build ./cmd/virtual-kubelet/
 RUN cp virtual-kubelet /usr/bin/virtual-kubelet
 
