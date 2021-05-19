@@ -79,21 +79,6 @@ spec:
                 description: Labels contains the label to be added to the virtual
                   node.
                 type: object
-              neighbors:
-                additionalProperties:
-                  additionalProperties:
-                    anyOf:
-                    - type: integer
-                    - type: string
-                    pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
-                    x-kubernetes-int-or-string: true
-                  description: ResourceList is a set of (resource name, quantity)
-                    pairs.
-                  type: object
-                description: Neighbors is a map where the key is the name of a virtual
-                  node (representing a foreign cluster) and the value are the resources
-                  allocatable on that node.
-                type: object
               prices:
                 additionalProperties:
                   anyOf:
@@ -103,12 +88,6 @@ spec:
                   x-kubernetes-int-or-string: true
                 description: Prices contains the possible prices for every kind of
                   resource (cpu, memory, image).
-                type: object
-              properties:
-                additionalProperties:
-                  type: string
-                description: Properties can contain any additional information about
-                  the cluster.
                 type: object
               resourceQuota:
                 description: ResourceQuota contains the quantity of resources made
@@ -192,14 +171,16 @@ spec:
           status:
             description: ResourceOfferStatus defines the observed state of ResourceOffer.
             properties:
-              resourceOfferStatus:
-                description: ResourceOfferStatus is the status of this ResourceOffer.
-                  When the offer is created it is checked by the operator, which sets
-                  this field to "Accepted" or "Refused" on tha base of cluster configuration.
+              phase:
+                default: Pending
+                description: Phase is the status of this ResourceOffer. When the offer
+                  is created it is checked by the operator, which sets this field
+                  to "Accepted" or "Refused" on tha base of cluster configuration.
                   If the ResourceOffer is accepted a virtual-kubelet for the foreign
                   cluster will be created.
                 enum:
-                - ""
+                - Pending
+                - ManualActionRequired
                 - Accepted
                 - Refused
                 type: string
@@ -229,8 +210,7 @@ spec:
                     type: string
                 type: object
             required:
-            - resourceOfferStatus
-            - vkCreated
+            - phase
             type: object
         type: object
     served: true

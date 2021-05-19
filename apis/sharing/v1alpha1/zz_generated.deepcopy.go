@@ -243,30 +243,6 @@ func (in *ResourceOfferSpec) DeepCopyInto(out *ResourceOfferSpec) {
 			(*out)[key] = val
 		}
 	}
-	if in.Neighbors != nil {
-		in, out := &in.Neighbors, &out.Neighbors
-		*out = make(map[v1.ResourceName]v1.ResourceList, len(*in))
-		for key, val := range *in {
-			var outVal map[v1.ResourceName]resource.Quantity
-			if val == nil {
-				(*out)[key] = nil
-			} else {
-				in, out := &val, &outVal
-				*out = make(v1.ResourceList, len(*in))
-				for key, val := range *in {
-					(*out)[key] = val.DeepCopy()
-				}
-			}
-			(*out)[key] = outVal
-		}
-	}
-	if in.Properties != nil {
-		in, out := &in.Properties, &out.Properties
-		*out = make(map[v1.ResourceName]string, len(*in))
-		for key, val := range *in {
-			(*out)[key] = val
-		}
-	}
 	if in.Prices != nil {
 		in, out := &in.Prices, &out.Prices
 		*out = make(v1.ResourceList, len(*in))

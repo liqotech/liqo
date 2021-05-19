@@ -40,6 +40,20 @@ var (
 	}
 )
 
+// ReplicatedResourcesLabelSelector is an helper label selector to list all the replicated resources.
+var ReplicatedResourcesLabelSelector = metav1.LabelSelector{
+	MatchExpressions: []metav1.LabelSelectorRequirement{
+		{
+			Key:      RemoteLabelSelector,
+			Operator: metav1.LabelSelectorOpExists,
+		},
+		{
+			Key:      ReplicationStatuslabel,
+			Operator: metav1.LabelSelectorOpExists,
+		},
+	},
+}
+
 const (
 	operatorName           = "crdReplicator-operator"
 	finalizer              = "crdReplicator.liqo.io"

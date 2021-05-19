@@ -18,10 +18,6 @@ type ResourceOfferSpec struct {
 	ResourceQuota corev1.ResourceQuotaSpec `json:"resourceQuota,omitempty"`
 	// Labels contains the label to be added to the virtual node.
 	Labels map[string]string `json:"labels,omitempty"`
-	// Neighbors is a map where the key is the name of a virtual node (representing a foreign cluster) and the value are the resources allocatable on that node.
-	Neighbors map[corev1.ResourceName]corev1.ResourceList `json:"neighbors,omitempty"`
-	// Properties can contain any additional information about the cluster.
-	Properties map[corev1.ResourceName]string `json:"properties,omitempty"`
 	// Prices contains the possible prices for every kind of resource (cpu, memory, image).
 	Prices corev1.ResourceList `json:"prices,omitempty"`
 	// Timestamp is the time instant when this ResourceOffer was created.
@@ -35,19 +31,26 @@ type ResourceOfferSpec struct {
 type OfferPhase string
 
 const (
+	// ResourceOfferPending indicates a pending phase, an action is required.
+	ResourceOfferPending OfferPhase = "Pending"
+	// ResourceOfferManualActionRequired indicates that a manual action is required.
+	ResourceOfferManualActionRequired OfferPhase = "ManualActionRequired"
+	// ResourceOfferAccepted indicates an accepted offer.
 	ResourceOfferAccepted OfferPhase = "Accepted"
-	ResourceOfferRefused  OfferPhase = "Refused"
+	// ResourceOfferRefused indicates a refused offer.
+	ResourceOfferRefused OfferPhase = "Refused"
 )
 
 // ResourceOfferStatus defines the observed state of ResourceOffer.
 type ResourceOfferStatus struct {
-	// ResourceOfferStatus is the status of this ResourceOffer.
+	// Phase is the status of this ResourceOffer.
 	// When the offer is created it is checked by the operator, which sets this field to "Accepted" or "Refused" on tha base of cluster configuration.
 	// If the ResourceOffer is accepted a virtual-kubelet for the foreign cluster will be created.
-	// +kubebuilder:validation:Enum="";"Accepted";"Refused"
-	ResourceOfferStatus OfferPhase `json:"resourceOfferStatus"`
+	// +kubebuilder:validation:Enum="Pending";"ManualActionRequired";"Accepted";"Refused"
+	// +kubebuilder:default="Pending"
+	Phase OfferPhase `json:"phase"`
 	// VkCreated indicates if the virtual-kubelet for this ResourceOffer has been created or not.
-	VkCreated bool `json:"vkCreated"`
+	VkCreated bool `json:"vkCreated,omitempty"`
 	// VkReference is a reference to the deployment running the virtual-kubelet.
 	VkReference object_references.DeploymentReference `json:"vkReference,omitempty"`
 	// VnodeReference is a reference to the virtual node linked to this ResourceOffer
