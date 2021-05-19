@@ -1,7 +1,7 @@
 <p align="center">
   <a href="https://github.com/liqotech/liqo/actions"><img src="https://github.com/liqotech/liqo/workflows/Go/badge.svg" alt="Integration Pipeline Status"></a>
   <a href="https://goreportcard.com/report/github.com/liqotech/liqo"><img src=https://goreportcard.com/badge/github.com/liqotech/liqo></a>
-  <a href="https://coveralls.io/github/LiqoTech/liqo" alt="Liqo Test Coverage"><img src=https://coveralls.io/repos/github/liqotech/liqo/badge.svg?branch=master></a>
+  <a href="https://coveralls.io/github/liqotech/liqo" alt="Liqo Test Coverage"><img src=https://coveralls.io/repos/github/liqotech/liqo/badge.svg?branch=master></a>
   <a href="https://app.fossa.com/projects/git%2Bgithub.com%2FLiqoTech%2Fliqo?ref=badge_shield" alt="FOSSA Status"><img src="https://app.fossa.com/api/projects/git%2Bgithub.com%2FLiqoTech%2Fliqo.svg?type=shield"/></a>
   <a href="https://join.slack.com/t/liqo-io/shared_invite/zt-h20212gg-g24YvN6MKiD9bacFeqZttQ"><img src=https://img.shields.io/badge/slack-liqo.io-yellow></a>
   <a href="https://twitter.com/liqo_io"><img src=https://img.shields.io/twitter/url/https/twitter.com/liqo_io.svg?style=social&label=Follow%20%40liqo_io></a>
