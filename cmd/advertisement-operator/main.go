@@ -26,6 +26,7 @@ import (
 	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
 	"k8s.io/klog"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/healthz"
 
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	netv1alpha1 "github.com/liqotech/liqo/apis/net/v1alpha1"
@@ -33,6 +34,7 @@ import (
 	advop "github.com/liqotech/liqo/internal/advertisementoperator"
 	resourceRequestOperator "github.com/liqotech/liqo/internal/resource-request-operator"
 	crdclient "github.com/liqotech/liqo/pkg/crdClient"
+	resourceoffercontroller "github.com/liqotech/liqo/pkg/liqo-controller-manager/resourceoffer-controller"
 	"github.com/liqotech/liqo/pkg/mapperUtils"
 	"github.com/liqotech/liqo/pkg/vkMachinery"
 	"github.com/liqotech/liqo/pkg/vkMachinery/csr"
@@ -64,14 +66,18 @@ func init() {
 
 func main() {
 	var metricsAddr, localKubeconfig, clusterId string
+	var probeAddr string
 	var enableLeaderElection bool
 	var kubeletNamespace, kubeletImage, initKubeletImage string
-	var resyncPeriod = 5 * time.Second
+	var resyncPeriod int64
 
 	flag.StringVar(&metricsAddr, "metrics-addr", defaultMetricsaddr, "The address the metric endpoint binds to.")
+	flag.StringVar(&probeAddr, "health-probe-bind-address", ":8081", "The address the probe endpoint binds to.")
 	flag.BoolVar(&enableLeaderElection,
 		"enable-leader-election", false,
 		"Enable leader election for controller manager. Enabling this will ensure there is only one active controller manager.")
+
+	flag.Int64Var(&resyncPeriod, "resyncPeriod", int64(10*time.Hour), "Period after that operators and informers will requeue events.")
 	flag.StringVar(&localKubeconfig, "local-kubeconfig", "", "The path to the kubeconfig of your local cluster.")
 	flag.StringVar(&clusterId, "cluster-id", "", "The cluster ID of your cluster")
 	flag.StringVar(&kubeletNamespace,
@@ -81,6 +87,7 @@ func main() {
 	flag.StringVar(&initKubeletImage,
 		"init-kubelet-image", defaultInitVKImage,
 		"The image of the virtual kubelet init container to be deployed")
+
 	flag.Parse()
 
 	if clusterId == "" {
@@ -95,11 +102,13 @@ func main() {
 	}
 
 	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
-		MapperProvider:     mapperUtils.LiqoMapperProvider(scheme),
-		Scheme:             scheme,
-		MetricsBindAddress: "0",
-		LeaderElection:     enableLeaderElection,
-		Port:               9443,
+		MapperProvider:         mapperUtils.LiqoMapperProvider(scheme),
+		Scheme:                 scheme,
+		MetricsBindAddress:     metricsAddr,
+		HealthProbeBindAddress: probeAddr,
+		LeaderElection:         enableLeaderElection,
+		LeaderElectionID:       "66cf253f.liqo.io",
+		Port:                   9443,
 	})
 	if err != nil {
 		klog.Error(err)
@@ -113,7 +122,7 @@ func main() {
 		klog.Error(err)
 		os.Exit(1)
 	}
-	go csr.WatchCSR(clientset, labels.SelectorFromSet(vkMachinery.CsrLabels).String(), resyncPeriod)
+	go csr.WatchCSR(clientset, labels.SelectorFromSet(vkMachinery.CsrLabels).String(), time.Duration(resyncPeriod))
 
 	// get the number of already accepted advertisements
 	advClient, err := advtypes.CreateAdvertisementClient(localKubeconfig, nil, true, nil)
@@ -155,7 +164,7 @@ func main() {
 		AcceptedAdvNum:   acceptedAdv,
 		AdvClient:        advClient,
 		DiscoveryClient:  discoveryClient,
-		RetryTimeout:     1 * time.Minute,
+		RetryTimeout:     time.Duration(resyncPeriod),
 	}
 
 	if err = advertisementReconciler.SetupWithManager(mgr); err != nil {
@@ -173,7 +182,21 @@ func main() {
 		klog.Fatal(err)
 	}
 
+	resourceOfferReconciler := resourceoffercontroller.NewResourceOfferController(mgr, time.Duration(resyncPeriod))
+	if err = resourceOfferReconciler.SetupWithManager(mgr); err != nil {
+		klog.Fatal(err)
+	}
+
 	// +kubebuilder:scaffold:builder
+
+	if err := mgr.AddHealthzCheck("healthz", healthz.Ping); err != nil {
+		klog.Error(err, " unable to set up health check")
+		os.Exit(1)
+	}
+	if err := mgr.AddReadyzCheck("readyz", healthz.Ping); err != nil {
+		klog.Error(err, " unable to set up ready check")
+		os.Exit(1)
+	}
 
 	c := make(chan struct{})
 	var wg = &sync.WaitGroup{}
@@ -181,9 +204,11 @@ func main() {
 	if err != nil {
 		os.Exit(1)
 	}
-	wg.Add(2)
+	wg.Add(3)
 	go advertisementReconciler.CleanOldAdvertisements(c, wg)
+	// TODO: this configuration watcher will be refactored before the release 0.3
 	go advertisementReconciler.WatchConfiguration(localKubeconfig, client, wg)
+	go resourceOfferReconciler.WatchConfiguration(localKubeconfig, client, wg)
 
 	klog.Info("starting manager as advertisementoperator")
 	if err := mgr.Start(ctrl.SetupSignalHandler()); err != nil {
