@@ -1,4 +1,4 @@
-FROM golang:1.14 as builder
+FROM golang:1.16 as builder
 ENV PATH /go/bin:/usr/local/go/bin:/usr/local/kubebuilder/bin:$PATH
 ENV GOPATH /go
 
