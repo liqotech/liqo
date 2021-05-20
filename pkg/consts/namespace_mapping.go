@@ -13,4 +13,11 @@ const (
 	NamespaceMapControllerFinalizer = "namespacemap-controller.liqo.io/finalizer"
 	// DocumentationURL is the URL to official Liqo Documentation.
 	DocumentationURL = "https://doc.liqo.io/"
+	// DefaultNamespaceOffloadingName is the default name of NamespaceOffloading resources. Every namespace that has
+	// to be offloaded with Liqo, must have a NamespaceOffloading resource with this name.
+	DefaultNamespaceOffloadingName = "offloading"
+	// EnablingLiqoLabel is necessary in order to allow Pods to be scheduled on remote clusters.
+	EnablingLiqoLabel = "liqo.io/enabled"
+	// EnablingLiqoLabelValue unique value allowed for EnablingLiqoLabel.
+	EnablingLiqoLabelValue = "true"
 )
