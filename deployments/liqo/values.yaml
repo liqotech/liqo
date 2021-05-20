@@ -130,7 +130,7 @@ auth:
     # -- The type of service used to expose the Authentication Service
     # If you are exposing this service with an Ingress consider to change it to ClusterIP,
     # otherwise if you plan to use liqo over the Internet consider to change this field to "LoadBalancer".
-    # See https://doc.liqo.io/user/scenarios/ for more details.
+    # See https://doc.liqo.io/user/install/pre-install/ for more details.
     type: "NodePort"
     # -- auth service annotations
     annotations: {}

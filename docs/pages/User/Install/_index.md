@@ -6,7 +6,7 @@ weight: 4
 ### Pre-Installation
 
 Liqo can be used with different topologies and scenarios. This impacts several installation parameters you will configure (e.g., API Server, Authentication). In
-the [scenarios pages](../scenarios), we present some common patterns used to expose and interconnect clusters.
+the [scenarios pages](./pre-install), we present some common patterns used to expose and interconnect clusters.
 
 ### Installation
 

@@ -22,7 +22,7 @@
 | auth.pod.labels | object | `{}` | auth pod labels |
 | auth.portOverride | string | `""` | Overrides the port were your service is available, you should configure it if behind a NAT or using an Ingress with a port different from 443. |
 | auth.service.annotations | object | `{}` | auth service annotations |
-| auth.service.type | string | `"NodePort"` | The type of service used to expose the Authentication Service If you are exposing this service with an Ingress consider to change it to ClusterIP, otherwise if you plan to use liqo over the Internet consider to change this field to "LoadBalancer". See https://doc.liqo.io/user/scenarios/ for more details. |
+| auth.service.type | string | `"NodePort"` | The type of service used to expose the Authentication Service If you are exposing this service with an Ingress consider to change it to ClusterIP, otherwise if you plan to use liqo over the Internet consider to change this field to "LoadBalancer". See https://doc.liqo.io/user/install/pre-install/ for more details. |
 | auth.tls | bool | `true` | Enable TLS for the Authentication Service Pod (using a self-signed certificate). If you are exposing this service with an Ingress consider to disable it or add the appropriate annotations to the Ingress resource. |
 | crdReplicator.imageName | string | `"liqo/crd-replicator"` | crdReplicator image repository |
 | crdReplicator.pod.annotations | object | `{}` | crdReplicator pod annotations |
