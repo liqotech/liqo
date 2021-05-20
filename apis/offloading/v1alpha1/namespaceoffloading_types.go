@@ -35,6 +35,8 @@ const (
 	SomeFailedOffloadingPhaseType OffloadingPhaseType = "SomeFailed"
 	// AllFailedOffloadingPhaseType -> there was an error during creation of all remote Namespaces.
 	AllFailedOffloadingPhaseType OffloadingPhaseType = "AllFailed"
+	// TerminatingOffloadingPhaseType -> means remote namespaces are undergoing graceful termination.
+	TerminatingOffloadingPhaseType OffloadingPhaseType = "Terminating"
 )
 
 // NamespaceMappingStrategyType represents different strategies to map local and remote namespace names.
@@ -127,6 +129,7 @@ type NamespaceOffloadingStatus struct {
 	// "InProgress" (i.e. remote Namespaces' creation is still ongoing.)
 	// "SomeFailed" (i.e. there was an error during creation of some remote Namespaces.)
 	// "AllFailed" (i.e. there was an error during creation of all remote Namespaces.)
+	// "Terminating" (i.e. remote namespaces are undergoing graceful termination.)
 	OffloadingPhase OffloadingPhaseType `json:"offloadingPhase,omitempty"`
 	// RemoteNamespacesConditions -> allows user to verify remote Namespaces' presence and status on all remote
 	// clusters through RemoteNamespaceCondition.
