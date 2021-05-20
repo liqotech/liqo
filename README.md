@@ -29,9 +29,8 @@
     <a href="https://github.com/liqotech/liqo/issues/new?assignees=&labels=enhancement&template=feature_request.md&title=%5BFeature%5D">Request Feature</a>
 </p>
 
-
-
 ## About the project
+
 Liqo is a platform to enable dynamic and decentralized resource sharing across Kubernetes clusters, either on-prem or managed. Liqo allows to run pods on a remote cluster seamlessly and without any modification of Kubernetes and the applications. With Liqo it is possible to extend the control plane of a Kubernetes cluster across the cluster's boundaries, making multi-cluster native and transparent: collapse an entire remote cluster to a virtual local node, by allowing workloads offloading and resource management compliant with the standard Kubernetes approach.
 
 <br />
@@ -71,7 +70,7 @@ Liqo is a platform to enable dynamic and decentralized resource sharing across K
 
 This quickstart lets you try Liqo in a playground environment built by two clusters in [KinD](https://kind.sigs.k8s.io/).
 
-#### __Provision__ two KinD clusters.
+### __Provision__ two KinD clusters.
 
 ```bash
 source <(curl -L https://get.liqo.io/clusters.sh)
@@ -110,13 +109,23 @@ kubectl apply -f https://get.liqo.io/app.yaml -n liqo-demo
 You can observe that:
 
 * Your application is correctly working by exposing the application frontend port and later connecting with a browser to [localhost:8000](localhost:8000). To expose the pod port:
+
 ```bash
   kubectl port-forward -n liqo-demo service/frontend 8080:80
 ```
+
 * Your application is transparently deployed across two different clusters:
+
 ```bash
   kubectl get pods -n liqo-demo -o wide  
-``` 
+```
+
+### Going Further
+
+If you want to explore the Liqo internals, including how to inspect and interact with a service deployed with Liqo, you can explore the documentation website:
+
+* Continue the Liqo journey by exploring the [Liqo playground](https://doc.liqo.io/user/gettingstarted/play/)
+* Find out how to install Liqo on [your clusters](https://doc.liqo.io/user/install/)
 
 ## Installation
 
@@ -128,10 +137,10 @@ Once you identified your scenario, follow the instructions for the proper instal
 
 Planned features for the next release (v0.3, expected mid-July, 2021) are the following:
 
-* Support for deployments spanning across more than two clusters
-* Support for a more balanced scheduling mechanism to distribute jobs across clusters
-* Support for Amazon Elastic Kubernetes Service
-* Support for more-granular permission control over remote cluster resources
+* Support for deployments spanning across more than two clusters.
+* Support for a more balanced scheduling mechanism to distribute jobs across clusters.
+* Support for Amazon Elastic Kubernetes Service.
+* Support for more granular permission control over remote cluster resources.
 
 ## Contributing
 

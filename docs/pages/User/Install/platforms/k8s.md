@@ -5,7 +5,8 @@ weight: 3
 
 ### About Kubeadm
 
-[Kubeadm](https://kubernetes.io/docs/setup/production-environment/tools/kubeadm/create-cluster-kubeadm/) is a tool built by the Kubernetes community to provision Kubernetes clusters. Kubeadm is used as the basis of most Kubernetes deployments and makes it easier to create conformant clusters.
+[Kubeadm](https://kubernetes.io/docs/setup/production-environment/tools/kubeadm/create-cluster-kubeadm/) is a tool built by the Kubernetes community to provision Kubernetes clusters. Kubeadm is used as the basis of most Kubernetes deployments and makes it easier to create K8s clusters.
+
 ### CNI Compatibility Matrix
 
 Kubeadm does not install any CNI plugin by default, and it must be deployed after the initialization of the cluster.
