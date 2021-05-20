@@ -20,21 +20,23 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-type mappingPhase string
+// MappingPhase indicates the status of the remote namespace.
+type MappingPhase string
 
 const (
 	// MappingAccepted indicates that a remote namespace is successfully created.
-	MappingAccepted mappingPhase = "Accepted"
-	// MappingRefused indicates that at the moment is impossible to create a remote namespace.
-	MappingRefused mappingPhase = "Refused"
+	MappingAccepted MappingPhase = "Accepted"
+	// MappingCreationLoopBackOff indicates that at the moment is impossible to create a remote namespace.
+	MappingCreationLoopBackOff MappingPhase = "CreationLoopBackOff"
 )
 
 // RemoteNamespaceStatus contains some information about remote namespace status.
 type RemoteNamespaceStatus struct {
-	// RemoteNamespace is the name chosen by the user at creation time (when he puts mapping label on his local namespace).
+	// RemoteNamespace is the name chosen by the user at creation time according to NamespaceMappingStrategy
 	RemoteNamespace string `json:"remoteNamespace,omitempty"`
 	// Phase is the remote Namespace's actual status (Accepted,Refused).
-	Phase mappingPhase `json:"phase,omitempty"`
+	// +kubebuilder:validation:Enum="Accepted";"CreationLoopBackOff"
+	Phase MappingPhase `json:"phase,omitempty"`
 }
 
 // NamespaceMapSpec defines the desired state of NamespaceMap.

@@ -56,11 +56,13 @@ spec:
                   properties:
                     phase:
                       description: Phase is the remote Namespace's actual status (Accepted,Refused).
+                      enum:
+                      - Accepted
+                      - CreationLoopBackOff
                       type: string
                     remoteNamespace:
                       description: RemoteNamespace is the name chosen by the user
-                        at creation time (when he puts mapping label on his local
-                        namespace).
+                        at creation time according to NamespaceMappingStrategy
                       type: string
                   type: object
                 description: CurrentMapping is filled by NamespaceMap Controller,
