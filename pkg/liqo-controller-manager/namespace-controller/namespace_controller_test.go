@@ -4,80 +4,89 @@ import (
 	"context"
 	"fmt"
 
-	mapsv1alpha1 "github.com/liqotech/liqo/apis/virtualKubelet/v1alpha1"
-	liqoconst "github.com/liqotech/liqo/pkg/consts"
-
-	"time"
-
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
+	corev1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/kubernetes/pkg/util/slice"
-	"sigs.k8s.io/controller-runtime/pkg/client"
+
+	offv1alpha1 "github.com/liqotech/liqo/apis/offloading/v1alpha1"
+	liqoconst "github.com/liqotech/liqo/pkg/consts"
 )
 
 var _ = Describe("Namespace controller", func() {
 
-	const (
-		timeout         = time.Second * 10
-		interval        = time.Millisecond * 250
-		mappingLabel    = "mapping.liqo.io"
-		offloadingLabel = "offloading.liqo.io"
-	)
-
-	ctx = context.TODO()
-	nms = &mapsv1alpha1.NamespaceMapList{}
-
-	Context("Adding some labels and checking state of NamespaceMaps", func() {
+	Context("Add and remove liqo Label from namespace-test", func() {
 
 		BeforeEach(func() {
-
-			By(fmt.Sprintf("Try to cleaning %s labels", nameNamespaceTest))
+			By("0 - BeforeEach -> Delete NamespaceOffloading resource if present")
 			Eventually(func() bool {
-				if err := k8sClient.Get(ctx, types.NamespacedName{Name: nameNamespaceTest}, namespace); err != nil {
+				if err := k8sClient.Get(context.TODO(), types.NamespacedName{
+					Namespace: nameNamespaceTest,
+					Name:      liqoconst.DefaultNamespaceOffloadingName,
+				}, namespaceOffloading); err != nil {
+					if apierrors.IsNotFound(err) {
+						return true
+					}
 					return false
 				}
-				delete(namespace.GetLabels(), mappingLabel)
-				delete(namespace.GetLabels(), offloadingLabel)
-				delete(namespace.GetLabels(), offloadingCluster1Label1)
-				delete(namespace.GetLabels(), offloadingCluster1Label2)
-				delete(namespace.GetLabels(), offloadingCluster2Label1)
-				delete(namespace.GetLabels(), offloadingCluster2Label2)
-				namespace.GetLabels()[randomLabel] = ""
+				_ = k8sClient.Delete(context.TODO(), namespaceOffloading)
+				return false
+			}, timeout, interval).Should(BeTrue())
+		})
 
-				if err := k8sClient.Update(ctx, namespace); err != nil {
+		It("Add liqo label when NamespaceOffloading is not present, and check if it is deleted", func() {
+
+			By(fmt.Sprintf("1 - Get namespace '%s' and add liqo label", nameNamespaceTest))
+			Eventually(func() bool {
+				if err := k8sClient.Get(context.TODO(), types.NamespacedName{Name: nameNamespaceTest}, namespace); err != nil {
+					return false
+				}
+				return true
+			}, timeout, interval).Should(BeTrue())
+			if namespace.Labels == nil {
+				namespace.Labels = map[string]string{}
+			}
+			namespace.Labels[liqoconst.EnablingLiqoLabel] = liqoconst.EnablingLiqoLabelValue
+			Eventually(func() bool {
+				if err := k8sClient.Update(context.TODO(), namespace); err != nil {
 					return false
 				}
 				return true
 			}, timeout, interval).Should(BeTrue())
 
-			By(fmt.Sprintf("Check if NamespaceMap associated to %s is cleaned by the controller", remoteClusterId1))
+			By("2 - Try to get NamespaceOffloading Resource associated with this namespace")
 			Eventually(func() bool {
-				if err := k8sClient.List(context.TODO(), nms, client.InNamespace(liqoconst.MapNamespaceName),
-					client.MatchingLabels{liqoconst.RemoteClusterID: remoteClusterId1}); err != nil {
+				if err := k8sClient.Get(context.TODO(), types.NamespacedName{
+					Namespace: nameNamespaceTest,
+					Name:      liqoconst.DefaultNamespaceOffloadingName,
+				}, namespaceOffloading); err != nil {
 					return false
 				}
-				if len(nms.Items) != 1 {
-					return false
-				}
-				By("Check Desired Mapping")
-				if _, ok := nms.Items[0].Spec.DesiredMapping[nameNamespaceTest]; !ok {
-					return true
-				}
-				return false
+				return true
 			}, timeout, interval).Should(BeTrue())
 
-			By(fmt.Sprintf("Check if NamespaceMap associated to %s is cleaned by the controller ", remoteClusterId2))
+			By("3 - Check if the ownership annotation is present")
+			value, ok := namespaceOffloading.Annotations[nsCtrlAnnotationKey]
+			Expect(ok && value == nsCtrlAnnotationValue).To(BeTrue())
+
+			By("4 - Remove liqo label")
+			delete(namespace.Labels, liqoconst.EnablingLiqoLabel)
 			Eventually(func() bool {
-				if err := k8sClient.List(context.TODO(), nms, client.InNamespace(liqoconst.MapNamespaceName),
-					client.MatchingLabels{liqoconst.RemoteClusterID: remoteClusterId2}); err != nil {
+				if err := k8sClient.Update(context.TODO(), namespace); err != nil {
 					return false
 				}
-				if len(nms.Items) != 1 {
-					return false
-				}
-				By("Check Desired Mapping")
-				if _, ok := nms.Items[0].Spec.DesiredMapping[nameNamespaceTest]; !ok {
+				return true
+			}, timeout, interval).Should(BeTrue())
+
+			By("5 - Check if NamespaceOffloading is deleted")
+			Eventually(func() bool {
+				err := k8sClient.Get(context.TODO(), types.NamespacedName{
+					Namespace: nameNamespaceTest,
+					Name:      liqoconst.DefaultNamespaceOffloadingName,
+				}, namespaceOffloading)
+				if err != nil && apierrors.IsNotFound(err) {
 					return true
 				}
 				return false
@@ -85,417 +94,64 @@ var _ = Describe("Namespace controller", func() {
 
 		})
 
-		It(fmt.Sprintf("Adding %s and %s , check presence of finalizer: %s",
-			mappingLabel, offloadingLabel, namespaceControllerFinalizer), func() {
+		It("Add liqo label when NamespaceOffloading is present, and check that the resource is not deleted", func() {
 
-			By(fmt.Sprintf("Try to get Namespace: %s", nameNamespaceTest))
+			By(fmt.Sprintf("1 - Create NamespaceOffloading resource for namespace '%s'", nameNamespaceTest))
+			namespaceOffloading = &offv1alpha1.NamespaceOffloading{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      liqoconst.DefaultNamespaceOffloadingName,
+					Namespace: nameNamespaceTest,
+				},
+				Spec: offv1alpha1.NamespaceOffloadingSpec{
+					NamespaceMappingStrategy: offv1alpha1.DefaultNameMappingStrategyType,
+					PodOffloadingStrategy:    offv1alpha1.LocalAndRemotePodOffloadingStrategyType,
+					ClusterSelector:          corev1.NodeSelector{NodeSelectorTerms: []corev1.NodeSelectorTerm{}},
+				},
+			}
+			Expect(k8sClient.Create(context.TODO(), namespaceOffloading)).Should(Succeed())
+
+			By(fmt.Sprintf("2 - Get namespace '%s' and add liqo label", nameNamespaceTest))
 			Eventually(func() bool {
-				if err := k8sClient.Get(ctx, types.NamespacedName{Name: nameNamespaceTest}, namespace); err != nil {
+				if err := k8sClient.Get(context.TODO(), types.NamespacedName{Name: nameNamespaceTest}, namespace); err != nil {
 					return false
 				}
-				namespace.GetLabels()[mappingLabel] = nameRemoteNamespace
-				namespace.GetLabels()[offloadingLabel] = ""
-
-				By(fmt.Sprintf("Adding labels to: %s", nameNamespaceTest))
-				if err := k8sClient.Patch(ctx, namespace, client.Merge); err != nil {
+				return true
+			}, timeout, interval).Should(BeTrue())
+			if namespace.Labels == nil {
+				namespace.Labels = map[string]string{}
+			}
+			namespace.Labels[liqoconst.EnablingLiqoLabel] = liqoconst.EnablingLiqoLabelValue
+			Eventually(func() bool {
+				if err := k8sClient.Update(context.TODO(), namespace); err != nil {
 					return false
 				}
 				return true
 			}, timeout, interval).Should(BeTrue())
 
-			By(fmt.Sprintf("Try to get again: %s", nameNamespaceTest))
+			By("3 - Check if the ownership annotation is present")
+			value, ok := namespaceOffloading.Annotations[nsCtrlAnnotationKey]
+			Expect(ok && value == nsCtrlAnnotationValue).To(BeFalse())
+
+			By("4 - Remove liqo label")
+			delete(namespace.Labels, liqoconst.EnablingLiqoLabel)
 			Eventually(func() bool {
-				if err := k8sClient.Get(ctx, types.NamespacedName{Name: nameNamespaceTest}, namespace); err != nil {
-					return false
-				}
-				return slice.ContainsString(namespace.GetFinalizers(), namespaceControllerFinalizer, nil)
-			}, timeout, interval).Should(BeTrue())
-
-		})
-
-		It(fmt.Sprintf("Adding %s and %s , check NamespaceMaps desired mappings", mappingLabel, offloadingLabel), func() {
-
-			By(fmt.Sprintf("Try to get Namespace: %s", nameNamespaceTest))
-			Eventually(func() bool {
-				if err := k8sClient.Get(ctx, types.NamespacedName{Name: nameNamespaceTest}, namespace); err != nil {
-					return false
-				}
-				namespace.GetLabels()[mappingLabel] = nameRemoteNamespace
-				namespace.GetLabels()[offloadingLabel] = ""
-
-				By(fmt.Sprintf("Adding labels to: %s", nameNamespaceTest))
-				if err := k8sClient.Patch(ctx, namespace, client.Merge); err != nil {
+				if err := k8sClient.Update(context.TODO(), namespace); err != nil {
 					return false
 				}
 				return true
 			}, timeout, interval).Should(BeTrue())
 
-			By(fmt.Sprintf("Try to get NamespaceMap associated to: %s", remoteClusterId1))
-			Eventually(func() bool {
-				if err := k8sClient.List(context.TODO(), nms, client.InNamespace(liqoconst.MapNamespaceName),
-					client.MatchingLabels{liqoconst.RemoteClusterID: remoteClusterId1}); err != nil {
-					return false
-				}
-				if len(nms.Items) != 1 {
-					return false
-				}
-				By("Check Desired Mappings")
-				if value, ok := nms.Items[0].Spec.DesiredMapping[nameNamespaceTest]; ok && value == nameRemoteNamespace {
-					return true
-				}
-				return false
-			}, timeout, interval).Should(BeTrue())
-
-			By(fmt.Sprintf("Try to get NamespaceMap: associated to %s", remoteClusterId2))
-			Eventually(func() bool {
-				if err := k8sClient.List(context.TODO(), nms, client.InNamespace(liqoconst.MapNamespaceName),
-					client.MatchingLabels{liqoconst.RemoteClusterID: remoteClusterId2}); err != nil {
-					return false
-				}
-				if len(nms.Items) != 1 {
-					return false
-				}
-				By("Check Desired Mappings")
-				if value, ok := nms.Items[0].Spec.DesiredMapping[nameNamespaceTest]; ok && value == nameRemoteNamespace {
-					return true
-				}
-				return false
-			}, timeout, interval).Should(BeTrue())
-
-		})
-
-		It(fmt.Sprintf("Adding %s, %s and all labels for %s, check NamespaceMaps status",
-			mappingLabel, offloadingLabel, nameVirtualNode1), func() {
-
-			By(fmt.Sprintf("Try to get Namespace: %s", nameNamespaceTest))
-			Eventually(func() bool {
-				if err := k8sClient.Get(ctx, types.NamespacedName{Name: nameNamespaceTest}, namespace); err != nil {
-					return false
-				}
-				namespace.GetLabels()[mappingLabel] = nameRemoteNamespace
-				namespace.GetLabels()[offloadingLabel] = ""
-				namespace.GetLabels()[offloadingCluster1Label1] = ""
-				namespace.GetLabels()[offloadingCluster1Label2] = ""
-
-				By(fmt.Sprintf("Adding labels to: %s", nameNamespaceTest))
-				if err := k8sClient.Patch(ctx, namespace, client.Merge); err != nil {
-					return false
-				}
-				return true
-			}, timeout, interval).Should(BeTrue())
-
-			By(fmt.Sprintf("Check if entry is also on NamespaceMap associated to: %s", remoteClusterId2))
-			Eventually(func() bool {
-				if err := k8sClient.List(context.TODO(), nms, client.InNamespace(liqoconst.MapNamespaceName), client.MatchingLabels{liqoconst.RemoteClusterID: remoteClusterId2}); err != nil {
-					return false
-				}
-				if len(nms.Items) != 1 {
-					return false
-				}
-				By("Check Desired Mappings")
-				if value, ok := nms.Items[0].Spec.DesiredMapping[nameNamespaceTest]; ok && value == nameRemoteNamespace {
-					return true
-				}
-				return false
-
-			}, timeout, interval).Should(BeTrue())
-
-		})
-
-		It(fmt.Sprintf("Adding %s and all labels for %s, check NamespaceMaps status",
-			mappingLabel, nameVirtualNode1), func() {
-
-			By(fmt.Sprintf("Try to get Namespace: %s", nameNamespaceTest))
-			Eventually(func() bool {
-				if err := k8sClient.Get(ctx, types.NamespacedName{Name: nameNamespaceTest}, namespace); err != nil {
-					return false
-				}
-				namespace.GetLabels()[mappingLabel] = nameRemoteNamespace
-				namespace.GetLabels()[offloadingCluster1Label1] = ""
-				namespace.GetLabels()[offloadingCluster1Label2] = ""
-
-				By(fmt.Sprintf("Adding labels to: %s", nameNamespaceTest))
-				if err := k8sClient.Patch(ctx, namespace, client.Merge); err != nil {
-					return false
-				}
-				return true
-			}, timeout, interval).Should(BeTrue())
-
-			By(fmt.Sprintf("Try to get NamespaceMap associated to %s", remoteClusterId1))
-			Eventually(func() bool {
-				if err := k8sClient.List(context.TODO(), nms, client.InNamespace(liqoconst.MapNamespaceName), client.MatchingLabels{liqoconst.RemoteClusterID: remoteClusterId1}); err != nil {
-					return false
-				}
-				if len(nms.Items) != 1 {
-					return false
-				}
-
-				By("Check Desired Mappings")
-				if value, ok := nms.Items[0].Spec.DesiredMapping[nameNamespaceTest]; ok && value == nameRemoteNamespace {
-					return true
-				}
-				return false
-
-			}, timeout, interval).Should(BeTrue())
-
-			By(fmt.Sprintf("Try to get NamespaceMap associated to %s", remoteClusterId2))
+			By("5 - Check if NamespaceOffloading is deleted")
 			Consistently(func() bool {
-				if err := k8sClient.List(context.TODO(), nms, client.InNamespace(liqoconst.MapNamespaceName), client.MatchingLabels{liqoconst.RemoteClusterID: remoteClusterId2}); err != nil {
-					return true
-				}
-				if len(nms.Items) != 1 {
-					return true
-				}
-
-				By("Check Desired Mappings")
-				if value, ok := nms.Items[0].Spec.DesiredMapping[nameNamespaceTest]; ok && value == nameRemoteNamespace {
-					return true
-				}
-				return false
-			}, timeout/5, interval).ShouldNot(BeTrue())
-
-		})
-
-		It(fmt.Sprintf("Update %s  value and check if label is automatically patched to old value",
-			mappingLabel), func() {
-
-			By(fmt.Sprintf("Try to get Namespace: %s", nameNamespaceTest))
-			Eventually(func() bool {
-				if err := k8sClient.Get(ctx, types.NamespacedName{Name: nameNamespaceTest}, namespace); err != nil {
-					return false
-				}
-				namespace.GetLabels()[mappingLabel] = nameRemoteNamespace
-				namespace.GetLabels()[offloadingLabel] = ""
-
-				By(fmt.Sprintf("Adding labels to: %s", nameNamespaceTest))
-				if err := k8sClient.Patch(ctx, namespace, client.Merge); err != nil {
+				err := k8sClient.Get(context.TODO(), types.NamespacedName{
+					Namespace: nameNamespaceTest,
+					Name:      liqoconst.DefaultNamespaceOffloadingName,
+				}, namespaceOffloading)
+				if err != nil {
 					return false
 				}
 				return true
-			}, timeout, interval).Should(BeTrue())
-
-			By(fmt.Sprintf("Try to get NamespaceMap associated to: %s", remoteClusterId1))
-			Eventually(func() bool {
-				if err := k8sClient.List(context.TODO(), nms, client.InNamespace(liqoconst.MapNamespaceName),
-					client.MatchingLabels{liqoconst.RemoteClusterID: remoteClusterId1}); err != nil {
-					return false
-				}
-				if len(nms.Items) != 1 {
-					return false
-				}
-
-				By("Check Desired Mappings")
-				if value, ok := nms.Items[0].Spec.DesiredMapping[nameNamespaceTest]; ok && value == nameRemoteNamespace {
-					return true
-				}
-				return false
-			}, timeout, interval).Should(BeTrue())
-
-			By(fmt.Sprintf("Try to get NamespaceMap associated to: %s", remoteClusterId2))
-			Eventually(func() bool {
-				if err := k8sClient.List(context.TODO(), nms, client.InNamespace(liqoconst.MapNamespaceName),
-					client.MatchingLabels{liqoconst.RemoteClusterID: remoteClusterId2}); err != nil {
-					return false
-				}
-				if len(nms.Items) != 1 {
-					return false
-				}
-
-				By("Check status of NattingTable")
-				if value, ok := nms.Items[0].Spec.DesiredMapping[nameNamespaceTest]; ok && value == nameRemoteNamespace {
-					return true
-				}
-				return false
-			}, timeout, interval).Should(BeTrue())
-
-			By(fmt.Sprintf("Try to get again %s", nameNamespaceTest))
-			Eventually(func() bool {
-				if err := k8sClient.Get(ctx, types.NamespacedName{Name: nameNamespaceTest}, namespace); err != nil {
-					return false
-				}
-				namespace.GetLabels()[mappingLabel] = "new-value-remote-namespace-test"
-
-				By(fmt.Sprintf("Update %s", mappingLabel))
-				if err := k8sClient.Update(ctx, namespace); err != nil {
-					return false
-				}
-				return true
-			}, timeout, interval).Should(BeTrue())
-
-			By(fmt.Sprintf("Try to get %s and check if label %s value is the old one", nameNamespaceTest, mappingLabel))
-			Eventually(func() bool {
-				if err := k8sClient.Get(ctx, types.NamespacedName{Name: nameNamespaceTest}, namespace); err != nil {
-					return false
-				}
-				value, ok := namespace.GetLabels()[mappingLabel]
-				return ok && value == nameRemoteNamespace
-			}, timeout, interval).Should(BeTrue())
-
-		})
-
-	})
-
-	Context("Check deletion of entries in NamespaceMaps", func() {
-
-		BeforeEach(func() {
-
-			By(fmt.Sprintf("Add labels to %s", nameNamespaceTest))
-			Eventually(func() bool {
-				if err := k8sClient.Get(ctx, types.NamespacedName{Name: nameNamespaceTest}, namespace); err != nil {
-					return false
-				}
-				namespace.GetLabels()[mappingLabel] = nameRemoteNamespace
-				namespace.GetLabels()[offloadingLabel] = ""
-				delete(namespace.GetLabels(), offloadingCluster1Label1)
-				delete(namespace.GetLabels(), offloadingCluster1Label2)
-				delete(namespace.GetLabels(), offloadingCluster2Label1)
-				delete(namespace.GetLabels(), offloadingCluster2Label2)
-				namespace.GetLabels()[randomLabel] = ""
-
-				if err := k8sClient.Update(ctx, namespace); err != nil {
-					return false
-				}
-				return true
-			}, timeout, interval).Should(BeTrue())
-
-			By(fmt.Sprintf("Try to get NamespaceMap associated to: %s", remoteClusterId1))
-			Eventually(func() bool {
-				if err := k8sClient.List(context.TODO(), nms, client.InNamespace(liqoconst.MapNamespaceName),
-					client.MatchingLabels{liqoconst.RemoteClusterID: remoteClusterId1}); err != nil {
-					return false
-				}
-				if len(nms.Items) != 1 {
-					return false
-				}
-
-				By("Check Desired Mappings")
-				if value, ok := nms.Items[0].Spec.DesiredMapping[nameNamespaceTest]; ok && value == nameRemoteNamespace {
-					return true
-				}
-				return false
-			}, timeout, interval).Should(BeTrue())
-
-			By(fmt.Sprintf("Try to get NamespaceMap associated to: %s", remoteClusterId2))
-			Eventually(func() bool {
-				if err := k8sClient.List(context.TODO(), nms, client.InNamespace(liqoconst.MapNamespaceName),
-					client.MatchingLabels{liqoconst.RemoteClusterID: remoteClusterId2}); err != nil {
-					return false
-				}
-				if len(nms.Items) != 1 {
-					return false
-				}
-
-				By("Check Desired Mappings")
-				if value, ok := nms.Items[0].Spec.DesiredMapping[nameNamespaceTest]; ok && value == nameRemoteNamespace {
-					return true
-				}
-				return false
-			}, timeout, interval).Should(BeTrue())
-
-		})
-
-		It(fmt.Sprintf("Remove %s label and check if NamespaceMaps are cleared", mappingLabel), func() {
-
-			By(fmt.Sprintf("Try to remove %s label", mappingLabel))
-			Eventually(func() bool {
-				if err := k8sClient.Get(ctx, types.NamespacedName{Name: nameNamespaceTest}, namespace); err != nil {
-					return false
-				}
-
-				delete(namespace.GetLabels(), mappingLabel)
-				if err := k8sClient.Update(ctx, namespace); err != nil {
-					return false
-				}
-				return true
-			}, timeout, interval).Should(BeTrue())
-
-			By(fmt.Sprintf("Check if NamespaceMap associated to %s is cleaned by the controller", remoteClusterId1))
-			Eventually(func() bool {
-				if err := k8sClient.List(context.TODO(), nms, client.InNamespace(liqoconst.MapNamespaceName),
-					client.MatchingLabels{liqoconst.RemoteClusterID: remoteClusterId1}); err != nil {
-					return false
-				}
-				if len(nms.Items) != 1 {
-					return false
-				}
-
-				By("Check Desired Mappings")
-				if _, ok := nms.Items[0].Spec.DesiredMapping[nameNamespaceTest]; !ok {
-					return true
-				}
-				return false
-
-			}, timeout, interval).Should(BeTrue())
-
-			By(fmt.Sprintf("Check if NamespaceMap associated to %s is cleaned by the controller", remoteClusterId2))
-			Eventually(func() bool {
-				if err := k8sClient.List(context.TODO(), nms, client.InNamespace(liqoconst.MapNamespaceName),
-					client.MatchingLabels{liqoconst.RemoteClusterID: remoteClusterId2}); err != nil {
-					return false
-				}
-				if len(nms.Items) != 1 {
-					return false
-				}
-
-				By("Check Desired Mappings")
-				if _, ok := nms.Items[0].Spec.DesiredMapping[nameNamespaceTest]; !ok {
-					return true
-				}
-				return false
-
-			}, timeout, interval).Should(BeTrue())
-
-		})
-
-		It(fmt.Sprintf("Remove %s and check if NamespaceMaps are cleared", nameNamespaceTest), func() {
-
-			By("Check if namespace is really deleted")
-			Eventually(func() bool {
-				if err := k8sClient.Get(ctx, types.NamespacedName{Name: nameNamespaceTest}, namespace); err != nil {
-					return false
-				}
-
-				if err := k8sClient.Delete(ctx, namespace); err != nil {
-					return false
-				}
-				return true
-			}, timeout, interval).Should(BeTrue())
-
-			By(fmt.Sprintf("Check if NamespaceMap associated to %s is cleaned by the controller", remoteClusterId1))
-			Eventually(func() bool {
-				if err := k8sClient.List(context.TODO(), nms, client.InNamespace(liqoconst.MapNamespaceName),
-					client.MatchingLabels{liqoconst.RemoteClusterID: remoteClusterId1}); err != nil {
-					return false
-				}
-				if len(nms.Items) != 1 {
-					return false
-				}
-
-				By("Check Desired Mappings")
-				if _, ok := nms.Items[0].Spec.DesiredMapping[nameNamespaceTest]; !ok {
-					return true
-				}
-				return false
-
-			}, timeout, interval).Should(BeTrue())
-
-			By(fmt.Sprintf("Check if NamespaceMap associated to %s is cleaned by the controller", remoteClusterId2))
-			Eventually(func() bool {
-				if err := k8sClient.List(context.TODO(), nms, client.InNamespace(liqoconst.MapNamespaceName),
-					client.MatchingLabels{liqoconst.RemoteClusterID: remoteClusterId2}); err != nil {
-					return false
-				}
-				if len(nms.Items) != 1 {
-					return false
-				}
-
-				By("Check Desired Mappings")
-				if _, ok := nms.Items[0].Spec.DesiredMapping[nameNamespaceTest]; !ok {
-					return true
-				}
-				return false
-
-			}, timeout, interval).Should(BeTrue())
+			}, timeout/5, interval).Should(BeTrue())
 
 		})
 
