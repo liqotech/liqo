@@ -59,6 +59,7 @@ spec:
                       enum:
                       - Accepted
                       - CreationLoopBackOff
+                      - Terminating
                       type: string
                     remoteNamespace:
                       description: RemoteNamespace is the name chosen by the user

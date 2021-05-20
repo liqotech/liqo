@@ -175,7 +175,8 @@ spec:
                   matches user constraints.) "InProgress" (i.e. remote Namespaces''
                   creation is still ongoing.) "SomeFailed" (i.e. there was an error
                   during creation of some remote Namespaces.) "AllFailed" (i.e. there
-                  was an error during creation of all remote Namespaces.)'
+                  was an error during creation of all remote Namespaces.) "Terminating"
+                  (i.e. remote namespaces are undergoing graceful termination.)'
                 type: string
               remoteNamespaceName:
                 description: RemoteNamespaceName is the remote namespace name chosen

@@ -10,6 +10,7 @@ const (
 	// TypeNode is the value of a Liqo label that identifies Liqo virtual nodes.
 	TypeNode = "virtual-node"
 	// NamespaceMapControllerFinalizer is the finalizer inserted on NamespaceMap by NamespaceMap Controller.
+	// todo: has to be removed after VirtualNode Controller refactor
 	NamespaceMapControllerFinalizer = "namespacemap-controller.liqo.io/finalizer"
 	// DocumentationURL is the URL to official Liqo Documentation.
 	DocumentationURL = "https://doc.liqo.io/"

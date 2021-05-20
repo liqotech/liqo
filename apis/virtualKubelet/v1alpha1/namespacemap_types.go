@@ -28,6 +28,8 @@ const (
 	MappingAccepted MappingPhase = "Accepted"
 	// MappingCreationLoopBackOff indicates that at the moment is impossible to create a remote namespace.
 	MappingCreationLoopBackOff MappingPhase = "CreationLoopBackOff"
+	// MappingTerminating means remote namespace is undergoing graceful termination.
+	MappingTerminating MappingPhase = "Terminating"
 )
 
 // RemoteNamespaceStatus contains some information about remote namespace status.
@@ -35,7 +37,7 @@ type RemoteNamespaceStatus struct {
 	// RemoteNamespace is the name chosen by the user at creation time according to NamespaceMappingStrategy
 	RemoteNamespace string `json:"remoteNamespace,omitempty"`
 	// Phase is the remote Namespace's actual status (Accepted,Refused).
-	// +kubebuilder:validation:Enum="Accepted";"CreationLoopBackOff"
+	// +kubebuilder:validation:Enum="Accepted";"CreationLoopBackOff";"Terminating"
 	Phase MappingPhase `json:"phase,omitempty"`
 }
 
