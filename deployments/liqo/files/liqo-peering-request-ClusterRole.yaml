@@ -25,6 +25,7 @@ rules:
   - discovery.liqo.io
   resources:
   - foreignclusters
+  - foreignclusters/status
   verbs:
   - create
   - list

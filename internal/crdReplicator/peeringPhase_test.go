@@ -34,10 +34,10 @@ var _ = Describe("PeeringPhase", func() {
 				foreignCluster: &discoveryv1alpha1.ForeignCluster{
 					Status: discoveryv1alpha1.ForeignClusterStatus{
 						Incoming: discoveryv1alpha1.Incoming{
-							Joined: true,
+							PeeringPhase: discoveryv1alpha1.PeeringPhaseEstablished,
 						},
 						Outgoing: discoveryv1alpha1.Outgoing{
-							Joined: true,
+							PeeringPhase: discoveryv1alpha1.PeeringPhaseEstablished,
 						},
 					},
 				},
@@ -48,10 +48,10 @@ var _ = Describe("PeeringPhase", func() {
 				foreignCluster: &discoveryv1alpha1.ForeignCluster{
 					Status: discoveryv1alpha1.ForeignClusterStatus{
 						Incoming: discoveryv1alpha1.Incoming{
-							Joined: true,
+							PeeringPhase: discoveryv1alpha1.PeeringPhaseEstablished,
 						},
 						Outgoing: discoveryv1alpha1.Outgoing{
-							Joined: false,
+							PeeringPhase: discoveryv1alpha1.PeeringPhaseNone,
 						},
 					},
 				},
@@ -62,10 +62,10 @@ var _ = Describe("PeeringPhase", func() {
 				foreignCluster: &discoveryv1alpha1.ForeignCluster{
 					Status: discoveryv1alpha1.ForeignClusterStatus{
 						Incoming: discoveryv1alpha1.Incoming{
-							Joined: false,
+							PeeringPhase: discoveryv1alpha1.PeeringPhaseNone,
 						},
 						Outgoing: discoveryv1alpha1.Outgoing{
-							Joined: true,
+							PeeringPhase: discoveryv1alpha1.PeeringPhaseEstablished,
 						},
 					},
 				},
@@ -76,10 +76,10 @@ var _ = Describe("PeeringPhase", func() {
 				foreignCluster: &discoveryv1alpha1.ForeignCluster{
 					Status: discoveryv1alpha1.ForeignClusterStatus{
 						Incoming: discoveryv1alpha1.Incoming{
-							Joined: false,
+							PeeringPhase: discoveryv1alpha1.PeeringPhaseNone,
 						},
 						Outgoing: discoveryv1alpha1.Outgoing{
-							Joined: false,
+							PeeringPhase: discoveryv1alpha1.PeeringPhaseNone,
 						},
 					},
 				},

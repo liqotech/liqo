@@ -703,9 +703,7 @@ var _ = Describe("Discovery", func() {
 								DiscoveryType: discovery.LanDiscovery,
 								AuthURL:       "",
 								TrustMode:     discovery.TrustModeUntrusted,
-							},
-							Status: v1alpha12.ForeignClusterStatus{
-								TTL: 300,
+								TTL:           300,
 							},
 						},
 
@@ -733,9 +731,7 @@ var _ = Describe("Discovery", func() {
 								DiscoveryType: discovery.LanDiscovery,
 								AuthURL:       "",
 								TrustMode:     discovery.TrustModeUntrusted,
-							},
-							Status: v1alpha12.ForeignClusterStatus{
-								TTL: 300,
+								TTL:           300,
 							},
 						},
 
@@ -763,9 +759,7 @@ var _ = Describe("Discovery", func() {
 								DiscoveryType: discovery.ManualDiscovery,
 								AuthURL:       "",
 								TrustMode:     discovery.TrustModeUntrusted,
-							},
-							Status: v1alpha12.ForeignClusterStatus{
-								TTL: 300,
+								TTL:           300,
 							},
 						},
 

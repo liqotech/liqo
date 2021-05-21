@@ -10,6 +10,7 @@ import (
 	"k8s.io/klog/v2"
 
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
+	foreigncluster "github.com/liqotech/liqo/pkg/utils/foreignCluster"
 )
 
 func (tec *TunnelEndpointCreator) StartForeignClusterWatcher() {
@@ -44,9 +45,9 @@ func (tec *TunnelEndpointCreator) ForeignClusterHandlerAdd(obj interface{}) {
 		klog.Errorf("an error occurred while converting resource %s of type %s to typed object: %s", objUnstruct.GetName(), objUnstruct.GetKind(), err)
 		return
 	}
-	if fc.Status.Incoming.Joined || fc.Status.Outgoing.Joined {
+	if foreigncluster.IsIncomingJoined(fc) || foreigncluster.IsOutgoingJoined(fc) {
 		_ = tec.createNetConfig(fc)
-	} else if !fc.Status.Incoming.Joined && !fc.Status.Outgoing.Joined {
+	} else if !foreigncluster.IsIncomingJoined(fc) && !foreigncluster.IsOutgoingJoined(fc) {
 		_ = tec.deleteNetConfig(fc)
 	}
 }

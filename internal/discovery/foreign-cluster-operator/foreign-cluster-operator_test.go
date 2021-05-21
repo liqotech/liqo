@@ -1,6 +1,7 @@
 package foreignclusteroperator
 
 import (
+	"context"
 	"os"
 	"path/filepath"
 	"testing"
@@ -11,9 +12,10 @@ import (
 	"github.com/onsi/gomega/types"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"sigs.k8s.io/controller-runtime/pkg/manager"
 
 	"github.com/liqotech/liqo/apis/config/v1alpha1"
-	v1alpha12 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
+	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	"github.com/liqotech/liqo/pkg/clusterid/test"
 	"github.com/liqotech/liqo/pkg/discovery"
 	identitymanager "github.com/liqotech/liqo/pkg/identityManager"
@@ -51,11 +53,16 @@ var _ = Describe("ForeignClusterOperator", func() {
 		controller      ForeignClusterReconciler
 		config          configMock
 		tenantNamespace *v1.Namespace
+		mgr             manager.Manager
+		ctx             context.Context
+		cancel          context.CancelFunc
 	)
 
 	BeforeEach(func() {
+		ctx, cancel = context.WithCancel(context.Background())
+
 		var err error
-		cluster, _, err = testUtils.NewTestCluster([]string{filepath.Join("..", "..", "..", "deployments", "liqo", "crds")})
+		cluster, mgr, err = testUtils.NewTestCluster([]string{filepath.Join("..", "..", "..", "deployments", "liqo", "crds")})
 		if err != nil {
 			By(err.Error())
 			os.Exit(1)
@@ -88,7 +95,8 @@ var _ = Describe("ForeignClusterOperator", func() {
 		}
 
 		controller = ForeignClusterReconciler{
-			Scheme:              scheme,
+			Client:              mgr.GetClient(),
+			Scheme:              mgr.GetScheme(),
 			Namespace:           "default",
 			crdClient:           cluster.GetClient(),
 			advertisementClient: cluster.GetAdvClient(),
@@ -100,9 +108,13 @@ var _ = Describe("ForeignClusterOperator", func() {
 			namespaceManager:    namespaceManager,
 			identityManager:     identityManagerCtrl,
 		}
+
+		go mgr.GetCache().Start(ctx)
 	})
 
 	AfterEach(func() {
+		cancel()
+
 		err := cluster.GetEnv().Stop()
 		if err != nil {
 			By(err.Error())
@@ -115,7 +127,7 @@ var _ = Describe("ForeignClusterOperator", func() {
 	Context("Peer", func() {
 
 		type peerTestcase struct {
-			fc                    v1alpha12.ForeignCluster
+			fc                    discoveryv1alpha1.ForeignCluster
 			expectedPeeringLength types.GomegaMatcher
 			expectedOutgoing      types.GomegaMatcher
 			expectedIncoming      types.GomegaMatcher
@@ -127,7 +139,7 @@ var _ = Describe("ForeignClusterOperator", func() {
 				Expect(err).To(BeNil())
 				Expect(obj).NotTo(BeNil())
 
-				fc, ok := obj.(*v1alpha12.ForeignCluster)
+				fc, ok := obj.(*discoveryv1alpha1.ForeignCluster)
 				Expect(ok).To(BeTrue())
 				Expect(fc).NotTo(BeNil())
 
@@ -142,7 +154,7 @@ var _ = Describe("ForeignClusterOperator", func() {
 				Expect(err).To(BeNil())
 				Expect(obj).NotTo(BeNil())
 
-				prs, ok := obj.(*v1alpha12.PeeringRequestList)
+				prs, ok := obj.(*discoveryv1alpha1.PeeringRequestList)
 				Expect(ok).To(BeTrue())
 				Expect(prs).NotTo(BeNil())
 
@@ -150,7 +162,7 @@ var _ = Describe("ForeignClusterOperator", func() {
 			},
 
 			Entry("peer", peerTestcase{
-				fc: v1alpha12.ForeignCluster{
+				fc: discoveryv1alpha1.ForeignCluster{
 					ObjectMeta: metav1.ObjectMeta{
 						Name: "foreign-cluster",
 						Labels: map[string]string{
@@ -158,8 +170,8 @@ var _ = Describe("ForeignClusterOperator", func() {
 							discovery.ClusterIDLabel:     "foreign-cluster",
 						},
 					},
-					Spec: v1alpha12.ForeignClusterSpec{
-						ClusterIdentity: v1alpha12.ClusterIdentity{
+					Spec: discoveryv1alpha1.ForeignClusterSpec{
+						ClusterIdentity: discoveryv1alpha1.ClusterIdentity{
 							ClusterID:   "foreign-cluster",
 							ClusterName: "ClusterTest2",
 						},
@@ -170,11 +182,11 @@ var _ = Describe("ForeignClusterOperator", func() {
 					},
 				},
 				expectedPeeringLength: Equal(1),
-				expectedOutgoing: Equal(v1alpha12.Outgoing{
-					Joined:                   true,
+				expectedOutgoing: Equal(discoveryv1alpha1.Outgoing{
+					PeeringPhase:             discoveryv1alpha1.PeeringPhaseEstablished,
 					RemotePeeringRequestName: "local-cluster",
 				}),
-				expectedIncoming: Equal(v1alpha12.Incoming{}),
+				expectedIncoming: Equal(discoveryv1alpha1.Incoming{}),
 			}),
 		)
 
@@ -185,8 +197,8 @@ var _ = Describe("ForeignClusterOperator", func() {
 	Context("Unpeer", func() {
 
 		type unpeerTestcase struct {
-			fc                    v1alpha12.ForeignCluster
-			pr                    v1alpha12.PeeringRequest
+			fc                    discoveryv1alpha1.ForeignCluster
+			pr                    discoveryv1alpha1.PeeringRequest
 			expectedPeeringLength types.GomegaMatcher
 			expectedOutgoing      types.GomegaMatcher
 			expectedIncoming      types.GomegaMatcher
@@ -198,7 +210,16 @@ var _ = Describe("ForeignClusterOperator", func() {
 				Expect(err).To(BeNil())
 				Expect(obj).NotTo(BeNil())
 
-				fc, ok := obj.(*v1alpha12.ForeignCluster)
+				fc, ok := obj.(*discoveryv1alpha1.ForeignCluster)
+				Expect(ok).To(BeTrue())
+				Expect(fc).NotTo(BeNil())
+
+				fc.Status = *c.fc.Status.DeepCopy()
+				obj, err = controller.crdClient.Resource("foreignclusters").UpdateStatus(fc.Name, fc, &metav1.UpdateOptions{})
+				Expect(err).To(BeNil())
+				Expect(obj).NotTo(BeNil())
+
+				fc, ok = obj.(*discoveryv1alpha1.ForeignCluster)
 				Expect(ok).To(BeTrue())
 				Expect(fc).NotTo(BeNil())
 
@@ -206,7 +227,7 @@ var _ = Describe("ForeignClusterOperator", func() {
 				Expect(err).To(BeNil())
 				Expect(obj).NotTo(BeNil())
 
-				pr, ok := obj.(*v1alpha12.PeeringRequest)
+				pr, ok := obj.(*discoveryv1alpha1.PeeringRequest)
 				Expect(ok).To(BeTrue())
 				Expect(pr).NotTo(BeNil())
 
@@ -221,7 +242,7 @@ var _ = Describe("ForeignClusterOperator", func() {
 				Expect(err).To(BeNil())
 				Expect(obj).NotTo(BeNil())
 
-				prs, ok := obj.(*v1alpha12.PeeringRequestList)
+				prs, ok := obj.(*discoveryv1alpha1.PeeringRequestList)
 				Expect(ok).To(BeTrue())
 				Expect(prs).NotTo(BeNil())
 
@@ -229,7 +250,7 @@ var _ = Describe("ForeignClusterOperator", func() {
 			},
 
 			Entry("unpeer", unpeerTestcase{
-				fc: v1alpha12.ForeignCluster{
+				fc: discoveryv1alpha1.ForeignCluster{
 					ObjectMeta: metav1.ObjectMeta{
 						Name: "foreign-cluster",
 						Labels: map[string]string{
@@ -237,8 +258,8 @@ var _ = Describe("ForeignClusterOperator", func() {
 							discovery.ClusterIDLabel:     "foreign-cluster",
 						},
 					},
-					Spec: v1alpha12.ForeignClusterSpec{
-						ClusterIdentity: v1alpha12.ClusterIdentity{
+					Spec: discoveryv1alpha1.ForeignClusterSpec{
+						ClusterIdentity: discoveryv1alpha1.ClusterIdentity{
 							ClusterID:   "foreign-cluster",
 							ClusterName: "ClusterTest2",
 						},
@@ -247,20 +268,20 @@ var _ = Describe("ForeignClusterOperator", func() {
 						AuthURL:       "",
 						TrustMode:     discovery.TrustModeUntrusted,
 					},
-					Status: v1alpha12.ForeignClusterStatus{
-						Outgoing: v1alpha12.Outgoing{
-							Joined:                   true,
+					Status: discoveryv1alpha1.ForeignClusterStatus{
+						Outgoing: discoveryv1alpha1.Outgoing{
+							PeeringPhase:             discoveryv1alpha1.PeeringPhaseEstablished,
 							RemotePeeringRequestName: "local-cluster",
 						},
-						Incoming: v1alpha12.Incoming{},
+						Incoming: discoveryv1alpha1.Incoming{},
 					},
 				},
-				pr: v1alpha12.PeeringRequest{
+				pr: discoveryv1alpha1.PeeringRequest{
 					ObjectMeta: metav1.ObjectMeta{
 						Name: "local-cluster",
 					},
-					Spec: v1alpha12.PeeringRequestSpec{
-						ClusterIdentity: v1alpha12.ClusterIdentity{
+					Spec: discoveryv1alpha1.PeeringRequestSpec{
+						ClusterIdentity: discoveryv1alpha1.ClusterIdentity{
 							ClusterID:   "local-cluster",
 							ClusterName: "Name",
 						},
@@ -269,8 +290,12 @@ var _ = Describe("ForeignClusterOperator", func() {
 					},
 				},
 				expectedPeeringLength: Equal(0),
-				expectedOutgoing:      Equal(v1alpha12.Outgoing{}),
-				expectedIncoming:      Equal(v1alpha12.Incoming{}),
+				expectedOutgoing: Equal(discoveryv1alpha1.Outgoing{
+					PeeringPhase: discoveryv1alpha1.PeeringPhaseNone,
+				}),
+				expectedIncoming: Equal(discoveryv1alpha1.Incoming{
+					PeeringPhase: discoveryv1alpha1.PeeringPhaseNone,
+				}),
 			}),
 		)
 
@@ -281,7 +306,7 @@ var _ = Describe("ForeignClusterOperator", func() {
 	Context("Peer Namespaced", func() {
 
 		type peerTestcase struct {
-			fc                    v1alpha12.ForeignCluster
+			fc                    discoveryv1alpha1.ForeignCluster
 			expectedPeeringLength types.GomegaMatcher
 			expectedOutgoing      types.GomegaMatcher
 			expectedIncoming      types.GomegaMatcher
@@ -300,14 +325,22 @@ var _ = Describe("ForeignClusterOperator", func() {
 				Expect(err).To(BeNil())
 				Expect(obj).NotTo(BeNil())
 
-				fc, ok := obj.(*v1alpha12.ForeignCluster)
+				fc, ok := obj.(*discoveryv1alpha1.ForeignCluster)
+				Expect(ok).To(BeTrue())
+				Expect(fc).NotTo(BeNil())
+
+				fc.Status = *c.fc.Status.DeepCopy()
+				obj, err = controller.crdClient.Resource("foreignclusters").UpdateStatus(fc.Name, fc, &metav1.UpdateOptions{})
+				Expect(err).To(BeNil())
+				Expect(obj).NotTo(BeNil())
+
+				fc, ok = obj.(*discoveryv1alpha1.ForeignCluster)
 				Expect(ok).To(BeTrue())
 				Expect(fc).NotTo(BeNil())
 
 				// enable the peering for that foreigncluster
-				fc, err = controller.Peer(fc, cluster.GetClient())
+				err = controller.peerNamespaced(ctx, fc)
 				Expect(err).To(BeNil())
-				Expect(fc).NotTo(BeNil())
 
 				// check that the incoming and the outgoing statuses are the expected ones
 				Expect(fc.Status.Outgoing).To(c.expectedOutgoing)
@@ -318,7 +351,7 @@ var _ = Describe("ForeignClusterOperator", func() {
 				Expect(err).To(BeNil())
 				Expect(obj).NotTo(BeNil())
 
-				rrs, ok := obj.(*v1alpha12.ResourceRequestList)
+				rrs, ok := obj.(*discoveryv1alpha1.ResourceRequestList)
 				Expect(ok).To(BeTrue())
 				Expect(rrs).NotTo(BeNil())
 
@@ -328,7 +361,7 @@ var _ = Describe("ForeignClusterOperator", func() {
 			},
 
 			Entry("peer", peerTestcase{
-				fc: v1alpha12.ForeignCluster{
+				fc: discoveryv1alpha1.ForeignCluster{
 					ObjectMeta: metav1.ObjectMeta{
 						Name: "foreign-cluster",
 						Labels: map[string]string{
@@ -336,8 +369,8 @@ var _ = Describe("ForeignClusterOperator", func() {
 							discovery.ClusterIDLabel:     "foreign-cluster",
 						},
 					},
-					Spec: v1alpha12.ForeignClusterSpec{
-						ClusterIdentity: v1alpha12.ClusterIdentity{
+					Spec: discoveryv1alpha1.ForeignClusterSpec{
+						ClusterIdentity: discoveryv1alpha1.ClusterIdentity{
 							ClusterID:   "foreign-cluster",
 							ClusterName: "ClusterTest2",
 						},
@@ -346,15 +379,19 @@ var _ = Describe("ForeignClusterOperator", func() {
 						AuthURL:       "",
 						TrustMode:     discovery.TrustModeUntrusted,
 					},
-					Status: v1alpha12.ForeignClusterStatus{
-						TenantControlNamespace: v1alpha12.TenantControlNamespace{},
+					Status: discoveryv1alpha1.ForeignClusterStatus{
+						TenantControlNamespace: discoveryv1alpha1.TenantControlNamespace{
+							Local: "default",
+						},
 					},
 				},
 				expectedPeeringLength: Equal(1),
-				expectedOutgoing: Equal(v1alpha12.Outgoing{
-					Joined: true, // we expect a joined flag set to true for the outgoing peering
+				expectedOutgoing: Equal(discoveryv1alpha1.Outgoing{
+					PeeringPhase: discoveryv1alpha1.PeeringPhasePending, // we expect a joined flag set to true for the outgoing peering
 				}),
-				expectedIncoming: Equal(v1alpha12.Incoming{}),
+				expectedIncoming: Equal(discoveryv1alpha1.Incoming{
+					PeeringPhase: discoveryv1alpha1.PeeringPhaseNone,
+				}),
 			}),
 		)
 
@@ -365,8 +402,8 @@ var _ = Describe("ForeignClusterOperator", func() {
 	Context("Unpeer Namespaced", func() {
 
 		type unpeerTestcase struct {
-			fc                    v1alpha12.ForeignCluster
-			rr                    v1alpha12.ResourceRequest
+			fc                    discoveryv1alpha1.ForeignCluster
+			rr                    discoveryv1alpha1.ResourceRequest
 			expectedPeeringLength types.GomegaMatcher
 			expectedOutgoing      types.GomegaMatcher
 			expectedIncoming      types.GomegaMatcher
@@ -382,14 +419,24 @@ var _ = Describe("ForeignClusterOperator", func() {
 
 				// populate the resourcerequest CR
 				c.rr.Name = controller.clusterID.GetClusterID()
-				c.rr.Spec.ClusterIdentity.ClusterID = controller.clusterID.GetClusterID()
+				c.rr.Spec.ClusterIdentity.ClusterID = c.fc.Spec.ClusterIdentity.ClusterID
+				c.rr.Labels = resourceRequestLabels(c.fc.Spec.ClusterIdentity.ClusterID)
 
 				// create the foreigncluster CR
 				obj, err := controller.crdClient.Resource("foreignclusters").Create(&c.fc, &metav1.CreateOptions{})
 				Expect(err).To(BeNil())
 				Expect(obj).NotTo(BeNil())
 
-				fc, ok := obj.(*v1alpha12.ForeignCluster)
+				fc, ok := obj.(*discoveryv1alpha1.ForeignCluster)
+				Expect(ok).To(BeTrue())
+				Expect(fc).NotTo(BeNil())
+
+				fc.Status = *c.fc.Status.DeepCopy()
+				obj, err = controller.crdClient.Resource("foreignclusters").UpdateStatus(fc.Name, fc, &metav1.UpdateOptions{})
+				Expect(err).To(BeNil())
+				Expect(obj).NotTo(BeNil())
+
+				fc, ok = obj.(*discoveryv1alpha1.ForeignCluster)
 				Expect(ok).To(BeTrue())
 				Expect(fc).NotTo(BeNil())
 
@@ -398,14 +445,13 @@ var _ = Describe("ForeignClusterOperator", func() {
 				Expect(err).To(BeNil())
 				Expect(obj).NotTo(BeNil())
 
-				rr, ok := obj.(*v1alpha12.ResourceRequest)
+				rr, ok := obj.(*discoveryv1alpha1.ResourceRequest)
 				Expect(ok).To(BeTrue())
 				Expect(rr).NotTo(BeNil())
 
 				// disable the peering for that foreigncluster
-				fc, err = controller.Unpeer(fc, cluster.GetClient())
+				err = controller.unpeerNamespaced(ctx, fc)
 				Expect(err).To(BeNil())
-				Expect(fc).NotTo(BeNil())
 
 				// check that the incoming and the outgoing statuses are the expected ones
 				Expect(fc.Status.Outgoing).To(c.expectedOutgoing)
@@ -416,7 +462,7 @@ var _ = Describe("ForeignClusterOperator", func() {
 				Expect(err).To(BeNil())
 				Expect(obj).NotTo(BeNil())
 
-				rrs, ok := obj.(*v1alpha12.ResourceRequestList)
+				rrs, ok := obj.(*discoveryv1alpha1.ResourceRequestList)
 				Expect(ok).To(BeTrue())
 				Expect(rrs).NotTo(BeNil())
 
@@ -426,7 +472,7 @@ var _ = Describe("ForeignClusterOperator", func() {
 			},
 
 			Entry("unpeer", unpeerTestcase{
-				fc: v1alpha12.ForeignCluster{
+				fc: discoveryv1alpha1.ForeignCluster{
 					ObjectMeta: metav1.ObjectMeta{
 						Name: "foreign-cluster",
 						Labels: map[string]string{
@@ -434,8 +480,8 @@ var _ = Describe("ForeignClusterOperator", func() {
 							discovery.ClusterIDLabel:     "foreign-cluster",
 						},
 					},
-					Spec: v1alpha12.ForeignClusterSpec{
-						ClusterIdentity: v1alpha12.ClusterIdentity{
+					Spec: discoveryv1alpha1.ForeignClusterSpec{
+						ClusterIdentity: discoveryv1alpha1.ClusterIdentity{
 							ClusterID:   "foreign-cluster",
 							ClusterName: "ClusterTest2",
 						},
@@ -444,20 +490,20 @@ var _ = Describe("ForeignClusterOperator", func() {
 						AuthURL:       "",
 						TrustMode:     discovery.TrustModeUntrusted,
 					},
-					Status: v1alpha12.ForeignClusterStatus{
-						Outgoing: v1alpha12.Outgoing{
-							Joined: true,
+					Status: discoveryv1alpha1.ForeignClusterStatus{
+						Outgoing: discoveryv1alpha1.Outgoing{
+							PeeringPhase: discoveryv1alpha1.PeeringPhaseEstablished,
 						},
-						Incoming:               v1alpha12.Incoming{},
-						TenantControlNamespace: v1alpha12.TenantControlNamespace{},
+						Incoming:               discoveryv1alpha1.Incoming{},
+						TenantControlNamespace: discoveryv1alpha1.TenantControlNamespace{},
 					},
 				},
-				rr: v1alpha12.ResourceRequest{
+				rr: discoveryv1alpha1.ResourceRequest{
 					ObjectMeta: metav1.ObjectMeta{
 						Name: "",
 					},
-					Spec: v1alpha12.ResourceRequestSpec{
-						ClusterIdentity: v1alpha12.ClusterIdentity{
+					Spec: discoveryv1alpha1.ResourceRequestSpec{
+						ClusterIdentity: discoveryv1alpha1.ClusterIdentity{
 							ClusterID:   "",
 							ClusterName: "Name",
 						},
@@ -465,8 +511,12 @@ var _ = Describe("ForeignClusterOperator", func() {
 					},
 				},
 				expectedPeeringLength: Equal(0),
-				expectedOutgoing:      Equal(v1alpha12.Outgoing{}),
-				expectedIncoming:      Equal(v1alpha12.Incoming{}),
+				expectedOutgoing: Equal(discoveryv1alpha1.Outgoing{
+					PeeringPhase: discoveryv1alpha1.PeeringPhaseDisconnecting,
+				}),
+				expectedIncoming: Equal(discoveryv1alpha1.Incoming{
+					PeeringPhase: discoveryv1alpha1.PeeringPhaseNone,
+				}),
 			}),
 		)
 

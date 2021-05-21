@@ -17,11 +17,10 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	client_scheme "k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
-	"k8s.io/klog"
+	"k8s.io/klog/v2"
 
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	"github.com/liqotech/liqo/pkg/auth"
-	"github.com/liqotech/liqo/pkg/consts"
 	crdclient "github.com/liqotech/liqo/pkg/crdClient"
 	"github.com/liqotech/liqo/pkg/discovery"
 	"github.com/liqotech/liqo/pkg/kubeconfig"
@@ -40,19 +39,6 @@ import (
 // while we are waiting for that secret this function will return no error, but an empty client.
 func (r *ForeignClusterReconciler) getRemoteClient(
 	fc *discoveryv1alpha1.ForeignCluster, gv *schema.GroupVersion) (*crdclient.CRDClient, error) {
-	if strings.HasPrefix(fc.Spec.AuthURL, "fake://") {
-		config := *r.ForeignConfig
-
-		config.ContentConfig.GroupVersion = gv
-		config.APIPath = consts.ApisPath
-		config.NegotiatedSerializer = client_scheme.Codecs.WithoutConversion()
-		config.UserAgent = rest.DefaultKubernetesUserAgent()
-
-		fc.Status.AuthStatus = discovery.AuthStatusAccepted
-
-		return crdclient.NewFromConfig(&config)
-	}
-
 	if client, err := r.getIdentity(fc, gv); err == nil {
 		return client, nil
 	} else if !kerrors.IsNotFound(err) {
@@ -69,17 +55,9 @@ func (r *ForeignClusterReconciler) getRemoteClient(
 	}
 
 	// not existing role
-	isPending := fc.Status.AuthStatus == discovery.AuthStatusPending
+	isPending := fc.Status.AuthStatus == discovery.AuthStatusPending || fc.Status.AuthStatus == ""
 	isRefused := fc.Status.AuthStatus == discovery.AuthStatusEmptyRefused
 	if isPending || (isRefused && r.getAuthToken(fc) != "") {
-
-		if r.useNewAuth {
-			if err := r.validateIdentity(fc); err != nil {
-				klog.Error(err)
-				return nil, err
-			}
-			return nil, nil
-		}
 
 		kubeconfigBytes, err := r.askRemoteIdentity(fc)
 		if err != nil {
@@ -107,47 +85,48 @@ func (r *ForeignClusterReconciler) getRemoteClient(
 	return nil, nil
 }
 
+// ensureRemoteIdentity tries to fetch the remote identity from the secret, if it is not found
+// it creates a new identity and sends it to the remote cluster.
+func (r *ForeignClusterReconciler) ensureRemoteIdentity(ctx context.Context,
+	foreignCluster *discoveryv1alpha1.ForeignCluster) error {
+	_, err := r.identityManager.GetConfig(foreignCluster.Spec.ClusterIdentity.ClusterID, foreignCluster.Status.TenantControlNamespace.Local)
+	if err != nil && !kerrors.IsNotFound(err) {
+		klog.Error(err)
+		return err
+	}
+	var authStatus discovery.AuthStatus
+	if err == nil {
+		authStatus = discovery.AuthStatusAccepted
+	} else {
+		authStatus, err = r.validateIdentity(foreignCluster)
+		if err != nil {
+			klog.Error(err)
+			return err
+		}
+	}
+
+	foreignCluster.Status.AuthStatus = authStatus
+	return nil
+}
+
 // fetchRemoteTenantNamespace fetches the remote tenant namespace name form the local identity secret
 // and loads it in the ForeignCluster.
-func (r *ForeignClusterReconciler) fetchRemoteTenantNamespace(fc *discoveryv1alpha1.ForeignCluster) (update bool, err error) {
-	if !r.useNewAuth {
-		return false, nil
-	}
-
+func (r *ForeignClusterReconciler) fetchRemoteTenantNamespace(ctx context.Context,
+	foreignCluster *discoveryv1alpha1.ForeignCluster) error {
 	remoteNamespace, err := r.identityManager.GetRemoteTenantNamespace(
-		fc.Spec.ClusterIdentity.ClusterID, fc.Status.TenantControlNamespace.Local)
+		foreignCluster.Spec.ClusterIdentity.ClusterID, foreignCluster.Status.TenantControlNamespace.Local)
 	if err != nil {
 		klog.Error(err)
-		return false, err
+		return err
 	}
 
-	if fc.Status.TenantControlNamespace.Remote != remoteNamespace {
-		fc.Status.TenantControlNamespace.Remote = remoteNamespace
-		return true, nil
-	}
-	return false, nil
+	foreignCluster.Status.TenantControlNamespace.Remote = remoteNamespace
+	return nil
 }
 
 // getIdentity loads the remote identity from a secret.
 func (r *ForeignClusterReconciler) getIdentity(
 	fc *discoveryv1alpha1.ForeignCluster, gv *schema.GroupVersion) (*crdclient.CRDClient, error) {
-	if r.useNewAuth {
-		config, err := r.identityManager.GetConfig(fc.Spec.ClusterIdentity.ClusterID, fc.Status.TenantControlNamespace.Local)
-		if err != nil {
-			klog.Error(err)
-			return nil, err
-		}
-
-		config.ContentConfig.GroupVersion = gv
-		config.APIPath = consts.ApisPath
-		config.NegotiatedSerializer = client_scheme.Codecs.WithoutConversion()
-		config.UserAgent = rest.DefaultKubernetesUserAgent()
-
-		fc.Status.AuthStatus = discovery.AuthStatusAccepted
-
-		return crdclient.NewFromConfig(config)
-	}
-
 	secrets, err := r.crdClient.Client().CoreV1().Secrets(r.Namespace).List(context.TODO(), metav1.ListOptions{
 		LabelSelector: strings.Join([]string{
 			strings.Join([]string{discovery.ClusterIDLabel, fc.Spec.ClusterIdentity.ClusterID}, "="),
@@ -216,55 +195,54 @@ func (r *ForeignClusterReconciler) askRemoteIdentity(fc *discoveryv1alpha1.Forei
 		ClusterID: r.clusterID.GetClusterID(),
 		Token:     token,
 	}
-	return sendIdentityRequest(&roleRequest, fc)
+	resp, _, err := sendIdentityRequest(&roleRequest, fc)
+	return resp, err
 }
 
 // validateIdentity sends an HTTP request to validate the identity for the remote cluster (Certificate).
-func (r *ForeignClusterReconciler) validateIdentity(fc *discoveryv1alpha1.ForeignCluster) error {
+func (r *ForeignClusterReconciler) validateIdentity(fc *discoveryv1alpha1.ForeignCluster) (authStatus discovery.AuthStatus, err error) {
 	remoteClusterID := fc.Spec.ClusterIdentity.ClusterID
 	token := r.getAuthToken(fc)
 
-	_, err := r.identityManager.CreateIdentity(remoteClusterID)
+	_, err = r.identityManager.CreateIdentity(remoteClusterID)
 	if err != nil {
 		klog.Error(err)
-		return err
+		return discovery.AuthStatusPending, err
 	}
 
 	csr, err := r.identityManager.GetSigningRequest(remoteClusterID)
 	if err != nil {
 		klog.Error(err)
-		return err
+		return discovery.AuthStatusPending, err
 	}
 
 	request := auth.NewCertificateIdentityRequest(r.clusterID.GetClusterID(), token, csr)
-	responseBytes, err := sendIdentityRequest(request, fc)
+	responseBytes, authStatus, err := sendIdentityRequest(request, fc)
 	if err != nil {
 		klog.Error(err)
-		return err
+		return discovery.AuthStatusPending, err
 	}
 
 	response := auth.CertificateIdentityResponse{}
 	if err = json.Unmarshal(responseBytes, &response); err != nil {
 		klog.Error(err)
-		return err
+		return discovery.AuthStatusPending, err
 	}
 
 	if err = r.identityManager.StoreCertificate(remoteClusterID, response); err != nil {
 		klog.Error(err)
-		return err
+		return discovery.AuthStatusPending, err
 	}
 
-	fc.Status.TenantControlNamespace.Remote = response.Namespace
-
-	return nil
+	return authStatus, nil
 }
 
 // sendIdentityRequest sends an HTTP request to the remote cluster.
-func sendIdentityRequest(request auth.IdentityRequest, fc *discoveryv1alpha1.ForeignCluster) ([]byte, error) {
+func sendIdentityRequest(request auth.IdentityRequest, fc *discoveryv1alpha1.ForeignCluster) ([]byte, discovery.AuthStatus, error) {
 	jsonRequest, err := json.Marshal(request)
 	if err != nil {
 		klog.Error(err)
-		return nil, err
+		return nil, discovery.AuthStatusPending, err
 	}
 	klog.V(4).Infof("[%v] Sending json request: %v", fc.Spec.ClusterIdentity.ClusterID, string(jsonRequest))
 
@@ -274,13 +252,13 @@ func sendIdentityRequest(request auth.IdentityRequest, fc *discoveryv1alpha1.For
 		fc.Spec.TrustMode == discovery.TrustModeTrusted)
 	if err != nil {
 		klog.Error(err)
-		return nil, err
+		return nil, discovery.AuthStatusPending, err
 	}
 	defer resp.Body.Close()
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
 		klog.Error(err)
-		return nil, err
+		return nil, discovery.AuthStatusPending, err
 	}
 	switch resp.StatusCode {
 	case http.StatusAccepted:
@@ -288,26 +266,28 @@ func sendIdentityRequest(request auth.IdentityRequest, fc *discoveryv1alpha1.For
 		klog.V(8).Infof("[%v] Received body: %v", fc.Spec.ClusterIdentity.ClusterID, string(body))
 		klog.V(4).Infof("[%v] Status Code: %v", fc.Spec.ClusterIdentity.ClusterID, resp.StatusCode)
 		klog.Infof("[%v] Identity Accepted", fc.Spec.ClusterIdentity.ClusterID)
-		return body, nil
+		return body, discovery.AuthStatusAccepted, nil
 	case http.StatusCreated:
 		fc.Status.AuthStatus = discovery.AuthStatusAccepted
 		klog.V(8).Infof("[%v] Received body: %v", fc.Spec.ClusterIdentity.ClusterID, string(body))
 		klog.V(4).Infof("[%v] Status Code: %v", fc.Spec.ClusterIdentity.ClusterID, resp.StatusCode)
 		klog.Infof("[%v] Identity Created", fc.Spec.ClusterIdentity.ClusterID)
-		return body, nil
+		return body, discovery.AuthStatusAccepted, nil
 	case http.StatusForbidden:
+		var authStatus discovery.AuthStatus
 		if request.GetToken() == "" {
-			fc.Status.AuthStatus = discovery.AuthStatusEmptyRefused
+			authStatus = discovery.AuthStatusEmptyRefused
 		} else {
-			fc.Status.AuthStatus = discovery.AuthStatusRefused
+			authStatus = discovery.AuthStatusRefused
 		}
+		fc.Status.AuthStatus = authStatus
 		klog.Infof("[%v] Received body: %v", fc.Spec.ClusterIdentity.ClusterID, string(body))
 		klog.Infof("[%v] Status Code: %v", fc.Spec.ClusterIdentity.ClusterID, resp.StatusCode)
-		return nil, nil
+		return nil, authStatus, nil
 	default:
 		klog.Infof("[%v] Received body: %v", fc.Spec.ClusterIdentity.ClusterID, string(body))
 		klog.Infof("[%v] Status Code: %v", fc.Spec.ClusterIdentity.ClusterID, resp.StatusCode)
-		return nil, errors.New(string(body))
+		return nil, discovery.AuthStatusPending, errors.New(string(body))
 	}
 }
 

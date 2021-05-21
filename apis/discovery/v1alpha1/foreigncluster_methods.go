@@ -88,5 +88,5 @@ func (fc *ForeignCluster) IsExpired() bool {
 		return true
 	}
 	now := time.Now().Unix()
-	return int64(lu+int(fc.Status.TTL)) < now
+	return int64(lu+fc.Spec.TTL) < now
 }

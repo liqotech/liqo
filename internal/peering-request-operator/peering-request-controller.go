@@ -53,7 +53,7 @@ type PeeringRequestReconciler struct {
 
 // +kubebuilder:rbac:groups=discovery.liqo.io,resources=peeringrequests,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=discovery.liqo.io,resources=peeringrequests/status,verbs=get;update;patch
-// +kubebuilder:rbac:groups=discovery.liqo.io,resources=foreignclusters,verbs=list;update;create
+// +kubebuilder:rbac:groups=discovery.liqo.io,resources=foreignclusters;foreignclusters/status,verbs=list;update;create
 // +kubebuilder:rbac:groups=certificates.k8s.io,resources=certificatesigningrequests,verbs=get;list;watch;create;update;create;patch
 // +kubebuilder:rbac:groups=apps,resources=deployments,verbs=get;list;watch;create;update;create;patch
 // role

@@ -34,6 +34,7 @@ import (
 	identitymanager "github.com/liqotech/liqo/pkg/identityManager"
 	"github.com/liqotech/liqo/pkg/liqonet/utils"
 	tenantcontrolnamespace "github.com/liqotech/liqo/pkg/tenantControlNamespace"
+	foreigncluster "github.com/liqotech/liqo/pkg/utils/foreignCluster"
 )
 
 var (
@@ -130,7 +131,7 @@ func (c *Controller) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	// examine DeletionTimestamp to determine if object is under deletion
 	if fc.ObjectMeta.DeletionTimestamp.IsZero() {
 		// the finalizer is added only if a join is active with the remote cluster
-		if !fc.Status.Incoming.Joined && !fc.Status.Outgoing.Joined {
+		if !foreigncluster.IsIncomingEnabled(&fc) && !foreigncluster.IsOutgoingEnabled(&fc) {
 			if utils.ContainsString(fc.ObjectMeta.Finalizers, finalizer) {
 				fc.Finalizers = utils.RemoveString(fc.Finalizers, finalizer)
 				if err := c.Update(ctx, &fc); err != nil {

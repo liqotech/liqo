@@ -29,6 +29,21 @@ import (
 // EDIT THIS FILE!  THIS IS SCAFFOLDING FOR YOU TO OWN!
 // NOTE: json tags are required.  Any new fields you add must have json tags for the fields to be serialized.
 
+// PeeringPhaseType indicates the phase of a peering with a remote cluster.
+type PeeringPhaseType string
+
+const (
+	// PeeringPhaseNone indicates that there is no peering.
+	PeeringPhaseNone PeeringPhaseType = "None"
+	// PeeringPhasePending indicates that the peering is pending,
+	// and we are waiting fore the remote cluster feedback.
+	PeeringPhasePending PeeringPhaseType = "Pending"
+	// PeeringPhaseEstablished indicates that the peering has been established.
+	PeeringPhaseEstablished PeeringPhaseType = "Established"
+	// PeeringPhaseDisconnecting indicates that the peering is being deleted.
+	PeeringPhaseDisconnecting PeeringPhaseType = "Disconnecting"
+)
+
 // ForeignClusterSpec defines the desired state of ForeignCluster.
 type ForeignClusterSpec struct {
 	// INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
@@ -36,7 +51,7 @@ type ForeignClusterSpec struct {
 
 	// Foreign Cluster Identity.
 	ClusterIdentity ClusterIdentity `json:"clusterIdentity,omitempty"`
-	// Namespace where Liqo is deployed.
+	// Namespace where Liqo is deployed. (Deprecated)
 	Namespace string `json:"namespace,omitempty"`
 	// Enable join process to foreign cluster.
 	// +kubebuilder:default=false
@@ -51,6 +66,10 @@ type ForeignClusterSpec struct {
 	// +kubebuilder:default="Unknown"
 	// Indicates if this remote cluster is trusted or not.
 	TrustMode discovery.TrustMode `json:"trustMode,omitempty"`
+	// If discoveryType is LAN or WAN and this indicates the number of seconds after that
+	// this ForeignCluster will be removed if no updates have been received.
+	// +kubebuilder:validation:Minimum=0
+	TTL int `json:"ttl,omitempty"`
 }
 
 // ClusterIdentity contains the information about a remote cluster (ID and Name).
@@ -72,8 +91,6 @@ type ForeignClusterStatus struct {
 
 	Outgoing Outgoing `json:"outgoing,omitempty"`
 	Incoming Incoming `json:"incoming,omitempty"`
-	// If discoveryType is LAN and this counter reach 0 value, this FC will be removed.
-	TTL uint32 `json:"ttl,omitempty"`
 	// It stores most important network statuses.
 	Network Network `json:"network,omitempty"`
 	// Authentication status.
@@ -102,50 +119,56 @@ type ResourceLink struct {
 // Network contains the information on the network status.
 type Network struct {
 	// Local NetworkConfig link.
-	LocalNetworkConfig ResourceLink `json:"localNetworkConfig"`
+	LocalNetworkConfig ResourceLink `json:"localNetworkConfig,omitempty"`
 	// Remote NetworkConfig link.
-	RemoteNetworkConfig ResourceLink `json:"remoteNetworkConfig"`
+	RemoteNetworkConfig ResourceLink `json:"remoteNetworkConfig,omitempty"`
 	// TunnelEndpoint link.
-	TunnelEndpoint ResourceLink `json:"tunnelEndpoint"`
+	TunnelEndpoint ResourceLink `json:"tunnelEndpoint,omitempty"`
 }
 
 // Outgoing contains the status of the outgoing peering.
 type Outgoing struct {
 	// Indicates if peering request has been created and this remote cluster is sharing its resources to us.
-	Joined bool `json:"joined"`
-	// Name of created PR.
+	// +kubebuilder:validation:Enum="None";"Pending";"Established";"Disconnecting"
+	// +kubebuilder:default="None"
+	PeeringPhase PeeringPhaseType `json:"joinPhase,omitempty"`
+	// Name of created PR. (Deprecated)
 	RemotePeeringRequestName string `json:"remote-peering-request-name,omitempty"`
-	// Object Reference to created Advertisement CR.
+	// Object Reference to created Advertisement CR. (Deprecated)
 	Advertisement *v1.ObjectReference `json:"advertisement,omitempty"`
-	// Indicates if related identity is available.
+	// Indicates if related identity is available. (Deprecated)
 	AvailableIdentity bool `json:"availableIdentity,omitempty"`
-	// Object reference to related identity.
+	// Object reference to related identity. (Deprecated)
 	IdentityRef *v1.ObjectReference `json:"identityRef,omitempty"`
-	// Advertisement status.
+	// Advertisement status. (Deprecated)
 	AdvertisementStatus advtypes.AdvPhase `json:"advertisementStatus,omitempty"`
 }
 
 // Incoming contains the status of the incoming peering.
 type Incoming struct {
 	// Indicates if peering request has been created and this remote cluster is using our local resources.
-	Joined bool `json:"joined"`
-	// Object Reference to created PeeringRequest CR.
+	// +kubebuilder:validation:Enum="None";"Pending";"Established";"Disconnecting"
+	// +kubebuilder:default="None"
+	PeeringPhase PeeringPhaseType `json:"joinPhase,omitempty"`
+	// Object Reference to created PeeringRequest CR. (Deprecated)
 	PeeringRequest *v1.ObjectReference `json:"peeringRequest,omitempty"`
-	// Indicates if related identity is available.
+	// Indicates if related identity is available. (Deprecated)
 	AvailableIdentity bool `json:"availableIdentity,omitempty"`
-	// Object reference to related identity.
+	// Object reference to related identity. (Deprecated)
 	IdentityRef *v1.ObjectReference `json:"identityRef,omitempty"`
-	// Status of Advertisement created from this PeeringRequest.
+	// Status of Advertisement created from this PeeringRequest. (Deprecated)
 	AdvertisementStatus advtypes.AdvPhase `json:"advertisementStatus,omitempty"`
 }
 
 // +kubebuilder:object:root=true
 // +kubebuilder:resource:scope=Cluster
+// +kubebuilder:subresource:status
 
 // ForeignCluster is the Schema for the foreignclusters API.
-// +kubebuilder:printcolumn:name="Outgoing joined",type=string,JSONPath=`.status.outgoing.joined`
-// +kubebuilder:printcolumn:name="Incoming joined",type=string,JSONPath=`.status.incoming.joined`
+// +kubebuilder:printcolumn:name="Outgoing peering phase",type=string,JSONPath=`.status.outgoing.joinPhase`
+// +kubebuilder:printcolumn:name="Incoming peering phase",type=string,JSONPath=`.status.incoming.joinPhase`
 // +kubebuilder:printcolumn:name="Authentication status",type=string,JSONPath=`.status.authStatus`
+// +kubebuilder:printcolumn:name="Age",type=date,JSONPath=`.metadata.creationTimestamp`
 type ForeignCluster struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`

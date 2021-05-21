@@ -52,7 +52,7 @@ func (r *PeeringRequestReconciler) UpdateForeignCluster(pr *v1alpha1.PeeringRequ
 			UID:        pr.UID,
 			APIVersion: pr.APIVersion,
 		}
-		_, err = r.crdClient.Resource("foreignclusters").Update(fc.Name, fc, &metav1.UpdateOptions{})
+		_, err = r.crdClient.Resource("foreignclusters").UpdateStatus(fc.Name, fc, &metav1.UpdateOptions{})
 		if err != nil {
 			klog.Error(err, err.Error())
 			return err

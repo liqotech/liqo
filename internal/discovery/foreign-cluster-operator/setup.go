@@ -6,7 +6,7 @@ import (
 
 	"k8s.io/apimachinery/pkg/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
-	"k8s.io/klog"
+	"k8s.io/klog/v2"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
@@ -66,8 +66,8 @@ func StartOperator(
 	namespaceManager := tenantcontrolnamespace.NewTenantControlNamespaceManager(discoveryClient.Client())
 	idManager := identitymanager.NewCertificateIdentityManager(discoveryClient.Client(), localClusterID, namespaceManager)
 
-	if err = (getFCReconciler(
-		mgr.GetScheme(),
+	if err = (getForeignClusterReconciler(
+		mgr,
 		namespace,
 		discoveryClient,
 		advClient,
@@ -85,7 +85,7 @@ func StartOperator(
 	}
 }
 
-func getFCReconciler(scheme *runtime.Scheme,
+func getForeignClusterReconciler(mgr manager.Manager,
 	namespace string,
 	client, advertisementClient, networkClient *crdclient.CRDClient,
 	localClusterID clusterid.ClusterID,
@@ -96,7 +96,8 @@ func getFCReconciler(scheme *runtime.Scheme,
 	idManager identitymanager.IdentityManager,
 	useNewAuth bool) *ForeignClusterReconciler {
 	reconciler := &ForeignClusterReconciler{
-		Scheme:              scheme,
+		Client:              mgr.GetClient(),
+		Scheme:              mgr.GetScheme(),
 		Namespace:           namespace,
 		crdClient:           client,
 		advertisementClient: advertisementClient,
