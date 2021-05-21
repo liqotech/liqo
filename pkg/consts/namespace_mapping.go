@@ -17,8 +17,13 @@ const (
 	// DefaultNamespaceOffloadingName is the default name of NamespaceOffloading resources. Every namespace that has
 	// to be offloaded with Liqo, must have a NamespaceOffloading resource with this name.
 	DefaultNamespaceOffloadingName = "offloading"
-	// EnablingLiqoLabel is necessary in order to allow Pods to be scheduled on remote clusters.
+	// EnablingLiqoLabel is used to created a default NamespaceOffloading resource for the labeled namespace, this
+	// is an alternative way to start Liqo offloading.
 	EnablingLiqoLabel = "liqo.io/enabled"
 	// EnablingLiqoLabelValue unique value allowed for EnablingLiqoLabel.
 	EnablingLiqoLabelValue = "true"
+	// SchedulingLiqoLabel is necessary in order to allow Pods to be scheduled on remote clusters.
+	SchedulingLiqoLabel = "liqo.io/scheduling-enabled"
+	// SchedulingLiqoLabelValue unique value allowed for SchedulingLiqoLabel.
+	SchedulingLiqoLabelValue = "true"
 )
