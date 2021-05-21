@@ -59,7 +59,7 @@ func ForgeVKClusterRoleBinding(name string, kubeletNamespace string) *rbacv1.Clu
 		RoleRef: rbacv1.RoleRef{
 			APIGroup: "rbac.authorization.k8s.io",
 			Kind:     "ClusterRole",
-			Name:     "cluster-admin",
+			Name:     "liqo-virtual-kubelet-local",
 		},
 	}
 }
