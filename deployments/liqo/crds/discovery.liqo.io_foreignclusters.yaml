@@ -17,15 +17,18 @@ spec:
   scope: Cluster
   versions:
   - additionalPrinterColumns:
-    - jsonPath: .status.outgoing.joined
-      name: Outgoing joined
+    - jsonPath: .status.outgoing.joinPhase
+      name: Outgoing peering phase
       type: string
-    - jsonPath: .status.incoming.joined
-      name: Incoming joined
+    - jsonPath: .status.incoming.joinPhase
+      name: Incoming peering phase
       type: string
     - jsonPath: .status.authStatus
       name: Authentication status
       type: string
+    - jsonPath: .metadata.creationTimestamp
+      name: Age
+      type: date
     name: v1alpha1
     schema:
       openAPIV3Schema:
@@ -76,7 +79,7 @@ spec:
                 description: Enable join process to foreign cluster.
                 type: boolean
               namespace:
-                description: Namespace where Liqo is deployed.
+                description: Namespace where Liqo is deployed. (Deprecated)
                 type: string
               trustMode:
                 default: Unknown
@@ -86,6 +89,12 @@ spec:
                 - Trusted
                 - Untrusted
                 type: string
+              ttl:
+                description: If discoveryType is LAN or WAN and this indicates the
+                  number of seconds after that this ForeignCluster will be removed
+                  if no updates have been received.
+                minimum: 0
+                type: integer
             required:
             - authUrl
             type: object
@@ -106,12 +115,13 @@ spec:
                 properties:
                   advertisementStatus:
                     description: Status of Advertisement created from this PeeringRequest.
+                      (Deprecated)
                     type: string
                   availableIdentity:
-                    description: Indicates if related identity is available.
+                    description: Indicates if related identity is available. (Deprecated)
                     type: boolean
                   identityRef:
-                    description: Object reference to related identity.
+                    description: Object reference to related identity. (Deprecated)
                     properties:
                       apiVersion:
                         description: API version of the referent.
@@ -146,12 +156,18 @@ spec:
                         description: 'UID of the referent. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#uids'
                         type: string
                     type: object
-                  joined:
+                  joinPhase:
+                    default: None
                     description: Indicates if peering request has been created and
                       this remote cluster is using our local resources.
-                    type: boolean
+                    enum:
+                    - None
+                    - Pending
+                    - Established
+                    - Disconnecting
+                    type: string
                   peeringRequest:
-                    description: Object Reference to created PeeringRequest CR.
+                    description: Object Reference to created PeeringRequest CR. (Deprecated)
                     properties:
                       apiVersion:
                         description: API version of the referent.
@@ -186,8 +202,6 @@ spec:
                         description: 'UID of the referent. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#uids'
                         type: string
                     type: object
-                required:
-                - joined
                 type: object
               network:
                 description: It stores most important network statuses.
@@ -330,16 +344,12 @@ spec:
                     required:
                     - available
                     type: object
-                required:
-                - localNetworkConfig
-                - remoteNetworkConfig
-                - tunnelEndpoint
                 type: object
               outgoing:
                 description: Outgoing contains the status of the outgoing peering.
                 properties:
                   advertisement:
-                    description: Object Reference to created Advertisement CR.
+                    description: Object Reference to created Advertisement CR. (Deprecated)
                     properties:
                       apiVersion:
                         description: API version of the referent.
@@ -375,13 +385,13 @@ spec:
                         type: string
                     type: object
                   advertisementStatus:
-                    description: Advertisement status.
+                    description: Advertisement status. (Deprecated)
                     type: string
                   availableIdentity:
-                    description: Indicates if related identity is available.
+                    description: Indicates if related identity is available. (Deprecated)
                     type: boolean
                   identityRef:
-                    description: Object reference to related identity.
+                    description: Object reference to related identity. (Deprecated)
                     properties:
                       apiVersion:
                         description: API version of the referent.
@@ -416,15 +426,19 @@ spec:
                         description: 'UID of the referent. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#uids'
                         type: string
                     type: object
-                  joined:
+                  joinPhase:
+                    default: None
                     description: Indicates if peering request has been created and
                       this remote cluster is sharing its resources to us.
-                    type: boolean
-                  remote-peering-request-name:
-                    description: Name of created PR.
+                    enum:
+                    - None
+                    - Pending
+                    - Established
+                    - Disconnecting
                     type: string
-                required:
-                - joined
+                  remote-peering-request-name:
+                    description: Name of created PR. (Deprecated)
+                    type: string
                 type: object
               tenantControlNamespace:
                 description: TenantControlNamespaces names in the peered clusters
@@ -436,16 +450,12 @@ spec:
                     description: remote TenantNamespace name
                     type: string
                 type: object
-              ttl:
-                description: If discoveryType is LAN and this counter reach 0 value,
-                  this FC will be removed.
-                format: int32
-                type: integer
             type: object
         type: object
     served: true
     storage: true
-    subresources: {}
+    subresources:
+      status: {}
 status:
   acceptedNames:
     kind: ""

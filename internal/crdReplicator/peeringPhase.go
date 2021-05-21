@@ -6,6 +6,7 @@ import (
 	configv1alpha1 "github.com/liqotech/liqo/apis/config/v1alpha1"
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	"github.com/liqotech/liqo/pkg/consts"
+	foreigncluster "github.com/liqotech/liqo/pkg/utils/foreignCluster"
 )
 
 // getPeeringPhase returns the peering phase for a cluster given its clusterID.
@@ -33,13 +34,15 @@ func (c *Controller) setPeeringPhase(clusterID string, phase consts.PeeringPhase
 
 // getPeeringPhase returns the peering phase for a fiver ForignCluster CR.
 func getPeeringPhase(fc *discoveryv1alpha1.ForeignCluster) consts.PeeringPhase {
-	if fc.Status.Incoming.Joined && fc.Status.Outgoing.Joined {
+	incoming := foreigncluster.IsIncomingEnabled(fc)
+	outgoing := foreigncluster.IsOutgoingEnabled(fc)
+	if incoming && outgoing {
 		return consts.PeeringPhaseBidirectional
 	}
-	if fc.Status.Incoming.Joined {
+	if incoming {
 		return consts.PeeringPhaseIncoming
 	}
-	if fc.Status.Outgoing.Joined {
+	if outgoing {
 		return consts.PeeringPhaseOutgoing
 	}
 	return consts.PeeringPhaseNone

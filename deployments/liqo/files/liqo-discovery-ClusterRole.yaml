@@ -48,6 +48,18 @@ rules:
 - apiGroups:
   - discovery.liqo.io
   resources:
+  - foreignclusters/status
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - discovery.liqo.io
+  resources:
   - peeringrequests
   verbs:
   - get
@@ -60,6 +72,7 @@ rules:
   verbs:
   - create
   - delete
+  - deletecollection
   - get
   - list
   - patch

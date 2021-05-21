@@ -162,7 +162,7 @@ func (discovery *Controller) createForeign(
 		fc.Labels[discoveryPkg.SearchDomainLabel] = sd.Name
 	}
 	// set TTL
-	fc.Status.TTL = data.AuthData.ttl
+	fc.Spec.TTL = int(data.AuthData.ttl)
 	tmp, err := discovery.crdClient.Resource("foreignclusters").Create(fc, &metav1.CreateOptions{})
 	if err != nil {
 		klog.Error(err)
@@ -196,10 +196,10 @@ func (discovery *Controller) checkUpdate(
 			joinTrusted := fc.Spec.TrustMode == discoveryPkg.TrustModeTrusted && discovery.Config.AutoJoin
 			joinUntrusted := fc.Spec.TrustMode == discoveryPkg.TrustModeUntrusted && discovery.Config.AutoJoinUntrusted
 			fc.Spec.Join = joinTrusted || joinUntrusted
-			fc.Status.TTL = data.AuthData.ttl
+			fc.Spec.TTL = int(data.AuthData.ttl)
 		} else if searchDomain != nil && discoveryType == discoveryPkg.WanDiscovery {
 			fc.Spec.Join = searchDomain.Spec.AutoJoin
-			fc.Status.TTL = data.AuthData.ttl
+			fc.Spec.TTL = int(data.AuthData.ttl)
 		}
 		fc.LastUpdateNow()
 		tmp, err := discovery.crdClient.Resource("foreignclusters").Update(fc.Name, fc, &metav1.UpdateOptions{})

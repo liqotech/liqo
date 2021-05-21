@@ -29,11 +29,14 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/util/retry"
-	"k8s.io/klog"
+	"k8s.io/klog/v2"
 	"k8s.io/kubernetes/pkg/util/slice"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	netv1alpha1 "github.com/liqotech/liqo/apis/net/v1alpha1"
@@ -50,6 +53,7 @@ import (
 	"github.com/liqotech/liqo/pkg/kubeconfig"
 	peeringRoles "github.com/liqotech/liqo/pkg/peering-roles"
 	tenantcontrolnamespace "github.com/liqotech/liqo/pkg/tenantControlNamespace"
+	foreigncluster "github.com/liqotech/liqo/pkg/utils/foreignCluster"
 )
 
 // FinalizerString is added as finalizer for peered ForeignClusters.
@@ -57,6 +61,7 @@ const FinalizerString = "foreigncluster.discovery.liqo.io/peered"
 
 // ForeignClusterReconciler reconciles a ForeignCluster object.
 type ForeignClusterReconciler struct {
+	client.Client
 	Scheme *runtime.Scheme
 
 	Namespace           string
@@ -81,9 +86,10 @@ type ForeignClusterReconciler struct {
 
 // clusterRole
 // +kubebuilder:rbac:groups=discovery.liqo.io,resources=foreignclusters,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=discovery.liqo.io,resources=foreignclusters/status,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=discovery.liqo.io,resources=searchdomains,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=discovery.liqo.io,resources=peeringrequests,verbs=get;list;watch
-// +kubebuilder:rbac:groups=discovery.liqo.io,resources=resourcerequests,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=discovery.liqo.io,resources=resourcerequests,verbs=get;list;watch;create;update;patch;delete;deletecollection
 // +kubebuilder:rbac:groups=config.liqo.io,resources=clusterconfigs,verbs=get;list;watch;create
 // +kubebuilder:rbac:groups=net.liqo.io,resources=networkconfigs,verbs=*
 // +kubebuilder:rbac:groups=net.liqo.io,resources=networkconfigs/status,verbs=*
@@ -107,326 +113,110 @@ type ForeignClusterReconciler struct {
 // +kubebuilder:rbac:groups=rbac.authorization.k8s.io,namespace="liqo",resources=rolebindings,verbs=get;create
 
 // Reconcile reconciles ForeignCluster resources.
-// nolint:gocyclo // (palexster): Suppressing for now, it will part of a major refactoring before v0.3
-func (r *ForeignClusterReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
+func (r *ForeignClusterReconciler) Reconcile(ctx context.Context, req ctrl.Request) (result ctrl.Result, err error) {
 	klog.V(4).Infof("Reconciling ForeignCluster %s", req.Name)
 
-	tmp, err := r.crdClient.Resource("foreignclusters").Get(req.Name, &metav1.GetOptions{})
-	if err != nil {
-		return ctrl.Result{}, nil
-	}
-	fc, ok := tmp.(*discoveryv1alpha1.ForeignCluster)
-	if !ok {
-		klog.Error("created object is not a ForeignCluster")
-		return ctrl.Result{
-			Requeue:      true,
-			RequeueAfter: r.RequeueAfter,
-		}, goerrors.New("created object is not a ForeignCluster")
+	var foreignCluster discoveryv1alpha1.ForeignCluster
+	if err := r.Client.Get(ctx, req.NamespacedName, &foreignCluster); err != nil {
+		klog.Error(err)
+		if errors.IsNotFound(err) {
+			return ctrl.Result{}, nil
+		}
+		return ctrl.Result{}, err
 	}
 
-	requireUpdate := false
+	// ------ (1) validation ------
 
-	if r.needsClusterIdentityDefaulting(fc) {
-		// this ForeignCluster has not all the required fields, probably it has been added manually, so default to exposed values
-		if err = r.clusterIdentityDefaulting(fc); err != nil {
+	// set labels and validate the resource spec
+	if cont, res, err := r.validateForeignCluster(ctx, &foreignCluster); !cont {
+		return res, err
+	}
+
+	if !r.useNewAuth {
+		return r.oldReconcile(ctx, &foreignCluster)
+	}
+
+	// defer the status update function
+	defer func() {
+		if newErr := r.Client.Status().Update(ctx, &foreignCluster); newErr != nil {
+			klog.Error(newErr)
+			err = newErr
+		}
+	}()
+
+	// ------ (2) ensuring prerequirements ------
+
+	// ensure the existence of the local TenantNamespace
+	if err = r.ensureLocalTenantNamespace(ctx, &foreignCluster); err != nil {
+		klog.Error(err)
+		return ctrl.Result{}, err
+	}
+
+	// ensure the existence of an identity to operate in the remote cluster remote cluster
+	if err = r.ensureRemoteIdentity(ctx, &foreignCluster); err != nil {
+		klog.Error(err)
+		return ctrl.Result{}, err
+	}
+
+	// fetch the remote tenant namespace name
+	if err = r.fetchRemoteTenantNamespace(ctx, &foreignCluster); err != nil {
+		klog.Error(err)
+		return ctrl.Result{}, err
+	}
+
+	// ------ (3) peering/unpeering logic ------
+
+	// read the ForeignCluster status and ensure the peering state
+	switch r.getDesiredOutgoingPeeringState(&foreignCluster) {
+	case desiredPeeringPhasePeering:
+		if err = r.peerNamespaced(ctx, &foreignCluster); err != nil {
 			klog.Error(err)
-			return ctrl.Result{
-				Requeue:      true,
-				RequeueAfter: r.RequeueAfter,
-			}, err
+			return ctrl.Result{}, err
 		}
-		// the resource has been updated, no need to requeue
-		return ctrl.Result{}, nil
-	}
-
-	// set trust property
-	// This will only be executed in the ForeignCluster CR has been added in a manual way,
-	// if it was discovered this field is set by the discovery process.
-	// We can consider to move it in a mutating webhook
-	if fc.Spec.TrustMode == discoveryPkg.TrustModeUnknown || fc.Spec.TrustMode == "" {
-		trust, err := fc.CheckTrusted()
-		if err != nil {
+	case desiredPeeringPhaseUnpeering:
+		if err = r.unpeerNamespaced(ctx, &foreignCluster); err != nil {
 			klog.Error(err)
-			return ctrl.Result{
-				Requeue:      true,
-				RequeueAfter: r.RequeueAfter,
-			}, err
+			return ctrl.Result{}, err
 		}
-		if trust {
-			fc.Spec.TrustMode = discoveryPkg.TrustModeTrusted
-		} else {
-			fc.Spec.TrustMode = discoveryPkg.TrustModeUntrusted
-		}
-		// set join flag
-		// if it was discovery with WAN discovery, this value is overwritten by SearchDomain value
-		isWan := fc.Spec.DiscoveryType == discoveryPkg.WanDiscovery
-		isIncoming := fc.Spec.DiscoveryType == discoveryPkg.IncomingPeeringDiscovery
-		isManual := fc.Spec.DiscoveryType == discoveryPkg.ManualDiscovery
-		if !isWan && !isIncoming && !isManual {
-			joinTrusted := r.getAutoJoin(fc) && fc.Spec.TrustMode == discoveryPkg.TrustModeTrusted
-			joinUntrusted := r.getAutoJoinUntrusted(fc) && fc.Spec.TrustMode == discoveryPkg.TrustModeUntrusted
-			fc.Spec.Join = joinTrusted || joinUntrusted
-		}
-
-		requireUpdate = true
 	}
 
-	// if it has no discovery type label, add it
-	if fc.ObjectMeta.Labels == nil {
-		fc.ObjectMeta.Labels = map[string]string{}
-	}
-	noLabel := fc.ObjectMeta.Labels[discoveryPkg.DiscoveryTypeLabel] == ""
-	differentLabel := fc.ObjectMeta.Labels[discoveryPkg.DiscoveryTypeLabel] != string(fc.Spec.DiscoveryType)
-	if noLabel || differentLabel {
-		fc.ObjectMeta.Labels[discoveryPkg.DiscoveryTypeLabel] = string(fc.Spec.DiscoveryType)
-		requireUpdate = true
-	}
-	// set cluster-id label to easy retrieve ForeignClusters by ClusterId,
-	// if it is added manually, the name maybe not coincide with ClusterId
-	if fc.ObjectMeta.Labels[discoveryPkg.ClusterIDLabel] == "" {
-		fc.ObjectMeta.Labels[discoveryPkg.ClusterIDLabel] = fc.Spec.ClusterIdentity.ClusterID
-		requireUpdate = true
-	}
-
-	if r.useNewAuth {
-		// create the local TenantControlNamespace if it has not been created
-		if update, err := r.createLocalTenantControlNamespace(fc); err != nil {
-			klog.Error(err)
-			return ctrl.Result{
-				Requeue:      true,
-				RequeueAfter: r.RequeueAfter,
-			}, err
-		} else if update {
-			requireUpdate = true
-		}
-	}
+	// ------ (4) update peering conditions ------
 
 	// check for NetworkConfigs
-	err = r.checkNetwork(fc, &requireUpdate)
-	if err != nil {
+	if err = r.checkNetwork(ctx, &foreignCluster); err != nil {
 		klog.Error(err)
-		return ctrl.Result{
-			Requeue:      true,
-			RequeueAfter: r.RequeueAfter,
-		}, err
+		return ctrl.Result{}, err
 	}
 
 	// check for TunnelEndpoints
-	err = r.checkTEP(fc, &requireUpdate)
-	if err != nil {
+	if err = r.checkTEP(ctx, &foreignCluster); err != nil {
 		klog.Error(err)
-		return ctrl.Result{
-			Requeue:      true,
-			RequeueAfter: r.RequeueAfter,
-		}, err
-	}
-
-	// check if linked advertisement exists
-	if fc.Status.Outgoing.Advertisement != nil {
-		tmp, err = r.advertisementClient.Resource("advertisements").Get(fc.Status.Outgoing.Advertisement.Name, &metav1.GetOptions{})
-		if errors.IsNotFound(err) {
-			fc.Status.Outgoing.Advertisement = nil
-			fc.Status.Outgoing.AvailableIdentity = false
-			fc.Status.Outgoing.IdentityRef = nil
-			fc.Status.Outgoing.AdvertisementStatus = ""
-			fc.Status.Outgoing.Joined = false
-			fc.Status.Outgoing.RemotePeeringRequestName = ""
-			fc.Spec.Join = false
-			requireUpdate = true
-		} else if err == nil {
-			// check if kubeconfig secret exists
-			adv, ok := tmp.(*advtypes.Advertisement)
-			if !ok {
-				err = goerrors.New("retrieved object is not an Advertisement")
-				klog.Error(err)
-				return ctrl.Result{
-					Requeue:      true,
-					RequeueAfter: r.RequeueAfter,
-				}, err
-			}
-			if adv.Spec.KubeConfigRef.Name != "" && adv.Spec.KubeConfigRef.Namespace != "" {
-				_, err = r.crdClient.Client().CoreV1().Secrets(
-					adv.Spec.KubeConfigRef.Namespace).Get(
-					context.TODO(), adv.Spec.KubeConfigRef.Name, metav1.GetOptions{})
-				available := err == nil
-				if fc.Status.Outgoing.AvailableIdentity != available {
-					fc.Status.Outgoing.AvailableIdentity = available
-					if available {
-						fc.Status.Outgoing.IdentityRef = &apiv1.ObjectReference{
-							Kind:       "Secret",
-							Namespace:  adv.Spec.KubeConfigRef.Namespace,
-							Name:       adv.Spec.KubeConfigRef.Name,
-							APIVersion: "v1",
-						}
-					}
-					requireUpdate = true
-				}
-			}
-
-			// update advertisement status
-			status := adv.Status.AdvertisementStatus
-			if status != fc.Status.Outgoing.AdvertisementStatus {
-				fc.Status.Outgoing.AdvertisementStatus = status
-				requireUpdate = true
-			}
-		}
-	}
-
-	// check if linked peeringRequest exists
-	if fc.Status.Incoming.PeeringRequest != nil {
-		tmp, err = r.crdClient.Resource("peeringrequests").Get(fc.Status.Incoming.PeeringRequest.Name, &metav1.GetOptions{})
-		if errors.IsNotFound(err) {
-			fc.Status.Incoming.PeeringRequest = nil
-			fc.Status.Incoming.AvailableIdentity = false
-			fc.Status.Incoming.IdentityRef = nil
-			fc.Status.Incoming.AdvertisementStatus = ""
-			fc.Status.Incoming.Joined = false
-			requireUpdate = true
-		} else if err == nil {
-			pr, ok := tmp.(*discoveryv1alpha1.PeeringRequest)
-			if !ok {
-				err = goerrors.New("retrieved object is not a PeeringRequest")
-				klog.Error(err)
-				return ctrl.Result{
-					Requeue:      true,
-					RequeueAfter: r.RequeueAfter,
-				}, err
-			}
-
-			if !fc.Status.Incoming.Joined {
-				// PeeringRequest exists, set flag to true
-				fc.Status.Incoming.Joined = true
-				requireUpdate = true
-			}
-
-			// check if kubeconfig secret exists
-			if pr.Spec.KubeConfigRef != nil && pr.Spec.KubeConfigRef.Name != "" && pr.Spec.KubeConfigRef.Namespace != "" {
-				_, err = r.crdClient.Client().CoreV1().Secrets(
-					pr.Spec.KubeConfigRef.Namespace).Get(context.TODO(), pr.Spec.KubeConfigRef.Name, metav1.GetOptions{})
-				available := err == nil
-				if fc.Status.Incoming.AvailableIdentity != available {
-					fc.Status.Incoming.AvailableIdentity = available
-					if available {
-						fc.Status.Incoming.IdentityRef = pr.Spec.KubeConfigRef
-					}
-					requireUpdate = true
-				}
-			}
-
-			// update advertisement status
-			status := pr.Status.AdvertisementStatus
-			if status != fc.Status.Incoming.AdvertisementStatus {
-				fc.Status.Incoming.AdvertisementStatus = status
-				requireUpdate = true
-			}
-		}
-	}
-
-	// if it has been discovered thanks to incoming peeringRequest and it has no active connections, delete it
-	isIncomingDiscovery := fc.Spec.DiscoveryType == discoveryPkg.IncomingPeeringDiscovery
-	isNotDeleting := fc.DeletionTimestamp.IsZero()
-	hasPeering := fc.Status.Incoming.PeeringRequest == nil && fc.Status.Outgoing.Advertisement == nil
-	if isIncomingDiscovery && isNotDeleting && hasPeering {
-		err = r.crdClient.Resource("foreignclusters").Delete(fc.Name, &metav1.DeleteOptions{})
-		if err != nil {
-			klog.Error(err, err.Error())
-			return ctrl.Result{
-				Requeue:      true,
-				RequeueAfter: r.RequeueAfter,
-			}, err
-		}
-		klog.Infof("%s deleted, discovery type %s has no active connections", fc.Name, fc.Spec.DiscoveryType)
-		klog.V(4).Infof("ForeignCluster %s successfully reconciled", fc.Name)
-		return ctrl.Result{}, nil
-	}
-
-	// TODO: it's probably better to refactor it when we will remove the old authentication, we will need no more a remote client
-	foreignDiscoveryClient, err := r.getRemoteClient(fc, &discoveryv1alpha1.GroupVersion)
-	if err != nil {
-		klog.Error(err)
-		return ctrl.Result{
-			Requeue:      true,
-			RequeueAfter: r.RequeueAfter,
-		}, nil
-	} else if foreignDiscoveryClient == nil || r.useNewAuth {
-		requireUpdate = true
-	}
-
-	if update, err := r.fetchRemoteTenantNamespace(fc); err != nil {
-		klog.Error(err)
-		return ctrl.Result{
-			Requeue:      true,
-			RequeueAfter: r.RequeueAfter,
-		}, err
-	} else if update {
-		requireUpdate = true
-	}
-	remoteNamespace := ""
-	if r.useNewAuth {
-		remoteNamespace = fc.Status.TenantControlNamespace.Remote
-	}
-
-	// if join is required (both automatically or by user) and status is not set to joined
-	// create new peering request
-	if (foreignDiscoveryClient != nil || remoteNamespace != "") && fc.Spec.Join && !fc.Status.Outgoing.Joined {
-		fc, err = r.Peer(fc, foreignDiscoveryClient)
-		if err != nil {
-			return ctrl.Result{
-				Requeue:      true,
-				RequeueAfter: r.RequeueAfter,
-			}, err
-		}
-		requireUpdate = true
-	}
-
-	// if join is no more required and status is set to joined
-	// or if this foreign cluster is being deleted
-	// delete peering request
-	if (foreignDiscoveryClient != nil || remoteNamespace != "") && (!fc.Spec.Join || !fc.DeletionTimestamp.IsZero()) && fc.Status.Outgoing.Joined {
-		fc, err = r.Unpeer(fc, foreignDiscoveryClient)
-		if err != nil {
-			return ctrl.Result{
-				Requeue:      true,
-				RequeueAfter: r.RequeueAfter,
-			}, err
-		}
-		requireUpdate = true
-	}
-
-	if !fc.Spec.Join && !fc.Status.Outgoing.Joined && slice.ContainsString(fc.Finalizers, FinalizerString, nil) {
-		fc.Finalizers = slice.RemoveString(fc.Finalizers, FinalizerString, nil)
-		requireUpdate = true
-	}
-
-	if requireUpdate {
-		_, err = r.update(fc)
-		if err != nil {
-			klog.Error(err, err.Error())
-			return ctrl.Result{
-				Requeue:      true,
-				RequeueAfter: r.RequeueAfter,
-			}, err
-		}
-		klog.V(4).Infof("ForeignCluster %s successfully reconciled", fc.Name)
-		return ctrl.Result{
-			Requeue:      true,
-			RequeueAfter: r.RequeueAfter,
-		}, nil
+		return ctrl.Result{}, err
 	}
 
 	// check if peering request really exists on foreign cluster
-	if (foreignDiscoveryClient != nil || remoteNamespace != "") && fc.Spec.Join && fc.Status.Outgoing.Joined {
-		_, err = r.checkJoined(fc, foreignDiscoveryClient)
-		if err != nil {
-			klog.Error(err, err.Error())
-			return ctrl.Result{
-				Requeue:      true,
-				RequeueAfter: r.RequeueAfter,
-			}, err
-		}
+	if err := r.checkPeeringStatus(ctx, &foreignCluster); err != nil {
+		klog.Error(err)
+		return ctrl.Result{}, err
 	}
 
-	klog.V(4).Infof("ForeignCluster %s successfully reconciled", fc.Name)
+	// ------ (5) garbage collection ------
+
+	// check if this ForeignCluster needs to be deleted. It could happen, for example, if it has been discovered
+	// thanks to incoming peeringRequest and it has no active connections
+	if foreigncluster.HasToBeRemoved(&foreignCluster) {
+		klog.Infof("[%v] Delete ForeignCluster %v with discovery type %v",
+			foreignCluster.Spec.ClusterIdentity.ClusterID,
+			foreignCluster.Name, foreignCluster.Spec.DiscoveryType)
+		if err := r.deleteForeignCluster(ctx, &foreignCluster); err != nil {
+			klog.Error(err)
+			return ctrl.Result{}, err
+		}
+		klog.V(4).Infof("ForeignCluster %s successfully reconciled", foreignCluster.Name)
+		return ctrl.Result{}, nil
+	}
+
+	klog.V(4).Infof("ForeignCluster %s successfully reconciled", foreignCluster.Name)
 	return ctrl.Result{
 		Requeue:      true,
 		RequeueAfter: r.RequeueAfter,
@@ -465,56 +255,63 @@ func (r *ForeignClusterReconciler) update(fc *discoveryv1alpha1.ForeignCluster) 
 	return fc, err
 }
 
+// TODO: delete it
+// updateStatus is a utility function that will be deleted after the refactoring completion.
+func (r *ForeignClusterReconciler) updateStatus(ctx context.Context, foreignCluster *discoveryv1alpha1.ForeignCluster) (ctrl.Result, error) {
+	newStatus := foreignCluster.Status.DeepCopy()
+	if result, err := controllerutil.CreateOrPatch(ctx, r.Client, foreignCluster, func() error {
+		foreignCluster.Status = *newStatus
+		return nil
+	}); err != nil {
+		klog.Error(err)
+		return ctrl.Result{}, err
+	} else if result != controllerutil.OperationResultNone {
+		return ctrl.Result{}, nil
+	}
+	return ctrl.Result{Requeue: true, RequeueAfter: r.RequeueAfter}, nil
+}
+
 // Peer creates the peering with a remote cluster.
 func (r *ForeignClusterReconciler) Peer(
-	fc *discoveryv1alpha1.ForeignCluster,
+	foreignCluster *discoveryv1alpha1.ForeignCluster,
 	foreignDiscoveryClient *crdclient.CRDClient) (*discoveryv1alpha1.ForeignCluster, error) {
 
-	if r.useNewAuth {
-		return r.peerNamespaced(fc)
-	}
-
 	// create PeeringRequest
-	klog.Infof("[%v] Creating PeeringRequest", fc.Spec.ClusterIdentity.ClusterID)
-	pr, err := r.createPeeringRequestIfNotExists(fc.Name, fc, foreignDiscoveryClient)
+	klog.Infof("[%v] Creating PeeringRequest", foreignCluster.Spec.ClusterIdentity.ClusterID)
+	pr, err := r.createPeeringRequestIfNotExists(foreignCluster.Name, foreignCluster, foreignDiscoveryClient)
 	if err != nil {
 		klog.Error(err)
 		return nil, err
 	}
 	if pr != nil {
-		fc.Status.Outgoing.Joined = true
-		fc.Status.Outgoing.RemotePeeringRequestName = pr.Name
+		foreignCluster.Status.Outgoing.PeeringPhase = discoveryv1alpha1.PeeringPhaseEstablished
+		foreignCluster.Status.Outgoing.RemotePeeringRequestName = pr.Name
 		// add finalizer
-		if !slice.ContainsString(fc.Finalizers, FinalizerString, nil) {
-			fc.Finalizers = append(fc.Finalizers, FinalizerString)
-		}
+		controllerutil.AddFinalizer(foreignCluster, FinalizerString)
 	}
-	return fc, nil
+	return foreignCluster, nil
 }
 
 // peerNamespaced enables the peering creating the resources in the correct TenantControlNamespace.
-func (r *ForeignClusterReconciler) peerNamespaced(foreignCluster *discoveryv1alpha1.ForeignCluster) (*discoveryv1alpha1.ForeignCluster, error) {
+func (r *ForeignClusterReconciler) peerNamespaced(ctx context.Context,
+	foreignCluster *discoveryv1alpha1.ForeignCluster) error {
 	// create ResourceRequest
-	klog.Infof("[%v] Creating ResourceRequest", foreignCluster.Spec.ClusterIdentity.ClusterID)
-	resourceRequest, err := r.createResourceRequest(foreignCluster)
+	result, err := r.createResourceRequest(ctx, foreignCluster)
 	if err != nil {
 		klog.Error(err)
-		return nil, err
+		return err
 	}
 
-	if resourceRequest != nil {
-		foreignCluster.Status.Outgoing.Joined = true
+	// if the resource request has been created
+	if result == controllerutil.OperationResultCreated {
+		foreignCluster.Status.Outgoing.PeeringPhase = discoveryv1alpha1.PeeringPhasePending
 	}
-	return foreignCluster, nil
+	return nil
 }
 
 // Unpeer removes the peering with a remote cluster.
 func (r *ForeignClusterReconciler) Unpeer(fc *discoveryv1alpha1.ForeignCluster,
 	foreignDiscoveryClient *crdclient.CRDClient) (*discoveryv1alpha1.ForeignCluster, error) {
-
-	if r.useNewAuth {
-		return r.unpeerNamespaced(fc)
-	}
 
 	// peering request has to be removed
 	klog.Infof("[%v] Deleting PeeringRequest", fc.Spec.ClusterIdentity.ClusterID)
@@ -529,7 +326,7 @@ func (r *ForeignClusterReconciler) Unpeer(fc *discoveryv1alpha1.ForeignCluster,
 		klog.Error(err)
 		return nil, err
 	}
-	fc.Status.Outgoing.Joined = false
+	fc.Status.Outgoing.PeeringPhase = discoveryv1alpha1.PeeringPhaseNone
 	fc.Status.Outgoing.RemotePeeringRequestName = ""
 	if slice.ContainsString(fc.Finalizers, FinalizerString, nil) {
 		fc.Finalizers = slice.RemoveString(fc.Finalizers, FinalizerString, nil)
@@ -538,17 +335,17 @@ func (r *ForeignClusterReconciler) Unpeer(fc *discoveryv1alpha1.ForeignCluster,
 }
 
 // unpeerNamespaced disables the peering deleting the resources in the correct TenantControlNamespace.
-func (r *ForeignClusterReconciler) unpeerNamespaced(foreignCluster *discoveryv1alpha1.ForeignCluster) (*discoveryv1alpha1.ForeignCluster, error) {
+func (r *ForeignClusterReconciler) unpeerNamespaced(ctx context.Context,
+	foreignCluster *discoveryv1alpha1.ForeignCluster) error {
 	// resource request has to be removed
-	klog.Infof("[%v] Deleting ResourceRequest", foreignCluster.Spec.ClusterIdentity.ClusterID)
-	err := r.deleteResourceRequest(foreignCluster)
+	err := r.deleteResourceRequest(ctx, foreignCluster)
 	if err != nil && !errors.IsNotFound(err) {
 		klog.Error(err)
-		return nil, err
+		return err
 	}
 
-	foreignCluster.Status.Outgoing.Joined = false
-	return foreignCluster, nil
+	foreignCluster.Status.Outgoing.PeeringPhase = discoveryv1alpha1.PeeringPhaseDisconnecting
+	return nil
 }
 
 // SetupWithManager assigns the operator to a manager.
@@ -557,37 +354,77 @@ func (r *ForeignClusterReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		For(&discoveryv1alpha1.ForeignCluster{}).
 		Owns(&advtypes.Advertisement{}).
 		Owns(&discoveryv1alpha1.PeeringRequest{}).
+		Owns(&discoveryv1alpha1.ResourceRequest{}).
 		Complete(r)
+}
+
+func (r *ForeignClusterReconciler) checkPeeringStatus(ctx context.Context,
+	foreignCluster *discoveryv1alpha1.ForeignCluster) error {
+	var outgoingResourceRequestList discoveryv1alpha1.ResourceRequestList
+	remoteClusterID := foreignCluster.Spec.ClusterIdentity.ClusterID
+	localNamespace := foreignCluster.Status.TenantControlNamespace.Local
+	if err := r.Client.List(ctx, &outgoingResourceRequestList, client.MatchingLabels(resourceRequestLabels(remoteClusterID)),
+		client.InNamespace(localNamespace)); err != nil {
+		klog.Error(err)
+		return err
+	}
+
+	var incomingResourceRequestList discoveryv1alpha1.ResourceRequestList
+	if err := r.Client.List(ctx, &incomingResourceRequestList, client.HasLabels{
+		crdreplicator.ReplicationStatuslabel}, client.MatchingLabels{
+		crdreplicator.RemoteLabelSelector: remoteClusterID,
+	}); err != nil {
+		klog.Error(err)
+		return err
+	}
+
+	var err error
+	foreignCluster.Status.Outgoing.PeeringPhase, err = getPeeringPhase(&outgoingResourceRequestList)
+	if err != nil {
+		err = fmt.Errorf("[%v] %w in namespace %v", remoteClusterID, err, localNamespace)
+		klog.Error(err)
+		return err
+	}
+
+	foreignCluster.Status.Incoming.PeeringPhase, err = getPeeringPhase(&incomingResourceRequestList)
+	if err != nil {
+		err = fmt.Errorf("[%v] %w in namespace %v", remoteClusterID, err, localNamespace)
+		klog.Error(err)
+		return err
+	}
+	return nil
+}
+
+func getPeeringPhase(resourceRequestList *discoveryv1alpha1.ResourceRequestList) (discoveryv1alpha1.PeeringPhaseType, error) {
+	switch len(resourceRequestList.Items) {
+	case 0:
+		return discoveryv1alpha1.PeeringPhaseNone, nil
+	case 1:
+		return discoveryv1alpha1.PeeringPhaseEstablished, nil
+	default:
+		err := fmt.Errorf("more than one resource request found")
+		return discoveryv1alpha1.PeeringPhaseNone, err
+	}
 }
 
 // checkJoined checks the outgoing join status of a cluster.
 func (r *ForeignClusterReconciler) checkJoined(fc *discoveryv1alpha1.ForeignCluster,
 	foreignDiscoveryClient *crdclient.CRDClient) (*discoveryv1alpha1.ForeignCluster, error) {
 
-	if r.useNewAuth {
-		_, err := r.crdClient.Resource("resourcerequests").Namespace(
-			fc.Status.TenantControlNamespace.Local).Get(r.clusterID.GetClusterID(), &metav1.GetOptions{})
-		if err != nil {
-			fc.Status.Outgoing.Joined = false
-			if slice.ContainsString(fc.Finalizers, FinalizerString, nil) {
-				fc.Finalizers = slice.RemoveString(fc.Finalizers, FinalizerString, nil)
-			}
-			fc, err = r.update(fc)
-			if err != nil {
-				return nil, err
-			}
-		}
-		return fc, nil
-	}
-
 	_, err := foreignDiscoveryClient.Resource("peeringrequests").Get(fc.Status.Outgoing.RemotePeeringRequestName, &metav1.GetOptions{})
 	if err != nil {
-		fc.Status.Outgoing.Joined = false
+		fc.Status.Outgoing.PeeringPhase = discoveryv1alpha1.PeeringPhaseNone
 		fc.Status.Outgoing.RemotePeeringRequestName = ""
 		if slice.ContainsString(fc.Finalizers, FinalizerString, nil) {
 			fc.Finalizers = slice.RemoveString(fc.Finalizers, FinalizerString, nil)
 		}
+		status := fc.Status.DeepCopy()
 		fc, err = r.update(fc)
+		if err != nil {
+			return nil, err
+		}
+		fc.Status = *status
+		_, err = r.updateStatus(context.TODO(), fc)
 		if err != nil {
 			return nil, err
 		}
@@ -1127,7 +964,15 @@ func (r *ForeignClusterReconciler) setDispatcherRole(remoteClusterID string,
 }
 
 func (r *ForeignClusterReconciler) deleteAdvertisement(fc *discoveryv1alpha1.ForeignCluster) error {
-	return fc.DeleteAdvertisement(r.advertisementClient)
+	var adv advtypes.Advertisement
+	if err := r.Client.Get(context.TODO(), types.NamespacedName{
+		Name: fmt.Sprintf("advertisement-%s", fc.Spec.ClusterIdentity.ClusterID)}, &adv); errors.IsNotFound(err) {
+		return nil
+	} else if err != nil {
+		klog.Error(err)
+		return err
+	}
+	return r.Client.Delete(context.TODO(), &adv)
 }
 
 func (r *ForeignClusterReconciler) deletePeeringRequest(foreignClient *crdclient.CRDClient, fc *discoveryv1alpha1.ForeignCluster) error {
@@ -1150,42 +995,39 @@ func (r *ForeignClusterReconciler) getAutoJoinUntrusted(fc *discoveryv1alpha1.Fo
 	return r.ConfigProvider.GetConfig().AutoJoinUntrusted
 }
 
-func (r *ForeignClusterReconciler) checkNetwork(fc *discoveryv1alpha1.ForeignCluster, requireUpdate *bool) error {
+func (r *ForeignClusterReconciler) checkNetwork(ctx context.Context,
+	foreignCluster *discoveryv1alpha1.ForeignCluster) error {
 	// local NetworkConfig
-	labelSelector := strings.Join([]string{crdreplicator.DestinationLabel, fc.Spec.ClusterIdentity.ClusterID}, "=")
-	if err := r.updateNetwork(labelSelector, &fc.Status.Network.LocalNetworkConfig, requireUpdate); err != nil {
+	labelSelector := map[string]string{crdreplicator.DestinationLabel: foreignCluster.Spec.ClusterIdentity.ClusterID}
+	if err := r.updateNetwork(ctx, labelSelector, &foreignCluster.Status.Network.LocalNetworkConfig); err != nil {
 		klog.Error(err)
 		return err
 	}
 
 	// remote NetworkConfig
-	labelSelector = strings.Join([]string{crdreplicator.RemoteLabelSelector, fc.Spec.ClusterIdentity.ClusterID}, "=")
-	return r.updateNetwork(labelSelector, &fc.Status.Network.RemoteNetworkConfig, requireUpdate)
+	labelSelector = map[string]string{crdreplicator.RemoteLabelSelector: foreignCluster.Spec.ClusterIdentity.ClusterID}
+	if err := r.updateNetwork(ctx, labelSelector, &foreignCluster.Status.Network.RemoteNetworkConfig); err != nil {
+		klog.Error(err)
+		return err
+	}
+
+	return nil
 }
 
-func (r *ForeignClusterReconciler) updateNetwork(
-	labelSelector string, resourceLink *discoveryv1alpha1.ResourceLink, requireUpdate *bool) error {
-	tmp, err := r.networkClient.Resource("networkconfigs").List(&metav1.ListOptions{
-		LabelSelector: labelSelector,
-	})
-	if err != nil {
+func (r *ForeignClusterReconciler) updateNetwork(ctx context.Context,
+	labelSelector map[string]string, resourceLink *discoveryv1alpha1.ResourceLink) error {
+	var netList netv1alpha1.NetworkConfigList
+	if err := r.Client.List(ctx, &netList, client.MatchingLabels(labelSelector)); err != nil {
 		klog.Error(err)
 		return err
 	}
-	ncfs, ok := tmp.(*netv1alpha1.NetworkConfigList)
-	if !ok {
-		err = goerrors.New("retrieved object is not a NetworkConfig")
-		klog.Error(err)
-		return err
-	}
-	if len(ncfs.Items) == 0 && resourceLink.Available {
+	if len(netList.Items) == 0 {
 		// no NetworkConfigs found
 		resourceLink.Available = false
 		resourceLink.Reference = nil
-		*requireUpdate = true
-	} else if len(ncfs.Items) > 0 && !resourceLink.Available {
+	} else if len(netList.Items) > 0 {
 		// there are NetworkConfigs
-		ncf := &ncfs.Items[0]
+		ncf := &netList.Items[0]
 		resourceLink.Available = true
 		resourceLink.Reference = &apiv1.ObjectReference{
 			Kind:       "NetworkConfig",
@@ -1193,41 +1035,45 @@ func (r *ForeignClusterReconciler) updateNetwork(
 			UID:        ncf.UID,
 			APIVersion: fmt.Sprintf("%s/%s", netv1alpha1.GroupVersion.Group, netv1alpha1.GroupVersion.Version),
 		}
-		*requireUpdate = true
 	}
 	return nil
 }
 
-func (r *ForeignClusterReconciler) checkTEP(fc *discoveryv1alpha1.ForeignCluster, requireUpdate *bool) error {
-	tmp, err := r.networkClient.Resource("tunnelendpoints").List(&metav1.ListOptions{
-		LabelSelector: strings.Join([]string{liqoconst.ClusterIDLabelName, fc.Spec.ClusterIdentity.ClusterID}, "="),
-	})
-	if err != nil {
+func (r *ForeignClusterReconciler) checkTEP(ctx context.Context,
+	foreignCluster *discoveryv1alpha1.ForeignCluster) error {
+	var tepList netv1alpha1.TunnelEndpointList
+	if err := r.Client.List(ctx, &tepList, client.MatchingLabels{
+		liqoconst.ClusterIDLabelName: foreignCluster.Spec.ClusterIdentity.ClusterID,
+	}); err != nil {
 		klog.Error(err)
 		return err
 	}
-	teps, ok := tmp.(*netv1alpha1.TunnelEndpointList)
-	if !ok {
-		err = goerrors.New("retrieved object is not a TunnelEndpoint")
-		klog.Error(err)
-		return err
-	}
-	if len(teps.Items) == 0 && fc.Status.Network.TunnelEndpoint.Available {
-		// no TEP found
-		fc.Status.Network.TunnelEndpoint.Available = false
-		fc.Status.Network.TunnelEndpoint.Reference = nil
-		*requireUpdate = true
-	} else if len(teps.Items) > 0 && !fc.Status.Network.TunnelEndpoint.Available {
-		// there are TEPs
-		tep := &teps.Items[0]
-		fc.Status.Network.TunnelEndpoint.Available = true
-		fc.Status.Network.TunnelEndpoint.Reference = &apiv1.ObjectReference{
+
+	if len(tepList.Items) == 0 {
+		foreignCluster.Status.Network.TunnelEndpoint.Available = false
+		foreignCluster.Status.Network.TunnelEndpoint.Reference = nil
+	} else if len(tepList.Items) > 0 {
+		tep := &tepList.Items[0]
+		foreignCluster.Status.Network.TunnelEndpoint.Available = true
+		foreignCluster.Status.Network.TunnelEndpoint.Reference = &apiv1.ObjectReference{
 			Kind:       "TunnelEndpoints",
 			Name:       tep.Name,
 			UID:        tep.UID,
 			APIVersion: fmt.Sprintf("%s/%s", netv1alpha1.GroupVersion.Group, netv1alpha1.GroupVersion.Version),
 		}
-		*requireUpdate = true
 	}
 	return nil
+}
+
+func (r *ForeignClusterReconciler) deleteForeignCluster(ctx context.Context,
+	foreignCluster *discoveryv1alpha1.ForeignCluster) error {
+	return r.Client.Delete(ctx, foreignCluster)
+}
+
+func (r *ForeignClusterReconciler) removeFinalizer(ctx context.Context,
+	foreignCluster *discoveryv1alpha1.ForeignCluster) (controllerutil.OperationResult, error) {
+	return controllerutil.CreateOrUpdate(ctx, r.Client, foreignCluster, func() error {
+		controllerutil.RemoveFinalizer(foreignCluster, FinalizerString)
+		return nil
+	})
 }
