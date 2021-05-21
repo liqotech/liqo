@@ -861,9 +861,9 @@ func (liqoIPAM *IPAM) mapEndpointIPInternal(clusterID, ip string) (string, error
 	}
 	// IP does not belong to cluster PodCIDR: Pod is a reflected Pod
 
-	// Check existence of RemoteExternalCIDR
+	// Check existence of Local NAT ExternalCIDR
 	if !exists || subnets.LocalNATExternalCIDR == "" {
-		return "", fmt.Errorf("remote cluster %s has not a remote ExternalCIDR:%w", clusterID, err)
+		return "", fmt.Errorf("remote cluster %s has not a Local NAT ExternalCIDR:%w", clusterID, err)
 	}
 
 	// Map IP to ExternalCIDR
