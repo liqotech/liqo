@@ -14,6 +14,7 @@ import (
 	"k8s.io/klog"
 
 	"github.com/liqotech/liqo/pkg/liqonet"
+	"github.com/liqotech/liqo/pkg/utils"
 	apimgmt "github.com/liqotech/liqo/pkg/virtualKubelet/apiReflection"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/apiReflection/reflectors"
 	ri "github.com/liqotech/liqo/pkg/virtualKubelet/apiReflection/reflectors/reflectorsInterfaces"
@@ -193,7 +194,7 @@ func filterEndpoints(slice *discoveryv1beta1.EndpointSlice, ipamClient liqonet.I
 		t := v.Topology["kubernetes.io/hostname"]
 		if t != nodeName {
 			response, err := ipamClient.MapEndpointIP(context.Background(),
-				&liqonet.MapRequest{ClusterID: strings.TrimPrefix(nodeName, "liqo-"), Ip: v.Addresses[0]})
+				&liqonet.MapRequest{ClusterID: utils.GetClusterIDFromNodeName(nodeName), Ip: v.Addresses[0]})
 			if err != nil {
 				klog.Error(err)
 			}

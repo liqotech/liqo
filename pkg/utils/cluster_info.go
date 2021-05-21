@@ -2,11 +2,14 @@ package utils
 
 import (
 	"context"
+	"strings"
 
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/klog"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+
+	"github.com/liqotech/liqo/pkg/virtualKubelet"
 )
 
 const (
@@ -24,4 +27,9 @@ func GetClusterID(c client.Client) (string, error) {
 	clusterID := configMap.Data[clusterIDConfMap]
 	klog.Infof("ClusterID is '%s'", clusterID)
 	return clusterID, nil
+}
+
+// GetClusterIDFromNodeName returns the clusterID from a node name.
+func GetClusterIDFromNodeName(nodeName string) string {
+	return strings.TrimPrefix(nodeName, virtualKubelet.VirtualNodePrefix)
 }

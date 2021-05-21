@@ -775,7 +775,7 @@ var _ = Describe("Ipam", func() {
 						ClusterID: "cluster1",
 						Ip:        "30.0.4.9",
 					})
-					Expect(err.Error()).To(ContainSubstring("remote cluster cluster1 has not a remote ExternalCIDR"))
+					Expect(err.Error()).To(ContainSubstring("remote cluster cluster1 has not a Local NAT ExternalCIDR"))
 				})
 			})
 		})
