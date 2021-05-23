@@ -510,6 +510,26 @@ var _ = Describe("Ipam", func() {
 				Expect(err).ToNot(BeNil())
 			})
 		})
+		Context("Call after SetPodCIDR", func() {
+			It("should return no errors", func() {
+				err := ipam.SetPodCIDR("10.0.0.0/24")
+				Expect(err).To(BeNil())
+				externalCIDR, err := ipam.GetExternalCIDR(24)
+				Expect(err).To(BeNil())
+				Expect(externalCIDR).To(Equal("10.0.1.0/24"))
+			})
+		})
+		Context("Call before SetPodCIDR", func() {
+			It("should produce an error in SetPodCIDR", func() {
+				externalCIDR, err := ipam.GetExternalCIDR(24)
+				Expect(err).To(BeNil())
+				Expect(externalCIDR).To(Equal("10.0.0.0/24"))
+				// ExternalCIDR has been assigned "10.0.0.0/24", so the network
+				// is not available anymore.
+				err = ipam.SetPodCIDR("10.0.0.0/24")
+				Expect(err).ToNot(BeNil())
+			})
+		})
 	})
 
 	Describe("SetPodCIDR", func() {
