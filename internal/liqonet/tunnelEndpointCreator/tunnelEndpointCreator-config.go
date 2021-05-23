@@ -19,10 +19,6 @@ import (
 func (tec *TunnelEndpointCreator) setNetParameters(config *configv1alpha1.ClusterConfig) {
 	podCIDR := config.Spec.LiqonetConfig.PodCIDR
 	serviceCIDR := config.Spec.LiqonetConfig.ServiceCIDR
-	externalCIDR, err := tec.IPManager.GetExternalCIDR(liqonet.GetMask(podCIDR))
-	if err != nil {
-		klog.Error(err)
-	}
 	if tec.PodCIDR != podCIDR {
 		if err := tec.IPManager.SetPodCIDR(podCIDR); err != nil {
 			klog.Error(err)
@@ -36,6 +32,10 @@ func (tec *TunnelEndpointCreator) setNetParameters(config *configv1alpha1.Cluste
 		}
 		klog.Infof("ServiceCIDR set to %s", serviceCIDR)
 		tec.ServiceCIDR = serviceCIDR
+	}
+	externalCIDR, err := tec.IPManager.GetExternalCIDR(liqonet.GetMask(podCIDR))
+	if err != nil {
+		klog.Error(err)
 	}
 	if tec.ExternalCIDR != externalCIDR {
 		klog.Infof("ExternalCIDR set to %s", externalCIDR)
