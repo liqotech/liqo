@@ -348,7 +348,7 @@ func (r *ForeignClusterReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 			Requeue:      true,
 			RequeueAfter: r.RequeueAfter,
 		}, nil
-	} else if foreignDiscoveryClient == nil {
+	} else if foreignDiscoveryClient == nil || r.useNewAuth {
 		requireUpdate = true
 	}
 
