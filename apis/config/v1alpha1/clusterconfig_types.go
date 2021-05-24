@@ -20,6 +20,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/kubernetes/scheme"
 
+	"github.com/liqotech/liqo/pkg/consts"
 	crdclient "github.com/liqotech/liqo/pkg/crdClient"
 	"github.com/liqotech/liqo/pkg/labelPolicy"
 )
@@ -203,9 +204,12 @@ type LiqonetConfig struct {
 
 // Resource contains a list of resources identified by their GVR.
 type Resource struct {
-	Group    string `json:"group"`
-	Version  string `json:"version"`
-	Resource string `json:"resource"`
+	// GroupVersionResource contains the GVR of the resource to replicate.
+	GroupVersionResource metav1.GroupVersionResource `json:"groupVersionResource"`
+
+	// +kubebuilder:validation:Enum="None";"All";"Established";"Incoming";"Outgoing";"Bidirectional"
+	// +kubebuilder:default="All"
+	PeeringPhase consts.PeeringPhase `json:"peeringPhase,omitempty"`
 }
 
 // DispatcherConfig defines the configuration of the CRDReplicator.

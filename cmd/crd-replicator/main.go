@@ -41,7 +41,6 @@ func main() {
 
 	flag.BoolVar(&useNewAuth, "useNewAuth", false, "Enable the new authentication flow, with certificates and namespaced resources")
 	klog.InitFlags(nil)
-	flag.Parse()
 
 	flag.Parse()
 

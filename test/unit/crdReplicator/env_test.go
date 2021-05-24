@@ -219,9 +219,11 @@ func getClusterConfig() *configv1alpha1.ClusterConfig {
 				AdditionalPools: []configv1alpha1.CIDR{},
 			},
 			DispatcherConfig: configv1alpha1.DispatcherConfig{ResourcesToReplicate: []configv1alpha1.Resource{{
-				Group:    netv1alpha1.GroupVersion.Group,
-				Version:  netv1alpha1.GroupVersion.Version,
-				Resource: "tunnelendpoints",
+				GroupVersionResource: metav1.GroupVersionResource{
+					Group:    netv1alpha1.GroupVersion.Group,
+					Version:  netv1alpha1.GroupVersion.Version,
+					Resource: "tunnelendpoints",
+				},
 			}}},
 		},
 	}

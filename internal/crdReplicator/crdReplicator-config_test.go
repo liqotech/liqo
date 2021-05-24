@@ -4,10 +4,11 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	"k8s.io/apimachinery/pkg/runtime/schema"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	configv1alpha1 "github.com/liqotech/liqo/apis/config/v1alpha1"
 	netv1alpha1 "github.com/liqotech/liqo/apis/net/v1alpha1"
+	"github.com/liqotech/liqo/pkg/consts"
 )
 
 func TestDispatcherReconciler_GetConfig(t *testing.T) {
@@ -19,13 +20,18 @@ func TestDispatcherReconciler_GetConfig(t *testing.T) {
 	// the list of the resources to be replicated contains 2 elements, so we expect  two elements in the list to be returned by the function
 	t2 := configv1alpha1.DispatcherConfig{ResourcesToReplicate: []configv1alpha1.Resource{
 		{
-			Group:    netv1alpha1.GroupVersion.Group,
-			Version:  netv1alpha1.GroupVersion.Version,
-			Resource: "networkconfigs"},
+			GroupVersionResource: metav1.GroupVersionResource{
+				Group:    netv1alpha1.GroupVersion.Group,
+				Version:  netv1alpha1.GroupVersion.Version,
+				Resource: "networkconfigs",
+			},
+		},
 		{
-			Group:    netv1alpha1.GroupVersion.Group,
-			Version:  netv1alpha1.GroupVersion.Version,
-			Resource: "tunnelendpoints",
+			GroupVersionResource: metav1.GroupVersionResource{
+				Group:    netv1alpha1.GroupVersion.Group,
+				Version:  netv1alpha1.GroupVersion.Version,
+				Resource: "tunnelendpoints",
+			},
 		},
 	}}
 	tests := []struct {
@@ -43,57 +49,77 @@ func TestDispatcherReconciler_GetConfig(t *testing.T) {
 			},
 			Status: configv1alpha1.ClusterConfigStatus{},
 		}
-		res := dispatcher.GetConfig(cfg)
+		res := dispatcher.getConfig(cfg)
 		assert.Equal(t, test.expectedElements, len(res), "length should be equal")
 	}
 }
 
 func TestDispatcherReconciler_GetRemovedResources(t *testing.T) {
 	dispatcher := Controller{
-		RegisteredResources: []schema.GroupVersionResource{
+		RegisteredResources: []configv1alpha1.Resource{
 			{
-				Group:    netv1alpha1.GroupVersion.Group,
-				Version:  netv1alpha1.GroupVersion.Version,
-				Resource: "networkconfigs",
+				GroupVersionResource: metav1.GroupVersionResource{
+					Group:    netv1alpha1.GroupVersion.Group,
+					Version:  netv1alpha1.GroupVersion.Version,
+					Resource: "networkconfigs",
+				},
+				PeeringPhase: consts.PeeringPhaseEstablished,
 			},
 			{
-				Group:    netv1alpha1.GroupVersion.Group,
-				Version:  netv1alpha1.GroupVersion.Version,
-				Resource: "tunnelendpoints",
+				GroupVersionResource: metav1.GroupVersionResource{
+					Group:    netv1alpha1.GroupVersion.Group,
+					Version:  netv1alpha1.GroupVersion.Version,
+					Resource: "tunnelendpoints",
+				},
+				PeeringPhase: consts.PeeringPhaseEstablished,
 			},
 		},
 	}
 	// test 1
 	// the configuration does not change, is the same
 	// so we expect expect to get a 0 length list
-	t1 := []schema.GroupVersionResource{
+	t1 := []configv1alpha1.Resource{
 		{
-			Group:    netv1alpha1.GroupVersion.Group,
-			Version:  netv1alpha1.GroupVersion.Version,
-			Resource: "networkconfigs"},
+			GroupVersionResource: metav1.GroupVersionResource{
+				Group:    netv1alpha1.GroupVersion.Group,
+				Version:  netv1alpha1.GroupVersion.Version,
+				Resource: "networkconfigs",
+			},
+			PeeringPhase: consts.PeeringPhaseEstablished,
+		},
 		{
-			Group:    netv1alpha1.GroupVersion.Group,
-			Version:  netv1alpha1.GroupVersion.Version,
-			Resource: "tunnelendpoints",
+			GroupVersionResource: metav1.GroupVersionResource{
+				Group:    netv1alpha1.GroupVersion.Group,
+				Version:  netv1alpha1.GroupVersion.Version,
+				Resource: "tunnelendpoints",
+			},
+			PeeringPhase: consts.PeeringPhaseEstablished,
 		},
 	}
 	// test2
 	// we remove a resource from the configuration and add a new one to it
 	// so we expect to get a list with 1 element
-	t2 := []schema.GroupVersionResource{
+	t2 := []configv1alpha1.Resource{
 		{
-			Group:    netv1alpha1.GroupVersion.Group,
-			Version:  netv1alpha1.GroupVersion.Version,
-			Resource: "networkconfigs"},
+			GroupVersionResource: metav1.GroupVersionResource{
+				Group:    netv1alpha1.GroupVersion.Group,
+				Version:  netv1alpha1.GroupVersion.Version,
+				Resource: "networkconfigs",
+			},
+			PeeringPhase: consts.PeeringPhaseEstablished,
+		},
 		{
-			Group:    netv1alpha1.GroupVersion.Group,
-			Version:  netv1alpha1.GroupVersion.Version,
-			Resource: "tunnelendpoints-wrong",
+			GroupVersionResource: metav1.GroupVersionResource{
+				Group:    netv1alpha1.GroupVersion.Group,
+				Version:  netv1alpha1.GroupVersion.Version,
+				Resource: "tunnelendpoints-wrong",
+			},
+			PeeringPhase: consts.PeeringPhaseEstablished,
 		},
 	}
 
 	tests := []struct {
-		config           []schema.GroupVersionResource
+		config           []configv1alpha1.Resource
 		expectedElements int
 	}{
 		{t1, 0},
@@ -101,7 +127,7 @@ func TestDispatcherReconciler_GetRemovedResources(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		res := dispatcher.GetRemovedResources(test.config)
+		res := dispatcher.getRemovedResources(test.config)
 		assert.Equal(t, test.expectedElements, len(res), "length should be equal")
 	}
 }
@@ -117,13 +143,18 @@ func TestDispatcherReconciler_UpdateConfig(t *testing.T) {
 	// and 0 elements removed
 	t2 := configv1alpha1.DispatcherConfig{ResourcesToReplicate: []configv1alpha1.Resource{
 		{
-			Group:    netv1alpha1.GroupVersion.Group,
-			Version:  netv1alpha1.GroupVersion.Version,
-			Resource: "networkconfigs"},
+			GroupVersionResource: metav1.GroupVersionResource{
+				Group:    netv1alpha1.GroupVersion.Group,
+				Version:  netv1alpha1.GroupVersion.Version,
+				Resource: "networkconfigs",
+			},
+		},
 		{
-			Group:    netv1alpha1.GroupVersion.Group,
-			Version:  netv1alpha1.GroupVersion.Version,
-			Resource: "tunnelendpoints",
+			GroupVersionResource: metav1.GroupVersionResource{
+				Group:    netv1alpha1.GroupVersion.Group,
+				Version:  netv1alpha1.GroupVersion.Version,
+				Resource: "tunnelendpoints",
+			},
 		},
 	}}
 
@@ -132,13 +163,18 @@ func TestDispatcherReconciler_UpdateConfig(t *testing.T) {
 	// and 1 element removedResources
 	t3 := configv1alpha1.DispatcherConfig{ResourcesToReplicate: []configv1alpha1.Resource{
 		{
-			Group:    netv1alpha1.GroupVersion.Group,
-			Version:  netv1alpha1.GroupVersion.Version,
-			Resource: "networkconfigs"},
+			GroupVersionResource: metav1.GroupVersionResource{
+				Group:    netv1alpha1.GroupVersion.Group,
+				Version:  netv1alpha1.GroupVersion.Version,
+				Resource: "networkconfigs",
+			},
+		},
 		{
-			Group:    netv1alpha1.GroupVersion.Group,
-			Version:  netv1alpha1.GroupVersion.Version,
-			Resource: "tunnelendpoints-wrong",
+			GroupVersionResource: metav1.GroupVersionResource{
+				Group:    netv1alpha1.GroupVersion.Group,
+				Version:  netv1alpha1.GroupVersion.Version,
+				Resource: "tunnelendpoints-wrong",
+			},
 		},
 	}}
 	tests := []struct {

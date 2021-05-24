@@ -1,29 +1,5 @@
 rules:
 - apiGroups:
-  - discovery.liqo.io
-  resources:
-  - resourceoffers
-  verbs:
-  - create
-  - delete
-  - get
-  - list
-  - patch
-  - update
-  - watch
-- apiGroups:
-  - discovery.liqo.io
-  resources:
-  - resourceoffers/status
-  verbs:
-  - create
-  - delete
-  - get
-  - list
-  - patch
-  - update
-  - watch
-- apiGroups:
   - net.liqo.io
   resources:
   - networkconfigs
@@ -39,6 +15,30 @@ rules:
   - net.liqo.io
   resources:
   - networkconfigs/status
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - sharing.liqo.io
+  resources:
+  - resourceoffers
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - sharing.liqo.io
+  resources:
+  - resourceoffers/status
   verbs:
   - create
   - delete

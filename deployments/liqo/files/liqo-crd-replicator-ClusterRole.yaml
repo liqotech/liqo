@@ -8,6 +8,13 @@ rules:
   - list
   - watch
 - apiGroups:
+  - ""
+  resources:
+  - secrets
+  verbs:
+  - get
+  - list
+- apiGroups:
   - discovery.liqo.io
   resources:
   - foreignclusters

@@ -13,8 +13,11 @@ import (
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/dynamic/dynamicinformer"
 
+	configv1alpha1 "github.com/liqotech/liqo/apis/config/v1alpha1"
+	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	netv1alpha1 "github.com/liqotech/liqo/apis/net/v1alpha1"
 	"github.com/liqotech/liqo/pkg/clusterid"
+	"github.com/liqotech/liqo/pkg/consts"
 	identitymanager "github.com/liqotech/liqo/pkg/identityManager"
 	tenantcontrolnamespace "github.com/liqotech/liqo/pkg/tenantControlNamespace"
 )
@@ -180,23 +183,37 @@ func TestCRDReplicatorReconciler_UpdateResource(t *testing.T) {
 
 func TestCRDReplicatorReconciler_StartAndStopWatchers(t *testing.T) {
 	d := getCRDReplicator()
+	d.setPeeringPhase(remoteClusterID, consts.PeeringPhaseOutgoing)
 	//we add two kind of resources to be watched
 	//then unregister them and check that the watchers have been closed as well
-	test1 := []schema.GroupVersionResource{{
-		Group:    netv1alpha1.GroupVersion.Group,
-		Version:  netv1alpha1.GroupVersion.Version,
-		Resource: "networkconfigs",
+	test1 := []configv1alpha1.Resource{{
+		GroupVersionResource: metav1.GroupVersionResource{
+			Group:    netv1alpha1.GroupVersion.Group,
+			Version:  netv1alpha1.GroupVersion.Version,
+			Resource: "networkconfigs",
+		},
+		PeeringPhase: consts.PeeringPhaseEstablished,
 	}, {
-		Group:    netv1alpha1.GroupVersion.Group,
-		Version:  netv1alpha1.GroupVersion.Version,
-		Resource: "tunnelendpoints",
+		GroupVersionResource: metav1.GroupVersionResource{
+			Group:    netv1alpha1.GroupVersion.Group,
+			Version:  netv1alpha1.GroupVersion.Version,
+			Resource: "tunnelendpoints",
+		},
+		PeeringPhase: consts.PeeringPhaseEstablished,
+	}, {
+		GroupVersionResource: metav1.GroupVersionResource{
+			Group:    discoveryv1alpha1.GroupVersion.Group,
+			Version:  discoveryv1alpha1.GroupVersion.Version,
+			Resource: "resourcerequests",
+		},
+		PeeringPhase: consts.PeeringPhaseIncoming, // this will not been replicated with the current peering phase
 	}}
 	d.RegisteredResources = test1
 	d.StartWatchers()
 	assert.Equal(t, 2, len(d.RemoteWatchers[remoteClusterID]), "it should be 2")
-	assert.Equal(t, 2, len(d.LocalWatchers), "it should be 2")
+	assert.Equal(t, 3, len(d.LocalWatchers), "it should be 3")
 	for _, r := range test1 {
-		d.UnregisteredResources = append(d.UnregisteredResources, r.String())
+		d.UnregisteredResources = append(d.UnregisteredResources, r.GroupVersionResource.String())
 	}
 	d.StopWatchers()
 	assert.Equal(t, 0, len(d.RemoteWatchers[remoteClusterID]), "it should be 0")

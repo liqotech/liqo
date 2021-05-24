@@ -1,6 +1,7 @@
 {{- $peeringBasic := (merge (dict "name" "remote-peering-basic" "module" "discovery") .) -}}
 {{- $peeringIncoming := (merge (dict "name" "remote-peering-incoming" "module" "discovery") .) -}}
 {{- $peeringOutgoing := (merge (dict "name" "remote-peering-outgoing" "module" "discovery") .) -}}
+{{- $crdReplicatorConfig := (merge (dict "name" "crd-replicator" "module" "dispatcher") .) -}}
 
 {{- $authConfig := (merge (dict "name" "auth" "module" "discovery") .) -}}
 {{- $discoveryConfig := (merge (dict "name" "discovery" "module" "discovery") .) -}}
@@ -50,6 +51,9 @@ subjects:
   - kind: ServiceAccount
     name: {{ include "liqo.prefixedName" $discoveryConfig }}
     namespace: {{ .Release.Namespace }}
+  - kind: ServiceAccount
+    name: {{ include "liqo.prefixedName" $crdReplicatorConfig }}
+    namespace: {{ .Release.Namespace }}
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
@@ -68,6 +72,9 @@ subjects:
   - kind: ServiceAccount
     name: {{ include "liqo.prefixedName" $discoveryConfig }}
     namespace: {{ .Release.Namespace }}
+  - kind: ServiceAccount
+    name: {{ include "liqo.prefixedName" $crdReplicatorConfig }}
+    namespace: {{ .Release.Namespace }}
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
@@ -85,6 +92,9 @@ subjects:
     namespace: {{ .Release.Namespace }}
   - kind: ServiceAccount
     name: {{ include "liqo.prefixedName" $discoveryConfig }}
+    namespace: {{ .Release.Namespace }}
+  - kind: ServiceAccount
+    name: {{ include "liqo.prefixedName" $crdReplicatorConfig }}
     namespace: {{ .Release.Namespace }}
 roleRef:
   apiGroup: rbac.authorization.k8s.io
