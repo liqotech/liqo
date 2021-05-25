@@ -7,16 +7,22 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	advtypes "github.com/liqotech/liqo/apis/sharing/v1alpha1"
+	"github.com/liqotech/liqo/pkg/discovery"
 	"github.com/liqotech/liqo/pkg/vkMachinery"
 )
 
-// CreateVkDeployment creates the deployment for a virtual-kubelet.
-func CreateVkDeployment(adv *advtypes.Advertisement, vkName, vkNamespace, vkImage, initVKImage, nodeName, homeClusterId string) (*appsv1.Deployment, error) {
-	vkLabels := ForgeVKLabels(adv)
+// VirtualKubeletDeployment forges the deployment for a virtual-kubelet.
+func VirtualKubeletDeployment(adv *advtypes.Advertisement, remoteClusterID,
+	vkName, vkNamespace, vkImage, initVKImage, nodeName, homeClusterID string) (*appsv1.Deployment, error) {
+	if adv != nil {
+		remoteClusterID = adv.Spec.ClusterId
+	}
+	vkLabels := VirtualKubeletLabels(remoteClusterID)
 	return &appsv1.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      vkName,
 			Namespace: vkNamespace,
+			Labels:    vkLabels,
 		},
 		Spec: appsv1.DeploymentSpec{
 			Selector: &metav1.LabelSelector{
@@ -26,15 +32,16 @@ func CreateVkDeployment(adv *advtypes.Advertisement, vkName, vkNamespace, vkImag
 				ObjectMeta: metav1.ObjectMeta{
 					Labels: vkLabels,
 				},
-				Spec: forgeVKPodSpec(vkName, vkNamespace, homeClusterId, adv, initVKImage, nodeName, vkImage),
+				Spec: forgeVKPodSpec(vkName, vkNamespace, homeClusterID, adv, remoteClusterID, initVKImage, nodeName, vkImage),
 			},
 		},
 	}, nil
 }
 
-func ForgeVKLabels(adv *advtypes.Advertisement) map[string]string {
+// VirtualKubeletLabels forges the labels for a virtual-kubelet.
+func VirtualKubeletLabels(remoteClusterID string) map[string]string {
 	kubeletDynamicLabels := map[string]string{
-		"liqo.io/cluster-id": adv.Spec.ClusterId,
+		discovery.ClusterIDLabel: remoteClusterID,
 	}
 	return merge(vkMachinery.KubeletBaseLabels, kubeletDynamicLabels)
 }
@@ -48,10 +55,21 @@ func merge(m map[string]string, ms ...map[string]string) map[string]string {
 	return m
 }
 
-func ForgeVKClusterRoleBinding(name string, kubeletNamespace string) *rbacv1.ClusterRoleBinding {
+// ClusterRoleLabels returns the labels to be set on a ClusterRoleBinding related to a VirtualKubelet.
+func ClusterRoleLabels(remoteClusterID string) map[string]string {
+	dynamicLabels := map[string]string{
+		discovery.ClusterIDLabel: remoteClusterID,
+	}
+	return merge(vkMachinery.ClusterRoleBindingLabels, dynamicLabels)
+}
+
+// VirtualKubeletClusterRoleBinding forges a ClusterRoleBinding for a VirtualKubelet.
+func VirtualKubeletClusterRoleBinding(name, kubeletNamespace, remoteClusterID string) *rbacv1.ClusterRoleBinding {
+	labels := ClusterRoleLabels(remoteClusterID)
 	return &rbacv1.ClusterRoleBinding{
 		ObjectMeta: metav1.ObjectMeta{
-			Name: name,
+			Name:   name,
+			Labels: labels,
 		},
 		Subjects: []rbacv1.Subject{
 			{Kind: "ServiceAccount", APIGroup: "", Name: name, Namespace: kubeletNamespace},
@@ -64,7 +82,8 @@ func ForgeVKClusterRoleBinding(name string, kubeletNamespace string) *rbacv1.Clu
 	}
 }
 
-func ForgeVKServiceAccount(name string, kubeletNamespace string) *v1.ServiceAccount {
+// VirtualKubeletServiceAccount forges a ServiceAccount for a VirtualKubelet.
+func VirtualKubeletServiceAccount(name, kubeletNamespace string) *v1.ServiceAccount {
 	return &v1.ServiceAccount{
 		TypeMeta: metav1.TypeMeta{},
 		ObjectMeta: metav1.ObjectMeta{

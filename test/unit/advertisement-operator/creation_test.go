@@ -2,6 +2,7 @@ package advertisement_operator
 
 import (
 	"context"
+	"fmt"
 	"path/filepath"
 	"testing"
 	"time"
@@ -17,6 +18,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/envtest"
 
 	advtypes "github.com/liqotech/liqo/apis/sharing/v1alpha1"
+	"github.com/liqotech/liqo/pkg/discovery"
 	"github.com/liqotech/liqo/pkg/vkMachinery/forge"
 )
 
@@ -107,21 +109,26 @@ func TestCreateVkDeployment(t *testing.T) {
 	initVkImage := "liqo/init-vk"
 	homeClusterId := "cluster2"
 
-	deploy, err := forge.CreateVkDeployment(adv, vkName, vkNamespace, vkImage, initVkImage, nodeName, homeClusterId)
+	deploy, err := forge.VirtualKubeletDeployment(adv, "", vkName, vkNamespace, vkImage, initVkImage, nodeName, homeClusterId)
+
+	foreignClusterIDArg := fmt.Sprintf("%s=%s", "--foreign-cluster-id", adv.Spec.ClusterId)
+	nodeNameArg := fmt.Sprintf("%s=%s", "--nodename", nodeName)
+	namespaceArg := fmt.Sprintf("%s=%s", "--kubelet-namespace", vkNamespace)
+	homeClusterIDArg := fmt.Sprintf("%s=%s", "--home-cluster-id", homeClusterId)
 
 	assert.Equal(t, err, nil)
 	assert.Equal(t, vkName, deploy.Name)
 	assert.Equal(t, vkNamespace, deploy.Namespace)
-	assert.Equal(t, adv.Spec.ClusterId, deploy.Spec.Template.Labels["liqo.io/cluster-id"])
+	assert.Equal(t, adv.Spec.ClusterId, deploy.Spec.Template.Labels[discovery.ClusterIDLabel])
 	assert.Len(t, deploy.Spec.Template.Spec.Volumes, 2)
-	assert.Equal(t, adv.Spec.KubeConfigRef.Name, deploy.Spec.Template.Spec.Volumes[0].VolumeSource.Secret.SecretName)
+	assert.Equal(t, adv.Spec.KubeConfigRef.Name, deploy.Spec.Template.Spec.Volumes[1].VolumeSource.Secret.SecretName)
 	assert.Equal(t, initVkImage, deploy.Spec.Template.Spec.InitContainers[0].Image)
 	assert.Equal(t, vkImage, deploy.Spec.Template.Spec.Containers[0].Image)
 	assert.NotEmpty(t, deploy.Spec.Template.Spec.Containers[0].Args)
-	assert.Contains(t, deploy.Spec.Template.Spec.Containers[0].Args, adv.Spec.ClusterId)
-	assert.Contains(t, deploy.Spec.Template.Spec.Containers[0].Args, nodeName)
-	assert.Contains(t, deploy.Spec.Template.Spec.Containers[0].Args, vkNamespace)
-	assert.Contains(t, deploy.Spec.Template.Spec.Containers[0].Args, homeClusterId)
+	assert.Contains(t, deploy.Spec.Template.Spec.Containers[0].Args, foreignClusterIDArg)
+	assert.Contains(t, deploy.Spec.Template.Spec.Containers[0].Args, nodeNameArg)
+	assert.Contains(t, deploy.Spec.Template.Spec.Containers[0].Args, namespaceArg)
+	assert.Contains(t, deploy.Spec.Template.Spec.Containers[0].Args, homeClusterIDArg)
 	assert.NotEmpty(t, deploy.Spec.Template.Spec.Containers[0].Command)
 	assert.NotEmpty(t, deploy.Spec.Template.Spec.Containers[0].VolumeMounts)
 	assert.NotEmpty(t, deploy.Spec.Template.Spec.Containers[0].Env)

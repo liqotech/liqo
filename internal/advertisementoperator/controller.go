@@ -290,7 +290,7 @@ func (r *AdvertisementReconciler) createVirtualKubelet(ctx context.Context, adv 
 	}
 
 	// Create the base resources
-	vkServiceAccount := forge.ForgeVKServiceAccount(name, r.KubeletNamespace)
+	vkServiceAccount := forge.VirtualKubeletServiceAccount(name, r.KubeletNamespace)
 	op, err := controllerutil.CreateOrUpdate(context.TODO(), r.Client, vkServiceAccount, func() error {
 		return controllerutil.SetControllerReference(adv, vkServiceAccount, r.Scheme)
 	})
@@ -299,7 +299,7 @@ func (r *AdvertisementReconciler) createVirtualKubelet(ctx context.Context, adv 
 	}
 	klog.V(5).Infof("ServiceAccount %s reconciled: %s", vkServiceAccount.Name, op)
 
-	vkClusterRoleBinding := forge.ForgeVKClusterRoleBinding(name, r.KubeletNamespace)
+	vkClusterRoleBinding := forge.VirtualKubeletClusterRoleBinding(name, r.KubeletNamespace, adv.Spec.ClusterId)
 	op, err = controllerutil.CreateOrUpdate(context.TODO(), r.Client, vkClusterRoleBinding, func() error {
 		return controllerutil.SetControllerReference(adv, vkClusterRoleBinding, r.Scheme)
 	})
@@ -309,7 +309,7 @@ func (r *AdvertisementReconciler) createVirtualKubelet(ctx context.Context, adv 
 	klog.V(5).Infof("ClusterRoleBinding %s reconciled: %s", vkClusterRoleBinding.Name, op)
 
 	// Create the virtual Kubelet
-	vkDeployment, err := forge.CreateVkDeployment(adv, name, r.KubeletNamespace, r.VKImage, r.InitVKImage, nodeName, r.HomeClusterId)
+	vkDeployment, err := forge.VirtualKubeletDeployment(adv, "", name, r.KubeletNamespace, r.VKImage, r.InitVKImage, nodeName, r.HomeClusterId)
 	if err != nil {
 		return err
 	}

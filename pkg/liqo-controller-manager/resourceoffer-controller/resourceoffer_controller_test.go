@@ -4,13 +4,18 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"reflect"
 	"testing"
 	"time"
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/ginkgo/extensions/table"
 	. "github.com/onsi/gomega"
+	v1 "k8s.io/api/apps/v1"
+	rbacv1 "k8s.io/api/rbac/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/utils/pointer"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 
@@ -18,14 +23,19 @@ import (
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	sharingv1alpha1 "github.com/liqotech/liqo/apis/sharing/v1alpha1"
 	crdreplicator "github.com/liqotech/liqo/internal/crdReplicator"
+	"github.com/liqotech/liqo/pkg/clusterid"
 	"github.com/liqotech/liqo/pkg/discovery"
 	testUtils "github.com/liqotech/liqo/pkg/utils/testUtils"
+	"github.com/liqotech/liqo/pkg/vkMachinery/forge"
 )
 
 const (
 	timeout   = time.Second * 30
 	interval  = time.Millisecond * 250
-	clusterID = "clusterID"
+	clusterID = "cluster-id"
+
+	virtualKubeletImage     = "vk-image"
+	initVirtualKubeletImage = "init-vk-image"
 )
 
 var (
@@ -70,7 +80,9 @@ var _ = Describe("ResourceOffer Controller", func() {
 			os.Exit(1)
 		}
 
-		controller = NewResourceOfferController(mgr, 10*time.Second)
+		clusterID := clusterid.NewStaticClusterID("remote-id")
+
+		controller = NewResourceOfferController(mgr, clusterID, 10*time.Second, virtualKubeletImage, initVirtualKubeletImage)
 		if err := controller.SetupWithManager(mgr); err != nil {
 			By(err.Error())
 			os.Exit(1)
@@ -108,7 +120,7 @@ var _ = Describe("ResourceOffer Controller", func() {
 		expectedPhase sharingv1alpha1.OfferPhase
 	}
 
-	DescribeTable("ResourceOffer table",
+	DescribeTable("ResourceOffer phase table",
 
 		func(c resourceOfferTestcase) {
 			err := controller.Client.Create(ctx, &c.resourceOffer)
@@ -133,7 +145,7 @@ var _ = Describe("ResourceOffer Controller", func() {
 					Name:      "resource-offer",
 					Namespace: "default",
 					Labels: map[string]string{
-						crdreplicator.RemoteLabelSelector:    "originClusterID",
+						crdreplicator.RemoteLabelSelector:    "origin-cluster-id",
 						crdreplicator.ReplicationStatuslabel: "true",
 					},
 				},
@@ -162,5 +174,147 @@ var _ = Describe("ResourceOffer Controller", func() {
 			expectedPhase: "",
 		}),
 	)
+
+	Describe("ResourceOffer virtual-kubelet", func() {
+
+		It("test virtual kubelet creation", func() {
+			resourceOffer := &sharingv1alpha1.ResourceOffer{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "resource-offer",
+					Namespace: "default",
+					Labels: map[string]string{
+						crdreplicator.RemoteLabelSelector:    "origin-cluster-id",
+						crdreplicator.ReplicationStatuslabel: "true",
+					},
+				},
+				Spec: sharingv1alpha1.ResourceOfferSpec{
+					ClusterId:  clusterID,
+					Timestamp:  metav1.Now(),
+					TimeToLive: metav1.NewTime(time.Now().Add(1 * time.Hour)),
+				},
+			}
+			key := client.ObjectKeyFromObject(resourceOffer)
+
+			err := controller.Client.Create(ctx, resourceOffer)
+			Expect(err).To(BeNil())
+
+			Eventually(func() sharingv1alpha1.OfferPhase {
+				if err = controller.Client.Get(ctx, key, resourceOffer); err != nil {
+					return "error"
+				}
+				return resourceOffer.Status.Phase
+			}, timeout, interval).Should(Equal(sharingv1alpha1.ResourceOfferAccepted))
+
+			// check that the vk status is set correctly
+			Eventually(func() sharingv1alpha1.VirtualKubeletStatus {
+				if err = controller.Client.Get(ctx, key, resourceOffer); err != nil {
+					return "error"
+				}
+				return resourceOffer.Status.VirtualKubeletStatus
+			}, timeout, interval).Should(Equal(sharingv1alpha1.VirtualKubeletStatusCreated))
+
+			// check the creation of the deployment
+			Eventually(func() bool {
+				var deploymentList v1.DeploymentList
+				err := controller.Client.List(ctx, &deploymentList)
+				if err != nil || len(deploymentList.Items) != 1 {
+					return false
+				}
+
+				vkDeploy, err := controller.getVirtualKubeletDeployment(ctx, resourceOffer)
+				if err != nil || vkDeploy == nil {
+					return false
+				}
+				return reflect.DeepEqual(deploymentList.Items[0], *vkDeploy)
+			}, timeout, interval).Should(BeTrue())
+
+			// check tht the deployment has the controller reference
+			Eventually(func() []metav1.OwnerReference {
+				vkDeploy, err := controller.getVirtualKubeletDeployment(ctx, resourceOffer)
+				if err != nil || vkDeploy == nil {
+					return nil
+				}
+				return vkDeploy.OwnerReferences
+			}, timeout, interval).Should(Equal(
+				[]metav1.OwnerReference{
+					{
+						APIVersion:         resourceOffer.GroupVersionKind().GroupVersion().String(),
+						Kind:               resourceOffer.GroupVersionKind().Kind,
+						Name:               resourceOffer.GetName(),
+						UID:                resourceOffer.GetUID(),
+						BlockOwnerDeletion: pointer.BoolPtr(true),
+						Controller:         pointer.BoolPtr(true),
+					},
+				},
+			))
+
+			// check the existence of the ClusterRoleBinding
+			Eventually(func() int {
+				labels := forge.ClusterRoleLabels(clusterID)
+				var clusterRoleBindingList rbacv1.ClusterRoleBindingList
+				err := controller.Client.List(ctx, &clusterRoleBindingList, client.MatchingLabels(labels))
+				if err != nil {
+					return -1
+				}
+				return len(clusterRoleBindingList.Items)
+			}, timeout, interval).Should(BeNumerically("==", 1))
+
+			// get the vk deployment and delete it
+			vkDeploy, err := controller.getVirtualKubeletDeployment(ctx, resourceOffer)
+			Expect(err).To(BeNil())
+			err = controller.Client.Delete(ctx, vkDeploy)
+			Expect(err).To(BeNil())
+
+			// check the deployment recreation
+			Eventually(func() types.UID {
+				newVkDeploy, err := controller.getVirtualKubeletDeployment(ctx, resourceOffer)
+				if err != nil || newVkDeploy == nil {
+					return vkDeploy.UID // this will cause the eventually statement to not terminate
+				}
+				return newVkDeploy.UID
+			}, timeout, interval).ShouldNot(Equal(vkDeploy.UID))
+
+			err = controller.Client.Get(ctx, client.ObjectKeyFromObject(resourceOffer), resourceOffer)
+			Expect(err).To(BeNil())
+
+			// refuse the offer to delete the virtual-kubelet
+			resourceOffer.Status.Phase = sharingv1alpha1.ResourceOfferRefused
+			err = controller.Client.Status().Update(ctx, resourceOffer)
+			Expect(err).To(BeNil())
+
+			// check that the vk status is set correctly
+			Eventually(func() sharingv1alpha1.VirtualKubeletStatus {
+				if err = controller.Client.Get(ctx, key, resourceOffer); err != nil {
+					return "error"
+				}
+				return resourceOffer.Status.VirtualKubeletStatus
+			}, timeout, interval).Should(Equal(sharingv1alpha1.VirtualKubeletStatusNone))
+
+			// check the deletion of the deployment
+			Eventually(func() int {
+				var deploymentList v1.DeploymentList
+				err := controller.Client.List(ctx, &deploymentList)
+				if err != nil {
+					return -1
+				}
+				return len(deploymentList.Items)
+			}, timeout, interval).Should(BeNumerically("==", 0))
+
+			// check the deletion of the ClusterRoleBinding
+			Eventually(func() int {
+				labels := forge.ClusterRoleLabels(clusterID)
+				var clusterRoleBindingList rbacv1.ClusterRoleBindingList
+				err := controller.Client.List(ctx, &clusterRoleBindingList, client.MatchingLabels(labels))
+				if err != nil {
+					return -1
+				}
+				return len(clusterRoleBindingList.Items)
+			}, timeout, interval).Should(BeNumerically("==", 0))
+
+			err = controller.Client.Delete(ctx, resourceOffer)
+			Expect(err).To(BeNil())
+		})
+
+	})
 
 })

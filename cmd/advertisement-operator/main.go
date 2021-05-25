@@ -25,7 +25,7 @@ import (
 	"k8s.io/client-go/kubernetes"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
-	"k8s.io/klog"
+	"k8s.io/klog/v2"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 
@@ -34,6 +34,7 @@ import (
 	advtypes "github.com/liqotech/liqo/apis/sharing/v1alpha1"
 	advop "github.com/liqotech/liqo/internal/advertisementoperator"
 	resourceRequestOperator "github.com/liqotech/liqo/internal/resource-request-operator"
+	"github.com/liqotech/liqo/pkg/clusterid"
 	crdclient "github.com/liqotech/liqo/pkg/crdClient"
 	resourceoffercontroller "github.com/liqotech/liqo/pkg/liqo-controller-manager/resourceoffer-controller"
 	"github.com/liqotech/liqo/pkg/mapperUtils"
@@ -89,6 +90,7 @@ func main() {
 		"init-kubelet-image", defaultInitVKImage,
 		"The image of the virtual kubelet init container to be deployed")
 
+	klog.InitFlags(nil)
 	flag.Parse()
 
 	if clusterId == "" {
@@ -154,6 +156,12 @@ func main() {
 		os.Exit(1)
 	}
 
+	clusterID, err := clusterid.NewClusterIDFromClient(discoveryClient.Client())
+	if err != nil {
+		klog.Error(err)
+		os.Exit(1)
+	}
+
 	advertisementReconciler := &advop.AdvertisementReconciler{
 		Client:           mgr.GetClient(),
 		Scheme:           mgr.GetScheme(),
@@ -191,7 +199,8 @@ func main() {
 		klog.Fatal(err)
 	}
 
-	resourceOfferReconciler := resourceoffercontroller.NewResourceOfferController(mgr, time.Duration(resyncPeriod))
+	resourceOfferReconciler := resourceoffercontroller.NewResourceOfferController(
+		mgr, clusterID, time.Duration(resyncPeriod), kubeletImage, initKubeletImage)
 	if err = resourceOfferReconciler.SetupWithManager(mgr); err != nil {
 		klog.Fatal(err)
 	}
