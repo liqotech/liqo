@@ -23,7 +23,7 @@ test: unit e2e
 test-container:
 ifeq (, $(shell docker image ls | grep liqo-test))
 	@{ \
-	docker build -t liqo-test build/liqo-test/ ; \
+	docker build -t liqo-test -f build/liqo-test/Dockerfile . ; \
 	}
 endif
 
