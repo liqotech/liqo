@@ -8,10 +8,11 @@ import (
 
 	grpc "google.golang.org/grpc"
 
-	netv1alpha1 "github.com/liqotech/liqo/apis/net/v1alpha1"
-
 	"k8s.io/client-go/dynamic"
 	"k8s.io/kubernetes/pkg/util/slice"
+
+	netv1alpha1 "github.com/liqotech/liqo/apis/net/v1alpha1"
+	liqoconst "github.com/liqotech/liqo/pkg/consts"
 
 	goipam "github.com/metal-stack/go-ipam"
 	"inet.af/netaddr"
@@ -47,7 +48,7 @@ type Ipam interface {
 	this function must not reserve it. If the remote cluster has not remapped
 	a local subnet, then CIDR value should be equal to "None". */
 	AddLocalSubnetsPerCluster(podCIDR, externalCIDR, clusterID string) error
-	// RemoveLocalSubnetsPerCluster deletes the subnets related to a remote cluster
+	// RemoveLocalSubnetsPerCluster deletes the subnets related to a remote cluster.
 	RemoveLocalSubnetsPerCluster(clusterID string) error
 	GetExternalCIDR(mask uint8) (string, error)
 	// SetPodCIDR sets the cluster PodCIDR.
@@ -56,14 +57,19 @@ type Ipam interface {
 	SetServiceCIDR(serviceCIDR string) error
 	// StopGRPCServer stops the gRPC server gracefully.
 	StopGRPCServer()
+	// InitNatMappings does everything necessary to set up NAT mappings for a remote cluster.
+	InitNatMappings(clusterID string) error
+	// TerminateNatMappings deallocates resource used for NAT mappings.
+	TerminateNatMappings(clusterID string) error
 	IpamServer
 }
 
 // IPAM implementation.
 type IPAM struct {
-	ipam        goipam.Ipamer
-	ipamStorage IpamStorage
-	grpcServer  *grpc.Server
+	ipam               goipam.Ipamer
+	ipamStorage        IpamStorage
+	natMappingInflater NatMappingInflaterInterface
+	grpcServer         *grpc.Server
 	UnimplementedIpamServer
 }
 
@@ -115,6 +121,8 @@ func (liqoIPAM *IPAM) Init(pools []string, dynClient dynamic.Interface, listenin
 			return fmt.Errorf("cannot start gRPC server:%w", err)
 		}
 	}
+
+	liqoIPAM.natMappingInflater = NewInflater(dynClient)
 	return nil
 }
 
@@ -420,7 +428,7 @@ func (liqoIPAM *IPAM) GetSubnetsPerCluster(
 	// Push it in clusterSubnets
 	if err := liqoIPAM.ipamStorage.updateClusterSubnets(clusterSubnets); err != nil {
 		_ = liqoIPAM.FreeReservedSubnet(mappedPodCIDR)
-		_ = liqoIPAM.FreeReservedSubnet(externalCIDR)
+		_ = liqoIPAM.FreeReservedSubnet(mappedExternalCIDR)
 		return "", "", fmt.Errorf("cannot update cluster subnets:%w", err)
 	}
 	return mappedPodCIDR, mappedExternalCIDR, nil
@@ -562,6 +570,78 @@ func (liqoIPAM *IPAM) FreeSubnetsPerCluster(clusterID string) error {
 	return nil
 }
 
+// InitNatMappings is a wrapper for inflater InitNatMappings.
+func (liqoIPAM *IPAM) InitNatMappings(clusterID string) error {
+	// Get cluster subnets
+	clusterSubnets, err := liqoIPAM.ipamStorage.getClusterSubnets()
+	if err != nil {
+		return fmt.Errorf("cannot get cluster subnets: %w", err)
+	}
+	subnets, exists := clusterSubnets[clusterID]
+	if !exists {
+		return fmt.Errorf("subnets of cluster %s are not set", clusterID)
+	}
+	var externalCIDR string
+	if subnets.LocalNATExternalCIDR == liqoconst.DefaultCIDRValue {
+		externalCIDR, err = liqoIPAM.ipamStorage.getExternalCIDR()
+		if err != nil {
+			return fmt.Errorf("cannot retrieve cluster ExternalCIDR: %w", err)
+		}
+	}
+	return liqoIPAM.natMappingInflater.InitNatMappings(subnets.RemotePodCIDR, externalCIDR, clusterID)
+}
+
+// TerminateNatMappings is used to update endpointMappings after a cluster peering is terminated.
+func (liqoIPAM *IPAM) TerminateNatMappings(clusterID string) error {
+	// Get NAT mappings
+	// natMappings keys are the set of endpoint reflected on remote cluster.
+	natMappings, err := liqoIPAM.natMappingInflater.GetNatMappings(clusterID)
+	if err != nil {
+		return fmt.Errorf("cannot get NAT mappings for cluster %s:%w", clusterID, err)
+	}
+
+	// Get endpointMappings
+	endpointMappings, err := liqoIPAM.ipamStorage.getEndpointMappings()
+	if err != nil {
+		return fmt.Errorf("cannot get Endpoint IPs: %w", err)
+	}
+
+	// Remove cluster from the list of clusters the endpoint is reflected in.
+	for ip := range natMappings {
+		m := endpointMappings[ip]
+		delete(m.ClusterMappings, clusterID)
+		if len(m.ClusterMappings) == 0 {
+			// There are no more clusters using this endpoint IP
+
+			// Get local ExternalCIDR
+			localExternalCIDR, err := liqoIPAM.ipamStorage.getExternalCIDR()
+			if err != nil {
+				return fmt.Errorf("cannot get ExternalCIDR: %w", err)
+			}
+			// Free IP
+			if err := liqoIPAM.ipam.ReleaseIPFromPrefix(localExternalCIDR, endpointMappings[ip].IP); err != nil {
+				return fmt.Errorf("cannot free IP: %w", err)
+			}
+			klog.Infof("IP %s (mapped from %s) has been freed", endpointMappings[ip].IP, ip)
+			// Delete entry
+			delete(endpointMappings, ip)
+		} else {
+			endpointMappings[ip] = m
+		}
+	}
+
+	// Update endpointMappings
+	if err := liqoIPAM.ipamStorage.updateEndpointMappings(endpointMappings); err != nil {
+		return fmt.Errorf("cannot update endpointMappings:%w", err)
+	}
+
+	// Free
+	if err := liqoIPAM.natMappingInflater.TerminateNatMappings(clusterID); err != nil {
+		return err
+	}
+	return nil
+}
+
 // AddNetworkPool adds a network to the set of network pools.
 func (liqoIPAM *IPAM) AddNetworkPool(network string) error {
 	// Get resource
@@ -689,6 +769,7 @@ func (liqoIPAM *IPAM) AddLocalSubnetsPerCluster(podCIDR, externalCIDR, clusterID
 	clusterSubnets[clusterID] = subnets
 	klog.Infof("Local NAT PodCIDR of cluster %s set to %s", clusterID, podCIDR)
 	klog.Infof("Local NAT ExternalCIDR of cluster %s set to %s", clusterID, externalCIDR)
+
 	// Push it in clusterSubnets
 	if err := liqoIPAM.ipamStorage.updateClusterSubnets(clusterSubnets); err != nil {
 		return fmt.Errorf("cannot update cluster subnets:%w", err)
@@ -818,6 +899,12 @@ func (liqoIPAM *IPAM) mapIPToExternalCIDR(clusterID, remoteExternalCIDR, ip stri
 	if err != nil {
 		return "", fmt.Errorf("cannot map endpoint IP %s to ExternalCIDR:%w", endpointMapping.IP, err)
 	}
+
+	// Add NAT mapping
+	if err := liqoIPAM.natMappingInflater.AddMapping(ip, newIP, clusterID); err != nil {
+		return "", fmt.Errorf("cannot add NAT mapping: %w", err)
+	}
+
 	return newIP, nil
 }
 
@@ -910,6 +997,11 @@ func (liqoIPAM *IPAM) unmapEndpointIPInternal(clusterID, endpointIP string) erro
 		//		belonging to the local PodCIDR, therefore there is no need of do nothing.
 		// b. 	the entry does not exists because it was already deleted, same as above.
 		return nil
+	}
+
+	// Remove NAT mapping
+	if err := liqoIPAM.natMappingInflater.RemoveMapping(endpointIP, clusterID); err != nil {
+		return err
 	}
 
 	// Set endpoint IP as unused by deleting entry of cluster
