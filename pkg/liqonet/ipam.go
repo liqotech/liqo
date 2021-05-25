@@ -928,6 +928,11 @@ func (liqoIPAM *IPAM) mapIPToExternalCIDR(clusterID, remoteExternalCIDR, ip stri
 		return "", fmt.Errorf("cannot map endpoint IP %s to ExternalCIDR:%w", endpointMapping.IP, err)
 	}
 
+	// Add NAT mapping
+	if err := liqoIPAM.natMappingInflater.AddMapping(ip, newIP, clusterID); err != nil {
+		return "", fmt.Errorf("cannot add NAT mapping: %w", err)
+	}
+
 	return newIP, nil
 }
 
@@ -1073,6 +1078,11 @@ func (liqoIPAM *IPAM) unmapEndpointIPInternal(clusterID, endpointIP string) erro
 		//		belonging to the local PodCIDR, therefore there is no need of do nothing.
 		// b. 	the entry does not exists because it was already deleted, same as above.
 		return nil
+	}
+
+	// Remove NAT mapping
+	if err := liqoIPAM.natMappingInflater.RemoveMapping(endpointIP, clusterID); err != nil {
+		return err
 	}
 
 	// Set endpoint IP as unused by deleting entry of cluster

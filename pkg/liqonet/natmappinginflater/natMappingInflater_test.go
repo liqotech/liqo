@@ -187,4 +187,99 @@ var _ = Describe("NatMappingInflater", func() {
 			})
 		})
 	})
+	Describe("AddMapping", func() {
+		Context("Call func without initializing NAT mappings", func() {
+			It("should return a MissingInit error", func() {
+				err := inflater.AddMapping("10.0.0.1", "192.168.0.1", clusterID1)
+				Expect(err).To(MatchError(fmt.Sprintf("%s for cluster %s must be %s", consts.NatMappingKind, clusterID1, errors.Initialization)))
+			})
+		})
+		Context("Call func after correct initialization", func() {
+			It("should successfully add the mapping", func() {
+				// Init
+				err := inflater.InitNatMappingsPerCluster("10.0.0.0/24", "10.0.1.0/24", "cluster1")
+				Expect(err).To(BeNil())
+
+				err = inflater.AddMapping("10.0.0.1", "192.168.0.1", "cluster1")
+				Expect(err).To(BeNil())
+				mappings, err := inflater.GetNatMappings("cluster1")
+				Expect(mappings).To(HaveKeyWithValue("10.0.0.1", "192.168.0.1"))
+			})
+		})
+		Context("Call func twice with same parameters", func() {
+			It("should return no errors", func() {
+				// Init
+				err := inflater.InitNatMappingsPerCluster("10.0.0.0/24", "10.0.1.0/24", "cluster1")
+				Expect(err).To(BeNil())
+
+				err = inflater.AddMapping("10.0.0.1", "192.168.0.1", "cluster1")
+				Expect(err).To(BeNil())
+				err = inflater.AddMapping("10.0.0.1", "192.168.0.1", "cluster1")
+				Expect(err).To(BeNil())
+			})
+		})
+		Context("Call func twice with different new IP", func() {
+			It("should return no errors and update the mapping", func() {
+				// Init
+				err := inflater.InitNatMappingsPerCluster("10.0.0.0/24", "10.0.1.0/24", "cluster1")
+				Expect(err).To(BeNil())
+
+				err = inflater.AddMapping("10.0.0.1", "192.168.0.1", "cluster1")
+				Expect(err).To(BeNil())
+
+				err = inflater.AddMapping("10.0.0.1", "192.168.0.2", "cluster1")
+				Expect(err).To(BeNil())
+
+				// Check if updated successfully
+				mappings, err := inflater.GetNatMappings("cluster1")
+				Expect(mappings).To(HaveKeyWithValue("10.0.0.1", "192.168.0.2"))
+			})
+		})
+	})
+	Describe("RemoveMapping", func() {
+		Context("Call func without initializing NAT mappings", func() {
+			It("should return a MissingInit error", func() {
+				err := inflater.RemoveMapping("10.0.0.1", clusterID1)
+				Expect(err).To(MatchError(fmt.Sprintf("%s for cluster %s must be %s", consts.NatMappingKind, clusterID1, errors.Initialization)))
+			})
+		})
+		Context("Call func after correct initialization", func() {
+			It("should successfully remove the mapping", func() {
+				// Init
+				err := inflater.InitNatMappingsPerCluster("10.0.0.0/24", "10.0.1.0/24", "cluster1")
+				Expect(err).To(BeNil())
+
+				// Add mapping
+				err = inflater.AddMapping("10.0.0.1", "192.168.0.1", "cluster1")
+				Expect(err).To(BeNil())
+
+				// Remove mapping
+				err = inflater.RemoveMapping("10.0.0.1", "cluster1")
+				Expect(err).To(BeNil())
+
+				// Check if removed successfully
+				mappings, err := inflater.GetNatMappings("cluster1")
+				Expect(mappings).ToNot(HaveKeyWithValue("10.0.0.1", "192.168.0.1"))
+			})
+		})
+		Context("Call func twice", func() {
+			It("should return no errors", func() {
+				// Init
+				err := inflater.InitNatMappingsPerCluster("10.0.0.0/24", "10.0.1.0/24", "cluster1")
+				Expect(err).To(BeNil())
+
+				// Add mapping
+				err = inflater.AddMapping("10.0.0.1", "192.168.0.1", "cluster1")
+				Expect(err).To(BeNil())
+
+				// Remove mapping
+				err = inflater.RemoveMapping("10.0.0.1", "cluster1")
+				Expect(err).To(BeNil())
+
+				// Remove mapping for the second time
+				err = inflater.RemoveMapping("10.0.0.1", "cluster1")
+				Expect(err).To(BeNil())
+			})
+		})
+	})
 })
