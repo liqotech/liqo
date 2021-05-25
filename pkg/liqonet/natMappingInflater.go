@@ -199,10 +199,14 @@ func (inflater *NatMappingInflater) getNatMappings(clusterID string) (*netv1alph
 }
 
 // GetNatMappings retrieves resource relative to a remote cluster and returns a slice of NAT mappings.
+// If there are no mappings for the remote cluster, it returns nil.
 func (inflater *NatMappingInflater) GetNatMappings(clusterID string) (map[string]string, error) {
 	res, err := inflater.getNatMappings(clusterID)
-	if err != nil {
-		return nil, fmt.Errorf("cannot retrieve natMapping resource for cluster %s: %w", clusterID, err)
+	if err != nil && !errors.IsNotFound(err) {
+		return nil, err
+	}
+	if err != nil && errors.IsNotFound(err) {
+		return nil, nil
 	}
 	return res.Spec.Mappings, nil
 }

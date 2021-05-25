@@ -120,6 +120,7 @@ type TunnelEndpointCreator struct {
 // +kubebuilder:rbac:groups=net.liqo.io,resources=networkconfigs,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=net.liqo.io,resources=networkconfigs/status,verbs=get;update;patch
 // +kubebuilder:rbac:groups=net.liqo.io,resources=ipamstorages,verbs=get;list;create;update;patch
+// +kubebuilder:rbac:groups=net.liqo.io,resources=natmappings,verbs=get;list;create;update;patch;delete
 // +kubebuilder:rbac:groups=discovery.liqo.io,resources=foreignclusters,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=discovery.liqo.io,resources=foreignclusters/status,verbs=get;update;patch
 // +kubebuilder:rbac:groups=config.liqo.io,resources=clusterconfigs,verbs=get;list;watch;create;update;patch;delete
@@ -187,12 +188,15 @@ func (tec *TunnelEndpointCreator) Reconcile(ctx context.Context, req ctrl.Reques
 				return result, err
 			}
 		}
-		// remove the reserved networks for the cluster
+		// remove the reserved networks for the cluster and terminate NAT mappings
+		if err := tec.IPManager.TerminateNatMappings(netConfig.Spec.ClusterID); err != nil {
+			klog.Errorf("cannot terminate NAT mappings for cluster %s: %s", netConfig.Spec.ClusterID, err.Error())
+		}
 		if err := tec.IPManager.FreeSubnetsPerCluster(netConfig.Spec.ClusterID); err != nil {
-			klog.Errorf("cannot free networks assigned to cluster %s", netConfig.Spec.ClusterID)
+			klog.Errorf("cannot free networks assigned to cluster %s: %s", netConfig.Spec.ClusterID, err.Error())
 		}
 		if err := tec.IPManager.RemoveLocalSubnetsPerCluster(netConfig.Spec.ClusterID); err != nil {
-			klog.Errorf("cannot delete local subnets assigned to cluster %s", netConfig.Spec.ClusterID)
+			klog.Errorf("cannot delete local subnets assigned to cluster %s: %s", netConfig.Spec.ClusterID, err.Error())
 		}
 		return result, nil
 	}
@@ -483,6 +487,10 @@ func (tec *TunnelEndpointCreator) processLocalNetConfig(netConfig *netv1alpha1.N
 		if err := tec.IPManager.AddLocalSubnetsPerCluster(netConfig.Status.PodCIDRNAT,
 			netConfig.Status.ExternalCIDRNAT,
 			netConfig.Spec.ClusterID); err != nil {
+			return err
+		}
+		// Init NAT mappings
+		if err := tec.IPManager.InitNatMappings(netConfig.Spec.ClusterID); err != nil {
 			return err
 		}
 		return nil

@@ -587,6 +587,8 @@ func (liqoIPAM *IPAM) InitNatMappings(clusterID string) error {
 		if err != nil {
 			return fmt.Errorf("cannot retrieve cluster ExternalCIDR: %w", err)
 		}
+	} else {
+		externalCIDR = subnets.LocalNATExternalCIDR
 	}
 	return liqoIPAM.natMappingInflater.InitNatMappings(subnets.RemotePodCIDR, externalCIDR, clusterID)
 }
@@ -599,7 +601,10 @@ func (liqoIPAM *IPAM) TerminateNatMappings(clusterID string) error {
 	if err != nil {
 		return fmt.Errorf("cannot get NAT mappings for cluster %s:%w", clusterID, err)
 	}
-
+	if natMappings == nil {
+		// Already deleted
+		return nil
+	}
 	// Get endpointMappings
 	endpointMappings, err := liqoIPAM.ipamStorage.getEndpointMappings()
 	if err != nil {

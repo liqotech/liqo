@@ -31,6 +31,7 @@ import (
 
 	clusterConfig "github.com/liqotech/liqo/apis/config/v1alpha1"
 	netv1alpha1 "github.com/liqotech/liqo/apis/net/v1alpha1"
+	natmapping_operator "github.com/liqotech/liqo/internal/liqonet/natmappingoperator"
 	route_operator "github.com/liqotech/liqo/internal/liqonet/route-operator"
 	tunnel_operator "github.com/liqotech/liqo/internal/liqonet/tunnel-operator"
 	"github.com/liqotech/liqo/internal/liqonet/tunnelEndpointCreator"
@@ -102,7 +103,15 @@ func main() {
 			klog.Errorf("an error occurred while creating wireguard client: %v", err)
 			os.Exit(1)
 		}
-		tc, err := tunnel_operator.NewTunnelController(mgr, wgc, wireguard.NewNetLinker())
+
+		// This map is used by the tunnel-operator by inserting clusters whose
+		// tunnel is ready (this means also that IPTables chains are inserted).
+		// The map is consumed also by the natmapping-operator, that
+		// ensure the NAT rules only if a cluster tunnel is ready.
+		readyClusters := make(map[string]struct{})
+
+		// Register tunnel controller
+		tc, err := tunnel_operator.NewTunnelController(mgr, wgc, wireguard.NewNetLinker(), readyClusters)
 		if err != nil {
 			klog.Errorf("an error occurred while creating the tunnel controller: %v", err)
 			os.Exit(1)
@@ -122,6 +131,16 @@ func main() {
 		}
 		if err = tc.SetupWithManager(mgr); err != nil {
 			klog.Errorf("unable to setup tunnel controller: %s", err)
+			os.Exit(1)
+		}
+
+		// Register NatMapping controller
+		npc, err := natmapping_operator.NewNatMappingController(mgr, readyClusters)
+		if err != nil {
+			klog.Errorf("an error occurred while creating NatMappingController:%s", err.Error())
+		}
+		if err := npc.SetupWithManager(mgr); err != nil {
+			klog.Errorf("unable to setup NatMappingController: %s", err)
 			os.Exit(1)
 		}
 		klog.Info("Starting manager as Tunnel-Operator")

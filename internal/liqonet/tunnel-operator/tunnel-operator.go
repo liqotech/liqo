@@ -58,17 +58,18 @@ type TunnelController struct {
 	tunnel.Driver
 	utils.NetLink
 	utils.IPTablesHandler
-	DefaultIface string
-	k8sClient    *k8s.Clientset
-	wg           *wireguard.Wireguard
-	drivers      map[string]tunnel.Driver
-	namespace    string
-	podIP        string
-	isGKE        bool
-	isConfigured bool
-	configChan   chan bool
-	stopPWChan   chan struct{}
-	stopSWChan   chan struct{}
+	readyClusters map[string]struct{}
+	DefaultIface  string
+	k8sClient     *k8s.Clientset
+	wg            *wireguard.Wireguard
+	drivers       map[string]tunnel.Driver
+	namespace     string
+	podIP         string
+	isGKE         bool
+	isConfigured  bool
+	configChan    chan bool
+	stopPWChan    chan struct{}
+	stopSWChan    chan struct{}
 }
 
 // cluster-role
@@ -82,7 +83,8 @@ type TunnelController struct {
 // +kubebuilder:rbac:groups=core,namespace="do-not-care",resources=pods,verbs=get;list;watch;update
 
 // NewTunnelController instantiates and initializes the tunnel controller.
-func NewTunnelController(mgr ctrl.Manager, wgc wireguard.Client, nl wireguard.Netlinker) (*TunnelController, error) {
+func NewTunnelController(mgr ctrl.Manager, wgc wireguard.Client,
+	nl wireguard.Netlinker, readyClusters map[string]struct{}) (*TunnelController, error) {
 	clientSet := k8s.NewForConfigOrDie(mgr.GetConfig())
 	namespace, err := utils.GetPodNamespace()
 	if err != nil {
@@ -128,6 +130,7 @@ func NewTunnelController(mgr ctrl.Manager, wgc wireguard.Client, nl wireguard.Ne
 		DefaultIface:  iface,
 		wg:            wg,
 		configChan:    make(chan bool),
+		readyClusters: readyClusters,
 	}
 	err = tc.SetUpTunnelDrivers()
 	if err != nil {
@@ -177,6 +180,9 @@ func (tc *TunnelController) Reconcile(ctx context.Context, req ctrl.Request) (ct
 			if err := tc.disconnectFromPeer(&endpoint); err != nil {
 				return ctrl.Result{}, err
 			}
+			if err := tc.RemoveIPTablesConfigurationPerCluster(endpoint.Spec.ClusterID); err != nil {
+				return result, err
+			}
 			if err := tc.RemoveRoutesPerCluster(&endpoint); err != nil {
 				return result, err
 			}
@@ -186,6 +192,8 @@ func (tc *TunnelController) Reconcile(ctx context.Context, req ctrl.Request) (ct
 					return result, err
 				}
 			}
+			// Remove cluster from the list of ready clusters
+			delete(tc.readyClusters, endpoint.Spec.ClusterID)
 			// remove the finalizer from the list and update it.
 			endpoint.Finalizers = utils.RemoveString(endpoint.Finalizers, tunnelEndpointFinalizer)
 			if err := tc.Update(ctx, &endpoint); err != nil {
@@ -199,6 +207,9 @@ func (tc *TunnelController) Reconcile(ctx context.Context, req ctrl.Request) (ct
 	}
 	con, err := tc.connectToPeer(&endpoint)
 	if err != nil {
+		return result, err
+	}
+	if err := tc.EnsureChainsPerCluster(endpoint.Spec.ClusterID); err != nil {
 		return result, err
 	}
 	if err := tc.EnsureIPTablesRulesPerCluster(&endpoint); err != nil {
@@ -221,6 +232,8 @@ func (tc *TunnelController) Reconcile(ctx context.Context, req ctrl.Request) (ct
 		klog.Errorf("%s -> an error occurred while updating status of resource %s: %s", endpoint.Spec.ClusterID, endpoint.Name, err)
 		return result, err
 	}
+	// Set tunnel as ready
+	tc.readyClusters[endpoint.Spec.ClusterID] = struct{}{}
 	return result, nil
 }
 
@@ -281,7 +294,7 @@ func (tc *TunnelController) RemoveAllTunnels() {
 
 func (tc *TunnelController) EnsureIPTablesRulesPerCluster(tep *netv1alpha1.TunnelEndpoint) error {
 	clusterID := tep.Spec.ClusterID
-	if err := tc.EnsureChainRulespecs(tep); err != nil {
+	if err := tc.EnsureChainRulespecsPerTep(tep); err != nil {
 		klog.Errorf("%s -> an error occurred while creating iptables chains for the remote peer: %v", clusterID, err)
 		tc.Eventf(tep, "Warning", "Processing", "unable to insert iptables rules: %v", err)
 		return err
@@ -291,7 +304,7 @@ func (tc *TunnelController) EnsureIPTablesRulesPerCluster(tep *netv1alpha1.Tunne
 		tc.Eventf(tep, "Warning", "Processing", "unable to insert iptables rules: %v", err)
 		return err
 	}
-	if err := tc.EnsurePreroutingRules(tep); err != nil {
+	if err := tc.EnsurePreroutingRulesPerTep(tep); err != nil {
 		klog.Errorf("%s -> an error occurred while inserting iptables prerouting rules for the remote peer: %v", clusterID, err)
 		tc.Eventf(tep, "Warning", "Processing", "unable to insert iptables rules: %v", err)
 		return err
