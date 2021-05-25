@@ -12,14 +12,28 @@ import (
 	. "github.com/onsi/gomega"
 	"github.com/vishvananda/netlink"
 	"k8s.io/klog/v2"
+
+	netv1alpha1 "github.com/liqotech/liqo/apis/net/v1alpha1"
 )
 
 var (
 	ipAddress1             = "10.0.0.1/24"
+	ipAddress1NoSubnet     = "10.0.0.1"
 	ipAddress2             = "10.0.0.2/24"
+	ipAddress2NoSubnet     = "10.0.0.2"
 	dummylink1, dummyLink2 netlink.Link
 	iFacesNames            = []string{"lioo-test-1", "liqo-test-2"}
+	drm                    Routing
+
+	tep netv1alpha1.TunnelEndpoint
 )
+
+type routingInfo struct {
+	destinationNet string
+	gatewayIP      string
+	iFaceIndex     int
+	routingTableID int
+}
 
 func TestRouting(t *testing.T) {
 	RegisterFailHandler(Fail)
@@ -27,7 +41,18 @@ func TestRouting(t *testing.T) {
 }
 
 var _ = BeforeSuite(func() {
+	var err error
 	setUpInterfaces()
+	drm, err = NewDirectRoutingManager(routingTableIDDRM, ipAddress1NoSubnet)
+	Expect(err).Should(BeNil())
+	Expect(drm).NotTo(BeNil())
+	tep = netv1alpha1.TunnelEndpoint{
+		Status: netv1alpha1.TunnelEndpointStatus{
+			LocalNATPodCIDR:  "10.150.0.0/16",
+			RemoteNATPodCIDR: "10.250.0.0/16",
+			VethIFaceIndex:   12345,
+			GatewayIP:        ipAddress2NoSubnet,
+		}}
 })
 
 var _ = AfterSuite(func() {
@@ -87,33 +112,44 @@ func tearDownInterfaces() {
 	}
 }
 
-func setUpRoutes() {
-	dst1 := "10.10.0.0/16"
-	gw1 := "10.0.0.10"
-	dst2 := "10.11.0.0/24"
-	// Add route 1.
-	_, dstNet1, err := net.ParseCIDR(dst1)
-	Expect(err).Should(BeNil())
-	gw := net.ParseIP(gw1)
-	Expect(gw).ShouldNot(BeNil())
-	err = netlink.RouteAdd(&netlink.Route{Dst: dstNet1, Gw: gw, Table: routingTableID, LinkIndex: dummylink1.Attrs().Index})
-	Expect(err).Should(BeNil())
-	existingRouteGW = &netlink.Route{Dst: dstNet1, Table: routingTableID, Gw: gw}
-	// Add route 2.
-	_, dstNet2, err := net.ParseCIDR(dst2)
-	Expect(err).Should(BeNil())
-	err = netlink.RouteAdd(&netlink.Route{Dst: dstNet2, Table: routingTableID, LinkIndex: dummylink1.Attrs().Index})
-	Expect(err).Should(BeNil())
-	existingRoute = &netlink.Route{Dst: dstNet2, Table: routingTableID}
+func setUpRoutes(routes []routingInfo) []*netlink.Route {
+	r := make([]*netlink.Route, 2)
+	for i := range routes {
+		var gwIP net.IP
+		var route *netlink.Route
+		// Parse destination network.
+		_, dstNet, err := net.ParseCIDR(routes[i].destinationNet)
+		Expect(err).Should(BeNil())
+		// Parse gateway ip address if set.
+		if routes[i].gatewayIP != "" {
+			gwIP = net.ParseIP(routes[i].gatewayIP)
+			Expect(gwIP).ShouldNot(BeNil())
+		}
+		route = &netlink.Route{Dst: dstNet, Gw: gwIP, Table: routes[i].routingTableID, LinkIndex: routes[i].iFaceIndex}
+		err = netlink.RouteAdd(route)
+		Expect(err).Should(BeNil())
+		r[i] = route
+		rule := netlink.NewRule()
+		rule.Dst = dstNet
+		rule.Table = routes[i].routingTableID
+		Expect(netlink.RuleAdd(rule)).Should(BeNil())
+	}
+	return r
 }
 
-func tearDownRoutes() {
-	// Remove all routes on the custom routing table
-	routes, err := netlink.RouteListFiltered(netlink.FAMILY_V4, existingRouteGW, netlink.RT_FILTER_TABLE)
+func tearDownRoutes(tableID int) {
+	routes, err := netlink.RouteListFiltered(netlink.FAMILY_V4, &netlink.Route{Table: tableID}, netlink.RT_FILTER_TABLE)
 	Expect(err).Should(BeNil())
 	for i := range routes {
-		if routes[i].Table == routingTableID {
+		if routes[i].Table == tableID {
 			Expect(netlink.RouteDel(&routes[i])).Should(BeNil())
+		}
+	}
+	rules, err := netlink.RuleList(netlink.FAMILY_V4)
+	Expect(err).Should(BeNil())
+	for i := range rules {
+		if rules[i].Table == tableID || rules[i].Table == 12345 {
+			Expect(netlink.RuleDel(&rules[i])).Should(BeNil())
 		}
 	}
 }

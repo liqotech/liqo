@@ -2,7 +2,6 @@ package routing
 
 import (
 	"errors"
-	"fmt"
 	"net"
 	"reflect"
 
@@ -13,30 +12,6 @@ import (
 	"golang.org/x/sys/unix"
 	"k8s.io/klog/v2"
 )
-
-var (
-	routingTableID = 18952
-)
-
-// WrongParameter it is returned when parameters passed to a function are not correct.
-type WrongParameter struct {
-	Type string
-	Text string
-}
-
-func (wp *WrongParameter) Error() string {
-	return "wrong " + wp.Type + " parameters: " + wp.Text
-}
-
-// ParseIPError it is returned when net.ParseIP() fails to parse and ip address.
-type ParseIPError struct {
-	Type         string
-	IPToBeParsed string
-}
-
-func (pie *ParseIPError) Error() string {
-	return "please check that the IP address is in che correct format" + pie.Type + ": " + pie.IPToBeParsed
-}
 
 func addRoute(dstNet, gwIP string, iFaceIndex, tableID int) (bool, error) {
 	var route *netlink.Route
@@ -247,8 +222,7 @@ func getIFaceIndexForIP(ipAddress string) (int, error) {
 	// Convert the given IP address from string to net.IP format
 	ip := net.ParseIP(ipAddress)
 	if ip == nil {
-		return 0, &ParseIPError{
-			Type:         "IP address",
+		return 0, &liqonet.ParseIPError{
 			IPToBeParsed: ipAddress,
 		}
 	}
@@ -266,15 +240,15 @@ func getIFaceIndexForIP(ipAddress string) (int, error) {
 			return routes[i].LinkIndex, nil
 		}
 	}
-	return 0, fmt.Errorf("no route found for IP address %s", ipAddress)
+	return 0, &liqonet.NoRouteFound{IPAddress: ipAddress}
 }
 
 func validatePolicyRoutingRulesParameters(fromSubnet, toSubnet string) (sourceNet, destinationNet *net.IPNet, err error) {
 	// Check that at least one between source and destination networks are defined.
 	if fromSubnet == "" && toSubnet == "" {
-		return nil, nil, &WrongParameter{
-			Type: "input",
-			Text: "at least one between fromSubnet and toSubnet has to be not empty",
+		return nil, nil, &liqonet.WrongParameter{
+			Reason:    liqonet.AtLeastOneValid,
+			Parameter: "fromSubnet and toSubnet",
 		}
 	}
 	// If toSubnet is empty string than do not parse it.
@@ -299,8 +273,7 @@ func validatePolicyRoutingRulesParameters(fromSubnet, toSubnet string) (sourceNe
 func parseIP(ip string) (net.IP, error) {
 	address := net.ParseIP(ip)
 	if address == nil {
-		return address, &ParseIPError{
-			Type:         "IP address",
+		return address, &liqonet.ParseIPError{
 			IPToBeParsed: ip,
 		}
 	}
