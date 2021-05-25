@@ -1,10 +1,9 @@
 package routing
 
 import (
-	"fmt"
 	"net"
 
-	netv1alpha1 "github.com/liqotech/liqo/apis/net/v1alpha1"
+	"github.com/liqotech/liqo/pkg/liqonet"
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
@@ -12,25 +11,32 @@ import (
 )
 
 var (
-	dstNetCorrect                         = "10.244.0.0/16"
-	srcNetCorrect                         = "10.200.0.0/16"
-	gwIPCorrect                           = "10.0.0.5"
-	dstNetWrong                           = "10.244.0.0.16"
-	srcNetWrong                           = "10.200.00/16"
-	gwIPWrong                             = "10.00.5"
-	notReachableIP                        = "10.100.1.1"
-	route, existingRoute, existingRouteGW *netlink.Route
-	existingRuleTo, existingRuleFrom      *netlink.Rule
-	destinationNet                        *net.IPNet
-	gatewayIP                             net.IP
-	// Only the fields required for testing purposes are set.
-	tep = netv1alpha1.TunnelEndpoint{
-		Status: netv1alpha1.TunnelEndpointStatus{
-			LocalNATPodCIDR:  "10.150.0.0/16",
-			RemoteNATPodCIDR: "10.250.0.0/16",
-			VethIFaceIndex:   10,
-			GatewayIP:        gwIPCorrect,
+	dstNetCorrect                    = "10.244.0.0/16"
+	srcNetCorrect                    = "10.200.0.0/16"
+	gwIPCorrect                      = "10.0.0.5"
+	dstNetWrong                      = "10.244.0.0.16"
+	srcNetWrong                      = "10.200.00/16"
+	gwIPWrong                        = "10.00.5"
+	notReachableIP                   = "10.100.1.1"
+	route                            *netlink.Route
+	existingRuleTo, existingRuleFrom *netlink.Rule
+	destinationNet                   *net.IPNet
+	gatewayIP                        net.IP
+
+	routesCM = []routingInfo{
+		{
+			destinationNet: "10.10.0.0/16",
+			gatewayIP:      "10.0.0.10",
+			iFaceIndex:     0,
+			routingTableID: routingTableID,
+		},
+		{
+			destinationNet: "10.11.0.0/16",
+			gatewayIP:      "",
+			iFaceIndex:     0,
+			routingTableID: routingTableID,
 		}}
+	existingRoutesCM []*netlink.Route
 )
 
 var _ = Describe("Common", func() {
@@ -43,6 +49,10 @@ var _ = Describe("Common", func() {
 		// Parse gwIPCorrect.
 		gatewayIP = net.ParseIP(gwIPCorrect)
 		Expect(gatewayIP).ShouldNot(BeNil())
+		// Populate the index of the routes with the correct one.
+		for i := range routesCM {
+			routesCM[i].iFaceIndex = dummylink1.Attrs().Index
+		}
 	})
 
 	Describe("adding new route", func() {
@@ -56,7 +66,7 @@ var _ = Describe("Common", func() {
 			It("should return error on wrong gateway IP address", func() {
 				added, err := addRoute(dstNetCorrect, gwIPWrong, dummylink1.Attrs().Index, routingTableID)
 				Expect(added).Should(Equal(false))
-				Expect(err).Should(Equal(&ParseIPError{Type: "IP address", IPToBeParsed: gwIPWrong}))
+				Expect(err).Should(Equal(&liqonet.ParseIPError{IPToBeParsed: gwIPWrong}))
 			})
 		})
 
@@ -92,61 +102,61 @@ var _ = Describe("Common", func() {
 
 		Context("when route does exist and we want to add it", func() {
 			JustBeforeEach(func() {
-				setUpRoutes()
+				existingRoutesCM = setUpRoutes(routesCM)
 			})
 
 			JustAfterEach(func() {
-				tearDownRoutes()
+				tearDownRoutes(routingTableID)
 			})
 
 			It("should return false and nil", func() {
 				// Add existing route with GW.
-				added, err := addRoute(existingRouteGW.Dst.String(), existingRouteGW.Gw.String(), dummylink1.Attrs().Index, routingTableID)
+				added, err := addRoute(existingRoutesCM[0].Dst.String(), existingRoutesCM[0].Gw.String(), existingRoutesCM[0].LinkIndex, existingRoutesCM[0].Table)
 				Expect(added).Should(Equal(false))
 				Expect(err).NotTo(HaveOccurred())
 
 				// Add existing route without GW.
-				added, err = addRoute(existingRoute.Dst.String(), "", dummylink1.Attrs().Index, routingTableID)
+				added, err = addRoute(existingRoutesCM[1].Dst.String(), "", existingRoutesCM[1].LinkIndex, existingRoutesCM[1].Table)
 				Expect(added).Should(Equal(false))
 				Expect(err).NotTo(HaveOccurred())
 			})
 
 			It("update gateway of existing route: should return true and nil", func() {
 				// Update route with GW
-				added, err := addRoute(existingRouteGW.Dst.String(), "", dummylink1.Attrs().Index, routingTableID)
+				added, err := addRoute(existingRoutesCM[0].Dst.String(), "", existingRoutesCM[0].LinkIndex, existingRoutesCM[0].Table)
 				Expect(added).Should(Equal(true))
 				Expect(err).NotTo(HaveOccurred())
 				// Get the route and check it has the right parameters
-				routes, err := netlink.RouteListFiltered(netlink.FAMILY_V4, existingRouteGW, netlink.RT_FILTER_DST|netlink.RT_FILTER_TABLE)
+				routes, err := netlink.RouteListFiltered(netlink.FAMILY_V4, existingRoutesCM[0], netlink.RT_FILTER_DST|netlink.RT_FILTER_TABLE)
 				Expect(err).NotTo(HaveOccurred())
 				Expect(routes[0].Gw).Should(BeNil())
 
 				// Update route without GW
-				added, err = addRoute(existingRoute.Dst.String(), gwIPCorrect, dummylink1.Attrs().Index, routingTableID)
+				added, err = addRoute(existingRoutesCM[1].Dst.String(), gwIPCorrect, existingRoutesCM[1].LinkIndex, existingRoutesCM[1].Table)
 				Expect(added).Should(Equal(true))
 				Expect(err).NotTo(HaveOccurred())
 				// Get the route and check it has the right parameters
-				routes, err = netlink.RouteListFiltered(netlink.FAMILY_V4, existingRoute, netlink.RT_FILTER_DST|netlink.RT_FILTER_TABLE)
+				routes, err = netlink.RouteListFiltered(netlink.FAMILY_V4, existingRoutesCM[1], netlink.RT_FILTER_DST|netlink.RT_FILTER_TABLE)
 				Expect(err).NotTo(HaveOccurred())
 				Expect(routes[0].Gw.String()).Should(Equal(gwIPCorrect))
 			})
 
 			It("update link index of existing route: should return true and nil", func() {
 				// Update route with GW
-				added, err := addRoute(existingRouteGW.Dst.String(), existingRouteGW.Gw.String(), dummyLink2.Attrs().Index, routingTableID)
+				added, err := addRoute(existingRoutesCM[0].Dst.String(), existingRoutesCM[0].Gw.String(), dummyLink2.Attrs().Index, existingRoutesCM[0].Table)
 				Expect(added).Should(Equal(true))
 				Expect(err).NotTo(HaveOccurred())
 				// Get the route and check it has the right parameters
-				routes, err := netlink.RouteListFiltered(netlink.FAMILY_V4, existingRouteGW, netlink.RT_FILTER_DST|netlink.RT_FILTER_TABLE)
+				routes, err := netlink.RouteListFiltered(netlink.FAMILY_V4, existingRoutesCM[0], netlink.RT_FILTER_DST|netlink.RT_FILTER_TABLE)
 				Expect(err).NotTo(HaveOccurred())
 				Expect(routes[0].LinkIndex).Should(BeNumerically("==", dummyLink2.Attrs().Index))
 
 				// Update route without GW
-				added, err = addRoute(existingRoute.Dst.String(), gwIPCorrect, dummyLink2.Attrs().Index, routingTableID)
+				added, err = addRoute(existingRoutesCM[1].Dst.String(), gwIPCorrect, dummyLink2.Attrs().Index, existingRoutesCM[1].Table)
 				Expect(added).Should(Equal(true))
 				Expect(err).NotTo(HaveOccurred())
 				// Get the route and check it has the right parameters
-				routes, err = netlink.RouteListFiltered(netlink.FAMILY_V4, existingRoute, netlink.RT_FILTER_DST|netlink.RT_FILTER_TABLE)
+				routes, err = netlink.RouteListFiltered(netlink.FAMILY_V4, existingRoutesCM[1], netlink.RT_FILTER_DST|netlink.RT_FILTER_TABLE)
 				Expect(err).NotTo(HaveOccurred())
 				Expect(routes[0].LinkIndex).Should(BeNumerically("==", dummyLink2.Attrs().Index))
 				Expect(routes[0].Gw.String()).Should(Equal(gwIPCorrect))
@@ -165,7 +175,7 @@ var _ = Describe("Common", func() {
 			It("should return error on wrong gateway IP address", func() {
 				removed, err := delRoute(dstNetCorrect, gwIPWrong, dummylink1.Attrs().Index, routingTableID)
 				Expect(removed).Should(Equal(false))
-				Expect(err).Should(Equal(&ParseIPError{Type: "IP address", IPToBeParsed: gwIPWrong}))
+				Expect(err).Should(Equal(&liqonet.ParseIPError{IPToBeParsed: gwIPWrong}))
 			})
 		})
 
@@ -193,31 +203,31 @@ var _ = Describe("Common", func() {
 
 		Context("when route does exist and we want to delete it", func() {
 			JustBeforeEach(func() {
-				setUpRoutes()
+				existingRoutesCM = setUpRoutes(routesCM)
 			})
 
 			JustAfterEach(func() {
-				tearDownRoutes()
+				tearDownRoutes(routingTableID)
 			})
 
 			It("with gateway, should return true and nil", func() {
 				// Delete existing route with GW.
-				removed, err := delRoute(existingRouteGW.Dst.String(), existingRouteGW.Gw.String(), dummylink1.Attrs().Index, routingTableID)
+				removed, err := delRoute(existingRoutesCM[0].Dst.String(), existingRoutesCM[0].Gw.String(), existingRoutesCM[0].LinkIndex, existingRoutesCM[0].Table)
 				Expect(removed).Should(Equal(true))
 				Expect(err).NotTo(HaveOccurred())
 				// Expecting no routes exist for the given destination.
-				routes, err := netlink.RouteListFiltered(netlink.FAMILY_V4, existingRouteGW, netlink.RT_FILTER_DST|netlink.RT_FILTER_TABLE)
+				routes, err := netlink.RouteListFiltered(netlink.FAMILY_V4, existingRoutesCM[0], netlink.RT_FILTER_DST|netlink.RT_FILTER_TABLE)
 				Expect(len(routes)).Should(BeNumerically("==", 0))
 				Expect(err).NotTo(HaveOccurred())
 			})
 
 			It("without gateway, should return true and nil", func() {
 				// Del existing route without GW.
-				removed, err := delRoute(existingRoute.Dst.String(), "", dummylink1.Attrs().Index, routingTableID)
+				removed, err := delRoute(existingRoutesCM[1].Dst.String(), "", existingRoutesCM[1].LinkIndex, existingRoutesCM[1].Table)
 				Expect(removed).Should(Equal(true))
 				Expect(err).NotTo(HaveOccurred())
 				// Expecting no routes exist for the given destination.
-				routes, err := netlink.RouteListFiltered(netlink.FAMILY_V4, existingRoute, netlink.RT_FILTER_DST|netlink.RT_FILTER_TABLE)
+				routes, err := netlink.RouteListFiltered(netlink.FAMILY_V4, existingRoutesCM[1], netlink.RT_FILTER_DST|netlink.RT_FILTER_TABLE)
 				Expect(len(routes)).Should(BeNumerically("==", 0))
 				Expect(err).NotTo(HaveOccurred())
 			})
@@ -226,18 +236,18 @@ var _ = Describe("Common", func() {
 
 	Describe("flushing custom routing table", func() {
 		JustBeforeEach(func() {
-			setUpRoutes()
+			existingRoutesCM = setUpRoutes(routesCM)
 		})
 
 		JustAfterEach(func() {
-			tearDownRoutes()
+			tearDownRoutes(routingTableID)
 		})
 
 		It("should remove all the routes from the custom table", func() {
 			err := flushRoutesForRoutingTable(routingTableID)
 			Expect(err).NotTo(HaveOccurred())
 			// Check that the routing table is empty
-			routes, err := netlink.RouteListFiltered(netlink.FAMILY_V4, existingRouteGW, netlink.RT_FILTER_TABLE)
+			routes, err := netlink.RouteListFiltered(netlink.FAMILY_V4, existingRoutesCM[0], netlink.RT_FILTER_TABLE)
 			Expect(err).NotTo(HaveOccurred())
 			Expect(len(routes)).Should(BeNumerically("==", 0))
 		})
@@ -264,9 +274,9 @@ var _ = Describe("Common", func() {
 			It("should return error if both subnets are empty", func() {
 				added, err := addPolicyRoutingRule("", "", routingTableID)
 				Expect(added).Should(Equal(false))
-				Expect(err).Should(Equal(&WrongParameter{
-					Type: "input",
-					Text: "at least one between fromSubnet and toSubnet has to be not empty",
+				Expect(err).Should(Equal(&liqonet.WrongParameter{
+					Parameter: "fromSubnet and toSubnet",
+					Reason:    liqonet.AtLeastOneValid,
 				}))
 			})
 		})
@@ -356,9 +366,9 @@ var _ = Describe("Common", func() {
 			It("should return error if both subnets are empty", func() {
 				removed, err := delPolicyRoutingRule("", "", routingTableID)
 				Expect(removed).Should(Equal(false))
-				Expect(err).Should(Equal(&WrongParameter{
-					Type: "input",
-					Text: "at least one between fromSubnet and toSubnet has to be not empty",
+				Expect(err).Should(Equal(&liqonet.WrongParameter{
+					Parameter: "fromSubnet and toSubnet",
+					Reason:    liqonet.AtLeastOneValid,
 				}))
 			})
 		})
@@ -433,7 +443,7 @@ var _ = Describe("Common", func() {
 			It("should return error on malformed IP address", func() {
 				index, err := getIFaceIndexForIP(gwIPWrong)
 				Expect(index).To(BeZero())
-				Expect(err).Should(Equal(&ParseIPError{Type: "IP address", IPToBeParsed: gwIPWrong}))
+				Expect(err).Should(Equal(&liqonet.ParseIPError{IPToBeParsed: gwIPWrong}))
 			})
 		})
 
@@ -450,7 +460,7 @@ var _ = Describe("Common", func() {
 				index, err := getIFaceIndexForIP(notReachableIP)
 				Expect(err).To(HaveOccurred())
 				Expect(index).Should(BeZero())
-				Expect(err).Should(Equal(fmt.Errorf("no route found for IP address %s", notReachableIP)))
+				Expect(err).Should(Equal(&liqonet.NoRouteFound{IPAddress: notReachableIP}))
 			})
 		})
 	})
@@ -459,7 +469,7 @@ var _ = Describe("Common", func() {
 
 		Context("when the the operator has same IP address as the Gateway pod", func() {
 			It("should return no error", func() {
-				dstNet, gwIP, iFaceIndex, err := getRouteConfig(&tep, gwIPCorrect)
+				dstNet, gwIP, iFaceIndex, err := getRouteConfig(&tep, ipAddress2NoSubnet)
 				Expect(err).NotTo(HaveOccurred())
 				Expect(dstNet).Should(Equal(tep.Status.RemoteNATPodCIDR))
 				Expect(gwIP).Should(Equal(""))
@@ -472,17 +482,18 @@ var _ = Describe("Common", func() {
 				dstNet, gwIP, iFaceIndex, err := getRouteConfig(&tep, notReachableIP)
 				Expect(err).NotTo(HaveOccurred())
 				Expect(dstNet).Should(Equal(tep.Status.RemoteNATPodCIDR))
-				Expect(gwIP).Should(Equal(gwIPCorrect))
+				Expect(gwIP).Should(Equal(ipAddress2NoSubnet))
 				Expect(iFaceIndex).Should(BeNumerically("==", dummylink1.Attrs().Index))
 			})
 		})
 
 		Context("when the gateway IP address is not reachable", func() {
 			It("should return error", func() {
-				tep.Status.GatewayIP = notReachableIP
-				_, _, _, err := getRouteConfig(&tep, gwIPCorrect)
+				tepCopy := tep
+				tepCopy.Status.GatewayIP = notReachableIP
+				_, _, _, err := getRouteConfig(&tepCopy, gwIPCorrect)
 				Expect(err).To(HaveOccurred())
-				Expect(err).Should(Equal(fmt.Errorf("no route found for IP address %s", notReachableIP)))
+				Expect(err).Should(Equal(&liqonet.NoRouteFound{IPAddress: tepCopy.Status.GatewayIP}))
 			})
 		})
 	})
