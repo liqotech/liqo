@@ -3,8 +3,6 @@ package v1alpha1
 import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-
-	object_references "github.com/liqotech/liqo/pkg/object-references"
 )
 
 // ResourceOfferSpec defines the desired state of ResourceOffer.
@@ -41,6 +39,18 @@ const (
 	ResourceOfferRefused OfferPhase = "Refused"
 )
 
+// VirtualKubeletStatus indicates the observed status of the VirtualKubelet Deployment.
+type VirtualKubeletStatus string
+
+const (
+	// VirtualKubeletStatusNone indicates that there is no VirtualKubelet Deployment.
+	VirtualKubeletStatusNone VirtualKubeletStatus = "None"
+	// VirtualKubeletStatusCreated indicates that the VirtualKubelet Deployment has been created.
+	VirtualKubeletStatusCreated VirtualKubeletStatus = "Created"
+	// VirtualKubeletStatusDeleting indicates that the VirtualKubelet Deployment is deleting.
+	VirtualKubeletStatusDeleting VirtualKubeletStatus = "Deleting"
+)
+
 // ResourceOfferStatus defines the observed state of ResourceOffer.
 type ResourceOfferStatus struct {
 	// Phase is the status of this ResourceOffer.
@@ -49,12 +59,10 @@ type ResourceOfferStatus struct {
 	// +kubebuilder:validation:Enum="Pending";"ManualActionRequired";"Accepted";"Refused"
 	// +kubebuilder:default="Pending"
 	Phase OfferPhase `json:"phase"`
-	// VkCreated indicates if the virtual-kubelet for this ResourceOffer has been created or not.
-	VkCreated bool `json:"vkCreated,omitempty"`
-	// VkReference is a reference to the deployment running the virtual-kubelet.
-	VkReference object_references.DeploymentReference `json:"vkReference,omitempty"`
-	// VnodeReference is a reference to the virtual node linked to this ResourceOffer
-	VnodeReference object_references.NodeReference `json:"vnodeReference,omitempty"`
+	// VirtualKubeletStatus indicates if the virtual-kubelet for this ResourceOffer has been created or not.
+	// +kubebuilder:validation:Enum="None";"Created";"Deleting"
+	// +kubebuilder:default="None"
+	VirtualKubeletStatus VirtualKubeletStatus `json:"virtualKubeletStatus,omitempty"`
 }
 
 // +kubebuilder:object:root=true
@@ -62,9 +70,10 @@ type ResourceOfferStatus struct {
 // +kubebuilder:resource:shortName="offer"
 
 // ResourceOffer is the Schema for the resourceOffers API.
-// +kubebuilder:printcolumn:name="Status",type=string,JSONPath=`.status.resourceOfferStatus`
+// +kubebuilder:printcolumn:name="Status",type=string,JSONPath=`.status.phase`
 // +kubebuilder:printcolumn:name="Expiration",type=string,JSONPath=`.spec.timeToLive`
-// +kubebuilder:printcolumn:name="VkCreated",type=boolean,JSONPath=`.status.vkCreated`
+// +kubebuilder:printcolumn:name="VirtualKubeletStatus",type=string,JSONPath=`.status.virtualKubeletStatus`
+// +kubebuilder:printcolumn:name="Age",type=date,JSONPath=`.metadata.creationTimestamp`
 type ResourceOffer struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`

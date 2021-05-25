@@ -1,6 +1,8 @@
 package forge
 
 import (
+	"fmt"
+
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 
@@ -35,15 +37,7 @@ func forgeVKAffinity() *v1.Affinity {
 }
 
 func forgeVKVolumes(adv *advtypes.Advertisement) []v1.Volume {
-	return []v1.Volume{
-		{
-			Name: "remote-kubeconfig",
-			VolumeSource: v1.VolumeSource{
-				Secret: &v1.SecretVolumeSource{
-					SecretName: adv.Spec.KubeConfigRef.Name,
-				},
-			},
-		},
+	volumes := []v1.Volume{
 		{
 			Name: "virtual-kubelet-crt",
 			VolumeSource: v1.VolumeSource{
@@ -51,6 +45,17 @@ func forgeVKVolumes(adv *advtypes.Advertisement) []v1.Volume {
 			},
 		},
 	}
+	if adv != nil {
+		volumes = append(volumes, v1.Volume{
+			Name: "remote-kubeconfig",
+			VolumeSource: v1.VolumeSource{
+				Secret: &v1.SecretVolumeSource{
+					SecretName: adv.Spec.KubeConfigRef.Name,
+				},
+			},
+		})
+	}
+	return volumes
 }
 
 func forgeVKInitContainers(nodeName string, initVKImage string) []v1.Container {
@@ -86,36 +91,37 @@ func forgeVKInitContainers(nodeName string, initVKImage string) []v1.Container {
 	}
 }
 
-func forgeVKContainers(vkImage string, adv *advtypes.Advertisement, nodeName string, vkNamespace string, homeClusterId string) []v1.Container {
+func forgeVKContainers(
+	vkImage string, adv *advtypes.Advertisement, remoteClusterID, nodeName, vkNamespace, homeClusterID string) []v1.Container {
 	command := []string{
 		"/usr/bin/virtual-kubelet",
 	}
 
+	if adv != nil {
+		remoteClusterID = adv.Spec.ClusterId
+	}
+
 	args := []string{
-		"--foreign-cluster-id",
-		adv.Spec.ClusterId,
-		"--provider",
-		"kubernetes",
-		"--nodename",
-		nodeName,
-		"--kubelet-namespace",
-		vkNamespace,
-		"--foreign-kubeconfig",
-		"/app/kubeconfig/remote",
-		"--home-cluster-id",
-		homeClusterId,
+		stringifyArgument("--foreign-cluster-id", remoteClusterID),
+		stringifyArgument("--provider", "kubernetes"),
+		stringifyArgument("--nodename", nodeName),
+		stringifyArgument("--kubelet-namespace", vkNamespace),
+		stringifyArgument("--foreign-kubeconfig", "/app/kubeconfig/remote"),
+		stringifyArgument("--home-cluster-id", homeClusterID),
 	}
 
 	volumeMounts := []v1.VolumeMount{
 		{
-			Name:      "remote-kubeconfig",
-			MountPath: "/app/kubeconfig/remote",
-			SubPath:   "kubeconfig",
-		},
-		{
 			Name:      "virtual-kubelet-crt",
 			MountPath: vk.VKCertsRootPath,
 		},
+	}
+	if adv != nil {
+		volumeMounts = append(volumeMounts, v1.VolumeMount{
+			Name:      "remote-kubeconfig",
+			MountPath: "/app/kubeconfig/remote",
+			SubPath:   "kubeconfig",
+		})
 	}
 
 	return []v1.Container{
@@ -156,11 +162,13 @@ func forgeVKContainers(vkImage string, adv *advtypes.Advertisement, nodeName str
 	}
 }
 
-func forgeVKPodSpec(vkName string, vkNamespace string, homeClusterId string, adv *advtypes.Advertisement, initVKImage string, nodeName string, vkImage string) v1.PodSpec {
+func forgeVKPodSpec(
+	vkName, vkNamespace, homeClusterID string, adv *advtypes.Advertisement,
+	remoteClusterID, initVKImage, nodeName, vkImage string) v1.PodSpec {
 	return v1.PodSpec{
 		Volumes:            forgeVKVolumes(adv),
 		InitContainers:     forgeVKInitContainers(nodeName, initVKImage),
-		Containers:         forgeVKContainers(vkImage, adv, nodeName, vkNamespace, homeClusterId),
+		Containers:         forgeVKContainers(vkImage, adv, remoteClusterID, nodeName, vkNamespace, homeClusterID),
 		ServiceAccountName: vkName,
 		Affinity:           forgeVKAffinity(),
 	}
@@ -177,4 +185,8 @@ func forgeVKResources() v1.ResourceRequirements {
 			"memory": resource.MustParse(vkMemoryResourceReq),
 		},
 	}
+}
+
+func stringifyArgument(key, value string) string {
+	return fmt.Sprintf("%s=%s", key, value)
 }

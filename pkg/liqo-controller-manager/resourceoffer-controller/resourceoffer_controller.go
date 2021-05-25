@@ -21,7 +21,10 @@ import (
 	"sync"
 	"time"
 
+	v1 "k8s.io/api/apps/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/tools/record"
 	"k8s.io/klog/v2"
@@ -33,6 +36,7 @@ import (
 	configv1alpha1 "github.com/liqotech/liqo/apis/config/v1alpha1"
 	sharingv1alpha1 "github.com/liqotech/liqo/apis/sharing/v1alpha1"
 	crdreplicator "github.com/liqotech/liqo/internal/crdReplicator"
+	"github.com/liqotech/liqo/pkg/clusterid"
 )
 
 // ResourceOfferReconciler reconciles a ResourceOffer object.
@@ -41,6 +45,10 @@ type ResourceOfferReconciler struct {
 	Scheme *runtime.Scheme
 
 	eventsRecorder record.EventRecorder
+	clusterID      clusterid.ClusterID
+
+	virtualKubeletImage     string
+	initVirtualKubeletImage string
 
 	resyncPeriod       time.Duration
 	configuration      *configv1alpha1.ClusterConfig
@@ -54,6 +62,7 @@ type ResourceOfferReconciler struct {
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.
 func (r *ResourceOfferReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
+	klog.V(4).Infof("reconciling ResourceOffer %v", req.NamespacedName)
 	// get resource offer
 	var resourceOffer sharingv1alpha1.ResourceOffer
 	if err := r.Get(ctx, req.NamespacedName, &resourceOffer); err != nil {
@@ -83,21 +92,61 @@ func (r *ResourceOfferReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 		return ctrl.Result{}, nil
 	}
 
-	// TODO: create the virtual-kubelet
+	// check the virtual kubelet deployment
+	if result, err := r.checkVirtualKubeletDeployment(ctx, &resourceOffer); err != nil {
+		klog.Error(err)
+		return ctrl.Result{}, err
+	} else if result != controllerutil.OperationResultNone {
+		return ctrl.Result{}, nil
+	}
+
+	// delete the ClusterRoleBinding if the VirtualKubelet Deployment is not up
+	if resourceOffer.Status.VirtualKubeletStatus == sharingv1alpha1.VirtualKubeletStatusNone {
+		if err := r.deleteClusterRoleBinding(ctx, &resourceOffer); err != nil {
+			klog.Error(err)
+			return ctrl.Result{}, err
+		}
+	}
+
+	if !isAccepted(&resourceOffer) || !resourceOffer.DeletionTimestamp.IsZero() {
+		// delete virtual kubelet deployment
+		if result, err := r.deleteVirtualKubeletDeployment(ctx, &resourceOffer); err != nil {
+			klog.Error(err)
+			return ctrl.Result{}, err
+		} else if result != controllerutil.OperationResultNone {
+			return ctrl.Result{}, nil
+		}
+		return ctrl.Result{RequeueAfter: r.resyncPeriod}, nil
+	}
+
+	// create the virtual kubelet deployment
+	if result, err := r.createVirtualKubeletDeployment(ctx, &resourceOffer); err != nil {
+		klog.Error(err)
+		return ctrl.Result{}, err
+	} else if result != controllerutil.OperationResultNone {
+		return ctrl.Result{}, nil
+	}
 
 	return ctrl.Result{RequeueAfter: r.resyncPeriod}, nil
 }
 
 // SetupWithManager sets up the controller with the Manager.
 func (r *ResourceOfferReconciler) SetupWithManager(mgr ctrl.Manager) error {
-	p, err := predicate.LabelSelectorPredicate(crdreplicator.ReplicatedResourcesLabelSelector)
+	selector, err := metav1.LabelSelectorAsSelector(&crdreplicator.ReplicatedResourcesLabelSelector)
 	if err != nil {
 		klog.Error(err)
 		return err
 	}
 
+	p := predicate.NewPredicateFuncs(func(object client.Object) bool {
+		matches := selector.Matches(labels.Set(object.GetLabels()))
+		_, isResourceOffer := object.(*sharingv1alpha1.ResourceOffer)
+		return matches || !isResourceOffer
+	})
+
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&sharingv1alpha1.ResourceOffer{}).
+		Owns(&v1.Deployment{}).
 		WithEventFilter(p).
 		Complete(r)
 }

@@ -37,20 +37,10 @@ type ClusterIDImpl struct {
 	client kubernetes.Interface
 }
 
-// NewClusterID generates a new clusterid and returns it.
-func NewClusterID(kubeconfigPath string) (ClusterID, error) {
-	config, err := crdclient.NewKubeconfig(kubeconfigPath, &discoveryv1alpha1.GroupVersion, nil)
-	if err != nil {
-		klog.Error(err, "unable to get kube config")
-		os.Exit(1)
-	}
-	crdClientVar, err := crdclient.NewFromConfig(config)
-	if err != nil {
-		klog.Error(err, "unable to create crd client")
-		os.Exit(1)
-	}
+// NewClusterIDFromClient generates a new clusterid and returns it.
+func NewClusterIDFromClient(client kubernetes.Interface) (ClusterID, error) {
 	newClusterID := &ClusterIDImpl{
-		client: crdClientVar.Client(),
+		client: client,
 	}
 
 	namespace, found := os.LookupEnv("POD_NAMESPACE")
@@ -101,6 +91,21 @@ func NewClusterID(kubeconfigPath string) (ClusterID, error) {
 	}()
 
 	return newClusterID, nil
+}
+
+// NewClusterID generates a new clusterid and returns it.
+func NewClusterID(kubeconfigPath string) (ClusterID, error) {
+	config, err := crdclient.NewKubeconfig(kubeconfigPath, &discoveryv1alpha1.GroupVersion, nil)
+	if err != nil {
+		klog.Error(err, "unable to get kube config")
+		os.Exit(1)
+	}
+	client, err := kubernetes.NewForConfig(config)
+	if err != nil {
+		klog.Error(err, "unable to create client")
+		os.Exit(1)
+	}
+	return NewClusterIDFromClient(client)
 }
 
 func getClusterID(cm *v1.ConfigMap) string {

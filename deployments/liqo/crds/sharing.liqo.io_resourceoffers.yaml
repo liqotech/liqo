@@ -19,15 +19,18 @@ spec:
   scope: Namespaced
   versions:
   - additionalPrinterColumns:
-    - jsonPath: .status.resourceOfferStatus
+    - jsonPath: .status.phase
       name: Status
       type: string
     - jsonPath: .spec.timeToLive
       name: Expiration
       type: string
-    - jsonPath: .status.vkCreated
-      name: VkCreated
-      type: boolean
+    - jsonPath: .status.virtualKubeletStatus
+      name: VirtualKubeletStatus
+      type: string
+    - jsonPath: .metadata.creationTimestamp
+      name: Age
+      type: date
     name: v1alpha1
     schema:
       openAPIV3Schema:
@@ -184,31 +187,15 @@ spec:
                 - Accepted
                 - Refused
                 type: string
-              vkCreated:
-                description: VkCreated indicates if the virtual-kubelet for this ResourceOffer
-                  has been created or not.
-                type: boolean
-              vkReference:
-                description: VkReference is a reference to the deployment running
-                  the virtual-kubelet.
-                properties:
-                  name:
-                    description: Name is unique within a namespace to reference a
-                      deployment resource.
-                    type: string
-                  namespace:
-                    description: Namespace defines the space within which the deployment
-                      name must be unique.
-                    type: string
-                type: object
-              vnodeReference:
-                description: VnodeReference is a reference to the virtual node linked
-                  to this ResourceOffer
-                properties:
-                  name:
-                    description: Name is unique to reference a node resource.
-                    type: string
-                type: object
+              virtualKubeletStatus:
+                default: None
+                description: VirtualKubeletStatus indicates if the virtual-kubelet
+                  for this ResourceOffer has been created or not.
+                enum:
+                - None
+                - Created
+                - Deleting
+                type: string
             required:
             - phase
             type: object

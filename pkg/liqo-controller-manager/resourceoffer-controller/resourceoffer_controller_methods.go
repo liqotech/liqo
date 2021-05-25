@@ -2,10 +2,14 @@ package resourceoffercontroller
 
 import (
 	"context"
+	"fmt"
 	"reflect"
 	"sync"
 
+	v1 "k8s.io/api/apps/v1"
+	rbacv1 "k8s.io/api/rbac/v1"
 	"k8s.io/klog/v2"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
 	configv1alpha1 "github.com/liqotech/liqo/apis/config/v1alpha1"
@@ -13,6 +17,8 @@ import (
 	crdclient "github.com/liqotech/liqo/pkg/crdClient"
 	"github.com/liqotech/liqo/pkg/utils"
 	foreigncluster "github.com/liqotech/liqo/pkg/utils/foreignCluster"
+	"github.com/liqotech/liqo/pkg/virtualKubelet"
+	"github.com/liqotech/liqo/pkg/vkMachinery/forge"
 )
 
 // WatchConfiguration watches a ClusterConfig for reconciling updates on ClusterConfig.
@@ -80,4 +86,151 @@ func (r *ResourceOfferReconciler) setResourceOfferPhase(
 		}
 		return nil
 	})
+}
+
+// checkVirtualKubeletDeployment checks the existence of the VirtualKubelet Deployment
+// and sets its status in the ResourceOffer accordingly.
+func (r *ResourceOfferReconciler) checkVirtualKubeletDeployment(
+	ctx context.Context, resourceOffer *sharingv1alpha1.ResourceOffer) (controllerutil.OperationResult, error) {
+	virtualKubeletDeployment, err := r.getVirtualKubeletDeployment(ctx, resourceOffer)
+	if err != nil {
+		klog.Error(err)
+		return controllerutil.OperationResultNone, err
+	}
+
+	return controllerutil.CreateOrPatch(ctx, r.Client, resourceOffer, func() error {
+		if virtualKubeletDeployment == nil {
+			resourceOffer.Status.VirtualKubeletStatus = sharingv1alpha1.VirtualKubeletStatusNone
+		} else if resourceOffer.Status.VirtualKubeletStatus != sharingv1alpha1.VirtualKubeletStatusDeleting {
+			// there is a virtual kubelet deployment and the phase is not deleting
+			resourceOffer.Status.VirtualKubeletStatus = sharingv1alpha1.VirtualKubeletStatusCreated
+		}
+		return nil
+	})
+}
+
+// createVirtualKubeletDeployment creates the VirtualKubelet Deployment.
+func (r *ResourceOfferReconciler) createVirtualKubeletDeployment(
+	ctx context.Context, resourceOffer *sharingv1alpha1.ResourceOffer) (controllerutil.OperationResult, error) {
+	name := virtualKubelet.VirtualKubeletPrefix + resourceOffer.Spec.ClusterId
+	nodeName := virtualKubelet.VirtualNodePrefix + resourceOffer.Spec.ClusterId
+
+	namespace := resourceOffer.Namespace
+	remoteClusterID := resourceOffer.Spec.ClusterId
+
+	// create the base resources
+	vkServiceAccount := forge.VirtualKubeletServiceAccount(name, namespace)
+	op, err := controllerutil.CreateOrUpdate(ctx, r.Client, vkServiceAccount, func() error {
+		return controllerutil.SetOwnerReference(resourceOffer, vkServiceAccount, r.Scheme)
+	})
+	if err != nil {
+		klog.Error(err)
+		return op, err
+	}
+	klog.V(5).Infof("[%v] ServiceAccount %s/%s reconciled: %s", remoteClusterID, vkServiceAccount.Namespace, vkServiceAccount.Name, op)
+
+	vkClusterRoleBinding := forge.VirtualKubeletClusterRoleBinding(name, namespace, remoteClusterID)
+	op, err = controllerutil.CreateOrUpdate(ctx, r.Client, vkClusterRoleBinding, func() error {
+		return nil
+	})
+	if err != nil {
+		klog.Error(err)
+		return op, err
+	}
+	klog.V(5).Infof("[%v] ClusterRoleBinding %s reconciled: %s", remoteClusterID, vkClusterRoleBinding.Name, op)
+
+	// forge the virtual Kubelet
+	vkDeployment, err := forge.VirtualKubeletDeployment(
+		nil, remoteClusterID, name, namespace, r.virtualKubeletImage,
+		r.initVirtualKubeletImage, nodeName, r.clusterID.GetClusterID())
+	if err != nil {
+		klog.Error(err)
+		return controllerutil.OperationResultNone, err
+	}
+
+	op, err = controllerutil.CreateOrUpdate(context.TODO(), r.Client, vkDeployment, func() error {
+		return controllerutil.SetControllerReference(resourceOffer, vkDeployment, r.Scheme)
+	})
+	if err != nil {
+		klog.Error(err)
+		return op, err
+	}
+	klog.V(5).Infof("[%v] Deployment %s/%s reconciled: %s", remoteClusterID, vkDeployment.Namespace, vkDeployment.Name, op)
+
+	if op == controllerutil.OperationResultCreated {
+		msg := fmt.Sprintf("[%v] Launching virtual-kubelet in namespace %v", remoteClusterID, namespace)
+		klog.Info(msg)
+		r.eventsRecorder.Event(resourceOffer, "Normal", "VkCreated", msg)
+	}
+
+	return controllerutil.CreateOrPatch(ctx, r.Client, resourceOffer, func() error {
+		resourceOffer.Status.VirtualKubeletStatus = sharingv1alpha1.VirtualKubeletStatusCreated
+		return nil
+	})
+}
+
+// deleteVirtualKubeletDeployment deletes the VirtualKubelet Deployment.
+func (r *ResourceOfferReconciler) deleteVirtualKubeletDeployment(
+	ctx context.Context, resourceOffer *sharingv1alpha1.ResourceOffer) (controllerutil.OperationResult, error) {
+	virtualKubeletDeployment, err := r.getVirtualKubeletDeployment(ctx, resourceOffer)
+	if err != nil {
+		klog.Error(err)
+		return controllerutil.OperationResultNone, err
+	}
+	if virtualKubeletDeployment == nil || !virtualKubeletDeployment.DeletionTimestamp.IsZero() {
+		return controllerutil.OperationResultNone, nil
+	}
+
+	if err := r.Client.Delete(ctx, virtualKubeletDeployment); err != nil {
+		klog.Error(err)
+		return controllerutil.OperationResultNone, err
+	}
+
+	msg := fmt.Sprintf("[%v] Deleting virtual-kubelet in namespace %v", resourceOffer.Spec.ClusterId, resourceOffer.Namespace)
+	klog.Info(msg)
+	r.eventsRecorder.Event(resourceOffer, "Normal", "VkDeleted", msg)
+
+	return controllerutil.CreateOrPatch(ctx, r.Client, resourceOffer, func() error {
+		resourceOffer.Status.VirtualKubeletStatus = sharingv1alpha1.VirtualKubeletStatusDeleting
+		return nil
+	})
+}
+
+// deleteClusterRoleBinding deletes the ClusterRoleBinding related to a VirtualKubelet if the deployment does not exist.
+func (r *ResourceOfferReconciler) deleteClusterRoleBinding(
+	ctx context.Context, resourceOffer *sharingv1alpha1.ResourceOffer) error {
+	labels := forge.ClusterRoleLabels(resourceOffer.Spec.ClusterId)
+
+	if err := r.Client.DeleteAllOf(ctx, &rbacv1.ClusterRoleBinding{}, client.MatchingLabels(labels)); err != nil {
+		klog.Error(err)
+		return err
+	}
+	return nil
+}
+
+// getVirtualKubeletDeployment returns the VirtualKubelet Deployment given a ResourceOffer.
+func (r *ResourceOfferReconciler) getVirtualKubeletDeployment(
+	ctx context.Context, resourceOffer *sharingv1alpha1.ResourceOffer) (*v1.Deployment, error) {
+	var deployList v1.DeploymentList
+	labels := forge.VirtualKubeletLabels(resourceOffer.Spec.ClusterId)
+	if err := r.Client.List(ctx, &deployList, client.MatchingLabels(labels)); err != nil {
+		klog.Error(err)
+		return nil, err
+	}
+
+	if len(deployList.Items) == 0 {
+		klog.V(4).Infof("[%v] no VirtualKubelet deployment found", resourceOffer.Spec.ClusterId)
+		return nil, nil
+	} else if len(deployList.Items) > 1 {
+		err := fmt.Errorf("[%v] more than one VirtualKubelet deployment found", resourceOffer.Spec.ClusterId)
+		klog.Error(err)
+		return nil, err
+	}
+
+	return &deployList.Items[0], nil
+}
+
+// isAccepted checks if a ResourceOffer is in Accepted phase.
+func isAccepted(resourceOffer *sharingv1alpha1.ResourceOffer) bool {
+	return resourceOffer.Status.Phase == sharingv1alpha1.ResourceOfferAccepted
 }
