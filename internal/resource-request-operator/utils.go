@@ -17,11 +17,7 @@ import (
 
 // generateResourceOffer generates a new local ResourceOffer.
 func (r *ResourceRequestReconciler) generateResourceOffer(request *discoveryv1alpha1.ResourceRequest) error {
-	resources, err := r.Broadcaster.ReadResources()
-	if err != nil {
-		return err
-	}
-
+	resources := r.Broadcaster.ReadResources(request.Spec.ClusterIdentity.ClusterID)
 	offer := &sharingv1alpha1.ResourceOffer{
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace: request.GetNamespace(),

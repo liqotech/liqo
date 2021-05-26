@@ -2,14 +2,8 @@ package resourcerequestoperator
 
 import (
 	"context"
-	"fmt"
 	"sync"
 	"time"
-
-	crdclient "github.com/liqotech/liqo/pkg/crdClient"
-
-	configv1alpha1 "github.com/liqotech/liqo/apis/config/v1alpha1"
-	"github.com/liqotech/liqo/pkg/utils"
 
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
@@ -17,35 +11,63 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/klog"
+	resourcehelper "k8s.io/kubectl/pkg/util/resource"
+
+	configv1alpha1 "github.com/liqotech/liqo/apis/config/v1alpha1"
+	crdclient "github.com/liqotech/liqo/pkg/crdClient"
+	"github.com/liqotech/liqo/pkg/utils"
+	"github.com/liqotech/liqo/pkg/virtualKubelet/forge"
 )
 
 // Broadcaster is an object which is used to get resources of the cluster.
 type Broadcaster struct {
-	allocatable   corev1.ResourceList
-	clusterConfig configv1alpha1.ClusterConfig
-	offerMutex    sync.RWMutex
-	configMutex   sync.RWMutex
-	informer      cache.SharedInformer
+	allocatable    corev1.ResourceList
+	resourcePodMap map[string]corev1.ResourceList
+	clusterConfig  configv1alpha1.ClusterConfig
+	nodeMutex      sync.RWMutex
+	podMutex       sync.RWMutex
+	configMutex    sync.RWMutex
+	nodeInformer   cache.SharedIndexInformer
+	podInformer    cache.SharedIndexInformer
 }
 
 // SetupBroadcaster create the informer e run it to signal node changes updating Offers.
-func (b *Broadcaster) SetupBroadcaster(clientset *kubernetes.Clientset, resyncPeriod time.Duration) error {
+func (b *Broadcaster) SetupBroadcaster(clientset kubernetes.Interface, resyncPeriod time.Duration) error {
 	b.allocatable = corev1.ResourceList{}
+	b.resourcePodMap = map[string]corev1.ResourceList{}
 	factory := informers.NewSharedInformerFactory(clientset, resyncPeriod)
-	b.informer = factory.Core().V1().Nodes().Informer()
-	b.informer.AddEventHandler(cache.ResourceEventHandlerFuncs{
-		AddFunc:    b.onAdd,
-		UpdateFunc: b.onUpdate,
-		DeleteFunc: b.onDelete,
+	b.nodeInformer = factory.Core().V1().Nodes().Informer()
+	b.nodeInformer.AddEventHandler(cache.ResourceEventHandlerFuncs{
+		AddFunc:    b.onNodeAdd,
+		UpdateFunc: b.onNodeUpdate,
+		DeleteFunc: b.onNodeDelete,
+	})
+
+	b.podInformer = factory.Core().V1().Pods().Informer()
+	b.podInformer.AddEventHandler(cache.ResourceEventHandlerFuncs{
+		AddFunc:    b.onPodAdd,
+		DeleteFunc: b.onPodDelete,
 	})
 
 	return nil
 }
 
-// StartBroadcaster starts a new sharedInformer to watch nodes resources.
+// StartBroadcaster starts two shared Informers, one for nodes and one for pods launching two separated goroutines.
 func (b *Broadcaster) StartBroadcaster(ctx context.Context, group *sync.WaitGroup) {
+	go b.startNodeInformer(ctx, group)
+	go b.startPodInformer(ctx, group)
+}
+
+func (b *Broadcaster) startNodeInformer(ctx context.Context, group *sync.WaitGroup) {
+	group.Add(1)
 	defer group.Done()
-	b.informer.Run(ctx.Done())
+	b.nodeInformer.Run(ctx.Done())
+}
+
+func (b *Broadcaster) startPodInformer(ctx context.Context, group *sync.WaitGroup) {
+	group.Add(1)
+	defer group.Done()
+	b.podInformer.Run(ctx.Done())
 }
 
 // WatchConfiguration starts a new watcher to get clusterConfig.
@@ -68,92 +90,141 @@ func (b *Broadcaster) getConfig() *configv1alpha1.ClusterConfig {
 }
 
 // react to a Node Creation/First informer run.
-func (b *Broadcaster) onAdd(obj interface{}) {
+func (b *Broadcaster) onNodeAdd(obj interface{}) {
 	node := obj.(*corev1.Node)
 	if node.Status.Phase == corev1.NodeRunning {
+		klog.V(4).Infof("Adding Node %s\n", node.Name)
 		toAdd := &node.Status.Allocatable
-		currentResources := b.allocatable.DeepCopy()
+		currentResources := b.readClusterResources()
 		addResources(currentResources, *toAdd)
-
-		if err := b.writeResources(currentResources); err != nil {
-			klog.Errorf("OnAdd error: unable to write allocatable of Node %s: %s", node.Name, err)
-		}
+		b.writeClusterResources(currentResources)
 	}
 }
 
 // react to a Node Update.
-func (b *Broadcaster) onUpdate(oldObj, newObj interface{}) {
+func (b *Broadcaster) onNodeUpdate(oldObj, newObj interface{}) {
 	oldNode := oldObj.(*corev1.Node)
 	newNode := newObj.(*corev1.Node)
 	oldNodeResources := oldNode.Status.Allocatable
 	newNodeResources := newNode.Status.Allocatable
-	currentResources := b.allocatable.DeepCopy()
+	currentResources := b.readClusterResources()
+	klog.V(4).Infof("Updating Node %s in %v\n", oldNode.Name, newNode)
 	if newNode.Status.Phase == corev1.NodeRunning {
 		// node was already Running, update with possible new resources.
 		if oldNode.Status.Phase == corev1.NodeRunning {
 			updateResources(currentResources, oldNodeResources, newNodeResources)
 			// node is starting, add all its resources.
-		} else if oldNode.Status.Phase == corev1.NodePending || oldNode.Status.Phase == corev1.NodeTerminated {
+		} else {
 			addResources(currentResources, newNodeResources)
 		}
 		// node is terminating or stopping, delete all its resources.
-	} else if oldNode.Status.Phase == corev1.NodeRunning &&
-		(newNode.Status.Phase == corev1.NodeTerminated || newNode.Status.Phase == corev1.NodePending) {
+	} else if oldNode.Status.Phase == corev1.NodeRunning && newNode.Status.Phase != corev1.NodeRunning {
 		subResources(currentResources, oldNodeResources)
 	}
-	if err := b.writeResources(currentResources); err != nil {
-		klog.Errorf("OnUpdate error: unable to write allocatable of Node %s: %s", newNode.Name, err)
-	}
+	b.writeClusterResources(currentResources)
 }
 
 // react to a Node Delete.
-func (b *Broadcaster) onDelete(obj interface{}) {
+func (b *Broadcaster) onNodeDelete(obj interface{}) {
 	node := obj.(*corev1.Node)
 	toDelete := &node.Status.Allocatable
-	currentResources := b.allocatable.DeepCopy()
+	currentResources := b.readClusterResources()
 	if node.Status.Phase == corev1.NodeRunning {
+		klog.V(4).Infof("Deleting Node %s\n", node.Name)
 		subResources(currentResources, *toDelete)
-		if err := b.writeResources(currentResources); err != nil {
-			klog.Errorf("OnAdd error: unable to write allocatable of Node %s: %s", node.Name, err)
-		}
+		b.writeClusterResources(currentResources)
 	}
 }
 
-// write cluster resources in thread safe mode.
-func (b *Broadcaster) writeResources(newResources corev1.ResourceList) error {
-	b.offerMutex.Lock()
-	defer b.offerMutex.Unlock()
-	if newResources != nil {
-		b.allocatable = newResources.DeepCopy()
-		return nil
+func (b *Broadcaster) onPodAdd(obj interface{}) {
+	pod := obj.(*corev1.Pod)
+	klog.V(4).Infof("OnPodAdd: Add for pod %s:%s\n", pod.Namespace, pod.Name)
+	podResources := extractPodResources(pod)
+	currentResources := b.readClusterResources()
+	// subtract the pod resource from cluster resources. This action is done for all pods to extract actual available resources.
+	subResources(currentResources, podResources)
+	b.writeClusterResources(currentResources)
+	if clusterID := pod.Labels[forge.LiqoOriginClusterID]; clusterID != "" {
+		klog.V(4).Infof("OnPodAdd: Pod %s:%s passed ClusterID check. ClusterID = %s\n", pod.Namespace, pod.Name, clusterID)
+		currentPodsResources := b.readPodResources(clusterID)
+		// add the resource of this pod in the map clusterID => resources to be used in ReadResources() function.
+		// this action is done to correct the computation not considering pod offloaded by the cluster with this ClusterID
+		addResources(currentPodsResources, podResources)
+		b.writePodsResources(clusterID, currentPodsResources)
 	}
+}
 
-	return fmt.Errorf("some error occurred during cluster resources read. Attempting writing nil resources")
+func (b *Broadcaster) onPodDelete(obj interface{}) {
+	pod := obj.(*corev1.Pod)
+	klog.V(4).Infof("OnPodDelete: Delete for pod %s:%s\n", pod.Namespace, pod.Name)
+	podResources := extractPodResources(pod)
+	currentResources := b.readClusterResources()
+	// this action is the complementary of the onPodAdd() one. For more details see at that function.
+	addResources(currentResources, podResources)
+	b.writeClusterResources(currentResources)
+	if clusterID := pod.Labels[forge.LiqoOriginClusterID]; clusterID != "" {
+		klog.V(4).Infof("OnPodDelete: Pod %s:%s passed ClusterID check. ClusterID = %s\n", pod.Namespace, pod.Name, clusterID)
+		currentPodsResources := b.readPodResources(clusterID)
+		subResources(currentPodsResources, podResources)
+		b.writePodsResources(clusterID, currentPodsResources)
+	}
+}
+
+// write nodes resources in thread safe mode.
+func (b *Broadcaster) writeClusterResources(newResources corev1.ResourceList) {
+	b.nodeMutex.Lock()
+	defer b.nodeMutex.Unlock()
+	b.allocatable = newResources.DeepCopy()
+}
+
+// write pods resources in thread safe mode.
+func (b *Broadcaster) writePodsResources(clusterID string, newResources corev1.ResourceList) {
+	b.podMutex.Lock()
+	defer b.podMutex.Unlock()
+	b.resourcePodMap[clusterID] = newResources.DeepCopy()
 }
 
 // ReadResources return in thread safe mode a scaled value of the resources.
-func (b *Broadcaster) ReadResources() (corev1.ResourceList, error) {
-	b.offerMutex.RLock()
-	defer b.offerMutex.RUnlock()
-	if b.allocatable == nil {
-		return nil, fmt.Errorf("error getting cluster resources")
-	}
-	toRead := b.allocatable.DeepCopy()
+func (b *Broadcaster) ReadResources(clusterID string) corev1.ResourceList {
+	toRead := b.readClusterResources()
+	podsResources := b.readPodResources(clusterID)
+	addResources(toRead, podsResources)
 	for resourceName, quantity := range toRead {
 		scaled := quantity
-		b.scaleResources(&scaled)
+		b.scaleResources(resourceName, &scaled)
 		toRead[resourceName] = scaled
 	}
-	return toRead, nil
+	return toRead
 }
 
-func (b *Broadcaster) scaleResources(quantity *resource.Quantity) {
-	percentage := int64(b.getConfig().Spec.AdvertisementConfig.OutgoingConfig.ResourceSharingPercentage)
-	if percentage == 0 {
-		return
-	}
+func (b *Broadcaster) readClusterResources() corev1.ResourceList {
+	b.nodeMutex.RLock()
+	defer b.nodeMutex.RUnlock()
+	return b.allocatable.DeepCopy()
+}
 
-	quantity.Set(quantity.Value() * percentage / 100)
+func (b *Broadcaster) readPodResources(clusterID string) corev1.ResourceList {
+	b.podMutex.RLock()
+	defer b.podMutex.RUnlock()
+	if toRead, exists := b.resourcePodMap[clusterID]; exists {
+		return toRead.DeepCopy()
+	}
+	return corev1.ResourceList{}
+}
+
+func (b *Broadcaster) scaleResources(resourceName corev1.ResourceName, quantity *resource.Quantity) {
+	percentage := int64(b.getConfig().Spec.AdvertisementConfig.OutgoingConfig.ResourceSharingPercentage)
+
+	switch resourceName {
+	case corev1.ResourceCPU:
+		// use millis
+		quantity.SetScaled(quantity.MilliValue()*percentage/100, resource.Milli)
+	case corev1.ResourceMemory:
+		// use mega
+		quantity.SetScaled(quantity.ScaledValue(resource.Mega)*percentage/100, resource.Mega)
+	default:
+		quantity.Set(quantity.Value() * percentage / 100)
+	}
 }
 
 // addResources is an utility function to add resources.
@@ -191,4 +262,9 @@ func updateResources(currentResources, oldResources, newResources corev1.Resourc
 			currentResources[resourceName] = quantity
 		}
 	}
+}
+
+func extractPodResources(pod *corev1.Pod) corev1.ResourceList {
+	resourcesToExtract, _ := resourcehelper.PodRequestsAndLimits(pod)
+	return resourcesToExtract
 }

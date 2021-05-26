@@ -220,15 +220,15 @@ func main() {
 	if err != nil {
 		os.Exit(1)
 	}
-	wg.Add(6)
+	wg.Add(5)
 	ctx, cancel := context.WithCancel(context.Background())
 	go advertisementReconciler.CleanOldAdvertisements(ctx.Done(), wg)
 	go csr.WatchCSR(ctx, clientset, labels.SelectorFromSet(vkMachinery.CsrLabels).String(), time.Duration(resyncPeriod), wg)
 	// TODO: this configuration watcher will be refactored before the release 0.3
 	go advertisementReconciler.WatchConfiguration(localKubeconfig, client, wg)
 	go newBroadcaster.WatchConfiguration(localKubeconfig, client, wg)
-	go newBroadcaster.StartBroadcaster(ctx, wg)
 	go resourceOfferReconciler.WatchConfiguration(localKubeconfig, client, wg)
+	newBroadcaster.StartBroadcaster(ctx, wg)
 
 	klog.Info("starting manager as advertisementoperator")
 	if err := mgr.Start(ctrl.SetupSignalHandler()); err != nil {
