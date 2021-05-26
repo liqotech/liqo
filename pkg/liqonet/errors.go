@@ -13,6 +13,8 @@ const (
 	StringNotEmpty = "not empty"
 	// ValidIP used as reason of failure in WrongParameter error.
 	ValidIP = "a valid IP address"
+	// NotNil used as reason of failure in WrongParameter error.
+	NotNil = "have to be not nil"
 )
 
 // ParseIPError it is returned when net.ParseIP() fails to parse and ip address.

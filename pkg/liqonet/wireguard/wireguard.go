@@ -13,6 +13,11 @@ import (
 	"github.com/liqotech/liqo/internal/utils/errdefs"
 )
 
+const (
+	// LinkMTU defines mtu to use for a network interface.
+	LinkMTU = 1420
+)
+
 // WgConfig struct used to hold the configuration of wireguard device that we want to create.
 type WgConfig struct {
 	// Name the name used for the device.

@@ -1,4 +1,4 @@
-package tunnel_operator
+package tunneloperator
 
 import (
 	"context"
@@ -19,12 +19,14 @@ var (
 	serviceLabelValue = "true"
 )
 
+// StartServiceWatcher starts the service informer.
 func (tc *TunnelController) StartServiceWatcher() {
 	go tc.serviceWatcher()
 }
 
 func (tc *TunnelController) serviceWatcher() {
-	factory := informers.NewSharedInformerFactoryWithOptions(tc.k8sClient, resyncPeriod, informers.WithNamespace(tc.namespace), informers.WithTweakListOptions(setServiceSelectorLabel))
+	factory := informers.NewSharedInformerFactoryWithOptions(tc.k8sClient, resyncPeriod, informers.WithNamespace(tc.namespace),
+		informers.WithTweakListOptions(setServiceSelectorLabel))
 	inf := factory.Core().V1().Services().Informer()
 	inf.AddEventHandler(cache.ResourceEventHandlerFuncs{
 		AddFunc:    tc.serviceHandlerAdd,
@@ -42,7 +44,8 @@ func (tc *TunnelController) serviceHandlerAdd(obj interface{}) {
 		return
 	}
 	if s.Spec.Type != corev1.ServiceTypeNodePort && s.Spec.Type != corev1.ServiceTypeLoadBalancer {
-		klog.Errorf("the service %s in namespace %s is of type %s, only types of %s and %s are accepted", s.GetName(), s.GetNamespace(), s.Spec.Type, corev1.ServiceTypeLoadBalancer, corev1.ServiceTypeNodePort)
+		klog.Errorf("the service %s in namespace %s is of type %s, only types of %s and %s are accepted", s.GetName(),
+			s.GetNamespace(), s.Spec.Type, corev1.ServiceTypeLoadBalancer, corev1.ServiceTypeNodePort)
 		return
 	}
 	currentPubKey := tc.wg.GetPubKey()
@@ -72,7 +75,7 @@ func (tc *TunnelController) serviceHandlerAdd(obj interface{}) {
 	}
 }
 
-func (tc *TunnelController) serviceHandlerUpdate(oldObj interface{}, newObj interface{}) {
+func (tc *TunnelController) serviceHandlerUpdate(oldObj, newObj interface{}) {
 	tc.serviceHandlerAdd(newObj)
 }
 
