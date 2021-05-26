@@ -1,4 +1,4 @@
-package tunnel_operator
+package tunneloperator
 
 import (
 	"os"
@@ -13,6 +13,7 @@ import (
 	"github.com/liqotech/liqo/pkg/utils"
 )
 
+// WatchConfiguration starts an informer in order to retrieve the latest configuration for the operator.
 func (tc *TunnelController) WatchConfiguration(config *rest.Config, gv *schema.GroupVersion) {
 	config.ContentConfig.GroupVersion = gv
 	config.APIPath = "/apis"
@@ -25,7 +26,7 @@ func (tc *TunnelController) WatchConfiguration(config *rest.Config, gv *schema.G
 	}
 
 	go utils.WatchConfiguration(func(configuration *configv1alpha1.ClusterConfig) {
-		//this section is executed at start-up time
+		// This section is executed at start-up time.
 		if !tc.isConfigured {
 			tc.isGKE = configuration.Spec.LiqonetConfig.GKEProvider
 			tc.configChan <- true

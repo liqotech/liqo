@@ -1,5 +1,5 @@
+// Package tunneloperator contains the tunnel controller.
 /*
-
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
@@ -12,17 +12,19 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
-package tunnel_operator
+package tunneloperator
 
 import (
 	"context"
 	"fmt"
+	"net"
 	"os"
 	"os/signal"
 	"reflect"
 	"strings"
 	"time"
 
+	"github.com/containernetworking/plugins/pkg/ns"
 	k8s "k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/record"
 	"k8s.io/klog"
@@ -31,11 +33,17 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 
+	"github.com/vishvananda/netlink"
+
 	netv1alpha1 "github.com/liqotech/liqo/apis/net/v1alpha1"
 	liqoconst "github.com/liqotech/liqo/pkg/consts"
 	utils "github.com/liqotech/liqo/pkg/liqonet"
+	liqonetns "github.com/liqotech/liqo/pkg/liqonet/netns"
 	"github.com/liqotech/liqo/pkg/liqonet/overlay"
+	liqorouting "github.com/liqotech/liqo/pkg/liqonet/routing"
 	"github.com/liqotech/liqo/pkg/liqonet/tunnel"
+
+	// wireguard package is imported in order to run the init function contained in the package.
 	_ "github.com/liqotech/liqo/pkg/liqonet/tunnel/wireguard"
 	"github.com/liqotech/liqo/pkg/liqonet/wireguard"
 )
@@ -46,12 +54,16 @@ var (
 )
 
 const (
+	// OperatorName name of the operator.
 	OperatorName            = "liqo-gateway"
 	gatewayPodName          = "gateway-pod" // used to name the secret containing the keys of the overlay wireguard interface
 	tunnelEndpointFinalizer = OperatorName + ".liqo.io"
+	gatewayNetnsName        = "liqo-gateway"
+	hostVethName            = "liqo.host"
+	gatewayVethName         = "liqo.gateway"
 )
 
-// TunnelController reconciles a TunnelEndpoint object.
+// TunnelController type of the tunnel controller.
 type TunnelController struct {
 	client.Client
 	record.EventRecorder
@@ -69,6 +81,8 @@ type TunnelController struct {
 	configChan   chan bool
 	stopPWChan   chan struct{}
 	stopSWChan   chan struct{}
+	hostNetns    ns.NetNS
+	gatewayNetns ns.NetNS
 }
 
 // cluster-role
@@ -133,11 +147,11 @@ func NewTunnelController(mgr ctrl.Manager, wgc wireguard.Client, nl wireguard.Ne
 	if err != nil {
 		return nil, err
 	}
-	err = tc.SetUpIPTablesHandler()
+	err = tc.SetupIPTablesHandler()
 	if err != nil {
 		return nil, err
 	}
-	tc.SetUpRouteManager(tc.EventRecorder)
+	tc.SetupRouteManager(tc.EventRecorder)
 	return tc, nil
 }
 
@@ -165,7 +179,7 @@ func (tc *TunnelController) Reconcile(ctx context.Context, req ctrl.Request) (ct
 			// The object is not being deleted, so if it does not have our finalizer,
 			// then lets add the finalizer and update the object. This is equivalent
 			// registering our finalizer.
-			endpoint.ObjectMeta.Finalizers = append(endpoint.Finalizers, tunnelEndpointFinalizer)
+			endpoint.Finalizers = append(endpoint.Finalizers, tunnelEndpointFinalizer)
 			if err := tc.Update(ctx, &endpoint); err != nil {
 				klog.Errorf("%s -> unable to update resource %s: %s", endpoint.Spec.ClusterID, endpoint.Name, err)
 				return result, err
@@ -265,8 +279,8 @@ func (tc *TunnelController) disconnectFromPeer(ep *netv1alpha1.TunnelEndpoint) e
 	return nil
 }
 
-// used to remove all the tunnel interfaces when the controller is closed
-// it does not return an error, but just logs them, cause we can not recover from
+// RemoveAllTunnels used to remove all the tunnel interfaces when the controller is closed.
+// It does not return an error, but just logs them, cause we can not recover from
 // them at exit time.
 func (tc *TunnelController) RemoveAllTunnels() {
 	for driverType, driver := range tc.drivers {
@@ -279,6 +293,8 @@ func (tc *TunnelController) RemoveAllTunnels() {
 	}
 }
 
+// EnsureIPTablesRulesPerCluster ensures the iptables rules needed to configure the network for
+// a given remote cluster.
 func (tc *TunnelController) EnsureIPTablesRulesPerCluster(tep *netv1alpha1.TunnelEndpoint) error {
 	clusterID := tep.Spec.ClusterID
 	if err := tc.EnsureChainRulespecs(tep); err != nil {
@@ -300,7 +316,7 @@ func (tc *TunnelController) EnsureIPTablesRulesPerCluster(tep *netv1alpha1.Tunne
 	return nil
 }
 
-// SetupSignalHandlerForRouteOperator registers for SIGTERM, SIGINT, SIGKILL. A stop channel is returned
+// SetupSignalHandlerForTunnelOperator registers for SIGTERM, SIGINT, SIGKILL. A context is returned
 // which is closed on one of these signals.
 func (tc *TunnelController) SetupSignalHandlerForTunnelOperator() context.Context {
 	ctx, done := context.WithCancel(context.Background())
@@ -318,6 +334,7 @@ func (tc *TunnelController) SetupSignalHandlerForTunnelOperator() context.Contex
 	return ctx
 }
 
+// SetupWithManager configures the current controller to be managed by the given manager.
 func (tc *TunnelController) SetupWithManager(mgr ctrl.Manager) error {
 	resourceToBeProccesedPredicate := predicate.Funcs{
 		DeleteFunc: func(e event.DeleteEvent) bool {
@@ -331,7 +348,7 @@ func (tc *TunnelController) SetupWithManager(mgr ctrl.Manager) error {
 		Complete(tc)
 }
 
-// for each registered tunnel implementation it creates and initializes the driver.
+// SetUpTunnelDrivers for each registered tunnel implementation it creates and initializes the driver.
 func (tc *TunnelController) SetUpTunnelDrivers() error {
 	tc.drivers = make(map[string]tunnel.Driver)
 	for tunnelType, createDriverFunc := range tunnel.Drivers {
@@ -351,7 +368,8 @@ func (tc *TunnelController) SetUpTunnelDrivers() error {
 	return nil
 }
 
-func (tc *TunnelController) SetUpIPTablesHandler() error {
+// SetupIPTablesHandler configures the client which interacts with the iptables module on the system.
+func (tc *TunnelController) SetupIPTablesHandler() error {
 	iptHandler, err := utils.NewIPTablesHandler()
 	if err != nil {
 		return err
@@ -360,6 +378,69 @@ func (tc *TunnelController) SetUpIPTablesHandler() error {
 	return nil
 }
 
-func (tc *TunnelController) SetUpRouteManager(recorder record.EventRecorder) {
+// SetupRouteManager configure the route manager used to setup the routes for a remote cluster.
+func (tc *TunnelController) SetupRouteManager(recorder record.EventRecorder) {
 	tc.NetLink = utils.NewRouteManager(recorder)
+}
+
+func (tc *TunnelController) setUpGWNetns(netnsName, hostVethName, gatewayVethName, gatewayVethIPAddr string, vethMtu int) error {
+	// Get current netns (hostNetns).
+	var err error
+	tc.hostNetns, err = ns.GetCurrentNS()
+	if err != nil {
+		return err
+	}
+	// Create new network namespace for the gateway (gatewayNetns).
+	// If the namespace already exists it will be deleted and recreated.
+	tc.gatewayNetns, err = liqonetns.CreateNetns(netnsName)
+	if err != nil {
+		return err
+	}
+	// Create veth pair to connect the two namespaces.
+	err = liqonetns.CreateVethPair(hostVethName, gatewayVethName, tc.hostNetns, tc.gatewayNetns, vethMtu)
+	if err != nil {
+		klog.Errorf("an error occurred while creating the veth pair: %s", err)
+		return err
+	}
+	if err = configureGatewayNetns(gatewayVethName, gatewayVethIPAddr, tc.gatewayNetns); err != nil {
+		return err
+	}
+	// Enable arp proxy for liqo.host veth interface.
+	if err = liqorouting.EnableProxyArp(hostVethName); err != nil {
+		return err
+	}
+	return nil
+}
+
+func configureGatewayNetns(ifaceName, ipAddress string, gatewayNs ns.NetNS) error {
+	configuration := func(netNamespace ns.NetNS) error {
+		// Get veth interface.
+		veth, err := netlink.LinkByName(ifaceName)
+		if err != nil {
+			return err
+		}
+		// Parse the ipAddres.
+		_, ipNet, err := net.ParseCIDR(ipAddress)
+		if err != nil {
+			return err
+		}
+		// Add address to interface
+		if err := netlink.AddrAdd(veth, &netlink.Addr{IPNet: ipNet}); err != nil {
+			return err
+		}
+		// Add default route to use the veth interface.
+		if _, err := liqorouting.AddRoute("0.0.0.0/0", "", veth.Attrs().Index, 0); err != nil {
+			return err
+		}
+		// Enable arp proxy for liqo.gateway veth interface in liqo-gateway network.
+		if err := liqorouting.EnableProxyArp(gatewayVethName); err != nil {
+			return err
+		}
+		// Enable ip forwarding in the gateway namespace.
+		if err := liqorouting.EnableIPForwarding(); err != nil {
+			return err
+		}
+		return nil
+	}
+	return gatewayNs.Do(configuration)
 }

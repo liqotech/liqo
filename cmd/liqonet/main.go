@@ -32,7 +32,7 @@ import (
 	clusterConfig "github.com/liqotech/liqo/apis/config/v1alpha1"
 	netv1alpha1 "github.com/liqotech/liqo/apis/net/v1alpha1"
 	route_operator "github.com/liqotech/liqo/internal/liqonet/route-operator"
-	tunnel_operator "github.com/liqotech/liqo/internal/liqonet/tunnel-operator"
+	tunneloperator "github.com/liqotech/liqo/internal/liqonet/tunnel-operator"
 	"github.com/liqotech/liqo/internal/liqonet/tunnelEndpointCreator"
 	liqoconst "github.com/liqotech/liqo/pkg/consts"
 	liqonetOperator "github.com/liqotech/liqo/pkg/liqonet"
@@ -96,13 +96,13 @@ func main() {
 			klog.Errorf("unable to start controller: %s", err)
 			os.Exit(1)
 		}
-	case tunnel_operator.OperatorName:
+	case tunneloperator.OperatorName:
 		wgc, err := wireguard.NewWgClient()
 		if err != nil {
 			klog.Errorf("an error occurred while creating wireguard client: %v", err)
 			os.Exit(1)
 		}
-		tc, err := tunnel_operator.NewTunnelController(mgr, wgc, wireguard.NewNetLinker())
+		tc, err := tunneloperator.NewTunnelController(mgr, wgc, wireguard.NewNetLinker())
 		if err != nil {
 			klog.Errorf("an error occurred while creating the tunnel controller: %v", err)
 			os.Exit(1)

@@ -62,7 +62,7 @@ func (drm *DirectRoutingManager) EnsureRoutesPerCluster(tep *netv1alpha1.TunnelE
 	// Add route for the given cluster.
 	klog.Infof("%s -> adding route for destination {%s} with gateway {%s} in routing table with ID {%d}",
 		clusterID, dstNet, gatewayIP, drm.routingTableID)
-	routeAdd, err = addRoute(dstNet, gatewayIP, iFaceIndex, drm.routingTableID)
+	routeAdd, err = AddRoute(dstNet, gatewayIP, iFaceIndex, drm.routingTableID)
 	if err != nil {
 		return routeAdd, err
 	}

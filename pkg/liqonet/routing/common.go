@@ -2,18 +2,22 @@ package routing
 
 import (
 	"errors"
+	"io/ioutil"
 	"net"
 	"reflect"
+	"strings"
 
 	"github.com/liqotech/liqo/apis/net/v1alpha1"
 	"github.com/liqotech/liqo/pkg/liqonet"
 
 	"github.com/vishvananda/netlink"
 	"golang.org/x/sys/unix"
+	"k8s.io/client-go/util/retry"
 	"k8s.io/klog/v2"
 )
 
-func addRoute(dstNet, gwIP string, iFaceIndex, tableID int) (bool, error) {
+// AddRoute adds a new route on the given interface.
+func AddRoute(dstNet, gwIP string, iFaceIndex, tableID int) (bool, error) {
 	var route *netlink.Route
 	var gatewayIP net.IP
 	// Convert destination in *net.IPNet.
@@ -278,4 +282,23 @@ func parseIP(ip string) (net.IP, error) {
 		}
 	}
 	return address, nil
+}
+
+// EnableIPForwarding enables ipv4 forwarding in the current network namespace.
+func EnableIPForwarding() error {
+	return ioutil.WriteFile("/proc/sys/net/ipv4/ip_forward", []byte("1"), 0600)
+}
+
+// EnableProxyArp enables proxy arp for the given network interface.
+func EnableProxyArp(iFaceName string) error {
+	proxyArpFilePath := strings.Join([]string{"/proc/sys/net/ipv4/conf/", iFaceName, "/proxy_arp"}, "")
+	// When the interface is newly created the configuration file could not be available immediately.
+	// We use a retry mechanism when the file does not exist.
+	retryable := func(err error) bool {
+		return errors.Is(err, unix.ENOENT)
+	}
+	writeToFile := func() error {
+		return ioutil.WriteFile(proxyArpFilePath, []byte("1"), 0600)
+	}
+	return retry.OnError(retry.DefaultRetry, retryable, writeToFile)
 }

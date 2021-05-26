@@ -4,12 +4,14 @@ go 1.16
 
 require (
 	cloud.google.com/go v0.56.0 // indirect
+	github.com/containernetworking/plugins v0.8.6
 	github.com/coreos/go-iptables v0.4.5
 	github.com/google/go-cmp v0.5.3
 	github.com/google/gofuzz v1.2.0 // indirect
 	github.com/google/uuid v1.2.0
 	github.com/gorilla/mux v1.8.0
 	github.com/grandcat/zeroconf v1.0.0
+	github.com/gruntwork-io/gruntwork-cli v0.7.0
 	github.com/gruntwork-io/terratest v0.30.7
 	github.com/jinzhu/copier v0.0.0-20201025035756-632e723a6687
 	github.com/julienschmidt/httprouter v1.3.0
@@ -25,6 +27,7 @@ require (
 	github.com/spf13/pflag v1.0.5
 	github.com/stretchr/testify v1.7.0
 	github.com/vishvananda/netlink v1.1.0
+	github.com/vishvananda/netns v0.0.0-20200728191858-db3c7e526aae
 	go.opencensus.io v0.23.0
 	go.uber.org/goleak v1.1.10
 	go.uber.org/multierr v1.6.0 // indirect
