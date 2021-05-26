@@ -7,7 +7,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/google/uuid"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	"k8s.io/client-go/kubernetes"
@@ -16,36 +15,31 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/envtest"
-	"sigs.k8s.io/controller-runtime/pkg/envtest/printer"
 
 	configv1alpha1 "github.com/liqotech/liqo/apis/config/v1alpha1"
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	sharingv1alpha1 "github.com/liqotech/liqo/apis/sharing/v1alpha1"
-	// +kubebuilder:scaffold:imports
+	"github.com/liqotech/liqo/pkg/clusterid"
 )
 
-// These tests use Ginkgo (BDD-style Go testing framework). Refer to
-// http://onsi.github.io/ginkgo/ to learn more about Ginkgo.
-
-var cfg *rest.Config
-var k8sClient client.Client
-var clusterId string
-var clientset *kubernetes.Clientset
-var testEnv *envtest.Environment
-var newBroadcaster Broadcaster
-var ctx context.Context
-var cancel context.CancelFunc
-var group sync.WaitGroup
+var (
+	cfg            *rest.Config
+	k8sClient      client.Client
+	clusterId      string
+	clientset      kubernetes.Interface
+	testEnv        *envtest.Environment
+	newBroadcaster Broadcaster
+	ctx            context.Context
+	cancel         context.CancelFunc
+	group          sync.WaitGroup
+)
 
 func TestAPIs(t *testing.T) {
 	RegisterFailHandler(Fail)
-
-	RunSpecsWithDefaultAndCustomReporters(t,
-		"Controller Suite",
-		[]Reporter{printer.NewlineReporter{}})
+	RunSpecs(t, "Controller Suite")
 }
 
-var _ = BeforeSuite(func(done Done) {
+func createCluster() {
 	By("bootstrapping test environment")
 	ctx, cancel = context.WithCancel(context.Background())
 	testEnv = &envtest.Environment{
@@ -70,12 +64,10 @@ var _ = BeforeSuite(func(done Done) {
 		MetricsBindAddress: "0", // this avoids port binding collision
 	})
 	Expect(err).ToNot(HaveOccurred())
-	clientset, err = kubernetes.NewForConfig(k8sManager.GetConfig())
+	clientset = kubernetes.NewForConfigOrDie(k8sManager.GetConfig())
+	err = newBroadcaster.SetupBroadcaster(clientset, 5*time.Second)
 	Expect(err).ToNot(HaveOccurred())
-	err = newBroadcaster.SetupBroadcaster(clientset, 10*time.Second)
-	Expect(err).ToNot(HaveOccurred())
-	group.Add(1)
-	go newBroadcaster.StartBroadcaster(ctx, &group)
+	newBroadcaster.StartBroadcaster(ctx, &group)
 	testClusterConf := &configv1alpha1.ClusterConfig{
 		Spec: configv1alpha1.ClusterConfigSpec{
 			AdvertisementConfig: configv1alpha1.AdvertisementConfig{
@@ -86,8 +78,7 @@ var _ = BeforeSuite(func(done Done) {
 		},
 	}
 	newBroadcaster.setConfig(testClusterConf)
-	id, _ := uuid.NewUUID()
-	clusterId = id.String()
+	clusterId = clusterid.NewStaticClusterID("test-cluster").GetClusterID()
 	err = (&ResourceRequestReconciler{
 		Client:      k8sManager.GetClient(),
 		Scheme:      k8sManager.GetScheme(),
@@ -97,19 +88,28 @@ var _ = BeforeSuite(func(done Done) {
 	Expect(err).ToNot(HaveOccurred())
 
 	go func() {
-		err = k8sManager.Start(ctrl.SetupSignalHandler())
+		err = k8sManager.Start(ctx)
 		Expect(err).ToNot(HaveOccurred())
 	}()
 
 	k8sClient = k8sManager.GetClient()
 	Expect(k8sClient).ToNot(BeNil())
-	close(done)
-}, 60)
 
-var _ = AfterSuite(func() {
+	ctx = context.TODO()
+}
+
+func destroyCluster() {
 	By("tearing down the test environment")
+	cancel()
 	err := testEnv.Stop()
 	Expect(err).ToNot(HaveOccurred())
-	cancel()
 	group.Wait()
+}
+
+var _ = BeforeSuite(func() {
+	createCluster()
+})
+
+var _ = AfterSuite(func() {
+	destroyCluster()
 })
