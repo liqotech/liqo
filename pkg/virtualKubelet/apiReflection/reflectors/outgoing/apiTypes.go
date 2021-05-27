@@ -35,10 +35,9 @@ func endpointslicesReflectorBuilder(reflector ri.APIReflector, opts map[options.
 	ipamClient := liqonet.NewIpamClient(conn)
 
 	return &EndpointSlicesReflector{
-		APIReflector:         reflector,
-		LocalRemappedPodCIDR: opts[types.LocalRemappedPodCIDR],
-		VirtualNodeName:      opts[types.VirtualNodeName],
-		IpamClient:           ipamClient,
+		APIReflector:    reflector,
+		VirtualNodeName: opts[types.VirtualNodeName],
+		IpamClient:      ipamClient,
 	}
 }
 

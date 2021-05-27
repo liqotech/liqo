@@ -36,10 +36,9 @@ func TestEndpointAdd(t *testing.T) {
 	}
 
 	reflector := &outgoing.EndpointSlicesReflector{
-		APIReflector:         Greflector,
-		LocalRemappedPodCIDR: types.NewNetworkingOption("localRemappedPodCIDR", "10.0.0.0/16"),
-		VirtualNodeName:      types.NewNetworkingOption("VirtualNodeName", "vk-node"),
-		IpamClient:           &liqonetTest.MockIpam{LocalRemappedPodCIDR: "10.0.0.0/16"},
+		APIReflector:    Greflector,
+		VirtualNodeName: types.NewNetworkingOption("VirtualNodeName", "vk-node"),
+		IpamClient:      &liqonetTest.MockIpam{LocalRemappedPodCIDR: "10.0.0.0/16"},
 	}
 	reflector.SetSpecializedPreProcessingHandlers()
 
@@ -120,10 +119,9 @@ func TestEndpointAdd2(t *testing.T) {
 	}
 
 	reflector := &outgoing.EndpointSlicesReflector{
-		APIReflector:         Greflector,
-		LocalRemappedPodCIDR: types.NewNetworkingOption("localRemappedPodCIDR", "10.0.0.0/16"),
-		VirtualNodeName:      types.NewNetworkingOption("VirtualNodeName", "vk-node"),
-		IpamClient:           &liqonetTest.MockIpam{LocalRemappedPodCIDR: "10.0.0.0/16"},
+		APIReflector:    Greflector,
+		VirtualNodeName: types.NewNetworkingOption("VirtualNodeName", "vk-node"),
+		IpamClient:      &liqonetTest.MockIpam{LocalRemappedPodCIDR: "10.0.0.0/16"},
 	}
 	reflector.SetSpecializedPreProcessingHandlers()
 

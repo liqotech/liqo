@@ -41,9 +41,11 @@ import (
 	"github.com/liqotech/liqo/internal/utils/errdefs"
 	crdclient "github.com/liqotech/liqo/pkg/crdClient"
 	"github.com/liqotech/liqo/pkg/virtualKubelet"
+	liqonodeprovider "github.com/liqotech/liqo/pkg/virtualKubelet/liqoNodeProvider"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/manager"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/node/module"
 	nodeProvider "github.com/liqotech/liqo/pkg/virtualKubelet/node/provider"
+	liqoprovider "github.com/liqotech/liqo/pkg/virtualKubelet/provider"
 )
 
 // NewCommand creates a new top-level command.
@@ -124,6 +126,7 @@ func runRootCommand(ctx context.Context, s *provider.Store, c *Opts) error {
 		RemoteKubeConfig:     c.ForeignKubeconfig,
 		InformerResyncPeriod: c.InformerResyncPeriod,
 		LiqoIpamServer:       c.LiqoIpamServer,
+		UseNewAuth:           c.UseNewAuth,
 	}
 
 	pInit := s.Get(c.Provider)
@@ -151,8 +154,27 @@ func runRootCommand(ctx context.Context, s *provider.Store, c *Opts) error {
 		klog.Fatal(err)
 	}
 
+	var nodeReady chan struct{}
+	var nodeProviderModule module.NodeProvider
+	if liqoProvider, ok := p.(*liqoprovider.LiqoProvider); ok {
+		podProviderStopper := make(chan struct{}, 1)
+		liqoProvider.SetProviderStopper(podProviderStopper)
+		networkReadyChan := liqoProvider.GetNetworkReadyChan()
+
+		liqoNodeProvider, err := liqonodeprovider.NewLiqoNodeProvider(c.NodeName, advName, c.ForeignClusterId,
+			c.KubeletNamespace, podProviderStopper, networkReadyChan, nil, c.LiqoInformerResyncPeriod, c.UseNewAuth)
+		if err != nil {
+			klog.Fatal(err)
+		}
+
+		nodeReady, _ = liqoNodeProvider.StartProvider()
+		nodeProviderModule = liqoNodeProvider
+	} else {
+		nodeProviderModule = module.NaiveNodeProvider{}
+	}
+
 	nodeRunner, err = module.NewNodeController(
-		module.NaiveNodeProvider{},
+		nodeProviderModule,
 		pNode,
 		client.Client().CoreV1().Nodes(),
 		module.WithNodeEnableLeaseV1Beta1(leaseClient, nil),
@@ -190,11 +212,6 @@ func runRootCommand(ctx context.Context, s *provider.Store, c *Opts) error {
 	)
 	if err != nil {
 		klog.Fatal("cannot create the node controller")
-	}
-
-	nodeReady, _, err := p.StartNodeUpdater(nodeRunner)
-	if err != nil {
-		klog.Fatal(err)
 	}
 
 	eb := record.NewBroadcaster()
@@ -254,7 +271,7 @@ func runRootCommand(ctx context.Context, s *provider.Store, c *Opts) error {
 		}
 	}()
 
-	nodeRunner.Ready()
+	<-nodeRunner.Ready()
 
 	klog.Info("setup ended")
 	close(nodeReady)

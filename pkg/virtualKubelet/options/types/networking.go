@@ -10,11 +10,12 @@ type NetworkingKey string
 type NetworkingValue string
 
 const (
-	LocalRemappedPodCIDR  = "localRemappedPodCIDR"
-	RemoteRemappedPodCIDR = "remoteRemappedPodCIDR"
-	VirtualNodeName       = "virtualNodeName"
-	RemoteClusterID       = "remoteClusterID"
-	LiqoIpamServer        = "liqoIpamServer"
+	// VirtualNodeName is the key for the option containing the name to assign to the virtual node.
+	VirtualNodeName = "virtualNodeName"
+	// RemoteClusterID is the key for the option containing the remote clusterID.
+	RemoteClusterID = "remoteClusterID"
+	// LiqoIpamServer is the key for the option containing server serving the ipam service.
+	LiqoIpamServer = "liqoIpamServer"
 )
 
 func NewNetworkingOption(key NetworkingKey, value NetworkingValue) *NetworkingOption {

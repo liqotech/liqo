@@ -28,12 +28,13 @@ import (
 
 // Defaults for root command options.
 const (
-	DefaultNodeName             = "virtual-kubelet"
-	DefaultInformerResyncPeriod = 1 * time.Minute
-	DefaultMetricsAddr          = ":10255"
-	DefaultListenPort           = 10250
-	DefaultPodSyncWorkers       = 10
-	DefaultKubeClusterDomain    = "cluster.local"
+	DefaultNodeName                               = "virtual-kubelet"
+	DefaultInformerResyncPeriod                   = 1 * time.Minute
+	DefaultLiqoInformerResyncPeriod time.Duration = 0
+	DefaultMetricsAddr                            = ":10255"
+	DefaultListenPort                             = 10250
+	DefaultPodSyncWorkers                         = 10
+	DefaultKubeClusterDomain                      = "cluster.local"
 
 	DefaultKubeletNamespace = "default"
 	DefaultHomeClusterId    = "cluster1"
@@ -63,8 +64,9 @@ type Opts struct {
 	MetricsAddr string
 
 	// Number of workers to use to handle pod notifications
-	PodSyncWorkers       int
-	InformerResyncPeriod time.Duration
+	PodSyncWorkers           int
+	InformerResyncPeriod     time.Duration
+	LiqoInformerResyncPeriod time.Duration
 
 	// Use node leases when supported by Kubernetes (instead of node status updates)
 	EnableNodeLease bool
@@ -83,6 +85,8 @@ type Opts struct {
 
 	Version   string
 	Profiling bool
+
+	UseNewAuth bool
 }
 
 // SetDefaultOpts sets default options for unset values on the passed in option struct.
@@ -90,6 +94,10 @@ type Opts struct {
 func SetDefaultOpts(c *Opts) error {
 	if c.InformerResyncPeriod == 0 {
 		c.InformerResyncPeriod = DefaultInformerResyncPeriod
+	}
+
+	if c.LiqoInformerResyncPeriod == 0 {
+		c.InformerResyncPeriod = DefaultLiqoInformerResyncPeriod
 	}
 
 	if c.MetricsAddr == "" {
