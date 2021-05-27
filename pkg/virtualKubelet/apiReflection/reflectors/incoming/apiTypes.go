@@ -4,7 +4,6 @@ import (
 	apimgmt "github.com/liqotech/liqo/pkg/virtualKubelet/apiReflection"
 	ri "github.com/liqotech/liqo/pkg/virtualKubelet/apiReflection/reflectors/reflectorsInterfaces"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/options"
-	"github.com/liqotech/liqo/pkg/virtualKubelet/options/types"
 )
 
 var ReflectorBuilder = map[apimgmt.ApiType]func(reflector ri.APIReflector, opts map[options.OptionKey]options.Option) ri.IncomingAPIReflector{
@@ -14,8 +13,7 @@ var ReflectorBuilder = map[apimgmt.ApiType]func(reflector ri.APIReflector, opts 
 
 func podsReflectorBuilder(reflector ri.APIReflector, opts map[options.OptionKey]options.Option) ri.IncomingAPIReflector {
 	return &PodsIncomingReflector{
-		APIReflector:          reflector,
-		RemoteRemappedPodCIDR: opts[types.RemoteRemappedPodCIDR]}
+		APIReflector: reflector}
 }
 
 func replicaSetsReflectorBuilder(reflector ri.APIReflector, _ map[options.OptionKey]options.Option) ri.IncomingAPIReflector {

@@ -67,6 +67,14 @@ rules:
   - list
   - watch
 - apiGroups:
+  - coordination.k8s.io
+  resources:
+  - leases
+  verbs:
+  - create
+  - delete
+  - update
+- apiGroups:
   - discovery.k8s.io
   resources:
   - endpointslices

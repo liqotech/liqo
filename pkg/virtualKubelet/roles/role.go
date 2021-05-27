@@ -14,3 +14,5 @@ package roles
 // +kubebuilder:rbac:groups=virtualkubelet.liqo.io,resources=namespacenattingtables,verbs=get;update;patch;list;watch;delete;create
 // +kubebuilder:rbac:groups=net.liqo.io,resources=tunnelendpoints,verbs=get;list;watch
 // +kubebuilder:rbac:groups=sharing.liqo.io,resources=advertisements,verbs=get;list;watch;update;delete
+
+// +kubebuilder:rbac:groups=coordination.k8s.io,resources=leases,verbs=create;update;delete

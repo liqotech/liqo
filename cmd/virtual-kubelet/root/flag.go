@@ -32,7 +32,10 @@ func InstallFlags(flags *pflag.FlagSet, c *Opts) {
 	flags.IntVar(&c.PodSyncWorkers, "pod-sync-workers", c.PodSyncWorkers, `set the number of pod synchronization workers`)
 	flags.BoolVar(&c.EnableNodeLease, "enable-node-lease", c.EnableNodeLease, `use node leases (1.13) for node heartbeats`)
 
-	flags.DurationVar(&c.InformerResyncPeriod, "full-resync-period", c.InformerResyncPeriod, "how often to perform a full resync of pods between kubernetes and the provider")
+	flags.DurationVar(&c.InformerResyncPeriod, "full-resync-period", c.InformerResyncPeriod,
+		"how often to perform a full resync of pods between kubernetes and the provider")
+	flags.DurationVar(&c.LiqoInformerResyncPeriod, "liqo-resync-period", c.LiqoInformerResyncPeriod,
+		"how often to perform a full resync of Liqo resources informers")
 	flags.DurationVar(&c.StartupTimeout, "startup-timeout", c.StartupTimeout, "How long to wait for the virtual-kubelet to start")
 
 	flags.StringVar(&c.ForeignClusterId, "foreign-cluster-id", c.ForeignClusterId, "The Id of the foreign cluster")
@@ -41,6 +44,8 @@ func InstallFlags(flags *pflag.FlagSet, c *Opts) {
 	flags.StringVar(&c.LiqoIpamServer, "ipam-server", c.LiqoIpamServer, "The server the Virtual Kubelet should"+
 		"connect to in order to contact the IPAM module")
 	flags.BoolVar(&c.Profiling, "enable-profiling", c.Profiling, "Enable pprof profiling")
+
+	flags.BoolVar(&c.UseNewAuth, "useNewAuth", c.UseNewAuth, "Enable the new authentication flow, with certificates and namespaced resources")
 
 	flagset := flag.NewFlagSet("klog", flag.PanicOnError)
 	klog.InitFlags(flagset)

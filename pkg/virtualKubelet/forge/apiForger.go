@@ -64,11 +64,9 @@ type apiForger struct {
 	nattingTable namespacesMapping.NamespaceNatter
 	ipamClient   liqonet.IpamClient
 
-	localRemappedPodCidr  options.ReadOnlyOption
-	remoteRemappedPodCidr options.ReadOnlyOption
-	virtualNodeName       options.ReadOnlyOption
-	liqoIpamServer        options.ReadOnlyOption
-	offloadClusterID      options.ReadOnlyOption
+	virtualNodeName  options.ReadOnlyOption
+	liqoIpamServer   options.ReadOnlyOption
+	offloadClusterID options.ReadOnlyOption
 }
 
 var forger apiForger
@@ -78,10 +76,6 @@ func InitForger(nattingTable namespacesMapping.NamespaceNatter, opts ...options.
 	forger.nattingTable = nattingTable
 	for _, opt := range opts {
 		switch opt.Key() {
-		case types.LocalRemappedPodCIDR:
-			forger.localRemappedPodCidr = opt
-		case types.RemoteRemappedPodCIDR:
-			forger.remoteRemappedPodCidr = opt
 		case types.VirtualNodeName:
 			forger.virtualNodeName = opt
 		case types.RemoteClusterID:
@@ -92,6 +86,7 @@ func InitForger(nattingTable namespacesMapping.NamespaceNatter, opts ...options.
 		}
 	}
 }
+
 func initIpamClient() {
 	conn, err := grpc.Dial(fmt.Sprintf("%s:%d", forger.liqoIpamServer.Value().ToString(), consts.NetworkManagerIpamPort),
 		grpc.WithInsecure(),

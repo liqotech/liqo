@@ -20,15 +20,12 @@ import (
 	ri "github.com/liqotech/liqo/pkg/virtualKubelet/apiReflection/reflectors/reflectorsInterfaces"
 	vkContext "github.com/liqotech/liqo/pkg/virtualKubelet/context"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/forge"
-	"github.com/liqotech/liqo/pkg/virtualKubelet/options"
 )
 
 // PodsIncomingReflector is the incoming reflector in charge of detecting status change in foreign pods
 // and pushing the updated object to the vk internals.
 type PodsIncomingReflector struct {
 	ri.APIReflector
-
-	RemoteRemappedPodCIDR options.ReadOnlyOption
 }
 
 // SetSpecializedPreProcessingHandlers allows to set the pre-routine handlers for the PodsIncomingReflector.

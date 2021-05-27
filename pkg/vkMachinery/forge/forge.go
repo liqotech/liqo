@@ -108,6 +108,7 @@ func forgeVKContainers(
 		stringifyArgument("--kubelet-namespace", vkNamespace),
 		stringifyArgument("--foreign-kubeconfig", "/app/kubeconfig/remote"),
 		stringifyArgument("--home-cluster-id", homeClusterID),
+		"--enable-node-lease",
 	}
 
 	volumeMounts := []v1.VolumeMount{

@@ -33,6 +33,7 @@ var (
 
 	// TunnelEndpointGroupVersionResource is group resource version used to tunnelEndpoint objects.
 	TunnelEndpointGroupVersionResource = schema.GroupVersionResource{Group: GroupVersion.Group,
+		Version:  GroupVersion.Version,
 		Resource: "tunnelendpoints"}
 
 	// NetworkConfigGroupVersionResource is group resource version used to networkConfig objects.

@@ -28,9 +28,8 @@ var endpointsliceLabels = map[string]string{
 type EndpointSlicesReflector struct {
 	ri.APIReflector
 
-	LocalRemappedPodCIDR options.ReadOnlyOption
-	VirtualNodeName      options.ReadOnlyOption
-	IpamClient           liqonet.IpamClient
+	VirtualNodeName options.ReadOnlyOption
+	IpamClient      liqonet.IpamClient
 }
 
 func (r *EndpointSlicesReflector) SetSpecializedPreProcessingHandlers() {

@@ -31,8 +31,6 @@ type Provider interface {
 	// ConfigureNode enables a provider to configure the node object that
 	// will be used for Kubernetes.
 	ConfigureNode(context.Context, *v1.Node)
-
-	StartNodeUpdater(nodeRunner *module.NodeController) (chan struct{}, chan struct{}, error)
 }
 
 // PodMetricsProvider is an optional interface that providers can implement to expose pod stats.
