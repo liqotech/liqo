@@ -2,6 +2,7 @@ package resourcerequestoperator
 
 import (
 	"context"
+	crdreplicator "github.com/liqotech/liqo/internal/crdReplicator"
 	"time"
 
 	. "github.com/onsi/ginkgo"
@@ -64,6 +65,10 @@ var _ = Describe("ResourceRequest controller", func() {
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      ResourceRequestName,
 					Namespace: ResourcesNamespace,
+					Labels: map[string]string{
+						crdreplicator.RemoteLabelSelector: clusterId,
+						crdreplicator.ReplicationStatuslabel: "true",
+					},
 				},
 				Spec: discoveryv1alpha1.ResourceRequestSpec{
 					AuthURL: "https://127.0.0.1:39087",
@@ -95,7 +100,8 @@ var _ = Describe("ResourceRequest controller", func() {
 
 			Expect(createdResourceOffer.Name).Should(ContainSubstring(clusterId))
 			Expect(createdResourceOffer.Labels[discovery.ClusterIDLabel]).Should(Equal(createdResourceRequest.Spec.ClusterIdentity.ClusterID))
-
+			Expect(createdResourceOffer.Labels[crdreplicator.LocalLabelSelector]).Should(Equal("true"))
+			Expect(createdResourceOffer.Labels[crdreplicator.DestinationLabel]).Should(Equal(createdResourceRequest.Spec.ClusterIdentity.ClusterID))
 			By("Checking OwnerReference for Garbage Collector")
 			Expect(createdResourceOffer.GetOwnerReferences()).ShouldNot(HaveLen(0))
 			Expect(createdResourceOffer.GetOwnerReferences()).Should(ContainElement(MatchFields(IgnoreExtras, Fields{

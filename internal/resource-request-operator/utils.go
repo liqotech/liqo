@@ -11,6 +11,7 @@ import (
 
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	sharingv1alpha1 "github.com/liqotech/liqo/apis/sharing/v1alpha1"
+	crdreplicator "github.com/liqotech/liqo/internal/crdReplicator"
 	"github.com/liqotech/liqo/pkg/discovery"
 )
 
@@ -30,7 +31,9 @@ func (r *ResourceRequestReconciler) generateResourceOffer(request *discoveryv1al
 
 	op, err := controllerutil.CreateOrUpdate(context.Background(), r.Client, offer, func() error {
 		offer.Labels = map[string]string{
-			discovery.ClusterIDLabel: request.Spec.ClusterIdentity.ClusterID,
+			discovery.ClusterIDLabel:         request.Spec.ClusterIdentity.ClusterID,
+			crdreplicator.LocalLabelSelector: "true",
+			crdreplicator.DestinationLabel:   request.Spec.ClusterIdentity.ClusterID,
 		}
 		creationTime := metav1.NewTime(time.Now())
 		spec := sharingv1alpha1.ResourceOfferSpec{
