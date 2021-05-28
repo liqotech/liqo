@@ -8,8 +8,10 @@ import (
 	"k8s.io/klog/v2"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/predicate"
 
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
+	crdreplicator "github.com/liqotech/liqo/internal/crdReplicator"
 )
 
 // ResourceRequestReconciler reconciles a ResourceRequest object.
@@ -50,7 +52,14 @@ func (r *ResourceRequestReconciler) Reconcile(ctx context.Context, req ctrl.Requ
 
 // SetupWithManager is the setup function of the controller.
 func (r *ResourceRequestReconciler) SetupWithManager(mgr ctrl.Manager) error {
+	// generate the predicate to filter just the ResourceRequest created by the remote cluster checking crdReplicator labels
+	p, err := predicate.LabelSelectorPredicate(crdreplicator.ReplicatedResourcesLabelSelector)
+	if err != nil {
+		klog.Error(err)
+		return err
+	}
 	return ctrl.NewControllerManagedBy(mgr).
+		WithEventFilter(p).
 		For(&discoveryv1alpha1.ResourceRequest{}).
 		Complete(r)
 }
