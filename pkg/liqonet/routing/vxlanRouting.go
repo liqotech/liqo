@@ -5,14 +5,13 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/liqotech/liqo/pkg/liqonet"
-
 	"golang.org/x/sys/unix"
 	"k8s.io/klog/v2"
 
 	netv1alpha1 "github.com/liqotech/liqo/apis/net/v1alpha1"
 	liqoerrors "github.com/liqotech/liqo/pkg/liqonet/errors"
 	"github.com/liqotech/liqo/pkg/liqonet/overlay"
+	"github.com/liqotech/liqo/pkg/liqonet/utils"
 )
 
 const (
@@ -78,7 +77,7 @@ func (vrm *VxlanRoutingManager) EnsureRoutesPerCluster(tep *netv1alpha1.TunnelEn
 	var err error
 	clusterID := tep.Spec.ClusterID
 	// Extract and save route information from the given tep.
-	_, dstNet := liqonet.GetPodCIDRS(tep)
+	_, dstNet := utils.GetPodCIDRS(tep)
 	if tep.Status.GatewayIP != vrm.podIP {
 		gatewayIP = vrm.getOverlayIP(tep.Status.GatewayIP)
 		iFaceIndex = vrm.vxlanDevice.Link.Index
@@ -114,7 +113,7 @@ func (vrm *VxlanRoutingManager) RemoveRoutesPerCluster(tep *netv1alpha1.TunnelEn
 	var err error
 	clusterID := tep.Spec.ClusterID
 	// Extract and save route information from the given tep.
-	_, dstNet := liqonet.GetPodCIDRS(tep)
+	_, dstNet := utils.GetPodCIDRS(tep)
 	if tep.Status.GatewayIP != vrm.podIP {
 		gatewayIP = vrm.getOverlayIP(tep.Status.GatewayIP)
 		iFaceIndex = vrm.vxlanDevice.Link.Index

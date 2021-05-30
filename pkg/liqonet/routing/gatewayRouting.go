@@ -7,8 +7,8 @@ import (
 	"golang.org/x/sys/unix"
 
 	netv1alpha1 "github.com/liqotech/liqo/apis/net/v1alpha1"
-	"github.com/liqotech/liqo/pkg/liqonet"
 	liqoerrors "github.com/liqotech/liqo/pkg/liqonet/errors"
+	"github.com/liqotech/liqo/pkg/liqonet/utils"
 )
 
 // GatewayRoutingManager implements the routing manager interface.
@@ -47,7 +47,7 @@ func (grm *GatewayRoutingManager) EnsureRoutesPerCluster(tep *netv1alpha1.Tunnel
 	var routeAdd bool
 	var err error
 	// Extract and save route information from the given tep.
-	_, dstNet := liqonet.GetPodCIDRS(tep)
+	_, dstNet := utils.GetPodCIDRS(tep)
 	// Add route for the given cluster.
 	routeAdd, err = AddRoute(dstNet, "", grm.tunnelDevice.Attrs().Index, grm.routingTableID)
 	if err != nil {
@@ -64,7 +64,7 @@ func (grm *GatewayRoutingManager) RemoveRoutesPerCluster(tep *netv1alpha1.Tunnel
 	var routeDel bool
 	var err error
 	// Extract and save route information from the given tep.
-	_, dstNet := liqonet.GetPodCIDRS(tep)
+	_, dstNet := utils.GetPodCIDRS(tep)
 	// Delete route for the given cluster.
 	routeDel, err = delRoute(dstNet, "", grm.tunnelDevice.Attrs().Index, grm.routingTableID)
 	if err != nil {

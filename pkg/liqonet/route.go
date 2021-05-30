@@ -10,6 +10,7 @@ import (
 	"k8s.io/klog/v2"
 
 	netv1alpha1 "github.com/liqotech/liqo/apis/net/v1alpha1"
+	"github.com/liqotech/liqo/pkg/liqonet/utils"
 )
 
 // NetLink interface used to configure routing tables for each peering cluster.
@@ -35,7 +36,7 @@ func NewRouteManager(recorder record.EventRecorder) NetLink {
 // EnsureRoutesPerCluster for a given cluster it ensures the.
 func (rm *RouteManager) EnsureRoutesPerCluster(iface string, tep *netv1alpha1.TunnelEndpoint) error {
 	clusterID := tep.Spec.ClusterID
-	_, remotePodCIDR := GetPodCIDRS(tep)
+	_, remotePodCIDR := utils.GetPodCIDRS(tep)
 	existing, ok := rm.getRoute(clusterID)
 	// check if the network parameters are the same and if we need to remove the old route and add the new one
 	if ok {
