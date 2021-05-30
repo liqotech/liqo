@@ -116,7 +116,7 @@ func main() {
 		tc.WatchConfiguration(config, &clusterConfig.GroupVersion)
 		tc.StartPodWatcher()
 		tc.StartServiceWatcher()
-		if err := tc.CreateAndEnsureIPTablesChains(tc.DefaultIface); err != nil {
+		if err := tc.IPTHandler.Init(); err != nil {
 			klog.Errorf("an error occurred while creating iptables handler: %v", err)
 			os.Exit(1)
 		}

@@ -25,6 +25,7 @@ import (
 	"time"
 
 	"github.com/containernetworking/plugins/pkg/ns"
+	"github.com/vishvananda/netlink"
 	k8s "k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/record"
 	"k8s.io/klog"
@@ -34,18 +35,15 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 
-	"github.com/vishvananda/netlink"
-
 	netv1alpha1 "github.com/liqotech/liqo/apis/net/v1alpha1"
 	liqoconst "github.com/liqotech/liqo/pkg/consts"
 	"github.com/liqotech/liqo/pkg/liqonet"
+	"github.com/liqotech/liqo/pkg/liqonet/iptables"
 	liqonetns "github.com/liqotech/liqo/pkg/liqonet/netns"
 	"github.com/liqotech/liqo/pkg/liqonet/overlay"
 	liqorouting "github.com/liqotech/liqo/pkg/liqonet/routing"
 	"github.com/liqotech/liqo/pkg/liqonet/tunnel"
-
-	// wireguard package is imported in order to run the init function contained in the package.
-	_ "github.com/liqotech/liqo/pkg/liqonet/tunnel/wireguard"
+	_ "github.com/liqotech/liqo/pkg/liqonet/tunnel/wireguard" // This package is imported in order to run its init func.
 	"github.com/liqotech/liqo/pkg/liqonet/utils"
 	"github.com/liqotech/liqo/pkg/liqonet/wireguard"
 )
@@ -71,7 +69,7 @@ type TunnelController struct {
 	record.EventRecorder
 	tunnel.Driver
 	liqonet.NetLink
-	liqonet.IPTablesHandler
+	iptables.IPTHandler
 	DefaultIface string
 	k8sClient    *k8s.Clientset
 	wg           *wireguard.Wireguard
@@ -174,7 +172,7 @@ func (tc *TunnelController) Reconcile(ctx context.Context, req ctrl.Request) (ct
 		klog.Infof("%s -> resource %s is not ready", endpoint.Spec.ClusterID, endpoint.Name)
 		return result, nil
 	}
-	_, remotePodCIDR := liqonet.GetPodCIDRS(&endpoint)
+	_, remotePodCIDR := utils.GetPodCIDRS(&endpoint)
 	// examine DeletionTimestamp to determine if object is under deletion
 	if endpoint.ObjectMeta.DeletionTimestamp.IsZero() {
 		if !controllerutil.ContainsFinalizer(&endpoint, tunnelEndpointFinalizer) {
@@ -299,18 +297,23 @@ func (tc *TunnelController) RemoveAllTunnels() {
 // a given remote cluster.
 func (tc *TunnelController) EnsureIPTablesRulesPerCluster(tep *netv1alpha1.TunnelEndpoint) error {
 	clusterID := tep.Spec.ClusterID
-	if err := tc.EnsureChainRulespecs(tep); err != nil {
-		klog.Errorf("%s -> an error occurred while creating iptables chains for the remote peer: %v", clusterID, err)
+	if err := tc.EnsureChainsPerCluster(tep.Spec.ClusterID); err != nil {
+		klog.Errorf("%s -> an error occurred while creating iptables chains for the remote peer: %s", clusterID, err.Error())
 		tc.Eventf(tep, "Warning", "Processing", "unable to insert iptables rules: %v", err)
 		return err
 	}
-	if err := tc.EnsurePostroutingRules(true, tep); err != nil {
-		klog.Errorf("%s -> an error occurred while inserting iptables postrouting rules for the remote peer: %v", clusterID, err)
+	if err := tc.EnsureChainRulesPerCluster(tep); err != nil {
+		klog.Errorf("%s -> an error occurred while inserting iptables chain rules for the remote peer: %s", clusterID, err.Error())
+		tc.Eventf(tep, "Warning", "Processing", "unable to insert iptables rules: %v", err)
+		return err
+	}
+	if err := tc.EnsurePostroutingRules(tep); err != nil {
+		klog.Errorf("%s -> an error occurred while inserting iptables postrouting rules for the remote peer: %s", clusterID, err.Error())
 		tc.Eventf(tep, "Warning", "Processing", "unable to insert iptables rules: %v", err)
 		return err
 	}
 	if err := tc.EnsurePreroutingRules(tep); err != nil {
-		klog.Errorf("%s -> an error occurred while inserting iptables prerouting rules for the remote peer: %v", clusterID, err)
+		klog.Errorf("%s -> an error occurred while inserting iptables prerouting rules for the remote peer: %s", clusterID, err.Error())
 		tc.Eventf(tep, "Warning", "Processing", "unable to insert iptables rules: %v", err)
 		return err
 	}
@@ -329,6 +332,9 @@ func (tc *TunnelController) SetupSignalHandlerForTunnelOperator() context.Contex
 		klog.Infof("received signal %s: cleaning up", sig.String())
 		close(tc.stopSWChan)
 		close(tc.stopPWChan)
+		if err := tc.Terminate(); err != nil {
+			klog.Errorf("an error occurred while deleting Liqo IPTables config: %s", err.Error())
+		}
 		r.RemoveAllTunnels()
 		<-c
 		done()
@@ -373,11 +379,11 @@ func (tc *TunnelController) SetUpTunnelDrivers() error {
 // SetUpIPTablesHandler initializes the IPTables handler of
 // TunnelController.
 func (tc *TunnelController) SetUpIPTablesHandler() error {
-	iptHandler, err := liqonet.NewIPTablesHandler()
+	iptHandler, err := iptables.NewIPTHandler()
 	if err != nil {
 		return err
 	}
-	tc.IPTablesHandler = iptHandler
+	tc.IPTHandler = iptHandler
 	return nil
 }
 

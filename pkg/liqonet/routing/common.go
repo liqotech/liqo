@@ -11,8 +11,8 @@ import (
 	"k8s.io/apimachinery/pkg/util/wait"
 
 	"github.com/liqotech/liqo/apis/net/v1alpha1"
-	"github.com/liqotech/liqo/pkg/liqonet"
 	liqoneterrors "github.com/liqotech/liqo/pkg/liqonet/errors"
+	"github.com/liqotech/liqo/pkg/liqonet/utils"
 
 	"github.com/vishvananda/netlink"
 	"golang.org/x/sys/unix"
@@ -209,7 +209,7 @@ func flushRulesForRoutingTable(routingTableID int) error {
 }
 
 func getRouteConfig(tep *v1alpha1.TunnelEndpoint, podIP string) (dstNet, gatewayIP string, iFaceIndex int, err error) {
-	_, dstNet = liqonet.GetPodCIDRS(tep)
+	_, dstNet = utils.GetPodCIDRS(tep)
 	// Check if we are running on the same host as the gateway pod.
 	if tep.Status.GatewayIP != podIP {
 		// If the pod is not running on the same host then set the IP address of the Gateway as next hop.
