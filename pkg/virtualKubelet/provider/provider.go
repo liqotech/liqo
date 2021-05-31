@@ -107,8 +107,9 @@ func NewLiqoProvider(nodeName, foreignClusterID, homeClusterID, internalIP strin
 	localRemappedPodCIDROpt := optTypes.NewNetworkingOption(optTypes.LocalRemappedPodCIDR, "")
 	virtualNodeNameOpt := optTypes.NewNetworkingOption(optTypes.VirtualNodeName, optTypes.NetworkingValue(nodeName))
 	grpcServerNameOpt := optTypes.NewNetworkingOption(optTypes.LiqoIpamServer, optTypes.NetworkingValue(ipamGRPCServer))
+	remoteClusterIDOpt := optTypes.NewNetworkingOption(optTypes.RemoteClusterID, optTypes.NetworkingValue(foreignClusterID))
 
-	forge.InitForger(mapper, remoteRemappedPodCIDROpt, localRemappedPodCIDROpt, virtualNodeNameOpt, grpcServerNameOpt)
+	forge.InitForger(mapper, remoteRemappedPodCIDROpt, localRemappedPodCIDROpt, virtualNodeNameOpt, remoteClusterIDOpt, grpcServerNameOpt)
 
 	opts := forgeOptionsMap(
 		remoteRemappedPodCIDROpt,

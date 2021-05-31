@@ -13,6 +13,7 @@ const (
 	LocalRemappedPodCIDR  = "localRemappedPodCIDR"
 	RemoteRemappedPodCIDR = "remoteRemappedPodCIDR"
 	VirtualNodeName       = "virtualNodeName"
+	RemoteClusterID       = "remoteClusterID"
 	LiqoIpamServer        = "liqoIpamServer"
 )
 

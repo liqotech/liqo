@@ -3,7 +3,11 @@ package forge
 import metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 const (
+	// LiqoOutgoingKey is a label to set on all offloaded resources.
 	LiqoOutgoingKey = "virtualkubelet.liqo.io/outgoing"
+	// LiqoOriginClusterID is a label to set on all offloaded resources to identify the origin cluster.
+	LiqoOriginClusterID = "virtualkubelet.liqo.io/originClusterId"
+	// LiqoIncomingKey is a label for incoming resources.
 	LiqoIncomingKey = "virtualkubelet.liqo.io/incoming"
 )
 
@@ -20,6 +24,7 @@ func (f *apiForger) forgeForeignMeta(homeMeta, foreignMeta *metav1.ObjectMeta, f
 	forgeObjectMeta(homeMeta, foreignMeta)
 
 	foreignMeta.Namespace = foreignNamespace
+	foreignMeta.Labels[LiqoOriginClusterID] = f.offloadClusterID.Value().ToString()
 	foreignMeta.Labels[reflectionType] = LiqoNodeName()
 }
 
