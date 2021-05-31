@@ -68,13 +68,14 @@ type apiForger struct {
 	remoteRemappedPodCidr options.ReadOnlyOption
 	virtualNodeName       options.ReadOnlyOption
 	liqoIpamServer        options.ReadOnlyOption
+	offloadClusterID      options.ReadOnlyOption
 }
 
 var forger apiForger
 
+// InitForger initialize forger component to set all necessary fields of offloaded resources.
 func InitForger(nattingTable namespacesMapping.NamespaceNatter, opts ...options.ReadOnlyOption) {
 	forger.nattingTable = nattingTable
-
 	for _, opt := range opts {
 		switch opt.Key() {
 		case types.LocalRemappedPodCIDR:
@@ -83,6 +84,8 @@ func InitForger(nattingTable namespacesMapping.NamespaceNatter, opts ...options.
 			forger.remoteRemappedPodCidr = opt
 		case types.VirtualNodeName:
 			forger.virtualNodeName = opt
+		case types.RemoteClusterID:
+			forger.offloadClusterID = opt
 		case types.LiqoIpamServer:
 			forger.liqoIpamServer = opt
 			initIpamClient()
