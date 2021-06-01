@@ -73,6 +73,7 @@ type InitConfig struct {
 	RemoteKubeConfig     string
 	HomeClusterID        string
 	RemoteClusterID      string
+	LiqoIpamServer       string
 	InformerResyncPeriod time.Duration
 }
 

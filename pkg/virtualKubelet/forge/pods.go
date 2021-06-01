@@ -1,6 +1,7 @@
 package forge
 
 import (
+	"context"
 	"fmt"
 	"strings"
 
@@ -55,12 +56,16 @@ func (f *apiForger) podStatusForeignToHome(foreignObj, homeObj runtime.Object) *
 
 	homePod.Status = foreignPod.Status
 	if homePod.Status.PodIP != "" {
-		newIP, err := liqonet.MapIPToNetwork(f.remoteRemappedPodCidr.Value().ToString(), foreignPod.Status.PodIP)
+		response, err := f.ipamClient.GetHomePodIP(context.Background(),
+			&liqonet.GetHomePodIPRequest{
+				ClusterID: strings.TrimPrefix(f.virtualNodeName.Value().ToString(), virtualKubelet.VirtualNodePrefix),
+				Ip:        foreignPod.Status.PodIP,
+			})
 		if err != nil {
 			klog.Error(err)
 		}
-		homePod.Status.PodIP = newIP
-		homePod.Status.PodIPs[0].IP = newIP
+		homePod.Status.PodIP = response.GetHomeIP()
+		homePod.Status.PodIPs[0].IP = response.GetHomeIP()
 	}
 
 	if foreignPod.DeletionTimestamp != nil {

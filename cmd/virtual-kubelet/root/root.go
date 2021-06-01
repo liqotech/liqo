@@ -123,6 +123,7 @@ func runRootCommand(ctx context.Context, s *provider.Store, c *Opts) error {
 		HomeClusterID:        c.HomeClusterId,
 		RemoteKubeConfig:     c.ForeignKubeconfig,
 		InformerResyncPeriod: c.InformerResyncPeriod,
+		LiqoIpamServer:       c.LiqoIpamServer,
 	}
 
 	pInit := s.Get(c.Provider)

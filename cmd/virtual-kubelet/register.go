@@ -16,6 +16,7 @@ func registerKubernetes(s *provider.Store) error {
 			cfg.HomeKubeConfig,
 			cfg.RemoteKubeConfig,
 			cfg.InformerResyncPeriod,
+			cfg.LiqoIpamServer,
 		)
 	})
 }

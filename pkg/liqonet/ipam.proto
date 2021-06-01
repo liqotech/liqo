@@ -4,6 +4,7 @@ option go_package = "./liqonet";
 service ipam {
     rpc MapEndpointIP (MapRequest) returns (MapResponse);
     rpc UnmapEndpointIP (UnmapRequest) returns (UnmapResponse);
+    rpc GetHomePodIP (GetHomePodIPRequest) returns (GetHomePodIPResponse);
 }
 
 message MapRequest {
@@ -21,4 +22,13 @@ message UnmapRequest {
 }
 
 message UnmapResponse {}
+
+message GetHomePodIPRequest {
+    string clusterID = 1;
+    string ip = 2;
+}
+
+message GetHomePodIPResponse {
+    string homeIP = 1;
+}
 

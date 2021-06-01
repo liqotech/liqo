@@ -2,7 +2,6 @@ package resourcerequestoperator
 
 import (
 	"context"
-	crdreplicator "github.com/liqotech/liqo/internal/crdReplicator"
 	"time"
 
 	. "github.com/onsi/ginkgo"
@@ -15,6 +14,7 @@ import (
 
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	sharingv1alpha1 "github.com/liqotech/liqo/apis/sharing/v1alpha1"
+	crdreplicator "github.com/liqotech/liqo/internal/crdReplicator"
 	"github.com/liqotech/liqo/pkg/discovery"
 )
 
@@ -66,7 +66,7 @@ var _ = Describe("ResourceRequest controller", func() {
 					Name:      ResourceRequestName,
 					Namespace: ResourcesNamespace,
 					Labels: map[string]string{
-						crdreplicator.RemoteLabelSelector: clusterId,
+						crdreplicator.RemoteLabelSelector:    clusterId,
 						crdreplicator.ReplicationStatuslabel: "true",
 					},
 				},

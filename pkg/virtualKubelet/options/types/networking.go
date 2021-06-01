@@ -13,6 +13,7 @@ const (
 	LocalRemappedPodCIDR  = "localRemappedPodCIDR"
 	RemoteRemappedPodCIDR = "remoteRemappedPodCIDR"
 	VirtualNodeName       = "virtualNodeName"
+	LiqoIpamServer        = "liqoIpamServer"
 )
 
 func NewNetworkingOption(key NetworkingKey, value NetworkingValue) *NetworkingOption {

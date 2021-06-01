@@ -9,6 +9,10 @@ const (
 	MinorOrEqual = "<="
 	// AtLeastOneValid used as reason of failure in WrongParameter error.
 	AtLeastOneValid = "at least one of the arguments has to be valid"
+	// StringNotEmpty used as reason of failure in WrongParameter error.
+	StringNotEmpty = "not empty"
+	// ValidIP used as reason of failure in WrongParameter error.
+	ValidIP = "a valid IP address"
 )
 
 // ParseIPError it is returned when net.ParseIP() fails to parse and ip address.
@@ -27,6 +31,9 @@ type WrongParameter struct {
 }
 
 func (wp *WrongParameter) Error() string {
+	if wp.Reason == StringNotEmpty {
+		return strings.Join([]string{"Parameter must be ", wp.Reason}, "")
+	}
 	return strings.Join([]string{wp.Parameter, " must be ", wp.Reason}, "")
 }
 

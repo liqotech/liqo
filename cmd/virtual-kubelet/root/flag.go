@@ -38,6 +38,8 @@ func InstallFlags(flags *pflag.FlagSet, c *Opts) {
 	flags.StringVar(&c.ForeignClusterId, "foreign-cluster-id", c.ForeignClusterId, "The Id of the foreign cluster")
 	flags.StringVar(&c.KubeletNamespace, "kubelet-namespace", c.KubeletNamespace, "The namespace of the virtual kubelet")
 	flags.StringVar(&c.HomeClusterId, "home-cluster-id", c.HomeClusterId, "The Id of the home cluster")
+	flags.StringVar(&c.LiqoIpamServer, "ipam-server", c.LiqoIpamServer, "The server the Virtual Kubelet should"+
+		"connect to in order to contact the IPAM module")
 	flags.BoolVar(&c.Profiling, "enable-profiling", c.Profiling, "Enable pprof profiling")
 
 	flagset := flag.NewFlagSet("klog", flag.PanicOnError)

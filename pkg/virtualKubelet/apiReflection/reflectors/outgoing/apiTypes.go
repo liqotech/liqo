@@ -26,7 +26,7 @@ func configmapsReflectorBuilder(reflector ri.APIReflector, _ map[options.OptionK
 }
 
 func endpointslicesReflectorBuilder(reflector ri.APIReflector, opts map[options.OptionKey]options.Option) ri.OutgoingAPIReflector {
-	conn, err := grpc.Dial(fmt.Sprintf("%s:%d", liqoconst.NetworkManagerServiceName, liqoconst.NetworkManagerIpamPort),
+	conn, err := grpc.Dial(fmt.Sprintf("%s:%d", opts[options.OptionKey(types.LiqoIpamServer)].Value(), liqoconst.NetworkManagerIpamPort),
 		grpc.WithInsecure(),
 		grpc.WithBlock())
 	if err != nil {

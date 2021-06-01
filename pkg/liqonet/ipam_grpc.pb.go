@@ -21,6 +21,7 @@ const _ = grpc.SupportPackageIsVersion7
 type IpamClient interface {
 	MapEndpointIP(ctx context.Context, in *MapRequest, opts ...grpc.CallOption) (*MapResponse, error)
 	UnmapEndpointIP(ctx context.Context, in *UnmapRequest, opts ...grpc.CallOption) (*UnmapResponse, error)
+	GetHomePodIP(ctx context.Context, in *GetHomePodIPRequest, opts ...grpc.CallOption) (*GetHomePodIPResponse, error)
 }
 
 type ipamClient struct {
@@ -49,12 +50,22 @@ func (c *ipamClient) UnmapEndpointIP(ctx context.Context, in *UnmapRequest, opts
 	return out, nil
 }
 
+func (c *ipamClient) GetHomePodIP(ctx context.Context, in *GetHomePodIPRequest, opts ...grpc.CallOption) (*GetHomePodIPResponse, error) {
+	out := new(GetHomePodIPResponse)
+	err := c.cc.Invoke(ctx, "/ipam/GetHomePodIP", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // IpamServer is the server API for Ipam service.
 // All implementations must embed UnimplementedIpamServer
 // for forward compatibility
 type IpamServer interface {
 	MapEndpointIP(context.Context, *MapRequest) (*MapResponse, error)
 	UnmapEndpointIP(context.Context, *UnmapRequest) (*UnmapResponse, error)
+	GetHomePodIP(context.Context, *GetHomePodIPRequest) (*GetHomePodIPResponse, error)
 	mustEmbedUnimplementedIpamServer()
 }
 
@@ -67,6 +78,9 @@ func (UnimplementedIpamServer) MapEndpointIP(context.Context, *MapRequest) (*Map
 }
 func (UnimplementedIpamServer) UnmapEndpointIP(context.Context, *UnmapRequest) (*UnmapResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method UnmapEndpointIP not implemented")
+}
+func (UnimplementedIpamServer) GetHomePodIP(context.Context, *GetHomePodIPRequest) (*GetHomePodIPResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetHomePodIP not implemented")
 }
 func (UnimplementedIpamServer) mustEmbedUnimplementedIpamServer() {}
 
@@ -117,6 +131,24 @@ func _Ipam_UnmapEndpointIP_Handler(srv interface{}, ctx context.Context, dec fun
 	return interceptor(ctx, in, info, handler)
 }
 
+func _Ipam_GetHomePodIP_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetHomePodIPRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(IpamServer).GetHomePodIP(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/ipam/GetHomePodIP",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(IpamServer).GetHomePodIP(ctx, req.(*GetHomePodIPRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // Ipam_ServiceDesc is the grpc.ServiceDesc for Ipam service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -131,6 +163,10 @@ var Ipam_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "UnmapEndpointIP",
 			Handler:    _Ipam_UnmapEndpointIP_Handler,
+		},
+		{
+			MethodName: "GetHomePodIP",
+			Handler:    _Ipam_GetHomePodIP_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},
