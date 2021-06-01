@@ -2,6 +2,7 @@ package liqonet_test
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strings"
 
@@ -21,6 +22,9 @@ import (
 
 var ipam *liqonet.IPAM
 var dynClient dynamic.Interface
+
+const invalidValue = "invalid value"
+const clusterName = "cluster1"
 
 func fillNetworkPool(pool string, ipam *liqonet.IPAM) error {
 
@@ -769,7 +773,7 @@ var _ = Describe("Ipam", func() {
 						ClusterID: "cluster1",
 						Ip:        "30.0.4.9",
 					})
-					Expect(err.Error()).To(ContainSubstring("cluster PodCIDR is not set"))
+					Expect(err.Error()).To(ContainSubstring("cannot parse network"))
 				})
 			})
 			Context("If the remote cluster has not a PodCIDR set", func() {
@@ -800,6 +804,92 @@ var _ = Describe("Ipam", func() {
 			})
 		})
 	})
+
+	Describe("GetHomePodIP", func() {
+		Context("Pass function an invalid IP address", func() {
+			It("should return WrongParameter error", func() {
+				_, err := ipam.GetHomePodIP(context.Background(),
+					&liqonet.GetHomePodIPRequest{
+						Ip:        invalidValue,
+						ClusterID: clusterName,
+					})
+				err = errors.Unwrap(err)
+				Expect(err).To(MatchError(fmt.Sprintf("%s must be %s", invalidValue, liqonet.ValidIP)))
+			})
+		})
+		Context("Pass function an empty cluster ID", func() {
+			It("should return WrongParameter error", func() {
+				_, err := ipam.GetHomePodIP(context.Background(),
+					&liqonet.GetHomePodIPRequest{
+						Ip:        invalidValue,
+						ClusterID: "",
+					})
+				err = errors.Unwrap(err)
+				Expect(err).To(MatchError(fmt.Sprintf("Parameter must be %s", liqonet.StringNotEmpty)))
+			})
+		})
+		Context("Invoking func without subnets init", func() {
+			It("should return WrongParameter error", func() {
+				_, err := ipam.GetHomePodIP(context.Background(),
+					&liqonet.GetHomePodIPRequest{
+						Ip:        "10.0.0.1",
+						ClusterID: clusterName,
+					})
+				err = errors.Unwrap(err)
+				Expect(err).To(MatchError(fmt.Sprintf("cluster %s subnets are not set", clusterName)))
+			})
+		})
+		Context(`When the remote Pod CIDR has not been remapped by home cluster
+			and the call refers to a remote Pod`, func() {
+			It("should return the same IP", func() {
+				ip := "10.0.10.1"
+				podCIDR := "10.0.10.0/24"
+				externalCIDR := "10.0.50.0/24"
+
+				// Home cluster has not remapped remote PodCIDR
+				mappedPodCIDR, _, err := ipam.GetSubnetsPerCluster(podCIDR, externalCIDR, clusterName)
+				Expect(err).To(BeNil())
+				Expect(mappedPodCIDR).To(Equal(podCIDR))
+
+				response, err := ipam.GetHomePodIP(context.Background(),
+					&liqonet.GetHomePodIPRequest{
+						Ip:        ip,
+						ClusterID: clusterName,
+					})
+				Expect(err).To(BeNil())
+				Expect(response.GetHomeIP()).To(Equal(ip))
+			})
+		})
+		Context(`When the remote Pod CIDR has been remapped by home cluster
+			and the call refers to a remote Pod`, func() {
+			It("should return the remapped IP", func() {
+				ip := "10.0.10.1" // Original Pod IP
+				podCIDR := "10.0.10.0/24"
+				externalCIDR := "10.0.50.0/24"
+
+				// Reserve original PodCIDR so that home cluster will remap it
+				err := ipam.AcquireReservedSubnet(podCIDR)
+				Expect(err).To(BeNil())
+
+				// Home cluster has remapped remote PodCIDR
+				mappedPodCIDR, _, err := ipam.GetSubnetsPerCluster(podCIDR, externalCIDR, clusterName)
+				Expect(err).To(BeNil())
+				Expect(mappedPodCIDR).ToNot(Equal(podCIDR))
+
+				response, err := ipam.GetHomePodIP(context.Background(),
+					&liqonet.GetHomePodIPRequest{
+						Ip:        ip,
+						ClusterID: clusterName,
+					})
+				Expect(err).To(BeNil())
+
+				// IP should be mapped to remoteNATPodCIDR
+				remappedIP, err := liqonet.MapIPToNetwork(mappedPodCIDR, ip)
+				Expect(response.GetHomeIP()).To(Equal(remappedIP))
+			})
+		})
+	})
+
 	Describe("UnmapEndpointIP", func() {
 		Context("If there are no more clusters using an endpointIP", func() {
 			It("should free the relative IP", func() {

@@ -22,6 +22,8 @@ import (
 
 	"github.com/mitchellh/go-homedir"
 	"github.com/pkg/errors"
+
+	"github.com/liqotech/liqo/pkg/consts"
 )
 
 // Defaults for root command options.
@@ -35,6 +37,7 @@ const (
 
 	DefaultKubeletNamespace = "default"
 	DefaultHomeClusterId    = "cluster1"
+	DefaultLiqoIpamServer   = consts.NetworkManagerServiceName
 )
 
 // Opts stores all the options for configuring the root virtual-kubelet command.
@@ -75,6 +78,8 @@ type Opts struct {
 	ForeignClusterId string
 	HomeClusterId    string
 	KubeletNamespace string
+
+	LiqoIpamServer string
 
 	Version   string
 	Profiling bool
@@ -125,6 +130,10 @@ func SetDefaultOpts(c *Opts) error {
 	// This is a workaround, when the cluster-id mechanism will be implemented, this parameter will be fetched accordingly
 	if c.HomeClusterId == "" {
 		c.HomeClusterId = DefaultHomeClusterId
+	}
+
+	if c.LiqoIpamServer == "" {
+		c.LiqoIpamServer = DefaultLiqoIpamServer
 	}
 
 	return nil

@@ -1,14 +1,19 @@
 package forge
 
 import (
+	"fmt"
 	"reflect"
 
 	"github.com/pkg/errors"
+	"google.golang.org/grpc"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	discoveryv1beta1 "k8s.io/api/discovery/v1beta1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/klog/v2"
 
+	"github.com/liqotech/liqo/pkg/consts"
+	"github.com/liqotech/liqo/pkg/liqonet"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/namespacesMapping"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/options"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/options/types"
@@ -57,10 +62,12 @@ func ForeignReplicasetDeleted(pod *corev1.Pod) *corev1.Pod {
 
 type apiForger struct {
 	nattingTable namespacesMapping.NamespaceNatter
+	ipamClient   liqonet.IpamClient
 
 	localRemappedPodCidr  options.ReadOnlyOption
 	remoteRemappedPodCidr options.ReadOnlyOption
 	virtualNodeName       options.ReadOnlyOption
+	liqoIpamServer        options.ReadOnlyOption
 }
 
 var forger apiForger
@@ -76,6 +83,18 @@ func InitForger(nattingTable namespacesMapping.NamespaceNatter, opts ...options.
 			forger.remoteRemappedPodCidr = opt
 		case types.VirtualNodeName:
 			forger.virtualNodeName = opt
+		case types.LiqoIpamServer:
+			forger.liqoIpamServer = opt
+			initIpamClient()
 		}
 	}
+}
+func initIpamClient() {
+	conn, err := grpc.Dial(fmt.Sprintf("%s:%d", forger.liqoIpamServer.Value().ToString(), consts.NetworkManagerIpamPort),
+		grpc.WithInsecure(),
+		grpc.WithBlock())
+	if err != nil {
+		klog.Error(err)
+	}
+	forger.ipamClient = liqonet.NewIpamClient(conn)
 }

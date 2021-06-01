@@ -43,7 +43,8 @@ func (tec *TunnelEndpointCreator) setNetParameters(config *configv1alpha1.Cluste
 	}
 }
 
-// Helper func that returns a true if the subnet slice passed as first parameter contains the subnet passed as second parameter. Otherwise it returns false.
+// Helper func that returns a true if the subnet slice passed as first parameter
+// contains the subnet passed as second parameter. Otherwise it returns false.
 func (tec *TunnelEndpointCreator) subnetSliceContains(subnetSlice []string, network string) bool {
 	return slice.ContainsString(subnetSlice, network, nil)
 }

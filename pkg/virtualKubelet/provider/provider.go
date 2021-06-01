@@ -54,7 +54,7 @@ type LiqoProvider struct {
 
 // NewLiqoProvider creates a new NewLiqoProvider instance.
 func NewLiqoProvider(nodeName, foreignClusterID, homeClusterID, internalIP string, daemonEndpointPort int32, kubeconfig,
-	remoteKubeConfig string, informerResyncPeriod time.Duration) (*LiqoProvider, error) {
+	remoteKubeConfig string, informerResyncPeriod time.Duration, ipamGRPCServer string) (*LiqoProvider, error) {
 	var err error
 
 	if err = nattingv1.AddToScheme(clientgoscheme.Scheme); err != nil {
@@ -106,13 +106,15 @@ func NewLiqoProvider(nodeName, foreignClusterID, homeClusterID, internalIP strin
 	remoteRemappedPodCIDROpt := optTypes.NewNetworkingOption(optTypes.RemoteRemappedPodCIDR, "")
 	localRemappedPodCIDROpt := optTypes.NewNetworkingOption(optTypes.LocalRemappedPodCIDR, "")
 	virtualNodeNameOpt := optTypes.NewNetworkingOption(optTypes.VirtualNodeName, optTypes.NetworkingValue(nodeName))
+	grpcServerNameOpt := optTypes.NewNetworkingOption(optTypes.LiqoIpamServer, optTypes.NetworkingValue(ipamGRPCServer))
 
-	forge.InitForger(mapper, remoteRemappedPodCIDROpt, localRemappedPodCIDROpt, virtualNodeNameOpt)
+	forge.InitForger(mapper, remoteRemappedPodCIDROpt, localRemappedPodCIDROpt, virtualNodeNameOpt, grpcServerNameOpt)
 
 	opts := forgeOptionsMap(
 		remoteRemappedPodCIDROpt,
 		localRemappedPodCIDROpt,
-		virtualNodeNameOpt)
+		virtualNodeNameOpt,
+		grpcServerNameOpt)
 
 	tepReady := make(chan struct{})
 

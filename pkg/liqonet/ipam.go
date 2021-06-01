@@ -745,20 +745,13 @@ func (liqoIPAM *IPAM) GetExternalCIDR(mask uint8) (string, error) {
 	return externalCIDR, nil
 }
 
-// ipBelongsToPodCIDR returns true if the received IP address belongs to the local PodCIDR, returns false otherwise.
-func (liqoIPAM *IPAM) ipBelongsToPodCIDR(ip string) (bool, error) {
-	// Get PodCIDR
-	podCIDR, err := liqoIPAM.ipamStorage.getPodCIDR()
+// Function that receives an IP and a network and returns true if
+// the IP address does belong to the network.
+func ipBelongsToNetwork(ip, network string) (bool, error) {
+	// Parse network
+	p, err := netaddr.ParseIPPrefix(network)
 	if err != nil {
-		return false, fmt.Errorf("cannot get cluster PodCIDR: %w", err)
-	}
-	if podCIDR == "" {
-		return false, fmt.Errorf("cluster PodCIDR is not set")
-	}
-	// Parse PodCIDR to netaddr format
-	p, err := netaddr.ParseIPPrefix(podCIDR)
-	if err != nil {
-		return false, fmt.Errorf("cannot parse PodCIDR:%w", err)
+		return false, fmt.Errorf("cannot parse network: %w", err)
 	}
 	return p.Contains(netaddr.MustParseIP(ip)), nil
 }
@@ -841,7 +834,13 @@ func (liqoIPAM *IPAM) mapEndpointIPInternal(clusterID, ip string) (string, error
 	}
 	subnets, exists = clusterSubnets[clusterID]
 
-	belongs, err := liqoIPAM.ipBelongsToPodCIDR(ip)
+	// Get PodCIDR
+	podCIDR, err := liqoIPAM.ipamStorage.getPodCIDR()
+	if err != nil {
+		return "", fmt.Errorf("cannot get cluster PodCIDR: %w", err)
+	}
+
+	belongs, err := ipBelongsToNetwork(ip, podCIDR)
 	if err != nil {
 		return "", fmt.Errorf("cannot establish if IP %s belongs to PodCIDR:%w", ip, err)
 	}
@@ -885,6 +884,52 @@ func (liqoIPAM *IPAM) MapEndpointIP(ctx context.Context, mapRequest *MapRequest)
 			mapRequest.GetClusterID(), err)
 	}
 	return &MapResponse{Ip: mappedIP}, nil
+}
+
+// GetHomePodIP receives a Pod IP valid in the remote cluster and returns the corresponding home Pod IP
+// (i.e. with validity in home cluster).
+func (liqoIPAM *IPAM) GetHomePodIP(ctx context.Context, request *GetHomePodIPRequest) (*GetHomePodIPResponse, error) {
+	homeIP, err := liqoIPAM.getHomePodIPInternal(request.GetClusterID(), request.GetIp())
+	if err != nil {
+		return &GetHomePodIPResponse{}, fmt.Errorf("cannot get home Pod IP starting from IP %s: %w",
+			request.GetClusterID(), err)
+	}
+	return &GetHomePodIPResponse{HomeIP: homeIP}, nil
+}
+
+// Internal implementation of exported func GetHomePodIP.
+func (liqoIPAM *IPAM) getHomePodIPInternal(clusterID, ip string) (string, error) {
+	if clusterID == "" {
+		return "", &WrongParameter{
+			Reason: StringNotEmpty,
+		}
+	}
+	if parsedIP := net.ParseIP(ip); parsedIP == nil {
+		return "", &WrongParameter{
+			Reason:    ValidIP,
+			Parameter: ip,
+		}
+	}
+
+	// Get cluster subnets
+	clusterSubnets, err := liqoIPAM.ipamStorage.getClusterSubnets()
+	if err != nil {
+		return "", fmt.Errorf("cannot get cluster subnets:%w", err)
+	}
+	subnets, exists := clusterSubnets[clusterID]
+
+	// Check if RemotePodCIDR is set
+	if !exists {
+		return "", fmt.Errorf("cluster %s subnets are not set", clusterID)
+	}
+
+	if subnets.RemotePodCIDR == "" {
+		return "", &WrongParameter{
+			Reason: StringNotEmpty,
+		}
+	}
+
+	return MapIPToNetwork(subnets.RemotePodCIDR, ip)
 }
 
 // unmapEndpointIPInternal is the internal implementation of UnmapEndpointIP.

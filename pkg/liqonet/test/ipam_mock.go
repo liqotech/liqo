@@ -10,7 +10,8 @@ import (
 
 // MockIpam mocks the IPAM module.
 type MockIpam struct {
-	RemappedPodCIDR string
+	LocalRemappedPodCIDR  string
+	RemoteRemappedPodCIDR string
 }
 
 // MapEndpointIP mocks the corresponding func in IPAM.
@@ -19,7 +20,7 @@ func (mock *MockIpam) MapEndpointIP(
 	in *liqonet.MapRequest,
 	opts ...grpc.CallOption) (*liqonet.MapResponse, error) {
 	oldIP := in.GetIp()
-	newIP, err := liqonet.MapIPToNetwork(mock.RemappedPodCIDR, oldIP)
+	newIP, err := liqonet.MapIPToNetwork(mock.LocalRemappedPodCIDR, oldIP)
 	if err != nil {
 		return &liqonet.MapResponse{}, err
 	}
@@ -32,4 +33,16 @@ func (mock *MockIpam) UnmapEndpointIP(
 	in *liqonet.UnmapRequest,
 	opts ...grpc.CallOption) (*liqonet.UnmapResponse, error) {
 	return &liqonet.UnmapResponse{}, nil
+}
+
+// GetHomePodIP mocks the corresponding func in IPAM.
+func (mock *MockIpam) GetHomePodIP(
+	ctx context.Context,
+	in *liqonet.GetHomePodIPRequest,
+	opts ...grpc.CallOption) (*liqonet.GetHomePodIPResponse, error) {
+	homeIP, err := liqonet.MapIPToNetwork(mock.RemoteRemappedPodCIDR, in.GetIp())
+	if err != nil {
+		return &liqonet.GetHomePodIPResponse{}, err
+	}
+	return &liqonet.GetHomePodIPResponse{HomeIP: homeIP}, nil
 }
