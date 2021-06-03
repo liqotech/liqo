@@ -17,7 +17,7 @@ const (
 	// DefaultNamespaceOffloadingName is the default name of NamespaceOffloading resources. Every namespace that has
 	// to be offloaded with Liqo, must have a NamespaceOffloading resource with this name.
 	DefaultNamespaceOffloadingName = "offloading"
-	// EnablingLiqoLabel is used to created a default NamespaceOffloading resource for the labeled namespace, this
+	// EnablingLiqoLabel is used to create a default NamespaceOffloading resource for the labeled namespace, this
 	// is an alternative way to start Liqo offloading.
 	EnablingLiqoLabel = "liqo.io/enabled"
 	// EnablingLiqoLabelValue unique value allowed for EnablingLiqoLabel.

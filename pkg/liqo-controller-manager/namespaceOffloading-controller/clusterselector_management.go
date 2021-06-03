@@ -25,9 +25,9 @@ func (r *NamespaceOffloadingReconciler) selectCompliantVirtualNodes(noff *offv1a
 
 	// If here there are no virtual nodes is an error because it means that in the cluster there are NamespaceMap
 	// but not their associated virtual nodes
-	if len(virtualNodes.Items) == 0 {
+	if len(virtualNodes.Items) != len(clusterIDMap) {
 		err := fmt.Errorf(" No VirtualNodes at the moment in the cluster")
-		klog.Info(err)
+		klog.Error(err)
 		return err
 	}
 
@@ -82,4 +82,23 @@ func (r *NamespaceOffloadingReconciler) enforceClusterSelector(noff *offv1alpha1
 	}
 
 	return r.selectCompliantVirtualNodes(noff, clusterIDMap)
+}
+
+func (r *NamespaceOffloadingReconciler) getClusterIDMap(ctx context.Context) (map[string]*mapsv1alpha1.NamespaceMap, error) {
+	nms := &mapsv1alpha1.NamespaceMapList{}
+	if err := r.List(ctx, nms); err != nil {
+		klog.Error(err, " --> Unable to List NamespaceMaps")
+		return nil, err
+	}
+
+	if len(nms.Items) == 0 {
+		klog.Info("No NamespaceMaps at the moment in the cluster")
+		return nil, nil
+	}
+
+	clusterIDMap := make(map[string]*mapsv1alpha1.NamespaceMap)
+	for i := range nms.Items {
+		clusterIDMap[nms.Items[i].Labels[liqoconst.RemoteClusterID]] = &nms.Items[i]
+	}
+	return clusterIDMap, nil
 }
