@@ -3,6 +3,7 @@ package crdreplicator
 import (
 	"reflect"
 
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
@@ -46,17 +47,17 @@ func (c *Controller) getConfig(cfg *configv1alpha1.ClusterConfig) []configv1alph
 	return config
 }
 
-func (c *Controller) getRemovedResources(resources []configv1alpha1.Resource) []string {
-	oldRes := []string{}
-	diffRes := []string{}
-	newRes := []string{}
+func (c *Controller) getRemovedResources(resources []configv1alpha1.Resource) []metav1.GroupVersionResource {
+	oldRes := []metav1.GroupVersionResource{}
+	diffRes := []metav1.GroupVersionResource{}
+	newRes := []metav1.GroupVersionResource{}
 	//save the resources as strings in 'newRes'
 	for _, r := range resources {
-		newRes = append(newRes, r.GroupVersionResource.String())
+		newRes = append(newRes, r.GroupVersionResource)
 	}
 	//get the old resources
 	for _, r := range c.RegisteredResources {
-		oldRes = append(oldRes, r.GroupVersionResource.String())
+		oldRes = append(oldRes, r.GroupVersionResource)
 	}
 	//save in diffRes all the resources that appears in oldRes but not in newRes
 	flag := false

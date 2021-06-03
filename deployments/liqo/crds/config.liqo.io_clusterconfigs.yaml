@@ -290,10 +290,18 @@ spec:
                           - resource
                           - version
                           type: object
+                        ownership:
+                          default: Shared
+                          description: Ownership indicates the ownership over this
+                            resource.
+                          enum:
+                          - Local
+                          - Shared
+                          type: string
                         peeringPhase:
                           default: All
-                          description: PeeringPhase contains the status of the peering
-                            with a remote cluster.
+                          description: PeeringPhase contains the peering phase when
+                            this resource should be replicated.
                           enum:
                           - None
                           - All

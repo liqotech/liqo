@@ -9,6 +9,7 @@ import (
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/dynamic/dynamicinformer"
@@ -72,11 +73,12 @@ func getCRDReplicator() Controller {
 		LocalDynSharedInformerFactory:  localDynFac,
 		LocalWatchers:                  map[string]chan struct{}{},
 
-		UseNewAuth:                   false,
-		NamespaceManager:             tenantmanager,
-		IdentityManager:              identitymanager.NewCertificateIdentityManager(k8sclient, clusterIDInterface, tenantmanager),
-		LocalToRemoteNamespaceMapper: map[string]string{},
-		RemoteToLocalNamespaceMapper: map[string]string{},
+		UseNewAuth:                       false,
+		NamespaceManager:                 tenantmanager,
+		IdentityManager:                  identitymanager.NewCertificateIdentityManager(k8sclient, clusterIDInterface, tenantmanager),
+		LocalToRemoteNamespaceMapper:     map[string]string{},
+		RemoteToLocalNamespaceMapper:     map[string]string{},
+		ClusterIDToRemoteNamespaceMapper: map[string]string{},
 	}
 }
 
@@ -86,30 +88,30 @@ func TestCRDReplicatorReconciler_CreateResource(t *testing.T) {
 	//test 1
 	//the resource does not exist on the cluster
 	//we expect to be created
-	err := d.CreateResource(dynClient, gvr, networkConfig, clusterID)
+	err := d.CreateResource(dynClient, gvr, networkConfig, clusterID, consts.OwnershipShared)
 	assert.Nil(t, err, "error should be nil")
 	//test 2
 	//the resource exists on the cluster and is the same
 	//we expect not to be created and returns nil
-	err = d.CreateResource(dynClient, gvr, networkConfig, clusterID)
+	err = d.CreateResource(dynClient, gvr, networkConfig, clusterID, consts.OwnershipShared)
 	assert.Nil(t, err, "error should be nil")
 	//test 3
 	//the resource has different values than the existing one
 	//we expect for the resource to be deleted and recreated
 	networkConfig.SetLabels(map[string]string{"labelTestin": "test"})
-	err = d.CreateResource(dynClient, gvr, networkConfig, clusterID)
+	err = d.CreateResource(dynClient, gvr, networkConfig, clusterID, consts.OwnershipShared)
 	assert.Nil(t, err, "error should be nil")
 	//test 4
 	//the resource is not a valid one
 	//we expect an error
 	networkConfig.SetAPIVersion("invalidOne")
 	networkConfig.SetName("newName")
-	err = d.CreateResource(dynClient, gvr, networkConfig, clusterID)
+	err = d.CreateResource(dynClient, gvr, networkConfig, clusterID, consts.OwnershipShared)
 	assert.NotNil(t, err, "error should not be nil")
 	//test 5
 	//the resource schema is not correct
 	//we expect an error
-	err = d.CreateResource(dynClient, schema.GroupVersionResource{}, networkConfig, clusterID)
+	err = d.CreateResource(dynClient, schema.GroupVersionResource{}, networkConfig, clusterID, consts.OwnershipShared)
 	assert.NotNil(t, err, "error should not be nil")
 
 }
@@ -120,7 +122,7 @@ func TestCRDReplicatorReconciler_DeleteResource(t *testing.T) {
 	//delete an existing resource
 	//we expect the error to be nil
 	networkConfig := getObj()
-	err := d.CreateResource(dynClient, gvr, networkConfig, clusterID)
+	err := d.CreateResource(dynClient, gvr, networkConfig, clusterID, consts.OwnershipShared)
 	assert.Nil(t, err, "error should be nil")
 	err = d.DeleteResource(dynClient, gvr, networkConfig, clusterID)
 	assert.Nil(t, err, "error should be nil")
@@ -135,14 +137,14 @@ func TestCRDReplicatorReconciler_UpdateResource(t *testing.T) {
 	d := getCRDReplicator()
 	//first we create the resource
 	networkConfig := getObj()
-	err := d.CreateResource(dynClient, gvr, networkConfig, clusterID)
+	err := d.CreateResource(dynClient, gvr, networkConfig, clusterID, consts.OwnershipLocal)
 	assert.Nil(t, err, "error should be nil")
 
 	//Test 1
 	//we update the metadata section
 	//we expect a nil error and the metadata section of the resource on the server to be equal
 	networkConfig.SetLabels(map[string]string{"labelTesting": "test"})
-	err = d.UpdateResource(dynClient, gvr, networkConfig, clusterID)
+	err = d.UpdateResource(dynClient, gvr, networkConfig, clusterID, consts.OwnershipLocal)
 	assert.Nil(t, err, "error should be nil")
 	obj, err := dynClient.Resource(gvr).Get(context.TODO(), networkConfig.GetName(), metav1.GetOptions{})
 	assert.Nil(t, err, "error should be nil")
@@ -156,7 +158,7 @@ func TestCRDReplicatorReconciler_UpdateResource(t *testing.T) {
 	//setting the new values of spec fields
 	err = unstructured.SetNestedMap(obj.Object, newSpec, "spec")
 	assert.Nil(t, err, "error should be nil")
-	err = d.UpdateResource(dynClient, gvr, obj, clusterID)
+	err = d.UpdateResource(dynClient, gvr, obj, clusterID, consts.OwnershipLocal)
 	assert.Nil(t, err, "error should be nil")
 	obj, err = dynClient.Resource(gvr).Get(context.TODO(), networkConfig.GetName(), metav1.GetOptions{})
 	assert.Nil(t, err, "error should be nil")
@@ -172,7 +174,7 @@ func TestCRDReplicatorReconciler_UpdateResource(t *testing.T) {
 	}
 	err = unstructured.SetNestedMap(obj.Object, newStatus, "status")
 	assert.Nil(t, err, "error should be nil")
-	err = d.UpdateResource(dynClient, gvr, obj, clusterID)
+	err = d.UpdateResource(dynClient, gvr, obj, clusterID, consts.OwnershipLocal)
 	assert.Nil(t, err, "error should be nil")
 	obj, err = dynClient.Resource(gvr).Get(context.TODO(), networkConfig.GetName(), metav1.GetOptions{})
 	assert.Nil(t, err, "error should be nil")
@@ -184,6 +186,7 @@ func TestCRDReplicatorReconciler_UpdateResource(t *testing.T) {
 func TestCRDReplicatorReconciler_StartAndStopWatchers(t *testing.T) {
 	d := getCRDReplicator()
 	d.setPeeringPhase(remoteClusterID, consts.PeeringPhaseOutgoing)
+	d.ClusterIDToRemoteNamespaceMapper[remoteClusterID] = "default"
 	//we add two kind of resources to be watched
 	//then unregister them and check that the watchers have been closed as well
 	test1 := []configv1alpha1.Resource{{
@@ -193,32 +196,72 @@ func TestCRDReplicatorReconciler_StartAndStopWatchers(t *testing.T) {
 			Resource: "networkconfigs",
 		},
 		PeeringPhase: consts.PeeringPhaseEstablished,
+		Ownership:    consts.OwnershipShared,
 	}, {
 		GroupVersionResource: metav1.GroupVersionResource{
 			Group:    netv1alpha1.GroupVersion.Group,
 			Version:  netv1alpha1.GroupVersion.Version,
 			Resource: "tunnelendpoints",
 		},
-		PeeringPhase: consts.PeeringPhaseEstablished,
+		PeeringPhase: consts.PeeringPhaseIncoming, // this will not be replicated with the current peering phase
+		Ownership:    consts.OwnershipShared,
 	}, {
 		GroupVersionResource: metav1.GroupVersionResource{
 			Group:    discoveryv1alpha1.GroupVersion.Group,
 			Version:  discoveryv1alpha1.GroupVersion.Version,
 			Resource: "resourcerequests",
 		},
-		PeeringPhase: consts.PeeringPhaseIncoming, // this will not been replicated with the current peering phase
+		PeeringPhase: consts.PeeringPhaseEstablished,
+		Ownership:    consts.OwnershipShared,
 	}}
 	d.RegisteredResources = test1
+
+	// create a fake replicated resource
+	resourceRequest := &discoveryv1alpha1.ResourceRequest{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       "ResourceRequest",
+			APIVersion: discoveryv1alpha1.GroupVersion.String(),
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test",
+			Namespace: "default",
+			Labels: map[string]string{
+				LocalLabelSelector:     "false",
+				ReplicationStatuslabel: "true",
+				RemoteLabelSelector:    d.ClusterID,
+			},
+		},
+		Spec: discoveryv1alpha1.ResourceRequestSpec{
+			ClusterIdentity: discoveryv1alpha1.ClusterIdentity{
+				ClusterID: d.ClusterID,
+			},
+			AuthURL: "test",
+		},
+	}
+	unstruct, err := runtime.DefaultUnstructuredConverter.ToUnstructured(resourceRequest)
+	assert.Nil(t, err, "should be nil")
+	_, err = d.RemoteDynClients[remoteClusterID].
+		Resource(discoveryv1alpha1.GroupVersion.WithResource("resourcerequests")).
+		Namespace("default").
+		Create(context.TODO(), &unstructured.Unstructured{Object: unstruct}, metav1.CreateOptions{})
+	assert.Nil(t, err, "should be nil")
+
 	d.StartWatchers()
 	assert.Equal(t, 2, len(d.RemoteWatchers[remoteClusterID]), "it should be 2")
 	assert.Equal(t, 3, len(d.LocalWatchers), "it should be 3")
 	for _, r := range test1 {
-		d.UnregisteredResources = append(d.UnregisteredResources, r.GroupVersionResource.String())
+		d.UnregisteredResources = append(d.UnregisteredResources, r.GroupVersionResource)
 	}
 	d.StopWatchers()
 	assert.Equal(t, 0, len(d.RemoteWatchers[remoteClusterID]), "it should be 0")
-	d.UnregisteredResources = []string{}
+	d.UnregisteredResources = []metav1.GroupVersionResource{}
 
+	// check that the resource has been deleted when the watcher stops
+	list, err := d.RemoteDynClients[remoteClusterID].
+		Resource(discoveryv1alpha1.GroupVersion.WithResource("resourcerequests")).
+		List(context.TODO(), metav1.ListOptions{})
+	assert.Nil(t, err, "should be nil")
+	assert.Equal(t, 0, len(list.Items), "the list should be empty")
 }
 
 func TestCRDReplicatorReconciler_AddedHandler(t *testing.T) {
@@ -295,7 +338,7 @@ func TestCRDReplicatorReconciler_RemoteResourceModifiedHandler(t *testing.T) {
 	//the modified resource does not exist on the cluster
 	//we expect the resource to be created and error to be nil
 	test1 := getObj()
-	d.RemoteResourceModifiedHandler(test1, gvr, remoteClusterID)
+	d.RemoteResourceModifiedHandler(test1, gvr, remoteClusterID, consts.OwnershipShared)
 	time.Sleep(1 * time.Second)
 	_, err := dynClient.Resource(gvr).Get(context.TODO(), test1.GetName(), metav1.GetOptions{})
 	assert.True(t, apierrors.IsNotFound(err), "error should be not found")
@@ -309,7 +352,7 @@ func TestCRDReplicatorReconciler_RemoteResourceModifiedHandler(t *testing.T) {
 	test1.SetLabels(map[string]string{
 		"labelTestin": "labelling",
 	})
-	d.RemoteResourceModifiedHandler(test1, gvr, remoteClusterID)
+	d.RemoteResourceModifiedHandler(test1, gvr, remoteClusterID, consts.OwnershipShared)
 	time.Sleep(1 * time.Second)
 	obj, err := dynClient.Resource(gvr).Get(context.TODO(), test1.GetName(), metav1.GetOptions{})
 	assert.Nil(t, err, "error should be empty")
