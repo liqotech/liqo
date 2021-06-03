@@ -45,7 +45,7 @@ func removeDesiredMappings(c client.Client, localName string, nms map[string]*ma
 		}
 	}
 	if errorCondition {
-		err := fmt.Errorf("some desiredMappings has not been deleted")
+		err := fmt.Errorf("some desiredMappings have not been deleted")
 		klog.Error(err)
 		return err
 	}
