@@ -402,7 +402,7 @@ func podFieldSelectorRuntimeValue(fs *corev1.ObjectFieldSelector, pod *corev1.Po
 		return pod.Spec.NodeName, nil
 	case "spec.serviceAccountName":
 		return pod.Spec.ServiceAccountName, nil
-	// return empty string in case of unsupported fields
+	// return empty string in case of unsupported field
 	case "status.podIP":
 		return "", nil
 	case "status.hostIP":
