@@ -1,6 +1,8 @@
 package crdreplicator
 
 import (
+	"fmt"
+
 	"k8s.io/klog/v2"
 )
 
@@ -28,4 +30,22 @@ func (c *Controller) remoteToLocalNamespace(namespace string) string {
 	}
 	klog.V(5).Infof("remote namespace %v translation not found, returning the original namespace", namespace)
 	return namespace
+}
+
+func (c *Controller) clusterIDToRemoteNamespace(clusterID string) (string, error) {
+	if ns, ok := c.ClusterIDToRemoteNamespaceMapper[clusterID]; ok {
+		return ns, nil
+	}
+	err := fmt.Errorf("clusterID %v translation not found", clusterID)
+	klog.Error(err)
+	return "", err
+}
+
+func (c *Controller) clusterIDToLocalNamespace(clusterID string) (string, error) {
+	if ns, ok := c.ClusterIDToLocalNamespaceMapper[clusterID]; ok {
+		return ns, nil
+	}
+	err := fmt.Errorf("clusterID %v translation not found", clusterID)
+	klog.Error(err)
+	return "", err
 }

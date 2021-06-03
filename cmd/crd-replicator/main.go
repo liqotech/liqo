@@ -101,8 +101,10 @@ func main() {
 		NamespaceManager:               namespaceManager,
 		IdentityManager: identitymanager.NewCertificateIdentityManager(
 			k8sClient, clusterIDInterface, namespaceManager),
-		LocalToRemoteNamespaceMapper: map[string]string{},
-		RemoteToLocalNamespaceMapper: map[string]string{},
+		LocalToRemoteNamespaceMapper:     map[string]string{},
+		RemoteToLocalNamespaceMapper:     map[string]string{},
+		ClusterIDToLocalNamespaceMapper:  map[string]string{},
+		ClusterIDToRemoteNamespaceMapper: map[string]string{},
 	}
 	if err = d.SetupWithManager(mgr); err != nil {
 		klog.Error(err, "unable to setup the crdreplicator-operator")
