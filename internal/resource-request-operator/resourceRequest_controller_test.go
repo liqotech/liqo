@@ -4,8 +4,6 @@ import (
 	"context"
 	"time"
 
-	crdreplicator "github.com/liqotech/liqo/internal/crdReplicator"
-
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	. "github.com/onsi/gomega/gstruct"

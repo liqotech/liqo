@@ -18,10 +18,11 @@ func addLiqoSchedulingLabel(ctx context.Context, c client.Client, namespaceName 
 		return err
 	}
 
+	if namespace.Labels == nil {
+		namespace.Labels = map[string]string{}
+	}
+
 	if value, ok := namespace.Labels[liqoconst.SchedulingLiqoLabel]; !ok || value != liqoconst.SchedulingLiqoLabelValue {
-		if namespace.Labels == nil {
-			namespace.Labels = map[string]string{}
-		}
 		namespace.Labels[liqoconst.SchedulingLiqoLabel] = liqoconst.SchedulingLiqoLabelValue
 		if err := c.Update(ctx, namespace); err != nil {
 			klog.Errorf(" %s --> Unable to add liqo scheduling label to the namespace '%s'", err, namespace.GetName())
