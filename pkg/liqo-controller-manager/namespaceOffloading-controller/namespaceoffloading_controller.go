@@ -108,11 +108,15 @@ func (r *NamespaceOffloadingReconciler) Reconcile(ctx context.Context, req ctrl.
 }
 
 // Todo: how to awake this controller for every NamespaceOffloading when a new NamespaceMap is created (or recreated).
+// The name of all NamespaceOffloading resources must be always equal to "offloading", resources with a different
+// name are not considered.
+// At the moment the content of NamespaceOffloading.Spec is assumed to be immutable so we have to monitor only the deletion
+// phase and not all updates.
 func namespaceOffloadingPredicate() predicate.Predicate {
 	return predicate.Funcs{
 		UpdateFunc: func(e event.UpdateEvent) bool {
 			if !(e.ObjectNew.GetDeletionTimestamp().IsZero()) && ctrlutils.ContainsFinalizer(e.ObjectNew,
-				namespaceOffloadingControllerFinalizer) {
+				namespaceOffloadingControllerFinalizer) && e.ObjectNew.GetName() == liqoconst.DefaultNamespaceOffloadingName {
 				return true
 			}
 			return false
