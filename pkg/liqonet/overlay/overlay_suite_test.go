@@ -1,12 +1,11 @@
 package overlay
 
 import (
+	"fmt"
 	"net"
 	"testing"
 
 	"github.com/vishvananda/netlink"
-
-	"github.com/liqotech/liqo/pkg/liqonet"
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
@@ -23,7 +22,7 @@ func TestOverlay(t *testing.T) {
 
 var _ = BeforeSuite(func() {
 	var err error
-	defaultIfaceIP, err = getIFaceIP("0.0.0.0")
+	defaultIfaceIP, err = getIFaceIP()
 	Expect(err).ShouldNot(HaveOccurred())
 	Expect(defaultIfaceIP).ShouldNot(BeNil())
 	// Create dummy link
@@ -31,19 +30,8 @@ var _ = BeforeSuite(func() {
 	Expect(err).ShouldNot(HaveOccurred())
 })
 
-/*var _ = AfterSuite(func() {
-
-})*/
-
-func getIFaceIP(ipAddress string) (net.IP, error) {
+func getIFaceIP() (net.IP, error) {
 	var ifaceIndex int
-	// Convert the given IP address from string to net.IP format
-	ip := net.ParseIP(ipAddress)
-	if ip == nil {
-		return nil, &liqonet.ParseIPError{
-			IPToBeParsed: ipAddress,
-		}
-	}
 	routes, err := netlink.RouteList(nil, netlink.FAMILY_V4)
 	if err != nil {
 		return nil, err
@@ -55,7 +43,7 @@ func getIFaceIP(ipAddress string) (net.IP, error) {
 		}
 	}
 	if ifaceIndex == 0 {
-		return nil, &liqonet.NoRouteFound{IPAddress: ipAddress}
+		return nil, fmt.Errorf("unable to get ip for default interface")
 	}
 	// Get link.
 	link, err := netlink.LinkByIndex(ifaceIndex)

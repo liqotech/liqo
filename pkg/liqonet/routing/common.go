@@ -6,6 +6,9 @@ import (
 	"net"
 	"reflect"
 	"strings"
+	"time"
+
+	"k8s.io/apimachinery/pkg/util/wait"
 
 	"github.com/liqotech/liqo/apis/net/v1alpha1"
 	"github.com/liqotech/liqo/pkg/liqonet"
@@ -301,5 +304,10 @@ func EnableProxyArp(iFaceName string) error {
 	writeToFile := func() error {
 		return ioutil.WriteFile(proxyArpFilePath, []byte("1"), 0600)
 	}
-	return retry.OnError(retry.DefaultRetry, retryable, writeToFile)
+	return retry.OnError(wait.Backoff{
+		Steps:    5,
+		Duration: 100 * time.Millisecond,
+		Factor:   1.0,
+		Jitter:   0.1,
+	}, retryable, writeToFile)
 }

@@ -89,7 +89,7 @@ func createVxLanLink(link *netlink.Vxlan) (*netlink.Vxlan, error) {
 // If a vxlan exists with the same name then we use this function to check if the configuration is the same.
 func isVxlanConfigTheSame(newLink, current netlink.Link) bool {
 	if newLink.Type() != current.Type() {
-		klog.V(4).Infof("different types for the interfaces: newLink -> %v, current -> %v", newLink.Type(), current.Type())
+		klog.V(4).Infof("different types for the interfaces: newLink -> %s, current -> %s", newLink.Type(), current.Type())
 		return false
 	}
 	newNetlinkVxlan := newLink.(*netlink.Vxlan)
@@ -100,7 +100,7 @@ func isVxlanConfigTheSame(newLink, current netlink.Link) bool {
 		return false
 	}
 	if !reflect.DeepEqual(newNetlinkVxlan.SrcAddr, currentNetlinkVxlan.SrcAddr) {
-		klog.V(4).Infof("different Source Addresses for the interfaces: newLink -> %v, current -> %v", newNetlinkVxlan.SrcAddr, currentNetlinkVxlan.SrcAddr)
+		klog.V(4).Infof("different Source Addresses for the interfaces: newLink -> %s, current -> %s", newNetlinkVxlan.SrcAddr, currentNetlinkVxlan.SrcAddr)
 		return false
 	}
 	if newNetlinkVxlan.Port != currentNetlinkVxlan.Port {
@@ -111,9 +111,30 @@ func isVxlanConfigTheSame(newLink, current netlink.Link) bool {
 	return true
 }
 
+// ConfigureIPAddress configures the IP address of the vxlan interface.
+// The IP address has to be in CIDR notation.
+func (vxlan *VxlanDevice) ConfigureIPAddress(ipAddr string) error {
+	// Parse the address.
+	ipNet, err := netlink.ParseIPNet(ipAddr)
+	if err != nil {
+		return err
+	}
+	err = netlink.AddrAdd(vxlan.Link, &netlink.Addr{IPNet: ipNet})
+	if errors.Is(err, unix.EEXIST) {
+		klog.V(4).Infof("ip address %s is already configured on vxlan device %s", ipNet.String(), vxlan.Link.Name)
+		return nil
+	} else if err != nil {
+		return err
+	}
+	klog.Infof("IP address %s configured on vxlan device %s", ipNet.String(), vxlan.Link.Name)
+	return nil
+}
+
 // AddFDB adds a fdb entry for the given neighbor into the current vxlan device.
-func (vxlan *VxlanDevice) AddFDB(n Neighbor) error {
-	klog.V(4).Infof("calling AppendFDB: %v, %v", n.IP, n.MAC)
+// It return an error if something goes wrong, and bool value to sai if it
+// added the entry, if the entry exists the bool value is set to false.
+func (vxlan *VxlanDevice) AddFDB(n Neighbor) (bool, error) {
+	klog.V(4).Infof("calling AppendFDB: %s, %s", n.IP, n.MAC)
 	err := netlink.NeighAdd(&netlink.Neigh{
 		LinkIndex:    vxlan.Link.Index,
 		State:        netlink.NUD_PERMANENT | netlink.NUD_NOARP,
@@ -123,17 +144,19 @@ func (vxlan *VxlanDevice) AddFDB(n Neighbor) error {
 		IP:           n.IP,
 		HardwareAddr: n.MAC,
 	})
-	if errors.Is(err, unix.ENOENT) {
-		return nil
+	if errors.Is(err, unix.EEXIST) {
+		return false, nil
 	}
 	if err != nil {
-		return err
+		return false, err
 	}
-	return nil
+	return true, nil
 }
 
 // DelFDB deletes a fdb entry for the given neighbor from the current vxlan device.
-func (vxlan *VxlanDevice) DelFDB(n Neighbor) error {
+// It return an error if something goes wrong, and bool value to sai if it
+// deleted the entry, if the entry does not exist the bool value is set to false.
+func (vxlan *VxlanDevice) DelFDB(n Neighbor) (bool, error) {
 	klog.V(4).Infof("calling DelFDB: %v, %v", n.IP, n.MAC)
 	err := netlink.NeighDel(&netlink.Neigh{
 		LinkIndex:    vxlan.Link.Index,
@@ -145,10 +168,10 @@ func (vxlan *VxlanDevice) DelFDB(n Neighbor) error {
 		HardwareAddr: n.MAC,
 	})
 	if errors.Is(err, unix.ENOENT) {
-		return nil
+		return false, nil
 	}
 	if err != nil {
-		return err
+		return false, err
 	}
-	return nil
+	return true, nil
 }
