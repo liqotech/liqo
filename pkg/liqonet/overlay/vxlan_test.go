@@ -12,6 +12,7 @@ import (
 var (
 	vxlanConfig, vxlanOld *VxlanDeviceAttrs
 	vxlanOldLink          netlink.Link
+	vxlanDev              VxlanDevice
 	fdbOld, fdbNew        Neighbor
 )
 
@@ -97,6 +98,7 @@ var _ = Describe("Vxlan", func() {
 			Mtu:      1450,
 		}
 		vxlanOldLink, err = createLink(vxlanOld)
+		vxlanDev = VxlanDevice{Link: vxlanOldLink.(*netlink.Vxlan)}
 		Expect(err).ShouldNot(HaveOccurred())
 		Expect(vxlanOldLink).NotTo(BeNil())
 		mac, err := net.ParseMAC("92:ce:cb:3b:82:ee")
@@ -184,17 +186,19 @@ var _ = Describe("Vxlan", func() {
 
 	Describe("configuring fdb of a vxlan device", func() {
 		Context("adding new fdb entry", func() {
-			It("fdb does not exist, should return nil", func() {
-				vxlanDev := VxlanDevice{Link: vxlanOldLink.(*netlink.Vxlan)}
-				Expect(vxlanDev.AddFDB(fdbNew)).ShouldNot(HaveOccurred())
+			It("fdb does not exist, should return true and nil", func() {
+				added, err := vxlanDev.AddFDB(fdbNew)
+				Expect(err).ShouldNot(HaveOccurred())
+				Expect(added).Should(BeTrue())
 				fdbs, err := netlink.NeighList(vxlanDev.Link.Index, syscall.AF_BRIDGE)
 				Expect(err).ShouldNot(HaveOccurred())
 				Expect(containsFdbEntry(fdbs, fdbNew)).Should(BeTrue())
 			})
 
 			It("fdb does exist, should return nil", func() {
-				vxlanDev := VxlanDevice{Link: vxlanOldLink.(*netlink.Vxlan)}
-				Expect(vxlanDev.AddFDB(fdbOld)).ShouldNot(HaveOccurred())
+				added, err := vxlanDev.AddFDB(fdbOld)
+				Expect(err).ShouldNot(HaveOccurred())
+				Expect(added).Should(BeFalse())
 				fdbs, err := netlink.NeighList(vxlanDev.Link.Index, syscall.AF_BRIDGE)
 				Expect(err).ShouldNot(HaveOccurred())
 				Expect(containsFdbEntry(fdbs, fdbOld)).Should(BeTrue())
@@ -203,21 +207,65 @@ var _ = Describe("Vxlan", func() {
 
 		Context("removing fdb entry", func() {
 			It("fdb does not exist, should return nil", func() {
-				vxlanDev := VxlanDevice{Link: vxlanOldLink.(*netlink.Vxlan)}
-				Expect(vxlanDev.DelFDB(fdbNew)).ShouldNot(HaveOccurred())
+				deleted, err := vxlanDev.DelFDB(fdbNew)
+				Expect(err).ShouldNot(HaveOccurred())
+				Expect(deleted).Should(BeFalse())
 				fdbs, err := netlink.NeighList(vxlanDev.Link.Index, syscall.AF_BRIDGE)
 				Expect(err).ShouldNot(HaveOccurred())
 				Expect(containsFdbEntry(fdbs, fdbNew)).Should(BeFalse())
 			})
 
 			It("fdb does exist, should return nil", func() {
-				vxlanDev := VxlanDevice{Link: vxlanOldLink.(*netlink.Vxlan)}
-				Expect(vxlanDev.DelFDB(fdbOld)).ShouldNot(HaveOccurred())
+				deleted, err := vxlanDev.DelFDB(fdbOld)
+				Expect(err).ShouldNot(HaveOccurred())
+				Expect(deleted).Should(BeTrue())
 				fdbs, err := netlink.NeighList(vxlanDev.Link.Index, syscall.AF_BRIDGE)
 				Expect(err).ShouldNot(HaveOccurred())
 				Expect(containsFdbEntry(fdbs, fdbOld)).Should(BeFalse())
 			})
 		})
+
 	})
 
+	Describe("configure ip address for vxlan interface", func() {
+		Context("ip address is in wrong format", func() {
+			It("should return error", func() {
+				wrongAddress := "10.234.0.8"
+				err := vxlanDev.ConfigureIPAddress(wrongAddress)
+				Expect(err).Should(HaveOccurred())
+				Expect(err).Should(MatchError(&net.ParseError{
+					Type: "CIDR address",
+					Text: wrongAddress,
+				}))
+			})
+		})
+
+		Context("ip address is not configured", func() {
+			It("should return nil", func() {
+				ipAddress := "10.234.0.5/24"
+				err := vxlanDev.ConfigureIPAddress(ipAddress)
+				Expect(err).ShouldNot(HaveOccurred())
+				addresses, err := netlink.AddrList(vxlanDev.Link, netlink.FAMILY_V4)
+				Expect(err).ShouldNot(HaveOccurred())
+				Expect(len(addresses)).Should(BeNumerically("==", 1))
+				Expect(addresses[0].IPNet.String()).Should(Equal(ipAddress))
+			})
+		})
+
+		Context("ip address is already configured", func() {
+			It("should return nil", func() {
+				ipAddress := "10.234.0.5/24"
+				ipAddr, err := netlink.ParseIPNet(ipAddress)
+				Expect(err).ShouldNot(HaveOccurred())
+				err = netlink.AddrAdd(vxlanDev.Link, &netlink.Addr{IPNet: ipAddr})
+				Expect(err).ShouldNot(HaveOccurred())
+				err = vxlanDev.ConfigureIPAddress(ipAddress)
+				Expect(err).ShouldNot(HaveOccurred())
+				addresses, err := netlink.AddrList(vxlanDev.Link, netlink.FAMILY_V4)
+				Expect(err).ShouldNot(HaveOccurred())
+				Expect(len(addresses)).Should(BeNumerically("==", 1))
+				Expect(addresses[0].IPNet.String()).Should(Equal(ipAddress))
+			})
+		})
+	})
 })

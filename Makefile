@@ -29,7 +29,7 @@ endif
 
 # Run unit tests
 unit: test-container
-	docker run --cap-add=NET_ADMIN --privileged=true --mount type=bind,src=$(shell pwd),dst=/go/src/liqo -w /go/src/liqo --rm liqo-test
+	docker run --privileged=true --mount type=bind,src=$(shell pwd),dst=/go/src/liqo -w /go/src/liqo --rm liqo-test
 
 # Run e2e tests
 e2e: gen

@@ -14,16 +14,19 @@ import (
 	"k8s.io/klog/v2"
 
 	netv1alpha1 "github.com/liqotech/liqo/apis/net/v1alpha1"
+	"github.com/liqotech/liqo/pkg/liqonet/overlay"
 )
 
 var (
-	ipAddress1             = "10.0.0.1/24"
-	ipAddress1NoSubnet     = "10.0.0.1"
-	ipAddress2             = "10.0.0.2/24"
-	ipAddress2NoSubnet     = "10.0.0.2"
-	dummylink1, dummyLink2 netlink.Link
-	iFacesNames            = []string{"lioo-test-1", "liqo-test-2"}
-	drm                    Routing
+	ipAddress1         = "10.0.0.1/24"
+	ipAddress1NoSubnet = "10.0.0.1"
+	ipAddress2         = "10.0.0.2/24"
+	ipAddress2NoSubnet = "10.0.0.2"
+	// The value of ipAddress2NoSubnet when is mapped to the overlay network.
+	ipAddress2NoSubnetOverlay = "240.0.0.2"
+	dummylink1, dummyLink2    netlink.Link
+	iFacesNames               = []string{"liqo-test-1", "liqo-test-2"}
+	drm, vrm                  Routing
 
 	tep netv1alpha1.TunnelEndpoint
 )
@@ -53,10 +56,20 @@ var _ = BeforeSuite(func() {
 			VethIFaceIndex:   12345,
 			GatewayIP:        ipAddress2NoSubnet,
 		}}
+
+	// Create vxlan device for Vxlan Routing manager tests.
+	link, err := setUpVxlanLink(vxlanConfig)
+	Expect(err).ShouldNot(HaveOccurred())
+	overlayDevice = overlay.VxlanDevice{Link: link.(*netlink.Vxlan)}
+	// Create Vxlan Routing Manager.
+	vrm, err = NewVxlanRoutingManager(routingTableIDVRM, ipAddress1NoSubnet, overlayNetPrexif, overlayDevice)
+	Expect(err).Should(BeNil())
+	Expect(vrm).NotTo(BeNil())
 })
 
 var _ = AfterSuite(func() {
 	tearDownInterfaces()
+	deleteLink(vxlanConfig.Name)
 })
 
 func setUpInterfaces() {
