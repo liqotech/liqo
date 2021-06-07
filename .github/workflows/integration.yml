@@ -267,7 +267,7 @@ jobs:
         options: |
             --mount type=bind,src=${{ github.workspace }},dst=/go/src/liqotech/liqo
             --workdir /go/src/liqotech/liqo
-            --cap-add=NET_ADMIN
+            --privileged=true
         image: liqo/liqo-test${{ needs.configure.outputs.repo-suffix }}:${{ needs.configure.outputs.commit_ref }}
         run: |
           go-acc ./... --ignore liqo/test/e2e
