@@ -64,6 +64,18 @@ rules:
 - apiGroups:
   - net.liqo.io
   resources:
+  - natmappings
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - net.liqo.io
+  resources:
   - networkconfigs
   verbs:
   - create

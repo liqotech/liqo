@@ -196,6 +196,9 @@ func (tec *TunnelEndpointCreator) Reconcile(ctx context.Context, req ctrl.Reques
 		if err := tec.IPManager.RemoveLocalSubnetsPerCluster(netConfig.Spec.ClusterID); err != nil {
 			klog.Errorf("cannot delete local subnets assigned to cluster %s: %s", netConfig.Spec.ClusterID, err.Error())
 		}
+		if err := tec.IPManager.TerminateNatMappingsPerCluster(netConfig.Spec.ClusterID); err != nil {
+			klog.Errorf("cannot terminate NAT mappings per cluster %s: %s", netConfig.Spec.ClusterID, err.Error())
+		}
 		return result, nil
 	}
 
@@ -485,6 +488,9 @@ func (tec *TunnelEndpointCreator) processLocalNetConfig(netConfig *netv1alpha1.N
 		if err := tec.IPManager.AddLocalSubnetsPerCluster(netConfig.Status.PodCIDRNAT,
 			netConfig.Status.ExternalCIDRNAT,
 			netConfig.Spec.ClusterID); err != nil {
+			return err
+		}
+		if err := tec.IPManager.InitNatMappingsPerCluster(netConfig.Spec.ClusterID); err != nil {
 			return err
 		}
 		return nil

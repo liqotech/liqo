@@ -37,6 +37,7 @@ require (
 	golang.zx2c4.com/wireguard/wgctrl v0.0.0-20200609130330-bd2cb7843e1b
 	google.golang.org/grpc v1.33.2
 	google.golang.org/protobuf v1.25.0
+	gopkg.in/yaml.v3 v3.0.0-20200615113413-eeeca48fe776
 	gotest.tools v2.2.0+incompatible
 	inet.af/netaddr v0.0.0-20210313195008-843b4240e319
 	k8s.io/api v0.21.0

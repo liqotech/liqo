@@ -80,13 +80,13 @@ type IpamStorage struct {
 
 // +kubebuilder:object:root=true
 
-// IpamList contains a list of Ipam.
-type IpamList struct {
+// IpamStorageList contains a list of Ipam.
+type IpamStorageList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`
 	Items           []IpamStorage `json:"items"`
 }
 
 func init() {
-	SchemeBuilder.Register(&IpamStorage{}, &IpamList{})
+	SchemeBuilder.Register(&IpamStorage{}, &IpamStorageList{})
 }
