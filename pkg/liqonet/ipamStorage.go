@@ -20,14 +20,15 @@ import (
 )
 
 const (
-	ipamNamePrefix         = "ipamstorage-"
-	clusterSubnetUpdate    = "clusterSubnets"
-	poolsUpdate            = "pools"
-	prefixesUpdate         = "prefixes"
-	externalCIDRUpdate     = "externalCIDR"
-	endpointMappingsUpdate = "endpointMappings"
-	podCIDRUpdate          = "podCIDR"
-	serviceCIDRUpdate      = "serviceCIDR"
+	ipamNamePrefix              = "ipamstorage-"
+	clusterSubnetUpdate         = "clusterSubnets"
+	poolsUpdate                 = "pools"
+	prefixesUpdate              = "prefixes"
+	externalCIDRUpdate          = "externalCIDR"
+	endpointMappingsUpdate      = "endpointMappings"
+	podCIDRUpdate               = "podCIDR"
+	serviceCIDRUpdate           = "serviceCIDR"
+	natMappingsConfiguredUpdate = "natMappingsConfigured"
 )
 
 // IpamStorage is the interface to be implemented to enforce persistency in IPAM.
@@ -38,12 +39,14 @@ type IpamStorage interface {
 	updateEndpointMappings(endpoints map[string]netv1alpha1.EndpointMapping) error
 	updatePodCIDR(podCIDR string) error
 	updateServiceCIDR(serviceCIDR string) error
+	updateNatMappingsConfigured(natMappingsConfigured map[string]netv1alpha1.ConfiguredCluster) error
 	getClusterSubnets() (map[string]netv1alpha1.Subnets, error)
 	getPools() ([]string, error)
 	getExternalCIDR() (string, error)
 	getEndpointMappings() (map[string]netv1alpha1.EndpointMapping, error)
 	getPodCIDR() (string, error)
 	getServiceCIDR() (string, error)
+	getNatMappingsConfigured() (map[string]netv1alpha1.ConfiguredCluster, error)
 	goipam.Storage
 }
 
@@ -76,10 +79,11 @@ func NewIPAMStorage(dynClient dynamic.Interface) (*IPAMStorage, error) {
 				Labels:       map[string]string{consts.IpamStorageResourceLabelKey: consts.IpamStorageResourceLabelValue},
 			},
 			Spec: netv1alpha1.IpamSpec{
-				Prefixes:         make(map[string][]byte),
-				Pools:            make([]string, 0),
-				ClusterSubnets:   make(map[string]netv1alpha1.Subnets),
-				EndpointMappings: make(map[string]netv1alpha1.EndpointMapping),
+				Prefixes:              make(map[string][]byte),
+				Pools:                 make([]string, 0),
+				ClusterSubnets:        make(map[string]netv1alpha1.Subnets),
+				EndpointMappings:      make(map[string]netv1alpha1.EndpointMapping),
+				NatMappingsConfigured: make(map[string]netv1alpha1.ConfiguredCluster),
 			},
 		}
 		unstructuredIpam, err := runtime.DefaultUnstructuredConverter.ToUnstructured(ipam)
@@ -244,6 +248,10 @@ func (ipamStorage *IPAMStorage) updateServiceCIDR(serviceCIDR string) error {
 	return ipamStorage.updateConfig(serviceCIDRUpdate, serviceCIDR)
 }
 
+func (ipamStorage *IPAMStorage) updateNatMappingsConfigured(natMappingsConfigured map[string]netv1alpha1.ConfiguredCluster) error {
+	return ipamStorage.updateConfig(natMappingsConfiguredUpdate, natMappingsConfigured)
+}
+
 func (ipamStorage *IPAMStorage) updateConfig(updateType string, data interface{}) error {
 	jsonData, err := json.Marshal(data)
 
@@ -314,6 +322,14 @@ func (ipamStorage *IPAMStorage) getServiceCIDR() (string, error) {
 		return "", err
 	}
 	return ipam.Spec.ServiceCIDR, nil
+}
+
+func (ipamStorage *IPAMStorage) getNatMappingsConfigured() (map[string]netv1alpha1.ConfiguredCluster, error) {
+	ipam, err := ipamStorage.getConfig()
+	if err != nil {
+		return nil, err
+	}
+	return ipam.Spec.NatMappingsConfigured, nil
 }
 
 func (ipamStorage *IPAMStorage) getConfig() (*netv1alpha1.IpamStorage, error) {

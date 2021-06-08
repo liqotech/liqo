@@ -11,9 +11,9 @@ import (
 	. "github.com/onsi/gomega"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
-	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/dynamic/fake"
 
 	liqonetapi "github.com/liqotech/liqo/apis/net/v1alpha1"
@@ -25,11 +25,12 @@ import (
 )
 
 var ipam *liqonet.IPAM
-var dynClient dynamic.Interface
+var dynClient *fake.FakeDynamicClient
 
 const (
 	clusterID1           = "cluster1"
 	clusterID2           = "cluster2"
+	clusterID3           = "cluster3"
 	homePodCIDR          = "10.0.0.0/24"
 	localNATPodCIDR      = "10.0.1.0/24"
 	localNATExternalCIDR = "192.168.30.0/24"
@@ -120,7 +121,7 @@ var _ = Describe("Ipam", func() {
 		Expect(err).To(BeNil())
 	})
 	AfterEach(func() {
-		ipam.StopGRPCServer()
+		ipam.Terminate()
 	})
 
 	Describe("AcquireReservedSubnet", func() {
@@ -299,8 +300,13 @@ var _ = Describe("Ipam", func() {
 			})
 		})
 	})
-
 	Describe("RemoveClusterConfig", func() {
+		BeforeEach(func() {
+			err := ipam.SetPodCIDR(homePodCIDR)
+			Expect(err).To(BeNil())
+			_, err = ipam.GetExternalCIDR(uint8(24))
+			Expect(err).To(BeNil())
+		})
 		Context("Remove config for a configured cluster", func() {
 			It("Should successfully remove the configuration", func() {
 				_, _, err := ipam.GetSubnetsPerCluster(remotePodCIDR, remoteExternalCIDR, clusterID1)
@@ -318,6 +324,10 @@ var _ = Describe("Ipam", func() {
 				// Check if network have been freed
 				Expect(ipamStorage.Spec.Prefixes).ToNot(HaveKey(remotePodCIDR))
 				Expect(ipamStorage.Spec.Prefixes).ToNot(HaveKey(remoteExternalCIDR))
+
+				// Check if NatMapping resource has been deleted
+				_, err = getNatMappingResourcePerCluster(clusterID1)
+				Expect(k8serrors.IsNotFound(err)).To(BeTrue())
 			})
 		})
 		Context("Call for a non-configured cluster", func() {
@@ -325,13 +335,20 @@ var _ = Describe("Ipam", func() {
 				// Get config before call
 				ipamStorage, err := getIpamStorageResource()
 				Expect(err).To(BeNil())
+				// In BeforeEach resources for clusterID1 and clusterID2
+				// are created. So the following call should
+				// return a NotFound
+				_, err = getNatMappingResourcePerCluster(clusterID3)
+				Expect(k8serrors.IsNotFound(err)).To(BeTrue())
 
-				err = ipam.RemoveClusterConfig(clusterID1)
+				err = ipam.RemoveClusterConfig(clusterID3)
 				Expect(err).To(BeNil())
 
 				// Get config after call
 				newIpamStorage, err := getIpamStorageResource()
 				Expect(err).To(BeNil())
+				_, err = getNatMappingResourcePerCluster(clusterID3)
+				Expect(k8serrors.IsNotFound(err)).To(BeTrue())
 
 				Expect(ipamStorage).To(Equal(newIpamStorage))
 			})
@@ -348,6 +365,8 @@ var _ = Describe("Ipam", func() {
 				// Get config before second call
 				ipamStorage, err := getIpamStorageResource()
 				Expect(err).To(BeNil())
+				_, err = getNatMappingResourcePerCluster(clusterID3)
+				Expect(k8serrors.IsNotFound(err)).To(BeTrue())
 
 				// Second call
 				err = ipam.RemoveClusterConfig(clusterID1)
@@ -356,6 +375,8 @@ var _ = Describe("Ipam", func() {
 				// Get config after call
 				newIpamStorage, err := getIpamStorageResource()
 				Expect(err).To(BeNil())
+				_, err = getNatMappingResourcePerCluster(clusterID3)
+				Expect(k8serrors.IsNotFound(err)).To(BeTrue())
 
 				Expect(ipamStorage).To(Equal(newIpamStorage))
 			})
@@ -364,6 +385,123 @@ var _ = Describe("Ipam", func() {
 			It("Should return a WrongParameter error", func() {
 				err := ipam.RemoveClusterConfig("")
 				Expect(err).To(MatchError(fmt.Sprintf("%s must be %s", consts.ClusterIDLabelName, liqoneterrors.StringNotEmpty)))
+			})
+		})
+		Context("Remove config when the cluster has an active mapping and"+
+			"the endpoint is not reflected in any other cluster", func() {
+			It("should delete the endpoint mapping", func() {
+				_, _, err := ipam.GetSubnetsPerCluster(remotePodCIDR, remoteExternalCIDR, clusterID1)
+				Expect(err).To(BeNil())
+
+				// Remote cluster has not remapped local ExternalCIDR
+				err = ipam.AddLocalSubnetsPerCluster(consts.DefaultCIDRValue, consts.DefaultCIDRValue, clusterID1)
+				Expect(err).To(BeNil())
+
+				response, err := ipam.MapEndpointIP(context.Background(),
+					&liqonet.MapRequest{
+						ClusterID: clusterID1,
+						Ip:        externalEndpointIP,
+					})
+				Expect(err).To(BeNil())
+				// It should have mapped the IP
+				newIP := response.GetIp()
+				Expect(newIP).ToNot(Equal(externalEndpointIP))
+
+				// Add mapping to resource NatMapping
+				natMappingResource, err := getNatMappingResourcePerCluster(clusterID1)
+				Expect(err).To(BeNil())
+				natMappingResource.Spec.ClusterMappings = map[string]string{
+					externalEndpointIP: newIP,
+				}
+				err = updateNatMappingResource(natMappingResource)
+				Expect(err).To(BeNil())
+
+				// Terminate mappings with active mapping
+				err = ipam.RemoveClusterConfig(clusterID1)
+				Expect(err).To(BeNil())
+
+				// Check if resource exists
+				natMappingResource, err = getNatMappingResourcePerCluster(clusterID1)
+				Expect(k8serrors.IsNotFound(err)).To(BeTrue())
+
+				// Check if cluster has been deleted from cluster list of endpoint
+				ipamStorage, err := getIpamStorageResource()
+
+				// Since the endpoint had only one mapping, the terminate should have deleted it.
+				Expect(ipamStorage.Spec.EndpointMappings).ToNot(HaveKey(externalEndpointIP))
+			})
+		})
+		Context("Remove config when the cluster has an active mapping and"+
+			"the endpoint is reflected in more clusters", func() {
+			It("should not remove the mapping", func() {
+				_, _, err := ipam.GetSubnetsPerCluster(remotePodCIDR, remoteExternalCIDR, clusterID1)
+				Expect(err).To(BeNil())
+				_, _, err = ipam.GetSubnetsPerCluster(remotePodCIDR, remoteExternalCIDR, clusterID2)
+				Expect(err).To(BeNil())
+
+				err = ipam.AddLocalSubnetsPerCluster(consts.DefaultCIDRValue, consts.DefaultCIDRValue, clusterID1)
+				Expect(err).To(BeNil())
+				err = ipam.AddLocalSubnetsPerCluster(consts.DefaultCIDRValue, consts.DefaultCIDRValue, clusterID2)
+				Expect(err).To(BeNil())
+
+				response, err := ipam.MapEndpointIP(context.Background(),
+					&liqonet.MapRequest{
+						ClusterID: clusterID1,
+						Ip:        externalEndpointIP,
+					})
+				Expect(err).To(BeNil())
+				// It should have mapped the IP
+				newIPInCluster1 := response.GetIp()
+				Expect(newIPInCluster1).ToNot(Equal(externalEndpointIP))
+
+				response, err = ipam.MapEndpointIP(context.Background(),
+					&liqonet.MapRequest{
+						ClusterID: clusterID2,
+						Ip:        externalEndpointIP,
+					})
+				Expect(err).To(BeNil())
+				// It should have mapped the IP
+				newIPInCluster2 := response.GetIp()
+				Expect(newIPInCluster2).ToNot(Equal(externalEndpointIP))
+
+				// Add mapping to resource NatMapping
+				natMappingResource, err := getNatMappingResourcePerCluster(clusterID1)
+				Expect(err).To(BeNil())
+				natMappingResource.Spec.ClusterMappings = map[string]string{
+					externalEndpointIP: newIPInCluster1,
+				}
+				err = updateNatMappingResource(natMappingResource)
+				Expect(err).To(BeNil())
+
+				// Cluster2
+				natMappingResource, err = getNatMappingResourcePerCluster(clusterID2)
+				Expect(err).To(BeNil())
+				natMappingResource.Spec.ClusterMappings = map[string]string{
+					externalEndpointIP: newIPInCluster2,
+				}
+				err = updateNatMappingResource(natMappingResource)
+				Expect(err).To(BeNil())
+
+				// Terminate mappings with active mapping
+				err = ipam.RemoveClusterConfig(clusterID1)
+				Expect(err).To(BeNil())
+
+				// Check if resource exists
+				natMappingResource, err = getNatMappingResourcePerCluster(clusterID1)
+				Expect(k8serrors.IsNotFound(err)).To(BeTrue())
+
+				// Get IPAM configuration
+				ipamStorage, err := getIpamStorageResource()
+				Expect(err).To(BeNil())
+
+				// Since the endpoint had more than one mapping, the terminate should not have deleted it.
+				Expect(ipamStorage.Spec.EndpointMappings).To(HaveKey(externalEndpointIP))
+
+				// Get endpoint
+				endpointMapping := ipamStorage.Spec.EndpointMappings[externalEndpointIP]
+				// Check if cluster exists in clusterMappings
+				clusterMappings := endpointMapping.ClusterMappings
+				Expect(clusterMappings).ToNot(HaveKey(clusterID1))
 			})
 		})
 	})
@@ -407,7 +545,7 @@ var _ = Describe("Ipam", func() {
 			Expect(e).To(Equal("10.0.2.0/24"))
 
 			// Simulate re-scheduling
-			ipam.StopGRPCServer()
+			ipam.Terminate()
 			ipam = liqonet.NewIPAM()
 			err = ipam.Init(liqonet.Pools, dynClient, 2000+rand.Intn(2000))
 			Expect(err).To(BeNil())
@@ -549,32 +687,80 @@ var _ = Describe("Ipam", func() {
 	})
 
 	Describe("AddLocalSubnetsPerCluster", func() {
+		var externalCIDR string
 		BeforeEach(func() {
 			// Set PodCIDR
-			err := ipam.SetPodCIDR(homePodCIDR)
+			err := ipam.SetPodCIDR("10.0.0.0/24")
 			Expect(err).To(BeNil())
 
-			// Get ExternalCIDR
-			externalCIDR, err := ipam.GetExternalCIDR(24)
+			// Set ExternalCIDR
+			externalCIDR, err = ipam.GetExternalCIDR(24)
 			Expect(err).To(BeNil())
 			Expect(externalCIDR).To(HaveSuffix("/24"))
-
-			// Assign networks to remote cluster
-			_, _, err = ipam.GetSubnetsPerCluster("10.0.0.0/24", "10.0.1.0/24", clusterID1)
-			Expect(err).To(BeNil())
 		})
-		Context("If the networks do not exist yet", func() {
-			It("should return no errors", func() {
-				err := ipam.AddLocalSubnetsPerCluster("10.0.0.0/24", "192.168.0.0/24", clusterID1)
+		Context("Passing an empty clusterID", func() {
+			It("should return a WrongParameter error", func() {
+				_, _, err := ipam.GetSubnetsPerCluster(remotePodCIDR, remoteExternalCIDR, clusterID1)
 				Expect(err).To(BeNil())
+				err = ipam.AddLocalSubnetsPerCluster(localNATPodCIDR, localNATExternalCIDR, "")
+				Expect(err).To(MatchError(fmt.Sprintf("%s must be %s", consts.ClusterIDLabelName, liqoneterrors.StringNotEmpty)))
 			})
 		})
-		Context("If the networks already exist", func() {
-			It("should return no errors", func() {
-				err := ipam.AddLocalSubnetsPerCluster("10.0.0.0/24", "192.168.0.0/24", clusterID1)
+		Context("Call before GetSubnetsPerCluster", func() {
+			It("should return an error", func() {
+				err := ipam.AddLocalSubnetsPerCluster(localNATPodCIDR, localNATExternalCIDR, clusterID1)
+				Expect(err).To(MatchError(fmt.Sprintf("remote subnets for cluster %s do not exist yet. "+
+					"Call first GetSubnetsPerCluster", clusterID1)))
+			})
+		})
+		Context("Call function", func() {
+			It("should update IpamStorage and create NatMappings resource", func() {
+				_, _, err := ipam.GetSubnetsPerCluster(remotePodCIDR, remoteExternalCIDR, clusterID1)
 				Expect(err).To(BeNil())
-				err = ipam.AddLocalSubnetsPerCluster("10.0.0.0/24", "192.168.0.0/24", clusterID1)
+				err = ipam.AddLocalSubnetsPerCluster(localNATPodCIDR, localNATExternalCIDR, clusterID1)
 				Expect(err).To(BeNil())
+
+				ipamStorage, err := getIpamStorageResource()
+				Expect(err).To(BeNil())
+
+				// Check IpamStorage
+				Expect(ipamStorage.Spec.ClusterSubnets).To(HaveKey(clusterID1))
+				subnets := ipamStorage.Spec.ClusterSubnets[clusterID1]
+				Expect(subnets.LocalNATPodCIDR).To(Equal(localNATPodCIDR))
+				Expect(subnets.LocalNATExternalCIDR).To(Equal(localNATExternalCIDR))
+
+				natMappings, err := getNatMappingResourcePerCluster(clusterID1)
+				Expect(err).To(BeNil())
+				Expect(natMappings.Spec.ClusterID).To(Equal(clusterID1))
+				Expect(natMappings.Spec.PodCIDR).To(Equal(remotePodCIDR))
+				Expect(natMappings.Spec.ExternalCIDR).To(Equal(localNATExternalCIDR))
+			})
+		})
+		Context("Call func twice", func() {
+			It("second call should be a nop", func() {
+				_, _, err := ipam.GetSubnetsPerCluster(remotePodCIDR, remoteExternalCIDR, clusterID1)
+				Expect(err).To(BeNil())
+				err = ipam.AddLocalSubnetsPerCluster(localNATPodCIDR, localNATExternalCIDR, clusterID1)
+				Expect(err).To(BeNil())
+
+				// Get config before second call
+				ipamStorage, err := getIpamStorageResource()
+				Expect(err).To(BeNil())
+				natMappings, err := getNatMappingResourcePerCluster(clusterID1)
+				Expect(err).To(BeNil())
+
+				// Second call
+				err = ipam.AddLocalSubnetsPerCluster(localNATPodCIDR, localNATExternalCIDR, clusterID1)
+				Expect(err).To(BeNil())
+
+				// Get config after second call
+				newIpamStorage, err := getIpamStorageResource()
+				Expect(err).To(BeNil())
+				newNatMappings, err := getNatMappingResourcePerCluster(clusterID1)
+				Expect(err).To(BeNil())
+
+				Expect(ipamStorage).To(Equal(newIpamStorage))
+				Expect(natMappings).To(Equal(newNatMappings))
 			})
 		})
 	})
@@ -705,6 +891,13 @@ var _ = Describe("Ipam", func() {
 					_, _, err = ipam.GetSubnetsPerCluster(remotePodCIDR, remoteExternalCIDR, clusterID1)
 					Expect(err).To(BeNil())
 
+					// Set ExternalCIDR
+					_, err = ipam.GetExternalCIDR(24)
+					Expect(err).To(BeNil())
+
+					_, _, err = ipam.GetSubnetsPerCluster("10.0.1.0/24", "10.0.2.0/24", "cluster1")
+					Expect(err).To(BeNil())
+
 					// Remote cluster has not remapped local PodCIDR
 					err = ipam.AddLocalSubnetsPerCluster("None", "None", clusterID1)
 					Expect(err).To(BeNil())
@@ -715,6 +908,10 @@ var _ = Describe("Ipam", func() {
 					})
 					Expect(err).To(BeNil())
 					Expect(response.GetIp()).To(Equal("10.0.0.1"))
+
+					// Should not create a mapping in NatMapping resource
+					nm, err := getNatMappingResourcePerCluster(clusterID1)
+					Expect(nm.Spec.ClusterMappings).ToNot(HaveKey("10.0.0.1"))
 				})
 			})
 			Context("and the remote cluster has remapped the local PodCIDR", func() {
@@ -732,6 +929,13 @@ var _ = Describe("Ipam", func() {
 					_, _, err = ipam.GetSubnetsPerCluster(remotePodCIDR, remoteExternalCIDR, clusterID1)
 					Expect(err).To(BeNil())
 
+					// Set ExternalCIDR
+					_, err = ipam.GetExternalCIDR(24)
+					Expect(err).To(BeNil())
+
+					_, _, err = ipam.GetSubnetsPerCluster("10.0.1.0/24", "10.0.2.0/24", "cluster1")
+					Expect(err).To(BeNil())
+
 					// Remote cluster has remapped local PodCIDR
 					err = ipam.AddLocalSubnetsPerCluster("192.168.0.0/24", "None", clusterID1)
 					Expect(err).To(BeNil())
@@ -742,6 +946,10 @@ var _ = Describe("Ipam", func() {
 					})
 					Expect(err).To(BeNil())
 					Expect(response.GetIp()).To(Equal("192.168.0.1"))
+
+					// Should not create a mapping in NatMapping resource
+					nm, err := getNatMappingResourcePerCluster(clusterID1)
+					Expect(nm.Spec.ClusterMappings).ToNot(HaveKey("192.168.0.1"))
 				})
 			})
 		})
@@ -773,6 +981,10 @@ var _ = Describe("Ipam", func() {
 					slicedPrefix := strings.SplitN(externalCIDR, ".", 4)
 					slicedPrefix = slicedPrefix[:len(slicedPrefix)-1]
 					Expect(response.GetIp()).To(HavePrefix(strings.Join(slicedPrefix, ".")))
+
+					// Should create a mapping in NatMapping resource
+					nm, err := getNatMappingResourcePerCluster(clusterID1)
+					Expect(nm.Spec.ClusterMappings).To(HaveKeyWithValue("20.0.0.1", response.GetIp()))
 				})
 				It("should return the same IP if more remote clusters ask for the same endpoint", func() {
 					// Set PodCIDR
@@ -828,6 +1040,9 @@ var _ = Describe("Ipam", func() {
 
 					// Assign networks to cluster
 					_, _, err = ipam.GetSubnetsPerCluster(remotePodCIDR, remoteExternalCIDR, clusterID1)
+					Expect(err).To(BeNil())
+
+					_, _, err = ipam.GetSubnetsPerCluster("10.0.1.0/24", "10.0.2.0/24", "cluster1")
 					Expect(err).To(BeNil())
 
 					// Remote cluster has remapped local ExternalCIDR
@@ -1135,6 +1350,31 @@ var _ = Describe("Ipam", func() {
 	})
 })
 
+func getNatMappingResourcePerCluster(clusterID string) (*liqonetapi.NatMapping, error) {
+	nm := &liqonetapi.NatMapping{}
+	list, err := dynClient.Resource(liqonetapi.NatMappingGroupResource).List(
+		context.Background(),
+		v1.ListOptions{
+			LabelSelector: fmt.Sprintf("%s=%s,%s=%s",
+				consts.NatMappingResourceLabelKey,
+				consts.NatMappingResourceLabelValue,
+				consts.ClusterIDLabelName,
+				clusterID),
+		},
+	)
+	if err != nil {
+		return nil, err
+	}
+	if len(list.Items) == 0 {
+		return nil, k8serrors.NewNotFound(liqonetapi.NatMappingGroupResource.GroupResource(), "")
+	}
+	err = runtime.DefaultUnstructuredConverter.FromUnstructured(list.Items[0].Object, nm)
+	if err != nil {
+		return nil, err
+	}
+	return nm, nil
+}
+
 func getIpamStorageResource() (*liqonetapi.IpamStorage, error) {
 	ipamConfig := &liqonetapi.IpamStorage{}
 	list, err := dynClient.Resource(liqonetapi.IpamGroupResource).List(
@@ -1156,4 +1396,20 @@ func getIpamStorageResource() (*liqonetapi.IpamStorage, error) {
 		return nil, err
 	}
 	return ipamConfig, nil
+}
+
+func updateNatMappingResource(natMapping *liqonetapi.NatMapping) error {
+	unstructuredResource, err := runtime.DefaultUnstructuredConverter.ToUnstructured(natMapping)
+	if err != nil {
+		return err
+	}
+	_, err = dynClient.Resource(liqonetapi.NatMappingGroupResource).Update(
+		context.Background(),
+		&unstructured.Unstructured{Object: unstructuredResource},
+		v1.UpdateOptions{},
+	)
+	if err != nil {
+		return err
+	}
+	return nil
 }

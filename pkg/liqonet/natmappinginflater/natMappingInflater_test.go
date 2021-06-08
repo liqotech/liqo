@@ -35,6 +35,9 @@ const (
 	clusterID3   = "cluster-test-3"
 	podCIDR      = "10.0.0.0/24"
 	externalCIDR = "10.0.1.0/24"
+	oldIP        = "20.0.0.1"
+	newIP        = "10.0.3.3"
+	newIP2       = "10.0.3.4"
 )
 
 func setDynClient() error {
@@ -276,6 +279,71 @@ var _ = Describe("NatMappingInflater", func() {
 				Expect(nm.Spec.ClusterID).To(Equal(clusterID1))
 				Expect(nm.Spec.PodCIDR).To(Equal(podCIDR))
 				Expect(nm.Spec.ExternalCIDR).To(Equal(externalCIDR))
+			})
+		})
+	})
+	Describe("AddMapping", func() {
+		Context("Call func without initializing NAT mappings", func() {
+			It("should return a MissingInit error", func() {
+				err := inflater.AddMapping(oldIP, newIP, clusterID1)
+				Expect(err).To(MatchError(fmt.Sprintf("%s for cluster %s must be %s", consts.NatMappingKind, clusterID1, liqoneterrors.Initialization)))
+			})
+		})
+		Context("Call func after correct initialization", func() {
+			It("should successfully add the mapping", func() {
+				// Init
+				err := inflater.InitNatMappingsPerCluster(podCIDR, externalCIDR, clusterID1)
+				Expect(err).To(BeNil())
+
+				err = inflater.AddMapping(oldIP, newIP, clusterID1)
+				Expect(err).To(BeNil())
+				mappings, err := inflater.GetNatMappings(clusterID1)
+				Expect(mappings).To(HaveKeyWithValue(oldIP, newIP))
+			})
+		})
+		Context("Call func twice with same parameters", func() {
+			It("second call should be a nop", func() {
+				// Init
+				err := inflater.InitNatMappingsPerCluster(podCIDR, externalCIDR, clusterID1)
+				Expect(err).To(BeNil())
+
+				err = inflater.AddMapping(oldIP, newIP, clusterID1)
+				Expect(err).To(BeNil())
+
+				// Check config before second call
+				nm, err := inflater.getNatMappingResource(clusterID1)
+				Expect(err).To(BeNil())
+				Expect(nm.Spec.ClusterMappings).To(HaveKeyWithValue(oldIP, newIP))
+
+				err = inflater.AddMapping(oldIP, newIP, clusterID1)
+				Expect(err).To(BeNil())
+
+				// Check config after
+				newNm, err := inflater.getNatMappingResource(clusterID1)
+				Expect(err).To(BeNil())
+				Expect(newNm).To(Equal(nm))
+			})
+		})
+		Context("Call func twice with different new IP", func() {
+			It("should return no errors and update the mapping", func() {
+				// Init
+				err := inflater.InitNatMappingsPerCluster(podCIDR, externalCIDR, clusterID1)
+				Expect(err).To(BeNil())
+
+				err = inflater.AddMapping(oldIP, newIP, clusterID1)
+				Expect(err).To(BeNil())
+
+				err = inflater.AddMapping(oldIP, newIP2, clusterID1)
+				Expect(err).To(BeNil())
+
+				// Check if inflater has been updated successfully
+				mappings, err := inflater.GetNatMappings(clusterID1)
+				Expect(mappings).To(HaveKeyWithValue(oldIP, newIP2))
+
+				// Check resource
+				nm, err := inflater.getNatMappingResource(clusterID1)
+				Expect(err).To(BeNil())
+				Expect(nm.Spec.ClusterMappings).To(HaveKeyWithValue(oldIP, newIP2))
 			})
 		})
 	})

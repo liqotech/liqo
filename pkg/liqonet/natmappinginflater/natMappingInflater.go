@@ -9,6 +9,7 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/dynamic"
+	"k8s.io/client-go/util/retry"
 	"k8s.io/klog"
 
 	netv1alpha1 "github.com/liqotech/liqo/apis/net/v1alpha1"
@@ -26,8 +27,12 @@ type Interface interface {
 	// externalCIDR is the ExternalCIDR used in the remote cluster for local exported resources:
 	// it can be either the LocalExternalCIDR or the LocalNATExternalCIDR.
 	InitNatMappingsPerCluster(podCIDR, externalCIDR, clusterID string) error
+	// TerminateNatMappingsPerCluster frees/deletes resources allocated for remote cluster.
+	TerminateNatMappingsPerCluster(clusterID string) error
 	// GetNatMappings returns the set of mappings related to a remote cluster.
 	GetNatMappings(clusterID string) (map[string]string, error)
+	// AddMapping adds a NAT mapping.
+	AddMapping(oldIP, newIP, clusterID string) error
 }
 
 // NatMappingInflater is an implementation of the NatMappingInflaterInterface
@@ -162,6 +167,117 @@ func (inflater *NatMappingInflater) initResource(podCIDR, externalCIDR, clusterI
 		return err
 	}
 	klog.Infof("Resource %s for cluster %s successfully created", up.GetName(), clusterID)
+	return nil
+}
+
+// TerminateNatMappingsPerCluster deletes the NatMapping resource for remote cluster.
+func (inflater *NatMappingInflater) TerminateNatMappingsPerCluster(clusterID string) error {
+	if err := inflater.deleteResourceForCluster(clusterID); err != nil {
+		return fmt.Errorf("unable to delete resource for cluster %s: %w", clusterID, err)
+	}
+	// Remove entry in natMappingsPerCluster
+	delete(inflater.natMappingsPerCluster, clusterID)
+	return nil
+}
+
+// Function that deletes the resource NatMapping for a specific remote cluster.
+// It carries out multiple tentatives until it manages to delete the resource.
+func (inflater *NatMappingInflater) deleteResourceForCluster(clusterID string) error {
+	retryError := retry.RetryOnConflict(retry.DefaultBackoff, func() error {
+		// Get resource for remote cluster
+		natMappings, err := inflater.getNatMappingResource(clusterID)
+		if err != nil && !k8sErr.IsNotFound(err) {
+			return fmt.Errorf("cannot retrieve NatMapping resource for cluster %s: %w", clusterID, err)
+		}
+		if err != nil && k8sErr.IsNotFound(err) {
+			return nil
+		}
+		// Remove labels before deleting resource is necessary
+		// because otherwise the informer will be triggered and will
+		// re-create the resource.
+		delete(natMappings.ObjectMeta.Labels, consts.NatMappingResourceLabelKey)
+		if err := inflater.updateNatMappingResource(natMappings); err != nil {
+			return fmt.Errorf("cannot update NatMapping resource for cluster %s: %w", clusterID, err)
+		}
+		// Delete resource
+		err = inflater.dynClient.Resource(netv1alpha1.NatMappingGroupResource).Delete(
+			context.Background(), natMappings.Name, metav1.DeleteOptions{})
+		if err != nil {
+			return err
+		}
+		klog.Infof("NatMapping resource for cluster %s deleted", clusterID)
+		return nil
+	})
+	if retryError != nil {
+		return retryError
+	}
+	return nil
+}
+
+// AddMapping adds a mapping in the resource related to a remote cluster.
+// It also adds the mapping in natMappingsPerCluster.
+func (inflater *NatMappingInflater) AddMapping(oldIP, newIP, clusterID string) error {
+	var exists bool
+	var mappings netv1alpha1.Mappings
+	// Check if NAT mappings have been initilized for remote cluster.
+	mappings, exists = inflater.natMappingsPerCluster[clusterID]
+	if !exists {
+		return &errors.MissingInit{
+			StructureName: fmt.Sprintf("%s for cluster %s", consts.NatMappingKind, clusterID),
+		}
+	}
+	// Check existence of mapping
+	existingIP, exists := mappings[oldIP]
+	if exists && existingIP == newIP {
+		return nil // Mapping already exists, do nothing
+	}
+	// Add/Update mapping in memory structure
+	mappings[oldIP] = newIP
+	if err := inflater.addOrUpdateMappingInResource(oldIP, newIP, clusterID); err != nil {
+		delete(mappings, oldIP) // Undo add
+		return fmt.Errorf("unable to add NatMapping to resource: %w", err)
+	}
+	return nil
+}
+
+func (inflater *NatMappingInflater) addOrUpdateMappingInResource(oldIP, newIP, clusterID string) error {
+	retryError := retry.RetryOnConflict(retry.DefaultRetry, func() error {
+		// Get resource for remote cluster
+		natMappings, err := inflater.getNatMappingResource(clusterID)
+		if err != nil {
+			return fmt.Errorf("cannot retrieve NatMapping resource for cluster %s: %w", clusterID, err)
+		}
+		natMappings.Spec.ClusterMappings[oldIP] = newIP
+		// Update resource
+		if err := inflater.updateNatMappingResource(natMappings); err != nil {
+			return fmt.Errorf("cannot update NatMapping resource for cluster %s: %w", clusterID, err)
+		}
+		if err != nil {
+			return err
+		}
+		return nil
+	})
+	if retryError != nil {
+		return retryError
+	}
+	return nil
+}
+
+// Updates the resource related to a remote cluster.
+func (inflater *NatMappingInflater) updateNatMappingResource(resource *netv1alpha1.NatMapping) error {
+	// Convert resource to unstructured type
+	unstructuredResource, err := runtime.DefaultUnstructuredConverter.ToUnstructured(resource)
+	if err != nil {
+		klog.Errorf("cannot map resource to unstructured resource: %s", err.Error())
+		return err
+	}
+
+	// Update
+	_, err = inflater.dynClient.Resource(netv1alpha1.NatMappingGroupResource).Update(context.Background(),
+		&unstructured.Unstructured{Object: unstructuredResource}, metav1.UpdateOptions{})
+	if err != nil {
+		return err
+	}
 	return nil
 }
 
