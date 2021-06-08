@@ -15,7 +15,7 @@ import (
 	"k8s.io/client-go/util/retry"
 	"k8s.io/klog/v2"
 
-	"github.com/liqotech/liqo/pkg/liqonet"
+	"github.com/liqotech/liqo/pkg/liqonet/utils"
 )
 
 var (
@@ -66,7 +66,7 @@ func (tec *TunnelEndpointCreator) gwPodHandlerAdd(obj interface{}) {
 		klog.Errorf("unable to get node where the gateway pod is running: %v", err)
 		return
 	}
-	nodeIP, err = liqonet.GetInternalIPOfNode(node)
+	nodeIP, err = utils.GetInternalIPOfNode(node)
 	if err != nil {
 		klog.Error(err)
 		return

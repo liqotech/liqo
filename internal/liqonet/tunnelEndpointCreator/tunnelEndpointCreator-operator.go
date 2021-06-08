@@ -44,8 +44,9 @@ import (
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	crdreplicator "github.com/liqotech/liqo/internal/crdReplicator"
 	liqoconst "github.com/liqotech/liqo/pkg/consts"
-	liqonet "github.com/liqotech/liqo/pkg/liqonet"
+	"github.com/liqotech/liqo/pkg/liqonet"
 	"github.com/liqotech/liqo/pkg/liqonet/tunnel/wireguard"
+	liqonetutils "github.com/liqotech/liqo/pkg/liqonet/utils"
 	"github.com/liqotech/liqo/pkg/utils"
 )
 
@@ -120,6 +121,7 @@ type TunnelEndpointCreator struct {
 // +kubebuilder:rbac:groups=net.liqo.io,resources=networkconfigs,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=net.liqo.io,resources=networkconfigs/status,verbs=get;update;patch
 // +kubebuilder:rbac:groups=net.liqo.io,resources=ipamstorages,verbs=get;list;create;update;patch
+// +kubebuilder:rbac:groups=net.liqo.io,resources=natmappings,verbs=get;list;create;update;patch;delete;watch
 // +kubebuilder:rbac:groups=discovery.liqo.io,resources=foreignclusters,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=discovery.liqo.io,resources=foreignclusters/status,verbs=get;update;patch
 // +kubebuilder:rbac:groups=config.liqo.io,resources=clusterconfigs,verbs=get;list;watch;create;update;patch;delete
@@ -150,7 +152,7 @@ func (tec *TunnelEndpointCreator) Reconcile(ctx context.Context, req ctrl.Reques
 	}
 	// examine DeletionTimestamp to determine if object is under deletion
 	if netConfig.ObjectMeta.DeletionTimestamp.IsZero() {
-		if !liqonet.ContainsString(netConfig.ObjectMeta.Finalizers, tunnelEndpointCreatorFinalizer) {
+		if !liqonetutils.ContainsString(netConfig.ObjectMeta.Finalizers, tunnelEndpointCreatorFinalizer) {
 			// The object is not being deleted, so if it does not have our finalizer,
 			// then lets add the finalizer and update the object. This is equivalent
 			// registering our finalizer.
@@ -176,9 +178,9 @@ func (tec *TunnelEndpointCreator) Reconcile(ctx context.Context, req ctrl.Reques
 			klog.Errorf("an error occurred while deleting tunnel endpoint related to %s: %s", netConfig.Name, err)
 			return result, err
 		}
-		if liqonet.ContainsString(netConfig.Finalizers, tunnelEndpointCreatorFinalizer) {
+		if liqonetutils.ContainsString(netConfig.Finalizers, tunnelEndpointCreatorFinalizer) {
 			// remove the finalizer from the list and update it.
-			netConfig.Finalizers = liqonet.RemoveString(netConfig.Finalizers, tunnelEndpointCreatorFinalizer)
+			netConfig.Finalizers = liqonetutils.RemoveString(netConfig.Finalizers, tunnelEndpointCreatorFinalizer)
 			if err := tec.Update(ctx, &netConfig); err != nil {
 				if apierrors.IsConflict(err) {
 					return ctrl.Result{}, nil
@@ -189,10 +191,10 @@ func (tec *TunnelEndpointCreator) Reconcile(ctx context.Context, req ctrl.Reques
 		}
 		// remove the reserved networks for the cluster
 		if err := tec.IPManager.FreeSubnetsPerCluster(netConfig.Spec.ClusterID); err != nil {
-			klog.Errorf("cannot free networks assigned to cluster %s", netConfig.Spec.ClusterID)
+			klog.Errorf("cannot free networks assigned to cluster %s: %s", netConfig.Spec.ClusterID, err.Error())
 		}
 		if err := tec.IPManager.RemoveLocalSubnetsPerCluster(netConfig.Spec.ClusterID); err != nil {
-			klog.Errorf("cannot delete local subnets assigned to cluster %s", netConfig.Spec.ClusterID)
+			klog.Errorf("cannot delete local subnets assigned to cluster %s: %s", netConfig.Spec.ClusterID, err.Error())
 		}
 		return result, nil
 	}
@@ -221,7 +223,7 @@ func (tec *TunnelEndpointCreator) SetupSignalHandlerForTunEndCreator() context.C
 	klog.Infof("starting signal handler for tunnelEndpointCreator-operator")
 	ctx, done := context.WithCancel(context.Background())
 	c := make(chan os.Signal, 1)
-	signal.Notify(c, liqonet.ShutdownSignals...)
+	signal.Notify(c, liqonetutils.ShutdownSignals...)
 	go func(r *TunnelEndpointCreator) {
 		sig := <-c
 		klog.Infof("received signal: %s", sig.String())

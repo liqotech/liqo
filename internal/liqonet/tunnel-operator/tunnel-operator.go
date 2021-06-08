@@ -37,7 +37,7 @@ import (
 
 	netv1alpha1 "github.com/liqotech/liqo/apis/net/v1alpha1"
 	liqoconst "github.com/liqotech/liqo/pkg/consts"
-	utils "github.com/liqotech/liqo/pkg/liqonet"
+	"github.com/liqotech/liqo/pkg/liqonet"
 	liqonetns "github.com/liqotech/liqo/pkg/liqonet/netns"
 	"github.com/liqotech/liqo/pkg/liqonet/overlay"
 	liqorouting "github.com/liqotech/liqo/pkg/liqonet/routing"
@@ -45,6 +45,7 @@ import (
 
 	// wireguard package is imported in order to run the init function contained in the package.
 	_ "github.com/liqotech/liqo/pkg/liqonet/tunnel/wireguard"
+	"github.com/liqotech/liqo/pkg/liqonet/utils"
 	"github.com/liqotech/liqo/pkg/liqonet/wireguard"
 )
 
@@ -68,8 +69,8 @@ type TunnelController struct {
 	client.Client
 	record.EventRecorder
 	tunnel.Driver
-	utils.NetLink
-	utils.IPTablesHandler
+	liqonet.NetLink
+	liqonet.IPTablesHandler
 	DefaultIface string
 	k8sClient    *k8s.Clientset
 	wg           *wireguard.Wireguard
@@ -147,11 +148,11 @@ func NewTunnelController(mgr ctrl.Manager, wgc wireguard.Client, nl wireguard.Ne
 	if err != nil {
 		return nil, err
 	}
-	err = tc.SetupIPTablesHandler()
+	err = tc.SetUpIPTablesHandler()
 	if err != nil {
 		return nil, err
 	}
-	tc.SetupRouteManager(tc.EventRecorder)
+	tc.SetUpRouteManager(tc.EventRecorder)
 	return tc, nil
 }
 
@@ -172,7 +173,7 @@ func (tc *TunnelController) Reconcile(ctx context.Context, req ctrl.Request) (ct
 		klog.Infof("%s -> resource %s is not ready", endpoint.Spec.ClusterID, endpoint.Name)
 		return result, nil
 	}
-	_, remotePodCIDR := utils.GetPodCIDRS(&endpoint)
+	_, remotePodCIDR := liqonet.GetPodCIDRS(&endpoint)
 	// examine DeletionTimestamp to determine if object is under deletion
 	if endpoint.ObjectMeta.DeletionTimestamp.IsZero() {
 		if !utils.ContainsString(endpoint.ObjectMeta.Finalizers, tunnelEndpointFinalizer) {
@@ -368,9 +369,10 @@ func (tc *TunnelController) SetUpTunnelDrivers() error {
 	return nil
 }
 
-// SetupIPTablesHandler configures the client which interacts with the iptables module on the system.
-func (tc *TunnelController) SetupIPTablesHandler() error {
-	iptHandler, err := utils.NewIPTablesHandler()
+// SetUpIPTablesHandler initializes the IPTables handler of
+// TunnelController.
+func (tc *TunnelController) SetUpIPTablesHandler() error {
+	iptHandler, err := liqonet.NewIPTablesHandler()
 	if err != nil {
 		return err
 	}
@@ -378,9 +380,10 @@ func (tc *TunnelController) SetupIPTablesHandler() error {
 	return nil
 }
 
-// SetupRouteManager configure the route manager used to setup the routes for a remote cluster.
-func (tc *TunnelController) SetupRouteManager(recorder record.EventRecorder) {
-	tc.NetLink = utils.NewRouteManager(recorder)
+// SetUpRouteManager initializes the Route manager of
+// TunnelController.
+func (tc *TunnelController) SetUpRouteManager(recorder record.EventRecorder) {
+	tc.NetLink = liqonet.NewRouteManager(recorder)
 }
 
 func (tc *TunnelController) setUpGWNetns(netnsName, hostVethName, gatewayVethName, gatewayVethIPAddr string, vethMtu int) error {

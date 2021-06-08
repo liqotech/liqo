@@ -4,20 +4,22 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"strings"
-
 	"math/rand"
+	"strings"
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
+	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/dynamic/fake"
 
-	"github.com/liqotech/liqo/pkg/liqonet"
-
 	liqonetapi "github.com/liqotech/liqo/apis/net/v1alpha1"
+	"github.com/liqotech/liqo/pkg/consts"
+	"github.com/liqotech/liqo/pkg/liqonet"
+	liqoneterrors "github.com/liqotech/liqo/pkg/liqonet/errors"
+	"github.com/liqotech/liqo/pkg/liqonet/utils"
 )
 
 var ipam *liqonet.IPAM
@@ -29,11 +31,11 @@ const clusterName = "cluster1"
 func fillNetworkPool(pool string, ipam *liqonet.IPAM) error {
 
 	// Get halves mask length
-	mask := liqonet.GetMask(pool)
+	mask := utils.GetMask(pool)
 	mask += 1
 
 	// Get first half CIDR
-	halfCidr, err := liqonet.SetMask(pool, mask)
+	halfCidr, err := utils.SetMask(pool, mask)
 	if err != nil {
 		return err
 	}
@@ -44,7 +46,7 @@ func fillNetworkPool(pool string, ipam *liqonet.IPAM) error {
 	}
 
 	// Get second half CIDR
-	halfCidr, err = liqonet.Next(halfCidr)
+	halfCidr, err = utils.Next(halfCidr)
 	if err != nil {
 		return err
 	}
@@ -814,7 +816,7 @@ var _ = Describe("Ipam", func() {
 						ClusterID: clusterName,
 					})
 				err = errors.Unwrap(err)
-				Expect(err).To(MatchError(fmt.Sprintf("%s must be %s", invalidValue, liqonet.ValidIP)))
+				Expect(err).To(MatchError(fmt.Sprintf("%s must be %s", invalidValue, liqoneterrors.ValidIP)))
 			})
 		})
 		Context("Pass function an empty cluster ID", func() {
@@ -825,7 +827,7 @@ var _ = Describe("Ipam", func() {
 						ClusterID: "",
 					})
 				err = errors.Unwrap(err)
-				Expect(err).To(MatchError(fmt.Sprintf("Parameter must be %s", liqonet.StringNotEmpty)))
+				Expect(err).To(MatchError(fmt.Sprintf("%s must be %s", consts.ClusterIDLabelName, liqoneterrors.StringNotEmpty)))
 			})
 		})
 		Context("Invoking func without subnets init", func() {
@@ -884,7 +886,7 @@ var _ = Describe("Ipam", func() {
 				Expect(err).To(BeNil())
 
 				// IP should be mapped to remoteNATPodCIDR
-				remappedIP, err := liqonet.MapIPToNetwork(mappedPodCIDR, ip)
+				remappedIP, err := utils.MapIPToNetwork(mappedPodCIDR, ip)
 				Expect(response.GetHomeIP()).To(Equal(remappedIP))
 			})
 		})
@@ -916,7 +918,6 @@ var _ = Describe("Ipam", func() {
 				})
 				Expect(err).To(BeNil())
 				Expect(response.GetIp()).To(HavePrefix(strings.Join(slicedPrefix, ".")))
-				ip := response.GetIp()
 
 				// Reflection in cluster2
 				_, err = ipam.MapEndpointIP(context.Background(), &liqonet.MapRequest{
@@ -939,32 +940,20 @@ var _ = Describe("Ipam", func() {
 				})
 				Expect(err).To(BeNil())
 
-				/* In order to check if the IP has been freed, simulate further reflections
-				till the ExternalCIDR has no more IPs and check if the returned IP is equal to
-				the freed IP.
-				An alternative could be to overwrite the stdout and check
-				existence of the log "IP has been freed".*/
-				var found bool
-				for i := 0; i < 254; i++ {
-					err = ipam.AddLocalSubnetsPerCluster("None", "None", fmt.Sprintf("c%d", i))
-					Expect(err).To(BeNil())
-					r, err := ipam.MapEndpointIP(context.Background(), &liqonet.MapRequest{
-						ClusterID: fmt.Sprintf("c%d", i),
-						Ip:        fmt.Sprintf("30.0.0.%d", i),
-					})
-					Expect(err).To(BeNil())
-					if r.GetIp() == ip {
-						found = true
-						break
-					}
-				}
-				if !found {
-					Fail("ip has not been freed")
-				}
+				// Get Ipam configuration
+				unstructuredObj, err := dynClient.Resource(liqonetapi.IpamGroupResource).Get(context.Background(), "", v1.GetOptions{})
+				Expect(err).To(BeNil())
+				var ipamConfig liqonetapi.IpamStorage
+				err = runtime.DefaultUnstructuredConverter.FromUnstructured(unstructuredObj.Object, &ipamConfig)
+				Expect(err).To(BeNil())
+
+				// Check if IP is freed
+				Expect(ipamConfig.Spec.EndpointMappings).To(HaveLen(0))
 			})
 		})
 		Context("If there are other clusters using an endpointIP", func() {
 			It("should not free the relative IP", func() {
+				endpointIP := "20.0.0.1"
 				// Set PodCIDR
 				err := ipam.SetPodCIDR("10.0.0.0/24")
 				Expect(err).To(BeNil())
@@ -984,7 +973,7 @@ var _ = Describe("Ipam", func() {
 				// Reflection in cluster1
 				response, err := ipam.MapEndpointIP(context.Background(), &liqonet.MapRequest{
 					ClusterID: "cluster1",
-					Ip:        "20.0.0.1",
+					Ip:        endpointIP,
 				})
 				Expect(err).To(BeNil())
 				Expect(response.GetIp()).To(HavePrefix(strings.Join(slicedPrefix, ".")))
@@ -993,38 +982,27 @@ var _ = Describe("Ipam", func() {
 				// Reflection in cluster2
 				_, err = ipam.MapEndpointIP(context.Background(), &liqonet.MapRequest{
 					ClusterID: "cluster2",
-					Ip:        "20.0.0.1",
+					Ip:        endpointIP,
 				})
 				Expect(err).To(BeNil())
 
 				// Terminate reflection in cluster2
 				_, err = ipam.UnmapEndpointIP(context.Background(), &liqonet.UnmapRequest{
 					ClusterID: "cluster2",
-					Ip:        "20.0.0.1",
+					Ip:        endpointIP,
 				})
 				Expect(err).To(BeNil())
 
-				/* In order to check if the IP has been freed, simulate further reflections
-				till the ExternalCIDR has no more IPs and check if the returned IP is equal to
-				the freed IP.
-				An alternative could be to overwrite the stdout and check
-				existence of the log "IP has been freed".*/
-				var found bool
-				for i := 0; i < 254; i++ {
-					err = ipam.AddLocalSubnetsPerCluster("None", "None", fmt.Sprintf("c%d", i))
-					Expect(err).To(BeNil())
-					r, _ := ipam.MapEndpointIP(context.Background(), &liqonet.MapRequest{
-						ClusterID: fmt.Sprintf("c%d", i),
-						Ip:        fmt.Sprintf("30.0.0.%d", i),
-					})
-					if r != nil && r.GetIp() == ip {
-						found = true
-						break
-					}
-				}
-				if found {
-					Fail("ip has been freed")
-				}
+				// Get Ipam configuration
+				unstructuredObj, err := dynClient.Resource(liqonetapi.IpamGroupResource).Get(context.Background(), "", v1.GetOptions{})
+				Expect(err).To(BeNil())
+				var ipamConfig liqonetapi.IpamStorage
+				err = runtime.DefaultUnstructuredConverter.FromUnstructured(unstructuredObj.Object, &ipamConfig)
+				Expect(err).To(BeNil())
+
+				// Check if IP is not freed
+				Expect(ipamConfig.Spec.EndpointMappings).To(HaveLen(1))
+				Expect(ipamConfig.Spec.EndpointMappings[endpointIP].IP).To(Equal(ip))
 			})
 		})
 	})
