@@ -16,6 +16,7 @@ import (
 	netv1alpha1 "github.com/liqotech/liqo/apis/net/v1alpha1"
 	"github.com/liqotech/liqo/pkg/consts"
 	liqoneterrors "github.com/liqotech/liqo/pkg/liqonet/errors"
+	"github.com/liqotech/liqo/pkg/liqonet/natmappinginflater"
 	"github.com/liqotech/liqo/pkg/liqonet/utils"
 )
 
@@ -62,9 +63,10 @@ type Ipam interface {
 
 // IPAM implementation.
 type IPAM struct {
-	ipam        goipam.Ipamer
-	ipamStorage IpamStorage
-	grpcServer  *grpc.Server
+	ipam               goipam.Ipamer
+	ipamStorage        IpamStorage
+	natMappingInflater natmappinginflater.Interface
+	grpcServer         *grpc.Server
 	UnimplementedIpamServer
 }
 
@@ -116,6 +118,8 @@ func (liqoIPAM *IPAM) Init(pools []string, dynClient dynamic.Interface, listenin
 			return fmt.Errorf("cannot start gRPC server:%w", err)
 		}
 	}
+
+	liqoIPAM.natMappingInflater = natmappinginflater.NewInflater(dynClient)
 	return nil
 }
 
@@ -563,6 +567,38 @@ func (liqoIPAM *IPAM) FreeSubnetsPerCluster(clusterID string) error {
 	return nil
 }
 
+// initNatMappingsPerCluster is a wrapper for inflater InitNatMappingsPerCluster.
+func (liqoIPAM *IPAM) initNatMappingsPerCluster(clusterID string) error {
+	if clusterID == "" {
+		return &liqoneterrors.WrongParameter{
+			Parameter: consts.ClusterIDLabelName,
+			Reason:    liqoneterrors.StringNotEmpty,
+		}
+	}
+	// Get cluster subnets
+	clusterSubnets, err := liqoIPAM.ipamStorage.getClusterSubnets()
+	if err != nil {
+		return fmt.Errorf("cannot get cluster subnets: %w", err)
+	}
+	subnets, exists := clusterSubnets[clusterID]
+	if !exists {
+		return fmt.Errorf("subnets of cluster %s are not set", clusterID)
+	}
+	// InitNatMappingsPerCluster does need the Pod CIDR used in home cluster for remote pods (subnets.RemotePodCIDR)
+	// and the ExternalCIDR used in remote cluster for local exported resources.
+	var externalCIDR string
+	if subnets.LocalNATExternalCIDR == consts.DefaultCIDRValue {
+		// Remote cluster has not remapped home ExternalCIDR
+		externalCIDR, err = liqoIPAM.ipamStorage.getExternalCIDR()
+		if err != nil {
+			return fmt.Errorf("cannot retrieve cluster ExternalCIDR: %w", err)
+		}
+	} else {
+		externalCIDR = subnets.LocalNATExternalCIDR
+	}
+	return liqoIPAM.natMappingInflater.InitNatMappingsPerCluster(subnets.RemotePodCIDR, externalCIDR, clusterID)
+}
+
 // AddNetworkPool adds a network to the set of network pools.
 func (liqoIPAM *IPAM) AddNetworkPool(network string) error {
 	// Get resource
@@ -695,6 +731,11 @@ func (liqoIPAM *IPAM) AddLocalSubnetsPerCluster(podCIDR, externalCIDR, clusterID
 	if err := liqoIPAM.ipamStorage.updateClusterSubnets(clusterSubnets); err != nil {
 		return fmt.Errorf("cannot update cluster subnets:%w", err)
 	}
+
+	// Init NAT mappings
+	if err := liqoIPAM.initNatMappingsPerCluster(clusterID); err != nil {
+		return fmt.Errorf("unable to initialize NAT mappings per cluster %s: %w", clusterID, err)
+	}
 	return nil
 }
 
@@ -813,6 +854,7 @@ func (liqoIPAM *IPAM) mapIPToExternalCIDR(clusterID, remoteExternalCIDR, ip stri
 	if err != nil {
 		return "", fmt.Errorf("cannot map endpoint IP %s to ExternalCIDR:%w", endpointMapping.IP, err)
 	}
+
 	return newIP, nil
 }
 
