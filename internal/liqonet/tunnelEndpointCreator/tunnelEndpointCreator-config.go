@@ -12,7 +12,7 @@ import (
 
 	configv1alpha1 "github.com/liqotech/liqo/apis/config/v1alpha1"
 	crdclient "github.com/liqotech/liqo/pkg/crdClient"
-	"github.com/liqotech/liqo/pkg/liqonet"
+	liqonetutils "github.com/liqotech/liqo/pkg/liqonet/utils"
 	"github.com/liqotech/liqo/pkg/utils"
 )
 
@@ -33,7 +33,7 @@ func (tec *TunnelEndpointCreator) setNetParameters(config *configv1alpha1.Cluste
 		klog.Infof("ServiceCIDR set to %s", serviceCIDR)
 		tec.ServiceCIDR = serviceCIDR
 	}
-	externalCIDR, err := tec.IPManager.GetExternalCIDR(liqonet.GetMask(podCIDR))
+	externalCIDR, err := tec.IPManager.GetExternalCIDR(liqonetutils.GetMask(podCIDR))
 	if err != nil {
 		klog.Error(err)
 	}

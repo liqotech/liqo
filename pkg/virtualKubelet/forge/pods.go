@@ -11,7 +11,7 @@ import (
 	"k8s.io/klog"
 
 	liqoconst "github.com/liqotech/liqo/pkg/consts"
-	liqonet "github.com/liqotech/liqo/pkg/liqonet"
+	"github.com/liqotech/liqo/pkg/liqonet"
 	"github.com/liqotech/liqo/pkg/virtualKubelet"
 	apimgmt "github.com/liqotech/liqo/pkg/virtualKubelet/apiReflection"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/apiReflection/reflectors"

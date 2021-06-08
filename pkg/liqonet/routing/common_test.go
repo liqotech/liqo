@@ -4,7 +4,7 @@ import (
 	"io/ioutil"
 	"net"
 
-	"github.com/liqotech/liqo/pkg/liqonet"
+	"github.com/liqotech/liqo/pkg/liqonet/errors"
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
@@ -67,7 +67,7 @@ var _ = Describe("Common", func() {
 			It("should return error on wrong gateway IP address", func() {
 				added, err := AddRoute(dstNetCorrect, gwIPWrong, dummylink1.Attrs().Index, routingTableID)
 				Expect(added).Should(Equal(false))
-				Expect(err).Should(Equal(&liqonet.ParseIPError{IPToBeParsed: gwIPWrong}))
+				Expect(err).Should(Equal(&errors.ParseIPError{IPToBeParsed: gwIPWrong}))
 			})
 		})
 
@@ -176,7 +176,7 @@ var _ = Describe("Common", func() {
 			It("should return error on wrong gateway IP address", func() {
 				removed, err := delRoute(dstNetCorrect, gwIPWrong, dummylink1.Attrs().Index, routingTableID)
 				Expect(removed).Should(Equal(false))
-				Expect(err).Should(Equal(&liqonet.ParseIPError{IPToBeParsed: gwIPWrong}))
+				Expect(err).Should(Equal(&errors.ParseIPError{IPToBeParsed: gwIPWrong}))
 			})
 		})
 
@@ -275,9 +275,9 @@ var _ = Describe("Common", func() {
 			It("should return error if both subnets are empty", func() {
 				added, err := addPolicyRoutingRule("", "", routingTableID)
 				Expect(added).Should(Equal(false))
-				Expect(err).Should(Equal(&liqonet.WrongParameter{
+				Expect(err).Should(Equal(&errors.WrongParameter{
 					Parameter: "fromSubnet and toSubnet",
-					Reason:    liqonet.AtLeastOneValid,
+					Reason:    errors.AtLeastOneValid,
 				}))
 			})
 		})
@@ -367,9 +367,9 @@ var _ = Describe("Common", func() {
 			It("should return error if both subnets are empty", func() {
 				removed, err := delPolicyRoutingRule("", "", routingTableID)
 				Expect(removed).Should(Equal(false))
-				Expect(err).Should(Equal(&liqonet.WrongParameter{
+				Expect(err).Should(Equal(&errors.WrongParameter{
 					Parameter: "fromSubnet and toSubnet",
-					Reason:    liqonet.AtLeastOneValid,
+					Reason:    errors.AtLeastOneValid,
 				}))
 			})
 		})
@@ -444,7 +444,7 @@ var _ = Describe("Common", func() {
 			It("should return error on malformed IP address", func() {
 				index, err := getIFaceIndexForIP(gwIPWrong)
 				Expect(index).To(BeZero())
-				Expect(err).Should(Equal(&liqonet.ParseIPError{IPToBeParsed: gwIPWrong}))
+				Expect(err).Should(Equal(&errors.ParseIPError{IPToBeParsed: gwIPWrong}))
 			})
 		})
 
@@ -461,7 +461,7 @@ var _ = Describe("Common", func() {
 				index, err := getIFaceIndexForIP(notReachableIP)
 				Expect(err).To(HaveOccurred())
 				Expect(index).Should(BeZero())
-				Expect(err).Should(Equal(&liqonet.NoRouteFound{IPAddress: notReachableIP}))
+				Expect(err).Should(Equal(&errors.NoRouteFound{IPAddress: notReachableIP}))
 			})
 		})
 	})
@@ -494,7 +494,7 @@ var _ = Describe("Common", func() {
 				tepCopy.Status.GatewayIP = notReachableIP
 				_, _, _, err := getRouteConfig(&tepCopy, gwIPCorrect)
 				Expect(err).To(HaveOccurred())
-				Expect(err).Should(Equal(&liqonet.NoRouteFound{IPAddress: tepCopy.Status.GatewayIP}))
+				Expect(err).Should(Equal(&errors.NoRouteFound{IPAddress: tepCopy.Status.GatewayIP}))
 			})
 		})
 	})

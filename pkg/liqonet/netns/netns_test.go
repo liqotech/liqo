@@ -8,7 +8,7 @@ import (
 	"github.com/vishvananda/netns"
 	"golang.org/x/sys/unix"
 
-	"github.com/liqotech/liqo/pkg/liqonet"
+	"github.com/liqotech/liqo/pkg/liqonet/errors"
 )
 
 var _ = Describe("Netns", func() {
@@ -119,8 +119,8 @@ var _ = Describe("Netns", func() {
 		Context("when dst network namespace does not exist", func() {
 			It("should return error", func() {
 				err := CreateVethPair("originVeth", "dstVeth", nil, nil, 1500)
-				Expect(err).Should(Equal(&liqonet.WrongParameter{
-					Reason:    liqonet.NotNil,
+				Expect(err).Should(Equal(&errors.WrongParameter{
+					Reason:    errors.NotNil,
 					Parameter: "originNetns and dstNetns",
 				}))
 				// Remove dangling veth pair.

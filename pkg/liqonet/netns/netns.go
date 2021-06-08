@@ -12,7 +12,7 @@ import (
 	"k8s.io/client-go/util/retry"
 	"k8s.io/klog"
 
-	"github.com/liqotech/liqo/pkg/liqonet"
+	liqoneterrors "github.com/liqotech/liqo/pkg/liqonet/errors"
 )
 
 const (
@@ -58,9 +58,9 @@ func DeleteNetns(name string) error {
 // Error is returned if something goes wrong.
 func CreateVethPair(originVethName, dstVethName string, originNetns, dstNetns ns.NetNS, linkMTU int) error {
 	if originNetns == nil || dstNetns == nil {
-		return &liqonet.WrongParameter{
+		return &liqoneterrors.WrongParameter{
 			Parameter: "originNetns and dstNetns",
-			Reason:    liqonet.NotNil}
+			Reason:    liqoneterrors.NotNil}
 	}
 	var createVethPair = func(hostNS ns.NetNS) error {
 		_, _, err := ip.SetupVethWithName(originVethName, dstVethName, linkMTU, dstNetns)

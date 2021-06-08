@@ -1,4 +1,4 @@
-package liqonet_test
+package utils_test
 
 import (
 	"context"
@@ -13,13 +13,13 @@ import (
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/kubernetes/fake"
 
-	"github.com/liqotech/liqo/pkg/liqonet"
+	"github.com/liqotech/liqo/pkg/liqonet/utils"
 )
 
 var _ = Describe("Liqonet", func() {
 	DescribeTable("MapIPToNetwork",
 		func(oldIp, newPodCidr, expectedIP string, expectedErr string) {
-			ip, err := liqonet.MapIPToNetwork(oldIp, newPodCidr)
+			ip, err := utils.MapIPToNetwork(oldIp, newPodCidr)
 			if expectedErr != "" {
 				gomega.Expect(err.Error()).To(gomega.Equal(expectedErr))
 			} else {
@@ -82,7 +82,7 @@ var _ = Describe("Liqonet", func() {
 		Context("When it has not been created yet", func() {
 			It("should retry more times and eventually fail", func() {
 				start := time.Now()
-				_, err := liqonet.GetClusterID(clientset, clusterIDKey, ns, backoff)
+				_, err := utils.GetClusterID(clientset, clusterIDKey, ns, backoff)
 				end := time.Now()
 				Expect(err).To(HaveOccurred())
 
@@ -99,7 +99,7 @@ var _ = Describe("Liqonet", func() {
 				)
 				Expect(err).NotTo(HaveOccurred())
 				start := time.Now()
-				clusterID, err := liqonet.GetClusterID(clientset, clusterIDKey, "default", backoff)
+				clusterID, err := utils.GetClusterID(clientset, clusterIDKey, "default", backoff)
 				end := time.Now()
 				Expect(err).NotTo(HaveOccurred())
 				Expect(clusterID).To(Equal(clusterIDValue))
@@ -120,7 +120,7 @@ var _ = Describe("Liqonet", func() {
 					Expect(err).NotTo(HaveOccurred())
 				}()
 				start := time.Now()
-				clusterID, err := liqonet.GetClusterID(clientset, clusterIDKey, "default", backoff)
+				clusterID, err := utils.GetClusterID(clientset, clusterIDKey, "default", backoff)
 				end := time.Now()
 				Expect(err).NotTo(HaveOccurred())
 
