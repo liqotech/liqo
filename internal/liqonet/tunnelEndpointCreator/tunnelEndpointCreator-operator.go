@@ -224,8 +224,8 @@ func (tec *TunnelEndpointCreator) SetupSignalHandlerForTunEndCreator() context.C
 	go func(r *TunnelEndpointCreator) {
 		sig := <-c
 		klog.Infof("received signal: %s", sig.String())
-		// Stop IPAM gRPC server.
-		tec.IPManager.StopGRPCServer()
+		// Stop IPAM.
+		tec.IPManager.Terminate()
 		// closing shared informers
 		close(r.ForeignClusterStopWatcher)
 		done()
