@@ -1,6 +1,9 @@
-package liqonet
+package errors
 
-import "strings"
+import (
+	"reflect"
+	"strings"
+)
 
 const (
 	// GreaterOrEqual used as reason of failure in WrongParameter error.
@@ -9,12 +12,16 @@ const (
 	MinorOrEqual = "<="
 	// AtLeastOneValid used as reason of failure in WrongParameter error.
 	AtLeastOneValid = "at least one of the arguments has to be valid"
-	// StringNotEmpty used as reason of failure in WrongParameter error.
-	StringNotEmpty = "not empty"
 	// ValidIP used as reason of failure in WrongParameter error.
 	ValidIP = "a valid IP address"
 	// NotNil used as reason of failure in WrongParameter error.
 	NotNil = "have to be not nil"
+	// ValidCIDR used as reason of failure in WrongParameter error.
+	ValidCIDR = "a valid network CIDR"
+	// StringNotEmpty used as reason of failure in WrongParameter error.
+	StringNotEmpty = "not empty"
+	// Initialization used as reason of failure in WrongParameter error.
+	Initialization = "initialized first"
 )
 
 // ParseIPError it is returned when net.ParseIP() fails to parse and ip address.
@@ -33,9 +40,6 @@ type WrongParameter struct {
 }
 
 func (wp *WrongParameter) Error() string {
-	if wp.Reason == StringNotEmpty {
-		return strings.Join([]string{"Parameter must be ", wp.Reason}, "")
-	}
 	return strings.Join([]string{wp.Parameter, " must be ", wp.Reason}, "")
 }
 
@@ -46,4 +50,19 @@ type NoRouteFound struct {
 
 func (nrf *NoRouteFound) Error() string {
 	return strings.Join([]string{"no route found for IP address: ", nrf.IPAddress}, "")
+}
+
+// MissingInit is returned when a data structure is tried to be used before correct
+// initialization.
+type MissingInit struct {
+	StructureName string
+}
+
+func (sni *MissingInit) Error() string {
+	return strings.Join([]string{sni.StructureName, "must be", Initialization}, " ")
+}
+
+// Is function is used for assert that a generic error is a MissingInit error.
+func (sni *MissingInit) Is(target error) bool {
+	return reflect.TypeOf(sni) == reflect.TypeOf(target)
 }

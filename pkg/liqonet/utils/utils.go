@@ -1,4 +1,4 @@
-package liqonet
+package utils
 
 import (
 	"context"

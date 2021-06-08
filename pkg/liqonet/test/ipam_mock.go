@@ -6,6 +6,7 @@ import (
 	grpc "google.golang.org/grpc"
 
 	"github.com/liqotech/liqo/pkg/liqonet"
+	"github.com/liqotech/liqo/pkg/liqonet/utils"
 )
 
 // MockIpam mocks the IPAM module.
@@ -20,7 +21,7 @@ func (mock *MockIpam) MapEndpointIP(
 	in *liqonet.MapRequest,
 	opts ...grpc.CallOption) (*liqonet.MapResponse, error) {
 	oldIP := in.GetIp()
-	newIP, err := liqonet.MapIPToNetwork(mock.LocalRemappedPodCIDR, oldIP)
+	newIP, err := utils.MapIPToNetwork(mock.LocalRemappedPodCIDR, oldIP)
 	if err != nil {
 		return &liqonet.MapResponse{}, err
 	}
@@ -40,7 +41,7 @@ func (mock *MockIpam) GetHomePodIP(
 	ctx context.Context,
 	in *liqonet.GetHomePodIPRequest,
 	opts ...grpc.CallOption) (*liqonet.GetHomePodIPResponse, error) {
-	homeIP, err := liqonet.MapIPToNetwork(mock.RemoteRemappedPodCIDR, in.GetIp())
+	homeIP, err := utils.MapIPToNetwork(mock.RemoteRemappedPodCIDR, in.GetIp())
 	if err != nil {
 		return &liqonet.GetHomePodIPResponse{}, err
 	}

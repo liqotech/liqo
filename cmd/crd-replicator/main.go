@@ -20,7 +20,7 @@ import (
 	crdreplicator "github.com/liqotech/liqo/internal/crdReplicator"
 	"github.com/liqotech/liqo/pkg/clusterid"
 	identitymanager "github.com/liqotech/liqo/pkg/identityManager"
-	util "github.com/liqotech/liqo/pkg/liqonet"
+	"github.com/liqotech/liqo/pkg/liqonet/utils"
 	"github.com/liqotech/liqo/pkg/mapperUtils"
 	tenantcontrolnamespace "github.com/liqotech/liqo/pkg/tenantControlNamespace"
 )
@@ -72,7 +72,7 @@ func main() {
 		Factor:   1.0,
 		Jitter:   0,
 	}
-	clusterID, err := util.GetClusterID(k8sClient, clusterIDConfMap, namespaceName, backoff)
+	clusterID, err := utils.GetClusterID(k8sClient, clusterIDConfMap, namespaceName, backoff)
 	if err != nil {
 		klog.Errorf("an error occurred while retrieving the clusterID: %s", err)
 		os.Exit(-1)
