@@ -148,11 +148,11 @@ func NewTunnelController(mgr ctrl.Manager, wgc wireguard.Client, nl wireguard.Ne
 	if err != nil {
 		return nil, err
 	}
-	err = tc.SetupIPTablesHandler()
+	err = tc.SetUpIPTablesHandler()
 	if err != nil {
 		return nil, err
 	}
-	tc.SetupRouteManager(tc.EventRecorder)
+	tc.SetUpRouteManager(tc.EventRecorder)
 	return tc, nil
 }
 
@@ -369,6 +369,8 @@ func (tc *TunnelController) SetUpTunnelDrivers() error {
 	return nil
 }
 
+// SetUpIPTablesHandler initializes the IPTables handler of
+// TunnelController.
 func (tc *TunnelController) SetUpIPTablesHandler() error {
 	iptHandler, err := liqonet.NewIPTablesHandler()
 	if err != nil {
@@ -378,6 +380,8 @@ func (tc *TunnelController) SetUpIPTablesHandler() error {
 	return nil
 }
 
+// SetUpRouteManager initializes the Route manager of
+// TunnelController.
 func (tc *TunnelController) SetUpRouteManager(recorder record.EventRecorder) {
 	tc.NetLink = liqonet.NewRouteManager(recorder)
 }
