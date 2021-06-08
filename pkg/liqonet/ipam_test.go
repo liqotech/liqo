@@ -27,8 +27,10 @@ import (
 var ipam *liqonet.IPAM
 var dynClient dynamic.Interface
 
-const invalidValue = "invalid value"
-const clusterName = "cluster1"
+const (
+	invalidValue = "invalid value"
+	clusterID1   = "cluster1"
+)
 
 func fillNetworkPool(pool string, ipam *liqonet.IPAM) error {
 
@@ -815,7 +817,7 @@ var _ = Describe("Ipam", func() {
 				_, err := ipam.GetHomePodIP(context.Background(),
 					&liqonet.GetHomePodIPRequest{
 						Ip:        invalidValue,
-						ClusterID: clusterName,
+						ClusterID: clusterID1,
 					})
 				err = errors.Unwrap(err)
 				Expect(err).To(MatchError(fmt.Sprintf("%s must be %s", invalidValue, liqoneterrors.ValidIP)))
@@ -837,10 +839,10 @@ var _ = Describe("Ipam", func() {
 				_, err := ipam.GetHomePodIP(context.Background(),
 					&liqonet.GetHomePodIPRequest{
 						Ip:        "10.0.0.1",
-						ClusterID: clusterName,
+						ClusterID: clusterID1,
 					})
 				err = errors.Unwrap(err)
-				Expect(err).To(MatchError(fmt.Sprintf("cluster %s subnets are not set", clusterName)))
+				Expect(err).To(MatchError(fmt.Sprintf("cluster %s subnets are not set", clusterID1)))
 			})
 		})
 		Context(`When the remote Pod CIDR has not been remapped by home cluster
@@ -851,14 +853,14 @@ var _ = Describe("Ipam", func() {
 				externalCIDR := "10.0.50.0/24"
 
 				// Home cluster has not remapped remote PodCIDR
-				mappedPodCIDR, _, err := ipam.GetSubnetsPerCluster(podCIDR, externalCIDR, clusterName)
+				mappedPodCIDR, _, err := ipam.GetSubnetsPerCluster(podCIDR, externalCIDR, clusterID1)
 				Expect(err).To(BeNil())
 				Expect(mappedPodCIDR).To(Equal(podCIDR))
 
 				response, err := ipam.GetHomePodIP(context.Background(),
 					&liqonet.GetHomePodIPRequest{
 						Ip:        ip,
-						ClusterID: clusterName,
+						ClusterID: clusterID1,
 					})
 				Expect(err).To(BeNil())
 				Expect(response.GetHomeIP()).To(Equal(ip))
@@ -876,14 +878,14 @@ var _ = Describe("Ipam", func() {
 				Expect(err).To(BeNil())
 
 				// Home cluster has remapped remote PodCIDR
-				mappedPodCIDR, _, err := ipam.GetSubnetsPerCluster(podCIDR, externalCIDR, clusterName)
+				mappedPodCIDR, _, err := ipam.GetSubnetsPerCluster(podCIDR, externalCIDR, clusterID1)
 				Expect(err).To(BeNil())
 				Expect(mappedPodCIDR).ToNot(Equal(podCIDR))
 
 				response, err := ipam.GetHomePodIP(context.Background(),
 					&liqonet.GetHomePodIPRequest{
 						Ip:        ip,
-						ClusterID: clusterName,
+						ClusterID: clusterID1,
 					})
 				Expect(err).To(BeNil())
 
@@ -1005,6 +1007,36 @@ var _ = Describe("Ipam", func() {
 				// Check if IP is not freed
 				Expect(ipamConfig.Spec.EndpointMappings).To(HaveLen(1))
 				Expect(ipamConfig.Spec.EndpointMappings[endpointIP].IP).To(Equal(ip))
+			})
+		})
+	})
+	Describe("InitNatMappingsPerCluster", func() {
+		// Function is a wrapper for the homonymous function in NatMappingInflater.
+		// More tests do exist in natMappingInflater_test.go
+		Context("Pass an empty cluster ID", func() {
+			It("should return a WrongParameter error", func() {
+				err := ipam.InitNatMappingsPerCluster("")
+				Expect(err).To(MatchError(fmt.Sprintf("%s must be %s", consts.ClusterIDLabelName, liqoneterrors.StringNotEmpty)))
+			})
+		})
+		Context("Call func without previous call to GetSubnetsPerCluster", func() {
+			It("should return a WrongParameter error", func() {
+				_, err := ipam.GetExternalCIDR(24)
+				Expect(err).To(BeNil())
+				err = ipam.AddLocalSubnetsPerCluster(consts.DefaultCIDRValue, "10.0.1.0/24", clusterID1)
+				Expect(err).To(BeNil())
+				err = ipam.InitNatMappingsPerCluster(clusterID1)
+				Expect(err).To(MatchError(fmt.Sprintf("PodCIDR must be %s", liqoneterrors.StringNotEmpty)))
+			})
+		})
+		Context("Call func without previous call to AddLocalSubnetsPerCluster", func() {
+			It("should return a WrongParameter error", func() {
+				_, err := ipam.GetExternalCIDR(24)
+				Expect(err).To(BeNil())
+				_, _, err = ipam.GetSubnetsPerCluster("10.0.1.0/24", "10.0.2.0/24", clusterID1)
+				Expect(err).To(BeNil())
+				err = ipam.InitNatMappingsPerCluster(clusterID1)
+				Expect(err).To(MatchError(fmt.Sprintf("ExternalCIDR must be %s", liqoneterrors.StringNotEmpty)))
 			})
 		})
 	})
