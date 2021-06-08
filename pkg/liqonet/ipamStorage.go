@@ -16,6 +16,7 @@ import (
 	"k8s.io/klog"
 
 	netv1alpha1 "github.com/liqotech/liqo/apis/net/v1alpha1"
+	"github.com/liqotech/liqo/pkg/consts"
 )
 
 const (
@@ -72,7 +73,7 @@ func NewIPAMStorage(dynClient dynamic.Interface) (*IPAMStorage, error) {
 			},
 			ObjectMeta: metav1.ObjectMeta{
 				GenerateName: ipamNamePrefix,
-				Labels:       map[string]string{"net.liqo.io/ipamstorage": "true"},
+				Labels:       map[string]string{consts.IpamStorageResourceLabelKey: consts.IpamStorageResourceLabelValue},
 			},
 			Spec: netv1alpha1.IpamSpec{
 				Prefixes:         make(map[string][]byte),
@@ -319,7 +320,9 @@ func (ipamStorage *IPAMStorage) getConfig() (*netv1alpha1.IpamStorage, error) {
 	res := &netv1alpha1.IpamStorage{}
 	list, err := ipamStorage.dynClient.
 		Resource(netv1alpha1.IpamGroupResource).
-		List(context.Background(), metav1.ListOptions{LabelSelector: "net.liqo.io/ipamstorage"})
+		List(context.Background(), metav1.ListOptions{
+			LabelSelector: fmt.Sprintf("%s=%s", consts.IpamStorageResourceLabelKey, consts.IpamStorageResourceLabelValue),
+		})
 	if err != nil {
 		klog.Errorf(err.Error())
 		return nil, fmt.Errorf("unable to get configuration: %w", err)

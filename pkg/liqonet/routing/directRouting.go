@@ -7,7 +7,7 @@ import (
 	"golang.org/x/sys/unix"
 	"k8s.io/klog/v2"
 
-	"github.com/liqotech/liqo/pkg/liqonet"
+	"github.com/liqotech/liqo/pkg/liqonet/errors"
 
 	netv1alpha1 "github.com/liqotech/liqo/apis/net/v1alpha1"
 )
@@ -25,14 +25,14 @@ func NewDirectRoutingManager(routingTableID int, podIP string) (Routing, error) 
 	klog.Infof("starting Direct Routing Manager with routing table ID %d and podIP %s", routingTableID, podIP)
 	// Check the validity of input parameters.
 	if routingTableID > unix.RT_TABLE_MAX {
-		return nil, &liqonet.WrongParameter{Parameter: "routingTableID", Reason: liqonet.MinorOrEqual + strconv.Itoa(unix.RT_TABLE_MAX)}
+		return nil, &errors.WrongParameter{Parameter: "routingTableID", Reason: errors.MinorOrEqual + strconv.Itoa(unix.RT_TABLE_MAX)}
 	}
 	if routingTableID < 0 {
-		return nil, &liqonet.WrongParameter{Parameter: "routingTableID", Reason: liqonet.GreaterOrEqual + strconv.Itoa(0)}
+		return nil, &errors.WrongParameter{Parameter: "routingTableID", Reason: errors.GreaterOrEqual + strconv.Itoa(0)}
 	}
 	ip := net.ParseIP(podIP)
 	if ip == nil {
-		return nil, &liqonet.ParseIPError{
+		return nil, &errors.ParseIPError{
 			IPToBeParsed: podIP,
 		}
 	}

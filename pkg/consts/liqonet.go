@@ -9,4 +9,8 @@ const (
 	DefaultCIDRValue = "None"
 	// TepReady is the ready state of TunnelEndpoint resource.
 	TepReady = "Ready"
+	// IpamStorageResourceLabelKey constant is used for label of resource.
+	IpamStorageResourceLabelKey = "net.liqo.io/ipamstorage"
+	// IpamStorageResourceLabelValue constant is used for label of resource.
+	IpamStorageResourceLabelValue = "true"
 )

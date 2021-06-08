@@ -35,8 +35,9 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 
 	netv1alpha1 "github.com/liqotech/liqo/apis/net/v1alpha1"
-	utils "github.com/liqotech/liqo/pkg/liqonet"
+	"github.com/liqotech/liqo/pkg/liqonet"
 	"github.com/liqotech/liqo/pkg/liqonet/overlay"
+	"github.com/liqotech/liqo/pkg/liqonet/utils"
 	"github.com/liqotech/liqo/pkg/liqonet/wireguard"
 )
 
@@ -50,7 +51,7 @@ var (
 type RouteController struct {
 	client.Client
 	record.EventRecorder
-	utils.NetLink
+	liqonet.NetLink
 	clientSet   *kubernetes.Clientset
 	nodeName    string
 	namespace   string
@@ -179,7 +180,7 @@ func (r *RouteController) deleteOverlayIFace() {
 }
 
 func (r *RouteController) setUpRouteManager(recorder record.EventRecorder) {
-	r.NetLink = utils.NewRouteManager(recorder)
+	r.NetLink = liqonet.NewRouteManager(recorder)
 }
 
 func (r *RouteController) SetupWithManager(mgr ctrl.Manager) error {

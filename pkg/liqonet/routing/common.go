@@ -9,6 +9,7 @@ import (
 
 	"github.com/liqotech/liqo/apis/net/v1alpha1"
 	"github.com/liqotech/liqo/pkg/liqonet"
+	liqoneterrors "github.com/liqotech/liqo/pkg/liqonet/errors"
 
 	"github.com/vishvananda/netlink"
 	"golang.org/x/sys/unix"
@@ -226,7 +227,7 @@ func getIFaceIndexForIP(ipAddress string) (int, error) {
 	// Convert the given IP address from string to net.IP format
 	ip := net.ParseIP(ipAddress)
 	if ip == nil {
-		return 0, &liqonet.ParseIPError{
+		return 0, &liqoneterrors.ParseIPError{
 			IPToBeParsed: ipAddress,
 		}
 	}
@@ -244,14 +245,14 @@ func getIFaceIndexForIP(ipAddress string) (int, error) {
 			return routes[i].LinkIndex, nil
 		}
 	}
-	return 0, &liqonet.NoRouteFound{IPAddress: ipAddress}
+	return 0, &liqoneterrors.NoRouteFound{IPAddress: ipAddress}
 }
 
 func validatePolicyRoutingRulesParameters(fromSubnet, toSubnet string) (sourceNet, destinationNet *net.IPNet, err error) {
 	// Check that at least one between source and destination networks are defined.
 	if fromSubnet == "" && toSubnet == "" {
-		return nil, nil, &liqonet.WrongParameter{
-			Reason:    liqonet.AtLeastOneValid,
+		return nil, nil, &liqoneterrors.WrongParameter{
+			Reason:    liqoneterrors.AtLeastOneValid,
 			Parameter: "fromSubnet and toSubnet",
 		}
 	}
@@ -277,7 +278,7 @@ func validatePolicyRoutingRulesParameters(fromSubnet, toSubnet string) (sourceNe
 func parseIP(ip string) (net.IP, error) {
 	address := net.ParseIP(ip)
 	if address == nil {
-		return address, &liqonet.ParseIPError{
+		return address, &liqoneterrors.ParseIPError{
 			IPToBeParsed: ip,
 		}
 	}

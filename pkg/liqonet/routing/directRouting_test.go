@@ -9,7 +9,7 @@ import (
 	"github.com/vishvananda/netlink"
 	"golang.org/x/sys/unix"
 
-	"github.com/liqotech/liqo/pkg/liqonet"
+	"github.com/liqotech/liqo/pkg/liqonet/errors"
 )
 
 var (
@@ -43,19 +43,19 @@ var _ = Describe("DirectRouting", func() {
 			It("routingTableID parameter out of range: a negative number", func() {
 				drm, err := NewDirectRoutingManager(-244, gwIPCorrect)
 				Expect(drm).Should(BeNil())
-				Expect(err).Should(Equal(&liqonet.WrongParameter{Parameter: "routingTableID", Reason: liqonet.GreaterOrEqual + strconv.Itoa(0)}))
+				Expect(err).Should(Equal(&errors.WrongParameter{Parameter: "routingTableID", Reason: errors.GreaterOrEqual + strconv.Itoa(0)}))
 			})
 
 			It("routingTableID parameter out of range: superior to max value ", func() {
 				drm, err := NewDirectRoutingManager(unix.RT_TABLE_MAX+1, gwIPCorrect)
 				Expect(drm).Should(BeNil())
-				Expect(err).Should(Equal(&liqonet.WrongParameter{Parameter: "routingTableID", Reason: liqonet.MinorOrEqual + strconv.Itoa(unix.RT_TABLE_MAX)}))
+				Expect(err).Should(Equal(&errors.WrongParameter{Parameter: "routingTableID", Reason: errors.MinorOrEqual + strconv.Itoa(unix.RT_TABLE_MAX)}))
 			})
 
 			It("podIP is not in right format", func() {
 				drm, err := NewDirectRoutingManager(244, gwIPWrong)
 				Expect(drm).Should(BeNil())
-				Expect(err).Should(Equal(&liqonet.ParseIPError{IPToBeParsed: gwIPWrong}))
+				Expect(err).Should(Equal(&errors.ParseIPError{IPToBeParsed: gwIPWrong}))
 			})
 		})
 
@@ -74,7 +74,7 @@ var _ = Describe("DirectRouting", func() {
 				tepCopy := tep
 				tepCopy.Status.GatewayIP = notReachableIP
 				added, err := drm.EnsureRoutesPerCluster(&tepCopy)
-				Expect(err).Should(Equal(&liqonet.NoRouteFound{IPAddress: tepCopy.Status.GatewayIP}))
+				Expect(err).Should(Equal(&errors.NoRouteFound{IPAddress: tepCopy.Status.GatewayIP}))
 				Expect(added).Should(BeFalse())
 				Expect(err).NotTo(BeNil())
 			})
@@ -83,9 +83,9 @@ var _ = Describe("DirectRouting", func() {
 				tepCopy := tep
 				tepCopy.Status.RemoteNATPodCIDR = ""
 				added, err := drm.EnsureRoutesPerCluster(&tepCopy)
-				Expect(err).Should(Equal(&liqonet.WrongParameter{
+				Expect(err).Should(Equal(&errors.WrongParameter{
 					Parameter: "fromSubnet and toSubnet",
-					Reason:    liqonet.AtLeastOneValid,
+					Reason:    errors.AtLeastOneValid,
 				}))
 				Expect(added).Should(BeFalse())
 				Expect(err).NotTo(BeNil())
@@ -154,7 +154,7 @@ var _ = Describe("DirectRouting", func() {
 				tepCopy := tep
 				tepCopy.Status.GatewayIP = notReachableIP
 				added, err := drm.RemoveRoutesPerCluster(&tepCopy)
-				Expect(err).Should(Equal(&liqonet.NoRouteFound{IPAddress: tepCopy.Status.GatewayIP}))
+				Expect(err).Should(Equal(&errors.NoRouteFound{IPAddress: tepCopy.Status.GatewayIP}))
 				Expect(added).Should(BeFalse())
 				Expect(err).NotTo(BeNil())
 			})
@@ -163,9 +163,9 @@ var _ = Describe("DirectRouting", func() {
 				tepCopy := tep
 				tepCopy.Status.RemoteNATPodCIDR = ""
 				added, err := drm.RemoveRoutesPerCluster(&tepCopy)
-				Expect(err).Should(Equal(&liqonet.WrongParameter{
+				Expect(err).Should(Equal(&errors.WrongParameter{
 					Parameter: "fromSubnet and toSubnet",
-					Reason:    liqonet.AtLeastOneValid,
+					Reason:    errors.AtLeastOneValid,
 				}))
 				Expect(added).Should(BeFalse())
 				Expect(err).NotTo(BeNil())
