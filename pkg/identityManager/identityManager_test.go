@@ -182,14 +182,14 @@ var _ = Describe("IdentityManager", func() {
 			certificate, err := identityManager.ApproveSigningRequest(remoteClusterID, base64.StdEncoding.EncodeToString(csrBytes))
 			Expect(err).To(BeNil())
 			Expect(certificate).NotTo(BeNil())
-			Expect(certificate).To(Equal([]byte("test")))
+			Expect(certificate).To(Equal([]byte(idManTest.FakeCRT)))
 		})
 
 		It("Retrieve Remote Certificate", func() {
 			certificate, err := identityManager.GetRemoteCertificate(remoteClusterID, base64.StdEncoding.EncodeToString(csrBytes))
 			Expect(err).To(BeNil())
 			Expect(certificate).NotTo(BeNil())
-			Expect(certificate).To(Equal([]byte("test")))
+			Expect(certificate).To(Equal([]byte(idManTest.FakeCRT)))
 		})
 
 		It("Retrieve Remote Certificate wrong clusterid", func() {

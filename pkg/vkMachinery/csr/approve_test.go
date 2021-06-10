@@ -1,18 +1,18 @@
-package certificateSigningRequest
+package csr
 
 import (
 	"context"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	certificatesv1beta1 "k8s.io/api/certificates/v1beta1"
+	certificatesv1 "k8s.io/api/certificates/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	testclient "k8s.io/client-go/kubernetes/fake"
 )
 
 func TestApproveSigningRequest(t *testing.T) {
 	//setup
-	certificateToValidate := certificatesv1beta1.CertificateSigningRequest{
+	certificateToValidate := certificatesv1.CertificateSigningRequest{
 		TypeMeta: v1.TypeMeta{},
 		ObjectMeta: v1.ObjectMeta{
 			Name: "to_validate",
@@ -20,12 +20,12 @@ func TestApproveSigningRequest(t *testing.T) {
 				"liqo.io/csr": "true",
 			},
 		},
-		Spec:   certificatesv1beta1.CertificateSigningRequestSpec{},
-		Status: certificatesv1beta1.CertificateSigningRequestStatus{},
+		Spec:   certificatesv1.CertificateSigningRequestSpec{},
+		Status: certificatesv1.CertificateSigningRequestStatus{},
 	}
 
 	c := testclient.NewSimpleClientset()
-	_, err := c.CertificatesV1beta1().CertificateSigningRequests().Create(context.TODO(), &certificateToValidate, v1.CreateOptions{})
+	_, err := c.CertificatesV1().CertificateSigningRequests().Create(context.TODO(), &certificateToValidate, v1.CreateOptions{})
 	if err != nil {
 		t.Fail()
 	}
@@ -33,14 +33,14 @@ func TestApproveSigningRequest(t *testing.T) {
 	if err != nil {
 		t.Fail()
 	}
-	cert, err := c.CertificatesV1beta1().CertificateSigningRequests().Get(context.TODO(), "to_validate", v1.GetOptions{})
+	cert, err := c.CertificatesV1().CertificateSigningRequests().Get(context.TODO(), "to_validate", v1.GetOptions{})
 	if err != nil {
 		t.Fail()
 	}
 	assert.NotNil(t, cert)
 	assert.NotEmpty(t, cert.Status.Conditions)
 	conditions := cert.Status.Conditions
-	assert.Equal(t, conditions[0].Type, certificatesv1beta1.CertificateApproved)
+	assert.Equal(t, conditions[0].Type, certificatesv1.CertificateApproved)
 	assert.Equal(t, conditions[0].Reason, "LiqoApproval")
 	assert.Equal(t, conditions[0].Message, "This CSR was approved by Liqo Advertisement Operator")
 }

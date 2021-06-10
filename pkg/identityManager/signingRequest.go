@@ -8,7 +8,7 @@ import (
 	"strings"
 	"time"
 
-	certv1beta1 "k8s.io/api/certificates/v1beta1"
+	certv1 "k8s.io/api/certificates/v1"
 	v1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -18,9 +18,8 @@ import (
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/klog/v2"
-	"k8s.io/utils/pointer"
 
-	certificateSigningRequest2 "github.com/liqotech/liqo/pkg/utils/certificateSigningRequest"
+	certificateSigningRequest "github.com/liqotech/liqo/pkg/vkMachinery/csr"
 )
 
 // random package initialization.
@@ -30,7 +29,7 @@ func init() {
 
 // GetRemoteCertificate retrieves a certificate issued in the past,
 // given the clusterid and the signingRequest.
-func (certManager *certificateIdentityManager) GetRemoteCertificate(clusterID string, signingRequest string) (certificate []byte, err error) {
+func (certManager *certificateIdentityManager) GetRemoteCertificate(clusterID, signingRequest string) (certificate []byte, err error) {
 	namespace, err := certManager.namespaceManager.GetNamespace(clusterID)
 	if err != nil {
 		klog.Error(err)
@@ -80,7 +79,7 @@ func (certManager *certificateIdentityManager) GetRemoteCertificate(clusterID st
 // ApproveSigningRequest approves a remote CertificateSigningRequest.
 // It creates a CertificateSigningRequest CR to be issued by the local cluster, and approves it.
 // This function will wait (with a timeout) for an available certificate before returning.
-func (certManager *certificateIdentityManager) ApproveSigningRequest(clusterID string, signingRequest string) (certificate []byte, err error) {
+func (certManager *certificateIdentityManager) ApproveSigningRequest(clusterID, signingRequest string) (certificate []byte, err error) {
 	rnd := fmt.Sprintf("%v", rand.Int63())
 
 	signingBytes, err := base64.StdEncoding.DecodeString(signingRequest)
@@ -89,8 +88,7 @@ func (certManager *certificateIdentityManager) ApproveSigningRequest(clusterID s
 		return nil, err
 	}
 
-	// TODO: move client-go to a newer version to use certificates/v1
-	cert := &certv1beta1.CertificateSigningRequest{
+	cert := &certv1.CertificateSigningRequest{
 		ObjectMeta: metav1.ObjectMeta{
 			GenerateName: strings.Join([]string{identitySecretRoot, ""}, "-"),
 			Labels: map[string]string{
@@ -98,28 +96,29 @@ func (certManager *certificateIdentityManager) ApproveSigningRequest(clusterID s
 				randomIDLabel: rnd,
 			},
 		},
-		Spec: certv1beta1.CertificateSigningRequestSpec{
+		Spec: certv1.CertificateSigningRequestSpec{
 			Groups: []string{
 				"system:authenticated",
 			},
-			SignerName: pointer.StringPtr(certv1beta1.KubeAPIServerClientSignerName),
+			SignerName: certv1.KubeAPIServerClientSignerName,
 			Request:    signingBytes,
-			Usages: []certv1beta1.KeyUsage{
-				certv1beta1.UsageDigitalSignature,
-				certv1beta1.UsageKeyEncipherment,
-				certv1beta1.UsageClientAuth,
+			Usages: []certv1.KeyUsage{
+				certv1.UsageDigitalSignature,
+				certv1.UsageKeyEncipherment,
+				certv1.UsageClientAuth,
 			},
 		},
 	}
 
-	cert, err = certManager.client.CertificatesV1beta1().CertificateSigningRequests().Create(context.TODO(), cert, metav1.CreateOptions{})
+	cert, err = certManager.client.CertificatesV1().CertificateSigningRequests().Create(context.TODO(), cert, metav1.CreateOptions{})
 	if err != nil {
 		klog.Error(err)
 		return nil, err
 	}
 
 	// approve the CertificateSigningRequest
-	if err = certificateSigningRequest2.ApproveCSR(certManager.client, cert, "IdentityManagerApproval", "This CSR was approved by Liqo Identity Manager"); err != nil {
+	if err = certificateSigningRequest.ApproveCSR(certManager.client, cert, "IdentityManagerApproval",
+		"This CSR was approved by Liqo Identity Manager"); err != nil {
 		klog.Error(err)
 		return nil, err
 	}
@@ -141,18 +140,18 @@ func (certManager *certificateIdentityManager) ApproveSigningRequest(clusterID s
 
 // getCertificate retrieves the certificate given the CertificateSigningRequest and its randomID.
 // If the certificate is not ready yet, it will wait for it (with a timeout).
-func (certManager *certificateIdentityManager) getCertificate(csr *certv1beta1.CertificateSigningRequest, randomID string) ([]byte, error) {
+func (certManager *certificateIdentityManager) getCertificate(csr *certv1.CertificateSigningRequest, randomID string) ([]byte, error) {
 	var certificate []byte
 
 	// define a function that will check if a generic object is a CSR with a issued certificate
 	checkCertificate := func(obj interface{}) bool {
-		certificateSigningRequest, ok := obj.(*certv1beta1.CertificateSigningRequest)
+		certificateSigningRequest, ok := obj.(*certv1.CertificateSigningRequest)
 		if !ok {
 			klog.Errorf("this object is not a CertificateSigningRequest: %v", obj)
 			return false
 		}
 
-		res := (certificateSigningRequest.Status.Certificate != nil && len(certificateSigningRequest.Status.Certificate) > 0)
+		res := certificateSigningRequest.Status.Certificate != nil && len(certificateSigningRequest.Status.Certificate) > 0
 		if res {
 			certificate = certificateSigningRequest.Status.Certificate
 		}
@@ -173,13 +172,13 @@ func (certManager *certificateIdentityManager) getCertificate(csr *certv1beta1.C
 	informer := cache.NewSharedIndexInformer(&cache.ListWatch{
 		ListFunc: func(options metav1.ListOptions) (runtime.Object, error) {
 			options.LabelSelector = labelSelector.String()
-			return certManager.client.CertificatesV1beta1().CertificateSigningRequests().List(context.TODO(), options)
+			return certManager.client.CertificatesV1().CertificateSigningRequests().List(context.TODO(), options)
 		},
 		WatchFunc: func(options metav1.ListOptions) (watch.Interface, error) {
 			options.LabelSelector = labelSelector.String()
-			return certManager.client.CertificatesV1beta1().CertificateSigningRequests().Watch(context.TODO(), options)
+			return certManager.client.CertificatesV1().CertificateSigningRequests().Watch(context.TODO(), options)
 		},
-	}, &certv1beta1.CertificateSigningRequest{}, 0, cache.Indexers{})
+	}, &certv1.CertificateSigningRequest{}, 0, cache.Indexers{})
 
 	stopChan := make(chan struct{})
 	informer.AddEventHandler(cache.ResourceEventHandlerFuncs{
@@ -211,7 +210,7 @@ func (certManager *certificateIdentityManager) getCertificate(csr *certv1beta1.C
 }
 
 // storeRemoteCertificate stores the issued certificate in a Secret in the TenantControlNamespace.
-func (certManager *certificateIdentityManager) storeRemoteCertificate(clusterID string, signingRequest []byte, certificate []byte) (*v1.Secret, error) {
+func (certManager *certificateIdentityManager) storeRemoteCertificate(clusterID string, signingRequest, certificate []byte) (*v1.Secret, error) {
 	namespace, err := certManager.namespaceManager.GetNamespace(clusterID)
 	if err != nil {
 		klog.Error(err)
