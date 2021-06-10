@@ -1,2 +1,3 @@
-// Package utils contains shared utility methods for Liqo.
+// Package utils contains shared utility methods for
+// the Liqonet package.
 package utils

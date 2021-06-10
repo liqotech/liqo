@@ -38,10 +38,10 @@ import (
 	"k8s.io/utils/pointer"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-
-	netv1alpha1 "github.com/liqotech/liqo/apis/net/v1alpha1"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
+	netv1alpha1 "github.com/liqotech/liqo/apis/net/v1alpha1"
 	crdreplicator "github.com/liqotech/liqo/internal/crdReplicator"
 	liqoconst "github.com/liqotech/liqo/pkg/consts"
 	"github.com/liqotech/liqo/pkg/liqonet"
@@ -152,11 +152,11 @@ func (tec *TunnelEndpointCreator) Reconcile(ctx context.Context, req ctrl.Reques
 	}
 	// examine DeletionTimestamp to determine if object is under deletion
 	if netConfig.ObjectMeta.DeletionTimestamp.IsZero() {
-		if !liqonetutils.ContainsString(netConfig.ObjectMeta.Finalizers, tunnelEndpointCreatorFinalizer) {
+		if !controllerutil.ContainsFinalizer(&netConfig, tunnelEndpointCreatorFinalizer) {
 			// The object is not being deleted, so if it does not have our finalizer,
 			// then lets add the finalizer and update the object. This is equivalent
 			// registering our finalizer.
-			netConfig.ObjectMeta.Finalizers = append(netConfig.ObjectMeta.Finalizers, tunnelEndpointCreatorFinalizer)
+			controllerutil.AddFinalizer(&netConfig, tunnelEndpointCreatorFinalizer)
 			if err := tec.Update(ctx, &netConfig); err != nil {
 				// while updating we check if the a resource version conflict happened
 				// which means the version of the object we have is outdated.
@@ -178,9 +178,9 @@ func (tec *TunnelEndpointCreator) Reconcile(ctx context.Context, req ctrl.Reques
 			klog.Errorf("an error occurred while deleting tunnel endpoint related to %s: %s", netConfig.Name, err)
 			return result, err
 		}
-		if liqonetutils.ContainsString(netConfig.Finalizers, tunnelEndpointCreatorFinalizer) {
+		if controllerutil.ContainsFinalizer(&netConfig, tunnelEndpointCreatorFinalizer) {
 			// remove the finalizer from the list and update it.
-			netConfig.Finalizers = liqonetutils.RemoveString(netConfig.Finalizers, tunnelEndpointCreatorFinalizer)
+			controllerutil.RemoveFinalizer(&netConfig, tunnelEndpointCreatorFinalizer)
 			if err := tec.Update(ctx, &netConfig); err != nil {
 				if apierrors.IsConflict(err) {
 					return ctrl.Result{}, nil
