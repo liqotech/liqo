@@ -125,7 +125,6 @@ func main() {
 		klog.Error(err)
 		os.Exit(1)
 	}
-	go csr.WatchCSR(clientset, labels.SelectorFromSet(vkMachinery.CsrLabels).String(), time.Duration(resyncPeriod))
 
 	// get the number of already accepted advertisements
 	advClient, err := advtypes.CreateAdvertisementClient(localKubeconfig, nil, true, nil)
@@ -138,8 +137,8 @@ func main() {
 	if err != nil {
 		klog.Error(err)
 	} else {
-		for _, adv := range advList.(*advtypes.AdvertisementList).Items {
-			if adv.Status.AdvertisementStatus == advtypes.AdvertisementAccepted {
+		for index := range advList.(*advtypes.AdvertisementList).Items {
+			if advList.(*advtypes.AdvertisementList).Items[index].Status.AdvertisementStatus == advtypes.AdvertisementAccepted {
 				acceptedAdv++
 			}
 		}
@@ -221,9 +220,10 @@ func main() {
 	if err != nil {
 		os.Exit(1)
 	}
-	wg.Add(5)
+	wg.Add(6)
 	ctx, cancel := context.WithCancel(context.Background())
 	go advertisementReconciler.CleanOldAdvertisements(ctx.Done(), wg)
+	go csr.WatchCSR(ctx, clientset, labels.SelectorFromSet(vkMachinery.CsrLabels).String(), time.Duration(resyncPeriod), wg)
 	// TODO: this configuration watcher will be refactored before the release 0.3
 	go advertisementReconciler.WatchConfiguration(localKubeconfig, client, wg)
 	go newBroadcaster.WatchConfiguration(localKubeconfig, client, wg)

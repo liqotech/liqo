@@ -2,11 +2,11 @@ package main
 
 import (
 	"context"
+	"flag"
 	"os"
 	"path/filepath"
+	"time"
 
-	"k8s.io/apimachinery/pkg/api/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/klog/v2"
@@ -16,9 +16,14 @@ import (
 	"github.com/liqotech/liqo/pkg/vkMachinery/csr"
 )
 
+const timeout = 30 * time.Second
+
 func main() {
 	var config *rest.Config
+	var distribution string
 	klog.Info("Loading client config")
+	flag.StringVar(&distribution, "k8s-distribution", "kubernetes", "determine the provider to adapt csr generation")
+	ctx := context.Background()
 
 	kubeconfigPath, ok := os.LookupEnv("KUBECONFIG")
 	if !ok {
@@ -42,42 +47,22 @@ func main() {
 	}
 
 	// Generate Key and CSR files in PEM format
-	if err := createCSRResource(name, client, vk.CsrLocation, vk.KeyLocation); err != nil {
+	if err := csr.CreateCSRResource(ctx, name, client, vk.CsrLocation, vk.KeyLocation, distribution); err != nil {
 		klog.Fatalf("Unable to create CSR: %s", err)
 	}
 
-	cert, err := csr.WaitForApproval(client, name)
-	if err != nil {
-		klog.Fatalf("Unable to get certificate: %s", err)
+	cancelCtx, cancel := context.WithTimeout(ctx, timeout)
+	var crtChan = make(chan []byte)
+	var cert []byte
+	informer := csr.ForgeInformer(client, name, crtChan)
+	go informer.Run(cancelCtx.Done())
+	select {
+	case <-cancelCtx.Done():
+		klog.Fatalf("Unable to get certificate: timeout elapsed")
+	case cert = <-crtChan:
+		cancel()
+		if err := utils.WriteFile(vk.CertLocation, cert); err != nil {
+			klog.Fatalf("Unable to write the CRT file in location: %s", vk.CertLocation)
+		}
 	}
-
-	if err := utils.WriteFile(vk.CertLocation, cert); err != nil {
-		os.Exit(1)
-	}
-}
-
-func createCSRResource(name string, client kubernetes.Interface, CsrLocation string, KeyLocation string) error {
-	csrPem, keyPem, err := csr.GenerateVKCertificateBundle(name)
-	if err != nil {
-		return err
-	}
-
-	if err := utils.WriteFile(CsrLocation, csrPem); err != nil {
-		return err
-	}
-
-	if err := utils.WriteFile(KeyLocation, keyPem); err != nil {
-		return err
-	}
-
-	// Generate and create CSR resource
-	csrResource := csr.GenerateVKCSR(name, csrPem)
-	_, err = client.CertificatesV1beta1().CertificateSigningRequests().Create(context.TODO(), csrResource, metav1.CreateOptions{})
-	if errors.IsAlreadyExists(err) {
-		klog.Infof("CSR already exists: %s", err)
-	} else if err != nil {
-		klog.Errorf("Unable to create CSR: %s", err)
-		return err
-	}
-	return nil
 }
