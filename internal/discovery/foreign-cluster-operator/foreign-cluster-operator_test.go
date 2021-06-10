@@ -12,10 +12,12 @@ import (
 	"github.com/onsi/gomega/types"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	machtypes "k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 
 	"github.com/liqotech/liqo/apis/config/v1alpha1"
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
+	crdreplicator "github.com/liqotech/liqo/internal/crdReplicator"
 	"github.com/liqotech/liqo/pkg/clusterid/test"
 	"github.com/liqotech/liqo/pkg/discovery"
 	identitymanager "github.com/liqotech/liqo/pkg/identityManager"
@@ -517,6 +519,233 @@ var _ = Describe("ForeignClusterOperator", func() {
 				expectedIncoming: Equal(discoveryv1alpha1.Incoming{
 					PeeringPhase: discoveryv1alpha1.PeeringPhaseNone,
 				}),
+			}),
+		)
+
+	})
+
+	Context("Test Reconciler functions", func() {
+
+		It("Create Tenant Namespace", func() {
+			foreignCluster := &discoveryv1alpha1.ForeignCluster{
+				TypeMeta: metav1.TypeMeta{
+					Kind:       "ForeignCluster",
+					APIVersion: discoveryv1alpha1.GroupVersion.String(),
+				},
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "foreign-cluster",
+					Labels: map[string]string{
+						discovery.DiscoveryTypeLabel: string(discovery.ManualDiscovery),
+						discovery.ClusterIDLabel:     "foreign-cluster-abcd",
+					},
+				},
+				Spec: discoveryv1alpha1.ForeignClusterSpec{
+					ClusterIdentity: discoveryv1alpha1.ClusterIdentity{
+						ClusterID: "foreign-cluster-abcd",
+					},
+					DiscoveryType: discovery.ManualDiscovery,
+					AuthURL:       "",
+					TrustMode:     discovery.TrustModeUntrusted,
+				},
+			}
+
+			client := mgr.GetClient()
+			err := client.Create(ctx, foreignCluster)
+			Expect(err).To(BeNil())
+
+			err = controller.ensureLocalTenantNamespace(ctx, foreignCluster)
+			Expect(err).To(BeNil())
+			Expect(foreignCluster.Status.TenantControlNamespace.Local).ToNot(Equal(""))
+
+			ns, err := controller.namespaceManager.GetNamespace(foreignCluster.Spec.ClusterIdentity.ClusterID)
+			Expect(err).To(BeNil())
+			Expect(ns).NotTo(BeNil())
+
+			var namespace v1.Namespace
+			err = client.Get(ctx, machtypes.NamespacedName{Name: foreignCluster.Status.TenantControlNamespace.Local}, &namespace)
+			Expect(err).To(BeNil())
+
+			Expect(namespace.Name).To(Equal(ns.Name))
+		})
+
+		type checkPeeringStatusTestcase struct {
+			foreignClusterStatus  discoveryv1alpha1.ForeignClusterStatus
+			resourceRequests      []discoveryv1alpha1.ResourceRequest
+			expectedIncomingPhase discoveryv1alpha1.PeeringPhaseType
+			expectedOutgoingPhase discoveryv1alpha1.PeeringPhaseType
+		}
+
+		var (
+			getIncomingResourceRequest = func() discoveryv1alpha1.ResourceRequest {
+				return discoveryv1alpha1.ResourceRequest{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "resource-request-incoming",
+						Namespace: "default",
+						Labels: map[string]string{
+							crdreplicator.ReplicationStatuslabel: "true",
+							crdreplicator.RemoteLabelSelector:    "foreign-cluster-abcd",
+						},
+					},
+					Spec: discoveryv1alpha1.ResourceRequestSpec{
+						ClusterIdentity: discoveryv1alpha1.ClusterIdentity{
+							ClusterID: "foreign-cluster-abcd",
+						},
+						AuthURL: "",
+					},
+				}
+			}
+
+			getOutgoingResourceRequest = func() discoveryv1alpha1.ResourceRequest {
+				return discoveryv1alpha1.ResourceRequest{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "resource-request-outgoing",
+						Namespace: "default",
+						Labels:    resourceRequestLabels("foreign-cluster-abcd"),
+					},
+					Spec: discoveryv1alpha1.ResourceRequestSpec{
+						ClusterIdentity: discoveryv1alpha1.ClusterIdentity{
+							ClusterID: "local-id",
+						},
+						AuthURL: "",
+					},
+				}
+			}
+		)
+
+		DescribeTable("checkPeeringStatus",
+			func(c checkPeeringStatusTestcase) {
+				foreignCluster := &discoveryv1alpha1.ForeignCluster{
+					TypeMeta: metav1.TypeMeta{
+						Kind:       "ForeignCluster",
+						APIVersion: discoveryv1alpha1.GroupVersion.String(),
+					},
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "foreign-cluster",
+						Labels: map[string]string{
+							discovery.DiscoveryTypeLabel: string(discovery.ManualDiscovery),
+							discovery.ClusterIDLabel:     "foreign-cluster-abcd",
+						},
+					},
+					Spec: discoveryv1alpha1.ForeignClusterSpec{
+						ClusterIdentity: discoveryv1alpha1.ClusterIdentity{
+							ClusterID: "foreign-cluster-abcd",
+						},
+						DiscoveryType: discovery.ManualDiscovery,
+						AuthURL:       "",
+						TrustMode:     discovery.TrustModeUntrusted,
+					},
+				}
+
+				client := mgr.GetClient()
+				err := client.Create(ctx, foreignCluster)
+				Expect(err).To(BeNil())
+
+				foreignCluster.Status = c.foreignClusterStatus
+				err = client.Status().Update(ctx, foreignCluster)
+				Expect(err).To(BeNil())
+
+				for i := range c.resourceRequests {
+					err = client.Create(ctx, &c.resourceRequests[i])
+					Expect(err).To(BeNil())
+				}
+
+				err = controller.checkPeeringStatus(ctx, foreignCluster)
+				Expect(err).To(BeNil())
+
+				Expect(foreignCluster.Status.Incoming.PeeringPhase).To(Equal(c.expectedIncomingPhase))
+				Expect(foreignCluster.Status.Outgoing.PeeringPhase).To(Equal(c.expectedOutgoingPhase))
+			},
+
+			Entry("none", checkPeeringStatusTestcase{
+				foreignClusterStatus: discoveryv1alpha1.ForeignClusterStatus{
+					TenantControlNamespace: discoveryv1alpha1.TenantControlNamespace{
+						Local: "default",
+					},
+					Incoming: discoveryv1alpha1.Incoming{
+						PeeringPhase: discoveryv1alpha1.PeeringPhaseEstablished,
+					},
+					Outgoing: discoveryv1alpha1.Outgoing{
+						PeeringPhase: discoveryv1alpha1.PeeringPhaseDisconnecting,
+					},
+				},
+				resourceRequests:      []discoveryv1alpha1.ResourceRequest{},
+				expectedIncomingPhase: discoveryv1alpha1.PeeringPhaseNone,
+				expectedOutgoingPhase: discoveryv1alpha1.PeeringPhaseNone,
+			}),
+
+			Entry("none and no update", checkPeeringStatusTestcase{
+				foreignClusterStatus: discoveryv1alpha1.ForeignClusterStatus{
+					TenantControlNamespace: discoveryv1alpha1.TenantControlNamespace{
+						Local: "default",
+					},
+					Incoming: discoveryv1alpha1.Incoming{
+						PeeringPhase: discoveryv1alpha1.PeeringPhaseNone,
+					},
+					Outgoing: discoveryv1alpha1.Outgoing{
+						PeeringPhase: discoveryv1alpha1.PeeringPhaseNone,
+					},
+				},
+				resourceRequests:      []discoveryv1alpha1.ResourceRequest{},
+				expectedIncomingPhase: discoveryv1alpha1.PeeringPhaseNone,
+				expectedOutgoingPhase: discoveryv1alpha1.PeeringPhaseNone,
+			}),
+
+			Entry("outgoing", checkPeeringStatusTestcase{
+				foreignClusterStatus: discoveryv1alpha1.ForeignClusterStatus{
+					TenantControlNamespace: discoveryv1alpha1.TenantControlNamespace{
+						Local: "default",
+					},
+					Incoming: discoveryv1alpha1.Incoming{
+						PeeringPhase: discoveryv1alpha1.PeeringPhaseNone,
+					},
+					Outgoing: discoveryv1alpha1.Outgoing{
+						PeeringPhase: discoveryv1alpha1.PeeringPhasePending,
+					},
+				},
+				resourceRequests: []discoveryv1alpha1.ResourceRequest{
+					getOutgoingResourceRequest(),
+				},
+				expectedIncomingPhase: discoveryv1alpha1.PeeringPhaseNone,
+				expectedOutgoingPhase: discoveryv1alpha1.PeeringPhaseEstablished,
+			}),
+
+			Entry("incoming", checkPeeringStatusTestcase{
+				foreignClusterStatus: discoveryv1alpha1.ForeignClusterStatus{
+					TenantControlNamespace: discoveryv1alpha1.TenantControlNamespace{
+						Local: "default",
+					},
+					Incoming: discoveryv1alpha1.Incoming{
+						PeeringPhase: discoveryv1alpha1.PeeringPhasePending,
+					},
+					Outgoing: discoveryv1alpha1.Outgoing{
+						PeeringPhase: discoveryv1alpha1.PeeringPhaseNone,
+					},
+				},
+				resourceRequests: []discoveryv1alpha1.ResourceRequest{
+					getIncomingResourceRequest(),
+				},
+				expectedIncomingPhase: discoveryv1alpha1.PeeringPhaseEstablished,
+				expectedOutgoingPhase: discoveryv1alpha1.PeeringPhaseNone,
+			}),
+
+			Entry("bidirectional", checkPeeringStatusTestcase{
+				foreignClusterStatus: discoveryv1alpha1.ForeignClusterStatus{
+					TenantControlNamespace: discoveryv1alpha1.TenantControlNamespace{
+						Local: "default",
+					},
+					Incoming: discoveryv1alpha1.Incoming{
+						PeeringPhase: discoveryv1alpha1.PeeringPhasePending,
+					},
+					Outgoing: discoveryv1alpha1.Outgoing{
+						PeeringPhase: discoveryv1alpha1.PeeringPhasePending,
+					},
+				},
+				resourceRequests: []discoveryv1alpha1.ResourceRequest{
+					getIncomingResourceRequest(),
+					getOutgoingResourceRequest(),
+				},
+				expectedIncomingPhase: discoveryv1alpha1.PeeringPhaseEstablished,
+				expectedOutgoingPhase: discoveryv1alpha1.PeeringPhaseEstablished,
 			}),
 		)
 
