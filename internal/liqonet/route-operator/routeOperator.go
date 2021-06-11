@@ -12,7 +12,8 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
-package route_operator
+
+package routeoperator
 
 import (
 	"context"
@@ -44,6 +45,7 @@ import (
 var (
 	resyncPeriod = 30 * time.Second
 	result       = ctrl.Result{}
+	// OperatorName holds the name of the route operator.
 	OperatorName = "liqo-route"
 )
 
@@ -61,6 +63,7 @@ type RouteController struct {
 	DynClient   dynamic.Interface
 }
 
+// NewRouteController returns a configure route controller ready to be started.
 func NewRouteController(mgr ctrl.Manager, wgc wireguard.Client, nl wireguard.Netlinker) (*RouteController, error) {
 	dynClient := dynamic.NewForConfigOrDie(mgr.GetConfig())
 	clientSet := kubernetes.NewForConfigOrDie(mgr.GetConfig())
@@ -183,6 +186,7 @@ func (r *RouteController) setUpRouteManager(recorder record.EventRecorder) {
 	r.NetLink = liqonet.NewRouteManager(recorder)
 }
 
+// SetupWithManager used to set up the controller with a given manager.
 func (r *RouteController) SetupWithManager(mgr ctrl.Manager) error {
 	resourceToBeProccesedPredicate := predicate.Funcs{
 		DeleteFunc: func(e event.DeleteEvent) bool {

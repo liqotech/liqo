@@ -1,4 +1,4 @@
-package route_operator
+package routeoperator
 
 import (
 	"time"
@@ -22,6 +22,7 @@ var (
 	keepalive         = 10 * time.Second
 )
 
+// StartServiceWatcher starts the service informer.
 func (r *RouteController) StartServiceWatcher() {
 	dynFactory := dynamicinformer.NewFilteredDynamicSharedInformerFactory(r.DynClient, resyncPeriod, r.namespace, setServiceFilteringLabel)
 	go r.Watcher(dynFactory, corev1.SchemeGroupVersion.WithResource(serviceResource), cache.ResourceEventHandlerFuncs{
@@ -44,7 +45,8 @@ func (r *RouteController) serviceHandlerAdd(obj interface{}) {
 		return
 	}
 	if s.Spec.Type != corev1.ServiceTypeNodePort && s.Spec.Type != corev1.ServiceTypeLoadBalancer {
-		klog.Errorf("the service %s in namespace %s is of type %s, only types of %s and %s are accepted", s.GetName(), s.GetNamespace(), s.Spec.Type, corev1.ServiceTypeLoadBalancer, corev1.ServiceTypeNodePort)
+		klog.Errorf("the service %s in namespace %s is of type %s, only types of %s and %s are accepted",
+			s.GetName(), s.GetNamespace(), s.Spec.Type, corev1.ServiceTypeLoadBalancer, corev1.ServiceTypeNodePort)
 		return
 	}
 	endpointIP = s.Spec.ClusterIP
@@ -53,13 +55,13 @@ func (r *RouteController) serviceHandlerAdd(obj interface{}) {
 			endpointPort = port.TargetPort.String()
 		}
 	}
-	//check if the pubkey has been set
+	// Check if the pubkey has been set.
 	pubKey, ok := s.GetAnnotations()[overlay.PubKeyAnnotation]
 	if !ok {
 		klog.Infof("overlay public key has not been set yep in service %s", s.Name)
 		return
 	}
-	//check if the peer has been configured
+	// Check if the peer has been configured.
 	err = r.wg.AddPeer(pubKey, endpointIP, endpointPort, []string{"0.0.0.0/0"}, &keepalive)
 	if err != nil {
 		klog.Error(err)
@@ -67,7 +69,7 @@ func (r *RouteController) serviceHandlerAdd(obj interface{}) {
 	}
 }
 
-func (r *RouteController) serviceHandlerUpdate(oldObj interface{}, newObj interface{}) {
+func (r *RouteController) serviceHandlerUpdate(oldObj, newObj interface{}) {
 	r.serviceHandlerAdd(newObj)
 }
 
