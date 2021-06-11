@@ -244,3 +244,12 @@ func IsValidCIDR(cidr string) error {
 	_, _, err := net.ParseCIDR(cidr)
 	return err
 }
+
+// GetFirstIP returns the first IP address of a network.
+func GetFirstIP(network string) (string, error) {
+	firstIP, _, err := net.ParseCIDR(network)
+	if err != nil {
+		return "", err
+	}
+	return firstIP.String(), nil
+}

@@ -2,6 +2,7 @@ package utils_test
 
 import (
 	"context"
+	"net"
 	"time"
 
 	. "github.com/onsi/ginkgo"
@@ -14,6 +15,11 @@ import (
 	"k8s.io/client-go/kubernetes/fake"
 
 	"github.com/liqotech/liqo/pkg/liqonet/utils"
+)
+
+const (
+	invalidValue      = "invalidValue"
+	CIDRAddressNetErr = "CIDR address"
 )
 
 var _ = Describe("Liqonet", func() {
@@ -35,6 +41,23 @@ var _ = Describe("Liqonet", func() {
 		Entry("Mapping 10.2.128.128 to 10.0.126.0/25", "10.0.126.0/25", "10.2.128.128", "10.0.126.0", ""),
 		Entry("Using an invalid newPodCidr", "10.0..0/25", "10.2.128.128", "", "invalid CIDR address: 10.0..0/25"),
 		Entry("Using an invalid oldIp", "10.0.0.0/25", "10.2...128", "", "cannot parse oldIP"),
+	)
+
+	DescribeTable("GetFirstIP",
+		func(network, expectedIP string, expectedErr *net.ParseError) {
+			ip, err := utils.GetFirstIP(network)
+			if expectedErr != nil {
+				gomega.Expect(err).To(MatchError(expectedErr))
+			} else {
+				gomega.Expect(err).ToNot(gomega.HaveOccurred())
+			}
+			gomega.Expect(ip).To(gomega.Equal(expectedIP))
+		},
+		Entry("Passing an invalid network", invalidValue, "", &net.ParseError{Type: CIDRAddressNetErr, Text: invalidValue}),
+		Entry("Passing an empty network", "", "", &net.ParseError{Type: CIDRAddressNetErr, Text: ""}),
+		Entry("Passing an IP", "10.0.0.0", "", &net.ParseError{Type: CIDRAddressNetErr, Text: "10.0.0.0"}),
+		Entry("Getting first IP of 10.0.0.0/8", "10.0.0.0/8", "10.0.0.0", nil),
+		Entry("Getting first IP of 192.168.0.0/16", "192.168.0.0/16", "192.168.0.0", nil),
 	)
 
 	Describe("Getting ClusterID info from ConfigMap", func() {
