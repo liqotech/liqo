@@ -1,4 +1,4 @@
-package route_operator
+package routeoperator
 
 import (
 	"context"
@@ -17,11 +17,14 @@ import (
 )
 
 var (
-	podResource        = "pods"
-	PodRouteLabelKey   = "app.kubernetes.io/name"
+	podResource = "pods"
+	// PodRouteLabelKey label used to filter only the route operator pods.
+	PodRouteLabelKey = "app.kubernetes.io/name"
+	// PodRouteLabelValue value of the label used to filter the route operator pods.
 	PodRouteLabelValue = "route"
 )
 
+// StartPodWatcher starts the pod informer.
 func (r *RouteController) StartPodWatcher() {
 	dynFactory := dynamicinformer.NewFilteredDynamicSharedInformerFactory(r.DynClient, resyncPeriod, r.namespace, setGWPodSelectorLabel)
 	go r.Watcher(dynFactory, corev1.SchemeGroupVersion.WithResource(podResource), cache.ResourceEventHandlerFuncs{
@@ -44,7 +47,7 @@ func (r *RouteController) podHandlerAdd(obj interface{}) {
 		klog.Errorf("an error occurred while converting resource %s of type %s to typed object: %s", objUnstruct.GetName(), objUnstruct.GetKind(), err)
 		return
 	}
-	//check if it is our pod
+	// Check if it is our pod.
 	if p.Status.PodIP != r.podIP {
 		return
 	}
@@ -80,7 +83,7 @@ func (r *RouteController) podHandlerAdd(obj interface{}) {
 	}
 }
 
-func (r *RouteController) podHandlerUpdate(oldObj interface{}, newObj interface{}) {
+func (r *RouteController) podHandlerUpdate(oldObj, newObj interface{}) {
 	r.podHandlerAdd(newObj)
 }
 
