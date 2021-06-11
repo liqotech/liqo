@@ -96,11 +96,11 @@ func setDynClient() error {
 
 	// Init fake dynamic client with objects in order to avoid errors in InitNatMappings func
 	// due to the lack of support of fake.dynamicClient for creation of more than 2 resources of the same Kind.
-	nm1, err := natmappinginflater.ForgeNatMapping("cluster1", "10.0.0.0/24", "10.0.1.0/24", make(map[string]string))
+	nm1, err := natmappinginflater.ForgeNatMapping(clusterID1, remotePodCIDR, localNATExternalCIDR, make(map[string]string))
 	if err != nil {
 		return err
 	}
-	nm2, err := natmappinginflater.ForgeNatMapping("cluster2", "10.0.0.0/24", "10.0.1.0/24", make(map[string]string))
+	nm2, err := natmappinginflater.ForgeNatMapping(clusterID2, remotePodCIDR, localNATExternalCIDR, make(map[string]string))
 	if err != nil {
 		return err
 	}
@@ -130,7 +130,7 @@ var _ = Describe("Ipam", func() {
 				err := ipam.AcquireReservedSubnet("10.0.0.0/8")
 				Expect(err).To(BeNil())
 				// Try to get a cluster network in that pool
-				p, _, err := ipam.GetSubnetsPerCluster("10.0.2.0/24", "192.168.0.0/24", "cluster1")
+				p, _, err := ipam.GetSubnetsPerCluster("10.0.2.0/24", "192.168.0.0/24", clusterID1)
 				Expect(err).To(BeNil())
 				// p should have been mapped to a new network belonging to a different pool
 				Expect(p).ToNot(HavePrefix("10."))
@@ -140,7 +140,7 @@ var _ = Describe("Ipam", func() {
 			It("Should not be possible to acquire the same network for a cluster", func() {
 				err := ipam.AcquireReservedSubnet("10.244.0.0/24")
 				Expect(err).To(BeNil())
-				p, e, err := ipam.GetSubnetsPerCluster("10.244.0.0/24", "192.168.0.0/24", "cluster1")
+				p, e, err := ipam.GetSubnetsPerCluster("10.244.0.0/24", "192.168.0.0/24", clusterID1)
 				Expect(err).To(BeNil())
 				Expect(p).ToNot(Equal("10.0.2.0/24"))
 				Expect(e).To(Equal("192.168.0.0/24"))
@@ -148,7 +148,7 @@ var _ = Describe("Ipam", func() {
 			It("Should not be possible to acquire a larger network that contains it for a cluster", func() {
 				err := ipam.AcquireReservedSubnet("10.0.0.0/24")
 				Expect(err).To(BeNil())
-				p, e, err := ipam.GetSubnetsPerCluster("10.0.0.0/16", "192.168.0.0/24", "cluster1")
+				p, e, err := ipam.GetSubnetsPerCluster("10.0.0.0/16", "192.168.0.0/24", clusterID1)
 				Expect(err).To(BeNil())
 				Expect(p).ToNot(Equal("10.0.0.0/16"))
 				Expect(e).To(Equal("192.168.0.0/24"))
@@ -156,7 +156,7 @@ var _ = Describe("Ipam", func() {
 			It("Should not be possible to acquire a smaller network contained by it for a cluster", func() {
 				err := ipam.AcquireReservedSubnet("10.0.2.0/24")
 				Expect(err).To(BeNil())
-				p, e, err := ipam.GetSubnetsPerCluster("10.0.2.0/25", "192.168.0.0/24", "cluster1")
+				p, e, err := ipam.GetSubnetsPerCluster("10.0.2.0/25", "192.168.0.0/24", clusterID1)
 				Expect(err).To(BeNil())
 				Expect(p).ToNot(Equal("10.0.2.0/25"))
 				Expect(e).To(Equal("192.168.0.0/24"))
@@ -168,7 +168,7 @@ var _ = Describe("Ipam", func() {
 		Context("When the remote cluster asks for subnets not belonging to any pool", func() {
 			Context("and the subnets have not already been assigned to any other cluster", func() {
 				It("Should allocate the subnets without mapping", func() {
-					p, e, err := ipam.GetSubnetsPerCluster("11.0.0.0/16", "11.1.0.0/16", "cluster1")
+					p, e, err := ipam.GetSubnetsPerCluster("11.0.0.0/16", "11.1.0.0/16", clusterID1)
 					Expect(err).To(BeNil())
 					Expect(p).To(Equal("11.0.0.0/16"))
 					Expect(e).To(Equal("11.1.0.0/16"))
@@ -177,11 +177,11 @@ var _ = Describe("Ipam", func() {
 			Context("and the subnets have already been assigned to another cluster", func() {
 				Context("and there are available networks with the same mask length in one pool", func() {
 					It("should map the requested networks", func() {
-						p, e, err := ipam.GetSubnetsPerCluster("11.0.0.0/16", "11.1.0.0/16", "cluster1")
+						p, e, err := ipam.GetSubnetsPerCluster("11.0.0.0/16", "11.1.0.0/16", clusterID1)
 						Expect(err).To(BeNil())
 						Expect(p).To(Equal("11.0.0.0/16"))
 						Expect(e).To(Equal("11.1.0.0/16"))
-						p, e, err = ipam.GetSubnetsPerCluster("11.0.0.0/16", "11.1.0.0/16", "cluster2")
+						p, e, err = ipam.GetSubnetsPerCluster("11.0.0.0/16", "11.1.0.0/16", clusterID2)
 						Expect(err).To(BeNil())
 						Expect(p).ToNot(HavePrefix("11."))
 						Expect(p).To(HaveSuffix("/16"))
@@ -194,7 +194,7 @@ var _ = Describe("Ipam", func() {
 		Context("When the remote cluster asks for a subnet which is equal to a pool", func() {
 			Context("and remaining network pools are not filled", func() {
 				It("should map it to another network", func() {
-					p, _, err := ipam.GetSubnetsPerCluster("172.16.0.0/12", "10.0.0.0/24", "cluster1")
+					p, _, err := ipam.GetSubnetsPerCluster("172.16.0.0/12", "10.0.0.0/24", clusterID1)
 					Expect(err).To(BeNil())
 					Expect(p).ToNot(Equal("172.16.0.0/12"))
 				})
@@ -211,13 +211,13 @@ var _ = Describe("Ipam", func() {
 						Expect(err).To(BeNil())
 
 						// Acquire a portion of the network pool
-						p, e, err := ipam.GetSubnetsPerCluster("172.16.0.0/24", "172.16.1.0/24", "cluster5")
+						p, e, err := ipam.GetSubnetsPerCluster("172.16.0.0/24", "172.16.1.0/24", clusterID1)
 						Expect(err).To(BeNil())
 						Expect(p).To(Equal("172.16.0.0/24"))
 						Expect(e).To(Equal("172.16.1.0/24"))
 
 						// Acquire network pool
-						_, _, err = ipam.GetSubnetsPerCluster("172.16.0.0/12", "10.0.0.0/24", "cluster6")
+						_, _, err = ipam.GetSubnetsPerCluster("172.16.0.0/12", "10.0.0.0/24", clusterID2)
 						Expect(err).ToNot(BeNil())
 					})
 				})
@@ -239,7 +239,7 @@ var _ = Describe("Ipam", func() {
 					Expect(err).To(BeNil())
 
 					// Cluster network request
-					_, _, err = ipam.GetSubnetsPerCluster("10.128.0.0/9", "192.168.1.0/24", "cluster7")
+					_, _, err = ipam.GetSubnetsPerCluster("10.128.0.0/9", "192.168.1.0/24", clusterID1)
 					Expect(err).ToNot(BeNil())
 
 					// Check if requested podCidr is available
@@ -260,13 +260,13 @@ var _ = Describe("Ipam", func() {
 					Expect(err).To(BeNil())
 
 					// Cluster network request
-					_, _, err = ipam.GetSubnetsPerCluster("10.1.0.0/16", "10.0.0.0/24", "cluster7")
+					_, _, err = ipam.GetSubnetsPerCluster("10.1.0.0/16", "10.0.0.0/24", clusterID1)
 					Expect(err).ToNot(BeNil())
 				})
 			})
 			Context("and the subnet has not already been assigned to any other cluster", func() {
 				It("Should allocate the subnet itself, without mapping", func() {
-					p, e, err := ipam.GetSubnetsPerCluster("10.0.0.0/16", "10.1.0.0/16", "cluster1")
+					p, e, err := ipam.GetSubnetsPerCluster("10.0.0.0/16", "10.1.0.0/16", clusterID1)
 					Expect(err).To(BeNil())
 					Expect(p).To(Equal("10.0.0.0/16"))
 					Expect(e).To(Equal("10.1.0.0/16"))
@@ -275,11 +275,11 @@ var _ = Describe("Ipam", func() {
 			Context("and the subnet has already been assigned to another cluster", func() {
 				Context("and there is an available network with the same mask length in one pool", func() {
 					It("should map the requested network to another network taken by the pool", func() {
-						p, e, err := ipam.GetSubnetsPerCluster("10.0.0.0/16", "10.1.0.0/16", "cluster1")
+						p, e, err := ipam.GetSubnetsPerCluster("10.0.0.0/16", "10.1.0.0/16", clusterID1)
 						Expect(err).To(BeNil())
 						Expect(p).To(Equal("10.0.0.0/16"))
 						Expect(e).To(Equal("10.1.0.0/16"))
-						p, e, err = ipam.GetSubnetsPerCluster("10.0.0.0/16", "10.1.0.0/16", "clustere")
+						p, e, err = ipam.GetSubnetsPerCluster("10.0.0.0/16", "10.1.0.0/16", clusterID2)
 						Expect(err).To(BeNil())
 						Expect(p).ToNot(Equal("10.0.0.0/16"))
 						Expect(e).ToNot(Equal("10.1.0.0/16"))
@@ -288,11 +288,11 @@ var _ = Describe("Ipam", func() {
 				Context("and there is not an available network with the same mask length in any pool", func() {
 					It("should fail to allocate the network", func() {
 
-						p, _, err := ipam.GetSubnetsPerCluster("10.0.0.0/9", "10.1.0.0/16", "cluster1")
+						p, _, err := ipam.GetSubnetsPerCluster("10.0.0.0/9", "10.1.0.0/16", clusterID1)
 						Expect(err).To(BeNil())
 						Expect(p).To(Equal("10.0.0.0/9"))
 
-						_, _, err = ipam.GetSubnetsPerCluster("10.0.0.0/9", "10.3.0.0/16", "cluster2")
+						_, _, err = ipam.GetSubnetsPerCluster("10.0.0.0/9", "10.3.0.0/16", clusterID2)
 						Expect(err).ToNot(BeNil())
 					})
 				})
@@ -391,7 +391,7 @@ var _ = Describe("Ipam", func() {
 				Expect(err).To(BeNil())
 				err = ipam.FreeReservedSubnet("10.0.0.0/8")
 				Expect(err).To(BeNil())
-				p, e, err := ipam.GetSubnetsPerCluster("10.0.0.0/16", "10.2.0.0/16", "cluster1")
+				p, e, err := ipam.GetSubnetsPerCluster("10.0.0.0/16", "10.2.0.0/16", clusterID1)
 				Expect(err).To(BeNil())
 				Expect(p).To(Equal("10.0.0.0/16"))
 				Expect(e).To(Equal("10.2.0.0/16"))
@@ -401,7 +401,7 @@ var _ = Describe("Ipam", func() {
 	Describe("Re-scheduling of network manager", func() {
 		It("ipam should retrieve configuration by resource", func() {
 			// Assign networks to cluster
-			p, e, err := ipam.GetSubnetsPerCluster("10.0.1.0/24", "10.0.2.0/24", "cluster1")
+			p, e, err := ipam.GetSubnetsPerCluster("10.0.1.0/24", "10.0.2.0/24", clusterID1)
 			Expect(err).To(BeNil())
 			Expect(p).To(Equal("10.0.1.0/24"))
 			Expect(e).To(Equal("10.0.2.0/24"))
@@ -413,7 +413,7 @@ var _ = Describe("Ipam", func() {
 			Expect(err).To(BeNil())
 
 			// Another cluster asks for the same networks
-			p, e, err = ipam.GetSubnetsPerCluster("10.0.1.0/24", "10.0.2.0/24", "cluster2")
+			p, e, err = ipam.GetSubnetsPerCluster("10.0.1.0/24", "10.0.2.0/24", clusterID2)
 			Expect(err).To(BeNil())
 			Expect(p).ToNot(Equal("10.0.1.0/24"))
 			Expect(e).ToNot(Equal("10.0.2.0/24"))
@@ -455,7 +455,7 @@ var _ = Describe("Ipam", func() {
 				Expect(err).To(BeNil())
 
 				// IPAM should use 11.0.0.0/8 to map the cluster network
-				p, e, err := ipam.GetSubnetsPerCluster("12.0.0.0/24", "12.0.1.0/24", "cluster1")
+				p, e, err := ipam.GetSubnetsPerCluster("12.0.0.0/24", "12.0.1.0/24", clusterID1)
 				Expect(err).To(BeNil())
 				Expect(p).To(HavePrefix("11"))
 				Expect(p).To(HaveSuffix("/24"))
@@ -504,13 +504,13 @@ var _ = Describe("Ipam", func() {
 				Expect(err).To(BeNil())
 
 				// Should fail to assign a network to cluster
-				_, _, err = ipam.GetSubnetsPerCluster("12.0.0.0/24", "12.0.1.0/24", "cluster1")
+				_, _, err = ipam.GetSubnetsPerCluster("12.0.0.0/24", "12.0.1.0/24", clusterID1)
 				Expect(err).ToNot(BeNil())
 			})
 		})
 		Context("Remove a network pool that is a default one", func() {
 			It("Should generate an error", func() {
-				err := ipam.RemoveNetworkPool("10.0.0.0/8")
+				err := ipam.RemoveNetworkPool(liqonet.Pools[0])
 				Expect(err).ToNot(BeNil())
 			})
 		})
@@ -535,7 +535,7 @@ var _ = Describe("Ipam", func() {
 				Expect(err).To(BeNil())
 
 				// IPAM should use 11.0.0.0/8 to map the cluster network
-				p, e, err := ipam.GetSubnetsPerCluster("12.0.0.0/24", "12.0.1.0/24", "cluster1")
+				p, e, err := ipam.GetSubnetsPerCluster("12.0.0.0/24", "12.0.1.0/24", clusterID1)
 				Expect(err).To(BeNil())
 				Expect(p).To(HavePrefix("11"))
 				Expect(p).To(HaveSuffix("/24"))
@@ -551,7 +551,7 @@ var _ = Describe("Ipam", func() {
 	Describe("AddLocalSubnetsPerCluster", func() {
 		BeforeEach(func() {
 			// Set PodCIDR
-			err := ipam.SetPodCIDR("10.0.0.0/24")
+			err := ipam.SetPodCIDR(homePodCIDR)
 			Expect(err).To(BeNil())
 
 			// Get ExternalCIDR
@@ -560,20 +560,20 @@ var _ = Describe("Ipam", func() {
 			Expect(externalCIDR).To(HaveSuffix("/24"))
 
 			// Assign networks to remote cluster
-			_, _, err = ipam.GetSubnetsPerCluster("10.0.0.0/24", "10.0.1.0/24", "cluster1")
+			_, _, err = ipam.GetSubnetsPerCluster("10.0.0.0/24", "10.0.1.0/24", clusterID1)
 			Expect(err).To(BeNil())
 		})
 		Context("If the networks do not exist yet", func() {
 			It("should return no errors", func() {
-				err := ipam.AddLocalSubnetsPerCluster("10.0.0.0/24", "192.168.0.0/24", "cluster1")
+				err := ipam.AddLocalSubnetsPerCluster("10.0.0.0/24", "192.168.0.0/24", clusterID1)
 				Expect(err).To(BeNil())
 			})
 		})
 		Context("If the networks already exist", func() {
 			It("should return no errors", func() {
-				err := ipam.AddLocalSubnetsPerCluster("10.0.0.0/24", "192.168.0.0/24", "cluster1")
+				err := ipam.AddLocalSubnetsPerCluster("10.0.0.0/24", "192.168.0.0/24", clusterID1)
 				Expect(err).To(BeNil())
-				err = ipam.AddLocalSubnetsPerCluster("10.0.0.0/24", "192.168.0.0/24", "cluster1")
+				err = ipam.AddLocalSubnetsPerCluster("10.0.0.0/24", "192.168.0.0/24", clusterID1)
 				Expect(err).To(BeNil())
 			})
 		})
@@ -604,7 +604,7 @@ var _ = Describe("Ipam", func() {
 		})
 		Context("Call after SetPodCIDR", func() {
 			It("should return no errors", func() {
-				err := ipam.SetPodCIDR("10.0.0.0/24")
+				err := ipam.SetPodCIDR(homePodCIDR)
 				Expect(err).To(BeNil())
 				externalCIDR, err := ipam.GetExternalCIDR(24)
 				Expect(err).To(BeNil())
@@ -615,10 +615,10 @@ var _ = Describe("Ipam", func() {
 			It("should produce an error in SetPodCIDR", func() {
 				externalCIDR, err := ipam.GetExternalCIDR(24)
 				Expect(err).To(BeNil())
-				Expect(externalCIDR).To(Equal("10.0.0.0/24"))
+				Expect(externalCIDR).To(Equal(homePodCIDR))
 				// ExternalCIDR has been assigned "10.0.0.0/24", so the network
 				// is not available anymore.
-				err = ipam.SetPodCIDR("10.0.0.0/24")
+				err = ipam.SetPodCIDR(homePodCIDR)
 				Expect(err).ToNot(BeNil())
 			})
 		})
@@ -627,23 +627,23 @@ var _ = Describe("Ipam", func() {
 	Describe("SetPodCIDR", func() {
 		Context("Invoking func for the first time", func() {
 			It("should return no errors", func() {
-				err := ipam.SetPodCIDR("10.0.0.0/24")
+				err := ipam.SetPodCIDR(homePodCIDR)
 				Expect(err).To(BeNil())
 			})
 		})
 		Context("Later invocation with the same PodCIDR", func() {
 			It("should return no errors", func() {
-				err := ipam.SetPodCIDR("10.0.0.0/24")
+				err := ipam.SetPodCIDR(homePodCIDR)
 				Expect(err).To(BeNil())
-				err = ipam.SetPodCIDR("10.0.0.0/24")
+				err = ipam.SetPodCIDR(homePodCIDR)
 				Expect(err).To(BeNil())
 			})
 		})
 		Context("Later invocation with a different PodCIDR", func() {
 			It("should return no errors", func() {
-				err := ipam.SetPodCIDR("10.0.0.0/24")
+				err := ipam.SetPodCIDR(homePodCIDR)
 				Expect(err).To(BeNil())
-				err = ipam.SetPodCIDR("10.0.1.0/24")
+				err = ipam.SetPodCIDR("18.0.0.0/24")
 				Expect(err).ToNot(BeNil())
 			})
 		})
@@ -693,7 +693,7 @@ var _ = Describe("Ipam", func() {
 			Context("and the remote cluster has not remapped the local PodCIDR", func() {
 				It("should return the same IP address", func() {
 					// Set PodCIDR
-					err := ipam.SetPodCIDR("10.0.0.0/24")
+					err := ipam.SetPodCIDR(homePodCIDR)
 					Expect(err).To(BeNil())
 
 					// Get ExternalCIDR
@@ -702,15 +702,15 @@ var _ = Describe("Ipam", func() {
 					Expect(externalCIDR).To(HaveSuffix("/24"))
 
 					// Assign networks to cluster
-					_, _, err = ipam.GetSubnetsPerCluster("10.0.1.0/24", "10.0.2.0/24", "cluster1")
+					_, _, err = ipam.GetSubnetsPerCluster(remotePodCIDR, remoteExternalCIDR, clusterID1)
 					Expect(err).To(BeNil())
 
 					// Remote cluster has not remapped local PodCIDR
-					err = ipam.AddLocalSubnetsPerCluster("None", "None", "cluster1")
+					err = ipam.AddLocalSubnetsPerCluster("None", "None", clusterID1)
 					Expect(err).To(BeNil())
 
 					response, err := ipam.MapEndpointIP(context.Background(), &liqonet.MapRequest{
-						ClusterID: "cluster1",
+						ClusterID: clusterID1,
 						Ip:        "10.0.0.1",
 					})
 					Expect(err).To(BeNil())
@@ -720,7 +720,7 @@ var _ = Describe("Ipam", func() {
 			Context("and the remote cluster has remapped the local PodCIDR", func() {
 				It("should map the endpoint IP using the remapped PodCIDR", func() {
 					// Set PodCIDR
-					err := ipam.SetPodCIDR("10.0.0.0/24")
+					err := ipam.SetPodCIDR(homePodCIDR)
 					Expect(err).To(BeNil())
 
 					// Get ExternalCIDR
@@ -729,15 +729,15 @@ var _ = Describe("Ipam", func() {
 					Expect(externalCIDR).To(HaveSuffix("/24"))
 
 					// Assign networks to cluster
-					_, _, err = ipam.GetSubnetsPerCluster("10.0.1.0/24", "10.0.2.0/24", "cluster1")
+					_, _, err = ipam.GetSubnetsPerCluster(remotePodCIDR, remoteExternalCIDR, clusterID1)
 					Expect(err).To(BeNil())
 
 					// Remote cluster has remapped local PodCIDR
-					err = ipam.AddLocalSubnetsPerCluster("192.168.0.0/24", "None", "cluster1")
+					err = ipam.AddLocalSubnetsPerCluster("192.168.0.0/24", "None", clusterID1)
 					Expect(err).To(BeNil())
 
 					response, err := ipam.MapEndpointIP(context.Background(), &liqonet.MapRequest{
-						ClusterID: "cluster1",
+						ClusterID: clusterID1,
 						Ip:        "10.0.0.1",
 					})
 					Expect(err).To(BeNil())
@@ -749,7 +749,7 @@ var _ = Describe("Ipam", func() {
 			Context("and the remote cluster has not remapped the local ExternalCIDR", func() {
 				It("should map the endpoint IP to a new IP belonging to local ExternalCIDR", func() {
 					// Set PodCIDR
-					err := ipam.SetPodCIDR("10.0.0.0/24")
+					err := ipam.SetPodCIDR(homePodCIDR)
 					Expect(err).To(BeNil())
 
 					// Get ExternalCIDR
@@ -758,15 +758,15 @@ var _ = Describe("Ipam", func() {
 					Expect(externalCIDR).To(HaveSuffix("/24"))
 
 					// Assign networks to cluster
-					_, _, err = ipam.GetSubnetsPerCluster("10.0.1.0/24", "10.0.2.0/24", "cluster1")
+					_, _, err = ipam.GetSubnetsPerCluster(remotePodCIDR, remoteExternalCIDR, clusterID1)
 					Expect(err).To(BeNil())
 
 					// Remote cluster has not remapped local ExternalCIDR
-					err = ipam.AddLocalSubnetsPerCluster("None", "None", "cluster1")
+					err = ipam.AddLocalSubnetsPerCluster("None", "None", clusterID1)
 					Expect(err).To(BeNil())
 
 					response, err := ipam.MapEndpointIP(context.Background(), &liqonet.MapRequest{
-						ClusterID: "cluster1",
+						ClusterID: clusterID1,
 						Ip:        "20.0.0.1",
 					})
 					Expect(err).To(BeNil())
@@ -776,7 +776,7 @@ var _ = Describe("Ipam", func() {
 				})
 				It("should return the same IP if more remote clusters ask for the same endpoint", func() {
 					// Set PodCIDR
-					err := ipam.SetPodCIDR("10.0.0.0/24")
+					err := ipam.SetPodCIDR(homePodCIDR)
 					Expect(err).To(BeNil())
 
 					// Get ExternalCIDR
@@ -785,19 +785,19 @@ var _ = Describe("Ipam", func() {
 					Expect(externalCIDR).To(HaveSuffix("/24"))
 
 					// Assign networks to clusters
-					_, _, err = ipam.GetSubnetsPerCluster("10.0.1.0/24", "10.0.2.0/24", "cluster1")
+					_, _, err = ipam.GetSubnetsPerCluster(remotePodCIDR, remoteExternalCIDR, clusterID1)
 					Expect(err).To(BeNil())
-					_, _, err = ipam.GetSubnetsPerCluster("10.0.1.0/24", "10.0.2.0/24", "cluster2")
+					_, _, err = ipam.GetSubnetsPerCluster(remotePodCIDR, remoteExternalCIDR, clusterID2)
 					Expect(err).To(BeNil())
 
-					err = ipam.AddLocalSubnetsPerCluster("None", "None", "cluster1")
+					err = ipam.AddLocalSubnetsPerCluster("None", "None", clusterID1)
 					Expect(err).To(BeNil())
-					err = ipam.AddLocalSubnetsPerCluster("None", "None", "cluster2")
+					err = ipam.AddLocalSubnetsPerCluster("None", "None", clusterID2)
 					Expect(err).To(BeNil())
 
 					// Reflection cluster1
 					response, err := ipam.MapEndpointIP(context.Background(), &liqonet.MapRequest{
-						ClusterID: "cluster1",
+						ClusterID: clusterID1,
 						Ip:        "20.0.0.1",
 					})
 					Expect(err).To(BeNil())
@@ -808,7 +808,7 @@ var _ = Describe("Ipam", func() {
 
 					// Reflection cluster2
 					response, err = ipam.MapEndpointIP(context.Background(), &liqonet.MapRequest{
-						ClusterID: "cluster1",
+						ClusterID: clusterID1,
 						Ip:        "20.0.0.1",
 					})
 					Expect(err).To(BeNil())
@@ -818,7 +818,7 @@ var _ = Describe("Ipam", func() {
 			Context("and the remote cluster has remapped the local ExternalCIDR", func() {
 				It("should map the endpoint IP to a new IP belonging to the remapped ExternalCIDR", func() {
 					// Set PodCIDR
-					err := ipam.SetPodCIDR("10.0.0.0/24")
+					err := ipam.SetPodCIDR(homePodCIDR)
 					Expect(err).To(BeNil())
 
 					// Get ExternalCIDR
@@ -827,15 +827,15 @@ var _ = Describe("Ipam", func() {
 					Expect(externalCIDR).To(HaveSuffix("/24"))
 
 					// Assign networks to cluster
-					_, _, err = ipam.GetSubnetsPerCluster("10.0.1.0/24", "10.0.2.0/24", "cluster1")
+					_, _, err = ipam.GetSubnetsPerCluster(remotePodCIDR, remoteExternalCIDR, clusterID1)
 					Expect(err).To(BeNil())
 
 					// Remote cluster has remapped local ExternalCIDR
-					err = ipam.AddLocalSubnetsPerCluster("None", "192.168.0.0/24", "cluster1")
+					err = ipam.AddLocalSubnetsPerCluster("None", "192.168.0.0/24", clusterID1)
 					Expect(err).To(BeNil())
 
 					response, err := ipam.MapEndpointIP(context.Background(), &liqonet.MapRequest{
-						ClusterID: "cluster1",
+						ClusterID: clusterID1,
 						Ip:        "20.0.0.1",
 					})
 					Expect(err).To(BeNil())
@@ -847,7 +847,7 @@ var _ = Describe("Ipam", func() {
 					var response *liqonet.MapResponse
 					var err error
 					// Set PodCIDR
-					err = ipam.SetPodCIDR("10.0.0.0/24")
+					err = ipam.SetPodCIDR(homePodCIDR)
 					Expect(err).To(BeNil())
 
 					// Get ExternalCIDR
@@ -858,17 +858,17 @@ var _ = Describe("Ipam", func() {
 					slicedPrefix = slicedPrefix[:len(slicedPrefix)-1]
 
 					// Assign networks to cluster
-					_, _, err = ipam.GetSubnetsPerCluster("10.0.1.0/24", "10.0.2.0/24", "cluster1")
+					_, _, err = ipam.GetSubnetsPerCluster(remotePodCIDR, remoteExternalCIDR, clusterID1)
 					Expect(err).To(BeNil())
 
 					// Remote cluster has not remapped local ExternalCIDR
-					err = ipam.AddLocalSubnetsPerCluster("None", "None", "cluster1")
+					err = ipam.AddLocalSubnetsPerCluster("None", "None", clusterID1)
 					Expect(err).To(BeNil())
 
 					// Fill up ExternalCIDR
 					for i := 0; i < 254; i++ {
 						response, err = ipam.MapEndpointIP(context.Background(), &liqonet.MapRequest{
-							ClusterID: "cluster1",
+							ClusterID: clusterID1,
 							Ip:        fmt.Sprintf("20.0.0.%d", i),
 						})
 						Expect(err).To(BeNil())
@@ -876,7 +876,7 @@ var _ = Describe("Ipam", func() {
 					}
 
 					_, err = ipam.MapEndpointIP(context.Background(), &liqonet.MapRequest{
-						ClusterID: "cluster1",
+						ClusterID: clusterID1,
 						Ip:        "3.100.0.9",
 					})
 					Expect(err).ToNot(BeNil())
@@ -885,7 +885,7 @@ var _ = Describe("Ipam", func() {
 			Context("Using an invalid endpointIP", func() {
 				It("should return an error", func() {
 					_, err := ipam.MapEndpointIP(context.Background(), &liqonet.MapRequest{
-						ClusterID: "cluster1",
+						ClusterID: clusterID1,
 						Ip:        "30.0.9",
 					})
 					Expect(err).ToNot(BeNil())
@@ -894,7 +894,7 @@ var _ = Describe("Ipam", func() {
 			Context("If the local PodCIDR is not set", func() {
 				It("should return an error", func() {
 					_, err := ipam.MapEndpointIP(context.Background(), &liqonet.MapRequest{
-						ClusterID: "cluster1",
+						ClusterID: clusterID1,
 						Ip:        "30.0.4.9",
 					})
 					Expect(err.Error()).To(ContainSubstring("cannot parse network"))
@@ -903,11 +903,11 @@ var _ = Describe("Ipam", func() {
 			Context("If the remote cluster has not a PodCIDR set", func() {
 				It("should return an error", func() {
 					// Set PodCIDR
-					err := ipam.SetPodCIDR("10.0.0.0/24")
+					err := ipam.SetPodCIDR(homePodCIDR)
 					Expect(err).To(BeNil())
 
 					_, err = ipam.MapEndpointIP(context.Background(), &liqonet.MapRequest{
-						ClusterID: "cluster1",
+						ClusterID: clusterID1,
 						Ip:        "10.0.0.9",
 					})
 					Expect(err.Error()).To(ContainSubstring("remote cluster cluster1 has not a local NAT PodCIDR"))
@@ -916,11 +916,11 @@ var _ = Describe("Ipam", func() {
 			Context("If the remote cluster has not an ExternalCIDR set", func() {
 				It("should return an error", func() {
 					// Set PodCIDR
-					err := ipam.SetPodCIDR("10.0.0.0/24")
+					err := ipam.SetPodCIDR(homePodCIDR)
 					Expect(err).To(BeNil())
 
 					_, err = ipam.MapEndpointIP(context.Background(), &liqonet.MapRequest{
-						ClusterID: "cluster1",
+						ClusterID: clusterID1,
 						Ip:        "30.0.4.9",
 					})
 					Expect(err.Error()).To(ContainSubstring("remote cluster cluster1 has not a Local NAT ExternalCIDR"))
@@ -966,14 +966,13 @@ var _ = Describe("Ipam", func() {
 		Context(`When the remote Pod CIDR has not been remapped by home cluster
 			and the call refers to a remote Pod`, func() {
 			It("should return the same IP", func() {
-				ip := "10.0.10.1"
-				podCIDR := "10.0.10.0/24"
-				externalCIDR := "10.0.50.0/24"
+				ip, err := utils.GetFirstIP(remotePodCIDR)
+				Expect(err).To(BeNil())
 
 				// Home cluster has not remapped remote PodCIDR
-				mappedPodCIDR, _, err := ipam.GetSubnetsPerCluster(podCIDR, externalCIDR, clusterID1)
+				mappedPodCIDR, _, err := ipam.GetSubnetsPerCluster(remotePodCIDR, remoteExternalCIDR, clusterID1)
 				Expect(err).To(BeNil())
-				Expect(mappedPodCIDR).To(Equal(podCIDR))
+				Expect(mappedPodCIDR).To(Equal(remotePodCIDR))
 
 				response, err := ipam.GetHomePodIP(context.Background(),
 					&liqonet.GetHomePodIPRequest{
@@ -987,18 +986,18 @@ var _ = Describe("Ipam", func() {
 		Context(`When the remote Pod CIDR has been remapped by home cluster
 			and the call refers to a remote Pod`, func() {
 			It("should return the remapped IP", func() {
-				ip := "10.0.10.1" // Original Pod IP
-				podCIDR := "10.0.10.0/24"
-				externalCIDR := "10.0.50.0/24"
+				// Original Pod IP
+				ip, err := utils.GetFirstIP(remotePodCIDR)
+				Expect(err).To(BeNil())
 
 				// Reserve original PodCIDR so that home cluster will remap it
-				err := ipam.AcquireReservedSubnet(podCIDR)
+				err = ipam.AcquireReservedSubnet(remotePodCIDR)
 				Expect(err).To(BeNil())
 
 				// Home cluster has remapped remote PodCIDR
-				mappedPodCIDR, _, err := ipam.GetSubnetsPerCluster(podCIDR, externalCIDR, clusterID1)
+				mappedPodCIDR, _, err := ipam.GetSubnetsPerCluster(remotePodCIDR, remoteExternalCIDR, clusterID1)
 				Expect(err).To(BeNil())
-				Expect(mappedPodCIDR).ToNot(Equal(podCIDR))
+				Expect(mappedPodCIDR).ToNot(Equal(remotePodCIDR))
 
 				response, err := ipam.GetHomePodIP(context.Background(),
 					&liqonet.GetHomePodIPRequest{
@@ -1018,7 +1017,7 @@ var _ = Describe("Ipam", func() {
 		Context("If there are no more clusters using an endpointIP", func() {
 			It("should free the relative IP", func() {
 				// Set PodCIDR
-				err := ipam.SetPodCIDR("10.0.0.0/24")
+				err := ipam.SetPodCIDR(homePodCIDR)
 				Expect(err).To(BeNil())
 
 				// Get ExternalCIDR
@@ -1029,19 +1028,19 @@ var _ = Describe("Ipam", func() {
 				slicedPrefix = slicedPrefix[:len(slicedPrefix)-1]
 
 				// Assign networks to clusters
-				_, _, err = ipam.GetSubnetsPerCluster("10.0.1.0/24", "10.0.2.0/24", "cluster1")
+				_, _, err = ipam.GetSubnetsPerCluster(remotePodCIDR, remoteExternalCIDR, clusterID1)
 				Expect(err).To(BeNil())
-				_, _, err = ipam.GetSubnetsPerCluster("10.0.1.0/24", "10.0.2.0/24", "cluster2")
+				_, _, err = ipam.GetSubnetsPerCluster(remotePodCIDR, remoteExternalCIDR, clusterID2)
 				Expect(err).To(BeNil())
 
-				err = ipam.AddLocalSubnetsPerCluster("None", "None", "cluster1")
+				err = ipam.AddLocalSubnetsPerCluster("None", "None", clusterID1)
 				Expect(err).To(BeNil())
-				err = ipam.AddLocalSubnetsPerCluster("None", "None", "cluster2")
+				err = ipam.AddLocalSubnetsPerCluster("None", "None", clusterID2)
 				Expect(err).To(BeNil())
 
 				// Reflection in cluster1
 				response, err := ipam.MapEndpointIP(context.Background(), &liqonet.MapRequest{
-					ClusterID: "cluster1",
+					ClusterID: clusterID1,
 					Ip:        "20.0.0.1",
 				})
 				Expect(err).To(BeNil())
@@ -1049,21 +1048,21 @@ var _ = Describe("Ipam", func() {
 
 				// Reflection in cluster2
 				_, err = ipam.MapEndpointIP(context.Background(), &liqonet.MapRequest{
-					ClusterID: "cluster2",
+					ClusterID: clusterID2,
 					Ip:        "20.0.0.1",
 				})
 				Expect(err).To(BeNil())
 
 				// Terminate reflection in cluster1
 				_, err = ipam.UnmapEndpointIP(context.Background(), &liqonet.UnmapRequest{
-					ClusterID: "cluster1",
+					ClusterID: clusterID1,
 					Ip:        "20.0.0.1",
 				})
 				Expect(err).To(BeNil())
 
 				// Terminate reflection in cluster2
 				_, err = ipam.UnmapEndpointIP(context.Background(), &liqonet.UnmapRequest{
-					ClusterID: "cluster2",
+					ClusterID: clusterID2,
 					Ip:        "20.0.0.1",
 				})
 				Expect(err).To(BeNil())
@@ -1080,7 +1079,7 @@ var _ = Describe("Ipam", func() {
 			It("should not free the relative IP", func() {
 				endpointIP := "20.0.0.1"
 				// Set PodCIDR
-				err := ipam.SetPodCIDR("10.0.0.0/24")
+				err := ipam.SetPodCIDR(homePodCIDR)
 				Expect(err).To(BeNil())
 
 				// Get ExternalCIDR
@@ -1091,19 +1090,19 @@ var _ = Describe("Ipam", func() {
 				slicedPrefix = slicedPrefix[:len(slicedPrefix)-1]
 
 				// Assign networks to clusters
-				_, _, err = ipam.GetSubnetsPerCluster("10.0.1.0/24", "10.0.2.0/24", "cluster1")
+				_, _, err = ipam.GetSubnetsPerCluster(remotePodCIDR, remoteExternalCIDR, clusterID1)
 				Expect(err).To(BeNil())
-				_, _, err = ipam.GetSubnetsPerCluster("10.0.1.0/24", "10.0.2.0/24", "cluster2")
+				_, _, err = ipam.GetSubnetsPerCluster(remotePodCIDR, remoteExternalCIDR, clusterID2)
 				Expect(err).To(BeNil())
 
-				err = ipam.AddLocalSubnetsPerCluster("None", "None", "cluster1")
+				err = ipam.AddLocalSubnetsPerCluster("None", "None", clusterID1)
 				Expect(err).To(BeNil())
-				err = ipam.AddLocalSubnetsPerCluster("None", "None", "cluster2")
+				err = ipam.AddLocalSubnetsPerCluster("None", "None", clusterID2)
 				Expect(err).To(BeNil())
 
 				// Reflection in cluster1
 				response, err := ipam.MapEndpointIP(context.Background(), &liqonet.MapRequest{
-					ClusterID: "cluster1",
+					ClusterID: clusterID1,
 					Ip:        endpointIP,
 				})
 				Expect(err).To(BeNil())
@@ -1112,14 +1111,14 @@ var _ = Describe("Ipam", func() {
 
 				// Reflection in cluster2
 				_, err = ipam.MapEndpointIP(context.Background(), &liqonet.MapRequest{
-					ClusterID: "cluster2",
+					ClusterID: clusterID2,
 					Ip:        endpointIP,
 				})
 				Expect(err).To(BeNil())
 
 				// Terminate reflection in cluster2
 				_, err = ipam.UnmapEndpointIP(context.Background(), &liqonet.UnmapRequest{
-					ClusterID: "cluster2",
+					ClusterID: clusterID2,
 					Ip:        endpointIP,
 				})
 				Expect(err).To(BeNil())
