@@ -28,8 +28,16 @@ var ipam *liqonet.IPAM
 var dynClient dynamic.Interface
 
 const (
-	invalidValue = "invalid value"
-	clusterID1   = "cluster1"
+	clusterID1           = "cluster1"
+	clusterID2           = "cluster2"
+	homePodCIDR          = "10.0.0.0/24"
+	localNATPodCIDR      = "10.0.1.0/24"
+	localNATExternalCIDR = "192.168.30.0/24"
+	remotePodCIDR        = "10.0.4.0/24"
+	remoteExternalCIDR   = "192.168.4.0/24"
+	externalEndpointIP   = "10.0.50.6"
+	internalEndpointIP   = "10.0.0.6"
+	invalidValue         = "invalid value"
 )
 
 func fillNetworkPool(pool string, ipam *liqonet.IPAM) error {
@@ -291,28 +299,75 @@ var _ = Describe("Ipam", func() {
 			})
 		})
 	})
-	Describe("FreeSubnetPerCluster", func() {
-		Context("Freeing cluster networks that exist", func() {
-			It("Should successfully free the subnets", func() {
-				p, e, err := ipam.GetSubnetsPerCluster("10.0.1.0/24", "10.0.2.0/24", "cluster1")
+
+	Describe("RemoveClusterConfig", func() {
+		Context("Remove config for a configured cluster", func() {
+			It("Should successfully remove the configuration", func() {
+				_, _, err := ipam.GetSubnetsPerCluster(remotePodCIDR, remoteExternalCIDR, clusterID1)
 				Expect(err).To(BeNil())
-				Expect(p).To(Equal("10.0.1.0/24"))
-				Expect(e).To(Equal("10.0.2.0/24"))
-				err = ipam.FreeSubnetsPerCluster("cluster1")
+				err = ipam.AddLocalSubnetsPerCluster(localNATPodCIDR, localNATExternalCIDR, clusterID1)
 				Expect(err).To(BeNil())
-				p, e, err = ipam.GetSubnetsPerCluster("10.0.1.0/24", "10.0.2.0/24", "cluster1")
+				err = ipam.RemoveClusterConfig(clusterID1)
 				Expect(err).To(BeNil())
-				Expect(p).To(Equal("10.0.1.0/24"))
-				Expect(e).To(Equal("10.0.2.0/24"))
+
+				// Check if config has been removed in IpamStorage resource
+				ipamStorage, err := getIpamStorageResource()
+				Expect(err).To(BeNil())
+				Expect(ipamStorage.Spec.ClusterSubnets).ToNot(HaveKey(clusterID1))
+
+				// Check if network have been freed
+				Expect(ipamStorage.Spec.Prefixes).ToNot(HaveKey(remotePodCIDR))
+				Expect(ipamStorage.Spec.Prefixes).ToNot(HaveKey(remoteExternalCIDR))
 			})
 		})
-		Context("Freeing a cluster network that does not exists", func() {
-			It("Should return no errors", func() {
-				err := ipam.FreeSubnetsPerCluster("cluster1")
+		Context("Call for a non-configured cluster", func() {
+			It("Should be a nop", func() {
+				// Get config before call
+				ipamStorage, err := getIpamStorageResource()
 				Expect(err).To(BeNil())
+
+				err = ipam.RemoveClusterConfig(clusterID1)
+				Expect(err).To(BeNil())
+
+				// Get config after call
+				newIpamStorage, err := getIpamStorageResource()
+				Expect(err).To(BeNil())
+
+				Expect(ipamStorage).To(Equal(newIpamStorage))
+			})
+		})
+		Context("Call twice for a configured cluster", func() {
+			It("Second call should be a nop", func() {
+				_, _, err := ipam.GetSubnetsPerCluster(remotePodCIDR, remoteExternalCIDR, clusterID1)
+				Expect(err).To(BeNil())
+				err = ipam.AddLocalSubnetsPerCluster(localNATPodCIDR, localNATExternalCIDR, clusterID1)
+				Expect(err).To(BeNil())
+				err = ipam.RemoveClusterConfig(clusterID1)
+				Expect(err).To(BeNil())
+
+				// Get config before second call
+				ipamStorage, err := getIpamStorageResource()
+				Expect(err).To(BeNil())
+
+				// Second call
+				err = ipam.RemoveClusterConfig(clusterID1)
+				Expect(err).To(BeNil())
+
+				// Get config after call
+				newIpamStorage, err := getIpamStorageResource()
+				Expect(err).To(BeNil())
+
+				Expect(ipamStorage).To(Equal(newIpamStorage))
+			})
+		})
+		Context("Passing an empty cluster ID", func() {
+			It("Should return a WrongParameter error", func() {
+				err := ipam.RemoveClusterConfig("")
+				Expect(err).To(MatchError(fmt.Sprintf("%s must be %s", consts.ClusterIDLabelName, liqoneterrors.StringNotEmpty)))
 			})
 		})
 	})
+
 	Describe("FreeReservedSubnet", func() {
 		Context("Freeing a network that has been reserved previously", func() {
 			It("Should successfully free the subnet", func() {
@@ -519,37 +574,6 @@ var _ = Describe("Ipam", func() {
 				err := ipam.AddLocalSubnetsPerCluster("10.0.0.0/24", "192.168.0.0/24", "cluster1")
 				Expect(err).To(BeNil())
 				err = ipam.AddLocalSubnetsPerCluster("10.0.0.0/24", "192.168.0.0/24", "cluster1")
-				Expect(err).To(BeNil())
-			})
-		})
-	})
-
-	Describe("RemoveLocalSubnetsPerCluster", func() {
-		BeforeEach(func() {
-			// Set PodCIDR
-			err := ipam.SetPodCIDR("10.0.0.0/24")
-			Expect(err).To(BeNil())
-
-			// Get ExternalCIDR
-			externalCIDR, err := ipam.GetExternalCIDR(24)
-			Expect(err).To(BeNil())
-			Expect(externalCIDR).To(HaveSuffix("/24"))
-
-			// Assign networks to remote cluster
-			_, _, err = ipam.GetSubnetsPerCluster("10.0.0.0/24", "10.0.1.0/24", "cluster1")
-			Expect(err).To(BeNil())
-		})
-		Context("If the networks do not exist", func() {
-			It("should return no errors", func() {
-				err := ipam.RemoveLocalSubnetsPerCluster("cluster1")
-				Expect(err).To(BeNil())
-			})
-		})
-		Context("If the networks exist", func() {
-			It("should return no errors", func() {
-				err := ipam.AddLocalSubnetsPerCluster("10.0.0.0/24", "192.168.0.0/24", "cluster1")
-				Expect(err).To(BeNil())
-				err = ipam.RemoveLocalSubnetsPerCluster("cluster1")
 				Expect(err).To(BeNil())
 			})
 		})

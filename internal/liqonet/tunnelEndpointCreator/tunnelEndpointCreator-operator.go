@@ -189,11 +189,8 @@ func (tec *TunnelEndpointCreator) Reconcile(ctx context.Context, req ctrl.Reques
 				return result, err
 			}
 		}
-		// remove the reserved networks for the cluster
-		if err := tec.IPManager.FreeSubnetsPerCluster(netConfig.Spec.ClusterID); err != nil {
-			klog.Errorf("cannot free networks assigned to cluster %s: %s", netConfig.Spec.ClusterID, err.Error())
-		}
-		if err := tec.IPManager.RemoveLocalSubnetsPerCluster(netConfig.Spec.ClusterID); err != nil {
+		// Remove IPAM configuration per cluster
+		if err := tec.IPManager.RemoveClusterConfig(netConfig.Spec.ClusterID); err != nil {
 			klog.Errorf("cannot delete local subnets assigned to cluster %s: %s", netConfig.Spec.ClusterID, err.Error())
 		}
 		return result, nil

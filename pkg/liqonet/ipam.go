@@ -34,8 +34,9 @@ type Ipam interface {
 	- Both
 	*/
 	GetSubnetsPerCluster(podCidr, externalCIDR, clusterID string) (string, string, error)
-	// FreeSubnetsPerCluster frees PodCIDR and ExternalCIDR for a remote cluster.
-	FreeSubnetsPerCluster(clusterID string) error
+	// RemoveClusterConfig deletes the IPAM configuration of a remote cluster,
+	// by freeing networks and removing data structures related to that cluster.
+	RemoveClusterConfig(clusterID string) error
 	// AcquireReservedSubnet reserves a network.
 	AcquireReservedSubnet(network string) error
 	// FreeReservedSubnet frees a network.
@@ -49,8 +50,6 @@ type Ipam interface {
 	this function must not reserve it. If the remote cluster has not remapped
 	a local subnet, then CIDR value should be equal to "None". */
 	AddLocalSubnetsPerCluster(podCIDR, externalCIDR, clusterID string) error
-	// RemoveLocalSubnetsPerCluster deletes the subnets related to a remote cluster.
-	RemoveLocalSubnetsPerCluster(clusterID string) error
 	GetExternalCIDR(mask uint8) (string, error)
 	// SetPodCIDR sets the cluster PodCIDR.
 	SetPodCIDR(podCIDR string) error
@@ -531,38 +530,45 @@ func (liqoIPAM *IPAM) eventuallyDeleteClusterSubnet(clusterID string,
 	return nil
 }
 
-// FreeSubnetsPerCluster marks as free the network previously allocated for cluster clusterID.
-func (liqoIPAM *IPAM) FreeSubnetsPerCluster(clusterID string) error {
+// RemoveClusterConfig frees remote PodCIDR and ExternalCIDR and
+// deletes local subnets for the remote cluster.
+func (liqoIPAM *IPAM) RemoveClusterConfig(clusterID string) error {
 	var subnets netv1alpha1.Subnets
-	var exists bool
+	var subnetsExist bool
+
+	if clusterID == "" {
+		return &liqoneterrors.WrongParameter{
+			Parameter: consts.ClusterIDLabelName,
+			Reason:    liqoneterrors.StringNotEmpty,
+		}
+	}
+
 	// Get cluster subnets
 	clusterSubnets, err := liqoIPAM.ipamStorage.getClusterSubnets()
 	if err != nil {
 		return fmt.Errorf("cannot get cluster subnets: %w", err)
 	}
-	subnets, exists = clusterSubnets[clusterID]
-	if !exists || subnets.RemotePodCIDR == "" || subnets.RemoteExternalCIDR == "" {
-		// Networks do not exist
+
+	subnets, subnetsExist = clusterSubnets[clusterID]
+	if !subnetsExist {
+		// Nothing to be done here
 		return nil
 	}
+
 	// Free PodCidr
 	if err := liqoIPAM.FreeReservedSubnet(subnets.RemotePodCIDR); err != nil {
 		return err
 	}
-	subnets.RemotePodCIDR = ""
 
 	// Free ExternalCidr
 	if err := liqoIPAM.FreeReservedSubnet(subnets.RemoteExternalCIDR); err != nil {
 		return err
 	}
-	subnets.RemoteExternalCIDR = ""
-
-	clusterSubnets[clusterID] = subnets
-
 	klog.Infof("Networks assigned to cluster %s have just been freed", clusterID)
 
-	if err := liqoIPAM.eventuallyDeleteClusterSubnet(clusterID, clusterSubnets); err != nil {
-		return err
+	delete(clusterSubnets, clusterID)
+	if err := liqoIPAM.ipamStorage.updateClusterSubnets(clusterSubnets); err != nil {
+		return fmt.Errorf("cannot update clusterSubnets:%w", err)
 	}
 	return nil
 }
