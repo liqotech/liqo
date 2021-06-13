@@ -35,12 +35,13 @@ func (pie *ParseIPError) Error() string {
 
 // WrongParameter it is returned when parameters passed to a function are not correct.
 type WrongParameter struct {
+	Argument  string
 	Reason    string
 	Parameter string
 }
 
 func (wp *WrongParameter) Error() string {
-	return strings.Join([]string{wp.Parameter, " must be ", wp.Reason}, "")
+	return strings.Join([]string{wp.Parameter, " must be ", wp.Reason, wp.Argument}, "")
 }
 
 // NoRouteFound it is returned when no route is found for a given destination network.
