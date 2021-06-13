@@ -19,6 +19,7 @@ import (
 	"k8s.io/client-go/util/retry"
 	"k8s.io/klog"
 
+	netv1alpha1 "github.com/liqotech/liqo/apis/net/v1alpha1"
 	"github.com/liqotech/liqo/internal/utils/errdefs"
 	liqoconst "github.com/liqotech/liqo/pkg/consts"
 )
@@ -200,6 +201,18 @@ func Next(network string) (string, error) {
 	firstIP := prefix.Range().To.Next()
 	prefix.IP = firstIP
 	return prefix.String(), nil
+}
+
+// GetPodCIDRS for a given tep the function retrieves the values for localPodCIDR and remotePodCIDR.
+// Their values depend if the NAT is required or not.
+func GetPodCIDRS(tep *netv1alpha1.TunnelEndpoint) (localRemappedPodCIDR, remotePodCIDR string) {
+	if tep.Status.RemoteNATPodCIDR != liqoconst.DefaultCIDRValue {
+		remotePodCIDR = tep.Status.RemoteNATPodCIDR
+	} else {
+		remotePodCIDR = tep.Spec.PodCIDR
+	}
+	localRemappedPodCIDR = tep.Status.LocalNATPodCIDR
+	return localRemappedPodCIDR, remotePodCIDR
 }
 
 // GetDefaultIfaceName returns the name of the interfaces that has the default route configured.
