@@ -26,7 +26,7 @@ var (
 	ipAddress2NoSubnetOverlay = "240.0.0.2"
 	dummylink1, dummyLink2    netlink.Link
 	iFacesNames               = []string{"liqo-test-1", "liqo-test-2"}
-	drm, vrm                  Routing
+	drm, vrm, grm             Routing
 
 	tep netv1alpha1.TunnelEndpoint
 )
@@ -65,11 +65,25 @@ var _ = BeforeSuite(func() {
 	vrm, err = NewVxlanRoutingManager(routingTableIDVRM, ipAddress1NoSubnet, overlayNetPrexif, overlayDevice)
 	Expect(err).Should(BeNil())
 	Expect(vrm).NotTo(BeNil())
+
+	//*** Gateway Route Manager Configuration ***/
+	// Create a dummy interface used as tunnel device.
+	link = &netlink.Dummy{netlink.LinkAttrs{Name: "dummy-tunnel"}}
+	Expect(netlink.LinkAdd(link)).To(BeNil())
+	tunnelDevice, err = netlink.LinkByName("dummy-tunnel")
+	Expect(err).To(BeNil())
+	Expect(tunnelDevice).NotTo(BeNil())
+	// Set up dummy tunnel device
+	Expect(netlink.LinkSetUp(tunnelDevice)).To(BeNil())
+	grm, err = NewGatewayRoutingManager(routingTableIDGRM, tunnelDevice)
+	Expect(err).Should(BeNil())
+	Expect(grm).NotTo(BeNil())
 })
 
 var _ = AfterSuite(func() {
 	tearDownInterfaces()
-	deleteLink(vxlanConfig.Name)
+	Expect(deleteLink(vxlanConfig.Name)).To(BeNil())
+	Expect(deleteLink(tunnelDevice.Attrs().Name)).To(BeNil())
 })
 
 func setUpInterfaces() {
