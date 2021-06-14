@@ -18,6 +18,7 @@ import (
 
 	netv1alpha1 "github.com/liqotech/liqo/apis/net/v1alpha1"
 	crdreplicator "github.com/liqotech/liqo/internal/crdReplicator"
+	"github.com/liqotech/liqo/pkg/consts"
 )
 
 var (
@@ -184,6 +185,7 @@ func TestReplication2(t *testing.T) {
 // we label it to be replicated on all the three clusters, so we expect to find it on the remote clusters
 // we update the status on the peering clusters and expect it to be replicated on the local cluster as well
 func TestReplication4(t *testing.T) {
+	updateOwnership(consts.OwnershipShared)
 	time.Sleep(10 * time.Second)
 	localResources := map[string]*netv1alpha1.TunnelEndpoint{}
 	// we create the resource on the localcluster to be replicated on all the peeringClusters
@@ -243,6 +245,7 @@ func TestReplication4(t *testing.T) {
 
 	// err = dOperator.LocalDynClient.Resource(fcGVR).Delete(context.TODO(), newFc.GetName(), metav1.DeleteOptions{})
 	time.Sleep(3 * time.Second)
+	updateOwnership(consts.OwnershipLocal)
 }
 
 // we create a resource which type has been registered for the replication

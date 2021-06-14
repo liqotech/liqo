@@ -68,7 +68,7 @@ var _ = BeforeSuite(func() {
 
 	//*** Gateway Route Manager Configuration ***/
 	// Create a dummy interface used as tunnel device.
-	link = &netlink.Dummy{netlink.LinkAttrs{Name: "dummy-tunnel"}}
+	link = &netlink.Dummy{LinkAttrs: netlink.LinkAttrs{Name: "dummy-tunnel"}}
 	Expect(netlink.LinkAdd(link)).To(BeNil())
 	tunnelDevice, err = netlink.LinkByName("dummy-tunnel")
 	Expect(err).To(BeNil())
