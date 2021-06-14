@@ -32,6 +32,9 @@ jobs:
       - name: Gather the differences
         id: git-diff
         run: |
+          # Ensure new files are also considered in the diff
+          git add --intent-to-add .
+
           output=$(git diff | head -n 100)
           exit_code=$([ "${output}" ] && echo 1 || echo 0)
 
