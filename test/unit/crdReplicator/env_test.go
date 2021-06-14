@@ -22,6 +22,7 @@ import (
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	netv1alpha1 "github.com/liqotech/liqo/apis/net/v1alpha1"
 	crdreplicator "github.com/liqotech/liqo/internal/crdReplicator"
+	"github.com/liqotech/liqo/pkg/consts"
 	crdclient "github.com/liqotech/liqo/pkg/crdClient"
 )
 
@@ -186,6 +187,23 @@ func tearDown() {
 	}
 }
 
+func updateOwnership(ownership consts.OwnershipType) {
+	tmp, err := configClusterClient.Resource("clusterconfigs").Get("configuration", &metav1.GetOptions{})
+	if err != nil {
+		klog.Error(err)
+		os.Exit(1)
+	}
+	cc, _ := tmp.(*configv1alpha1.ClusterConfig)
+	for i := range cc.Spec.DispatcherConfig.ResourcesToReplicate {
+		cc.Spec.DispatcherConfig.ResourcesToReplicate[i].Ownership = ownership
+	}
+	_, err = configClusterClient.Resource("clusterconfigs").Update("configuration", cc, &metav1.UpdateOptions{})
+	if err != nil {
+		klog.Error(err)
+		os.Exit(1)
+	}
+}
+
 func getClusterConfig() *configv1alpha1.ClusterConfig {
 	return &configv1alpha1.ClusterConfig{
 		ObjectMeta: metav1.ObjectMeta{
@@ -224,6 +242,8 @@ func getClusterConfig() *configv1alpha1.ClusterConfig {
 					Version:  netv1alpha1.GroupVersion.Version,
 					Resource: "tunnelendpoints",
 				},
+				PeeringPhase: consts.PeeringPhaseAll,
+				Ownership:    consts.OwnershipLocal,
 			}}},
 		},
 	}

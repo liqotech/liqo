@@ -2,6 +2,7 @@ package crdreplicator
 
 import (
 	"context"
+	"os"
 	"testing"
 	"time"
 
@@ -13,6 +14,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/dynamic/dynamicinformer"
+	"k8s.io/klog/v2"
 
 	configv1alpha1 "github.com/liqotech/liqo/apis/config/v1alpha1"
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
@@ -51,6 +53,34 @@ func getObj() *unstructured.Unstructured {
 	return networkConfig
 }
 
+func getObjNamespaced() *unstructured.Unstructured {
+	resourceRequest := &discoveryv1alpha1.ResourceRequest{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       "ResourceRequest",
+			APIVersion: discoveryv1alpha1.GroupVersion.String(),
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "resourcerequest",
+			Namespace: "default",
+		},
+		Spec: discoveryv1alpha1.ResourceRequestSpec{
+			AuthURL: "https://example.com",
+			ClusterIdentity: discoveryv1alpha1.ClusterIdentity{
+				ClusterID: "id",
+			},
+		},
+	}
+	resourceRequest.SetLabels(getLabels())
+	obj, err := runtime.DefaultUnstructuredConverter.ToUnstructured(resourceRequest)
+	if err != nil {
+		klog.Error(err)
+		os.Exit(1)
+	}
+	return &unstructured.Unstructured{
+		Object: obj,
+	}
+}
+
 func getLabels() map[string]string {
 	return map[string]string{
 		LocalLabelSelector: "true",
@@ -78,7 +108,19 @@ func getCRDReplicator() Controller {
 		IdentityManager:                  identitymanager.NewCertificateIdentityManager(k8sclient, clusterIDInterface, tenantmanager),
 		LocalToRemoteNamespaceMapper:     map[string]string{},
 		RemoteToLocalNamespaceMapper:     map[string]string{},
+		ClusterIDToLocalNamespaceMapper:  map[string]string{},
 		ClusterIDToRemoteNamespaceMapper: map[string]string{},
+	}
+}
+
+func setupReplication(d *Controller, ownership consts.OwnershipType) {
+	d.ClusterIDToLocalNamespaceMapper["testRemoteClusterID"] = "default"
+	d.RegisteredResources = []configv1alpha1.Resource{
+		{
+			GroupVersionResource: metav1.GroupVersionResource(netv1alpha1.NetworkConfigGroupVersionResource),
+			PeeringPhase:         consts.PeeringPhaseAll,
+			Ownership:            ownership,
+		},
 	}
 }
 
@@ -266,6 +308,8 @@ func TestCRDReplicatorReconciler_StartAndStopWatchers(t *testing.T) {
 
 func TestCRDReplicatorReconciler_AddedHandler(t *testing.T) {
 	d := getCRDReplicator()
+	setupReplication(&d, consts.OwnershipShared)
+
 	//test 1
 	//adding a resource kind that exists on the cluster
 	//we expect the resource to be created
@@ -289,6 +333,7 @@ func TestCRDReplicatorReconciler_AddedHandler(t *testing.T) {
 }
 func TestCRDReplicatorReconciler_ModifiedHandler(t *testing.T) {
 	d := getCRDReplicator()
+	setupReplication(&d, consts.OwnershipLocal)
 
 	//test 1
 	//the modified resource does not exist on the cluster
@@ -322,7 +367,7 @@ func TestCRDReplicatorReconciler_ModifiedHandler(t *testing.T) {
 	assert.Nil(t, err)
 	obj.SetLabels(test1.GetLabels())
 	d.ModifiedHandler(obj, gvr)
-	time.Sleep(10 * time.Second)
+	time.Sleep(1 * time.Second)
 	newObj, err := dynClient.Resource(gvr).Get(context.TODO(), test1.GetName(), metav1.GetOptions{})
 	assert.Nil(t, err, "error should be empty")
 	assert.True(t, areEqual(newObj, obj), "the two objects should be equal")
@@ -333,6 +378,7 @@ func TestCRDReplicatorReconciler_ModifiedHandler(t *testing.T) {
 
 func TestCRDReplicatorReconciler_RemoteResourceModifiedHandler(t *testing.T) {
 	d := getCRDReplicator()
+	setupReplication(&d, consts.OwnershipShared)
 
 	//test 1
 	//the modified resource does not exist on the cluster
@@ -357,6 +403,23 @@ func TestCRDReplicatorReconciler_RemoteResourceModifiedHandler(t *testing.T) {
 	obj, err := dynClient.Resource(gvr).Get(context.TODO(), test1.GetName(), metav1.GetOptions{})
 	assert.Nil(t, err, "error should be empty")
 	assert.NotEqual(t, obj.GetLabels(), test1.GetLabels(), "the labels of the two objects should be ")
+
+	// test 3
+	// the modified resource already exists on the cluster
+	// we modify some fields in the status
+	// we expect the resource to be modified and the error to be nil
+	test1, err = dynClient.Resource(gvr).Get(context.TODO(), test1.GetName(), metav1.GetOptions{})
+	assert.Nil(t, err, "error should be nil")
+	newStatus := map[string]interface{}{
+		"processed": true,
+	}
+	err = unstructured.SetNestedMap(obj.Object, newStatus, "status")
+	assert.Nil(t, err, "error should be nil")
+	d.RemoteResourceModifiedHandler(test1, gvr, remoteClusterID, consts.OwnershipShared)
+	time.Sleep(1 * time.Second)
+	obj, err = dynClient.Resource(gvr).Get(context.TODO(), test1.GetName(), metav1.GetOptions{})
+	assert.Nil(t, err, "error should be empty")
+	assert.Equal(t, obj, test1, "the two objects should be equal")
 
 	//clean up the resource
 	err = dynClient.Resource(gvr).Delete(context.TODO(), test1.GetName(), metav1.DeleteOptions{})
