@@ -32,6 +32,7 @@ import (
 	"k8s.io/klog"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 
@@ -139,11 +140,11 @@ func (r *RouteController) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 	clusterID := tep.Spec.ClusterID
 	// examine DeletionTimestamp to determine if object is under deletion
 	if tep.ObjectMeta.DeletionTimestamp.IsZero() {
-		if !utils.ContainsString(tep.ObjectMeta.Finalizers, routeOperatorFinalizer) {
+		if !controllerutil.ContainsFinalizer(&tep, routeOperatorFinalizer) {
 			// The object is not being deleted, so if it does not have our finalizer,
 			// then lets add the finalizer and update the object. This is equivalent
 			// registering our finalizer.
-			tep.ObjectMeta.Finalizers = append(tep.ObjectMeta.Finalizers, routeOperatorFinalizer)
+			controllerutil.AddFinalizer(&tep, routeOperatorFinalizer)
 			if err := r.Update(ctx, &tep); err != nil {
 				klog.Errorf("%s -> unable to add finalizers to resource %s: %s", clusterID, req.String(), err)
 				return result, err
@@ -154,12 +155,12 @@ func (r *RouteController) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 		// if we encounter an error while removing the routes than we record an
 		// event on the resource to notify the user
 		// the finalizer is not removed
-		if utils.ContainsString(tep.Finalizers, routeOperatorFinalizer) {
+		if controllerutil.ContainsFinalizer(&tep, routeOperatorFinalizer) {
 			if err := r.RemoveRoutesPerCluster(&tep); err != nil {
 				return result, err
 			}
 			// remove the finalizer from the list and update it.
-			tep.Finalizers = utils.RemoveString(tep.Finalizers, routeOperatorFinalizer)
+			controllerutil.RemoveFinalizer(&tep, routeOperatorFinalizer)
 			if err := r.Update(ctx, &tep); err != nil {
 				klog.Errorf("%s -> unable to remove finalizers from resource %s: %s", clusterID, req.String(), err)
 				return result, err

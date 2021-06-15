@@ -118,27 +118,6 @@ func GetInternalIPOfNode(node *corev1.Node) (string, error) {
 	return internalIp, nil
 }
 
-// ContainsString helper function to check if a string is contained in a slice of strings.
-func ContainsString(slice []string, s string) bool {
-	for _, item := range slice {
-		if item == s {
-			return true
-		}
-	}
-	return false
-}
-
-// RemoveString Helper function to check and remove string from a slice of strings.
-func RemoveString(slice []string, s string) (result []string) {
-	for _, item := range slice {
-		if item == s {
-			continue
-		}
-		result = append(result, item)
-	}
-	return
-}
-
 // GetClusterID returns the the clusterID et in the given config map.
 func GetClusterID(client kubernetes.Interface, cmName, namespace string, backoff wait.Backoff) (string, error) {
 	cmClient := client.CoreV1().ConfigMaps(namespace)
