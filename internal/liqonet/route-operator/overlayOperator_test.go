@@ -12,11 +12,11 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/types"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	ctrl "sigs.k8s.io/controller-runtime"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/envtest"
+
+	"k8s.io/apimachinery/pkg/types"
 
 	liqoerrors "github.com/liqotech/liqo/pkg/liqonet/errors"
 	"github.com/liqotech/liqo/pkg/liqonet/overlay"
@@ -39,13 +39,18 @@ var (
 	/*** EnvTest Section ***/
 	overlayScheme  = runtime.NewScheme()
 	overlayEnvTest *envtest.Environment
-	overlayClient  client.Client
 )
 
 var _ = Describe("OverlayOperator", func() {
 	// Before each test we create an empty pod.
 	// The right fields will be filled according to each test case.
 	JustBeforeEach(func() {
+		overlayReq = ctrl.Request{
+			NamespacedName: types.NamespacedName{
+				Namespace: overlayNamespace,
+				Name:      overlayPodName,
+			},
+		}
 		// Create the test pod with the labels already set.
 		overlayTestPod = &corev1.Pod{
 			ObjectMeta: metav1.ObjectMeta{
@@ -81,22 +86,14 @@ var _ = Describe("OverlayOperator", func() {
 			podSelector: s,
 			podIP:       overlayPodIP,
 			vxlanPeers:  make(map[string]*overlay.Neighbor, 0),
-			vxlanDev:    overlayDevice,
-			Client:      overlayClient,
+			vxlanDev:    vxlanDevice,
+			Client:      k8sClient,
 		}
-		Expect(addFdb(overlayExistingNeigh, overlayDevice.Link.Attrs().Index))
-
-		overlayReq = ctrl.Request{
-			NamespacedName: types.NamespacedName{
-				Namespace: overlayNamespace,
-				Name:      overlayPodName,
-			},
-		}
-
+		Expect(addFdb(overlayExistingNeigh, vxlanDevice.Link.Attrs().Index))
 	})
 
 	JustAfterEach(func() {
-		Expect(flushFdbTable(overlayDevice.Link.Index)).NotTo(HaveOccurred())
+		Expect(flushFdbTable(vxlanDevice.Link.Index)).NotTo(HaveOccurred())
 	})
 	Describe("testing NewOverlayOperator function", func() {
 		Context("when input parameters are not correct", func() {
@@ -110,13 +107,13 @@ var _ = Describe("OverlayOperator", func() {
 						},
 					},
 				}
-				ovc, err := NewOverlayController(overlayPodName, overlayPodIP, labelSelector, overlayDevice, overlayClient)
+				ovc, err := NewOverlayController(overlayPodName, overlayPodIP, labelSelector, vxlanDevice, k8sClient)
 				Expect(err).Should(MatchError("\"incorrect\" is not a valid pod selector operator"))
 				Expect(ovc).Should(BeNil())
 			})
 
 			It("vxlan device is not correct, should return nil and error", func() {
-				ovc, err := NewOverlayController(overlayPodName, overlayPodIP, PodLabelSelector, overlay.VxlanDevice{Link: nil}, overlayClient)
+				ovc, err := NewOverlayController(overlayPodName, overlayPodIP, PodLabelSelector, overlay.VxlanDevice{Link: nil}, k8sClient)
 				Expect(err).Should(MatchError(&liqoerrors.WrongParameter{Parameter: "vxlanDevice.Link", Reason: liqoerrors.NotNil}))
 				Expect(ovc).Should(BeNil())
 			})
@@ -124,7 +121,7 @@ var _ = Describe("OverlayOperator", func() {
 
 		Context("when input parameters are correct", func() {
 			It("should return overlay controller and nil", func() {
-				ovc, err := NewOverlayController(overlayPodName, overlayPodIP, PodLabelSelector, overlayDevice, overlayClient)
+				ovc, err := NewOverlayController(overlayPodName, overlayPodIP, PodLabelSelector, vxlanDevice, k8sClient)
 				Expect(err).ShouldNot(HaveOccurred())
 				Expect(ovc).ShouldNot(BeNil())
 			})
@@ -136,20 +133,20 @@ var _ = Describe("OverlayOperator", func() {
 			It("should annotate the pod with the mac address of the vxlan device", func() {
 				// Set annotations to nil.
 				overlayTestPod.SetFinalizers(nil)
-				Eventually(func() error { return overlayClient.Create(context.TODO(), overlayTestPod) }).Should(BeNil())
+				Eventually(func() error { return k8sClient.Create(context.TODO(), overlayTestPod) }).Should(BeNil())
 				newPod := &corev1.Pod{}
-				Eventually(func() error { return overlayClient.Get(context.TODO(), overlayReq.NamespacedName, newPod) }).Should(BeNil())
+				Eventually(func() error { return k8sClient.Get(context.TODO(), overlayReq.NamespacedName, newPod) }).Should(BeNil())
 				newPod.Status.PodIP = overlayPodIP
-				Eventually(func() error { return overlayClient.Status().Update(context.TODO(), newPod) }).Should(BeNil())
-				Eventually(func() error { return overlayClient.Get(context.TODO(), overlayReq.NamespacedName, newPod) }).Should(BeNil())
+				Eventually(func() error { return k8sClient.Status().Update(context.TODO(), newPod) }).Should(BeNil())
+				Eventually(func() error { return k8sClient.Get(context.TODO(), overlayReq.NamespacedName, newPod) }).Should(BeNil())
 				Eventually(func() error { _, err := ovc.Reconcile(context.TODO(), overlayReq); return err }).Should(BeNil())
 				Eventually(func() error {
-					err := overlayClient.Get(context.TODO(), overlayReq.NamespacedName, newPod)
-					if err != nil{
+					err := k8sClient.Get(context.TODO(), overlayReq.NamespacedName, newPod)
+					if err != nil {
 						return err
 					}
-					if newPod.GetAnnotations()[overlayAnnKey] != ovc.vxlanDev.Link.HardwareAddr.String(){
-						return fmt.Errorf(" error: annotated MAC %s is different than %s",newPod.GetAnnotations()[overlayAnnKey], ovc.vxlanDev.Link.HardwareAddr.String())
+					if newPod.GetAnnotations()[overlayAnnKey] != ovc.vxlanDev.Link.HardwareAddr.String() {
+						return fmt.Errorf(" error: annotated MAC %s is different than %s", newPod.GetAnnotations()[overlayAnnKey], ovc.vxlanDev.Link.HardwareAddr.String())
 					}
 					return nil
 				}).Should(BeNil())
@@ -160,12 +157,12 @@ var _ = Describe("OverlayOperator", func() {
 			It("peer does not exist", func() {
 				overlayTestPod.Name = "add-peer-no-existing"
 				overlayReq.Name = "add-peer-no-existing"
-				Eventually(func() error { return overlayClient.Create(context.TODO(), overlayTestPod) }).Should(BeNil())
+				Eventually(func() error { return k8sClient.Create(context.TODO(), overlayTestPod) }).Should(BeNil())
 				newPod := &corev1.Pod{}
-				Eventually(func() error { return overlayClient.Get(context.TODO(), overlayReq.NamespacedName, newPod) }).Should(BeNil())
+				Eventually(func() error { return k8sClient.Get(context.TODO(), overlayReq.NamespacedName, newPod) }).Should(BeNil())
 				newPod.Status.PodIP = "10.1.11.1"
-				Eventually(func() error { return overlayClient.Status().Update(context.TODO(), newPod) }).Should(BeNil())
-				Eventually(func() error { return overlayClient.Get(context.TODO(), overlayReq.NamespacedName, newPod) }).Should(BeNil())
+				Eventually(func() error { return k8sClient.Status().Update(context.TODO(), newPod) }).Should(BeNil())
+				Eventually(func() error { return k8sClient.Get(context.TODO(), overlayReq.NamespacedName, newPod) }).Should(BeNil())
 				Eventually(func() error { _, err := ovc.Reconcile(context.TODO(), overlayReq); return err }).Should(BeNil())
 				_, ok := ovc.vxlanPeers[overlayReq.String()]
 				Expect(ok).Should(BeTrue())
@@ -389,13 +386,21 @@ func setupOverlayTestEnv() error {
 			panic(err)
 		}
 	}()
-	overlayClient = mgr.GetClient()
+	k8sClient = mgr.GetClient()
 	// Create overlay test namespace.
 	namespace := &corev1.Namespace{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: overlayNamespace,
 		},
 	}
-	Eventually(func() error { return overlayClient.Create(context.TODO(), namespace) }).Should(BeNil())
+	Eventually(func() error { return k8sClient.Create(context.TODO(), namespace) }).Should(BeNil())
+
+	// Create symmetric routing test namespace.
+	namespace = &corev1.Namespace{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: srcNamespace,
+		},
+	}
+	Eventually(func() error { return k8sClient.Create(context.TODO(), namespace) }).Should(BeNil())
 	return nil
 }

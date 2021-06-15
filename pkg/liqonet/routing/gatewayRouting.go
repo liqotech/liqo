@@ -66,7 +66,7 @@ func (grm *GatewayRoutingManager) RemoveRoutesPerCluster(tep *netv1alpha1.Tunnel
 	// Extract and save route information from the given tep.
 	_, dstNet := utils.GetPodCIDRS(tep)
 	// Delete route for the given cluster.
-	routeDel, err = delRoute(dstNet, "", grm.tunnelDevice.Attrs().Index, grm.routingTableID)
+	routeDel, err = DelRoute(dstNet, "", grm.tunnelDevice.Attrs().Index, grm.routingTableID)
 	if err != nil {
 		return routeDel, err
 	}

@@ -63,7 +63,7 @@ func (ovc *OverlayController) Reconcile(ctx context.Context, req ctrl.Request) (
 	var err error
 	err = ovc.Get(ctx, req.NamespacedName, &pod)
 	if err != nil && !k8sApiErrors.IsNotFound(err) {
-		klog.Errorf("an error occurred while getting pod %s: %v", req.NamespacedName, err)
+		klog.Errorf("an error occurred while getting pod {%s}: %v", req.NamespacedName, err)
 		return ctrl.Result{}, err
 	}
 	if k8sApiErrors.IsNotFound(err) {
@@ -73,7 +73,7 @@ func (ovc *OverlayController) Reconcile(ctx context.Context, req ctrl.Request) (
 			return ctrl.Result{}, err
 		}
 		if deleted {
-			klog.Infof("successfully removed peer %s from vxlan overlay network", req.String())
+			klog.Infof("successfully removed peer {%s} from vxlan overlay network", req.String())
 		}
 		return ctrl.Result{}, nil
 	}
@@ -81,10 +81,10 @@ func (ovc *OverlayController) Reconcile(ctx context.Context, req ctrl.Request) (
 	if ovc.podIP == pod.Status.PodIP {
 		if ovc.addAnnotation(&pod, vxlanMACAddressKey, ovc.vxlanDev.Link.HardwareAddr.String()) {
 			if err := ovc.Update(ctx, &pod); err != nil {
-				klog.Errorf("an error occurred while adding mac address annotation to pod %s: %v", req.String(), err)
+				klog.Errorf("an error occurred while adding mac address annotation to pod {%s}: %v", req.String(), err)
 				return ctrl.Result{}, err
 			}
-			klog.Infof("successfully annotated pod %s with mac address %s", req.String(), ovc.vxlanDev.Link.HardwareAddr.String())
+			klog.Infof("successfully annotated pod {%s} with mac address {%s}", req.String(), ovc.vxlanDev.Link.HardwareAddr.String())
 		}
 		return ctrl.Result{}, nil
 	}
@@ -92,12 +92,12 @@ func (ovc *OverlayController) Reconcile(ctx context.Context, req ctrl.Request) (
 	// If it is not our pod, then add peer to the vxlan network.
 	added, err := ovc.addPeer(req, &pod)
 	if err != nil {
-		klog.Errorf("an error occurred while adding peer %s with IP address %s and MAC address %s to the vxlan overlay network: %v",
+		klog.Errorf("an error occurred while adding peer {%s} with IP address {%s} and MAC address {%s} to the vxlan overlay network: %v",
 			req.String(), pod.Status.PodIP, ovc.getAnnotationValue(&pod, vxlanMACAddressKey), err)
 		return ctrl.Result{}, err
 	}
 	if added {
-		klog.Errorf("successfully added peer %s with IP address %s and MAC address %s to the vxlan overlay network",
+		klog.Errorf("successfully added peer {%s} with IP address {%s} and MAC address {%s} to the vxlan overlay network",
 			req.String(), pod.Status.PodIP, ovc.getAnnotationValue(&pod, vxlanMACAddressKey))
 	}
 	return ctrl.Result{}, nil
@@ -198,7 +198,7 @@ func (ovc *OverlayController) podFilter(obj client.Object) bool {
 	// Check if the object is a pod.
 	p, ok := obj.(*corev1.Pod)
 	if !ok {
-		klog.Infof("object %s is not of type corev1.Pod", obj.GetName())
+		klog.Infof("object {%s} is not of type corev1.Pod", obj.GetName())
 		return false
 	}
 	// Filter by labels.

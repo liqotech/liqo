@@ -128,7 +128,7 @@ func (vrm *VxlanRoutingManager) RemoveRoutesPerCluster(tep *netv1alpha1.TunnelEn
 	// Delete route for the given cluster.
 	klog.Infof("%s -> deleting route for destination {%s} with gateway {%s} in routing table with ID {%d}",
 		clusterID, dstNet, gatewayIP, vrm.routingTableID)
-	routeDel, err = delRoute(dstNet, gatewayIP, iFaceIndex, vrm.routingTableID)
+	routeDel, err = DelRoute(dstNet, gatewayIP, iFaceIndex, vrm.routingTableID)
 	if err != nil {
 		return routeDel, err
 	}
