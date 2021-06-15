@@ -2,6 +2,7 @@ package routeoperator
 
 import (
 	"context"
+	"fmt"
 	"path/filepath"
 	"syscall"
 
@@ -142,8 +143,16 @@ var _ = Describe("OverlayOperator", func() {
 				Eventually(func() error { return overlayClient.Status().Update(context.TODO(), newPod) }).Should(BeNil())
 				Eventually(func() error { return overlayClient.Get(context.TODO(), overlayReq.NamespacedName, newPod) }).Should(BeNil())
 				Eventually(func() error { _, err := ovc.Reconcile(context.TODO(), overlayReq); return err }).Should(BeNil())
-				Eventually(func() error { return overlayClient.Get(context.TODO(), overlayReq.NamespacedName, newPod) }).Should(BeNil())
-				Expect(newPod.GetAnnotations()[overlayAnnKey]).Should(Equal(ovc.vxlanDev.Link.HardwareAddr.String()))
+				Eventually(func() error {
+					err := overlayClient.Get(context.TODO(), overlayReq.NamespacedName, newPod)
+					if err != nil{
+						return err
+					}
+					if newPod.GetAnnotations()[overlayAnnKey] != ovc.vxlanDev.Link.HardwareAddr.String(){
+						return fmt.Errorf(" error: annotated MAC %s is different than %s",newPod.GetAnnotations()[overlayAnnKey], ovc.vxlanDev.Link.HardwareAddr.String())
+					}
+					return nil
+				}).Should(BeNil())
 			})
 		})
 
@@ -158,8 +167,8 @@ var _ = Describe("OverlayOperator", func() {
 				Eventually(func() error { return overlayClient.Status().Update(context.TODO(), newPod) }).Should(BeNil())
 				Eventually(func() error { return overlayClient.Get(context.TODO(), overlayReq.NamespacedName, newPod) }).Should(BeNil())
 				Eventually(func() error { _, err := ovc.Reconcile(context.TODO(), overlayReq); return err }).Should(BeNil())
-				Eventually(func() error { return overlayClient.Get(context.TODO(), overlayReq.NamespacedName, newPod) }).Should(BeNil())
-
+				_, ok := ovc.vxlanPeers[overlayReq.String()]
+				Expect(ok).Should(BeTrue())
 			})
 		})
 
