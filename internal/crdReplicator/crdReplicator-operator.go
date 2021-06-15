@@ -25,6 +25,7 @@ import (
 	"k8s.io/klog/v2"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 
@@ -32,7 +33,6 @@ import (
 	"github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	"github.com/liqotech/liqo/pkg/consts"
 	identitymanager "github.com/liqotech/liqo/pkg/identityManager"
-	"github.com/liqotech/liqo/pkg/liqonet/utils"
 	tenantcontrolnamespace "github.com/liqotech/liqo/pkg/tenantControlNamespace"
 	foreigncluster "github.com/liqotech/liqo/pkg/utils/foreignCluster"
 )
@@ -132,8 +132,8 @@ func (c *Controller) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	if fc.ObjectMeta.DeletionTimestamp.IsZero() {
 		// the finalizer is added only if a join is active with the remote cluster
 		if !foreigncluster.IsIncomingEnabled(&fc) && !foreigncluster.IsOutgoingEnabled(&fc) {
-			if utils.ContainsString(fc.ObjectMeta.Finalizers, finalizer) {
-				fc.Finalizers = utils.RemoveString(fc.Finalizers, finalizer)
+			if controllerutil.ContainsFinalizer(&fc, finalizer) {
+				controllerutil.RemoveFinalizer(&fc, finalizer)
 				if err := c.Update(ctx, &fc); err != nil {
 					klog.Errorf("an error occurred while updating resource %s after the finalizer has been removed: %s", fc.Name, err)
 					return result, err
@@ -144,8 +144,8 @@ func (c *Controller) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 				return result, nil
 			}
 		}
-		if !utils.ContainsString(fc.ObjectMeta.Finalizers, finalizer) {
-			fc.ObjectMeta.Finalizers = append(fc.Finalizers, finalizer)
+		if !controllerutil.ContainsFinalizer(&fc, finalizer) {
+			controllerutil.AddFinalizer(&fc, finalizer)
 			if err := c.Update(ctx, &fc); err != nil {
 				klog.Errorf("%s -> unable to update resource %s: %s", c.ClusterID, fc.Name, err)
 				return result, err
@@ -153,7 +153,7 @@ func (c *Controller) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		}
 	} else {
 		// the object is being deleted
-		if utils.ContainsString(fc.Finalizers, finalizer) {
+		if controllerutil.ContainsFinalizer(&fc, finalizer) {
 			// close remote watcher for remote cluster
 			rWatchers, ok := c.RemoteWatchers[remoteClusterID]
 			if ok {
@@ -169,7 +169,7 @@ func (c *Controller) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 			// delete informer for remote cluster
 			delete(c.RemoteDynSharedInformerFactory, remoteClusterID)
 			// remove the finalizer from the list and update it.
-			fc.Finalizers = utils.RemoveString(fc.Finalizers, finalizer)
+			controllerutil.RemoveFinalizer(&fc, finalizer)
 			if err := c.Update(ctx, &fc); err != nil {
 				klog.Errorf("an error occurred while updating resource %s after the finalizer has been removed: %s", fc.Name, err)
 				return result, err

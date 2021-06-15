@@ -30,6 +30,7 @@ import (
 	"k8s.io/klog"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 
@@ -176,11 +177,11 @@ func (tc *TunnelController) Reconcile(ctx context.Context, req ctrl.Request) (ct
 	_, remotePodCIDR := liqonet.GetPodCIDRS(&endpoint)
 	// examine DeletionTimestamp to determine if object is under deletion
 	if endpoint.ObjectMeta.DeletionTimestamp.IsZero() {
-		if !utils.ContainsString(endpoint.ObjectMeta.Finalizers, tunnelEndpointFinalizer) {
+		if !controllerutil.ContainsFinalizer(&endpoint, tunnelEndpointFinalizer) {
 			// The object is not being deleted, so if it does not have our finalizer,
 			// then lets add the finalizer and update the object. This is equivalent
 			// registering our finalizer.
-			endpoint.Finalizers = append(endpoint.Finalizers, tunnelEndpointFinalizer)
+			controllerutil.AddFinalizer(&endpoint, tunnelEndpointFinalizer)
 			if err := tc.Update(ctx, &endpoint); err != nil {
 				klog.Errorf("%s -> unable to update resource %s: %s", endpoint.Spec.ClusterID, endpoint.Name, err)
 				return result, err
@@ -188,7 +189,7 @@ func (tc *TunnelController) Reconcile(ctx context.Context, req ctrl.Request) (ct
 		}
 	} else {
 		// the object is being deleted
-		if utils.ContainsString(endpoint.Finalizers, tunnelEndpointFinalizer) {
+		if controllerutil.ContainsFinalizer(&endpoint, tunnelEndpointFinalizer) {
 			if err := tc.disconnectFromPeer(&endpoint); err != nil {
 				return ctrl.Result{}, err
 			}
@@ -202,7 +203,7 @@ func (tc *TunnelController) Reconcile(ctx context.Context, req ctrl.Request) (ct
 				}
 			}
 			// remove the finalizer from the list and update it.
-			endpoint.Finalizers = utils.RemoveString(endpoint.Finalizers, tunnelEndpointFinalizer)
+			controllerutil.RemoveFinalizer(&endpoint, tunnelEndpointFinalizer)
 			if err := tc.Update(ctx, &endpoint); err != nil {
 				klog.Errorf("an error occurred while updating resource %s after the finalizer has been removed: %s", endpoint.Name, err)
 				return result, err
