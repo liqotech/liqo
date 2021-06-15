@@ -92,7 +92,7 @@ func (drm *DirectRoutingManager) RemoveRoutesPerCluster(tep *netv1alpha1.TunnelE
 	// Delete route for the given cluster.
 	klog.Infof("%s -> deleting route for destination {%s} with gateway {%s} in routing table with ID {%d}",
 		clusterID, dstNet, gatewayIP, drm.routingTableID)
-	routeDel, err = delRoute(dstNet, gatewayIP, iFaceIndex, drm.routingTableID)
+	routeDel, err = DelRoute(dstNet, gatewayIP, iFaceIndex, drm.routingTableID)
 	if err != nil {
 		return routeDel, err
 	}

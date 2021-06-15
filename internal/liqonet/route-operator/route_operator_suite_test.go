@@ -4,6 +4,8 @@ import (
 	"net"
 	"testing"
 
+	"sigs.k8s.io/controller-runtime/pkg/client"
+
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	"github.com/vishvananda/netlink"
@@ -19,7 +21,9 @@ var (
 		VtepAddr: nil,
 		Mtu:      1450,
 	}
-	overlayDevice overlay.VxlanDevice
+	vxlanDevice   overlay.VxlanDevice
+	vxlanDeviceIP = "240.0.0.1/8"
+	k8sClient     client.Client
 )
 
 func TestRouteOperator(t *testing.T) {
@@ -28,11 +32,14 @@ func TestRouteOperator(t *testing.T) {
 }
 
 var _ = BeforeSuite(func() {
-	/*** OverlayOperator configuration ***/
+	/*** Common setup ***/
 	link, err := setUpVxlanLink(vxlanConfig)
 	Expect(err).ShouldNot(HaveOccurred())
 	Expect(link).ShouldNot(BeNil())
-	overlayDevice.Link = link.(*netlink.Vxlan)
+	vxlanDevice.Link = link.(*netlink.Vxlan)
+	Expect(vxlanDevice.ConfigureIPAddress(vxlanDeviceIP)).To(BeNil())
+
+	/*** OverlayOperator configuration ***/
 	// Configure existing neigh.
 	peerIP := net.ParseIP(overlayPeerIP)
 	Expect(peerIP).NotTo(BeNil())
@@ -49,12 +56,15 @@ var _ = BeforeSuite(func() {
 	Expect(peerMAC).NotTo(BeNil())
 	overlayNeigh.IP = peerIP1
 	overlayNeigh.MAC = peerMAC
+
+	/*** Symmetric Routing operator configuration ***/
+
 	// Setup envtest
 	Expect(setupOverlayTestEnv()).To(BeNil())
 })
 
 var _ = AfterSuite(func() {
-	Expect(netlink.LinkDel(overlayDevice.Link)).ShouldNot(HaveOccurred())
+	Expect(netlink.LinkDel(vxlanDevice.Link)).ShouldNot(HaveOccurred())
 })
 
 func setUpVxlanLink(attrs *overlay.VxlanDeviceAttrs) (netlink.Link, error) {
@@ -77,5 +87,6 @@ func setUpVxlanLink(attrs *overlay.VxlanDeviceAttrs) (netlink.Link, error) {
 	if err != nil {
 		return nil, err
 	}
+
 	return link, nil
 }

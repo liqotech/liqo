@@ -68,7 +68,8 @@ func AddRoute(dstNet, gwIP string, iFaceIndex, tableID int) (bool, error) {
 	return true, nil
 }
 
-func delRoute(dstNet, gwIP string, iFaceIndex, tableID int) (bool, error) {
+// DelRoute removes a route described by the given parameters.
+func DelRoute(dstNet, gwIP string, iFaceIndex, tableID int) (bool, error) {
 	var route *netlink.Route
 	var gatewayIP net.IP
 	// Convert destination in *net.IPNet.

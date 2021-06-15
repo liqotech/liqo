@@ -168,13 +168,13 @@ var _ = Describe("Common", func() {
 	Describe("deleting an existing route", func() {
 		Context("when input parameters are not in the correct format", func() {
 			It("should return error on wrong destination net", func() {
-				removed, err := delRoute(dstNetWrong, gwIPCorrect, dummylink1.Attrs().Index, routingTableID)
+				removed, err := DelRoute(dstNetWrong, gwIPCorrect, dummylink1.Attrs().Index, routingTableID)
 				Expect(removed).Should(Equal(false))
 				Expect(err).Should(Equal(&net.ParseError{Type: "CIDR address", Text: dstNetWrong}))
 			})
 
 			It("should return error on wrong gateway IP address", func() {
-				removed, err := delRoute(dstNetCorrect, gwIPWrong, dummylink1.Attrs().Index, routingTableID)
+				removed, err := DelRoute(dstNetCorrect, gwIPWrong, dummylink1.Attrs().Index, routingTableID)
 				Expect(removed).Should(Equal(false))
 				Expect(err).Should(Equal(&errors.ParseIPError{IPToBeParsed: gwIPWrong}))
 			})
@@ -182,7 +182,7 @@ var _ = Describe("Common", func() {
 
 		Context("when an error occurred while deleting a route", func() {
 			It("should return an error on non existing link", func() {
-				added, err := delRoute(dstNetCorrect, gwIPWrong, 0, routingTableID)
+				added, err := DelRoute(dstNetCorrect, gwIPWrong, 0, routingTableID)
 				Expect(added).Should(Equal(false))
 				Expect(err).To(HaveOccurred())
 			})
@@ -190,13 +190,13 @@ var _ = Describe("Common", func() {
 
 		Context("when route does not exist and we want to delete it", func() {
 			It("no gatewayIP, should return false and nil", func() {
-				removed, err := delRoute(dstNetCorrect, "", dummylink1.Attrs().Index, routingTableID)
+				removed, err := DelRoute(dstNetCorrect, "", dummylink1.Attrs().Index, routingTableID)
 				Expect(removed).Should(Equal(false))
 				Expect(err).NotTo(HaveOccurred())
 			})
 
 			It("with gatewayIP, should return false and nil", func() {
-				removed, err := delRoute(dstNetCorrect, gwIPCorrect, dummylink1.Attrs().Index, routingTableID)
+				removed, err := DelRoute(dstNetCorrect, gwIPCorrect, dummylink1.Attrs().Index, routingTableID)
 				Expect(removed).Should(Equal(false))
 				Expect(err).NotTo(HaveOccurred())
 			})
@@ -213,7 +213,7 @@ var _ = Describe("Common", func() {
 
 			It("with gateway, should return true and nil", func() {
 				// Delete existing route with GW.
-				removed, err := delRoute(existingRoutesCM[0].Dst.String(), existingRoutesCM[0].Gw.String(), existingRoutesCM[0].LinkIndex, existingRoutesCM[0].Table)
+				removed, err := DelRoute(existingRoutesCM[0].Dst.String(), existingRoutesCM[0].Gw.String(), existingRoutesCM[0].LinkIndex, existingRoutesCM[0].Table)
 				Expect(removed).Should(Equal(true))
 				Expect(err).NotTo(HaveOccurred())
 				// Expecting no routes exist for the given destination.
@@ -224,7 +224,7 @@ var _ = Describe("Common", func() {
 
 			It("without gateway, should return true and nil", func() {
 				// Del existing route without GW.
-				removed, err := delRoute(existingRoutesCM[1].Dst.String(), "", existingRoutesCM[1].LinkIndex, existingRoutesCM[1].Table)
+				removed, err := DelRoute(existingRoutesCM[1].Dst.String(), "", existingRoutesCM[1].LinkIndex, existingRoutesCM[1].Table)
 				Expect(removed).Should(Equal(true))
 				Expect(err).NotTo(HaveOccurred())
 				// Expecting no routes exist for the given destination.
