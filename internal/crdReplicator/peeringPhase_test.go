@@ -205,7 +205,7 @@ var _ = Describe("PeeringPhase-Based Replication", func() {
 
 				controller.AddedHandler(c.resource, gvr)
 
-				_, err := controller.LocalDynClient.Resource(gvr).
+				_, err := controller.LocalDynClient.Resource(gvr).Namespace("default").
 					Get(context.TODO(), c.resource.GetName(), metav1.GetOptions{})
 				Expect(err).To(c.expectedError)
 			},

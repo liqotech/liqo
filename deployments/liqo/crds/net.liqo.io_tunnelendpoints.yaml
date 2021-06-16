@@ -14,7 +14,7 @@ spec:
     listKind: TunnelEndpointList
     plural: tunnelendpoints
     singular: tunnelendpoint
-  scope: Cluster
+  scope: Namespaced
   versions:
   - additionalPrinterColumns:
     - jsonPath: .spec.endpointIP

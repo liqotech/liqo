@@ -63,7 +63,7 @@
 | route.pod.annotations | object | `{}` | route pod annotations |
 | route.pod.labels | object | `{}` | route pod labels |
 | tag | string | `""` | Images' tag to select a development version of liqo instead of a release |
-| useNewAuth | bool | `false` | enable experimental new authentication flow |
+| useNewAuth | bool | `true` | enable experimental new authentication flow |
 | virtualKubelet.imageName | string | `"liqo/virtual-kubelet"` | virtual kubelet image repository |
 | virtualKubelet.initContainer.imageName | string | `"liqo/init-virtual-kubelet"` | virtual kubelet init container image repository |
 | webhook.imageName | string | `"liqo/liqo-webhook"` | webhook image repository |

@@ -108,7 +108,9 @@ func forgeVKContainers(
 		stringifyArgument("--kubelet-namespace", vkNamespace),
 		stringifyArgument("--foreign-kubeconfig", "/app/kubeconfig/remote"),
 		stringifyArgument("--home-cluster-id", homeClusterID),
+		stringifyArgument("--ipam-server", liqoconst.NetworkManagerServiceName),
 		"--enable-node-lease",
+		"--useNewAuth",
 	}
 
 	volumeMounts := []v1.VolumeMount{

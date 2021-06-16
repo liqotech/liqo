@@ -36,8 +36,9 @@ func getObj() *unstructured.Unstructured {
 			"apiVersion": "net.liqo.io/v1alpha1",
 			"kind":       "NetworkConfig",
 			"metadata": map[string]interface{}{
-				"name":   "test-networkconfig",
-				"labels": map[string]string{},
+				"name":      "test-networkconfig",
+				"namespace": "default",
+				"labels":    map[string]string{},
 			},
 			"spec": map[string]interface{}{
 				"clusterID":      "clusterID-test",
@@ -188,7 +189,7 @@ func TestCRDReplicatorReconciler_UpdateResource(t *testing.T) {
 	networkConfig.SetLabels(map[string]string{"labelTesting": "test"})
 	err = d.UpdateResource(dynClient, gvr, networkConfig, clusterID, consts.OwnershipLocal)
 	assert.Nil(t, err, "error should be nil")
-	obj, err := dynClient.Resource(gvr).Get(context.TODO(), networkConfig.GetName(), metav1.GetOptions{})
+	obj, err := dynClient.Resource(gvr).Namespace("default").Get(context.TODO(), networkConfig.GetName(), metav1.GetOptions{})
 	assert.Nil(t, err, "error should be nil")
 
 	//Test 2
@@ -202,7 +203,7 @@ func TestCRDReplicatorReconciler_UpdateResource(t *testing.T) {
 	assert.Nil(t, err, "error should be nil")
 	err = d.UpdateResource(dynClient, gvr, obj, clusterID, consts.OwnershipLocal)
 	assert.Nil(t, err, "error should be nil")
-	obj, err = dynClient.Resource(gvr).Get(context.TODO(), networkConfig.GetName(), metav1.GetOptions{})
+	obj, err = dynClient.Resource(gvr).Namespace("default").Get(context.TODO(), networkConfig.GetName(), metav1.GetOptions{})
 	assert.Nil(t, err, "error should be nil")
 	spec, err := getSpec(obj, clusterID)
 	assert.Nil(t, err, "error should be nil")
@@ -218,7 +219,7 @@ func TestCRDReplicatorReconciler_UpdateResource(t *testing.T) {
 	assert.Nil(t, err, "error should be nil")
 	err = d.UpdateResource(dynClient, gvr, obj, clusterID, consts.OwnershipLocal)
 	assert.Nil(t, err, "error should be nil")
-	obj, err = dynClient.Resource(gvr).Get(context.TODO(), networkConfig.GetName(), metav1.GetOptions{})
+	obj, err = dynClient.Resource(gvr).Namespace("default").Get(context.TODO(), networkConfig.GetName(), metav1.GetOptions{})
 	assert.Nil(t, err, "error should be nil")
 	status, err := getStatus(obj, clusterID)
 	assert.Nil(t, err, "error should be nil")
@@ -316,18 +317,18 @@ func TestCRDReplicatorReconciler_AddedHandler(t *testing.T) {
 	test1 := getObj()
 	d.AddedHandler(test1, gvr)
 	time.Sleep(1 * time.Second)
-	obj, err := dynClient.Resource(gvr).Get(context.TODO(), test1.GetName(), metav1.GetOptions{})
+	obj, err := dynClient.Resource(gvr).Namespace("default").Get(context.TODO(), test1.GetName(), metav1.GetOptions{})
 	assert.Nil(t, err, "error should be empty")
 	assert.True(t, areEqual(test1, obj), "the two objects should be equal")
 	//remove the resource
-	err = dynClient.Resource(gvr).Delete(context.TODO(), test1.GetName(), metav1.DeleteOptions{})
+	err = dynClient.Resource(gvr).Namespace("default").Delete(context.TODO(), test1.GetName(), metav1.DeleteOptions{})
 	assert.Nil(t, err, "should be nil")
 
 	//test 2
 	//adding a resource kind that the api server does not know
 	//we expect an error to be returned
 	d.AddedHandler(test1, schema.GroupVersionResource{})
-	obj, err = dynClient.Resource(gvr).Get(context.TODO(), test1.GetName(), metav1.GetOptions{})
+	obj, err = dynClient.Resource(gvr).Namespace("default").Get(context.TODO(), test1.GetName(), metav1.GetOptions{})
 	assert.NotNil(t, err, "error should be not nil")
 	assert.Nil(t, obj, "the object retrieved should be nil")
 }
@@ -341,7 +342,7 @@ func TestCRDReplicatorReconciler_ModifiedHandler(t *testing.T) {
 	test1 := getObj()
 	d.ModifiedHandler(test1, gvr)
 	time.Sleep(1 * time.Second)
-	obj, err := dynClient.Resource(gvr).Get(context.TODO(), test1.GetName(), metav1.GetOptions{})
+	obj, err := dynClient.Resource(gvr).Namespace("default").Get(context.TODO(), test1.GetName(), metav1.GetOptions{})
 	assert.Nil(t, err, "error should be empty")
 	assert.True(t, areEqual(test1, obj), "the two objects should be equal")
 
@@ -368,11 +369,11 @@ func TestCRDReplicatorReconciler_ModifiedHandler(t *testing.T) {
 	obj.SetLabels(test1.GetLabels())
 	d.ModifiedHandler(obj, gvr)
 	time.Sleep(1 * time.Second)
-	newObj, err := dynClient.Resource(gvr).Get(context.TODO(), test1.GetName(), metav1.GetOptions{})
+	newObj, err := dynClient.Resource(gvr).Namespace("default").Get(context.TODO(), test1.GetName(), metav1.GetOptions{})
 	assert.Nil(t, err, "error should be empty")
 	assert.True(t, areEqual(newObj, obj), "the two objects should be equal")
 	//clean up the resource
-	err = dynClient.Resource(gvr).Delete(context.TODO(), test1.GetName(), metav1.DeleteOptions{})
+	err = dynClient.Resource(gvr).Namespace("default").Delete(context.TODO(), test1.GetName(), metav1.DeleteOptions{})
 	assert.Nil(t, err, "should be nil")
 }
 
@@ -386,21 +387,21 @@ func TestCRDReplicatorReconciler_RemoteResourceModifiedHandler(t *testing.T) {
 	test1 := getObj()
 	d.RemoteResourceModifiedHandler(test1, gvr, remoteClusterID, consts.OwnershipShared)
 	time.Sleep(1 * time.Second)
-	_, err := dynClient.Resource(gvr).Get(context.TODO(), test1.GetName(), metav1.GetOptions{})
+	_, err := dynClient.Resource(gvr).Namespace("default").Get(context.TODO(), test1.GetName(), metav1.GetOptions{})
 	assert.True(t, apierrors.IsNotFound(err), "error should be not found")
 
 	//test 2
 	//the modified resource already exists on the cluster
 	//we modify some fields other than status
 	//we expect the resource to not be modified and the error to be nil
-	test1, err = dynClient.Resource(gvr).Create(context.TODO(), test1, metav1.CreateOptions{})
+	test1, err = dynClient.Resource(gvr).Namespace("default").Create(context.TODO(), test1, metav1.CreateOptions{})
 	assert.Nil(t, err, "error should be nil")
 	test1.SetLabels(map[string]string{
 		"labelTestin": "labelling",
 	})
 	d.RemoteResourceModifiedHandler(test1, gvr, remoteClusterID, consts.OwnershipShared)
 	time.Sleep(1 * time.Second)
-	obj, err := dynClient.Resource(gvr).Get(context.TODO(), test1.GetName(), metav1.GetOptions{})
+	obj, err := dynClient.Resource(gvr).Namespace("default").Get(context.TODO(), test1.GetName(), metav1.GetOptions{})
 	assert.Nil(t, err, "error should be empty")
 	assert.NotEqual(t, obj.GetLabels(), test1.GetLabels(), "the labels of the two objects should be ")
 
@@ -408,7 +409,7 @@ func TestCRDReplicatorReconciler_RemoteResourceModifiedHandler(t *testing.T) {
 	// the modified resource already exists on the cluster
 	// we modify some fields in the status
 	// we expect the resource to be modified and the error to be nil
-	test1, err = dynClient.Resource(gvr).Get(context.TODO(), test1.GetName(), metav1.GetOptions{})
+	test1, err = dynClient.Resource(gvr).Namespace("default").Get(context.TODO(), test1.GetName(), metav1.GetOptions{})
 	assert.Nil(t, err, "error should be nil")
 	newStatus := map[string]interface{}{
 		"processed": true,
@@ -417,12 +418,12 @@ func TestCRDReplicatorReconciler_RemoteResourceModifiedHandler(t *testing.T) {
 	assert.Nil(t, err, "error should be nil")
 	d.RemoteResourceModifiedHandler(test1, gvr, remoteClusterID, consts.OwnershipShared)
 	time.Sleep(1 * time.Second)
-	obj, err = dynClient.Resource(gvr).Get(context.TODO(), test1.GetName(), metav1.GetOptions{})
+	obj, err = dynClient.Resource(gvr).Namespace("default").Get(context.TODO(), test1.GetName(), metav1.GetOptions{})
 	assert.Nil(t, err, "error should be empty")
 	assert.Equal(t, obj, test1, "the two objects should be equal")
 
 	//clean up the resource
-	err = dynClient.Resource(gvr).Delete(context.TODO(), test1.GetName(), metav1.DeleteOptions{})
+	err = dynClient.Resource(gvr).Namespace("default").Delete(context.TODO(), test1.GetName(), metav1.DeleteOptions{})
 	assert.Nil(t, err, "should be nil")
 }
 
@@ -432,11 +433,11 @@ func TestCRDReplicatorReconciler_DeletedHandler(t *testing.T) {
 	//we create a resource then we pass it to the handler
 	//we expect the resource to be deleted
 	test1 := getObj()
-	obj, err := dynClient.Resource(gvr).Create(context.TODO(), test1, metav1.CreateOptions{})
+	obj, err := dynClient.Resource(gvr).Namespace("default").Create(context.TODO(), test1, metav1.CreateOptions{})
 	assert.Nil(t, err, "error should be nil")
 	assert.True(t, areEqual(test1, obj), "the two objects should be equal")
 	d.DeletedHandler(obj, gvr)
-	obj, err = dynClient.Resource(gvr).Get(context.TODO(), test1.GetName(), metav1.GetOptions{})
+	obj, err = dynClient.Resource(gvr).Namespace("default").Get(context.TODO(), test1.GetName(), metav1.GetOptions{})
 	assert.NotNil(t, err, "error should not be empty")
 	assert.Nil(t, obj, "the object retrieved should be nil")
 }

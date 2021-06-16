@@ -2,6 +2,7 @@ package v1alpha1
 
 import (
 	"errors"
+	"fmt"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -58,5 +59,5 @@ func Keyer(obj runtime.Object) (string, error) {
 		return "", errors.New("cannot cast received object to TunnelEndpoint")
 	}
 
-	return tunEnd.Name, nil
+	return fmt.Sprintf("%s/%s", tunEnd.Namespace, tunEnd.Name), nil
 }

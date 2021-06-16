@@ -208,4 +208,4 @@ capsule:
       - liqo.io
 
 # -- enable experimental new authentication flow
-useNewAuth: false
+useNewAuth: true
