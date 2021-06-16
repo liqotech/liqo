@@ -62,7 +62,6 @@ type NetworkConfigStatus struct {
 
 // +kubebuilder:object:root=true
 // +kubebuilder:subresource:status
-// +kubebuilder:resource:scope=Cluster
 
 // NetworkConfig is the Schema for the networkconfigs API.
 type NetworkConfig struct {

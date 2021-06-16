@@ -60,13 +60,12 @@ spec:
         version: v1alpha1
         resource: resourceoffers
       peeringPhase: Incoming
-    {{- else }}
+    {{- end }}
     - groupVersionResource:
         group: net.liqo.io
         version: v1alpha1
         resource: networkconfigs
       peeringPhase: Established
-    {{- end }}
   agentConfig:
     dashboardConfig:
       namespace: {{ .Release.Namespace }}

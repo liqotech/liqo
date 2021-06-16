@@ -83,10 +83,12 @@ func (tec *TunnelEndpointCreator) secretHandlerAdd(obj interface{}) {
 		retryError := retry.RetryOnConflict(retry.DefaultRetry, func() error {
 			var netConfig netv1alpha1.NetworkConfig
 			err := tec.Get(context.Background(), client.ObjectKey{
-				Name: nc.GetName(),
+				Name:      nc.GetName(),
+				Namespace: nc.GetNamespace(),
 			}, &netConfig)
 			if err != nil {
-				klog.Errorf("an error occurred while retrieving resource of type %s named %s: %v", netv1alpha1.NetworkConfigGroupVersionResource.String(), nc.GetName(), err)
+				klog.Errorf("an error occurred while retrieving resource of type %s named %s/%s: %v",
+					netv1alpha1.NetworkConfigGroupVersionResource.String(), nc.GetNamespace(), nc.GetName(), err)
 				return err
 			}
 			netConfig.Spec.BackendConfig[wireguard.PublicKey] = pubKey.String()

@@ -56,6 +56,8 @@ type ResourceOfferReconciler struct {
 	eventsRecorder record.EventRecorder
 	clusterID      clusterid.ClusterID
 
+	liqoNamespace string
+
 	virtualKubeletImage     string
 	initVirtualKubeletImage string
 

@@ -58,5 +58,5 @@ func Keyer(obj runtime.Object) (string, error) {
 		return "", errors.New("cannot cast received object to TunnelEndpoint")
 	}
 
-	return tunEnd.Name, nil
+	return cache.MetaNamespaceKeyFunc(tunEnd)
 }

@@ -33,7 +33,7 @@ spec:
         args:
           - "--cluster-id"
           - "$(CLUSTER_ID)"
-          - "--kubelet-namespace"
+          - "--liqo-namespace"
           - "$(POD_NAMESPACE)"
           - "--kubelet-image"
           - {{ .Values.virtualKubelet.imageName }}{{ include "liqo.suffix" $advertisementConfig }}:{{ include "liqo.version" $advertisementConfig }}

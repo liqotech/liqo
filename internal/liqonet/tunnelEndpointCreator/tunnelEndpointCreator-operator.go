@@ -249,6 +249,7 @@ func (tec *TunnelEndpointCreator) createNetConfig(fc *discoveryv1alpha1.ForeignC
 	netConfig := netv1alpha1.NetworkConfig{
 		ObjectMeta: metav1.ObjectMeta{
 			GenerateName: netConfigNamePrefix,
+			Namespace:    fc.Status.TenantControlNamespace.Local,
 			Labels: map[string]string{
 				crdreplicator.LocalLabelSelector: "true",
 				crdreplicator.DestinationLabel:   clusterID,
@@ -277,7 +278,7 @@ func (tec *TunnelEndpointCreator) createNetConfig(fc *discoveryv1alpha1.ForeignC
 		Status: netv1alpha1.NetworkConfigStatus{},
 	}
 	// check if the resource for the remote cluster already exists
-	_, exists, err := tec.GetNetworkConfig(clusterID)
+	_, exists, err := tec.GetNetworkConfig(clusterID, fc.Status.TenantControlNamespace.Local)
 	if err != nil {
 		return err
 	}
@@ -298,7 +299,7 @@ func (tec *TunnelEndpointCreator) deleteNetConfig(fc *discoveryv1alpha1.ForeignC
 	clusterID := fc.Spec.ClusterIdentity.ClusterID
 	netConfigList := &netv1alpha1.NetworkConfigList{}
 	labels := client.MatchingLabels{crdreplicator.DestinationLabel: clusterID}
-	err := tec.List(context.Background(), netConfigList, labels)
+	err := tec.List(context.Background(), netConfigList, labels, client.InNamespace(fc.Status.TenantControlNamespace.Local))
 	if err != nil {
 		klog.Errorf("an error occurred while listing resources: %s", err)
 		return err
@@ -334,14 +335,14 @@ func (tec *TunnelEndpointCreator) deleteNetConfig(fc *discoveryv1alpha1.ForeignC
 }
 
 // GetNetworkConfig returns the network config for a specific cluster.
-func (tec *TunnelEndpointCreator) GetNetworkConfig(destinationClusterID string) (
+func (tec *TunnelEndpointCreator) GetNetworkConfig(destinationClusterID, namespace string) (
 	*netv1alpha1.NetworkConfig,
 	bool,
 	error) {
 	clusterID := destinationClusterID
 	networkConfigList := &netv1alpha1.NetworkConfigList{}
 	labels := client.MatchingLabels{crdreplicator.DestinationLabel: clusterID}
-	err := tec.List(context.Background(), networkConfigList, labels)
+	err := tec.List(context.Background(), networkConfigList, labels, client.InNamespace(namespace))
 	if err != nil {
 		klog.Errorf("an error occurred while listing resources of type %s: %s", netv1alpha1.GroupVersion, err)
 		return nil, false, err
@@ -430,7 +431,7 @@ func (tec *TunnelEndpointCreator) processLocalNetConfig(netConfig *netv1alpha1.N
 	// first check that this is the only resource for the remote cluster
 	netConfigList := &netv1alpha1.NetworkConfigList{}
 	labels := client.MatchingLabels{crdreplicator.DestinationLabel: netConfig.Labels[crdreplicator.DestinationLabel]}
-	err := tec.List(context.Background(), netConfigList, labels)
+	err := tec.List(context.Background(), netConfigList, labels, client.InNamespace(netConfig.GetNamespace()))
 	if err != nil {
 		klog.Errorf("an error occurred while listing resources: %s", err)
 		return err
@@ -507,40 +508,40 @@ func (tec *TunnelEndpointCreator) processLocalNetConfig(netConfig *netv1alpha1.N
 		backendConfig:         remoteNetConf.Spec.BackendConfig,
 	}
 	fcOwner := utils.GetOwnerByKind(&netConfig.OwnerReferences, "ForeignCluster")
-	if err := tec.processTunnelEndpoint(&netParam, fcOwner); err != nil {
+	if err := tec.processTunnelEndpoint(&netParam, fcOwner, netConfig.GetNamespace()); err != nil {
 		klog.Errorf("an error occurred while processing the tunnelEndpoint: %s", err)
 		return err
 	}
 	return nil
 }
 
-func (tec *TunnelEndpointCreator) processTunnelEndpoint(param *networkParam, ownerRef *metav1.OwnerReference) error {
+func (tec *TunnelEndpointCreator) processTunnelEndpoint(param *networkParam, ownerRef *metav1.OwnerReference, namespace string) error {
 	// try to get the tunnelEndpoint, it may not exist
-	_, found, err := tec.GetTunnelEndpoint(param.remoteClusterID)
+	_, found, err := tec.GetTunnelEndpoint(param.remoteClusterID, namespace)
 	if err != nil {
 		klog.Errorf("an error occurred while getting resource tunnelEndpoint for cluster %s: %s", param.remoteClusterID, err)
 		return err
 	}
 	if !found {
-		return tec.createTunnelEndpoint(param, ownerRef)
+		return tec.createTunnelEndpoint(param, ownerRef, namespace)
 	}
-	if err := tec.updateSpecTunnelEndpoint(param); err != nil {
+	if err := tec.updateSpecTunnelEndpoint(param, namespace); err != nil {
 		return err
 	}
-	if err := tec.updateStatusTunnelEndpoint(param); err != nil {
+	if err := tec.updateStatusTunnelEndpoint(param, namespace); err != nil {
 		return err
 	}
 	return nil
 }
 
-func (tec *TunnelEndpointCreator) updateSpecTunnelEndpoint(param *networkParam) error {
+func (tec *TunnelEndpointCreator) updateSpecTunnelEndpoint(param *networkParam, namespace string) error {
 	var tep *netv1alpha1.TunnelEndpoint
 	var found bool
 	var err error
 	// here we recover from conflicting resource versions
 	retryError := retry.RetryOnConflict(retry.DefaultRetry, func() error {
 		toBeUpdated := false
-		tep, found, err = tec.GetTunnelEndpoint(param.remoteClusterID)
+		tep, found, err = tec.GetTunnelEndpoint(param.remoteClusterID, namespace)
 		if err != nil {
 			return err
 		}
@@ -582,7 +583,7 @@ func (tec *TunnelEndpointCreator) updateSpecTunnelEndpoint(param *networkParam) 
 	return nil
 }
 
-func (tec *TunnelEndpointCreator) updateStatusTunnelEndpoint(param *networkParam) error {
+func (tec *TunnelEndpointCreator) updateStatusTunnelEndpoint(param *networkParam, namespace string) error {
 	var tep *netv1alpha1.TunnelEndpoint
 	var found bool
 	var err error
@@ -590,7 +591,7 @@ func (tec *TunnelEndpointCreator) updateStatusTunnelEndpoint(param *networkParam
 	// here we recover from conflicting resource versions
 	retryError := retry.RetryOnConflict(retry.DefaultRetry, func() error {
 		toBeUpdated := false
-		tep, found, err = tec.GetTunnelEndpoint(param.remoteClusterID)
+		tep, found, err = tec.GetTunnelEndpoint(param.remoteClusterID, namespace)
 		if err != nil {
 			return err
 		}
@@ -648,11 +649,12 @@ func (tec *TunnelEndpointCreator) updateStatusTunnelEndpoint(param *networkParam
 	return nil
 }
 
-func (tec *TunnelEndpointCreator) createTunnelEndpoint(param *networkParam, ownerRef *metav1.OwnerReference) error {
+func (tec *TunnelEndpointCreator) createTunnelEndpoint(param *networkParam, ownerRef *metav1.OwnerReference, namespace string) error {
 	// here we create it
 	tep := &netv1alpha1.TunnelEndpoint{
 		ObjectMeta: metav1.ObjectMeta{
 			GenerateName: tunEndpointNamePrefix,
+			Namespace:    namespace,
 			Labels: map[string]string{
 				liqoconst.ClusterIDLabelName: param.remoteClusterID,
 			},
@@ -692,14 +694,14 @@ func (tec *TunnelEndpointCreator) createTunnelEndpoint(param *networkParam, owne
 }
 
 // GetTunnelEndpoint retrieves the tunnelEndpoint resource related to a cluster.
-func (tec *TunnelEndpointCreator) GetTunnelEndpoint(destinationClusterID string) (
+func (tec *TunnelEndpointCreator) GetTunnelEndpoint(destinationClusterID, namespace string) (
 	*netv1alpha1.TunnelEndpoint,
 	bool,
 	error) {
 	clusterID := destinationClusterID
 	tunEndpointList := &netv1alpha1.TunnelEndpointList{}
 	labels := client.MatchingLabels{liqoconst.ClusterIDLabelName: clusterID}
-	err := tec.List(context.Background(), tunEndpointList, labels)
+	err := tec.List(context.Background(), tunEndpointList, labels, client.InNamespace(namespace))
 	if err != nil {
 		klog.Errorf("an error occurred while listing resources: %s", err)
 		return nil, false, err
@@ -719,7 +721,7 @@ func (tec *TunnelEndpointCreator) GetTunnelEndpoint(destinationClusterID string)
 func (tec *TunnelEndpointCreator) deleteTunEndpoint(netConfig *netv1alpha1.NetworkConfig) error {
 	ctx := context.Background()
 	clusterID := netConfig.Spec.ClusterID
-	tep, found, err := tec.GetTunnelEndpoint(clusterID)
+	tep, found, err := tec.GetTunnelEndpoint(clusterID, netConfig.GetNamespace())
 	if err != nil {
 		return err
 	}

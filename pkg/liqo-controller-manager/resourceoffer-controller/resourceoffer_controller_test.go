@@ -35,6 +35,8 @@ const (
 	interval  = time.Millisecond * 250
 	clusterID = "cluster-id"
 
+	testNamespace = "default"
+
 	virtualKubeletImage     = "vk-image"
 	initVirtualKubeletImage = "init-vk-image"
 )
@@ -85,7 +87,7 @@ var _ = Describe("ResourceOffer Controller", func() {
 
 		clusterID := clusterid.NewStaticClusterID("remote-id")
 
-		controller = NewResourceOfferController(mgr, clusterID, 10*time.Second, virtualKubeletImage, initVirtualKubeletImage)
+		controller = NewResourceOfferController(mgr, clusterID, 10*time.Second, virtualKubeletImage, initVirtualKubeletImage, testNamespace)
 		if err := controller.SetupWithManager(mgr); err != nil {
 			By(err.Error())
 			os.Exit(1)
@@ -146,7 +148,7 @@ var _ = Describe("ResourceOffer Controller", func() {
 			resourceOffer: sharingv1alpha1.ResourceOffer{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "resource-offer",
-					Namespace: "default",
+					Namespace: testNamespace,
 					Labels: map[string]string{
 						crdreplicator.RemoteLabelSelector:    "origin-cluster-id",
 						crdreplicator.ReplicationStatuslabel: "true",
@@ -166,7 +168,7 @@ var _ = Describe("ResourceOffer Controller", func() {
 			resourceOffer: sharingv1alpha1.ResourceOffer{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "resource-offer-2",
-					Namespace: "default",
+					Namespace: testNamespace,
 				},
 				Spec: sharingv1alpha1.ResourceOfferSpec{
 					ClusterId:  clusterID,
@@ -184,7 +186,7 @@ var _ = Describe("ResourceOffer Controller", func() {
 			resourceOffer := &sharingv1alpha1.ResourceOffer{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "resource-offer",
-					Namespace: "default",
+					Namespace: testNamespace,
 					Labels: map[string]string{
 						crdreplicator.RemoteLabelSelector:    "origin-cluster-id",
 						crdreplicator.ReplicationStatuslabel: "true",

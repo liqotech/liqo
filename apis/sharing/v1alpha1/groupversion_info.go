@@ -29,6 +29,14 @@ var (
 
 	GroupResource = schema.GroupResource{Group: GroupVersion.Group, Resource: "advertisements"}
 
+	// ResourceOfferGroupResource is group resource used by resourceOffer objects.
+	ResourceOfferGroupResource = schema.GroupResource{Group: GroupVersion.Group, Resource: "resourceoffers"}
+
+	// ResourceOfferGroupVersionResource is group resource version used by resourceOffer objects.
+	ResourceOfferGroupVersionResource = schema.GroupVersionResource{Group: GroupVersion.Group,
+		Version:  GroupVersion.Version,
+		Resource: "resourceoffers"}
+
 	// SchemeBuilder is used to add go types to the GroupVersionKind scheme.
 	SchemeBuilder = &scheme.Builder{GroupVersion: GroupVersion}
 

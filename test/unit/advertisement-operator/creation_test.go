@@ -18,6 +18,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/envtest"
 
 	advtypes "github.com/liqotech/liqo/apis/sharing/v1alpha1"
+	"github.com/liqotech/liqo/pkg/consts"
 	"github.com/liqotech/liqo/pkg/discovery"
 	"github.com/liqotech/liqo/pkg/vkMachinery/forge"
 )
@@ -105,16 +106,18 @@ func TestCreateVkDeployment(t *testing.T) {
 	vkName := "virtual-kubelet-cluster1"
 	nodeName := "liqo-cluster1"
 	vkNamespace := "fake"
+	liqoNamespace := "liqo"
 	vkImage := "liqo/virtual-kubelet"
 	initVkImage := "liqo/init-vk"
 	homeClusterId := "cluster2"
 
-	deploy, err := forge.VirtualKubeletDeployment(adv, "", vkName, vkNamespace, vkImage, initVkImage, nodeName, homeClusterId)
+	deploy, err := forge.VirtualKubeletDeployment(adv, "", vkName, vkNamespace, liqoNamespace, vkImage, initVkImage, nodeName, homeClusterId)
 
 	foreignClusterIDArg := fmt.Sprintf("%s=%s", "--foreign-cluster-id", adv.Spec.ClusterId)
 	nodeNameArg := fmt.Sprintf("%s=%s", "--nodename", nodeName)
 	namespaceArg := fmt.Sprintf("%s=%s", "--kubelet-namespace", vkNamespace)
 	homeClusterIDArg := fmt.Sprintf("%s=%s", "--home-cluster-id", homeClusterId)
+	ipamServerArg := fmt.Sprintf("%s=%s.%s", "--ipam-server", consts.NetworkManagerServiceName, liqoNamespace)
 
 	assert.Equal(t, err, nil)
 	assert.Equal(t, vkName, deploy.Name)
@@ -129,6 +132,7 @@ func TestCreateVkDeployment(t *testing.T) {
 	assert.Contains(t, deploy.Spec.Template.Spec.Containers[0].Args, nodeNameArg)
 	assert.Contains(t, deploy.Spec.Template.Spec.Containers[0].Args, namespaceArg)
 	assert.Contains(t, deploy.Spec.Template.Spec.Containers[0].Args, homeClusterIDArg)
+	assert.Contains(t, deploy.Spec.Template.Spec.Containers[0].Args, ipamServerArg)
 	assert.NotEmpty(t, deploy.Spec.Template.Spec.Containers[0].Command)
 	assert.NotEmpty(t, deploy.Spec.Template.Spec.Containers[0].VolumeMounts)
 	assert.NotEmpty(t, deploy.Spec.Template.Spec.Containers[0].Env)
