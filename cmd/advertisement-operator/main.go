@@ -78,7 +78,7 @@ func main() {
 	var metricsAddr, localKubeconfig, clusterId string
 	var probeAddr string
 	var enableLeaderElection bool
-	var kubeletNamespace, kubeletImage, initKubeletImage string
+	var liqoNamespace, kubeletImage, initKubeletImage string
 	var resyncPeriod int64
 	var offloadingStatusControllerRequeueTime int64
 
@@ -93,8 +93,8 @@ func main() {
 		"Period after that the offloadingStatusController is awaken on every namespaceOffloading in order to set its status.")
 	flag.StringVar(&localKubeconfig, "local-kubeconfig", "", "The path to the kubeconfig of your local cluster.")
 	flag.StringVar(&clusterId, "cluster-id", "", "The cluster ID of your cluster")
-	flag.StringVar(&kubeletNamespace,
-		"kubelet-namespace", defaultNamespace,
+	flag.StringVar(&liqoNamespace,
+		"liqo-namespace", defaultNamespace,
 		"Name of the namespace where Virtual kubelets will be spawned ( the namespace is default if not specified otherwise)")
 	flag.StringVar(&kubeletImage, "kubelet-image", defaultVKImage, "The image of the virtual kubelet to be deployed")
 	flag.StringVar(&initKubeletImage,
@@ -176,7 +176,7 @@ func main() {
 		Client:           mgr.GetClient(),
 		Scheme:           mgr.GetScheme(),
 		EventsRecorder:   mgr.GetEventRecorderFor("AdvertisementOperator"),
-		KubeletNamespace: kubeletNamespace,
+		KubeletNamespace: liqoNamespace,
 		VKImage:          kubeletImage,
 		InitVKImage:      initKubeletImage,
 		HomeClusterId:    clusterId,
@@ -210,7 +210,7 @@ func main() {
 	}
 
 	resourceOfferReconciler := resourceoffercontroller.NewResourceOfferController(
-		mgr, clusterID, time.Duration(resyncPeriod), kubeletImage, initKubeletImage)
+		mgr, clusterID, time.Duration(resyncPeriod), kubeletImage, initKubeletImage, liqoNamespace)
 	if err = resourceOfferReconciler.SetupWithManager(mgr); err != nil {
 		klog.Fatal(err)
 	}

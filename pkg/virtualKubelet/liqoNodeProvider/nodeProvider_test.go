@@ -22,6 +22,7 @@ import (
 
 	netv1alpha1 "github.com/liqotech/liqo/apis/net/v1alpha1"
 	sharingv1alpha1 "github.com/liqotech/liqo/apis/sharing/v1alpha1"
+	crdreplicator "github.com/liqotech/liqo/internal/crdReplicator"
 	"github.com/liqotech/liqo/pkg/consts"
 	testUtils "github.com/liqotech/liqo/pkg/utils/testUtils"
 )
@@ -30,10 +31,10 @@ const (
 	timeout  = time.Second * 30
 	interval = time.Millisecond * 250
 
-	nodeName         = "node-name"
-	advName          = "adv-name"
-	foreignClusterID = "foreign-id"
-	kubeletNamespace = "default"
+	nodeName            = "node-name"
+	resourceRequestName = "resource-request-name"
+	foreignClusterID    = "foreign-id"
+	kubeletNamespace    = "default"
 )
 
 func TestNodeProvider(t *testing.T) {
@@ -75,7 +76,9 @@ var _ = Describe("NodeProvider", func() {
 		networkStopper = make(chan struct{}, 1)
 		nodeChan = make(chan *v1.Node, 10)
 
-		nodeProvider, err = NewLiqoNodeProvider(nodeName, advName, foreignClusterID, kubeletNamespace, node, podStopper, networkStopper, cluster.GetCfg(), 0, false)
+		nodeProvider, err = NewLiqoNodeProvider(nodeName,
+			resourceRequestName, foreignClusterID, kubeletNamespace,
+			node, podStopper, networkStopper, cluster.GetCfg(), 0, true)
 		Expect(err).To(BeNil())
 
 		nodeProvider.NotifyNodeStatus(ctx, func(node *v1.Node) {
@@ -100,7 +103,7 @@ var _ = Describe("NodeProvider", func() {
 	})
 
 	type nodeProviderTestcase struct {
-		advertisement      *sharingv1alpha1.Advertisement
+		resourceOffer      *sharingv1alpha1.ResourceOffer
 		tunnelEndpoint     *netv1alpha1.TunnelEndpoint
 		expectedConditions []v1.NodeCondition
 	}
@@ -110,11 +113,12 @@ var _ = Describe("NodeProvider", func() {
 		func(c nodeProviderTestcase) {
 			dynClient := dynamic.NewForConfigOrDie(cluster.GetCfg())
 
-			if c.advertisement != nil {
-				unstructAdv, err := runtime.DefaultUnstructuredConverter.ToUnstructured(c.advertisement)
+			if c.resourceOffer != nil {
+				unstructResourceOffer, err := runtime.DefaultUnstructuredConverter.ToUnstructured(c.resourceOffer)
 				Expect(err).To(BeNil())
-				_, err = dynClient.Resource(sharingv1alpha1.GroupVersion.WithResource("advertisements")).Create(ctx, &unstructured.Unstructured{
-					Object: unstructAdv,
+				_, err = dynClient.Resource(sharingv1alpha1.ResourceOfferGroupVersionResource).
+					Namespace(kubeletNamespace).Create(ctx, &unstructured.Unstructured{
+					Object: unstructResourceOffer,
 				}, metav1.CreateOptions{})
 				Expect(err).To(BeNil())
 			}
@@ -127,14 +131,16 @@ var _ = Describe("NodeProvider", func() {
 				}
 				unstructTep, err := runtime.DefaultUnstructuredConverter.ToUnstructured(c.tunnelEndpoint)
 				Expect(err).To(BeNil())
-				unstruct, err := dynClient.Resource(netv1alpha1.TunnelEndpointGroupVersionResource).Create(ctx, &unstructured.Unstructured{
+				unstruct, err := dynClient.Resource(netv1alpha1.TunnelEndpointGroupVersionResource).
+					Namespace(kubeletNamespace).Create(ctx, &unstructured.Unstructured{
 					Object: unstructTep,
 				}, metav1.CreateOptions{})
 				Expect(err).To(BeNil())
 
 				unstruct.Object["status"] = unstructTep["status"]
 
-				_, err = dynClient.Resource(netv1alpha1.TunnelEndpointGroupVersionResource).UpdateStatus(ctx, unstruct, metav1.UpdateOptions{})
+				_, err = dynClient.Resource(netv1alpha1.TunnelEndpointGroupVersionResource).
+					Namespace(kubeletNamespace).UpdateStatus(ctx, unstruct, metav1.UpdateOptions{})
 				Expect(err).To(BeNil())
 
 				Eventually(func() bool {
@@ -153,20 +159,20 @@ var _ = Describe("NodeProvider", func() {
 		},
 
 		Entry("update from Advertisement", nodeProviderTestcase{
-			advertisement: &sharingv1alpha1.Advertisement{
+			resourceOffer: &sharingv1alpha1.ResourceOffer{
 				TypeMeta: metav1.TypeMeta{
-					Kind:       "Advertisement",
+					Kind:       "ResourceOffer",
 					APIVersion: sharingv1alpha1.GroupVersion.String(),
 				},
 				ObjectMeta: metav1.ObjectMeta{
-					Name: advName,
-				},
-				Spec: sharingv1alpha1.AdvertisementSpec{
-					ClusterId:     "remote-id",
-					KubeConfigRef: v1.SecretReference{},
-					LimitRange: v1.LimitRangeSpec{
-						Limits: []v1.LimitRangeItem{},
+					Name:      resourceRequestName,
+					Namespace: kubeletNamespace,
+					Labels: map[string]string{
+						crdreplicator.RemoteLabelSelector: foreignClusterID,
 					},
+				},
+				Spec: sharingv1alpha1.ResourceOfferSpec{
+					ClusterId:  "remote-id",
 					Timestamp:  metav1.NewTime(time.Now()),
 					TimeToLive: metav1.NewTime(time.Now().Add(1 * time.Hour)),
 					ResourceQuota: v1.ResourceQuotaSpec{
@@ -203,14 +209,15 @@ var _ = Describe("NodeProvider", func() {
 		}),
 
 		Entry("update from TunnelEndpoint", nodeProviderTestcase{
-			advertisement: nil,
+			resourceOffer: nil,
 			tunnelEndpoint: &netv1alpha1.TunnelEndpoint{
 				TypeMeta: metav1.TypeMeta{
 					Kind:       "TunnelEndpoint",
 					APIVersion: netv1alpha1.GroupVersion.String(),
 				},
 				ObjectMeta: metav1.ObjectMeta{
-					Name: "tep",
+					Name:      "tep",
+					Namespace: kubeletNamespace,
 				},
 				Spec: netv1alpha1.TunnelEndpointSpec{
 					BackendConfig: map[string]string{},
@@ -246,20 +253,20 @@ var _ = Describe("NodeProvider", func() {
 		}),
 
 		Entry("update from both", nodeProviderTestcase{
-			advertisement: &sharingv1alpha1.Advertisement{
+			resourceOffer: &sharingv1alpha1.ResourceOffer{
 				TypeMeta: metav1.TypeMeta{
-					Kind:       "Advertisement",
+					Kind:       "ResourceOffer",
 					APIVersion: sharingv1alpha1.GroupVersion.String(),
 				},
 				ObjectMeta: metav1.ObjectMeta{
-					Name: advName,
-				},
-				Spec: sharingv1alpha1.AdvertisementSpec{
-					ClusterId:     "remote-id",
-					KubeConfigRef: v1.SecretReference{},
-					LimitRange: v1.LimitRangeSpec{
-						Limits: []v1.LimitRangeItem{},
+					Name:      resourceRequestName,
+					Namespace: kubeletNamespace,
+					Labels: map[string]string{
+						crdreplicator.RemoteLabelSelector: foreignClusterID,
 					},
+				},
+				Spec: sharingv1alpha1.ResourceOfferSpec{
+					ClusterId:  "remote-id",
 					Timestamp:  metav1.NewTime(time.Now()),
 					TimeToLive: metav1.NewTime(time.Now().Add(1 * time.Hour)),
 					ResourceQuota: v1.ResourceQuotaSpec{
@@ -276,7 +283,8 @@ var _ = Describe("NodeProvider", func() {
 					APIVersion: netv1alpha1.GroupVersion.String(),
 				},
 				ObjectMeta: metav1.ObjectMeta{
-					Name: "tep",
+					Name:      "tep",
+					Namespace: kubeletNamespace,
 				},
 				Spec: netv1alpha1.TunnelEndpointSpec{
 					BackendConfig: map[string]string{},

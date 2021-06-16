@@ -13,7 +13,7 @@ import (
 
 // VirtualKubeletDeployment forges the deployment for a virtual-kubelet.
 func VirtualKubeletDeployment(adv *advtypes.Advertisement, remoteClusterID,
-	vkName, vkNamespace, vkImage, initVKImage, nodeName, homeClusterID string) (*appsv1.Deployment, error) {
+	vkName, vkNamespace, liqoNamespace, vkImage, initVKImage, nodeName, homeClusterID string) (*appsv1.Deployment, error) {
 	if adv != nil {
 		remoteClusterID = adv.Spec.ClusterId
 	}
@@ -33,7 +33,7 @@ func VirtualKubeletDeployment(adv *advtypes.Advertisement, remoteClusterID,
 				ObjectMeta: metav1.ObjectMeta{
 					Labels: vkLabels,
 				},
-				Spec: forgeVKPodSpec(vkName, vkNamespace, homeClusterID, adv, remoteClusterID, initVKImage, nodeName, vkImage),
+				Spec: forgeVKPodSpec(vkName, vkNamespace, liqoNamespace, homeClusterID, adv, remoteClusterID, initVKImage, nodeName, vkImage),
 			},
 		},
 	}, nil

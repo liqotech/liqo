@@ -92,7 +92,8 @@ func forgeVKInitContainers(nodeName string, initVKImage string) []v1.Container {
 }
 
 func forgeVKContainers(
-	vkImage string, adv *advtypes.Advertisement, remoteClusterID, nodeName, vkNamespace, homeClusterID string) []v1.Container {
+	vkImage string, adv *advtypes.Advertisement, remoteClusterID,
+	nodeName, vkNamespace, liqoNamespace, homeClusterID string) []v1.Container {
 	command := []string{
 		"/usr/bin/virtual-kubelet",
 	}
@@ -108,7 +109,9 @@ func forgeVKContainers(
 		stringifyArgument("--kubelet-namespace", vkNamespace),
 		stringifyArgument("--foreign-kubeconfig", "/app/kubeconfig/remote"),
 		stringifyArgument("--home-cluster-id", homeClusterID),
+		stringifyArgument("--ipam-server", fmt.Sprintf("%v.%v", liqoconst.NetworkManagerServiceName, liqoNamespace)),
 		"--enable-node-lease",
+		"--useNewAuth",
 	}
 
 	volumeMounts := []v1.VolumeMount{
@@ -164,12 +167,13 @@ func forgeVKContainers(
 }
 
 func forgeVKPodSpec(
-	vkName, vkNamespace, homeClusterID string, adv *advtypes.Advertisement,
+	vkName, vkNamespace, liqoNamespace, homeClusterID string, adv *advtypes.Advertisement,
 	remoteClusterID, initVKImage, nodeName, vkImage string) v1.PodSpec {
 	return v1.PodSpec{
-		Volumes:            forgeVKVolumes(adv),
-		InitContainers:     forgeVKInitContainers(nodeName, initVKImage),
-		Containers:         forgeVKContainers(vkImage, adv, remoteClusterID, nodeName, vkNamespace, homeClusterID),
+		Volumes:        forgeVKVolumes(adv),
+		InitContainers: forgeVKInitContainers(nodeName, initVKImage),
+		Containers: forgeVKContainers(vkImage, adv, remoteClusterID,
+			nodeName, vkNamespace, liqoNamespace, homeClusterID),
 		ServiceAccountName: vkName,
 		Affinity:           forgeVKAffinity(),
 	}

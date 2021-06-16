@@ -11,13 +11,16 @@ import (
 // NewResourceOfferController creates and returns a new reconciler for the ResourceOffers.
 func NewResourceOfferController(
 	mgr manager.Manager, clusterID clusterid.ClusterID,
-	resyncPeriod time.Duration, virtualKubeletImage, initVirtualKubeletImage string) *ResourceOfferReconciler {
+	resyncPeriod time.Duration, virtualKubeletImage,
+	initVirtualKubeletImage, liqoNamespace string) *ResourceOfferReconciler {
 	return &ResourceOfferReconciler{
 		Client: mgr.GetClient(),
 		Scheme: mgr.GetScheme(),
 
 		eventsRecorder: mgr.GetEventRecorderFor("ResourceOffer"),
 		clusterID:      clusterID,
+
+		liqoNamespace: liqoNamespace,
 
 		virtualKubeletImage:     virtualKubeletImage,
 		initVirtualKubeletImage: initVirtualKubeletImage,

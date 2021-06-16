@@ -205,7 +205,7 @@ var _ = Describe("PeeringPhase-Based Replication", func() {
 
 				controller.AddedHandler(c.resource, gvr)
 
-				_, err := controller.LocalDynClient.Resource(gvr).
+				_, err := controller.LocalDynClient.Resource(gvr).Namespace(testNamespace).
 					Get(context.TODO(), c.resource.GetName(), metav1.GetOptions{})
 				Expect(err).To(c.expectedError)
 			},
@@ -263,6 +263,7 @@ var _ = Describe("PeeringPhase-Based Replication", func() {
 		It("Enable Outgoing Replication", func() {
 
 			gvr := discoveryv1alpha1.GroupVersion.WithResource("resourcerequests")
+			remoteNamespace := "remote-1"
 
 			controller.RegisteredResources = []configv1alpha1.Resource{
 				{
@@ -273,27 +274,27 @@ var _ = Describe("PeeringPhase-Based Replication", func() {
 			controller.peeringPhases = map[string]consts.PeeringPhase{
 				remoteClusterID: consts.PeeringPhaseNone,
 			}
-			controller.ClusterIDToLocalNamespaceMapper[remoteClusterID] = "default"
-			controller.LocalToRemoteNamespaceMapper["default"] = "remote-1"
-			controller.ClusterIDToRemoteNamespaceMapper[remoteClusterID] = "remote-1"
+			controller.ClusterIDToLocalNamespaceMapper[remoteClusterID] = testNamespace
+			controller.LocalToRemoteNamespaceMapper[testNamespace] = remoteNamespace
+			controller.ClusterIDToRemoteNamespaceMapper[remoteClusterID] = remoteNamespace
 
 			// this namespace will be used as a remote cluster namespace
 			_, err := k8sclient.CoreV1().Namespaces().Create(ctx, &v1.Namespace{
 				ObjectMeta: metav1.ObjectMeta{
-					Name: "remote-1",
+					Name: remoteNamespace,
 				},
 			}, metav1.CreateOptions{})
 			Expect(err).To(BeNil())
 
 			obj := getObjNamespaced()
-			obj, err = controller.LocalDynClient.Resource(gvr).Namespace("default").
+			obj, err = controller.LocalDynClient.Resource(gvr).Namespace(testNamespace).
 				Create(ctx, obj, metav1.CreateOptions{})
 			Expect(err).To(BeNil())
 
 			controller.checkResourcesOnPeeringPhaseChange(ctx, remoteClusterID,
 				consts.PeeringPhaseNone, consts.PeeringPhaseNone)
 
-			_, err = controller.LocalDynClient.Resource(gvr).Namespace("remote-1").
+			_, err = controller.LocalDynClient.Resource(gvr).Namespace(remoteNamespace).
 				Get(context.TODO(), obj.GetName(), metav1.GetOptions{})
 			Expect(kerrors.IsNotFound(err)).To(BeTrue())
 
@@ -303,7 +304,7 @@ var _ = Describe("PeeringPhase-Based Replication", func() {
 				consts.PeeringPhaseOutgoing, consts.PeeringPhaseNone)
 
 			Eventually(func() error {
-				_, err = controller.LocalDynClient.Resource(gvr).Namespace("remote-1").
+				_, err = controller.LocalDynClient.Resource(gvr).Namespace(remoteNamespace).
 					Get(context.TODO(), obj.GetName(), metav1.GetOptions{})
 				return err
 			}, timeout, interval).Should(BeNil())

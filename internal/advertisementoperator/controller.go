@@ -309,7 +309,8 @@ func (r *AdvertisementReconciler) createVirtualKubelet(ctx context.Context, adv 
 	klog.V(5).Infof("ClusterRoleBinding %s reconciled: %s", vkClusterRoleBinding.Name, op)
 
 	// Create the virtual Kubelet
-	vkDeployment, err := forge.VirtualKubeletDeployment(adv, "", name, r.KubeletNamespace, r.VKImage, r.InitVKImage, nodeName, r.HomeClusterId)
+	vkDeployment, err := forge.VirtualKubeletDeployment(adv, "", name, r.KubeletNamespace,
+		r.KubeletNamespace, r.VKImage, r.InitVKImage, nodeName, r.HomeClusterId)
 	if err != nil {
 		return err
 	}
