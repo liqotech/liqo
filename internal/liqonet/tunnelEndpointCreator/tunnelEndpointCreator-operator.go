@@ -173,25 +173,24 @@ func (tec *TunnelEndpointCreator) Reconcile(ctx context.Context, req ctrl.Reques
 			return result, nil
 		}
 	} else {
-		// the object is being deleted
-		if err := tec.deleteTunEndpoint(&netConfig); err != nil {
-			klog.Errorf("an error occurred while deleting tunnel endpoint related to %s: %s", netConfig.Name, err)
-			return result, err
-		}
+		// The object is being deleted
 		if controllerutil.ContainsFinalizer(&netConfig, tunnelEndpointCreatorFinalizer) {
-			// remove the finalizer from the list and update it.
+			// Remove IPAM configuration per cluster
+			if err := tec.IPManager.RemoveClusterConfig(netConfig.Spec.ClusterID); err != nil {
+				klog.Errorf("cannot delete local subnets assigned to cluster %s: %s", netConfig.Spec.ClusterID, err.Error())
+				return result, err
+			}
+			// Remove TunnelEndpoint resource relative to this NetworkConfig
+			if err := tec.deleteTunEndpoint(&netConfig); err != nil {
+				klog.Errorf("an error occurred while deleting tunnel endpoint related to %s: %s", netConfig.Name, err)
+				return result, err
+			}
+			// Remove the finalizer and update resource.
 			controllerutil.RemoveFinalizer(&netConfig, tunnelEndpointCreatorFinalizer)
 			if err := tec.Update(ctx, &netConfig); err != nil {
-				if apierrors.IsConflict(err) {
-					return ctrl.Result{}, nil
-				}
 				klog.Errorf("an error occurred while removing finalizer from resource %s: %s", req.NamespacedName, err)
 				return result, err
 			}
-		}
-		// Remove IPAM configuration per cluster
-		if err := tec.IPManager.RemoveClusterConfig(netConfig.Spec.ClusterID); err != nil {
-			klog.Errorf("cannot delete local subnets assigned to cluster %s: %s", netConfig.Spec.ClusterID, err.Error())
 		}
 		return result, nil
 	}
