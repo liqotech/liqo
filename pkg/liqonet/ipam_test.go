@@ -105,6 +105,13 @@ func setDynClient() error {
 	if err != nil {
 		return err
 	}
+	// The following loop guarrantees resource have different names.
+	for nm2.GetName() == nm1.GetName() {
+		nm2, err = natmappinginflater.ForgeNatMapping(clusterID2, remotePodCIDR, localNATExternalCIDR, make(map[string]string))
+		if err != nil {
+			return err
+		}
+	}
 
 	dynClient = fake.NewSimpleDynamicClientWithCustomListKinds(scheme, m, nm1, nm2)
 	return nil
