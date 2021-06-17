@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"path/filepath"
+	"sync"
 	"syscall"
 
 	. "github.com/onsi/ginkgo"
@@ -12,11 +13,10 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/types"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/envtest"
-
-	"k8s.io/apimachinery/pkg/types"
 
 	liqoerrors "github.com/liqotech/liqo/pkg/liqonet/errors"
 	"github.com/liqotech/liqo/pkg/liqonet/overlay"
@@ -88,6 +88,9 @@ var _ = Describe("OverlayOperator", func() {
 			vxlanPeers:  make(map[string]*overlay.Neighbor, 0),
 			vxlanDev:    vxlanDevice,
 			Client:      k8sClient,
+			nodesLock:   &sync.RWMutex{},
+			vxlanNodes:  map[string]string{},
+			podToNode:   map[string]string{},
 		}
 		Expect(addFdb(overlayExistingNeigh, vxlanDevice.Link.Attrs().Index))
 	})
@@ -107,13 +110,13 @@ var _ = Describe("OverlayOperator", func() {
 						},
 					},
 				}
-				ovc, err := NewOverlayController(overlayPodName, overlayPodIP, labelSelector, vxlanDevice, k8sClient)
+				ovc, err := NewOverlayController(overlayPodName, overlayPodIP, labelSelector, vxlanDevice, &sync.RWMutex{}, nil, k8sClient)
 				Expect(err).Should(MatchError("\"incorrect\" is not a valid pod selector operator"))
 				Expect(ovc).Should(BeNil())
 			})
 
 			It("vxlan device is not correct, should return nil and error", func() {
-				ovc, err := NewOverlayController(overlayPodName, overlayPodIP, PodLabelSelector, overlay.VxlanDevice{Link: nil}, k8sClient)
+				ovc, err := NewOverlayController(overlayPodName, overlayPodIP, PodLabelSelector, overlay.VxlanDevice{Link: nil}, &sync.RWMutex{}, nil, k8sClient)
 				Expect(err).Should(MatchError(&liqoerrors.WrongParameter{Parameter: "vxlanDevice.Link", Reason: liqoerrors.NotNil}))
 				Expect(ovc).Should(BeNil())
 			})
@@ -121,7 +124,7 @@ var _ = Describe("OverlayOperator", func() {
 
 		Context("when input parameters are correct", func() {
 			It("should return overlay controller and nil", func() {
-				ovc, err := NewOverlayController(overlayPodName, overlayPodIP, PodLabelSelector, vxlanDevice, k8sClient)
+				ovc, err := NewOverlayController(overlayPodName, overlayPodIP, PodLabelSelector, vxlanDevice, &sync.RWMutex{}, nil, k8sClient)
 				Expect(err).ShouldNot(HaveOccurred())
 				Expect(ovc).ShouldNot(BeNil())
 			})
@@ -166,6 +169,14 @@ var _ = Describe("OverlayOperator", func() {
 				Eventually(func() error { _, err := ovc.Reconcile(context.TODO(), overlayReq); return err }).Should(BeNil())
 				_, ok := ovc.vxlanPeers[overlayReq.String()]
 				Expect(ok).Should(BeTrue())
+				//Check that we save the tuple: (nodeName, nodeIP)
+				nodeIP, ok := ovc.vxlanNodes[overlayTestPod.Spec.NodeName]
+				Expect(ok).Should(BeTrue())
+				Expect(nodeIP).Should(Equal(newPod.Status.PodIP))
+				//Check that we save the tuple: (req.string, nodeName)
+				nodeName, ok := ovc.podToNode[overlayReq.String()]
+				Expect(ok).Should(BeTrue())
+				Expect(nodeName).Should(Equal(overlayTestPod.Spec.NodeName))
 			})
 		})
 
@@ -180,8 +191,16 @@ var _ = Describe("OverlayOperator", func() {
 				overlayTestPod.Name = "del-peer-no-existing"
 				overlayReq.Name = "del-peer-no-existing"
 				ovc.vxlanPeers[overlayReq.String()] = &overlayExistingNeigh
+				ovc.podToNode[overlayReq.String()] = overlayTestPod.Spec.NodeName
+				ovc.vxlanNodes[overlayTestPod.Spec.NodeName] = overlayExistingNeigh.IP.String()
 				Eventually(func() error { _, err := ovc.Reconcile(context.TODO(), overlayReq); return err }).Should(BeNil())
 				_, ok := ovc.vxlanPeers[overlayReq.String()]
+				Expect(ok).Should(BeFalse())
+				//Check that we remove the tuple: (nodeName, nodeIP)
+				_, ok = ovc.vxlanNodes[overlayTestPod.Spec.NodeName]
+				Expect(ok).Should(BeFalse())
+				//Check that we remove the tuple: (req.string, nodeName)
+				_, ok = ovc.podToNode[overlayReq.String()]
 				Expect(ok).Should(BeFalse())
 			})
 		})
@@ -217,6 +236,14 @@ var _ = Describe("OverlayOperator", func() {
 				Expect(added).Should(BeTrue())
 				_, ok := ovc.vxlanPeers[overlayReq.String()]
 				Expect(ok).Should(BeTrue())
+				//Check that we save the tuple: (nodeName, nodeIP)
+				nodeIP, ok := ovc.vxlanNodes[overlayTestPod.Spec.NodeName]
+				Expect(ok).Should(BeTrue())
+				Expect(nodeIP).Should(Equal(overlayTestPod.Status.PodIP))
+				//Check that we save the tuple: (req.string, nodeName)
+				nodeName, ok := ovc.podToNode[overlayReq.String()]
+				Expect(ok).Should(BeTrue())
+				Expect(nodeName).Should(Equal(overlayTestPod.Spec.NodeName))
 			})
 		})
 
@@ -249,12 +276,20 @@ var _ = Describe("OverlayOperator", func() {
 		Context("when peer does exist", func() {
 			It("should return true and nil", func() {
 				ovc.vxlanPeers[overlayReq.String()] = &overlayExistingNeigh
+				ovc.podToNode[overlayReq.String()] = overlayTestPod.Spec.NodeName
+				ovc.vxlanNodes[overlayTestPod.Spec.NodeName] = overlayExistingNeigh.IP.String()
 				overlayTestPod.Status.PodIP = overlayPeerIP
 				ovc.addAnnotation(overlayTestPod, overlayAnnKey, overlayPeerMAC)
 				deleted, err := ovc.delPeer(overlayReq)
 				Expect(err).NotTo(HaveOccurred())
 				Expect(deleted).Should(BeTrue())
 				_, ok := ovc.vxlanPeers[overlayReq.String()]
+				Expect(ok).Should(BeFalse())
+				//Check that we remove the tuple: (nodeName, nodeIP)
+				_, ok = ovc.vxlanNodes[overlayTestPod.Spec.NodeName]
+				Expect(ok).Should(BeFalse())
+				//Check that we remove the tuple: (req.string, nodeName)
+				_, ok = ovc.podToNode[overlayReq.String()]
 				Expect(ok).Should(BeFalse())
 
 			})

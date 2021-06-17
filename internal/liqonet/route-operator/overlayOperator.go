@@ -3,6 +3,7 @@ package routeoperator
 import (
 	"context"
 	"net"
+	"sync"
 
 	corev1 "k8s.io/api/core/v1"
 	k8sApiErrors "k8s.io/apimachinery/pkg/api/errors"
@@ -45,12 +46,17 @@ var (
 
 // OverlayController reconciles pods objects, in our case the route operators pods.
 type OverlayController struct {
-	vxlanDev overlay.VxlanDevice
 	client.Client
+	vxlanDev    overlay.VxlanDevice
 	podName     string
 	podIP       string
 	podSelector labels.Selector
+	nodesLock   *sync.RWMutex
 	vxlanPeers  map[string]*overlay.Neighbor
+	// For each nodeName contains its IP addr.
+	vxlanNodes map[string]string
+	// Given the namespace/podName it contains the pod name where the pod is running.
+	podToNode map[string]string
 }
 
 // Reconcile for a given pod it checks if it is our pod or not. If it is our pod than annotates
@@ -104,8 +110,8 @@ func (ovc *OverlayController) Reconcile(ctx context.Context, req ctrl.Request) (
 }
 
 // NewOverlayController returns a new controller ready to be setup and started with the controller manager.
-func NewOverlayController(podName, podIP string, podSelector *metav1.LabelSelector,
-	vxlanDevice overlay.VxlanDevice, cl client.Client) (*OverlayController, error) {
+func NewOverlayController(podName, podIP string, podSelector *metav1.LabelSelector, vxlanDevice overlay.VxlanDevice,
+	nodesLock *sync.RWMutex, vxlanNodes map[string]string, cl client.Client) (*OverlayController, error) {
 	selector, err := metav1.LabelSelectorAsSelector(podSelector)
 	if err != nil {
 		return nil, err
@@ -117,12 +123,15 @@ func NewOverlayController(podName, podIP string, podSelector *metav1.LabelSelect
 		}
 	}
 	return &OverlayController{
-		vxlanDev:    vxlanDevice,
 		Client:      cl,
+		vxlanDev:    vxlanDevice,
 		podName:     podName,
 		podIP:       podIP,
 		podSelector: selector,
-		vxlanPeers:  make(map[string]*overlay.Neighbor),
+		nodesLock:   nodesLock,
+		vxlanPeers:  map[string]*overlay.Neighbor{},
+		vxlanNodes:  vxlanNodes,
+		podToNode:   map[string]string{},
 	}, nil
 }
 
@@ -130,6 +139,8 @@ func NewOverlayController(podName, podIP string, podSelector *metav1.LabelSelect
 // It return true when the entry does not exist and is added, false if the entry does already exist,
 // and error if something goes wrong.
 func (ovc *OverlayController) addPeer(req ctrl.Request, pod *corev1.Pod) (bool, error) {
+	ovc.nodesLock.Lock()
+	defer ovc.nodesLock.Unlock()
 	peerIP := pod.Status.PodIP
 	peerMAC := pod.GetAnnotations()[vxlanMACAddressKey]
 	ip := net.ParseIP(peerIP)
@@ -150,6 +161,8 @@ func (ovc *OverlayController) addPeer(req ctrl.Request, pod *corev1.Pod) (bool, 
 		return added, err
 	}
 	ovc.vxlanPeers[req.String()] = &peer
+	ovc.vxlanNodes[pod.Spec.NodeName] = peerIP
+	ovc.podToNode[req.String()] = pod.Spec.NodeName
 	return added, nil
 }
 
@@ -157,6 +170,8 @@ func (ovc *OverlayController) addPeer(req ctrl.Request, pod *corev1.Pod) (bool, 
 // It return true when the entry exists and is removed, false if the entry does not exist,
 // and error if something goes wrong.
 func (ovc *OverlayController) delPeer(req ctrl.Request) (bool, error) {
+	ovc.nodesLock.Lock()
+	defer ovc.nodesLock.Unlock()
 	peer, ok := ovc.vxlanPeers[req.String()]
 	if !ok {
 		return false, nil
@@ -166,6 +181,8 @@ func (ovc *OverlayController) delPeer(req ctrl.Request) (bool, error) {
 		return deleted, err
 	}
 	delete(ovc.vxlanPeers, req.String())
+	delete(ovc.vxlanNodes, ovc.podToNode[req.String()])
+	delete(ovc.podToNode, req.String())
 	return deleted, nil
 }
 
