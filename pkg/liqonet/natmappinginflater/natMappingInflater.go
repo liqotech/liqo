@@ -33,6 +33,8 @@ type Interface interface {
 	GetNatMappings(clusterID string) (map[string]string, error)
 	// AddMapping adds a NAT mapping.
 	AddMapping(oldIP, newIP, clusterID string) error
+	// RemoveMapping removes a NAT mapping.
+	RemoveMapping(oldIP, clusterID string) error
 }
 
 // NatMappingInflater is an implementation of the NatMappingInflaterInterface
@@ -254,6 +256,53 @@ func (inflater *NatMappingInflater) addOrUpdateMappingInResource(oldIP, newIP, c
 		}
 		if err != nil {
 			return err
+		}
+		return nil
+	})
+	if retryError != nil {
+		return retryError
+	}
+	return nil
+}
+
+// RemoveMapping removes a mapping from both resource and in-memory structure.
+func (inflater *NatMappingInflater) RemoveMapping(oldIP, clusterID string) error {
+	var exists bool
+	var mappings netv1alpha1.Mappings
+	// Check if NAT mappings have been initilized for remote cluster.
+	mappings, exists = inflater.natMappingsPerCluster[clusterID]
+	if !exists {
+		return &errors.MissingInit{
+			StructureName: fmt.Sprintf("%s for cluster %s", consts.NatMappingKind, clusterID),
+		}
+	}
+	// Check existence of mapping
+	newIP, exists := mappings[oldIP]
+	if !exists {
+		return nil // Mapping already deleted, do nothing
+	}
+	// Delete mapping from in-memory structure.
+	delete(mappings, oldIP)
+	if err := inflater.removeMappingFromResource(oldIP, clusterID); err != nil {
+		mappings[oldIP] = newIP // Undo delete
+		return fmt.Errorf("cannot delete mapping from resource: %w", err)
+	}
+	return nil
+}
+
+// removeMapping deletes a mapping from the resource related to a remote cluster.
+func (inflater *NatMappingInflater) removeMappingFromResource(oldIP, clusterID string) error {
+	retryError := retry.RetryOnConflict(retry.DefaultBackoff, func() error {
+		// Get resource for remote cluster
+		natMappings, err := inflater.getNatMappingResource(clusterID)
+		if err != nil {
+			return fmt.Errorf("cannot retrieve NatMapping resource for cluster %s: %w", clusterID, err)
+		}
+		// Delete mapping
+		delete(natMappings.Spec.ClusterMappings, oldIP)
+		// Update
+		if err := inflater.updateNatMappingResource(natMappings); err != nil {
+			return fmt.Errorf("cannot update NatMapping resource for cluster %s: %w", clusterID, err)
 		}
 		return nil
 	})

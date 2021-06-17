@@ -355,4 +355,51 @@ var _ = Describe("NatMappingInflater", func() {
 			})
 		})
 	})
+	Describe("RemoveMapping", func() {
+		Context("Call func without initializing NAT mappings", func() {
+			It("should return a MissingInit error", func() {
+				err := inflater.RemoveMapping(oldIP, clusterID1)
+				Expect(err).To(MatchError(fmt.Sprintf("%s for cluster %s must be %s", consts.NatMappingKind, clusterID1, liqoneterrors.Initialization)))
+			})
+		})
+		Context("Call func after correct initialization", func() {
+			It("should successfully remove the mapping", func() {
+				// Init
+				err := inflater.InitNatMappingsPerCluster(podCIDR, externalCIDR, clusterID1)
+				Expect(err).To(BeNil())
+
+				// Add mapping
+				err = inflater.AddMapping(oldIP, newIP, clusterID1)
+				Expect(err).To(BeNil())
+
+				// Remove mapping
+				err = inflater.RemoveMapping(oldIP, clusterID1)
+				Expect(err).To(BeNil())
+
+				// Check if removed successfully
+				nm, err := inflater.getNatMappingResource(clusterID1)
+				Expect(err).To(BeNil())
+				Expect(nm.Spec.ClusterMappings).To(HaveKeyWithValue(oldIP, newIP))
+			})
+		})
+		Context("Call func twice", func() {
+			It("should return no errors", func() {
+				// Init
+				err := inflater.InitNatMappingsPerCluster(podCIDR, externalCIDR, clusterID1)
+				Expect(err).To(BeNil())
+
+				// Add mapping
+				err = inflater.AddMapping(oldIP, newIP, clusterID1)
+				Expect(err).To(BeNil())
+
+				// Remove mapping
+				err = inflater.RemoveMapping(oldIP, clusterID1)
+				Expect(err).To(BeNil())
+
+				// Remove mapping for the second time
+				err = inflater.RemoveMapping(oldIP, clusterID1)
+				Expect(err).To(BeNil())
+			})
+		})
+	})
 })
