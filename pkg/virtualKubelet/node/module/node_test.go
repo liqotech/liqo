@@ -22,7 +22,7 @@ import (
 
 	"gotest.tools/assert"
 	"gotest.tools/assert/cmp"
-	coord "k8s.io/api/coordination/v1beta1"
+	coord "k8s.io/api/coordination/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -44,7 +44,7 @@ func testNodeRun(t *testing.T, enableLease bool) {
 	testP := &testNodeProvider{NodeProvider: &NaiveNodeProvider{}}
 
 	nodes := c.CoreV1().Nodes()
-	leases := c.CoordinationV1beta1().Leases(corev1.NamespaceNodeLease)
+	leases := c.CoordinationV1().Leases(corev1.NamespaceNodeLease)
 
 	interval := 1 * time.Millisecond
 	opts := []NodeControllerOpt{
@@ -52,7 +52,7 @@ func testNodeRun(t *testing.T, enableLease bool) {
 		WithNodeStatusUpdateInterval(interval),
 	}
 	if enableLease {
-		opts = append(opts, WithNodeEnableLeaseV1Beta1(leases, nil))
+		opts = append(opts, WithNodeEnableLeaseV1(leases, nil))
 	}
 	testNode := testNode(t)
 	// We have to refer to testNodeCopy during the course of the test. testNode is modified by the node controller
@@ -222,7 +222,7 @@ func TestNodeCustomUpdateStatusErrorHandler(t *testing.T) {
 }
 
 func TestEnsureLease(t *testing.T) {
-	c := testclient.NewSimpleClientset().CoordinationV1beta1().Leases(corev1.NamespaceNodeLease)
+	c := testclient.NewSimpleClientset().CoordinationV1().Leases(corev1.NamespaceNodeLease)
 	n := testNode(t)
 	ctx := context.Background()
 
@@ -280,7 +280,7 @@ func TestUpdateNodeStatus(t *testing.T) {
 }
 
 func TestUpdateNodeLease(t *testing.T) {
-	leases := testclient.NewSimpleClientset().CoordinationV1beta1().Leases(corev1.NamespaceNodeLease)
+	leases := testclient.NewSimpleClientset().CoordinationV1().Leases(corev1.NamespaceNodeLease)
 	lease := newLease(nil)
 	n := testNode(t)
 	setLeaseAttrs(lease, n, 0)

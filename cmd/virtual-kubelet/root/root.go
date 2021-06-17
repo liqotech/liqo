@@ -30,7 +30,7 @@ import (
 	"k8s.io/apimachinery/pkg/fields"
 	kubeinformers "k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes/scheme"
-	"k8s.io/client-go/kubernetes/typed/coordination/v1beta1"
+	coordv1 "k8s.io/client-go/kubernetes/typed/coordination/v1"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/record"
 	"k8s.io/client-go/util/workqueue"
@@ -139,9 +139,9 @@ func runRootCommand(ctx context.Context, s *provider.Store, c *Opts) error {
 		return errors.Wrapf(err, "error initializing provider %s", c.Provider)
 	}
 
-	var leaseClient v1beta1.LeaseInterface
+	var leaseClient coordv1.LeaseInterface
 	if c.EnableNodeLease {
-		leaseClient = client.Client().CoordinationV1beta1().Leases(corev1.NamespaceNodeLease)
+		leaseClient = client.Client().CoordinationV1().Leases(corev1.NamespaceNodeLease)
 	}
 
 	advName := strings.Join([]string{virtualKubelet.AdvertisementPrefix, c.ForeignClusterId}, "")
@@ -177,7 +177,7 @@ func runRootCommand(ctx context.Context, s *provider.Store, c *Opts) error {
 		nodeProviderModule,
 		pNode,
 		client.Client().CoreV1().Nodes(),
-		module.WithNodeEnableLeaseV1Beta1(leaseClient, nil),
+		module.WithNodeEnableLeaseV1(leaseClient, nil),
 		module.WithNodeStatusUpdateErrorHandler(
 			func(ctx context.Context, err error) error {
 				klog.Info("node setting up")

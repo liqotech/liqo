@@ -24,13 +24,13 @@ import (
 	"k8s.io/klog/v2"
 
 	pkgerrors "github.com/pkg/errors"
-	coord "k8s.io/api/coordination/v1beta1"
+	coord "k8s.io/api/coordination/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/strategicpatch"
-	"k8s.io/client-go/kubernetes/typed/coordination/v1beta1"
+	coordinationv1 "k8s.io/client-go/kubernetes/typed/coordination/v1"
 	v1 "k8s.io/client-go/kubernetes/typed/core/v1"
 )
 
@@ -76,7 +76,7 @@ func NewNodeController(p NodeProvider, node *corev1.Node, nodes v1.NodeInterface
 // NodeControllerOpt are the functional options used for configuring a node.
 type NodeControllerOpt func(*NodeController) error
 
-// WithNodeEnableLeaseV1Beta1 enables support for v1beta1 leases.
+// WithNodeEnableLeaseV1 enables support for v1beta1 leases.
 // If client is nil, leases will not be enabled.
 // If baseLease is nil, a default base lease will be used.
 //
@@ -90,7 +90,7 @@ type NodeControllerOpt func(*NodeController) error
 //   - When node leases are enabled, node status updates are controlled by the
 //     node status update interval option.
 // To set a custom node status update interval, see WithNodeStatusUpdateInterval().
-func WithNodeEnableLeaseV1Beta1(client v1beta1.LeaseInterface, baseLease *coord.Lease) NodeControllerOpt {
+func WithNodeEnableLeaseV1(client coordinationv1.LeaseInterface, baseLease *coord.Lease) NodeControllerOpt {
 	return func(n *NodeController) error {
 		n.leases = client
 		n.lease = baseLease
@@ -146,7 +146,7 @@ type NodeController struct {
 	p NodeProvider
 	n *corev1.Node
 
-	leases v1beta1.LeaseInterface
+	leases coordinationv1.LeaseInterface
 	nodes  v1.NodeInterface
 
 	disableLease   bool
@@ -353,7 +353,7 @@ func (n *NodeController) updateStatus(ctx context.Context, skipErrorCb bool) err
 	return nil
 }
 
-func ensureLease(ctx context.Context, leases v1beta1.LeaseInterface, lease *coord.Lease) (*coord.Lease, error) {
+func ensureLease(ctx context.Context, leases coordinationv1.LeaseInterface, lease *coord.Lease) (*coord.Lease, error) {
 	l, err := leases.Create(context.TODO(), lease, metav1.CreateOptions{})
 	if err != nil {
 		switch {
@@ -377,7 +377,7 @@ func ensureLease(ctx context.Context, leases v1beta1.LeaseInterface, lease *coor
 // If this function returns an errors.IsNotFound(err) error, this likely means
 // that node leases are not supported, if this is the case, call updateNodeStatus
 // instead.
-func updateNodeLease(ctx context.Context, leases v1beta1.LeaseInterface, lease *coord.Lease) (*coord.Lease, error) {
+func updateNodeLease(ctx context.Context, leases coordinationv1.LeaseInterface, lease *coord.Lease) (*coord.Lease, error) {
 	l, err := leases.Update(context.TODO(), lease, metav1.UpdateOptions{})
 	if err != nil {
 		if errors.IsNotFound(err) {
