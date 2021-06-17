@@ -1297,7 +1297,8 @@ var _ = Describe("Ipam", func() {
 				// Check if IP is freed
 				Expect(ipamConfig.Spec.EndpointMappings).To(HaveLen(0))
 
-				// Check NatMapping resources
+				// Check that endpoint mapping does not exist anymore
+				// in natmapping resources of remote clusters.
 				nm1, err := getNatMappingResourcePerCluster(clusterID1)
 				Expect(err).To(BeNil())
 				Expect(nm1.Spec.ClusterMappings).ToNot(HaveKey(endpointIP))
@@ -1367,8 +1368,9 @@ var _ = Describe("Ipam", func() {
 				Expect(err).To(BeNil())
 				// Mapping stil exists for clusterID1
 				Expect(nm1.Spec.ClusterMappings).To(HaveKey(endpointIP))
-				nm2, err := getNatMappingResourcePerCluster(clusterID1)
+				nm2, err := getNatMappingResourcePerCluster(clusterID2)
 				Expect(err).To(BeNil())
+				// Mapping does not exist anymore in clusterID2
 				Expect(nm2.Spec.ClusterMappings).ToNot(HaveKey(endpointIP))
 			})
 		})
