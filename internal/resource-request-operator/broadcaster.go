@@ -10,7 +10,7 @@ import (
 	"k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/cache"
-	"k8s.io/klog"
+	"k8s.io/klog/v2"
 	resourcehelper "k8s.io/kubectl/pkg/util/resource"
 
 	configv1alpha1 "github.com/liqotech/liqo/apis/config/v1alpha1"
@@ -92,7 +92,7 @@ func (b *Broadcaster) getConfig() *configv1alpha1.ClusterConfig {
 // react to a Node Creation/First informer run.
 func (b *Broadcaster) onNodeAdd(obj interface{}) {
 	node := obj.(*corev1.Node)
-	if node.Status.Phase == corev1.NodeRunning {
+	if utils.IsNodeReady(node) {
 		klog.V(4).Infof("Adding Node %s\n", node.Name)
 		toAdd := &node.Status.Allocatable
 		currentResources := b.readClusterResources()
@@ -109,16 +109,16 @@ func (b *Broadcaster) onNodeUpdate(oldObj, newObj interface{}) {
 	newNodeResources := newNode.Status.Allocatable
 	currentResources := b.readClusterResources()
 	klog.V(4).Infof("Updating Node %s in %v\n", oldNode.Name, newNode)
-	if newNode.Status.Phase == corev1.NodeRunning {
-		// node was already Running, update with possible new resources.
-		if oldNode.Status.Phase == corev1.NodeRunning {
+	if utils.IsNodeReady(newNode) {
+		// node was already Ready, update with possible new resources.
+		if utils.IsNodeReady(oldNode) {
 			updateResources(currentResources, oldNodeResources, newNodeResources)
 			// node is starting, add all its resources.
 		} else {
 			addResources(currentResources, newNodeResources)
 		}
 		// node is terminating or stopping, delete all its resources.
-	} else if oldNode.Status.Phase == corev1.NodeRunning && newNode.Status.Phase != corev1.NodeRunning {
+	} else if utils.IsNodeReady(oldNode) && !utils.IsNodeReady(newNode) {
 		subResources(currentResources, oldNodeResources)
 	}
 	b.writeClusterResources(currentResources)
@@ -129,7 +129,7 @@ func (b *Broadcaster) onNodeDelete(obj interface{}) {
 	node := obj.(*corev1.Node)
 	toDelete := &node.Status.Allocatable
 	currentResources := b.readClusterResources()
-	if node.Status.Phase == corev1.NodeRunning {
+	if utils.IsNodeReady(node) {
 		klog.V(4).Infof("Deleting Node %s\n", node.Name)
 		subResources(currentResources, *toDelete)
 		b.writeClusterResources(currentResources)
