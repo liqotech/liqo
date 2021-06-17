@@ -7,10 +7,12 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/klog/v2"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
+	sharingv1alpha1 "github.com/liqotech/liqo/apis/sharing/v1alpha1"
 	crdreplicator "github.com/liqotech/liqo/internal/crdReplicator"
 )
 
@@ -37,14 +39,34 @@ func (r *ResourceRequestReconciler) Reconcile(ctx context.Context, req ctrl.Requ
 	var resourceRequest discoveryv1alpha1.ResourceRequest
 	err := r.Get(ctx, req.NamespacedName, &resourceRequest)
 	if err != nil {
-		klog.Errorf("%s -> unable to get resourceRequest %s: %s", r.ClusterID, req.NamespacedName, err)
+		klog.Errorf("unable to get resourceRequest %s: %s", req.NamespacedName, err)
 		return ctrl.Result{}, nil
 	}
 
-	offerErr := r.generateResourceOffer(&resourceRequest)
-	if offerErr != nil {
-		klog.Errorf("%s -> Error generating resourceOffer: %s", r.ClusterID, offerErr)
-		return ctrl.Result{}, offerErr
+	remoteClusterID := resourceRequest.Spec.ClusterIdentity.ClusterID
+
+	var requireSpecUpdate bool
+	// ensure the ForeignCluster existence, if not exists we have to add a new one
+	// with IncomingPeering discovery method.
+	requireSpecUpdate, err = r.ensureForeignCluster(ctx, &resourceRequest)
+	if err != nil {
+		klog.Errorf("%s -> Error generating resourceOffer: %s", remoteClusterID, err)
+		return ctrl.Result{}, err
+	}
+
+	if requireSpecUpdate {
+		if err = r.Client.Update(ctx, &resourceRequest); err != nil {
+			klog.Error(err)
+			return ctrl.Result{}, err
+		}
+		// always requeue after a spec update
+		return ctrl.Result{}, err
+	}
+
+	err = r.generateResourceOffer(ctx, &resourceRequest)
+	if err != nil {
+		klog.Errorf("%s -> Error generating resourceOffer: %s", remoteClusterID, err)
+		return ctrl.Result{}, err
 	}
 
 	return ctrl.Result{}, nil
@@ -58,8 +80,9 @@ func (r *ResourceRequestReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		klog.Error(err)
 		return err
 	}
+
 	return ctrl.NewControllerManagedBy(mgr).
-		WithEventFilter(p).
-		For(&discoveryv1alpha1.ResourceRequest{}).
+		For(&discoveryv1alpha1.ResourceRequest{}, builder.WithPredicates(p)).
+		Owns(&sharingv1alpha1.ResourceOffer{}).
 		Complete(r)
 }

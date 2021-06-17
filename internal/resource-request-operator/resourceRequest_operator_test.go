@@ -47,7 +47,12 @@ func createTestNodes() (*corev1.Node, *corev1.Node) {
 	first.Status = corev1.NodeStatus{
 		Capacity:    resources,
 		Allocatable: resources,
-		Phase:       corev1.NodeRunning,
+		Conditions: []corev1.NodeCondition{
+			0: {
+				Type:   corev1.NodeReady,
+				Status: corev1.ConditionTrue,
+			},
+		},
 	}
 	first, err = clientset.CoreV1().Nodes().UpdateStatus(ctx, first, metav1.UpdateOptions{})
 	Expect(err).ToNot(HaveOccurred())
@@ -56,7 +61,12 @@ func createTestNodes() (*corev1.Node, *corev1.Node) {
 	second.Status = corev1.NodeStatus{
 		Capacity:    resources,
 		Allocatable: resources,
-		Phase:       corev1.NodeRunning,
+		Conditions: []corev1.NodeCondition{
+			0: {
+				Type:   corev1.NodeReady,
+				Status: corev1.ConditionTrue,
+			},
+		},
 	}
 	second, err = clientset.CoreV1().Nodes().UpdateStatus(ctx, second, metav1.UpdateOptions{})
 	Expect(err).ToNot(HaveOccurred())
@@ -221,8 +231,11 @@ var _ = Describe("ResourceRequest Operator", func() {
 	Context("Testing broadcaster", func() {
 		It("Broadcaster should update resources in correct way", func() {
 			podReq, _ := resourcehelper.PodRequestsAndLimits(podWithoutLabel)
-			By("Checking update node phase")
-			node1.Status.Phase = corev1.NodePending
+			By("Checking update node ready condition")
+			node1.Status.Conditions[0] = corev1.NodeCondition{
+				Type:   corev1.NodeReady,
+				Status: corev1.ConditionFalse,
+			}
 			var err error
 			node1, err = clientset.CoreV1().Nodes().UpdateStatus(ctx, node1, metav1.UpdateOptions{})
 			Expect(err).ToNot(HaveOccurred())
@@ -238,7 +251,10 @@ var _ = Describe("ResourceRequest Operator", func() {
 				}
 				return true
 			}, timeout, interval).Should(BeTrue())
-			node1.Status.Phase = corev1.NodeRunning
+			node1.Status.Conditions[0] = corev1.NodeCondition{
+				Type:   corev1.NodeReady,
+				Status: corev1.ConditionTrue,
+			}
 			node1, err = clientset.CoreV1().Nodes().UpdateStatus(ctx, node1, metav1.UpdateOptions{})
 			Expect(err).ToNot(HaveOccurred())
 			Eventually(func() bool {
