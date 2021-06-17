@@ -64,13 +64,21 @@ func setDynClient() error {
 
 	// Init fake dynamic client with objects in order to avoid errors in InitNatMappings func
 	// due to the lack of support of fake.dynamicClient for creation of more than 2 resources of the same Kind.
-	nm1, err := ForgeNatMapping(clusterID1, "10.0.0.0/24", "10.0.1.0/24", make(map[string]string))
+	nm1, err := ForgeNatMapping(clusterID1, podCIDR, externalCIDR, make(map[string]string))
 	if err != nil {
 		return err
 	}
-	nm2, err := ForgeNatMapping(clusterID2, "10.0.0.0/24", "10.0.1.0/24", map[string]string{})
+	nm2, err := ForgeNatMapping(clusterID2, podCIDR, externalCIDR, map[string]string{})
 	if err != nil {
 		return err
+	}
+
+	// The following loop guarrantees resource have different names.
+	for nm2.GetName() == nm1.GetName() {
+		nm2, err = ForgeNatMapping(clusterID2, podCIDR, externalCIDR, make(map[string]string))
+		if err != nil {
+			return err
+		}
 	}
 
 	dynClient = fake.NewSimpleDynamicClientWithCustomListKinds(scheme, m, nm1, nm2)

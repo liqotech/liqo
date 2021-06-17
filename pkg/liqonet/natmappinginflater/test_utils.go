@@ -15,7 +15,7 @@ import (
 
 // ForgeNatMapping forges a NatMapping resource for a cluster received as parameter.
 func ForgeNatMapping(clusterID, podCIDR, externalCIDR string, mappings map[string]string) (*unstructured.Unstructured, error) {
-	n, err := rand.Int(rand.Reader, big.NewInt(5000))
+	n, err := rand.Int(rand.Reader, big.NewInt(10000))
 	if err != nil {
 		return nil, err
 	}
