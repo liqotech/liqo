@@ -1114,6 +1114,11 @@ func (liqoIPAM *IPAM) unmapEndpointIPInternal(clusterID, endpointIP string) erro
 		return nil
 	}
 
+	// Remove NAT mapping
+	if err := liqoIPAM.natMappingInflater.RemoveMapping(endpointIP, clusterID); err != nil {
+		return err
+	}
+
 	// Set endpoint IP as unused by deleting entry of cluster
 	delete(endpointMapping.ClusterMappings, clusterID)
 

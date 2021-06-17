@@ -906,7 +906,7 @@ var _ = Describe("Ipam", func() {
 					Expect(err).To(BeNil())
 
 					// Remote cluster has not remapped local PodCIDR
-					err = ipam.AddLocalSubnetsPerCluster("None", "None", clusterID1)
+					err = ipam.AddLocalSubnetsPerCluster(consts.DefaultCIDRValue, consts.DefaultCIDRValue, clusterID1)
 					Expect(err).To(BeNil())
 
 					response, err := ipam.MapEndpointIP(context.Background(), &liqonet.MapRequest{
@@ -944,7 +944,7 @@ var _ = Describe("Ipam", func() {
 					Expect(err).To(BeNil())
 
 					// Remote cluster has remapped local PodCIDR
-					err = ipam.AddLocalSubnetsPerCluster("192.168.0.0/24", "None", clusterID1)
+					err = ipam.AddLocalSubnetsPerCluster("192.168.0.0/24", consts.DefaultCIDRValue, clusterID1)
 					Expect(err).To(BeNil())
 
 					response, err := ipam.MapEndpointIP(context.Background(), &liqonet.MapRequest{
@@ -977,7 +977,7 @@ var _ = Describe("Ipam", func() {
 					Expect(err).To(BeNil())
 
 					// Remote cluster has not remapped local ExternalCIDR
-					err = ipam.AddLocalSubnetsPerCluster("None", "None", clusterID1)
+					err = ipam.AddLocalSubnetsPerCluster(consts.DefaultCIDRValue, consts.DefaultCIDRValue, clusterID1)
 					Expect(err).To(BeNil())
 
 					response, err := ipam.MapEndpointIP(context.Background(), &liqonet.MapRequest{
@@ -1009,9 +1009,9 @@ var _ = Describe("Ipam", func() {
 					_, _, err = ipam.GetSubnetsPerCluster(remotePodCIDR, remoteExternalCIDR, clusterID2)
 					Expect(err).To(BeNil())
 
-					err = ipam.AddLocalSubnetsPerCluster("None", "None", clusterID1)
+					err = ipam.AddLocalSubnetsPerCluster(consts.DefaultCIDRValue, consts.DefaultCIDRValue, clusterID1)
 					Expect(err).To(BeNil())
-					err = ipam.AddLocalSubnetsPerCluster("None", "None", clusterID2)
+					err = ipam.AddLocalSubnetsPerCluster(consts.DefaultCIDRValue, consts.DefaultCIDRValue, clusterID2)
 					Expect(err).To(BeNil())
 
 					// Reflection cluster1
@@ -1053,7 +1053,7 @@ var _ = Describe("Ipam", func() {
 					Expect(err).To(BeNil())
 
 					// Remote cluster has remapped local ExternalCIDR
-					err = ipam.AddLocalSubnetsPerCluster("None", "192.168.0.0/24", clusterID1)
+					err = ipam.AddLocalSubnetsPerCluster(consts.DefaultCIDRValue, "192.168.0.0/24", clusterID1)
 					Expect(err).To(BeNil())
 
 					response, err := ipam.MapEndpointIP(context.Background(), &liqonet.MapRequest{
@@ -1084,7 +1084,7 @@ var _ = Describe("Ipam", func() {
 					Expect(err).To(BeNil())
 
 					// Remote cluster has not remapped local ExternalCIDR
-					err = ipam.AddLocalSubnetsPerCluster("None", "None", clusterID1)
+					err = ipam.AddLocalSubnetsPerCluster(consts.DefaultCIDRValue, consts.DefaultCIDRValue, clusterID1)
 					Expect(err).To(BeNil())
 
 					// Fill up ExternalCIDR
@@ -1238,6 +1238,7 @@ var _ = Describe("Ipam", func() {
 	Describe("UnmapEndpointIP", func() {
 		Context("If there are no more clusters using an endpointIP", func() {
 			It("should free the relative IP", func() {
+				endpointIP := "20.0.0.1"
 				// Set PodCIDR
 				err := ipam.SetPodCIDR(homePodCIDR)
 				Expect(err).To(BeNil())
@@ -1255,15 +1256,15 @@ var _ = Describe("Ipam", func() {
 				_, _, err = ipam.GetSubnetsPerCluster(remotePodCIDR, remoteExternalCIDR, clusterID2)
 				Expect(err).To(BeNil())
 
-				err = ipam.AddLocalSubnetsPerCluster("None", "None", clusterID1)
+				err = ipam.AddLocalSubnetsPerCluster(consts.DefaultCIDRValue, consts.DefaultCIDRValue, clusterID1)
 				Expect(err).To(BeNil())
-				err = ipam.AddLocalSubnetsPerCluster("None", "None", clusterID2)
+				err = ipam.AddLocalSubnetsPerCluster(consts.DefaultCIDRValue, consts.DefaultCIDRValue, clusterID2)
 				Expect(err).To(BeNil())
 
 				// Reflection in cluster1
 				response, err := ipam.MapEndpointIP(context.Background(), &liqonet.MapRequest{
 					ClusterID: clusterID1,
-					Ip:        "20.0.0.1",
+					Ip:        endpointIP,
 				})
 				Expect(err).To(BeNil())
 				Expect(response.GetIp()).To(HavePrefix(strings.Join(slicedPrefix, ".")))
@@ -1271,21 +1272,21 @@ var _ = Describe("Ipam", func() {
 				// Reflection in cluster2
 				_, err = ipam.MapEndpointIP(context.Background(), &liqonet.MapRequest{
 					ClusterID: clusterID2,
-					Ip:        "20.0.0.1",
+					Ip:        endpointIP,
 				})
 				Expect(err).To(BeNil())
 
 				// Terminate reflection in cluster1
 				_, err = ipam.UnmapEndpointIP(context.Background(), &liqonet.UnmapRequest{
 					ClusterID: clusterID1,
-					Ip:        "20.0.0.1",
+					Ip:        endpointIP,
 				})
 				Expect(err).To(BeNil())
 
 				// Terminate reflection in cluster2
 				_, err = ipam.UnmapEndpointIP(context.Background(), &liqonet.UnmapRequest{
 					ClusterID: clusterID2,
-					Ip:        "20.0.0.1",
+					Ip:        endpointIP,
 				})
 				Expect(err).To(BeNil())
 
@@ -1295,6 +1296,14 @@ var _ = Describe("Ipam", func() {
 
 				// Check if IP is freed
 				Expect(ipamConfig.Spec.EndpointMappings).To(HaveLen(0))
+
+				// Check NatMapping resources
+				nm1, err := getNatMappingResourcePerCluster(clusterID1)
+				Expect(err).To(BeNil())
+				Expect(nm1.Spec.ClusterMappings).ToNot(HaveKey(endpointIP))
+				nm2, err := getNatMappingResourcePerCluster(clusterID1)
+				Expect(err).To(BeNil())
+				Expect(nm2.Spec.ClusterMappings).ToNot(HaveKey(endpointIP))
 			})
 		})
 		Context("If there are other clusters using an endpointIP", func() {
@@ -1317,9 +1326,9 @@ var _ = Describe("Ipam", func() {
 				_, _, err = ipam.GetSubnetsPerCluster(remotePodCIDR, remoteExternalCIDR, clusterID2)
 				Expect(err).To(BeNil())
 
-				err = ipam.AddLocalSubnetsPerCluster("None", "None", clusterID1)
+				err = ipam.AddLocalSubnetsPerCluster(consts.DefaultCIDRValue, consts.DefaultCIDRValue, clusterID1)
 				Expect(err).To(BeNil())
-				err = ipam.AddLocalSubnetsPerCluster("None", "None", clusterID2)
+				err = ipam.AddLocalSubnetsPerCluster(consts.DefaultCIDRValue, consts.DefaultCIDRValue, clusterID2)
 				Expect(err).To(BeNil())
 
 				// Reflection in cluster1
@@ -1352,6 +1361,15 @@ var _ = Describe("Ipam", func() {
 				// Check if IP is not freed
 				Expect(ipamConfig.Spec.EndpointMappings).To(HaveLen(1))
 				Expect(ipamConfig.Spec.EndpointMappings[endpointIP].IP).To(Equal(ip))
+
+				// Check NatMapping resources
+				nm1, err := getNatMappingResourcePerCluster(clusterID1)
+				Expect(err).To(BeNil())
+				// Mapping stil exists for clusterID1
+				Expect(nm1.Spec.ClusterMappings).To(HaveKey(endpointIP))
+				nm2, err := getNatMappingResourcePerCluster(clusterID1)
+				Expect(err).To(BeNil())
+				Expect(nm2.Spec.ClusterMappings).ToNot(HaveKey(endpointIP))
 			})
 		})
 	})
