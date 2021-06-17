@@ -269,7 +269,7 @@ func (inflater *NatMappingInflater) addOrUpdateMappingInResource(oldIP, newIP, c
 func (inflater *NatMappingInflater) RemoveMapping(oldIP, clusterID string) error {
 	var exists bool
 	var mappings netv1alpha1.Mappings
-	// Check if NAT mappings have been initilized for remote cluster.
+	// Check if NAT mappings have been initialized for remote cluster.
 	mappings, exists = inflater.natMappingsPerCluster[clusterID]
 	if !exists {
 		return &errors.MissingInit{

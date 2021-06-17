@@ -379,11 +379,11 @@ var _ = Describe("NatMappingInflater", func() {
 				// Check if removed successfully
 				nm, err := inflater.getNatMappingResource(clusterID1)
 				Expect(err).To(BeNil())
-				Expect(nm.Spec.ClusterMappings).To(HaveKeyWithValue(oldIP, newIP))
+				Expect(nm.Spec.ClusterMappings).ToNot(HaveKeyWithValue(oldIP, newIP))
 			})
 		})
 		Context("Call func twice", func() {
-			It("should return no errors", func() {
+			It("second call should be a nop", func() {
 				// Init
 				err := inflater.InitNatMappingsPerCluster(podCIDR, externalCIDR, clusterID1)
 				Expect(err).To(BeNil())
@@ -396,9 +396,18 @@ var _ = Describe("NatMappingInflater", func() {
 				err = inflater.RemoveMapping(oldIP, clusterID1)
 				Expect(err).To(BeNil())
 
+				// Check config before second call
+				nm, err := inflater.getNatMappingResource(clusterID1)
+				Expect(err).To(BeNil())
+
 				// Remove mapping for the second time
 				err = inflater.RemoveMapping(oldIP, clusterID1)
 				Expect(err).To(BeNil())
+
+				// Check config after
+				newNm, err := inflater.getNatMappingResource(clusterID1)
+				Expect(err).To(BeNil())
+				Expect(newNm).To(Equal(nm))
 			})
 		})
 	})
