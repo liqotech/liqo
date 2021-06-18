@@ -1,6 +1,7 @@
 package tunnel
 
 import (
+	"github.com/vishvananda/netlink"
 	k8s "k8s.io/client-go/kubernetes"
 	"k8s.io/klog/v2"
 
@@ -8,7 +9,7 @@ import (
 )
 
 // DriverCreateFunc function prototype to create a new driver.
-type DriverCreateFunc func(k8sClientset *k8s.Clientset, namespace string) (Driver, error)
+type DriverCreateFunc func(k8sClientset k8s.Interface, namespace string) (Driver, error)
 
 // Drivers static map of supported drivers.
 var Drivers = map[string]DriverCreateFunc{}
@@ -29,6 +30,8 @@ type Driver interface {
 	ConnectToEndpoint(tep *netv1alpha1.TunnelEndpoint) (*netv1alpha1.Connection, error)
 
 	DisconnectFromEndpoint(tep *netv1alpha1.TunnelEndpoint) error
+
+	GetLink() netlink.Link
 
 	Close() error
 }

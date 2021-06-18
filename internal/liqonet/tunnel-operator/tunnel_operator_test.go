@@ -8,6 +8,7 @@ import (
 	. "github.com/onsi/gomega"
 	"github.com/vishvananda/netlink"
 
+	liqoconst "github.com/liqotech/liqo/pkg/consts"
 	"github.com/liqotech/liqo/pkg/liqonet/netns"
 )
 
@@ -15,7 +16,7 @@ var _ = Describe("TunnelOperator", func() {
 	Describe("setup gateway namespace", func() {
 		Context("creating a new gateway namespace", func() {
 			JustAfterEach(func() {
-				link, err := netlink.LinkByName(hostVethName)
+				link, err := netlink.LinkByName(liqoconst.HostVethName)
 				if err != nil {
 					Expect(err).Should(MatchError("Link not found"))
 				}
@@ -25,16 +26,17 @@ var _ = Describe("TunnelOperator", func() {
 				if link != nil {
 					Expect(netlink.LinkDel(link)).ShouldNot(HaveOccurred())
 				}
-				Expect(netns.DeleteNetns(gatewayNetnsName)).ShouldNot(HaveOccurred())
+				Expect(netns.DeleteNetns(liqoconst.GatewayNetnsName)).ShouldNot(HaveOccurred())
 			})
 			It("should return nil", func() {
 				tc := &TunnelController{}
-				err := tc.setUpGWNetns(gatewayNetnsName, hostVethName, gatewayVethName, "169.254.1.134/32", 1420)
+				err := tc.setUpGWNetns(liqoconst.GatewayNetnsName, liqoconst.HostVethName, liqoconst.GatewayVethName,
+					"169.254.1.134/32", 1420)
 				Expect(err).ShouldNot(HaveOccurred())
 				// Check that we have the veth interface in host namespace
 				err = tc.hostNetns.Do(func(ns ns.NetNS) error {
 					defer GinkgoRecover()
-					link, err := netlink.LinkByName(hostVethName)
+					link, err := netlink.LinkByName(liqoconst.HostVethName)
 					Expect(err).ShouldNot(HaveOccurred())
 					Expect(link.Attrs().MTU).Should(BeNumerically("==", 1420))
 					return nil
@@ -42,7 +44,7 @@ var _ = Describe("TunnelOperator", func() {
 				// Check that we have the veth interface in gateway namespace
 				err = tc.gatewayNetns.Do(func(ns ns.NetNS) error {
 					defer GinkgoRecover()
-					link, err := netlink.LinkByName(gatewayVethName)
+					link, err := netlink.LinkByName(liqoconst.GatewayVethName)
 					Expect(err).ShouldNot(HaveOccurred())
 					Expect(link.Attrs().MTU).Should(BeNumerically("==", 1420))
 					addresses, err := netlink.AddrList(link, netlink.FAMILY_V4)
@@ -57,14 +59,14 @@ var _ = Describe("TunnelOperator", func() {
 			})
 
 			It("incorrect name for veth interface, should return error", func() {
-				err := tc.setUpGWNetns(gatewayNetnsName, "", gatewayVethName, "169.254.1.134/24", 1420)
+				err := tc.setUpGWNetns(liqoconst.GatewayNetnsName, "", liqoconst.GatewayVethName, "169.254.1.134/24", 1420)
 				Expect(err).Should(HaveOccurred())
 				Expect(err).Should(MatchError("failed to make veth pair: LinkAttrs.Name cannot be empty"))
 			})
 
 			It("incorrect ip address for veth interface, should return error", func() {
 				tc := &TunnelController{}
-				err := tc.setUpGWNetns(gatewayNetnsName, hostVethName, gatewayVethName, "169.254.1.1.34/24", 1420)
+				err := tc.setUpGWNetns(liqoconst.GatewayNetnsName, liqoconst.HostVethName, liqoconst.GatewayVethName, "169.254.1.1.34/24", 1420)
 				Expect(err).Should(HaveOccurred())
 				Expect(err).Should(MatchError(&net.ParseError{Text: "169.254.1.1.34/24", Type: "CIDR address"}))
 			})

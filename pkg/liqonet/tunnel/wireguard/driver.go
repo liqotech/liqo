@@ -37,8 +37,9 @@ const (
 	ListeningPort = "port"
 	// AllowedIPs is the key of the allowedIPs entry in the back-end map.
 	AllowedIPs = "allowedIPs"
-	// name of the network interface.
-	deviceName = "liqo-wg"
+	// DeviceName name of wireguard tunnel created on the custom network namespace.
+	// This tunnel is used to interconnect the local cluster with the remote ones.
+	DeviceName = "liqo.tunnel"
 	// DriverName  name of the driver which is also used as the type of the backend in tunnelendpoint CRD.
 	DriverName = "wireguard"
 	// name of the secret that contains the public key used by wireguard.
@@ -48,9 +49,11 @@ const (
 	defaultPort = 5871
 	// KeepAliveInterval interval used to send keepalive checks for the wireguard tunnels.
 	KeepAliveInterval = 10 * time.Second
+	// MTU size of mtu for wireguard interface.
+	MTU = 1415
 )
 
-// registering the driver as available.
+// Registering the driver as available.
 func init() {
 	tunnel.AddDriver(DriverName, NewDriver)
 }
@@ -64,7 +67,8 @@ type wgConfig struct {
 	pubKey wgtypes.Key
 }
 
-type wireguard struct {
+// Wireguard a wrapper for the wireguard device and its configuration.
+type Wireguard struct {
 	connections map[string]*netv1alpha1.Connection
 	client      *wgctrl.Client
 	link        netlink.Link
@@ -72,9 +76,9 @@ type wireguard struct {
 }
 
 // NewDriver creates a new WireGuard driver.
-func NewDriver(k8sClient *k8s.Clientset, namespace string) (tunnel.Driver, error) {
+func NewDriver(k8sClient k8s.Interface, namespace string) (tunnel.Driver, error) {
 	var err error
-	w := wireguard{
+	w := Wireguard{
 		connections: make(map[string]*netv1alpha1.Connection),
 		conf: wgConfig{
 			port: defaultPort,
@@ -87,7 +91,6 @@ func NewDriver(k8sClient *k8s.Clientset, namespace string) (tunnel.Driver, error
 	if err = w.setWGLink(); err != nil {
 		return nil, fmt.Errorf("failed to setup %s link: %w", DriverName, err)
 	}
-
 	// create controller.
 	if w.client, err = wgctrl.New(); err != nil {
 		if os.IsNotExist(err) {
@@ -101,7 +104,6 @@ func NewDriver(k8sClient *k8s.Clientset, namespace string) (tunnel.Driver, error
 			if e := w.client.Close(); e != nil {
 				klog.Errorf("Failed to close client %w", e)
 			}
-
 			w.client = nil
 		}
 	}()
@@ -116,21 +118,22 @@ func NewDriver(k8sClient *k8s.Clientset, namespace string) (tunnel.Driver, error
 		ReplacePeers: true,
 		Peers:        peerConfigs,
 	}
-	if err = w.client.ConfigureDevice(deviceName, cfg); err != nil {
+	if err = w.client.ConfigureDevice(DeviceName, cfg); err != nil {
 		return nil, fmt.Errorf("failed to configure WireGuard device: %w", err)
 	}
-	klog.Infof("created %s interface named %s with publicKey %s", DriverName, deviceName, w.conf.pubKey.String())
+	klog.Infof("created %s interface named %s with publicKey %s", DriverName, DeviceName, w.conf.pubKey.String())
 	return &w, nil
 }
 
-func (w *wireguard) Init() error {
+// Init initializes the Wireguard device.
+func (w *Wireguard) Init() error {
 	// ip link set $DefaultDeviceName up.
 	if err := netlink.LinkSetUp(w.link); err != nil {
 		return fmt.Errorf("failed to bring up WireGuard device: %w", err)
 	}
 
-	if err := netlink.LinkSetMTU(w.link, 1300); err != nil {
-		return fmt.Errorf("failed to set mtu for interface %s: %w", deviceName, err)
+	if err := netlink.LinkSetMTU(w.link, MTU); err != nil {
+		return fmt.Errorf("failed to set mtu for interface %s: %w", DeviceName, err)
 	}
 
 	klog.Infof("%s interface named %s, is up on i/f number %d, listening on port :%d, with key %s", DriverName,
@@ -138,7 +141,8 @@ func (w *wireguard) Init() error {
 	return nil
 }
 
-func (w *wireguard) ConnectToEndpoint(tep *netv1alpha1.TunnelEndpoint) (*netv1alpha1.Connection, error) {
+// ConnectToEndpoint connects to a remote cluster described by the given tep.
+func (w *Wireguard) ConnectToEndpoint(tep *netv1alpha1.TunnelEndpoint) (*netv1alpha1.Connection, error) {
 	// parse allowed IPs.
 	allowedIPs, err := getAllowedIPs(tep)
 	if err != nil {
@@ -165,8 +169,8 @@ func (w *wireguard) ConnectToEndpoint(tep *netv1alpha1.TunnelEndpoint) (*netv1al
 			endpoint.IP.String() == oldCon.PeerConfiguration[EndpointIP] && strconv.Itoa(endpoint.Port) == oldCon.PeerConfiguration[ListeningPort] {
 			return oldCon, nil
 		}
-		klog.Infof("updating peer configuration for cluster %s", tep.Spec.ClusterID)
-		err = w.client.ConfigureDevice(deviceName, wgtypes.Config{
+		klog.V(4).Infof("updating peer configuration for cluster %s", tep.Spec.ClusterID)
+		err = w.client.ConfigureDevice(DeviceName, wgtypes.Config{
 			ReplacePeers: false,
 			Peers: []wgtypes.PeerConfig{{PublicKey: *remoteKey,
 				Remove: true,
@@ -176,7 +180,7 @@ func (w *wireguard) ConnectToEndpoint(tep *netv1alpha1.TunnelEndpoint) (*netv1al
 			return newConnectionOnError(err.Error()), fmt.Errorf("failed to configure peer with clusterid %s: %w", tep.Spec.ClusterID, err)
 		}
 	} else {
-		klog.Infof("Connecting cluster %s endpoint %s with publicKey %s",
+		klog.V(4).Infof("Connecting cluster %s endpoint %s with publicKey %s",
 			tep.Spec.ClusterID, endpoint.IP.String(), remoteKey)
 	}
 
@@ -192,7 +196,7 @@ func (w *wireguard) ConnectToEndpoint(tep *netv1alpha1.TunnelEndpoint) (*netv1al
 		AllowedIPs:                  []net.IPNet{*allowedIPs},
 	}}
 
-	err = w.client.ConfigureDevice(deviceName, wgtypes.Config{
+	err = w.client.ConfigureDevice(DeviceName, wgtypes.Config{
 		ReplacePeers: false,
 		Peers:        peerCfg,
 	})
@@ -207,16 +211,17 @@ func (w *wireguard) ConnectToEndpoint(tep *netv1alpha1.TunnelEndpoint) (*netv1al
 			AllowedIPs: allowedIPs.String(), PublicKey: remoteKey.String()},
 	}
 	w.connections[tep.Spec.ClusterID] = c
-	klog.Infof("Done connecting cluster peer %s@%s", tep.Spec.ClusterID, endpoint.String())
+	klog.V(4).Infof("Done connecting cluster peer %s@%s", tep.Spec.ClusterID, endpoint.String())
 	return c, nil
 }
 
-func (w *wireguard) DisconnectFromEndpoint(tep *netv1alpha1.TunnelEndpoint) error {
-	klog.Infof("Removing connection with cluster %s", tep.Spec.ClusterID)
+// DisconnectFromEndpoint disconnects a remote cluster described by the given tep.
+func (w *Wireguard) DisconnectFromEndpoint(tep *netv1alpha1.TunnelEndpoint) error {
+	klog.V(4).Infof("Removing connection with cluster %s", tep.Spec.ClusterID)
 
 	s, found := tep.Status.Connection.PeerConfiguration[PublicKey]
 	if !found {
-		klog.Infof("no tunnel configured for cluster %s, nothing to be removed", tep.Spec.ClusterID)
+		klog.V(4).Infof("no tunnel configured for cluster %s, nothing to be removed", tep.Spec.ClusterID)
 		return nil
 	}
 
@@ -231,7 +236,7 @@ func (w *wireguard) DisconnectFromEndpoint(tep *netv1alpha1.TunnelEndpoint) erro
 			Remove:    true,
 		},
 	}
-	err = w.client.ConfigureDevice(deviceName, wgtypes.Config{
+	err = w.client.ConfigureDevice(DeviceName, wgtypes.Config{
 		ReplacePeers: false,
 		Peers:        peerCfg,
 	})
@@ -239,16 +244,22 @@ func (w *wireguard) DisconnectFromEndpoint(tep *netv1alpha1.TunnelEndpoint) erro
 		return fmt.Errorf("failed to remove WireGuard peer with clusterid %s: %w", tep.Spec.ClusterID, err)
 	}
 
-	klog.Infof("Done removing WireGuard peer with clusterid %s", tep.Spec.ClusterID)
+	klog.V(4).Infof("Done removing WireGuard peer with clusterid %s", tep.Spec.ClusterID)
 	delete(w.connections, tep.Spec.ClusterID)
 
 	return nil
 }
 
-func (w *wireguard) Close() error {
+// GetLink returns the netlink.Link referred to the wireguard device.
+func (w *Wireguard) GetLink() netlink.Link {
+	return w.link
+}
+
+// Close remove the wireguard device from the host.
+func (w *Wireguard) Close() error {
 	// it removes the wireguard interface.
 	var err error
-	if link, err := netlink.LinkByName(deviceName); err == nil {
+	if link, err := netlink.LinkByName(DeviceName); err == nil {
 		// delete existing device
 		if err := netlink.LinkDel(link); err != nil {
 			return fmt.Errorf("failed to delete existing WireGuard device: %w", err)
@@ -262,10 +273,10 @@ func (w *wireguard) Close() error {
 }
 
 // Create new wg link.
-func (w *wireguard) setWGLink() error {
+func (w *Wireguard) setWGLink() error {
 	var err error
 	// delete existing wg device if needed.
-	if link, err := netlink.LinkByName(deviceName); err == nil {
+	if link, err := netlink.LinkByName(DeviceName); err == nil {
 		// delete existing device.
 		if err := netlink.LinkDel(link); err != nil {
 			return fmt.Errorf("failed to delete existing WireGuard device: %w", err)
@@ -273,19 +284,19 @@ func (w *wireguard) setWGLink() error {
 	}
 	// create the wg device (ip link add dev $DefaultDeviceName type wireguard).
 	la := netlink.NewLinkAttrs()
-	la.Name = deviceName
-	la.MTU = 1300
+	la.Name = DeviceName
+	la.MTU = MTU
 	link := &netlink.GenericLink{
 		LinkAttrs: la,
 		LinkType:  "wireguard",
 	}
 
 	if err = netlink.LinkAdd(link); err != nil && !errors.Is(err, unix.EOPNOTSUPP) {
-		return fmt.Errorf("failed to add wireguard device '%s': %w", deviceName, err)
+		return fmt.Errorf("failed to add wireguard device '%s': %w", DeviceName, err)
 	}
 	if errors.Is(err, unix.EOPNOTSUPP) {
 		klog.Warningf("wireguard kernel module not present, falling back to the userspace implementation")
-		cmd := exec.Command("/usr/bin/boringtun", deviceName, "--disable-drop-privileges", "true")
+		cmd := exec.Command("/usr/bin/boringtun", DeviceName, "--disable-drop-privileges", "true")
 		var stdout, stderr bytes.Buffer
 		cmd.Stdout = &stdout
 		cmd.Stderr = &stderr
@@ -293,10 +304,10 @@ func (w *wireguard) setWGLink() error {
 		if err != nil {
 			outStr, errStr := stdout.String(), stderr.String()
 			fmt.Printf("out:\n%s\nerr:\n%s\n", outStr, errStr)
-			return fmt.Errorf("failed to add wireguard devices '%s': %w", deviceName, err)
+			return fmt.Errorf("failed to add wireguard devices '%s': %w", DeviceName, err)
 		}
-		if w.link, err = netlink.LinkByName(deviceName); err != nil {
-			return fmt.Errorf("failed to get wireguard device '%s': %w", deviceName, err)
+		if w.link, err = netlink.LinkByName(DeviceName); err != nil {
+			return fmt.Errorf("failed to get wireguard device '%s': %w", DeviceName, err)
 		}
 	}
 	w.link = link
@@ -363,7 +374,7 @@ func newConnectionOnError(msg string) *netv1alpha1.Connection {
 	}
 }
 
-func (w *wireguard) setKeys(c *k8s.Clientset, namespace string) error {
+func (w *Wireguard) setKeys(c k8s.Interface, namespace string) error {
 	var priv, pub wgtypes.Key
 	// first we check if a secret containing valid keys already exists.
 	s, err := c.CoreV1().Secrets(namespace).Get(context.Background(), keysName, metav1.GetOptions{})
@@ -412,5 +423,18 @@ func (w *wireguard) setKeys(c *k8s.Clientset, namespace string) error {
 	}
 	w.conf.pubKey = pub
 	w.conf.priKey = priv
+	return nil
+}
+
+// SetNewClient set a new client used to interact with the wireguard device.
+func (w *Wireguard) SetNewClient() error {
+	c, err := wgctrl.New()
+	if err != nil {
+		if os.IsNotExist(err) {
+			return fmt.Errorf("wgctrl is not available on this system")
+		}
+		return fmt.Errorf("failed to open wgctl client: %w", err)
+	}
+	w.client = c
 	return nil
 }

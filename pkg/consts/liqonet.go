@@ -35,4 +35,21 @@ const (
 	OverlayNetPrefix = "240"
 	// LiqoRouteOperatorName holds the name of the route operator.
 	LiqoRouteOperatorName = "liqo-route"
+	// LiqoGatewayOperatorName name of the operator.
+	LiqoGatewayOperatorName = "liqo-gateway"
+	// GatewayNetnsName name of the custom network namespace used by liqo-gateway.
+	GatewayNetnsName = "liqo-netns"
+	// HostVethName name of the veth device living in the host network namespace,
+	// on the node where liqo-gateway is running.
+	HostVethName = "liqo.host"
+	// GatewayVethName nome of the veth device living in the custom network namespace
+	// created by liqo-gateway.
+	GatewayVethName = "liqo.gateway"
+	// GatewayVethIPAddr ip address configured on gateway veth device. It is link local
+	// IP address. No traffic leaving the custom network namespace has as source IP this
+	// address.
+	GatewayVethIPAddr = "169.254.100.1/32"
+	// VxlanDeviceName name used for the vxlan devices created on each node by the instances
+	// of liqo-route.
+	VxlanDeviceName = "liqo.vxlan"
 )

@@ -21,10 +21,6 @@ import (
 	"sync"
 	"time"
 
-	liqorouting "github.com/liqotech/liqo/pkg/liqonet/routing"
-
-	"github.com/liqotech/liqo/pkg/liqonet/utils"
-
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
@@ -35,22 +31,22 @@ import (
 
 	clusterConfig "github.com/liqotech/liqo/apis/config/v1alpha1"
 	netv1alpha1 "github.com/liqotech/liqo/apis/net/v1alpha1"
-	route_operator "github.com/liqotech/liqo/internal/liqonet/route-operator"
+	routeoperator "github.com/liqotech/liqo/internal/liqonet/route-operator"
 	tunneloperator "github.com/liqotech/liqo/internal/liqonet/tunnel-operator"
 	"github.com/liqotech/liqo/internal/liqonet/tunnelEndpointCreator"
 	liqoconst "github.com/liqotech/liqo/pkg/consts"
 	liqonetOperator "github.com/liqotech/liqo/pkg/liqonet"
 	"github.com/liqotech/liqo/pkg/liqonet/overlay"
-	"github.com/liqotech/liqo/pkg/liqonet/wireguard"
+	liqorouting "github.com/liqotech/liqo/pkg/liqonet/routing"
+	"github.com/liqotech/liqo/pkg/liqonet/utils"
 	"github.com/liqotech/liqo/pkg/mapperUtils"
-	// +kubebuilder:scaffold:imports
 )
 
 var (
 	scheme      = runtime.NewScheme()
 	vxlanConfig = &overlay.VxlanDeviceAttrs{
 		Vni:      18952,
-		Name:     "liqo.vxlan",
+		Name:     liqoconst.VxlanDeviceName,
 		VtepPort: 4789,
 		VtepAddr: nil,
 		Mtu:      1420,
@@ -70,8 +66,8 @@ func main() {
 	flag.StringVar(&metricsAddr, "metrics-addr", ":0", "The address the metric endpoint binds to.")
 	flag.BoolVar(&enableLeaderElection, "enable-leader-election", false,
 		"Enable leader election for controller manager. Enabling this will ensure there is only one active controller manager.")
-	flag.StringVar(&runAs, "run-as", "tunnel-operator",
-		"The accepted values are: liqo-gateway, liqo-route, tunnelEndpointCreator-operator. The default value is \"tunnel-operator\"")
+	flag.StringVar(&runAs, "run-as", liqoconst.LiqoGatewayOperatorName,
+		"The accepted values are: liqo-gateway, liqo-route, tunnelEndpointCreator-operator. The default value is \"liqo-gateway\"")
 	flag.Parse()
 	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
 		MapperProvider:     mapperUtils.LiqoMapperProvider(scheme),
@@ -84,8 +80,8 @@ func main() {
 		klog.Errorf("unable to get manager: %s", err)
 		os.Exit(1)
 	}
-	// +kubebuilder:scaffold:builder
 	clientset := kubernetes.NewForConfigOrDie(mgr.GetConfig())
+
 	switch runAs {
 	case liqoconst.LiqoRouteOperatorName:
 		mutex := &sync.RWMutex{}
@@ -107,76 +103,71 @@ func main() {
 			klog.Errorf("an error occurred while creating vxlan device : %v", err)
 			os.Exit(1)
 		}
-		vrm, err := liqorouting.NewVxlanRoutingManager(liqoconst.RoutingTableID, podIP.String(), liqoconst.OverlayNetPrefix, vxlanDevice)
+		vxlanRoutingManager, err := liqorouting.NewVxlanRoutingManager(liqoconst.RoutingTableID,
+			podIP.String(), liqoconst.OverlayNetPrefix, vxlanDevice)
 		if err != nil {
 			klog.Errorf("an error occurred while creating the vxlan routing manager: %v", err)
 			os.Exit(1)
 		}
-		er := mgr.GetEventRecorderFor(liqoconst.LiqoRouteOperatorName + "." + podIP.String())
-		rc := route_operator.NewRouteController(podIP.String(), vxlanDevice, vrm, er, mgr.GetClient())
-		if err != nil {
-			klog.Errorf("an error occurred while creating the route operator -> %v", err)
-		}
-		if err = rc.SetupWithManager(mgr); err != nil {
+		eventRecorder := mgr.GetEventRecorderFor(liqoconst.LiqoRouteOperatorName + "." + podIP.String())
+		routeController := routeoperator.NewRouteController(podIP.String(), vxlanDevice, vxlanRoutingManager, eventRecorder, mgr.GetClient())
+		if err = routeController.SetupWithManager(mgr); err != nil {
 			klog.Errorf("unable to setup controller: %s", err)
 			os.Exit(1)
 		}
-		ovc, err := route_operator.NewOverlayController(podIP.String(), route_operator.PodLabelSelector, vxlanDevice, mutex, nodeMap, mgr.GetClient())
+		overlayController, err := routeoperator.NewOverlayController(podIP.String(),
+			routeoperator.PodLabelSelector, vxlanDevice, mutex, nodeMap, mgr.GetClient())
 		if err != nil {
 			klog.Errorf("an error occurred while creating overlay controller: %v", err)
 			os.Exit(3)
 		}
-		if err = ovc.SetupWithManager(mgr); err != nil {
+		if err = overlayController.SetupWithManager(mgr); err != nil {
 			klog.Errorf("unable to setup overlay controller: %s", err)
 			os.Exit(1)
 		}
-		smc, err := route_operator.NewSymmetricRoutingOperator(nodeName, liqoconst.RoutingTableID, vxlanDevice, mutex, nodeMap, mgr.GetClient())
+		symmetricRoutingOperator, err := routeoperator.NewSymmetricRoutingOperator(nodeName,
+			liqoconst.RoutingTableID, vxlanDevice, mutex, nodeMap, mgr.GetClient())
 		if err != nil {
 			klog.Errorf("an error occurred while creting symmetric routing controller: %v", err)
 			os.Exit(4)
 		}
-		if err = smc.SetupWithManager(mgr); err != nil {
+		if err = symmetricRoutingOperator.SetupWithManager(mgr); err != nil {
 			klog.Errorf("unable to setup overlay controller: %s", err)
 			os.Exit(1)
 		}
-		if err := mgr.Start(rc.SetupSignalHandlerForRouteOperator()); err != nil {
+		if err := mgr.Start(routeController.SetupSignalHandlerForRouteOperator()); err != nil {
 			klog.Errorf("unable to start controller: %s", err)
 			os.Exit(1)
 		}
-	case tunneloperator.OperatorName:
-		wgc, err := wireguard.NewWgClient()
+	case liqoconst.LiqoGatewayOperatorName:
+		// Get the pod ip and parse to net.IP
+		podIP, err := utils.GetPodIP()
 		if err != nil {
-			klog.Errorf("an error occurred while creating wireguard client: %v", err)
+			klog.Errorf("unable to get podIP: %v", err)
 			os.Exit(1)
 		}
-		tc, err := tunneloperator.NewTunnelController(mgr, wgc, wireguard.NewNetLinker())
+		podNamespace, err := utils.GetPodNamespace()
+		if err != nil {
+			klog.Errorf("unable to get pod namespace: %v", err)
+			os.Exit(1)
+		}
+		eventRecorder := mgr.GetEventRecorderFor(liqoconst.LiqoGatewayOperatorName + "." + podIP.String())
+		tunnelController, err := tunneloperator.NewTunnelController(podIP.String(),
+			podNamespace, eventRecorder, clientset, mgr.GetClient())
 		if err != nil {
 			klog.Errorf("an error occurred while creating the tunnel controller: %v", err)
+			_ = tunnelController.CleanUpConfiguration(liqoconst.GatewayNetnsName, liqoconst.HostVethName)
+			tunnelController.RemoveAllTunnels()
 			os.Exit(1)
 		}
-		//starting configuration watcher
-		config, err := ctrl.GetConfig()
-		if err != nil {
-			klog.Error(err)
-			os.Exit(2)
-		}
-		tc.WatchConfiguration(config, &clusterConfig.GroupVersion)
-		tc.StartPodWatcher()
-		tc.StartServiceWatcher()
-		if err := tc.IPTHandler.Init(); err != nil {
-			klog.Errorf("an error occurred while creating iptables handler: %v", err)
-			os.Exit(1)
-		}
-		if err = tc.SetupWithManager(mgr); err != nil {
+		if err = tunnelController.SetupWithManager(mgr); err != nil {
 			klog.Errorf("unable to setup tunnel controller: %s", err)
 			os.Exit(1)
 		}
-		klog.Info("Starting manager as Tunnel-Operator")
-		if err := mgr.Start(tc.SetupSignalHandlerForTunnelOperator()); err != nil {
+		if err := mgr.Start(tunnelController.SetupSignalHandlerForTunnelOperator()); err != nil {
 			klog.Errorf("unable to start tunnel controller: %s", err)
 			os.Exit(1)
 		}
-
 	case "tunnelEndpointCreator-operator":
 		dynClient := dynamic.NewForConfigOrDie(mgr.GetConfig())
 		ipam := liqonetOperator.NewIPAM()

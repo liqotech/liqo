@@ -8,16 +8,15 @@ import (
 	"strings"
 	"time"
 
+	"github.com/vishvananda/netlink"
+	"golang.org/x/sys/unix"
 	"k8s.io/apimachinery/pkg/util/wait"
+	"k8s.io/client-go/util/retry"
+	"k8s.io/klog/v2"
 
 	"github.com/liqotech/liqo/apis/net/v1alpha1"
 	liqoneterrors "github.com/liqotech/liqo/pkg/liqonet/errors"
 	"github.com/liqotech/liqo/pkg/liqonet/utils"
-
-	"github.com/vishvananda/netlink"
-	"golang.org/x/sys/unix"
-	"k8s.io/client-go/util/retry"
-	"k8s.io/klog/v2"
 )
 
 // AddRoute adds a new route on the given interface.
@@ -122,7 +121,8 @@ func flushRoutesForRoutingTable(tableID int) error {
 	return nil
 }
 
-func addPolicyRoutingRule(fromSubnet, toSubnet string, tableID int) (bool, error) {
+// AddPolicyRoutingRule adds a new policy routing rule.
+func AddPolicyRoutingRule(fromSubnet, toSubnet string, tableID int) (bool, error) {
 	var destinationNet, sourceNet *net.IPNet
 	var err error
 
@@ -162,7 +162,8 @@ func addPolicyRoutingRule(fromSubnet, toSubnet string, tableID int) (bool, error
 	return true, nil
 }
 
-func delPolicyRoutingRule(fromSubnet, toSubnet string, tableID int) (bool, error) {
+// DelPolicyRoutingRule removes a policy routing rule described by the given parameters.
+func DelPolicyRoutingRule(fromSubnet, toSubnet string, tableID int) (bool, error) {
 	var destinationNet, sourceNet *net.IPNet
 	var err error
 
@@ -303,11 +304,15 @@ func EnableProxyArp(iFaceName string) error {
 		return errors.Is(err, unix.ENOENT)
 	}
 	writeToFile := func() error {
-		return ioutil.WriteFile(proxyArpFilePath, []byte("1"), 0600)
+		if err := ioutil.WriteFile(proxyArpFilePath, []byte("1"), 0600); err != nil {
+			klog.Errorf("an error occurred while enabling proxy arp for interface %s: %v", iFaceName, err)
+			return err
+		}
+		return nil
 	}
 	return retry.OnError(wait.Backoff{
 		Steps:    5,
-		Duration: 100 * time.Millisecond,
+		Duration: 500 * time.Millisecond,
 		Factor:   1.0,
 		Jitter:   0.1,
 	}, retryable, writeToFile)

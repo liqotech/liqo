@@ -7,9 +7,8 @@ import (
 	"golang.org/x/sys/unix"
 	"k8s.io/klog/v2"
 
-	"github.com/liqotech/liqo/pkg/liqonet/errors"
-
 	netv1alpha1 "github.com/liqotech/liqo/apis/net/v1alpha1"
+	"github.com/liqotech/liqo/pkg/liqonet/errors"
 )
 
 // DirectRoutingManager implements the routing manager interface.
@@ -56,7 +55,7 @@ func (drm *DirectRoutingManager) EnsureRoutesPerCluster(tep *netv1alpha1.TunnelE
 	}
 	// Add policy routing rule for the given cluster.
 	klog.Infof("%s -> adding policy routing rule for destination {%s} to lookup routing table with ID {%d}", clusterID, dstNet, drm.routingTableID)
-	if policyRuleAdd, err = addPolicyRoutingRule("", dstNet, drm.routingTableID); err != nil {
+	if policyRuleAdd, err = AddPolicyRoutingRule("", dstNet, drm.routingTableID); err != nil {
 		return policyRuleAdd, err
 	}
 	// Add route for the given cluster.
@@ -86,7 +85,7 @@ func (drm *DirectRoutingManager) RemoveRoutesPerCluster(tep *netv1alpha1.TunnelE
 	}
 	// Delete policy routing rule for the given cluster.
 	klog.Infof("%s -> deleting policy routing rule for destination {%s} to lookup routing table with ID {%d}", clusterID, dstNet, drm.routingTableID)
-	if policyRuleDel, err = delPolicyRoutingRule("", dstNet, drm.routingTableID); err != nil {
+	if policyRuleDel, err = DelPolicyRoutingRule("", dstNet, drm.routingTableID); err != nil {
 		return policyRuleDel, err
 	}
 	// Delete route for the given cluster.

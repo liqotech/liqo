@@ -22,10 +22,6 @@ import (
 	"strings"
 
 	"github.com/vishvananda/netlink"
-
-	liqoconst "github.com/liqotech/liqo/pkg/consts"
-	liqorouting "github.com/liqotech/liqo/pkg/liqonet/routing"
-
 	k8sApiErrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/client-go/tools/record"
 	"k8s.io/klog"
@@ -36,7 +32,9 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 
 	netv1alpha1 "github.com/liqotech/liqo/apis/net/v1alpha1"
+	liqoconst "github.com/liqotech/liqo/pkg/consts"
 	"github.com/liqotech/liqo/pkg/liqonet/overlay"
+	liqorouting "github.com/liqotech/liqo/pkg/liqonet/routing"
 	"github.com/liqotech/liqo/pkg/liqonet/utils"
 )
 
@@ -81,10 +79,10 @@ func NewRouteController(podIP string, vxlanDevice *overlay.VxlanDevice, router l
 func (rc *RouteController) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	tep := new(netv1alpha1.TunnelEndpoint)
 	var err error
-	// Name of our finalizer set on ever tep instance processed by the operator.
+	// Name of our finalizer set on every tep instance processed by the operator.
 	routeOperatorFinalizer := strings.Join([]string{liqoconst.LiqoRouteOperatorName, rc.podIP, "net.liqo.io"}, ".")
-	if err = rc.Get(ctx, req.NamespacedName, tep); err != nil && k8sApiErrors.IsNotFound(err) {
-		klog.Errorf("unable to fetch resource %s :%v", req.String(), err)
+	if err = rc.Get(ctx, req.NamespacedName, tep); err != nil && !k8sApiErrors.IsNotFound(err) {
+		klog.Errorf("unable to fetch resource {%s} :%v", req.String(), err)
 		return result, err
 	}
 	// In case the resource does not exist anymore, we just forget it.
@@ -106,9 +104,10 @@ func (rc *RouteController) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 			controllerutil.AddFinalizer(tep, routeOperatorFinalizer)
 			if err := rc.Update(ctx, tep); err != nil {
 				if k8sApiErrors.IsConflict(err) {
+					klog.V(4).Infof("%s -> unable to add finalizers to resource {%s}: %s", clusterID, req.String(), err)
 					return result, err
 				}
-				klog.Errorf("%s -> unable to add finalizers to resource %s: %s", clusterID, req.String(), err)
+				klog.Errorf("%s -> unable to add finalizers to resource {%s}: %s", clusterID, req.String(), err)
 				return result, err
 			}
 		}
@@ -116,7 +115,7 @@ func (rc *RouteController) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 		// The object is being deleted, if we encounter an error while removing the routes than we record an
 		// event on the resource to notify the user. The finalizer is not removed.
 		if controllerutil.ContainsFinalizer(tep, routeOperatorFinalizer) {
-			klog.Infof("resource {%s} of type %s is being removed", tep.Name, tep.GroupVersionKind().String())
+			klog.Infof("resource {%s} of type {%s} is being removed", tep.Name, tep.GroupVersionKind().String())
 			deleted, err := rc.RemoveRoutesPerCluster(tep)
 			if err != nil {
 				klog.Errorf("%s -> unable to remove route for destination {%s}: %s", clusterID, remotePodCIDR, err)
@@ -131,9 +130,10 @@ func (rc *RouteController) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 			controllerutil.RemoveFinalizer(tep, routeOperatorFinalizer)
 			if err := rc.Update(ctx, tep); err != nil {
 				if k8sApiErrors.IsConflict(err) {
+					klog.V(4).Infof("%s -> unable to add finalizers to resource {%s}: %s", clusterID, req.String(), err)
 					return result, err
 				}
-				klog.Errorf("%s -> unable to remove finalizers from resource %s: %s", clusterID, req.String(), err)
+				klog.Errorf("%s -> unable to remove finalizers from resource {%s}: %s", clusterID, req.String(), err)
 				return result, err
 			}
 		}
@@ -175,7 +175,7 @@ func (rc *RouteController) cleanUp() {
 func (rc *RouteController) SetupWithManager(mgr ctrl.Manager) error {
 	resourceToBeProccesedPredicate := predicate.Funcs{
 		DeleteFunc: func(e event.DeleteEvent) bool {
-			// finalizers are used to check if a resource is being deleted, and perform there the needed actions
+			// Finalizers are used to check if a resource is being deleted, and perform there the needed actions
 			// we don't want to reconcile on the delete of a resource.
 			return false
 		},

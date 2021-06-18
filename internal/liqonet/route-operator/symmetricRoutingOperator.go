@@ -7,8 +7,6 @@ import (
 	"strings"
 	"sync"
 
-	"sigs.k8s.io/controller-runtime/pkg/event"
-
 	"golang.org/x/sys/unix"
 	corev1 "k8s.io/api/core/v1"
 	k8sApiErrors "k8s.io/apimachinery/pkg/api/errors"
@@ -16,6 +14,7 @@ import (
 	"k8s.io/kubernetes/pkg/api/v1/pod"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 
 	liqoerrors "github.com/liqotech/liqo/pkg/liqonet/errors"

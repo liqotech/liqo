@@ -56,3 +56,4 @@ spec:
               valueFrom:
                 fieldRef:
                   fieldPath: status.podIP
+      hostNetwork: true
