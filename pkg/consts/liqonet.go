@@ -52,4 +52,16 @@ const (
 	// VxlanDeviceName name used for the vxlan devices created on each node by the instances
 	// of liqo-route.
 	VxlanDeviceName = "liqo.vxlan"
+	// PodCIDR is a field of the TunnelEndpoint resource.
+	PodCIDR = "PodCIDR"
+	// LocalPodCIDR is a field of the TunnelEndpoint resource.
+	LocalPodCIDR = "LocalPodCIDR"
+	// LocalExternalCIDR is a field of the TunnelEndpoint resource.
+	LocalExternalCIDR = "LocalExternalCIDR"
+	// LocalNATPodCIDR is a field of the TunnelEndpoint resource.
+	LocalNATPodCIDR = "LocalNATPodCIDR"
+	// LocalNATExternalCIDR is a field of the TunnelEndpoint resource.
+	LocalNATExternalCIDR = "LocalNATExternalCIDR"
+	// RemoteNATPodCIDR is a field of the TunnelEndpoint resource.
+	RemoteNATPodCIDR = "RemoteNATPodCIDR"
 )

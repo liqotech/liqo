@@ -168,6 +168,11 @@ func (tc *TunnelController) Reconcile(ctx context.Context, req ctrl.Request) (ct
 		return nil
 	}
 	var unconfigGWNetns = func(netNamespace ns.NetNS) error {
+		if err := tc.IPTHandler.RemoveIPTablesConfigurationPerCluster(tep); err != nil {
+			klog.Errorf("%s -> unable to remove iptables configuration: %s",
+				tep.Spec.ClusterID, err.Error())
+			return err
+		}
 		if err := tc.disconnectFromPeer(tep); err != nil {
 			return err
 		}
@@ -360,7 +365,7 @@ func (tc *TunnelController) EnsureIPTablesRulesPerCluster(tep *netv1alpha1.Tunne
 		tc.Eventf(tep, "Warning", "Processing", "unable to insert iptables rules: %v", err)
 		return err
 	}
-	if err := tc.EnsurePreroutingRules(tep); err != nil {
+	if err := tc.EnsurePreroutingRulesPerTunnelEndpoint(tep); err != nil {
 		klog.Errorf("%s -> an error occurred while inserting iptables prerouting rules for the remote peer: %s", clusterID, err.Error())
 		tc.Eventf(tep, "Warning", "Processing", "unable to insert iptables rules: %v", err)
 		return err
