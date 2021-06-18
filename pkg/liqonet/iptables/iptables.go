@@ -102,18 +102,6 @@ func (h IPTHandler) Init() error {
 	if err := h.ensureLiqoRules(liqoRules); err != nil {
 		return err
 	}
-
-	outTrafficRule := fmt.Sprintf("-j %s", MASQUERADE)
-	exists, err := h.ipt.Exists(natTable, postroutingChain, strings.Split(outTrafficRule, " ")...)
-	if err != nil {
-		return err
-	}
-	if !exists {
-		if err = h.ipt.AppendUnique(natTable, postroutingChain, strings.Split(outTrafficRule, " ")...); err != nil {
-			return err
-		}
-		klog.Infof("Inserted rule '%s' in chain %s of table %s", outTrafficRule, postroutingChain, natTable)
-	}
 	return nil
 }
 
@@ -155,21 +143,6 @@ func (h IPTHandler) Terminate() error {
 	if err := h.removeLiqoRules(); err != nil {
 		return err
 	}
-
-	outTrafficRule := fmt.Sprintf("-j %s", MASQUERADE)
-	exists, err := h.ipt.Exists(getTableFromChain(postroutingChain), postroutingChain, strings.Split(outTrafficRule, " ")...)
-	if err != nil {
-		return err
-	}
-	if exists {
-		if err := h.ipt.Delete(
-			getTableFromChain(postroutingChain),
-			postroutingChain,
-			strings.Split(outTrafficRule, " ")...); err != nil {
-			return err
-		}
-	}
-
 	// Delete Liqo chains
 	if err := h.deleteLiqoChains(); err != nil {
 		return fmt.Errorf("cannot delete Liqo default chains: %w", err)

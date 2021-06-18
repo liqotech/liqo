@@ -86,7 +86,7 @@ func (vrm *VxlanRoutingManager) EnsureRoutesPerCluster(tep *netv1alpha1.TunnelEn
 	}
 	// Add policy routing rule for the given cluster.
 	klog.V(4).Infof("%s -> adding policy routing rule for destination {%s} to lookup routing table with ID {%d}", clusterID, dstNet, vrm.routingTableID)
-	if policyRuleAdd, err = addPolicyRoutingRule("", dstNet, vrm.routingTableID); err != nil {
+	if policyRuleAdd, err = AddPolicyRoutingRule("", dstNet, vrm.routingTableID); err != nil {
 		return policyRuleAdd, err
 	}
 	// Add route for the given cluster.
@@ -123,7 +123,7 @@ func (vrm *VxlanRoutingManager) RemoveRoutesPerCluster(tep *netv1alpha1.TunnelEn
 	// Delete policy routing rule for the given cluster.
 	klog.V(4).Infof("%s -> deleting policy routing rule for destination {%s} to lookup routing table with ID {%d}",
 		clusterID, dstNet, vrm.routingTableID)
-	if policyRuleDel, err = delPolicyRoutingRule("", dstNet, vrm.routingTableID); err != nil {
+	if policyRuleDel, err = DelPolicyRoutingRule("", dstNet, vrm.routingTableID); err != nil {
 		return policyRuleDel, err
 	}
 	// Delete route for the given cluster.

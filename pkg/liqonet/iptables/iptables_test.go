@@ -55,7 +55,6 @@ var _ = Describe("iptables", func() {
 				postRoutingRules, err := h.ListRulesInChain(postroutingChain)
 				Expect(err).To(BeNil())
 				Expect(postRoutingRules).To(ContainElement(fmt.Sprintf("-j %s", liqonetPostroutingChain)))
-				Expect(postRoutingRules).To(ContainElement(fmt.Sprintf("-j %s", MASQUERADE)))
 
 				// Check existence of LIQO-PREROUTING chain
 				Expect(natChains).To(ContainElement(liqonetPostroutingChain))

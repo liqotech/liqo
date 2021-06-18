@@ -27,8 +27,13 @@ const (
 // Returns a handler to the newly created network namespace or an error in case
 // something goes wrong.
 func CreateNetns(name string) (ns.NetNS, error) {
+	// Get current namespace.
+	currentNs, err := ns.GetCurrentNS()
+	if err != nil {
+		return nil, err
+	}
 	namespacePath := nsPath + name
-	err := DeleteNetns(name)
+	err = DeleteNetns(name)
 	if err != nil {
 		return nil, err
 	}
@@ -39,6 +44,10 @@ func CreateNetns(name string) (ns.NetNS, error) {
 	}
 	netNamespace, err := ns.GetNS(namespacePath)
 	if err != nil {
+		return nil, err
+	}
+	// Set back the original namespace.
+	if err = currentNs.Set(); err != nil {
 		return nil, err
 	}
 	return netNamespace, nil
