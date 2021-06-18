@@ -40,7 +40,7 @@ var (
 	}
 	tepVRM            netv1alpha1.TunnelEndpoint
 	existingRoutesVRM []*netlink.Route
-	overlayDevice     overlay.VxlanDevice
+	overlayDevice     *overlay.VxlanDevice
 )
 
 func setUpVxlanLink(attrs *overlay.VxlanDeviceAttrs) (netlink.Link, error) {
@@ -121,9 +121,9 @@ var _ = Describe("VxlanRouting", func() {
 			})
 
 			It("vxlan link is nil", func() {
-				vrm, err := NewVxlanRoutingManager(244, gwIPCorrect, overlayNetPrexif, overlay.VxlanDevice{Link: nil})
+				vrm, err := NewVxlanRoutingManager(244, gwIPCorrect, overlayNetPrexif, nil)
 				Expect(vrm).Should(BeNil())
-				Expect(err).Should(Equal(&liqoerrors.WrongParameter{Parameter: "vxlanDevice.Link", Reason: liqoerrors.NotNil}))
+				Expect(err).Should(Equal(&liqoerrors.WrongParameter{Parameter: "vxlanDevice", Reason: liqoerrors.NotNil}))
 			})
 
 			It("vxlanNetPrefix is empty", func() {
@@ -311,6 +311,22 @@ var _ = Describe("VxlanRouting", func() {
 				exists, err := existsRuleForRoutingTable(routingTableIDVRM)
 				Expect(err).ShouldNot(HaveOccurred())
 				Expect(exists).Should(BeFalse())
+			})
+		})
+	})
+
+	Describe("testing getOverlayIP function", func() {
+		Context("when input parameter is correct", func() {
+			It("should return a valid ip", func() {
+				v := vrm.(*VxlanRoutingManager)
+				Expect(v.getOverlayIP("10.200.1.1")).Should(Equal("240.200.1.1"))
+			})
+		})
+
+		Context("when input parameter is not correct", func() {
+			It("should return an empty string", func() {
+				v := vrm.(*VxlanRoutingManager)
+				Expect(v.getOverlayIP("10.200.")).Should(Equal(""))
 			})
 		})
 	})

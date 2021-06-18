@@ -12,7 +12,6 @@ import (
 	"k8s.io/klog/v2"
 	"k8s.io/kubernetes/pkg/api/v1/pod"
 
-	route_operator "github.com/liqotech/liqo/internal/liqonet/route-operator"
 	"github.com/liqotech/liqo/pkg/liqonet/overlay"
 )
 
@@ -142,7 +141,7 @@ func (tc *TunnelController) podHandlerDelete(obj interface{}) {
 }
 
 func setPodSelectorLabel(options *metav1.ListOptions) {
-	labelSet := labels.Set{route_operator.PodRouteLabelKey: route_operator.PodRouteLabelValue}
+	labelSet := labels.Set{"test": "test"}
 	if options == nil {
 		options = &metav1.ListOptions{}
 		options.LabelSelector = labels.SelectorFromSet(labelSet).String()

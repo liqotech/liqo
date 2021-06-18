@@ -106,8 +106,8 @@ var _ = Describe("SymmetricRoutingOperator", func() {
 	Describe("testing NewSymmetricRoutingOperator function", func() {
 		Context("when input parameters are not correct", func() {
 			It("vxlan device is not correct, should return nil and error", func() {
-				src, err := NewSymmetricRoutingOperator(srcNodeName, srcRoutingTableID, overlay.VxlanDevice{Link: nil}, &sync.RWMutex{}, nil, k8sClient)
-				Expect(err).Should(MatchError(&liqoerrors.WrongParameter{Parameter: "vxlanDevice.Link", Reason: liqoerrors.NotNil}))
+				src, err := NewSymmetricRoutingOperator(srcNodeName, srcRoutingTableID, nil, &sync.RWMutex{}, nil, k8sClient)
+				Expect(err).Should(MatchError(&liqoerrors.WrongParameter{Parameter: "vxlanDevice", Reason: liqoerrors.NotNil}))
 				Expect(src).Should(BeNil())
 			})
 
@@ -154,7 +154,7 @@ var _ = Describe("SymmetricRoutingOperator", func() {
 					}
 					return nil
 				}).Should(BeNil())
-				Eventually(func() error { _, err := src.Reconcile(context.TODO(), srcReq); return err }).Should(MatchError("ip for node {src-pod-node} has not been set yet"))
+				Eventually(func() error { _, err := src.Reconcile(context.TODO(), srcReq); return err }).Should(MatchError("ip not set"))
 				_, ok := src.routes[srcReq.String()]
 				Expect(ok).Should(BeFalse())
 			})
@@ -208,7 +208,7 @@ var _ = Describe("SymmetricRoutingOperator", func() {
 			It("should return false and error", func() {
 				added, err := src.addRoute(srcReq, srcTestPod)
 				Expect(err).To(HaveOccurred())
-				Expect(err).To(MatchError("ip for node {" + srcPodNodeName + "} has not been set yet"))
+				Expect(err).To(MatchError("ip not set"))
 				Expect(added).Should(BeFalse())
 			})
 		})

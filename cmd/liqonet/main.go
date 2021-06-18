@@ -21,6 +21,10 @@ import (
 	"sync"
 	"time"
 
+	liqorouting "github.com/liqotech/liqo/pkg/liqonet/routing"
+
+	"github.com/liqotech/liqo/pkg/liqonet/utils"
+
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
@@ -36,13 +40,21 @@ import (
 	"github.com/liqotech/liqo/internal/liqonet/tunnelEndpointCreator"
 	liqoconst "github.com/liqotech/liqo/pkg/consts"
 	liqonetOperator "github.com/liqotech/liqo/pkg/liqonet"
+	"github.com/liqotech/liqo/pkg/liqonet/overlay"
 	"github.com/liqotech/liqo/pkg/liqonet/wireguard"
 	"github.com/liqotech/liqo/pkg/mapperUtils"
 	// +kubebuilder:scaffold:imports
 )
 
 var (
-	scheme = runtime.NewScheme()
+	scheme      = runtime.NewScheme()
+	vxlanConfig = &overlay.VxlanDeviceAttrs{
+		Vni:      18952,
+		Name:     "liqo.vxlan",
+		VtepPort: 4789,
+		VtepAddr: nil,
+		Mtu:      1420,
+	}
 )
 
 func init() {
@@ -75,24 +87,59 @@ func main() {
 	// +kubebuilder:scaffold:builder
 	clientset := kubernetes.NewForConfigOrDie(mgr.GetConfig())
 	switch runAs {
-	case route_operator.OperatorName:
-		wgc, err := wireguard.NewWgClient()
+	case liqoconst.LiqoRouteOperatorName:
+		mutex := &sync.RWMutex{}
+		nodeMap := map[string]string{}
+		// Get the pod ip and parse to net.IP
+		podIP, err := utils.GetPodIP()
 		if err != nil {
-			klog.Errorf("an error occurred while creating wireguard client: %v", err)
+			klog.Errorf("unable to get podIP: %v", err)
 			os.Exit(1)
 		}
-		r, err := route_operator.NewRouteController(mgr, wgc, wireguard.NewNetLinker())
+		nodeName, err := utils.GetNodeName()
+		if err != nil {
+			klog.Errorf("unable to get node name: %v", err)
+			os.Exit(1)
+		}
+		vxlanConfig.VtepAddr = podIP
+		vxlanDevice, err := overlay.NewVxlanDevice(vxlanConfig)
+		if err != nil {
+			klog.Errorf("an error occurred while creating vxlan device : %v", err)
+			os.Exit(1)
+		}
+		vrm, err := liqorouting.NewVxlanRoutingManager(liqoconst.RoutingTableID, podIP.String(), liqoconst.OverlayNetPrefix, vxlanDevice)
+		if err != nil {
+			klog.Errorf("an error occurred while creating the vxlan routing manager: %v", err)
+			os.Exit(1)
+		}
+		er := mgr.GetEventRecorderFor(liqoconst.LiqoRouteOperatorName + "." + podIP.String())
+		rc := route_operator.NewRouteController(podIP.String(), vxlanDevice, vrm, er, mgr.GetClient())
 		if err != nil {
 			klog.Errorf("an error occurred while creating the route operator -> %v", err)
-			os.Exit(1)
 		}
-		r.StartPodWatcher()
-		r.StartServiceWatcher()
-		if err = r.SetupWithManager(mgr); err != nil {
+		if err = rc.SetupWithManager(mgr); err != nil {
 			klog.Errorf("unable to setup controller: %s", err)
 			os.Exit(1)
 		}
-		if err := mgr.Start(r.SetupSignalHandlerForRouteOperator()); err != nil {
+		ovc, err := route_operator.NewOverlayController(podIP.String(), route_operator.PodLabelSelector, vxlanDevice, mutex, nodeMap, mgr.GetClient())
+		if err != nil {
+			klog.Errorf("an error occurred while creating overlay controller: %v", err)
+			os.Exit(3)
+		}
+		if err = ovc.SetupWithManager(mgr); err != nil {
+			klog.Errorf("unable to setup overlay controller: %s", err)
+			os.Exit(1)
+		}
+		smc, err := route_operator.NewSymmetricRoutingOperator(nodeName, liqoconst.RoutingTableID, vxlanDevice, mutex, nodeMap, mgr.GetClient())
+		if err != nil {
+			klog.Errorf("an error occurred while creting symmetric routing controller: %v", err)
+			os.Exit(4)
+		}
+		if err = smc.SetupWithManager(mgr); err != nil {
+			klog.Errorf("unable to setup overlay controller: %s", err)
+			os.Exit(1)
+		}
+		if err := mgr.Start(rc.SetupSignalHandlerForRouteOperator()); err != nil {
 			klog.Errorf("unable to start controller: %s", err)
 			os.Exit(1)
 		}

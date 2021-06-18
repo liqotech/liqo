@@ -24,4 +24,15 @@ const (
 	// IpamStorageResourceLabelValue is the constant representing
 	// the value of the label assigned to all IpamStorage resources.
 	IpamStorageResourceLabelValue = "true"
+	// RoutingTableID used to identify the custom routing table used
+	// to configure the routes on the k8s nodes by route operator.
+	RoutingTableID = 18952
+	// OverlayNetPrefix prefix of the subnet used for the overlay network.
+	// The last three octets of the IP addresses used for the vxlan devices,
+	// are taken from the IPs of the nodes. In next PRs it will be introduced
+	// new method to allocate non conflict IPs from a user defined subnet for
+	// the overlay interfaces.
+	OverlayNetPrefix = "240"
+	// LiqoRouteOperatorName holds the name of the route operator.
+	LiqoRouteOperatorName = "liqo-route"
 )
