@@ -21,7 +21,7 @@ var (
 		VtepAddr: nil,
 		Mtu:      1450,
 	}
-	vxlanDevice   overlay.VxlanDevice
+	vxlanDevice   = new(overlay.VxlanDevice)
 	vxlanDeviceIP = "240.0.0.1/8"
 	k8sClient     client.Client
 )
@@ -48,6 +48,10 @@ var _ = BeforeSuite(func() {
 	Expect(peerMAC).NotTo(BeNil())
 	overlayExistingNeigh.IP = peerIP
 	overlayExistingNeigh.MAC = peerMAC
+	macZeros, err := net.ParseMAC("00:00:00:00:00:00")
+	Expect(err).To(BeNil())
+	overlayExistingNeighDef.IP = peerIP
+	overlayExistingNeighDef.MAC = macZeros
 	// Configure neigh.
 	peerIP1 := net.ParseIP(overlayPodIP)
 	Expect(peerIP).NotTo(BeNil())

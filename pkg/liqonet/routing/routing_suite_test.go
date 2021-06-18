@@ -60,7 +60,7 @@ var _ = BeforeSuite(func() {
 	// Create vxlan device for Vxlan Routing manager tests.
 	link, err := setUpVxlanLink(vxlanConfig)
 	Expect(err).ShouldNot(HaveOccurred())
-	overlayDevice = overlay.VxlanDevice{Link: link.(*netlink.Vxlan)}
+	overlayDevice = &overlay.VxlanDevice{Link: link.(*netlink.Vxlan)}
 	// Create Vxlan Routing Manager.
 	vrm, err = NewVxlanRoutingManager(routingTableIDVRM, ipAddress1NoSubnet, overlayNetPrexif, overlayDevice)
 	Expect(err).Should(BeNil())

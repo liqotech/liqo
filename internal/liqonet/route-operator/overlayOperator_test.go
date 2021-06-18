@@ -31,11 +31,12 @@ var (
 	overlayNamespace = "overlay-namespace"
 	overlayPodName   = "overlay-test-pod"
 
-	overlayTestPod       *corev1.Pod
-	overlayReq           ctrl.Request
-	ovc                  *OverlayController
-	overlayNeigh         overlay.Neighbor
-	overlayExistingNeigh overlay.Neighbor
+	overlayTestPod          *corev1.Pod
+	overlayReq              ctrl.Request
+	ovc                     *OverlayController
+	overlayNeigh            overlay.Neighbor
+	overlayExistingNeigh    overlay.Neighbor
+	overlayExistingNeighDef overlay.Neighbor
 	/*** EnvTest Section ***/
 	overlayScheme  = runtime.NewScheme()
 	overlayEnvTest *envtest.Environment
@@ -92,7 +93,9 @@ var _ = Describe("OverlayOperator", func() {
 			vxlanNodes:  map[string]string{},
 			podToNode:   map[string]string{},
 		}
+		// Add fdb entries for existing peer.
 		Expect(addFdb(overlayExistingNeigh, vxlanDevice.Link.Attrs().Index))
+		Expect(addFdb(overlayExistingNeighDef, vxlanDevice.Link.Attrs().Index)).Should(BeNil())
 	})
 
 	JustAfterEach(func() {
@@ -110,21 +113,21 @@ var _ = Describe("OverlayOperator", func() {
 						},
 					},
 				}
-				ovc, err := NewOverlayController(overlayPodName, overlayPodIP, labelSelector, vxlanDevice, &sync.RWMutex{}, nil, k8sClient)
+				ovc, err := NewOverlayController(overlayPodIP, labelSelector, vxlanDevice, &sync.RWMutex{}, nil, k8sClient)
 				Expect(err).Should(MatchError("\"incorrect\" is not a valid pod selector operator"))
 				Expect(ovc).Should(BeNil())
 			})
 
 			It("vxlan device is not correct, should return nil and error", func() {
-				ovc, err := NewOverlayController(overlayPodName, overlayPodIP, PodLabelSelector, overlay.VxlanDevice{Link: nil}, &sync.RWMutex{}, nil, k8sClient)
-				Expect(err).Should(MatchError(&liqoerrors.WrongParameter{Parameter: "vxlanDevice.Link", Reason: liqoerrors.NotNil}))
+				ovc, err := NewOverlayController(overlayPodIP, PodLabelSelector, nil, &sync.RWMutex{}, nil, k8sClient)
+				Expect(err).Should(MatchError(&liqoerrors.WrongParameter{Parameter: "vxlanDevice", Reason: liqoerrors.NotNil}))
 				Expect(ovc).Should(BeNil())
 			})
 		})
 
 		Context("when input parameters are correct", func() {
 			It("should return overlay controller and nil", func() {
-				ovc, err := NewOverlayController(overlayPodName, overlayPodIP, PodLabelSelector, vxlanDevice, &sync.RWMutex{}, nil, k8sClient)
+				ovc, err := NewOverlayController(overlayPodIP, PodLabelSelector, vxlanDevice, &sync.RWMutex{}, nil, k8sClient)
 				Expect(err).ShouldNot(HaveOccurred())
 				Expect(ovc).ShouldNot(BeNil())
 			})
@@ -165,7 +168,16 @@ var _ = Describe("OverlayOperator", func() {
 				Eventually(func() error { return k8sClient.Get(context.TODO(), overlayReq.NamespacedName, newPod) }).Should(BeNil())
 				newPod.Status.PodIP = "10.1.11.1"
 				Eventually(func() error { return k8sClient.Status().Update(context.TODO(), newPod) }).Should(BeNil())
-				Eventually(func() error { return k8sClient.Get(context.TODO(), overlayReq.NamespacedName, newPod) }).Should(BeNil())
+				Eventually(func() error {
+					err := k8sClient.Get(context.TODO(), overlayReq.NamespacedName, newPod)
+					if err != nil {
+						return err
+					}
+					if newPod.Status.PodIP != "10.1.11.1" {
+						return fmt.Errorf("pod ip has not been set yet")
+					}
+					return nil
+				}).Should(BeNil())
 				Eventually(func() error { _, err := ovc.Reconcile(context.TODO(), overlayReq); return err }).Should(BeNil())
 				_, ok := ovc.vxlanPeers[overlayReq.String()]
 				Expect(ok).Should(BeTrue())
@@ -244,6 +256,27 @@ var _ = Describe("OverlayOperator", func() {
 				nodeName, ok := ovc.podToNode[overlayReq.String()]
 				Expect(ok).Should(BeTrue())
 				Expect(nodeName).Should(Equal(overlayTestPod.Spec.NodeName))
+				// Check that the fdbs entries have been inserted.
+				fdbs, err := netlink.NeighList(ovc.vxlanDev.Link.Index, syscall.AF_BRIDGE)
+				Expect(err).To(BeNil())
+				var checkEntries = func() bool {
+					var fdb1, fdb2 bool
+					for _, f := range fdbs {
+						if f.HardwareAddr.String() == overlayTestPod.GetAnnotations()[overlayAnnKey] {
+							fdb1 = true
+						}
+					}
+					for _, f := range fdbs {
+						if f.HardwareAddr.String() == "00:00:00:00:00:00" && f.IP.String() == overlayPodIP {
+							fdb2 = true
+						}
+					}
+					if fdb2 && fdb1 {
+						return true
+					}
+					return false
+				}
+				Expect(checkEntries()).Should(BeTrue())
 			})
 		})
 
@@ -257,6 +290,10 @@ var _ = Describe("OverlayOperator", func() {
 				Expect(added).Should(BeFalse())
 				_, ok := ovc.vxlanPeers[overlayReq.String()]
 				Expect(ok).Should(BeTrue())
+				//Check that the entries are only two.
+				fdbs, err := netlink.NeighList(ovc.vxlanDev.Link.Index, syscall.AF_BRIDGE)
+				Expect(err).To(BeNil())
+				Expect(len(fdbs)).Should(BeNumerically("==", 2))
 
 			})
 		})
@@ -291,7 +328,10 @@ var _ = Describe("OverlayOperator", func() {
 				//Check that we remove the tuple: (req.string, nodeName)
 				_, ok = ovc.podToNode[overlayReq.String()]
 				Expect(ok).Should(BeFalse())
-
+				//Check that the entries have been removed.
+				fdbs, err := netlink.NeighList(ovc.vxlanDev.Link.Index, syscall.AF_BRIDGE)
+				Expect(err).To(BeNil())
+				Expect(len(fdbs)).Should(BeNumerically("==", 0))
 			})
 		})
 	})

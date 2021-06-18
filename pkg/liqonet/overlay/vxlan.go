@@ -43,9 +43,8 @@ func NewVxlanDevice(devAttrs *VxlanDeviceAttrs) (*VxlanDevice, error) {
 		VxlanId:  devAttrs.Vni,
 		SrcAddr:  devAttrs.VtepAddr,
 		Port:     devAttrs.VtepPort,
-		Learning: true,
+		Learning: false,
 	}
-
 	link, err := createVxLanLink(link)
 	if err != nil {
 		return nil, err
@@ -126,16 +125,27 @@ func (vxlan *VxlanDevice) ConfigureIPAddress(ipAddr string) error {
 	} else if err != nil {
 		return err
 	}
-	klog.Infof("IP address %s configured on vxlan device %s", ipNet.String(), vxlan.Link.Name)
+	klog.V(4).Infof("IP address %s configured on vxlan device %s", ipNet.String(), vxlan.Link.Name)
 	return nil
 }
 
 // AddFDB adds a fdb entry for the given neighbor into the current vxlan device.
-// It return an error if something goes wrong, and bool value to sai if it
-// added the entry, if the entry exists the bool value is set to false.
+// It returns an error if something goes wrong, and bool value set to true if it
+// added the entry, otherwise is set to false.
 func (vxlan *VxlanDevice) AddFDB(n Neighbor) (bool, error) {
 	klog.V(4).Infof("calling AppendFDB: %s, %s", n.IP, n.MAC)
-	err := netlink.NeighAdd(&netlink.Neigh{
+	// First we list all the fdbs
+	fdbs, err := netlink.NeighList(vxlan.Link.Index, syscall.AF_BRIDGE)
+	if err != nil {
+		return false, err
+	}
+	// Check if the entry exists.
+	for i := range fdbs {
+		if fdbs[i].IP.Equal(n.IP) && fdbs[i].HardwareAddr.String() == n.MAC.String() {
+			return false, nil
+		}
+	}
+	err = netlink.NeighAppend(&netlink.Neigh{
 		LinkIndex:    vxlan.Link.Index,
 		State:        netlink.NUD_PERMANENT | netlink.NUD_NOARP,
 		Family:       syscall.AF_BRIDGE,
@@ -144,12 +154,11 @@ func (vxlan *VxlanDevice) AddFDB(n Neighbor) (bool, error) {
 		IP:           n.IP,
 		HardwareAddr: n.MAC,
 	})
-	if errors.Is(err, unix.EEXIST) {
-		return false, nil
-	}
 	if err != nil {
 		return false, err
 	}
+	klog.V(4).Infof("fdb entry with mac {%s} and dst {%s} on device {%s} has been added",
+		n.MAC.String(), n.IP.String(), vxlan.Link.Name)
 	return true, nil
 }
 
@@ -173,5 +182,7 @@ func (vxlan *VxlanDevice) DelFDB(n Neighbor) (bool, error) {
 	if err != nil {
 		return false, err
 	}
+	klog.V(4).Infof("fdb entry with mac {%s} and dst {%s} on device {%s} has been removed",
+		n.MAC.String(), n.IP.String(), vxlan.Link.Name)
 	return true, nil
 }
