@@ -65,14 +65,14 @@ var _ = Describe("NodeProvider", func() {
 				Name: nodeName,
 			},
 		}
-		_, err = client.CoreV1().Nodes().Create(ctx, node, metav1.CreateOptions{})
+		node, err = client.CoreV1().Nodes().Create(ctx, node, metav1.CreateOptions{})
 		Expect(err).To(BeNil())
 
 		podStopper = make(chan struct{}, 1)
 		networkStopper = make(chan struct{}, 1)
 		nodeChan = make(chan *v1.Node, 10)
 
-		nodeProvider, err = NewLiqoNodeProvider(nodeName, advName, foreignClusterID, kubeletNamespace, podStopper, networkStopper, cluster.GetCfg(), 0, false)
+		nodeProvider, err = NewLiqoNodeProvider(nodeName, advName, foreignClusterID, kubeletNamespace, node, podStopper, networkStopper, cluster.GetCfg(), 0, false)
 		Expect(err).To(BeNil())
 
 		nodeProvider.NotifyNodeStatus(ctx, func(node *v1.Node) {
@@ -308,5 +308,73 @@ var _ = Describe("NodeProvider", func() {
 			},
 		}),
 	)
+
+	It("Labels patch", func() {
+
+		By("Add labels")
+
+		labels := map[string]string{
+			"test1": "value1",
+			"test2": "value2",
+		}
+
+		err := nodeProvider.patchLabels(labels)
+		Expect(err).ToNot(HaveOccurred())
+		Expect(nodeProvider.lastAppliedLabels).To(Equal(labels))
+
+		client := kubernetes.NewForConfigOrDie(cluster.GetCfg())
+		node, err := client.CoreV1().Nodes().Get(ctx, nodeName, metav1.GetOptions{})
+		Expect(err).ToNot(HaveOccurred())
+
+		nodeLabels := node.GetLabels()
+		v, ok := nodeLabels["test1"]
+		Expect(ok).To(BeTrue())
+		Expect(v).To(Equal("value1"))
+		v, ok = nodeLabels["test2"]
+		Expect(ok).To(BeTrue())
+		Expect(v).To(Equal("value2"))
+
+		By("Update labels")
+
+		labels = map[string]string{
+			"test1": "value3",
+			"test2": "value4",
+		}
+
+		err = nodeProvider.patchLabels(labels)
+		Expect(err).ToNot(HaveOccurred())
+		Expect(nodeProvider.lastAppliedLabels).To(Equal(labels))
+
+		node, err = client.CoreV1().Nodes().Get(ctx, nodeName, metav1.GetOptions{})
+		Expect(err).ToNot(HaveOccurred())
+
+		nodeLabels = node.GetLabels()
+		v, ok = nodeLabels["test1"]
+		Expect(ok).To(BeTrue())
+		Expect(v).To(Equal("value3"))
+		v, ok = nodeLabels["test2"]
+		Expect(ok).To(BeTrue())
+		Expect(v).To(Equal("value4"))
+
+		By("Delete labels")
+
+		labels = map[string]string{
+			"test1": "value3",
+		}
+
+		err = nodeProvider.patchLabels(labels)
+		Expect(err).ToNot(HaveOccurred())
+		Expect(nodeProvider.lastAppliedLabels).To(Equal(labels))
+
+		node, err = client.CoreV1().Nodes().Get(ctx, nodeName, metav1.GetOptions{})
+		Expect(err).ToNot(HaveOccurred())
+
+		nodeLabels = node.GetLabels()
+		v, ok = nodeLabels["test1"]
+		Expect(ok).To(BeTrue())
+		Expect(v).To(Equal("value3"))
+		_, ok = nodeLabels["test2"]
+		Expect(ok).To(BeFalse())
+	})
 
 })

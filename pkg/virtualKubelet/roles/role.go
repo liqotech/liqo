@@ -2,7 +2,7 @@
 package roles
 
 // +kubebuilder:rbac:groups="",resources=configmaps;services;namespaces;secrets,verbs=get;list;watch;delete;create
-// +kubebuilder:rbac:groups="",resources=nodes,verbs=get;update;list;watch;delete;create
+// +kubebuilder:rbac:groups="",resources=nodes,verbs=get;update;patch;list;watch;delete;create
 // +kubebuilder:rbac:groups="",resources=pods,verbs=get;patch;list;watch;delete;create
 // +kubebuilder:rbac:groups="",resources=pods/status;services/status;namespaces/status;nodes/status,verbs=get;update;patch;list;watch;delete;create
 
