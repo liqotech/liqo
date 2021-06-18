@@ -21,7 +21,8 @@ import (
 
 	netv1alpha1 "github.com/liqotech/liqo/apis/net/v1alpha1"
 	"github.com/liqotech/liqo/internal/utils/errdefs"
-	liqoconst "github.com/liqotech/liqo/pkg/consts"
+	"github.com/liqotech/liqo/pkg/consts"
+	liqoneterrors "github.com/liqotech/liqo/pkg/liqonet/errors"
 )
 
 var (
@@ -31,7 +32,7 @@ var (
 
 // MapIPToNetwork creates a new IP address obtained by means of the old IP address and the new network.
 func MapIPToNetwork(newNetwork, oldIP string) (newIP string, err error) {
-	if newNetwork == liqoconst.DefaultCIDRValue {
+	if newNetwork == consts.DefaultCIDRValue {
 		return oldIP, nil
 	}
 	// Parse newNetwork
@@ -185,13 +186,24 @@ func Next(network string) (string, error) {
 // GetPodCIDRS for a given tep the function retrieves the values for localPodCIDR and remotePodCIDR.
 // Their values depend if the NAT is required or not.
 func GetPodCIDRS(tep *netv1alpha1.TunnelEndpoint) (localRemappedPodCIDR, remotePodCIDR string) {
-	if tep.Status.RemoteNATPodCIDR != liqoconst.DefaultCIDRValue {
+	if tep.Status.RemoteNATPodCIDR != consts.DefaultCIDRValue {
 		remotePodCIDR = tep.Status.RemoteNATPodCIDR
 	} else {
 		remotePodCIDR = tep.Spec.PodCIDR
 	}
 	localRemappedPodCIDR = tep.Status.LocalNATPodCIDR
 	return localRemappedPodCIDR, remotePodCIDR
+}
+
+// GetExternalCIDR for a given tep the function retrieves the ExternalCIDR used in remote cluster for
+// local resources. Its value depend if the NAT is required or not.
+func GetExternalCIDR(tep *netv1alpha1.TunnelEndpoint) (localRemappedExternalCIDR string) {
+	if tep.Status.LocalNATExternalCIDR != consts.DefaultCIDRValue {
+		localRemappedExternalCIDR = tep.Status.LocalNATExternalCIDR
+	} else {
+		localRemappedExternalCIDR = tep.Status.LocalExternalCIDR
+	}
+	return
 }
 
 // GetDefaultIfaceName returns the name of the interfaces that has the default route configured.
@@ -244,4 +256,55 @@ func GetFirstIP(network string) (string, error) {
 		return "", err
 	}
 	return firstIP.String(), nil
+}
+
+// CheckTep checks validity of TunnelEndpoint resource fields.
+func CheckTep(tep *netv1alpha1.TunnelEndpoint) error {
+	if tep.Spec.ClusterID == "" {
+		return &liqoneterrors.WrongParameter{
+			Parameter: consts.ClusterIDLabelName,
+			Reason:    liqoneterrors.StringNotEmpty,
+		}
+	}
+	if err := IsValidCIDR(tep.Spec.PodCIDR); err != nil {
+		return &liqoneterrors.WrongParameter{
+			Parameter: consts.PodCIDR,
+			Reason:    liqoneterrors.ValidCIDR,
+		}
+	}
+	if err := IsValidCIDR(tep.Status.LocalPodCIDR); err != nil {
+		return &liqoneterrors.WrongParameter{
+			Parameter: consts.LocalPodCIDR,
+			Reason:    liqoneterrors.ValidCIDR,
+		}
+	}
+	if err := IsValidCIDR(tep.Status.LocalExternalCIDR); err != nil {
+		return &liqoneterrors.WrongParameter{
+			Parameter: consts.LocalExternalCIDR,
+			Reason:    liqoneterrors.ValidCIDR,
+		}
+	}
+	if err := IsValidCIDR(tep.Status.LocalNATPodCIDR); tep.Status.LocalNATPodCIDR != consts.DefaultCIDRValue &&
+		err != nil {
+		return &liqoneterrors.WrongParameter{
+			Parameter: consts.LocalNATPodCIDR,
+			Reason:    liqoneterrors.ValidCIDR,
+		}
+	}
+	if err := IsValidCIDR(tep.Status.LocalNATExternalCIDR); tep.Status.LocalNATExternalCIDR != consts.DefaultCIDRValue &&
+		err != nil {
+		return &liqoneterrors.WrongParameter{
+			Parameter: consts.LocalNATExternalCIDR,
+			Reason:    liqoneterrors.ValidCIDR,
+		}
+	}
+	if err := IsValidCIDR(tep.Status.RemoteNATPodCIDR); tep.Status.RemoteNATPodCIDR != consts.DefaultCIDRValue &&
+		err != nil {
+		return &liqoneterrors.WrongParameter{
+			Parameter: consts.RemoteNATPodCIDR,
+			Reason:    liqoneterrors.ValidCIDR,
+		}
+	}
+
+	return nil
 }

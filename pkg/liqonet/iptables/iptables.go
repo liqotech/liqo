@@ -31,6 +31,8 @@ const (
 	liqonetForwardingClusterChainPrefix = "LIQO-FRWD-CLS-"
 	// liqonetInputClusterChainPrefix prefix used to name the input chains for a specific cluster.
 	liqonetInputClusterChainPrefix = "LIQO-INPT-CLS-"
+	// liqonetPreRoutingMappingClusterChainPrefix prefix used to name the prerouting mapping chain for a specific cluster.
+	liqonetPreRoutingMappingClusterChainPrefix = "LIQO-PRRT-MAP-CLS-"
 	// natTable constant used for the "nat" table.
 	natTable = "nat"
 	// filterTable constant used for the "filter" table.
@@ -47,18 +49,12 @@ const (
 	MASQUERADE = "MASQUERADE"
 	// SNAT action constant.
 	SNAT = "SNAT"
+	// DNAT action constant.
+	DNAT = "DNAT"
 	// NETMAP action constant.
 	NETMAP = "NETMAP"
 	// ACCEPT action constant.
 	ACCEPT = "ACCEPT"
-	// podCIDR is a field of the TunnelEndpoint resource.
-	podCIDR = "PodCIDR"
-	// localPodCIDR is a field of the TunnelEndpoint resource.
-	localPodCIDR = "LocalPodCIDR"
-	// localNATPodCIDR is a field of the TunnelEndpoint resource.
-	localNATPodCIDR = "LocalNATPodCIDR"
-	// remoteNATPodCIDR is a field of the TunnelEndpoint resource.
-	remoteNATPodCIDR = "RemoteNATPodCIDR"
 )
 
 // IPTableRule is a slice of string. This is the format used by module go-iptables.
@@ -290,12 +286,14 @@ func (h IPTHandler) getExistingChainRules(clusterID, chain string) ([]string, er
 	return existingChainRules, nil
 }
 
-func getChainsPerCluster(clusterID string) map[string]string {
-	chains := make(map[string]string)
-	chains[forwardChain] = getClusterForwardChain(clusterID)
-	chains[inputChain] = getClusterInputChain(clusterID)
-	chains[postroutingChain] = getClusterPostRoutingChain(clusterID)
-	chains[preroutingChain] = getClusterPreRoutingChain(clusterID)
+func getChainsPerCluster(clusterID string) []string {
+	chains := []string{
+		getClusterForwardChain(clusterID),
+		getClusterInputChain(clusterID),
+		getClusterPostRoutingChain(clusterID),
+		getClusterPreRoutingChain(clusterID),
+		getClusterPreRoutingMappingChain(clusterID),
+	}
 	return chains
 }
 
@@ -327,6 +325,7 @@ func getTableFromChain(chain string) string {
 		return filterTable
 	}
 	if strings.Contains(chain, liqonetPostroutingClusterChainPrefix) ||
+		strings.Contains(chain, liqonetPreRoutingMappingClusterChainPrefix) ||
 		strings.Contains(chain, liqonetPreroutingClusterChainPrefix) {
 		return natTable
 	}
@@ -409,8 +408,8 @@ func (h IPTHandler) removeChainsPerCluster(clusterID string) error {
 	chains := getChainsPerCluster(clusterID)
 	// For each cluster chain, check if it exists.
 	// If it does exist, then remove it. Otherwise do nothing.
-	for wrapperChain, chain := range chains {
-		if getTableFromChain(wrapperChain) == natTable && slice.ContainsString(existingChainsNAT, chain, nil) {
+	for _, chain := range chains {
+		if getTableFromChain(chain) == natTable && slice.ContainsString(existingChainsNAT, chain, nil) {
 			// Check if chain exists
 			if !slice.ContainsString(existingChainsNAT, chain, nil) {
 				continue
@@ -424,7 +423,7 @@ func (h IPTHandler) removeChainsPerCluster(clusterID string) error {
 			klog.Infof("Deleted chain %s in table %s", chain, getTableFromChain(chain))
 			continue
 		}
-		if getTableFromChain(wrapperChain) == filterTable && slice.ContainsString(existingChainsFilter, chain, nil) {
+		if getTableFromChain(chain) == filterTable && slice.ContainsString(existingChainsFilter, chain, nil) {
 			if !slice.ContainsString(existingChainsFilter, chain, nil) {
 				continue
 			}
@@ -450,19 +449,31 @@ func (h IPTHandler) EnsurePostroutingRules(tep *netv1alpha1.TunnelEndpoint) erro
 	return h.updateRulesPerChain(getClusterPostRoutingChain(clusterID), rules)
 }
 
-// EnsurePreroutingRules makes sure that the prerouting rules for a given cluster are in place and updated.
-func (h IPTHandler) EnsurePreroutingRules(tep *netv1alpha1.TunnelEndpoint) error {
+// EnsurePreroutingRulesPerTunnelEndpoint makes sure that the prerouting rules extracted from a
+// TunnelEndpoint resource are place and updated.
+func (h IPTHandler) EnsurePreroutingRulesPerTunnelEndpoint(tep *netv1alpha1.TunnelEndpoint) error {
 	clusterID := tep.Spec.ClusterID
-	rules, err := getPreRoutingRules(tep)
+	rules, err := getPreRoutingRulesPerTunnelEndpoint(tep)
 	if err != nil {
 		return err
 	}
 	return h.updateRulesPerChain(getClusterPreRoutingChain(clusterID), rules)
 }
 
-func getPreRoutingRules(tep *netv1alpha1.TunnelEndpoint) ([]IPTableRule, error) {
+// EnsurePreroutingRulesPerNatMapping makes sure that the prerouting rules extracted from a
+// NatMapping resource are place and updated.
+func (h IPTHandler) EnsurePreroutingRulesPerNatMapping(nm *netv1alpha1.NatMapping) error {
+	clusterID := nm.Spec.ClusterID
+	rules, err := getPreRoutingRulesPerNatMapping(nm)
+	if err != nil {
+		return err
+	}
+	return h.updateRulesPerChain(getClusterPreRoutingMappingChain(clusterID), rules)
+}
+
+func getPreRoutingRulesPerTunnelEndpoint(tep *netv1alpha1.TunnelEndpoint) ([]IPTableRule, error) {
 	// Check tep fields
-	if err := checkTep(tep); err != nil {
+	if err := utils.CheckTep(tep); err != nil {
 		return nil, fmt.Errorf("invalid TunnelEndpoint resource: %w", err)
 	}
 	localPodCIDR := tep.Status.LocalPodCIDR
@@ -478,6 +489,25 @@ func getPreRoutingRules(tep *netv1alpha1.TunnelEndpoint) ([]IPTableRule, error) 
 	rules = append(rules,
 		IPTableRule{"-s", remotePodCIDR, "-d", localRemappedPodCIDR, "-j", NETMAP, "--to", localPodCIDR},
 	)
+	return rules, nil
+}
+
+func getPreRoutingRulesPerNatMapping(nm *netv1alpha1.NatMapping) ([]IPTableRule, error) {
+	// Check tep fields
+	if nm.Spec.ClusterID == "" {
+		return nil, &errors.WrongParameter{
+			Parameter: consts.ClusterIDLabelName,
+			Reason:    errors.StringNotEmpty,
+		}
+	}
+
+	rules := make([]IPTableRule, 0, len(nm.Spec.ClusterMappings))
+
+	for oldIP, newIP := range nm.Spec.ClusterMappings {
+		rules = append(rules,
+			IPTableRule{"-d", newIP, "-j", DNAT, "--to-destination", oldIP},
+		)
+	}
 	return rules, nil
 }
 
@@ -502,6 +532,7 @@ func (h IPTHandler) ListRulesInChain(chain string) ([]string, error) {
 	ruleToRemove := strings.Join([]string{"-N", chain}, " ")
 	for _, rule := range existingRules {
 		if rule != ruleToRemove {
+			rule = strings.ReplaceAll(rule, "/32", "")
 			tmp := strings.Split(rule, " ")
 			rules = append(rules, strings.Join(tmp[2:], " "))
 		}
@@ -632,7 +663,7 @@ func (h IPTHandler) insertRulesIfNotPresent(table, chain string, rules []IPTable
 }
 
 func getPostroutingRules(tep *netv1alpha1.TunnelEndpoint) ([]IPTableRule, error) {
-	if err := checkTep(tep); err != nil {
+	if err := utils.CheckTep(tep); err != nil {
 		return nil, fmt.Errorf("invalid TunnelEndpoint resource: %w", err)
 	}
 	clusterID := tep.Spec.ClusterID
@@ -664,52 +695,16 @@ func getPostroutingRules(tep *netv1alpha1.TunnelEndpoint) ([]IPTableRule, error)
 	}, nil
 }
 
-func checkTep(tep *netv1alpha1.TunnelEndpoint) error {
-	if tep.Spec.ClusterID == "" {
-		return &errors.WrongParameter{
-			Parameter: consts.ClusterIDLabelName,
-			Reason:    errors.StringNotEmpty,
-		}
-	}
-	if err := utils.IsValidCIDR(tep.Spec.PodCIDR); err != nil {
-		return &errors.WrongParameter{
-			Parameter: podCIDR,
-			Reason:    errors.ValidCIDR,
-		}
-	}
-	if err := utils.IsValidCIDR(tep.Status.LocalPodCIDR); err != nil {
-		return &errors.WrongParameter{
-			Parameter: localPodCIDR,
-			Reason:    errors.ValidCIDR,
-		}
-	}
-	if err := utils.IsValidCIDR(tep.Status.LocalNATPodCIDR); tep.Status.LocalNATPodCIDR != consts.DefaultCIDRValue &&
-		err != nil {
-		return &errors.WrongParameter{
-			Parameter: localNATPodCIDR,
-			Reason:    errors.ValidCIDR,
-		}
-	}
-	if err := utils.IsValidCIDR(tep.Status.RemoteNATPodCIDR); tep.Status.RemoteNATPodCIDR != consts.DefaultCIDRValue &&
-		err != nil {
-		return &errors.WrongParameter{
-			Parameter: remoteNATPodCIDR,
-			Reason:    errors.ValidCIDR,
-		}
-	}
-
-	return nil
-}
-
 // Function that returns the set of rules used in Liqo chains (e.g. LIQO-PREROUTING)
 // related to a remote cluster. Return value is a map of slices in which value
 // is the a set of rules and key is the chain the set of rules should belong to.
 func getChainRulesPerCluster(tep *netv1alpha1.TunnelEndpoint) (map[string][]IPTableRule, error) {
-	if err := checkTep(tep); err != nil {
+	if err := utils.CheckTep(tep); err != nil {
 		return nil, fmt.Errorf("invalid TunnelEndpoint resource: %w", err)
 	}
 	clusterID := tep.Spec.ClusterID
 	localRemappedPodCIDR, remotePodCIDR := utils.GetPodCIDRS(tep)
+	localRemappedExternalCIDR := utils.GetExternalCIDR(tep)
 
 	// Init chain rules
 	chainRules := make(map[string][]IPTableRule)
@@ -726,6 +721,8 @@ func getChainRulesPerCluster(tep *netv1alpha1.TunnelEndpoint) (map[string][]IPTa
 		IPTableRule{"-d", remotePodCIDR, "-j", getClusterInputChain(clusterID)})
 	chainRules[liqonetForwardingChain] = append(chainRules[liqonetForwardingChain],
 		IPTableRule{"-d", remotePodCIDR, "-j", getClusterForwardChain(clusterID)})
+	chainRules[liqonetPreroutingChain] = append(chainRules[liqonetPreroutingChain],
+		IPTableRule{"-s", remotePodCIDR, "-d", localRemappedExternalCIDR, "-j", getClusterPreRoutingMappingChain(clusterID)})
 	if localRemappedPodCIDR != consts.DefaultCIDRValue {
 		// For the following rule, source is necessary
 		// because more remote clusters could have
@@ -750,6 +747,10 @@ func getClusterForwardChain(clusterID string) string {
 
 func getClusterInputChain(clusterID string) string {
 	return fmt.Sprintf("%s%s", liqonetInputClusterChainPrefix, strings.Split(clusterID, "-")[0])
+}
+
+func getClusterPreRoutingMappingChain(clusterID string) string {
+	return fmt.Sprintf("%s%s", liqonetPreRoutingMappingClusterChainPrefix, strings.Split(clusterID, "-")[0])
 }
 
 // Function that returns the set of Liqo default chains.
