@@ -28,6 +28,10 @@ func (p *LiqoProvider) ConfigureNode(ctx context.Context, n *v1.Node) {
 	n.ObjectMeta.Labels["alpha.service-controller.kubernetes.io/exclude-balancer"] = "true"
 	n.ObjectMeta.Labels["node.kubernetes.io/exclude-from-external-load-balancers"] = "true"
 	n.Labels[liqoconst.TypeLabel] = liqoconst.TypeNode
+	if n.Annotations == nil {
+		n.Annotations = map[string]string{}
+	}
+	n.Annotations[liqoconst.RemoteClusterID] = p.foreignClusterID
 }
 
 // NodeConditions returns a list of conditions (Ready, OutOfDisk, etc), for updates to the node status

@@ -3,6 +3,7 @@ package liqonodeprovider
 import (
 	"time"
 
+	v1 "k8s.io/api/core/v1"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
@@ -12,6 +13,7 @@ import (
 // NewLiqoNodeProvider creates and returns a new LiqoNodeProvider.
 func NewLiqoNodeProvider(
 	nodeName, advName, foreignClusterID, kubeletNamespace string,
+	node *v1.Node,
 	podProviderStopper, networkReadyChan chan struct{},
 	config *rest.Config, resyncPeriod time.Duration, useNewAuth bool) (*LiqoNodeProvider, error) {
 	if config == nil {
@@ -23,6 +25,9 @@ func NewLiqoNodeProvider(
 	return &LiqoNodeProvider{
 		client:    client,
 		dynClient: dynClient,
+
+		node:              node,
+		lastAppliedLabels: map[string]string{},
 
 		networkReady:       false,
 		podProviderStopper: podProviderStopper,

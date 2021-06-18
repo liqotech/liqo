@@ -15,6 +15,9 @@ type LiqoNodeProvider struct {
 	client    kubernetes.Interface
 	dynClient dynamic.Interface
 
+	node              *corev1.Node
+	lastAppliedLabels map[string]string
+
 	nodeName         string
 	advName          string
 	foreignClusterID string

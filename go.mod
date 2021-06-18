@@ -34,6 +34,7 @@ require (
 	golang.org/x/time v0.0.0-20210220033141-f8bda1e9f3ba
 	golang.org/x/tools v0.1.0
 	golang.zx2c4.com/wireguard/wgctrl v0.0.0-20200609130330-bd2cb7843e1b
+	gomodules.xyz/jsonpatch/v2 v2.1.0
 	google.golang.org/grpc v1.33.2
 	google.golang.org/protobuf v1.26.0
 	gotest.tools v2.2.0+incompatible

@@ -162,7 +162,8 @@ func runRootCommand(ctx context.Context, s *provider.Store, c *Opts) error {
 		networkReadyChan := liqoProvider.GetNetworkReadyChan()
 
 		liqoNodeProvider, err := liqonodeprovider.NewLiqoNodeProvider(c.NodeName, advName, c.ForeignClusterId,
-			c.KubeletNamespace, podProviderStopper, networkReadyChan, nil, c.LiqoInformerResyncPeriod, c.UseNewAuth)
+			c.KubeletNamespace, pNode, podProviderStopper, networkReadyChan, nil, c.LiqoInformerResyncPeriod,
+			c.UseNewAuth)
 		if err != nil {
 			klog.Fatal(err)
 		}

@@ -2,13 +2,17 @@ package liqonodeprovider
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
+	"reflect"
 
+	"gomodules.xyz/jsonpatch/v2"
 	v1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/util/retry"
 	"k8s.io/klog/v2"
@@ -17,6 +21,7 @@ import (
 	netv1alpha1 "github.com/liqotech/liqo/apis/net/v1alpha1"
 	sharingv1alpha1 "github.com/liqotech/liqo/apis/sharing/v1alpha1"
 	advertisementOperator "github.com/liqotech/liqo/internal/advertisementoperator"
+	"github.com/liqotech/liqo/pkg/utils"
 )
 
 // The reconciliation function; every time this function is called,
@@ -36,18 +41,18 @@ func (p *LiqoNodeProvider) reconcileNodeFromResourceOffer(event watch.Event) err
 		p.updateMutex.Lock()
 		defer p.updateMutex.Unlock()
 		klog.Infof("resourceOffer %v is going to be deleted... set node status not ready", resourceOffer.Name)
-		no, err := p.client.CoreV1().Nodes().Get(context.TODO(), p.nodeName, metav1.GetOptions{})
-		if err != nil {
-			klog.Error(err)
-			return err
-		}
-		for i, condition := range no.Status.Conditions {
-			if condition.Type == v1.NodeReady {
-				no.Status.Conditions[i].Status = v1.ConditionFalse
-				p.onNodeChangeCallback(no)
-				break
+		for i, condition := range p.node.Status.Conditions {
+			switch condition.Type {
+			case v1.NodeReady:
+				p.node.Status.Conditions[i].Status = v1.ConditionFalse
+			case v1.NodeMemoryPressure:
+				p.node.Status.Conditions[i].Status = v1.ConditionTrue
+			default:
 			}
 		}
+		p.node.Status.Allocatable = v1.ResourceList{}
+		p.node.Status.Capacity = v1.ResourceList{}
+		p.onNodeChangeCallback(p.node.DeepCopy())
 
 		if err := p.handleResourceOfferDelete(&resourceOffer); err != nil {
 			klog.Errorf("something went wrong during resourceOffer deletion - %v", err)
@@ -81,18 +86,18 @@ func (p *LiqoNodeProvider) reconcileNodeFromAdv(event watch.Event) error {
 		p.updateMutex.Lock()
 		defer p.updateMutex.Unlock()
 		klog.Infof("advertisement %v is going to be deleted... set node status not ready", adv.Name)
-		no, err := p.client.CoreV1().Nodes().Get(context.TODO(), p.nodeName, metav1.GetOptions{})
-		if err != nil {
-			klog.Error(err)
-			return err
-		}
-		for i, condition := range no.Status.Conditions {
-			if condition.Type == v1.NodeReady {
-				no.Status.Conditions[i].Status = v1.ConditionFalse
-				p.onNodeChangeCallback(no)
-				break
+		for i, condition := range p.node.Status.Conditions {
+			switch condition.Type {
+			case v1.NodeReady:
+				p.node.Status.Conditions[i].Status = v1.ConditionFalse
+			case v1.NodeMemoryPressure:
+				p.node.Status.Conditions[i].Status = v1.ConditionTrue
+			default:
 			}
 		}
+		p.node.Status.Allocatable = v1.ResourceList{}
+		p.node.Status.Capacity = v1.ResourceList{}
+		p.onNodeChangeCallback(p.node.DeepCopy())
 
 		if err := p.handleAdvDelete(&adv); err != nil {
 			klog.Errorf("something went wrong during advertisement deletion - %v", err)
@@ -123,12 +128,8 @@ func (p *LiqoNodeProvider) reconcileNodeFromTep(event watch.Event) error {
 		p.updateMutex.Lock()
 		defer p.updateMutex.Unlock()
 		klog.Infof("tunnelEndpoint %v deleted", tep.Name)
-		no, err := p.client.CoreV1().Nodes().Get(context.TODO(), p.nodeName, metav1.GetOptions{})
-		if err != nil {
-			klog.Error(err)
-			return err
-		}
-		err = p.updateNode(no)
+		p.networkReady = false
+		err := p.updateNode()
 		if err != nil {
 			klog.Error(err)
 		}
@@ -146,147 +147,79 @@ func (p *LiqoNodeProvider) reconcileNodeFromTep(event watch.Event) error {
 // updateFromResourceOffer gets and updates the node status accordingly.
 // nolint:dupl // (aleoli): Suppressing for now, it will part of a major refactoring before v0.3
 func (p *LiqoNodeProvider) updateFromResourceOffer(resourceOffer *sharingv1alpha1.ResourceOffer) error {
-	var err error
-
 	p.updateMutex.Lock()
 	defer p.updateMutex.Unlock()
 
-	var no *v1.Node
-	if no, err = p.client.CoreV1().Nodes().Get(context.TODO(), p.nodeName, metav1.GetOptions{}); err != nil {
+	if err := p.patchLabels(resourceOffer.Spec.Labels); err != nil {
+		klog.Error(err)
 		return err
 	}
 
-	no.SetAnnotations(map[string]string{
-		"cluster-id": p.foreignClusterID,
-	})
-	no.SetLabels(mergeMaps(no.GetLabels(), resourceOffer.Spec.Labels))
-	no, err = p.client.CoreV1().Nodes().Update(context.TODO(), no, metav1.UpdateOptions{})
-	if err != nil {
-		return err
+	if p.node.Status.Capacity == nil {
+		p.node.Status.Capacity = v1.ResourceList{}
 	}
-
-	if no.Status.Capacity == nil {
-		no.Status.Capacity = v1.ResourceList{}
-	}
-	if no.Status.Allocatable == nil {
-		no.Status.Allocatable = v1.ResourceList{}
+	if p.node.Status.Allocatable == nil {
+		p.node.Status.Allocatable = v1.ResourceList{}
 	}
 	for k, v := range resourceOffer.Spec.ResourceQuota.Hard {
-		no.Status.Capacity[k] = v
-		no.Status.Allocatable[k] = v
-	}
-	if no.Status.Conditions == nil {
-		no.Status.Conditions = []v1.NodeCondition{
-			{
-				Type:   v1.NodeReady,
-				Status: v1.ConditionFalse,
-			},
-			{
-				Type:   v1.NodeMemoryPressure,
-				Status: v1.ConditionTrue,
-			},
-			{
-				Type:   v1.NodeDiskPressure,
-				Status: v1.ConditionFalse,
-			},
-			{
-				Type:   v1.NodePIDPressure,
-				Status: v1.ConditionFalse,
-			},
-			{
-				Type:   v1.NodeNetworkUnavailable,
-				Status: v1.ConditionTrue,
-			},
-		}
+		p.node.Status.Capacity[k] = v
+		p.node.Status.Allocatable[k] = v
 	}
 
-	no.Status.Images = []v1.ContainerImage{}
-	no.Status.Images = append(no.Status.Images, resourceOffer.Spec.Images...)
+	p.node.Status.Images = []v1.ContainerImage{}
+	p.node.Status.Images = append(p.node.Status.Images, resourceOffer.Spec.Images...)
 
-	return p.updateNode(no)
+	return p.updateNode()
 }
 
 // updateFromAdv gets and updates the node status accordingly.
 // nolint:dupl // (aleoli): Suppressing for now, it will part of a major refactoring before v0.3
 func (p *LiqoNodeProvider) updateFromAdv(adv *sharingv1alpha1.Advertisement) error {
-	var err error
-
 	p.updateMutex.Lock()
 	defer p.updateMutex.Unlock()
 
-	var no *v1.Node
-	if no, err = p.client.CoreV1().Nodes().Get(context.TODO(), p.nodeName, metav1.GetOptions{}); err != nil {
+	if err := p.patchLabels(adv.Spec.Labels); err != nil {
+		klog.Error(err)
 		return err
 	}
 
-	no.SetAnnotations(map[string]string{
-		"cluster-id": p.foreignClusterID,
-	})
-	no.SetLabels(mergeMaps(no.GetLabels(), adv.Spec.Labels))
-	no, err = p.client.CoreV1().Nodes().Update(context.TODO(), no, metav1.UpdateOptions{})
-	if err != nil {
-		return err
+	if p.node.Status.Capacity == nil {
+		p.node.Status.Capacity = v1.ResourceList{}
 	}
-
-	if no.Status.Capacity == nil {
-		no.Status.Capacity = v1.ResourceList{}
-	}
-	if no.Status.Allocatable == nil {
-		no.Status.Allocatable = v1.ResourceList{}
+	if p.node.Status.Allocatable == nil {
+		p.node.Status.Allocatable = v1.ResourceList{}
 	}
 	for k, v := range adv.Spec.ResourceQuota.Hard {
-		no.Status.Capacity[k] = v
-		no.Status.Allocatable[k] = v
-	}
-	if no.Status.Conditions == nil {
-		no.Status.Conditions = []v1.NodeCondition{
-			{
-				Type:   v1.NodeReady,
-				Status: v1.ConditionFalse,
-			},
-			{
-				Type:   v1.NodeMemoryPressure,
-				Status: v1.ConditionTrue,
-			},
-			{
-				Type:   v1.NodeDiskPressure,
-				Status: v1.ConditionFalse,
-			},
-			{
-				Type:   v1.NodePIDPressure,
-				Status: v1.ConditionFalse,
-			},
-			{
-				Type:   v1.NodeNetworkUnavailable,
-				Status: v1.ConditionTrue,
-			},
-		}
+		p.node.Status.Capacity[k] = v
+		p.node.Status.Allocatable[k] = v
 	}
 
-	no.Status.Images = []v1.ContainerImage{}
-	no.Status.Images = append(no.Status.Images, adv.Spec.Images...)
+	p.node.Status.Images = []v1.ContainerImage{}
+	p.node.Status.Images = append(p.node.Status.Images, adv.Spec.Images...)
 
-	return p.updateNode(no)
-}
-
-func mergeMaps(m1, m2 map[string]string) map[string]string {
-	for k, v := range m2 {
-		m1[k] = v
-	}
-	return m1
+	return p.updateNode()
 }
 
 func (p *LiqoNodeProvider) updateFromTep(tep *netv1alpha1.TunnelEndpoint) error {
 	p.updateMutex.Lock()
 	defer p.updateMutex.Unlock()
 
-	no, err := p.client.CoreV1().Nodes().Get(context.TODO(), p.nodeName, metav1.GetOptions{})
-	if err != nil {
-		return err
+	// if tep is not connected yet, return
+	if tep.Status.Connection.Status != netv1alpha1.Connected {
+		p.networkReady = false
+		return p.updateNode()
+	}
+	p.networkReady = true
+	if isChanOpen(p.networkReadyChan) {
+		close(p.networkReadyChan)
 	}
 
-	if no.Status.Conditions == nil {
-		no.Status.Conditions = []v1.NodeCondition{
+	return p.updateNode()
+}
+
+func (p *LiqoNodeProvider) updateNode() error {
+	if p.node.Status.Conditions == nil {
+		p.node.Status.Conditions = []v1.NodeCondition{
 			{
 				Type:   v1.NodeReady,
 				Status: v1.ConditionFalse,
@@ -310,49 +243,35 @@ func (p *LiqoNodeProvider) updateFromTep(tep *netv1alpha1.TunnelEndpoint) error 
 		}
 	}
 
-	// if tep is not connected yet, return
-	if tep.Status.Connection.Status != netv1alpha1.Connected {
-		p.networkReady = false
-		return p.updateNode(no)
-	}
-	p.networkReady = true
-	if isChanOpen(p.networkReadyChan) {
-		close(p.networkReadyChan)
-	}
-
-	return p.updateNode(no)
-}
-
-func (p *LiqoNodeProvider) updateNode(node *v1.Node) error {
 	networkReady := p.networkReady
-	resourceReady := node.Status.Allocatable != nil
+	resourceReady := areResourcesReady(p.node.Status.Allocatable)
 	ready := networkReady && resourceReady
 
-	for i, condition := range node.Status.Conditions {
+	for i, condition := range p.node.Status.Conditions {
 		if condition.Type == v1.NodeReady {
 			if ready {
-				node.Status.Conditions[i].Status = v1.ConditionTrue
+				p.node.Status.Conditions[i].Status = v1.ConditionTrue
 			} else {
-				node.Status.Conditions[i].Status = v1.ConditionFalse
+				p.node.Status.Conditions[i].Status = v1.ConditionFalse
 			}
 		}
 		if condition.Type == v1.NodeNetworkUnavailable {
 			if networkReady {
-				node.Status.Conditions[i].Status = v1.ConditionFalse
+				p.node.Status.Conditions[i].Status = v1.ConditionFalse
 			} else {
-				node.Status.Conditions[i].Status = v1.ConditionTrue
+				p.node.Status.Conditions[i].Status = v1.ConditionTrue
 			}
 		}
 		if condition.Type == v1.NodeMemoryPressure {
 			if resourceReady {
-				node.Status.Conditions[i].Status = v1.ConditionFalse
+				p.node.Status.Conditions[i].Status = v1.ConditionFalse
 			} else {
-				node.Status.Conditions[i].Status = v1.ConditionTrue
+				p.node.Status.Conditions[i].Status = v1.ConditionTrue
 			}
 		}
 	}
 
-	p.onNodeChangeCallback(node)
+	p.onNodeChangeCallback(p.node.DeepCopy())
 	return nil
 }
 
@@ -404,6 +323,59 @@ func (p *LiqoNodeProvider) handleAdvDelete(adv *sharingv1alpha1.Advertisement) e
 	return nil
 }
 
+func (p *LiqoNodeProvider) patchLabels(labels map[string]string) error {
+	if reflect.DeepEqual(labels, p.lastAppliedLabels) {
+		return nil
+	}
+	if labels == nil {
+		labels = map[string]string{}
+	}
+
+	original, err := json.Marshal(p.node)
+	if err != nil {
+		klog.Error(err)
+		return err
+	}
+
+	nodeLabels := p.node.GetLabels()
+	nodeLabels = utils.SubMaps(nodeLabels, p.lastAppliedLabels)
+	nodeLabels = utils.MergeMaps(nodeLabels, labels)
+
+	newNode := p.node.DeepCopy()
+	newNode.Labels = nodeLabels
+	target, err := json.Marshal(newNode)
+	if err != nil {
+		klog.Error(err)
+		return err
+	}
+
+	ops, err := jsonpatch.CreatePatch(original, target)
+	if err != nil {
+		klog.Error(err)
+		return err
+	}
+
+	if len(ops) == 0 {
+		// this avoids an empty patch of the node
+		return nil
+	}
+
+	bytes, err := json.Marshal(ops)
+	if err != nil {
+		klog.Error(err)
+		return err
+	}
+
+	p.node, err = p.client.CoreV1().Nodes().Patch(context.TODO(),
+		p.node.Name, types.JSONPatchType, bytes, metav1.PatchOptions{})
+	if err != nil {
+		klog.Error(err)
+		return err
+	}
+	p.lastAppliedLabels = labels
+	return nil
+}
+
 func isChanOpen(ch chan struct{}) bool {
 	open := true
 	select {
@@ -411,4 +383,20 @@ func isChanOpen(ch chan struct{}) bool {
 	default:
 	}
 	return open
+}
+
+// areResourcesReady returns true if both cpu and memory are more than zero.
+func areResourcesReady(allocatable v1.ResourceList) bool {
+	if allocatable == nil {
+		return false
+	}
+	cpu := allocatable.Cpu()
+	if cpu == nil || cpu.CmpInt64(0) <= 0 {
+		return false
+	}
+	memory := allocatable.Memory()
+	if memory == nil || memory.CmpInt64(0) <= 0 {
+		return false
+	}
+	return true
 }
