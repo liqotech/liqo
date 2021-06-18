@@ -1,4 +1,4 @@
-package reflection
+package outgoing
 
 import (
 	"context"
@@ -6,19 +6,22 @@ import (
 
 	"gotest.tools/assert"
 	v1 "k8s.io/api/core/v1"
-	"k8s.io/api/discovery/v1beta1"
+	discoveryv1 "k8s.io/api/discovery/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes/fake"
-	"k8s.io/klog"
+	"k8s.io/klog/v2"
 
 	liqonetTest "github.com/liqotech/liqo/pkg/liqonet/test"
-
 	apimgmt "github.com/liqotech/liqo/pkg/virtualKubelet/apiReflection"
 	api "github.com/liqotech/liqo/pkg/virtualKubelet/apiReflection/reflectors"
-	"github.com/liqotech/liqo/pkg/virtualKubelet/apiReflection/reflectors/outgoing"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/namespacesMapping/test"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/options/types"
 	storageTest "github.com/liqotech/liqo/pkg/virtualKubelet/storage/test"
+)
+
+var (
+	localNode   = "worker-3"
+	virtualNode = "vk-node"
 )
 
 func TestEndpointAdd(t *testing.T) {
@@ -35,14 +38,14 @@ func TestEndpointAdd(t *testing.T) {
 		CacheManager:     cacheManager,
 	}
 
-	reflector := &outgoing.EndpointSlicesReflector{
+	reflector := &EndpointSlicesReflector{
 		APIReflector:    Greflector,
 		VirtualNodeName: types.NewNetworkingOption("VirtualNodeName", "vk-node"),
 		IpamClient:      &liqonetTest.MockIpam{LocalRemappedPodCIDR: "10.0.0.0/16"},
 	}
 	reflector.SetSpecializedPreProcessingHandlers()
 
-	epslice := &v1beta1.EndpointSlice{
+	epslice := &discoveryv1.EndpointSlice{
 		TypeMeta: metav1.TypeMeta{},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "name",
@@ -59,20 +62,18 @@ func TestEndpointAdd(t *testing.T) {
 				},
 			},
 		},
-		Endpoints: []v1beta1.Endpoint{
+		Endpoints: []discoveryv1.Endpoint{
 			{
 				Addresses:  []string{"10.0.0.15"},
-				Conditions: v1beta1.EndpointConditions{},
-				Hostname:   nil,
+				Conditions: discoveryv1.EndpointConditions{},
+				Hostname:   &localNode,
 				TargetRef:  nil,
-				Topology:   map[string]string{"kubernetes.io/hostname": "worker-3"},
 			},
 			{
 				Addresses:  []string{"10.0.0.20"},
-				Conditions: v1beta1.EndpointConditions{},
-				Hostname:   nil,
+				Conditions: discoveryv1.EndpointConditions{},
+				Hostname:   &virtualNode,
 				TargetRef:  nil,
-				Topology:   map[string]string{"kubernetes.io/hostname": "vk-node"},
 			}},
 		Ports: nil,
 	}
@@ -97,7 +98,7 @@ func TestEndpointAdd(t *testing.T) {
 	}
 
 	pa, _ := reflector.PreProcessAdd(epslice)
-	postadd := pa.(*v1beta1.EndpointSlice)
+	postadd := pa.(*discoveryv1.EndpointSlice)
 
 	assert.Equal(t, postadd.Namespace, "homeNamespace-natted", "Asserting namespace natting")
 	assert.Equal(t, len(postadd.Endpoints), 1, "Asserting node-based filtering")
@@ -118,14 +119,14 @@ func TestEndpointAdd2(t *testing.T) {
 		CacheManager:     cacheManager,
 	}
 
-	reflector := &outgoing.EndpointSlicesReflector{
+	reflector := &EndpointSlicesReflector{
 		APIReflector:    Greflector,
 		VirtualNodeName: types.NewNetworkingOption("VirtualNodeName", "vk-node"),
 		IpamClient:      &liqonetTest.MockIpam{LocalRemappedPodCIDR: "10.0.0.0/16"},
 	}
 	reflector.SetSpecializedPreProcessingHandlers()
 
-	epslice := &v1beta1.EndpointSlice{
+	epSlice := &discoveryv1.EndpointSlice{
 		TypeMeta: metav1.TypeMeta{},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "name",
@@ -142,20 +143,18 @@ func TestEndpointAdd2(t *testing.T) {
 				},
 			},
 		},
-		Endpoints: []v1beta1.Endpoint{
+		Endpoints: []discoveryv1.Endpoint{
 			{
 				Addresses:  []string{"10.10.0.15"},
-				Conditions: v1beta1.EndpointConditions{},
-				Hostname:   nil,
+				Conditions: discoveryv1.EndpointConditions{},
+				Hostname:   &localNode,
 				TargetRef:  nil,
-				Topology:   map[string]string{"kubernetes.io/hostname": "worker-3"},
 			},
 			{
 				Addresses:  []string{"10.10.0.20"},
-				Conditions: v1beta1.EndpointConditions{},
-				Hostname:   nil,
+				Conditions: discoveryv1.EndpointConditions{},
+				Hostname:   &virtualNode,
 				TargetRef:  nil,
-				Topology:   map[string]string{"kubernetes.io/hostname": "vk-node"},
 			}},
 		Ports: nil,
 	}
@@ -179,8 +178,8 @@ func TestEndpointAdd2(t *testing.T) {
 		t.Fail()
 	}
 
-	pa, _ := reflector.PreProcessAdd(epslice)
-	postadd := pa.(*v1beta1.EndpointSlice)
+	pa, _ := reflector.PreProcessAdd(epSlice)
+	postadd := pa.(*discoveryv1.EndpointSlice)
 
 	assert.Equal(t, postadd.Namespace, "homeNamespace-natted", "Asserting namespace natting")
 	assert.Equal(t, len(postadd.Endpoints), 1, "Asserting node-based filtering")

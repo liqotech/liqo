@@ -6,7 +6,7 @@ import (
 
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
-	discoveryv1beta1 "k8s.io/api/discovery/v1beta1"
+	discoveryv1 "k8s.io/api/discovery/v1"
 	"k8s.io/client-go/tools/cache"
 
 	"github.com/liqotech/liqo/pkg/virtualKubelet"
@@ -39,7 +39,7 @@ func configmapsIndexers() cache.Indexers {
 func endpointSlicesIndexers() cache.Indexers {
 	i := cache.Indexers{}
 	i["endpointslices"] = func(obj interface{}) ([]string, error) {
-		endpointSlice, ok := obj.(*discoveryv1beta1.EndpointSlice)
+		endpointSlice, ok := obj.(*discoveryv1.EndpointSlice)
 		if !ok {
 			return []string{}, errors.New("cannot convert obj to endpointslice")
 		}
