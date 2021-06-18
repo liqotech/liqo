@@ -129,7 +129,7 @@ If you want to explore the Liqo internals, including how to inspect and interact
 
 ## Installation
 
-Liqo can be installed by using Helm. The configuration depends on the cluster type (K8s, K3s, managed) and the provider. Possible scenarios can be found [here](https://doc.liqo.io/user/scenarios/).
+Liqo can be installed by using Helm. The configuration depends on the cluster type (K8s, K3s, managed) and the provider. Possible scenarios can be found [here](https://doc.liqo.io/user/install/pre-install/).
 
 Once you identified your scenario, follow the instructions for the proper installation [environment]("https://doc.liqo.io/user/install/").
 
