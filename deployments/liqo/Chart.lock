@@ -1,3 +1,6 @@
-dependencies: []
-digest: sha256:643d5437104296e21d906ecb15b2c96ad278f20cfc4af53b12bb6069bd853726
-generated: "2021-01-27T18:32:54.7246306+01:00"
+dependencies:
+- name: capsule
+  repository: http://helm.liqo.io/capsule
+  version: v0.1.0-rc2-liqo
+digest: sha256:b2e4d9203115ed1d86313ed9a4c920644cd2b3e7f1d6d07fd51be7ed44703f37
+generated: "2021-06-29T09:01:16.388711445Z"
