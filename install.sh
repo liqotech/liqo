@@ -511,7 +511,7 @@ function install_liqo() {
 	${KUBECTL} create namespace "${LIQO_NAMESPACE}" 1>/dev/null 2>&1 || true
 	local LIQO_CHART="${TMPDIR}/${LIQO_CHARTS_PATH}"
 	info "[INSTALL]" "Packaging the chart..."
-	${HELM} package --version="${LIQO_CHART_VERSION}" --app-version="${LIQO_CHART_VERSION}" "${LIQO_CHART}" >/dev/null ||
+	${HELM} package --version="${LIQO_CHART_VERSION}" --app-version="${LIQO_CHART_VERSION}" "${LIQO_CHART}" --dependency-update >/dev/null ||
 			fatal "[INSTALL]" "Something went wrong while installing Liqo"
 
 	${HELM} install liqo --kube-context "${KUBECONFIG_CONTEXT}" --namespace "${LIQO_NAMESPACE}" "liqo-${LIQO_CHART_VERSION}.tgz" \

@@ -192,5 +192,12 @@ nameOverride: ""
 # -- full liqo name override
 fullnameOverride: ""
 
+# capsule subchart configuration
+capsule:
+  # -- liqo needs capsule to work properly, but you can use your already deployed capsule installation
+  install: true
+  # -- override the fullname to fix naming problems
+  fullnameOverride: capsule
+
 # -- enable experimental new authentication flow
 useNewAuth: false
