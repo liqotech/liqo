@@ -1,0 +1,20 @@
+rules:
+- apiGroups:
+  - offloading.liqo.io
+  resources:
+  - namespaceoffloadings
+  verbs:
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - virtualKubelet.liqo.io
+  resources:
+  - namespacemaps
+  verbs:
+  - delete
+  - get
+  - list
+  - watch

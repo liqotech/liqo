@@ -153,8 +153,6 @@ var _ = BeforeSuite(func(done Done) {
 
 	err = (&NamespaceMapReconciler{
 		Client:         homeClient,
-		Scheme:         k8sManager.GetScheme(),
-		Mapper:         k8sManager.GetRESTMapper(),
 		RemoteClients:  controllerClients,
 		LocalClusterID: localClusterID,
 	}).SetupWithManager(k8sManager)

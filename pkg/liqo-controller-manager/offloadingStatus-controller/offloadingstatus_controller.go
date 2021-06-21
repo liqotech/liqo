@@ -41,6 +41,10 @@ type OffloadingStatusReconciler struct {
 	RequeueTime time.Duration
 }
 
+// cluster-role
+// +kubebuilder:rbac:groups=offloading.liqo.io,resources=namespaceoffloadings,verbs=get;list;watch;patch;update
+// +kubebuilder:rbac:groups=virtualKubelet.liqo.io,resources=namespacemaps,verbs=get;list;watch;delete
+
 // Controller Ownership:
 // --> NamespaceOffloading.Status.RemoteConditions
 // --> NamespaceOffloading.Status.OffloadingPhase

@@ -13,7 +13,6 @@ import (
 
 	mapsv1alpha1 "github.com/liqotech/liqo/apis/virtualKubelet/v1alpha1"
 	liqoconst "github.com/liqotech/liqo/pkg/consts"
-	liqoutils "github.com/liqotech/liqo/pkg/utils"
 )
 
 // This constants are used to compose the annotation that is inserted on remote Namespace at creation time.
@@ -23,25 +22,10 @@ const (
 	remoteNamespaceAnnotationValue  = "This Namespace has been created through Liqo offloading mechanism"
 )
 
-// This function gets the clusted-id of the local cluster.
-func (r *NamespaceMapReconciler) checkLocalClusterID() error {
-	if r.LocalClusterID == "" {
-		clusterID, err := liqoutils.GetClusterID(r.Client)
-		if err != nil || clusterID == "" {
-			return err
-		}
-		r.LocalClusterID = clusterID
-	}
-	return nil
-}
-
 // This function creates a remote Namespace inside the remote cluster, if it doesn't exist yet.
 // The right client to use is chosen by means of NamespaceMap's cluster-id.
-func (r *NamespaceMapReconciler) createRemoteNamespace(clusterID, remoteName string) error {
-	if err := r.checkRemoteClientPresence(clusterID); err != nil {
-		return err
-	}
-	if err := r.checkLocalClusterID(); err != nil {
+func (r *NamespaceMapReconciler) createRemoteNamespace(ctx context.Context, remoteClusterID, remoteName string) error {
+	if err := r.checkRemoteClientPresence(ctx, remoteClusterID); err != nil {
 		return err
 	}
 
@@ -56,36 +40,36 @@ func (r *NamespaceMapReconciler) createRemoteNamespace(clusterID, remoteName str
 		},
 	}
 
-	if err := r.RemoteClients[clusterID].Create(context.TODO(), remoteNamespace); err != nil {
+	if err := r.RemoteClients[remoteClusterID].Create(ctx, remoteNamespace); err != nil {
 		if apierrors.IsAlreadyExists(err) {
-			if errGet := r.RemoteClients[clusterID].Get(context.TODO(), types.NamespacedName{Name: remoteName}, remoteNamespace); errGet == nil {
+			if errGet := r.RemoteClients[remoteClusterID].Get(ctx, types.NamespacedName{Name: remoteName}, remoteNamespace); errGet == nil {
 				if value, ok := remoteNamespace.Annotations[annotationKey]; ok && value == remoteNamespaceAnnotationValue {
-					klog.Infof("Namespace '%s' already created inside remote cluster: '%s'", remoteNamespace.Name, clusterID)
+					klog.Infof("the namespace '%s' has already been created inside the remote cluster '%s'",
+						remoteNamespace.Name, remoteClusterID)
 					return nil
 				}
 			}
 		}
-		klog.Error(err)
+		klog.Errorf("%s -> Namespace '%s' cannot be created inside cluster '%s'", err,
+			remoteName, remoteClusterID)
 		return err
 	}
 
-	klog.Infof("Namespace '%s' created inside remote cluster: '%s'", remoteNamespace.Name, clusterID)
+	klog.Infof("The namespace '%s' is created inside the remote cluster: '%s'", remoteNamespace.Name, remoteClusterID)
 	return nil
 }
 
 // For every entry of DesiredMapping create remote Namespace if it has not already being created.
 // This function tries to create all the remote namespaces requested in DesiredMapping (NamespaceMap->Spec->DesiredMapping).
-func (r *NamespaceMapReconciler) ensureRemoteNamespacesExistence(nm *mapsv1alpha1.NamespaceMap) bool {
+func (r *NamespaceMapReconciler) ensureRemoteNamespacesExistence(ctx context.Context, nm *mapsv1alpha1.NamespaceMap) bool {
 	errorCondition := false
 	for localName, remoteName := range nm.Spec.DesiredMapping {
-		if err := r.createRemoteNamespace(nm.Labels[liqoconst.RemoteClusterID], remoteName); err != nil {
+		if err := r.createRemoteNamespace(ctx, nm.Labels[liqoconst.RemoteClusterID], remoteName); err != nil {
 			nm.Status.CurrentMapping[localName] = mapsv1alpha1.RemoteNamespaceStatus{
 				RemoteNamespace: remoteName,
 				Phase:           mapsv1alpha1.MappingCreationLoopBackOff,
 			}
 			errorCondition = true
-			klog.Errorf("%s -> Namespace '%s' cannot be created inside cluster '%s'", err,
-				localName, nm.Labels[liqoconst.RemoteClusterID])
 			continue
 		}
 		nm.Status.CurrentMapping[localName] = mapsv1alpha1.RemoteNamespaceStatus{
@@ -99,18 +83,15 @@ func (r *NamespaceMapReconciler) ensureRemoteNamespacesExistence(nm *mapsv1alpha
 // This function deletes a remote Namespace from the remote cluster, the right client to use is chosen
 // by NamespaceMap's cluster-id. This function return nil (success) only when the remote Namespace is really deleted,
 // so the get Api returns a "NotFound".
-func (r *NamespaceMapReconciler) deleteRemoteNamespace(clusterID, remoteName string) error {
-	if err := r.checkRemoteClientPresence(clusterID); err != nil {
-		return err
-	}
-	if err := r.checkLocalClusterID(); err != nil {
+func (r *NamespaceMapReconciler) deleteRemoteNamespace(ctx context.Context, remoteClusterID, remoteName string) error {
+	if err := r.checkRemoteClientPresence(ctx, remoteClusterID); err != nil {
 		return err
 	}
 
 	remoteNamespace := &corev1.Namespace{}
-	if err := r.RemoteClients[clusterID].Get(context.TODO(), types.NamespacedName{Name: remoteName}, remoteNamespace); err != nil {
+	if err := r.RemoteClients[remoteClusterID].Get(ctx, types.NamespacedName{Name: remoteName}, remoteNamespace); err != nil {
 		if apierrors.IsNotFound(err) {
-			klog.Infof("The namespace '%s' is correctly deleted from the remote cluster: '%s'", remoteName, clusterID)
+			klog.Infof("The namespace '%s' is correctly deleted from the remote cluster: '%s'", remoteName, remoteClusterID)
 			return nil
 		}
 		klog.Errorf("unable to get the remote namespace '%s'", remoteName)
@@ -121,36 +102,34 @@ func (r *NamespaceMapReconciler) deleteRemoteNamespace(clusterID, remoteName str
 	annotationKey := fmt.Sprintf("%s-%s/%s", remoteNamespaceAnnotationPrefix, r.LocalClusterID, liqoSuffix)
 	if value, ok := remoteNamespace.Annotations[annotationKey]; !ok || value != remoteNamespaceAnnotationValue {
 		klog.Infof("No remote namespaces with name '%s' created through Liqo mechanism inside the remote cluster: '%s'",
-			remoteName, clusterID)
+			remoteName, remoteClusterID)
 		return nil
 	}
 
 	if remoteNamespace.DeletionTimestamp.IsZero() {
-		if err := r.RemoteClients[clusterID].Delete(context.TODO(), remoteNamespace); err != nil {
-			klog.Errorf("unable to delete the namespace '%s' from the remote cluster: '%s'", remoteName, clusterID)
+		if err := r.RemoteClients[remoteClusterID].Delete(ctx, remoteNamespace); err != nil {
+			klog.Errorf("unable to delete the namespace '%s' from the remote cluster: '%s'", remoteName, remoteClusterID)
 			return err
 		}
 		klog.Infof("The deletion timestamp is correctly set on the namespace '%s'", remoteName)
 	}
-	return fmt.Errorf("remote Namespace '%s' terminating", remoteName)
+	return fmt.Errorf("the remote Namespace '%s' inside the cluster '%s' is undergoing graceful termination", remoteName, remoteClusterID)
 }
 
 // If DesiredMapping field has less entries than CurrentMapping, is necessary to remove some remote namespaces.
 // This function checks if remote namespaces requested to be deleted are really deleted.
-func (r *NamespaceMapReconciler) ensureRemoteNamespacesDeletion(nm *mapsv1alpha1.NamespaceMap) bool {
+func (r *NamespaceMapReconciler) ensureRemoteNamespacesDeletion(ctx context.Context, nm *mapsv1alpha1.NamespaceMap) bool {
 	errorCondition := false
 	for localName, remoteStatus := range nm.Status.CurrentMapping {
 		if _, ok := nm.Spec.DesiredMapping[localName]; ok && nm.DeletionTimestamp.IsZero() {
 			continue
 		}
-		if err := r.deleteRemoteNamespace(nm.Labels[liqoconst.RemoteClusterID], remoteStatus.RemoteNamespace); err != nil {
+		if err := r.deleteRemoteNamespace(ctx, nm.Labels[liqoconst.RemoteClusterID], remoteStatus.RemoteNamespace); err != nil {
 			nm.Status.CurrentMapping[localName] = mapsv1alpha1.RemoteNamespaceStatus{
 				RemoteNamespace: remoteStatus.RemoteNamespace,
 				Phase:           mapsv1alpha1.MappingTerminating,
 			}
 			errorCondition = true
-			klog.Errorf("%s -> Namespace '%s' cannot be deleted from cluster '%s'", err,
-				localName, nm.Labels[liqoconst.RemoteClusterID])
 			continue
 		}
 		delete(nm.Status.CurrentMapping, localName)
@@ -166,41 +145,35 @@ func (r *NamespaceMapReconciler) ensureRemoteNamespaces(ctx context.Context, nm 
 		nm.Status.CurrentMapping = map[string]mapsv1alpha1.RemoteNamespaceStatus{}
 	}
 	// Object used as base for client.MergeFrom
-	patch := nm.DeepCopy()
+	original := nm.DeepCopy()
 
-	errorCondition = r.ensureRemoteNamespacesExistence(nm) || r.ensureRemoteNamespacesDeletion(nm)
+	errorCondition = r.ensureRemoteNamespacesExistence(ctx, nm) || r.ensureRemoteNamespacesDeletion(ctx, nm)
 
 	// MergeFrom used to avoid conflicts, the NamespaceMap controller has the ownership of NamespaceMap status
-	if err := r.Patch(ctx, nm, client.MergeFrom(patch)); err != nil {
+	if err := r.Patch(ctx, nm, client.MergeFrom(original)); err != nil {
 		klog.Errorf("%s -> unable to update NamespaceMap '%s' Status", err, nm.Name)
 		return err
 	}
-	klog.Infof("Status of the NamespaceMap '%s' is correctly updated", nm.Name)
+	klog.Infof("the status of the NamespaceMap '%s' is correctly updated", nm.Name)
 
 	if errorCondition {
-		err := fmt.Errorf("something during remote namespaces management went wrong")
-		klog.Error(err)
-		return err
+		return fmt.Errorf("something during remote namespaces management went wrong")
 	}
 	return nil
 }
 
 // The NamespaceMap is requested to be deleted so before removing the NamespaceMapControllerFinalizer finalizer
 // is necessary to delete all remote namespaces associated with this NamespaceMap.
-func (r *NamespaceMapReconciler) namespaceMapDeletionProcess(ctx context.Context,
-	nm *mapsv1alpha1.NamespaceMap) error {
-	patch := nm.DeepCopy()
-	r.ensureRemoteNamespacesDeletion(nm)
+func (r *NamespaceMapReconciler) namespaceMapDeletionProcess(ctx context.Context, nm *mapsv1alpha1.NamespaceMap) error {
+	original := nm.DeepCopy()
 	// If the NamespaceMap Status is empty, it is possible to remove the finalizer.
-	if len(nm.Status.CurrentMapping) == 0 {
-		if err := r.RemoveNamespaceMapControllerFinalizer(ctx, nm); err != nil {
-			return err
-		}
+	if !r.ensureRemoteNamespacesDeletion(ctx, nm) {
+		return r.RemoveNamespaceMapControllerFinalizer(ctx, nm)
 	}
-	if err := r.Patch(ctx, nm, client.MergeFrom(patch)); err != nil {
+	// This patch is used to update NamespaceMap status if some remote namespaces still exist.
+	if err := r.Patch(ctx, nm, client.MergeFrom(original)); err != nil {
 		klog.Errorf("%s -> unable to patch the status of the NamespaceMap %s", err, nm.Name)
+		return err
 	}
-	err := fmt.Errorf("remote namespaces deletion phase in progress")
-	klog.Error(err)
-	return err
+	return fmt.Errorf("remote namespaces deletion phase in progress")
 }

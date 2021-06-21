@@ -14,7 +14,7 @@ import (
 	liqoconst "github.com/liqotech/liqo/pkg/consts"
 )
 
-func (r *NamespaceOffloadingReconciler) selectCompliantVirtualNodes(noff *offv1alpha1.NamespaceOffloading,
+func (r *NamespaceOffloadingReconciler) enforceClusterSelector(noff *offv1alpha1.NamespaceOffloading,
 	clusterIDMap map[string]*mapsv1alpha1.NamespaceMap) error {
 	virtualNodes := &corev1.NodeList{}
 	if err := r.List(context.TODO(), virtualNodes,
@@ -66,22 +66,6 @@ func (r *NamespaceOffloadingReconciler) selectCompliantVirtualNodes(noff *offv1a
 		return err
 	}
 	return nil
-}
-
-func (r *NamespaceOffloadingReconciler) enforceClusterSelector(noff *offv1alpha1.NamespaceOffloading,
-	clusterIDMap map[string]*mapsv1alpha1.NamespaceMap) error {
-	if noff.Spec.ClusterSelector.Size() == 0 {
-		klog.Infof(" The namespace '%s' is requested to be offloaded on all remote clusters", noff.Namespace)
-		if err := addDesiredMappings(r.Client, noff.Namespace, noff.Status.RemoteNamespaceName, clusterIDMap); err != nil {
-			return err
-		}
-		for key := range clusterIDMap {
-			delete(clusterIDMap, key)
-		}
-		return nil
-	}
-
-	return r.selectCompliantVirtualNodes(noff, clusterIDMap)
 }
 
 func (r *NamespaceOffloadingReconciler) getClusterIDMap(ctx context.Context) (map[string]*mapsv1alpha1.NamespaceMap, error) {

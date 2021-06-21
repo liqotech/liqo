@@ -12,16 +12,18 @@ import (
 
 	mapsv1alpha1 "github.com/liqotech/liqo/apis/virtualKubelet/v1alpha1"
 	liqoconst "github.com/liqotech/liqo/pkg/consts"
+	foreignclusterutils "github.com/liqotech/liqo/pkg/utils/foreignCluster"
 )
 
 // createNamespaceMap creates a new NamespaceMap with OwnerReference.
 func (r *VirtualNodeReconciler) createNamespaceMap(ctx context.Context, n *corev1.Node) error {
+	virtualNodeClusterID := n.Annotations[liqoconst.RemoteClusterID]
 	nm := &mapsv1alpha1.NamespaceMap{
 		ObjectMeta: metav1.ObjectMeta{
-			GenerateName: fmt.Sprintf("%s-", n.GetAnnotations()[liqoconst.RemoteClusterID]),
-			Namespace:    liqoconst.TechnicalNamespace,
+			GenerateName: fmt.Sprintf("%s-", virtualNodeClusterID),
+			Namespace:    r.getLocalTenantNamespaceName(virtualNodeClusterID),
 			Labels: map[string]string{
-				liqoconst.RemoteClusterID: n.GetAnnotations()[liqoconst.RemoteClusterID],
+				liqoconst.RemoteClusterID: virtualNodeClusterID,
 			},
 		},
 	}
@@ -40,10 +42,15 @@ func (r *VirtualNodeReconciler) createNamespaceMap(ctx context.Context, n *corev
 
 // ensureNamespaceMapPresence creates a new NamespaceMap associated with that virtual-node if it is not already present.
 func (r *VirtualNodeReconciler) ensureNamespaceMapPresence(ctx context.Context, n *corev1.Node) error {
+	// Only when the NamespaceMap is created for the first time it is necessary to check the presence of the local
+	// Tenant namespace's name.
+	if err := r.checkLocalTenantNamespaceNamePresence(ctx, n.Annotations[liqoconst.RemoteClusterID]); err != nil {
+		return err
+	}
 	nms := &mapsv1alpha1.NamespaceMapList{}
-	if err := r.List(ctx, nms, client.InNamespace(liqoconst.TechnicalNamespace),
-		client.MatchingLabels{liqoconst.RemoteClusterID: n.GetAnnotations()[liqoconst.RemoteClusterID]}); err != nil {
-		klog.Errorf("%s --> Unable to List NamespaceMaps of virtual-node '%s'", err, n.GetName())
+	if err := r.List(ctx, nms, client.InNamespace(r.getLocalTenantNamespaceName(n.Annotations[liqoconst.RemoteClusterID])),
+		client.MatchingLabels{liqoconst.RemoteClusterID: n.Annotations[liqoconst.RemoteClusterID]}); err != nil {
+		klog.Errorf("%s --> Unable to List NamespaceMaps of the virtual-node '%s'", err, n.GetName())
 		return err
 	}
 
@@ -52,4 +59,37 @@ func (r *VirtualNodeReconciler) ensureNamespaceMapPresence(ctx context.Context, 
 	}
 
 	return nil
+}
+
+// checkLocalTenantNamespaceNamePresence checks if the local tenant namespace's name for the cluster with
+// `remoteClusterID` clusterID is already present in the map r.LocalTenantNamespacesNames.
+func (r *VirtualNodeReconciler) checkLocalTenantNamespaceNamePresence(ctx context.Context, remoteClusterID string) error {
+	if r.LocalTenantNamespacesNames == nil {
+		r.LocalTenantNamespacesNames = map[string]string{}
+	}
+
+	if _, ok := r.LocalTenantNamespacesNames[remoteClusterID]; !ok {
+		fc, err := foreignclusterutils.GetForeignClusterByID(ctx, r.Client, remoteClusterID)
+		if err != nil {
+			return err
+		}
+
+		if fc.Status.TenantControlNamespace.Local == "" {
+			err = fmt.Errorf("there is no tenant namespace associated with the peering with the remote cluster '%s'",
+				remoteClusterID)
+			klog.Error(err)
+			return err
+		}
+
+		r.LocalTenantNamespacesNames[remoteClusterID] = fc.Status.TenantControlNamespace.Local
+		klog.Infof("The Tenant namespace '%s' associated with the peering with the remote cluster '%s' is added to the Map",
+			fc.Status.TenantControlNamespace.Local, remoteClusterID)
+	}
+	return nil
+}
+
+// getLocalTenantNamespaceName provides the name of the local tenant namespace, given the remoteClusterID
+// associated with a peering.
+func (r *VirtualNodeReconciler) getLocalTenantNamespaceName(remoteClusterID string) string {
+	return r.LocalTenantNamespacesNames[remoteClusterID]
 }

@@ -28,16 +28,24 @@ import (
 	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
 	"k8s.io/klog/v2"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	netv1alpha1 "github.com/liqotech/liqo/apis/net/v1alpha1"
+	offloadingv1alpha1 "github.com/liqotech/liqo/apis/offloading/v1alpha1"
 	advtypes "github.com/liqotech/liqo/apis/sharing/v1alpha1"
+	virtualkubeletv1alpha1 "github.com/liqotech/liqo/apis/virtualKubelet/v1alpha1"
 	advop "github.com/liqotech/liqo/internal/advertisementoperator"
 	resourceRequestOperator "github.com/liqotech/liqo/internal/resource-request-operator"
 	"github.com/liqotech/liqo/pkg/clusterid"
 	crdclient "github.com/liqotech/liqo/pkg/crdClient"
+	namectrl "github.com/liqotech/liqo/pkg/liqo-controller-manager/namespace-controller"
+	mapsctrl "github.com/liqotech/liqo/pkg/liqo-controller-manager/namespaceMap-controller"
+	nsoffctrl "github.com/liqotech/liqo/pkg/liqo-controller-manager/namespaceOffloading-controller"
+	offloadingctrl "github.com/liqotech/liqo/pkg/liqo-controller-manager/offloadingStatus-controller"
 	resourceoffercontroller "github.com/liqotech/liqo/pkg/liqo-controller-manager/resourceoffer-controller"
+	virtualNodectrl "github.com/liqotech/liqo/pkg/liqo-controller-manager/virtualNode-controller"
 	"github.com/liqotech/liqo/pkg/mapperUtils"
 	"github.com/liqotech/liqo/pkg/vkMachinery"
 	"github.com/liqotech/liqo/pkg/vkMachinery/csr"
@@ -60,9 +68,10 @@ func init() {
 	_ = advtypes.AddToScheme(scheme)
 	_ = netv1alpha1.AddToScheme(scheme)
 	_ = discoveryv1alpha1.AddToScheme(scheme)
+	_ = offloadingv1alpha1.AddToScheme(scheme)
+	_ = virtualkubeletv1alpha1.AddToScheme(scheme)
 
 	_ = capsulev1alpha1.AddToScheme(scheme)
-
 	// +kubebuilder:scaffold:scheme
 }
 
@@ -72,6 +81,7 @@ func main() {
 	var enableLeaderElection bool
 	var kubeletNamespace, kubeletImage, initKubeletImage string
 	var resyncPeriod int64
+	var offloadingStatusControllerRequeueTime int64
 
 	flag.StringVar(&metricsAddr, "metrics-addr", defaultMetricsaddr, "The address the metric endpoint binds to.")
 	flag.StringVar(&probeAddr, "health-probe-bind-address", ":8081", "The address the probe endpoint binds to.")
@@ -80,6 +90,8 @@ func main() {
 		"Enable leader election for controller manager. Enabling this will ensure there is only one active controller manager.")
 
 	flag.Int64Var(&resyncPeriod, "resyncPeriod", int64(10*time.Hour), "Period after that operators and informers will requeue events.")
+	flag.Int64Var(&offloadingStatusControllerRequeueTime, "offloadingStatusControllerRequeueTime", int64(10*time.Second),
+		"Period after that the offloadingStatusController is awaken on every namespaceOffloading in order to set its status.")
 	flag.StringVar(&localKubeconfig, "local-kubeconfig", "", "The path to the kubeconfig of your local cluster.")
 	flag.StringVar(&clusterId, "cluster-id", "", "The cluster ID of your cluster")
 	flag.StringVar(&kubeletNamespace,
@@ -201,6 +213,55 @@ func main() {
 	resourceOfferReconciler := resourceoffercontroller.NewResourceOfferController(
 		mgr, clusterID, time.Duration(resyncPeriod), kubeletImage, initKubeletImage)
 	if err = resourceOfferReconciler.SetupWithManager(mgr); err != nil {
+		klog.Fatal(err)
+	}
+
+	namespaceReconciler := &namectrl.NamespaceReconciler{
+		Client: mgr.GetClient(),
+		Scheme: mgr.GetScheme(),
+	}
+
+	if err = namespaceReconciler.SetupWithManager(mgr); err != nil {
+		klog.Fatal(err)
+	}
+
+	virtualNodeReconciler := &virtualNodectrl.VirtualNodeReconciler{
+		Client: mgr.GetClient(),
+		Scheme: mgr.GetScheme(),
+	}
+
+	if err = virtualNodeReconciler.SetupWithManager(mgr); err != nil {
+		klog.Fatal(err)
+	}
+
+	namespaceMapReconciler := &mapsctrl.NamespaceMapReconciler{
+		Client:                mgr.GetClient(),
+		RemoteClients:         make(map[string]client.Client),
+		LocalClusterID:        clusterId,
+		IdentityManagerClient: clientset,
+	}
+
+	if err = namespaceMapReconciler.SetupWithManager(mgr); err != nil {
+		klog.Fatal(err)
+	}
+
+	offloadingStatusReconciler := &offloadingctrl.OffloadingStatusReconciler{
+		Client:      mgr.GetClient(),
+		Scheme:      mgr.GetScheme(),
+		RequeueTime: time.Duration(offloadingStatusControllerRequeueTime),
+	}
+
+	if err = offloadingStatusReconciler.SetupWithManager(mgr); err != nil {
+		klog.Fatal(err)
+	}
+
+	namespaceOffloadingReconciler := &nsoffctrl.NamespaceOffloadingReconciler{
+		Client:         mgr.GetClient(),
+		Scheme:         mgr.GetScheme(),
+		LocalClusterID: clusterId,
+	}
+
+	if err = namespaceOffloadingReconciler.SetupWithManager(mgr); err != nil {
 		klog.Fatal(err)
 	}
 

@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
@@ -12,11 +13,13 @@ import (
 	"k8s.io/klog"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	discoveryV1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
-	liqoconst "github.com/liqotech/liqo/pkg/consts"
+	"github.com/liqotech/liqo/pkg/clusterid"
+	identitymanager "github.com/liqotech/liqo/pkg/identityManager"
+	tenantcontrolnamespace "github.com/liqotech/liqo/pkg/tenantControlNamespace"
+	cachedclient "github.com/liqotech/liqo/pkg/utils/cachedClient"
 )
 
-// This function returns a rest.Config from a Kubeconfig contained in a Secret.
+// getKubeConfig returns a rest.Config from a Kubeconfig contained in a Secret.
 func (r *NamespaceMapReconciler) getKubeConfig(reference *corev1.ObjectReference) (*rest.Config, error) {
 	if reference == nil {
 		return nil, fmt.Errorf("must specify reference")
@@ -36,36 +39,28 @@ func (r *NamespaceMapReconciler) getKubeConfig(reference *corev1.ObjectReference
 	return clientcmd.BuildConfigFromKubeconfigGetter("", kubeconfig)
 }
 
-// This function creates a new controller-runtime Client for a remote cluster, if it isn't already present
-// in RemoteClients Struct of NamespaceMap Controller. The secret's reference is taken from the ForeignCluster
-// associated with the remote cluster.
-func (r *NamespaceMapReconciler) checkRemoteClientPresence(clusterID string) error {
+// checkRemoteClientPresence creates a new controller-runtime Client for a remote cluster, if it isn't already present
+// in RemoteClients Struct of NamespaceMap Controller.
+func (r *NamespaceMapReconciler) checkRemoteClientPresence(ctx context.Context, remoteClusterID string) error {
 	if r.RemoteClients == nil {
 		r.RemoteClients = map[string]client.Client{}
 	}
 
-	if _, ok := r.RemoteClients[clusterID]; !ok {
-		fcl := &discoveryV1alpha1.ForeignClusterList{}
-		if err := r.List(context.TODO(), fcl,
-			client.MatchingLabels{liqoconst.ClusterIDForeignLabelKey: clusterID}); err != nil {
-			klog.Errorf("%s --> Unable to List ForeignClusters", err)
-			return err
-		}
-
-		if len(fcl.Items) != 1 {
-			return fmt.Errorf("there are %d ForeignClusters for the remote cluster '%s' , error",
-				len(fcl.Items), clusterID)
-		}
-
-		config, err := r.getKubeConfig(fcl.Items[0].Status.Outgoing.IdentityRef)
+	if _, ok := r.RemoteClients[remoteClusterID]; !ok {
+		clusterID := clusterid.NewStaticClusterID(r.LocalClusterID)
+		tenantNamespaceManager := tenantcontrolnamespace.NewTenantControlNamespaceManager(r.IdentityManagerClient)
+		identityManager := identitymanager.NewCertificateIdentityManager(r.IdentityManagerClient, clusterID, tenantNamespaceManager)
+		restConfig, err := identityManager.GetConfig(remoteClusterID, "")
 		if err != nil {
-			klog.Errorf("unable to get rest.config for cluster '%s'", clusterID)
+			klog.Error(err)
 			return err
 		}
 
-		if r.RemoteClients[clusterID], err = client.New(config,
-			client.Options{Scheme: r.Scheme, Mapper: r.Mapper}); err != nil {
-			klog.Errorf("unable to create client for cluster '%s'", clusterID)
+		// Only remote namespace needed to be cached.
+		scheme := runtime.NewScheme()
+		_ = corev1.AddToScheme(scheme)
+		if r.RemoteClients[remoteClusterID], err = cachedclient.GetCachedClientWithConfig(ctx, scheme, restConfig); err != nil {
+			klog.Errorf("unable to create client for cluster '%s'", remoteClusterID)
 			return err
 		}
 	}

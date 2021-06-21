@@ -19,13 +19,16 @@ func (r *VirtualNodeReconciler) removeAssociatedNamespaceMaps(ctx context.Contex
 	// The deletion timestamp is automatically set on the NamespaceMaps associated with the virtual-node,
 	// it's only necessary to wait until the NamespaceMaps are deleted.
 	namespaceMapList := &mapsv1alpha1.NamespaceMapList{}
-	if err := r.List(context.TODO(), namespaceMapList, client.InNamespace(liqoconst.TechnicalNamespace),
-		client.MatchingLabels{liqoconst.RemoteClusterID: n.GetAnnotations()[liqoconst.RemoteClusterID]}); err != nil {
+	virtualNodeClusterID := n.Annotations[liqoconst.RemoteClusterID]
+	if err := r.List(ctx, namespaceMapList,
+		client.InNamespace(r.getLocalTenantNamespaceName(virtualNodeClusterID)),
+		client.MatchingLabels{liqoconst.RemoteClusterID: virtualNodeClusterID}); err != nil {
 		klog.Errorf("%s --> Unable to List NamespaceMaps of virtual virtualNode '%s'", err, n.GetName())
 		return err
 	}
 
 	if len(namespaceMapList.Items) == 0 {
+		delete(r.LocalTenantNamespacesNames, virtualNodeClusterID)
 		return r.removeVirtualNodeFinalizer(ctx, n)
 	}
 
@@ -37,7 +40,7 @@ func (r *VirtualNodeReconciler) removeAssociatedNamespaceMaps(ctx context.Contex
 		}
 	}
 
-	log := fmt.Errorf("waiting for deletion of NamespaceMaps associated with the virtual-node '%s'", n.Name)
-	klog.Info(log)
-	return log
+	err := fmt.Errorf("waiting for deletion of NamespaceMaps associated with the virtual-node '%s'", n.Name)
+	klog.Error(err)
+	return err
 }

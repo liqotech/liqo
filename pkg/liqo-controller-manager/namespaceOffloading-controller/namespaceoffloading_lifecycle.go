@@ -11,6 +11,7 @@ import (
 
 	offv1alpha1 "github.com/liqotech/liqo/apis/offloading/v1alpha1"
 	mapsv1alpha1 "github.com/liqotech/liqo/apis/virtualKubelet/v1alpha1"
+	liqoconst "github.com/liqotech/liqo/pkg/consts"
 )
 
 func (r *NamespaceOffloadingReconciler) deletionLogic(ctx context.Context,
@@ -26,7 +27,7 @@ func (r *NamespaceOffloadingReconciler) deletionLogic(ctx context.Context,
 	}
 	// 3 - check if all remote namespaces associated with this NamespaceOffloading resource are really deleted.
 	if len(noff.Status.RemoteNamespacesConditions) != 0 {
-		err := fmt.Errorf("some remote namespaces still exist")
+		err := fmt.Errorf("waiting for remote namespaces deletion")
 		klog.Info(err)
 		return err
 	}
@@ -47,9 +48,20 @@ func (r *NamespaceOffloadingReconciler) initialConfiguration(ctx context.Context
 	patch := noff.DeepCopy()
 	// 1 - Add NamespaceOffloadingController Finalizer.
 	ctrlutils.AddFinalizer(noff, namespaceOffloadingControllerFinalizer)
-	// 2 - Add empty cluster selector if not specified by the user.
+	// 2 - Add the default ClusterSelector if not specified by the user. The default cluster selector allows creating
+	// remote namespaces on all remote clusters.
+	// The Namespace Offloading resource must always have the ClusterSelector field to correctly enforce
+	// the security policies in the liqo webhook.
 	if noff.Spec.ClusterSelector.Size() == 0 {
-		noff.Spec.ClusterSelector = corev1.NodeSelector{NodeSelectorTerms: []corev1.NodeSelectorTerm{}}
+		noff.Spec.ClusterSelector = corev1.NodeSelector{NodeSelectorTerms: []corev1.NodeSelectorTerm{
+			{
+				MatchExpressions: []corev1.NodeSelectorRequirement{{
+					Key:      liqoconst.TypeLabel,
+					Operator: corev1.NodeSelectorOpIn,
+					Values:   []string{liqoconst.TypeNode},
+				}},
+			},
+		}}
 	}
 	// 3 - Add NamespaceOffloading.Status.RemoteNamespaceName.
 	if noff.Spec.NamespaceMappingStrategy == offv1alpha1.EnforceSameNameMappingStrategyType {
