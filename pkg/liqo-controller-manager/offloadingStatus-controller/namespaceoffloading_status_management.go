@@ -126,6 +126,6 @@ func setNamespaceOffloadingStatus(noff *offv1alpha1.NamespaceOffloading) {
 		noff.Status.OffloadingPhase = offv1alpha1.SomeFailedOffloadingPhaseType
 	}
 
-	klog.Infof("The OffloadingStatus for NamespaceOffloading in the namespace '%s' is set to '%s'",
+	klog.Infof("The OffloadingStatus for the NamespaceOffloading in the namespace '%s' is set to '%s'",
 		noff.Namespace, noff.Status.OffloadingPhase)
 }

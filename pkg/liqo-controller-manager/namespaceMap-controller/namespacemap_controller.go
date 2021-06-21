@@ -18,13 +18,17 @@ package namespacemapctrl
 
 import (
 	"context"
+	"reflect"
 
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
-	"k8s.io/apimachinery/pkg/api/meta"
-	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/client-go/kubernetes"
 	"k8s.io/klog"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	ctrlutils "sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
+	"sigs.k8s.io/controller-runtime/pkg/event"
+	"sigs.k8s.io/controller-runtime/pkg/predicate"
 
 	mapsv1alpha1 "github.com/liqotech/liqo/apis/virtualKubelet/v1alpha1"
 )
@@ -32,16 +36,14 @@ import (
 // NamespaceMapReconciler creates remote namespaces and updates NamespaceMaps Status.
 type NamespaceMapReconciler struct {
 	client.Client
-	Scheme         *runtime.Scheme
-	Mapper         meta.RESTMapper
-	RemoteClients  map[string]client.Client
-	LocalClusterID string
+	RemoteClients         map[string]client.Client
+	IdentityManagerClient kubernetes.Interface
+	LocalClusterID        string
 }
 
 // cluster-role
 // +kubebuilder:rbac:groups=discovery.liqo.io,resources=foreignclusters,verbs=get;list;watch
-// +kubebuilder:rbac:groups=virtualKubelet.liqo.io,resources=namespacemaps,verbs=get;watch;update;patch
-// +kubebuilder:rbac:groups=core,resources=configmaps,verbs=get;watch
+// +kubebuilder:rbac:groups=virtualKubelet.liqo.io,resources=namespacemaps,verbs=get;watch;list;update;patch
 // +kubebuilder:rbac:groups=core,resources=secrets,verbs=get;list;watch
 
 // Reconcile adds/removes NamespaceMap finalizer, and checks differences
@@ -59,14 +61,11 @@ func (r *NamespaceMapReconciler) Reconcile(ctx context.Context, req ctrl.Request
 
 	// If the NamespaceMap is requested to be deleted
 	if !namespaceMap.DeletionTimestamp.IsZero() {
-		if err := r.namespaceMapDeletionProcess(ctx, namespaceMap); err != nil {
-			return ctrl.Result{}, err
-		}
-		return ctrl.Result{}, nil
+		return ctrl.Result{}, r.namespaceMapDeletionProcess(ctx, namespaceMap)
 	}
 
 	// If someone deletes the namespaceMap, then it is necessary to remove all remote namespaces
-	// associated with this resource before deleting it.
+	// associated with this resource before deleting it, so a finalizer is necessary.
 	if err := r.SetNamespaceMapControllerFinalizer(ctx, namespaceMap); err != nil {
 		return ctrl.Result{}, err
 	}
@@ -85,9 +84,27 @@ func (r *NamespaceMapReconciler) Reconcile(ctx context.Context, req ctrl.Request
 	return ctrl.Result{}, nil
 }
 
+// Events not filtered:
+// 1 -- the number of entries in DesiredMapping changes, so a namespace's request is added or removed.
+// 2 -- the NamespaceMap is deleted and has the NamespaceMapControllerFinalizer.
+func manageDesiredMappings() predicate.Predicate {
+	return predicate.Funcs{
+		UpdateFunc: func(e event.UpdateEvent) bool {
+			// If the NamespaceMap is deleted and has the NamespaceMapControllerFinalizer.
+			if !e.ObjectNew.GetDeletionTimestamp().IsZero() &&
+				ctrlutils.ContainsFinalizer(e.ObjectNew, namespaceMapControllerFinalizer) {
+				return true
+			}
+			// If an entry is added or removed in DesiredMapping
+			return !reflect.DeepEqual(e.ObjectOld.(*mapsv1alpha1.NamespaceMap).Spec.DesiredMapping,
+				e.ObjectNew.(*mapsv1alpha1.NamespaceMap).Spec.DesiredMapping)
+		},
+	}
+}
+
 // SetupWithManager monitors only updates on NamespaceMap.
 func (r *NamespaceMapReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
-		For(&mapsv1alpha1.NamespaceMap{}).
+		For(&mapsv1alpha1.NamespaceMap{}, builder.WithPredicates(manageDesiredMappings())).
 		Complete(r)
 }

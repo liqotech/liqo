@@ -1,0 +1,29 @@
+rules:
+- apiGroups:
+  - ""
+  resources:
+  - nodes
+  verbs:
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - discovery.liqo.io
+  resources:
+  - foreignclusters
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - virtualKubelet.liqo.io
+  resources:
+  - namespacemaps
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - watch
