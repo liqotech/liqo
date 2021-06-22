@@ -2,7 +2,6 @@ run:
   timeout: 10m
   skip-files:
     - "zz_generated.*.go"
-    - ".*_test.go"
 
 linters-settings:
   exhaustive:
@@ -124,3 +123,8 @@ issues:
       # Disable the check to test that HTTP clients are not using an insecure TLS connection.
       # We need it to contact the remote authentication services exposing a self-signed certificate
       text: TLS InsecureSkipVerify set true.
+
+    # Exclude the following linters from running on tests files.
+    - path: _test\.go
+      linters:
+        - whitespace
