@@ -20,12 +20,11 @@ import (
 	"sort"
 	"strings"
 
-	"k8s.io/klog/v2"
-
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	apivalidation "k8s.io/apimachinery/pkg/util/validation"
 	"k8s.io/client-go/tools/record"
+	"k8s.io/klog/v2"
 	podshelper "k8s.io/kubernetes/pkg/apis/core/pods"
 	fieldpath "k8s.io/kubernetes/pkg/fieldpath"
 	"k8s.io/kubernetes/third_party/forked/golang/expansion"

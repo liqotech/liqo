@@ -1,7 +1,10 @@
 package crdreplicator
 
 import (
+	"os"
+	"path/filepath"
 	"strings"
+	"testing"
 	"time"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -9,17 +12,12 @@ import (
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/dynamic/dynamicinformer"
 	"k8s.io/client-go/kubernetes"
-
-	netv1alpha1 "github.com/liqotech/liqo/apis/net/v1alpha1"
-
-	"os"
-	"path/filepath"
-	"testing"
-
 	"k8s.io/klog/v2"
 	"k8s.io/kubectl/pkg/scheme"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/envtest"
+
+	netv1alpha1 "github.com/liqotech/liqo/apis/net/v1alpha1"
 )
 
 var (

@@ -7,9 +7,9 @@ import (
 	"fmt"
 	"testing"
 
-	vke2e "github.com/liqotech/liqo/test/e2e"
-
 	v1 "k8s.io/api/core/v1"
+
+	vke2e "github.com/liqotech/liqo/test/e2e"
 )
 
 const (

@@ -4,9 +4,6 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-
-	liqoconst "github.com/liqotech/liqo/pkg/consts"
-
 	"os/exec"
 	"strconv"
 	"testing"
@@ -17,6 +14,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/klog"
 
+	liqoconst "github.com/liqotech/liqo/pkg/consts"
 	"github.com/liqotech/liqo/pkg/virtualKubelet"
 	"github.com/liqotech/liqo/test/e2e/util"
 )
