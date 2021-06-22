@@ -16,28 +16,26 @@ import (
 	"bytes"
 	"context"
 	"flag"
-
-	mapsv1alpha1 "github.com/liqotech/liqo/apis/virtualKubelet/v1alpha1"
-	liqoconst "github.com/liqotech/liqo/pkg/consts"
-
 	"path/filepath"
 	"testing"
 	"time"
 
-	"k8s.io/apimachinery/pkg/api/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/types"
-	ctrl "sigs.k8s.io/controller-runtime"
-
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
-	"k8s.io/klog"
+	"k8s.io/klog/v2"
+	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/envtest"
 	"sigs.k8s.io/controller-runtime/pkg/envtest/printer"
+
+	mapsv1alpha1 "github.com/liqotech/liqo/apis/virtualKubelet/v1alpha1"
+	liqoconst "github.com/liqotech/liqo/pkg/consts"
 	// +kubebuilder:scaffold:imports
 )
 
@@ -57,20 +55,18 @@ const (
 	remoteClusterIdSimpleNode = "909030-sd-3231"
 	offloadingCluster1Label1  = "offloading.liqo.io/cluster-1"
 	offloadingCluster1Label2  = "offloading.liqo.io/AWS"
-	offloadingCluster2Label1  = "offloading.liqo.io/cluster-2"
-	offloadingCluster2Label2  = "offloading.liqo.io/GKE"
 	timeout                   = time.Second * 10
 	interval                  = time.Millisecond * 250
 )
 
 var (
-	nms          *mapsv1alpha1.NamespaceMapList
-	virtualNode1 *corev1.Node
-	virtualNode2 *corev1.Node
-	simpleNode   *corev1.Node
-	mapNamespace *corev1.Namespace
-	flags        *flag.FlagSet
-	buffer       *bytes.Buffer
+	nms                *mapsv1alpha1.NamespaceMapList
+	virtualNode1       *corev1.Node
+	virtualNode2       *corev1.Node
+	simpleNode         *corev1.Node
+	technicalNamespace *corev1.Namespace
+	flags              *flag.FlagSet
+	buffer             *bytes.Buffer
 )
 
 func TestAPIs(t *testing.T) {
@@ -128,47 +124,28 @@ var _ = BeforeSuite(func(done Done) {
 	k8sClient = k8sManager.GetClient()
 	Expect(k8sClient).ToNot(BeNil())
 
-	virtualNode1 = &corev1.Node{
-		TypeMeta: metav1.TypeMeta{
-			APIVersion: "v1",
-			Kind:       "Node",
-		},
+	nms = &mapsv1alpha1.NamespaceMapList{}
+
+	technicalNamespace = &corev1.Namespace{
 		ObjectMeta: metav1.ObjectMeta{
-			Name: nameVirtualNode1,
-			Annotations: map[string]string{
-				liqoconst.RemoteClusterID: remoteClusterId1,
-			},
-			Labels: map[string]string{
-				liqoconst.TypeLabel:      liqoconst.TypeNode,
-				offloadingCluster1Label1: "",
-				offloadingCluster1Label2: "",
-			},
+			Name: liqoconst.TechnicalNamespace,
 		},
 	}
 
-	virtualNode2 = &corev1.Node{
-		TypeMeta: metav1.TypeMeta{
-			APIVersion: "v1",
-			Kind:       "Node",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name: nameVirtualNode2,
-			Annotations: map[string]string{
-				liqoconst.RemoteClusterID: remoteClusterId2,
-			},
-			Labels: map[string]string{
-				liqoconst.TypeLabel:      liqoconst.TypeNode,
-				offloadingCluster2Label1: "",
-				offloadingCluster2Label2: "",
-			},
-		},
-	}
+	Eventually(func() bool {
+		if err = k8sClient.Get(context.TODO(), types.NamespacedName{Name: liqoconst.TechnicalNamespace},
+			technicalNamespace); err != nil {
+			if errors.IsNotFound(err) {
+				if err = k8sClient.Create(context.TODO(), technicalNamespace); err == nil {
+					return true
+				}
+			}
+			return false
+		}
+		return true
+	}, timeout, interval).Should(BeTrue())
 
 	simpleNode = &corev1.Node{
-		TypeMeta: metav1.TypeMeta{
-			APIVersion: "v1",
-			Kind:       "Node",
-		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name: nameSimpleNode,
 			Annotations: map[string]string{
@@ -180,25 +157,6 @@ var _ = BeforeSuite(func(done Done) {
 			},
 		},
 	}
-
-	mapNamespace = &corev1.Namespace{}
-	Eventually(func() bool {
-		if err = k8sClient.Get(context.TODO(), types.NamespacedName{Name: liqoconst.MapNamespaceName},
-			mapNamespace); err != nil {
-			if errors.IsNotFound(err) {
-				if err = k8sClient.Create(context.TODO(), virtualNode1); err == nil {
-					return true
-				}
-			}
-			return false
-		}
-		return true
-	}, timeout, interval).Should(BeTrue())
-
-	// create 2 virtual-nodes and 1 simple node (not virtual)
-	Expect(k8sClient.Create(context.TODO(), virtualNode1)).Should(Succeed())
-	Expect(k8sClient.Create(context.TODO(), virtualNode2)).Should(Succeed())
-	Expect(k8sClient.Create(context.TODO(), simpleNode)).Should(Succeed())
 
 	close(done)
 }, 60)
