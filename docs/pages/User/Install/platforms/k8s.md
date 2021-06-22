@@ -156,7 +156,7 @@ If you have a full-fledged cluster with support service Load Balancers with exte
 If you want to connect your cluster with another K3s/K8s in the same LAN, you do not need further configuration. You can install Liqo by just specifying the correct values for the three variables mentioned above:
 
 ```
-helm install liqo liqo-helm/liqo -n liqo --create-namespace  --set clusterName="MyCluster" --set networkManager.config.podCIDR="10.42.0.0/16" --set networkManager.config.serviceCIDR="10.96.0.0/12"
+helm install liqo liqo/liqo -n liqo --create-namespace  --set clusterName="MyCluster" --set networkManager.config.podCIDR="10.42.0.0/16" --set networkManager.config.serviceCIDR="10.96.0.0/12"
 ```
 
 __NOTE__: You should check that `podCIDR` and `serviceCIDR` correspond to the one in your cluster.
