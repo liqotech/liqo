@@ -65,6 +65,7 @@ linters:
   # - gochecknoglobals
   # - gochecknoinits
   # - gocognit
+    - gci
     - goconst
     - gocritic
     - gocyclo
