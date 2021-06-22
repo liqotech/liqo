@@ -2,10 +2,6 @@ package wireguard_test
 
 import (
 	"context"
-
-	wg "github.com/liqotech/liqo/pkg/liqonet/tunnel/wireguard"
-
-	//wg "github.com/liqotech/liqo/pkg/liqonet/tunnel/wireguard"
 	"time"
 
 	. "github.com/onsi/ginkgo"
@@ -16,6 +12,7 @@ import (
 	k8s "k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/fake"
 
+	wg "github.com/liqotech/liqo/pkg/liqonet/tunnel/wireguard"
 	"github.com/liqotech/liqo/pkg/liqonet/wireguard"
 )
 

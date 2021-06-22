@@ -21,8 +21,6 @@ import (
 	"sync"
 	"time"
 
-	"k8s.io/klog/v2"
-
 	pkgerrors "github.com/pkg/errors"
 	coord "k8s.io/api/coordination/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -32,6 +30,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/strategicpatch"
 	coordinationv1 "k8s.io/client-go/kubernetes/typed/coordination/v1"
 	v1 "k8s.io/client-go/kubernetes/typed/core/v1"
+	"k8s.io/klog/v2"
 )
 
 // NodeProvider is the interface used for registering a node and updating its

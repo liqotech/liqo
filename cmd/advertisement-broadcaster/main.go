@@ -4,9 +4,9 @@ import (
 	"flag"
 	"os"
 
-	"github.com/liqotech/liqo/internal/advertisementoperator/broadcaster"
-
 	"k8s.io/klog/v2"
+
+	"github.com/liqotech/liqo/internal/advertisementoperator/broadcaster"
 )
 
 func main() {

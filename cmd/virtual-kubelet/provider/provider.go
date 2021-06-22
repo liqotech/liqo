@@ -4,11 +4,11 @@ import (
 	"context"
 	"io"
 
-	"github.com/liqotech/liqo/pkg/virtualKubelet/node/module"
-	"github.com/liqotech/liqo/pkg/virtualKubelet/node/module/api"
-
 	v1 "k8s.io/api/core/v1"
 	stats "k8s.io/kubelet/pkg/apis/stats/v1alpha1"
+
+	"github.com/liqotech/liqo/pkg/virtualKubelet/node/module"
+	"github.com/liqotech/liqo/pkg/virtualKubelet/node/module/api"
 )
 
 // Provider contains the methods required to implement a virtual-kubelet provider.

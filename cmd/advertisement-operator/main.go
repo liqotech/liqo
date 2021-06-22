@@ -40,7 +40,6 @@ import (
 	"github.com/liqotech/liqo/pkg/mapperUtils"
 	"github.com/liqotech/liqo/pkg/vkMachinery"
 	"github.com/liqotech/liqo/pkg/vkMachinery/csr"
-	// +kubebuilder:scaffold:imports
 )
 
 const (

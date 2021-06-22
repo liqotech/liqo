@@ -13,7 +13,6 @@ import (
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/dynamic/fake"
 
-	liqonetapi "github.com/liqotech/liqo/apis/net/v1alpha1"
 	netv1alpha1 "github.com/liqotech/liqo/apis/net/v1alpha1"
 	"github.com/liqotech/liqo/pkg/consts"
 	liqoneterrors "github.com/liqotech/liqo/pkg/liqonet/errors"
@@ -46,7 +45,7 @@ func setDynClient() error {
 		Group:   "net.liqo.io",
 		Version: "v1alpha1",
 		Kind:    "natmappings",
-	}, &liqonetapi.NatMapping{})
+	}, &netv1alpha1.NatMapping{})
 
 	var m = make(map[schema.GroupVersionResource]string)
 
@@ -134,7 +133,7 @@ var _ = Describe("NatMappingInflater", func() {
 					Group:   "net.liqo.io",
 					Version: "v1alpha1",
 					Kind:    "natmappings",
-				}, &liqonetapi.NatMapping{})
+				}, &netv1alpha1.NatMapping{})
 				var m = make(map[schema.GroupVersionResource]string)
 				m[schema.GroupVersionResource{
 					Group:    "net.liqo.io",
@@ -163,7 +162,7 @@ var _ = Describe("NatMappingInflater", func() {
 					Group:   "net.liqo.io",
 					Version: "v1alpha1",
 					Kind:    "natmappings",
-				}, &liqonetapi.NatMapping{})
+				}, &netv1alpha1.NatMapping{})
 				var m = make(map[schema.GroupVersionResource]string)
 				m[schema.GroupVersionResource{
 					Group:    "net.liqo.io",
@@ -242,7 +241,7 @@ var _ = Describe("NatMappingInflater", func() {
 					Group:   "net.liqo.io",
 					Version: "v1alpha1",
 					Kind:    "natmappings",
-				}, &liqonetapi.NatMapping{})
+				}, &netv1alpha1.NatMapping{})
 				var m = make(map[schema.GroupVersionResource]string)
 				m[schema.GroupVersionResource{
 					Group:    "net.liqo.io",

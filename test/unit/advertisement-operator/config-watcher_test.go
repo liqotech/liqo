@@ -9,7 +9,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/klog"
@@ -22,7 +21,7 @@ import (
 
 func createFakeClusterConfig() configv1alpha1.ClusterConfig {
 	return configv1alpha1.ClusterConfig{
-		ObjectMeta: v1.ObjectMeta{
+		ObjectMeta: metav1.ObjectMeta{
 			Name: "fake-configuration",
 		},
 		Spec: configv1alpha1.ClusterConfigSpec{
@@ -71,7 +70,7 @@ func testModifySharingPercentage(t *testing.T) {
 		t.Fatal(err)
 	}
 	// launch watcher over cluster config
-	_, err = configClient.Resource("clusterconfigs").Create(&clusterConfig, &v1.CreateOptions{})
+	_, err = configClient.Resource("clusterconfigs").Create(&clusterConfig, &metav1.CreateOptions{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -81,7 +80,7 @@ func testModifySharingPercentage(t *testing.T) {
 	}
 	// create advertisement on foreign cluster
 	adv := prepareAdv(&b)
-	_, err = b.RemoteClient.Resource("advertisements").Create(&adv, &v1.CreateOptions{})
+	_, err = b.RemoteClient.Resource("advertisements").Create(&adv, &metav1.CreateOptions{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -94,7 +93,7 @@ func testModifySharingPercentage(t *testing.T) {
 	mem := adv.Spec.ResourceQuota.Hard.Memory().Value()
 	// modify sharing percentage
 	clusterConfig.Spec.AdvertisementConfig.OutgoingConfig.ResourceSharingPercentage = int32(30)
-	_, err = configClient.Resource("clusterconfigs").Update(clusterConfig.Name, &clusterConfig, &v1.UpdateOptions{})
+	_, err = configClient.Resource("clusterconfigs").Update(clusterConfig.Name, &clusterConfig, &metav1.UpdateOptions{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -103,7 +102,7 @@ func testModifySharingPercentage(t *testing.T) {
 		t.Fatal(err)
 	}
 	// get the new adv
-	tmp, err := b.RemoteClient.Resource("advertisements").Get(adv.Name, &v1.GetOptions{})
+	tmp, err := b.RemoteClient.Resource("advertisements").Get(adv.Name, &metav1.GetOptions{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -132,7 +131,7 @@ func testDisableBroadcaster(t *testing.T) {
 			time.Sleep(500 * time.Millisecond)
 		}
 	}
-	_, err = configClient.Resource("clusterconfigs").Create(&clusterConfig, &v1.CreateOptions{})
+	_, err = configClient.Resource("clusterconfigs").Create(&clusterConfig, &metav1.CreateOptions{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -142,7 +141,7 @@ func testDisableBroadcaster(t *testing.T) {
 	}
 	// create adv on foreign cluster
 	adv := prepareAdv(&b)
-	_, err = b.RemoteClient.Resource("advertisements").Create(&adv, &v1.CreateOptions{})
+	_, err = b.RemoteClient.Resource("advertisements").Create(&adv, &metav1.CreateOptions{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -152,7 +151,7 @@ func testDisableBroadcaster(t *testing.T) {
 	}
 	// disable advertisement
 	clusterConfig.Spec.AdvertisementConfig.OutgoingConfig.EnableBroadcaster = false
-	_, err = configClient.Resource("clusterconfigs").Update(clusterConfig.Name, &clusterConfig, &v1.UpdateOptions{})
+	_, err = configClient.Resource("clusterconfigs").Update(clusterConfig.Name, &clusterConfig, &metav1.UpdateOptions{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -161,13 +160,13 @@ func testDisableBroadcaster(t *testing.T) {
 		t.Fatal(err)
 	}
 	// check adv has been deleted
-	_, err = b.RemoteClient.Resource("advertisements").Get(adv.Name, &v1.GetOptions{})
+	_, err = b.RemoteClient.Resource("advertisements").Get(adv.Name, &metav1.GetOptions{})
 	assert.Equal(t, k8serrors.IsNotFound(err), true, "Advertisement has not been deleted")
 }
 
 func waitEvent(client *crdclient.CRDClient, resourcetype string, name string) error {
 	var timeout int64 = 10
-	watcher, err := client.Resource(resourcetype).Watch(&v1.ListOptions{
+	watcher, err := client.Resource(resourcetype).Watch(&metav1.ListOptions{
 		FieldSelector:  fields.OneTermEqualSelector(metav1.ObjectNameField, name).String(),
 		TimeoutSeconds: &timeout,
 	})

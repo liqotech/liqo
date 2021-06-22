@@ -5,10 +5,9 @@ import (
 	"net"
 	"testing"
 
-	"github.com/vishvananda/netlink"
-
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
+	"github.com/vishvananda/netlink"
 )
 
 var (
