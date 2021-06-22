@@ -25,11 +25,11 @@ type VxlanRoutingManager struct {
 	routingTableID int
 	podIP          string
 	vxlanNetPrefix string
-	vxlanDevice    overlay.VxlanDevice
+	vxlanDevice    *overlay.VxlanDevice
 }
 
 // NewVxlanRoutingManager returns a VxlanRoutingManager ready to be used or an error.
-func NewVxlanRoutingManager(routingTableID int, podIP, vxlanNetPrefix string, vxlanDevice overlay.VxlanDevice) (Routing, error) {
+func NewVxlanRoutingManager(routingTableID int, podIP, vxlanNetPrefix string, vxlanDevice *overlay.VxlanDevice) (Routing, error) {
 	// Check the validity of input parameters.
 	if routingTableID > unix.RT_TABLE_MAX {
 		return nil, &liqoerrors.WrongParameter{Parameter: "routingTableID", Reason: liqoerrors.MinorOrEqual + strconv.Itoa(unix.RT_TABLE_MAX)}
@@ -37,8 +37,8 @@ func NewVxlanRoutingManager(routingTableID int, podIP, vxlanNetPrefix string, vx
 	if routingTableID < 0 {
 		return nil, &liqoerrors.WrongParameter{Parameter: "routingTableID", Reason: liqoerrors.GreaterOrEqual + strconv.Itoa(0)}
 	}
-	if vxlanDevice.Link == nil {
-		return nil, &liqoerrors.WrongParameter{Parameter: "vxlanDevice.Link", Reason: liqoerrors.NotNil}
+	if vxlanDevice == nil {
+		return nil, &liqoerrors.WrongParameter{Parameter: "vxlanDevice", Reason: liqoerrors.NotNil}
 	}
 	if vxlanNetPrefix == "" {
 		return nil, &liqoerrors.WrongParameter{Parameter: "vxlanNetPrefix", Reason: liqoerrors.StringNotEmpty}
@@ -49,7 +49,7 @@ func NewVxlanRoutingManager(routingTableID int, podIP, vxlanNetPrefix string, vx
 			IPToBeParsed: podIP,
 		}
 	}
-	klog.Infof("starting Vxlan Routing Manager with routing table ID %d, podIP %s, vxlanNetPrefix %s, vxlanDevice %s",
+	klog.Infof("starting Vxlan Routing Manager with routing table ID {%d}, podIP {%s}, vxlanNetPrefix {%s}, vxlanDevice {%s}",
 		routingTableID, podIP, vxlanNetPrefix, vxlanDevice.Link.Name)
 	vrm := &VxlanRoutingManager{
 		routingTableID: routingTableID,
@@ -85,13 +85,13 @@ func (vrm *VxlanRoutingManager) EnsureRoutesPerCluster(tep *netv1alpha1.TunnelEn
 		iFaceIndex = tep.Status.VethIFaceIndex
 	}
 	// Add policy routing rule for the given cluster.
-	klog.Infof("%s -> adding policy routing rule for destination {%s} to lookup routing table with ID {%d}", clusterID, dstNet, vrm.routingTableID)
-	if policyRuleAdd, err = addPolicyRoutingRule("", dstNet, vrm.routingTableID); err != nil {
+	klog.V(4).Infof("%s -> adding policy routing rule for destination {%s} to lookup routing table with ID {%d}", clusterID, dstNet, vrm.routingTableID)
+	if policyRuleAdd, err = AddPolicyRoutingRule("", dstNet, vrm.routingTableID); err != nil {
 		return policyRuleAdd, err
 	}
 	// Add route for the given cluster.
-	klog.Infof("%s -> adding route for destination {%s} with gateway {%s} in routing table with ID {%d}",
-		clusterID, dstNet, gatewayIP, vrm.routingTableID)
+	klog.V(4).Infof("%s -> adding route for destination {%s} with gateway {%s} in routing table with ID {%d} on device {%s}",
+		clusterID, dstNet, gatewayIP, vrm.routingTableID, vrm.vxlanDevice.Link.Name)
 	routeAdd, err = AddRoute(dstNet, gatewayIP, iFaceIndex, vrm.routingTableID)
 	if err != nil {
 		return routeAdd, err
@@ -121,13 +121,14 @@ func (vrm *VxlanRoutingManager) RemoveRoutesPerCluster(tep *netv1alpha1.TunnelEn
 		iFaceIndex = tep.Status.VethIFaceIndex
 	}
 	// Delete policy routing rule for the given cluster.
-	klog.Infof("%s -> deleting policy routing rule for destination {%s} to lookup routing table with ID {%d}", clusterID, dstNet, vrm.routingTableID)
-	if policyRuleDel, err = delPolicyRoutingRule("", dstNet, vrm.routingTableID); err != nil {
+	klog.V(4).Infof("%s -> deleting policy routing rule for destination {%s} to lookup routing table with ID {%d}",
+		clusterID, dstNet, vrm.routingTableID)
+	if policyRuleDel, err = DelPolicyRoutingRule("", dstNet, vrm.routingTableID); err != nil {
 		return policyRuleDel, err
 	}
 	// Delete route for the given cluster.
-	klog.Infof("%s -> deleting route for destination {%s} with gateway {%s} in routing table with ID {%d}",
-		clusterID, dstNet, gatewayIP, vrm.routingTableID)
+	klog.V(4).Infof("%s -> deleting route for destination {%s} with gateway {%s} in routing table with ID {%d} on device {%s}",
+		clusterID, dstNet, gatewayIP, vrm.routingTableID, vrm.vxlanDevice.Link.Name)
 	routeDel, err = DelRoute(dstNet, gatewayIP, iFaceIndex, vrm.routingTableID)
 	if err != nil {
 		return routeDel, err
@@ -140,15 +141,23 @@ func (vrm *VxlanRoutingManager) RemoveRoutesPerCluster(tep *netv1alpha1.TunnelEn
 
 // CleanRoutingTable removes all the routes from the custom routing table used by the route manager.
 func (vrm *VxlanRoutingManager) CleanRoutingTable() error {
+	klog.Infof("flushing routing table with ID {%d}", vrm.routingTableID)
 	return flushRoutesForRoutingTable(vrm.routingTableID)
 }
 
 // CleanPolicyRules removes all the policy rules pointing to the custom routing table used by the route manager.
 func (vrm *VxlanRoutingManager) CleanPolicyRules() error {
+	klog.Infof("removing all policy routing rules that reference routing table with ID {%d}", vrm.routingTableID)
 	return flushRulesForRoutingTable(vrm.routingTableID)
 }
 
 func (vrm *VxlanRoutingManager) getOverlayIP(ip string) string {
+	addr := net.ParseIP(ip)
+	// If the ip is malformed we prevent a panic, the subsequent calls
+	// that use the returned value will return an error.
+	if addr == nil {
+		return ""
+	}
 	tokens := strings.Split(ip, ".")
 	return strings.Join([]string{vrm.vxlanNetPrefix, tokens[1], tokens[2], tokens[3]}, ".")
 }

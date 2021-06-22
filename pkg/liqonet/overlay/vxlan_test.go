@@ -224,7 +224,6 @@ var _ = Describe("Vxlan", func() {
 				Expect(containsFdbEntry(fdbs, fdbOld)).Should(BeFalse())
 			})
 		})
-
 	})
 
 	Describe("configure ip address for vxlan interface", func() {

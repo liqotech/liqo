@@ -4,11 +4,11 @@ import (
 	"io/ioutil"
 	"net"
 
-	"github.com/liqotech/liqo/pkg/liqonet/errors"
-
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	"github.com/vishvananda/netlink"
+
+	"github.com/liqotech/liqo/pkg/liqonet/errors"
 )
 
 var (
@@ -261,19 +261,19 @@ var _ = Describe("Common", func() {
 
 		Context("when input parameters are not in the correct format", func() {
 			It("should return error on wrong destination net", func() {
-				added, err := addPolicyRoutingRule(srcNetCorrect, dstNetWrong, routingTableID)
+				added, err := AddPolicyRoutingRule(srcNetCorrect, dstNetWrong, routingTableID)
 				Expect(added).Should(Equal(false))
 				Expect(err).Should(Equal(&net.ParseError{Type: "CIDR address", Text: dstNetWrong}))
 			})
 
 			It("should return error on wrong source net", func() {
-				added, err := addPolicyRoutingRule(srcNetWrong, dstNetCorrect, routingTableID)
+				added, err := AddPolicyRoutingRule(srcNetWrong, dstNetCorrect, routingTableID)
 				Expect(added).Should(Equal(false))
 				Expect(err).Should(Equal(&net.ParseError{Type: "CIDR address", Text: srcNetWrong}))
 			})
 
 			It("should return error if both subnets are empty", func() {
-				added, err := addPolicyRoutingRule("", "", routingTableID)
+				added, err := AddPolicyRoutingRule("", "", routingTableID)
 				Expect(added).Should(Equal(false))
 				Expect(err).Should(Equal(&errors.WrongParameter{
 					Parameter: "fromSubnet and toSubnet",
@@ -285,7 +285,7 @@ var _ = Describe("Common", func() {
 
 	Context("when policy routing rule does not exist and we want to add it", func() {
 		It("only to destination net, should return true and nil", func() {
-			added, err := addPolicyRoutingRule("", dstNetCorrect, routingTableID)
+			added, err := AddPolicyRoutingRule("", dstNetCorrect, routingTableID)
 			Expect(added).Should(Equal(true))
 			Expect(err).NotTo(HaveOccurred())
 			// Get the rule and check it has the right parameters.
@@ -296,7 +296,7 @@ var _ = Describe("Common", func() {
 		})
 
 		It("only to source net, should return true and nil", func() {
-			added, err := addPolicyRoutingRule(srcNetCorrect, "", routingTableID)
+			added, err := AddPolicyRoutingRule(srcNetCorrect, "", routingTableID)
 			Expect(added).Should(Equal(true))
 			Expect(err).NotTo(HaveOccurred())
 			// Get the rule and check it has the right parameters.
@@ -307,7 +307,7 @@ var _ = Describe("Common", func() {
 		})
 
 		It("both source and destination net, should return true and nil", func() {
-			added, err := addPolicyRoutingRule(srcNetCorrect, dstNetCorrect, routingTableID)
+			added, err := AddPolicyRoutingRule(srcNetCorrect, dstNetCorrect, routingTableID)
 			Expect(added).Should(Equal(true))
 			Expect(err).NotTo(HaveOccurred())
 			// Get the rule and check it has the right parameters.
@@ -327,7 +327,7 @@ var _ = Describe("Common", func() {
 			tearDownRules()
 		})
 		It("rule already exists: should return false and nil", func() {
-			added, err := addPolicyRoutingRule(existingRuleFrom.Src.String(), "", routingTableID)
+			added, err := AddPolicyRoutingRule(existingRuleFrom.Src.String(), "", routingTableID)
 			Expect(added).Should(Equal(false))
 			Expect(err).NotTo(HaveOccurred())
 			// Get the rule and check it has the right parameters.
@@ -339,7 +339,7 @@ var _ = Describe("Common", func() {
 
 		It("update routing table ID: should return true and nil", func() {
 			routingTable := 12345
-			added, err := addPolicyRoutingRule(existingRuleFrom.Src.String(), "", routingTable)
+			added, err := AddPolicyRoutingRule(existingRuleFrom.Src.String(), "", routingTable)
 			Expect(added).Should(Equal(true))
 			Expect(err).NotTo(HaveOccurred())
 			// Get the rule and check it has the right parameters.
@@ -353,19 +353,19 @@ var _ = Describe("Common", func() {
 	Describe("deleting an existing policy routing rule", func() {
 		Context("when input parameters are not in the correct format", func() {
 			It("should return error on wrong destination net", func() {
-				removed, err := delPolicyRoutingRule(dstNetWrong, "", routingTableID)
+				removed, err := DelPolicyRoutingRule(dstNetWrong, "", routingTableID)
 				Expect(removed).Should(Equal(false))
 				Expect(err).Should(Equal(&net.ParseError{Type: "CIDR address", Text: dstNetWrong}))
 			})
 
 			It("should return error on wrong source net", func() {
-				removed, err := delPolicyRoutingRule("", srcNetWrong, routingTableID)
+				removed, err := DelPolicyRoutingRule("", srcNetWrong, routingTableID)
 				Expect(removed).Should(Equal(false))
 				Expect(err).Should(Equal(&net.ParseError{Type: "CIDR address", Text: srcNetWrong}))
 			})
 
 			It("should return error if both subnets are empty", func() {
-				removed, err := delPolicyRoutingRule("", "", routingTableID)
+				removed, err := DelPolicyRoutingRule("", "", routingTableID)
 				Expect(removed).Should(Equal(false))
 				Expect(err).Should(Equal(&errors.WrongParameter{
 					Parameter: "fromSubnet and toSubnet",
@@ -376,13 +376,13 @@ var _ = Describe("Common", func() {
 
 		Context("when policy routing rule does not exist and we want to delete it", func() {
 			It("with destination net, should return false and nil", func() {
-				removed, err := delPolicyRoutingRule(dstNetCorrect, "", routingTableID)
+				removed, err := DelPolicyRoutingRule(dstNetCorrect, "", routingTableID)
 				Expect(removed).Should(Equal(false))
 				Expect(err).NotTo(HaveOccurred())
 			})
 
 			It("with source net, should return false and nil", func() {
-				removed, err := delPolicyRoutingRule("", srcNetCorrect, routingTableID)
+				removed, err := DelPolicyRoutingRule("", srcNetCorrect, routingTableID)
 				Expect(removed).Should(Equal(false))
 				Expect(err).NotTo(HaveOccurred())
 			})
@@ -398,7 +398,7 @@ var _ = Describe("Common", func() {
 			})
 
 			It("with destination net, should return false and nil", func() {
-				removed, err := delPolicyRoutingRule("", existingRuleTo.Dst.String(), routingTableID)
+				removed, err := DelPolicyRoutingRule("", existingRuleTo.Dst.String(), routingTableID)
 				Expect(removed).Should(Equal(true))
 				Expect(err).NotTo(HaveOccurred())
 				rule, err := getRule("", existingRuleTo.Dst.String(), routingTableID)
@@ -408,7 +408,7 @@ var _ = Describe("Common", func() {
 			})
 
 			It("with source net, should return false and nil", func() {
-				removed, err := delPolicyRoutingRule(existingRuleFrom.Src.String(), "", routingTableID)
+				removed, err := DelPolicyRoutingRule(existingRuleFrom.Src.String(), "", routingTableID)
 				Expect(removed).Should(Equal(true))
 				Expect(err).NotTo(HaveOccurred())
 				rule, err := getRule("", existingRuleFrom.Src.String(), routingTableID)

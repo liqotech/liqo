@@ -14,6 +14,7 @@ import (
 	"k8s.io/kubernetes/pkg/api/v1/pod"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 
 	liqoerrors "github.com/liqotech/liqo/pkg/liqonet/errors"
@@ -24,7 +25,7 @@ import (
 // SymmetricRoutingController reconciles pods objects, in our case all the existing pods.
 type SymmetricRoutingController struct {
 	client.Client
-	vxlanDev       overlay.VxlanDevice
+	vxlanDev       *overlay.VxlanDevice
 	nodeName       string
 	routingTableID int
 	nodesLock      *sync.RWMutex
@@ -55,25 +56,30 @@ func (src *SymmetricRoutingController) Reconcile(ctx context.Context, req ctrl.R
 			return ctrl.Result{}, err
 		}
 		if deleted {
-			klog.Infof("successfully removed route for pod {%s} from vxlan overlay network", req.String())
+			klog.Infof("successfully removed route for pod {%s} from vxlan device {%s}", req.String(), src.vxlanDev.Link.Name)
 		}
 		return ctrl.Result{}, nil
 	}
 	added, err := src.addRoute(req, &p)
 	if err != nil {
-		klog.Errorf("an error occurred while adding route for pod {%s} with IP address {{%s}} to the vxlan overlay network: %v",
+		if err.Error() == "ip not set" {
+			klog.V(4).Infof("unable to set route for pod {%s}: ip address for node {%s} has not been set yet",
+				req.String(), p.Spec.NodeName)
+			return ctrl.Result{}, err
+		}
+		klog.Errorf("an error occurred while adding route for pod {%s} with IP address {%s} to the vxlan overlay network: %v",
 			req.String(), p.Status.PodIP, err)
 		return ctrl.Result{}, err
 	}
 	if added {
-		klog.Errorf("successfully added route for pod {%s} with IP address {%s} to the vxlan overlay network: %v",
-			req.String(), p.Status.PodIP)
+		klog.Errorf("successfully added route for pod {%s} with IP address {%s} to the vxlan device {%s}",
+			req.String(), p.Status.PodIP, src.vxlanDev.Link.Name)
 	}
 	return ctrl.Result{}, nil
 }
 
 // NewSymmetricRoutingOperator returns a new controller ready to be setup and started with the controller manager.
-func NewSymmetricRoutingOperator(nodeName string, routingTableID int, vxlanDevice overlay.VxlanDevice,
+func NewSymmetricRoutingOperator(nodeName string, routingTableID int, vxlanDevice *overlay.VxlanDevice,
 	nodesLock *sync.RWMutex, vxlanNodes map[string]string, cl client.Client) (*SymmetricRoutingController, error) {
 	// Check the validity of input parameters.
 	if routingTableID > unix.RT_TABLE_MAX {
@@ -82,8 +88,8 @@ func NewSymmetricRoutingOperator(nodeName string, routingTableID int, vxlanDevic
 	if routingTableID < 0 {
 		return nil, &liqoerrors.WrongParameter{Parameter: "routingTableID", Reason: liqoerrors.GreaterOrEqual + strconv.Itoa(0)}
 	}
-	if vxlanDevice.Link == nil {
-		return nil, &liqoerrors.WrongParameter{Parameter: "vxlanDevice.Link", Reason: liqoerrors.NotNil}
+	if vxlanDevice == nil {
+		return nil, &liqoerrors.WrongParameter{Parameter: "vxlanDevice", Reason: liqoerrors.NotNil}
 	}
 	return &SymmetricRoutingController{
 		Client:         cl,
@@ -104,7 +110,7 @@ func (src *SymmetricRoutingController) addRoute(req ctrl.Request, p *corev1.Pod)
 	defer src.nodesLock.RUnlock()
 	nodeIP, ok := src.vxlanNodes[p.Spec.NodeName]
 	if !ok {
-		return false, fmt.Errorf("ip for node {%s} has not been set yet", p.Spec.NodeName)
+		return false, fmt.Errorf("ip not set")
 	}
 	gwIP := overlay.GetOverlayIP(nodeIP)
 	dstNet := strings.Join([]string{p.Status.PodIP, "32"}, "/")
@@ -157,6 +163,10 @@ func (src *SymmetricRoutingController) podFilter(obj client.Object) bool {
 // SetupWithManager used to set up the controller with a given manager.
 func (src *SymmetricRoutingController) SetupWithManager(mgr ctrl.Manager) error {
 	p := predicate.NewPredicateFuncs(src.podFilter)
+	// We only filter out pods when the event is of type {event.CreateEvent} and {event.UpdateEvent}
+	p.DeleteFunc = func(event event.DeleteEvent) bool {
+		return true
+	}
 	return ctrl.NewControllerManagedBy(mgr).For(&corev1.Pod{}).WithEventFilter(p).
 		Complete(src)
 }

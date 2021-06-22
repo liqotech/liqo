@@ -1,4 +1,3 @@
-// Package tunneloperator contains the tunnel controller.
 /*
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -12,6 +11,7 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
+
 package tunneloperator
 
 import (
@@ -22,10 +22,11 @@ import (
 	"os/signal"
 	"reflect"
 	"strings"
-	"time"
 
 	"github.com/containernetworking/plugins/pkg/ns"
 	"github.com/vishvananda/netlink"
+	"golang.org/x/sys/unix"
+	k8sApiErrors "k8s.io/apimachinery/pkg/api/errors"
 	k8s "k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/record"
 	"k8s.io/klog"
@@ -37,30 +38,16 @@ import (
 
 	netv1alpha1 "github.com/liqotech/liqo/apis/net/v1alpha1"
 	liqoconst "github.com/liqotech/liqo/pkg/consts"
-	"github.com/liqotech/liqo/pkg/liqonet"
 	"github.com/liqotech/liqo/pkg/liqonet/iptables"
 	liqonetns "github.com/liqotech/liqo/pkg/liqonet/netns"
-	"github.com/liqotech/liqo/pkg/liqonet/overlay"
 	liqorouting "github.com/liqotech/liqo/pkg/liqonet/routing"
 	"github.com/liqotech/liqo/pkg/liqonet/tunnel"
-	_ "github.com/liqotech/liqo/pkg/liqonet/tunnel/wireguard" // This package is imported in order to run its init func.
+	tunnelwg "github.com/liqotech/liqo/pkg/liqonet/tunnel/wireguard"
 	"github.com/liqotech/liqo/pkg/liqonet/utils"
-	"github.com/liqotech/liqo/pkg/liqonet/wireguard"
 )
 
 var (
-	result       = ctrl.Result{}
-	resyncPeriod = 30 * time.Second
-)
-
-const (
-	// OperatorName name of the operator.
-	OperatorName            = "liqo-gateway"
-	gatewayPodName          = "gateway-pod" // used to name the secret containing the keys of the overlay wireguard interface
-	tunnelEndpointFinalizer = OperatorName + ".liqo.io"
-	gatewayNetnsName        = "liqo-gateway"
-	hostVethName            = "liqo.host"
-	gatewayVethName         = "liqo.gateway"
+	result = ctrl.Result{}
 )
 
 // TunnelController type of the tunnel controller.
@@ -68,21 +55,16 @@ type TunnelController struct {
 	client.Client
 	record.EventRecorder
 	tunnel.Driver
-	liqonet.NetLink
+	liqorouting.Routing
 	iptables.IPTHandler
-	DefaultIface string
-	k8sClient    *k8s.Clientset
-	wg           *wireguard.Wireguard
+	k8sClient    k8s.Interface
 	drivers      map[string]tunnel.Driver
 	namespace    string
 	podIP        string
-	isGKE        bool
-	isConfigured bool
-	configChan   chan bool
-	stopPWChan   chan struct{}
-	stopSWChan   chan struct{}
 	hostNetns    ns.NetNS
 	gatewayNetns ns.NetNS
+	hostVeth     netlink.Link
+	gatewayVeth  netlink.Link
 }
 
 // cluster-role
@@ -96,143 +78,209 @@ type TunnelController struct {
 // +kubebuilder:rbac:groups=core,namespace="do-not-care",resources=pods,verbs=get;list;watch;update
 
 // NewTunnelController instantiates and initializes the tunnel controller.
-func NewTunnelController(mgr ctrl.Manager, wgc wireguard.Client, nl wireguard.Netlinker) (*TunnelController, error) {
-	clientSet := k8s.NewForConfigOrDie(mgr.GetConfig())
-	namespace, err := utils.GetPodNamespace()
-	if err != nil {
-		return nil, err
-	}
-	podIP, err := utils.GetPodIP()
-	if err != nil {
-		return nil, err
-	}
-	overlayIP := strings.Join([]string{overlay.GetOverlayIP(podIP.String()), "4"}, "/")
-	// create overlay network interface
-	wg, err := overlay.CreateInterface(gatewayPodName, namespace, overlayIP, clientSet, wgc, nl)
-	if err != nil {
-		return nil, err
-	}
-	// create new custom routing table for the overlay iFace
-	if err = overlay.CreateRoutingTable(overlay.RoutingTableID, overlay.RoutingTableName); err != nil {
-		return nil, err
-	}
-	// enable reverse path filter for the overlay interface
-	if err = overlay.Enable_rp_filter(wg.GetDeviceName()); err != nil {
-		return nil, err
-	}
-	// enable ip forwarding
-	if err = utils.EnableIPForwarding(); err != nil {
-		return nil, err
-	}
-	// populate the custom routing table with the default route
-	if err = overlay.SetUpDefaultRoute(overlay.RoutingTableID, wg.GetLinkIndex()); err != nil {
-		return nil, err
-	}
-	// get name of the default interface
-	iface, err := utils.GetDefaultIfaceName()
-	if err != nil {
-		return nil, err
-	}
+func NewTunnelController(podIP, namespace string, er record.EventRecorder,
+	k8sClient k8s.Interface, cl client.Client) (*TunnelController, error) {
 	tc := &TunnelController{
-		Client:        mgr.GetClient(),
-		EventRecorder: mgr.GetEventRecorderFor(OperatorName),
-		k8sClient:     clientSet,
+		Client:        cl,
+		EventRecorder: er,
+		k8sClient:     k8sClient,
+		podIP:         podIP,
 		namespace:     namespace,
-		podIP:         podIP.String(),
-		DefaultIface:  iface,
-		wg:            wg,
-		configChan:    make(chan bool),
 	}
-	err = tc.SetUpTunnelDrivers()
+
+	err := tc.SetUpTunnelDrivers()
 	if err != nil {
+		return nil, err
+	}
+	link, err := netlink.LinkByName(tunnelwg.DeviceName)
+	if err != nil {
+		return nil, err
+	}
+	err = tc.setUpGWNetns(liqoconst.GatewayNetnsName, liqoconst.HostVethName,
+		liqoconst.GatewayVethName, liqoconst.GatewayVethIPAddr, tunnelwg.MTU)
+	if err != nil {
+		return nil, err
+	}
+	// Move wireguard interface in the gateway network namespace.
+	if err = netlink.LinkSetNsFd(link, int(tc.gatewayNetns.Fd())); err != nil {
+		return nil, fmt.Errorf("failed to move wireguard interfacte to gateway netns: %w", err)
+	}
+	// After the wireguard device has been moved to the new netns we need to:
+	// 1) set it up;
+	// 2) replace the wgctl.Client with a new client spawned in the new netns.
+	var configureWg = func(netnsNamespace ns.NetNS) error {
+		link, err = netlink.LinkByName(tunnelwg.DeviceName)
+		if err != nil {
+			return err
+		}
+		err = netlink.LinkSetUp(link)
+		if err != nil {
+			return fmt.Errorf("failed to set wireguard iface up in gateway netns: %w", err)
+		}
+		w := tc.drivers[tunnelwg.DriverName]
+		wg := w.(*tunnelwg.Wireguard)
+		if err := wg.SetNewClient(); err != nil {
+			return fmt.Errorf("an error occurred while setting new client in tunnel driver")
+		}
+		return nil
+	}
+	if err := tc.gatewayNetns.Do(configureWg); err != nil {
 		return nil, err
 	}
 	err = tc.SetUpIPTablesHandler()
 	if err != nil {
 		return nil, err
 	}
-	tc.SetUpRouteManager(tc.EventRecorder)
+	if err := tc.SetUpRouteManager(); err != nil {
+		return nil, err
+	}
+	if err := tc.gatewayNetns.Set(); err != nil {
+		return nil, err
+	}
 	return tc, nil
 }
 
 // Reconcile reconciles requests occurred on TunnelEndpoint objects.
 func (tc *TunnelController) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-	if !tc.isConfigured {
-		<-tc.configChan
+	var tep = new(netv1alpha1.TunnelEndpoint)
+	var err error
+	var clusterID, remotePodCIDR string
+	var con *netv1alpha1.Connection
+
+	var configGWNetns = func(netNamespace ns.NetNS) error {
+		con, err = tc.connectToPeer(tep)
+		if err != nil {
+			return err
+		}
+		if err = tc.EnsureIPTablesRulesPerCluster(tep); err != nil {
+			return err
+		}
+		added, err := tc.EnsureRoutesPerCluster(tep)
+		if err != nil {
+			klog.Errorf("%s -> unable to configure route '%s': %s", clusterID, remotePodCIDR, err)
+			tc.Eventf(tep, "Warning", "Processing", "unable to remove outdated route: %s", err.Error())
+			return err
+		}
+		if added {
+			tc.Event(tep, "Normal", "Processing", "route configured")
+			klog.Infof("%s -> route for destination {%s} correctly configured", clusterID, remotePodCIDR)
+		}
+		return nil
 	}
-	var endpoint netv1alpha1.TunnelEndpoint
-	// name of our finalizer
-	if err := tc.Get(ctx, req.NamespacedName, &endpoint); err != nil {
-		klog.Errorf("unable to fetch resource %s: %s", req.Name, err)
-		return ctrl.Result{}, client.IgnoreNotFound(err)
+	var unconfigGWNetns = func(netNamespace ns.NetNS) error {
+		if err := tc.disconnectFromPeer(tep); err != nil {
+			return err
+		}
+		deleted, err := tc.RemoveRoutesPerCluster(tep)
+		if err != nil {
+			tc.Eventf(tep, "Warning", "Processing", "unable to remove route: %s", err.Error())
+			klog.Errorf("%s -> unable to remove route for destination '%s': %v", clusterID, remotePodCIDR, err)
+			return err
+		}
+		if deleted {
+			tc.Event(tep, "Normal", "Processing", "route correctly removed")
+			klog.Infof("%s -> route for destination '%s' correctly removed", clusterID, remotePodCIDR)
+		}
+		return nil
 	}
-	// we wait for the resource to be ready. The resource is created in two steps, first the spec and metadata fields
-	// then the status field. so we wait for the status to be ready.
-	if endpoint.Status.Phase != liqoconst.TepReady {
-		klog.Infof("%s -> resource %s is not ready", endpoint.Spec.ClusterID, endpoint.Name)
+	var configHNetns = func(netNamespace ns.NetNS) error {
+		added, err := liqorouting.AddPolicyRoutingRule(remotePodCIDR, "", liqoconst.RoutingTableID)
+		if err != nil {
+			klog.Errorf("%s -> unable to configure policy routing rule for subnet {%s}: %s", clusterID, remotePodCIDR, err)
+			return err
+		}
+		if added {
+			klog.Infof("%s -> policy routing rule for subnet {%s} correctly configured", clusterID, remotePodCIDR)
+		}
+		return nil
+	}
+	var unconfigHNetns = func(netNamespace ns.NetNS) error {
+		deleted, err := liqorouting.DelPolicyRoutingRule(remotePodCIDR, "", liqoconst.RoutingTableID)
+		if err != nil {
+			klog.Errorf("%s -> unable to remove policy routing rule for subnet {%s}: %s", clusterID, remotePodCIDR, err)
+			return err
+		}
+		if deleted {
+			klog.Infof("%s -> policy routing rule for subnet {%s} correctly removed", clusterID, remotePodCIDR)
+		}
+		return nil
+	}
+	// Name of our finalizer.
+	tunnelEndpointFinalizer := strings.Join([]string{liqoconst.LiqoGatewayOperatorName, tc.podIP, "net.liqo.io"}, ".")
+	if err = tc.Get(ctx, req.NamespacedName, tep); err != nil && !k8sApiErrors.IsNotFound(err) {
+		klog.Errorf("unable to fetch resource %s: %s", req.String(), err)
+		return ctrl.Result{}, err
+	}
+	// In case the resource does not exist anymore, we just forget it.
+	if k8sApiErrors.IsNotFound(err) {
 		return result, nil
 	}
-	_, remotePodCIDR := utils.GetPodCIDRS(&endpoint)
-	// examine DeletionTimestamp to determine if object is under deletion
-	if endpoint.ObjectMeta.DeletionTimestamp.IsZero() {
-		if !controllerutil.ContainsFinalizer(&endpoint, tunnelEndpointFinalizer) {
+	clusterID = tep.Spec.ClusterID
+	// We wait for the resource to be ready. The resource is created in two steps, first the spec and metadata fields
+	// then the status field. So we wait for the status to be ready.
+	if tep.Status.Phase != liqoconst.TepReady {
+		klog.Infof("%s -> resource %s is not ready", tep.Spec.ClusterID, tep.Name)
+		return result, nil
+	}
+	_, remotePodCIDR = utils.GetPodCIDRS(tep)
+	// Examine DeletionTimestamp to determine if object is under deletion.
+	if tep.ObjectMeta.DeletionTimestamp.IsZero() {
+		if !controllerutil.ContainsFinalizer(tep, tunnelEndpointFinalizer) {
 			// The object is not being deleted, so if it does not have our finalizer,
 			// then lets add the finalizer and update the object. This is equivalent
 			// registering our finalizer.
-			controllerutil.AddFinalizer(&endpoint, tunnelEndpointFinalizer)
-			if err := tc.Update(ctx, &endpoint); err != nil {
-				klog.Errorf("%s -> unable to update resource %s: %s", endpoint.Spec.ClusterID, endpoint.Name, err)
+			controllerutil.AddFinalizer(tep, tunnelEndpointFinalizer)
+			if err := tc.Update(ctx, tep); err != nil {
+				if k8sApiErrors.IsConflict(err) {
+					klog.V(4).Infof("%s -> unable to add finalizers to resource %s: %s", clusterID, req.String(), err)
+					return result, err
+				}
+				klog.Errorf("%s -> unable to update resource %s: %s", tep.Spec.ClusterID, tep.Name, err)
 				return result, err
 			}
 		}
 	} else {
-		// the object is being deleted
-		if controllerutil.ContainsFinalizer(&endpoint, tunnelEndpointFinalizer) {
-			if err := tc.disconnectFromPeer(&endpoint); err != nil {
-				return ctrl.Result{}, err
-			}
-			if err := tc.RemoveRoutesPerCluster(&endpoint); err != nil {
+		// The object is being deleted.
+		if controllerutil.ContainsFinalizer(tep, tunnelEndpointFinalizer) {
+			if err = tc.gatewayNetns.Do(unconfigGWNetns); err != nil {
 				return result, err
 			}
-			if tc.isGKE {
-				if err := overlay.RemovePolicyRoutingRule(overlay.RoutingTableID, remotePodCIDR); err != nil {
-					klog.Errorf("%s -> an error occurred while removing policy rule: %s", endpoint.Spec.ClusterID, err)
+			if err = tc.hostNetns.Do(unconfigHNetns); err != nil {
+				return result, err
+			}
+			// Remove the finalizer from the list and update it.
+			controllerutil.RemoveFinalizer(tep, tunnelEndpointFinalizer)
+			if err := tc.Update(ctx, tep); err != nil {
+				if k8sApiErrors.IsConflict(err) {
+					klog.V(4).Infof("%s -> unable to add finalizers to resource %s: %s", clusterID, req.String(), err)
 					return result, err
 				}
-			}
-			// remove the finalizer from the list and update it.
-			controllerutil.RemoveFinalizer(&endpoint, tunnelEndpointFinalizer)
-			if err := tc.Update(ctx, &endpoint); err != nil {
-				klog.Errorf("an error occurred while updating resource %s after the finalizer has been removed: %s", endpoint.Name, err)
+				klog.Errorf("an error occurred while updating resource %s after the finalizer has been removed: %s", tep.Name, err)
 				return result, err
 			}
-			return result, nil
 		}
-		// if object is being deleted and does not have a finalizer we just return
+		// If object is being deleted and does not have a finalizer we just return.
 		return result, nil
 	}
-	con, err := tc.connectToPeer(&endpoint)
-	if err != nil {
+	if err := tc.gatewayNetns.Do(configGWNetns); err != nil {
 		return result, err
 	}
-	if err := tc.EnsureIPTablesRulesPerCluster(&endpoint); err != nil {
-		return result, err
+	if reflect.DeepEqual(*con, tep.Status.Connection) && tep.Status.GatewayIP == tc.podIP &&
+		tep.Status.VethIFaceIndex == tc.hostVeth.Attrs().Index {
+		return result, nil
 	}
-	if err := tc.EnsureRoutesPerCluster("liqo-wg", &endpoint); err != nil {
-		return result, err
-	}
-	if tc.isGKE {
-		if err = overlay.InsertPolicyRoutingRule(overlay.RoutingTableID, remotePodCIDR); err != nil {
-			klog.Errorf("%s -> an error occurred while inserting policy rule: %s", endpoint.Spec.ClusterID, err)
+	tep.Status.Connection = *con
+	tep.Status.GatewayIP = tc.podIP
+	tep.Status.VethIFaceIndex = tc.hostVeth.Attrs().Index
+	if err = tc.Status().Update(context.Background(), tep); err != nil {
+		if k8sApiErrors.IsConflict(err) {
+			klog.V(4).Infof("%s -> unable to add finalizers to resource %s: %s", clusterID, req.String(), err)
 			return result, err
 		}
+		klog.Errorf("%s -> an error occurred while updating status of resource %s: %s", tep.Spec.ClusterID, tep.Name, err)
+		return result, err
 	}
-	if reflect.DeepEqual(*con, endpoint.Status.Connection) {
-		return result, nil
-	}
-	endpoint.Status.Connection = *con
-	if err = tc.Status().Update(context.Background(), &endpoint); err != nil {
-		klog.Errorf("%s -> an error occurred while updating status of resource %s: %s", endpoint.Spec.ClusterID, endpoint.Name, err)
+	if err := tc.hostNetns.Do(configHNetns); err != nil {
 		return result, err
 	}
 	return result, nil
@@ -327,16 +375,12 @@ func (tc *TunnelController) SetupSignalHandlerForTunnelOperator() context.Contex
 	ctx, done := context.WithCancel(context.Background())
 	c := make(chan os.Signal, 1)
 	signal.Notify(c, utils.ShutdownSignals...)
-	go func(r *TunnelController) {
+	go func(tc *TunnelController) {
 		sig := <-c
-		klog.Infof("received signal %s: cleaning up", sig.String())
-		close(tc.stopSWChan)
-		close(tc.stopPWChan)
-		if err := tc.Terminate(); err != nil {
-			klog.Errorf("an error occurred while deleting Liqo IPTables config: %s", err.Error())
+		klog.Infof("the operator received signal {%s}: cleaning up", sig.String())
+		if err := tc.CleanUpConfiguration(liqoconst.GatewayNetnsName, liqoconst.HostVethName); err != nil {
+			klog.Errorf("an error occurred while cleaning up namespace {%s} with path {%s}: %v", liqoconst.GatewayNetnsName, tc.gatewayNetns.Path(), err)
 		}
-		r.RemoveAllTunnels()
-		<-c
 		done()
 	}(tc)
 	return ctx
@@ -346,7 +390,7 @@ func (tc *TunnelController) SetupSignalHandlerForTunnelOperator() context.Contex
 func (tc *TunnelController) SetupWithManager(mgr ctrl.Manager) error {
 	resourceToBeProccesedPredicate := predicate.Funcs{
 		DeleteFunc: func(e event.DeleteEvent) bool {
-			// finalizers are used to check if a resource is being deleted, and perform there the needed actions
+			// Finalizers are used to check if a resource is being deleted, and perform there the needed actions
 			// we don't want to reconcile on the delete of a resource.
 			return false
 		},
@@ -376,21 +420,36 @@ func (tc *TunnelController) SetUpTunnelDrivers() error {
 	return nil
 }
 
-// SetUpIPTablesHandler initializes the IPTables handler of
-// TunnelController.
+// SetUpIPTablesHandler initializes the IPTables handler of TunnelController.
 func (tc *TunnelController) SetUpIPTablesHandler() error {
 	iptHandler, err := iptables.NewIPTHandler()
 	if err != nil {
+		return err
+	}
+	var init = func(netNamespace ns.NetNS) error {
+		if err = iptHandler.Init(); err != nil {
+			klog.Errorf("an error occurred while creating iptables handler: %v", err)
+			return err
+		}
+		return nil
+	}
+	if err := tc.gatewayNetns.Do(init); err != nil {
 		return err
 	}
 	tc.IPTHandler = iptHandler
 	return nil
 }
 
-// SetUpRouteManager initializes the Route manager of
-// TunnelController.
-func (tc *TunnelController) SetUpRouteManager(recorder record.EventRecorder) {
-	tc.NetLink = liqonet.NewRouteManager(recorder)
+// SetUpRouteManager initializes the Route manager of TunnelController.
+func (tc *TunnelController) SetUpRouteManager() error {
+	// Todo make the gateway routing manager to support more than one vpn technology at the same time.
+	// Todo it should use the right tunnel based on the backend type set inside the tep.
+	grm, err := liqorouting.NewGatewayRoutingManager(unix.RT_TABLE_MAIN, tc.drivers[tunnelwg.DriverName].GetLink())
+	if err != nil {
+		return err
+	}
+	tc.Routing = grm
+	return nil
 }
 
 func (tc *TunnelController) setUpGWNetns(netnsName, hostVethName, gatewayVethName, gatewayVethIPAddr string, vethMtu int) error {
@@ -406,30 +465,94 @@ func (tc *TunnelController) setUpGWNetns(netnsName, hostVethName, gatewayVethNam
 	if err != nil {
 		return err
 	}
+	klog.Infof("created custom network namespace {%s}", netnsName)
 	// Create veth pair to connect the two namespaces.
 	err = liqonetns.CreateVethPair(hostVethName, gatewayVethName, tc.hostNetns, tc.gatewayNetns, vethMtu)
 	if err != nil {
 		klog.Errorf("an error occurred while creating the veth pair: %s", err)
 		return err
 	}
-	if err = configureGatewayNetns(gatewayVethName, gatewayVethIPAddr, tc.gatewayNetns); err != nil {
+	klog.Infof("created veth device {%s} in host network", hostVethName)
+	klog.Infof("created veth device {%s} in gateway custorm network namespace {%s}", gatewayVethName, netnsName)
+	if err = tc.configureGatewayNetns(gatewayVethName, gatewayVethIPAddr, tc.gatewayNetns); err != nil {
 		return err
 	}
 	// Enable arp proxy for liqo.host veth interface.
-	if err = liqorouting.EnableProxyArp(hostVethName); err != nil {
+	var configureHostNetns = func(netNamespace ns.NetNS) error {
+		if err := liqorouting.EnableProxyArp(hostVethName); err != nil {
+			return err
+		}
+		klog.Infof("enabled proxy arp for veth device {%s}", hostVethName)
+		// Get veth interface.
+		veth, err := netlink.LinkByName(hostVethName)
+		if err != nil {
+			return err
+		}
+		tc.hostVeth = veth
+		if _, err := liqorouting.AddRoute(gatewayVethIPAddr, "", veth.Attrs().Index, 0); err != nil {
+			return err
+		}
+		klog.Infof("added route for destination {%s} on device {%s}", gatewayVethIPAddr, hostVethName)
+		return nil
+	}
+	if err = tc.hostNetns.Do(configureHostNetns); err != nil {
 		return err
 	}
 	return nil
 }
 
-func configureGatewayNetns(ifaceName, ipAddress string, gatewayNs ns.NetNS) error {
+// CleanUpConfiguration removes the veth pair existing in the host network and then removes the
+// custom network namespace.
+func (tc *TunnelController) CleanUpConfiguration(netnsName, hostVethName string) error {
+	var deleteDeviceByName = func(netNamespace ns.NetNS) error {
+		klog.V(4).Infof("deleting device {%s}", hostVethName)
+		link, err := netlink.LinkByName(hostVethName)
+		if err != nil && err.Error() != ("Link not found") {
+			return err
+		}
+		if err == nil {
+			return netlink.LinkDel(link)
+		}
+		return nil
+	}
+	if err := tc.hostNetns.Do(deleteDeviceByName); err != nil {
+		return err
+	}
+	var deletePRRFromHostNS = func(netNamespace ns.NetNS) error {
+		// First we list all the policy routing rules.
+		rules, err := netlink.RuleList(netlink.FAMILY_V4)
+		if err != nil {
+			return err
+		}
+		// Delete all the listed rules that refer to the given routing table.
+		for i := range rules {
+			// Skip the rules not referring to the given routing table.
+			if rules[i].Table == liqoconst.RoutingTableID && rules[i].Src != nil {
+				klog.V(4).Infof("deleting rules {%s}", rules[i].String())
+				if err := netlink.RuleDel(&rules[i]); err != nil {
+					return err
+				}
+			}
+		}
+		return nil
+	}
+	if err := tc.hostNetns.Do(deletePRRFromHostNS); err != nil {
+		return err
+	}
+	klog.V(4).Infof("deleting namespace {%s}", netnsName)
+	return liqonetns.DeleteNetns(netnsName)
+}
+
+func (tc *TunnelController) configureGatewayNetns(ifaceName, ipAddress string, gatewayNs ns.NetNS) error {
+	var defaultCIDR = "0.0.0.0/0"
 	configuration := func(netNamespace ns.NetNS) error {
 		// Get veth interface.
 		veth, err := netlink.LinkByName(ifaceName)
 		if err != nil {
 			return err
 		}
-		// Parse the ipAddres.
+		tc.gatewayVeth = veth
+		// Parse the ip address.
 		_, ipNet, err := net.ParseCIDR(ipAddress)
 		if err != nil {
 			return err
@@ -438,18 +561,25 @@ func configureGatewayNetns(ifaceName, ipAddress string, gatewayNs ns.NetNS) erro
 		if err := netlink.AddrAdd(veth, &netlink.Addr{IPNet: ipNet}); err != nil {
 			return err
 		}
+		klog.Infof("configured IP address {%s} on device {%s} in network namespace {%s}",
+			ipAddress, ifaceName, liqoconst.GatewayNetnsName)
 		// Add default route to use the veth interface.
-		if _, err := liqorouting.AddRoute("0.0.0.0/0", "", veth.Attrs().Index, 0); err != nil {
+		if _, err := liqorouting.AddRoute(defaultCIDR, "", veth.Attrs().Index, 0); err != nil {
 			return err
 		}
+		klog.Infof("added route for destination {%s} on device {%s} in network namespace {%s}",
+			defaultCIDR, ifaceName, liqoconst.GatewayNetnsName)
 		// Enable arp proxy for liqo.gateway veth interface in liqo-gateway network.
-		if err := liqorouting.EnableProxyArp(gatewayVethName); err != nil {
+		if err := liqorouting.EnableProxyArp(liqoconst.GatewayVethName); err != nil {
 			return err
 		}
+		klog.Infof("enabled proxy arp for veth device {%s} in network namespace {%s}",
+			ifaceName, liqoconst.GatewayNetnsName)
 		// Enable ip forwarding in the gateway namespace.
 		if err := liqorouting.EnableIPForwarding(); err != nil {
 			return err
 		}
+		klog.Infof("enabled ipv4 forwarding in namespace {%s}", liqoconst.GatewayNetnsName)
 		return nil
 	}
 	return gatewayNs.Do(configuration)

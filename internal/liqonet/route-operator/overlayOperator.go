@@ -4,7 +4,9 @@ import (
 	"context"
 	"net"
 	"sync"
+	"syscall"
 
+	"github.com/vishvananda/netlink"
 	corev1 "k8s.io/api/core/v1"
 	k8sApiErrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -47,8 +49,7 @@ var (
 // OverlayController reconciles pods objects, in our case the route operators pods.
 type OverlayController struct {
 	client.Client
-	vxlanDev    overlay.VxlanDevice
-	podName     string
+	vxlanDev    *overlay.VxlanDevice
 	podIP       string
 	podSelector labels.Selector
 	nodesLock   *sync.RWMutex
@@ -110,22 +111,21 @@ func (ovc *OverlayController) Reconcile(ctx context.Context, req ctrl.Request) (
 }
 
 // NewOverlayController returns a new controller ready to be setup and started with the controller manager.
-func NewOverlayController(podName, podIP string, podSelector *metav1.LabelSelector, vxlanDevice overlay.VxlanDevice,
+func NewOverlayController(podIP string, podSelector *metav1.LabelSelector, vxlanDevice *overlay.VxlanDevice,
 	nodesLock *sync.RWMutex, vxlanNodes map[string]string, cl client.Client) (*OverlayController, error) {
 	selector, err := metav1.LabelSelectorAsSelector(podSelector)
 	if err != nil {
 		return nil, err
 	}
-	if vxlanDevice.Link == nil {
+	if vxlanDevice == nil {
 		return nil, &liqoerrors.WrongParameter{
 			Reason:    liqoerrors.NotNil,
-			Parameter: "vxlanDevice.Link",
+			Parameter: "vxlanDevice",
 		}
 	}
 	return &OverlayController{
 		Client:      cl,
 		vxlanDev:    vxlanDevice,
-		podName:     podName,
 		podIP:       podIP,
 		podSelector: selector,
 		nodesLock:   nodesLock,
@@ -160,25 +160,58 @@ func (ovc *OverlayController) addPeer(req ctrl.Request, pod *corev1.Pod) (bool, 
 	if err != nil {
 		return added, err
 	}
+	// This entry is needed for broadcast and multicast
+	// traffic (e.g. ARP and IPv6 neighbor discovery).
+	macZeros, err := net.ParseMAC("00:00:00:00:00:00")
+	if err != nil {
+		return false, err
+	}
+	peerZero := overlay.Neighbor{
+		MAC: macZeros,
+		IP:  ip,
+	}
+	addedZeros, err := ovc.vxlanDev.AddFDB(peerZero)
+	if err != nil {
+		return false, err
+	}
 	ovc.vxlanPeers[req.String()] = &peer
 	ovc.vxlanNodes[pod.Spec.NodeName] = peerIP
 	ovc.podToNode[req.String()] = pod.Spec.NodeName
-	return added, nil
+	if added || addedZeros {
+		return true, nil
+	}
+	return false, nil
 }
 
-// delPeer for a given pod it removes the fdb entry for the current vxlan device.
-// It return true when the entry exists and is removed, false if the entry does not exist,
+// delPeer for a given pod it removes all the fdb entries for the current peer on the vxlan device.
+// It return true when entries exist and are removed, false if entries do not exist,
 // and error if something goes wrong.
 func (ovc *OverlayController) delPeer(req ctrl.Request) (bool, error) {
+	var deleted bool
 	ovc.nodesLock.Lock()
 	defer ovc.nodesLock.Unlock()
 	peer, ok := ovc.vxlanPeers[req.String()]
 	if !ok {
 		return false, nil
 	}
-	deleted, err := ovc.vxlanDev.DelFDB(*peer)
+	// First we list all the fdbs
+	fdbs, err := netlink.NeighList(ovc.vxlanDev.Link.Index, syscall.AF_BRIDGE)
 	if err != nil {
-		return deleted, err
+		return false, err
+	}
+	// Check if the entry exists and remove them.
+	for i := range fdbs {
+		if fdbs[i].IP.Equal(peer.IP) {
+			deleted, err = ovc.vxlanDev.DelFDB(overlay.Neighbor{
+				MAC: fdbs[i].HardwareAddr,
+				IP:  fdbs[i].IP,
+			})
+			if err != nil {
+				return deleted, err
+			}
+			klog.V(4).Infof("fdb entry with mac {%s} and dst {%s} on device {%s} has been removed",
+				fdbs[i].HardwareAddr.String(), fdbs[i].IP.String(), ovc.vxlanDev.Link.Name)
+		}
 	}
 	delete(ovc.vxlanPeers, req.String())
 	delete(ovc.vxlanNodes, ovc.podToNode[req.String()])
@@ -191,6 +224,9 @@ func (ovc *OverlayController) delPeer(req ctrl.Request) (bool, error) {
 // annotation is already present.
 func (ovc *OverlayController) addAnnotation(obj client.Object, aKey, aValue string) bool {
 	annotations := obj.GetAnnotations()
+	if annotations == nil {
+		annotations = make(map[string]string, 1)
+	}
 	oldAnnValue, ok := annotations[aKey]
 	// If the annotations does not exist or is outdated then set it.
 	if !ok || oldAnnValue != aValue {
