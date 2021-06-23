@@ -367,7 +367,7 @@ func (c *Controller) remoteModifiedWrapper(oldObj, newObj interface{}) {
 		return
 	}
 
-	c.RemoteResourceModifiedHandler(objUnstruct, gvr, remoteClusterID, resource.Ownership)
+	c.RemoteResourceModifiedHandler(objUnstruct.DeepCopy(), gvr, remoteClusterID, resource.Ownership)
 }
 
 // RemoteResourceModifiedHandler handles updates on a remote resource, updating the local status if it is
@@ -719,7 +719,7 @@ func (c *Controller) AddFunc(newObj interface{}) {
 		return
 	}
 	gvr := c.getGVR(objUnstruct)
-	c.AddedHandler(objUnstruct, gvr)
+	c.AddedHandler(objUnstruct.DeepCopy(), gvr)
 }
 
 func (c *Controller) AddedHandler(obj *unstructured.Unstructured, gvr schema.GroupVersionResource) {
@@ -756,8 +756,9 @@ func (c *Controller) UpdateFunc(oldObj, newObj interface{}) {
 		klog.Errorf("an error occurred while converting advertisement newObj to unstructured object")
 		return
 	}
+	klog.V(4).Infof("triggered on update %v/%v", objUnstruct.GetNamespace(), objUnstruct.GetName())
 	gvr := c.getGVR(objUnstruct)
-	c.ModifiedHandler(objUnstruct, gvr)
+	c.ModifiedHandler(objUnstruct.DeepCopy(), gvr)
 }
 
 func (c *Controller) ModifiedHandler(obj *unstructured.Unstructured, gvr schema.GroupVersionResource) {
@@ -794,8 +795,9 @@ func (c *Controller) ModifiedHandler(obj *unstructured.Unstructured, gvr schema.
 		// if the resource does not exist then we create it
 		if !found {
 			err := c.CreateResource(dynClient, gvr, obj, clusterID, resource.Ownership)
-			if err != nil {
+			if err != nil && !apierrors.IsAlreadyExists(err) {
 				klog.Error(err)
+				return
 			}
 		}
 		// if the resource exists or we just created it then we update the fields
@@ -814,7 +816,7 @@ func (c *Controller) DeleteFunc(newObj interface{}) {
 		return
 	}
 	gvr := c.getGVR(objUnstruct)
-	c.DeletedHandler(objUnstruct, gvr)
+	c.DeletedHandler(objUnstruct.DeepCopy(), gvr)
 }
 
 func (c *Controller) DeletedHandler(obj *unstructured.Unstructured, gvr schema.GroupVersionResource) {
