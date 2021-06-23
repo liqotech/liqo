@@ -34,6 +34,8 @@ const (
 // +kubebuilder:rbac:groups=sharing.liqo.io,resources=resourceOffers,verbs=get;list;watch;create;update;patch;
 // +kubebuilder:rbac:groups=sharing.liqo.io,resources=resourceOffers/status,verbs=get;update;patch
 
+// +kubebuilder:rbac:groups=capsule.clastix.io,resources=tenants,verbs=get;list;watch;create;update;patch;delete;
+
 // Reconcile is the main function of the controller which reconciles ResourceRequest resources.
 func (r *ResourceRequestReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	var resourceRequest discoveryv1alpha1.ResourceRequest
@@ -52,6 +54,21 @@ func (r *ResourceRequestReconciler) Reconcile(ctx context.Context, req ctrl.Requ
 	if err != nil {
 		klog.Errorf("%s -> Error generating resourceOffer: %s", remoteClusterID, err)
 		return ctrl.Result{}, err
+	}
+
+	if requireTenantDeletion(&resourceRequest) {
+		if err = r.ensureTenantDeletion(ctx, &resourceRequest); err != nil {
+			klog.Errorf("%s -> Error deleting Tenant: %s", remoteClusterID, err)
+			return ctrl.Result{}, err
+		}
+		requireSpecUpdate = true
+	} else {
+		newRequireSpecUpdate := false
+		if newRequireSpecUpdate, err = r.ensureTenant(ctx, &resourceRequest); err != nil {
+			klog.Errorf("%s -> Error creating Tenant: %s", remoteClusterID, err)
+			return ctrl.Result{}, err
+		}
+		requireSpecUpdate = requireSpecUpdate || newRequireSpecUpdate
 	}
 
 	if requireSpecUpdate {

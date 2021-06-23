@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	capsulev1alpha1 "github.com/clastix/capsule/api/v1alpha1"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	"k8s.io/client-go/kubernetes"
@@ -43,7 +44,10 @@ func createCluster() {
 	By("bootstrapping test environment")
 	ctx, cancel = context.WithCancel(context.Background())
 	testEnv = &envtest.Environment{
-		CRDDirectoryPaths: []string{filepath.Join("..", "..", "deployments", "liqo", "crds")},
+		CRDDirectoryPaths: []string{
+			filepath.Join("..", "..", "deployments", "liqo", "crds"),
+			filepath.Join("..", "..", "externalcrds"),
+		},
 	}
 
 	var err error
@@ -56,6 +60,8 @@ func createCluster() {
 	err = sharingv1alpha1.AddToScheme(scheme.Scheme)
 	Expect(err).NotTo(HaveOccurred())
 	err = configv1alpha1.AddToScheme(scheme.Scheme)
+	Expect(err).NotTo(HaveOccurred())
+	err = capsulev1alpha1.AddToScheme(scheme.Scheme)
 	Expect(err).NotTo(HaveOccurred())
 	// +kubebuilder:scaffold:scheme
 

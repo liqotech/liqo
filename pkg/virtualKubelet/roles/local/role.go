@@ -1,5 +1,5 @@
-// Package roles defines the ClusterRole containing the permissions required by the virtual kubelet in the local cluster.
-package roles
+// Package local defines the ClusterRole containing the permissions required by the virtual kubelet in the local cluster.
+package local
 
 // +kubebuilder:rbac:groups="",resources=configmaps;services;namespaces;secrets,verbs=get;list;watch;delete;create
 // +kubebuilder:rbac:groups="",resources=nodes,verbs=get;update;patch;list;watch;delete;create
