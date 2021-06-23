@@ -1,6 +1,6 @@
 ---
-title: Kubeadm K8s
-weight: 3
+title: K8s with Kubeadm
+weight: 4
 ---
 
 ### About Kubeadm
@@ -15,7 +15,7 @@ Liqo supports several CNIs as mentioned in the following table:
 
 | CNI                    | Version                             | Support                                   | Notes                       |
 | ---------------------- | ------------------------------      | --------------------------------------    | --------------------------- |
-| [Calico](#calico)      | v3.17.2                             |  Yes, with minor configurations                                      |                             |
+| [Calico](#calico)      | v3.17.2                             |  Yes, with minor configurations           |                             |
 | Flannel                | v0.13.0                             |  Yes                                      |                             |
 | Cilium                 | v1.9.4                              |  Yes, but only using kube-proxy           |                             |
 | Weavenet               | v2.8.1                              |  Yes                                      |                             |

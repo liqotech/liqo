@@ -5,8 +5,7 @@ weight: 4
 
 ### Pre-Installation
 
-Liqo can be used with different topologies and scenarios. This impacts several installation parameters you will configure (e.g., API Server, Authentication). In
-the [scenarios pages](./pre-install), we present some common patterns used to expose and interconnect clusters.
+Liqo can be used with different topologies and scenarios. This impacts several installation parameters you will configure (e.g., API Server, Authentication). The [scenarios page](./pre-install) presents some common patterns used to expose and interconnect clusters.
 
 ### Installation
 
@@ -22,4 +21,4 @@ Liqo can be installed on existing clusters or deployed to newly created clusters
 
 #### Peer your clusters
 
-When you have installed Liqo on your clusters, you can decide to peer them to offload your applications on a different cluster as documented in [Post-Install section](/user/post-install)
+When you have installed Liqo on your clusters, you can decide to peer them to offload your applications on a different cluster as documented in [Post-Install section](/user/post-install).
