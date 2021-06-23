@@ -3,20 +3,15 @@ package routing
 import (
 	"net"
 	"strconv"
-	"strings"
 
 	"golang.org/x/sys/unix"
 	"k8s.io/klog/v2"
 
 	netv1alpha1 "github.com/liqotech/liqo/apis/net/v1alpha1"
+	liqoconst "github.com/liqotech/liqo/pkg/consts"
 	liqoerrors "github.com/liqotech/liqo/pkg/liqonet/errors"
 	"github.com/liqotech/liqo/pkg/liqonet/overlay"
 	"github.com/liqotech/liqo/pkg/liqonet/utils"
-)
-
-const (
-	overlayNetworkPrefix = "240"
-	overlayNetworkMask   = "/8"
 )
 
 // VxlanRoutingManager implements the routing manager interface.
@@ -58,8 +53,8 @@ func NewVxlanRoutingManager(routingTableID int, podIP, vxlanNetPrefix string, vx
 		vxlanNetPrefix: vxlanNetPrefix,
 	}
 	// Configure IP address of the vxlan interface
-	overlayIP := vrm.getOverlayIP(podIP)
-	overlayIPCIDR := overlayIP + overlayNetworkMask
+	overlayIP := utils.GetOverlayIP(podIP)
+	overlayIPCIDR := overlayIP + liqoconst.OverlayNetworkMask
 	if err := vrm.vxlanDevice.ConfigureIPAddress(overlayIPCIDR); err != nil {
 		return nil, err
 	}
@@ -79,7 +74,7 @@ func (vrm *VxlanRoutingManager) EnsureRoutesPerCluster(tep *netv1alpha1.TunnelEn
 	// Extract and save route information from the given tep.
 	_, dstNet := utils.GetPodCIDRS(tep)
 	if tep.Status.GatewayIP != vrm.podIP {
-		gatewayIP = vrm.getOverlayIP(tep.Status.GatewayIP)
+		gatewayIP = utils.GetOverlayIP(tep.Status.GatewayIP)
 		iFaceIndex = vrm.vxlanDevice.Link.Index
 	} else {
 		iFaceIndex = tep.Status.VethIFaceIndex
@@ -115,7 +110,7 @@ func (vrm *VxlanRoutingManager) RemoveRoutesPerCluster(tep *netv1alpha1.TunnelEn
 	// Extract and save route information from the given tep.
 	_, dstNet := utils.GetPodCIDRS(tep)
 	if tep.Status.GatewayIP != vrm.podIP {
-		gatewayIP = vrm.getOverlayIP(tep.Status.GatewayIP)
+		gatewayIP = utils.GetOverlayIP(tep.Status.GatewayIP)
 		iFaceIndex = vrm.vxlanDevice.Link.Index
 	} else {
 		iFaceIndex = tep.Status.VethIFaceIndex
@@ -149,15 +144,4 @@ func (vrm *VxlanRoutingManager) CleanRoutingTable() error {
 func (vrm *VxlanRoutingManager) CleanPolicyRules() error {
 	klog.Infof("removing all policy routing rules that reference routing table with ID {%d}", vrm.routingTableID)
 	return flushRulesForRoutingTable(vrm.routingTableID)
-}
-
-func (vrm *VxlanRoutingManager) getOverlayIP(ip string) string {
-	addr := net.ParseIP(ip)
-	// If the ip is malformed we prevent a panic, the subsequent calls
-	// that use the returned value will return an error.
-	if addr == nil {
-		return ""
-	}
-	tokens := strings.Split(ip, ".")
-	return strings.Join([]string{vrm.vxlanNetPrefix, tokens[1], tokens[2], tokens[3]}, ".")
 }

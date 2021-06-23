@@ -153,4 +153,17 @@ var _ = Describe("Liqonet", func() {
 		})
 	})
 
+	Describe("testing getOverlayIP function", func() {
+		Context("when input parameter is correct", func() {
+			It("should return a valid ip", func() {
+				Expect(utils.GetOverlayIP("10.200.1.1")).Should(Equal("240.200.1.1"))
+			})
+		})
+
+		Context("when input parameter is not correct", func() {
+			It("should return an empty string", func() {
+				Expect(utils.GetOverlayIP("10.200.")).Should(Equal(""))
+			})
+		})
+	})
 })
