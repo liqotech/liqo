@@ -1,10 +1,5 @@
 name: Linting
 on:
-  push:
-    tags:
-      - v*
-    branches:
-      - master
   pull_request:
 jobs:
   golangci:
