@@ -4,6 +4,8 @@ import (
 	"net"
 	"strconv"
 
+	liqoconst "github.com/liqotech/liqo/pkg/consts"
+
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	"github.com/vishvananda/netlink"
@@ -17,7 +19,7 @@ import (
 var (
 	routingTableIDVRM = 19953
 	overlayDevIP      = "240.1.1.1/8"
-	overlayNetPrexif  = overlayNetworkPrefix
+	overlayNetPrexif  = liqoconst.OverlayNetPrefix
 	routesVRM         = []routingInfo{
 		{
 			destinationNet: "10.110.0.0/16",
@@ -311,22 +313,6 @@ var _ = Describe("VxlanRouting", func() {
 				exists, err := existsRuleForRoutingTable(routingTableIDVRM)
 				Expect(err).ShouldNot(HaveOccurred())
 				Expect(exists).Should(BeFalse())
-			})
-		})
-	})
-
-	Describe("testing getOverlayIP function", func() {
-		Context("when input parameter is correct", func() {
-			It("should return a valid ip", func() {
-				v := vrm.(*VxlanRoutingManager)
-				Expect(v.getOverlayIP("10.200.1.1")).Should(Equal("240.200.1.1"))
-			})
-		})
-
-		Context("when input parameter is not correct", func() {
-			It("should return an empty string", func() {
-				v := vrm.(*VxlanRoutingManager)
-				Expect(v.getOverlayIP("10.200.")).Should(Equal(""))
 			})
 		})
 	})

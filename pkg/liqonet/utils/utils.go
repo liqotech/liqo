@@ -6,6 +6,7 @@ import (
 	"io/ioutil"
 	"net"
 	"os"
+	"strings"
 	"syscall"
 
 	"github.com/vishvananda/netlink"
@@ -307,4 +308,18 @@ func CheckTep(tep *netv1alpha1.TunnelEndpoint) error {
 	}
 
 	return nil
+}
+
+// GetOverlayIP given an IP address it is mapped in to the overlay network,
+// described by consts.OverlayNetworkPrefix. It uses the overlay prefix and the
+// last three octets of the original IP address.
+func GetOverlayIP(ip string) string {
+	addr := net.ParseIP(ip)
+	// If the ip is malformed we prevent a panic, the subsequent calls
+	// that use the returned value will return an error.
+	if addr == nil {
+		return ""
+	}
+	tokens := strings.Split(ip, ".")
+	return strings.Join([]string{consts.OverlayNetworkPrefix, tokens[1], tokens[2], tokens[3]}, ".")
 }

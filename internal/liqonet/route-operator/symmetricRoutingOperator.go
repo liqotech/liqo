@@ -7,6 +7,8 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/liqotech/liqo/pkg/liqonet/utils"
+
 	"golang.org/x/sys/unix"
 	corev1 "k8s.io/api/core/v1"
 	k8sApiErrors "k8s.io/apimachinery/pkg/api/errors"
@@ -112,7 +114,7 @@ func (src *SymmetricRoutingController) addRoute(req ctrl.Request, p *corev1.Pod)
 	if !ok {
 		return false, fmt.Errorf("ip not set")
 	}
-	gwIP := overlay.GetOverlayIP(nodeIP)
+	gwIP := utils.GetOverlayIP(nodeIP)
 	dstNet := strings.Join([]string{p.Status.PodIP, "32"}, "/")
 	added, err := routing.AddRoute(dstNet, gwIP, src.vxlanDev.Link.Attrs().Index, src.routingTableID)
 	if err != nil {
