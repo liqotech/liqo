@@ -19,6 +19,7 @@ import (
 	"sync"
 	"time"
 
+	capsulev1alpha1 "github.com/clastix/capsule/api/v1alpha1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -57,10 +58,10 @@ func init() {
 	_ = clientgoscheme.AddToScheme(scheme)
 
 	_ = advtypes.AddToScheme(scheme)
-
 	_ = netv1alpha1.AddToScheme(scheme)
-
 	_ = discoveryv1alpha1.AddToScheme(scheme)
+
+	_ = capsulev1alpha1.AddToScheme(scheme)
 
 	// +kubebuilder:scaffold:scheme
 }

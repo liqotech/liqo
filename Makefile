@@ -9,6 +9,8 @@ else
 GOBIN=$(shell go env GOBIN)
 endif
 
+# Set the capsule version to use
+CAPSULE_VERSION = "v0.1.0-rc2"
 
 gen: generate fmt vet manifests rbacs docs
 
@@ -27,8 +29,14 @@ ifeq (, $(shell docker image ls | grep liqo-test))
 	}
 endif
 
+# Fetch external CRDs
+fetch-external-crds:
+	mkdir -p externalcrds
+	curl -s -o externalcrds/tenant-crd.yaml https://raw.githubusercontent.com/clastix/capsule/$(CAPSULE_VERSION)/charts/capsule/crds/tenant-crd.yaml
+	curl -s -o externalcrds/capsuleconfiguration-crd.yaml https://raw.githubusercontent.com/clastix/capsule/$(CAPSULE_VERSION)/charts/capsule/crds/capsuleconfiguration-crd.yaml
+
 # Run unit tests
-unit: test-container
+unit: test-container fetch-external-crds
 	docker run --privileged=true --mount type=bind,src=$(shell pwd),dst=/go/src/liqo -w /go/src/liqo --rm liqo-test
 
 # Run e2e tests
@@ -65,10 +73,19 @@ rbacs: controller-gen
 	$(CONTROLLER_GEN) $(CRD_OPTIONS) paths="./pkg/peering-roles/basic" rbac:roleName=liqo-remote-peering-basic output:rbac:stdout | awk -v RS="---\n" 'NR>1{f="./deployments/liqo/files/liqo-remote-peering-basic-" $$4 ".yaml";printf "%s",$$0 > f; close(f)}' &&  sed -i -n '/rules/,$$p' deployments/liqo/files/liqo-remote-peering-basic-ClusterRole.yaml
 	$(CONTROLLER_GEN) $(CRD_OPTIONS) paths="./pkg/peering-roles/incoming" rbac:roleName=liqo-remote-peering-incoming output:rbac:stdout | awk -v RS="---\n" 'NR>1{f="./deployments/liqo/files/liqo-remote-peering-incoming-" $$4 ".yaml";printf "%s",$$0 > f; close(f)}' &&  sed -i -n '/rules/,$$p' deployments/liqo/files/liqo-remote-peering-incoming-ClusterRole.yaml
 	$(CONTROLLER_GEN) $(CRD_OPTIONS) paths="./pkg/peering-roles/outgoing" rbac:roleName=liqo-remote-peering-outgoing output:rbac:stdout | awk -v RS="---\n" 'NR>1{f="./deployments/liqo/files/liqo-remote-peering-outgoing-" $$4 ".yaml";printf "%s",$$0 > f; close(f)}' &&  sed -i -n '/rules/,$$p' deployments/liqo/files/liqo-remote-peering-outgoing-ClusterRole.yaml
-	$(CONTROLLER_GEN) $(CRD_OPTIONS) paths="./pkg/virtualKubelet/roles" rbac:roleName=liqo-virtual-kubelet-local output:rbac:stdout | awk -v RS="---\n" 'NR>1{f="./deployments/liqo/files/liqo-virtual-kubelet-local-" $$4 ".yaml";printf "%s",$$0 > f; close(f)}' &&  sed -i -n '/rules/,$$p' deployments/liqo/files/liqo-virtual-kubelet-local-ClusterRole.yaml
+	$(CONTROLLER_GEN) $(CRD_OPTIONS) paths="./pkg/virtualKubelet/roles/local" rbac:roleName=liqo-virtual-kubelet-local output:rbac:stdout | awk -v RS="---\n" 'NR>1{f="./deployments/liqo/files/liqo-virtual-kubelet-local-" $$4 ".yaml";printf "%s",$$0 > f; close(f)}' &&  sed -i -n '/rules/,$$p' deployments/liqo/files/liqo-virtual-kubelet-local-ClusterRole.yaml
+	$(CONTROLLER_GEN) $(CRD_OPTIONS) paths="./pkg/virtualKubelet/roles/remote" rbac:roleName=liqo-virtual-kubelet-remote output:rbac:stdout | awk -v RS="---\n" 'NR>1{f="./deployments/liqo/files/liqo-virtual-kubelet-remote-" $$4 ".yaml";printf "%s",$$0 > f; close(f)}' &&  sed -i -n '/rules/,$$p' deployments/liqo/files/liqo-virtual-kubelet-remote-ClusterRole.yaml
+
+# Install gci if not available
+gci:
+ifeq (, $(shell which gci))
+	@{ \
+	go get github.com/daixiang0/gci@v0.2.9 ;\
+	}
+endif
 
 # Run go fmt against code
-fmt:
+fmt: gci
 	go fmt ./...
 	find $(pwd) -type f -name '*.go' -a ! -name '*zz_generated*' -exec gci -local github.com/liqotech/liqo -w {} \;
 

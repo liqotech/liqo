@@ -2,7 +2,7 @@ package identitymanager
 
 const keyLength = 2048
 
-const defaultOrganization = "Liqo"
+const defaultOrganization = "liqo.io"
 
 const (
 	localIdentitySecretLabel  = "discovery.liqo.io/local-identity"

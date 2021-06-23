@@ -26,6 +26,8 @@
 | auth.tls | bool | `true` | Enable TLS for the Authentication Service Pod (using a self-signed certificate). If you are exposing this service with an Ingress consider to disable it or add the appropriate annotations to the Ingress resource. |
 | capsule.fullnameOverride | string | `"capsule"` | override the fullname to fix naming problems |
 | capsule.install | bool | `true` | liqo needs capsule to work properly, but you can use your already deployed capsule installation |
+| capsule.manager.options.capsuleUserGroups[0] | string | `"capsule.clastix.io"` |  |
+| capsule.manager.options.capsuleUserGroups[1] | string | `"liqo.io"` |  |
 | crdReplicator.imageName | string | `"liqo/crd-replicator"` | crdReplicator image repository |
 | crdReplicator.pod.annotations | object | `{}` | crdReplicator pod annotations |
 | crdReplicator.pod.labels | object | `{}` | crdReplicator pod labels |
