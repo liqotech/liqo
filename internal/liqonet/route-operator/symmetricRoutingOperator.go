@@ -7,8 +7,6 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/liqotech/liqo/pkg/liqonet/utils"
-
 	"golang.org/x/sys/unix"
 	corev1 "k8s.io/api/core/v1"
 	k8sApiErrors "k8s.io/apimachinery/pkg/api/errors"
@@ -22,6 +20,7 @@ import (
 	liqoerrors "github.com/liqotech/liqo/pkg/liqonet/errors"
 	"github.com/liqotech/liqo/pkg/liqonet/overlay"
 	"github.com/liqotech/liqo/pkg/liqonet/routing"
+	"github.com/liqotech/liqo/pkg/liqonet/utils"
 )
 
 // SymmetricRoutingController reconciles pods objects, in our case all the existing pods.

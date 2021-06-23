@@ -67,7 +67,6 @@ In particular, we have to set the following values:
 | ---------------------- | ------- | ------------------------------------------- |
 | `networkManager.config.podCIDR`             |  10.124.0.0/14        | The cluster Pod CIDR                        |
 | `networkManager.config.serviceCIDR`         |  10.0.0.0/20       | The cluster Service CIDR                    |
-| `networkManager.config.GKEProvider`         |  true       | A boolean value used to tell liqo if it is running on GKE                    |
 | `auth.ingress.class`   | \<YOUR INGRESS CLASS\>     | The [ingress class](https://kubernetes.io/docs/concepts/services-networking/ingress/#ingress-class) to be used by the Auth Service Ingress |
 | `apiServer.address`  |         | The hostname where to access the API server |
 | `apiServer.port`  | 443 | the port where to access the API server     |
