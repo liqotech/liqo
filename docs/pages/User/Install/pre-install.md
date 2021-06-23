@@ -1,11 +1,11 @@
 ---
 title: Pre-Install
-weight: 2
+weight: 1
 ---
 
 ## Introduction
 
-Liqo can be installed on every sort of clusters, either in on premise or cloud clusters. To peer two cluster together, they should (1) discover each other and (2) negotiate parameters and activate the peering.
+Liqo can be installed on different types of clusters, either on-premise or on public cloud providers. To peer two cluster together, they must (1) discover each other, (2) negotiate the required parameters and (3) activate the peering.
 
 As presented in a [dedicated section](/user/post-install/discovery), Liqo has several mechanisms to handle new clusters discovery (LAN, DNS, Manual). Despite LAN discovery is limited to very specific use-cases (when clusters are in the same broadcast domain), DNS and Manual discovery can be applied to many scenarios.
 However, the clusters should satisfy few peering requirements. In particular, the configuration depends on the type of connectivity between the two clusters. 
@@ -20,7 +20,7 @@ Liqo requires the following services to be reciprocally accessible on both clust
 
 Depending on the physical setup of your cluster, you need to properly configure, at install time, how those services are exposed and can be reached by remote clusters. Below we present some common scenarios that Liqo can handle. Once you identify yours, you can refer to the *table* of each section to find how to determine the right values you should specify.
 
-The exposition parameters can be configured at installation time using the [Liqo Helm Chart](/user/install/chart_values) and updated after the installation by issuing an ``helm update`` after changing them in your values.yml. If you need more information about Helm and how charts can be configured, you can have a look at the [Helm official documentation](https://helm.sh/docs/). Pay attention that changing exposition parameters may affect and break active peerings. We suggest disabling all peerings before changing the Liqo exposition configuration.
+The exposition parameters can be configured at installation time using the [Liqo Helm Chart](/user/install/chart_values) and updated after the installation by issuing an ``helm update`` after changing them in your values.yml. If you need more information about Helm and how charts can be configured, you can have a look at the [Helm official documentation](https://helm.sh/docs/). Pay attention that changing exposition parameters may affect and break active peerings. We suggest to disable all peerings before changing the Liqo exposition configuration.
 
 ### Cloud to cloud
 
@@ -28,8 +28,8 @@ The exposition parameters can be configured at installation time using the [Liqo
 
 Two managed clusters peered together through the Internet. It is possible to have a multi-cloud setup (AKS to AKS, GKE to GKE, and AKS to GKE). In this scenario, the services should be exposed using Public IPs/URLs.
 
-|  | Cluster A (Cloud) | Cluster B (Cloud) |
-| --------- | -------- |  ---------       | 
+|           | Cluster A (Cloud) | Cluster B (Cloud) |
+| --------- | ----------------- | ----------------- | 
 | **Auth Server** |  LoadBalancer/ingress | LoadBalancer/Ingress |
 | **API server** | Provided by the Cloud Provider| Provided by the Cloud Provider |
 | **Network gateway** | LoadBalancer/Node Port | LoadBalancer/Node Port |
@@ -42,8 +42,8 @@ At least one among Cluster A and Cluster B should have the **Network Gateway** I
 
 On-premise cluster (K3s or K8s) exposed through the Internet peered with a Managed cluster (AKS or GKE).
 
-|  | Cluster A (On-prem) | Cluster B (Cloud) |
-| --------- | -------- |  ---------       |
+|           | Cluster A (On-prem) | Cluster B (Cloud) |
+| --------- | ------------------- | ----------------- |
 | **Auth Server** |  LoadBalancer/Ingress | LoadBalancer/Ingress |
 | **API server** | Ingress/Public IP | Provided by the Cloud Provider |
 | **Network gateway** | LoadBalancer/Node Port | LoadBalancer/Node Port |
@@ -57,8 +57,8 @@ In addition, at least one among Cluster A and Cluster B should have the **Networ
 
 When the On-premise cluster is exposed through a NAT, the configuration slightly changes:
 
-|  | Cluster A (On-prem behind NAT) | Cluster B (Cloud) |
-| --------- | -------- |  ---------       |
+|           | Cluster A (On-prem behind NAT) | Cluster B (Cloud) |
+| --------- | ------------------------------ | ----------------- |
 | **Auth Server** |  NodePort with port-forwarding | LoadBalancer/ingress |
 | **API server** | Port-forwarding | Provided |
 | **Network gateway** | NodePort with port-forwarding | LoadBalancer |
@@ -72,8 +72,8 @@ In this situation, the "cloud" cluster should have the Network Gateway exposed a
 Clusters (K3s or K8s) in the same LAN may rely on the mDNS-based Liqo discovery mechanism.
 The Liqo discovery mechanism based on mDNS will handle the discovery automatically. 
 
-|  | Cluster A (On-prem) | Cluster B (On-prem) |
-| --------- | -------- |  ---------       |
+|           | Cluster A (On-prem) | Cluster B (On-prem) |
+| --------- | ------------------- | ------------------- |
 | **Auth Server** |  NodePort | NodePort |
 | **API server** | Exposed | Exposed |
 | **Network gateway** | NodePort | NodePort |

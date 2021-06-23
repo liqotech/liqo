@@ -1,6 +1,6 @@
 ---
 title: GKE
-weight: 2
+weight: 3
 ---
 
 * [Introduction](#introduction)
