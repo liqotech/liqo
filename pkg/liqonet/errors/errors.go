@@ -15,7 +15,7 @@ const (
 	// ValidIP used as reason of failure in WrongParameter error.
 	ValidIP = "a valid IP address"
 	// NotNil used as reason of failure in WrongParameter error.
-	NotNil = "have to be not nil"
+	NotNil = "not nil"
 	// ValidCIDR used as reason of failure in WrongParameter error.
 	ValidCIDR = "a valid network CIDR"
 	// StringNotEmpty used as reason of failure in WrongParameter error.

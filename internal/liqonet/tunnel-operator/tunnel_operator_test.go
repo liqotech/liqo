@@ -9,12 +9,11 @@ import (
 	"github.com/vishvananda/netlink"
 
 	liqoconst "github.com/liqotech/liqo/pkg/consts"
-	"github.com/liqotech/liqo/pkg/liqonet/netns"
 )
 
 var _ = Describe("TunnelOperator", func() {
 	Describe("setup gateway namespace", func() {
-		Context("creating a new gateway namespace", func() {
+		Context("configuring the new gateway namespace", func() {
 			JustAfterEach(func() {
 				link, err := netlink.LinkByName(liqoconst.HostVethName)
 				if err != nil {
@@ -26,10 +25,8 @@ var _ = Describe("TunnelOperator", func() {
 				if link != nil {
 					Expect(netlink.LinkDel(link)).ShouldNot(HaveOccurred())
 				}
-				Expect(netns.DeleteNetns(liqoconst.GatewayNetnsName)).ShouldNot(HaveOccurred())
 			})
 			It("should return nil", func() {
-				tc := &TunnelController{}
 				err := tc.setUpGWNetns(liqoconst.GatewayNetnsName, liqoconst.HostVethName, liqoconst.GatewayVethName,
 					"169.254.1.134/32", 1420)
 				Expect(err).ShouldNot(HaveOccurred())
@@ -54,8 +51,6 @@ var _ = Describe("TunnelOperator", func() {
 					return nil
 				})
 				Expect(tc.hostNetns.Close()).ShouldNot(HaveOccurred())
-				Expect(tc.gatewayNetns.Close()).ShouldNot(HaveOccurred())
-
 			})
 
 			It("incorrect name for veth interface, should return error", func() {
@@ -65,7 +60,6 @@ var _ = Describe("TunnelOperator", func() {
 			})
 
 			It("incorrect ip address for veth interface, should return error", func() {
-				tc := &TunnelController{}
 				err := tc.setUpGWNetns(liqoconst.GatewayNetnsName, liqoconst.HostVethName, liqoconst.GatewayVethName, "169.254.1.1.34/24", 1420)
 				Expect(err).Should(HaveOccurred())
 				Expect(err).Should(MatchError(&net.ParseError{Text: "169.254.1.1.34/24", Type: "CIDR address"}))

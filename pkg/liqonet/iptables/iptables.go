@@ -656,7 +656,7 @@ func (h IPTHandler) insertRulesIfNotPresent(table, chain string, rules []IPTable
 			if err := h.ipt.AppendUnique(table, chain, rule...); err != nil {
 				return err
 			}
-			klog.Infof("Inserting rule '%s' in chain %s in table %s", rule, chain, table)
+			klog.Infof("Inserting rule '%s' in chain %s (table %s)", rule, chain, table)
 		}
 	}
 	return nil
