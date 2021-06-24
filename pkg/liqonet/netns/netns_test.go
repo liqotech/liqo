@@ -11,7 +11,17 @@ import (
 	"github.com/liqotech/liqo/pkg/liqonet/errors"
 )
 
+var (
+	hostVeth    = "originVeth"
+	gatewayVeth = "dstVeth"
+)
+
 var _ = Describe("Netns", func() {
+
+	JustAfterEach(func() {
+		Expect(cleanUpEnv()).NotTo(HaveOccurred())
+	})
+
 	Describe("creating new network namespace", func() {
 		Context("when network namespace does not exist and we want to create it", func() {
 			It("should return a new network namespace and nil", func() {
@@ -22,7 +32,6 @@ var _ = Describe("Netns", func() {
 				netnsNew, err := netns.GetFromName(netnsName)
 				Expect(err).ShouldNot(HaveOccurred())
 				Expect(netnsNew).ShouldNot(BeNil())
-				tearDownNetns(netnsName)
 			})
 		})
 
@@ -30,9 +39,7 @@ var _ = Describe("Netns", func() {
 			JustBeforeEach(func() {
 				setUpNetns(netnsName)
 			})
-			JustAfterEach(func() {
-				tearDownNetns(netnsName)
-			})
+
 			It("should remove the old one and create a new one, returning the new netns and nil", func() {
 				netnamespace, err := CreateNetns(netnsName)
 				defer netnamespace.Close()
@@ -55,9 +62,7 @@ var _ = Describe("Netns", func() {
 			JustBeforeEach(func() {
 				setUpNetns(netnsName)
 			})
-			JustAfterEach(func() {
-				tearDownNetns(netnsName)
-			})
+
 			It("should remove the existing namespace and return nil", func() {
 				err := DeleteNetns(netnsName)
 				Expect(err).ShouldNot(HaveOccurred())
@@ -80,18 +85,16 @@ var _ = Describe("Netns", func() {
 			JustBeforeEach(func() {
 				setUpNetns(netnsName)
 			})
-			JustAfterEach(func() {
-				tearDownNetns(netnsName)
-			})
+
 			It("should add veth pair and return nil", func() {
-				err := CreateVethPair("originVeth", "dstVeth", originNetns, newNetns, 1500)
+				err := CreateVethPair(hostVeth, gatewayVeth, originNetns, newNetns, 1500)
 				Expect(err).ShouldNot(HaveOccurred())
 				// Get originVeth
-				or, err := netlink.LinkByName("originVeth")
+				or, err := netlink.LinkByName(hostVeth)
 				Expect(err).ShouldNot(HaveOccurred())
 				// Get dstVeth
 				err = newNetns.Do(func(netNS ns.NetNS) error {
-					_, err = netlink.LinkByName("dstVeth")
+					_, err = netlink.LinkByName(gatewayVeth)
 					if err != nil {
 						return err
 					}
@@ -107,26 +110,20 @@ var _ = Describe("Netns", func() {
 			JustBeforeEach(func() {
 				setUpNetns(netnsName)
 			})
-			JustAfterEach(func() {
-				tearDownNetns(netnsName)
-			})
+
 			It("should return error", func() {
-				err := CreateVethPair("originVeth", "foo", originNetns, newNetns, 1500)
+				err := CreateVethPair(hostVeth, "foo", originNetns, newNetns, 1500)
 				Expect(err).Should(HaveOccurred())
 			})
 		})
 
 		Context("when dst network namespace does not exist", func() {
 			It("should return error", func() {
-				err := CreateVethPair("originVeth", "dstVeth", nil, nil, 1500)
+				err := CreateVethPair(hostVeth, gatewayVeth, nil, nil, 1500)
 				Expect(err).Should(Equal(&errors.WrongParameter{
 					Reason:    errors.NotNil,
 					Parameter: "originNetns and dstNetns",
 				}))
-				// Remove dangling veth pair.
-				veth, err := netlink.LinkByName("originVeth")
-				Expect(err).ShouldNot(HaveOccurred())
-				Expect(netlink.LinkDel(veth)).ShouldNot(HaveOccurred())
 			})
 		})
 	})
