@@ -133,8 +133,8 @@ var _ = Describe("Pods", func() {
 		})
 
 		It("delete pod", func() {
-			err := provider.CreatePod(context.TODO(), nil)
-			Expect(err).NotTo(HaveOccurred())
+			err := provider.DeletePod(context.TODO(), nil)
+			Expect(err).To(HaveOccurred())
 		})
 	})
 })
