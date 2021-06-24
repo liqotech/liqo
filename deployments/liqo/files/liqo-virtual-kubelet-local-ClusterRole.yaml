@@ -51,6 +51,12 @@ rules:
   - patch
   - watch
 - apiGroups:
+  - ""
+  resources:
+  - pods/eviction
+  verbs:
+  - create
+- apiGroups:
   - apps
   resources:
   - replicasets
@@ -97,10 +103,12 @@ rules:
   - sharing.liqo.io
   resources:
   - advertisements
+  - resourceoffers
   verbs:
   - delete
   - get
   - list
+  - patch
   - update
   - watch
 - apiGroups:

@@ -16,6 +16,7 @@ type LiqoNodeProvider struct {
 	dynClient dynamic.Interface
 
 	node              *corev1.Node
+	terminating       bool
 	lastAppliedLabels map[string]string
 
 	nodeName         string
@@ -43,4 +44,11 @@ func (p *LiqoNodeProvider) Ping(ctx context.Context) error {
 // NotifyNodeStatus implements the NodeProvider interface.
 func (p *LiqoNodeProvider) NotifyNodeStatus(ctx context.Context, f func(*corev1.Node)) {
 	p.onNodeChangeCallback = f
+}
+
+// IsTerminating indicates if the node is in terminating (and in the draining phase).
+func (p *LiqoNodeProvider) IsTerminating() bool {
+	p.updateMutex.Lock()
+	defer p.updateMutex.Unlock()
+	return p.terminating
 }
