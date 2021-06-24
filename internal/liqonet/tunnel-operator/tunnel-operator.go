@@ -50,6 +50,10 @@ var (
 	result = ctrl.Result{}
 )
 
+// Constant used for add/deletion of policy routing rules
+// to specify any network.
+const anyNetwork = ""
+
 // TunnelController type of the tunnel controller.
 type TunnelController struct {
 	client.Client
@@ -144,7 +148,7 @@ func NewTunnelController(podIP, namespace string, er record.EventRecorder,
 func (tc *TunnelController) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	var tep = new(netv1alpha1.TunnelEndpoint)
 	var err error
-	var clusterID, remotePodCIDR string
+	var clusterID, remotePodCIDR, remoteExternalCIDR string
 	var con *netv1alpha1.Connection
 
 	var configGWNetns = func(netNamespace ns.NetNS) error {
@@ -189,7 +193,7 @@ func (tc *TunnelController) Reconcile(ctx context.Context, req ctrl.Request) (ct
 		return nil
 	}
 	var configHNetns = func(netNamespace ns.NetNS) error {
-		added, err := liqorouting.AddPolicyRoutingRule(remotePodCIDR, "", liqoconst.RoutingTableID)
+		added, err := liqorouting.AddPolicyRoutingRule(remotePodCIDR, anyNetwork, liqoconst.RoutingTableID)
 		if err != nil {
 			klog.Errorf("%s -> unable to configure policy routing rule for subnet {%s}: %s", clusterID, remotePodCIDR, err)
 			return err
@@ -197,16 +201,32 @@ func (tc *TunnelController) Reconcile(ctx context.Context, req ctrl.Request) (ct
 		if added {
 			klog.Infof("%s -> policy routing rule for subnet {%s} correctly configured", clusterID, remotePodCIDR)
 		}
+		added, err = liqorouting.AddPolicyRoutingRule(remoteExternalCIDR, anyNetwork, liqoconst.RoutingTableID)
+		if err != nil {
+			klog.Errorf("%s -> unable to configure policy routing rule for subnet {%s}: %s", clusterID, remoteExternalCIDR, err)
+			return err
+		}
+		if added {
+			klog.Infof("%s -> policy routing rule for subnet {%s} correctly configured", clusterID, remoteExternalCIDR)
+		}
 		return nil
 	}
 	var unconfigHNetns = func(netNamespace ns.NetNS) error {
-		deleted, err := liqorouting.DelPolicyRoutingRule(remotePodCIDR, "", liqoconst.RoutingTableID)
+		deleted, err := liqorouting.DelPolicyRoutingRule(remotePodCIDR, anyNetwork, liqoconst.RoutingTableID)
 		if err != nil {
 			klog.Errorf("%s -> unable to remove policy routing rule for subnet {%s}: %s", clusterID, remotePodCIDR, err)
 			return err
 		}
 		if deleted {
 			klog.Infof("%s -> policy routing rule for subnet {%s} correctly removed", clusterID, remotePodCIDR)
+		}
+		deleted, err = liqorouting.DelPolicyRoutingRule(remoteExternalCIDR, anyNetwork, liqoconst.RoutingTableID)
+		if err != nil {
+			klog.Errorf("%s -> unable to remove policy routing rule for subnet {%s}: %s", clusterID, remoteExternalCIDR, err)
+			return err
+		}
+		if deleted {
+			klog.Infof("%s -> policy routing rule for subnet {%s} correctly removed", clusterID, remoteExternalCIDR)
 		}
 		return nil
 	}
@@ -228,6 +248,7 @@ func (tc *TunnelController) Reconcile(ctx context.Context, req ctrl.Request) (ct
 		return result, nil
 	}
 	_, remotePodCIDR = utils.GetPodCIDRS(tep)
+	_, remoteExternalCIDR = utils.GetExternalCIDRS(tep)
 	// Examine DeletionTimestamp to determine if object is under deletion.
 	if tep.ObjectMeta.DeletionTimestamp.IsZero() {
 		if !controllerutil.ContainsFinalizer(tep, tunnelEndpointFinalizer) {

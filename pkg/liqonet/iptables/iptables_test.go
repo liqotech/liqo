@@ -640,6 +640,25 @@ var _ = Describe("iptables", func() {
 				tep = validTep.DeepCopy() // Otherwise RemoveIPTablesConfigurationPerCluster would fail in AfterEach
 			})
 		})
+		Context(fmt.Sprintf("If tep has Status.RemoteNATExternalCIDR = %s and an invalid Spec.ExternalCIDR",
+			consts.DefaultCIDRValue), func() {
+			It("should return a WrongParameter error", func() {
+				tep.Status.RemoteNATExternalCIDR = consts.DefaultCIDRValue
+				tep.Spec.ExternalCIDR = invalidValue
+				err := h.EnsurePostroutingRules(tep)
+				Expect(err).To(MatchError(fmt.Sprintf("invalid TunnelEndpoint resource: %s must be %s", consts.ExternalCIDR, errors.ValidCIDR)))
+				tep = validTep.DeepCopy() // Otherwise RemoveIPTablesConfigurationPerCluster would fail in AfterEach
+			})
+		})
+		Context(fmt.Sprintf("If tep has an invalid Status.RemoteNATExternalCIDR != %s",
+			consts.DefaultCIDRValue), func() {
+			It("should return a WrongParameter error", func() {
+				tep.Status.RemoteNATExternalCIDR = invalidValue
+				err := h.EnsurePostroutingRules(tep)
+				Expect(err).To(MatchError(fmt.Sprintf("invalid TunnelEndpoint resource: %s must be %s", consts.RemoteNATExternalCIDR, errors.ValidCIDR)))
+				tep = validTep.DeepCopy() // Otherwise RemoveIPTablesConfigurationPerCluster would fail in AfterEach
+			})
+		})
 		Context(fmt.Sprintf("If tep has an invalid Status.RemoteNATPodCIDR != %s",
 			consts.DefaultCIDRValue), func() {
 			It("should return a WrongParameter error", func() {
@@ -673,7 +692,10 @@ var _ = Describe("iptables", func() {
 				Expect(newPostRoutingRules).ToNot(ContainElements(postRoutingRules))
 				Expect(newPostRoutingRules).To(ContainElements([]string{
 					fmt.Sprintf("-s %s -d %s -j %s --to %s", tep.Status.LocalPodCIDR, tep.Status.RemoteNATPodCIDR, NETMAP, tep.Status.LocalNATPodCIDR),
-					fmt.Sprintf("! -s %s -d %s -j %s --to-source %s", tep.Status.LocalPodCIDR, tep.Status.RemoteNATPodCIDR, SNAT, mustGetFirstIP(tep.Status.LocalNATPodCIDR)),
+					fmt.Sprintf("! -s %s -d %s -j %s --to-source %s", tep.Status.LocalPodCIDR, tep.Status.RemoteNATPodCIDR,
+						SNAT, mustGetFirstIP(tep.Status.LocalNATPodCIDR)),
+					fmt.Sprintf("! -s %s -d %s -j %s --to-source %s", tep.Status.LocalPodCIDR, tep.Status.RemoteNATExternalCIDR,
+						SNAT, mustGetFirstIP(tep.Status.LocalNATPodCIDR)),
 				}))
 			})
 		})
@@ -688,39 +710,114 @@ var _ = Describe("iptables", func() {
 				Expect(postRoutingRules).To(ContainElements(expectedRules))
 			},
 			Entry(
-				fmt.Sprintf("RemoteNATPodCIDR != %s, LocalNATPodCIDR != %s", consts.DefaultCIDRValue, consts.DefaultCIDRValue),
+				fmt.Sprintf("RemoteNATExternalCIDR != %s, RemoteNATPodCIDR != %s, LocalNATPodCIDR != %s", consts.DefaultCIDRValue,
+					consts.DefaultCIDRValue, consts.DefaultCIDRValue),
 				func() {},
 				func() []string {
 					return []string{
 						fmt.Sprintf("-s %s -d %s -j %s --to %s", tep.Status.LocalPodCIDR, tep.Status.RemoteNATPodCIDR, NETMAP, tep.Status.LocalNATPodCIDR),
-						fmt.Sprintf("! -s %s -d %s -j %s --to-source %s", tep.Status.LocalPodCIDR, tep.Status.RemoteNATPodCIDR, SNAT, mustGetFirstIP(tep.Status.LocalNATPodCIDR)),
+						fmt.Sprintf("! -s %s -d %s -j %s --to-source %s", tep.Status.LocalPodCIDR, tep.Status.RemoteNATPodCIDR,
+							SNAT, mustGetFirstIP(tep.Status.LocalNATPodCIDR)),
+						fmt.Sprintf("! -s %s -d %s -j %s --to-source %s", tep.Status.LocalPodCIDR, tep.Status.RemoteNATExternalCIDR,
+							SNAT, mustGetFirstIP(tep.Status.LocalNATPodCIDR)),
 					}
 				},
 			),
 			Entry(
-				fmt.Sprintf("RemoteNATPodCIDR != %s, LocalNATPodCIDR = %s", consts.DefaultCIDRValue, consts.DefaultCIDRValue),
+				fmt.Sprintf("RemoteNATExternalCIDR != %s, RemoteNATPodCIDR != %s, LocalNATPodCIDR = %s", consts.DefaultCIDRValue,
+					consts.DefaultCIDRValue, consts.DefaultCIDRValue),
 				func() { tep.Status.LocalNATPodCIDR = consts.DefaultCIDRValue },
 				func() []string {
-					return []string{fmt.Sprintf("! -s %s -d %s -j %s --to-source %s", tep.Status.LocalPodCIDR, tep.Status.RemoteNATPodCIDR, SNAT, mustGetFirstIP(tep.Status.LocalPodCIDR))}
+					return []string{fmt.Sprintf("! -s %s -d %s -j %s --to-source %s", tep.Status.LocalPodCIDR, tep.Status.RemoteNATPodCIDR,
+						SNAT, mustGetFirstIP(tep.Status.LocalPodCIDR)),
+						fmt.Sprintf("! -s %s -d %s -j %s --to-source %s", tep.Status.LocalPodCIDR, tep.Status.RemoteNATExternalCIDR,
+							SNAT, mustGetFirstIP(tep.Status.LocalPodCIDR))}
 				},
 			),
 			Entry(
-				fmt.Sprintf("RemoteNATPodCIDR = %s, LocalNATPodCIDR != %s", consts.DefaultCIDRValue, consts.DefaultCIDRValue),
+				fmt.Sprintf("RemoteNATExternalCIDR != %s, RemoteNATPodCIDR = %s, LocalNATPodCIDR != %s", consts.DefaultCIDRValue,
+					consts.DefaultCIDRValue, consts.DefaultCIDRValue),
 				func() { tep.Status.RemoteNATPodCIDR = consts.DefaultCIDRValue },
 				func() []string {
 					return []string{
 						fmt.Sprintf("-s %s -d %s -j %s --to %s", tep.Status.LocalPodCIDR, tep.Spec.PodCIDR, NETMAP, tep.Status.LocalNATPodCIDR),
-						fmt.Sprintf("! -s %s -d %s -j %s --to-source %s", tep.Status.LocalPodCIDR, tep.Spec.PodCIDR, SNAT, mustGetFirstIP(tep.Status.LocalNATPodCIDR)),
+						fmt.Sprintf("! -s %s -d %s -j %s --to-source %s", tep.Status.LocalPodCIDR, tep.Spec.PodCIDR,
+							SNAT, mustGetFirstIP(tep.Status.LocalNATPodCIDR)),
+						fmt.Sprintf("! -s %s -d %s -j %s --to-source %s", tep.Status.LocalPodCIDR, tep.Status.RemoteNATExternalCIDR,
+							SNAT, mustGetFirstIP(tep.Status.LocalNATPodCIDR)),
 					}
 				},
 			),
-			Entry(fmt.Sprintf("RemoteNATPodCIDR = %s, LocalNATPodCIDR = %s", consts.DefaultCIDRValue, consts.DefaultCIDRValue),
+			Entry(fmt.Sprintf("RemoteNATExternalCIDR != %s, RemoteNATPodCIDR = %s, LocalNATPodCIDR = %s", consts.DefaultCIDRValue,
+				consts.DefaultCIDRValue, consts.DefaultCIDRValue),
 				func() {
 					tep.Status.RemoteNATPodCIDR = consts.DefaultCIDRValue
 					tep.Status.LocalNATPodCIDR = consts.DefaultCIDRValue
 				},
 				func() []string {
-					return []string{fmt.Sprintf("! -s %s -d %s -j %s --to-source %s", tep.Status.LocalPodCIDR, tep.Spec.PodCIDR, SNAT, mustGetFirstIP(tep.Status.LocalPodCIDR))}
+					return []string{fmt.Sprintf("! -s %s -d %s -j %s --to-source %s", tep.Status.LocalPodCIDR, tep.Spec.PodCIDR,
+						SNAT, mustGetFirstIP(tep.Status.LocalPodCIDR)),
+						fmt.Sprintf("! -s %s -d %s -j %s --to-source %s", tep.Status.LocalPodCIDR, tep.Status.RemoteNATExternalCIDR,
+							SNAT, mustGetFirstIP(tep.Status.LocalPodCIDR))}
+				},
+			),
+			Entry(
+				fmt.Sprintf("RemoteNATExternalCIDR = %s, RemoteNATPodCIDR != %s, LocalNATPodCIDR != %s", consts.DefaultCIDRValue,
+					consts.DefaultCIDRValue, consts.DefaultCIDRValue),
+				func() { tep.Status.RemoteNATExternalCIDR = consts.DefaultCIDRValue },
+				func() []string {
+					return []string{
+						fmt.Sprintf("-s %s -d %s -j %s --to %s", tep.Status.LocalPodCIDR, tep.Status.RemoteNATPodCIDR, NETMAP, tep.Status.LocalNATPodCIDR),
+						fmt.Sprintf("! -s %s -d %s -j %s --to-source %s", tep.Status.LocalPodCIDR, tep.Status.RemoteNATPodCIDR,
+							SNAT, mustGetFirstIP(tep.Status.LocalNATPodCIDR)),
+						fmt.Sprintf("! -s %s -d %s -j %s --to-source %s", tep.Status.LocalPodCIDR, tep.Spec.ExternalCIDR,
+							SNAT, mustGetFirstIP(tep.Status.LocalNATPodCIDR)),
+					}
+				},
+			),
+			Entry(
+				fmt.Sprintf("RemoteNATExternalCIDR = %s, RemoteNATPodCIDR != %s, LocalNATPodCIDR = %s", consts.DefaultCIDRValue,
+					consts.DefaultCIDRValue, consts.DefaultCIDRValue),
+				func() {
+					tep.Status.LocalNATPodCIDR = consts.DefaultCIDRValue
+					tep.Status.RemoteNATExternalCIDR = consts.DefaultCIDRValue
+				},
+				func() []string {
+					return []string{fmt.Sprintf("! -s %s -d %s -j %s --to-source %s", tep.Status.LocalPodCIDR, tep.Status.RemoteNATPodCIDR,
+						SNAT, mustGetFirstIP(tep.Status.LocalPodCIDR)),
+						fmt.Sprintf("! -s %s -d %s -j %s --to-source %s", tep.Status.LocalPodCIDR, tep.Spec.ExternalCIDR,
+							SNAT, mustGetFirstIP(tep.Status.LocalPodCIDR))}
+				},
+			),
+			Entry(
+				fmt.Sprintf("RemoteNATExternalCIDR = %s, RemoteNATPodCIDR = %s, LocalNATPodCIDR != %s", consts.DefaultCIDRValue,
+					consts.DefaultCIDRValue, consts.DefaultCIDRValue),
+				func() {
+					tep.Status.RemoteNATPodCIDR = consts.DefaultCIDRValue
+					tep.Status.RemoteNATExternalCIDR = consts.DefaultCIDRValue
+				},
+				func() []string {
+					return []string{
+						fmt.Sprintf("-s %s -d %s -j %s --to %s", tep.Status.LocalPodCIDR, tep.Spec.PodCIDR, NETMAP, tep.Status.LocalNATPodCIDR),
+						fmt.Sprintf("! -s %s -d %s -j %s --to-source %s", tep.Status.LocalPodCIDR, tep.Spec.PodCIDR,
+							SNAT, mustGetFirstIP(tep.Status.LocalNATPodCIDR)),
+						fmt.Sprintf("! -s %s -d %s -j %s --to-source %s", tep.Status.LocalPodCIDR, tep.Spec.ExternalCIDR,
+							SNAT, mustGetFirstIP(tep.Status.LocalNATPodCIDR)),
+					}
+				},
+			),
+			Entry(fmt.Sprintf("RemoteNATExternalCIDR = %s, RemoteNATPodCIDR = %s, LocalNATPodCIDR = %s", consts.DefaultCIDRValue,
+				consts.DefaultCIDRValue, consts.DefaultCIDRValue),
+				func() {
+					tep.Status.RemoteNATPodCIDR = consts.DefaultCIDRValue
+					tep.Status.LocalNATPodCIDR = consts.DefaultCIDRValue
+					tep.Status.RemoteNATExternalCIDR = consts.DefaultCIDRValue
+				},
+				func() []string {
+					return []string{fmt.Sprintf("! -s %s -d %s -j %s --to-source %s", tep.Status.LocalPodCIDR, tep.Spec.PodCIDR,
+						SNAT, mustGetFirstIP(tep.Status.LocalPodCIDR)),
+						fmt.Sprintf("! -s %s -d %s -j %s --to-source %s", tep.Status.LocalPodCIDR, tep.Spec.ExternalCIDR,
+							SNAT, mustGetFirstIP(tep.Status.LocalPodCIDR))}
 				},
 			),
 		)

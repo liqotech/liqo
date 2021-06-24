@@ -50,11 +50,15 @@ var _ = BeforeSuite(func() {
 	Expect(err).Should(BeNil())
 	Expect(drm).NotTo(BeNil())
 	tep = netv1alpha1.TunnelEndpoint{
+		Spec: netv1alpha1.TunnelEndpointSpec{
+			ExternalCIDR: "10.151.0.0/16",
+		},
 		Status: netv1alpha1.TunnelEndpointStatus{
-			LocalNATPodCIDR:  "10.150.0.0/16",
-			RemoteNATPodCIDR: "10.250.0.0/16",
-			VethIFaceIndex:   12345,
-			GatewayIP:        ipAddress2NoSubnet,
+			LocalNATPodCIDR:       "10.150.0.0/16",
+			RemoteNATPodCIDR:      "10.250.0.0/16",
+			RemoteNATExternalCIDR: "10.251.0.0/16",
+			VethIFaceIndex:        12345,
+			GatewayIP:             ipAddress2NoSubnet,
 		}}
 
 	// Create vxlan device for Vxlan Routing manager tests.

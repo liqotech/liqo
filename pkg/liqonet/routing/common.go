@@ -210,8 +210,9 @@ func flushRulesForRoutingTable(routingTableID int) error {
 	return nil
 }
 
-func getRouteConfig(tep *v1alpha1.TunnelEndpoint, podIP string) (dstNet, gatewayIP string, iFaceIndex int, err error) {
-	_, dstNet = utils.GetPodCIDRS(tep)
+func getRouteConfig(tep *v1alpha1.TunnelEndpoint, podIP string) (dstPodCIDRNet, dstExternalCIDRNet, gatewayIP string, iFaceIndex int, err error) {
+	_, dstPodCIDRNet = utils.GetPodCIDRS(tep)
+	_, dstExternalCIDRNet = utils.GetExternalCIDRS(tep)
 	// Check if we are running on the same host as the gateway pod.
 	if tep.Status.GatewayIP != podIP {
 		// If the pod is not running on the same host then set the IP address of the Gateway as next hop.
@@ -219,13 +220,13 @@ func getRouteConfig(tep *v1alpha1.TunnelEndpoint, podIP string) (dstNet, gateway
 		// Get the iFace index for the IP address of the Gateway pod.
 		iFaceIndex, err = getIFaceIndexForIP(gatewayIP)
 		if err != nil {
-			return dstNet, gatewayIP, iFaceIndex, err
+			return dstPodCIDRNet, dstExternalCIDRNet, gatewayIP, iFaceIndex, err
 		}
 	} else {
 		// Running on the same host as the Gateway then set the index of the veth device living on the same network namespace.
 		iFaceIndex = tep.Status.VethIFaceIndex
 	}
-	return dstNet, gatewayIP, iFaceIndex, err
+	return dstPodCIDRNet, dstExternalCIDRNet, gatewayIP, iFaceIndex, err
 }
 
 func getIFaceIndexForIP(ipAddress string) (int, error) {

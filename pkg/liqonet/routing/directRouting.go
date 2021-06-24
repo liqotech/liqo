@@ -46,26 +46,38 @@ func NewDirectRoutingManager(routingTableID int, podIP string) (Routing, error) 
 // Returns true if the routes have been configured, false if the routes are already configured.
 // An error if something goes wrong and the routes can not be configured.
 func (drm *DirectRoutingManager) EnsureRoutesPerCluster(tep *netv1alpha1.TunnelEndpoint) (bool, error) {
-	var routeAdd, policyRuleAdd, configured bool
+	var routePodCIDRAdd, routeExternalCIDRAdd, policyRulePodCIDRAdd, policyRuleExternalCIDRAdd, configured bool
 	clusterID := tep.Spec.ClusterID
 	// Extract and save route information from the given tep.
-	dstNet, gatewayIP, iFaceIndex, err := getRouteConfig(tep, drm.podIP)
+	dstPodCIDR, dstExternalCIDR, gatewayIP, iFaceIndex, err := getRouteConfig(tep, drm.podIP)
 	if err != nil {
 		return false, err
 	}
-	// Add policy routing rule for the given cluster.
-	klog.Infof("%s -> adding policy routing rule for destination {%s} to lookup routing table with ID {%d}", clusterID, dstNet, drm.routingTableID)
-	if policyRuleAdd, err = AddPolicyRoutingRule("", dstNet, drm.routingTableID); err != nil {
-		return policyRuleAdd, err
+	// Add policy routing rules for the given cluster.
+	klog.Infof("%s -> adding policy routing rule for destination {%s} to lookup routing table with ID {%d}",
+		clusterID, dstPodCIDR, drm.routingTableID)
+	if policyRulePodCIDRAdd, err = AddPolicyRoutingRule("", dstPodCIDR, drm.routingTableID); err != nil {
+		return policyRulePodCIDRAdd, err
 	}
-	// Add route for the given cluster.
+	klog.Infof("%s -> adding policy routing rule for destination {%s} to lookup routing table with ID {%d}",
+		clusterID, dstExternalCIDR, drm.routingTableID)
+	if policyRuleExternalCIDRAdd, err = AddPolicyRoutingRule("", dstExternalCIDR, drm.routingTableID); err != nil {
+		return policyRuleExternalCIDRAdd, err
+	}
+	// Add routes for the given cluster.
 	klog.Infof("%s -> adding route for destination {%s} with gateway {%s} in routing table with ID {%d}",
-		clusterID, dstNet, gatewayIP, drm.routingTableID)
-	routeAdd, err = AddRoute(dstNet, gatewayIP, iFaceIndex, drm.routingTableID)
+		clusterID, dstPodCIDR, gatewayIP, drm.routingTableID)
+	routePodCIDRAdd, err = AddRoute(dstPodCIDR, gatewayIP, iFaceIndex, drm.routingTableID)
 	if err != nil {
-		return routeAdd, err
+		return routePodCIDRAdd, err
 	}
-	if routeAdd || policyRuleAdd {
+	klog.Infof("%s -> adding route for destination {%s} with gateway {%s} in routing table with ID {%d}",
+		clusterID, dstExternalCIDR, gatewayIP, drm.routingTableID)
+	routeExternalCIDRAdd, err = AddRoute(dstExternalCIDR, gatewayIP, iFaceIndex, drm.routingTableID)
+	if err != nil {
+		return routeExternalCIDRAdd, err
+	}
+	if routePodCIDRAdd || routeExternalCIDRAdd || policyRulePodCIDRAdd || policyRuleExternalCIDRAdd {
 		configured = true
 	}
 	return configured, nil
@@ -76,26 +88,38 @@ func (drm *DirectRoutingManager) EnsureRoutesPerCluster(tep *netv1alpha1.TunnelE
 // Returns true if the routes exist and have been deleted, false if nothing is removed.
 // An error if something goes wrong and the routes can not be removed.
 func (drm *DirectRoutingManager) RemoveRoutesPerCluster(tep *netv1alpha1.TunnelEndpoint) (bool, error) {
-	var routeDel, policyRuleDel, configured bool
+	var routePodCIDRDel, routeExternalCIDRDel, policyRulePodCIDRDel, policyRuleExternalCIDRDel, configured bool
 	clusterID := tep.Spec.ClusterID
 	// Extract and save route information from the given tep.
-	dstNet, gatewayIP, iFaceIndex, err := getRouteConfig(tep, drm.podIP)
+	dstPodCIDR, dstExternalCIDR, gatewayIP, iFaceIndex, err := getRouteConfig(tep, drm.podIP)
 	if err != nil {
 		return false, err
 	}
-	// Delete policy routing rule for the given cluster.
-	klog.Infof("%s -> deleting policy routing rule for destination {%s} to lookup routing table with ID {%d}", clusterID, dstNet, drm.routingTableID)
-	if policyRuleDel, err = DelPolicyRoutingRule("", dstNet, drm.routingTableID); err != nil {
-		return policyRuleDel, err
+	// Delete policy routing rules for the given cluster.
+	klog.Infof("%s -> deleting policy routing rule for destination {%s} to lookup routing table with ID {%d}",
+		clusterID, dstPodCIDR, drm.routingTableID)
+	if policyRulePodCIDRDel, err = DelPolicyRoutingRule("", dstPodCIDR, drm.routingTableID); err != nil {
+		return policyRulePodCIDRDel, err
 	}
-	// Delete route for the given cluster.
+	klog.Infof("%s -> deleting policy routing rule for destination {%s} to lookup routing table with ID {%d}",
+		clusterID, dstExternalCIDR, drm.routingTableID)
+	if policyRuleExternalCIDRDel, err = DelPolicyRoutingRule("", dstExternalCIDR, drm.routingTableID); err != nil {
+		return policyRuleExternalCIDRDel, err
+	}
+	// Delete routes for the given cluster.
 	klog.Infof("%s -> deleting route for destination {%s} with gateway {%s} in routing table with ID {%d}",
-		clusterID, dstNet, gatewayIP, drm.routingTableID)
-	routeDel, err = DelRoute(dstNet, gatewayIP, iFaceIndex, drm.routingTableID)
+		clusterID, dstPodCIDR, gatewayIP, drm.routingTableID)
+	routePodCIDRDel, err = DelRoute(dstPodCIDR, gatewayIP, iFaceIndex, drm.routingTableID)
 	if err != nil {
-		return routeDel, err
+		return routePodCIDRDel, err
 	}
-	if routeDel || policyRuleDel {
+	klog.Infof("%s -> deleting route for destination {%s} with gateway {%s} in routing table with ID {%d}",
+		clusterID, dstExternalCIDR, gatewayIP, drm.routingTableID)
+	routeExternalCIDRDel, err = DelRoute(dstExternalCIDR, gatewayIP, iFaceIndex, drm.routingTableID)
+	if err != nil {
+		return routeExternalCIDRDel, err
+	}
+	if routePodCIDRDel || routeExternalCIDRDel || policyRulePodCIDRDel || policyRuleExternalCIDRDel {
 		configured = true
 	}
 	return configured, nil

@@ -28,7 +28,7 @@ var (
 		},
 		{
 			destinationNet: "10.111.0.0/16",
-			gatewayIP:      "",
+			gatewayIP:      "240.0.0.100",
 			iFaceIndex:     0,
 			routingTableID: routingTableIDVRM,
 		}}
@@ -147,16 +147,31 @@ var _ = Describe("VxlanRouting", func() {
 	Describe("configuring routes for a remote peering cluster", func() {
 		JustBeforeEach(func() {
 			tepVRM = netv1alpha1.TunnelEndpoint{
+				Spec: netv1alpha1.TunnelEndpointSpec{
+					ExternalCIDR: "10.151.0.0/16",
+				},
 				Status: netv1alpha1.TunnelEndpointStatus{
-					LocalNATPodCIDR:  "10.150.0.0/16",
-					RemoteNATPodCIDR: "10.250.0.0/16",
-					VethIFaceIndex:   12345,
-					GatewayIP:        ipAddress2NoSubnet,
+					LocalNATPodCIDR:       "10.150.0.0/16",
+					RemoteNATPodCIDR:      "10.250.0.0/16",
+					RemoteNATExternalCIDR: "10.251.0.0/16",
+					VethIFaceIndex:        12345,
+					GatewayIP:             ipAddress2NoSubnet,
 				}}
 		})
 		Context("when tep holds malformed parameters", func() {
-			It("route configuration fails while adding policy routing rule", func() {
+			It("route configuration fails while adding policy routing rule for PodCIDR", func() {
 				tepVRM.Status.RemoteNATPodCIDR = ""
+				added, err := vrm.EnsureRoutesPerCluster(&tepVRM)
+				Expect(err).Should(Equal(&liqoerrors.WrongParameter{
+					Parameter: "fromSubnet and toSubnet",
+					Reason:    liqoerrors.AtLeastOneValid,
+				}))
+				Expect(added).Should(BeFalse())
+				Expect(err).NotTo(BeNil())
+			})
+
+			It("route configuration fails while adding policy routing rule for ExternalCIDR", func() {
+				tepVRM.Status.RemoteNATExternalCIDR = ""
 				added, err := vrm.EnsureRoutesPerCluster(&tepVRM)
 				Expect(err).Should(Equal(&liqoerrors.WrongParameter{
 					Parameter: "fromSubnet and toSubnet",
@@ -189,18 +204,27 @@ var _ = Describe("VxlanRouting", func() {
 			added, err := vrm.EnsureRoutesPerCluster(&tep)
 			Expect(err).ShouldNot(HaveOccurred())
 			Expect(added).Should(BeTrue())
-			// Get the inserted route
-			_, dstNet, err := net.ParseCIDR(tep.Status.RemoteNATPodCIDR)
+			// Get inserted routes
+			_, dstPodCIDRNet, err := net.ParseCIDR(tep.Status.RemoteNATPodCIDR)
 			Expect(err).ShouldNot(HaveOccurred())
-			routes, err := netlink.RouteListFiltered(netlink.FAMILY_V4, &netlink.Route{Dst: dstNet, Table: routingTableIDVRM}, netlink.RT_FILTER_DST|netlink.RT_FILTER_TABLE)
+			_, dstExternalCIDRNet, err := net.ParseCIDR(tep.Status.RemoteNATExternalCIDR)
+			Expect(err).ShouldNot(HaveOccurred())
+			routes, err := netlink.RouteListFiltered(netlink.FAMILY_V4, &netlink.Route{Dst: dstPodCIDRNet,
+				Table: routingTableIDVRM}, netlink.RT_FILTER_DST|netlink.RT_FILTER_TABLE)
 			Expect(err).ShouldNot(HaveOccurred())
 			Expect(routes[0].Dst.String()).Should(Equal(tep.Status.RemoteNATPodCIDR))
 			Expect(routes[0].Gw.String()).Should(Equal(ipAddress2NoSubnetOverlay))
+			routes, err = netlink.RouteListFiltered(netlink.FAMILY_V4, &netlink.Route{Dst: dstExternalCIDRNet,
+				Table: routingTableIDVRM}, netlink.RT_FILTER_DST|netlink.RT_FILTER_TABLE)
+			Expect(err).ShouldNot(HaveOccurred())
+			Expect(routes[0].Dst.String()).Should(Equal(tep.Status.RemoteNATExternalCIDR))
+			Expect(routes[0].Gw.String()).Should(Equal(ipAddress2NoSubnetOverlay))
 		})
 
-		It("route already exists, should return false and nil", func() {
+		It("routes already exist, should return false and nil", func() {
 			tepVRM.Status.RemoteNATPodCIDR = existingRoutesVRM[0].Dst.String()
 			tepVRM.Status.GatewayIP = existingRoutesVRM[0].Gw.String()
+			tepVRM.Status.RemoteNATExternalCIDR = existingRoutesVRM[1].Dst.String()
 			added, err := vrm.EnsureRoutesPerCluster(&tepVRM)
 			Expect(err).ShouldNot(HaveOccurred())
 			Expect(added).Should(BeFalse())
@@ -222,8 +246,18 @@ var _ = Describe("VxlanRouting", func() {
 
 	Describe("removing route configuration for a remote peering cluster", func() {
 		Context("when tep holds malformed parameters", func() {
-			It("fails to remove route configuration while removing policy routing rule", func() {
+			It("fails to remove route configuration while removing policy routing rule for PodCIDR", func() {
 				tepVRM.Status.RemoteNATPodCIDR = ""
+				added, err := vrm.RemoveRoutesPerCluster(&tepVRM)
+				Expect(err).Should(Equal(&liqoerrors.WrongParameter{
+					Parameter: "fromSubnet and toSubnet",
+					Reason:    liqoerrors.AtLeastOneValid,
+				}))
+				Expect(added).Should(BeFalse())
+				Expect(err).NotTo(BeNil())
+			})
+			It("fails to remove route configuration while removing policy routing rule for ExternalCIDR", func() {
+				tepVRM.Status.RemoteNATExternalCIDR = ""
 				added, err := vrm.RemoveRoutesPerCluster(&tepVRM)
 				Expect(err).Should(Equal(&liqoerrors.WrongParameter{
 					Parameter: "fromSubnet and toSubnet",
@@ -246,6 +280,8 @@ var _ = Describe("VxlanRouting", func() {
 			It("route configuration should be correctly removed", func() {
 				tepVRM.Status.RemoteNATPodCIDR = existingRoutesVRM[0].Dst.String()
 				tepVRM.Status.GatewayIP = existingRoutesVRM[0].Gw.String()
+				tepVRM.Status.RemoteNATExternalCIDR = existingRoutesVRM[1].Dst.String()
+				tepVRM.Status.GatewayIP = existingRoutesVRM[1].Gw.String()
 				added, err := vrm.RemoveRoutesPerCluster(&tepVRM)
 				Expect(err).ShouldNot(HaveOccurred())
 				Expect(added).Should(BeTrue())
@@ -253,10 +289,14 @@ var _ = Describe("VxlanRouting", func() {
 				routes, err := netlink.RouteListFiltered(netlink.FAMILY_V4, existingRoutesVRM[0], netlink.RT_FILTER_DST|netlink.RT_FILTER_TABLE)
 				Expect(err).ShouldNot(HaveOccurred())
 				Expect(len(routes)).Should(BeZero())
+				routes, err = netlink.RouteListFiltered(netlink.FAMILY_V4, existingRoutesVRM[1], netlink.RT_FILTER_DST|netlink.RT_FILTER_TABLE)
+				Expect(err).ShouldNot(HaveOccurred())
+				Expect(len(routes)).Should(BeZero())
 			})
 
 			It("route configuration should be correctly removed from veth pair", func() {
 				tepVRM.Status.RemoteNATPodCIDR = existingRoutesVRM[1].Dst.String()
+				tepVRM.Status.RemoteNATPodCIDR = existingRoutesVRM[0].Dst.String()
 				tepVRM.Status.GatewayIP = ipAddress1NoSubnet
 				tepVRM.Status.VethIFaceIndex = overlayDevice.Link.Index
 				added, err := vrm.RemoveRoutesPerCluster(&tepVRM)
@@ -264,6 +304,9 @@ var _ = Describe("VxlanRouting", func() {
 				Expect(added).Should(BeTrue())
 				// Try to get the remove route.
 				routes, err := netlink.RouteListFiltered(netlink.FAMILY_V4, existingRoutesVRM[1], netlink.RT_FILTER_DST|netlink.RT_FILTER_TABLE)
+				Expect(err).ShouldNot(HaveOccurred())
+				Expect(len(routes)).Should(BeZero())
+				routes, err = netlink.RouteListFiltered(netlink.FAMILY_V4, existingRoutesVRM[0], netlink.RT_FILTER_DST|netlink.RT_FILTER_TABLE)
 				Expect(err).ShouldNot(HaveOccurred())
 				Expect(len(routes)).Should(BeZero())
 			})

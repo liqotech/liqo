@@ -58,6 +58,8 @@ const (
 	OverlayNetworkMask = "/8"
 	// PodCIDR is a field of the TunnelEndpoint resource.
 	PodCIDR = "PodCIDR"
+	// ExternalCIDR is a field of the TunnelEndpoint resource.
+	ExternalCIDR = "ExternalCIDR"
 	// LocalPodCIDR is a field of the TunnelEndpoint resource.
 	LocalPodCIDR = "LocalPodCIDR"
 	// LocalExternalCIDR is a field of the TunnelEndpoint resource.
@@ -68,4 +70,6 @@ const (
 	LocalNATExternalCIDR = "LocalNATExternalCIDR"
 	// RemoteNATPodCIDR is a field of the TunnelEndpoint resource.
 	RemoteNATPodCIDR = "RemoteNATPodCIDR"
+	// RemoteNATExternalCIDR is a field of the TunnelEndpoint resource.
+	RemoteNATExternalCIDR = "RemoteNATExternalCIDR"
 )
