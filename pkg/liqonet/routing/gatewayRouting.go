@@ -44,16 +44,24 @@ func NewGatewayRoutingManager(routingTableID int, tunnelDevice netlink.Link) (Ro
 // Returns true if the routes have been configured, false if the routes are already configured.
 // An error if something goes wrong and the routes can not be configured.
 func (grm *GatewayRoutingManager) EnsureRoutesPerCluster(tep *netv1alpha1.TunnelEndpoint) (bool, error) {
-	var routeAdd bool
+	var routePodCIDRAdd, routeExternalCIDRAdd, configured bool
 	var err error
 	// Extract and save route information from the given tep.
-	_, dstNet := utils.GetPodCIDRS(tep)
-	// Add route for the given cluster.
-	routeAdd, err = AddRoute(dstNet, "", grm.tunnelDevice.Attrs().Index, grm.routingTableID)
+	_, dstPodCIDRNet := utils.GetPodCIDRS(tep)
+	_, dstExternalCIDRNet := utils.GetExternalCIDRS(tep)
+	// Add routes for the given cluster.
+	routePodCIDRAdd, err = AddRoute(dstPodCIDRNet, "", grm.tunnelDevice.Attrs().Index, grm.routingTableID)
 	if err != nil {
-		return routeAdd, err
+		return routePodCIDRAdd, err
 	}
-	return routeAdd, nil
+	routeExternalCIDRAdd, err = AddRoute(dstExternalCIDRNet, "", grm.tunnelDevice.Attrs().Index, grm.routingTableID)
+	if err != nil {
+		return routeExternalCIDRAdd, err
+	}
+	if routePodCIDRAdd || routeExternalCIDRAdd {
+		configured = true
+	}
+	return configured, nil
 }
 
 // RemoveRoutesPerCluster accepts as input a netv1alpha.tunnelendpoint.
@@ -61,16 +69,24 @@ func (grm *GatewayRoutingManager) EnsureRoutesPerCluster(tep *netv1alpha1.Tunnel
 // Returns true if the routes exist and have been deleted, false if nothing is removed.
 // An error if something goes wrong and the routes can not be removed.
 func (grm *GatewayRoutingManager) RemoveRoutesPerCluster(tep *netv1alpha1.TunnelEndpoint) (bool, error) {
-	var routeDel bool
+	var routePodCIDRDel, routeExternalCIDRDel, configured bool
 	var err error
 	// Extract and save route information from the given tep.
-	_, dstNet := utils.GetPodCIDRS(tep)
-	// Delete route for the given cluster.
-	routeDel, err = DelRoute(dstNet, "", grm.tunnelDevice.Attrs().Index, grm.routingTableID)
+	_, dstPodCIDRNet := utils.GetPodCIDRS(tep)
+	_, dstExternalCIDRNet := utils.GetExternalCIDRS(tep)
+	// Delete routes for the given cluster.
+	routePodCIDRDel, err = DelRoute(dstPodCIDRNet, "", grm.tunnelDevice.Attrs().Index, grm.routingTableID)
 	if err != nil {
-		return routeDel, err
+		return routePodCIDRDel, err
 	}
-	return routeDel, nil
+	routeExternalCIDRDel, err = DelRoute(dstExternalCIDRNet, "", grm.tunnelDevice.Attrs().Index, grm.routingTableID)
+	if err != nil {
+		return routeExternalCIDRDel, err
+	}
+	if routePodCIDRDel || routeExternalCIDRDel {
+		configured = true
+	}
+	return configured, nil
 }
 
 // CleanRoutingTable stub function, as the gateway only operates in custom network namespace.

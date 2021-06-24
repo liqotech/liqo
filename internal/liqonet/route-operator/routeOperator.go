@@ -95,6 +95,7 @@ func (rc *RouteController) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 	}
 	clusterID := tep.Spec.ClusterID
 	_, remotePodCIDR := utils.GetPodCIDRS(tep)
+	_, remoteExternalCIDR := utils.GetExternalCIDRS(tep)
 	// Examine DeletionTimestamp to determine if object is under deletion.
 	if tep.ObjectMeta.DeletionTimestamp.IsZero() {
 		if !controllerutil.ContainsFinalizer(tep, routeOperatorFinalizer) {
@@ -118,13 +119,16 @@ func (rc *RouteController) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 			klog.Infof("resource {%s} of type {%s} is being removed", tep.Name, tep.GroupVersionKind().String())
 			deleted, err := rc.RemoveRoutesPerCluster(tep)
 			if err != nil {
-				klog.Errorf("%s -> unable to remove route for destination {%s}: %s", clusterID, remotePodCIDR, err)
+				klog.Errorf("%s -> unable to remove route for destinations {%s} and {%s}: %s",
+					clusterID, remotePodCIDR, remoteExternalCIDR, err)
 				rc.Eventf(tep, "Warning", "Processing", "unable to remove route: %s", err.Error())
 				return result, err
 			}
 			if deleted {
-				klog.Infof("%s -> route for destination {%s} correctly removed", clusterID, remotePodCIDR)
-				rc.Eventf(tep, "Normal", "Processing", "route for destination {%s} correctly removed", remotePodCIDR)
+				klog.Infof("%s -> route for destinations {%s} and {%s} correctly removed",
+					clusterID, remotePodCIDR, remoteExternalCIDR)
+				rc.Eventf(tep, "Normal", "Processing", "route for destination {%s} and {%s} correctly removed",
+					remotePodCIDR, remoteExternalCIDR)
 			}
 			// remove the finalizer from the list and update it.
 			controllerutil.RemoveFinalizer(tep, routeOperatorFinalizer)
@@ -141,13 +145,15 @@ func (rc *RouteController) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 	}
 	added, err := rc.EnsureRoutesPerCluster(tep)
 	if err != nil {
-		klog.Errorf("%s -> unable to configure route for destination {%s}: %s", clusterID, remotePodCIDR, err)
-		rc.Eventf(tep, "Warning", "Processing", "unable to configure route for destination {%s}: %s", remotePodCIDR, err.Error())
+		klog.Errorf("%s -> unable to configure route for destinations {%s} and {%s}: %s",
+			clusterID, remotePodCIDR, remoteExternalCIDR, err)
+		rc.Eventf(tep, "Warning", "Processing", "unable to configure route for destinations {%s} and {%s}: %s",
+			remotePodCIDR, remoteExternalCIDR, err.Error())
 		return result, err
 	}
 	if added {
-		klog.Infof("%s -> route for destination {%s} correctly configured", clusterID, remotePodCIDR)
-		rc.Eventf(tep, "Normal", "Processing", "route for destination {%s} configured", remotePodCIDR)
+		klog.Infof("%s -> route for destinations {%s} and {%s} correctly configured", clusterID, remotePodCIDR, remoteExternalCIDR)
+		rc.Eventf(tep, "Normal", "Processing", "route for destinations {%s} and {%s} configured", remotePodCIDR, remoteExternalCIDR)
 	}
 	return result, nil
 }

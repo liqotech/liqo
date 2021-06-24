@@ -470,9 +470,10 @@ var _ = Describe("Common", func() {
 
 		Context("when the the operator has same IP address as the Gateway pod", func() {
 			It("should return no error", func() {
-				dstNet, gwIP, iFaceIndex, err := getRouteConfig(&tep, ipAddress2NoSubnet)
+				dstPodCIDRNet, dstExternalCIDRNet, gwIP, iFaceIndex, err := getRouteConfig(&tep, ipAddress2NoSubnet)
 				Expect(err).NotTo(HaveOccurred())
-				Expect(dstNet).Should(Equal(tep.Status.RemoteNATPodCIDR))
+				Expect(dstPodCIDRNet).Should(Equal(tep.Status.RemoteNATPodCIDR))
+				Expect(dstExternalCIDRNet).Should(Equal(tep.Status.RemoteNATExternalCIDR))
 				Expect(gwIP).Should(Equal(""))
 				Expect(iFaceIndex).Should(BeNumerically("==", tep.Status.VethIFaceIndex))
 			})
@@ -480,9 +481,10 @@ var _ = Describe("Common", func() {
 
 		Context("when the the operator is not running on same node as the Gateway pod", func() {
 			It("should return nil and a link index of the interface through which the Gateway is reachable", func() {
-				dstNet, gwIP, iFaceIndex, err := getRouteConfig(&tep, notReachableIP)
+				dstPodCIDRNet, dstExternalCIDRNet, gwIP, iFaceIndex, err := getRouteConfig(&tep, notReachableIP)
 				Expect(err).NotTo(HaveOccurred())
-				Expect(dstNet).Should(Equal(tep.Status.RemoteNATPodCIDR))
+				Expect(dstPodCIDRNet).Should(Equal(tep.Status.RemoteNATPodCIDR))
+				Expect(dstExternalCIDRNet).Should(Equal(tep.Status.RemoteNATExternalCIDR))
 				Expect(gwIP).Should(Equal(ipAddress2NoSubnet))
 				Expect(iFaceIndex).Should(BeNumerically("==", dummylink1.Attrs().Index))
 			})
@@ -492,7 +494,7 @@ var _ = Describe("Common", func() {
 			It("should return error", func() {
 				tepCopy := tep
 				tepCopy.Status.GatewayIP = notReachableIP
-				_, _, _, err := getRouteConfig(&tepCopy, gwIPCorrect)
+				_, _, _, _, err := getRouteConfig(&tepCopy, gwIPCorrect)
 				Expect(err).To(HaveOccurred())
 				Expect(err).Should(Equal(&errors.NoRouteFound{IPAddress: tepCopy.Status.GatewayIP}))
 			})

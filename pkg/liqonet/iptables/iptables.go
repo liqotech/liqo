@@ -669,6 +669,7 @@ func getPostroutingRules(tep *netv1alpha1.TunnelEndpoint) ([]IPTableRule, error)
 	clusterID := tep.Spec.ClusterID
 	localPodCIDR := tep.Status.LocalPodCIDR
 	localRemappedPodCIDR, remotePodCIDR := utils.GetPodCIDRS(tep)
+	_, remoteExternalCIDR := utils.GetExternalCIDRS(tep)
 	if localRemappedPodCIDR != consts.DefaultCIDRValue {
 		// Get the first IP address from the podCIDR of the local cluster
 		// in this case it is the podCIDR to which the local podCIDR has bee remapped by the remote peering cluster
@@ -681,6 +682,7 @@ func getPostroutingRules(tep *netv1alpha1.TunnelEndpoint) ([]IPTableRule, error)
 		return []IPTableRule{
 			{"-s", localPodCIDR, "-d", remotePodCIDR, "-j", NETMAP, "--to", localRemappedPodCIDR},
 			{"!", "-s", localPodCIDR, "-d", remotePodCIDR, "-j", SNAT, "--to-source", natIP},
+			{"!", "-s", localPodCIDR, "-d", remoteExternalCIDR, "-j", SNAT, "--to-source", natIP},
 		}, nil
 	}
 	// Get the first IP address from the podCIDR of the local cluster
@@ -692,6 +694,7 @@ func getPostroutingRules(tep *netv1alpha1.TunnelEndpoint) ([]IPTableRule, error)
 	}
 	return []IPTableRule{
 		{"!", "-s", localPodCIDR, "-d", remotePodCIDR, "-j", SNAT, "--to-source", natIP},
+		{"!", "-s", localPodCIDR, "-d", remoteExternalCIDR, "-j", SNAT, "--to-source", natIP},
 	}, nil
 }
 
@@ -704,7 +707,7 @@ func getChainRulesPerCluster(tep *netv1alpha1.TunnelEndpoint) (map[string][]IPTa
 	}
 	clusterID := tep.Spec.ClusterID
 	localRemappedPodCIDR, remotePodCIDR := utils.GetPodCIDRS(tep)
-	localRemappedExternalCIDR := utils.GetExternalCIDR(tep)
+	localRemappedExternalCIDR, _ := utils.GetExternalCIDRS(tep)
 
 	// Init chain rules
 	chainRules := make(map[string][]IPTableRule)

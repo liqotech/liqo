@@ -196,13 +196,18 @@ func GetPodCIDRS(tep *netv1alpha1.TunnelEndpoint) (localRemappedPodCIDR, remoteP
 	return localRemappedPodCIDR, remotePodCIDR
 }
 
-// GetExternalCIDR for a given tep the function retrieves the ExternalCIDR used in remote cluster for
-// local resources. Its value depend if the NAT is required or not.
-func GetExternalCIDR(tep *netv1alpha1.TunnelEndpoint) (localRemappedExternalCIDR string) {
+// GetExternalCIDRS for a given tep the function retrieves the values for localExternalCIDR and remoteExternalCIDR.
+// Their values depend if the NAT is required or not.
+func GetExternalCIDRS(tep *netv1alpha1.TunnelEndpoint) (localExternalCIDR, remoteExternalCIDR string) {
 	if tep.Status.LocalNATExternalCIDR != consts.DefaultCIDRValue {
-		localRemappedExternalCIDR = tep.Status.LocalNATExternalCIDR
+		localExternalCIDR = tep.Status.LocalNATExternalCIDR
 	} else {
-		localRemappedExternalCIDR = tep.Status.LocalExternalCIDR
+		localExternalCIDR = tep.Status.LocalExternalCIDR
+	}
+	if tep.Status.RemoteNATExternalCIDR != consts.DefaultCIDRValue {
+		remoteExternalCIDR = tep.Status.RemoteNATExternalCIDR
+	} else {
+		remoteExternalCIDR = tep.Spec.ExternalCIDR
 	}
 	return
 }
@@ -273,6 +278,12 @@ func CheckTep(tep *netv1alpha1.TunnelEndpoint) error {
 			Reason:    liqoneterrors.ValidCIDR,
 		}
 	}
+	if err := IsValidCIDR(tep.Spec.ExternalCIDR); err != nil {
+		return &liqoneterrors.WrongParameter{
+			Parameter: consts.ExternalCIDR,
+			Reason:    liqoneterrors.ValidCIDR,
+		}
+	}
 	if err := IsValidCIDR(tep.Status.LocalPodCIDR); err != nil {
 		return &liqoneterrors.WrongParameter{
 			Parameter: consts.LocalPodCIDR,
@@ -303,6 +314,13 @@ func CheckTep(tep *netv1alpha1.TunnelEndpoint) error {
 		err != nil {
 		return &liqoneterrors.WrongParameter{
 			Parameter: consts.RemoteNATPodCIDR,
+			Reason:    liqoneterrors.ValidCIDR,
+		}
+	}
+	if err := IsValidCIDR(tep.Status.RemoteNATExternalCIDR); tep.Status.RemoteNATExternalCIDR != consts.DefaultCIDRValue &&
+		err != nil {
+		return &liqoneterrors.WrongParameter{
+			Parameter: consts.RemoteNATExternalCIDR,
 			Reason:    liqoneterrors.ValidCIDR,
 		}
 	}
