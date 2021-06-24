@@ -17,10 +17,13 @@ import (
 	"k8s.io/client-go/util/retry"
 	"k8s.io/klog/v2"
 	"k8s.io/kubernetes/pkg/util/slice"
+	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
 	netv1alpha1 "github.com/liqotech/liqo/apis/net/v1alpha1"
 	sharingv1alpha1 "github.com/liqotech/liqo/apis/sharing/v1alpha1"
 	advertisementOperator "github.com/liqotech/liqo/internal/advertisementoperator"
+	"github.com/liqotech/liqo/pkg/consts"
 	"github.com/liqotech/liqo/pkg/utils"
 )
 
@@ -41,6 +44,7 @@ func (p *LiqoNodeProvider) reconcileNodeFromResourceOffer(event watch.Event) err
 		p.updateMutex.Lock()
 		defer p.updateMutex.Unlock()
 		klog.Infof("resourceOffer %v is going to be deleted... set node status not ready", resourceOffer.Name)
+		p.terminating = true
 		for i, condition := range p.node.Status.Conditions {
 			switch condition.Type {
 			case v1.NodeReady:
@@ -61,11 +65,60 @@ func (p *LiqoNodeProvider) reconcileNodeFromResourceOffer(event watch.Event) err
 		return nil
 	}
 
+	if err := p.ensureFinalizer(&resourceOffer, func() bool {
+		return !controllerutil.ContainsFinalizer(&resourceOffer, consts.NodeFinalizer)
+	}, controllerutil.AddFinalizer); err != nil {
+		klog.Error(err)
+		return err
+	}
+
 	if err := p.updateFromResourceOffer(&resourceOffer); err != nil {
 		klog.Errorf("node update from resourceOffer %v failed for reason %v; retry...", resourceOffer.Name, err)
 		return err
 	}
 	klog.Info("node correctly updated from resourceOffer")
+	return nil
+}
+
+// ensureFinalizer ensures the finalizer status. The patch will be applied if the provided check function
+// returns true, and it will build applying the provided changeFinalizer function.
+func (p *LiqoNodeProvider) ensureFinalizer(resourceOffer *sharingv1alpha1.ResourceOffer,
+	check func() bool, changeFinalizer func(client.Object, string)) error {
+	if check() {
+		original, err := json.Marshal(resourceOffer)
+		if err != nil {
+			klog.Error(err)
+			return err
+		}
+
+		changeFinalizer(resourceOffer, consts.NodeFinalizer)
+
+		target, err := json.Marshal(resourceOffer)
+		if err != nil {
+			klog.Error(err)
+			return err
+		}
+
+		ops, err := jsonpatch.CreatePatch(original, target)
+		if err != nil {
+			klog.Error(err)
+			return err
+		}
+
+		bytes, err := json.Marshal(ops)
+		if err != nil {
+			klog.Error(err)
+			return err
+		}
+
+		_, err = p.dynClient.Resource(sharingv1alpha1.GroupVersion.WithResource("resourceoffers")).
+			Namespace(resourceOffer.GetNamespace()).
+			Patch(context.TODO(), resourceOffer.GetName(), types.JSONPatchType, bytes, metav1.PatchOptions{})
+		if err != nil {
+			klog.Error(err)
+			return err
+		}
+	}
 	return nil
 }
 
@@ -276,12 +329,36 @@ func (p *LiqoNodeProvider) updateNode() error {
 }
 
 func (p *LiqoNodeProvider) handleResourceOfferDelete(resourceOffer *sharingv1alpha1.ResourceOffer) error {
+	ctx := context.TODO()
+
+	if err := p.cordonNode(ctx); err != nil {
+		klog.Errorf("error cordoning node: %v", err)
+		return err
+	}
+
+	if err := p.drainNode(ctx); err != nil {
+		klog.Errorf("error draining node: %v", err)
+		return err
+	}
+
 	if isChanOpen(p.podProviderStopper) {
 		close(p.podProviderStopper)
 	}
 
-	// TODO
-	klog.Info("TODO: handleResourceOfferDelete")
+	// delete the node
+	if err := p.client.CoreV1().Nodes().Delete(ctx, p.node.GetName(), metav1.DeleteOptions{}); err != nil && !kerrors.IsNotFound(err) {
+		klog.Errorf("error deleting node: %v", err)
+		return err
+	}
+
+	// remove the finalizer
+	if err := p.ensureFinalizer(resourceOffer, func() bool {
+		return controllerutil.ContainsFinalizer(resourceOffer, consts.NodeFinalizer)
+	}, controllerutil.RemoveFinalizer); err != nil {
+		klog.Errorf("error removing finalizer from resource offer %v/%v: %v", resourceOffer.GetNamespace(), resourceOffer.GetName(), err)
+		return err
+	}
+
 	return nil
 }
 
@@ -331,47 +408,17 @@ func (p *LiqoNodeProvider) patchLabels(labels map[string]string) error {
 		labels = map[string]string{}
 	}
 
-	original, err := json.Marshal(p.node)
-	if err != nil {
-		klog.Error(err)
-		return err
-	}
-
-	nodeLabels := p.node.GetLabels()
-	nodeLabels = utils.SubMaps(nodeLabels, p.lastAppliedLabels)
-	nodeLabels = utils.MergeMaps(nodeLabels, labels)
-
-	newNode := p.node.DeepCopy()
-	newNode.Labels = nodeLabels
-	target, err := json.Marshal(newNode)
-	if err != nil {
-		klog.Error(err)
-		return err
-	}
-
-	ops, err := jsonpatch.CreatePatch(original, target)
-	if err != nil {
-		klog.Error(err)
-		return err
-	}
-
-	if len(ops) == 0 {
-		// this avoids an empty patch of the node
+	if err := p.patchNode(func(node *v1.Node) error {
+		nodeLabels := node.GetLabels()
+		nodeLabels = utils.SubMaps(nodeLabels, p.lastAppliedLabels)
+		nodeLabels = utils.MergeMaps(nodeLabels, labels)
+		node.Labels = nodeLabels
 		return nil
-	}
-
-	bytes, err := json.Marshal(ops)
-	if err != nil {
+	}); err != nil {
 		klog.Error(err)
 		return err
 	}
 
-	p.node, err = p.client.CoreV1().Nodes().Patch(context.TODO(),
-		p.node.Name, types.JSONPatchType, bytes, metav1.PatchOptions{})
-	if err != nil {
-		klog.Error(err)
-		return err
-	}
 	p.lastAppliedLabels = labels
 	return nil
 }

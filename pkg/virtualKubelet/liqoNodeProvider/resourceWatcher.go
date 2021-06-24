@@ -14,6 +14,7 @@ import (
 
 	netv1alpha1 "github.com/liqotech/liqo/apis/net/v1alpha1"
 	sharingv1alpha1 "github.com/liqotech/liqo/apis/sharing/v1alpha1"
+	crdreplicator "github.com/liqotech/liqo/internal/crdReplicator"
 	"github.com/liqotech/liqo/pkg/consts"
 )
 
@@ -33,7 +34,11 @@ func (p *LiqoNodeProvider) StartProvider() (ready, stop chan struct{}) {
 
 	sharingInformerFactory := dynamicinformer.NewFilteredDynamicSharedInformerFactory(
 		p.dynClient, p.resyncPeriod, namespace, func(opt *metav1.ListOptions) {
-			opt.FieldSelector = strings.Join([]string{"metadata.name", p.advName}, "=")
+			if p.useNewAuth {
+				opt.LabelSelector = strings.Join([]string{crdreplicator.RemoteLabelSelector, p.foreignClusterID}, "=")
+			} else {
+				opt.FieldSelector = strings.Join([]string{"metadata.name", p.advName}, "=")
+			}
 		})
 	sharingInformer := sharingInformerFactory.ForResource(sharingv1alpha1.GroupVersion.WithResource(resource)).Informer()
 	sharingInformer.AddEventHandler(getEventHandler(func(event watch.Event) error {

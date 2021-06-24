@@ -15,7 +15,6 @@ import (
 	rbacv1 "k8s.io/api/rbac/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/utils/pointer"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 
@@ -228,25 +227,14 @@ var _ = Describe("ResourceOffer Controller", func() {
 				return reflect.DeepEqual(deploymentList.Items[0], *vkDeploy)
 			}, timeout, interval).Should(BeTrue())
 
-			// check tht the deployment has the controller reference
-			Eventually(func() []metav1.OwnerReference {
+			// check tht the deployment has the controller reference annotation
+			Eventually(func() string {
 				vkDeploy, err := controller.getVirtualKubeletDeployment(ctx, resourceOffer)
 				if err != nil || vkDeploy == nil {
-					return nil
+					return ""
 				}
-				return vkDeploy.OwnerReferences
-			}, timeout, interval).Should(Equal(
-				[]metav1.OwnerReference{
-					{
-						APIVersion:         resourceOffer.GroupVersionKind().GroupVersion().String(),
-						Kind:               resourceOffer.GroupVersionKind().Kind,
-						Name:               resourceOffer.GetName(),
-						UID:                resourceOffer.GetUID(),
-						BlockOwnerDeletion: pointer.BoolPtr(true),
-						Controller:         pointer.BoolPtr(true),
-					},
-				},
-			))
+				return vkDeploy.Annotations[resourceOfferAnnotation]
+			}, timeout, interval).Should(Equal(resourceOffer.Name))
 
 			// check the existence of the ClusterRoleBinding
 			Eventually(func() int {

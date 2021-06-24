@@ -189,6 +189,14 @@ func runRootCommand(ctx context.Context, s *provider.Store, c *Opts) error {
 					newNode.SetOwnerReferences(refs)
 				}
 
+				if liqoNodeProvider, ok := nodeProviderModule.(*liqonodeprovider.LiqoNodeProvider); ok {
+					if liqoNodeProvider.IsTerminating() {
+						// this avoids the re-creation of terminated nodes
+						klog.V(4).Info("skipping: node is in terminating phase")
+						return nil
+					}
+				}
+
 				oldNode, newErr := client.Client().CoreV1().Nodes().Get(context.TODO(), newNode.Name, metav1.GetOptions{})
 				if newErr != nil {
 					if !k8serrors.IsNotFound(newErr) {

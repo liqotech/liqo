@@ -20,9 +20,10 @@ func VirtualKubeletDeployment(adv *advtypes.Advertisement, remoteClusterID,
 	vkLabels := VirtualKubeletLabels(remoteClusterID)
 	return &appsv1.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      vkName,
-			Namespace: vkNamespace,
-			Labels:    vkLabels,
+			Name:        vkName,
+			Namespace:   vkNamespace,
+			Labels:      vkLabels,
+			Annotations: map[string]string{},
 		},
 		Spec: appsv1.DeploymentSpec{
 			Selector: &metav1.LabelSelector{
