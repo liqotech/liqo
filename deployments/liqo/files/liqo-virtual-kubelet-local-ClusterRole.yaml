@@ -74,6 +74,7 @@ rules:
   verbs:
   - create
   - delete
+  - get
   - update
 - apiGroups:
   - discovery.k8s.io
