@@ -37,9 +37,9 @@ const (
 // +kubebuilder:rbac:groups=capsule.clastix.io,resources=tenants,verbs=get;list;watch;create;update;patch;delete;
 
 // Reconcile is the main function of the controller which reconciles ResourceRequest resources.
-func (r *ResourceRequestReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
+func (r *ResourceRequestReconciler) Reconcile(ctx context.Context, req ctrl.Request) (result ctrl.Result, err error) {
 	var resourceRequest discoveryv1alpha1.ResourceRequest
-	err := r.Get(ctx, req.NamespacedName, &resourceRequest)
+	err = r.Get(ctx, req.NamespacedName, &resourceRequest)
 	if err != nil {
 		klog.Errorf("unable to get resourceRequest %s: %s", req.NamespacedName, err)
 		return ctrl.Result{}, nil
@@ -80,10 +80,26 @@ func (r *ResourceRequestReconciler) Reconcile(ctx context.Context, req ctrl.Requ
 		return ctrl.Result{}, err
 	}
 
-	err = r.generateResourceOffer(ctx, &resourceRequest)
-	if err != nil {
-		klog.Errorf("%s -> Error generating resourceOffer: %s", remoteClusterID, err)
-		return ctrl.Result{}, err
+	defer func() {
+		newErr := r.Client.Status().Update(ctx, &resourceRequest)
+		if newErr != nil {
+			klog.Error(newErr)
+			err = newErr
+		}
+	}()
+
+	if resourceRequest.Spec.WithdrawalTimestamp.IsZero() {
+		err = r.generateResourceOffer(ctx, &resourceRequest)
+		if err != nil {
+			klog.Errorf("%s -> Error generating resourceOffer: %s", remoteClusterID, err)
+			return ctrl.Result{}, err
+		}
+	} else {
+		err = r.invalidateResourceOffer(ctx, &resourceRequest)
+		if err != nil {
+			klog.Errorf("%s -> Error invalidating resourceOffer: %s", remoteClusterID, err)
+			return ctrl.Result{}, err
+		}
 	}
 
 	return ctrl.Result{}, nil
