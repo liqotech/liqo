@@ -1,0 +1,75 @@
+package net
+
+import (
+	"context"
+	"fmt"
+
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/kubernetes"
+	restclient "k8s.io/client-go/rest"
+	"k8s.io/klog/v2"
+
+	liqoconst "github.com/liqotech/liqo/pkg/consts"
+	"github.com/liqotech/liqo/test/e2e/testutils/util"
+)
+
+var (
+	image             = "nginx"
+	podTesterLocalCl  = "tester-local"
+	podTesterRemoteCl = "tester-remote"
+	// TestNamespaceName is the namespace name where the test is performed.
+	TestNamespaceName = "test-connectivity"
+	// label to list only the real nodes excluding the virtual ones.
+	labelSelectorNodes = fmt.Sprintf("%v!=%v", liqoconst.TypeLabel, liqoconst.TypeNode)
+	//TODO: use the retry mechanism of curl without sleeping before running the command.
+	command = "curl --fail -s -o /dev/null -w '%{http_code}' "
+)
+
+// ConnectivityCheckNodeToPod creates a NodePort Service and check its availability.
+func ConnectivityCheckNodeToPod(ctx context.Context, homeClusterClient kubernetes.Interface, clusterID string) error {
+	nodePort, err := EnsureNodePortService(homeClusterClient, clusterID)
+	if err != nil {
+		return err
+	}
+	return CheckNodeToPortConnectivity(ctx, homeClusterClient, clusterID, nodePort)
+}
+
+// EnsureNodePortService creates a nodePortService. It returns the port to contact to reach the service and occurred errors.
+func EnsureNodePortService(homeClusterClient kubernetes.Interface, clusterID string) (int, error) {
+	nodePort, err := EnsureNodePort(homeClusterClient, clusterID, "tester-remote", TestNamespaceName)
+	if err != nil {
+		return 0, err
+	}
+	return int(nodePort.Spec.Ports[0].NodePort), nil
+}
+
+// CheckNodeToPortConnectivity contacts the nodePortValue and returns the result.
+func CheckNodeToPortConnectivity(ctx context.Context, homeClusterClient kubernetes.Interface, homeClusterID string, nodePortValue int) error {
+	localNodes, err := util.GetNodes(ctx, homeClusterClient, homeClusterID, labelSelectorNodes)
+	if err != nil {
+		return err
+	}
+	return util.TriggerCheckNodeConnectivity(localNodes, command, nodePortValue)
+}
+
+// CheckPodConnectivity contacts the remote service by executing the command inside podRemoteUpdateCluster1.
+func CheckPodConnectivity(homeConfig *restclient.Config, homeClient kubernetes.Interface) error {
+	podLocalUpdate, err := homeClient.CoreV1().Pods(TestNamespaceName).Get(context.TODO(), podTesterLocalCl, metav1.GetOptions{})
+	if err != nil {
+		klog.Error(err)
+		return err
+	}
+	podRemoteUpdateCluster1, err := homeClient.CoreV1().Pods(TestNamespaceName).Get(context.TODO(), podTesterRemoteCl, metav1.GetOptions{})
+	if err != nil {
+		klog.Error(err)
+		return err
+	}
+	cmd := command + podRemoteUpdateCluster1.Status.PodIP
+	stdout, stderr, err := util.ExecCmd(homeConfig, homeClient, podLocalUpdate.Name, podLocalUpdate.Namespace, cmd)
+	if stdout == "200" && err == nil {
+		return nil
+	}
+	klog.Infof("stdout: %s", stderr)
+	klog.Infof("stderr: %s", stderr)
+	return err
+}
