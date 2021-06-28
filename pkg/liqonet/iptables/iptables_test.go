@@ -149,13 +149,15 @@ var _ = Describe("iptables", func() {
 
 				// Check existence of rule in LIQO-POSTROUTING chain
 				postRoutingRules, err := h.ListRulesInChain(liqonetPostroutingChain)
-				expectedRule := fmt.Sprintf("-d %s -j %s", tep.Status.RemoteNATPodCIDR, getClusterPostRoutingChain(tep.Spec.ClusterID))
-				Expect(expectedRule).To(Equal(postRoutingRules[0]))
+				expectedRules := []string{
+					fmt.Sprintf("-d %s -j %s", tep.Status.RemoteNATPodCIDR, getClusterPostRoutingChain(tep.Spec.ClusterID)),
+					fmt.Sprintf("-d %s -j %s", tep.Status.RemoteNATExternalCIDR, getClusterPostRoutingChain(tep.Spec.ClusterID))}
+				Expect(postRoutingRules).To(ContainElements(expectedRules))
 
 				// Check existence of rules in LIQO-PREROUTING chain
 				// Rule for NAT-ting the PodCIDR should not be present
 				preRoutingRules, err := h.ListRulesInChain(liqonetPreroutingChain)
-				expectedRule = fmt.Sprintf("-s %s -d %s -j %s", tep.Status.RemoteNATPodCIDR, tep.Status.LocalNATExternalCIDR,
+				expectedRule := fmt.Sprintf("-s %s -d %s -j %s", tep.Status.RemoteNATPodCIDR, tep.Status.LocalNATExternalCIDR,
 					getClusterPreRoutingMappingChain(tep.Spec.ClusterID))
 				Expect(expectedRule).To(Equal(preRoutingRules[0]))
 
@@ -180,12 +182,14 @@ var _ = Describe("iptables", func() {
 
 				// Check existence of rule in LIQO-PREROUTING chain
 				postRoutingRules, err := h.ListRulesInChain(liqonetPostroutingChain)
-				expectedRule := fmt.Sprintf("-d %s -j %s", tep.Status.RemoteNATPodCIDR, getClusterPostRoutingChain(tep.Spec.ClusterID))
-				Expect(expectedRule).To(Equal(postRoutingRules[0]))
+				expectedRules := []string{
+					fmt.Sprintf("-d %s -j %s", tep.Status.RemoteNATPodCIDR, getClusterPostRoutingChain(tep.Spec.ClusterID)),
+					fmt.Sprintf("-d %s -j %s", tep.Status.RemoteNATExternalCIDR, getClusterPostRoutingChain(tep.Spec.ClusterID))}
+				Expect(postRoutingRules).To(ContainElements(expectedRules))
 
 				// Check existence of rule in LIQO-FORWARD chain
 				forwardRules, err := h.ListRulesInChain(liqonetForwardingChain)
-				expectedRule = fmt.Sprintf("-d %s -j %s", tep.Status.RemoteNATPodCIDR, getClusterForwardChain(tep.Spec.ClusterID))
+				expectedRule := fmt.Sprintf("-d %s -j %s", tep.Status.RemoteNATPodCIDR, getClusterForwardChain(tep.Spec.ClusterID))
 				Expect(expectedRule).To(Equal(forwardRules[0]))
 
 				// Check existence of rule in LIQO-INPUT chain
@@ -195,7 +199,7 @@ var _ = Describe("iptables", func() {
 
 				// Check existence of rule in LIQO-PREROUTING chain
 				preRoutingRules, err := h.ListRulesInChain(liqonetPreroutingChain)
-				expectedRules := []string{
+				expectedRules = []string{
 					fmt.Sprintf("-s %s -d %s -j %s", tep.Status.RemoteNATPodCIDR,
 						tep.Status.LocalNATPodCIDR, getClusterPreRoutingChain(tep.Spec.ClusterID)),
 					fmt.Sprintf("-s %s -d %s -j %s", tep.Status.RemoteNATPodCIDR, tep.Status.LocalNATExternalCIDR,
@@ -267,37 +271,12 @@ var _ = Describe("iptables", func() {
 				Expect(err).To(BeNil())
 				newPostRoutingRules, err := h.ListRulesInChain(liqonetPostroutingChain)
 
-				// Check if new rule has been added.
-				expectedRule := fmt.Sprintf("-d %s -j %s", tep.Status.RemoteNATPodCIDR, clusterPostRoutingChain)
-				Expect(expectedRule).To(Equal(newPostRoutingRules[0]))
-
-				// Check if outdated rule has been removed
-				Expect(newPostRoutingRules).ToNot(ContainElement(outdatedRule))
-			})
-		})
-
-		Context("If there are already some rules in chains but they are not in new rules", func() {
-			It(`should remove existing rules that are not in the set of new rules and add new rules`, func() {
-				err := h.EnsureChainRulesPerCluster(tep)
-				Expect(err).To(BeNil())
-
-				clusterPostRoutingChain := strings.Join([]string{liqonetPostroutingClusterChainPrefix, strings.Split(tep.Spec.ClusterID, "-")[0]}, "")
-
-				// Get rule that will be removed
-				postRoutingRules, err := h.ListRulesInChain(liqonetPostroutingChain)
-				outdatedRule := postRoutingRules[0]
-
-				// Modify resource
-				tep.Status.RemoteNATPodCIDR = remoteNATPodCIDRValue
-
-				// Second call
-				err = h.EnsureChainRulesPerCluster(tep)
-				Expect(err).To(BeNil())
-				newPostRoutingRules, err := h.ListRulesInChain(liqonetPostroutingChain)
-
-				// Check if new rule has been added.
-				expectedRule := fmt.Sprintf("-d %s -j %s", tep.Status.RemoteNATPodCIDR, clusterPostRoutingChain)
-				Expect(expectedRule).To(Equal(newPostRoutingRules[0]))
+				// Check if new rules has been added.
+				expectedRules := []string{
+					fmt.Sprintf("-d %s -j %s", tep.Status.RemoteNATPodCIDR, clusterPostRoutingChain),
+					fmt.Sprintf("-d %s -j %s", tep.Status.RemoteNATExternalCIDR, clusterPostRoutingChain),
+				}
+				Expect(newPostRoutingRules).To(ContainElements(expectedRules))
 
 				// Check if outdated rule has been removed
 				Expect(newPostRoutingRules).ToNot(ContainElement(outdatedRule))
