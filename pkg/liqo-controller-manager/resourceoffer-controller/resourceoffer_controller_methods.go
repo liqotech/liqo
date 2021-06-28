@@ -225,11 +225,38 @@ func (r *ResourceOfferReconciler) getVirtualKubeletDeployment(
 	return &deployList.Items[0], nil
 }
 
-func canDeleteVirtualKubeletDeployment(resourceOffer *sharingv1alpha1.ResourceOffer) bool {
+type kubeletDeletePhase string
+
+const (
+	kubeletDeletePhaseNone         kubeletDeletePhase = "None"
+	kubeletDeletePhaseDrainingNode kubeletDeletePhase = "DrainingNode"
+	kubeletDeletePhaseNodeDeleted  kubeletDeletePhase = "NodeDeleted"
+)
+
+// getDeleteVirtualKubeletPhase returns the delete phase for the VirtualKubelet created basing on the
+// given ResourceOffer.
+func getDeleteVirtualKubeletPhase(resourceOffer *sharingv1alpha1.ResourceOffer) kubeletDeletePhase {
 	notAccepted := !isAccepted(resourceOffer)
 	deleting := !resourceOffer.DeletionTimestamp.IsZero()
+	desiredDelete := !resourceOffer.Spec.WithdrawalTimestamp.IsZero()
 	nodeDrained := !controllerutil.ContainsFinalizer(resourceOffer, consts.NodeFinalizer)
-	return (notAccepted || deleting) && nodeDrained
+
+	// if the ResourceRequest has not been accepted by the local cluster,
+	// or it has a DeletionTimestamp not equal to zero (the resource has been deleted),
+	// or it has a WithdrawalTimestamp not equal to zero (the remote cluster asked for its graceful deletion),
+	// the VirtualKubelet is in a terminating phase, otherwise return the None phase.
+	if notAccepted || deleting || desiredDelete {
+		// if the liqo.io/node finalizer is not set, the remote cluster has been drained and the node has been deleted,
+		// we can then proceed with the VirtualKubelet deletion.
+		if nodeDrained {
+			return kubeletDeletePhaseNodeDeleted
+		}
+
+		// if the finalizer is still present, the node draining has not completed yet, we have to wait before to
+		// continue the unpeering process.
+		return kubeletDeletePhaseDrainingNode
+	}
+	return kubeletDeletePhaseNone
 }
 
 // isAccepted checks if a ResourceOffer is in Accepted phase.

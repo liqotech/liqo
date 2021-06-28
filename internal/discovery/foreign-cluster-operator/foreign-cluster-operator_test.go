@@ -58,6 +58,8 @@ var _ = Describe("ForeignClusterOperator", func() {
 		mgr             manager.Manager
 		ctx             context.Context
 		cancel          context.CancelFunc
+
+		now = metav1.Now()
 	)
 
 	BeforeEach(func() {
@@ -451,6 +453,15 @@ var _ = Describe("ForeignClusterOperator", func() {
 				Expect(ok).To(BeTrue())
 				Expect(rr).NotTo(BeNil())
 
+				// set the ResourceRequest status to created
+				obj, err = controller.crdClient.Resource("resourcerequests").Namespace(tenantNamespace.Name).UpdateStatus(rr.Name, rr, &metav1.UpdateOptions{})
+				Expect(err).To(BeNil())
+				Expect(obj).NotTo(BeNil())
+
+				rr, ok = obj.(*discoveryv1alpha1.ResourceRequest)
+				Expect(ok).To(BeTrue())
+				Expect(rr).NotTo(BeNil())
+
 				// disable the peering for that foreigncluster
 				err = controller.unpeerNamespaced(ctx, fc)
 				Expect(err).To(BeNil())
@@ -469,8 +480,37 @@ var _ = Describe("ForeignClusterOperator", func() {
 				Expect(rrs).NotTo(BeNil())
 
 				// check that the length of the resource request list is the expected one,
-				// and the resource request has been deleted in the correct namespace
+				// and the resource request has been set for deletion in the correct namespace
 				Expect(len(rrs.Items)).To(c.expectedPeeringLength)
+				if len(rrs.Items) > 0 {
+					Expect(rrs.Items[0].Spec.WithdrawalTimestamp.IsZero()).To(BeFalse())
+					rr = &rrs.Items[0]
+				}
+
+				// set the ResourceRequest status to deleted
+				rr.Status.OfferWithdrawalTimestamp = &now
+				obj, err = controller.crdClient.Resource("resourcerequests").Namespace(tenantNamespace.Name).UpdateStatus(rr.Name, rr, &metav1.UpdateOptions{})
+				Expect(err).To(BeNil())
+				Expect(obj).NotTo(BeNil())
+
+				rr, ok = obj.(*discoveryv1alpha1.ResourceRequest)
+				Expect(ok).To(BeTrue())
+				Expect(rr).NotTo(BeNil())
+
+				// call for the second time the unpeer function to delete the ResourceRequest
+				err = controller.unpeerNamespaced(ctx, fc)
+				Expect(err).To(BeNil())
+
+				// get the resource requests in the local tenant namespace
+				obj, err = controller.crdClient.Resource("resourcerequests").Namespace(tenantNamespace.Name).List(&metav1.ListOptions{})
+				Expect(err).To(BeNil())
+				Expect(obj).NotTo(BeNil())
+
+				rrs, ok = obj.(*discoveryv1alpha1.ResourceRequestList)
+				Expect(ok).To(BeTrue())
+				Expect(rrs).NotTo(BeNil())
+
+				Expect(len(rrs.Items)).To(BeNumerically("==", 0))
 			},
 
 			Entry("unpeer", unpeerTestcase{
@@ -512,7 +552,7 @@ var _ = Describe("ForeignClusterOperator", func() {
 						AuthURL: "",
 					},
 				},
-				expectedPeeringLength: Equal(0),
+				expectedPeeringLength: Equal(1),
 				expectedOutgoing: Equal(discoveryv1alpha1.Outgoing{
 					PeeringPhase: discoveryv1alpha1.PeeringPhaseDisconnecting,
 				}),

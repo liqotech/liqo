@@ -2,10 +2,13 @@ package resourcerequestoperator
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	corev1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/klog/v2"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
@@ -48,9 +51,10 @@ func (r *ResourceRequestReconciler) generateResourceOffer(ctx context.Context, r
 	})
 
 	if err != nil {
+		klog.Error(err)
 		return err
 	}
-	klog.Infof("%s -> %s Offer: %s", r.ClusterID, op, offer.ObjectMeta.Name)
+	klog.Infof("%s -> %s Offer: %s/%s", r.ClusterID, op, offer.Namespace, offer.Name)
 	return nil
 }
 
@@ -123,4 +127,51 @@ func (r *ResourceRequestReconciler) createForeignCluster(ctx context.Context,
 	klog.Infof("%s -> Created ForeignCluster %s with IncomingPeering discovery type",
 		resourceRequest.Spec.ClusterIdentity.ClusterID, foreignCluster.Name)
 	return nil
+}
+
+func (r *ResourceRequestReconciler) invalidateResourceOffer(ctx context.Context, request *discoveryv1alpha1.ResourceRequest) error {
+	var offer sharingv1alpha1.ResourceOffer
+	err := r.Client.Get(ctx, types.NamespacedName{
+		Namespace: request.GetNamespace(),
+		Name:      offerPrefix + r.ClusterID,
+	}, &offer)
+	if apierrors.IsNotFound(err) {
+		// ignore not found errors
+		return nil
+	}
+	if err != nil {
+		klog.Error(err)
+		return err
+	}
+
+	switch offer.Status.VirtualKubeletStatus {
+	case sharingv1alpha1.VirtualKubeletStatusDeleting, sharingv1alpha1.VirtualKubeletStatusCreated:
+		if offer.Spec.WithdrawalTimestamp.IsZero() {
+			now := metav1.Now()
+			offer.Spec.WithdrawalTimestamp = &now
+		}
+		err = client.IgnoreNotFound(r.Client.Update(ctx, &offer))
+		if err != nil {
+			klog.Error(err)
+			return err
+		}
+		klog.Infof("%s -> Offer: %s/%s", r.ClusterID, offer.Namespace, offer.Name)
+		return nil
+	case sharingv1alpha1.VirtualKubeletStatusNone:
+		err = client.IgnoreNotFound(r.Client.Delete(ctx, &offer))
+		if err != nil {
+			klog.Error(err)
+			return err
+		}
+		if request.Status.OfferWithdrawalTimestamp.IsZero() {
+			now := metav1.Now()
+			request.Status.OfferWithdrawalTimestamp = &now
+		}
+		klog.Infof("%s -> Deleted Offer: %s/%s", r.ClusterID, offer.Namespace, offer.Name)
+		return nil
+	default:
+		err := fmt.Errorf("unknown VirtualKubeletStatus %v", offer.Status.VirtualKubeletStatus)
+		klog.Error(err)
+		return err
+	}
 }

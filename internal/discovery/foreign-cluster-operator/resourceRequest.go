@@ -64,7 +64,8 @@ func (r *ForeignClusterReconciler) createResourceRequest(ctx context.Context,
 		klog.Error(err)
 		return controllerutil.OperationResultNone, err
 	}
-	klog.Infof("[%v] ensured the existence of ResourceRequest (with %v operation)", remoteClusterID, result)
+	klog.Infof("[%v] ensured the existence of ResourceRequest (with %v operation)",
+		remoteClusterID, result)
 
 	return result, nil
 }
