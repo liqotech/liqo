@@ -10,9 +10,11 @@ import (
 	. "github.com/onsi/gomega/gstruct"
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/klog/v2"
 	resourcehelper "k8s.io/kubectl/pkg/util/resource"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
@@ -29,6 +31,10 @@ const (
 	timeout             = time.Second * 10
 	interval            = time.Millisecond * 250
 	homeClusterID       = "2468825c-0f62-44d7-bed1-9a7bc331c0b0"
+)
+
+var (
+	now = metav1.Now()
 )
 
 func createTestNodes() (*corev1.Node, *corev1.Node) {
@@ -209,6 +215,8 @@ var _ = Describe("ResourceRequest Operator", func() {
 				return resourceRequest.Finalizers
 			}, timeout, interval).Should(ContainElement(tenantFinalizer))
 
+			Expect(resourceRequest.Status.OfferWithdrawalTimestamp.IsZero()).To(BeTrue())
+
 			By("Checking Tenant creation")
 			var tenant capsulev1alpha1.Tenant
 			Eventually(func() error {
@@ -237,6 +245,7 @@ var _ = Describe("ResourceRequest Operator", func() {
 				Name:      offerPrefix + clusterId,
 				Namespace: ResourcesNamespace,
 			}
+			klog.Info(offerName)
 			Eventually(func() error {
 				return k8sClient.Get(ctx, offerName, createdResourceOffer)
 			}, timeout, interval).ShouldNot(HaveOccurred())
@@ -262,6 +271,34 @@ var _ = Describe("ResourceRequest Operator", func() {
 				scale(resourceName, &testValue)
 				Expect(quantity.Cmp(testValue)).Should(BeZero())
 			}
+
+			By("Checking ResourceOffer invalidation on request set deleting phase")
+			resourceRequest.Spec.WithdrawalTimestamp = &now
+			Expect(k8sClient.Update(ctx, &resourceRequest)).ToNot(HaveOccurred())
+
+			// set the vk status in the ResourceOffer to created
+			createdResourceOffer.Status.VirtualKubeletStatus = sharingv1alpha1.VirtualKubeletStatusCreated
+			createdResourceOffer.Status.Phase = sharingv1alpha1.ResourceOfferAccepted
+			Expect(k8sClient.Status().Update(ctx, createdResourceOffer)).ToNot(HaveOccurred())
+
+			var resourceOffer sharingv1alpha1.ResourceOffer
+			Eventually(func() bool {
+				if err := k8sClient.Get(ctx, offerName, &resourceOffer); err != nil {
+					return false
+				}
+				return !resourceOffer.Spec.WithdrawalTimestamp.IsZero()
+			}, timeout, interval).Should(BeTrue())
+
+			By("Checking ResourceOffer deletion")
+			// the ResourceOffer should be deleted when the remote VirtualKubelet will be down
+			Expect(k8sClient.Get(ctx, offerName, createdResourceOffer)).ToNot(HaveOccurred())
+			createdResourceOffer.Status.VirtualKubeletStatus = sharingv1alpha1.VirtualKubeletStatusNone
+			Expect(k8sClient.Status().Update(ctx, createdResourceOffer)).ToNot(HaveOccurred())
+
+			Eventually(func() bool {
+				err := k8sClient.Get(ctx, offerName, &resourceOffer)
+				return apierrors.IsNotFound(err)
+			}, timeout, interval).Should(BeTrue())
 
 			By("Checking Tenant Deletion")
 			err := k8sClient.Delete(ctx, &resourceRequest)

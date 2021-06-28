@@ -52,6 +52,11 @@ spec:
                 required:
                 - clusterID
                 type: object
+              withdrawalTimestamp:
+                description: WithdrawalTimestamp is set when a graceful deletion is
+                  requested by the user.
+                format: date-time
+                type: string
             required:
             - authUrl
             - clusterIdentity
@@ -75,10 +80,17 @@ spec:
                       name must be unique.
                     type: string
                 type: object
+              offerWithdrawalTimestamp:
+                description: OfferWithdrawalTimestamp is the withdrawal timestamp
+                  of the child ResourceOffer resource.
+                format: date-time
+                type: string
             type: object
         type: object
     served: true
     storage: true
+    subresources:
+      status: {}
 status:
   acceptedNames:
     kind: ""

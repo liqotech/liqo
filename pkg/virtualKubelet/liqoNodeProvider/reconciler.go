@@ -27,6 +27,12 @@ import (
 	"github.com/liqotech/liqo/pkg/utils"
 )
 
+func isResourceOfferTerminating(resourceOffer *sharingv1alpha1.ResourceOffer) bool {
+	hasTimestamp := !resourceOffer.DeletionTimestamp.IsZero()
+	desiredDelete := !resourceOffer.Spec.WithdrawalTimestamp.IsZero()
+	return hasTimestamp || desiredDelete
+}
+
 // The reconciliation function; every time this function is called,
 // the node status is updated by means of r.updateFromResourceOffer.
 func (p *LiqoNodeProvider) reconcileNodeFromResourceOffer(event watch.Event) error {
@@ -40,7 +46,7 @@ func (p *LiqoNodeProvider) reconcileNodeFromResourceOffer(event watch.Event) err
 		return err
 	}
 
-	if event.Type == watch.Deleted || !resourceOffer.DeletionTimestamp.IsZero() {
+	if event.Type == watch.Deleted || isResourceOfferTerminating(&resourceOffer) {
 		p.updateMutex.Lock()
 		defer p.updateMutex.Unlock()
 		klog.Infof("resourceOffer %v is going to be deleted... set node status not ready", resourceOffer.Name)
@@ -331,12 +337,12 @@ func (p *LiqoNodeProvider) updateNode() error {
 func (p *LiqoNodeProvider) handleResourceOfferDelete(resourceOffer *sharingv1alpha1.ResourceOffer) error {
 	ctx := context.TODO()
 
-	if err := p.cordonNode(ctx); err != nil {
+	if err := client.IgnoreNotFound(p.cordonNode(ctx)); err != nil {
 		klog.Errorf("error cordoning node: %v", err)
 		return err
 	}
 
-	if err := p.drainNode(ctx); err != nil {
+	if err := client.IgnoreNotFound(p.drainNode(ctx)); err != nil {
 		klog.Errorf("error draining node: %v", err)
 		return err
 	}
@@ -346,7 +352,7 @@ func (p *LiqoNodeProvider) handleResourceOfferDelete(resourceOffer *sharingv1alp
 	}
 
 	// delete the node
-	if err := p.client.CoreV1().Nodes().Delete(ctx, p.node.GetName(), metav1.DeleteOptions{}); err != nil && !kerrors.IsNotFound(err) {
+	if err := client.IgnoreNotFound(p.client.CoreV1().Nodes().Delete(ctx, p.node.GetName(), metav1.DeleteOptions{})); err != nil {
 		klog.Errorf("error deleting node: %v", err)
 		return err
 	}

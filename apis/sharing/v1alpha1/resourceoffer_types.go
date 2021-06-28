@@ -23,6 +23,8 @@ type ResourceOfferSpec struct {
 	// TimeToLive is the time instant until this ResourceOffer will be valid.
 	// If not refreshed, an ResourceOffer will expire after 30 minutes.
 	TimeToLive metav1.Time `json:"timeToLive"`
+	// WithdrawalTimestamp is set when a graceful deletion is requested by the user.
+	WithdrawalTimestamp *metav1.Time `json:"withdrawalTimestamp,omitempty"`
 }
 
 // OfferPhase describes the phase of the ResourceOffer.

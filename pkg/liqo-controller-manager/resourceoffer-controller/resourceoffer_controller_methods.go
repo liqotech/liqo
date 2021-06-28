@@ -225,11 +225,26 @@ func (r *ResourceOfferReconciler) getVirtualKubeletDeployment(
 	return &deployList.Items[0], nil
 }
 
-func canDeleteVirtualKubeletDeployment(resourceOffer *sharingv1alpha1.ResourceOffer) bool {
+type kubeletDeletePhase string
+
+const (
+	kubeletDeletePhaseNone         kubeletDeletePhase = "None"
+	kubeletDeletePhaseDrainingNode kubeletDeletePhase = "DrainingNode"
+	kubeletDeletePhaseNodeDeleted  kubeletDeletePhase = "NodeDeleted"
+)
+
+func getDeleteVirtualKubeletPhase(resourceOffer *sharingv1alpha1.ResourceOffer) kubeletDeletePhase {
 	notAccepted := !isAccepted(resourceOffer)
 	deleting := !resourceOffer.DeletionTimestamp.IsZero()
+	desiredDelete := !resourceOffer.Spec.WithdrawalTimestamp.IsZero()
 	nodeDrained := !controllerutil.ContainsFinalizer(resourceOffer, consts.NodeFinalizer)
-	return (notAccepted || deleting) && nodeDrained
+	if notAccepted || deleting || desiredDelete {
+		if nodeDrained {
+			return kubeletDeletePhaseNodeDeleted
+		}
+		return kubeletDeletePhaseDrainingNode
+	}
+	return kubeletDeletePhaseNone
 }
 
 // isAccepted checks if a ResourceOffer is in Accepted phase.

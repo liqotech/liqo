@@ -22,15 +22,20 @@ type ResourceRequestSpec struct {
 	ClusterIdentity ClusterIdentity `json:"clusterIdentity"`
 	// Local auth service address
 	AuthURL string `json:"authUrl"`
+	// WithdrawalTimestamp is set when a graceful deletion is requested by the user.
+	WithdrawalTimestamp *metav1.Time `json:"withdrawalTimestamp,omitempty"`
 }
 
 // ResourceRequestStatus defines the observed state of ResourceRequest.
 type ResourceRequestStatus struct {
 	BroadcasterRef      *object_references.DeploymentReference `json:"broadcasterRef,omitempty"`
 	AdvertisementStatus advtypes.AdvPhase                      `json:"advertisementStatus,omitempty"`
+	// OfferWithdrawalTimestamp is the withdrawal timestamp of the child ResourceOffer resource.
+	OfferWithdrawalTimestamp *metav1.Time `json:"offerWithdrawalTimestamp,omitempty"`
 }
 
 // +kubebuilder:object:root=true
+// +kubebuilder:subresource:status
 
 // ResourceRequest is the Schema for the ResourceRequests API.
 type ResourceRequest struct {
@@ -42,7 +47,6 @@ type ResourceRequest struct {
 }
 
 // +kubebuilder:object:root=true
-// +kubebuilder:subresource:status
 
 // ResourceRequestList contains a list of ResourceRequest.
 type ResourceRequestList struct {

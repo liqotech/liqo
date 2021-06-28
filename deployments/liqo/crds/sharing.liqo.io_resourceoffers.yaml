@@ -166,6 +166,11 @@ spec:
                   was created.
                 format: date-time
                 type: string
+              withdrawalTimestamp:
+                description: WithdrawalTimestamp is set when a graceful deletion is
+                  requested by the user.
+                format: date-time
+                type: string
             required:
             - clusterId
             - timeToLive
