@@ -3,11 +3,12 @@ package consts
 const (
 	// RemoteClusterID is used to obtain cluster-id from different Liqo resources.
 	RemoteClusterID = "cluster-id" // "remote.liqo.io/clusterId"
-	// MapNamespaceName is the namespace where NamespaceMap are created.
-	MapNamespaceName = "default"
+	// TechnicalNamespace is the namespace where the NamespaceMaps are created.
+	TechnicalNamespace = "liqo"
 	// TypeLabel is the key of a Liqo label that identifies different types of nodes.
 	TypeLabel = "liqo.io/type"
 	// TypeNode is the value of a Liqo label that identifies Liqo virtual nodes.
+	// todo: change to VirtualNodeType
 	TypeNode = "virtual-node"
 	// NamespaceMapControllerFinalizer is the finalizer inserted on NamespaceMap by NamespaceMap Controller.
 	// todo: has to be removed after VirtualNode Controller refactor

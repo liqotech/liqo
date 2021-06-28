@@ -1,6 +1,6 @@
 ---
 title: K3s 
-weight: 3
+weight: 5
 ---
 
 ## About K3s

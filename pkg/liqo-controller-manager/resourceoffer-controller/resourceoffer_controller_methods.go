@@ -6,7 +6,7 @@ import (
 	"reflect"
 	"sync"
 
-	v1 "k8s.io/api/apps/v1"
+	appsv1 "k8s.io/api/apps/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
 	"k8s.io/klog/v2"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -49,69 +49,65 @@ func (r *ResourceOfferReconciler) setConfig(config *configv1alpha1.ClusterConfig
 	}
 }
 
-// setOwnerReference sets owner reference to the related ForeignCluster.
-func (r *ResourceOfferReconciler) setOwnerReference(
-	ctx context.Context, resourceOffer *sharingv1alpha1.ResourceOffer) (controllerutil.OperationResult, error) {
+// setControllerReference sets owner reference to the related ForeignCluster.
+func (r *ResourceOfferReconciler) setControllerReference(
+	ctx context.Context, resourceOffer *sharingv1alpha1.ResourceOffer) error {
 	// get the foreign cluster by clusterID label
 	foreignCluster, err := foreigncluster.GetForeignClusterByID(ctx, r.Client, resourceOffer.Spec.ClusterId)
 	if err != nil {
 		klog.Error(err)
-		return controllerutil.OperationResultNone, err
+		return err
 	}
-	return controllerutil.CreateOrUpdate(ctx, r.Client, resourceOffer, func() error {
-		// add owner reference, if it is not already set
-		if err := controllerutil.SetControllerReference(foreignCluster, resourceOffer, r.Scheme); err != nil {
-			klog.Error(err)
-			return err
-		}
-		return nil
-	})
+
+	// add controller reference, if it is not already set
+	if err := controllerutil.SetControllerReference(foreignCluster, resourceOffer, r.Scheme); err != nil {
+		klog.Error(err)
+		return err
+	}
+
+	return nil
 }
 
 // setResourceOfferPhase checks if the resource request can be accepted and set its phase accordingly.
 func (r *ResourceOfferReconciler) setResourceOfferPhase(
-	ctx context.Context, resourceOffer *sharingv1alpha1.ResourceOffer) (controllerutil.OperationResult, error) {
+	ctx context.Context, resourceOffer *sharingv1alpha1.ResourceOffer) error {
 	// we want only to care about resource offers with a pending status
 	if resourceOffer.Status.Phase != "" && resourceOffer.Status.Phase != sharingv1alpha1.ResourceOfferPending {
-		return controllerutil.OperationResultNone, nil
+		return nil
 	}
 
-	return controllerutil.CreateOrPatch(ctx, r.Client, resourceOffer, func() error {
-		switch r.getConfig().Spec.AdvertisementConfig.IngoingConfig.AcceptPolicy {
-		case configv1alpha1.AutoAcceptMax:
-			resourceOffer.Status.Phase = sharingv1alpha1.ResourceOfferAccepted
-		case configv1alpha1.ManualAccept:
-			// require a manual accept/refuse
-			resourceOffer.Status.Phase = sharingv1alpha1.ResourceOfferManualActionRequired
-		}
-		return nil
-	})
+	switch r.getConfig().Spec.AdvertisementConfig.IngoingConfig.AcceptPolicy {
+	case configv1alpha1.AutoAcceptMax:
+		resourceOffer.Status.Phase = sharingv1alpha1.ResourceOfferAccepted
+	case configv1alpha1.ManualAccept:
+		// require a manual accept/refuse
+		resourceOffer.Status.Phase = sharingv1alpha1.ResourceOfferManualActionRequired
+	}
+	return nil
 }
 
 // checkVirtualKubeletDeployment checks the existence of the VirtualKubelet Deployment
 // and sets its status in the ResourceOffer accordingly.
 func (r *ResourceOfferReconciler) checkVirtualKubeletDeployment(
-	ctx context.Context, resourceOffer *sharingv1alpha1.ResourceOffer) (controllerutil.OperationResult, error) {
+	ctx context.Context, resourceOffer *sharingv1alpha1.ResourceOffer) error {
 	virtualKubeletDeployment, err := r.getVirtualKubeletDeployment(ctx, resourceOffer)
 	if err != nil {
 		klog.Error(err)
-		return controllerutil.OperationResultNone, err
+		return err
 	}
 
-	return controllerutil.CreateOrPatch(ctx, r.Client, resourceOffer, func() error {
-		if virtualKubeletDeployment == nil {
-			resourceOffer.Status.VirtualKubeletStatus = sharingv1alpha1.VirtualKubeletStatusNone
-		} else if resourceOffer.Status.VirtualKubeletStatus != sharingv1alpha1.VirtualKubeletStatusDeleting {
-			// there is a virtual kubelet deployment and the phase is not deleting
-			resourceOffer.Status.VirtualKubeletStatus = sharingv1alpha1.VirtualKubeletStatusCreated
-		}
-		return nil
-	})
+	if virtualKubeletDeployment == nil {
+		resourceOffer.Status.VirtualKubeletStatus = sharingv1alpha1.VirtualKubeletStatusNone
+	} else if resourceOffer.Status.VirtualKubeletStatus != sharingv1alpha1.VirtualKubeletStatusDeleting {
+		// there is a virtual kubelet deployment and the phase is not deleting
+		resourceOffer.Status.VirtualKubeletStatus = sharingv1alpha1.VirtualKubeletStatusCreated
+	}
+	return nil
 }
 
 // createVirtualKubeletDeployment creates the VirtualKubelet Deployment.
 func (r *ResourceOfferReconciler) createVirtualKubeletDeployment(
-	ctx context.Context, resourceOffer *sharingv1alpha1.ResourceOffer) (controllerutil.OperationResult, error) {
+	ctx context.Context, resourceOffer *sharingv1alpha1.ResourceOffer) error {
 	name := virtualKubelet.VirtualKubeletPrefix + resourceOffer.Spec.ClusterId
 	nodeName := virtualKubelet.VirtualNodePrefix + resourceOffer.Spec.ClusterId
 
@@ -125,7 +121,7 @@ func (r *ResourceOfferReconciler) createVirtualKubeletDeployment(
 	})
 	if err != nil {
 		klog.Error(err)
-		return op, err
+		return err
 	}
 	klog.V(5).Infof("[%v] ServiceAccount %s/%s reconciled: %s", remoteClusterID, vkServiceAccount.Namespace, vkServiceAccount.Name, op)
 
@@ -135,7 +131,7 @@ func (r *ResourceOfferReconciler) createVirtualKubeletDeployment(
 	})
 	if err != nil {
 		klog.Error(err)
-		return op, err
+		return err
 	}
 	klog.V(5).Infof("[%v] ClusterRoleBinding %s reconciled: %s", remoteClusterID, vkClusterRoleBinding.Name, op)
 
@@ -145,7 +141,7 @@ func (r *ResourceOfferReconciler) createVirtualKubeletDeployment(
 		r.initVirtualKubeletImage, nodeName, r.clusterID.GetClusterID())
 	if err != nil {
 		klog.Error(err)
-		return controllerutil.OperationResultNone, err
+		return err
 	}
 
 	op, err = controllerutil.CreateOrUpdate(context.TODO(), r.Client, vkDeployment, func() error {
@@ -153,7 +149,7 @@ func (r *ResourceOfferReconciler) createVirtualKubeletDeployment(
 	})
 	if err != nil {
 		klog.Error(err)
-		return op, err
+		return err
 	}
 	klog.V(5).Infof("[%v] Deployment %s/%s reconciled: %s", remoteClusterID, vkDeployment.Namespace, vkDeployment.Name, op)
 
@@ -163,37 +159,33 @@ func (r *ResourceOfferReconciler) createVirtualKubeletDeployment(
 		r.eventsRecorder.Event(resourceOffer, "Normal", "VkCreated", msg)
 	}
 
-	return controllerutil.CreateOrPatch(ctx, r.Client, resourceOffer, func() error {
-		resourceOffer.Status.VirtualKubeletStatus = sharingv1alpha1.VirtualKubeletStatusCreated
-		return nil
-	})
+	resourceOffer.Status.VirtualKubeletStatus = sharingv1alpha1.VirtualKubeletStatusCreated
+	return nil
 }
 
 // deleteVirtualKubeletDeployment deletes the VirtualKubelet Deployment.
 func (r *ResourceOfferReconciler) deleteVirtualKubeletDeployment(
-	ctx context.Context, resourceOffer *sharingv1alpha1.ResourceOffer) (controllerutil.OperationResult, error) {
+	ctx context.Context, resourceOffer *sharingv1alpha1.ResourceOffer) error {
 	virtualKubeletDeployment, err := r.getVirtualKubeletDeployment(ctx, resourceOffer)
 	if err != nil {
 		klog.Error(err)
-		return controllerutil.OperationResultNone, err
+		return err
 	}
 	if virtualKubeletDeployment == nil || !virtualKubeletDeployment.DeletionTimestamp.IsZero() {
-		return controllerutil.OperationResultNone, nil
+		return nil
 	}
 
 	if err := r.Client.Delete(ctx, virtualKubeletDeployment); err != nil {
 		klog.Error(err)
-		return controllerutil.OperationResultNone, err
+		return err
 	}
 
 	msg := fmt.Sprintf("[%v] Deleting virtual-kubelet in namespace %v", resourceOffer.Spec.ClusterId, resourceOffer.Namespace)
 	klog.Info(msg)
 	r.eventsRecorder.Event(resourceOffer, "Normal", "VkDeleted", msg)
 
-	return controllerutil.CreateOrPatch(ctx, r.Client, resourceOffer, func() error {
-		resourceOffer.Status.VirtualKubeletStatus = sharingv1alpha1.VirtualKubeletStatusDeleting
-		return nil
-	})
+	resourceOffer.Status.VirtualKubeletStatus = sharingv1alpha1.VirtualKubeletStatusDeleting
+	return nil
 }
 
 // deleteClusterRoleBinding deletes the ClusterRoleBinding related to a VirtualKubelet if the deployment does not exist.
@@ -210,8 +202,8 @@ func (r *ResourceOfferReconciler) deleteClusterRoleBinding(
 
 // getVirtualKubeletDeployment returns the VirtualKubelet Deployment given a ResourceOffer.
 func (r *ResourceOfferReconciler) getVirtualKubeletDeployment(
-	ctx context.Context, resourceOffer *sharingv1alpha1.ResourceOffer) (*v1.Deployment, error) {
-	var deployList v1.DeploymentList
+	ctx context.Context, resourceOffer *sharingv1alpha1.ResourceOffer) (*appsv1.Deployment, error) {
+	var deployList appsv1.DeploymentList
 	labels := forge.VirtualKubeletLabels(resourceOffer.Spec.ClusterId)
 	if err := r.Client.List(ctx, &deployList, client.MatchingLabels(labels)); err != nil {
 		klog.Error(err)

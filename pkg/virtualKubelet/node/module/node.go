@@ -21,8 +21,6 @@ import (
 	"sync"
 	"time"
 
-	"k8s.io/klog/v2"
-
 	pkgerrors "github.com/pkg/errors"
 	coord "k8s.io/api/coordination/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -32,6 +30,8 @@ import (
 	"k8s.io/apimachinery/pkg/util/strategicpatch"
 	coordinationv1 "k8s.io/client-go/kubernetes/typed/coordination/v1"
 	v1 "k8s.io/client-go/kubernetes/typed/core/v1"
+	"k8s.io/client-go/util/retry"
+	"k8s.io/klog/v2"
 )
 
 // NodeProvider is the interface used for registering a node and updating its
@@ -377,22 +377,40 @@ func ensureLease(ctx context.Context, leases coordinationv1.LeaseInterface, leas
 // If this function returns an errors.IsNotFound(err) error, this likely means
 // that node leases are not supported, if this is the case, call updateNodeStatus
 // instead.
+//
+// NOTE: this code has been modified to fix a bug already addressed in the upstream
+// virtual kubelet repository. It can be dropped when upgrading the kubelet code.
 func updateNodeLease(ctx context.Context, leases coordinationv1.LeaseInterface, lease *coord.Lease) (*coord.Lease, error) {
-	l, err := leases.Update(context.TODO(), lease, metav1.UpdateOptions{})
-	if err != nil {
-		if errors.IsNotFound(err) {
-			klog.V(4).Infof("lease %s/%s not found", lease.Namespace, lease.Name)
-			l, err = ensureLease(ctx, leases, lease)
-		}
+	var l *coord.Lease
+	var err error
+	err = retry.RetryOnConflict(retry.DefaultRetry, func() error {
+		l, err = leases.Update(ctx, lease, metav1.UpdateOptions{})
 		if err != nil {
-			return nil, err
+			if errors.IsNotFound(err) {
+				klog.V(4).Infof("lease %s/%s not found", lease.Namespace, lease.Name)
+				l, err = ensureLease(ctx, leases, lease)
+			}
+			if errors.IsConflict(err) {
+				klog.V(4).Infof("conflict, get lease %s/%s", lease.Namespace, lease.Name)
+				var newErr error
+				lease, newErr = leases.Get(ctx, lease.GetName(), metav1.GetOptions{})
+				if newErr != nil {
+					klog.Error(newErr)
+					return newErr
+				}
+				return err
+			}
+			if err != nil {
+				return err
+			}
+			klog.V(4).Infof("created new lease %s%s", lease.Namespace, lease.Name)
+		} else {
+			klog.V(4).Infof("updated lease %s/%s", lease.Namespace, lease.Name)
 		}
-		klog.V(4).Infof("created new lease %s%s", lease.Namespace, lease.Name)
-	} else {
-		klog.V(4).Infof("updated lease %s/%s", lease.Namespace, lease.Name)
-	}
 
-	return l, nil
+		return nil
+	})
+	return l, err
 }
 
 // just so we don't have to allocate this on every get request.

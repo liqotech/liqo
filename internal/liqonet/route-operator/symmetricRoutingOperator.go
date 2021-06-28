@@ -20,6 +20,7 @@ import (
 	liqoerrors "github.com/liqotech/liqo/pkg/liqonet/errors"
 	"github.com/liqotech/liqo/pkg/liqonet/overlay"
 	"github.com/liqotech/liqo/pkg/liqonet/routing"
+	"github.com/liqotech/liqo/pkg/liqonet/utils"
 )
 
 // SymmetricRoutingController reconciles pods objects, in our case all the existing pods.
@@ -112,7 +113,7 @@ func (src *SymmetricRoutingController) addRoute(req ctrl.Request, p *corev1.Pod)
 	if !ok {
 		return false, fmt.Errorf("ip not set")
 	}
-	gwIP := overlay.GetOverlayIP(nodeIP)
+	gwIP := utils.GetOverlayIP(nodeIP)
 	dstNet := strings.Join([]string{p.Status.PodIP, "32"}, "/")
 	added, err := routing.AddRoute(dstNet, gwIP, src.vxlanDev.Link.Attrs().Index, src.routingTableID)
 	if err != nil {

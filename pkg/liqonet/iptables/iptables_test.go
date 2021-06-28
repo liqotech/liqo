@@ -18,26 +18,47 @@ import (
 )
 
 const (
-	clusterID1             = "cluster1"
-	invalidValue           = "an invalid value"
-	remoteNATPodCIDRValue1 = "10.60.0.0/24"
-	remoteNATPodCIDRValue2 = "10.70.0.0/24"
+	clusterID1            = "cluster1"
+	invalidValue          = "an invalid value"
+	remoteNATPodCIDRValue = "10.70.0.0/24"
+	oldIP1                = "10.0.0.2"
+	oldIP2                = "12.0.0.4"
+	newIP1                = "10.0.3.2"
+	newIP2                = "10.0.5.2"
 )
 
-var h IPTHandler
-var ipt *IPTables
-var tep *v1alpha1.TunnelEndpoint
+var (
+	h           IPTHandler
+	ipt         *IPTables
+	tep         *v1alpha1.TunnelEndpoint
+	nm          *v1alpha1.NatMapping
+	natMappings = v1alpha1.Mappings{
+		oldIP1: newIP1,
+		oldIP2: newIP2,
+	}
+	validTep = &v1alpha1.TunnelEndpoint{
+		Spec: v1alpha1.TunnelEndpointSpec{
+			ClusterID:    clusterID1,
+			PodCIDR:      "10.0.0.0/24",
+			ExternalCIDR: "10.0.1.0/24",
+		},
+		Status: v1alpha1.TunnelEndpointStatus{
+			LocalPodCIDR:          "192.168.0.0/24",
+			LocalNATPodCIDR:       "192.168.1.0/24",
+			RemoteNATPodCIDR:      "10.60.0.0/24",
+			LocalExternalCIDR:     "192.168.3.0/24",
+			LocalNATExternalCIDR:  "192.168.4.0/24",
+			RemoteNATExternalCIDR: "192.168.5.0/24",
+		},
+	}
+)
 
 var _ = Describe("iptables", func() {
-	BeforeEach(func() {
-		var err error
-		h, err = NewIPTHandler()
-		Expect(err).To(BeNil())
-		ipt, err = New()
-		Expect(err).To(BeNil())
-		tep = forgeValidTEPResource()
-	})
 	Describe("Init", func() {
+		BeforeEach(func() {
+			err := h.Terminate()
+			Expect(err).To(BeNil())
+		})
 		Context("Call func", func() {
 			It("should produce no errors and create Liqo chains", func() {
 				err := h.Init()
@@ -104,15 +125,18 @@ var _ = Describe("iptables", func() {
 
 	Describe("EnsureChainRulesPerCluster", func() {
 		BeforeEach(func() {
-			err := h.Init()
+			err := h.EnsureChainsPerCluster(clusterID1)
 			Expect(err).To(BeNil())
-			err = h.EnsureChainsPerCluster(clusterID1)
-			Expect(err).To(BeNil())
+			tep = validTep.DeepCopy()
+			nm = &v1alpha1.NatMapping{
+				Spec: v1alpha1.NatMappingSpec{
+					ClusterID:       clusterID1,
+					ClusterMappings: make(v1alpha1.Mappings),
+				},
+			}
 		})
 		AfterEach(func() {
 			err := h.RemoveIPTablesConfigurationPerCluster(tep)
-			Expect(err).To(BeNil())
-			err = h.Terminate()
 			Expect(err).To(BeNil())
 		})
 		Context(fmt.Sprintf("If all parameters are valid and LocalNATPodCIDR is equal to "+
@@ -123,27 +147,26 @@ var _ = Describe("iptables", func() {
 				err := h.EnsureChainRulesPerCluster(tep)
 				Expect(err).To(BeNil())
 
-				clusterPostRoutingChain := strings.Join([]string{liqonetPostroutingClusterChainPrefix, strings.Split(tep.Spec.ClusterID, "-")[0]}, "")
-				clusterForwardChain := strings.Join([]string{liqonetForwardingClusterChainPrefix, strings.Split(tep.Spec.ClusterID, "-")[0]}, "")
-				clusterInputChain := strings.Join([]string{liqonetInputClusterChainPrefix, strings.Split(tep.Spec.ClusterID, "-")[0]}, "")
-
 				// Check existence of rule in LIQO-POSTROUTING chain
 				postRoutingRules, err := h.ListRulesInChain(liqonetPostroutingChain)
-				expectedRule := fmt.Sprintf("-d %s -j %s", tep.Status.RemoteNATPodCIDR, clusterPostRoutingChain)
+				expectedRule := fmt.Sprintf("-d %s -j %s", tep.Status.RemoteNATPodCIDR, getClusterPostRoutingChain(tep.Spec.ClusterID))
 				Expect(expectedRule).To(Equal(postRoutingRules[0]))
 
-				// Check existence of rule in LIQO-PREROUTING chain (should not exist)
+				// Check existence of rules in LIQO-PREROUTING chain
+				// Rule for NAT-ting the PodCIDR should not be present
 				preRoutingRules, err := h.ListRulesInChain(liqonetPreroutingChain)
-				Expect(preRoutingRules).To(HaveLen(0))
+				expectedRule = fmt.Sprintf("-s %s -d %s -j %s", tep.Status.RemoteNATPodCIDR, tep.Status.LocalNATExternalCIDR,
+					getClusterPreRoutingMappingChain(tep.Spec.ClusterID))
+				Expect(expectedRule).To(Equal(preRoutingRules[0]))
 
 				// Check existence of rule in LIQO-FORWARD chain
 				forwardRules, err := h.ListRulesInChain(liqonetForwardingChain)
-				expectedRule = fmt.Sprintf("-d %s -j %s", tep.Status.RemoteNATPodCIDR, clusterForwardChain)
+				expectedRule = fmt.Sprintf("-d %s -j %s", tep.Status.RemoteNATPodCIDR, getClusterForwardChain(tep.Spec.ClusterID))
 				Expect(expectedRule).To(Equal(forwardRules[0]))
 
 				// Check existence of rule in LIQO-INPUT chain
 				inputRules, err := h.ListRulesInChain(liqonetInputChain)
-				expectedRule = fmt.Sprintf("-d %s -j %s", tep.Status.RemoteNATPodCIDR, clusterInputChain)
+				expectedRule = fmt.Sprintf("-d %s -j %s", tep.Status.RemoteNATPodCIDR, getClusterInputChain(tep.Spec.ClusterID))
 				Expect(expectedRule).To(Equal(inputRules[0]))
 
 			})
@@ -155,31 +178,30 @@ var _ = Describe("iptables", func() {
 				err := h.EnsureChainRulesPerCluster(tep)
 				Expect(err).To(BeNil())
 
-				clusterPostRoutingChain := strings.Join([]string{liqonetPostroutingClusterChainPrefix, strings.Split(tep.Spec.ClusterID, "-")[0]}, "")
-				clusterForwardChain := strings.Join([]string{liqonetForwardingClusterChainPrefix, strings.Split(tep.Spec.ClusterID, "-")[0]}, "")
-				clusterInputChain := strings.Join([]string{liqonetInputClusterChainPrefix, strings.Split(tep.Spec.ClusterID, "-")[0]}, "")
-				clusterPreRoutingChain := strings.Join([]string{liqonetPreroutingClusterChainPrefix, strings.Split(tep.Spec.ClusterID, "-")[0]}, "")
-
 				// Check existence of rule in LIQO-PREROUTING chain
 				postRoutingRules, err := h.ListRulesInChain(liqonetPostroutingChain)
-				expectedRule := fmt.Sprintf("-d %s -j %s", tep.Status.RemoteNATPodCIDR, clusterPostRoutingChain)
+				expectedRule := fmt.Sprintf("-d %s -j %s", tep.Status.RemoteNATPodCIDR, getClusterPostRoutingChain(tep.Spec.ClusterID))
 				Expect(expectedRule).To(Equal(postRoutingRules[0]))
 
 				// Check existence of rule in LIQO-FORWARD chain
 				forwardRules, err := h.ListRulesInChain(liqonetForwardingChain)
-				expectedRule = fmt.Sprintf("-d %s -j %s", tep.Status.RemoteNATPodCIDR, clusterForwardChain)
+				expectedRule = fmt.Sprintf("-d %s -j %s", tep.Status.RemoteNATPodCIDR, getClusterForwardChain(tep.Spec.ClusterID))
 				Expect(expectedRule).To(Equal(forwardRules[0]))
 
 				// Check existence of rule in LIQO-INPUT chain
 				inputRules, err := h.ListRulesInChain(liqonetInputChain)
-				expectedRule = fmt.Sprintf("-d %s -j %s", tep.Status.RemoteNATPodCIDR, clusterInputChain)
+				expectedRule = fmt.Sprintf("-d %s -j %s", tep.Status.RemoteNATPodCIDR, getClusterInputChain(tep.Spec.ClusterID))
 				Expect(expectedRule).To(Equal(inputRules[0]))
 
 				// Check existence of rule in LIQO-PREROUTING chain
 				preRoutingRules, err := h.ListRulesInChain(liqonetPreroutingChain)
-				expectedRule = fmt.Sprintf("-s %s -d %s -j %s", tep.Status.RemoteNATPodCIDR,
-					tep.Status.LocalNATPodCIDR, clusterPreRoutingChain)
-				Expect(expectedRule).To(Equal(preRoutingRules[0]))
+				expectedRules := []string{
+					fmt.Sprintf("-s %s -d %s -j %s", tep.Status.RemoteNATPodCIDR,
+						tep.Status.LocalNATPodCIDR, getClusterPreRoutingChain(tep.Spec.ClusterID)),
+					fmt.Sprintf("-s %s -d %s -j %s", tep.Status.RemoteNATPodCIDR, tep.Status.LocalNATExternalCIDR,
+						getClusterPreRoutingMappingChain(tep.Spec.ClusterID)),
+				}
+				Expect(preRoutingRules).To(ContainElements(expectedRules))
 			})
 		})
 
@@ -188,8 +210,8 @@ var _ = Describe("iptables", func() {
 			It("should return a WrongParameter error", func() {
 				tep.Status.RemoteNATPodCIDR = invalidValue
 				err := h.EnsureChainRulesPerCluster(tep)
-				Expect(err).To(MatchError(fmt.Sprintf("invalid TunnelEndpoint resource: %s must be %s", remoteNATPodCIDR, errors.ValidCIDR)))
-				tep = forgeValidTEPResource()
+				Expect(err).To(MatchError(fmt.Sprintf("invalid TunnelEndpoint resource: %s must be %s", consts.RemoteNATPodCIDR, errors.ValidCIDR)))
+				tep = validTep.DeepCopy() // Otherwise RemoveIPTablesConfigurationPerCluster would fail in AfterEach
 			})
 		})
 
@@ -199,8 +221,8 @@ var _ = Describe("iptables", func() {
 				tep.Status.RemoteNATPodCIDR = consts.DefaultCIDRValue
 				tep.Spec.PodCIDR = invalidValue
 				err := h.EnsureChainRulesPerCluster(tep)
-				Expect(err).To(MatchError(fmt.Sprintf("invalid TunnelEndpoint resource: %s must be %s", podCIDR, errors.ValidCIDR)))
-				tep = forgeValidTEPResource() // Otherwise RemoveIPTablesConfigurationPerCluster would fail in AfterEach
+				Expect(err).To(MatchError(fmt.Sprintf("invalid TunnelEndpoint resource: %s must be %s", consts.PodCIDR, errors.ValidCIDR)))
+				tep = validTep.DeepCopy() // Otherwise RemoveIPTablesConfigurationPerCluster would fail in AfterEach
 			})
 		})
 
@@ -209,8 +231,8 @@ var _ = Describe("iptables", func() {
 			It("should return a WrongParameter error", func() {
 				tep.Status.LocalNATPodCIDR = invalidValue
 				err := h.EnsureChainRulesPerCluster(tep)
-				Expect(err).To(MatchError(fmt.Sprintf("invalid TunnelEndpoint resource: %s must be %s", localNATPodCIDR, errors.ValidCIDR)))
-				tep = forgeValidTEPResource()
+				Expect(err).To(MatchError(fmt.Sprintf("invalid TunnelEndpoint resource: %s must be %s", consts.LocalNATPodCIDR, errors.ValidCIDR)))
+				tep = validTep.DeepCopy() // Otherwise RemoveIPTablesConfigurationPerCluster would fail in AfterEach
 			})
 		})
 
@@ -221,8 +243,8 @@ var _ = Describe("iptables", func() {
 				err := h.Init()
 				Expect(err).To(BeNil())
 				err = h.EnsureChainRulesPerCluster(tep)
-				Expect(err).To(MatchError(fmt.Sprintf("invalid TunnelEndpoint resource: %s must be %s", localNATPodCIDR, errors.ValidCIDR)))
-				tep = forgeValidTEPResource()
+				Expect(err).To(MatchError(fmt.Sprintf("invalid TunnelEndpoint resource: %s must be %s", consts.LocalNATPodCIDR, errors.ValidCIDR)))
+				tep = validTep.DeepCopy() // Otherwise RemoveIPTablesConfigurationPerCluster would fail in AfterEach
 			})
 		})
 
@@ -238,7 +260,7 @@ var _ = Describe("iptables", func() {
 				outdatedRule := postRoutingRules[0]
 
 				// Modify resource
-				tep.Status.RemoteNATPodCIDR = remoteNATPodCIDRValue2
+				tep.Status.RemoteNATPodCIDR = remoteNATPodCIDRValue
 
 				// Second call
 				err = h.EnsureChainRulesPerCluster(tep)
@@ -266,7 +288,7 @@ var _ = Describe("iptables", func() {
 				outdatedRule := postRoutingRules[0]
 
 				// Modify resource
-				tep.Status.RemoteNATPodCIDR = remoteNATPodCIDRValue2
+				tep.Status.RemoteNATPodCIDR = remoteNATPodCIDRValue
 
 				// Second call
 				err = h.EnsureChainRulesPerCluster(tep)
@@ -284,16 +306,16 @@ var _ = Describe("iptables", func() {
 	})
 
 	Describe("EnsureChainsPerCluster", func() {
-		BeforeEach(func() {
-			err := h.Init()
-			Expect(err).To(BeNil())
-			tep = forgeValidTEPResource()
-		})
 		AfterEach(func() {
 			err := h.RemoveIPTablesConfigurationPerCluster(tep)
 			Expect(err).To(BeNil())
-			err = h.Terminate()
-			Expect(err).To(BeNil())
+			tep = validTep.DeepCopy()
+			nm = &v1alpha1.NatMapping{
+				Spec: v1alpha1.NatMappingSpec{
+					ClusterID:       clusterID1,
+					ClusterMappings: make(v1alpha1.Mappings),
+				},
+			}
 		})
 		Context("Passing an empty clusterID", func() {
 			It("Should return a WrongParameter error", func() {
@@ -321,6 +343,7 @@ var _ = Describe("iptables", func() {
 				Expect(natChains).To(ContainElements(
 					strings.Join([]string{liqonetPostroutingClusterChainPrefix, strings.Split(clusterID1, "-")[0]}, ""),
 					strings.Join([]string{liqonetPreroutingClusterChainPrefix, strings.Split(clusterID1, "-")[0]}, ""),
+					strings.Join([]string{liqonetPreRoutingMappingClusterChainPrefix, strings.Split(clusterID1, "-")[0]}, ""),
 				))
 			})
 		})
@@ -344,6 +367,7 @@ var _ = Describe("iptables", func() {
 				Expect(natChains).To(ContainElements(
 					strings.Join([]string{liqonetPostroutingClusterChainPrefix, strings.Split(clusterID1, "-")[0]}, ""),
 					strings.Join([]string{liqonetPreroutingClusterChainPrefix, strings.Split(clusterID1, "-")[0]}, ""),
+					strings.Join([]string{liqonetPreRoutingMappingClusterChainPrefix, strings.Split(clusterID1, "-")[0]}, ""),
 				))
 
 				err = h.EnsureChainsPerCluster(clusterID1)
@@ -458,14 +482,6 @@ var _ = Describe("iptables", func() {
 	})
 
 	Describe("RemoveIPTablesConfigurationPerCluster", func() {
-		BeforeEach(func() {
-			err := h.Init()
-			Expect(err).To(BeNil())
-		})
-		AfterEach(func() {
-			err := h.Terminate()
-			Expect(err).To(BeNil())
-		})
 		Context("If there are no iptables rules/chains related to remote cluster", func() {
 			It("should be a nop", func() {
 				// Read current configuration in order to compare it
@@ -512,9 +528,6 @@ var _ = Describe("iptables", func() {
 		})
 		Context("If cluster has an iptables configuration", func() {
 			It("should delete chains and rules per cluster", func() {
-				// Init configuration
-				tep := forgeValidTEPResource()
-
 				err := h.EnsureChainsPerCluster(tep.Spec.ClusterID)
 				Expect(err).To(BeNil())
 
@@ -541,7 +554,6 @@ var _ = Describe("iptables", func() {
 				preRoutingRules, err := h.ListRulesInChain(liqonetPreroutingChain)
 				Expect(err).To(BeNil())
 
-				// Rules contains a comment with the clusterID
 				clusterPostRoutingRules := getSliceContainingString(postRoutingRules, tep.Spec.ClusterID)
 				clusterPreRoutingRules := getSliceContainingString(preRoutingRules, tep.Spec.ClusterID)
 				clusterForwardRules := getSliceContainingString(forwardRules, tep.Spec.ClusterID)
@@ -580,15 +592,18 @@ var _ = Describe("iptables", func() {
 
 	Describe("EnsurePostroutingRules", func() {
 		BeforeEach(func() {
-			err := h.Init()
+			err := h.EnsureChainsPerCluster(clusterID1)
 			Expect(err).To(BeNil())
-			err = h.EnsureChainsPerCluster(clusterID1)
-			Expect(err).To(BeNil())
+			tep = validTep.DeepCopy()
+			nm = &v1alpha1.NatMapping{
+				Spec: v1alpha1.NatMappingSpec{
+					ClusterID:       clusterID1,
+					ClusterMappings: make(v1alpha1.Mappings),
+				},
+			}
 		})
 		AfterEach(func() {
 			err := h.RemoveIPTablesConfigurationPerCluster(tep)
-			Expect(err).To(BeNil())
-			err = h.Terminate()
 			Expect(err).To(BeNil())
 		})
 		Context("If tep has an empty clusterID", func() {
@@ -596,23 +611,23 @@ var _ = Describe("iptables", func() {
 				tep.Spec.ClusterID = ""
 				err := h.EnsurePostroutingRules(tep)
 				Expect(err).To(MatchError(fmt.Sprintf("invalid TunnelEndpoint resource: %s must be %s", consts.ClusterIDLabelName, errors.StringNotEmpty)))
-				tep = forgeValidTEPResource()
+				tep = validTep.DeepCopy() // Otherwise RemoveIPTablesConfigurationPerCluster would fail in AfterEach
 			})
 		})
 		Context("If tep has an invalid LocalPodCIDR", func() {
 			It("should return a WrongParameter error", func() {
 				tep.Status.LocalPodCIDR = invalidValue
 				err := h.EnsurePostroutingRules(tep)
-				Expect(err).To(MatchError(fmt.Sprintf("invalid TunnelEndpoint resource: %s must be %s", localPodCIDR, errors.ValidCIDR)))
-				tep = forgeValidTEPResource()
+				Expect(err).To(MatchError(fmt.Sprintf("invalid TunnelEndpoint resource: %s must be %s", consts.LocalPodCIDR, errors.ValidCIDR)))
+				tep = validTep.DeepCopy() // Otherwise RemoveIPTablesConfigurationPerCluster would fail in AfterEach
 			})
 		})
 		Context("If tep has an invalid LocalNATPodCIDR", func() {
 			It("should return a WrongParameter error", func() {
 				tep.Status.LocalNATPodCIDR = invalidValue
 				err := h.EnsurePostroutingRules(tep)
-				Expect(err).To(MatchError(fmt.Sprintf("invalid TunnelEndpoint resource: %s must be %s", localNATPodCIDR, errors.ValidCIDR)))
-				tep = forgeValidTEPResource()
+				Expect(err).To(MatchError(fmt.Sprintf("invalid TunnelEndpoint resource: %s must be %s", consts.LocalNATPodCIDR, errors.ValidCIDR)))
+				tep = validTep.DeepCopy() // Otherwise RemoveIPTablesConfigurationPerCluster would fail in AfterEach
 			})
 		})
 		Context(fmt.Sprintf("If tep has Status.RemoteNATPodCIDR = %s and an invalid Spec.PodCIDR",
@@ -621,8 +636,27 @@ var _ = Describe("iptables", func() {
 				tep.Status.RemoteNATPodCIDR = consts.DefaultCIDRValue
 				tep.Spec.PodCIDR = invalidValue
 				err := h.EnsurePostroutingRules(tep)
-				Expect(err).To(MatchError(fmt.Sprintf("invalid TunnelEndpoint resource: %s must be %s", podCIDR, errors.ValidCIDR)))
-				tep = forgeValidTEPResource()
+				Expect(err).To(MatchError(fmt.Sprintf("invalid TunnelEndpoint resource: %s must be %s", consts.PodCIDR, errors.ValidCIDR)))
+				tep = validTep.DeepCopy() // Otherwise RemoveIPTablesConfigurationPerCluster would fail in AfterEach
+			})
+		})
+		Context(fmt.Sprintf("If tep has Status.RemoteNATExternalCIDR = %s and an invalid Spec.ExternalCIDR",
+			consts.DefaultCIDRValue), func() {
+			It("should return a WrongParameter error", func() {
+				tep.Status.RemoteNATExternalCIDR = consts.DefaultCIDRValue
+				tep.Spec.ExternalCIDR = invalidValue
+				err := h.EnsurePostroutingRules(tep)
+				Expect(err).To(MatchError(fmt.Sprintf("invalid TunnelEndpoint resource: %s must be %s", consts.ExternalCIDR, errors.ValidCIDR)))
+				tep = validTep.DeepCopy() // Otherwise RemoveIPTablesConfigurationPerCluster would fail in AfterEach
+			})
+		})
+		Context(fmt.Sprintf("If tep has an invalid Status.RemoteNATExternalCIDR != %s",
+			consts.DefaultCIDRValue), func() {
+			It("should return a WrongParameter error", func() {
+				tep.Status.RemoteNATExternalCIDR = invalidValue
+				err := h.EnsurePostroutingRules(tep)
+				Expect(err).To(MatchError(fmt.Sprintf("invalid TunnelEndpoint resource: %s must be %s", consts.RemoteNATExternalCIDR, errors.ValidCIDR)))
+				tep = validTep.DeepCopy() // Otherwise RemoveIPTablesConfigurationPerCluster would fail in AfterEach
 			})
 		})
 		Context(fmt.Sprintf("If tep has an invalid Status.RemoteNATPodCIDR != %s",
@@ -630,8 +664,8 @@ var _ = Describe("iptables", func() {
 			It("should return a WrongParameter error", func() {
 				tep.Status.RemoteNATPodCIDR = invalidValue
 				err := h.EnsurePostroutingRules(tep)
-				Expect(err).To(MatchError(fmt.Sprintf("invalid TunnelEndpoint resource: %s must be %s", remoteNATPodCIDR, errors.ValidCIDR)))
-				tep = forgeValidTEPResource()
+				Expect(err).To(MatchError(fmt.Sprintf("invalid TunnelEndpoint resource: %s must be %s", consts.RemoteNATPodCIDR, errors.ValidCIDR)))
+				tep = validTep.DeepCopy() // Otherwise RemoveIPTablesConfigurationPerCluster would fail in AfterEach
 			})
 		})
 		Context("Call with different parameters", func() {
@@ -658,7 +692,10 @@ var _ = Describe("iptables", func() {
 				Expect(newPostRoutingRules).ToNot(ContainElements(postRoutingRules))
 				Expect(newPostRoutingRules).To(ContainElements([]string{
 					fmt.Sprintf("-s %s -d %s -j %s --to %s", tep.Status.LocalPodCIDR, tep.Status.RemoteNATPodCIDR, NETMAP, tep.Status.LocalNATPodCIDR),
-					fmt.Sprintf("! -s %s -d %s -j %s --to-source %s", tep.Status.LocalPodCIDR, tep.Status.RemoteNATPodCIDR, SNAT, mustGetFirstIP(tep.Status.LocalNATPodCIDR)),
+					fmt.Sprintf("! -s %s -d %s -j %s --to-source %s", tep.Status.LocalPodCIDR, tep.Status.RemoteNATPodCIDR,
+						SNAT, mustGetFirstIP(tep.Status.LocalNATPodCIDR)),
+					fmt.Sprintf("! -s %s -d %s -j %s --to-source %s", tep.Status.LocalPodCIDR, tep.Status.RemoteNATExternalCIDR,
+						SNAT, mustGetFirstIP(tep.Status.LocalNATPodCIDR)),
 				}))
 			})
 		})
@@ -673,78 +710,156 @@ var _ = Describe("iptables", func() {
 				Expect(postRoutingRules).To(ContainElements(expectedRules))
 			},
 			Entry(
-				fmt.Sprintf("RemoteNATPodCIDR != %s, LocalNATPodCIDR != %s", consts.DefaultCIDRValue, consts.DefaultCIDRValue),
+				fmt.Sprintf("RemoteNATExternalCIDR != %s, RemoteNATPodCIDR != %s, LocalNATPodCIDR != %s", consts.DefaultCIDRValue,
+					consts.DefaultCIDRValue, consts.DefaultCIDRValue),
 				func() {},
 				func() []string {
 					return []string{
 						fmt.Sprintf("-s %s -d %s -j %s --to %s", tep.Status.LocalPodCIDR, tep.Status.RemoteNATPodCIDR, NETMAP, tep.Status.LocalNATPodCIDR),
-						fmt.Sprintf("! -s %s -d %s -j %s --to-source %s", tep.Status.LocalPodCIDR, tep.Status.RemoteNATPodCIDR, SNAT, mustGetFirstIP(tep.Status.LocalNATPodCIDR)),
+						fmt.Sprintf("! -s %s -d %s -j %s --to-source %s", tep.Status.LocalPodCIDR, tep.Status.RemoteNATPodCIDR,
+							SNAT, mustGetFirstIP(tep.Status.LocalNATPodCIDR)),
+						fmt.Sprintf("! -s %s -d %s -j %s --to-source %s", tep.Status.LocalPodCIDR, tep.Status.RemoteNATExternalCIDR,
+							SNAT, mustGetFirstIP(tep.Status.LocalNATPodCIDR)),
 					}
 				},
 			),
 			Entry(
-				fmt.Sprintf("RemoteNATPodCIDR != %s, LocalNATPodCIDR = %s", consts.DefaultCIDRValue, consts.DefaultCIDRValue),
+				fmt.Sprintf("RemoteNATExternalCIDR != %s, RemoteNATPodCIDR != %s, LocalNATPodCIDR = %s", consts.DefaultCIDRValue,
+					consts.DefaultCIDRValue, consts.DefaultCIDRValue),
 				func() { tep.Status.LocalNATPodCIDR = consts.DefaultCIDRValue },
 				func() []string {
-					return []string{fmt.Sprintf("! -s %s -d %s -j %s --to-source %s", tep.Status.LocalPodCIDR, tep.Status.RemoteNATPodCIDR, SNAT, mustGetFirstIP(tep.Status.LocalPodCIDR))}
+					return []string{fmt.Sprintf("! -s %s -d %s -j %s --to-source %s", tep.Status.LocalPodCIDR, tep.Status.RemoteNATPodCIDR,
+						SNAT, mustGetFirstIP(tep.Status.LocalPodCIDR)),
+						fmt.Sprintf("! -s %s -d %s -j %s --to-source %s", tep.Status.LocalPodCIDR, tep.Status.RemoteNATExternalCIDR,
+							SNAT, mustGetFirstIP(tep.Status.LocalPodCIDR))}
 				},
 			),
 			Entry(
-				fmt.Sprintf("RemoteNATPodCIDR = %s, LocalNATPodCIDR != %s", consts.DefaultCIDRValue, consts.DefaultCIDRValue),
+				fmt.Sprintf("RemoteNATExternalCIDR != %s, RemoteNATPodCIDR = %s, LocalNATPodCIDR != %s", consts.DefaultCIDRValue,
+					consts.DefaultCIDRValue, consts.DefaultCIDRValue),
 				func() { tep.Status.RemoteNATPodCIDR = consts.DefaultCIDRValue },
 				func() []string {
 					return []string{
 						fmt.Sprintf("-s %s -d %s -j %s --to %s", tep.Status.LocalPodCIDR, tep.Spec.PodCIDR, NETMAP, tep.Status.LocalNATPodCIDR),
-						fmt.Sprintf("! -s %s -d %s -j %s --to-source %s", tep.Status.LocalPodCIDR, tep.Spec.PodCIDR, SNAT, mustGetFirstIP(tep.Status.LocalNATPodCIDR)),
+						fmt.Sprintf("! -s %s -d %s -j %s --to-source %s", tep.Status.LocalPodCIDR, tep.Spec.PodCIDR,
+							SNAT, mustGetFirstIP(tep.Status.LocalNATPodCIDR)),
+						fmt.Sprintf("! -s %s -d %s -j %s --to-source %s", tep.Status.LocalPodCIDR, tep.Status.RemoteNATExternalCIDR,
+							SNAT, mustGetFirstIP(tep.Status.LocalNATPodCIDR)),
 					}
 				},
 			),
-			Entry(fmt.Sprintf("RemoteNATPodCIDR = %s, LocalNATPodCIDR = %s", consts.DefaultCIDRValue, consts.DefaultCIDRValue),
+			Entry(fmt.Sprintf("RemoteNATExternalCIDR != %s, RemoteNATPodCIDR = %s, LocalNATPodCIDR = %s", consts.DefaultCIDRValue,
+				consts.DefaultCIDRValue, consts.DefaultCIDRValue),
 				func() {
 					tep.Status.RemoteNATPodCIDR = consts.DefaultCIDRValue
 					tep.Status.LocalNATPodCIDR = consts.DefaultCIDRValue
 				},
 				func() []string {
-					return []string{fmt.Sprintf("! -s %s -d %s -j %s --to-source %s", tep.Status.LocalPodCIDR, tep.Spec.PodCIDR, SNAT, mustGetFirstIP(tep.Status.LocalPodCIDR))}
+					return []string{fmt.Sprintf("! -s %s -d %s -j %s --to-source %s", tep.Status.LocalPodCIDR, tep.Spec.PodCIDR,
+						SNAT, mustGetFirstIP(tep.Status.LocalPodCIDR)),
+						fmt.Sprintf("! -s %s -d %s -j %s --to-source %s", tep.Status.LocalPodCIDR, tep.Status.RemoteNATExternalCIDR,
+							SNAT, mustGetFirstIP(tep.Status.LocalPodCIDR))}
+				},
+			),
+			Entry(
+				fmt.Sprintf("RemoteNATExternalCIDR = %s, RemoteNATPodCIDR != %s, LocalNATPodCIDR != %s", consts.DefaultCIDRValue,
+					consts.DefaultCIDRValue, consts.DefaultCIDRValue),
+				func() { tep.Status.RemoteNATExternalCIDR = consts.DefaultCIDRValue },
+				func() []string {
+					return []string{
+						fmt.Sprintf("-s %s -d %s -j %s --to %s", tep.Status.LocalPodCIDR, tep.Status.RemoteNATPodCIDR, NETMAP, tep.Status.LocalNATPodCIDR),
+						fmt.Sprintf("! -s %s -d %s -j %s --to-source %s", tep.Status.LocalPodCIDR, tep.Status.RemoteNATPodCIDR,
+							SNAT, mustGetFirstIP(tep.Status.LocalNATPodCIDR)),
+						fmt.Sprintf("! -s %s -d %s -j %s --to-source %s", tep.Status.LocalPodCIDR, tep.Spec.ExternalCIDR,
+							SNAT, mustGetFirstIP(tep.Status.LocalNATPodCIDR)),
+					}
+				},
+			),
+			Entry(
+				fmt.Sprintf("RemoteNATExternalCIDR = %s, RemoteNATPodCIDR != %s, LocalNATPodCIDR = %s", consts.DefaultCIDRValue,
+					consts.DefaultCIDRValue, consts.DefaultCIDRValue),
+				func() {
+					tep.Status.LocalNATPodCIDR = consts.DefaultCIDRValue
+					tep.Status.RemoteNATExternalCIDR = consts.DefaultCIDRValue
+				},
+				func() []string {
+					return []string{fmt.Sprintf("! -s %s -d %s -j %s --to-source %s", tep.Status.LocalPodCIDR, tep.Status.RemoteNATPodCIDR,
+						SNAT, mustGetFirstIP(tep.Status.LocalPodCIDR)),
+						fmt.Sprintf("! -s %s -d %s -j %s --to-source %s", tep.Status.LocalPodCIDR, tep.Spec.ExternalCIDR,
+							SNAT, mustGetFirstIP(tep.Status.LocalPodCIDR))}
+				},
+			),
+			Entry(
+				fmt.Sprintf("RemoteNATExternalCIDR = %s, RemoteNATPodCIDR = %s, LocalNATPodCIDR != %s", consts.DefaultCIDRValue,
+					consts.DefaultCIDRValue, consts.DefaultCIDRValue),
+				func() {
+					tep.Status.RemoteNATPodCIDR = consts.DefaultCIDRValue
+					tep.Status.RemoteNATExternalCIDR = consts.DefaultCIDRValue
+				},
+				func() []string {
+					return []string{
+						fmt.Sprintf("-s %s -d %s -j %s --to %s", tep.Status.LocalPodCIDR, tep.Spec.PodCIDR, NETMAP, tep.Status.LocalNATPodCIDR),
+						fmt.Sprintf("! -s %s -d %s -j %s --to-source %s", tep.Status.LocalPodCIDR, tep.Spec.PodCIDR,
+							SNAT, mustGetFirstIP(tep.Status.LocalNATPodCIDR)),
+						fmt.Sprintf("! -s %s -d %s -j %s --to-source %s", tep.Status.LocalPodCIDR, tep.Spec.ExternalCIDR,
+							SNAT, mustGetFirstIP(tep.Status.LocalNATPodCIDR)),
+					}
+				},
+			),
+			Entry(fmt.Sprintf("RemoteNATExternalCIDR = %s, RemoteNATPodCIDR = %s, LocalNATPodCIDR = %s", consts.DefaultCIDRValue,
+				consts.DefaultCIDRValue, consts.DefaultCIDRValue),
+				func() {
+					tep.Status.RemoteNATPodCIDR = consts.DefaultCIDRValue
+					tep.Status.LocalNATPodCIDR = consts.DefaultCIDRValue
+					tep.Status.RemoteNATExternalCIDR = consts.DefaultCIDRValue
+				},
+				func() []string {
+					return []string{fmt.Sprintf("! -s %s -d %s -j %s --to-source %s", tep.Status.LocalPodCIDR, tep.Spec.PodCIDR,
+						SNAT, mustGetFirstIP(tep.Status.LocalPodCIDR)),
+						fmt.Sprintf("! -s %s -d %s -j %s --to-source %s", tep.Status.LocalPodCIDR, tep.Spec.ExternalCIDR,
+							SNAT, mustGetFirstIP(tep.Status.LocalPodCIDR))}
 				},
 			),
 		)
 	})
-	Describe("EnsurePreroutingRules", func() {
+	Describe("EnsurePreroutingRulesPerTunnelEndpoint", func() {
 		BeforeEach(func() {
-			err := h.Init()
+			err := h.EnsureChainsPerCluster(clusterID1)
 			Expect(err).To(BeNil())
-			err = h.EnsureChainsPerCluster(clusterID1)
-			Expect(err).To(BeNil())
+			tep = validTep.DeepCopy()
+			nm = &v1alpha1.NatMapping{
+				Spec: v1alpha1.NatMappingSpec{
+					ClusterID:       clusterID1,
+					ClusterMappings: make(v1alpha1.Mappings),
+				},
+			}
 		})
 		AfterEach(func() {
 			err := h.RemoveIPTablesConfigurationPerCluster(tep)
-			Expect(err).To(BeNil())
-			err = h.Terminate()
 			Expect(err).To(BeNil())
 		})
 		Context("If tep has an empty clusterID", func() {
 			It("should return a WrongParameter error", func() {
 				tep.Spec.ClusterID = ""
-				err := h.EnsurePreroutingRules(tep)
+				err := h.EnsurePreroutingRulesPerTunnelEndpoint(tep)
 				Expect(err).To(MatchError(fmt.Sprintf("invalid TunnelEndpoint resource: %s must be %s", consts.ClusterIDLabelName, errors.StringNotEmpty)))
-				tep = forgeValidTEPResource()
+				tep = validTep.DeepCopy() // Otherwise RemoveIPTablesConfigurationPerCluster would fail in AfterEach
 			})
 		})
 		Context("If tep has an invalid LocalPodCIDR", func() {
 			It("should return a WrongParameter error", func() {
 				tep.Status.LocalPodCIDR = invalidValue
-				err := h.EnsurePreroutingRules(tep)
-				Expect(err).To(MatchError(fmt.Sprintf("invalid TunnelEndpoint resource: %s must be %s", localPodCIDR, errors.ValidCIDR)))
-				tep = forgeValidTEPResource()
+				err := h.EnsurePreroutingRulesPerTunnelEndpoint(tep)
+				Expect(err).To(MatchError(fmt.Sprintf("invalid TunnelEndpoint resource: %s must be %s", consts.LocalPodCIDR, errors.ValidCIDR)))
+				tep = validTep.DeepCopy() // Otherwise RemoveIPTablesConfigurationPerCluster would fail in AfterEach
 			})
 		})
 		Context("If tep has an invalid LocalNATPodCIDR", func() {
 			It("should return a WrongParameter error", func() {
 				tep.Status.LocalNATPodCIDR = invalidValue
-				err := h.EnsurePreroutingRules(tep)
-				Expect(err).To(MatchError(fmt.Sprintf("invalid TunnelEndpoint resource: %s must be %s", localNATPodCIDR, errors.ValidCIDR)))
-				tep = forgeValidTEPResource()
+				err := h.EnsurePreroutingRulesPerTunnelEndpoint(tep)
+				Expect(err).To(MatchError(fmt.Sprintf("invalid TunnelEndpoint resource: %s must be %s", consts.LocalNATPodCIDR, errors.ValidCIDR)))
+				tep = validTep.DeepCopy() // Otherwise RemoveIPTablesConfigurationPerCluster would fail in AfterEach
 			})
 		})
 		Context(fmt.Sprintf("If tep has Status.RemoteNATPodCIDR = %s and an invalid Spec.PodCIDR",
@@ -752,24 +867,24 @@ var _ = Describe("iptables", func() {
 			It("should return a WrongParameter error", func() {
 				tep.Status.RemoteNATPodCIDR = consts.DefaultCIDRValue
 				tep.Spec.PodCIDR = invalidValue
-				err := h.EnsurePreroutingRules(tep)
-				Expect(err).To(MatchError(fmt.Sprintf("invalid TunnelEndpoint resource: %s must be %s", podCIDR, errors.ValidCIDR)))
-				tep = forgeValidTEPResource()
+				err := h.EnsurePreroutingRulesPerTunnelEndpoint(tep)
+				Expect(err).To(MatchError(fmt.Sprintf("invalid TunnelEndpoint resource: %s must be %s", consts.PodCIDR, errors.ValidCIDR)))
+				tep = validTep.DeepCopy() // Otherwise RemoveIPTablesConfigurationPerCluster would fail in AfterEach
 			})
 		})
 		Context(fmt.Sprintf("If tep has an invalid Status.RemoteNATPodCIDR != %s",
 			consts.DefaultCIDRValue), func() {
 			It("should return a WrongParameter error", func() {
 				tep.Status.RemoteNATPodCIDR = invalidValue
-				err := h.EnsurePreroutingRules(tep)
-				Expect(err).To(MatchError(fmt.Sprintf("invalid TunnelEndpoint resource: %s must be %s", remoteNATPodCIDR, errors.ValidCIDR)))
-				tep = forgeValidTEPResource()
+				err := h.EnsurePreroutingRulesPerTunnelEndpoint(tep)
+				Expect(err).To(MatchError(fmt.Sprintf("invalid TunnelEndpoint resource: %s must be %s", consts.RemoteNATPodCIDR, errors.ValidCIDR)))
+				tep = validTep.DeepCopy() // Otherwise RemoveIPTablesConfigurationPerCluster would fail in AfterEach
 			})
 		})
 		Context("Call with different parameters", func() {
 			It("should remove old rules and insert updated ones", func() {
 				// First call with default tep
-				err := h.EnsurePreroutingRules(tep)
+				err := h.EnsurePreroutingRulesPerTunnelEndpoint(tep)
 				Expect(err).To(BeNil())
 
 				// Get inserted rules
@@ -780,7 +895,7 @@ var _ = Describe("iptables", func() {
 				tep.Status.LocalNATPodCIDR = "11.0.0.0/24"
 
 				// Second call
-				err = h.EnsurePreroutingRules(tep)
+				err = h.EnsurePreroutingRulesPerTunnelEndpoint(tep)
 				Expect(err).To(BeNil())
 
 				// Get inserted rules
@@ -792,10 +907,10 @@ var _ = Describe("iptables", func() {
 					tep.Status.RemoteNATPodCIDR, tep.Status.LocalNATPodCIDR, NETMAP, tep.Status.LocalPodCIDR)))
 			})
 		})
-		DescribeTable("EnsurePreroutingRules",
+		DescribeTable("EnsurePreroutingRulesPerTunnelEndpoint",
 			func(editTep func(), getExpectedRules func() []string) {
 				editTep()
-				err := h.EnsurePreroutingRules(tep)
+				err := h.EnsurePreroutingRulesPerTunnelEndpoint(tep)
 				Expect(err).To(BeNil())
 				preRoutingRules, err := h.ListRulesInChain(getClusterPreRoutingChain(clusterID1))
 				Expect(err).To(BeNil())
@@ -817,28 +932,100 @@ var _ = Describe("iptables", func() {
 			),
 		)
 	})
-})
+	Describe("EnsurePreroutingRulesPerNatMapping", func() {
+		BeforeEach(func() {
+			err := h.EnsureChainsPerCluster(clusterID1)
+			Expect(err).To(BeNil())
+			tep = validTep.DeepCopy()
+			nm = &v1alpha1.NatMapping{
+				Spec: v1alpha1.NatMappingSpec{
+					ClusterID:       clusterID1,
+					ClusterMappings: natMappings,
+				},
+			}
+		})
+		AfterEach(func() {
+			err := h.RemoveIPTablesConfigurationPerCluster(tep)
+			Expect(err).To(BeNil())
+		})
+		Context("If nm has an empty clusterID", func() {
+			It("should return a WrongParameter error", func() {
+				oldValue := nm.Spec.ClusterID
+				nm.Spec.ClusterID = ""
+				err := h.EnsurePreroutingRulesPerNatMapping(nm)
+				Expect(err).To(MatchError(fmt.Sprintf("%s must be %s", consts.ClusterIDLabelName, errors.StringNotEmpty)))
+				nm.Spec.ClusterID = oldValue
+			})
+		})
+		Context("Call with same mappings", func() {
+			It("second call should be a nop", func() {
+				// First call with default nm
+				err := h.EnsurePreroutingRulesPerNatMapping(nm)
+				Expect(err).To(BeNil())
 
-func forgeValidTEPResource() *v1alpha1.TunnelEndpoint {
-	return &v1alpha1.TunnelEndpoint{
-		Spec: v1alpha1.TunnelEndpointSpec{
-			ClusterID:     clusterID1,
-			PodCIDR:       "10.0.0.0/24",
-			ExternalCIDR:  "10.0.1.0/24",
-			EndpointIP:    "172.10.0.2",
-			BackendType:   "backendType",
-			BackendConfig: make(map[string]string),
-		},
-		Status: v1alpha1.TunnelEndpointStatus{
-			LocalPodCIDR:          "192.168.0.0/24",
-			LocalNATPodCIDR:       "192.168.1.0/24",
-			RemoteNATPodCIDR:      remoteNATPodCIDRValue1,
-			LocalExternalCIDR:     "192.168.3.0/24",
-			LocalNATExternalCIDR:  "192.168.4.0/24",
-			RemoteNATExternalCIDR: "192.168.5.0/24",
-		},
-	}
-}
+				// Get inserted rules
+				preRoutingRules, err := h.ListRulesInChain(getClusterPreRoutingMappingChain(clusterID1))
+				Expect(err).To(BeNil())
+
+				// Second call
+				err = h.EnsurePreroutingRulesPerNatMapping(nm)
+				Expect(err).To(BeNil())
+
+				// Get inserted rules
+				newPreRoutingRules, err := h.ListRulesInChain(getClusterPreRoutingMappingChain(clusterID1))
+				Expect(err).To(BeNil())
+
+				Expect(newPreRoutingRules).To(ContainElements(preRoutingRules))
+			})
+		})
+		Context("Call with different mappings", func() {
+			It("should delete old mappings and add new ones", func() {
+				oldIP := "20.0.0.2"
+				newIP := "30.0.0.2"
+				newMappings := v1alpha1.Mappings{
+					oldIP: newIP,
+				}
+				// First call with default nm
+				err := h.EnsurePreroutingRulesPerNatMapping(nm)
+				Expect(err).To(BeNil())
+
+				// Get inserted rules
+				preRoutingRules, err := h.ListRulesInChain(getClusterPreRoutingMappingChain(clusterID1))
+				Expect(err).To(BeNil())
+
+				nm.Spec.ClusterMappings = newMappings
+
+				// Second call
+				err = h.EnsurePreroutingRulesPerNatMapping(nm)
+				Expect(err).To(BeNil())
+
+				// Get inserted rules
+				newPreRoutingRules, err := h.ListRulesInChain(getClusterPreRoutingMappingChain(clusterID1))
+				Expect(err).To(BeNil())
+
+				Expect(newPreRoutingRules).ToNot(ContainElements(preRoutingRules))
+				Expect(newPreRoutingRules).To(ContainElements(
+					fmt.Sprintf("-d %s -j %s --to-destination %s", newIP, DNAT, oldIP),
+				))
+			})
+		})
+		Context("Call once", func() {
+			It("should insert appropriate rules", func() {
+				err := h.EnsurePreroutingRulesPerNatMapping(nm)
+				Expect(err).To(BeNil())
+
+				// Get inserted rules
+				preRoutingRules, err := h.ListRulesInChain(getClusterPreRoutingMappingChain(clusterID1))
+				Expect(err).To(BeNil())
+
+				Expect(preRoutingRules).To(ContainElements(
+					fmt.Sprintf("-d %s -j %s --to-destination %s", newIP1, DNAT, oldIP1),
+					fmt.Sprintf("-d %s -j %s --to-destination %s", newIP2, DNAT, oldIP2),
+				))
+			})
+		})
+	})
+})
 
 func mustGetFirstIP(network string) string {
 	firstIP, err := utils.GetFirstIP(network)

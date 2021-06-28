@@ -1,15 +1,15 @@
 package netns
 
 import (
+	"errors"
 	"testing"
 
 	"github.com/containernetworking/plugins/pkg/ns"
+	. "github.com/onsi/ginkgo"
+	. "github.com/onsi/gomega"
 	"github.com/vishvananda/netlink"
 	"github.com/vishvananda/netns"
 	"golang.org/x/sys/unix"
-
-	. "github.com/onsi/ginkgo"
-	. "github.com/onsi/gomega"
 )
 
 var (
@@ -48,11 +48,18 @@ func setUpNetns(name string) {
 	defer newNs.Close()
 }
 
-func tearDownNetns(name string) {
-	err := netns.DeleteNamed(name)
-	if err != nil {
-		Expect(err).Should(Equal(unix.ENOENT))
-		return
+func cleanUpEnv() error {
+	err := netns.DeleteNamed(netnsName)
+	if err != nil && !errors.Is(err, unix.ENOENT) {
+		return err
 	}
-	Expect(err).ShouldNot(HaveOccurred())
+	// Get the veth dev living in host network.
+	veth, err := netlink.LinkByName(hostVeth)
+	if err != nil && err.Error() != "Link not found" {
+		return err
+	}
+	if veth != nil {
+		return netlink.LinkDel(veth)
+	}
+	return nil
 }

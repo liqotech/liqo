@@ -24,12 +24,11 @@ import (
 	"os"
 	"time"
 
+	"github.com/pkg/errors"
 	"k8s.io/klog"
 
 	"github.com/liqotech/liqo/cmd/virtual-kubelet/provider"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/node/module/api"
-
-	"github.com/pkg/errors"
 )
 
 // AcceptedCiphers is the list of accepted TLS ciphers, with known weak ciphers elided

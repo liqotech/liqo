@@ -194,9 +194,6 @@ type LiqonetConfig struct {
 	// The subnet used by the cluster for the services, in CIDR notation
 	// +kubebuilder:validation:Pattern="^([0-9]{1,3}.){3}[0-9]{1,3}(/([0-9]|[1-2][0-9]|3[0-2]))$"
 	ServiceCIDR string `json:"serviceCIDR"`
-	// Set this flag to true if you are using GKE, default value is "false"
-	// +kubebuilder:default=false
-	GKEProvider bool `json:"GKEProvider"`
 	// Set of additional user-defined network pools.
 	// Default set of network pools is: [192.168.0.0/16, 10.0.0.0/8, 172.16.0.0/12]
 	AdditionalPools []CIDR `json:"additionalPools"`

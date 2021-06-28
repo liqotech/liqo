@@ -12,7 +12,6 @@ import (
 	"k8s.io/klog"
 
 	liqonetTest "github.com/liqotech/liqo/pkg/liqonet/test"
-
 	apimgmt "github.com/liqotech/liqo/pkg/virtualKubelet/apiReflection"
 	api "github.com/liqotech/liqo/pkg/virtualKubelet/apiReflection/reflectors"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/apiReflection/reflectors/outgoing"

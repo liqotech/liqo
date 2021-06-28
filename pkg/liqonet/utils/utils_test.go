@@ -7,7 +7,6 @@ import (
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/ginkgo/extensions/table"
-	"github.com/onsi/gomega"
 	. "github.com/onsi/gomega"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -27,11 +26,11 @@ var _ = Describe("Liqonet", func() {
 		func(oldIp, newPodCidr, expectedIP string, expectedErr string) {
 			ip, err := utils.MapIPToNetwork(oldIp, newPodCidr)
 			if expectedErr != "" {
-				gomega.Expect(err.Error()).To(gomega.Equal(expectedErr))
+				Expect(err.Error()).To(Equal(expectedErr))
 			} else {
-				gomega.Expect(err).ToNot(gomega.HaveOccurred())
+				Expect(err).ToNot(HaveOccurred())
 			}
-			gomega.Expect(ip).To(gomega.Equal(expectedIP))
+			Expect(ip).To(Equal(expectedIP))
 		},
 		Entry("Mapping 10.2.1.3 to 10.0.4.0/24", "10.0.4.0/24", "10.2.1.3", "10.0.4.3", ""),
 		Entry("Mapping 10.2.1.128 to 10.0.4.0/24", "10.0.4.0/24", "10.2.1.128", "10.0.4.128", ""),
@@ -47,11 +46,11 @@ var _ = Describe("Liqonet", func() {
 		func(network, expectedIP string, expectedErr *net.ParseError) {
 			ip, err := utils.GetFirstIP(network)
 			if expectedErr != nil {
-				gomega.Expect(err).To(MatchError(expectedErr))
+				Expect(err).To(MatchError(expectedErr))
 			} else {
-				gomega.Expect(err).ToNot(gomega.HaveOccurred())
+				Expect(err).ToNot(HaveOccurred())
 			}
-			gomega.Expect(ip).To(gomega.Equal(expectedIP))
+			Expect(ip).To(Equal(expectedIP))
 		},
 		Entry("Passing an invalid network", invalidValue, "", &net.ParseError{Type: CIDRAddressNetErr, Text: invalidValue}),
 		Entry("Passing an empty network", "", "", &net.ParseError{Type: CIDRAddressNetErr, Text: ""}),
@@ -154,4 +153,17 @@ var _ = Describe("Liqonet", func() {
 		})
 	})
 
+	Describe("testing getOverlayIP function", func() {
+		Context("when input parameter is correct", func() {
+			It("should return a valid ip", func() {
+				Expect(utils.GetOverlayIP("10.200.1.1")).Should(Equal("240.200.1.1"))
+			})
+		})
+
+		Context("when input parameter is not correct", func() {
+			It("should return an empty string", func() {
+				Expect(utils.GetOverlayIP("10.200.")).Should(Equal(""))
+			})
+		})
+	})
 })

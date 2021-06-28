@@ -22,6 +22,7 @@ import (
 	"os/signal"
 	"reflect"
 	"strings"
+	"sync"
 
 	"github.com/containernetworking/plugins/pkg/ns"
 	"github.com/vishvananda/netlink"
@@ -50,6 +51,10 @@ var (
 	result = ctrl.Result{}
 )
 
+// Constant used for add/deletion of policy routing rules
+// to specify any network.
+const anyNetwork = ""
+
 // TunnelController type of the tunnel controller.
 type TunnelController struct {
 	client.Client
@@ -57,14 +62,16 @@ type TunnelController struct {
 	tunnel.Driver
 	liqorouting.Routing
 	iptables.IPTHandler
-	k8sClient    k8s.Interface
-	drivers      map[string]tunnel.Driver
-	namespace    string
-	podIP        string
-	hostNetns    ns.NetNS
-	gatewayNetns ns.NetNS
-	hostVeth     netlink.Link
-	gatewayVeth  netlink.Link
+	k8sClient          k8s.Interface
+	drivers            map[string]tunnel.Driver
+	namespace          string
+	podIP              string
+	hostNetns          ns.NetNS
+	gatewayNetns       ns.NetNS
+	hostVeth           netlink.Link
+	gatewayVeth        netlink.Link
+	readyClustersMutex *sync.Mutex
+	readyClusters      map[string]struct{}
 }
 
 // cluster-role
@@ -79,13 +86,17 @@ type TunnelController struct {
 
 // NewTunnelController instantiates and initializes the tunnel controller.
 func NewTunnelController(podIP, namespace string, er record.EventRecorder,
-	k8sClient k8s.Interface, cl client.Client) (*TunnelController, error) {
+	k8sClient k8s.Interface, cl client.Client, readyClustersMutex *sync.Mutex,
+	readyClusters map[string]struct{}, gatewayNetns ns.NetNS) (*TunnelController, error) {
 	tc := &TunnelController{
-		Client:        cl,
-		EventRecorder: er,
-		k8sClient:     k8sClient,
-		podIP:         podIP,
-		namespace:     namespace,
+		Client:             cl,
+		EventRecorder:      er,
+		k8sClient:          k8sClient,
+		podIP:              podIP,
+		namespace:          namespace,
+		readyClustersMutex: readyClustersMutex,
+		readyClusters:      readyClusters,
+		gatewayNetns:       gatewayNetns,
 	}
 
 	err := tc.SetUpTunnelDrivers()
@@ -144,7 +155,7 @@ func NewTunnelController(podIP, namespace string, er record.EventRecorder,
 func (tc *TunnelController) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	var tep = new(netv1alpha1.TunnelEndpoint)
 	var err error
-	var clusterID, remotePodCIDR string
+	var clusterID, remotePodCIDR, remoteExternalCIDR string
 	var con *netv1alpha1.Connection
 
 	var configGWNetns = func(netNamespace ns.NetNS) error {
@@ -155,6 +166,10 @@ func (tc *TunnelController) Reconcile(ctx context.Context, req ctrl.Request) (ct
 		if err = tc.EnsureIPTablesRulesPerCluster(tep); err != nil {
 			return err
 		}
+		// Set cluster tunnel as ready
+		tc.readyClustersMutex.Lock()
+		defer tc.readyClustersMutex.Unlock()
+		tc.readyClusters[tep.Spec.ClusterID] = struct{}{}
 		added, err := tc.EnsureRoutesPerCluster(tep)
 		if err != nil {
 			klog.Errorf("%s -> unable to configure route '%s': %s", clusterID, remotePodCIDR, err)
@@ -168,6 +183,11 @@ func (tc *TunnelController) Reconcile(ctx context.Context, req ctrl.Request) (ct
 		return nil
 	}
 	var unconfigGWNetns = func(netNamespace ns.NetNS) error {
+		if err := tc.IPTHandler.RemoveIPTablesConfigurationPerCluster(tep); err != nil {
+			klog.Errorf("%s -> unable to remove iptables configuration: %s",
+				tep.Spec.ClusterID, err.Error())
+			return err
+		}
 		if err := tc.disconnectFromPeer(tep); err != nil {
 			return err
 		}
@@ -184,7 +204,7 @@ func (tc *TunnelController) Reconcile(ctx context.Context, req ctrl.Request) (ct
 		return nil
 	}
 	var configHNetns = func(netNamespace ns.NetNS) error {
-		added, err := liqorouting.AddPolicyRoutingRule(remotePodCIDR, "", liqoconst.RoutingTableID)
+		added, err := liqorouting.AddPolicyRoutingRule(remotePodCIDR, anyNetwork, liqoconst.RoutingTableID)
 		if err != nil {
 			klog.Errorf("%s -> unable to configure policy routing rule for subnet {%s}: %s", clusterID, remotePodCIDR, err)
 			return err
@@ -192,16 +212,32 @@ func (tc *TunnelController) Reconcile(ctx context.Context, req ctrl.Request) (ct
 		if added {
 			klog.Infof("%s -> policy routing rule for subnet {%s} correctly configured", clusterID, remotePodCIDR)
 		}
+		added, err = liqorouting.AddPolicyRoutingRule(remoteExternalCIDR, anyNetwork, liqoconst.RoutingTableID)
+		if err != nil {
+			klog.Errorf("%s -> unable to configure policy routing rule for subnet {%s}: %s", clusterID, remoteExternalCIDR, err)
+			return err
+		}
+		if added {
+			klog.Infof("%s -> policy routing rule for subnet {%s} correctly configured", clusterID, remoteExternalCIDR)
+		}
 		return nil
 	}
 	var unconfigHNetns = func(netNamespace ns.NetNS) error {
-		deleted, err := liqorouting.DelPolicyRoutingRule(remotePodCIDR, "", liqoconst.RoutingTableID)
+		deleted, err := liqorouting.DelPolicyRoutingRule(remotePodCIDR, anyNetwork, liqoconst.RoutingTableID)
 		if err != nil {
 			klog.Errorf("%s -> unable to remove policy routing rule for subnet {%s}: %s", clusterID, remotePodCIDR, err)
 			return err
 		}
 		if deleted {
 			klog.Infof("%s -> policy routing rule for subnet {%s} correctly removed", clusterID, remotePodCIDR)
+		}
+		deleted, err = liqorouting.DelPolicyRoutingRule(remoteExternalCIDR, anyNetwork, liqoconst.RoutingTableID)
+		if err != nil {
+			klog.Errorf("%s -> unable to remove policy routing rule for subnet {%s}: %s", clusterID, remoteExternalCIDR, err)
+			return err
+		}
+		if deleted {
+			klog.Infof("%s -> policy routing rule for subnet {%s} correctly removed", clusterID, remoteExternalCIDR)
 		}
 		return nil
 	}
@@ -223,6 +259,7 @@ func (tc *TunnelController) Reconcile(ctx context.Context, req ctrl.Request) (ct
 		return result, nil
 	}
 	_, remotePodCIDR = utils.GetPodCIDRS(tep)
+	_, remoteExternalCIDR = utils.GetExternalCIDRS(tep)
 	// Examine DeletionTimestamp to determine if object is under deletion.
 	if tep.ObjectMeta.DeletionTimestamp.IsZero() {
 		if !controllerutil.ContainsFinalizer(tep, tunnelEndpointFinalizer) {
@@ -360,7 +397,7 @@ func (tc *TunnelController) EnsureIPTablesRulesPerCluster(tep *netv1alpha1.Tunne
 		tc.Eventf(tep, "Warning", "Processing", "unable to insert iptables rules: %v", err)
 		return err
 	}
-	if err := tc.EnsurePreroutingRules(tep); err != nil {
+	if err := tc.EnsurePreroutingRulesPerTunnelEndpoint(tep); err != nil {
 		klog.Errorf("%s -> an error occurred while inserting iptables prerouting rules for the remote peer: %s", clusterID, err.Error())
 		tc.Eventf(tep, "Warning", "Processing", "unable to insert iptables rules: %v", err)
 		return err
@@ -459,13 +496,6 @@ func (tc *TunnelController) setUpGWNetns(netnsName, hostVethName, gatewayVethNam
 	if err != nil {
 		return err
 	}
-	// Create new network namespace for the gateway (gatewayNetns).
-	// If the namespace already exists it will be deleted and recreated.
-	tc.gatewayNetns, err = liqonetns.CreateNetns(netnsName)
-	if err != nil {
-		return err
-	}
-	klog.Infof("created custom network namespace {%s}", netnsName)
 	// Create veth pair to connect the two namespaces.
 	err = liqonetns.CreateVethPair(hostVethName, gatewayVethName, tc.hostNetns, tc.gatewayNetns, vethMtu)
 	if err != nil {

@@ -3,15 +3,6 @@ package advertisement_operator
 import (
 	"context"
 	"fmt"
-
-	configv1alpha1 "github.com/liqotech/liqo/apis/config/v1alpha1"
-	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
-	advtypes "github.com/liqotech/liqo/apis/sharing/v1alpha1"
-	advop "github.com/liqotech/liqo/internal/advertisementoperator"
-	"github.com/liqotech/liqo/internal/advertisementoperator/broadcaster"
-	liqoconst "github.com/liqotech/liqo/pkg/consts"
-	crdclient "github.com/liqotech/liqo/pkg/crdClient"
-
 	"strconv"
 	"testing"
 	"time"
@@ -22,6 +13,13 @@ import (
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
+	configv1alpha1 "github.com/liqotech/liqo/apis/config/v1alpha1"
+	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
+	advtypes "github.com/liqotech/liqo/apis/sharing/v1alpha1"
+	advop "github.com/liqotech/liqo/internal/advertisementoperator"
+	"github.com/liqotech/liqo/internal/advertisementoperator/broadcaster"
+	liqoconst "github.com/liqotech/liqo/pkg/consts"
+	crdclient "github.com/liqotech/liqo/pkg/crdClient"
 	"github.com/liqotech/liqo/pkg/utils"
 	pkg "github.com/liqotech/liqo/pkg/virtualKubelet"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/provider/test"

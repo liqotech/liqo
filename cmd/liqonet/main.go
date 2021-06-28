@@ -36,6 +36,7 @@ import (
 	"github.com/liqotech/liqo/internal/liqonet/tunnelEndpointCreator"
 	liqoconst "github.com/liqotech/liqo/pkg/consts"
 	liqonetOperator "github.com/liqotech/liqo/pkg/liqonet"
+	liqonetns "github.com/liqotech/liqo/pkg/liqonet/netns"
 	"github.com/liqotech/liqo/pkg/liqonet/overlay"
 	liqorouting "github.com/liqotech/liqo/pkg/liqonet/routing"
 	"github.com/liqotech/liqo/pkg/liqonet/utils"
@@ -152,8 +153,23 @@ func main() {
 			os.Exit(1)
 		}
 		eventRecorder := mgr.GetEventRecorderFor(liqoconst.LiqoGatewayOperatorName + "." + podIP.String())
+		// This map is updated by the tunnel operator after a successful tunnel creation
+		// and is consumed by the natmapping operator to check whether the tunnel is ready or not.
+		var readyClustersMutex sync.Mutex
+		readyClusters := make(map[string]struct{})
+		// Create new network namespace for the gateway (gatewayNetns).
+		// If the namespace already exists it will be deleted and recreated.
+		// It is created here because both the tunnel-operator and the natmapping-operator
+		// need to know the namespace to configure.
+		gatewayNetns, err := liqonetns.CreateNetns(liqoconst.GatewayNetnsName)
+		if err != nil {
+			klog.Errorf("an error occurred while creating custom network namespace: %s", err.Error())
+			os.Exit(1)
+		}
+		klog.Infof("created custom network namespace {%s}", liqoconst.GatewayNetnsName)
 		tunnelController, err := tunneloperator.NewTunnelController(podIP.String(),
-			podNamespace, eventRecorder, clientset, mgr.GetClient())
+			podNamespace, eventRecorder, clientset, mgr.GetClient(), &readyClustersMutex,
+			readyClusters, gatewayNetns)
 		if err != nil {
 			klog.Errorf("an error occurred while creating the tunnel controller: %v", err)
 			_ = tunnelController.CleanUpConfiguration(liqoconst.GatewayNetnsName, liqoconst.HostVethName)
@@ -164,6 +180,17 @@ func main() {
 			klog.Errorf("unable to setup tunnel controller: %s", err)
 			os.Exit(1)
 		}
+
+		nmc, err := tunneloperator.NewNatMappingController(mgr.GetClient(), &readyClustersMutex, readyClusters, gatewayNetns)
+		if err != nil {
+			klog.Errorf("an error occurred while creating the natmapping controller: %v", err)
+			os.Exit(1)
+		}
+		if err = nmc.SetupWithManager(mgr); err != nil {
+			klog.Errorf("unable to setup natmapping controller: %s", err)
+			os.Exit(1)
+		}
+		klog.Info("Starting manager as Tunnel-Operator")
 		if err := mgr.Start(tunnelController.SetupSignalHandlerForTunnelOperator()); err != nil {
 			klog.Errorf("unable to start tunnel controller: %s", err)
 			os.Exit(1)

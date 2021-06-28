@@ -52,4 +52,24 @@ const (
 	// VxlanDeviceName name used for the vxlan devices created on each node by the instances
 	// of liqo-route.
 	VxlanDeviceName = "liqo.vxlan"
+	// OverlayNetworkPrefix prefix used for the overlay network.
+	OverlayNetworkPrefix = "240"
+	// OverlayNetworkMask size of the overlay network.
+	OverlayNetworkMask = "/8"
+	// PodCIDR is a field of the TunnelEndpoint resource.
+	PodCIDR = "PodCIDR"
+	// ExternalCIDR is a field of the TunnelEndpoint resource.
+	ExternalCIDR = "ExternalCIDR"
+	// LocalPodCIDR is a field of the TunnelEndpoint resource.
+	LocalPodCIDR = "LocalPodCIDR"
+	// LocalExternalCIDR is a field of the TunnelEndpoint resource.
+	LocalExternalCIDR = "LocalExternalCIDR"
+	// LocalNATPodCIDR is a field of the TunnelEndpoint resource.
+	LocalNATPodCIDR = "LocalNATPodCIDR"
+	// LocalNATExternalCIDR is a field of the TunnelEndpoint resource.
+	LocalNATExternalCIDR = "LocalNATExternalCIDR"
+	// RemoteNATPodCIDR is a field of the TunnelEndpoint resource.
+	RemoteNATPodCIDR = "RemoteNATPodCIDR"
+	// RemoteNATExternalCIDR is a field of the TunnelEndpoint resource.
+	RemoteNATExternalCIDR = "RemoteNATExternalCIDR"
 )
