@@ -707,7 +707,7 @@ func getChainRulesPerCluster(tep *netv1alpha1.TunnelEndpoint) (map[string][]IPTa
 	}
 	clusterID := tep.Spec.ClusterID
 	localRemappedPodCIDR, remotePodCIDR := utils.GetPodCIDRS(tep)
-	localRemappedExternalCIDR, _ := utils.GetExternalCIDRS(tep)
+	localRemappedExternalCIDR, remoteExternalCIDR := utils.GetExternalCIDRS(tep)
 
 	// Init chain rules
 	chainRules := make(map[string][]IPTableRule)
@@ -719,7 +719,8 @@ func getChainRulesPerCluster(tep *netv1alpha1.TunnelEndpoint) (map[string][]IPTa
 	// For these rules, source in not necessary since
 	// the remotePodCIDR is unique in home cluster
 	chainRules[liqonetPostroutingChain] = append(chainRules[liqonetPostroutingChain],
-		IPTableRule{"-d", remotePodCIDR, "-j", getClusterPostRoutingChain(clusterID)})
+		IPTableRule{"-d", remotePodCIDR, "-j", getClusterPostRoutingChain(clusterID)},
+		IPTableRule{"-d", remoteExternalCIDR, "-j", getClusterPostRoutingChain(clusterID)})
 	chainRules[liqonetInputChain] = append(chainRules[liqonetInputChain],
 		IPTableRule{"-d", remotePodCIDR, "-j", getClusterInputChain(clusterID)})
 	chainRules[liqonetForwardingChain] = append(chainRules[liqonetForwardingChain],
