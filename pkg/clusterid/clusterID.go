@@ -46,7 +46,7 @@ func NewClusterIDFromClient(client kubernetes.Interface) (ClusterID, error) {
 	namespace, found := os.LookupEnv("POD_NAMESPACE")
 	if !found {
 		klog.Info("POD_NAMESPACE not set")
-		data, err := ioutil.ReadFile(consts.ServiceAccount)
+		data, err := ioutil.ReadFile(consts.ServiceAccountNamespacePath)
 		if err != nil {
 			klog.Error(err, "Unable to get namespace")
 			os.Exit(1)
@@ -112,12 +112,12 @@ func getClusterID(cm *v1.ConfigMap) string {
 	if cm == nil {
 		return ""
 	}
-	return cm.Data[consts.ConfigMapKey]
+	return cm.Data[consts.ClusterIDConfigMapKey]
 }
 
 // SetupClusterID sets a new clusterid.
 func (cId *ClusterIDImpl) SetupClusterID(namespace string) error {
-	cm, err := cId.client.CoreV1().ConfigMaps(namespace).Get(context.TODO(), consts.ClusterIDconfigMapName,
+	cm, err := cId.client.CoreV1().ConfigMaps(namespace).Get(context.TODO(), consts.ClusterIDConfigMapName,
 		metav1.GetOptions{})
 	if err != nil && !k8serror.IsNotFound(err) {
 		klog.Error(err)
@@ -166,17 +166,17 @@ func (cId *ClusterIDImpl) getMasterID() (string, error) {
 
 // saveToConfigMap stores the clusterid in the detailed configMap.
 func (cId *ClusterIDImpl) saveToConfigMap(id, namespace string) error {
-	cm, err := cId.client.CoreV1().ConfigMaps(namespace).Get(context.TODO(), consts.ClusterIDconfigMapName,
+	cm, err := cId.client.CoreV1().ConfigMaps(namespace).Get(context.TODO(), consts.ClusterIDConfigMapName,
 		metav1.GetOptions{})
 	if err != nil {
 		if k8serror.IsNotFound(err) {
 			// does not exist
 			cm = &v1.ConfigMap{
 				ObjectMeta: metav1.ObjectMeta{
-					Name: consts.ClusterIDconfigMapName,
+					Name: consts.ClusterIDConfigMapName,
 				},
 				Data: map[string]string{
-					consts.ConfigMapKey: id,
+					consts.ClusterIDConfigMapKey: id,
 				},
 			}
 			cId.id = id
@@ -187,8 +187,8 @@ func (cId *ClusterIDImpl) saveToConfigMap(id, namespace string) error {
 		return err
 	}
 	// already exists, update it if needed
-	if cm.Data[consts.ConfigMapKey] != id {
-		cm.Data[consts.ConfigMapKey] = id
+	if cm.Data[consts.ClusterIDConfigMapKey] != id {
+		cm.Data[consts.ClusterIDConfigMapKey] = id
 		_, err := cId.client.CoreV1().ConfigMaps(namespace).Update(context.TODO(), cm, metav1.UpdateOptions{})
 		return err
 	}
@@ -197,7 +197,7 @@ func (cId *ClusterIDImpl) saveToConfigMap(id, namespace string) error {
 
 // updateClusterID updates the clusterid values.
 func (cId *ClusterIDImpl) updateClusterID(obj interface{}) {
-	tmp := obj.(*v1.ConfigMap).Data[consts.ClusterIDconfigMapName]
+	tmp := obj.(*v1.ConfigMap).Data[consts.ClusterIDConfigMapKey]
 	cId.m.RLock()
 	curr := cId.id
 	if curr != tmp {

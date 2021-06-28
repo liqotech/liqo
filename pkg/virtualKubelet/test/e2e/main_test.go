@@ -9,7 +9,7 @@ import (
 
 	v1 "k8s.io/api/core/v1"
 
-	vke2e "github.com/liqotech/liqo/test/e2e"
+	vke2e "github.com/liqotech/liqo/pkg/virtualKubelet/test/e2e/framework"
 )
 
 const (
