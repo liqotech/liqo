@@ -134,7 +134,7 @@ var _ = BeforeSuite(func(done Done) {
 	Expect(homeClient).ToNot(BeNil())
 
 	controllerClients := map[string]client.Client{
-		remoteClusterId1: remoteClient2,
+		remoteClusterId1: remoteClient1,
 	}
 
 	// Necessary resources in HomeCluster

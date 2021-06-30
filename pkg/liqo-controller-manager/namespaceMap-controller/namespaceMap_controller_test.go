@@ -31,6 +31,7 @@ import (
 
 	mapsv1alpha1 "github.com/liqotech/liqo/apis/virtualKubelet/v1alpha1"
 	liqoconst "github.com/liqotech/liqo/pkg/consts"
+	testutils "github.com/liqotech/liqo/pkg/liqo-controller-manager/namespaceMap-controller/testUtils"
 )
 
 var _ = Describe("NamespaceMap controller", func() {
@@ -80,13 +81,31 @@ var _ = Describe("NamespaceMap controller", func() {
 			By(" 2 - Checking remote namespace existence")
 			Eventually(func() bool {
 				remoteNamespace := &corev1.Namespace{}
-				if err := remoteClient2.Get(context.TODO(), types.NamespacedName{Name: namespace1Name}, remoteNamespace); err != nil {
+				if err := remoteClient1.Get(context.TODO(), types.NamespacedName{Name: namespace1Name}, remoteNamespace); err != nil {
 					return false
 				}
 				return remoteNamespace.Annotations[liqoAnnotationKey] == remoteNamespaceAnnotationValue
 			}, timeout, interval).Should(BeTrue())
 
-			By(" 3 - Checking status of CurrentMapping entry: must be 'Accepted'")
+			By(" 3 - Checking status of CurrentMapping entry: must be 'CreationLoopBackOff'")
+			Eventually(func() bool {
+				if err := homeClient.List(context.TODO(), nms, client.MatchingLabels{liqoconst.RemoteClusterID: remoteClusterId1}); err != nil {
+					return false
+				}
+				if len(nms.Items) == 0 {
+					return false
+				}
+				return nms.Items[0].Status.CurrentMapping[namespace1Name].RemoteNamespace == namespace1Name &&
+					nms.Items[0].Status.CurrentMapping[namespace1Name].Phase == mapsv1alpha1.MappingCreationLoopBackOff
+			}, timeout, interval).Should(BeTrue())
+
+			By(" 4 - Insert fake RoleBindings inside the remote namespace")
+			roleBinding1 := testutils.GetRoleBindingForASpecificNamespace(namespace1Name, localClusterID, 1)
+			roleBinding2 := testutils.GetRoleBindingForASpecificNamespace(namespace1Name, localClusterID, 2)
+			Expect(remoteClient1.Create(context.TODO(), &roleBinding1)).To(Succeed())
+			Expect(remoteClient1.Create(context.TODO(), &roleBinding2)).To(Succeed())
+
+			By(" 5 - Checking status of CurrentMapping entry: must be 'Accepted'")
 			Eventually(func() bool {
 				if err := homeClient.List(context.TODO(), nms, client.MatchingLabels{liqoconst.RemoteClusterID: remoteClusterId1}); err != nil {
 					return false
@@ -121,7 +140,7 @@ var _ = Describe("NamespaceMap controller", func() {
 			By(fmt.Sprintf(" 6 - Check deletion timestamp of remote namespace '%s'", namespace1Name))
 			Eventually(func() bool {
 				remoteNamespace := &corev1.Namespace{}
-				Expect(remoteClient2.Get(context.TODO(), types.NamespacedName{Name: namespace1Name}, remoteNamespace)).To(Succeed())
+				Expect(remoteClient1.Get(context.TODO(), types.NamespacedName{Name: namespace1Name}, remoteNamespace)).To(Succeed())
 				return !remoteNamespace.DeletionTimestamp.IsZero()
 			}, timeout, interval).Should(BeTrue())
 
@@ -170,14 +189,14 @@ var _ = Describe("NamespaceMap controller", func() {
 		It(fmt.Sprintf("Check NamespaceMap status when a remote namespace with the same name '%s' "+
 			"already exists on remote cluster '%s'", namespace1Name, remoteClusterId1), func() {
 			remoteName := "pippo"
-			By(fmt.Sprintf(" 1 - Create remote namespace '%s' if it isn't already there", remoteName))
+			By(fmt.Sprintf(" 1 - Create remote namespace '%s'", remoteName))
 			Eventually(func() bool {
 				remoteNamespace := &corev1.Namespace{
 					ObjectMeta: metav1.ObjectMeta{
 						Name: remoteName,
 					},
 				}
-				err := remoteClient2.Create(context.TODO(), remoteNamespace)
+				err := remoteClient1.Create(context.TODO(), remoteNamespace)
 				return err == nil
 			}, timeout, interval).Should(BeTrue())
 
@@ -236,9 +255,6 @@ var _ = Describe("NamespaceMap controller", func() {
 
 	})
 
-	// manca il test che testa la cancellazione della risorsa
-	// aggiungere un po' di namespace remoti prima con le desired entry
-	// guardare se parte la logica di cancellazione
 	Context("Check the deletion phase of the NamespaceMap", func() {
 
 		It("Create some remote Namespace and then verify the deletion logic when the NamespaceMap is "+
@@ -286,7 +302,25 @@ var _ = Describe("NamespaceMap controller", func() {
 				return err == nil
 			}, timeout, interval).Should(BeTrue())
 
-			By(" 4 - Check len of DesiredMapping (len==4) and MappingPhase must be 'Accepted' ")
+			By(fmt.Sprintf(" 4 - Create 2 rolebindings for the namespace %s", namespace2Name))
+			roleBinding1 := testutils.GetRoleBindingForASpecificNamespace(namespace2Name, localClusterID, 1)
+			roleBinding2 := testutils.GetRoleBindingForASpecificNamespace(namespace2Name, localClusterID, 2)
+			Eventually(func() bool {
+				return remoteClient1.Create(context.TODO(), &roleBinding1) == nil
+			}, timeout, interval).Should(BeTrue())
+			Eventually(func() bool {
+				return remoteClient1.Create(context.TODO(), &roleBinding2) == nil
+			}, timeout, interval).Should(BeTrue())
+
+			By(fmt.Sprintf(" 5 - Create just 1 rolebindings for the namespace %s", namespace3Name))
+			roleBinding1 = testutils.GetRoleBindingForASpecificNamespace(namespace3Name, localClusterID, 1)
+			Eventually(func() bool {
+				return remoteClient1.Create(context.TODO(), &roleBinding1) == nil
+			}, timeout, interval).Should(BeTrue())
+
+			// No roleBindings are created for the remote namespaces 'namespace4Name' and 'namespace5Name'.
+
+			By(" 6 - Check len of DesiredMapping (len==4) and MappingPhase must be 'Accepted' ")
 			Eventually(func() bool {
 				Expect(homeClient.List(context.TODO(), nms, client.MatchingLabels{liqoconst.RemoteClusterID: remoteClusterId1})).To(Succeed())
 				Expect(len(nms.Items) == 1).To(BeTrue())
@@ -294,12 +328,12 @@ var _ = Describe("NamespaceMap controller", func() {
 					return false
 				}
 				return nms.Items[0].Status.CurrentMapping[namespace2Name].Phase == mapsv1alpha1.MappingAccepted &&
-					nms.Items[0].Status.CurrentMapping[namespace3Name].Phase == mapsv1alpha1.MappingAccepted &&
-					nms.Items[0].Status.CurrentMapping[namespace4Name].Phase == mapsv1alpha1.MappingAccepted &&
-					nms.Items[0].Status.CurrentMapping[namespace5Name].Phase == mapsv1alpha1.MappingAccepted
+					nms.Items[0].Status.CurrentMapping[namespace3Name].Phase == mapsv1alpha1.MappingCreationLoopBackOff &&
+					nms.Items[0].Status.CurrentMapping[namespace4Name].Phase == mapsv1alpha1.MappingCreationLoopBackOff &&
+					nms.Items[0].Status.CurrentMapping[namespace5Name].Phase == mapsv1alpha1.MappingCreationLoopBackOff
 			}, timeout, interval).Should(BeTrue())
 
-			By(" 5 - Delete NamespaceMap, so the deletion timestamp is set")
+			By(" 7 - Delete NamespaceMap, so the deletion timestamp is set")
 			Eventually(func() bool {
 				Expect(homeClient.List(context.TODO(), nms, client.MatchingLabels{liqoconst.RemoteClusterID: remoteClusterId1})).To(Succeed())
 				Expect(len(nms.Items) == 1).To(BeTrue())
@@ -307,7 +341,7 @@ var _ = Describe("NamespaceMap controller", func() {
 				return err == nil
 			}, timeout, interval).Should(BeTrue())
 
-			By(" 6 - Check if all remote Namespaces are in terminating phase ")
+			By(" 8 - Check if all remote Namespaces are in terminating phase ")
 			Eventually(func() bool {
 				Expect(homeClient.List(context.TODO(), nms, client.MatchingLabels{liqoconst.RemoteClusterID: remoteClusterId1})).To(Succeed())
 				Expect(len(nms.Items) == 1).To(BeTrue())
@@ -317,7 +351,7 @@ var _ = Describe("NamespaceMap controller", func() {
 					nms.Items[0].Status.CurrentMapping[namespace5Name].Phase == mapsv1alpha1.MappingTerminating
 			}, timeout, interval).Should(BeTrue())
 
-			By(" 7 - Check if NamespaceMap Controller finalizer is still there")
+			By(" 9 - Check if NamespaceMap Controller finalizer is still there")
 			Eventually(func() bool {
 				if err := homeClient.List(context.TODO(), nms, client.MatchingLabels{liqoconst.RemoteClusterID: remoteClusterId1}); err != nil {
 					return false
@@ -326,7 +360,7 @@ var _ = Describe("NamespaceMap controller", func() {
 				return ctrlutils.ContainsFinalizer(nms.Items[0].DeepCopy(), namespaceMapControllerFinalizer)
 			}, timeout*2, interval).Should(BeTrue())
 
-			By(" 8 - Clean NamespaceMap status")
+			By(" 10 - Clean NamespaceMap status")
 			Eventually(func() bool {
 				Expect(homeClient.List(context.TODO(), nms, client.MatchingLabels{liqoconst.RemoteClusterID: remoteClusterId1})).To(Succeed())
 				Expect(len(nms.Items) == 1).To(BeTrue())
@@ -335,7 +369,7 @@ var _ = Describe("NamespaceMap controller", func() {
 				return err == nil
 			}, timeout, interval).Should(BeTrue())
 
-			By(" 9 - Check if NamespaceMap is removed")
+			By(" 10 - Check if the NamespaceMap is removed")
 			Eventually(func() bool {
 				if err := homeClient.List(context.TODO(), nms, client.MatchingLabels{liqoconst.RemoteClusterID: remoteClusterId1}); err != nil {
 					return false
