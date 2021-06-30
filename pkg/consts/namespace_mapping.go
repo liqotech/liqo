@@ -23,4 +23,10 @@ const (
 	SchedulingLiqoLabel = "liqo.io/scheduling-enabled"
 	// SchedulingLiqoLabelValue unique value allowed for SchedulingLiqoLabel.
 	SchedulingLiqoLabelValue = "true"
+	// RoleBindingLabelKey label that some RoleBindings in the remote namespace must have. In every remote namespace
+	// there are some RoleBindings that provide the local virtualKubelet with some privileges. These RoleBindings just
+	// described must have that RoleBindingLabel.
+	RoleBindingLabelKey = "capsule.clastix.io/tenant"
+	// RoleBindingLabelValuePrefix prefix of the value that the RoleBindingLabel must have.
+	RoleBindingLabelValuePrefix = "tenant"
 )
