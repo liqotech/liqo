@@ -39,6 +39,7 @@ func (r *ResourceRequestReconciler) generateResourceOffer(ctx context.Context, r
 			ResourceQuota: corev1.ResourceQuotaSpec{
 				Hard: resources,
 			},
+			Labels:     r.Broadcaster.clusterConfig.Spec.DiscoveryConfig.ClusterLabels,
 			Timestamp:  creationTime,
 			TimeToLive: metav1.NewTime(creationTime.Add(timeToLive)),
 		}
