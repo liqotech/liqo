@@ -14,7 +14,7 @@ import (
 
 	"github.com/liqotech/liqo/pkg/consts"
 	liqonetIpam "github.com/liqotech/liqo/pkg/liqonet/ipam"
-	"github.com/liqotech/liqo/pkg/virtualKubelet/namespacesMapping"
+	"github.com/liqotech/liqo/pkg/virtualKubelet/namespacesmapping"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/options"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/options/types"
 )
@@ -61,7 +61,7 @@ func ForeignReplicasetDeleted(pod *corev1.Pod) *corev1.Pod {
 }
 
 type apiForger struct {
-	nattingTable namespacesMapping.NamespaceNatter
+	nattingTable namespacesmapping.NamespaceNatter
 	ipamClient   liqonetIpam.IpamClient
 
 	virtualNodeName  options.ReadOnlyOption
@@ -72,7 +72,7 @@ type apiForger struct {
 var forger apiForger
 
 // InitForger initialize forger component to set all necessary fields of offloaded resources.
-func InitForger(nattingTable namespacesMapping.NamespaceNatter, opts ...options.ReadOnlyOption) {
+func InitForger(nattingTable namespacesmapping.NamespaceNatter, opts ...options.ReadOnlyOption) {
 	forger.nattingTable = nattingTable
 	for _, opt := range opts {
 		switch opt.Key() {

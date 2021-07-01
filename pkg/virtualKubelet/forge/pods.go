@@ -108,7 +108,7 @@ func (f *apiForger) podHomeToForeign(homeObj, foreignObj runtime.Object, reflect
 
 	homePod = homeObj.(*corev1.Pod)
 
-	foreignNamespace, err := f.nattingTable.NatNamespace(homePod.Namespace, true)
+	foreignNamespace, err := f.nattingTable.NatNamespace(homePod.Namespace)
 	if err != nil {
 		return nil, err
 	}

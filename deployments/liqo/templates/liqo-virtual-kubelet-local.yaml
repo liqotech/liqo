@@ -7,3 +7,4 @@ kind: ClusterRole
 metadata:
   name: {{ include "liqo.prefixedName" $virtualKubeletConfig }}
 {{ .Files.Get (include "liqo.cluster-role-filename" (dict "prefix" ( include "liqo.prefixedName" $virtualKubeletConfig))) }}
+---

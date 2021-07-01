@@ -18,15 +18,15 @@ import (
 	apimgmt "github.com/liqotech/liqo/pkg/virtualKubelet/apiReflection"
 	test2 "github.com/liqotech/liqo/pkg/virtualKubelet/apiReflection/controller/test"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/forge"
-	"github.com/liqotech/liqo/pkg/virtualKubelet/namespacesMapping"
-	"github.com/liqotech/liqo/pkg/virtualKubelet/namespacesMapping/test"
+	"github.com/liqotech/liqo/pkg/virtualKubelet/namespacesmapping"
+	"github.com/liqotech/liqo/pkg/virtualKubelet/namespacesmapping/test"
 	test3 "github.com/liqotech/liqo/pkg/virtualKubelet/storage/test"
 )
 
 var _ = Describe("Pods", func() {
 	var (
 		provider              *LiqoProvider
-		namespaceMapper       namespacesMapping.MapperController
+		namespaceMapper       namespacesmapping.MapperController
 		namespaceNattingTable *test.MockNamespaceMapper
 		foreignClient         kubernetes.Interface
 	)

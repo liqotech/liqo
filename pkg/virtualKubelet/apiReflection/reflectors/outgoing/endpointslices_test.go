@@ -1,4 +1,4 @@
-package reflection
+package outgoing
 
 import (
 	"context"
@@ -14,8 +14,7 @@ import (
 	liqonetTest "github.com/liqotech/liqo/pkg/liqonet/test"
 	apimgmt "github.com/liqotech/liqo/pkg/virtualKubelet/apiReflection"
 	api "github.com/liqotech/liqo/pkg/virtualKubelet/apiReflection/reflectors"
-	"github.com/liqotech/liqo/pkg/virtualKubelet/apiReflection/reflectors/outgoing"
-	"github.com/liqotech/liqo/pkg/virtualKubelet/namespacesMapping/test"
+	"github.com/liqotech/liqo/pkg/virtualKubelet/namespacesmapping/test"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/options/types"
 	storageTest "github.com/liqotech/liqo/pkg/virtualKubelet/storage/test"
 )
@@ -34,7 +33,7 @@ func TestEndpointAdd(t *testing.T) {
 		CacheManager:     cacheManager,
 	}
 
-	reflector := &outgoing.EndpointSlicesReflector{
+	reflector := &EndpointSlicesReflector{
 		APIReflector:    Greflector,
 		VirtualNodeName: types.NewNetworkingOption("VirtualNodeName", "vk-node"),
 		IpamClient:      &liqonetTest.MockIpam{LocalRemappedPodCIDR: "10.0.0.0/16"},
@@ -88,7 +87,7 @@ func TestEndpointAdd(t *testing.T) {
 		Status: v1.ServiceStatus{},
 	}
 
-	_, _ = nattingTable.NatNamespace("homeNamespace", true)
+	nattingTable.NewNamespace("homeNamespace")
 	_, err := reflector.GetForeignClient().CoreV1().Services("homeNamespace-natted").Create(context.TODO(), svc, metav1.CreateOptions{})
 	if err != nil {
 		klog.Error(err)
@@ -117,7 +116,7 @@ func TestEndpointAdd2(t *testing.T) {
 		CacheManager:     cacheManager,
 	}
 
-	reflector := &outgoing.EndpointSlicesReflector{
+	reflector := &EndpointSlicesReflector{
 		APIReflector:    Greflector,
 		VirtualNodeName: types.NewNetworkingOption("VirtualNodeName", "vk-node"),
 		IpamClient:      &liqonetTest.MockIpam{LocalRemappedPodCIDR: "10.0.0.0/16"},
@@ -171,7 +170,7 @@ func TestEndpointAdd2(t *testing.T) {
 		Status: v1.ServiceStatus{},
 	}
 
-	_, _ = nattingTable.NatNamespace("homeNamespace", true)
+	nattingTable.NewNamespace("homeNamespace")
 	_, err := reflector.GetForeignClient().CoreV1().Services("homeNamespace-natted").Create(context.TODO(), svc, metav1.CreateOptions{})
 	if err != nil {
 		klog.Error(err)

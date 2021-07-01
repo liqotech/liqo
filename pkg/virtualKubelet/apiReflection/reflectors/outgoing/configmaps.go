@@ -71,7 +71,7 @@ func (r *ConfigmapsReflector) PreAdd(obj interface{}) (interface{}, watch.EventT
 	cmLocal := obj.(*corev1.ConfigMap)
 	klog.V(3).Infof("PreAdd routine started for configmap %v/%v", cmLocal.Namespace, cmLocal.Name)
 
-	nattedNs, err := r.NattingTable().NatNamespace(cmLocal.Namespace, false)
+	nattedNs, err := r.NattingTable().NatNamespace(cmLocal.Namespace)
 	if err != nil {
 		klog.Error(err)
 		return nil, watch.Added
@@ -101,7 +101,7 @@ func (r *ConfigmapsReflector) PreUpdate(newObj, _ interface{}) (interface{}, wat
 
 	klog.V(3).Infof("PreUpdate routine started for configmap %v/%v", newHomeCm.Namespace, newHomeCm.Name)
 
-	nattedNs, err := r.NattingTable().NatNamespace(newHomeCm.Namespace, false)
+	nattedNs, err := r.NattingTable().NatNamespace(newHomeCm.Namespace)
 	if err != nil {
 		err = errors.Wrapf(err, "configmap %v/%v", nattedNs, newHomeCm.Name)
 		klog.Error(err)
@@ -143,7 +143,7 @@ func (r *ConfigmapsReflector) PreDelete(obj interface{}) (interface{}, watch.Eve
 	cmLocal := obj.(*corev1.ConfigMap).DeepCopy()
 	klog.V(3).Infof("PreDelete routine started for configmap %v/%v", cmLocal.Namespace, cmLocal.Name)
 
-	nattedNs, err := r.NattingTable().NatNamespace(cmLocal.Namespace, false)
+	nattedNs, err := r.NattingTable().NatNamespace(cmLocal.Namespace)
 	if err != nil {
 		klog.Error(err)
 		return nil, watch.Deleted
@@ -155,7 +155,7 @@ func (r *ConfigmapsReflector) PreDelete(obj interface{}) (interface{}, watch.Eve
 }
 
 func (r *ConfigmapsReflector) CleanupNamespace(localNamespace string) {
-	foreignNamespace, err := r.NattingTable().NatNamespace(localNamespace, false)
+	foreignNamespace, err := r.NattingTable().NatNamespace(localNamespace)
 	if err != nil {
 		klog.Error(err)
 		return

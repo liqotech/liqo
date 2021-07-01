@@ -13,7 +13,7 @@ import (
 	apimgmt "github.com/liqotech/liqo/pkg/virtualKubelet/apiReflection"
 	ri "github.com/liqotech/liqo/pkg/virtualKubelet/apiReflection/reflectors/reflectorsInterfaces"
 	vkContext "github.com/liqotech/liqo/pkg/virtualKubelet/context"
-	"github.com/liqotech/liqo/pkg/virtualKubelet/namespacesMapping"
+	"github.com/liqotech/liqo/pkg/virtualKubelet/namespacesmapping"
 	reflectionCache "github.com/liqotech/liqo/pkg/virtualKubelet/storage"
 )
 
@@ -28,7 +28,7 @@ type GenericAPIReflector struct {
 
 	CacheManager reflectionCache.CacheManagerReaderAdder
 
-	NamespaceNatting namespacesMapping.NamespaceNatter
+	NamespaceNatting namespacesmapping.NamespaceNatter
 }
 
 func (r *GenericAPIReflector) GetForeignClient() kubernetes.Interface {
@@ -43,7 +43,8 @@ func (r *GenericAPIReflector) GetCacheManager() reflectionCache.CacheManagerRead
 	return r.CacheManager
 }
 
-func (r *GenericAPIReflector) NattingTable() namespacesMapping.NamespaceNatter {
+// NattingTable returns a namespaceNatter object to handle namespace translations.
+func (r *GenericAPIReflector) NattingTable() namespacesmapping.NamespaceNatter {
 	return r.NamespaceNatting
 }
 

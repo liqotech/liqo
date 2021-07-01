@@ -678,7 +678,6 @@ function main() {
 		launch_agent_installer
 	else
 		uninstall_liqodash
-		unjoin_clusters
 		purge_liqo_preuninstall
 		uninstall_liqo
 		purge_liqo

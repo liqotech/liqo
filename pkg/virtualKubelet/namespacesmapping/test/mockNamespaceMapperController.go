@@ -1,12 +1,16 @@
 package test
 
-import "github.com/liqotech/liqo/pkg/virtualKubelet/namespacesMapping"
+import (
+	"github.com/liqotech/liqo/pkg/virtualKubelet/namespacesmapping"
+)
 
+// MockNamespaceMapperController implements a mock namespace mapper controller.
 type MockNamespaceMapperController struct {
 	Mapper *MockNamespaceMapper
 }
 
-func NewMockNamespaceMapperController(mapper *MockNamespaceMapper) namespacesMapping.MapperController {
+// NewMockNamespaceMapperController builds and returns a new mock NewNamespaceMapperController.
+func NewMockNamespaceMapperController(mapper *MockNamespaceMapper) namespacesmapping.MapperController {
 	controller := &MockNamespaceMapperController{
 		Mapper: mapper,
 	}
@@ -14,46 +18,61 @@ func NewMockNamespaceMapperController(mapper *MockNamespaceMapper) namespacesMap
 	return controller
 }
 
+// PollStartOutgoingReflection returns the startOutgoingReflection channel. It is used to receive elements to start new outgoing reflection
+// routines on pushed namespace names.
 func (c *MockNamespaceMapperController) PollStartOutgoingReflection() chan string {
 	panic("to implement")
 }
 
+// PollStartIncomingReflection returns the startIncomingReflection channel. It is used to receive elements to start new incoming reflection
+// routines on pushed namespace names.
 func (c *MockNamespaceMapperController) PollStartIncomingReflection() chan string {
 	panic("to implement")
 }
 
+// PollStopOutgoingReflection returns the stopOutgoingReflectionMapper channel. It is used to receive elements to stop new outgoing reflection
+// routines on pushed namespace names.
 func (c *MockNamespaceMapperController) PollStopOutgoingReflection() chan string {
 	panic("to implement")
 }
 
+// PollStopIncomingReflection returns the stopIncomingReflection channel. It is used to receive elements to stop new incoming reflection
+// routines on pushed namespace names.
 func (c *MockNamespaceMapperController) PollStopIncomingReflection() chan string {
 	panic("to implement")
 }
 
+// PollStartMapper returns the startMapper channel.
 func (c *MockNamespaceMapperController) PollStartMapper() chan struct{} {
 	panic("to implement")
 }
 
+// PollStopMapper returns the stopMapper channel.
 func (c *MockNamespaceMapperController) PollStopMapper() chan struct{} {
 	panic("to implement")
 }
 
+// ReadyForRestart emits a signal to restart the OutgoingReflection.
 func (c *MockNamespaceMapperController) ReadyForRestart() {
 	panic("to implement")
 }
 
-func (c *MockNamespaceMapperController) NatNamespace(namespace string, create bool) (string, error) {
-	return c.Mapper.NatNamespace(namespace, create)
+// NatNamespace handle the home to foreign namespace translation. It returns an error if the mapping is not found.
+func (c *MockNamespaceMapperController) NatNamespace(namespace string) (string, error) {
+	return c.Mapper.NatNamespace(namespace)
 }
 
+// DeNatNamespace handle the foreign to home namespace translation. It returns an error if the mapping is not found.
 func (c *MockNamespaceMapperController) DeNatNamespace(namespace string) (string, error) {
 	return c.Mapper.DeNatNamespace(namespace)
 }
 
+// MappedNamespaces returns the entire namespace mapping map.
 func (c *MockNamespaceMapperController) MappedNamespaces() map[string]string {
 	panic("implement me")
 }
 
+// WaitForSync waits until internal caches are synchronized.
 func (c *MockNamespaceMapperController) WaitForSync() {
 	panic("implement me")
 }

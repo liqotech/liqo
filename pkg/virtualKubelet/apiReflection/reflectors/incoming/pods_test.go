@@ -20,7 +20,7 @@ import (
 	"github.com/liqotech/liqo/pkg/virtualKubelet/apiReflection/reflectors/incoming"
 	ri "github.com/liqotech/liqo/pkg/virtualKubelet/apiReflection/reflectors/reflectorsInterfaces"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/forge"
-	"github.com/liqotech/liqo/pkg/virtualKubelet/namespacesMapping/test"
+	"github.com/liqotech/liqo/pkg/virtualKubelet/namespacesmapping/test"
 	storageTest "github.com/liqotech/liqo/pkg/virtualKubelet/storage/test"
 )
 
@@ -245,7 +245,7 @@ var _ = Describe("Pod incoming reflector", func() {
 							Namespace: "homeNamespace",
 						},
 					}
-					_, _ = namespaceNattingTable.NatNamespace("homeNamespace", true)
+					namespaceNattingTable.NewNamespace("homeNamespace")
 					_ = cacheManager.AddHomeNamespace("homeNamespace")
 					_ = cacheManager.AddForeignNamespace("homeNamespace-natted")
 
@@ -344,7 +344,8 @@ var _ = Describe("Pod incoming reflector", func() {
 				)
 
 				BeforeEach(func() {
-					nattedNamespace, testSetupError := namespaceNattingTable.NatNamespace("testNamespace", true)
+					namespaceNattingTable.NewNamespace("testNamespace")
+					nattedNamespace, testSetupError := namespaceNattingTable.NatNamespace("testNamespace")
 					if testSetupError != nil {
 						Fail("failed to setup test: cannot nat namespace using fake namespace natter")
 					}
@@ -376,7 +377,8 @@ var _ = Describe("Pod incoming reflector", func() {
 
 				BeforeEach(func() {
 					homeNamespace := "cacheMisbehaving"
-					nattedNamespace, testSetupError := namespaceNattingTable.NatNamespace(homeNamespace, true)
+					namespaceNattingTable.NewNamespace(homeNamespace)
+					nattedNamespace, testSetupError := namespaceNattingTable.NatNamespace(homeNamespace)
 					if testSetupError != nil {
 						Fail("failed to setup test: cannot nat namespace using fake namespace natter")
 					}
@@ -428,7 +430,8 @@ var _ = Describe("Pod incoming reflector", func() {
 				BeforeEach(func() {
 					// setup namespace natter
 					homeNamespace := "GetHomePodNamespace"
-					nattedNamespace, testSetupError := namespaceNattingTable.NatNamespace(homeNamespace, true)
+					namespaceNattingTable.NewNamespace(homeNamespace)
+					nattedNamespace, testSetupError := namespaceNattingTable.NatNamespace(homeNamespace)
 					if testSetupError != nil {
 						Fail("failed to setup test: cannot nat namespace using fake namespace natter")
 					}

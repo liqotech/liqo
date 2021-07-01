@@ -134,6 +134,7 @@ func (r *ResourceOfferReconciler) createVirtualKubeletDeployment(
 		klog.Error(err)
 		return err
 	}
+
 	klog.V(5).Infof("[%v] ClusterRoleBinding %s reconciled: %s", remoteClusterID, vkClusterRoleBinding.Name, op)
 
 	// forge the virtual Kubelet

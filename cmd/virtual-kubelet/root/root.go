@@ -72,7 +72,7 @@ func runRootCommand(ctx context.Context, s *provider.Store, c *Opts) error {
 		return errors.New("provider kubeconfig is mandatory")
 	}
 
-	if c.ForeignClusterId == "" {
+	if c.ForeignClusterID == "" {
 		return errors.New("cluster id is mandatory")
 	}
 
@@ -126,8 +126,8 @@ func runRootCommand(ctx context.Context, s *provider.Store, c *Opts) error {
 		DaemonPort:           c.ListenPort,
 		InternalIP:           os.Getenv("VKUBELET_POD_IP"),
 		KubeClusterDomain:    c.KubeClusterDomain,
-		RemoteClusterID:      c.ForeignClusterId,
-		HomeClusterID:        c.HomeClusterId,
+		RemoteClusterID:      c.ForeignClusterID,
+		HomeClusterID:        c.HomeClusterID,
 		RemoteKubeConfig:     c.ForeignKubeconfig,
 		InformerResyncPeriod: c.InformerResyncPeriod,
 		LiqoIpamServer:       c.LiqoIpamServer,
@@ -162,7 +162,7 @@ func runRootCommand(ctx context.Context, s *provider.Store, c *Opts) error {
 		liqoProvider.SetProviderStopper(podProviderStopper)
 		networkReadyChan := liqoProvider.GetNetworkReadyChan()
 
-		liqoNodeProvider, err := liqonodeprovider.NewLiqoNodeProvider(c.NodeName, c.ForeignClusterId,
+		liqoNodeProvider, err := liqonodeprovider.NewLiqoNodeProvider(c.NodeName, c.ForeignClusterID,
 			c.KubeletNamespace, pNode, podProviderStopper, networkReadyChan, nil, c.LiqoInformerResyncPeriod)
 		if err != nil {
 			klog.Fatal(err)
