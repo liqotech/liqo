@@ -61,6 +61,7 @@ manifests: controller-gen
 
 #Generate RBAC for each controller
 rbacs: controller-gen
+	rm --force deployments/liqo/files/*
 	$(CONTROLLER_GEN) $(CRD_OPTIONS) paths="./internal/advertisementoperator" rbac:roleName=liqo-advertisement output:rbac:stdout | sed -n '/rules/,$$p' > deployments/liqo/files/liqo-advertisement-rbac.yaml
 	$(CONTROLLER_GEN) $(CRD_OPTIONS) paths="./internal/liqonet/route-operator" rbac:roleName=liqo-route output:rbac:stdout | awk -v RS="---\n" 'NR>1{f="./deployments/liqo/files/liqo-route-" $$4 ".yaml";printf "%s",$$0 > f; close(f)}' &&  sed -i -n '/rules/,$$p' deployments/liqo/files/liqo-route-ClusterRole.yaml deployments/liqo/files/liqo-route-Role.yaml
 	$(CONTROLLER_GEN) $(CRD_OPTIONS) paths="./internal/liqonet/tunnel-operator" rbac:roleName=liqo-gateway output:rbac:stdout | awk -v RS="---\n" 'NR>1{f="./deployments/liqo/files/liqo-gateway-" $$4 ".yaml";printf "%s",$$0 > f; close(f)}' &&  sed -i -n '/rules/,$$p' deployments/liqo/files/liqo-gateway-ClusterRole.yaml deployments/liqo/files/liqo-gateway-Role.yaml
@@ -73,10 +74,10 @@ rbacs: controller-gen
 	$(CONTROLLER_GEN) $(CRD_OPTIONS) paths="./pkg/peering-roles/basic" rbac:roleName=liqo-remote-peering-basic output:rbac:stdout | awk -v RS="---\n" 'NR>1{f="./deployments/liqo/files/liqo-remote-peering-basic-" $$4 ".yaml";printf "%s",$$0 > f; close(f)}' &&  sed -i -n '/rules/,$$p' deployments/liqo/files/liqo-remote-peering-basic-ClusterRole.yaml
 	$(CONTROLLER_GEN) $(CRD_OPTIONS) paths="./pkg/peering-roles/incoming" rbac:roleName=liqo-remote-peering-incoming output:rbac:stdout | awk -v RS="---\n" 'NR>1{f="./deployments/liqo/files/liqo-remote-peering-incoming-" $$4 ".yaml";printf "%s",$$0 > f; close(f)}' &&  sed -i -n '/rules/,$$p' deployments/liqo/files/liqo-remote-peering-incoming-ClusterRole.yaml
 	$(CONTROLLER_GEN) $(CRD_OPTIONS) paths="./pkg/peering-roles/outgoing" rbac:roleName=liqo-remote-peering-outgoing output:rbac:stdout | awk -v RS="---\n" 'NR>1{f="./deployments/liqo/files/liqo-remote-peering-outgoing-" $$4 ".yaml";printf "%s",$$0 > f; close(f)}' &&  sed -i -n '/rules/,$$p' deployments/liqo/files/liqo-remote-peering-outgoing-ClusterRole.yaml
-	$(CONTROLLER_GEN) $(CRD_OPTIONS) paths="./pkg/virtualKubelet/roles" rbac:roleName=liqo-virtual-kubelet-local output:rbac:stdout | awk -v RS="---\n" 'NR>1{f="./deployments/liqo/files/liqo-virtual-kubelet-local-" $$4 ".yaml";printf "%s",$$0 > f; close(f)}' &&  sed -i -n '/rules/,$$p' deployments/liqo/files/liqo-virtual-kubelet-local-ClusterRole.yaml
 	$(CONTROLLER_GEN) $(CRD_OPTIONS) paths="./pkg/liqo-controller-manager/..." rbac:roleName=liqo-controller-manager output:rbac:stdout | awk -v RS="---\n" 'NR>1{f="./deployments/liqo/files/liqo-controller-manager-" $$4 ".yaml";printf "%s",$$0 > f; close(f)}' &&  sed -i -n '/rules/,$$p' deployments/liqo/files/liqo-controller-manager-ClusterRole.yaml
 	$(CONTROLLER_GEN) $(CRD_OPTIONS) paths="./pkg/virtualKubelet/roles/local" rbac:roleName=liqo-virtual-kubelet-local output:rbac:stdout | awk -v RS="---\n" 'NR>1{f="./deployments/liqo/files/liqo-virtual-kubelet-local-" $$4 ".yaml";printf "%s",$$0 > f; close(f)}' &&  sed -i -n '/rules/,$$p' deployments/liqo/files/liqo-virtual-kubelet-local-ClusterRole.yaml
 	$(CONTROLLER_GEN) $(CRD_OPTIONS) paths="./pkg/virtualKubelet/roles/remote" rbac:roleName=liqo-virtual-kubelet-remote output:rbac:stdout | awk -v RS="---\n" 'NR>1{f="./deployments/liqo/files/liqo-virtual-kubelet-remote-" $$4 ".yaml";printf "%s",$$0 > f; close(f)}' &&  sed -i -n '/rules/,$$p' deployments/liqo/files/liqo-virtual-kubelet-remote-ClusterRole.yaml
+	$(CONTROLLER_GEN) $(CRD_OPTIONS) paths="./cmd/uninstaller" rbac:roleName=liqo-pre-delete output:rbac:stdout | awk -v RS="---\n" 'NR>1{f="./deployments/liqo/files/liqo-pre-delete-" $$4 ".yaml";printf "%s",$$0 > f; close(f)}' &&  sed -i -n '/rules/,$$p' deployments/liqo/files/liqo-pre-delete-ClusterRole.yaml deployments/liqo/files/liqo-pre-delete-Role.yaml
 
 # Install gci if not available
 gci:
