@@ -12,7 +12,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/util/retry"
-	"k8s.io/klog"
+	"k8s.io/klog/v2"
 
 	"github.com/liqotech/liqo/pkg/virtualKubelet"
 	apimgmt "github.com/liqotech/liqo/pkg/virtualKubelet/apiReflection"
@@ -22,10 +22,14 @@ import (
 	"github.com/liqotech/liqo/pkg/virtualKubelet/forge"
 )
 
+// HomePodGetter function to retrieve the shadow home pod given the foreign pod.
+type HomePodGetter func(reflector ri.APIReflector, foreignPod *corev1.Pod) (*corev1.Pod, error)
+
 // PodsIncomingReflector is the incoming reflector in charge of detecting status change in foreign pods
 // and pushing the updated object to the vk internals.
 type PodsIncomingReflector struct {
 	ri.APIReflector
+	HomePodGetter HomePodGetter
 }
 
 // SetSpecializedPreProcessingHandlers allows to set the pre-routine handlers for the PodsIncomingReflector.
@@ -90,46 +94,41 @@ func (r *PodsIncomingReflector) PreUpdate(newObj, _ interface{}) (interface{}, w
 // sharedPreRoutine is a common function used by both PreAdd and PreUpdate. It is in charge of fetching the home pod from
 // the internal caches, updating its status and returning to the calling function.
 func (r *PodsIncomingReflector) sharedPreRoutine(foreignPod *corev1.Pod) *corev1.Pod {
-	if foreignPod.Labels == nil {
-		return nil
-	}
-
-	homePodName, ok := foreignPod.Labels[virtualKubelet.ReflectedpodKey]
-	if !ok {
-		return nil
-	}
-
-	homeNamespace, err := r.NattingTable().DeNatNamespace(foreignPod.Namespace)
+	homePod, err := r.GetHomePod(foreignPod)
 	if err != nil {
-		klog.Error(err)
+		klog.Error(errors.Wrap(err, "cannot get home pod"))
 		return nil
 	}
 
-	homePod, err := r.GetCacheManager().GetHomeNamespacedObject(apimgmt.Pods, homeNamespace, homePodName)
-	if err != nil {
-		err = errors.Wrap(err, "local pod not found, incoming update blocked")
-		klog.V(4).Info(err)
-		return nil
-	}
-
+	var homePodObj interface{} = homePod
 	// forge.ForeignToHomeStatus blacklists the received pod if the deletionTimestamp is set
-	homePod, err = forge.ForeignToHomeStatus(foreignPod, homePod.(runtime.Object).DeepCopyObject())
+	homePodObj, err = forge.ForeignToHomeStatus(foreignPod, homePodObj.(runtime.Object).DeepCopyObject())
 	if err != nil {
 		klog.Error(err)
 		return nil
 	}
 
-	return homePod.(*corev1.Pod)
+	return homePodObj.(*corev1.Pod)
 }
 
 // PreDelete removes the received object from the blacklist for freeing the occupied space.
 func (r *PodsIncomingReflector) PreDelete(obj interface{}) (interface{}, watch.EventType) {
 	foreignPod := obj.(*corev1.Pod)
-	foreignKey := fmt.Sprintf("%s/%s", foreignPod.Namespace, foreignPod.Name)
+	foreignKey := r.Keyer(foreignPod.Namespace, foreignPod.Name)
 	delete(reflectors.Blacklist[apimgmt.Pods], foreignKey)
 	klog.V(3).Infof("pod %s removed from blacklist because deleted", foreignKey)
 
-	return nil, watch.Deleted
+	homePod, err := r.GetHomePod(foreignPod)
+	if err != nil {
+		klog.Error(errors.Wrapf(err, "cannot get home pod for foreign pod: %s", foreignKey))
+		return nil, watch.Deleted
+	}
+
+	homePod = forge.ForeignReplicasetDeleted(homePod)
+
+	klog.V(3).Infof("%s, home pod for foreign pod: %s, set to be deleted", homePod.ObjectMeta.Name, foreignKey)
+
+	return homePod, watch.Deleted
 }
 
 // CleanupNamespace is in charge of cleaning a local namespace from all the reflected objects. All the home objects in
@@ -209,4 +208,38 @@ func (r *PodsIncomingReflector) isAllowed(ctx context.Context, obj interface{}) 
 		klog.V(5).Infof("event for pod %v blacklisted", key)
 	}
 	return !ok
+}
+
+// GetHomePod retrieves the shadow home pod given the foreign pod.
+func (r *PodsIncomingReflector) GetHomePod(foreignPod *corev1.Pod) (*corev1.Pod, error) {
+	return r.HomePodGetter(r, foreignPod)
+}
+
+// GetHomePodFunc retrieves the shadow home pod given the foreign pod.
+func GetHomePodFunc(reflector ri.APIReflector, foreignPod *corev1.Pod) (*corev1.Pod, error) {
+	if foreignPod.Labels == nil {
+		return nil, errors.New("foreign pod labels not found")
+	}
+
+	homePodName, ok := foreignPod.Labels[virtualKubelet.ReflectedpodKey]
+	if !ok {
+		return nil, fmt.Errorf("foreign pod label with key: %s, not found", virtualKubelet.ReflectedpodKey)
+	}
+
+	homeNamespace, err := reflector.NattingTable().DeNatNamespace(foreignPod.Namespace)
+	if err != nil {
+		return nil, errors.Wrap(err, "cannot get home pod namespace")
+	}
+
+	homePodObj, err := reflector.GetCacheManager().GetHomeNamespacedObject(apimgmt.Pods, homeNamespace, homePodName)
+	if err != nil {
+		return nil, errors.Wrap(err, "cannot get home pod from cache manager")
+	}
+
+	homePod, ok := homePodObj.(*corev1.Pod)
+	if !ok {
+		return nil, fmt.Errorf("could not execute type conversion: GetHomeNamespacedObject expected to return a Pod object")
+	}
+
+	return homePod, nil
 }
