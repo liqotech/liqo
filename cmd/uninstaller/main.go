@@ -13,6 +13,13 @@ import (
 	"github.com/liqotech/liqo/pkg/uninstaller"
 )
 
+// cluster-role
+// +kubebuilder:rbac:groups=config.liqo.io,resources=clusterconfigs,verbs=get;list;watch;patch;update
+// +kubebuilder:rbac:groups=core,resources=events,verbs=create;patch
+// +kubebuilder:rbac:groups=discovery.liqo.io,resources=foreignclusters,verbs=get;list;watch;patch;update
+// role
+// +kubebuilder:rbac:groups=core,namespace="do-not-care",resources=pods,verbs=get;list;watch
+
 func main() {
 	var config *rest.Config
 

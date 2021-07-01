@@ -27,30 +27,7 @@ func GetCachedClient(ctx context.Context, scheme *runtime.Scheme) (client.Client
 		return nil, err
 	}
 
-	mapper, err := (mapperUtils.LiqoMapperProvider(scheme))(conf)
-	if err != nil {
-		klog.Errorf("mapper: %s", err)
-		return nil, err
-	}
-
-	clientCache, err := cache.New(conf, cache.Options{Scheme: scheme, Mapper: mapper})
-	if err != nil {
-		klog.Errorf("cache: %s", err)
-		return nil, err
-	}
-
-	go func() {
-		if err = clientCache.Start(ctx); err != nil {
-			klog.Errorf("unable to start cache: %s", err)
-		}
-	}()
-
-	newClient, err := cluster.DefaultNewClient(clientCache, conf, client.Options{Scheme: scheme, Mapper: mapper})
-	if err != nil {
-		klog.Errorf("unable to create the client: %s", err)
-		return nil, err
-	}
-	return newClient, nil
+	return GetCachedClientWithConfig(ctx, scheme, conf)
 }
 
 // GetCachedClientWithConfig returns a controller runtime client with the cache initialized only for the resources added to
