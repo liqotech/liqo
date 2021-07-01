@@ -103,7 +103,7 @@ type ForeignClusterReconciler struct {
 // tenant control namespace management
 // +kubebuilder:rbac:groups=core,resources=namespaces,verbs=get;list;watch;create
 // +kubebuilder:rbac:groups=core,resources=secrets,verbs=get;list;create;delete;update
-// +kubebuilder:rbac:groups=rbac.authorization.k8s.io,resources=rolebindings,verbs=create;deletecollection
+// +kubebuilder:rbac:groups=rbac.authorization.k8s.io,resources=rolebindings,verbs=get;create;deletecollection;delete
 // role
 // +kubebuilder:rbac:groups=core,namespace="liqo",resources=services,verbs=get
 // +kubebuilder:rbac:groups=core,namespace="liqo",resources=configmaps,verbs=get;list;watch;create;update;delete

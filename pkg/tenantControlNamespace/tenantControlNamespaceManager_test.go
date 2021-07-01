@@ -185,6 +185,33 @@ var _ = Describe("TenantControlNamespace", func() {
 				Expect(err).To(BeNil())
 			})
 
+			It("Bind Multiple Times", func() {
+				var err error
+				rb, err = namespaceManager.BindClusterRoles(clusterID, clusterRoles[0])
+				Expect(err).To(BeNil())
+				Expect(rb).NotTo(BeNil())
+				Expect(len(rb)).To(BeNumerically("==", 1))
+
+				// bind twice the same cluster role
+				rb, err = namespaceManager.BindClusterRoles(clusterID, clusterRoles[0])
+				Expect(err).To(BeNil())
+				Expect(rb).NotTo(BeNil())
+				Expect(len(rb)).To(BeNumerically("==", 1))
+
+				checkRoleBinding(rb[0], namespace.Name, clusterID, clusterRoles[0].Name)
+
+				rbs, err := client.RbacV1().RoleBindings(namespace.Name).List(context.TODO(), metav1.ListOptions{})
+				Expect(err).To(BeNil())
+				Expect(len(rbs.Items)).To(BeNumerically("==", 1))
+
+				err = namespaceManager.UnbindClusterRoles(clusterID, clusterRoles[0].Name)
+				Expect(err).To(BeNil())
+
+				_, err = client.RbacV1().RoleBindings(namespace.Name).Get(context.TODO(), rb[0].Name, metav1.GetOptions{})
+				Expect(err).NotTo(BeNil())
+				Expect(kerrors.IsNotFound(err)).To(BeTrue())
+			})
+
 		})
 
 	})

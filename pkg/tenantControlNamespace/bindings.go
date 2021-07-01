@@ -6,11 +6,9 @@ import (
 
 	v1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/klog/v2"
-
-	"github.com/liqotech/liqo/pkg/discovery"
 )
 
 // add the bindings for the remote clusterid for the given ClusterRoles
@@ -60,13 +58,12 @@ func (nm *tenantControlNamespaceManager) bindClusterRole(clusterID string, names
 		UID:        clusterRole.UID,
 	}
 
+	name := getRoleBindingName(clusterRole.Name)
+
 	rb := &rbacv1.RoleBinding{
 		ObjectMeta: metav1.ObjectMeta{
-			GenerateName: strings.Join([]string{roleBindingRoot, clusterRole.Name, ""}, "-"),
-			Namespace:    namespace.Name,
-			Labels: map[string]string{
-				discovery.ClusterRoleLabel: clusterRole.Name,
-			},
+			Name:      name,
+			Namespace: namespace.Name,
 			OwnerReferences: []metav1.OwnerReference{
 				ownerRef,
 			},
@@ -85,18 +82,19 @@ func (nm *tenantControlNamespaceManager) bindClusterRole(clusterID string, names
 		},
 	}
 
-	return nm.client.RbacV1().RoleBindings(namespace.Name).Create(context.TODO(), rb, metav1.CreateOptions{})
+	rb, err := nm.client.RbacV1().RoleBindings(namespace.Name).Create(context.TODO(), rb, metav1.CreateOptions{})
+	if apierrors.IsAlreadyExists(err) {
+		return nm.client.RbacV1().RoleBindings(namespace.Name).Get(context.TODO(), name, metav1.GetOptions{})
+	}
+	return rb, err
 }
 
 // delete a RoleBinding in the given Namespace.
 func (nm *tenantControlNamespaceManager) unbindClusterRole(namespace *v1.Namespace, clusterRole string) error {
-	labelSelector := metav1.LabelSelector{
-		MatchLabels: map[string]string{
-			discovery.ClusterRoleLabel: clusterRole,
-		},
-	}
+	name := getRoleBindingName(clusterRole)
+	return nm.client.RbacV1().RoleBindings(namespace.Name).Delete(context.TODO(), name, metav1.DeleteOptions{})
+}
 
-	return nm.client.RbacV1().RoleBindings(namespace.Name).DeleteCollection(context.TODO(), metav1.DeleteOptions{}, metav1.ListOptions{
-		LabelSelector: labels.Set(labelSelector.MatchLabels).String(),
-	})
+func getRoleBindingName(clusterRoleName string) string {
+	return strings.Join([]string{roleBindingRoot, clusterRoleName}, "-")
 }
