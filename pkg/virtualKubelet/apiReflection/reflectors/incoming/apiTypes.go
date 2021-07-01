@@ -13,7 +13,9 @@ var ReflectorBuilder = map[apimgmt.ApiType]func(reflector ri.APIReflector, opts 
 
 func podsReflectorBuilder(reflector ri.APIReflector, opts map[options.OptionKey]options.Option) ri.IncomingAPIReflector {
 	return &PodsIncomingReflector{
-		APIReflector: reflector}
+		APIReflector:  reflector,
+		HomePodGetter: GetHomePodFunc,
+	}
 }
 
 func replicaSetsReflectorBuilder(reflector ri.APIReflector, _ map[options.OptionKey]options.Option) ri.IncomingAPIReflector {

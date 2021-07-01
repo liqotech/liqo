@@ -125,3 +125,14 @@ func (m *MockManager) GetHomeAPIByIndex(apiType apimgmt.ApiType, s, s2 string) (
 func (m *MockManager) GetForeignAPIByIndex(apiType apimgmt.ApiType, s, s2 string) (interface{}, error) {
 	panic("implement me")
 }
+
+// Clear is a function used in tests only to clear the mock's state.
+func (m *MockManager) Clear() {
+	for k := range m.HomeCache {
+		delete(m.HomeCache, k)
+	}
+
+	for k := range m.ForeignCache {
+		delete(m.ForeignCache, k)
+	}
+}
