@@ -16,11 +16,9 @@ package root
 
 import (
 	"os"
-	"path/filepath"
 	"strconv"
 	"time"
 
-	"github.com/mitchellh/go-homedir"
 	"github.com/pkg/errors"
 
 	"github.com/liqotech/liqo/pkg/consts"
@@ -37,7 +35,7 @@ const (
 	DefaultKubeClusterDomain                      = "cluster.local"
 
 	DefaultKubeletNamespace = "default"
-	DefaultHomeClusterId    = "cluster1"
+	DefaultHomeClusterID    = "cluster1"
 	DefaultLiqoIpamServer   = consts.NetworkManagerServiceName
 )
 
@@ -77,8 +75,8 @@ type Opts struct {
 	// Startup Timeout is how long to wait for the kubelet to start
 	StartupTimeout time.Duration
 
-	ForeignClusterId string
-	HomeClusterId    string
+	ForeignClusterID string
+	HomeClusterID    string
 	KubeletNamespace string
 
 	LiqoIpamServer string
@@ -126,16 +124,10 @@ func SetDefaultOpts(c *Opts) error {
 	}
 	if c.HomeKubeconfig == "" {
 		c.HomeKubeconfig = os.Getenv("KUBECONFIG")
-		if c.HomeKubeconfig == "" {
-			home, _ := homedir.Dir()
-			if home != "" {
-				c.HomeKubeconfig = filepath.Join(home, ".kube", "config")
-			}
-		}
 	}
 	// This is a workaround, when the cluster-id mechanism will be implemented, this parameter will be fetched accordingly
-	if c.HomeClusterId == "" {
-		c.HomeClusterId = DefaultHomeClusterId
+	if c.HomeClusterID == "" {
+		c.HomeClusterID = DefaultHomeClusterID
 	}
 
 	if c.LiqoIpamServer == "" {

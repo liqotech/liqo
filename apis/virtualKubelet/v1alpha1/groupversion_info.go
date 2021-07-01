@@ -34,6 +34,9 @@ var (
 	// NamespaceMapGroupResource is group resource used to register these objects.
 	NamespaceMapGroupResource = schema.GroupResource{Group: GroupVersion.Group, Resource: "namespacemaps"}
 
+	// NamespaceMapGroupVersionResource is groupResourceVersion used to register these objects.
+	NamespaceMapGroupVersionResource = schema.GroupVersionResource{Group: GroupVersion.Group, Version: "v1alpha1", Resource: "namespacemaps"}
+
 	// SchemeBuilder is used to add go types to the GroupVersionKind scheme.
 	SchemeBuilder = &scheme.Builder{GroupVersion: GroupVersion}
 

@@ -10,7 +10,7 @@ import (
 	"github.com/liqotech/liqo/pkg/virtualKubelet/apiReflection/reflectors/incoming"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/apiReflection/reflectors/outgoing"
 	ri "github.com/liqotech/liqo/pkg/virtualKubelet/apiReflection/reflectors/reflectorsInterfaces"
-	"github.com/liqotech/liqo/pkg/virtualKubelet/namespacesMapping"
+	"github.com/liqotech/liqo/pkg/virtualKubelet/namespacesmapping"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/options"
 	reflectionCache "github.com/liqotech/liqo/pkg/virtualKubelet/storage"
 )
@@ -47,12 +47,12 @@ type ReflectorsController struct {
 	cacheManager     *reflectionCache.Manager
 	apiReflectors    map[apimgmt.ApiType]ri.APIReflector
 	reflectionGroup  *sync.WaitGroup
-	namespaceNatting namespacesMapping.MapperController
+	namespaceNatting namespacesmapping.MapperController
 	namespacedStops  map[string]chan struct{}
 }
 
 func (c *ReflectorsController) startNamespaceReflection(namespace string) {
-	nattedNs, err := c.namespaceNatting.NatNamespace(namespace, false)
+	nattedNs, err := c.namespaceNatting.NatNamespace(namespace)
 	if err != nil {
 		klog.Errorf("error while natting namespace - ERR: %v", err)
 		return
@@ -108,7 +108,18 @@ func (c *ReflectorsController) DispatchEvent(event apimgmt.ApiEvent) {
 
 func (c *ReflectorsController) Stop() {
 	for _, stop := range c.namespacedStops {
-		close(stop)
+		if isChanOpen(stop) {
+			close(stop)
+		}
 	}
 	c.reflectionGroup.Wait()
+}
+
+func isChanOpen(ch chan struct{}) bool {
+	open := true
+	select {
+	case _, open = <-ch:
+	default:
+	}
+	return open
 }

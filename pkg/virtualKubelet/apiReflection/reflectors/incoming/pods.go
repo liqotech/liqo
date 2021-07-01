@@ -134,7 +134,7 @@ func (r *PodsIncomingReflector) PreDelete(obj interface{}) (interface{}, watch.E
 // CleanupNamespace is in charge of cleaning a local namespace from all the reflected objects. All the home objects in
 // the home namespace are fetched and deleted locally. Their deletion will implies the delete of the remote replicasets.
 func (r *PodsIncomingReflector) CleanupNamespace(namespace string) {
-	foreignNamespace, err := r.NattingTable().NatNamespace(namespace, false)
+	foreignNamespace, err := r.NattingTable().NatNamespace(namespace)
 	if err != nil {
 		klog.Error(err)
 		return

@@ -21,7 +21,7 @@ import (
 	apimgmt "github.com/liqotech/liqo/pkg/virtualKubelet/apiReflection"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/apiReflection/reflectors"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/apiReflection/reflectors/incoming"
-	"github.com/liqotech/liqo/pkg/virtualKubelet/namespacesMapping/test"
+	"github.com/liqotech/liqo/pkg/virtualKubelet/namespacesmapping/test"
 	storageTest "github.com/liqotech/liqo/pkg/virtualKubelet/storage/test"
 )
 
@@ -93,8 +93,7 @@ var _ = Describe("Replicasets", func() {
 
 			BeforeEach(func() {
 				homeClient = fake.NewSimpleClientset()
-				_, err := namespaceNattingTable.NatNamespace("homeNamespace", true)
-				Expect(err).NotTo(HaveOccurred())
+				namespaceNattingTable.NewNamespace("homeNamespace")
 				_ = cacheManager.AddHomeNamespace("homeNamespace")
 				_ = cacheManager.AddForeignNamespace("homeNamespace-natted")
 				genericReflector.HomeClient = homeClient
@@ -226,7 +225,8 @@ var _ = Describe("Replicasets", func() {
 			It("failing delete", func() {
 				reflector.HandleEvent(event)
 				klog.Flush()
-				Expect(strings.Contains(buffer.String(), "INCOMING REFLECTION: delete for replicaset related to home pod homeNamespace/pod1 processed")).To(BeTrue())
+				Expect(strings.Contains(buffer.String(),
+					"INCOMING REFLECTION: delete for replicaset related to home pod homeNamespace/pod1 processed")).To(BeTrue())
 			})
 		})
 	})

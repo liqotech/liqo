@@ -38,7 +38,7 @@ func forgeVKAffinity() *v1.Affinity {
 func forgeVKVolumes() []v1.Volume {
 	volumes := []v1.Volume{
 		{
-			Name: "virtual-kubelet-crt",
+			Name: vk.VKCertsVolumeName,
 			VolumeSource: v1.VolumeSource{
 				EmptyDir: &v1.EmptyDirVolumeSource{},
 			},
@@ -47,7 +47,7 @@ func forgeVKVolumes() []v1.Volume {
 	return volumes
 }
 
-func forgeVKInitContainers(nodeName string, initVKImage string) []v1.Container {
+func forgeVKInitContainers(nodeName, initVKImage string) []v1.Container {
 	return []v1.Container{
 		{
 			Resources: forgeVKResources(),
@@ -72,7 +72,7 @@ func forgeVKInitContainers(nodeName string, initVKImage string) []v1.Container {
 			},
 			VolumeMounts: []v1.VolumeMount{
 				{
-					Name:      "virtual-kubelet-crt",
+					Name:      vk.VKCertsVolumeName,
 					MountPath: vk.VKCertsRootPath,
 				},
 			},
@@ -96,11 +96,12 @@ func forgeVKContainers(
 		stringifyArgument("--home-cluster-id", homeClusterID),
 		stringifyArgument("--ipam-server", fmt.Sprintf("%v.%v", liqoconst.NetworkManagerServiceName, liqoNamespace)),
 		"--enable-node-lease",
+		"--klog.v=4",
 	}
 
 	volumeMounts := []v1.VolumeMount{
 		{
-			Name:      "virtual-kubelet-crt",
+			Name:      vk.VKCertsVolumeName,
 			MountPath: vk.VKCertsRootPath,
 		},
 	}

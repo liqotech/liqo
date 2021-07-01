@@ -61,7 +61,7 @@ func main() {
 		if opts.Profiling {
 			enableProfiling()
 		}
-		if err := registerKubernetes(s); err != nil {
+		if err := registerKubernetes(ctx, s); err != nil {
 			klog.Fatal(err)
 		}
 		return nil

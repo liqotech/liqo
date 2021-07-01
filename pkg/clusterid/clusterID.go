@@ -3,10 +3,8 @@ package clusterid
 import (
 	"context"
 	"errors"
-	"io/ioutil"
 	"os"
 	"sort"
-	"strings"
 	"sync"
 
 	"github.com/google/uuid"
@@ -21,6 +19,7 @@ import (
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	"github.com/liqotech/liqo/pkg/consts"
 	crdclient "github.com/liqotech/liqo/pkg/crdClient"
+	"github.com/liqotech/liqo/pkg/utils"
 )
 
 // ClusterID defines the basic methods to interact with cluster identifier.
@@ -43,18 +42,9 @@ func NewClusterIDFromClient(client kubernetes.Interface) (ClusterID, error) {
 		client: client,
 	}
 
-	namespace, found := os.LookupEnv("POD_NAMESPACE")
-	if !found {
-		klog.Info("POD_NAMESPACE not set")
-		data, err := ioutil.ReadFile(consts.ServiceAccountNamespacePath)
-		if err != nil {
-			klog.Error(err, "Unable to get namespace")
-			os.Exit(1)
-		}
-		if namespace = strings.TrimSpace(string(data)); namespace == "" {
-			klog.Error(err, "Unable to get namespace")
-			os.Exit(1)
-		}
+	namespace, err := utils.RetrieveNamespace()
+	if err != nil {
+		return nil, err
 	}
 
 	watchlist := cache.NewListWatchFromClient(

@@ -84,7 +84,7 @@ func (r *EndpointSlicesReflector) HandleEvent(e interface{}) {
 
 func (r *EndpointSlicesReflector) PreAdd(obj interface{}) (interface{}, watch.EventType) {
 	epLocal := obj.(*discoveryv1beta1.EndpointSlice).DeepCopy()
-	nattedNs, err := r.NattingTable().NatNamespace(epLocal.Namespace, false)
+	nattedNs, err := r.NattingTable().NatNamespace(epLocal.Namespace)
 	if err != nil {
 		klog.Error(err)
 		return nil, watch.Added
@@ -142,7 +142,7 @@ func (r *EndpointSlicesReflector) PreUpdate(newObj, _ interface{}) (interface{},
 	endpointSliceHome := newObj.(*discoveryv1beta1.EndpointSlice).DeepCopy()
 	endpointSliceName := endpointSliceHome.Name
 
-	nattedNs, err := r.NattingTable().NatNamespace(endpointSliceHome.Namespace, false)
+	nattedNs, err := r.NattingTable().NatNamespace(endpointSliceHome.Namespace)
 	if err != nil {
 		klog.Error(err)
 		return nil, watch.Modified
@@ -169,7 +169,7 @@ func (r *EndpointSlicesReflector) PreUpdate(newObj, _ interface{}) (interface{},
 func (r *EndpointSlicesReflector) PreDelete(obj interface{}) (interface{}, watch.EventType) {
 	clusterID := strings.TrimPrefix(string(r.VirtualNodeName.Value()), "liqo-")
 	endpointSliceLocal := obj.(*discoveryv1beta1.EndpointSlice)
-	nattedNs, err := r.NattingTable().NatNamespace(endpointSliceLocal.Namespace, false)
+	nattedNs, err := r.NattingTable().NatNamespace(endpointSliceLocal.Namespace)
 	if err != nil {
 		klog.Error(err)
 		return nil, watch.Deleted
@@ -211,7 +211,7 @@ func filterEndpoints(slice *discoveryv1beta1.EndpointSlice, ipamClient liqonetIp
 }
 
 func (r *EndpointSlicesReflector) CleanupNamespace(localNamespace string) {
-	foreignNamespace, err := r.NattingTable().NatNamespace(localNamespace, false)
+	foreignNamespace, err := r.NattingTable().NatNamespace(localNamespace)
 	if err != nil {
 		klog.Error(err)
 		return

@@ -74,7 +74,7 @@ func VirtualKubeletClusterRoleBinding(name, kubeletNamespace, remoteClusterID st
 		RoleRef: rbacv1.RoleRef{
 			APIGroup: "rbac.authorization.k8s.io",
 			Kind:     "ClusterRole",
-			Name:     "liqo-virtual-kubelet-local",
+			Name:     vkMachinery.VKClusterRoleName,
 		},
 	}
 }

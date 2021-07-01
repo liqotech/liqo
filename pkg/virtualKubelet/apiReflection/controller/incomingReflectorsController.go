@@ -9,7 +9,7 @@ import (
 	"github.com/liqotech/liqo/pkg/virtualKubelet/apiReflection/reflectors"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/apiReflection/reflectors/incoming"
 	ri "github.com/liqotech/liqo/pkg/virtualKubelet/apiReflection/reflectors/reflectorsInterfaces"
-	"github.com/liqotech/liqo/pkg/virtualKubelet/namespacesMapping"
+	"github.com/liqotech/liqo/pkg/virtualKubelet/namespacesmapping"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/options"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/storage"
 )
@@ -20,7 +20,7 @@ type IncomingReflectorsController struct {
 
 func NewIncomingReflectorsController(homeClient, foreignClient kubernetes.Interface, cacheManager *storage.Manager,
 	outputChan chan apimgmt.ApiEvent,
-	namespaceNatting namespacesMapping.MapperController,
+	namespaceNatting namespacesmapping.MapperController,
 	opts map[options.OptionKey]options.Option) IncomingAPIReflectorsController {
 	controller := &IncomingReflectorsController{
 		&ReflectorsController{
@@ -74,5 +74,8 @@ func (c *IncomingReflectorsController) SetInforming(api apimgmt.ApiType, handler
 }
 
 func (c *IncomingReflectorsController) stopNamespaceReflection(namespace string) {
-	close(c.namespacedStops[namespace])
+	if isChanOpen(c.namespacedStops[namespace]) {
+		close(c.namespacedStops[namespace])
+		delete(c.namespacedStops, namespace)
+	}
 }

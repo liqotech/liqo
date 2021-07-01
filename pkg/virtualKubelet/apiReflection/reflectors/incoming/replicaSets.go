@@ -133,7 +133,7 @@ func (r *ReplicaSetsIncomingReflector) preDelete(obj interface{}) (interface{}, 
 // CleanupNamespace does nothing because the delete of the remote replicasets is already triggered by
 // pods incoming reflector with its CleanupNamespace implementation.
 func (r *ReplicaSetsIncomingReflector) CleanupNamespace(namespace string) {
-	foreignNamespace, err := r.NattingTable().NatNamespace(namespace, false)
+	foreignNamespace, err := r.NattingTable().NatNamespace(namespace)
 	if err != nil {
 		klog.Error(err)
 		return

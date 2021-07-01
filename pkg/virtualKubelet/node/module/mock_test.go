@@ -12,7 +12,7 @@ import (
 	"github.com/liqotech/liqo/internal/utils/errdefs"
 	"github.com/liqotech/liqo/internal/utils/log"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/apiReflection/controller"
-	"github.com/liqotech/liqo/pkg/virtualKubelet/namespacesMapping"
+	"github.com/liqotech/liqo/pkg/virtualKubelet/namespacesmapping"
 )
 
 const (
@@ -81,7 +81,7 @@ type mockProvider struct {
 	realNotifier func(interface{})
 }
 
-func (p *mockProvider) GetNamespaceMapper() (*namespacesMapping.NamespaceMapperController, error) {
+func (p *mockProvider) GetNamespaceMapper() (*namespacesmapping.NamespaceMapperController, error) {
 	// TODO: implement me
 	return nil, nil
 }

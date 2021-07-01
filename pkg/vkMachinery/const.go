@@ -3,7 +3,11 @@ package vkMachinery
 import "path/filepath"
 
 // VKCertsRootPath defines the path where VK certificates are stored.
-const VKCertsRootPath = "/etc/virtual-kubelet/certs"
+const (
+	VKCertsRootPath   = "/etc/virtual-kubelet/certs"
+	VKCertsVolumeName = "virtual-kubelet-crt"
+	VKClusterRoleName = "liqo-virtual-kubelet-local"
+)
 
 // KeyLocation defines the path where the VK Key file is stored.
 var KeyLocation = filepath.Join(VKCertsRootPath, "server-key.pem")

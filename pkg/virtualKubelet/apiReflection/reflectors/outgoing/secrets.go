@@ -70,7 +70,7 @@ func (r *SecretsReflector) HandleEvent(e interface{}) {
 }
 
 func (r *SecretsReflector) CleanupNamespace(localNamespace string) {
-	foreignNamespace, err := r.NattingTable().NatNamespace(localNamespace, false)
+	foreignNamespace, err := r.NattingTable().NatNamespace(localNamespace)
 	if err != nil {
 		klog.Error(err)
 		return
@@ -105,7 +105,7 @@ func (r *SecretsReflector) PreAdd(obj interface{}) (interface{}, watch.EventType
 	secretLocal := obj.(*corev1.Secret).DeepCopy()
 	klog.V(3).Infof("PreAdd routine started for Secret %v/%v", secretLocal.Namespace, secretLocal.Name)
 
-	nattedNs, err := r.NattingTable().NatNamespace(secretLocal.Namespace, false)
+	nattedNs, err := r.NattingTable().NatNamespace(secretLocal.Namespace)
 	if err != nil {
 		klog.Error(err)
 		return nil, watch.Added
@@ -151,7 +151,7 @@ func (r *SecretsReflector) PreUpdate(newObj interface{}, _ interface{}) (interfa
 	newSecret := newObj.(*corev1.Secret).DeepCopy()
 	secretName := newSecret.Name
 
-	nattedNs, err := r.NattingTable().NatNamespace(newSecret.Namespace, false)
+	nattedNs, err := r.NattingTable().NatNamespace(newSecret.Namespace)
 	if err != nil {
 		klog.Error(err)
 		return nil, watch.Modified
@@ -201,7 +201,7 @@ func (r *SecretsReflector) PreDelete(obj interface{}) (interface{}, watch.EventT
 
 	klog.V(3).Infof("PreDelete routine started for secret %v/%v", secretLocal.Namespace, secretLocal.Name)
 
-	nattedNs, err := r.NattingTable().NatNamespace(secretLocal.Namespace, false)
+	nattedNs, err := r.NattingTable().NatNamespace(secretLocal.Namespace)
 	if err != nil {
 		klog.Error(err)
 		return nil, watch.Deleted

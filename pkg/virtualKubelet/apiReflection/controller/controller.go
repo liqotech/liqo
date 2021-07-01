@@ -9,7 +9,7 @@ import (
 	"k8s.io/klog"
 
 	"github.com/liqotech/liqo/pkg/virtualKubelet/apiReflection"
-	"github.com/liqotech/liqo/pkg/virtualKubelet/namespacesMapping"
+	"github.com/liqotech/liqo/pkg/virtualKubelet/namespacesmapping"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/options"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/storage"
 )
@@ -30,7 +30,7 @@ type APIController interface {
 
 // Controller is a concrete implementation of the ApiController interface.
 type Controller struct {
-	mapper                       namespacesMapping.MapperController
+	mapper                       namespacesmapping.MapperController
 	cacheManager                 storage.CacheManagerReaderAdder
 	outgoingReflectorsController OutGoingAPIReflectorsController
 	incomingReflectorsController IncomingAPIReflectorsController
@@ -49,7 +49,7 @@ type Controller struct {
 
 // NewAPIController returns a Controller instance for a given set of home and foreign clients.
 func NewAPIController(homeClient, foreignClient kubernetes.Interface, informerResyncPeriod time.Duration,
-	mapper namespacesMapping.MapperController, opts map[options.OptionKey]options.Option, tepReady chan struct{}) *Controller {
+	mapper namespacesmapping.MapperController, opts map[options.OptionKey]options.Option, tepReady chan struct{}) *Controller {
 	klog.V(2).Infof("starting reflection manager")
 
 	outgoingReflectionInforming := make(chan apiReflection.ApiEvent)

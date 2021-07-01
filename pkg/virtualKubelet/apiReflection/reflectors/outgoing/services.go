@@ -71,7 +71,7 @@ func (r *ServicesReflector) HandleEvent(e interface{}) {
 }
 
 func (r *ServicesReflector) CleanupNamespace(localNamespace string) {
-	foreignNamespace, err := r.NattingTable().NatNamespace(localNamespace, false)
+	foreignNamespace, err := r.NattingTable().NatNamespace(localNamespace)
 	if err != nil {
 		klog.Error(err)
 		return
@@ -106,7 +106,7 @@ func (r *ServicesReflector) PreAdd(obj interface{}) (interface{}, watch.EventTyp
 	svcLocal := obj.(*corev1.Service)
 	klog.V(3).Infof("PreAdd routine started for service %v/%v", svcLocal.Namespace, svcLocal.Name)
 
-	nattedNs, err := r.NattingTable().NatNamespace(svcLocal.Namespace, false)
+	nattedNs, err := r.NattingTable().NatNamespace(svcLocal.Namespace)
 	if err != nil {
 		klog.Error(err)
 		return nil, watch.Added
@@ -137,7 +137,7 @@ func (r *ServicesReflector) PreUpdate(newObj interface{}, _ interface{}) (interf
 	newSvc := newObj.(*corev1.Service).DeepCopy()
 	newSvcName := newSvc.Name
 
-	nattedNs, err := r.NattingTable().NatNamespace(newSvc.Namespace, false)
+	nattedNs, err := r.NattingTable().NatNamespace(newSvc.Namespace)
 	if err != nil {
 		klog.Error(err)
 		return nil, watch.Modified
@@ -177,7 +177,7 @@ func (r *ServicesReflector) PreDelete(obj interface{}) (interface{}, watch.Event
 	svcLocal := obj.(*corev1.Service).DeepCopy()
 	klog.V(3).Infof("PreDelete routine started for service %v/%v", svcLocal.Namespace, svcLocal.Name)
 
-	nattedNs, err := r.NattingTable().NatNamespace(svcLocal.Namespace, false)
+	nattedNs, err := r.NattingTable().NatNamespace(svcLocal.Namespace)
 	if err != nil {
 		klog.Error(err)
 		return nil, watch.Deleted

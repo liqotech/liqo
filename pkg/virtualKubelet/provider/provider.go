@@ -1,6 +1,7 @@
 package provider
 
 import (
+	"context"
 	"time"
 
 	"k8s.io/client-go/kubernetes"
@@ -9,22 +10,23 @@ import (
 	"k8s.io/klog"
 	metricsv "k8s.io/metrics/pkg/client/clientset/versioned"
 
-	nattingv1 "github.com/liqotech/liqo/apis/virtualKubelet/v1alpha1"
+	vkalpha1 "github.com/liqotech/liqo/apis/virtualKubelet/v1alpha1"
 	"github.com/liqotech/liqo/pkg/clusterid"
 	crdclient "github.com/liqotech/liqo/pkg/crdClient"
 	identitymanager "github.com/liqotech/liqo/pkg/identityManager"
 	tenantcontrolnamespace "github.com/liqotech/liqo/pkg/tenantControlNamespace"
+	"github.com/liqotech/liqo/pkg/utils"
 	"github.com/liqotech/liqo/pkg/virtualKubelet"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/apiReflection/controller"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/forge"
-	"github.com/liqotech/liqo/pkg/virtualKubelet/namespacesMapping"
+	"github.com/liqotech/liqo/pkg/virtualKubelet/namespacesmapping"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/options"
 	optTypes "github.com/liqotech/liqo/pkg/virtualKubelet/options/types"
 )
 
 // LiqoProvider implements the virtual-kubelet provider interface and stores pods in memory.
 type LiqoProvider struct {
-	namespaceMapper namespacesMapping.MapperController
+	namespaceMapper namespacesmapping.MapperController
 	apiController   controller.APIController
 
 	tepReady             chan struct{}
@@ -46,15 +48,15 @@ type LiqoProvider struct {
 }
 
 // NewLiqoProvider creates a new NewLiqoProvider instance.
-func NewLiqoProvider(nodeName, foreignClusterID, homeClusterID, internalIP string, daemonEndpointPort int32, kubeconfig,
+func NewLiqoProvider(ctx context.Context, nodeName, foreignClusterID, homeClusterID, internalIP string, daemonEndpointPort int32, kubeconfig,
 	remoteKubeConfig string, informerResyncPeriod time.Duration, ipamGRPCServer string) (*LiqoProvider, error) {
 	var err error
 
-	if err = nattingv1.AddToScheme(clientgoscheme.Scheme); err != nil {
+	if err = vkalpha1.AddToScheme(clientgoscheme.Scheme); err != nil {
 		return nil, err
 	}
 
-	client, err := nattingv1.CreateClient(kubeconfig, func(config *rest.Config) {
+	client, err := vkalpha1.CreateClient(kubeconfig, func(config *rest.Config) {
 		config.QPS = virtualKubelet.HOME_CLIENT_QPS
 		config.Burst = virtualKubelet.HOME_CLIENTS_BURST
 	})
@@ -65,6 +67,10 @@ func NewLiqoProvider(nodeName, foreignClusterID, homeClusterID, internalIP strin
 	clusterID := clusterid.NewStaticClusterID(homeClusterID)
 	tenantNamespaceManager := tenantcontrolnamespace.NewTenantControlNamespaceManager(client.Client())
 	identityManager := identitymanager.NewCertificateIdentityManager(client.Client(), clusterID, tenantNamespaceManager)
+	namespace, err := utils.RetrieveNamespace()
+	if err != nil {
+		return nil, err
+	}
 
 	restConfig, err := identityManager.GetConfig(foreignClusterID, "")
 	if err != nil {
@@ -85,7 +91,11 @@ func NewLiqoProvider(nodeName, foreignClusterID, homeClusterID, internalIP strin
 		return nil, err
 	}
 
-	mapper, err := namespacesMapping.NewNamespaceMapperController(client, foreignClient, homeClusterID, foreignClusterID)
+	homeClientConfig, err := utils.UserConfig(kubeconfig)
+	if err != nil {
+		return nil, err
+	}
+	mapper, err := namespacesmapping.NewNamespaceMapperController(ctx, homeClientConfig, homeClusterID, foreignClusterID, namespace)
 	if err != nil {
 		klog.Fatal(err)
 	}

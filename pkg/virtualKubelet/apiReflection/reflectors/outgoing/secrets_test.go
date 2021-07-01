@@ -1,4 +1,4 @@
-package reflection
+package outgoing
 
 import (
 	"testing"
@@ -10,8 +10,7 @@ import (
 
 	apimgmt "github.com/liqotech/liqo/pkg/virtualKubelet/apiReflection"
 	api "github.com/liqotech/liqo/pkg/virtualKubelet/apiReflection/reflectors"
-	"github.com/liqotech/liqo/pkg/virtualKubelet/apiReflection/reflectors/outgoing"
-	"github.com/liqotech/liqo/pkg/virtualKubelet/namespacesMapping/test"
+	"github.com/liqotech/liqo/pkg/virtualKubelet/namespacesmapping/test"
 	storageTest "github.com/liqotech/liqo/pkg/virtualKubelet/storage/test"
 )
 
@@ -29,7 +28,7 @@ func TestSecretAdd(t *testing.T) {
 		CacheManager:     cacheManager,
 	}
 
-	reflector := &outgoing.SecretsReflector{
+	reflector := &SecretsReflector{
 		APIReflector: Greflector,
 	}
 	reflector.SetSpecializedPreProcessingHandlers()
@@ -46,7 +45,7 @@ func TestSecretAdd(t *testing.T) {
 		Type: "Opaque",
 	}
 
-	_, _ = nattingTable.NatNamespace("homeNamespace", true)
+	nattingTable.NewNamespace("homeNamespace")
 
 	pa, _ := reflector.PreProcessAdd(&secret)
 	postadd := pa.(*v1.Secret)
@@ -68,7 +67,7 @@ func TestSASecretAdd(t *testing.T) {
 		CacheManager:     cacheManager,
 	}
 
-	reflector := &outgoing.SecretsReflector{
+	reflector := &SecretsReflector{
 		APIReflector: Greflector,
 	}
 	reflector.SetSpecializedPreProcessingHandlers()
@@ -89,8 +88,7 @@ func TestSASecretAdd(t *testing.T) {
 		Type: v1.SecretTypeServiceAccountToken,
 	}
 
-	_, _ = nattingTable.NatNamespace("homeNamespace", true)
-
+	nattingTable.NewNamespace("homeNamespace")
 	pa, _ := reflector.PreProcessAdd(&secret)
 	postadd := pa.(*v1.Secret)
 
@@ -114,7 +112,7 @@ func TestSecretUpdate(t *testing.T) {
 		CacheManager:     cacheManager,
 	}
 
-	reflector := &outgoing.SecretsReflector{
+	reflector := &SecretsReflector{
 		APIReflector: Greflector,
 	}
 	reflector.SetSpecializedPreProcessingHandlers()
@@ -131,7 +129,7 @@ func TestSecretUpdate(t *testing.T) {
 		Type: "Opaque",
 	}
 
-	_, _ = nattingTable.NatNamespace("homeNamespace", true)
+	nattingTable.NewNamespace("homeNamespace")
 
 	pa, _ := reflector.PreProcessAdd(&secret)
 	postadd := pa.(*v1.Secret)

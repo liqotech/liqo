@@ -7,7 +7,7 @@ import (
 	"k8s.io/client-go/kubernetes"
 
 	apimgmt "github.com/liqotech/liqo/pkg/virtualKubelet/apiReflection"
-	"github.com/liqotech/liqo/pkg/virtualKubelet/namespacesMapping"
+	"github.com/liqotech/liqo/pkg/virtualKubelet/namespacesmapping"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/storage"
 )
 
@@ -34,7 +34,7 @@ type APIReflector interface {
 	GetForeignClient() kubernetes.Interface
 	GetHomeClient() kubernetes.Interface
 	GetCacheManager() storage.CacheManagerReader
-	NattingTable() namespacesMapping.NamespaceNatter
+	NattingTable() namespacesmapping.NamespaceNatter
 	SetupHandlers(api apimgmt.ApiType, reflectionType ReflectionType, namespace, nattedNs string)
 	SetPreProcessingHandlers(PreProcessingHandlers)
 
