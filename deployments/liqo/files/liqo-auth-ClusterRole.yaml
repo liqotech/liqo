@@ -89,5 +89,7 @@ rules:
   - rolebindings
   verbs:
   - create
+  - delete
   - deletecollection
+  - get
 

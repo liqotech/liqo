@@ -139,7 +139,9 @@ rules:
   - rolebindings
   verbs:
   - create
+  - delete
   - deletecollection
+  - get
 - apiGroups:
   - sharing.liqo.io
   resources:

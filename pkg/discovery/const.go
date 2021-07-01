@@ -3,8 +3,6 @@ package discovery
 const (
 	// TenantControlNamespaceLabel used to mark the tenant control namespaces.
 	TenantControlNamespaceLabel = "discovery.liqo.io/tenant-control-namespace"
-	// ClusterRoleLabel used all the Liqo cluster roles.
-	ClusterRoleLabel = "discovery.liqo.io/cluster-role"
 
 	// ClusterIDLabel used as key to indicate which cluster a resource is referenced to.
 	ClusterIDLabel = "discovery.liqo.io/cluster-id"
