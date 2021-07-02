@@ -19,6 +19,7 @@ package namespacemapctrl
 import (
 	"context"
 	"reflect"
+	"time"
 
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/client-go/kubernetes"
@@ -36,9 +37,10 @@ import (
 // NamespaceMapReconciler creates remote namespaces and updates NamespaceMaps Status.
 type NamespaceMapReconciler struct {
 	client.Client
-	RemoteClients         map[string]client.Client
+	RemoteClients         map[string]kubernetes.Interface
 	IdentityManagerClient kubernetes.Interface
 	LocalClusterID        string
+	RequeueTime           time.Duration
 }
 
 // cluster-role
@@ -81,7 +83,7 @@ func (r *NamespaceMapReconciler) Reconcile(ctx context.Context, req ctrl.Request
 			return ctrl.Result{}, err
 		}
 	}
-	return ctrl.Result{}, nil
+	return ctrl.Result{RequeueAfter: r.RequeueTime}, nil
 }
 
 // Events not filtered:

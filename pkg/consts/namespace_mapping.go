@@ -29,4 +29,7 @@ const (
 	RoleBindingLabelKey = "capsule.clastix.io/tenant"
 	// RoleBindingLabelValuePrefix prefix of the value that the RoleBindingLabel must have.
 	RoleBindingLabelValuePrefix = "tenant"
+	// RemoteNamespaceAnnotationKey is the annotation that all remote namespaces created by the NamespaceMap controller
+	// must have.
+	RemoteNamespaceAnnotationKey = "liqo.io/remote-namespace"
 )
