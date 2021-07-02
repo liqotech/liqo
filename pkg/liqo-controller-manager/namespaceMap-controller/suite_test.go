@@ -23,6 +23,7 @@ import (
 	. "github.com/onsi/gomega"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
 	"k8s.io/klog"
@@ -38,10 +39,9 @@ import (
 
 const (
 	// Namespace where the NamespaceMaps are created.
-	mapNamespaceName  = "default"
-	remoteClusterId1  = "899890-dsd-323s"
-	localClusterID    = "478374-dsa-432dd"
-	liqoAnnotationKey = "remote-namespace-478374-dsa-432dd/liqo.io"
+	mapNamespaceName = "default"
+	remoteClusterID1 = "899890-dsd-323s"
+	localClusterID   = "478374-dsa-432dd"
 )
 
 var (
@@ -50,8 +50,8 @@ var (
 	remote2Cfg *rest.Config
 
 	homeClient    client.Client
-	remoteClient1 client.Client
-	remoteClient2 client.Client
+	remoteClient1 kubernetes.Interface
+	remoteClient2 kubernetes.Interface
 
 	homeClusterEnv    *envtest.Environment
 	remoteCluster1Env *envtest.Environment
@@ -122,19 +122,19 @@ var _ = BeforeSuite(func(done Done) {
 	})
 	Expect(err).ToNot(HaveOccurred())
 
-	remoteClient1, err = client.New(remote1Cfg, client.Options{Scheme: k8sManager.GetScheme(), Mapper: k8sManager.GetRESTMapper()})
+	remoteClient1, err = kubernetes.NewForConfig(remote1Cfg)
 	Expect(remoteClient1).ToNot(BeNil())
 	Expect(err).NotTo(HaveOccurred())
 
-	remoteClient2, err = client.New(remote2Cfg, client.Options{Scheme: k8sManager.GetScheme(), Mapper: k8sManager.GetRESTMapper()})
+	remoteClient2, err = kubernetes.NewForConfig(remote2Cfg)
 	Expect(remoteClient2).ToNot(BeNil())
 	Expect(err).NotTo(HaveOccurred())
 
 	homeClient = k8sManager.GetClient()
 	Expect(homeClient).ToNot(BeNil())
 
-	controllerClients := map[string]client.Client{
-		remoteClusterId1: remoteClient1,
+	controllerClients := map[string]kubernetes.Interface{
+		remoteClusterID1: remoteClient1,
 	}
 
 	// Necessary resources in HomeCluster
@@ -142,10 +142,10 @@ var _ = BeforeSuite(func(done Done) {
 
 	nm1 = &mapsv1alpha1.NamespaceMap{
 		ObjectMeta: metav1.ObjectMeta{
-			GenerateName: fmt.Sprintf("%s-", remoteClusterId1),
+			GenerateName: fmt.Sprintf("%s-", remoteClusterID1),
 			Namespace:    mapNamespaceName,
 			Labels: map[string]string{
-				liqoconst.RemoteClusterID: remoteClusterId1,
+				liqoconst.RemoteClusterID: remoteClusterID1,
 			},
 		},
 	}

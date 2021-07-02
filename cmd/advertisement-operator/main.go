@@ -28,7 +28,6 @@ import (
 	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
 	"k8s.io/klog/v2"
 	ctrl "sigs.k8s.io/controller-runtime"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
@@ -236,9 +235,10 @@ func main() {
 
 	namespaceMapReconciler := &mapsctrl.NamespaceMapReconciler{
 		Client:                mgr.GetClient(),
-		RemoteClients:         make(map[string]client.Client),
+		RemoteClients:         make(map[string]kubernetes.Interface),
 		LocalClusterID:        clusterId,
 		IdentityManagerClient: clientset,
+		RequeueTime:           time.Second * 30,
 	}
 
 	if err = namespaceMapReconciler.SetupWithManager(mgr); err != nil {
