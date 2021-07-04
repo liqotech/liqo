@@ -10,7 +10,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/client-go/kubernetes"
-	"k8s.io/klog"
+	"k8s.io/klog/v2"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	mapsv1alpha1 "github.com/liqotech/liqo/apis/virtualKubelet/v1alpha1"
@@ -24,6 +24,8 @@ func (r *NamespaceMapReconciler) createRemoteNamespace(ctx context.Context, remo
 		return err
 	}
 
+	// Todo: at the moment the capsule controller removes this annotation, so the Tenant will create directly
+	//       this annotation on its namespaces.
 	// This annotation is used to recognize the remote namespaces that have been created by this controller.
 	remoteNamespace := &corev1.Namespace{
 		ObjectMeta: metav1.ObjectMeta{
@@ -57,7 +59,7 @@ func (r *NamespaceMapReconciler) createRemoteNamespace(ctx context.Context, remo
 		return err
 	}
 	// 3 - Check if the virtual kubelet will have the right privileges on the remote namespace.
-	if err = checkRemoteNamespacePrivileges(ctx, r.RemoteClients[remoteClusterID], remoteNamespaceName, r.LocalClusterID); err != nil {
+	if err = checkRemoteNamespaceRoleBindings(ctx, r.RemoteClients[remoteClusterID], remoteNamespaceName, r.LocalClusterID); err != nil {
 		return err
 	}
 
@@ -157,7 +159,7 @@ func (r *NamespaceMapReconciler) ensureRemoteNamespaces(ctx context.Context, nm 
 
 	// MergeFrom used to avoid conflicts, the NamespaceMap controller has the ownership of NamespaceMap status
 	if err := r.Patch(ctx, nm, client.MergeFrom(original)); err != nil {
-		klog.Errorf("%s -> unable to update NamespaceMap '%s' Status", err, nm.Name)
+		klog.Errorf("%s -> unable to update the NamespaceMap '%s' Status", err, nm.Name)
 		return err
 	}
 	klog.Infof("the status of the NamespaceMap '%s' is correctly updated", nm.Name)
@@ -184,9 +186,9 @@ func (r *NamespaceMapReconciler) namespaceMapDeletionProcess(ctx context.Context
 	return fmt.Errorf("remote namespaces deletion phase in progress")
 }
 
-// checkRemoteNamespacePrivileges checks that the right roleBindings are inside the remote namespace to understand if the
+// checkRemoteNamespaceRoleBindings checks that the right roleBindings are inside the remote namespace to understand if the
 // virtual kubelet will have the right privileges on that namespace.
-func checkRemoteNamespacePrivileges(ctx context.Context, cl kubernetes.Interface, remoteNamespaceName, localClusterID string) error {
+func checkRemoteNamespaceRoleBindings(ctx context.Context, cl kubernetes.Interface, remoteNamespaceName, localClusterID string) error {
 	roleBindingLabelValue := fmt.Sprintf("%s-%s", liqoconst.RoleBindingLabelValuePrefix, localClusterID)
 	roleBindingList := &rbacv1.RoleBindingList{}
 	labelSelector := metav1.LabelSelector{
@@ -202,7 +204,7 @@ func checkRemoteNamespacePrivileges(ctx context.Context, cl kubernetes.Interface
 		klog.Errorf("%s -> unable to list roleBindings in the remote namespace '%s'", err, remoteNamespaceName)
 		return err
 	}
-	if len(roleBindingList.Items) == 0 {
+	if len(roleBindingList.Items) < 3 {
 		err = fmt.Errorf("not enough roleBinding in the remote namespace '%s'. Virtual kubelet will not have "+
 			"the necessary privileges", remoteNamespaceName)
 		klog.Error(err)

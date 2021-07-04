@@ -23,7 +23,7 @@ import (
 
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/client-go/kubernetes"
-	"k8s.io/klog"
+	"k8s.io/klog/v2"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -77,12 +77,6 @@ func (r *NamespaceMapReconciler) Reconcile(ctx context.Context, req ctrl.Request
 		return ctrl.Result{}, err
 	}
 
-	// Only when all remote namespaces associated with this NamespaceMap are deleted, remove finalizer.
-	if len(namespaceMap.Status.CurrentMapping) == 0 {
-		if err := r.RemoveNamespaceMapControllerFinalizer(ctx, namespaceMap); err != nil {
-			return ctrl.Result{}, err
-		}
-	}
 	return ctrl.Result{RequeueAfter: r.RequeueTime}, nil
 }
 

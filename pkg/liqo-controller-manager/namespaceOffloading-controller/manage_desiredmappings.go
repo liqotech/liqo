@@ -16,18 +16,18 @@ import (
 	"context"
 	"fmt"
 
-	"k8s.io/klog"
+	"k8s.io/klog/v2"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	mapsv1alpha1 "github.com/liqotech/liqo/apis/virtualKubelet/v1alpha1"
 )
 
 // Removes right entry from one NamespaceMap, if present.
-func removeDesiredMapping(c client.Client, localName string, nm *mapsv1alpha1.NamespaceMap) error {
+func removeDesiredMapping(ctx context.Context, c client.Client, localName string, nm *mapsv1alpha1.NamespaceMap) error {
 	if _, ok := nm.Spec.DesiredMapping[localName]; ok {
-		patch := nm.DeepCopy()
+		original := nm.DeepCopy()
 		delete(nm.Spec.DesiredMapping, localName)
-		if err := c.Patch(context.TODO(), nm, client.MergeFrom(patch)); err != nil {
+		if err := c.Patch(ctx, nm, client.MergeFrom(original)); err != nil {
 			klog.Errorf("%s --> Unable to patch NamespaceMap '%s'", err, nm.GetName())
 			return err
 		}
@@ -37,10 +37,10 @@ func removeDesiredMapping(c client.Client, localName string, nm *mapsv1alpha1.Na
 }
 
 // Removes right entries from more than one NamespaceMap (it depends on len(nms)).
-func removeDesiredMappings(c client.Client, localName string, nms map[string]*mapsv1alpha1.NamespaceMap) error {
+func removeDesiredMappings(ctx context.Context, c client.Client, localName string, nms map[string]*mapsv1alpha1.NamespaceMap) error {
 	errorCondition := false
 	for _, nm := range nms {
-		if err := removeDesiredMapping(c, localName, nm); err != nil {
+		if err := removeDesiredMapping(ctx, c, localName, nm); err != nil {
 			errorCondition = true
 		}
 	}
@@ -53,7 +53,7 @@ func removeDesiredMappings(c client.Client, localName string, nms map[string]*ma
 }
 
 // Adds right entry on one NamespaceMap, if it isn't already there.
-func addDesiredMapping(c client.Client, localName, remoteName string,
+func addDesiredMapping(ctx context.Context, c client.Client, localName, remoteName string,
 	nm *mapsv1alpha1.NamespaceMap) error {
 	if nm.Spec.DesiredMapping == nil {
 		nm.Spec.DesiredMapping = map[string]string{}
@@ -62,29 +62,12 @@ func addDesiredMapping(c client.Client, localName, remoteName string,
 	if _, ok := nm.Spec.DesiredMapping[localName]; !ok {
 		original := nm.DeepCopy()
 		nm.Spec.DesiredMapping[localName] = remoteName
-		if err := c.Patch(context.TODO(), nm, client.MergeFrom(original)); err != nil {
+		if err := c.Patch(ctx, nm, client.MergeFrom(original)); err != nil {
 			klog.Errorf("%s --> Unable to add entry for namespace '%s' on NamespaceMap '%s'",
 				err, localName, nm.GetName())
 			return err
 		}
 		klog.Infof("Entry for the namespace '%s' is successfully added on the NamespaceMap '%s' ", localName, nm.GetName())
-	}
-	return nil
-}
-
-// Adds right entries on more than one NamespaceMap (it depends on len(nms)).
-func addDesiredMappings(c client.Client, localName, remoteName string,
-	nms map[string]*mapsv1alpha1.NamespaceMap) error {
-	errorCondition := false
-	for _, nm := range nms {
-		if err := addDesiredMapping(c, localName, remoteName, nm); err != nil {
-			errorCondition = true
-		}
-	}
-	if errorCondition {
-		err := fmt.Errorf("some desiredMappings has not been added")
-		klog.Error(err)
-		return err
 	}
 	return nil
 }

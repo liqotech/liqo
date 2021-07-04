@@ -5,7 +5,7 @@ import (
 	"fmt"
 
 	corev1 "k8s.io/api/core/v1"
-	"k8s.io/klog"
+	"k8s.io/klog/v2"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	ctrlutils "sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
@@ -22,7 +22,7 @@ func (r *NamespaceOffloadingReconciler) deletionLogic(ctx context.Context,
 		return err
 	}
 	// 2 - remove the involved DesiredMapping from the NamespaceMap.
-	if err := removeDesiredMappings(r.Client, noff.Namespace, clusterIDMap); err != nil {
+	if err := removeDesiredMappings(ctx, r.Client, noff.Namespace, clusterIDMap); err != nil {
 		return err
 	}
 	// 3 - check if all remote namespaces associated with this NamespaceOffloading resource are really deleted.
