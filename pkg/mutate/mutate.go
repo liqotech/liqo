@@ -8,8 +8,10 @@ import (
 	admissionv1beta1 "k8s.io/api/admission/v1beta1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/klog/v2"
 
+	offv1alpha1 "github.com/liqotech/liqo/apis/offloading/v1alpha1"
 	liqoconst "github.com/liqotech/liqo/pkg/consts"
 )
 
@@ -45,6 +47,11 @@ func (s *MutationServer) Mutate(body []byte) ([]byte, error) {
 		return nil, fmt.Errorf("unable unmarshal pod json object %v", err)
 	}
 
+	if pod.Namespace == "" {
+		klog.Infof("The namespace of the pod '%s' does not exists anymore", pod.Name)
+		return nil, nil
+	}
+
 	// set response options
 	resp.Allowed = true
 	resp.UID = admissionReviewRequest.UID
@@ -61,11 +68,20 @@ func (s *MutationServer) Mutate(body []byte) ([]byte, error) {
 		return nil, err
 	}
 
-	pod.Spec.Tolerations = append(pod.Spec.Tolerations, corev1.Toleration{
-		Key:      liqoconst.VirtualNodeTolerationKey,
-		Operator: corev1.TolerationOpExists,
-		Effect:   corev1.TaintEffectNoExecute,
-	})
+	// Get the NamespaceOffloading associated with the pod Namespace. If there is no NamespaceOffloading for that
+	// Namespace, it is an error the liqo.io/scheduling label shouldn't be on this namespace.
+	namespaceOffloading := &offv1alpha1.NamespaceOffloading{}
+	if err = s.webhookClient.Get(s.ctx, types.NamespacedName{
+		Namespace: pod.Namespace,
+		Name:      liqoconst.DefaultNamespaceOffloadingName,
+	}, namespaceOffloading); err != nil {
+		return nil, fmt.Errorf("%w -> unable to get the NamespaceOffloading for the Namespace: %s", err, pod.Namespace)
+	}
+
+	klog.V(5).Infof("The namespace '%s' has a NamespaceOffloading resource", pod.Namespace)
+	if err = mutatePod(namespaceOffloading, pod); err != nil {
+		return nil, err
+	}
 
 	target, err := json.Marshal(pod)
 	if err != nil {

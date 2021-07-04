@@ -68,7 +68,6 @@
 | webhook.imageName | string | `"liqo/liqo-webhook"` | webhook image repository |
 | webhook.initContainer.imageName | string | `"liqo/webhook-configuration"` | webhook init container image repository |
 | webhook.mutatingWebhookConfiguration.annotations | object | `{}` | mutatingWebhookConfiguration annotations |
-| webhook.mutatingWebhookConfiguration.namespaceSelector | object | `{"liqo.io/enabled":"true"}` | The label that needs to be applied to a namespace to make it eligible for pod offloading in a remote cluster |
 | webhook.pod.annotations | object | `{}` | webhook pod annotations |
 | webhook.pod.labels | object | `{}` | webhook pod labels |
 | webhook.service.annotations | object | `{}` | webhook service annotations |

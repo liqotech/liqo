@@ -22,7 +22,7 @@ var (
 	// label to list only the real nodes excluding the virtual ones.
 	labelSelectorNodes = fmt.Sprintf("%v!=%v", liqoconst.TypeLabel, liqoconst.TypeNode)
 	//TODO: use the retry mechanism of curl without sleeping before running the command.
-	command = "curl --fail -s -o /dev/null -w '%{http_code}' "
+	command = "curl --fail --max-time 5 -s -o /dev/null -w '%{http_code}' "
 )
 
 // ConnectivityCheckNodeToPod creates a NodePort Service and check its availability.

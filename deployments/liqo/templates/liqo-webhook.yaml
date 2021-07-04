@@ -41,4 +41,4 @@ webhooks:
     failurePolicy: Ignore
     namespaceSelector:
       matchLabels:
-        {{- toYaml .Values.webhook.mutatingWebhookConfiguration.namespaceSelector | nindent 8 }}
+        liqo.io/scheduling-enabled: "true"

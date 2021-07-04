@@ -36,11 +36,12 @@ var _ = Describe("Liqo E2E", func() {
 	Describe("Assert that Liqo is up, pod offloading and network connectivity are working", func() {
 		Context("Check Join Status", func() {
 			DescribeTable("Liqo pods are up and running",
-
 				func(cluster tester.ClusterContext, namespace string) {
 					readyPods, notReadyPods, err := util.ArePodsUp(ctx, cluster.Client, testContext.Namespace)
-					Expect(err).ToNot(HaveOccurred())
-					Expect(notReadyPods).To(BeNil())
+					Eventually(func() bool {
+						return err == nil
+					}, timeout, interval).Should(BeTrue())
+					Expect(len(notReadyPods)).To(Equal(0))
 					Expect(len(readyPods)).Should(BeNumerically(">", 0))
 				},
 				Entry("Pods UP on cluster 1", testContext.Clusters[0], namespace),
@@ -48,12 +49,10 @@ var _ = Describe("Liqo E2E", func() {
 			)
 
 			DescribeTable("Liqo Virtual Nodes are ready",
-
 				func(homeCluster tester.ClusterContext, namespace string) {
 					nodeReady := util.CheckVirtualNodes(ctx, homeCluster.Client)
 					Expect(nodeReady).To(BeTrue())
 				},
-
 				Entry("VirtualNode is Ready on cluster 2", testContext.Clusters[0], namespace),
 				Entry("VirtualNode is Ready on cluster 1", testContext.Clusters[1], namespace),
 			)
@@ -90,16 +89,17 @@ var _ = Describe("Liqo E2E", func() {
 		})
 
 		Context("E2E Testing with Online Boutique", func() {
+			It("Testing online boutique", func() {
+				options := k8s.NewKubectlOptions("", testContext.Clusters[0].KubeconfigPath, microservices.TestNamespaceName)
+				defer GinkgoRecover()
+				err := microservices.DeployApp(GinkgoT(), testContext.Clusters[0].KubeconfigPath)
+				Expect(err).ShouldNot(HaveOccurred())
+				microservices.WaitDemoApp(GinkgoT(), options)
 
-			options := k8s.NewKubectlOptions("", testContext.Clusters[0].KubeconfigPath, microservices.TestNamespaceName)
-			defer GinkgoRecover()
-			err := microservices.DeployApp(GinkgoT(), testContext.Clusters[0].KubeconfigPath)
-			Expect(err).ShouldNot(HaveOccurred())
-			microservices.WaitDemoApp(GinkgoT(), options)
-
-			By("Verify Online Boutique Connectivity")
-			err = microservices.CheckApplicationIsWorking(GinkgoT(), options)
-			Expect(err).ShouldNot(HaveOccurred())
+				By("Verify Online Boutique Connectivity")
+				err = microservices.CheckApplicationIsWorking(GinkgoT(), options)
+				Expect(err).ShouldNot(HaveOccurred())
+			})
 		})
 
 		AfterSuite(func() {

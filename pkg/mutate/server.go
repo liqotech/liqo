@@ -27,12 +27,14 @@ type MutationServer struct {
 
 	webhookClient client.Client
 	config        *MutationConfig
+	ctx           context.Context
 }
 
 // NewMutationServer creates a new mutation server.
 func NewMutationServer(ctx context.Context, c *MutationConfig) (*MutationServer, error) {
 	s := &MutationServer{}
 	s.config = c
+	s.ctx = ctx
 
 	// This scheme is necessary for the WebhookClient.
 	scheme := runtime.NewScheme()
