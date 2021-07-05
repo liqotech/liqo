@@ -23,6 +23,7 @@ import (
 	"github.com/liqotech/liqo/pkg/discovery"
 	identitymanager "github.com/liqotech/liqo/pkg/identityManager"
 	tenantcontrolnamespace "github.com/liqotech/liqo/pkg/tenantControlNamespace"
+	peeringconditionsutils "github.com/liqotech/liqo/pkg/utils/peeringConditions"
 	testUtils "github.com/liqotech/liqo/pkg/utils/testUtils"
 )
 
@@ -165,8 +166,8 @@ var _ = Describe("ForeignClusterOperator", func() {
 				Expect(err).To(BeNil())
 
 				// check that the incoming and the outgoing statuses are the expected ones
-				Expect(fc.Status.Outgoing).To(c.expectedOutgoing)
-				Expect(fc.Status.Incoming).To(c.expectedIncoming)
+				Expect(peeringconditionsutils.GetStatus(fc, discoveryv1alpha1.OutgoingPeeringCondition)).To(c.expectedOutgoing)
+				Expect(peeringconditionsutils.GetStatus(fc, discoveryv1alpha1.IncomingPeeringCondition)).To(c.expectedIncoming)
 
 				// get the resource requests in the local tenant namespace
 				obj, err = controller.crdClient.Resource("resourcerequests").Namespace(tenantNamespace.Name).List(&metav1.ListOptions{})
@@ -208,12 +209,8 @@ var _ = Describe("ForeignClusterOperator", func() {
 					},
 				},
 				expectedPeeringLength: Equal(1),
-				expectedOutgoing: Equal(discoveryv1alpha1.Outgoing{
-					PeeringPhase: discoveryv1alpha1.PeeringPhasePending, // we expect a joined flag set to true for the outgoing peering
-				}),
-				expectedIncoming: Equal(discoveryv1alpha1.Incoming{
-					PeeringPhase: discoveryv1alpha1.PeeringPhaseNone,
-				}),
+				expectedOutgoing:      Equal(discoveryv1alpha1.PeeringConditionStatusPending), // we expect a joined flag set to true for the outgoing peering
+				expectedIncoming:      Equal(discoveryv1alpha1.PeeringConditionStatusNone),
 			}),
 		)
 
@@ -282,8 +279,8 @@ var _ = Describe("ForeignClusterOperator", func() {
 				Expect(err).To(BeNil())
 
 				// check that the incoming and the outgoing statuses are the expected ones
-				Expect(fc.Status.Outgoing).To(c.expectedOutgoing)
-				Expect(fc.Status.Incoming).To(c.expectedIncoming)
+				Expect(peeringconditionsutils.GetStatus(fc, discoveryv1alpha1.OutgoingPeeringCondition)).To(c.expectedOutgoing)
+				Expect(peeringconditionsutils.GetStatus(fc, discoveryv1alpha1.IncomingPeeringCondition)).To(c.expectedIncoming)
 
 				// get the resource requests in the local tenant namespace
 				obj, err = controller.crdClient.Resource("resourcerequests").Namespace(tenantNamespace.Name).List(&metav1.ListOptions{})
@@ -358,10 +355,13 @@ var _ = Describe("ForeignClusterOperator", func() {
 						TrustMode:     discovery.TrustModeUntrusted,
 					},
 					Status: discoveryv1alpha1.ForeignClusterStatus{
-						Outgoing: discoveryv1alpha1.Outgoing{
-							PeeringPhase: discoveryv1alpha1.PeeringPhaseEstablished,
+						PeeringConditions: []discoveryv1alpha1.PeeringCondition{
+							{
+								Type:               discoveryv1alpha1.OutgoingPeeringCondition,
+								Status:             discoveryv1alpha1.PeeringConditionStatusEstablished,
+								LastTransitionTime: metav1.Now(),
+							},
 						},
-						Incoming:               discoveryv1alpha1.Incoming{},
 						TenantControlNamespace: discoveryv1alpha1.TenantControlNamespace{},
 					},
 				},
@@ -378,12 +378,8 @@ var _ = Describe("ForeignClusterOperator", func() {
 					},
 				},
 				expectedPeeringLength: Equal(1),
-				expectedOutgoing: Equal(discoveryv1alpha1.Outgoing{
-					PeeringPhase: discoveryv1alpha1.PeeringPhaseDisconnecting,
-				}),
-				expectedIncoming: Equal(discoveryv1alpha1.Incoming{
-					PeeringPhase: discoveryv1alpha1.PeeringPhaseNone,
-				}),
+				expectedOutgoing:      Equal(discoveryv1alpha1.PeeringConditionStatusDisconnecting),
+				expectedIncoming:      Equal(discoveryv1alpha1.PeeringConditionStatusNone),
 			}),
 		)
 
@@ -436,8 +432,8 @@ var _ = Describe("ForeignClusterOperator", func() {
 		type checkPeeringStatusTestcase struct {
 			foreignClusterStatus  discoveryv1alpha1.ForeignClusterStatus
 			resourceRequests      []discoveryv1alpha1.ResourceRequest
-			expectedIncomingPhase discoveryv1alpha1.PeeringPhaseType
-			expectedOutgoingPhase discoveryv1alpha1.PeeringPhaseType
+			expectedIncomingPhase discoveryv1alpha1.PeeringConditionStatusType
+			expectedOutgoingPhase discoveryv1alpha1.PeeringConditionStatusType
 		}
 
 		var (
@@ -517,8 +513,8 @@ var _ = Describe("ForeignClusterOperator", func() {
 				err = controller.checkPeeringStatus(ctx, foreignCluster)
 				Expect(err).To(BeNil())
 
-				Expect(foreignCluster.Status.Incoming.PeeringPhase).To(Equal(c.expectedIncomingPhase))
-				Expect(foreignCluster.Status.Outgoing.PeeringPhase).To(Equal(c.expectedOutgoingPhase))
+				Expect(peeringconditionsutils.GetStatus(foreignCluster, discoveryv1alpha1.IncomingPeeringCondition)).To(Equal(c.expectedIncomingPhase))
+				Expect(peeringconditionsutils.GetStatus(foreignCluster, discoveryv1alpha1.OutgoingPeeringCondition)).To(Equal(c.expectedOutgoingPhase))
 			},
 
 			Entry("none", checkPeeringStatusTestcase{
@@ -526,16 +522,22 @@ var _ = Describe("ForeignClusterOperator", func() {
 					TenantControlNamespace: discoveryv1alpha1.TenantControlNamespace{
 						Local: "default",
 					},
-					Incoming: discoveryv1alpha1.Incoming{
-						PeeringPhase: discoveryv1alpha1.PeeringPhaseEstablished,
-					},
-					Outgoing: discoveryv1alpha1.Outgoing{
-						PeeringPhase: discoveryv1alpha1.PeeringPhaseDisconnecting,
+					PeeringConditions: []discoveryv1alpha1.PeeringCondition{
+						{
+							Type:               discoveryv1alpha1.IncomingPeeringCondition,
+							Status:             discoveryv1alpha1.PeeringConditionStatusEstablished,
+							LastTransitionTime: metav1.Now(),
+						},
+						{
+							Type:               discoveryv1alpha1.OutgoingPeeringCondition,
+							Status:             discoveryv1alpha1.PeeringConditionStatusDisconnecting,
+							LastTransitionTime: metav1.Now(),
+						},
 					},
 				},
 				resourceRequests:      []discoveryv1alpha1.ResourceRequest{},
-				expectedIncomingPhase: discoveryv1alpha1.PeeringPhaseNone,
-				expectedOutgoingPhase: discoveryv1alpha1.PeeringPhaseNone,
+				expectedIncomingPhase: discoveryv1alpha1.PeeringConditionStatusNone,
+				expectedOutgoingPhase: discoveryv1alpha1.PeeringConditionStatusNone,
 			}),
 
 			Entry("none and no update", checkPeeringStatusTestcase{
@@ -543,16 +545,22 @@ var _ = Describe("ForeignClusterOperator", func() {
 					TenantControlNamespace: discoveryv1alpha1.TenantControlNamespace{
 						Local: "default",
 					},
-					Incoming: discoveryv1alpha1.Incoming{
-						PeeringPhase: discoveryv1alpha1.PeeringPhaseNone,
-					},
-					Outgoing: discoveryv1alpha1.Outgoing{
-						PeeringPhase: discoveryv1alpha1.PeeringPhaseNone,
+					PeeringConditions: []discoveryv1alpha1.PeeringCondition{
+						{
+							Type:               discoveryv1alpha1.IncomingPeeringCondition,
+							Status:             discoveryv1alpha1.PeeringConditionStatusNone,
+							LastTransitionTime: metav1.Now(),
+						},
+						{
+							Type:               discoveryv1alpha1.OutgoingPeeringCondition,
+							Status:             discoveryv1alpha1.PeeringConditionStatusNone,
+							LastTransitionTime: metav1.Now(),
+						},
 					},
 				},
 				resourceRequests:      []discoveryv1alpha1.ResourceRequest{},
-				expectedIncomingPhase: discoveryv1alpha1.PeeringPhaseNone,
-				expectedOutgoingPhase: discoveryv1alpha1.PeeringPhaseNone,
+				expectedIncomingPhase: discoveryv1alpha1.PeeringConditionStatusNone,
+				expectedOutgoingPhase: discoveryv1alpha1.PeeringConditionStatusNone,
 			}),
 
 			Entry("outgoing", checkPeeringStatusTestcase{
@@ -560,18 +568,24 @@ var _ = Describe("ForeignClusterOperator", func() {
 					TenantControlNamespace: discoveryv1alpha1.TenantControlNamespace{
 						Local: "default",
 					},
-					Incoming: discoveryv1alpha1.Incoming{
-						PeeringPhase: discoveryv1alpha1.PeeringPhaseNone,
-					},
-					Outgoing: discoveryv1alpha1.Outgoing{
-						PeeringPhase: discoveryv1alpha1.PeeringPhasePending,
+					PeeringConditions: []discoveryv1alpha1.PeeringCondition{
+						{
+							Type:               discoveryv1alpha1.IncomingPeeringCondition,
+							Status:             discoveryv1alpha1.PeeringConditionStatusNone,
+							LastTransitionTime: metav1.Now(),
+						},
+						{
+							Type:               discoveryv1alpha1.OutgoingPeeringCondition,
+							Status:             discoveryv1alpha1.PeeringConditionStatusPending,
+							LastTransitionTime: metav1.Now(),
+						},
 					},
 				},
 				resourceRequests: []discoveryv1alpha1.ResourceRequest{
 					getOutgoingResourceRequest(),
 				},
-				expectedIncomingPhase: discoveryv1alpha1.PeeringPhaseNone,
-				expectedOutgoingPhase: discoveryv1alpha1.PeeringPhaseEstablished,
+				expectedIncomingPhase: discoveryv1alpha1.PeeringConditionStatusNone,
+				expectedOutgoingPhase: discoveryv1alpha1.PeeringConditionStatusEstablished,
 			}),
 
 			Entry("incoming", checkPeeringStatusTestcase{
@@ -579,18 +593,24 @@ var _ = Describe("ForeignClusterOperator", func() {
 					TenantControlNamespace: discoveryv1alpha1.TenantControlNamespace{
 						Local: "default",
 					},
-					Incoming: discoveryv1alpha1.Incoming{
-						PeeringPhase: discoveryv1alpha1.PeeringPhasePending,
-					},
-					Outgoing: discoveryv1alpha1.Outgoing{
-						PeeringPhase: discoveryv1alpha1.PeeringPhaseNone,
+					PeeringConditions: []discoveryv1alpha1.PeeringCondition{
+						{
+							Type:               discoveryv1alpha1.IncomingPeeringCondition,
+							Status:             discoveryv1alpha1.PeeringConditionStatusPending,
+							LastTransitionTime: metav1.Now(),
+						},
+						{
+							Type:               discoveryv1alpha1.OutgoingPeeringCondition,
+							Status:             discoveryv1alpha1.PeeringConditionStatusNone,
+							LastTransitionTime: metav1.Now(),
+						},
 					},
 				},
 				resourceRequests: []discoveryv1alpha1.ResourceRequest{
 					getIncomingResourceRequest(),
 				},
-				expectedIncomingPhase: discoveryv1alpha1.PeeringPhaseEstablished,
-				expectedOutgoingPhase: discoveryv1alpha1.PeeringPhaseNone,
+				expectedIncomingPhase: discoveryv1alpha1.PeeringConditionStatusEstablished,
+				expectedOutgoingPhase: discoveryv1alpha1.PeeringConditionStatusNone,
 			}),
 
 			Entry("bidirectional", checkPeeringStatusTestcase{
@@ -598,19 +618,25 @@ var _ = Describe("ForeignClusterOperator", func() {
 					TenantControlNamespace: discoveryv1alpha1.TenantControlNamespace{
 						Local: "default",
 					},
-					Incoming: discoveryv1alpha1.Incoming{
-						PeeringPhase: discoveryv1alpha1.PeeringPhasePending,
-					},
-					Outgoing: discoveryv1alpha1.Outgoing{
-						PeeringPhase: discoveryv1alpha1.PeeringPhasePending,
+					PeeringConditions: []discoveryv1alpha1.PeeringCondition{
+						{
+							Type:               discoveryv1alpha1.IncomingPeeringCondition,
+							Status:             discoveryv1alpha1.PeeringConditionStatusPending,
+							LastTransitionTime: metav1.Now(),
+						},
+						{
+							Type:               discoveryv1alpha1.OutgoingPeeringCondition,
+							Status:             discoveryv1alpha1.PeeringConditionStatusPending,
+							LastTransitionTime: metav1.Now(),
+						},
 					},
 				},
 				resourceRequests: []discoveryv1alpha1.ResourceRequest{
 					getIncomingResourceRequest(),
 					getOutgoingResourceRequest(),
 				},
-				expectedIncomingPhase: discoveryv1alpha1.PeeringPhaseEstablished,
-				expectedOutgoingPhase: discoveryv1alpha1.PeeringPhaseEstablished,
+				expectedIncomingPhase: discoveryv1alpha1.PeeringConditionStatusEstablished,
+				expectedOutgoingPhase: discoveryv1alpha1.PeeringConditionStatusEstablished,
 			}),
 		)
 

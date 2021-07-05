@@ -231,7 +231,7 @@ var _ = Describe("Auth", func() {
 				expectedOutput: BeNil(),
 			}),
 
-			Entry("empty token refused", credentialValidatorTestcase{
+			Entry("empty token denied", credentialValidatorTestcase{
 				credentials: auth.ServiceAccountIdentityRequest{
 					Token:     "",
 					ClusterID: "test1",
@@ -253,7 +253,7 @@ var _ = Describe("Auth", func() {
 				expectedOutput: BeNil(),
 			}),
 
-			Entry("token refused", credentialValidatorTestcase{
+			Entry("token denied", credentialValidatorTestcase{
 				credentials: auth.ServiceAccountIdentityRequest{
 					Token:     "token-wrong",
 					ClusterID: "test1",

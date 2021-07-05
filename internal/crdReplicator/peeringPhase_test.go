@@ -58,11 +58,17 @@ var _ = Describe("PeeringPhase", func() {
 			Entry("bidirectional", getPeeringPhaseTestcase{
 				foreignCluster: &discoveryv1alpha1.ForeignCluster{
 					Status: discoveryv1alpha1.ForeignClusterStatus{
-						Incoming: discoveryv1alpha1.Incoming{
-							PeeringPhase: discoveryv1alpha1.PeeringPhaseEstablished,
-						},
-						Outgoing: discoveryv1alpha1.Outgoing{
-							PeeringPhase: discoveryv1alpha1.PeeringPhaseEstablished,
+						PeeringConditions: []discoveryv1alpha1.PeeringCondition{
+							{
+								Type:               discoveryv1alpha1.IncomingPeeringCondition,
+								Status:             discoveryv1alpha1.PeeringConditionStatusEstablished,
+								LastTransitionTime: metav1.Now(),
+							},
+							{
+								Type:               discoveryv1alpha1.OutgoingPeeringCondition,
+								Status:             discoveryv1alpha1.PeeringConditionStatusEstablished,
+								LastTransitionTime: metav1.Now(),
+							},
 						},
 					},
 				},
@@ -72,11 +78,17 @@ var _ = Describe("PeeringPhase", func() {
 			Entry("incoming", getPeeringPhaseTestcase{
 				foreignCluster: &discoveryv1alpha1.ForeignCluster{
 					Status: discoveryv1alpha1.ForeignClusterStatus{
-						Incoming: discoveryv1alpha1.Incoming{
-							PeeringPhase: discoveryv1alpha1.PeeringPhaseEstablished,
-						},
-						Outgoing: discoveryv1alpha1.Outgoing{
-							PeeringPhase: discoveryv1alpha1.PeeringPhaseNone,
+						PeeringConditions: []discoveryv1alpha1.PeeringCondition{
+							{
+								Type:               discoveryv1alpha1.IncomingPeeringCondition,
+								Status:             discoveryv1alpha1.PeeringConditionStatusEstablished,
+								LastTransitionTime: metav1.Now(),
+							},
+							{
+								Type:               discoveryv1alpha1.OutgoingPeeringCondition,
+								Status:             discoveryv1alpha1.PeeringConditionStatusNone,
+								LastTransitionTime: metav1.Now(),
+							},
 						},
 					},
 				},
@@ -86,11 +98,17 @@ var _ = Describe("PeeringPhase", func() {
 			Entry("outgoing", getPeeringPhaseTestcase{
 				foreignCluster: &discoveryv1alpha1.ForeignCluster{
 					Status: discoveryv1alpha1.ForeignClusterStatus{
-						Incoming: discoveryv1alpha1.Incoming{
-							PeeringPhase: discoveryv1alpha1.PeeringPhaseNone,
-						},
-						Outgoing: discoveryv1alpha1.Outgoing{
-							PeeringPhase: discoveryv1alpha1.PeeringPhaseEstablished,
+						PeeringConditions: []discoveryv1alpha1.PeeringCondition{
+							{
+								Type:               discoveryv1alpha1.IncomingPeeringCondition,
+								Status:             discoveryv1alpha1.PeeringConditionStatusNone,
+								LastTransitionTime: metav1.Now(),
+							},
+							{
+								Type:               discoveryv1alpha1.OutgoingPeeringCondition,
+								Status:             discoveryv1alpha1.PeeringConditionStatusEstablished,
+								LastTransitionTime: metav1.Now(),
+							},
 						},
 					},
 				},
@@ -100,11 +118,17 @@ var _ = Describe("PeeringPhase", func() {
 			Entry("none", getPeeringPhaseTestcase{
 				foreignCluster: &discoveryv1alpha1.ForeignCluster{
 					Status: discoveryv1alpha1.ForeignClusterStatus{
-						Incoming: discoveryv1alpha1.Incoming{
-							PeeringPhase: discoveryv1alpha1.PeeringPhaseNone,
-						},
-						Outgoing: discoveryv1alpha1.Outgoing{
-							PeeringPhase: discoveryv1alpha1.PeeringPhaseNone,
+						PeeringConditions: []discoveryv1alpha1.PeeringCondition{
+							{
+								Type:               discoveryv1alpha1.IncomingPeeringCondition,
+								Status:             discoveryv1alpha1.PeeringConditionStatusNone,
+								LastTransitionTime: metav1.Now(),
+							},
+							{
+								Type:               discoveryv1alpha1.OutgoingPeeringCondition,
+								Status:             discoveryv1alpha1.PeeringConditionStatusNone,
+								LastTransitionTime: metav1.Now(),
+							},
 						},
 					},
 				},

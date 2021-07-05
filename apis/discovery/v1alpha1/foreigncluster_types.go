@@ -17,7 +17,6 @@ limitations under the License.
 package v1alpha1
 
 import (
-	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes/scheme"
 
@@ -28,19 +27,27 @@ import (
 // EDIT THIS FILE!  THIS IS SCAFFOLDING FOR YOU TO OWN!
 // NOTE: json tags are required.  Any new fields you add must have json tags for the fields to be serialized.
 
-// PeeringPhaseType indicates the phase of a peering with a remote cluster.
-type PeeringPhaseType string
+// PeeringConditionStatusType indicates the phase of a peering with a remote cluster.
+type PeeringConditionStatusType string
 
 const (
-	// PeeringPhaseNone indicates that there is no peering.
-	PeeringPhaseNone PeeringPhaseType = "None"
-	// PeeringPhasePending indicates that the peering is pending,
-	// and we are waiting fore the remote cluster feedback.
-	PeeringPhasePending PeeringPhaseType = "Pending"
-	// PeeringPhaseEstablished indicates that the peering has been established.
-	PeeringPhaseEstablished PeeringPhaseType = "Established"
-	// PeeringPhaseDisconnecting indicates that the peering is being deleted.
-	PeeringPhaseDisconnecting PeeringPhaseType = "Disconnecting"
+	// PeeringConditionStatusNone indicates that there is no peering.
+	PeeringConditionStatusNone PeeringConditionStatusType = "None"
+	// PeeringConditionStatusPending indicates that the peering is pending,
+	// and we are waiting for the remote cluster feedback.
+	PeeringConditionStatusPending PeeringConditionStatusType = "Pending"
+	// PeeringConditionStatusEstablished indicates that the peering has been established.
+	PeeringConditionStatusEstablished PeeringConditionStatusType = "Established"
+	// PeeringConditionStatusDisconnecting indicates that the peering is being deleted.
+	PeeringConditionStatusDisconnecting PeeringConditionStatusType = "Disconnecting"
+	// PeeringConditionStatusDenied indicates that the condition has been denied.
+	// This is only used by the AuthenticationCondition Type, and indicates that
+	// the authentication has been denied even if we provided a token.
+	PeeringConditionStatusDenied PeeringConditionStatusType = "Denied"
+	// PeeringConditionStatusEmptyDenied indicates that the condition has been denied.
+	// This is only used by the AuthenticationCondition Type, and indicates that
+	// the identity verification was denied with an empty token.
+	PeeringConditionStatusEmptyDenied PeeringConditionStatusType = "EmptyDenied"
 )
 
 // ForeignClusterSpec defines the desired state of ForeignCluster.
@@ -88,14 +95,41 @@ type ForeignClusterStatus struct {
 	// +kubebuilder:validation:Optional
 	TenantControlNamespace TenantControlNamespace `json:"tenantControlNamespace"`
 
-	Outgoing Outgoing `json:"outgoing,omitempty"`
-	Incoming Incoming `json:"incoming,omitempty"`
-	// It stores most important network statuses.
-	Network Network `json:"network,omitempty"`
-	// Authentication status.
-	// +kubebuilder:validation:Enum="Pending";"Accepted";"Refused";"EmptyRefused"
-	// +kubebuilder:default="Pending"
-	AuthStatus discovery.AuthStatus `json:"authStatus,omitempty"`
+	// PeeringConditions contains the conditions about the peering related to this
+	// ForeignCluster.
+	PeeringConditions []PeeringCondition `json:"peeringConditions,omitempty"`
+}
+
+// PeeringConditionType represents different conditions that a peering could assume.
+type PeeringConditionType string
+
+// These are valid conditions of a peering.
+const (
+	// OutgoingPeeringCondition informs users about the outgoing peering status.
+	OutgoingPeeringCondition PeeringConditionType = "OutgoingPeering"
+	// IncomingPeeringCondition informs users about the incoming peering status.
+	IncomingPeeringCondition PeeringConditionType = "IncomingPeering"
+	// NetworkStatusCondition informs users about the network status.
+	NetworkStatusCondition PeeringConditionType = "NetworkStatus"
+	// AuthenticationStatusCondition informs users about the Authentication status.
+	AuthenticationStatusCondition PeeringConditionType = "AuthenticationStatus"
+)
+
+// PeeringCondition contains details about state of the peering.
+type PeeringCondition struct {
+	// Type of the peering condition.
+	// +kubebuilder:validation:Enum="OutgoingPeering";"IncomingPeering";"NetworkStatus";"AuthenticationStatus"
+	Type PeeringConditionType `json:"type"`
+	// Status of the condition.
+	// +kubebuilder:validation:Enum="None";"Pending";"Established";"Disconnecting";"Denied";"EmptyDenied"
+	// +kubebuilder:default="None"
+	Status PeeringConditionStatusType `json:"status"`
+	// LastTransitionTime -> timestamp for when the condition last transitioned from one status to another.
+	LastTransitionTime metav1.Time `json:"lastTransitionTime,omitempty"`
+	// Reason -> Machine-readable, UpperCamelCase text indicating the reason for the condition's last transition.
+	Reason string `json:"reason,omitempty"`
+	// Message -> Human-readable message indicating details about the last status transition.
+	Message string `json:"message,omitempty"`
 }
 
 // TenantControlNamespace contains the names of the local and the remote
@@ -107,62 +141,15 @@ type TenantControlNamespace struct {
 	Remote string `json:"remote,omitempty"`
 }
 
-// ResourceLink contains information on the reference of an kubernetes resource.
-type ResourceLink struct {
-	// Indicates if the resource is available.
-	Available bool `json:"available"`
-	// Object Reference to the resource.
-	Reference *v1.ObjectReference `json:"reference,omitempty"`
-}
-
-// Network contains the information on the network status.
-type Network struct {
-	// Local NetworkConfig link.
-	LocalNetworkConfig ResourceLink `json:"localNetworkConfig,omitempty"`
-	// Remote NetworkConfig link.
-	RemoteNetworkConfig ResourceLink `json:"remoteNetworkConfig,omitempty"`
-	// TunnelEndpoint link.
-	TunnelEndpoint ResourceLink `json:"tunnelEndpoint,omitempty"`
-}
-
-// Outgoing contains the status of the outgoing peering.
-type Outgoing struct {
-	// Indicates if peering request has been created and this remote cluster is sharing its resources to us.
-	// +kubebuilder:validation:Enum="None";"Pending";"Established";"Disconnecting"
-	// +kubebuilder:default="None"
-	PeeringPhase PeeringPhaseType `json:"joinPhase,omitempty"`
-	// Name of created PR. (Deprecated)
-	RemotePeeringRequestName string `json:"remote-peering-request-name,omitempty"`
-	// Object Reference to created Advertisement CR. (Deprecated)
-	Advertisement *v1.ObjectReference `json:"advertisement,omitempty"`
-	// Indicates if related identity is available. (Deprecated)
-	AvailableIdentity bool `json:"availableIdentity,omitempty"`
-	// Object reference to related identity. (Deprecated)
-	IdentityRef *v1.ObjectReference `json:"identityRef,omitempty"`
-}
-
-// Incoming contains the status of the incoming peering.
-type Incoming struct {
-	// Indicates if peering request has been created and this remote cluster is using our local resources.
-	// +kubebuilder:validation:Enum="None";"Pending";"Established";"Disconnecting"
-	// +kubebuilder:default="None"
-	PeeringPhase PeeringPhaseType `json:"joinPhase,omitempty"`
-	// Object Reference to created PeeringRequest CR. (Deprecated)
-	PeeringRequest *v1.ObjectReference `json:"peeringRequest,omitempty"`
-	// Indicates if related identity is available. (Deprecated)
-	AvailableIdentity bool `json:"availableIdentity,omitempty"`
-	// Object reference to related identity. (Deprecated)
-	IdentityRef *v1.ObjectReference `json:"identityRef,omitempty"`
-}
-
 // +kubebuilder:object:root=true
 // +kubebuilder:resource:scope=Cluster
 // +kubebuilder:subresource:status
 
 // ForeignCluster is the Schema for the foreignclusters API.
-// +kubebuilder:printcolumn:name="Outgoing peering phase",type=string,JSONPath=`.status.outgoing.joinPhase`
-// +kubebuilder:printcolumn:name="Incoming peering phase",type=string,JSONPath=`.status.incoming.joinPhase`
-// +kubebuilder:printcolumn:name="Authentication status",type=string,JSONPath=`.status.authStatus`
+// +kubebuilder:printcolumn:name="Outgoing peering phase",type=string,JSONPath=`.status.peeringConditions[?(@.type == 'OutgoingPeering')].status`
+// +kubebuilder:printcolumn:name="Incoming peering phase",type=string,JSONPath=`.status.peeringConditions[?(@.type == 'IncomingPeering')].status`
+// +kubebuilder:printcolumn:name="Networking status",type=string,JSONPath=`.status.peeringConditions[?(@.type == 'NetworkStatus')].status`
+// +kubebuilder:printcolumn:name="Authentication status",type=string,JSONPath=`.status.peeringConditions[?(@.type == 'AuthenticationStatus')].status`
 // +kubebuilder:printcolumn:name="Age",type=date,JSONPath=`.metadata.creationTimestamp`
 type ForeignCluster struct {
 	metav1.TypeMeta   `json:",inline"`
