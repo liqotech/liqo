@@ -14,6 +14,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/client-go/util/retry"
 	"k8s.io/klog/v2"
 	resourcehelper "k8s.io/kubectl/pkg/util/resource"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -273,8 +274,20 @@ var _ = Describe("ResourceRequest Operator", func() {
 			}
 
 			By("Checking ResourceOffer invalidation on request set deleting phase")
-			resourceRequest.Spec.WithdrawalTimestamp = &now
-			Expect(k8sClient.Update(ctx, &resourceRequest)).ToNot(HaveOccurred())
+			err := retry.RetryOnConflict(retry.DefaultBackoff, func() error {
+				// make sure to be working on the last ForeignCluster version
+				err := k8sClient.Get(ctx, types.NamespacedName{
+					Name:      resourceRequest.Name,
+					Namespace: resourceRequest.Namespace,
+				}, &resourceRequest)
+				if err != nil {
+					return err
+				}
+				resourceRequest.Spec.WithdrawalTimestamp = &now
+
+				return k8sClient.Update(ctx, &resourceRequest)
+			})
+			Expect(err).ToNot(HaveOccurred())
 
 			// set the vk status in the ResourceOffer to created
 			createdResourceOffer.Status.VirtualKubeletStatus = sharingv1alpha1.VirtualKubeletStatusCreated
@@ -301,7 +314,7 @@ var _ = Describe("ResourceRequest Operator", func() {
 			}, timeout, interval).Should(BeTrue())
 
 			By("Checking Tenant Deletion")
-			err := k8sClient.Delete(ctx, &resourceRequest)
+			err = k8sClient.Delete(ctx, &resourceRequest)
 			Expect(err).ToNot(HaveOccurred())
 
 			// check the tenant deletion

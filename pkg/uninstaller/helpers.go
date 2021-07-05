@@ -11,6 +11,7 @@ import (
 
 	discoveryV1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	foreigncluster "github.com/liqotech/liqo/pkg/utils/foreignCluster"
+	peeringconditionsutils "github.com/liqotech/liqo/pkg/utils/peeringConditions"
 )
 
 // getForeignList retrieve the list of available ForeignCluster and return it as a ForeignClusterList object.
@@ -34,8 +35,10 @@ func checkPeeringsStatus(foreign *discoveryV1alpha1.ForeignClusterList) bool {
 	for i := range foreign.Items {
 		item := &foreign.Items[i]
 		if foreigncluster.IsIncomingEnabled(item) || foreigncluster.IsOutgoingEnabled(item) {
+			incomingStatus := peeringconditionsutils.GetStatus(item, discoveryV1alpha1.IncomingPeeringCondition)
+			outgoingStatus := peeringconditionsutils.GetStatus(item, discoveryV1alpha1.OutgoingPeeringCondition)
 			klog.Infof("Cluster %s still has a valid peering: (Incoming: %s, Outgoing: %s",
-				item.Name, item.Status.Incoming.PeeringPhase, item.Status.Outgoing.PeeringPhase)
+				item.Name, incomingStatus, outgoingStatus)
 			returnValue = false
 		}
 	}

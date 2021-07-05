@@ -155,7 +155,6 @@ func (p *LiqoNodeProvider) reconcileNodeFromTep(event watch.Event) error {
 }
 
 // updateFromResourceOffer gets and updates the node status accordingly.
-// nolint:dupl // (aleoli): Suppressing for now, it will part of a major refactoring before v0.3
 func (p *LiqoNodeProvider) updateFromResourceOffer(resourceOffer *sharingv1alpha1.ResourceOffer) error {
 	p.updateMutex.Lock()
 	defer p.updateMutex.Unlock()

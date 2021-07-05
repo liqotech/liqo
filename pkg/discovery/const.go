@@ -46,20 +46,6 @@ const (
 	TrustModeUntrusted TrustMode = "Untrusted"
 )
 
-// AuthStatus indicates if the authentication requests to the remote cluster was successful.
-type AuthStatus string
-
-const (
-	// AuthStatusPending value.
-	AuthStatusPending AuthStatus = "Pending"
-	// AuthStatusAccepted value.
-	AuthStatusAccepted AuthStatus = "Accepted"
-	// AuthStatusRefused value.
-	AuthStatusRefused AuthStatus = "Refused"
-	// AuthStatusEmptyRefused value.
-	AuthStatusEmptyRefused AuthStatus = "EmptyRefused"
-)
-
 const (
 	// LastUpdateAnnotation marks the last update time of a ForeignCluster resource, needed by the garbage collection.
 	LastUpdateAnnotation string = "LastUpdate"
