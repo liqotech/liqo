@@ -306,17 +306,13 @@ var _ = Describe("SymmetricRoutingOperator", func() {
 		})
 
 		Context("when pod is running on different node than operator", func() {
-			It("pod is not ready, should return false", func() {
+			It("podIP is not set, should return false", func() {
 				ok := src.podFilter(srcTestPod)
 				Expect(ok).Should(BeFalse())
 			})
 
-			It("pod is ready, should return true", func() {
-				srcTestPod.Status.Conditions = []corev1.PodCondition{
-					{Type: corev1.PodReady,
-						Status: corev1.ConditionTrue,
-					},
-				}
+			It("podIP is set, should return true", func() {
+				srcTestPod.Status.PodIP = srcPodIP
 				ok := src.podFilter(srcTestPod)
 				Expect(ok).Should(BeTrue())
 			})

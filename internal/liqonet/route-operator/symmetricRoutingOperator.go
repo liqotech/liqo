@@ -11,7 +11,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	k8sApiErrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/klog/v2"
-	"k8s.io/kubernetes/pkg/api/v1/pod"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/event"
@@ -154,8 +153,9 @@ func (src *SymmetricRoutingController) podFilter(obj client.Object) bool {
 		klog.V(4).Infof("skipping pod {%s} running on our same node {%s}", p.Name, p.Spec.NodeName)
 		return false
 	}
-	// If pod is not ready return false.
-	if !pod.IsPodReady(p) {
+	// If podIP is not set return false.
+	if p.Status.PodIP == "" {
+		klog.Infof("skipping pod {%s} running on node {%s} has ip address set to empty", p.Name, p.Spec.NodeName)
 		return false
 	}
 	return true
