@@ -11,7 +11,7 @@ import (
 	"k8s.io/klog"
 
 	liqoconst "github.com/liqotech/liqo/pkg/consts"
-	"github.com/liqotech/liqo/pkg/liqonet"
+	liqonetIpam "github.com/liqotech/liqo/pkg/liqonet/ipam"
 	"github.com/liqotech/liqo/pkg/virtualKubelet"
 	apimgmt "github.com/liqotech/liqo/pkg/virtualKubelet/apiReflection"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/apiReflection/reflectors"
@@ -57,7 +57,7 @@ func (f *apiForger) podStatusForeignToHome(foreignObj, homeObj runtime.Object) *
 	homePod.Status = foreignPod.Status
 	if homePod.Status.PodIP != "" {
 		response, err := f.ipamClient.GetHomePodIP(context.Background(),
-			&liqonet.GetHomePodIPRequest{
+			&liqonetIpam.GetHomePodIPRequest{
 				ClusterID: strings.TrimPrefix(f.virtualNodeName.Value().ToString(), virtualKubelet.VirtualNodePrefix),
 				Ip:        foreignPod.Status.PodIP,
 			})

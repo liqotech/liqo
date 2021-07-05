@@ -1,4 +1,4 @@
-package liqonet
+package ipam
 
 import (
 	"context"

@@ -4,7 +4,7 @@
 // 	protoc        v3.15.5
 // source: pkg/liqonet/ipam.proto
 
-package liqonet
+package ipam
 
 import (
 	reflect "reflect"
