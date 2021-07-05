@@ -25,21 +25,24 @@ import (
 	"github.com/liqotech/liqo/pkg/liqonet/utils"
 )
 
-var ipam *liqonetIpam.IPAM
-var dynClient *fake.FakeDynamicClient
-
 const (
 	clusterID1           = "cluster1"
 	clusterID2           = "cluster2"
 	clusterID3           = "cluster3"
+	remotePodCIDR        = "10.50.0.0/16"
+	remoteExternalCIDR   = "10.60.0.0/16"
 	homePodCIDR          = "10.0.0.0/24"
+	localEndpointIP      = "10.0.0.20"
 	localNATPodCIDR      = "10.0.1.0/24"
 	localNATExternalCIDR = "192.168.30.0/24"
-	remotePodCIDR        = "10.0.4.0/24"
-	remoteExternalCIDR   = "192.168.4.0/24"
 	externalEndpointIP   = "10.0.50.6"
 	internalEndpointIP   = "10.0.0.6"
 	invalidValue         = "invalid value"
+)
+
+var (
+	ipam      *liqonetIpam.IPAM
+	dynClient *fake.FakeDynamicClient
 )
 
 func fillNetworkPool(pool string, ipam *liqonetIpam.IPAM) error {
@@ -123,7 +126,7 @@ var _ = Describe("Ipam", func() {
 		ipam = liqonetIpam.NewIPAM()
 		err := setDynClient()
 		Expect(err).To(BeNil())
-		n, err := rand.Int(rand.Reader, big.NewInt(2000))
+		n, err := rand.Int(rand.Reader, big.NewInt(10000))
 		Expect(err).To(BeNil())
 		err = ipam.Init(liqonetIpam.Pools, dynClient, 2000+int(n.Int64()))
 		Expect(err).To(BeNil())
@@ -1107,25 +1110,51 @@ var _ = Describe("Ipam", func() {
 					Expect(err).ToNot(BeNil())
 				})
 			})
-			Context("Using an invalid endpointIP", func() {
-				It("should return an error", func() {
+			Context("Passing invalid parameters", func() {
+				It("Empty clusterID", func() {
 					_, err := ipam.MapEndpointIP(context.Background(), &liqonetIpam.MapRequest{
-						ClusterID: clusterID1,
-						Ip:        "30.0.9",
+						ClusterID: "",
+						Ip:        localEndpointIP,
 					})
-					Expect(err).ToNot(BeNil())
+					Expect(err.Error()).To(ContainSubstring(fmt.Sprintf("%s must be %s", consts.ClusterIDLabelName, liqoneterrors.StringNotEmpty)))
+				})
+				It("Non-existing clusterID", func() {
+					_, err := ipam.MapEndpointIP(context.Background(), &liqonetIpam.MapRequest{
+						ClusterID: clusterID3,
+						Ip:        localEndpointIP,
+					})
+					Expect(err.Error()).To(ContainSubstring(fmt.Sprintf("%s has not a network configuration", clusterID3)))
+				})
+				It("Invalid IP", func() {
+					_, err := ipam.MapEndpointIP(context.Background(), &liqonetIpam.MapRequest{
+						ClusterID: clusterID3,
+						Ip:        "10.9.9",
+					})
+					Expect(err.Error()).To(ContainSubstring("Endpoint IP must be a valid IP"))
 				})
 			})
 			Context("If the local PodCIDR is not set", func() {
 				It("should return an error", func() {
-					_, err := ipam.MapEndpointIP(context.Background(), &liqonetIpam.MapRequest{
+					// Get ExternalCIDR
+					externalCIDR, err := ipam.GetExternalCIDR(24)
+					Expect(err).To(BeNil())
+					Expect(externalCIDR).To(HaveSuffix("/24"))
+
+					// Assign networks to cluster
+					_, _, err = ipam.GetSubnetsPerCluster(remotePodCIDR, remoteExternalCIDR, clusterID1)
+					Expect(err).To(BeNil())
+
+					// Remote cluster has not remapped local ExternalCIDR
+					err = ipam.AddLocalSubnetsPerCluster(consts.DefaultCIDRValue, consts.DefaultCIDRValue, clusterID1)
+					Expect(err).To(BeNil())
+					_, err = ipam.MapEndpointIP(context.Background(), &liqonetIpam.MapRequest{
 						ClusterID: clusterID1,
 						Ip:        "30.0.4.9",
 					})
-					Expect(err.Error()).To(ContainSubstring("cannot parse network"))
+					Expect(err.Error()).To(ContainSubstring("cannot get cluster PodCIDR"))
 				})
 			})
-			Context("If the remote cluster has not a PodCIDR set", func() {
+			Context("If the remote cluster has not a network configuration", func() {
 				It("should return an error", func() {
 					// Set PodCIDR
 					err := ipam.SetPodCIDR(homePodCIDR)
@@ -1135,20 +1164,7 @@ var _ = Describe("Ipam", func() {
 						ClusterID: clusterID1,
 						Ip:        "10.0.0.9",
 					})
-					Expect(err.Error()).To(ContainSubstring("remote cluster cluster1 has not a local NAT PodCIDR"))
-				})
-			})
-			Context("If the remote cluster has not an ExternalCIDR set", func() {
-				It("should return an error", func() {
-					// Set PodCIDR
-					err := ipam.SetPodCIDR(homePodCIDR)
-					Expect(err).To(BeNil())
-
-					_, err = ipam.MapEndpointIP(context.Background(), &liqonetIpam.MapRequest{
-						ClusterID: clusterID1,
-						Ip:        "30.0.4.9",
-					})
-					Expect(err.Error()).To(ContainSubstring("remote cluster cluster1 has not a Local NAT ExternalCIDR"))
+					Expect(err.Error()).To(ContainSubstring(fmt.Sprintf("cluster %s has not a network configuration", clusterID1)))
 				})
 			})
 		})
@@ -1239,6 +1255,29 @@ var _ = Describe("Ipam", func() {
 	})
 
 	Describe("UnmapEndpointIP", func() {
+		Context("Passing invalid parameters", func() {
+			It("Empty clusterID", func() {
+				_, err := ipam.MapEndpointIP(context.Background(), &liqonetIpam.MapRequest{
+					ClusterID: "",
+					Ip:        localEndpointIP,
+				})
+				Expect(err.Error()).To(ContainSubstring(fmt.Sprintf("%s must be %s", consts.ClusterIDLabelName, liqoneterrors.StringNotEmpty)))
+			})
+			It("Non-existing clusterID", func() {
+				_, err := ipam.MapEndpointIP(context.Background(), &liqonetIpam.MapRequest{
+					ClusterID: clusterID3,
+					Ip:        localEndpointIP,
+				})
+				Expect(err.Error()).To(ContainSubstring(fmt.Sprintf("%s has not a network configuration", clusterID3)))
+			})
+			It("Invalid IP", func() {
+				_, err := ipam.MapEndpointIP(context.Background(), &liqonetIpam.MapRequest{
+					ClusterID: clusterID3,
+					Ip:        "10.9.9",
+				})
+				Expect(err.Error()).To(ContainSubstring("Endpoint IP must be a valid IP"))
+			})
+		})
 		Context("If there are no more clusters using an endpointIP", func() {
 			It("should free the relative IP", func() {
 				endpointIP := "20.0.0.1"

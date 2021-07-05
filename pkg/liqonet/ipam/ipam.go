@@ -975,12 +975,13 @@ If the received IP belongs to local PodCIDR, then it maps the address in the tra
 i.e. using the network used in the remote cluster for local PodCIDR.
 If the received IP does not belong to local PodCIDR, then it maps the address using the ExternalCIDR.*/
 func (liqoIPAM *IPAM) mapEndpointIPInternal(clusterID, ip string) (string, error) {
+	const emptyPodCIDR = ""
 	var subnets netv1alpha1.Subnets
 	var exists bool
 
-	// Parse IP
-	if netIP := net.ParseIP(ip); netIP == nil {
-		return "", fmt.Errorf("cannot parse endpointIP %s", ip)
+	err := validateEndpointMappingInputs(clusterID, ip)
+	if err != nil {
+		return "", err
 	}
 
 	// Get cluster subnets
@@ -989,10 +990,13 @@ func (liqoIPAM *IPAM) mapEndpointIPInternal(clusterID, ip string) (string, error
 		return "", fmt.Errorf("cannot get cluster subnets:%w", err)
 	}
 	subnets, exists = clusterSubnets[clusterID]
+	if !exists {
+		return "", fmt.Errorf("cluster %s has not a network configuration", clusterID)
+	}
 
 	// Get PodCIDR
 	podCIDR, err := liqoIPAM.ipamStorage.getPodCIDR()
-	if err != nil {
+	if err != nil || podCIDR == emptyPodCIDR {
 		return "", fmt.Errorf("cannot get cluster PodCIDR: %w", err)
 	}
 
@@ -1001,10 +1005,6 @@ func (liqoIPAM *IPAM) mapEndpointIPInternal(clusterID, ip string) (string, error
 		return "", fmt.Errorf("cannot establish if IP %s belongs to PodCIDR:%w", ip, err)
 	}
 	if belongs {
-		// Check existence of local NAT PodCIDR
-		if !exists || subnets.LocalNATPodCIDR == "" {
-			return "", fmt.Errorf("remote cluster %s has not a local NAT PodCIDR", clusterID)
-		}
 		/* IP belongs to local PodCIDR, this means the Pod is a local Pod and
 		the new IP should belong to the network used in the remote cluster
 		for local Pods: this can be either the cluster PodCIDR or a different network */
@@ -1015,11 +1015,6 @@ func (liqoIPAM *IPAM) mapEndpointIPInternal(clusterID, ip string) (string, error
 		return newIP, nil
 	}
 	// IP does not belong to cluster PodCIDR: Pod is a reflected Pod
-
-	// Check existence of Local NAT ExternalCIDR
-	if !exists || subnets.LocalNATExternalCIDR == "" {
-		return "", fmt.Errorf("remote cluster %s has not a Local NAT ExternalCIDR:%w", clusterID, err)
-	}
 
 	// Map IP to ExternalCIDR
 	newIP, err := liqoIPAM.mapIPToExternalCIDR(clusterID, subnets.LocalNATExternalCIDR, ip)
@@ -1040,6 +1035,25 @@ func (liqoIPAM *IPAM) MapEndpointIP(ctx context.Context, mapRequest *MapRequest)
 			mapRequest.GetClusterID(), err)
 	}
 	return &MapResponse{Ip: mappedIP}, nil
+}
+
+func validateEndpointMappingInputs(clusterID, ip string) error {
+	const emptyClusterID = ""
+	// Parse IP
+	if netIP := net.ParseIP(ip); netIP == nil {
+		return &liqoneterrors.WrongParameter{
+			Reason:    liqoneterrors.ValidIP,
+			Parameter: "Endpoint IP",
+		}
+	}
+
+	if clusterID == emptyClusterID {
+		return &liqoneterrors.WrongParameter{
+			Reason:    liqoneterrors.StringNotEmpty,
+			Parameter: consts.ClusterIDLabelName,
+		}
+	}
+	return nil
 }
 
 // GetHomePodIP receives a Pod IP valid in the remote cluster and returns the corresponding home Pod IP
@@ -1093,6 +1107,11 @@ func (liqoIPAM *IPAM) getHomePodIPInternal(clusterID, ip string) (string, error)
 // If the endpointIP is not reflected anymore in any remote cluster, then it frees the corresponding ExternalCIDR IP.
 func (liqoIPAM *IPAM) unmapEndpointIPInternal(clusterID, endpointIP string) error {
 	var exists bool
+
+	err := validateEndpointMappingInputs(clusterID, endpointIP)
+	if err != nil {
+		return err
+	}
 
 	// Get endpointMappings
 	endpointMappings, err := liqoIPAM.ipamStorage.getEndpointMappings()
