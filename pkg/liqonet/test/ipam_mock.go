@@ -5,7 +5,7 @@ import (
 
 	grpc "google.golang.org/grpc"
 
-	"github.com/liqotech/liqo/pkg/liqonet"
+	liqonetIpam "github.com/liqotech/liqo/pkg/liqonet/ipam"
 	"github.com/liqotech/liqo/pkg/liqonet/utils"
 )
 
@@ -18,32 +18,32 @@ type MockIpam struct {
 // MapEndpointIP mocks the corresponding func in IPAM.
 func (mock *MockIpam) MapEndpointIP(
 	ctx context.Context,
-	in *liqonet.MapRequest,
-	opts ...grpc.CallOption) (*liqonet.MapResponse, error) {
+	in *liqonetIpam.MapRequest,
+	opts ...grpc.CallOption) (*liqonetIpam.MapResponse, error) {
 	oldIP := in.GetIp()
 	newIP, err := utils.MapIPToNetwork(mock.LocalRemappedPodCIDR, oldIP)
 	if err != nil {
-		return &liqonet.MapResponse{}, err
+		return &liqonetIpam.MapResponse{}, err
 	}
-	return &liqonet.MapResponse{Ip: newIP}, nil
+	return &liqonetIpam.MapResponse{Ip: newIP}, nil
 }
 
 // UnmapEndpointIP mocks the corresponding func in IPAM.
 func (mock *MockIpam) UnmapEndpointIP(
 	ctx context.Context,
-	in *liqonet.UnmapRequest,
-	opts ...grpc.CallOption) (*liqonet.UnmapResponse, error) {
-	return &liqonet.UnmapResponse{}, nil
+	in *liqonetIpam.UnmapRequest,
+	opts ...grpc.CallOption) (*liqonetIpam.UnmapResponse, error) {
+	return &liqonetIpam.UnmapResponse{}, nil
 }
 
 // GetHomePodIP mocks the corresponding func in IPAM.
 func (mock *MockIpam) GetHomePodIP(
 	ctx context.Context,
-	in *liqonet.GetHomePodIPRequest,
-	opts ...grpc.CallOption) (*liqonet.GetHomePodIPResponse, error) {
+	in *liqonetIpam.GetHomePodIPRequest,
+	opts ...grpc.CallOption) (*liqonetIpam.GetHomePodIPResponse, error) {
 	homeIP, err := utils.MapIPToNetwork(mock.RemoteRemappedPodCIDR, in.GetIp())
 	if err != nil {
-		return &liqonet.GetHomePodIPResponse{}, err
+		return &liqonetIpam.GetHomePodIPResponse{}, err
 	}
-	return &liqonet.GetHomePodIPResponse{HomeIP: homeIP}, nil
+	return &liqonetIpam.GetHomePodIPResponse{HomeIP: homeIP}, nil
 }

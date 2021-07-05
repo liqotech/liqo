@@ -44,7 +44,7 @@ import (
 	netv1alpha1 "github.com/liqotech/liqo/apis/net/v1alpha1"
 	crdreplicator "github.com/liqotech/liqo/internal/crdReplicator"
 	liqoconst "github.com/liqotech/liqo/pkg/consts"
-	"github.com/liqotech/liqo/pkg/liqonet"
+	liqonetIpam "github.com/liqotech/liqo/pkg/liqonet/ipam"
 	"github.com/liqotech/liqo/pkg/liqonet/tunnel/wireguard"
 	liqonetutils "github.com/liqotech/liqo/pkg/liqonet/utils"
 	"github.com/liqotech/liqo/pkg/utils"
@@ -95,7 +95,7 @@ type TunnelEndpointCreator struct {
 	ExternalCIDR               string
 	ReservedSubnets            []string
 	AdditionalPools            []string
-	IPManager                  liqonet.Ipam
+	IPManager                  liqonetIpam.Ipam
 	Mutex                      sync.Mutex
 	WaitConfig                 *sync.WaitGroup
 	IpamConfigured             bool

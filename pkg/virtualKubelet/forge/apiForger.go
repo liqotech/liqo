@@ -13,7 +13,7 @@ import (
 	"k8s.io/klog/v2"
 
 	"github.com/liqotech/liqo/pkg/consts"
-	"github.com/liqotech/liqo/pkg/liqonet"
+	liqonetIpam "github.com/liqotech/liqo/pkg/liqonet/ipam"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/namespacesMapping"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/options"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/options/types"
@@ -62,7 +62,7 @@ func ForeignReplicasetDeleted(pod *corev1.Pod) *corev1.Pod {
 
 type apiForger struct {
 	nattingTable namespacesMapping.NamespaceNatter
-	ipamClient   liqonet.IpamClient
+	ipamClient   liqonetIpam.IpamClient
 
 	virtualNodeName  options.ReadOnlyOption
 	liqoIpamServer   options.ReadOnlyOption
@@ -94,5 +94,5 @@ func initIpamClient() {
 	if err != nil {
 		klog.Error(err)
 	}
-	forger.ipamClient = liqonet.NewIpamClient(conn)
+	forger.ipamClient = liqonetIpam.NewIpamClient(conn)
 }
