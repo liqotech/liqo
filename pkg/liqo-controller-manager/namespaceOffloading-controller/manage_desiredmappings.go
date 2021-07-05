@@ -31,7 +31,7 @@ func removeDesiredMapping(c client.Client, localName string, nm *mapsv1alpha1.Na
 			klog.Errorf("%s --> Unable to patch NamespaceMap '%s'", err, nm.GetName())
 			return err
 		}
-		klog.Infof(" Entry for the namespace '%s' is correctly deleted from the NamespaceMap '%s'", nm.GetName(), nm.GetName())
+		klog.Infof(" Entry for the namespace '%s' is correctly deleted from the NamespaceMap '%s'", localName, nm.GetName())
 	}
 	return nil
 }
@@ -60,9 +60,9 @@ func addDesiredMapping(c client.Client, localName, remoteName string,
 	}
 
 	if _, ok := nm.Spec.DesiredMapping[localName]; !ok {
-		patch := nm.DeepCopy()
+		original := nm.DeepCopy()
 		nm.Spec.DesiredMapping[localName] = remoteName
-		if err := c.Patch(context.TODO(), nm, client.MergeFrom(patch)); err != nil {
+		if err := c.Patch(context.TODO(), nm, client.MergeFrom(original)); err != nil {
 			klog.Errorf("%s --> Unable to add entry for namespace '%s' on NamespaceMap '%s'",
 				err, localName, nm.GetName())
 			return err

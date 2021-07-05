@@ -27,6 +27,10 @@ const (
 	nsCtrlAnnotationValue = "This resource is created by the Namespace Controller"
 )
 
+// cluster-role
+// +kubebuilder:rbac:groups=core,resources=namespaces,verbs=get;watch;list
+// +kubebuilder:rbac:groups=offloading.liqo.io,resources=namespaceoffloadings,verbs=get;watch;list;create;delete
+
 // Reconcile covers the case in which the user adds the enabling liqo label to his namespace, and the
 // NamespaceOffloading resource associated with that namespace is created, if it is not already there.
 func (r *NamespaceReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {

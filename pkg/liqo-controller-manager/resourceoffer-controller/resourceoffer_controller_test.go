@@ -15,15 +15,16 @@ import (
 	rbacv1 "k8s.io/api/rbac/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/utils/pointer"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
+	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	configv1alpha1 "github.com/liqotech/liqo/apis/config/v1alpha1"
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	sharingv1alpha1 "github.com/liqotech/liqo/apis/sharing/v1alpha1"
 	crdreplicator "github.com/liqotech/liqo/internal/crdReplicator"
 	"github.com/liqotech/liqo/pkg/clusterid"
+	"github.com/liqotech/liqo/pkg/consts"
 	"github.com/liqotech/liqo/pkg/discovery"
 	testUtils "github.com/liqotech/liqo/pkg/utils/testUtils"
 	"github.com/liqotech/liqo/pkg/vkMachinery/forge"
@@ -228,25 +229,14 @@ var _ = Describe("ResourceOffer Controller", func() {
 				return reflect.DeepEqual(deploymentList.Items[0], *vkDeploy)
 			}, timeout, interval).Should(BeTrue())
 
-			// check tht the deployment has the controller reference
-			Eventually(func() []metav1.OwnerReference {
+			// check that the deployment has the controller reference annotation
+			Eventually(func() string {
 				vkDeploy, err := controller.getVirtualKubeletDeployment(ctx, resourceOffer)
 				if err != nil || vkDeploy == nil {
-					return nil
+					return ""
 				}
-				return vkDeploy.OwnerReferences
-			}, timeout, interval).Should(Equal(
-				[]metav1.OwnerReference{
-					{
-						APIVersion:         resourceOffer.GroupVersionKind().GroupVersion().String(),
-						Kind:               resourceOffer.GroupVersionKind().Kind,
-						Name:               resourceOffer.GetName(),
-						UID:                resourceOffer.GetUID(),
-						BlockOwnerDeletion: pointer.BoolPtr(true),
-						Controller:         pointer.BoolPtr(true),
-					},
-				},
-			))
+				return vkDeploy.Annotations[resourceOfferAnnotation]
+			}, timeout, interval).Should(Equal(resourceOffer.Name))
 
 			// check the existence of the ClusterRoleBinding
 			Eventually(func() int {
@@ -314,6 +304,151 @@ var _ = Describe("ResourceOffer Controller", func() {
 			err = controller.Client.Delete(ctx, resourceOffer)
 			Expect(err).To(BeNil())
 		})
+
+	})
+
+})
+
+var _ = Describe("ResourceOffer Operator util functions", func() {
+
+	Context("canDeleteVirtualKubeletDeployment", func() {
+
+		type canDeleteVirtualKubeletDeploymentTestcase struct {
+			resourceOffer *sharingv1alpha1.ResourceOffer
+			expected      OmegaMatcher
+		}
+
+		DescribeTable("canDeleteVirtualKubeletDeployment table",
+
+			func(c canDeleteVirtualKubeletDeploymentTestcase) {
+				Expect(canDeleteVirtualKubeletDeployment(c.resourceOffer)).To(c.expected)
+			},
+
+			Entry("refused ResourceOffer", canDeleteVirtualKubeletDeploymentTestcase{
+				resourceOffer: &sharingv1alpha1.ResourceOffer{
+					ObjectMeta: metav1.ObjectMeta{
+						Finalizers: []string{},
+					},
+					Status: sharingv1alpha1.ResourceOfferStatus{
+						Phase: sharingv1alpha1.ResourceOfferRefused,
+					},
+				},
+				expected: BeTrue(),
+			}),
+
+			Entry("accepted ResourceOffer", canDeleteVirtualKubeletDeploymentTestcase{
+				resourceOffer: &sharingv1alpha1.ResourceOffer{
+					ObjectMeta: metav1.ObjectMeta{
+						Finalizers: []string{},
+					},
+					Status: sharingv1alpha1.ResourceOfferStatus{
+						Phase: sharingv1alpha1.ResourceOfferAccepted,
+					},
+				},
+				expected: BeFalse(),
+			}),
+
+			Entry("accepted ResourceOffer with deletion timestamp", canDeleteVirtualKubeletDeploymentTestcase{
+				resourceOffer: &sharingv1alpha1.ResourceOffer{
+					ObjectMeta: metav1.ObjectMeta{
+						DeletionTimestamp: &metav1.Time{
+							Time: time.Now(),
+						},
+						Finalizers: []string{},
+					},
+					Status: sharingv1alpha1.ResourceOfferStatus{
+						Phase: sharingv1alpha1.ResourceOfferAccepted,
+					},
+				},
+				expected: BeTrue(),
+			}),
+
+			Entry("refused ResourceOffer with finalizer", canDeleteVirtualKubeletDeploymentTestcase{
+				resourceOffer: &sharingv1alpha1.ResourceOffer{
+					ObjectMeta: metav1.ObjectMeta{
+						Finalizers: []string{
+							consts.NodeFinalizer,
+						},
+					},
+					Status: sharingv1alpha1.ResourceOfferStatus{
+						Phase: sharingv1alpha1.ResourceOfferRefused,
+					},
+				},
+				expected: BeFalse(),
+			}),
+
+			Entry("accepted ResourceOffer with deletion timestamp and finalizer", canDeleteVirtualKubeletDeploymentTestcase{
+				resourceOffer: &sharingv1alpha1.ResourceOffer{
+					ObjectMeta: metav1.ObjectMeta{
+						DeletionTimestamp: &metav1.Time{
+							Time: time.Now(),
+						},
+						Finalizers: []string{
+							consts.NodeFinalizer,
+						},
+					},
+					Status: sharingv1alpha1.ResourceOfferStatus{
+						Phase: sharingv1alpha1.ResourceOfferAccepted,
+					},
+				},
+				expected: BeFalse(),
+			}),
+		)
+
+	})
+
+	Context("getRequestFromObject", func() {
+
+		type getRequestFromObjectTestcase struct {
+			resourceOffer     *sharingv1alpha1.ResourceOffer
+			expectedErr       OmegaMatcher
+			expectedErrString OmegaMatcher
+			expectedResult    OmegaMatcher
+		}
+
+		DescribeTable("getRequestFromObject table",
+
+			func(c getRequestFromObjectTestcase) {
+				res, err := getReconcileRequestFromObject(c.resourceOffer)
+				Expect(err).To(c.expectedErr)
+				if err != nil {
+					Expect(err.Error()).To(c.expectedErrString)
+				}
+				Expect(res).To(c.expectedResult)
+			},
+
+			Entry("Object with no annotation", getRequestFromObjectTestcase{
+				resourceOffer: &sharingv1alpha1.ResourceOffer{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:        "name",
+						Namespace:   "namespace",
+						Annotations: map[string]string{},
+					},
+				},
+				expectedErr:       HaveOccurred(),
+				expectedErrString: ContainSubstring("%v annotation not found in object %v/%v", resourceOfferAnnotation, "namespace", "name"),
+				expectedResult:    Equal(reconcile.Request{}),
+			}),
+
+			Entry("Object with annotation", getRequestFromObjectTestcase{
+				resourceOffer: &sharingv1alpha1.ResourceOffer{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "name",
+						Namespace: "namespace",
+						Annotations: map[string]string{
+							resourceOfferAnnotation: "name",
+						},
+					},
+				},
+				expectedErr: Not(HaveOccurred()),
+				expectedResult: Equal(reconcile.Request{
+					NamespacedName: types.NamespacedName{
+						Name:      "name",
+						Namespace: "namespace",
+					},
+				}),
+			}),
+		)
 
 	})
 

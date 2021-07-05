@@ -261,6 +261,9 @@ jobs:
         username: ${{ secrets.DOCKER_USERNAME }}
         password: ${{ secrets.DOCKER_PASSWORD }}
 
+    - name: Fetch External CRDs
+      run: make fetch-external-crds
+
     - name: Launch Test (Docker Container)
       uses: addnab/docker-run-action@v3
       with:

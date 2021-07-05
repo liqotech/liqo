@@ -41,10 +41,14 @@ const (
 type VirtualNodeReconciler struct {
 	client.Client
 	Scheme *runtime.Scheme
+	// key = clusterID, value = tenantNamesapceName
+	LocalTenantNamespacesNames map[string]string
 }
 
-// +kubebuilder:rbac:groups=core,resources=nodes,verbs=get;list;watch;create;update;patch;delete
-// +kubebuilder:rbac:groups=core,resources=nodes/status,verbs=get;update;patch
+// cluster-role
+// +kubebuilder:rbac:groups=core,resources=nodes,verbs=get;list;watch;patch;update
+// +kubebuilder:rbac:groups=virtualKubelet.liqo.io,resources=namespacemaps,verbs=get;list;watch;delete;create
+// +kubebuilder:rbac:groups=discovery.liqo.io,resources=foreignclusters,verbs=get;list;watch
 
 // Reconcile manage NamespaceMaps associated with the virtual-node.
 func (r *VirtualNodeReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
@@ -98,7 +102,11 @@ func filterVirtualNodes() predicate.Predicate {
 		DeleteFunc: func(e event.DeleteEvent) bool {
 			// It is necessary to monitor also the deletion of the NamespaceMap.
 			value, ok := (e.Object.GetLabels())[liqoconst.TypeLabel]
-			return (ok && value == liqoconst.TypeNode) || e.Object.GetNamespace() == liqoconst.TechnicalNamespace
+			// This controller watches the deletion of two kind of resources: virtual-nodes and
+			// NamespaceMaps associated with corresponding virtual-nodes.
+			// If the object has the label 'liqoconst.TypeLabel' with value 'liqoconst.TypeNode' it is a virtual-node,
+			// while if the object has a non-empty namespace it is a NamespaceMap.
+			return (ok && value == liqoconst.TypeNode) || e.Object.GetNamespace() != ""
 		},
 	}
 }

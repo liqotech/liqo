@@ -24,6 +24,7 @@ import (
 
 	netv1alpha1 "github.com/liqotech/liqo/apis/net/v1alpha1"
 	"github.com/liqotech/liqo/pkg/liqonet/tunnel"
+	"github.com/liqotech/liqo/pkg/liqonet/utils"
 )
 
 const (
@@ -144,7 +145,7 @@ func (w *Wireguard) Init() error {
 // ConnectToEndpoint connects to a remote cluster described by the given tep.
 func (w *Wireguard) ConnectToEndpoint(tep *netv1alpha1.TunnelEndpoint) (*netv1alpha1.Connection, error) {
 	// parse allowed IPs.
-	allowedIPs, err := getAllowedIPs(tep)
+	allowedIPs, stringAllowedIPs, err := getAllowedIPs(tep)
 	if err != nil {
 		return newConnectionOnError(err.Error()), err
 	}
@@ -165,7 +166,7 @@ func (w *Wireguard) ConnectToEndpoint(tep *netv1alpha1.TunnelEndpoint) (*netv1al
 	oldCon, found := w.connections[tep.Spec.ClusterID]
 	if found {
 		// check if the peer configuration is updated.
-		if allowedIPs.String() == oldCon.PeerConfiguration[AllowedIPs] && remoteKey.String() == oldCon.PeerConfiguration[PublicKey] &&
+		if stringAllowedIPs == oldCon.PeerConfiguration[AllowedIPs] && remoteKey.String() == oldCon.PeerConfiguration[PublicKey] &&
 			endpoint.IP.String() == oldCon.PeerConfiguration[EndpointIP] && strconv.Itoa(endpoint.Port) == oldCon.PeerConfiguration[ListeningPort] {
 			return oldCon, nil
 		}
@@ -193,7 +194,7 @@ func (w *Wireguard) ConnectToEndpoint(tep *netv1alpha1.TunnelEndpoint) (*netv1al
 		Endpoint:                    endpoint,
 		PersistentKeepaliveInterval: &ka,
 		ReplaceAllowedIPs:           true,
-		AllowedIPs:                  []net.IPNet{*allowedIPs},
+		AllowedIPs:                  allowedIPs,
 	}}
 
 	err = w.client.ConfigureDevice(DeviceName, wgtypes.Config{
@@ -208,7 +209,7 @@ func (w *Wireguard) ConnectToEndpoint(tep *netv1alpha1.TunnelEndpoint) (*netv1al
 		Status:        netv1alpha1.Connected,
 		StatusMessage: "Cluster peer connected",
 		PeerConfiguration: map[string]string{ListeningPort: strconv.Itoa(endpoint.Port), EndpointIP: endpoint.IP.String(),
-			AllowedIPs: allowedIPs.String(), PublicKey: remoteKey.String()},
+			AllowedIPs: stringAllowedIPs, PublicKey: remoteKey.String()},
 	}
 	w.connections[tep.Spec.ClusterID] = c
 	klog.V(4).Infof("Done connecting cluster peer %s@%s", tep.Spec.ClusterID, endpoint.String())
@@ -314,20 +315,22 @@ func (w *Wireguard) setWGLink() error {
 	return nil
 }
 
-func getAllowedIPs(tep *netv1alpha1.TunnelEndpoint) (*net.IPNet, error) {
-	var remoteSubnet string
-	// check if the remote podCIDR has been remapped.
-	if tep.Status.RemoteNATPodCIDR != "None" {
-		remoteSubnet = tep.Status.RemoteNATPodCIDR
-	} else {
-		remoteSubnet = tep.Spec.PodCIDR
-	}
+// Function that receives a TunnelEndpoint resource and extracts
+// wireguard allowedIPs. They are returned as []net.IPNet and
+// as a string (to accommodate comparison/storing on TEP resource).
+func getAllowedIPs(tep *netv1alpha1.TunnelEndpoint) ([]net.IPNet, string, error) {
+	_, remotePodCIDR := utils.GetPodCIDRS(tep)
+	_, remoteExternalCIDR := utils.GetExternalCIDRS(tep)
 
-	_, cidr, err := net.ParseCIDR(remoteSubnet)
+	_, podCIDR, err := net.ParseCIDR(remotePodCIDR)
 	if err != nil {
-		return nil, fmt.Errorf("unable to parse podCIDR %s for cluster %s: %w", remoteSubnet, tep.Spec.ClusterID, err)
+		return nil, "", fmt.Errorf("unable to parse podCIDR %s for cluster %s: %w", remotePodCIDR, tep.Spec.ClusterID, err)
 	}
-	return cidr, nil
+	_, externalCIDR, err := net.ParseCIDR(remoteExternalCIDR)
+	if err != nil {
+		return nil, "", fmt.Errorf("unable to parse externalCIDR %s for cluster %s: %w", remoteExternalCIDR, tep.Spec.ClusterID, err)
+	}
+	return []net.IPNet{*podCIDR, *externalCIDR}, fmt.Sprintf("%s,%s", remotePodCIDR, remoteExternalCIDR), nil
 }
 
 func getKey(tep *netv1alpha1.TunnelEndpoint) (*wgtypes.Key, error) {

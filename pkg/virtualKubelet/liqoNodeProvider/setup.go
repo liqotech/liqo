@@ -27,6 +27,7 @@ func NewLiqoNodeProvider(
 		dynClient: dynClient,
 
 		node:              node,
+		terminating:       false,
 		lastAppliedLabels: map[string]string{},
 
 		networkReady:       false,

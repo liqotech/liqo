@@ -6,6 +6,7 @@ import (
 	"fmt"
 
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/client-go/rest"
 	"k8s.io/klog/v2"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/cache"
@@ -16,11 +17,24 @@ import (
 )
 
 // GetCachedClient returns a controller runtime client with the cache initialized only for the resources added to
-// the scheme.
+// the scheme. The necessary rest.Config is generated inside this function.
 func GetCachedClient(ctx context.Context, scheme *runtime.Scheme) (client.Client, error) {
+
 	conf := ctrl.GetConfigOrDie()
 	if conf == nil {
-		err := fmt.Errorf("unable to get config file for cluster home")
+		err := fmt.Errorf("unable to get the config file")
+		klog.Error(err)
+		return nil, err
+	}
+
+	return GetCachedClientWithConfig(ctx, scheme, conf)
+}
+
+// GetCachedClientWithConfig returns a controller runtime client with the cache initialized only for the resources added to
+// the scheme. The necessary rest.Config is passed as third parameter, it must not be nil.
+func GetCachedClientWithConfig(ctx context.Context, scheme *runtime.Scheme, conf *rest.Config) (client.Client, error) {
+	if conf == nil {
+		err := fmt.Errorf("the rest.Config parameter is nil")
 		klog.Error(err)
 		return nil, err
 	}

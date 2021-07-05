@@ -1,12 +1,15 @@
 package resourcerequestoperator
 
 import (
+	"fmt"
 	"time"
 
+	capsulev1alpha1 "github.com/clastix/capsule/api/v1alpha1"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	. "github.com/onsi/gomega/gstruct"
 	corev1 "k8s.io/api/core/v1"
+	rbacv1 "k8s.io/api/rbac/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -47,7 +50,12 @@ func createTestNodes() (*corev1.Node, *corev1.Node) {
 	first.Status = corev1.NodeStatus{
 		Capacity:    resources,
 		Allocatable: resources,
-		Phase:       corev1.NodeRunning,
+		Conditions: []corev1.NodeCondition{
+			0: {
+				Type:   corev1.NodeReady,
+				Status: corev1.ConditionTrue,
+			},
+		},
 	}
 	first, err = clientset.CoreV1().Nodes().UpdateStatus(ctx, first, metav1.UpdateOptions{})
 	Expect(err).ToNot(HaveOccurred())
@@ -56,7 +64,12 @@ func createTestNodes() (*corev1.Node, *corev1.Node) {
 	second.Status = corev1.NodeStatus{
 		Capacity:    resources,
 		Allocatable: resources,
-		Phase:       corev1.NodeRunning,
+		Conditions: []corev1.NodeCondition{
+			0: {
+				Type:   corev1.NodeReady,
+				Status: corev1.ConditionTrue,
+			},
+		},
 	}
 	second, err = clientset.CoreV1().Nodes().UpdateStatus(ctx, second, metav1.UpdateOptions{})
 	Expect(err).ToNot(HaveOccurred())
@@ -183,16 +196,50 @@ var _ = Describe("ResourceRequest Operator", func() {
 
 	Context("Testing ResourceRequest Controller when creating a new ResourceRequest", func() {
 		It("Should create new ResourceOffer ", func() {
+			By("Checking Request status")
+			var resourceRequest discoveryv1alpha1.ResourceRequest
+			Eventually(func() []string {
+				err := k8sClient.Get(ctx, types.NamespacedName{
+					Name:      ResourceRequestName,
+					Namespace: ResourcesNamespace,
+				}, &resourceRequest)
+				if err != nil {
+					return []string{}
+				}
+				return resourceRequest.Finalizers
+			}, timeout, interval).Should(ContainElement(tenantFinalizer))
+
+			By("Checking Tenant creation")
+			var tenant capsulev1alpha1.Tenant
+			Eventually(func() error {
+				return k8sClient.Get(ctx, types.NamespacedName{
+					Name: fmt.Sprintf("tenant-%v", resourceRequest.Spec.ClusterIdentity.ClusterID),
+				}, &tenant)
+			}, timeout, interval).ShouldNot(HaveOccurred())
+
+			Expect(string(tenant.Spec.Owner.Kind)).To(Equal(rbacv1.UserKind))
+			Expect(tenant.Spec.Owner.Name).To(Equal(resourceRequest.Spec.ClusterIdentity.ClusterID))
+			Expect(tenant.Spec.AdditionalRoleBindings).To(ContainElement(
+				capsulev1alpha1.AdditionalRoleBindings{
+					ClusterRoleName: "liqo-virtual-kubelet-remote",
+					Subjects: []rbacv1.Subject{
+						{
+							Kind: rbacv1.UserKind,
+							Name: resourceRequest.Spec.ClusterIdentity.ClusterID,
+						},
+					},
+				},
+			))
+
 			By("Checking Offer creation")
 			createdResourceOffer := &sharingv1alpha1.ResourceOffer{}
 			offerName := types.NamespacedName{
 				Name:      offerPrefix + clusterId,
 				Namespace: ResourcesNamespace,
 			}
-			Eventually(func() bool {
-				err := k8sClient.Get(ctx, offerName, createdResourceOffer)
-				return err == nil
-			}, timeout, interval).Should(BeTrue())
+			Eventually(func() error {
+				return k8sClient.Get(ctx, offerName, createdResourceOffer)
+			}, timeout, interval).ShouldNot(HaveOccurred())
 			By("Checking all ResourceOffer parameters")
 
 			Expect(createdResourceOffer.Name).Should(ContainSubstring(clusterId))
@@ -215,14 +262,41 @@ var _ = Describe("ResourceRequest Operator", func() {
 				scale(resourceName, &testValue)
 				Expect(quantity.Cmp(testValue)).Should(BeZero())
 			}
+
+			By("Checking Tenant Deletion")
+			err := k8sClient.Delete(ctx, &resourceRequest)
+			Expect(err).ToNot(HaveOccurred())
+
+			// check the tenant deletion
+			Eventually(func() int {
+				var tenantList capsulev1alpha1.TenantList
+				err := k8sClient.List(ctx, &tenantList)
+				if err != nil {
+					return -1
+				}
+				return len(tenantList.Items)
+			}, timeout, interval).Should(BeNumerically("==", 0))
+
+			// check the resource request deletion and that the finalizer has been removed
+			Eventually(func() int {
+				var resourceRequestList discoveryv1alpha1.ResourceRequestList
+				err := k8sClient.List(ctx, &resourceRequestList)
+				if err != nil {
+					return -1
+				}
+				return len(resourceRequestList.Items)
+			}, timeout, interval).Should(BeNumerically("==", 0))
 		})
 	})
 
 	Context("Testing broadcaster", func() {
 		It("Broadcaster should update resources in correct way", func() {
 			podReq, _ := resourcehelper.PodRequestsAndLimits(podWithoutLabel)
-			By("Checking update node phase")
-			node1.Status.Phase = corev1.NodePending
+			By("Checking update node ready condition")
+			node1.Status.Conditions[0] = corev1.NodeCondition{
+				Type:   corev1.NodeReady,
+				Status: corev1.ConditionFalse,
+			}
 			var err error
 			node1, err = clientset.CoreV1().Nodes().UpdateStatus(ctx, node1, metav1.UpdateOptions{})
 			Expect(err).ToNot(HaveOccurred())
@@ -238,7 +312,10 @@ var _ = Describe("ResourceRequest Operator", func() {
 				}
 				return true
 			}, timeout, interval).Should(BeTrue())
-			node1.Status.Phase = corev1.NodeRunning
+			node1.Status.Conditions[0] = corev1.NodeCondition{
+				Type:   corev1.NodeReady,
+				Status: corev1.ConditionTrue,
+			}
 			node1, err = clientset.CoreV1().Nodes().UpdateStatus(ctx, node1, metav1.UpdateOptions{})
 			Expect(err).ToNot(HaveOccurred())
 			Eventually(func() bool {

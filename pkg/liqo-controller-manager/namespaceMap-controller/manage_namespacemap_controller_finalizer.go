@@ -19,9 +19,9 @@ const (
 func (r *NamespaceMapReconciler) SetNamespaceMapControllerFinalizer(ctx context.Context,
 	nm *mapsv1alpha1.NamespaceMap) error {
 	if !ctrlutils.ContainsFinalizer(nm, namespaceMapControllerFinalizer) {
-		patch := nm.DeepCopy()
+		original := nm.DeepCopy()
 		ctrlutils.AddFinalizer(nm, namespaceMapControllerFinalizer)
-		if err := r.Patch(ctx, nm, client.MergeFrom(patch)); err != nil {
+		if err := r.Patch(ctx, nm, client.MergeFrom(original)); err != nil {
 			klog.Errorf("%s --> Unable to add finalizer to the NamespaceMap '%s'", err, nm.GetName())
 			return err
 		}
@@ -33,10 +33,10 @@ func (r *NamespaceMapReconciler) SetNamespaceMapControllerFinalizer(ctx context.
 // RemoveNamespaceMapControllerFinalizer remove the NamespaceMapController finalizer.
 func (r *NamespaceMapReconciler) RemoveNamespaceMapControllerFinalizer(ctx context.Context,
 	nm *mapsv1alpha1.NamespaceMap) error {
-	patch := nm.DeepCopy()
+	original := nm.DeepCopy()
 	ctrlutils.RemoveFinalizer(nm, namespaceMapControllerFinalizer)
 	// MergeFrom forces the resource patch, without conflicts
-	if err := r.Patch(ctx, nm, client.MergeFrom(patch)); err != nil {
+	if err := r.Patch(ctx, nm, client.MergeFrom(original)); err != nil {
 		klog.Errorf("%s --> Unable to remove '%s' from NamespaceMap '%s'", err, namespaceMapControllerFinalizer, nm.GetName())
 		return err
 	}

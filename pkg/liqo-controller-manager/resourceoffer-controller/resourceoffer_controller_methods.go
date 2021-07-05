@@ -14,6 +14,7 @@ import (
 
 	configv1alpha1 "github.com/liqotech/liqo/apis/config/v1alpha1"
 	sharingv1alpha1 "github.com/liqotech/liqo/apis/sharing/v1alpha1"
+	"github.com/liqotech/liqo/pkg/consts"
 	crdclient "github.com/liqotech/liqo/pkg/crdClient"
 	"github.com/liqotech/liqo/pkg/utils"
 	foreigncluster "github.com/liqotech/liqo/pkg/utils/foreignCluster"
@@ -117,7 +118,7 @@ func (r *ResourceOfferReconciler) createVirtualKubeletDeployment(
 	// create the base resources
 	vkServiceAccount := forge.VirtualKubeletServiceAccount(name, namespace)
 	op, err := controllerutil.CreateOrUpdate(ctx, r.Client, vkServiceAccount, func() error {
-		return controllerutil.SetOwnerReference(resourceOffer, vkServiceAccount, r.Scheme)
+		return nil
 	})
 	if err != nil {
 		klog.Error(err)
@@ -145,7 +146,9 @@ func (r *ResourceOfferReconciler) createVirtualKubeletDeployment(
 	}
 
 	op, err = controllerutil.CreateOrUpdate(context.TODO(), r.Client, vkDeployment, func() error {
-		return controllerutil.SetControllerReference(resourceOffer, vkDeployment, r.Scheme)
+		// set the "owner" object name in the annotation to be able to reconcile deployment changes
+		vkDeployment.Annotations[resourceOfferAnnotation] = resourceOffer.GetName()
+		return nil
 	})
 	if err != nil {
 		klog.Error(err)
@@ -220,6 +223,13 @@ func (r *ResourceOfferReconciler) getVirtualKubeletDeployment(
 	}
 
 	return &deployList.Items[0], nil
+}
+
+func canDeleteVirtualKubeletDeployment(resourceOffer *sharingv1alpha1.ResourceOffer) bool {
+	notAccepted := !isAccepted(resourceOffer)
+	deleting := !resourceOffer.DeletionTimestamp.IsZero()
+	nodeDrained := !controllerutil.ContainsFinalizer(resourceOffer, consts.NodeFinalizer)
+	return (notAccepted || deleting) && nodeDrained
 }
 
 // isAccepted checks if a ResourceOffer is in Accepted phase.

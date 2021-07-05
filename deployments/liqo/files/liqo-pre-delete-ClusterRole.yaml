@@ -1,28 +1,29 @@
 rules:
-  - apiGroups:
-      - config.liqo.io
-    resources:
-      - clusterconfigs
-    verbs:
-      - get
-      - list
-      - patch
-      - update
-      - watch
-  - apiGroups:
-      - ""
-    resources:
-      - events
-    verbs:
-      - create
-      - patch
-  - apiGroups:
-      - discovery.liqo.io
-    resources:
-      - foreignclusters
-    verbs:
-      - get
-      - list
-      - update
-      - watch
-      - patch
+- apiGroups:
+  - config.liqo.io
+  resources:
+  - clusterconfigs
+  verbs:
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - ""
+  resources:
+  - events
+  verbs:
+  - create
+  - patch
+- apiGroups:
+  - discovery.liqo.io
+  resources:
+  - foreignclusters
+  verbs:
+  - get
+  - list
+  - patch
+  - update
+  - watch
+

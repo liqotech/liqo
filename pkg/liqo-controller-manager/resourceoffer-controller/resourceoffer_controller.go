@@ -18,6 +18,7 @@ package resourceoffercontroller
 
 import (
 	"context"
+	"fmt"
 	"sync"
 	"time"
 
@@ -25,18 +26,27 @@ import (
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/tools/record"
+	"k8s.io/client-go/util/workqueue"
 	"k8s.io/klog/v2"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/event"
+	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
+	"sigs.k8s.io/controller-runtime/pkg/reconcile"
+	"sigs.k8s.io/controller-runtime/pkg/source"
 
 	configv1alpha1 "github.com/liqotech/liqo/apis/config/v1alpha1"
 	sharingv1alpha1 "github.com/liqotech/liqo/apis/sharing/v1alpha1"
 	crdreplicator "github.com/liqotech/liqo/internal/crdReplicator"
 	"github.com/liqotech/liqo/pkg/clusterid"
+	"github.com/liqotech/liqo/pkg/vkMachinery"
 )
+
+const resourceOfferAnnotation = "liqo.io/resourceoffer"
 
 // ResourceOfferReconciler reconciles a ResourceOffer object.
 type ResourceOfferReconciler struct {
@@ -119,7 +129,7 @@ func (r *ResourceOfferReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 		}
 	}
 
-	if !isAccepted(&resourceOffer) || !resourceOffer.DeletionTimestamp.IsZero() {
+	if canDeleteVirtualKubeletDeployment(&resourceOffer) {
 		// delete virtual kubelet deployment
 		if err = r.deleteVirtualKubeletDeployment(ctx, &resourceOffer); err != nil {
 			klog.Error(err)
@@ -139,7 +149,17 @@ func (r *ResourceOfferReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 
 // SetupWithManager sets up the controller with the Manager.
 func (r *ResourceOfferReconciler) SetupWithManager(mgr ctrl.Manager) error {
+	// select replicated resources only
 	p, err := predicate.LabelSelectorPredicate(crdreplicator.ReplicatedResourcesLabelSelector)
+	if err != nil {
+		klog.Error(err)
+		return err
+	}
+
+	// select virtual kubelet deployments only
+	deployPredicate, err := predicate.LabelSelectorPredicate(metav1.LabelSelector{
+		MatchLabels: vkMachinery.KubeletBaseLabels,
+	})
 	if err != nil {
 		klog.Error(err)
 		return err
@@ -147,6 +167,56 @@ func (r *ResourceOfferReconciler) SetupWithManager(mgr ctrl.Manager) error {
 
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&sharingv1alpha1.ResourceOffer{}, builder.WithPredicates(p)).
-		Owns(&v1.Deployment{}).
+		Watches(&source.Kind{Type: &v1.Deployment{}},
+			getVirtualKubeletEventHandler(), builder.WithPredicates(deployPredicate)).
 		Complete(r)
+}
+
+// getVirtualKubeletEventHandler creates and returns an event handle with the same behavior of the
+// owner reference event handler, but using an annotation. This allows us to have a graceful deletion
+// of the owned object, impossible using a standard owner reference, keeping the possibility to be
+// triggered on children updates and to enforce their status.
+func getVirtualKubeletEventHandler() handler.EventHandler {
+	return &handler.Funcs{
+		CreateFunc: func(ce event.CreateEvent, rli workqueue.RateLimitingInterface) {
+			if req, err := getReconcileRequestFromObject(ce.Object); err == nil {
+				rli.Add(req)
+			}
+		},
+		UpdateFunc: func(ue event.UpdateEvent, rli workqueue.RateLimitingInterface) {
+			if req, err := getReconcileRequestFromObject(ue.ObjectOld); err == nil {
+				rli.Add(req)
+			}
+			if req, err := getReconcileRequestFromObject(ue.ObjectNew); err == nil {
+				rli.Add(req)
+			}
+		},
+		DeleteFunc: func(de event.DeleteEvent, rli workqueue.RateLimitingInterface) {
+			if req, err := getReconcileRequestFromObject(de.Object); err == nil {
+				rli.Add(req)
+			}
+		},
+		GenericFunc: func(ge event.GenericEvent, rli workqueue.RateLimitingInterface) {
+			if req, err := getReconcileRequestFromObject(ge.Object); err == nil {
+				rli.Add(req)
+			}
+		},
+	}
+}
+
+// getReconcileRequestFromObject reads an annotation in the object and returns the reconcile request
+// to be enqueued for the reconciliation.
+func getReconcileRequestFromObject(obj client.Object) (reconcile.Request, error) {
+	resourceOfferName, ok := obj.GetAnnotations()[resourceOfferAnnotation]
+	if !ok {
+		return reconcile.Request{}, fmt.Errorf("%v annotation not found in object %v/%v",
+			resourceOfferAnnotation, obj.GetNamespace(), obj.GetName())
+	}
+
+	return reconcile.Request{
+		NamespacedName: types.NamespacedName{
+			Name:      resourceOfferName,
+			Namespace: obj.GetNamespace(),
+		},
+	}, nil
 }

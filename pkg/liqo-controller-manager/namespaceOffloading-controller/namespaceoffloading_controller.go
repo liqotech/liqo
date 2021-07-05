@@ -43,6 +43,12 @@ const (
 	namespaceOffloadingControllerFinalizer = "namespaceoffloading-controller.liqo.io/finalizer"
 )
 
+// cluster-role
+// +kubebuilder:rbac:groups=offloading.liqo.io,resources=namespaceoffloadings,verbs=get;list;watch;patch;update
+// +kubebuilder:rbac:groups=virtualKubelet.liqo.io,resources=namespacemaps,verbs=get;list;watch;patch;update
+// +kubebuilder:rbac:groups=core,resources=namespaces,verbs=get;list;watch;update;patch
+// +kubebuilder:rbac:groups=core,resources=nodes,verbs=get;list;watch
+
 // NamespaceOffloadingReconciler ownership:
 // --> NamespaceOffloading.Spec.
 // --> NamespaceOffloading.Annotation.
@@ -79,10 +85,7 @@ func (r *NamespaceOffloadingReconciler) Reconcile(ctx context.Context, req ctrl.
 	// If deletion timestamp is set, it starts deletion logic and waits until all remote Namespaces
 	// associated with this resource are deleted.
 	if !namespaceOffloading.GetDeletionTimestamp().IsZero() {
-		if err := r.deletionLogic(ctx, namespaceOffloading, clusterIDMap); err != nil {
-			return ctrl.Result{}, err
-		}
-		return ctrl.Result{}, nil
+		return ctrl.Result{}, r.deletionLogic(ctx, namespaceOffloading, clusterIDMap)
 	}
 	// Initialize NamespaceOffloading Resource if it has been just created.
 	if !ctrlutils.ContainsFinalizer(namespaceOffloading, namespaceOffloadingControllerFinalizer) {
@@ -109,16 +112,10 @@ func (r *NamespaceOffloadingReconciler) Reconcile(ctx context.Context, req ctrl.
 // Todo: how to awake this controller for every NamespaceOffloading when a new NamespaceMap is created (or recreated).
 // The name of all NamespaceOffloading resources must be always equal to "offloading", resources with a different
 // name are not considered.
-// At the moment the content of NamespaceOffloading.Spec is assumed to be immutable so we have to monitor only the deletion
-// phase and not all updates.
 func namespaceOffloadingPredicate() predicate.Predicate {
 	return predicate.Funcs{
 		UpdateFunc: func(e event.UpdateEvent) bool {
-			if !(e.ObjectNew.GetDeletionTimestamp().IsZero()) && ctrlutils.ContainsFinalizer(e.ObjectNew,
-				namespaceOffloadingControllerFinalizer) && e.ObjectNew.GetName() == liqoconst.DefaultNamespaceOffloadingName {
-				return true
-			}
-			return false
+			return e.ObjectNew.GetName() == liqoconst.DefaultNamespaceOffloadingName
 		},
 		CreateFunc: func(e event.CreateEvent) bool {
 			return e.Object.GetName() == liqoconst.DefaultNamespaceOffloadingName

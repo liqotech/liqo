@@ -4,9 +4,9 @@ go 1.16
 
 require (
 	cloud.google.com/go v0.56.0 // indirect
+	github.com/clastix/capsule v0.1.0-rc2
 	github.com/containernetworking/plugins v0.8.6
 	github.com/coreos/go-iptables v0.4.5
-	github.com/daixiang0/gci v0.2.9 // indirect
 	github.com/google/go-cmp v0.5.5
 	github.com/google/gofuzz v1.2.0 // indirect
 	github.com/google/uuid v1.2.0
