@@ -10,24 +10,6 @@ metadata:
   {{- include "liqo.preDeleteAnnotations" $predelete| nindent 4 }}
 ---
 apiVersion: rbac.authorization.k8s.io/v1
-kind: RoleBinding
-metadata:
-  name: {{ include "liqo.prefixedName" $predelete}}
-  namespace: {{ .Release.Namespace }}
-  labels:
-  {{- include "liqo.labels" $predelete| nindent 4 }}
-  annotations:
-  {{- include "liqo.preDeleteAnnotations" $predelete| nindent 4 }}
-subjects:
-  - kind: ServiceAccount
-    name: {{ include "liqo.prefixedName" $predelete}}
-    namespace: {{ .Release.Namespace }}
-roleRef:
-  apiGroup: rbac.authorization.k8s.io
-  kind: Role
-  name: {{ include "liqo.prefixedName" $predelete}}
----
-apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
 metadata:
   name: {{ include "liqo.prefixedName" $predelete}}

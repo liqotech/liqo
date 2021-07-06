@@ -1,35 +1,41 @@
 package main
 
 import (
+	"context"
 	"os"
+	"os/signal"
 	"path/filepath"
+	"syscall"
 
-	"github.com/pkg/errors"
 	"k8s.io/client-go/dynamic"
-	"k8s.io/client-go/rest"
-	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/klog/v2"
 
 	"github.com/liqotech/liqo/pkg/uninstaller"
+	"github.com/liqotech/liqo/pkg/utils"
 )
 
 // cluster-role
+// +kubebuilder:rbac:groups=net.liqo.io,resources=tunnelendpoints,verbs=get;list;watch;
+// +kubebuilder:rbac:groups=net.liqo.io,resources=networkconfigs,verbs=get;list;watch;
 // +kubebuilder:rbac:groups=config.liqo.io,resources=clusterconfigs,verbs=get;list;watch;patch;update
 // +kubebuilder:rbac:groups=core,resources=events,verbs=create;patch
-// +kubebuilder:rbac:groups=discovery.liqo.io,resources=foreignclusters,verbs=get;list;watch;patch;update
-// role
-// +kubebuilder:rbac:groups=core,namespace="do-not-care",resources=pods,verbs=get;list;watch
+// +kubebuilder:rbac:groups=discovery.liqo.io,resources=foreignclusters,verbs=get;list;watch;patch;update;delete;deletecollection;
 
 func main() {
-	var config *rest.Config
-
+	ctx, cancel := context.WithCancel(context.Background())
+	sig := make(chan os.Signal, 1)
+	signal.Notify(sig, syscall.SIGINT, syscall.SIGTERM)
+	go func() {
+		<-sig
+		cancel()
+	}()
 	kubeconfigPath, ok := os.LookupEnv("KUBECONFIG")
 	if !ok {
 		kubeconfigPath = filepath.Join(os.Getenv("HOME"), ".kube", "config")
 	}
 
 	klog.Infof("Loading dynamic client: %s", kubeconfigPath)
-	config, err := userConfig(kubeconfigPath)
+	config, err := utils.GetRestConfig(kubeconfigPath)
 	if err != nil {
 		klog.Errorf("Unable to create client config: %s", err)
 		os.Exit(1)
@@ -39,39 +45,27 @@ func main() {
 	klog.Infof("Loaded dynamic client: %s", kubeconfigPath)
 
 	// Trigger unjoin clusters
-	err = uninstaller.UnjoinClusters(client)
+	err = uninstaller.UnjoinClusters(ctx, client)
 	if err != nil {
 		klog.Errorf("Unable to unjoin from peered clusters: %s", err)
 		os.Exit(1)
 	}
 	klog.Info("Foreign Cluster unjoin operation has been correctly performed")
 
-	if err = uninstaller.DisableBroadcasting(client); err != nil {
-		klog.Errorf("Unable to deactivate outgoing resource sharing: %s", err)
+	if err = uninstaller.DisableDiscoveryAndPeering(ctx, client); err != nil {
+		klog.Errorf("Unable to deactivate discovery mechanism: %s", err)
 		os.Exit(1)
 	}
+
 	klog.Info("Outgoing Resource sharing has been disabled")
 
 	if err := uninstaller.WaitForResources(client); err != nil {
 		klog.Errorf("Unable to wait deletion of objects: %s", err)
 		os.Exit(1)
 	}
-}
 
-func userConfig(configPath string) (*rest.Config, error) {
-	var config *rest.Config
-	if _, err := os.Stat(configPath); !os.IsNotExist(err) {
-		// Get the kubeconfig from the filepath.
-		config, err = clientcmd.BuildConfigFromFlags("", configPath)
-		if err != nil {
-			return nil, errors.Wrap(err, "error building Client config")
-		}
-	} else {
-		// Set to in-cluster config.
-		config, err = rest.InClusterConfig()
-		if err != nil {
-			return nil, errors.Wrap(err, "error building in cluster config")
-		}
+	if err := uninstaller.DeleteAllForeignClusters(ctx, client); err != nil {
+		klog.Errorf("Unable to delete foreign clusters: %s", err)
+		os.Exit(1)
 	}
-	return config, nil
 }

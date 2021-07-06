@@ -11,6 +11,8 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/rest"
+	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/klog"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
@@ -66,4 +68,16 @@ func RetrieveNamespace() (string, error) {
 		}
 	}
 	return namespace, nil
+}
+
+// GetRestConfig returns a rest.Config object to initialize a client to the target cluster.
+func GetRestConfig(configPath string) (config *rest.Config, err error) {
+	if _, err = os.Stat(configPath); err == nil {
+		// Get the kubeconfig from the filepath.
+		config, err = clientcmd.BuildConfigFromFlags("", configPath)
+	} else {
+		// Set to in-cluster config.
+		config, err = rest.InClusterConfig()
+	}
+	return config, err
 }
