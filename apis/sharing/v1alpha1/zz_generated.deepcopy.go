@@ -108,8 +108,6 @@ func (in *ResourceOfferSpec) DeepCopyInto(out *ResourceOfferSpec) {
 			(*out)[key] = val.DeepCopy()
 		}
 	}
-	in.Timestamp.DeepCopyInto(&out.Timestamp)
-	in.TimeToLive.DeepCopyInto(&out.TimeToLive)
 	if in.WithdrawalTimestamp != nil {
 		in, out := &in.WithdrawalTimestamp, &out.WithdrawalTimestamp
 		*out = (*in).DeepCopy()

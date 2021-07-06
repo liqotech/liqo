@@ -2,7 +2,6 @@ package resourcerequestoperator
 
 import (
 	"context"
-	"time"
 
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/klog/v2"
@@ -26,7 +25,6 @@ type ResourceRequestReconciler struct {
 
 const (
 	offerPrefix = "resourceoffer-"
-	timeToLive  = 30 * time.Minute
 )
 
 // +kubebuilder:rbac:groups=discovery.liqo.io,resources=resourceRequests,verbs=get;list;watch;create;update;patch;
@@ -89,7 +87,7 @@ func (r *ResourceRequestReconciler) Reconcile(ctx context.Context, req ctrl.Requ
 	}()
 
 	if resourceRequest.Spec.WithdrawalTimestamp.IsZero() {
-		err = r.generateResourceOffer(ctx, &resourceRequest)
+		r.Broadcaster.enqueueForCreationOrUpdate(remoteClusterID)
 		if err != nil {
 			klog.Errorf("%s -> Error generating resourceOffer: %s", remoteClusterID, err)
 			return ctrl.Result{}, err

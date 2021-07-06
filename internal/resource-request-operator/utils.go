@@ -3,9 +3,7 @@ package resourcerequestoperator
 import (
 	"context"
 	"fmt"
-	"time"
 
-	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -15,48 +13,8 @@ import (
 
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	sharingv1alpha1 "github.com/liqotech/liqo/apis/sharing/v1alpha1"
-	crdreplicator "github.com/liqotech/liqo/internal/crdReplicator"
 	"github.com/liqotech/liqo/pkg/discovery"
 )
-
-// generateResourceOffer generates a new local ResourceOffer.
-func (r *ResourceRequestReconciler) generateResourceOffer(ctx context.Context, request *discoveryv1alpha1.ResourceRequest) error {
-	resources := r.Broadcaster.ReadResources(request.Spec.ClusterIdentity.ClusterID)
-	offer := &sharingv1alpha1.ResourceOffer{
-		ObjectMeta: metav1.ObjectMeta{
-			Namespace: request.GetNamespace(),
-			Name:      offerPrefix + r.ClusterID,
-		},
-	}
-
-	op, err := controllerutil.CreateOrUpdate(ctx, r.Client, offer, func() error {
-		offer.Labels = map[string]string{
-			discovery.ClusterIDLabel:         request.Spec.ClusterIdentity.ClusterID,
-			crdreplicator.LocalLabelSelector: "true",
-			crdreplicator.DestinationLabel:   request.Spec.ClusterIdentity.ClusterID,
-		}
-		creationTime := metav1.NewTime(time.Now())
-		spec := sharingv1alpha1.ResourceOfferSpec{
-			ClusterId: r.ClusterID,
-			Images:    []corev1.ContainerImage{},
-			ResourceQuota: corev1.ResourceQuotaSpec{
-				Hard: resources,
-			},
-			Labels:     r.Broadcaster.clusterConfig.Spec.DiscoveryConfig.ClusterLabels,
-			Timestamp:  creationTime,
-			TimeToLive: metav1.NewTime(creationTime.Add(timeToLive)),
-		}
-		offer.Spec = spec
-		return controllerutil.SetControllerReference(request, offer, r.Scheme)
-	})
-
-	if err != nil {
-		klog.Error(err)
-		return err
-	}
-	klog.Infof("%s -> %s Offer: %s/%s", r.ClusterID, op, offer.Namespace, offer.Name)
-	return nil
-}
 
 // ensureForeignCluster ensures the ForeignCluster existence, if not exists we have to add a new one
 // with IncomingPeering discovery method.

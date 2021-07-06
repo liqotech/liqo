@@ -14,6 +14,7 @@ import (
 	resourcehelper "k8s.io/kubectl/pkg/util/resource"
 
 	configv1alpha1 "github.com/liqotech/liqo/apis/config/v1alpha1"
+	"github.com/liqotech/liqo/internal/resource-request-operator/interfaces"
 	crdclient "github.com/liqotech/liqo/pkg/crdClient"
 	"github.com/liqotech/liqo/pkg/utils"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/forge"
@@ -21,20 +22,27 @@ import (
 
 // Broadcaster is an object which is used to get resources of the cluster.
 type Broadcaster struct {
-	allocatable    corev1.ResourceList
-	resourcePodMap map[string]corev1.ResourceList
-	clusterConfig  configv1alpha1.ClusterConfig
-	nodeMutex      sync.RWMutex
-	podMutex       sync.RWMutex
-	configMutex    sync.RWMutex
-	nodeInformer   cache.SharedIndexInformer
-	podInformer    cache.SharedIndexInformer
+	allocatable               corev1.ResourceList
+	resourcePodMap            map[string]corev1.ResourceList
+	lastReadResources         map[string]corev1.ResourceList
+	clusterConfig             configv1alpha1.ClusterConfig
+	nodeMutex                 sync.RWMutex
+	podMutex                  sync.RWMutex
+	configMutex               sync.RWMutex
+	nodeInformer              cache.SharedIndexInformer
+	podInformer               cache.SharedIndexInformer
+	updater                   interfaces.UpdaterInterface
+	updateThresholdPercentage uint64
 }
 
 // SetupBroadcaster create the informer e run it to signal node changes updating Offers.
-func (b *Broadcaster) SetupBroadcaster(clientset kubernetes.Interface, resyncPeriod time.Duration) error {
+func (b *Broadcaster) SetupBroadcaster(clientset kubernetes.Interface, updater interfaces.UpdaterInterface,
+	resyncPeriod time.Duration, offerUpdateThreshold uint64) error {
 	b.allocatable = corev1.ResourceList{}
+	b.updateThresholdPercentage = offerUpdateThreshold
+	b.updater = updater
 	b.resourcePodMap = map[string]corev1.ResourceList{}
+	b.lastReadResources = map[string]corev1.ResourceList{}
 	factory := informers.NewSharedInformerFactory(clientset, resyncPeriod)
 	b.nodeInformer = factory.Core().V1().Nodes().Informer()
 	b.nodeInformer.AddEventHandler(cache.ResourceEventHandlerFuncs{
@@ -54,6 +62,7 @@ func (b *Broadcaster) SetupBroadcaster(clientset kubernetes.Interface, resyncPer
 
 // StartBroadcaster starts two shared Informers, one for nodes and one for pods launching two separated goroutines.
 func (b *Broadcaster) StartBroadcaster(ctx context.Context, group *sync.WaitGroup) {
+	go b.updater.Start(ctx, group)
 	go b.startNodeInformer(ctx, group)
 	go b.startPodInformer(ctx, group)
 }
@@ -82,7 +91,8 @@ func (b *Broadcaster) setConfig(configuration *configv1alpha1.ClusterConfig) {
 	b.clusterConfig = *configuration
 }
 
-func (b *Broadcaster) getConfig() *configv1alpha1.ClusterConfig {
+// GetConfig returns an instance of a ClusterConfig resource.
+func (b *Broadcaster) GetConfig() *configv1alpha1.ClusterConfig {
 	b.configMutex.RLock()
 	defer b.configMutex.RUnlock()
 	configCopy := b.clusterConfig.DeepCopy()
@@ -173,8 +183,15 @@ func (b *Broadcaster) onPodDelete(obj interface{}) {
 // write nodes resources in thread safe mode.
 func (b *Broadcaster) writeClusterResources(newResources corev1.ResourceList) {
 	b.nodeMutex.Lock()
+	b.podMutex.RLock()
 	defer b.nodeMutex.Unlock()
+	defer b.podMutex.RUnlock()
 	b.allocatable = newResources.DeepCopy()
+	for clusterID := range b.resourcePodMap {
+		if b.checkThreshold(clusterID) {
+			b.enqueueForCreationOrUpdate(clusterID)
+		}
+	}
 }
 
 // write pods resources in thread safe mode.
@@ -182,6 +199,9 @@ func (b *Broadcaster) writePodsResources(clusterID string, newResources corev1.R
 	b.podMutex.Lock()
 	defer b.podMutex.Unlock()
 	b.resourcePodMap[clusterID] = newResources.DeepCopy()
+	if b.checkThreshold(clusterID) {
+		b.enqueueForCreationOrUpdate(clusterID)
+	}
 }
 
 // ReadResources return in thread safe mode a scaled value of the resources.
@@ -189,12 +209,26 @@ func (b *Broadcaster) ReadResources(clusterID string) corev1.ResourceList {
 	toRead := b.readClusterResources()
 	podsResources := b.readPodResources(clusterID)
 	addResources(toRead, podsResources)
+	b.lastReadResources[clusterID] = toRead
 	for resourceName, quantity := range toRead {
 		scaled := quantity
 		b.scaleResources(resourceName, &scaled)
 		toRead[resourceName] = scaled
 	}
 	return toRead
+}
+
+func (b *Broadcaster) enqueueForCreationOrUpdate(clusterID string) {
+	b.updater.Push(clusterID)
+}
+
+// RemoveClusterID removes a clusterID from all broadcaster internal structures
+// it is useful when a particular foreign cluster has no more peering and its ResourceRequest has been deleted.
+func (b *Broadcaster) RemoveClusterID(clusterID string) {
+	b.podMutex.Lock()
+	defer b.podMutex.Unlock()
+	delete(b.resourcePodMap, clusterID)
+	delete(b.lastReadResources, clusterID)
 }
 
 func (b *Broadcaster) readClusterResources() corev1.ResourceList {
@@ -212,8 +246,24 @@ func (b *Broadcaster) readPodResources(clusterID string) corev1.ResourceList {
 	return corev1.ResourceList{}
 }
 
+func (b *Broadcaster) checkThreshold(clusterID string) bool {
+	for resourceName, resources := range b.resourcePodMap[clusterID] {
+		clusterResources := b.allocatable[resourceName]
+		lastRead := b.lastReadResources[clusterID][resourceName]
+		clusterResourcesValue := clusterResources.Value()
+		resourcePodValue := resources.Value()
+		lastReadValue := lastRead.Value()
+		diff := (clusterResourcesValue + resourcePodValue) - lastReadValue
+		if diff > lastReadValue*int64(b.updateThresholdPercentage)/100 {
+			return true
+		}
+	}
+
+	return false
+}
+
 func (b *Broadcaster) scaleResources(resourceName corev1.ResourceName, quantity *resource.Quantity) {
-	percentage := int64(b.getConfig().Spec.AdvertisementConfig.OutgoingConfig.ResourceSharingPercentage)
+	percentage := int64(b.GetConfig().Spec.AdvertisementConfig.OutgoingConfig.ResourceSharingPercentage)
 
 	switch resourceName {
 	case corev1.ResourceCPU:
