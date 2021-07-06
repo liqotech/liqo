@@ -3,8 +3,10 @@ package overlay
 import (
 	"errors"
 	"fmt"
+	"io/ioutil"
 	"net"
 	"reflect"
+	"strings"
 	"syscall"
 
 	"github.com/vishvananda/netlink"
@@ -49,9 +51,14 @@ func NewVxlanDevice(devAttrs *VxlanDeviceAttrs) (*VxlanDevice, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &VxlanDevice{
+	v := &VxlanDevice{
 		Link: link,
-	}, nil
+	}
+	// Enable reverse path filtering for vxlan device.
+	if err := v.enableRPFilter(); err != nil {
+		return nil, err
+	}
+	return v, nil
 }
 
 func createVxLanLink(link *netlink.Vxlan) (*netlink.Vxlan, error) {
@@ -185,4 +192,18 @@ func (vxlan *VxlanDevice) DelFDB(n Neighbor) (bool, error) {
 	klog.V(4).Infof("fdb entry with mac {%s} and dst {%s} on device {%s} has been removed",
 		n.MAC.String(), n.IP.String(), vxlan.Link.Name)
 	return true, nil
+}
+
+// enableRPFilter sets the rp_filter in loose mode for the current overlay interface.
+func (vxlan *VxlanDevice) enableRPFilter() error {
+	ifaceName := vxlan.Link.Name
+	klog.V(4).Infof("setting reverse path filtering for interface {%s} to loose mode", ifaceName)
+	rpFilterFilePath := strings.Join([]string{"/proc/sys/net/ipv4/conf/", ifaceName, "/rp_filter"}, "")
+	// Enable loose mode reverse path filtering on the overlay interface.
+	err := ioutil.WriteFile(rpFilterFilePath, []byte("2"), 0600)
+	if err != nil {
+		klog.Errorf("an error occurred while writing to file %s: %v", rpFilterFilePath, err)
+		return err
+	}
+	return nil
 }

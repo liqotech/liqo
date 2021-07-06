@@ -1,4 +1,4 @@
-package liqonet_test
+package ipam_test
 
 import (
 	"testing"
@@ -7,7 +7,7 @@ import (
 	. "github.com/onsi/gomega"
 )
 
-func TestLiqonet(t *testing.T) {
+func TestIpam(t *testing.T) {
 	RegisterFailHandler(Fail)
-	RunSpecs(t, "Liqonet Suite")
+	RunSpecs(t, "Ipam Suite")
 }

@@ -129,13 +129,25 @@ func (r *ResourceOfferReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 		}
 	}
 
-	if canDeleteVirtualKubeletDeployment(&resourceOffer) {
+	deletingPhase := getDeleteVirtualKubeletPhase(&resourceOffer)
+	switch deletingPhase {
+	case kubeletDeletePhaseNodeDeleted:
 		// delete virtual kubelet deployment
 		if err = r.deleteVirtualKubeletDeployment(ctx, &resourceOffer); err != nil {
 			klog.Error(err)
 			return ctrl.Result{}, err
 		}
+		resourceOffer.Status.VirtualKubeletStatus = sharingv1alpha1.VirtualKubeletStatusNone
 		return result, nil
+	case kubeletDeletePhaseDrainingNode:
+		// set virtual kubelet in deleting phase
+		resourceOffer.Status.VirtualKubeletStatus = sharingv1alpha1.VirtualKubeletStatusDeleting
+	case kubeletDeletePhaseNone:
+		break
+	default:
+		err = fmt.Errorf("unknown deleting phase %v", deletingPhase)
+		klog.Error(err)
+		return result, err
 	}
 
 	// create the virtual kubelet deployment

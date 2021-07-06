@@ -42,7 +42,7 @@ import (
 // +kubebuilder:rbac:groups=certificates.k8s.io,resources=signers,verbs=approve
 // tenant control namespace management
 // +kubebuilder:rbac:groups=core,resources=secrets,verbs=get;list;create;delete
-// +kubebuilder:rbac:groups=rbac.authorization.k8s.io,resources=rolebindings,verbs=create;deletecollection
+// +kubebuilder:rbac:groups=rbac.authorization.k8s.io,resources=rolebindings,verbs=get;create;deletecollection;delete
 // role
 // +kubebuilder:rbac:groups=core,namespace="do-not-care",resources=secrets,verbs=create;update;get;list;watch;delete
 // +kubebuilder:rbac:groups=core,namespace="do-not-care",resources=configmaps,verbs=create;update;get;list;watch;delete

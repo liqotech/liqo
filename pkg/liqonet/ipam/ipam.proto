@@ -1,5 +1,5 @@
 syntax="proto3";
-option go_package = "./liqonet";
+option go_package = "./ipam";
 
 service ipam {
     rpc MapEndpointIP (MapRequest) returns (MapResponse);

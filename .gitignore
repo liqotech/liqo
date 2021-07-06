@@ -22,5 +22,6 @@ bin
 *~
 *.tgz
 .vscode
+.devcontainer
 
 externalcrds

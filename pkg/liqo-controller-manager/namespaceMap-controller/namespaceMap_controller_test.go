@@ -53,13 +53,6 @@ var _ = Describe("NamespaceMap controller", func() {
 			err := homeClient.Update(context.TODO(), nms.Items[0].DeepCopy())
 			return err == nil
 		}, timeout, interval).Should(BeTrue())
-		Eventually(func() bool {
-			if err := homeClient.List(context.TODO(), nms, client.MatchingLabels{liqoconst.RemoteClusterID: remoteClusterID1}); err != nil {
-				return false
-			}
-			Expect(len(nms.Items) == 1).To(BeTrue())
-			return !ctrlutils.ContainsFinalizer(nms.Items[0].DeepCopy(), namespaceMapControllerFinalizer)
-		}, timeout*2, interval).Should(BeTrue())
 	})
 
 	Context("Check creation and deletion of remote Namespace", func() {
@@ -102,9 +95,11 @@ var _ = Describe("NamespaceMap controller", func() {
 			By(" 4 - Insert fake RoleBindings inside the remote namespace")
 			roleBinding1 := testutils.GetRoleBindingForASpecificNamespace(namespace1Name, localClusterID, 1)
 			roleBinding2 := testutils.GetRoleBindingForASpecificNamespace(namespace1Name, localClusterID, 2)
+			roleBinding3 := testutils.GetRoleBindingForASpecificNamespace(namespace1Name, localClusterID, 3)
 			_, err1 := remoteClient1.RbacV1().RoleBindings(roleBinding1.Namespace).Create(context.TODO(), &roleBinding1, metav1.CreateOptions{})
 			_, err2 := remoteClient1.RbacV1().RoleBindings(roleBinding2.Namespace).Create(context.TODO(), &roleBinding2, metav1.CreateOptions{})
-			Expect(err1 == nil && err2 == nil).To(BeTrue())
+			_, err3 := remoteClient1.RbacV1().RoleBindings(roleBinding3.Namespace).Create(context.TODO(), &roleBinding3, metav1.CreateOptions{})
+			Expect(err1 == nil && err2 == nil && err3 == nil).To(BeTrue())
 
 			By(" 5 - Checking status of CurrentMapping entry: must be 'Accepted'")
 			Eventually(func() bool {
@@ -176,16 +171,6 @@ var _ = Describe("NamespaceMap controller", func() {
 				return err == nil
 			}, timeout, interval).Should(BeTrue())
 
-			// controller restarts with exponential backoff
-			By(" 10 - Check if NamespaceMap Controller finalizer is removed")
-			Eventually(func() bool {
-				if err := homeClient.List(context.TODO(), nms, client.MatchingLabels{liqoconst.RemoteClusterID: remoteClusterID1}); err != nil {
-					return false
-				}
-				Expect(len(nms.Items) == 1).To(BeTrue())
-				return !ctrlutils.ContainsFinalizer(nms.Items[0].DeepCopy(), namespaceMapControllerFinalizer)
-			}, timeout*2, interval).Should(BeTrue())
-
 		})
 
 		It(fmt.Sprintf("Check NamespaceMap status when a remote namespace with the same name '%s' "+
@@ -235,7 +220,7 @@ var _ = Describe("NamespaceMap controller", func() {
 
 			By("------- STARTING DELETION PHASE -------")
 
-			By(fmt.Sprintf(" 5 - Delete desired mapping entry for namespace '%s'", namespace1Name))
+			By(fmt.Sprintf(" 5 - Delete desired mapping entry for the namespace '%s'", namespace1Name))
 			Eventually(func() bool {
 				Expect(homeClient.List(context.TODO(), nms, client.MatchingLabels{liqoconst.RemoteClusterID: remoteClusterID1})).To(Succeed())
 				Expect(len(nms.Items) == 1).To(BeTrue())
@@ -244,15 +229,13 @@ var _ = Describe("NamespaceMap controller", func() {
 				return err == nil
 			}, timeout, interval).Should(BeTrue())
 
-			By(" 6 - Check if NamespaceMap Controller finalizer is removed")
+			By(fmt.Sprintf(" 6 - Check if current mapping entry for the namespace '%s' is not present", namespace1Name))
 			Eventually(func() bool {
-				if err := homeClient.List(context.TODO(), nms, client.MatchingLabels{liqoconst.RemoteClusterID: remoteClusterID1}); err != nil {
-					return false
-				}
+				Expect(homeClient.List(context.TODO(), nms, client.MatchingLabels{liqoconst.RemoteClusterID: remoteClusterID1})).To(Succeed())
 				Expect(len(nms.Items) == 1).To(BeTrue())
-				return !ctrlutils.ContainsFinalizer(nms.Items[0].DeepCopy(), namespaceMapControllerFinalizer)
-			}, timeout*2, interval).Should(BeTrue())
-
+				_, ok := nms.Items[0].Status.CurrentMapping[namespace1Name]
+				return !ok
+			}, timeout, interval).Should(BeTrue())
 		})
 
 	})
@@ -304,15 +287,20 @@ var _ = Describe("NamespaceMap controller", func() {
 				return err == nil
 			}, timeout, interval).Should(BeTrue())
 
-			By(fmt.Sprintf(" 4 - Create 2 rolebindings for the namespace %s", namespace2Name))
+			By(fmt.Sprintf(" 4 - Create 3 rolebindings for the namespace %s", namespace2Name))
 			roleBinding1 := testutils.GetRoleBindingForASpecificNamespace(namespace2Name, localClusterID, 1)
 			roleBinding2 := testutils.GetRoleBindingForASpecificNamespace(namespace2Name, localClusterID, 2)
+			roleBinding3 := testutils.GetRoleBindingForASpecificNamespace(namespace2Name, localClusterID, 3)
 			Eventually(func() bool {
 				_, err := remoteClient1.RbacV1().RoleBindings(roleBinding1.Namespace).Create(context.TODO(), &roleBinding1, metav1.CreateOptions{})
 				return err == nil
 			}, timeout, interval).Should(BeTrue())
 			Eventually(func() bool {
 				_, err := remoteClient1.RbacV1().RoleBindings(roleBinding2.Namespace).Create(context.TODO(), &roleBinding2, metav1.CreateOptions{})
+				return err == nil
+			}, timeout, interval).Should(BeTrue())
+			Eventually(func() bool {
+				_, err := remoteClient1.RbacV1().RoleBindings(roleBinding3.Namespace).Create(context.TODO(), &roleBinding3, metav1.CreateOptions{})
 				return err == nil
 			}, timeout, interval).Should(BeTrue())
 
@@ -325,7 +313,8 @@ var _ = Describe("NamespaceMap controller", func() {
 
 			// No roleBindings are created for the remote namespaces 'namespace4Name' and 'namespace5Name'.
 
-			By(" 6 - Check len of DesiredMapping (len==4) and MappingPhase must be 'Accepted' ")
+			By(" 6 - Check len of DesiredMapping (len==4) and MappingPhase must be 'Accepted' or 'CreationLoopBackOff' " +
+				"according to the number of roleBindings in the remote namespace")
 			Eventually(func() bool {
 				Expect(homeClient.List(context.TODO(), nms, client.MatchingLabels{liqoconst.RemoteClusterID: remoteClusterID1})).To(Succeed())
 				Expect(len(nms.Items) == 1).To(BeTrue())
@@ -333,7 +322,7 @@ var _ = Describe("NamespaceMap controller", func() {
 					return false
 				}
 				return nms.Items[0].Status.CurrentMapping[namespace2Name].Phase == mapsv1alpha1.MappingAccepted &&
-					nms.Items[0].Status.CurrentMapping[namespace3Name].Phase == mapsv1alpha1.MappingAccepted &&
+					nms.Items[0].Status.CurrentMapping[namespace3Name].Phase == mapsv1alpha1.MappingCreationLoopBackOff &&
 					nms.Items[0].Status.CurrentMapping[namespace4Name].Phase == mapsv1alpha1.MappingCreationLoopBackOff &&
 					nms.Items[0].Status.CurrentMapping[namespace5Name].Phase == mapsv1alpha1.MappingCreationLoopBackOff
 			}, timeout, interval).Should(BeTrue())

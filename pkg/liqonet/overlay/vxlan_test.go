@@ -267,4 +267,13 @@ var _ = Describe("Vxlan", func() {
 			})
 		})
 	})
+
+	Describe("configure reverse path filtering for vxlan interface", func() {
+		Context("setting the rp_filter to 2", func() {
+			It("should return nil", func() {
+				err := vxlanDev.enableRPFilter()
+				Expect(err).ShouldNot(HaveOccurred())
+			})
+		})
+	})
 })

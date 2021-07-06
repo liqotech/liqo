@@ -7,13 +7,14 @@ require (
 	github.com/clastix/capsule v0.1.0-rc2
 	github.com/containernetworking/plugins v0.8.6
 	github.com/coreos/go-iptables v0.4.5
+	github.com/daixiang0/gci v0.2.9 // indirect
 	github.com/google/go-cmp v0.5.5
 	github.com/google/gofuzz v1.2.0 // indirect
 	github.com/google/uuid v1.2.0
 	github.com/gorilla/mux v1.8.0
 	github.com/grandcat/zeroconf v1.0.0
 	github.com/gruntwork-io/gruntwork-cli v0.7.0
-	github.com/gruntwork-io/terratest v0.30.7
+	github.com/gruntwork-io/terratest v0.35.6
 	github.com/jinzhu/copier v0.0.0-20201025035756-632e723a6687
 	github.com/julienschmidt/httprouter v1.3.0
 	github.com/metal-stack/go-ipam v1.8.4-0.20210322080203-5a9da5064b27

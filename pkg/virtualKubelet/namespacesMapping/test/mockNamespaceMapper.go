@@ -28,3 +28,10 @@ func (m *MockNamespaceMapper) DeNatNamespace(namespace string) (string, error) {
 	}
 	return "", errors.New("not found")
 }
+
+// Clear is a function used in tests only to clear the mock's state.
+func (m *MockNamespaceMapper) Clear() {
+	for k := range m.Cache {
+		delete(m.Cache, k)
+	}
+}

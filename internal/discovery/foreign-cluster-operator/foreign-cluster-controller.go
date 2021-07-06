@@ -103,7 +103,7 @@ type ForeignClusterReconciler struct {
 // tenant control namespace management
 // +kubebuilder:rbac:groups=core,resources=namespaces,verbs=get;list;watch;create
 // +kubebuilder:rbac:groups=core,resources=secrets,verbs=get;list;create;delete;update
-// +kubebuilder:rbac:groups=rbac.authorization.k8s.io,resources=rolebindings,verbs=create;deletecollection
+// +kubebuilder:rbac:groups=rbac.authorization.k8s.io,resources=rolebindings,verbs=get;create;deletecollection;delete
 // role
 // +kubebuilder:rbac:groups=core,namespace="liqo",resources=services,verbs=get
 // +kubebuilder:rbac:groups=core,namespace="liqo",resources=configmaps,verbs=get;list;watch;create;update;delete
@@ -167,7 +167,8 @@ func (r *ForeignClusterReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 	// ------ (3) peering/unpeering logic ------
 
 	// read the ForeignCluster status and ensure the peering state
-	switch r.getDesiredOutgoingPeeringState(&foreignCluster) {
+	phase := r.getDesiredOutgoingPeeringState(&foreignCluster)
+	switch phase {
 	case desiredPeeringPhasePeering:
 		if err = r.peerNamespaced(ctx, &foreignCluster); err != nil {
 			klog.Error(err)
@@ -178,6 +179,10 @@ func (r *ForeignClusterReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 			klog.Error(err)
 			return ctrl.Result{}, err
 		}
+	default:
+		err := fmt.Errorf("unknown phase %v", phase)
+		klog.Error(err)
+		return ctrl.Result{}, err
 	}
 
 	// ------ (4) update peering conditions ------
@@ -337,14 +342,39 @@ func (r *ForeignClusterReconciler) Unpeer(fc *discoveryv1alpha1.ForeignCluster,
 // unpeerNamespaced disables the peering deleting the resources in the correct TenantControlNamespace.
 func (r *ForeignClusterReconciler) unpeerNamespaced(ctx context.Context,
 	foreignCluster *discoveryv1alpha1.ForeignCluster) error {
-	// resource request has to be removed
-	err := r.deleteResourceRequest(ctx, foreignCluster)
-	if err != nil && !errors.IsNotFound(err) {
+	var resourceRequest discoveryv1alpha1.ResourceRequest
+	err := r.Client.Get(ctx, types.NamespacedName{
+		Namespace: foreignCluster.Status.TenantControlNamespace.Local,
+		Name:      r.clusterID.GetClusterID(),
+	}, &resourceRequest)
+	if errors.IsNotFound(err) {
+		foreignCluster.Status.Outgoing.PeeringPhase = discoveryv1alpha1.PeeringPhaseNone
+		return nil
+	}
+	if err != nil {
 		klog.Error(err)
 		return err
 	}
 
-	foreignCluster.Status.Outgoing.PeeringPhase = discoveryv1alpha1.PeeringPhaseDisconnecting
+	if resourceRequest.Status.OfferWithdrawalTimestamp.IsZero() {
+		if resourceRequest.Spec.WithdrawalTimestamp.IsZero() {
+			now := metav1.Now()
+			resourceRequest.Spec.WithdrawalTimestamp = &now
+		}
+		err = r.Client.Update(ctx, &resourceRequest)
+		if err != nil && !errors.IsNotFound(err) {
+			klog.Error(err)
+			return err
+		}
+		foreignCluster.Status.Outgoing.PeeringPhase = discoveryv1alpha1.PeeringPhaseDisconnecting
+	} else {
+		err = r.deleteResourceRequest(ctx, foreignCluster)
+		if err != nil && !errors.IsNotFound(err) {
+			klog.Error(err)
+			return err
+		}
+		foreignCluster.Status.Outgoing.PeeringPhase = discoveryv1alpha1.PeeringPhaseNone
+	}
 	return nil
 }
 
@@ -400,6 +430,12 @@ func getPeeringPhase(resourceRequestList *discoveryv1alpha1.ResourceRequestList)
 	case 0:
 		return discoveryv1alpha1.PeeringPhaseNone, nil
 	case 1:
+		resourceRequest := &resourceRequestList.Items[0]
+		desiredDelete := !resourceRequest.Spec.WithdrawalTimestamp.IsZero()
+		deleted := !resourceRequest.Status.OfferWithdrawalTimestamp.IsZero()
+		if desiredDelete && !deleted {
+			return discoveryv1alpha1.PeeringPhaseDisconnecting, nil
+		}
 		return discoveryv1alpha1.PeeringPhaseEstablished, nil
 	default:
 		err := fmt.Errorf("more than one resource request found")

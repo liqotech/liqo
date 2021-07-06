@@ -6,7 +6,7 @@ import (
 
 	corev1 "k8s.io/api/core/v1"
 	k8shelper "k8s.io/component-helpers/scheduling/corev1"
-	"k8s.io/klog"
+	"k8s.io/klog/v2"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	offv1alpha1 "github.com/liqotech/liqo/apis/offloading/v1alpha1"
@@ -14,10 +14,10 @@ import (
 	liqoconst "github.com/liqotech/liqo/pkg/consts"
 )
 
-func (r *NamespaceOffloadingReconciler) enforceClusterSelector(noff *offv1alpha1.NamespaceOffloading,
+func (r *NamespaceOffloadingReconciler) enforceClusterSelector(ctx context.Context, noff *offv1alpha1.NamespaceOffloading,
 	clusterIDMap map[string]*mapsv1alpha1.NamespaceMap) error {
 	virtualNodes := &corev1.NodeList{}
-	if err := r.List(context.TODO(), virtualNodes,
+	if err := r.List(ctx, virtualNodes,
 		client.MatchingLabels{liqoconst.TypeLabel: liqoconst.TypeNode}); err != nil {
 		klog.Error(err, " --> Unable to List all virtual nodes")
 		return err
@@ -42,7 +42,7 @@ func (r *NamespaceOffloadingReconciler) enforceClusterSelector(noff *offv1alpha1
 				noff.Annotations = map[string]string{}
 			}
 			noff.Annotations[liqoconst.SchedulingLiqoLabel] = fmt.Sprintf("Invalid Cluster Selector : %s", err)
-			if err = r.Patch(context.TODO(), noff, client.MergeFrom(patch)); err != nil {
+			if err = r.Patch(ctx, noff, client.MergeFrom(patch)); err != nil {
 				klog.Errorf("%s -> unable to add the liqo scheduling annotation to the NamespaceOffloading in the namespace '%s'",
 					err, noff.Namespace)
 				return err
@@ -52,7 +52,7 @@ func (r *NamespaceOffloadingReconciler) enforceClusterSelector(noff *offv1alpha1
 			break
 		}
 		if match {
-			if err = addDesiredMapping(r.Client, noff.Namespace, noff.Status.RemoteNamespaceName,
+			if err = addDesiredMapping(ctx, r.Client, noff.Namespace, noff.Status.RemoteNamespaceName,
 				clusterIDMap[virtualNodes.Items[i].Annotations[liqoconst.RemoteClusterID]]); err != nil {
 				errorCondition = true
 				continue

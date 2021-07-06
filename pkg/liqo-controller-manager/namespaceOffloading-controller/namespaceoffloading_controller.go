@@ -20,7 +20,7 @@ import (
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/klog"
+	"k8s.io/klog/v2"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	ctrlutils "sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
@@ -94,7 +94,7 @@ func (r *NamespaceOffloadingReconciler) Reconcile(ctx context.Context, req ctrl.
 		}
 	}
 	// Request creation of remote Namespaces according to the ClusterSelector field.
-	if err := r.enforceClusterSelector(namespaceOffloading, clusterIDMap); err != nil {
+	if err := r.enforceClusterSelector(ctx, namespaceOffloading, clusterIDMap); err != nil {
 		return ctrl.Result{}, err
 	}
 

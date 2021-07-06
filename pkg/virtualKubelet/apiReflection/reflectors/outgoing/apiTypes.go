@@ -7,7 +7,7 @@ import (
 	"k8s.io/klog"
 
 	liqoconst "github.com/liqotech/liqo/pkg/consts"
-	"github.com/liqotech/liqo/pkg/liqonet"
+	liqonetIpam "github.com/liqotech/liqo/pkg/liqonet/ipam"
 	apimgmt "github.com/liqotech/liqo/pkg/virtualKubelet/apiReflection"
 	ri "github.com/liqotech/liqo/pkg/virtualKubelet/apiReflection/reflectors/reflectorsInterfaces"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/options"
@@ -32,7 +32,7 @@ func endpointslicesReflectorBuilder(reflector ri.APIReflector, opts map[options.
 	if err != nil {
 		klog.Error(err)
 	}
-	ipamClient := liqonet.NewIpamClient(conn)
+	ipamClient := liqonetIpam.NewIpamClient(conn)
 
 	return &EndpointSlicesReflector{
 		APIReflector:    reflector,

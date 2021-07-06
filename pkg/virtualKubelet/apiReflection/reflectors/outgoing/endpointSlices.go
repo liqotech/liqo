@@ -13,7 +13,7 @@ import (
 	"k8s.io/client-go/util/retry"
 	"k8s.io/klog"
 
-	"github.com/liqotech/liqo/pkg/liqonet"
+	liqonetIpam "github.com/liqotech/liqo/pkg/liqonet/ipam"
 	"github.com/liqotech/liqo/pkg/utils"
 	apimgmt "github.com/liqotech/liqo/pkg/virtualKubelet/apiReflection"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/apiReflection/reflectors"
@@ -29,7 +29,7 @@ type EndpointSlicesReflector struct {
 	ri.APIReflector
 
 	VirtualNodeName options.ReadOnlyOption
-	IpamClient      liqonet.IpamClient
+	IpamClient      liqonetIpam.IpamClient
 }
 
 func (r *EndpointSlicesReflector) SetSpecializedPreProcessingHandlers() {
@@ -177,7 +177,7 @@ func (r *EndpointSlicesReflector) PreDelete(obj interface{}) (interface{}, watch
 	endpointSliceLocal.Namespace = nattedNs
 
 	for _, endpoint := range endpointSliceLocal.Endpoints {
-		_, err := r.IpamClient.UnmapEndpointIP(context.Background(), &liqonet.UnmapRequest{ClusterID: clusterID, Ip: endpoint.Addresses[0]})
+		_, err := r.IpamClient.UnmapEndpointIP(context.Background(), &liqonetIpam.UnmapRequest{ClusterID: clusterID, Ip: endpoint.Addresses[0]})
 		if err != nil {
 			klog.Error(err)
 		}
@@ -186,14 +186,14 @@ func (r *EndpointSlicesReflector) PreDelete(obj interface{}) (interface{}, watch
 	return endpointSliceLocal, watch.Deleted
 }
 
-func filterEndpoints(slice *discoveryv1beta1.EndpointSlice, ipamClient liqonet.IpamClient, nodeName string) []discoveryv1beta1.Endpoint {
+func filterEndpoints(slice *discoveryv1beta1.EndpointSlice, ipamClient liqonetIpam.IpamClient, nodeName string) []discoveryv1beta1.Endpoint {
 	var epList []discoveryv1beta1.Endpoint
 	// Two possibilities: (1) exclude all virtual nodes (2)
 	for _, v := range slice.Endpoints {
 		t := v.Topology["kubernetes.io/hostname"]
 		if t != nodeName {
 			response, err := ipamClient.MapEndpointIP(context.Background(),
-				&liqonet.MapRequest{ClusterID: utils.GetClusterIDFromNodeName(nodeName), Ip: v.Addresses[0]})
+				&liqonetIpam.MapRequest{ClusterID: utils.GetClusterIDFromNodeName(nodeName), Ip: v.Addresses[0]})
 			if err != nil {
 				klog.Error(err)
 			}
