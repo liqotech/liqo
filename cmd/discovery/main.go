@@ -41,7 +41,6 @@ func main() {
 	var kubeconfigPath string
 	var resolveContextRefreshTime int // minutes
 	var dialTCPTimeout int64          // milliseconds
-	var useNewAuth bool
 
 	flag.StringVar(&namespace, "namespace", "default", "Namespace where your configs are stored.")
 	flag.Int64Var(&requeueAfter, "requeueAfter", 30, "Period after that PeeringRequests status is rechecked (seconds)")
@@ -51,8 +50,6 @@ func main() {
 		"resolveContextRefreshTime", 10, "Period after that mDNS resolve context is refreshed (minutes)")
 	flag.Int64Var(&dialTCPTimeout,
 		"dialTcpTimeout", 500, "Time to wait for a TCP connection to a remote cluster before to consider it as not reachable (milliseconds)")
-	flag.BoolVar(&useNewAuth,
-		"useNewAuth", false, "Enable the new authentication flow, with certificates and namespaced resources")
 
 	klog.InitFlags(nil)
 	flag.Parse()
@@ -96,7 +93,7 @@ func main() {
 	searchdomainoperator.StartOperator(mgr, time.Duration(requeueAfter)*time.Second, discoveryCtl, kubeconfigPath)
 
 	klog.Info("Starting ForeignCluster operator")
-	foreignclusteroperator.StartOperator(mgr, namespace, time.Duration(requeueAfter)*time.Second, discoveryCtl, kubeconfigPath, useNewAuth)
+	foreignclusteroperator.StartOperator(mgr, namespace, time.Duration(requeueAfter)*time.Second, discoveryCtl, kubeconfigPath)
 
 	if err := mgr.Start(ctrl.SetupSignalHandler()); err != nil {
 		klog.Error(err, "problem running manager")

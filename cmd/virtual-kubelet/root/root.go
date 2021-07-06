@@ -19,7 +19,6 @@ import (
 	"fmt"
 	"os"
 	"path"
-	"strings"
 	"time"
 
 	"github.com/pkg/errors"
@@ -29,6 +28,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
 	kubeinformers "k8s.io/client-go/informers"
+	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/scheme"
 	coordv1 "k8s.io/client-go/kubernetes/typed/coordination/v1"
 	"k8s.io/client-go/rest"
@@ -80,7 +80,7 @@ func runRootCommand(ctx context.Context, s *provider.Store, c *Opts) error {
 		return errdefs.InvalidInput("pod sync workers must be greater than 0")
 	}
 
-	client, err := v1alpha1.CreateAdvertisementClient(c.HomeKubeconfig, nil, false, func(config *rest.Config) {
+	config, err := crdclient.NewKubeconfig(c.HomeKubeconfig, nil, func(config *rest.Config) {
 		config.QPS = virtualKubelet.HOME_CLIENT_QPS
 		config.Burst = virtualKubelet.HOME_CLIENTS_BURST
 	})
@@ -88,9 +88,14 @@ func runRootCommand(ctx context.Context, s *provider.Store, c *Opts) error {
 		return err
 	}
 
+	client, err := kubernetes.NewForConfig(config)
+	if err != nil {
+		return err
+	}
+
 	// Create a shared informer factory for Kubernetes pods in the current namespace (if specified) and scheduled to the current node.
 	podInformerFactory := kubeinformers.NewSharedInformerFactoryWithOptions(
-		client.Client(),
+		client,
 		c.InformerResyncPeriod,
 		kubeinformers.WithTweakListOptions(func(options *metav1.ListOptions) {
 			options.FieldSelector = fields.OneTermEqualSelector("spec.nodeName", c.NodeName).String()
@@ -98,7 +103,7 @@ func runRootCommand(ctx context.Context, s *provider.Store, c *Opts) error {
 	podInformer := podInformerFactory.Core().V1().Pods()
 
 	// Create another shared informer factory for Kubernetes secrets and configmaps (not subject to any selectors).
-	scmInformerFactory := kubeinformers.NewSharedInformerFactoryWithOptions(client.Client(), c.InformerResyncPeriod)
+	scmInformerFactory := kubeinformers.NewSharedInformerFactoryWithOptions(client, c.InformerResyncPeriod)
 	// Create a secret informer and a config map informer so we can pass their listers to the resource manager.
 	secretInformer := scmInformerFactory.Core().V1().Secrets()
 	configMapInformer := scmInformerFactory.Core().V1().ConfigMaps()
@@ -126,7 +131,6 @@ func runRootCommand(ctx context.Context, s *provider.Store, c *Opts) error {
 		RemoteKubeConfig:     c.ForeignKubeconfig,
 		InformerResyncPeriod: c.InformerResyncPeriod,
 		LiqoIpamServer:       c.LiqoIpamServer,
-		UseNewAuth:           c.UseNewAuth,
 	}
 
 	pInit := s.Get(c.Provider)
@@ -141,15 +145,12 @@ func runRootCommand(ctx context.Context, s *provider.Store, c *Opts) error {
 
 	var leaseClient coordv1.LeaseInterface
 	if c.EnableNodeLease {
-		leaseClient = client.Client().CoordinationV1().Leases(corev1.NamespaceNodeLease)
+		leaseClient = client.CoordinationV1().Leases(corev1.NamespaceNodeLease)
 	}
-
-	advName := strings.Join([]string{virtualKubelet.AdvertisementPrefix, c.ForeignClusterId}, "")
-	refs := createOwnerReference(client, advName, "")
 
 	var nodeRunner *module.NodeController
 
-	pNode, err := nodeProvider.NodeFromProvider(ctx, c.NodeName, p, c.Version, refs)
+	pNode, err := nodeProvider.NodeFromProvider(ctx, c.NodeName, p, c.Version, []metav1.OwnerReference{})
 	if err != nil {
 		klog.Fatal(err)
 	}
@@ -161,9 +162,8 @@ func runRootCommand(ctx context.Context, s *provider.Store, c *Opts) error {
 		liqoProvider.SetProviderStopper(podProviderStopper)
 		networkReadyChan := liqoProvider.GetNetworkReadyChan()
 
-		liqoNodeProvider, err := liqonodeprovider.NewLiqoNodeProvider(c.NodeName, advName, c.ForeignClusterId,
-			c.KubeletNamespace, pNode, podProviderStopper, networkReadyChan, nil, c.LiqoInformerResyncPeriod,
-			c.UseNewAuth)
+		liqoNodeProvider, err := liqonodeprovider.NewLiqoNodeProvider(c.NodeName, c.ForeignClusterId,
+			c.KubeletNamespace, pNode, podProviderStopper, networkReadyChan, nil, c.LiqoInformerResyncPeriod)
 		if err != nil {
 			klog.Fatal(err)
 		}
@@ -177,17 +177,13 @@ func runRootCommand(ctx context.Context, s *provider.Store, c *Opts) error {
 	nodeRunner, err = module.NewNodeController(
 		nodeProviderModule,
 		pNode,
-		client.Client().CoreV1().Nodes(),
+		client.CoreV1().Nodes(),
 		module.WithNodeEnableLeaseV1(leaseClient, nil),
 		module.WithNodeStatusUpdateErrorHandler(
 			func(ctx context.Context, err error) error {
 				klog.Info("node setting up")
 				newNode := pNode.DeepCopy()
 				newNode.ResourceVersion = ""
-
-				if len(refs) > 0 {
-					newNode.SetOwnerReferences(refs)
-				}
 
 				if liqoNodeProvider, ok := nodeProviderModule.(*liqonodeprovider.LiqoNodeProvider); ok {
 					if liqoNodeProvider.IsTerminating() {
@@ -197,17 +193,17 @@ func runRootCommand(ctx context.Context, s *provider.Store, c *Opts) error {
 					}
 				}
 
-				oldNode, newErr := client.Client().CoreV1().Nodes().Get(context.TODO(), newNode.Name, metav1.GetOptions{})
+				oldNode, newErr := client.CoreV1().Nodes().Get(context.TODO(), newNode.Name, metav1.GetOptions{})
 				if newErr != nil {
 					if !k8serrors.IsNotFound(newErr) {
 						klog.Error(newErr, "node error")
 						return newErr
 					}
-					_, newErr = client.Client().CoreV1().Nodes().Create(context.TODO(), newNode, metav1.CreateOptions{})
+					_, newErr = client.CoreV1().Nodes().Create(context.TODO(), newNode, metav1.CreateOptions{})
 					klog.Info("new node created")
 				} else {
 					oldNode.Status = newNode.Status
-					_, newErr = client.Client().CoreV1().Nodes().UpdateStatus(context.TODO(), oldNode, metav1.UpdateOptions{})
+					_, newErr = client.CoreV1().Nodes().UpdateStatus(context.TODO(), oldNode, metav1.UpdateOptions{})
 					if newErr != nil {
 						klog.Info("node updated")
 					}
@@ -226,7 +222,7 @@ func runRootCommand(ctx context.Context, s *provider.Store, c *Opts) error {
 	eb := record.NewBroadcaster()
 
 	pc, err := module.NewPodController(&module.PodControllerConfig{
-		PodClient:                            client.Client().CoreV1(),
+		PodClient:                            client.CoreV1(),
 		PodInformer:                          podInformer,
 		EventRecorder:                        eb.NewRecorder(scheme.Scheme, corev1.EventSource{Component: path.Join(pNode.Name, "pod-controller")}),
 		Provider:                             p,

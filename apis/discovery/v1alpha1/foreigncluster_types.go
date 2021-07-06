@@ -21,7 +21,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes/scheme"
 
-	advtypes "github.com/liqotech/liqo/apis/sharing/v1alpha1"
 	crdclient "github.com/liqotech/liqo/pkg/crdClient"
 	"github.com/liqotech/liqo/pkg/discovery"
 )
@@ -140,8 +139,6 @@ type Outgoing struct {
 	AvailableIdentity bool `json:"availableIdentity,omitempty"`
 	// Object reference to related identity. (Deprecated)
 	IdentityRef *v1.ObjectReference `json:"identityRef,omitempty"`
-	// Advertisement status. (Deprecated)
-	AdvertisementStatus advtypes.AdvPhase `json:"advertisementStatus,omitempty"`
 }
 
 // Incoming contains the status of the incoming peering.
@@ -156,8 +153,6 @@ type Incoming struct {
 	AvailableIdentity bool `json:"availableIdentity,omitempty"`
 	// Object reference to related identity. (Deprecated)
 	IdentityRef *v1.ObjectReference `json:"identityRef,omitempty"`
-	// Status of Advertisement created from this PeeringRequest. (Deprecated)
-	AdvertisementStatus advtypes.AdvPhase `json:"advertisementStatus,omitempty"`
 }
 
 // +kubebuilder:object:root=true

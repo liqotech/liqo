@@ -6,11 +6,9 @@ import (
 	"time"
 
 	"github.com/grandcat/zeroconf"
-	"k8s.io/klog"
 
 	configv1alpha1 "github.com/liqotech/liqo/apis/config/v1alpha1"
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
-	advtypes "github.com/liqotech/liqo/apis/sharing/v1alpha1"
 	"github.com/liqotech/liqo/pkg/clusterid"
 	crdclient "github.com/liqotech/liqo/pkg/crdClient"
 )
@@ -27,7 +25,6 @@ type Controller struct {
 	stopMDNS            chan bool
 	stopMDNSClient      chan bool
 	crdClient           *crdclient.CRDClient
-	advClient           *crdclient.CRDClient
 	LocalClusterID      clusterid.ClusterID
 
 	mdnsServerAuth            *zeroconf.Server
@@ -50,16 +47,9 @@ func NewDiscoveryCtrl(
 		return nil, err
 	}
 
-	advClient, err := advtypes.CreateAdvertisementClient(kubeconfigPath, nil, true, nil)
-	if err != nil {
-		klog.Error(err, "unable to create local client for Advertisement")
-		os.Exit(1)
-	}
-
 	discoveryCtrl := getDiscoveryCtrl(
 		namespace,
 		discoveryClient,
-		advClient,
 		localClusterID,
 		resolveContextRefreshTime,
 		dialTCPTimeout,
@@ -70,12 +60,11 @@ func NewDiscoveryCtrl(
 	return &discoveryCtrl, nil
 }
 
-func getDiscoveryCtrl(namespace string, client, advClient *crdclient.CRDClient,
+func getDiscoveryCtrl(namespace string, client *crdclient.CRDClient,
 	localClusterID clusterid.ClusterID, resolveContextRefreshTime int, dialTCPTimeout time.Duration) Controller {
 	return Controller{
 		Namespace:                 namespace,
 		crdClient:                 client,
-		advClient:                 advClient,
 		LocalClusterID:            localClusterID,
 		stopMDNS:                  make(chan bool, 1),
 		stopMDNSClient:            make(chan bool, 1),

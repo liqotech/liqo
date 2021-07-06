@@ -113,10 +113,6 @@ spec:
               incoming:
                 description: Incoming contains the status of the incoming peering.
                 properties:
-                  advertisementStatus:
-                    description: Status of Advertisement created from this PeeringRequest.
-                      (Deprecated)
-                    type: string
                   availableIdentity:
                     description: Indicates if related identity is available. (Deprecated)
                     type: boolean
@@ -384,9 +380,6 @@ spec:
                         description: 'UID of the referent. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#uids'
                         type: string
                     type: object
-                  advertisementStatus:
-                    description: Advertisement status. (Deprecated)
-                    type: string
                   availableIdentity:
                     description: Indicates if related identity is available. (Deprecated)
                     type: boolean

@@ -167,7 +167,6 @@ var _ = Describe("PeeringPhase-Based Replication", func() {
 			LocalDynSharedInformerFactory:  localDynFac,
 			LocalWatchers:                  map[string]chan struct{}{},
 
-			UseNewAuth:                       false,
 			NamespaceManager:                 tenantmanager,
 			IdentityManager:                  identitymanager.NewCertificateIdentityManager(k8sclient, clusterIDInterface, tenantmanager),
 			LocalToRemoteNamespaceMapper:     map[string]string{},

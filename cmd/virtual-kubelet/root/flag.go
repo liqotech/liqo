@@ -45,8 +45,6 @@ func InstallFlags(flags *pflag.FlagSet, c *Opts) {
 		"connect to in order to contact the IPAM module")
 	flags.BoolVar(&c.Profiling, "enable-profiling", c.Profiling, "Enable pprof profiling")
 
-	flags.BoolVar(&c.UseNewAuth, "useNewAuth", c.UseNewAuth, "Enable the new authentication flow, with certificates and namespaced resources")
-
 	flagset := flag.NewFlagSet("klog", flag.PanicOnError)
 	klog.InitFlags(flagset)
 	flagset.VisitAll(func(f *flag.Flag) {

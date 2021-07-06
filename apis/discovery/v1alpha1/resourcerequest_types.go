@@ -5,9 +5,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/kubernetes/scheme"
 
-	advtypes "github.com/liqotech/liqo/apis/sharing/v1alpha1"
 	crdclient "github.com/liqotech/liqo/pkg/crdClient"
-	object_references "github.com/liqotech/liqo/pkg/object-references"
 )
 
 // EDIT THIS FILE!  THIS IS SCAFFOLDING FOR YOU TO OWN!
@@ -28,8 +26,6 @@ type ResourceRequestSpec struct {
 
 // ResourceRequestStatus defines the observed state of ResourceRequest.
 type ResourceRequestStatus struct {
-	BroadcasterRef      *object_references.DeploymentReference `json:"broadcasterRef,omitempty"`
-	AdvertisementStatus advtypes.AdvPhase                      `json:"advertisementStatus,omitempty"`
 	// OfferWithdrawalTimestamp is the withdrawal timestamp of the child ResourceOffer resource.
 	OfferWithdrawalTimestamp *metav1.Time `json:"offerWithdrawalTimestamp,omitempty"`
 }

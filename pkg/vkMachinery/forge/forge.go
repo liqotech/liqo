@@ -6,7 +6,6 @@ import (
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 
-	advtypes "github.com/liqotech/liqo/apis/sharing/v1alpha1"
 	liqoconst "github.com/liqotech/liqo/pkg/consts"
 	vk "github.com/liqotech/liqo/pkg/vkMachinery"
 )
@@ -36,7 +35,7 @@ func forgeVKAffinity() *v1.Affinity {
 	}
 }
 
-func forgeVKVolumes(adv *advtypes.Advertisement) []v1.Volume {
+func forgeVKVolumes() []v1.Volume {
 	volumes := []v1.Volume{
 		{
 			Name: "virtual-kubelet-crt",
@@ -44,16 +43,6 @@ func forgeVKVolumes(adv *advtypes.Advertisement) []v1.Volume {
 				EmptyDir: &v1.EmptyDirVolumeSource{},
 			},
 		},
-	}
-	if adv != nil {
-		volumes = append(volumes, v1.Volume{
-			Name: "remote-kubeconfig",
-			VolumeSource: v1.VolumeSource{
-				Secret: &v1.SecretVolumeSource{
-					SecretName: adv.Spec.KubeConfigRef.Name,
-				},
-			},
-		})
 	}
 	return volumes
 }
@@ -92,14 +81,10 @@ func forgeVKInitContainers(nodeName string, initVKImage string) []v1.Container {
 }
 
 func forgeVKContainers(
-	vkImage string, adv *advtypes.Advertisement, remoteClusterID,
+	vkImage string, remoteClusterID,
 	nodeName, vkNamespace, liqoNamespace, homeClusterID string) []v1.Container {
 	command := []string{
 		"/usr/bin/virtual-kubelet",
-	}
-
-	if adv != nil {
-		remoteClusterID = adv.Spec.ClusterId
 	}
 
 	args := []string{
@@ -111,7 +96,6 @@ func forgeVKContainers(
 		stringifyArgument("--home-cluster-id", homeClusterID),
 		stringifyArgument("--ipam-server", fmt.Sprintf("%v.%v", liqoconst.NetworkManagerServiceName, liqoNamespace)),
 		"--enable-node-lease",
-		"--useNewAuth",
 	}
 
 	volumeMounts := []v1.VolumeMount{
@@ -119,13 +103,6 @@ func forgeVKContainers(
 			Name:      "virtual-kubelet-crt",
 			MountPath: vk.VKCertsRootPath,
 		},
-	}
-	if adv != nil {
-		volumeMounts = append(volumeMounts, v1.VolumeMount{
-			Name:      "remote-kubeconfig",
-			MountPath: "/app/kubeconfig/remote",
-			SubPath:   "kubeconfig",
-		})
 	}
 
 	return []v1.Container{
@@ -167,12 +144,12 @@ func forgeVKContainers(
 }
 
 func forgeVKPodSpec(
-	vkName, vkNamespace, liqoNamespace, homeClusterID string, adv *advtypes.Advertisement,
+	vkName, vkNamespace, liqoNamespace, homeClusterID string,
 	remoteClusterID, initVKImage, nodeName, vkImage string) v1.PodSpec {
 	return v1.PodSpec{
-		Volumes:        forgeVKVolumes(adv),
+		Volumes:        forgeVKVolumes(),
 		InitContainers: forgeVKInitContainers(nodeName, initVKImage),
-		Containers: forgeVKContainers(vkImage, adv, remoteClusterID,
+		Containers: forgeVKContainers(vkImage, remoteClusterID,
 			nodeName, vkNamespace, liqoNamespace, homeClusterID),
 		ServiceAccountName: vkName,
 		Affinity:           forgeVKAffinity(),

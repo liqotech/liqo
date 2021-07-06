@@ -71,7 +71,6 @@ jobs:
       fail-fast: false
       matrix:
         component:
-        - advertisement-broadcaster
         - advertisement-operator
         - auth-service
         - cert-creator
@@ -81,7 +80,6 @@ jobs:
         - init-virtual-kubelet
         - liqonet
         - liqo-webhook
-        - peering-request-operator
         - uninstaller
         - virtual-kubelet
         - webhook-configuration

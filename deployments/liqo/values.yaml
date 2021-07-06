@@ -206,6 +206,3 @@ capsule:
       capsuleUserGroups:
       - capsule.clastix.io
       - liqo.io
-
-# -- enable experimental new authentication flow
-useNewAuth: true

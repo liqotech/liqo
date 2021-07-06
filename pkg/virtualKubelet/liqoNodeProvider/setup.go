@@ -12,10 +12,10 @@ import (
 
 // NewLiqoNodeProvider creates and returns a new LiqoNodeProvider.
 func NewLiqoNodeProvider(
-	nodeName, advName, foreignClusterID, kubeletNamespace string,
+	nodeName, foreignClusterID, kubeletNamespace string,
 	node *v1.Node,
 	podProviderStopper, networkReadyChan chan struct{},
-	config *rest.Config, resyncPeriod time.Duration, useNewAuth bool) (*LiqoNodeProvider, error) {
+	config *rest.Config, resyncPeriod time.Duration) (*LiqoNodeProvider, error) {
 	if config == nil {
 		config = ctrl.GetConfigOrDie()
 	}
@@ -36,10 +36,7 @@ func NewLiqoNodeProvider(
 		resyncPeriod:       resyncPeriod,
 
 		nodeName:         nodeName,
-		advName:          advName,
 		foreignClusterID: foreignClusterID,
 		kubeletNamespace: kubeletNamespace,
-
-		useNewAuth: useNewAuth,
 	}, nil
 }

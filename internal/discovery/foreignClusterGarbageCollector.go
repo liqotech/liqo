@@ -11,6 +11,7 @@ import (
 
 	"github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	discoveryPkg "github.com/liqotech/liqo/pkg/discovery"
+	foreignclusterutils "github.com/liqotech/liqo/pkg/utils/foreignCluster"
 )
 
 func (discovery *Controller) startGarbageCollector() {
@@ -44,7 +45,7 @@ func (discovery *Controller) collectGarbage() error {
 	}
 
 	for i := range fcs.Items {
-		if fcs.Items[i].IsExpired() {
+		if foreignclusterutils.IsExpired(&fcs.Items[i]) {
 			klog.V(4).Infof("delete foreignCluster %v (TTL expired)", fcs.Items[i].Name)
 			klog.Infof("delete foreignCluster %v", fcs.Items[i].Name)
 			err = discovery.crdClient.Resource("foreignclusters").Delete(fcs.Items[i].Name, &metav1.DeleteOptions{})

@@ -22,7 +22,6 @@ type Cluster struct {
 	env       *envtest.Environment
 	cfg       *rest.Config
 	client    *crdclient.CRDClient
-	advClient *crdclient.CRDClient
 	netClient *crdclient.CRDClient
 }
 
@@ -34,11 +33,6 @@ func (c *Cluster) GetEnv() *envtest.Environment {
 // GetClient returns the crd client.
 func (c *Cluster) GetClient() *crdclient.CRDClient {
 	return c.client
-}
-
-// GetAdvClient returns the advertisement crd client.
-func (c *Cluster) GetAdvClient() *crdclient.CRDClient {
-	return c.advClient
 }
 
 // GetNetClient returns the networking crd client.
@@ -72,10 +66,6 @@ func NewTestCluster(crdPath []string) (Cluster, manager.Manager, error) {
 	cluster.cfg.NegotiatedSerializer = scheme.Codecs.WithoutConversion()
 	cluster.cfg.UserAgent = rest.DefaultKubernetesUserAgent()
 
-	advCfg := *cluster.cfg
-	advCfg.ContentConfig.GroupVersion = &advtypes.GroupVersion
-	crdclient.AddToRegistry("advertisements", &advtypes.Advertisement{}, &advtypes.AdvertisementList{}, nil, advtypes.GroupResource)
-
 	netCfg := *cluster.cfg
 	netCfg.ContentConfig.GroupVersion = &nettypes.GroupVersion
 	crdclient.AddToRegistry("networkconfigs", &nettypes.NetworkConfig{}, &nettypes.NetworkConfigList{}, nil, nettypes.TunnelEndpointGroupResource)
@@ -98,11 +88,6 @@ func NewTestCluster(crdPath []string) (Cluster, manager.Manager, error) {
 	}
 
 	cluster.client, err = crdclient.NewFromConfig(cluster.cfg)
-	if err != nil {
-		klog.Error(err)
-		return Cluster{}, nil, err
-	}
-	cluster.advClient, err = crdclient.NewFromConfig(&advCfg)
 	if err != nil {
 		klog.Error(err)
 		return Cluster{}, nil, err

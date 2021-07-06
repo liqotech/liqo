@@ -11,7 +11,6 @@ import (
 
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	nettypes "github.com/liqotech/liqo/apis/net/v1alpha1"
-	advtypes "github.com/liqotech/liqo/apis/sharing/v1alpha1"
 	"github.com/liqotech/liqo/internal/discovery"
 	"github.com/liqotech/liqo/pkg/auth"
 	"github.com/liqotech/liqo/pkg/clusterid"
@@ -34,7 +33,7 @@ func init() {
 // StartOperator setups the ForeignCluster operator.
 func StartOperator(
 	mgr manager.Manager, namespace string, requeueAfter time.Duration,
-	discoveryCtrl *discovery.Controller, kubeconfigPath string, useNewAuth bool) {
+	discoveryCtrl *discovery.Controller, kubeconfigPath string) {
 	config, err := crdclient.NewKubeconfig(kubeconfigPath, &discoveryv1alpha1.GroupVersion, nil)
 	if err != nil {
 		klog.Error(err, "unable to get kube config")
@@ -51,12 +50,6 @@ func StartOperator(
 		os.Exit(1)
 	}
 
-	advClient, err := advtypes.CreateAdvertisementClient(kubeconfigPath, nil, true, nil)
-	if err != nil {
-		klog.Error(err, "unable to create local client for Advertisement")
-		os.Exit(1)
-	}
-
 	networkClient, err := nettypes.CreateTunnelEndpointClient(kubeconfigPath)
 	if err != nil {
 		klog.Error(err, "unable to create local client for Networking")
@@ -70,7 +63,6 @@ func StartOperator(
 		mgr,
 		namespace,
 		discoveryClient,
-		advClient,
 		networkClient,
 		localClusterID,
 		requeueAfter,
@@ -78,7 +70,6 @@ func StartOperator(
 		discoveryCtrl,
 		namespaceManager,
 		idManager,
-		useNewAuth,
 	)).SetupWithManager(mgr); err != nil {
 		klog.Error(err, "unable to create controller", "controller", "ForeignCluster")
 		os.Exit(1)
@@ -87,29 +78,26 @@ func StartOperator(
 
 func getForeignClusterReconciler(mgr manager.Manager,
 	namespace string,
-	client, advertisementClient, networkClient *crdclient.CRDClient,
+	client, networkClient *crdclient.CRDClient,
 	localClusterID clusterid.ClusterID,
 	requeueAfter time.Duration,
 	configProvider discovery.ConfigProvider,
 	authConfigProvider auth.ConfigProvider,
 	namespaceManager tenantcontrolnamespace.TenantControlNamespaceManager,
-	idManager identitymanager.IdentityManager,
-	useNewAuth bool) *ForeignClusterReconciler {
+	idManager identitymanager.IdentityManager) *ForeignClusterReconciler {
 	reconciler := &ForeignClusterReconciler{
-		Client:              mgr.GetClient(),
-		Scheme:              mgr.GetScheme(),
-		Namespace:           namespace,
-		crdClient:           client,
-		advertisementClient: advertisementClient,
-		networkClient:       networkClient,
-		clusterID:           localClusterID,
-		ForeignConfig:       nil,
-		RequeueAfter:        requeueAfter,
-		ConfigProvider:      configProvider,
-		AuthConfigProvider:  authConfigProvider,
-		namespaceManager:    namespaceManager,
-		identityManager:     idManager,
-		useNewAuth:          useNewAuth,
+		Client:             mgr.GetClient(),
+		Scheme:             mgr.GetScheme(),
+		Namespace:          namespace,
+		crdClient:          client,
+		networkClient:      networkClient,
+		clusterID:          localClusterID,
+		ForeignConfig:      nil,
+		RequeueAfter:       requeueAfter,
+		ConfigProvider:     configProvider,
+		AuthConfigProvider: authConfigProvider,
+		namespaceManager:   namespaceManager,
+		identityManager:    idManager,
 	}
 
 	// populate the lists of ClusterRoles to bind in the different peering states

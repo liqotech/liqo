@@ -3,7 +3,6 @@ package liqonodeprovider
 import (
 	"strings"
 
-	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/watch"
@@ -22,30 +21,16 @@ import (
 // These informers on sharing and network resources will be used to accordingly
 // update the virtual node.
 func (p *LiqoNodeProvider) StartProvider() (ready, stop chan struct{}) {
-	resource := ""
-	namespace := ""
-	if p.useNewAuth {
-		resource = "resourceoffers"
-		namespace = p.kubeletNamespace
-	} else {
-		resource = "advertisements"
-		namespace = v1.NamespaceAll
-	}
+	resource := "resourceoffers"
+	namespace := p.kubeletNamespace
 
 	sharingInformerFactory := dynamicinformer.NewFilteredDynamicSharedInformerFactory(
 		p.dynClient, p.resyncPeriod, namespace, func(opt *metav1.ListOptions) {
-			if p.useNewAuth {
-				opt.LabelSelector = strings.Join([]string{crdreplicator.RemoteLabelSelector, p.foreignClusterID}, "=")
-			} else {
-				opt.FieldSelector = strings.Join([]string{"metadata.name", p.advName}, "=")
-			}
+			opt.LabelSelector = strings.Join([]string{crdreplicator.RemoteLabelSelector, p.foreignClusterID}, "=")
 		})
 	sharingInformer := sharingInformerFactory.ForResource(sharingv1alpha1.GroupVersion.WithResource(resource)).Informer()
 	sharingInformer.AddEventHandler(getEventHandler(func(event watch.Event) error {
-		if p.useNewAuth {
-			return p.reconcileNodeFromResourceOffer(event)
-		}
-		return p.reconcileNodeFromAdv(event)
+		return p.reconcileNodeFromResourceOffer(event)
 	}))
 
 	tepInformerFactory := dynamicinformer.NewFilteredDynamicSharedInformerFactory(p.dynClient, p.resyncPeriod, namespace, func(opt *metav1.ListOptions) {

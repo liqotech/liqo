@@ -8,7 +8,6 @@ import (
 	"sync"
 	"time"
 
-	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -21,8 +20,6 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/cache"
-	"k8s.io/client-go/tools/clientcmd"
-	clientcmdapi "k8s.io/client-go/tools/clientcmd/api"
 	"k8s.io/client-go/util/retry"
 	"k8s.io/klog/v2"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -89,8 +86,6 @@ type Controller struct {
 	// (clusterID, (registeredResource, chan)).
 	RemoteWatchers map[string]map[string]chan struct{}
 
-	// UseNewAuth indicates if the new authentication is enabled.
-	UseNewAuth bool
 	// NamespaceManager is an interface to manage the tenant namespaces.
 	NamespaceManager tenantcontrolnamespace.TenantControlNamespaceManager
 	// IdentityManager is an interface to manage remote identities, and to get the rest config.
@@ -142,9 +137,6 @@ func (c *Controller) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 				klog.Errorf("an error occurred while updating resource %s after the finalizer has been removed: %s", fc.Name, err)
 				return result, err
 			}
-			if !c.UseNewAuth {
-				return result, nil
-			}
 		} else if err := c.updateForeignCluster(ctx, &fc, controllerutil.AddFinalizer); err != nil {
 			klog.Errorf("%s -> unable to update resource %s: %s", c.ClusterID, fc.Name, err)
 			return result, err
@@ -193,41 +185,18 @@ func (c *Controller) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		return result, nil
 	}
 
-	if c.UseNewAuth {
-		if fc.Status.TenantControlNamespace.Local == "" || fc.Status.TenantControlNamespace.Remote == "" {
-			klog.V(4).Infof("%s -> tenantControlNamespace is not set in resource %s for remote peering cluster %s",
-				c.ClusterID, req.NamespacedName, remoteClusterID)
-			return result, nil
-		}
-		config, err := c.IdentityManager.GetConfig(remoteClusterID, fc.Status.TenantControlNamespace.Local)
-		if err != nil {
-			klog.Errorf("%s -> unable to retrieve config from resource %s for remote peering cluster %s: %s",
-				c.ClusterID, req.NamespacedName, remoteClusterID, err)
-			return result, nil
-		}
-		return result, c.setUpConnectionToPeeringCluster(config, remoteClusterID, &fc)
+	if fc.Status.TenantControlNamespace.Local == "" || fc.Status.TenantControlNamespace.Remote == "" {
+		klog.V(4).Infof("%s -> tenantControlNamespace is not set in resource %s for remote peering cluster %s",
+			c.ClusterID, req.NamespacedName, remoteClusterID)
+		return result, nil
 	}
-
-	// check if the config of the peering cluster is ready
-	// first we check the outgoing connection
-	if fc.Status.Outgoing.AvailableIdentity {
-		// retrieve the config
-		config, err := c.getKubeConfig(c.ClientSet, fc.Status.Outgoing.IdentityRef, remoteClusterID)
-		if err != nil {
-			klog.Errorf("%s -> unable to retrieve config from resource %s for remote peering cluster %s: %s", c.ClusterID, req.NamespacedName, remoteClusterID, err)
-			return result, nil
-		}
-		return result, c.setUpConnectionToPeeringCluster(config, remoteClusterID, &fc)
-	} else if fc.Status.Incoming.AvailableIdentity {
-		// retrieve the config
-		config, err := c.getKubeConfig(c.ClientSet, fc.Status.Incoming.IdentityRef, remoteClusterID)
-		if err != nil {
-			klog.Errorf("%s -> unable to retrieve config from resource %s for remote peering cluster %s: %s", c.ClusterID, req.NamespacedName, remoteClusterID, err)
-			return result, err
-		}
-		return result, c.setUpConnectionToPeeringCluster(config, remoteClusterID, &fc)
+	config, err := c.IdentityManager.GetConfig(remoteClusterID, fc.Status.TenantControlNamespace.Local)
+	if err != nil {
+		klog.Errorf("%s -> unable to retrieve config from resource %s for remote peering cluster %s: %s",
+			c.ClusterID, req.NamespacedName, remoteClusterID, err)
+		return result, nil
 	}
-	return result, nil
+	return result, c.setUpConnectionToPeeringCluster(config, remoteClusterID, &fc)
 }
 
 func (c *Controller) SetupWithManager(mgr ctrl.Manager) error {
@@ -258,35 +227,12 @@ func (c *Controller) updateForeignCluster(ctx context.Context,
 	})
 }
 
-func (c *Controller) getKubeConfig(clientset kubernetes.Interface, reference *corev1.ObjectReference, remoteClusterID string) (*rest.Config, error) {
-	if reference == nil {
-		return nil, fmt.Errorf("%s -> object reference for the secret containing kubeconfig of foreign cluster %s not set yet", c.ClusterID, remoteClusterID)
-	}
-	secret, err := clientset.CoreV1().Secrets(reference.Namespace).Get(context.TODO(), reference.Name, metav1.GetOptions{})
-	if err != nil {
-		return nil, err
-	}
-	kubeconfig := func() (*clientcmdapi.Config, error) {
-		return clientcmd.Load(secret.Data["kubeconfig"])
-	}
-	cnf, err := clientcmd.BuildConfigFromKubeconfigGetter("", kubeconfig)
-	if err != nil {
-		return nil, err
-	}
-	return cnf, nil
-}
-
 func (c *Controller) setUpConnectionToPeeringCluster(config *rest.Config, remoteClusterID string, fc *discoveryv1alpha1.ForeignCluster) error {
-	var remoteNamespace string
-	if c.UseNewAuth {
-		c.LocalToRemoteNamespaceMapper[fc.Status.TenantControlNamespace.Local] = fc.Status.TenantControlNamespace.Remote
-		c.RemoteToLocalNamespaceMapper[fc.Status.TenantControlNamespace.Remote] = fc.Status.TenantControlNamespace.Local
-		c.ClusterIDToLocalNamespaceMapper[fc.Spec.ClusterIdentity.ClusterID] = fc.Status.TenantControlNamespace.Local
-		c.ClusterIDToRemoteNamespaceMapper[fc.Spec.ClusterIdentity.ClusterID] = fc.Status.TenantControlNamespace.Remote
-		remoteNamespace = fc.Status.TenantControlNamespace.Remote
-	} else {
-		remoteNamespace = metav1.NamespaceAll
-	}
+	c.LocalToRemoteNamespaceMapper[fc.Status.TenantControlNamespace.Local] = fc.Status.TenantControlNamespace.Remote
+	c.RemoteToLocalNamespaceMapper[fc.Status.TenantControlNamespace.Remote] = fc.Status.TenantControlNamespace.Local
+	c.ClusterIDToLocalNamespaceMapper[fc.Spec.ClusterIdentity.ClusterID] = fc.Status.TenantControlNamespace.Local
+	c.ClusterIDToRemoteNamespaceMapper[fc.Spec.ClusterIdentity.ClusterID] = fc.Status.TenantControlNamespace.Remote
+	remoteNamespace := fc.Status.TenantControlNamespace.Remote
 
 	// check if the dynamic dynamic client exists
 	if _, ok := c.RemoteDynClients[remoteClusterID]; !ok {

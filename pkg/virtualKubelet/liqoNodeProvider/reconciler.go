@@ -8,21 +8,17 @@ import (
 
 	"gomodules.xyz/jsonpatch/v2"
 	v1 "k8s.io/api/core/v1"
-	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/watch"
-	"k8s.io/client-go/util/retry"
 	"k8s.io/klog/v2"
-	"k8s.io/kubernetes/pkg/util/slice"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
 	netv1alpha1 "github.com/liqotech/liqo/apis/net/v1alpha1"
 	sharingv1alpha1 "github.com/liqotech/liqo/apis/sharing/v1alpha1"
-	advertisementOperator "github.com/liqotech/liqo/internal/advertisementoperator"
 	"github.com/liqotech/liqo/pkg/consts"
 	"github.com/liqotech/liqo/pkg/utils"
 )
@@ -128,51 +124,6 @@ func (p *LiqoNodeProvider) ensureFinalizer(resourceOffer *sharingv1alpha1.Resour
 	return nil
 }
 
-// The reconciliation function; every time this function is called,
-// the node status is updated by means of r.updateFromAdv.
-func (p *LiqoNodeProvider) reconcileNodeFromAdv(event watch.Event) error {
-	var adv sharingv1alpha1.Advertisement
-	unstruct, ok := event.Object.(*unstructured.Unstructured)
-	if !ok {
-		return errors.New("error in casting advertisement: recreate watcher")
-	}
-	if err := runtime.DefaultUnstructuredConverter.FromUnstructured(unstruct.Object, &adv); err != nil {
-		klog.Error(err)
-		return err
-	}
-
-	if event.Type == watch.Deleted || !adv.DeletionTimestamp.IsZero() {
-		p.updateMutex.Lock()
-		defer p.updateMutex.Unlock()
-		klog.Infof("advertisement %v is going to be deleted... set node status not ready", adv.Name)
-		for i, condition := range p.node.Status.Conditions {
-			switch condition.Type {
-			case v1.NodeReady:
-				p.node.Status.Conditions[i].Status = v1.ConditionFalse
-			case v1.NodeMemoryPressure:
-				p.node.Status.Conditions[i].Status = v1.ConditionTrue
-			default:
-			}
-		}
-		p.node.Status.Allocatable = v1.ResourceList{}
-		p.node.Status.Capacity = v1.ResourceList{}
-		p.onNodeChangeCallback(p.node.DeepCopy())
-
-		if err := p.handleAdvDelete(&adv); err != nil {
-			klog.Errorf("something went wrong during advertisement deletion - %v", err)
-			return err
-		}
-		return nil
-	}
-
-	if err := p.updateFromAdv(&adv); err != nil {
-		klog.Errorf("node update from advertisement %v failed for reason %v; retry...", adv.Name, err)
-		return err
-	}
-	klog.Info("node correctly updated from advertisement")
-	return nil
-}
-
 func (p *LiqoNodeProvider) reconcileNodeFromTep(event watch.Event) error {
 	var tep netv1alpha1.TunnelEndpoint
 	unstruct, ok := event.Object.(*unstructured.Unstructured)
@@ -227,34 +178,6 @@ func (p *LiqoNodeProvider) updateFromResourceOffer(resourceOffer *sharingv1alpha
 
 	p.node.Status.Images = []v1.ContainerImage{}
 	p.node.Status.Images = append(p.node.Status.Images, resourceOffer.Spec.Images...)
-
-	return p.updateNode()
-}
-
-// updateFromAdv gets and updates the node status accordingly.
-// nolint:dupl // (aleoli): Suppressing for now, it will part of a major refactoring before v0.3
-func (p *LiqoNodeProvider) updateFromAdv(adv *sharingv1alpha1.Advertisement) error {
-	p.updateMutex.Lock()
-	defer p.updateMutex.Unlock()
-
-	if err := p.patchLabels(adv.Spec.Labels); err != nil {
-		klog.Error(err)
-		return err
-	}
-
-	if p.node.Status.Capacity == nil {
-		p.node.Status.Capacity = v1.ResourceList{}
-	}
-	if p.node.Status.Allocatable == nil {
-		p.node.Status.Allocatable = v1.ResourceList{}
-	}
-	for k, v := range adv.Spec.ResourceQuota.Hard {
-		p.node.Status.Capacity[k] = v
-		p.node.Status.Allocatable[k] = v
-	}
-
-	p.node.Status.Images = []v1.ContainerImage{}
-	p.node.Status.Images = append(p.node.Status.Images, adv.Spec.Images...)
 
 	return p.updateNode()
 }
@@ -362,44 +285,6 @@ func (p *LiqoNodeProvider) handleResourceOfferDelete(resourceOffer *sharingv1alp
 		return controllerutil.ContainsFinalizer(resourceOffer, consts.NodeFinalizer)
 	}, controllerutil.RemoveFinalizer); err != nil {
 		klog.Errorf("error removing finalizer from resource offer %v/%v: %v", resourceOffer.GetNamespace(), resourceOffer.GetName(), err)
-		return err
-	}
-
-	return nil
-}
-
-func (p *LiqoNodeProvider) handleAdvDelete(adv *sharingv1alpha1.Advertisement) error {
-	if isChanOpen(p.podProviderStopper) {
-		close(p.podProviderStopper)
-	}
-
-	// remove finalizer
-	if slice.ContainsString(adv.Finalizers, advertisementOperator.FinalizerString, nil) {
-		adv.Finalizers = slice.RemoveString(adv.Finalizers, advertisementOperator.FinalizerString, nil)
-	}
-
-	// update advertisement -> remove finalizer (which will delete virtual-kubelet)
-	retriable := func(err error) bool {
-		switch kerrors.ReasonForError(err) {
-		case metav1.StatusReasonNotFound:
-			return false
-		default:
-			klog.Warningf("retrying while deleting advertisement because of- ERR; %v", err)
-			return true
-		}
-	}
-
-	unstruct, err := runtime.DefaultUnstructuredConverter.ToUnstructured(adv)
-	if err != nil {
-		klog.Error(err)
-		return err
-	}
-
-	if err := retry.OnError(retry.DefaultBackoff, retriable, func() error {
-		_, err := p.dynClient.Resource(sharingv1alpha1.GroupVersion.WithResource("advertisements")).
-			Update(context.TODO(), &unstructured.Unstructured{Object: unstruct}, metav1.UpdateOptions{})
-		return err
-	}); err != nil {
 		return err
 	}
 

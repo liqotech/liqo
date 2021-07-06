@@ -8,6 +8,7 @@ import (
 
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	"github.com/liqotech/liqo/pkg/discovery"
+	foreignclusterutils "github.com/liqotech/liqo/pkg/utils/foreignCluster"
 )
 
 // validateForeignCluster contains the logic that validates and defaults labels and spec fields.
@@ -33,7 +34,7 @@ func (r *ForeignClusterReconciler) validateForeignCluster(ctx context.Context,
 	// This will only be executed in the ForeignCluster CR has been added in a manual way,
 	// if it was discovered this field is set by the discovery process.
 	if foreignCluster.Spec.TrustMode == discovery.TrustModeUnknown || foreignCluster.Spec.TrustMode == "" {
-		trust, err := foreignCluster.CheckTrusted()
+		trust, err := foreignclusterutils.CheckTrusted(foreignCluster)
 		if err != nil {
 			klog.Error(err)
 			return false, ctrl.Result{
