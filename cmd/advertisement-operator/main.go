@@ -20,7 +20,6 @@ import (
 	"time"
 
 	capsulev1alpha1 "github.com/clastix/capsule/api/v1alpha1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/kubernetes"
@@ -30,12 +29,12 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 
+	configv1alpha1 "github.com/liqotech/liqo/apis/config/v1alpha1"
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	netv1alpha1 "github.com/liqotech/liqo/apis/net/v1alpha1"
 	offloadingv1alpha1 "github.com/liqotech/liqo/apis/offloading/v1alpha1"
-	advtypes "github.com/liqotech/liqo/apis/sharing/v1alpha1"
+	sharingv1alpha1 "github.com/liqotech/liqo/apis/sharing/v1alpha1"
 	virtualkubeletv1alpha1 "github.com/liqotech/liqo/apis/virtualKubelet/v1alpha1"
-	advop "github.com/liqotech/liqo/internal/advertisementoperator"
 	resourceRequestOperator "github.com/liqotech/liqo/internal/resource-request-operator"
 	"github.com/liqotech/liqo/pkg/clusterid"
 	crdclient "github.com/liqotech/liqo/pkg/crdClient"
@@ -64,7 +63,7 @@ var (
 func init() {
 	_ = clientgoscheme.AddToScheme(scheme)
 
-	_ = advtypes.AddToScheme(scheme)
+	_ = sharingv1alpha1.AddToScheme(scheme)
 	_ = netv1alpha1.AddToScheme(scheme)
 	_ = discoveryv1alpha1.AddToScheme(scheme)
 	_ = offloadingv1alpha1.AddToScheme(scheme)
@@ -137,24 +136,6 @@ func main() {
 		os.Exit(1)
 	}
 
-	// get the number of already accepted advertisements
-	advClient, err := advtypes.CreateAdvertisementClient(localKubeconfig, nil, true, nil)
-	if err != nil {
-		klog.Errorln(err, "unable to create local client for Advertisement")
-		os.Exit(1)
-	}
-	var acceptedAdv int32
-	advList, err := advClient.Resource("advertisements").List(&metav1.ListOptions{})
-	if err != nil {
-		klog.Error(err)
-	} else {
-		for index := range advList.(*advtypes.AdvertisementList).Items {
-			if advList.(*advtypes.AdvertisementList).Items[index].Status.AdvertisementStatus == advtypes.AdvertisementAccepted {
-				acceptedAdv++
-			}
-		}
-	}
-
 	discoveryConfig, err := crdclient.NewKubeconfig(localKubeconfig, &discoveryv1alpha1.GroupVersion, nil)
 	if err != nil {
 		klog.Error(err, "unable to get kube config")
@@ -168,25 +149,6 @@ func main() {
 
 	clusterID, err := clusterid.NewClusterIDFromClient(discoveryClient.Client())
 	if err != nil {
-		klog.Error(err)
-		os.Exit(1)
-	}
-
-	advertisementReconciler := &advop.AdvertisementReconciler{
-		Client:           mgr.GetClient(),
-		Scheme:           mgr.GetScheme(),
-		EventsRecorder:   mgr.GetEventRecorderFor("AdvertisementOperator"),
-		KubeletNamespace: liqoNamespace,
-		VKImage:          kubeletImage,
-		InitVKImage:      initKubeletImage,
-		HomeClusterId:    clusterId,
-		AcceptedAdvNum:   acceptedAdv,
-		AdvClient:        advClient,
-		DiscoveryClient:  discoveryClient,
-		RetryTimeout:     time.Duration(resyncPeriod),
-	}
-
-	if err = advertisementReconciler.SetupWithManager(mgr); err != nil {
 		klog.Error(err)
 		os.Exit(1)
 	}
@@ -277,16 +239,19 @@ func main() {
 	}
 
 	var wg = &sync.WaitGroup{}
-	client, err := advertisementReconciler.InitCRDClient(localKubeconfig)
+	config, err = crdclient.NewKubeconfig(localKubeconfig, &configv1alpha1.GroupVersion, nil)
+	if err != nil {
+		klog.Error(err)
+		os.Exit(1)
+	}
+	client, err := crdclient.NewFromConfig(config)
 	if err != nil {
 		os.Exit(1)
 	}
 	wg.Add(5)
 	ctx, cancel := context.WithCancel(context.Background())
-	go advertisementReconciler.CleanOldAdvertisements(ctx.Done(), wg)
 	go csr.WatchCSR(ctx, clientset, labels.SelectorFromSet(vkMachinery.CsrLabels).String(), time.Duration(resyncPeriod), wg)
 	// TODO: this configuration watcher will be refactored before the release 0.3
-	go advertisementReconciler.WatchConfiguration(localKubeconfig, client, wg)
 	go newBroadcaster.WatchConfiguration(localKubeconfig, client, wg)
 	go resourceOfferReconciler.WatchConfiguration(localKubeconfig, client, wg)
 	newBroadcaster.StartBroadcaster(ctx, wg)

@@ -8,7 +8,6 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 
 	"github.com/liqotech/liqo/apis/net/v1alpha1"
-	peering_request_operator "github.com/liqotech/liqo/internal/peering-request-operator"
 	"github.com/liqotech/liqo/pkg/vkMachinery"
 )
 
@@ -42,12 +41,6 @@ var (
 			gvr: podGVR,
 			labelSelector: metav1.LabelSelector{
 				MatchLabels: vkMachinery.KubeletBaseLabels,
-			},
-		},
-		{
-			gvr: podGVR,
-			labelSelector: metav1.LabelSelector{
-				MatchLabels: peering_request_operator.BroadcasterBaseLabels,
 			},
 		},
 	}

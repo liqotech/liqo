@@ -20,11 +20,9 @@ import (
 	"context"
 	goerrors "errors"
 	"fmt"
-	"strings"
 	"time"
 
 	apiv1 "k8s.io/api/core/v1"
-	rbacv1 "k8s.io/api/rbac/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -33,24 +31,20 @@ import (
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/util/retry"
 	"k8s.io/klog/v2"
-	"k8s.io/kubernetes/pkg/util/slice"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	netv1alpha1 "github.com/liqotech/liqo/apis/net/v1alpha1"
-	advtypes "github.com/liqotech/liqo/apis/sharing/v1alpha1"
 	crdreplicator "github.com/liqotech/liqo/internal/crdReplicator"
 	"github.com/liqotech/liqo/internal/discovery"
-	"github.com/liqotech/liqo/internal/discovery/utils"
 	"github.com/liqotech/liqo/pkg/auth"
 	"github.com/liqotech/liqo/pkg/clusterid"
 	liqoconst "github.com/liqotech/liqo/pkg/consts"
 	crdclient "github.com/liqotech/liqo/pkg/crdClient"
 	discoveryPkg "github.com/liqotech/liqo/pkg/discovery"
 	identitymanager "github.com/liqotech/liqo/pkg/identityManager"
-	"github.com/liqotech/liqo/pkg/kubeconfig"
 	peeringRoles "github.com/liqotech/liqo/pkg/peering-roles"
 	tenantcontrolnamespace "github.com/liqotech/liqo/pkg/tenantControlNamespace"
 	foreigncluster "github.com/liqotech/liqo/pkg/utils/foreignCluster"
@@ -64,16 +58,14 @@ type ForeignClusterReconciler struct {
 	client.Client
 	Scheme *runtime.Scheme
 
-	Namespace           string
-	crdClient           *crdclient.CRDClient
-	advertisementClient *crdclient.CRDClient
-	networkClient       *crdclient.CRDClient
-	clusterID           clusterid.ClusterID
-	RequeueAfter        time.Duration
+	Namespace     string
+	crdClient     *crdclient.CRDClient
+	networkClient *crdclient.CRDClient
+	clusterID     clusterid.ClusterID
+	RequeueAfter  time.Duration
 
 	namespaceManager tenantcontrolnamespace.TenantControlNamespaceManager
 	identityManager  identitymanager.IdentityManager
-	useNewAuth       bool
 
 	peeringPermission peeringRoles.PeeringPermission
 
@@ -130,10 +122,6 @@ func (r *ForeignClusterReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 	// set labels and validate the resource spec
 	if cont, res, err := r.validateForeignCluster(ctx, &foreignCluster); !cont {
 		return res, err
-	}
-
-	if !r.useNewAuth {
-		return r.oldReconcile(ctx, &foreignCluster)
 	}
 
 	// defer the status update function
@@ -260,43 +248,6 @@ func (r *ForeignClusterReconciler) update(fc *discoveryv1alpha1.ForeignCluster) 
 	return fc, err
 }
 
-// TODO: delete it
-// updateStatus is a utility function that will be deleted after the refactoring completion.
-func (r *ForeignClusterReconciler) updateStatus(ctx context.Context, foreignCluster *discoveryv1alpha1.ForeignCluster) (ctrl.Result, error) {
-	newStatus := foreignCluster.Status.DeepCopy()
-	if result, err := controllerutil.CreateOrPatch(ctx, r.Client, foreignCluster, func() error {
-		foreignCluster.Status = *newStatus
-		return nil
-	}); err != nil {
-		klog.Error(err)
-		return ctrl.Result{}, err
-	} else if result != controllerutil.OperationResultNone {
-		return ctrl.Result{}, nil
-	}
-	return ctrl.Result{Requeue: true, RequeueAfter: r.RequeueAfter}, nil
-}
-
-// Peer creates the peering with a remote cluster.
-func (r *ForeignClusterReconciler) Peer(
-	foreignCluster *discoveryv1alpha1.ForeignCluster,
-	foreignDiscoveryClient *crdclient.CRDClient) (*discoveryv1alpha1.ForeignCluster, error) {
-
-	// create PeeringRequest
-	klog.Infof("[%v] Creating PeeringRequest", foreignCluster.Spec.ClusterIdentity.ClusterID)
-	pr, err := r.createPeeringRequestIfNotExists(foreignCluster.Name, foreignCluster, foreignDiscoveryClient)
-	if err != nil {
-		klog.Error(err)
-		return nil, err
-	}
-	if pr != nil {
-		foreignCluster.Status.Outgoing.PeeringPhase = discoveryv1alpha1.PeeringPhaseEstablished
-		foreignCluster.Status.Outgoing.RemotePeeringRequestName = pr.Name
-		// add finalizer
-		controllerutil.AddFinalizer(foreignCluster, FinalizerString)
-	}
-	return foreignCluster, nil
-}
-
 // peerNamespaced enables the peering creating the resources in the correct TenantControlNamespace.
 func (r *ForeignClusterReconciler) peerNamespaced(ctx context.Context,
 	foreignCluster *discoveryv1alpha1.ForeignCluster) error {
@@ -312,31 +263,6 @@ func (r *ForeignClusterReconciler) peerNamespaced(ctx context.Context,
 		foreignCluster.Status.Outgoing.PeeringPhase = discoveryv1alpha1.PeeringPhasePending
 	}
 	return nil
-}
-
-// Unpeer removes the peering with a remote cluster.
-func (r *ForeignClusterReconciler) Unpeer(fc *discoveryv1alpha1.ForeignCluster,
-	foreignDiscoveryClient *crdclient.CRDClient) (*discoveryv1alpha1.ForeignCluster, error) {
-
-	// peering request has to be removed
-	klog.Infof("[%v] Deleting PeeringRequest", fc.Spec.ClusterIdentity.ClusterID)
-	err := r.deletePeeringRequest(foreignDiscoveryClient, fc)
-	if err != nil && !errors.IsNotFound(err) {
-		klog.Error(err)
-		return nil, err
-	}
-	// local advertisement has to be removed
-	err = r.deleteAdvertisement(fc)
-	if err != nil && !errors.IsNotFound(err) {
-		klog.Error(err)
-		return nil, err
-	}
-	fc.Status.Outgoing.PeeringPhase = discoveryv1alpha1.PeeringPhaseNone
-	fc.Status.Outgoing.RemotePeeringRequestName = ""
-	if slice.ContainsString(fc.Finalizers, FinalizerString, nil) {
-		fc.Finalizers = slice.RemoveString(fc.Finalizers, FinalizerString, nil)
-	}
-	return fc, nil
 }
 
 // unpeerNamespaced disables the peering deleting the resources in the correct TenantControlNamespace.
@@ -382,8 +308,6 @@ func (r *ForeignClusterReconciler) unpeerNamespaced(ctx context.Context,
 func (r *ForeignClusterReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&discoveryv1alpha1.ForeignCluster{}).
-		Owns(&advtypes.Advertisement{}).
-		Owns(&discoveryv1alpha1.PeeringRequest{}).
 		Owns(&discoveryv1alpha1.ResourceRequest{}).
 		Complete(r)
 }
@@ -441,31 +365,6 @@ func getPeeringPhase(resourceRequestList *discoveryv1alpha1.ResourceRequestList)
 		err := fmt.Errorf("more than one resource request found")
 		return discoveryv1alpha1.PeeringPhaseNone, err
 	}
-}
-
-// checkJoined checks the outgoing join status of a cluster.
-func (r *ForeignClusterReconciler) checkJoined(fc *discoveryv1alpha1.ForeignCluster,
-	foreignDiscoveryClient *crdclient.CRDClient) (*discoveryv1alpha1.ForeignCluster, error) {
-
-	_, err := foreignDiscoveryClient.Resource("peeringrequests").Get(fc.Status.Outgoing.RemotePeeringRequestName, &metav1.GetOptions{})
-	if err != nil {
-		fc.Status.Outgoing.PeeringPhase = discoveryv1alpha1.PeeringPhaseNone
-		fc.Status.Outgoing.RemotePeeringRequestName = ""
-		if slice.ContainsString(fc.Finalizers, FinalizerString, nil) {
-			fc.Finalizers = slice.RemoveString(fc.Finalizers, FinalizerString, nil)
-		}
-		status := fc.Status.DeepCopy()
-		fc, err = r.update(fc)
-		if err != nil {
-			return nil, err
-		}
-		fc.Status = *status
-		_, err = r.updateStatus(context.TODO(), fc)
-		if err != nil {
-			return nil, err
-		}
-	}
-	return fc, nil
 }
 
 // get the external address where the Authentication Service is reachable from the external world.
@@ -604,417 +503,6 @@ func (r *ForeignClusterReconciler) getHomeAuthURL() (string, error) {
 	return fmt.Sprintf("https://%s:%v", address, port), nil
 }
 
-func (r *ForeignClusterReconciler) createPeeringRequestIfNotExists(remoteClusterID string,
-	owner *discoveryv1alpha1.ForeignCluster, foreignClient *crdclient.CRDClient) (*discoveryv1alpha1.PeeringRequest, error) {
-	// get config to send to foreign cluster
-	fConfig, err := r.getForeignConfig(remoteClusterID, owner)
-	if err != nil {
-		return nil, err
-	}
-
-	localClusterID := r.clusterID.GetClusterID()
-
-	// check if a peering request with our cluster id already exists on remote cluster
-	tmp, err := foreignClient.Resource("peeringrequests").Get(localClusterID, &metav1.GetOptions{})
-	if err != nil && !errors.IsNotFound(err) && !utils.IsUnknownAuthority(err) {
-		return nil, err
-	}
-	if utils.IsUnknownAuthority(err) {
-		klog.V(4).Info("unknown authority")
-		owner.Spec.TrustMode = discoveryPkg.TrustModeUntrusted
-		return nil, nil
-	}
-	pr, ok := tmp.(*discoveryv1alpha1.PeeringRequest)
-	inf := errors.IsNotFound(err) || !ok // inf -> IsNotFound
-	// if peering request does not exists or its secret was not created for some reason
-	if inf || pr.Spec.KubeConfigRef == nil {
-		if inf {
-			// does not exist -> create new peering request
-			authURL, err := r.getHomeAuthURL()
-			if err != nil {
-				return nil, err
-			}
-			pr = &discoveryv1alpha1.PeeringRequest{
-				TypeMeta: metav1.TypeMeta{
-					Kind:       "PeeringRequest",
-					APIVersion: "discovery.liqo.io/v1alpha1",
-				},
-				ObjectMeta: metav1.ObjectMeta{
-					Name: localClusterID,
-				},
-				Spec: discoveryv1alpha1.PeeringRequestSpec{
-					ClusterIdentity: discoveryv1alpha1.ClusterIdentity{
-						ClusterID:   localClusterID,
-						ClusterName: r.ConfigProvider.GetConfig().ClusterName,
-					},
-					Namespace:     r.Namespace,
-					KubeConfigRef: nil,
-					AuthURL:       authURL,
-				},
-			}
-			tmp, err = foreignClient.Resource("peeringrequests").Create(pr, &metav1.CreateOptions{})
-			if err != nil {
-				return nil, err
-			}
-			pr, ok = tmp.(*discoveryv1alpha1.PeeringRequest)
-			if !ok {
-				return nil, goerrors.New("created object is not a ForeignCluster")
-			}
-		}
-		secret := &apiv1.Secret{
-			ObjectMeta: metav1.ObjectMeta{
-				// generate name will lead to different names every time, avoiding name collisions
-				GenerateName: strings.Join([]string{"pr", r.clusterID.GetClusterID(), ""}, "-"),
-				OwnerReferences: []metav1.OwnerReference{
-					{
-						APIVersion: fmt.Sprintf("%s/%s", discoveryv1alpha1.GroupVersion.Group, discoveryv1alpha1.GroupVersion.Version),
-						Kind:       "PeeringRequest",
-						Name:       pr.Name,
-						UID:        pr.UID,
-					},
-				},
-			},
-			StringData: map[string]string{
-				"kubeconfig": fConfig,
-			},
-		}
-		secret, err := foreignClient.Client().CoreV1().Secrets(r.Namespace).Create(context.TODO(), secret, metav1.CreateOptions{})
-		if err != nil {
-			klog.Error(err)
-			// there was an error during secret creation, delete peering request
-			err2 := foreignClient.Resource("peeringrequests").Delete(pr.Name, &metav1.DeleteOptions{})
-			if err2 != nil {
-				klog.Error(err2)
-				return nil, err2
-			}
-			return nil, err
-		}
-		pr.Spec.KubeConfigRef = &apiv1.ObjectReference{
-			Kind:       "Secret",
-			Namespace:  secret.Namespace,
-			Name:       secret.Name,
-			UID:        secret.UID,
-			APIVersion: "v1",
-		}
-		pr.TypeMeta.Kind = "PeeringRequest"
-		pr.TypeMeta.APIVersion = "discovery.liqo.io/v1alpha1"
-		tmp, err = foreignClient.Resource("peeringrequests").Update(pr.Name, pr, &metav1.UpdateOptions{})
-		if err != nil {
-			klog.Error(err)
-			// delete peering request, also secret will be deleted by garbage collector
-			err2 := foreignClient.Resource("peeringrequests").Delete(pr.Name, &metav1.DeleteOptions{})
-			if err2 != nil {
-				klog.Error(err2)
-				return nil, err2
-			}
-			return nil, err
-		}
-		pr, ok = tmp.(*discoveryv1alpha1.PeeringRequest)
-		if !ok {
-			return nil, goerrors.New("created object is not a PeeringRequest")
-		}
-		return pr, nil
-	}
-	// already exists
-	return pr, nil
-}
-
-// this function return a kube-config file to send to foreign cluster and crate everything needed for it.
-func (r *ForeignClusterReconciler) getForeignConfig(remoteClusterID string, owner *discoveryv1alpha1.ForeignCluster) (string, error) {
-	_, err := r.createClusterRoleIfNotExists(remoteClusterID, owner)
-	if err != nil {
-		return "", err
-	}
-	_, err = r.createRoleIfNotExists(remoteClusterID, owner)
-	if err != nil {
-		return "", err
-	}
-	sa, err := r.createServiceAccountIfNotExists(remoteClusterID, owner)
-	if err != nil {
-		return "", err
-	}
-	_, err = r.createClusterRoleBindingIfNotExists(remoteClusterID, owner)
-	if err != nil {
-		return "", err
-	}
-	_, err = r.createRoleBindingIfNotExists(remoteClusterID, owner)
-	if err != nil {
-		return "", err
-	}
-
-	// crdreplicator role binding
-	err = r.setDispatcherRole(remoteClusterID, sa, owner)
-	if err != nil {
-		return "", err
-	}
-
-	// check if ServiceAccount already has a secret, wait if not
-	if len(sa.Secrets) == 0 {
-		wa, err := r.crdClient.Client().CoreV1().ServiceAccounts(r.Namespace).Watch(context.TODO(), metav1.ListOptions{
-			FieldSelector: "metadata.name=" + remoteClusterID,
-		})
-		if err != nil {
-			return "", err
-		}
-		timeout := time.NewTimer(500 * time.Millisecond)
-		ch := wa.ResultChan()
-		defer timeout.Stop()
-		defer wa.Stop()
-		for iterate := true; iterate; {
-			select {
-			case s := <-ch:
-				_sa := s.Object.(*apiv1.ServiceAccount)
-				if _sa.Name == sa.Name && len(_sa.Secrets) > 0 {
-					iterate = false
-				}
-			case <-timeout.C:
-				// try to use default config
-				if r.ForeignConfig != nil {
-					klog.Warning("using default ForeignConfig")
-					return r.ForeignConfig.String(), nil
-				}
-				// ServiceAccount not updated with secrets and no default config
-				return "", errors.NewTimeoutError("ServiceAccount's Secret was not created", 0)
-			}
-		}
-	}
-	cnf, err := kubeconfig.CreateKubeConfig(r.ConfigProvider, r.crdClient.Client(), remoteClusterID, r.Namespace)
-	return cnf, err
-}
-
-func (r *ForeignClusterReconciler) createClusterRoleIfNotExists(remoteClusterID string,
-	owner *discoveryv1alpha1.ForeignCluster) (*rbacv1.ClusterRole, error) {
-	role, err := r.crdClient.Client().RbacV1().ClusterRoles().Get(context.TODO(), remoteClusterID, metav1.GetOptions{})
-	if errors.IsNotFound(err) {
-		// does not exist
-		role = &rbacv1.ClusterRole{
-			ObjectMeta: metav1.ObjectMeta{
-				Name: remoteClusterID,
-				OwnerReferences: []metav1.OwnerReference{
-					{
-						APIVersion: fmt.Sprintf("%s/%s", discoveryv1alpha1.GroupVersion.Group, discoveryv1alpha1.GroupVersion.Version),
-						Kind:       "ForeignCluster",
-						Name:       owner.Name,
-						UID:        owner.UID,
-					},
-				},
-			},
-			Rules: []rbacv1.PolicyRule{
-				{
-					Verbs:     []string{"get", "list", "create", "update", "delete", "watch"},
-					APIGroups: []string{"sharing.liqo.io"},
-					Resources: []string{"advertisements", "advertisements/status"},
-				},
-			},
-		}
-		return r.crdClient.Client().RbacV1().ClusterRoles().Create(context.TODO(), role, metav1.CreateOptions{})
-	}
-	if err != nil {
-		klog.Error(err)
-		return nil, err
-	}
-	return role, nil
-}
-
-func (r *ForeignClusterReconciler) createRoleIfNotExists(
-	remoteClusterID string, owner *discoveryv1alpha1.ForeignCluster) (*rbacv1.Role, error) {
-	role, err := r.crdClient.Client().RbacV1().Roles(r.Namespace).Get(context.TODO(), remoteClusterID, metav1.GetOptions{})
-	if errors.IsNotFound(err) {
-		// does not exist
-		role = &rbacv1.Role{
-			ObjectMeta: metav1.ObjectMeta{
-				Name: remoteClusterID,
-				OwnerReferences: []metav1.OwnerReference{
-					{
-						APIVersion: fmt.Sprintf("%s/%s", discoveryv1alpha1.GroupVersion.Group, discoveryv1alpha1.GroupVersion.Version),
-						Kind:       "ForeignCluster",
-						Name:       owner.Name,
-						UID:        owner.UID,
-					},
-				},
-			},
-			Rules: []rbacv1.PolicyRule{
-				{
-					Verbs:     []string{"get", "list", "create", "update", "delete", "watch"},
-					APIGroups: []string{""},
-					Resources: []string{"secrets"},
-				},
-			},
-		}
-		return r.crdClient.Client().RbacV1().Roles(r.Namespace).Create(context.TODO(), role, metav1.CreateOptions{})
-	}
-	if err != nil {
-		klog.Error(err)
-		return nil, err
-	}
-	return role, nil
-}
-
-func (r *ForeignClusterReconciler) createServiceAccountIfNotExists(
-	remoteClusterID string, owner *discoveryv1alpha1.ForeignCluster) (*apiv1.ServiceAccount, error) {
-	sa, err := r.crdClient.Client().CoreV1().ServiceAccounts(r.Namespace).Get(context.TODO(), remoteClusterID, metav1.GetOptions{})
-	if errors.IsNotFound(err) {
-		// does not exist
-		sa = &apiv1.ServiceAccount{
-			ObjectMeta: metav1.ObjectMeta{
-				Name: remoteClusterID,
-				OwnerReferences: []metav1.OwnerReference{
-					{
-						APIVersion: fmt.Sprintf("%s/%s", discoveryv1alpha1.GroupVersion.Group, discoveryv1alpha1.GroupVersion.Version),
-						Kind:       "ForeignCluster",
-						Name:       owner.Name,
-						UID:        owner.UID,
-					},
-				},
-			},
-		}
-		return r.crdClient.Client().CoreV1().ServiceAccounts(r.Namespace).Create(context.TODO(), sa, metav1.CreateOptions{})
-	}
-	if err != nil {
-		klog.Error(err)
-		return nil, err
-	}
-	return sa, nil
-}
-
-func (r *ForeignClusterReconciler) createClusterRoleBindingIfNotExists(
-	remoteClusterID string, owner *discoveryv1alpha1.ForeignCluster) (*rbacv1.ClusterRoleBinding, error) {
-	rb, err := r.crdClient.Client().RbacV1().ClusterRoleBindings().Get(context.TODO(), remoteClusterID, metav1.GetOptions{})
-	if errors.IsNotFound(err) {
-		// does not exist
-		rb = &rbacv1.ClusterRoleBinding{
-			ObjectMeta: metav1.ObjectMeta{
-				Name: remoteClusterID,
-				OwnerReferences: []metav1.OwnerReference{
-					{
-						APIVersion: fmt.Sprintf("%s/%s", discoveryv1alpha1.GroupVersion.Group, discoveryv1alpha1.GroupVersion.Version),
-						Kind:       "ForeignCluster",
-						Name:       owner.Name,
-						UID:        owner.UID,
-					},
-				},
-			},
-			Subjects: []rbacv1.Subject{
-				{
-					Kind:      "ServiceAccount",
-					Name:      remoteClusterID,
-					Namespace: r.Namespace,
-				},
-			},
-			RoleRef: rbacv1.RoleRef{
-				APIGroup: "rbac.authorization.k8s.io",
-				Kind:     "ClusterRole",
-				Name:     remoteClusterID,
-			},
-		}
-		return r.crdClient.Client().RbacV1().ClusterRoleBindings().Create(context.TODO(), rb, metav1.CreateOptions{})
-	}
-	if err != nil {
-		klog.Error(err)
-		return nil, err
-	}
-	return rb, nil
-}
-
-func (r *ForeignClusterReconciler) createRoleBindingIfNotExists(
-	remoteClusterID string, owner *discoveryv1alpha1.ForeignCluster) (*rbacv1.RoleBinding, error) {
-	rb, err := r.crdClient.Client().RbacV1().RoleBindings(r.Namespace).Get(context.TODO(), remoteClusterID, metav1.GetOptions{})
-	if errors.IsNotFound(err) {
-		// does not exist
-		rb = &rbacv1.RoleBinding{
-			ObjectMeta: metav1.ObjectMeta{
-				Name: remoteClusterID,
-				OwnerReferences: []metav1.OwnerReference{
-					{
-						APIVersion: fmt.Sprintf("%s/%s", discoveryv1alpha1.GroupVersion.Group, discoveryv1alpha1.GroupVersion.Version),
-						Kind:       "ForeignCluster",
-						Name:       owner.Name,
-						UID:        owner.UID,
-					},
-				},
-			},
-			Subjects: []rbacv1.Subject{
-				{
-					Kind:      "ServiceAccount",
-					Name:      remoteClusterID,
-					Namespace: r.Namespace,
-				},
-			},
-			RoleRef: rbacv1.RoleRef{
-				APIGroup: "rbac.authorization.k8s.io",
-				Kind:     "Role",
-				Name:     remoteClusterID,
-			},
-		}
-		return r.crdClient.Client().RbacV1().RoleBindings(r.Namespace).Create(context.TODO(), rb, metav1.CreateOptions{})
-	}
-	if err != nil {
-		klog.Error(err)
-		return nil, err
-	}
-	return rb, nil
-}
-
-func (r *ForeignClusterReconciler) setDispatcherRole(remoteClusterID string,
-	sa *apiv1.ServiceAccount, owner *discoveryv1alpha1.ForeignCluster) error {
-	_, err := r.crdClient.Client().RbacV1().ClusterRoleBindings().Get(
-		context.TODO(), remoteClusterID+"-crdreplicator", metav1.GetOptions{})
-	if errors.IsNotFound(err) {
-		// does not exist
-		rb := &rbacv1.ClusterRoleBinding{
-			ObjectMeta: metav1.ObjectMeta{
-				Name: remoteClusterID + "-crdreplicator",
-				OwnerReferences: []metav1.OwnerReference{
-					{
-						APIVersion: fmt.Sprintf("%s/%s", discoveryv1alpha1.GroupVersion.Group, discoveryv1alpha1.GroupVersion.Version),
-						Kind:       "ForeignCluster",
-						Name:       owner.Name,
-						UID:        owner.UID,
-					},
-				},
-			},
-			Subjects: []rbacv1.Subject{
-				{
-					Kind:      "ServiceAccount",
-					Name:      sa.Name,
-					Namespace: sa.Namespace,
-				},
-			},
-			RoleRef: rbacv1.RoleRef{
-				APIGroup: "rbac.authorization.k8s.io",
-				Kind:     "ClusterRole",
-				Name:     "crdreplicator-role",
-			},
-		}
-		_, err = r.crdClient.Client().RbacV1().ClusterRoleBindings().Create(context.TODO(), rb, metav1.CreateOptions{})
-		if err != nil {
-			klog.Error(err)
-		}
-		return err
-	}
-	if err != nil {
-		klog.Error(err)
-		return err
-	}
-	return nil
-}
-
-func (r *ForeignClusterReconciler) deleteAdvertisement(fc *discoveryv1alpha1.ForeignCluster) error {
-	var adv advtypes.Advertisement
-	if err := r.Client.Get(context.TODO(), types.NamespacedName{
-		Name: fmt.Sprintf("advertisement-%s", fc.Spec.ClusterIdentity.ClusterID)}, &adv); errors.IsNotFound(err) {
-		return nil
-	} else if err != nil {
-		klog.Error(err)
-		return err
-	}
-	return r.Client.Delete(context.TODO(), &adv)
-}
-
-func (r *ForeignClusterReconciler) deletePeeringRequest(foreignClient *crdclient.CRDClient, fc *discoveryv1alpha1.ForeignCluster) error {
-	return foreignClient.Resource("peeringrequests").Delete(fc.Status.Outgoing.RemotePeeringRequestName, &metav1.DeleteOptions{})
-}
-
 func (r *ForeignClusterReconciler) getAutoJoin(fc *discoveryv1alpha1.ForeignCluster) bool {
 	if r.ConfigProvider == nil || r.ConfigProvider.GetConfig() == nil {
 		klog.Warning("Discovery Config is not set, using default value")
@@ -1104,12 +592,4 @@ func (r *ForeignClusterReconciler) checkTEP(ctx context.Context,
 func (r *ForeignClusterReconciler) deleteForeignCluster(ctx context.Context,
 	foreignCluster *discoveryv1alpha1.ForeignCluster) error {
 	return r.Client.Delete(ctx, foreignCluster)
-}
-
-func (r *ForeignClusterReconciler) removeFinalizer(ctx context.Context,
-	foreignCluster *discoveryv1alpha1.ForeignCluster) (controllerutil.OperationResult, error) {
-	return controllerutil.CreateOrUpdate(ctx, r.Client, foreignCluster, func() error {
-		controllerutil.RemoveFinalizer(foreignCluster, FinalizerString)
-		return nil
-	})
 }

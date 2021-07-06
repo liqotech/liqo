@@ -34,9 +34,6 @@ spec:
           - "$(POD_NAMESPACE)"
           - "--requeueAfter"
           - "30"
-          {{- if .Values.useNewAuth }}
-          - "--useNewAuth"
-          {{- end }}
           env:
             - name: POD_NAMESPACE
               valueFrom:

@@ -77,8 +77,8 @@ var _ = Describe("NodeProvider", func() {
 		nodeChan = make(chan *v1.Node, 10)
 
 		nodeProvider, err = NewLiqoNodeProvider(nodeName,
-			resourceRequestName, foreignClusterID, kubeletNamespace,
-			node, podStopper, networkStopper, cluster.GetCfg(), 0, true)
+			foreignClusterID, kubeletNamespace,
+			node, podStopper, networkStopper, cluster.GetCfg(), 0)
 		Expect(err).To(BeNil())
 
 		nodeProvider.NotifyNodeStatus(ctx, func(node *v1.Node) {

@@ -4,8 +4,6 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/klog"
-
-	advtypes "github.com/liqotech/liqo/apis/sharing/v1alpha1"
 )
 
 func GetOwnerReference(object interface{}) []metav1.OwnerReference {
@@ -13,15 +11,6 @@ func GetOwnerReference(object interface{}) []metav1.OwnerReference {
 
 	switch obj := object.(type) {
 	case *appsv1.Deployment:
-		ownerRef = []metav1.OwnerReference{
-			{
-				APIVersion: obj.APIVersion,
-				Kind:       obj.Kind,
-				Name:       obj.Name,
-				UID:        obj.UID,
-			},
-		}
-	case *advtypes.Advertisement:
 		ownerRef = []metav1.OwnerReference{
 			{
 				APIVersion: obj.APIVersion,

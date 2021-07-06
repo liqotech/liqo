@@ -35,10 +35,6 @@ spec:
               valueFrom:
                 fieldRef:
                   fieldPath: metadata.namespace
-          {{- if .Values.useNewAuth }}
-          args:
-          - "--useNewAuth"
-          {{- end }}
           resources:
             requests:
               cpu: 30m

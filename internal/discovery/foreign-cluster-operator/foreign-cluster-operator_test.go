@@ -100,18 +100,17 @@ var _ = Describe("ForeignClusterOperator", func() {
 		}
 
 		controller = ForeignClusterReconciler{
-			Client:              mgr.GetClient(),
-			Scheme:              mgr.GetScheme(),
-			Namespace:           "default",
-			crdClient:           cluster.GetClient(),
-			advertisementClient: cluster.GetAdvClient(),
-			networkClient:       cluster.GetNetClient(),
-			clusterID:           cID,
-			ForeignConfig:       cluster.GetCfg(),
-			RequeueAfter:        300,
-			ConfigProvider:      &config,
-			namespaceManager:    namespaceManager,
-			identityManager:     identityManagerCtrl,
+			Client:           mgr.GetClient(),
+			Scheme:           mgr.GetScheme(),
+			Namespace:        "default",
+			crdClient:        cluster.GetClient(),
+			networkClient:    cluster.GetNetClient(),
+			clusterID:        cID,
+			ForeignConfig:    cluster.GetCfg(),
+			RequeueAfter:     300,
+			ConfigProvider:   &config,
+			namespaceManager: namespaceManager,
+			identityManager:  identityManagerCtrl,
 		}
 
 		go mgr.GetCache().Start(ctx)
@@ -127,185 +126,6 @@ var _ = Describe("ForeignClusterOperator", func() {
 		}
 	})
 
-	// peer
-
-	Context("Peer", func() {
-
-		type peerTestcase struct {
-			fc                    discoveryv1alpha1.ForeignCluster
-			expectedPeeringLength types.GomegaMatcher
-			expectedOutgoing      types.GomegaMatcher
-			expectedIncoming      types.GomegaMatcher
-		}
-
-		DescribeTable("Peer table",
-			func(c peerTestcase) {
-				obj, err := controller.crdClient.Resource("foreignclusters").Create(&c.fc, &metav1.CreateOptions{})
-				Expect(err).To(BeNil())
-				Expect(obj).NotTo(BeNil())
-
-				fc, ok := obj.(*discoveryv1alpha1.ForeignCluster)
-				Expect(ok).To(BeTrue())
-				Expect(fc).NotTo(BeNil())
-
-				fc, err = controller.Peer(fc, cluster.GetClient())
-				Expect(err).To(BeNil())
-				Expect(fc).NotTo(BeNil())
-
-				Expect(fc.Status.Outgoing).To(c.expectedOutgoing)
-				Expect(fc.Status.Incoming).To(c.expectedIncoming)
-
-				obj, err = controller.crdClient.Resource("peeringrequests").List(&metav1.ListOptions{})
-				Expect(err).To(BeNil())
-				Expect(obj).NotTo(BeNil())
-
-				prs, ok := obj.(*discoveryv1alpha1.PeeringRequestList)
-				Expect(ok).To(BeTrue())
-				Expect(prs).NotTo(BeNil())
-
-				Expect(len(prs.Items)).To(c.expectedPeeringLength)
-			},
-
-			Entry("peer", peerTestcase{
-				fc: discoveryv1alpha1.ForeignCluster{
-					ObjectMeta: metav1.ObjectMeta{
-						Name: "foreign-cluster",
-						Labels: map[string]string{
-							discovery.DiscoveryTypeLabel: string(discovery.ManualDiscovery),
-							discovery.ClusterIDLabel:     "foreign-cluster",
-						},
-					},
-					Spec: discoveryv1alpha1.ForeignClusterSpec{
-						ClusterIdentity: discoveryv1alpha1.ClusterIdentity{
-							ClusterID:   "foreign-cluster",
-							ClusterName: "ClusterTest2",
-						},
-						Namespace:     "liqo",
-						DiscoveryType: discovery.ManualDiscovery,
-						AuthURL:       "",
-						TrustMode:     discovery.TrustModeUntrusted,
-					},
-				},
-				expectedPeeringLength: Equal(1),
-				expectedOutgoing: Equal(discoveryv1alpha1.Outgoing{
-					PeeringPhase:             discoveryv1alpha1.PeeringPhaseEstablished,
-					RemotePeeringRequestName: "local-cluster",
-				}),
-				expectedIncoming: Equal(discoveryv1alpha1.Incoming{}),
-			}),
-		)
-
-	})
-
-	// unpeer
-
-	Context("Unpeer", func() {
-
-		type unpeerTestcase struct {
-			fc                    discoveryv1alpha1.ForeignCluster
-			pr                    discoveryv1alpha1.PeeringRequest
-			expectedPeeringLength types.GomegaMatcher
-			expectedOutgoing      types.GomegaMatcher
-			expectedIncoming      types.GomegaMatcher
-		}
-
-		DescribeTable("Unpeer table",
-			func(c unpeerTestcase) {
-				obj, err := controller.crdClient.Resource("foreignclusters").Create(&c.fc, &metav1.CreateOptions{})
-				Expect(err).To(BeNil())
-				Expect(obj).NotTo(BeNil())
-
-				fc, ok := obj.(*discoveryv1alpha1.ForeignCluster)
-				Expect(ok).To(BeTrue())
-				Expect(fc).NotTo(BeNil())
-
-				fc.Status = *c.fc.Status.DeepCopy()
-				obj, err = controller.crdClient.Resource("foreignclusters").UpdateStatus(fc.Name, fc, &metav1.UpdateOptions{})
-				Expect(err).To(BeNil())
-				Expect(obj).NotTo(BeNil())
-
-				fc, ok = obj.(*discoveryv1alpha1.ForeignCluster)
-				Expect(ok).To(BeTrue())
-				Expect(fc).NotTo(BeNil())
-
-				obj, err = controller.crdClient.Resource("peeringrequests").Create(&c.pr, &metav1.CreateOptions{})
-				Expect(err).To(BeNil())
-				Expect(obj).NotTo(BeNil())
-
-				pr, ok := obj.(*discoveryv1alpha1.PeeringRequest)
-				Expect(ok).To(BeTrue())
-				Expect(pr).NotTo(BeNil())
-
-				fc, err = controller.Unpeer(fc, cluster.GetClient())
-				Expect(err).To(BeNil())
-				Expect(fc).NotTo(BeNil())
-
-				Expect(fc.Status.Outgoing).To(c.expectedOutgoing)
-				Expect(fc.Status.Incoming).To(c.expectedIncoming)
-
-				obj, err = controller.crdClient.Resource("peeringrequests").List(&metav1.ListOptions{})
-				Expect(err).To(BeNil())
-				Expect(obj).NotTo(BeNil())
-
-				prs, ok := obj.(*discoveryv1alpha1.PeeringRequestList)
-				Expect(ok).To(BeTrue())
-				Expect(prs).NotTo(BeNil())
-
-				Expect(len(prs.Items)).To(c.expectedPeeringLength)
-			},
-
-			Entry("unpeer", unpeerTestcase{
-				fc: discoveryv1alpha1.ForeignCluster{
-					ObjectMeta: metav1.ObjectMeta{
-						Name: "foreign-cluster",
-						Labels: map[string]string{
-							discovery.DiscoveryTypeLabel: string(discovery.ManualDiscovery),
-							discovery.ClusterIDLabel:     "foreign-cluster",
-						},
-					},
-					Spec: discoveryv1alpha1.ForeignClusterSpec{
-						ClusterIdentity: discoveryv1alpha1.ClusterIdentity{
-							ClusterID:   "foreign-cluster",
-							ClusterName: "ClusterTest2",
-						},
-						Namespace:     "liqo",
-						DiscoveryType: discovery.ManualDiscovery,
-						AuthURL:       "",
-						TrustMode:     discovery.TrustModeUntrusted,
-					},
-					Status: discoveryv1alpha1.ForeignClusterStatus{
-						Outgoing: discoveryv1alpha1.Outgoing{
-							PeeringPhase:             discoveryv1alpha1.PeeringPhaseEstablished,
-							RemotePeeringRequestName: "local-cluster",
-						},
-						Incoming: discoveryv1alpha1.Incoming{},
-					},
-				},
-				pr: discoveryv1alpha1.PeeringRequest{
-					ObjectMeta: metav1.ObjectMeta{
-						Name: "local-cluster",
-					},
-					Spec: discoveryv1alpha1.PeeringRequestSpec{
-						ClusterIdentity: discoveryv1alpha1.ClusterIdentity{
-							ClusterID:   "local-cluster",
-							ClusterName: "Name",
-						},
-						Namespace: "default",
-						AuthURL:   "",
-					},
-				},
-				expectedPeeringLength: Equal(0),
-				expectedOutgoing: Equal(discoveryv1alpha1.Outgoing{
-					PeeringPhase: discoveryv1alpha1.PeeringPhaseNone,
-				}),
-				expectedIncoming: Equal(discoveryv1alpha1.Incoming{
-					PeeringPhase: discoveryv1alpha1.PeeringPhaseNone,
-				}),
-			}),
-		)
-
-	})
-
 	// peer namespaced
 
 	Context("Peer Namespaced", func() {
@@ -319,9 +139,6 @@ var _ = Describe("ForeignClusterOperator", func() {
 
 		DescribeTable("Peer table",
 			func(c peerTestcase) {
-				// enable the new authentication flow
-				controller.useNewAuth = true
-
 				// set the local namespace in the foreign cluster, we will only need the local one during the test
 				c.fc.Status.TenantControlNamespace.Local = tenantNamespace.Name
 
@@ -416,9 +233,6 @@ var _ = Describe("ForeignClusterOperator", func() {
 
 		DescribeTable("Unpeer table",
 			func(c unpeerTestcase) {
-				// enable the new authentication flow
-				controller.useNewAuth = true
-
 				// set the local namespace in the foreign cluster, we will only need the local one during the test
 				c.fc.Status.TenantControlNamespace.Local = tenantNamespace.Name
 

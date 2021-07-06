@@ -85,8 +85,6 @@ type Opts struct {
 
 	Version   string
 	Profiling bool
-
-	UseNewAuth bool
 }
 
 // SetDefaultOpts sets default options for unset values on the passed in option struct.

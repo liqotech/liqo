@@ -12,6 +12,7 @@ import (
 
 	"github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	discoveryPkg "github.com/liqotech/liqo/pkg/discovery"
+	foreignclusterutils "github.com/liqotech/liqo/pkg/utils/foreignCluster"
 )
 
 // updateForeignLAN updates a ForeignCluster discovered in the local network
@@ -144,7 +145,7 @@ func (discovery *Controller) createForeign(
 	} else if trustMode == discoveryPkg.TrustModeUntrusted {
 		fc.Spec.Join = discovery.Config.AutoJoinUntrusted
 	}
-	fc.LastUpdateNow()
+	foreignclusterutils.LastUpdateNow(fc)
 
 	if sd != nil {
 		fc.Spec.Join = sd.Spec.AutoJoin
@@ -186,7 +187,7 @@ func (discovery *Controller) checkUpdate(
 	searchDomain *v1alpha1.SearchDomain) (fcUpdated *v1alpha1.ForeignCluster, updated bool, err error) {
 	needsToReload := needsToDeleteRemoteResources(fc, data)
 	// the remote cluster didn't move, but we discovered it with an higher priority discovery type
-	higherPriority := fc.HasHigherPriority(discoveryType)
+	higherPriority := foreignclusterutils.HasHigherPriority(fc, discoveryType)
 	if needsToReload || higherPriority {
 		// something is changed in ForeignCluster specs, update it
 		fc.Spec.Namespace = data.ClusterInfo.GuestNamespace
@@ -201,7 +202,7 @@ func (discovery *Controller) checkUpdate(
 			fc.Spec.Join = searchDomain.Spec.AutoJoin
 			fc.Spec.TTL = int(data.AuthData.ttl)
 		}
-		fc.LastUpdateNow()
+		foreignclusterutils.LastUpdateNow(fc)
 		tmp, err := discovery.crdClient.Resource("foreignclusters").Update(fc.Name, fc, &metav1.UpdateOptions{})
 		if err != nil {
 			klog.Error(err)
@@ -215,35 +216,10 @@ func (discovery *Controller) checkUpdate(
 			klog.Error(err)
 			return nil, false, err
 		}
-		if needsToReload && fc.Status.Outgoing.Advertisement != nil {
-			// delete it only if the remote cluster moved
-
-			// changed ip in peered cluster, delete advertisement and wait for its recreation
-			// TODO: find more sophisticated logic to not remove all resources on remote cluster
-			advName := fc.Status.Outgoing.Advertisement.Name
-			fc.Status.Outgoing.Advertisement = nil
-			// updating it before adv delete will avoid us to set to false join flag
-			tmp, err = discovery.crdClient.Resource("foreignclusters").Update(fc.Name, fc, &metav1.UpdateOptions{})
-			if err != nil {
-				klog.Error(err)
-				return nil, false, err
-			}
-			fc, ok = tmp.(*v1alpha1.ForeignCluster)
-			if !ok {
-				err = errors.New("retrieved object is not a ForeignCluster")
-				klog.Error(err)
-				return nil, false, err
-			}
-			err = discovery.advClient.Resource("advertisements").Delete(advName, &metav1.DeleteOptions{})
-			if err != nil {
-				klog.Error(err)
-				return nil, false, err
-			}
-		}
 		return fc, true, nil
 	}
 	// update "lastUpdate" annotation
-	fc.LastUpdateNow()
+	foreignclusterutils.LastUpdateNow(fc)
 	tmp, err := discovery.crdClient.Resource("foreignclusters").Update(fc.Name, fc, &metav1.UpdateOptions{})
 	if err != nil {
 		if !k8serror.IsConflict(err) {

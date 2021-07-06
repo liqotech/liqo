@@ -64,22 +64,6 @@ spec:
           status:
             description: ResourceRequestStatus defines the observed state of ResourceRequest.
             properties:
-              advertisementStatus:
-                description: AdvPhase describes the phase of the Advertisement.
-                type: string
-              broadcasterRef:
-                description: DeploymentReference represents a Deployment Reference.
-                  It has enough information to retrieve deployment in any namespace.
-                properties:
-                  name:
-                    description: Name is unique within a namespace to reference a
-                      deployment resource.
-                    type: string
-                  namespace:
-                    description: Namespace defines the space within which the deployment
-                      name must be unique.
-                    type: string
-                type: object
               offerWithdrawalTimestamp:
                 description: OfferWithdrawalTimestamp is the withdrawal timestamp
                   of the child ResourceOffer resource.

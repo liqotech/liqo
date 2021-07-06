@@ -138,7 +138,7 @@ func (r *ResourceOfferReconciler) createVirtualKubeletDeployment(
 
 	// forge the virtual Kubelet
 	vkDeployment, err := forge.VirtualKubeletDeployment(
-		nil, remoteClusterID, name, namespace, r.liqoNamespace, r.virtualKubeletImage,
+		remoteClusterID, name, namespace, r.liqoNamespace, r.virtualKubeletImage,
 		r.initVirtualKubeletImage, nodeName, r.clusterID.GetClusterID())
 	if err != nil {
 		klog.Error(err)

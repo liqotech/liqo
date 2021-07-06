@@ -3,7 +3,6 @@ package provider
 import (
 	"time"
 
-	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/kubernetes"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
@@ -43,14 +42,12 @@ type LiqoProvider struct {
 
 	nodeName options.Option
 
-	useNewAuth bool
-
 	foreignPodWatcherStop chan struct{}
 }
 
 // NewLiqoProvider creates a new NewLiqoProvider instance.
 func NewLiqoProvider(nodeName, foreignClusterID, homeClusterID, internalIP string, daemonEndpointPort int32, kubeconfig,
-	remoteKubeConfig string, informerResyncPeriod time.Duration, ipamGRPCServer string, useNewAuth bool) (*LiqoProvider, error) {
+	remoteKubeConfig string, informerResyncPeriod time.Duration, ipamGRPCServer string) (*LiqoProvider, error) {
 	var err error
 
 	if err = nattingv1.AddToScheme(clientgoscheme.Scheme); err != nil {
@@ -69,26 +66,14 @@ func NewLiqoProvider(nodeName, foreignClusterID, homeClusterID, internalIP strin
 	tenantNamespaceManager := tenantcontrolnamespace.NewTenantControlNamespaceManager(client.Client())
 	identityManager := identitymanager.NewCertificateIdentityManager(client.Client(), clusterID, tenantNamespaceManager)
 
-	var restConfig *rest.Config
-	if useNewAuth {
-		restConfig, err = identityManager.GetConfig(foreignClusterID, "")
-		if err != nil {
-			klog.Error(err)
-			return nil, err
-		}
-
-		restConfig.QPS = virtualKubelet.FOREIGN_CLIENT_QPS
-		restConfig.Burst = virtualKubelet.FOREIGN_CLIENT_BURST
-	} else {
-		restConfig, err = crdclient.NewKubeconfig(remoteKubeConfig, &schema.GroupVersion{}, func(config *rest.Config) {
-			config.QPS = virtualKubelet.FOREIGN_CLIENT_QPS
-			config.Burst = virtualKubelet.FOREIGN_CLIENT_BURST
-		})
-		if err != nil {
-			klog.Error(err)
-			return nil, err
-		}
+	restConfig, err := identityManager.GetConfig(foreignClusterID, "")
+	if err != nil {
+		klog.Error(err)
+		return nil, err
 	}
+
+	restConfig.QPS = virtualKubelet.FOREIGN_CLIENT_QPS
+	restConfig.Burst = virtualKubelet.FOREIGN_CLIENT_BURST
 
 	foreignClient, err := kubernetes.NewForConfig(restConfig)
 	if err != nil {
@@ -133,7 +118,6 @@ func NewLiqoProvider(nodeName, foreignClusterID, homeClusterID, internalIP strin
 		foreignClient:         foreignClient,
 		foreignMetricsClient:  foreignMetricsClient,
 		tepReady:              tepReady,
-		useNewAuth:            useNewAuth,
 	}
 
 	return &provider, nil

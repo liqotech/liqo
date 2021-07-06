@@ -37,9 +37,6 @@ func init() {
 }
 
 func main() {
-	var useNewAuth bool
-
-	flag.BoolVar(&useNewAuth, "useNewAuth", false, "Enable the new authentication flow, with certificates and namespaced resources")
 	klog.InitFlags(nil)
 
 	flag.Parse()
@@ -97,7 +94,6 @@ func main() {
 		LocalWatchers:                  make(map[string]chan struct{}),
 		RemoteWatchers:                 make(map[string]map[string]chan struct{}),
 		RemoteDynSharedInformerFactory: make(map[string]dynamicinformer.DynamicSharedInformerFactory),
-		UseNewAuth:                     useNewAuth,
 		NamespaceManager:               namespaceManager,
 		IdentityManager: identitymanager.NewCertificateIdentityManager(
 			k8sClient, clusterIDInterface, namespaceManager),

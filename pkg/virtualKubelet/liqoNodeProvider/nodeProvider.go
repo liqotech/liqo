@@ -20,7 +20,6 @@ type LiqoNodeProvider struct {
 	lastAppliedLabels map[string]string
 
 	nodeName         string
-	advName          string
 	foreignClusterID string
 	kubeletNamespace string
 	resyncPeriod     time.Duration
@@ -31,8 +30,6 @@ type LiqoNodeProvider struct {
 
 	onNodeChangeCallback func(*corev1.Node)
 	updateMutex          sync.Mutex
-
-	useNewAuth bool
 }
 
 // Ping just implements the NodeProvider interface.

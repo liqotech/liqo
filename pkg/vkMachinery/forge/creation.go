@@ -6,17 +6,13 @@ import (
 	rbacv1 "k8s.io/api/rbac/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	advtypes "github.com/liqotech/liqo/apis/sharing/v1alpha1"
 	"github.com/liqotech/liqo/pkg/discovery"
 	"github.com/liqotech/liqo/pkg/vkMachinery"
 )
 
 // VirtualKubeletDeployment forges the deployment for a virtual-kubelet.
-func VirtualKubeletDeployment(adv *advtypes.Advertisement, remoteClusterID,
+func VirtualKubeletDeployment(remoteClusterID,
 	vkName, vkNamespace, liqoNamespace, vkImage, initVKImage, nodeName, homeClusterID string) (*appsv1.Deployment, error) {
-	if adv != nil {
-		remoteClusterID = adv.Spec.ClusterId
-	}
 	vkLabels := VirtualKubeletLabels(remoteClusterID)
 	return &appsv1.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
@@ -33,7 +29,7 @@ func VirtualKubeletDeployment(adv *advtypes.Advertisement, remoteClusterID,
 				ObjectMeta: metav1.ObjectMeta{
 					Labels: vkLabels,
 				},
-				Spec: forgeVKPodSpec(vkName, vkNamespace, liqoNamespace, homeClusterID, adv, remoteClusterID, initVKImage, nodeName, vkImage),
+				Spec: forgeVKPodSpec(vkName, vkNamespace, liqoNamespace, homeClusterID, remoteClusterID, initVKImage, nodeName, vkImage),
 			},
 		},
 	}, nil

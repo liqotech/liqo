@@ -17,7 +17,6 @@ func registerKubernetes(s *provider.Store) error {
 			cfg.RemoteKubeConfig,
 			cfg.InformerResyncPeriod,
 			cfg.LiqoIpamServer,
-			cfg.UseNewAuth,
 		)
 	})
 }
