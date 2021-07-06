@@ -38,7 +38,7 @@ var (
 	now = metav1.Now()
 )
 
-func createTestNodes() (*corev1.Node, *corev1.Node) {
+func createTestNodes() (node1, node2 *corev1.Node) {
 	resources := corev1.ResourceList{}
 	resources[corev1.ResourceCPU] = *resource.NewQuantity(2, resource.DecimalSI)
 	resources[corev1.ResourceMemory] = *resource.NewQuantity(1000000, resource.DecimalSI)
@@ -83,7 +83,7 @@ func createTestNodes() (*corev1.Node, *corev1.Node) {
 	return first, second
 }
 
-func createTestPods() (*corev1.Pod, *corev1.Pod) {
+func createTestPods() (podWithLabels, podWithoutLabels *corev1.Pod) {
 	resources := corev1.ResourceList{}
 	resources[corev1.ResourceCPU] = *resource.NewQuantity(1, resource.DecimalSI)
 	resources[corev1.ResourceMemory] = *resource.NewQuantity(50000, resource.DecimalSI)
@@ -136,6 +136,43 @@ func createTestPods() (*corev1.Pod, *corev1.Pod) {
 	return pod1, wrongPod
 }
 
+func checkResourceOfferUpdate(nodeResources, podResources []corev1.ResourceList) bool {
+	offer := &sharingv1alpha1.ResourceOffer{}
+	err := k8sClient.Get(ctx, types.NamespacedName{
+		Name:      offerPrefix + clusterID,
+		Namespace: ResourcesNamespace,
+	}, offer)
+	if err != nil {
+		return false
+	}
+	offerResources := offer.Spec.ResourceQuota.Hard
+	testList := corev1.ResourceList{}
+	for _, nodeResource := range nodeResources {
+		for resourceName, quantity := range nodeResource {
+			toAdd := testList[resourceName].DeepCopy()
+			toAdd.Add(quantity)
+			testList[resourceName] = toAdd.DeepCopy()
+		}
+	}
+
+	for _, podResource := range podResources {
+		for resourceName, quantity := range podResource {
+			toSub := testList[resourceName].DeepCopy()
+			toSub.Sub(quantity)
+			testList[resourceName] = toSub.DeepCopy()
+		}
+	}
+
+	for resourceName, quantity := range offerResources {
+		toCheck := testList[resourceName].DeepCopy()
+		scale(resourceName, &toCheck)
+		if quantity.Cmp(toCheck) != 0 {
+			return false
+		}
+	}
+	return true
+}
+
 func scale(resourceName corev1.ResourceName, quantity *resource.Quantity) {
 	percentage := int64(50)
 	switch resourceName {
@@ -157,7 +194,7 @@ func createResourceRequest() *discoveryv1alpha1.ResourceRequest {
 			Name:      ResourceRequestName,
 			Namespace: ResourcesNamespace,
 			Labels: map[string]string{
-				crdreplicator.RemoteLabelSelector:    clusterId,
+				crdreplicator.RemoteLabelSelector:    homeClusterID,
 				crdreplicator.ReplicationStatuslabel: "true",
 			},
 		},
@@ -186,9 +223,9 @@ var _ = Describe("ResourceRequest Operator", func() {
 		node2                  *corev1.Node
 	)
 	BeforeEach(func() {
+		createdResourceRequest = createResourceRequest()
 		node1, node2 = createTestNodes()
 		_, podWithoutLabel = createTestPods()
-		createdResourceRequest = createResourceRequest()
 	})
 	AfterEach(func() {
 		err := clientset.CoreV1().Nodes().DeleteCollection(ctx, metav1.DeleteOptions{}, metav1.ListOptions{})
@@ -243,7 +280,7 @@ var _ = Describe("ResourceRequest Operator", func() {
 			By("Checking Offer creation")
 			createdResourceOffer := &sharingv1alpha1.ResourceOffer{}
 			offerName := types.NamespacedName{
-				Name:      offerPrefix + clusterId,
+				Name:      offerPrefix + clusterID,
 				Namespace: ResourcesNamespace,
 			}
 			klog.Info(offerName)
@@ -252,7 +289,7 @@ var _ = Describe("ResourceRequest Operator", func() {
 			}, timeout, interval).ShouldNot(HaveOccurred())
 			By("Checking all ResourceOffer parameters")
 
-			Expect(createdResourceOffer.Name).Should(ContainSubstring(clusterId))
+			Expect(createdResourceOffer.Name).Should(ContainSubstring(clusterID))
 			Expect(createdResourceOffer.Labels[discovery.ClusterIDLabel]).Should(Equal(createdResourceRequest.Spec.ClusterIdentity.ClusterID))
 			Expect(createdResourceOffer.Labels[crdreplicator.LocalLabelSelector]).Should(Equal("true"))
 			Expect(createdResourceOffer.Labels[crdreplicator.DestinationLabel]).Should(Equal(createdResourceRequest.Spec.ClusterIdentity.ClusterID))
@@ -264,14 +301,27 @@ var _ = Describe("ResourceRequest Operator", func() {
 
 			By("Checking resources at offer creation")
 			podReq, _ := resourcehelper.PodRequestsAndLimits(podWithoutLabel)
-			offerResources := createdResourceOffer.Spec.ResourceQuota.Hard
-			for resourceName, quantity := range offerResources {
-				testValue := node1.Status.Allocatable[resourceName].DeepCopy()
-				testValue.Add(node2.Status.Allocatable[resourceName])
-				testValue.Sub(podReq[resourceName])
-				scale(resourceName, &testValue)
-				Expect(quantity.Cmp(testValue)).Should(BeZero())
-			}
+			Eventually(func() bool {
+				offer := &sharingv1alpha1.ResourceOffer{}
+				err := k8sClient.Get(ctx, types.NamespacedName{
+					Name:      offerPrefix + clusterID,
+					Namespace: ResourcesNamespace,
+				}, offer)
+				if err != nil {
+					return false
+				}
+				offerResources := offer.Spec.ResourceQuota.Hard
+				for resourceName, quantity := range offerResources {
+					testValue := node2.Status.Allocatable[resourceName].DeepCopy()
+					testValue.Add(node1.Status.Allocatable[resourceName])
+					testValue.Sub(podReq[resourceName])
+					scale(resourceName, &testValue)
+					if quantity.Cmp(testValue) != 0 {
+						return false
+					}
+				}
+				return true
+			}, timeout, interval).Should(BeTrue())
 
 			By("Checking ResourceOffer invalidation on request set deleting phase")
 			err := retry.RetryOnConflict(retry.DefaultBackoff, func() error {
@@ -290,10 +340,19 @@ var _ = Describe("ResourceRequest Operator", func() {
 			Expect(err).ToNot(HaveOccurred())
 
 			// set the vk status in the ResourceOffer to created
-			createdResourceOffer.Status.VirtualKubeletStatus = sharingv1alpha1.VirtualKubeletStatusCreated
-			createdResourceOffer.Status.Phase = sharingv1alpha1.ResourceOfferAccepted
-			Expect(k8sClient.Status().Update(ctx, createdResourceOffer)).ToNot(HaveOccurred())
-
+			err = retry.RetryOnConflict(retry.DefaultBackoff, func() error {
+				err := k8sClient.Get(ctx, types.NamespacedName{
+					Name:      createdResourceOffer.Name,
+					Namespace: createdResourceOffer.Namespace,
+				}, createdResourceOffer)
+				if err != nil {
+					return err
+				}
+				createdResourceOffer.Status.VirtualKubeletStatus = sharingv1alpha1.VirtualKubeletStatusCreated
+				createdResourceOffer.Status.Phase = sharingv1alpha1.ResourceOfferAccepted
+				return k8sClient.Status().Update(ctx, createdResourceOffer)
+			})
+			Expect(err).ToNot(HaveOccurred())
 			var resourceOffer sharingv1alpha1.ResourceOffer
 			Eventually(func() bool {
 				if err := k8sClient.Get(ctx, offerName, &resourceOffer); err != nil {
@@ -341,6 +400,17 @@ var _ = Describe("ResourceRequest Operator", func() {
 
 	Context("Testing broadcaster", func() {
 		It("Broadcaster should update resources in correct way", func() {
+			var resourceRequest discoveryv1alpha1.ResourceRequest
+			Eventually(func() []string {
+				err := k8sClient.Get(ctx, types.NamespacedName{
+					Name:      ResourceRequestName,
+					Namespace: ResourcesNamespace,
+				}, &resourceRequest)
+				if err != nil {
+					return []string{}
+				}
+				return resourceRequest.Finalizers
+			}, timeout, interval).Should(ContainElement(tenantFinalizer))
 			podReq, _ := resourcehelper.PodRequestsAndLimits(podWithoutLabel)
 			By("Checking update node ready condition")
 			node1.Status.Conditions[0] = corev1.NodeCondition{
@@ -362,12 +432,33 @@ var _ = Describe("ResourceRequest Operator", func() {
 				}
 				return true
 			}, timeout, interval).Should(BeTrue())
+			By("Checking if ResourceOffer has been update and has correct amount of resources")
+			Eventually(func() bool {
+				nodeList := []corev1.ResourceList{
+					0: node2.Status.Allocatable,
+				}
+				podList := []corev1.ResourceList{
+					0: podReq,
+				}
+				return checkResourceOfferUpdate(nodeList, podList)
+			}, timeout, interval).Should(BeTrue())
 			node1.Status.Conditions[0] = corev1.NodeCondition{
 				Type:   corev1.NodeReady,
 				Status: corev1.ConditionTrue,
 			}
 			node1, err = clientset.CoreV1().Nodes().UpdateStatus(ctx, node1, metav1.UpdateOptions{})
 			Expect(err).ToNot(HaveOccurred())
+			By("Checking inserting of node1 again in ResourceOffer")
+			Eventually(func() bool {
+				nodeList := []corev1.ResourceList{
+					0: node1.Status.Allocatable,
+					1: node2.Status.Allocatable,
+				}
+				podList := []corev1.ResourceList{
+					0: podReq,
+				}
+				return checkResourceOfferUpdate(nodeList, podList)
+			}, timeout, interval).Should(BeTrue())
 			Eventually(func() bool {
 				resourcesRead := newBroadcaster.ReadResources(homeClusterID)
 				for resourceName, quantity := range resourcesRead {
@@ -381,7 +472,8 @@ var _ = Describe("ResourceRequest Operator", func() {
 				}
 				return true
 			}, timeout, interval).Should(BeTrue())
-			By("Checking update resources")
+
+			By("Checking update node resources")
 			toUpdate := node1.Status.Allocatable.DeepCopy()
 			for _, quantity := range toUpdate {
 				quantity.Sub(*resource.NewQuantity(1, quantity.Format))
@@ -402,6 +494,17 @@ var _ = Describe("ResourceRequest Operator", func() {
 				}
 				return true
 			}, timeout, interval).Should(BeTrue())
+			By("Checking if ResourceOffer has been updated correctly")
+			Eventually(func() bool {
+				nodeList := []corev1.ResourceList{
+					0: node2.Status.Allocatable,
+					1: node1.Status.Allocatable,
+				}
+				podList := []corev1.ResourceList{
+					0: podReq,
+				}
+				return checkResourceOfferUpdate(nodeList, podList)
+			}, timeout, interval).Should(BeTrue())
 			By("Checking Node Delete")
 			err = clientset.CoreV1().Nodes().Delete(ctx, node1.Name, metav1.DeleteOptions{})
 			Expect(err).ToNot(HaveOccurred())
@@ -416,6 +519,16 @@ var _ = Describe("ResourceRequest Operator", func() {
 					}
 				}
 				return true
+			}, timeout, interval).Should(BeTrue())
+			By("Checking if ResourceOffer has been updated correctly")
+			Eventually(func() bool {
+				nodeList := []corev1.ResourceList{
+					0: node2.Status.Allocatable,
+				}
+				podList := []corev1.ResourceList{
+					0: podReq,
+				}
+				return checkResourceOfferUpdate(nodeList, podList)
 			}, timeout, interval).Should(BeTrue())
 		})
 	})

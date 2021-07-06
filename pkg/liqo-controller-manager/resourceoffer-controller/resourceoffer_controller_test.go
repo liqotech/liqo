@@ -155,9 +155,7 @@ var _ = Describe("ResourceOffer Controller", func() {
 					},
 				},
 				Spec: sharingv1alpha1.ResourceOfferSpec{
-					ClusterId:  clusterID,
-					Timestamp:  metav1.Now(),
-					TimeToLive: metav1.NewTime(time.Now().Add(1 * time.Hour)),
+					ClusterId: clusterID,
 				},
 			},
 			expectedPhase: sharingv1alpha1.ResourceOfferAccepted,
@@ -171,9 +169,7 @@ var _ = Describe("ResourceOffer Controller", func() {
 					Namespace: testNamespace,
 				},
 				Spec: sharingv1alpha1.ResourceOfferSpec{
-					ClusterId:  clusterID,
-					Timestamp:  metav1.Now(),
-					TimeToLive: metav1.NewTime(time.Now().Add(1 * time.Hour)),
+					ClusterId: clusterID,
 				},
 			},
 			expectedPhase: "",
@@ -193,9 +189,7 @@ var _ = Describe("ResourceOffer Controller", func() {
 					},
 				},
 				Spec: sharingv1alpha1.ResourceOfferSpec{
-					ClusterId:  clusterID,
-					Timestamp:  metav1.Now(),
-					TimeToLive: metav1.NewTime(time.Now().Add(1 * time.Hour)),
+					ClusterId: clusterID,
 				},
 			}
 			key := client.ObjectKeyFromObject(resourceOffer)

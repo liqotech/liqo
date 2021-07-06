@@ -80,6 +80,7 @@ func main() {
 	var liqoNamespace, kubeletImage, initKubeletImage string
 	var resyncPeriod int64
 	var offloadingStatusControllerRequeueTime int64
+	var offerUpdateThreshold uint64
 	var namespaceMapControllerRequeueTime int64
 
 	flag.StringVar(&metricsAddr, "metrics-addr", defaultMetricsaddr, "The address the metric endpoint binds to.")
@@ -87,7 +88,8 @@ func main() {
 	flag.BoolVar(&enableLeaderElection,
 		"enable-leader-election", false,
 		"Enable leader election for controller manager. Enabling this will ensure there is only one active controller manager.")
-
+	flag.Uint64Var(&offerUpdateThreshold, "offer-update-threshold-perc", uint64(5),
+		"Set the threshold percentage of quantity of resources modified which triggers the resourceOffer update.")
 	flag.Int64Var(&resyncPeriod, "resyncPeriod", int64(10*time.Hour), "Period after that operators and informers will requeue events.")
 	flag.Int64Var(&offloadingStatusControllerRequeueTime, "offloadingStatusControllerRequeueTime", int64(10*time.Second),
 		"Period after that the offloadingStatus Controller is awaken on every NamespaceOffloading to set its status.")
@@ -108,6 +110,11 @@ func main() {
 
 	if clusterId == "" {
 		klog.Error("Cluster ID must be provided")
+		os.Exit(1)
+	}
+
+	if offerUpdateThreshold > 100 {
+		klog.Error("offerUpdateThreshold exceeds 100")
 		os.Exit(1)
 	}
 
@@ -157,8 +164,9 @@ func main() {
 	}
 
 	newBroadcaster := &resourceRequestOperator.Broadcaster{}
-
-	if err := newBroadcaster.SetupBroadcaster(clientset, time.Duration(resyncPeriod)); err != nil {
+	updater := &resourceRequestOperator.OfferUpdater{}
+	updater.Setup(clusterId, mgr.GetScheme(), newBroadcaster, mgr.GetClient())
+	if err := newBroadcaster.SetupBroadcaster(clientset, updater, time.Duration(resyncPeriod), offerUpdateThreshold); err != nil {
 		klog.Error(err)
 		os.Exit(1)
 	}

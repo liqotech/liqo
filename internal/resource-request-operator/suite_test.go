@@ -26,7 +26,7 @@ import (
 var (
 	cfg            *rest.Config
 	k8sClient      client.Client
-	clusterId      string
+	clusterID      string
 	clientset      kubernetes.Interface
 	testEnv        *envtest.Environment
 	newBroadcaster Broadcaster
@@ -71,7 +71,10 @@ func createCluster() {
 	})
 	Expect(err).ToNot(HaveOccurred())
 	clientset = kubernetes.NewForConfigOrDie(k8sManager.GetConfig())
-	err = newBroadcaster.SetupBroadcaster(clientset, 5*time.Second)
+	clusterID = clusterid.NewStaticClusterID("test-cluster").GetClusterID()
+	updater := OfferUpdater{}
+	updater.Setup(clusterID, k8sManager.GetScheme(), &newBroadcaster, k8sManager.GetClient())
+	err = newBroadcaster.SetupBroadcaster(clientset, &updater, 5*time.Second, 5)
 	Expect(err).ToNot(HaveOccurred())
 	newBroadcaster.StartBroadcaster(ctx, &group)
 	testClusterConf := &configv1alpha1.ClusterConfig{
@@ -84,11 +87,10 @@ func createCluster() {
 		},
 	}
 	newBroadcaster.setConfig(testClusterConf)
-	clusterId = clusterid.NewStaticClusterID("test-cluster").GetClusterID()
 	err = (&ResourceRequestReconciler{
 		Client:      k8sManager.GetClient(),
 		Scheme:      k8sManager.GetScheme(),
-		ClusterID:   clusterId,
+		ClusterID:   clusterID,
 		Broadcaster: &newBroadcaster,
 	}).SetupWithManager(k8sManager)
 	Expect(err).ToNot(HaveOccurred())

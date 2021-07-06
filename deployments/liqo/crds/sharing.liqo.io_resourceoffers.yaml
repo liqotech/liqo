@@ -155,17 +155,6 @@ spec:
                       type: string
                     type: array
                 type: object
-              timeToLive:
-                description: TimeToLive is the time instant until this ResourceOffer
-                  will be valid. If not refreshed, an ResourceOffer will expire after
-                  30 minutes.
-                format: date-time
-                type: string
-              timestamp:
-                description: Timestamp is the time instant when this ResourceOffer
-                  was created.
-                format: date-time
-                type: string
               withdrawalTimestamp:
                 description: WithdrawalTimestamp is set when a graceful deletion is
                   requested by the user.
@@ -173,8 +162,6 @@ spec:
                 type: string
             required:
             - clusterId
-            - timeToLive
-            - timestamp
             type: object
           status:
             description: ResourceOfferStatus defines the observed state of ResourceOffer.

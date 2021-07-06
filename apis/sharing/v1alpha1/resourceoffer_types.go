@@ -18,11 +18,6 @@ type ResourceOfferSpec struct {
 	Labels map[string]string `json:"labels,omitempty"`
 	// Prices contains the possible prices for every kind of resource (cpu, memory, image).
 	Prices corev1.ResourceList `json:"prices,omitempty"`
-	// Timestamp is the time instant when this ResourceOffer was created.
-	Timestamp metav1.Time `json:"timestamp"`
-	// TimeToLive is the time instant until this ResourceOffer will be valid.
-	// If not refreshed, an ResourceOffer will expire after 30 minutes.
-	TimeToLive metav1.Time `json:"timeToLive"`
 	// WithdrawalTimestamp is set when a graceful deletion is requested by the user.
 	WithdrawalTimestamp *metav1.Time `json:"withdrawalTimestamp,omitempty"`
 }
