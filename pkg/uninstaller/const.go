@@ -3,16 +3,19 @@ package uninstaller
 import (
 	"time"
 
-	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 
 	"github.com/liqotech/liqo/apis/net/v1alpha1"
-	"github.com/liqotech/liqo/pkg/vkMachinery"
 )
 
+// TickerInterval defines the check interval.
 const TickerInterval = 5 * time.Second
-const TickerTimeout = 1 * time.Minute
+
+// TickerTimeout defines the overall timeout to be waited.
+const TickerTimeout = 5 * time.Minute
+
+// ConditionsToCheck maps the number of conditions to be checked waiting for the unpeer.
 const ConditionsToCheck = 1
 
 type toCheckDeleted struct {
@@ -26,8 +29,6 @@ type resultType struct {
 }
 
 var (
-	podGVR = v1.SchemeGroupVersion.WithResource("pods")
-
 	toCheck = []toCheckDeleted{
 		{
 			gvr:           v1alpha1.TunnelEndpointGroupVersionResource,
@@ -36,12 +37,6 @@ var (
 		{
 			gvr:           v1alpha1.NetworkConfigGroupVersionResource,
 			labelSelector: metav1.LabelSelector{},
-		},
-		{
-			gvr: podGVR,
-			labelSelector: metav1.LabelSelector{
-				MatchLabels: vkMachinery.KubeletBaseLabels,
-			},
 		},
 	}
 )

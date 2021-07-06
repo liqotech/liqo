@@ -8,6 +8,8 @@ metadata:
     {{- include "liqo.labels" $gatewayConfig | nindent 4 }}
   name: {{ include "liqo.prefixedName" $gatewayConfig }}
 spec:
+  strategy:
+    type: Recreate
   replicas: 1
   selector:
     matchLabels:
