@@ -13,6 +13,7 @@ import (
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	machtypes "k8s.io/apimachinery/pkg/types"
+	"k8s.io/client-go/util/retry"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 
 	"github.com/liqotech/liqo/apis/config/v1alpha1"
@@ -498,7 +499,17 @@ var _ = Describe("ForeignClusterOperator", func() {
 				Expect(rr).NotTo(BeNil())
 
 				// call for the second time the unpeer function to delete the ResourceRequest
-				err = controller.unpeerNamespaced(ctx, fc)
+				err = retry.RetryOnConflict(retry.DefaultBackoff, func() error {
+					// make sure to be working on the last ForeignCluster version
+					err = controller.Client.Get(ctx, machtypes.NamespacedName{
+						Name: fc.GetName(),
+					}, fc)
+					if err != nil {
+						return err
+					}
+
+					return controller.unpeerNamespaced(ctx, fc)
+				})
 				Expect(err).To(BeNil())
 
 				// get the resource requests in the local tenant namespace
