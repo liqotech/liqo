@@ -32,8 +32,6 @@ set -o pipefail  # Fail if one of the piped commands fails
 #     the Kubernetes namespace where all Liqo control plane components are created (defaults to liqo).
 #   - CLUSTER_NAME
 #     the mnemonic name assigned to this Liqo instance. Automatically generated if not specified.
-#   - DASHBOARD_HOSTNAME
-#     the hostname assigned to the Liqo dashboard (exposed through an Ingress resource).
 #
 #   - LIQO_INGRESS_CLASS
 #     the kubernetes ingress class to be used for the ingresses created by Liqo.
@@ -56,23 +54,12 @@ set -o pipefail  # Fail if one of the piped commands fails
 #   - KUBECONFIG_CONTEXT
 #     the context selected to interact with the cluster (defaults to the current one).
 #
-#   - LIQO_AGENT
-#     when this variable is 'true', it triggers the LiqoAgent (un)installer according to main options of this script.
-#     LiqoAgent is a desktop application (currently just for linux-based desktop environments) providing an easy way
-#     to manage Liqo through a simple graphical user interface. Learn more at https://github.com/liqotech/liqo-agent.
-#   - LIQO_DASHBOARD
-#     when this variable is 'true', it triggers the LiqoDashboard (un)installer according to main options of this script.
-#     LiqoDash is a desktop application (currently just for linux-based desktop environments) providing an easy way
-#     to manage Liqo through a simple graphical user interface. Learn more at https://github.com/liqotech/liqo-dashboard.
 
 EXIT_SUCCESS=0
 EXIT_FAILURE=1
 
 LIQO_REPO_DEFAULT="liqotech/liqo"
 LIQO_CHARTS_PATH="deployments/liqo"
-
-LIQO_DASHBOARD_REPO="liqotech/dashboard"
-LIQO_DASHBOARD_CHARTS_PATH="kubernetes/dashboard_chart"
 
 LIQO_NAMESPACE_DEFAULT="liqo"
 CLUSTER_NAME_DEFAULT=$(printf "LiqoCluster%04d" $(( RANDOM%10000 )) )
@@ -148,7 +135,6 @@ function help() {
 
 	  ${BOLD}LIQO_NAMESPACE${RESET}:     the Kubernetes namespace where all Liqo components are created (defaults to liqo)
 	  ${BOLD}CLUSTER_NAME${RESET}:       the mnemonic name assigned to this Liqo instance. Automatically generated if not specified.
-	  ${BOLD}DASHBOARD_HOSTNAME${RESET}: the hostname assigned to the Liqo dashboard (exposed through an Ingress resource).
 
 	  ${BOLD}LIQO_INGRESS_CLASS${RESET}:   the kubernetes ingress class to be used for the ingresses created by Liqo.
 	  ${BOLD}LIQO_APISERVER_ADDR${RESET}:  the address where to contact the home API Server (defaults to the master node IP).
@@ -162,12 +148,6 @@ function help() {
 	  ${BOLD}KUBECONFIG${RESET}:         the KUBECONFIG file used to interact with the cluster (defaults to ~/.kube/config).
 	  ${BOLD}KUBECONFIG_CONTEXT${RESET}: the context selected to interact with the cluster (defaults to the current one).
 
-	  ${BOLD}LIQO_AGENT{RESET}:          set this variable to 'true' to trigger also the (un)installer of LiqoAgent latest version on your local desktop
-	                                     (if --uninstall or --purge option is specified, it will be uninstalled).
-	                                     LiqoAgent is a desktop application (currently just for linux-based desktop environments) providing an easy way
-	                                     to manage Liqo through a simple graphical user interface. Learn more at https://github.com/liqotech/liqo-agent.
-	  ${BOLD}LIQO_DASHBOARD{RESET}:      set this variable to 'true' to trigger also the (un)installer of LiqoDashboard latest version on your cluster
-	                                     (if --uninstall or --purge option is specified, it will be uninstalled).
 	EOF
 }
 
@@ -292,7 +272,6 @@ function get_repo_tags() {
 }
 
 function get_liqo_releases() {
-	# The Liqo Agent binary resides only inside Liqo releases which are a subset of tagged versions.
 	# Only tags returned by this function are valid to download it.
 	# The maximum number of retrieved tags is 100, but this should not raise concerns for a while
 	local RELEASES_URL="https://api.github.com/repos/${LIQO_REPO}/releases?page=1&per_page=100"
@@ -341,35 +320,6 @@ function setup_liqo_version() {
 	fi
 }
 
-function setup_liqodash_version() {
-	[[ "${LIQO_DASHBOARD:-}" != "true" ]] && return 0
-	# A specific commit has been requested: assuming development version and returning
-	if [[ "${LIQO_DASHBOARD_VERSION:-}" =~ ^[0-9a-f]{40}$ ]]; then
-		warn "[PRE-FLIGHT] [DOWNLOAD]" "A LiqoDash commit has been specified: using the development version"
-		LIQO_DASHBOARD_IMAGE_VERSION=${LIQO_DASHBOARD_VERSION}
-		return 0
-	fi
-
-	# Obtain the list of LiqoDash tags
-	local LIQO_DASHBOARD_TAGS
-	LIQO_DASHBOARD_TAGS=$(get_repo_tags "${LIQO_DASHBOARD_REPO}")
-
-	# If no version has been specified, select the latest tag (if available)
-	LIQO_DASHBOARD_VERSION=${LIQO_DASHBOARD_VERSION:-$(printf "%s" "${LIQO_DASHBOARD_TAGS}" | head --lines=1)}
-
-	if [ "${LIQO_DASHBOARD_VERSION:=master}" != "master" ]; then
-		# A specific version has been requested: check if the version exists
-		printf "%s" "${LIQO_DASHBOARD_TAGS}" | grep -P --silent "^${LIQO_DASHBOARD_VERSION}$" ||
-			fatal "[PRE-FLIGHT] [DOWNLOAD]" "The requested Liqo version '${LIQO_DASHBOARD_VERSION}' does not exist"
-		LIQO_DASHBOARD_IMAGE_VERSION=${LIQO_DASHBOARD_VERSION}
-	else
-		# Using the version from master
-		warn "[PRE-FLIGHT] [DOWNLOAD]" "An unreleased version of Liqo is going to be downloaded"
-		LIQO_DASHBOARD_IMAGE_VERSION=$(get_repo_master_commit "${LIQO_DASHBOARD_REPO}") ||
-			fatal "[PRE-FLIGHT] [DOWNLOAD]" "Failed to retrieve the latest commit of the master branch"
-	fi
-}
-
 function download() {
 	[ $# -eq 1 ] || fatal "[PRE-FLIGHT] [DOWNLOAD]" "Internal error: incorrect parameters"
 
@@ -405,15 +355,6 @@ function download_liqo() {
 		fatal "[PRE-FLIGHT] [DOWNLOAD]" "Something went wrong while extracting the Liqo archive"
 }
 
-function download_liqodash() {
-	[[ "${LIQO_DASHBOARD:-}" != "true" ]] && return 0
-	info "[PRE-FLIGHT] [DOWNLOAD]" "Downloading LiqoDash (version: ${LIQO_DASHBOARD_VERSION})"
-	command_exists tar || fatal "[PRE-FLIGHT] [DOWNLOAD]" "'tar' is not available"
-	local LIQO_DASHBOARD_DOWNLOAD_URL="https://github.com/${LIQO_DASHBOARD_REPO}/archive/${LIQO_DASHBOARD_VERSION}.tar.gz"
-	download "${LIQO_DASHBOARD_DOWNLOAD_URL}" | tar zxf - --directory="${DASHDIR}" --strip 1 2>/dev/null ||
-		fatal "[PRE-FLIGHT] [DOWNLOAD]" "Something went wrong while extracting the LiqoDash archive"
-}
-
 function setup_kubectl() {
 	command_exists "kubectl" ||
 		fatal "[PRE-FLIGHT]" "Cannot find 'kubectl'"
@@ -432,8 +373,6 @@ function setup_tmpdir() {
 	TMPDIR=$(mktemp -d -t liqo-install.XXXXXXXXXX)
 	BINDIR="${TMPDIR}/bin"
 	mkdir --parent "${BINDIR}"
-	DASHDIR="${TMPDIR}/dashboard"
-	mkdir --parent "${DASHDIR}"
 
 	cleanup() {
 		local CODE=$?
@@ -530,61 +469,6 @@ function install_liqo() {
 	info "[INSTALL]" "Hooray! Liqo is now installed on your cluster"
 }
 
-function install_liqodash() {
-	[[ "${LIQO_DASHBOARD:-}" != "true" ]] && return 0
-	info "[INSTALL]" "Installing LiqoDash on your cluster..."
-
-	local LIQO_DASHBOARD_CHART="${DASHDIR}/${LIQO_DASHBOARD_CHARTS_PATH}"
-	
-	${HELM} dependency update "${LIQO_DASHBOARD_CHART}" >/dev/null ||
-		fatal "[INSTALL]" "Something went wrong while installing LiqoDash"
-	${HELM} install liqo-dashboard --namespace "${LIQO_NAMESPACE}" "${LIQO_DASHBOARD_CHART}" \
-		--set version="${LIQO_DASHBOARD_IMAGE_VERSION:-}" \
-		--set ingress="${DASHBOARD_HOSTNAME:-}" >/dev/null ||
-			fatal "[INSTALL]" "Something went wrong while installing LiqoDash"
-
-	info "[INSTALL]" "Hooray! LiqoDash is now installed on your cluster"
-}
-
-function all_clusters_unjoined() {
-	local JSON_PATH="{.items[*].spec.join} {.items[*].status.incoming.joined} {.items[*].status.outgoing.joined} {.items[*].status.network.localNetworkConfig.available} {.items[*].status.network.remoteNetworkConfig.available} {.items[*].status.network.tunnelEndpoint.available}"
-	( ${KUBECTL} get foreignclusters --output jsonpath="${JSON_PATH}" 2>/dev/null || echo "" ) | \
-		grep --invert-match --silent "true"
-}
-
-function unjoin_clusters() {
-	# Do not fail in case of errors, to avoid exiting if Liqo had already been (partially) uninstalled
-	set +e
-
-	info "[UNINSTALL] [UNJOIN]" "Unjoining from all peers"
-
-	# Globally disable the broadcaster
-	local CLUSTER_CONFIG_PATCH='{"spec":{"advertisementConfig":{"outgoingConfig":{"enableBroadcaster":false}}}}'
-	${KUBECTL} patch clusterconfig liqo-configuration --patch "${CLUSTER_CONFIG_PATCH}" --type 'merge' >/dev/null 2>&1
-
-	# Set join=false to all ForeignCluster resources
-	FOREIGN_CLUSTERS=$(${KUBECTL} get foreignclusters --output jsonpath="{.items[*].metadata.name}") 2>/dev/null
-	for FOREIGN_CLUSTER in ${FOREIGN_CLUSTERS}; do
-		${KUBECTL} patch foreignclusters "${FOREIGN_CLUSTER}" --patch '{"spec":{"join":false}}' --type 'merge' >/dev/null 2>&1
-	done
-
-	info "[UNINSTALL] [UNJOIN]" "Waiting for the unjoining process to complete..."
-
-	local RETRIES=600
-	while ! all_clusters_unjoined; do
-		RETRIES=$(( RETRIES-1 ))
-		[ "${RETRIES}" -gt 0 ] ||
-			fatal "[UNINSTALL] [UNJOIN]" "Timeout: impossible to unpeer from all clusters"
-		sleep 1
-	done
-
-	info "[UNINSTALL] [UNJOIN]" "Waiting for the network operators to reconcile..."
-
-	${KUBECTL} wait tunnelendpoints.net.liqo.io --timeout=30s --all --for=delete >/dev/null 2>&1
-	${KUBECTL} wait networkconfigs.net.liqo.io --timeout=30s --all --for=delete >/dev/null 2>&1
-	set -e
-}
-
 function uninstall_liqo() {
 	# Do not fail in case of errors, to avoid exiting if Liqo had already been (partially) uninstalled
 	set +e
@@ -595,33 +479,7 @@ function uninstall_liqo() {
 	info "[UNINSTALL]" "Waiting for all Liqo pods to terminate..."
 	${KUBECTL} wait pods --timeout=120s --namespace liqo --all --for=delete 1>/dev/null 2>&1
 
- 	${KUBECTL} delete MutatingWebhookConfiguration mutatepodtoleration 1>/dev/null 2>&1
-	${KUBECTL} delete ValidatingWebhookConfiguration peering-request-operator 1>/dev/null 2>&1
-
-	${KUBECTL} delete certificatesigningrequest "peering-request-operator.${LIQO_NAMESPACE}" 1>/dev/null 2>&1
-	${KUBECTL} delete certificatesigningrequest "mutatepodtoleration.${LIQO_NAMESPACE}" 1>/dev/null 2>&1
-
 	info "[UNINSTALL]" "Liqo has been correctly uninstalled from your cluster"
-	set -e
-}
-
-function uninstall_liqodash() {
-	set +e
-
-	info "[UNINSTALL]" "Uninstalling LiqoDash from your cluster..."
-	${HELM} uninstall liqo-dashboard --namespace "${LIQO_NAMESPACE}" 1>/dev/null 2>&1
-	info "[UNINSTALL]" "LiqoDash has been correctly uninstalled from your cluster"
-	set -e
-}
-
-function purge_liqo_preuninstall() {
-  [ "${PURGE_LIQO}" = true ] || return 0
-
-  # Do not fail in case of errors, to avoid exiting if Liqo had already been (partially) uninstalled
-	set +e
-
-	${KUBECTL} delete serviceaccounts -n "${LIQO_NAMESPACE}" -l "discovery.liqo.io/liqo-managed" 1>/dev/null 2>&1
-
 	set -e
 }
 
@@ -639,19 +497,6 @@ function purge_liqo() {
 	set -e
 }
 
-function launch_agent_installer() {
-	[[ "${LIQO_AGENT:-}" != "true" ]] && return 0
-	local AGENT_DOWNLOAD_URL
-	AGENT_DOWNLOAD_URL="https://raw.githubusercontent.com/liqotech/liqo-agent/master/install.sh"
-	if [[ "${1:-}" == "--uninstall" ]]; then
-		download "${AGENT_DOWNLOAD_URL}" | bash -s -- --uninstall ||
-			warn "[LIQO_AGENT] [UNINSTALL]" "The uninstaller could not perform the LiqoAgent uninstallation. Skipping..."
-	else
-		download "${AGENT_DOWNLOAD_URL}" | KUBECONFIG="${KUBECONFIG:-}" bash ||
-			warn "[LIQO_AGENT] [INSTALL]" "The installer could not perform the LiqoAgent installation. Skipping..."
-	fi
-}
-
 function main() {
 	setup_colors
 	print_logo
@@ -665,8 +510,6 @@ function main() {
 
 	setup_liqo_version
 	download_liqo
-	setup_liqodash_version
-	download_liqodash
 	download_helm
 
 	configure_namespace
@@ -674,14 +517,9 @@ function main() {
 	if [[ ${INSTALL_LIQO} = true ]]; then
 		configure_installation_variables
 		install_liqo
-		install_liqodash
-		launch_agent_installer
 	else
-		uninstall_liqodash
-		purge_liqo_preuninstall
 		uninstall_liqo
 		purge_liqo
-		launch_agent_installer --uninstall
 	fi
 }
 

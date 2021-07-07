@@ -454,36 +454,6 @@ setup() {
 }
 
 
-@test "all_clusters_unjoined correctly maps the kubectl output" {
-	KUBECTL=kubectl
-	KUBECTL_ARG="get foreignclusters --output jsonpath="
-
-	# Only false values: the output of the function should be true
-	function kubectl() { [[ "$*" =~ ^${KUBECTL_ARG} ]] && echo "false false false"; }
-	export -f kubectl
-	all_clusters_unjoined
-
-	# Both true and false values: the output of the function should be false
-	function kubectl() { [[ "$*" =~ ^${KUBECTL_ARG} ]] && echo "false true false"; }
-	export -f kubectl
-	! all_clusters_unjoined
-
-	# Only true values: the output of the function should be false
-	function kubectl() { [[ "$*" =~ ^${KUBECTL_ARG} ]] && echo "true true"; }
-	export -f kubectl
-	! all_clusters_unjoined
-
-	# No values: the output of the function should be true
-	function kubectl() { [[ "$*" =~ ^${KUBECTL_ARG} ]] && echo ""; }
-	export -f kubectl
-	all_clusters_unjoined
-
-	# kubectl fails: the output of the function should be true (the CRD may already have been deleted)
-	function kubectl() { [[ "$*" =~ ^${KUBECTL_ARG} ]] && return 1; }
-	export -f kubectl
-	all_clusters_unjoined
-}
-
 @test "setup_arch_and_os fails if ARCH is unknown" {
     function uname() { echo 'does_not_exist'; }
     export -f uname
