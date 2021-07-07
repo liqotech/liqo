@@ -44,9 +44,6 @@ spec:
           command: ["/usr/bin/liqonet"]
           args: ["-run-as=liqo-route"]
           resources:
-            limits:
-              cpu: 100m
-              memory: 80M
             requests:
               cpu: 100m
               memory: 80M

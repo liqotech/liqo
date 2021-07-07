@@ -51,9 +51,6 @@ spec:
               value: "{{ .Values.apiServer.trustedCA }}"
             {{- end }}
           resources:
-            limits:
-              cpu: 100m
-              memory: 50M
             requests:
               cpu: 100m
               memory: 50M
