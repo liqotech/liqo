@@ -47,9 +47,6 @@ spec:
             - mountPath: /etc/ssl/liqo
               name: cert-volume
           resources:
-            limits:
-              cpu: "1"
-              memory: "100M"
             requests:
               cpu: "200m"
               memory: "100M"
@@ -61,9 +58,6 @@ spec:
             - mountPath: /etc/ssl/liqo
               name: cert-volume
           resources:
-            limits:
-              cpu: 100m
-              memory: 50M
             requests:
               cpu: 100m
               memory: 50M

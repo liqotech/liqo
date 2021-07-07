@@ -30,7 +30,7 @@ var _ = Describe("Liqo E2E", func() {
 		testContext = tester.GetTester(ctx)
 		namespace   = "liqo"
 		interval    = 3 * time.Second
-		timeout     = 2 * time.Minute
+		timeout     = 5 * time.Minute
 	)
 
 	Describe("Assert that Liqo is up, pod offloading and network connectivity are working", func() {

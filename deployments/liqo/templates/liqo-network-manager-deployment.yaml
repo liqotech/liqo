@@ -35,9 +35,6 @@ spec:
           args:
             - "-run-as=tunnelEndpointCreator-operator"
           resources:
-            limits:
-              cpu: 20m
-              memory: 50M
             requests:
-              cpu: 20m
+              cpu: 50m
               memory: 50M
