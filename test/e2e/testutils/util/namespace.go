@@ -3,30 +3,30 @@ package util
 import (
 	"context"
 
-	v1 "k8s.io/api/core/v1"
+	corev1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/klog/v2"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/liqotech/liqo/test/e2e/testutils"
 )
 
 // EnforceNamespace creates and returns a namespace. If it already exists, it just returns the namespace.
-func EnforceNamespace(ctx context.Context, client kubernetes.Interface, clusterID, name string) (*v1.Namespace, error) {
-	ns := &v1.Namespace{
-		TypeMeta: metav1.TypeMeta{},
+func EnforceNamespace(ctx context.Context, cl kubernetes.Interface, clusterID, name string) (*corev1.Namespace, error) {
+	ns := &corev1.Namespace{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:   name,
 			Labels: testutils.LiqoTestNamespaceLabels,
 		},
-		Spec:   v1.NamespaceSpec{},
-		Status: v1.NamespaceStatus{},
+		Spec:   corev1.NamespaceSpec{},
+		Status: corev1.NamespaceStatus{},
 	}
-	ns, err := client.CoreV1().Namespaces().Create(ctx, ns, metav1.CreateOptions{})
+	ns, err := cl.CoreV1().Namespaces().Create(ctx, ns, metav1.CreateOptions{})
 	if kerrors.IsAlreadyExists(err) {
-		ns, err = client.CoreV1().Namespaces().Get(ctx, name, metav1.GetOptions{})
+		ns, err = cl.CoreV1().Namespaces().Get(ctx, name, metav1.GetOptions{})
 		if err != nil {
 			klog.Errorf("%s -> an error occurred while creating namespace %s : %s", clusterID, name, err)
 			return nil, err
@@ -52,4 +52,26 @@ func DeleteNamespace(ctx context.Context, client kubernetes.Interface, labelSele
 		}
 	}
 	return nil
+}
+
+// CreateNamespaceWithoutNamespaceOffloading creates a namespace with a name passed as parameter.
+func CreateNamespaceWithoutNamespaceOffloading(ctx context.Context, cl client.Client, name string) error {
+	ns := &corev1.Namespace{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: name,
+		},
+	}
+	return cl.Create(ctx, ns)
+}
+
+// CreateNamespaceWithNamespaceOffloading creates a namespace with a name passed as parameter and with liqo enabling label.
+// A default NamespaceOffloading resource will be generated in this namespace.
+func CreateNamespaceWithNamespaceOffloading(ctx context.Context, cl client.Client, name string) error {
+	ns := &corev1.Namespace{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:   name,
+			Labels: testutils.LiqoTestNamespaceLabels,
+		},
+	}
+	return cl.Create(ctx, ns)
 }
