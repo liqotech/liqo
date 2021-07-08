@@ -11,6 +11,7 @@ import (
 	. "github.com/onsi/gomega"
 	"github.com/onsi/gomega/types"
 	v1 "k8s.io/api/core/v1"
+	rbacv1 "k8s.io/api/rbac/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	machtypes "k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/util/retry"
@@ -22,6 +23,7 @@ import (
 	"github.com/liqotech/liqo/pkg/clusterid/test"
 	"github.com/liqotech/liqo/pkg/discovery"
 	identitymanager "github.com/liqotech/liqo/pkg/identityManager"
+	peeringroles "github.com/liqotech/liqo/pkg/peering-roles"
 	tenantnamespace "github.com/liqotech/liqo/pkg/tenantNamespace"
 	peeringconditionsutils "github.com/liqotech/liqo/pkg/utils/peeringConditions"
 	testUtils "github.com/liqotech/liqo/pkg/utils/testUtils"
@@ -62,6 +64,10 @@ var _ = Describe("ForeignClusterOperator", func() {
 		cancel          context.CancelFunc
 
 		now = metav1.Now()
+
+		defaultTenantNamespace = discoveryv1alpha1.TenantNamespaceType{
+			Local: "default",
+		}
 	)
 
 	BeforeEach(func() {
@@ -203,9 +209,7 @@ var _ = Describe("ForeignClusterOperator", func() {
 						TrustMode:     discovery.TrustModeUntrusted,
 					},
 					Status: discoveryv1alpha1.ForeignClusterStatus{
-						TenantNamespace: discoveryv1alpha1.TenantNamespaceType{
-							Local: "default",
-						},
+						TenantNamespace: defaultTenantNamespace,
 					},
 				},
 				expectedPeeringLength: Equal(1),
@@ -519,9 +523,7 @@ var _ = Describe("ForeignClusterOperator", func() {
 
 			Entry("none", checkPeeringStatusTestcase{
 				foreignClusterStatus: discoveryv1alpha1.ForeignClusterStatus{
-					TenantNamespace: discoveryv1alpha1.TenantNamespaceType{
-						Local: "default",
-					},
+					TenantNamespace: defaultTenantNamespace,
 					PeeringConditions: []discoveryv1alpha1.PeeringCondition{
 						{
 							Type:               discoveryv1alpha1.IncomingPeeringCondition,
@@ -542,9 +544,7 @@ var _ = Describe("ForeignClusterOperator", func() {
 
 			Entry("none and no update", checkPeeringStatusTestcase{
 				foreignClusterStatus: discoveryv1alpha1.ForeignClusterStatus{
-					TenantNamespace: discoveryv1alpha1.TenantNamespaceType{
-						Local: "default",
-					},
+					TenantNamespace: defaultTenantNamespace,
 					PeeringConditions: []discoveryv1alpha1.PeeringCondition{
 						{
 							Type:               discoveryv1alpha1.IncomingPeeringCondition,
@@ -565,9 +565,7 @@ var _ = Describe("ForeignClusterOperator", func() {
 
 			Entry("outgoing", checkPeeringStatusTestcase{
 				foreignClusterStatus: discoveryv1alpha1.ForeignClusterStatus{
-					TenantNamespace: discoveryv1alpha1.TenantNamespaceType{
-						Local: "default",
-					},
+					TenantNamespace: defaultTenantNamespace,
 					PeeringConditions: []discoveryv1alpha1.PeeringCondition{
 						{
 							Type:               discoveryv1alpha1.IncomingPeeringCondition,
@@ -590,9 +588,7 @@ var _ = Describe("ForeignClusterOperator", func() {
 
 			Entry("incoming", checkPeeringStatusTestcase{
 				foreignClusterStatus: discoveryv1alpha1.ForeignClusterStatus{
-					TenantNamespace: discoveryv1alpha1.TenantNamespaceType{
-						Local: "default",
-					},
+					TenantNamespace: defaultTenantNamespace,
 					PeeringConditions: []discoveryv1alpha1.PeeringCondition{
 						{
 							Type:               discoveryv1alpha1.IncomingPeeringCondition,
@@ -615,9 +611,7 @@ var _ = Describe("ForeignClusterOperator", func() {
 
 			Entry("bidirectional", checkPeeringStatusTestcase{
 				foreignClusterStatus: discoveryv1alpha1.ForeignClusterStatus{
-					TenantNamespace: discoveryv1alpha1.TenantNamespaceType{
-						Local: "default",
-					},
+					TenantNamespace: defaultTenantNamespace,
 					PeeringConditions: []discoveryv1alpha1.PeeringCondition{
 						{
 							Type:               discoveryv1alpha1.IncomingPeeringCondition,
@@ -637,6 +631,247 @@ var _ = Describe("ForeignClusterOperator", func() {
 				},
 				expectedIncomingPhase: discoveryv1alpha1.PeeringConditionStatusEstablished,
 				expectedOutgoingPhase: discoveryv1alpha1.PeeringConditionStatusEstablished,
+			}),
+		)
+
+	})
+
+	Context("Test Permission", func() {
+
+		const (
+			outgoingBinding = "liqo-binding-liqo-outgoing"
+			incomingBinding = "liqo-binding-liqo-incoming"
+		)
+
+		var (
+			clusterRole1 rbacv1.ClusterRole
+			clusterRole2 rbacv1.ClusterRole
+		)
+
+		type permissionTestcase struct {
+			fc               discoveryv1alpha1.ForeignCluster
+			expectedOutgoing types.GomegaMatcher
+			expectedIncoming types.GomegaMatcher
+		}
+
+		JustBeforeEach(func() {
+			clusterRole1 = rbacv1.ClusterRole{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "liqo-outgoing",
+				},
+			}
+			clusterRole2 = rbacv1.ClusterRole{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "liqo-incoming",
+				},
+			}
+
+			Expect(controller.Client.Create(ctx, &clusterRole1)).To(Succeed())
+			Expect(controller.Client.Create(ctx, &clusterRole2)).To(Succeed())
+
+			controller.peeringPermission = peeringroles.PeeringPermission{
+				Basic: []*rbacv1.ClusterRole{},
+				Incoming: []*rbacv1.ClusterRole{
+					&clusterRole2,
+				},
+				Outgoing: []*rbacv1.ClusterRole{
+					&clusterRole1,
+				},
+			}
+		})
+
+		JustAfterEach(func() {
+			var roleBindingList rbacv1.RoleBindingList
+			Expect(controller.Client.List(ctx, &roleBindingList)).To(Succeed())
+			for i := range roleBindingList.Items {
+				rb := &roleBindingList.Items[i]
+				Expect(controller.Client.Delete(ctx, rb)).To(Succeed())
+			}
+
+			Expect(controller.Client.Delete(ctx, &clusterRole1)).To(Succeed())
+			Expect(controller.Client.Delete(ctx, &clusterRole2)).To(Succeed())
+		})
+
+		DescribeTable("permission table",
+			func(c permissionTestcase) {
+				c.fc.Status.TenantNamespace.Local = tenantNamespace.Name
+
+				By("Create RoleBindings")
+
+				Expect(controller.ensurePermission(ctx, &c.fc)).To(Succeed())
+
+				var roleBindingList rbacv1.RoleBindingList
+				Expect(controller.Client.List(ctx, &roleBindingList)).To(Succeed())
+
+				names := make([]string, len(roleBindingList.Items))
+				for i := range roleBindingList.Items {
+					names[i] = roleBindingList.Items[i].Name
+				}
+
+				Expect(names).To(c.expectedIncoming)
+				Expect(names).To(c.expectedOutgoing)
+
+				By("Delete RoleBindings")
+
+				// create all
+				_, err := controller.namespaceManager.BindClusterRoles(c.fc.Spec.ClusterIdentity.ClusterID, &clusterRole1, &clusterRole2)
+				Expect(err).To(Succeed())
+
+				Expect(controller.ensurePermission(ctx, &c.fc)).To(Succeed())
+
+				Expect(controller.Client.List(ctx, &roleBindingList)).To(Succeed())
+
+				names = make([]string, len(roleBindingList.Items))
+				for i := range roleBindingList.Items {
+					names[i] = roleBindingList.Items[i].Name
+				}
+
+				Expect(names).To(c.expectedIncoming)
+				Expect(names).To(c.expectedOutgoing)
+			},
+
+			Entry("none peering", permissionTestcase{
+				fc: discoveryv1alpha1.ForeignCluster{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "foreign-cluster",
+						Labels: map[string]string{
+							discovery.DiscoveryTypeLabel: string(discovery.ManualDiscovery),
+							discovery.ClusterIDLabel:     "foreign-cluster",
+						},
+					},
+					Spec: discoveryv1alpha1.ForeignClusterSpec{
+						ClusterIdentity: discoveryv1alpha1.ClusterIdentity{
+							ClusterID:   "foreign-cluster",
+							ClusterName: "ClusterTest",
+						},
+						Namespace:     "liqo",
+						DiscoveryType: discovery.ManualDiscovery,
+						AuthURL:       "",
+						TrustMode:     discovery.TrustModeUntrusted,
+					},
+					Status: discoveryv1alpha1.ForeignClusterStatus{
+						TenantNamespace: discoveryv1alpha1.TenantNamespaceType{},
+					},
+				},
+				expectedOutgoing: Not(ContainElement(outgoingBinding)),
+				expectedIncoming: Not(ContainElement(incomingBinding)),
+			}),
+
+			Entry("incoming peering", permissionTestcase{
+				fc: discoveryv1alpha1.ForeignCluster{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "foreign-cluster",
+						Labels: map[string]string{
+							discovery.DiscoveryTypeLabel: string(discovery.ManualDiscovery),
+							discovery.ClusterIDLabel:     "foreign-cluster",
+						},
+					},
+					Spec: discoveryv1alpha1.ForeignClusterSpec{
+						ClusterIdentity: discoveryv1alpha1.ClusterIdentity{
+							ClusterID:   "foreign-cluster",
+							ClusterName: "ClusterTest",
+						},
+						Namespace:     "liqo",
+						DiscoveryType: discovery.ManualDiscovery,
+						AuthURL:       "",
+						TrustMode:     discovery.TrustModeUntrusted,
+					},
+					Status: discoveryv1alpha1.ForeignClusterStatus{
+						TenantNamespace: discoveryv1alpha1.TenantNamespaceType{},
+						PeeringConditions: []discoveryv1alpha1.PeeringCondition{
+							{
+								Type:               discoveryv1alpha1.IncomingPeeringCondition,
+								Status:             discoveryv1alpha1.PeeringConditionStatusEstablished,
+								LastTransitionTime: metav1.Now(),
+							},
+							{
+								Type:               discoveryv1alpha1.OutgoingPeeringCondition,
+								Status:             discoveryv1alpha1.PeeringConditionStatusNone,
+								LastTransitionTime: metav1.Now(),
+							},
+						},
+					},
+				},
+				expectedOutgoing: Not(ContainElement(outgoingBinding)),
+				expectedIncoming: ContainElement(incomingBinding),
+			}),
+
+			Entry("outgoing peering", permissionTestcase{
+				fc: discoveryv1alpha1.ForeignCluster{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "foreign-cluster",
+						Labels: map[string]string{
+							discovery.DiscoveryTypeLabel: string(discovery.ManualDiscovery),
+							discovery.ClusterIDLabel:     "foreign-cluster",
+						},
+					},
+					Spec: discoveryv1alpha1.ForeignClusterSpec{
+						ClusterIdentity: discoveryv1alpha1.ClusterIdentity{
+							ClusterID:   "foreign-cluster",
+							ClusterName: "ClusterTest",
+						},
+						Namespace:     "liqo",
+						DiscoveryType: discovery.ManualDiscovery,
+						AuthURL:       "",
+						TrustMode:     discovery.TrustModeUntrusted,
+					},
+					Status: discoveryv1alpha1.ForeignClusterStatus{
+						TenantNamespace: discoveryv1alpha1.TenantNamespaceType{},
+						PeeringConditions: []discoveryv1alpha1.PeeringCondition{
+							{
+								Type:               discoveryv1alpha1.IncomingPeeringCondition,
+								Status:             discoveryv1alpha1.PeeringConditionStatusNone,
+								LastTransitionTime: metav1.Now(),
+							},
+							{
+								Type:               discoveryv1alpha1.OutgoingPeeringCondition,
+								Status:             discoveryv1alpha1.PeeringConditionStatusEstablished,
+								LastTransitionTime: metav1.Now(),
+							},
+						},
+					},
+				},
+				expectedOutgoing: ContainElement(outgoingBinding),
+				expectedIncoming: Not(ContainElement(incomingBinding)),
+			}),
+
+			Entry("bidirectional peering", permissionTestcase{
+				fc: discoveryv1alpha1.ForeignCluster{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "foreign-cluster",
+						Labels: map[string]string{
+							discovery.DiscoveryTypeLabel: string(discovery.ManualDiscovery),
+							discovery.ClusterIDLabel:     "foreign-cluster",
+						},
+					},
+					Spec: discoveryv1alpha1.ForeignClusterSpec{
+						ClusterIdentity: discoveryv1alpha1.ClusterIdentity{
+							ClusterID:   "foreign-cluster",
+							ClusterName: "ClusterTest",
+						},
+						Namespace:     "liqo",
+						DiscoveryType: discovery.ManualDiscovery,
+						AuthURL:       "",
+						TrustMode:     discovery.TrustModeUntrusted,
+					},
+					Status: discoveryv1alpha1.ForeignClusterStatus{
+						TenantNamespace: discoveryv1alpha1.TenantNamespaceType{},
+						PeeringConditions: []discoveryv1alpha1.PeeringCondition{
+							{
+								Type:               discoveryv1alpha1.IncomingPeeringCondition,
+								Status:             discoveryv1alpha1.PeeringConditionStatusEstablished,
+								LastTransitionTime: metav1.Now(),
+							},
+							{
+								Type:               discoveryv1alpha1.OutgoingPeeringCondition,
+								Status:             discoveryv1alpha1.PeeringConditionStatusEstablished,
+								LastTransitionTime: metav1.Now(),
+							},
+						},
+					},
+				},
+				expectedOutgoing: ContainElement(outgoingBinding),
+				expectedIncoming: ContainElement(incomingBinding),
 			}),
 		)
 

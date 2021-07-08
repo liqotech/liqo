@@ -171,7 +171,7 @@ func (c *Controller) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		}
 	}
 
-	currentPhase := getPeeringPhase(&fc)
+	currentPhase := foreigncluster.GetPeeringPhase(&fc)
 	if oldPhase := c.getPeeringPhase(remoteClusterID); oldPhase != currentPhase {
 		c.setPeeringPhase(remoteClusterID, currentPhase)
 		defer c.checkResourcesOnPeeringPhaseChange(ctx, remoteClusterID, currentPhase, oldPhase)
@@ -398,7 +398,7 @@ func (c *Controller) StartWatchers() {
 		}
 		for i := range c.RegisteredResources {
 			res := &c.RegisteredResources[i]
-			if !isReplicationEnabled(c.getPeeringPhase(remCluster), res) {
+			if !foreigncluster.IsReplicationEnabled(c.getPeeringPhase(remCluster), res) {
 				continue
 			}
 
@@ -450,7 +450,7 @@ func (c *Controller) StopWatchers() {
 		// stop watchers for those resources no more needed
 		for i := range c.RegisteredResources {
 			res := &c.RegisteredResources[i]
-			if isReplicationEnabled(c.getPeeringPhase(remCluster), res) {
+			if foreigncluster.IsReplicationEnabled(c.getPeeringPhase(remCluster), res) {
 				continue
 			}
 
@@ -678,7 +678,7 @@ func (c *Controller) AddedHandler(obj *unstructured.Unstructured, gvr schema.Gro
 	}
 
 	resource := c.getResource(&gvr)
-	if resource == nil || !isReplicationEnabled(c.getPeeringPhase(remoteClusterID), resource) {
+	if resource == nil || !foreigncluster.IsReplicationEnabled(c.getPeeringPhase(remoteClusterID), resource) {
 		return
 	}
 
@@ -717,7 +717,7 @@ func (c *Controller) ModifiedHandler(obj *unstructured.Unstructured, gvr schema.
 	}
 
 	resource := c.getResource(&gvr)
-	if resource == nil || !isReplicationEnabled(c.getPeeringPhase(remoteClusterID), resource) {
+	if resource == nil || !foreigncluster.IsReplicationEnabled(c.getPeeringPhase(remoteClusterID), resource) {
 		return
 	}
 

@@ -26,11 +26,6 @@ func (r *ForeignClusterReconciler) createResourceRequest(ctx context.Context,
 		return controllerutil.OperationResultNone, err
 	}
 
-	if _, err = r.namespaceManager.BindClusterRoles(remoteClusterID, r.peeringPermission.Outgoing...); err != nil {
-		klog.Error(err)
-		return controllerutil.OperationResultNone, err
-	}
-
 	resourceRequest := &discoveryv1alpha1.ResourceRequest{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      localClusterID,
