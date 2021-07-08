@@ -22,7 +22,7 @@ import (
 	identitymanager "github.com/liqotech/liqo/pkg/identityManager"
 	"github.com/liqotech/liqo/pkg/liqonet/utils"
 	"github.com/liqotech/liqo/pkg/mapperUtils"
-	tenantcontrolnamespace "github.com/liqotech/liqo/pkg/tenantControlNamespace"
+	tenantnamespace "github.com/liqotech/liqo/pkg/tenantNamespace"
 )
 
 var (
@@ -77,7 +77,7 @@ func main() {
 		klog.Infof("setting local clusterID to: %s", clusterID)
 	}
 	clusterIDInterface := clusterid.NewStaticClusterID(clusterID)
-	namespaceManager := tenantcontrolnamespace.NewTenantControlNamespaceManager(k8sClient)
+	namespaceManager := tenantnamespace.NewTenantNamespaceManager(k8sClient)
 	dynClient := dynamic.NewForConfigOrDie(cfg)
 	dynFac := dynamicinformer.NewFilteredDynamicSharedInformerFactory(
 		dynClient, crdreplicator.ResyncPeriod, metav1.NamespaceAll, crdreplicator.SetLabelsForLocalResources)

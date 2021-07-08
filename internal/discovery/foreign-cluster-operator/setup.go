@@ -17,7 +17,7 @@ import (
 	crdclient "github.com/liqotech/liqo/pkg/crdClient"
 	identitymanager "github.com/liqotech/liqo/pkg/identityManager"
 	peeringroles "github.com/liqotech/liqo/pkg/peering-roles"
-	tenantcontrolnamespace "github.com/liqotech/liqo/pkg/tenantControlNamespace"
+	tenantnamespace "github.com/liqotech/liqo/pkg/tenantNamespace"
 )
 
 var (
@@ -56,7 +56,7 @@ func StartOperator(
 		os.Exit(1)
 	}
 
-	namespaceManager := tenantcontrolnamespace.NewTenantControlNamespaceManager(discoveryClient.Client())
+	namespaceManager := tenantnamespace.NewTenantNamespaceManager(discoveryClient.Client())
 	idManager := identitymanager.NewCertificateIdentityManager(discoveryClient.Client(), localClusterID, namespaceManager)
 
 	if err = (getForeignClusterReconciler(
@@ -83,7 +83,7 @@ func getForeignClusterReconciler(mgr manager.Manager,
 	requeueAfter time.Duration,
 	configProvider discovery.ConfigProvider,
 	authConfigProvider auth.ConfigProvider,
-	namespaceManager tenantcontrolnamespace.TenantControlNamespaceManager,
+	namespaceManager tenantnamespace.Manager,
 	idManager identitymanager.IdentityManager) *ForeignClusterReconciler {
 	reconciler := &ForeignClusterReconciler{
 		Client:             mgr.GetClient(),

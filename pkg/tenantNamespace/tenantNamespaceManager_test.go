@@ -1,4 +1,4 @@
-package tenantcontrolnamespace
+package tenantnamespace
 
 import (
 	"context"
@@ -20,18 +20,18 @@ import (
 	testUtils2 "github.com/liqotech/liqo/pkg/utils/testUtils"
 )
 
-func TestTenantControlNamespace(t *testing.T) {
+func TestTenantNamespace(t *testing.T) {
 	RegisterFailHandler(Fail)
-	RunSpecs(t, "TenantControlNamespace Suite")
+	RunSpecs(t, "TenantNamespace Suite")
 }
 
-var _ = Describe("TenantControlNamespace", func() {
+var _ = Describe("TenantNamespace", func() {
 
 	var (
 		cluster   testUtils2.Cluster
 		clusterID string
 
-		namespaceManager TenantControlNamespaceManager
+		namespaceManager Manager
 	)
 
 	BeforeSuite(func() {
@@ -44,7 +44,7 @@ var _ = Describe("TenantControlNamespace", func() {
 			os.Exit(1)
 		}
 
-		namespaceManager = NewTenantControlNamespaceManager(cluster.GetClient().Client())
+		namespaceManager = NewTenantNamespaceManager(cluster.GetClient().Client())
 	})
 
 	AfterSuite(func() {
@@ -59,10 +59,10 @@ var _ = Describe("TenantControlNamespace", func() {
 		ns, err := namespaceManager.CreateNamespace(clusterID)
 		Expect(err).To(BeNil())
 		Expect(ns).NotTo(BeNil())
-		Expect(strings.HasPrefix(ns.Name, "liqo-tenant-control-")).To(BeTrue())
+		Expect(strings.HasPrefix(ns.Name, "liqo-tenant-")).To(BeTrue())
 		Expect(ns.Labels).NotTo(BeNil())
 
-		_, ok := ns.Labels[discovery.TenantControlNamespaceLabel]
+		_, ok := ns.Labels[discovery.TenantNamespaceLabel]
 		Expect(ok).To(BeTrue())
 	})
 
@@ -70,10 +70,10 @@ var _ = Describe("TenantControlNamespace", func() {
 		ns, err := namespaceManager.CreateNamespace(clusterID)
 		Expect(err).To(BeNil())
 		Expect(ns).NotTo(BeNil())
-		Expect(strings.HasPrefix(ns.Name, "liqo-tenant-control-")).To(BeTrue())
+		Expect(strings.HasPrefix(ns.Name, "liqo-tenant-")).To(BeTrue())
 		Expect(ns.Labels).NotTo(BeNil())
 
-		_, ok := ns.Labels[discovery.TenantControlNamespaceLabel]
+		_, ok := ns.Labels[discovery.TenantNamespaceLabel]
 		Expect(ok).To(BeTrue())
 	})
 
@@ -81,10 +81,10 @@ var _ = Describe("TenantControlNamespace", func() {
 		ns, err := namespaceManager.GetNamespace(clusterID)
 		Expect(err).To(BeNil())
 		Expect(ns).NotTo(BeNil())
-		Expect(strings.HasPrefix(ns.Name, "liqo-tenant-control-")).To(BeTrue())
+		Expect(strings.HasPrefix(ns.Name, "liqo-tenant-")).To(BeTrue())
 		Expect(ns.Labels).NotTo(BeNil())
 
-		_, ok := ns.Labels[discovery.TenantControlNamespaceLabel]
+		_, ok := ns.Labels[discovery.TenantNamespaceLabel]
 		Expect(ok).To(BeTrue())
 
 		ns, err = namespaceManager.GetNamespace("unknownId")

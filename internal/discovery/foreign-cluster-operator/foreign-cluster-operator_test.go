@@ -22,7 +22,7 @@ import (
 	"github.com/liqotech/liqo/pkg/clusterid/test"
 	"github.com/liqotech/liqo/pkg/discovery"
 	identitymanager "github.com/liqotech/liqo/pkg/identityManager"
-	tenantcontrolnamespace "github.com/liqotech/liqo/pkg/tenantControlNamespace"
+	tenantnamespace "github.com/liqotech/liqo/pkg/tenantNamespace"
 	peeringconditionsutils "github.com/liqotech/liqo/pkg/utils/peeringConditions"
 	testUtils "github.com/liqotech/liqo/pkg/utils/testUtils"
 )
@@ -77,7 +77,7 @@ var _ = Describe("ForeignClusterOperator", func() {
 		cID := &test.ClusterIDMock{}
 		_ = cID.SetupClusterID("default")
 
-		namespaceManager := tenantcontrolnamespace.NewTenantControlNamespaceManager(cluster.GetClient().Client())
+		namespaceManager := tenantnamespace.NewTenantNamespaceManager(cluster.GetClient().Client())
 		identityManagerCtrl := identitymanager.NewCertificateIdentityManager(cluster.GetClient().Client(), cID, namespaceManager)
 
 		tenantNamespace, err = namespaceManager.CreateNamespace("foreign-cluster")
@@ -141,7 +141,7 @@ var _ = Describe("ForeignClusterOperator", func() {
 		DescribeTable("Peer table",
 			func(c peerTestcase) {
 				// set the local namespace in the foreign cluster, we will only need the local one during the test
-				c.fc.Status.TenantControlNamespace.Local = tenantNamespace.Name
+				c.fc.Status.TenantNamespace.Local = tenantNamespace.Name
 
 				// create the foreigncluster CR
 				obj, err := controller.crdClient.Resource("foreignclusters").Create(&c.fc, &metav1.CreateOptions{})
@@ -203,7 +203,7 @@ var _ = Describe("ForeignClusterOperator", func() {
 						TrustMode:     discovery.TrustModeUntrusted,
 					},
 					Status: discoveryv1alpha1.ForeignClusterStatus{
-						TenantControlNamespace: discoveryv1alpha1.TenantControlNamespace{
+						TenantNamespace: discoveryv1alpha1.TenantNamespaceType{
 							Local: "default",
 						},
 					},
@@ -231,7 +231,7 @@ var _ = Describe("ForeignClusterOperator", func() {
 		DescribeTable("Unpeer table",
 			func(c unpeerTestcase) {
 				// set the local namespace in the foreign cluster, we will only need the local one during the test
-				c.fc.Status.TenantControlNamespace.Local = tenantNamespace.Name
+				c.fc.Status.TenantNamespace.Local = tenantNamespace.Name
 
 				// populate the resourcerequest CR
 				c.rr.Name = controller.clusterID.GetClusterID()
@@ -362,7 +362,7 @@ var _ = Describe("ForeignClusterOperator", func() {
 								LastTransitionTime: metav1.Now(),
 							},
 						},
-						TenantControlNamespace: discoveryv1alpha1.TenantControlNamespace{},
+						TenantNamespace: discoveryv1alpha1.TenantNamespaceType{},
 					},
 				},
 				rr: discoveryv1alpha1.ResourceRequest{
@@ -416,14 +416,14 @@ var _ = Describe("ForeignClusterOperator", func() {
 
 			err = controller.ensureLocalTenantNamespace(ctx, foreignCluster)
 			Expect(err).To(BeNil())
-			Expect(foreignCluster.Status.TenantControlNamespace.Local).ToNot(Equal(""))
+			Expect(foreignCluster.Status.TenantNamespace.Local).ToNot(Equal(""))
 
 			ns, err := controller.namespaceManager.GetNamespace(foreignCluster.Spec.ClusterIdentity.ClusterID)
 			Expect(err).To(BeNil())
 			Expect(ns).NotTo(BeNil())
 
 			var namespace v1.Namespace
-			err = client.Get(ctx, machtypes.NamespacedName{Name: foreignCluster.Status.TenantControlNamespace.Local}, &namespace)
+			err = client.Get(ctx, machtypes.NamespacedName{Name: foreignCluster.Status.TenantNamespace.Local}, &namespace)
 			Expect(err).To(BeNil())
 
 			Expect(namespace.Name).To(Equal(ns.Name))
@@ -519,7 +519,7 @@ var _ = Describe("ForeignClusterOperator", func() {
 
 			Entry("none", checkPeeringStatusTestcase{
 				foreignClusterStatus: discoveryv1alpha1.ForeignClusterStatus{
-					TenantControlNamespace: discoveryv1alpha1.TenantControlNamespace{
+					TenantNamespace: discoveryv1alpha1.TenantNamespaceType{
 						Local: "default",
 					},
 					PeeringConditions: []discoveryv1alpha1.PeeringCondition{
@@ -542,7 +542,7 @@ var _ = Describe("ForeignClusterOperator", func() {
 
 			Entry("none and no update", checkPeeringStatusTestcase{
 				foreignClusterStatus: discoveryv1alpha1.ForeignClusterStatus{
-					TenantControlNamespace: discoveryv1alpha1.TenantControlNamespace{
+					TenantNamespace: discoveryv1alpha1.TenantNamespaceType{
 						Local: "default",
 					},
 					PeeringConditions: []discoveryv1alpha1.PeeringCondition{
@@ -565,7 +565,7 @@ var _ = Describe("ForeignClusterOperator", func() {
 
 			Entry("outgoing", checkPeeringStatusTestcase{
 				foreignClusterStatus: discoveryv1alpha1.ForeignClusterStatus{
-					TenantControlNamespace: discoveryv1alpha1.TenantControlNamespace{
+					TenantNamespace: discoveryv1alpha1.TenantNamespaceType{
 						Local: "default",
 					},
 					PeeringConditions: []discoveryv1alpha1.PeeringCondition{
@@ -590,7 +590,7 @@ var _ = Describe("ForeignClusterOperator", func() {
 
 			Entry("incoming", checkPeeringStatusTestcase{
 				foreignClusterStatus: discoveryv1alpha1.ForeignClusterStatus{
-					TenantControlNamespace: discoveryv1alpha1.TenantControlNamespace{
+					TenantNamespace: discoveryv1alpha1.TenantNamespaceType{
 						Local: "default",
 					},
 					PeeringConditions: []discoveryv1alpha1.PeeringCondition{
@@ -615,7 +615,7 @@ var _ = Describe("ForeignClusterOperator", func() {
 
 			Entry("bidirectional", checkPeeringStatusTestcase{
 				foreignClusterStatus: discoveryv1alpha1.ForeignClusterStatus{
-					TenantControlNamespace: discoveryv1alpha1.TenantControlNamespace{
+					TenantNamespace: discoveryv1alpha1.TenantNamespaceType{
 						Local: "default",
 					},
 					PeeringConditions: []discoveryv1alpha1.PeeringCondition{

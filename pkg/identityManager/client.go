@@ -74,7 +74,7 @@ func (certManager *certificateIdentityManager) GetConfig(remoteClusterID, namesp
 	}, nil
 }
 
-// GetRemoteTenantNamespace returns the tenant control namespace that
+// GetRemoteTenantNamespace returns the tenant namespace that
 // the remote cluster assigned to this peering.
 func (certManager *certificateIdentityManager) GetRemoteTenantNamespace(
 	remoteClusterID, localTenantNamespaceName string) (string, error) {

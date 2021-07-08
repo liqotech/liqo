@@ -1,8 +1,8 @@
 package discovery
 
 const (
-	// TenantControlNamespaceLabel used to mark the tenant control namespaces.
-	TenantControlNamespaceLabel = "discovery.liqo.io/tenant-control-namespace"
+	// TenantNamespaceLabel used to mark the tenant namespaces.
+	TenantNamespaceLabel = "discovery.liqo.io/tenant-namespace"
 
 	// ClusterIDLabel used as key to indicate which cluster a resource is referenced to.
 	ClusterIDLabel = "discovery.liqo.io/cluster-id"

@@ -249,7 +249,7 @@ func (tec *TunnelEndpointCreator) createNetConfig(fc *discoveryv1alpha1.ForeignC
 	netConfig := netv1alpha1.NetworkConfig{
 		ObjectMeta: metav1.ObjectMeta{
 			GenerateName: netConfigNamePrefix,
-			Namespace:    fc.Status.TenantControlNamespace.Local,
+			Namespace:    fc.Status.TenantNamespace.Local,
 			Labels: map[string]string{
 				crdreplicator.LocalLabelSelector: "true",
 				crdreplicator.DestinationLabel:   clusterID,
@@ -278,7 +278,7 @@ func (tec *TunnelEndpointCreator) createNetConfig(fc *discoveryv1alpha1.ForeignC
 		Status: netv1alpha1.NetworkConfigStatus{},
 	}
 	// check if the resource for the remote cluster already exists
-	_, exists, err := tec.GetNetworkConfig(clusterID, fc.Status.TenantControlNamespace.Local)
+	_, exists, err := tec.GetNetworkConfig(clusterID, fc.Status.TenantNamespace.Local)
 	if err != nil {
 		return err
 	}
@@ -299,7 +299,7 @@ func (tec *TunnelEndpointCreator) deleteNetConfig(fc *discoveryv1alpha1.ForeignC
 	clusterID := fc.Spec.ClusterIdentity.ClusterID
 	netConfigList := &netv1alpha1.NetworkConfigList{}
 	labels := client.MatchingLabels{crdreplicator.DestinationLabel: clusterID}
-	err := tec.List(context.Background(), netConfigList, labels, client.InNamespace(fc.Status.TenantControlNamespace.Local))
+	err := tec.List(context.Background(), netConfigList, labels, client.InNamespace(fc.Status.TenantNamespace.Local))
 	if err != nil {
 		klog.Errorf("an error occurred while listing resources: %s", err)
 		return err

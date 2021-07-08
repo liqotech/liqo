@@ -19,7 +19,7 @@ func (r *ForeignClusterReconciler) createResourceRequest(ctx context.Context,
 
 	localClusterID := r.clusterID.GetClusterID()
 	remoteClusterID := foreignCluster.Spec.ClusterIdentity.ClusterID
-	localNamespace := foreignCluster.Status.TenantControlNamespace.Local
+	localNamespace := foreignCluster.Status.TenantNamespace.Local
 
 	authURL, err := r.getHomeAuthURL()
 	if err != nil {
@@ -75,7 +75,7 @@ func (r *ForeignClusterReconciler) deleteResourceRequest(ctx context.Context, fo
 	klog.Infof("[%v] ensuring that the ResourceRequest does not exist", foreignCluster.Spec.ClusterIdentity.ClusterID)
 	if err := r.Client.DeleteAllOf(ctx,
 		&discoveryv1alpha1.ResourceRequest{}, client.MatchingLabels(resourceRequestLabels(foreignCluster.Spec.ClusterIdentity.ClusterID)),
-		client.InNamespace(foreignCluster.Status.TenantControlNamespace.Local)); err != nil {
+		client.InNamespace(foreignCluster.Status.TenantNamespace.Local)); err != nil {
 		klog.Error(err)
 		return err
 	}

@@ -36,7 +36,7 @@ const (
 // it creates a new identity and sends it to the remote cluster.
 func (r *ForeignClusterReconciler) ensureRemoteIdentity(ctx context.Context,
 	foreignCluster *discoveryv1alpha1.ForeignCluster) error {
-	_, err := r.identityManager.GetConfig(foreignCluster.Spec.ClusterIdentity.ClusterID, foreignCluster.Status.TenantControlNamespace.Local)
+	_, err := r.identityManager.GetConfig(foreignCluster.Spec.ClusterIdentity.ClusterID, foreignCluster.Status.TenantNamespace.Local)
 	if err != nil && !kerrors.IsNotFound(err) {
 		klog.Error(err)
 		return err
@@ -63,13 +63,13 @@ func (r *ForeignClusterReconciler) ensureRemoteIdentity(ctx context.Context,
 func (r *ForeignClusterReconciler) fetchRemoteTenantNamespace(ctx context.Context,
 	foreignCluster *discoveryv1alpha1.ForeignCluster) error {
 	remoteNamespace, err := r.identityManager.GetRemoteTenantNamespace(
-		foreignCluster.Spec.ClusterIdentity.ClusterID, foreignCluster.Status.TenantControlNamespace.Local)
+		foreignCluster.Spec.ClusterIdentity.ClusterID, foreignCluster.Status.TenantNamespace.Local)
 	if err != nil {
 		klog.Error(err)
 		return err
 	}
 
-	foreignCluster.Status.TenantControlNamespace.Remote = remoteNamespace
+	foreignCluster.Status.TenantNamespace.Remote = remoteNamespace
 	return nil
 }
 

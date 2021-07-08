@@ -1,4 +1,4 @@
-package tenantcontrolnamespace
+package tenantnamespace
 
 import (
 	"context"
@@ -12,8 +12,8 @@ import (
 )
 
 // add the bindings for the remote clusterid for the given ClusterRoles
-// This method creates RoleBindings in the Tenant Control Namespace for a remote identity.
-func (nm *tenantControlNamespaceManager) BindClusterRoles(clusterID string, clusterRoles ...*rbacv1.ClusterRole) ([]*rbacv1.RoleBinding, error) {
+// This method creates RoleBindings in the Tenant Namespace for a remote identity.
+func (nm *tenantNamespaceManager) BindClusterRoles(clusterID string, clusterRoles ...*rbacv1.ClusterRole) ([]*rbacv1.RoleBinding, error) {
 	namespace, err := nm.GetNamespace(clusterID)
 	if err != nil {
 		klog.Error(err)
@@ -32,8 +32,8 @@ func (nm *tenantControlNamespaceManager) BindClusterRoles(clusterID string, clus
 }
 
 // remove the bindings for the remote clusterid for the given ClusterRoles
-// This method deletes RoleBindings in the Tenant Control Namespace for a remote identity.
-func (nm *tenantControlNamespaceManager) UnbindClusterRoles(clusterID string, clusterRoles ...string) error {
+// This method deletes RoleBindings in the Tenant Namespace for a remote identity.
+func (nm *tenantNamespaceManager) UnbindClusterRoles(clusterID string, clusterRoles ...string) error {
 	namespace, err := nm.GetNamespace(clusterID)
 	if err != nil {
 		klog.Error(err)
@@ -50,7 +50,8 @@ func (nm *tenantControlNamespaceManager) UnbindClusterRoles(clusterID string, cl
 }
 
 // create a RoleBinding for the given clusterid in the given Namespace.
-func (nm *tenantControlNamespaceManager) bindClusterRole(clusterID string, namespace *v1.Namespace, clusterRole *rbacv1.ClusterRole) (*rbacv1.RoleBinding, error) {
+func (nm *tenantNamespaceManager) bindClusterRole(clusterID string,
+	namespace *v1.Namespace, clusterRole *rbacv1.ClusterRole) (*rbacv1.RoleBinding, error) {
 	ownerRef := metav1.OwnerReference{
 		APIVersion: rbacv1.SchemeGroupVersion.String(),
 		Kind:       "ClusterRole",
@@ -90,7 +91,7 @@ func (nm *tenantControlNamespaceManager) bindClusterRole(clusterID string, names
 }
 
 // delete a RoleBinding in the given Namespace.
-func (nm *tenantControlNamespaceManager) unbindClusterRole(namespace *v1.Namespace, clusterRole string) error {
+func (nm *tenantNamespaceManager) unbindClusterRole(namespace *v1.Namespace, clusterRole string) error {
 	name := getRoleBindingName(clusterRole)
 	return nm.client.RbacV1().RoleBindings(namespace.Name).Delete(context.TODO(), name, metav1.DeleteOptions{})
 }

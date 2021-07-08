@@ -4,19 +4,19 @@ import (
 	"k8s.io/client-go/kubernetes"
 
 	"github.com/liqotech/liqo/pkg/clusterid"
-	tenantcontrolnamespace "github.com/liqotech/liqo/pkg/tenantControlNamespace"
+	tenantnamespace "github.com/liqotech/liqo/pkg/tenantNamespace"
 )
 
 type certificateIdentityManager struct {
 	client           kubernetes.Interface
 	localClusterID   clusterid.ClusterID
-	namespaceManager tenantcontrolnamespace.TenantControlNamespaceManager
+	namespaceManager tenantnamespace.Manager
 }
 
 // NewCertificateIdentityManager gets a new certificate identity manager.
 func NewCertificateIdentityManager(client kubernetes.Interface,
 	localClusterID clusterid.ClusterID,
-	namespaceManager tenantcontrolnamespace.TenantControlNamespaceManager) IdentityManager {
+	namespaceManager tenantnamespace.Manager) IdentityManager {
 	return &certificateIdentityManager{
 		client:           client,
 		localClusterID:   localClusterID,

@@ -16,13 +16,13 @@ func GetLocalTenantNamespaceName(ctx context.Context, cl client.Client, remoteCl
 		return "", err
 	}
 
-	if fc.Status.TenantControlNamespace.Local == "" {
+	if fc.Status.TenantNamespace.Local == "" {
 		err = fmt.Errorf("there is no tenant namespace associated with the peering with the remote cluster '%s'",
 			remoteClusterID)
 		klog.Error(err)
 		return "", err
 	}
-	return fc.Status.TenantControlNamespace.Local, nil
+	return fc.Status.TenantNamespace.Local, nil
 }
 
 // GetRemoteTenantNamespaceName gets the name of the remote tenant namespace associated with a specific peering (remoteClusterID).
@@ -33,11 +33,11 @@ func GetRemoteTenantNamespaceName(ctx context.Context, cl client.Client, remoteC
 		return "", err
 	}
 
-	if fc.Status.TenantControlNamespace.Remote == "" {
+	if fc.Status.TenantNamespace.Remote == "" {
 		err = fmt.Errorf("there is no tenant namespace associated with the peering with the remote cluster '%s'",
 			remoteClusterID)
 		klog.Error(err)
 		return "", err
 	}
-	return fc.Status.TenantControlNamespace.Remote, nil
+	return fc.Status.TenantNamespace.Remote, nil
 }

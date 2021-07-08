@@ -14,7 +14,7 @@ import (
 	"github.com/liqotech/liqo/pkg/clusterid"
 	crdclient "github.com/liqotech/liqo/pkg/crdClient"
 	identitymanager "github.com/liqotech/liqo/pkg/identityManager"
-	tenantcontrolnamespace "github.com/liqotech/liqo/pkg/tenantControlNamespace"
+	tenantnamespace "github.com/liqotech/liqo/pkg/tenantNamespace"
 	"github.com/liqotech/liqo/pkg/utils"
 	"github.com/liqotech/liqo/pkg/virtualKubelet"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/apiReflection/controller"
@@ -65,7 +65,7 @@ func NewLiqoProvider(ctx context.Context, nodeName, foreignClusterID, homeCluste
 	}
 
 	clusterID := clusterid.NewStaticClusterID(homeClusterID)
-	tenantNamespaceManager := tenantcontrolnamespace.NewTenantControlNamespaceManager(client.Client())
+	tenantNamespaceManager := tenantnamespace.NewTenantNamespaceManager(client.Client())
 	identityManager := identitymanager.NewCertificateIdentityManager(client.Client(), clusterID, tenantNamespaceManager)
 	namespace, err := utils.RetrieveNamespace()
 	if err != nil {
