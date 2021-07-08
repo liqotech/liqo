@@ -74,16 +74,16 @@ func (r *VirtualNodeReconciler) checkLocalTenantNamespaceNamePresence(ctx contex
 			return err
 		}
 
-		if fc.Status.TenantControlNamespace.Local == "" {
+		if fc.Status.TenantNamespace.Local == "" {
 			err = fmt.Errorf("there is no tenant namespace associated with the peering with the remote cluster '%s'",
 				remoteClusterID)
 			klog.Error(err)
 			return err
 		}
 
-		r.LocalTenantNamespacesNames[remoteClusterID] = fc.Status.TenantControlNamespace.Local
+		r.LocalTenantNamespacesNames[remoteClusterID] = fc.Status.TenantNamespace.Local
 		klog.Infof("The Tenant namespace '%s' associated with the peering with the remote cluster '%s' is added to the Map",
-			fc.Status.TenantControlNamespace.Local, remoteClusterID)
+			fc.Status.TenantNamespace.Local, remoteClusterID)
 	}
 	return nil
 }

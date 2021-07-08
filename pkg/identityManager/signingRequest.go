@@ -209,7 +209,7 @@ func (certManager *certificateIdentityManager) getCertificate(csr *certv1.Certif
 	}
 }
 
-// storeRemoteCertificate stores the issued certificate in a Secret in the TenantControlNamespace.
+// storeRemoteCertificate stores the issued certificate in a Secret in the TenantNamespace.
 func (certManager *certificateIdentityManager) storeRemoteCertificate(clusterID string, signingRequest, certificate []byte) (*v1.Secret, error) {
 	namespace, err := certManager.namespaceManager.GetNamespace(clusterID)
 	if err != nil {

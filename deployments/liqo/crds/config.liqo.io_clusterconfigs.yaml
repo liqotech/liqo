@@ -188,8 +188,8 @@ spec:
                     properties:
                       basic:
                         description: The list of ClusterRoles to be enabled with the
-                          creation of the Tenant Control Namespace, these ClusterRoles
-                          have the basic permissions to give to a remote cluster
+                          creation of the Tenant Namespace, these ClusterRoles have
+                          the basic permissions to give to a remote cluster
                         items:
                           type: string
                         type: array

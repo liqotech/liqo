@@ -22,7 +22,7 @@ import (
 	"github.com/liqotech/liqo/pkg/clusterid"
 	"github.com/liqotech/liqo/pkg/consts"
 	identitymanager "github.com/liqotech/liqo/pkg/identityManager"
-	tenantcontrolnamespace "github.com/liqotech/liqo/pkg/tenantControlNamespace"
+	tenantnamespace "github.com/liqotech/liqo/pkg/tenantNamespace"
 )
 
 const (
@@ -91,7 +91,7 @@ func getLabels() map[string]string {
 }
 
 func getCRDReplicator() Controller {
-	tenantmanager := tenantcontrolnamespace.NewTenantControlNamespaceManager(k8sclient)
+	tenantmanager := tenantnamespace.NewTenantNamespaceManager(k8sclient)
 	clusterIDInterface := clusterid.NewStaticClusterID(localClusterID)
 	return Controller{
 		Scheme:                         nil,

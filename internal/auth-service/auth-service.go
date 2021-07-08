@@ -27,7 +27,7 @@ import (
 	"github.com/liqotech/liqo/pkg/discovery"
 	identitymanager "github.com/liqotech/liqo/pkg/identityManager"
 	peeringRoles "github.com/liqotech/liqo/pkg/peering-roles"
-	tenantcontrolnamespace "github.com/liqotech/liqo/pkg/tenantControlNamespace"
+	tenantnamespace "github.com/liqotech/liqo/pkg/tenantNamespace"
 )
 
 // cluster-role
@@ -40,7 +40,7 @@ import (
 // +kubebuilder:rbac:groups=certificates.k8s.io,resources=certificatesigningrequests,verbs=get;create;list;watch
 // +kubebuilder:rbac:groups=certificates.k8s.io,resources=certificatesigningrequests/approval,verbs=update
 // +kubebuilder:rbac:groups=certificates.k8s.io,resources=signers,verbs=approve
-// tenant control namespace management
+// tenant namespace management
 // +kubebuilder:rbac:groups=core,resources=secrets,verbs=get;list;create;delete
 // +kubebuilder:rbac:groups=rbac.authorization.k8s.io,resources=rolebindings,verbs=get;create;deletecollection;delete
 // role
@@ -62,7 +62,7 @@ type Controller struct {
 
 	credentialsValidator credentialsValidator
 	localClusterID       clusterid.ClusterID
-	namespaceManager     tenantcontrolnamespace.TenantControlNamespaceManager
+	namespaceManager     tenantnamespace.Manager
 	identityManager      identitymanager.IdentityManager
 
 	config          *v1alpha1.AuthConfig
@@ -113,7 +113,7 @@ func NewAuthServiceCtrl(namespace, kubeconfigPath string, resyncTime time.Durati
 	informerFactory.Start(wait.NeverStop)
 	informerFactory.WaitForCacheSync(wait.NeverStop)
 
-	namespaceManager := tenantcontrolnamespace.NewTenantControlNamespaceManager(clientset)
+	namespaceManager := tenantnamespace.NewTenantNamespaceManager(clientset)
 	idManager := identitymanager.NewCertificateIdentityManager(clientset, localClusterID, namespaceManager)
 
 	return &Controller{

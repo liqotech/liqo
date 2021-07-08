@@ -148,8 +148,8 @@ spec:
                   - type
                   type: object
                 type: array
-              tenantControlNamespace:
-                description: TenantControlNamespaces names in the peered clusters
+              tenantNamespace:
+                description: TenantNamespace names in the peered clusters
                 properties:
                   local:
                     description: local TenantNamespace name

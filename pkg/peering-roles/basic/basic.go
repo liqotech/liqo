@@ -1,5 +1,5 @@
 // Package basic defines the permission to be enabled with the creation
-// of the Tenant Control Namespace,
+// of the Tenant Namespace,
 // this ClusterRole has the basic permissions to give to a remote cluster
 package basic
 

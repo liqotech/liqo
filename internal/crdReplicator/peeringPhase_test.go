@@ -27,7 +27,7 @@ import (
 	"github.com/liqotech/liqo/pkg/clusterid"
 	"github.com/liqotech/liqo/pkg/consts"
 	identitymanager "github.com/liqotech/liqo/pkg/identityManager"
-	tenantcontrolnamespace "github.com/liqotech/liqo/pkg/tenantControlNamespace"
+	tenantnamespace "github.com/liqotech/liqo/pkg/tenantNamespace"
 	testUtils "github.com/liqotech/liqo/pkg/utils/testUtils"
 )
 
@@ -161,7 +161,7 @@ var _ = Describe("PeeringPhase-Based Replication", func() {
 
 		k8sclient = kubernetes.NewForConfigOrDie(mgr.GetConfig())
 
-		tenantmanager := tenantcontrolnamespace.NewTenantControlNamespaceManager(k8sclient)
+		tenantmanager := tenantnamespace.NewTenantNamespaceManager(k8sclient)
 		clusterIDInterface := clusterid.NewStaticClusterID(localClusterID)
 
 		dynClient := dynamic.NewForConfigOrDie(mgr.GetConfig())

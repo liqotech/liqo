@@ -65,7 +65,7 @@ func (authService *Controller) handleIdentity(
 		return nil, err
 	}
 
-	klog.V(4).Infof("Creating Tenant Control Namespace for cluster %v", identityRequest.GetClusterID())
+	klog.V(4).Infof("Creating Tenant Namespace for cluster %v", identityRequest.GetClusterID())
 	namespace, err := authService.namespaceManager.CreateNamespace(identityRequest.GetClusterID())
 	if err != nil {
 		klog.Error(err)

@@ -32,7 +32,7 @@ import (
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	"github.com/liqotech/liqo/pkg/consts"
 	identitymanager "github.com/liqotech/liqo/pkg/identityManager"
-	tenantcontrolnamespace "github.com/liqotech/liqo/pkg/tenantControlNamespace"
+	tenantnamespace "github.com/liqotech/liqo/pkg/tenantNamespace"
 	foreigncluster "github.com/liqotech/liqo/pkg/utils/foreignCluster"
 )
 
@@ -87,7 +87,7 @@ type Controller struct {
 	RemoteWatchers map[string]map[string]chan struct{}
 
 	// NamespaceManager is an interface to manage the tenant namespaces.
-	NamespaceManager tenantcontrolnamespace.TenantControlNamespaceManager
+	NamespaceManager tenantnamespace.Manager
 	// IdentityManager is an interface to manage remote identities, and to get the rest config.
 	IdentityManager identitymanager.IdentityManager
 	// LocalToRemoteNamespaceMapper maps local namespaces to remote ones.
@@ -185,12 +185,12 @@ func (c *Controller) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		return result, nil
 	}
 
-	if fc.Status.TenantControlNamespace.Local == "" || fc.Status.TenantControlNamespace.Remote == "" {
-		klog.V(4).Infof("%s -> tenantControlNamespace is not set in resource %s for remote peering cluster %s",
+	if fc.Status.TenantNamespace.Local == "" || fc.Status.TenantNamespace.Remote == "" {
+		klog.V(4).Infof("%s -> tenantNamespace is not set in resource %s for remote peering cluster %s",
 			c.ClusterID, req.NamespacedName, remoteClusterID)
 		return result, nil
 	}
-	config, err := c.IdentityManager.GetConfig(remoteClusterID, fc.Status.TenantControlNamespace.Local)
+	config, err := c.IdentityManager.GetConfig(remoteClusterID, fc.Status.TenantNamespace.Local)
 	if err != nil {
 		klog.Errorf("%s -> unable to retrieve config from resource %s for remote peering cluster %s: %s",
 			c.ClusterID, req.NamespacedName, remoteClusterID, err)
@@ -228,11 +228,11 @@ func (c *Controller) updateForeignCluster(ctx context.Context,
 }
 
 func (c *Controller) setUpConnectionToPeeringCluster(config *rest.Config, remoteClusterID string, fc *discoveryv1alpha1.ForeignCluster) error {
-	c.LocalToRemoteNamespaceMapper[fc.Status.TenantControlNamespace.Local] = fc.Status.TenantControlNamespace.Remote
-	c.RemoteToLocalNamespaceMapper[fc.Status.TenantControlNamespace.Remote] = fc.Status.TenantControlNamespace.Local
-	c.ClusterIDToLocalNamespaceMapper[fc.Spec.ClusterIdentity.ClusterID] = fc.Status.TenantControlNamespace.Local
-	c.ClusterIDToRemoteNamespaceMapper[fc.Spec.ClusterIdentity.ClusterID] = fc.Status.TenantControlNamespace.Remote
-	remoteNamespace := fc.Status.TenantControlNamespace.Remote
+	c.LocalToRemoteNamespaceMapper[fc.Status.TenantNamespace.Local] = fc.Status.TenantNamespace.Remote
+	c.RemoteToLocalNamespaceMapper[fc.Status.TenantNamespace.Remote] = fc.Status.TenantNamespace.Local
+	c.ClusterIDToLocalNamespaceMapper[fc.Spec.ClusterIdentity.ClusterID] = fc.Status.TenantNamespace.Local
+	c.ClusterIDToRemoteNamespaceMapper[fc.Spec.ClusterIdentity.ClusterID] = fc.Status.TenantNamespace.Remote
+	remoteNamespace := fc.Status.TenantNamespace.Remote
 
 	// check if the dynamic dynamic client exists
 	if _, ok := c.RemoteDynClients[remoteClusterID]; !ok {

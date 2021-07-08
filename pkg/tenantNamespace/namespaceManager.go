@@ -1,4 +1,4 @@
-package tenantcontrolnamespace
+package tenantnamespace
 
 import (
 	"context"
@@ -15,20 +15,20 @@ import (
 	"github.com/liqotech/liqo/pkg/discovery"
 )
 
-type tenantControlNamespaceManager struct {
+type tenantNamespaceManager struct {
 	client kubernetes.Interface
 }
 
-// NewTenantControlNamespaceManager creates a new TenantControlNamespaceManager object.
-func NewTenantControlNamespaceManager(client kubernetes.Interface) TenantControlNamespaceManager {
-	return &tenantControlNamespaceManager{
+// NewTenantNamespaceManager creates a new TenantNamespaceManager object.
+func NewTenantNamespaceManager(client kubernetes.Interface) Manager {
+	return &tenantNamespaceManager{
 		client: client,
 	}
 }
 
-// CreateNamespace creates a new Tenant Control Namespace given the clusterid
+// CreateNamespace creates a new Tenant Namespace given the clusterid
 // This method is idempotent, multiple calls of it will not lead to multiple namespace creations.
-func (nm *tenantControlNamespaceManager) CreateNamespace(clusterID string) (*v1.Namespace, error) {
+func (nm *tenantNamespaceManager) CreateNamespace(clusterID string) (*v1.Namespace, error) {
 	// first check that it does not exist yet
 	ns, err := nm.GetNamespace(clusterID)
 	if err == nil {
@@ -42,10 +42,10 @@ func (nm *tenantControlNamespaceManager) CreateNamespace(clusterID string) (*v1.
 
 	ns = &v1.Namespace{
 		ObjectMeta: metav1.ObjectMeta{
-			GenerateName: strings.Join([]string{tenantControlNamespaceRoot, ""}, "-"),
+			GenerateName: strings.Join([]string{tenantNamespaceRoot, ""}, "-"),
 			Labels: map[string]string{
-				discovery.ClusterIDLabel:              clusterID,
-				discovery.TenantControlNamespaceLabel: "true",
+				discovery.ClusterIDLabel:       clusterID,
+				discovery.TenantNamespaceLabel: "true",
 			},
 		},
 	}
@@ -57,12 +57,12 @@ func (nm *tenantControlNamespaceManager) CreateNamespace(clusterID string) (*v1.
 	return ns, nil
 }
 
-// GetNamespace gets a Tenant Control Namespace given the clusterid.
-func (nm *tenantControlNamespaceManager) GetNamespace(clusterID string) (*v1.Namespace, error) {
+// GetNamespace gets a Tenant Namespace given the clusterid.
+func (nm *tenantNamespaceManager) GetNamespace(clusterID string) (*v1.Namespace, error) {
 	labelSelector := metav1.LabelSelector{
 		MatchLabels: map[string]string{
-			discovery.ClusterIDLabel:              clusterID,
-			discovery.TenantControlNamespaceLabel: "true",
+			discovery.ClusterIDLabel:       clusterID,
+			discovery.TenantNamespaceLabel: "true",
 		},
 	}
 
@@ -80,7 +80,7 @@ func (nm *tenantControlNamespaceManager) GetNamespace(clusterID string) (*v1.Nam
 		klog.V(4).Info(err)
 		return nil, err
 	} else if nItems > 1 {
-		err = fmt.Errorf("multiple tenant control namespaces found for clusterid %v", clusterID)
+		err = fmt.Errorf("multiple tenant namespaces found for clusterid %v", clusterID)
 		klog.Error(err)
 		return nil, err
 	}

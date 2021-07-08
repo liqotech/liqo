@@ -91,9 +91,9 @@ type ForeignClusterStatus struct {
 	// INSERT ADDITIONAL STATUS FIELD - define observed state of cluster
 	// Important: Run "make" to regenerate code after modifying this file
 
-	// TenantControlNamespaces names in the peered clusters
+	// TenantNamespace names in the peered clusters
 	// +kubebuilder:validation:Optional
-	TenantControlNamespace TenantControlNamespace `json:"tenantControlNamespace"`
+	TenantNamespace TenantNamespaceType `json:"tenantNamespace"`
 
 	// PeeringConditions contains the conditions about the peering related to this
 	// ForeignCluster.
@@ -132,9 +132,9 @@ type PeeringCondition struct {
 	Message string `json:"message,omitempty"`
 }
 
-// TenantControlNamespace contains the names of the local and the remote
+// TenantNamespaceType contains the names of the local and the remote
 // namespaces assigned to the pair of clusters.
-type TenantControlNamespace struct {
+type TenantNamespaceType struct {
 	// local TenantNamespace name
 	Local string `json:"local,omitempty"`
 	// remote TenantNamespace name

@@ -173,7 +173,7 @@ var _ = BeforeSuite(func(done Done) {
 	fc := &discoveryv1alpha1.ForeignCluster{}
 	Expect(k8sClient.Get(context.TODO(), types.NamespacedName{Name: remoteClusterID1}, fc)).To(Succeed())
 	fc.Status = discoveryv1alpha1.ForeignClusterStatus{
-		TenantControlNamespace: discoveryv1alpha1.TenantControlNamespace{
+		TenantNamespace: discoveryv1alpha1.TenantNamespaceType{
 			Local:  tenantNamespaceNameID1,
 			Remote: "remote",
 		},
@@ -183,7 +183,7 @@ var _ = BeforeSuite(func(done Done) {
 	fc = &discoveryv1alpha1.ForeignCluster{}
 	Expect(k8sClient.Get(context.TODO(), types.NamespacedName{Name: remoteClusterID2}, fc)).To(Succeed())
 	fc.Status = discoveryv1alpha1.ForeignClusterStatus{
-		TenantControlNamespace: discoveryv1alpha1.TenantControlNamespace{
+		TenantNamespace: discoveryv1alpha1.TenantNamespaceType{
 			Local:  tenantNamespaceNameID2,
 			Remote: "remote",
 		},

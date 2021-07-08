@@ -15,7 +15,7 @@ import (
 // PeeringPermission contains the reference to the ClusterRoles
 // to bind in the different peering phases.
 type PeeringPermission struct {
-	// to be enabled with the creation of the Tenant Control Namespace,
+	// to be enabled with the creation of the Tenant Namespace,
 	// these ClusterRoles have the basic permissions to give to a remote cluster
 	Basic []*rbacv1.ClusterRole
 	// to be enabled when a ResourceRequest has been accepted,

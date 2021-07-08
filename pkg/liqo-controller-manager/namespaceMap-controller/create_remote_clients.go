@@ -6,7 +6,7 @@ import (
 
 	"github.com/liqotech/liqo/pkg/clusterid"
 	identitymanager "github.com/liqotech/liqo/pkg/identityManager"
-	tenantcontrolnamespace "github.com/liqotech/liqo/pkg/tenantControlNamespace"
+	tenantnamespace "github.com/liqotech/liqo/pkg/tenantNamespace"
 )
 
 // checkRemoteClientPresence creates a new controller-runtime Client for a remote cluster, if it isn't already present
@@ -18,7 +18,7 @@ func (r *NamespaceMapReconciler) checkRemoteClientPresence(remoteClusterID strin
 
 	if _, ok := r.RemoteClients[remoteClusterID]; !ok {
 		clusterID := clusterid.NewStaticClusterID(r.LocalClusterID)
-		tenantNamespaceManager := tenantcontrolnamespace.NewTenantControlNamespaceManager(r.IdentityManagerClient)
+		tenantNamespaceManager := tenantnamespace.NewTenantNamespaceManager(r.IdentityManagerClient)
 		identityManager := identitymanager.NewCertificateIdentityManager(r.IdentityManagerClient, clusterID, tenantNamespaceManager)
 		restConfig, err := identityManager.GetConfig(remoteClusterID, "")
 		if err != nil {

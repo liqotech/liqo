@@ -46,7 +46,7 @@ import (
 	discoveryPkg "github.com/liqotech/liqo/pkg/discovery"
 	identitymanager "github.com/liqotech/liqo/pkg/identityManager"
 	peeringRoles "github.com/liqotech/liqo/pkg/peering-roles"
-	tenantcontrolnamespace "github.com/liqotech/liqo/pkg/tenantControlNamespace"
+	tenantnamespace "github.com/liqotech/liqo/pkg/tenantNamespace"
 	foreigncluster "github.com/liqotech/liqo/pkg/utils/foreignCluster"
 	peeringconditionsutils "github.com/liqotech/liqo/pkg/utils/peeringConditions"
 )
@@ -99,7 +99,7 @@ type ForeignClusterReconciler struct {
 	clusterID     clusterid.ClusterID
 	RequeueAfter  time.Duration
 
-	namespaceManager tenantcontrolnamespace.TenantControlNamespaceManager
+	namespaceManager tenantnamespace.Manager
 	identityManager  identitymanager.IdentityManager
 
 	peeringPermission peeringRoles.PeeringPermission
@@ -127,7 +127,7 @@ type ForeignClusterReconciler struct {
 // +kubebuilder:rbac:groups=core,resources=nodes,verbs=list
 // +kubebuilder:rbac:groups=rbac.authorization.k8s.io,resources=clusterroles,verbs=get;create;update
 // +kubebuilder:rbac:groups=rbac.authorization.k8s.io,resources=clusterrolebindings,verbs=get;create
-// tenant control namespace management
+// tenant namespace management
 // +kubebuilder:rbac:groups=core,resources=namespaces,verbs=get;list;watch;create
 // +kubebuilder:rbac:groups=core,resources=secrets,verbs=get;list;create;delete;update
 // +kubebuilder:rbac:groups=rbac.authorization.k8s.io,resources=rolebindings,verbs=get;create;deletecollection;delete
@@ -283,7 +283,7 @@ func (r *ForeignClusterReconciler) update(fc *discoveryv1alpha1.ForeignCluster) 
 	return fc, err
 }
 
-// peerNamespaced enables the peering creating the resources in the correct TenantControlNamespace.
+// peerNamespaced enables the peering creating the resources in the correct TenantNamespace.
 func (r *ForeignClusterReconciler) peerNamespaced(ctx context.Context,
 	foreignCluster *discoveryv1alpha1.ForeignCluster) error {
 	// create ResourceRequest
@@ -298,24 +298,24 @@ func (r *ForeignClusterReconciler) peerNamespaced(ctx context.Context,
 		peeringconditionsutils.EnsureStatus(foreignCluster,
 			discoveryv1alpha1.OutgoingPeeringCondition,
 			discoveryv1alpha1.PeeringConditionStatusPending,
-			resourceRequestCreatedReason, fmt.Sprintf(resourceRequestCreatedMessage, foreignCluster.Status.TenantControlNamespace.Local))
+			resourceRequestCreatedReason, fmt.Sprintf(resourceRequestCreatedMessage, foreignCluster.Status.TenantNamespace.Local))
 	}
 	return nil
 }
 
-// unpeerNamespaced disables the peering deleting the resources in the correct TenantControlNamespace.
+// unpeerNamespaced disables the peering deleting the resources in the correct TenantNamespace.
 func (r *ForeignClusterReconciler) unpeerNamespaced(ctx context.Context,
 	foreignCluster *discoveryv1alpha1.ForeignCluster) error {
 	var resourceRequest discoveryv1alpha1.ResourceRequest
 	err := r.Client.Get(ctx, types.NamespacedName{
-		Namespace: foreignCluster.Status.TenantControlNamespace.Local,
+		Namespace: foreignCluster.Status.TenantNamespace.Local,
 		Name:      r.clusterID.GetClusterID(),
 	}, &resourceRequest)
 	if errors.IsNotFound(err) {
 		peeringconditionsutils.EnsureStatus(foreignCluster,
 			discoveryv1alpha1.OutgoingPeeringCondition,
 			discoveryv1alpha1.PeeringConditionStatusNone,
-			noResourceRequestReason, fmt.Sprintf(noResourceRequestMessage, foreignCluster.Status.TenantControlNamespace.Local))
+			noResourceRequestReason, fmt.Sprintf(noResourceRequestMessage, foreignCluster.Status.TenantNamespace.Local))
 		return nil
 	}
 	if err != nil {
@@ -336,7 +336,7 @@ func (r *ForeignClusterReconciler) unpeerNamespaced(ctx context.Context,
 		peeringconditionsutils.EnsureStatus(foreignCluster,
 			discoveryv1alpha1.OutgoingPeeringCondition,
 			discoveryv1alpha1.PeeringConditionStatusDisconnecting,
-			resourceRequestDeletingReason, fmt.Sprintf(resourceRequestDeletingMessage, foreignCluster.Status.TenantControlNamespace.Local))
+			resourceRequestDeletingReason, fmt.Sprintf(resourceRequestDeletingMessage, foreignCluster.Status.TenantNamespace.Local))
 	} else {
 		err = r.deleteResourceRequest(ctx, foreignCluster)
 		if err != nil && !errors.IsNotFound(err) {
@@ -346,7 +346,7 @@ func (r *ForeignClusterReconciler) unpeerNamespaced(ctx context.Context,
 		peeringconditionsutils.EnsureStatus(foreignCluster,
 			discoveryv1alpha1.OutgoingPeeringCondition,
 			discoveryv1alpha1.PeeringConditionStatusNone,
-			noResourceRequestReason, fmt.Sprintf(noResourceRequestMessage, foreignCluster.Status.TenantControlNamespace.Local))
+			noResourceRequestReason, fmt.Sprintf(noResourceRequestMessage, foreignCluster.Status.TenantNamespace.Local))
 	}
 	return nil
 }
@@ -363,7 +363,7 @@ func (r *ForeignClusterReconciler) checkPeeringStatus(ctx context.Context,
 	foreignCluster *discoveryv1alpha1.ForeignCluster) error {
 	var outgoingResourceRequestList discoveryv1alpha1.ResourceRequestList
 	remoteClusterID := foreignCluster.Spec.ClusterIdentity.ClusterID
-	localNamespace := foreignCluster.Status.TenantControlNamespace.Local
+	localNamespace := foreignCluster.Status.TenantNamespace.Local
 	if err := r.Client.List(ctx, &outgoingResourceRequestList, client.MatchingLabels(resourceRequestLabels(remoteClusterID)),
 		client.InNamespace(localNamespace)); err != nil {
 		klog.Error(err)
@@ -405,21 +405,21 @@ func getPeeringPhase(foreignCluster *discoveryv1alpha1.ForeignCluster,
 	switch len(resourceRequestList.Items) {
 	case 0:
 		return discoveryv1alpha1.PeeringConditionStatusNone, noResourceRequestReason,
-			fmt.Sprintf(noResourceRequestMessage, foreignCluster.Status.TenantControlNamespace.Local), nil
+			fmt.Sprintf(noResourceRequestMessage, foreignCluster.Status.TenantNamespace.Local), nil
 	case 1:
 		resourceRequest := &resourceRequestList.Items[0]
 		desiredDelete := !resourceRequest.Spec.WithdrawalTimestamp.IsZero()
 		deleted := !resourceRequest.Status.OfferWithdrawalTimestamp.IsZero()
 		if desiredDelete || deleted {
 			return discoveryv1alpha1.PeeringConditionStatusDisconnecting, resourceRequestDeletingReason,
-				fmt.Sprintf(resourceRequestDeletingMessage, foreignCluster.Status.TenantControlNamespace.Local), nil
+				fmt.Sprintf(resourceRequestDeletingMessage, foreignCluster.Status.TenantNamespace.Local), nil
 		}
 		return discoveryv1alpha1.PeeringConditionStatusEstablished, resourceRequestAcceptedReason,
-			fmt.Sprintf(resourceRequestAcceptedMessage, foreignCluster.Status.TenantControlNamespace.Local), nil
+			fmt.Sprintf(resourceRequestAcceptedMessage, foreignCluster.Status.TenantNamespace.Local), nil
 	default:
 		err = fmt.Errorf("more than one resource request found")
 		return discoveryv1alpha1.PeeringConditionStatusNone, noResourceRequestReason,
-			fmt.Sprintf(noResourceRequestMessage, foreignCluster.Status.TenantControlNamespace.Local), err
+			fmt.Sprintf(noResourceRequestMessage, foreignCluster.Status.TenantNamespace.Local), err
 	}
 }
 
@@ -607,18 +607,18 @@ func (r *ForeignClusterReconciler) updateNetwork(ctx context.Context,
 		// no NetworkConfigs found
 		peeringconditionsutils.EnsureStatus(foreignCluster,
 			conditionType, discoveryv1alpha1.PeeringConditionStatusNone,
-			networkConfigNotFoundReason, fmt.Sprintf(networkConfigNotFoundMessage, foreignCluster.Status.TenantControlNamespace.Local))
+			networkConfigNotFoundReason, fmt.Sprintf(networkConfigNotFoundMessage, foreignCluster.Status.TenantNamespace.Local))
 	} else if len(netList.Items) > 0 && !isTunnelEndpointReason(peeringconditionsutils.GetReason(foreignCluster, conditionType)) {
 		// there are NetworkConfigs
 		ncf := &netList.Items[0]
 		if ncf.Status.Processed {
 			peeringconditionsutils.EnsureStatus(foreignCluster,
 				conditionType, discoveryv1alpha1.PeeringConditionStatusEstablished,
-				networkConfigAvailableReason, fmt.Sprintf(networkConfigAvailableMessage, foreignCluster.Status.TenantControlNamespace.Local))
+				networkConfigAvailableReason, fmt.Sprintf(networkConfigAvailableMessage, foreignCluster.Status.TenantNamespace.Local))
 		} else {
 			peeringconditionsutils.EnsureStatus(foreignCluster,
 				conditionType, discoveryv1alpha1.PeeringConditionStatusPending,
-				networkConfigPendingReason, fmt.Sprintf(networkConfigPendingMessage, foreignCluster.Status.TenantControlNamespace.Local))
+				networkConfigPendingReason, fmt.Sprintf(networkConfigPendingMessage, foreignCluster.Status.TenantNamespace.Local))
 		}
 	}
 	return nil
@@ -638,18 +638,18 @@ func (r *ForeignClusterReconciler) checkTEP(ctx context.Context,
 		discoveryv1alpha1.NetworkStatusCondition) == networkConfigAvailableReason {
 		peeringconditionsutils.EnsureStatus(foreignCluster,
 			discoveryv1alpha1.NetworkStatusCondition, discoveryv1alpha1.PeeringConditionStatusNone,
-			tunnelEndpointNotFoundReason, fmt.Sprintf(tunnelEndpointNotFoundMessage, foreignCluster.Status.TenantControlNamespace.Local))
+			tunnelEndpointNotFoundReason, fmt.Sprintf(tunnelEndpointNotFoundMessage, foreignCluster.Status.TenantNamespace.Local))
 	} else if len(tepList.Items) > 0 {
 		tep := &tepList.Items[0]
 		switch tep.Status.Connection.Status {
 		case netv1alpha1.Connected:
 			peeringconditionsutils.EnsureStatus(foreignCluster,
 				discoveryv1alpha1.NetworkStatusCondition, discoveryv1alpha1.PeeringConditionStatusEstablished,
-				tunnelEndpointAvailableReason, fmt.Sprintf(tunnelEndpointAvailableMessage, foreignCluster.Status.TenantControlNamespace.Local))
+				tunnelEndpointAvailableReason, fmt.Sprintf(tunnelEndpointAvailableMessage, foreignCluster.Status.TenantNamespace.Local))
 		case netv1alpha1.Connecting:
 			peeringconditionsutils.EnsureStatus(foreignCluster,
 				discoveryv1alpha1.NetworkStatusCondition, discoveryv1alpha1.PeeringConditionStatusPending,
-				tunnelEndpointConnectingReason, fmt.Sprintf(tunnelEndpointConnectingMessage, foreignCluster.Status.TenantControlNamespace.Local))
+				tunnelEndpointConnectingReason, fmt.Sprintf(tunnelEndpointConnectingMessage, foreignCluster.Status.TenantNamespace.Local))
 		case netv1alpha1.ConnectionError:
 			peeringconditionsutils.EnsureStatus(foreignCluster,
 				discoveryv1alpha1.NetworkStatusCondition, discoveryv1alpha1.PeeringConditionStatusNone,

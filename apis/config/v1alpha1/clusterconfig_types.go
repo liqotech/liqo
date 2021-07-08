@@ -158,7 +158,7 @@ type DiscoveryConfig struct {
 // PeeringPermission collects the list of ClusterRoles to be attributed to foreign cluster in the different steps of
 // peering.
 type PeeringPermission struct {
-	// The list of ClusterRoles to be enabled with the creation of the Tenant Control Namespace, these ClusterRoles
+	// The list of ClusterRoles to be enabled with the creation of the Tenant Namespace, these ClusterRoles
 	// have the basic permissions to give to a remote cluster
 	Basic []string `json:"basic,omitempty"`
 	// The list of ClusterRoles be enabled when a ResourceRequest has been accepted, these ClusterRoles have the
