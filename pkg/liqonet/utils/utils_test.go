@@ -19,9 +19,30 @@ import (
 const (
 	invalidValue      = "invalidValue"
 	CIDRAddressNetErr = "CIDR address"
+	labelKey          = "net.liqo.io/LabelKey"
+	labelValue        = "LabelValue"
+	annotationKey     = "net.liqo.io/AnnotationKey"
+	annotationValue   = "AnnotationValue"
+)
+
+var (
+	// corev1.Pod impements the client.Object interface.
+	testPod *corev1.Pod
 )
 
 var _ = Describe("Liqonet", func() {
+	JustBeforeEach(func() {
+		testPod = &corev1.Pod{
+			ObjectMeta: metav1.ObjectMeta{
+				Labels: map[string]string{
+					labelKey: labelValue,
+				},
+				Annotations: map[string]string{
+					annotationKey: annotationValue,
+				},
+			}}
+	})
+
 	DescribeTable("MapIPToNetwork",
 		func(oldIp, newPodCidr, expectedIP string, expectedErr string) {
 			ip, err := utils.MapIPToNetwork(oldIp, newPodCidr)
@@ -163,6 +184,136 @@ var _ = Describe("Liqonet", func() {
 		Context("when input parameter is not correct", func() {
 			It("should return an empty string", func() {
 				Expect(utils.GetOverlayIP("10.200.")).Should(Equal(""))
+			})
+		})
+	})
+
+	Describe("testing AddAnnotationToObj function", func() {
+		Context("when annotations map is nil", func() {
+			It("should create the map and return true", func() {
+				testPod.Annotations = nil
+				ok := utils.AddAnnotationToObj(testPod, annotationKey, annotationValue)
+				Expect(ok).Should(BeTrue())
+				Expect(len(testPod.GetAnnotations())).Should(BeNumerically("==", 1))
+			})
+		})
+
+		Context("when annotation already exists", func() {
+			It("annotation is the same, should return false", func() {
+				ok := utils.AddAnnotationToObj(testPod, annotationKey, annotationValue)
+				Expect(ok).Should(BeFalse())
+				Expect(len(testPod.GetAnnotations())).Should(BeNumerically("==", 1))
+			})
+
+			It("annotation value is outdated", func() {
+				const newValue = "differentValue"
+				ok := utils.AddAnnotationToObj(testPod, annotationKey, newValue)
+				Expect(ok).Should(BeTrue())
+				Expect(len(testPod.GetAnnotations())).Should(BeNumerically("==", 1))
+				value, ok := testPod.GetAnnotations()[annotationKey]
+				Expect(value).Should(Equal(newValue))
+				Expect(ok).Should(BeTrue())
+			})
+		})
+
+		Context("when annotation with given key does not exist", func() {
+			It("should return true", func() {
+				const newKey = "newTestingKey"
+				ok := utils.AddAnnotationToObj(testPod, newKey, annotationValue)
+				Expect(ok).Should(BeTrue())
+				Expect(len(testPod.GetAnnotations())).Should(BeNumerically("==", 2))
+				value, ok := testPod.GetAnnotations()[annotationKey]
+				Expect(value).Should(Equal(annotationValue))
+				Expect(ok).Should(BeTrue())
+			})
+		})
+	})
+
+	Describe("testing GetAnnotationValueFromObj function", func() {
+		Context("when annotations map is nil", func() {
+			It("should return an empty string", func() {
+				testPod.Annotations = nil
+				value := utils.GetAnnotationValueFromObj(testPod, annotationKey)
+				Expect(value).Should(Equal(""))
+			})
+		})
+
+		Context("annotation with the given key exists", func() {
+			It("should return the correct value", func() {
+				value := utils.GetAnnotationValueFromObj(testPod, annotationKey)
+				Expect(value).Should(Equal(annotationValue))
+			})
+		})
+
+		Context("annotation with the given key does not exist", func() {
+			It("should return an empty string", func() {
+				value := utils.GetAnnotationValueFromObj(testPod, "notExistinKey")
+				Expect(value).Should(Equal(""))
+			})
+		})
+	})
+
+	Describe("testing AddLabelToObj function", func() {
+		Context("when label map is nil", func() {
+			It("should create the map and return true", func() {
+				testPod.Labels = nil
+				ok := utils.AddLabelToObj(testPod, labelKey, labelValue)
+				Expect(ok).Should(BeTrue())
+				Expect(len(testPod.GetLabels())).Should(BeNumerically("==", 1))
+			})
+		})
+
+		Context("when label already exists", func() {
+			It("label is the same, should return false", func() {
+				ok := utils.AddLabelToObj(testPod, labelKey, labelValue)
+				Expect(ok).Should(BeFalse())
+				Expect(len(testPod.GetLabels())).Should(BeNumerically("==", 1))
+			})
+
+			It("label value is outdated", func() {
+				newValue := "differentValue"
+				ok := utils.AddLabelToObj(testPod, labelKey, newValue)
+				Expect(ok).Should(BeTrue())
+				Expect(len(testPod.GetAnnotations())).Should(BeNumerically("==", 1))
+				value, ok := testPod.GetLabels()[labelKey]
+				Expect(value).Should(Equal(newValue))
+				Expect(ok).Should(BeTrue())
+			})
+		})
+
+		Context("when label with given key does not exist", func() {
+			It("should return true", func() {
+				newKey := "newTestingKey"
+				ok := utils.AddLabelToObj(testPod, newKey, labelValue)
+				Expect(ok).Should(BeTrue())
+				Expect(len(testPod.GetLabels())).Should(BeNumerically("==", 2))
+				value, ok := testPod.GetLabels()[newKey]
+				Expect(value).Should(Equal(labelValue))
+				Expect(ok).Should(BeTrue())
+			})
+		})
+	})
+
+	Describe("testing GetLabelValueFromObj function", func() {
+		Context("when label map is nil", func() {
+			It("should return an empty string", func() {
+				testPod.Labels = nil
+				value := utils.GetLabelValueFromObj(testPod, labelKey)
+				Expect(value).Should(Equal(""))
+			})
+		})
+
+		Context("label with the given key exists", func() {
+			It("should return the correct value", func() {
+				value := utils.GetLabelValueFromObj(testPod, labelKey)
+				Expect(value).Should(Equal(labelValue))
+			})
+		})
+
+		Context("label with the given key does not exist", func() {
+			It("should return an empty string", func() {
+				value := utils.GetLabelValueFromObj(testPod, "nonExistingKey")
+				Expect(value).Should(Equal(""))
 			})
 		})
 	})

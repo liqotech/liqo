@@ -9,6 +9,8 @@ import (
 	"github.com/containernetworking/plugins/pkg/ns"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
+	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes/scheme"
 	controllerruntime "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -115,6 +117,13 @@ var _ = BeforeSuite(func() {
 		}
 	}()
 	k8sClient = mgr.GetClient()
+	// Create labeler test namespace.
+	labNamespace := &corev1.Namespace{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: labelerNamespace,
+		},
+	}
+	Eventually(func() error { return k8sClient.Create(context.TODO(), labNamespace) }).Should(BeNil())
 	// We reconcile on a resource that does not exist with
 	// an Eventually block in order to wait for
 	// cache to start and then begin with unit tests.
