@@ -228,7 +228,15 @@ func (r *ForeignClusterReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 		return ctrl.Result{}, err
 	}
 
-	// ------ (5) garbage collection ------
+	// ------ (5) ensuring permission ------
+
+	// ensure the permission for the current peering phase
+	if err = r.ensurePermission(ctx, &foreignCluster); err != nil {
+		klog.Error(err)
+		return ctrl.Result{}, err
+	}
+
+	// ------ (6) garbage collection ------
 
 	// check if this ForeignCluster needs to be deleted. It could happen, for example, if it has been discovered
 	// thanks to incoming peeringRequest and it has no active connections

@@ -9,6 +9,7 @@ import (
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/klog/v2"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 // add the bindings for the remote clusterid for the given ClusterRoles
@@ -93,7 +94,7 @@ func (nm *tenantNamespaceManager) bindClusterRole(clusterID string,
 // delete a RoleBinding in the given Namespace.
 func (nm *tenantNamespaceManager) unbindClusterRole(namespace *v1.Namespace, clusterRole string) error {
 	name := getRoleBindingName(clusterRole)
-	return nm.client.RbacV1().RoleBindings(namespace.Name).Delete(context.TODO(), name, metav1.DeleteOptions{})
+	return client.IgnoreNotFound(nm.client.RbacV1().RoleBindings(namespace.Name).Delete(context.TODO(), name, metav1.DeleteOptions{}))
 }
 
 func getRoleBindingName(clusterRoleName string) string {
