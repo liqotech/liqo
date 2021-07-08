@@ -20,6 +20,7 @@ import (
 
 	liqoerrors "github.com/liqotech/liqo/pkg/liqonet/errors"
 	"github.com/liqotech/liqo/pkg/liqonet/overlay"
+	liqoutils "github.com/liqotech/liqo/pkg/liqonet/utils"
 )
 
 var (
@@ -222,7 +223,7 @@ var _ = Describe("OverlayOperator", func() {
 		Context("when input parameters are incorrect", func() {
 			It("incorrect MAC address, should return false and error", func() {
 				overlayTestPod.Status.PodIP = overlayPodIP
-				ovc.addAnnotation(overlayTestPod, overlayAnnKey, "wrongMAC")
+				liqoutils.AddAnnotationToObj(overlayTestPod, overlayAnnKey, "wrongMAC")
 				added, err := ovc.addPeer(overlayReq, overlayTestPod)
 				Expect(err).To(HaveOccurred())
 				Expect(added).Should(BeFalse())
@@ -284,7 +285,7 @@ var _ = Describe("OverlayOperator", func() {
 			It("should return false and nil", func() {
 				ovc.vxlanPeers[overlayReq.String()] = &overlayExistingNeigh
 				overlayTestPod.Status.PodIP = overlayPeerIP
-				ovc.addAnnotation(overlayTestPod, overlayAnnKey, overlayPeerMAC)
+				liqoutils.AddAnnotationToObj(overlayTestPod, overlayAnnKey, overlayPeerMAC)
 				added, err := ovc.addPeer(overlayReq, overlayTestPod)
 				Expect(err).NotTo(HaveOccurred())
 				Expect(added).Should(BeFalse())
@@ -316,7 +317,7 @@ var _ = Describe("OverlayOperator", func() {
 				ovc.podToNode[overlayReq.String()] = overlayTestPod.Spec.NodeName
 				ovc.vxlanNodes[overlayTestPod.Spec.NodeName] = overlayExistingNeigh.IP.String()
 				overlayTestPod.Status.PodIP = overlayPeerIP
-				ovc.addAnnotation(overlayTestPod, overlayAnnKey, overlayPeerMAC)
+				liqoutils.AddAnnotationToObj(overlayTestPod, overlayAnnKey, overlayPeerMAC)
 				deleted, err := ovc.delPeer(overlayReq)
 				Expect(err).NotTo(HaveOccurred())
 				Expect(deleted).Should(BeTrue())
@@ -332,46 +333,6 @@ var _ = Describe("OverlayOperator", func() {
 				fdbs, err := netlink.NeighList(ovc.vxlanDev.Link.Index, syscall.AF_BRIDGE)
 				Expect(err).To(BeNil())
 				Expect(len(fdbs)).Should(BeNumerically("==", 0))
-			})
-		})
-	})
-
-	Describe("testing addAnnotation function", func() {
-		Context("when annotation already exists", func() {
-			It("annotation is the same, should return false", func() {
-				ok := ovc.addAnnotation(overlayTestPod, overlayAnnKey, overlayAnnValue)
-				Expect(ok).Should(BeFalse())
-				Expect(len(overlayTestPod.GetAnnotations())).Should(BeNumerically("==", 1))
-			})
-
-			It("annotation value is outdated", func() {
-				newValue := "differentValue"
-				ok := ovc.addAnnotation(overlayTestPod, overlayAnnKey, newValue)
-				Expect(ok).Should(BeTrue())
-				Expect(len(overlayTestPod.GetAnnotations())).Should(BeNumerically("==", 1))
-				value, ok := overlayTestPod.GetAnnotations()[overlayAnnKey]
-				Expect(value).Should(Equal(newValue))
-				Expect(ok).Should(BeTrue())
-			})
-		})
-		Context("when annotation with given key does not exist", func() {
-			It("should return true", func() {
-				newKey := "newTestingKey"
-				ok := ovc.addAnnotation(overlayTestPod, newKey, overlayAnnValue)
-				Expect(ok).Should(BeTrue())
-				Expect(len(overlayTestPod.GetAnnotations())).Should(BeNumerically("==", 2))
-				value, ok := overlayTestPod.GetAnnotations()[overlayAnnKey]
-				Expect(value).Should(Equal(overlayAnnValue))
-				Expect(ok).Should(BeTrue())
-			})
-		})
-	})
-
-	Describe("testing getAnnotation function", func() {
-		Context("annotation exists", func() {
-			It("should return the correct value", func() {
-				value := ovc.getAnnotationValue(overlayTestPod, overlayAnnKey)
-				Expect(value).Should(Equal(overlayAnnValue))
 			})
 		})
 	})

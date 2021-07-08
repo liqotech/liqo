@@ -26,8 +26,10 @@ import (
 	"k8s.io/client-go/kubernetes"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
+	"k8s.io/client-go/tools/leaderelection/resourcelock"
 	"k8s.io/klog/v2"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/cache"
 
 	clusterConfig "github.com/liqotech/liqo/apis/config/v1alpha1"
 	netv1alpha1 "github.com/liqotech/liqo/apis/net/v1alpha1"
@@ -60,34 +62,32 @@ func init() {
 }
 
 func main() {
-	var metricsAddr string
+	var metricsAddr, runAs string
 	var enableLeaderElection bool
-	var runAs string
-
-	flag.StringVar(&metricsAddr, "metrics-addr", ":0", "The address the metric endpoint binds to.")
-	flag.BoolVar(&enableLeaderElection, "enable-leader-election", false,
+	leaseDuration := 7 * time.Second
+	renewDeadLine := 5 * time.Second
+	retryPeriod := 2 * time.Second
+	flag.StringVar(&metricsAddr, "metrics-bind-addr", ":0", "The address the metric endpoint binds to.")
+	flag.BoolVar(&enableLeaderElection, "leader-elect", false,
 		"Enable leader election for controller manager. Enabling this will ensure there is only one active controller manager.")
 	flag.StringVar(&runAs, "run-as", liqoconst.LiqoGatewayOperatorName,
 		"The accepted values are: liqo-gateway, liqo-route, tunnelEndpointCreator-operator. The default value is \"liqo-gateway\"")
 	flag.Parse()
-	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
-		MapperProvider:     mapperUtils.LiqoMapperProvider(scheme),
-		Scheme:             scheme,
-		MetricsBindAddress: metricsAddr,
-		LeaderElection:     enableLeaderElection,
-		Port:               9443,
-	})
-	if err != nil {
-		klog.Errorf("unable to get manager: %s", err)
-		os.Exit(1)
-	}
-	clientset := kubernetes.NewForConfigOrDie(mgr.GetConfig())
 
 	switch runAs {
 	case liqoconst.LiqoRouteOperatorName:
 		mutex := &sync.RWMutex{}
 		nodeMap := map[string]string{}
-		// Get the pod ip and parse to net.IP
+		mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
+			MapperProvider:     mapperUtils.LiqoMapperProvider(scheme),
+			Scheme:             scheme,
+			MetricsBindAddress: metricsAddr,
+		})
+		if err != nil {
+			klog.Errorf("unable to get manager: %s", err)
+			os.Exit(1)
+		}
+		// Get the pod ip and parse to net.IP.
 		podIP, err := utils.GetPodIP()
 		if err != nil {
 			klog.Errorf("unable to get podIP: %v", err)
@@ -141,7 +141,7 @@ func main() {
 			os.Exit(1)
 		}
 	case liqoconst.LiqoGatewayOperatorName:
-		// Get the pod ip and parse to net.IP
+		// Get the pod ip and parse to net.IP.
 		podIP, err := utils.GetPodIP()
 		if err != nil {
 			klog.Errorf("unable to get podIP: %v", err)
@@ -152,7 +152,48 @@ func main() {
 			klog.Errorf("unable to get pod namespace: %v", err)
 			os.Exit(1)
 		}
-		eventRecorder := mgr.GetEventRecorderFor(liqoconst.LiqoGatewayOperatorName + "." + podIP.String())
+		// This manager is used for the label controller. It needs to watch the
+		// gateway pods which live in a specific namespace. The main manager on the other
+		// side needs to have permissions to watch the liqo CRDs in every namespace. To limit
+		// the permissions needed by the gateway components for the pods resources we use a
+		// different manager with limited permissions.
+		labelMgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
+			MapperProvider:     mapperUtils.LiqoMapperProvider(scheme),
+			Scheme:             scheme,
+			MetricsBindAddress: metricsAddr,
+			Namespace:          podNamespace,
+			// The operator will receive notifications/events only for the pod objects
+			// that satisfy the LabelSelector.
+			NewCache: cache.BuilderWithOptions(cache.Options{
+				SelectorsByObject: tunneloperator.LabelSelector,
+			}),
+		})
+		if err != nil {
+			klog.Errorf("unable to get manager for the label controller: %s", err)
+			os.Exit(1)
+		}
+		// The mainMgr is the one used for the tunnelendpoints.net.liqo.io CRDs. It needs
+		// to have cluster wide permissions for tep resources. It has the leader election
+		// enabled assuring that only one instance is active.
+		mainMgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
+			MapperProvider:                mapperUtils.LiqoMapperProvider(scheme),
+			Scheme:                        scheme,
+			MetricsBindAddress:            metricsAddr,
+			LeaderElection:                enableLeaderElection,
+			LeaderElectionID:              liqoconst.GatewayLeaderElectionID,
+			LeaderElectionNamespace:       podNamespace,
+			LeaderElectionReleaseOnCancel: true,
+			LeaderElectionResourceLock:    resourcelock.LeasesResourceLock,
+			LeaseDuration:                 &leaseDuration,
+			RenewDeadline:                 &renewDeadLine,
+			RetryPeriod:                   &retryPeriod,
+		})
+		if err != nil {
+			klog.Errorf("unable to get main manager: %s", err)
+			os.Exit(1)
+		}
+		clientset := kubernetes.NewForConfigOrDie(mainMgr.GetConfig())
+		eventRecorder := mainMgr.GetEventRecorderFor(liqoconst.LiqoGatewayOperatorName + "." + podIP.String())
 		// This map is updated by the tunnel operator after a successful tunnel creation
 		// and is consumed by the natmapping operator to check whether the tunnel is ready or not.
 		var readyClustersMutex sync.Mutex
@@ -167,8 +208,14 @@ func main() {
 			os.Exit(1)
 		}
 		klog.Infof("created custom network namespace {%s}", liqoconst.GatewayNetnsName)
+
+		labelController := tunneloperator.NewLabelerController(podIP.String(), labelMgr.GetClient())
+		if err = labelController.SetupWithManager(labelMgr); err != nil {
+			klog.Errorf("unable to setup labeler controller: %s", err)
+			os.Exit(1)
+		}
 		tunnelController, err := tunneloperator.NewTunnelController(podIP.String(),
-			podNamespace, eventRecorder, clientset, mgr.GetClient(), &readyClustersMutex,
+			podNamespace, eventRecorder, clientset, mainMgr.GetClient(), &readyClustersMutex,
 			readyClusters, gatewayNetns)
 		if err != nil {
 			klog.Errorf("an error occurred while creating the tunnel controller: %v", err)
@@ -176,26 +223,41 @@ func main() {
 			tunnelController.RemoveAllTunnels()
 			os.Exit(1)
 		}
-		if err = tunnelController.SetupWithManager(mgr); err != nil {
+		if err = tunnelController.SetupWithManager(mainMgr); err != nil {
 			klog.Errorf("unable to setup tunnel controller: %s", err)
 			os.Exit(1)
 		}
-
-		nmc, err := tunneloperator.NewNatMappingController(mgr.GetClient(), &readyClustersMutex, readyClusters, gatewayNetns)
+		natMappingController, err := tunneloperator.NewNatMappingController(mainMgr.GetClient(), &readyClustersMutex,
+			readyClusters, gatewayNetns)
 		if err != nil {
 			klog.Errorf("an error occurred while creating the natmapping controller: %v", err)
 			os.Exit(1)
 		}
-		if err = nmc.SetupWithManager(mgr); err != nil {
+		if err = natMappingController.SetupWithManager(mainMgr); err != nil {
 			klog.Errorf("unable to setup natmapping controller: %s", err)
 			os.Exit(1)
 		}
+
+		if err := mainMgr.Add(labelMgr); err != nil {
+			klog.Errorf("unable to add the label manager to the main manager: %s", err)
+			os.Exit(1)
+		}
 		klog.Info("Starting manager as Tunnel-Operator")
-		if err := mgr.Start(tunnelController.SetupSignalHandlerForTunnelOperator()); err != nil {
+		if err := mainMgr.Start(tunnelController.SetupSignalHandlerForTunnelOperator()); err != nil {
 			klog.Errorf("unable to start tunnel controller: %s", err)
 			os.Exit(1)
 		}
 	case "tunnelEndpointCreator-operator":
+		mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
+			MapperProvider:     mapperUtils.LiqoMapperProvider(scheme),
+			Scheme:             scheme,
+			MetricsBindAddress: metricsAddr,
+		})
+		if err != nil {
+			klog.Errorf("unable to get manager: %s", err)
+			os.Exit(1)
+		}
+		clientset := kubernetes.NewForConfigOrDie(mgr.GetConfig())
 		dynClient := dynamic.NewForConfigOrDie(mgr.GetConfig())
 		ipam := liqonetIpam.NewIPAM()
 		err = ipam.Init(liqonetIpam.Pools, dynClient, liqoconst.NetworkManagerIpamPort)
@@ -215,9 +277,8 @@ func main() {
 			Configured:                 make(chan bool, 1),
 			ForeignClusterStartWatcher: make(chan bool, 1),
 			ForeignClusterStopWatcher:  make(chan struct{}),
-
-			IPManager:    ipam,
-			RetryTimeout: 30 * time.Second,
+			IPManager:                  ipam,
+			RetryTimeout:               30 * time.Second,
 		}
 		r.WaitConfig.Add(3)
 		//starting configuration watcher

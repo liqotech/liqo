@@ -18,6 +18,7 @@ import (
 
 	liqoerrors "github.com/liqotech/liqo/pkg/liqonet/errors"
 	"github.com/liqotech/liqo/pkg/liqonet/overlay"
+	liqoutils "github.com/liqotech/liqo/pkg/liqonet/utils"
 )
 
 var (
@@ -86,7 +87,7 @@ func (ovc *OverlayController) Reconcile(ctx context.Context, req ctrl.Request) (
 	}
 	// If it is our pod than add the mac address annotation.
 	if ovc.podIP == pod.Status.PodIP {
-		if ovc.addAnnotation(&pod, vxlanMACAddressKey, ovc.vxlanDev.Link.HardwareAddr.String()) {
+		if liqoutils.AddAnnotationToObj(&pod, vxlanMACAddressKey, ovc.vxlanDev.Link.HardwareAddr.String()) {
 			if err := ovc.Update(ctx, &pod); err != nil {
 				klog.Errorf("an error occurred while adding mac address annotation to pod {%s}: %v", req.String(), err)
 				return ctrl.Result{}, err
@@ -100,12 +101,12 @@ func (ovc *OverlayController) Reconcile(ctx context.Context, req ctrl.Request) (
 	added, err := ovc.addPeer(req, &pod)
 	if err != nil {
 		klog.Errorf("an error occurred while adding peer {%s} with IP address {%s} and MAC address {%s} to the vxlan overlay network: %v",
-			req.String(), pod.Status.PodIP, ovc.getAnnotationValue(&pod, vxlanMACAddressKey), err)
+			req.String(), pod.Status.PodIP, liqoutils.GetAnnotationValueFromObj(&pod, vxlanMACAddressKey), err)
 		return ctrl.Result{}, err
 	}
 	if added {
 		klog.Errorf("successfully added peer {%s} with IP address {%s} and MAC address {%s} to the vxlan overlay network",
-			req.String(), pod.Status.PodIP, ovc.getAnnotationValue(&pod, vxlanMACAddressKey))
+			req.String(), pod.Status.PodIP, liqoutils.GetAnnotationValueFromObj(&pod, vxlanMACAddressKey))
 	}
 	return ctrl.Result{}, nil
 }
@@ -219,30 +220,6 @@ func (ovc *OverlayController) delPeer(req ctrl.Request) (bool, error) {
 	return deleted, nil
 }
 
-// addAnnotation for a given object it adds the annotation with the given key and value.
-// It return a bool which is true when the annotations has been added or false if the
-// annotation is already present.
-func (ovc *OverlayController) addAnnotation(obj client.Object, aKey, aValue string) bool {
-	annotations := obj.GetAnnotations()
-	if annotations == nil {
-		annotations = make(map[string]string, 1)
-	}
-	oldAnnValue, ok := annotations[aKey]
-	// If the annotations does not exist or is outdated then set it.
-	if !ok || oldAnnValue != aValue {
-		annotations[aKey] = aValue
-		obj.SetAnnotations(annotations)
-		return true
-	}
-	return false
-}
-
-// getAnnotationValue all objects passed to this function has the annotations set.
-// The podFilter functions makes sure that we reconcile only objects with the annotation set.
-func (ovc *OverlayController) getAnnotationValue(obj client.Object, akey string) string {
-	return obj.GetAnnotations()[akey]
-}
-
 // podFilter used to filter out all the pods that are not instances of the route operator
 // daemon set. It checks that pods are route operator instances, and has the vxlanMACAddressKey
 // annotation set or that the current pod we are considering is our same pod. In this case
@@ -264,6 +241,8 @@ func (ovc *OverlayController) podFilter(obj client.Object) bool {
 	}
 	// If it is not our pod then check if the vxlan mac address has been set.
 	annotations := obj.GetAnnotations()
+
+	// Here we make sure that only objects with the annotation set can be reconciled.
 	if _, ok := annotations[vxlanMACAddressKey]; ok {
 		return true
 	}

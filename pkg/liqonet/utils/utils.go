@@ -19,6 +19,7 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/util/retry"
 	"k8s.io/klog"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	netv1alpha1 "github.com/liqotech/liqo/apis/net/v1alpha1"
 	"github.com/liqotech/liqo/internal/utils/errdefs"
@@ -340,4 +341,58 @@ func GetOverlayIP(ip string) string {
 	}
 	tokens := strings.Split(ip, ".")
 	return strings.Join([]string{consts.OverlayNetworkPrefix, tokens[1], tokens[2], tokens[3]}, ".")
+}
+
+// AddAnnotationToObj for a given object it adds the annotation with the given key and value.
+// It return a bool which is true when the annotations has been added or false if the
+// annotation is already present.
+func AddAnnotationToObj(obj client.Object, aKey, aValue string) bool {
+	annotations := obj.GetAnnotations()
+	if annotations == nil {
+		annotations = make(map[string]string, 1)
+	}
+	oldAnnValue, ok := annotations[aKey]
+	// If the annotations does not exist or is outdated then set it.
+	if !ok || oldAnnValue != aValue {
+		annotations[aKey] = aValue
+		obj.SetAnnotations(annotations)
+		return true
+	}
+	return false
+}
+
+// GetAnnotationValueFromObj for a given object it return the value of the label denoted by the
+// given key. If the key does not exist it returns an empty string.
+func GetAnnotationValueFromObj(obj client.Object, akey string) string {
+	if obj.GetAnnotations() == nil {
+		return ""
+	}
+	return obj.GetAnnotations()[akey]
+}
+
+// AddLabelToObj for a given object it adds the label with the given key and value.
+// It return a bool which is true when the label has been added or false if the
+// label is already present.
+func AddLabelToObj(obj client.Object, labelKey, labelValue string) bool {
+	labels := obj.GetLabels()
+	if labels == nil {
+		labels = make(map[string]string, 1)
+	}
+	oldLabelValue, ok := labels[labelKey]
+	// If the labels does not exist or is outdated then set it.
+	if !ok || oldLabelValue != labelValue {
+		labels[labelKey] = labelValue
+		obj.SetLabels(labels)
+		return true
+	}
+	return false
+}
+
+// GetLabelValueFromObj for a given object it return the value of the label denoted by the
+// given key. If the key does not exist it returns an empty string.
+func GetLabelValueFromObj(obj client.Object, labelKey string) string {
+	if obj.GetLabels() == nil {
+		return ""
+	}
+	return obj.GetLabels()[labelKey]
 }

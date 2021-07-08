@@ -22,7 +22,6 @@ spec:
     {{- end }}
       labels:
         {{- include "liqo.labels" $gatewayConfig | nindent 8 }}
-        {{- include "liqo.gatewayPodLabels" . | nindent 8 }}
         {{- if .Values.gateway.pod.labels }}
           {{- toYaml .Values.gateway.pod.labels | nindent 8 }}
         {{- end }}
@@ -35,11 +34,13 @@ spec:
           ports:
           - containerPort: 5871
           command: ["/usr/bin/liqonet"]
-          args: ["-run-as=liqo-gateway"]
+          args:
+          - -run-as=liqo-gateway
+          - -leader-elect=true
           resources:
             limits:
-              cpu: 10m
-              memory: 30M
+              cpu: 500m
+              memory: 300M
             requests:
               cpu: 10m
               memory: 30M
