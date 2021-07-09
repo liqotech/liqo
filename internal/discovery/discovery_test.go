@@ -18,12 +18,14 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/klog"
+	"k8s.io/utils/pointer"
 
 	"github.com/liqotech/liqo/apis/config/v1alpha1"
 	v1alpha12 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	"github.com/liqotech/liqo/pkg/auth"
 	"github.com/liqotech/liqo/pkg/clusterid/test"
 	"github.com/liqotech/liqo/pkg/discovery"
+	foreignclusterutils "github.com/liqotech/liqo/pkg/utils/foreignCluster"
 	testUtils2 "github.com/liqotech/liqo/pkg/utils/testUtils"
 )
 
@@ -258,7 +260,6 @@ var _ = Describe("Discovery", func() {
 					AuthService:         "_liqo_auth._tcp",
 					ClusterName:         "Name",
 					AutoJoin:            true,
-					AutoJoinUntrusted:   false,
 					Domain:              "local.",
 					EnableAdvertisement: false,
 					EnableDiscovery:     false,
@@ -319,7 +320,6 @@ var _ = Describe("Discovery", func() {
 					initialConfig: &v1alpha1.DiscoveryConfig{
 						ClusterName:         "Name",
 						AutoJoin:            true,
-						AutoJoinUntrusted:   false,
 						Domain:              "local.",
 						EnableAdvertisement: false,
 						EnableDiscovery:     false,
@@ -331,7 +331,6 @@ var _ = Describe("Discovery", func() {
 					changedConfig: v1alpha1.DiscoveryConfig{
 						ClusterName:         "Name",
 						AutoJoin:            true,
-						AutoJoinUntrusted:   false,
 						Domain:              "local.",
 						EnableAdvertisement: false,
 						EnableDiscovery:     false,
@@ -348,7 +347,6 @@ var _ = Describe("Discovery", func() {
 					initialConfig: &v1alpha1.DiscoveryConfig{
 						ClusterName:         "Name",
 						AutoJoin:            true,
-						AutoJoinUntrusted:   false,
 						Domain:              "local.",
 						EnableAdvertisement: false,
 						EnableDiscovery:     false,
@@ -360,7 +358,6 @@ var _ = Describe("Discovery", func() {
 					changedConfig: v1alpha1.DiscoveryConfig{
 						ClusterName:         "Name",
 						AutoJoin:            true,
-						AutoJoinUntrusted:   false,
 						Domain:              "local.",
 						EnableAdvertisement: false,
 						EnableDiscovery:     false,
@@ -377,7 +374,6 @@ var _ = Describe("Discovery", func() {
 					initialConfig: &v1alpha1.DiscoveryConfig{
 						ClusterName:         "Name",
 						AutoJoin:            true,
-						AutoJoinUntrusted:   false,
 						Domain:              "local.",
 						EnableAdvertisement: false,
 						EnableDiscovery:     false,
@@ -389,7 +385,6 @@ var _ = Describe("Discovery", func() {
 					changedConfig: v1alpha1.DiscoveryConfig{
 						ClusterName:         "Name",
 						AutoJoin:            true,
-						AutoJoinUntrusted:   false,
 						Domain:              "local.",
 						EnableAdvertisement: false,
 						EnableDiscovery:     false,
@@ -437,9 +432,8 @@ var _ = Describe("Discovery", func() {
 
 			type updateForeignTestcase struct {
 				data            discoveryData
-				trustMode       discovery.TrustMode
 				expectedLength  types.GomegaMatcher
-				expectedJoin    types.GomegaMatcher
+				expectedPeering types.GomegaMatcher
 				expectedSdLabel types.GomegaMatcher
 			}
 
@@ -447,7 +441,7 @@ var _ = Describe("Discovery", func() {
 
 				DescribeTable("UpdateForeign table",
 					func(c updateForeignTestcase) {
-						discoveryCtrl.updateForeignLAN(&c.data, c.trustMode)
+						discoveryCtrl.updateForeignLAN(&c.data)
 						obj, err := discoveryCtrl.crdClient.Resource("foreignclusters").List(&metav1.ListOptions{})
 						Expect(err).To(BeNil())
 						Expect(obj).NotTo(BeNil())
@@ -459,7 +453,7 @@ var _ = Describe("Discovery", func() {
 						if len(fcs.Items) > 0 {
 							fc := fcs.Items[0]
 							Expect(fc.GetAnnotations()[discovery.LastUpdateAnnotation]).NotTo(BeEmpty())
-							Expect(fc.Spec.Join).To(c.expectedJoin)
+							Expect(fc.Spec.OutgoingPeeringEnabled).To(c.expectedPeering)
 							Expect(fc.GetAnnotations()[discovery.SearchDomainLabel]).To(c.expectedSdLabel)
 						}
 					},
@@ -468,14 +462,12 @@ var _ = Describe("Discovery", func() {
 						data: discoveryData{
 							AuthData: NewAuthData("1.2.3.4", 1234, 30),
 							ClusterInfo: &auth.ClusterInfo{
-								ClusterID:      "local-cluster",
-								ClusterName:    "ClusterTest1",
-								GuestNamespace: "liqo",
+								ClusterID:   "local-cluster",
+								ClusterName: "ClusterTest1",
 							},
 						},
-						trustMode:       discovery.TrustModeUntrusted,
 						expectedLength:  Equal(0),
-						expectedJoin:    BeTrue(),
+						expectedPeering: Equal(v1alpha12.PeeringEnabledAuto),
 						expectedSdLabel: BeEmpty(),
 					}),
 
@@ -483,14 +475,12 @@ var _ = Describe("Discovery", func() {
 						data: discoveryData{
 							AuthData: NewAuthData("1.2.3.4", 1234, 30),
 							ClusterInfo: &auth.ClusterInfo{
-								ClusterID:      "foreign-cluster",
-								ClusterName:    "ClusterTest2",
-								GuestNamespace: "liqo",
+								ClusterID:   "foreign-cluster",
+								ClusterName: "ClusterTest2",
 							},
 						},
-						trustMode:       discovery.TrustModeUntrusted,
 						expectedLength:  Equal(1),
-						expectedJoin:    BeFalse(),
+						expectedPeering: Equal(v1alpha12.PeeringEnabledAuto),
 						expectedSdLabel: BeEmpty(),
 					}),
 
@@ -498,14 +488,12 @@ var _ = Describe("Discovery", func() {
 						data: discoveryData{
 							AuthData: NewAuthData("1.2.3.4", 1234, 30),
 							ClusterInfo: &auth.ClusterInfo{
-								ClusterID:      "foreign-cluster",
-								ClusterName:    "ClusterTest2",
-								GuestNamespace: "liqo",
+								ClusterID:   "foreign-cluster",
+								ClusterName: "ClusterTest2",
 							},
 						},
-						trustMode:       discovery.TrustModeTrusted,
 						expectedLength:  Equal(1),
-						expectedJoin:    BeTrue(),
+						expectedPeering: Equal(v1alpha12.PeeringEnabledAuto),
 						expectedSdLabel: BeEmpty(),
 					}),
 				)
@@ -521,11 +509,10 @@ var _ = Describe("Discovery", func() {
 					discoveryCtrl.updateForeignLAN(&discoveryData{
 						AuthData: NewAuthData("1.2.3.4", 1234, 30),
 						ClusterInfo: &auth.ClusterInfo{
-							ClusterID:      "foreign-cluster",
-							ClusterName:    "ClusterTest2",
-							GuestNamespace: "liqo",
+							ClusterID:   "foreign-cluster",
+							ClusterName: "ClusterTest2",
 						},
-					}, discovery.TrustModeUntrusted)
+					})
 
 					obj, _ := discoveryCtrl.crdClient.Resource("foreignclusters").List(&metav1.ListOptions{})
 					fcs, _ := obj.(*v1alpha12.ForeignClusterList)
@@ -539,7 +526,7 @@ var _ = Describe("Discovery", func() {
 
 				DescribeTable("UpdateForeign table",
 					func(c updateForeignTestcase) {
-						discoveryCtrl.updateForeignLAN(&c.data, c.trustMode)
+						discoveryCtrl.updateForeignLAN(&c.data)
 						obj, err := discoveryCtrl.crdClient.Resource("foreignclusters").List(&metav1.ListOptions{})
 						Expect(err).To(BeNil())
 						Expect(obj).NotTo(BeNil())
@@ -552,7 +539,7 @@ var _ = Describe("Discovery", func() {
 							fc := fcs.Items[0]
 							Expect(fc.GetAnnotations()[discovery.LastUpdateAnnotation]).NotTo(BeEmpty())
 							Expect(fc.GetAnnotations()[discovery.LastUpdateAnnotation]).NotTo(Equal(updateTime))
-							Expect(fc.Spec.Join).To(c.expectedJoin)
+							Expect(fc.Spec.OutgoingPeeringEnabled).To(c.expectedPeering)
 							Expect(fc.GetAnnotations()[discovery.SearchDomainLabel]).To(c.expectedSdLabel)
 						}
 					},
@@ -561,14 +548,12 @@ var _ = Describe("Discovery", func() {
 						data: discoveryData{
 							AuthData: NewAuthData("1.2.3.4", 1234, 30),
 							ClusterInfo: &auth.ClusterInfo{
-								ClusterID:      "foreign-cluster",
-								ClusterName:    "ClusterTest2",
-								GuestNamespace: "liqo",
+								ClusterID:   "foreign-cluster",
+								ClusterName: "ClusterTest2",
 							},
 						},
-						trustMode:       discovery.TrustModeUntrusted,
 						expectedLength:  Equal(1),
-						expectedJoin:    BeFalse(),
+						expectedPeering: Equal(v1alpha12.PeeringEnabledAuto),
 						expectedSdLabel: BeEmpty(),
 					}),
 
@@ -576,14 +561,12 @@ var _ = Describe("Discovery", func() {
 						data: discoveryData{
 							AuthData: NewAuthData("1.2.3.4", 1234, 30),
 							ClusterInfo: &auth.ClusterInfo{
-								ClusterID:      "foreign-cluster",
-								ClusterName:    "ClusterTest2",
-								GuestNamespace: "liqo2",
+								ClusterID:   "foreign-cluster",
+								ClusterName: "ClusterTest2",
 							},
 						},
-						trustMode:       discovery.TrustModeUntrusted,
 						expectedLength:  Equal(1),
-						expectedJoin:    BeFalse(),
+						expectedPeering: Equal(v1alpha12.PeeringEnabledAuto),
 						expectedSdLabel: BeEmpty(),
 					}),
 				)
@@ -606,10 +589,9 @@ var _ = Describe("Discovery", func() {
 								ClusterID:   "foreign-cluster",
 								ClusterName: "ClusterTest2",
 							},
-							Namespace:     "liqo",
-							DiscoveryType: discovery.IncomingPeeringDiscovery,
-							AuthURL:       "",
-							TrustMode:     discovery.TrustModeUntrusted,
+							ForeignAuthURL:         "https://example.com",
+							OutgoingPeeringEnabled: v1alpha12.PeeringEnabledAuto,
+							InsecureSkipTLSVerify:  pointer.BoolPtr(true),
 						},
 					}
 
@@ -622,7 +604,7 @@ var _ = Describe("Discovery", func() {
 
 				DescribeTable("UpdateForeign table",
 					func(c updateForeignTestcase) {
-						discoveryCtrl.updateForeignLAN(&c.data, c.trustMode)
+						discoveryCtrl.updateForeignLAN(&c.data)
 						obj, err := discoveryCtrl.crdClient.Resource("foreignclusters").List(&metav1.ListOptions{})
 						Expect(err).To(BeNil())
 						Expect(obj).NotTo(BeNil())
@@ -634,9 +616,9 @@ var _ = Describe("Discovery", func() {
 						if len(fcs.Items) > 0 {
 							fc := fcs.Items[0]
 							Expect(fc.GetAnnotations()[discovery.LastUpdateAnnotation]).NotTo(BeEmpty())
-							Expect(fc.Spec.Join).To(c.expectedJoin)
+							Expect(fc.Spec.OutgoingPeeringEnabled).To(c.expectedPeering)
 							Expect(fc.GetAnnotations()[discovery.SearchDomainLabel]).To(c.expectedSdLabel)
-							Expect(fc.Spec.DiscoveryType).To(Equal(discovery.LanDiscovery))
+							Expect(foreignclusterutils.GetDiscoveryType(&fc)).To(Equal(discovery.LanDiscovery))
 						}
 					},
 
@@ -644,14 +626,12 @@ var _ = Describe("Discovery", func() {
 						data: discoveryData{
 							AuthData: NewAuthData("1.2.3.4", 1234, 30),
 							ClusterInfo: &auth.ClusterInfo{
-								ClusterID:      "foreign-cluster",
-								ClusterName:    "ClusterTest2",
-								GuestNamespace: "liqo",
+								ClusterID:   "foreign-cluster",
+								ClusterName: "ClusterTest2",
 							},
 						},
-						trustMode:       discovery.TrustModeUntrusted,
 						expectedLength:  Equal(1),
-						expectedJoin:    BeFalse(),
+						expectedPeering: Equal(v1alpha12.PeeringEnabledAuto),
 						expectedSdLabel: BeEmpty(),
 					}),
 				)
@@ -699,11 +679,10 @@ var _ = Describe("Discovery", func() {
 									ClusterID:   "foreign-cluster",
 									ClusterName: "ClusterTest2",
 								},
-								Namespace:     "liqo",
-								DiscoveryType: discovery.LanDiscovery,
-								AuthURL:       "",
-								TrustMode:     discovery.TrustModeUntrusted,
-								TTL:           300,
+								OutgoingPeeringEnabled: v1alpha12.PeeringEnabledAuto,
+								ForeignAuthURL:         "https://example.com",
+								InsecureSkipTLSVerify:  pointer.BoolPtr(true),
+								TTL:                    300,
 							},
 						},
 
@@ -727,11 +706,10 @@ var _ = Describe("Discovery", func() {
 									ClusterID:   "foreign-cluster",
 									ClusterName: "ClusterTest2",
 								},
-								Namespace:     "liqo",
-								DiscoveryType: discovery.LanDiscovery,
-								AuthURL:       "",
-								TrustMode:     discovery.TrustModeUntrusted,
-								TTL:           300,
+								OutgoingPeeringEnabled: v1alpha12.PeeringEnabledAuto,
+								ForeignAuthURL:         "https://example.com",
+								InsecureSkipTLSVerify:  pointer.BoolPtr(true),
+								TTL:                    300,
 							},
 						},
 
@@ -755,11 +733,10 @@ var _ = Describe("Discovery", func() {
 									ClusterID:   "foreign-cluster",
 									ClusterName: "ClusterTest2",
 								},
-								Namespace:     "liqo",
-								DiscoveryType: discovery.ManualDiscovery,
-								AuthURL:       "",
-								TrustMode:     discovery.TrustModeUntrusted,
-								TTL:           300,
+								OutgoingPeeringEnabled: v1alpha12.PeeringEnabledAuto,
+								ForeignAuthURL:         "https://example.com",
+								InsecureSkipTLSVerify:  pointer.BoolPtr(true),
+								TTL:                    300,
 							},
 						},
 

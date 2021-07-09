@@ -28,6 +28,7 @@ import (
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
 	"k8s.io/klog/v2"
+	"k8s.io/utils/pointer"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/envtest"
@@ -153,6 +154,11 @@ var _ = BeforeSuite(func(done Done) {
 				discovery.ClusterIDLabel: remoteClusterID1,
 			},
 		},
+		Spec: discoveryv1alpha1.ForeignClusterSpec{
+			ForeignAuthURL:         "https://example.com",
+			OutgoingPeeringEnabled: discoveryv1alpha1.PeeringEnabledAuto,
+			InsecureSkipTLSVerify:  pointer.BoolPtr(true),
+		},
 	}
 
 	foreignCluster2 = &discoveryv1alpha1.ForeignCluster{
@@ -161,6 +167,11 @@ var _ = BeforeSuite(func(done Done) {
 			Labels: map[string]string{
 				discovery.ClusterIDLabel: remoteClusterID2,
 			},
+		},
+		Spec: discoveryv1alpha1.ForeignClusterSpec{
+			ForeignAuthURL:         "https://example.com",
+			OutgoingPeeringEnabled: discoveryv1alpha1.PeeringEnabledAuto,
+			InsecureSkipTLSVerify:  pointer.BoolPtr(true),
 		},
 	}
 

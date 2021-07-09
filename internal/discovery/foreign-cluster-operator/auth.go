@@ -18,6 +18,7 @@ import (
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	"github.com/liqotech/liqo/pkg/auth"
 	"github.com/liqotech/liqo/pkg/discovery"
+	foreignclusterutils "github.com/liqotech/liqo/pkg/utils/foreignCluster"
 	peeringconditionsutils "github.com/liqotech/liqo/pkg/utils/peeringConditions"
 )
 
@@ -147,9 +148,9 @@ func sendIdentityRequest(request auth.IdentityRequest, fc *discoveryv1alpha1.For
 	klog.V(4).Infof("[%v] Sending json request: %v", fc.Spec.ClusterIdentity.ClusterID, string(jsonRequest))
 
 	resp, err := sendRequest(
-		fmt.Sprintf("%s%s", fc.Spec.AuthURL, request.GetPath()),
+		fmt.Sprintf("%s%s", fc.Spec.ForeignAuthURL, request.GetPath()),
 		bytes.NewBuffer(jsonRequest),
-		fc.Spec.TrustMode == discovery.TrustModeTrusted)
+		foreignclusterutils.InsecureSkipTLSVerify(fc))
 	if err != nil {
 		klog.Error(err)
 		return nil, discoveryv1alpha1.PeeringConditionStatusPending, err
@@ -197,11 +198,9 @@ func sendIdentityRequest(request auth.IdentityRequest, fc *discoveryv1alpha1.For
 	}
 }
 
-func sendRequest(url string, payload *bytes.Buffer, isTrusted bool) (*http.Response, error) {
-	tr := &http.Transport{}
-	if !isTrusted {
-		// disable TLS CA check for untrusted remote clusters
-		tr.TLSClientConfig = &tls.Config{InsecureSkipVerify: true}
+func sendRequest(url string, payload *bytes.Buffer, insecureSkipTLSVerify bool) (*http.Response, error) {
+	tr := &http.Transport{
+		TLSClientConfig: &tls.Config{InsecureSkipVerify: insecureSkipTLSVerify},
 	}
 	client := &http.Client{Transport: tr}
 	req, err := http.NewRequestWithContext(context.TODO(), http.MethodPost, url, payload)

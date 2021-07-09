@@ -8,6 +8,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/klog/v2"
+	"k8s.io/utils/pointer"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
@@ -60,11 +61,10 @@ func (r *ResourceRequestReconciler) createForeignCluster(ctx context.Context,
 			},
 		},
 		Spec: discoveryv1alpha1.ForeignClusterSpec{
-			ClusterIdentity: resourceRequest.Spec.ClusterIdentity,
-			Namespace:       resourceRequest.Namespace,
-			Join:            false,
-			DiscoveryType:   discovery.IncomingPeeringDiscovery,
-			AuthURL:         resourceRequest.Spec.AuthURL,
+			ClusterIdentity:        resourceRequest.Spec.ClusterIdentity,
+			OutgoingPeeringEnabled: discoveryv1alpha1.PeeringEnabledAuto,
+			ForeignAuthURL:         resourceRequest.Spec.AuthURL,
+			InsecureSkipTLSVerify:  pointer.BoolPtr(true),
 		},
 	}
 

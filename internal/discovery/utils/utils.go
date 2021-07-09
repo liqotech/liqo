@@ -12,10 +12,9 @@ import (
 	"io/ioutil"
 	"net/http"
 
-	"k8s.io/klog"
+	"k8s.io/klog/v2"
 
 	"github.com/liqotech/liqo/pkg/auth"
-	"github.com/liqotech/liqo/pkg/discovery"
 )
 
 // IsUnknownAuthority checks if the error is due to a TLS certificate signed by unknown authority.
@@ -27,42 +26,30 @@ func IsUnknownAuthority(err error) bool {
 
 // GetClusterInfo contacts the remote cluster to get its info,
 // it returns also if the remote cluster exposes a trusted certificate.
-func GetClusterInfo(url string) (*auth.ClusterInfo, discovery.TrustMode, error) {
-	trustMode := discovery.TrustModeTrusted
-	tr := &http.Transport{}
+func GetClusterInfo(skipTLSVerify bool, url string) (*auth.ClusterInfo, error) {
+	tr := &http.Transport{
+		TLSClientConfig: &tls.Config{InsecureSkipVerify: skipTLSVerify},
+	}
 	client := &http.Client{Transport: tr}
 	resp, err := httpGet(context.TODO(), client, fmt.Sprintf("%s%s", url, auth.IdsURI))
-	if resp != nil {
-		defer resp.Body.Close()
-	}
-	if IsUnknownAuthority(err) {
-		trustMode = discovery.TrustModeUntrusted
-		tr := &http.Transport{
-			TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
-		}
-		client := &http.Client{Transport: tr}
-		resp, err = httpGet(context.TODO(), client, fmt.Sprintf("%s%s", url, auth.IdsURI))
-		if resp != nil {
-			defer resp.Body.Close()
-		}
-	}
 	if err != nil {
-		return nil, discovery.TrustModeUnknown, err
+		return nil, err
 	}
+	defer resp.Body.Close()
 
 	respBytes, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
 		klog.Error(err)
-		return nil, "", err
+		return nil, err
 	}
 
 	var ids auth.ClusterInfo
 	if err = json.Unmarshal(respBytes, &ids); err != nil {
 		klog.Error(err)
-		return nil, "", err
+		return nil, err
 	}
 
-	return &ids, trustMode, nil
+	return &ids, nil
 }
 
 func httpGet(ctx context.Context, client *http.Client, url string) (resp *http.Response, err error) {

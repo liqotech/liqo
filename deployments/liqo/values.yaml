@@ -100,10 +100,8 @@ discovery:
      # topology.kubernetes.io/zone: us-east-1
      # liqo.io/provider: your-provider
 
-    # -- Automatically join discovered cluster exposing the Authentication Service with a valid certificate
+    # -- Automatically join discovered clusters
     autojoin: true
-    # -- Automatically join discovered cluster exposing the Authentication Service with a self-signed certificate
-    autojoinUntrusted: true
     # -- Enable the mDNS advertisement on LANs, set to false to not be discoverable from other clusters in the same LAN
     enableAdvertisement: true
     # -- Enable the mDNS discovery on LANs, set to false to not look for other clusters available in the same LAN

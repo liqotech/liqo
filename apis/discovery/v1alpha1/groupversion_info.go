@@ -43,4 +43,7 @@ var (
 
 	// ForeignClusterGroupResource is the group resource used to register ForeignCluster CRD.
 	ForeignClusterGroupResource = schema.GroupResource{Group: GroupVersion.Group, Resource: "foreignclusters"}
+
+	// SearchDomainGroupResource is the group resource used to register SearchDomain CRD.
+	SearchDomainGroupResource = schema.GroupResource{Group: GroupVersion.Group, Resource: "searchdomains"}
 )

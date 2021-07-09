@@ -12,7 +12,6 @@ import (
 
 	"github.com/liqotech/liqo/internal/discovery/utils"
 	"github.com/liqotech/liqo/pkg/auth"
-	discoveryPkg "github.com/liqotech/liqo/pkg/discovery"
 )
 
 func (discovery *Controller) startResolver(stopChan <-chan bool) {
@@ -61,8 +60,7 @@ func (discovery *Controller) resolve(ctx context.Context, service, domain string
 						klog.Error(err)
 						continue
 					}
-					var trustMode discoveryPkg.TrustMode
-					dData.ClusterInfo, trustMode, err = discovery.getClusterInfo(dData.AuthData)
+					dData.ClusterInfo, err = discovery.getClusterInfo(defaultInsecureSkipTLSVerify, dData.AuthData)
 					if err != nil {
 						klog.Error(err)
 						continue
@@ -71,7 +69,7 @@ func (discovery *Controller) resolve(ctx context.Context, service, domain string
 						continue
 					}
 					klog.V(4).Infof("update %s", entry.Instance)
-					discovery.updateForeignLAN(dData, trustMode)
+					discovery.updateForeignLAN(dData)
 					resolvedData.delete(entry.Instance)
 				}
 			}
@@ -86,14 +84,14 @@ func (discovery *Controller) resolve(ctx context.Context, service, domain string
 	<-ctx.Done()
 }
 
-func (discovery *Controller) getClusterInfo(authData *AuthData) (*auth.ClusterInfo, discoveryPkg.TrustMode, error) {
-	ids, trustMode, err := utils.GetClusterInfo(authData.getURL())
+func (discovery *Controller) getClusterInfo(insecureSkipTLSVerify bool, authData *AuthData) (*auth.ClusterInfo, error) {
+	ids, err := utils.GetClusterInfo(insecureSkipTLSVerify, authData.getURL())
 	if err != nil {
 		klog.Error(err)
-		return nil, "", err
+		return nil, err
 	}
 
-	return ids, trustMode, nil
+	return ids, nil
 }
 
 func (discovery *Controller) getIPs() map[string]bool {

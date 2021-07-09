@@ -21,7 +21,6 @@ import (
 	"k8s.io/client-go/kubernetes/scheme"
 
 	crdclient "github.com/liqotech/liqo/pkg/crdClient"
-	"github.com/liqotech/liqo/pkg/discovery"
 )
 
 // EDIT THIS FILE!  THIS IS SCAFFOLDING FOR YOU TO OWN!
@@ -50,6 +49,24 @@ const (
 	PeeringConditionStatusEmptyDenied PeeringConditionStatusType = "EmptyDenied"
 )
 
+// PeeringEnabledType indicates the desired state for the peering with this remote cluster.
+type PeeringEnabledType string
+
+const (
+	// PeeringEnabledAuto indicates to use the default settings for the discovery method.
+	// This is useful to track that the user did not set the peering state for that cluster,
+	// if the peering is Auto liqo will use the default for that discovery method:
+	// manual -> No
+	// incomingPeering -> No
+	// LAN -> Yes
+	// WAN -> looks at the SearchDomain Spec.
+	PeeringEnabledAuto PeeringEnabledType = "Auto"
+	// PeeringEnabledNo indicates to disable the peering with this remote cluster.
+	PeeringEnabledNo PeeringEnabledType = "No"
+	// PeeringEnabledYes indicates to enable the peering with this remote cluster.
+	PeeringEnabledYes PeeringEnabledType = "Yes"
+)
+
 // ForeignClusterSpec defines the desired state of ForeignCluster.
 type ForeignClusterSpec struct {
 	// INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
@@ -57,21 +74,18 @@ type ForeignClusterSpec struct {
 
 	// Foreign Cluster Identity.
 	ClusterIdentity ClusterIdentity `json:"clusterIdentity,omitempty"`
-	// Namespace where Liqo is deployed. (Deprecated)
-	Namespace string `json:"namespace,omitempty"`
-	// Enable join process to foreign cluster.
-	// +kubebuilder:default=false
-	Join bool `json:"join,omitempty"`
-	// +kubebuilder:validation:Enum="LAN";"WAN";"Manual";"IncomingPeering"
-	// +kubebuilder:default="Manual"
-	// How this ForeignCluster has been discovered.
-	DiscoveryType discovery.Type `json:"discoveryType,omitempty"`
+	// Enable the peering process to the remote cluster.
+	// +kubebuilder:validation:Enum="Auto";"No";"Yes"
+	// +kubebuilder:default="Auto"
+	// +kubebuilder:validation:Optional
+	OutgoingPeeringEnabled PeeringEnabledType `json:"outgoingPeeringEnabled"`
 	// URL where to contact foreign Auth service.
-	AuthURL string `json:"authUrl"`
-	// +kubebuilder:validation:Enum="Unknown";"Trusted";"Untrusted"
-	// +kubebuilder:default="Unknown"
-	// Indicates if this remote cluster is trusted or not.
-	TrustMode discovery.TrustMode `json:"trustMode,omitempty"`
+	// +kubebuilder:validation:Pattern=`https:\/\/(www\.)?[-a-zA-Z0-9@:%._\+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b([-a-zA-Z0-9()@:%_\+.~#?&//=]*)`
+	ForeignAuthURL string `json:"foreignAuthUrl"`
+	// Indicates if the local cluster has to skip the tls verification over the remote Authentication Service or not.
+	// +kubebuilder:default=true
+	// +kubebuilder:validation:Optional
+	InsecureSkipTLSVerify *bool `json:"insecureSkipTLSVerify"`
 	// If discoveryType is LAN or WAN and this indicates the number of seconds after that
 	// this ForeignCluster will be removed if no updates have been received.
 	// +kubebuilder:validation:Minimum=0
