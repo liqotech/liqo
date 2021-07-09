@@ -35,8 +35,7 @@ func (authService *Controller) ids(w http.ResponseWriter, r *http.Request, ps ht
 func (authService *Controller) getIdsResponse() *auth.ClusterInfo {
 	conf := authService.getDiscoveryConfig()
 	return &auth.ClusterInfo{
-		ClusterID:      authService.localClusterID.GetClusterID(),
-		ClusterName:    conf.ClusterName,
-		GuestNamespace: auth.LiqoGuestNamespace,
+		ClusterID:   authService.localClusterID.GetClusterID(),
+		ClusterName: conf.ClusterName,
 	}
 }

@@ -47,7 +47,7 @@ import (
 	identitymanager "github.com/liqotech/liqo/pkg/identityManager"
 	peeringRoles "github.com/liqotech/liqo/pkg/peering-roles"
 	tenantnamespace "github.com/liqotech/liqo/pkg/tenantNamespace"
-	foreigncluster "github.com/liqotech/liqo/pkg/utils/foreignCluster"
+	foreignclusterutils "github.com/liqotech/liqo/pkg/utils/foreignCluster"
 	peeringconditionsutils "github.com/liqotech/liqo/pkg/utils/peeringConditions"
 )
 
@@ -190,7 +190,7 @@ func (r *ForeignClusterReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 	// ------ (3) peering/unpeering logic ------
 
 	// read the ForeignCluster status and ensure the peering state
-	phase := r.getDesiredOutgoingPeeringState(&foreignCluster)
+	phase := r.getDesiredOutgoingPeeringState(ctx, &foreignCluster)
 	switch phase {
 	case desiredPeeringPhasePeering:
 		if err = r.peerNamespaced(ctx, &foreignCluster); err != nil {
@@ -240,10 +240,10 @@ func (r *ForeignClusterReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 
 	// check if this ForeignCluster needs to be deleted. It could happen, for example, if it has been discovered
 	// thanks to incoming peeringRequest and it has no active connections
-	if foreigncluster.HasToBeRemoved(&foreignCluster) {
+	if foreignclusterutils.HasToBeRemoved(&foreignCluster) {
 		klog.Infof("[%v] Delete ForeignCluster %v with discovery type %v",
 			foreignCluster.Spec.ClusterIdentity.ClusterID,
-			foreignCluster.Name, foreignCluster.Spec.DiscoveryType)
+			foreignCluster.Name, foreignclusterutils.GetDiscoveryType(&foreignCluster))
 		if err := r.deleteForeignCluster(ctx, &foreignCluster); err != nil {
 			klog.Error(err)
 			return ctrl.Result{}, err
@@ -565,22 +565,6 @@ func (r *ForeignClusterReconciler) getHomeAuthURL() (string, error) {
 	}
 
 	return fmt.Sprintf("https://%s:%v", address, port), nil
-}
-
-func (r *ForeignClusterReconciler) getAutoJoin(fc *discoveryv1alpha1.ForeignCluster) bool {
-	if r.ConfigProvider == nil || r.ConfigProvider.GetConfig() == nil {
-		klog.Warning("Discovery Config is not set, using default value")
-		return fc.Spec.Join
-	}
-	return r.ConfigProvider.GetConfig().AutoJoin
-}
-
-func (r *ForeignClusterReconciler) getAutoJoinUntrusted(fc *discoveryv1alpha1.ForeignCluster) bool {
-	if r.ConfigProvider == nil || r.ConfigProvider.GetConfig() == nil {
-		klog.Warning("Discovery Config is not set, using default value")
-		return fc.Spec.Join
-	}
-	return r.ConfigProvider.GetConfig().AutoJoinUntrusted
 }
 
 func (r *ForeignClusterReconciler) checkNetwork(ctx context.Context,

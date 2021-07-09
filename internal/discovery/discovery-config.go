@@ -189,10 +189,6 @@ func (discovery *Controller) handleConfiguration(config *configv1alpha1.Discover
 			discovery.Config.AutoJoin = config.AutoJoin
 			reloadClient = true
 		}
-		if discovery.Config.AutoJoinUntrusted != config.AutoJoinUntrusted {
-			discovery.Config.AutoJoinUntrusted = config.AutoJoinUntrusted
-			reloadClient = true
-		}
 		if discovery.Config.EnableDiscovery != config.EnableDiscovery {
 			discovery.Config.EnableDiscovery = config.EnableDiscovery
 			reloadClient = true

@@ -100,8 +100,6 @@ spec:
                     type: string
                   autojoin:
                     type: boolean
-                  autojoinUntrusted:
-                    type: boolean
                   clusterLabels:
                     additionalProperties:
                       type: string
@@ -132,7 +130,6 @@ spec:
                     type: integer
                 required:
                 - autojoin
-                - autojoinUntrusted
                 - domain
                 - enableAdvertisement
                 - enableDiscovery

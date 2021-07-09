@@ -9,11 +9,14 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/util/retry"
 	"k8s.io/klog"
+	"k8s.io/utils/pointer"
 
 	"github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	discoveryPkg "github.com/liqotech/liqo/pkg/discovery"
 	foreignclusterutils "github.com/liqotech/liqo/pkg/utils/foreignCluster"
 )
+
+const defaultInsecureSkipTLSVerify = true
 
 // updateForeignLAN updates a ForeignCluster discovered in the local network
 // 1. checks if cluster ID is already known
@@ -21,7 +24,7 @@ import (
 // 3. else
 //   3a. if IP is different set new IP and delete CA data
 //   3b. else it is ok
-func (discovery *Controller) updateForeignLAN(data *discoveryData, trustMode discoveryPkg.TrustMode) {
+func (discovery *Controller) updateForeignLAN(data *discoveryData) {
 	discoveryType := discoveryPkg.LanDiscovery
 	if data.ClusterInfo.ClusterID == discovery.LocalClusterID.GetClusterID() {
 		// is local cluster
@@ -34,7 +37,7 @@ func (discovery *Controller) updateForeignLAN(data *discoveryData, trustMode dis
 			return k8serror.IsConflict(err) || k8serror.IsAlreadyExists(err)
 		},
 		func() error {
-			return discovery.createOrUpdate(data, trustMode, nil, discoveryType, nil)
+			return discovery.createOrUpdate(data, nil, discoveryType, nil)
 		})
 	if err != nil {
 		klog.Error(err)
@@ -49,7 +52,7 @@ func (discovery *Controller) UpdateForeignWAN(data []*AuthData, sd *v1alpha1.Sea
 	createdUpdatedForeign := []*v1alpha1.ForeignCluster{}
 	discoveryType := discoveryPkg.WanDiscovery
 	for _, authData := range data {
-		clusterInfo, trustMode, err := discovery.getClusterInfo(authData)
+		clusterInfo, err := discovery.getClusterInfo(defaultInsecureSkipTLSVerify, authData)
 		if err != nil {
 			klog.Error(err)
 			continue
@@ -71,7 +74,7 @@ func (discovery *Controller) UpdateForeignWAN(data []*AuthData, sd *v1alpha1.Sea
 				return discovery.createOrUpdate(&discoveryData{
 					AuthData:    &data,
 					ClusterInfo: clusterInfo,
-				}, trustMode, sd, discoveryType, &createdUpdatedForeign)
+				}, sd, discoveryType, &createdUpdatedForeign)
 			})
 		if err != nil {
 			klog.Error(err)
@@ -81,11 +84,11 @@ func (discovery *Controller) UpdateForeignWAN(data []*AuthData, sd *v1alpha1.Sea
 	return createdUpdatedForeign
 }
 
-func (discovery *Controller) createOrUpdate(data *discoveryData, trustMode discoveryPkg.TrustMode,
+func (discovery *Controller) createOrUpdate(data *discoveryData,
 	sd *v1alpha1.SearchDomain, discoveryType discoveryPkg.Type, createdUpdatedForeign *[]*v1alpha1.ForeignCluster) error {
 	fc, err := discovery.getForeignClusterByID(data.ClusterInfo.ClusterID)
 	if k8serror.IsNotFound(err) {
-		fc, err = discovery.createForeign(data, trustMode, sd, discoveryType)
+		fc, err = discovery.createForeign(data, sd, discoveryType)
 		if err != nil {
 			klog.Error(err)
 			return err
@@ -119,7 +122,7 @@ func (discovery *Controller) createOrUpdate(data *discoveryData, trustMode disco
 }
 
 func (discovery *Controller) createForeign(
-	data *discoveryData, trustMode discoveryPkg.TrustMode,
+	data *discoveryData,
 	sd *v1alpha1.SearchDomain, discoveryType discoveryPkg.Type) (*v1alpha1.ForeignCluster, error) {
 	fc := &v1alpha1.ForeignCluster{
 		ObjectMeta: metav1.ObjectMeta{
@@ -134,21 +137,15 @@ func (discovery *Controller) createForeign(
 				ClusterID:   data.ClusterInfo.ClusterID,
 				ClusterName: data.ClusterInfo.ClusterName,
 			},
-			Namespace:     data.ClusterInfo.GuestNamespace,
-			DiscoveryType: discoveryType,
-			AuthURL:       data.AuthData.getURL(),
-			TrustMode:     trustMode,
+			OutgoingPeeringEnabled: v1alpha1.PeeringEnabledAuto,
+			ForeignAuthURL:         data.AuthData.getURL(),
+			InsecureSkipTLSVerify:  pointer.BoolPtr(true),
 		},
-	}
-	if trustMode == discoveryPkg.TrustModeTrusted {
-		fc.Spec.Join = discovery.Config.AutoJoin
-	} else if trustMode == discoveryPkg.TrustModeUntrusted {
-		fc.Spec.Join = discovery.Config.AutoJoinUntrusted
 	}
 	foreignclusterutils.LastUpdateNow(fc)
 
 	if sd != nil {
-		fc.Spec.Join = sd.Spec.AutoJoin
+		fc.Spec.OutgoingPeeringEnabled = v1alpha1.PeeringEnabledAuto
 		fc.ObjectMeta.OwnerReferences = []metav1.OwnerReference{
 			{
 				APIVersion: "discovery.liqo.io/v1alpha1",
@@ -176,30 +173,21 @@ func (discovery *Controller) createForeign(
 	return fc, err
 }
 
-// indicates that the remote cluster changed location, we have to reload all our info about the remote cluster.
-func needsToDeleteRemoteResources(fc *v1alpha1.ForeignCluster, data *discoveryData) bool {
-	return fc.Spec.Namespace != data.ClusterInfo.GuestNamespace
-}
-
 func (discovery *Controller) checkUpdate(
 	data *discoveryData, fc *v1alpha1.ForeignCluster,
 	discoveryType discoveryPkg.Type,
 	searchDomain *v1alpha1.SearchDomain) (fcUpdated *v1alpha1.ForeignCluster, updated bool, err error) {
-	needsToReload := needsToDeleteRemoteResources(fc, data)
 	// the remote cluster didn't move, but we discovered it with an higher priority discovery type
 	higherPriority := foreignclusterutils.HasHigherPriority(fc, discoveryType)
-	if needsToReload || higherPriority {
+	if higherPriority {
 		// something is changed in ForeignCluster specs, update it
-		fc.Spec.Namespace = data.ClusterInfo.GuestNamespace
-		fc.Spec.DiscoveryType = discoveryType
+		foreignclusterutils.SetDiscoveryType(fc, discoveryType)
 		if higherPriority && discoveryType == discoveryPkg.LanDiscovery {
 			// if the cluster was previously discovered with IncomingPeering discovery type, set join flag accordingly to LanDiscovery sets and set TTL
-			joinTrusted := fc.Spec.TrustMode == discoveryPkg.TrustModeTrusted && discovery.Config.AutoJoin
-			joinUntrusted := fc.Spec.TrustMode == discoveryPkg.TrustModeUntrusted && discovery.Config.AutoJoinUntrusted
-			fc.Spec.Join = joinTrusted || joinUntrusted
+			fc.Spec.OutgoingPeeringEnabled = v1alpha1.PeeringEnabledAuto
 			fc.Spec.TTL = int(data.AuthData.ttl)
 		} else if searchDomain != nil && discoveryType == discoveryPkg.WanDiscovery {
-			fc.Spec.Join = searchDomain.Spec.AutoJoin
+			fc.Spec.OutgoingPeeringEnabled = v1alpha1.PeeringEnabledAuto
 			fc.Spec.TTL = int(data.AuthData.ttl)
 		}
 		foreignclusterutils.LastUpdateNow(fc)

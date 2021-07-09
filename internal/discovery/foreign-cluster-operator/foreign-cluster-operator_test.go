@@ -16,6 +16,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	machtypes "k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/util/retry"
+	"k8s.io/utils/pointer"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 
 	"github.com/liqotech/liqo/apis/config/v1alpha1"
@@ -102,7 +103,6 @@ var _ = Describe("ForeignClusterOperator", func() {
 			AuthService:         "_liqo_auth._tcp",
 			ClusterName:         "Name",
 			AutoJoin:            true,
-			AutoJoinUntrusted:   false,
 			Domain:              "local.",
 			EnableAdvertisement: false,
 			EnableDiscovery:     false,
@@ -209,10 +209,9 @@ var _ = Describe("ForeignClusterOperator", func() {
 							ClusterID:   "foreign-cluster",
 							ClusterName: "ClusterTest2",
 						},
-						Namespace:     "liqo",
-						DiscoveryType: discovery.ManualDiscovery,
-						AuthURL:       "",
-						TrustMode:     discovery.TrustModeUntrusted,
+						OutgoingPeeringEnabled: discoveryv1alpha1.PeeringEnabledAuto,
+						ForeignAuthURL:         "https://example.com",
+						InsecureSkipTLSVerify:  pointer.BoolPtr(true),
 					},
 					Status: discoveryv1alpha1.ForeignClusterStatus{
 						TenantNamespace: defaultTenantNamespace,
@@ -359,10 +358,9 @@ var _ = Describe("ForeignClusterOperator", func() {
 							ClusterID:   "foreign-cluster",
 							ClusterName: "ClusterTest2",
 						},
-						Namespace:     "liqo",
-						DiscoveryType: discovery.ManualDiscovery,
-						AuthURL:       "",
-						TrustMode:     discovery.TrustModeUntrusted,
+						OutgoingPeeringEnabled: discoveryv1alpha1.PeeringEnabledAuto,
+						ForeignAuthURL:         "https://example.com",
+						InsecureSkipTLSVerify:  pointer.BoolPtr(true),
 					},
 					Status: discoveryv1alpha1.ForeignClusterStatus{
 						PeeringConditions: []discoveryv1alpha1.PeeringCondition{
@@ -414,9 +412,9 @@ var _ = Describe("ForeignClusterOperator", func() {
 					ClusterIdentity: discoveryv1alpha1.ClusterIdentity{
 						ClusterID: "foreign-cluster-abcd",
 					},
-					DiscoveryType: discovery.ManualDiscovery,
-					AuthURL:       "",
-					TrustMode:     discovery.TrustModeUntrusted,
+					OutgoingPeeringEnabled: discoveryv1alpha1.PeeringEnabledAuto,
+					ForeignAuthURL:         "https://example.com",
+					InsecureSkipTLSVerify:  pointer.BoolPtr(true),
 				},
 			}
 
@@ -501,9 +499,9 @@ var _ = Describe("ForeignClusterOperator", func() {
 						ClusterIdentity: discoveryv1alpha1.ClusterIdentity{
 							ClusterID: "foreign-cluster-abcd",
 						},
-						DiscoveryType: discovery.ManualDiscovery,
-						AuthURL:       "",
-						TrustMode:     discovery.TrustModeUntrusted,
+						OutgoingPeeringEnabled: discoveryv1alpha1.PeeringEnabledAuto,
+						ForeignAuthURL:         "https://example.com",
+						InsecureSkipTLSVerify:  pointer.BoolPtr(true),
 					},
 				}
 
@@ -754,10 +752,9 @@ var _ = Describe("ForeignClusterOperator", func() {
 							ClusterID:   "foreign-cluster",
 							ClusterName: "ClusterTest",
 						},
-						Namespace:     "liqo",
-						DiscoveryType: discovery.ManualDiscovery,
-						AuthURL:       "",
-						TrustMode:     discovery.TrustModeUntrusted,
+						OutgoingPeeringEnabled: discoveryv1alpha1.PeeringEnabledAuto,
+						ForeignAuthURL:         "https://example.com",
+						InsecureSkipTLSVerify:  pointer.BoolPtr(true),
 					},
 					Status: discoveryv1alpha1.ForeignClusterStatus{
 						TenantNamespace: discoveryv1alpha1.TenantNamespaceType{},
@@ -781,10 +778,9 @@ var _ = Describe("ForeignClusterOperator", func() {
 							ClusterID:   "foreign-cluster",
 							ClusterName: "ClusterTest",
 						},
-						Namespace:     "liqo",
-						DiscoveryType: discovery.ManualDiscovery,
-						AuthURL:       "",
-						TrustMode:     discovery.TrustModeUntrusted,
+						OutgoingPeeringEnabled: discoveryv1alpha1.PeeringEnabledAuto,
+						ForeignAuthURL:         "https://example.com",
+						InsecureSkipTLSVerify:  pointer.BoolPtr(true),
 					},
 					Status: discoveryv1alpha1.ForeignClusterStatus{
 						TenantNamespace: discoveryv1alpha1.TenantNamespaceType{},
@@ -820,10 +816,9 @@ var _ = Describe("ForeignClusterOperator", func() {
 							ClusterID:   "foreign-cluster",
 							ClusterName: "ClusterTest",
 						},
-						Namespace:     "liqo",
-						DiscoveryType: discovery.ManualDiscovery,
-						AuthURL:       "",
-						TrustMode:     discovery.TrustModeUntrusted,
+						OutgoingPeeringEnabled: discoveryv1alpha1.PeeringEnabledAuto,
+						ForeignAuthURL:         "https://example.com",
+						InsecureSkipTLSVerify:  pointer.BoolPtr(true),
 					},
 					Status: discoveryv1alpha1.ForeignClusterStatus{
 						TenantNamespace: discoveryv1alpha1.TenantNamespaceType{},
@@ -859,10 +854,9 @@ var _ = Describe("ForeignClusterOperator", func() {
 							ClusterID:   "foreign-cluster",
 							ClusterName: "ClusterTest",
 						},
-						Namespace:     "liqo",
-						DiscoveryType: discovery.ManualDiscovery,
-						AuthURL:       "",
-						TrustMode:     discovery.TrustModeUntrusted,
+						OutgoingPeeringEnabled: discoveryv1alpha1.PeeringEnabledAuto,
+						ForeignAuthURL:         "https://example.com",
+						InsecureSkipTLSVerify:  pointer.BoolPtr(true),
 					},
 					Status: discoveryv1alpha1.ForeignClusterStatus{
 						TenantNamespace: discoveryv1alpha1.TenantNamespaceType{},
@@ -882,6 +876,134 @@ var _ = Describe("ForeignClusterOperator", func() {
 				},
 				expectedOutgoing: ContainElement(outgoingBinding),
 				expectedIncoming: ContainElement(incomingBinding),
+			}),
+		)
+
+	})
+
+})
+
+var _ = Describe("PeeringPolicy", func() {
+
+	var (
+		controller ForeignClusterReconciler
+		config     configMock
+	)
+
+	BeforeEach(func() {
+		config.config = v1alpha1.DiscoveryConfig{
+			AuthService:         "_liqo_auth._tcp",
+			ClusterName:         "Name",
+			AutoJoin:            true,
+			Domain:              "local.",
+			EnableAdvertisement: false,
+			EnableDiscovery:     false,
+			Name:                "MyLiqo",
+			Port:                6443,
+			Service:             "_liqo_api._tcp",
+			TTL:                 90,
+		}
+
+		controller = ForeignClusterReconciler{
+			ConfigProvider: &config,
+		}
+	})
+
+	Context("check isPeeringEnabled", func() {
+
+		type isPeeringEnabledTestcase struct {
+			foreignCluster discoveryv1alpha1.ForeignCluster
+			expected       types.GomegaMatcher
+		}
+
+		DescribeTable("isPeeringEnabled table",
+			func(c isPeeringEnabledTestcase) {
+				Expect(controller.isOutgoingPeeringEnabled(context.TODO(), &c.foreignCluster)).To(c.expected)
+			},
+
+			Entry("peering disabled", isPeeringEnabledTestcase{
+				foreignCluster: discoveryv1alpha1.ForeignCluster{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "foreign-cluster",
+						Labels: map[string]string{
+							discovery.DiscoveryTypeLabel: string(discovery.ManualDiscovery),
+							discovery.ClusterIDLabel:     "foreign-cluster",
+						},
+					},
+					Spec: discoveryv1alpha1.ForeignClusterSpec{
+						OutgoingPeeringEnabled: discoveryv1alpha1.PeeringEnabledNo,
+						InsecureSkipTLSVerify:  pointer.BoolPtr(true),
+					},
+				},
+				expected: BeFalse(),
+			}),
+
+			Entry("peering enabled", isPeeringEnabledTestcase{
+				foreignCluster: discoveryv1alpha1.ForeignCluster{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "foreign-cluster",
+						Labels: map[string]string{
+							discovery.DiscoveryTypeLabel: string(discovery.ManualDiscovery),
+							discovery.ClusterIDLabel:     "foreign-cluster",
+						},
+					},
+					Spec: discoveryv1alpha1.ForeignClusterSpec{
+						OutgoingPeeringEnabled: discoveryv1alpha1.PeeringEnabledYes,
+						InsecureSkipTLSVerify:  pointer.BoolPtr(true),
+					},
+				},
+				expected: BeTrue(),
+			}),
+
+			Entry("peering automatic with manual discovery", isPeeringEnabledTestcase{
+				foreignCluster: discoveryv1alpha1.ForeignCluster{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "foreign-cluster",
+						Labels: map[string]string{
+							discovery.DiscoveryTypeLabel: string(discovery.ManualDiscovery),
+							discovery.ClusterIDLabel:     "foreign-cluster",
+						},
+					},
+					Spec: discoveryv1alpha1.ForeignClusterSpec{
+						OutgoingPeeringEnabled: discoveryv1alpha1.PeeringEnabledAuto,
+						InsecureSkipTLSVerify:  pointer.BoolPtr(true),
+					},
+				},
+				expected: BeFalse(),
+			}),
+
+			Entry("peering automatic with incoming discovery", isPeeringEnabledTestcase{
+				foreignCluster: discoveryv1alpha1.ForeignCluster{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "foreign-cluster",
+						Labels: map[string]string{
+							discovery.DiscoveryTypeLabel: string(discovery.IncomingPeeringDiscovery),
+							discovery.ClusterIDLabel:     "foreign-cluster",
+						},
+					},
+					Spec: discoveryv1alpha1.ForeignClusterSpec{
+						OutgoingPeeringEnabled: discoveryv1alpha1.PeeringEnabledAuto,
+						InsecureSkipTLSVerify:  pointer.BoolPtr(true),
+					},
+				},
+				expected: BeFalse(),
+			}),
+
+			Entry("peering automatic with LAN discovery", isPeeringEnabledTestcase{
+				foreignCluster: discoveryv1alpha1.ForeignCluster{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "foreign-cluster",
+						Labels: map[string]string{
+							discovery.DiscoveryTypeLabel: string(discovery.LanDiscovery),
+							discovery.ClusterIDLabel:     "foreign-cluster",
+						},
+					},
+					Spec: discoveryv1alpha1.ForeignClusterSpec{
+						OutgoingPeeringEnabled: discoveryv1alpha1.PeeringEnabledAuto,
+						InsecureSkipTLSVerify:  pointer.BoolPtr(true),
+					},
+				},
+				expected: BeTrue(),
 			}),
 		)
 

@@ -15,6 +15,7 @@ import (
 	rbacv1 "k8s.io/api/rbac/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/utils/pointer"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
@@ -65,7 +66,9 @@ func createForeignCluster() {
 			},
 		},
 		Spec: discoveryv1alpha1.ForeignClusterSpec{
-			AuthURL: "https://127.0.0.1:8080",
+			ForeignAuthURL:         "https://127.0.0.1:8080",
+			OutgoingPeeringEnabled: discoveryv1alpha1.PeeringEnabledAuto,
+			InsecureSkipTLSVerify:  pointer.BoolPtr(true),
 		},
 	}
 

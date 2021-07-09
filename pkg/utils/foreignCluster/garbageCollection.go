@@ -7,7 +7,7 @@ import (
 
 // HasToBeRemoved indicates if a ForeignCluster CR has to be removed.
 func HasToBeRemoved(foreignCluster *discoveryv1alpha1.ForeignCluster) bool {
-	isIncomingDiscovery := foreignCluster.Spec.DiscoveryType == discovery.IncomingPeeringDiscovery
+	isIncomingDiscovery := GetDiscoveryType(foreignCluster) == discovery.IncomingPeeringDiscovery
 	hasPeering := IsIncomingEnabled(foreignCluster) || IsOutgoingEnabled(foreignCluster)
 	return isIncomingDiscovery && !hasPeering
 }
