@@ -1,4 +1,4 @@
-package peeringe2e
+package peering2e2e
 
 import (
 	"context"
@@ -17,6 +17,11 @@ import (
 	"github.com/liqotech/liqo/test/e2e/testutils/net"
 	"github.com/liqotech/liqo/test/e2e/testutils/tester"
 	"github.com/liqotech/liqo/test/e2e/testutils/util"
+)
+
+const (
+	randomSchedulingResourcePath = "https://raw.githubusercontent.com/liqotech/microservices-demo/master/release/kubernetes-manifests.yaml"
+	fixedSchedulingResourcePath  = "https://raw.githubusercontent.com/liqotech/microservices-demo/master/release/fixed-2clusters.yaml"
 )
 
 func TestE2E(t *testing.T) {
@@ -87,12 +92,12 @@ var _ = Describe("Liqo E2E", func() {
 			)
 		})
 
-		Context("E2E Testing with Online Boutique", func() {
-			It("Testing online boutique", func() {
+		DescribeTable("Online Boutique application deployment check",
+			func(kubeResourcePath string) {
 				By("Deploying the Online Boutique app")
 				options := k8s.NewKubectlOptions("", testContext.Clusters[0].KubeconfigPath, microservices.TestNamespaceName)
 				defer GinkgoRecover()
-				err := microservices.DeployApp(GinkgoT(), testContext.Clusters[0].KubeconfigPath)
+				err := microservices.DeployApp(GinkgoT(), testContext.Clusters[0].KubeconfigPath, kubeResourcePath)
 				Expect(err).ShouldNot(HaveOccurred())
 
 				By("Waiting until each service of the application has ready endpoints")
@@ -106,8 +111,10 @@ var _ = Describe("Liqo E2E", func() {
 				By("Verify Online Boutique Connectivity")
 				err = microservices.CheckApplicationIsWorking(GinkgoT(), options)
 				Expect(err).ShouldNot(HaveOccurred())
-			})
-		})
+			},
+			Entry("Check application deployment with random scheduling", randomSchedulingResourcePath),
+			Entry("Check application deployment with fixed scheduling", fixedSchedulingResourcePath),
+		)
 
 		AfterSuite(func() {
 

@@ -14,8 +14,8 @@ import (
 )
 
 // EnsureNetTesterPods creates the NetTest pods and waits for them to be ready.
-func EnsureNetTesterPods(ctx context.Context, homeClient kubernetes.Interface, homeID string) error {
-	ns, err := util.EnforceNamespace(ctx, homeClient, homeID, TestNamespaceName)
+func EnsureNetTesterPods(ctx context.Context, homeClient kubernetes.Interface, homeID, namespace string) error {
+	ns, err := util.EnforceNamespace(ctx, homeClient, homeID, namespace)
 	if err != nil && !kerrors.IsAlreadyExists(err) {
 		klog.Error(err)
 		return err
@@ -36,10 +36,10 @@ func EnsureNetTesterPods(ctx context.Context, homeClient kubernetes.Interface, h
 }
 
 // CheckTesterPods retrieves the netTest pods and returns true if all the pods are up and ready.
-func CheckTesterPods(ctx context.Context, homeClient, foreignClient kubernetes.Interface, homeClusterID string) bool {
-	reflectedNamespace := TestNamespaceName + "-" + homeClusterID
-	return util.IsPodUp(ctx, homeClient, TestNamespaceName, podTesterLocalCl, true) &&
-		util.IsPodUp(ctx, homeClient, TestNamespaceName, podTesterRemoteCl, true) &&
+func CheckTesterPods(ctx context.Context, homeClient, foreignClient kubernetes.Interface, homeClusterID, namespace string) bool {
+	reflectedNamespace := namespace + "-" + homeClusterID
+	return util.IsPodUp(ctx, homeClient, namespace, podTesterLocalCl, true) &&
+		util.IsPodUp(ctx, homeClient, namespace, podTesterRemoteCl, true) &&
 		util.IsPodUp(ctx, foreignClient, reflectedNamespace, podTesterRemoteCl, false)
 }
 

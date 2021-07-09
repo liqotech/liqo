@@ -17,16 +17,14 @@ var (
 	image             = "nginx"
 	podTesterLocalCl  = "tester-local"
 	podTesterRemoteCl = "tester-remote"
-	// TestNamespaceName is the namespace name where the test is performed.
-	TestNamespaceName = "test-connectivity"
 	// label to list only the real nodes excluding the virtual ones.
 	labelSelectorNodes = fmt.Sprintf("%v!=%v", liqoconst.TypeLabel, liqoconst.TypeNode)
 	command            = "curl --retry 60 --fail --max-time 2 -s -o /dev/null -w '%{http_code}' "
 )
 
 // ConnectivityCheckNodeToPod creates a NodePort Service and check its availability.
-func ConnectivityCheckNodeToPod(ctx context.Context, homeClusterClient kubernetes.Interface, clusterID string) error {
-	nodePort, err := EnsureNodePortService(ctx, homeClusterClient, clusterID)
+func ConnectivityCheckNodeToPod(ctx context.Context, homeClusterClient kubernetes.Interface, clusterID, namespace string) error {
+	nodePort, err := EnsureNodePortService(ctx, homeClusterClient, clusterID, namespace)
 	if err != nil {
 		return err
 	}
@@ -34,8 +32,8 @@ func ConnectivityCheckNodeToPod(ctx context.Context, homeClusterClient kubernete
 }
 
 // EnsureNodePortService creates a nodePortService. It returns the port to contact to reach the service and occurred errors.
-func EnsureNodePortService(ctx context.Context, homeClusterClient kubernetes.Interface, clusterID string) (int, error) {
-	nodePort, err := EnsureNodePort(ctx, homeClusterClient, clusterID, podTesterRemoteCl, TestNamespaceName)
+func EnsureNodePortService(ctx context.Context, homeClusterClient kubernetes.Interface, clusterID, namespace string) (int, error) {
+	nodePort, err := EnsureNodePort(ctx, homeClusterClient, clusterID, podTesterRemoteCl, namespace)
 	if err != nil {
 		return 0, err
 	}
@@ -52,13 +50,13 @@ func CheckNodeToPortConnectivity(ctx context.Context, homeClusterClient kubernet
 }
 
 // CheckPodConnectivity contacts the remote service by executing the command inside podRemoteUpdateCluster1.
-func CheckPodConnectivity(ctx context.Context, homeConfig *restclient.Config, homeClient kubernetes.Interface) error {
-	podLocalUpdate, err := homeClient.CoreV1().Pods(TestNamespaceName).Get(ctx, podTesterLocalCl, metav1.GetOptions{})
+func CheckPodConnectivity(ctx context.Context, homeConfig *restclient.Config, homeClient kubernetes.Interface, namespace string) error {
+	podLocalUpdate, err := homeClient.CoreV1().Pods(namespace).Get(ctx, podTesterLocalCl, metav1.GetOptions{})
 	if err != nil {
 		klog.Error(err)
 		return err
 	}
-	podRemoteUpdateCluster1, err := homeClient.CoreV1().Pods(TestNamespaceName).Get(ctx, podTesterRemoteCl, metav1.GetOptions{})
+	podRemoteUpdateCluster1, err := homeClient.CoreV1().Pods(namespace).Get(ctx, podTesterRemoteCl, metav1.GetOptions{})
 	if err != nil {
 		klog.Error(err)
 		return err
