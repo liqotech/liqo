@@ -12,29 +12,38 @@ import (
 )
 
 // EnsureNodePort creates a Service of type NodePort for the netTest.
-func EnsureNodePort(client kubernetes.Interface, clusterID, name, namespace string) (*v1.Service, error) {
+func EnsureNodePort(ctx context.Context, client kubernetes.Interface, clusterID, name, namespace string) (*v1.Service, error) {
+	serviceSpec := v1.ServiceSpec{
+		Ports: []v1.ServicePort{{
+			Name:        "http",
+			Protocol:    "TCP",
+			AppProtocol: nil,
+			Port:        80,
+			TargetPort: intstr.IntOrString{
+				IntVal: 80,
+			},
+		}},
+		Selector: map[string]string{"app": name},
+		Type:     v1.ServiceTypeNodePort,
+	}
 	nodePort := &v1.Service{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: name,
 		},
-		Spec: v1.ServiceSpec{
-			Ports: []v1.ServicePort{{
-				Name:        "http",
-				Protocol:    "TCP",
-				AppProtocol: nil,
-				Port:        80,
-				TargetPort: intstr.IntOrString{
-					IntVal: 80,
-				},
-			}},
-			Selector: map[string]string{"app": name},
-			Type:     v1.ServiceTypeNodePort,
-		},
+		Spec:   serviceSpec,
 		Status: v1.ServiceStatus{},
 	}
-	nodePort, err := client.CoreV1().Services(namespace).Create(context.TODO(), nodePort, metav1.CreateOptions{})
+	nodePort, err := client.CoreV1().Services(namespace).Create(ctx, nodePort, metav1.CreateOptions{})
 	if kerrors.IsAlreadyExists(err) {
-		_, err = client.CoreV1().Services(namespace).Update(context.TODO(), nodePort, metav1.UpdateOptions{})
+		nodePort, err = client.CoreV1().Services(namespace).Get(ctx, name, metav1.GetOptions{})
+		if err != nil {
+			klog.Error(err)
+			return nil, err
+		}
+		clusterIP := nodePort.Spec.ClusterIP
+		nodePort.Spec = serviceSpec
+		nodePort.Spec.ClusterIP = clusterIP
+		_, err = client.CoreV1().Services(namespace).Update(ctx, nodePort, metav1.UpdateOptions{})
 		if err != nil {
 			klog.Errorf("%s -> an error occurred while updating nodePort service %s : %s", clusterID, name, err)
 			return nil, err

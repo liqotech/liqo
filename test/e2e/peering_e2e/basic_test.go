@@ -58,9 +58,7 @@ var _ = Describe("Liqo E2E", func() {
 			)
 
 			DescribeTable("Liqo Pod to Pod Connectivity Check",
-
 				func(homeCluster, foreignCluster tester.ClusterContext, namespace string) {
-
 					By("Deploy Tester Pod", func() {
 						err := net.EnsureNetTesterPods(ctx, homeCluster.Client, homeCluster.ClusterID)
 						Expect(err).ToNot(HaveOccurred())
@@ -72,7 +70,7 @@ var _ = Describe("Liqo E2E", func() {
 
 					By("Check Pod to Pod Connectivity", func() {
 						Eventually(func() error {
-							return net.CheckPodConnectivity(homeCluster.Config, homeCluster.Client)
+							return net.CheckPodConnectivity(ctx, homeCluster.Config, homeCluster.Client)
 						}, timeout, interval).ShouldNot(HaveOccurred())
 					})
 
@@ -80,9 +78,7 @@ var _ = Describe("Liqo E2E", func() {
 						err := net.ConnectivityCheckNodeToPod(ctx, homeCluster.Client, homeCluster.ClusterID)
 						Expect(err).ToNot(HaveOccurred())
 					})
-
 				},
-
 				Entry("Check Pod to Pod connectivity from cluster 1", testContext.Clusters[0], testContext.Clusters[1], namespace),
 				Entry("Check Pod to Pod connectivity from cluster 2", testContext.Clusters[1], testContext.Clusters[0], namespace),
 			)
@@ -90,11 +86,19 @@ var _ = Describe("Liqo E2E", func() {
 
 		Context("E2E Testing with Online Boutique", func() {
 			It("Testing online boutique", func() {
+				By("Deploying the Online Boutique app")
 				options := k8s.NewKubectlOptions("", testContext.Clusters[0].KubeconfigPath, microservices.TestNamespaceName)
 				defer GinkgoRecover()
 				err := microservices.DeployApp(GinkgoT(), testContext.Clusters[0].KubeconfigPath)
 				Expect(err).ShouldNot(HaveOccurred())
+
+				By("Waiting until each service of the application has ready endpoints")
 				microservices.WaitDemoApp(GinkgoT(), options)
+
+				By("Checking if all pods deployed in the test namespace have the right NodeAffinity")
+				Eventually(func() bool {
+					return microservices.CheckPodsNodeAffinity(ctx, testContext.Clusters[0].Client)
+				}, timeout, interval).Should(BeTrue())
 
 				By("Verify Online Boutique Connectivity")
 				err = microservices.CheckApplicationIsWorking(GinkgoT(), options)
