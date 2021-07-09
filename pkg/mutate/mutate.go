@@ -47,11 +47,6 @@ func (s *MutationServer) Mutate(body []byte) ([]byte, error) {
 		return nil, fmt.Errorf("unable unmarshal pod json object %v", err)
 	}
 
-	if pod.Namespace == "" {
-		klog.Infof("The namespace of the pod '%s' does not exists anymore", pod.Name)
-		return nil, nil
-	}
-
 	// set response options
 	resp.Allowed = true
 	resp.UID = admissionReviewRequest.UID
@@ -72,7 +67,7 @@ func (s *MutationServer) Mutate(body []byte) ([]byte, error) {
 	// Namespace, it is an error the liqo.io/scheduling label shouldn't be on this namespace.
 	namespaceOffloading := &offv1alpha1.NamespaceOffloading{}
 	if err = s.webhookClient.Get(s.ctx, types.NamespacedName{
-		Namespace: pod.Namespace,
+		Namespace: admissionReviewRequest.Namespace,
 		Name:      liqoconst.DefaultNamespaceOffloadingName,
 	}, namespaceOffloading); err != nil {
 		return nil, fmt.Errorf("%w -> unable to get the NamespaceOffloading for the Namespace: %s", err, pod.Namespace)
@@ -110,7 +105,11 @@ func (s *MutationServer) Mutate(body []byte) ([]byte, error) {
 		return nil, err
 	}
 
-	klog.Infof("pod %s/%s patched", pod.Namespace, pod.Name)
+	// If the object name is empty the server will generate it after the mutation.
+	if admissionReviewRequest.Name == "" {
+		admissionReviewRequest.Name = "Name omitted"
+	}
+	klog.Infof("Namespace: %s  Pod name: %s  -> patched", admissionReviewRequest.Namespace, admissionReviewRequest.Name)
 	klog.V(8).Infof("response: %s", string(responseBody))
 
 	return responseBody, nil

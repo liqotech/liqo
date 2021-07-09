@@ -8,8 +8,11 @@ import (
 	http_helper "github.com/gruntwork-io/terratest/modules/http-helper"
 	"github.com/gruntwork-io/terratest/modules/k8s"
 	"github.com/onsi/ginkgo"
-	v1 "k8s.io/api/core/v1"
+	"github.com/onsi/gomega"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/kubernetes"
+	"k8s.io/klog/v2"
 
 	liqoconst "github.com/liqotech/liqo/pkg/consts"
 	"github.com/liqotech/liqo/test/e2e/testutils"
@@ -49,7 +52,7 @@ func WaitDemoApp(t ginkgo.GinkgoTInterface, options *k8s.KubectlOptions) {
 	svcs := k8s.ListServices(t, options, metav1.ListOptions{})
 	for index := range svcs {
 		// load balancer services will be never available in kind
-		if svcs[index].Spec.Type != v1.ServiceTypeLoadBalancer {
+		if svcs[index].Spec.Type != corev1.ServiceTypeLoadBalancer {
 			k8s.WaitUntilServiceAvailable(t, options, svcs[index].Name, retries, sleepBetweenRetries)
 		}
 	}
@@ -79,16 +82,16 @@ func CheckApplicationIsWorking(t ginkgo.GinkgoTInterface, options *k8s.KubectlOp
 	})
 }
 
-func getInternalAddress(addrs []v1.NodeAddress) (string, error) {
+func getInternalAddress(addrs []corev1.NodeAddress) (string, error) {
 	for _, addr := range addrs {
-		if addr.Type == v1.NodeInternalIP {
+		if addr.Type == corev1.NodeInternalIP {
 			return addr.Address, nil
 		}
 	}
 	return "", fmt.Errorf("unbale to retrieve an internalIP for the selected node")
 }
 
-func getNodes(t ginkgo.GinkgoTInterface, options *k8s.KubectlOptions) ([]v1.Node, error) {
+func getNodes(t ginkgo.GinkgoTInterface, options *k8s.KubectlOptions) ([]corev1.Node, error) {
 	clientset, err := k8s.GetKubernetesClientFromOptionsE(t, options)
 	if err != nil {
 		return nil, err
@@ -102,4 +105,87 @@ func getNodes(t ginkgo.GinkgoTInterface, options *k8s.KubectlOptions) ([]v1.Node
 	}
 
 	return nodes.Items, err
+}
+
+// CheckPodsNodeAffinity checks if the pods deployed in the namespace are correctly mutated by the webhook.
+func CheckPodsNodeAffinity(ctx context.Context, homeClient kubernetes.Interface) bool {
+	labelAppKey := "app"
+	labelAppValue := "frontend"
+	pods, err := homeClient.CoreV1().Pods(TestNamespaceName).List(ctx, metav1.ListOptions{})
+	if err != nil {
+		klog.Errorf("%s -> unable to list pods in the namespace '%s'", err, TestNamespaceName)
+		return false
+	}
+	if len(pods.Items) == 0 {
+		return false
+	}
+	for i := range pods.Items {
+		ginkgo.By(fmt.Sprintf("Checking that pod '%s' has the right node affinity", pods.Items[i].Name))
+		if value, ok := pods.Items[i].Labels[labelAppKey]; ok && value == labelAppValue {
+			gomega.Expect(*pods.Items[i].Spec.Affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution).
+				To(gomega.Equal(getFrontendPodNodeAffinity()))
+			continue
+		}
+		gomega.Expect(*pods.Items[i].Spec.Affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution).
+			To(gomega.Equal(getDefaultPodNodeAffinity()))
+	}
+	return true
+}
+
+// getDefaultPodNodeAffinity provides the node affinity placed on the pod by the webhook.
+func getDefaultPodNodeAffinity() corev1.NodeSelector {
+	return corev1.NodeSelector{NodeSelectorTerms: []corev1.NodeSelectorTerm{
+		{
+			MatchExpressions: []corev1.NodeSelectorRequirement{
+				{
+					Key:      liqoconst.TypeLabel,
+					Operator: corev1.NodeSelectorOpIn,
+					Values:   []string{liqoconst.TypeNode},
+				},
+			},
+		},
+		{
+			MatchExpressions: []corev1.NodeSelectorRequirement{
+				{
+					Key:      liqoconst.TypeLabel,
+					Operator: corev1.NodeSelectorOpNotIn,
+					Values:   []string{liqoconst.TypeNode},
+				},
+			},
+		},
+	}}
+}
+
+// getFrontendPodNodeAffinity provides the node affinity placed on the frontend pod by the webhook.
+func getFrontendPodNodeAffinity() corev1.NodeSelector {
+	return corev1.NodeSelector{NodeSelectorTerms: []corev1.NodeSelectorTerm{
+		{
+			MatchExpressions: []corev1.NodeSelectorRequirement{
+				{
+					Key:      liqoconst.TypeLabel,
+					Operator: corev1.NodeSelectorOpIn,
+					Values:   []string{liqoconst.TypeNode},
+				},
+				{
+					Key:      liqoconst.TypeLabel,
+					Operator: corev1.NodeSelectorOpNotIn,
+					Values:   []string{liqoconst.TypeNode},
+				},
+			},
+		},
+		{
+			MatchExpressions: []corev1.NodeSelectorRequirement{
+				{
+					Key:      liqoconst.TypeLabel,
+					Operator: corev1.NodeSelectorOpNotIn,
+					Values:   []string{liqoconst.TypeNode},
+				},
+				{
+					Key:      liqoconst.TypeLabel,
+					Operator: corev1.NodeSelectorOpNotIn,
+					Values:   []string{liqoconst.TypeNode},
+				},
+			},
+		},
+	}}
 }
