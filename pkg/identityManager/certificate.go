@@ -27,7 +27,7 @@ import (
 )
 
 // CreateIdentity creates a new key and a new csr to be used as an identity to authenticate with a remote cluster.
-func (certManager *certificateIdentityManager) CreateIdentity(remoteClusterID string) (*v1.Secret, error) {
+func (certManager *identityManager) CreateIdentity(remoteClusterID string) (*v1.Secret, error) {
 	namespace, err := certManager.namespaceManager.GetNamespace(remoteClusterID)
 	if err != nil {
 		klog.Error(err)
@@ -38,7 +38,7 @@ func (certManager *certificateIdentityManager) CreateIdentity(remoteClusterID st
 }
 
 // GetSigningRequest gets the CertificateSigningRequest for a remote cluster.
-func (certManager *certificateIdentityManager) GetSigningRequest(remoteClusterID string) ([]byte, error) {
+func (certManager *identityManager) GetSigningRequest(remoteClusterID string) ([]byte, error) {
 	secret, err := certManager.getSecret(remoteClusterID)
 	if err != nil {
 		klog.Error(err)
@@ -56,7 +56,7 @@ func (certManager *certificateIdentityManager) GetSigningRequest(remoteClusterID
 }
 
 // StoreCertificate stores the certificate issued by a remote authority for the specified remoteClusterID.
-func (certManager *certificateIdentityManager) StoreCertificate(remoteClusterID string, identityResponse auth.CertificateIdentityResponse) error {
+func (certManager *identityManager) StoreCertificate(remoteClusterID string, identityResponse *auth.CertificateIdentityResponse) error {
 	secret, err := certManager.getSecret(remoteClusterID)
 	if err != nil {
 		klog.Error(err)
@@ -97,7 +97,7 @@ func (certManager *certificateIdentityManager) StoreCertificate(remoteClusterID 
 }
 
 // getSecret retrieves the identity secret given the clusterID.
-func (certManager *certificateIdentityManager) getSecret(remoteClusterID string) (*v1.Secret, error) {
+func (certManager *identityManager) getSecret(remoteClusterID string) (*v1.Secret, error) {
 	namespace, err := certManager.namespaceManager.GetNamespace(remoteClusterID)
 	if err != nil {
 		klog.Error(err)
@@ -108,7 +108,7 @@ func (certManager *certificateIdentityManager) getSecret(remoteClusterID string)
 }
 
 // getSecretInNamespace retrieves the identity secret in the given Namespace.
-func (certManager *certificateIdentityManager) getSecretInNamespace(remoteClusterID, namespace string) (*v1.Secret, error) {
+func (certManager *identityManager) getSecretInNamespace(remoteClusterID, namespace string) (*v1.Secret, error) {
 	labelSelector := metav1.LabelSelector{
 		MatchLabels: map[string]string{
 			localIdentitySecretLabel: "true",
@@ -145,7 +145,7 @@ func (certManager *certificateIdentityManager) getSecretInNamespace(remoteCluste
 }
 
 // createCSR generates a key and a certificate signing request.
-func (certManager *certificateIdentityManager) createCSR() (keyBytes []byte, csrBytes []byte, err error) {
+func (certManager *identityManager) createCSR() (keyBytes, csrBytes []byte, err error) {
 	key, err := rsa.GenerateKey(rand.Reader, keyLength)
 	if err != nil {
 		klog.Error(err)
@@ -188,7 +188,7 @@ func (certManager *certificateIdentityManager) createCSR() (keyBytes []byte, csr
 }
 
 // createIdentityInNamespace creates a new key and a new csr to be used as an identity to authenticate with a remote cluster in a given namespace.
-func (certManager *certificateIdentityManager) createIdentityInNamespace(remoteClusterID string, namespace string) (*v1.Secret, error) {
+func (certManager *identityManager) createIdentityInNamespace(remoteClusterID, namespace string) (*v1.Secret, error) {
 	key, csrBytes, err := certManager.createCSR()
 	if err != nil {
 		klog.Error(err)

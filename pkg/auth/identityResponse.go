@@ -2,51 +2,90 @@ package auth
 
 import (
 	"encoding/base64"
+	"fmt"
 	"io/ioutil"
 
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/klog/v2"
 
+	responsetypes "github.com/liqotech/liqo/pkg/identityManager/responseTypes"
 	"github.com/liqotech/liqo/pkg/kubeconfig"
 	"github.com/liqotech/liqo/pkg/utils"
 )
 
+// AWSIdentityInfo contains the information required by a cluster to get a valied IAM-based identity.
+type AWSIdentityInfo struct {
+	AccessKeyID     string `json:"accessKeyID"`
+	SecretAccessKey string `json:"secretAccessKey"`
+	Region          string `json:"region"`
+	EKSClusterID    string `json:"eksClusterID"`
+	IAMUserArn      string `json:"iamUserArn"`
+}
+
 // CertificateIdentityResponse is the response on a certificate identity request.
 type CertificateIdentityResponse struct {
 	Namespace    string `json:"namespace"`
-	Certificate  string `json:"certificate"`
+	Certificate  string `json:"certificate,omitempty"`
 	APIServerURL string `json:"apiServerUrl"`
 	APIServerCA  string `json:"apiServerCA,omitempty"`
+
+	AWSIdentityInfo AWSIdentityInfo `json:"aws,omitempty"`
 }
 
 // NewCertificateIdentityResponse makes a new CertificateIdentityResponse.
 func NewCertificateIdentityResponse(
-	namespace string, certificate []byte, apiServerConfigProvider utils.ApiServerConfigProvider,
+	namespace string, identityResponse *responsetypes.SigningRequestResponse,
+	apiServerConfigProvider utils.ApiServerConfigProvider,
 	clientset kubernetes.Interface, restConfig *rest.Config) (*CertificateIdentityResponse, error) {
-	apiServerURL, err := kubeconfig.GetApiServerURL(apiServerConfigProvider, clientset)
-	if err != nil {
-		klog.Error(err)
-		return nil, err
-	}
+	responseType := identityResponse.ResponseType
 
-	var apiServerCa string
-	if apiServerConfigProvider.GetAPIServerConfig().TrustedCA {
-		apiServerCa = ""
-	} else {
-		apiServerCa, err = getAPIServerCA(restConfig)
+	switch responseType {
+	case responsetypes.SigningRequestResponseCertificate:
+		apiServerURL, err := kubeconfig.GetApiServerURL(apiServerConfigProvider, clientset)
 		if err != nil {
 			klog.Error(err)
 			return nil, err
 		}
+
+		var apiServerCa string
+		if apiServerConfigProvider.GetAPIServerConfig().TrustedCA {
+			apiServerCa = ""
+		} else {
+			apiServerCa, err = getAPIServerCA(restConfig)
+			if err != nil {
+				klog.Error(err)
+				return nil, err
+			}
+		}
+
+		return &CertificateIdentityResponse{
+			Namespace:    namespace,
+			Certificate:  base64.StdEncoding.EncodeToString(identityResponse.Certificate),
+			APIServerURL: apiServerURL,
+			APIServerCA:  apiServerCa,
+		}, nil
+
+	case responsetypes.SigningRequestResponseIAM:
+		return &CertificateIdentityResponse{
+			Namespace:    namespace,
+			APIServerURL: *identityResponse.AwsIdentityResponse.EksCluster.Endpoint,
+			APIServerCA:  *identityResponse.AwsIdentityResponse.EksCluster.CertificateAuthority.Data,
+			AWSIdentityInfo: AWSIdentityInfo{
+				EKSClusterID:    *identityResponse.AwsIdentityResponse.EksCluster.Name,
+				AccessKeyID:     *identityResponse.AwsIdentityResponse.AccessKey.AccessKeyId,
+				SecretAccessKey: *identityResponse.AwsIdentityResponse.AccessKey.SecretAccessKey,
+				Region:          identityResponse.AwsIdentityResponse.Region,
+				IAMUserArn:      identityResponse.AwsIdentityResponse.IamUserArn,
+			},
+		}, nil
+
+	default:
+		err := fmt.Errorf("unknown response type %v", responseType)
+		klog.Error(err)
+		return nil, err
 	}
 
-	return &CertificateIdentityResponse{
-		Namespace:    namespace,
-		Certificate:  base64.StdEncoding.EncodeToString(certificate),
-		APIServerURL: apiServerURL,
-		APIServerCA:  apiServerCa,
-	}, nil
 }
 
 // getAPIServerCA retrieves the ApiServerCA.

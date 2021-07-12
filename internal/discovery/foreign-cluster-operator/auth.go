@@ -128,7 +128,7 @@ func (r *ForeignClusterReconciler) validateIdentity(fc *discoveryv1alpha1.Foreig
 		return discoveryv1alpha1.PeeringConditionStatusPending, err
 	}
 
-	if err = r.identityManager.StoreCertificate(remoteClusterID, response); err != nil {
+	if err = r.identityManager.StoreCertificate(remoteClusterID, &response); err != nil {
 		klog.Error(err)
 		return discoveryv1alpha1.PeeringConditionStatusPending, err
 	}
