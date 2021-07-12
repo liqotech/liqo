@@ -74,7 +74,9 @@ type Controller struct {
 }
 
 // NewAuthServiceCtrl creates a new Auth Controller.
-func NewAuthServiceCtrl(namespace, kubeconfigPath string, resyncTime time.Duration, useTLS bool) (*Controller, error) {
+func NewAuthServiceCtrl(namespace, kubeconfigPath string,
+	awsConfig identitymanager.AwsConfig,
+	resyncTime time.Duration, useTLS bool) (*Controller, error) {
 	config, err := crdclient.NewKubeconfig(kubeconfigPath, &discoveryv1alpha1.GroupVersion, nil)
 	if err != nil {
 		return nil, err
@@ -114,7 +116,13 @@ func NewAuthServiceCtrl(namespace, kubeconfigPath string, resyncTime time.Durati
 	informerFactory.WaitForCacheSync(wait.NeverStop)
 
 	namespaceManager := tenantnamespace.NewTenantNamespaceManager(clientset)
-	idManager := identitymanager.NewCertificateIdentityManager(clientset, localClusterID, namespaceManager)
+
+	var idManager identitymanager.IdentityManager
+	if awsConfig.IsEmpty() {
+		idManager = identitymanager.NewCertificateIdentityManager(clientset, localClusterID, namespaceManager)
+	} else {
+		idManager = identitymanager.NewIAMIdentityManager(clientset, localClusterID, &awsConfig, namespaceManager)
+	}
 
 	return &Controller{
 		namespace:            namespace,

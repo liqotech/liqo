@@ -7,7 +7,9 @@ import (
 	tenantnamespace "github.com/liqotech/liqo/pkg/tenantNamespace"
 )
 
-type certificateIdentityManager struct {
+type identityManager struct {
+	identityProvider
+
 	client           kubernetes.Interface
 	localClusterID   clusterid.ClusterID
 	namespaceManager tenantnamespace.Manager
@@ -17,9 +19,34 @@ type certificateIdentityManager struct {
 func NewCertificateIdentityManager(client kubernetes.Interface,
 	localClusterID clusterid.ClusterID,
 	namespaceManager tenantnamespace.Manager) IdentityManager {
-	return &certificateIdentityManager{
+	idProvider := &certificateIdentityProvider{
+		namespaceManager: namespaceManager,
+		client:           client,
+	}
+
+	return &identityManager{
 		client:           client,
 		localClusterID:   localClusterID,
 		namespaceManager: namespaceManager,
+
+		identityProvider: idProvider,
+	}
+}
+
+// NewIAMIdentityManager gets a new identity manager to handle IAM identities.
+func NewIAMIdentityManager(client kubernetes.Interface,
+	localClusterID clusterid.ClusterID, awsConfig *AwsConfig,
+	namespaceManager tenantnamespace.Manager) IdentityManager {
+	idProvider := &iamIdentityProvider{
+		awsConfig: awsConfig,
+		client:    client,
+	}
+
+	return &identityManager{
+		client:           client,
+		localClusterID:   localClusterID,
+		namespaceManager: namespaceManager,
+
+		identityProvider: idProvider,
 	}
 }
