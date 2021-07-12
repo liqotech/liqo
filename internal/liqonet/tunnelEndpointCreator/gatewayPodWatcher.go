@@ -19,11 +19,16 @@ import (
 )
 
 var (
-	podResource     = "pods"
-	GwPodLabelKey   = "net.liqo.io/gatewayPod"
-	GwPodLabelValue = "true"
+	podResource = "pods"
+	// GwPodLabelKey label key used to get the gateway pod.
+	GwPodLabelKey = "net.liqo.io/gateway"
+	// GwPodLabelValue label value used to get the gateway pod.
+	GwPodLabelValue = "active"
 )
 
+// StartGWPodWatcher starts the informer for the gateway pod.
+// TODO: this code will be removed in the next PR. The functionality will be moved
+// in the labelOperator inside the gateway component.
 func (tec *TunnelEndpointCreator) StartGWPodWatcher() {
 	dynFactory := dynamicinformer.NewFilteredDynamicSharedInformerFactory(tec.DynClient, ResyncPeriod, tec.Namespace, setGWPodSelectorLabel)
 	go tec.Watcher(dynFactory, corev1.SchemeGroupVersion.WithResource(podResource), cache.ResourceEventHandlerFuncs{
