@@ -10,7 +10,7 @@ import (
 
 // GetConfig gets a rest config from the secret, given the remote clusterID and (optionally) the namespace.
 // This rest config con be used to create a client to the remote cluster.
-func (certManager *certificateIdentityManager) GetConfig(remoteClusterID, namespace string) (*rest.Config, error) {
+func (certManager *identityManager) GetConfig(remoteClusterID, namespace string) (*rest.Config, error) {
 	var secret *v1.Secret
 	var err error
 
@@ -76,7 +76,7 @@ func (certManager *certificateIdentityManager) GetConfig(remoteClusterID, namesp
 
 // GetRemoteTenantNamespace returns the tenant namespace that
 // the remote cluster assigned to this peering.
-func (certManager *certificateIdentityManager) GetRemoteTenantNamespace(
+func (certManager *identityManager) GetRemoteTenantNamespace(
 	remoteClusterID, localTenantNamespaceName string) (string, error) {
 	var secret *v1.Secret
 	var err error

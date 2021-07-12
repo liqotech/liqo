@@ -6,9 +6,10 @@ import (
 	"path/filepath"
 	"time"
 
-	"k8s.io/klog"
+	"k8s.io/klog/v2"
 
 	authservice "github.com/liqotech/liqo/internal/auth-service"
+	identitymanager "github.com/liqotech/liqo/pkg/identityManager"
 )
 
 func main() {
@@ -22,6 +23,8 @@ func main() {
 	var keyFile string
 	var useTLS bool
 
+	var awsConfig identitymanager.AwsConfig
+
 	flag.StringVar(&namespace, "namespace", "default", "Namespace where your configs are stored.")
 	flag.StringVar(&kubeconfigPath, "kubeconfigPath",
 		filepath.Join(os.Getenv("HOME"), ".kube", "config"), "For debug purpose, set path to local kubeconfig")
@@ -31,13 +34,18 @@ func main() {
 	flag.StringVar(&keyFile, "keyFile", "/certs/key.pem", "Path to key file")
 	flag.BoolVar(&useTLS, "useTls", false, "Enable HTTPS server")
 
+	flag.StringVar(&awsConfig.AwsAccessKeyID, "awsAccessKeyId", "", "AWS IAM AccessKeyID for the Liqo User")
+	flag.StringVar(&awsConfig.AwsSecretAccessKey, "awsSecretAccessKey", "", "AWS IAM SecretAccessKey for the Liqo User")
+	flag.StringVar(&awsConfig.AwsRegion, "awsRegion", "", "AWS region where the local cluster is running")
+	flag.StringVar(&awsConfig.AwsClusterName, "awsClusterName", "", "Name of the local EKS cluster")
+
 	klog.InitFlags(nil)
 	flag.Parse()
 
 	klog.Info("Namespace: ", namespace)
 
 	authService, err := authservice.NewAuthServiceCtrl(
-		namespace, kubeconfigPath, time.Duration(resyncSeconds)*time.Second, useTLS)
+		namespace, kubeconfigPath, awsConfig, time.Duration(resyncSeconds)*time.Second, useTLS)
 	if err != nil {
 		klog.Error(err)
 		os.Exit(1)

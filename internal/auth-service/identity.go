@@ -89,7 +89,7 @@ func (authService *Controller) handleIdentity(
 	}
 
 	// issue certificate request
-	certificate, err := authService.identityManager.ApproveSigningRequest(
+	identityResponse, err := authService.identityManager.ApproveSigningRequest(
 		identityRequest.ClusterID, identityRequest.CertificateSigningRequest)
 	if err != nil {
 		klog.Error(err)
@@ -105,7 +105,7 @@ func (authService *Controller) handleIdentity(
 
 	// make the response to send to the remote cluster
 	response, err := auth.NewCertificateIdentityResponse(
-		namespace.Name, certificate, authService.getConfigProvider(), authService.clientset, authService.restConfig)
+		namespace.Name, &identityResponse, authService.getConfigProvider(), authService.clientset, authService.restConfig)
 	if err != nil {
 		klog.Error(err)
 		return nil, err

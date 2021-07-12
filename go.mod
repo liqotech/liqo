@@ -3,7 +3,7 @@ module github.com/liqotech/liqo
 go 1.16
 
 require (
-	cloud.google.com/go v0.56.0 // indirect
+	github.com/aws/aws-sdk-go v1.39.4
 	github.com/clastix/capsule v0.1.0-rc2
 	github.com/containernetworking/plugins v0.8.6
 	github.com/coreos/go-iptables v0.4.5
@@ -32,6 +32,7 @@ require (
 	github.com/vishvananda/netns v0.0.0-20200728191858-db3c7e526aae
 	go.opencensus.io v0.23.0
 	go.uber.org/goleak v1.1.10
+	golang.org/x/oauth2 v0.0.0-20210628180205-a41e5a781914 // indirect
 	golang.org/x/sys v0.0.0-20210603081109-ebe580a85c40
 	golang.org/x/time v0.0.0-20210220033141-f8bda1e9f3ba
 	golang.org/x/tools v0.1.0
@@ -39,6 +40,7 @@ require (
 	gomodules.xyz/jsonpatch/v2 v2.1.0
 	google.golang.org/grpc v1.33.2
 	google.golang.org/protobuf v1.26.0
+	gopkg.in/yaml.v3 v3.0.0-20210107192922-496545a6307b
 	gotest.tools v2.2.0+incompatible
 	inet.af/netaddr v0.0.0-20210313195008-843b4240e319
 	k8s.io/api v0.21.1
@@ -52,6 +54,7 @@ require (
 	k8s.io/kubernetes v1.21.0
 	k8s.io/metrics v0.21.0
 	k8s.io/utils v0.0.0-20210527160623-6fdb442a123b
+	sigs.k8s.io/aws-iam-authenticator v0.5.3
 	sigs.k8s.io/controller-runtime v0.9.0-beta.2
 )
 
