@@ -19,8 +19,5 @@ spec:
       port: 5871
       targetPort: 5871
       protocol: UDP
-    - name: wireguard-overlay
-      port: 51871
-      protocol: UDP
   selector:
-    {{- include "liqo.gatewayPodLabels" $gatewayConfig | nindent 4 }}
+    {{- include "liqo.gatewaySelector" $gatewayConfig | nindent 4 }}

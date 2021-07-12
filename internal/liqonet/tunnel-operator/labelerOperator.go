@@ -13,22 +13,26 @@ import (
 	liqoutils "github.com/liqotech/liqo/pkg/liqonet/utils"
 )
 
-var (
-	// This labels are the ones set during the deployment of liqo using the helm chart.
+const (
+	// These labels are the ones set during the deployment of liqo using the helm chart.
 	// Any change to those labels on the helm chart has also to be reflected here.
-	podInstanceLabelKey       = "app.kubernetes.io/instance"
-	podInstanceLabelValue     = "liqo-gateway"
-	podNameLabelKey           = "app.kubernetes.io/name"
-	podNameLabelValue         = "gateway"
-	serviceSelectorLabelKey   = "net.liqo.io/gatewayPod"
-	serviceSelectorLabelValue = "true"
-	// LabelSelector instructs the informer to only cache the pod objects that satisfies the selector.
+	podComponentLabelKey   = "app.kubernetes.io/component"
+	podComponentLabelValue = "networking"
+	podNameLabelKey        = "app.kubernetes.io/name"
+	podNameLabelValue      = "gateway"
+	gatewayLabelKey        = "net.liqo.io/gateway"
+	gatewayStatusActive    = "active"
+	gatewayStatusStandby   = "standby"
+)
+
+var (
+	// LabelSelector instructs the informer to only cache the pod objects that satisfy the selector.
 	// Only the pod objects with the right labels will be reconciled.
 	LabelSelector = cache.SelectorsByObject{
 		&corev1.Pod{}: {
 			Label: labels.SelectorFromSet(labels.Set{
-				podInstanceLabelKey: podInstanceLabelValue,
-				podNameLabelKey:     podNameLabelValue,
+				podComponentLabelKey: podComponentLabelValue,
+				podNameLabelKey:      podNameLabelValue,
 			}),
 		},
 	}
@@ -49,9 +53,9 @@ func NewLabelerController(podIP string, cl client.Client) *LabelerController {
 }
 
 // Reconcile for a given pod, replica of the current operator, it checks if it is the current pod
-// meaning the pod where this code is running. If yes, then it adds a the label to the pod if it does
-// not have it. If the pod is not the current one the operator makes sure that it does not have the
-// label by removing it if present.
+// meaning the pod where this code is running. If it is our pod, it checks that it is labels as the
+// active replica of the gateway. It ensures that the label "net.liqo.io/gateway=active" is present.
+// If the pod is not the current one, we make sure that the pod has the label "net.liqo.io/gateway=standby".
 func (lbc *LabelerController) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	pod := new(corev1.Pod)
 	err := lbc.Get(ctx, req.NamespacedName, pod)
@@ -59,27 +63,30 @@ func (lbc *LabelerController) Reconcile(ctx context.Context, req ctrl.Request) (
 		klog.Errorf("an error occurred while getting pod {%s}: %v", req.NamespacedName, err)
 		return ctrl.Result{}, client.IgnoreNotFound(err)
 	}
-	// If it is our pod/current pod then add the right label.
+	// If it is our pod/current pod then ensure that the labels values is set to "active".
 	if lbc.PodIP == pod.Status.PodIP {
-		if liqoutils.AddLabelToObj(pod, serviceSelectorLabelKey, serviceSelectorLabelValue) {
+		if liqoutils.AddLabelToObj(pod, gatewayLabelKey, gatewayStatusActive) {
 			if err := lbc.Update(ctx, pod); err != nil {
-				klog.Errorf("an error occurred while adding selector label to pod {%s}: %v", req.String(), err)
+				klog.Errorf("an error occurred while updating value of label {%s} to {%s} for pod {%s}: %v",
+					gatewayLabelKey, gatewayStatusActive, req.String(), err)
 				return ctrl.Result{}, err
 			}
-			klog.Infof("successfully added label {%s: %s} to pod {%s}",
-				serviceSelectorLabelKey, serviceSelectorLabelValue, req.String())
+			klog.Infof("successfully updated label {%s: %s} for pod {%s}",
+				gatewayLabelKey, gatewayStatusActive, req.String())
 		}
 		return ctrl.Result{}, nil
 	}
-	// Make sure that the other replicas does not have the selector label.
-	if val := liqoutils.GetLabelValueFromObj(pod, serviceSelectorLabelKey); val != "" {
-		delete(pod.GetLabels(), serviceSelectorLabelKey)
-		if err := lbc.Update(ctx, pod); err != nil {
-			klog.Errorf("an error occurred while removing selector label to pod {%s}: %v", req.String(), err)
-			return ctrl.Result{}, err
+	// Make sure that the other replicas has the label set to "standby".
+	if val := liqoutils.GetLabelValueFromObj(pod, gatewayLabelKey); val == gatewayStatusActive {
+		if liqoutils.AddLabelToObj(pod, gatewayLabelKey, gatewayStatusStandby) {
+			if err := lbc.Update(ctx, pod); err != nil {
+				klog.Errorf("an error occurred while updating value of label {%s} to {%s} for pod {%s}: %v",
+					gatewayLabelKey, gatewayStatusStandby, req.String(), err)
+				return ctrl.Result{}, err
+			}
+			klog.Infof("successfully updated label {%s: %s} for pod {%s}",
+				gatewayLabelKey, gatewayStatusStandby, req.String())
 		}
-		klog.Infof("successfully removed label {%s: %s} to pod {%s}",
-			serviceSelectorLabelKey, serviceSelectorLabelValue, req.String())
 	}
 	return ctrl.Result{}, nil
 }

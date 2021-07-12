@@ -42,16 +42,10 @@ var _ = Describe("LabelerOperator", func() {
 				Namespace: labelerReq.Namespace,
 			},
 			Spec: corev1.PodSpec{
-				NodeName: "overlaytestnodename",
 				Containers: []corev1.Container{
 					{
-						Name:            "busybox",
-						Image:           "busybox",
-						ImagePullPolicy: corev1.PullIfNotPresent,
-						Command: []string{
-							"sleep",
-							"3600",
-						},
+						Name:  "busybox",
+						Image: "busybox",
 					},
 				},
 			},
@@ -97,19 +91,19 @@ var _ = Describe("LabelerOperator", func() {
 					if err != nil {
 						return err
 					}
-					if newPod.GetLabels()[serviceSelectorLabelKey] != serviceSelectorLabelValue {
-						return fmt.Errorf(" error: label %s is different than %s", newPod.GetLabels()[serviceSelectorLabelKey], serviceSelectorLabelValue)
+					if newPod.GetLabels()[gatewayLabelKey] != gatewayStatusActive {
+						return fmt.Errorf(" error: label %s is different than %s", newPod.GetLabels()[gatewayLabelKey], gatewayStatusActive)
 					}
 					return nil
 				}).Should(BeNil())
 			})
 
 			It("pod does have the label, should not change the pod", func() {
-				const podName = "current-pod-with-labels"
+				const podName = "current-pod-active"
 				labelerReq.Name = podName
 				labelerTestPod.Name = podName
 				labelerTestPod.SetLabels(map[string]string{
-					serviceSelectorLabelKey: serviceSelectorLabelValue,
+					gatewayLabelKey: gatewayStatusActive,
 				})
 				Eventually(func() error { return k8sClient.Create(context.TODO(), labelerTestPod) }).Should(BeNil())
 				newPod := &corev1.Pod{}
@@ -134,8 +128,8 @@ var _ = Describe("LabelerOperator", func() {
 					if err != nil {
 						return err
 					}
-					if newPod.GetLabels()[serviceSelectorLabelKey] != serviceSelectorLabelValue {
-						return fmt.Errorf(" error: label %s is different than %s", newPod.GetLabels()[serviceSelectorLabelKey], serviceSelectorLabelValue)
+					if newPod.GetLabels()[gatewayLabelKey] != gatewayStatusActive {
+						return fmt.Errorf(" error: label %s is different than %s", newPod.GetLabels()[gatewayLabelKey], gatewayStatusActive)
 					}
 					return nil
 				}).Should(BeNil())
@@ -143,10 +137,13 @@ var _ = Describe("LabelerOperator", func() {
 		})
 
 		Context("when the pod is not the current one", func() {
-			It("pod does not have the label, does nothing", func() {
-				const podName = "other-pod-without-labels"
+			It("pod is already in standby, does nothing", func() {
+				const podName = "other-pod-standby"
 				labelerReq.Name = podName
 				labelerTestPod.Name = podName
+				labelerTestPod.SetLabels(map[string]string{
+					gatewayLabelKey: gatewayStatusStandby,
+				})
 				Eventually(func() error { return k8sClient.Create(context.TODO(), labelerTestPod) }).Should(BeNil())
 				newPod := &corev1.Pod{}
 				Eventually(func() error { return k8sClient.Get(context.TODO(), labelerReq.NamespacedName, newPod) }).Should(BeNil())
@@ -167,12 +164,12 @@ var _ = Describe("LabelerOperator", func() {
 				Eventually(func() error { _, err := lbc.Reconcile(context.TODO(), labelerReq); return err }).Should(BeNil())
 			})
 
-			It("pod does have the label, should remove the label", func() {
-				const podName = "other-pod-with-labels"
+			It("label is set to {active}, should set it to {standby} ", func() {
+				const podName = "other-pod-active"
 				labelerReq.Name = podName
 				labelerTestPod.Name = podName
 				labelerTestPod.SetLabels(map[string]string{
-					serviceSelectorLabelKey: serviceSelectorLabelValue,
+					gatewayLabelKey: gatewayStatusActive,
 				})
 				Eventually(func() error { return k8sClient.Create(context.TODO(), labelerTestPod) }).Should(BeNil())
 				newPod := &corev1.Pod{}
@@ -197,15 +194,15 @@ var _ = Describe("LabelerOperator", func() {
 					if err != nil {
 						return err
 					}
-					if newPod.GetLabels()[serviceSelectorLabelKey] != "" {
-						return fmt.Errorf(" error: label %s is different than empty string", newPod.GetLabels()[serviceSelectorLabelKey])
+					if newPod.GetLabels()[gatewayLabelKey] != gatewayStatusStandby {
+						return fmt.Errorf(" error: label %s is different than %s string", newPod.GetLabels()[gatewayLabelKey], gatewayStatusStandby)
 					}
 					return nil
 				}).Should(BeNil())
 			})
 		})
 
-		Context("pod does not exit", func() {
+		Context("pod does not exist", func() {
 			It("shold return nil", func() {
 				const podName = "pod-does-not-exist"
 				labelerReq.Name = podName
