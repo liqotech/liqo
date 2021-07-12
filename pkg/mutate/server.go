@@ -62,16 +62,19 @@ func NewMutationServer(ctx context.Context, c *MutationConfig) (*MutationServer,
 func (s *MutationServer) handleMutate(w http.ResponseWriter, r *http.Request) {
 	// read the body / request
 	body, err := ioutil.ReadAll(r.Body)
-
 	if err != nil {
-		s.sendError(err, w)
+		klog.Error(err)
+		standardErrMessage := fmt.Errorf("unable to correctly read the body of the request")
+		s.sendError(standardErrMessage, w)
 		return
 	}
 
 	// mutate the request
 	mutated, err := s.Mutate(body)
 	if err != nil {
-		s.sendError(err, w)
+		klog.Error(err)
+		standardErrMessage := fmt.Errorf("unable to correctly mutate the request")
+		s.sendError(standardErrMessage, w)
 		return
 	}
 
