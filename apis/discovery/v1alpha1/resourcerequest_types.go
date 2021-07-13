@@ -34,6 +34,8 @@ type ResourceRequestStatus struct {
 // +kubebuilder:subresource:status
 
 // ResourceRequest is the Schema for the ResourceRequests API.
+// +kubebuilder:printcolumn:name="Local",type=string,JSONPath=`.metadata.labels.liqo\.io/replication`
+// +kubebuilder:printcolumn:name="Age",type=date,JSONPath=`.metadata.creationTimestamp`
 type ResourceRequest struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`

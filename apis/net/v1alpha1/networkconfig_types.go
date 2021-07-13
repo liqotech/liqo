@@ -64,6 +64,12 @@ type NetworkConfigStatus struct {
 // +kubebuilder:subresource:status
 
 // NetworkConfig is the Schema for the networkconfigs API.
+// +kubebuilder:printcolumn:name="Peering Cluster ID",type=string,JSONPath=`.spec.clusterID`
+// +kubebuilder:printcolumn:name="Endpoint IP",type=string,JSONPath=`.spec.endpointIP`,priority=1
+// +kubebuilder:printcolumn:name="VPN Backend",type=string,JSONPath=`.spec.backendType`,priority=1
+// +kubebuilder:printcolumn:name="Processed",type=string,JSONPath=`.status.processed`
+// +kubebuilder:printcolumn:name="Local",type=string,JSONPath=`.metadata.labels.liqo\.io/replication`
+// +kubebuilder:printcolumn:name="Age",type=date,JSONPath=`.metadata.creationTimestamp`
 type NetworkConfig struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`

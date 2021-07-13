@@ -16,7 +16,28 @@ spec:
     singular: networkconfig
   scope: Namespaced
   versions:
-  - name: v1alpha1
+  - additionalPrinterColumns:
+    - jsonPath: .spec.clusterID
+      name: Peering Cluster ID
+      type: string
+    - jsonPath: .spec.endpointIP
+      name: Endpoint IP
+      priority: 1
+      type: string
+    - jsonPath: .spec.backendType
+      name: VPN Backend
+      priority: 1
+      type: string
+    - jsonPath: .status.processed
+      name: Processed
+      type: string
+    - jsonPath: .metadata.labels.liqo\.io/replication
+      name: Local
+      type: string
+    - jsonPath: .metadata.creationTimestamp
+      name: Age
+      type: date
+    name: v1alpha1
     schema:
       openAPIV3Schema:
         description: NetworkConfig is the Schema for the networkconfigs API.

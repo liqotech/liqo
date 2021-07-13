@@ -17,8 +17,12 @@ spec:
   scope: Namespaced
   versions:
   - additionalPrinterColumns:
+    - jsonPath: .spec.clusterID
+      name: Peering Cluster ID
+      type: string
     - jsonPath: .spec.endpointIP
       name: Endpoint IP
+      priority: 1
       type: string
     - jsonPath: .spec.backendType
       name: Backend type
@@ -26,6 +30,9 @@ spec:
     - jsonPath: .status.connection.status
       name: Connection status
       type: string
+    - jsonPath: .metadata.creationTimestamp
+      name: Age
+      type: date
     name: v1alpha1
     schema:
       openAPIV3Schema:

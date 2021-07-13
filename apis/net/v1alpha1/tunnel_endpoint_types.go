@@ -96,9 +96,11 @@ const (
 // +kubebuilder:subresource:status
 
 // TunnelEndpoint is the Schema for the endpoints API.
-// +kubebuilder:printcolumn:name="Endpoint IP",type=string,JSONPath=`.spec.endpointIP`
+// +kubebuilder:printcolumn:name="Peering Cluster ID",type=string,JSONPath=`.spec.clusterID`
+// +kubebuilder:printcolumn:name="Endpoint IP",type=string,JSONPath=`.spec.endpointIP`,priority=1
 // +kubebuilder:printcolumn:name="Backend type",type=string,JSONPath=`.spec.backendType`
 // +kubebuilder:printcolumn:name="Connection status",type=string,JSONPath=`.status.connection.status`
+// +kubebuilder:printcolumn:name="Age",type=date,JSONPath=`.metadata.creationTimestamp`
 type TunnelEndpoint struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
