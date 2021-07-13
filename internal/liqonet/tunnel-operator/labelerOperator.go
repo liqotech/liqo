@@ -2,6 +2,7 @@ package tunneloperator
 
 import (
 	"context"
+	"fmt"
 
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/labels"
@@ -23,6 +24,7 @@ const (
 	gatewayLabelKey        = "net.liqo.io/gateway"
 	gatewayStatusActive    = "active"
 	gatewayStatusStandby   = "standby"
+	serviceAnnotationKey   = "net.liqo.io/gatewayNodeIP"
 )
 
 var (
@@ -74,6 +76,10 @@ func (lbc *LabelerController) Reconcile(ctx context.Context, req ctrl.Request) (
 			klog.Infof("successfully updated label {%s: %s} for pod {%s}",
 				gatewayLabelKey, gatewayStatusActive, req.String())
 		}
+		if err := lbc.annotateGatewayService(ctx); err != nil {
+			// Do not log here, already done in annotateGatewayService.
+			return ctrl.Result{}, err
+		}
 		return ctrl.Result{}, nil
 	}
 	// Make sure that the other replicas has the label set to "standby".
@@ -89,6 +95,37 @@ func (lbc *LabelerController) Reconcile(ctx context.Context, req ctrl.Request) (
 		}
 	}
 	return ctrl.Result{}, nil
+}
+
+func (lbc *LabelerController) annotateGatewayService(ctx context.Context) error {
+	const expectedNumOfServices = 1
+	svcList := new(corev1.ServiceList)
+	labelsSelector := client.MatchingLabels{
+		podComponentLabelKey: podComponentLabelValue,
+		podNameLabelKey:      podNameLabelValue,
+	}
+	err := lbc.List(ctx, svcList, labelsSelector)
+	if err != nil {
+		return err
+	}
+	if len(svcList.Items) != expectedNumOfServices {
+		klog.Errorf("an error occurred while getting gateway service: expected number of services for the gateway is {%d}, "+
+			"instead we found {%d}", expectedNumOfServices, len(svcList.Items))
+		return fmt.Errorf("expected number of services for the gateway is {%d}, instead we found {%d}",
+			expectedNumOfServices, len(svcList.Items))
+	}
+	// We come here only if one service has been found.
+	svc := &svcList.Items[0]
+	if liqoutils.AddAnnotationToObj(svc, serviceAnnotationKey, lbc.PodIP) {
+		if err := lbc.Update(ctx, svc); err != nil {
+			klog.Errorf("an error occurred while annotating gateway service {%s/%s}: %v",
+				svc.Namespace, svc.Name, serviceAnnotationKey, err)
+			return err
+		}
+		klog.Infof("successfully annotated gateway service {%s/%s} with annotation {%s: %s}",
+			svc.Namespace, svc.Name, serviceAnnotationKey, lbc.PodIP)
+	}
+	return nil
 }
 
 // SetupWithManager used to set up the controller with a given manager.

@@ -28,3 +28,10 @@ rules:
   - patch
   - update
   - watch
+- apiGroups:
+  - ""
+  resources:
+  - services
+  verbs:
+  - list
+  - update

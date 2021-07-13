@@ -293,7 +293,6 @@ func main() {
 			os.Exit(1)
 		}
 		go r.StartForeignClusterWatcher()
-		go r.StartGWPodWatcher()
 		go r.StartServiceWatcher()
 		go r.StartSecretWatcher()
 		klog.Info("starting manager as tunnelEndpointCreator-operator")

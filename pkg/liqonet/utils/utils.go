@@ -3,13 +3,11 @@ package utils
 import (
 	"context"
 	"fmt"
-	"io/ioutil"
 	"net"
 	"os"
 	"strings"
 	"syscall"
 
-	"github.com/vishvananda/netlink"
 	"golang.org/x/tools/go/ssa/interp/testdata/src/errors"
 	"inet.af/netaddr"
 	corev1 "k8s.io/api/core/v1"
@@ -93,34 +91,6 @@ func GetNodeName() (string, error) {
 	return nodeName, nil
 }
 
-// GetNodePodCIDR gets the subnet assigned to the node as podCIDR.
-func GetNodePodCIDR(nodeName string, clientSet kubernetes.Interface) (string, error) {
-	// get the node by name
-	node, err := clientSet.CoreV1().Nodes().Get(context.Background(), nodeName, metav1.GetOptions{})
-	if err != nil {
-		return "", err
-	}
-	// we do not check here if the field is set or not, it is done by the module who consumes it
-	// it is an optional field
-	return node.Spec.PodCIDR, nil
-}
-
-// GetInternalIPOfNode returns the first internal ip of the node if any is set.
-func GetInternalIPOfNode(node *corev1.Node) (string, error) {
-	var internalIp string
-	for _, address := range node.Status.Addresses {
-		if address.Type == "InternalIP" {
-			internalIp = address.Address
-			break
-		}
-	}
-	if internalIp == "" {
-		klog.V(4).Infof("internalIP of the node not found, probably is not set")
-		return internalIp, errdefs.NotFound("internalIP of the node is not set")
-	}
-	return internalIp, nil
-}
-
 // GetClusterID returns the the clusterID et in the given config map.
 func GetClusterID(client kubernetes.Interface, cmName, namespace string, backoff wait.Backoff) (string, error) {
 	cmClient := client.CoreV1().ConfigMaps(namespace)
@@ -144,15 +114,6 @@ func GetClusterID(client kubernetes.Interface, cmName, namespace string, backoff
 	clusterID := cm.Data[cmName]
 	klog.Infof("ClusterID is '%s'", clusterID)
 	return clusterID, nil
-}
-
-// EnableIPForwarding enables ipv4 forwarding on the node/pod where it is called.
-func EnableIPForwarding() error {
-	err := ioutil.WriteFile("/proc/sys/net/ipv4/ip_forward", []byte("1"), 0600)
-	if err != nil {
-		return fmt.Errorf("unable to enable ip forwaring in the gateway pod: %v", err)
-	}
-	return nil
 }
 
 // GetMask retrieves the mask from a CIDR.
@@ -211,43 +172,6 @@ func GetExternalCIDRS(tep *netv1alpha1.TunnelEndpoint) (localExternalCIDR, remot
 		remoteExternalCIDR = tep.Spec.ExternalCIDR
 	}
 	return
-}
-
-// GetDefaultIfaceName returns the name of the interfaces that has the default route configured.
-func GetDefaultIfaceName() (string, error) {
-	// search for the default route and return the link associated to the route
-	// we consider only the ipv4 routes
-	routes, err := netlink.RouteList(nil, netlink.FAMILY_V4)
-	if err != nil {
-		return "", err
-	}
-	var route netlink.Route
-	for _, route = range routes {
-		if route.Dst == nil {
-			break
-		}
-	}
-	// get default link
-	defualtIface, err := netlink.LinkByIndex(route.LinkIndex)
-	if err != nil {
-		return "", err
-	}
-	return defualtIface.Attrs().Name, nil
-}
-
-// DeleteIFaceByIndex deletes the interface that has the given index.
-func DeleteIFaceByIndex(ifaceIndex int) error {
-	existingIface, err := netlink.LinkByIndex(ifaceIndex)
-	if err != nil {
-		klog.Errorf("unable to retrieve tunnel interface: %v", err)
-		return err
-	}
-	// Remove the existing gre interface
-	if err = netlink.LinkDel(existingIface); err != nil {
-		klog.Errorf("unable to delete the tunnel after the tunnelEndpoint CR has been removed: %v", err)
-		return err
-	}
-	return err
 }
 
 // IsValidCIDR returns an error if the received CIDR is invalid.
