@@ -100,7 +100,6 @@ func (identityProvider *iamIdentityProvider) ensureIamUser(sess *session.Session
 	}
 
 	createUserResult, err := iamSvc.CreateUser(createUser)
-
 	if err != nil {
 		// if the IAM user already exists, we cannot create another access key, since the previous creation
 		// can be made from another cluster. We have to validate a secret from the remote cluster before to continue

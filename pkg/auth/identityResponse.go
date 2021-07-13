@@ -33,6 +33,14 @@ type CertificateIdentityResponse struct {
 	AWSIdentityInfo AWSIdentityInfo `json:"aws,omitempty"`
 }
 
+func (resp *CertificateIdentityResponse) HasAWSValues() bool {
+	credentials := resp.AWSIdentityInfo.AccessKeyID != "" && resp.AWSIdentityInfo.SecretAccessKey != ""
+	region := resp.AWSIdentityInfo.Region != ""
+	cluster := resp.AWSIdentityInfo.EKSClusterID != ""
+	userArn := resp.AWSIdentityInfo.IAMUserArn != ""
+	return credentials && region && cluster && userArn
+}
+
 // NewCertificateIdentityResponse makes a new CertificateIdentityResponse.
 func NewCertificateIdentityResponse(
 	namespace string, identityResponse *responsetypes.SigningRequestResponse,

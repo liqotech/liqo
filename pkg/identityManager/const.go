@@ -24,4 +24,10 @@ const (
 	apiServerURLSecretKey = "apiServerUrl"
 	apiServerCaSecretKey  = "apiServerCa"
 	namespaceSecretKey    = "namespace"
+
+	awsAccessKeyIDSecretKey     = "awsAccessKeyID"
+	awsSecretAccessKeySecretKey = "awsSecretAccessKey"
+	awsRegionSecretKey          = "awsRegion"
+	awsEKSClusterIDSecretKey    = "awsEksClusterID"
+	awsIAMUserArnSecretKey      = "awsIamUserArn"
 )

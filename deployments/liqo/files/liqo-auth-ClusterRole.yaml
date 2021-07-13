@@ -31,6 +31,15 @@ rules:
   - watch
 - apiGroups:
   - ""
+  resourceNames:
+  - aws-auth
+  resources:
+  - configmaps
+  verbs:
+  - get
+  - update
+- apiGroups:
+  - ""
   resources:
   - namespaces
   verbs:

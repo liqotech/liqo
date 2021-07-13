@@ -1,6 +1,9 @@
 package identitymanager
 
 import (
+	"context"
+
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes"
 
 	"github.com/liqotech/liqo/pkg/clusterid"
@@ -13,6 +16,8 @@ type identityManager struct {
 	client           kubernetes.Interface
 	localClusterID   clusterid.ClusterID
 	namespaceManager tenantnamespace.Manager
+
+	iamTokenManager tokenManager
 }
 
 // NewCertificateIdentityManager gets a new certificate identity manager.
@@ -42,11 +47,19 @@ func NewIAMIdentityManager(client kubernetes.Interface,
 		client:    client,
 	}
 
+	iamTokenManager := &iamTokenManager{
+		client:                    client,
+		availableClusterIDSecrets: map[string]types.NamespacedName{},
+	}
+	iamTokenManager.start(context.TODO())
+
 	return &identityManager{
 		client:           client,
 		localClusterID:   localClusterID,
 		namespaceManager: namespaceManager,
 
 		identityProvider: idProvider,
+
+		iamTokenManager: iamTokenManager,
 	}
 }
