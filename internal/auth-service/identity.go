@@ -105,7 +105,7 @@ func (authService *Controller) handleIdentity(
 
 	// make the response to send to the remote cluster
 	response, err := auth.NewCertificateIdentityResponse(
-		namespace.Name, &identityResponse, authService.getConfigProvider(), authService.clientset, authService.restConfig)
+		namespace.Name, identityResponse, authService.getConfigProvider(), authService.clientset, authService.restConfig)
 	if err != nil {
 		klog.Error(err)
 		return nil, err

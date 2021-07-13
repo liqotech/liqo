@@ -68,10 +68,20 @@ func (certManager *identityManager) StoreCertificate(remoteClusterID string, ide
 	}
 	secret.Labels[certificateAvailableLabel] = "true"
 
-	certificate, err := base64.StdEncoding.DecodeString(identityResponse.Certificate)
-	if err != nil {
-		klog.Error(err)
-		return err
+	if identityResponse.HasAWSValues() || certManager.isAwsIdentity(secret) {
+		secret.Data[awsAccessKeyIDSecretKey] = []byte(identityResponse.AWSIdentityInfo.AccessKeyID)
+		secret.Data[awsSecretAccessKeySecretKey] = []byte(identityResponse.AWSIdentityInfo.SecretAccessKey)
+		secret.Data[awsRegionSecretKey] = []byte(identityResponse.AWSIdentityInfo.Region)
+		secret.Data[awsEKSClusterIDSecretKey] = []byte(identityResponse.AWSIdentityInfo.EKSClusterID)
+		secret.Data[awsIAMUserArnSecretKey] = []byte(identityResponse.AWSIdentityInfo.IAMUserArn)
+	} else {
+		certificate, err := base64.StdEncoding.DecodeString(identityResponse.Certificate)
+		if err != nil {
+			klog.Error(err)
+			return err
+		}
+
+		secret.Data[certificateSecretKey] = certificate
 	}
 
 	// ApiServerCA may be empty if the remote cluster exposes the ApiServer with a certificate issued by "public" CAs
@@ -87,7 +97,6 @@ func (certManager *identityManager) StoreCertificate(remoteClusterID string, ide
 
 	secret.Data[apiServerURLSecretKey] = []byte(identityResponse.APIServerURL)
 	secret.Data[namespaceSecretKey] = []byte(identityResponse.Namespace)
-	secret.Data[certificateSecretKey] = certificate
 
 	if _, err = certManager.client.CoreV1().Secrets(secret.Namespace).Update(context.TODO(), secret, metav1.UpdateOptions{}); err != nil {
 		klog.Error(err)
@@ -237,4 +246,15 @@ func getExpireTime(secret *v1.Secret) int64 {
 		return now
 	}
 	return n
+}
+
+func (certManager *identityManager) isAwsIdentity(secret *v1.Secret) bool {
+	data := secret.Data
+	keys := []string{awsAccessKeyIDSecretKey, awsSecretAccessKeySecretKey, awsRegionSecretKey, awsEKSClusterIDSecretKey, awsIAMUserArnSecretKey}
+	for i := range keys {
+		if _, ok := data[keys[i]]; !ok {
+			return false
+		}
+	}
+	return true
 }

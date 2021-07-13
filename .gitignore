@@ -24,4 +24,8 @@ bin
 .vscode
 .devcontainer
 
+# directory where liqo stores the downloaded external crd
 externalcrds
+
+# directory where liqo stores the bearer tokens got by identity providers (i.e. Amazon IAM)
+token

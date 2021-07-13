@@ -36,7 +36,7 @@ type mapUser struct {
 }
 
 func (identityProvider *iamIdentityProvider) GetRemoteCertificate(clusterID,
-	signingRequest string) (response responsetypes.SigningRequestResponse, err error) {
+	signingRequest string) (response *responsetypes.SigningRequestResponse, err error) {
 	// this method has no meaning for this identity provider
 	return response, kerrors.NewNotFound(schema.GroupResource{
 		Group:    "v1",
@@ -45,7 +45,7 @@ func (identityProvider *iamIdentityProvider) GetRemoteCertificate(clusterID,
 }
 
 func (identityProvider *iamIdentityProvider) ApproveSigningRequest(clusterID,
-	signingRequest string) (response responsetypes.SigningRequestResponse, err error) {
+	signingRequest string) (response *responsetypes.SigningRequestResponse, err error) {
 	sess, err := session.NewSession(&aws.Config{
 		Region: aws.String(identityProvider.awsConfig.AwsRegion),
 		Credentials: credentials.NewStaticCredentialsFromCreds(credentials.Value{
@@ -83,7 +83,7 @@ func (identityProvider *iamIdentityProvider) ApproveSigningRequest(clusterID,
 		return response, err
 	}
 
-	return responsetypes.SigningRequestResponse{
+	return &responsetypes.SigningRequestResponse{
 		ResponseType: responsetypes.SigningRequestResponseIAM,
 		AwsIdentityResponse: responsetypes.AwsIdentityResponse{
 			IamUserArn: userArn,
@@ -100,7 +100,6 @@ func (identityProvider *iamIdentityProvider) ensureIamUser(sess *session.Session
 	}
 
 	createUserResult, err := iamSvc.CreateUser(createUser)
-
 	if err != nil {
 		// if the IAM user already exists, we cannot create another access key, since the previous creation
 		// can be made from another cluster. We have to validate a secret from the remote cluster before to continue

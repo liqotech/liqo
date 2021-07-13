@@ -1,19 +1,25 @@
 package identitymanager
 
 import (
+	"context"
 	"crypto/x509"
 	"encoding/base64"
 	"encoding/pem"
 	"fmt"
+	"io/ioutil"
 	"os"
 	"path/filepath"
 	"testing"
 	"time"
 
+	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/service/eks"
+	"github.com/aws/aws-sdk-go/service/iam"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	v1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 
@@ -198,7 +204,7 @@ var _ = Describe("IdentityManager", func() {
 			Expect(err).NotTo(BeNil())
 			Expect(kerrors.IsNotFound(err)).To(BeTrue())
 			Expect(kerrors.IsBadRequest(err)).To(BeFalse())
-			Expect(certificate.Certificate).To(BeNil())
+			Expect(certificate).To(BeNil())
 		})
 
 		It("Retrieve Remote Certificate wrong CSR", func() {
@@ -206,7 +212,7 @@ var _ = Describe("IdentityManager", func() {
 			Expect(err).NotTo(BeNil())
 			Expect(kerrors.IsNotFound(err)).To(BeFalse())
 			Expect(kerrors.IsBadRequest(err)).To(BeTrue())
-			Expect(certificate.Certificate).To(BeNil())
+			Expect(certificate).To(BeNil())
 		})
 
 	})
@@ -242,6 +248,114 @@ var _ = Describe("IdentityManager", func() {
 			remoteNamespace, err := identityMan.GetRemoteTenantNamespace(remoteClusterID, "")
 			Expect(err).To(BeNil())
 			Expect(remoteNamespace).To(Equal("remoteNamespace"))
+		})
+
+		It("StoreCertificate IAM", func() {
+			apiServerConfig := newMockApiServerConfigProvider("127.0.0.1", "6443", false)
+
+			signingIAMResponse := responsetypes.SigningRequestResponse{
+				ResponseType: responsetypes.SigningRequestResponseIAM,
+				AwsIdentityResponse: responsetypes.AwsIdentityResponse{
+					IamUserArn: "arn:example",
+					AccessKey: &iam.AccessKey{
+						AccessKeyId:     aws.String("key"),
+						SecretAccessKey: aws.String("secret"),
+					},
+					EksCluster: &eks.Cluster{
+						Name:     aws.String("clustername"),
+						Endpoint: aws.String("https://example.com"),
+						CertificateAuthority: &eks.Certificate{
+							Data: aws.String("cert"),
+						},
+					},
+					Region: "region",
+				},
+			}
+
+			identityResponse, err := auth.NewCertificateIdentityResponse(
+				"remoteNamespace", &signingIAMResponse, apiServerConfig, client, restConfig)
+			Expect(err).To(BeNil())
+
+			// store the certificate in the secret
+			err = identityMan.StoreCertificate(remoteClusterID, identityResponse)
+			Expect(err).To(BeNil())
+
+			idMan, ok := identityMan.(*identityManager)
+			Expect(ok).To(BeTrue())
+
+			tokenManager := iamTokenManager{
+				client:                    idMan.client,
+				availableClusterIDSecrets: map[string]types.NamespacedName{},
+			}
+			idMan.iamTokenManager = &tokenManager
+
+			secret, err := idMan.getSecret(remoteClusterID)
+			Expect(err).To(Succeed())
+
+			Expect(secret.Data[awsAccessKeyIDSecretKey]).To(Equal([]byte(*signingIAMResponse.AwsIdentityResponse.AccessKey.AccessKeyId)))
+			Expect(secret.Data[awsSecretAccessKeySecretKey]).To(Equal([]byte(*signingIAMResponse.AwsIdentityResponse.AccessKey.SecretAccessKey)))
+			Expect(secret.Data[awsRegionSecretKey]).To(Equal([]byte(signingIAMResponse.AwsIdentityResponse.Region)))
+			Expect(secret.Data[awsEKSClusterIDSecretKey]).To(Equal([]byte(*signingIAMResponse.AwsIdentityResponse.EksCluster.Name)))
+			Expect(secret.Data[awsIAMUserArnSecretKey]).To(Equal([]byte(identityResponse.AWSIdentityInfo.IAMUserArn)))
+
+			// retrieve rest config
+			cnf, err := identityMan.GetConfig(remoteClusterID, "")
+			Expect(err).To(Succeed())
+			Expect(cnf).NotTo(BeNil())
+			Expect(cnf.BearerTokenFile).ToNot(BeEmpty())
+
+			token, err := ioutil.ReadFile(cnf.BearerTokenFile)
+			Expect(err).To(Succeed())
+			Expect(token).ToNot(BeEmpty())
+
+			defer os.Remove(cnf.BearerTokenFile)
+
+			// check if the clusterID has been added in the map
+			iamTokenManager, ok := idMan.iamTokenManager.(*iamTokenManager)
+			Expect(ok).To(BeTrue())
+
+			namespacedName, ok := iamTokenManager.availableClusterIDSecrets[remoteClusterID]
+			Expect(ok).To(BeTrue())
+
+			// we have to wait for at least a second to have a different token
+			time.Sleep(1 * time.Second)
+
+			err = iamTokenManager.refreshToken(context.TODO(), remoteClusterID, namespacedName)
+			Expect(err).To(Succeed())
+
+			newToken, err := ioutil.ReadFile(cnf.BearerTokenFile)
+			Expect(err).To(Succeed())
+			Expect(newToken).ToNot(BeEmpty())
+			Expect(newToken).ToNot(Equal(token))
+		})
+
+	})
+
+	Context("Identity Provider", func() {
+
+		It("Certificate Identity Provider", func() {
+			idProvider := NewCertificateIdentityManager(cluster.GetClient().Client(), &localClusterID, namespaceManager)
+
+			certIDManager, ok := idProvider.(*identityManager)
+			Expect(ok).To(BeTrue())
+
+			_, ok = certIDManager.identityProvider.(*certificateIdentityProvider)
+			Expect(ok).To(BeTrue())
+		})
+
+		It("AWS IAM Identity Provider", func() {
+			idProvider := NewIAMIdentityManager(cluster.GetClient().Client(), &localClusterID, &AwsConfig{
+				AwsAccessKeyID:     "KeyID",
+				AwsSecretAccessKey: "Secret",
+				AwsRegion:          "region",
+				AwsClusterName:     "cluster-name",
+			}, namespaceManager)
+
+			certIDManager, ok := idProvider.(*identityManager)
+			Expect(ok).To(BeTrue())
+
+			_, ok = certIDManager.identityProvider.(*iamIdentityProvider)
+			Expect(ok).To(BeTrue())
 		})
 
 	})

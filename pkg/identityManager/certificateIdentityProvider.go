@@ -38,7 +38,7 @@ type certificateIdentityProvider struct {
 // GetRemoteCertificate retrieves a certificate issued in the past,
 // given the clusterid and the signingRequest.
 func (identityProvider *certificateIdentityProvider) GetRemoteCertificate(clusterID,
-	signingRequest string) (response responsetypes.SigningRequestResponse, err error) {
+	signingRequest string) (response *responsetypes.SigningRequestResponse, err error) {
 	namespace, err := identityProvider.namespaceManager.GetNamespace(clusterID)
 	if err != nil {
 		klog.Error(err)
@@ -72,7 +72,9 @@ func (identityProvider *certificateIdentityProvider) GetRemoteCertificate(cluste
 		return response, err
 	}
 
-	response.ResponseType = responsetypes.SigningRequestResponseCertificate
+	response = &responsetypes.SigningRequestResponse{
+		ResponseType: responsetypes.SigningRequestResponseCertificate,
+	}
 	response.Certificate, ok = secret.Data[certificateSecretKey]
 	if !ok {
 		klog.Errorf("no %v key in secret %v/%v", certificateSecretKey, secret.Namespace, secret.Name)
@@ -90,7 +92,7 @@ func (identityProvider *certificateIdentityProvider) GetRemoteCertificate(cluste
 // It creates a CertificateSigningRequest CR to be issued by the local cluster, and approves it.
 // This function will wait (with a timeout) for an available certificate before returning.
 func (identityProvider *certificateIdentityProvider) ApproveSigningRequest(clusterID,
-	signingRequest string) (response responsetypes.SigningRequestResponse, err error) {
+	signingRequest string) (response *responsetypes.SigningRequestResponse, err error) {
 	rnd := fmt.Sprintf("%v", rand.Int63())
 
 	signingBytes, err := base64.StdEncoding.DecodeString(signingRequest)
@@ -134,8 +136,10 @@ func (identityProvider *certificateIdentityProvider) ApproveSigningRequest(clust
 		return response, err
 	}
 
+	response = &responsetypes.SigningRequestResponse{
+		ResponseType: responsetypes.SigningRequestResponseCertificate,
+	}
 	// retrieve the certificate issued by the Kubernetes issuer in the CSR
-	response.ResponseType = responsetypes.SigningRequestResponseCertificate
 	response.Certificate, err = identityProvider.getCertificate(cert, rnd)
 	if err != nil {
 		klog.Error(err)
