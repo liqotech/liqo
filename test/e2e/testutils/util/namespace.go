@@ -16,6 +16,7 @@ package util
 
 import (
 	"context"
+	"fmt"
 
 	corev1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
@@ -23,17 +24,18 @@ import (
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/klog/v2"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	"github.com/liqotech/liqo/test/e2e/testutils"
+	liqoconst "github.com/liqotech/liqo/pkg/consts"
+	"github.com/liqotech/liqo/test/e2e/testconsts"
 )
 
 // EnforceNamespace creates and returns a namespace. If it already exists, it just returns the namespace.
-func EnforceNamespace(ctx context.Context, cl kubernetes.Interface, clusterID, name string) (*corev1.Namespace, error) {
+func EnforceNamespace(ctx context.Context, cl kubernetes.Interface, clusterID, name string,
+	namespaceLabels map[string]string) (*corev1.Namespace, error) {
 	ns := &corev1.Namespace{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:   name,
-			Labels: testutils.LiqoTestNamespaceLabels,
+			Labels: namespaceLabels,
 		},
 		Spec:   corev1.NamespaceSpec{},
 		Status: corev1.NamespaceStatus{},
@@ -52,40 +54,32 @@ func EnforceNamespace(ctx context.Context, cl kubernetes.Interface, clusterID, n
 	return ns, nil
 }
 
-// DeleteNamespace wrap the deletion of a namespace.
-func DeleteNamespace(ctx context.Context, client kubernetes.Interface, labelSelector map[string]string) error {
-	list, err := client.CoreV1().Namespaces().List(context.TODO(), metav1.ListOptions{
+// EnsureNamespaceDeletion wrap the deletion of a namespace.
+func EnsureNamespaceDeletion(ctx context.Context, cl kubernetes.Interface, labelSelector map[string]string) error {
+	namespaceList, err := cl.CoreV1().Namespaces().List(ctx, metav1.ListOptions{
 		LabelSelector: labels.SelectorFromSet(labelSelector).String(),
 	})
-	if err != nil && !kerrors.IsNotFound(err) {
+	if err != nil {
 		return err
 	}
-	for i := range list.Items {
-		if e := client.CoreV1().Namespaces().Delete(ctx, list.Items[i].Name, metav1.DeleteOptions{}); e != nil && !kerrors.IsNotFound(err) {
-			return e
-		}
+	if len(namespaceList.Items) == 0 {
+		return nil
 	}
-	return nil
+	for i := range namespaceList.Items {
+		_ = cl.CoreV1().Namespaces().Delete(ctx, namespaceList.Items[i].Name, metav1.DeleteOptions{})
+	}
+	return fmt.Errorf("still deleting namespaces")
 }
 
-// CreateNamespaceWithoutNamespaceOffloading creates a namespace with a name passed as parameter.
-func CreateNamespaceWithoutNamespaceOffloading(ctx context.Context, cl client.Client, name string) error {
-	ns := &corev1.Namespace{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: name,
-		},
+// GetNamespaceLabel sets the labels on the namespace just created. If "enablingLiqo" is set to true it adds the
+// enabling liqo label to the namespace, so a default NamespaceOffloading resource is created for that namespace.
+func GetNamespaceLabel(enablingLiqo bool) map[string]string {
+	// set of standard labels always present.
+	namespaceLabels := map[string]string{
+		testconsts.LiqoTestingLabelKey: testconsts.LiqoTestingLabelValue,
 	}
-	return cl.Create(ctx, ns)
-}
-
-// CreateNamespaceWithNamespaceOffloading creates a namespace with a name passed as parameter and with liqo enabling label.
-// A default NamespaceOffloading resource will be generated in this namespace.
-func CreateNamespaceWithNamespaceOffloading(ctx context.Context, cl client.Client, name string) error {
-	ns := &corev1.Namespace{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:   name,
-			Labels: testutils.LiqoTestNamespaceLabels,
-		},
+	if enablingLiqo {
+		namespaceLabels[liqoconst.EnablingLiqoLabel] = liqoconst.EnablingLiqoLabelValue
 	}
-	return cl.Create(ctx, ns)
+	return namespaceLabels
 }

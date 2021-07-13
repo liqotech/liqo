@@ -16,25 +16,31 @@ import (
 	offloadingv1alpha1 "github.com/liqotech/liqo/apis/offloading/v1alpha1"
 	virtualkubeletv1alpha1 "github.com/liqotech/liqo/apis/virtualKubelet/v1alpha1"
 	liqoconst "github.com/liqotech/liqo/pkg/consts"
-	"github.com/liqotech/liqo/test/e2e/testconsts"
 	"github.com/liqotech/liqo/test/e2e/testutils/tester"
-	testutils "github.com/liqotech/liqo/test/e2e/testutils/util"
+	"github.com/liqotech/liqo/test/e2e/testutils/util"
+)
+
+const (
+	// clustersRequired is the number of clusters required in this E2E test.
+	clustersRequired = 4
+	// testNamespaceName is the name of the test namespace for this test.
+	testNamespaceName = "test-namespace-creation"
+	// controllerClientPresence indicates if the test use the controller runtime clients.
+	controllerClientPresence = true
+	// testName is the name of this E2E test.
+	testName = "E2E_REMOTE_NAMESPACE_CREATION"
 )
 
 func TestE2E(t *testing.T) {
+	util.CheckIfTestIsSkipped(t, clustersRequired, testName)
 	RegisterFailHandler(Fail)
 	RunSpecs(t, "Liqo E2E Suite")
 }
 
-const (
-	// local name of the test namespace.
-	testNamespaceName = "test-namespace-creation"
-)
-
 var _ = Describe("Liqo E2E", func() {
 	var (
 		ctx         = context.Background()
-		testContext = tester.GetTester(ctx)
+		testContext = tester.GetTester(ctx, clustersRequired, controllerClientPresence)
 		interval    = 1 * time.Second
 		timeout     = 10 * time.Second
 		// longTimeout is used in situations that may take longer to be performed
@@ -52,26 +58,22 @@ var _ = Describe("Liqo E2E", func() {
 		It(fmt.Sprintf("Create a namespace inside the cluster '%d' with the liqo enabling label and check if the remote namespaces"+
 			"are created inside all remote clusters", localIndex), func() {
 			namespace := &corev1.Namespace{}
-			namespaceOffloading := &offloadingv1alpha1.NamespaceOffloading{}
 			namespaceMapsList := &virtualkubeletv1alpha1.NamespaceMapList{}
 
-			By(fmt.Sprintf(" 1 - Creating the local namespace inside the cluster %d", localIndex))
+			By(fmt.Sprintf(" 1 - Creating the local namespace inside the cluster '%d'", localIndex))
 			Eventually(func() error {
-				return testutils.CreateNamespaceWithNamespaceOffloading(ctx, testContext.Clusters[localIndex].ControllerClient, testNamespaceName)
-			}, timeout, interval).Should(Succeed())
+				_, err := util.EnforceNamespace(ctx, testContext.Clusters[localIndex].NativeClient,
+					testContext.Clusters[localIndex].ClusterID, testNamespaceName,
+					util.GetNamespaceLabel(true))
+				return err
+			}, timeout, interval).Should(BeNil())
 
-			By(" 2 - Getting the just created NamespaceOffloading resource")
-			Eventually(func() error {
-				return testContext.Clusters[localIndex].ControllerClient.Get(ctx,
-					types.NamespacedName{Namespace: testNamespaceName, Name: liqoconst.DefaultNamespaceOffloadingName}, namespaceOffloading)
-			}, timeout, interval).Should(Succeed())
-
-			By(" 3 - Getting the NamespaceMaps and check the presence of the entries for that namespace, both in the spec and status")
+			By(" 2 - Getting the NamespaceMaps and checking the presence of the entries for that namespace, both in the spec and status")
 			Eventually(func() error {
 				if err := testContext.Clusters[localIndex].ControllerClient.List(ctx, namespaceMapsList); err != nil {
 					return err
 				}
-				Expect(len(namespaceMapsList.Items)).To(Equal(testconsts.NumberOfTestClusters - 1))
+				Expect(len(namespaceMapsList.Items)).To(Equal(clustersRequired - 1))
 				for i := range namespaceMapsList.Items {
 					desiredMapping, desiredMappingPresence := namespaceMapsList.Items[i].Spec.DesiredMapping[testNamespaceName]
 					if !desiredMappingPresence {
@@ -105,9 +107,9 @@ var _ = Describe("Liqo E2E", func() {
 					}
 				}
 				return nil
-			}, longTimeout, interval).Should(Succeed())
+			}, longTimeout, interval).Should(BeNil())
 
-			By(" 4 - Checking the presence of the remote namespaces")
+			By(" 3 - Checking the presence of the remote namespaces")
 			for i := range testContext.Clusters {
 				if i == localIndex {
 					continue
@@ -115,25 +117,34 @@ var _ = Describe("Liqo E2E", func() {
 				Eventually(func() error {
 					return testContext.Clusters[i].ControllerClient.Get(ctx,
 						types.NamespacedName{Name: remoteTestNamespaceName}, namespace)
-				}, longTimeout, interval).Should(Succeed())
+				}, longTimeout, interval).Should(BeNil())
 				value, ok := namespace.Annotations[liqoconst.RemoteNamespaceAnnotationKey]
-				Expect(ok).To(Equal(true))
+				Expect(ok).To(BeTrue())
 				Expect(value).To(Equal(localClusterID))
 			}
 
-			By(fmt.Sprintf(" 5 - Deleting the remote namespace inside the cluster '%d'", remoteIndex))
-			Eventually(func() metav1.StatusReason {
-				err := testContext.Clusters[remoteIndex].ControllerClient.Get(ctx,
-					types.NamespacedName{Name: remoteTestNamespaceName}, namespace)
-				_ = testContext.Clusters[remoteIndex].ControllerClient.Delete(ctx, namespace)
-				return apierrors.ReasonForError(err)
-			}, timeout, interval).Should(Equal(metav1.StatusReasonNotFound))
-
-			By(fmt.Sprintf(" 6 - Checking that the remote namespace inside the cluster '%d' has been recreated", remoteIndex))
+			var oldUIDRemoteNamespace types.UID
+			By(fmt.Sprintf(" 4 - Deleting the remote namespace inside the cluster '%d'", remoteIndex))
 			Eventually(func() error {
-				return testContext.Clusters[remoteIndex].ControllerClient.Get(ctx,
-					types.NamespacedName{Name: remoteTestNamespaceName}, namespace)
-			}, longTimeout, interval).Should(Succeed())
+				if err := testContext.Clusters[remoteIndex].ControllerClient.Get(ctx,
+					types.NamespacedName{Name: remoteTestNamespaceName}, namespace); err != nil {
+					return err
+				}
+				oldUIDRemoteNamespace = namespace.UID
+				return testContext.Clusters[remoteIndex].ControllerClient.Delete(ctx, namespace)
+			}, timeout, interval).Should(BeNil())
+
+			By(fmt.Sprintf(" 5 - Checking that the remote namespace inside the cluster '%d' has been recreated", remoteIndex))
+			Eventually(func() error {
+				if err := testContext.Clusters[remoteIndex].ControllerClient.Get(ctx,
+					types.NamespacedName{Name: remoteTestNamespaceName}, namespace); err != nil {
+					return err
+				}
+				if oldUIDRemoteNamespace == namespace.UID {
+					return fmt.Errorf("the old remote namespace still exists")
+				}
+				return nil
+			}, longTimeout, interval).Should(BeNil())
 		})
 
 		It("Remove the label and check the deletion of the remote namespaces.", func() {
@@ -141,14 +152,15 @@ var _ = Describe("Liqo E2E", func() {
 			namespaceOffloading := &offloadingv1alpha1.NamespaceOffloading{}
 			namespaceMapsList := &virtualkubeletv1alpha1.NamespaceMapList{}
 
-			By(" 1 - Getting the local namespace inside the cluster 1, and remove the liqo enabling label")
+			By(fmt.Sprintf(" 1 - Getting the local namespace inside the cluster %d, and "+
+				"remove the liqo enabling label", localIndex))
 			Eventually(func() error {
 				if err := testContext.Clusters[localIndex].ControllerClient.Get(ctx, types.NamespacedName{Name: testNamespaceName}, namespace); err != nil {
 					return err
 				}
 				delete(namespace.Labels, liqoconst.EnablingLiqoLabel)
 				return testContext.Clusters[localIndex].ControllerClient.Update(ctx, namespace)
-			}, timeout, interval).Should(Succeed())
+			}, timeout, interval).Should(BeNil())
 
 			By(" 2 - Checking if the NamespaceOffloading resource associated with the test namespace is correctly removed.")
 			Eventually(func() metav1.StatusReason {
@@ -159,13 +171,13 @@ var _ = Describe("Liqo E2E", func() {
 			By(" 3 - Checking if the NamespaceMaps do not have the entries for that test namespace")
 			Eventually(func() error {
 				return testContext.Clusters[localIndex].ControllerClient.List(ctx, namespaceMapsList)
-			}, timeout, interval).Should(Succeed())
-			Expect(len(namespaceMapsList.Items)).To(Equal(testconsts.NumberOfTestClusters - 1))
+			}, timeout, interval).Should(BeNil())
+			Expect(len(namespaceMapsList.Items)).To(Equal(clustersRequired - 1))
 			for i := range namespaceMapsList.Items {
 				_, ok := namespaceMapsList.Items[i].Spec.DesiredMapping[testNamespaceName]
-				Expect(ok).To(Equal(false))
+				Expect(ok).To(BeFalse())
 				_, ok = namespaceMapsList.Items[i].Status.CurrentMapping[testNamespaceName]
-				Expect(ok).To(Equal(false))
+				Expect(ok).To(BeFalse())
 			}
 
 			By(" 4 - Checking the absence of the remote namespaces")
@@ -179,12 +191,11 @@ var _ = Describe("Liqo E2E", func() {
 				}, timeout, interval).Should(Equal(metav1.StatusReasonNotFound))
 			}
 
-			By(" 5 - Deleting the local test namespace")
-			Eventually(func() metav1.StatusReason {
-				err := testContext.Clusters[localIndex].ControllerClient.Get(ctx, types.NamespacedName{Name: testNamespaceName}, namespace)
-				_ = testContext.Clusters[localIndex].ControllerClient.Delete(ctx, namespace)
-				return apierrors.ReasonForError(err)
-			}, longTimeout, interval).Should(Equal(metav1.StatusReasonNotFound))
+			// Cleaning the environment after the test.
+			By(" 3 - Getting the local namespace and delete it")
+			Eventually(func() error {
+				return util.EnsureNamespaceDeletion(ctx, testContext.Clusters[localIndex].NativeClient, util.GetNamespaceLabel(false))
+			}, longTimeout, interval).Should(BeNil())
 		})
 	})
 })

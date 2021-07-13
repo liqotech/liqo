@@ -24,17 +24,27 @@ import (
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/ginkgo/extensions/table"
 	. "github.com/onsi/gomega"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	"github.com/liqotech/liqo/test/e2e/testutils"
+	"github.com/liqotech/liqo/test/e2e/testconsts"
 	"github.com/liqotech/liqo/test/e2e/testutils/microservices"
 	"github.com/liqotech/liqo/test/e2e/testutils/net"
 	"github.com/liqotech/liqo/test/e2e/testutils/tester"
 	"github.com/liqotech/liqo/test/e2e/testutils/util"
 )
 
+const (
+	// clustersRequired is the number of clusters required in this E2E test.
+	clustersRequired = 2
+	// controllerClientPresence indicates if the test use the controller runtime clients.
+	controllerClientPresence = true
+	// testName is the name of this E2E test.
+	testName = "E2E_PEERING"
+)
+
 func TestE2E(t *testing.T) {
+	util.CheckIfTestIsSkipped(t, clustersRequired, testName)
 	RegisterFailHandler(Fail)
 	RunSpecs(t, "Liqo E2E Suite")
 }
@@ -42,7 +52,7 @@ func TestE2E(t *testing.T) {
 var _ = Describe("Liqo E2E", func() {
 	var (
 		ctx         = context.Background()
-		testContext = tester.GetTester(ctx)
+		testContext = tester.GetTester(ctx, clustersRequired, controllerClientPresence)
 		namespace   = "liqo"
 		interval    = 3 * time.Second
 		timeout     = 5 * time.Minute
@@ -181,13 +191,13 @@ var _ = Describe("Liqo E2E", func() {
 		AfterSuite(func() {
 
 			for i := range testContext.Clusters {
-				err := util.DeleteNamespace(ctx, testContext.Clusters[i].NativeClient, testutils.LiqoTestNamespaceLabels)
+				err := util.DeleteNamespace(ctx, testContext.Clusters[i].NativeClient, testconsts.LiqoTestNamespaceLabels)
 				Expect(err).ShouldNot(HaveOccurred())
 			}
 			Eventually(func() bool {
 				for i := range testContext.Clusters {
 					list, err := testContext.Clusters[i].NativeClient.CoreV1().Namespaces().List(ctx, metav1.ListOptions{
-						LabelSelector: labels.SelectorFromSet(testutils.LiqoTestNamespaceLabels).String(),
+						LabelSelector: labels.SelectorFromSet(testconsts.LiqoTestNamespaceLabels).String(),
 					})
 					if err != nil || len(list.Items) > 0 {
 						return false

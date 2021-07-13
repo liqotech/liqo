@@ -1,9 +1,18 @@
 package testconsts
 
-const (
-	// NumberOfTestClusters number of clusters used in E2E tests.
-	NumberOfTestClusters = 4
+import "github.com/liqotech/liqo/pkg/consts"
 
+const (
+	liqoTestingLabelKey = "liqo.io/testing-namespace"
+)
+
+// LiqoTestNamespaceLabels is a set of labels that has to be attached to test namespaces to simplify garbage collection.
+var LiqoTestNamespaceLabels = map[string]string{
+	liqoTestingLabelKey:      "true",
+	consts.EnablingLiqoLabel: consts.EnablingLiqoLabelValue,
+}
+
+const (
 	// Keys for cluster labels.
 
 	// ProviderKey indicates the cluster provider.
@@ -27,4 +36,9 @@ const (
 	RegionC = "C"
 	// RegionD -> region=D.
 	RegionD = "D"
+
+	// LiqoTestingLabelKey is a label that has to be attached to test namespaces to simplify garbage collection.
+	LiqoTestingLabelKey = "liqo.io/testing-namespace"
+	// LiqoTestingLabelValue is the value of the LiqoTestingLabelKey.
+	LiqoTestingLabelValue = "true"
 )

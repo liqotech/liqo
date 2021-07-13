@@ -39,7 +39,7 @@ type TesterOpts struct {
 
 // EnsureNetTesterPods creates the NetTest pods and waits for them to be ready.
 func EnsureNetTesterPods(ctx context.Context, homeClient kubernetes.Interface, cluster1, cluster2 *TesterOpts) error {
-	ns, err := util.EnforceNamespace(ctx, homeClient, cluster1.ClusterID, TestNamespaceName)
+	ns, err := util.EnforceNamespace(ctx, homeClient, cluster1.ClusterID, TestNamespaceName, util.GetNamespaceLabel(true))
 	if err != nil && !kerrors.IsAlreadyExists(err) {
 		klog.Error(err)
 		return err
