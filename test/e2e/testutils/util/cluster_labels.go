@@ -1,8 +1,12 @@
 package util
 
-import "github.com/liqotech/liqo/test/e2e/testconsts"
+import (
+	"fmt"
 
-// GetClusterLabels provides the labels which characterizes the indexed cluster
+	"github.com/liqotech/liqo/test/e2e/testconsts"
+)
+
+// GetClusterLabels provides the labels which characterize the indexed cluster
 // when exposed remotely as a virtual node.
 func GetClusterLabels(index int) map[string]string {
 	var clusterLabels map[string]string
@@ -28,7 +32,7 @@ func GetClusterLabels(index int) map[string]string {
 			testconsts.RegionKey:   testconsts.RegionD,
 		}
 	default:
-		return nil
+		panic(fmt.Errorf("there is no cluster with index '%d'", index))
 	}
 	return clusterLabels
 }
