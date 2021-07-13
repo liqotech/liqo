@@ -22,11 +22,11 @@ spec:
     - jsonPath: .status.phase
       name: Status
       type: string
-    - jsonPath: .spec.timeToLive
-      name: Expiration
-      type: string
     - jsonPath: .status.virtualKubeletStatus
       name: VirtualKubeletStatus
+      type: string
+    - jsonPath: .metadata.labels.liqo\.io/replication
+      name: Local
       type: string
     - jsonPath: .metadata.creationTimestamp
       name: Age

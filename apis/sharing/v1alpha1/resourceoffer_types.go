@@ -73,8 +73,8 @@ type ResourceOfferStatus struct {
 
 // ResourceOffer is the Schema for the resourceOffers API.
 // +kubebuilder:printcolumn:name="Status",type=string,JSONPath=`.status.phase`
-// +kubebuilder:printcolumn:name="Expiration",type=string,JSONPath=`.spec.timeToLive`
 // +kubebuilder:printcolumn:name="VirtualKubeletStatus",type=string,JSONPath=`.status.virtualKubeletStatus`
+// +kubebuilder:printcolumn:name="Local",type=string,JSONPath=`.metadata.labels.liqo\.io/replication`
 // +kubebuilder:printcolumn:name="Age",type=date,JSONPath=`.metadata.creationTimestamp`
 type ResourceOffer struct {
 	metav1.TypeMeta   `json:",inline"`
