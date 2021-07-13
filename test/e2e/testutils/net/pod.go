@@ -15,7 +15,7 @@ import (
 
 // EnsureNetTesterPods creates the NetTest pods and waits for them to be ready.
 func EnsureNetTesterPods(ctx context.Context, homeClient kubernetes.Interface, homeID string) error {
-	ns, err := util.EnforceNamespace(ctx, homeClient, homeID, TestNamespaceName)
+	ns, err := util.EnforceNamespace(ctx, homeClient, homeID, TestNamespaceName, util.GetNamespaceLabel(true))
 	if err != nil && !kerrors.IsAlreadyExists(err) {
 		klog.Error(err)
 		return err

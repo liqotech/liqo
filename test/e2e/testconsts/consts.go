@@ -1,9 +1,6 @@
 package testconsts
 
 const (
-	// NumberOfTestClusters number of clusters used in E2E tests.
-	NumberOfTestClusters = 4
-
 	// Keys for cluster labels.
 
 	// ProviderKey indicates the cluster provider.
@@ -27,4 +24,13 @@ const (
 	RegionC = "C"
 	// RegionD -> region=D.
 	RegionD = "D"
+
+	// LiqoTestingLabelKey is a label that has to be attached to test namespaces to simplify garbage collection.
+	LiqoTestingLabelKey = "liqo.io/testing-namespace"
+	// LiqoTestingLabelValue is the value of the LiqoTestingLabelKey.
+	LiqoTestingLabelValue = "true"
+
+	// ClusterEnvVarKey is the key of the environment variable that indicates the number of clusters available for the
+	// execution of e2e tests.
+	ClusterEnvVarKey = "CLUSTERS"
 )

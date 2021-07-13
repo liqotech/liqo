@@ -15,7 +15,7 @@ import (
 	"k8s.io/klog/v2"
 
 	liqoconst "github.com/liqotech/liqo/pkg/consts"
-	"github.com/liqotech/liqo/test/e2e/testutils"
+	testutils "github.com/liqotech/liqo/test/e2e/testutils/util"
 )
 
 const (
@@ -31,7 +31,7 @@ func DeployApp(t ginkgo.GinkgoTInterface, configPath string) error {
 	options := k8s.NewKubectlOptions("", configPath, TestNamespaceName)
 	if err := k8s.CreateNamespaceWithMetadataE(t, options, metav1.ObjectMeta{
 		Name:   "test-app",
-		Labels: testutils.LiqoTestNamespaceLabels,
+		Labels: testutils.GetNamespaceLabel(true),
 	}); err != nil {
 		return err
 	}
