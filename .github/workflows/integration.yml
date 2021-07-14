@@ -134,25 +134,18 @@ jobs:
         run: |
           rm -rf /tmp/.buildx-cache
           mv /tmp/.buildx-cache-new /tmp/.buildx-cache
+
+
   e2e-test-trigger:
      runs-on: ubuntu-latest
      needs: [build, configure]
      if: needs.configure.outputs.ok-to-continue == 'true' && github.event.pull_request.draft == false
-     strategy:
-       fail-fast: false
-       matrix:
-         component:
-         - liqops
-         - doc-website
      steps:
-       - uses: actions/checkout@v2
-         with:
-           ref: "${{ env.commit_ref }}"
-       - name: Notify Event to ${{ matrix.component }}
+       - name: Notify Event to E2E Tests
          uses: peter-evans/repository-dispatch@v1
          with:
            token: ${{ secrets.CI_TOKEN }}
-           repository: liqotech/${{ matrix.component }}
+           repository: liqotech/liqops
            event-type: "dev-event"
            client-payload: |
              {
@@ -160,6 +153,33 @@ jobs:
                "commit": "${{ needs.configure.outputs.commit_ref }}",
                "repo-name": "${{ needs.configure.outputs.repo-name }}"
              }
+
+  docs-pipeline-trigger:
+    runs-on: ubuntu-latest
+    needs: configure
+    if: needs.configure.outputs.ok-to-continue == 'true' && github.event.pull_request.draft == false
+    steps:
+      - name: Check if /docs files changed
+        uses: dorny/paths-filter@v2
+        id: pathFilter
+        with:
+          filters: |
+            docs:
+              - 'docs/**'
+      - name: Notify Event to doc-website
+        if: steps.pathFilter.outputs.docs == 'true'
+        uses: peter-evans/repository-dispatch@v1
+        with:
+          token: ${{ secrets.CI_TOKEN }}
+          repository: liqotech/doc-website
+          event-type: "dev-event"
+          client-payload: |
+            {
+              "master": "${{ needs.configure.outputs.master }}",
+              "commit": "${{ needs.configure.outputs.commit_ref }}",
+              "repo-name": "${{ needs.configure.outputs.repo-name }}"
+            }
+
   release:
     runs-on: ubuntu-latest
     needs: [build, test, configure]
