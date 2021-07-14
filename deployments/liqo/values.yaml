@@ -189,6 +189,12 @@ nameOverride: ""
 # -- full liqo name override
 fullnameOverride: ""
 
+awsConfig:
+  accessKeyId: ""
+  secretAccessKey: ""
+  region: ""
+  clusterName: ""
+
 # capsule subchart configuration
 capsule:
   # -- liqo needs capsule to work properly, but you can use your already deployed capsule installation

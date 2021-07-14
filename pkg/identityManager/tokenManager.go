@@ -42,20 +42,8 @@ func (tokMan *iamTokenManager) start(ctx context.Context) {
 			case <-time.NewTicker(10 * time.Minute).C:
 				klog.V(4).Info("Refreshing tokens...")
 				for remoteClusterID, namespacedName := range tokMan.availableClusterIDSecrets {
-					secret, err := tokMan.client.CoreV1().Secrets(namespacedName.Namespace).Get(ctx, namespacedName.Name, metav1.GetOptions{})
-					if err != nil {
-						klog.Errorf("[%v] %v", remoteClusterID, err)
-						continue
-					}
-
-					tok, err := getIAMBearerToken(secret, remoteClusterID)
-					if err != nil {
-						klog.Errorf("[%v] %v", remoteClusterID, err)
-						continue
-					}
-
-					if _, err = tokMan.storeToken(remoteClusterID, tok); err != nil {
-						klog.Errorf("[%v] %v", remoteClusterID, err)
+					if err := tokMan.refreshToken(ctx, remoteClusterID, namespacedName); err != nil {
+						klog.Error(err)
 						continue
 					}
 				}
@@ -65,6 +53,26 @@ func (tokMan *iamTokenManager) start(ctx context.Context) {
 			}
 		}
 	}()
+}
+
+func (tokMan *iamTokenManager) refreshToken(ctx context.Context, remoteClusterID string, namespacedName types.NamespacedName) error {
+	secret, err := tokMan.client.CoreV1().Secrets(namespacedName.Namespace).Get(ctx, namespacedName.Name, metav1.GetOptions{})
+	if err != nil {
+		klog.Errorf("[%v] %v", remoteClusterID, err)
+		return err
+	}
+
+	tok, err := getIAMBearerToken(secret, remoteClusterID)
+	if err != nil {
+		klog.Errorf("[%v] %v", remoteClusterID, err)
+		return err
+	}
+
+	if _, err = tokMan.storeToken(remoteClusterID, tok); err != nil {
+		klog.Errorf("[%v] %v", remoteClusterID, err)
+		return err
+	}
+	return nil
 }
 
 func (tokMan *iamTokenManager) getConfig(secret *v1.Secret, remoteClusterID string) (*rest.Config, error) {
@@ -116,14 +124,14 @@ func (tokMan *iamTokenManager) addClusterID(remoteClusterID string, secret types
 func (tokMan *iamTokenManager) storeToken(remoteClusterID string, tok *token.Token) (string, error) {
 	_, err := os.Stat(tokenDir)
 	if os.IsNotExist(err) {
-		if err = os.Mkdir(tokenDir, 0755); err != nil {
+		if err = os.Mkdir(tokenDir, 0750); err != nil {
 			klog.Error(err)
 			return "", err
 		}
 	}
 
 	filename := filepath.Join(tokenDir, remoteClusterID)
-	err = ioutil.WriteFile(filename, []byte(tok.Token), 0644)
+	err = ioutil.WriteFile(filename, []byte(tok.Token), 0600)
 	if err != nil {
 		klog.Error(err)
 		return "", err
@@ -152,13 +160,17 @@ func getIAMBearerToken(secret *v1.Secret, remoteClusterID string) (*token.Token,
 	}
 
 	// start a new AWS session
-	sessRemote := session.Must(session.NewSession(&aws.Config{
+	sessRemote, err := session.NewSession(&aws.Config{
 		Region: aws.String(string(region)),
 		Credentials: credentials.NewStaticCredentialsFromCreds(credentials.Value{
 			AccessKeyID:     string(accessKeyID),
 			SecretAccessKey: string(secretAccessKey),
 		}),
-	}))
+	})
+	if err != nil {
+		klog.Error(err)
+		return nil, err
+	}
 
 	eksClusterID, err := getValue(secret, awsEKSClusterIDSecretKey, remoteClusterID)
 	if err != nil {

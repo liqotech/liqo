@@ -33,6 +33,7 @@ type CertificateIdentityResponse struct {
 	AWSIdentityInfo AWSIdentityInfo `json:"aws,omitempty"`
 }
 
+// HasAWSValues checks if the identity response has the AWS configuration set.
 func (resp *CertificateIdentityResponse) HasAWSValues() bool {
 	credentials := resp.AWSIdentityInfo.AccessKeyID != "" && resp.AWSIdentityInfo.SecretAccessKey != ""
 	region := resp.AWSIdentityInfo.Region != ""

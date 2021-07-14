@@ -25,7 +25,7 @@ func (certManager *identityManager) GetConfig(remoteClusterID, namespace string)
 	}
 
 	if certManager.isAwsIdentity(secret) {
-		return certManager.getIAMConfig(secret, remoteClusterID)
+		return certManager.iamTokenManager.getConfig(secret, remoteClusterID)
 	}
 
 	// retrieve the data required to build the rest config
@@ -105,8 +105,4 @@ func (certManager *identityManager) GetRemoteTenantNamespace(
 		return "", err
 	}
 	return string(remoteNamespace), nil
-}
-
-func (certManager *identityManager) getIAMConfig(secret *v1.Secret, remoteClusterID string) (*rest.Config, error) {
-	return certManager.iamTokenManager.getConfig(secret, remoteClusterID)
 }

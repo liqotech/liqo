@@ -69,15 +69,12 @@ func (certManager *identityManager) StoreCertificate(remoteClusterID string, ide
 	secret.Labels[certificateAvailableLabel] = "true"
 
 	if identityResponse.HasAWSValues() || certManager.isAwsIdentity(secret) {
-
 		secret.Data[awsAccessKeyIDSecretKey] = []byte(identityResponse.AWSIdentityInfo.AccessKeyID)
 		secret.Data[awsSecretAccessKeySecretKey] = []byte(identityResponse.AWSIdentityInfo.SecretAccessKey)
 		secret.Data[awsRegionSecretKey] = []byte(identityResponse.AWSIdentityInfo.Region)
 		secret.Data[awsEKSClusterIDSecretKey] = []byte(identityResponse.AWSIdentityInfo.EKSClusterID)
 		secret.Data[awsIAMUserArnSecretKey] = []byte(identityResponse.AWSIdentityInfo.IAMUserArn)
-
 	} else {
-
 		certificate, err := base64.StdEncoding.DecodeString(identityResponse.Certificate)
 		if err != nil {
 			klog.Error(err)

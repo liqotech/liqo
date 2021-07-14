@@ -67,6 +67,22 @@ spec:
           - "$(POD_NAMESPACE)"
           - "--resyncSeconds"
           - "30"
+          {{- if .Values.awsConfig.accessKeyId }}
+          - "--awsAccessKeyId"
+          - {{ .Values.awsConfig.accessKeyId | quote }}
+          {{- end }}
+          {{- if .Values.awsConfig.secretAccessKey }}
+          - "--awsSecretAccessKey"
+          - {{ .Values.awsConfig.secretAccessKey | quote }}
+          {{- end }}
+          {{- if .Values.awsConfig.region }}
+          - "--awsRegion"
+          - {{ .Values.awsConfig.region | quote }}
+          {{- end }}
+          {{- if .Values.awsConfig.clusterName }}
+          - "--awsClusterName"
+          - {{ .Values.awsConfig.clusterName | quote }}
+          {{- end }}
           - "--listeningPort"
           {{- if not .Values.auth.tls}}
           - "5000"
