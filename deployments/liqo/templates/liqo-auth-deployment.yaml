@@ -1,5 +1,6 @@
 ---
 {{- $authConfig := (merge (dict "name" "auth" "module" "discovery" "containerName" "cert-creator") .) -}}
+{{- $awsConfig := (merge (dict "name" "aws-config" "module" "aws-config") .) -}}
 
 apiVersion: apps/v1
 kind: Deployment
@@ -63,15 +64,24 @@ spec:
           imagePullPolicy: {{ .Values.pullPolicy }}
           command: ["/usr/bin/auth-service"]
           args:
-          - "--namespace"
-          - "$(POD_NAMESPACE)"
-          - "--resyncSeconds"
-          - "30"
-          - "--listeningPort"
+          - "--namespace=$(POD_NAMESPACE)"
+          - "--resyncSeconds=30"
+          {{- if .Values.awsConfig.accessKeyId }}
+          - "--awsAccessKeyId=$(ACCESS_KEY_ID)"
+          {{- end }}
+          {{- if .Values.awsConfig.secretAccessKey }}
+          - "--awsSecretAccessKey=$(SECRET_ACCESS_KEY)"
+          {{- end }}
+          {{- if .Values.awsConfig.region }}
+          - "--awsRegion={{ .Values.awsConfig.region }}"
+          {{- end }}
+          {{- if .Values.awsConfig.clusterName }}
+          - "--awsClusterName={{ .Values.awsConfig.clusterName }}"
+          {{- end }}
           {{- if not .Values.auth.tls}}
-          - "5000"
+          - "--listeningPort=5000"
           {{- else }}
-          - "443"
+          - "--listeningPort=443"
           - "--useTls"
           {{- end }}
           env:
@@ -79,6 +89,20 @@ spec:
               valueFrom:
                 fieldRef:
                   fieldPath: metadata.namespace
+            {{- if .Values.awsConfig.accessKeyId }}
+            - name: ACCESS_KEY_ID
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "liqo.prefixedName" $awsConfig }}
+                  key: ACCESS_KEY_ID
+            {{- end }}
+            {{- if .Values.awsConfig.secretAccessKey }}
+            - name: SECRET_ACCESS_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "liqo.prefixedName" $awsConfig }}
+                  key: SECRET_ACCESS_KEY
+            {{- end }}
           resources:
             requests:
               cpu: 100m
