@@ -24,6 +24,10 @@
 | auth.service.annotations | object | `{}` | auth service annotations |
 | auth.service.type | string | `"NodePort"` | The type of service used to expose the Authentication Service If you are exposing this service with an Ingress consider to change it to ClusterIP, otherwise if you plan to use liqo over the Internet consider to change this field to "LoadBalancer". See https://doc.liqo.io/user/install/pre-install/ for more details. |
 | auth.tls | bool | `true` | Enable TLS for the Authentication Service Pod (using a self-signed certificate). If you are exposing this service with an Ingress consider to disable it or add the appropriate annotations to the Ingress resource. |
+| awsConfig.accessKeyId | string | `""` | accessKeyID for the Liqo user |
+| awsConfig.clusterName | string | `""` | name of the EKS cluster |
+| awsConfig.region | string | `""` | AWS region where the clsuter is runnnig |
+| awsConfig.secretAccessKey | string | `""` | secretAccessKey for the Liqo user |
 | capsule.fullnameOverride | string | `"capsule"` | override the fullname to fix naming problems |
 | capsule.install | bool | `true` | liqo needs capsule to work properly, but you can use your already deployed capsule installation |
 | capsule.manager.options.capsuleUserGroups[0] | string | `"capsule.clastix.io"` |  |

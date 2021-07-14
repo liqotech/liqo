@@ -189,6 +189,20 @@ nameOverride: ""
 # -- full liqo name override
 fullnameOverride: ""
 
+# aws configuration for the local cluster and the Liqo user,
+# this user should be able to create new IAM user, to create new programmatic access
+# credentials, and to describe EKS clusters.
+# NOTE: set it only if running on EKS, otherwise let this fields with the default value
+awsConfig:
+  # -- accessKeyID for the Liqo user
+  accessKeyId: ""
+  # -- secretAccessKey for the Liqo user
+  secretAccessKey: ""
+  # -- AWS region where the clsuter is runnnig
+  region: ""
+  # -- name of the EKS cluster
+  clusterName: ""
+
 # capsule subchart configuration
 capsule:
   # -- liqo needs capsule to work properly, but you can use your already deployed capsule installation
