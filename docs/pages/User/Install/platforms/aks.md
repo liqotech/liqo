@@ -1,5 +1,5 @@
 ---
-title: AKS
+title: Install on AKS
 weight: 2
 ---
 

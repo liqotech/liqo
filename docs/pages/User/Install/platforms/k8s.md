@@ -1,5 +1,5 @@
 ---
-title: K8s with Kubeadm
+title: Install on K8s with Kubeadm
 weight: 4
 ---
 

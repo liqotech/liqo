@@ -1,5 +1,5 @@
 ---
-title: GKE
+title: Install on GKE
 weight: 3
 ---
 

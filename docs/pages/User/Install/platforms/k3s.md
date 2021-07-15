@@ -1,5 +1,5 @@
 ---
-title: K3s 
+title: Install on K3s 
 weight: 5
 ---
 

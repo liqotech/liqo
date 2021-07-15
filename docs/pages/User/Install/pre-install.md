@@ -10,7 +10,7 @@ Liqo can be installed on different types of clusters, either on-premise or on pu
 As presented in a [dedicated section](/user/post-install/discovery), Liqo has several mechanisms to handle new clusters discovery (LAN, DNS, Manual). Despite LAN discovery is limited to very specific use-cases (when clusters are in the same broadcast domain), DNS and Manual discovery can be applied to many scenarios.
 However, the clusters should satisfy few peering requirements. In particular, the configuration depends on the type of connectivity between the two clusters. 
 
-### Peering Requirements
+## Peering Requirements
 
 Liqo requires the following services to be reciprocally accessible on both clusters to be able to start the cluster peering:
 
@@ -22,6 +22,7 @@ Depending on the physical setup of your cluster, you need to properly configure,
 
 The exposition parameters can be configured at installation time using the [Liqo Helm Chart](/user/install/chart_values) and updated after the installation by issuing an ``helm update`` after changing them in your values.yml. If you need more information about Helm and how charts can be configured, you can have a look at the [Helm official documentation](https://helm.sh/docs/). Pay attention that changing exposition parameters may affect and break active peerings. We suggest to disable all peerings before changing the Liqo exposition configuration.
 
+## Scenarios
 ### Cloud to cloud
 
 ![](/images/scenarios/cloud-to-cloud.svg)
