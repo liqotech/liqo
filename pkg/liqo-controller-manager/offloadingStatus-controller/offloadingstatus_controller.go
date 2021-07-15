@@ -24,8 +24,6 @@ import (
 	"k8s.io/klog/v2"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/event"
-	"sigs.k8s.io/controller-runtime/pkg/predicate"
 
 	offv1alpha1 "github.com/liqotech/liqo/apis/offloading/v1alpha1"
 	mapsv1alpha1 "github.com/liqotech/liqo/apis/virtualKubelet/v1alpha1"
@@ -72,12 +70,9 @@ func (r *OffloadingStatusReconciler) Reconcile(ctx context.Context, req ctrl.Req
 		return ctrl.Result{}, err
 	}
 
-	if len(namespaceMapList.Items) == 0 {
-		klog.Info("No NamespaceMaps in the cluster at the moment")
-		return ctrl.Result{RequeueAfter: r.RequeueTime}, nil
-	}
-
 	original := namespaceOffloading.DeepCopy()
+
+	ensureRemoteConditionsConsistence(namespaceOffloading, namespaceMapList)
 
 	setRemoteConditionsForEveryCluster(namespaceOffloading, namespaceMapList)
 
@@ -93,19 +88,9 @@ func (r *OffloadingStatusReconciler) Reconcile(ctx context.Context, req ctrl.Req
 	return ctrl.Result{RequeueAfter: r.RequeueTime}, nil
 }
 
-// checkNamespaceOffloadingStatus calls Reconcile only when a new NamespaceOffloading is created.
-func checkNamespaceOffloadingStatus() predicate.Predicate {
-	return predicate.Funcs{
-		UpdateFunc: func(e event.UpdateEvent) bool {
-			return false
-		},
-	}
-}
-
 // SetupWithManager reconciles when a new NamespaceOffloading is created.
 func (r *OffloadingStatusReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&offv1alpha1.NamespaceOffloading{}).
-		WithEventFilter(checkNamespaceOffloadingStatus()).
 		Complete(r)
 }

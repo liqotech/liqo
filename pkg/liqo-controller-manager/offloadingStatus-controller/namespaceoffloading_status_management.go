@@ -129,3 +129,22 @@ func setNamespaceOffloadingStatus(noff *offv1alpha1.NamespaceOffloading) {
 	klog.Infof("The OffloadingStatus for the NamespaceOffloading in the namespace '%s' is set to '%s'",
 		noff.Namespace, noff.Status.OffloadingPhase)
 }
+
+// ensureRemoteConditionsConsistence checks for every remote condition of the NamespaceOffloading resource that the
+// corresponding NamespaceMap is still there. If the peering is deleted also the corresponding remote condition
+// must be deleted.
+func ensureRemoteConditionsConsistence(noff *offv1alpha1.NamespaceOffloading, nml *mapsv1alpha1.NamespaceMapList) {
+	for remoteClusterID := range noff.Status.RemoteNamespacesConditions {
+		presence := false
+		for i := range nml.Items {
+			if nodeClusterID, ok := nml.Items[i].Labels[liqoconst.RemoteClusterID]; ok && remoteClusterID == nodeClusterID {
+				presence = true
+				break
+			}
+		}
+		if !presence {
+			delete(noff.Status.RemoteNamespacesConditions, remoteClusterID)
+			klog.Infof("The remoteNamespaceCondition for the remote cluster '%s' is no more necessary", remoteClusterID)
+		}
+	}
+}
