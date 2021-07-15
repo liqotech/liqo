@@ -144,21 +144,19 @@ func (r *ResourceOfferReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 	case kubeletDeletePhaseDrainingNode:
 		// set virtual kubelet in deleting phase
 		resourceOffer.Status.VirtualKubeletStatus = sharingv1alpha1.VirtualKubeletStatusDeleting
+		return result, nil
 	case kubeletDeletePhaseNone:
-		break
+		// create the virtual kubelet deployment
+		if err = r.createVirtualKubeletDeployment(ctx, &resourceOffer); err != nil {
+			klog.Error(err)
+			return ctrl.Result{}, err
+		}
+		return result, nil
 	default:
 		err = fmt.Errorf("unknown deleting phase %v", deletingPhase)
 		klog.Error(err)
 		return result, err
 	}
-
-	// create the virtual kubelet deployment
-	if err = r.createVirtualKubeletDeployment(ctx, &resourceOffer); err != nil {
-		klog.Error(err)
-		return ctrl.Result{}, err
-	}
-
-	return result, nil
 }
 
 // SetupWithManager sets up the controller with the Manager.

@@ -399,5 +399,66 @@ var _ = Describe("Namespace controller", func() {
 
 		})
 
+		It(" TEST 6: Delete a NamespaceMap and check if the corresponding remote condition is deleted", func() {
+
+			// The namespace name is associated with the test number
+			namespace6Name := "namespace6"
+			By(fmt.Sprintf(" 1 - Creating the namespace '%s'", namespace6Name))
+			namespace6 := &corev1.Namespace{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: namespace6Name,
+				},
+			}
+			Expect(homeClient.Create(context.TODO(), namespace6)).To(BeNil())
+
+			By(" 2 - Creating the associated NamespaceOffloading")
+			namespaceOffloading6 := &offv1alpha1.NamespaceOffloading{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      liqoconst.DefaultNamespaceOffloadingName,
+					Namespace: namespace6Name,
+				},
+				Spec: offv1alpha1.NamespaceOffloadingSpec{
+					NamespaceMappingStrategy: offv1alpha1.EnforceSameNameMappingStrategyType,
+					PodOffloadingStrategy:    offv1alpha1.LocalAndRemotePodOffloadingStrategyType,
+					ClusterSelector:          corev1.NodeSelector{NodeSelectorTerms: []corev1.NodeSelectorTerm{}},
+				},
+			}
+			Expect(homeClient.Create(context.TODO(), namespaceOffloading6)).To(BeNil())
+
+			By(" 3 - Get NamespaceMap associated to remote cluster 2 and delete it")
+			Eventually(func() error {
+				if err := homeClient.List(context.TODO(), nms, client.MatchingLabels{liqoconst.RemoteClusterID: remoteClusterId2}); err != nil {
+					return err
+				}
+				if len(nms.Items) == 0 {
+					return nil
+				}
+				_ = homeClient.Delete(context.TODO(), nms.Items[0].DeepCopy())
+				return fmt.Errorf("the namespaceMap deletion is still in progress")
+			}, timeout, interval).Should(BeNil())
+
+			By(" 4 - Checking Terminating status of the NamespaceOffloading and the remote conditions")
+			namespaceOffloading6 = &offv1alpha1.NamespaceOffloading{}
+			Eventually(func() error {
+				if err := homeClient.Get(context.TODO(), types.NamespacedName{
+					Name:      liqoconst.DefaultNamespaceOffloadingName,
+					Namespace: namespace6Name}, namespaceOffloading6); err != nil {
+					return err
+				}
+				if len(namespaceOffloading6.Status.RemoteNamespacesConditions) != mapNumber-1 {
+					return fmt.Errorf("there are still '%d' remoteNamespaceCondition",
+						len(namespaceOffloading6.Status.RemoteNamespacesConditions))
+				}
+				if len(namespaceOffloading6.Status.RemoteNamespacesConditions[remoteClusterId1]) != 1 {
+					return fmt.Errorf("the remote condition associated with the namespaceMap 1 is not present")
+				}
+				if len(namespaceOffloading6.Status.RemoteNamespacesConditions[remoteClusterId3]) != 1 {
+					return fmt.Errorf("the remote condition associated with the namespaceMap 3 is not present")
+				}
+				return nil
+			}, timeout, interval).Should(BeNil())
+
+		})
+
 	})
 })

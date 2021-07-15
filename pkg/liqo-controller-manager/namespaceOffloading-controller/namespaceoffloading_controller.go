@@ -77,10 +77,6 @@ func (r *NamespaceOffloadingReconciler) Reconcile(ctx context.Context, req ctrl.
 	if err != nil {
 		return ctrl.Result{}, err
 	}
-	// There are no NamespaceMap in the cluster
-	if namespaceMapNumber == 0 {
-		return ctrl.Result{}, nil
-	}
 
 	// If deletion timestamp is set, it starts deletion logic and waits until all remote Namespaces
 	// associated with this resource are deleted.

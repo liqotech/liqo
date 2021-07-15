@@ -75,12 +75,12 @@ func (r *NamespaceOffloadingReconciler) getClusterIDMap(ctx context.Context) (ma
 		return nil, err
 	}
 
+	clusterIDMap := make(map[string]*mapsv1alpha1.NamespaceMap)
 	if len(nms.Items) == 0 {
 		klog.Info("No NamespaceMaps at the moment in the cluster")
-		return nil, nil
+		return clusterIDMap, nil
 	}
 
-	clusterIDMap := make(map[string]*mapsv1alpha1.NamespaceMap)
 	for i := range nms.Items {
 		clusterIDMap[nms.Items[i].Labels[liqoconst.RemoteClusterID]] = &nms.Items[i]
 	}
