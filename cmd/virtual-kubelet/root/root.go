@@ -30,7 +30,6 @@ import (
 	kubeinformers "k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/scheme"
-	coordv1 "k8s.io/client-go/kubernetes/typed/coordination/v1"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/record"
 	"k8s.io/client-go/util/workqueue"
@@ -43,9 +42,9 @@ import (
 	"github.com/liqotech/liqo/pkg/virtualKubelet"
 	liqonodeprovider "github.com/liqotech/liqo/pkg/virtualKubelet/liqoNodeProvider"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/manager"
-	"github.com/liqotech/liqo/pkg/virtualKubelet/node/module"
 	nodeProvider "github.com/liqotech/liqo/pkg/virtualKubelet/node/provider"
 	liqoprovider "github.com/liqotech/liqo/pkg/virtualKubelet/provider"
+	module "github.com/virtual-kubelet/virtual-kubelet/node"
 )
 
 // NewCommand creates a new top-level command.
@@ -143,10 +142,10 @@ func runRootCommand(ctx context.Context, s *provider.Store, c *Opts) error {
 		return errors.Wrapf(err, "error initializing provider %s", c.Provider)
 	}
 
-	var leaseClient coordv1.LeaseInterface
-	if c.EnableNodeLease {
-		leaseClient = client.CoordinationV1().Leases(corev1.NamespaceNodeLease)
-	}
+	// var leaseClient coordv1.LeaseInterface
+	// if c.EnableNodeLease {
+	// 	leaseClient = client.CoordinationV1().Leases(corev1.NamespaceNodeLease)
+	// }
 
 	var nodeRunner *module.NodeController
 
@@ -178,7 +177,7 @@ func runRootCommand(ctx context.Context, s *provider.Store, c *Opts) error {
 		nodeProviderModule,
 		pNode,
 		client.CoreV1().Nodes(),
-		module.WithNodeEnableLeaseV1(leaseClient, nil),
+		//		module.WithNodeEnableLeaseV1(leaseClient, nil),
 		module.WithNodeStatusUpdateErrorHandler(
 			func(ctx context.Context, err error) error {
 				klog.Info("node setting up")
@@ -221,17 +220,17 @@ func runRootCommand(ctx context.Context, s *provider.Store, c *Opts) error {
 
 	eb := record.NewBroadcaster()
 
-	pc, err := module.NewPodController(&module.PodControllerConfig{
-		PodClient:                            client.CoreV1(),
-		PodInformer:                          podInformer,
-		EventRecorder:                        eb.NewRecorder(scheme.Scheme, corev1.EventSource{Component: path.Join(pNode.Name, "pod-controller")}),
-		Provider:                             p,
-		SecretInformer:                       secretInformer,
-		ConfigMapInformer:                    configMapInformer,
-		ServiceInformer:                      serviceInformer,
-		SyncPodsFromKubernetesRateLimiter:    newPodControllerWorkqueueRateLimiter(),
-		SyncPodStatusFromProviderRateLimiter: newPodControllerWorkqueueRateLimiter(),
-		DeletePodsFromKubernetesRateLimiter:  newPodControllerWorkqueueRateLimiter(),
+	pc, err := module.NewPodController(module.PodControllerConfig{
+		PodClient:         client.CoreV1(),
+		PodInformer:       podInformer,
+		EventRecorder:     eb.NewRecorder(scheme.Scheme, corev1.EventSource{Component: path.Join(pNode.Name, "pod-controller")}),
+		Provider:          p,
+		SecretInformer:    secretInformer,
+		ConfigMapInformer: configMapInformer,
+		// ServiceInformer:                      serviceInformer,
+		// SyncPodsFromKubernetesRateLimiter:    newPodControllerWorkqueueRateLimiter(),
+		// SyncPodStatusFromProviderRateLimiter: newPodControllerWorkqueueRateLimiter(),
+		// DeletePodsFromKubernetesRateLimiter:  newPodControllerWorkqueueRateLimiter(),
 	})
 	if err != nil {
 		return errors.Wrap(err, "error setting up pod controller")

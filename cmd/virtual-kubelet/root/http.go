@@ -28,7 +28,7 @@ import (
 	"k8s.io/klog"
 
 	"github.com/liqotech/liqo/cmd/virtual-kubelet/provider"
-	"github.com/liqotech/liqo/pkg/virtualKubelet/node/module/api"
+	"github.com/virtual-kubelet/virtual-kubelet/node/api"
 )
 
 // AcceptedCiphers is the list of accepted TLS ciphers, with known weak ciphers elided

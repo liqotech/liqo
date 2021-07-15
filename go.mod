@@ -7,11 +7,9 @@ require (
 	github.com/clastix/capsule v0.1.0-rc2
 	github.com/containernetworking/plugins v0.8.6
 	github.com/coreos/go-iptables v0.4.5
-	github.com/daixiang0/gci v0.2.9 // indirect
 	github.com/google/go-cmp v0.5.5
 	github.com/google/gofuzz v1.2.0 // indirect
 	github.com/google/uuid v1.2.0
-	github.com/gorilla/mux v1.8.0
 	github.com/grandcat/zeroconf v1.0.0
 	github.com/gruntwork-io/gruntwork-cli v0.7.0
 	github.com/gruntwork-io/terratest v0.35.6
@@ -19,7 +17,6 @@ require (
 	github.com/julienschmidt/httprouter v1.3.0
 	github.com/metal-stack/go-ipam v1.8.4-0.20210322080203-5a9da5064b27
 	github.com/miekg/dns v1.1.35
-	github.com/mitchellh/go-homedir v1.1.0
 	github.com/modern-go/reflect2 v1.0.1
 	github.com/onsi/ginkgo v1.16.4
 	github.com/onsi/gomega v1.13.0
@@ -28,6 +25,7 @@ require (
 	github.com/spf13/cobra v1.1.1
 	github.com/spf13/pflag v1.0.5
 	github.com/stretchr/testify v1.7.0
+	github.com/virtual-kubelet/virtual-kubelet v1.2.1
 	github.com/vishvananda/netlink v1.1.0
 	github.com/vishvananda/netns v0.0.0-20200728191858-db3c7e526aae
 	go.opencensus.io v0.23.0
@@ -49,7 +47,7 @@ require (
 	k8s.io/klog/v2 v2.8.0
 	k8s.io/kubectl v0.21.0
 	k8s.io/kubelet v0.0.0
-	k8s.io/kubernetes v1.21.0
+	k8s.io/kubernetes v1.21.2
 	k8s.io/metrics v0.21.0
 	k8s.io/utils v0.0.0-20210527160623-6fdb442a123b
 	sigs.k8s.io/controller-runtime v0.9.0-beta.2
@@ -110,3 +108,5 @@ replace k8s.io/component-helpers => k8s.io/component-helpers v0.21.0
 replace k8s.io/controller-manager => k8s.io/controller-manager v0.21.0
 
 replace k8s.io/mount-utils => k8s.io/mount-utils v0.21.0
+
+replace github.com/virtual-kubelet/virtual-kubelet => github.com/liqotech/virtual-kubelet v1.2.2-0.20210715142307-7c96c8471b7f

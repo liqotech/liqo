@@ -22,8 +22,8 @@ import (
 	apimgmgt "github.com/liqotech/liqo/pkg/virtualKubelet/apiReflection"
 	vkContext "github.com/liqotech/liqo/pkg/virtualKubelet/context"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/forge"
-	"github.com/liqotech/liqo/pkg/virtualKubelet/node/module/api"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/translation/serviceEnv"
+	"github.com/virtual-kubelet/virtual-kubelet/node/api"
 )
 
 // CreatePod accepts a Pod definition and stores it in memory.
