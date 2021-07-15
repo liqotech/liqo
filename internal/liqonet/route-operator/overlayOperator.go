@@ -9,8 +9,6 @@ import (
 	"github.com/vishvananda/netlink"
 	corev1 "k8s.io/api/core/v1"
 	k8sApiErrors "k8s.io/apimachinery/pkg/api/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/klog"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -22,39 +20,17 @@ import (
 )
 
 var (
-	// This labels are the ones set during the deployment of liqo using the helm chart.
-	// Any change to those labels on the helm chart has also to be reflected here.
-	podInstanceLabelKey   = "app.kubernetes.io/instance"
-	podInstanceLabelValue = "liqo-route"
-	podNameLabelKey       = "app.kubernetes.io/name"
-	podNameLabelValue     = "route"
-	// vxlanMACAddressKey annotation key the mac address of vxlan interface.
+	// vxlanMACAddressKey annotation key for the mac address of vxlan interface.
 	vxlanMACAddressKey = "net.liqo.io/vxlan.mac.address"
-	// PodLabelSelector label selector used to track only the route pods.
-	PodLabelSelector = &metav1.LabelSelector{
-		MatchExpressions: []metav1.LabelSelectorRequirement{
-			{
-				Key:      podInstanceLabelKey,
-				Operator: metav1.LabelSelectorOpIn,
-				Values:   []string{podInstanceLabelValue},
-			},
-			{
-				Key:      podNameLabelKey,
-				Operator: metav1.LabelSelectorOpIn,
-				Values:   []string{podNameLabelValue},
-			},
-		},
-	}
 )
 
 // OverlayController reconciles pods objects, in our case the route operators pods.
 type OverlayController struct {
 	client.Client
-	vxlanDev    *overlay.VxlanDevice
-	podIP       string
-	podSelector labels.Selector
-	nodesLock   *sync.RWMutex
-	vxlanPeers  map[string]*overlay.Neighbor
+	vxlanDev   *overlay.VxlanDevice
+	podIP      string
+	nodesLock  *sync.RWMutex
+	vxlanPeers map[string]*overlay.Neighbor
 	// For each nodeName contains its IP addr.
 	vxlanNodes map[string]string
 	// Given the namespace/podName it contains the pod name where the pod is running.
@@ -112,12 +88,8 @@ func (ovc *OverlayController) Reconcile(ctx context.Context, req ctrl.Request) (
 }
 
 // NewOverlayController returns a new controller ready to be setup and started with the controller manager.
-func NewOverlayController(podIP string, podSelector *metav1.LabelSelector, vxlanDevice *overlay.VxlanDevice,
-	nodesLock *sync.RWMutex, vxlanNodes map[string]string, cl client.Client) (*OverlayController, error) {
-	selector, err := metav1.LabelSelectorAsSelector(podSelector)
-	if err != nil {
-		return nil, err
-	}
+func NewOverlayController(podIP string, vxlanDevice *overlay.VxlanDevice, nodesLock *sync.RWMutex,
+	vxlanNodes map[string]string, cl client.Client) (*OverlayController, error) {
 	if vxlanDevice == nil {
 		return nil, &liqoerrors.WrongParameter{
 			Reason:    liqoerrors.NotNil,
@@ -125,14 +97,13 @@ func NewOverlayController(podIP string, podSelector *metav1.LabelSelector, vxlan
 		}
 	}
 	return &OverlayController{
-		Client:      cl,
-		vxlanDev:    vxlanDevice,
-		podIP:       podIP,
-		podSelector: selector,
-		nodesLock:   nodesLock,
-		vxlanPeers:  map[string]*overlay.Neighbor{},
-		vxlanNodes:  vxlanNodes,
-		podToNode:   map[string]string{},
+		Client:     cl,
+		vxlanDev:   vxlanDevice,
+		podIP:      podIP,
+		nodesLock:  nodesLock,
+		vxlanPeers: map[string]*overlay.Neighbor{},
+		vxlanNodes: vxlanNodes,
+		podToNode:  map[string]string{},
 	}, nil
 }
 
@@ -229,10 +200,6 @@ func (ovc *OverlayController) podFilter(obj client.Object) bool {
 	p, ok := obj.(*corev1.Pod)
 	if !ok {
 		klog.Infof("object {%s} is not of type corev1.Pod", obj.GetName())
-		return false
-	}
-	// Filter by labels.
-	if match := ovc.podSelector.Matches(labels.Set(obj.GetLabels())); !match {
 		return false
 	}
 	// If it is our pod then process it.

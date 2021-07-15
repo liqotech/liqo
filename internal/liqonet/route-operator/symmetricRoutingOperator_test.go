@@ -296,15 +296,6 @@ var _ = Describe("SymmetricRoutingOperator", func() {
 			})
 		})
 
-		Context("when pod is running on same node as the operator", func() {
-			It("should return false", func() {
-				// Set the same node name.
-				srcTestPod.Spec.NodeName = srcNodeName
-				ok := src.podFilter(srcTestPod)
-				Expect(ok).Should(BeFalse())
-			})
-		})
-
 		Context("when pod is running on different node than operator", func() {
 			It("podIP is not set, should return false", func() {
 				ok := src.podFilter(srcTestPod)

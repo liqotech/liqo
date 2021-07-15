@@ -58,10 +58,6 @@ var _ = Describe("OverlayOperator", func() {
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      overlayReq.Name,
 				Namespace: overlayReq.Namespace,
-				Labels: map[string]string{
-					podNameLabelKey:     podNameLabelValue,
-					podInstanceLabelKey: podInstanceLabelValue,
-				},
 				Annotations: map[string]string{
 					overlayAnnKey: overlayAnnValue,
 				},
@@ -82,17 +78,14 @@ var _ = Describe("OverlayOperator", func() {
 			},
 		}
 		// Create dummy overlay operator.
-		s, err := metav1.LabelSelectorAsSelector(PodLabelSelector)
-		Expect(err).ShouldNot(HaveOccurred())
 		ovc = &OverlayController{
-			podSelector: s,
-			podIP:       overlayPodIP,
-			vxlanPeers:  make(map[string]*overlay.Neighbor, 0),
-			vxlanDev:    vxlanDevice,
-			Client:      k8sClient,
-			nodesLock:   &sync.RWMutex{},
-			vxlanNodes:  map[string]string{},
-			podToNode:   map[string]string{},
+			podIP:      overlayPodIP,
+			vxlanPeers: make(map[string]*overlay.Neighbor),
+			vxlanDev:   vxlanDevice,
+			Client:     k8sClient,
+			nodesLock:  &sync.RWMutex{},
+			vxlanNodes: map[string]string{},
+			podToNode:  map[string]string{},
 		}
 		// Add fdb entries for existing peer.
 		Expect(addFdb(overlayExistingNeigh, vxlanDevice.Link.Attrs().Index))
@@ -104,33 +97,18 @@ var _ = Describe("OverlayOperator", func() {
 	})
 	Describe("testing NewOverlayOperator function", func() {
 		Context("when input parameters are not correct", func() {
-			It("label selector is not correct, should return nil and error", func() {
-				labelSelector := &metav1.LabelSelector{
-					MatchExpressions: []metav1.LabelSelectorRequirement{
-						{
-							Key:      podInstanceLabelKey,
-							Operator: "incorrect",
-							Values:   []string{podInstanceLabelValue},
-						},
-					},
-				}
-				ovc, err := NewOverlayController(overlayPodIP, labelSelector, vxlanDevice, &sync.RWMutex{}, nil, k8sClient)
-				Expect(err).Should(MatchError("\"incorrect\" is not a valid pod selector operator"))
-				Expect(ovc).Should(BeNil())
-			})
-
 			It("vxlan device is not correct, should return nil and error", func() {
-				ovc, err := NewOverlayController(overlayPodIP, PodLabelSelector, nil, &sync.RWMutex{}, nil, k8sClient)
+				ovcTest, err := NewOverlayController(overlayPodIP, nil, &sync.RWMutex{}, nil, k8sClient)
 				Expect(err).Should(MatchError(&liqoerrors.WrongParameter{Parameter: "vxlanDevice", Reason: liqoerrors.NotNil}))
-				Expect(ovc).Should(BeNil())
+				Expect(ovcTest).Should(BeNil())
 			})
 		})
 
 		Context("when input parameters are correct", func() {
 			It("should return overlay controller and nil", func() {
-				ovc, err := NewOverlayController(overlayPodIP, PodLabelSelector, vxlanDevice, &sync.RWMutex{}, nil, k8sClient)
+				ovcTest, err := NewOverlayController(overlayPodIP, vxlanDevice, &sync.RWMutex{}, nil, k8sClient)
 				Expect(err).ShouldNot(HaveOccurred())
-				Expect(ovc).ShouldNot(BeNil())
+				Expect(ovcTest).ShouldNot(BeNil())
 			})
 		})
 	})
@@ -346,16 +324,7 @@ var _ = Describe("OverlayOperator", func() {
 			})
 		})
 
-		Context("when pod has not the right labels", func() {
-			It("should return false", func() {
-				// Remove the labels from the test pod.
-				overlayTestPod.SetLabels(nil)
-				ok := ovc.podFilter(overlayTestPod)
-				Expect(ok).Should(BeFalse())
-			})
-		})
-
-		Context("when pod has the right labels", func() {
+		Context("when object is a pod", func() {
 			It("and has same ip, should return true", func() {
 				// Add ip address to the test pod.
 				overlayTestPod.Status.PodIP = overlayPodIP

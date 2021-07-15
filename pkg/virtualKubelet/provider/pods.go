@@ -18,6 +18,7 @@ import (
 	"k8s.io/klog"
 	stats "k8s.io/kubelet/pkg/apis/stats/v1alpha1"
 
+	liqoconst "github.com/liqotech/liqo/pkg/consts"
 	"github.com/liqotech/liqo/pkg/virtualKubelet"
 	apimgmgt "github.com/liqotech/liqo/pkg/virtualKubelet/apiReflection"
 	vkContext "github.com/liqotech/liqo/pkg/virtualKubelet/context"
@@ -55,15 +56,16 @@ func (p *LiqoProvider) CreatePod(ctx context.Context, homePod *corev1.Pod) error
 
 	foreignReplicaset := forge.ReplicasetFromPod(foreignPod)
 
-	// add a finalizer to allow the pod to be garbage collected by the incoming replicaset reflector
-	finalizerPatch := []byte(fmt.Sprintf(
-		`[{"op":"add","path":"/metadata/finalizers","value":["%s"]}]`,
-		virtualKubelet.HomePodFinalizer))
+	// Add a finalizer to allow the pod to be garbage collected by the incoming replicaset reflector.
+	// Add label to distinct the offloaded pods from the local ones.
+	homePodPatch := []byte(fmt.Sprintf(
+		`{"metadata":{"labels":{"%s":"%s"},"finalizers":["%s"]}}`,
+		liqoconst.LocalPodLabelKey, liqoconst.LocalPodLabelValue, virtualKubelet.HomePodFinalizer))
 
 	_, err = p.nntClient.Client().CoreV1().Pods(homePod.Namespace).Patch(context.TODO(),
 		homePod.Name,
-		types.JSONPatchType,
-		finalizerPatch,
+		types.StrategicMergePatchType,
+		homePodPatch,
 		metav1.PatchOptions{})
 	if err != nil {
 		klog.Error(err)

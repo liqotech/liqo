@@ -13,7 +13,6 @@ import (
 	"k8s.io/klog/v2"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 
 	liqoerrors "github.com/liqotech/liqo/pkg/liqonet/errors"
@@ -21,6 +20,8 @@ import (
 	"github.com/liqotech/liqo/pkg/liqonet/routing"
 	"github.com/liqotech/liqo/pkg/liqonet/utils"
 )
+
+const infoLogLevel = 4
 
 // SymmetricRoutingController reconciles pods objects, in our case all the existing pods.
 type SymmetricRoutingController struct {
@@ -63,7 +64,7 @@ func (src *SymmetricRoutingController) Reconcile(ctx context.Context, req ctrl.R
 	added, err := src.addRoute(req, &p)
 	if err != nil {
 		if err.Error() == "ip not set" {
-			klog.V(4).Infof("unable to set route for pod {%s}: ip address for node {%s} has not been set yet",
+			klog.V(infoLogLevel).Infof("unable to set route for pod {%s}: ip address for node {%s} has not been set yet",
 				req.String(), p.Spec.NodeName)
 			return ctrl.Result{}, err
 		}
@@ -148,14 +149,13 @@ func (src *SymmetricRoutingController) podFilter(obj client.Object) bool {
 		klog.Infof("object {%s} is not of type corev1.Pod", obj.GetName())
 		return false
 	}
-	// Check if pod is running on same node as the operator.
-	if p.Spec.NodeName == src.nodeName {
-		klog.V(4).Infof("skipping pod {%s} running on our same node {%s}", p.Name, p.Spec.NodeName)
-		return false
-	}
 	// If podIP is not set return false.
+	// Here the newly created pods scheduled on a virtual node will be skipped. The filtered cache for all the pods
+	// scheduled on a virtual node works only when the correct label has been added to the pod. When pods are created
+	// the label is not present, but we are sure that it will be added before the IP address for the same pod is set.
+	//Once the pods have been labeled the api server should not inform the controller about them.
 	if p.Status.PodIP == "" {
-		klog.Infof("skipping pod {%s} running on node {%s} has ip address set to empty", p.Name, p.Spec.NodeName)
+		klog.V(infoLogLevel).Infof("skipping pod {%s} running on node {%s} has ip address set to empty", p.Name, p.Spec.NodeName)
 		return false
 	}
 	return true
@@ -164,10 +164,6 @@ func (src *SymmetricRoutingController) podFilter(obj client.Object) bool {
 // SetupWithManager used to set up the controller with a given manager.
 func (src *SymmetricRoutingController) SetupWithManager(mgr ctrl.Manager) error {
 	p := predicate.NewPredicateFuncs(src.podFilter)
-	// We only filter out pods when the event is of type {event.CreateEvent} and {event.UpdateEvent}
-	p.DeleteFunc = func(event event.DeleteEvent) bool {
-		return true
-	}
 	return ctrl.NewControllerManagedBy(mgr).For(&corev1.Pod{}).WithEventFilter(p).
 		Complete(src)
 }
