@@ -1,4 +1,5 @@
 #!/bin/bash
+LIQO_VERSION=${}
 for i in $(seq 1 "${CLUSTER_NUMBER}");
 do
    export KUBECONFIG="${TMPDIR}/kubeconfigs/liqo_kubeconf_${i}"
