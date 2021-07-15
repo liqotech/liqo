@@ -80,10 +80,10 @@ func CheckPodConnectivity(ctx context.Context, homeConfig *restclient.Config, ho
 	cmd := command + podRemoteUpdateCluster1.Status.PodIP
 	klog.Infof("running command %s", cmd)
 	stdout, stderr, err := util.ExecCmd(homeConfig, homeClient, podLocalUpdate.Name, podLocalUpdate.Namespace, cmd)
+	klog.Infof("stdout: %s", stderr)
+	klog.Infof("stderr: %s", stderr)
 	if stdout == "200" && err == nil {
 		return nil
 	}
-	klog.Infof("stdout: %s", stderr)
-	klog.Infof("stderr: %s", stderr)
 	return err
 }

@@ -9,5 +9,5 @@ done;
 for i in $(seq 1 "${CLUSTER_NUMBER}");
 do
    export KUBECONFIG="${TMPDIR}/kubeconfigs/liqo_kubeconf_${i}"
-   kubectl wait pods --timeout=200s --namespace liqo --all --for=condition=Ready
+   kubectl wait pods --timeout=200s --namespace liqo -l '!job-name' --for=condition=Ready
 done;

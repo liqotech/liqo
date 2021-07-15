@@ -12,10 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package peeringe2e
+package cruise
 
 import (
 	"context"
+	"fmt"
+	"strings"
 	"testing"
 	"time"
 
@@ -41,7 +43,7 @@ func TestE2E(t *testing.T) {
 var _ = Describe("Liqo E2E", func() {
 	var (
 		ctx         = context.Background()
-		testContext = tester.GetTester(ctx)
+		testContext = tester.GetTester(ctx, true)
 		namespace   = "liqo"
 		interval    = 3 * time.Second
 		timeout     = 5 * time.Minute
@@ -49,55 +51,36 @@ var _ = Describe("Liqo E2E", func() {
 
 	Describe("Assert that Liqo is up, pod offloading and network connectivity are working", func() {
 		Context("Check Join Status", func() {
-			DescribeTable("Liqo pods are up and running",
-				func(cluster tester.ClusterContext, namespace string) {
-					readyPods, notReadyPods, err := util.ArePodsUp(ctx, cluster.Client, testContext.Namespace)
-					Eventually(func() bool {
-						return err == nil
-					}, timeout, interval).Should(BeTrue())
-					Expect(len(notReadyPods)).To(Equal(0))
-					Expect(len(readyPods)).Should(BeNumerically(">", 0))
-				},
-				Entry("Pods UP on cluster 1", testContext.Clusters[0], namespace),
-				Entry("Pods UP on cluster 2", testContext.Clusters[1], namespace),
-			)
+			var PodsUpAndRunningTableEntries []TableEntry
+			for index := range testContext.Clusters {
+				for index2 := range testContext.Clusters {
+					if index != index2 {
+						PodsUpAndRunningTableEntries = append(PodsUpAndRunningTableEntries,
+							Entry(strings.Join([]string{"Check Pod to Pod connectivity from cluster", fmt.Sprintf("%d",index),
+								"to cluster", fmt.Sprintf("%d",index2)}, " "),
+								testContext.Clusters[index], testContext.Clusters[index2], namespace))
+					}
+				}
+			}
 
-			DescribeTable("Liqo Virtual Nodes are ready",
-				func(homeCluster tester.ClusterContext, namespace string) {
-					nodeReady := util.CheckVirtualNodes(ctx, homeCluster.Client)
-					Expect(nodeReady).To(BeTrue())
-				},
-				Entry("VirtualNode is Ready on cluster 2", testContext.Clusters[0], namespace),
-				Entry("VirtualNode is Ready on cluster 1", testContext.Clusters[1], namespace),
-			)
-		})
-
-		Context("E2E network testing with pods and services", func() {
 			DescribeTable("Liqo Pod to Pod Connectivity Check",
 				func(homeCluster, foreignCluster tester.ClusterContext, namespace string) {
 					By("Deploy Tester Pod", func() {
-						err := net.EnsureNetTesterPods(ctx, homeCluster.Client, homeCluster.ClusterID)
+						err := net.EnsureNetTesterPods(ctx, homeCluster.NativeClient, homeCluster.ClusterID)
 						Expect(err).ToNot(HaveOccurred())
 						Eventually(func() bool {
-							check := net.CheckTesterPods(ctx, homeCluster.Client, foreignCluster.Client, homeCluster.ClusterID)
+							check := net.CheckTesterPods(ctx, homeCluster.NativeClient, foreignCluster.NativeClient, homeCluster.ClusterID)
 							return check
 						}, timeout, interval).Should(BeTrue())
-					})
-
-					By("Check Pod to Pod Connectivity", func() {
 						Eventually(func() error {
-							return net.CheckPodConnectivity(ctx, homeCluster.Config, homeCluster.Client)
+							return net.CheckPodConnectivity(ctx, homeCluster.Config, homeCluster.NativeClient)
 						}, timeout, interval).ShouldNot(HaveOccurred())
-					})
-
-					By("Check Service NodePort Connectivity", func() {
 						Eventually(func() error {
-							return net.ConnectivityCheckNodeToPod(ctx, homeCluster.Client, homeCluster.ClusterID)
+							return net.ConnectivityCheckNodeToPod(ctx, homeCluster.NativeClient, homeCluster.ClusterID)
 						}, timeout, interval).ShouldNot(HaveOccurred())
 					})
 				},
-				Entry("Check Pod to Pod connectivity from cluster 1", testContext.Clusters[0], testContext.Clusters[1], namespace),
-				Entry("Check Pod to Pod connectivity from cluster 2", testContext.Clusters[1], testContext.Clusters[0], namespace),
+				PodsUpAndRunningTableEntries...,
 			)
 		})
 
@@ -114,7 +97,7 @@ var _ = Describe("Liqo E2E", func() {
 
 				By("Checking if all pods deployed in the test namespace have the right NodeAffinity")
 				Eventually(func() bool {
-					return microservices.CheckPodsNodeAffinity(ctx, testContext.Clusters[0].Client)
+					return microservices.CheckPodsNodeAffinity(ctx, testContext.Clusters[0].NativeClient)
 				}, timeout, interval).Should(BeTrue())
 
 				By("Verify Online Boutique Connectivity")
@@ -126,12 +109,12 @@ var _ = Describe("Liqo E2E", func() {
 		AfterSuite(func() {
 
 			for i := range testContext.Clusters {
-				err := util.DeleteNamespace(ctx, testContext.Clusters[i].Client, testutils.LiqoTestNamespaceLabels)
+				err := util.DeleteNamespace(ctx, testContext.Clusters[i].NativeClient, testutils.LiqoTestNamespaceLabels)
 				Expect(err).ShouldNot(HaveOccurred())
 			}
 			Eventually(func() bool {
 				for i := range testContext.Clusters {
-					list, err := testContext.Clusters[i].Client.CoreV1().Namespaces().List(ctx, metav1.ListOptions{
+					list, err := testContext.Clusters[i].NativeClient.CoreV1().Namespaces().List(ctx, metav1.ListOptions{
 						LabelSelector: labels.SelectorFromSet(testutils.LiqoTestNamespaceLabels).String(),
 					})
 					if err != nil || len(list.Items) > 0 {
