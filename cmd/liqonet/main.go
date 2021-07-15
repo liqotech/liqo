@@ -18,10 +18,15 @@ package main
 import (
 	"flag"
 	"os"
+	"strings"
 	"sync"
 	"time"
 
+	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/fields"
+	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/selection"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
@@ -43,6 +48,15 @@ import (
 	liqorouting "github.com/liqotech/liqo/pkg/liqonet/routing"
 	"github.com/liqotech/liqo/pkg/liqonet/utils"
 	"github.com/liqotech/liqo/pkg/mapperUtils"
+)
+
+const (
+	// This labels are the ones set during the deployment of liqo using the helm chart.
+	// Any change to those labels on the helm chart has also to be reflected here.
+	podInstanceLabelKey     = "app.kubernetes.io/instance"
+	routeInstanceLabelValue = "liqo-route"
+	podNameLabelKey         = "app.kubernetes.io/name"
+	routeNameLabelValue     = "route"
 )
 
 var (
@@ -78,15 +92,6 @@ func main() {
 	case liqoconst.LiqoRouteOperatorName:
 		mutex := &sync.RWMutex{}
 		nodeMap := map[string]string{}
-		mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
-			MapperProvider:     mapperUtils.LiqoMapperProvider(scheme),
-			Scheme:             scheme,
-			MetricsBindAddress: metricsAddr,
-		})
-		if err != nil {
-			klog.Errorf("unable to get manager: %s", err)
-			os.Exit(1)
-		}
 		// Get the pod ip and parse to net.IP.
 		podIP, err := utils.GetPodIP()
 		if err != nil {
@@ -96,6 +101,68 @@ func main() {
 		nodeName, err := utils.GetNodeName()
 		if err != nil {
 			klog.Errorf("unable to get node name: %v", err)
+			os.Exit(1)
+		}
+		podNamespace, err := utils.GetPodNamespace()
+		if err != nil {
+			klog.Errorf("unable to get pod namespace: %v", err)
+			os.Exit(1)
+		}
+		// Asking the api-server to only inform the operator for the pods running in a node different from the one
+		// where the operator is running.
+		smcFieldSelector, err := fields.ParseSelector(strings.Join([]string{"spec.nodeName", "!=", nodeName}, ""))
+		if err != nil {
+			klog.Errorf("unable to create label requirement: %v", err)
+			os.Exit(1)
+		}
+		// Asking the api-server to only inform the operator for the pods running in a node different from
+		// the virtual nodes. We want to process only the pods running on the local cluster and not the ones
+		// offloaded to a remote cluster.
+		smcLabelRequirement, err := labels.NewRequirement(liqoconst.LocalPodLabelKey, selection.DoesNotExist, []string{})
+		if err != nil {
+			klog.Errorf("unable to create label requirement: %v", err)
+			os.Exit(1)
+		}
+		smcLabelSelector := labels.NewSelector().Add(*smcLabelRequirement)
+		mainMgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
+			MapperProvider:     mapperUtils.LiqoMapperProvider(scheme),
+			Scheme:             scheme,
+			MetricsBindAddress: metricsAddr,
+			NewCache: cache.BuilderWithOptions(cache.Options{
+				SelectorsByObject: cache.SelectorsByObject{
+					&corev1.Pod{}: {
+						Field: smcFieldSelector,
+						Label: smcLabelSelector,
+					},
+				},
+			}),
+		})
+		if err != nil {
+			klog.Errorf("unable to get manager: %s", err)
+			os.Exit(1)
+		}
+		// Asking the api-server to only inform the operator for the pods that are part of the route component.
+		ovcLabelSelector := labels.SelectorFromSet(labels.Set{
+			podNameLabelKey:     routeNameLabelValue,
+			podInstanceLabelKey: routeInstanceLabelValue,
+		})
+		// This manager is used by the overlay operator and it is limited to the pods running
+		// on the same namespace as the operator.
+		overlayMgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
+			MapperProvider:     mapperUtils.LiqoMapperProvider(scheme),
+			Scheme:             scheme,
+			MetricsBindAddress: metricsAddr,
+			Namespace:          podNamespace,
+			NewCache: cache.BuilderWithOptions(cache.Options{
+				SelectorsByObject: cache.SelectorsByObject{
+					&corev1.Pod{}: {
+						Label: ovcLabelSelector,
+					},
+				},
+			}),
+		})
+		if err != nil {
+			klog.Errorf("unable to get manager: %s", err)
 			os.Exit(1)
 		}
 		vxlanConfig.VtepAddr = podIP
@@ -110,33 +177,36 @@ func main() {
 			klog.Errorf("an error occurred while creating the vxlan routing manager: %v", err)
 			os.Exit(1)
 		}
-		eventRecorder := mgr.GetEventRecorderFor(liqoconst.LiqoRouteOperatorName + "." + podIP.String())
-		routeController := routeoperator.NewRouteController(podIP.String(), vxlanDevice, vxlanRoutingManager, eventRecorder, mgr.GetClient())
-		if err = routeController.SetupWithManager(mgr); err != nil {
+		eventRecorder := mainMgr.GetEventRecorderFor(liqoconst.LiqoRouteOperatorName + "." + podIP.String())
+		routeController := routeoperator.NewRouteController(podIP.String(), vxlanDevice, vxlanRoutingManager, eventRecorder, mainMgr.GetClient())
+		if err = routeController.SetupWithManager(mainMgr); err != nil {
 			klog.Errorf("unable to setup controller: %s", err)
 			os.Exit(1)
 		}
-		overlayController, err := routeoperator.NewOverlayController(podIP.String(),
-			routeoperator.PodLabelSelector, vxlanDevice, mutex, nodeMap, mgr.GetClient())
+		overlayController, err := routeoperator.NewOverlayController(podIP.String(), vxlanDevice, mutex, nodeMap, overlayMgr.GetClient())
 		if err != nil {
 			klog.Errorf("an error occurred while creating overlay controller: %v", err)
 			os.Exit(3)
 		}
-		if err = overlayController.SetupWithManager(mgr); err != nil {
+		if err = overlayController.SetupWithManager(overlayMgr); err != nil {
 			klog.Errorf("unable to setup overlay controller: %s", err)
 			os.Exit(1)
 		}
-		symmetricRoutingOperator, err := routeoperator.NewSymmetricRoutingOperator(nodeName,
-			liqoconst.RoutingTableID, vxlanDevice, mutex, nodeMap, mgr.GetClient())
+		symmetricRoutingController, err := routeoperator.NewSymmetricRoutingOperator(nodeName,
+			liqoconst.RoutingTableID, vxlanDevice, mutex, nodeMap, mainMgr.GetClient())
 		if err != nil {
 			klog.Errorf("an error occurred while creting symmetric routing controller: %v", err)
 			os.Exit(4)
 		}
-		if err = symmetricRoutingOperator.SetupWithManager(mgr); err != nil {
+		if err = symmetricRoutingController.SetupWithManager(mainMgr); err != nil {
 			klog.Errorf("unable to setup overlay controller: %s", err)
 			os.Exit(1)
 		}
-		if err := mgr.Start(routeController.SetupSignalHandlerForRouteOperator()); err != nil {
+		if err := mainMgr.Add(overlayMgr); err != nil {
+			klog.Errorf("unable to add the overlay manager to the main manager: %s", err)
+			os.Exit(1)
+		}
+		if err := mainMgr.Start(routeController.SetupSignalHandlerForRouteOperator()); err != nil {
 			klog.Errorf("unable to start controller: %s", err)
 			os.Exit(1)
 		}
