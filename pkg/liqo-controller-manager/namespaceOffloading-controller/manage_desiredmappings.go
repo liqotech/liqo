@@ -31,7 +31,7 @@ func removeDesiredMapping(ctx context.Context, c client.Client, localName string
 			klog.Errorf("%s --> Unable to patch NamespaceMap '%s'", err, nm.GetName())
 			return err
 		}
-		klog.Infof(" Entry for the namespace '%s' is correctly deleted from the NamespaceMap '%s'", localName, nm.GetName())
+		klog.Infof(" Entry for the namespace '%s' is correctly deleted from the desiredMapping of NamespaceMap '%s'", localName, nm.GetName())
 	}
 	return nil
 }
