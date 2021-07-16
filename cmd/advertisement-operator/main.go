@@ -80,6 +80,7 @@ func main() {
 	var liqoNamespace, kubeletImage, initKubeletImage string
 	var resyncPeriod int64
 	var offloadingStatusControllerRequeueTime int64
+	var namespaceMapControllerRequeueTime int64
 
 	flag.StringVar(&metricsAddr, "metrics-addr", defaultMetricsaddr, "The address the metric endpoint binds to.")
 	flag.StringVar(&probeAddr, "health-probe-bind-address", ":8081", "The address the probe endpoint binds to.")
@@ -89,7 +90,9 @@ func main() {
 
 	flag.Int64Var(&resyncPeriod, "resyncPeriod", int64(10*time.Hour), "Period after that operators and informers will requeue events.")
 	flag.Int64Var(&offloadingStatusControllerRequeueTime, "offloadingStatusControllerRequeueTime", int64(10*time.Second),
-		"Period after that the offloadingStatusController is awaken on every namespaceOffloading in order to set its status.")
+		"Period after that the offloadingStatus Controller is awaken on every NamespaceOffloading to set its status.")
+	flag.Int64Var(&namespaceMapControllerRequeueTime, "namespaceMapControllerRequeueTime", int64(30*time.Second),
+		"Period after that the namespaceMap Controller is awaken on every NamespaceMap to enforce DesiredMappings.")
 	flag.StringVar(&localKubeconfig, "local-kubeconfig", "", "The path to the kubeconfig of your local cluster.")
 	flag.StringVar(&clusterId, "cluster-id", "", "The cluster ID of your cluster")
 	flag.StringVar(&liqoNamespace,
@@ -200,7 +203,7 @@ func main() {
 		RemoteClients:         make(map[string]kubernetes.Interface),
 		LocalClusterID:        clusterId,
 		IdentityManagerClient: clientset,
-		RequeueTime:           time.Second * 30,
+		RequeueTime:           time.Duration(namespaceMapControllerRequeueTime),
 	}
 
 	if err = namespaceMapReconciler.SetupWithManager(mgr); err != nil {

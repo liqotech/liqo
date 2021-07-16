@@ -9,6 +9,7 @@ import (
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/klog/v2"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -53,9 +54,10 @@ func (r *NamespaceMapReconciler) createRemoteNamespace(ctx context.Context, remo
 	}
 	// 2 - Check if the remote namespace was created by the NamespaceMap controller.
 	if value, ok := remoteNamespace.Annotations[liqoconst.RemoteNamespaceAnnotationKey]; !ok || value != r.LocalClusterID {
-		err = fmt.Errorf("the remote namesapce '%s', inside the remote cluster '%s', does not have the annotation '%s'",
-			remoteNamespaceName, remoteClusterID, liqoconst.RemoteNamespaceAnnotationKey)
-		klog.Error(err)
+		err := apierrors.NewAlreadyExists(schema.GroupResource{},
+			fmt.Sprintf("the remote namesapce '%s', inside the remote cluster '%s', does not have the annotation '%s'",
+				remoteNamespaceName, remoteClusterID, liqoconst.RemoteNamespaceAnnotationKey))
+		klog.Error(err.Error())
 		return err
 	}
 	// 3 - Check if the virtual kubelet will have the right privileges on the remote namespace.
@@ -77,7 +79,9 @@ func (r *NamespaceMapReconciler) ensureRemoteNamespacesExistence(ctx context.Con
 				RemoteNamespace: remoteName,
 				Phase:           mapsv1alpha1.MappingCreationLoopBackOff,
 			}
-			errorCondition = true
+			if !apierrors.IsInvalid(err) && !apierrors.IsAlreadyExists(err) {
+				errorCondition = true
+			}
 			continue
 		}
 		nm.Status.CurrentMapping[localName] = mapsv1alpha1.RemoteNamespaceStatus{
@@ -119,9 +123,9 @@ func (r *NamespaceMapReconciler) deleteRemoteNamespace(ctx context.Context, remo
 			klog.Errorf("unable to delete the namespace '%s' from the remote cluster: '%s'", remoteNamespaceName, remoteClusterID)
 			return err
 		}
-		klog.Infof("The deletion timestamp is correctly set on the namespace '%s'", remoteNamespaceName)
+		klog.Infof("The deletion timestamp is correctly set on the remote namespace '%s'", remoteNamespaceName)
 	}
-	return fmt.Errorf("the remote Namespace '%s' inside the cluster '%s' is undergoing graceful termination", remoteNamespaceName, remoteClusterID)
+	return fmt.Errorf("the remote namespace '%s' inside the cluster '%s' is undergoing graceful termination", remoteNamespaceName, remoteClusterID)
 }
 
 // If DesiredMapping field has less entries than CurrentMapping, is necessary to remove some remote namespaces.
@@ -148,14 +152,16 @@ func (r *NamespaceMapReconciler) ensureRemoteNamespacesDeletion(ctx context.Cont
 // This function checks if there are Namespaces that have to be created or deleted, in accordance with DesiredMapping
 // field. It updates also NamespaceOffloading status in according to the remote Namespace Status.
 func (r *NamespaceMapReconciler) ensureRemoteNamespaces(ctx context.Context, nm *mapsv1alpha1.NamespaceMap) error {
-	errorCondition := false
+	errorCreationPhase := false
+	errorDeletionPhase := false
 	if nm.Status.CurrentMapping == nil {
 		nm.Status.CurrentMapping = map[string]mapsv1alpha1.RemoteNamespaceStatus{}
 	}
 	// Object used as base for client.MergeFrom
 	original := nm.DeepCopy()
 
-	errorCondition = r.ensureRemoteNamespacesExistence(ctx, nm) || r.ensureRemoteNamespacesDeletion(ctx, nm)
+	errorCreationPhase = r.ensureRemoteNamespacesExistence(ctx, nm)
+	errorDeletionPhase = r.ensureRemoteNamespacesDeletion(ctx, nm)
 
 	// MergeFrom used to avoid conflicts, the NamespaceMap controller has the ownership of NamespaceMap status
 	if err := r.Patch(ctx, nm, client.MergeFrom(original)); err != nil {
@@ -164,7 +170,7 @@ func (r *NamespaceMapReconciler) ensureRemoteNamespaces(ctx context.Context, nm 
 	}
 	klog.Infof("the status of the NamespaceMap '%s' is correctly updated", nm.Name)
 
-	if errorCondition {
+	if errorCreationPhase || errorDeletionPhase {
 		return fmt.Errorf("something during remote namespaces management went wrong")
 	}
 	return nil

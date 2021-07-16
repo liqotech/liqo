@@ -18,18 +18,13 @@ package namespacemapctrl
 
 import (
 	"context"
-	"reflect"
 	"time"
 
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/klog/v2"
 	ctrl "sigs.k8s.io/controller-runtime"
-	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	ctrlutils "sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
-	"sigs.k8s.io/controller-runtime/pkg/event"
-	"sigs.k8s.io/controller-runtime/pkg/predicate"
 
 	mapsv1alpha1 "github.com/liqotech/liqo/apis/virtualKubelet/v1alpha1"
 )
@@ -81,27 +76,9 @@ func (r *NamespaceMapReconciler) Reconcile(ctx context.Context, req ctrl.Request
 	return ctrl.Result{RequeueAfter: r.RequeueTime}, nil
 }
 
-// Events not filtered:
-// 1 -- the number of entries in DesiredMapping changes, so a namespace's request is added or removed.
-// 2 -- the NamespaceMap is deleted and has the NamespaceMapControllerFinalizer.
-func manageDesiredMappings() predicate.Predicate {
-	return predicate.Funcs{
-		UpdateFunc: func(e event.UpdateEvent) bool {
-			// If the NamespaceMap is deleted and has the NamespaceMapControllerFinalizer.
-			if !e.ObjectNew.GetDeletionTimestamp().IsZero() &&
-				ctrlutils.ContainsFinalizer(e.ObjectNew, namespaceMapControllerFinalizer) {
-				return true
-			}
-			// If an entry is added or removed in DesiredMapping
-			return !reflect.DeepEqual(e.ObjectOld.(*mapsv1alpha1.NamespaceMap).Spec.DesiredMapping,
-				e.ObjectNew.(*mapsv1alpha1.NamespaceMap).Spec.DesiredMapping)
-		},
-	}
-}
-
 // SetupWithManager monitors only updates on NamespaceMap.
 func (r *NamespaceMapReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
-		For(&mapsv1alpha1.NamespaceMap{}, builder.WithPredicates(manageDesiredMappings())).
+		For(&mapsv1alpha1.NamespaceMap{}).
 		Complete(r)
 }
