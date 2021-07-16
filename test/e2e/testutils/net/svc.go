@@ -40,14 +40,6 @@ func EnsureNodePort(ctx context.Context, client kubernetes.Interface, clusterID,
 			klog.Error(err)
 			return nil, err
 		}
-		clusterIP := nodePort.Spec.ClusterIP
-		nodePort.Spec = serviceSpec
-		nodePort.Spec.ClusterIP = clusterIP
-		_, err = client.CoreV1().Services(namespace).Update(ctx, nodePort, metav1.UpdateOptions{})
-		if err != nil {
-			klog.Errorf("%s -> an error occurred while updating nodePort service %s : %s", clusterID, name, err)
-			return nil, err
-		}
 	}
 	if err != nil {
 		klog.Errorf("%s -> an error occurred while creating nodePort service %s in namespace %s: %s", clusterID, name, namespace, err)

@@ -58,6 +58,8 @@ func (p *LiqoProvider) CreatePod(ctx context.Context, homePod *corev1.Pod) error
 
 	// Add a finalizer to allow the pod to be garbage collected by the incoming replicaset reflector.
 	// Add label to distinct the offloaded pods from the local ones.
+	// The merge strategy is types.StrategicMergePatchType in order to merger the previous state
+	// with the new configuration.
 	homePodPatch := []byte(fmt.Sprintf(
 		`{"metadata":{"labels":{"%s":"%s"},"finalizers":["%s"]}}`,
 		liqoconst.LocalPodLabelKey, liqoconst.LocalPodLabelValue, virtualKubelet.HomePodFinalizer))

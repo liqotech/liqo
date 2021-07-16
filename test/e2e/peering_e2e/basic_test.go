@@ -56,7 +56,9 @@ var _ = Describe("Liqo E2E", func() {
 				Entry("VirtualNode is Ready on cluster 2", testContext.Clusters[0], namespace),
 				Entry("VirtualNode is Ready on cluster 1", testContext.Clusters[1], namespace),
 			)
+		})
 
+		Context("E2E network testing with pods and services", func() {
 			DescribeTable("Liqo Pod to Pod Connectivity Check",
 				func(homeCluster, foreignCluster tester.ClusterContext, namespace string) {
 					By("Deploy Tester Pod", func() {
@@ -75,8 +77,9 @@ var _ = Describe("Liqo E2E", func() {
 					})
 
 					By("Check Service NodePort Connectivity", func() {
-						err := net.ConnectivityCheckNodeToPod(ctx, homeCluster.Client, homeCluster.ClusterID)
-						Expect(err).ToNot(HaveOccurred())
+						Eventually(func() error {
+							return net.ConnectivityCheckNodeToPod(ctx, homeCluster.Client, homeCluster.ClusterID)
+						}, timeout, interval).ShouldNot(HaveOccurred())
 					})
 				},
 				Entry("Check Pod to Pod connectivity from cluster 1", testContext.Clusters[0], testContext.Clusters[1], namespace),

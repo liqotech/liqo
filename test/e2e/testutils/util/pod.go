@@ -21,20 +21,33 @@ func IsPodUp(ctx context.Context, client kubernetes.Interface, namespace, podNam
 		virtualKubelet.ReflectedpodKey: podName,
 	}
 	if isHomePod {
+		klog.Infof("checking if local pod %s/%s is ready", namespace, podName)
 		podToCheck, err = client.CoreV1().Pods(namespace).Get(ctx, podName, metav1.GetOptions{})
 		if err != nil {
+			klog.Errorf("an error occurred while getting pod %s/%s: %v", namespace, podName, err)
 			return false
 		}
 	} else {
+		klog.Infof("checking if remote pod is ready")
 		pods, err := client.CoreV1().Pods(namespace).List(ctx, metav1.ListOptions{
 			LabelSelector: labels.SelectorFromSet(labelSelector).String(),
 		})
-		if err != nil || len(pods.Items) == 0 {
+		if err != nil {
+			klog.Errorf("an error occurred while getting remote pod: %v", err)
+			return false
+		}
+		if len(pods.Items) == 0 {
+			klog.Error("an error occurred: remote pod not found")
 			return false
 		}
 		podToCheck = &pods.Items[0]
 	}
 	state := pod.IsPodReady(podToCheck)
+	if isHomePod {
+		klog.Infof("local pod %s/%s is ready", podToCheck.Namespace, podToCheck.Name)
+	} else {
+		klog.Infof("remote pod %s/%s is ready", podToCheck.Namespace, podToCheck.Name)
+	}
 	return state
 }
 
