@@ -61,9 +61,10 @@ func TriggerCheckNodeConnectivity(localNodes *v1.NodeList, command string, nodeP
 		klog.Infof("running command %s", cmd)
 		err := c.Run()
 		if err != nil {
+			klog.Error(err)
 			klog.Info(output.String())
 			klog.Info(errput.String())
-			return nil
+			return err
 		}
 	}
 	return nil

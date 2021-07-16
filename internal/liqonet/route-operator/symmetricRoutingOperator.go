@@ -150,10 +150,11 @@ func (src *SymmetricRoutingController) podFilter(obj client.Object) bool {
 		return false
 	}
 	// If podIP is not set return false.
-	// Here the newly created pods scheduled on a virtual node will be skipped. The filtered cache for all the pods
-	// scheduled on a virtual node works only when the correct label has been added to the pod. When pods are created
-	// the label is not present, but we are sure that it will be added before the IP address for the same pod is set.
-	//Once the pods have been labeled the api server should not inform the controller about them.
+	// Here the newly created pods scheduled on a virtual node will be skipped. It is a temporary situation untile
+	// the pods are labeled. The filtered cache for all the pods scheduled on a virtual node works only when the correct
+	// label has been added to the pod. When pods are created the label is not present, but we are sure that it will be
+	// added before the IP address for the same pod is set.
+	// Once the pods have been labeled they are filtered out at the cache level by the client.
 	if p.Status.PodIP == "" {
 		klog.V(infoLogLevel).Infof("skipping pod {%s} running on node {%s} has ip address set to empty", p.Name, p.Spec.NodeName)
 		return false
