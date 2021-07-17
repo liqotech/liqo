@@ -1,0 +1,24 @@
+apiVersion: offloading.liqo.io/v1alpha1
+kind: NamespaceOffloading
+metadata:
+  name: offloading 
+  namespace: your-namespace
+spec:
+  namespaceMappingStrategy: EnforceSameName
+  podOffloadingStrategy: Remote
+  clusterSelector:
+    nodeSelectorTerms:
+    - matchExpressions:
+      - key: region
+        operator: In
+        values:
+        - A
+      - key: provider
+        operator: In
+        values:
+        - Azure
+    - matchExpressions:
+      - key: region
+        operator: In
+        values:
+        - B

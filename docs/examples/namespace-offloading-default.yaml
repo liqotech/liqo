@@ -1,0 +1,18 @@
+apiVersion: offloading.liqo.io/v1alpha1
+kind: NamespaceOffloading
+metadata:
+  name: offloading 
+  namespace: your-namespace
+spec:
+  namespaceMappingStrategy: DefaultName
+  podOffloadingStrategy: LocalAndRemote
+  clusterSelector:
+    nodeSelectorTerms:
+    - matchExpressions:
+      - key: liqo.io/type
+        operator: In
+        values:
+        - virtual-node
+
+
+      
