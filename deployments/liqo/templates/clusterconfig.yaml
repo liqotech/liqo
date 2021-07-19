@@ -15,6 +15,11 @@ spec:
   apiServerConfig:
     {{- .Values.apiServer | toYaml | nindent 4 }}
   resourceSharingConfig:
+    ingoingConfig:
+      acceptPolicy: AutoAcceptMax
+      maxAcceptableAdvertisement: 1000000
+    keepaliveThreshold: 3
+    keepaliveRetryTime: 20
     outgoingConfig:
       {{- .Values.controllerManager.config | toYaml | nindent 6 }}
   discoveryConfig:

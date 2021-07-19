@@ -47,7 +47,7 @@ type VirtualNodeReconciler struct {
 
 // cluster-role
 // +kubebuilder:rbac:groups=core,resources=nodes,verbs=get;list;watch;patch;update
-// +kubebuilder:rbac:groups=virtualKubelet.liqo.io,resources=namespacemaps,verbs=get;list;watch;delete;create
+// +kubebuilder:rbac:groups=virtualkubelet.liqo.io,resources=namespacemaps,verbs=get;list;watch;delete;create
 // +kubebuilder:rbac:groups=discovery.liqo.io,resources=foreignclusters,verbs=get;list;watch
 
 // Reconcile manage NamespaceMaps associated with the virtual-node.

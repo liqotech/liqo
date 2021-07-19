@@ -30,6 +30,23 @@ const (
 // cluster-role
 // +kubebuilder:rbac:groups=core,resources=namespaces,verbs=get;watch;list
 // +kubebuilder:rbac:groups=offloading.liqo.io,resources=namespaceoffloadings,verbs=get;watch;list;create;delete
+// +kubebuilder:rbac:groups=config.liqo.io,resources=clusterconfigs,verbs=get;list;watch;create;update;patch;delete
+
+// needed to be granted to other operators
+// +kubebuilder:rbac:groups=sharing.liqo.io,resources=advertisements,verbs=delete;get;list;patch;update;watch
+// +kubebuilder:rbac:groups=net.liqo.io,resources=tunnelendpoints,verbs=get;list;watch
+// +kubebuilder:rbac:groups=discovery.k8s.io,resources=endpointslices,verbs=create;get;list;watch
+// +kubebuilder:rbac:groups=coordination.k8s.io,resources=leases,verbs=create;delete;get;update
+// +kubebuilder:rbac:groups=certificates.k8s.io,resources=certificatesigningrequests,verbs=create;delete;get;update
+// +kubebuilder:rbac:groups=apps,resources=replicasets,verbs=get;list;watch
+// +kubebuilder:rbac:groups="",resources=services/status,verbs=create;delete;get;list;patch;update;watch
+// +kubebuilder:rbac:groups="",resources=services,verbs=create;delete;get;list;watch
+// +kubebuilder:rbac:groups="",resources=secrets,verbs=create;delete
+// +kubebuilder:rbac:groups="",resources=pods/status,verbs=create;delete;get;list;patch;update;watch
+// +kubebuilder:rbac:groups="",resources=pods/eviction,verbs=create
+// +kubebuilder:rbac:groups="",resources=nodes/status,verbs=create;delete;get;list;patch;update;watch
+// +kubebuilder:rbac:groups="",resources=nodes,verbs=create;delete
+// +kubebuilder:rbac:groups="",resources=configmaps,verbs=create;delete;get;list;watch
 
 // Reconcile covers the case in which the user adds the enabling liqo label to his namespace, and the
 // NamespaceOffloading resource associated with that namespace is created, if it is not already there.
