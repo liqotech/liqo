@@ -14,14 +14,9 @@ metadata:
 spec:
   apiServerConfig:
     {{- .Values.apiServer | toYaml | nindent 4 }}
-  advertisementConfig:
-    ingoingConfig:
-      acceptPolicy: AutoAcceptMax
-      maxAcceptableAdvertisement: 1000000
-    keepaliveThreshold: 3
-    keepaliveRetryTime: 20
+  resourceSharingConfig:
     outgoingConfig:
-      {{- .Values.advertisement.config | toYaml | nindent 6 }}
+      {{- .Values.controllerManager.config | toYaml | nindent 6 }}
   discoveryConfig:
     {{- .Values.discovery.config | toYaml | nindent 4 }}
     domain: local.
@@ -64,7 +59,3 @@ spec:
         version: v1alpha1
         resource: networkconfigs
       peeringPhase: Established
-  agentConfig:
-    dashboardConfig:
-      namespace: {{ .Release.Namespace }}
-      appLabel: "liqo-dashboard"

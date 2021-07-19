@@ -14,16 +14,14 @@ apiServer:
   # -- Indicates that the API Server is exposing a certificate issued by a trusted Certification Authority
   trustedCA: false
 
-advertisement:
+controllerManager:
   pod:
     # -- advertisement pod annotations
     annotations: {}
     # -- advertisement pod labels
     labels: {}
   # -- advertisement image repository
-  imageName: "liqo/advertisement-operator"
-  # -- broadcaster image repository
-  broadcasterImageName: "liqo/advertisement-broadcaster"
+  imageName: "liqo/liqo-controller-manager"
   config:
     # -- It defines the percentage of available cluster resources that you are willing to share with foreign clusters.
     resourceSharingPercentage: 30

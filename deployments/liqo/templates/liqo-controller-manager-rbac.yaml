@@ -1,0 +1,32 @@
+---
+{{- $ctrlManagerConfig := (merge (dict "name" "controller-manager" "module" "controller-manager") .) -}}
+
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: {{ include "liqo.prefixedName" $ctrlManagerConfig }}
+  labels:
+    {{- include "liqo.labels" $ctrlManagerConfig | nindent 4 }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: {{ include "liqo.prefixedName" $ctrlManagerConfig }}
+  labels:
+    {{- include "liqo.labels" $ctrlManagerConfig | nindent 4 }}
+subjects:
+  - kind: ServiceAccount
+    name: {{ include "liqo.prefixedName" $ctrlManagerConfig }}
+    namespace: {{ .Release.Namespace }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: {{ include "liqo.prefixedName" $ctrlManagerConfig }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: {{ include "liqo.prefixedName" $ctrlManagerConfig }}
+  labels:
+  {{- include "liqo.labels" $ctrlManagerConfig | nindent 4 }}
+  {{ .Files.Get (include "liqo.cluster-role-filename" (dict "prefix" ( include "liqo.prefixedName" $ctrlManagerConfig))) }}
