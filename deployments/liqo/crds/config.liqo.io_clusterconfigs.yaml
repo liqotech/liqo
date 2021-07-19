@@ -322,7 +322,6 @@ spec:
                     - resourceSharingPercentage
                     type: object
                 required:
-                - ingoingConfig
                 - outgoingConfig
                 type: object
             required:
