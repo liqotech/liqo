@@ -29,17 +29,11 @@ import (
 type ClusterConfigSpec struct {
 	APIServerConfig APIServerConfig `json:"apiServerConfig,omitempty"`
 	// AdvertisementConfig defines the configuration for the advertisement protocol.
-	AdvertisementConfig AdvertisementConfig `json:"advertisementConfig"`
+	AdvertisementConfig AdvertisementConfig `json:"resourceSharingConfig"`
 	DiscoveryConfig     DiscoveryConfig     `json:"discoveryConfig"`
 	AuthConfig          AuthConfig          `json:"authConfig"`
 	LiqonetConfig       LiqonetConfig       `json:"liqonetConfig"`
 	DispatcherConfig    DispatcherConfig    `json:"dispatcherConfig,omitempty"`
-	// AgentConfig defines the configuration required by the LiqoAgent app to enable some features on
-	// a Liqo cluster.
-	//
-	// LiqoAgent (https://github.com/liqotech/liqo-agent) is an external desktop application that
-	// allows the user to interact more easily with a Liqo cluster.
-	AgentConfig AgentConfig `json:"agentConfig"`
 }
 
 // +kubebuilder:validation:Pattern="^([0-9]{1,3}.){3}[0-9]{1,3}(/([0-9]|[1-2][0-9]|3[0-2]))$"
@@ -225,13 +219,6 @@ type DashboardConfig struct {
 	// AppLabel defines the value of the 'app' label. All LiqoDash
 	// related resources are labeled with it.
 	AppLabel string `json:"appLabel"`
-}
-
-// AgentConfig defines the configuration of the Liqo Agent.
-type AgentConfig struct {
-	// DashboardConfig contains the parameters required by LiqoAgent
-	// to provide access to LiqoDash (https://github.com/liqotech/dashboard).
-	DashboardConfig DashboardConfig `json:"dashboardConfig"`
 }
 
 // ClusterConfigStatus defines the observed state of ClusterConfig.

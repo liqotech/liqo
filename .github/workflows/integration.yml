@@ -71,10 +71,10 @@ jobs:
       fail-fast: false
       matrix:
         component:
-        - advertisement-operator
         - auth-service
         - cert-creator
         - crd-replicator
+        - liqo-controller-manager
         - liqo-test
         - discovery
         - init-virtual-kubelet

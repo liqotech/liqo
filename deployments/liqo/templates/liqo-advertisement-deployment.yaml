@@ -1,34 +1,34 @@
 ---
-{{- $advertisementConfig := (merge (dict "name" "advertisement" "module" "sharing-protocol") .) -}}
+{{- $ctrlManagerConfig := (merge (dict "name" "controller-manager" "module" "controller-manager") .) -}}
 
 apiVersion: apps/v1
 kind: Deployment
 metadata:
   labels:
-    {{- include "liqo.labels" $advertisementConfig | nindent 4 }}
-  name: {{ include "liqo.prefixedName" $advertisementConfig }}
+    {{- include "liqo.labels" $ctrlManagerConfig | nindent 4 }}
+  name: {{ include "liqo.prefixedName" $ctrlManagerConfig }}
 spec:
   replicas: 1
   selector:
     matchLabels:
-      {{- include "liqo.selectorLabels" $advertisementConfig | nindent 6 }}
+      {{- include "liqo.selectorLabels" $ctrlManagerConfig | nindent 6 }}
   template:
     metadata:
-    {{- if .Values.advertisement.pod.annotations }}
+    {{- if .Values.controllerManager.pod.annotations }}
       annotations:
-      {{- toYaml .Values.advertisement.pod.annotations | nindent 8 }}
+      {{- toYaml .Values.controllerManager.pod.annotations | nindent 8 }}
     {{- end }}
       labels:
-        {{- include "liqo.labels" $advertisementConfig | nindent 8 }}
-      {{- if .Values.advertisement.pod.labels }}
-        {{- toYaml .Values.advertisement.pod.labels | nindent 8 }}
+        {{- include "liqo.labels" $ctrlManagerConfig | nindent 8 }}
+      {{- if .Values.controllerManager.pod.labels }}
+        {{- toYaml .Values.controllerManager.pod.labels | nindent 8 }}
       {{- end }}
     spec:
-      serviceAccountName: {{ include "liqo.prefixedName" $advertisementConfig }}
+      serviceAccountName: {{ include "liqo.prefixedName" $ctrlManagerConfig }}
       containers:
-      - image: {{ .Values.advertisement.imageName }}{{ include "liqo.suffix" $advertisementConfig }}:{{ include "liqo.version" $advertisementConfig }}
+      - image: {{ .Values.controllerManager.imageName }}{{ include "liqo.suffix" $ctrlManagerConfig }}:{{ include "liqo.version" $ctrlManagerConfig }}
         imagePullPolicy: {{ .Values.pullPolicy }}
-        name: {{ $advertisementConfig.name }}
+        name: {{ $ctrlManagerConfig.name }}
         command: ["/usr/bin/advertisement-operator"]
         args:
           - "--cluster-id"
@@ -36,9 +36,9 @@ spec:
           - "--liqo-namespace"
           - "$(POD_NAMESPACE)"
           - "--kubelet-image"
-          - {{ .Values.virtualKubelet.imageName }}{{ include "liqo.suffix" $advertisementConfig }}:{{ include "liqo.version" $advertisementConfig }}
+          - {{ .Values.virtualKubelet.imageName }}{{ include "liqo.suffix" $ctrlManagerConfig }}:{{ include "liqo.version" $ctrlManagerConfig }}
           - "--init-kubelet-image"
-          - {{ .Values.virtualKubelet.initContainer.imageName }}{{ include "liqo.suffix" $advertisementConfig }}:{{ include "liqo.version" $advertisementConfig }}
+          - {{ .Values.virtualKubelet.initContainer.imageName }}{{ include "liqo.suffix" $ctrlManagerConfig }}:{{ include "liqo.version" $ctrlManagerConfig }}
         env:
           - name: CLUSTER_ID
             valueFrom:
