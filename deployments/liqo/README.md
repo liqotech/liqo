@@ -2,12 +2,6 @@
 
 | Key | Type | Default | Description |
 |-----|------|---------|-------------|
-| advertisement.broadcasterImageName | string | `"liqo/advertisement-broadcaster"` | broadcaster image repository |
-| advertisement.config.enableBroadcaster | bool | `true` | If set to false, the remote clusters will not be able to leverage your resources, but you will still be able to use theirs. |
-| advertisement.config.resourceSharingPercentage | int | `30` | It defines the percentage of available cluster resources that you are willing to share with foreign clusters. |
-| advertisement.imageName | string | `"liqo/advertisement-operator"` | advertisement image repository |
-| advertisement.pod.annotations | object | `{}` | advertisement pod annotations |
-| advertisement.pod.labels | object | `{}` | advertisement pod labels |
 | apiServer.address | string | `""` | The address that must be used to contact your API server, it needs to be reachable from the clusters that you will peer with (defaults to your master IP) |
 | apiServer.port | string | `"6443"` | The port that must be used to contact your API server |
 | apiServer.trustedCA | bool | `false` | Indicates that the API Server is exposing a certificate issued by a trusted Certification Authority |
@@ -32,6 +26,11 @@
 | capsule.install | bool | `true` | liqo needs capsule to work properly, but you can use your already deployed capsule installation |
 | capsule.manager.options.capsuleUserGroups[0] | string | `"capsule.clastix.io"` |  |
 | capsule.manager.options.capsuleUserGroups[1] | string | `"liqo.io"` |  |
+| controllerManager.config.enableBroadcaster | bool | `true` | If set to false, the remote clusters will not be able to leverage your resources, but you will still be able to use theirs. |
+| controllerManager.config.resourceSharingPercentage | int | `30` | It defines the percentage of available cluster resources that you are willing to share with foreign clusters. |
+| controllerManager.imageName | string | `"liqo/liqo-controller-manager"` | advertisement image repository |
+| controllerManager.pod.annotations | object | `{}` | advertisement pod annotations |
+| controllerManager.pod.labels | object | `{}` | advertisement pod labels |
 | crdReplicator.imageName | string | `"liqo/crd-replicator"` | crdReplicator image repository |
 | crdReplicator.pod.annotations | object | `{}` | crdReplicator pod annotations |
 | crdReplicator.pod.labels | object | `{}` | crdReplicator pod labels |

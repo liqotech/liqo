@@ -44,7 +44,7 @@ type AdvertisementConfig struct {
 	// OutgoingConfig defines the behavior for the creation of Advertisements on other clusters.
 	OutgoingConfig BroadcasterConfig `json:"outgoingConfig"`
 	// IngoingConfig defines the behavior for the acceptance of Advertisements from other clusters.
-	IngoingConfig AdvOperatorConfig `json:"ingoingConfig"`
+	IngoingConfig AdvOperatorConfig `json:"ingoingConfig,omitempty"`
 	// KeepaliveThreshold defines the number of failed attempts to contact the foreign cluster your cluster will
 	// tolerate before deleting it.
 	// +kubebuilder:validation:Minimum=0

@@ -29,7 +29,7 @@ spec:
       - image: {{ .Values.controllerManager.imageName }}{{ include "liqo.suffix" $ctrlManagerConfig }}:{{ include "liqo.version" $ctrlManagerConfig }}
         imagePullPolicy: {{ .Values.pullPolicy }}
         name: {{ $ctrlManagerConfig.name }}
-        command: ["/usr/bin/advertisement-operator"]
+        command: ["/usr/bin/liqo-controller-manager"]
         args:
           - "--cluster-id"
           - "$(CLUSTER_ID)"
