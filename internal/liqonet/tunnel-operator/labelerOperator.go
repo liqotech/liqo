@@ -14,6 +14,9 @@ import (
 	liqoutils "github.com/liqotech/liqo/pkg/liqonet/utils"
 )
 
+// +kubebuilder:rbac:groups=core,namespace="do-not-care",resources=pods,verbs=get;list;watch;update
+// +kubebuilder:rbac:groups=core,namespace="do-not-care",resources=services,verbs=list;watch;update
+
 const (
 	// These labels are the ones set during the deployment of liqo using the helm chart.
 	// Any change to those labels on the helm chart has also to be reflected here.
