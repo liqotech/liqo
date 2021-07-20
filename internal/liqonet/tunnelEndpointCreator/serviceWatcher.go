@@ -92,7 +92,11 @@ func (tec *TunnelEndpointCreator) serviceHandlerAdd(obj interface{}) {
 			klog.Infof("ingress IPs has not been set for service %s in namespace %s of type %s", s.GetName(), s.GetNamespace(), s.Spec.Type)
 			return
 		}
-		endpointIP = s.Status.LoadBalancer.Ingress[0].IP
+		if s.Status.LoadBalancer.Ingress[0].IP != "" {
+			endpointIP = s.Status.LoadBalancer.Ingress[0].IP
+		} else if s.Status.LoadBalancer.Ingress[0].Hostname != "" {
+			endpointIP = s.Status.LoadBalancer.Ingress[0].Hostname
+		}
 
 		for _, port := range s.Spec.Ports {
 			if port.Name == wireguard.DriverName {
