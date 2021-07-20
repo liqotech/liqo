@@ -35,3 +35,4 @@ rules:
   verbs:
   - list
   - update
+  - watch
