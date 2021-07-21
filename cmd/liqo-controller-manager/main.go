@@ -45,6 +45,7 @@ import (
 	resourceoffercontroller "github.com/liqotech/liqo/pkg/liqo-controller-manager/resourceoffer-controller"
 	virtualNodectrl "github.com/liqotech/liqo/pkg/liqo-controller-manager/virtualNode-controller"
 	"github.com/liqotech/liqo/pkg/mapperUtils"
+	errorsmanagement "github.com/liqotech/liqo/pkg/utils/errorsManagement"
 	"github.com/liqotech/liqo/pkg/vkMachinery"
 	"github.com/liqotech/liqo/pkg/vkMachinery/csr"
 )
@@ -77,12 +78,14 @@ func main() {
 	var metricsAddr, localKubeconfig, clusterId string
 	var probeAddr string
 	var enableLeaderElection bool
+	var debug bool
 	var liqoNamespace, kubeletImage, initKubeletImage string
 	var resyncPeriod int64
 	var offloadingStatusControllerRequeueTime int64
 	var offerUpdateThreshold uint64
 	var namespaceMapControllerRequeueTime int64
 
+	flag.BoolVar(&debug, "debug", false, "flag to enable the debug mode")
 	flag.StringVar(&metricsAddr, "metrics-addr", defaultMetricsaddr, "The address the metric endpoint binds to.")
 	flag.StringVar(&probeAddr, "health-probe-bind-address", ":8081", "The address the probe endpoint binds to.")
 	flag.BoolVar(&enableLeaderElection,
@@ -107,6 +110,8 @@ func main() {
 
 	klog.InitFlags(nil)
 	flag.Parse()
+
+	errorsmanagement.SetDebug(debug)
 
 	if clusterId == "" {
 		klog.Error("Cluster ID must be provided")
