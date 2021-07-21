@@ -159,6 +159,12 @@ jobs:
     needs: configure
     if: needs.configure.outputs.ok-to-continue == 'true' && github.event.pull_request.draft == false
     steps:
+      - name: Check out code
+        uses: actions/checkout@v2
+        with:
+          ref: "${{ needs.configure.outputs.commit_ref }}"
+          repository: "${{ needs.configure.outputs.repo-name }}"
+          persist-credentials: false
       - name: Check if /docs files changed
         uses: dorny/paths-filter@v2
         id: pathFilter
