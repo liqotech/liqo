@@ -53,8 +53,11 @@ const (
 // NewInflater returns a NatMappingInflater istance.
 func NewInflater(dynClient dynamic.Interface) *NatMappingInflater {
 	inflater := &NatMappingInflater{
-		dynClient:             dynClient,
-		natMappingsPerCluster: make(map[string]netv1alpha1.Mappings),
+		dynClient: dynClient,
+	}
+	err := inflater.recoverMappingsFromResources()
+	if err != nil {
+		klog.Error(err)
 	}
 	return inflater
 }
@@ -103,25 +106,10 @@ func (inflater *NatMappingInflater) InitNatMappingsPerCluster(podCIDR, externalC
 	if _, exists := inflater.natMappingsPerCluster[clusterID]; exists {
 		return nil
 	}
-	// Check if resource for remote cluster already exists, this can happen if this Pod
-	// has been re-scheduled.
-	resource, err := inflater.getNatMappingResource(clusterID)
-	if err != nil && !k8sErr.IsNotFound(err) {
-		return err
-	}
-	if err == nil {
-		inflater.recoverFromResource(resource)
-		return nil
-	}
-	// error was NotFound, therefore resource and in-memory structure have to be created
 	// Init natMappingsPerCluster
 	inflater.natMappingsPerCluster[clusterID] = make(netv1alpha1.Mappings)
 	// Init resource
 	return inflater.initResource(podCIDR, externalCIDR, clusterID)
-}
-
-func (inflater *NatMappingInflater) recoverFromResource(resource *netv1alpha1.NatMapping) {
-	inflater.natMappingsPerCluster[resource.Spec.ClusterID] = resource.Spec.ClusterMappings
 }
 
 func (inflater *NatMappingInflater) initResource(podCIDR, externalCIDR, clusterID string) error {
@@ -397,4 +385,31 @@ func (inflater *NatMappingInflater) deleteMultipleNatMappingResources(resources 
 		}
 	}
 	return survived, nil
+}
+
+func (inflater *NatMappingInflater) recoverMappingsFromResources() error {
+	nm := &netv1alpha1.NatMapping{}
+	list, err := inflater.dynClient.
+		Resource(netv1alpha1.NatMappingGroupResource).
+		List(context.Background(), metav1.ListOptions{
+			LabelSelector: fmt.Sprintf("%s=%s",
+				consts.NatMappingResourceLabelKey,
+				consts.NatMappingResourceLabelValue),
+		})
+	if err != nil {
+		return fmt.Errorf("unable to get NatMapping resources: %w", err)
+	}
+	// Allocate a map with capacity equal to the number of found resources
+	inflater.natMappingsPerCluster = make(map[string]netv1alpha1.Mappings, len(list.Items))
+	for _, unstructuredMapping := range list.Items {
+		// For each resource, convert and store it in the map.
+		err = runtime.DefaultUnstructuredConverter.FromUnstructured(unstructuredMapping.Object, nm)
+		if err != nil {
+			return fmt.Errorf("cannot map unstructured resource to NatMapping resource: %w", err)
+		}
+		inflater.natMappingsPerCluster[nm.Spec.ClusterID] = nm.Spec.ClusterMappings.DeepCopy()
+		klog.Infof("Mappings for cluster %s has been recovered from natmapping resource", nm.Spec.ClusterID)
+	}
+	klog.Infof("In memory structure of NatMappingInflater has been successfully recovered from resources.")
+	return nil
 }

@@ -681,6 +681,7 @@ func getPostroutingRules(tep *netv1alpha1.TunnelEndpoint) ([]IPTableRule, error)
 		}
 		return []IPTableRule{
 			{"-s", localPodCIDR, "-d", remotePodCIDR, "-j", NETMAP, "--to", localRemappedPodCIDR},
+			{"-s", localPodCIDR, "-d", remoteExternalCIDR, "-j", NETMAP, "--to", localRemappedPodCIDR},
 			{"!", "-s", localPodCIDR, "-d", remotePodCIDR, "-j", SNAT, "--to-source", natIP},
 			{"!", "-s", localPodCIDR, "-d", remoteExternalCIDR, "-j", SNAT, "--to-source", natIP},
 		}, nil

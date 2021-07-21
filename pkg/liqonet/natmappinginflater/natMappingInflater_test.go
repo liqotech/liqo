@@ -35,6 +35,7 @@ const (
 	podCIDR      = "10.0.0.0/24"
 	externalCIDR = "10.0.1.0/24"
 	oldIP        = "20.0.0.1"
+	oldIP2       = "20.0.0.3"
 	newIP        = "10.0.3.3"
 	newIP2       = "10.0.3.4"
 )
@@ -90,6 +91,29 @@ var _ = Describe("NatMappingInflater", func() {
 		Expect(err).To(BeNil())
 		inflater = NewInflater(dynClient)
 	})
+	Describe("Re-scheduling of the inflater", func() {
+		Context("If there are existing resources", func() {
+			It("the inflater should recover from these resources", func() {
+				By("Creating the resouces for different clusters")
+				err := inflater.InitNatMappingsPerCluster(podCIDR, externalCIDR, clusterID1)
+				Expect(err).To(BeNil())
+				err = inflater.InitNatMappingsPerCluster(podCIDR, externalCIDR, clusterID2)
+				Expect(err).To(BeNil())
+				By("Populating resources with mappings")
+				err = inflater.AddMapping(oldIP, newIP, clusterID1)
+				Expect(err).To(BeNil())
+				err = inflater.AddMapping(oldIP2, newIP2, clusterID1)
+				Expect(err).To(BeNil())
+				err = inflater.AddMapping(oldIP, newIP, clusterID2)
+				Expect(err).To(BeNil())
+				By("Simulate re-scheduling of inflater")
+				inflater = NewInflater(dynClient)
+				Expect(inflater.GetNatMappings(clusterID1)).To(HaveKeyWithValue(oldIP, newIP))
+				Expect(inflater.GetNatMappings(clusterID1)).To(HaveKeyWithValue(oldIP2, newIP2))
+				Expect(inflater.GetNatMappings(clusterID2)).To(HaveKeyWithValue(oldIP, newIP))
+			})
+		})
+	})
 	Describe("InitNatMappingsPerCluster", func() {
 		Context("Passing an invalid PodCIDR", func() {
 			It("should return a WrongParameter error", func() {
@@ -121,40 +145,7 @@ var _ = Describe("NatMappingInflater", func() {
 				Expect(err).To(MatchError(fmt.Sprintf("ExternalCIDR must be %s", liqoneterrors.StringNotEmpty)))
 			})
 		})
-		Context("Initializing mappings if resource already exists", func() {
-			It("should retrieve configuration from resource", func() {
-				// Forge resource
-				nm, err := ForgeNatMapping(clusterID1, podCIDR, externalCIDR, backedMappings)
-				Expect(err).To(BeNil())
-
-				// Create new fake client with resource
-				scheme := runtime.NewScheme()
-				scheme.AddKnownTypeWithName(schema.GroupVersionKind{
-					Group:   "net.liqo.io",
-					Version: "v1alpha1",
-					Kind:    "natmappings",
-				}, &netv1alpha1.NatMapping{})
-				var m = make(map[schema.GroupVersionResource]string)
-				m[schema.GroupVersionResource{
-					Group:    "net.liqo.io",
-					Version:  "v1alpha1",
-					Resource: "natmappings",
-				}] = "natmappingsList"
-				dynClient = fake.NewSimpleDynamicClientWithCustomListKinds(scheme, m, nm)
-
-				// Create new Inflater and inject client
-				inflater = NewInflater(dynClient)
-
-				// Call func
-				err = inflater.InitNatMappingsPerCluster(podCIDR, externalCIDR, clusterID1)
-				Expect(err).To(BeNil())
-
-				// Check if mappings in memory are equal to those in the resource.
-				mappings := inflater.natMappingsPerCluster[clusterID1]
-				Expect(mappings).To(BeEquivalentTo(backedMappings))
-			})
-		})
-		Context("Initializing mappings if resource does not exist", func() {
+		Context("Initializing mappings", func() {
 			It("should create a new resource", func() {
 				// Create new fake client with resource
 				scheme := runtime.NewScheme()
@@ -198,9 +189,9 @@ var _ = Describe("NatMappingInflater", func() {
 	Describe("GetNatMappings", func() {
 		Context("If the cluster has not been initialized yet", func() {
 			It("should return a WrongParameterError", func() {
-				_, err := inflater.GetNatMappings(clusterID1)
+				_, err := inflater.GetNatMappings(clusterID3)
 				Expect(err).To(MatchError(fmt.Sprintf("%s for cluster %s must be %s",
-					consts.NatMappingKind, clusterID1, liqoneterrors.Initialization)))
+					consts.NatMappingKind, clusterID3, liqoneterrors.Initialization)))
 			})
 		})
 		Context("If the cluster has not any mapping", func() {
@@ -292,8 +283,8 @@ var _ = Describe("NatMappingInflater", func() {
 	Describe("AddMapping", func() {
 		Context("Call func without initializing NAT mappings", func() {
 			It("should return a MissingInit error", func() {
-				err := inflater.AddMapping(oldIP, newIP, clusterID1)
-				Expect(err).To(MatchError(fmt.Sprintf("%s for cluster %s must be %s", consts.NatMappingKind, clusterID1, liqoneterrors.Initialization)))
+				err := inflater.AddMapping(oldIP, newIP, clusterID3)
+				Expect(err).To(MatchError(fmt.Sprintf("%s for cluster %s must be %s", consts.NatMappingKind, clusterID3, liqoneterrors.Initialization)))
 			})
 		})
 		Context("Call func after correct initialization", func() {
@@ -357,8 +348,8 @@ var _ = Describe("NatMappingInflater", func() {
 	Describe("RemoveMapping", func() {
 		Context("Call func without initializing NAT mappings", func() {
 			It("should return a MissingInit error", func() {
-				err := inflater.RemoveMapping(oldIP, clusterID1)
-				Expect(err).To(MatchError(fmt.Sprintf("%s for cluster %s must be %s", consts.NatMappingKind, clusterID1, liqoneterrors.Initialization)))
+				err := inflater.RemoveMapping(oldIP, clusterID3)
+				Expect(err).To(MatchError(fmt.Sprintf("%s for cluster %s must be %s", consts.NatMappingKind, clusterID3, liqoneterrors.Initialization)))
 			})
 		})
 		Context("Call func after correct initialization", func() {

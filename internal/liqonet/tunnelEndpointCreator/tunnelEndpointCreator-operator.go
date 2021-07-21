@@ -306,7 +306,7 @@ func (tec *TunnelEndpointCreator) deleteNetConfig(fc *discoveryv1alpha1.ForeignC
 	}
 	if len(netConfigList.Items) != 1 {
 		if len(netConfigList.Items) == 0 {
-			klog.Infof("nothing to remove: a resource of type %s for remote cluster %s not found",
+			klog.V(4).Infof("nothing to remove: a resource of type %s for remote cluster %s not found",
 				netv1alpha1.GroupVersion.String(), clusterID)
 			return nil
 		}
