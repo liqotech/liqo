@@ -113,6 +113,13 @@ jobs:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_PASSWORD }}
 
+      - name: Configure the build-push-action dockerfile path
+        id: dockerfile
+        run: |
+          [[ -d "build/${{ matrix.component }}" ]] && \
+            echo "::set-output name=path::build/${{ matrix.component }}/Dockerfile" || \
+            echo "::set-output name=path::build/common/Dockerfile"
+
       - name: Build (and Publish) ${{ matrix.component }} image
         uses: docker/build-push-action@v2
         with:
@@ -122,7 +129,9 @@ jobs:
             liqo/${{ matrix.component }}${{ needs.configure.outputs.repo-suffix }}:latest
             liqo/${{ matrix.component }}${{ needs.configure.outputs.repo-suffix }}:${{ needs.configure.outputs.commit_ref }}
           push: true
-          file: build/${{ matrix.component }}/Dockerfile
+          file: ${{ steps.dockerfile.outputs.path }}
+          build-args: |
+            COMPONENT=${{ matrix.component }}
           cache-from: type=local,src=/tmp/.buildx-cache
           cache-to: type=local,dest=/tmp/.buildx-cache-new
         # This ugly bit is necessary if you don't want your cache to grow forever
@@ -247,7 +256,7 @@ jobs:
           body_path: ./CHANGELOG.md
         env:
           GITHUB_TOKEN: ${{ secrets.CI_TOKEN }}
-      
+
       - name: Trigger Chart Upload
         uses: peter-evans/repository-dispatch@v1
         with:

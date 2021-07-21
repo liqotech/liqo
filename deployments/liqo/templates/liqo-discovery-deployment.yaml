@@ -28,12 +28,10 @@ spec:
         - image: {{ .Values.discovery.imageName }}{{ include "liqo.suffix" $discoveryConfig }}:{{ include "liqo.version" $discoveryConfig }}
           name: {{ $discoveryConfig.name }}
           imagePullPolicy: {{ .Values.pullPolicy }}
-          command: ["/usr/bin/entrypoint.sh", "/usr/bin/discovery"]
+          command: ["/usr/bin/discovery"]
           args:
-          - "--namespace"
-          - "$(POD_NAMESPACE)"
-          - "--requeueAfter"
-          - "30"
+          - "--namespace=$(POD_NAMESPACE)"
+          - "--requeueAfter=30"
           env:
             - name: POD_NAMESPACE
               valueFrom:

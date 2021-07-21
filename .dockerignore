@@ -1,0 +1,10 @@
+.git
+.github
+.gitignore
+.dockerignore
+.gitmodules.
+.golangci.yml
+*/**/*.md
+build
+deployments
+docs
