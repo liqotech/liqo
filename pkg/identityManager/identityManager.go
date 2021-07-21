@@ -29,13 +29,7 @@ func NewCertificateIdentityManager(client kubernetes.Interface,
 		client:           client,
 	}
 
-	return &identityManager{
-		client:           client,
-		localClusterID:   localClusterID,
-		namespaceManager: namespaceManager,
-
-		identityProvider: idProvider,
-	}
+	return newIdentityManager(client, localClusterID, namespaceManager, idProvider)
 }
 
 // NewIAMIdentityManager gets a new identity manager to handle IAM identities.
@@ -47,6 +41,13 @@ func NewIAMIdentityManager(client kubernetes.Interface,
 		client:    client,
 	}
 
+	return newIdentityManager(client, localClusterID, namespaceManager, idProvider)
+}
+
+func newIdentityManager(client kubernetes.Interface,
+	localClusterID clusterid.ClusterID,
+	namespaceManager tenantnamespace.Manager,
+	idProvider identityProvider) IdentityManager {
 	iamTokenManager := &iamTokenManager{
 		client:                    client,
 		availableClusterIDSecrets: map[string]types.NamespacedName{},
