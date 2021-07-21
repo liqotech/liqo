@@ -9,7 +9,7 @@ ARG COMPONENT
 RUN test -n "$COMPONENT" || ( echo "The COMPONENT argument is unset. Aborting" && false )
 
 COPY . ./
-RUN CGO_ENABLED=0 GOOS=linux GOARCH=$(go env GOARCH) go build ./cmd/$COMPONENT
+RUN CGO_ENABLED=0 GOOS=linux GOARCH=$(go env GOARCH) go build -ldflags="-s -w" ./cmd/$COMPONENT
 
 
 FROM alpine:3.14

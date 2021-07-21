@@ -14,7 +14,7 @@ COPY go.sum ./go.sum
 RUN  go mod download
 
 COPY . ./
-RUN CGO_ENABLED=0 GOOS=linux GOARCH=$(go env GOARCH) go build ./cmd/liqonet
+RUN CGO_ENABLED=0 GOOS=linux GOARCH=$(go env GOARCH) go build -ldflags="-s -w" ./cmd/liqonet
 
 
 FROM alpine:3.14
