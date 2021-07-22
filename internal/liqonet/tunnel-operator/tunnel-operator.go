@@ -16,6 +16,7 @@ package tunneloperator
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"net"
 	"os"
@@ -28,6 +29,7 @@ import (
 	"github.com/vishvananda/netlink"
 	"golang.org/x/sys/unix"
 	k8sApiErrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/types"
 	k8s "k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/record"
 	"k8s.io/klog"
@@ -66,6 +68,7 @@ type TunnelController struct {
 	drivers            map[string]tunnel.Driver
 	namespace          string
 	podIP              string
+	finalizer          string
 	hostNetns          ns.NetNS
 	gatewayNetns       ns.NetNS
 	hostVeth           netlink.Link
@@ -83,18 +86,20 @@ type TunnelController struct {
 // +kubebuilder:rbac:groups=core,namespace="do-not-care",resources=secrets,verbs=get;list;watch;create;update;patch;delete
 
 // NewTunnelController instantiates and initializes the tunnel controller.
-func NewTunnelController(podIP, namespace string, er record.EventRecorder,
-	k8sClient k8s.Interface, cl client.Client, readyClustersMutex *sync.Mutex,
-	readyClusters map[string]struct{}, gatewayNetns ns.NetNS) (*TunnelController, error) {
+func NewTunnelController(podIP, namespace string, er record.EventRecorder, k8sClient k8s.Interface, cl client.Client,
+	readyClustersMutex *sync.Mutex, readyClusters map[string]struct{}, gatewayNetns, hostNetns ns.NetNS) (*TunnelController, error) {
+	tunnelEndpointFinalizer := strings.Join([]string{liqoconst.LiqoGatewayOperatorName, liqoconst.FinalizersSuffix}, ".")
 	tc := &TunnelController{
 		Client:             cl,
 		EventRecorder:      er,
 		k8sClient:          k8sClient,
 		podIP:              podIP,
 		namespace:          namespace,
+		finalizer:          tunnelEndpointFinalizer,
 		readyClustersMutex: readyClustersMutex,
 		readyClusters:      readyClusters,
 		gatewayNetns:       gatewayNetns,
+		hostNetns:          hostNetns,
 	}
 
 	err := tc.SetUpTunnelDrivers()
@@ -240,7 +245,6 @@ func (tc *TunnelController) Reconcile(ctx context.Context, req ctrl.Request) (ct
 		return nil
 	}
 	// Name of our finalizer.
-	tunnelEndpointFinalizer := strings.Join([]string{liqoconst.LiqoGatewayOperatorName, tc.podIP, "net.liqo.io"}, ".")
 	if err = tc.Get(ctx, req.NamespacedName, tep); err != nil && !k8sApiErrors.IsNotFound(err) {
 		klog.Errorf("unable to fetch resource %s: %s", req.String(), err)
 		return ctrl.Result{}, err
@@ -260,11 +264,11 @@ func (tc *TunnelController) Reconcile(ctx context.Context, req ctrl.Request) (ct
 	_, remoteExternalCIDR = utils.GetExternalCIDRS(tep)
 	// Examine DeletionTimestamp to determine if object is under deletion.
 	if tep.ObjectMeta.DeletionTimestamp.IsZero() {
-		if !controllerutil.ContainsFinalizer(tep, tunnelEndpointFinalizer) {
+		if !controllerutil.ContainsFinalizer(tep, tc.finalizer) {
 			// The object is not being deleted, so if it does not have our finalizer,
 			// then lets add the finalizer and update the object. This is equivalent
 			// registering our finalizer.
-			controllerutil.AddFinalizer(tep, tunnelEndpointFinalizer)
+			controllerutil.AddFinalizer(tep, tc.finalizer)
 			if err := tc.Update(ctx, tep); err != nil {
 				if k8sApiErrors.IsConflict(err) {
 					klog.V(4).Infof("%s -> unable to add finalizers to resource %s: %s", clusterID, req.String(), err)
@@ -276,7 +280,7 @@ func (tc *TunnelController) Reconcile(ctx context.Context, req ctrl.Request) (ct
 		}
 	} else {
 		// The object is being deleted.
-		if controllerutil.ContainsFinalizer(tep, tunnelEndpointFinalizer) {
+		if controllerutil.ContainsFinalizer(tep, tc.finalizer) {
 			if err = tc.gatewayNetns.Do(unconfigGWNetns); err != nil {
 				return result, err
 			}
@@ -284,7 +288,7 @@ func (tc *TunnelController) Reconcile(ctx context.Context, req ctrl.Request) (ct
 				return result, err
 			}
 			// Remove the finalizer from the list and update it.
-			controllerutil.RemoveFinalizer(tep, tunnelEndpointFinalizer)
+			controllerutil.RemoveFinalizer(tep, tc.finalizer)
 			if err := tc.Update(ctx, tep); err != nil {
 				if k8sApiErrors.IsConflict(err) {
 					klog.V(4).Infof("%s -> unable to add finalizers to resource %s: %s", clusterID, req.String(), err)
@@ -413,9 +417,8 @@ func (tc *TunnelController) SetupSignalHandlerForTunnelOperator() context.Contex
 	go func(tc *TunnelController) {
 		sig := <-c
 		klog.Infof("the operator received signal {%s}: cleaning up", sig.String())
-		if err := tc.CleanUpConfiguration(liqoconst.GatewayNetnsName, liqoconst.HostVethName); err != nil {
-			klog.Errorf("an error occurred while cleaning up namespace {%s} with path {%s}: %v", liqoconst.GatewayNetnsName, tc.gatewayNetns.Path(), err)
-		}
+		// Here, the error is not checked, as at exit time is not possible to recover. Errors are just logged.
+		tc.CleanUpConfiguration(liqoconst.GatewayNetnsName, liqoconst.HostVethName)
 		done()
 	}(tc)
 	return ctx
@@ -488,12 +491,7 @@ func (tc *TunnelController) SetUpRouteManager() error {
 }
 
 func (tc *TunnelController) setUpGWNetns(netnsName, hostVethName, gatewayVethName, gatewayVethIPAddr string, vethMtu int) error {
-	// Get current netns (hostNetns).
 	var err error
-	tc.hostNetns, err = ns.GetCurrentNS()
-	if err != nil {
-		return err
-	}
 	// Create veth pair to connect the two namespaces.
 	err = liqonetns.CreateVethPair(hostVethName, gatewayVethName, tc.hostNetns, tc.gatewayNetns, vethMtu)
 	if err != nil {
@@ -531,7 +529,8 @@ func (tc *TunnelController) setUpGWNetns(netnsName, hostVethName, gatewayVethNam
 
 // CleanUpConfiguration removes the veth pair existing in the host network and then removes the
 // custom network namespace.
-func (tc *TunnelController) CleanUpConfiguration(netnsName, hostVethName string) error {
+func (tc *TunnelController) CleanUpConfiguration(netnsName, hostVethName string) {
+	// List all the tunnel endpoints resources.
 	var deleteDeviceByName = func(netNamespace ns.NetNS) error {
 		klog.V(4).Infof("deleting device {%s}", hostVethName)
 		link, err := netlink.LinkByName(hostVethName)
@@ -544,7 +543,7 @@ func (tc *TunnelController) CleanUpConfiguration(netnsName, hostVethName string)
 		return nil
 	}
 	if err := tc.hostNetns.Do(deleteDeviceByName); err != nil {
-		return err
+		klog.Errorf("an error occurred while deleting network interface {%s} in host network namespace: %v", hostVethName, err)
 	}
 	var deletePRRFromHostNS = func(netNamespace ns.NetNS) error {
 		// First we list all the policy routing rules.
@@ -565,10 +564,30 @@ func (tc *TunnelController) CleanUpConfiguration(netnsName, hostVethName string)
 		return nil
 	}
 	if err := tc.hostNetns.Do(deletePRRFromHostNS); err != nil {
-		return err
+		klog.Errorf("an error occurred while deleting policy routing rules: %v", err)
 	}
+
 	klog.V(4).Infof("deleting namespace {%s}", netnsName)
-	return liqonetns.DeleteNetns(netnsName)
+	if err := liqonetns.DeleteNetns(netnsName); err != nil {
+		klog.Errorf("an error occurred while deleting gateway network namespace: %v", err)
+	}
+	teps := new(netv1alpha1.TunnelEndpointList)
+	if err := tc.List(context.TODO(), teps); err != nil {
+		klog.Errorf("an error occurred while listing tunnelendpoints objects: %v", err)
+	} else {
+		for i := range teps.Items {
+			tep := teps.Items[i]
+			controllerutil.RemoveFinalizer(&tep, tc.finalizer)
+			patch, err := json.Marshal(map[string]map[string][]string{"metadata": {"finalizers": tep.GetFinalizers()}})
+			if err != nil {
+				klog.Errorf("unable to marshal finalizers of object {%s/%s}: %v", tep.Namespace, tep.Name, err)
+				break
+			}
+			if err := tc.Patch(context.TODO(), &teps.Items[i], client.RawPatch(types.MergePatchType, patch)); err != nil {
+				klog.Errorf("an error occurred while removing finalizer from object {%s/%s}: %v", tep.Namespace, tep.Name, err)
+			}
+		}
+	}
 }
 
 func (tc *TunnelController) configureGatewayNetns(ifaceName, ipAddress string, gatewayNs ns.NetNS) error {

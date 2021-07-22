@@ -12,8 +12,10 @@ import (
 )
 
 var (
-	hostVeth    = "originVeth"
-	gatewayVeth = "dstVeth"
+	hostVeth            = "originVeth"
+	existingHostVeth    = "host-foo"
+	gatewayVeth         = "dstVeth"
+	existingGatewayVeth = "gateway-foo"
 )
 
 var _ = Describe("Netns", func() {
@@ -111,9 +113,14 @@ var _ = Describe("Netns", func() {
 				setUpNetns(netnsName)
 			})
 
-			It("should return error", func() {
-				err := CreateVethPair(hostVeth, "foo", originNetns, newNetns, 1500)
+			It("link exists in gateway netns, should return error", func() {
+				err := CreateVethPair(hostVeth, existingGatewayVeth, originNetns, newNetns, 1500)
 				Expect(err).Should(HaveOccurred())
+			})
+
+			It("link exists in host netns, should remove it and create again", func() {
+				err := CreateVethPair(existingHostVeth, gatewayVeth, originNetns, newNetns, 1500)
+				Expect(err).Should(BeNil())
 			})
 		})
 

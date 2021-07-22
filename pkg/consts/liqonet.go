@@ -74,4 +74,6 @@ const (
 	RemoteNATPodCIDR = "RemoteNATPodCIDR"
 	// RemoteNATExternalCIDR is a field of the TunnelEndpoint resource.
 	RemoteNATExternalCIDR = "RemoteNATExternalCIDR"
+	// FinalizersSuffix suffix used by the network operators to create the finalizers added to k8s resources.
+	FinalizersSuffix = "net.liqo.io"
 )

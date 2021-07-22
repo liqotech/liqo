@@ -2,13 +2,14 @@ package utils
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net"
 	"os"
 	"strings"
 	"syscall"
 
-	"golang.org/x/tools/go/ssa/interp/testdata/src/errors"
+	"github.com/vishvananda/netlink"
 	"inet.af/netaddr"
 	corev1 "k8s.io/api/core/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
@@ -319,4 +320,25 @@ func GetLabelValueFromObj(obj client.Object, labelKey string) string {
 		return ""
 	}
 	return obj.GetLabels()[labelKey]
+}
+
+// DeleteIFaceByName deletes the interface that has the given name.
+func DeleteIFaceByName(ifaceName string) error {
+	existingIface, err := netlink.LinkByName(ifaceName)
+	if err != nil {
+		if errors.As(err, &netlink.LinkNotFoundError{}) {
+			return nil
+		}
+		klog.Errorf("an error occurred while getting network interface {%s}: %v", ifaceName, err)
+		return err
+	}
+	// Remove the existing network interface.
+	if err = netlink.LinkDel(existingIface); err != nil && errors.As(err, &netlink.LinkNotFoundError{}) {
+		if errors.As(err, &netlink.LinkNotFoundError{}) {
+			return nil
+		}
+		klog.Errorf("an error occurred while deleting network interface {%s}: %v", existingIface.Attrs().Name, err)
+		return err
+	}
+	return nil
 }

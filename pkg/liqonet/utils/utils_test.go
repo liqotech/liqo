@@ -8,6 +8,7 @@ import (
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/ginkgo/extensions/table"
 	. "github.com/onsi/gomega"
+	"github.com/vishvananda/netlink"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/wait"
@@ -23,6 +24,7 @@ const (
 	labelValue        = "LabelValue"
 	annotationKey     = "net.liqo.io/AnnotationKey"
 	annotationValue   = "AnnotationValue"
+	interfaceName     = "dummy-link"
 )
 
 var (
@@ -314,6 +316,30 @@ var _ = Describe("Liqonet", func() {
 			It("should return an empty string", func() {
 				value := utils.GetLabelValueFromObj(testPod, "nonExistingKey")
 				Expect(value).Should(Equal(""))
+			})
+		})
+	})
+
+	Describe("testing DeleteIfaceByName function", func() {
+		Context("when network interface exists", func() {
+			BeforeEach(func() {
+				// Create dummy link.
+				err := netlink.LinkAdd(&netlink.Dummy{LinkAttrs: netlink.LinkAttrs{Name: interfaceName}})
+				Expect(err).ShouldNot(HaveOccurred())
+			})
+
+			It("should return nil", func() {
+				err := utils.DeleteIFaceByName(interfaceName)
+				Expect(err).Should(BeNil())
+				_, err = netlink.LinkByName(interfaceName)
+				Expect(err).Should(MatchError("Link not found"))
+			})
+		})
+
+		Context("when network interface does not exist", func() {
+			It("should return nil", func() {
+				err := utils.DeleteIFaceByName("not-existing")
+				Expect(err).Should(BeNil())
 			})
 		})
 	})
