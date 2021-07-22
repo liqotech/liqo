@@ -13,7 +13,6 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/dynamic"
-	"k8s.io/client-go/dynamic/dynamicinformer"
 	"k8s.io/klog/v2"
 
 	netv1alpha1 "github.com/liqotech/liqo/apis/net/v1alpha1"
@@ -41,20 +40,18 @@ var (
 func setupDispatcherOperator() error {
 	var err error
 	localDynClient := dynamic.NewForConfigOrDie(k8sManagerLocal.GetConfig())
-	localDynFac := dynamicinformer.NewFilteredDynamicSharedInformerFactory(localDynClient, crdreplicator.ResyncPeriod, metav1.NamespaceAll, crdreplicator.SetLabelsForLocalResources)
 	dOperator = &crdreplicator.Controller{
-		Scheme:                         k8sManagerLocal.GetScheme(),
-		Client:                         k8sManagerLocal.GetClient(),
-		ClientSet:                      nil,
-		ClusterID:                      localClusterID,
-		RemoteDynClients:               peeringClustersDynClients, // we already populate the dynamicClients of the peering clusters
-		LocalDynClient:                 localDynClient,
-		LocalDynSharedInformerFactory:  localDynFac,
-		RemoteDynSharedInformerFactory: peeringClustersDynFactories,
-		RegisteredResources:            nil,
-		UnregisteredResources:          nil,
-		LocalWatchers:                  make(map[string]chan struct{}),
-		RemoteWatchers:                 make(map[string]map[string]chan struct{}),
+		Scheme:                           k8sManagerLocal.GetScheme(),
+		Client:                           k8sManagerLocal.GetClient(),
+		ClientSet:                        nil,
+		ClusterID:                        localClusterID,
+		RemoteDynClients:                 peeringClustersDynClients, // we already populate the dynamicClients of the peering clusters
+		LocalDynClient:                   localDynClient,
+		RegisteredResources:              nil,
+		UnregisteredResources:            nil,
+		LocalWatchers:                    make(map[string]chan struct{}),
+		RemoteWatchers:                   make(map[string]map[string]chan struct{}),
+		ClusterIDToRemoteNamespaceMapper: clusterIDToRemoteNamespaceMapper,
 	}
 	err = dOperator.SetupWithManager(k8sManagerLocal)
 	if err != nil {
@@ -111,7 +108,7 @@ func cleanUp(t *testing.T, localResources map[string]*netv1alpha1.TunnelEndpoint
 		err := dOperator.LocalDynClient.Resource(tunGVR).Namespace(testNamespace).Delete(context.TODO(), res.Name, metav1.DeleteOptions{})
 		klog.Infof("deleting resource %s", res.Name)
 		assert.Nil(t, err, "should be nil")
-		time.Sleep(10 * time.Second)
+		time.Sleep(1 * time.Second)
 	}
 	// check that the resources have been removed from the peering clusters
 	for clusterID, dynClient := range peeringClustersDynClients {
@@ -127,7 +124,7 @@ func cleanUp(t *testing.T, localResources map[string]*netv1alpha1.TunnelEndpoint
 // we create a resource which type has been registered for the replication
 // but we don't label it, so we expect to not find it on the remote clusters
 func TestReplication1(t *testing.T) {
-	time.Sleep(10 * time.Second)
+	time.Sleep(1 * time.Second)
 	// first we create a tunnelEndpoint on the localCluster
 	tun := getTunnelEndpointResource()
 	newTun, err := dOperator.LocalDynClient.Resource(tunGVR).Namespace(testNamespace).Create(context.TODO(), tun, metav1.CreateOptions{})
@@ -148,7 +145,7 @@ func TestReplication1(t *testing.T) {
 // we create a resource which type has been registered for the replication
 // we label it to be replicated on all the three clusters, so we expect to not find it on the remote clusters
 func TestReplication2(t *testing.T) {
-	time.Sleep(10 * time.Second)
+	time.Sleep(1 * time.Second)
 	localResources := map[string]*netv1alpha1.TunnelEndpoint{}
 	// we create the resource on the localcluster to be replicated on all the peeringClusters
 	for clusterID := range peeringClustersTestEnvs {
@@ -166,7 +163,7 @@ func TestReplication2(t *testing.T) {
 		localResources[clusterID] = typedTun
 	}
 
-	time.Sleep(10 * time.Second)
+	time.Sleep(1 * time.Second)
 	// check that the replication happened on the peering clusters and that the spec is the same.
 	for clusterID, dynClient := range peeringClustersDynClients {
 		typedTun := &netv1alpha1.TunnelEndpoint{}
@@ -187,7 +184,7 @@ func TestReplication2(t *testing.T) {
 // we update the status on the peering clusters and expect it to be replicated on the local cluster as well
 func TestReplication4(t *testing.T) {
 	updateOwnership(consts.OwnershipShared)
-	time.Sleep(10 * time.Second)
+	time.Sleep(1 * time.Second)
 	localResources := map[string]*netv1alpha1.TunnelEndpoint{}
 	// we create the resource on the localcluster to be replicated on all the peeringClusters
 	for clusterID := range peeringClustersTestEnvs {
@@ -205,7 +202,7 @@ func TestReplication4(t *testing.T) {
 		localResources[clusterID] = typedTun
 	}
 
-	time.Sleep(10 * time.Second)
+	time.Sleep(1 * time.Second)
 	// check that the resources have been replicated on the peering clusters
 	for clusterID, dynClient := range peeringClustersDynClients {
 		remTun, err := dynClient.Resource(tunGVR).Namespace(testNamespace).Get(context.TODO(), localResources[clusterID].Name, metav1.GetOptions{})
@@ -230,7 +227,7 @@ func TestReplication4(t *testing.T) {
 		_, err = peeringClustersDynClients[clusterID].Resource(tunGVR).
 			Namespace(testNamespace).UpdateStatus(context.TODO(), currentTun, metav1.UpdateOptions{})
 		assert.Nil(t, err, "error should be nil")
-		time.Sleep(10 * time.Second)
+		time.Sleep(1 * time.Second)
 	}
 
 	// retrieve the local resources from the local cluster and check if the update has been replicated
@@ -256,7 +253,7 @@ func TestReplication4(t *testing.T) {
 // we label it to be replicated on all the three clusters, so we expect to not find it on the remote clusters
 // we update the status and expect it to be replicated on the peering clusters as well
 func TestReplication3(t *testing.T) {
-	time.Sleep(10 * time.Second)
+	time.Sleep(1 * time.Second)
 	localResources := map[string]*netv1alpha1.TunnelEndpoint{}
 	// we create the resource on the localcluster to be replicated on all the peeringClusters
 	for clusterID := range peeringClustersTestEnvs {
@@ -273,7 +270,7 @@ func TestReplication3(t *testing.T) {
 		assert.Nil(t, err, "error should be nil")
 		localResources[clusterID] = typedTun
 	}
-	time.Sleep(10 * time.Second)
+	time.Sleep(1 * time.Second)
 
 	// check that the resources have been replicated on the peering clusters
 	for clusterID, dynClient := range peeringClustersDynClients {
@@ -297,7 +294,7 @@ func TestReplication3(t *testing.T) {
 		assert.Nil(t, err, "error should be nil")
 		_, err = dOperator.LocalDynClient.Resource(tunGVR).Namespace(testNamespace).UpdateStatus(context.TODO(), currentTun, metav1.UpdateOptions{})
 		assert.Nil(t, err, "error should be nil")
-		time.Sleep(10 * time.Second)
+		time.Sleep(1 * time.Second)
 	}
 
 	// retrieve the replicated resources from the peering cluster and check if the update is present

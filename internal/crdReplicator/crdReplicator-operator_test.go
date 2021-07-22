@@ -13,7 +13,6 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/dynamic"
-	"k8s.io/client-go/dynamic/dynamicinformer"
 	"k8s.io/klog/v2"
 
 	configv1alpha1 "github.com/liqotech/liqo/apis/config/v1alpha1"
@@ -94,16 +93,14 @@ func getCRDReplicator() Controller {
 	tenantmanager := tenantnamespace.NewTenantNamespaceManager(k8sclient)
 	clusterIDInterface := clusterid.NewStaticClusterID(localClusterID)
 	return Controller{
-		Scheme:                         nil,
-		ClusterID:                      localClusterID,
-		RemoteDynClients:               map[string]dynamic.Interface{remoteClusterID: dynClient},
-		RemoteDynSharedInformerFactory: map[string]dynamicinformer.DynamicSharedInformerFactory{remoteClusterID: dynFac},
-		RegisteredResources:            nil,
-		UnregisteredResources:          nil,
-		RemoteWatchers:                 map[string]map[string]chan struct{}{},
-		LocalDynClient:                 dynClient,
-		LocalDynSharedInformerFactory:  localDynFac,
-		LocalWatchers:                  map[string]chan struct{}{},
+		Scheme:                nil,
+		ClusterID:             localClusterID,
+		RemoteDynClients:      map[string]dynamic.Interface{remoteClusterID: dynClient},
+		RegisteredResources:   nil,
+		UnregisteredResources: nil,
+		RemoteWatchers:        map[string]map[string]chan struct{}{},
+		LocalDynClient:        dynClient,
+		LocalWatchers:         map[string]chan struct{}{},
 
 		NamespaceManager:                 tenantmanager,
 		IdentityReader:                   identitymanager.NewCertificateIdentityReader(k8sclient, clusterIDInterface, tenantmanager),
@@ -385,7 +382,7 @@ func TestCRDReplicatorReconciler_RemoteResourceModifiedHandler(t *testing.T) {
 	//the modified resource does not exist on the cluster
 	//we expect the resource to be created and error to be nil
 	test1 := getObj()
-	d.RemoteResourceModifiedHandler(test1, gvr, remoteClusterID, consts.OwnershipShared)
+	d.RemoteResourceModifiedHandler(dynClient, test1, gvr, remoteClusterID, consts.OwnershipShared)
 	time.Sleep(1 * time.Second)
 	_, err := dynClient.Resource(gvr).Namespace(testNamespace).Get(context.TODO(), test1.GetName(), metav1.GetOptions{})
 	assert.True(t, apierrors.IsNotFound(err), "error should be not found")
@@ -399,7 +396,7 @@ func TestCRDReplicatorReconciler_RemoteResourceModifiedHandler(t *testing.T) {
 	test1.SetLabels(map[string]string{
 		"labelTestin": "labelling",
 	})
-	d.RemoteResourceModifiedHandler(test1, gvr, remoteClusterID, consts.OwnershipShared)
+	d.RemoteResourceModifiedHandler(dynClient, test1, gvr, remoteClusterID, consts.OwnershipShared)
 	time.Sleep(1 * time.Second)
 	obj, err := dynClient.Resource(gvr).Namespace(testNamespace).Get(context.TODO(), test1.GetName(), metav1.GetOptions{})
 	assert.Nil(t, err, "error should be empty")
@@ -416,7 +413,7 @@ func TestCRDReplicatorReconciler_RemoteResourceModifiedHandler(t *testing.T) {
 	}
 	err = unstructured.SetNestedMap(obj.Object, newStatus, "status")
 	assert.Nil(t, err, "error should be nil")
-	d.RemoteResourceModifiedHandler(test1, gvr, remoteClusterID, consts.OwnershipShared)
+	d.RemoteResourceModifiedHandler(dynClient, test1, gvr, remoteClusterID, consts.OwnershipShared)
 	time.Sleep(1 * time.Second)
 	obj, err = dynClient.Resource(gvr).Namespace(testNamespace).Get(context.TODO(), test1.GetName(), metav1.GetOptions{})
 	assert.Nil(t, err, "error should be empty")

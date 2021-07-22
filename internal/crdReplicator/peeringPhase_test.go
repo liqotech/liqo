@@ -4,7 +4,6 @@ import (
 	"context"
 	"os"
 	"path/filepath"
-	"strings"
 	"testing"
 	"time"
 
@@ -17,7 +16,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/client-go/dynamic"
-	"k8s.io/client-go/dynamic/dynamicinformer"
 	"k8s.io/client-go/kubernetes"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 
@@ -67,31 +65,17 @@ var _ = Describe("PeeringPhase-Based Replication", func() {
 		clusterIDInterface := clusterid.NewStaticClusterID(localClusterID)
 
 		dynClient := dynamic.NewForConfigOrDie(mgr.GetConfig())
-		dynFac := dynamicinformer.NewFilteredDynamicSharedInformerFactory(dynClient, ResyncPeriod, metav1.NamespaceAll, func(options *metav1.ListOptions) {
-			//we want to watch only the resources that have been created by us on the remote cluster
-			if options.LabelSelector == "" {
-				newLabelSelector := []string{RemoteLabelSelector, "=", localClusterID}
-				options.LabelSelector = strings.Join(newLabelSelector, "")
-			} else {
-				newLabelSelector := []string{options.LabelSelector, RemoteLabelSelector, "=", localClusterID}
-				options.LabelSelector = strings.Join(newLabelSelector, "")
-			}
-		})
-
-		localDynFac := dynamicinformer.NewFilteredDynamicSharedInformerFactory(dynClient, ResyncPeriod, metav1.NamespaceAll, nil)
 
 		controller = Controller{
-			Scheme:                         mgr.GetScheme(),
-			Client:                         mgr.GetClient(),
-			ClusterID:                      localClusterID,
-			RemoteDynClients:               map[string]dynamic.Interface{remoteClusterID: dynClient},
-			RemoteDynSharedInformerFactory: map[string]dynamicinformer.DynamicSharedInformerFactory{remoteClusterID: dynFac},
-			RegisteredResources:            nil,
-			UnregisteredResources:          nil,
-			RemoteWatchers:                 map[string]map[string]chan struct{}{},
-			LocalDynClient:                 dynClient,
-			LocalDynSharedInformerFactory:  localDynFac,
-			LocalWatchers:                  map[string]chan struct{}{},
+			Scheme:                mgr.GetScheme(),
+			Client:                mgr.GetClient(),
+			ClusterID:             localClusterID,
+			RemoteDynClients:      map[string]dynamic.Interface{remoteClusterID: dynClient},
+			RegisteredResources:   nil,
+			UnregisteredResources: nil,
+			RemoteWatchers:        map[string]map[string]chan struct{}{},
+			LocalDynClient:        dynClient,
+			LocalWatchers:         map[string]chan struct{}{},
 
 			NamespaceManager:                 tenantmanager,
 			IdentityReader:                   identitymanager.NewCertificateIdentityReader(k8sclient, clusterIDInterface, tenantmanager),
