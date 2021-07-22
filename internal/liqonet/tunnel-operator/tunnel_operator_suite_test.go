@@ -88,6 +88,8 @@ var _ = BeforeSuite(func() {
 	gatewayNetns, err = netns.CreateNetns(consts.GatewayNetnsName)
 	Expect(err).To(BeNil())
 	tc.gatewayNetns = gatewayNetns
+	tc.hostNetns, err = ns.GetCurrentNS()
+	Expect(err).To(BeNil())
 
 	// Create custom network namespace for natmapping-operator.
 	iptNetns, err = netns.CreateNetns(iptNetnsName)

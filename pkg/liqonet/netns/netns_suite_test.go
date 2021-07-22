@@ -37,11 +37,15 @@ func setUpNetns(name string) {
 	// Set the newly created newNs
 	err = netns.Set(newNs)
 	Expect(err).ShouldNot(HaveOccurred())
-	// Create a dummy network interface
-	err = netlink.LinkAdd(&netlink.Dummy{LinkAttrs: netlink.LinkAttrs{Name: "foo"}})
+	// Create a dummy network interface in gateway netns.
+	err = netlink.LinkAdd(&netlink.Dummy{LinkAttrs: netlink.LinkAttrs{Name: existingGatewayVeth}})
 	Expect(err).ShouldNot(HaveOccurred())
 	err = originNetns.Set()
-	Expect(err).ShouldNot(HaveOccurred())
+	// Create dummy network interface in host netns.
+	err = netlink.LinkAdd(&netlink.Dummy{LinkAttrs: netlink.LinkAttrs{Name: existingHostVeth}})
+	if !errors.Is(err, unix.EEXIST) {
+		Expect(err).ShouldNot(HaveOccurred())
+	}
 	// Save newly created netns.
 	newNetns, err = ns.GetNS("/run/netns/" + netnsName)
 	Expect(err).ShouldNot(HaveOccurred())

@@ -1,6 +1,7 @@
 package netns
 
 import (
+	"runtime"
 	"time"
 
 	"github.com/containernetworking/plugins/pkg/ip"
@@ -13,6 +14,7 @@ import (
 	"k8s.io/klog"
 
 	liqoneterrors "github.com/liqotech/liqo/pkg/liqonet/errors"
+	liqoutils "github.com/liqotech/liqo/pkg/liqonet/utils"
 )
 
 const (
@@ -27,6 +29,8 @@ const (
 // Returns a handler to the newly created network namespace or an error in case
 // something goes wrong.
 func CreateNetns(name string) (ns.NetNS, error) {
+	runtime.LockOSThread()
+	defer runtime.UnlockOSThread()
 	// Get current namespace.
 	currentNs, err := ns.GetCurrentNS()
 	if err != nil {
@@ -64,12 +68,22 @@ func DeleteNetns(name string) error {
 }
 
 // CreateVethPair it will create veth pair in originNetns and move one of them in dstNetns.
+// originNetns is the host netns and dstNetns is the gateway netns.
 // Error is returned if something goes wrong.
 func CreateVethPair(originVethName, dstVethName string, originNetns, dstNetns ns.NetNS, linkMTU int) error {
 	if originNetns == nil || dstNetns == nil {
 		return &liqoneterrors.WrongParameter{
 			Parameter: "originNetns and dstNetns",
 			Reason:    liqoneterrors.NotNil}
+	}
+	// Check if in originNetns, aka host netns, exists an interface named as originVethName.
+	// If it exists than we remove it.
+	err := originNetns.Do(func(currentNetns ns.NetNS) error {
+		return liqoutils.DeleteIFaceByName(originVethName)
+	})
+	if err != nil {
+		klog.Errorf("an error occurred while deleting interface {%s} in host network: %v", originVethName, err)
+		return err
 	}
 	var createVethPair = func(hostNS ns.NetNS) error {
 		_, _, err := ip.SetupVethWithName(originVethName, dstVethName, linkMTU, dstNetns)

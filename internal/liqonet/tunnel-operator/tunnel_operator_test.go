@@ -50,7 +50,6 @@ var _ = Describe("TunnelOperator", func() {
 
 					return nil
 				})
-				Expect(tc.hostNetns.Close()).ShouldNot(HaveOccurred())
 			})
 
 			It("incorrect name for veth interface, should return error", func() {
