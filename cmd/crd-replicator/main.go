@@ -5,11 +5,9 @@ import (
 	"os"
 	"time"
 
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/dynamic"
-	"k8s.io/client-go/dynamic/dynamicinformer"
 	"k8s.io/client-go/kubernetes"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/klog/v2"
@@ -79,22 +77,18 @@ func main() {
 	clusterIDInterface := clusterid.NewStaticClusterID(clusterID)
 	namespaceManager := tenantnamespace.NewTenantNamespaceManager(k8sClient)
 	dynClient := dynamic.NewForConfigOrDie(cfg)
-	dynFac := dynamicinformer.NewFilteredDynamicSharedInformerFactory(
-		dynClient, crdreplicator.ResyncPeriod, metav1.NamespaceAll, crdreplicator.SetLabelsForLocalResources)
 	d := &crdreplicator.Controller{
-		Scheme:                         mgr.GetScheme(),
-		Client:                         mgr.GetClient(),
-		ClientSet:                      k8sClient,
-		ClusterID:                      clusterID,
-		RemoteDynClients:               make(map[string]dynamic.Interface),
-		LocalDynClient:                 dynClient,
-		LocalDynSharedInformerFactory:  dynFac,
-		RegisteredResources:            nil,
-		UnregisteredResources:          nil,
-		LocalWatchers:                  make(map[string]chan struct{}),
-		RemoteWatchers:                 make(map[string]map[string]chan struct{}),
-		RemoteDynSharedInformerFactory: make(map[string]dynamicinformer.DynamicSharedInformerFactory),
-		NamespaceManager:               namespaceManager,
+		Scheme:                mgr.GetScheme(),
+		Client:                mgr.GetClient(),
+		ClientSet:             k8sClient,
+		ClusterID:             clusterID,
+		RemoteDynClients:      make(map[string]dynamic.Interface),
+		LocalDynClient:        dynClient,
+		RegisteredResources:   nil,
+		UnregisteredResources: nil,
+		LocalWatchers:         make(map[string]chan struct{}),
+		RemoteWatchers:        make(map[string]map[string]chan struct{}),
+		NamespaceManager:      namespaceManager,
 		IdentityReader: identitymanager.NewCertificateIdentityReader(
 			k8sClient, clusterIDInterface, namespaceManager),
 		LocalToRemoteNamespaceMapper:     map[string]string{},
