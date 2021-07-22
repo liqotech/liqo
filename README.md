@@ -135,7 +135,7 @@ Once you identified your scenario, follow the instructions for the proper instal
 
 ## Roadmap
 
-Planned features for the next release (v0.3, expected mid-July, 2021) are the following:
+Planned features for the next release (v0.3, expected early-September, 2021) are the following:
 
 * Support for deployments spanning across more than two clusters.
 * Support for a more balanced scheduling mechanism to distribute jobs across clusters.
