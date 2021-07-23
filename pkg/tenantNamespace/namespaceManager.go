@@ -28,31 +28,28 @@ func NewTenantNamespaceManager(client kubernetes.Interface) Manager {
 
 // CreateNamespace creates a new Tenant Namespace given the clusterid
 // This method is idempotent, multiple calls of it will not lead to multiple namespace creations.
-func (nm *tenantNamespaceManager) CreateNamespace(clusterID string) (*v1.Namespace, error) {
-	// first check that it does not exist yet
-	ns, err := nm.GetNamespace(clusterID)
-	if err == nil {
-		return ns, nil
-	} else if !kerrors.IsNotFound(err) {
-		// an error occurred, but it is not a not found error
-		klog.Error(err)
-		return nil, err
-	}
-	// a not found error occurred, create the namespace
-
+func (nm *tenantNamespaceManager) CreateNamespace(clusterID string) (ns *v1.Namespace, err error) {
 	ns = &v1.Namespace{
 		ObjectMeta: metav1.ObjectMeta{
-			GenerateName: strings.Join([]string{tenantNamespaceRoot, ""}, "-"),
+			Name: strings.Join([]string{tenantNamespaceRoot, clusterID}, "-"),
 			Labels: map[string]string{
 				discovery.ClusterIDLabel:       clusterID,
 				discovery.TenantNamespaceLabel: "true",
 			},
 		},
 	}
-	if ns, err = nm.client.CoreV1().Namespaces().Create(context.TODO(), ns, metav1.CreateOptions{}); err != nil {
+
+	ns, err = nm.client.CoreV1().Namespaces().Create(context.TODO(), ns, metav1.CreateOptions{})
+	if kerrors.IsAlreadyExists(err) {
+		// the namespace already exists, get it
+		ns, err = nm.GetNamespace(clusterID)
+	}
+	if err != nil {
+		// in both cases, if the create or the get error is different from nil, print it and return
 		klog.Error(err)
 		return nil, err
 	}
+
 	klog.V(4).Infof("Namespace %v created for the remote cluster %v", ns.Name, clusterID)
 	return ns, nil
 }

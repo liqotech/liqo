@@ -78,9 +78,9 @@ var _ = Describe("IdentityManager", func() {
 
 	BeforeSuite(func() {
 		localClusterID = test.ClusterIDMock{
-			Id: "localID",
+			Id: "local-id",
 		}
-		remoteClusterID = "remoteID"
+		remoteClusterID = "remote-id"
 
 		var err error
 		cluster, _, err = testUtils.NewTestCluster([]string{filepath.Join("..", "..", "deployments", "liqo", "crds")})

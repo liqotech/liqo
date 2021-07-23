@@ -17,6 +17,10 @@ spec:
   scope: Cluster
   versions:
   - additionalPrinterColumns:
+    - jsonPath: .spec.clusterIdentity.clusterID
+      name: ClusterID
+      priority: 1
+      type: string
     - jsonPath: .status.peeringConditions[?(@.type == 'OutgoingPeering')].status
       name: Outgoing peering phase
       type: string
