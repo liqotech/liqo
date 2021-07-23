@@ -35,7 +35,7 @@ var _ = Describe("TenantNamespace", func() {
 	)
 
 	BeforeSuite(func() {
-		clusterID = "testCreation"
+		clusterID = "test-creation"
 
 		var err error
 		cluster, _, err = testUtils2.NewTestCluster([]string{filepath.Join("..", "..", "deployments", "liqo", "crds")})
@@ -101,7 +101,7 @@ var _ = Describe("TenantNamespace", func() {
 
 		BeforeEach(func() {
 			cnt += 1
-			clusterID = fmt.Sprintf("testPermission%v", cnt)
+			clusterID = fmt.Sprintf("test-permission-%v", cnt)
 			client = cluster.GetClient().Client()
 
 			cr := &rbacv1.ClusterRole{
