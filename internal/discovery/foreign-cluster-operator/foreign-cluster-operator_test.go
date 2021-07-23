@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/ginkgo/extensions/table"
@@ -27,6 +28,11 @@ import (
 	tenantnamespace "github.com/liqotech/liqo/pkg/tenantNamespace"
 	peeringconditionsutils "github.com/liqotech/liqo/pkg/utils/peeringConditions"
 	testUtils "github.com/liqotech/liqo/pkg/utils/testUtils"
+)
+
+const (
+	timeout  = time.Second * 30
+	interval = time.Millisecond * 250
 )
 
 type configMock struct {
@@ -701,15 +707,17 @@ var _ = Describe("ForeignClusterOperator", func() {
 				Expect(controller.ensurePermission(ctx, &c.fc)).To(Succeed())
 
 				var roleBindingList rbacv1.RoleBindingList
-				Expect(controller.Client.List(ctx, &roleBindingList)).To(Succeed())
+				Eventually(func() []string {
+					Expect(controller.Client.List(ctx, &roleBindingList)).To(Succeed())
 
-				names := make([]string, len(roleBindingList.Items))
-				for i := range roleBindingList.Items {
-					names[i] = roleBindingList.Items[i].Name
-				}
-
-				Expect(names).To(c.expectedIncoming)
-				Expect(names).To(c.expectedOutgoing)
+					names := make([]string, len(roleBindingList.Items))
+					for i := range roleBindingList.Items {
+						if roleBindingList.Items[i].DeletionTimestamp.IsZero() {
+							names[i] = roleBindingList.Items[i].Name
+						}
+					}
+					return names
+				}, timeout, interval).Should(And(c.expectedIncoming, c.expectedOutgoing))
 
 				By("Delete RoleBindings")
 
@@ -719,15 +727,17 @@ var _ = Describe("ForeignClusterOperator", func() {
 
 				Expect(controller.ensurePermission(ctx, &c.fc)).To(Succeed())
 
-				Expect(controller.Client.List(ctx, &roleBindingList)).To(Succeed())
+				Eventually(func() []string {
+					Expect(controller.Client.List(ctx, &roleBindingList)).To(Succeed())
 
-				names = make([]string, len(roleBindingList.Items))
-				for i := range roleBindingList.Items {
-					names[i] = roleBindingList.Items[i].Name
-				}
-
-				Expect(names).To(c.expectedIncoming)
-				Expect(names).To(c.expectedOutgoing)
+					names := make([]string, len(roleBindingList.Items))
+					for i := range roleBindingList.Items {
+						if roleBindingList.Items[i].DeletionTimestamp.IsZero() {
+							names[i] = roleBindingList.Items[i].Name
+						}
+					}
+					return names
+				}, timeout, interval).Should(And(c.expectedIncoming, c.expectedOutgoing))
 			},
 
 			Entry("none peering", permissionTestcase{
