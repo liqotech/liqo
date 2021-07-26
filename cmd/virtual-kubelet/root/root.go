@@ -12,17 +12,18 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// Package root provides methods to build and start the virtual-kubelet.
 package root
 
 import (
 	"context"
-	"fmt"
 	"os"
 	"path"
 	"time"
 
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
+	"github.com/virtual-kubelet/virtual-kubelet/node"
 	corev1 "k8s.io/api/core/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -36,15 +37,12 @@ import (
 	"k8s.io/client-go/util/workqueue"
 	"k8s.io/klog"
 
-	"github.com/liqotech/liqo/apis/sharing/v1alpha1"
 	"github.com/liqotech/liqo/cmd/virtual-kubelet/provider"
 	"github.com/liqotech/liqo/internal/utils/errdefs"
 	crdclient "github.com/liqotech/liqo/pkg/crdClient"
 	"github.com/liqotech/liqo/pkg/virtualKubelet"
 	liqonodeprovider "github.com/liqotech/liqo/pkg/virtualKubelet/liqoNodeProvider"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/manager"
-	"github.com/liqotech/liqo/pkg/virtualKubelet/node/module"
-	nodeProvider "github.com/liqotech/liqo/pkg/virtualKubelet/node/provider"
 	liqoprovider "github.com/liqotech/liqo/pkg/virtualKubelet/provider"
 )
 
@@ -143,15 +141,15 @@ func runRootCommand(ctx context.Context, s *provider.Store, c *Opts) error {
 		leaseClient = client.CoordinationV1().Leases(corev1.NamespaceNodeLease)
 	}
 
-	var nodeRunner *module.NodeController
+	var nodeRunner *node.NodeController
 
-	pNode, err := nodeProvider.NodeFromProvider(ctx, c.NodeName, p, c.Version, []metav1.OwnerReference{})
+	pNode, err := NodeFromProvider(ctx, c.NodeName, p, c.Version, []metav1.OwnerReference{})
 	if err != nil {
 		klog.Fatal(err)
 	}
 
 	var nodeReady chan struct{}
-	var nodeProviderModule module.NodeProvider
+	var nodeProvider node.NodeProvider
 	if liqoProvider, ok := p.(*liqoprovider.LiqoProvider); ok {
 		podProviderStopper := make(chan struct{}, 1)
 		liqoProvider.SetProviderStopper(podProviderStopper)
@@ -164,23 +162,23 @@ func runRootCommand(ctx context.Context, s *provider.Store, c *Opts) error {
 		}
 
 		nodeReady, _ = liqoNodeProvider.StartProvider()
-		nodeProviderModule = liqoNodeProvider
+		nodeProvider = liqoNodeProvider
 	} else {
-		nodeProviderModule = module.NaiveNodeProvider{}
+		nodeProvider = node.NaiveNodeProvider{}
 	}
 
-	nodeRunner, err = module.NewNodeController(
-		nodeProviderModule,
+	nodeRunner, err = node.NewNodeController(
+		nodeProvider,
 		pNode,
 		client.CoreV1().Nodes(),
-		module.WithNodeEnableLeaseV1(leaseClient, nil),
-		module.WithNodeStatusUpdateErrorHandler(
+		node.WithNodeEnableLeaseV1(leaseClient, node.DefaultLeaseDuration),
+		node.WithNodeStatusUpdateErrorHandler(
 			func(ctx context.Context, err error) error {
 				klog.Info("node setting up")
 				newNode := pNode.DeepCopy()
 				newNode.ResourceVersion = ""
 
-				if liqoNodeProvider, ok := nodeProviderModule.(*liqonodeprovider.LiqoNodeProvider); ok {
+				if liqoNodeProvider, ok := nodeProvider.(*liqonodeprovider.LiqoNodeProvider); ok {
 					if liqoNodeProvider.IsTerminating() {
 						// this avoids the re-creation of terminated nodes
 						klog.V(4).Info("skipping: node is in terminating phase")
@@ -216,7 +214,7 @@ func runRootCommand(ctx context.Context, s *provider.Store, c *Opts) error {
 
 	eb := record.NewBroadcaster()
 
-	pc, err := module.NewPodController(&module.PodControllerConfig{
+	pc, err := node.NewPodController(node.PodControllerConfig{
 		PodClient:                            client.CoreV1(),
 		PodInformer:                          podInformer,
 		EventRecorder:                        eb.NewRecorder(scheme.Scheme, corev1.EventSource{Component: path.Join(pNode.Name, "pod-controller")}),
@@ -277,25 +275,6 @@ func runRootCommand(ctx context.Context, s *provider.Store, c *Opts) error {
 	close(nodeReady)
 	<-ctx.Done()
 	return nil
-}
-
-func createOwnerReference(c *crdclient.CRDClient, advName, namespace string) []metav1.OwnerReference {
-	d, err := c.Resource("advertisements").Namespace(namespace).Get(advName, &metav1.GetOptions{})
-	if err != nil {
-		if k8serrors.IsNotFound(err) {
-			klog.Info("advertisement not found, setting empty owner reference")
-		}
-		return []metav1.OwnerReference{}
-	}
-
-	return []metav1.OwnerReference{
-		{
-			APIVersion: fmt.Sprintf("%s/%s", v1alpha1.GroupVersion.Group, v1alpha1.GroupVersion.Version),
-			Kind:       "Advertisement",
-			Name:       advName,
-			UID:        d.(metav1.Object).GetUID(),
-		},
-	}
 }
 
 // newPodControllerWorkqueueRateLimiter returns a new custom rate limiter to be assigned to the pod controller workqueues.

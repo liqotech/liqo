@@ -4,6 +4,7 @@ import (
 	"context"
 	"strings"
 
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/kubernetes"
@@ -21,7 +22,7 @@ type GenericAPIReflector struct {
 	Api                   apimgmt.ApiType
 	PreProcessingHandlers ri.PreProcessingHandlers
 	OutputChan            chan apimgmt.ApiEvent
-	informingFunc         func(obj interface{})
+	informingFunc         func(pod *corev1.Pod)
 
 	ForeignClient kubernetes.Interface
 	HomeClient    kubernetes.Interface
@@ -143,13 +144,15 @@ func (r *GenericAPIReflector) Inform(obj apimgmt.ApiEvent) {
 	r.OutputChan <- obj
 }
 
-func (r *GenericAPIReflector) SetInforming(handler func(interface{})) {
+// SetInforming configures the handlers triggered for a certain API type by incoming reflection events.
+func (r *GenericAPIReflector) SetInforming(handler func(*corev1.Pod)) {
 	r.informingFunc = handler
 }
 
-func (r *GenericAPIReflector) PushToInforming(obj interface{}) {
+// PushToInforming pushes a pod to the informing function.
+func (r *GenericAPIReflector) PushToInforming(pod *corev1.Pod) {
 	if r.informingFunc != nil {
-		r.informingFunc(obj)
+		r.informingFunc(pod)
 	} else {
 		klog.V(3).Info("cannot push object to informing function, not existing yet")
 	}

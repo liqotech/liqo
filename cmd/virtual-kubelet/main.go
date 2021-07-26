@@ -24,6 +24,8 @@ import (
 	"syscall"
 
 	"github.com/spf13/cobra"
+	"github.com/virtual-kubelet/virtual-kubelet/log"
+	"github.com/virtual-kubelet/virtual-kubelet/log/klogv2"
 	"k8s.io/client-go/discovery"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
@@ -45,6 +47,8 @@ func main() {
 		<-sig
 		cancel()
 	}()
+
+	log.L = klogv2.New(nil)
 
 	opts := &root.Opts{}
 	if err := root.SetDefaultOpts(opts); err != nil {

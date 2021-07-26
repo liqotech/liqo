@@ -3,6 +3,7 @@ package controller
 import (
 	"sync"
 
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/klog"
 
@@ -36,7 +37,7 @@ type IncomingAPIReflectorsController interface {
 	SpecializedAPIReflectorsController
 
 	buildIncomingReflector(api apimgmt.ApiType, opts map[options.OptionKey]options.Option) ri.IncomingAPIReflector
-	SetInforming(api apimgmt.ApiType, handler func(interface{}))
+	SetInforming(api apimgmt.ApiType, handler func(*corev1.Pod))
 }
 
 type ReflectorsController struct {

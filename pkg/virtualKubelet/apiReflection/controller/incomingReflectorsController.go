@@ -3,6 +3,7 @@ package controller
 import (
 	"sync"
 
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/client-go/kubernetes"
 
 	apimgmt "github.com/liqotech/liqo/pkg/virtualKubelet/apiReflection"
@@ -69,7 +70,8 @@ func (c *IncomingReflectorsController) Start() {
 	}
 }
 
-func (c *IncomingReflectorsController) SetInforming(api apimgmt.ApiType, handler func(interface{})) {
+// SetInforming configures the handlers triggered for a certain API type by incoming reflection events.
+func (c *IncomingReflectorsController) SetInforming(api apimgmt.ApiType, handler func(*corev1.Pod)) {
 	c.apiReflectors[api].(ri.APIReflector).SetInforming(handler)
 }
 

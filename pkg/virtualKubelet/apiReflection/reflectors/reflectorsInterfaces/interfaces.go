@@ -3,6 +3,7 @@ package reflectorsInterfaces
 import (
 	"context"
 
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/kubernetes"
 
@@ -38,8 +39,8 @@ type APIReflector interface {
 	SetupHandlers(api apimgmt.ApiType, reflectionType ReflectionType, namespace, nattedNs string)
 	SetPreProcessingHandlers(PreProcessingHandlers)
 
-	SetInforming(handler func(interface{}))
-	PushToInforming(interface{})
+	SetInforming(handler func(*corev1.Pod))
+	PushToInforming(*corev1.Pod)
 }
 
 type SpecializedAPIReflector interface {
