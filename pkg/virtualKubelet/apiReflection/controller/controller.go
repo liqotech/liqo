@@ -5,6 +5,7 @@ import (
 	"sync"
 	"time"
 
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/klog"
 
@@ -21,7 +22,7 @@ const (
 
 // APIController defines the interface exposed by a controller implementing API reflection.
 type APIController interface {
-	SetInformingFunc(apiReflection.ApiType, func(interface{}))
+	SetInformingFunc(apiReflection.ApiType, func(*corev1.Pod))
 	CacheManager() storage.CacheManagerReaderAdder
 	StartController()
 	StopController() error
@@ -114,7 +115,7 @@ func (c *Controller) incomingReflectionControlLoop() {
 }
 
 // SetInformingFunc configures the handlers triggered for a certain API type by incoming reflection events.
-func (c *Controller) SetInformingFunc(api apiReflection.ApiType, handler func(interface{})) {
+func (c *Controller) SetInformingFunc(api apiReflection.ApiType, handler func(*corev1.Pod)) {
 	c.incomingReflectorsController.SetInforming(api, handler)
 }
 

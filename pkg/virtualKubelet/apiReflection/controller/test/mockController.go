@@ -1,6 +1,8 @@
 package test
 
 import (
+	corev1 "k8s.io/api/core/v1"
+
 	apimgmt "github.com/liqotech/liqo/pkg/virtualKubelet/apiReflection"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/storage"
 )
@@ -9,7 +11,8 @@ type MockController struct {
 	Manager storage.CacheManagerReaderAdder
 }
 
-func (m MockController) SetInformingFunc(apiType apimgmt.ApiType, f func(interface{})) {
+// SetInformingFunc implementation.
+func (m MockController) SetInformingFunc(apiType apimgmt.ApiType, f func(*corev1.Pod)) {
 	panic("implement me")
 }
 

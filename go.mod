@@ -28,6 +28,7 @@ require (
 	github.com/spf13/cobra v1.1.1
 	github.com/spf13/pflag v1.0.5
 	github.com/stretchr/testify v1.7.0
+	github.com/virtual-kubelet/virtual-kubelet v1.5.1
 	github.com/vishvananda/netlink v1.1.0
 	github.com/vishvananda/netns v0.0.0-20200728191858-db3c7e526aae
 	go.opencensus.io v0.23.0
@@ -113,3 +114,5 @@ replace k8s.io/component-helpers => k8s.io/component-helpers v0.21.0
 replace k8s.io/controller-manager => k8s.io/controller-manager v0.21.0
 
 replace k8s.io/mount-utils => k8s.io/mount-utils v0.21.0
+
+replace github.com/virtual-kubelet/virtual-kubelet => github.com/liqotech/virtual-kubelet v1.5.1-0.20210726130647-f2333d82a6de

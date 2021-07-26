@@ -8,6 +8,8 @@ import (
 
 	"github.com/modern-go/reflect2"
 	"github.com/pkg/errors"
+	"github.com/virtual-kubelet/virtual-kubelet/node/api"
+	stats "github.com/virtual-kubelet/virtual-kubelet/node/api/statsv1alpha1"
 	corev1 "k8s.io/api/core/v1"
 	kerror "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/resource"
@@ -16,14 +18,12 @@ import (
 	"k8s.io/client-go/kubernetes/scheme"
 	remotecommandclient "k8s.io/client-go/tools/remotecommand"
 	"k8s.io/klog"
-	stats "k8s.io/kubelet/pkg/apis/stats/v1alpha1"
 
 	liqoconst "github.com/liqotech/liqo/pkg/consts"
 	"github.com/liqotech/liqo/pkg/virtualKubelet"
 	apimgmgt "github.com/liqotech/liqo/pkg/virtualKubelet/apiReflection"
 	vkContext "github.com/liqotech/liqo/pkg/virtualKubelet/context"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/forge"
-	"github.com/liqotech/liqo/pkg/virtualKubelet/node/module/api"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/translation/serviceEnv"
 )
 
@@ -176,23 +176,11 @@ func (p *LiqoProvider) GetPod(ctx context.Context, namespace, name string) (pod 
 	return homePod.(*corev1.Pod), nil
 }
 
-// GetPodStatus returns the status of a pod by name that is "running".
-// returns nil if a pod by that name is not found.
+// GetPodStatus is currently not implemented, panic if the method gets invoked.
+// GetPodStatus should only be called by the virtual kubelet if the provider does not implement the PodNotifier interface.
+// The LiqoProvider implements PodNotifier interface so we don't expect GetPodStatus to get called.
 func (p *LiqoProvider) GetPodStatus(ctx context.Context, namespace, name string) (*corev1.PodStatus, error) {
-	klog.V(3).Infof("PROVIDER: pod %s/%s status requested to the provider", namespace, name)
-
-	foreignNamespace, err := p.namespaceMapper.NatNamespace(namespace)
-
-	if err != nil {
-		return nil, nil
-	}
-
-	foreignPod, err := p.apiController.CacheManager().GetForeignAPIByIndex(apimgmgt.Pods, foreignNamespace, name)
-	if err != nil {
-		return nil, errors.Wrap(err, "error while retrieving foreign pod")
-	}
-
-	return &foreignPod.(*corev1.Pod).Status, nil
+	panic("Virtual Kubelet called GetPodStatus unexpectedly.")
 }
 
 // GetPods returns a list of all pods known to be "running".
@@ -289,16 +277,20 @@ func (p *LiqoProvider) GetContainerLogs(ctx context.Context, homeNamespace, home
 	}
 
 	if opts.SinceSeconds > 0 {
-		logOptions.SinceSeconds = &opts.SinceSeconds
+		optsSinceSeconds := int64(opts.SinceSeconds)
+		logOptions.SinceSeconds = &optsSinceSeconds
 	}
 	if !opts.SinceTime.IsZero() {
-		logOptions.SinceTime = &opts.SinceTime
+		optsSinceTime := metav1.NewTime(opts.SinceTime)
+		logOptions.SinceTime = &optsSinceTime
 	}
 	if opts.LimitBytes > 0 {
-		logOptions.LimitBytes = &opts.LimitBytes
+		optsLimitBytes := int64(opts.LimitBytes)
+		logOptions.LimitBytes = &optsLimitBytes
 	}
 	if opts.Tail > 0 {
-		logOptions.TailLines = &opts.Tail
+		optsTail := int64(opts.Tail)
+		logOptions.TailLines = &optsTail
 	}
 
 	logs := p.foreignClient.CoreV1().Pods(foreignNamespace).GetLogs(foreignPod.Name, logOptions)
@@ -440,7 +432,7 @@ func (p *LiqoProvider) GetStatsSummary(ctx context.Context) (*stats.Summary, err
 
 // NotifyPods is called to set a pod informing callback function. This should be called before any operations are ready
 // within the provider.
-func (p *LiqoProvider) NotifyPods(ctx context.Context, notifier func(interface{})) {
+func (p *LiqoProvider) NotifyPods(ctx context.Context, notifier func(*corev1.Pod)) {
 	p.apiController.SetInformingFunc(apimgmgt.Pods, notifier)
 	p.apiController.SetInformingFunc(apimgmgt.ReplicaSets, notifier)
 }
