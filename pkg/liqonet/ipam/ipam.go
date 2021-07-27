@@ -82,6 +82,8 @@ var Pools = []string{
 	"172.16.0.0/12",
 }
 
+const emptyCIDR = ""
+
 // Init uses the Ipam resource to retrieve and allocate reserved networks.
 func (liqoIPAM *IPAM) Init(pools []string, dynClient dynamic.Interface, listeningPort int) error {
 	var err error
@@ -654,14 +656,24 @@ func (liqoIPAM *IPAM) terminateNatMappingsPerCluster(clusterID string) error {
 
 			// Get local ExternalCIDR
 			localExternalCIDR, err := liqoIPAM.ipamStorage.getExternalCIDR()
-			if err != nil {
+			if err != nil || localExternalCIDR == emptyCIDR {
 				return fmt.Errorf("cannot get ExternalCIDR: %w", err)
 			}
 			// Free IP
-			if err := liqoIPAM.ipam.ReleaseIPFromPrefix(localExternalCIDR, endpointMappings[ip].IP); err != nil {
+			err = liqoIPAM.ipam.ReleaseIPFromPrefix(localExternalCIDR, endpointMappings[ip].IP)
+			if err != nil && !errors.Is(err, goipam.ErrNotFound) {
+				/*
+					ReleaseIPFromPrefix can return ErrNotFound either if the prefix
+					is not found and if the IP is not allocated.
+					Since the prefix represents the ExternalCIDR, whose existence has
+					been checked some lines above, ReleaseIPFromPrefix returns
+					ErrNotFound if the IP has not been allocated or has already been freed.
+				*/
 				return fmt.Errorf("cannot free IP: %w", err)
 			}
-			klog.Infof("IP %s (mapped from %s) has been freed", endpointMappings[ip].IP, ip)
+			if err == nil {
+				klog.Infof("IP %s (mapped from %s) has been freed", endpointMappings[ip].IP, ip)
+			}
 			// Delete entry
 			delete(endpointMappings, ip)
 		} else {
@@ -674,7 +686,7 @@ func (liqoIPAM *IPAM) terminateNatMappingsPerCluster(clusterID string) error {
 		return fmt.Errorf("cannot update endpointMappings:%w", err)
 	}
 
-	// Free/Remove resouces in Inflater
+	// Free/Remove resources in Inflater
 	if err := liqoIPAM.natMappingInflater.TerminateNatMappingsPerCluster(clusterID); err != nil {
 		return err
 	}
@@ -975,7 +987,6 @@ If the received IP belongs to local PodCIDR, then it maps the address in the tra
 i.e. using the network used in the remote cluster for local PodCIDR.
 If the received IP does not belong to local PodCIDR, then it maps the address using the ExternalCIDR.*/
 func (liqoIPAM *IPAM) mapEndpointIPInternal(clusterID, ip string) (string, error) {
-	const emptyPodCIDR = ""
 	var subnets netv1alpha1.Subnets
 	var exists bool
 
@@ -996,7 +1007,7 @@ func (liqoIPAM *IPAM) mapEndpointIPInternal(clusterID, ip string) (string, error
 
 	// Get PodCIDR
 	podCIDR, err := liqoIPAM.ipamStorage.getPodCIDR()
-	if err != nil || podCIDR == emptyPodCIDR {
+	if err != nil || podCIDR == emptyCIDR {
 		return "", fmt.Errorf("cannot get cluster PodCIDR: %w", err)
 	}
 
@@ -1133,21 +1144,26 @@ func (liqoIPAM *IPAM) unmapEndpointIPInternal(clusterID, endpointIP string) erro
 		return nil
 	}
 
-	// Remove NAT mapping
-	if err := liqoIPAM.natMappingInflater.RemoveMapping(endpointIP, clusterID); err != nil {
-		return err
-	}
-
 	// Set endpoint IP as unused by deleting entry of cluster
 	delete(endpointMapping.ClusterMappings, clusterID)
 
 	if len(endpointMapping.ClusterMappings) == 0 {
 		// There are no more clusters using this endpoint IP
 		// Free IP
-		if err := liqoIPAM.ipam.ReleaseIPFromPrefix(localExternalCIDR, endpointMappings[endpointIP].IP); err != nil {
+		err := liqoIPAM.ipam.ReleaseIPFromPrefix(localExternalCIDR, endpointMappings[endpointIP].IP)
+		if err != nil && !errors.Is(err, goipam.ErrNotFound) {
+			/*
+				ReleaseIPFromPrefix can return ErrNotFound either if the prefix
+				is not found and if the IP is not allocated.
+				Since the prefix represents the ExternalCIDR, whose existence has
+				been checked some lines above, ReleaseIPFromPrefix returns
+				ErrNotFound if the IP has not been allocated or has already been freed.
+			*/
 			return fmt.Errorf("cannot free IP: %w", err)
 		}
-		klog.Infof("IP %s (mapped from %s) has been freed", endpointMappings[endpointIP].IP, endpointIP)
+		if err == nil {
+			klog.Infof("IP %s (mapped from %s) has been freed", endpointMappings[endpointIP].IP, endpointIP)
+		}
 		// Delete entry
 		delete(endpointMappings, endpointIP)
 	}
@@ -1155,6 +1171,11 @@ func (liqoIPAM *IPAM) unmapEndpointIPInternal(clusterID, endpointIP string) erro
 	// Push update
 	if err := liqoIPAM.ipamStorage.updateEndpointMappings(endpointMappings); err != nil {
 		return fmt.Errorf("cannot update endpointIPs:%w", err)
+	}
+
+	// Remove NAT mapping
+	if err := liqoIPAM.natMappingInflater.RemoveMapping(endpointIP, clusterID); err != nil {
+		return err
 	}
 	return nil
 }
