@@ -56,8 +56,7 @@ type Opts struct {
 
 	Provider string
 
-	HomeKubeconfig    string
-	ForeignKubeconfig string
+	HomeKubeconfig string
 
 	MetricsAddr string
 

@@ -26,7 +26,6 @@ func InstallFlags(flags *pflag.FlagSet, c *Opts) {
 	flags.StringVar(&c.KubeClusterDomain, "cluster-domain", c.KubeClusterDomain, "kubernetes cluster-domain (default is 'cluster.local')")
 	flags.StringVar(&c.NodeName, "nodename", c.NodeName, "kubernetes node name")
 	flags.StringVar(&c.Provider, "provider", c.Provider, "cloud provider")
-	flags.StringVar(&c.ForeignKubeconfig, "foreign-kubeconfig", c.ForeignKubeconfig, "cloud provider kubeconfig")
 	flags.StringVar(&c.MetricsAddr, "metrics-addr", c.MetricsAddr, "address to listen for metrics/stats requests")
 
 	flags.IntVar(&c.PodSyncWorkers, "pod-sync-workers", c.PodSyncWorkers, `set the number of pod synchronization workers`)
