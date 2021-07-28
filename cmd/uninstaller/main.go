@@ -44,6 +44,12 @@ func main() {
 	client := dynamic.NewForConfigOrDie(config)
 	klog.Infof("Loaded dynamic client: %s", kubeconfigPath)
 
+	if err = uninstaller.DisableDiscoveryAndPeering(ctx, client); err != nil {
+		klog.Errorf("Unable to deactivate discovery mechanism: %s", err)
+		os.Exit(1)
+	}
+	klog.Info("Outgoing Resource sharing has been disabled")
+
 	// Trigger unjoin clusters
 	err = uninstaller.UnjoinClusters(ctx, client)
 	if err != nil {
@@ -51,13 +57,6 @@ func main() {
 		os.Exit(1)
 	}
 	klog.Info("Foreign Cluster unjoin operation has been correctly performed")
-
-	if err = uninstaller.DisableDiscoveryAndPeering(ctx, client); err != nil {
-		klog.Errorf("Unable to deactivate discovery mechanism: %s", err)
-		os.Exit(1)
-	}
-
-	klog.Info("Outgoing Resource sharing has been disabled")
 
 	if err := uninstaller.WaitForResources(client); err != nil {
 		klog.Errorf("Unable to wait deletion of objects: %s", err)

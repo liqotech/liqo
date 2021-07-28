@@ -19,6 +19,7 @@ package resourceoffercontroller
 import (
 	"context"
 	"fmt"
+	"reflect"
 	"sync"
 	"time"
 
@@ -89,6 +90,7 @@ func (r *ResourceOfferReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 		klog.Error(err)
 		return ctrl.Result{}, err
 	}
+	originalResourceOffer := resourceOffer.DeepCopy()
 
 	// we do that on ResourceOffer creation
 	if metav1.GetControllerOf(&resourceOffer) == nil {
@@ -108,6 +110,16 @@ func (r *ResourceOfferReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 
 	// defer the status update function
 	defer func() {
+		if !reflect.
+			DeepEqual(originalResourceOffer.ObjectMeta, resourceOffer.ObjectMeta) || !reflect.
+			DeepEqual(originalResourceOffer.Spec, resourceOffer.Spec) {
+			// something changed in metadata (e.g. finalizers), or in the spec
+			if newErr := r.Client.Update(ctx, &resourceOffer); newErr != nil {
+				klog.Error(newErr)
+				err = newErr
+				return
+			}
+		}
 		if newErr := r.Client.Status().Update(ctx, &resourceOffer); newErr != nil {
 			klog.Error(newErr)
 			err = newErr

@@ -25,7 +25,7 @@ func UnjoinClusters(ctx context.Context, client dynamic.Interface) error {
 	klog.Infof("Unjoin %v ForeignClusters", len(foreign.Items))
 	r1 := client.Resource(discoveryV1alpha1.ForeignClusterGroupVersionResource)
 	for index := range foreign.Items {
-		patch := []byte(`{"spec": {"join": false}}`)
+		patch := []byte(`{"spec": {"outgoingPeeringEnabled": "No"}}`)
 		_, err = r1.Patch(ctx, foreign.Items[index].Name, types.MergePatchType, patch, metav1.PatchOptions{})
 		if err != nil {
 			return err
@@ -64,6 +64,7 @@ func DeleteAllForeignClusters(ctx context.Context, client dynamic.Interface) err
 func forgeUninstallClusterConfig(clusterConfig *clusterconfigV1alpha1.ClusterConfig) {
 	clusterConfig.Spec.DiscoveryConfig.EnableDiscovery = false
 	clusterConfig.Spec.DiscoveryConfig.EnableAdvertisement = false
+	clusterConfig.Spec.DiscoveryConfig.AutoJoin = false
 	clusterConfig.Spec.AdvertisementConfig.OutgoingConfig.EnableBroadcaster = false
 }
 

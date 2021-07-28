@@ -146,7 +146,7 @@ func (r *ResourceOfferReconciler) createVirtualKubeletDeployment(
 		return err
 	}
 
-	op, err = controllerutil.CreateOrUpdate(context.TODO(), r.Client, vkDeployment, func() error {
+	op, err = controllerutil.CreateOrUpdate(ctx, r.Client, vkDeployment, func() error {
 		// set the "owner" object name in the annotation to be able to reconcile deployment changes
 		vkDeployment.Annotations[resourceOfferAnnotation] = resourceOffer.GetName()
 		return nil
@@ -163,6 +163,7 @@ func (r *ResourceOfferReconciler) createVirtualKubeletDeployment(
 		r.eventsRecorder.Event(resourceOffer, "Normal", "VkCreated", msg)
 	}
 
+	controllerutil.AddFinalizer(resourceOffer, consts.VirtualKubeletFinalizer)
 	resourceOffer.Status.VirtualKubeletStatus = sharingv1alpha1.VirtualKubeletStatusCreated
 	return nil
 }
@@ -184,11 +185,10 @@ func (r *ResourceOfferReconciler) deleteVirtualKubeletDeployment(
 		return err
 	}
 
+	controllerutil.RemoveFinalizer(resourceOffer, consts.VirtualKubeletFinalizer)
 	msg := fmt.Sprintf("[%v] Deleting virtual-kubelet in namespace %v", resourceOffer.Spec.ClusterId, resourceOffer.Namespace)
 	klog.Info(msg)
 	r.eventsRecorder.Event(resourceOffer, "Normal", "VkDeleted", msg)
-
-	resourceOffer.Status.VirtualKubeletStatus = sharingv1alpha1.VirtualKubeletStatusDeleting
 	return nil
 }
 
