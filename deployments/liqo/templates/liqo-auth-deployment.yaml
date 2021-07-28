@@ -51,9 +51,6 @@ spec:
             - -out
             - /certs/cert.pem
           resources:
-            limits:
-              cpu: "1"
-              memory: "100M"
             requests:
               cpu: "200m"
               memory: "100M"
