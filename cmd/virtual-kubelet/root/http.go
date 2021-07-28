@@ -75,33 +75,13 @@ func setupHTTPServer(ctx context.Context, p provider.Provider, cfg *apiServerCon
 	if cfg.CertPath == "" || cfg.KeyPath == "" {
 		klog.Error("TLS certificates not provided, not setting up pod http server")
 	} else {
-		tlsCfg, err := loadTLSConfig(cfg.CertPath, cfg.KeyPath)
+		s, err := startPodHandlerServer(ctx, p, cfg, getPodsFromKubernetes)
 		if err != nil {
 			return nil, err
 		}
-		l, err := tls.Listen("tcp", cfg.Addr, tlsCfg)
-		if err != nil {
-			return nil, errors.Wrap(err, "error setting up listener for pod http server")
+		if s != nil {
+			closers = append(closers, s)
 		}
-
-		mux := http.NewServeMux()
-
-		podRoutes := api.PodHandlerConfig{
-			RunInContainer:        p.RunInContainer,
-			GetContainerLogs:      p.GetContainerLogs,
-			GetPodsFromKubernetes: getPodsFromKubernetes,
-			GetStatsSummary:       p.GetStatsSummary,
-			GetPods:               p.GetPods,
-		}
-
-		api.AttachPodRoutes(podRoutes, mux, true)
-
-		s := &http.Server{
-			Handler:   mux,
-			TLSConfig: tlsCfg,
-		}
-		go serveHTTP(ctx, s, l, "pods")
-		closers = append(closers, s)
 	}
 
 	if cfg.MetricsAddr == "" {
@@ -130,6 +110,40 @@ func setupHTTPServer(ctx context.Context, p provider.Provider, cfg *apiServerCon
 	}
 
 	return cancel, nil
+}
+
+func startPodHandlerServer(ctx context.Context, p provider.Provider,
+	cfg *apiServerConfig, getPodsFromKubernetes api.PodListerFunc) (*http.Server, error) {
+	tlsCfg, err := loadTLSConfig(cfg.CertPath, cfg.KeyPath)
+	if err != nil {
+		klog.Error(err)
+		// we are ingnoring this error at the moment to allow the kubelet execution with Kubernetes providers
+		// that are not issuing node certificates (i.e. EKS)
+		return nil, nil
+	}
+	l, err := tls.Listen("tcp", cfg.Addr, tlsCfg)
+	if err != nil {
+		return nil, errors.Wrap(err, "error setting up listener for pod http server")
+	}
+
+	mux := http.NewServeMux()
+
+	podRoutes := api.PodHandlerConfig{
+		RunInContainer:        p.RunInContainer,
+		GetContainerLogs:      p.GetContainerLogs,
+		GetPodsFromKubernetes: getPodsFromKubernetes,
+		GetStatsSummary:       p.GetStatsSummary,
+		GetPods:               p.GetPods,
+	}
+
+	api.AttachPodRoutes(podRoutes, mux, true)
+
+	s := &http.Server{
+		Handler:   mux,
+		TLSConfig: tlsCfg,
+	}
+	go serveHTTP(ctx, s, l, "pods")
+	return s, nil
 }
 
 func serveHTTP(ctx context.Context, s *http.Server, l net.Listener, name string) {
