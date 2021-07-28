@@ -58,11 +58,11 @@ func main() {
 	go informer.Run(cancelCtx.Done())
 	select {
 	case <-cancelCtx.Done():
-		klog.Fatalf("Unable to get certificate: timeout elapsed")
+		klog.Error("Unable to get certificate: timeout elapsed")
 	case cert = <-crtChan:
-		cancel()
 		if err := utils.WriteFile(vk.CertLocation, cert); err != nil {
 			klog.Fatalf("Unable to write the CRT file in location: %s", vk.CertLocation)
 		}
 	}
+	cancel()
 }
