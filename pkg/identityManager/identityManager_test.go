@@ -36,14 +36,12 @@ import (
 
 type mockApiServerConfigProvider struct {
 	address   string
-	port      string
 	trustedCA bool
 }
 
-func newMockApiServerConfigProvider(address, port string, trustedCA bool) utils.ApiServerConfigProvider {
+func newMockAPIServerConfigProvider(address string, trustedCA bool) utils.ApiServerConfigProvider {
 	return &mockApiServerConfigProvider{
 		address:   address,
-		port:      port,
 		trustedCA: trustedCA,
 	}
 }
@@ -51,7 +49,6 @@ func newMockApiServerConfigProvider(address, port string, trustedCA bool) utils.
 func (mock *mockApiServerConfigProvider) GetAPIServerConfig() *configv1alpha1.APIServerConfig {
 	return &configv1alpha1.APIServerConfig{
 		Address:   mock.address,
-		Port:      mock.port,
 		TrustedCA: mock.trustedCA,
 	}
 }
@@ -220,7 +217,7 @@ var _ = Describe("IdentityManager", func() {
 	Context("Storage", func() {
 
 		It("StoreCertificate", func() {
-			apiServerConfig := newMockApiServerConfigProvider("127.0.0.1", "6443", false)
+			apiServerConfig := newMockAPIServerConfigProvider("127.0.0.1", false)
 
 			signingIdentityResponse := responsetypes.SigningRequestResponse{
 				ResponseType: responsetypes.SigningRequestResponseCertificate,
@@ -241,8 +238,7 @@ var _ = Describe("IdentityManager", func() {
 			Expect(cnf).NotTo(BeNil())
 			Expect(cnf.Host).To(Equal(
 				fmt.Sprintf(
-					"https://%v:%v", apiServerConfig.GetAPIServerConfig().Address,
-					apiServerConfig.GetAPIServerConfig().Port)))
+					"https://%v", apiServerConfig.GetAPIServerConfig().Address)))
 
 			// retrieve the remote tenant namespace
 			remoteNamespace, err := identityMan.GetRemoteTenantNamespace(remoteClusterID, "")
@@ -251,7 +247,7 @@ var _ = Describe("IdentityManager", func() {
 		})
 
 		It("StoreCertificate IAM", func() {
-			apiServerConfig := newMockApiServerConfigProvider("127.0.0.1", "6443", false)
+			apiServerConfig := newMockAPIServerConfigProvider("127.0.0.1", false)
 
 			signingIAMResponse := responsetypes.SigningRequestResponse{
 				ResponseType: responsetypes.SigningRequestResponseIAM,

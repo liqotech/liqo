@@ -9,8 +9,6 @@ pullPolicy: "IfNotPresent"
 apiServer:
   # -- The address that must be used to contact your API server, it needs to be reachable from the clusters that you will peer with (defaults to your master IP)
   address: ""
-  # -- The port that must be used to contact your API server
-  port: "6443"
   # -- Indicates that the API Server is exposing a certificate issued by a trusted Certification Authority
   trustedCA: false
 

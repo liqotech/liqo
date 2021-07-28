@@ -42,8 +42,6 @@ spec:
                 properties:
                   address:
                     type: string
-                  port:
-                    type: string
                   trustedCA:
                     type: boolean
                 type: object
