@@ -64,7 +64,7 @@ func (p *LiqoProvider) CreatePod(ctx context.Context, homePod *corev1.Pod) error
 		`{"metadata":{"labels":{"%s":"%s"},"finalizers":["%s"]}}`,
 		liqoconst.LocalPodLabelKey, liqoconst.LocalPodLabelValue, virtualKubelet.HomePodFinalizer))
 
-	_, err = p.nntClient.Client().CoreV1().Pods(homePod.Namespace).Patch(context.TODO(),
+	_, err = p.homeClient.CoreV1().Pods(homePod.Namespace).Patch(context.TODO(),
 		homePod.Name,
 		types.StrategicMergePatchType,
 		homePodPatch,
@@ -249,7 +249,7 @@ func (p *LiqoProvider) RunInContainer(ctx context.Context, homeNamespace, homePo
 			TTY:       true,
 		}, scheme.ParameterCodec)
 
-	exec, err := remotecommandclient.NewSPDYExecutor(p.restConfig, "POST", req.URL())
+	exec, err := remotecommandclient.NewSPDYExecutor(p.foreignRestConfig, "POST", req.URL())
 	if err != nil {
 		return fmt.Errorf("could not make remote command: %v", err)
 	}

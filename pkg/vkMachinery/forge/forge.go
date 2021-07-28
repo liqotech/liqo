@@ -92,7 +92,6 @@ func forgeVKContainers(
 		stringifyArgument("--provider", "kubernetes"),
 		stringifyArgument("--nodename", nodeName),
 		stringifyArgument("--kubelet-namespace", vkNamespace),
-		stringifyArgument("--foreign-kubeconfig", "/app/kubeconfig/remote"),
 		stringifyArgument("--home-cluster-id", homeClusterID),
 		stringifyArgument("--ipam-server", fmt.Sprintf("%v.%v", liqoconst.NetworkManagerServiceName, liqoNamespace)),
 		"--enable-node-lease",

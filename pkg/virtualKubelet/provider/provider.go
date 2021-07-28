@@ -5,14 +5,13 @@ import (
 	"time"
 
 	"k8s.io/client-go/kubernetes"
-	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
+	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
-	"k8s.io/klog"
+	"k8s.io/klog/v2"
 	metricsv "k8s.io/metrics/pkg/client/clientset/versioned"
 
 	vkalpha1 "github.com/liqotech/liqo/apis/virtualKubelet/v1alpha1"
 	"github.com/liqotech/liqo/pkg/clusterid"
-	crdclient "github.com/liqotech/liqo/pkg/crdClient"
 	identitymanager "github.com/liqotech/liqo/pkg/identityManager"
 	tenantnamespace "github.com/liqotech/liqo/pkg/tenantNamespace"
 	"github.com/liqotech/liqo/pkg/utils"
@@ -30,7 +29,7 @@ type LiqoProvider struct {
 	apiController   controller.APIController
 
 	tepReady             chan struct{}
-	nntClient            *crdclient.CRDClient
+	homeClient           kubernetes.Interface
 	foreignClient        kubernetes.Interface
 	foreignMetricsClient metricsv.Interface
 
@@ -40,7 +39,7 @@ type LiqoProvider struct {
 	startTime          time.Time
 	homeClusterID      string
 	foreignClusterID   string
-	restConfig         *rest.Config
+	foreignRestConfig  *rest.Config
 
 	nodeName options.Option
 
@@ -48,54 +47,55 @@ type LiqoProvider struct {
 }
 
 // NewLiqoProvider creates a new NewLiqoProvider instance.
-func NewLiqoProvider(ctx context.Context, nodeName, foreignClusterID, homeClusterID, internalIP string, daemonEndpointPort int32, kubeconfig,
-	remoteKubeConfig string, informerResyncPeriod time.Duration, ipamGRPCServer string) (*LiqoProvider, error) {
+func NewLiqoProvider(ctx context.Context, nodeName, foreignClusterID, homeClusterID, internalIP string, daemonEndpointPort int32,
+	kubeconfig string, informerResyncPeriod time.Duration, ipamGRPCServer string) (*LiqoProvider, error) {
 	var err error
 
-	if err = vkalpha1.AddToScheme(clientgoscheme.Scheme); err != nil {
+	if err = vkalpha1.AddToScheme(scheme.Scheme); err != nil {
 		return nil, err
 	}
 
-	client, err := vkalpha1.CreateClient(kubeconfig, func(config *rest.Config) {
-		config.QPS = virtualKubelet.HOME_CLIENT_QPS
-		config.Burst = virtualKubelet.HOME_CLIENTS_BURST
-	})
+	homeRestConfig, err := utils.UserConfig(kubeconfig)
+	if err != nil {
+		return nil, err
+	}
+
+	homeRestConfig.QPS = virtualKubelet.HOME_CLIENT_QPS
+	homeRestConfig.Burst = virtualKubelet.HOME_CLIENTS_BURST
+
+	homeClient, err := kubernetes.NewForConfig(homeRestConfig)
 	if err != nil {
 		return nil, err
 	}
 
 	clusterID := clusterid.NewStaticClusterID(homeClusterID)
-	tenantNamespaceManager := tenantnamespace.NewTenantNamespaceManager(client.Client())
-	identityManager := identitymanager.NewCertificateIdentityManager(client.Client(), clusterID, tenantNamespaceManager)
+	tenantNamespaceManager := tenantnamespace.NewTenantNamespaceManager(homeClient)
+	identityManager := identitymanager.NewCertificateIdentityManager(homeClient, clusterID, tenantNamespaceManager)
 	namespace, err := utils.RetrieveNamespace()
 	if err != nil {
 		return nil, err
 	}
 
-	restConfig, err := identityManager.GetConfig(foreignClusterID, "")
+	remoteRestConfig, err := identityManager.GetConfig(foreignClusterID, "")
 	if err != nil {
 		klog.Error(err)
 		return nil, err
 	}
 
-	restConfig.QPS = virtualKubelet.FOREIGN_CLIENT_QPS
-	restConfig.Burst = virtualKubelet.FOREIGN_CLIENT_BURST
+	remoteRestConfig.QPS = virtualKubelet.FOREIGN_CLIENT_QPS
+	remoteRestConfig.Burst = virtualKubelet.FOREIGN_CLIENT_BURST
 
-	foreignClient, err := kubernetes.NewForConfig(restConfig)
+	foreignClient, err := kubernetes.NewForConfig(remoteRestConfig)
 	if err != nil {
 		return nil, err
 	}
 
-	foreignMetricsClient, err := metricsv.NewForConfig(restConfig)
+	foreignMetricsClient, err := metricsv.NewForConfig(remoteRestConfig)
 	if err != nil {
 		return nil, err
 	}
 
-	homeClientConfig, err := utils.UserConfig(kubeconfig)
-	if err != nil {
-		return nil, err
-	}
-	mapper, err := namespacesmapping.NewNamespaceMapperController(ctx, homeClientConfig, homeClusterID, foreignClusterID, namespace)
+	mapper, err := namespacesmapping.NewNamespaceMapperController(ctx, homeRestConfig, homeClusterID, foreignClusterID, namespace)
 	if err != nil {
 		klog.Fatal(err)
 	}
@@ -114,7 +114,7 @@ func NewLiqoProvider(ctx context.Context, nodeName, foreignClusterID, homeCluste
 	tepReady := make(chan struct{})
 
 	provider := LiqoProvider{
-		apiController:         controller.NewAPIController(client.Client(), foreignClient, informerResyncPeriod, mapper, opts, tepReady),
+		apiController:         controller.NewAPIController(homeClient, foreignClient, informerResyncPeriod, mapper, opts, tepReady),
 		namespaceMapper:       mapper,
 		nodeName:              virtualNodeNameOpt,
 		internalIP:            internalIP,
@@ -122,9 +122,9 @@ func NewLiqoProvider(ctx context.Context, nodeName, foreignClusterID, homeCluste
 		startTime:             time.Now(),
 		foreignClusterID:      foreignClusterID,
 		homeClusterID:         homeClusterID,
-		nntClient:             client,
 		foreignPodWatcherStop: make(chan struct{}, 1),
-		restConfig:            restConfig,
+		foreignRestConfig:     remoteRestConfig,
+		homeClient:            homeClient,
 		foreignClient:         foreignClient,
 		foreignMetricsClient:  foreignMetricsClient,
 		tepReady:              tepReady,

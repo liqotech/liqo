@@ -17,7 +17,6 @@ func registerKubernetes(ctx context.Context, s *provider.Store) error {
 			cfg.InternalIP,
 			cfg.DaemonPort,
 			cfg.HomeKubeConfig,
-			cfg.RemoteKubeConfig,
 			cfg.InformerResyncPeriod,
 			cfg.LiqoIpamServer,
 		)

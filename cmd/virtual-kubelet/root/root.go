@@ -68,10 +68,6 @@ func runRootCommand(ctx context.Context, s *provider.Store, c *Opts) error {
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
-	if c.ForeignKubeconfig == "" {
-		return errors.New("provider kubeconfig is mandatory")
-	}
-
 	if c.ForeignClusterID == "" {
 		return errors.New("cluster id is mandatory")
 	}
@@ -128,7 +124,6 @@ func runRootCommand(ctx context.Context, s *provider.Store, c *Opts) error {
 		KubeClusterDomain:    c.KubeClusterDomain,
 		RemoteClusterID:      c.ForeignClusterID,
 		HomeClusterID:        c.HomeClusterID,
-		RemoteKubeConfig:     c.ForeignKubeconfig,
 		InformerResyncPeriod: c.InformerResyncPeriod,
 		LiqoIpamServer:       c.LiqoIpamServer,
 	}
