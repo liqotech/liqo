@@ -2,8 +2,8 @@ package kubeconfig
 
 import (
 	"context"
-	"errors"
 	"fmt"
+	"strings"
 
 	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -13,7 +13,6 @@ import (
 	"k8s.io/klog"
 	kubeconfigutil "k8s.io/kubernetes/cmd/kubeadm/app/util/kubeconfig"
 
-	"github.com/liqotech/liqo/pkg/discovery"
 	"github.com/liqotech/liqo/pkg/utils"
 )
 
@@ -56,33 +55,17 @@ func CreateKubeConfigFromServiceAccount(apiServerConfigProvider utils.ApiServerC
 // 1. from the ClusterConfig
 // 2. defaults to 6443.
 func GetApiServerURL(apiServerConfigProvider utils.ApiServerConfigProvider, clientset kubernetes.Interface) (string, error) {
-	address := apiServerConfigProvider.GetAPIServerConfig().Address
-	if address == "" {
-		nodes, err := clientset.CoreV1().Nodes().List(context.TODO(), v1.ListOptions{
-			LabelSelector: "node-role.kubernetes.io/master",
-		})
-		if err != nil {
-			klog.Error(err)
-			return "", err
+	config := apiServerConfigProvider.GetAPIServerConfig()
+
+	address := config.Address
+	if address != "" {
+		if !strings.HasPrefix(address, "https://") {
+			address = fmt.Sprintf("https://%v", address)
 		}
-		if len(nodes.Items) == 0 {
-			err = errors.New("no APISERVER env variable found and no master node found, one of the two values must be present")
-			klog.Error(err)
-			return "", err
-		}
-		address, err = discovery.GetAddressFromNodeList(nodes.Items)
-		if err != nil {
-			klog.Error(err)
-			return "", err
-		}
+		return address, nil
 	}
 
-	port := apiServerConfigProvider.GetAPIServerConfig().Port
-	if port == "" {
-		port = "6443"
-	}
-
-	return fmt.Sprintf("https://%v:%v", address, port), nil
+	return utils.GetAPIServerAddressFromMasterNode(context.TODO(), clientset)
 }
 
 // this function creates a kube-config file for a specified ServiceAccount.

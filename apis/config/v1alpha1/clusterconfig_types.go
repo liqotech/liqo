@@ -115,7 +115,6 @@ type LabelPolicy struct {
 // APIServerConfig defines the configuration of the cluster APIServer.
 type APIServerConfig struct {
 	Address   string `json:"address,omitempty"`
-	Port      string `json:"port,omitempty"`
 	TrustedCA bool   `json:"trustedCA,omitempty"`
 }
 

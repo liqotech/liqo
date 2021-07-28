@@ -49,7 +49,6 @@ func (c *configMock) GetConfig() *v1alpha1.DiscoveryConfig {
 func (c *configMock) GetAPIServerConfig() *v1alpha1.APIServerConfig {
 	return &v1alpha1.APIServerConfig{
 		Address:   os.Getenv("APISERVER"),
-		Port:      os.Getenv("APISERVER_PORT"),
 		TrustedCA: false,
 	}
 }

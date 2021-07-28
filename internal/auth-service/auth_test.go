@@ -11,7 +11,6 @@ import (
 	"encoding/pem"
 	"os"
 	"path/filepath"
-	"strings"
 	"testing"
 	"time"
 
@@ -51,16 +50,6 @@ func (man *tokenManagerMock) getToken() (string, error) {
 func (man *tokenManagerMock) createToken() error {
 	man.token = "token"
 	return nil
-}
-
-// getHost get the address given the address:port string
-func getHost(address string) string {
-	return strings.Split(address, ":")[0]
-}
-
-// getPort get the port given the address:port string
-func getPort(address string) string {
-	return strings.Split(address, ":")[1]
 }
 
 // getCSR get a CertificateSigningRequest for testing purposes
@@ -159,8 +148,7 @@ var _ = Describe("Auth", func() {
 			useTLS:               false,
 			credentialsValidator: &tokenValidator{},
 			apiServerConfig: &v1alpha1.APIServerConfig{
-				Address:   getHost(cluster.GetCfg().Host),
-				Port:      getPort(cluster.GetCfg().Host),
+				Address:   cluster.GetCfg().Host,
 				TrustedCA: false,
 			},
 		}
