@@ -62,7 +62,9 @@ type IpamSpec struct {
 	ClusterSubnets map[string]Subnets `json:"clusterSubnets"`
 	// Cluster ExternalCIDR
 	ExternalCIDR string `json:"externalCIDR"`
-	// Endpoint IP mappings. Key is the IP address of the local endpoint, value is the IP of the remote endpoint, so it belongs to an ExternalCIDR
+	// Endpoint IP mappings. Key is the IP address of the local endpoint, value is an EndpointMapping struct
+	// that contains the related IP belonging to the ExternalCIDR and also the list of clusters
+	// on which this mapping is active
 	EndpointMappings map[string]EndpointMapping `json:"endpointMappings"`
 	// NatMappingsConfigured is a map that contains all the remote clusters
 	// for which NatMappings have been already configured.
