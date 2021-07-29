@@ -286,7 +286,7 @@ func (b *Broadcaster) writePodResources(clusterID string, newResources corev1.Re
 	if clusterID == "" {
 		return
 	}
-	if errorsmanagement.Must(checkSign(newResources)) {
+	if !errorsmanagement.Must(checkSign(newResources)) {
 		setZero(&newResources)
 	}
 	b.podMutex.Lock()

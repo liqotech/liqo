@@ -21,6 +21,7 @@ import (
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	sharingv1alpha1 "github.com/liqotech/liqo/apis/sharing/v1alpha1"
 	"github.com/liqotech/liqo/pkg/clusterid"
+	errorsmanagement "github.com/liqotech/liqo/pkg/utils/errorsManagement"
 )
 
 var (
@@ -70,6 +71,7 @@ func createCluster() {
 		MetricsBindAddress: "0", // this avoids port binding collision
 	})
 	Expect(err).ToNot(HaveOccurred())
+	errorsmanagement.SetDebug(true)
 	clientset = kubernetes.NewForConfigOrDie(k8sManager.GetConfig())
 	homeClusterID = clusterid.NewStaticClusterID("test-cluster").GetClusterID()
 	updater := OfferUpdater{}
