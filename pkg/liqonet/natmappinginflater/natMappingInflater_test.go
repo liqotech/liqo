@@ -8,10 +8,12 @@ import (
 	. "github.com/onsi/gomega"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/dynamic/fake"
+	"k8s.io/klog"
 
 	netv1alpha1 "github.com/liqotech/liqo/apis/net/v1alpha1"
 	"github.com/liqotech/liqo/pkg/consts"
@@ -42,6 +44,11 @@ const (
 
 func setDynClient() error {
 	scheme := runtime.NewScheme()
+	scheme.AddKnownTypeWithName(schema.GroupVersionKind{
+		Group:   "net.liqo.io",
+		Version: "v1alpha1",
+		Kind:    "ipamstorages",
+	}, &netv1alpha1.IpamStorage{})
 	scheme.AddKnownTypeWithName(schema.GroupVersionKind{
 		Group:   "net.liqo.io",
 		Version: "v1alpha1",
@@ -94,7 +101,7 @@ var _ = Describe("NatMappingInflater", func() {
 	Describe("Re-scheduling of the inflater", func() {
 		Context("If there are existing resources", func() {
 			It("the inflater should recover from these resources", func() {
-				By("Creating the resouces for different clusters")
+				By("Creating the resources for different clusters")
 				err := inflater.InitNatMappingsPerCluster(podCIDR, externalCIDR, clusterID1)
 				Expect(err).To(BeNil())
 				err = inflater.InitNatMappingsPerCluster(podCIDR, externalCIDR, clusterID2)
@@ -152,9 +159,22 @@ var _ = Describe("NatMappingInflater", func() {
 				scheme.AddKnownTypeWithName(schema.GroupVersionKind{
 					Group:   "net.liqo.io",
 					Version: "v1alpha1",
+					Kind:    "ipamstorages",
+				}, &netv1alpha1.IpamStorage{})
+				scheme.AddKnownTypeWithName(schema.GroupVersionKind{
+					Group:   "net.liqo.io",
+					Version: "v1alpha1",
 					Kind:    "natmappings",
 				}, &netv1alpha1.NatMapping{})
+
 				var m = make(map[schema.GroupVersionResource]string)
+
+				m[schema.GroupVersionResource{
+					Group:    "net.liqo.io",
+					Version:  "v1alpha1",
+					Resource: "ipamstorages",
+				}] = "ipamstoragesList"
+
 				m[schema.GroupVersionResource{
 					Group:    "net.liqo.io",
 					Version:  "v1alpha1",
@@ -219,7 +239,7 @@ var _ = Describe("NatMappingInflater", func() {
 	Describe("getNatMappingResource", func() {
 		Context("If resource for cluster does not exist", func() {
 			It("should return a NotFoundError", func() {
-				// BeforeEach creates resouce for clusterID1 and clusterID2
+				// BeforeEach creates resource for clusterID1 and clusterID2
 				_, err := inflater.getNatMappingResource(clusterID3)
 				Expect(errors.IsNotFound(err)).To(BeTrue())
 			})
@@ -255,7 +275,7 @@ var _ = Describe("NatMappingInflater", func() {
 				_, err = inflater.getNatMappingResource(clusterID1)
 				Expect(err).To(BeNil())
 
-				// Check if there is only one resouce
+				// Check if there is only one resource
 				list, err := inflater.dynClient.
 					Resource(netv1alpha1.NatMappingGroupResource).
 					List(context.Background(), metav1.ListOptions{
@@ -296,6 +316,7 @@ var _ = Describe("NatMappingInflater", func() {
 				err = inflater.AddMapping(oldIP, newIP, clusterID1)
 				Expect(err).To(BeNil())
 				mappings, err := inflater.GetNatMappings(clusterID1)
+				Expect(err).To(BeNil())
 				Expect(mappings).To(HaveKeyWithValue(oldIP, newIP))
 			})
 		})
@@ -336,6 +357,7 @@ var _ = Describe("NatMappingInflater", func() {
 
 				// Check if inflater has been updated successfully
 				mappings, err := inflater.GetNatMappings(clusterID1)
+				Expect(err).To(BeNil())
 				Expect(mappings).To(HaveKeyWithValue(oldIP, newIP2))
 
 				// Check resource
@@ -401,4 +423,126 @@ var _ = Describe("NatMappingInflater", func() {
 			})
 		})
 	})
+	Describe("Consistency check between IPAM configuration and NatMapping resources", func() {
+		Context("If there is a mapping in IPAM configuration but not in the appropriate NatMapping resource", func() {
+			It("should fix the inconsistency by adding the mapping in NatMapping resource", func() {
+				// Add the mapping on IPAM configuration
+				err := createIpamStorageResourceWithMapping()
+				Expect(err).To(BeNil())
+				// There's no need of creating a resource of type NatMapping because
+				// it has already been created in test set up.
+
+				// Trigger inconsistency check
+				inflater = NewInflater(dynClient)
+
+				// Check if mapping has been added
+				nm, err := inflater.getNatMappingResource(clusterID2)
+				Expect(err).To(BeNil())
+				Expect(nm.Spec.ClusterMappings).To(HaveKeyWithValue(oldIP2, newIP2))
+			})
+		})
+		Context("If there is a mapping in a NatMapping resource but not in IPAM configuration", func() {
+			It("should fix the inconsistency by removing the mapping in NatMapping resource", func() {
+				// Add the mapping on NatMapping resource
+				nm, err := inflater.getNatMappingResource(clusterID1)
+				Expect(err).To(BeNil())
+				nm.Spec.ClusterMappings[oldIP] = newIP
+				err = inflater.updateNatMappingResource(nm)
+				Expect(err).To(BeNil())
+
+				// Create empty IPAM configuration
+				err = createIpamStorageResourceWithoutMapping()
+				Expect(err).To(BeNil())
+
+				// Trigger inconsistency check
+				inflater = NewInflater(dynClient)
+
+				// Check if mapping has been deleted
+				nm, err = inflater.getNatMappingResource(clusterID1)
+				Expect(err).To(BeNil())
+				Expect(nm.Spec.ClusterMappings).ToNot(HaveKeyWithValue(oldIP, newIP))
+			})
+		})
+	})
 })
+
+func createIpamStorageResourceWithMapping() error {
+	ipam := forgeIPAMConfigWithMapping()
+	err := createIpamStorageResource(ipam)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func createIpamStorageResourceWithoutMapping() error {
+	ipam := forgeIPAMConfigWithoutMapping()
+	err := createIpamStorageResource(ipam)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func forgeIPAMConfigWithMapping() *netv1alpha1.IpamStorage {
+	return &netv1alpha1.IpamStorage{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "net.liqo.io/v1alpha1",
+			Kind:       "IpamStorage",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:   "ipam-test",
+			Labels: map[string]string{consts.IpamStorageResourceLabelKey: consts.IpamStorageResourceLabelValue},
+		},
+		Spec: netv1alpha1.IpamSpec{
+			Prefixes:       make(map[string][]byte),
+			Pools:          make([]string, 0),
+			ClusterSubnets: make(map[string]netv1alpha1.Subnets),
+			EndpointMappings: map[string]netv1alpha1.EndpointMapping{
+				oldIP2: {
+					IP: newIP2,
+					ClusterMappings: map[string]netv1alpha1.ClusterMapping{
+						clusterID2: {},
+					},
+				},
+			},
+			NatMappingsConfigured: make(map[string]netv1alpha1.ConfiguredCluster),
+		},
+	}
+}
+
+func forgeIPAMConfigWithoutMapping() *netv1alpha1.IpamStorage {
+	return &netv1alpha1.IpamStorage{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "net.liqo.io/v1alpha1",
+			Kind:       "IpamStorage",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:   "ipam-test",
+			Labels: map[string]string{consts.IpamStorageResourceLabelKey: consts.IpamStorageResourceLabelValue},
+		},
+		Spec: netv1alpha1.IpamSpec{
+			Prefixes:              make(map[string][]byte),
+			Pools:                 make([]string, 0),
+			ClusterSubnets:        make(map[string]netv1alpha1.Subnets),
+			EndpointMappings:      make(map[string]netv1alpha1.EndpointMapping),
+			NatMappingsConfigured: make(map[string]netv1alpha1.ConfiguredCluster),
+		},
+	}
+}
+
+func createIpamStorageResource(ipam *netv1alpha1.IpamStorage) error {
+	unstructuredIpam, err := runtime.DefaultUnstructuredConverter.ToUnstructured(ipam)
+	if err != nil {
+		klog.Errorf("cannot map ipam resource to unstructured resource: %s", err.Error())
+		return err
+	}
+	_, err = inflater.dynClient.
+		Resource(netv1alpha1.IpamGroupResource).
+		Create(context.Background(), &unstructured.Unstructured{Object: unstructuredIpam}, metav1.CreateOptions{})
+	if err != nil {
+		klog.Errorf("cannot create ipam resource: %s", err.Error())
+		return err
+	}
+	return nil
+}

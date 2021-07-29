@@ -89,8 +89,9 @@ spec:
                   - ip
                   type: object
                 description: Endpoint IP mappings. Key is the IP address of the local
-                  endpoint, value is the IP of the remote endpoint, so it belongs
-                  to an ExternalCIDR
+                  endpoint, value is an EndpointMapping struct that contains the related
+                  IP belonging to the ExternalCIDR and also the list of clusters on
+                  which this mapping is active
                 type: object
               externalCIDR:
                 description: Cluster ExternalCIDR

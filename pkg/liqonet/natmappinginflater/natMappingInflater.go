@@ -59,6 +59,10 @@ func NewInflater(dynClient dynamic.Interface) *NatMappingInflater {
 	if err != nil {
 		klog.Error(err)
 	}
+	err = inflater.ipamConsistencyCheck()
+	if err != nil {
+		klog.Error(err)
+	}
 	return inflater
 }
 
@@ -412,4 +416,74 @@ func (inflater *NatMappingInflater) recoverMappingsFromResources() error {
 	}
 	klog.Infof("In memory structure of NatMappingInflater has been successfully recovered from resources.")
 	return nil
+}
+
+func (inflater *NatMappingInflater) ipamConsistencyCheck() error {
+	ipamConfig, err := inflater.getIPAMConfig()
+	if err != nil {
+		return err
+	}
+	klog.Infof("Consistency check between IPAM configuration and NatMapping resources..")
+	// For each mapping in the IPAM storage, check if there is a corresponding NatMapping
+	for oldIP, mapping := range ipamConfig.Spec.EndpointMappings {
+		for clusterID := range mapping.ClusterMappings {
+			if inflater.natMappingsPerCluster[clusterID][oldIP] != mapping.IP {
+				if err := inflater.AddMapping(oldIP, mapping.IP, clusterID); err != nil {
+					return err
+				}
+				klog.Infof("Mapping of %s on %s of cluster %s has been recovered from IPAM configuration",
+					oldIP, mapping.IP, clusterID)
+			}
+		}
+	}
+	// For each NatMapping, check if it exists on IPAM. If not, delete the NatMapping.
+	for clusterID, natMapping := range inflater.natMappingsPerCluster {
+		for oldIP, newIP := range natMapping {
+			ipamMapping, endpointMappingExists := ipamConfig.Spec.EndpointMappings[oldIP]
+			if !endpointMappingExists {
+				err = inflater.RemoveMapping(oldIP, clusterID)
+				if err != nil {
+					return err
+				}
+				klog.Infof("Mapping of %s on %s for cluster %s has been removed"+
+					"because it has not been found in IPAM configuration", oldIP, newIP, clusterID)
+				continue
+			}
+			_, mappingIsActiveOnCluster := ipamMapping.ClusterMappings[clusterID]
+			if !mappingIsActiveOnCluster {
+				err = inflater.RemoveMapping(oldIP, clusterID)
+				if err != nil {
+					return err
+				}
+				klog.Infof("Mapping of %s on %s for cluster %s has been removed"+
+					"because it has not been found in IPAM configuration", oldIP, newIP, clusterID)
+			}
+		}
+	}
+	klog.Infof("IPAM configuration and NatMapping resources are now aligned.")
+	return nil
+}
+
+func (inflater *NatMappingInflater) getIPAMConfig() (*netv1alpha1.IpamStorage, error) {
+	res := &netv1alpha1.IpamStorage{}
+	list, err := inflater.dynClient.
+		Resource(netv1alpha1.IpamGroupResource).
+		List(context.Background(), metav1.ListOptions{
+			LabelSelector: fmt.Sprintf("%s=%s", consts.IpamStorageResourceLabelKey, consts.IpamStorageResourceLabelValue),
+		})
+	if err != nil {
+		klog.Errorf(err.Error())
+		return nil, fmt.Errorf("unable to get IPAM configuration: %w", err)
+	}
+	if len(list.Items) != 1 {
+		if len(list.Items) != 0 {
+			return nil, fmt.Errorf("multiple resources of type %s found", netv1alpha1.IpamGroupResource)
+		}
+		return nil, k8sErr.NewNotFound(netv1alpha1.IpamGroupResource.GroupResource(), "")
+	}
+	err = runtime.DefaultUnstructuredConverter.FromUnstructured(list.Items[0].Object, res)
+	if err != nil {
+		return nil, fmt.Errorf("cannot map unstructured resource to ipam storage resource:%w", err)
+	}
+	return res, nil
 }
