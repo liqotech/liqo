@@ -16,7 +16,7 @@ you can enable the peering by setting its join flag as follows:
 
 ```bash
 kubectl patch foreignclusters "$foreignClusterName" \
-  --patch '{"spec":{"join":true}}' \
+  --patch '{"spec":{"outgoingPeeringEnabled":"Yes"}}' \
   --type 'merge'
 ```
 
@@ -26,6 +26,6 @@ To disable the peering, it is enough to patch the `ForeignCluster` resource as f
 
 ```bash
 kubectl patch foreignclusters "$foreignClusterName" \
-  --patch '{"spec":{"join":false}}' \
+  --patch '{"spec":{"outgoingPeeringEnabled":"No"}}' \
   --type 'merge'
 ```

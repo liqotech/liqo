@@ -78,11 +78,11 @@ kind: ForeignCluster
 metadata:
   name: my-cluster
 spec:
-  join: true # optional (defaults to false)
-  authUrl: "https://<ADDRESS>:<PORT>"
+  outgoingPeeringEnabled: "Yes"
+  foreignAuthUrl: "https://<ADDRESS>:<PORT>"
 ```
 
-When you create the ForeignCluster, the Liqo control plane will contact the `authURL` (i.e. the public URL of a cluster 
+When you create the ForeignCluster, the Liqo control plane will contact the `foreignAuthUrl` (i.e. the public URL of a cluster 
 authentication server) to retrieve all the required cluster information.
 
 #### Access the cluster configurations
@@ -95,7 +95,7 @@ curl --insecure https://<ADDRESS>:<PORT>/ids
 ```
 
 ```json
-{"clusterId":"0558de48-097b-4b7d-ba04-6bd2a0f9d24f","clusterName":"LiqoCluster0692","guestNamespace":"liqo"}
+{"clusterId":"0558de48-097b-4b7d-ba04-6bd2a0f9d24f","clusterName":"LiqoCluster0692"}
 ```
 
 ### DNS Discovery
