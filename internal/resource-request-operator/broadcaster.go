@@ -17,6 +17,7 @@ import (
 
 	configv1alpha1 "github.com/liqotech/liqo/apis/config/v1alpha1"
 	"github.com/liqotech/liqo/internal/resource-request-operator/interfaces"
+	"github.com/liqotech/liqo/pkg/consts"
 	crdclient "github.com/liqotech/liqo/pkg/crdClient"
 	"github.com/liqotech/liqo/pkg/utils"
 	errorsmanagement "github.com/liqotech/liqo/pkg/utils/errorsManagement"
@@ -137,7 +138,7 @@ func (b *Broadcaster) getLastRead(remoteClusterID string) corev1.ResourceList {
 // react to a Node Creation/First informer run.
 func (b *Broadcaster) onNodeAdd(obj interface{}) {
 	node := obj.(*corev1.Node)
-	if utils.IsNodeReady(node) {
+	if utils.IsNodeReady(node) && !isVirtualNode(node) {
 		klog.V(4).Infof("Adding Node %s\n", node.Name)
 		toAdd := &node.Status.Allocatable
 		currentResources := b.readClusterResources()
@@ -154,7 +155,7 @@ func (b *Broadcaster) onNodeUpdate(oldObj, newObj interface{}) {
 	newNodeResources := newNode.Status.Allocatable
 	currentResources := b.readClusterResources()
 	klog.V(4).Infof("Updating Node %s in %v\n", oldNode.Name, newNode)
-	if utils.IsNodeReady(newNode) {
+	if utils.IsNodeReady(newNode) && !isVirtualNode(newNode) {
 		// node was already Ready, update with possible new resources.
 		if utils.IsNodeReady(oldNode) {
 			updateResources(currentResources, oldNodeResources, newNodeResources)
@@ -163,7 +164,7 @@ func (b *Broadcaster) onNodeUpdate(oldObj, newObj interface{}) {
 			addResources(currentResources, newNodeResources)
 		}
 		// node is terminating or stopping, delete all its resources.
-	} else if utils.IsNodeReady(oldNode) && !utils.IsNodeReady(newNode) {
+	} else if utils.IsNodeReady(oldNode) && !utils.IsNodeReady(newNode) && !isVirtualNode(newNode) {
 		subResources(currentResources, oldNodeResources)
 	}
 	b.writeClusterResources(currentResources)
@@ -174,7 +175,7 @@ func (b *Broadcaster) onNodeDelete(obj interface{}) {
 	node := obj.(*corev1.Node)
 	toDelete := &node.Status.Allocatable
 	currentResources := b.readClusterResources()
-	if utils.IsNodeReady(node) {
+	if utils.IsNodeReady(node) && !isVirtualNode(node) {
 		klog.V(4).Infof("Deleting Node %s\n", node.Name)
 		subResources(currentResources, *toDelete)
 		b.writeClusterResources(currentResources)
@@ -213,15 +214,6 @@ func (b *Broadcaster) onPodUpdate(oldObj, newObj interface{}) {
 	currentPodsResources := b.readPodResources(clusterID)
 
 	switch getPodTransitionState(oldPod, newPod) {
-	// pod already Ready, just update resources.
-	case ReadyToReady:
-		updateResources(currentResources, oldResources, newResources)
-		if clusterID != "" {
-			klog.V(4).Infof("OnPodUpdate: Pod %s:%s passed ClusterID check. ClusterID = %s\n", newPod.Namespace, newPod.Name, clusterID)
-			// update the resource of this pod in the map clusterID => resources to be used in ReadResources() function.
-			// this action is done to correct the computation not considering pod offloaded by the cluster with this ClusterID
-			updateResources(currentPodsResources, oldResources, newResources)
-		}
 	// pod is becoming Ready, same of onPodAdd case.
 	case PendingToReady:
 		subResources(currentResources, newResources)
@@ -240,6 +232,9 @@ func (b *Broadcaster) onPodUpdate(oldObj, newObj interface{}) {
 			// this action is done to correct the computation not considering pod offloaded by the cluster with this ClusterID
 			subResources(currentPodsResources, oldResources)
 		}
+	// pod resources request are immutable. See the doc https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/
+	case ReadyToReady:
+		return
 	case PendingToPending:
 		return
 	}
@@ -391,7 +386,7 @@ func setZero(resources *corev1.ResourceList) {
 	}
 }
 
-// addResources is an utility function to add resources.
+// addResources is a utility function to add resources.
 func addResources(currentResources, toAdd corev1.ResourceList) {
 	for resourceName, quantity := range toAdd {
 		if value, exists := currentResources[resourceName]; exists {
@@ -413,7 +408,7 @@ func subResources(currentResources, toSub corev1.ResourceList) {
 	}
 }
 
-// updateResources is an utility function to update resources.
+// updateResources is a utility function to update resources.
 func updateResources(currentResources, oldResources, newResources corev1.ResourceList) {
 	for resourceName, quantity := range newResources {
 		if oldQuantity, exists := oldResources[resourceName]; exists {
@@ -456,4 +451,13 @@ func getPodTransitionState(oldPod, newPod *corev1.Pod) PodTransition {
 	}
 
 	return PendingToPending
+}
+
+func isVirtualNode(node *corev1.Node) bool {
+	if virtualLabel, exists := node.Labels[consts.TypeLabel]; exists {
+		if virtualLabel == consts.TypeNode {
+			return true
+		}
+	}
+	return false
 }

@@ -78,14 +78,14 @@ func main() {
 	var metricsAddr, localKubeconfig, clusterId string
 	var probeAddr string
 	var enableLeaderElection bool
-	var debug bool
+	var enablePanic bool
 	var liqoNamespace, kubeletImage, initKubeletImage string
 	var resyncPeriod int64
 	var offloadingStatusControllerRequeueTime int64
 	var offerUpdateThreshold uint64
 	var namespaceMapControllerRequeueTime int64
 
-	flag.BoolVar(&debug, "debug", false, "flag to enable the debug mode")
+	flag.BoolVar(&enablePanic, "panic-on-unexpected-errors", false, "flag to enable panic if unexpected errors occur")
 	flag.StringVar(&metricsAddr, "metrics-addr", defaultMetricsaddr, "The address the metric endpoint binds to.")
 	flag.StringVar(&probeAddr, "health-probe-bind-address", ":8081", "The address the probe endpoint binds to.")
 	flag.BoolVar(&enableLeaderElection,
@@ -111,7 +111,7 @@ func main() {
 	klog.InitFlags(nil)
 	flag.Parse()
 
-	errorsmanagement.SetDebug(debug)
+	errorsmanagement.SetPanicMode(enablePanic)
 
 	if clusterId == "" {
 		klog.Error("Cluster ID must be provided")

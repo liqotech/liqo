@@ -2,11 +2,11 @@ package errorsmanagement
 
 import "k8s.io/klog/v2"
 
-var debug = false
+var panicMode = false
 
-// SetDebug can be used to set or unset the debug mode.
-func SetDebug(status bool) {
-	debug = status
+// SetPanicMode can be used to set or unset the panic mode.
+func SetPanicMode(status bool) {
+	panicMode = status
 }
 
 // Must wraps a function call that can return an error. If some error occurred Must has two possible behaviors:
@@ -14,7 +14,7 @@ func SetDebug(status bool) {
 // Returns true if no error occurred.
 func Must(err error) bool {
 	if err != nil {
-		if debug {
+		if panicMode {
 			panic(err)
 		} else {
 			klog.Errorf("%s", err)
