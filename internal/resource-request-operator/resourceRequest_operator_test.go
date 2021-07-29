@@ -23,6 +23,7 @@ import (
 	sharingv1alpha1 "github.com/liqotech/liqo/apis/sharing/v1alpha1"
 	crdreplicator "github.com/liqotech/liqo/internal/crdReplicator"
 	"github.com/liqotech/liqo/pkg/clusterid"
+	"github.com/liqotech/liqo/pkg/consts"
 	"github.com/liqotech/liqo/pkg/discovery"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/forge"
 )
@@ -49,6 +50,11 @@ func createNewNode(nodeName string, virtual bool) (*corev1.Node, error) {
 		ObjectMeta: metav1.ObjectMeta{
 			Name: nodeName,
 		},
+	}
+	if virtual {
+		node.Labels = map[string]string{
+			consts.TypeLabel: consts.TypeNode,
+		}
 	}
 	node.Status = corev1.NodeStatus{
 		Capacity:    resources,
@@ -550,20 +556,6 @@ var _ = Describe("ResourceRequest Operator", func() {
 				}
 				return checkResourceOfferUpdate(nodeList, podList)
 			}, timeout, interval).Should(BeTrue())
-			By("Changing pod resources")
-			podReq.Cpu().Add(*resource.NewQuantity(2, resource.DecimalSI))
-			podWithoutLabel.Spec.Containers[0].Resources.Requests = podReq
-			podWithoutLabel, err = clientset.CoreV1().Pods("default").UpdateStatus(ctx, podWithoutLabel, metav1.UpdateOptions{})
-			Expect(err).ToNot(HaveOccurred())
-			Eventually(func() bool {
-				nodeList := []corev1.ResourceList{
-					0: node2.Status.Allocatable,
-				}
-				podList := []corev1.ResourceList{
-					0: podReq,
-				}
-				return checkResourceOfferUpdate(nodeList, podList)
-			}, timeout, interval).Should(BeTrue())
 			By("Adding pod offloaded by cluster which refers the ResourceOffer. Expected no change in resources")
 			_, err = createNewPod("pod-offloaded-"+ClusterID1, ClusterID1)
 			Expect(err).ToNot(HaveOccurred())
@@ -610,10 +602,31 @@ var _ = Describe("ResourceRequest Operator", func() {
 			}, timeout, interval).Should(BeTrue())
 			By("Update threshold with huge amount to test isAboveThreshold function")
 			newBroadcaster.setThreshold(80)
-			node2.Status.Allocatable.Cpu().Add(*resource.NewQuantity(1, resource.DecimalSI))
+			cpu := node2.Status.Allocatable[corev1.ResourceCPU]
+			cpu.Add(*resource.NewQuantity(2, resource.DecimalSI))
+			node2.Status.Allocatable[corev1.ResourceCPU] = cpu
 			node2, err = clientset.CoreV1().Nodes().UpdateStatus(ctx, node2, metav1.UpdateOptions{})
 			Expect(err).ToNot(HaveOccurred())
 			Expect(newBroadcaster.isAboveThreshold(ClusterID1)).ShouldNot(BeTrue())
+		})
+		It("Test virtual node creation", func() {
+			By("Testing check function returning false")
+			Expect(isVirtualNode(node2)).ShouldNot(BeTrue())
+			podReq, _ := resourcehelper.PodRequestsAndLimits(podWithoutLabel)
+			virtualNode, err := createNewNode("test-virtual-node", true)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(isVirtualNode(virtualNode)).Should(BeTrue())
+			By("Expected no change on resources")
+			Eventually(func() bool {
+				nodeList := []corev1.ResourceList{
+					0: node2.Status.Allocatable,
+					1: node1.Status.Allocatable,
+				}
+				podList := []corev1.ResourceList{
+					0: podReq,
+				}
+				return checkResourceOfferUpdate(nodeList, podList)
+			}, timeout, interval).Should(BeTrue())
 		})
 	})
 })
