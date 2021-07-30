@@ -1,7 +1,6 @@
 package foreignclusteroperator
 
 import (
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/klog/v2"
 
 	"github.com/liqotech/liqo/apis/discovery/v1alpha1"
@@ -15,10 +14,9 @@ func (r *ForeignClusterReconciler) needsClusterIdentityDefaulting(fc *v1alpha1.F
 	return fc.Spec.ClusterIdentity.ClusterID == ""
 }
 
-// load the default values for that ForeignCluster basing on the AuthUrl value, an HTTP request is sent and the retrieved
-// values are applied for the following fields (if they are empty): Namespace, ClusterIdentity.ClusterID, ClusterIdentity.Namespace
-// and the TrustMode
-// if it returns no error, the ForeignCluster CR has been updated.
+// clusterIdentityDefaulting loads the default values for that ForeignCluster basing on the AuthUrl value, an HTTP request
+// is sent and the retrieved values are applied for the following fields (if they are empty):
+// ClusterIdentity.ClusterID, ClusterIdentity.ClusterName.
 func (r *ForeignClusterReconciler) clusterIdentityDefaulting(fc *v1alpha1.ForeignCluster) error {
 	klog.V(4).Infof("Defaulting ClusterIdentity values for ForeignCluster %v", fc.Name)
 	ids, err := utils.GetClusterInfo(foreignclusterutils.InsecureSkipTLSVerify(fc), fc.Spec.ForeignAuthURL)
@@ -37,11 +35,5 @@ func (r *ForeignClusterReconciler) clusterIdentityDefaulting(fc *v1alpha1.Foreig
 	klog.V(4).Infof("New values:\n\tClusterId:\t%v\n\tClusterName:\t%v",
 		fc.Spec.ClusterIdentity.ClusterID,
 		fc.Spec.ClusterIdentity.ClusterName)
-
-	// update the ForeignCluster
-	if _, err = r.crdClient.Resource("foreignclusters").Update(fc.Name, fc, &metav1.UpdateOptions{}); err != nil {
-		klog.Error(err)
-		return err
-	}
 	return nil
 }

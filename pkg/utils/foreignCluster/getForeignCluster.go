@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/klog/v2"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -31,5 +32,19 @@ func GetForeignClusterByID(ctx context.Context, cl client.Client, clusterID stri
 		klog.Error(err)
 		return nil, err
 	}
-	return &foreignClusterList.Items[0], nil
+	return GetOlderForeignCluster(&foreignClusterList), nil
+}
+
+// GetOlderForeignCluster returns the ForeignCluster from the list with the older creationTimestamp.
+func GetOlderForeignCluster(
+	foreignClusterList *discoveryv1alpha1.ForeignClusterList) (foreignCluster *discoveryv1alpha1.ForeignCluster) {
+	var olderTime *metav1.Time = nil
+	for i := range foreignClusterList.Items {
+		fc := &foreignClusterList.Items[i]
+		if olderTime.IsZero() || fc.CreationTimestamp.Before(olderTime) {
+			olderTime = &fc.CreationTimestamp
+			foreignCluster = fc
+		}
+	}
+	return foreignCluster
 }

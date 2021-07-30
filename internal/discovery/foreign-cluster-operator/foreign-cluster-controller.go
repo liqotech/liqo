@@ -167,6 +167,21 @@ func (r *ForeignClusterReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 		}
 	}()
 
+	// ensure that there are not multiple clusters with the same clusterID
+	if processable, err := r.isClusterProcessable(ctx, &foreignCluster); err != nil {
+		klog.Error(err)
+		return ctrl.Result{}, err
+	} else if !processable {
+		klog.Warningf("[%v] ClusterID not processable (%v): %v",
+			foreignCluster.Spec.ClusterIdentity.ClusterID,
+			foreignCluster.Name,
+			peeringconditionsutils.GetMessage(&foreignCluster, discoveryv1alpha1.ProcessForeignClusterStatusCondition))
+		return ctrl.Result{
+			Requeue:      true,
+			RequeueAfter: r.RequeueAfter,
+		}, nil
+	}
+
 	// ------ (2) ensuring prerequirements ------
 
 	// ensure the existence of the local TenantNamespace
