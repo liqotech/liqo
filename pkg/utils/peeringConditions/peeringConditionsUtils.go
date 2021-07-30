@@ -40,11 +40,9 @@ func EnsureStatus(
 // it returns the None status.
 func GetStatus(foreignCluster *discoveryv1alpha1.ForeignCluster,
 	conditionType discoveryv1alpha1.PeeringConditionType) discoveryv1alpha1.PeeringConditionStatusType {
-	for i := range foreignCluster.Status.PeeringConditions {
-		cond := &foreignCluster.Status.PeeringConditions[i]
-		if cond.Type == conditionType {
-			return cond.Status
-		}
+	cond := findCondition(foreignCluster, conditionType)
+	if cond != nil {
+		return cond.Status
 	}
 	return discoveryv1alpha1.PeeringConditionStatusNone
 }
@@ -53,11 +51,32 @@ func GetStatus(foreignCluster *discoveryv1alpha1.ForeignCluster,
 // it returns an empty string.
 func GetReason(foreignCluster *discoveryv1alpha1.ForeignCluster,
 	conditionType discoveryv1alpha1.PeeringConditionType) string {
+	cond := findCondition(foreignCluster, conditionType)
+	if cond != nil {
+		return cond.Reason
+	}
+	return ""
+}
+
+// GetMessage returns the message for the given peering condition. If the condition is not set,
+// it returns an empty string.
+func GetMessage(foreignCluster *discoveryv1alpha1.ForeignCluster,
+	conditionType discoveryv1alpha1.PeeringConditionType) string {
+	cond := findCondition(foreignCluster, conditionType)
+	if cond != nil {
+		return cond.Message
+	}
+	return ""
+}
+
+// findCondition returns a condition given its type.
+func findCondition(foreignCluster *discoveryv1alpha1.ForeignCluster,
+	conditionType discoveryv1alpha1.PeeringConditionType) *discoveryv1alpha1.PeeringCondition {
 	for i := range foreignCluster.Status.PeeringConditions {
 		cond := &foreignCluster.Status.PeeringConditions[i]
 		if cond.Type == conditionType {
-			return cond.Reason
+			return cond
 		}
 	}
-	return ""
+	return nil
 }

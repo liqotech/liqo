@@ -880,6 +880,99 @@ var _ = Describe("ForeignClusterOperator", func() {
 
 	})
 
+	Context("Test isClusterProcessable", func() {
+
+		It("multiple ForeignClusters with the same clusterID", func() {
+
+			fc1 := &discoveryv1alpha1.ForeignCluster{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "cluster-1",
+					Labels: map[string]string{
+						discovery.DiscoveryTypeLabel: string(discovery.ManualDiscovery),
+						discovery.ClusterIDLabel:     "cluster-1",
+					},
+				},
+				Spec: discoveryv1alpha1.ForeignClusterSpec{
+					OutgoingPeeringEnabled: discoveryv1alpha1.PeeringEnabledAuto,
+					InsecureSkipTLSVerify:  pointer.BoolPtr(true),
+					ForeignAuthURL:         "https://example.com",
+					ClusterIdentity: discoveryv1alpha1.ClusterIdentity{
+						ClusterID: "cluster-1",
+					},
+				},
+			}
+
+			fc2 := fc1.DeepCopy()
+			fc2.Name = "cluster-2"
+
+			Expect(controller.Client.Create(ctx, fc1)).To(Succeed())
+			// we need at least 1 second of delay between the two creation timestamps
+			time.Sleep(1 * time.Second)
+			Expect(controller.Client.Create(ctx, fc2)).To(Succeed())
+
+			By("Create the first ForeignCluster")
+
+			processable, err := controller.isClusterProcessable(ctx, fc1)
+			Expect(err).To(Succeed())
+			Expect(processable).To(BeTrue())
+			Expect(peeringconditionsutils.GetStatus(fc1, discoveryv1alpha1.ProcessForeignClusterStatusCondition)).
+				To(Equal(discoveryv1alpha1.PeeringConditionStatusSuccess))
+
+			By("Create the second ForeignCluster")
+
+			processable, err = controller.isClusterProcessable(ctx, fc2)
+			Expect(err).To(Succeed())
+			Expect(processable).To(BeFalse())
+			Expect(peeringconditionsutils.GetStatus(fc2, discoveryv1alpha1.ProcessForeignClusterStatusCondition)).
+				To(Equal(discoveryv1alpha1.PeeringConditionStatusError))
+
+			By("Delete the first ForeignCluster")
+
+			Expect(controller.Client.Delete(ctx, fc1)).To(Succeed())
+
+			By("Check that the second ForeignCluster is now processable")
+
+			Eventually(func() bool {
+				processable, err = controller.isClusterProcessable(ctx, fc2)
+				Expect(err).To(Succeed())
+				return processable
+			}, timeout, interval).Should(BeTrue())
+			Expect(peeringconditionsutils.GetStatus(fc2, discoveryv1alpha1.ProcessForeignClusterStatusCondition)).
+				To(Equal(discoveryv1alpha1.PeeringConditionStatusSuccess))
+		})
+
+		It("add a cluster with the same clusterID of the local cluster", func() {
+
+			fc := &discoveryv1alpha1.ForeignCluster{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "cluster-1",
+					Labels: map[string]string{
+						discovery.DiscoveryTypeLabel: string(discovery.ManualDiscovery),
+						discovery.ClusterIDLabel:     controller.clusterID.GetClusterID(),
+					},
+				},
+				Spec: discoveryv1alpha1.ForeignClusterSpec{
+					OutgoingPeeringEnabled: discoveryv1alpha1.PeeringEnabledAuto,
+					InsecureSkipTLSVerify:  pointer.BoolPtr(true),
+					ForeignAuthURL:         "https://example.com",
+					ClusterIdentity: discoveryv1alpha1.ClusterIdentity{
+						ClusterID: controller.clusterID.GetClusterID(),
+					},
+				},
+			}
+
+			Expect(controller.Client.Create(ctx, fc)).To(Succeed())
+
+			processable, err := controller.isClusterProcessable(ctx, fc)
+			Expect(err).To(Succeed())
+			Expect(processable).To(BeFalse())
+			Expect(peeringconditionsutils.GetStatus(fc, discoveryv1alpha1.ProcessForeignClusterStatusCondition)).
+				To(Equal(discoveryv1alpha1.PeeringConditionStatusError))
+
+		})
+
+	})
+
 })
 
 var _ = Describe("PeeringPolicy", func() {

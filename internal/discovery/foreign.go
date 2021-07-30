@@ -238,5 +238,5 @@ func (discovery *Controller) getForeignClusterByID(clusterID string) (*v1alpha1.
 			Resource: "foreignclusters",
 		}, clusterID)
 	}
-	return &fcs.Items[0], nil
+	return foreignclusterutils.GetOlderForeignCluster(fcs), nil
 }

@@ -47,6 +47,10 @@ const (
 	// This is only used by the AuthenticationCondition Type, and indicates that
 	// the identity verification was denied with an empty token.
 	PeeringConditionStatusEmptyDenied PeeringConditionStatusType = "EmptyDenied"
+	// PeeringConditionStatusError indicates that an error has occurred.
+	PeeringConditionStatusError PeeringConditionStatusType = "Error"
+	// PeeringConditionStatusSuccess indicates that the condition is successful.
+	PeeringConditionStatusSuccess PeeringConditionStatusType = "Success"
 )
 
 // PeeringEnabledType indicates the desired state for the peering with this remote cluster.
@@ -127,15 +131,17 @@ const (
 	NetworkStatusCondition PeeringConditionType = "NetworkStatus"
 	// AuthenticationStatusCondition informs users about the Authentication status.
 	AuthenticationStatusCondition PeeringConditionType = "AuthenticationStatus"
+	// ProcessableForeignCluster informs users about the Authentication status.
+	ProcessForeignClusterStatusCondition PeeringConditionType = "ProcessForeignClusterStatus"
 )
 
 // PeeringCondition contains details about state of the peering.
 type PeeringCondition struct {
 	// Type of the peering condition.
-	// +kubebuilder:validation:Enum="OutgoingPeering";"IncomingPeering";"NetworkStatus";"AuthenticationStatus"
+	// +kubebuilder:validation:Enum="OutgoingPeering";"IncomingPeering";"NetworkStatus";"AuthenticationStatus";"ProcessForeignClusterStatus"
 	Type PeeringConditionType `json:"type"`
 	// Status of the condition.
-	// +kubebuilder:validation:Enum="None";"Pending";"Established";"Disconnecting";"Denied";"EmptyDenied"
+	// +kubebuilder:validation:Enum="None";"Pending";"Established";"Disconnecting";"Denied";"EmptyDenied";"Error";"Success"
 	// +kubebuilder:default="None"
 	Status PeeringConditionStatusType `json:"status"`
 	// LastTransitionTime -> timestamp for when the condition last transitioned from one status to another.
@@ -161,6 +167,7 @@ type TenantNamespaceType struct {
 
 // ForeignCluster is the Schema for the foreignclusters API.
 // +kubebuilder:printcolumn:name="ClusterID",type=string,priority=1,JSONPath=`.spec.clusterIdentity.clusterID`
+// +kubebuilder:printcolumn:name="ClusterName",type=string,priority=1,JSONPath=`.spec.clusterIdentity.clusterName`
 // +kubebuilder:printcolumn:name="Outgoing peering phase",type=string,JSONPath=`.status.peeringConditions[?(@.type == 'OutgoingPeering')].status`
 // +kubebuilder:printcolumn:name="Incoming peering phase",type=string,JSONPath=`.status.peeringConditions[?(@.type == 'IncomingPeering')].status`
 // +kubebuilder:printcolumn:name="Networking status",type=string,JSONPath=`.status.peeringConditions[?(@.type == 'NetworkStatus')].status`

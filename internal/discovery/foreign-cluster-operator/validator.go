@@ -2,22 +2,25 @@ package foreignclusteroperator
 
 import (
 	"context"
+	"fmt"
 
 	"k8s.io/klog/v2"
 	ctrl "sigs.k8s.io/controller-runtime"
 
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	"github.com/liqotech/liqo/pkg/discovery"
+	foreignclusterutils "github.com/liqotech/liqo/pkg/utils/foreignCluster"
+	peeringconditionsutils "github.com/liqotech/liqo/pkg/utils/peeringConditions"
 )
 
 // validateForeignCluster contains the logic that validates and defaults labels and spec fields.
-// TODO: this function will be refactored in a future pr.
 func (r *ForeignClusterReconciler) validateForeignCluster(ctx context.Context,
 	foreignCluster *discoveryv1alpha1.ForeignCluster) (cont bool, res ctrl.Result, err error) {
 	requireUpdate := false
 
 	if r.needsClusterIdentityDefaulting(foreignCluster) {
-		// this ForeignCluster has not all the required fields, probably it has been added manually, so default to exposed values
+		// this ForeignCluster has not all the cluster identity fields (clusterID and clusterName),
+		// get them from the foreignAuthUrl.
 		if err := r.clusterIdentityDefaulting(foreignCluster); err != nil {
 			klog.Error(err)
 			return false, ctrl.Result{
@@ -25,8 +28,7 @@ func (r *ForeignClusterReconciler) validateForeignCluster(ctx context.Context,
 				RequeueAfter: r.RequeueAfter,
 			}, err
 		}
-		// the resource has been updated, no need to requeue
-		return false, ctrl.Result{}, nil
+		requireUpdate = true
 	}
 
 	// set cluster-id label to easy retrieve ForeignClusters by ClusterId,
@@ -40,7 +42,7 @@ func (r *ForeignClusterReconciler) validateForeignCluster(ctx context.Context,
 	}
 
 	if requireUpdate {
-		_, err := r.update(foreignCluster)
+		_, err = r.update(foreignCluster)
 		if err != nil {
 			klog.Error(err, err.Error())
 			return false, ctrl.Result{
@@ -56,4 +58,52 @@ func (r *ForeignClusterReconciler) validateForeignCluster(ctx context.Context,
 	}
 
 	return true, ctrl.Result{}, nil
+}
+
+// isClusterProcessable checks if the provided ForeignCluster is processable.
+// It can not be processable if:
+// * the clusterID is the same of the local cluster
+// * the same clusterID is already present in a previously created ForeignCluster.
+func (r *ForeignClusterReconciler) isClusterProcessable(ctx context.Context,
+	foreignCluster *discoveryv1alpha1.ForeignCluster) (bool, error) {
+	foreignClusterID := foreignCluster.Spec.ClusterIdentity.ClusterID
+
+	if foreignClusterID == r.clusterID.GetClusterID() {
+		// this is the local cluster, it is not processable
+		peeringconditionsutils.EnsureStatus(foreignCluster,
+			discoveryv1alpha1.ProcessForeignClusterStatusCondition,
+			discoveryv1alpha1.PeeringConditionStatusError,
+			"LocalCluster",
+			"This cluster has the same clusterID of the local cluster",
+		)
+
+		return false, nil
+	}
+
+	foreignClusterWithSameID, err := foreignclusterutils.GetForeignClusterByID(ctx,
+		r.Client, foreignClusterID)
+	if err != nil {
+		klog.Error(err)
+		return false, err
+	}
+
+	if foreignClusterWithSameID.GetUID() == foreignCluster.GetUID() {
+		// these are the same resource, no clusterID repetition
+		peeringconditionsutils.EnsureStatus(foreignCluster,
+			discoveryv1alpha1.ProcessForeignClusterStatusCondition,
+			discoveryv1alpha1.PeeringConditionStatusSuccess,
+			"ForeignClusterProcesssable",
+			"This ForeignCluster seems to be processable",
+		)
+
+		return true, nil
+	}
+
+	peeringconditionsutils.EnsureStatus(foreignCluster,
+		discoveryv1alpha1.ProcessForeignClusterStatusCondition,
+		discoveryv1alpha1.PeeringConditionStatusError,
+		"ClusterIDRepetition",
+		fmt.Sprintf("The same clusterID is already present in another ForeignCluster (%v)", foreignClusterWithSameID.GetName()),
+	)
+	return false, nil
 }

@@ -21,6 +21,10 @@ spec:
       name: ClusterID
       priority: 1
       type: string
+    - jsonPath: .spec.clusterIdentity.clusterName
+      name: ClusterName
+      priority: 1
+      type: string
     - jsonPath: .status.peeringConditions[?(@.type == 'OutgoingPeering')].status
       name: Outgoing peering phase
       type: string
@@ -128,6 +132,8 @@ spec:
                       - Disconnecting
                       - Denied
                       - EmptyDenied
+                      - Error
+                      - Success
                       type: string
                     type:
                       description: Type of the peering condition.
@@ -136,6 +142,7 @@ spec:
                       - IncomingPeering
                       - NetworkStatus
                       - AuthenticationStatus
+                      - ProcessForeignClusterStatus
                       type: string
                   required:
                   - status
