@@ -499,19 +499,20 @@ func TestGetStatus(t *testing.T) {
 func TestNamespaceTranslation(t *testing.T) {
 	d := getCRDReplicator()
 
+	remoteClusterID := "cluster-id"
 	localNamespace := "local"
 	remoteNamespace := "remote"
 	otherNamespace := "other"
 
 	d.LocalToRemoteNamespaceMapper[localNamespace] = remoteNamespace
-	d.RemoteToLocalNamespaceMapper[remoteNamespace] = localNamespace
+	d.RemoteToLocalNamespaceMapper[remoteNamespaceKeyer(remoteClusterID, remoteNamespace)] = localNamespace
 
 	// namespaces present in the map
 
 	mappedNamespace := d.localToRemoteNamespace(localNamespace)
 	assert.Equal(t, mappedNamespace, remoteNamespace, "these namespace names have to be equal")
 
-	demappedNamespace := d.remoteToLocalNamespace(mappedNamespace)
+	demappedNamespace := d.remoteToLocalNamespace(remoteClusterID, mappedNamespace)
 	assert.Equal(t, demappedNamespace, localNamespace, "these namespace names have to be equal")
 
 	// namespaces not present in the map
@@ -519,6 +520,58 @@ func TestNamespaceTranslation(t *testing.T) {
 	mappedNamespace = d.localToRemoteNamespace(otherNamespace)
 	assert.Equal(t, mappedNamespace, otherNamespace, "these namespace names have to be equal")
 
-	demappedNamespace = d.remoteToLocalNamespace(mappedNamespace)
+	demappedNamespace = d.remoteToLocalNamespace(remoteClusterID, mappedNamespace)
 	assert.Equal(t, demappedNamespace, otherNamespace, "these namespace names have to be equal")
+}
+
+func TestNamespaceTranslationMultipleClusters(t *testing.T) {
+	d := getCRDReplicator()
+
+	fc1 := &discoveryv1alpha1.ForeignCluster{
+		Spec: discoveryv1alpha1.ForeignClusterSpec{
+			ClusterIdentity: discoveryv1alpha1.ClusterIdentity{
+				ClusterID: "cluster-1",
+			},
+		},
+		Status: discoveryv1alpha1.ForeignClusterStatus{
+			TenantNamespace: discoveryv1alpha1.TenantNamespaceType{
+				Local:  "local-1",
+				Remote: "remote",
+			},
+		},
+	}
+
+	fc2 := &discoveryv1alpha1.ForeignCluster{
+		Spec: discoveryv1alpha1.ForeignClusterSpec{
+			ClusterIdentity: discoveryv1alpha1.ClusterIdentity{
+				ClusterID: "cluster-2",
+			},
+		},
+		Status: discoveryv1alpha1.ForeignClusterStatus{
+			TenantNamespace: discoveryv1alpha1.TenantNamespaceType{
+				Local:  "local-2",
+				Remote: "remote", // the remote namespaces can have the same name
+			},
+		},
+	}
+
+	d.setUpTranslations(fc1)
+	d.setUpTranslations(fc2)
+
+	assert.Equal(t, 2, len(d.LocalToRemoteNamespaceMapper), "the LocalToRemoteNamespaceMapper has to contain an entry for each remote cluster")
+	assert.Equal(t, 2, len(d.RemoteToLocalNamespaceMapper), "the RemoteToLocalNamespaceMapper has to contain an entry for each remote cluster")
+	assert.Equal(t, 2, len(d.ClusterIDToLocalNamespaceMapper), "the ClusterIDToLocalNamespaceMapper has to contain an entry for each remote cluster")
+	assert.Equal(t, 2, len(d.ClusterIDToRemoteNamespaceMapper), "the ClusterIDToRemoteNamespaceMapper has to contain an entry for each remote cluster")
+
+	assert.Equal(t, "remote", d.localToRemoteNamespace("local-1"))
+	assert.Equal(t, "remote", d.localToRemoteNamespace("local-2"))
+
+	assert.Equal(t, "local-1", d.remoteToLocalNamespace("cluster-1", "remote"))
+	assert.Equal(t, "local-2", d.remoteToLocalNamespace("cluster-2", "remote"))
+
+	assert.Equal(t, "local-1", func() string { v, _ := d.clusterIDToLocalNamespace("cluster-1"); return v }())
+	assert.Equal(t, "local-2", func() string { v, _ := d.clusterIDToLocalNamespace("cluster-2"); return v }())
+
+	assert.Equal(t, "remote", func() string { v, _ := d.clusterIDToRemoteNamespace("cluster-1"); return v }())
+	assert.Equal(t, "remote", func() string { v, _ := d.clusterIDToRemoteNamespace("cluster-2"); return v }())
 }
