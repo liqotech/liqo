@@ -28,7 +28,7 @@ kubectl apply -f https://raw.githubusercontent.com/liqotech/liqo/master/docs/exa
 ```
 The `hello-world.yaml` file is a simple `nginx` service; it is composed of two pods running an `nginx` image, and a service exposing the pods to the cluster; the reason for having _two_ `nginx` pods is to create a configuration in which one pod runs in the local cluster, while the other is forced to be scheduled on the remote cluster.
 
-{{%expand "Expand here for a more advanced explanation of what is happened under the hoods:" %}}
+{{%expand "Expand here for a more advanced explanation of what happens under the hood:" %}}
 
 The complete `hello-world.yaml` file is as follows:
 {{% render-code file="static/examples/hello-world.yaml" language="yaml" %}}
