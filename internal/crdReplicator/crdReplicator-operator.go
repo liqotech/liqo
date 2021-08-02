@@ -196,7 +196,9 @@ func (c *Controller) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 			c.ClusterID, req.NamespacedName, remoteClusterID, err)
 		return result, nil
 	}
-	return result, c.setUpConnectionToPeeringCluster(config, remoteClusterID, &fc)
+
+	c.setUpConnectionToPeeringCluster(config, &fc)
+	return result, nil
 }
 
 func (c *Controller) SetupWithManager(mgr ctrl.Manager) error {
@@ -227,12 +229,28 @@ func (c *Controller) updateForeignCluster(ctx context.Context,
 	})
 }
 
-func (c *Controller) setUpConnectionToPeeringCluster(config *rest.Config, remoteClusterID string, fc *discoveryv1alpha1.ForeignCluster) error {
-	c.LocalToRemoteNamespaceMapper[fc.Status.TenantNamespace.Local] = fc.Status.TenantNamespace.Remote
-	c.RemoteToLocalNamespaceMapper[fc.Status.TenantNamespace.Remote] = fc.Status.TenantNamespace.Local
-	c.ClusterIDToLocalNamespaceMapper[fc.Spec.ClusterIdentity.ClusterID] = fc.Status.TenantNamespace.Local
-	c.ClusterIDToRemoteNamespaceMapper[fc.Spec.ClusterIdentity.ClusterID] = fc.Status.TenantNamespace.Remote
+func (c *Controller) setUpTranslations(fc *discoveryv1alpha1.ForeignCluster) {
+	remoteClusterID := fc.Spec.ClusterIdentity.ClusterID
+	localNamespace := fc.Status.TenantNamespace.Local
 	remoteNamespace := fc.Status.TenantNamespace.Remote
+	keyedRemoteNamespace := remoteNamespaceKeyer(remoteClusterID, remoteNamespace)
+	klog.V(3).Infof("%s -> setting up mapping local namespace %s to %s",
+		remoteClusterID, localNamespace, remoteNamespace)
+	c.LocalToRemoteNamespaceMapper[localNamespace] = remoteNamespace
+
+	klog.V(3).Infof("%s -> setting up mapping remote namespace %s to %s",
+		remoteClusterID, remoteNamespace, localNamespace)
+	c.RemoteToLocalNamespaceMapper[keyedRemoteNamespace] = localNamespace
+
+	c.ClusterIDToLocalNamespaceMapper[remoteClusterID] = localNamespace
+	c.ClusterIDToRemoteNamespaceMapper[remoteClusterID] = remoteNamespace
+}
+
+func (c *Controller) setUpConnectionToPeeringCluster(config *rest.Config, fc *discoveryv1alpha1.ForeignCluster) {
+	remoteClusterID := fc.Spec.ClusterIdentity.ClusterID
+	remoteNamespace := fc.Status.TenantNamespace.Remote
+
+	c.setUpTranslations(fc)
 
 	// check if the dynamic dynamic client exists
 	if _, ok := c.RemoteDynClients[remoteClusterID]; !ok {
@@ -240,7 +258,7 @@ func (c *Controller) setUpConnectionToPeeringCluster(config *rest.Config, remote
 		if err != nil {
 			klog.Errorf("%s -> unable to create dynamic client in order to create the dynamic shared informer factory: %s", remoteClusterID, err)
 			// we don't need to immediately requeue the foreign cluster but wait for the next re-sync
-			return nil
+			return
 		} else {
 			klog.Infof("%s -> dynamic client created", remoteClusterID)
 		}
@@ -253,7 +271,6 @@ func (c *Controller) setUpConnectionToPeeringCluster(config *rest.Config, remote
 		c.RemoteDynSharedInformerFactory[remoteClusterID] = f
 		klog.Infof("%s -> dynamic shared informer factory created", remoteClusterID)
 	}
-	return nil
 }
 
 func (c *Controller) SetLabelsForRemoteResources(options *metav1.ListOptions) {
@@ -325,7 +342,7 @@ func (c *Controller) RemoteResourceModifiedHandler(obj *unstructured.Unstructure
 	name := obj.GetName()
 	namespace := obj.GetNamespace()
 
-	localNamespace := c.remoteToLocalNamespace(namespace)
+	localNamespace := c.remoteToLocalNamespace(remoteClusterID, namespace)
 
 	localDynClient := c.LocalDynClient
 	clusterID := c.ClusterID

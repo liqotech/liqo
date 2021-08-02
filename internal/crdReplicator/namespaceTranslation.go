@@ -15,20 +15,20 @@ func (c *Controller) localToRemoteNamespace(namespace string) string {
 	if ns, ok := c.LocalToRemoteNamespaceMapper[namespace]; ok {
 		return ns
 	}
-	klog.V(5).Infof("local namespace %v translation not found, returning the original namespace", namespace)
+	klog.Warningf("local namespace %v translation not found, returning the original namespace", namespace)
 	return namespace
 }
 
-func (c *Controller) remoteToLocalNamespace(namespace string) string {
+func (c *Controller) remoteToLocalNamespace(remoteClusterID, namespace string) string {
 	if namespace == "" {
 		// if the namespaces is empty, the resource is cluster scoped, so we do no need namespace translations
 		return namespace
 	}
 
-	if ns, ok := c.RemoteToLocalNamespaceMapper[namespace]; ok {
+	if ns, ok := c.RemoteToLocalNamespaceMapper[remoteNamespaceKeyer(remoteClusterID, namespace)]; ok {
 		return ns
 	}
-	klog.V(5).Infof("remote namespace %v translation not found, returning the original namespace", namespace)
+	klog.Warningf("remote namespace %v translation not found, returning the original namespace", namespace)
 	return namespace
 }
 
@@ -48,4 +48,8 @@ func (c *Controller) clusterIDToLocalNamespace(clusterID string) (string, error)
 	err := fmt.Errorf("clusterID %v translation not found", clusterID)
 	klog.Error(err)
 	return "", err
+}
+
+func remoteNamespaceKeyer(remoteClusterID, namespace string) string {
+	return fmt.Sprintf("%s/%s", remoteClusterID, namespace)
 }
