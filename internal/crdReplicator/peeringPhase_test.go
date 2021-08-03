@@ -28,7 +28,7 @@ import (
 	"github.com/liqotech/liqo/pkg/consts"
 	identitymanager "github.com/liqotech/liqo/pkg/identityManager"
 	tenantnamespace "github.com/liqotech/liqo/pkg/tenantNamespace"
-	testUtils "github.com/liqotech/liqo/pkg/utils/testUtils"
+	"github.com/liqotech/liqo/pkg/utils/testutil"
 )
 
 func TestPeeringPhase(t *testing.T) {
@@ -44,7 +44,7 @@ const (
 var _ = Describe("PeeringPhase-Based Replication", func() {
 
 	var (
-		cluster    testUtils.Cluster
+		cluster    testutil.Cluster
 		controller Controller
 		mgr        manager.Manager
 		ctx        context.Context
@@ -55,7 +55,7 @@ var _ = Describe("PeeringPhase-Based Replication", func() {
 		ctx, cancel = context.WithCancel(context.Background())
 
 		var err error
-		cluster, mgr, err = testUtils.NewTestCluster([]string{filepath.Join("..", "..", "deployments", "liqo", "crds")})
+		cluster, mgr, err = testutil.NewTestCluster([]string{filepath.Join("..", "..", "deployments", "liqo", "crds")})
 		if err != nil {
 			By(err.Error())
 			os.Exit(1)

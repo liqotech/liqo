@@ -32,7 +32,7 @@ import (
 	identitymanager "github.com/liqotech/liqo/pkg/identityManager"
 	idManTest "github.com/liqotech/liqo/pkg/identityManager/testUtils"
 	tenantnamespace "github.com/liqotech/liqo/pkg/tenantNamespace"
-	testUtils2 "github.com/liqotech/liqo/pkg/utils/testUtils"
+	"github.com/liqotech/liqo/pkg/utils/testutil"
 )
 
 func TestAuth(t *testing.T) {
@@ -103,7 +103,7 @@ func getCSR(localClusterID string) (csrBytes []byte, err error) {
 var _ = Describe("Auth", func() {
 
 	var (
-		cluster     testUtils2.Cluster
+		cluster     testutil.Cluster
 		clusterID   test.ClusterIDMock
 		authService Controller
 
@@ -119,7 +119,7 @@ var _ = Describe("Auth", func() {
 		_ = tMan.createToken()
 
 		var err error
-		cluster, _, err = testUtils2.NewTestCluster([]string{filepath.Join("..", "..", "deployments", "liqo", "crds")})
+		cluster, _, err = testutil.NewTestCluster([]string{filepath.Join("..", "..", "deployments", "liqo", "crds")})
 		if err != nil {
 			By(err.Error())
 			os.Exit(1)

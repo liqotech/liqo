@@ -17,7 +17,7 @@ import (
 	"k8s.io/client-go/kubernetes"
 
 	"github.com/liqotech/liqo/pkg/discovery"
-	testUtils2 "github.com/liqotech/liqo/pkg/utils/testUtils"
+	"github.com/liqotech/liqo/pkg/utils/testutil"
 )
 
 func TestTenantNamespace(t *testing.T) {
@@ -28,7 +28,7 @@ func TestTenantNamespace(t *testing.T) {
 var _ = Describe("TenantNamespace", func() {
 
 	var (
-		cluster   testUtils2.Cluster
+		cluster   testutil.Cluster
 		clusterID string
 
 		namespaceManager Manager
@@ -38,7 +38,7 @@ var _ = Describe("TenantNamespace", func() {
 		clusterID = "test-creation"
 
 		var err error
-		cluster, _, err = testUtils2.NewTestCluster([]string{filepath.Join("..", "..", "deployments", "liqo", "crds")})
+		cluster, _, err = testutil.NewTestCluster([]string{filepath.Join("..", "..", "deployments", "liqo", "crds")})
 		if err != nil {
 			By(err.Error())
 			os.Exit(1)

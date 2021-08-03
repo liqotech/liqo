@@ -24,7 +24,7 @@ import (
 	sharingv1alpha1 "github.com/liqotech/liqo/apis/sharing/v1alpha1"
 	crdreplicator "github.com/liqotech/liqo/internal/crdReplicator"
 	"github.com/liqotech/liqo/pkg/consts"
-	testUtils "github.com/liqotech/liqo/pkg/utils/testUtils"
+	"github.com/liqotech/liqo/pkg/utils/testutil"
 )
 
 const (
@@ -45,7 +45,7 @@ func TestNodeProvider(t *testing.T) {
 var _ = Describe("NodeProvider", func() {
 
 	var (
-		cluster        testUtils.Cluster
+		cluster        testutil.Cluster
 		nodeProvider   *LiqoNodeProvider
 		podStopper     chan struct{}
 		networkStopper chan struct{}
@@ -60,7 +60,7 @@ var _ = Describe("NodeProvider", func() {
 	BeforeEach(func() {
 		ctx, cancel = context.WithCancel(context.Background())
 
-		cluster, _, err = testUtils.NewTestCluster([]string{filepath.Join("..", "..", "..", "deployments", "liqo", "crds")})
+		cluster, _, err = testutil.NewTestCluster([]string{filepath.Join("..", "..", "..", "deployments", "liqo", "crds")})
 		Expect(err).To(BeNil())
 
 		client := kubernetes.NewForConfigOrDie(cluster.GetCfg())
