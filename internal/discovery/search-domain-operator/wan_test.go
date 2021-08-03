@@ -7,7 +7,7 @@ import (
 	. "github.com/onsi/gomega"
 
 	"github.com/liqotech/liqo/internal/discovery"
-	testUtils2 "github.com/liqotech/liqo/pkg/utils/testUtils"
+	"github.com/liqotech/liqo/pkg/utils/testutil"
 )
 
 func TestWan(t *testing.T) {
@@ -18,11 +18,11 @@ func TestWan(t *testing.T) {
 var _ = Describe("Wan", func() {
 
 	var (
-		dnsServer testUtils2.DnsServer
+		dnsServer testutil.DnsServer
 	)
 
 	BeforeSuite(func() {
-		dnsServer = testUtils2.DnsServer{}
+		dnsServer = testutil.DnsServer{}
 		dnsServer.Serve()
 	})
 

@@ -27,7 +27,7 @@ import (
 	"github.com/liqotech/liqo/pkg/clusterid"
 	"github.com/liqotech/liqo/pkg/consts"
 	"github.com/liqotech/liqo/pkg/discovery"
-	testUtils "github.com/liqotech/liqo/pkg/utils/testUtils"
+	"github.com/liqotech/liqo/pkg/utils/testutil"
 	"github.com/liqotech/liqo/pkg/vkMachinery/forge"
 )
 
@@ -43,7 +43,7 @@ const (
 )
 
 var (
-	cluster    testUtils.Cluster
+	cluster    testutil.Cluster
 	mgr        manager.Manager
 	controller *ResourceOfferReconciler
 	ctx        context.Context
@@ -82,7 +82,7 @@ var _ = Describe("ResourceOffer Controller", func() {
 
 	BeforeEach(func() {
 		var err error
-		cluster, mgr, err = testUtils.NewTestCluster([]string{filepath.Join("..", "..", "..", "deployments", "liqo", "crds")})
+		cluster, mgr, err = testutil.NewTestCluster([]string{filepath.Join("..", "..", "..", "deployments", "liqo", "crds")})
 		if err != nil {
 			By(err.Error())
 			os.Exit(1)

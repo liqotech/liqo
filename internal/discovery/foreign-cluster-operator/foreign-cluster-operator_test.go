@@ -28,7 +28,7 @@ import (
 	peeringroles "github.com/liqotech/liqo/pkg/peering-roles"
 	tenantnamespace "github.com/liqotech/liqo/pkg/tenantNamespace"
 	peeringconditionsutils "github.com/liqotech/liqo/pkg/utils/peeringConditions"
-	testUtils "github.com/liqotech/liqo/pkg/utils/testUtils"
+	"github.com/liqotech/liqo/pkg/utils/testutil"
 )
 
 const (
@@ -62,7 +62,7 @@ func TestForeignClusterOperator(t *testing.T) {
 var _ = Describe("ForeignClusterOperator", func() {
 
 	var (
-		cluster         testUtils.Cluster
+		cluster         testutil.Cluster
 		controller      ForeignClusterReconciler
 		config          configMock
 		tenantNamespace *v1.Namespace
@@ -81,7 +81,7 @@ var _ = Describe("ForeignClusterOperator", func() {
 		ctx, cancel = context.WithCancel(context.Background())
 
 		var err error
-		cluster, mgr, err = testUtils.NewTestCluster([]string{filepath.Join("..", "..", "..", "deployments", "liqo", "crds")})
+		cluster, mgr, err = testutil.NewTestCluster([]string{filepath.Join("..", "..", "..", "deployments", "liqo", "crds")})
 		if err != nil {
 			By(err.Error())
 			os.Exit(1)

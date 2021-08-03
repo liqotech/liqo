@@ -31,7 +31,7 @@ import (
 	idManTest "github.com/liqotech/liqo/pkg/identityManager/testUtils"
 	tenantnamespace "github.com/liqotech/liqo/pkg/tenantNamespace"
 	"github.com/liqotech/liqo/pkg/utils"
-	testUtils "github.com/liqotech/liqo/pkg/utils/testUtils"
+	"github.com/liqotech/liqo/pkg/utils/testutil"
 )
 
 type mockApiServerConfigProvider struct {
@@ -64,7 +64,7 @@ func TestIdentityManager(t *testing.T) {
 var _ = Describe("IdentityManager", func() {
 
 	var (
-		cluster         testUtils.Cluster
+		cluster         testutil.Cluster
 		client          kubernetes.Interface
 		restConfig      *rest.Config
 		localClusterID  test.ClusterIDMock
@@ -83,7 +83,7 @@ var _ = Describe("IdentityManager", func() {
 		remoteClusterID = "remote-id"
 
 		var err error
-		cluster, _, err = testUtils.NewTestCluster([]string{filepath.Join("..", "..", "deployments", "liqo", "crds")})
+		cluster, _, err = testutil.NewTestCluster([]string{filepath.Join("..", "..", "deployments", "liqo", "crds")})
 		if err != nil {
 			By(err.Error())
 			os.Exit(1)
