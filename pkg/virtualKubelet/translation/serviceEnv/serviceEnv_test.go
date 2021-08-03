@@ -12,9 +12,9 @@ import (
 	"k8s.io/kubernetes/pkg/kubelet/envvars"
 	"k8s.io/utils/pointer"
 
+	testutil "github.com/liqotech/liqo/pkg/utils/testUtils"
 	apimgmt "github.com/liqotech/liqo/pkg/virtualKubelet/apiReflection"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/storage/test"
-	testutil "github.com/liqotech/liqo/pkg/virtualKubelet/test/util"
 )
 
 var cacheReader = &test.MockManager{
