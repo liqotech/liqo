@@ -58,7 +58,7 @@ If you want to connect your cluster with another K3s/K8s in the same LAN, you do
 helm install liqo liqo/liqo -n liqo --create-namespace --set clusterName="MyCluster" --set networkManager.config.podCIDR="10.42.0.0/16" --set networkManager.config.serviceCIDR="10.43.0.0/16"
 ```
 
-If the clusters you would like to connect are in the same L2 broadcast domain, the Liqo discovery mechanism based on mDNS will handle the discovery automatically. If you have your clusters in different L3 domains, you have to manually create [a *foreign_cluster* resource](/user/post-install/discovery) or rely on [DNS discovery](/user/post-install/discovery#manual-configuration).
+If the clusters you would like to connect are in the same L2 broadcast domain, the Liqo discovery mechanism based on mDNS will handle the discovery automatically. If you have your clusters in different L3 domains, you have to manually create [a *foreign_cluster* resource](/configuration/discovery) or rely on [DNS discovery](/configuration/discovery#manual-configuration).
 
 #### On-premise Cluster behind NAT
 

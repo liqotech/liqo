@@ -15,4 +15,6 @@ In addition to the well-known Kubelet features, our Virtual Kubelet implementati
 The virtual Kubelet itself is in charge of replicating those APIs in the remote cluster, by properly operating some 
 translations (e.g., the endpoints addresses have to be translated to point to the home cluster).
 
-> This documentation section is a work in progress
+{{% notice note %}}
+This documentation section is a work in progress
+{{% /notice %}}
