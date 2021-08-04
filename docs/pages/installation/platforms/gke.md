@@ -14,7 +14,7 @@ Google Kubernetes Engine (GKE) is a managed Kubernetes service available on the 
 
 ### Scenarios
 
-This guide will show you how to install Liqo on your GKE cluster. GKE clusters have by default an Internet-exposed API Service and can easily expose LoadBalancer services. As discussed in [Scenarios](/user/install/pre-install) section, those latter are the requirements to have a "public-exposed" cluster, which can be accessed by other Liqo instances.
+This guide will show you how to install Liqo on your GKE cluster. GKE clusters have by default an Internet-exposed API Service and can easily expose LoadBalancer services. As discussed in [Scenarios](/installation/pre-install) section, those latter are the requirements to have a "public-exposed" cluster, which can be accessed by other Liqo instances.
 
 Liqo may be installed on a newly created clusters or on existing ones.
 

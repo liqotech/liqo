@@ -3,7 +3,7 @@ title: Peer to a foreign cluster
 weight: 3
 ---
 
-Once Liqo is installed in your cluster, you can start establishing new *peerings*. In this tutorial, we rely on [LAN Discovery](/user/post-install/discovery#lan-discovery) since our Kind clusters are in the same L2 broadcast domain.
+Once Liqo is installed in your cluster, you can start establishing new *peerings*. This tutorial relies on [LAN Discovery](/configuration/discovery#lan-discovery) since our Kind clusters are in the same L2 broadcast domain.
 
 ## LAN Discovery
 

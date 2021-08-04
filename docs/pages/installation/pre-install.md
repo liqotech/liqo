@@ -7,20 +7,20 @@ weight: 1
 
 Liqo can be installed on different types of clusters, either on-premise or on public cloud providers. To peer two cluster together, they must (1) discover each other, (2) negotiate the required parameters and (3) activate the peering.
 
-As presented in a [dedicated section](/user/post-install/discovery), Liqo has several mechanisms to handle new clusters discovery (LAN, DNS, Manual). Despite LAN discovery is limited to very specific use-cases (when clusters are in the same broadcast domain), DNS and Manual discovery can be applied to many scenarios.
+As presented in a [dedicated section](/configuration/discovery), Liqo has several mechanisms to handle new clusters discovery (LAN, DNS, Manual). Despite LAN discovery is limited to very specific use-cases (when clusters are in the same broadcast domain), DNS and Manual discovery can be applied to many scenarios.
 However, the clusters should satisfy few peering requirements. In particular, the configuration depends on the type of connectivity between the two clusters. 
 
 ### Peering Requirements
 
 Liqo requires the following services to be reciprocally accessible on both clusters to be able to start the cluster peering:
 
-* **Authentication server** (`liqo-auth`): the Liqo service used to authenticate incoming peering requests coming from other clusters. You should modify the values in the ``auth`` section of the [Liqo chart values](/user/install/chart_values) to configure how the authentication server is exposed.
-* **Kubernetes API server**: the standard Kubernetes API Server, which the (remote) Liqo instance will contact to create the required resources when the peering process starts. The API Server URL can be configured in the ``apiServer`` section of the [Liqo chart values](/user/install/chart_values). By default, Liqo will use an endpoint composed of the IP of the first control plane node and the 6443 port. In managed clusters, you have to configure those values to have Liqo working correctly.
-* **Network gateway** (`liqo-gateway`): the Liqo service responsible for setting up the network connectivity between clusters. The Liqo Gateway is configured in the ``gateway`` section of the [Liqo chart values](/user/install/chart_values).
+* **Authentication server** (`liqo-auth`): the Liqo service used to authenticate incoming peering requests coming from other clusters. You should modify the values in the ``auth`` section of the [Liqo chart values](/installation/chart_values) to configure how the authentication server is exposed.
+* **Kubernetes API server**: the standard Kubernetes API Server, which the (remote) Liqo instance will contact to create the required resources when the peering process starts. The API Server URL can be configured in the ``apiServer`` section of the [Liqo chart values](/installation/chart_values). By default, Liqo will use an endpoint composed of the IP of the first control plane node and the 6443 port. In managed clusters, you have to configure those values to have Liqo working correctly.
+* **Network gateway** (`liqo-gateway`): the Liqo service responsible for setting up the network connectivity between clusters. The Liqo Gateway is configured in the ``gateway`` section of the [Liqo chart values](/installation/chart_values).
 
 Depending on the physical setup of your cluster, you need to properly configure, at install time, how those services are exposed and can be reached by remote clusters. Below we present some common scenarios that Liqo can handle. Once you identify yours, you can refer to the *table* of each section to find how to determine the right values you should specify.
 
-The exposition parameters can be configured at installation time using the [Liqo Helm Chart](/user/install/chart_values) and updated after the installation by issuing an ``helm update`` after changing them in your values.yml. If you need more information about Helm and how charts can be configured, you can have a look at the [Helm official documentation](https://helm.sh/docs/). Pay attention that changing exposition parameters may affect and break active peerings. We suggest to disable all peerings before changing the Liqo exposition configuration.
+The exposition parameters can be configured at installation time using the [Liqo Helm Chart](/installation/chart_values) and updated after the installation by issuing an ``helm update`` after changing them in your values.yml. If you need more information about Helm and how charts can be configured, you can have a look at the [Helm official documentation](https://helm.sh/docs/). Pay attention that changing exposition parameters may affect and break active peerings. We suggest to disable all peerings before changing the Liqo exposition configuration.
 
 ### Cloud to cloud
 

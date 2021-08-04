@@ -3,7 +3,6 @@ title: Install Liqo
 weight: 2
 ---
 
-
 ### Simple Installation (One-liner)
 
 Before installing Liqo, you have to set the right `kubeconfig` for your cluster properly. The Liqo installer leverages `kubectl`: by default kubectl refers to the default identity in `~/.kube/config` but you can override this configuration by exporting a `KUBECONFIG` variable.

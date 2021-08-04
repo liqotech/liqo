@@ -161,4 +161,4 @@ helm install liqo liqo/liqo -n liqo --create-namespace  --set clusterName="MyClu
 
 __NOTE__: You should check that `podCIDR` and `serviceCIDR` correspond to the one in your cluster.
 
-If the clusters you would like to connect are in the same L2 broadcast domain, the Liqo discovery mechanism based on mDNS will handle the discovery automatically. If you have your clusters in different L3 domains, you have to manually create [a *foreign_cluster* resource](/user/post-install/discovery#manual-configuration) or rely on [DNS discovery](/user/post-install/discovery#).
+If the clusters you would like to connect are in the same L2 broadcast domain, the Liqo discovery mechanism based on mDNS will handle the discovery automatically. If you have your clusters in different L3 domains, you have to manually create [a *foreign_cluster* resource](/configuration/discovery#manual-configuration) or rely on [DNS discovery](/configuration/discovery#).

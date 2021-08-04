@@ -9,7 +9,7 @@ Azure Kubernetes Service (AKS) is a managed Kubernetes service available on the 
 
 #### Scenarios
 
-This guide will show you how to install Liqo on your AKS cluster. AKS clusters have by default an Internet-exposed API Server and can easily expose LoadBalancer services using public IPs. As discussed in [Scenarios](/user/install/pre-install) section, those latter are the requirements to have a "public-exposed" cluster, which can be accessed by other Liqo instances.
+This guide will show you how to install Liqo on your AKS cluster. AKS clusters have by default an Internet-exposed API Server and can easily expose LoadBalancer services using public IPs. As discussed in [Scenarios](/installation/pre-install) section, those latter are the requirements to have a "public-exposed" cluster, which can be accessed by other Liqo instances.
 
 Liqo may be installed on newly created clusters or existing ones.
 

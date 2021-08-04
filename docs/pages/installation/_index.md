@@ -1,6 +1,6 @@
 ---
-title: Install 
-weight: 4
+title: Installation 
+weight: 2
 ---
 
 ### Pre-Installation
@@ -21,4 +21,4 @@ Liqo can be installed on existing clusters or deployed to newly created clusters
 
 #### Peer your clusters
 
-When you have installed Liqo on your clusters, you can decide to peer them to offload your applications on a different cluster as documented in [Post-Install section](/user/post-install).
+When you have installed Liqo on your clusters, you can decide to peer them to offload your applications on a different cluster as documented in [usage section](/usage).
