@@ -23,7 +23,9 @@ jobs:
             Currently, I understand the following commands:
             * `/rebase`:            Rebase this PR onto the master branch
             * `/merge`:             Merge this PR into the master branch
-            * `/ok-to-test`         Enable testing for PRs with base on forks
+            * `/build`              Build Liqo components 
+            * `/test`               Launch the E2E and Unit tests
+            * `/doc-build`          Trigger the build of the Liqo documentation
 
             Make sure this PR appears in the **${{ github.event.repository.name }} changelog**, adding one of the following **labels**:
             * `kind/breaking`:      :boom: Breaking Change

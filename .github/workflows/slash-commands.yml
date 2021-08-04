@@ -27,7 +27,15 @@ jobs:
                 "permission": "none"
               },
               {
-                "command": "ok-to-test",
-                "permission": "write"
-              }
+                "command": "test",
+                "permission": "triage"
+              },
+              {
+                "command": "build",
+                "permission": "triage"
+              },              
+              {
+                "command": "doc-build",
+                "permission": "triage"
+              }       
             ]

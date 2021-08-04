@@ -5,19 +5,18 @@ on:
       - 'v*'
     branches:
       - master
-  pull_request_target:
+  repository_dispatch:
     types:
-      - opened
-      - reopened
-      - synchronize
+      - test-command
+      - build-command
+      
 jobs:
   configure:
     name: Preliminary configuration
     runs-on: ubuntu-latest
     outputs:
-      commit_ref: ${{ steps.configure.outputs.commit_ref }}
+      commit-ref: ${{ steps.configure.outputs.commit-ref }}
       repo-suffix: ${{ steps.configure.outputs.repo-suffix }}
-      ok-to-continue: ${{ steps.configure.outputs.ok-to-continue }}
       master: ${{ steps.configure.outputs.master }}
       repo-name: ${{ steps.configure.outputs.repo-name }}
       architectures: ${{ steps.configure.outputs.architectures }}
@@ -29,44 +28,35 @@ jobs:
     - name: Configure
       id: configure
       run: |
-        # The ref of the commit to checkout (do not use the merge commit if pull request)
-        if [ "${{ github.event_name }}" == "pull_request_target" ]; then
+        # The ref of the commit to checkout (do not use the merge commit if repository dispatch)
+        if [ "${{ github.event_name }}" == "repository_dispatch" ]; then
           echo "::set-output name=master::false"
           echo "::set-output name=architectures::linux/amd64"
-          echo "::set-output name=commit_ref::${{ github.event.pull_request.head.sha }}"
+          echo "::set-output name=commit-ref::${{ github.event.client_payload.pull_request.head.sha }}"
         elif [ "${{ steps.get_version.outputs.VERSION }}" != "" ]; then
           echo "::set-output name=master::false"
           echo "::set-output name=architectures::linux/amd64,linux/arm64"
-          echo "::set-output name=commit_ref::${{ steps.get_version.outputs.VERSION }}"
+          echo "::set-output name=commit-ref::${{ steps.get_version.outputs.VERSION }}"
         else
           echo "::set-output name=master::true"
           echo "::set-output name=architectures::linux/amd64,linux/arm64"
-          echo "::set-output name=commit_ref::${{ github.sha }}"
+          echo "::set-output name=commit-ref::${{ github.sha }}"
         fi
 
-        # The suffix to append to the repository name if not triggered by a push to master
+        # The suffix to append to the repository name if not triggered by a push for a release
         [[ "${{ steps.get_version.outputs.VERSION }}" == "" ]] && \
           echo "::set-output name=repo-suffix::-ci" ||
           echo "::set-output name=repo-suffix::"
 
-        if [ "${{ github.event_name }}" != "pull_request_target" ]; then
-           echo "::set-output name=ok-to-continue::true"
+        if [ "${{ github.event_name }}" != "repository_dispatch" ]; then
            echo "::set-output name=repo-name::${{ github.repository }}"
-        elif [ "${{ github.event.pull_request.head.repo.full_name }}" == "${{ github.repository }}" ]; then
-           echo "::set-output name=ok-to-continue::true"
-           echo "::set-output name=repo-name::${{ github.repository }}"
-        elif [ "${{ contains(github.event.pull_request.labels.*.name, 'ok-to-test') }}" == "true" ]; then
-           echo "::set-output name=ok-to-continue::true"
-           echo "::set-output name=repo-name::${{ github.event.pull_request.head.repo.full_name }}"
         else
-           echo "::set-output name=ok-to-continue::false"
-           echo "::set-output name=repo-name::${{ github.event.pull_request.head.repo.full_name }}"
+           echo "::set-output name=repo-name::${{ github.event.client_payload.github.payload.repository.full_name }}"
         fi
 
   build:
     runs-on: ubuntu-latest
     needs: configure
-    if: needs.configure.outputs.ok-to-continue == 'true'
     strategy:
       fail-fast: false
       matrix:
@@ -75,7 +65,6 @@ jobs:
         - cert-creator
         - crd-replicator
         - liqo-controller-manager
-        - liqo-test
         - discovery
         - init-virtual-kubelet
         - liqonet
@@ -95,7 +84,7 @@ jobs:
       - name: Check out code
         uses: actions/checkout@v2
         with:
-          ref: "${{ needs.configure.outputs.commit_ref }}"
+          ref: "${{ needs.configure.outputs.commit-ref }}"
           repository: "${{ needs.configure.outputs.repo-name }}"
           persist-credentials: false
 
@@ -127,7 +116,7 @@ jobs:
           platforms: ${{ needs.configure.outputs.architectures }}
           tags: |
             liqo/${{ matrix.component }}${{ needs.configure.outputs.repo-suffix }}:latest
-            liqo/${{ matrix.component }}${{ needs.configure.outputs.repo-suffix }}:${{ needs.configure.outputs.commit_ref }}
+            liqo/${{ matrix.component }}${{ needs.configure.outputs.repo-suffix }}:${{ needs.configure.outputs.commit-ref }}
           push: true
           file: ${{ steps.dockerfile.outputs.path }}
           build-args: |
@@ -144,11 +133,10 @@ jobs:
           rm -rf /tmp/.buildx-cache
           mv /tmp/.buildx-cache-new /tmp/.buildx-cache
 
-
   e2e-test-trigger:
      runs-on: ubuntu-latest
      needs: [build, configure]
-     if: needs.configure.outputs.ok-to-continue == 'true' && github.event.pull_request.draft == false
+     if: github.event.client_payload.slash_command.command == 'test'
      steps:
        - name: Notify Event to E2E Tests
          uses: peter-evans/repository-dispatch@v1
@@ -159,45 +147,13 @@ jobs:
            client-payload: |
              {
                "master": "${{ needs.configure.outputs.master }}",
-               "commit": "${{ needs.configure.outputs.commit_ref }}",
+               "commit": "${{ needs.configure.outputs.commit-ref }}",
                "repo-name": "${{ needs.configure.outputs.repo-name }}"
              }
 
-  docs-pipeline-trigger:
-    runs-on: ubuntu-latest
-    needs: configure
-    if: needs.configure.outputs.ok-to-continue == 'true' && github.event.pull_request.draft == false
-    steps:
-      - name: Check out code
-        uses: actions/checkout@v2
-        with:
-          ref: "${{ needs.configure.outputs.commit_ref }}"
-          repository: "${{ needs.configure.outputs.repo-name }}"
-          persist-credentials: false
-      - name: Check if /docs files changed
-        uses: dorny/paths-filter@v2
-        id: pathFilter
-        with:
-          filters: |
-            docs:
-              - 'docs/**'
-      - name: Notify Event to doc-website
-        if: steps.pathFilter.outputs.docs == 'true'
-        uses: peter-evans/repository-dispatch@v1
-        with:
-          token: ${{ secrets.CI_TOKEN }}
-          repository: liqotech/doc-website
-          event-type: "dev-event"
-          client-payload: |
-            {
-              "master": "${{ needs.configure.outputs.master }}",
-              "commit": "${{ needs.configure.outputs.commit_ref }}",
-              "repo-name": "${{ needs.configure.outputs.repo-name }}"
-            }
-
   release:
     runs-on: ubuntu-latest
-    needs: [build, test, configure]
+    needs: [build, configure]
     if: github.event_name == 'push' && github.event.repository.full_name == 'liqotech/liqo' && startsWith(github.ref, 'refs/tags/v')
     steps:
       - name: Checkout
@@ -205,7 +161,7 @@ jobs:
         with:
           # The changelog generation requires the entire history
           fetch-depth: 0
-          ref: "${{ needs.configure.outputs.commit_ref }}"
+          ref: "${{ needs.configure.outputs.commit-ref }}"
           repository: "${{ needs.configure.outputs.repo-name }}"
           persist-credentials: false
 
@@ -251,8 +207,8 @@ jobs:
         id: create_release
         uses: actions/create-release@v1
         with:
-          tag_name: ${{ needs.configure.outputs.commit_ref }}
-          release_name: ${{ needs.configure.outputs.commit_ref }}
+          tag_name: ${{ needs.configure.outputs.commit-ref }}
+          release_name: ${{ needs.configure.outputs.commit-ref }}
           body_path: ./CHANGELOG.md
         env:
           GITHUB_TOKEN: ${{ secrets.CI_TOKEN }}
@@ -265,68 +221,5 @@ jobs:
           event-type: "release"
           client-payload: |
              {
-               "version": "${{ needs.configure.outputs.commit_ref }}"
+               "version": "${{ needs.configure.outputs.commit-ref }}"
              }
-
-  test:
-    name: Launch Test
-    runs-on: ubuntu-20.04
-    needs: [configure, build]
-    if: needs.configure.outputs.ok-to-continue == 'true' && github.event.pull_request.draft == false
-    steps:
-
-    - name: Set up Go 1.16
-      uses: actions/setup-go@v2
-      with:
-        go-version: 1.16
-      id: go
-
-    - name: Check out code into the Go module directory
-      uses: actions/checkout@v2
-      with:
-        ref: "${{ needs.configure.outputs.commit_ref }}"
-        repository: "${{ needs.configure.outputs.repo-name }}"
-        persist-credentials: false
-
-    - name: Login to DockerHub
-      uses: docker/login-action@v1
-      with:
-        username: ${{ secrets.DOCKER_USERNAME }}
-        password: ${{ secrets.DOCKER_PASSWORD }}
-
-    - name: Fetch External CRDs
-      run: make fetch-external-crds
-
-    - name: Launch Test (Docker Container)
-      uses: addnab/docker-run-action@v3
-      with:
-        options: |
-            --mount type=bind,src=${{ github.workspace }},dst=/go/src/liqotech/liqo
-            --workdir /go/src/liqotech/liqo
-            --privileged=true
-        image: liqo/liqo-test${{ needs.configure.outputs.repo-suffix }}:${{ needs.configure.outputs.commit_ref }}
-        run: |
-          go-acc ./... --ignore liqo/test/e2e
-
-    - name: Send coverage
-      uses: shogo82148/actions-goveralls@v1.4.3
-      with:
-        path-to-profile: coverage.txt
-
-  wait-approve:
-    name: Wait for the ok-to-test label to test pr on fork
-    runs-on: ubuntu-20.04
-    needs: configure
-    if: needs.configure.outputs.ok-to-continue == 'false'
-    steps:
-      - name: Issue the greeting comment
-        uses: peter-evans/create-or-update-comment@v1
-        with:
-            token: ${{ secrets.CI_TOKEN }}
-            issue-number: ${{ github.event.pull_request.number }}
-            body: |
-              Hi @${{ github.event.pull_request.user.login }}. Thanks for your PR!
-
-              I'm waiting for a Liqo member to verify that this patch is reasonable to test. If it is, they should reply with /ok-to-test.
-
-              Once the patch is verified, the new status will be reflected by the ok-to-test label.
