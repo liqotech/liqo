@@ -1,6 +1,6 @@
 ---
-title: Install 
-weight: 4
+title: Installation 
+weight: 2
 ---
 
 ### Pre-Installation

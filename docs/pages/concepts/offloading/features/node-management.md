@@ -10,4 +10,6 @@ information from two different resources:
 * `Advertisement`: node capacity and allocatable.
 * `TunnelEndpoint`: inter-connectivity parameters.
 
-> This documentation section is a work in progress
+{{% notice note %}}
+This documentation section is a work in progress
+{{% /notice %}}

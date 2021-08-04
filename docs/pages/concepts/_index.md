@@ -1,6 +1,6 @@
 ---
-title: "Architecture"
-weight: 2
+title: "Concepts"
+weight: 7
 ---
 
 ## Introduction

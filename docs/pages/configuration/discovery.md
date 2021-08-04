@@ -3,7 +3,7 @@ title: Discovery
 weight: 2
 ---
 
-## overview
+## Overview
 
 Once Liqo is installed in your cluster, you can start discovering new *peers*.
 Specifically, you can rely on three different methods to discover other clusters:
