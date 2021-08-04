@@ -67,7 +67,7 @@ can get the port executing `kubectl get service -n liqo liqo-auth`, an output ex
 
 ```txt
 NAME           TYPE       CLUSTER-IP    EXTERNAL-IP   PORT(S)         AGE
-liqo-auth   NodePort   10.81.20.99   <none>        443:30740/TCP   2m7s
+liqo-auth      NodePort   10.81.20.99   <none>        443:30740/TCP   2m7s
 ```
 
 An example of `ForeignCluster` resource can be:
@@ -164,8 +164,8 @@ For any `SearchDomain`, you need to configure the following parameters:
 Using kubectl, it is also possible to perform the following configuration. A `SearchDomain` for the `example.com` 
 domain, may be look like:
 
-```
-cat << "EOF" | kubectl apply -f
+```bash
+cat << "EOF" | kubectl apply -f -
 apiVersion: discovery.liqo.io/v1alpha1
 kind: SearchDomain
 metadata:
