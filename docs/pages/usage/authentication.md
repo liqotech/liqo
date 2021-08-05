@@ -1,6 +1,6 @@
 ---
-title: Authentication
-weight: 3
+title: Set up the authentication
+weight: 2
 ---
 
 ## Introduction
@@ -10,17 +10,43 @@ if your cluster exposes its services to the Internet, hence avoiding that unknow
 your cluster. The Authentication is similar to the bootstrap TLS: a unique secret is used to get an identity to be 
 authenticated with.
 
-##  Disable the authentication
+### Peer with a new cluster
 
-The authentication in Liqo is enabled by default; in some environments, such as playgrounds or development contexts, you
-may want to disable it. To do so, use the following command:
+To peer with a new cluster, you have to create a ForeignCluster CR.
 
-```bash
-kubectl patch clusterconfig liqo-configuration --patch '{"spec":{"authConfig":{"allowEmptyToken": true}}}' --type 'merge'
+#### Add a new ForeignCluster
+
+A `ForeignCluster` resource needs the authentication service URL and the port to be set: it is the backend of the
+authentication server (mandatory to peer with another cluster).
+
+The address is or the __hostname__ or the __IP address__ where it is reachable.
+If you specified a name during the installation, it is reachable through an Ingress (you can get it with `kubectl get
+ingress -n liqo`), if an ingress is not configured, the other cluster is exposed with a NodePort Service, you can get 
+one if the IPs of your cluster's nodes (`kubectl get nodes -o wide`).
+
+The __port__ where the remote cluster's auth service is reachable, if you are
+using an Ingress, it should be `443` by default. Otherwise, if you are using a NodePort Service you 
+can get the port executing `kubectl get service -n liqo liqo-auth`, an output example could be:
+
+```txt
+NAME           TYPE       CLUSTER-IP    EXTERNAL-IP   PORT(S)         AGE
+liqo-auth   NodePort   10.81.20.99   <none>        443:30740/TCP   2m7s
 ```
 
-> __NOTE__: Disabling authentication will automatically accept peering with any other Liqo instances in the network your 
-cluster is exposed to.
+An example of `ForeignCluster` resource can be:
+
+```yaml
+apiVersion: discovery.liqo.io/v1alpha1
+kind: ForeignCluster
+metadata:
+  name: my-cluster
+spec:
+  outgoingPeeringEnabled: "Yes"
+  foreignAuthUrl: "https://<ADDRESS>:<PORT>"
+```
+
+When you create the ForeignCluster, the Liqo control plane will contact the `foreignAuthUrl` (i.e. the public URL of a cluster 
+authentication server) to retrieve all the required cluster information.
 
 ## Authentication mechanism
 
@@ -39,7 +65,7 @@ on its resources. It will be used for any future request to the API Server once 
 
 Below, the 2 steps are detailed:
 
-### 1. Get the foreign cluster token
+### 1. Get the home secure token
 
 > __NOTE__: Since a secret token is required for peering, you can authenticate with another cluster if and only if you
 > have access to that cluster. Keep the secret confidential! Everyone with that token can peer with your cluster and use
@@ -58,7 +84,7 @@ The output should be similar to:
 Token: 502da93c20bb07ff289e4db7f0a9e12e2254a071f37ef6d580070715d38271c2429a4cbe2610202c79062f260eb0de96a881bb3b88eb3cd5222f8238f3e9928e
 ```
 
-### 2. Create a secret in the home cluster
+### 2. Add the secure token for a foreign cluster
 
 In the home cluster you have to provide the token to Liqo.
 
@@ -66,7 +92,7 @@ To perform this operation:
 1. fetch the cluster-id from the ForeignCluster resource
 2. Create the secret resource in the home cluster and label it.
 
-#### 1.1 Fetch the foreign cluster-id
+#### 2.1 Fetch the foreign cluster-id
 
 Each Liqo cluster is uniquely identified by a cluster-id. Once a new Liqo cluster has been discovered, a new 
 ForeignCluster resource is created in your cluster. The cluster-id of the foreign cluster is part of the specific 
@@ -171,32 +197,3 @@ The result will be one of the following:
 | `Refused`      | The request has been refused, no other retries will be done. You can still change the Token Secret and change this filed to `Pending` to restart the process |
 
 ![](/images/auth/get_identity_flowchart_complete.png)
-
-## Troubleshooting
-
-### Which resources will be created during the process?
-
-Some Kubernetes resources will be created in both the clusters involved in this process.
-
-#### In the Home Cluster
-
-| Resource | Name                     | Description |
-| -------- | ------------------------ | ----------- |
-| Secret   | remote-token-$FOREIGN_CLUSTER_ID | A secret containing a token to authenticate to a remote cluster    |
-| Secret   | remote-identity-*        | A secret containing the identity retrieved from the remote cluster |
-
-> NOTE: these Secret will not be deleted after the ForeignCluster deletion. Do not delete the "remote identit" Secret,
-> you will not be able to retrieve it again.
-
-#### In the Foreign Cluster
-
-| Resource           | Name               | Description |
-| ------------------ | ------------------ | ----------- |
-| ServiceAccount     | remote-$FOREIGN_CLUSTER_ID | The service account assigned to the home cluster |
-| Role               | remote-$FOREIGN_CLUSTER_ID | This allows to manage _Secrets_ with a name equals to the clusterID in the `liqoGuestNamespace` (`liqo` by default) |
-| ClusterRole        | remote-$FOREIGN_CLUSTER_ID | This allows to manage _PeeringRequests_ with a name equals to the clusterID |
-| RoleBinding        | remote-$FOREIGN_CLUSTER_ID | Link between the Role and the ServiceAccount |
-| ClusterRoleBinding | remote-$FOREIGN_CLUSTER_ID | Link between the ClusterRole and the ServiceAccount |
-
-> NOTE: delete the ServiceAccount if a remote cluster has lost its Secret containing the Identity, in that way a new
-> ServiceAccount will be created are shared with that cluster.

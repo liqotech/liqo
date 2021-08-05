@@ -25,4 +25,9 @@ Liqo is completely open source, and designed to be network plugin (CNI) and Kube
 * Transparent Multi-cluster pod offloading and service reconciliation
 * Pod-to-pod and pod-to-service connectivity across the clusters, disregarding the installed CNI
 
-[Let's get started!](gettingstarted)
+
+This section presents the main user-oriented documentation parts of Liqo:
+
+* [Let's get started!](gettingstarted)
+* [Install](./install): install Liqo on your clusters by using the installer script or the Liqo helm chart.
+* [Configure](./configure): customize your Liqo experience by tailoring the configuration to your requirements.
