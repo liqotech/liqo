@@ -6,7 +6,7 @@ weight: 2
 The Liqo-Gateway component is made up by several operators and is responsible for establishing secure tunnels to other peering clusters and inserting NAT rules for the remote pod and external CIDRs. 
 
 {{% notice info %}}
-The Liqo-Gateway is a kubernetes' deployment whose pods run in host network mode.
+The Liqo-Gateway is a kubernetes deployment whose pods run in host network mode.
 {{% /notice %}}
 
 The following diagram illustrates the operators which make up the Liqo-Gateway.
