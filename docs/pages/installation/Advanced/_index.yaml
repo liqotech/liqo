@@ -1,0 +1,12 @@
+---
+title: Install
+weight: 4
+---
+
+### Retrieve the overall values
+
+If you are installing Liqo for the first time, you can download the default values.yaml file from the chart.
+
+```bash
+helm show values liqo/liqo > ./values.yaml
+```
