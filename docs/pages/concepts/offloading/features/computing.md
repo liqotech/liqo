@@ -1,6 +1,6 @@
 ---
 title: Computing
-weight: 3
+weight: 4
 ---
 
 ### Overview
@@ -15,7 +15,7 @@ home cluster to be up-to-date with the local representation of the remote ones, 
 
 ### Resiliency of the remote pod 
 
-Due to the properties of the two-step scheduling process, different behaviours can be spotted when deleting a pod 
+Due to the properties of the two-step scheduling process, different behaviors can be spotted when deleting a pod 
 running in a foreign cluster:
 - The pod is deleted in the **home** cluster (intentionally or by eviction): the remote one has to be deleted 
 immediately. In fact, the home cluster is the owner of Pod, therefore whatever modification to the pod is set, 
