@@ -2,6 +2,7 @@
 package local
 
 // +kubebuilder:rbac:groups="",resources=configmaps;services;secrets,verbs=get;list;watch;delete;create
+// +kubebuilder:rbac:groups="",resources=secrets,verbs=get;create;update
 // +kubebuilder:rbac:groups="",resources=namespaces,verbs=get;list;watch
 // +kubebuilder:rbac:groups="",resources=nodes,verbs=get;update;patch;list;watch;delete;create
 // +kubebuilder:rbac:groups="",resources=pods,verbs=get;patch;list;watch;delete;create

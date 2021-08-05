@@ -63,6 +63,14 @@ rules:
   verbs:
   - create
 - apiGroups:
+  - ""
+  resources:
+  - secrets
+  verbs:
+  - create
+  - get
+  - update
+- apiGroups:
   - apps
   resources:
   - replicasets

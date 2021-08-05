@@ -85,6 +85,8 @@ rules:
   verbs:
   - create
   - delete
+  - get
+  - update
 - apiGroups:
   - ""
   resources:

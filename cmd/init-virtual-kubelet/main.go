@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"time"
 
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/klog/v2"
@@ -46,8 +47,36 @@ func main() {
 		klog.Fatal("Unable to create CSR: POD_NAME undefined")
 	}
 
+	namespace, ok := os.LookupEnv("POD_NAMESPACE")
+	if !ok {
+		klog.Fatal("Unable to create CSR: POD_NAMESPACE undefined")
+	}
+
+	nodeName, ok := os.LookupEnv("NODE_NAME")
+	if !ok {
+		klog.Fatal("Unable to create CSR: NODE_NAME undefined")
+	}
+
+	defer func() {
+		if err = csr.PersistCertificates(ctx, client, nodeName, namespace,
+			vk.CsrLocation, vk.KeyLocation, vk.CertLocation); err != nil {
+			klog.Error(err)
+			os.Exit(1)
+		}
+	}()
+
+	_, hasCertificate, err := csr.GetCSRSecret(ctx, client, nodeName, namespace)
+	if !apierrors.IsNotFound(err) && !hasCertificate {
+		if err != nil {
+			klog.Error(err)
+		} else {
+			klog.Info("Certificate already present for this nodeName. Skipping")
+		}
+		return
+	}
+
 	// Generate Key and CSR files in PEM format
-	if err := csr.CreateCSRResource(ctx, name, client, vk.CsrLocation, vk.KeyLocation, distribution); err != nil {
+	if err := csr.CreateCSRResource(ctx, name, client, nodeName, namespace, distribution); err != nil {
 		klog.Fatalf("Unable to create CSR: %s", err)
 	}
 
@@ -60,8 +89,8 @@ func main() {
 	case <-cancelCtx.Done():
 		klog.Error("Unable to get certificate: timeout elapsed")
 	case cert = <-crtChan:
-		if err := utils.WriteFile(vk.CertLocation, cert); err != nil {
-			klog.Fatalf("Unable to write the CRT file in location: %s", vk.CertLocation)
+		if err := csr.StoreCertificate(ctx, client, cert, namespace, nodeName); err != nil {
+			klog.Fatal("Unable to store the CRT file in secret")
 		}
 	}
 	cancel()

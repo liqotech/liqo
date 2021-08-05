@@ -4,27 +4,26 @@ import (
 	"context"
 
 	certificatesv1 "k8s.io/api/certificates/v1"
-	"k8s.io/apimachinery/pkg/api/errors"
+	errors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/klog/v2"
-
-	"github.com/liqotech/liqo/pkg/utils"
 )
 
 // CreateCSRResource creates a CSR Resource for a new Virtual Kubelet instance.
-func CreateCSRResource(ctx context.Context, name string, client kubernetes.Interface, csrLocation, keyLocation, distribution string) error {
+func CreateCSRResource(ctx context.Context,
+	name string, client kubernetes.Interface, nodeName, namespace, distribution string) error {
 	csrPem, keyPem, err := generateVKCertificateBundle(name)
 	var csrResource *certificatesv1.CertificateSigningRequest
 	if err != nil {
 		return err
 	}
 
-	if err := utils.WriteFile(csrLocation, csrPem); err != nil {
-		return err
+	if err = createCSRSecret(ctx, client, keyPem, csrPem, nodeName, namespace); errors.IsAlreadyExists(err) {
+		// the secret already exists, it has the key and the csr, we have to retrieve the certificate
+		_, csrPem, _, err = getCSRData(ctx, client, nodeName, namespace)
 	}
-
-	if err := utils.WriteFile(keyLocation, keyPem); err != nil {
+	if err != nil {
 		return err
 	}
 
