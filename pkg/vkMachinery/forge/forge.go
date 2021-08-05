@@ -66,6 +66,10 @@ func forgeVKInitContainers(nodeName, initVKImage string) []v1.Container {
 					ValueFrom: &v1.EnvVarSource{FieldRef: &v1.ObjectFieldSelector{FieldPath: "metadata.name", APIVersion: "v1"}},
 				},
 				{
+					Name:      "POD_NAMESPACE",
+					ValueFrom: &v1.EnvVarSource{FieldRef: &v1.ObjectFieldSelector{FieldPath: "metadata.namespace", APIVersion: "v1"}},
+				},
+				{
 					Name:  "NODE_NAME",
 					Value: nodeName,
 				},
