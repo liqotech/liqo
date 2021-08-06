@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"github.com/miekg/dns"
-	"k8s.io/klog"
+	"k8s.io/klog/v2"
 
 	"github.com/liqotech/liqo/internal/discovery"
 )

@@ -5,7 +5,7 @@ import (
 	"net/http"
 
 	"github.com/julienschmidt/httprouter"
-	"k8s.io/klog"
+	"k8s.io/klog/v2"
 
 	"github.com/liqotech/liqo/pkg/auth"
 )

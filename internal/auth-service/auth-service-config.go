@@ -3,7 +3,7 @@ package authservice
 import (
 	"reflect"
 
-	"k8s.io/klog"
+	"k8s.io/klog/v2"
 
 	configv1alpha1 "github.com/liqotech/liqo/apis/config/v1alpha1"
 	"github.com/liqotech/liqo/pkg/utils"

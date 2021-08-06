@@ -123,6 +123,10 @@ issues:
       # Disable the check to test that HTTP clients are not using an insecure TLS connection.
       # We need it to contact the remote authentication services exposing a self-signed certificate
       text: TLS InsecureSkipVerify set true.
+    - linters:
+        - errorlint
+      # Disable the check to test errors type assertion on switches.
+      text: type switch on error will fail on wrapped errors. Use errors.As to check for specific errors
 
     # Exclude the following linters from running on tests files.
     - path: _test\.go

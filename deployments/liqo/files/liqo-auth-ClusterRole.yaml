@@ -52,9 +52,7 @@ rules:
   resources:
   - nodes
   verbs:
-  - get
   - list
-  - watch
 - apiGroups:
   - ""
   resources:
@@ -64,34 +62,13 @@ rules:
   - delete
   - get
   - list
-- apiGroups:
-  - discovery.liqo.io
-  resources:
-  - peeringrequests
-  verbs:
-  - create
-  - delete
-  - get
   - update
-- apiGroups:
-  - rbac.authorization.k8s.io
-  resources:
-  - clusterrolebindings
-  verbs:
-  - create
-  - delete
-  - deletecollection
-  - list
 - apiGroups:
   - rbac.authorization.k8s.io
   resources:
   - clusterroles
   verbs:
-  - create
-  - delete
-  - deletecollection
   - get
-  - list
 - apiGroups:
   - rbac.authorization.k8s.io
   resources:

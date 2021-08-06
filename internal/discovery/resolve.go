@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"github.com/grandcat/zeroconf"
-	"k8s.io/klog"
+	"k8s.io/klog/v2"
 
 	"github.com/liqotech/liqo/internal/discovery/utils"
 	"github.com/liqotech/liqo/pkg/auth"

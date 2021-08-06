@@ -9,6 +9,10 @@ import (
 	"encoding/asn1"
 	"encoding/base64"
 	"encoding/pem"
+	"fmt"
+	"io/ioutil"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"testing"
@@ -19,14 +23,18 @@ import (
 	. "github.com/onsi/gomega"
 	"github.com/onsi/gomega/types"
 	rbacv1 "k8s.io/api/rbac/v1"
+	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/informers"
 	"k8s.io/client-go/tools/cache"
-	"k8s.io/klog"
+	"k8s.io/klog/v2"
+	"k8s.io/utils/pointer"
 
 	"github.com/liqotech/liqo/apis/config/v1alpha1"
+	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	"github.com/liqotech/liqo/pkg/auth"
+	autherrors "github.com/liqotech/liqo/pkg/auth/errors"
 	"github.com/liqotech/liqo/pkg/clusterid/test"
 	identitymanager "github.com/liqotech/liqo/pkg/identityManager"
 	idManTest "github.com/liqotech/liqo/pkg/identityManager/testUtils"
@@ -116,12 +124,6 @@ var _ = Describe("Auth", func() {
 
 		informerFactory := informers.NewSharedInformerFactoryWithOptions(cluster.GetClient().Client(), 300*time.Second, informers.WithNamespace("default"))
 
-		saInformer := informerFactory.Core().V1().ServiceAccounts().Informer()
-		saInformer.AddEventHandler(cache.ResourceEventHandlerFuncs{})
-
-		nodeInformer := informerFactory.Core().V1().Nodes().Informer()
-		nodeInformer.AddEventHandler(cache.ResourceEventHandlerFuncs{})
-
 		secretInformer := informerFactory.Core().V1().Secrets().Informer()
 		secretInformer.AddEventHandler(cache.ResourceEventHandlerFuncs{})
 
@@ -139,8 +141,6 @@ var _ = Describe("Auth", func() {
 			namespace:            "default",
 			restConfig:           cluster.GetClient().Config(),
 			clientset:            cluster.GetClient().Client(),
-			saInformer:           saInformer,
-			nodeInformer:         nodeInformer,
 			secretInformer:       secretInformer,
 			localClusterID:       &clusterID,
 			namespaceManager:     namespaceManager,
@@ -214,7 +214,7 @@ var _ = Describe("Auth", func() {
 					ClusterID: "test1",
 				},
 				config: v1alpha1.AuthConfig{
-					AllowEmptyToken: true,
+					EnableAuthentication: pointer.BoolPtr(false),
 				},
 				expectedOutput: BeNil(),
 			}),
@@ -225,7 +225,7 @@ var _ = Describe("Auth", func() {
 					ClusterID: "test1",
 				},
 				config: v1alpha1.AuthConfig{
-					AllowEmptyToken: false,
+					EnableAuthentication: pointer.BoolPtr(true),
 				},
 				expectedOutput: HaveOccurred(),
 			}),
@@ -236,7 +236,7 @@ var _ = Describe("Auth", func() {
 					ClusterID: "test1",
 				},
 				config: v1alpha1.AuthConfig{
-					AllowEmptyToken: false,
+					EnableAuthentication: pointer.BoolPtr(true),
 				},
 				expectedOutput: BeNil(),
 			}),
@@ -247,40 +247,9 @@ var _ = Describe("Auth", func() {
 					ClusterID: "test1",
 				},
 				config: v1alpha1.AuthConfig{
-					AllowEmptyToken: false,
+					EnableAuthentication: pointer.BoolPtr(true),
 				},
 				expectedOutput: HaveOccurred(),
-			}),
-		)
-
-	})
-
-	Context("ServiceAccount Creation", func() {
-
-		type serviceAccountTestcase struct {
-			clusterId      string
-			expectedOutput types.GomegaMatcher
-		}
-
-		DescribeTable("ServiceAccount Creation table",
-			func(c serviceAccountTestcase) {
-				_, err := authService.createServiceAccount(c.clusterId)
-				Expect(err).To(c.expectedOutput)
-			},
-
-			Entry("first creation", serviceAccountTestcase{
-				clusterId:      "cluster1",
-				expectedOutput: BeNil(),
-			}),
-
-			Entry("second creation", serviceAccountTestcase{
-				clusterId:      "cluster1",
-				expectedOutput: HaveOccurred(),
-			}),
-
-			Entry("create different one", serviceAccountTestcase{
-				clusterId:      "cluster2",
-				expectedOutput: BeNil(),
 			}),
 		)
 
@@ -300,7 +269,7 @@ var _ = Describe("Auth", func() {
 
 		BeforeEach(func() {
 			oldConfig = authService.config.DeepCopy()
-			authService.config.AllowEmptyToken = true
+			authService.config.EnableAuthentication = pointer.BoolPtr(false)
 		})
 
 		AfterEach(func() {
@@ -362,6 +331,58 @@ var _ = Describe("Auth", func() {
 			Expect(len(authService.peeringPermission.Basic)).To(Equal(1))
 			Expect(authService.peeringPermission.Basic[0].Name).To(Equal("test"))
 		})
+
+	})
+
+	Context("errorHandler", func() {
+
+		type errorHandlerTestcase struct {
+			err  error
+			body []byte
+			code int
+		}
+
+		DescribeTable("errorHandler table",
+			func(c errorHandlerTestcase) {
+				recorder := httptest.NewRecorder()
+				authService.handleError(recorder, c.err)
+
+				recorder.Flush()
+
+				body, err := ioutil.ReadAll(recorder.Body)
+				Expect(err).To(Succeed())
+				Expect(string(body)).To(ContainSubstring(string(c.body)))
+				Expect(recorder.Code).To(Equal(c.code))
+			},
+
+			Entry("generic error", errorHandlerTestcase{
+				err:  fmt.Errorf("generic error"),
+				body: []byte("generic error"),
+				code: http.StatusInternalServerError,
+			}),
+
+			Entry("status error", errorHandlerTestcase{
+				err:  kerrors.NewForbidden(discoveryv1alpha1.ForeignClusterGroupResource, "test", fmt.Errorf("")),
+				body: []byte("forbidden"),
+				code: http.StatusForbidden,
+			}),
+
+			Entry("client error", errorHandlerTestcase{
+				err: &autherrors.ClientError{
+					Reason: "client error",
+				},
+				body: []byte("client error"),
+				code: http.StatusBadRequest,
+			}),
+
+			Entry("authentication error", errorHandlerTestcase{
+				err: &autherrors.AuthenticationFailedError{
+					Reason: "invalid token",
+				},
+				body: []byte("invalid token"),
+				code: http.StatusUnauthorized,
+			}),
+		)
 
 	})
 

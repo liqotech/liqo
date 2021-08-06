@@ -141,8 +141,8 @@ auth:
     # -- Set your ingress class
     class: ""
   config:
-    # -- Set to true to disable the authentication of discovered clusters. NB: use it only for testing installations
-    allowEmptyToken: false
+    # -- Set to false to disable the authentication of discovered clusters. NB: use it only for testing installations
+    enableAuthentication: true
 
 webhook:
   pod:
@@ -161,15 +161,6 @@ webhook:
   mutatingWebhookConfiguration:
     # -- mutatingWebhookConfiguration annotations
     annotations: {}
-
-peeringRequest:
-  pod:
-    # -- peering request pod annotations
-    annotations: {}
-    # -- peering request pod labels
-    labels: {}
-  # -- peeringRequest image repository
-  imageName:  "liqo/peering-request-operator"
 
 virtualKubelet:
   # -- virtual kubelet image repository
