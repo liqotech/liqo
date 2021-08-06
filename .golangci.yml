@@ -1,5 +1,8 @@
 run:
   timeout: 10m
+  skip-dirs:
+    # This directory contains copy code from upstream kubernetes/kubernetes, skip it.
+    - internal/kubernetes/
   skip-files:
     - "zz_generated.*.go"
 

@@ -14,13 +14,13 @@ import (
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/klog/v2"
 	resourcehelper "k8s.io/kubectl/pkg/util/resource"
-	"k8s.io/kubernetes/pkg/api/v1/pod"
 
 	configv1alpha1 "github.com/liqotech/liqo/apis/config/v1alpha1"
 	"github.com/liqotech/liqo/internal/resource-request-operator/interfaces"
 	crdclient "github.com/liqotech/liqo/pkg/crdClient"
 	"github.com/liqotech/liqo/pkg/utils"
 	errorsmanagement "github.com/liqotech/liqo/pkg/utils/errorsManagement"
+	"github.com/liqotech/liqo/pkg/utils/pod"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/forge"
 )
 

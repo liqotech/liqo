@@ -8,12 +8,12 @@ import (
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
 	"k8s.io/klog"
-	"k8s.io/kubernetes/pkg/util/slice"
 
 	configv1alpha1 "github.com/liqotech/liqo/apis/config/v1alpha1"
 	crdclient "github.com/liqotech/liqo/pkg/crdClient"
 	liqonetutils "github.com/liqotech/liqo/pkg/liqonet/utils"
 	"github.com/liqotech/liqo/pkg/utils"
+	"github.com/liqotech/liqo/pkg/utils/slice"
 )
 
 func (tec *TunnelEndpointCreator) setNetParameters(config *configv1alpha1.ClusterConfig) {
@@ -46,12 +46,12 @@ func (tec *TunnelEndpointCreator) setNetParameters(config *configv1alpha1.Cluste
 // Helper func that returns a true if the subnet slice passed as first parameter
 // contains the subnet passed as second parameter. Otherwise it returns false.
 func (tec *TunnelEndpointCreator) subnetSliceContains(subnetSlice []string, network string) bool {
-	return slice.ContainsString(subnetSlice, network, nil)
+	return slice.ContainsString(subnetSlice, network)
 }
 
 // Helper func that removes a subnet from the configuration file.
 func (tec *TunnelEndpointCreator) removeReservedSubnet(network string) {
-	tec.ReservedSubnets = slice.RemoveString(tec.ReservedSubnets, network, nil)
+	tec.ReservedSubnets = slice.RemoveString(tec.ReservedSubnets, network)
 }
 
 // Helper func that adds a subnet from the configuration file.
@@ -61,7 +61,7 @@ func (tec *TunnelEndpointCreator) addReservedSubnet(network string) {
 
 // Helper func that removes a network pool from the configuration file.
 func (tec *TunnelEndpointCreator) removeNetworkPool(network string) {
-	tec.AdditionalPools = slice.RemoveString(tec.AdditionalPools, network, nil)
+	tec.AdditionalPools = slice.RemoveString(tec.AdditionalPools, network)
 }
 
 // Helper func that adds a network pool from the configuration file.

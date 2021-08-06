@@ -4,9 +4,8 @@ import (
 	"github.com/pkg/errors"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/klog"
-	v1helper "k8s.io/kubernetes/pkg/apis/core/v1/helper"
-	"k8s.io/kubernetes/pkg/kubelet/envvars"
 
+	"github.com/liqotech/liqo/internal/kubernetes/envvars"
 	apimgmgt "github.com/liqotech/liqo/pkg/virtualKubelet/apiReflection"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/storage"
 )
@@ -113,7 +112,7 @@ func addService(serviceMap *map[string]*v1.Service, cacheManager storage.CacheMa
 	}
 	remoteSvc := tmp.(*v1.Service)
 	// ignore services where ClusterIP is "None" or empty
-	if !v1helper.IsServiceIPSet(remoteSvc) {
+	if !envvars.IsServiceIPSet(remoteSvc) {
 		return nil
 	}
 

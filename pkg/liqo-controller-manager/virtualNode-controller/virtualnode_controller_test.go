@@ -10,9 +10,9 @@ import (
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/kubernetes/pkg/util/slice"
 	"k8s.io/utils/pointer"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
 	liqoconst "github.com/liqotech/liqo/pkg/consts"
 )
@@ -122,7 +122,7 @@ var _ = Describe("VirtualNode controller", func() {
 					virtualNode1); err != nil {
 					return false
 				}
-				return slice.ContainsString(virtualNode1.GetFinalizers(), virtualNodeControllerFinalizer, nil)
+				return controllerutil.ContainsFinalizer(virtualNode1, virtualNodeControllerFinalizer)
 			}, timeout, interval).Should(BeTrue())
 
 		})
@@ -163,7 +163,7 @@ var _ = Describe("VirtualNode controller", func() {
 					virtualNode2); err != nil {
 					return false
 				}
-				return slice.ContainsString(virtualNode2.GetFinalizers(), virtualNodeControllerFinalizer, nil)
+				return controllerutil.ContainsFinalizer(virtualNode2, virtualNodeControllerFinalizer)
 			}, timeout, interval).Should(BeTrue())
 
 		})
@@ -201,7 +201,7 @@ var _ = Describe("VirtualNode controller", func() {
 					simpleNode); err != nil {
 					return false
 				}
-				return !slice.ContainsString(simpleNode.GetFinalizers(), virtualNodeControllerFinalizer, nil)
+				return !controllerutil.ContainsFinalizer(simpleNode, virtualNodeControllerFinalizer)
 			}, timeout/5, interval).Should(BeTrue())
 
 			By(fmt.Sprintf("Delete the simple-node '%s'", nameSimpleNode))
