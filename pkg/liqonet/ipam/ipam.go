@@ -12,13 +12,13 @@ import (
 	"inet.af/netaddr"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/klog"
-	"k8s.io/kubernetes/pkg/util/slice"
 
 	netv1alpha1 "github.com/liqotech/liqo/apis/net/v1alpha1"
 	"github.com/liqotech/liqo/pkg/consts"
 	liqoneterrors "github.com/liqotech/liqo/pkg/liqonet/errors"
 	"github.com/liqotech/liqo/pkg/liqonet/natmappinginflater"
 	"github.com/liqotech/liqo/pkg/liqonet/utils"
+	"github.com/liqotech/liqo/pkg/utils/slice"
 )
 
 // Ipam Interface.
@@ -746,11 +746,11 @@ func (liqoIPAM *IPAM) RemoveNetworkPool(network string) error {
 		return fmt.Errorf("cannot get cluster subnets: %w", err)
 	}
 	// Check existence
-	if exists := slice.ContainsString(ipamPools, network, nil); !exists {
+	if exists := slice.ContainsString(ipamPools, network); !exists {
 		return fmt.Errorf("network %s is not a network pool", network)
 	}
 	// Cannot remove a default one
-	if contains := slice.ContainsString(Pools, network, nil); contains {
+	if contains := slice.ContainsString(Pools, network); contains {
 		return fmt.Errorf("cannot remove a default network pool")
 	}
 	// Check overlapping with cluster networks

@@ -7,9 +7,9 @@ import (
 	"github.com/containernetworking/plugins/pkg/ns"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
-	"k8s.io/kubectl/pkg/util/slice"
 
 	liqonetIpam "github.com/liqotech/liqo/pkg/liqonet/ipam"
+	"github.com/liqotech/liqo/pkg/utils/slice"
 )
 
 var _ = Describe("EndpointReflection", func() {
@@ -40,7 +40,7 @@ var _ = Describe("EndpointReflection", func() {
 					if err != nil {
 						Fail(fmt.Sprintf("failed to list rules in chain %s: %s", fmt.Sprintf("LIQO-PRRT-MAP-CLS-%s", clusterID1), err))
 					}
-					if slice.ContainsString(rules, fmt.Sprintf("-d %s -j DNAT --to-destination %s", response.GetIp(), remoteEndpointIP), nil) {
+					if slice.ContainsString(rules, fmt.Sprintf("-d %s -j DNAT --to-destination %s", response.GetIp(), remoteEndpointIP)) {
 						return true
 					}
 					return false
@@ -62,7 +62,7 @@ var _ = Describe("EndpointReflection", func() {
 					if err != nil {
 						Fail(fmt.Sprintf("failed to list rules in chain %s: %s", fmt.Sprintf("LIQO-PRRT-MAP-CLS-%s", clusterID1), err))
 					}
-					if slice.ContainsString(rules, fmt.Sprintf("-d %s -j DNAT --to-destination %s", response.GetIp(), remoteEndpointIP), nil) {
+					if slice.ContainsString(rules, fmt.Sprintf("-d %s -j DNAT --to-destination %s", response.GetIp(), remoteEndpointIP)) {
 						return true
 					}
 					return false
@@ -80,8 +80,8 @@ var _ = Describe("EndpointReflection", func() {
 						Fail(fmt.Sprintf("failed to list rules in chain %s: %s", fmt.Sprintf("LIQO-PRRT-MAP-CLS-%s", clusterID1), err))
 					}
 					// Should contain both rules
-					if slice.ContainsString(rules, fmt.Sprintf("-d %s -j DNAT --to-destination %s", newEndpointIP, remoteEndpointIP), nil) &&
-						slice.ContainsString(rules, fmt.Sprintf("-d %s -j DNAT --to-destination %s", newEndpointIP2, remoteEndpointIP2), nil) {
+					if slice.ContainsString(rules, fmt.Sprintf("-d %s -j DNAT --to-destination %s", newEndpointIP, remoteEndpointIP)) &&
+						slice.ContainsString(rules, fmt.Sprintf("-d %s -j DNAT --to-destination %s", newEndpointIP2, remoteEndpointIP2)) {
 						return true
 					}
 					return false
@@ -102,7 +102,7 @@ var _ = Describe("EndpointReflection", func() {
 					if err != nil {
 						Fail(fmt.Sprintf("failed to list rules in chain %s: %s", fmt.Sprintf("LIQO-PRRT-MAP-CLS-%s", clusterID1), err))
 					}
-					if slice.ContainsString(rules, fmt.Sprintf("-d %s -j DNAT --to-destination %s", newEndpointIPCluster1, remoteEndpointIP), nil) {
+					if slice.ContainsString(rules, fmt.Sprintf("-d %s -j DNAT --to-destination %s", newEndpointIPCluster1, remoteEndpointIP)) {
 						return true
 					}
 					return false
@@ -119,7 +119,7 @@ var _ = Describe("EndpointReflection", func() {
 					if err != nil {
 						Fail(fmt.Sprintf("failed to list rules in chain %s: %s", fmt.Sprintf("LIQO-PRRT-MAP-CLS-%s", clusterID2), err))
 					}
-					if slice.ContainsString(rules, fmt.Sprintf("-d %s -j DNAT --to-destination %s", newEndpointIPCluster2, remoteEndpointIP), nil) {
+					if slice.ContainsString(rules, fmt.Sprintf("-d %s -j DNAT --to-destination %s", newEndpointIPCluster2, remoteEndpointIP)) {
 						return true
 					}
 					return false
@@ -142,7 +142,7 @@ var _ = Describe("EndpointReflection", func() {
 					if err != nil {
 						Fail(fmt.Sprintf("failed to list rules in chain %s: %s", fmt.Sprintf("LIQO-PRRT-MAP-CLS-%s", clusterID1), err))
 					}
-					if slice.ContainsString(rules, fmt.Sprintf("-d %s -j DNAT --to-destination %s", response.GetIp(), remoteEndpointIP), nil) {
+					if slice.ContainsString(rules, fmt.Sprintf("-d %s -j DNAT --to-destination %s", response.GetIp(), remoteEndpointIP)) {
 						return true
 					}
 					return false
@@ -157,7 +157,7 @@ var _ = Describe("EndpointReflection", func() {
 					if err != nil {
 						Fail(fmt.Sprintf("failed to list rules in chain %s: %s", fmt.Sprintf("LIQO-PRRT-MAP-CLS-%s", clusterID1), err))
 					}
-					if !slice.ContainsString(rules, fmt.Sprintf("-d %s -j DNAT --to-destination %s", response.GetIp(), remoteEndpointIP), nil) {
+					if !slice.ContainsString(rules, fmt.Sprintf("-d %s -j DNAT --to-destination %s", response.GetIp(), remoteEndpointIP)) {
 						return true
 					}
 					return false
@@ -188,8 +188,8 @@ var _ = Describe("EndpointReflection", func() {
 						Fail(fmt.Sprintf("failed to list rules in chain %s: %s", fmt.Sprintf("LIQO-PRRT-MAP-CLS-%s", clusterID1), err))
 					}
 					// Should contain both rules
-					if slice.ContainsString(rules, fmt.Sprintf("-d %s -j DNAT --to-destination %s", newEndpointIP, remoteEndpointIP), nil) &&
-						slice.ContainsString(rules, fmt.Sprintf("-d %s -j DNAT --to-destination %s", newEndpointIP2, remoteEndpointIP2), nil) {
+					if slice.ContainsString(rules, fmt.Sprintf("-d %s -j DNAT --to-destination %s", newEndpointIP, remoteEndpointIP)) &&
+						slice.ContainsString(rules, fmt.Sprintf("-d %s -j DNAT --to-destination %s", newEndpointIP2, remoteEndpointIP2)) {
 						return true
 					}
 					return false
@@ -206,8 +206,8 @@ var _ = Describe("EndpointReflection", func() {
 						Fail(fmt.Sprintf("failed to list rules in chain %s: %s", fmt.Sprintf("LIQO-PRRT-MAP-CLS-%s", clusterID1), err))
 					}
 					// Rule for remoteEndpointIP2 should be still present
-					if !slice.ContainsString(rules, fmt.Sprintf("-d %s -j DNAT --to-destination %s", newEndpointIP, remoteEndpointIP), nil) &&
-						slice.ContainsString(rules, fmt.Sprintf("-d %s -j DNAT --to-destination %s", newEndpointIP2, remoteEndpointIP2), nil) {
+					if !slice.ContainsString(rules, fmt.Sprintf("-d %s -j DNAT --to-destination %s", newEndpointIP, remoteEndpointIP)) &&
+						slice.ContainsString(rules, fmt.Sprintf("-d %s -j DNAT --to-destination %s", newEndpointIP2, remoteEndpointIP2)) {
 						return true
 					}
 					return false

@@ -6,12 +6,12 @@ import (
 
 	"github.com/coreos/go-iptables/iptables"
 	"k8s.io/klog/v2"
-	"k8s.io/kubernetes/pkg/util/slice"
 
 	netv1alpha1 "github.com/liqotech/liqo/apis/net/v1alpha1"
 	"github.com/liqotech/liqo/pkg/consts"
 	"github.com/liqotech/liqo/pkg/liqonet/errors"
 	"github.com/liqotech/liqo/pkg/liqonet/utils"
+	"github.com/liqotech/liqo/pkg/utils/slice"
 )
 
 const (
@@ -220,7 +220,7 @@ func (h IPTHandler) deleteLiqoChains() error {
 func (h IPTHandler) deleteChainsInTable(table string, chains, chainsToBeRemoved []string) error {
 	for _, chain := range chainsToBeRemoved {
 		// Check existence of chain
-		if slice.ContainsString(chains, chain, nil) {
+		if slice.ContainsString(chains, chain) {
 			continue
 		}
 		// Chain does exist, then delete it.
@@ -380,7 +380,7 @@ func (h IPTHandler) deleteRulesInChain(chain string, rules []IPTableRule) error 
 		return fmt.Errorf("unable to list rules in chain %s (table %s): %w", chain, table, err)
 	}
 	for _, rule := range rules {
-		if !slice.ContainsString(existingRules, strings.Join(rule, " "), nil) {
+		if !slice.ContainsString(existingRules, strings.Join(rule, " ")) {
 			continue
 		}
 		// Rule exists, then delete it
@@ -409,9 +409,9 @@ func (h IPTHandler) removeChainsPerCluster(clusterID string) error {
 	// For each cluster chain, check if it exists.
 	// If it does exist, then remove it. Otherwise do nothing.
 	for _, chain := range chains {
-		if getTableFromChain(chain) == natTable && slice.ContainsString(existingChainsNAT, chain, nil) {
+		if getTableFromChain(chain) == natTable && slice.ContainsString(existingChainsNAT, chain) {
 			// Check if chain exists
-			if !slice.ContainsString(existingChainsNAT, chain, nil) {
+			if !slice.ContainsString(existingChainsNAT, chain) {
 				continue
 			}
 			if err := h.ipt.ClearChain(natTable, chain); err != nil {
@@ -423,8 +423,8 @@ func (h IPTHandler) removeChainsPerCluster(clusterID string) error {
 			klog.Infof("Deleted chain %s in table %s", chain, getTableFromChain(chain))
 			continue
 		}
-		if getTableFromChain(chain) == filterTable && slice.ContainsString(existingChainsFilter, chain, nil) {
-			if !slice.ContainsString(existingChainsFilter, chain, nil) {
+		if getTableFromChain(chain) == filterTable && slice.ContainsString(existingChainsFilter, chain) {
+			if !slice.ContainsString(existingChainsFilter, chain) {
 				continue
 			}
 			if err := h.ipt.ClearChain(filterTable, chain); err != nil {

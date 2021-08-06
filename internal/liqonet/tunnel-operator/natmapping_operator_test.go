@@ -11,10 +11,10 @@ import (
 	. "github.com/onsi/gomega"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/kubernetes/pkg/util/slice"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/liqotech/liqo/apis/net/v1alpha1"
+	"github.com/liqotech/liqo/pkg/utils/slice"
 )
 
 const (
@@ -166,8 +166,8 @@ var _ = Describe("NatmappingOperator", func() {
 					Fail(fmt.Sprintf("failed to list rules in chain %s: %s", getClusterPreRoutingMappingChain(clusterID1), err))
 				}
 				// Should contain the rule for oldIP1 but it should not contain the rule for oldIP2
-				if slice.ContainsString(rules, fmt.Sprintf("-d %s -j %s --to-destination %s", newIP2, DNAT, oldIP2), nil) &&
-					!slice.ContainsString(rules, fmt.Sprintf("-d %s -j %s --to-destination %s", newIP1, DNAT, oldIP1), nil) {
+				if slice.ContainsString(rules, fmt.Sprintf("-d %s -j %s --to-destination %s", newIP2, DNAT, oldIP2)) &&
+					!slice.ContainsString(rules, fmt.Sprintf("-d %s -j %s --to-destination %s", newIP1, DNAT, oldIP1)) {
 					return true
 				}
 				return false
@@ -209,8 +209,8 @@ var _ = Describe("NatmappingOperator", func() {
 					Fail(fmt.Sprintf("failed to list rules in chain %s: %s", getClusterPreRoutingMappingChain(clusterID1), err))
 				}
 				// Cluster1 rules should contain the rule for oldIP1 and not contain the rule for oldIP2
-				if !slice.ContainsString(cluster1Rules, fmt.Sprintf("-d %s -j %s --to-destination %s", newIP1, DNAT, oldIP1), nil) ||
-					slice.ContainsString(cluster1Rules, fmt.Sprintf("-d %s -j %s --to-destination %s", newIP2, DNAT, oldIP2), nil) {
+				if !slice.ContainsString(cluster1Rules, fmt.Sprintf("-d %s -j %s --to-destination %s", newIP1, DNAT, oldIP1)) ||
+					slice.ContainsString(cluster1Rules, fmt.Sprintf("-d %s -j %s --to-destination %s", newIP2, DNAT, oldIP2)) {
 					return false
 				}
 				return true
@@ -222,8 +222,8 @@ var _ = Describe("NatmappingOperator", func() {
 					Fail(fmt.Sprintf("failed to list rules in chain %s: %s", getClusterPreRoutingMappingChain(clusterID2), err))
 				}
 				// Cluster2 rules should contain the rule for oldIP2 and not contain the rule for oldIP1
-				if !slice.ContainsString(cluster2Rules, fmt.Sprintf("-d %s -j %s --to-destination %s", newIP2, DNAT, oldIP2), nil) ||
-					slice.ContainsString(cluster2Rules, fmt.Sprintf("-d %s -j %s --to-destination %s", newIP1, DNAT, oldIP1), nil) {
+				if !slice.ContainsString(cluster2Rules, fmt.Sprintf("-d %s -j %s --to-destination %s", newIP2, DNAT, oldIP2)) ||
+					slice.ContainsString(cluster2Rules, fmt.Sprintf("-d %s -j %s --to-destination %s", newIP1, DNAT, oldIP1)) {
 					return false
 				}
 				return true

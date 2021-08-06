@@ -11,10 +11,9 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/dynamic/dynamicinformer"
-	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
+	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
 	"k8s.io/klog/v2"
-	"k8s.io/kubectl/pkg/scheme"
 	"k8s.io/utils/pointer"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/envtest"
@@ -93,7 +92,7 @@ func getConfigClusterCRDClient(config *rest.Config) *crdclient.CRDClient {
 	newConfig := config
 	newConfig.ContentConfig.GroupVersion = &configv1alpha1.GroupVersion
 	newConfig.APIPath = "/apis"
-	newConfig.NegotiatedSerializer = clientgoscheme.Codecs.WithoutConversion()
+	newConfig.NegotiatedSerializer = scheme.Codecs.WithoutConversion()
 	newConfig.UserAgent = rest.DefaultKubernetesUserAgent()
 	CRDclient, err := crdclient.NewFromConfig(newConfig)
 	if err != nil {

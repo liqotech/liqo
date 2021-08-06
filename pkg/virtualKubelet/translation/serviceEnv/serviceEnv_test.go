@@ -9,9 +9,9 @@ import (
 	is "gotest.tools/assert/cmp"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/kubernetes/pkg/kubelet/envvars"
 	"k8s.io/utils/pointer"
 
+	"github.com/liqotech/liqo/internal/kubernetes/envvars"
 	"github.com/liqotech/liqo/pkg/utils/testutil"
 	apimgmt "github.com/liqotech/liqo/pkg/virtualKubelet/apiReflection"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/storage/test"

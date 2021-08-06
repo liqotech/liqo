@@ -8,8 +8,8 @@ import (
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/klog/v2"
-	"k8s.io/kubernetes/pkg/api/v1/pod"
 
+	"github.com/liqotech/liqo/pkg/utils/pod"
 	"github.com/liqotech/liqo/pkg/virtualKubelet"
 )
 
