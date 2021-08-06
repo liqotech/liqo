@@ -35,7 +35,7 @@ import (
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/record"
 	"k8s.io/client-go/util/workqueue"
-	"k8s.io/klog"
+	"k8s.io/klog/v2"
 
 	"github.com/liqotech/liqo/cmd/virtual-kubelet/provider"
 	"github.com/liqotech/liqo/internal/utils/errdefs"

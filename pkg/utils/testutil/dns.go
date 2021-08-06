@@ -5,7 +5,7 @@ import (
 	"os"
 
 	"github.com/miekg/dns"
-	"k8s.io/klog"
+	"k8s.io/klog/v2"
 )
 
 type DnsServer struct {

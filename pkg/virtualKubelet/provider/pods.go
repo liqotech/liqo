@@ -17,7 +17,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes/scheme"
 	remotecommandclient "k8s.io/client-go/tools/remotecommand"
-	"k8s.io/klog"
+	"k8s.io/klog/v2"
 
 	liqoconst "github.com/liqotech/liqo/pkg/consts"
 	"github.com/liqotech/liqo/pkg/virtualKubelet"

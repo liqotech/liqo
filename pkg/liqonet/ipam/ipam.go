@@ -11,7 +11,7 @@ import (
 	grpc "google.golang.org/grpc"
 	"inet.af/netaddr"
 	"k8s.io/client-go/dynamic"
-	"k8s.io/klog"
+	"k8s.io/klog/v2"
 
 	netv1alpha1 "github.com/liqotech/liqo/apis/net/v1alpha1"
 	"github.com/liqotech/liqo/pkg/consts"

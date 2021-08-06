@@ -26,7 +26,7 @@ import (
 
 	"github.com/pkg/errors"
 	"github.com/virtual-kubelet/virtual-kubelet/node/api"
-	"k8s.io/klog"
+	"k8s.io/klog/v2"
 
 	"github.com/liqotech/liqo/cmd/virtual-kubelet/provider"
 )
