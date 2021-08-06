@@ -7,11 +7,9 @@ require (
 	github.com/clastix/capsule v0.1.0-rc2
 	github.com/containernetworking/plugins v0.8.6
 	github.com/coreos/go-iptables v0.4.5
-	github.com/daixiang0/gci v0.2.9 // indirect
 	github.com/google/go-cmp v0.5.5
 	github.com/google/gofuzz v1.2.0 // indirect
 	github.com/google/uuid v1.2.0
-	github.com/gorilla/mux v1.8.0
 	github.com/grandcat/zeroconf v1.0.0
 	github.com/gruntwork-io/gruntwork-cli v0.7.0
 	github.com/gruntwork-io/terratest v0.35.6
@@ -19,7 +17,6 @@ require (
 	github.com/julienschmidt/httprouter v1.3.0
 	github.com/metal-stack/go-ipam v1.8.4-0.20210322080203-5a9da5064b27
 	github.com/miekg/dns v1.1.35
-	github.com/mitchellh/go-homedir v1.1.0
 	github.com/modern-go/reflect2 v1.0.1
 	github.com/onsi/ginkgo v1.16.4
 	github.com/onsi/gomega v1.13.0
@@ -32,11 +29,8 @@ require (
 	github.com/vishvananda/netlink v1.1.0
 	github.com/vishvananda/netns v0.0.0-20200728191858-db3c7e526aae
 	go.opencensus.io v0.23.0
-	go.uber.org/goleak v1.1.10
 	golang.org/x/oauth2 v0.0.0-20210628180205-a41e5a781914 // indirect
 	golang.org/x/sys v0.0.0-20210603081109-ebe580a85c40
-	golang.org/x/time v0.0.0-20210220033141-f8bda1e9f3ba
-	golang.org/x/tools v0.1.0
 	golang.zx2c4.com/wireguard/wgctrl v0.0.0-20200609130330-bd2cb7843e1b
 	gomodules.xyz/jsonpatch/v2 v2.1.0
 	google.golang.org/grpc v1.33.2
@@ -51,7 +45,6 @@ require (
 	k8s.io/klog v1.0.0
 	k8s.io/klog/v2 v2.8.0
 	k8s.io/kubectl v0.21.0
-	k8s.io/kubelet v0.0.0
 	k8s.io/kubernetes v1.21.0
 	k8s.io/metrics v0.21.0
 	k8s.io/utils v0.0.0-20210527160623-6fdb442a123b
