@@ -3,7 +3,7 @@ package serviceEnv
 import (
 	"github.com/pkg/errors"
 	v1 "k8s.io/api/core/v1"
-	"k8s.io/klog"
+	"k8s.io/klog/v2"
 
 	"github.com/liqotech/liqo/internal/kubernetes/envvars"
 	apimgmgt "github.com/liqotech/liqo/pkg/virtualKubelet/apiReflection"

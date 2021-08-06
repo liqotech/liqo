@@ -11,7 +11,7 @@ import (
 	"golang.org/x/sys/unix"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/util/retry"
-	"k8s.io/klog"
+	"k8s.io/klog/v2"
 
 	liqoneterrors "github.com/liqotech/liqo/pkg/liqonet/errors"
 	liqoutils "github.com/liqotech/liqo/pkg/liqonet/utils"

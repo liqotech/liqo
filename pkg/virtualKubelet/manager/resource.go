@@ -18,7 +18,7 @@ import (
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	corev1listers "k8s.io/client-go/listers/core/v1"
-	"k8s.io/klog"
+	"k8s.io/klog/v2"
 )
 
 // ResourceManager acts as a passthrough to a cache (lister) for pods assigned to the current node.

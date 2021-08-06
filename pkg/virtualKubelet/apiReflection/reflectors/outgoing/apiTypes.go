@@ -4,7 +4,7 @@ import (
 	"fmt"
 
 	"google.golang.org/grpc"
-	"k8s.io/klog"
+	"k8s.io/klog/v2"
 
 	liqoconst "github.com/liqotech/liqo/pkg/consts"
 	liqonetIpam "github.com/liqotech/liqo/pkg/liqonet/ipam"

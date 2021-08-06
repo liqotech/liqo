@@ -9,7 +9,7 @@ import (
 	"k8s.io/api/discovery/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes/fake"
-	"k8s.io/klog"
+	"k8s.io/klog/v2"
 
 	liqonetTest "github.com/liqotech/liqo/pkg/liqonet/test"
 	apimgmt "github.com/liqotech/liqo/pkg/virtualKubelet/apiReflection"
