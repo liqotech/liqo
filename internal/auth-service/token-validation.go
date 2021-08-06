@@ -1,19 +1,18 @@
 package authservice
 
 import (
-	"net/http"
+	"fmt"
 
-	kerrors "k8s.io/apimachinery/pkg/api/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/klog"
+	"k8s.io/klog/v2"
 
 	"github.com/liqotech/liqo/pkg/auth"
+	autherrors "github.com/liqotech/liqo/pkg/auth/errors"
 )
 
 type credentialsValidator interface {
 	checkCredentials(roleRequest auth.IdentityRequest, configProvider auth.ConfigProvider, tokenManager tokenManager) error
 
-	validEmptyToken(configProvider auth.ConfigProvider) bool
+	isAuthenticationEnabled(configProvider auth.ConfigProvider) bool
 	validToken(tokenManager tokenManager, token string) (bool, error)
 }
 
@@ -22,11 +21,11 @@ type tokenValidator struct{}
 // checkCredentials checks if the provided token is valid for the local cluster given an IdentityRequest.
 func (tokenValidator *tokenValidator) checkCredentials(
 	roleRequest auth.IdentityRequest, configProvider auth.ConfigProvider, tokenManager tokenManager) error {
-	// token check fails if:
-	// 1. token is different from the correct one
-	// 2. token is empty but in the cluster config empty token is not allowed
+	// token check fails if the token is different from the correct one
+	// and the authentication is disabled
 
-	if tokenValidator.validEmptyToken(configProvider) {
+	if !tokenValidator.isAuthenticationEnabled(configProvider) {
+		klog.V(3).Infof("[%s] accepting credentials since authentication is disabled", roleRequest.GetClusterID())
 		return nil
 	}
 
@@ -36,20 +35,19 @@ func (tokenValidator *tokenValidator) checkCredentials(
 		return err
 	}
 	if !valid {
-		err = &kerrors.StatusError{ErrStatus: metav1.Status{
-			Status: metav1.StatusFailure,
-			Code:   http.StatusForbidden,
-			Reason: metav1.StatusReasonForbidden,
-		}}
+		err = &autherrors.AuthenticationFailedError{
+			Reason: fmt.Sprintf("invalid token \"%s\"", roleRequest.GetToken()),
+		}
 		klog.Error(err)
 		return err
 	}
 	return nil
 }
 
-// validEmptyToken checks if the empty token is accepted.
-func (tokenValidator *tokenValidator) validEmptyToken(configProvider auth.ConfigProvider) bool {
-	return configProvider.GetAuthConfig().AllowEmptyToken
+// isAuthenticationEnabled checks if the empty token is accepted.
+func (tokenValidator *tokenValidator) isAuthenticationEnabled(configProvider auth.ConfigProvider) bool {
+	cnf := configProvider.GetAuthConfig()
+	return cnf.EnableAuthentication != nil && *cnf.EnableAuthentication
 }
 
 // validToken checks if the token provided is valid.

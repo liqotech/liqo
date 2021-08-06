@@ -165,9 +165,10 @@ type PeeringPermission struct {
 
 // AuthConfig defines the configuration of the Authentication Server.
 type AuthConfig struct {
-	// Allow remote clusters to get an identity with an empty token
-	// +kubebuilder:default=false
-	AllowEmptyToken bool `json:"allowEmptyToken,omitempty"`
+	// Ask to remote clusters to provide a token to obtain an identity.
+	// +kubebuilder:default=true
+	// +kubebuilder:validation:Optional
+	EnableAuthentication *bool `json:"enableAuthentication"`
 
 	// Set the ClusterRoles to bind in the different peering stages
 	PeeringPermission *PeeringPermission `json:"peeringPermission,omitempty"`

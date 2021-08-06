@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"github.com/grandcat/zeroconf"
-	"k8s.io/klog"
+	"k8s.io/klog/v2"
 )
 
 // AuthData contains the information exchanged with the discovery methods on how to contact a remote Authentication Service.

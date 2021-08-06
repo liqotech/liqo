@@ -14,8 +14,6 @@ const (
 	DiscoveryTypeLabel = "discovery.liqo.io/discovery-type"
 	// SearchDomainLabel used to mark the search domain linked to the foreign cluster.
 	SearchDomainLabel = "discovery.liqo.io/searchdomain"
-	// LiqoManagedLabel used to mark the resources managed by Liqo.
-	LiqoManagedLabel = "discovery.liqo.io/liqo-managed"
 	// GarbageCollection is finalizer used to mark the resources managed by Liqo that needs an explicit garbage collection.
 	GarbageCollection = "discovery.liqo.io/garbage-collection"
 )

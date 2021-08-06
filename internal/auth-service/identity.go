@@ -8,9 +8,10 @@ import (
 	"github.com/julienschmidt/httprouter"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/klog"
+	"k8s.io/klog/v2"
 
 	"github.com/liqotech/liqo/pkg/auth"
+	autherrors "github.com/liqotech/liqo/pkg/auth/errors"
 )
 
 // identity handles the certificate identity http request.
@@ -26,6 +27,9 @@ func (authService *Controller) identity(w http.ResponseWriter, r *http.Request, 
 	err = json.Unmarshal(bytes, &identityRequest)
 	if err != nil {
 		klog.Error(err)
+		err = &autherrors.ClientError{
+			Reason: err.Error(),
+		}
 		authService.handleError(w, err)
 		return
 	}

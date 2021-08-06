@@ -49,10 +49,10 @@ spec:
                 description: AuthConfig defines the configuration of the Authentication
                   Server.
                 properties:
-                  allowEmptyToken:
-                    default: false
-                    description: Allow remote clusters to get an identity with an
-                      empty token
+                  enableAuthentication:
+                    default: true
+                    description: Ask to remote clusters to provide a token to obtain
+                      an identity.
                     type: boolean
                   peeringPermission:
                     description: Set the ClusterRoles to bind in the different peering

@@ -27,10 +27,10 @@ const (
 	identityAcceptedMessage = "The Identity has been correctly accepted by the remote cluster"
 
 	identityDeniedEmptyTokenReason  = "IdentityEmptyDenied"
-	identityDeniedEmptyTokenMessage = "The remote cluster denied the empty token authentication method."
+	identityDeniedEmptyTokenMessage = "The remote cluster requires cluster authentication to be enabled: %v"
 
 	identityDeniedReason  = "IdentityDenied"
-	identityDeniedMessage = "The remote cluster denied the authentication token provided."
+	identityDeniedMessage = "Cluster authentication denied by the remote cluster: %v"
 )
 
 // ensureRemoteIdentity tries to fetch the remote identity from the secret, if it is not found
@@ -49,7 +49,7 @@ func (r *ForeignClusterReconciler) ensureRemoteIdentity(ctx context.Context,
 			identityAcceptedReason,
 			identityAcceptedMessage)
 	} else {
-		_, err = r.validateIdentity(foreignCluster)
+		err = r.validateIdentity(foreignCluster)
 		if err != nil {
 			klog.Error(err)
 			return err
@@ -99,51 +99,50 @@ func (r *ForeignClusterReconciler) getAuthToken(fc *discoveryv1alpha1.ForeignClu
 }
 
 // validateIdentity sends an HTTP request to validate the identity for the remote cluster (Certificate).
-func (r *ForeignClusterReconciler) validateIdentity(fc *discoveryv1alpha1.ForeignCluster) (
-	authStatus discoveryv1alpha1.PeeringConditionStatusType, err error) {
+func (r *ForeignClusterReconciler) validateIdentity(fc *discoveryv1alpha1.ForeignCluster) error {
 	remoteClusterID := fc.Spec.ClusterIdentity.ClusterID
 	token := r.getAuthToken(fc)
 
-	_, err = r.identityManager.CreateIdentity(remoteClusterID)
+	_, err := r.identityManager.CreateIdentity(remoteClusterID)
 	if err != nil {
 		klog.Error(err)
-		return discoveryv1alpha1.PeeringConditionStatusPending, err
+		return err
 	}
 
 	csr, err := r.identityManager.GetSigningRequest(remoteClusterID)
 	if err != nil {
 		klog.Error(err)
-		return discoveryv1alpha1.PeeringConditionStatusPending, err
+		return err
 	}
 
 	request := auth.NewCertificateIdentityRequest(r.clusterID.GetClusterID(), token, csr)
-	responseBytes, authStatus, err := sendIdentityRequest(request, fc)
+	responseBytes, err := sendIdentityRequest(request, fc)
 	if err != nil {
 		klog.Error(err)
-		return discoveryv1alpha1.PeeringConditionStatusPending, err
+		return err
 	}
 
 	response := auth.CertificateIdentityResponse{}
 	if err = json.Unmarshal(responseBytes, &response); err != nil {
 		klog.Error(err)
-		return discoveryv1alpha1.PeeringConditionStatusPending, err
+		return err
 	}
 
 	if err = r.identityManager.StoreCertificate(remoteClusterID, &response); err != nil {
 		klog.Error(err)
-		return discoveryv1alpha1.PeeringConditionStatusPending, err
+		return err
 	}
 
-	return authStatus, nil
+	return nil
 }
 
 // sendIdentityRequest sends an HTTP request to the remote cluster.
 func sendIdentityRequest(request auth.IdentityRequest, fc *discoveryv1alpha1.ForeignCluster) (
-	[]byte, discoveryv1alpha1.PeeringConditionStatusType, error) {
+	[]byte, error) {
 	jsonRequest, err := json.Marshal(request)
 	if err != nil {
 		klog.Error(err)
-		return nil, discoveryv1alpha1.PeeringConditionStatusPending, err
+		return nil, err
 	}
 	klog.V(4).Infof("[%v] Sending json request: %v", fc.Spec.ClusterIdentity.ClusterID, string(jsonRequest))
 
@@ -153,13 +152,13 @@ func sendIdentityRequest(request auth.IdentityRequest, fc *discoveryv1alpha1.For
 		foreignclusterutils.InsecureSkipTLSVerify(fc))
 	if err != nil {
 		klog.Error(err)
-		return nil, discoveryv1alpha1.PeeringConditionStatusPending, err
+		return nil, err
 	}
 	defer resp.Body.Close()
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
 		klog.Error(err)
-		return nil, discoveryv1alpha1.PeeringConditionStatusPending, err
+		return nil, err
 	}
 
 	var authStatus discoveryv1alpha1.PeeringConditionStatusType
@@ -176,25 +175,25 @@ func sendIdentityRequest(request auth.IdentityRequest, fc *discoveryv1alpha1.For
 		klog.V(8).Infof("[%v] Received body: %v", fc.Spec.ClusterIdentity.ClusterID, string(body))
 		klog.V(4).Infof("[%v] Status Code: %v", fc.Spec.ClusterIdentity.ClusterID, resp.StatusCode)
 		klog.Infof("[%v] Identity Accepted", fc.Spec.ClusterIdentity.ClusterID)
-		return body, authStatus, nil
-	case http.StatusForbidden:
+		return body, nil
+	case http.StatusForbidden, http.StatusUnauthorized:
 		if request.GetToken() == "" {
 			authStatus = discoveryv1alpha1.PeeringConditionStatusEmptyDenied
 			reason = identityDeniedEmptyTokenReason
-			message = identityDeniedEmptyTokenMessage
+			message = fmt.Sprintf(identityDeniedEmptyTokenMessage, string(body))
 		} else {
 			authStatus = discoveryv1alpha1.PeeringConditionStatusDenied
 			reason = identityDeniedReason
-			message = identityDeniedMessage
+			message = fmt.Sprintf(identityDeniedMessage, string(body))
 		}
 		klog.Infof("[%v] Received body: %v", fc.Spec.ClusterIdentity.ClusterID, string(body))
 		klog.Infof("[%v] Status Code: %v", fc.Spec.ClusterIdentity.ClusterID, resp.StatusCode)
-		return nil, authStatus, nil
+		return nil, errors.New(string(body))
 	default:
 		authStatus = discoveryv1alpha1.PeeringConditionStatusPending
 		klog.Infof("[%v] Received body: %v", fc.Spec.ClusterIdentity.ClusterID, string(body))
 		klog.Infof("[%v] Status Code: %v", fc.Spec.ClusterIdentity.ClusterID, resp.StatusCode)
-		return nil, authStatus, errors.New(string(body))
+		return nil, errors.New(string(body))
 	}
 }
 

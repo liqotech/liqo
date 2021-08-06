@@ -15,6 +15,7 @@ import (
 	"k8s.io/client-go/rest"
 	"k8s.io/klog/v2"
 	"k8s.io/kubectl/pkg/scheme"
+	"k8s.io/utils/pointer"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/envtest"
 
@@ -245,6 +246,9 @@ func getClusterConfig() *configv1alpha1.ClusterConfig {
 				PeeringPhase: consts.PeeringPhaseAll,
 				Ownership:    consts.OwnershipLocal,
 			}}},
+			AuthConfig: configv1alpha1.AuthConfig{
+				EnableAuthentication: pointer.BoolPtr(false),
+			},
 		},
 	}
 }

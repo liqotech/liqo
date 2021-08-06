@@ -4,7 +4,7 @@
 |-----|------|---------|-------------|
 | apiServer.address | string | `""` | The address that must be used to contact your API server, it needs to be reachable from the clusters that you will peer with (defaults to your master IP) |
 | apiServer.trustedCA | bool | `false` | Indicates that the API Server is exposing a certificate issued by a trusted Certification Authority |
-| auth.config.allowEmptyToken | bool | `false` | Set to true to disable the authentication of discovered clusters. NB: use it only for testing installations |
+| auth.config.enableAuthentication | bool | `true` | Set to false to disable the authentication of discovered clusters. NB: use it only for testing installations |
 | auth.imageName | string | `"liqo/auth-service"` | auth image repository |
 | auth.ingress.annotations | object | `{}` | Auth ingress annotations |
 | auth.ingress.class | string | `""` | Set your ingress class |
@@ -56,9 +56,6 @@
 | networkManager.imageName | string | `"liqo/liqonet"` | networkManager image repository |
 | networkManager.pod.annotations | object | `{}` | networkManager pod annotations |
 | networkManager.pod.labels | object | `{}` | networkManager pod labels |
-| peeringRequest.imageName | string | `"liqo/peering-request-operator"` | peeringRequest image repository |
-| peeringRequest.pod.annotations | object | `{}` | peering request pod annotations |
-| peeringRequest.pod.labels | object | `{}` | peering request pod labels |
 | pullPolicy | string | `"IfNotPresent"` | The pullPolicy for liqo pods |
 | route.imageName | string | `"liqo/liqonet"` | route image repository |
 | route.pod.annotations | object | `{}` | route pod annotations |
