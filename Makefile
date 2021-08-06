@@ -87,6 +87,7 @@ endif
 
 # Run go fmt against code
 fmt: gci
+	go mod tidy
 	go fmt ./...
 	find $(pwd) -type f -name '*.go' -a ! -name '*zz_generated*' -exec gci -local github.com/liqotech/liqo -w {} \;
 
