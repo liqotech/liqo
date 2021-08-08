@@ -71,7 +71,7 @@ func createCluster() {
 		MetricsBindAddress: "0", // this avoids port binding collision
 	})
 	Expect(err).ToNot(HaveOccurred())
-	errorsmanagement.SetPanicMode(true)
+	errorsmanagement.SetPanicMode(false)
 	clientset = kubernetes.NewForConfigOrDie(k8sManager.GetConfig())
 	homeClusterID = clusterid.NewStaticClusterID("test-cluster").GetClusterID()
 	updater := OfferUpdater{}
