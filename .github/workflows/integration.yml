@@ -54,6 +54,20 @@ jobs:
            echo "::set-output name=repo-name::${{ github.event.client_payload.github.payload.repository.full_name }}"
         fi
 
+      # Since we are using a repository-dispatch event, we have to explicitly set a run check. We initialize it to a "pending" state.
+    - uses: octokit/request-action@v2.x
+      name: "Initialize run check to 'pending (For PR-only)"
+      with:
+        route: POST /repos/${{ github.repository }}/statuses/${{ steps.configure.outputs.commit-ref }}
+        state: "pending"
+        description: "Component build status"
+        context:  "Components building"
+        target_url: "https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+      env:
+        GITHUB_TOKEN: ${{ secrets.CI_TOKEN }}
+      if: ${{ github.event_name == 'repository_dispatch' }}
+
+
   build:
     runs-on: ubuntu-latest
     needs: configure
@@ -73,6 +87,7 @@ jobs:
         - virtual-kubelet
         - webhook-configuration
     steps:
+
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v1.0.1
         with:
@@ -133,11 +148,30 @@ jobs:
           rm -rf /tmp/.buildx-cache
           mv /tmp/.buildx-cache-new /tmp/.buildx-cache
 
-  e2e-test-trigger:
+  post-build:
      runs-on: ubuntu-latest
      needs: [build, configure]
-     if: github.event.client_payload.slash_command.command == 'test'
      steps:
+
+       # Since we are using a repository-dispatch event, we have to explicitly set a run check. We update it to the actual status.
+       - uses: octokit/request-action@v2.x
+         name: "Initialize run check to 'pending (For PR-only)"
+         with:
+           route: POST /repos/${{ github.repository }}/statuses/${{ needs.configure.outputs.commit-ref }}
+           state: "${{ needs.build.result }}"
+           description: "Component build status"
+           context: "Components building"
+           target_url: "https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+         env:
+           GITHUB_TOKEN: ${{ secrets.CI_TOKEN }}
+         if: always() && ${{ needs.build.result != 'cancelled' }} &&  ${{ github.event_name == 'repository_dispatch' }}
+
+  e2e-test-trigger:
+    runs-on: ubuntu-latest
+    needs: [build, configure]
+    if: github.event.client_payload.slash_command.command == 'test' || github.event_name == 'push'
+    steps:
+
        - name: Notify Event to E2E Tests
          uses: peter-evans/repository-dispatch@v1
          with:
@@ -148,7 +182,8 @@ jobs:
              {
                "master": "${{ needs.configure.outputs.master }}",
                "commit": "${{ needs.configure.outputs.commit-ref }}",
-               "repo-name": "${{ needs.configure.outputs.repo-name }}"
+               "repo-name": "${{ needs.configure.outputs.repo-name }}",
+               "base-repo": "${{ github.repository }}"
              }
 
   release:
@@ -156,6 +191,7 @@ jobs:
     needs: [build, configure]
     if: github.event_name == 'push' && github.event.repository.full_name == 'liqotech/liqo' && startsWith(github.ref, 'refs/tags/v')
     steps:
+
       - name: Checkout
         uses: actions/checkout@v2
         with:

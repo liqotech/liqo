@@ -35,6 +35,19 @@ jobs:
         fi
 
 
+    # Since we are using a repository-dispatch event, we have to explicitly set a run check. We initialize it to a "pending" state.
+    - uses: octokit/request-action@v2.x
+      name: "Initialize run check to 'pending'"
+      with:
+        route: POST /repos/${{ github.repository }}/statuses/${{ steps.configure.outputs.commit-ref }}
+        state: "pending"
+        description: "Unit Test status"
+        context:  "Unit Test"
+        target_url: "https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+      env:
+        GITHUB_TOKEN: ${{ secrets.CI_TOKEN }}
+      if: ${{ github.event_name == 'repository_dispatch' }}
+
   test:
     name: Launch Test
     runs-on: ubuntu-20.04
@@ -95,14 +108,27 @@ jobs:
       uses: addnab/docker-run-action@v3
       with:
         options: |
-            --mount type=bind,src=${{ github.workspace }},dst=/go/src/liqotech/liqo
-            --workdir /go/src/liqotech/liqo
-            --privileged=true
+          --mount type=bind,src=${{ github.workspace }},dst=/go/src/liqotech/liqo
+          --workdir /go/src/liqotech/liqo
+          --privileged=true
         image: liqo/liqo-test:${{ needs.configure.outputs.commit-ref }}
         run: |
           go-acc ./... --ignore liqo/test/e2e
 
+      # Since we are using a repository-dispatch event, we have to explicitly set a run check. We update it to the actual status.
+    - uses: octokit/request-action@v2.x
+      name: "Update run check status"
+      with:
+        route: POST /repos/${{ github.repository }}/statuses/${{ needs.configure.outputs.commit-ref }}
+        state: "${{ job.status }}"
+        description: "Unit Test status"
+        context: "Unit Test"
+        target_url: "https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+      env:
+        GITHUB_TOKEN: ${{ secrets.CI_TOKEN }}
+      if: always() && ${{ needs.build.result != 'cancelled' }} && ${{ github.event_name == 'repository_dispatch' }}
+
     - name: Send coverage
-      uses: shogo82148/actions-goveralls@v1.4.3
+      uses: shogo82148/actions-goveralls@v1.4.5
       with:
         path-to-profile: coverage.txt
