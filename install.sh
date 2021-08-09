@@ -33,17 +33,7 @@ set -o pipefail  # Fail if one of the piped commands fails
 #   - CLUSTER_NAME
 #     the mnemonic name assigned to this Liqo instance. Automatically generated if not specified.
 #
-#   - LIQO_INGRESS_CLASS
-#     the kubernetes ingress class to be used for the ingresses created by Liqo.
-#   - LIQO_APISERVER_ADDR
-#     the address where to contact the home API Server (defaults to the master node IP).
-#   - LIQO_APISERVER_PORT
-#     the address where to contact the home API Server (defaults to 6443).
-#   - LIQO_AUTHSERVER_ADDR
-#     the hostname assigned to the Liqo AuthService (exposed through an Ingress resource).
-#   - LIQO_AUTHSERVER_PORT
-#     the address where to contact the home API Server (exposed through an Ingress resource, defaults to 443).
-#
+
 #   - POD_CIDR
 #     the Pod CIDR of your cluster (e.g.; 10.0.0.0/16). Automatically detected if not configured.
 #   - SERVICE_CIDR
@@ -135,12 +125,6 @@ function help() {
 
 	  ${BOLD}LIQO_NAMESPACE${RESET}:     the Kubernetes namespace where all Liqo components are created (defaults to liqo)
 	  ${BOLD}CLUSTER_NAME${RESET}:       the mnemonic name assigned to this Liqo instance. Automatically generated if not specified.
-
-	  ${BOLD}LIQO_INGRESS_CLASS${RESET}:   the kubernetes ingress class to be used for the ingresses created by Liqo.
-	  ${BOLD}LIQO_APISERVER_ADDR${RESET}:  the address where to contact the home API Server (defaults to the master node IP).
-	  ${BOLD}LIQO_APISERVER_PORT${RESET}:  the address where to contact the home API Server (defaults to 6443).
-	  ${BOLD}LIQO_AUTHSERVER_ADDR${RESET}: the hostname assigned to the Liqo AuthService (exposed through an Ingress resource).
-	  ${BOLD}LIQO_AUTHSERVER_PORT${RESET}: the address where to contact the home API Server (exposed through an Ingress resource, defaults to 443).
 
 	  ${BOLD}POD_CIDR${RESET}:           the Pod CIDR of your cluster (e.g.; 10.0.0.0/16). Automatically detected if not configured.
 	  ${BOLD}SERVICE_CIDR${RESET}:       the Service CIDR of your cluster (e.g.; 10.96.0.0/12). Automatically detected if not configured.
@@ -423,24 +407,6 @@ function configure_installation_variables() {
 				"Please, manually specify it with 'export SERVICE_CIDR=...' before executing again this script"
 	fi
 	info "[INSTALL] [CONFIGURE]" "Service CIDR: ${SERVICE_CIDR}"
-
-	# Set variables for kubernetes ingress
-	if [ -z "${LIQO_AUTHSERVER_ADDR:-}" ]; then
-	  LIQO_ENABLE_INGRESS=""
-	else
-	  LIQO_ENABLE_INGRESS="true"
-	fi
-	if [ -n "${LIQO_AUTHSERVER_ADDR:-}" ]; then
-	  LIQO_AUTHSERVER_PORT="${LIQO_AUTHSERVER_PORT:-"443"}"
-	fi
-	if [ -n "${LIQO_APISERVER_ADDR:-}" ]; then
-	  LIQO_APISERVER_PORT="${LIQO_APISERVER_PORT:-"6443"}"
-	fi
-	if [ -n "${LIQO_ENABLE_INGRESS:-}" ]; then
-	  info "[INSTALL] [CONFIGURE]" "Ingress Class: ${LIQO_INGRESS_CLASS:-"default"}"
-	  info "[INSTALL] [CONFIGURE]" "AuthServer: ${LIQO_AUTHSERVER_ADDR}:${LIQO_AUTHSERVER_PORT}"
-	  info "[INSTALL] [CONFIGURE]" "APIServer: ${LIQO_APISERVER_ADDR}:${LIQO_APISERVER_PORT}"
-	fi
 }
 
 function install_liqo() {
@@ -457,13 +423,9 @@ function install_liqo() {
 		--set tag="${LIQO_IMAGE_VERSION}"  --set discovery.Config.clusterName="${CLUSTER_NAME}" \
 		--set networkManager.config.podCIDR="${POD_CIDR}" --set networkManager.config.serviceCIDR="${SERVICE_CIDR}" \
 		--set auth.config.enableAuthentication=false \
-		--set auth.ingress.enable="${LIQO_ENABLE_INGRESS:-}" \
-		--set auth.ingress.host="${LIQO_AUTHSERVER_ADDR:-}" \
-		--set auth.ingress.class="${LIQO_INGRESS_CLASS:-}" \
-		--set apiServer.address="${LIQO_APISERVER_ADDR:-}" \
-		--set auth.ingress.host="${LIQO_AUTHSERVER_ADDR:-}" \
-		--set auth.portOverride="${LIQO_AUTHSERVER_PORT:-}" >/dev/null ||
-			fatal "[INSTALL]" "Something went wrong while installing Liqo"
+		--set auth.service.type="NodePort" \
+		--set gateway.service.type="NodePort" \
+        > /dev/null || fatal "[INSTALL]" "Something went wrong while installing Liqo"
 
 	info "[INSTALL]" "Hooray! Liqo is now installed on your cluster"
 }

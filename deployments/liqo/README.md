@@ -15,7 +15,7 @@
 | auth.pod.labels | object | `{}` | auth pod labels |
 | auth.portOverride | string | `""` | Overrides the port were your service is available, you should configure it if behind a NAT or using an Ingress with a port different from 443. |
 | auth.service.annotations | object | `{}` | auth service annotations |
-| auth.service.type | string | `"NodePort"` | The type of service used to expose the Authentication Service If you are exposing this service with an Ingress consider to change it to ClusterIP, otherwise if you plan to use liqo over the Internet consider to change this field to "LoadBalancer". See https://doc.liqo.io/user/install/pre-install/ for more details. |
+| auth.service.type | string | `"LoadBalancer"` | The type of service used to expose the Authentication Service If you are exposing this service with an Ingress consider to change it to ClusterIP, otherwise if your cluster does not support LoadBalancer services consider to switch it to NodePort. See https://doc.liqo.io/installation/ for more details. |
 | auth.tls | bool | `true` | Enable TLS for the Authentication Service Pod (using a self-signed certificate). If you are exposing this service with an Ingress consider to disable it or add the appropriate annotations to the Ingress resource. |
 | awsConfig.accessKeyId | string | `""` | accessKeyID for the Liqo user |
 | awsConfig.clusterName | string | `""` | name of the EKS cluster |
@@ -47,7 +47,7 @@
 | gateway.pod.annotations | object | `{}` | gateway pod annotations |
 | gateway.pod.labels | object | `{}` | gateway pod labels |
 | gateway.service.annotations | object | `{}` |  |
-| gateway.service.type | string | `"NodePort"` | If you plan to use liqo over the Internet consider to change this field to "LoadBalancer". More generally, if your cluster nodes are not directly reachable by the cluster to whom you are peering then change it to "LoadBalancer" |
+| gateway.service.type | string | `"LoadBalancer"` | If you plan to use liqo over the Internet consider to change this field to "LoadBalancer". More generally, if your cluster nodes are directly reachable by the cluster to whom you are peering, you may change it to "NodePort". |
 | nameOverride | string | `""` | liqo name override |
 | networkManager.config.additionalPools | list | `[]` | Set of additional network pools.  Network pools are used to map a cluster network into another one in order to prevent conflicts. Default set of network pools is: [10.0.0.0/8, 192.168.0.0/16, 172.16.0.0/12] |
 | networkManager.config.podCIDR | string | `""` | The subnet used by the cluster for the pods, in CIDR notation |
