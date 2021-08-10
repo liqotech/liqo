@@ -3,153 +3,93 @@ title: Namespace Offloading
 weight: 3
 ---
 
-### What resources should you check if there are problems?
+This page collects some common questions about namespace replication in Liqo.
+You can check the [dedicated section](/usage/namespace_offloading) to configure the replication of your namespaces on remote clusters.
 
-### NamespaceOffloading resource
+### After having created the NamespaceOffloading resource, how can I check if the remote namespaces are created inside the clusters?
 
-#### Remote namespace conditions field
-
-If you want more detailed information about the offloading status, you can check the *remoteNamespaceConditions* field of the *namespaceOffloading* resource.
-The *namespaceOffloading* is inside your local namespace.
-Enter the namespace name in the following variable:
-
-```bash
-NAMESPACE=<your-namespace>
-echo "Namespace name: $NAMESPACE"
-```
-
-```bash
-kubectl get namespaceoffloadings offloading -n $NAMESPACE -o yaml
-```
-
-The *remoteNamespaceConditions* field is a map:
-
-* The key is the *remote cluster-id*.
-* The value is a *vector of conditions* for the namespace created inside that remote cluster.
-
-There are two types of *conditions*:
-
-**Ready condition**
-
-   | Value     | Description |
-   | -------   | ----------- |
-   | **True**  |  The namespace is successfully created inside the remote cluster. |
-   | **False** |  There was a problem during the remote namespace creation. |
-
-**OffloadingRequired condition**
-
-   | Value   | Description |
-   | ------- | ----------- |
-   | **True**  |  The remote namespace is requested to be created inside this cluster (the condition `OffloadingRequired = true` is removed when the remote namespace acquires a `Ready` condition). |
-   | **False** |  The remote namespace creation inside this cluster is not required. |
+You can check that the [NamespaceOffloading](/usage/namespace_offloading#custom-offloading) resource is correctly reconciled inside the local namespace you want to replicate:
 
 {{% notice note %}}
-The *remoteNamespaceCondition* syntax is the same of the standard [NamespaceCondition](https://pkg.go.dev/k8s.io/api/core/v1@v0.21.0#NamespaceCondition).
+The resource name must be *offloading*.
+Liqo controllers do not reconcile a resource with a different name.
 {{% /notice %}}
 
-#### OffloadingPhase field
+```bash
+kubectl get namespaceoffloadings offloading -n <your-namespace> -o yaml
+```
+In the status, you can observe how the namespace replication is progressing.
 
-Another important field of the *namespaceOffloading* status is the *offloadingPhase*.
-It informs you about the global offloading status.
+Liqo tracks the global status of the namespace reconciliation.
+More precisely, the resource offloading status called [OffloadingPhase](/usage/namespace_offloading#offloadingphase) can assume one of the following values in case of problems:
 
-The possible error values are:
-
-   | Value   | Description |
-   | ------- | ----------- |
-   | **AllFailed**  |  There was a problem during the creation of all remote namespaces. |
-   | **SomeFailed** |  There was a problem during the creation of some remote namespaces (one or more). |
-
-To have a more detailed description of the other values that the *offloadingPhase* can assume, look at the [NamespaceOffloading Status section](#).
-
-If instead you have selected some clusters, but the *offloadingPhase* is "**NoClusterSelected** ” then there may be an error in the specified *clusterSelector* syntax. 
-In this case, the *namespaceOffloading* resource should expose an annotation with key `liqo.io/scheduling-enabled` that signals the syntax error:
+| Value                  | Description |
+| -------                | ----------- |
+| **AllFailed**          |  There was a problem during the creation of all remote namespaces. |
+| **SomeFailed**         |  There was a problem during the creation of some remote namespaces (one or more). |
+| **NoClusterSelected**  |  No cluster matches the desired policies, or specified constraints do not follow some syntax rules.|       
 
 ```bash
-kubectl get namespaceoffloadings -n $NAMESPACE -o yaml | grep "liqo.io/scheduling-enabled:" -A 1
+kubectl get namespaceoffloadings offloading -n <your-namespace> -o=jsonpath="{['status.offloadingPhase']} "
 ```
 
-The *offloadingPhase* takes a few seconds to be updated, so initially, the value may not match the expected one.
+In the case of *NoClusterSelected* status, you are potentially facing:
 
-If, after a couple of seconds, the resource status is not correctly updated, then you can continue your troubleshooting.
+1. There may be an error in the specified [ClusterSelector](/usage/namespace_offloading#selecting-the-remote-clusters) syntax.
+   The NamespaceOffloading resource should expose an annotation with key `liqo.io/scheduling-enabled` that signals the syntax error:
+   
+   ```bash
+   kubectl get namespaceoffloadings -n <your-namespace> offloading -o=jsonpath="{['metadata.annotations.liqo.io/scheduling-enabled']}"
+   ```
 
-### NamespaceMap resource
+2. The [cluster labels](/usage/namespace_offloading#cluster-labels-concept) may not have been inserted correctly at Liqo install time.
+   You can check the labels that every virtual-node expose:
 
-The *remoteNamespacesCondition* field seen above is a map that has "*remote cluster-id* " as its keys. 
-You have to:
+   ```bash
+   kubectl get nodes --selector=liqo.io/type --show-labels
+   ```
 
-1. Identify the remote cluster that has problems.
-2. Get its cluster-id from the *remoteNamespacesCondition*.
-3. Enter the cluster-id in the following variable.
-      ```bash
-      REMOTE_CLUSTER_ID=<your-remote-cluster-id>
-      echo "Remote cluster-id: $REMOTE_CLUSTER_ID"
-      ```
+   The labels you get here are the same label you should use in the namespaceOffloading resource.
 
-For each remote cluster, there is a "*Liqo Tenant namespace*" containing several Liqo CRDs.
-We are interested in the resource called *NamespaceMap*.
-This resource keeps track of:
+   You can set the cluster labels at install time. For example, you may follow the [Liqo Extended tutorial](#).
 
-* All remote namespace creation requests (in the map “*Spec.DesiredMapping* ”).
-* The actual status of the remote namespaces (in the map “*Status.CurrentMapping* ”).
+In the case of *SomeFailed* or *AllFailed* status:
 
-Thanks to the remote cluster-id set previously, you just need to run the following commands to observe the correct NamespaceMap:
+1. The name of your local namespace could be too long.
+   Using the [DefaultName](/usage/namespace_offloading#selecting-the-namespace-mapping-strategy) policy, the remote namespace name cannot be longer than 63 characters according to the [RFC 1123](https://datatracker.ietf.org/doc/html/rfc1123).
+   Since the cluster-id is 37 characters long, the home namespace name can have at most 26 characters.
 
-```bash
-LIQO_TENANT_NAMESPACE=$(kubectl get namespace --show-labels | grep $REMOTE_CLUSTER_ID | cut -d " " -f1)
-echo "Liqo tenant namespace name: $LIQO_TENANT_NAMESPACE"
-NAMESPACEMAP=$(kubectl get namespacemaps -n $LIQO_TENANT_NAMESPACE | grep $REMOTE_CLUSTER_ID | cut -d " " -f1)
-echo "NamespaceMap name: $NAMESPACEMAP"
-kubectl get namespacemaps -n $LIQO_TENANT_NAMESPACE $NAMESPACEMAP -o yaml
-```
+2. A namespace with the same name as your remote namespace could already exist inside the target clusters.
+   To check which clusters have experienced problems during the namespace replication, you can look at the [RemoteNamespaceConditions](/usage/namespace_offloading#remotenamespacesconditions) in the NamespaceOffloading.
 
-#### DesiredMapping map
+   Liqo controllers create the remote namespaces with an annotation to distinguish them from others namespaces.
+   If you are not sure about the namespace creation, you can check the presence of that annotation.
+   This should have `liqo.io/remote-namespace` as key and as value, the *local cluster-id*:
+   
+   ```bash
+   kubectl get namespace <your-remote-namespace> -o=jsonpath="{['metadata.annotations.liqo.io/remote-namespace']}" 
+   ```
 
-In the *Spec.DesiredMapping* map there should be an entry like this:
+### The remote namespaces are correctly generated, but the pods deployed inside the local namespace remain pending or are not correctly scheduled
 
-```yaml
-spec:
-  desiredMapping:
-    ...
-    LocalNamespaceName: remoteNamespaceName
-    ...
-```
+When dealing with pods that remain pending, you are potentially facing one or more of the following issues:
 
-If you have trouble locating the entry use the following command:
+1. Make sure the NamespaceOffloading contains the desired [PodOffloadingStrategy](/usage/namespace_offloading#selecting-the-pod-offloading-strategy) value:
 
-```bash
-kubectl get namespacemaps -n $LIQO_TENANT_NAMESPACE $NAMESPACEMAP -o=jsonpath="{['spec.desiredMapping.$NAMESPACE']} "
-```
+    ```bash
+    kubectl get namespaceoffloadings offloading -n <your-namespace> -o=jsonpath="{['spec.podOffloadingStrategy']} "
+    ```
 
-If the result obtained is the remote namespace name, then the entry is present, and the creation request has been stored correctly.
+2. You can check if the [cluster labels](/usage/namespace_offloading#cluster-labels-concept) exported by the virtual-nodes are the ones desired:
 
-#### CurrentMapping map
+    ```bash
+    kubectl get nodes --selector=liqo.io/type --show-labels
+    ```
 
-In the *Status.CurrentMapping* map there should be an entry like this:
+   If you have problems setting the cluster labels at Liqo install time, follow the [Liqo Extended tutorial](#).
 
-```yaml
-spec:
-  currentMapping:
-    ...
-    LocalNamespaceName: 
-      phase: CreationLoopBackoff
-      remoteNamespace: remoteNamespaceName
-    ...
-```
 
-If you have trouble locating the entry use the following command:
-
-```bash
-kubectl get namespacemaps -n $LIQO_TENANT_NAMESPACE $NAMESPACEMAP -o=jsonpath="{['status.currentMapping.$NAMESPACE.phase']} "
-```
-
-As there is an error, the *phase* value should be "*CreationLoopBackoff* ”. 
-If this is the case, there could be two main reasons:
-
-* The name of your local namespace is too long, and with the addition of the cluster-id it exceeds the 63 characters limit imposed by the [RFC 1123](https://datatracker.ietf.org/doc/html/rfc1123). 
-* A remote namespace with that name already exists inside the remote cluster. 
-  To undestrand if the remote namespace was created by Liqo controllers, check the presence of the `liqo.io/remote-namespace` annotation.
-  This should have has as its value the local cluster-id:
-  
-  ```bash
-  kubectl get namespace <your-remote-namespace> -o yaml | grep "liqo.io/remote-namespace:"
-  ```
+3. The Liqo webhook adds NodeSelectorTerms at pod deployment to enforce the scheduling policies specified in the NamespaceOffloading.
+   If you have provided the pod with additional NodeSelectorTerms, it could remain pending because the resulting NodeSelectorTerms might be antithetical.
+   You can look at the [pod scheduling section](#) to better understand the NodeSelectorTerms imposed by the webhook for the different PodOffloadingStrategy.
+   

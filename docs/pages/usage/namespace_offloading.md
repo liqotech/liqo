@@ -100,6 +100,8 @@ If you want to modify its structure at run-time, you should delete the resource 
 This triggers the deletion of all remote "twin" namespaces and the creation of new ones.
 {{% /notice %}}
 
+### Cluster labels concept
+
 The MatchExpressions specified in the ClusterSelector term select labels attached to Liqo virtual nodes.
 More precisely, at Liqo installation time, you may identify a set of labels to expose the most relevant features of your cluster. 
 After the peering phase, the virtual node will expose those labels, enabling the possibility to select it during the offloading configuration. 
