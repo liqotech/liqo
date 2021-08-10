@@ -1,7 +1,5 @@
 package identitymanager
 
-const keyLength = 2048
-
 const defaultOrganization = "liqo.io"
 
 const (

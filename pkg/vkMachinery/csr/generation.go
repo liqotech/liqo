@@ -1,9 +1,8 @@
 package csr
 
 import (
-	"crypto/ecdsa"
-	"crypto/elliptic"
-	cryptorand "crypto/rand"
+	"crypto/ed25519"
+	"crypto/rand"
 	"crypto/x509"
 	"crypto/x509/pkix"
 	"encoding/pem"
@@ -21,11 +20,11 @@ import (
 // with the K8s kubelet-serving signer taking a name as input.
 func generateVKCertificateBundle(name string) (csrPEM, keyPEM []byte, err error) {
 	// Generate a new private key.
-	privateKey, err := ecdsa.GenerateKey(elliptic.P256(), cryptorand.Reader)
+	_, privateKey, err := ed25519.GenerateKey(rand.Reader)
 	if err != nil {
 		return nil, nil, fmt.Errorf("unable to generate a new private key: %w", err)
 	}
-	der, err := x509.MarshalECPrivateKey(privateKey)
+	der, err := x509.MarshalPKCS8PrivateKey(privateKey)
 	if err != nil {
 		return nil, nil, fmt.Errorf("unable to marshal the new key to DER: %w", err)
 	}
