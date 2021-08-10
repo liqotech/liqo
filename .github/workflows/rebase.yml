@@ -21,6 +21,28 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.CI_TOKEN }}
 
+      - name: Retrieve rebase commit hash
+        run: echo "::set-output name=rebasedcommit::$(git rev-parse HEAD)"
+        id: rebase-commit-extraction
+
+      - name: Repository Dispatch
+        uses: peter-evans/repository-dispatch@v1
+        with:
+          token: ${{ secrets.CI_TOKEN }}
+          event-type: test-command
+          client-payload: |
+            {
+            "pull_request": {
+                    "head": {
+                        "sha": "${{ steps.rebase-commit-extraction.outputs.rebasedcommit }}"
+                    }
+              },
+            "slash_command": {
+                    "command": "test"
+                }
+            }
+        if: github.event.client_payload.slash_command.args.named.test == 'true'
+
       - name: Set the reaction for the comment
         id: rebase_reaction
         run: |
