@@ -29,9 +29,7 @@ func (p *LiqoNodeProvider) StartProvider() (ready, stop chan struct{}) {
 			opt.LabelSelector = strings.Join([]string{crdreplicator.RemoteLabelSelector, p.foreignClusterID}, "=")
 		})
 	sharingInformer := sharingInformerFactory.ForResource(sharingv1alpha1.GroupVersion.WithResource(resource)).Informer()
-	sharingInformer.AddEventHandler(getEventHandler(func(event watch.Event) error {
-		return p.reconcileNodeFromResourceOffer(event)
-	}))
+	sharingInformer.AddEventHandler(getEventHandler(p.reconcileNodeFromResourceOffer))
 
 	tepInformerFactory := dynamicinformer.NewFilteredDynamicSharedInformerFactory(p.dynClient, p.resyncPeriod, namespace, func(opt *metav1.ListOptions) {
 		opt.LabelSelector = strings.Join([]string{consts.ClusterIDLabelName, p.foreignClusterID}, "=")
@@ -71,7 +69,7 @@ func getEventHandler(handler func(event watch.Event) error) cache.ResourceEventH
 			}
 			retryFunc(event)
 		},
-		UpdateFunc: func(oldObj interface{}, newObj interface{}) {
+		UpdateFunc: func(_ interface{}, newObj interface{}) {
 			event := watch.Event{
 				Object: newObj.(*unstructured.Unstructured),
 				Type:   watch.Modified,
