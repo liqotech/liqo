@@ -199,58 +199,13 @@ func (p *LiqoNodeProvider) updateFromTep(tep *netv1alpha1.TunnelEndpoint) error 
 }
 
 func (p *LiqoNodeProvider) updateNode() error {
-	if p.node.Status.Conditions == nil {
-		p.node.Status.Conditions = []v1.NodeCondition{
-			{
-				Type:   v1.NodeReady,
-				Status: v1.ConditionFalse,
-			},
-			{
-				Type:   v1.NodeMemoryPressure,
-				Status: v1.ConditionTrue,
-			},
-			{
-				Type:   v1.NodeDiskPressure,
-				Status: v1.ConditionFalse,
-			},
-			{
-				Type:   v1.NodePIDPressure,
-				Status: v1.ConditionFalse,
-			},
-			{
-				Type:   v1.NodeNetworkUnavailable,
-				Status: v1.ConditionTrue,
-			},
-		}
-	}
+	resourcesReady := areResourcesReady(p.node.Status.Allocatable)
 
-	networkReady := p.networkReady
-	resourceReady := areResourcesReady(p.node.Status.Allocatable)
-	ready := networkReady && resourceReady
-
-	for i, condition := range p.node.Status.Conditions {
-		if condition.Type == v1.NodeReady {
-			if ready {
-				p.node.Status.Conditions[i].Status = v1.ConditionTrue
-			} else {
-				p.node.Status.Conditions[i].Status = v1.ConditionFalse
-			}
-		}
-		if condition.Type == v1.NodeNetworkUnavailable {
-			if networkReady {
-				p.node.Status.Conditions[i].Status = v1.ConditionFalse
-			} else {
-				p.node.Status.Conditions[i].Status = v1.ConditionTrue
-			}
-		}
-		if condition.Type == v1.NodeMemoryPressure {
-			if resourceReady {
-				p.node.Status.Conditions[i].Status = v1.ConditionFalse
-			} else {
-				p.node.Status.Conditions[i].Status = v1.ConditionTrue
-			}
-		}
-	}
+	UpdateNodeCondition(p.node, v1.NodeReady, nodeReadyStatus(resourcesReady && p.networkReady))
+	UpdateNodeCondition(p.node, v1.NodeMemoryPressure, nodeMemoryPressureStatus(!resourcesReady))
+	UpdateNodeCondition(p.node, v1.NodeDiskPressure, nodeDiskPressureStatus(!resourcesReady))
+	UpdateNodeCondition(p.node, v1.NodePIDPressure, nodePIDPressureStatus(!resourcesReady))
+	UpdateNodeCondition(p.node, v1.NodeNetworkUnavailable, nodeNetworkUnavailableStatus(!p.networkReady))
 
 	p.onNodeChangeCallback(p.node.DeepCopy())
 	return nil

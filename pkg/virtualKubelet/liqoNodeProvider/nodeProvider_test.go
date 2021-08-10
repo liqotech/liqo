@@ -10,6 +10,8 @@ import (
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/ginkgo/extensions/table"
 	. "github.com/onsi/gomega"
+	. "github.com/onsi/gomega/gstruct"
+	. "github.com/onsi/gomega/types"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -105,11 +107,17 @@ var _ = Describe("NodeProvider", func() {
 	type nodeProviderTestcase struct {
 		resourceOffer      *sharingv1alpha1.ResourceOffer
 		tunnelEndpoint     *netv1alpha1.TunnelEndpoint
-		expectedConditions []v1.NodeCondition
+		expectedConditions []GomegaMatcher
+	}
+
+	ConditionMatcher := func(key v1.NodeConditionType, status v1.ConditionStatus) GomegaMatcher {
+		return MatchFields(IgnoreExtras, Fields{
+			"Type":   BeIdenticalTo(key),
+			"Status": BeIdenticalTo(status),
+		})
 	}
 
 	DescribeTable("NodeProvider table",
-
 		func(c nodeProviderTestcase) {
 			dynClient := dynamic.NewForConfigOrDie(cluster.GetCfg())
 
@@ -182,27 +190,12 @@ var _ = Describe("NodeProvider", func() {
 				},
 			},
 			tunnelEndpoint: nil,
-			expectedConditions: []v1.NodeCondition{
-				{
-					Type:   v1.NodeReady,
-					Status: v1.ConditionFalse,
-				},
-				{
-					Type:   v1.NodeMemoryPressure,
-					Status: v1.ConditionFalse,
-				},
-				{
-					Type:   v1.NodeDiskPressure,
-					Status: v1.ConditionFalse,
-				},
-				{
-					Type:   v1.NodePIDPressure,
-					Status: v1.ConditionFalse,
-				},
-				{
-					Type:   v1.NodeNetworkUnavailable,
-					Status: v1.ConditionTrue,
-				},
+			expectedConditions: []GomegaMatcher{
+				ConditionMatcher(v1.NodeReady, v1.ConditionFalse),
+				ConditionMatcher(v1.NodeMemoryPressure, v1.ConditionFalse),
+				ConditionMatcher(v1.NodeDiskPressure, v1.ConditionFalse),
+				ConditionMatcher(v1.NodePIDPressure, v1.ConditionFalse),
+				ConditionMatcher(v1.NodeNetworkUnavailable, v1.ConditionTrue),
 			},
 		}),
 
@@ -226,27 +219,12 @@ var _ = Describe("NodeProvider", func() {
 					},
 				},
 			},
-			expectedConditions: []v1.NodeCondition{
-				{
-					Type:   v1.NodeReady,
-					Status: v1.ConditionFalse,
-				},
-				{
-					Type:   v1.NodeMemoryPressure,
-					Status: v1.ConditionTrue,
-				},
-				{
-					Type:   v1.NodeDiskPressure,
-					Status: v1.ConditionFalse,
-				},
-				{
-					Type:   v1.NodePIDPressure,
-					Status: v1.ConditionFalse,
-				},
-				{
-					Type:   v1.NodeNetworkUnavailable,
-					Status: v1.ConditionFalse,
-				},
+			expectedConditions: []GomegaMatcher{
+				ConditionMatcher(v1.NodeReady, v1.ConditionFalse),
+				ConditionMatcher(v1.NodeMemoryPressure, v1.ConditionTrue),
+				ConditionMatcher(v1.NodeDiskPressure, v1.ConditionTrue),
+				ConditionMatcher(v1.NodePIDPressure, v1.ConditionTrue),
+				ConditionMatcher(v1.NodeNetworkUnavailable, v1.ConditionFalse),
 			},
 		}),
 
@@ -291,27 +269,12 @@ var _ = Describe("NodeProvider", func() {
 					},
 				},
 			},
-			expectedConditions: []v1.NodeCondition{
-				{
-					Type:   v1.NodeReady,
-					Status: v1.ConditionTrue,
-				},
-				{
-					Type:   v1.NodeMemoryPressure,
-					Status: v1.ConditionFalse,
-				},
-				{
-					Type:   v1.NodeDiskPressure,
-					Status: v1.ConditionFalse,
-				},
-				{
-					Type:   v1.NodePIDPressure,
-					Status: v1.ConditionFalse,
-				},
-				{
-					Type:   v1.NodeNetworkUnavailable,
-					Status: v1.ConditionFalse,
-				},
+			expectedConditions: []GomegaMatcher{
+				ConditionMatcher(v1.NodeReady, v1.ConditionTrue),
+				ConditionMatcher(v1.NodeMemoryPressure, v1.ConditionFalse),
+				ConditionMatcher(v1.NodeDiskPressure, v1.ConditionFalse),
+				ConditionMatcher(v1.NodePIDPressure, v1.ConditionFalse),
+				ConditionMatcher(v1.NodeNetworkUnavailable, v1.ConditionFalse),
 			},
 		}),
 	)
