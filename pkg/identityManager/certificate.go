@@ -2,8 +2,8 @@ package identitymanager
 
 import (
 	"context"
+	"crypto/ed25519"
 	"crypto/rand"
-	"crypto/rsa"
 	"crypto/x509"
 	"crypto/x509/pkix"
 	"encoding/asn1"
@@ -155,7 +155,7 @@ func (certManager *identityManager) getSecretInNamespace(remoteClusterID, namesp
 
 // createCSR generates a key and a certificate signing request.
 func (certManager *identityManager) createCSR() (keyBytes, csrBytes []byte, err error) {
-	key, err := rsa.GenerateKey(rand.Reader, keyLength)
+	_, key, err := ed25519.GenerateKey(rand.Reader)
 	if err != nil {
 		klog.Error(err)
 		return nil, nil, err
@@ -175,7 +175,7 @@ func (certManager *identityManager) createCSR() (keyBytes, csrBytes []byte, err 
 
 	template := x509.CertificateRequest{
 		RawSubject:         asn1Subj,
-		SignatureAlgorithm: x509.SHA256WithRSA,
+		SignatureAlgorithm: x509.PureEd25519,
 	}
 
 	csrBytes, err = x509.CreateCertificateRequest(rand.Reader, &template, key)
@@ -188,7 +188,11 @@ func (certManager *identityManager) createCSR() (keyBytes, csrBytes []byte, err 
 		Bytes: csrBytes,
 	})
 
-	keyBytes = x509.MarshalPKCS1PrivateKey(key)
+	keyBytes, err = x509.MarshalPKCS8PrivateKey(key)
+	if err != nil {
+		klog.Error("Failed to marshal private key: %w", err)
+		return nil, nil, err
+	}
 	keyBytes = pem.EncodeToMemory(&pem.Block{
 		Type:  "PRIVATE KEY",
 		Bytes: keyBytes,

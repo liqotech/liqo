@@ -2,6 +2,7 @@ package identitymanager
 
 import (
 	"context"
+	"crypto/ed25519"
 	"crypto/x509"
 	"encoding/base64"
 	"encoding/pem"
@@ -131,7 +132,8 @@ var _ = Describe("IdentityManager", func() {
 			Expect(len(privateKey)).NotTo(Equal(0))
 
 			b, _ := pem.Decode(privateKey)
-			_, err = x509.ParsePKCS1PrivateKey(b.Bytes)
+			key, err := x509.ParsePKCS8PrivateKey(b.Bytes)
+			Expect(key).To(BeAssignableToTypeOf(ed25519.PrivateKey{}))
 			Expect(err).To(BeNil())
 		})
 

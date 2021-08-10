@@ -2,8 +2,8 @@ package authservice
 
 import (
 	"context"
+	"crypto/ed25519"
 	"crypto/rand"
-	"crypto/rsa"
 	"crypto/x509"
 	"crypto/x509/pkix"
 	"encoding/asn1"
@@ -62,7 +62,7 @@ func (man *tokenManagerMock) createToken() error {
 
 // getCSR get a CertificateSigningRequest for testing purposes
 func getCSR(localClusterID string) (csrBytes []byte, err error) {
-	key, err := rsa.GenerateKey(rand.Reader, 2048)
+	_, key, err := ed25519.GenerateKey(rand.Reader)
 	if err != nil {
 		klog.Error(err)
 		return nil, err
@@ -82,7 +82,7 @@ func getCSR(localClusterID string) (csrBytes []byte, err error) {
 
 	template := x509.CertificateRequest{
 		RawSubject:         asn1Subj,
-		SignatureAlgorithm: x509.SHA256WithRSA,
+		SignatureAlgorithm: x509.PureEd25519,
 	}
 
 	csrBytes, err = x509.CreateCertificateRequest(rand.Reader, &template, key)

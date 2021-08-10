@@ -2,8 +2,8 @@ package webhookConfiguration
 
 import (
 	"bytes"
+	"crypto/ed25519"
 	cryptorand "crypto/rand"
-	"crypto/rsa"
 	"crypto/x509"
 	"crypto/x509/pkix"
 	"encoding/base64"
@@ -49,14 +49,14 @@ func NewSecrets(name string) (*SecretsType, error) {
 	}
 
 	// CA private key
-	caPrivKey, err := rsa.GenerateKey(cryptorand.Reader, 4096)
+	caPublicKey, caPrivKey, err := ed25519.GenerateKey(cryptorand.Reader)
 	if err != nil {
 		return nil, err
 	}
 
 	klog.Info("self-signing CA")
 	// Self signed CA certificate
-	caBytes, err := x509.CreateCertificate(cryptorand.Reader, ca, ca, &caPrivKey.PublicKey, caPrivKey)
+	caBytes, err := x509.CreateCertificate(cryptorand.Reader, ca, ca, caPublicKey, caPrivKey)
 	if err != nil {
 		return nil, err
 	}
@@ -83,14 +83,14 @@ func NewSecrets(name string) (*SecretsType, error) {
 	}
 
 	// server private key
-	serverPrivKey, err := rsa.GenerateKey(cryptorand.Reader, 4096)
+	serverPublicKey, serverPrivKey, err := ed25519.GenerateKey(cryptorand.Reader)
 	if err != nil {
 		return nil, err
 	}
 
 	klog.Info("signing server certificate with CA")
 	// sign the server cert
-	serverCertBytes, err := x509.CreateCertificate(cryptorand.Reader, cert, ca, &serverPrivKey.PublicKey, caPrivKey)
+	serverCertBytes, err := x509.CreateCertificate(cryptorand.Reader, cert, ca, serverPublicKey, caPrivKey)
 	if err != nil {
 		return nil, err
 	}
@@ -114,11 +114,14 @@ func NewSecrets(name string) (*SecretsType, error) {
 	}
 
 	klog.Info("encoding server key")
+	keyBytes, err := x509.MarshalPKCS8PrivateKey(serverPrivKey)
+	if err != nil {
+		klog.Error("Failed to marshal private key: %w", err)
+		return nil, err
+	}
+
 	// PEM encode the server and key
-	if err = pem.Encode(secrets.serverKeyPEM, &pem.Block{
-		Type:  "RSA PRIVATE KEY",
-		Bytes: x509.MarshalPKCS1PrivateKey(serverPrivKey),
-	}); err != nil {
+	if err = pem.Encode(secrets.serverKeyPEM, &pem.Block{Type: "PRIVATE KEY", Bytes: keyBytes}); err != nil {
 		return nil, err
 	}
 
