@@ -1,4 +1,4 @@
-name: Test the current PR
+name: Unit Testing
 on:
   repository_dispatch:
     types:
@@ -115,6 +115,7 @@ jobs:
         run: |
           go-acc ./... --ignore liqo/test/e2e
 
+
       # Since we are using a repository-dispatch event, we have to explicitly set a run check. We update it to the actual status.
     - uses: octokit/request-action@v2.x
       name: "Update run check status"
@@ -126,7 +127,7 @@ jobs:
         target_url: "https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
       env:
         GITHUB_TOKEN: ${{ secrets.CI_TOKEN }}
-      if: always() && ${{ needs.build.result != 'cancelled' }} && ${{ github.event_name == 'repository_dispatch' }}
+      if: ${{ !cancelled() && github.event_name == 'repository_dispatch' }}
 
     - name: Send coverage
       uses: shogo82148/actions-goveralls@v1.4.5
