@@ -88,6 +88,8 @@ func main() {
 		"Enable leader election for controller manager. Enabling this will ensure there is only one active controller manager.")
 	flag.StringVar(&runAs, "run-as", liqoconst.LiqoGatewayOperatorName,
 		"The accepted values are: liqo-gateway, liqo-route, tunnelEndpointCreator-operator. The default value is \"liqo-gateway\"")
+
+	klog.InitFlags(nil)
 	flag.Parse()
 
 	switch runAs {

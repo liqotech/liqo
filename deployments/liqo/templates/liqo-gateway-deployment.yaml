@@ -35,8 +35,11 @@ spec:
           - containerPort: 5871
           command: ["/usr/bin/liqonet"]
           args:
-          - -run-as=liqo-gateway
-          - -leader-elect=true
+          - --run-as=liqo-gateway
+          - --leader-elect=true
+          {{- if .Values.gateway.pod.extraArgs }}
+          {{- toYaml .Values.gateway.pod.extraArgs | nindent 10 }}
+          {{- end }}
           resources:
             requests:
               cpu: 250m

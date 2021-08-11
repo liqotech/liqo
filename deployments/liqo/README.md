@@ -12,6 +12,7 @@
 | auth.ingress.host | string | `""` | Set the hostname for your ingress |
 | auth.initContainer.imageName | string | `"liqo/cert-creator"` | auth init container image repository |
 | auth.pod.annotations | object | `{}` | auth pod annotations |
+| auth.pod.extraArgs | list | `[]` | auth pod extra arguments |
 | auth.pod.labels | object | `{}` | auth pod labels |
 | auth.portOverride | string | `""` | Overrides the port were your service is available, you should configure it if behind a NAT or using an Ingress with a port different from 443. |
 | auth.service.annotations | object | `{}` | auth service annotations |
@@ -27,11 +28,13 @@
 | capsule.manager.options.capsuleUserGroups[1] | string | `"liqo.io"` |  |
 | controllerManager.config.enableBroadcaster | bool | `true` | If set to false, the remote clusters will not be able to leverage your resources, but you will still be able to use theirs. |
 | controllerManager.config.resourceSharingPercentage | int | `30` | It defines the percentage of available cluster resources that you are willing to share with foreign clusters. |
-| controllerManager.imageName | string | `"liqo/liqo-controller-manager"` | advertisement image repository |
-| controllerManager.pod.annotations | object | `{}` | advertisement pod annotations |
-| controllerManager.pod.labels | object | `{}` | advertisement pod labels |
+| controllerManager.imageName | string | `"liqo/liqo-controller-manager"` | controller-manager image repository |
+| controllerManager.pod.annotations | object | `{}` | controller-manager pod annotations |
+| controllerManager.pod.extraArgs | list | `[]` | controller-manager pod extra arguments |
+| controllerManager.pod.labels | object | `{}` | controller-manager pod labels |
 | crdReplicator.imageName | string | `"liqo/crd-replicator"` | crdReplicator image repository |
 | crdReplicator.pod.annotations | object | `{}` | crdReplicator pod annotations |
+| crdReplicator.pod.extraArgs | list | `[]` | crdReplicator pod extra arguments |
 | crdReplicator.pod.labels | object | `{}` | crdReplicator pod labels |
 | discovery.config.autojoin | bool | `true` | Automatically join discovered clusters |
 | discovery.config.clusterLabels | object | `{}` | A set of labels which characterizes the local cluster when exposed remotely as a virtual node. It is suggested to specify the distinguishing characteristics that may be used to decide whether to offload pods on this cluster. |
@@ -41,24 +44,28 @@
 | discovery.config.ttl | int | `90` | Time-to-live before an automatically discovered clusters is deleted from the list of available ones if no longer announced (in seconds) |
 | discovery.imageName | string | `"liqo/discovery"` | discovery image repository |
 | discovery.pod.annotations | object | `{}` | discovery pod annotations |
+| discovery.pod.extraArgs | list | `[]` | discovery pod extra arguments |
 | discovery.pod.labels | object | `{}` | discovery pod labels |
 | fullnameOverride | string | `""` | full liqo name override |
 | gateway.imageName | string | `"liqo/liqonet"` | gateway image repository |
 | gateway.pod.annotations | object | `{}` | gateway pod annotations |
+| gateway.pod.extraArgs | list | `[]` | gateway pod extra arguments |
 | gateway.pod.labels | object | `{}` | gateway pod labels |
 | gateway.service.annotations | object | `{}` |  |
 | gateway.service.type | string | `"LoadBalancer"` | If you plan to use liqo over the Internet consider to change this field to "LoadBalancer". More generally, if your cluster nodes are directly reachable by the cluster to whom you are peering, you may change it to "NodePort". |
 | nameOverride | string | `""` | liqo name override |
-| networkManager.config.additionalPools | list | `[]` | Set of additional network pools.  Network pools are used to map a cluster network into another one in order to prevent conflicts. Default set of network pools is: [10.0.0.0/8, 192.168.0.0/16, 172.16.0.0/12] |
+| networkManager.config.additionalPools | list | `[]` | Set of additional network pools. Network pools are used to map a cluster network into another one in order to prevent conflicts. Default set of network pools is: [10.0.0.0/8, 192.168.0.0/16, 172.16.0.0/12] |
 | networkManager.config.podCIDR | string | `""` | The subnet used by the cluster for the pods, in CIDR notation |
 | networkManager.config.reservedSubnets | list | `[]` | Usually the IPs used for the pods in k8s clusters belong to private subnets In order to prevent IP conflicting between locally used private subnets in your infrastructure and private subnets belonging to remote clusters you need tell liqo the subnets used in your cluster. E.g if your cluster nodes belong to the 192.168.2.0/24 subnet then you should add that subnet to the reservedSubnets. PodCIDR and serviceCIDR used in the local cluster are automatically added to the reserved list. |
 | networkManager.config.serviceCIDR | string | `""` | The subnet used by the cluster for the services, in CIDR notation |
 | networkManager.imageName | string | `"liqo/liqonet"` | networkManager image repository |
 | networkManager.pod.annotations | object | `{}` | networkManager pod annotations |
+| networkManager.pod.extraArgs | list | `[]` | networkManager pod extra arguments |
 | networkManager.pod.labels | object | `{}` | networkManager pod labels |
 | pullPolicy | string | `"IfNotPresent"` | The pullPolicy for liqo pods |
 | route.imageName | string | `"liqo/liqonet"` | route image repository |
 | route.pod.annotations | object | `{}` | route pod annotations |
+| route.pod.extraArgs | list | `[]` | route pod extra arguments |
 | route.pod.labels | object | `{}` | route pod labels |
 | tag | string | `""` | Images' tag to select a development version of liqo instead of a release |
 | virtualKubelet.imageName | string | `"liqo/virtual-kubelet"` | virtual kubelet image repository |
@@ -67,5 +74,6 @@
 | webhook.initContainer.imageName | string | `"liqo/webhook-configuration"` | webhook init container image repository |
 | webhook.mutatingWebhookConfiguration.annotations | object | `{}` | mutatingWebhookConfiguration annotations |
 | webhook.pod.annotations | object | `{}` | webhook pod annotations |
+| webhook.pod.extraArgs | list | `[]` | webhook pod extra arguments |
 | webhook.pod.labels | object | `{}` | webhook pod labels |
 | webhook.service.annotations | object | `{}` | webhook service annotations |

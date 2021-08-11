@@ -32,8 +32,7 @@ spec:
           image: {{ .Values.webhook.initContainer.imageName}}{{ include "liqo.suffix" $webhookConfig }}:{{ include "liqo.version" $webhookConfig }}
           imagePullPolicy: {{ .Values.pullPolicy }}
           args:
-            - "--webhook-name"
-            - {{ include "liqo.prefixedName" $webhookConfig }}
+            - --webhook-name={{ include "liqo.prefixedName" $webhookConfig }}
           env:
             - name: POD_NAME
               valueFrom:
@@ -54,6 +53,10 @@ spec:
         - name: {{ $webhookConfig.name }}
           image: {{ .Values.webhook.imageName }}{{ include "liqo.suffix" $webhookConfig }}:{{ include "liqo.version" $webhookConfig }}
           imagePullPolicy: {{ .Values.pullPolicy }}
+          {{- if .Values.webhook.pod.extraArgs }}
+          args:
+            {{- toYaml .Values.webhook.pod.extraArgs | nindent 12 }}
+          {{- end }}
           volumeMounts:
             - mountPath: /etc/ssl/liqo
               name: cert-volume
