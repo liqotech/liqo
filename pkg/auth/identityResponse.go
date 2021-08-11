@@ -10,7 +10,6 @@ import (
 	"k8s.io/klog/v2"
 
 	responsetypes "github.com/liqotech/liqo/pkg/identityManager/responseTypes"
-	"github.com/liqotech/liqo/pkg/kubeconfig"
 	"github.com/liqotech/liqo/pkg/utils"
 )
 
@@ -51,7 +50,7 @@ func NewCertificateIdentityResponse(
 
 	switch responseType {
 	case responsetypes.SigningRequestResponseCertificate:
-		apiServerURL, err := kubeconfig.GetApiServerURL(apiServerConfigProvider, clientset)
+		apiServerURL, err := utils.GetAPIServerURL(apiServerConfigProvider, clientset)
 		if err != nil {
 			klog.Error(err)
 			return nil, err

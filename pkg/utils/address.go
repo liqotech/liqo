@@ -3,6 +3,7 @@ package utils
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -11,6 +12,21 @@ import (
 
 	"github.com/liqotech/liqo/pkg/discovery"
 )
+
+// GetAPIServerURL retrieves the API server URL either from the configuration or selecting the IP address of a master node (with port 6443).
+func GetAPIServerURL(apiServerConfigProvider ApiServerConfigProvider, clientset kubernetes.Interface) (string, error) {
+	config := apiServerConfigProvider.GetAPIServerConfig()
+
+	address := config.Address
+	if address != "" {
+		if !strings.HasPrefix(address, "https://") {
+			address = fmt.Sprintf("https://%v", address)
+		}
+		return address, nil
+	}
+
+	return GetAPIServerAddressFromMasterNode(context.TODO(), clientset)
+}
 
 // GetAPIServerAddressFromMasterNode returns the API Server address using the IP of the
 // master node of this cluster. The port is always defaulted to 6443.
