@@ -30,8 +30,11 @@ spec:
           imagePullPolicy: {{ .Values.pullPolicy }}
           command: ["/usr/bin/discovery"]
           args:
-          - "--namespace=$(POD_NAMESPACE)"
-          - "--requeueAfter=30"
+          - --namespace=$(POD_NAMESPACE)
+          - --requeueAfter=30
+          {{- if .Values.discovery.pod.extraArgs }}
+          {{- toYaml .Values.discovery.pod.extraArgs | nindent 10 }}
+          {{- end }}
           env:
             - name: POD_NAMESPACE
               valueFrom:

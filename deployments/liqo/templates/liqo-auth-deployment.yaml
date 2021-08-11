@@ -61,25 +61,28 @@ spec:
           imagePullPolicy: {{ .Values.pullPolicy }}
           command: ["/usr/bin/auth-service"]
           args:
-          - "--namespace=$(POD_NAMESPACE)"
-          - "--resyncSeconds=30"
+          - --namespace=$(POD_NAMESPACE)
+          - --resyncSeconds=30
           {{- if .Values.awsConfig.accessKeyId }}
-          - "--awsAccessKeyId=$(ACCESS_KEY_ID)"
+          - --awsAccessKeyId=$(ACCESS_KEY_ID)
           {{- end }}
           {{- if .Values.awsConfig.secretAccessKey }}
-          - "--awsSecretAccessKey=$(SECRET_ACCESS_KEY)"
+          - --awsSecretAccessKey=$(SECRET_ACCESS_KEY)
           {{- end }}
           {{- if .Values.awsConfig.region }}
-          - "--awsRegion={{ .Values.awsConfig.region }}"
+          - --awsRegion={{ .Values.awsConfig.region }}
           {{- end }}
           {{- if .Values.awsConfig.clusterName }}
-          - "--awsClusterName={{ .Values.awsConfig.clusterName }}"
+          - --awsClusterName={{ .Values.awsConfig.clusterName }}
           {{- end }}
           {{- if not .Values.auth.tls}}
-          - "--listeningPort=5000"
+          - --listeningPort=5000
           {{- else }}
-          - "--listeningPort=443"
-          - "--useTls"
+          - --listeningPort=443
+          - --useTls
+          {{- end }}
+          {{- if .Values.auth.pod.extraArgs }}
+          {{- toYaml .Values.auth.pod.extraArgs | nindent 10 }}
           {{- end }}
           env:
             - name: POD_NAMESPACE

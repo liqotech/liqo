@@ -31,14 +31,13 @@ spec:
         name: {{ $ctrlManagerConfig.name }}
         command: ["/usr/bin/liqo-controller-manager"]
         args:
-          - "--cluster-id"
-          - "$(CLUSTER_ID)"
-          - "--liqo-namespace"
-          - "$(POD_NAMESPACE)"
-          - "--kubelet-image"
-          - {{ .Values.virtualKubelet.imageName }}{{ include "liqo.suffix" $ctrlManagerConfig }}:{{ include "liqo.version" $ctrlManagerConfig }}
-          - "--init-kubelet-image"
-          - {{ .Values.virtualKubelet.initContainer.imageName }}{{ include "liqo.suffix" $ctrlManagerConfig }}:{{ include "liqo.version" $ctrlManagerConfig }}
+          - --cluster-id=$(CLUSTER_ID)
+          - --liqo-namespace=$(POD_NAMESPACE)
+          - --kubelet-image={{ .Values.virtualKubelet.imageName }}{{ include "liqo.suffix" $ctrlManagerConfig }}:{{ include "liqo.version" $ctrlManagerConfig }}
+          - --init-kubelet-image={{ .Values.virtualKubelet.initContainer.imageName }}{{ include "liqo.suffix" $ctrlManagerConfig }}:{{ include "liqo.version" $ctrlManagerConfig }}
+          {{- if .Values.controllerManager.pod.extraArgs }}
+          {{- toYaml .Values.controllerManager.pod.extraArgs | nindent 10 }}
+          {{- end }}
         env:
           - name: CLUSTER_ID
             valueFrom:

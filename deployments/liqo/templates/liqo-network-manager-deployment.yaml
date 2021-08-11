@@ -33,7 +33,10 @@ spec:
             - name: ipam-api
               containerPort: 6000
           args:
-            - "-run-as=tunnelEndpointCreator-operator"
+            - --run-as=tunnelEndpointCreator-operator
+            {{- if .Values.networkManager.pod.extraArgs }}
+            {{- toYaml .Values.networkManager.pod.extraArgs | nindent 12 }}
+            {{- end }}
           resources:
             requests:
               cpu: 50m

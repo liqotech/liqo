@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"flag"
 	"os/signal"
 	"syscall"
 	"time"
@@ -14,6 +15,9 @@ import (
 const gracefulPeriod = 5 * time.Second
 
 func main() {
+	klog.InitFlags(nil)
+	flag.Parse()
+
 	config := &mutate.MutationConfig{}
 	setOptions(config)
 

@@ -13,7 +13,7 @@ spec:
     matchLabels:
       {{- include "liqo.selectorLabels" $crdReplicatorConfig | nindent 6 }}
   template:
-    metadata: 
+    metadata:
     {{- if .Values.crdReplicator.pod.annotations }}
       annotations:
         {{- toYaml .Values.crdReplicator.pod.annotations | nindent 8 }}
@@ -30,6 +30,10 @@ spec:
           imagePullPolicy: {{ .Values.pullPolicy }}
           name: {{ $crdReplicatorConfig.name }}
           command: ["/usr/bin/crd-replicator"]
+          {{- if .Values.crdReplicator.pod.extraArgs }}
+          args:
+            {{- toYaml .Values.crdReplicator.pod.extraArgs | nindent 12 }}
+          {{- end }}
           env:
             - name: NAMESPACE
               valueFrom:

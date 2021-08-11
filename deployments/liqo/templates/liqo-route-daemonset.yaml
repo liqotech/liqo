@@ -42,7 +42,11 @@ spec:
           imagePullPolicy: {{ .Values.pullPolicy }}
           name: {{ $routeConfig.name }}
           command: ["/usr/bin/liqonet"]
-          args: ["-run-as=liqo-route"]
+          args:
+          - --run-as=liqo-route
+          {{- if .Values.route.pod.extraArgs }}
+          {{- toYaml .Values.route.pod.extraArgs | nindent 10 }}
+          {{- end }}
           resources:
             requests:
               cpu: 100m

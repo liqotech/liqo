@@ -14,11 +14,13 @@ apiServer:
 
 controllerManager:
   pod:
-    # -- advertisement pod annotations
+    # -- controller-manager pod annotations
     annotations: {}
-    # -- advertisement pod labels
+    # -- controller-manager pod labels
     labels: {}
-  # -- advertisement image repository
+    # -- controller-manager pod extra arguments
+    extraArgs: []
+  # -- controller-manager image repository
   imageName: "liqo/liqo-controller-manager"
   config:
     # -- It defines the percentage of available cluster resources that you are willing to share with foreign clusters.
@@ -32,6 +34,8 @@ route:
     annotations: {}
     # -- route pod labels
     labels: {}
+    # -- route pod extra arguments
+    extraArgs: []
   # -- route image repository
   imageName: "liqo/liqonet"
 
@@ -41,6 +45,8 @@ gateway:
     annotations: {}
     # -- gateway pod labels
     labels: {}
+    # -- gateway pod extra arguments
+    extraArgs: []
   # -- gateway image repository
   imageName: "liqo/liqonet"
   service:
@@ -55,6 +61,8 @@ networkManager:
     annotations: {}
     # -- networkManager pod labels
     labels: {}
+    # -- networkManager pod extra arguments
+    extraArgs: []
   # -- networkManager image repository
   imageName: "liqo/liqonet"
   config:
@@ -67,7 +75,7 @@ networkManager:
     # you need tell liqo the subnets used in your cluster. E.g if your cluster nodes belong to the 192.168.2.0/24 subnet then
     # you should add that subnet to the reservedSubnets. PodCIDR and serviceCIDR used in the local cluster are automatically added to the reserved list.
     reservedSubnets: []
-    # -- Set of additional network pools. 
+    # -- Set of additional network pools.
     # Network pools are used to map a cluster network into another one in order to prevent conflicts.
     # Default set of network pools is: [10.0.0.0/8, 192.168.0.0/16, 172.16.0.0/12]
     additionalPools: []
@@ -78,6 +86,8 @@ crdReplicator:
     annotations: {}
     # -- crdReplicator pod labels
     labels: {}
+    # -- crdReplicator pod extra arguments
+    extraArgs: []
   # -- crdReplicator image repository
   imageName: "liqo/crd-replicator"
 
@@ -87,6 +97,8 @@ discovery:
     annotations: {}
     # -- discovery pod labels
     labels: {}
+    # -- discovery pod extra arguments
+    extraArgs: []
   # -- discovery image repository
   imageName: "liqo/discovery"
   config:
@@ -113,11 +125,13 @@ auth:
     annotations: {}
     # -- auth pod labels
     labels: {}
+    # -- auth pod extra arguments
+    extraArgs: []
   # -- auth image repository
   imageName: "liqo/auth-service"
   initContainer:
     # -- auth init container image repository
-    imageName: "liqo/cert-creator" 
+    imageName: "liqo/cert-creator"
   service:
     # -- The type of service used to expose the Authentication Service
     # If you are exposing this service with an Ingress consider to change it to ClusterIP,
@@ -150,6 +164,8 @@ webhook:
     annotations: {}
     # -- webhook pod labels
     labels: {}
+    # -- webhook pod extra arguments
+    extraArgs: []
   # -- webhook image repository
   imageName: "liqo/liqo-webhook"
   initContainer:
