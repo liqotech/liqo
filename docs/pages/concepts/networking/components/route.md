@@ -35,7 +35,7 @@ When the Liqo Route component starts it creates a VXLAN network interface named 
 
 #### Route Operator
 
-The Route Operator reconciles the [`tunnelendpoints.net.liqo.io`](https://github.com/liqotech/liqo/blob/master/apis/net/v1alpha1/tunnel_endpoint_types.go) custom resources (CR). For each [`tunnelendpoints.net.liqo.io`](https://github.com/liqotech/liqo/blob/master/apis/net/v1alpha1/tunnel_endpoint_types.go) instance it configures the routes and the policy routing rules based on the node where it is running:
+The Route Operator reconciles the `tunnelendpoints.net.liqo.io` custom resources (CR). For each `tunnelendpoints.net.liqo.io` instance it configures the routes and the policy routing rules based on the node where it is running:
 
 * same node as Liqo Gateway: routes and policy routing rules are configured to send all the traffic through the `liqo.host` network interface;
 * other nodes: routes and policy routing rules are configured to send the traffic to the remote VTEP on the node where the Liqo Gateway is running.
