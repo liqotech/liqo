@@ -92,11 +92,14 @@ var _ = Describe("ForeignClusterOperator", func() {
 		namespaceManager := tenantnamespace.NewTenantNamespaceManager(cluster.GetClient().Client())
 		identityManagerCtrl := identitymanager.NewCertificateIdentityManager(cluster.GetClient().Client(), cID, namespaceManager)
 
-		tenantNamespace, err = namespaceManager.CreateNamespace("foreign-cluster")
+		clusterID := "foreign-cluster"
+		tenantNamespace, err = namespaceManager.CreateNamespace(clusterID)
 		if err != nil {
 			By(err.Error())
 			os.Exit(1)
 		}
+		// Make sure the namespace has been cached for subsequent retrieval.
+		Eventually(func() (*v1.Namespace, error) { return namespaceManager.GetNamespace(clusterID) }).Should(Equal(tenantNamespace))
 
 		config.config = v1alpha1.DiscoveryConfig{
 			AuthService:         "_liqo_auth._tcp",
@@ -424,9 +427,11 @@ var _ = Describe("ForeignClusterOperator", func() {
 			Expect(err).To(BeNil())
 			Expect(foreignCluster.Status.TenantNamespace.Local).ToNot(Equal(""))
 
-			ns, err := controller.namespaceManager.GetNamespace(foreignCluster.Spec.ClusterIdentity.ClusterID)
-			Expect(err).To(BeNil())
-			Expect(ns).NotTo(BeNil())
+			var ns *v1.Namespace
+			Eventually(func() error {
+				ns, err = controller.namespaceManager.GetNamespace(foreignCluster.Spec.ClusterIdentity.ClusterID)
+				return err
+			}).Should(Succeed())
 
 			var namespace v1.Namespace
 			err = client.Get(ctx, machtypes.NamespacedName{Name: foreignCluster.Status.TenantNamespace.Local}, &namespace)

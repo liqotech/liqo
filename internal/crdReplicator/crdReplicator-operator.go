@@ -113,6 +113,7 @@ type Controller struct {
 // +kubebuilder:rbac:groups=core,namespace="do-not-care",resources=configmaps,verbs=get;list
 
 // identity management
+// +kubebuilder:rbac:groups=core,resources=namespaces,verbs=get;list;watch
 // +kubebuilder:rbac:groups=core,resources=secrets,verbs=get;list
 
 // Reconcile handles requests for subscribed types of object.

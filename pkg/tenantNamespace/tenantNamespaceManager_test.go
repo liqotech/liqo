@@ -55,7 +55,8 @@ var _ = Describe("TenantNamespace", func() {
 		}
 	})
 
-	It("Create Namespace", func() {
+	It("Should correctly create the namespace", func() {
+		By("Creating the namespace once")
 		ns, err := namespaceManager.CreateNamespace(clusterID)
 		Expect(err).To(BeNil())
 		Expect(ns).NotTo(BeNil())
@@ -64,17 +65,14 @@ var _ = Describe("TenantNamespace", func() {
 
 		_, ok := ns.Labels[discovery.TenantNamespaceLabel]
 		Expect(ok).To(BeTrue())
-	})
 
-	It("Create Namespace Twice", func() {
-		ns, err := namespaceManager.CreateNamespace(clusterID)
+		By("Checking the namespace can be correctly retrieved")
+		Eventually(func() (*v1.Namespace, error) { return namespaceManager.GetNamespace(clusterID) }).Should(Equal(ns))
+
+		By("Creating the namespace once more and checking it is still the original one")
+		ns2, err := namespaceManager.CreateNamespace(clusterID)
 		Expect(err).To(BeNil())
-		Expect(ns).NotTo(BeNil())
-		Expect(strings.HasPrefix(ns.Name, "liqo-tenant-")).To(BeTrue())
-		Expect(ns.Labels).NotTo(BeNil())
-
-		_, ok := ns.Labels[discovery.TenantNamespaceLabel]
-		Expect(ok).To(BeTrue())
+		Expect(ns2).To(Equal(ns))
 	})
 
 	It("Get Namespace", func() {
@@ -97,10 +95,10 @@ var _ = Describe("TenantNamespace", func() {
 		var client kubernetes.Interface
 		var namespace *v1.Namespace
 		var clusterRoles []*rbacv1.ClusterRole
-		var cnt int = 0
+		var cnt = 0
 
 		BeforeEach(func() {
-			cnt += 1
+			cnt++
 			clusterID = fmt.Sprintf("test-permission-%v", cnt)
 			client = cluster.GetClient().Client()
 
@@ -127,6 +125,9 @@ var _ = Describe("TenantNamespace", func() {
 			namespace, err = namespaceManager.CreateNamespace(clusterID)
 			Expect(err).To(BeNil())
 			Expect(namespace).NotTo(BeNil())
+
+			// Let wait for the namespace to be cached, to prevent race conditions.
+			Eventually(func() (*v1.Namespace, error) { return namespaceManager.GetNamespace(clusterID) }).Should(Equal(namespace))
 		})
 
 		AfterEach(func() {
