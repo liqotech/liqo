@@ -5,9 +5,7 @@ package utils
 import (
 	"context"
 	"crypto/tls"
-	"crypto/x509"
 	"encoding/json"
-	goerrors "errors"
 	"fmt"
 	"io/ioutil"
 	"net/http"
@@ -16,13 +14,6 @@ import (
 
 	"github.com/liqotech/liqo/pkg/auth"
 )
-
-// IsUnknownAuthority checks if the error is due to a TLS certificate signed by unknown authority.
-func IsUnknownAuthority(err error) bool {
-	var err509 x509.UnknownAuthorityError
-	var err509Hostname x509.HostnameError
-	return goerrors.As(err, &err509) || goerrors.As(err, &err509Hostname)
-}
 
 // GetClusterInfo contacts the remote cluster to get its info,
 // it returns also if the remote cluster exposes a trusted certificate.

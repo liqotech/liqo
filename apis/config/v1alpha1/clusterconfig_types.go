@@ -211,15 +211,6 @@ type DispatcherConfig struct {
 	ResourcesToReplicate []Resource `json:"resourcesToReplicate,omitempty"`
 }
 
-// DashboardConfig defines the configuration of the Dashboard.
-type DashboardConfig struct {
-	// Namespace defines the namespace LiqoDash resources belongs to.
-	Namespace string `json:"namespace"`
-	// AppLabel defines the value of the 'app' label. All LiqoDash
-	// related resources are labeled with it.
-	AppLabel string `json:"appLabel"`
-}
-
 // ClusterConfigStatus defines the observed state of ClusterConfig.
 type ClusterConfigStatus struct {
 }

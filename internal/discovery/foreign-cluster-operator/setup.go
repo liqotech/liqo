@@ -10,7 +10,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
-	nettypes "github.com/liqotech/liqo/apis/net/v1alpha1"
 	"github.com/liqotech/liqo/internal/discovery"
 	"github.com/liqotech/liqo/pkg/auth"
 	"github.com/liqotech/liqo/pkg/clusterid"
@@ -50,12 +49,6 @@ func StartOperator(
 		os.Exit(1)
 	}
 
-	networkClient, err := nettypes.CreateTunnelEndpointClient(kubeconfigPath)
-	if err != nil {
-		klog.Error(err, "unable to create local client for Networking")
-		os.Exit(1)
-	}
-
 	namespaceManager := tenantnamespace.NewTenantNamespaceManager(discoveryClient.Client())
 	idManager := identitymanager.NewCertificateIdentityManager(discoveryClient.Client(), localClusterID, namespaceManager)
 
@@ -63,7 +56,6 @@ func StartOperator(
 		mgr,
 		namespace,
 		discoveryClient,
-		networkClient,
 		localClusterID,
 		requeueAfter,
 		discoveryCtrl,
@@ -78,7 +70,7 @@ func StartOperator(
 
 func getForeignClusterReconciler(mgr manager.Manager,
 	namespace string,
-	client, networkClient *crdclient.CRDClient,
+	client *crdclient.CRDClient,
 	localClusterID clusterid.ClusterID,
 	requeueAfter time.Duration,
 	configProvider discovery.ConfigProvider,
@@ -90,7 +82,6 @@ func getForeignClusterReconciler(mgr manager.Manager,
 		Scheme:             mgr.GetScheme(),
 		Namespace:          namespace,
 		crdClient:          client,
-		networkClient:      networkClient,
 		clusterID:          localClusterID,
 		ForeignConfig:      nil,
 		RequeueAfter:       requeueAfter,

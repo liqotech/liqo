@@ -35,11 +35,6 @@ func (c *Cluster) GetClient() *crdclient.CRDClient {
 	return c.client
 }
 
-// GetNetClient returns the networking crd client.
-func (c *Cluster) GetNetClient() *crdclient.CRDClient {
-	return c.netClient
-}
-
 func (c *Cluster) GetCfg() *rest.Config {
 	return c.cfg
 }

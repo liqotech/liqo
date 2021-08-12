@@ -26,10 +26,7 @@ var _ = Describe("Namespace controller", func() {
 					Namespace: nameNamespaceTest,
 					Name:      liqoconst.DefaultNamespaceOffloadingName,
 				}, namespaceOffloading); err != nil {
-					if apierrors.IsNotFound(err) {
-						return true
-					}
-					return false
+					return apierrors.IsNotFound(err)
 				}
 				_ = k8sClient.Delete(context.TODO(), namespaceOffloading)
 				return false
@@ -147,10 +144,7 @@ var _ = Describe("Namespace controller", func() {
 					Namespace: nameNamespaceTest,
 					Name:      liqoconst.DefaultNamespaceOffloadingName,
 				}, namespaceOffloading)
-				if err != nil {
-					return false
-				}
-				return true
+				return err == nil
 			}, timeout/5, interval).Should(BeTrue())
 
 		})

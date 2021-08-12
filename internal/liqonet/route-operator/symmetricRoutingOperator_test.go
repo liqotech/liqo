@@ -17,7 +17,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	liqoerrors "github.com/liqotech/liqo/pkg/liqonet/errors"
 	"github.com/liqotech/liqo/pkg/liqonet/utils"
@@ -39,7 +38,6 @@ var (
 	srcReq     ctrl.Request
 	srcRoute   *netlink.Route
 	src        *SymmetricRoutingController
-	srcClient  client.Client
 )
 
 var _ = Describe("SymmetricRoutingOperator", func() {
