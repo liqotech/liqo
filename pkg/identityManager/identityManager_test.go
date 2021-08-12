@@ -98,6 +98,8 @@ var _ = Describe("IdentityManager", func() {
 			By(err.Error())
 			os.Exit(1)
 		}
+		// Make sure the namespace has been cached for subsequent retrieval.
+		Eventually(func() (*v1.Namespace, error) { return namespaceManager.GetNamespace(remoteClusterID) }).Should(Equal(namespace))
 	})
 
 	AfterSuite(func() {
@@ -192,14 +194,14 @@ var _ = Describe("IdentityManager", func() {
 		})
 
 		It("Retrieve Remote Certificate", func() {
-			certificate, err := identityMan.GetRemoteCertificate(remoteClusterID, base64.StdEncoding.EncodeToString(csrBytes))
+			certificate, err := identityMan.GetRemoteCertificate(remoteClusterID, namespace.Name, base64.StdEncoding.EncodeToString(csrBytes))
 			Expect(err).To(BeNil())
 			Expect(certificate).NotTo(BeNil())
 			Expect(certificate.Certificate).To(Equal([]byte(idManTest.FakeCRT)))
 		})
 
 		It("Retrieve Remote Certificate wrong clusterid", func() {
-			certificate, err := identityMan.GetRemoteCertificate("fake", base64.StdEncoding.EncodeToString(csrBytes))
+			certificate, err := identityMan.GetRemoteCertificate("fake", "fake", base64.StdEncoding.EncodeToString(csrBytes))
 			Expect(err).NotTo(BeNil())
 			Expect(kerrors.IsNotFound(err)).To(BeTrue())
 			Expect(kerrors.IsBadRequest(err)).To(BeFalse())
@@ -207,7 +209,7 @@ var _ = Describe("IdentityManager", func() {
 		})
 
 		It("Retrieve Remote Certificate wrong CSR", func() {
-			certificate, err := identityMan.GetRemoteCertificate(remoteClusterID, base64.StdEncoding.EncodeToString([]byte("fake")))
+			certificate, err := identityMan.GetRemoteCertificate(remoteClusterID, namespace.Name, base64.StdEncoding.EncodeToString([]byte("fake")))
 			Expect(err).NotTo(BeNil())
 			Expect(kerrors.IsNotFound(err)).To(BeFalse())
 			Expect(kerrors.IsBadRequest(err)).To(BeTrue())

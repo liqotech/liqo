@@ -9,26 +9,60 @@ import (
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/apimachinery/pkg/selection"
+	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
+	"k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes"
+	corev1listers "k8s.io/client-go/listers/core/v1"
 	"k8s.io/klog/v2"
 
 	"github.com/liqotech/liqo/pkg/discovery"
 )
 
 type tenantNamespaceManager struct {
-	client kubernetes.Interface
+	client          kubernetes.Interface
+	namespaceLister corev1listers.NamespaceLister
 }
 
 // NewTenantNamespaceManager creates a new TenantNamespaceManager object.
 func NewTenantNamespaceManager(client kubernetes.Interface) Manager {
+	// TODO: the context should be propagated from the caller. It is currently set here to avoid
+	// modifying all callers, since most to not even have a proper context themselves.
+	ctx := context.Background()
+
+	// Here, we create a new namepace lister, so that it is possible to perform cached get/list operations.
+	// The informer factory is configured with an appropriate filter to cache only tenant namespaces.
+	req, err := labels.NewRequirement(discovery.TenantNamespaceLabel, selection.Exists, []string{})
+	utilruntime.Must(err)
+
+	factory := informers.NewSharedInformerFactoryWithOptions(client, 0, informers.WithTweakListOptions(
+		func(lo *metav1.ListOptions) { lo.LabelSelector = labels.NewSelector().Add(*req).String() },
+	))
+	namespaceLister := factory.Core().V1().Namespaces().Lister()
+
+	factory.Start(ctx.Done())
+	factory.WaitForCacheSync(ctx.Done())
+
 	return &tenantNamespaceManager{
-		client: client,
+		client:          client,
+		namespaceLister: namespaceLister,
 	}
 }
 
 // CreateNamespace creates a new Tenant Namespace given the clusterid
 // This method is idempotent, multiple calls of it will not lead to multiple namespace creations.
 func (nm *tenantNamespaceManager) CreateNamespace(clusterID string) (ns *v1.Namespace, err error) {
+	// Let immediately check if the namespace already exists, since this is operation cached and thus fast
+	if ns, err = nm.GetNamespace(clusterID); err == nil {
+		return ns, nil
+	} else if !kerrors.IsNotFound(err) {
+		klog.Error(err)
+		return nil, err
+	}
+
+	// The namespace was not found, hence create it. Since GetNamespace was cached, a race condition might occur,
+	// and the creation might fail because the namespace already exists. Still, in this case the controller will
+	// exit with an error, and retry during the next iteration.
 	ns = &v1.Namespace{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: strings.Join([]string{tenantNamespaceRoot, clusterID}, "-"),
@@ -40,12 +74,7 @@ func (nm *tenantNamespaceManager) CreateNamespace(clusterID string) (ns *v1.Name
 	}
 
 	ns, err = nm.client.CoreV1().Namespaces().Create(context.TODO(), ns, metav1.CreateOptions{})
-	if kerrors.IsAlreadyExists(err) {
-		// the namespace already exists, get it
-		ns, err = nm.GetNamespace(clusterID)
-	}
 	if err != nil {
-		// in both cases, if the create or the get error is different from nil, print it and return
 		klog.Error(err)
 		return nil, err
 	}
@@ -56,23 +85,17 @@ func (nm *tenantNamespaceManager) CreateNamespace(clusterID string) (ns *v1.Name
 
 // GetNamespace gets a Tenant Namespace given the clusterid.
 func (nm *tenantNamespaceManager) GetNamespace(clusterID string) (*v1.Namespace, error) {
-	labelSelector := metav1.LabelSelector{
-		MatchLabels: map[string]string{
-			discovery.ClusterIDLabel:       clusterID,
-			discovery.TenantNamespaceLabel: "true",
-		},
-	}
+	req, err := labels.NewRequirement(discovery.ClusterIDLabel, selection.Equals, []string{clusterID})
+	utilruntime.Must(err)
 
-	namespaces, err := nm.client.CoreV1().Namespaces().List(context.TODO(), metav1.ListOptions{
-		LabelSelector: labels.Set(labelSelector.MatchLabels).String(),
-	})
+	namespaces, err := nm.namespaceLister.List(labels.NewSelector().Add(*req))
 	if err != nil {
 		klog.Error(err)
 		return nil, err
 	}
 
-	if nItems := len(namespaces.Items); nItems == 0 {
-		err = kerrors.NewNotFound(v1.Resource("Namespace"), clusterID)
+	if nItems := len(namespaces); nItems == 0 {
+		err = kerrors.NewNotFound(v1.Resource("Namespace"), strings.Join([]string{tenantNamespaceRoot, clusterID}, "-"))
 		// do not log it always, since it is also used in the preliminary stage of the create method
 		klog.V(4).Info(err)
 		return nil, err
@@ -81,5 +104,5 @@ func (nm *tenantNamespaceManager) GetNamespace(clusterID string) (*v1.Namespace,
 		klog.Error(err)
 		return nil, err
 	}
-	return &namespaces.Items[0], nil
+	return namespaces[0].DeepCopy(), nil
 }

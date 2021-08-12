@@ -78,7 +78,7 @@ func (authService *Controller) handleIdentity(
 
 	// check that there is no available certificate for that clusterID
 	if _, err = authService.identityManager.GetRemoteCertificate(
-		identityRequest.ClusterID, identityRequest.CertificateSigningRequest); err == nil {
+		identityRequest.ClusterID, namespace.Name, identityRequest.CertificateSigningRequest); err == nil {
 		klog.Info("multiple identity validations with unique clusterID")
 		err = &kerrors.StatusError{ErrStatus: metav1.Status{
 			Status: metav1.StatusFailure,

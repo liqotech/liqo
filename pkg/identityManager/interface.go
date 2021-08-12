@@ -26,6 +26,6 @@ type localManager interface {
 
 // interface that allows to manage the identity in the target cluster, where this identity has to be used.
 type identityProvider interface {
+	GetRemoteCertificate(clusterID, namespace, signingRequest string) (response *responsetypes.SigningRequestResponse, err error)
 	ApproveSigningRequest(clusterID, signingRequest string) (response *responsetypes.SigningRequestResponse, err error)
-	GetRemoteCertificate(clusterID, signingRequest string) (response *responsetypes.SigningRequestResponse, err error)
 }

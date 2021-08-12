@@ -32,8 +32,10 @@ import (
 	"k8s.io/client-go/util/retry"
 	"k8s.io/klog/v2"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
+	"sigs.k8s.io/controller-runtime/pkg/predicate"
 
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	netv1alpha1 "github.com/liqotech/liqo/apis/net/v1alpha1"
@@ -372,8 +374,10 @@ func (r *ForeignClusterReconciler) unpeerNamespaced(ctx context.Context,
 
 // SetupWithManager assigns the operator to a manager.
 func (r *ForeignClusterReconciler) SetupWithManager(mgr ctrl.Manager) error {
+	// Prevent triggering a reconciliation in case of status modifications only.
+	foreignClusterPredicate := predicate.Or(predicate.GenerationChangedPredicate{}, predicate.LabelChangedPredicate{})
 	return ctrl.NewControllerManagedBy(mgr).
-		For(&discoveryv1alpha1.ForeignCluster{}).
+		For(&discoveryv1alpha1.ForeignCluster{}, builder.WithPredicates(foreignClusterPredicate)).
 		Owns(&discoveryv1alpha1.ResourceRequest{}).
 		Complete(r)
 }

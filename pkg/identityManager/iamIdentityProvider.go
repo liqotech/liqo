@@ -35,7 +35,7 @@ type mapUser struct {
 	Groups   []string `json:"groups"`
 }
 
-func (identityProvider *iamIdentityProvider) GetRemoteCertificate(clusterID,
+func (identityProvider *iamIdentityProvider) GetRemoteCertificate(clusterID, namespace,
 	signingRequest string) (response *responsetypes.SigningRequestResponse, err error) {
 	// this method has no meaning for this identity provider
 	return response, kerrors.NewNotFound(schema.GroupResource{

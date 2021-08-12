@@ -37,15 +37,9 @@ type certificateIdentityProvider struct {
 
 // GetRemoteCertificate retrieves a certificate issued in the past,
 // given the clusterid and the signingRequest.
-func (identityProvider *certificateIdentityProvider) GetRemoteCertificate(clusterID,
+func (identityProvider *certificateIdentityProvider) GetRemoteCertificate(clusterID, namespace,
 	signingRequest string) (response *responsetypes.SigningRequestResponse, err error) {
-	namespace, err := identityProvider.namespaceManager.GetNamespace(clusterID)
-	if err != nil {
-		klog.Error(err)
-		return response, err
-	}
-
-	secret, err := identityProvider.client.CoreV1().Secrets(namespace.Name).Get(context.TODO(), remoteCertificateSecret, metav1.GetOptions{})
+	secret, err := identityProvider.client.CoreV1().Secrets(namespace).Get(context.TODO(), remoteCertificateSecret, metav1.GetOptions{})
 	if err != nil {
 		if kerrors.IsNotFound(err) {
 			klog.V(4).Info(err)
