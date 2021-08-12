@@ -27,14 +27,6 @@ func NewAuthData(address string, port int, ttl uint32) *AuthData {
 	}
 }
 
-// NewAuthDataTest creates a new AuthData struct for testing purposes.
-func NewAuthDataTest(address string, port int) *AuthData {
-	return &AuthData{
-		address: address,
-		port:    port,
-	}
-}
-
 // Get decodes and populates the AuthData struct given a discovery Controller and a DNS entry.
 func (authData *AuthData) Get(discovery *Controller, entry *zeroconf.ServiceEntry) error {
 	if discovery.isForeign(entry.AddrIPv4) {

@@ -116,7 +116,6 @@ var _ = Describe("ForeignClusterOperator", func() {
 			Scheme:           mgr.GetScheme(),
 			Namespace:        "default",
 			crdClient:        cluster.GetClient(),
-			networkClient:    cluster.GetNetClient(),
 			clusterID:        cID,
 			ForeignConfig:    cluster.GetCfg(),
 			RequeueAfter:     300,

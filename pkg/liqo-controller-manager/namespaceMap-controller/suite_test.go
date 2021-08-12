@@ -14,7 +14,6 @@ package namespacemapctrl
 
 import (
 	"context"
-	"flag"
 	"fmt"
 	"path/filepath"
 	"testing"
@@ -58,8 +57,6 @@ var (
 
 	nms *mapsv1alpha1.NamespaceMapList
 	nm1 *mapsv1alpha1.NamespaceMap
-
-	flags *flag.FlagSet
 )
 
 func TestAPIs(t *testing.T) {

@@ -51,9 +51,6 @@ import (
 	peeringconditionsutils "github.com/liqotech/liqo/pkg/utils/peeringConditions"
 )
 
-// FinalizerString is added as finalizer for peered ForeignClusters.
-const FinalizerString = "foreigncluster.discovery.liqo.io/peered"
-
 const (
 	noResourceRequestReason  = "NoResourceRequest"
 	noResourceRequestMessage = "No ResourceRequest found in the Tenant Namespace %v"
@@ -93,11 +90,10 @@ type ForeignClusterReconciler struct {
 	client.Client
 	Scheme *runtime.Scheme
 
-	Namespace     string
-	crdClient     *crdclient.CRDClient
-	networkClient *crdclient.CRDClient
-	clusterID     clusterid.ClusterID
-	RequeueAfter  time.Duration
+	Namespace    string
+	crdClient    *crdclient.CRDClient
+	clusterID    clusterid.ClusterID
+	RequeueAfter time.Duration
 
 	namespaceManager tenantnamespace.Manager
 	identityManager  identitymanager.IdentityManager
