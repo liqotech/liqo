@@ -182,8 +182,11 @@ func RemoteContainers(containers []corev1.Container, volumes []corev1.Volume) []
 		// Containers are reflected verbatim, except for the removal of the volume mounts
 		// referring to volumes that have been previously filtered.
 		containers[i].VolumeMounts = RemoteVolumeMounts(volumes, containers[i].VolumeMounts)
+		containers[i].Env = append(containers[i].Env, corev1.EnvVar{
+			Name:  "LIQO_CLUSTER_ID",
+			Value: RemoteClusterID,
+		})
 	}
-
 	return containers
 }
 
