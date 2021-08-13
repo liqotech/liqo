@@ -1,7 +1,10 @@
 package cmd
 
 import (
+	"flag"
+
 	"github.com/spf13/cobra"
+	"k8s.io/klog/v2"
 )
 
 // rootCmd represents the base command when called without any subcommands.
@@ -22,4 +25,10 @@ by allowing workloads offloading and resource management compliant with the stan
 // This is called by main.main(). It only needs to happen once to the rootCmd.
 func Execute() {
 	cobra.CheckErr(rootCmd.Execute())
+}
+
+func init() {
+	flagset := flag.NewFlagSet("klog", flag.PanicOnError)
+	klog.InitFlags(flagset)
+	rootCmd.PersistentFlags().AddGoFlagSet(flagset)
 }

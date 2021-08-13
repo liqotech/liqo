@@ -11,6 +11,7 @@ import (
 	"helm.sh/helm/v3/pkg/action"
 	"k8s.io/client-go/rest"
 
+	"github.com/liqotech/liqo/pkg/liqoctl/install/eks"
 	helmutils "github.com/liqotech/liqo/pkg/liqoctl/install/helm"
 	"github.com/liqotech/liqo/pkg/liqoctl/install/kubeadm"
 	"github.com/liqotech/liqo/pkg/liqoctl/install/provider"
@@ -18,10 +19,14 @@ import (
 )
 
 func getProviderInstance(providerType string) provider.InstallProviderInterface {
-	if providerType == "kubeadm" {
+	switch providerType {
+	case "kubeadm":
 		return kubeadm.NewProvider()
+	case "eks":
+		return eks.NewProvider()
+	default:
+		return nil
 	}
-	return nil
 }
 
 func initHelmClient(config *rest.Config) (*helm.HelmClient, error) {
