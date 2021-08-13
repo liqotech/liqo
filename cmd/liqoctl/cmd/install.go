@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"github.com/spf13/cobra"
+	"k8s.io/klog/v2"
 
 	"github.com/liqotech/liqo/pkg/liqoctl/install"
 )
@@ -18,4 +19,12 @@ func init() {
 	rootCmd.AddCommand(installCmd)
 
 	installCmd.Flags().StringP("provider", "p", "kubeadm", "The provider for the cluster")
+
+	for _, p := range providers {
+		initFunc, ok := providerInitFunc[p]
+		if !ok {
+			klog.Fatalf("unknown provider: %v", p)
+		}
+		initFunc(installCmd.Flags())
+	}
 }
