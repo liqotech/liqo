@@ -1,6 +1,8 @@
 package cmd
 
 import (
+	"context"
+
 	"github.com/spf13/cobra"
 	"k8s.io/klog/v2"
 
@@ -8,17 +10,19 @@ import (
 )
 
 // installCmd represents the generateInstall command.
-var installCmd = &cobra.Command{
-	Use:   "install",
-	Short: "Install Liqo on a selected cluster",
-	Long:  `Install Liqo on a selected cluster.`,
-	Run:   install.HandleInstallCommand,
-}
+func newInstallCommand(ctx context.Context) *cobra.Command {
+	var installCmd = &cobra.Command{
+		Use:   "install",
+		Short: install.LiqoctlInstallShortHelp,
+		Long:  install.LiqoctlInstallLongHelp,
+		Run: func(cmd *cobra.Command, args []string) {
+			install.HandleInstallCommand(ctx, cmd, args)
+		},
+	}
 
-func init() {
-	rootCmd.AddCommand(installCmd)
-
-	installCmd.Flags().StringP("provider", "p", "kubeadm", "The provider for the cluster")
+	installCmd.Flags().StringP("provider", "p", "kubeadm", "Select the cluster provider type")
+	installCmd.Flags().IntP("timeout", "t", 600, "Configure the timeout for the installation process in seconds (default: 600)")
+	installCmd.Flags().StringP("version", "", "", "Select the Liqo version (default: latest stable release)")
 
 	for _, p := range providers {
 		initFunc, ok := providerInitFunc[p]
@@ -27,4 +31,5 @@ func init() {
 		}
 		initFunc(installCmd.Flags())
 	}
+	return installCmd
 }
