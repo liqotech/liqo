@@ -185,7 +185,7 @@ func forgeVolumes(volumesIn []corev1.Volume) []corev1.Volume {
 			volumesOut = append(volumesOut, v)
 		}
 		// copy all volumes of type Secret except for the default token
-		if v.Secret != nil && !strings.Contains(v.Secret.SecretName, "default-token") {
+		if v.Secret != nil /* && !strings.Contains(v.Secret.SecretName, "default-token") */ {
 			volumesOut = append(volumesOut, v)
 		}
 	}
