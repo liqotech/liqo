@@ -3,7 +3,9 @@ module github.com/liqotech/liqo
 go 1.16
 
 require (
-	cloud.google.com/go v0.84.0 // indirect
+	github.com/Azure/azure-sdk-for-go v56.2.0+incompatible
+	github.com/Azure/go-autorest/autorest v0.11.19
+	github.com/Azure/go-autorest/autorest/azure/auth v0.5.8
 	github.com/aws/aws-sdk-go v1.39.4
 	github.com/clastix/capsule v0.1.0-rc2
 	github.com/containernetworking/plugins v0.8.6
