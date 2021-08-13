@@ -2,13 +2,7 @@ package authservice
 
 import (
 	"context"
-	"crypto/ed25519"
-	"crypto/rand"
-	"crypto/x509"
-	"crypto/x509/pkix"
-	"encoding/asn1"
 	"encoding/base64"
-	"encoding/pem"
 	"fmt"
 	"io/ioutil"
 	"net/http"
@@ -28,7 +22,6 @@ import (
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/informers"
 	"k8s.io/client-go/tools/cache"
-	"k8s.io/klog/v2"
 	"k8s.io/utils/pointer"
 
 	"github.com/liqotech/liqo/apis/config/v1alpha1"
@@ -58,43 +51,6 @@ func (man *tokenManagerMock) getToken() (string, error) {
 func (man *tokenManagerMock) createToken() error {
 	man.token = "token"
 	return nil
-}
-
-// getCSR get a CertificateSigningRequest for testing purposes
-func getCSR(localClusterID string) (csrBytes []byte, err error) {
-	_, key, err := ed25519.GenerateKey(rand.Reader)
-	if err != nil {
-		klog.Error(err)
-		return nil, err
-	}
-
-	subj := pkix.Name{
-		CommonName:   localClusterID,
-		Organization: []string{"Liqo"},
-	}
-	rawSubj := subj.ToRDNSequence()
-
-	asn1Subj, err := asn1.Marshal(rawSubj)
-	if err != nil {
-		klog.Error(err)
-		return nil, err
-	}
-
-	template := x509.CertificateRequest{
-		RawSubject:         asn1Subj,
-		SignatureAlgorithm: x509.PureEd25519,
-	}
-
-	csrBytes, err = x509.CreateCertificateRequest(rand.Reader, &template, key)
-	if err != nil {
-		klog.Error(err)
-		return nil, err
-	}
-	csrBytes = pem.EncodeToMemory(&pem.Block{
-		Type:  "CERTIFICATE REQUEST",
-		Bytes: csrBytes,
-	})
-	return csrBytes, nil
 }
 
 var _ = Describe("Auth", func() {
@@ -135,7 +91,8 @@ var _ = Describe("Auth", func() {
 		informerFactory.WaitForCacheSync(wait.NeverStop)
 
 		namespaceManager := tenantnamespace.NewTenantNamespaceManager(cluster.GetClient().Client())
-		identityManager := identitymanager.NewCertificateIdentityManager(cluster.GetClient().Client(), &clusterID, namespaceManager)
+		identityProvider := identitymanager.NewCertificateIdentityProvider(
+			context.Background(), cluster.GetClient().Client(), &clusterID, namespaceManager)
 
 		authService = Controller{
 			namespace:            "default",
@@ -144,7 +101,7 @@ var _ = Describe("Auth", func() {
 			secretInformer:       secretInformer,
 			localClusterID:       &clusterID,
 			namespaceManager:     namespaceManager,
-			identityManager:      identityManager,
+			identityProvider:     identityProvider,
 			useTLS:               false,
 			credentialsValidator: &tokenValidator{},
 			apiServerConfig: &v1alpha1.APIServerConfig{
@@ -278,9 +235,9 @@ var _ = Describe("Auth", func() {
 
 		DescribeTable("Certificate Identity Creation table",
 			func(c certificateTestcase) {
-				csr, err := getCSR(authService.localClusterID.GetClusterID())
+				req, err := testutil.FakeCSRRequest(authService.localClusterID.GetClusterID())
 				Expect(err).To(BeNil())
-				c.request.CertificateSigningRequest = base64.StdEncoding.EncodeToString(csr)
+				c.request.CertificateSigningRequest = base64.StdEncoding.EncodeToString(req)
 
 				response, err := authService.handleIdentity(context.TODO(), c.request)
 				Expect(err).To(c.expectedOutput)

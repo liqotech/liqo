@@ -88,7 +88,7 @@ func (authService *Controller) handleIdentity(
 	tracer.Step("Tenant namespace created")
 
 	// check that there is no available certificate for that clusterID
-	if _, err = authService.identityManager.GetRemoteCertificate(
+	if _, err = authService.identityProvider.GetRemoteCertificate(
 		identityRequest.ClusterID, namespace.Name, identityRequest.CertificateSigningRequest); err == nil {
 		klog.Info("multiple identity validations with unique clusterID")
 		err = &kerrors.StatusError{ErrStatus: metav1.Status{
@@ -105,7 +105,7 @@ func (authService *Controller) handleIdentity(
 	tracer.Step("Cluster ID uniqueness ensured")
 
 	// issue certificate request
-	identityResponse, err := authService.identityManager.ApproveSigningRequest(
+	identityResponse, err := authService.identityProvider.ApproveSigningRequest(
 		identityRequest.ClusterID, identityRequest.CertificateSigningRequest)
 	if err != nil {
 		klog.Error(err)

@@ -19,7 +19,7 @@ func (r *NamespaceMapReconciler) checkRemoteClientPresence(remoteClusterID strin
 	if _, ok := r.RemoteClients[remoteClusterID]; !ok {
 		clusterID := clusterid.NewStaticClusterID(r.LocalClusterID)
 		tenantNamespaceManager := tenantnamespace.NewTenantNamespaceManager(r.IdentityManagerClient)
-		identityManager := identitymanager.NewCertificateIdentityManager(r.IdentityManagerClient, clusterID, tenantNamespaceManager)
+		identityManager := identitymanager.NewCertificateIdentityReader(r.IdentityManagerClient, clusterID, tenantNamespaceManager)
 		restConfig, err := identityManager.GetConfig(remoteClusterID, "")
 		if err != nil {
 			klog.Error(err)

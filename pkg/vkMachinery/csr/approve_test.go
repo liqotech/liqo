@@ -11,7 +11,6 @@ import (
 )
 
 func TestApproveSigningRequest(t *testing.T) {
-	//setup
 	certificateToValidate := certificatesv1.CertificateSigningRequest{
 		TypeMeta: v1.TypeMeta{},
 		ObjectMeta: v1.ObjectMeta{
@@ -29,7 +28,7 @@ func TestApproveSigningRequest(t *testing.T) {
 	if err != nil {
 		t.Fail()
 	}
-	err = ApproveCSR(c, &certificateToValidate, "LiqoApproval", "This CSR was approved by Liqo Advertisement Operator")
+	err = Approve(c, &certificateToValidate, "LiqoApproval", "This CSR was approved by Liqo Advertisement Operator")
 	if err != nil {
 		t.Fail()
 	}

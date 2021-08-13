@@ -8,6 +8,7 @@ import (
 	"time"
 
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/klog/v2"
@@ -81,17 +82,17 @@ func main() {
 	}
 
 	cancelCtx, cancel := context.WithTimeout(ctx, timeout)
-	var crtChan = make(chan []byte)
-	var cert []byte
-	informer := csr.ForgeInformer(client, name, crtChan)
-	go informer.Run(cancelCtx.Done())
-	select {
-	case <-cancelCtx.Done():
-		klog.Error("Unable to get certificate: timeout elapsed")
-	case cert = <-crtChan:
-		if err := csr.StoreCertificate(ctx, client, cert, namespace, nodeName); err != nil {
-			klog.Fatal("Unable to store the CRT file in secret")
-		}
-	}
+	csrWatcher := csr.NewWatcher(client, 0, labels.SelectorFromSet(vk.CsrLabels))
+	csrWatcher.Start(ctx)
+	cert, err := csrWatcher.RetrieveCertificate(cancelCtx, name)
 	cancel()
+
+	if err != nil {
+		klog.Error("Unable to get certificate: %w", err)
+		return
+	}
+
+	if err := csr.StoreCertificate(ctx, client, cert, namespace, nodeName); err != nil {
+		klog.Fatal("Unable to store the CRT file in secret")
+	}
 }

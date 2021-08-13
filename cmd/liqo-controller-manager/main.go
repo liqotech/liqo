@@ -266,13 +266,18 @@ func main() {
 	}
 	wg.Add(5)
 	ctx, cancel := context.WithCancel(context.Background())
-	go csr.WatchCSR(ctx, clientset, labels.SelectorFromSet(vkMachinery.CsrLabels).String(), time.Duration(resyncPeriod), wg)
+
+	// Start the handler to approve the virtual kubelet certificate signing requests.
+	csrWatcher := csr.NewWatcher(clientset, time.Duration(resyncPeriod), labels.SelectorFromSet(vkMachinery.CsrLabels))
+	csrWatcher.RegisterHandler(csr.ApproverHandler(clientset, "LiqoApproval", "This CSR was approved by Liqo"))
+	csrWatcher.Start(ctx)
+
 	// TODO: this configuration watcher will be refactored before the release 0.3
 	go newBroadcaster.WatchConfiguration(localKubeconfig, client, wg)
 	go resourceOfferReconciler.WatchConfiguration(localKubeconfig, client, wg)
 	newBroadcaster.StartBroadcaster(ctx, wg)
 
-	klog.Info("starting manager as advertisementoperator")
+	klog.Info("starting manager as controller manager")
 	if err := mgr.Start(ctrl.SetupSignalHandler()); err != nil {
 		klog.Error(err)
 		os.Exit(1)

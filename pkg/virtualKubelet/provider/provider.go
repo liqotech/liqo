@@ -70,7 +70,7 @@ func NewLiqoProvider(ctx context.Context, nodeName, foreignClusterID, homeCluste
 
 	clusterID := clusterid.NewStaticClusterID(homeClusterID)
 	tenantNamespaceManager := tenantnamespace.NewTenantNamespaceManager(homeClient)
-	identityManager := identitymanager.NewCertificateIdentityManager(homeClient, clusterID, tenantNamespaceManager)
+	identityManager := identitymanager.NewCertificateIdentityReader(homeClient, clusterID, tenantNamespaceManager)
 	namespace, err := utils.RetrieveNamespace()
 	if err != nil {
 		return nil, err
