@@ -21,6 +21,7 @@ import (
 	searchdomainoperator "github.com/liqotech/liqo/internal/discovery/search-domain-operator"
 	"github.com/liqotech/liqo/pkg/clusterid"
 	"github.com/liqotech/liqo/pkg/mapperUtils"
+	"github.com/liqotech/liqo/pkg/utils/restcfg"
 )
 
 var (
@@ -53,13 +54,14 @@ func main() {
 	flag.Int64Var(&dialTCPTimeout,
 		"dialTcpTimeout", 500, "Time to wait for a TCP connection to a remote cluster before to consider it as not reachable (milliseconds)")
 
+	restcfg.InitFlags(nil)
 	klog.InitFlags(nil)
 	flag.Parse()
 
 	klog.Info("Namespace: ", namespace)
 	klog.Info("RequeueAfter: ", requeueAfter)
 
-	config := ctrl.GetConfigOrDie()
+	config := restcfg.SetRateLimiter(ctrl.GetConfigOrDie())
 	clientset, err := kubernetes.NewForConfig(config)
 	if err != nil {
 		klog.Errorf("Failed to create a new Kubernetes client: %w", err)
