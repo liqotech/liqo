@@ -12,6 +12,7 @@ import (
 	"k8s.io/client-go/rest"
 
 	"github.com/liqotech/liqo/pkg/liqoctl/install/eks"
+	"github.com/liqotech/liqo/pkg/liqoctl/install/gke"
 	helmutils "github.com/liqotech/liqo/pkg/liqoctl/install/helm"
 	"github.com/liqotech/liqo/pkg/liqoctl/install/kubeadm"
 	"github.com/liqotech/liqo/pkg/liqoctl/install/provider"
@@ -24,6 +25,8 @@ func getProviderInstance(providerType string) provider.InstallProviderInterface 
 		return kubeadm.NewProvider()
 	case "eks":
 		return eks.NewProvider()
+	case "gke":
+		return gke.NewProvider()
 	default:
 		return nil
 	}
