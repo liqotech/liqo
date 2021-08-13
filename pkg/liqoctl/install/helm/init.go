@@ -4,16 +4,18 @@ import (
 	helm "github.com/mittwald/go-helm-client"
 	"helm.sh/helm/v3/pkg/repo"
 	"k8s.io/client-go/rest"
+
+	"github.com/liqotech/liqo/pkg/liqoctl/install/provider"
 )
 
 // InitializeHelmClientWithRepo initiliazes an helm client for a given *rest.Config and adds the Liqo repository.
-func InitializeHelmClientWithRepo(config *rest.Config) (*helm.HelmClient, error) {
+func InitializeHelmClientWithRepo(config *rest.Config, commonArgs *provider.CommonArguments) (*helm.HelmClient, error) {
 	opt := &helm.RestConfClientOptions{
 		Options: &helm.Options{
 			Namespace:        LiqoNamespace,
 			RepositoryConfig: liqoHelmConfigPath,
 			RepositoryCache:  liqoHelmCachePath,
-			DebugLog:         nil,
+			Debug:            commonArgs.Debug,
 		},
 		RestConfig: config,
 	}
@@ -33,8 +35,8 @@ func InitializeHelmClientWithRepo(config *rest.Config) (*helm.HelmClient, error)
 func initLiqoRepo(helmClient helm.Client) error {
 	// Define a public chart repository
 	chartRepo := repo.Entry{
-		Name: "liqo",
 		URL:  liqoRepo,
+		Name: liqoChartName,
 	}
 
 	if err := helmClient.AddOrUpdateChartRepo(chartRepo); err != nil {

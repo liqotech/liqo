@@ -1,7 +1,24 @@
 package main
 
-import "github.com/liqotech/liqo/cmd/liqoctl/cmd"
+import (
+	"context"
+	"os"
+	"os/signal"
+	"syscall"
+
+	"github.com/spf13/cobra"
+
+	liqocmd "github.com/liqotech/liqo/cmd/liqoctl/cmd"
+)
 
 func main() {
-	cmd.Execute()
+	ctx, cancel := context.WithCancel(context.Background())
+	sig := make(chan os.Signal, 1)
+	signal.Notify(sig, syscall.SIGINT, syscall.SIGTERM)
+	go func() {
+		<-sig
+		cancel()
+	}()
+	cmd := liqocmd.NewRootCommand(ctx)
+	cobra.CheckErr(cmd.Execute())
 }
