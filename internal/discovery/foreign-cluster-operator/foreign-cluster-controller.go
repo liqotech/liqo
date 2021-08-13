@@ -22,14 +22,14 @@ import (
 	"fmt"
 	"time"
 
-	apiv1 "k8s.io/api/core/v1"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apimachinery/pkg/selection"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/client-go/rest"
-	"k8s.io/client-go/util/retry"
+	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/klog/v2"
 	"k8s.io/utils/trace"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -45,7 +45,6 @@ import (
 	"github.com/liqotech/liqo/pkg/auth"
 	"github.com/liqotech/liqo/pkg/clusterid"
 	liqoconst "github.com/liqotech/liqo/pkg/consts"
-	crdclient "github.com/liqotech/liqo/pkg/crdClient"
 	discoveryPkg "github.com/liqotech/liqo/pkg/discovery"
 	identitymanager "github.com/liqotech/liqo/pkg/identityManager"
 	peeringRoles "github.com/liqotech/liqo/pkg/peering-roles"
@@ -94,10 +93,9 @@ type ForeignClusterReconciler struct {
 	client.Client
 	Scheme *runtime.Scheme
 
-	Namespace    string
-	crdClient    *crdclient.CRDClient
-	clusterID    clusterid.ClusterID
-	RequeueAfter time.Duration
+	LiqoNamespacedClient client.Client
+	clusterID            clusterid.ClusterID
+	RequeueAfter         time.Duration
 
 	namespaceManager tenantnamespace.Manager
 	identityManager  identitymanager.IdentityManager
@@ -106,9 +104,6 @@ type ForeignClusterReconciler struct {
 
 	ConfigProvider     discovery.ConfigProvider
 	AuthConfigProvider auth.ConfigProvider
-
-	// testing
-	ForeignConfig *rest.Config
 }
 
 // clusterRole
@@ -132,7 +127,7 @@ type ForeignClusterReconciler struct {
 // +kubebuilder:rbac:groups=core,resources=secrets,verbs=get;list;create;delete;update
 // +kubebuilder:rbac:groups=rbac.authorization.k8s.io,resources=rolebindings,verbs=get;create;deletecollection;delete
 // role
-// +kubebuilder:rbac:groups=core,namespace="liqo",resources=services,verbs=get
+// +kubebuilder:rbac:groups=core,namespace="liqo",resources=services,verbs=get;list;watch
 // +kubebuilder:rbac:groups=core,namespace="liqo",resources=configmaps,verbs=get;list;watch;create;update;delete
 // +kubebuilder:rbac:groups=core,namespace="liqo",resources=serviceaccounts,verbs=get;list;watch;create
 // +kubebuilder:rbac:groups=core,namespace="liqo",resources=secrets,verbs=get;list;watch;create;update;delete
@@ -150,10 +145,7 @@ func (r *ForeignClusterReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 	var foreignCluster discoveryv1alpha1.ForeignCluster
 	if err := r.Client.Get(ctx, req.NamespacedName, &foreignCluster); err != nil {
 		klog.Error(err)
-		if errors.IsNotFound(err) {
-			return ctrl.Result{}, nil
-		}
-		return ctrl.Result{}, err
+		return ctrl.Result{}, client.IgnoreNotFound(err)
 	}
 	tracer.Step("Retrieved the foreign cluster")
 
@@ -278,7 +270,7 @@ func (r *ForeignClusterReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 		klog.Infof("[%v] Delete ForeignCluster %v with discovery type %v",
 			foreignCluster.Spec.ClusterIdentity.ClusterID,
 			foreignCluster.Name, foreignclusterutils.GetDiscoveryType(&foreignCluster))
-		if err := r.deleteForeignCluster(ctx, &foreignCluster); err != nil {
+		if err := r.Client.Delete(ctx, &foreignCluster); err != nil {
 			klog.Error(err)
 			return ctrl.Result{}, err
 		}
@@ -292,38 +284,6 @@ func (r *ForeignClusterReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 		Requeue:      true,
 		RequeueAfter: r.RequeueAfter,
 	}, nil
-}
-
-func (r *ForeignClusterReconciler) update(fc *discoveryv1alpha1.ForeignCluster) (*discoveryv1alpha1.ForeignCluster, error) {
-	err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
-		if tmp, err := r.crdClient.Resource("foreignclusters").Update(fc.Name, fc, &metav1.UpdateOptions{}); err == nil {
-			var ok bool
-			fc, ok = tmp.(*discoveryv1alpha1.ForeignCluster)
-			if !ok {
-				err = goerrors.New("this object is not a ForeignCluster")
-				klog.Error(err, tmp)
-				return err
-			}
-			return nil
-		} else if !errors.IsConflict(err) {
-			return err
-		}
-		tmp, err := r.crdClient.Resource("foreignclusters").Get(fc.Name, &metav1.GetOptions{})
-		if err != nil {
-			klog.Error(err)
-			return err
-		}
-		fc2, ok := tmp.(*discoveryv1alpha1.ForeignCluster)
-		if !ok {
-			err = goerrors.New("this object is not a ForeignCluster")
-			klog.Error(err, tmp)
-			return err
-		}
-		fc.ResourceVersion = fc2.ResourceVersion
-		fc.Generation = fc2.Generation
-		return err
-	})
-	return fc, err
 }
 
 // peerNamespaced enables the peering creating the resources in the correct TenantNamespace.
@@ -476,14 +436,16 @@ func (r *ForeignClusterReconciler) getAddress() (string, error) {
 		return address, nil
 	}
 
-	// get the authentication service
-	svc, err := r.crdClient.Client().CoreV1().Services(r.Namespace).Get(context.TODO(), discovery.AuthServiceName, metav1.GetOptions{})
-	if err != nil {
+	// get the authentication service  (the namespace is automatically inferred by the namespaced client).
+	var svc corev1.Service
+	ref := types.NamespacedName{Name: discovery.AuthServiceName}
+	if err := r.LiqoNamespacedClient.Get(context.TODO(), ref, &svc); err != nil {
 		klog.Error(err)
 		return "", err
 	}
+
 	// if the service is exposed as LoadBalancer
-	if svc.Spec.Type == apiv1.ServiceTypeLoadBalancer {
+	if svc.Spec.Type == corev1.ServiceTypeLoadBalancer {
 		// get the IP from the LoadBalancer service
 		if len(svc.Status.LoadBalancer.Ingress) == 0 {
 			// the service has no external IPs
@@ -510,34 +472,19 @@ func (r *ForeignClusterReconciler) getAddress() (string, error) {
 	// we need to get an address from a physical node, if we have established peerings in the past with other clusters,
 	// we may have some virtual nodes in our cluster. Since their IPs will not be reachable from other clusters, we cannot use them
 	// as address for a local NodePort Service
-	labelSelector, err := metav1.LabelSelectorAsSelector(&metav1.LabelSelector{
-		MatchExpressions: []metav1.LabelSelectorRequirement{
-			{
-				Key:      liqoconst.TypeLabel,
-				Operator: metav1.LabelSelectorOpNotIn,
-				Values:   []string{liqoconst.TypeNode},
-			},
-		},
-	})
-	if err != nil {
+	req, err := labels.NewRequirement(liqoconst.TypeLabel, selection.NotIn, []string{liqoconst.TypeNode})
+	utilruntime.Must(err)
+
+	// get the IP from the Nodes, to be used with NodePort services
+	nodes := corev1.NodeList{}
+	if err := r.Client.List(context.TODO(), &nodes, client.MatchingLabelsSelector{Selector: labels.NewSelector().Add(*req)}); err != nil {
 		klog.Error(err)
 		return "", err
 	}
 
-	// get the IP from the Nodes, to be used with NodePort services
-	nodes, err := r.crdClient.Client().CoreV1().Nodes().List(context.TODO(), metav1.ListOptions{
-		LabelSelector: labelSelector.String(),
-	})
-	if err != nil {
-		klog.Error(err)
-		return "", err
-	}
 	if len(nodes.Items) == 0 {
 		// there are no node is the cluster, we cannot get the address on any of them
-		err = errors.NewNotFound(schema.GroupResource{
-			Group:    apiv1.GroupName,
-			Resource: "nodes",
-		}, "")
+		err = errors.NewNotFound(corev1.Resource("nodes"), "")
 		klog.Error(err)
 		return "", err
 	}
@@ -559,27 +506,26 @@ func (r *ForeignClusterReconciler) getPort() (string, error) {
 		return port, nil
 	}
 
-	// get the authentication service
-	svc, err := r.crdClient.Client().CoreV1().Services(r.Namespace).Get(context.TODO(), discovery.AuthServiceName, metav1.GetOptions{})
-	if err != nil {
-		klog.Error(err)
-		return "", err
-	}
-	if len(svc.Spec.Ports) == 0 {
-		// the service has no available port, we cannot get it
-		err = errors.NewNotFound(schema.GroupResource{
-			Group:    apiv1.GroupName,
-			Resource: string(apiv1.ResourceServices),
-		}, discovery.AuthServiceName)
+	// get the authentication service (the namespace is automatically inferred by the namespaced client).
+	var svc corev1.Service
+	ref := types.NamespacedName{Name: discovery.AuthServiceName}
+	if err := r.LiqoNamespacedClient.Get(context.TODO(), ref, &svc); err != nil {
 		klog.Error(err)
 		return "", err
 	}
 
-	if svc.Spec.Type == apiv1.ServiceTypeLoadBalancer {
+	if len(svc.Spec.Ports) == 0 {
+		// the service has no available port, we cannot get it
+		err := errors.NewNotFound(corev1.Resource(string(corev1.ResourceServices)), discovery.AuthServiceName)
+		klog.Error(err)
+		return "", err
+	}
+
+	if svc.Spec.Type == corev1.ServiceTypeLoadBalancer {
 		// return the LoadBalancer service external port
 		return fmt.Sprintf("%v", svc.Spec.Ports[0].Port), nil
 	}
-	if svc.Spec.Type == apiv1.ServiceTypeNodePort {
+	if svc.Spec.Type == corev1.ServiceTypeNodePort {
 		// return the NodePort service port
 		return fmt.Sprintf("%v", svc.Spec.Ports[0].NodePort), nil
 	}
@@ -686,11 +632,6 @@ func (r *ForeignClusterReconciler) checkTEP(ctx context.Context,
 		}
 	}
 	return nil
-}
-
-func (r *ForeignClusterReconciler) deleteForeignCluster(ctx context.Context,
-	foreignCluster *discoveryv1alpha1.ForeignCluster) error {
-	return r.Client.Delete(ctx, foreignCluster)
 }
 
 func isTunnelEndpointReason(reason string) bool {

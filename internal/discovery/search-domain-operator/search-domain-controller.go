@@ -2,26 +2,24 @@ package searchdomainoperator
 
 import (
 	"context"
-	"errors"
 	"time"
 
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/klog/v2"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	"github.com/liqotech/liqo/internal/discovery"
-	crdclient "github.com/liqotech/liqo/pkg/crdClient"
 )
 
 // SearchDomainReconciler is the reconciler manager for SearchDomain resources.
 type SearchDomainReconciler struct {
+	client.Client
 	Scheme *runtime.Scheme
 
 	requeueAfter  time.Duration
-	crdClient     *crdclient.CRDClient
 	DiscoveryCtrl *discovery.Controller
 
 	DNSAddress string
@@ -31,21 +29,12 @@ type SearchDomainReconciler struct {
 func (r *SearchDomainReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	klog.Info("Reconciling SearchDomain " + req.Name)
 
-	tmp, err := r.crdClient.Resource("searchdomains").Get(req.Name, &metav1.GetOptions{})
-	if err != nil {
+	sd := discoveryv1alpha1.SearchDomain{}
+	if err := r.Get(ctx, req.NamespacedName, &sd); err != nil {
 		if k8serrors.IsNotFound(err) {
 			// has been deleted
 			return ctrl.Result{}, nil
 		}
-		klog.Error(err, err.Error())
-		return ctrl.Result{
-			Requeue:      true,
-			RequeueAfter: r.requeueAfter,
-		}, err
-	}
-	sd, ok := tmp.(*discoveryv1alpha1.SearchDomain)
-	if !ok {
-		err := errors.New("retrieved resource is not a SearchDomain")
 		klog.Error(err, err.Error())
 		return ctrl.Result{
 			Requeue:      true,
@@ -61,7 +50,7 @@ func (r *SearchDomainReconciler) Reconcile(ctx context.Context, req ctrl.Request
 			RequeueAfter: r.requeueAfter,
 		}, err
 	}
-	r.DiscoveryCtrl.UpdateForeignWAN(authData, sd)
+	r.DiscoveryCtrl.UpdateForeignWAN(authData, &sd)
 
 	klog.Info("SearchDomain " + req.Name + " successfully reconciled")
 	return ctrl.Result{

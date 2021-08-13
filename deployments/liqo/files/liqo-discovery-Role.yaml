@@ -36,6 +36,8 @@ rules:
   - services
   verbs:
   - get
+  - list
+  - watch
 - apiGroups:
   - rbac.authorization.k8s.io
   resources:
