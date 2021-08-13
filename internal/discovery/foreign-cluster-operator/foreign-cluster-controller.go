@@ -31,6 +31,7 @@ import (
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/util/retry"
 	"k8s.io/klog/v2"
+	"k8s.io/utils/trace"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -51,6 +52,7 @@ import (
 	tenantnamespace "github.com/liqotech/liqo/pkg/tenantNamespace"
 	foreignclusterutils "github.com/liqotech/liqo/pkg/utils/foreignCluster"
 	peeringconditionsutils "github.com/liqotech/liqo/pkg/utils/peeringConditions"
+	traceutils "github.com/liqotech/liqo/pkg/utils/trace"
 )
 
 const (
@@ -141,6 +143,10 @@ type ForeignClusterReconciler struct {
 func (r *ForeignClusterReconciler) Reconcile(ctx context.Context, req ctrl.Request) (result ctrl.Result, err error) {
 	klog.V(4).Infof("Reconciling ForeignCluster %s", req.Name)
 
+	tracer := trace.New("Reconcile", trace.Field{Key: "ForeignCluster", Value: req.Name})
+	ctx = trace.ContextWithTrace(ctx, tracer)
+	defer tracer.LogIfLong(traceutils.LongThreshold())
+
 	var foreignCluster discoveryv1alpha1.ForeignCluster
 	if err := r.Client.Get(ctx, req.NamespacedName, &foreignCluster); err != nil {
 		klog.Error(err)
@@ -149,16 +155,20 @@ func (r *ForeignClusterReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 		}
 		return ctrl.Result{}, err
 	}
+	tracer.Step("Retrieved the foreign cluster")
 
 	// ------ (1) validation ------
 
 	// set labels and validate the resource spec
 	if cont, res, err := r.validateForeignCluster(ctx, &foreignCluster); !cont {
+		tracer.Step("Validated foreign cluster", trace.Field{Key: "requeuing", Value: true})
 		return res, err
 	}
+	tracer.Step("Validated foreign cluster", trace.Field{Key: "requeuing", Value: false})
 
 	// defer the status update function
 	defer func() {
+		defer tracer.Step("ForeignCluster status update")
 		if newErr := r.Client.Status().Update(ctx, &foreignCluster); newErr != nil {
 			klog.Error(newErr)
 			err = newErr
@@ -179,6 +189,7 @@ func (r *ForeignClusterReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 			RequeueAfter: r.RequeueAfter,
 		}, nil
 	}
+	tracer.Step("Ensured the ForeignCluster is processable")
 
 	// ------ (2) ensuring prerequirements ------
 
@@ -187,34 +198,40 @@ func (r *ForeignClusterReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 		klog.Error(err)
 		return ctrl.Result{}, err
 	}
+	tracer.Step("Ensured the existence of the local tenant namespace")
 
 	// ensure the existence of an identity to operate in the remote cluster remote cluster
 	if err = r.ensureRemoteIdentity(ctx, &foreignCluster); err != nil {
 		klog.Error(err)
 		return ctrl.Result{}, err
 	}
+	tracer.Step("Ensured the existence of the remote identity")
 
 	// fetch the remote tenant namespace name
 	if err = r.fetchRemoteTenantNamespace(ctx, &foreignCluster); err != nil {
 		klog.Error(err)
 		return ctrl.Result{}, err
 	}
+	tracer.Step("Fetched the remote tenant namespace name")
 
 	// ------ (3) peering/unpeering logic ------
 
 	// read the ForeignCluster status and ensure the peering state
 	phase := r.getDesiredOutgoingPeeringState(ctx, &foreignCluster)
+	tracer.Step("Fetched the desired peering state")
 	switch phase {
 	case desiredPeeringPhasePeering:
 		if err = r.peerNamespaced(ctx, &foreignCluster); err != nil {
 			klog.Error(err)
 			return ctrl.Result{}, err
 		}
+		tracer.Step("Peered with a remote cluster")
 	case desiredPeeringPhaseUnpeering:
 		if err = r.unpeerNamespaced(ctx, &foreignCluster); err != nil {
 			klog.Error(err)
 			return ctrl.Result{}, err
 		}
+		tracer.Step("Unpeered from a remote cluster")
 	default:
 		err := fmt.Errorf("unknown phase %v", phase)
 		klog.Error(err)
@@ -228,18 +245,21 @@ func (r *ForeignClusterReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 		klog.Error(err)
 		return ctrl.Result{}, err
 	}
+	tracer.Step("Checked the NetworkConfig status")
 
 	// check for TunnelEndpoints
 	if err = r.checkTEP(ctx, &foreignCluster); err != nil {
 		klog.Error(err)
 		return ctrl.Result{}, err
 	}
+	tracer.Step("Checked the TunnelEndpoint status")
 
 	// check if peering request really exists on foreign cluster
 	if err := r.checkPeeringStatus(ctx, &foreignCluster); err != nil {
 		klog.Error(err)
 		return ctrl.Result{}, err
 	}
+	tracer.Step("Checked the peering status")
 
 	// ------ (5) ensuring permission ------
 
@@ -248,6 +268,7 @@ func (r *ForeignClusterReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 		klog.Error(err)
 		return ctrl.Result{}, err
 	}
+	tracer.Step("Ensured the necessary permissions are present")
 
 	// ------ (6) garbage collection ------
 
@@ -264,6 +285,7 @@ func (r *ForeignClusterReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 		klog.V(4).Infof("ForeignCluster %s successfully reconciled", foreignCluster.Name)
 		return ctrl.Result{}, nil
 	}
+	tracer.Step("Performed ForeignCluster garbage collection")
 
 	klog.V(4).Infof("ForeignCluster %s successfully reconciled", foreignCluster.Name)
 	return ctrl.Result{
