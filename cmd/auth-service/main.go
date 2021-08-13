@@ -10,6 +10,7 @@ import (
 
 	authservice "github.com/liqotech/liqo/internal/auth-service"
 	identitymanager "github.com/liqotech/liqo/pkg/identityManager"
+	"github.com/liqotech/liqo/pkg/utils/restcfg"
 )
 
 func main() {
@@ -39,6 +40,7 @@ func main() {
 	flag.StringVar(&awsConfig.AwsRegion, "awsRegion", "", "AWS region where the local cluster is running")
 	flag.StringVar(&awsConfig.AwsClusterName, "awsClusterName", "", "Name of the local EKS cluster")
 
+	restcfg.InitFlags(nil)
 	klog.InitFlags(nil)
 	flag.Parse()
 
