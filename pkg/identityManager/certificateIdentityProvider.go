@@ -5,6 +5,7 @@ import (
 	"encoding/base64"
 	"fmt"
 	"math/rand"
+	"strconv"
 	"strings"
 	"time"
 
@@ -12,12 +13,8 @@ import (
 	v1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/labels"
-	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
-	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/tools/cache"
 	"k8s.io/klog/v2"
 
 	responsetypes "github.com/liqotech/liqo/pkg/identityManager/responseTypes"
@@ -33,6 +30,7 @@ func init() {
 type certificateIdentityProvider struct {
 	namespaceManager tenantnamespace.Manager
 	client           kubernetes.Interface
+	csrWatcher       certificateSigningRequest.Watcher
 }
 
 // GetRemoteCertificate retrieves a certificate issued in the past,
@@ -87,8 +85,6 @@ func (identityProvider *certificateIdentityProvider) GetRemoteCertificate(cluste
 // This function will wait (with a timeout) for an available certificate before returning.
 func (identityProvider *certificateIdentityProvider) ApproveSigningRequest(clusterID,
 	signingRequest string) (response *responsetypes.SigningRequestResponse, err error) {
-	rnd := fmt.Sprintf("%v", rand.Int63())
-
 	signingBytes, err := base64.StdEncoding.DecodeString(signingRequest)
 	if err != nil {
 		klog.Error(err)
@@ -98,10 +94,7 @@ func (identityProvider *certificateIdentityProvider) ApproveSigningRequest(clust
 	cert := &certv1.CertificateSigningRequest{
 		ObjectMeta: metav1.ObjectMeta{
 			GenerateName: strings.Join([]string{identitySecretRoot, ""}, "-"),
-			Labels: map[string]string{
-				// the informer needs to select it by label, this is a temporal ID for this request
-				randomIDLabel: rnd,
-			},
+			Labels:       map[string]string{remoteTenantCSRLabel: strconv.FormatBool(true)},
 		},
 		Spec: certv1.CertificateSigningRequestSpec{
 			Groups: []string{
@@ -124,7 +117,7 @@ func (identityProvider *certificateIdentityProvider) ApproveSigningRequest(clust
 	}
 
 	// approve the CertificateSigningRequest
-	if err = certificateSigningRequest.ApproveCSR(identityProvider.client, cert, "IdentityManagerApproval",
+	if err = certificateSigningRequest.Approve(identityProvider.client, cert, "IdentityManagerApproval",
 		"This CSR was approved by Liqo Identity Manager"); err != nil {
 		klog.Error(err)
 		return response, err
@@ -133,8 +126,10 @@ func (identityProvider *certificateIdentityProvider) ApproveSigningRequest(clust
 	response = &responsetypes.SigningRequestResponse{
 		ResponseType: responsetypes.SigningRequestResponseCertificate,
 	}
-	// retrieve the certificate issued by the Kubernetes issuer in the CSR
-	response.Certificate, err = identityProvider.getCertificate(cert, rnd)
+	// retrieve the certificate issued by the Kubernetes issuer in the CSR (with a 30 seconds timeout)
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	response.Certificate, err = identityProvider.csrWatcher.RetrieveCertificate(ctx, cert.Name)
 	if err != nil {
 		klog.Error(err)
 		return response, err
@@ -146,77 +141,6 @@ func (identityProvider *certificateIdentityProvider) ApproveSigningRequest(clust
 		return response, err
 	}
 	return response, nil
-}
-
-// getCertificate retrieves the certificate given the CertificateSigningRequest and its randomID.
-// If the certificate is not ready yet, it will wait for it (with a timeout).
-func (identityProvider *certificateIdentityProvider) getCertificate(csr *certv1.CertificateSigningRequest, randomID string) ([]byte, error) {
-	var certificate []byte
-
-	// define a function that will check if a generic object is a CSR with a issued certificate
-	checkCertificate := func(obj interface{}) bool {
-		certificateSigningRequest, ok := obj.(*certv1.CertificateSigningRequest)
-		if !ok {
-			klog.Errorf("this object is not a CertificateSigningRequest: %v", obj)
-			return false
-		}
-
-		res := certificateSigningRequest.Status.Certificate != nil && len(certificateSigningRequest.Status.Certificate) > 0
-		if res {
-			certificate = certificateSigningRequest.Status.Certificate
-		}
-		return res
-	}
-
-	if checkCertificate(csr) {
-		// the csr is already valid, don't wait for the certificate
-		return csr.Status.Certificate, nil
-	}
-
-	// create an informer to be notified when the certificate will be available
-	// this informer will only watch one CSR, thanks to the random ID
-	labelSelector := labels.Set(map[string]string{
-		randomIDLabel: randomID,
-	}).AsSelector()
-
-	informer := cache.NewSharedIndexInformer(&cache.ListWatch{
-		ListFunc: func(options metav1.ListOptions) (runtime.Object, error) {
-			options.LabelSelector = labelSelector.String()
-			return identityProvider.client.CertificatesV1().CertificateSigningRequests().List(context.TODO(), options)
-		},
-		WatchFunc: func(options metav1.ListOptions) (watch.Interface, error) {
-			options.LabelSelector = labelSelector.String()
-			return identityProvider.client.CertificatesV1().CertificateSigningRequests().Watch(context.TODO(), options)
-		},
-	}, &certv1.CertificateSigningRequest{}, 0, cache.Indexers{})
-
-	stopChan := make(chan struct{})
-	informer.AddEventHandler(cache.ResourceEventHandlerFuncs{
-		AddFunc: func(obj interface{}) {
-			if checkCertificate(obj) {
-				close(stopChan)
-			}
-		},
-		UpdateFunc: func(oldObj interface{}, newObj interface{}) {
-			if checkCertificate(newObj) {
-				close(stopChan)
-			}
-		},
-	})
-
-	go informer.Run(stopChan)
-
-	// wait for the certificate, with a timeout
-	select {
-	case <-stopChan:
-		// finished successfully
-		return certificate, nil
-	case <-time.NewTimer(30 * time.Second).C:
-		err := fmt.Errorf("timeout exceeded waiting for the approved certificate")
-		klog.Error(err)
-		close(stopChan)
-		return nil, err
-	}
 }
 
 // storeRemoteCertificate stores the issued certificate in a Secret in the TenantNamespace.

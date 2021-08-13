@@ -1,17 +1,12 @@
 package csr
 
 import (
-	"context"
 	"os"
-	"path/filepath"
-	"testing"
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
-
-	"github.com/liqotech/liqo/pkg/utils/testutil"
 )
 
 const (
@@ -19,33 +14,7 @@ const (
 	namespace = "default"
 )
 
-func TestSecret(t *testing.T) {
-	RegisterFailHandler(Fail)
-	RunSpecs(t, "Secret Suite")
-}
-
 var _ = Describe("Secret", func() {
-
-	var (
-		cluster testutil.Cluster
-		err     error
-		ctx     context.Context
-		cancel  context.CancelFunc
-	)
-
-	BeforeSuite(func() {
-		ctx, cancel = context.WithCancel(context.Background())
-
-		cluster, _, err = testutil.NewTestCluster([]string{filepath.Join("..", "..", "..", "deployments", "liqo", "crds")})
-		Expect(err).To(BeNil())
-	})
-
-	AfterSuite(func() {
-		cancel()
-
-		err := cluster.GetEnv().Stop()
-		Expect(err).To(BeNil())
-	})
 
 	It("Secret Lifecycle", func() {
 

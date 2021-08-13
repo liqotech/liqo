@@ -56,7 +56,7 @@ type Controller struct {
 	credentialsValidator credentialsValidator
 	localClusterID       clusterid.ClusterID
 	namespaceManager     tenantnamespace.Manager
-	identityManager      identitymanager.IdentityManager
+	identityProvider     identitymanager.IdentityProvider
 
 	config          *v1alpha1.AuthConfig
 	apiServerConfig *v1alpha1.APIServerConfig
@@ -95,21 +95,24 @@ func NewAuthServiceCtrl(namespace, kubeconfigPath string,
 
 	namespaceManager := tenantnamespace.NewTenantNamespaceManager(clientset)
 
-	var idManager identitymanager.IdentityManager
+	var idProvider identitymanager.IdentityProvider
 	if awsConfig.IsEmpty() {
-		idManager = identitymanager.NewCertificateIdentityManager(clientset, localClusterID, namespaceManager)
+		idProvider = identitymanager.NewCertificateIdentityProvider(
+			context.Background(), clientset, localClusterID, namespaceManager)
 	} else {
-		idManager = identitymanager.NewIAMIdentityManager(clientset, localClusterID, &awsConfig, namespaceManager)
+		idProvider = identitymanager.NewIAMIdentityProvider(
+			clientset, localClusterID, &awsConfig, namespaceManager)
 	}
 
 	return &Controller{
-		namespace:            namespace,
-		restConfig:           config,
-		clientset:            clientset,
-		secretInformer:       secretInformer,
-		localClusterID:       localClusterID,
-		namespaceManager:     namespaceManager,
-		identityManager:      idManager,
+		namespace:        namespace,
+		restConfig:       config,
+		clientset:        clientset,
+		secretInformer:   secretInformer,
+		localClusterID:   localClusterID,
+		namespaceManager: namespaceManager,
+		identityProvider: idProvider,
+
 		useTLS:               useTLS,
 		credentialsValidator: &tokenValidator{},
 	}, nil

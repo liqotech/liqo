@@ -4,7 +4,7 @@ const defaultOrganization = "liqo.io"
 
 const (
 	localIdentitySecretLabel  = "discovery.liqo.io/local-identity"
-	randomIDLabel             = "discovery.liqo.io/random-id"
+	remoteTenantCSRLabel      = "discovery.liqo.io/remote-tenant-csr"
 	certificateAvailableLabel = "discovery.liqo.io/certificate-available"
 )
 

@@ -95,7 +95,7 @@ func main() {
 		RemoteWatchers:                 make(map[string]map[string]chan struct{}),
 		RemoteDynSharedInformerFactory: make(map[string]dynamicinformer.DynamicSharedInformerFactory),
 		NamespaceManager:               namespaceManager,
-		IdentityManager: identitymanager.NewCertificateIdentityManager(
+		IdentityReader: identitymanager.NewCertificateIdentityReader(
 			k8sClient, clusterIDInterface, namespaceManager),
 		LocalToRemoteNamespaceMapper:     map[string]string{},
 		RemoteToLocalNamespaceMapper:     map[string]string{},

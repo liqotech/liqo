@@ -94,7 +94,7 @@ var _ = Describe("PeeringPhase-Based Replication", func() {
 			LocalWatchers:                  map[string]chan struct{}{},
 
 			NamespaceManager:                 tenantmanager,
-			IdentityManager:                  identitymanager.NewCertificateIdentityManager(k8sclient, clusterIDInterface, tenantmanager),
+			IdentityReader:                   identitymanager.NewCertificateIdentityReader(k8sclient, clusterIDInterface, tenantmanager),
 			LocalToRemoteNamespaceMapper:     map[string]string{},
 			RemoteToLocalNamespaceMapper:     map[string]string{},
 			ClusterIDToLocalNamespaceMapper:  map[string]string{},

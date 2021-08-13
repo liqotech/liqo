@@ -88,8 +88,8 @@ type Controller struct {
 
 	// NamespaceManager is an interface to manage the tenant namespaces.
 	NamespaceManager tenantnamespace.Manager
-	// IdentityManager is an interface to manage remote identities, and to get the rest config.
-	IdentityManager identitymanager.IdentityManager
+	// IdentityReader is an interface to manage remote identities, and to get the rest config.
+	IdentityReader identitymanager.IdentityReader
 	// LocalToRemoteNamespaceMapper maps local namespaces to remote ones.
 	LocalToRemoteNamespaceMapper map[string]string
 	// RemoteToLocalNamespaceMapper maps remote namespaces to local ones.
@@ -191,7 +191,7 @@ func (c *Controller) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 			c.ClusterID, req.NamespacedName, remoteClusterID)
 		return result, nil
 	}
-	config, err := c.IdentityManager.GetConfig(remoteClusterID, fc.Status.TenantNamespace.Local)
+	config, err := c.IdentityReader.GetConfig(remoteClusterID, fc.Status.TenantNamespace.Local)
 	if err != nil {
 		klog.Errorf("%s -> unable to retrieve config from resource %s for remote peering cluster %s: %s",
 			c.ClusterID, req.NamespacedName, remoteClusterID, err)
