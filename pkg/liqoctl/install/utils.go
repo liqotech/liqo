@@ -11,6 +11,7 @@ import (
 	"helm.sh/helm/v3/pkg/action"
 	"k8s.io/client-go/rest"
 
+	"github.com/liqotech/liqo/pkg/liqoctl/install/aks"
 	"github.com/liqotech/liqo/pkg/liqoctl/install/eks"
 	"github.com/liqotech/liqo/pkg/liqoctl/install/gke"
 	helmutils "github.com/liqotech/liqo/pkg/liqoctl/install/helm"
@@ -27,6 +28,8 @@ func getProviderInstance(providerType string) provider.InstallProviderInterface 
 		return eks.NewProvider()
 	case "gke":
 		return gke.NewProvider()
+	case "aks":
+		return aks.NewProvider()
 	default:
 		return nil
 	}
