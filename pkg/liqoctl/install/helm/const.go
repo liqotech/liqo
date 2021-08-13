@@ -4,6 +4,7 @@ const liqoRepo = "https://helm.liqo.io/"
 
 // LiqoNamespace contains the default namespace for Liqo installation.
 const LiqoNamespace = "liqo"
+const LiqoChartName = "liqo"
 const liqoHelmConfigPath = "/tmp/.helmrepo"
 const liqoHelmCachePath = "/tmp/.helmcache"
 

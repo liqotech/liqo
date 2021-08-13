@@ -24,8 +24,8 @@ func getProviderInstance(providerType string) provider.InstallProviderInterface 
 	return nil
 }
 
-func initHelmClient(config *rest.Config) (*helm.HelmClient, error) {
-	helmClient, err := helmutils.InitializeHelmClientWithRepo(config)
+func initHelmClient(config *rest.Config, arguments *provider.CommonArguments) (*helm.HelmClient, error) {
+	helmClient, err := helmutils.InitializeHelmClientWithRepo(config, arguments)
 	if err != nil {
 		fmt.Printf("Unable to create helmClient: %s", err)
 		return nil, err
@@ -33,8 +33,10 @@ func initHelmClient(config *rest.Config) (*helm.HelmClient, error) {
 	return helmClient, nil
 }
 
-func installOrUpdate(ctx context.Context, helmClient *helm.HelmClient, k provider.InstallProviderInterface) error {
-	output, _, err := helmutils.GetChart(helmutils.LiqoChartFullName, &action.ChartPathOptions{}, helmClient.Settings)
+func installOrUpdate(ctx context.Context, helmClient *helm.HelmClient, k provider.InstallProviderInterface, commonArgs *provider.CommonArguments) error {
+	output, _, err := helmutils.GetChart(helmutils.LiqoChartFullName, &action.ChartPathOptions{
+		Version: commonArgs.Version,
+	}, helmClient.Settings)
 	if err != nil {
 		return err
 	}
@@ -52,7 +54,7 @@ func installOrUpdate(ctx context.Context, helmClient *helm.HelmClient, k provide
 		Namespace:        helmutils.LiqoNamespace,
 		ValuesYaml:       string(raw),
 		DependencyUpdate: true,
-		Timeout:          600,
+		Timeout:          commonArgs.Timeout,
 		GenerateName:     false,
 	}
 

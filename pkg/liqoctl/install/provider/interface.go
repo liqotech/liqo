@@ -2,6 +2,7 @@ package provider
 
 import (
 	"context"
+	"time"
 
 	flag "github.com/spf13/pflag"
 	"k8s.io/client-go/rest"
@@ -17,4 +18,9 @@ type InstallProviderInterface interface {
 	// UpdateChartValues patches the values map of a selected chart, modifying keys and entries to correctly install Liqo on a given
 	// provider
 	UpdateChartValues(values map[string]interface{})
+}
+type CommonArguments struct {
+	Version string
+	Debug   bool
+	Timeout time.Duration
 }
