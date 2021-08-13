@@ -25,6 +25,7 @@ import (
 	identitymanager "github.com/liqotech/liqo/pkg/identityManager"
 	peeringRoles "github.com/liqotech/liqo/pkg/peering-roles"
 	tenantnamespace "github.com/liqotech/liqo/pkg/tenantNamespace"
+	"github.com/liqotech/liqo/pkg/utils/restcfg"
 )
 
 // cluster-role
@@ -73,6 +74,7 @@ func NewAuthServiceCtrl(namespace, kubeconfigPath string,
 	if err != nil {
 		return nil, err
 	}
+	restcfg.SetRateLimiter(config)
 	clientset, err := kubernetes.NewForConfig(config)
 	if err != nil {
 		return nil, err

@@ -282,7 +282,7 @@ var _ = Describe("Auth", func() {
 				Expect(err).To(BeNil())
 				c.request.CertificateSigningRequest = base64.StdEncoding.EncodeToString(csr)
 
-				response, err := authService.handleIdentity(c.request)
+				response, err := authService.handleIdentity(context.TODO(), c.request)
 				Expect(err).To(c.expectedOutput)
 				c.expectedResponse(response)
 			},

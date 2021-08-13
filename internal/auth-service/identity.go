@@ -1,6 +1,7 @@
 package authservice
 
 import (
+	"context"
 	"encoding/json"
 	"io/ioutil"
 	"net/http"
@@ -9,13 +10,19 @@ import (
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/klog/v2"
+	"k8s.io/utils/trace"
 
 	"github.com/liqotech/liqo/pkg/auth"
 	autherrors "github.com/liqotech/liqo/pkg/auth/errors"
+	traceutils "github.com/liqotech/liqo/pkg/utils/trace"
 )
 
 // identity handles the certificate identity http request.
 func (authService *Controller) identity(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
+	tracer := trace.New("Identity handler")
+	ctx := trace.ContextWithTrace(r.Context(), tracer)
+	defer tracer.LogIfLong(traceutils.LongThreshold())
+
 	bytes, err := ioutil.ReadAll(r.Body)
 	if err != nil {
 		klog.Error(err)
@@ -34,7 +41,7 @@ func (authService *Controller) identity(w http.ResponseWriter, r *http.Request, 
 		return
 	}
 
-	response, err := authService.handleIdentity(identityRequest)
+	response, err := authService.handleIdentity(ctx, identityRequest)
 	if err != nil {
 		klog.Error(err)
 		authService.handleError(w, err)
@@ -58,7 +65,9 @@ func (authService *Controller) identity(w http.ResponseWriter, r *http.Request, 
 
 // handleIdentity creates a certificate and a CertificateIdentityResponse, given a CertificateIdentityRequest.
 func (authService *Controller) handleIdentity(
-	identityRequest auth.CertificateIdentityRequest) (*auth.CertificateIdentityResponse, error) {
+	ctx context.Context, identityRequest auth.CertificateIdentityRequest) (*auth.CertificateIdentityResponse, error) {
+	tracer := trace.FromContext(ctx).Nest("Identity handling")
+	defer tracer.LogIfLong(traceutils.LongThreshold())
 	var err error
 
 	// check that the provided credentials are valid
@@ -68,6 +77,7 @@ func (authService *Controller) handleIdentity(
 		klog.Error(err)
 		return nil, err
 	}
+	tracer.Step("Credentials checked")
 
 	klog.V(4).Infof("Creating Tenant Namespace for cluster %v", identityRequest.GetClusterID())
 	namespace, err := authService.namespaceManager.CreateNamespace(identityRequest.GetClusterID())
@@ -75,6 +85,7 @@ func (authService *Controller) handleIdentity(
 		klog.Error(err)
 		return nil, err
 	}
+	tracer.Step("Tenant namespace created")
 
 	// check that there is no available certificate for that clusterID
 	if _, err = authService.identityManager.GetRemoteCertificate(
@@ -91,6 +102,7 @@ func (authService *Controller) handleIdentity(
 		klog.Error(err)
 		return nil, err
 	}
+	tracer.Step("Cluster ID uniqueness ensured")
 
 	// issue certificate request
 	identityResponse, err := authService.identityManager.ApproveSigningRequest(
@@ -99,6 +111,7 @@ func (authService *Controller) handleIdentity(
 		klog.Error(err)
 		return nil, err
 	}
+	tracer.Step("Certificate signing request approved")
 
 	// bind basic permission required to start the peering
 	if _, err = authService.namespaceManager.BindClusterRoles(
@@ -106,6 +119,7 @@ func (authService *Controller) handleIdentity(
 		klog.Error(err)
 		return nil, err
 	}
+	tracer.Step("Cluster roles bound")
 
 	// make the response to send to the remote cluster
 	response, err := auth.NewCertificateIdentityResponse(
@@ -114,6 +128,7 @@ func (authService *Controller) handleIdentity(
 		klog.Error(err)
 		return nil, err
 	}
+	tracer.Step("Identity response prepared")
 
 	klog.Infof("Identity Request successfully validated for cluster %v", identityRequest.GetClusterID())
 	return response, nil
