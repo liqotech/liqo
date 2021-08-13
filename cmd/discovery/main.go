@@ -7,9 +7,11 @@ import (
 	"time"
 
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/client-go/kubernetes"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/klog/v2"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	nettypes "github.com/liqotech/liqo/apis/net/v1alpha1"
@@ -57,46 +59,70 @@ func main() {
 	klog.Info("Namespace: ", namespace)
 	klog.Info("RequeueAfter: ", requeueAfter)
 
-	localClusterID, err := clusterid.NewClusterID(kubeconfigPath)
+	config := ctrl.GetConfigOrDie()
+	clientset, err := kubernetes.NewForConfig(config)
 	if err != nil {
-		klog.Error(err, err.Error())
+		klog.Errorf("Failed to create a new Kubernetes client: %w", err)
+		os.Exit(1)
+	}
+
+	localClusterID, err := clusterid.NewClusterIDFromClient(clientset)
+	if err != nil {
+		klog.Error(err.Error())
 		os.Exit(1)
 	}
 	err = localClusterID.SetupClusterID(namespace)
 	if err != nil {
-		klog.Error(err, err.Error())
+		klog.Error(err.Error())
 		os.Exit(1)
 	}
 
 	discoveryCtl, err := discovery.NewDiscoveryCtrl(namespace, localClusterID, kubeconfigPath,
 		resolveContextRefreshTime, time.Duration(dialTCPTimeout)*time.Millisecond)
 	if err != nil {
-		klog.Error(err, err.Error())
+		klog.Error(err.Error())
 		os.Exit(1)
 	}
 
 	discoveryCtl.StartDiscovery()
 
-	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
+	mgr, err := ctrl.NewManager(config, ctrl.Options{
 		MapperProvider:   mapperUtils.LiqoMapperProvider(scheme),
 		Scheme:           scheme,
-		Port:             9443,
 		LeaderElection:   false,
 		LeaderElectionID: "b3156c4e.liqo.io",
 	})
 	if err != nil {
-		klog.Error(err, "unable to start manager")
+		klog.Errorf("Unable to create main manager: %w", err)
+		os.Exit(1)
+	}
+
+	// Create an accessory manager restricted to the given namespace only, to avoid introducing
+	// performance overhead and requiring excessively wide permissions when not necessary.
+	auxmgr, err := ctrl.NewManager(config, ctrl.Options{
+		MapperProvider:     mapperUtils.LiqoMapperProvider(scheme),
+		Scheme:             scheme,
+		Namespace:          namespace,
+		MetricsBindAddress: "0", // Disable the metrics of the auxiliary manager to prevent conflicts.
+	})
+	if err != nil {
+		klog.Errorf("Unable to create auxiliary (namespaced) manager: %w", err)
 		os.Exit(1)
 	}
 
 	klog.Info("Starting SearchDomain operator")
-	searchdomainoperator.StartOperator(mgr, time.Duration(requeueAfter)*time.Second, discoveryCtl, kubeconfigPath)
+	searchdomainoperator.StartOperator(mgr, time.Duration(requeueAfter)*time.Second, discoveryCtl)
 
 	klog.Info("Starting ForeignCluster operator")
-	foreignclusteroperator.StartOperator(mgr, namespace, time.Duration(requeueAfter)*time.Second, discoveryCtl, kubeconfigPath)
+	namespacedClient := client.NewNamespacedClient(auxmgr.GetClient(), namespace)
+	foreignclusteroperator.StartOperator(mgr, namespacedClient, clientset, time.Duration(requeueAfter)*time.Second, discoveryCtl, localClusterID)
 
+	if err := mgr.Add(auxmgr); err != nil {
+		klog.Errorf("Unable to add the auxiliary manager to the main one: %w", err)
+		os.Exit(1)
+	}
 	if err := mgr.Start(ctrl.SetupSignalHandler()); err != nil {
-		klog.Error(err, "problem running manager")
+		klog.Errorf("Unable to start manager: %w", err)
 		os.Exit(1)
 	}
 }

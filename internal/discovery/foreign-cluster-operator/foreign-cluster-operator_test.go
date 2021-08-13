@@ -17,6 +17,7 @@ import (
 	machtypes "k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/util/retry"
 	"k8s.io/utils/pointer"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 
 	"github.com/liqotech/liqo/apis/config/v1alpha1"
@@ -117,10 +118,7 @@ var _ = Describe("ForeignClusterOperator", func() {
 		controller = ForeignClusterReconciler{
 			Client:           mgr.GetClient(),
 			Scheme:           mgr.GetScheme(),
-			Namespace:        "default",
-			crdClient:        cluster.GetClient(),
 			clusterID:        cID,
-			ForeignConfig:    cluster.GetCfg(),
 			RequeueAfter:     300,
 			ConfigProvider:   &config,
 			namespaceManager: namespaceManager,
@@ -157,43 +155,33 @@ var _ = Describe("ForeignClusterOperator", func() {
 				c.fc.Status.TenantNamespace.Local = tenantNamespace.Name
 
 				// create the foreigncluster CR
-				obj, err := controller.crdClient.Resource("foreignclusters").Create(&c.fc, &metav1.CreateOptions{})
-				Expect(err).To(BeNil())
-				Expect(obj).NotTo(BeNil())
-
-				fc, ok := obj.(*discoveryv1alpha1.ForeignCluster)
-				Expect(ok).To(BeTrue())
-				Expect(fc).NotTo(BeNil())
+				fc := c.fc.DeepCopy()
+				Expect(controller.Create(ctx, fc)).To(Succeed())
 
 				fc.Status = *c.fc.Status.DeepCopy()
-				obj, err = controller.crdClient.Resource("foreignclusters").UpdateStatus(fc.Name, fc, &metav1.UpdateOptions{})
-				Expect(err).To(BeNil())
-				Expect(obj).NotTo(BeNil())
-
-				fc, ok = obj.(*discoveryv1alpha1.ForeignCluster)
-				Expect(ok).To(BeTrue())
-				Expect(fc).NotTo(BeNil())
+				Expect(controller.Status().Update(ctx, fc)).To(Succeed())
 
 				// enable the peering for that foreigncluster
-				err = controller.peerNamespaced(ctx, fc)
-				Expect(err).To(BeNil())
+				Expect(controller.peerNamespaced(ctx, fc)).To(Succeed())
 
 				// check that the incoming and the outgoing statuses are the expected ones
 				Expect(peeringconditionsutils.GetStatus(fc, discoveryv1alpha1.OutgoingPeeringCondition)).To(c.expectedOutgoing)
 				Expect(peeringconditionsutils.GetStatus(fc, discoveryv1alpha1.IncomingPeeringCondition)).To(c.expectedIncoming)
 
 				// get the resource requests in the local tenant namespace
-				obj, err = controller.crdClient.Resource("resourcerequests").Namespace(tenantNamespace.Name).List(&metav1.ListOptions{})
-				Expect(err).To(BeNil())
-				Expect(obj).NotTo(BeNil())
+				rrs := discoveryv1alpha1.ResourceRequestList{}
+				Eventually(func() error {
+					if err := controller.List(ctx, &rrs, client.InNamespace(tenantNamespace.Name)); err != nil {
+						return err
+					}
 
-				rrs, ok := obj.(*discoveryv1alpha1.ResourceRequestList)
-				Expect(ok).To(BeTrue())
-				Expect(rrs).NotTo(BeNil())
-
-				// check that the length of the resource request list is the expected one,
-				// and the resource request has been created in the correct namespace
-				Expect(len(rrs.Items)).To(c.expectedPeeringLength)
+					// check that the length of the resource request list is the expected one,
+					// and the resource request has been created in the correct namespace
+					if ok, err := c.expectedPeeringLength.Match(rrs.Items); !ok {
+						return err
+					}
+					return nil
+				}).Should(Succeed())
 			},
 
 			Entry("peer", peerTestcase{
@@ -218,7 +206,7 @@ var _ = Describe("ForeignClusterOperator", func() {
 						TenantNamespace: defaultTenantNamespace,
 					},
 				},
-				expectedPeeringLength: Equal(1),
+				expectedPeeringLength: HaveLen(1),
 				expectedOutgoing:      Equal(discoveryv1alpha1.PeeringConditionStatusPending), // we expect a joined flag set to true for the outgoing peering
 				expectedIncoming:      Equal(discoveryv1alpha1.PeeringConditionStatusNone),
 			}),
@@ -245,65 +233,55 @@ var _ = Describe("ForeignClusterOperator", func() {
 
 				// populate the resourcerequest CR
 				c.rr.Name = controller.clusterID.GetClusterID()
+				c.rr.Namespace = tenantNamespace.Name
 				c.rr.Spec.ClusterIdentity.ClusterID = c.fc.Spec.ClusterIdentity.ClusterID
 				c.rr.Labels = resourceRequestLabels(c.fc.Spec.ClusterIdentity.ClusterID)
 
 				// create the foreigncluster CR
-				obj, err := controller.crdClient.Resource("foreignclusters").Create(&c.fc, &metav1.CreateOptions{})
-				Expect(err).To(BeNil())
-				Expect(obj).NotTo(BeNil())
-
-				fc, ok := obj.(*discoveryv1alpha1.ForeignCluster)
-				Expect(ok).To(BeTrue())
-				Expect(fc).NotTo(BeNil())
+				fc := c.fc.DeepCopy()
+				Expect(controller.Create(ctx, fc)).To(Succeed())
 
 				fc.Status = *c.fc.Status.DeepCopy()
-				obj, err = controller.crdClient.Resource("foreignclusters").UpdateStatus(fc.Name, fc, &metav1.UpdateOptions{})
-				Expect(err).To(BeNil())
-				Expect(obj).NotTo(BeNil())
-
-				fc, ok = obj.(*discoveryv1alpha1.ForeignCluster)
-				Expect(ok).To(BeTrue())
-				Expect(fc).NotTo(BeNil())
+				Expect(controller.Status().Update(ctx, fc)).To(Succeed())
 
 				// create the resourcerequest CR
-				obj, err = controller.crdClient.Resource("resourcerequests").Namespace(tenantNamespace.Name).Create(&c.rr, &metav1.CreateOptions{})
-				Expect(err).To(BeNil())
-				Expect(obj).NotTo(BeNil())
-
-				rr, ok := obj.(*discoveryv1alpha1.ResourceRequest)
-				Expect(ok).To(BeTrue())
-				Expect(rr).NotTo(BeNil())
+				rr := c.rr.DeepCopy()
+				Expect(controller.Create(ctx, rr)).To(Succeed())
 
 				// set the ResourceRequest status to created
-				obj, err = controller.crdClient.Resource("resourcerequests").Namespace(tenantNamespace.Name).UpdateStatus(rr.Name, rr, &metav1.UpdateOptions{})
-				Expect(err).To(BeNil())
-				Expect(obj).NotTo(BeNil())
-
-				rr, ok = obj.(*discoveryv1alpha1.ResourceRequest)
-				Expect(ok).To(BeTrue())
-				Expect(rr).NotTo(BeNil())
+				rr.Status = *c.rr.Status.DeepCopy()
+				Expect(controller.Status().Update(ctx, rr)).To(Succeed())
 
 				// disable the peering for that foreigncluster
-				err = controller.unpeerNamespaced(ctx, fc)
-				Expect(err).To(BeNil())
+				Expect(controller.unpeerNamespaced(ctx, fc)).To(Succeed())
 
 				// check that the incoming and the outgoing statuses are the expected ones
 				Expect(peeringconditionsutils.GetStatus(fc, discoveryv1alpha1.OutgoingPeeringCondition)).To(c.expectedOutgoing)
 				Expect(peeringconditionsutils.GetStatus(fc, discoveryv1alpha1.IncomingPeeringCondition)).To(c.expectedIncoming)
 
 				// get the resource requests in the local tenant namespace
-				obj, err = controller.crdClient.Resource("resourcerequests").Namespace(tenantNamespace.Name).List(&metav1.ListOptions{})
-				Expect(err).To(BeNil())
-				Expect(obj).NotTo(BeNil())
+				rrs := discoveryv1alpha1.ResourceRequestList{}
+				Eventually(func() error {
+					if err := controller.List(ctx, &rrs, client.InNamespace(tenantNamespace.Name)); err != nil {
+						return err
+					}
 
-				rrs, ok := obj.(*discoveryv1alpha1.ResourceRequestList)
-				Expect(ok).To(BeTrue())
-				Expect(rrs).NotTo(BeNil())
+					// check that the length of the resource request list is the expected one.
+					if ok, err := c.expectedPeeringLength.Match(rrs.Items); !ok {
+						return err
+					}
 
-				// check that the length of the resource request list is the expected one,
-				// and the resource request has been set for deletion in the correct namespace
-				Expect(len(rrs.Items)).To(c.expectedPeeringLength)
+					// Check that the resource request has been set for deletion in the correct namespace
+					if len(rrs.Items) > 0 {
+						if ok, err := BeFalse().Match(rrs.Items[0].Spec.WithdrawalTimestamp.IsZero()); !ok {
+							return err
+						}
+						rr = &rrs.Items[0]
+					}
+					return nil
+				}).Should(Succeed())
+
+				// Check that the resource request has been set for deletion in the correct namespace
 				if len(rrs.Items) > 0 {
 					Expect(rrs.Items[0].Spec.WithdrawalTimestamp.IsZero()).To(BeFalse())
 					rr = &rrs.Items[0]
@@ -311,18 +289,12 @@ var _ = Describe("ForeignClusterOperator", func() {
 
 				// set the ResourceRequest status to deleted
 				rr.Status.OfferWithdrawalTimestamp = &now
-				obj, err = controller.crdClient.Resource("resourcerequests").Namespace(tenantNamespace.Name).UpdateStatus(rr.Name, rr, &metav1.UpdateOptions{})
-				Expect(err).To(BeNil())
-				Expect(obj).NotTo(BeNil())
-
-				rr, ok = obj.(*discoveryv1alpha1.ResourceRequest)
-				Expect(ok).To(BeTrue())
-				Expect(rr).NotTo(BeNil())
+				Expect(controller.Status().Update(ctx, rr)).To(Succeed())
 
 				// call for the second time the unpeer function to delete the ResourceRequest
-				err = retry.RetryOnConflict(retry.DefaultBackoff, func() error {
+				err := retry.RetryOnConflict(retry.DefaultBackoff, func() error {
 					// make sure to be working on the last ForeignCluster version
-					err = controller.Client.Get(ctx, machtypes.NamespacedName{
+					err := controller.Client.Get(ctx, machtypes.NamespacedName{
 						Name: fc.GetName(),
 					}, fc)
 					if err != nil {
@@ -334,15 +306,17 @@ var _ = Describe("ForeignClusterOperator", func() {
 				Expect(err).To(BeNil())
 
 				// get the resource requests in the local tenant namespace
-				obj, err = controller.crdClient.Resource("resourcerequests").Namespace(tenantNamespace.Name).List(&metav1.ListOptions{})
-				Expect(err).To(BeNil())
-				Expect(obj).NotTo(BeNil())
+				Eventually(func() error {
+					if err := controller.List(ctx, &rrs, client.InNamespace(tenantNamespace.Name)); err != nil {
+						return err
+					}
 
-				rrs, ok = obj.(*discoveryv1alpha1.ResourceRequestList)
-				Expect(ok).To(BeTrue())
-				Expect(rrs).NotTo(BeNil())
-
-				Expect(len(rrs.Items)).To(BeNumerically("==", 0))
+					// check that no resource requests are present in the end.
+					if ok, err := HaveLen(0).Match(rrs.Items); !ok {
+						return err
+					}
+					return nil
+				}).Should(Succeed())
 			},
 
 			Entry("unpeer", unpeerTestcase{
@@ -386,7 +360,7 @@ var _ = Describe("ForeignClusterOperator", func() {
 						AuthURL: "",
 					},
 				},
-				expectedPeeringLength: Equal(1),
+				expectedPeeringLength: HaveLen(1),
 				expectedOutgoing:      Equal(discoveryv1alpha1.PeeringConditionStatusDisconnecting),
 				expectedIncoming:      Equal(discoveryv1alpha1.PeeringConditionStatusNone),
 			}),

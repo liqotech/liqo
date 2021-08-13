@@ -42,8 +42,7 @@ func (r *ForeignClusterReconciler) validateForeignCluster(ctx context.Context,
 	}
 
 	if requireUpdate {
-		_, err = r.update(foreignCluster)
-		if err != nil {
+		if err = r.Client.Update(ctx, foreignCluster); err != nil {
 			klog.Error(err, err.Error())
 			return false, ctrl.Result{
 				Requeue:      true,
