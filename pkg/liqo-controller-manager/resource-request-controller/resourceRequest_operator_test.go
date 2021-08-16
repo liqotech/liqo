@@ -1,6 +1,7 @@
 package resourcerequestoperator
 
 import (
+	"context"
 	"fmt"
 	"time"
 
@@ -23,9 +24,8 @@ import (
 	sharingv1alpha1 "github.com/liqotech/liqo/apis/sharing/v1alpha1"
 	crdreplicator "github.com/liqotech/liqo/internal/crdReplicator"
 	"github.com/liqotech/liqo/pkg/clusterid"
-	"github.com/liqotech/liqo/pkg/consts"
 	"github.com/liqotech/liqo/pkg/discovery"
-	"github.com/liqotech/liqo/pkg/virtualKubelet/forge"
+	"github.com/liqotech/liqo/pkg/liqo-controller-manager/resource-request-controller/testutils"
 )
 
 const (
@@ -42,187 +42,13 @@ var (
 	ClusterID3 = clusterid.NewStaticClusterID("test-cluster3").GetClusterID()
 )
 
-func createNewNode(nodeName string, virtual bool) (*corev1.Node, error) {
-	resources := corev1.ResourceList{}
-	resources[corev1.ResourceCPU] = *resource.NewScaledQuantity(5000, resource.Milli)
-	resources[corev1.ResourceMemory] = *resource.NewScaledQuantity(5, resource.Mega)
-	node := &corev1.Node{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: nodeName,
-		},
-	}
-	if virtual {
-		node.Labels = map[string]string{
-			consts.TypeLabel: consts.TypeNode,
-		}
-	}
-	node.Status = corev1.NodeStatus{
-		Capacity:    resources,
-		Allocatable: resources,
-		Conditions: []corev1.NodeCondition{
-			0: {
-				Type:   corev1.NodeReady,
-				Status: corev1.ConditionTrue,
-			},
-		},
-	}
-	node, err := clientset.CoreV1().Nodes().Create(ctx, node, metav1.CreateOptions{})
-	if err != nil {
-		return nil, err
-	}
-	return node, nil
-}
-
-func createNewPod(podName, clusterID string, shadow bool) (*corev1.Pod, error) {
-	resources := corev1.ResourceList{}
-	resources[corev1.ResourceCPU] = *resource.NewQuantity(1, resource.DecimalSI)
-	resources[corev1.ResourceMemory] = *resource.NewQuantity(50000, resource.DecimalSI)
-	pod := &corev1.Pod{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      podName,
-			Namespace: "default",
-			Labels:    map[string]string{},
-		},
-		Spec: corev1.PodSpec{
-			Containers: []corev1.Container{
-				0: {
-					Name: "test-container1",
-					Resources: corev1.ResourceRequirements{
-						Limits:   resources,
-						Requests: resources,
-					},
-					Image: "nginx",
-				},
-			},
-		},
-	}
-	if clusterID != "" {
-		pod.Labels[forge.LiqoOutgoingKey] = "test"
-		pod.Labels[forge.LiqoOriginClusterID] = clusterID
-	}
-	if shadow {
-		pod.Labels[consts.LocalPodLabelKey] = consts.LocalPodLabelValue
-	}
-	pod, err := clientset.CoreV1().Pods("default").Create(ctx, pod, metav1.CreateOptions{})
-	if err != nil {
-		return nil, err
-	}
-	// set Status Ready
-	pod.Status = corev1.PodStatus{
-		Conditions: []corev1.PodCondition{
-			0: {
-				Type:   corev1.PodReady,
-				Status: corev1.ConditionTrue,
-			},
-		},
-	}
-	pod, err = clientset.CoreV1().Pods("default").UpdateStatus(ctx, pod, metav1.UpdateOptions{})
-	if err != nil {
-		return nil, err
-	}
-	return pod, nil
-}
-
-func setPodReadyStatus(pod *corev1.Pod, status bool) (*corev1.Pod, error) {
-	for key, value := range pod.Status.Conditions {
-		if value.Type == corev1.PodReady {
-			if status {
-				pod.Status.Conditions[key].Status = corev1.ConditionTrue
-			} else {
-				pod.Status.Conditions[key].Status = corev1.ConditionFalse
-			}
-		}
-	}
-	pod, err := clientset.CoreV1().Pods("default").UpdateStatus(ctx, pod, metav1.UpdateOptions{})
-	if err != nil {
-		return nil, err
-	}
-	return pod, err
-}
-
-func setNodeReadyStatus(node *corev1.Node, status bool) (*corev1.Node, error) {
-	for key, value := range node.Status.Conditions {
-		if value.Type == corev1.NodeReady {
-			if status {
-				node.Status.Conditions[key].Status = corev1.ConditionTrue
-			} else {
-				node.Status.Conditions[key].Status = corev1.ConditionFalse
-			}
-		}
-	}
-	node, err := clientset.CoreV1().Nodes().UpdateStatus(ctx, node, metav1.UpdateOptions{})
-	if err != nil {
-		return nil, err
-	}
-	return node, nil
-}
-
-func checkResourceOfferUpdate(nodeResources, podResources []corev1.ResourceList) bool {
-	offer := &sharingv1alpha1.ResourceOffer{}
-	err := k8sClient.Get(ctx, types.NamespacedName{
-		Name:      offerPrefix + homeClusterID,
-		Namespace: ResourcesNamespace,
-	}, offer)
-	if err != nil {
-		return false
-	}
-	offerResources := offer.Spec.ResourceQuota.Hard
-	testList := corev1.ResourceList{}
-	for _, nodeResource := range nodeResources {
-		for resourceName, quantity := range nodeResource {
-			toAdd := testList[resourceName].DeepCopy()
-			toAdd.Add(quantity)
-			testList[resourceName] = toAdd.DeepCopy()
-		}
-	}
-
-	for _, podResource := range podResources {
-		for resourceName, quantity := range podResource {
-			toSub := testList[resourceName].DeepCopy()
-			toSub.Sub(quantity)
-			testList[resourceName] = toSub.DeepCopy()
-		}
-	}
-
-	for resourceName, quantity := range offerResources {
-		toCheck := testList[resourceName].DeepCopy()
-		scale(resourceName, &toCheck)
-		if quantity.Cmp(toCheck) != 0 {
-			return false
-		}
-	}
-	return true
-}
-
-func scale(resourceName corev1.ResourceName, quantity *resource.Quantity) {
-	percentage := int64(50)
-	switch resourceName {
-	case corev1.ResourceCPU:
-		// use millis
-		quantity.SetScaled(quantity.MilliValue()*percentage/100, resource.Milli)
-	case corev1.ResourceMemory:
-		// use mega
-		quantity.SetScaled(quantity.ScaledValue(resource.Mega)*percentage/100, resource.Mega)
-	default:
-		quantity.Set(quantity.Value() * percentage / 100)
-	}
-}
-
-func isAllZero(resources *corev1.ResourceList) bool {
-	for _, value := range *resources {
-		if !value.IsZero() {
-			return false
-		}
-	}
-	return true
-}
-
-func createResourceRequest(clusterID string) *discoveryv1alpha1.ResourceRequest {
+func CreateResourceRequest(ctx context.Context, resourceRequestName, resourcesNamespace, clusterID string,
+	k8sClient client.Client) *discoveryv1alpha1.ResourceRequest {
 	By("By creating a new ResourceRequest")
 	resourceRequest := &discoveryv1alpha1.ResourceRequest{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      ResourceRequestName + clusterID,
-			Namespace: ResourcesNamespace,
+			Name:      resourceRequestName + clusterID,
+			Namespace: resourcesNamespace,
 			Labels: map[string]string{
 				crdreplicator.RemoteLabelSelector:    clusterID,
 				crdreplicator.ReplicationStatuslabel: "true",
@@ -236,7 +62,7 @@ func createResourceRequest(clusterID string) *discoveryv1alpha1.ResourceRequest 
 		},
 	}
 	Expect(k8sClient.Create(ctx, resourceRequest)).Should(Succeed())
-	requestLookupKey := types.NamespacedName{Name: ResourceRequestName + clusterID, Namespace: ResourcesNamespace}
+	requestLookupKey := types.NamespacedName{Name: resourceRequestName + clusterID, Namespace: resourcesNamespace}
 	createdResourceRequest := &discoveryv1alpha1.ResourceRequest{}
 	Eventually(func() bool {
 		err := k8sClient.Get(ctx, requestLookupKey, createdResourceRequest)
@@ -253,13 +79,13 @@ var _ = Describe("ResourceRequest Operator", func() {
 		node2                  *corev1.Node
 	)
 	BeforeEach(func() {
-		createdResourceRequest = createResourceRequest(ClusterID1)
+		createdResourceRequest = CreateResourceRequest(ctx, ResourceRequestName, ResourcesNamespace, ClusterID1, k8sClient)
 		var err error
-		node1, err = createNewNode("test-node1", false)
+		node1, err = testutils.CreateNewNode(ctx, "test-node1", false, clientset)
 		Expect(err).ToNot(HaveOccurred())
-		node2, err = createNewNode("test-node2", false)
+		node2, err = testutils.CreateNewNode(ctx, "test-node2", false, clientset)
 		Expect(err).ToNot(HaveOccurred())
-		podWithoutLabel, err = createNewPod("test-pod-2", "", false)
+		podWithoutLabel, err = testutils.CreateNewPod(ctx, "test-pod-2", "", false, clientset)
 		Expect(err).ToNot(HaveOccurred())
 	})
 	AfterEach(func() {
@@ -273,8 +99,8 @@ var _ = Describe("ResourceRequest Operator", func() {
 		Expect(err).ToNot(HaveOccurred())
 	})
 
-	Context("Testing ResourceRequest Controller when creating a new ResourceRequest", func() {
-		It("Should create new ResourceOffer ", func() {
+	When("Creating a new ResourceRequest", func() {
+		It("Should create a new ResourceOffer ", func() {
 			By("Checking Request status")
 			var resourceRequest discoveryv1alpha1.ResourceRequest
 			Eventually(func() []string {
@@ -344,7 +170,7 @@ var _ = Describe("ResourceRequest Operator", func() {
 				podList := []corev1.ResourceList{
 					0: podReq,
 				}
-				return checkResourceOfferUpdate(nodeList, podList)
+				return testutils.CheckResourceOfferUpdate(ctx, offerPrefix, homeClusterID, ResourcesNamespace, nodeList, podList, k8sClient)
 			}, timeout, interval).Should(BeTrue())
 
 			By("Checking ResourceOffer invalidation on request set deleting phase")
@@ -422,7 +248,7 @@ var _ = Describe("ResourceRequest Operator", func() {
 		})
 	})
 
-	Context("Testing broadcaster", func() {
+	When("Creating a new ResourceRequest", func() {
 		It("Broadcaster should update resources in correct way", func() {
 			var resourceRequest discoveryv1alpha1.ResourceRequest
 			Eventually(func() []string {
@@ -436,22 +262,24 @@ var _ = Describe("ResourceRequest Operator", func() {
 				return resourceRequest.Finalizers
 			}, timeout, interval).Should(ContainElement(tenantFinalizer))
 			podReq, _ := resourcehelper.PodRequestsAndLimits(podWithoutLabel)
+
 			By("Checking update node ready condition")
 			var err error
-			node1, err = setNodeReadyStatus(node1, false)
+			node1, err = testutils.SetNodeReadyStatus(ctx, node1, false, clientset)
 			Expect(err).ToNot(HaveOccurred())
 			Eventually(func() bool {
 				resourcesRead := newBroadcaster.ReadResources(ClusterID1)
 				for resourceName, quantity := range resourcesRead {
 					toCheck := node2.Status.Allocatable[resourceName].DeepCopy()
 					toCheck.Sub(podReq[resourceName])
-					scale(resourceName, &toCheck)
+					testutils.Scale(testutils.DefaultScalePercentage, resourceName, &toCheck)
 					if quantity.Cmp(toCheck) != 0 {
 						return false
 					}
 				}
 				return true
 			}, timeout, interval).Should(BeTrue())
+
 			By("Checking if ResourceOffer has been update and has correct amount of resources")
 			Eventually(func() bool {
 				nodeList := []corev1.ResourceList{
@@ -460,10 +288,11 @@ var _ = Describe("ResourceRequest Operator", func() {
 				podList := []corev1.ResourceList{
 					0: podReq,
 				}
-				return checkResourceOfferUpdate(nodeList, podList)
+				return testutils.CheckResourceOfferUpdate(ctx, offerPrefix, homeClusterID, ResourcesNamespace, nodeList, podList, k8sClient)
 			}, timeout, interval).Should(BeTrue())
-			node1, err = setNodeReadyStatus(node1, true)
+			node1, err = testutils.SetNodeReadyStatus(ctx, node1, true, clientset)
 			Expect(err).ToNot(HaveOccurred())
+
 			By("Checking inserting of node1 again in ResourceOffer")
 			Eventually(func() bool {
 				nodeList := []corev1.ResourceList{
@@ -473,7 +302,7 @@ var _ = Describe("ResourceRequest Operator", func() {
 				podList := []corev1.ResourceList{
 					0: podReq,
 				}
-				return checkResourceOfferUpdate(nodeList, podList)
+				return testutils.CheckResourceOfferUpdate(ctx, offerPrefix, homeClusterID, ResourcesNamespace, nodeList, podList, k8sClient)
 			}, timeout, interval).Should(BeTrue())
 			Eventually(func() bool {
 				resourcesRead := newBroadcaster.ReadResources(ClusterID1)
@@ -481,13 +310,14 @@ var _ = Describe("ResourceRequest Operator", func() {
 					toCheck := node2.Status.Allocatable[resourceName].DeepCopy()
 					toCheck.Add(node1.Status.Allocatable[resourceName])
 					toCheck.Sub(podReq[resourceName])
-					scale(resourceName, &toCheck)
+					testutils.Scale(testutils.DefaultScalePercentage, resourceName, &toCheck)
 					if quantity.Cmp(toCheck) != 0 {
 						return false
 					}
 				}
 				return true
 			}, timeout, interval).Should(BeTrue())
+
 			By("Checking update node resources")
 			toUpdate := node1.Status.Allocatable.DeepCopy()
 			for _, quantity := range toUpdate {
@@ -502,7 +332,7 @@ var _ = Describe("ResourceRequest Operator", func() {
 					toCheck := node2.Status.Allocatable[resourceName].DeepCopy()
 					toCheck.Add(node1.Status.Allocatable[resourceName])
 					toCheck.Sub(podReq[resourceName])
-					scale(resourceName, &toCheck)
+					testutils.Scale(testutils.DefaultScalePercentage, resourceName, &toCheck)
 					if quantity.Cmp(toCheck) != 0 {
 						return false
 					}
@@ -518,7 +348,7 @@ var _ = Describe("ResourceRequest Operator", func() {
 				podList := []corev1.ResourceList{
 					0: podReq,
 				}
-				return checkResourceOfferUpdate(nodeList, podList)
+				return testutils.CheckResourceOfferUpdate(ctx, offerPrefix, homeClusterID, ResourcesNamespace, nodeList, podList, k8sClient)
 			}, timeout, interval).Should(BeTrue())
 			By("Checking Node Delete")
 			err = clientset.CoreV1().Nodes().Delete(ctx, node1.Name, metav1.DeleteOptions{})
@@ -528,7 +358,7 @@ var _ = Describe("ResourceRequest Operator", func() {
 				for resourceName, quantity := range resourcesRead {
 					toCheck := node2.Status.Allocatable[resourceName].DeepCopy()
 					toCheck.Sub(podReq[resourceName])
-					scale(resourceName, &toCheck)
+					testutils.Scale(testutils.DefaultScalePercentage, resourceName, &toCheck)
 					if quantity.Cmp(toCheck) != 0 {
 						return false
 					}
@@ -543,20 +373,20 @@ var _ = Describe("ResourceRequest Operator", func() {
 				podList := []corev1.ResourceList{
 					0: podReq,
 				}
-				return checkResourceOfferUpdate(nodeList, podList)
+				return testutils.CheckResourceOfferUpdate(ctx, offerPrefix, homeClusterID, ResourcesNamespace, nodeList, podList, k8sClient)
 			}, timeout, interval).Should(BeTrue())
 			By("Checking correct update of resource after pod changing Status")
-			podWithoutLabel, err = setPodReadyStatus(podWithoutLabel, false)
+			podWithoutLabel, err = testutils.SetPodReadyStatus(ctx, podWithoutLabel, false, clientset)
 			Expect(err).ToNot(HaveOccurred())
 			Eventually(func() bool {
 				nodeList := []corev1.ResourceList{
 					0: node2.Status.Allocatable,
 				}
 				var podList []corev1.ResourceList
-				return checkResourceOfferUpdate(nodeList, podList)
+				return testutils.CheckResourceOfferUpdate(ctx, offerPrefix, homeClusterID, ResourcesNamespace, nodeList, podList, k8sClient)
 			}, timeout, interval).Should(BeTrue())
 			// set the pod ready again
-			podWithoutLabel, err = setPodReadyStatus(podWithoutLabel, true)
+			podWithoutLabel, err = testutils.SetPodReadyStatus(ctx, podWithoutLabel, true, clientset)
 			Expect(err).ToNot(HaveOccurred())
 			Eventually(func() bool {
 				nodeList := []corev1.ResourceList{
@@ -565,10 +395,10 @@ var _ = Describe("ResourceRequest Operator", func() {
 				podList := []corev1.ResourceList{
 					0: podReq,
 				}
-				return checkResourceOfferUpdate(nodeList, podList)
+				return testutils.CheckResourceOfferUpdate(ctx, offerPrefix, homeClusterID, ResourcesNamespace, nodeList, podList, k8sClient)
 			}, timeout, interval).Should(BeTrue())
 			By("Adding pod offloaded by cluster which refers the ResourceOffer. Expected no change in resources")
-			_, err = createNewPod("pod-offloaded-"+ClusterID1, ClusterID1, false)
+			_, err = testutils.CreateNewPod(ctx, "pod-offloaded-"+ClusterID1, ClusterID1, false, clientset)
 			Expect(err).ToNot(HaveOccurred())
 			Eventually(func() bool {
 				nodeList := []corev1.ResourceList{
@@ -577,12 +407,12 @@ var _ = Describe("ResourceRequest Operator", func() {
 				podList := []corev1.ResourceList{
 					0: podReq,
 				}
-				return checkResourceOfferUpdate(nodeList, podList)
+				return testutils.CheckResourceOfferUpdate(ctx, offerPrefix, homeClusterID, ResourcesNamespace, nodeList, podList, k8sClient)
 			}, timeout, interval).Should(BeTrue())
 			By("Adding pods offloaded by a different clusters. Expected change in resources.")
-			podOffloaded, err := createNewPod("pod-offloaded-"+ClusterID2, ClusterID2, false)
+			podOffloaded, err := testutils.CreateNewPod(ctx, "pod-offloaded-"+ClusterID2, ClusterID2, false, clientset)
 			Expect(err).ToNot(HaveOccurred())
-			podOffloaded2, err := createNewPod("pod-offloaded-"+ClusterID3, ClusterID3, false)
+			podOffloaded2, err := testutils.CreateNewPod(ctx, "pod-offloaded-"+ClusterID3, ClusterID3, false, clientset)
 			Expect(err).ToNot(HaveOccurred())
 			podReq2, _ := resourcehelper.PodRequestsAndLimits(podOffloaded)
 			podReq3, _ := resourcehelper.PodRequestsAndLimits(podOffloaded2)
@@ -595,10 +425,10 @@ var _ = Describe("ResourceRequest Operator", func() {
 					1: podReq2,
 					2: podReq3,
 				}
-				return checkResourceOfferUpdate(nodeList, podList)
+				return testutils.CheckResourceOfferUpdate(ctx, offerPrefix, homeClusterID, ResourcesNamespace, nodeList, podList, k8sClient)
 			}, timeout, interval).Should(BeTrue())
 			By("Checking change ready status for offloaded pod. Expected no change in offer.")
-			_, err = setPodReadyStatus(podOffloaded, false)
+			_, err = testutils.SetPodReadyStatus(ctx, podOffloaded, false, clientset)
 			Expect(err).ToNot(HaveOccurred())
 			Eventually(func() bool {
 				nodeList := []corev1.ResourceList{
@@ -609,7 +439,7 @@ var _ = Describe("ResourceRequest Operator", func() {
 					1: podReq2,
 					2: podReq3,
 				}
-				return checkResourceOfferUpdate(nodeList, podList)
+				return testutils.CheckResourceOfferUpdate(ctx, offerPrefix, homeClusterID, ResourcesNamespace, nodeList, podList, k8sClient)
 			}, timeout, interval).Should(BeTrue())
 
 			By("Update threshold with huge amount to test isAboveThreshold function")
@@ -639,7 +469,7 @@ var _ = Describe("ResourceRequest Operator", func() {
 			By("Testing check function returning false")
 			Expect(isVirtualNode(node2)).ShouldNot(BeTrue())
 			podReq, _ := resourcehelper.PodRequestsAndLimits(podWithoutLabel)
-			virtualNode, err := createNewNode("test-virtual-node", true)
+			virtualNode, err := testutils.CreateNewNode(ctx, "test-virtual-node", true, clientset)
 			Expect(err).ToNot(HaveOccurred())
 			Expect(isVirtualNode(virtualNode)).Should(BeTrue())
 			By("Expected no change on resources")
@@ -651,7 +481,7 @@ var _ = Describe("ResourceRequest Operator", func() {
 				podList := []corev1.ResourceList{
 					0: podReq,
 				}
-				return checkResourceOfferUpdate(nodeList, podList)
+				return testutils.CheckResourceOfferUpdate(ctx, offerPrefix, homeClusterID, ResourcesNamespace, nodeList, podList, k8sClient)
 			}, timeout, interval).Should(BeTrue())
 		})
 		It("Testing shadow pod creation", func() {
@@ -666,7 +496,7 @@ var _ = Describe("ResourceRequest Operator", func() {
 				}
 				return resourceRequest.Finalizers
 			}, timeout, interval).Should(ContainElement(tenantFinalizer))
-			pod, err := createNewPod("shadow-test", "", true)
+			pod, err := testutils.CreateNewPod(ctx, "shadow-test", "", true, clientset)
 			Expect(err).ToNot(HaveOccurred())
 			Expect(isShadowPod(pod)).Should(BeTrue())
 			podReq1, _ := resourcehelper.PodRequestsAndLimits(podWithoutLabel)
@@ -679,7 +509,7 @@ var _ = Describe("ResourceRequest Operator", func() {
 				podList := []corev1.ResourceList{
 					0: podReq1,
 				}
-				return checkResourceOfferUpdate(nodeList, podList)
+				return testutils.CheckResourceOfferUpdate(ctx, offerPrefix, homeClusterID, ResourcesNamespace, nodeList, podList, k8sClient)
 			}, timeout, interval).Should(BeTrue())
 		})
 	})
@@ -703,7 +533,7 @@ var _ = Describe("ResourceRequest Operator", func() {
 					Namespace: ResourcesNamespace,
 				}, offer)
 				Expect(err).ToNot(HaveOccurred())
-				return isAllZero(&offer.Spec.ResourceQuota.Hard)
+				return testutils.IsAllZero(&offer.Spec.ResourceQuota.Hard)
 			}, timeout, interval).Should(BeTrue())
 		})
 	})
