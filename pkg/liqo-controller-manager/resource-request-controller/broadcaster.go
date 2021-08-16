@@ -19,9 +19,9 @@ import (
 	resourcehelper "k8s.io/kubectl/pkg/util/resource"
 
 	configv1alpha1 "github.com/liqotech/liqo/apis/config/v1alpha1"
-	"github.com/liqotech/liqo/internal/resource-request-operator/interfaces"
 	"github.com/liqotech/liqo/pkg/consts"
 	crdclient "github.com/liqotech/liqo/pkg/crdClient"
+	"github.com/liqotech/liqo/pkg/liqo-controller-manager/resource-request-controller/interfaces"
 	"github.com/liqotech/liqo/pkg/utils"
 	errorsmanagement "github.com/liqotech/liqo/pkg/utils/errorsManagement"
 	"github.com/liqotech/liqo/pkg/utils/pod"

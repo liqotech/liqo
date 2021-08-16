@@ -35,13 +35,13 @@ import (
 	offloadingv1alpha1 "github.com/liqotech/liqo/apis/offloading/v1alpha1"
 	sharingv1alpha1 "github.com/liqotech/liqo/apis/sharing/v1alpha1"
 	virtualkubeletv1alpha1 "github.com/liqotech/liqo/apis/virtualKubelet/v1alpha1"
-	resourceRequestOperator "github.com/liqotech/liqo/internal/resource-request-operator"
 	"github.com/liqotech/liqo/pkg/clusterid"
 	crdclient "github.com/liqotech/liqo/pkg/crdClient"
 	namectrl "github.com/liqotech/liqo/pkg/liqo-controller-manager/namespace-controller"
 	mapsctrl "github.com/liqotech/liqo/pkg/liqo-controller-manager/namespaceMap-controller"
 	nsoffctrl "github.com/liqotech/liqo/pkg/liqo-controller-manager/namespaceOffloading-controller"
 	offloadingctrl "github.com/liqotech/liqo/pkg/liqo-controller-manager/offloadingStatus-controller"
+	resourceRequestOperator "github.com/liqotech/liqo/pkg/liqo-controller-manager/resource-request-controller"
 	resourceoffercontroller "github.com/liqotech/liqo/pkg/liqo-controller-manager/resourceoffer-controller"
 	virtualNodectrl "github.com/liqotech/liqo/pkg/liqo-controller-manager/virtualNode-controller"
 	"github.com/liqotech/liqo/pkg/mapperUtils"
@@ -111,7 +111,7 @@ func main() {
 	klog.InitFlags(nil)
 	flag.Parse()
 
-	errorsmanagement.SetPanicMode(enablePanic)
+	errorsmanagement.SetPanicOnErrorMode(enablePanic)
 
 	if clusterId == "" {
 		klog.Error("Cluster ID must be provided")

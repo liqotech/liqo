@@ -21,6 +21,7 @@ import (
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	sharingv1alpha1 "github.com/liqotech/liqo/apis/sharing/v1alpha1"
 	"github.com/liqotech/liqo/pkg/clusterid"
+	"github.com/liqotech/liqo/pkg/liqo-controller-manager/resource-request-controller/testutils"
 	errorsmanagement "github.com/liqotech/liqo/pkg/utils/errorsManagement"
 )
 
@@ -37,17 +38,18 @@ var (
 )
 
 func TestAPIs(t *testing.T) {
+	defer GinkgoRecover()
 	RegisterFailHandler(Fail)
 	RunSpecs(t, "Controller Suite")
 }
 
 func createCluster() {
-	By("bootstrapping test environment")
+	By("Bootstrapping test environment")
 	ctx, cancel = context.WithCancel(context.Background())
 	testEnv = &envtest.Environment{
 		CRDDirectoryPaths: []string{
-			filepath.Join("..", "..", "deployments", "liqo", "crds"),
-			filepath.Join("..", "..", "externalcrds"),
+			filepath.Join("..", "..", "..", "deployments", "liqo", "crds"),
+			filepath.Join("..", "..", "..", "externalcrds"),
 		},
 	}
 
@@ -66,16 +68,22 @@ func createCluster() {
 	Expect(err).NotTo(HaveOccurred())
 	// +kubebuilder:scaffold:scheme
 
+	By("Starting a new manager")
 	k8sManager, err := ctrl.NewManager(cfg, ctrl.Options{
 		Scheme:             scheme.Scheme,
 		MetricsBindAddress: "0", // this avoids port binding collision
 	})
 	Expect(err).ToNot(HaveOccurred())
-	errorsmanagement.SetPanicMode(false)
+	// Disabling panic on failure.
+	errorsmanagement.SetPanicOnErrorMode(false)
 	clientset = kubernetes.NewForConfigOrDie(k8sManager.GetConfig())
 	homeClusterID = clusterid.NewStaticClusterID("test-cluster").GetClusterID()
+
+	// Initializing a new updater and adding it to the manager.
 	updater := OfferUpdater{}
 	updater.Setup(homeClusterID, k8sManager.GetScheme(), &newBroadcaster, k8sManager.GetClient())
+
+	// Initializing a new broadcaster, starting it and adding it its configuration.
 	err = newBroadcaster.SetupBroadcaster(clientset, &updater, 5*time.Second, 5)
 	Expect(err).ToNot(HaveOccurred())
 	newBroadcaster.StartBroadcaster(ctx, &group)
@@ -83,12 +91,14 @@ func createCluster() {
 		Spec: configv1alpha1.ClusterConfigSpec{
 			AdvertisementConfig: configv1alpha1.AdvertisementConfig{
 				OutgoingConfig: configv1alpha1.BroadcasterConfig{
-					ResourceSharingPercentage: 50,
+					ResourceSharingPercentage: int32(testutils.DefaultScalePercentage),
 				},
 			},
 		},
 	}
 	newBroadcaster.setConfig(testClusterConf)
+
+	// Adding ResourceRequest reconciler to the manager
 	err = (&ResourceRequestReconciler{
 		Client:      k8sManager.GetClient(),
 		Scheme:      k8sManager.GetScheme(),
@@ -97,6 +107,7 @@ func createCluster() {
 	}).SetupWithManager(k8sManager)
 	Expect(err).ToNot(HaveOccurred())
 
+	// Starting the manager
 	go func() {
 		err = k8sManager.Start(ctx)
 		Expect(err).ToNot(HaveOccurred())
