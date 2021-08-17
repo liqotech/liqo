@@ -13,7 +13,7 @@ RUN mkdir /usr/local/kubebuilder/
 RUN tar -C /usr/local/kubebuilder/ --strip-components=1 -zvxf envtest-bins.tar.gz
 
 # Install iptables
-RUN apt-get update && apt-get install iptables -y
+RUN apt-get update && apt-get install iptables iproute2 -y
 
 # Install goimports
 RUN GO111MODULE="on" go get -u github.com/ory/go-acc
