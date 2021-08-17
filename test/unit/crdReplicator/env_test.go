@@ -24,6 +24,7 @@ import (
 	crdreplicator "github.com/liqotech/liqo/internal/crdReplicator"
 	"github.com/liqotech/liqo/pkg/consts"
 	crdclient "github.com/liqotech/liqo/pkg/crdClient"
+	"github.com/liqotech/liqo/pkg/utils/restcfg"
 )
 
 var (
@@ -69,13 +70,9 @@ func startDispatcherOperator() {
 		os.Exit(-1)
 	}
 	configLocal := k8sManagerLocal.GetConfig()
-	newConfig := &rest.Config{
-		Host: configLocal.Host,
-		// gotta go fast during tests -- we don't really care about overwhelming our test API server
-		QPS:   1000.0,
-		Burst: 2000.0,
-	}
-	err = dOperator.WatchConfiguration(newConfig, &configv1alpha1.GroupVersion)
+	// gotta go fast during tests -- we don't really care about overwhelming our test API server
+	restcfg.SetRateLimiterWithCustomParamenters(configLocal, 1000, 2000)
+	err = dOperator.WatchConfiguration(configLocal, &configv1alpha1.GroupVersion)
 	if err != nil {
 		klog.Errorf("an error occurred while starting the configuration watcher of crdreplicator operator: %s", err)
 		os.Exit(-1)
@@ -121,7 +118,7 @@ func setupEnv() {
 			klog.Errorf("%s -> an error occurred while setting test environment: %s", peeringClusterID, err)
 			os.Exit(-1)
 		} else {
-			klog.Infof("%s -> created test environment with configCluster %s", peeringClusterID, config.String())
+			klog.Infof("%s -> created test environment", peeringClusterID)
 		}
 		manager, err := ctrl.NewManager(config, ctrl.Options{
 			Scheme:             scheme.Scheme,
@@ -148,13 +145,8 @@ func setupEnv() {
 	if err != nil {
 		klog.Error(err, "an error occurred while setting up the local testing environment")
 	}
-	klog.Infof("%s -> created test environment with configCluster %s", localClusterID, configLocal.String())
-	newConfig := &rest.Config{
-		Host: configLocal.Host,
-		// gotta go fast during tests -- we don't really care about overwhelming our test API server
-		QPS:   1000.0,
-		Burst: 2000.0,
-	}
+	klog.Infof("%s -> created test environmen", localClusterID)
+	restcfg.SetRateLimiterWithCustomParamenters(configLocal, 1000, 2000)
 	k8sManagerLocal, err = ctrl.NewManager(configLocal, ctrl.Options{
 		Scheme:             scheme.Scheme,
 		MetricsBindAddress: "0",
@@ -163,7 +155,7 @@ func setupEnv() {
 		klog.Errorf("%s -> an error occurred while creating the manager %s", localClusterID, err)
 		os.Exit(-1)
 	}
-	configClusterClient = getConfigClusterCRDClient(newConfig)
+	configClusterClient = getConfigClusterCRDClient(configLocal)
 	cc := getClusterConfig()
 	_, err = configClusterClient.Resource("clusterconfigs").Create(cc, &metav1.CreateOptions{})
 	if err != nil {
