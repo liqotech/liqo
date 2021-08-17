@@ -67,7 +67,6 @@ jobs:
         GITHUB_TOKEN: ${{ secrets.CI_TOKEN }}
       if: ${{ github.event_name == 'repository_dispatch' }}
 
-
   build:
     runs-on: ubuntu-latest
     needs: configure
@@ -148,6 +147,7 @@ jobs:
           rm -rf /tmp/.buildx-cache
           mv /tmp/.buildx-cache-new /tmp/.buildx-cache
 
+
   post-build:
      runs-on: ubuntu-latest
      needs: [build, configure]
@@ -155,7 +155,7 @@ jobs:
 
        # Since we are using a repository-dispatch event, we have to explicitly set a run check. We update it to the actual status.
        - uses: octokit/request-action@v2.x
-         name: "Initialize run check to 'pending (For PR-only)"
+         name: "Set the PR check status (For PR-only)"
          with:
            route: POST /repos/${{ github.repository }}/statuses/${{ needs.configure.outputs.commit-ref }}
            state: "${{ needs.build.result }}"
@@ -164,7 +164,7 @@ jobs:
            target_url: "https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
          env:
            GITHUB_TOKEN: ${{ secrets.CI_TOKEN }}
-         if: always() && ${{ needs.build.result != 'cancelled' }} &&  ${{ github.event_name == 'repository_dispatch' }}
+         if: ${{ !cancelled() && github.event_name == 'repository_dispatch' }}
 
   e2e-test-trigger:
     runs-on: ubuntu-latest
@@ -186,9 +186,48 @@ jobs:
                "base-repo": "${{ github.repository }}"
              }
 
+  liqoctl:
+    runs-on: ubuntu-latest
+    needs: [ configure ]
+    strategy:
+      matrix:
+        goos: [ linux, windows, darwin ]
+        goarch: [ arm64, amd64 ]
+        exclude:
+          - goarch: arm64
+            goos: windows
+
+    steps:
+
+      - name: Setup Go
+        uses: actions/setup-go@v2
+        with:
+          go-version: 1.16
+        env:
+          GOPATH: ${{ github.workspace }}
+
+      - uses: actions/checkout@v2
+        with:
+          ref: "${{ needs.configure.outputs.commit-ref }}"
+          repository: "${{ needs.configure.outputs.repo-name }}"
+          persist-credentials: false
+
+      - name: Build Liqoctl
+        run: go build -o liqoctl-${{ matrix.goos }}-${{ matrix.goarch }} -ldflags="-s -w" ./cmd/liqoctl
+        env:
+          CGO_ENABLED: 0
+          GOOS: ${{ matrix.goos }}
+          GOARCH: ${{ matrix.goarch }}
+
+      - uses: actions/upload-artifact@v2
+        with:
+         name: liqoctl-${{ matrix.goos }}-${{ matrix.goarch }}
+         path: ./liqoctl-${{ matrix.goos }}-${{ matrix.goarch }}
+         retention-days: 1
+
   release:
     runs-on: ubuntu-latest
-    needs: [build, configure]
+    needs: [build, configure, liqoctl]
     if: github.event_name == 'push' && github.event.repository.full_name == 'liqotech/liqo' && startsWith(github.ref, 'refs/tags/v')
     steps:
 
@@ -206,6 +245,7 @@ jobs:
         id: last-release
         with:
           repository: ${{ github.repository }}
+          excludes: prerelease, draft
 
       - name: Generate the CHANGELOG
         uses: heinrichreimer/github-changelog-generator-action@v2.2
@@ -239,16 +279,6 @@ jobs:
           # Run verbosely
           verbose: true
 
-      - name: Create release
-        id: create_release
-        uses: actions/create-release@v1
-        with:
-          tag_name: ${{ needs.configure.outputs.commit-ref }}
-          release_name: ${{ needs.configure.outputs.commit-ref }}
-          body_path: ./CHANGELOG.md
-        env:
-          GITHUB_TOKEN: ${{ secrets.CI_TOKEN }}
-
       - name: Trigger Chart Upload
         uses: peter-evans/repository-dispatch@v1
         with:
@@ -259,3 +289,23 @@ jobs:
              {
                "version": "${{ needs.configure.outputs.commit-ref }}"
              }
+
+      - name: Parse semver string
+        id: semver_parser
+        uses: booxmedialtd/ws-action-parse-semver@v1
+        with:
+          input_string: '${{ needs.configure.outputs.commit-ref }}'
+          version_extractor_regex: 'v(.*)$'
+
+      - uses: actions/download-artifact@v2
+        with:
+         path: ./liqoctl/
+
+      - uses: ncipollo/release-action@v1
+        with:
+          artifacts: "./liqoctl/**/*"
+          bodyFile: ./CHANGELOG.md
+          token: ${{ secrets.CI_TOKEN }}
+          tag: ${{ needs.configure.outputs.commit-ref }}
+          name: ${{ needs.configure.outputs.commit-ref }}
+          prerelease: ${{ steps.semver_parser.outputs.prerelease != '' }}
