@@ -64,6 +64,7 @@ var (
 func init() {
 	_ = clientgoscheme.AddToScheme(scheme)
 
+	_ = configv1alpha1.AddToScheme(scheme)
 	_ = sharingv1alpha1.AddToScheme(scheme)
 	_ = netv1alpha1.AddToScheme(scheme)
 	_ = discoveryv1alpha1.AddToScheme(scheme)

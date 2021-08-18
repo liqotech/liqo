@@ -12,9 +12,9 @@ import (
 	"github.com/liqotech/liqo/pkg/consts"
 )
 
-func TestPeeringPhase(t *testing.T) {
+func TestForeignClusterUtils(t *testing.T) {
 	RegisterFailHandler(Fail)
-	RunSpecs(t, "PeeringPhase")
+	RunSpecs(t, "ForeignClusterUtils")
 }
 
 var _ = Describe("PeeringPhase", func() {

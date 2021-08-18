@@ -209,7 +209,6 @@ func getClusterConfig() *configv1alpha1.ClusterConfig {
 				},
 				OutgoingConfig: configv1alpha1.BroadcasterConfig{
 					ResourceSharingPercentage: 30,
-					EnableBroadcaster:         true,
 				},
 			},
 			DiscoveryConfig: configv1alpha1.DiscoveryConfig{

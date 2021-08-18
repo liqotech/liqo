@@ -3,22 +3,22 @@ package resourcerequestoperator
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	capsulev1beta1 "github.com/clastix/capsule/api/v1beta1"
 	rbacv1 "k8s.io/api/rbac/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/klog/v2"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
+	sharingv1alpha1 "github.com/liqotech/liqo/apis/sharing/v1alpha1"
 	liqoconst "github.com/liqotech/liqo/pkg/consts"
 )
 
 const tenantFinalizer = "liqo.io/tenant"
-
-func requireTenantDeletion(resourceRequest *discoveryv1alpha1.ResourceRequest) bool {
-	return !resourceRequest.GetDeletionTimestamp().IsZero() && controllerutil.ContainsFinalizer(resourceRequest, tenantFinalizer)
-}
 
 func (r *ResourceRequestReconciler) ensureTenant(ctx context.Context,
 	resourceRequest *discoveryv1alpha1.ResourceRequest) (requireUpdate bool, err error) {
@@ -72,7 +72,7 @@ func (r *ResourceRequestReconciler) ensureTenant(ctx context.Context,
 }
 
 func (r *ResourceRequestReconciler) ensureTenantDeletion(ctx context.Context,
-	resourceRequest *discoveryv1alpha1.ResourceRequest) error {
+	resourceRequest *discoveryv1alpha1.ResourceRequest) (requireUpdate bool, err error) {
 	remoteClusterID := resourceRequest.Spec.ClusterIdentity.ClusterID
 
 	tenant := &capsulev1beta1.Tenant{
@@ -80,12 +80,39 @@ func (r *ResourceRequestReconciler) ensureTenantDeletion(ctx context.Context,
 			Name: fmt.Sprintf("tenant-%v", remoteClusterID),
 		},
 	}
-	err := r.Client.Delete(ctx, tenant)
+	err = r.Client.Delete(ctx, tenant)
+	if apierrors.IsNotFound(err) {
+		// ignore not found
+		return false, nil
+	}
 	if err != nil {
+		klog.Error(err)
+		return false, err
+	}
+
+	controllerutil.RemoveFinalizer(resourceRequest, tenantFinalizer)
+	return true, nil
+}
+
+func (r *ResourceRequestReconciler) checkOfferState(ctx context.Context,
+	resourceRequest *discoveryv1alpha1.ResourceRequest) error {
+	name := strings.Join([]string{offerPrefix, r.ClusterID}, "")
+
+	var resourceOffer sharingv1alpha1.ResourceOffer
+	err := r.Client.Get(ctx, types.NamespacedName{
+		Name:      name,
+		Namespace: resourceRequest.GetNamespace(),
+	}, &resourceOffer)
+	if err != nil && !apierrors.IsNotFound(err) {
 		klog.Error(err)
 		return err
 	}
 
-	controllerutil.RemoveFinalizer(resourceRequest, tenantFinalizer)
+	if apierrors.IsNotFound(err) {
+		resourceRequest.Status.OfferState = discoveryv1alpha1.OfferStateNone
+	} else {
+		resourceRequest.Status.OfferState = discoveryv1alpha1.OfferStateCreated
+	}
+
 	return nil
 }

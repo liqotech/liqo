@@ -71,11 +71,21 @@ spec:
           status:
             description: ResourceRequestStatus defines the observed state of ResourceRequest.
             properties:
+              offerState:
+                default: None
+                description: OfferStateType defines the state of the child ResourceOffer
+                  resource.
+                enum:
+                - None
+                - Created
+                type: string
               offerWithdrawalTimestamp:
                 description: OfferWithdrawalTimestamp is the withdrawal timestamp
                   of the child ResourceOffer resource.
                 format: date-time
                 type: string
+            required:
+            - offerState
             type: object
         type: object
     served: true

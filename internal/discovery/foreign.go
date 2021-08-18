@@ -138,6 +138,7 @@ func (discovery *Controller) createForeign(
 				ClusterName: data.ClusterInfo.ClusterName,
 			},
 			OutgoingPeeringEnabled: v1alpha1.PeeringEnabledAuto,
+			IncomingPeeringEnabled: v1alpha1.PeeringEnabledAuto,
 			ForeignAuthURL:         data.AuthData.getURL(),
 			InsecureSkipTLSVerify:  pointer.BoolPtr(true),
 		},

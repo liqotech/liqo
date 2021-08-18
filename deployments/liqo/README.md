@@ -26,7 +26,6 @@
 | capsule.install | bool | `true` | liqo needs capsule to work properly, but you can use your already deployed capsule installation |
 | capsule.manager.options.capsuleUserGroups[0] | string | `"capsule.clastix.io"` |  |
 | capsule.manager.options.capsuleUserGroups[1] | string | `"liqo.io"` |  |
-| controllerManager.config.enableBroadcaster | bool | `true` | If set to false, the remote clusters will not be able to leverage your resources, but you will still be able to use theirs. |
 | controllerManager.config.resourceSharingPercentage | int | `30` | It defines the percentage of available cluster resources that you are willing to share with foreign clusters. |
 | controllerManager.imageName | string | `"liqo/liqo-controller-manager"` | controller-manager image repository |
 | controllerManager.pod.annotations | object | `{}` | controller-manager pod annotations |
@@ -41,6 +40,7 @@
 | discovery.config.clusterName | string | `""` | Set a mnemonic name for your cluster |
 | discovery.config.enableAdvertisement | bool | `true` | Enable the mDNS advertisement on LANs, set to false to not be discoverable from other clusters in the same LAN |
 | discovery.config.enableDiscovery | bool | `true` | Enable the mDNS discovery on LANs, set to false to not look for other clusters available in the same LAN |
+| discovery.config.incomingPeeringEnabled | bool | `true` | Allow (by default) the remote clusters to establish a peering with our cluster |
 | discovery.config.ttl | int | `90` | Time-to-live before an automatically discovered clusters is deleted from the list of available ones if no longer announced (in seconds) |
 | discovery.imageName | string | `"liqo/discovery"` | discovery image repository |
 | discovery.pod.annotations | object | `{}` | discovery pod annotations |

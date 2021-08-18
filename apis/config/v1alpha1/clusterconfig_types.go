@@ -65,12 +65,6 @@ type BroadcasterConfig struct {
 	// +kubebuilder:validation:Maximum=100
 	// +kubebuilder:validation:Minimum=0
 	ResourceSharingPercentage int32 `json:"resourceSharingPercentage"`
-	// EnableBroadcaster flag allows you to enable/disable the broadcasting of your Advertisement to the foreign.
-	// clusters.
-	// When EnableBroadcaster is set to false, the home cluster notifies to the foreign he wants to stop sharing
-	// resources.
-	// This will trigger the deletion of the virtual-kubelet and, after that, of the Advertisement,
-	EnableBroadcaster bool `json:"enableBroadcaster"`
 }
 
 // AcceptPolicy defines the policy to accept/refuse an Advertisement.
@@ -142,6 +136,10 @@ type DiscoveryConfig struct {
 	EnableAdvertisement bool `json:"enableAdvertisement"`
 
 	AutoJoin bool `json:"autojoin"`
+
+	// Allow (by default) the remote clusters to establish a peering with our cluster.
+	// +kubebuilder:validation:Optional
+	IncomingPeeringEnabled bool `json:"incomingPeeringEnabled"`
 
 	AuthServiceAddress string `json:"authServiceAddress,omitempty"`
 	AuthServicePort    string `json:"authServicePort,omitempty"`

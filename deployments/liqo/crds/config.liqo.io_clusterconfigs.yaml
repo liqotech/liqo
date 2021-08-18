@@ -114,6 +114,10 @@ spec:
                     type: boolean
                   enableDiscovery:
                     type: boolean
+                  incomingPeeringEnabled:
+                    description: Allow (by default) the remote clusters to establish
+                      a peering with our cluster.
+                    type: boolean
                   name:
                     type: string
                   port:
@@ -296,14 +300,6 @@ spec:
                     description: OutgoingConfig defines the behavior for the creation
                       of Advertisements on other clusters.
                     properties:
-                      enableBroadcaster:
-                        description: EnableBroadcaster flag allows you to enable/disable
-                          the broadcasting of your Advertisement to the foreign. clusters.
-                          When EnableBroadcaster is set to false, the home cluster
-                          notifies to the foreign he wants to stop sharing resources.
-                          This will trigger the deletion of the virtual-kubelet and,
-                          after that, of the Advertisement,
-                        type: boolean
                       resourceSharingPercentage:
                         description: ResourceSharingPercentage defines the percentage
                           of your cluster resources that you will share with foreign
@@ -313,7 +309,6 @@ spec:
                         minimum: 0
                         type: integer
                     required:
-                    - enableBroadcaster
                     - resourceSharingPercentage
                     type: object
                 required:

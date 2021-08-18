@@ -77,6 +77,15 @@ spec:
                 description: URL where to contact foreign Auth service.
                 pattern: https:\/\/(www\.)?[-a-zA-Z0-9@:%._\+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b([-a-zA-Z0-9()@:%_\+.~#?&//=]*)
                 type: string
+              incomingPeeringEnabled:
+                default: Auto
+                description: Allow the remote cluster to establish a peering with
+                  our cluster.
+                enum:
+                - Auto
+                - "No"
+                - "Yes"
+                type: string
               insecureSkipTLSVerify:
                 default: true
                 description: Indicates if the local cluster has to skip the tls verification
