@@ -9,7 +9,9 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
+	"sigs.k8s.io/controller-runtime/pkg/source"
 
+	configv1alpha1 "github.com/liqotech/liqo/apis/config/v1alpha1"
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	sharingv1alpha1 "github.com/liqotech/liqo/apis/sharing/v1alpha1"
 	crdreplicator "github.com/liqotech/liqo/internal/crdReplicator"
@@ -56,20 +58,30 @@ func (r *ResourceRequestReconciler) Reconcile(ctx context.Context, req ctrl.Requ
 		return ctrl.Result{}, err
 	}
 
-	if requireTenantDeletion(&resourceRequest) {
-		if err = r.ensureTenantDeletion(ctx, &resourceRequest); err != nil {
+	var resourceReqPhase resourceRequestPhase
+	resourceReqPhase, err = r.getResourceRequestPhase(ctx, &resourceRequest)
+	if err != nil {
+		klog.Errorf("%s -> Error getting the ResourceRequest Phase: %s", remoteClusterID, err)
+		return ctrl.Result{}, err
+	}
+
+	newRequireSpecUpdate := false
+	// ensure creation and deletion of the Capsule Tenant for the remote cluster
+	switch resourceReqPhase {
+	case deletingResourceRequestPhase, denyResourceRequestPhase:
+		// the local cluster does not allow the peering, ensure the Tenant deletion
+		if newRequireSpecUpdate, err = r.ensureTenantDeletion(ctx, &resourceRequest); err != nil {
 			klog.Errorf("%s -> Error deleting Tenant: %s", remoteClusterID, err)
 			return ctrl.Result{}, err
 		}
-		requireSpecUpdate = true
-	} else {
-		newRequireSpecUpdate := false
+	case allowResourceRequestPhase:
+		// the local cluster allows the peering, ensure the Tenant creation
 		if newRequireSpecUpdate, err = r.ensureTenant(ctx, &resourceRequest); err != nil {
 			klog.Errorf("%s -> Error creating Tenant: %s", remoteClusterID, err)
 			return ctrl.Result{}, err
 		}
-		requireSpecUpdate = requireSpecUpdate || newRequireSpecUpdate
 	}
+	requireSpecUpdate = requireSpecUpdate || newRequireSpecUpdate
 
 	if requireSpecUpdate {
 		if err = r.Client.Update(ctx, &resourceRequest); err != nil {
@@ -88,18 +100,25 @@ func (r *ResourceRequestReconciler) Reconcile(ctx context.Context, req ctrl.Requ
 		}
 	}()
 
-	if resourceRequest.Spec.WithdrawalTimestamp.IsZero() {
+	// ensure creation, update and deletion of the related ResourceOffer
+	switch resourceReqPhase {
+	case allowResourceRequestPhase:
+		// ensure that we are offering resources to this remote cluster
 		r.Broadcaster.enqueueForCreationOrUpdate(remoteClusterID)
-		if err != nil {
-			klog.Errorf("%s -> Error generating resourceOffer: %s", remoteClusterID, err)
-			return ctrl.Result{}, err
-		}
-	} else {
+		resourceRequest.Status.OfferWithdrawalTimestamp = nil
+	case denyResourceRequestPhase, deletingResourceRequestPhase:
+		// ensure to invalidate any resource offered to the remote cluster
 		err = r.invalidateResourceOffer(ctx, &resourceRequest)
 		if err != nil {
 			klog.Errorf("%s -> Error invalidating resourceOffer: %s", remoteClusterID, err)
 			return ctrl.Result{}, err
 		}
+	}
+
+	// check the state of the related ResourceOffer
+	if err = r.checkOfferState(ctx, &resourceRequest); err != nil {
+		klog.Error(err)
+		return ctrl.Result{}, err
 	}
 
 	return ctrl.Result{}, nil
@@ -117,5 +136,12 @@ func (r *ResourceRequestReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&discoveryv1alpha1.ResourceRequest{}, builder.WithPredicates(p)).
 		Owns(&sharingv1alpha1.ResourceOffer{}).
+		Watches(&source.Kind{Type: &discoveryv1alpha1.ForeignCluster{}}, getForeignClusterEventHandler(
+			r.Client,
+		)).
+		Watches(&source.Kind{Type: &configv1alpha1.ClusterConfig{}}, getClusterConfigEventHandler(
+			r.Client,
+			r.Broadcaster,
+		)).
 		Complete(r)
 }

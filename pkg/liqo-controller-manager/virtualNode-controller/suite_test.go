@@ -157,6 +157,7 @@ var _ = BeforeSuite(func(done Done) {
 		Spec: discoveryv1alpha1.ForeignClusterSpec{
 			ForeignAuthURL:         "https://example.com",
 			OutgoingPeeringEnabled: discoveryv1alpha1.PeeringEnabledAuto,
+			IncomingPeeringEnabled: discoveryv1alpha1.PeeringEnabledAuto,
 			InsecureSkipTLSVerify:  pointer.BoolPtr(true),
 		},
 	}
@@ -171,6 +172,7 @@ var _ = BeforeSuite(func(done Done) {
 		Spec: discoveryv1alpha1.ForeignClusterSpec{
 			ForeignAuthURL:         "https://example.com",
 			OutgoingPeeringEnabled: discoveryv1alpha1.PeeringEnabledAuto,
+			IncomingPeeringEnabled: discoveryv1alpha1.PeeringEnabledAuto,
 			InsecureSkipTLSVerify:  pointer.BoolPtr(true),
 		},
 	}

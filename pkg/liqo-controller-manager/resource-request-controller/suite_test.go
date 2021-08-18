@@ -94,6 +94,9 @@ func createCluster() {
 					ResourceSharingPercentage: int32(testutils.DefaultScalePercentage),
 				},
 			},
+			DiscoveryConfig: configv1alpha1.DiscoveryConfig{
+				IncomingPeeringEnabled: true,
+			},
 		},
 	}
 	newBroadcaster.setConfig(testClusterConf)

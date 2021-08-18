@@ -11,6 +11,16 @@ import (
 // EDIT THIS FILE!  THIS IS SCAFFOLDING FOR YOU TO OWN!
 // NOTE: json tags are required.  Any new fields you add must have json tags for the fields to be serialized.
 
+// OfferStateType defines the state of the child ResourceOffer resource.
+type OfferStateType string
+
+const (
+	// OfferStateCreated indicates that the child ResourceOffer resource has been created.
+	OfferStateCreated OfferStateType = "Created"
+	// OfferStateNone indicates that the child ResourceOffer resource has not been created.
+	OfferStateNone OfferStateType = "None"
+)
+
 // ResourceRequestSpec defines the desired state of ResourceRequest.
 type ResourceRequestSpec struct {
 	// INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
@@ -28,6 +38,9 @@ type ResourceRequestSpec struct {
 type ResourceRequestStatus struct {
 	// OfferWithdrawalTimestamp is the withdrawal timestamp of the child ResourceOffer resource.
 	OfferWithdrawalTimestamp *metav1.Time `json:"offerWithdrawalTimestamp,omitempty"`
+	// +kubebuilder:validation:Enum="None";"Created"
+	// +kubebuilder:default="None"
+	OfferState OfferStateType `json:"offerState"`
 }
 
 // +kubebuilder:object:root=true

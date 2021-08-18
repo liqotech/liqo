@@ -59,10 +59,13 @@ const (
 	noResourceRequestMessage = "No ResourceRequest found in the Tenant Namespace %v"
 
 	resourceRequestDeletingReason  = "ResourceRequestDeleting"
-	resourceRequestDeletingMessage = "Ths ResourceRequest is in deleting phase in the Tenant Namespace %v"
+	resourceRequestDeletingMessage = "The ResourceRequest is in deleting phase in the Tenant Namespace %v"
 
 	resourceRequestAcceptedReason  = "ResourceRequestAccepted"
-	resourceRequestAcceptedMessage = "Ths ResourceRequest has been accepted by the remote cluster in the Tenant Namespace %v"
+	resourceRequestAcceptedMessage = "The ResourceRequest has been accepted by the remote cluster in the Tenant Namespace %v"
+
+	resourceRequestPendingReason  = "ResourceRequestPending"
+	resourceRequestPendingMessage = "The remote cluster has not created a ResourceOffer in the Tenant Namespace %v yet"
 
 	resourceRequestCreatedReason  = "ResourceRequestCreated"
 	resourceRequestCreatedMessage = "The ResourceRequest has been created in the Tenant Namespace %v"
@@ -415,12 +418,30 @@ func getPeeringPhase(foreignCluster *discoveryv1alpha1.ForeignCluster,
 		resourceRequest := &resourceRequestList.Items[0]
 		desiredDelete := !resourceRequest.Spec.WithdrawalTimestamp.IsZero()
 		deleted := !resourceRequest.Status.OfferWithdrawalTimestamp.IsZero()
-		if desiredDelete || deleted {
-			return discoveryv1alpha1.PeeringConditionStatusDisconnecting, resourceRequestDeletingReason,
-				fmt.Sprintf(resourceRequestDeletingMessage, foreignCluster.Status.TenantNamespace.Local), nil
+		offerState := resourceRequest.Status.OfferState
+
+		// the offerState indicates if the ResourceRequest has been accepted and
+		// the ResourceOffer has been created by the remote cluster.
+		// * "Created" state means that the resources has been offered, and, if the withdrawal timestamp is set,
+		//   the offered is created, but it is no more valid. -> the cluster is disconnecting.
+		// * "None" there is no ResourceOffer created by the remote cluster, both because it didn't yet or because
+		//   it did not accept the incoming peering from the local cluster. -> the peering state is Pending.
+		switch offerState {
+		case discoveryv1alpha1.OfferStateCreated:
+			if desiredDelete || deleted {
+				return discoveryv1alpha1.PeeringConditionStatusDisconnecting, resourceRequestDeletingReason,
+					fmt.Sprintf(resourceRequestDeletingMessage, foreignCluster.Status.TenantNamespace.Local), nil
+			}
+			return discoveryv1alpha1.PeeringConditionStatusEstablished, resourceRequestAcceptedReason,
+				fmt.Sprintf(resourceRequestAcceptedMessage, foreignCluster.Status.TenantNamespace.Local), nil
+		case discoveryv1alpha1.OfferStateNone, "":
+			return discoveryv1alpha1.PeeringConditionStatusPending, resourceRequestPendingReason,
+				fmt.Sprintf(resourceRequestPendingMessage, foreignCluster.Status.TenantNamespace.Local), nil
+		default:
+			err = fmt.Errorf("unknown offer state %v", offerState)
+			return discoveryv1alpha1.PeeringConditionStatusNone, noResourceRequestReason,
+				fmt.Sprintf(noResourceRequestMessage, foreignCluster.Status.TenantNamespace.Local), err
 		}
-		return discoveryv1alpha1.PeeringConditionStatusEstablished, resourceRequestAcceptedReason,
-			fmt.Sprintf(resourceRequestAcceptedMessage, foreignCluster.Status.TenantNamespace.Local), nil
 	default:
 		err = fmt.Errorf("more than one resource request found")
 		return discoveryv1alpha1.PeeringConditionStatusNone, noResourceRequestReason,

@@ -83,6 +83,11 @@ type ForeignClusterSpec struct {
 	// +kubebuilder:default="Auto"
 	// +kubebuilder:validation:Optional
 	OutgoingPeeringEnabled PeeringEnabledType `json:"outgoingPeeringEnabled"`
+	// Allow the remote cluster to establish a peering with our cluster.
+	// +kubebuilder:validation:Enum="Auto";"No";"Yes"
+	// +kubebuilder:default="Auto"
+	// +kubebuilder:validation:Optional
+	IncomingPeeringEnabled PeeringEnabledType `json:"incomingPeeringEnabled"`
 	// URL where to contact foreign Auth service.
 	// +kubebuilder:validation:Pattern=`https:\/\/(www\.)?[-a-zA-Z0-9@:%._\+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b([-a-zA-Z0-9()@:%_\+.~#?&//=]*)`
 	ForeignAuthURL string `json:"foreignAuthUrl"`

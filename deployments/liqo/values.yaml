@@ -25,8 +25,6 @@ controllerManager:
   config:
     # -- It defines the percentage of available cluster resources that you are willing to share with foreign clusters.
     resourceSharingPercentage: 30
-    # -- If set to false, the remote clusters will not be able to leverage your resources, but you will still be able to use theirs.
-    enableBroadcaster: true
 
 route:
   pod:
@@ -112,6 +110,8 @@ discovery:
 
     # -- Automatically join discovered clusters
     autojoin: true
+    # -- Allow (by default) the remote clusters to establish a peering with our cluster
+    incomingPeeringEnabled: true
     # -- Enable the mDNS advertisement on LANs, set to false to not be discoverable from other clusters in the same LAN
     enableAdvertisement: true
     # -- Enable the mDNS discovery on LANs, set to false to not look for other clusters available in the same LAN
