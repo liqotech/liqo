@@ -20,7 +20,7 @@ func createLink(attrs *VxlanDeviceAttrs) (netlink.Link, error) {
 	err := netlink.LinkAdd(&netlink.Vxlan{
 		LinkAttrs: netlink.LinkAttrs{
 			Name:  vxlanOld.Name,
-			MTU:   vxlanOld.Mtu,
+			MTU:   vxlanOld.MTU,
 			Flags: net.FlagUp,
 		},
 		VxlanId:  vxlanOld.Vni,
@@ -74,7 +74,7 @@ func containsFdbEntry(fdbs []netlink.Neigh, n Neighbor) bool {
 
 func checkConfig(vxlanDev *VxlanDevice, vxlanOld *VxlanDeviceAttrs) {
 	Expect(vxlanDev.Link.VxlanId).Should(BeNumerically("==", vxlanOld.Vni))
-	Expect(vxlanDev.Link.MTU).Should(BeNumerically("==", vxlanOld.Mtu))
+	Expect(vxlanDev.Link.MTU).Should(BeNumerically("==", vxlanOld.MTU))
 	Expect(vxlanDev.Link.Port).Should(BeNumerically("==", vxlanOld.VtepPort))
 	Expect(vxlanDev.Link.SrcAddr).Should(Equal(vxlanOld.VtepAddr))
 	Expect(vxlanDev.Link.Name).Should(Equal(vxlanOld.Name))
@@ -88,14 +88,14 @@ var _ = Describe("Vxlan", func() {
 			Name:     "vxlan.test",
 			VtepPort: 4789,
 			VtepAddr: defaultIfaceIP,
-			Mtu:      1450,
+			MTU:      1450,
 		}
 		vxlanOld = &VxlanDeviceAttrs{
 			Vni:      18953,
 			Name:     "vxlan.old",
 			VtepAddr: defaultIfaceIP,
 			VtepPort: 4789,
-			Mtu:      1450,
+			MTU:      1450,
 		}
 		vxlanOldLink, err = createLink(vxlanOld)
 		vxlanDev = VxlanDevice{Link: vxlanOldLink.(*netlink.Vxlan)}

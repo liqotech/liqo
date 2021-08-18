@@ -37,6 +37,11 @@ spec:
             {{- if .Values.networkManager.pod.extraArgs }}
             {{- toYaml .Values.networkManager.pod.extraArgs | nindent 12 }}
             {{- end }}
+          env:
+            - name: POD_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
           resources:
             requests:
               cpu: 50m

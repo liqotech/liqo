@@ -37,6 +37,8 @@ const (
 	LiqoRouteOperatorName = "liqo-route"
 	// LiqoGatewayOperatorName name of the operator.
 	LiqoGatewayOperatorName = "liqo-gateway"
+	// LiqoNetworkManagerName name of the operator.
+	LiqoNetworkManagerName = "tunnelEndpointCreator-operator"
 	// GatewayLeaderElectionID used as name for the lease.coordination.k8s.io resource.
 	GatewayLeaderElectionID = "1d5hml1.gateway.net.liqo.io"
 	// GatewayNetnsName name of the custom network namespace used by liqo-gateway.

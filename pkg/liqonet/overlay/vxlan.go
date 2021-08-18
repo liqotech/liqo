@@ -20,7 +20,7 @@ type VxlanDeviceAttrs struct {
 	Name     string
 	VtepPort int
 	VtepAddr net.IP
-	Mtu      int
+	MTU      int
 }
 
 // VxlanDevice struct that holds a vxlan link.
@@ -39,7 +39,7 @@ func NewVxlanDevice(devAttrs *VxlanDeviceAttrs) (*VxlanDevice, error) {
 	link := &netlink.Vxlan{
 		LinkAttrs: netlink.LinkAttrs{
 			Name:  devAttrs.Name,
-			MTU:   devAttrs.Mtu,
+			MTU:   devAttrs.MTU,
 			Flags: net.FlagUp,
 		},
 		VxlanId:  devAttrs.Vni,
