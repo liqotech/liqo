@@ -18,7 +18,7 @@ var (
 		Name:     "vxlan.route",
 		VtepPort: 4789,
 		VtepAddr: nil,
-		Mtu:      1450,
+		MTU:      1450,
 	}
 	vxlanDevice   = new(overlay.VxlanDevice)
 	vxlanDeviceIP = "240.0.0.1/8"
@@ -74,7 +74,7 @@ func setUpVxlanLink(attrs *overlay.VxlanDeviceAttrs) (netlink.Link, error) {
 	err := netlink.LinkAdd(&netlink.Vxlan{
 		LinkAttrs: netlink.LinkAttrs{
 			Name:  attrs.Name,
-			MTU:   attrs.Mtu,
+			MTU:   attrs.MTU,
 			Flags: net.FlagUp,
 		},
 		VxlanId:  attrs.Vni,
