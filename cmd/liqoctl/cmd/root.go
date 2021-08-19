@@ -8,6 +8,7 @@ import (
 	"k8s.io/klog/v2"
 
 	"github.com/liqotech/liqo/pkg/liqoctl/common"
+	"github.com/liqotech/liqo/pkg/utils/restcfg"
 )
 
 // NewRootCommand initializes the tree of commands.
@@ -18,10 +19,15 @@ func NewRootCommand(ctx context.Context) *cobra.Command {
 		Short: common.LiqoctlShortHelp,
 		Long:  common.LiqoctlLongHelp,
 	}
-	flagset := flag.NewFlagSet("klog", flag.PanicOnError)
-	klog.InitFlags(flagset)
-	rootCmd.PersistentFlags().AddGoFlagSet(flagset)
+	klogFlagset := flag.NewFlagSet("klog", flag.PanicOnError)
+	klog.InitFlags(klogFlagset)
+	rateFlagset := flag.NewFlagSet("rate-limiting", flag.PanicOnError)
+	restcfg.InitFlags(rateFlagset)
+	rootCmd.PersistentFlags().AddGoFlagSet(klogFlagset)
+	rootCmd.PersistentFlags().AddGoFlagSet(rateFlagset)
 	rootCmd.PersistentFlags().BoolP("debug", "d", false, "Enable/Disable debug mode (default: false)")
 	rootCmd.AddCommand(newInstallCommand(ctx))
+	rootCmd.AddCommand(newAddCommand(ctx))
+	rootCmd.AddCommand(newGenerateAddCommand(ctx))
 	return rootCmd
 }

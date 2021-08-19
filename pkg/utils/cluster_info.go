@@ -41,7 +41,7 @@ func GetClusterIDWithControllerClient(ctx context.Context, controllerClient clie
 	}
 
 	clusterID := configMap.Data[consts.ClusterIDConfigMapKey]
-	klog.Infof("ClusterID is '%s'", clusterID)
+	klog.V(4).Infof("ClusterID is '%s'", clusterID)
 	return clusterID, nil
 }
 

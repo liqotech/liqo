@@ -11,6 +11,7 @@ import (
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	crdreplicator "github.com/liqotech/liqo/internal/crdReplicator"
 	"github.com/liqotech/liqo/pkg/utils"
+	foreigncluster "github.com/liqotech/liqo/pkg/utils/foreignCluster"
 )
 
 // ensureResourceRequest ensures the presence of a resource request to be sent to the specified ForeignCluster.
@@ -22,7 +23,8 @@ func (r *ForeignClusterReconciler) ensureResourceRequest(ctx context.Context,
 	remoteClusterID := foreignCluster.Spec.ClusterIdentity.ClusterID
 	localNamespace := foreignCluster.Status.TenantNamespace.Local
 
-	authURL, err := r.getHomeAuthURL()
+	authURL, err := foreigncluster.GetHomeAuthURL(ctx, r.LiqoNamespacedClient, r.Client, r.ConfigProvider.GetConfig().AuthServiceAddress,
+		r.ConfigProvider.GetConfig().AuthServicePort, r.liqoNamespace)
 	if err != nil {
 		return nil, err
 	}

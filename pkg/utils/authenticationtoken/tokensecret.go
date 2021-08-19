@@ -4,11 +4,15 @@ import (
 	"context"
 	"fmt"
 
-	v1 "k8s.io/api/core/v1"
+	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/apimachinery/pkg/selection"
+	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/klog/v2"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/liqotech/liqo/pkg/discovery"
 )
@@ -18,6 +22,28 @@ const (
 
 	tokenKey = "token"
 )
+
+// GetAuthToken loads the auth token for a foreignCluster with a given clusterID.
+func GetAuthToken(ctx context.Context, clusterID string, k8sClient client.Client) (string, error) {
+	req1, err := labels.NewRequirement(discovery.ClusterIDLabel, selection.Equals, []string{clusterID})
+	utilruntime.Must(err)
+	req2, err := labels.NewRequirement(discovery.AuthTokenLabel, selection.Exists, []string{})
+	utilruntime.Must(err)
+
+	var tokenSecrets corev1.SecretList
+	if err := k8sClient.List(ctx, &tokenSecrets, client.MatchingLabelsSelector{
+		Selector: labels.NewSelector().Add(*req1, *req2),
+	}); err != nil {
+		return "", err
+	}
+
+	for i := range tokenSecrets.Items {
+		if token, found := tokenSecrets.Items[i].Data["token"]; found {
+			return string(token), nil
+		}
+	}
+	return "", nil
+}
 
 // StoreInSecret stores an authentication token for a given remote cluster in a secret,
 // or updates it if it already exists.
@@ -40,7 +66,7 @@ func StoreInSecret(ctx context.Context, clientset kubernetes.Interface,
 }
 
 func updateAuthTokenSecret(ctx context.Context, clientset kubernetes.Interface,
-	secret *v1.Secret, clusterID, authToken string) error {
+	secret *corev1.Secret, clusterID, authToken string) error {
 	labels := secret.GetLabels()
 	labels[discovery.ClusterIDLabel] = clusterID
 	labels[discovery.AuthTokenLabel] = ""
@@ -62,7 +88,7 @@ func updateAuthTokenSecret(ctx context.Context, clientset kubernetes.Interface,
 
 func createAuthTokenSecret(ctx context.Context, clientset kubernetes.Interface,
 	secretName, liqoNamespace, clusterID, authToken string) error {
-	secret := &v1.Secret{
+	secret := &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      secretName,
 			Namespace: liqoNamespace,

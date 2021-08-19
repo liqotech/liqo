@@ -7,18 +7,16 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/liqotech/liqo/pkg/liqoctl/common"
+	"github.com/liqotech/liqo/pkg/liqoctl/generate"
 	installprovider "github.com/liqotech/liqo/pkg/liqoctl/install/provider"
+	installutils "github.com/liqotech/liqo/pkg/liqoctl/install/utils"
 )
 
 // HandleInstallCommand implements the "install" command. It detects which provider has to be used, generates the chart
 // with provider-specific values. Finally, it performs the installation on the target cluster.
-func HandleInstallCommand(ctx context.Context, cmd *cobra.Command, args []string) {
-	config, err := initClientConfig()
-	if err != nil {
-		fmt.Printf("Unable to create a client for the target cluster: %s", err)
-		return
-	}
-
+func HandleInstallCommand(ctx context.Context, cmd *cobra.Command, baseCommand string) {
+	config := common.GetLiqoctlRestConfOrDie()
 	providerName, err := cmd.Flags().GetString(providerFlag)
 	if err != nil {
 		return
@@ -59,4 +57,7 @@ func HandleInstallCommand(ctx context.Context, cmd *cobra.Command, args []string
 		fmt.Printf("Unable to initialize configuration: %v", err)
 		os.Exit(1)
 	}
+
+	// If the installation succeeded, let's print the add command to peer the target cluster with another one.
+	generate.HandleGenerateAddCommand(ctx, installutils.LiqoNamespace, baseCommand)
 }
