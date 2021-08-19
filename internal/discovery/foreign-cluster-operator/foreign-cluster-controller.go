@@ -18,18 +18,14 @@ package foreignclusteroperator
 
 import (
 	"context"
-	goerrors "errors"
 	"fmt"
 	"time"
 
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/selection"
 	"k8s.io/apimachinery/pkg/types"
-	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/klog/v2"
 	"k8s.io/utils/trace"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -45,11 +41,10 @@ import (
 	"github.com/liqotech/liqo/pkg/auth"
 	"github.com/liqotech/liqo/pkg/clusterid"
 	liqoconst "github.com/liqotech/liqo/pkg/consts"
-	discoveryPkg "github.com/liqotech/liqo/pkg/discovery"
 	identitymanager "github.com/liqotech/liqo/pkg/identityManager"
 	peeringRoles "github.com/liqotech/liqo/pkg/peering-roles"
 	tenantnamespace "github.com/liqotech/liqo/pkg/tenantNamespace"
-	authenticationtoken "github.com/liqotech/liqo/pkg/utils/authenticationtoken"
+	"github.com/liqotech/liqo/pkg/utils/authenticationtoken"
 	foreignclusterutils "github.com/liqotech/liqo/pkg/utils/foreignCluster"
 	peeringconditionsutils "github.com/liqotech/liqo/pkg/utils/peeringConditions"
 	traceutils "github.com/liqotech/liqo/pkg/utils/trace"
@@ -449,128 +444,6 @@ func getPeeringPhase(foreignCluster *discoveryv1alpha1.ForeignCluster,
 		return discoveryv1alpha1.PeeringConditionStatusNone, noResourceRequestReason,
 			fmt.Sprintf(noResourceRequestMessage, foreignCluster.Status.TenantNamespace.Local), err
 	}
-}
-
-// get the external address where the Authentication Service is reachable from the external world.
-func (r *ForeignClusterReconciler) getAddress() (string, error) {
-	// this address can be overwritten setting this environment variable
-	address := r.ConfigProvider.GetConfig().AuthServiceAddress
-	if address != "" {
-		return address, nil
-	}
-
-	// get the authentication service  (the namespace is automatically inferred by the namespaced client).
-	var svc corev1.Service
-	ref := types.NamespacedName{Name: discovery.AuthServiceName}
-	if err := r.LiqoNamespacedClient.Get(context.TODO(), ref, &svc); err != nil {
-		klog.Error(err)
-		return "", err
-	}
-
-	// if the service is exposed as LoadBalancer
-	if svc.Spec.Type == corev1.ServiceTypeLoadBalancer {
-		// get the IP from the LoadBalancer service
-		if len(svc.Status.LoadBalancer.Ingress) == 0 {
-			// the service has no external IPs
-			err := goerrors.New("no valid external IP for LoadBalancer Service")
-			klog.Error(err)
-			return "", err
-		}
-		lbIngress := svc.Status.LoadBalancer.Ingress[0]
-		// return the external service IP
-		if hostname := lbIngress.Hostname; hostname != "" {
-			return hostname, nil
-		} else if ip := lbIngress.IP; ip != "" {
-			return ip, nil
-		} else {
-			// the service has no external IPs
-			err := goerrors.New("no valid external IP for LoadBalancer Service")
-			klog.Error(err)
-			return "", err
-		}
-	}
-
-	// only physical nodes
-	//
-	// we need to get an address from a physical node, if we have established peerings in the past with other clusters,
-	// we may have some virtual nodes in our cluster. Since their IPs will not be reachable from other clusters, we cannot use them
-	// as address for a local NodePort Service
-	req, err := labels.NewRequirement(liqoconst.TypeLabel, selection.NotIn, []string{liqoconst.TypeNode})
-	utilruntime.Must(err)
-
-	// get the IP from the Nodes, to be used with NodePort services
-	nodes := corev1.NodeList{}
-	if err := r.Client.List(context.TODO(), &nodes, client.MatchingLabelsSelector{Selector: labels.NewSelector().Add(*req)}); err != nil {
-		klog.Error(err)
-		return "", err
-	}
-
-	if len(nodes.Items) == 0 {
-		// there are no node is the cluster, we cannot get the address on any of them
-		err = errors.NewNotFound(corev1.Resource("nodes"), "")
-		klog.Error(err)
-		return "", err
-	}
-
-	node := nodes.Items[0]
-	return discoveryPkg.GetAddress(&node)
-
-	// when an error occurs, it means that we was not able to get an address in any of the previous cases:
-	// 1. no overwrite variable is set
-	// 2. the service is not of type LoadBalancer
-	// 3. there are no nodes in the cluster to get the IP for a NodePort service
-}
-
-// get the external port where the Authentication Service is reachable from the external world.
-func (r *ForeignClusterReconciler) getPort() (string, error) {
-	// this port can be overwritten setting this environment variable
-	port := r.ConfigProvider.GetConfig().AuthServicePort
-	if port != "" {
-		return port, nil
-	}
-
-	// get the authentication service (the namespace is automatically inferred by the namespaced client).
-	var svc corev1.Service
-	ref := types.NamespacedName{Name: discovery.AuthServiceName}
-	if err := r.LiqoNamespacedClient.Get(context.TODO(), ref, &svc); err != nil {
-		klog.Error(err)
-		return "", err
-	}
-
-	if len(svc.Spec.Ports) == 0 {
-		// the service has no available port, we cannot get it
-		err := errors.NewNotFound(corev1.Resource(string(corev1.ResourceServices)), discovery.AuthServiceName)
-		klog.Error(err)
-		return "", err
-	}
-
-	if svc.Spec.Type == corev1.ServiceTypeLoadBalancer {
-		// return the LoadBalancer service external port
-		return fmt.Sprintf("%v", svc.Spec.Ports[0].Port), nil
-	}
-	if svc.Spec.Type == corev1.ServiceTypeNodePort {
-		// return the NodePort service port
-		return fmt.Sprintf("%v", svc.Spec.Ports[0].NodePort), nil
-	}
-	// other service types. When we are using an Ingress we should not reach this code, because of the environment variable
-	return "",
-		fmt.Errorf(
-			"you cannot expose the Auth Service with a %v Service. If you are using an Ingress, probably, there are configuration issues",
-			svc.Spec.Type)
-}
-
-func (r *ForeignClusterReconciler) getHomeAuthURL() (string, error) {
-	address, err := r.getAddress()
-	if err != nil {
-		return "", err
-	}
-
-	port, err := r.getPort()
-	if err != nil {
-		return "", err
-	}
-
-	return fmt.Sprintf("https://%s:%v", address, port), nil
 }
 
 func (r *ForeignClusterReconciler) checkNetwork(ctx context.Context,

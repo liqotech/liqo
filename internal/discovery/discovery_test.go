@@ -24,6 +24,7 @@ import (
 	v1alpha12 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	"github.com/liqotech/liqo/pkg/auth"
 	"github.com/liqotech/liqo/pkg/clusterid/test"
+	liqoconst "github.com/liqotech/liqo/pkg/consts"
 	"github.com/liqotech/liqo/pkg/discovery"
 	foreignclusterutils "github.com/liqotech/liqo/pkg/utils/foreignCluster"
 	"github.com/liqotech/liqo/pkg/utils/testutil"
@@ -760,7 +761,7 @@ var _ = Describe("Discovery", func() {
 					// create the auth service
 					_, err := cluster.GetClient().Client().CoreV1().Services("default").Create(context.TODO(), &v1.Service{
 						ObjectMeta: metav1.ObjectMeta{
-							Name: AuthServiceName,
+							Name: liqoconst.AuthServiceName,
 						},
 						Spec: v1.ServiceSpec{
 							Type: v1.ServiceTypeNodePort,

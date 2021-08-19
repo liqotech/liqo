@@ -129,6 +129,13 @@ func (k *eksProvider) ExtractChartParameters(ctx context.Context, config *rest.C
 
 // UpdateChartValues patches the values map with the values required for the selected cluster.
 func (k *eksProvider) UpdateChartValues(values map[string]interface{}) {
+	values["gateway"] = map[string]interface{}{
+		"service": map[string]interface{}{
+			"annotations": map[string]interface{}{
+				"service.beta.kubernetes.io/aws-load-balancer-type": "nlb",
+			},
+		},
+	}
 	values["apiServer"] = map[string]interface{}{
 		"address": k.endpoint,
 	}

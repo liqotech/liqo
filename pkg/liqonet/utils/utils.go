@@ -103,7 +103,7 @@ func GetClusterID(client kubernetes.Interface, cmName, namespace string, backoff
 		return k8serrors.IsNotFound(err)
 	}
 
-	klog.Info("Getting ClusterID from ConfigMap...")
+	klog.V(3).Info("Getting ClusterID from ConfigMap...")
 	retryErr := retry.OnError(backoff, notFound, func() error {
 		cm, err = cmClient.Get(context.TODO(), cmName, metav1.GetOptions{})
 		return err
@@ -113,7 +113,7 @@ func GetClusterID(client kubernetes.Interface, cmName, namespace string, backoff
 	}
 
 	clusterID := cm.Data[cmName]
-	klog.Infof("ClusterID is '%s'", clusterID)
+	klog.V(3).Infof("ClusterID is '%s'", clusterID)
 	return clusterID, nil
 }
 

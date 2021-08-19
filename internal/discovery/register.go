@@ -10,11 +10,8 @@ import (
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/klog/v2"
-)
 
-const (
-	// AuthServiceName is the name of authentication service.
-	AuthServiceName = "liqo-auth"
+	liqoconst "github.com/liqotech/liqo/pkg/consts"
 )
 
 func (discovery *Controller) register() {
@@ -50,7 +47,7 @@ func (discovery *Controller) shutdownServer() {
 
 // get the NodePort of AuthService.
 func (discovery *Controller) getAuthServicePort() (int, error) {
-	svc, err := discovery.crdClient.Client().CoreV1().Services(discovery.Namespace).Get(context.TODO(), AuthServiceName, metav1.GetOptions{})
+	svc, err := discovery.crdClient.Client().CoreV1().Services(discovery.Namespace).Get(context.TODO(), liqoconst.AuthServiceName, metav1.GetOptions{})
 	if err != nil {
 		klog.Error(err)
 		return 0, err

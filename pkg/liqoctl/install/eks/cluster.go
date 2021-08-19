@@ -21,12 +21,12 @@ func (k *eksProvider) getClusterInfo(sess *session.Session) error {
 
 	describeClusterResult, err := eksSvc.DescribeCluster(describeCluster)
 	if err != nil {
-		return err
+		return fmt.Errorf("unable to get cluster %s details, %w", *describeCluster.Name, err)
 	}
 
 	vpcID, err := k.parseClusterOutput(describeClusterResult)
 	if err != nil {
-		return err
+		return fmt.Errorf("unable to parse cluster output, %w", err)
 	}
 
 	ec2Svc := ec2.New(sess, aws.NewConfig().WithRegion(k.region))
@@ -37,7 +37,7 @@ func (k *eksProvider) getClusterInfo(sess *session.Session) error {
 
 	describeVpcResult, err := ec2Svc.DescribeVpcs(describeVpc)
 	if err != nil {
-		return err
+		return fmt.Errorf("unable to get VPC %s details, %w", vpcID, err)
 	}
 
 	if err = k.parseVpcOutput(vpcID, describeVpcResult); err != nil {

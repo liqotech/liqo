@@ -6,6 +6,8 @@ import (
 	"time"
 
 	flag "github.com/spf13/pflag"
+
+	installutils "github.com/liqotech/liqo/pkg/liqoctl/install/utils"
 )
 
 // CommonArguments encapsulates all the arguments common across install providers.
@@ -19,11 +21,16 @@ type CommonArguments struct {
 	CommonValues         map[string]interface{}
 	Devel                bool
 	DisableEndpointCheck bool
+	ChartPath            string
 }
 
 // ValidateCommonArguments validates install common arguments. If the inputs are valid, it returns a *CommonArgument
 // with all the parameters contents.
 func ValidateCommonArguments(flags *flag.FlagSet) (*CommonArguments, error) {
+	chartPath, err := flags.GetString("chart-path")
+	if err != nil {
+		return nil, err
+	}
 	version, err := flags.GetString("version")
 	if err != nil {
 		return nil, err
@@ -64,7 +71,7 @@ func ValidateCommonArguments(flags *flag.FlagSet) (*CommonArguments, error) {
 	if err != nil {
 		return nil, err
 	}
-	commonValues, err := parseCommonValues(clusterLabels, lanDiscovery)
+	commonValues, err := parseCommonValues(clusterLabels, chartPath, version, lanDiscovery)
 	if err != nil {
 		return nil, err
 	}
@@ -78,10 +85,11 @@ func ValidateCommonArguments(flags *flag.FlagSet) (*CommonArguments, error) {
 		CommonValues:         commonValues,
 		Devel:                devel,
 		DisableEndpointCheck: disableEndpointCheck,
+		ChartPath:            chartPath,
 	}, nil
 }
 
-func parseCommonValues(clusterLabels string, lanDiscovery bool) (map[string]interface{}, error) {
+func parseCommonValues(clusterLabels, chartPath, version string, lanDiscovery bool) (map[string]interface{}, error) {
 	if clusterLabels == "" {
 		return map[string]interface{}{}, nil
 	}
@@ -94,7 +102,15 @@ func parseCommonValues(clusterLabels string, lanDiscovery bool) (map[string]inte
 		}
 		m[label[0]] = label[1]
 	}
+	// If the chartPath is different from the official repo, we force the tag parameter in order to set the correct
+	// prefix for the images.
+	// (todo): make the prefix configurable and set the tag when is strictly necessary
+	tag := ""
+	if chartPath != installutils.LiqoChartFullName {
+		tag = version
+	}
 	return map[string]interface{}{
+		"tag": tag,
 		"discovery": map[string]interface{}{
 			"config": map[string]interface{}{
 				"clusterLabels":       m,
