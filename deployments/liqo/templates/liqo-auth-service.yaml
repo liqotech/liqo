@@ -25,5 +25,5 @@ spec:
       targetPort: 5000
       {{- else }}
       port: 443
-      targetPort: 443
+      targetPort: 8443
       {{- end }}

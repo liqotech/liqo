@@ -26,11 +26,17 @@ spec:
         {{- toYaml .Values.auth.pod.annotations | nindent 8 }}
       {{- end }}
     spec:
+      securityContext:
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
       serviceAccountName: {{ include "liqo.prefixedName" $authConfig }}
       {{- if .Values.auth.tls }}
       initContainers:
         - name: {{ $authConfig.containerName }}
           imagePullPolicy: {{ .Values.pullPolicy }}
+          securityContext:
+            allowPrivilegeEscalation: false
           image: {{ .Values.auth.initContainer.imageName }}{{ include "liqo.suffix" $authConfig }}:{{ include "liqo.version" $authConfig }}
           volumeMounts:
             - mountPath: '/certs'
@@ -57,6 +63,8 @@ spec:
       {{- end }}
       containers:
         - image: {{ .Values.auth.imageName }}{{ include "liqo.suffix" $authConfig }}:{{ include "liqo.version" $authConfig }}
+          securityContext:
+            allowPrivilegeEscalation: false
           name: {{ $authConfig.name }}
           imagePullPolicy: {{ .Values.pullPolicy }}
           command: ["/usr/bin/auth-service"]
@@ -78,7 +86,7 @@ spec:
           {{- if not .Values.auth.tls}}
           - --listeningPort=5000
           {{- else }}
-          - --listeningPort=443
+          - --listeningPort=8443
           - --useTls
           {{- end }}
           {{- if .Values.auth.pod.extraArgs }}
