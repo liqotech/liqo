@@ -17,16 +17,21 @@ type ServiceAccountIdentityRequest struct {
 
 // CertificateIdentityRequest is the request for a new certificate validation.
 type CertificateIdentityRequest struct {
-	ClusterID                 string `json:"clusterID"`
-	Token                     string `json:"token"`
+	ClusterID string `json:"clusterID"`
+	// OriginClusterToken will be used by the remote cluster to obtain an identity to send us its ResourceOffers
+	// and NetworkConfigs.
+	OriginClusterToken        string `json:"originClusterToken,omitempty"`
+	DestinationClusterToken   string `json:"destinationClusterToken"`
 	CertificateSigningRequest string `json:"certificateSigningRequest"`
 }
 
 // NewCertificateIdentityRequest creates and returns a new CertificateIdentityRequest.
-func NewCertificateIdentityRequest(clusterID, token string, certificateSigningRequest []byte) *CertificateIdentityRequest {
+func NewCertificateIdentityRequest(clusterID, originClusterToken, token string,
+	certificateSigningRequest []byte) *CertificateIdentityRequest {
 	return &CertificateIdentityRequest{
 		ClusterID:                 clusterID,
-		Token:                     token,
+		OriginClusterToken:        originClusterToken,
+		DestinationClusterToken:   token,
 		CertificateSigningRequest: base64.StdEncoding.EncodeToString(certificateSigningRequest),
 	}
 }
@@ -53,7 +58,7 @@ func (certIdentityRequest *CertificateIdentityRequest) GetClusterID() string {
 
 // GetToken returns the token.
 func (certIdentityRequest *CertificateIdentityRequest) GetToken() string {
-	return certIdentityRequest.Token
+	return certIdentityRequest.DestinationClusterToken
 }
 
 // GetPath returns the absolute path of the endpoint to contact to send a new CertificateIdentityRequest.

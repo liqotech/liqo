@@ -117,7 +117,8 @@ func main() {
 
 	klog.Info("Starting ForeignCluster operator")
 	namespacedClient := client.NewNamespacedClient(auxmgr.GetClient(), namespace)
-	foreignclusteroperator.StartOperator(mgr, namespacedClient, clientset, time.Duration(requeueAfter)*time.Second, discoveryCtl, localClusterID)
+	foreignclusteroperator.StartOperator(mgr, namespacedClient, clientset, namespace,
+		time.Duration(requeueAfter)*time.Second, discoveryCtl, localClusterID)
 
 	if err := mgr.Add(auxmgr); err != nil {
 		klog.Errorf("Unable to add the auxiliary manager to the main one: %w", err)

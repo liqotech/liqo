@@ -23,6 +23,7 @@ rules:
   - nodes
   verbs:
   - list
+  - watch
 - apiGroups:
   - ""
   resources:
@@ -33,6 +34,7 @@ rules:
   - get
   - list
   - update
+  - watch
 - apiGroups:
   - discovery.liqo.io
   resources:

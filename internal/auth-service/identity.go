@@ -14,6 +14,7 @@ import (
 
 	"github.com/liqotech/liqo/pkg/auth"
 	autherrors "github.com/liqotech/liqo/pkg/auth/errors"
+	authenticationtoken "github.com/liqotech/liqo/pkg/utils/authenticationtoken"
 	traceutils "github.com/liqotech/liqo/pkg/utils/trace"
 )
 
@@ -129,6 +130,16 @@ func (authService *Controller) handleIdentity(
 		return nil, err
 	}
 	tracer.Step("Identity response prepared")
+
+	if identityRequest.OriginClusterToken != "" {
+		// store the retrieved token
+		err = authenticationtoken.StoreInSecret(ctx, authService.clientset,
+			identityRequest.ClusterID, identityRequest.OriginClusterToken, authService.namespace)
+		if err != nil {
+			klog.Error(err)
+			return nil, err
+		}
+	}
 
 	klog.Infof("Identity Request successfully validated for cluster %v", identityRequest.GetClusterID())
 	return response, nil

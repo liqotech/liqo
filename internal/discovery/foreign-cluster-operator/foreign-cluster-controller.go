@@ -37,6 +37,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
+	"sigs.k8s.io/controller-runtime/pkg/source"
 
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	netv1alpha1 "github.com/liqotech/liqo/apis/net/v1alpha1"
@@ -49,6 +50,7 @@ import (
 	identitymanager "github.com/liqotech/liqo/pkg/identityManager"
 	peeringRoles "github.com/liqotech/liqo/pkg/peering-roles"
 	tenantnamespace "github.com/liqotech/liqo/pkg/tenantNamespace"
+	authenticationtoken "github.com/liqotech/liqo/pkg/utils/authenticationtoken"
 	foreignclusterutils "github.com/liqotech/liqo/pkg/utils/foreignCluster"
 	peeringconditionsutils "github.com/liqotech/liqo/pkg/utils/peeringConditions"
 	traceutils "github.com/liqotech/liqo/pkg/utils/trace"
@@ -100,6 +102,8 @@ type ForeignClusterReconciler struct {
 	clusterID            clusterid.ClusterID
 	RequeueAfter         time.Duration
 
+	liqoNamespace string
+
 	namespaceManager tenantnamespace.Manager
 	identityManager  identitymanager.IdentityManager
 
@@ -122,12 +126,12 @@ type ForeignClusterReconciler struct {
 // +kubebuilder:rbac:groups=net.liqo.io,resources=tunnelendpoints/status,verbs=get;watch;update
 // +kubebuilder:rbac:groups=sharing.liqo.io,resources=advertisements,verbs=get;list;watch;create;update;delete
 // +kubebuilder:rbac:groups=sharing.liqo.io,resources=advertisements/status,verbs=get;list;watch;create;update;delete
-// +kubebuilder:rbac:groups=core,resources=nodes,verbs=list
+// +kubebuilder:rbac:groups=core,resources=nodes,verbs=list;watch
 // +kubebuilder:rbac:groups=rbac.authorization.k8s.io,resources=clusterroles,verbs=get;create;update
 // +kubebuilder:rbac:groups=rbac.authorization.k8s.io,resources=clusterrolebindings,verbs=get;create
 // tenant namespace management
 // +kubebuilder:rbac:groups=core,resources=namespaces,verbs=get;list;watch;create
-// +kubebuilder:rbac:groups=core,resources=secrets,verbs=get;list;create;delete;update
+// +kubebuilder:rbac:groups=core,resources=secrets,verbs=get;list;watch;create;delete;update
 // +kubebuilder:rbac:groups=rbac.authorization.k8s.io,resources=rolebindings,verbs=get;create;deletecollection;delete
 // role
 // +kubebuilder:rbac:groups=core,namespace="liqo",resources=services,verbs=get;list;watch
@@ -361,9 +365,14 @@ func (r *ForeignClusterReconciler) unpeerNamespaced(ctx context.Context,
 func (r *ForeignClusterReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	// Prevent triggering a reconciliation in case of status modifications only.
 	foreignClusterPredicate := predicate.Or(predicate.GenerationChangedPredicate{}, predicate.LabelChangedPredicate{})
+
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&discoveryv1alpha1.ForeignCluster{}, builder.WithPredicates(foreignClusterPredicate)).
 		Owns(&discoveryv1alpha1.ResourceRequest{}).
+		Owns(&netv1alpha1.NetworkConfig{}).
+		Owns(&netv1alpha1.TunnelEndpoint{}).
+		Watches(&source.Kind{Type: &corev1.Secret{}}, authenticationtoken.GetAuthTokenSecretEventHandler(r.Client),
+			builder.WithPredicates(authenticationtoken.GetAuthTokenSecretPredicate())).
 		Complete(r)
 }
 
