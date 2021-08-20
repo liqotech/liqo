@@ -14,6 +14,7 @@ var providers = []string{"kubeadm", "k3s", "eks", "gke", "aks"}
 
 var providerInitFunc = map[string]func(*flag.FlagSet){
 	"kubeadm": kubeadm.GenerateFlags,
+	"kind":    kubeadm.GenerateFlags,
 	"k3s":     k3s.GenerateFlags,
 	"eks":     eks.GenerateFlags,
 	"gke":     gke.GenerateFlags,

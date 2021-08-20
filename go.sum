@@ -797,6 +797,8 @@ github.com/liggitt/tabwriter v0.0.0-20181228230101-89fcab3d43de h1:9TO3cAIGXtEhn
 github.com/liggitt/tabwriter v0.0.0-20181228230101-89fcab3d43de/go.mod h1:zAbeS9B/r2mtpb6U+EI2rYA5OAXxsYw6wTamcNW+zcE=
 github.com/lightstep/lightstep-tracer-common/golang/gogo v0.0.0-20190605223551-bc2310a04743/go.mod h1:qklhhLq1aX+mtWk9cPHPzaBjWImj5ULL6C7HFJtXQMM=
 github.com/lightstep/lightstep-tracer-go v0.18.1/go.mod h1:jlF1pusYV4pidLvZ+XD0UBX0ZE6WURAspgAczcDHrL4=
+github.com/liqotech/go-helm-client v0.8.1-0.20210823204019-f878e0fc4d26 h1:uGC5Hb4C/l34mHu5xCEuJZs52sazRMpplD5BLtCcexw=
+github.com/liqotech/go-helm-client v0.8.1-0.20210823204019-f878e0fc4d26/go.mod h1:+Ks5OpzB0hJw91W8o/8G+FmjUtjrIXxPuJjE87XG/G0=
 github.com/liqotech/virtual-kubelet v1.5.1-0.20210726130647-f2333d82a6de h1:yUmpHCqz5KM8ENgKAtmfmN+puwbkC9DVzPx+REdjt8k=
 github.com/liqotech/virtual-kubelet v1.5.1-0.20210726130647-f2333d82a6de/go.mod h1:Uf0+/KqEDz5Tz6TNQSok5B4A+guFZV6cs4JohQTHdEQ=
 github.com/liqotech/zeroconf v1.0.1-0.20201020081245-6384f3f21ffb h1:FokBo/2VZRYP72Y030Z5bQXiIr7gs/nt/ISqnuCsiq0=
@@ -876,8 +878,6 @@ github.com/mitchellh/osext v0.0.0-20151018003038-5e2d6d41470f/go.mod h1:OkQIRizQ
 github.com/mitchellh/reflectwalk v1.0.0/go.mod h1:mSTlrgnPZtwu0c4WaC2kGObEpuNDbx0jmZXqmk4esnw=
 github.com/mitchellh/reflectwalk v1.0.1 h1:FVzMWA5RllMAKIdUSC8mdWo3XtwoecrH79BY70sEEpE=
 github.com/mitchellh/reflectwalk v1.0.1/go.mod h1:mSTlrgnPZtwu0c4WaC2kGObEpuNDbx0jmZXqmk4esnw=
-github.com/mittwald/go-helm-client v0.8.0 h1:k8yMvoWE7C+jJgw6iodJ0U5nY4hVpLU20VIpR+FfyJk=
-github.com/mittwald/go-helm-client v0.8.0/go.mod h1:+Ks5OpzB0hJw91W8o/8G+FmjUtjrIXxPuJjE87XG/G0=
 github.com/moby/spdystream v0.2.0 h1:cjW1zVyyoiM0T7b6UoySUFqzXMoqRckQtXwGPiBhOM8=
 github.com/moby/spdystream v0.2.0/go.mod h1:f7i0iNDQJ059oMTcWxx8MA/zKFIuD/lY+0GqbN2Wy8c=
 github.com/moby/sys/mount v0.2.0 h1:WhCW5B355jtxndN5ovugJlMFJawbUODuW8fSnEH6SSM=

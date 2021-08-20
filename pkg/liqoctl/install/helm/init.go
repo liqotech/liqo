@@ -16,6 +16,8 @@ func InitializeHelmClientWithRepo(config *rest.Config, commonArgs *provider.Comm
 			RepositoryConfig: liqoHelmConfigPath,
 			RepositoryCache:  liqoHelmCachePath,
 			Debug:            commonArgs.Debug,
+			Linting:          false,
+			DebugLog:         nil,
 		},
 		RestConfig: config,
 	}
