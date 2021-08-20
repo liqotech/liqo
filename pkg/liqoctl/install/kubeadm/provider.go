@@ -30,11 +30,11 @@ func (k *Kubeadm) ExtractChartParameters(ctx context.Context, config *rest.Confi
 		return err
 	}
 
-	k.k8sClient = k8sClient
-	k.config = config
-	k.apiServer = config.Host
+	k.K8sClient = k8sClient
+	k.Config = config
+	k.APIServer = config.Host
 
-	k.podCIDR, k.serviceCIDR, err = retrieveClusterParameters(ctx, k.k8sClient)
+	k.PodCIDR, k.ServiceCIDR, err = retrieveClusterParameters(ctx, k.K8sClient)
 	if err != nil {
 		return err
 	}
@@ -44,12 +44,12 @@ func (k *Kubeadm) ExtractChartParameters(ctx context.Context, config *rest.Confi
 // UpdateChartValues patches the values map with the values required for the selected cluster.
 func (k *Kubeadm) UpdateChartValues(values map[string]interface{}) {
 	values["apiServer"] = map[string]interface{}{
-		"address": k.apiServer,
+		"address": k.APIServer,
 	}
 	values["networkManager"] = map[string]interface{}{
 		"config": map[string]interface{}{
-			"serviceCIDR": k.serviceCIDR,
-			"podCIDR":     k.podCIDR,
+			"serviceCIDR": k.ServiceCIDR,
+			"podCIDR":     k.PodCIDR,
 		},
 	}
 }

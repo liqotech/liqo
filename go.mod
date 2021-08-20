@@ -21,7 +21,7 @@ require (
 	github.com/julienschmidt/httprouter v1.3.0
 	github.com/metal-stack/go-ipam v1.8.4-0.20210322080203-5a9da5064b27
 	github.com/miekg/dns v1.1.35
-	github.com/mittwald/go-helm-client v0.8.0
+	github.com/mittwald/go-helm-client v0.8.1
 	github.com/modern-go/reflect2 v1.0.1
 	github.com/onsi/ginkgo v1.16.4
 	github.com/onsi/gomega v1.14.0
@@ -62,3 +62,5 @@ require (
 replace github.com/virtual-kubelet/virtual-kubelet => github.com/liqotech/virtual-kubelet v1.5.1-0.20210726130647-f2333d82a6de
 
 replace github.com/grandcat/zeroconf => github.com/liqotech/zeroconf v1.0.1-0.20201020081245-6384f3f21ffb
+
+replace github.com/mittwald/go-helm-client v0.8.1 => github.com/liqotech/go-helm-client v0.8.1-0.20210823204019-f878e0fc4d26

@@ -23,6 +23,14 @@ func newInstallCommand(ctx context.Context) *cobra.Command {
 	installCmd.Flags().StringP("provider", "p", "kubeadm", "Select the cluster provider type")
 	installCmd.Flags().IntP("timeout", "t", 600, "Configure the timeout for the installation process in seconds (default: 600)")
 	installCmd.Flags().StringP("version", "", "", "Select the Liqo version (default: latest stable release)")
+	installCmd.Flags().BoolP("devel", "", false,
+		"Enable use development versions, too. Equivalent to version '>0.0.0-0'. If --version is set, this is ignored")
+	installCmd.Flags().BoolP("only-output-values", "", false, "Generate a values file for further customization")
+	installCmd.Flags().StringP("dump-values-path", "", "./values.yaml", "Path for the output value file")
+	installCmd.Flags().BoolP("dry-run", "", false, "Simulate an install")
+	installCmd.Flags().BoolP("enable-lan-discovery", "", true, "Enable LAN discovery (default: true)")
+	installCmd.Flags().StringP("cluster-labels", "", "",
+		"Cluster Labels to append to Liqo Cluster, supports '='.(e.g. --cluster-labels key1=value1,key2=value2)")
 
 	for _, p := range providers {
 		initFunc, ok := providerInitFunc[p]
