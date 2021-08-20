@@ -158,11 +158,11 @@ func (authService *Controller) configureToken() error {
 			if !ok {
 				return
 			}
-			if newSecret.Name != authTokenSecretName {
+			if newSecret.Name != auth.TokenSecretName {
 				return
 			}
 
-			if _, err := authService.getTokenFromSecret(newSecret); err != nil {
+			if _, err := auth.GetTokenFromSecret(newSecret); err != nil {
 				err := authService.clientset.CoreV1().Secrets(authService.namespace).Delete(context.TODO(), newSecret.Name, metav1.DeleteOptions{})
 				if err != nil {
 					klog.Error(err)
@@ -175,7 +175,7 @@ func (authService *Controller) configureToken() error {
 			if !ok {
 				return
 			}
-			if newSecret.Name != authTokenSecretName {
+			if newSecret.Name != auth.TokenSecretName {
 				return
 			}
 

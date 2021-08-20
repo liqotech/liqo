@@ -32,7 +32,7 @@ func init() {
 
 // StartOperator setups the ForeignCluster operator.
 func StartOperator(
-	mgr manager.Manager, namespacedClient client.Client, clientset kubernetes.Interface,
+	mgr manager.Manager, namespacedClient client.Client, clientset kubernetes.Interface, namespace string,
 	requeueAfter time.Duration, discoveryCtrl *discovery.Controller, localClusterID clusterid.ClusterID) {
 	namespaceManager := tenantnamespace.NewTenantNamespaceManager(clientset)
 	idManager := identitymanager.NewCertificateIdentityManager(clientset, localClusterID, namespaceManager)
@@ -42,6 +42,7 @@ func StartOperator(
 		namespacedClient,
 		clientset,
 		localClusterID,
+		namespace,
 		requeueAfter,
 		discoveryCtrl,
 		discoveryCtrl,
@@ -57,6 +58,7 @@ func getForeignClusterReconciler(mgr manager.Manager,
 	namespacedClient client.Client,
 	clientset kubernetes.Interface,
 	localClusterID clusterid.ClusterID,
+	namespace string,
 	requeueAfter time.Duration,
 	configProvider discovery.ConfigProvider,
 	authConfigProvider auth.ConfigProvider,
@@ -67,6 +69,7 @@ func getForeignClusterReconciler(mgr manager.Manager,
 		LiqoNamespacedClient: namespacedClient,
 		Scheme:               mgr.GetScheme(),
 		clusterID:            localClusterID,
+		liqoNamespace:        namespace,
 		RequeueAfter:         requeueAfter,
 		ConfigProvider:       configProvider,
 		AuthConfigProvider:   authConfigProvider,
