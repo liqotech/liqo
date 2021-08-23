@@ -15,4 +15,6 @@ type ClusterResourceInterface interface {
 	RemoveClusterID(clusterID string)
 	// GetConfig returns a ClusterConfig instance.
 	GetConfig() *configv1alpha1.ClusterConfig
+	// EnqueueForCreationOrUpdate equeue the clusterID to generate or update related offer.
+	EnqueueForCreationOrUpdate(clusterID string)
 }

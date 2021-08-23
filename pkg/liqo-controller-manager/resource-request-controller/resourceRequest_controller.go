@@ -2,6 +2,7 @@ package resourcerequestoperator
 
 import (
 	"context"
+	"github.com/liqotech/liqo/pkg/liqo-controller-manager/resource-request-controller/interfaces"
 
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/klog/v2"
@@ -20,7 +21,7 @@ type ResourceRequestReconciler struct {
 	client.Client
 	Scheme      *runtime.Scheme
 	ClusterID   string
-	Broadcaster *Broadcaster
+	Broadcaster interfaces.ClusterResourceInterface
 }
 
 const (
@@ -89,7 +90,7 @@ func (r *ResourceRequestReconciler) Reconcile(ctx context.Context, req ctrl.Requ
 	}()
 
 	if resourceRequest.Spec.WithdrawalTimestamp.IsZero() {
-		r.Broadcaster.enqueueForCreationOrUpdate(remoteClusterID)
+		r.Broadcaster.EnqueueForCreationOrUpdate(remoteClusterID)
 		if err != nil {
 			klog.Errorf("%s -> Error generating resourceOffer: %s", remoteClusterID, err)
 			return ctrl.Result{}, err

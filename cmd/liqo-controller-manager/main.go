@@ -175,12 +175,13 @@ func main() {
 		klog.Error(err)
 		os.Exit(1)
 	}
-
+	broker := &resourceRequestOperator.Broker{}
+	broker.SetupBroker(clientset, mgr.GetScheme(), time.Duration(resyncPeriod), mgr.GetClient())
 	resourceRequestReconciler := &resourceRequestOperator.ResourceRequestReconciler{
 		Client:      mgr.GetClient(),
 		Scheme:      mgr.GetScheme(),
 		ClusterID:   clusterId,
-		Broadcaster: newBroadcaster,
+		Broadcaster: broker,
 	}
 
 	if err = resourceRequestReconciler.SetupWithManager(mgr); err != nil {
@@ -273,9 +274,10 @@ func main() {
 	csrWatcher.Start(ctx)
 
 	// TODO: this configuration watcher will be refactored before the release 0.3
-	go newBroadcaster.WatchConfiguration(localKubeconfig, client, wg)
+	// go newBroadcaster.WatchConfiguration(localKubeconfig, client, wg)
 	go resourceOfferReconciler.WatchConfiguration(localKubeconfig, client, wg)
-	newBroadcaster.StartBroadcaster(ctx, wg)
+	// newBroadcaster.StartBroadcaster(ctx, wg)
+	broker.Start(ctx, wg)
 
 	klog.Info("starting manager as controller manager")
 	if err := mgr.Start(ctrl.SetupSignalHandler()); err != nil {
