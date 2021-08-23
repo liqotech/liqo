@@ -37,6 +37,7 @@ type ResourceRequestReconciler struct {
 	HomeCluster discoveryv1alpha1.ClusterIdentity
 	*OfferUpdater
 	EnableIncomingPeering bool
+	BrokerMode            bool
 }
 
 // +kubebuilder:rbac:groups=sharing.liqo.io,resources=resourceoffers,verbs=get;list;watch;create;update;patch;
@@ -94,7 +95,7 @@ func (r *ResourceRequestReconciler) Reconcile(ctx context.Context, req ctrl.Requ
 		}
 	case allowResourceRequestPhase:
 		// the local cluster allows the peering, ensure the Tenant creation
-		if newRequireSpecUpdate, err = r.ensureTenant(ctx, remoteCluster, &resourceRequest); err != nil {
+		if newRequireSpecUpdate, err = r.ensureTenant(ctx, remoteCluster, &resourceRequest, r.BrokerMode); err != nil {
 			klog.Errorf("%s -> Error creating Tenant: %s", remoteCluster.ClusterName, err)
 			return ctrl.Result{}, err
 		}

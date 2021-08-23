@@ -34,10 +34,9 @@ import (
 const tenantFinalizer = "liqo.io/tenant"
 
 func (r *ResourceRequestReconciler) ensureTenant(ctx context.Context, remoteClusterIdentity discoveryv1alpha1.ClusterIdentity,
-	resourceRequest *discoveryv1alpha1.ResourceRequest) (requireUpdate bool, err error) {
+	resourceRequest *discoveryv1alpha1.ResourceRequest, brokerMode bool) (requireUpdate bool, err error) {
 	klog.Infof("%s -> creating Tenant %s",
 		remoteClusterIdentity.ClusterName, GetTenantName(remoteClusterIdentity))
-
 	tenant := &capsulev1beta1.Tenant{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: GetTenantName(remoteClusterIdentity),
@@ -69,6 +68,11 @@ func (r *ResourceRequestReconciler) ensureTenant(ctx context.Context, remoteClus
 					},
 				},
 			},
+		}
+		if brokerMode {
+			tenant.Spec.NamespaceOptions.AdditionalMetadata.Labels = map[string]string{
+				liqoconst.SchedulingLiqoLabel: "true",
+			}
 		}
 		return nil
 	})

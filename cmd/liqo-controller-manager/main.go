@@ -104,6 +104,7 @@ func main() {
 	var nodeExtraAnnotations, nodeExtraLabels argsutils.StringMap
 	var kubeletCPURequests, kubeletCPULimits = argsutils.NewQuantity("250m"), argsutils.NewQuantity("1000m")
 	var kubeletRAMRequests, kubeletRAMLimits = argsutils.NewQuantity("100M"), argsutils.NewQuantity("250M")
+	var brokerMode bool
 
 	metricsAddr := flag.String("metrics-address", ":8080", "The address the metric endpoint binds to")
 	probeAddr := flag.String("health-probe-address", ":8081", "The address the health probe endpoint binds to")
@@ -160,6 +161,7 @@ func main() {
 	flag.Var(&kubeletRAMLimits, "kubelet-ram-limits", "RAM limits assigned to the Virtual Kubelet Pod")
 	flag.Var(&nodeExtraAnnotations, "node-extra-annotations", "Extra annotations to add to the Virtual Node")
 	flag.Var(&nodeExtraLabels, "node-extra-labels", "Extra labels to add to the Virtual Node")
+	flag.BoolVar(&brokerMode, "broker-mode", false, "Start a broker (default: start a local resource monitor)")
 
 	// Storage Provisioner parameters
 	enableStorage := flag.Bool("enable-storage", false, "enable the liqo virtual storage class")
@@ -252,19 +254,28 @@ func main() {
 		klog.Fatal(err)
 	}
 
-	var resourceRequestReconciler *resourceRequestOperator.ResourceRequestReconciler
-	monitor := resourceRequestOperator.NewLocalMonitor(ctx, clientset, *resyncPeriod)
-	scaledMonitor := &resourceRequestOperator.ResourceScaler{Provider: monitor, Factor: float32(resourceSharingPercentage.Val) / 100.}
-	offerUpdater := resourceRequestOperator.NewOfferUpdater(mgr.GetClient(), clusterIdentity, clusterLabels.StringMap,
-		scaledMonitor, uint(offerUpdateThreshold.Val), *realStorageClassName, *enableStorage)
-	resourceRequestReconciler = &resourceRequestOperator.ResourceRequestReconciler{
+	var offerUpdater *resourceRequestOperator.OfferUpdater
+	if brokerMode {
+		klog.Info("Starting broker...")
+		broker := resourceRequestOperator.NewBroker(ctx, clientset, *resyncPeriod, mgr.GetClient())
+		offerUpdater = resourceRequestOperator.NewOfferUpdater(mgr.GetClient(), clusterIdentity, clusterLabels.StringMap,
+			broker, uint(offerUpdateThreshold.Val), *realStorageClassName, *enableStorage)
+	} else {
+		klog.Info("Starting local resource monitor...")
+		monitor := resourceRequestOperator.NewLocalMonitor(ctx, clientset, *resyncPeriod)
+		scaledMonitor := &resourceRequestOperator.ResourceScaler{Provider: monitor, Factor: float32(resourceSharingPercentage.Val) / 100.}
+		offerUpdater = resourceRequestOperator.NewOfferUpdater(mgr.GetClient(), clusterIdentity, clusterLabels.StringMap,
+			scaledMonitor, uint(offerUpdateThreshold.Val), *realStorageClassName, *enableStorage)
+	}
+
+	resourceRequestReconciler := &resourceRequestOperator.ResourceRequestReconciler{
 		Client:                mgr.GetClient(),
 		Scheme:                mgr.GetScheme(),
 		HomeCluster:           clusterIdentity,
 		OfferUpdater:          offerUpdater,
 		EnableIncomingPeering: *enableIncomingPeering,
+		BrokerMode:            brokerMode,
 	}
-
 	if err = resourceRequestReconciler.SetupWithManager(mgr); err != nil {
 		klog.Fatal(err)
 	}
