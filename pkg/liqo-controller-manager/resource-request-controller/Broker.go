@@ -63,6 +63,10 @@ func (b *Broker) EnqueueForCreationOrUpdate(clusterID string) {
 	toOffer := corev1.ResourceList{}
 	var cluster string
 	for key, value := range b.nodeResources {
+		// ignore possible offers sent by the cluster itself.
+		if key == clusterID{
+			continue
+		}
 		toOffer = value.DeepCopy()
 		cluster = key
 		break
