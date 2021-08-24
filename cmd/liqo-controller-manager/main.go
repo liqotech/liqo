@@ -176,7 +176,7 @@ func main() {
 		os.Exit(1)
 	}
 	broker := &resourceRequestOperator.Broker{}
-	broker.SetupBroker(clientset, mgr.GetScheme(), time.Duration(resyncPeriod), mgr.GetClient())
+	broker.SetupBroker(clusterId, clientset, mgr.GetScheme(), time.Duration(resyncPeriod), mgr.GetClient())
 	resourceRequestReconciler := &resourceRequestOperator.ResourceRequestReconciler{
 		Client:      mgr.GetClient(),
 		Scheme:      mgr.GetScheme(),

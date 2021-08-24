@@ -30,13 +30,15 @@ type Broker struct {
 	podInformer    cache.SharedIndexInformer
 	scheme *runtime.Scheme
 	client.Client
+	homeClusterID string
 	// offerGenerator interfaces.UpdaterInterface
 }
 
-func (b *Broker) SetupBroker(clientset kubernetes.Interface, scheme *runtime.Scheme, resyncPeriod time.Duration, k8Client client.Client){
+func (b *Broker) SetupBroker(clusterID string, clientset kubernetes.Interface, scheme *runtime.Scheme, resyncPeriod time.Duration, k8Client client.Client){
 	b.nodeResources = map[string]corev1.ResourceList{}
 	b.Client = k8Client
 	b.scheme = scheme
+	b.homeClusterID = clusterID
 	nodesFactory := informers.NewSharedInformerFactoryWithOptions(clientset, resyncPeriod, informers.WithTweakListOptions(nodeFilter))
 	b.nodeInformer = nodesFactory.Core().V1().Nodes().Informer()
 	b.nodeInformer.AddEventHandler(cache.ResourceEventHandlerFuncs{
@@ -61,18 +63,16 @@ func (b *Broker) ReadResources(clusterID string) corev1.ResourceList {
 
 func (b *Broker) EnqueueForCreationOrUpdate(clusterID string) {
 	toOffer := corev1.ResourceList{}
-	var cluster string
 	for key, value := range b.nodeResources {
 		// ignore possible offers sent by the cluster itself.
 		if key == clusterID{
 			continue
 		}
 		toOffer = value.DeepCopy()
-		cluster = key
 		break
 	}
 	if len(toOffer) != 0{
-		err := b.generateOffer(cluster, clusterID, toOffer)
+		err := b.generateOffer(clusterID, toOffer)
 		if err != nil{
 			klog.Error(err)
 			return
@@ -80,7 +80,7 @@ func (b *Broker) EnqueueForCreationOrUpdate(clusterID string) {
 	}
 }
 
-func (b *Broker) generateOffer(from, clusterID string, toOffer corev1.ResourceList) error{
+func (b *Broker) generateOffer(clusterID string, toOffer corev1.ResourceList) error{
 	list, err := b.getResourceRequest(clusterID)
 	if err != nil {
 		return err
@@ -91,7 +91,7 @@ func (b *Broker) generateOffer(from, clusterID string, toOffer corev1.ResourceLi
 	offer := &sharingv1alpha1.ResourceOffer{
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace: request.GetNamespace(),
-			Name:      offerPrefix + from,
+			Name:      offerPrefix + b.homeClusterID,
 		},
 	}
 
@@ -107,7 +107,7 @@ func (b *Broker) generateOffer(from, clusterID string, toOffer corev1.ResourceLi
 				crdreplicator.DestinationLabel:   request.Spec.ClusterIdentity.ClusterID,
 			}
 		}
-		offer.Spec.ClusterId = from
+		offer.Spec.ClusterId = b.homeClusterID
 		offer.Spec.ResourceQuota.Hard = toOffer.DeepCopy()
 		return controllerutil.SetControllerReference(&request, offer, b.scheme)
 	})
@@ -116,7 +116,7 @@ func (b *Broker) generateOffer(from, clusterID string, toOffer corev1.ResourceLi
 		klog.Error(err)
 		return err
 	}
-	klog.Infof("%s -> %s Offer: %s/%s", from, op, offer.Namespace, offer.Name)
+	klog.Infof("%s -> %s Offer: %s/%s", b.homeClusterID, op, offer.Namespace, offer.Name)
 	return nil
 }
 
