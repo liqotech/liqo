@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 
-	capsulev1alpha1 "github.com/clastix/capsule/api/v1alpha1"
+	capsulev1beta1 "github.com/clastix/capsule/api/v1beta1"
 	rbacv1 "k8s.io/api/rbac/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/klog/v2"
@@ -23,23 +23,27 @@ func requireTenantDeletion(resourceRequest *discoveryv1alpha1.ResourceRequest) b
 func (r *ResourceRequestReconciler) ensureTenant(ctx context.Context,
 	resourceRequest *discoveryv1alpha1.ResourceRequest) (requireUpdate bool, err error) {
 	remoteClusterID := resourceRequest.Spec.ClusterIdentity.ClusterID
-	tenant := &capsulev1alpha1.Tenant{
+	tenant := &capsulev1beta1.Tenant{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: fmt.Sprintf("tenant-%v", remoteClusterID),
 		},
 	}
 	_, err = controllerutil.CreateOrUpdate(ctx, r.Client, tenant, func() error {
-		tenant.Spec = capsulev1alpha1.TenantSpec{
-			NamespacesMetadata: capsulev1alpha1.AdditionalMetadata{
-				AdditionalAnnotations: map[string]string{
-					liqoconst.RemoteNamespaceAnnotationKey: resourceRequest.Spec.ClusterIdentity.ClusterID,
+		tenant.Spec = capsulev1beta1.TenantSpec{
+			NamespaceOptions: &capsulev1beta1.NamespaceOptions{
+				AdditionalMetadata: &capsulev1beta1.AdditionalMetadataSpec{
+					Annotations: map[string]string{
+						liqoconst.RemoteNamespaceAnnotationKey: resourceRequest.Spec.ClusterIdentity.ClusterID,
+					},
 				},
 			},
-			Owner: capsulev1alpha1.OwnerSpec{
-				Name: remoteClusterID,
-				Kind: rbacv1.UserKind,
+			Owners: []capsulev1beta1.OwnerSpec{
+				{
+					Name: remoteClusterID,
+					Kind: rbacv1.UserKind,
+				},
 			},
-			AdditionalRoleBindings: []capsulev1alpha1.AdditionalRoleBindings{
+			AdditionalRoleBindings: []capsulev1beta1.AdditionalRoleBindingsSpec{
 				{
 					ClusterRoleName: "liqo-virtual-kubelet-remote",
 					Subjects: []rbacv1.Subject{
@@ -71,7 +75,7 @@ func (r *ResourceRequestReconciler) ensureTenantDeletion(ctx context.Context,
 	resourceRequest *discoveryv1alpha1.ResourceRequest) error {
 	remoteClusterID := resourceRequest.Spec.ClusterIdentity.ClusterID
 
-	tenant := &capsulev1alpha1.Tenant{
+	tenant := &capsulev1beta1.Tenant{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: fmt.Sprintf("tenant-%v", remoteClusterID),
 		},

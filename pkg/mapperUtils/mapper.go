@@ -1,7 +1,7 @@
 package mapperUtils
 
 import (
-	capsulev1alpha1 "github.com/clastix/capsule/api/v1alpha1"
+	capsulev1beta1 "github.com/clastix/capsule/api/v1beta1"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
@@ -73,7 +73,7 @@ func addDefaults(dClient *discovery.DiscoveryClient, mapper *meta.DefaultRESTMap
 	}
 
 	// Capsule groups
-	if err = addGroup(dClient, capsulev1alpha1.GroupVersion, mapper); err != nil {
+	if err = addGroup(dClient, capsulev1beta1.GroupVersion, mapper); err != nil {
 		return err
 	}
 
