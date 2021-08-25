@@ -19,7 +19,7 @@ import (
 	"sync"
 	"time"
 
-	capsulev1alpha1 "github.com/clastix/capsule/api/v1alpha1"
+	capsulev1beta1 "github.com/clastix/capsule/api/v1beta1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/kubernetes"
@@ -70,7 +70,7 @@ func init() {
 	_ = offloadingv1alpha1.AddToScheme(scheme)
 	_ = virtualkubeletv1alpha1.AddToScheme(scheme)
 
-	_ = capsulev1alpha1.AddToScheme(scheme)
+	_ = capsulev1beta1.AddToScheme(scheme)
 	// +kubebuilder:scaffold:scheme
 }
 

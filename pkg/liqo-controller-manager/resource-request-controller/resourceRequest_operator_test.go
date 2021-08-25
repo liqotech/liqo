@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"time"
 
-	capsulev1alpha1 "github.com/clastix/capsule/api/v1alpha1"
+	capsulev1beta1 "github.com/clastix/capsule/api/v1beta1"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	. "github.com/onsi/gomega/gstruct"
@@ -117,17 +117,17 @@ var _ = Describe("ResourceRequest Operator", func() {
 			Expect(resourceRequest.Status.OfferWithdrawalTimestamp.IsZero()).To(BeTrue())
 
 			By("Checking Tenant creation")
-			var tenant capsulev1alpha1.Tenant
+			var tenant capsulev1beta1.Tenant
 			Eventually(func() error {
 				return k8sClient.Get(ctx, types.NamespacedName{
 					Name: fmt.Sprintf("tenant-%v", resourceRequest.Spec.ClusterIdentity.ClusterID),
 				}, &tenant)
 			}, timeout, interval).ShouldNot(HaveOccurred())
 
-			Expect(string(tenant.Spec.Owner.Kind)).To(Equal(rbacv1.UserKind))
-			Expect(tenant.Spec.Owner.Name).To(Equal(resourceRequest.Spec.ClusterIdentity.ClusterID))
+			Expect(string(tenant.Spec.Owners[0].Kind)).To(Equal(rbacv1.UserKind))
+			Expect(tenant.Spec.Owners[0].Name).To(Equal(resourceRequest.Spec.ClusterIdentity.ClusterID))
 			Expect(tenant.Spec.AdditionalRoleBindings).To(ContainElement(
-				capsulev1alpha1.AdditionalRoleBindings{
+				capsulev1beta1.AdditionalRoleBindingsSpec{
 					ClusterRoleName: "liqo-virtual-kubelet-remote",
 					Subjects: []rbacv1.Subject{
 						{
@@ -228,7 +228,7 @@ var _ = Describe("ResourceRequest Operator", func() {
 
 			// check the tenant deletion
 			Eventually(func() int {
-				var tenantList capsulev1alpha1.TenantList
+				var tenantList capsulev1beta1.TenantList
 				err := k8sClient.List(ctx, &tenantList)
 				if err != nil {
 					return -1

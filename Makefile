@@ -10,7 +10,7 @@ GOBIN=$(shell go env GOBIN)
 endif
 
 # Set the capsule version to use
-CAPSULE_VERSION = v0.1.0-rc2
+CAPSULE_VERSION = v0.1.0
 
 gen: generate fmt vet manifests rbacs docs
 
