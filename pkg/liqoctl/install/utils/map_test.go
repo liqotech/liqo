@@ -23,6 +23,7 @@ var m1 = map[string]interface{}{
 				"i": "i1",
 			},
 		},
+		"slice": []interface{}{},
 	},
 }
 
@@ -42,6 +43,7 @@ var m2 = map[string]interface{}{
 				"h2": "e2",
 			},
 		},
+		"slice": []interface{}{"str1", "str2"},
 	},
 }
 
@@ -67,6 +69,7 @@ var expectedResultMap = map[string]interface{}{
 				"i": "i1",
 			},
 		},
+		"slice": []interface{}{"str1", "str2"},
 	},
 }
 

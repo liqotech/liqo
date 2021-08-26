@@ -2,8 +2,10 @@ package gke
 
 import (
 	"context"
+	"strings"
 
 	flag "github.com/spf13/pflag"
+	"google.golang.org/api/compute/v1"
 	"google.golang.org/api/container/v1"
 	"google.golang.org/api/option"
 	"k8s.io/client-go/rest"
@@ -27,6 +29,8 @@ type gkeProvider struct {
 	endpoint    string
 	serviceCIDR string
 	podCIDR     string
+
+	reservedSubnets []string
 }
 
 // NewProvider initializes a new GKE provider struct.
@@ -78,7 +82,33 @@ func (k *gkeProvider) ExtractChartParameters(ctx context.Context, _ *rest.Config
 
 	k.parseClusterOutput(cluster)
 
+	netSvc, err := compute.NewService(ctx, option.WithCredentialsFile(k.credentialsPath))
+	if err != nil {
+		return err
+	}
+
+	region := k.getRegion()
+	subnet, err := netSvc.Subnetworks.Get(k.projectID, region, getSubnetName(cluster.NetworkConfig.Subnetwork)).Do()
+	if err != nil {
+		return err
+	}
+
+	k.reservedSubnets = append(k.reservedSubnets, subnet.IpCidrRange)
+
 	return nil
+}
+
+func getSubnetName(subnetID string) string {
+	strs := strings.Split(subnetID, "/")
+	if len(strs) == 0 {
+		return ""
+	}
+	return strs[len(strs)-1]
+}
+
+func (k *gkeProvider) getRegion() string {
+	strs := strings.Split(k.zone, "-")
+	return strings.Join(strs[:2], "-")
 }
 
 // UpdateChartValues patches the values map with the values required for the selected cluster.
@@ -88,8 +118,9 @@ func (k *gkeProvider) UpdateChartValues(values map[string]interface{}) {
 	}
 	values["networkManager"] = map[string]interface{}{
 		"config": map[string]interface{}{
-			"serviceCIDR": k.serviceCIDR,
-			"podCIDR":     k.podCIDR,
+			"serviceCIDR":     k.serviceCIDR,
+			"podCIDR":         k.podCIDR,
+			"reservedSubnets": installutils.GetInterfaceSlice(k.reservedSubnets),
 		},
 	}
 }
