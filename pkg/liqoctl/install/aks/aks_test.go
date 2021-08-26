@@ -59,6 +59,11 @@ var _ = Describe("Extract elements from AKS", func() {
 					PodCidr:       pointer.StringPtr(podCIDR),
 					ServiceCidr:   pointer.StringPtr(serviceCIDR),
 				},
+				AgentPoolProfiles: &[]containerservice.ManagedClusterAgentPoolProfile{
+					{
+						VnetSubnetID: nil,
+					},
+				},
 			},
 		}
 
@@ -69,6 +74,8 @@ var _ = Describe("Extract elements from AKS", func() {
 		Expect(p.endpoint).To(Equal(endpoint))
 		Expect(p.serviceCIDR).To(Equal(serviceCIDR))
 		Expect(p.podCIDR).To(Equal(podCIDR))
+		Expect(len(p.reservedSubnets)).To(BeNumerically("==", 1))
+		Expect(p.reservedSubnets).To(ContainElement(defaultAksNodeCIDR))
 
 	})
 

@@ -20,6 +20,8 @@ import (
 
 const (
 	providerPrefix = "aks"
+
+	defaultAksNodeCIDR = "10.240.0.0/16"
 )
 
 type aksProvider struct {
@@ -33,6 +35,8 @@ type aksProvider struct {
 	endpoint    string
 	serviceCIDR string
 	podCIDR     string
+
+	reservedSubnets []string
 }
 
 // NewProvider initializes a new AKS provider struct.
@@ -109,8 +113,9 @@ func (k *aksProvider) UpdateChartValues(values map[string]interface{}) {
 	}
 	values["networkManager"] = map[string]interface{}{
 		"config": map[string]interface{}{
-			"serviceCIDR": k.serviceCIDR,
-			"podCIDR":     k.podCIDR,
+			"serviceCIDR":     k.serviceCIDR,
+			"podCIDR":         k.podCIDR,
+			"reservedSubnets": installutils.GetInterfaceSlice(k.reservedSubnets),
 		},
 	}
 }
@@ -135,7 +140,9 @@ func GenerateFlags(flags *flag.FlagSet) {
 func (k *aksProvider) parseClusterOutput(ctx context.Context, cluster *containerservice.ManagedCluster) error {
 	switch cluster.NetworkProfile.NetworkPlugin {
 	case containerservice.NetworkPluginKubenet:
-		k.setupKubenet(cluster)
+		if err := k.setupKubenet(ctx, cluster); err != nil {
+			return err
+		}
 	case containerservice.NetworkPluginAzure:
 		if err := k.setupAzureCNI(ctx, cluster); err != nil {
 			return err
@@ -150,9 +157,35 @@ func (k *aksProvider) parseClusterOutput(ctx context.Context, cluster *container
 }
 
 // setupKubenet setups the data for a Kubenet cluster.
-func (k *aksProvider) setupKubenet(cluster *containerservice.ManagedCluster) {
+func (k *aksProvider) setupKubenet(ctx context.Context, cluster *containerservice.ManagedCluster) error {
 	k.podCIDR = *cluster.ManagedClusterProperties.NetworkProfile.PodCidr
 	k.serviceCIDR = *cluster.ManagedClusterProperties.NetworkProfile.ServiceCidr
+
+	// AKS Kubenet cluster does not have a subnet (and a subnetID) by default, in this case the node CIDR
+	// is the default one.
+	// But it's possible to specify an existent subnet during the cluster creation to be used as node CIDR,
+	// in that case the vnet subnetID will be provided and we have to retrieve this network information.
+	vnetSubjectID := (*cluster.AgentPoolProfiles)[0].VnetSubnetID
+	if vnetSubjectID == nil {
+		k.reservedSubnets = append(k.reservedSubnets, defaultAksNodeCIDR)
+	} else {
+		networkClient := network.NewSubnetsClient(k.subscriptionID)
+		networkClient.Authorizer = *k.authorizer
+
+		vnetName, subnetName, err := parseSubnetID(*vnetSubjectID)
+		if err != nil {
+			return err
+		}
+
+		vnet, err := networkClient.Get(ctx, k.resourceGroupName, vnetName, subnetName, "")
+		if err != nil {
+			return err
+		}
+
+		k.reservedSubnets = append(k.reservedSubnets, *vnet.SubnetPropertiesFormat.AddressPrefix)
+	}
+
+	return nil
 }
 
 // setupAzureCNI setups the data for an Azure CNI cluster.
