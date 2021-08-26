@@ -78,6 +78,18 @@ func (k *eksProvider) ValidateCommandArguments(flags *flag.FlagSet) (err error) 
 		return err
 	}
 
+	storedAccessKeyID, storedSecretAccessKey, err := retrieveIamAccessKey(k.iamLiqoUser.userName)
+	if err != nil {
+		return err
+	}
+
+	if storedAccessKeyID != "" && k.iamLiqoUser.accessKeyID == "" {
+		k.iamLiqoUser.accessKeyID = storedAccessKeyID
+	}
+	if storedSecretAccessKey != "" && k.iamLiqoUser.secretAccessKey == "" {
+		k.iamLiqoUser.secretAccessKey = storedSecretAccessKey
+	}
+
 	return nil
 }
 
@@ -129,8 +141,10 @@ func GenerateFlags(flags *flag.FlagSet) {
 	subFlag.String("region", "", "The EKS region where your cluster is running")
 	subFlag.String("cluster-name", "", "The EKS clusterName of your cluster")
 
-	subFlag.String("user-name", "", "The username to assign to the Liqo user")
-	subFlag.String("policy-name", "", "The name of the policy to assign to the Liqo user")
+	subFlag.String("user-name", "liqo-cluster-user", "The username to assign to the Liqo user. "+
+		"This user will be created if no access keys have been provided, "+
+		"otherwise liqoctl assumes that the provided keys are related to this user (optional)")
+	subFlag.String("policy-name", "liqo-cluster-policy", "The name of the policy to assign to the Liqo user (optional)")
 
 	subFlag.String("access-key-id", "", "The IAM accessKeyID for the Liqo user (optional)")
 	subFlag.String("secret-access-key", "", "The IAM secretAccessKey for the Liqo user (optional)")
