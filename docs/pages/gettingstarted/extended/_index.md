@@ -1,5 +1,5 @@
 ---
-title: Extended Tutorial
+title: Advanced tutorial
 weight: 2
 ---
 

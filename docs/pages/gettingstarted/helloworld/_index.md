@@ -1,11 +1,11 @@
 ---
-title: Hello world!
+title: Basic tutorial
 weight: 1
 ---
 
-## The fast path to Liqo
+## Basic tutorial
 
-The following steps will guide you through a tour to learn how to install Liqo and experiment with its most notable capabilities.
+This tutorial aims at presenting how to install Liqo and practice with its most notable capabilities. It is is organized in the following steps:
 
 * [Provision your playground](./kind): Deploy a couple of Kubernetes in Docker (KiND) clusters to play with Liqo
 * [Install Liqo](./install): Install Liqo on a first cluster (*home* cluster).
