@@ -3,7 +3,10 @@ title: Provision the Liqo Playground
 weight: 1
 ---
 
-After having installed the [requirements](/gettingstarted#system-requirements), let's open a terminal and launch the clusters scripts:
+First, check that you are compliant with the [requirements](/gettingstarted#system-requirements).
+
+Then, let's open a terminal on your machine and launch the following script, which downloads and executes the [Kind](https://kind.sigs.k8s.io) tool to create a pair of clusters. Each cluster is made by two nodes (one for the control plane and one as a simple worker):
+
 
 ```bash
 source <(curl -L https://get.liqo.io/clusters.sh)

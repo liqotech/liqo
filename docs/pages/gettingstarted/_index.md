@@ -5,22 +5,22 @@ weight: 1
 
 ### Introduction
 
-Liqo enables the possibility to create simple and straightforward multi-cluster topologies, proposing a seamless multi-cluster model which dynamically allows the pods and services offloading to remote clusters.
+Liqo enables the creation of arbitrary multi-cluster topologies, proposing a seamless multi-cluster model which dynamically allows the pods and services to be offloaded on remote clusters.
 
-In this section, you can find several tutorials that guide you to discover and use the most notable Liqo features.
+This section presents several tutorials that guide to the discovery and use of the most important features of Liqo.
 
 #### System Requirements
 
 Before starting to run the following tutorials, you should have installed on your system:
 
-* [Docker](https://docker.io). 
-* [Kubectl](https://kubernetes.io/docs/tasks/tools/install-kubectl/)
-* [Helm](https://helm.sh/docs/intro/install/)
-* curl
+* [**Docker**](https://docker.io), the container runtime.
+* [**Kubectl**](https://kubernetes.io/docs/tasks/tools/install-kubectl/), the command line tool for Kubernetes.
+* [**Helm**](https://helm.sh/docs/intro/install/), the package manager for Kubernetes.
+* **curl**, to interact with the cluster through HTTP/HTTPS. In Ubuntu it can be installed with `sudo apt update && sudo apt install -y curl`.
 
-Those guides are also compatible with Mac Os X and Windows using Docker Desktop.
+The above tutorials have been tested on Linux, macOS, and Windows (through Docker Desktop).
 
 ### Tutorials
 
-* [Hello World!](./helloworld): The very first tutorial to get in touch with Liqo features. In this tutorial, you will establish the first Liqo peering
-* [Extended](./extended): A more in-depth tutorial showing how to use Liqo's main features.
+* [Basic](./helloworld): a first _Hello World_-style tutorial to introduce basic Liqo features. In this tutorial, you will setup multiple clusters and establish the first peering among them.
+* [Advanced](./extended): a more in-depth _Dominate the world_-style tutorial showing how to use the most important features of Liqo.
