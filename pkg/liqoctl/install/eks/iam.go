@@ -44,6 +44,14 @@ func (k *eksProvider) requiresUserCreation() bool {
 
 func (k *eksProvider) ensureUser(iamSvc *iam.IAM) error {
 	if !k.requiresUserCreation() {
+		valid, err := k.checkCredentials(iamSvc)
+		if err != nil {
+			return err
+		}
+		if !valid {
+			return fmt.Errorf("no accessKeyID %v found in the IAM user %v", k.iamLiqoUser.accessKeyID, k.iamLiqoUser.userName)
+		}
+
 		klog.V(3).Info("Using provided IAM credentials")
 		return nil
 	}
@@ -69,7 +77,33 @@ func (k *eksProvider) ensureUser(iamSvc *iam.IAM) error {
 	k.iamLiqoUser.accessKeyID = *createAccessKeyResult.AccessKey.AccessKeyId
 	k.iamLiqoUser.secretAccessKey = *createAccessKeyResult.AccessKey.SecretAccessKey
 
+	if err = storeIamAccessKey(k.iamLiqoUser.userName,
+		k.iamLiqoUser.accessKeyID,
+		k.iamLiqoUser.secretAccessKey); err != nil {
+		return err
+	}
+
 	return nil
+}
+
+func (k *eksProvider) checkCredentials(iamSvc *iam.IAM) (bool, error) {
+	listAccessKeysRequest := &iam.ListAccessKeysInput{
+		UserName: aws.String(k.iamLiqoUser.userName),
+	}
+
+	listAccessKeysResult, err := iamSvc.ListAccessKeys(listAccessKeysRequest)
+	if err != nil {
+		return false, err
+	}
+
+	for i := range listAccessKeysResult.AccessKeyMetadata {
+		accessKey := listAccessKeysResult.AccessKeyMetadata[i]
+		if *accessKey.AccessKeyId == k.iamLiqoUser.accessKeyID {
+			return true, nil
+		}
+	}
+
+	return false, nil
 }
 
 func (k *eksProvider) ensurePolicy(iamSvc *iam.IAM) (string, error) {
