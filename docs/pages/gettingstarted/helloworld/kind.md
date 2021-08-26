@@ -9,7 +9,6 @@ After having installed the [requirements](/gettingstarted#system-requirements), 
 source <(curl -L https://get.liqo.io/clusters.sh)
 ```
 
-The script will download and execute the [Kind](https://kind.sigs.k8s.io) tool to create a pair of clusters. Those clusters are composed of two nodes each (one for the control plane and one as a simple worker).
 
 ### Explore the playground (Optional)
 
