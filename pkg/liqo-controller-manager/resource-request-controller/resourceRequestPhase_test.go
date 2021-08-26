@@ -61,9 +61,12 @@ var _ = Describe("Resource Phase", func() {
 
 				Expect(controller.Create(ctx, foreignCluster)).To(Succeed())
 
-				phase, err := controller.getResourceRequestPhase(ctx, c.resourceRequest)
-				Expect(err).To(Succeed())
-				Expect(phase).To(c.expectedResult)
+				// this eventually fixes a cache race condition
+				Eventually(func() resourceRequestPhase {
+					phase, err := controller.getResourceRequestPhase(ctx, c.resourceRequest)
+					Expect(err).ToNot(HaveOccurred())
+					return phase
+				}, timeout, interval).Should(c.expectedResult)
 
 				Expect(controller.Delete(ctx, foreignCluster)).To(Succeed())
 			},
