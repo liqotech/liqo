@@ -3,25 +3,17 @@ package forge
 import (
 	"context"
 	"fmt"
-	"k8s.io/apimachinery/pkg/util/wait"
-	"k8s.io/client-go/kubernetes"
-	"sigs.k8s.io/controller-runtime/pkg/client/config"
-	"strings"
-	"time"
-
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/klog/v2"
+	"strings"
 
 	liqoconst "github.com/liqotech/liqo/pkg/consts"
 	liqonetIpam "github.com/liqotech/liqo/pkg/liqonet/ipam"
 	"github.com/liqotech/liqo/pkg/virtualKubelet"
 	apimgmt "github.com/liqotech/liqo/pkg/virtualKubelet/apiReflection"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/apiReflection/reflectors"
-
-	"github.com/liqotech/liqo/pkg/consts"
-	"github.com/liqotech/liqo/pkg/liqonet/utils"
 )
 
 const affinitySelector = liqoconst.TypeNode
@@ -135,8 +127,8 @@ func (f *apiForger) forgePodSpec(inputPodSpec corev1.PodSpec) corev1.PodSpec {
 
 	outputPodSpec.TerminationGracePeriodSeconds = inputPodSpec.TerminationGracePeriodSeconds
 	outputPodSpec.Volumes = forgeVolumes(inputPodSpec.Volumes)
-	outputPodSpec.InitContainers = forgeContainers(inputPodSpec.InitContainers, outputPodSpec.Volumes)
-	outputPodSpec.Containers = forgeContainers(inputPodSpec.Containers, outputPodSpec.Volumes)
+	outputPodSpec.InitContainers = f.forgeContainers(inputPodSpec.InitContainers, outputPodSpec.Volumes)
+	outputPodSpec.Containers = f.forgeContainers(inputPodSpec.Containers, outputPodSpec.Volumes)
 	outputPodSpec.Tolerations = forgeTolerations(inputPodSpec.Tolerations)
 
 	return outputPodSpec
@@ -156,12 +148,16 @@ func forgeTolerations(inputTolerations []corev1.Toleration) []corev1.Toleration 
 	return tolerations
 }
 
-func forgeContainers(inputContainers []corev1.Container, inputVolumes []corev1.Volume) []corev1.Container {
+func (f *apiForger) forgeContainers(inputContainers []corev1.Container, inputVolumes []corev1.Volume) []corev1.Container {
 	containers := make([]corev1.Container, 0)
 
 	for _, container := range inputContainers {
 		volumeMounts := filterVolumeMounts(inputVolumes, container.VolumeMounts)
-		envs := addClusterIdEnv(container.Env)
+		env := corev1.EnvVar{
+			Name:  "LIQO_CLUSTER_ID",
+			Value: strings.TrimPrefix(f.virtualNodeName.Value().ToString(), virtualKubelet.VirtualNodePrefix),
+		}
+		envs := append(container.Env, env)
 		containers = append(containers, translateContainer(container, volumeMounts, envs))
 	}
 	return containers
@@ -230,30 +226,4 @@ func forgeAffinity() *corev1.Affinity {
 			},
 		},
 	}
-}
-
-func addClusterIdEnv(envs []corev1.EnvVar) []corev1.EnvVar {
-	backoff := wait.Backoff{
-		Steps:    7,
-		Duration: 30 * time.Second,
-		Factor:   1.0,
-		Jitter:   0,
-	}
-
-	k8sClient, err := kubernetes.NewForConfig(config.GetConfigOrDie())
-	if err != nil {
-		klog.Fatalf(err.Error())
-	}
-
-	clusterID, err := utils.GetClusterID(k8sClient, consts.ClusterIDConfigMapName, "liqo", backoff)
-	if err != nil {
-		klog.Fatalf("an error occurred while retrieving the clusterID: %s", err)
-	}
-
-	env := corev1.EnvVar{
-		Name:  "LIQO_CLUSTER_ID",
-		Value: clusterID,
-	}
-
-	return append(envs, env)
 }
