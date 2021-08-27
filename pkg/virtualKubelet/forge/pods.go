@@ -17,12 +17,11 @@ package forge
 import (
 	"context"
 	"fmt"
-	"strings"
-
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/klog/v2"
+	"strings"
 
 	liqoconst "github.com/liqotech/liqo/pkg/consts"
 	liqonetIpam "github.com/liqotech/liqo/pkg/liqonet/ipam"
@@ -167,18 +166,22 @@ func Tolerations(inputTolerations []corev1.Toleration) []corev1.Toleration {
 	return tolerations
 }
 
-func forgeContainers(inputContainers []corev1.Container, inputVolumes []corev1.Volume) []corev1.Container {
+func (f *apiForger) forgeContainers(inputContainers []corev1.Container, inputVolumes []corev1.Volume) []corev1.Container {
 	containers := make([]corev1.Container, 0)
 
 	for _, container := range inputContainers {
 		volumeMounts := filterVolumeMounts(inputVolumes, container.VolumeMounts)
-		containers = append(containers, translateContainer(container, volumeMounts))
+		env := corev1.EnvVar{
+			Name:  "LIQO_CLUSTER_ID",
+			Value: strings.TrimPrefix(f.virtualNodeName.Value().ToString(), virtualKubelet.VirtualNodePrefix),
+		}
+		envs := append(container.Env, env)
+		containers = append(containers, translateContainer(container, volumeMounts, envs))
 	}
-
 	return containers
 }
 
-func translateContainer(container corev1.Container, volumes []corev1.VolumeMount) corev1.Container {
+func translateContainer(container corev1.Container, volumes []corev1.VolumeMount, envs []corev1.EnvVar) corev1.Container {
 	return corev1.Container{
 		Name:            container.Name,
 		Image:           container.Image,
@@ -186,7 +189,7 @@ func translateContainer(container corev1.Container, volumes []corev1.VolumeMount
 		Args:            container.Args,
 		WorkingDir:      container.WorkingDir,
 		Ports:           container.Ports,
-		Env:             container.Env,
+		Env:             envs,
 		Resources:       container.Resources,
 		LivenessProbe:   container.LivenessProbe,
 		ReadinessProbe:  container.ReadinessProbe,
