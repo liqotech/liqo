@@ -47,9 +47,9 @@ require (
 	gotest.tools v2.2.0+incompatible
 	helm.sh/helm/v3 v3.6.2
 	inet.af/netaddr v0.0.0-20210313195008-843b4240e319
-	k8s.io/api v0.21.0
-	k8s.io/apimachinery v0.21.0
-	k8s.io/client-go v0.21.0
+	k8s.io/api v0.22.0
+	k8s.io/apimachinery v0.22.0
+	k8s.io/client-go v12.0.0+incompatible
 	k8s.io/component-helpers v0.21.0
 	k8s.io/klog/v2 v2.9.0
 	k8s.io/kubectl v0.21.0
@@ -58,6 +58,8 @@ require (
 	sigs.k8s.io/aws-iam-authenticator v0.5.3
 	sigs.k8s.io/controller-runtime v0.9.6
 )
+
+replace k8s.io/client-go => k8s.io/client-go v0.21.0
 
 replace github.com/virtual-kubelet/virtual-kubelet => github.com/liqotech/virtual-kubelet v1.5.1-0.20210726130647-f2333d82a6de
 
