@@ -3,7 +3,11 @@ package forge
 import (
 	"context"
 	"fmt"
+	"k8s.io/apimachinery/pkg/util/wait"
+	"k8s.io/client-go/kubernetes"
+	"sigs.k8s.io/controller-runtime/pkg/client/config"
 	"strings"
+	"time"
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -15,6 +19,9 @@ import (
 	"github.com/liqotech/liqo/pkg/virtualKubelet"
 	apimgmt "github.com/liqotech/liqo/pkg/virtualKubelet/apiReflection"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/apiReflection/reflectors"
+
+	"github.com/liqotech/liqo/pkg/consts"
+	"github.com/liqotech/liqo/pkg/liqonet/utils"
 )
 
 const affinitySelector = liqoconst.TypeNode
@@ -154,13 +161,13 @@ func forgeContainers(inputContainers []corev1.Container, inputVolumes []corev1.V
 
 	for _, container := range inputContainers {
 		volumeMounts := filterVolumeMounts(inputVolumes, container.VolumeMounts)
-		containers = append(containers, translateContainer(container, volumeMounts))
+		envs := addClusterIdEnv(container.Env)
+		containers = append(containers, translateContainer(container, volumeMounts, envs))
 	}
-
 	return containers
 }
 
-func translateContainer(container corev1.Container, volumes []corev1.VolumeMount) corev1.Container {
+func translateContainer(container corev1.Container, volumes []corev1.VolumeMount, envs []corev1.EnvVar) corev1.Container {
 	return corev1.Container{
 		Name:            container.Name,
 		Image:           container.Image,
@@ -168,7 +175,7 @@ func translateContainer(container corev1.Container, volumes []corev1.VolumeMount
 		Args:            container.Args,
 		WorkingDir:      container.WorkingDir,
 		Ports:           container.Ports,
-		Env:             container.Env,
+		Env:             envs,
 		Resources:       container.Resources,
 		LivenessProbe:   container.LivenessProbe,
 		ReadinessProbe:  container.ReadinessProbe,
@@ -223,4 +230,30 @@ func forgeAffinity() *corev1.Affinity {
 			},
 		},
 	}
+}
+
+func addClusterIdEnv(envs []corev1.EnvVar) []corev1.EnvVar {
+	backoff := wait.Backoff{
+		Steps:    7,
+		Duration: 30 * time.Second,
+		Factor:   1.0,
+		Jitter:   0,
+	}
+
+	k8sClient, err := kubernetes.NewForConfig(config.GetConfigOrDie())
+	if err != nil {
+		klog.Fatalf(err.Error())
+	}
+
+	clusterID, err := utils.GetClusterID(k8sClient, consts.ClusterIDConfigMapName, "liqo", backoff)
+	if err != nil {
+		klog.Fatalf("an error occurred while retrieving the clusterID: %s", err)
+	}
+
+	env := corev1.EnvVar{
+		Name:  "LIQO_CLUSTER_ID",
+		Value: clusterID,
+	}
+
+	return append(envs, env)
 }
