@@ -5,6 +5,7 @@ service ipam {
     rpc MapEndpointIP (MapRequest) returns (MapResponse);
     rpc UnmapEndpointIP (UnmapRequest) returns (UnmapResponse);
     rpc GetHomePodIP (GetHomePodIPRequest) returns (GetHomePodIPResponse);
+    rpc GetRemotePodIP (GetRemotePodIPRequest) returns (GetRemotePodIPResponse);
     rpc BelongsToPodCIDR (BelongsRequest) returns (BelongsResponse);
 }
 
@@ -31,6 +32,15 @@ message GetHomePodIPRequest {
 
 message GetHomePodIPResponse {
     string homeIP = 1;
+}
+
+message GetRemotePodIPRequest {
+    string clusterID = 1;
+    string ip = 2;
+}
+
+message GetRemotePodIPResponse {
+    string remoteIP = 1;
 }
 
 message BelongsRequest {

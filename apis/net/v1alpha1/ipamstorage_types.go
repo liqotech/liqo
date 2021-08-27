@@ -28,12 +28,17 @@ var ResourceIpamStorages = "ipamstorages"
 type Subnets struct {
 	// Network used in the remote cluster for local Pods. Default is "None": this means remote cluster uses local cluster PodCIDR.
 	LocalNATPodCIDR string `json:"localNATPodCIDR"`
-	// Network used for Pods in the remote cluster.
+	// Network used in the remote cluster for remote Pods.
 	RemotePodCIDR string `json:"remotePodCIDR"`
 	// Network used in remote cluster for local service endpoints. Default is "None": this means remote cluster uses local cluster ExternalCIDR.
 	LocalNATExternalCIDR string `json:"localNATExternalCIDR"`
-	// Network used in local cluster for remote service endpoints.
+	// Network used in remote cluster for remote service endpoints.
 	RemoteExternalCIDR string `json:"remoteExternalCIDR"`
+
+	// Network used for Pods in the remote cluster.
+	RemoteNATPodCIDR string `json:"remoteNATPodCIDR"`
+	// Network used in local cluster for remote service endpoints.
+	RemoteNATExternalCIDR string `json:"remoteNATExternalCIDR"`
 }
 
 // ClusterMapping is an empty struct.
