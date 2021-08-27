@@ -412,16 +412,19 @@ func (liqoIPAM *IPAM) GetSubnetsPerCluster(
 
 	if !exists {
 		// Create cluster network configuration
+		// TODO(Save here original PodCIDR and External CIDR)
 		subnets = netv1alpha1.Subnets{
-			LocalNATPodCIDR:      "",
-			RemotePodCIDR:        mappedPodCIDR,
-			RemoteExternalCIDR:   mappedExternalCIDR,
-			LocalNATExternalCIDR: "",
+			LocalNATPodCIDR:       "",
+			RemoteNATPodCIDR:      mappedPodCIDR,
+			RemoteNATExternalCIDR: mappedExternalCIDR,
+			LocalNATExternalCIDR:  "",
+			RemotePodCIDR:         podCidr,
+			RemoteExternalCIDR:    externalCIDR,
 		}
 	} else {
 		// Update cluster network configuration
-		subnets.RemotePodCIDR = mappedPodCIDR
-		subnets.RemoteExternalCIDR = mappedExternalCIDR
+		subnets.RemoteNATPodCIDR = mappedPodCIDR
+		subnets.RemoteNATExternalCIDR = mappedExternalCIDR
 	}
 	clusterSubnets[clusterID] = subnets
 
@@ -1080,6 +1083,53 @@ func (liqoIPAM *IPAM) GetHomePodIP(ctx context.Context, request *GetHomePodIPReq
 
 // Internal implementation of exported func GetHomePodIP.
 func (liqoIPAM *IPAM) getHomePodIPInternal(clusterID, ip string) (string, error) {
+	if clusterID == "" {
+		return "", &liqoneterrors.WrongParameter{
+			Parameter: consts.ClusterIDLabelName,
+			Reason:    liqoneterrors.StringNotEmpty,
+		}
+	}
+	if parsedIP := net.ParseIP(ip); parsedIP == nil {
+		return "", &liqoneterrors.WrongParameter{
+			Reason:    liqoneterrors.ValidIP,
+			Parameter: ip,
+		}
+	}
+
+	// Get cluster subnets
+	clusterSubnets, err := liqoIPAM.ipamStorage.getClusterSubnets()
+	if err != nil {
+		return "", fmt.Errorf("cannot get cluster subnets:%w", err)
+	}
+	subnets, exists := clusterSubnets[clusterID]
+
+	// Check if RemoteNATPodCIDR is set
+	if !exists {
+		return "", fmt.Errorf("cluster %s subnets are not set", clusterID)
+	}
+
+	if subnets.RemoteNATPodCIDR == "" {
+		return "", &liqoneterrors.WrongParameter{
+			Reason: liqoneterrors.StringNotEmpty,
+		}
+	}
+
+	return utils.MapIPToNetwork(subnets.RemoteNATPodCIDR, ip)
+}
+
+// GetRemotePodIP receives a Pod IP valid in the local cluster and returns the corresponding remote Pod IP
+// (i.e. with validity in the remote cluster).
+func (liqoIPAM *IPAM) GetRemotePodIP(ctx context.Context, request *GetRemotePodIPRequest) (*GetRemotePodIPResponse, error) {
+	remoteIP, err := liqoIPAM.getRemotePodIPInternal(request.GetClusterID(), request.GetIp())
+	if err != nil {
+		return &GetRemotePodIPResponse{}, fmt.Errorf("cannot get home Pod IP starting from IP %s: %w",
+			request.GetClusterID(), err)
+	}
+	return &GetRemotePodIPResponse{RemoteIP: remoteIP}, nil
+}
+
+// Internal implementation of exported func GetHomePodIP.
+func (liqoIPAM *IPAM) getRemotePodIPInternal(clusterID, ip string) (string, error) {
 	if clusterID == "" {
 		return "", &liqoneterrors.WrongParameter{
 			Parameter: consts.ClusterIDLabelName,
