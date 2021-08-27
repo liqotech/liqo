@@ -82,8 +82,9 @@ func NewIAMIdentityProvider(client kubernetes.Interface,
 	localClusterID clusterid.ClusterID, awsConfig *AwsConfig,
 	namespaceManager tenantnamespace.Manager) IdentityProvider {
 	idProvider := &iamIdentityProvider{
-		awsConfig: awsConfig,
-		client:    client,
+		awsConfig:      awsConfig,
+		client:         client,
+		localClusterID: localClusterID,
 	}
 
 	return newIdentityManager(client, localClusterID, namespaceManager, idProvider)

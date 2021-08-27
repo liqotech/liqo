@@ -2,6 +2,7 @@ package identitymanager
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/credentials"
@@ -15,6 +16,7 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/klog/v2"
 
+	"github.com/liqotech/liqo/pkg/clusterid"
 	responsetypes "github.com/liqotech/liqo/pkg/identityManager/responseTypes"
 )
 
@@ -25,8 +27,9 @@ const (
 )
 
 type iamIdentityProvider struct {
-	awsConfig *AwsConfig
-	client    kubernetes.Interface
+	awsConfig      *AwsConfig
+	client         kubernetes.Interface
+	localClusterID clusterid.ClusterID
 }
 
 type mapUser struct {
@@ -60,13 +63,17 @@ func (identityProvider *iamIdentityProvider) ApproveSigningRequest(clusterID,
 
 	iamSvc := iam.New(sess)
 
-	userArn, err := identityProvider.ensureIamUser(sess, iamSvc, clusterID)
+	// the IAM username has to have <= 64 charaters, we have to take only a prefix from the local clusterID.
+	prefix := identityProvider.localClusterID.GetClusterID()[:25]
+	username := fmt.Sprintf("%v-%v", prefix, clusterID)
+
+	userArn, err := identityProvider.ensureIamUser(iamSvc, username)
 	if err != nil {
 		klog.Error(err)
 		return response, err
 	}
 
-	accessKey, err := identityProvider.ensureIamAccessKey(sess, iamSvc, clusterID)
+	accessKey, err := identityProvider.ensureIamAccessKey(iamSvc, username)
 	if err != nil {
 		klog.Error(err)
 		return response, err
@@ -94,9 +101,9 @@ func (identityProvider *iamIdentityProvider) ApproveSigningRequest(clusterID,
 	}, nil
 }
 
-func (identityProvider *iamIdentityProvider) ensureIamUser(sess *session.Session, iamSvc *iam.IAM, clusterID string) (string, error) {
+func (identityProvider *iamIdentityProvider) ensureIamUser(iamSvc *iam.IAM, username string) (string, error) {
 	createUser := &iam.CreateUserInput{
-		UserName: aws.String(clusterID),
+		UserName: aws.String(username),
 	}
 
 	createUserResult, err := iamSvc.CreateUser(createUser)
@@ -110,9 +117,9 @@ func (identityProvider *iamIdentityProvider) ensureIamUser(sess *session.Session
 	return *createUserResult.User.Arn, nil
 }
 
-func (identityProvider *iamIdentityProvider) ensureIamAccessKey(sess *session.Session, iamSvc *iam.IAM, clusterID string) (*iam.AccessKey, error) {
+func (identityProvider *iamIdentityProvider) ensureIamAccessKey(iamSvc *iam.IAM, username string) (*iam.AccessKey, error) {
 	createAccessKey := &iam.CreateAccessKeyInput{
-		UserName: aws.String(clusterID),
+		UserName: aws.String(username),
 	}
 
 	createAccessKeyResult, err := iamSvc.CreateAccessKey(createAccessKey)
