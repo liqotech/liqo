@@ -1,0 +1,184 @@
+package wireguard
+
+import (
+	"errors"
+	"fmt"
+	"strconv"
+
+	. "github.com/onsi/ginkgo"
+	. "github.com/onsi/gomega"
+
+	netv1alpha1 "github.com/liqotech/liqo/apis/net/v1alpha1"
+)
+
+const (
+	outOfRangeMin  = "0"
+	outOfRangeMax  = "65536"
+	intoTheRange   = "55555"
+	notANumber     = "notANumber"
+	invalidAddress = "unexistingAddress"
+)
+
+var (
+	tep *netv1alpha1.TunnelEndpoint
+)
+
+var _ = Describe("Driver", func() {
+	Describe("testing getVpnPortFromTep", func() {
+		JustBeforeEach(func() {
+			tep = &netv1alpha1.TunnelEndpoint{
+				Spec: netv1alpha1.TunnelEndpointSpec{
+					BackendConfig: map[string]string{ListeningPort: ""},
+				},
+			}
+		})
+		Context("out of range port", func() {
+			It("port < than min acceptable value", func() {
+				tep.Spec.BackendConfig[ListeningPort] = outOfRangeMin
+				port, err := getTunnelPortFromTep(tep)
+				Expect(port).To(BeNumerically("==", 0))
+				Expect(err).To(MatchError(fmt.Sprintf("port {%s} should be greater than {%d} and minor than {%d}", outOfRangeMin, udpMinPort, udpMaxPort)))
+			})
+
+			It("port > than max acceptable value", func() {
+				tep.Spec.BackendConfig[ListeningPort] = outOfRangeMax
+				port, err := getTunnelPortFromTep(tep)
+				Expect(port).To(BeNumerically("==", 0))
+				Expect(err).To(MatchError(fmt.Sprintf("port {%s} should be greater than {%d} and minor than {%d}", outOfRangeMax, udpMinPort, udpMaxPort)))
+			})
+
+			It("port is not a valid number", func() {
+				tep.Spec.BackendConfig[ListeningPort] = notANumber
+				port, err := getTunnelPortFromTep(tep)
+				Expect(port).To(BeNumerically("==", 0))
+				Expect(errors.Unwrap(err)).To(MatchError(&strconv.NumError{
+					Func: "ParseInt",
+					Num:  notANumber,
+					Err:  strconv.ErrSyntax,
+				}))
+			})
+
+			It("port not set at all", func() {
+				delete(tep.Spec.BackendConfig, ListeningPort)
+				port, err := getTunnelPortFromTep(tep)
+				Expect(port).To(BeNumerically("==", 0))
+				Expect(err).To(MatchError(fmt.Sprintf("port not found in BackendConfig map using key {%s}", ListeningPort)))
+			})
+		})
+
+		Context("in range port", func() {
+			It("port within range", func() {
+				tep.Spec.BackendConfig[ListeningPort] = intoTheRange
+				expectedPort, err := strconv.ParseInt(intoTheRange, 10, 32)
+				Expect(err).To(BeNil())
+				port, err := getTunnelPortFromTep(tep)
+				Expect(port).To(BeNumerically("==", expectedPort))
+				Expect(err).To(BeNil())
+			})
+		})
+	})
+
+	Describe("testing getTunnelAddressFromTep", func() {
+		JustBeforeEach(func() {
+			tep = &netv1alpha1.TunnelEndpoint{
+				Spec: netv1alpha1.TunnelEndpointSpec{
+					EndpointIP: "",
+				},
+			}
+		})
+
+		Context("protocol family ipv4", func() {
+			It("address is in literal format", func() {
+				tep.Spec.EndpointIP = ipv4Literal
+				addr, err := getTunnelAddressFromTep(tep, addressResolverMock)
+				Expect(addr.IP.String()).Should(ContainSubstring(ipv4Literal))
+				Expect(err).To(BeNil())
+			})
+
+			It("address is in dns format", func() {
+				tep.Spec.EndpointIP = ipv4Dns
+				addr, err := getTunnelAddressFromTep(tep, addressResolverMock)
+				Expect(addr.IP.String()).Should(ContainSubstring(ipv4Literal))
+				Expect(err).To(BeNil())
+			})
+
+			It("address could not be found", func() {
+				tep.Spec.EndpointIP = invalidAddress
+				addr, err := getTunnelAddressFromTep(tep, addressResolverMock)
+				Expect(addr).Should(BeNil())
+				Expect(err).To(HaveOccurred())
+			})
+		})
+
+		Context("protocol family ipv6", func() {
+			It("address is in literal format", func() {
+				tep.Spec.EndpointIP = ipv6Literal
+				addr, err := getTunnelAddressFromTep(tep, addressResolverMock)
+				Expect(addr.IP.String()).Should(ContainSubstring(ipv6Literal))
+				Expect(err).To(BeNil())
+			})
+
+			It("address is in dns format", func() {
+				tep.Spec.EndpointIP = ipv6Dns
+				addr, err := getTunnelAddressFromTep(tep, addressResolverMock)
+				Expect(addr.IP.String()).Should(ContainSubstring(ipv6Literal))
+				Expect(err).To(BeNil())
+			})
+
+			It("address could not be found", func() {
+				tep.Spec.EndpointIP = invalidAddress
+				addr, err := getTunnelAddressFromTep(tep, addressResolverMock)
+				Expect(addr).Should(BeNil())
+				Expect(err).To(HaveOccurred())
+			})
+		})
+
+		Describe("testing getEndpoint", func() {
+			JustBeforeEach(func() {
+				tep = &netv1alpha1.TunnelEndpoint{
+					Spec: netv1alpha1.TunnelEndpointSpec{
+						EndpointIP:    "",
+						BackendConfig: map[string]string{ListeningPort: ""},
+					},
+				}
+			})
+
+			Context("valid parameters", func() {
+				It("valid port and address", func() {
+					tep.Spec.EndpointIP = ipv4Dns
+					tep.Spec.BackendConfig[ListeningPort] = intoTheRange
+					udpAddr, err := getEndpoint(tep, addressResolverMock)
+					Expect(udpAddr).NotTo(BeNil())
+					Expect(udpAddr.IP.String()).Should(ContainSubstring(ipv4Literal))
+					Expect(err).To(BeNil())
+				})
+			})
+
+			Context("invalid parameters", func() {
+				It("invalid port and valid address", func() {
+					tep.Spec.EndpointIP = ipv4Dns
+					tep.Spec.BackendConfig[ListeningPort] = outOfRangeMax
+					udpAddr, err := getEndpoint(tep, addressResolverMock)
+					Expect(udpAddr).To(BeNil())
+					Expect(err).To(HaveOccurred())
+				})
+
+				It("invalid address and valid port", func() {
+					tep.Spec.EndpointIP = "notExisting"
+					tep.Spec.BackendConfig[ListeningPort] = intoTheRange
+					udpAddr, err := getEndpoint(tep, addressResolverMock)
+					Expect(udpAddr).To(BeNil())
+					Expect(err).To(HaveOccurred())
+				})
+
+				It("invalid port and invalid address", func() {
+					tep.Spec.EndpointIP = invalidAddress
+					tep.Spec.BackendConfig[ListeningPort] = outOfRangeMin
+					udpAddr, err := getEndpoint(tep, addressResolverMock)
+					Expect(udpAddr).To(BeNil())
+					Expect(err).To(HaveOccurred())
+				})
+			})
+		})
+	})
+})

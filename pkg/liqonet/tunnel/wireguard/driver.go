@@ -52,6 +52,9 @@ const (
 	KeepAliveInterval = 10 * time.Second
 	// MTU size of mtu for wireguard interface.
 	MTU = 1415
+	// Ports 1-65535 are available.
+	udpMinPort = 1
+	udpMaxPort = 65535
 )
 
 // Registering the driver as available.
@@ -67,6 +70,10 @@ type wgConfig struct {
 	// public key.
 	pubKey wgtypes.Key
 }
+
+// ResolverFunc type of function that knows how to resolve an ip address belonging to
+// ipv4 or ipv6 family.
+type ResolverFunc func(network string, address string) (*net.IPAddr, error)
 
 // Wireguard a wrapper for the wireguard device and its configuration.
 type Wireguard struct {
@@ -157,7 +164,7 @@ func (w *Wireguard) ConnectToEndpoint(tep *netv1alpha1.TunnelEndpoint) (*netv1al
 	}
 
 	// parse remote endpoint.
-	endpoint, err := getEndpoint(tep)
+	endpoint, err := getEndpoint(tep, net.ResolveIPAddr)
 	if err != nil {
 		return newConnectionOnError(err.Error()), err
 	}
@@ -347,26 +354,64 @@ func getKey(tep *netv1alpha1.TunnelEndpoint) (*wgtypes.Key, error) {
 	return &key, nil
 }
 
-func getEndpoint(tep *netv1alpha1.TunnelEndpoint) (*net.UDPAddr, error) {
-	// get port
-	port, found := tep.Spec.BackendConfig[ListeningPort]
-	if !found {
-		return nil, fmt.Errorf("tunnelEndpoint is missing listening port")
-	}
-	// convert port from string to int
-	listeningPort, err := strconv.ParseInt(port, 10, 32)
+func getEndpoint(tep *netv1alpha1.TunnelEndpoint, addrResolver ResolverFunc) (*net.UDPAddr, error) {
+	// Get tunnel port.
+	tunnelPort, err := getTunnelPortFromTep(tep)
 	if err != nil {
-		return nil, fmt.Errorf("error while converting port %s to int: %w", port, err)
+		return nil, err
 	}
-	// get endpoint ip.
-	remoteIP := net.ParseIP(tep.Spec.EndpointIP)
-	if remoteIP == nil {
-		return nil, fmt.Errorf("failed to parse remote IP %s", tep.Spec.EndpointIP)
+	// Get tunnel ip.
+	tunnelAddress, err := getTunnelAddressFromTep(tep, addrResolver)
+	if err != nil {
+		return nil, err
 	}
 	return &net.UDPAddr{
-		IP:   remoteIP,
-		Port: int(listeningPort),
+		IP:   tunnelAddress.IP,
+		Port: tunnelPort,
 	}, nil
+}
+
+func getTunnelPortFromTep(tep *netv1alpha1.TunnelEndpoint) (int, error) {
+	// Get port.
+	port, found := tep.Spec.BackendConfig[ListeningPort]
+	if !found {
+		return 0, fmt.Errorf("port not found in BackendConfig map using key {%s}", ListeningPort)
+	}
+	// Convert port from string to int.
+	tunnelPort, err := strconv.ParseInt(port, 10, 32)
+	if err != nil {
+		return 0, fmt.Errorf("unable to parse port {%s} to int: %w", port, err)
+	}
+	// If port is not in the correct range, then return an error.
+	if tunnelPort < udpMinPort || tunnelPort > udpMaxPort {
+		return 0, fmt.Errorf("port {%s} should be greater than {%d} and minor than {%d}", port, udpMinPort, udpMaxPort)
+	}
+	return int(tunnelPort), nil
+}
+
+func getTunnelAddressFromTep(tep *netv1alpha1.TunnelEndpoint, addrResolver ResolverFunc) (*net.IPAddr, error) {
+	protocolFamilies := map[string]string{"ipv4": "ip4", "ipv6": "ip6"}
+	clusterID := tep.Spec.ClusterID
+	tepName := tep.Name
+	endpoint := tep.Spec.EndpointIP
+
+	// For each protocol family we try to get the endpoint ip address.
+	// After the first match we return otherwise we continue.
+	for pfKey, pfValue := range protocolFamilies {
+		// Get endpoint ip, first we assume the ip address belongs to the ipv4 protocol family.
+		klog.V(4).Infof("%s -> trying to retrieve endpoint address {%s} from tunnelendpoint "+
+			"resource {%s} as {%s} address", clusterID, endpoint, tepName, pfKey)
+		tunnelAddress, err := addrResolver(pfValue, tep.Spec.EndpointIP)
+		if err != nil {
+			klog.V(4).Infof("%s -> unable to retrieve the endpoint address {%s}, "+
+				"found in tunnelendpoint resource {%s}, as an {%s} address: %v", clusterID, endpoint, tepName, pfKey, err)
+		} else {
+			klog.V(4).Infof("%s -> successfully retrieved endpoint address {%s} from tunnelendpoint resource "+
+				"{%s} as {%s} address", clusterID, tepName, endpoint, pfKey)
+			return tunnelAddress, nil
+		}
+	}
+	return nil, fmt.Errorf(" endpoint address {%s} is neither an ipv4 address nor an ipv6 one", endpoint)
 }
 
 func newConnectionOnError(msg string) *netv1alpha1.Connection {
