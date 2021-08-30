@@ -8,20 +8,24 @@ import (
 	"github.com/liqotech/liqo/pkg/consts"
 )
 
-// GetPeeringPhase returns the peering phase for a fiver ForignCluster CR.
+// GetPeeringPhase returns the peering phase of a given ForignCluster CR.
 func GetPeeringPhase(fc *discoveryv1alpha1.ForeignCluster) consts.PeeringPhase {
+	authenticated := IsAuthenticated(fc)
 	incoming := IsIncomingEnabled(fc)
 	outgoing := IsOutgoingEnabled(fc)
-	if incoming && outgoing {
+
+	switch {
+	case incoming && outgoing:
 		return consts.PeeringPhaseBidirectional
-	}
-	if incoming {
+	case incoming:
 		return consts.PeeringPhaseIncoming
-	}
-	if outgoing {
+	case outgoing:
 		return consts.PeeringPhaseOutgoing
+	case authenticated:
+		return consts.PeeringPhaseAuthenticated
+	default:
+		return consts.PeeringPhaseNone
 	}
-	return consts.PeeringPhaseNone
 }
 
 // IsReplicationEnabled indicates if the replication has to be enabled for a given peeringPhase
@@ -30,8 +34,8 @@ func IsReplicationEnabled(peeringPhase consts.PeeringPhase, resource *configv1al
 	switch resource.PeeringPhase {
 	case consts.PeeringPhaseNone:
 		return false
-	case consts.PeeringPhaseAll:
-		return true
+	case consts.PeeringPhaseAuthenticated:
+		return peeringPhase != consts.PeeringPhaseNone
 	case consts.PeeringPhaseBidirectional:
 		return peeringPhase == consts.PeeringPhaseBidirectional
 	case consts.PeeringPhaseIncoming:
@@ -44,7 +48,7 @@ func IsReplicationEnabled(peeringPhase consts.PeeringPhase, resource *configv1al
 		outgoing := peeringPhase == consts.PeeringPhaseOutgoing
 		return bidirectional || incoming || outgoing
 	default:
-		klog.Info("unknown peeringPhase %v", resource.PeeringPhase)
+		klog.Warning("Unknown peering phase %v", resource.PeeringPhase)
 		return false
 	}
 }

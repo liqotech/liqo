@@ -94,10 +94,18 @@ func getForeignClusterResource() *unstructured.Unstructured {
 			},
 			"spec": map[string]interface{}{
 				"clusterIdentity": map[string]interface{}{
-					"clusterID": "foreign-cluster",
+					"clusterID": "peering-cluster-1",
 				},
 				"join":           true,
 				"foreignAuthUrl": "https://192.168.2.100:30001",
+			},
+			"status": map[string]interface{}{
+				"peeringConditions": []interface{}{
+					map[string]interface{}{
+						"type":   "AuthenticationStatus",
+						"status": "Established",
+					},
+				},
 			},
 		},
 	}
@@ -143,7 +151,7 @@ func TestReplication1(t *testing.T) {
 }
 
 // we create a resource which type has been registered for the replication
-// we label it to be replicated on all the three clusters, so we expect to not find it on the remote clusters
+// we label it to be replicated on all the three clusters, so we expect to not find it on the remote clusters.
 func TestReplication2(t *testing.T) {
 	time.Sleep(1 * time.Second)
 	localResources := map[string]*netv1alpha1.TunnelEndpoint{}

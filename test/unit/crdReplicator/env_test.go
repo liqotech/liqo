@@ -12,6 +12,7 @@ import (
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
+	"k8s.io/client-go/util/retry"
 	"k8s.io/klog/v2"
 	"k8s.io/utils/pointer"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -79,6 +80,26 @@ func startDispatcherOperator() {
 	fc := getForeignClusterResource()
 	_, err = dOperator.LocalDynClient.Resource(fcGVR).Create(context.TODO(), fc, metav1.CreateOptions{})
 	if err != nil {
+		klog.Error(err, err.Error())
+		os.Exit(-1)
+	}
+
+	if err = retry.RetryOnConflict(retry.DefaultRetry, func() error {
+		tmp, err := dOperator.LocalDynClient.Resource(fcGVR).Get(context.TODO(), fc.GetName(), metav1.GetOptions{})
+		if err != nil {
+			klog.Error(err, err.Error())
+			return err
+		}
+
+		fc.SetResourceVersion(tmp.GetResourceVersion())
+		_, err = dOperator.LocalDynClient.Resource(fcGVR).UpdateStatus(context.TODO(), fc, metav1.UpdateOptions{})
+		if err != nil {
+			klog.Error(err, err.Error())
+			return err
+		}
+
+		return nil
+	}); err != nil {
 		klog.Error(err, err.Error())
 		os.Exit(-1)
 	}
@@ -228,7 +249,7 @@ func getClusterConfig() *configv1alpha1.ClusterConfig {
 					Version:  netv1alpha1.GroupVersion.Version,
 					Resource: "tunnelendpoints",
 				},
-				PeeringPhase: consts.PeeringPhaseAll,
+				PeeringPhase: consts.PeeringPhaseAuthenticated,
 				Ownership:    consts.OwnershipLocal,
 			}}},
 			AuthConfig: configv1alpha1.AuthConfig{

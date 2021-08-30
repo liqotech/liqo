@@ -125,7 +125,7 @@ var _ = Describe("PeeringPhase-Based Replication", func() {
 					{
 						GroupVersionResource: metav1.GroupVersionResource(
 							netv1alpha1.NetworkConfigGroupVersionResource),
-						PeeringPhase: consts.PeeringPhaseAll,
+						PeeringPhase: consts.PeeringPhaseAuthenticated,
 					},
 				},
 				peeringPhases: map[string]consts.PeeringPhase{

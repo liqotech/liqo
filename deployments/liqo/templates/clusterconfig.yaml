@@ -53,7 +53,7 @@ spec:
         group: discovery.liqo.io
         version: v1alpha1
         resource: resourcerequests
-      peeringPhase: All
+      peeringPhase: Authenticated
     - groupVersionResource:
         group: sharing.liqo.io
         version: v1alpha1

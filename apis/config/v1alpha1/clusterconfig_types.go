@@ -195,8 +195,8 @@ type Resource struct {
 	// GroupVersionResource contains the GVR of the resource to replicate.
 	GroupVersionResource metav1.GroupVersionResource `json:"groupVersionResource"`
 	// PeeringPhase contains the peering phase when this resource should be replicated.
-	// +kubebuilder:validation:Enum="None";"All";"Established";"Incoming";"Outgoing";"Bidirectional"
-	// +kubebuilder:default="All"
+	// +kubebuilder:validation:Enum="None";"Authenticated";"Established";"Incoming";"Outgoing";"Bidirectional"
+	// +kubebuilder:default="None"
 	PeeringPhase consts.PeeringPhase `json:"peeringPhase,omitempty"`
 	// Ownership indicates the ownership over this resource.
 	// +kubebuilder:validation:Enum="Local";"Shared"

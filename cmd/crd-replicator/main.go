@@ -21,6 +21,7 @@ import (
 	"github.com/liqotech/liqo/pkg/liqonet/utils"
 	"github.com/liqotech/liqo/pkg/mapperUtils"
 	tenantnamespace "github.com/liqotech/liqo/pkg/tenantNamespace"
+	"github.com/liqotech/liqo/pkg/utils/restcfg"
 )
 
 var (
@@ -35,11 +36,12 @@ func init() {
 }
 
 func main() {
+	restcfg.InitFlags(nil)
 	klog.InitFlags(nil)
 
 	flag.Parse()
 
-	cfg := ctrl.GetConfigOrDie()
+	cfg := restcfg.SetRateLimiter(ctrl.GetConfigOrDie())
 	mgr, err := ctrl.NewManager(cfg, ctrl.Options{
 		MapperProvider: mapperUtils.LiqoMapperProvider(scheme),
 		Scheme:         scheme,
@@ -50,9 +52,9 @@ func main() {
 		klog.Error(err, "unable to start manager")
 		os.Exit(-1)
 	}
-	//create a clientSet
+	// Create a clientSet.
 	k8sClient := kubernetes.NewForConfigOrDie(cfg)
-	//get namespace where the operator is running
+	// Get the namespace where the operator is running.
 	namespaceName, found := os.LookupEnv("NAMESPACE")
 	if !found {
 		klog.Errorf("namespace env variable not set, please set it in manifest file of the operator")

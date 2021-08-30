@@ -19,12 +19,12 @@ type PeeringPermission struct {
 	// these ClusterRoles have the basic permissions to give to a remote cluster
 	Basic []*rbacv1.ClusterRole
 	// to be enabled when a ResourceRequest has been accepted,
-	// these ClusterRoles have the permissions required to a remote cluster
+	// these ClusterRoles have the permissions required by a remote cluster
 	// to manage an outgoing peering (incoming for the local cluster),
 	// when the Pods will be offloaded to the local cluster
 	Incoming []*rbacv1.ClusterRole
 	// to be enabled when we send a ResourceRequest,
-	// these ClusterRoles have the permissions required to a remote cluster
+	// these ClusterRoles have the permissions required by a remote cluster
 	// to manage an incoming peering (outgoing for the local cluster),
 	// when the Pods will be offloaded from the local cluster
 	Outgoing []*rbacv1.ClusterRole
