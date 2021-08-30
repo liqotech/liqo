@@ -52,16 +52,25 @@ spec:
                         PodCIDR.'
                       type: string
                     remoteExternalCIDR:
+                      description: Network used in remote cluster for remote service
+                        endpoints.
+                      type: string
+                    remoteNATExternalCIDR:
                       description: Network used in local cluster for remote service
                         endpoints.
                       type: string
-                    remotePodCIDR:
+                    remoteNATPodCIDR:
                       description: Network used for Pods in the remote cluster.
+                      type: string
+                    remotePodCIDR:
+                      description: Network used in the remote cluster for remote Pods.
                       type: string
                   required:
                   - localNATExternalCIDR
                   - localNATPodCIDR
                   - remoteExternalCIDR
+                  - remoteNATExternalCIDR
+                  - remoteNATPodCIDR
                   - remotePodCIDR
                   type: object
                 description: Map used to keep track of networks assigned to clusters.
