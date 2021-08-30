@@ -2,6 +2,7 @@ package gke
 
 import (
 	"context"
+	"fmt"
 	"strings"
 
 	flag "github.com/spf13/pflag"
@@ -69,7 +70,7 @@ func (k *gkeProvider) ValidateCommandArguments(flags *flag.FlagSet) (err error) 
 
 // ExtractChartParameters fetches the parameters used to customize the Liqo installation on a specific cluster of a
 // given provider.
-func (k *gkeProvider) ExtractChartParameters(ctx context.Context, _ *rest.Config) error {
+func (k *gkeProvider) ExtractChartParameters(ctx context.Context, config *rest.Config, commonArgs *provider.CommonArguments) error {
 	svc, err := container.NewService(ctx, option.WithCredentialsFile(k.credentialsPath))
 	if err != nil {
 		return err
@@ -81,6 +82,14 @@ func (k *gkeProvider) ExtractChartParameters(ctx context.Context, _ *rest.Config
 	}
 
 	k.parseClusterOutput(cluster)
+
+	if !commonArgs.DisableEndpointCheck {
+		if valid, err := installutils.CheckEndpoint(k.endpoint, config); err != nil {
+			return err
+		} else if !valid {
+			return fmt.Errorf("the retrieved cluster information and the cluster selected in the kubeconfig do not match")
+		}
+	}
 
 	netSvc, err := compute.NewService(ctx, option.WithCredentialsFile(k.credentialsPath))
 	if err != nil {

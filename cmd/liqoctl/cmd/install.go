@@ -31,6 +31,8 @@ func newInstallCommand(ctx context.Context) *cobra.Command {
 	installCmd.Flags().BoolP("enable-lan-discovery", "", true, "Enable LAN discovery (default: true)")
 	installCmd.Flags().StringP("cluster-labels", "", "",
 		"Cluster Labels to append to Liqo Cluster, supports '='.(e.g. --cluster-labels key1=value1,key2=value2)")
+	installCmd.Flags().BoolP("disable-endpoint-check", "", false, "Disable the check that the current kubeconfig context "+
+		"contains the same endpoint retrieved from the cloud provider (AKS, EKS, GKE)")
 
 	for _, p := range providers {
 		initFunc, ok := providerInitFunc[p]

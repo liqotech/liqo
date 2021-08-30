@@ -48,7 +48,7 @@ func HandleInstallCommand(ctx context.Context, cmd *cobra.Command, args []string
 		os.Exit(1)
 	}
 
-	err = providerInstance.ExtractChartParameters(ctx, config)
+	err = providerInstance.ExtractChartParameters(ctx, config, commonArgs)
 	if err != nil {
 		fmt.Printf("Unable to initialize configuration: %v", err)
 		os.Exit(1)
