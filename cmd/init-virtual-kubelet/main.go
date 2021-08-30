@@ -69,7 +69,7 @@ func main() {
 	_, hasCertificate, err := csr.GetCSRSecret(ctx, client, nodeName, namespace)
 	if !apierrors.IsNotFound(err) && !hasCertificate {
 		if err != nil {
-			klog.Error(err)
+			klog.Fatal(err)
 		} else {
 			klog.Info("Certificate already present for this nodeName. Skipping")
 		}
@@ -88,8 +88,7 @@ func main() {
 	cancel()
 
 	if err != nil {
-		klog.Error("Unable to get certificate: %w", err)
-		return
+		klog.Fatalf("Unable to get certificate: %w", err)
 	}
 
 	if err := csr.StoreCertificate(ctx, client, cert, namespace, nodeName); err != nil {

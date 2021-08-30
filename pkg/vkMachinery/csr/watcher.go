@@ -140,7 +140,7 @@ func (r Watcher) RetrieveCertificate(ctx context.Context, csrName string) ([]byt
 	defer r.UnregisterHandlerForName(csrName)
 
 	// Check if the certificate is already approved, in case this occurred before we registered the handler.
-	if obj, err := r.Get(csrName); err != nil {
+	if obj, err := r.Get(csrName); err == nil {
 		handler(obj)
 	}
 
