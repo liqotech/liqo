@@ -5,6 +5,12 @@ import (
 	peeringconditionsutils "github.com/liqotech/liqo/pkg/utils/peeringConditions"
 )
 
+// IsAuthenticated checks if the identity has been accepted by the remote cluster.
+func IsAuthenticated(foreignCluster *discoveryv1alpha1.ForeignCluster) bool {
+	curPhase := peeringconditionsutils.GetStatus(foreignCluster, discoveryv1alpha1.AuthenticationStatusCondition)
+	return curPhase == discoveryv1alpha1.PeeringConditionStatusEstablished
+}
+
 // IsIncomingJoined checks if the incoming peering has been completely established.
 func IsIncomingJoined(foreignCluster *discoveryv1alpha1.ForeignCluster) bool {
 	curPhase := peeringconditionsutils.GetStatus(foreignCluster, discoveryv1alpha1.IncomingPeeringCondition)

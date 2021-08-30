@@ -22,7 +22,7 @@ func (r *ForeignClusterReconciler) ensurePermission(ctx context.Context, foreign
 	}
 
 	switch peeringPhase {
-	case consts.PeeringPhaseNone:
+	case consts.PeeringPhaseNone, consts.PeeringPhaseAuthenticated:
 		if err = r.namespaceManager.UnbindClusterRoles(remoteClusterID,
 			clusterRolesToNames(r.peeringPermission.Outgoing)...); err != nil {
 			klog.Error(err)

@@ -172,12 +172,12 @@ spec:
                           - Shared
                           type: string
                         peeringPhase:
-                          default: All
+                          default: None
                           description: PeeringPhase contains the peering phase when
                             this resource should be replicated.
                           enum:
                           - None
-                          - All
+                          - Authenticated
                           - Established
                           - Incoming
                           - Outgoing

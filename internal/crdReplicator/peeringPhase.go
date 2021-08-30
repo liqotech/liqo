@@ -16,7 +16,7 @@ import (
 // checkResourcesOnPeeringPhaseChange checks if some of the replicated resources
 // need to start replication of this specific ForeignCluster on this phase change.
 // If some of the replicated resources need to start replication, it lists all the
-// instances already that are already present in the local cluster and calls the
+// instances that are already present in the local cluster and calls the
 // AddHandler on them.
 func (c *Controller) checkResourcesOnPeeringPhaseChange(ctx context.Context,
 	remoteClusterID string, currentPhase, oldPhase consts.PeeringPhase) {
@@ -24,8 +24,8 @@ func (c *Controller) checkResourcesOnPeeringPhaseChange(ctx context.Context,
 		res := &c.RegisteredResources[i]
 		if !foreigncluster.IsReplicationEnabled(oldPhase, res) && foreigncluster.IsReplicationEnabled(currentPhase, res) {
 			// this change has triggered the replication on this resource
-			klog.Infof("phase from %v to %v triggers replication on resource %v",
-				oldPhase, currentPhase, res.GroupVersionResource)
+			klog.Infof("%v -> phase from %v to %v triggers replication of resource %v",
+				remoteClusterID, oldPhase, currentPhase, res.GroupVersionResource)
 			if err := c.startResourceReplicationHandler(ctx, remoteClusterID, res); err != nil {
 				klog.Error(err)
 				continue

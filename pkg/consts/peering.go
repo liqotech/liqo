@@ -4,16 +4,16 @@ package consts
 type PeeringPhase string
 
 const (
-	// PeeringPhaseNone no pering has been established.
+	// PeeringPhaseNone -> no pering has been established.
 	PeeringPhaseNone PeeringPhase = "None"
-	// PeeringPhaseAll indicates that we have not be in any specific peering phase.
-	PeeringPhaseAll PeeringPhase = "All"
-	// PeeringPhaseEstablished the peering has been established.
+	// PeeringPhaseAuthenticated -> an identity to interact with the remote cluster is available.
+	PeeringPhaseAuthenticated PeeringPhase = "Authenticated"
+	// PeeringPhaseEstablished -> the peering has been established (either incoming or outgoing).
 	PeeringPhaseEstablished PeeringPhase = "Established"
-	// PeeringPhaseIncoming an incoming peering has been established.
+	// PeeringPhaseIncoming -> an incoming peering has been established.
 	PeeringPhaseIncoming PeeringPhase = "Incoming"
-	// PeeringPhaseOutgoing an outgoing peering has been established.
+	// PeeringPhaseOutgoing -> an outgoing peering has been established.
 	PeeringPhaseOutgoing PeeringPhase = "Outgoing"
-	// PeeringPhaseBidirectional both incoming and outgoing peerings has been established.
+	// PeeringPhaseBidirectional -> both incoming and outgoing peerings have been established.
 	PeeringPhaseBidirectional PeeringPhase = "Bidirectional"
 )
