@@ -77,7 +77,7 @@ func (k *aksProvider) ValidateCommandArguments(flags *flag.FlagSet) (err error) 
 
 // ExtractChartParameters fetches the parameters used to customize the Liqo installation on a specific cluster of a
 // given provider.
-func (k *aksProvider) ExtractChartParameters(ctx context.Context, _ *rest.Config) error {
+func (k *aksProvider) ExtractChartParameters(ctx context.Context, config *rest.Config, commonArgs *provider.CommonArguments) error {
 	authorizer, err := auth.NewAuthorizerFromCLI()
 	if err != nil {
 		return err
@@ -101,6 +101,14 @@ func (k *aksProvider) ExtractChartParameters(ctx context.Context, _ *rest.Config
 
 	if err = k.parseClusterOutput(ctx, &cluster); err != nil {
 		return err
+	}
+
+	if !commonArgs.DisableEndpointCheck {
+		if valid, err := installutils.CheckEndpoint(k.endpoint, config); err != nil {
+			return err
+		} else if !valid {
+			return fmt.Errorf("the retrieved cluster information and the cluster selected in the kubeconfig do not match")
+		}
 	}
 
 	return nil

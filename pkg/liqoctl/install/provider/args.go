@@ -10,14 +10,15 @@ import (
 
 // CommonArguments encapsulates all the arguments common across install providers.
 type CommonArguments struct {
-	Version        string
-	Debug          bool
-	Timeout        time.Duration
-	DumpValues     bool
-	DumpValuesPath string
-	DryRun         bool
-	CommonValues   map[string]interface{}
-	Devel          bool
+	Version              string
+	Debug                bool
+	Timeout              time.Duration
+	DumpValues           bool
+	DumpValuesPath       string
+	DryRun               bool
+	CommonValues         map[string]interface{}
+	Devel                bool
+	DisableEndpointCheck bool
 }
 
 // ValidateCommonArguments validates install common arguments. If the inputs are valid, it returns a *CommonArgument
@@ -59,19 +60,24 @@ func ValidateCommonArguments(flags *flag.FlagSet) (*CommonArguments, error) {
 	if err != nil {
 		return nil, err
 	}
+	disableEndpointCheck, err := flags.GetBool("disable-endpoint-check")
+	if err != nil {
+		return nil, err
+	}
 	commonValues, err := parseCommonValues(clusterLabels, lanDiscovery)
 	if err != nil {
 		return nil, err
 	}
 	return &CommonArguments{
-		Version:        version,
-		Debug:          debug,
-		Timeout:        time.Duration(timeout) * time.Second,
-		DryRun:         dryRun,
-		DumpValues:     dumpValues,
-		DumpValuesPath: dumpValuesPath,
-		CommonValues:   commonValues,
-		Devel:          devel,
+		Version:              version,
+		Debug:                debug,
+		Timeout:              time.Duration(timeout) * time.Second,
+		DryRun:               dryRun,
+		DumpValues:           dumpValues,
+		DumpValuesPath:       dumpValuesPath,
+		CommonValues:         commonValues,
+		Devel:                devel,
+		DisableEndpointCheck: disableEndpointCheck,
 	}, nil
 }
 

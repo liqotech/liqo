@@ -13,7 +13,7 @@ type InstallProviderInterface interface {
 	ValidateCommandArguments(*flag.FlagSet) error
 	// ExtractChartParameters retrieves the install parameters required for a correct installation. This may require
 	// instantiating extra clients to interact with cloud provider or the target cluster.
-	ExtractChartParameters(context.Context, *rest.Config) error
+	ExtractChartParameters(context.Context, *rest.Config, *CommonArguments) error
 	// UpdateChartValues patches the values map of a selected chart, modifying keys and entries to correctly install Liqo on a given
 	// provider
 	UpdateChartValues(values map[string]interface{})

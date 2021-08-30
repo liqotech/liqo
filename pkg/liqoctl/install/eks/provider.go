@@ -2,6 +2,7 @@ package eks
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/aws/aws-sdk-go/aws/session"
 	flag "github.com/spf13/pflag"
@@ -95,7 +96,7 @@ func (k *eksProvider) ValidateCommandArguments(flags *flag.FlagSet) (err error) 
 
 // ExtractChartParameters fetches the parameters used to customize the Liqo installation on a specific cluster of a
 // given provider.
-func (k *eksProvider) ExtractChartParameters(ctx context.Context, _ *rest.Config) error {
+func (k *eksProvider) ExtractChartParameters(ctx context.Context, config *rest.Config, commonArgs *provider.CommonArguments) error {
 	sess, err := session.NewSession()
 	if err != nil {
 		return err
@@ -103,6 +104,14 @@ func (k *eksProvider) ExtractChartParameters(ctx context.Context, _ *rest.Config
 
 	if err = k.getClusterInfo(sess); err != nil {
 		return err
+	}
+
+	if !commonArgs.DisableEndpointCheck {
+		if valid, err := installutils.CheckEndpoint(k.endpoint, config); err != nil {
+			return err
+		} else if !valid {
+			return fmt.Errorf("the retrieved cluster information and the cluster selected in the kubeconfig do not match")
+		}
 	}
 
 	if err = k.createIamIdentity(sess); err != nil {

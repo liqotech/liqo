@@ -73,7 +73,7 @@ func (k *k3sProvider) ValidateCommandArguments(flags *flag.FlagSet) (err error) 
 
 // ExtractChartParameters fetches the parameters used to customize the Liqo installation on a specific cluster of a
 // given provider.
-func (k *k3sProvider) ExtractChartParameters(ctx context.Context, config *rest.Config) error {
+func (k *k3sProvider) ExtractChartParameters(ctx context.Context, config *rest.Config, _ *provider.CommonArguments) error {
 	k8sClient, err := kubernetes.NewForConfig(config)
 	if err != nil {
 		fmt.Printf("Unable to create client: %s", err)
