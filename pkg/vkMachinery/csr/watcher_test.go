@@ -95,12 +95,6 @@ var _ = Describe("Watcher functions", func() {
 				name = MatchingName
 				label = MatchingLabel
 				retrieveCtx, cancel = context.WithTimeout(ctx, 500*time.Millisecond)
-
-				// Let run this in a goroutine, as it is blocking
-				go func() {
-					certificate, err = watcher.RetrieveCertificate(retrieveCtx, MatchingName)
-					cancel()
-				}()
 			})
 
 			JustBeforeEach(func() {
@@ -112,22 +106,51 @@ var _ = Describe("Watcher functions", func() {
 				Expect(err).ToNot(HaveOccurred())
 			})
 
-			When("the CSR matches the desired name", func() {
-				It("should succeed and retrieve the certificate", func() {
-					Eventually(retrieveCtx.Done()).Should(BeClosed())
-					Expect(err).ToNot(HaveOccurred())
-					Expect(certificate).To(Equal(input.Status.Certificate))
+			ContextBody := func() {
+				When("the CSR matches the desired name", func() {
+					It("should succeed and retrieve the certificate", func() {
+						Eventually(retrieveCtx.Done()).Should(BeClosed())
+						Expect(err).ToNot(HaveOccurred())
+						Expect(certificate).To(Equal(input.Status.Certificate))
+					})
 				})
+
+				When("the CSR does not match the desired name", func() {
+					BeforeEach(func() { name = NotMatchingName })
+
+					It("should fail and return nil as certificate", func() {
+						Eventually(retrieveCtx.Done()).Should(BeClosed())
+						Expect(err).To(HaveOccurred())
+						Expect(certificate).To(BeNil())
+					})
+				})
+			}
+
+			Context("the function is started before the certificate is ready", func() {
+				BeforeEach(func() {
+					// Let run this in a goroutine, as it is blocking
+					go func() {
+						certificate, err = watcher.RetrieveCertificate(retrieveCtx, MatchingName)
+						cancel()
+					}()
+				})
+
+				Describe("checking the outcome", ContextBody)
 			})
 
-			When("the CSR does not match the desired name", func() {
-				BeforeEach(func() { name = NotMatchingName })
-
-				It("should fail and return nil as certificate", func() {
-					Eventually(retrieveCtx.Done()).Should(BeClosed())
-					Expect(err).To(HaveOccurred())
-					Expect(certificate).To(BeNil())
+			Context("the function is started when the certificate is already ready", func() {
+				BeforeEach(func() {
+					// Let run this in a goroutine, as it is blocking
+					go func() {
+						// Let sleep for some time, so that the certificate is already ready when the
+						// watcher.RetrieveCertificate function is invoked.
+						time.Sleep(250 * time.Millisecond)
+						certificate, err = watcher.RetrieveCertificate(retrieveCtx, MatchingName)
+						cancel()
+					}()
 				})
+
+				Describe("checking the outcome", ContextBody)
 			})
 		})
 

@@ -22,7 +22,6 @@ func GetCSRSecret(ctx context.Context,
 	clientset kubernetes.Interface, nodeName, namespace string) (secret *v1.Secret, hasCertificate bool, err error) {
 	secret, err = clientset.CoreV1().Secrets(namespace).Get(ctx, nodeName, metav1.GetOptions{})
 	if err != nil {
-		klog.Error(err)
 		return nil, false, err
 	}
 
