@@ -10,7 +10,7 @@ import (
 	installprovider "github.com/liqotech/liqo/pkg/liqoctl/install/provider"
 )
 
-// HandleInstallCommand implements the install command. It detects which provider has to be used, generates the chart
+// HandleInstallCommand implements the "install" command. It detects which provider has to be used, generates the chart
 // with provider-specific values. Finally, it performs the installation on the target cluster.
 func HandleInstallCommand(ctx context.Context, cmd *cobra.Command, args []string) {
 	config, err := initClientConfig()
