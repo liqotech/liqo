@@ -35,7 +35,6 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/source"
 
@@ -254,11 +253,11 @@ func (r *ForeignClusterReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 	tracer.Step("Checked the TunnelEndpoint status")
 
 	// check if peering request really exists on foreign cluster
-	if err := r.checkPeeringStatus(ctx, &foreignCluster); err != nil {
+	if err := r.checkIncomingPeeringStatus(ctx, &foreignCluster); err != nil {
 		klog.Error(err)
 		return ctrl.Result{}, err
 	}
-	tracer.Step("Checked the peering status")
+	tracer.Step("Checked the incoming peering status")
 
 	// ------ (5) ensuring permission ------
 
@@ -296,20 +295,24 @@ func (r *ForeignClusterReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 // peerNamespaced enables the peering creating the resources in the correct TenantNamespace.
 func (r *ForeignClusterReconciler) peerNamespaced(ctx context.Context,
 	foreignCluster *discoveryv1alpha1.ForeignCluster) error {
-	// create ResourceRequest
-	result, err := r.createResourceRequest(ctx, foreignCluster)
+	// Ensure the ResourceRequest is present
+	resourceRequest, err := r.ensureResourceRequest(ctx, foreignCluster)
 	if err != nil {
 		klog.Error(err)
 		return err
 	}
 
-	// if the resource request has been created
-	if result == controllerutil.OperationResultCreated {
-		peeringconditionsutils.EnsureStatus(foreignCluster,
-			discoveryv1alpha1.OutgoingPeeringCondition,
-			discoveryv1alpha1.PeeringConditionStatusPending,
-			resourceRequestCreatedReason, fmt.Sprintf(resourceRequestCreatedMessage, foreignCluster.Status.TenantNamespace.Local))
+	// Update the peering status based on the ResourceRequest status
+	status, reason, message, err := getPeeringPhase(foreignCluster, resourceRequest)
+	if err != nil {
+		err = fmt.Errorf("[%v] %w", foreignCluster.Spec.ClusterIdentity.ClusterID, err)
+		klog.Error(err)
+		return err
 	}
+
+	peeringconditionsutils.EnsureStatus(foreignCluster,
+		discoveryv1alpha1.OutgoingPeeringCondition, status, reason, message)
+
 	return nil
 }
 
@@ -376,16 +379,10 @@ func (r *ForeignClusterReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		Complete(r)
 }
 
-func (r *ForeignClusterReconciler) checkPeeringStatus(ctx context.Context,
+func (r *ForeignClusterReconciler) checkIncomingPeeringStatus(ctx context.Context,
 	foreignCluster *discoveryv1alpha1.ForeignCluster) error {
-	var outgoingResourceRequestList discoveryv1alpha1.ResourceRequestList
 	remoteClusterID := foreignCluster.Spec.ClusterIdentity.ClusterID
 	localNamespace := foreignCluster.Status.TenantNamespace.Local
-	if err := r.Client.List(ctx, &outgoingResourceRequestList, client.MatchingLabels(resourceRequestLabels(remoteClusterID)),
-		client.InNamespace(localNamespace)); err != nil {
-		klog.Error(err)
-		return err
-	}
 
 	var incomingResourceRequestList discoveryv1alpha1.ResourceRequestList
 	if err := r.Client.List(ctx, &incomingResourceRequestList, client.HasLabels{
@@ -396,16 +393,7 @@ func (r *ForeignClusterReconciler) checkPeeringStatus(ctx context.Context,
 		return err
 	}
 
-	status, reason, message, err := getPeeringPhase(foreignCluster, &outgoingResourceRequestList)
-	if err != nil {
-		err = fmt.Errorf("[%v] %w in namespace %v", remoteClusterID, err, localNamespace)
-		klog.Error(err)
-		return err
-	}
-	peeringconditionsutils.EnsureStatus(foreignCluster,
-		discoveryv1alpha1.OutgoingPeeringCondition, status, reason, message)
-
-	status, reason, message, err = getPeeringPhase(foreignCluster, &incomingResourceRequestList)
+	status, reason, message, err := getPeeringPhaseList(foreignCluster, &incomingResourceRequestList)
 	if err != nil {
 		err = fmt.Errorf("[%v] %w in namespace %v", remoteClusterID, err, localNamespace)
 		klog.Error(err)
@@ -416,7 +404,7 @@ func (r *ForeignClusterReconciler) checkPeeringStatus(ctx context.Context,
 	return nil
 }
 
-func getPeeringPhase(foreignCluster *discoveryv1alpha1.ForeignCluster,
+func getPeeringPhaseList(foreignCluster *discoveryv1alpha1.ForeignCluster,
 	resourceRequestList *discoveryv1alpha1.ResourceRequestList) (status discoveryv1alpha1.PeeringConditionStatusType,
 	reason, message string, err error) {
 	switch len(resourceRequestList.Items) {
@@ -424,35 +412,40 @@ func getPeeringPhase(foreignCluster *discoveryv1alpha1.ForeignCluster,
 		return discoveryv1alpha1.PeeringConditionStatusNone, noResourceRequestReason,
 			fmt.Sprintf(noResourceRequestMessage, foreignCluster.Status.TenantNamespace.Local), nil
 	case 1:
-		resourceRequest := &resourceRequestList.Items[0]
-		desiredDelete := !resourceRequest.Spec.WithdrawalTimestamp.IsZero()
-		deleted := !resourceRequest.Status.OfferWithdrawalTimestamp.IsZero()
-		offerState := resourceRequest.Status.OfferState
-
-		// the offerState indicates if the ResourceRequest has been accepted and
-		// the ResourceOffer has been created by the remote cluster.
-		// * "Created" state means that the resources has been offered, and, if the withdrawal timestamp is set,
-		//   the offered is created, but it is no more valid. -> the cluster is disconnecting.
-		// * "None" there is no ResourceOffer created by the remote cluster, both because it didn't yet or because
-		//   it did not accept the incoming peering from the local cluster. -> the peering state is Pending.
-		switch offerState {
-		case discoveryv1alpha1.OfferStateCreated:
-			if desiredDelete || deleted {
-				return discoveryv1alpha1.PeeringConditionStatusDisconnecting, resourceRequestDeletingReason,
-					fmt.Sprintf(resourceRequestDeletingMessage, foreignCluster.Status.TenantNamespace.Local), nil
-			}
-			return discoveryv1alpha1.PeeringConditionStatusEstablished, resourceRequestAcceptedReason,
-				fmt.Sprintf(resourceRequestAcceptedMessage, foreignCluster.Status.TenantNamespace.Local), nil
-		case discoveryv1alpha1.OfferStateNone, "":
-			return discoveryv1alpha1.PeeringConditionStatusPending, resourceRequestPendingReason,
-				fmt.Sprintf(resourceRequestPendingMessage, foreignCluster.Status.TenantNamespace.Local), nil
-		default:
-			err = fmt.Errorf("unknown offer state %v", offerState)
-			return discoveryv1alpha1.PeeringConditionStatusNone, noResourceRequestReason,
-				fmt.Sprintf(noResourceRequestMessage, foreignCluster.Status.TenantNamespace.Local), err
-		}
+		return getPeeringPhase(foreignCluster, &resourceRequestList.Items[0])
 	default:
 		err = fmt.Errorf("more than one resource request found")
+		return discoveryv1alpha1.PeeringConditionStatusNone, noResourceRequestReason,
+			fmt.Sprintf(noResourceRequestMessage, foreignCluster.Status.TenantNamespace.Local), err
+	}
+}
+
+func getPeeringPhase(foreignCluster *discoveryv1alpha1.ForeignCluster,
+	resourceRequest *discoveryv1alpha1.ResourceRequest) (status discoveryv1alpha1.PeeringConditionStatusType,
+	reason, message string, err error) {
+	desiredDelete := !resourceRequest.Spec.WithdrawalTimestamp.IsZero()
+	deleted := !resourceRequest.Status.OfferWithdrawalTimestamp.IsZero()
+	offerState := resourceRequest.Status.OfferState
+
+	// the offerState indicates if the ResourceRequest has been accepted and
+	// the ResourceOffer has been created by the remote cluster.
+	// * "Created" state means that the resources has been offered, and, if the withdrawal timestamp is set,
+	//   the offered is created, but it is no more valid. -> the cluster is disconnecting.
+	// * "None" there is no ResourceOffer created by the remote cluster, both because it didn't yet or because
+	//   it did not accept the incoming peering from the local cluster. -> the peering state is Pending.
+	switch offerState {
+	case discoveryv1alpha1.OfferStateCreated:
+		if desiredDelete || deleted {
+			return discoveryv1alpha1.PeeringConditionStatusDisconnecting, resourceRequestDeletingReason,
+				fmt.Sprintf(resourceRequestDeletingMessage, foreignCluster.Status.TenantNamespace.Local), nil
+		}
+		return discoveryv1alpha1.PeeringConditionStatusEstablished, resourceRequestAcceptedReason,
+			fmt.Sprintf(resourceRequestAcceptedMessage, foreignCluster.Status.TenantNamespace.Local), nil
+	case discoveryv1alpha1.OfferStateNone, "":
+		return discoveryv1alpha1.PeeringConditionStatusPending, resourceRequestPendingReason,
+			fmt.Sprintf(resourceRequestPendingMessage, foreignCluster.Status.TenantNamespace.Local), nil
+	default:
+		err = fmt.Errorf("unknown offer state %v", offerState)
 		return discoveryv1alpha1.PeeringConditionStatusNone, noResourceRequestReason,
 			fmt.Sprintf(noResourceRequestMessage, foreignCluster.Status.TenantNamespace.Local), err
 	}
