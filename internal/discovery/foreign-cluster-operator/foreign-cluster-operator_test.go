@@ -475,7 +475,6 @@ var _ = Describe("ForeignClusterOperator", func() {
 			foreignClusterStatus  discoveryv1alpha1.ForeignClusterStatus
 			resourceRequests      []discoveryv1alpha1.ResourceRequest
 			expectedIncomingPhase discoveryv1alpha1.PeeringConditionStatusType
-			expectedOutgoingPhase discoveryv1alpha1.PeeringConditionStatusType
 		}
 
 		var (
@@ -529,7 +528,7 @@ var _ = Describe("ForeignClusterOperator", func() {
 			}
 		)
 
-		DescribeTable("checkPeeringStatus",
+		DescribeTable("checkIncomingPeeringStatus",
 			func(c checkPeeringStatusTestcase) {
 				foreignCluster := &discoveryv1alpha1.ForeignCluster{
 					TypeMeta: metav1.TypeMeta{
@@ -572,11 +571,10 @@ var _ = Describe("ForeignClusterOperator", func() {
 					Expect(err).To(Succeed())
 				}
 
-				err = controller.checkPeeringStatus(ctx, foreignCluster)
+				err = controller.checkIncomingPeeringStatus(ctx, foreignCluster)
 				Expect(err).To(BeNil())
 
 				Expect(peeringconditionsutils.GetStatus(foreignCluster, discoveryv1alpha1.IncomingPeeringCondition)).To(Equal(c.expectedIncomingPhase))
-				Expect(peeringconditionsutils.GetStatus(foreignCluster, discoveryv1alpha1.OutgoingPeeringCondition)).To(Equal(c.expectedOutgoingPhase))
 			},
 
 			Entry("none", checkPeeringStatusTestcase{
@@ -597,7 +595,6 @@ var _ = Describe("ForeignClusterOperator", func() {
 				},
 				resourceRequests:      []discoveryv1alpha1.ResourceRequest{},
 				expectedIncomingPhase: discoveryv1alpha1.PeeringConditionStatusNone,
-				expectedOutgoingPhase: discoveryv1alpha1.PeeringConditionStatusNone,
 			}),
 
 			Entry("none and no update", checkPeeringStatusTestcase{
@@ -618,7 +615,6 @@ var _ = Describe("ForeignClusterOperator", func() {
 				},
 				resourceRequests:      []discoveryv1alpha1.ResourceRequest{},
 				expectedIncomingPhase: discoveryv1alpha1.PeeringConditionStatusNone,
-				expectedOutgoingPhase: discoveryv1alpha1.PeeringConditionStatusNone,
 			}),
 
 			Entry("outgoing", checkPeeringStatusTestcase{
@@ -641,7 +637,6 @@ var _ = Describe("ForeignClusterOperator", func() {
 					getOutgoingResourceRequest(true),
 				},
 				expectedIncomingPhase: discoveryv1alpha1.PeeringConditionStatusNone,
-				expectedOutgoingPhase: discoveryv1alpha1.PeeringConditionStatusEstablished,
 			}),
 
 			Entry("outgoing not accepted", checkPeeringStatusTestcase{
@@ -664,7 +659,6 @@ var _ = Describe("ForeignClusterOperator", func() {
 					getOutgoingResourceRequest(false),
 				},
 				expectedIncomingPhase: discoveryv1alpha1.PeeringConditionStatusNone,
-				expectedOutgoingPhase: discoveryv1alpha1.PeeringConditionStatusPending,
 			}),
 
 			Entry("incoming", checkPeeringStatusTestcase{
@@ -687,7 +681,6 @@ var _ = Describe("ForeignClusterOperator", func() {
 					getIncomingResourceRequest(),
 				},
 				expectedIncomingPhase: discoveryv1alpha1.PeeringConditionStatusEstablished,
-				expectedOutgoingPhase: discoveryv1alpha1.PeeringConditionStatusNone,
 			}),
 
 			Entry("bidirectional", checkPeeringStatusTestcase{
@@ -711,7 +704,6 @@ var _ = Describe("ForeignClusterOperator", func() {
 					getOutgoingResourceRequest(true),
 				},
 				expectedIncomingPhase: discoveryv1alpha1.PeeringConditionStatusEstablished,
-				expectedOutgoingPhase: discoveryv1alpha1.PeeringConditionStatusEstablished,
 			}),
 		)
 
