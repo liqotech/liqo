@@ -7,6 +7,8 @@ import (
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/aws/aws-sdk-go/service/eks"
+
+	"github.com/liqotech/liqo/pkg/consts"
 )
 
 // getClusterInfo retrieved information from the EKS cluster.
@@ -62,6 +64,8 @@ func (k *eksProvider) parseClusterOutput(describeClusterResult *eks.DescribeClus
 		err := fmt.Errorf("the EKS cluster %v in region %v does not have a valid VPC ID", k.clusterName, k.region)
 		return "", err
 	}
+
+	k.clusterLabels[consts.TopologyRegionClusterLabel] = k.region
 
 	return *describeClusterResult.Cluster.ResourcesVpcConfig.VpcId, nil
 }

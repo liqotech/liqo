@@ -2,6 +2,7 @@ package kind
 
 import (
 	"github.com/liqotech/liqo/pkg/liqoctl/install/provider"
+	installutils "github.com/liqotech/liqo/pkg/liqoctl/install/utils"
 )
 
 // NewProvider initializes a new Kind struct.
@@ -29,6 +30,11 @@ func (k *Kind) UpdateChartValues(values map[string]interface{}) {
 		"config": map[string]interface{}{
 			"serviceCIDR": k.ServiceCIDR,
 			"podCIDR":     k.PodCIDR,
+		},
+	}
+	values["discovery"] = map[string]interface{}{
+		"config": map[string]interface{}{
+			"clusterLabels": installutils.GetInterfaceMap(k.ClusterLabels),
 		},
 	}
 }

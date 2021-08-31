@@ -9,6 +9,8 @@ import (
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	flag "github.com/spf13/pflag"
+
+	"github.com/liqotech/liqo/pkg/consts"
 )
 
 func TestFetchingParameters(t *testing.T) {
@@ -68,6 +70,7 @@ var _ = Describe("Extract elements from EKS", func() {
 		}
 
 		p := NewProvider().(*eksProvider)
+		p.region = region
 
 		resVpcID, err := p.parseClusterOutput(clusterOutput)
 		Expect(err).To(Succeed())
@@ -75,6 +78,9 @@ var _ = Describe("Extract elements from EKS", func() {
 
 		Expect(p.endpoint).To(Equal(endpoint))
 		Expect(p.serviceCIDR).To(Equal(serviceCIDR))
+		Expect(p.clusterLabels).ToNot(BeEmpty())
+		Expect(p.clusterLabels[consts.ProviderClusterLabel]).To(Equal(providerPrefix))
+		Expect(p.clusterLabels[consts.TopologyRegionClusterLabel]).To(Equal(region))
 
 		vpcOutput := &ec2.DescribeVpcsOutput{
 			Vpcs: []*ec2.Vpc{

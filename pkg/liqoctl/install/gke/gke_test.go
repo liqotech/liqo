@@ -7,6 +7,8 @@ import (
 	. "github.com/onsi/gomega"
 	flag "github.com/spf13/pflag"
 	"google.golang.org/api/container/v1"
+
+	"github.com/liqotech/liqo/pkg/consts"
 )
 
 func TestFetchingParameters(t *testing.T) {
@@ -55,6 +57,7 @@ var _ = Describe("Extract elements from GKE", func() {
 			Endpoint:         endpoint,
 			ServicesIpv4Cidr: serviceCIDR,
 			ClusterIpv4Cidr:  podCIDR,
+			Location:         zone,
 		}
 
 		p := NewProvider().(*gkeProvider)
@@ -64,6 +67,10 @@ var _ = Describe("Extract elements from GKE", func() {
 		Expect(p.endpoint).To(Equal(endpoint))
 		Expect(p.serviceCIDR).To(Equal(serviceCIDR))
 		Expect(p.podCIDR).To(Equal(podCIDR))
+
+		Expect(p.clusterLabels).ToNot(BeEmpty())
+		Expect(p.clusterLabels[consts.ProviderClusterLabel]).To(Equal(providerPrefix))
+		Expect(p.clusterLabels[consts.TopologyRegionClusterLabel]).To(Equal(zone))
 
 	})
 

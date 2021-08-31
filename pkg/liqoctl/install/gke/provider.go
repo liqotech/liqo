@@ -12,6 +12,7 @@ import (
 	"k8s.io/client-go/rest"
 	"k8s.io/klog/v2"
 
+	"github.com/liqotech/liqo/pkg/consts"
 	"github.com/liqotech/liqo/pkg/liqoctl/install/provider"
 	installutils "github.com/liqotech/liqo/pkg/liqoctl/install/utils"
 )
@@ -32,11 +33,16 @@ type gkeProvider struct {
 	podCIDR     string
 
 	reservedSubnets []string
+	clusterLabels   map[string]string
 }
 
 // NewProvider initializes a new GKE provider struct.
 func NewProvider() provider.InstallProviderInterface {
-	return &gkeProvider{}
+	return &gkeProvider{
+		clusterLabels: map[string]string{
+			consts.ProviderClusterLabel: providerPrefix,
+		},
+	}
 }
 
 // ValidateCommandArguments validates specific arguments passed to the install command.
@@ -132,6 +138,11 @@ func (k *gkeProvider) UpdateChartValues(values map[string]interface{}) {
 			"reservedSubnets": installutils.GetInterfaceSlice(k.reservedSubnets),
 		},
 	}
+	values["discovery"] = map[string]interface{}{
+		"config": map[string]interface{}{
+			"clusterLabels": installutils.GetInterfaceMap(k.clusterLabels),
+		},
+	}
 }
 
 // GenerateFlags generates the set of specific subpath and flags are accepted for a specific provider.
@@ -154,4 +165,6 @@ func (k *gkeProvider) parseClusterOutput(cluster *container.Cluster) {
 	k.endpoint = cluster.Endpoint
 	k.serviceCIDR = cluster.ServicesIpv4Cidr
 	k.podCIDR = cluster.ClusterIpv4Cidr
+
+	k.clusterLabels[consts.TopologyRegionClusterLabel] = cluster.Location
 }

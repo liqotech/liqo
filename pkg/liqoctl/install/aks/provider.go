@@ -14,6 +14,7 @@ import (
 	"k8s.io/client-go/rest"
 	"k8s.io/klog/v2"
 
+	"github.com/liqotech/liqo/pkg/consts"
 	"github.com/liqotech/liqo/pkg/liqoctl/install/provider"
 	installutils "github.com/liqotech/liqo/pkg/liqoctl/install/utils"
 )
@@ -37,11 +38,16 @@ type aksProvider struct {
 	podCIDR     string
 
 	reservedSubnets []string
+	clusterLabels   map[string]string
 }
 
 // NewProvider initializes a new AKS provider struct.
 func NewProvider() provider.InstallProviderInterface {
-	return &aksProvider{}
+	return &aksProvider{
+		clusterLabels: map[string]string{
+			consts.ProviderClusterLabel: providerPrefix,
+		},
+	}
 }
 
 // ValidateCommandArguments validates specific arguments passed to the install command.
@@ -126,6 +132,11 @@ func (k *aksProvider) UpdateChartValues(values map[string]interface{}) {
 			"reservedSubnets": installutils.GetInterfaceSlice(k.reservedSubnets),
 		},
 	}
+	values["discovery"] = map[string]interface{}{
+		"config": map[string]interface{}{
+			"clusterLabels": installutils.GetInterfaceMap(k.clusterLabels),
+		},
+	}
 }
 
 // GenerateFlags generates the set of specific subpath and flags are accepted for a specific provider.
@@ -160,6 +171,10 @@ func (k *aksProvider) parseClusterOutput(ctx context.Context, cluster *container
 	}
 
 	k.endpoint = *cluster.Fqdn
+
+	if cluster.Location != nil {
+		k.clusterLabels[consts.TopologyRegionClusterLabel] = *cluster.Location
+	}
 
 	return nil
 }

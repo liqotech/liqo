@@ -17,9 +17,10 @@ var kubeControllerManagerLabels = map[string]string{"component": "kube-controlle
 // Kubeadm contains the parameters required to install Liqo on a kubeadm cluster and a dedicated client to fetch
 // those values.
 type Kubeadm struct {
-	APIServer   string
-	Config      *rest.Config
-	PodCIDR     string
-	ServiceCIDR string
-	K8sClient   kubernetes.Interface
+	APIServer     string
+	Config        *rest.Config
+	PodCIDR       string
+	ServiceCIDR   string
+	K8sClient     kubernetes.Interface
+	ClusterLabels map[string]string
 }
