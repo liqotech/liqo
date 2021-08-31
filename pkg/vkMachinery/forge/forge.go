@@ -47,12 +47,16 @@ func forgeVKVolumes() []v1.Volume {
 	return volumes
 }
 
-func forgeVKInitContainers(nodeName, initVKImage string) []v1.Container {
+func forgeVKInitContainers(nodeName string, opts VirtualKubeletOpts) []v1.Container {
+	if opts.DisableCertGeneration {
+		return []v1.Container{}
+	}
+
 	return []v1.Container{
 		{
 			Resources: forgeVKResources(),
 			Name:      "crt-generator",
-			Image:     initVKImage,
+			Image:     opts.InitContainerImage,
 			Command: []string{
 				"/usr/bin/init-virtual-kubelet",
 			},
@@ -149,11 +153,11 @@ func forgeVKContainers(
 
 func forgeVKPodSpec(
 	vkName, vkNamespace, liqoNamespace, homeClusterID string,
-	remoteClusterID, initVKImage, nodeName, vkImage string) v1.PodSpec {
+	remoteClusterID, nodeName string, opts VirtualKubeletOpts) v1.PodSpec {
 	return v1.PodSpec{
 		Volumes:        forgeVKVolumes(),
-		InitContainers: forgeVKInitContainers(nodeName, initVKImage),
-		Containers: forgeVKContainers(vkImage, remoteClusterID,
+		InitContainers: forgeVKInitContainers(nodeName, opts),
+		Containers: forgeVKContainers(opts.ContainerImage, remoteClusterID,
 			nodeName, vkNamespace, liqoNamespace, homeClusterID),
 		ServiceAccountName: vkName,
 		Affinity:           forgeVKAffinity(),

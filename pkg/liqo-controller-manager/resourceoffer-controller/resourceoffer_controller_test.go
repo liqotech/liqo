@@ -91,7 +91,7 @@ var _ = Describe("ResourceOffer Controller", func() {
 
 		clusterID := clusterid.NewStaticClusterID("remote-id")
 
-		controller = NewResourceOfferController(mgr, clusterID, 10*time.Second, virtualKubeletImage, initVirtualKubeletImage, testNamespace)
+		controller = NewResourceOfferController(mgr, clusterID, 10*time.Second, virtualKubeletImage, initVirtualKubeletImage, testNamespace, false)
 		if err := controller.SetupWithManager(mgr); err != nil {
 			By(err.Error())
 			os.Exit(1)

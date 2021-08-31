@@ -45,6 +45,7 @@ import (
 	crdreplicator "github.com/liqotech/liqo/internal/crdReplicator"
 	"github.com/liqotech/liqo/pkg/clusterid"
 	"github.com/liqotech/liqo/pkg/vkMachinery"
+	"github.com/liqotech/liqo/pkg/vkMachinery/forge"
 )
 
 const resourceOfferAnnotation = "liqo.io/resourceoffer"
@@ -59,8 +60,7 @@ type ResourceOfferReconciler struct {
 
 	liqoNamespace string
 
-	virtualKubeletImage     string
-	initVirtualKubeletImage string
+	virtualKubeletOpts forge.VirtualKubeletOpts
 
 	resyncPeriod       time.Duration
 	configuration      *configv1alpha1.ClusterConfig

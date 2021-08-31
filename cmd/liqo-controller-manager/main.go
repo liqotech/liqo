@@ -81,6 +81,7 @@ func main() {
 	var enableLeaderElection bool
 	var enablePanic bool
 	var liqoNamespace, kubeletImage, initKubeletImage string
+	var disableKubeletCertGeneration bool
 	var resyncPeriod int64
 	var offloadingStatusControllerRequeueTime int64
 	var offerUpdateThreshold uint64
@@ -108,6 +109,9 @@ func main() {
 	flag.StringVar(&initKubeletImage,
 		"init-kubelet-image", defaultInitVKImage,
 		"The image of the virtual kubelet init container to be deployed")
+	flag.BoolVar(&disableKubeletCertGeneration,
+		"disable-kubelet-certificate-generation", false,
+		"Whether to disable the virtual kubelet certificate generation by means of an init container (used for logs/exec capabilities)")
 
 	klog.InitFlags(nil)
 	flag.Parse()
@@ -189,7 +193,7 @@ func main() {
 	}
 
 	resourceOfferReconciler := resourceoffercontroller.NewResourceOfferController(
-		mgr, clusterID, time.Duration(resyncPeriod), kubeletImage, initKubeletImage, liqoNamespace)
+		mgr, clusterID, time.Duration(resyncPeriod), kubeletImage, initKubeletImage, liqoNamespace, disableKubeletCertGeneration)
 	if err = resourceOfferReconciler.SetupWithManager(mgr); err != nil {
 		klog.Fatal(err)
 	}

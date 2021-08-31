@@ -149,6 +149,11 @@ func (k *eksProvider) UpdateChartValues(values map[string]interface{}) {
 			"clusterLabels": installutils.GetInterfaceMap(k.clusterLabels),
 		},
 	}
+	values["controllerManager"] = map[string]interface{}{
+		"pod": map[string]interface{}{
+			"extraArgs": []interface{}{"--disable-kubelet-certificate-generation=true"},
+		},
+	}
 }
 
 // GenerateFlags generates the set of specific subpath and flags are accepted for a specific provider.
