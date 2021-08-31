@@ -48,6 +48,9 @@ var _ = Describe("Extract elements from K3S", func() {
 		Expect(p.serviceCIDR).To(Equal(serviceCIDR))
 		Expect(p.apiServer).To(Equal(apiServer))
 
+		Expect(p.clusterLabels).ToNot(BeEmpty())
+		Expect(p.clusterLabels[consts.ProviderClusterLabel]).To(Equal(providerPrefix))
+
 	})
 
 	Context("test api server validation", func() {

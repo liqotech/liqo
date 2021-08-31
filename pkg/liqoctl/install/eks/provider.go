@@ -9,6 +9,7 @@ import (
 	"k8s.io/client-go/rest"
 	"k8s.io/klog/v2"
 
+	"github.com/liqotech/liqo/pkg/consts"
 	"github.com/liqotech/liqo/pkg/liqoctl/install/provider"
 	installutils "github.com/liqotech/liqo/pkg/liqoctl/install/utils"
 )
@@ -25,7 +26,8 @@ type eksProvider struct {
 	serviceCIDR string
 	podCIDR     string
 
-	iamLiqoUser iamLiqoUser
+	iamLiqoUser   iamLiqoUser
+	clusterLabels map[string]string
 }
 
 type iamLiqoUser struct {
@@ -38,7 +40,11 @@ type iamLiqoUser struct {
 
 // NewProvider initializes a new EKS provider struct.
 func NewProvider() provider.InstallProviderInterface {
-	return &eksProvider{}
+	return &eksProvider{
+		clusterLabels: map[string]string{
+			consts.ProviderClusterLabel: providerPrefix,
+		},
+	}
 }
 
 // ValidateCommandArguments validates specific arguments passed to the install command.
@@ -137,6 +143,11 @@ func (k *eksProvider) UpdateChartValues(values map[string]interface{}) {
 		"secretAccessKey": k.iamLiqoUser.secretAccessKey,
 		"region":          k.region,
 		"clusterName":     k.clusterName,
+	}
+	values["discovery"] = map[string]interface{}{
+		"config": map[string]interface{}{
+			"clusterLabels": installutils.GetInterfaceMap(k.clusterLabels),
+		},
 	}
 }
 

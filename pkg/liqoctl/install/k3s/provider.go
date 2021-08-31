@@ -39,11 +39,17 @@ type k3sProvider struct {
 	apiServer   string
 	serviceCIDR string
 	podCIDR     string
+
+	clusterLabels map[string]string
 }
 
 // NewProvider initializes a new K3S provider struct.
 func NewProvider() provider.InstallProviderInterface {
-	return &k3sProvider{}
+	return &k3sProvider{
+		clusterLabels: map[string]string{
+			consts.ProviderClusterLabel: providerPrefix,
+		},
+	}
 }
 
 // ValidateCommandArguments validates specific arguments passed to the install command.
@@ -111,6 +117,11 @@ func (k *k3sProvider) UpdateChartValues(values map[string]interface{}) {
 		"config": map[string]interface{}{
 			"serviceCIDR": k.serviceCIDR,
 			"podCIDR":     k.podCIDR,
+		},
+	}
+	values["discovery"] = map[string]interface{}{
+		"config": map[string]interface{}{
+			"clusterLabels": installutils.GetInterfaceMap(k.clusterLabels),
 		},
 	}
 }

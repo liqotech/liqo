@@ -9,6 +9,8 @@ import (
 	. "github.com/onsi/gomega"
 	flag "github.com/spf13/pflag"
 	"k8s.io/utils/pointer"
+
+	"github.com/liqotech/liqo/pkg/consts"
 )
 
 func TestFetchingParameters(t *testing.T) {
@@ -24,6 +26,8 @@ const (
 	subscriptionID    = "subID"
 	resourceGroupName = "test"
 	resourceName      = "liqo"
+
+	region = "region"
 )
 
 var _ = Describe("Extract elements from AKS", func() {
@@ -52,6 +56,7 @@ var _ = Describe("Extract elements from AKS", func() {
 		ctx := context.TODO()
 
 		clusterOutput := &containerservice.ManagedCluster{
+			Location: pointer.StringPtr(region),
 			ManagedClusterProperties: &containerservice.ManagedClusterProperties{
 				Fqdn: pointer.StringPtr(endpoint),
 				NetworkProfile: &containerservice.NetworkProfile{
@@ -76,6 +81,9 @@ var _ = Describe("Extract elements from AKS", func() {
 		Expect(p.podCIDR).To(Equal(podCIDR))
 		Expect(len(p.reservedSubnets)).To(BeNumerically("==", 1))
 		Expect(p.reservedSubnets).To(ContainElement(defaultAksNodeCIDR))
+		Expect(p.clusterLabels).ToNot(BeEmpty())
+		Expect(p.clusterLabels[consts.ProviderClusterLabel]).To(Equal(providerPrefix))
+		Expect(p.clusterLabels[consts.TopologyRegionClusterLabel]).To(Equal(region))
 
 	})
 
