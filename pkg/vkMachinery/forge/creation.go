@@ -11,8 +11,8 @@ import (
 )
 
 // VirtualKubeletDeployment forges the deployment for a virtual-kubelet.
-func VirtualKubeletDeployment(remoteClusterID,
-	vkName, vkNamespace, liqoNamespace, vkImage, initVKImage, nodeName, homeClusterID string) (*appsv1.Deployment, error) {
+func VirtualKubeletDeployment(remoteClusterID, vkName, vkNamespace, liqoNamespace,
+	nodeName, homeClusterID string, opts VirtualKubeletOpts) (*appsv1.Deployment, error) {
 	vkLabels := VirtualKubeletLabels(remoteClusterID)
 	return &appsv1.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
@@ -29,7 +29,7 @@ func VirtualKubeletDeployment(remoteClusterID,
 				ObjectMeta: metav1.ObjectMeta{
 					Labels: vkLabels,
 				},
-				Spec: forgeVKPodSpec(vkName, vkNamespace, liqoNamespace, homeClusterID, remoteClusterID, initVKImage, nodeName, vkImage),
+				Spec: forgeVKPodSpec(vkName, vkNamespace, liqoNamespace, homeClusterID, remoteClusterID, nodeName, opts),
 			},
 		},
 	}, nil
