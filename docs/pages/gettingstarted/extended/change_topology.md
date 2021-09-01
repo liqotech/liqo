@@ -3,8 +3,8 @@ title: Change topology
 weight: 6
 ---
 
-Liqo allows you to change your deployment topology without any effort. 
-Only two straightforward steps are required:
+Liqo can adjust the placement of the pods of your deployments with the same flexibility you have in "vanilla" Kubernetes.
+To do so, two straightforward steps are required:
 
 1. Remove the old configuration in the *Liqo namespace*, so the old NamespaceOffloading resource.
 2. Create the new resource with a new configuration.
@@ -32,7 +32,7 @@ kubectl get namespaces
 
 ### Create the new resource
 
-Now you can imagine creating a new configuration:
+Now, you can create a new configuration. For instance, you can decide to have:
 
 * All remote clusters selected. 
 * Pods could be deployed only remotely.
@@ -63,9 +63,18 @@ There should be two remote namespaces: one inside the *cluster-2* and the other 
 export KUBECONFIG=$KUBECONFIG_2
 kubectl get namespaces liqo-test
 ```
+
 ```bash
 export KUBECONFIG=$KUBECONFIG_3
 kubectl get namespaces liqo-test
 ```
 
-Once the new topology has been created, you can find out [how to contact remote pods from the home-cluster](../remote_service_access)
+Both of those commands should have an output like:
+
+```bash
+NAME        STATUS   AGE
+liqo-test   Active   40s
+```
+
+
+Once the new namespaces have been created, you can find out [how to contact remote pods from the home-cluster](../remote_service_access)

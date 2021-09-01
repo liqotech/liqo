@@ -3,12 +3,13 @@ title: Dynamic topology
 weight: 8
 ---
 
-Liqo builds deployment topologies extremely dynamic. 
-If you have specified certain characteristics, all the clusters that match them will be automatically added to the topology.
-Similarly, if one cluster leaves the topology, the workload will be redistributed among the remaining clusters, obtaining a balanced solution.
-You do not have to reconfigure the topology or terminate the offloading: Liqo takes care of converging to the new topology automatically. 
+Liqo allows you to select dynamically the clusters eligible for a specific namespace. 
+If you have specified certain characteristics, all the clusters that match them will be automatically added as candidate to receive certain pods.
+Similarly, if one cluster leaves the topology, the workload will be redistributed among the remaining clusters, by destroying and recreating the pods elsewhere.
+If new clusters are peered or unpeered at runtime, you do not have to take care to configure the topology or terminate the offloading: Liqo ensures the convergence to the new set-up automatically. 
 
-You can try to disable the peering with a cluster that has at least one pod inside to see if it is correctly rescheduled inside another available cluster.
+In this step, you will try to disable the peering with a cluster that has at least one pod inside.
+This will show you that a new replacing pod is correctly rescheduled inside another available cluster.
 
 ### Disable a peering
 
@@ -49,6 +50,8 @@ export KUBECONFIG=$KUBECONFIG_2
 kubectl get pods -n liqo-test 
 ```
 
+The output will be something like:
+
 ```bash
 NAME                                     READY   STATUS    
 nginx-deployment-5c97c84f6-8h58s-58w27   1/1     Running   
@@ -67,12 +70,17 @@ kubectl patch foreignclusters $REMOTE_CLUSTER_ID_3 \
 --type 'merge'
 ```
 
-The topology is immediately updated and *cluster-3* is re-added to the topology.
+The namespaces created on the newly peered cluster is immediately updated and *cluster-3* is re-added to the multi-cluster topology.
 A remote namespace is correctly re-created in *cluster-3*:
 
 ```bash
 export KUBECONFIG=$KUBECONFIG_3
 kubectl get namespace liqo-test 
+```
+
+```bash
+NAME        STATUS   AGE
+liqo-test   Active   40s
 ```
 
 ### Clean up the environment
@@ -84,7 +92,7 @@ To clean up your environment, you have to execute the following steps:
    export KUBECONFIG=$KUBECONFIG_1
    kubectl delete deployment nginx-deployment -n liqo-test
    ```
-2. Delete the deployment topology removing the Liqo namespace:
+2. Delete the namespaceOffloading resource and the associated Liqo namespace:
 
    ```bash
    kubectl delete namespaceoffloading offloading -n liqo-test
