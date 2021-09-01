@@ -49,17 +49,23 @@ func (r *ResourceRequestReconciler) Reconcile(ctx context.Context, req ctrl.Requ
 
 	remoteClusterID := resourceRequest.Spec.ClusterIdentity.ClusterID
 
-	var requireSpecUpdate bool
 	// ensure the ForeignCluster existence, if not exists we have to add a new one
 	// with IncomingPeering discovery method.
-	requireSpecUpdate, err = r.ensureForeignCluster(ctx, &resourceRequest)
+	foreignCluster, err := r.ensureForeignCluster(ctx, &resourceRequest)
 	if err != nil {
 		klog.Errorf("%s -> Error generating resourceOffer: %s", remoteClusterID, err)
 		return ctrl.Result{}, err
 	}
 
+	// ensure that the ResourceRequest is controlled by a ForeignCluster
+	requireSpecUpdate, err := r.ensureControllerReference(foreignCluster, &resourceRequest)
+	if err != nil {
+		klog.Errorf("%s -> Error ensuring the controller reference presence: %s", remoteClusterID, err)
+		return ctrl.Result{}, err
+	}
+
 	var resourceReqPhase resourceRequestPhase
-	resourceReqPhase, err = r.getResourceRequestPhase(ctx, &resourceRequest)
+	resourceReqPhase, err = r.getResourceRequestPhase(foreignCluster, &resourceRequest)
 	if err != nil {
 		klog.Errorf("%s -> Error getting the ResourceRequest Phase: %s", remoteClusterID, err)
 		return ctrl.Result{}, err
