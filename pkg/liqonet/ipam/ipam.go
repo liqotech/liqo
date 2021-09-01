@@ -1148,20 +1148,68 @@ func (liqoIPAM *IPAM) getRemotePodIPInternal(clusterID, ip string) (string, erro
 	if err != nil {
 		return "", fmt.Errorf("cannot get cluster subnets:%w", err)
 	}
-	subnets, exists := clusterSubnets[clusterID]
 
-	// Check if RemotePodCIDR is set
+	subnets, exists := clusterSubnets[clusterID]
 	if !exists {
 		return "", fmt.Errorf("cluster %s subnets are not set", clusterID)
 	}
 
-	if subnets.RemotePodCIDR == "" {
-		return "", &liqoneterrors.WrongParameter{
-			Reason: liqoneterrors.StringNotEmpty,
-		}
+	// Get PodCIDR
+	podCIDR, err := liqoIPAM.ipamStorage.getPodCIDR()
+	if err != nil || podCIDR == emptyCIDR {
+		return "", fmt.Errorf("cannot get cluster PodCIDR: %w", err)
 	}
 
-	return utils.MapIPToNetwork(subnets.RemotePodCIDR, ip)
+	belongs, err := ipBelongsToNetwork(ip, podCIDR)
+	if err != nil {
+		return "", fmt.Errorf("cannot establish if IP %s belongs to PodCIDR:%w", ip, err)
+	}
+	if belongs {
+		if subnets.LocalNATPodCIDR == "None" {
+			//return "", &liqoneterrors.WrongParameter{
+			//	Reason: liqoneterrors.StringNotEmpty,
+			//}
+			return ip, nil
+		}
+		/** If ip is in the podCIDR means that source in remote while destination is local, so ip must
+		be remapped on the localNATPodCIDR */
+		return utils.MapIPToNetwork(subnets.LocalNATPodCIDR, ip)
+	}
+
+	belongs, err = ipBelongsToNetwork(ip, subnets.RemoteNATPodCIDR)
+	if err != nil {
+		return "", fmt.Errorf("cannot establish if IP %s belongs to PodCIDR:%w", ip, err)
+	}
+	if belongs {
+		// Check if RemotePodCIDR is set
+		if subnets.RemotePodCIDR == "" {
+			return "", &liqoneterrors.WrongParameter{
+				Reason: liqoneterrors.StringNotEmpty,
+			}
+		}
+		/** If ip is in the remoteNATPodCIDR means that source and destination are on the same remote
+		cluster, so the ip must be remapped on the remotePodCIDR */
+		return utils.MapIPToNetwork(subnets.RemotePodCIDR, ip)
+	}
+
+	endpointMappings, err := liqoIPAM.ipamStorage.getEndpointMappings()
+	if err != nil {
+		return "", fmt.Errorf("cannot get Endpoint IPs: %w", err)
+	}
+
+	mapping, exists := endpointMappings[ip]
+	if !exists {
+		return "", fmt.Errorf("mapping for %s does not exist", ip)
+	}
+
+	/** Source and destination are on different remote clusters, so ip must be remapped on the
+	externalCIDR of the local cluster. If it was remapped by the remote cluster, the ip must be
+	remapped on the localNATExternalCIDR  */
+	if subnets.LocalNATExternalCIDR != "None" {
+		return utils.MapIPToNetwork(subnets.LocalNATExternalCIDR, mapping.IP)
+	}
+
+	return mapping.IP, nil
 }
 
 // unmapEndpointIPInternal is the internal implementation of UnmapEndpointIP.
