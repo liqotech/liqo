@@ -12,12 +12,12 @@ Before installing Liqo, you should:
 * Provision the clusters you would like to use with Liqo.
 * Have a look to the [pre-install section](./pre-install), that presents some common patterns used to expose and interconnect clusters when using Liqo.
 
-#### Liqoctl 
+#### liqoctl 
 
 Liqoctl is the swiss-knife CLI tool to install and manager Liqo. 
 It is strongly recommended installing Liqo using Liqoctl since it provides customizations for supported providers.
 
-Under the hood, Liqoctl uses [Helm 3](https://helm.sh/) to configure and install the Liqo chart available on the [official repository](https://helm.liqo.io/). 
+Under the hood, liqoctl uses [Helm 3](https://helm.sh/) to configure and install the Liqo chart available on the official repository. 
 If you prefer to customize the installation configuration, you can use liqoctl as a provider-specific values file generator and then install Liqo with Helm as usual.
 
 To install liqoctl, first, you have to set the architecture and OS of your host:
