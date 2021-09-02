@@ -7,6 +7,7 @@ import (
 	"syscall"
 
 	"github.com/spf13/cobra"
+	_ "k8s.io/client-go/plugin/pkg/client/auth"
 
 	liqocmd "github.com/liqotech/liqo/cmd/liqoctl/cmd"
 )

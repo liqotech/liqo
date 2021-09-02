@@ -22,19 +22,81 @@ If you prefer to customize the installation configuration, you can use liqoctl a
 
 To install liqoctl, first, you have to set the architecture and OS of your host:
 
+
 ```bash
 OS=linux # possible values: linux,windows,darwin
 ARCH=amd64 # possible values: amd64,arm64 
 ```
 
 Then, you should execute the following commands the latest version of liqoctl:
-```
-LATEST_RELEASE=$(curl -L -s -H 'Accept: application/json' https://github.com/liqotech/liqo/releases/latest)
-LATEST_VERSION=$(echo $LATEST_RELEASE | sed -e 's/.*"tag_name":"\([^"]*\)".*/\1/')
-curl --fail -LSO "https://github.com/liqotech/liqo/releases/download/${LATEST_VERSION}/liqoctl-${OS}-${ARCH}" && chmod +x liqoctl-${OS}-${ARCH} && sudo mv liqoctl-${OS}-${ARCH} /usr/local/bin/liqoctl
+
+```bash
+curl --fail -LSO "https://get.liqo.io/liqoctl-${OS}-${ARCH}" && \
+chmod +x "liqoctl-${OS}-${ARCH}" && \
+sudo mv "liqoctl-${OS}-${ARCH}" /usr/local/bin/liqoctl
 ```
 
 Alternatively, you can directly download liqoctl from the [Liqo releases](https://github.com/liqotech/liqo/releases/) page on GitHub.
+
+##### Command Completion (Optional)
+
+{{< tabs groupId="shell" >}}
+{{% tab name="Bash" %}}
+To load completions in the current session, execute once:
+```bash
+source <(liqoctl completion bash)
+```
+
+To load completions for each session, execute once the following command:
+
+```bash
+source <(liqoctl completion bash) >> ~/.bashrc
+```
+{{% /tab %}}
+
+{{% tab name="ZSH" %}}
+
+If ZSH completion is not already enabled, you have first to execute the following once:
+```zsh
+echo "autoload -U compinit; compinit" >> ~/.zshrc
+```
+
+To load completions for each session, execute once:
+```zsh
+liqoctl completion zsh > "${fpath[1]}/_liqoctl"
+source ~/.zshrc
+```
+
+{{% /tab %}}
+
+{{% tab name="Fish" %}}
+To load completions for the current session, execute once:
+```bash
+liqoctl completion fish | source
+```
+
+To load completions for each session, execute once:
+```bash
+liqoctl completion fish > ~/.config/fish/completions/liqoctl.fish
+```
+{{% /tab %}}
+
+{{% tab name="Powershell" %}}
+To load completions for the current session, execute once:
+```bash
+liqoctl completion powershell | Out-String | Invoke-Expression
+```
+
+To load completions for each session, execute once:
+```bash
+liqoctl completion powershell > liqoctl.ps1
+```
+
+and source this file from your PowerShell profile.
+{{% /tab %}}
+
+
+{{< /tabs >}}
 
 #### Pre-Requirements
 
@@ -44,7 +106,7 @@ Liqo only supports Kubernetes >= 1.19.0.
 
 According to your cluster provider, you may have to perform simple steps before triggering the installation process:
 
-{{< tabs >}}
+{{< tabs groupId="provider" >}}
 {{% tab name="Kubernetes IN Docker (KIND)" %}}
 
 ##### Configuration
@@ -56,9 +118,7 @@ Otherwise, liqoctl will use the kubeconfig in kubectl default path (i.e. `${HOME
 kind get kubeconfig --name ${CLUSTER_NAME} > kind_kubeconfig
 export KUBECONFIG=kind_kubeconfig
 ```
-
 {{% /tab %}}
-
 {{% tab name="K8s (Kubeadm)" %}}
 
 ##### Supported CNIs
@@ -103,7 +163,14 @@ In a nutshell, after having installed the CLI, you have to set up your identity:
 aws configure
 ```
 
-Second, you should export the cluster's kubeconfig if you have not already. You may use the following CLI command:
+Before continuing, you should first export few variables about your cluster:
+
+```bash
+export EKS_CLUSTER_NAME=liqo-cluster # the name of the target cluster 
+export EKS_CLUSTER_REGION=my-cluster # the AWS region where the cluster is deployed
+```
+
+Second, you should export the cluster's KUBECONFIG if you have not already. You may use the following CLI command:
 
 ```bash
 aws eks --region ${EKS_CLUSTER_REGION} update-kubeconfig --name ${EKS_CLUSTER_NAME}
@@ -130,9 +197,9 @@ az login
 First, let's start exporting required variables:
 
 ```bash
-export AZURE_RESOURCE_GROUP=myResourceGroup # the resourceGroup where the cluster is created
+export AKS_RESOURCE_GROUP=myResourceGroup # the resourceGroup where the cluster is created
 export AKS_RESOURCE_NAME=myCluster # the name of AKS cluster resource on Azure
-export AZURE_SUBSCRIPTION_ID=subscriptionId # the subscription id associated to the AKS cluster's resource group 
+export AKS_SUBSCRIPTION_ID=subscriptionId # the subscription id associated to the AKS cluster's resource group 
 ```
 
 {{% notice note %}}
@@ -157,10 +224,11 @@ To install Liqo on GKE, you should at first create a service account for liqoctl
 
 First, let's start exporting required variables:
 ```bash
-export SERVICE_ACCOUNT_ID=liqoctl-sa #the name of the service account used to interact by liqoctl with GCP
-export PROJECT_ID=XYZ # the id of the GCP project where your cluster was created
-export SERVICE_ACCOUNT_PATH=~/.liqo/gcp_service_account # the path where the google service account is stored
+export GKE_SERVICE_ACCOUNT_ID=liqoctl-sa #the name of the service account used to interact by liqoctl with GCP
+export GKE_PROJECT_ID=XYZ # the id of the GCP project where your cluster was created
+export GKE_SERVICE_ACCOUNT_PATH=~/.liqo/gcp_service_account # the path where the google service account is stored
 export GKE_CLUSTER_ZONE=europe-west-1b # the GCP zone where your GKE cluster is executed
+export GKE_CLUSTER_ID=liqo-cluster # the name of the GKE resource on GCP
 ```
 
 Second, you should create a GCP Service account. 
@@ -168,20 +236,20 @@ This will provide you an identity used by Liqoctl to query all the information n
 
 The ServiceAccount can be created using:
 ```bash
-gcloud iam service-accounts create ${SERVICE_ACCOUNT_ID} \
+gcloud iam service-accounts create ${GKE_SERVICE_ACCOUNT_ID} \
     --description="DESCRIPTION" \
     --display-name="DISPLAY_NAME" \
-    --project="${PROJECT_ID}"
+    --project="${GKE_PROJECT_ID}"
 ```
 
 Third, you should provide the ServiceAccount just created with the rights to inspect the cluster and virtual networks parameters:
 
 ```bash
-gcloud projects add-iam-policy-binding ${PROJECT_ID} \
-    --member="serviceAccount:${SERVICE_ACCOUNT_ID}@${PROJECT_ID}.iam.gserviceaccount.com" \
+gcloud projects add-iam-policy-binding ${GKE_PROJECT_ID} \
+    --member="serviceAccount:${GKE_SERVICE_ACCOUNT_ID}@${GKE_PROJECT_ID}.iam.gserviceaccount.com" \
     --role="roles/container.clusterViewer"
-gcloud projects add-iam-policy-binding ${PROJECT_ID} \
-    --member="serviceAccount:${SERVICE_ACCOUNT_ID}@${PROJECT_ID}.iam.gserviceaccount.com" \
+gcloud projects add-iam-policy-binding ${GKE_PROJECT_ID} \
+    --member="serviceAccount:${GKE_SERVICE_ACCOUNT_ID}@${GKE_PROJECT_ID}.iam.gserviceaccount.com" \
     --role="roles/compute.networkViewer"
 ```
 
@@ -190,10 +258,11 @@ Fourth, you should create and download valid service accounts keys, as presented
 The keys will be used by liqoctl to authenticate to GCP as the service account we just created.
 
 ```bash
-gcloud iam service-accounts keys create ${SERVICE_ACCOUNT_PATH} \
-    --iam-account=${SERVICE_ACCOUNT_ID}@${PROJECT_ID}.iam.gserviceaccount.com
+gcloud iam service-accounts keys create ${GKE_SERVICE_ACCOUNT_PATH} \
+    --iam-account=${GKE_SERVICE_ACCOUNT_ID}@${GKE_PROJECT_ID}.iam.gserviceaccount.com
 ```
 
+Now, you can export your KUBECONFIG and trigger the installation.
 ```bash
 export KUBECONFIG=/your/kubeconfig/path
 ```
@@ -223,7 +292,7 @@ export KUBECONFIG=/your/kubeconfig/path
 ### Quick Installation
 
 Now, you can perform the proper Liqo installation on your cluster.
-{{< tabs >}}
+{{< tabs groupId="provider" >}}
 {{% tab name="Kubernetes IN Docker (KIND)" %}}
 ```bash
 liqoctl install --provider kind
@@ -243,18 +312,18 @@ liqoctl install --provider eks --eks.region=${EKS_CLUSTER_REGION} --eks.cluster-
 {{% /tab %}}
 {{% tab name="AKS" %}}
 ```bash
-liqoctl install --provider aks --aks.resource-group-name ${AZURE_RESOURCE_GROUP} \ 
-         --aks.resource-name ${AZURE_RESOURCE_NAME} \
-         --aks.subscription-id ${AZURE_SUBSCRIPTION_ID}"
+liqoctl install --provider aks --aks.resource-group-name "${AKS_RESOURCE_GROUP}" \ 
+         --aks.resource-name "${AKS_RESOURCE_NAME}" \
+         --aks.subscription-id "${AKS_SUBSCRIPTION_ID}"
 ```
 {{% /tab %}}
 {{% tab name="GKE" %}}
 ```bash
 
-liqoctl install --provider gke --gke.project-id=${GKE_PROJECT_ID} \
-    --gke.cluster-id=${GKE_CLUSTER_ID} \
-    --gke.zone=${GKE_CLUSTER_ZONE} \ 
-    --gke.credentials-path=${SERVICE_ACCOUNT_PATH}
+liqoctl install --provider gke --gke.project-id ${GKE_PROJECT_ID} \
+    --gke.cluster-id ${GKE_CLUSTER_ID} \
+    --gke.zone ${GKE_CLUSTER_ZONE} \
+    --gke.credentials-path ${GKE_SERVICE_ACCOUNT_PATH}
 ```
 {{% /tab %}}
 {{% tab name="K3s" %}}
