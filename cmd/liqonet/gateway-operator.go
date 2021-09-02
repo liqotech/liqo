@@ -33,6 +33,7 @@ import (
 	tunnelwg "github.com/liqotech/liqo/pkg/liqonet/tunnel/wireguard"
 	"github.com/liqotech/liqo/pkg/liqonet/utils"
 	"github.com/liqotech/liqo/pkg/mapperUtils"
+	"github.com/liqotech/liqo/pkg/utils/restcfg"
 )
 
 type gatewayOperatorFlags struct {
@@ -71,7 +72,7 @@ func runGatewayOperator(commonFlags *liqonetCommonFlags, gatewayFlags *gatewayOp
 		klog.Errorf("unable to get pod namespace: %v", err)
 		os.Exit(1)
 	}
-	main, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
+	main, err := ctrl.NewManager(restcfg.SetRateLimiter(ctrl.GetConfigOrDie()), ctrl.Options{
 		MapperProvider:                mapperUtils.LiqoMapperProvider(scheme),
 		Scheme:                        scheme,
 		MetricsBindAddress:            metricsAddr,

@@ -24,6 +24,7 @@ import (
 
 	netv1alpha1 "github.com/liqotech/liqo/apis/net/v1alpha1"
 	liqoconst "github.com/liqotech/liqo/pkg/consts"
+	"github.com/liqotech/liqo/pkg/utils/restcfg"
 )
 
 const (
@@ -46,6 +47,7 @@ func init() {
 
 func main() {
 	klog.InitFlags(nil)
+	restcfg.InitFlags(nil)
 
 	commonFlags := &liqonetCommonFlags{}
 	routeFlags := &routeOperatorFlags{}
