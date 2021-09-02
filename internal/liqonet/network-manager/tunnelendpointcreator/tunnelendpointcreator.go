@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package tunnelEndpointCreator
+package tunnelendpointcreator
 
 import (
 	"context"
@@ -21,7 +21,6 @@ import (
 	"os/signal"
 	"reflect"
 	"strings"
-	"sync"
 	"time"
 
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -29,8 +28,6 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/dynamic"
-	"k8s.io/client-go/dynamic/dynamicinformer"
-	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/util/retry"
 	"k8s.io/klog/v2"
 	"k8s.io/utils/pointer"
@@ -41,22 +38,18 @@ import (
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	netv1alpha1 "github.com/liqotech/liqo/apis/net/v1alpha1"
 	crdreplicator "github.com/liqotech/liqo/internal/crdReplicator"
+	"github.com/liqotech/liqo/internal/liqonet/network-manager/netcfgcreator"
 	liqoconst "github.com/liqotech/liqo/pkg/consts"
 	liqonetIpam "github.com/liqotech/liqo/pkg/liqonet/ipam"
-	"github.com/liqotech/liqo/pkg/liqonet/tunnel/wireguard"
 	liqonetutils "github.com/liqotech/liqo/pkg/liqonet/utils"
 	"github.com/liqotech/liqo/pkg/utils"
 )
 
 const (
 	tunEndpointNamePrefix = "tun-endpoint-"
-	netConfigNamePrefix   = "net-config-"
 )
 
 var (
-	// ResyncPeriod for watchers.
-	ResyncPeriod = 30 * time.Second
-
 	result = ctrl.Result{
 		Requeue:      false,
 		RequeueAfter: 5 * time.Second,
@@ -82,29 +75,9 @@ type networkParam struct {
 // TunnelEndpointCreator manages the most of liqo networking.
 type TunnelEndpointCreator struct {
 	client.Client
-	Scheme                     *runtime.Scheme
-	Manager                    ctrl.Manager
-	DynClient                  dynamic.Interface
-	EndpointIP                 string
-	EndpointPort               string
-	PodCIDR                    string
-	ExternalCIDR               string
-	IPManager                  liqonetIpam.Ipam
-	Mutex                      sync.Mutex
-	WaitConfig                 *sync.WaitGroup
-	IpamConfigured             bool
-	wgPubKey                   string
-	IsConfigured               bool
-	Configured                 chan bool
-	ForeignClusterStartWatcher chan bool
-	ForeignClusterStopWatcher  chan struct{}
-	secretClusterStopChan      chan struct{}
-	SecretStopWatcher          chan struct{}
-	RunningWatchers            bool
-	Namespace                  string
-	wgConfigured               bool
-	svcConfigured              bool
-	RetryTimeout               time.Duration
+	Scheme    *runtime.Scheme
+	DynClient dynamic.Interface
+	IPManager liqonetIpam.Ipam
 }
 
 // rbac for the net.liqo.io api
@@ -115,23 +88,14 @@ type TunnelEndpointCreator struct {
 // +kubebuilder:rbac:groups=net.liqo.io,resources=networkconfigs/status,verbs=get;update;patch
 // +kubebuilder:rbac:groups=net.liqo.io,resources=ipamstorages,verbs=get;list;create;update;patch
 // +kubebuilder:rbac:groups=net.liqo.io,resources=natmappings,verbs=get;list;create;update;patch;delete;watch
-// +kubebuilder:rbac:groups=discovery.liqo.io,resources=foreignclusters,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=discovery.liqo.io,resources=foreignclusters,verbs=get;list;watch
 // +kubebuilder:rbac:groups=discovery.liqo.io,resources=foreignclusters/status;foreignclusters/finalizers,verbs=get;update;patch
-// +kubebuilder:rbac:groups=core,resources=nodes,verbs=get;list;watch
 // +kubebuilder:rbac:groups=core,resources=events,verbs=get;list;watch;create;update;patch;delete
-// role
-// +kubebuilder:rbac:groups=core,namespace="do-not-care",resources=secrets,verbs=get;list;watch
-// +kubebuilder:rbac:groups=core,namespace="do-not-care",resources=services,verbs=get;list;watch;update
-// +kubebuilder:rbac:groups=core,namespace="do-not-care",resources=pods,verbs=get;list;watch
 
-// Reconciler method.
+// Reconcile reconciles the state of NetworkConfig resources.
 func (tec *TunnelEndpointCreator) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-	if !tec.IsConfigured {
-		klog.Infof("the operator is waiting to be configured")
-		tec.WaitConfig.Wait()
-		klog.Infof("operator configured")
-		tec.IsConfigured = true
-	}
+	klog.V(4).Infof("Reconciling NetworkConfig %q", req)
+
 	tunnelEndpointCreatorFinalizer := "tunnelEndpointCreator-Finalizer.liqonet.liqo.io"
 	// get networkConfig
 	var netConfig netv1alpha1.NetworkConfig
@@ -212,143 +176,14 @@ func (tec *TunnelEndpointCreator) SetupSignalHandlerForTunEndCreator() context.C
 	ctx, done := context.WithCancel(context.Background())
 	c := make(chan os.Signal, 1)
 	signal.Notify(c, liqonetutils.ShutdownSignals...)
-	go func(r *TunnelEndpointCreator) {
+	go func() {
 		sig := <-c
 		klog.Infof("received signal: %s", sig.String())
 		// Stop IPAM.
 		tec.IPManager.Terminate()
-		// closing shared informers
-		close(r.ForeignClusterStopWatcher)
 		done()
-	}(tec)
+	}()
 	return ctx
-}
-
-// Watcher for resources.
-func (tec *TunnelEndpointCreator) Watcher(sharedDynFactory dynamicinformer.DynamicSharedInformerFactory,
-	resourceType schema.GroupVersionResource,
-	handlerFuncs cache.ResourceEventHandlerFuncs,
-	stopCh chan struct{}) {
-	dynInformer := sharedDynFactory.ForResource(resourceType)
-	klog.Infof("starting watcher for %s", resourceType.String())
-	// adding handlers to the informer
-	dynInformer.Informer().AddEventHandler(handlerFuncs)
-	dynInformer.Informer().Run(stopCh)
-}
-
-func (tec *TunnelEndpointCreator) createNetConfig(fc *discoveryv1alpha1.ForeignCluster) error {
-	clusterID := fc.Spec.ClusterIdentity.ClusterID
-	netConfig := netv1alpha1.NetworkConfig{
-		ObjectMeta: metav1.ObjectMeta{
-			GenerateName: netConfigNamePrefix,
-			Namespace:    fc.Status.TenantNamespace.Local,
-			Labels: map[string]string{
-				crdreplicator.LocalLabelSelector: "true",
-				crdreplicator.DestinationLabel:   clusterID,
-			},
-			OwnerReferences: []metav1.OwnerReference{
-				{
-					APIVersion: fmt.Sprintf("%s/%s", discoveryv1alpha1.GroupVersion.Group, discoveryv1alpha1.GroupVersion.Version),
-					Kind:       "ForeignCluster",
-					Name:       fc.Name,
-					UID:        fc.UID,
-					Controller: pointer.BoolPtr(true),
-				},
-			},
-		},
-		Spec: netv1alpha1.NetworkConfigSpec{
-			ClusterID:    clusterID,
-			PodCIDR:      tec.PodCIDR,
-			ExternalCIDR: tec.ExternalCIDR,
-			EndpointIP:   tec.EndpointIP,
-			BackendType:  wireguard.DriverName,
-			BackendConfig: map[string]string{
-				wireguard.PublicKey:     tec.wgPubKey,
-				wireguard.ListeningPort: tec.EndpointPort,
-			},
-		},
-		Status: netv1alpha1.NetworkConfigStatus{},
-	}
-	// check if the resource for the remote cluster already exists
-	_, exists, err := tec.GetNetworkConfig(clusterID, fc.Status.TenantNamespace.Local)
-	if err != nil {
-		return err
-	}
-	if exists {
-		return nil
-	}
-	err = tec.Create(context.TODO(), &netConfig)
-	if err != nil {
-		klog.Errorf("an error occurred while creating resource %s of type %s: %s",
-			netConfig.Name, netv1alpha1.GroupVersion.String(), err)
-		return err
-	}
-	klog.Infof("resource %s of type %s created", netConfig.Name, netv1alpha1.GroupVersion.String())
-	return nil
-}
-
-func (tec *TunnelEndpointCreator) deleteNetConfig(fc *discoveryv1alpha1.ForeignCluster) error {
-	clusterID := fc.Spec.ClusterIdentity.ClusterID
-	netConfigList := &netv1alpha1.NetworkConfigList{}
-	labels := client.MatchingLabels{crdreplicator.DestinationLabel: clusterID}
-	err := tec.List(context.Background(), netConfigList, labels, client.InNamespace(fc.Status.TenantNamespace.Local))
-	if err != nil {
-		klog.Errorf("an error occurred while listing resources: %s", err)
-		return err
-	}
-	if len(netConfigList.Items) != 1 {
-		if len(netConfigList.Items) == 0 {
-			klog.V(4).Infof("nothing to remove: a resource of type %s for remote cluster %s not found",
-				netv1alpha1.GroupVersion.String(), clusterID)
-			return nil
-		}
-		klog.Errorf("more than one instances of type %s exists for remote cluster %s",
-			netv1alpha1.GroupVersion.String(), clusterID)
-		return fmt.Errorf("multiple instances of %s for remote cluster %s", netv1alpha1.GroupVersion.String(), clusterID)
-	}
-	netConfig := netConfigList.Items[0]
-	err = tec.Delete(context.Background(), &netConfig)
-	if err != nil {
-		klog.Errorf("an error occurred while deleting resource %s of type %s: %s",
-			netConfig.Name, netv1alpha1.GroupVersion.String(), err)
-		return err
-	}
-	klog.Infof("resource %s of type %s deleted", netConfig.Name, netv1alpha1.GroupVersion.String())
-	err = tec.deleteTunEndpoint(&netConfig)
-	if err != nil {
-		klog.Errorf("an error occurred while deleting resource %s of type %s: %s",
-			strings.Join([]string{tunEndpointNamePrefix, netConfig.Spec.ClusterID}, ""), netv1alpha1.GroupVersion.String(), err)
-		return err
-	}
-	klog.Infof("resource %s of type %s deleted",
-		strings.Join([]string{tunEndpointNamePrefix, netConfig.Spec.ClusterID}, ""),
-		netv1alpha1.GroupVersion.String())
-	return nil
-}
-
-// GetNetworkConfig returns the network config for a specific cluster.
-func (tec *TunnelEndpointCreator) GetNetworkConfig(destinationClusterID, namespace string) (
-	*netv1alpha1.NetworkConfig,
-	bool,
-	error) {
-	clusterID := destinationClusterID
-	networkConfigList := &netv1alpha1.NetworkConfigList{}
-	labels := client.MatchingLabels{crdreplicator.DestinationLabel: clusterID}
-	err := tec.List(context.Background(), networkConfigList, labels, client.InNamespace(namespace))
-	if err != nil {
-		klog.Errorf("an error occurred while listing resources of type %s: %s", netv1alpha1.GroupVersion, err)
-		return nil, false, err
-	}
-	if len(networkConfigList.Items) != 1 {
-		if len(networkConfigList.Items) == 0 {
-			return nil, false, nil
-		}
-		klog.Errorf("more than one instances of type %s exists for remote cluster %s",
-			netv1alpha1.GroupVersion.String(), clusterID)
-		return nil, false, fmt.Errorf("multiple instances of %s for remote cluster %s",
-			netv1alpha1.GroupVersion.String(), clusterID)
-	}
-	return &networkConfigList.Items[0], true, nil
 }
 
 func (tec *TunnelEndpointCreator) processRemoteNetConfig(netConfig *netv1alpha1.NetworkConfig) error {
@@ -420,38 +255,30 @@ func (tec *TunnelEndpointCreator) processRemoteNetConfig(netConfig *netv1alpha1.
 }
 
 func (tec *TunnelEndpointCreator) processLocalNetConfig(netConfig *netv1alpha1.NetworkConfig) error {
-	// first check that this is the only resource for the remote cluster
-	netConfigList := &netv1alpha1.NetworkConfigList{}
-	labels := client.MatchingLabels{crdreplicator.DestinationLabel: netConfig.Labels[crdreplicator.DestinationLabel]}
-	err := tec.List(context.Background(), netConfigList, labels, client.InNamespace(netConfig.GetNamespace()))
+	klog.V(4).Infof("Processing local NetworkConfig %q", klog.KObj(netConfig))
+
+	// Ensure this is the only resource for the remote cluster
+	// In case a duplicate is found (e.g., due to a race condition), it is immediately removed.
+	ctx := context.Background()
+	netcfg, err := netcfgcreator.GetLocalNetworkConfig(ctx, tec.Client, netConfig.Spec.ClusterID, netConfig.GetNamespace())
 	if err != nil {
-		klog.Errorf("an error occurred while listing resources: %s", err)
+		klog.Errorf("Failed to process local network config %q: %v", klog.KObj(netConfig), err)
 		return err
 	}
-	if len(netConfigList.Items) != 1 {
-		if len(netConfigList.Items) == 0 {
-			return nil
-		}
-		klog.Warningf("more than one instances of type %s exists for remote cluster %s, deleting them",
-			netv1alpha1.GroupVersion.String(), netConfig.Spec.ClusterID)
-		for i := range netConfigList.Items {
-			klog.Infof("deleting resource %s with GVR %s, because it is duplicated",
-				netConfigList.Items[i].Name, netConfigList.Items[i].GroupVersionKind().String())
-			if err := tec.Delete(context.Background(), &netConfigList.Items[i]); err != nil {
-				klog.Errorf("an error occurred while deleting resource %s: %v", netConfigList.Items[i].Name, err)
-				return err
-			}
-		}
+	if netConfig.GetName() != netcfg.GetName() {
+		klog.Infof("NetworkConfig %q is duplicated and it is being deleted. Aborting", klog.KObj(netConfig))
 		return nil
 	}
+
 	// check if the resource has been processed by the remote cluster
 	if !netConfig.Status.Processed {
 		return nil
 	}
+
 	// we get the remote netconfig related to this one
-	netConfigList = &netv1alpha1.NetworkConfigList{}
-	labels = client.MatchingLabels{crdreplicator.RemoteLabelSelector: netConfig.Spec.ClusterID}
-	err = tec.List(context.Background(), netConfigList, labels)
+	var netConfigList netv1alpha1.NetworkConfigList
+	labels := client.MatchingLabels{crdreplicator.RemoteLabelSelector: netConfig.Spec.ClusterID}
+	err = tec.List(context.Background(), &netConfigList, labels)
 	if err != nil {
 		klog.Errorf("an error occurred while listing resources: %s", err)
 		return err

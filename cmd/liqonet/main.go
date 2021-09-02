@@ -18,10 +18,12 @@ import (
 	"flag"
 
 	"k8s.io/apimachinery/pkg/runtime"
+	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
 	"k8s.io/klog/v2"
 
+	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	netv1alpha1 "github.com/liqotech/liqo/apis/net/v1alpha1"
 	liqoconst "github.com/liqotech/liqo/pkg/consts"
 	"github.com/liqotech/liqo/pkg/utils/restcfg"
@@ -41,8 +43,9 @@ var (
 )
 
 func init() {
-	_ = clientgoscheme.AddToScheme(scheme)
-	_ = netv1alpha1.AddToScheme(scheme)
+	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
+	utilruntime.Must(discoveryv1alpha1.AddToScheme(scheme))
+	utilruntime.Must(netv1alpha1.AddToScheme(scheme))
 }
 
 func main() {
@@ -67,6 +70,6 @@ func main() {
 	case liqoconst.LiqoGatewayOperatorName:
 		runGatewayOperator(commonFlags, gatewayFlags)
 	case liqoconst.LiqoNetworkManagerName:
-		runEndpointCreatorOperator(commonFlags, managerFlags)
+		runNetworkManager(commonFlags, managerFlags)
 	}
 }

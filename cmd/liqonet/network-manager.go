@@ -19,14 +19,16 @@ import (
 	"fmt"
 	"os"
 	"regexp"
-	"sync"
-	"time"
 
+	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/klog/v2"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/cache"
 
-	"github.com/liqotech/liqo/internal/liqonet/tunnelEndpointCreator"
+	"github.com/liqotech/liqo/internal/liqonet/network-manager/netcfgcreator"
+	"github.com/liqotech/liqo/internal/liqonet/network-manager/tunnelendpointcreator"
 	liqoconst "github.com/liqotech/liqo/pkg/consts"
 	liqonetIpam "github.com/liqotech/liqo/pkg/liqonet/ipam"
 	"github.com/liqotech/liqo/pkg/liqonet/utils"
@@ -78,9 +80,15 @@ func validateNetworkManagerFlags(managerFlags *networkManagerFlags) error {
 	return nil
 }
 
-func runEndpointCreatorOperator(commonFlags *liqonetCommonFlags, managerFlags *networkManagerFlags) {
+func runNetworkManager(commonFlags *liqonetCommonFlags, managerFlags *networkManagerFlags) {
 	if err := validateNetworkManagerFlags(managerFlags); err != nil {
 		klog.Errorf("Failed to parse flags: %s", err)
+		os.Exit(1)
+	}
+
+	podNamespace, err := utils.GetPodNamespace()
+	if err != nil {
+		klog.Errorf("unable to get pod namespace: %v", err)
 		os.Exit(1)
 	}
 
@@ -88,6 +96,12 @@ func runEndpointCreatorOperator(commonFlags *liqonetCommonFlags, managerFlags *n
 		MapperProvider:     mapperUtils.LiqoMapperProvider(scheme),
 		Scheme:             scheme,
 		MetricsBindAddress: commonFlags.metricsAddr,
+		NewCache: cache.BuilderWithOptions(cache.Options{
+			SelectorsByObject: cache.SelectorsByObject{
+				&corev1.Secret{}:  {Field: fields.OneTermEqualSelector("metadata.namespace", podNamespace)},
+				&corev1.Service{}: {Field: fields.OneTermEqualSelector("metadata.namespace", podNamespace)},
+			},
+		}),
 	})
 	if err != nil {
 		klog.Errorf("unable to get manager: %s", err)
@@ -107,41 +121,33 @@ func runEndpointCreatorOperator(commonFlags *liqonetCommonFlags, managerFlags *n
 		os.Exit(1)
 	}
 
-	podNamespace, err := utils.GetPodNamespace()
-	if err != nil {
-		klog.Errorf("unable to get pod namespace: %v", err)
-		os.Exit(1)
+	tec := &tunnelendpointcreator.TunnelEndpointCreator{
+		Client:    mgr.GetClient(),
+		Scheme:    mgr.GetScheme(),
+		DynClient: dynClient,
+		IPManager: ipam,
 	}
-	r := &tunnelEndpointCreator.TunnelEndpointCreator{
-		Client:                     mgr.GetClient(),
-		Scheme:                     mgr.GetScheme(),
-		DynClient:                  dynClient,
-		Manager:                    mgr,
-		Namespace:                  podNamespace,
-		WaitConfig:                 &sync.WaitGroup{},
-		Configured:                 make(chan bool, 1),
-		ForeignClusterStartWatcher: make(chan bool, 1),
-		ForeignClusterStopWatcher:  make(chan struct{}),
-		IPManager:                  ipam,
-		RetryTimeout:               30 * time.Second,
+
+	ncc := &netcfgcreator.NetworkConfigCreator{
+		Client: mgr.GetClient(),
+		Scheme: mgr.GetScheme(),
 
 		PodCIDR:      managerFlags.podCIDR,
 		ExternalCIDR: externalCIDR,
 	}
 
-	r.WaitConfig.Add(2)
-
-	if err = r.SetupWithManager(mgr); err != nil {
-		klog.Errorf("unable to create controller controller TunnelEndpointCreator: %s", err)
+	if err = tec.SetupWithManager(mgr); err != nil {
+		klog.Errorf("unable to create controller TunnelEndpointCreator: %s", err)
 		os.Exit(1)
 	}
 
-	go r.StartForeignClusterWatcher()
-	go r.StartServiceWatcher()
-	go r.StartSecretWatcher()
+	if err = ncc.SetupWithManager(mgr); err != nil {
+		klog.Errorf("unable to create controller NetworkConfigCreator: %s", err)
+		os.Exit(1)
+	}
 
-	klog.Info("starting manager as tunnelEndpointCreator-operator")
-	if err := mgr.Start(r.SetupSignalHandlerForTunEndCreator()); err != nil {
+	klog.Info("starting manager as liqo-network-manager")
+	if err := mgr.Start(tec.SetupSignalHandlerForTunEndCreator()); err != nil {
 		klog.Errorf("an error occurred while starting manager: %s", err)
 		os.Exit(1)
 	}

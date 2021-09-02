@@ -16,6 +16,7 @@ package testutil
 
 import (
 	corev1 "k8s.io/api/core/v1"
+	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/tools/record"
 )
@@ -87,4 +88,14 @@ func FakeService(namespace, name, clusterIP, protocol string, port int32) *corev
 			ClusterIP: clusterIP,
 		},
 	}
+}
+
+// IgnoreAlreadyExists returns nil on AlreadyExists errors.
+// All other values that are not AlreadyExists errors or nil are returned unmodified.
+func IgnoreAlreadyExists(err error) error {
+	if kerrors.IsAlreadyExists(err) {
+		return nil
+	}
+
+	return err
 }
