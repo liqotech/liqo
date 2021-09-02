@@ -35,6 +35,10 @@ var (
 		Version:  GroupVersion.Version,
 		Resource: "tunnelendpoints"}
 
+	// NetworkConfigGroupResource is group resource used to register network configs.
+	NetworkConfigGroupResource = schema.GroupResource{Group: GroupVersion.Group,
+		Resource: "networkconfigs"}
+
 	// NetworkConfigGroupVersionResource is group resource version used to networkConfig objects.
 	NetworkConfigGroupVersionResource = schema.GroupVersionResource{Group: GroupVersion.Group,
 		Version:  GroupVersion.Version,

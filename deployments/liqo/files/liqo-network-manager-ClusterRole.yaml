@@ -12,24 +12,12 @@ rules:
   - update
   - watch
 - apiGroups:
-  - ""
-  resources:
-  - nodes
-  verbs:
-  - get
-  - list
-  - watch
-- apiGroups:
   - discovery.liqo.io
   resources:
   - foreignclusters
   verbs:
-  - create
-  - delete
   - get
   - list
-  - patch
-  - update
   - watch
 - apiGroups:
   - discovery.liqo.io
@@ -69,6 +57,7 @@ rules:
   verbs:
   - create
   - delete
+  - deletecollection
   - get
   - list
   - patch
