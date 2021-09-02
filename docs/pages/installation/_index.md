@@ -14,8 +14,8 @@ Before installing Liqo, you should:
 
 #### liqoctl 
 
-Liqoctl is the swiss-knife CLI tool to install and manager Liqo. 
-It is strongly recommended installing Liqo using Liqoctl since it provides customizations for supported providers.
+Liqoctl is the swiss-knife CLI tool to install and manage Liqo clusters.
+We strongly recommend to install Liqo using Liqoctl because it automatically handles the required customizations for each supported providers (e.g., AWS, EKS, etc.).
 
 Under the hood, liqoctl uses [Helm 3](https://helm.sh/) to configure and install the Liqo chart available on the official repository. 
 If you prefer to customize the installation configuration, you can use liqoctl as a provider-specific values file generator and then install Liqo with Helm as usual.

@@ -7,21 +7,22 @@ weight: 1
 
 In Liqo, peering establishes an administrative connection between two clusters and enables the resource sharing across them.
 It is worth noticing that peering is unidirectional. 
-This implies that resources can be shared only from a cluster to another and not the vice-versa. Obviously, it can be optionally be enabled bi-directionally, enabling a two-way resource sharing.
+This implies that resources can be shared only from a cluster to another and not the vice-versa.
+Obviously, it can be optionally be enabled bi-directionally, enabling a two-way resource sharing.
 
 ### Peer with a new cluster
 
 To peer with a cluster, you should provide some information to Liqo in order to reach that cluster.
 *liqoctl* can help you by generating the command to peer with a specific cluster.
 
-The installation of *liqoctl* is quick and you can find the complete instructions in a [dedicated section](/installation#liqoctl)
+The installation of *liqoctl* is very simple; complete instructions are available in a [dedicated section](/installation#liqoctl).
 
-Let's suppose that you want to peer from cluster A to cluster B.
-This means that we would like to offload pods in A to the cluster B.
+Let's suppose that you are the Cluster A and you would like to peer with Cluster B.
+This means that you would like to offload Cluster A's pods in Cluster B.
 
 #### Generate the peer command
 
-First, pointing cluster B:
+First, you should configure the KUBECONFIG of cluster B and trigger the command generation:
 
 ```bash
 export KUBECONFIG=kubeconfig-cluster-b
@@ -38,7 +39,7 @@ liqoctl add cluster clusterB --auth-url https://172.18.0.5:32714 \
 
 #### Peer with a cluster
 
-Than, to peer A with a B cluster, you can just run the command you obtained by the previous step, after having exported the cluster A KUBECONFIG:
+Now, to peer Cluster A with B, you can just (1) export the KUBECONFIG of Cluster A, then (2) run the command you obtained in the previous step:
 
 ```bash
 export KUBECONFIG=kubeconfig-cluster-a
@@ -47,11 +48,9 @@ liqoctl add cluster clusterB --auth-url https://172.18.0.5:32714 \
     --token b13b6932ee6fd890a1abe212dc21253aa6d74565fead54
 ```
 
-If this command is executed successfully, you have completed a peering. 
 
-### Check the status of the peering
 
-To check the result of this addition, you can observe if new foreign clusters are available.
+To check if the above command completed successfully, you can observe if a new foreign cluster B is available.
 To do so, you can use kubectl. For example:
 ```bash
 kubectl get foreignclusters
@@ -79,9 +78,9 @@ liqo-cluster-2-worker                       Ready    <none>   86m   v1.19.11   b
 liqo-cluster-2-worker2                      Ready    <none>   86m   v1.19.11   beta.kubernetes.io/arch=amd64,beta.kubernetes.io/os=linux,kubernetes.io/arch=amd64,kubernetes.io/hostname=liqo-cluster-2-worker2,kubernetes.io/os=linux
 ```
 
-The first node of the list is a virtual node pointing to the cluster B you just peered.
+The first node of the list is a virtual node pointing to the cluster B you have just peered with.
 
 ### What's next?
 
-* If you are not familiar with Liqo pod offloading, you can check out our tutorials in [Getting Started section](/gettingstarted).
-* If you are familiar with Liqo offloading, you may want to get in touch with advanced features explained in [namespace offloading](/namespace_offloading) section.
+* If you are not familiar with Liqo pod offloading, you can check our tutorials in the [Getting Started](/gettingstarted) section.
+* If you are already familiar with Liqo offloading, you may want to explore the advanced features presented in the [namespace offloading](../namespace_offloading) section.
