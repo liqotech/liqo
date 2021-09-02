@@ -30,7 +30,6 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/dynamic/dynamicinformer"
-	k8s "k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/util/retry"
 	"k8s.io/klog/v2"
@@ -83,7 +82,6 @@ type networkParam struct {
 // TunnelEndpointCreator manages the most of liqo networking.
 type TunnelEndpointCreator struct {
 	client.Client
-	ClientSet                  *k8s.Clientset
 	Scheme                     *runtime.Scheme
 	Manager                    ctrl.Manager
 	DynClient                  dynamic.Interface

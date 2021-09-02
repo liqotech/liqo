@@ -23,7 +23,6 @@ import (
 	"time"
 
 	"k8s.io/client-go/dynamic"
-	"k8s.io/client-go/kubernetes"
 	"k8s.io/klog/v2"
 	ctrl "sigs.k8s.io/controller-runtime"
 
@@ -33,6 +32,7 @@ import (
 	"github.com/liqotech/liqo/pkg/liqonet/utils"
 	"github.com/liqotech/liqo/pkg/mapperUtils"
 	"github.com/liqotech/liqo/pkg/utils/args"
+	"github.com/liqotech/liqo/pkg/utils/restcfg"
 )
 
 type networkManagerFlags struct {
@@ -84,7 +84,7 @@ func runEndpointCreatorOperator(commonFlags *liqonetCommonFlags, managerFlags *n
 		os.Exit(1)
 	}
 
-	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
+	mgr, err := ctrl.NewManager(restcfg.SetRateLimiter(ctrl.GetConfigOrDie()), ctrl.Options{
 		MapperProvider:     mapperUtils.LiqoMapperProvider(scheme),
 		Scheme:             scheme,
 		MetricsBindAddress: commonFlags.metricsAddr,
@@ -93,7 +93,6 @@ func runEndpointCreatorOperator(commonFlags *liqonetCommonFlags, managerFlags *n
 		klog.Errorf("unable to get manager: %s", err)
 		os.Exit(1)
 	}
-	clientset := kubernetes.NewForConfigOrDie(mgr.GetConfig())
 	dynClient := dynamic.NewForConfigOrDie(mgr.GetConfig())
 
 	ipam, err := initializeIPAM(dynClient, managerFlags)
@@ -116,7 +115,6 @@ func runEndpointCreatorOperator(commonFlags *liqonetCommonFlags, managerFlags *n
 	r := &tunnelEndpointCreator.TunnelEndpointCreator{
 		Client:                     mgr.GetClient(),
 		Scheme:                     mgr.GetScheme(),
-		ClientSet:                  clientset,
 		DynClient:                  dynClient,
 		Manager:                    mgr,
 		Namespace:                  podNamespace,
