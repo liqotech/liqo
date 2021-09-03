@@ -7,7 +7,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/utils/pointer"
 
-	configv1alpha1 "github.com/liqotech/liqo/apis/config/v1alpha1"
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	"github.com/liqotech/liqo/pkg/discovery"
 )
@@ -24,15 +23,7 @@ var _ = Describe("Resource Phase", func() {
 
 		BeforeEach(func() {
 			controller = &ResourceRequestReconciler{}
-			controller.Broadcaster = &Broadcaster{
-				clusterConfig: configv1alpha1.ClusterConfig{
-					Spec: configv1alpha1.ClusterConfigSpec{
-						DiscoveryConfig: configv1alpha1.DiscoveryConfig{
-							IncomingPeeringEnabled: true,
-						},
-					},
-				},
-			}
+			controller.Broadcaster = &Broadcaster{}
 			controller.Client = k8sClient
 		})
 

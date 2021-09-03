@@ -20,7 +20,6 @@ import (
 	"context"
 	"fmt"
 	"reflect"
-	"sync"
 	"time"
 
 	v1 "k8s.io/api/apps/v1"
@@ -40,10 +39,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 	"sigs.k8s.io/controller-runtime/pkg/source"
 
-	configv1alpha1 "github.com/liqotech/liqo/apis/config/v1alpha1"
 	sharingv1alpha1 "github.com/liqotech/liqo/apis/sharing/v1alpha1"
 	crdreplicator "github.com/liqotech/liqo/internal/crdReplicator"
-	"github.com/liqotech/liqo/pkg/clusterid"
 	"github.com/liqotech/liqo/pkg/vkMachinery"
 	"github.com/liqotech/liqo/pkg/vkMachinery/forge"
 )
@@ -56,15 +53,14 @@ type ResourceOfferReconciler struct {
 	Scheme *runtime.Scheme
 
 	eventsRecorder record.EventRecorder
-	clusterID      clusterid.ClusterID
+	clusterID      string
 
 	liqoNamespace string
 
 	virtualKubeletOpts *forge.VirtualKubeletOpts
+	disableAutoAccept  bool
 
-	resyncPeriod       time.Duration
-	configuration      *configv1alpha1.ClusterConfig
-	configurationMutex sync.RWMutex
+	resyncPeriod time.Duration
 }
 
 //+kubebuilder:rbac:groups=sharing.liqo.io,resources=resourceoffers,verbs=get;list;watch;create;update;patch;delete
@@ -128,10 +124,7 @@ func (r *ResourceOfferReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 	}()
 
 	// filter resource offers and create a virtual-kubelet only for the good ones
-	if err = r.setResourceOfferPhase(ctx, &resourceOffer); err != nil {
-		klog.Error(err)
-		return ctrl.Result{}, err
-	}
+	r.setResourceOfferPhase(&resourceOffer)
 
 	// check the virtual kubelet deployment
 	if err = r.checkVirtualKubeletDeployment(ctx, &resourceOffer); err != nil {

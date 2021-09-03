@@ -37,8 +37,8 @@ spec:
             description: ClusterConfigSpec defines the desired state of ClusterConfig.
             properties:
               discoveryConfig:
-                description: DiscoveryConfig defines the configuration of the Discovery
-                  logic.
+                description: AdvertisementConfig defines the configuration for the
+                  advertisement protocol.
                 properties:
                   authService:
                     default: _liqo_auth._tcp
@@ -53,7 +53,9 @@ spec:
                     additionalProperties:
                       type: string
                     description: ClusterLabels is a set of labels which characterizes
-                      the local cluster when exposed remotely as a virtual node.
+                      the local cluster when exposed remotely as a virtual node. This
+                      field is deprecated and it is currently maintained for backward
+                      compatibility only.
                     type: object
                   clusterName:
                     description: ClusterName is a nickname for your cluster that can
@@ -67,7 +69,8 @@ spec:
                     type: boolean
                   incomingPeeringEnabled:
                     description: Allow (by default) the remote clusters to establish
-                      a peering with our cluster.
+                      a peering with our cluster. This field is deprecated and it
+                      is currently maintained for backward compatibility only.
                     type: boolean
                   name:
                     type: string
@@ -91,99 +94,8 @@ spec:
                 - service
                 - ttl
                 type: object
-              resourceSharingConfig:
-                description: AdvertisementConfig defines the configuration for the
-                  advertisement protocol.
-                properties:
-                  ingoingConfig:
-                    description: IngoingConfig defines the behavior for the acceptance
-                      of Advertisements from other clusters.
-                    properties:
-                      acceptPolicy:
-                        description: AcceptPolicy defines the policy to accept/refuse
-                          an Advertisement. Possible values are AutoAcceptMax and
-                          Manual. AutoAcceptMax means all the Advertisement received
-                          will be accepted until the MaxAcceptableAdvertisement limit
-                          is reached; Manual means every Advertisement received will
-                          need a manual accept/refuse, which can be done by updating
-                          its status.
-                        enum:
-                        - AutoAcceptMax
-                        - Manual
-                        type: string
-                      maxAcceptableAdvertisement:
-                        description: MaxAcceptableAdvertisement defines the maximum
-                          number of Advertisements that can be accepted over time.
-                          The maximum value for this field is set to 1000000, a symbolic
-                          value that implements the AcceptAll policy.
-                        format: int32
-                        maximum: 1000000
-                        minimum: 0
-                        type: integer
-                    required:
-                    - acceptPolicy
-                    - maxAcceptableAdvertisement
-                    type: object
-                  keepaliveRetryTime:
-                    description: After establishing a sharing with a foreign cluster,
-                      a keepalive mechanism starts, in order to know if the foreign
-                      cluster is reachable or not. KeepaliveRetryTime defines the
-                      time between an attempt to contact the foreign cluster and the
-                      next one.
-                    format: int32
-                    minimum: 0
-                    type: integer
-                  keepaliveThreshold:
-                    description: KeepaliveThreshold defines the number of failed attempts
-                      to contact the foreign cluster your cluster will tolerate before
-                      deleting it.
-                    format: int32
-                    minimum: 0
-                    type: integer
-                  labelPolicies:
-                    description: LabelPolicies contains the policies for each label
-                      to be added to remote virtual nodes.
-                    items:
-                      description: LabelPolicy define a key-value structure to indicate
-                        which keys have to be aggregated and with which policy.
-                      properties:
-                        key:
-                          description: Label Key to be aggregated in new virtual nodes
-                          type: string
-                        policy:
-                          default: LabelPolicyAnyTrue
-                          description: Merge labels Policy
-                          enum:
-                          - LabelPolicyAnyTrue
-                          - LabelPolicyAllTrue
-                          - LabelPolicyAnyTrueNoLabelIfFalse
-                          - LabelPolicyAllTrueNoLabelIfFalse
-                          type: string
-                      required:
-                      - key
-                      type: object
-                    type: array
-                  outgoingConfig:
-                    description: OutgoingConfig defines the behavior for the creation
-                      of Advertisements on other clusters.
-                    properties:
-                      resourceSharingPercentage:
-                        description: ResourceSharingPercentage defines the percentage
-                          of your cluster resources that you will share with foreign
-                          clusters.
-                        format: int32
-                        maximum: 100
-                        minimum: 0
-                        type: integer
-                    required:
-                    - resourceSharingPercentage
-                    type: object
-                required:
-                - outgoingConfig
-                type: object
             required:
             - discoveryConfig
-            - resourceSharingConfig
             type: object
           status:
             description: ClusterConfigStatus defines the observed state of ClusterConfig.

@@ -8,14 +8,6 @@ metadata:
   labels:
     {{- include "liqo.labels" $config  | nindent 4 }}
 spec:
-  resourceSharingConfig:
-    ingoingConfig:
-      acceptPolicy: AutoAcceptMax
-      maxAcceptableAdvertisement: 1000000
-    keepaliveThreshold: 3
-    keepaliveRetryTime: 20
-    outgoingConfig:
-      {{- .Values.controllerManager.config | toYaml | nindent 6 }}
   discoveryConfig:
     {{- .Values.discovery.config | toYaml | nindent 4 }}
     domain: local.

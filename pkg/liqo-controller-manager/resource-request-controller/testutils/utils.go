@@ -16,7 +16,7 @@ import (
 )
 
 // DefaultScalePercentage defines the amount of scaled resources to be computed in resourceOffers.
-const DefaultScalePercentage = int64(50)
+const DefaultScalePercentage = 50
 
 // CreateNewNode forges a new node with name *nodeName* and creates it using the *clientset* client.
 func CreateNewNode(ctx context.Context, nodeName string, virtual bool, clientset kubernetes.Interface) (*corev1.Node, error) {

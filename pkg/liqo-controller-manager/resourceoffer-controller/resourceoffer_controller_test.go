@@ -20,11 +20,9 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
-	configv1alpha1 "github.com/liqotech/liqo/apis/config/v1alpha1"
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	sharingv1alpha1 "github.com/liqotech/liqo/apis/sharing/v1alpha1"
 	crdreplicator "github.com/liqotech/liqo/internal/crdReplicator"
-	"github.com/liqotech/liqo/pkg/clusterid"
 	"github.com/liqotech/liqo/pkg/consts"
 	"github.com/liqotech/liqo/pkg/discovery"
 	"github.com/liqotech/liqo/pkg/utils/testutil"
@@ -89,29 +87,16 @@ var _ = Describe("ResourceOffer Controller", func() {
 			os.Exit(1)
 		}
 
-		clusterID := clusterid.NewStaticClusterID("remote-id")
-
 		kubeletOpts := &forge.VirtualKubeletOpts{
 			ContainerImage:     virtualKubeletImage,
 			InitContainerImage: initVirtualKubeletImage,
 		}
 
-		controller = NewResourceOfferController(mgr, clusterID, 10*time.Second, testNamespace, kubeletOpts)
+		controller = NewResourceOfferController(mgr, "remote-id", 10*time.Second, testNamespace, kubeletOpts, false)
 		if err := controller.SetupWithManager(mgr); err != nil {
 			By(err.Error())
 			os.Exit(1)
 		}
-
-		controller.setConfig(&configv1alpha1.ClusterConfig{
-			Spec: configv1alpha1.ClusterConfigSpec{
-				AdvertisementConfig: configv1alpha1.AdvertisementConfig{
-					IngoingConfig: configv1alpha1.AdvOperatorConfig{
-						MaxAcceptableAdvertisement: 1000,
-						AcceptPolicy:               configv1alpha1.AutoAcceptMax,
-					},
-				},
-			},
-		})
 
 		ctx, cancel = context.WithCancel(context.Background())
 		go mgr.Start(ctx)

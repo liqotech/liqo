@@ -26,15 +26,15 @@ import (
 )
 
 var (
-	cfg            *rest.Config
-	k8sClient      client.Client
-	homeClusterID  string
-	clientset      kubernetes.Interface
-	testEnv        *envtest.Environment
-	newBroadcaster Broadcaster
-	ctx            context.Context
-	cancel         context.CancelFunc
-	group          sync.WaitGroup
+	cfg           *rest.Config
+	k8sClient     client.Client
+	homeClusterID string
+	clientset     kubernetes.Interface
+	testEnv       *envtest.Environment
+	broadcaster   Broadcaster
+	ctx           context.Context
+	cancel        context.CancelFunc
+	group         sync.WaitGroup
 )
 
 func TestAPIs(t *testing.T) {
@@ -81,32 +81,20 @@ func createCluster() {
 
 	// Initializing a new updater and adding it to the manager.
 	updater := OfferUpdater{}
-	updater.Setup(homeClusterID, k8sManager.GetScheme(), &newBroadcaster, k8sManager.GetClient())
+	updater.Setup(homeClusterID, k8sManager.GetScheme(), &broadcaster, k8sManager.GetClient(), nil)
 
 	// Initializing a new broadcaster, starting it and adding it its configuration.
-	err = newBroadcaster.SetupBroadcaster(clientset, &updater, 5*time.Second, 5)
+	err = broadcaster.SetupBroadcaster(clientset, &updater, 5*time.Second, testutils.DefaultScalePercentage, 5)
 	Expect(err).ToNot(HaveOccurred())
-	newBroadcaster.StartBroadcaster(ctx, &group)
-	testClusterConf := &configv1alpha1.ClusterConfig{
-		Spec: configv1alpha1.ClusterConfigSpec{
-			AdvertisementConfig: configv1alpha1.AdvertisementConfig{
-				OutgoingConfig: configv1alpha1.BroadcasterConfig{
-					ResourceSharingPercentage: int32(testutils.DefaultScalePercentage),
-				},
-			},
-			DiscoveryConfig: configv1alpha1.DiscoveryConfig{
-				IncomingPeeringEnabled: true,
-			},
-		},
-	}
-	newBroadcaster.setConfig(testClusterConf)
+	broadcaster.StartBroadcaster(ctx, &group)
 
 	// Adding ResourceRequest reconciler to the manager
 	err = (&ResourceRequestReconciler{
-		Client:      k8sManager.GetClient(),
-		Scheme:      k8sManager.GetScheme(),
-		ClusterID:   homeClusterID,
-		Broadcaster: &newBroadcaster,
+		Client:                k8sManager.GetClient(),
+		Scheme:                k8sManager.GetScheme(),
+		ClusterID:             homeClusterID,
+		Broadcaster:           &broadcaster,
+		EnableIncomingPeering: true,
 	}).SetupWithManager(k8sManager)
 	Expect(err).ToNot(HaveOccurred())
 

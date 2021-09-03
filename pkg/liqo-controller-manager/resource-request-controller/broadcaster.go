@@ -18,9 +18,7 @@ import (
 	"k8s.io/klog/v2"
 	resourcehelper "k8s.io/kubectl/pkg/util/resource"
 
-	configv1alpha1 "github.com/liqotech/liqo/apis/config/v1alpha1"
 	"github.com/liqotech/liqo/pkg/consts"
-	crdclient "github.com/liqotech/liqo/pkg/crdClient"
 	"github.com/liqotech/liqo/pkg/liqo-controller-manager/resource-request-controller/interfaces"
 	"github.com/liqotech/liqo/pkg/utils"
 	errorsmanagement "github.com/liqotech/liqo/pkg/utils/errorsManagement"
@@ -33,13 +31,12 @@ type Broadcaster struct {
 	allocatable               corev1.ResourceList
 	resourcePodMap            map[string]corev1.ResourceList
 	lastReadResources         map[string]corev1.ResourceList
-	clusterConfig             configv1alpha1.ClusterConfig
 	nodeMutex                 sync.RWMutex
 	podMutex                  sync.RWMutex
-	configMutex               sync.RWMutex
 	nodeInformer              cache.SharedIndexInformer
 	podInformer               cache.SharedIndexInformer
 	updater                   interfaces.UpdaterInterface
+	resourceSharingPercentage uint64
 	updateThresholdPercentage uint64
 }
 
@@ -59,8 +56,9 @@ const (
 
 // SetupBroadcaster initializes all Broadcaster parameters.
 func (b *Broadcaster) SetupBroadcaster(clientset kubernetes.Interface, updater interfaces.UpdaterInterface,
-	resyncPeriod time.Duration, offerUpdateThreshold uint64) error {
+	resyncPeriod time.Duration, resourceSharingPercentage, offerUpdateThreshold uint64) error {
 	b.allocatable = corev1.ResourceList{}
+	b.resourceSharingPercentage = resourceSharingPercentage
 	b.updateThresholdPercentage = offerUpdateThreshold
 	b.updater = updater
 	b.resourcePodMap = map[string]corev1.ResourceList{}
@@ -85,41 +83,20 @@ func (b *Broadcaster) SetupBroadcaster(clientset kubernetes.Interface, updater i
 
 // StartBroadcaster starts two shared Informers, one for nodes and one for pods launching two separated goroutines.
 func (b *Broadcaster) StartBroadcaster(ctx context.Context, group *sync.WaitGroup) {
+	group.Add(3)
 	go b.updater.Start(ctx, group)
 	go b.startNodeInformer(ctx, group)
 	go b.startPodInformer(ctx, group)
 }
 
 func (b *Broadcaster) startNodeInformer(ctx context.Context, group *sync.WaitGroup) {
-	group.Add(1)
 	defer group.Done()
 	b.nodeInformer.Run(ctx.Done())
 }
 
 func (b *Broadcaster) startPodInformer(ctx context.Context, group *sync.WaitGroup) {
-	group.Add(1)
 	defer group.Done()
 	b.podInformer.Run(ctx.Done())
-}
-
-// WatchConfiguration starts a new watcher to get clusterConfig.
-func (b *Broadcaster) WatchConfiguration(localKubeconfig string, crdClient *crdclient.CRDClient, wg *sync.WaitGroup) {
-	defer wg.Done()
-	utils.WatchConfiguration(b.setConfig, crdClient, localKubeconfig)
-}
-
-func (b *Broadcaster) setConfig(configuration *configv1alpha1.ClusterConfig) {
-	b.configMutex.Lock()
-	defer b.configMutex.Unlock()
-	b.clusterConfig = *configuration
-}
-
-// GetConfig returns an instance of a ClusterConfig resource.
-func (b *Broadcaster) GetConfig() *configv1alpha1.ClusterConfig {
-	b.configMutex.RLock()
-	defer b.configMutex.RUnlock()
-	configCopy := b.clusterConfig.DeepCopy()
-	return configCopy
 }
 
 func (b *Broadcaster) getPodMap() map[string]corev1.ResourceList {
@@ -370,17 +347,15 @@ func (b *Broadcaster) isAboveThreshold(clusterID string) bool {
 }
 
 func (b *Broadcaster) scaleResources(resourceName corev1.ResourceName, quantity *resource.Quantity) {
-	percentage := int64(b.GetConfig().Spec.AdvertisementConfig.OutgoingConfig.ResourceSharingPercentage)
-
 	switch resourceName {
 	case corev1.ResourceCPU:
 		// use millis
-		quantity.SetScaled(quantity.MilliValue()*percentage/100, resource.Milli)
+		quantity.SetScaled(quantity.MilliValue()*int64(b.resourceSharingPercentage)/100, resource.Milli)
 	case corev1.ResourceMemory:
 		// use mega
-		quantity.SetScaled(quantity.ScaledValue(resource.Mega)*percentage/100, resource.Mega)
+		quantity.SetScaled(quantity.ScaledValue(resource.Mega)*int64(b.resourceSharingPercentage)/100, resource.Mega)
 	default:
-		quantity.Set(quantity.Value() * percentage / 100)
+		quantity.Set(quantity.Value() * int64(b.resourceSharingPercentage) / 100)
 	}
 }
 

@@ -11,7 +11,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/source"
 
-	configv1alpha1 "github.com/liqotech/liqo/apis/config/v1alpha1"
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	sharingv1alpha1 "github.com/liqotech/liqo/apis/sharing/v1alpha1"
 	crdreplicator "github.com/liqotech/liqo/internal/crdReplicator"
@@ -20,9 +19,10 @@ import (
 // ResourceRequestReconciler reconciles a ResourceRequest object.
 type ResourceRequestReconciler struct {
 	client.Client
-	Scheme      *runtime.Scheme
-	ClusterID   string
-	Broadcaster *Broadcaster
+	Scheme                *runtime.Scheme
+	ClusterID             string
+	Broadcaster           *Broadcaster
+	EnableIncomingPeering bool
 }
 
 const (
@@ -144,10 +144,6 @@ func (r *ResourceRequestReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		Owns(&sharingv1alpha1.ResourceOffer{}).
 		Watches(&source.Kind{Type: &discoveryv1alpha1.ForeignCluster{}}, getForeignClusterEventHandler(
 			r.Client,
-		)).
-		Watches(&source.Kind{Type: &configv1alpha1.ClusterConfig{}}, getClusterConfigEventHandler(
-			r.Client,
-			r.Broadcaster,
 		)).
 		Complete(r)
 }

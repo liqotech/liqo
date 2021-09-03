@@ -35,22 +35,24 @@ type OfferUpdater struct {
 	client.Client
 	broadcasterInt interfaces.ClusterResourceInterface
 	homeClusterID  string
+	clusterLabels  map[string]string
 	scheme         *runtime.Scheme
 }
 
 // Setup initializes all parameters of the OfferUpdater component.
-func (u *OfferUpdater) Setup(clusterID string, scheme *runtime.Scheme, broadcaster interfaces.ClusterResourceInterface, k8Client client.Client) {
+func (u *OfferUpdater) Setup(clusterID string, scheme *runtime.Scheme, broadcaster interfaces.ClusterResourceInterface,
+	k8Client client.Client, clusterLabels map[string]string) {
 	u.broadcasterInt = broadcaster
 	u.Client = k8Client
 	u.homeClusterID = clusterID
 	u.scheme = scheme
+	u.clusterLabels = clusterLabels
 	u.queue = workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "Offer update queue")
 }
 
 // Start runs the OfferUpdate worker.
 func (u *OfferUpdater) Start(ctx context.Context, group *sync.WaitGroup) {
 	defer u.queue.ShutDown()
-	group.Add(1)
 	defer group.Done()
 	go u.startRunner(ctx)
 	<-ctx.Done()
@@ -137,7 +139,7 @@ func (u *OfferUpdater) createOrUpdateOffer(clusterID string) (bool, error) {
 		}
 		offer.Spec.ClusterId = u.homeClusterID
 		offer.Spec.ResourceQuota.Hard = resources.DeepCopy()
-		offer.Spec.Labels = u.broadcasterInt.GetConfig().Spec.DiscoveryConfig.ClusterLabels
+		offer.Spec.Labels = u.clusterLabels
 		return controllerutil.SetControllerReference(&request, offer, u.scheme)
 	})
 

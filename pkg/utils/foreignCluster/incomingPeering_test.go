@@ -5,7 +5,6 @@ import (
 	. "github.com/onsi/ginkgo/extensions/table"
 	. "github.com/onsi/gomega"
 
-	configv1alpha1 "github.com/liqotech/liqo/apis/config/v1alpha1"
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 )
 
@@ -35,71 +34,52 @@ var _ = Describe("IncomingPeering", func() {
 			}
 		}
 
-		var enabledClusterConfig = func() *configv1alpha1.ClusterConfig {
-			return &configv1alpha1.ClusterConfig{
-				Spec: configv1alpha1.ClusterConfigSpec{
-					DiscoveryConfig: configv1alpha1.DiscoveryConfig{
-						IncomingPeeringEnabled: true,
-					},
-				},
-			}
-		}
-		var disabledClusterConfig = func() *configv1alpha1.ClusterConfig {
-			return &configv1alpha1.ClusterConfig{
-				Spec: configv1alpha1.ClusterConfigSpec{
-					DiscoveryConfig: configv1alpha1.DiscoveryConfig{
-						IncomingPeeringEnabled: false,
-					},
-				},
-			}
-		}
-
 		type allowIncomingPeeringTestcase struct {
-			foreignCluster *discoveryv1alpha1.ForeignCluster
-			clusterConfig  *configv1alpha1.ClusterConfig
-			expectedResult OmegaMatcher
+			foreignCluster               *discoveryv1alpha1.ForeignCluster
+			defaultEnableIncomingPeering bool
+			expectedResult               OmegaMatcher
 		}
 
 		DescribeTable("AllowIncomingPeering table",
 			func(c allowIncomingPeeringTestcase) {
-				phase := AllowIncomingPeering(c.foreignCluster, c.clusterConfig)
+				phase := AllowIncomingPeering(c.foreignCluster, c.defaultEnableIncomingPeering)
 				Expect(phase).To(c.expectedResult)
 			},
 
 			Entry("incoming peering enabled and default enabled", allowIncomingPeeringTestcase{
-				foreignCluster: enabledForeignCluster(),
-				clusterConfig:  enabledClusterConfig(),
-				expectedResult: BeTrue(),
+				foreignCluster:               enabledForeignCluster(),
+				defaultEnableIncomingPeering: true,
+				expectedResult:               BeTrue(),
 			}),
 
 			Entry("incoming peering enabled and default disabled", allowIncomingPeeringTestcase{
-				foreignCluster: enabledForeignCluster(),
-				clusterConfig:  disabledClusterConfig(),
-				expectedResult: BeTrue(),
+				foreignCluster:               enabledForeignCluster(),
+				defaultEnableIncomingPeering: false,
+				expectedResult:               BeTrue(),
 			}),
 
 			Entry("incoming peering disabled and default enabled", allowIncomingPeeringTestcase{
-				foreignCluster: disabledForeignCluster(),
-				clusterConfig:  enabledClusterConfig(),
-				expectedResult: BeFalse(),
+				foreignCluster:               disabledForeignCluster(),
+				defaultEnableIncomingPeering: true,
+				expectedResult:               BeFalse(),
 			}),
 
 			Entry("incoming peering disabled and default disabled", allowIncomingPeeringTestcase{
-				foreignCluster: disabledForeignCluster(),
-				clusterConfig:  disabledClusterConfig(),
-				expectedResult: BeFalse(),
+				foreignCluster:               disabledForeignCluster(),
+				defaultEnableIncomingPeering: false,
+				expectedResult:               BeFalse(),
 			}),
 
 			Entry("incoming peering automatic and default enabled", allowIncomingPeeringTestcase{
-				foreignCluster: autoForeignCluster(),
-				clusterConfig:  enabledClusterConfig(),
-				expectedResult: BeTrue(),
+				foreignCluster:               autoForeignCluster(),
+				defaultEnableIncomingPeering: true,
+				expectedResult:               BeTrue(),
 			}),
 
 			Entry("incoming peering automatic and default disabled", allowIncomingPeeringTestcase{
-				foreignCluster: autoForeignCluster(),
-				clusterConfig:  disabledClusterConfig(),
-				expectedResult: BeFalse(),
+				foreignCluster:               autoForeignCluster(),
+				defaultEnableIncomingPeering: false,
+				expectedResult:               BeFalse(),
 			}),
 		)
 	})

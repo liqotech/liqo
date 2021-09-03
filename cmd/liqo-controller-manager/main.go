@@ -35,8 +35,6 @@ import (
 	offloadingv1alpha1 "github.com/liqotech/liqo/apis/offloading/v1alpha1"
 	sharingv1alpha1 "github.com/liqotech/liqo/apis/sharing/v1alpha1"
 	virtualkubeletv1alpha1 "github.com/liqotech/liqo/apis/virtualKubelet/v1alpha1"
-	"github.com/liqotech/liqo/pkg/clusterid"
-	crdclient "github.com/liqotech/liqo/pkg/crdClient"
 	namectrl "github.com/liqotech/liqo/pkg/liqo-controller-manager/namespace-controller"
 	mapsctrl "github.com/liqotech/liqo/pkg/liqo-controller-manager/namespaceMap-controller"
 	nsoffctrl "github.com/liqotech/liqo/pkg/liqo-controller-manager/namespaceOffloading-controller"
@@ -47,6 +45,7 @@ import (
 	"github.com/liqotech/liqo/pkg/mapperUtils"
 	argsutils "github.com/liqotech/liqo/pkg/utils/args"
 	errorsmanagement "github.com/liqotech/liqo/pkg/utils/errorsManagement"
+	"github.com/liqotech/liqo/pkg/utils/restcfg"
 	"github.com/liqotech/liqo/pkg/vkMachinery"
 	"github.com/liqotech/liqo/pkg/vkMachinery/csr"
 	"github.com/liqotech/liqo/pkg/vkMachinery/forge"
@@ -54,7 +53,6 @@ import (
 
 const (
 	defaultNamespace   = "liqo"
-	defaultMetricsaddr = ":8080"
 	defaultVKImage     = "liqo/virtual-kubelet"
 	defaultInitVKImage = "liqo/init-virtual-kubelet"
 )
@@ -78,44 +76,44 @@ func init() {
 }
 
 func main() {
-	var metricsAddr, localKubeconfig, clusterId string
-	var probeAddr string
-	var enableLeaderElection bool
-	var enablePanic bool
-	var liqoNamespace, kubeletImage, initKubeletImage string
+	var clusterLabels argsutils.StringMap
 	var kubeletExtraAnnotations, kubeletExtraLabels argsutils.StringMap
 	var kubeletExtraArgs argsutils.StringList
 	var nodeExtraAnnotations, nodeExtraLabels argsutils.StringMap
-	var disableKubeletCertGeneration bool
-	var resyncPeriod int64
-	var offloadingStatusControllerRequeueTime int64
-	var offerUpdateThreshold uint64
-	var namespaceMapControllerRequeueTime int64
 
-	flag.BoolVar(&enablePanic, "panic-on-unexpected-errors", false, "flag to enable panic if unexpected errors occur")
-	flag.StringVar(&metricsAddr, "metrics-addr", defaultMetricsaddr, "The address the metric endpoint binds to.")
-	flag.StringVar(&probeAddr, "health-probe-bind-address", ":8081", "The address the probe endpoint binds to.")
-	flag.BoolVar(&enableLeaderElection,
-		"enable-leader-election", false,
-		"Enable leader election for controller manager. Enabling this will ensure there is only one active controller manager.")
-	flag.Uint64Var(&offerUpdateThreshold, "offer-update-threshold-perc", uint64(5),
-		"Set the threshold percentage of quantity of resources modified which triggers the resourceOffer update.")
-	flag.Int64Var(&resyncPeriod, "resyncPeriod", int64(10*time.Hour), "Period after that operators and informers will requeue events.")
-	flag.Int64Var(&offloadingStatusControllerRequeueTime, "offloadingStatusControllerRequeueTime", int64(10*time.Second),
-		"Period after that the offloadingStatus Controller is awaken on every NamespaceOffloading to set its status.")
-	flag.Int64Var(&namespaceMapControllerRequeueTime, "namespaceMapControllerRequeueTime", int64(30*time.Second),
-		"Period after that the namespaceMap Controller is awaken on every NamespaceMap to enforce DesiredMappings.")
-	flag.StringVar(&localKubeconfig, "local-kubeconfig", "", "The path to the kubeconfig of your local cluster.")
-	flag.StringVar(&clusterId, "cluster-id", "", "The cluster ID of your cluster")
-	flag.StringVar(&liqoNamespace,
-		"liqo-namespace", defaultNamespace,
-		"Name of the namespace where Virtual kubelets will be spawned ( the namespace is default if not specified otherwise)")
-	flag.StringVar(&kubeletImage, "kubelet-image", defaultVKImage, "The image of the virtual kubelet to be deployed")
-	flag.StringVar(&initKubeletImage,
-		"init-kubelet-image", defaultInitVKImage,
+	metricsAddr := flag.String("metrics-address", ":8080", "The address the metric endpoint binds to")
+	probeAddr := flag.String("health-probe-address", ":8081", "The address the health probe endpoint binds to")
+
+	// Global parameters
+	resyncPeriod := flag.Duration("resync-period", 10*time.Hour, "The resync period for the informers")
+	clusterID := flag.String("cluster-id", "", "The cluster ID of identifying the current cluster")
+	liqoNamespace := flag.String("liqo-namespace", defaultNamespace,
+		"Name of the namespace where the liqo components are running")
+
+	// Resource sharing parameters
+	flag.Var(&clusterLabels, "cluster-labels",
+		"The set of labels which characterizes the local cluster when exposed remotely as a virtual node")
+	resourceSharingPercentage := argsutils.Percentage{Val: 50}
+	flag.Var(&resourceSharingPercentage, "resource-sharing-percentage",
+		"The amount (in percentage) of cluster resources possibly shared with foreign clusters")
+	enableIncomingPeering := flag.Bool("enable-incoming-peering", true,
+		"Enable remote clusters to establish an incoming peering with the local cluster (can be overwritten on a per foreign cluster basis)")
+	offerDisableAutoAccept := flag.Bool("offer-disable-auto-accept", false, "Disable the automatic acceptance of resource offers")
+	offerUpdateThreshold := argsutils.Percentage{Val: 5}
+	flag.Var(&offerUpdateThreshold, "offer-update-threshold-percentage",
+		"The threshold (in percentage) of resources quantity variation which triggers a ResourceOffer update")
+
+	// Namespace management parameters
+	offloadingStatusControllerRequeueTime := flag.Duration("offloading-status-requeue-period", 10*time.Second,
+		"Period after that the offloading status controller is awaken on every NamespaceOffloading to set its status")
+	namespaceMapControllerRequeueTime := flag.Duration("namespace-map-requeue-period", 30*time.Second,
+		"Period after that the namespace map controller is awaken on every NamespaceMap to enforce DesiredMappings")
+
+	// Virtual-kubelet parameters
+	kubeletImage := flag.String("kubelet-image", defaultVKImage, "The image of the virtual kubelet to be deployed")
+	initKubeletImage := flag.String("init-kubelet-image", defaultInitVKImage,
 		"The image of the virtual kubelet init container to be deployed")
-	flag.BoolVar(&disableKubeletCertGeneration,
-		"disable-kubelet-certificate-generation", false,
+	disableKubeletCertGeneration := flag.Bool("disable-kubelet-certificate-generation", false,
 		"Whether to disable the virtual kubelet certificate generation by means of an init container (used for logs/exec capabilities)")
 	flag.Var(&kubeletExtraAnnotations, "kubelet-extra-annotations", "Extra annotations to add to the Virtual Kubelet Deployments and Pods")
 	flag.Var(&kubeletExtraLabels, "kubelet-extra-labels", "Extra labels to add to the Virtual Kubelet Deployments and Pods")
@@ -123,33 +121,24 @@ func main() {
 	flag.Var(&nodeExtraAnnotations, "node-extra-annotations", "Extra annotations to add to the Virtual Node")
 	flag.Var(&nodeExtraLabels, "node-extra-labels", "Extra labels to add to the Virtual Node")
 
+	errorsmanagement.InitFlags(nil)
+	restcfg.InitFlags(nil)
 	klog.InitFlags(nil)
 	flag.Parse()
 
-	errorsmanagement.SetPanicOnErrorMode(enablePanic)
-
-	if clusterId == "" {
+	if *clusterID == "" {
 		klog.Error("Cluster ID must be provided")
 		os.Exit(1)
 	}
 
-	if offerUpdateThreshold > 100 {
-		klog.Error("offerUpdateThreshold exceeds 100")
-		os.Exit(1)
-	}
+	config := restcfg.SetRateLimiter(ctrl.GetConfigOrDie())
 
-	if localKubeconfig != "" {
-		if err := os.Setenv("KUBECONFIG", localKubeconfig); err != nil {
-			os.Exit(1)
-		}
-	}
-
-	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
+	mgr, err := ctrl.NewManager(config, ctrl.Options{
 		MapperProvider:         mapperUtils.LiqoMapperProvider(scheme),
 		Scheme:                 scheme,
-		MetricsBindAddress:     metricsAddr,
-		HealthProbeBindAddress: probeAddr,
-		LeaderElection:         enableLeaderElection,
+		MetricsBindAddress:     *metricsAddr,
+		HealthProbeBindAddress: *probeAddr,
+		LeaderElection:         false,
 		LeaderElectionID:       "66cf253f.liqo.io",
 		Port:                   9443,
 	})
@@ -158,44 +147,27 @@ func main() {
 		os.Exit(1)
 	}
 
-	// New Client For CSR Auto-approval
-	config := ctrl.GetConfigOrDie()
 	clientset, err := kubernetes.NewForConfig(config)
 	if err != nil {
 		klog.Error(err)
 		os.Exit(1)
 	}
 
-	discoveryConfig, err := crdclient.NewKubeconfig(localKubeconfig, &discoveryv1alpha1.GroupVersion, nil)
-	if err != nil {
-		klog.Error(err, "unable to get kube config")
-		os.Exit(1)
-	}
-	discoveryClient, err := crdclient.NewFromConfig(discoveryConfig)
-	if err != nil {
-		klog.Errorln(err, "unable to create local client for Discovery")
-		os.Exit(1)
-	}
-
-	clusterID, err := clusterid.NewClusterIDFromClient(discoveryClient.Client())
-	if err != nil {
-		klog.Error(err)
-		os.Exit(1)
-	}
-
-	newBroadcaster := &resourceRequestOperator.Broadcaster{}
+	broadcaster := &resourceRequestOperator.Broadcaster{}
 	updater := &resourceRequestOperator.OfferUpdater{}
-	updater.Setup(clusterId, mgr.GetScheme(), newBroadcaster, mgr.GetClient())
-	if err := newBroadcaster.SetupBroadcaster(clientset, updater, time.Duration(resyncPeriod), offerUpdateThreshold); err != nil {
+	updater.Setup(*clusterID, mgr.GetScheme(), broadcaster, mgr.GetClient(), clusterLabels.StringMap)
+	if err := broadcaster.SetupBroadcaster(clientset, updater, *resyncPeriod,
+		resourceSharingPercentage.Val, offerUpdateThreshold.Val); err != nil {
 		klog.Error(err)
 		os.Exit(1)
 	}
 
 	resourceRequestReconciler := &resourceRequestOperator.ResourceRequestReconciler{
-		Client:      mgr.GetClient(),
-		Scheme:      mgr.GetScheme(),
-		ClusterID:   clusterId,
-		Broadcaster: newBroadcaster,
+		Client:                mgr.GetClient(),
+		Scheme:                mgr.GetScheme(),
+		ClusterID:             *clusterID,
+		Broadcaster:           broadcaster,
+		EnableIncomingPeering: *enableIncomingPeering,
 	}
 
 	if err = resourceRequestReconciler.SetupWithManager(mgr); err != nil {
@@ -203,9 +175,9 @@ func main() {
 	}
 
 	virtualKubeletOpts := &forge.VirtualKubeletOpts{
-		ContainerImage:        kubeletImage,
-		InitContainerImage:    initKubeletImage,
-		DisableCertGeneration: disableKubeletCertGeneration,
+		ContainerImage:        *kubeletImage,
+		InitContainerImage:    *initKubeletImage,
+		DisableCertGeneration: *disableKubeletCertGeneration,
 		ExtraAnnotations:      kubeletExtraAnnotations.StringMap,
 		ExtraLabels:           kubeletExtraLabels.StringMap,
 		ExtraArgs:             kubeletExtraArgs.StringList,
@@ -214,7 +186,7 @@ func main() {
 	}
 
 	resourceOfferReconciler := resourceoffercontroller.NewResourceOfferController(
-		mgr, clusterID, time.Duration(resyncPeriod), liqoNamespace, virtualKubeletOpts)
+		mgr, *clusterID, *resyncPeriod, *liqoNamespace, virtualKubeletOpts, *offerDisableAutoAccept)
 	if err = resourceOfferReconciler.SetupWithManager(mgr); err != nil {
 		klog.Fatal(err)
 	}
@@ -240,9 +212,9 @@ func main() {
 	namespaceMapReconciler := &mapsctrl.NamespaceMapReconciler{
 		Client:                mgr.GetClient(),
 		RemoteClients:         make(map[string]kubernetes.Interface),
-		LocalClusterID:        clusterId,
+		LocalClusterID:        *clusterID,
 		IdentityManagerClient: clientset,
-		RequeueTime:           time.Duration(namespaceMapControllerRequeueTime),
+		RequeueTime:           *namespaceMapControllerRequeueTime,
 	}
 
 	if err = namespaceMapReconciler.SetupWithManager(mgr); err != nil {
@@ -252,7 +224,7 @@ func main() {
 	offloadingStatusReconciler := &offloadingctrl.OffloadingStatusReconciler{
 		Client:      mgr.GetClient(),
 		Scheme:      mgr.GetScheme(),
-		RequeueTime: time.Duration(offloadingStatusControllerRequeueTime),
+		RequeueTime: *offloadingStatusControllerRequeueTime,
 	}
 
 	if err = offloadingStatusReconciler.SetupWithManager(mgr); err != nil {
@@ -262,14 +234,12 @@ func main() {
 	namespaceOffloadingReconciler := &nsoffctrl.NamespaceOffloadingReconciler{
 		Client:         mgr.GetClient(),
 		Scheme:         mgr.GetScheme(),
-		LocalClusterID: clusterId,
+		LocalClusterID: *clusterID,
 	}
 
 	if err = namespaceOffloadingReconciler.SetupWithManager(mgr); err != nil {
 		klog.Fatal(err)
 	}
-
-	// +kubebuilder:scaffold:builder
 
 	if err := mgr.AddHealthzCheck("healthz", healthz.Ping); err != nil {
 		klog.Error(err, " unable to set up health check")
@@ -280,28 +250,15 @@ func main() {
 		os.Exit(1)
 	}
 
-	var wg = &sync.WaitGroup{}
-	config, err = crdclient.NewKubeconfig(localKubeconfig, &configv1alpha1.GroupVersion, nil)
-	if err != nil {
-		klog.Error(err)
-		os.Exit(1)
-	}
-	client, err := crdclient.NewFromConfig(config)
-	if err != nil {
-		os.Exit(1)
-	}
-	wg.Add(5)
 	ctx, cancel := context.WithCancel(context.Background())
 
 	// Start the handler to approve the virtual kubelet certificate signing requests.
-	csrWatcher := csr.NewWatcher(clientset, time.Duration(resyncPeriod), labels.SelectorFromSet(vkMachinery.CsrLabels))
+	csrWatcher := csr.NewWatcher(clientset, *resyncPeriod, labels.SelectorFromSet(vkMachinery.CsrLabels))
 	csrWatcher.RegisterHandler(csr.ApproverHandler(clientset, "LiqoApproval", "This CSR was approved by Liqo"))
 	csrWatcher.Start(ctx)
 
-	// TODO: this configuration watcher will be refactored before the release 0.3
-	go newBroadcaster.WatchConfiguration(localKubeconfig, client, wg)
-	go resourceOfferReconciler.WatchConfiguration(localKubeconfig, client, wg)
-	newBroadcaster.StartBroadcaster(ctx, wg)
+	var wg = &sync.WaitGroup{}
+	broadcaster.StartBroadcaster(ctx, wg)
 
 	klog.Info("starting manager as controller manager")
 	if err := mgr.Start(ctrl.SetupSignalHandler()); err != nil {
@@ -309,7 +266,6 @@ func main() {
 		os.Exit(1)
 	}
 
-	close(client.Stop)
 	cancel()
 	wg.Wait()
 }
