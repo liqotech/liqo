@@ -30,7 +30,6 @@ type ClusterConfigSpec struct {
 	// AdvertisementConfig defines the configuration for the advertisement protocol.
 	AdvertisementConfig AdvertisementConfig `json:"resourceSharingConfig"`
 	DiscoveryConfig     DiscoveryConfig     `json:"discoveryConfig"`
-	AuthConfig          AuthConfig          `json:"authConfig"`
 	LiqonetConfig       LiqonetConfig       `json:"liqonetConfig"`
 }
 
@@ -141,33 +140,6 @@ type DiscoveryConfig struct {
 
 	AuthServiceAddress string `json:"authServiceAddress,omitempty"`
 	AuthServicePort    string `json:"authServicePort,omitempty"`
-}
-
-// PeeringPermission collects the list of ClusterRoles to be attributed to foreign cluster in the different steps of
-// peering.
-type PeeringPermission struct {
-	// The list of ClusterRoles to be enabled with the creation of the Tenant Namespace, these ClusterRoles
-	// have the basic permissions to give to a remote cluster
-	Basic []string `json:"basic,omitempty"`
-	// The list of ClusterRoles be enabled when a ResourceRequest has been accepted, these ClusterRoles have the
-	// permissions required to a remote cluster to manage an outgoing peering (incoming for the local cluster), when the
-	// Pods will be offloaded to the local cluster
-	Incoming []string `json:"incoming,omitempty"`
-	// The list of ClusterRoles to be enabled when we send a ResourceRequest, these ClusterRoles have the permissions
-	// required to a remote cluster to manage an incoming peering (outgoing for the local cluster), when the Pods will
-	// be offloaded from the local cluster
-	Outgoing []string `json:"outgoing,omitempty"`
-}
-
-// AuthConfig defines the configuration of the Authentication Server.
-type AuthConfig struct {
-	// Ask to remote clusters to provide a token to obtain an identity.
-	// +kubebuilder:default=true
-	// +kubebuilder:validation:Optional
-	EnableAuthentication *bool `json:"enableAuthentication"`
-
-	// Set the ClusterRoles to bind in the different peering stages
-	PeeringPermission *PeeringPermission `json:"peeringPermission,omitempty"`
 }
 
 // LiqonetConfig defines the configuration of the Liqo Networking.

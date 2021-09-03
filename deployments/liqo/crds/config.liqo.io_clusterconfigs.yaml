@@ -45,46 +45,6 @@ spec:
                   trustedCA:
                     type: boolean
                 type: object
-              authConfig:
-                description: AuthConfig defines the configuration of the Authentication
-                  Server.
-                properties:
-                  enableAuthentication:
-                    default: true
-                    description: Ask to remote clusters to provide a token to obtain
-                      an identity.
-                    type: boolean
-                  peeringPermission:
-                    description: Set the ClusterRoles to bind in the different peering
-                      stages
-                    properties:
-                      basic:
-                        description: The list of ClusterRoles to be enabled with the
-                          creation of the Tenant Namespace, these ClusterRoles have
-                          the basic permissions to give to a remote cluster
-                        items:
-                          type: string
-                        type: array
-                      incoming:
-                        description: The list of ClusterRoles be enabled when a ResourceRequest
-                          has been accepted, these ClusterRoles have the permissions
-                          required to a remote cluster to manage an outgoing peering
-                          (incoming for the local cluster), when the Pods will be
-                          offloaded to the local cluster
-                        items:
-                          type: string
-                        type: array
-                      outgoing:
-                        description: The list of ClusterRoles to be enabled when we
-                          send a ResourceRequest, these ClusterRoles have the permissions
-                          required to a remote cluster to manage an incoming peering
-                          (outgoing for the local cluster), when the Pods will be
-                          offloaded from the local cluster
-                        items:
-                          type: string
-                        type: array
-                    type: object
-                type: object
               discoveryConfig:
                 description: DiscoveryConfig defines the configuration of the Discovery
                   logic.
@@ -267,7 +227,6 @@ spec:
                 - outgoingConfig
                 type: object
             required:
-            - authConfig
             - discoveryConfig
             - liqonetConfig
             - resourceSharingConfig

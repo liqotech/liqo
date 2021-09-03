@@ -23,7 +23,7 @@ import (
 	"github.com/liqotech/liqo/pkg/clusterid"
 	crdclient "github.com/liqotech/liqo/pkg/crdClient"
 	identitymanager "github.com/liqotech/liqo/pkg/identityManager"
-	peeringRoles "github.com/liqotech/liqo/pkg/peering-roles"
+	peeringroles "github.com/liqotech/liqo/pkg/peering-roles"
 	tenantnamespace "github.com/liqotech/liqo/pkg/tenantNamespace"
 	"github.com/liqotech/liqo/pkg/utils/restcfg"
 )
@@ -51,25 +51,26 @@ type Controller struct {
 	restConfig     *rest.Config
 	clientset      kubernetes.Interface
 	secretInformer cache.SharedIndexInformer
-	useTLS         bool
+
+	authenticationEnabled bool
+	useTLS                bool
 
 	credentialsValidator credentialsValidator
 	localClusterID       clusterid.ClusterID
 	namespaceManager     tenantnamespace.Manager
 	identityProvider     identitymanager.IdentityProvider
 
-	config          *v1alpha1.AuthConfig
 	apiServerConfig *v1alpha1.APIServerConfig
 	discoveryConfig v1alpha1.DiscoveryConfig
 	configMutex     sync.RWMutex
 
-	peeringPermission peeringRoles.PeeringPermission
+	peeringPermission peeringroles.PeeringPermission
 }
 
 // NewAuthServiceCtrl creates a new Auth Controller.
 func NewAuthServiceCtrl(namespace, kubeconfigPath string,
 	awsConfig identitymanager.AwsConfig,
-	resyncTime time.Duration, useTLS bool) (*Controller, error) {
+	resyncTime time.Duration, authEnabled, useTLS bool) (*Controller, error) {
 	config, err := crdclient.NewKubeconfig(kubeconfigPath, &discoveryv1alpha1.GroupVersion, nil)
 	if err != nil {
 		return nil, err
@@ -113,8 +114,9 @@ func NewAuthServiceCtrl(namespace, kubeconfigPath string,
 		namespaceManager: namespaceManager,
 		identityProvider: idProvider,
 
-		useTLS:               useTLS,
-		credentialsValidator: &tokenValidator{},
+		authenticationEnabled: authEnabled,
+		useTLS:                useTLS,
+		credentialsValidator:  &tokenValidator{},
 	}, nil
 }
 
@@ -125,16 +127,19 @@ func (authService *Controller) Start(listeningPort, certFile, keyFile string) er
 	}
 
 	// populate the lists of ClusterRoles to bind in the different peering states.
-	if err := authService.populatePermission(); err != nil {
+	// populate the lists of ClusterRoles to bind in the different peering states
+	permissions, err := peeringroles.GetPeeringPermission(context.TODO(), authService.clientset)
+	if err != nil {
+		klog.Errorf("Unable to populate peering permission: %w", err)
 		return err
 	}
+	authService.peeringPermission = *permissions
 
 	router := httprouter.New()
 
 	router.POST(auth.CertIdentityURI, authService.identity)
 	router.GET(auth.IdsURI, authService.ids)
 
-	var err error
 	if authService.useTLS {
 		err = http.ListenAndServeTLS(strings.Join([]string{":", listeningPort}, ""), certFile, keyFile, router)
 	} else {
@@ -194,19 +199,4 @@ func (authService *Controller) getConfigProvider() auth.ConfigProvider {
 
 func (authService *Controller) getTokenManager() tokenManager {
 	return authService
-}
-
-// populatePermission populates the list of ClusterRoles to bind
-// in the different peering phases reading the ClusterConfig CR.
-func (authService *Controller) populatePermission() error {
-	peeringPermission, err := peeringRoles.GetPeeringPermission(authService.clientset, authService)
-	if err != nil {
-		klog.Error(err)
-		return err
-	}
-
-	if peeringPermission != nil {
-		authService.peeringPermission = *peeringPermission
-	}
-	return nil
 }

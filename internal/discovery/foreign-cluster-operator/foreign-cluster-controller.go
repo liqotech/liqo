@@ -38,7 +38,6 @@ import (
 	netv1alpha1 "github.com/liqotech/liqo/apis/net/v1alpha1"
 	crdreplicator "github.com/liqotech/liqo/internal/crdReplicator"
 	"github.com/liqotech/liqo/internal/discovery"
-	"github.com/liqotech/liqo/pkg/auth"
 	"github.com/liqotech/liqo/pkg/clusterid"
 	liqoconst "github.com/liqotech/liqo/pkg/consts"
 	identitymanager "github.com/liqotech/liqo/pkg/identityManager"
@@ -103,8 +102,7 @@ type ForeignClusterReconciler struct {
 
 	peeringPermission peeringRoles.PeeringPermission
 
-	ConfigProvider     discovery.ConfigProvider
-	AuthConfigProvider auth.ConfigProvider
+	ConfigProvider discovery.ConfigProvider
 }
 
 // clusterRole

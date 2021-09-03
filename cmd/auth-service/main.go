@@ -22,7 +22,6 @@ func main() {
 	var listeningPort string
 	var certFile string
 	var keyFile string
-	var useTLS bool
 
 	var awsConfig identitymanager.AwsConfig
 
@@ -33,7 +32,10 @@ func main() {
 	flag.StringVar(&listeningPort, "listeningPort", "5000", "Sets the port where the service will listen")
 	flag.StringVar(&certFile, "certFile", "/certs/cert.pem", "Path to cert file")
 	flag.StringVar(&keyFile, "keyFile", "/certs/key.pem", "Path to key file")
-	flag.BoolVar(&useTLS, "useTls", false, "Enable HTTPS server")
+
+	enableAuth := flag.Bool("enableAuthentication", true,
+		"Whether to authenticate remote clusters through tokens before granting an identity (warning: disable only for testing purposes)")
+	useTLS := flag.Bool("useTls", false, "Enable HTTPS server")
 
 	flag.StringVar(&awsConfig.AwsAccessKeyID, "awsAccessKeyId", "", "AWS IAM AccessKeyID for the Liqo User")
 	flag.StringVar(&awsConfig.AwsSecretAccessKey, "awsSecretAccessKey", "", "AWS IAM SecretAccessKey for the Liqo User")
@@ -47,7 +49,7 @@ func main() {
 	klog.Info("Namespace: ", namespace)
 
 	authService, err := authservice.NewAuthServiceCtrl(
-		namespace, kubeconfigPath, awsConfig, time.Duration(resyncSeconds)*time.Second, useTLS)
+		namespace, kubeconfigPath, awsConfig, time.Duration(resyncSeconds)*time.Second, *enableAuth, *useTLS)
 	if err != nil {
 		klog.Error(err)
 		os.Exit(1)
