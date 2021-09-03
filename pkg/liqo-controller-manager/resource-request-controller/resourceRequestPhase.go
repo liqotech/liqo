@@ -24,7 +24,7 @@ func (r *ResourceRequestReconciler) getResourceRequestPhase(
 		return deletingResourceRequestPhase, nil
 	}
 
-	if foreignclusterutils.AllowIncomingPeering(foreignCluster, r.Broadcaster.GetConfig()) {
+	if foreignclusterutils.AllowIncomingPeering(foreignCluster, r.EnableIncomingPeering) {
 		return allowResourceRequestPhase, nil
 	}
 	return denyResourceRequestPhase, nil

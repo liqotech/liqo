@@ -3,8 +3,6 @@ package resourceoffercontroller
 import (
 	"context"
 	"fmt"
-	"reflect"
-	"sync"
 
 	appsv1 "k8s.io/api/apps/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
@@ -12,43 +10,12 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
-	configv1alpha1 "github.com/liqotech/liqo/apis/config/v1alpha1"
 	sharingv1alpha1 "github.com/liqotech/liqo/apis/sharing/v1alpha1"
 	"github.com/liqotech/liqo/pkg/consts"
-	crdclient "github.com/liqotech/liqo/pkg/crdClient"
-	"github.com/liqotech/liqo/pkg/utils"
 	foreigncluster "github.com/liqotech/liqo/pkg/utils/foreignCluster"
 	"github.com/liqotech/liqo/pkg/virtualKubelet"
 	"github.com/liqotech/liqo/pkg/vkMachinery/forge"
 )
-
-// WatchConfiguration watches a ClusterConfig for reconciling updates on ClusterConfig.
-func (r *ResourceOfferReconciler) WatchConfiguration(kubeconfigPath string, localCrdClient *crdclient.CRDClient, wg *sync.WaitGroup) {
-	defer wg.Done()
-	utils.WatchConfiguration(func(configuration *configv1alpha1.ClusterConfig) {
-		r.setConfig(configuration)
-	}, localCrdClient, kubeconfigPath)
-}
-
-func (r *ResourceOfferReconciler) getConfig() *configv1alpha1.ClusterConfig {
-	r.configurationMutex.RLock()
-	defer r.configurationMutex.RUnlock()
-
-	return r.configuration.DeepCopy()
-}
-
-func (r *ResourceOfferReconciler) setConfig(config *configv1alpha1.ClusterConfig) {
-	r.configurationMutex.Lock()
-	defer r.configurationMutex.Unlock()
-
-	if r.configuration == nil {
-		r.configuration = config
-		return
-	}
-	if !reflect.DeepEqual(r.configuration, config) {
-		r.configuration = config
-	}
-}
 
 // setControllerReference sets owner reference to the related ForeignCluster.
 func (r *ResourceOfferReconciler) setControllerReference(
@@ -70,21 +37,17 @@ func (r *ResourceOfferReconciler) setControllerReference(
 }
 
 // setResourceOfferPhase checks if the resource request can be accepted and set its phase accordingly.
-func (r *ResourceOfferReconciler) setResourceOfferPhase(
-	ctx context.Context, resourceOffer *sharingv1alpha1.ResourceOffer) error {
+func (r *ResourceOfferReconciler) setResourceOfferPhase(resourceOffer *sharingv1alpha1.ResourceOffer) {
 	// we want only to care about resource offers with a pending status
 	if resourceOffer.Status.Phase != "" && resourceOffer.Status.Phase != sharingv1alpha1.ResourceOfferPending {
-		return nil
+		return
 	}
 
-	switch r.getConfig().Spec.AdvertisementConfig.IngoingConfig.AcceptPolicy {
-	case configv1alpha1.AutoAcceptMax:
-		resourceOffer.Status.Phase = sharingv1alpha1.ResourceOfferAccepted
-	case configv1alpha1.ManualAccept:
-		// require a manual accept/refuse
+	if r.disableAutoAccept {
 		resourceOffer.Status.Phase = sharingv1alpha1.ResourceOfferManualActionRequired
 	}
-	return nil
+
+	resourceOffer.Status.Phase = sharingv1alpha1.ResourceOfferAccepted
 }
 
 // checkVirtualKubeletDeployment checks the existence of the VirtualKubelet Deployment
@@ -140,7 +103,7 @@ func (r *ResourceOfferReconciler) createVirtualKubeletDeployment(
 	// forge the virtual Kubelet
 	vkDeployment, err := forge.VirtualKubeletDeployment(
 		remoteClusterID, name, namespace, r.liqoNamespace,
-		nodeName, r.clusterID.GetClusterID(), r.virtualKubeletOpts)
+		nodeName, r.clusterID, r.virtualKubeletOpts)
 	if err != nil {
 		klog.Error(err)
 		return err

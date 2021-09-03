@@ -21,81 +21,12 @@ import (
 	"k8s.io/client-go/kubernetes/scheme"
 
 	crdclient "github.com/liqotech/liqo/pkg/crdClient"
-	"github.com/liqotech/liqo/pkg/labelPolicy"
 )
 
 // ClusterConfigSpec defines the desired state of ClusterConfig.
 type ClusterConfigSpec struct {
 	// AdvertisementConfig defines the configuration for the advertisement protocol.
-	AdvertisementConfig AdvertisementConfig `json:"resourceSharingConfig"`
-	DiscoveryConfig     DiscoveryConfig     `json:"discoveryConfig"`
-}
-
-// AdvertisementConfig defines the configuration for the advertisement protocol.
-type AdvertisementConfig struct {
-	// OutgoingConfig defines the behavior for the creation of Advertisements on other clusters.
-	OutgoingConfig BroadcasterConfig `json:"outgoingConfig"`
-	// IngoingConfig defines the behavior for the acceptance of Advertisements from other clusters.
-	IngoingConfig AdvOperatorConfig `json:"ingoingConfig,omitempty"`
-	// KeepaliveThreshold defines the number of failed attempts to contact the foreign cluster your cluster will
-	// tolerate before deleting it.
-	// +kubebuilder:validation:Minimum=0
-	KeepaliveThreshold int32 `json:"keepaliveThreshold,omitempty"`
-	// After establishing a sharing with a foreign cluster, a keepalive mechanism starts, in order to know if the
-	// foreign cluster is reachable or not.
-	// KeepaliveRetryTime defines the time between an attempt to contact the foreign cluster and the next one.
-	// +kubebuilder:validation:Minimum=0
-	KeepaliveRetryTime int32 `json:"keepaliveRetryTime,omitempty"`
-	// LabelPolicies contains the policies for each label to be added to remote virtual nodes.
-	LabelPolicies []LabelPolicy `json:"labelPolicies,omitempty"`
-}
-
-// BroadcasterConfig defines the configuration for the broadcasting protocol.
-type BroadcasterConfig struct {
-	// ResourceSharingPercentage defines the percentage of your cluster resources that you will share with foreign
-	// clusters.
-	// +kubebuilder:validation:Maximum=100
-	// +kubebuilder:validation:Minimum=0
-	ResourceSharingPercentage int32 `json:"resourceSharingPercentage"`
-}
-
-// AcceptPolicy defines the policy to accept/refuse an Advertisement.
-type AcceptPolicy string
-
-const (
-	// AutoAcceptMax means all the Advertisement received will be accepted until the MaxAcceptableAdvertisement limit is
-	// reached. AutoAcceptAll can be achieved by setting MaxAcceptableAdvertisement to 1000000.
-	// AutoRefuseAll can be achieved by setting MaxAcceptableAdvertisement to 0.
-	AutoAcceptMax AcceptPolicy = "AutoAcceptMax"
-	// ManualAccept means every Advertisement received will need a manual accept/refuse, which can be done by updating
-	// its status.
-	ManualAccept AcceptPolicy = "Manual"
-)
-
-// AdvOperatorConfig defines the configuration of the AdvertisementOperator.
-type AdvOperatorConfig struct {
-	// MaxAcceptableAdvertisement defines the maximum number of Advertisements that can be accepted over time.
-	// The maximum value for this field is set to 1000000, a symbolic value that implements the AcceptAll policy.
-	// +kubebuilder:validation:Minimum=0
-	// +kubebuilder:validation:Maximum=1000000
-	MaxAcceptableAdvertisement int32 `json:"maxAcceptableAdvertisement"`
-	// AcceptPolicy defines the policy to accept/refuse an Advertisement.
-	// Possible values are AutoAcceptMax and Manual.
-	// AutoAcceptMax means all the Advertisement received will be accepted until the MaxAcceptableAdvertisement limit
-	// is reached; Manual means every Advertisement received will need a manual accept/refuse, which can be done by
-	// updating its status.
-	// +kubebuilder:validation:Enum="AutoAcceptMax";"Manual"
-	AcceptPolicy AcceptPolicy `json:"acceptPolicy"`
-}
-
-// LabelPolicy define a key-value structure to indicate which keys have to be aggregated and with which policy.
-type LabelPolicy struct {
-	// Label Key to be aggregated in new virtual nodes
-	Key string `json:"key"`
-	// Merge labels Policy
-	// +kubebuilder:validation:Enum="LabelPolicyAnyTrue";"LabelPolicyAllTrue";"LabelPolicyAnyTrueNoLabelIfFalse";"LabelPolicyAllTrueNoLabelIfFalse"
-	// +kubebuilder:default="LabelPolicyAnyTrue"
-	Policy labelPolicy.LabelPolicyType `json:"policy,omitempty"`
+	DiscoveryConfig DiscoveryConfig `json:"discoveryConfig"`
 }
 
 // DiscoveryConfig defines the configuration of the Discovery logic.
@@ -104,6 +35,7 @@ type DiscoveryConfig struct {
 	ClusterName string `json:"clusterName,omitempty"`
 
 	// ClusterLabels is a set of labels which characterizes the local cluster when exposed remotely as a virtual node.
+	// This field is deprecated and it is currently maintained for backward compatibility only.
 	ClusterLabels map[string]string `json:"clusterLabels,omitempty"`
 	// --- mDNS ---
 
@@ -124,6 +56,7 @@ type DiscoveryConfig struct {
 	AutoJoin bool `json:"autojoin"`
 
 	// Allow (by default) the remote clusters to establish a peering with our cluster.
+	// This field is deprecated and it is currently maintained for backward compatibility only.
 	// +kubebuilder:validation:Optional
 	IncomingPeeringEnabled bool `json:"incomingPeeringEnabled"`
 

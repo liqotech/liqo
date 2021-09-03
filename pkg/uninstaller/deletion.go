@@ -65,7 +65,6 @@ func forgeUninstallClusterConfig(clusterConfig *clusterconfigV1alpha1.ClusterCon
 	clusterConfig.Spec.DiscoveryConfig.EnableDiscovery = false
 	clusterConfig.Spec.DiscoveryConfig.EnableAdvertisement = false
 	clusterConfig.Spec.DiscoveryConfig.AutoJoin = false
-	clusterConfig.Spec.DiscoveryConfig.IncomingPeeringEnabled = false
 }
 
 // patchClusterConfig patches the controlled ClusterConfig applying the provided function.

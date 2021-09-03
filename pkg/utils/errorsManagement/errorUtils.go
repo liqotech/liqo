@@ -1,8 +1,22 @@
 package errorsmanagement
 
-import "k8s.io/klog/v2"
+import (
+	"flag"
+
+	"k8s.io/klog/v2"
+)
 
 var panicOnErrorMode = false
+
+// InitFlags initializes the flags to configure the errormanagement parameter.
+func InitFlags(flagset *flag.FlagSet) {
+	if flagset == nil {
+		flagset = flag.CommandLine
+	}
+
+	flagset.BoolVar(&panicOnErrorMode, "panic-on-unexpected-errors", panicOnErrorMode,
+		"Enable a pedantic mode which causes a panic if an unexpected error occurs")
+}
 
 // SetPanicOnErrorMode can be used to set or unset the panic mode.
 func SetPanicOnErrorMode(status bool) {
