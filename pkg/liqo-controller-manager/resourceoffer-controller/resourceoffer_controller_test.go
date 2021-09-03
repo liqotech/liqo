@@ -91,7 +91,12 @@ var _ = Describe("ResourceOffer Controller", func() {
 
 		clusterID := clusterid.NewStaticClusterID("remote-id")
 
-		controller = NewResourceOfferController(mgr, clusterID, 10*time.Second, virtualKubeletImage, initVirtualKubeletImage, testNamespace, false)
+		kubeletOpts := &forge.VirtualKubeletOpts{
+			ContainerImage:     virtualKubeletImage,
+			InitContainerImage: initVirtualKubeletImage,
+		}
+
+		controller = NewResourceOfferController(mgr, clusterID, 10*time.Second, testNamespace, kubeletOpts)
 		if err := controller.SetupWithManager(mgr); err != nil {
 			By(err.Error())
 			os.Exit(1)

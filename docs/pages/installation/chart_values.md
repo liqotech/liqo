@@ -73,8 +73,13 @@ weight: 5
 | route.pod.extraArgs | list | `[]` | route pod extra arguments |
 | route.pod.labels | object | `{}` | route pod labels |
 | tag | string | `""` | Images' tag to select a development version of liqo instead of a release |
+| virtualKubelet.extra.annotations | object | `{}` | virtual kubelet pod extra annotations |
+| virtualKubelet.extra.args | list | `[]` | virtual kubelet pod extra arguments |
+| virtualKubelet.extra.labels | object | `{}` | virtual kubelet pod extra labels |
 | virtualKubelet.imageName | string | `"liqo/virtual-kubelet"` | virtual kubelet image repository |
 | virtualKubelet.initContainer.imageName | string | `"liqo/init-virtual-kubelet"` | virtual kubelet init container image repository |
+| virtualKubelet.virtualNode.extra.annotations | object | `{}` | virtual node extra annotations |
+| virtualKubelet.virtualNode.extra.labels | object | `{}` | virtual node extra labels |
 | webhook.imageName | string | `"liqo/liqo-webhook"` | webhook image repository |
 | webhook.initContainer.imageName | string | `"liqo/webhook-configuration"` | webhook init container image repository |
 | webhook.mutatingWebhookConfiguration.annotations | object | `{}` | mutatingWebhookConfiguration annotations |

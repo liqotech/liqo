@@ -35,6 +35,26 @@ spec:
           - --liqo-namespace=$(POD_NAMESPACE)
           - --kubelet-image={{ .Values.virtualKubelet.imageName }}{{ include "liqo.suffix" $ctrlManagerConfig }}:{{ include "liqo.version" $ctrlManagerConfig }}
           - --init-kubelet-image={{ .Values.virtualKubelet.initContainer.imageName }}{{ include "liqo.suffix" $ctrlManagerConfig }}:{{ include "liqo.version" $ctrlManagerConfig }}
+          {{- if .Values.virtualKubelet.extra.annotations }}
+          {{- $d := dict "commandName" "--kubelet-extra-annotations" "dictionary" .Values.virtualKubelet.extra.annotations }}
+          {{- include "liqo.concatenateMap" $d | nindent 10 }}
+          {{- end }}
+          {{- if .Values.virtualKubelet.extra.labels }}
+          {{- $d := dict "commandName" "--kubelet-extra-labels" "dictionary" .Values.virtualKubelet.extra.labels }}
+          {{- include "liqo.concatenateMap" $d | nindent 10 }}
+          {{- end }}
+          {{- if .Values.virtualKubelet.extra.args }}
+          {{- $d := dict "commandName" "--kubelet-extra-args" "list" .Values.virtualKubelet.extra.args }}
+          {{- include "liqo.concatenateList" $d | nindent 10 }}
+          {{- end }}
+          {{- if .Values.virtualKubelet.virtualNode.extra.annotations }}
+          {{- $d := dict "commandName" "--node-extra-annotations" "dictionary" .Values.virtualKubelet.virtualNode.extra.annotations }}
+          {{- include "liqo.concatenateMap" $d | nindent 10 }}
+          {{- end }}
+          {{- if .Values.virtualKubelet.virtualNode.extra.labels }}
+          {{- $d := dict "commandName" "--node-extra-labels" "dictionary" .Values.virtualKubelet.virtualNode.extra.labels }}
+          {{- include "liqo.concatenateMap" $d | nindent 10 }}
+          {{- end }}
           {{- if .Values.controllerManager.pod.extraArgs }}
           {{- toYaml .Values.controllerManager.pod.extraArgs | nindent 10 }}
           {{- end }}

@@ -140,3 +140,25 @@ Pre-delete hook Annotations
 "helm.sh/hook-weight": "-5"
 "helm.sh/hook-delete-policy": before-hook-creation,hook-succeeded
 {{- end }}
+
+{{/*
+Concatenates a values dictionary into a string in the form "--commandName=key1=val1,key2=val2"
+*/}}
+{{- define "liqo.concatenateMap" -}}
+{{- $res := print .commandName "=" -}}
+{{- range $key, $val := .dictionary -}}
+{{- $res = print $res $key "=" $val "," -}}
+{{- end -}}
+- {{ trimSuffix "," $res }}
+{{- end -}}
+
+{{/*
+Concatenates a values list into a string in the form "--commandName=val1,val2"
+*/}}
+{{- define "liqo.concatenateList" -}}
+{{- $res := print .commandName "=" -}}
+{{- range $val := .list -}}
+{{- $res = print $res $val "," -}}
+{{- end -}}
+- {{ trimSuffix "," $res }}
+{{- end -}}
