@@ -19,7 +19,6 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 
-	configv1alpha1 "github.com/liqotech/liqo/apis/config/v1alpha1"
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	netv1alpha1 "github.com/liqotech/liqo/apis/net/v1alpha1"
 	"github.com/liqotech/liqo/pkg/clusterid"
@@ -67,15 +66,14 @@ var _ = Describe("PeeringPhase-Based Replication", func() {
 		dynClient := dynamic.NewForConfigOrDie(mgr.GetConfig())
 
 		controller = Controller{
-			Scheme:                mgr.GetScheme(),
-			Client:                mgr.GetClient(),
-			ClusterID:             localClusterID,
-			RemoteDynClients:      map[string]dynamic.Interface{remoteClusterID: dynClient},
-			RegisteredResources:   nil,
-			UnregisteredResources: nil,
-			RemoteWatchers:        map[string]map[string]chan struct{}{},
-			LocalDynClient:        dynClient,
-			LocalWatchers:         map[string]chan struct{}{},
+			Scheme:              mgr.GetScheme(),
+			Client:              mgr.GetClient(),
+			ClusterID:           localClusterID,
+			RemoteDynClients:    map[string]dynamic.Interface{remoteClusterID: dynClient},
+			RegisteredResources: nil,
+			RemoteWatchers:      map[string]map[string]chan struct{}{},
+			LocalDynClient:      dynClient,
+			LocalWatchers:       map[string]chan struct{}{},
 
 			NamespaceManager:                 tenantmanager,
 			IdentityReader:                   identitymanager.NewCertificateIdentityReader(k8sclient, clusterIDInterface, tenantmanager),
@@ -102,7 +100,7 @@ var _ = Describe("PeeringPhase-Based Replication", func() {
 
 		type outgoingReplicationTestcase struct {
 			resource            *unstructured.Unstructured
-			registeredResources []configv1alpha1.Resource
+			registeredResources []Resource
 			peeringPhases       map[string]consts.PeeringPhase
 			expectedError       types.GomegaMatcher
 		}
@@ -121,11 +119,10 @@ var _ = Describe("PeeringPhase-Based Replication", func() {
 
 			Entry("replicated resource", outgoingReplicationTestcase{
 				resource: getObj(),
-				registeredResources: []configv1alpha1.Resource{
+				registeredResources: []Resource{
 					{
-						GroupVersionResource: metav1.GroupVersionResource(
-							netv1alpha1.NetworkConfigGroupVersionResource),
-						PeeringPhase: consts.PeeringPhaseAuthenticated,
+						GroupVersionResource: netv1alpha1.NetworkConfigGroupVersionResource,
+						PeeringPhase:         consts.PeeringPhaseAuthenticated,
 					},
 				},
 				peeringPhases: map[string]consts.PeeringPhase{
@@ -136,11 +133,10 @@ var _ = Describe("PeeringPhase-Based Replication", func() {
 
 			Entry("not replicated resource (phase not enabled)", outgoingReplicationTestcase{
 				resource: getObj(),
-				registeredResources: []configv1alpha1.Resource{
+				registeredResources: []Resource{
 					{
-						GroupVersionResource: metav1.GroupVersionResource(
-							netv1alpha1.NetworkConfigGroupVersionResource),
-						PeeringPhase: consts.PeeringPhaseOutgoing,
+						GroupVersionResource: netv1alpha1.NetworkConfigGroupVersionResource,
+						PeeringPhase:         consts.PeeringPhaseOutgoing,
 					},
 				},
 				peeringPhases: map[string]consts.PeeringPhase{
@@ -151,11 +147,10 @@ var _ = Describe("PeeringPhase-Based Replication", func() {
 
 			Entry("not replicated resource (peering not established)", outgoingReplicationTestcase{
 				resource: getObj(),
-				registeredResources: []configv1alpha1.Resource{
+				registeredResources: []Resource{
 					{
-						GroupVersionResource: metav1.GroupVersionResource(
-							netv1alpha1.NetworkConfigGroupVersionResource),
-						PeeringPhase: consts.PeeringPhaseEstablished,
+						GroupVersionResource: netv1alpha1.NetworkConfigGroupVersionResource,
+						PeeringPhase:         consts.PeeringPhaseEstablished,
 					},
 				},
 				peeringPhases: map[string]consts.PeeringPhase{
@@ -174,9 +169,9 @@ var _ = Describe("PeeringPhase-Based Replication", func() {
 			gvr := discoveryv1alpha1.GroupVersion.WithResource("resourcerequests")
 			remoteNamespace := "remote-1"
 
-			controller.RegisteredResources = []configv1alpha1.Resource{
+			controller.RegisteredResources = []Resource{
 				{
-					GroupVersionResource: metav1.GroupVersionResource(gvr),
+					GroupVersionResource: gvr,
 					PeeringPhase:         consts.PeeringPhaseEstablished,
 				},
 			}

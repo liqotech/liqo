@@ -13,7 +13,6 @@ import (
 	"k8s.io/klog/v2"
 	ctrl "sigs.k8s.io/controller-runtime"
 
-	configv1alpha1 "github.com/liqotech/liqo/apis/config/v1alpha1"
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	crdreplicator "github.com/liqotech/liqo/internal/crdReplicator"
 	"github.com/liqotech/liqo/pkg/clusterid"
@@ -80,17 +79,16 @@ func main() {
 	namespaceManager := tenantnamespace.NewTenantNamespaceManager(k8sClient)
 	dynClient := dynamic.NewForConfigOrDie(cfg)
 	d := &crdreplicator.Controller{
-		Scheme:                mgr.GetScheme(),
-		Client:                mgr.GetClient(),
-		ClientSet:             k8sClient,
-		ClusterID:             clusterID,
-		RemoteDynClients:      make(map[string]dynamic.Interface),
-		LocalDynClient:        dynClient,
-		RegisteredResources:   nil,
-		UnregisteredResources: nil,
-		LocalWatchers:         make(map[string]chan struct{}),
-		RemoteWatchers:        make(map[string]map[string]chan struct{}),
-		NamespaceManager:      namespaceManager,
+		Scheme:              mgr.GetScheme(),
+		Client:              mgr.GetClient(),
+		ClientSet:           k8sClient,
+		ClusterID:           clusterID,
+		RemoteDynClients:    make(map[string]dynamic.Interface),
+		LocalDynClient:      dynClient,
+		RegisteredResources: crdreplicator.GetResourcesToReplicate(),
+		LocalWatchers:       make(map[string]chan struct{}),
+		RemoteWatchers:      make(map[string]map[string]chan struct{}),
+		NamespaceManager:    namespaceManager,
 		IdentityReader: identitymanager.NewCertificateIdentityReader(
 			k8sClient, clusterIDInterface, namespaceManager),
 		LocalToRemoteNamespaceMapper:     map[string]string{},
@@ -102,11 +100,7 @@ func main() {
 		klog.Error(err, "unable to setup the crdreplicator-operator")
 		os.Exit(1)
 	}
-	err = d.WatchConfiguration(cfg, &configv1alpha1.GroupVersion)
-	if err != nil {
-		klog.Error(err)
-		os.Exit(-1)
-	}
+
 	klog.Info("Starting crdreplicator-operator")
 	if err := mgr.Start(ctrl.SetupSignalHandler()); err != nil {
 		klog.Error(err, "problem running manager")

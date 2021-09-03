@@ -121,7 +121,7 @@ type ForeignClusterReconciler struct {
 // +kubebuilder:rbac:groups=sharing.liqo.io,resources=advertisements,verbs=get;list;watch;create;update;delete
 // +kubebuilder:rbac:groups=sharing.liqo.io,resources=advertisements/status,verbs=get;list;watch;create;update;delete
 // +kubebuilder:rbac:groups=core,resources=nodes,verbs=list;watch
-// +kubebuilder:rbac:groups=rbac.authorization.k8s.io,resources=clusterroles,verbs=get;create;update
+// +kubebuilder:rbac:groups=rbac.authorization.k8s.io,resources=clusterroles,verbs=get;list;watch
 // +kubebuilder:rbac:groups=rbac.authorization.k8s.io,resources=clusterrolebindings,verbs=get;create
 // tenant namespace management
 // +kubebuilder:rbac:groups=core,resources=namespaces,verbs=get;list;watch;create
