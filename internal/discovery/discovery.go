@@ -20,7 +20,6 @@ type Controller struct {
 	configMutex     sync.RWMutex
 	Config          *configv1alpha1.DiscoveryConfig
 	apiServerConfig *configv1alpha1.APIServerConfig
-	authConfig      *configv1alpha1.AuthConfig
 	stopMDNS        chan bool
 	stopMDNSClient  chan bool
 	crdClient       *crdclient.CRDClient

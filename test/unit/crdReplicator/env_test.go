@@ -14,7 +14,6 @@ import (
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/util/retry"
 	"k8s.io/klog/v2"
-	"k8s.io/utils/pointer"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/envtest"
 
@@ -225,9 +224,6 @@ func getClusterConfig() *configv1alpha1.ClusterConfig {
 				ServiceCIDR:     "10.96.0.0/12",
 				ReservedSubnets: []configv1alpha1.CIDR{"10.0.0.0/16"},
 				AdditionalPools: []configv1alpha1.CIDR{},
-			},
-			AuthConfig: configv1alpha1.AuthConfig{
-				EnableAuthentication: pointer.BoolPtr(false),
 			},
 		},
 	}

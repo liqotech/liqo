@@ -12,6 +12,11 @@ apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
   name: {{ include "liqo.prefixedName" $peeringBasic }}
+  labels:
+    {{- include "liqo.labels" $peeringBasic | nindent 4 }}
+    # This label is used by the discovery/authentication logic to retrieve the appropriate ClusterRoles.
+    # In case a change is performed here, the modification must be propagated to the corresponding code definition.
+    auth.liqo.io/remote-peering-permissions: "basic"
 {{ .Files.Get (include "liqo.cluster-role-filename" (dict "prefix" ( include "liqo.prefixedName" $peeringBasic))) }}
 
 ---
@@ -22,6 +27,11 @@ apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
   name: {{ include "liqo.prefixedName" $peeringIncoming }}
+  labels:
+    {{- include "liqo.labels" $peeringIncoming | nindent 4 }}
+    # This label is used by the discovery/authentication logic to retrieve the appropriate ClusterRoles.
+    # In case a change is performed here, the modification must be propagated to the corresponding code definition.
+    auth.liqo.io/remote-peering-permissions: "incoming"
 {{ .Files.Get (include "liqo.cluster-role-filename" (dict "prefix" ( include "liqo.prefixedName" $peeringIncoming))) }}
 
 ---
@@ -32,6 +42,11 @@ apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
   name: {{ include "liqo.prefixedName" $peeringOutgoing }}
+  labels:
+    {{- include "liqo.labels" $peeringOutgoing | nindent 4 }}
+    # This label is used by the discovery/authentication logic to retrieve the appropriate ClusterRoles.
+    # In case a change is performed here, the modification must be propagated to the corresponding code definition.
+    auth.liqo.io/remote-peering-permissions: "outgoing"
 {{ .Files.Get (include "liqo.cluster-role-filename" (dict "prefix" ( include "liqo.prefixedName" $peeringOutgoing))) }}
 
 

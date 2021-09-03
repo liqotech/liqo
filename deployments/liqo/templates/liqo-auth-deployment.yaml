@@ -71,6 +71,7 @@ spec:
           args:
           - --namespace=$(POD_NAMESPACE)
           - --resyncSeconds=30
+          - --enableAuthentication={{ .Values.auth.config.enableAuthentication }}
           {{- if .Values.awsConfig.accessKeyId }}
           - --awsAccessKeyId=$(ACCESS_KEY_ID)
           {{- end }}

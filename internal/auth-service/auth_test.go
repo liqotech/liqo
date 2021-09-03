@@ -22,7 +22,6 @@ import (
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/informers"
 	"k8s.io/client-go/tools/cache"
-	"k8s.io/utils/pointer"
 
 	"github.com/liqotech/liqo/apis/config/v1alpha1"
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
@@ -154,14 +153,13 @@ var _ = Describe("Auth", func() {
 
 		type credentialValidatorTestcase struct {
 			credentials    auth.ServiceAccountIdentityRequest
-			config         v1alpha1.AuthConfig
+			authEnabled    bool
 			expectedOutput types.GomegaMatcher
 		}
 
 		DescribeTable("Credential Validator table",
 			func(c credentialValidatorTestcase) {
-				authService.config = &c.config
-				err := authService.credentialsValidator.checkCredentials(&c.credentials, authService.getConfigProvider(), &tMan)
+				err := authService.credentialsValidator.checkCredentials(&c.credentials, &tMan, c.authEnabled)
 				Expect(err).To(c.expectedOutput)
 			},
 
@@ -170,9 +168,7 @@ var _ = Describe("Auth", func() {
 					Token:     "",
 					ClusterID: "test1",
 				},
-				config: v1alpha1.AuthConfig{
-					EnableAuthentication: pointer.BoolPtr(false),
-				},
+				authEnabled:    false,
 				expectedOutput: BeNil(),
 			}),
 
@@ -181,9 +177,7 @@ var _ = Describe("Auth", func() {
 					Token:     "",
 					ClusterID: "test1",
 				},
-				config: v1alpha1.AuthConfig{
-					EnableAuthentication: pointer.BoolPtr(true),
-				},
+				authEnabled:    true,
 				expectedOutput: HaveOccurred(),
 			}),
 
@@ -192,9 +186,7 @@ var _ = Describe("Auth", func() {
 					Token:     "token",
 					ClusterID: "test1",
 				},
-				config: v1alpha1.AuthConfig{
-					EnableAuthentication: pointer.BoolPtr(true),
-				},
+				authEnabled:    true,
 				expectedOutput: BeNil(),
 			}),
 
@@ -203,9 +195,7 @@ var _ = Describe("Auth", func() {
 					Token:     "token-wrong",
 					ClusterID: "test1",
 				},
-				config: v1alpha1.AuthConfig{
-					EnableAuthentication: pointer.BoolPtr(true),
-				},
+				authEnabled:    true,
 				expectedOutput: HaveOccurred(),
 			}),
 		)
@@ -215,7 +205,7 @@ var _ = Describe("Auth", func() {
 	Context("Certificate Identity Creation", func() {
 
 		var (
-			oldConfig *v1alpha1.AuthConfig
+			oldAuthEnabled bool
 		)
 
 		type certificateTestcase struct {
@@ -225,12 +215,12 @@ var _ = Describe("Auth", func() {
 		}
 
 		BeforeEach(func() {
-			oldConfig = authService.config.DeepCopy()
-			authService.config.EnableAuthentication = pointer.BoolPtr(false)
+			oldAuthEnabled = authService.authenticationEnabled
+			authService.authenticationEnabled = false
 		})
 
 		AfterEach(func() {
-			authService.config = oldConfig.DeepCopy()
+			authService.authenticationEnabled = oldAuthEnabled
 		})
 
 		DescribeTable("Certificate Identity Creation table",
@@ -277,18 +267,6 @@ var _ = Describe("Auth", func() {
 				},
 			}),
 		)
-
-		It("Populate permission", func() {
-			authService.config.PeeringPermission = &v1alpha1.PeeringPermission{
-				Basic: []string{"test"},
-			}
-
-			err := authService.populatePermission()
-			Expect(err).To(BeNil())
-			Expect(len(authService.peeringPermission.Basic)).To(Equal(1))
-			Expect(authService.peeringPermission.Basic[0].Name).To(Equal("test"))
-		})
-
 	})
 
 	Context("errorHandler", func() {

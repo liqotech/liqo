@@ -14,7 +14,6 @@ func (authService *Controller) GetAuthServiceConfig(kubeconfigPath string) {
 	waitFirst := make(chan struct{})
 	isFirst := true
 	go utils.WatchConfiguration(func(configuration *configv1alpha1.ClusterConfig) {
-		authService.handleConfiguration(&configuration.Spec.AuthConfig)
 		authService.handleDiscoveryConfiguration(&configuration.Spec.DiscoveryConfig)
 		authService.handleAPIServerConfiguration(&configuration.Spec.APIServerConfig)
 		if isFirst {
@@ -23,19 +22,6 @@ func (authService *Controller) GetAuthServiceConfig(kubeconfigPath string) {
 		}
 	}, nil, kubeconfigPath)
 	<-waitFirst
-}
-
-func (authService *Controller) handleConfiguration(config *configv1alpha1.AuthConfig) {
-	authService.configMutex.Lock()
-	defer authService.configMutex.Unlock()
-	authService.config = config.DeepCopy()
-}
-
-// GetAuthConfig returns the configuration of the local Authentication service.
-func (authService *Controller) GetAuthConfig() *configv1alpha1.AuthConfig {
-	authService.configMutex.RLock()
-	defer authService.configMutex.RUnlock()
-	return authService.config.DeepCopy()
 }
 
 // GetAPIServerConfig returns the configuration of the local APIServer (address, port).

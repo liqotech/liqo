@@ -10,9 +10,7 @@ import (
 )
 
 type credentialsValidator interface {
-	checkCredentials(roleRequest auth.IdentityRequest, configProvider auth.ConfigProvider, tokenManager tokenManager) error
-
-	isAuthenticationEnabled(configProvider auth.ConfigProvider) bool
+	checkCredentials(roleRequest auth.IdentityRequest, tokenManager tokenManager, authenticationEnabled bool) error
 	validToken(tokenManager tokenManager, token string) (bool, error)
 }
 
@@ -20,11 +18,11 @@ type tokenValidator struct{}
 
 // checkCredentials checks if the provided token is valid for the local cluster given an IdentityRequest.
 func (tokenValidator *tokenValidator) checkCredentials(
-	roleRequest auth.IdentityRequest, configProvider auth.ConfigProvider, tokenManager tokenManager) error {
+	roleRequest auth.IdentityRequest, tokenManager tokenManager, authenticationEnabled bool) error {
 	// token check fails if the token is different from the correct one
 	// and the authentication is disabled
 
-	if !tokenValidator.isAuthenticationEnabled(configProvider) {
+	if !authenticationEnabled {
 		klog.V(3).Infof("[%s] accepting credentials since authentication is disabled", roleRequest.GetClusterID())
 		return nil
 	}
@@ -42,12 +40,6 @@ func (tokenValidator *tokenValidator) checkCredentials(
 		return err
 	}
 	return nil
-}
-
-// isAuthenticationEnabled checks if the empty token is accepted.
-func (tokenValidator *tokenValidator) isAuthenticationEnabled(configProvider auth.ConfigProvider) bool {
-	cnf := configProvider.GetAuthConfig()
-	return cnf.EnableAuthentication != nil && *cnf.EnableAuthentication
 }
 
 // validToken checks if the token provided is valid.

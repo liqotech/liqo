@@ -74,7 +74,7 @@ func (authService *Controller) handleIdentity(
 	// check that the provided credentials are valid
 	klog.V(4).Info("Checking credentials")
 	if err = authService.credentialsValidator.checkCredentials(
-		&identityRequest, authService.getConfigProvider(), authService.getTokenManager()); err != nil {
+		&identityRequest, authService.getTokenManager(), authService.authenticationEnabled); err != nil {
 		klog.Error(err)
 		return nil, err
 	}
