@@ -31,18 +31,26 @@ var (
 	// SchemeBuilder is used to add go types to the GroupVersionKind scheme.
 	SchemeBuilder = &scheme.Builder{GroupVersion: GroupVersion}
 
-	// ForeignClusterGroupVersionResource is the group version resource used to register ForeignCluster CRD.
-	ForeignClusterGroupVersionResource = schema.GroupVersionResource{
-		Group:    GroupVersion.Group,
-		Version:  GroupVersion.Version,
-		Resource: "foreignclusters",
-	}
-
 	// AddToScheme adds the types in this group-version to the given scheme.
 	AddToScheme = SchemeBuilder.AddToScheme
 
-	// ForeignClusterGroupResource is the group resource used to register ForeignCluster CRD.
-	ForeignClusterGroupResource = schema.GroupResource{Group: GroupVersion.Group, Resource: "foreignclusters"}
+	// ForeignClusterResource is the resource name used to register the ForeignCluster CRD.
+	ForeignClusterResource = "foreignclusters"
+
+	// ForeignClusterGroupVersionResource is the group version resource used to register the ForeignCluster CRD.
+	ForeignClusterGroupVersionResource = GroupVersion.WithResource(ForeignClusterResource)
+
+	// ForeignClusterGroupResource is the group resource used to register the ForeignCluster CRD.
+	ForeignClusterGroupResource = schema.GroupResource{Group: GroupVersion.Group, Resource: ForeignClusterResource}
+
+	// ResourceRequestResource is the resource name used to register the ResourceRequest CRD.
+	ResourceRequestResource = "resourcerequests"
+
+	// ResourceRequestGroupVersionResource is the group version resource used to register ResourceRequest CRD.
+	ResourceRequestGroupVersionResource = GroupVersion.WithResource(ResourceRequestResource)
+
+	// ResourceRequestGroupResource is the group resource used to register ResourceRequest CRD.
+	ResourceRequestGroupResource = schema.GroupResource{Group: GroupVersion.Group, Resource: ResourceRequestResource}
 
 	// SearchDomainGroupResource is the group resource used to register SearchDomain CRD.
 	SearchDomainGroupResource = schema.GroupResource{Group: GroupVersion.Group, Resource: "searchdomains"}

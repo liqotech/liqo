@@ -47,20 +47,3 @@ spec:
       - {{ include "liqo.prefixedName" $peeringOutgoing }}
   liqonetConfig:
     {{- .Values.networkManager.config | toYaml | nindent 4 }}
-  dispatcherConfig:
-    resourcesToReplicate:
-    - groupVersionResource:
-        group: discovery.liqo.io
-        version: v1alpha1
-        resource: resourcerequests
-      peeringPhase: Authenticated
-    - groupVersionResource:
-        group: sharing.liqo.io
-        version: v1alpha1
-        resource: resourceoffers
-      peeringPhase: Incoming
-    - groupVersionResource:
-        group: net.liqo.io
-        version: v1alpha1
-        resource: networkconfigs
-      peeringPhase: Established

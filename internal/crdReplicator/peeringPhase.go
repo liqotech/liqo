@@ -8,9 +8,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/klog/v2"
 
-	configv1alpha1 "github.com/liqotech/liqo/apis/config/v1alpha1"
 	"github.com/liqotech/liqo/pkg/consts"
-	foreigncluster "github.com/liqotech/liqo/pkg/utils/foreignCluster"
 )
 
 // checkResourcesOnPeeringPhaseChange checks if some of the replicated resources
@@ -22,7 +20,7 @@ func (c *Controller) checkResourcesOnPeeringPhaseChange(ctx context.Context,
 	remoteClusterID string, currentPhase, oldPhase consts.PeeringPhase) {
 	for i := range c.RegisteredResources {
 		res := &c.RegisteredResources[i]
-		if !foreigncluster.IsReplicationEnabled(oldPhase, res) && foreigncluster.IsReplicationEnabled(currentPhase, res) {
+		if !isReplicationEnabled(oldPhase, res) && isReplicationEnabled(currentPhase, res) {
 			// this change has triggered the replication on this resource
 			klog.Infof("%v -> phase from %v to %v triggers replication of resource %v",
 				remoteClusterID, oldPhase, currentPhase, res.GroupVersionResource)
@@ -37,7 +35,7 @@ func (c *Controller) checkResourcesOnPeeringPhaseChange(ctx context.Context,
 // startResourceReplicationHandler lists all the instances already that are already present
 // in the local cluster and calls the AddHandler on them.
 func (c *Controller) startResourceReplicationHandler(ctx context.Context,
-	remoteClusterID string, res *configv1alpha1.Resource) error {
+	remoteClusterID string, res *Resource) error {
 	localNamespace, err := c.clusterIDToLocalNamespace(remoteClusterID)
 	if err != nil {
 		klog.Error(err)
@@ -48,13 +46,13 @@ func (c *Controller) startResourceReplicationHandler(ctx context.Context,
 	SetLabelsForLocalResources(&listOptions)
 
 	// this change has triggered the replication on this resource
-	resources, err := c.LocalDynClient.Resource(convertGVR(res.GroupVersionResource)).
+	resources, err := c.LocalDynClient.Resource(res.GroupVersionResource).
 		Namespace(localNamespace).List(ctx, listOptions)
 	if err != nil {
 		klog.Error(err)
 		return err
 	}
-	c.addListHandler(resources, convertGVR(res.GroupVersionResource))
+	c.addListHandler(resources, res.GroupVersionResource)
 	return nil
 }
 
@@ -88,4 +86,29 @@ func (c *Controller) setPeeringPhase(clusterID string, phase consts.PeeringPhase
 		c.peeringPhases = map[string]consts.PeeringPhase{}
 	}
 	c.peeringPhases[clusterID] = phase
+}
+
+// isReplicationEnabled indicates if the replication has to be enabled for a given peeringPhase
+// and a given CRD.
+func isReplicationEnabled(peeringPhase consts.PeeringPhase, resource *Resource) bool {
+	switch resource.PeeringPhase {
+	case consts.PeeringPhaseNone:
+		return false
+	case consts.PeeringPhaseAuthenticated:
+		return peeringPhase != consts.PeeringPhaseNone
+	case consts.PeeringPhaseBidirectional:
+		return peeringPhase == consts.PeeringPhaseBidirectional
+	case consts.PeeringPhaseIncoming:
+		return peeringPhase == consts.PeeringPhaseBidirectional || peeringPhase == consts.PeeringPhaseIncoming
+	case consts.PeeringPhaseOutgoing:
+		return peeringPhase == consts.PeeringPhaseBidirectional || peeringPhase == consts.PeeringPhaseOutgoing
+	case consts.PeeringPhaseEstablished:
+		bidirectional := peeringPhase == consts.PeeringPhaseBidirectional
+		incoming := peeringPhase == consts.PeeringPhaseIncoming
+		outgoing := peeringPhase == consts.PeeringPhaseOutgoing
+		return bidirectional || incoming || outgoing
+	default:
+		klog.Warning("Unknown peering phase %v", resource.PeeringPhase)
+		return false
+	}
 }

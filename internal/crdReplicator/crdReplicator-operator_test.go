@@ -14,7 +14,6 @@ import (
 	"k8s.io/client-go/dynamic"
 	"k8s.io/klog/v2"
 
-	configv1alpha1 "github.com/liqotech/liqo/apis/config/v1alpha1"
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	netv1alpha1 "github.com/liqotech/liqo/apis/net/v1alpha1"
 	"github.com/liqotech/liqo/pkg/clusterid"
@@ -92,14 +91,13 @@ func getCRDReplicator() Controller {
 	tenantmanager := tenantnamespace.NewTenantNamespaceManager(k8sclient)
 	clusterIDInterface := clusterid.NewStaticClusterID(localClusterID)
 	return Controller{
-		Scheme:                nil,
-		ClusterID:             localClusterID,
-		RemoteDynClients:      map[string]dynamic.Interface{remoteClusterID: dynClient},
-		RegisteredResources:   nil,
-		UnregisteredResources: nil,
-		RemoteWatchers:        map[string]map[string]chan struct{}{},
-		LocalDynClient:        dynClient,
-		LocalWatchers:         map[string]chan struct{}{},
+		Scheme:              nil,
+		ClusterID:           localClusterID,
+		RemoteDynClients:    map[string]dynamic.Interface{remoteClusterID: dynClient},
+		RegisteredResources: nil,
+		RemoteWatchers:      map[string]map[string]chan struct{}{},
+		LocalDynClient:      dynClient,
+		LocalWatchers:       map[string]chan struct{}{},
 
 		NamespaceManager:                 tenantmanager,
 		IdentityReader:                   identitymanager.NewCertificateIdentityReader(k8sclient, clusterIDInterface, tenantmanager),
@@ -114,9 +112,9 @@ func getCRDReplicator() Controller {
 
 func setupReplication(d *Controller, ownership consts.OwnershipType) {
 	d.ClusterIDToLocalNamespaceMapper["testRemoteClusterID"] = testNamespace
-	d.RegisteredResources = []configv1alpha1.Resource{
+	d.RegisteredResources = []Resource{
 		{
-			GroupVersionResource: metav1.GroupVersionResource(netv1alpha1.NetworkConfigGroupVersionResource),
+			GroupVersionResource: netv1alpha1.NetworkConfigGroupVersionResource,
 			PeeringPhase:         consts.PeeringPhaseAuthenticated,
 			Ownership:            ownership,
 		},
@@ -232,30 +230,18 @@ func TestCRDReplicatorReconciler_StartAndStopWatchers(t *testing.T) {
 	d.ClusterIDToRemoteNamespaceMapper[remoteClusterID] = testNamespace
 	// we add two kind of resources to be watched
 	// then unregister them and check that the watchers have been closed as well
-	test1 := []configv1alpha1.Resource{{
-		GroupVersionResource: metav1.GroupVersionResource{
-			Group:    netv1alpha1.GroupVersion.Group,
-			Version:  netv1alpha1.GroupVersion.Version,
-			Resource: "networkconfigs",
-		},
-		PeeringPhase: consts.PeeringPhaseEstablished,
-		Ownership:    consts.OwnershipShared,
+	test1 := []Resource{{
+		GroupVersionResource: netv1alpha1.NetworkConfigGroupVersionResource,
+		PeeringPhase:         consts.PeeringPhaseEstablished,
+		Ownership:            consts.OwnershipShared,
 	}, {
-		GroupVersionResource: metav1.GroupVersionResource{
-			Group:    netv1alpha1.GroupVersion.Group,
-			Version:  netv1alpha1.GroupVersion.Version,
-			Resource: "tunnelendpoints",
-		},
-		PeeringPhase: consts.PeeringPhaseIncoming, // this will not be replicated with the current peering phase
-		Ownership:    consts.OwnershipShared,
+		GroupVersionResource: netv1alpha1.TunnelEndpointGroupVersionResource,
+		PeeringPhase:         consts.PeeringPhaseIncoming, // this will not be replicated with the current peering phase
+		Ownership:            consts.OwnershipShared,
 	}, {
-		GroupVersionResource: metav1.GroupVersionResource{
-			Group:    discoveryv1alpha1.GroupVersion.Group,
-			Version:  discoveryv1alpha1.GroupVersion.Version,
-			Resource: "resourcerequests",
-		},
-		PeeringPhase: consts.PeeringPhaseEstablished,
-		Ownership:    consts.OwnershipShared,
+		GroupVersionResource: discoveryv1alpha1.ResourceRequestGroupVersionResource,
+		PeeringPhase:         consts.PeeringPhaseEstablished,
+		Ownership:            consts.OwnershipShared,
 	}}
 	d.RegisteredResources = test1
 
@@ -284,7 +270,7 @@ func TestCRDReplicatorReconciler_StartAndStopWatchers(t *testing.T) {
 	unstruct, err := runtime.DefaultUnstructuredConverter.ToUnstructured(resourceRequest)
 	assert.Nil(t, err, "should be nil")
 	_, err = d.RemoteDynClients[remoteClusterID].
-		Resource(discoveryv1alpha1.GroupVersion.WithResource("resourcerequests")).
+		Resource(discoveryv1alpha1.ResourceRequestGroupVersionResource).
 		Namespace(testNamespace).
 		Create(context.TODO(), &unstructured.Unstructured{Object: unstruct}, metav1.CreateOptions{})
 	assert.Nil(t, err, "should be nil")
@@ -292,16 +278,14 @@ func TestCRDReplicatorReconciler_StartAndStopWatchers(t *testing.T) {
 	d.StartWatchers()
 	assert.Equal(t, 2, len(d.RemoteWatchers[remoteClusterID]), "it should be 2")
 	assert.Equal(t, 3, len(d.LocalWatchers), "it should be 3")
-	for _, r := range test1 {
-		d.UnregisteredResources = append(d.UnregisteredResources, r.GroupVersionResource)
-	}
+
+	d.peeringPhases[remoteClusterID] = consts.PeeringPhaseNone
 	d.StopWatchers()
 	assert.Equal(t, 0, len(d.RemoteWatchers[remoteClusterID]), "it should be 0")
-	d.UnregisteredResources = []metav1.GroupVersionResource{}
 
 	// check that the resource has been deleted when the watcher stops
 	list, err := d.RemoteDynClients[remoteClusterID].
-		Resource(discoveryv1alpha1.GroupVersion.WithResource("resourcerequests")).
+		Resource(discoveryv1alpha1.ResourceRequestGroupVersionResource).
 		List(context.TODO(), metav1.ListOptions{})
 	assert.Nil(t, err, "should be nil")
 	assert.Equal(t, 0, len(list.Items), "the list should be empty")

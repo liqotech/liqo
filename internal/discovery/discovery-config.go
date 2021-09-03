@@ -1,12 +1,8 @@
 package discovery
 
 import (
-	"context"
 	"reflect"
 
-	rbacv1 "k8s.io/api/rbac/v1"
-	"k8s.io/apimachinery/pkg/api/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/klog/v2"
 
 	configv1alpha1 "github.com/liqotech/liqo/apis/config/v1alpha1"
@@ -46,7 +42,6 @@ func (discovery *Controller) getDiscoveryConfig(client *crdclient.CRDClient, kub
 	isFirst := true
 	go utils.WatchConfiguration(func(configuration *configv1alpha1.ClusterConfig) {
 		discovery.handleConfiguration(&configuration.Spec.DiscoveryConfig)
-		discovery.handleDispatcherConfig(&configuration.Spec.DispatcherConfig)
 		discovery.handleAPIServerConfig(&configuration.Spec.APIServerConfig)
 		discovery.handleAuthConfig(&configuration.Spec.AuthConfig)
 		if isFirst {
@@ -84,58 +79,6 @@ func (discovery *Controller) handleAPIServerConfig(config *configv1alpha1.APISer
 	}
 
 	discovery.apiServerConfig = config.DeepCopy()
-}
-
-func (discovery *Controller) handleDispatcherConfig(config *configv1alpha1.DispatcherConfig) {
-	discovery.configMutex.Lock()
-	defer discovery.configMutex.Unlock()
-
-	if reflect.DeepEqual(config, discovery.crdReplicatorConfig) {
-		klog.V(6).Info("New and old crdReplicator configs are deep equals")
-		klog.V(8).Infof("Old config: %v\nNew config: %v", discovery.crdReplicatorConfig, config)
-		return
-	}
-
-	role, err := discovery.crdClient.Client().RbacV1().ClusterRoles().Get(context.TODO(), "crdreplicator-role",
-		metav1.GetOptions{})
-	create := false
-	if errors.IsNotFound(err) {
-		// create it
-		role = &rbacv1.ClusterRole{
-			ObjectMeta: metav1.ObjectMeta{
-				Name: "crdreplicator-role",
-			},
-			Rules: []rbacv1.PolicyRule{},
-		}
-		create = true
-	} else if err != nil {
-		// other errors
-		klog.Error(err)
-		return
-	}
-
-	// create rules array
-	rules := []rbacv1.PolicyRule{}
-	for _, res := range config.ResourcesToReplicate {
-		rules = append(rules, rbacv1.PolicyRule{
-			Verbs:     []string{"get", "update", "patch", "list", "watch", "delete", "create", "deletecollection"},
-			APIGroups: []string{res.GroupVersionResource.Group},
-			Resources: []string{res.GroupVersionResource.Resource, res.GroupVersionResource.Resource + "/status"},
-		})
-	}
-	role.Rules = rules
-
-	if create {
-		_, err = discovery.crdClient.Client().RbacV1().ClusterRoles().Create(context.TODO(), role, metav1.CreateOptions{})
-	} else {
-		_, err = discovery.crdClient.Client().RbacV1().ClusterRoles().Update(context.TODO(), role, metav1.UpdateOptions{})
-	}
-	if err != nil {
-		klog.Error(err)
-		return
-	}
-
-	discovery.crdReplicatorConfig = config.DeepCopy()
 }
 
 func (discovery *Controller) handleConfiguration(config *configv1alpha1.DiscoveryConfig) {

@@ -132,9 +132,9 @@ rules:
   resources:
   - clusterroles
   verbs:
-  - create
   - get
-  - update
+  - list
+  - watch
 - apiGroups:
   - rbac.authorization.k8s.io
   resources:

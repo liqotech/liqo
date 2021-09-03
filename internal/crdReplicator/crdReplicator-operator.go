@@ -29,7 +29,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 
-	configv1alpha1 "github.com/liqotech/liqo/apis/config/v1alpha1"
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	"github.com/liqotech/liqo/pkg/consts"
 	identitymanager "github.com/liqotech/liqo/pkg/identityManager"
@@ -76,10 +75,7 @@ type Controller struct {
 	RemoteDynClients map[string]dynamic.Interface // for each remote cluster we save dynamic client connected to its API server
 	LocalDynClient   dynamic.Interface            // dynamic client pointing to the local API server
 	// RegisteredResources is a list of GVRs of resources to be replicated, with the associated peering phase when the replication has to occur.
-	RegisteredResources []configv1alpha1.Resource
-	// UnregisteredResources, each time a resource is removed from the configuration it is saved in this list,
-	// it stays here until the associated watcher, if running, is stopped.
-	UnregisteredResources []metav1.GroupVersionResource
+	RegisteredResources []Resource
 	// LocalWatchers, we save all the running watchers monitoring the local resources:(registeredResource, chan)).
 	LocalWatchers map[string]chan struct{}
 	// RemoteWatchers, for each peering cluster we save all the running watchers monitoring the replicated resources:
@@ -431,21 +427,20 @@ func (c *Controller) StartWatchers() {
 		}
 		for i := range c.RegisteredResources {
 			res := &c.RegisteredResources[i]
-			if !foreigncluster.IsReplicationEnabled(c.getPeeringPhase(remCluster), res) {
+			if !isReplicationEnabled(c.getPeeringPhase(remCluster), res) {
 				continue
 			}
 
-			gvr := convertGVR(res.GroupVersionResource)
 			// if there is not then start one
-			if _, ok := watchers[gvr.String()]; !ok {
+			if _, ok := watchers[res.GroupVersionResource.String()]; !ok {
 				stopCh := make(chan struct{})
-				watchers[gvr.String()] = stopCh
+				watchers[res.GroupVersionResource.String()] = stopCh
 				remoteNamespace, err := c.clusterIDToRemoteNamespace(remCluster)
 				if err != nil {
 					klog.Error(err)
 					continue
 				}
-				go c.watcher(remDynClient, remoteNamespace, gvr, cache.ResourceEventHandlerFuncs{
+				go c.watcher(remDynClient, remoteNamespace, res.GroupVersionResource, cache.ResourceEventHandlerFuncs{
 					AddFunc: func(newObj interface{}) {
 						c.remoteAddWrapper(remDynClient, newObj)
 					},
@@ -453,46 +448,34 @@ func (c *Controller) StartWatchers() {
 						c.remoteModifiedWrapper(remDynClient, newObj)
 					},
 				}, stopCh, c.SetLabelsForRemoteResources)
-				klog.Infof("%s -> starting remote watcher for resource: %s", remCluster, gvr.String())
+				klog.Infof("%s -> starting remote watcher for resource: %s", remCluster, res.GroupVersionResource.String())
 			}
 		}
 		c.RemoteWatchers[remCluster] = watchers
 	}
 	// check if the local watchers are running for each registered resource
 	for _, res := range c.RegisteredResources {
-		gvr := convertGVR(res.GroupVersionResource)
 		// if there is not a running local watcher then start one
-		if _, ok := c.LocalWatchers[gvr.String()]; !ok {
+		if _, ok := c.LocalWatchers[res.GroupVersionResource.String()]; !ok {
 			stopCh := make(chan struct{})
-			c.LocalWatchers[gvr.String()] = stopCh
-			go c.watcher(c.LocalDynClient, metav1.NamespaceAll, gvr, cache.ResourceEventHandlerFuncs{
+			c.LocalWatchers[res.GroupVersionResource.String()] = stopCh
+			go c.watcher(c.LocalDynClient, metav1.NamespaceAll, res.GroupVersionResource, cache.ResourceEventHandlerFuncs{
 				AddFunc:    c.AddFunc,
 				UpdateFunc: c.UpdateFunc,
 				DeleteFunc: c.DeleteFunc,
 			}, stopCh, SetLabelsForLocalResources)
-			klog.Infof("%s -> starting local watcher for resource: %s", c.ClusterID, gvr.String())
+			klog.Infof("%s -> starting local watcher for resource: %s", c.ClusterID, res.GroupVersionResource.String())
 		}
 	}
 }
 
 // StopWatchers stops all the watchers for the resources that have been unregistered.
 func (c *Controller) StopWatchers() {
-	// stop all remote watchers for unregistered resources
+	// stop all remote watchers for those resources no more needed
 	for remCluster, watchers := range c.RemoteWatchers {
-		for _, res := range c.UnregisteredResources {
-			if _, ok := watchers[res.String()]; ok {
-				if err := c.cleanupRemoteWatcher(remCluster, res); err != nil {
-					klog.Error(err)
-					continue
-				}
-				klog.Infof("%s -> stopping remote watcher for resource: %s", remCluster, res)
-			}
-		}
-
-		// stop watchers for those resources no more needed
 		for i := range c.RegisteredResources {
 			res := &c.RegisteredResources[i]
-			if foreigncluster.IsReplicationEnabled(c.getPeeringPhase(remCluster), res) {
+			if isReplicationEnabled(c.getPeeringPhase(remCluster), res) {
 				continue
 			}
 
@@ -507,18 +490,9 @@ func (c *Controller) StopWatchers() {
 
 		c.RemoteWatchers[remCluster] = watchers
 	}
-	// stop all local watchers
-	for i := range c.UnregisteredResources {
-		res := &c.UnregisteredResources[i]
-		if ch, ok := c.LocalWatchers[res.String()]; ok {
-			close(ch)
-			delete(c.LocalWatchers, res.String())
-			klog.Infof("%s -> stopping local watcher for resource: %s", c.ClusterID, res)
-		}
-	}
 }
 
-func (c *Controller) cleanupRemoteWatcher(remoteClusterID string, groupVersionResource metav1.GroupVersionResource) error {
+func (c *Controller) cleanupRemoteWatcher(remoteClusterID string, groupVersionResource schema.GroupVersionResource) error {
 	if ch, ok := c.RemoteWatchers[remoteClusterID][groupVersionResource.String()]; !ok || !isChanOpen(ch) {
 		return nil
 	}
@@ -539,7 +513,7 @@ func (c *Controller) cleanupRemoteWatcher(remoteClusterID string, groupVersionRe
 		return err
 	}
 
-	resourceClient := c.RemoteDynClients[remoteClusterID].Resource(convertGVR(groupVersionResource))
+	resourceClient := c.RemoteDynClients[remoteClusterID].Resource(groupVersionResource)
 	if err := resourceClient.Namespace(namespace).DeleteCollection(context.TODO(), metav1.DeleteOptions{}, metav1.ListOptions{
 		LabelSelector: labels.SelectorFromSet(selector.MatchLabels).String(),
 	}); err != nil {
@@ -725,7 +699,7 @@ func (c *Controller) AddedHandler(obj *unstructured.Unstructured, gvr schema.Gro
 
 	// Get the resource type and check if it needs to be replicated.
 	resource := c.getResource(&gvr)
-	if resource == nil || !foreigncluster.IsReplicationEnabled(c.getPeeringPhase(remoteClusterID), resource) {
+	if resource == nil || !isReplicationEnabled(c.getPeeringPhase(remoteClusterID), resource) {
 		return
 	}
 
@@ -770,7 +744,7 @@ func (c *Controller) ModifiedHandler(obj *unstructured.Unstructured, gvr schema.
 
 	// Get the resource type and check if it needs to be replicated.
 	resource := c.getResource(&gvr)
-	if resource == nil || !foreigncluster.IsReplicationEnabled(c.getPeeringPhase(remoteClusterID), resource) {
+	if resource == nil || !isReplicationEnabled(c.getPeeringPhase(remoteClusterID), resource) {
 		return
 	}
 
@@ -991,14 +965,6 @@ func (c *Controller) UpdateStatus(client dynamic.Interface, gvr schema.GroupVers
 	return nil
 }
 
-func convertGVR(gvr metav1.GroupVersionResource) schema.GroupVersionResource {
-	return schema.GroupVersionResource{
-		Group:    gvr.Group,
-		Version:  gvr.Version,
-		Resource: gvr.Resource,
-	}
-}
-
 func isChanOpen(ch chan struct{}) bool {
 	open := true
 	select {
@@ -1008,15 +974,15 @@ func isChanOpen(ch chan struct{}) bool {
 	return open
 }
 
-func (c *Controller) getResource(gvr *schema.GroupVersionResource) *configv1alpha1.Resource {
+func (c *Controller) getResource(gvr *schema.GroupVersionResource) *Resource {
 	for i := range c.RegisteredResources {
 		if compareGvr(gvr, &c.RegisteredResources[i].GroupVersionResource) {
-			return c.RegisteredResources[i].DeepCopy()
+			return &c.RegisteredResources[i]
 		}
 	}
 	return nil
 }
 
-func compareGvr(gvr1 *schema.GroupVersionResource, gvr2 *metav1.GroupVersionResource) bool {
+func compareGvr(gvr1, gvr2 *schema.GroupVersionResource) bool {
 	return gvr1.Group == gvr2.Group && gvr1.Resource == gvr2.Resource && gvr1.Version == gvr2.Version
 }

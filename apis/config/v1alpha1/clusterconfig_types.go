@@ -20,7 +20,6 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/kubernetes/scheme"
 
-	"github.com/liqotech/liqo/pkg/consts"
 	crdclient "github.com/liqotech/liqo/pkg/crdClient"
 	"github.com/liqotech/liqo/pkg/labelPolicy"
 )
@@ -33,7 +32,6 @@ type ClusterConfigSpec struct {
 	DiscoveryConfig     DiscoveryConfig     `json:"discoveryConfig"`
 	AuthConfig          AuthConfig          `json:"authConfig"`
 	LiqonetConfig       LiqonetConfig       `json:"liqonetConfig"`
-	DispatcherConfig    DispatcherConfig    `json:"dispatcherConfig,omitempty"`
 }
 
 // +kubebuilder:validation:Pattern="^([0-9]{1,3}.){3}[0-9]{1,3}(/([0-9]|[1-2][0-9]|3[0-2]))$"
@@ -188,25 +186,6 @@ type LiqonetConfig struct {
 	// Set of additional user-defined network pools.
 	// Default set of network pools is: [192.168.0.0/16, 10.0.0.0/8, 172.16.0.0/12]
 	AdditionalPools []CIDR `json:"additionalPools"`
-}
-
-// Resource contains a list of resources identified by their GVR.
-type Resource struct {
-	// GroupVersionResource contains the GVR of the resource to replicate.
-	GroupVersionResource metav1.GroupVersionResource `json:"groupVersionResource"`
-	// PeeringPhase contains the peering phase when this resource should be replicated.
-	// +kubebuilder:validation:Enum="None";"Authenticated";"Established";"Incoming";"Outgoing";"Bidirectional"
-	// +kubebuilder:default="None"
-	PeeringPhase consts.PeeringPhase `json:"peeringPhase,omitempty"`
-	// Ownership indicates the ownership over this resource.
-	// +kubebuilder:validation:Enum="Local";"Shared"
-	// +kubebuilder:default="Shared"
-	Ownership consts.OwnershipType `json:"ownership,omitempty"`
-}
-
-// DispatcherConfig defines the configuration of the CRDReplicator.
-type DispatcherConfig struct {
-	ResourcesToReplicate []Resource `json:"resourcesToReplicate,omitempty"`
 }
 
 // ClusterConfigStatus defines the observed state of ClusterConfig.

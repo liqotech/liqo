@@ -38,7 +38,13 @@ var (
 )
 
 func setupDispatcherOperator() error {
-	var err error
+
+	resources := []crdreplicator.Resource{{
+		GroupVersionResource: netv1alpha1.TunnelEndpointGroupVersionResource,
+		PeeringPhase:         consts.PeeringPhaseAuthenticated,
+		Ownership:            consts.OwnershipLocal,
+	}}
+
 	localDynClient := dynamic.NewForConfigOrDie(k8sManagerLocal.GetConfig())
 	dOperator = &crdreplicator.Controller{
 		Scheme:                           k8sManagerLocal.GetScheme(),
@@ -47,14 +53,12 @@ func setupDispatcherOperator() error {
 		ClusterID:                        localClusterID,
 		RemoteDynClients:                 peeringClustersDynClients, // we already populate the dynamicClients of the peering clusters
 		LocalDynClient:                   localDynClient,
-		RegisteredResources:              nil,
-		UnregisteredResources:            nil,
+		RegisteredResources:              resources,
 		LocalWatchers:                    make(map[string]chan struct{}),
 		RemoteWatchers:                   make(map[string]map[string]chan struct{}),
 		ClusterIDToRemoteNamespaceMapper: clusterIDToRemoteNamespaceMapper,
 	}
-	err = dOperator.SetupWithManager(k8sManagerLocal)
-	if err != nil {
+	if err := dOperator.SetupWithManager(k8sManagerLocal); err != nil {
 		klog.Error(err, err.Error())
 		return err
 	}

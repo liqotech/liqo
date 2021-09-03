@@ -20,7 +20,6 @@ import (
 
 	configv1alpha1 "github.com/liqotech/liqo/apis/config/v1alpha1"
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
-	netv1alpha1 "github.com/liqotech/liqo/apis/net/v1alpha1"
 	crdreplicator "github.com/liqotech/liqo/internal/crdReplicator"
 	"github.com/liqotech/liqo/pkg/consts"
 	crdclient "github.com/liqotech/liqo/pkg/crdClient"
@@ -72,11 +71,6 @@ func startDispatcherOperator() {
 	configLocal := k8sManagerLocal.GetConfig()
 	// gotta go fast during tests -- we don't really care about overwhelming our test API server
 	restcfg.SetRateLimiterWithCustomParamenters(configLocal, 1000, 2000)
-	err = dOperator.WatchConfiguration(configLocal, &configv1alpha1.GroupVersion)
-	if err != nil {
-		klog.Errorf("an error occurred while starting the configuration watcher of crdreplicator operator: %s", err)
-		os.Exit(-1)
-	}
 	fc := getForeignClusterResource()
 	_, err = dOperator.LocalDynClient.Resource(fcGVR).Create(context.TODO(), fc, metav1.CreateOptions{})
 	if err != nil {
@@ -196,19 +190,8 @@ func tearDown() {
 }
 
 func updateOwnership(ownership consts.OwnershipType) {
-	tmp, err := configClusterClient.Resource("clusterconfigs").Get("configuration", &metav1.GetOptions{})
-	if err != nil {
-		klog.Error(err)
-		os.Exit(1)
-	}
-	cc, _ := tmp.(*configv1alpha1.ClusterConfig)
-	for i := range cc.Spec.DispatcherConfig.ResourcesToReplicate {
-		cc.Spec.DispatcherConfig.ResourcesToReplicate[i].Ownership = ownership
-	}
-	_, err = configClusterClient.Resource("clusterconfigs").Update("configuration", cc, &metav1.UpdateOptions{})
-	if err != nil {
-		klog.Error(err)
-		os.Exit(1)
+	for i := range dOperator.RegisteredResources {
+		dOperator.RegisteredResources[i].Ownership = ownership
 	}
 }
 
@@ -243,15 +226,6 @@ func getClusterConfig() *configv1alpha1.ClusterConfig {
 				ReservedSubnets: []configv1alpha1.CIDR{"10.0.0.0/16"},
 				AdditionalPools: []configv1alpha1.CIDR{},
 			},
-			DispatcherConfig: configv1alpha1.DispatcherConfig{ResourcesToReplicate: []configv1alpha1.Resource{{
-				GroupVersionResource: metav1.GroupVersionResource{
-					Group:    netv1alpha1.GroupVersion.Group,
-					Version:  netv1alpha1.GroupVersion.Version,
-					Resource: "tunnelendpoints",
-				},
-				PeeringPhase: consts.PeeringPhaseAuthenticated,
-				Ownership:    consts.OwnershipLocal,
-			}}},
 			AuthConfig: configv1alpha1.AuthConfig{
 				EnableAuthentication: pointer.BoolPtr(false),
 			},
