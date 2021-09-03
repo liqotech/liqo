@@ -137,6 +137,15 @@ func (k *aksProvider) UpdateChartValues(values map[string]interface{}) {
 			"clusterLabels": installutils.GetInterfaceMap(k.clusterLabels),
 		},
 	}
+	values["virtualKubelet"] = map[string]interface{}{
+		"virtualNode": map[string]interface{}{
+			"extra": map[string]interface{}{
+				"labels": map[string]interface{}{
+					"kubernetes.azure.com/managed": "false",
+				},
+			},
+		},
+	}
 }
 
 // GenerateFlags generates the set of specific subpath and flags are accepted for a specific provider.

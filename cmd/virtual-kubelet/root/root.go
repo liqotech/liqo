@@ -143,7 +143,8 @@ func runRootCommand(ctx context.Context, s *provider.Store, c *Opts) error {
 
 	var nodeRunner *node.NodeController
 
-	pNode, err := NodeFromProvider(ctx, c.NodeName, p, c.Version, []metav1.OwnerReference{})
+	pNode, err := NodeFromProvider(ctx, c.NodeName, p, c.Version, []metav1.OwnerReference{},
+		c.NodeExtraAnnotations.StringMap, c.NodeExtraLabels.StringMap)
 	if err != nil {
 		klog.Fatal(err)
 	}

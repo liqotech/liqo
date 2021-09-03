@@ -44,6 +44,9 @@ func InstallFlags(flags *pflag.FlagSet, c *Opts) {
 		"connect to in order to contact the IPAM module")
 	flags.BoolVar(&c.Profiling, "enable-profiling", c.Profiling, "Enable pprof profiling")
 
+	flags.Var(&c.NodeExtraAnnotations, "node-extra-annotations", "Extra annotations to add to the Virtual Node")
+	flags.Var(&c.NodeExtraLabels, "node-extra-labels", "Extra labels to add to the Virtual Node")
+
 	flagset := flag.NewFlagSet("klog", flag.PanicOnError)
 	klog.InitFlags(flagset)
 	flagset.VisitAll(func(f *flag.Flag) {

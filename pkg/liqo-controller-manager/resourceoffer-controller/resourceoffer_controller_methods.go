@@ -148,6 +148,9 @@ func (r *ResourceOfferReconciler) createVirtualKubeletDeployment(
 
 	op, err = controllerutil.CreateOrUpdate(ctx, r.Client, vkDeployment, func() error {
 		// set the "owner" object name in the annotation to be able to reconcile deployment changes
+		if vkDeployment.Annotations == nil {
+			vkDeployment.Annotations = map[string]string{}
+		}
 		vkDeployment.Annotations[resourceOfferAnnotation] = resourceOffer.GetName()
 		return nil
 	})
@@ -208,7 +211,7 @@ func (r *ResourceOfferReconciler) deleteClusterRoleBinding(
 func (r *ResourceOfferReconciler) getVirtualKubeletDeployment(
 	ctx context.Context, resourceOffer *sharingv1alpha1.ResourceOffer) (*appsv1.Deployment, error) {
 	var deployList appsv1.DeploymentList
-	labels := forge.VirtualKubeletLabels(resourceOffer.Spec.ClusterId)
+	labels := forge.VirtualKubeletLabels(resourceOffer.Spec.ClusterId, r.virtualKubeletOpts)
 	if err := r.Client.List(ctx, &deployList, client.MatchingLabels(labels)); err != nil {
 		klog.Error(err)
 		return nil, err

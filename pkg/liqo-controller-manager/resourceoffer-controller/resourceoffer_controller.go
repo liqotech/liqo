@@ -60,7 +60,7 @@ type ResourceOfferReconciler struct {
 
 	liqoNamespace string
 
-	virtualKubeletOpts forge.VirtualKubeletOpts
+	virtualKubeletOpts *forge.VirtualKubeletOpts
 
 	resyncPeriod       time.Duration
 	configuration      *configv1alpha1.ClusterConfig

@@ -12,9 +12,8 @@ import (
 // NewResourceOfferController creates and returns a new reconciler for the ResourceOffers.
 func NewResourceOfferController(
 	mgr manager.Manager, clusterID clusterid.ClusterID,
-	resyncPeriod time.Duration, virtualKubeletImage,
-	initVirtualKubeletImage, liqoNamespace string,
-	disableKubeletCertGeneration bool) *ResourceOfferReconciler {
+	resyncPeriod time.Duration, liqoNamespace string,
+	virtualKubeletOpts *forge.VirtualKubeletOpts) *ResourceOfferReconciler {
 	return &ResourceOfferReconciler{
 		Client: mgr.GetClient(),
 		Scheme: mgr.GetScheme(),
@@ -24,11 +23,7 @@ func NewResourceOfferController(
 
 		liqoNamespace: liqoNamespace,
 
-		virtualKubeletOpts: forge.VirtualKubeletOpts{
-			ContainerImage:        virtualKubeletImage,
-			InitContainerImage:    initVirtualKubeletImage,
-			DisableCertGeneration: disableKubeletCertGeneration,
-		},
+		virtualKubeletOpts: virtualKubeletOpts,
 
 		resyncPeriod: resyncPeriod,
 	}

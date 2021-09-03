@@ -184,6 +184,20 @@ virtualKubelet:
   initContainer:
     # -- virtual kubelet init container image repository
     imageName: "liqo/init-virtual-kubelet"
+  # add additional values for this fields to add to virtual kubelet deployments and pods
+  extra:
+    # -- virtual kubelet pod extra annotations
+    annotations: {}
+    # -- virtual kubelet pod extra labels
+    labels: {}
+    # -- virtual kubelet pod extra arguments
+    args: []
+  virtualNode:
+    extra:
+      # -- virtual node extra annotations
+      annotations: {}
+      # -- virtual node extra labels
+      labels: {}
 
 # -- liqo name override
 nameOverride: ""

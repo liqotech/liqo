@@ -12,14 +12,15 @@ import (
 
 // VirtualKubeletDeployment forges the deployment for a virtual-kubelet.
 func VirtualKubeletDeployment(remoteClusterID, vkName, vkNamespace, liqoNamespace,
-	nodeName, homeClusterID string, opts VirtualKubeletOpts) (*appsv1.Deployment, error) {
-	vkLabels := VirtualKubeletLabels(remoteClusterID)
+	nodeName, homeClusterID string, opts *VirtualKubeletOpts) (*appsv1.Deployment, error) {
+	vkLabels := VirtualKubeletLabels(remoteClusterID, opts)
+	annotations := opts.ExtraAnnotations
 	return &appsv1.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:        vkName,
 			Namespace:   vkNamespace,
 			Labels:      vkLabels,
-			Annotations: map[string]string{},
+			Annotations: annotations,
 		},
 		Spec: appsv1.DeploymentSpec{
 			Selector: &metav1.LabelSelector{
@@ -27,7 +28,8 @@ func VirtualKubeletDeployment(remoteClusterID, vkName, vkNamespace, liqoNamespac
 			},
 			Template: v1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
-					Labels: vkLabels,
+					Labels:      vkLabels,
+					Annotations: annotations,
 				},
 				Spec: forgeVKPodSpec(vkName, vkNamespace, liqoNamespace, homeClusterID, remoteClusterID, nodeName, opts),
 			},
@@ -36,11 +38,11 @@ func VirtualKubeletDeployment(remoteClusterID, vkName, vkNamespace, liqoNamespac
 }
 
 // VirtualKubeletLabels forges the labels for a virtual-kubelet.
-func VirtualKubeletLabels(remoteClusterID string) map[string]string {
+func VirtualKubeletLabels(remoteClusterID string, opts *VirtualKubeletOpts) map[string]string {
 	kubeletDynamicLabels := map[string]string{
 		discovery.ClusterIDLabel: remoteClusterID,
 	}
-	return merge(vkMachinery.KubeletBaseLabels, kubeletDynamicLabels)
+	return merge(vkMachinery.KubeletBaseLabels, kubeletDynamicLabels, opts.ExtraLabels)
 }
 
 func merge(m map[string]string, ms ...map[string]string) map[string]string {

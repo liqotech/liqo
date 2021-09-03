@@ -35,7 +35,8 @@ const (
 
 // NodeFromProvider builds a kubernetes node object from a provider
 // This is a temporary solution until node stuff actually split off from the provider interface itself.
-func NodeFromProvider(ctx context.Context, name string, p provider.Provider, version string, refs []metav1.OwnerReference) (*corev1.Node, error) {
+func NodeFromProvider(ctx context.Context, name string, p provider.Provider, version string, refs []metav1.OwnerReference,
+	nodeExtraAnnotations, nodeExtraLabels map[string]string) (*corev1.Node, error) {
 	taints := make([]corev1.Taint, 0)
 
 	taint, err := buildTaint()
@@ -47,6 +48,7 @@ func NodeFromProvider(ctx context.Context, name string, p provider.Provider, ver
 		taints = append(taints, *taint)
 	}
 
+	annotations := nodeExtraAnnotations
 	node := &corev1.Node{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: name,
@@ -55,6 +57,7 @@ func NodeFromProvider(ctx context.Context, name string, p provider.Provider, ver
 				"kubernetes.io/role":     "agent",
 				"kubernetes.io/hostname": name,
 			},
+			Annotations: annotations,
 		},
 		Spec: corev1.NodeSpec{
 			Taints: taints,
@@ -68,6 +71,10 @@ func NodeFromProvider(ctx context.Context, name string, p provider.Provider, ver
 	}
 	if len(refs) > 0 {
 		node.SetOwnerReferences(refs)
+	}
+
+	for k, v := range nodeExtraLabels {
+		node.ObjectMeta.Labels[k] = v
 	}
 
 	p.ConfigureNode(ctx, node)

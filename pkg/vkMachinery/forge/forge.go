@@ -47,7 +47,7 @@ func forgeVKVolumes() []v1.Volume {
 	return volumes
 }
 
-func forgeVKInitContainers(nodeName string, opts VirtualKubeletOpts) []v1.Container {
+func forgeVKInitContainers(nodeName string, opts *VirtualKubeletOpts) []v1.Container {
 	if opts.DisableCertGeneration {
 		return []v1.Container{}
 	}
@@ -90,7 +90,7 @@ func forgeVKInitContainers(nodeName string, opts VirtualKubeletOpts) []v1.Contai
 
 func forgeVKContainers(
 	vkImage string, remoteClusterID,
-	nodeName, vkNamespace, liqoNamespace, homeClusterID string) []v1.Container {
+	nodeName, vkNamespace, liqoNamespace, homeClusterID string, opts *VirtualKubeletOpts) []v1.Container {
 	command := []string{
 		"/usr/bin/virtual-kubelet",
 	}
@@ -105,6 +105,14 @@ func forgeVKContainers(
 		"--enable-node-lease",
 		"--klog.v=4",
 	}
+
+	if extraAnnotations := opts.NodeExtraAnnotations.StringMap; len(extraAnnotations) != 0 {
+		args = append(args, stringifyArgument("--node-extra-annotations", opts.NodeExtraAnnotations.String()))
+	}
+	if extraLabels := opts.NodeExtraLabels.StringMap; len(extraLabels) != 0 {
+		args = append(args, stringifyArgument("--node-extra-labels", opts.NodeExtraLabels.String()))
+	}
+	args = append(args, opts.ExtraArgs...)
 
 	volumeMounts := []v1.VolumeMount{
 		{
@@ -153,12 +161,12 @@ func forgeVKContainers(
 
 func forgeVKPodSpec(
 	vkName, vkNamespace, liqoNamespace, homeClusterID string,
-	remoteClusterID, nodeName string, opts VirtualKubeletOpts) v1.PodSpec {
+	remoteClusterID, nodeName string, opts *VirtualKubeletOpts) v1.PodSpec {
 	return v1.PodSpec{
 		Volumes:        forgeVKVolumes(),
 		InitContainers: forgeVKInitContainers(nodeName, opts),
 		Containers: forgeVKContainers(opts.ContainerImage, remoteClusterID,
-			nodeName, vkNamespace, liqoNamespace, homeClusterID),
+			nodeName, vkNamespace, liqoNamespace, homeClusterID, opts),
 		ServiceAccountName: vkName,
 		Affinity:           forgeVKAffinity(),
 	}

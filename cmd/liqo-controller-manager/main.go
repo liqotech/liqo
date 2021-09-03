@@ -45,9 +45,11 @@ import (
 	resourceoffercontroller "github.com/liqotech/liqo/pkg/liqo-controller-manager/resourceoffer-controller"
 	virtualNodectrl "github.com/liqotech/liqo/pkg/liqo-controller-manager/virtualNode-controller"
 	"github.com/liqotech/liqo/pkg/mapperUtils"
+	argsutils "github.com/liqotech/liqo/pkg/utils/args"
 	errorsmanagement "github.com/liqotech/liqo/pkg/utils/errorsManagement"
 	"github.com/liqotech/liqo/pkg/vkMachinery"
 	"github.com/liqotech/liqo/pkg/vkMachinery/csr"
+	"github.com/liqotech/liqo/pkg/vkMachinery/forge"
 )
 
 const (
@@ -81,6 +83,9 @@ func main() {
 	var enableLeaderElection bool
 	var enablePanic bool
 	var liqoNamespace, kubeletImage, initKubeletImage string
+	var kubeletExtraAnnotations, kubeletExtraLabels argsutils.StringMap
+	var kubeletExtraArgs argsutils.StringList
+	var nodeExtraAnnotations, nodeExtraLabels argsutils.StringMap
 	var disableKubeletCertGeneration bool
 	var resyncPeriod int64
 	var offloadingStatusControllerRequeueTime int64
@@ -112,6 +117,11 @@ func main() {
 	flag.BoolVar(&disableKubeletCertGeneration,
 		"disable-kubelet-certificate-generation", false,
 		"Whether to disable the virtual kubelet certificate generation by means of an init container (used for logs/exec capabilities)")
+	flag.Var(&kubeletExtraAnnotations, "kubelet-extra-annotations", "Extra annotations to add to the Virtual Kubelet Deployments and Pods")
+	flag.Var(&kubeletExtraLabels, "kubelet-extra-labels", "Extra labels to add to the Virtual Kubelet Deployments and Pods")
+	flag.Var(&kubeletExtraArgs, "kubelet-extra-args", "Extra arguments to add to the Virtual Kubelet Deployments and Pods")
+	flag.Var(&nodeExtraAnnotations, "node-extra-annotations", "Extra annotations to add to the Virtual Node")
+	flag.Var(&nodeExtraLabels, "node-extra-labels", "Extra labels to add to the Virtual Node")
 
 	klog.InitFlags(nil)
 	flag.Parse()
@@ -192,8 +202,19 @@ func main() {
 		klog.Fatal(err)
 	}
 
+	virtualKubeletOpts := &forge.VirtualKubeletOpts{
+		ContainerImage:        kubeletImage,
+		InitContainerImage:    initKubeletImage,
+		DisableCertGeneration: disableKubeletCertGeneration,
+		ExtraAnnotations:      kubeletExtraAnnotations.StringMap,
+		ExtraLabels:           kubeletExtraLabels.StringMap,
+		ExtraArgs:             kubeletExtraArgs.StringList,
+		NodeExtraAnnotations:  nodeExtraAnnotations,
+		NodeExtraLabels:       nodeExtraLabels,
+	}
+
 	resourceOfferReconciler := resourceoffercontroller.NewResourceOfferController(
-		mgr, clusterID, time.Duration(resyncPeriod), kubeletImage, initKubeletImage, liqoNamespace, disableKubeletCertGeneration)
+		mgr, clusterID, time.Duration(resyncPeriod), liqoNamespace, virtualKubeletOpts)
 	if err = resourceOfferReconciler.SetupWithManager(mgr); err != nil {
 		klog.Fatal(err)
 	}
