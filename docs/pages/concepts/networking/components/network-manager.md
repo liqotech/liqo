@@ -63,7 +63,7 @@ In addition, Liqo enables inter-cluster Pod-to-Pod without making any assumption
 Therefore, Liqo must work even when the peered clusters have the same PodCIDR, hence the two Pods could have conflicting IP addresses.
 
 {{% notice info %}}
-The ExternalCIDR is the IP addressing space used by Liqo for assigning addresses to external resources during Reflection (See more [Here](#reflection-of-external-endpoints)).
+The ExternalCIDR is the IP addressing space used by Liqo for assigning addresses to external resources during Reflection (see more [Here](#reflection-of-external-endpoints)).
 {{% /notice %}}
 
 Liqo, and in particular its IPAM module, checks if the PodCIDR of a remote cluster is already used in the local cluster.
@@ -100,7 +100,7 @@ The Shadow Pod is a local copy of the Pod resource that is created and kept up t
 ![Example IP addresses translation when offloading a Pod](../../../../images/liqonet/offloaded-pod-ip.png)
 
 In this particular example, while pod A1 has IP 10.0.0.34, its shadow copy (in cluster B) will have IP 192.168.0.34.
-Since the IPAM module keeps track of how remote networks have been remapped by the home cluster (See #networks-management), it can take care of the translation of addresses.
+Since the IPAM module keeps track of how remote networks have been remapped by the home cluster (see [Networks management](#networks-management)), it can take care of the translation of addresses.
 For this reason, IPAM provides an API consumed by the VK when the latter has to update the Shadow Pod Status and therefore its IP address.
 
 {{% notice note %}}
