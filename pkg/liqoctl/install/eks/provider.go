@@ -5,7 +5,9 @@ import (
 	"fmt"
 
 	"github.com/aws/aws-sdk-go/aws/session"
+	"github.com/spf13/cobra"
 	flag "github.com/spf13/pflag"
+	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/client-go/rest"
 	"k8s.io/klog/v2"
 
@@ -16,6 +18,13 @@ import (
 
 const (
 	providerPrefix = "eks"
+
+	regionFlag          = "region"
+	clusterNameFlag     = "cluster-name"
+	userNameFlag        = "user-name"
+	policyNameFlag      = "policy-name"
+	accessKeyIDFlag     = "access-key-id"
+	secretAccessKeyFlag = "secret-access-key"
 )
 
 type eksProvider struct {
@@ -49,25 +58,25 @@ func NewProvider() provider.InstallProviderInterface {
 
 // ValidateCommandArguments validates specific arguments passed to the install command.
 func (k *eksProvider) ValidateCommandArguments(flags *flag.FlagSet) (err error) {
-	k.region, err = installutils.CheckStringFlagIsSet(flags, providerPrefix, "region")
+	k.region, err = flags.GetString(regionFlag)
 	if err != nil {
 		return err
 	}
 	klog.V(3).Infof("EKS Region: %v", k.region)
 
-	k.clusterName, err = installutils.CheckStringFlagIsSet(flags, providerPrefix, "cluster-name")
+	k.clusterName, err = flags.GetString(clusterNameFlag)
 	if err != nil {
 		return err
 	}
 	klog.V(3).Infof("EKS ClusterName: %v", k.clusterName)
 
-	k.iamLiqoUser.userName, err = installutils.CheckStringFlagIsSet(flags, providerPrefix, "user-name")
+	k.iamLiqoUser.userName, err = flags.GetString(userNameFlag)
 	if err != nil {
 		return err
 	}
 	klog.V(3).Infof("Liqo IAM username: %v", k.iamLiqoUser.userName)
 
-	k.iamLiqoUser.policyName, err = installutils.CheckStringFlagIsSet(flags, providerPrefix, "policy-name")
+	k.iamLiqoUser.policyName, err = flags.GetString(policyNameFlag)
 	if err != nil {
 		return err
 	}
@@ -75,12 +84,12 @@ func (k *eksProvider) ValidateCommandArguments(flags *flag.FlagSet) (err error) 
 
 	// optional values
 
-	k.iamLiqoUser.accessKeyID, err = flags.GetString(installutils.PrefixedName(providerPrefix, "access-key-id"))
+	k.iamLiqoUser.accessKeyID, err = flags.GetString(accessKeyIDFlag)
 	if err != nil {
 		return err
 	}
 
-	k.iamLiqoUser.secretAccessKey, err = flags.GetString(installutils.PrefixedName(providerPrefix, "secret-access-key"))
+	k.iamLiqoUser.secretAccessKey, err = flags.GetString(secretAccessKeyFlag)
 	if err != nil {
 		return err
 	}
@@ -164,22 +173,20 @@ func (k *eksProvider) UpdateChartValues(values map[string]interface{}) {
 }
 
 // GenerateFlags generates the set of specific subpath and flags are accepted for a specific provider.
-func GenerateFlags(flags *flag.FlagSet) {
-	subFlag := flag.NewFlagSet(providerPrefix, flag.ExitOnError)
-	subFlag.SetNormalizeFunc(func(f *flag.FlagSet, name string) flag.NormalizedName {
-		return flag.NormalizedName(installutils.PrefixedName(providerPrefix, name))
-	})
+func GenerateFlags(command *cobra.Command) {
+	flags := command.Flags()
 
-	subFlag.String("region", "", "The EKS region where your cluster is running")
-	subFlag.String("cluster-name", "", "The EKS clusterName of your cluster")
+	flags.String(regionFlag, "", "The EKS region where your cluster is running")
+	flags.String(clusterNameFlag, "", "The EKS clusterName of your cluster")
 
-	subFlag.String("user-name", "liqo-cluster-user", "The username to assign to the Liqo user. "+
+	flags.String(userNameFlag, "liqo-cluster-user", "The username to assign to the Liqo user. "+
 		"This user will be created if no access keys have been provided, "+
 		"otherwise liqoctl assumes that the provided keys are related to this user (optional)")
-	subFlag.String("policy-name", "liqo-cluster-policy", "The name of the policy to assign to the Liqo user (optional)")
+	flags.String(policyNameFlag, "liqo-cluster-policy", "The name of the policy to assign to the Liqo user (optional)")
 
-	subFlag.String("access-key-id", "", "The IAM accessKeyID for the Liqo user (optional)")
-	subFlag.String("secret-access-key", "", "The IAM secretAccessKey for the Liqo user (optional)")
+	flags.String(accessKeyIDFlag, "", "The IAM accessKeyID for the Liqo user (optional)")
+	flags.String(secretAccessKeyFlag, "", "The IAM secretAccessKey for the Liqo user (optional)")
 
-	flags.AddFlagSet(subFlag)
+	utilruntime.Must(command.MarkFlagRequired(regionFlag))
+	utilruntime.Must(command.MarkFlagRequired(clusterNameFlag))
 }

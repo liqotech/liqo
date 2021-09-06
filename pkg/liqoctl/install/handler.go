@@ -15,12 +15,8 @@ import (
 
 // HandleInstallCommand implements the "install" command. It detects which provider has to be used, generates the chart
 // with provider-specific values. Finally, it performs the installation on the target cluster.
-func HandleInstallCommand(ctx context.Context, cmd *cobra.Command, baseCommand string) {
+func HandleInstallCommand(ctx context.Context, cmd *cobra.Command, baseCommand, providerName string) {
 	config := common.GetLiqoctlRestConfOrDie()
-	providerName, err := cmd.Flags().GetString(providerFlag)
-	if err != nil {
-		return
-	}
 	providerInstance := getProviderInstance(providerName)
 
 	if providerInstance == nil {

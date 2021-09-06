@@ -5,10 +5,12 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/spf13/cobra"
 	flag "github.com/spf13/pflag"
 	"google.golang.org/api/compute/v1"
 	"google.golang.org/api/container/v1"
 	"google.golang.org/api/option"
+	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/client-go/rest"
 	"k8s.io/klog/v2"
 
@@ -19,6 +21,11 @@ import (
 
 const (
 	providerPrefix = "gke"
+
+	credentialsPathFlag = "credentials-path"
+	projectIDFlag       = "project-id"
+	zoneFlag            = "zone"
+	clusterIDFlag       = "cluster-id"
 )
 
 type gkeProvider struct {
@@ -47,25 +54,25 @@ func NewProvider() provider.InstallProviderInterface {
 
 // ValidateCommandArguments validates specific arguments passed to the install command.
 func (k *gkeProvider) ValidateCommandArguments(flags *flag.FlagSet) (err error) {
-	k.credentialsPath, err = installutils.CheckStringFlagIsSet(flags, providerPrefix, "credentials-path")
+	k.credentialsPath, err = flags.GetString(credentialsPathFlag)
 	if err != nil {
 		return err
 	}
 	klog.V(3).Infof("GKE Credentials Path: %v", k.credentialsPath)
 
-	k.projectID, err = installutils.CheckStringFlagIsSet(flags, providerPrefix, "project-id")
+	k.projectID, err = flags.GetString(projectIDFlag)
 	if err != nil {
 		return err
 	}
 	klog.V(3).Infof("GKE ProjectID: %v", k.projectID)
 
-	k.zone, err = installutils.CheckStringFlagIsSet(flags, providerPrefix, "zone")
+	k.zone, err = flags.GetString(zoneFlag)
 	if err != nil {
 		return err
 	}
 	klog.V(3).Infof("GKE Zone: %v", k.zone)
 
-	k.clusterID, err = installutils.CheckStringFlagIsSet(flags, providerPrefix, "cluster-id")
+	k.clusterID, err = flags.GetString(clusterIDFlag)
 	if err != nil {
 		return err
 	}
@@ -146,19 +153,19 @@ func (k *gkeProvider) UpdateChartValues(values map[string]interface{}) {
 }
 
 // GenerateFlags generates the set of specific subpath and flags are accepted for a specific provider.
-func GenerateFlags(flags *flag.FlagSet) {
-	subFlag := flag.NewFlagSet(providerPrefix, flag.ExitOnError)
-	subFlag.SetNormalizeFunc(func(f *flag.FlagSet, name string) flag.NormalizedName {
-		return flag.NormalizedName(installutils.PrefixedName(providerPrefix, name))
-	})
+func GenerateFlags(command *cobra.Command) {
+	flags := command.Flags()
 
-	subFlag.String("credentials-path", "", "Path to the GCP credentials JSON file, "+
+	flags.String(credentialsPathFlag, "", "Path to the GCP credentials JSON file, "+
 		"see https://cloud.google.com/docs/authentication/production#create_service_account for further details")
-	subFlag.String("project-id", "", "The GCP project where your cluster is deployed in")
-	subFlag.String("zone", "", "The GCP zone where your cluster is running")
-	subFlag.String("cluster-id", "", "The GKE clusterID of your cluster")
+	flags.String(projectIDFlag, "", "The GCP project where your cluster is deployed in")
+	flags.String(zoneFlag, "", "The GCP zone where your cluster is running")
+	flags.String(clusterIDFlag, "", "The GKE clusterID of your cluster")
 
-	flags.AddFlagSet(subFlag)
+	utilruntime.Must(command.MarkFlagRequired(credentialsPathFlag))
+	utilruntime.Must(command.MarkFlagRequired(projectIDFlag))
+	utilruntime.Must(command.MarkFlagRequired(zoneFlag))
+	utilruntime.Must(command.MarkFlagRequired(clusterIDFlag))
 }
 
 func (k *gkeProvider) parseClusterOutput(cluster *container.Cluster) {

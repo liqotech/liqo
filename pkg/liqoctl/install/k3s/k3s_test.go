@@ -8,7 +8,7 @@ import (
 	. "github.com/onsi/ginkgo/extensions/table"
 	. "github.com/onsi/gomega"
 	"github.com/onsi/gomega/types"
-	flag "github.com/spf13/pflag"
+	"github.com/spf13/cobra"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -34,13 +34,14 @@ var _ = Describe("Extract elements from K3S", func() {
 
 		p := NewProvider().(*k3sProvider)
 
-		flags := flag.NewFlagSet("test", flag.PanicOnError)
+		cmd := &cobra.Command{}
 
-		GenerateFlags(flags)
+		GenerateFlags(cmd)
 
-		Expect(flags.Set("k3s.pod-cidr", podCIDR)).To(Succeed())
-		Expect(flags.Set("k3s.service-cidr", serviceCIDR)).To(Succeed())
-		Expect(flags.Set("k3s.api-server", apiServer)).To(Succeed())
+		flags := cmd.Flags()
+		Expect(flags.Set("pod-cidr", podCIDR)).To(Succeed())
+		Expect(flags.Set("service-cidr", serviceCIDR)).To(Succeed())
+		Expect(flags.Set("api-server", apiServer)).To(Succeed())
 
 		Expect(p.ValidateCommandArguments(flags)).To(Succeed())
 

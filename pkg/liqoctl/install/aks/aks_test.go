@@ -7,7 +7,7 @@ import (
 	"github.com/Azure/azure-sdk-for-go/services/containerservice/mgmt/2021-07-01/containerservice"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
-	flag "github.com/spf13/pflag"
+	"github.com/spf13/cobra"
 	"k8s.io/utils/pointer"
 
 	"github.com/liqotech/liqo/pkg/consts"
@@ -36,13 +36,14 @@ var _ = Describe("Extract elements from AKS", func() {
 
 		p := NewProvider().(*aksProvider)
 
-		flags := flag.NewFlagSet("test", flag.PanicOnError)
+		cmd := &cobra.Command{}
 
-		GenerateFlags(flags)
+		GenerateFlags(cmd)
 
-		Expect(flags.Set("aks.subscription-id", subscriptionID)).To(Succeed())
-		Expect(flags.Set("aks.resource-group-name", resourceGroupName)).To(Succeed())
-		Expect(flags.Set("aks.resource-name", resourceName)).To(Succeed())
+		flags := cmd.Flags()
+		Expect(flags.Set("subscription-id", subscriptionID)).To(Succeed())
+		Expect(flags.Set("resource-group-name", resourceGroupName)).To(Succeed())
+		Expect(flags.Set("resource-name", resourceName)).To(Succeed())
 
 		Expect(p.ValidateCommandArguments(flags)).To(Succeed())
 

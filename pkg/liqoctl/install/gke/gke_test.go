@@ -5,7 +5,7 @@ import (
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
-	flag "github.com/spf13/pflag"
+	"github.com/spf13/cobra"
 	"google.golang.org/api/container/v1"
 
 	"github.com/liqotech/liqo/pkg/consts"
@@ -33,14 +33,15 @@ var _ = Describe("Extract elements from GKE", func() {
 
 		p := NewProvider().(*gkeProvider)
 
-		flags := flag.NewFlagSet("test", flag.PanicOnError)
+		cmd := &cobra.Command{}
 
-		GenerateFlags(flags)
+		GenerateFlags(cmd)
 
-		Expect(flags.Set("gke.credentials-path", credentialsPath)).To(Succeed())
-		Expect(flags.Set("gke.project-id", projectID)).To(Succeed())
-		Expect(flags.Set("gke.zone", zone)).To(Succeed())
-		Expect(flags.Set("gke.cluster-id", clusterID)).To(Succeed())
+		flags := cmd.Flags()
+		Expect(flags.Set("credentials-path", credentialsPath)).To(Succeed())
+		Expect(flags.Set("project-id", projectID)).To(Succeed())
+		Expect(flags.Set("zone", zone)).To(Succeed())
+		Expect(flags.Set("cluster-id", clusterID)).To(Succeed())
 
 		Expect(p.ValidateCommandArguments(flags)).To(Succeed())
 

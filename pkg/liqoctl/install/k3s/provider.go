@@ -6,6 +6,7 @@ import (
 	"net"
 	"net/url"
 
+	"github.com/spf13/cobra"
 	flag "github.com/spf13/pflag"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -23,6 +24,10 @@ const (
 
 	defaultPodCIDR     = "10.42.0.0/16"
 	defaultServiceCIDR = "10.43.0.0/16"
+
+	podCidrFlag     = "pod-cidr"
+	serviceCidrFlag = "service-cidr"
+	apiServerFlag   = "api-server"
 )
 
 var (
@@ -54,19 +59,19 @@ func NewProvider() provider.InstallProviderInterface {
 
 // ValidateCommandArguments validates specific arguments passed to the install command.
 func (k *k3sProvider) ValidateCommandArguments(flags *flag.FlagSet) (err error) {
-	k.podCIDR, err = installutils.CheckStringFlagIsSet(flags, providerPrefix, "pod-cidr")
+	k.podCIDR, err = flags.GetString(podCidrFlag)
 	if err != nil {
 		return err
 	}
 	klog.V(3).Infof("K3S PodCIDR: %v", k.podCIDR)
 
-	k.serviceCIDR, err = installutils.CheckStringFlagIsSet(flags, providerPrefix, "service-cidr")
+	k.serviceCIDR, err = flags.GetString(serviceCidrFlag)
 	if err != nil {
 		return err
 	}
 	klog.V(3).Infof("K3S ServiceCIDR: %v", k.serviceCIDR)
 
-	k.apiServer, err = flags.GetString(installutils.PrefixedName(providerPrefix, "api-server"))
+	k.apiServer, err = flags.GetString(apiServerFlag)
 	if err != nil {
 		return err
 	}
@@ -127,17 +132,12 @@ func (k *k3sProvider) UpdateChartValues(values map[string]interface{}) {
 }
 
 // GenerateFlags generates the set of specific subpath and flags are accepted for a specific provider.
-func GenerateFlags(flags *flag.FlagSet) {
-	subFlag := flag.NewFlagSet(providerPrefix, flag.ExitOnError)
-	subFlag.SetNormalizeFunc(func(f *flag.FlagSet, name string) flag.NormalizedName {
-		return flag.NormalizedName(installutils.PrefixedName(providerPrefix, name))
-	})
+func GenerateFlags(command *cobra.Command) {
+	flags := command.Flags()
 
-	subFlag.String("pod-cidr", defaultPodCIDR, "The Pod CIDR for your cluster (optional)")
-	subFlag.String("service-cidr", defaultServiceCIDR, "The Service CIDR for your cluster (optional)")
-	subFlag.String("api-server", "", "Your cluster API Server URL (optional)")
-
-	flags.AddFlagSet(subFlag)
+	flags.String(podCidrFlag, defaultPodCIDR, "The Pod CIDR for your cluster (optional)")
+	flags.String(serviceCidrFlag, defaultServiceCIDR, "The Service CIDR for your cluster (optional)")
+	flags.String(apiServerFlag, "", "Your cluster API Server URL (optional)")
 }
 
 // validateServiceCIDR validates that the services in the target cluster matches the provided service CIDR.
