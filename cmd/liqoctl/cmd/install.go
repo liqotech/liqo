@@ -31,6 +31,14 @@ func newInstallCommand(ctx context.Context) *cobra.Command {
 		"Disable the check that the current kubeconfig context contains the same endpoint retrieved from the cloud provider (AKS, EKS, GKE)")
 	installCmd.PersistentFlags().String("chart-path", installutils.LiqoChartFullName,
 		"Specify a path to get the Liqo chart, instead of installing the chart from the official repository")
+	installCmd.PersistentFlags().String("cluster-name", "", "Name to assign to the Liqo Cluster")
+	installCmd.PersistentFlags().String("reserved-subnets", "", "In order to prevent IP conflicting between locally used private subnets in your "+
+		"infrastructure and private subnets belonging to remote clusters "+
+		"you need tell liqo the subnets used in your cluster. E.g if your cluster nodes belong to the 192.168.2.0/24 subnet then "+
+		"you should add that subnet to the reservedSubnets. PodCIDR and serviceCIDR used in the local cluster are automatically "+
+		"added to the reserved list. (e.g. --reserved-subnets 192.168.2.0/24,192.168.4.0/24)")
+	installCmd.PersistentFlags().String("resource-sharing-percentage", "90", "It defines the percentage of available cluster resources that "+
+		"you are willing to share with foreign clusters. It accepts [0 - 100] values.")
 
 	for _, providerName := range providers {
 		cmd, err := getCommand(ctx, providerName)

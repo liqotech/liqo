@@ -1,13 +1,12 @@
 package provider
 
 import (
-	"fmt"
-	"strings"
 	"time"
 
 	flag "github.com/spf13/pflag"
 
 	installutils "github.com/liqotech/liqo/pkg/liqoctl/install/utils"
+	argsutils "github.com/liqotech/liqo/pkg/utils/args"
 )
 
 // CommonArguments encapsulates all the arguments common across install providers.
@@ -71,7 +70,11 @@ func ValidateCommonArguments(flags *flag.FlagSet) (*CommonArguments, error) {
 	if err != nil {
 		return nil, err
 	}
-	commonValues, err := parseCommonValues(clusterLabels, chartPath, version, lanDiscovery)
+	resourceSharingPercentage, err := flags.GetString("resource-sharing-percentage")
+	if err != nil {
+		return nil, err
+	}
+	commonValues, err := parseCommonValues(clusterLabels, chartPath, version, resourceSharingPercentage, lanDiscovery)
 	if err != nil {
 		return nil, err
 	}
@@ -89,19 +92,12 @@ func ValidateCommonArguments(flags *flag.FlagSet) (*CommonArguments, error) {
 	}, nil
 }
 
-func parseCommonValues(clusterLabels, chartPath, version string, lanDiscovery bool) (map[string]interface{}, error) {
-	if clusterLabels == "" {
-		return map[string]interface{}{}, nil
+func parseCommonValues(clusterLabels, chartPath, version, resourceSharingPercentage string, lanDiscovery bool) (map[string]interface{}, error) {
+	clusterLabelsVar := argsutils.StringMap{}
+	if err := clusterLabelsVar.Set(clusterLabels); err != nil {
+		return map[string]interface{}{}, err
 	}
-	parts := strings.Split(strings.Trim(clusterLabels, " "), ",")
-	m := make(map[string]interface{}, len(parts))
-	for i := range parts {
-		label := strings.Split(parts[i], "=")
-		if len(label) != 2 {
-			return map[string]interface{}{}, fmt.Errorf("label string parsing error")
-		}
-		m[label[0]] = label[1]
-	}
+
 	// If the chartPath is different from the official repo, we force the tag parameter in order to set the correct
 	// prefix for the images.
 	// (todo): make the prefix configurable and set the tag when is strictly necessary
@@ -109,13 +105,24 @@ func parseCommonValues(clusterLabels, chartPath, version string, lanDiscovery bo
 	if chartPath != installutils.LiqoChartFullName {
 		tag = version
 	}
+
+	resourceSharingPercentageVal := argsutils.Percentage{}
+	if err := resourceSharingPercentageVal.Set(resourceSharingPercentage); err != nil {
+		return map[string]interface{}{}, err
+	}
+
 	return map[string]interface{}{
 		"tag": tag,
 		"discovery": map[string]interface{}{
 			"config": map[string]interface{}{
-				"clusterLabels":       m,
+				"clusterLabels":       installutils.GetInterfaceMap(clusterLabelsVar.StringMap),
 				"enableDiscovery":     lanDiscovery,
 				"enableAdvertisement": lanDiscovery,
+			},
+		},
+		"controllerManager": map[string]interface{}{
+			"config": map[string]interface{}{
+				"resourceSharingPercentage": float64(resourceSharingPercentageVal.Val),
 			},
 		},
 	}, nil

@@ -20,7 +20,7 @@ const (
 	installLongHelp  = "Install Liqo on a selected %s cluster"
 )
 
-var providers = []string{"kubeadm", "k3s", "eks", "gke", "aks"}
+var providers = []string{"kubeadm", "kind", "k3s", "eks", "gke", "aks"}
 
 var providerInitFunc = map[string]func(*cobra.Command){
 	"kubeadm": kubeadm.GenerateFlags,

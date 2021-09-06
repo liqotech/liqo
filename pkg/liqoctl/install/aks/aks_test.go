@@ -39,6 +39,8 @@ var _ = Describe("Extract elements from AKS", func() {
 		cmd := &cobra.Command{}
 
 		GenerateFlags(cmd)
+		cmd.Flags().String("cluster-name", "", "Name to assign to the Liqo Cluster")
+		cmd.Flags().String("reserved-subnets", "", "")
 
 		flags := cmd.Flags()
 		Expect(flags.Set("subscription-id", subscriptionID)).To(Succeed())
@@ -80,11 +82,11 @@ var _ = Describe("Extract elements from AKS", func() {
 		Expect(p.endpoint).To(Equal(endpoint))
 		Expect(p.serviceCIDR).To(Equal(serviceCIDR))
 		Expect(p.podCIDR).To(Equal(podCIDR))
-		Expect(len(p.reservedSubnets)).To(BeNumerically("==", 1))
-		Expect(p.reservedSubnets).To(ContainElement(defaultAksNodeCIDR))
-		Expect(p.clusterLabels).ToNot(BeEmpty())
-		Expect(p.clusterLabels[consts.ProviderClusterLabel]).To(Equal(providerPrefix))
-		Expect(p.clusterLabels[consts.TopologyRegionClusterLabel]).To(Equal(region))
+		Expect(len(p.ReservedSubnets)).To(BeNumerically("==", 1))
+		Expect(p.ReservedSubnets).To(ContainElement(defaultAksNodeCIDR))
+		Expect(p.ClusterLabels).ToNot(BeEmpty())
+		Expect(p.ClusterLabels[consts.ProviderClusterLabel]).To(Equal(providerPrefix))
+		Expect(p.ClusterLabels[consts.TopologyRegionClusterLabel]).To(Equal(region))
 
 	})
 

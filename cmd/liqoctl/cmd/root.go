@@ -19,11 +19,19 @@ func NewRootCommand(ctx context.Context) *cobra.Command {
 		Short: common.LiqoctlShortHelp,
 		Long:  common.LiqoctlLongHelp,
 	}
+
+	// since we cannot access internal klog configuration, we create a new flagset, let klog to install
+	// its flags, and we only keep the ones we are intrested in.
 	klogFlagset := flag.NewFlagSet("klog", flag.PanicOnError)
 	klog.InitFlags(klogFlagset)
+	klogFlagset.VisitAll(func(f *flag.Flag) {
+		if f.Name == "v" {
+			rootCmd.PersistentFlags().AddGoFlag(f)
+		}
+	})
+
 	rateFlagset := flag.NewFlagSet("rate-limiting", flag.PanicOnError)
 	restcfg.InitFlags(rateFlagset)
-	rootCmd.PersistentFlags().AddGoFlagSet(klogFlagset)
 	rootCmd.PersistentFlags().AddGoFlagSet(rateFlagset)
 	rootCmd.PersistentFlags().BoolP("debug", "d", false, "Enable/Disable debug mode (default: false)")
 	rootCmd.AddCommand(newInstallCommand(ctx))

@@ -37,6 +37,8 @@ var _ = Describe("Extract elements from K3S", func() {
 		cmd := &cobra.Command{}
 
 		GenerateFlags(cmd)
+		cmd.Flags().String("cluster-name", "", "Name to assign to the Liqo Cluster")
+		cmd.Flags().String("reserved-subnets", "", "")
 
 		flags := cmd.Flags()
 		Expect(flags.Set("pod-cidr", podCIDR)).To(Succeed())
@@ -49,8 +51,8 @@ var _ = Describe("Extract elements from K3S", func() {
 		Expect(p.serviceCIDR).To(Equal(serviceCIDR))
 		Expect(p.apiServer).To(Equal(apiServer))
 
-		Expect(p.clusterLabels).ToNot(BeEmpty())
-		Expect(p.clusterLabels[consts.ProviderClusterLabel]).To(Equal(providerPrefix))
+		Expect(p.ClusterLabels).ToNot(BeEmpty())
+		Expect(p.ClusterLabels[consts.ProviderClusterLabel]).To(Equal(providerPrefix))
 
 	})
 

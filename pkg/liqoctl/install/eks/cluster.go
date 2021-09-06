@@ -16,7 +16,7 @@ func (k *eksProvider) getClusterInfo(sess *session.Session) error {
 	eksSvc := eks.New(sess, aws.NewConfig().WithRegion(k.region))
 
 	describeCluster := &eks.DescribeClusterInput{
-		Name: aws.String(k.clusterName),
+		Name: aws.String(k.eksClusterName),
 	}
 
 	describeClusterResult, err := eksSvc.DescribeCluster(describeCluster)
@@ -49,23 +49,23 @@ func (k *eksProvider) getClusterInfo(sess *session.Session) error {
 
 func (k *eksProvider) parseClusterOutput(describeClusterResult *eks.DescribeClusterOutput) (vpcID string, err error) {
 	if describeClusterResult.Cluster.Endpoint == nil {
-		err := fmt.Errorf("the EKS cluster %v in region %v does not have a valid endpoint", k.clusterName, k.region)
+		err := fmt.Errorf("the EKS cluster %v in region %v does not have a valid endpoint", k.eksClusterName, k.region)
 		return "", err
 	}
 	k.endpoint = *describeClusterResult.Cluster.Endpoint
 
 	if describeClusterResult.Cluster.KubernetesNetworkConfig.ServiceIpv4Cidr == nil {
-		err := fmt.Errorf("the EKS cluster %v in region %v does not have a valid service CIDR", k.clusterName, k.region)
+		err := fmt.Errorf("the EKS cluster %v in region %v does not have a valid service CIDR", k.eksClusterName, k.region)
 		return "", err
 	}
 	k.serviceCIDR = *describeClusterResult.Cluster.KubernetesNetworkConfig.ServiceIpv4Cidr
 
 	if describeClusterResult.Cluster.ResourcesVpcConfig.VpcId == nil {
-		err := fmt.Errorf("the EKS cluster %v in region %v does not have a valid VPC ID", k.clusterName, k.region)
+		err := fmt.Errorf("the EKS cluster %v in region %v does not have a valid VPC ID", k.eksClusterName, k.region)
 		return "", err
 	}
 
-	k.clusterLabels[consts.TopologyRegionClusterLabel] = k.region
+	k.ClusterLabels[consts.TopologyRegionClusterLabel] = k.region
 
 	return *describeClusterResult.Cluster.ResourcesVpcConfig.VpcId, nil
 }

@@ -54,6 +54,8 @@ func HandleInstallCommand(ctx context.Context, cmd *cobra.Command, baseCommand, 
 		os.Exit(1)
 	}
 
-	// If the installation succeeded, let's print the add command to peer the target cluster with another one.
-	generate.HandleGenerateAddCommand(ctx, installutils.LiqoNamespace, baseCommand)
+	if !commonArgs.DumpValues && !commonArgs.DryRun {
+		// If the installation succeeded, let's print the add command to peer the target cluster with another one.
+		generate.HandleGenerateAddCommand(ctx, installutils.LiqoNamespace, baseCommand)
+	}
 }

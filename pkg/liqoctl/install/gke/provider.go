@@ -29,6 +29,8 @@ const (
 )
 
 type gkeProvider struct {
+	provider.GenericProvider
+
 	credentialsPath string
 
 	projectID string
@@ -38,22 +40,26 @@ type gkeProvider struct {
 	endpoint    string
 	serviceCIDR string
 	podCIDR     string
-
-	reservedSubnets []string
-	clusterLabels   map[string]string
 }
 
 // NewProvider initializes a new GKE provider struct.
 func NewProvider() provider.InstallProviderInterface {
 	return &gkeProvider{
-		clusterLabels: map[string]string{
-			consts.ProviderClusterLabel: providerPrefix,
+		GenericProvider: provider.GenericProvider{
+			ClusterLabels: map[string]string{
+				consts.ProviderClusterLabel: providerPrefix,
+			},
 		},
 	}
 }
 
 // ValidateCommandArguments validates specific arguments passed to the install command.
 func (k *gkeProvider) ValidateCommandArguments(flags *flag.FlagSet) (err error) {
+	err = k.ValidateGenericCommandArguments(flags)
+	if err != nil {
+		return err
+	}
+
 	k.credentialsPath, err = flags.GetString(credentialsPathFlag)
 	if err != nil {
 		return err
@@ -115,7 +121,7 @@ func (k *gkeProvider) ExtractChartParameters(ctx context.Context, config *rest.C
 		return err
 	}
 
-	k.reservedSubnets = append(k.reservedSubnets, subnet.IpCidrRange)
+	k.ReservedSubnets = append(k.ReservedSubnets, subnet.IpCidrRange)
 
 	return nil
 }
@@ -142,12 +148,13 @@ func (k *gkeProvider) UpdateChartValues(values map[string]interface{}) {
 		"config": map[string]interface{}{
 			"serviceCIDR":     k.serviceCIDR,
 			"podCIDR":         k.podCIDR,
-			"reservedSubnets": installutils.GetInterfaceSlice(k.reservedSubnets),
+			"reservedSubnets": installutils.GetInterfaceSlice(k.ReservedSubnets),
 		},
 	}
 	values["discovery"] = map[string]interface{}{
 		"config": map[string]interface{}{
-			"clusterLabels": installutils.GetInterfaceMap(k.clusterLabels),
+			"clusterLabels": installutils.GetInterfaceMap(k.ClusterLabels),
+			"clusterName":   k.ClusterName,
 		},
 	}
 }
@@ -173,5 +180,9 @@ func (k *gkeProvider) parseClusterOutput(cluster *container.Cluster) {
 	k.serviceCIDR = cluster.ServicesIpv4Cidr
 	k.podCIDR = cluster.ClusterIpv4Cidr
 
-	k.clusterLabels[consts.TopologyRegionClusterLabel] = cluster.Location
+	if k.ClusterName == "" {
+		k.ClusterName = cluster.Name
+	}
+
+	k.ClusterLabels[consts.TopologyRegionClusterLabel] = cluster.Location
 }

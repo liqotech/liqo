@@ -40,17 +40,19 @@ var _ = Describe("Extract elements from EKS", func() {
 		cmd := &cobra.Command{}
 
 		GenerateFlags(cmd)
+		cmd.Flags().String("cluster-name", "", "Name to assign to the Liqo Cluster")
+		cmd.Flags().String("reserved-subnets", "", "")
 
 		flags := cmd.Flags()
 		Expect(flags.Set("region", region)).To(Succeed())
-		Expect(flags.Set("cluster-name", clusterName)).To(Succeed())
+		Expect(flags.Set("eks-cluster-name", clusterName)).To(Succeed())
 		Expect(flags.Set("user-name", userName)).To(Succeed())
 		Expect(flags.Set("policy-name", policyName)).To(Succeed())
 
 		Expect(p.ValidateCommandArguments(flags)).To(Succeed())
 
 		Expect(p.region).To(Equal(region))
-		Expect(p.clusterName).To(Equal(clusterName))
+		Expect(p.eksClusterName).To(Equal(clusterName))
 		Expect(p.iamLiqoUser.userName).To(Equal(userName))
 		Expect(p.iamLiqoUser.policyName).To(Equal(policyName))
 
@@ -79,9 +81,9 @@ var _ = Describe("Extract elements from EKS", func() {
 
 		Expect(p.endpoint).To(Equal(endpoint))
 		Expect(p.serviceCIDR).To(Equal(serviceCIDR))
-		Expect(p.clusterLabels).ToNot(BeEmpty())
-		Expect(p.clusterLabels[consts.ProviderClusterLabel]).To(Equal(providerPrefix))
-		Expect(p.clusterLabels[consts.TopologyRegionClusterLabel]).To(Equal(region))
+		Expect(p.ClusterLabels).ToNot(BeEmpty())
+		Expect(p.ClusterLabels[consts.ProviderClusterLabel]).To(Equal(providerPrefix))
+		Expect(p.ClusterLabels[consts.TopologyRegionClusterLabel]).To(Equal(region))
 
 		vpcOutput := &ec2.DescribeVpcsOutput{
 			Vpcs: []*ec2.Vpc{

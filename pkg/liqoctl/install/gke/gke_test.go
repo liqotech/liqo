@@ -36,6 +36,8 @@ var _ = Describe("Extract elements from GKE", func() {
 		cmd := &cobra.Command{}
 
 		GenerateFlags(cmd)
+		cmd.Flags().String("cluster-name", "", "Name to assign to the Liqo Cluster")
+		cmd.Flags().String("reserved-subnets", "", "")
 
 		flags := cmd.Flags()
 		Expect(flags.Set("credentials-path", credentialsPath)).To(Succeed())
@@ -69,9 +71,9 @@ var _ = Describe("Extract elements from GKE", func() {
 		Expect(p.serviceCIDR).To(Equal(serviceCIDR))
 		Expect(p.podCIDR).To(Equal(podCIDR))
 
-		Expect(p.clusterLabels).ToNot(BeEmpty())
-		Expect(p.clusterLabels[consts.ProviderClusterLabel]).To(Equal(providerPrefix))
-		Expect(p.clusterLabels[consts.TopologyRegionClusterLabel]).To(Equal(zone))
+		Expect(p.ClusterLabels).ToNot(BeEmpty())
+		Expect(p.ClusterLabels[consts.ProviderClusterLabel]).To(Equal(providerPrefix))
+		Expect(p.ClusterLabels[consts.TopologyRegionClusterLabel]).To(Equal(zone))
 
 	})
 
