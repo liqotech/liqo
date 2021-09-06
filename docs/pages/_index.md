@@ -7,8 +7,7 @@ title: Liqo Docs
 
 # Documentation
 
-Liqo allows Kubernetes to seamlessly and securely share resources and services, enabling to run tasks on any other
-cluster available nearby.
+Liqo allows Kubernetes to seamlessly and securely share resources and services, enabling to run tasks on any other cluster available nearby.
 
 ## Why Liqo
 

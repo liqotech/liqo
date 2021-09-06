@@ -40,4 +40,26 @@ $ liqoctl add cluster my-cluster --auth-url https://my-cluster --id e8e3cdec-b00
 	// ClusterLiqoNamespace contains the default namespace where Liqo is installed.
 	ClusterLiqoNamespace = "liqo"
 	sameClusterError     = "the ClusterID of the adding cluster is the same of the local cluster"
+	// SuccesfulMessage is printed when ad add cluster command has scucceded.
+	SuccesfulMessage = `
+	Hooray 🎉! You have correctly added the cluster %s and activated an outgoing peering towards it.
+You can now:
+
+* Check the status of the peering to see when it is completely established. 
+Every field of the foreigncluster (but IncomingPeering) should be in "Established":
+
+kubectl get foreignclusters %s
+
+* Check if the virtual node is correctly created (this should take less than ~30s):
+
+kubectl get nodes liqo-%s
+
+* Ready to go! Let's deploy a simple application by simply typing:
+
+kubectl create ns liqo-demo # Let's create a demo namespace
+kubectl label ns liqo-demo liqo.io/enabled=true # Enable Liqo offloading on this namespace (Check out https://doc.liqo.io/usage for more details).
+kubectl apply -n liqo-demo -f https://get.liqo.io/app.yaml # Deploy a sample application in the namespace to trigger the offloading.
+
+* For more information about Liqo have a look to: https://doc.liqo.io
+`
 )

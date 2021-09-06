@@ -3,6 +3,7 @@ title: Install Liqo
 weight: 2
 ---
 
+
 ### Simple Installation (One-liner)
 
 Before installing Liqo, you have to set the right `kubeconfig` for your cluster properly. The Liqo installer leverages `kubectl`: by default kubectl refers to the default identity in `~/.kube/config` but you can override this configuration by exporting a `KUBECONFIG` variable.
@@ -18,13 +19,10 @@ You can find more details about configuring `kubectl` in the [official documenta
 Now, you can install Liqo by launching:
 
 ```bash
-curl -sL https://get.liqo.io | bash
+liqoctl install kind
 ```
 
-If you want to know more about possible customizations, you can show the help message:
-```bash
-curl -sL https://get.liqo.io | bash -s -- --help
-```
+This command will generate the adapt configuration for your Kind cluster.
 
 #### Install the second cluster
 
@@ -32,7 +30,7 @@ Similarly, as done on the first cluster, you can deploy Liqo on the second clust
 
 ```
 export KUBECONFIG=./liqo_kubeconf_2
-curl -sL https://get.liqo.io | bash
+liqoctl install kind
 ```
 
 ## Enable cluster peering
