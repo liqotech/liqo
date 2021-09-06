@@ -20,7 +20,7 @@ const (
 	providerPrefix = "eks"
 
 	regionFlag          = "region"
-	clusterNameFlag     = "cluster-name"
+	clusterNameFlag     = "eks-cluster-name"
 	userNameFlag        = "user-name"
 	policyNameFlag      = "policy-name"
 	accessKeyIDFlag     = "access-key-id"
@@ -28,15 +28,16 @@ const (
 )
 
 type eksProvider struct {
-	region      string
-	clusterName string
+	provider.GenericProvider
+
+	region         string
+	eksClusterName string
 
 	endpoint    string
 	serviceCIDR string
 	podCIDR     string
 
-	iamLiqoUser   iamLiqoUser
-	clusterLabels map[string]string
+	iamLiqoUser iamLiqoUser
 }
 
 type iamLiqoUser struct {
@@ -50,25 +51,36 @@ type iamLiqoUser struct {
 // NewProvider initializes a new EKS provider struct.
 func NewProvider() provider.InstallProviderInterface {
 	return &eksProvider{
-		clusterLabels: map[string]string{
-			consts.ProviderClusterLabel: providerPrefix,
+		GenericProvider: provider.GenericProvider{
+			ClusterLabels: map[string]string{
+				consts.ProviderClusterLabel: providerPrefix,
+			},
 		},
 	}
 }
 
 // ValidateCommandArguments validates specific arguments passed to the install command.
 func (k *eksProvider) ValidateCommandArguments(flags *flag.FlagSet) (err error) {
+	err = k.ValidateGenericCommandArguments(flags)
+	if err != nil {
+		return err
+	}
+
 	k.region, err = flags.GetString(regionFlag)
 	if err != nil {
 		return err
 	}
 	klog.V(3).Infof("EKS Region: %v", k.region)
 
-	k.clusterName, err = flags.GetString(clusterNameFlag)
+	k.eksClusterName, err = flags.GetString(clusterNameFlag)
 	if err != nil {
 		return err
 	}
-	klog.V(3).Infof("EKS ClusterName: %v", k.clusterName)
+	klog.V(3).Infof("EKS ClusterName: %v", k.eksClusterName)
+
+	if k.ClusterName == "" {
+		k.ClusterName = k.eksClusterName
+	}
 
 	k.iamLiqoUser.userName, err = flags.GetString(userNameFlag)
 	if err != nil {
@@ -150,19 +162,21 @@ func (k *eksProvider) UpdateChartValues(values map[string]interface{}) {
 	}
 	values["networkManager"] = map[string]interface{}{
 		"config": map[string]interface{}{
-			"serviceCIDR": k.serviceCIDR,
-			"podCIDR":     k.podCIDR,
+			"serviceCIDR":     k.serviceCIDR,
+			"podCIDR":         k.podCIDR,
+			"reservedSubnets": installutils.GetInterfaceSlice(k.ReservedSubnets),
 		},
 	}
 	values["awsConfig"] = map[string]interface{}{
 		"accessKeyId":     k.iamLiqoUser.accessKeyID,
 		"secretAccessKey": k.iamLiqoUser.secretAccessKey,
 		"region":          k.region,
-		"clusterName":     k.clusterName,
+		"clusterName":     k.eksClusterName,
 	}
 	values["discovery"] = map[string]interface{}{
 		"config": map[string]interface{}{
-			"clusterLabels": installutils.GetInterfaceMap(k.clusterLabels),
+			"clusterLabels": installutils.GetInterfaceMap(k.ClusterLabels),
+			"clusterName":   k.ClusterName,
 		},
 	}
 	values["controllerManager"] = map[string]interface{}{

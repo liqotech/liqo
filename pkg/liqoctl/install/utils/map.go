@@ -24,8 +24,9 @@ func FusionMap(baseMap, patchMap map[string]interface{}) (map[string]interface{}
 
 		switch {
 		case reflect.TypeOf(v) != reflect.TypeOf(v2):
-			return nil, fmt.Errorf("the two maps have different types for the same key")
-		case reflect.TypeOf(v).String() == "string", reflect.TypeOf(v).String() == "bool", reflect.TypeOf(v).String() == "int":
+			return nil, fmt.Errorf("the two maps have different types for the same key %v %v", reflect.TypeOf(v), reflect.TypeOf(v2))
+		case reflect.TypeOf(v).String() == "string", reflect.TypeOf(v).String() == "bool",
+			reflect.TypeOf(v).String() == "int", reflect.TypeOf(v).String() == "float64":
 			resultMap[key] = v2
 		case reflect.TypeOf(v).Kind() == reflect.Slice:
 			resultMap[key] = append(v.([]interface{}), v2.([]interface{})...)

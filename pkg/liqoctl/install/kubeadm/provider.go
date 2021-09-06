@@ -17,15 +17,17 @@ import (
 // NewProvider initializes a new Kubeadm struct.
 func NewProvider() provider.InstallProviderInterface {
 	return &Kubeadm{
-		ClusterLabels: map[string]string{
-			consts.ProviderClusterLabel: providerPrefix,
+		GenericProvider: provider.GenericProvider{
+			ClusterLabels: map[string]string{
+				consts.ProviderClusterLabel: providerPrefix,
+			},
 		},
 	}
 }
 
 // ValidateCommandArguments validates specific arguments passed to the install command.
-func (k *Kubeadm) ValidateCommandArguments(flags *flag.FlagSet) error {
-	return nil
+func (k *Kubeadm) ValidateCommandArguments(flags *flag.FlagSet) (err error) {
+	return k.ValidateGenericCommandArguments(flags)
 }
 
 // ExtractChartParameters fetches the parameters used to customize the Liqo installation on a specific cluster of a
@@ -55,8 +57,9 @@ func (k *Kubeadm) UpdateChartValues(values map[string]interface{}) {
 	}
 	values["networkManager"] = map[string]interface{}{
 		"config": map[string]interface{}{
-			"serviceCIDR": k.ServiceCIDR,
-			"podCIDR":     k.PodCIDR,
+			"serviceCIDR":     k.ServiceCIDR,
+			"podCIDR":         k.PodCIDR,
+			"reservedSubnets": installutils.GetInterfaceSlice(k.ReservedSubnets),
 		},
 	}
 	values["discovery"] = map[string]interface{}{

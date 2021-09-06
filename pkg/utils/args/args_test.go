@@ -1,11 +1,13 @@
 package args
 
 import (
+	"net"
 	"testing"
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/ginkgo/extensions/table"
 	. "github.com/onsi/gomega"
+	"github.com/onsi/gomega/types"
 )
 
 func TestParseArguments(t *testing.T) {
@@ -13,14 +15,21 @@ func TestParseArguments(t *testing.T) {
 	RunSpecs(t, "ParseArguments Suite")
 }
 
+var parseCIDR = func(s string) net.IPNet {
+	_, cidr, err := net.ParseCIDR(s)
+	Expect(err).ToNot(HaveOccurred())
+	return *cidr
+}
+
 var _ = Describe("ParseArguments", func() {
 
 	Context("StringMap", func() {
 
 		type parseMapTestcase struct {
-			str           string
-			expectedError OmegaMatcher
-			expectedMap   map[string]string
+			str             string
+			expectedError   OmegaMatcher
+			expectedMap     map[string]string
+			expectedStrings []types.GomegaMatcher
 		}
 
 		DescribeTable("StringMap table",
@@ -31,7 +40,7 @@ var _ = Describe("ParseArguments", func() {
 				Expect(err).To(c.expectedError)
 				Expect(sm.StringMap).To(Equal(c.expectedMap))
 				if err == nil {
-					Expect(sm.String()).To(Equal(c.str))
+					Expect(sm.String()).To(Or(c.expectedStrings...))
 				}
 			},
 
@@ -39,6 +48,9 @@ var _ = Describe("ParseArguments", func() {
 				str:           "",
 				expectedError: Not(HaveOccurred()),
 				expectedMap:   map[string]string{},
+				expectedStrings: []types.GomegaMatcher{
+					Equal(""),
+				},
 			}),
 
 			Entry("single value map", parseMapTestcase{
@@ -46,6 +58,9 @@ var _ = Describe("ParseArguments", func() {
 				expectedError: Not(HaveOccurred()),
 				expectedMap: map[string]string{
 					"key1": "val1",
+				},
+				expectedStrings: []types.GomegaMatcher{
+					Equal("key1=val1"),
 				},
 			}),
 
@@ -55,6 +70,10 @@ var _ = Describe("ParseArguments", func() {
 				expectedMap: map[string]string{
 					"key1": "val1",
 					"key2": "val2",
+				},
+				expectedStrings: []types.GomegaMatcher{
+					Equal("key1=val1,key2=val2"),
+					Equal("key2=val2,key1=val1"),
 				},
 			}),
 
@@ -101,6 +120,89 @@ var _ = Describe("ParseArguments", func() {
 					"val1",
 					"val2",
 				},
+			}),
+		)
+
+	})
+
+	Context("CIDRList", func() {
+
+		type parseListTestcase struct {
+			str          string
+			expectedList []net.IPNet
+		}
+
+		DescribeTable("CIDRList table",
+
+			func(c parseListTestcase) {
+				cl := CIDRList{}
+				Expect(cl.Set(c.str)).To(Succeed())
+				Expect(cl.CIDRList).To(Equal(c.expectedList))
+				Expect(cl.String()).To(Equal(c.str))
+			},
+
+			Entry("empty string", parseListTestcase{
+				str:          "",
+				expectedList: []net.IPNet{},
+			}),
+
+			Entry("single value list", parseListTestcase{
+				str: "10.0.0.0/16",
+				expectedList: []net.IPNet{
+					parseCIDR("10.0.0.0/16"),
+				},
+			}),
+
+			Entry("multi values list", parseListTestcase{
+				str: "10.0.0.0/16,10.120.0.0/16",
+				expectedList: []net.IPNet{
+					parseCIDR("10.0.0.0/16"),
+					parseCIDR("10.120.0.0/16"),
+				},
+			}),
+		)
+
+	})
+
+	Context("Percentage", func() {
+
+		type parsePercentageTestcase struct {
+			str            string
+			expectedError  OmegaMatcher
+			expectedValue  uint64
+			expectedString string
+		}
+
+		DescribeTable("Percentage table",
+
+			func(c parsePercentageTestcase) {
+				p := Percentage{}
+				err := p.Set(c.str)
+				Expect(err).To(c.expectedError)
+
+				if err == nil {
+					Expect(p.Val).To(Equal(c.expectedValue))
+					Expect(p.String()).To(Equal(c.expectedString))
+				}
+			},
+
+			Entry("empty string", parsePercentageTestcase{
+				str:            "",
+				expectedError:  Not(HaveOccurred()),
+				expectedValue:  0,
+				expectedString: "0",
+			}),
+
+			Entry("invalid string", parsePercentageTestcase{
+				str:           "test",
+				expectedError: HaveOccurred(),
+			}),
+
+			Entry("value string", parsePercentageTestcase{
+				str:            "67",
+				expectedError:  Not(HaveOccurred()),
+				expectedValue:  67,
+				expectedString: "67",
 			}),
 		)
 

@@ -38,27 +38,34 @@ var (
 )
 
 type k3sProvider struct {
+	provider.GenericProvider
+
 	k8sClient kubernetes.Interface
 	config    *rest.Config
 
 	apiServer   string
 	serviceCIDR string
 	podCIDR     string
-
-	clusterLabels map[string]string
 }
 
 // NewProvider initializes a new K3S provider struct.
 func NewProvider() provider.InstallProviderInterface {
 	return &k3sProvider{
-		clusterLabels: map[string]string{
-			consts.ProviderClusterLabel: providerPrefix,
+		GenericProvider: provider.GenericProvider{
+			ClusterLabels: map[string]string{
+				consts.ProviderClusterLabel: providerPrefix,
+			},
 		},
 	}
 }
 
 // ValidateCommandArguments validates specific arguments passed to the install command.
 func (k *k3sProvider) ValidateCommandArguments(flags *flag.FlagSet) (err error) {
+	err = k.ValidateGenericCommandArguments(flags)
+	if err != nil {
+		return err
+	}
+
 	k.podCIDR, err = flags.GetString(podCidrFlag)
 	if err != nil {
 		return err
@@ -120,13 +127,15 @@ func (k *k3sProvider) UpdateChartValues(values map[string]interface{}) {
 	}
 	values["networkManager"] = map[string]interface{}{
 		"config": map[string]interface{}{
-			"serviceCIDR": k.serviceCIDR,
-			"podCIDR":     k.podCIDR,
+			"serviceCIDR":     k.serviceCIDR,
+			"podCIDR":         k.podCIDR,
+			"reservedSubnets": installutils.GetInterfaceSlice(k.ReservedSubnets),
 		},
 	}
 	values["discovery"] = map[string]interface{}{
 		"config": map[string]interface{}{
-			"clusterLabels": installutils.GetInterfaceMap(k.clusterLabels),
+			"clusterLabels": installutils.GetInterfaceMap(k.ClusterLabels),
+			"clusterName":   k.ClusterName,
 		},
 	}
 }

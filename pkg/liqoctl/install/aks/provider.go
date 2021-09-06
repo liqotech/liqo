@@ -33,6 +33,8 @@ const (
 )
 
 type aksProvider struct {
+	provider.GenericProvider
+
 	subscriptionName  string
 	subscriptionID    string
 	resourceGroupName string
@@ -43,22 +45,26 @@ type aksProvider struct {
 	endpoint    string
 	serviceCIDR string
 	podCIDR     string
-
-	reservedSubnets []string
-	clusterLabels   map[string]string
 }
 
 // NewProvider initializes a new AKS provider struct.
 func NewProvider() provider.InstallProviderInterface {
 	return &aksProvider{
-		clusterLabels: map[string]string{
-			consts.ProviderClusterLabel: providerPrefix,
+		GenericProvider: provider.GenericProvider{
+			ClusterLabels: map[string]string{
+				consts.ProviderClusterLabel: providerPrefix,
+			},
 		},
 	}
 }
 
 // ValidateCommandArguments validates specific arguments passed to the install command.
 func (k *aksProvider) ValidateCommandArguments(flags *flag.FlagSet) (err error) {
+	err = k.ValidateGenericCommandArguments(flags)
+	if err != nil {
+		return err
+	}
+
 	k.subscriptionID, err = flags.GetString(subscriptionIDFlag)
 	if err != nil {
 		return err
@@ -84,6 +90,10 @@ func (k *aksProvider) ValidateCommandArguments(flags *flag.FlagSet) (err error) 
 		return err
 	}
 	klog.V(3).Infof("AKS ResourceName: %v", k.resourceName)
+
+	if k.ClusterName == "" {
+		k.ClusterName = k.resourceName
+	}
 
 	return nil
 }
@@ -136,12 +146,13 @@ func (k *aksProvider) UpdateChartValues(values map[string]interface{}) {
 		"config": map[string]interface{}{
 			"serviceCIDR":     k.serviceCIDR,
 			"podCIDR":         k.podCIDR,
-			"reservedSubnets": installutils.GetInterfaceSlice(k.reservedSubnets),
+			"reservedSubnets": installutils.GetInterfaceSlice(k.ReservedSubnets),
 		},
 	}
 	values["discovery"] = map[string]interface{}{
 		"config": map[string]interface{}{
-			"clusterLabels": installutils.GetInterfaceMap(k.clusterLabels),
+			"clusterLabels": installutils.GetInterfaceMap(k.ClusterLabels),
+			"clusterName":   k.ClusterName,
 		},
 	}
 	values["virtualKubelet"] = map[string]interface{}{
@@ -187,7 +198,7 @@ func (k *aksProvider) parseClusterOutput(ctx context.Context, cluster *container
 	k.endpoint = *cluster.Fqdn
 
 	if cluster.Location != nil {
-		k.clusterLabels[consts.TopologyRegionClusterLabel] = *cluster.Location
+		k.ClusterLabels[consts.TopologyRegionClusterLabel] = *cluster.Location
 	}
 
 	return nil
@@ -204,7 +215,7 @@ func (k *aksProvider) setupKubenet(ctx context.Context, cluster *containerservic
 	// in that case the vnet subnetID will be provided and we have to retrieve this network information.
 	vnetSubjectID := (*cluster.AgentPoolProfiles)[0].VnetSubnetID
 	if vnetSubjectID == nil {
-		k.reservedSubnets = append(k.reservedSubnets, defaultAksNodeCIDR)
+		k.ReservedSubnets = append(k.ReservedSubnets, defaultAksNodeCIDR)
 	} else {
 		networkClient := network.NewSubnetsClient(k.subscriptionID)
 		networkClient.Authorizer = *k.authorizer
@@ -219,7 +230,7 @@ func (k *aksProvider) setupKubenet(ctx context.Context, cluster *containerservic
 			return err
 		}
 
-		k.reservedSubnets = append(k.reservedSubnets, *vnet.SubnetPropertiesFormat.AddressPrefix)
+		k.ReservedSubnets = append(k.ReservedSubnets, *vnet.SubnetPropertiesFormat.AddressPrefix)
 	}
 
 	return nil
