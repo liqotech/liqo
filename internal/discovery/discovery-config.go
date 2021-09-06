@@ -1,8 +1,6 @@
 package discovery
 
 import (
-	"reflect"
-
 	"k8s.io/klog/v2"
 
 	configv1alpha1 "github.com/liqotech/liqo/apis/config/v1alpha1"
@@ -13,7 +11,6 @@ import (
 // ConfigProvider interface provides methods to access the Discovery and API Server configuration.
 type ConfigProvider interface {
 	GetConfig() *configv1alpha1.DiscoveryConfig
-	GetAPIServerConfig() *configv1alpha1.APIServerConfig
 }
 
 // GetConfig returns the configuration of the discovery component.
@@ -23,19 +20,11 @@ func (discovery *Controller) GetConfig() *configv1alpha1.DiscoveryConfig {
 	return discovery.Config
 }
 
-// GetAPIServerConfig returns the configuration of the local APIServer (address, port).
-func (discovery *Controller) GetAPIServerConfig() *configv1alpha1.APIServerConfig {
-	discovery.configMutex.RLock()
-	defer discovery.configMutex.RUnlock()
-	return discovery.apiServerConfig
-}
-
 func (discovery *Controller) getDiscoveryConfig(client *crdclient.CRDClient, kubeconfigPath string) error {
 	waitFirst := make(chan bool)
 	isFirst := true
 	go utils.WatchConfiguration(func(configuration *configv1alpha1.ClusterConfig) {
 		discovery.handleConfiguration(&configuration.Spec.DiscoveryConfig)
-		discovery.handleAPIServerConfig(&configuration.Spec.APIServerConfig)
 		if isFirst {
 			waitFirst <- true
 			isFirst = false
@@ -45,19 +34,6 @@ func (discovery *Controller) getDiscoveryConfig(client *crdclient.CRDClient, kub
 	close(waitFirst)
 
 	return nil
-}
-
-func (discovery *Controller) handleAPIServerConfig(config *configv1alpha1.APIServerConfig) {
-	discovery.configMutex.Lock()
-	defer discovery.configMutex.Unlock()
-
-	if reflect.DeepEqual(config, discovery.apiServerConfig) {
-		klog.V(6).Info("New and old apiServer configs are deep equals")
-		klog.V(8).Infof("Old config: %v\nNew config: %v", discovery.apiServerConfig, config)
-		return
-	}
-
-	discovery.apiServerConfig = config.DeepCopy()
 }
 
 func (discovery *Controller) handleConfiguration(config *configv1alpha1.DiscoveryConfig) {

@@ -8,8 +8,6 @@ metadata:
   labels:
     {{- include "liqo.labels" $config  | nindent 4 }}
 spec:
-  apiServerConfig:
-    {{- .Values.apiServer | toYaml | nindent 4 }}
   resourceSharingConfig:
     ingoingConfig:
       acceptPolicy: AutoAcceptMax

@@ -36,15 +36,6 @@ spec:
           spec:
             description: ClusterConfigSpec defines the desired state of ClusterConfig.
             properties:
-              apiServerConfig:
-                description: APIServerConfig defines the configuration of the cluster
-                  APIServer.
-                properties:
-                  address:
-                    type: string
-                  trustedCA:
-                    type: boolean
-                type: object
               discoveryConfig:
                 description: DiscoveryConfig defines the configuration of the Discovery
                   logic.

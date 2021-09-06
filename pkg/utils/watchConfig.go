@@ -13,10 +13,6 @@ import (
 	crdclient "github.com/liqotech/liqo/pkg/crdClient"
 )
 
-type ApiServerConfigProvider interface {
-	GetAPIServerConfig() *configv1alpha1.APIServerConfig
-}
-
 // WatchConfiguration watches the ClusterConfig CR, and calls the handler funcition on updates.
 func WatchConfiguration(handler func(*configv1alpha1.ClusterConfig), client *crdclient.CRDClient, kubeconfigPath string) {
 	var rsyncPeriod = 30 * time.Second

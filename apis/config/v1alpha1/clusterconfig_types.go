@@ -26,7 +26,6 @@ import (
 
 // ClusterConfigSpec defines the desired state of ClusterConfig.
 type ClusterConfigSpec struct {
-	APIServerConfig APIServerConfig `json:"apiServerConfig,omitempty"`
 	// AdvertisementConfig defines the configuration for the advertisement protocol.
 	AdvertisementConfig AdvertisementConfig `json:"resourceSharingConfig"`
 	DiscoveryConfig     DiscoveryConfig     `json:"discoveryConfig"`
@@ -101,12 +100,6 @@ type LabelPolicy struct {
 	// +kubebuilder:validation:Enum="LabelPolicyAnyTrue";"LabelPolicyAllTrue";"LabelPolicyAnyTrueNoLabelIfFalse";"LabelPolicyAllTrueNoLabelIfFalse"
 	// +kubebuilder:default="LabelPolicyAnyTrue"
 	Policy labelPolicy.LabelPolicyType `json:"policy,omitempty"`
-}
-
-// APIServerConfig defines the configuration of the cluster APIServer.
-type APIServerConfig struct {
-	Address   string `json:"address,omitempty"`
-	TrustedCA bool   `json:"trustedCA,omitempty"`
 }
 
 // DiscoveryConfig defines the configuration of the Discovery logic.

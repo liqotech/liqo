@@ -70,25 +70,33 @@ spec:
           command: ["/usr/bin/auth-service"]
           args:
           - --namespace=$(POD_NAMESPACE)
-          - --resyncSeconds=30
-          - --enableAuthentication={{ .Values.auth.config.enableAuthentication }}
+          {{- if not .Values.auth.tls}}
+          - --address=:5000
+          {{- else }}
+          - --address=:8443
+          - --enable-tls
+          {{- end }}
+          - --enable-authentication={{ .Values.auth.config.enableAuthentication }}
+          {{- if .Values.apiServer.address }}
+          - --advertise-api-server-address={{ .Values.apiServer.address }}
+          {{- end }}
+          {{- if .Values.apiServer.trustedCA }}
+          - --advertise-api-server-trusted-ca
+          {{- end }}
+          {{- if .Values.discovery.config.clusterName }}
+          - --advertise-cluster-name={{ .Values.discovery.config.clusterName }}
+          {{- end }}
           {{- if .Values.awsConfig.accessKeyId }}
-          - --awsAccessKeyId=$(ACCESS_KEY_ID)
+          - --aws-access-key-id=$(ACCESS_KEY_ID)
           {{- end }}
           {{- if .Values.awsConfig.secretAccessKey }}
-          - --awsSecretAccessKey=$(SECRET_ACCESS_KEY)
+          - --aws-secret-access-key=$(SECRET_ACCESS_KEY)
           {{- end }}
           {{- if .Values.awsConfig.region }}
-          - --awsRegion={{ .Values.awsConfig.region }}
+          - --aws-region={{ .Values.awsConfig.region }}
           {{- end }}
           {{- if .Values.awsConfig.clusterName }}
-          - --awsClusterName={{ .Values.awsConfig.clusterName }}
-          {{- end }}
-          {{- if not .Values.auth.tls}}
-          - --listeningPort=5000
-          {{- else }}
-          - --listeningPort=8443
-          - --useTls
+          - --aws-cluster-name={{ .Values.awsConfig.clusterName }}
           {{- end }}
           {{- if .Values.auth.pod.extraArgs }}
           {{- toYaml .Values.auth.pod.extraArgs | nindent 10 }}

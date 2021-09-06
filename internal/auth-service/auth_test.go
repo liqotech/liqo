@@ -23,7 +23,6 @@ import (
 	"k8s.io/client-go/informers"
 	"k8s.io/client-go/tools/cache"
 
-	"github.com/liqotech/liqo/apis/config/v1alpha1"
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	"github.com/liqotech/liqo/pkg/auth"
 	autherrors "github.com/liqotech/liqo/pkg/auth/errors"
@@ -31,6 +30,7 @@ import (
 	identitymanager "github.com/liqotech/liqo/pkg/identityManager"
 	idManTest "github.com/liqotech/liqo/pkg/identityManager/testUtils"
 	tenantnamespace "github.com/liqotech/liqo/pkg/tenantNamespace"
+	"github.com/liqotech/liqo/pkg/utils/apiserver"
 	"github.com/liqotech/liqo/pkg/utils/testutil"
 )
 
@@ -101,9 +101,8 @@ var _ = Describe("Auth", func() {
 			localClusterID:       &clusterID,
 			namespaceManager:     namespaceManager,
 			identityProvider:     identityProvider,
-			useTLS:               false,
 			credentialsValidator: &tokenValidator{},
-			apiServerConfig: &v1alpha1.APIServerConfig{
+			apiServerConfig: apiserver.Config{
 				Address:   cluster.GetCfg().Host,
 				TrustedCA: false,
 			},
