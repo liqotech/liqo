@@ -11,17 +11,14 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes/scheme"
-	"k8s.io/client-go/rest"
 	"k8s.io/client-go/util/retry"
 	"k8s.io/klog/v2"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/envtest"
 
-	configv1alpha1 "github.com/liqotech/liqo/apis/config/v1alpha1"
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	crdreplicator "github.com/liqotech/liqo/internal/crdReplicator"
 	"github.com/liqotech/liqo/pkg/consts"
-	crdclient "github.com/liqotech/liqo/pkg/crdClient"
 	"github.com/liqotech/liqo/pkg/utils/restcfg"
 )
 
@@ -33,7 +30,6 @@ var (
 	peeringClustersTestEnvs          = map[string]*envtest.Environment{}
 	peeringClustersManagers          = map[string]ctrl.Manager{}
 	peeringClustersDynClients        = map[string]dynamic.Interface{}
-	configClusterClient              *crdclient.CRDClient
 	k8sManagerLocal                  ctrl.Manager
 	testEnvLocal                     *envtest.Environment
 	dOperator                        *crdreplicator.Controller
@@ -98,20 +94,6 @@ func startDispatcherOperator() {
 	}
 }
 
-func getConfigClusterCRDClient(config *rest.Config) *crdclient.CRDClient {
-	newConfig := config
-	newConfig.ContentConfig.GroupVersion = &configv1alpha1.GroupVersion
-	newConfig.APIPath = "/apis"
-	newConfig.NegotiatedSerializer = scheme.Codecs.WithoutConversion()
-	newConfig.UserAgent = rest.DefaultKubernetesUserAgent()
-	CRDclient, err := crdclient.NewFromConfig(newConfig)
-	if err != nil {
-		klog.Error(err, err.Error())
-		os.Exit(1)
-	}
-	return CRDclient
-}
-
 func setupEnv() {
 	err := discoveryv1alpha1.AddToScheme(scheme.Scheme)
 	if err != nil {
@@ -164,13 +146,6 @@ func setupEnv() {
 		klog.Errorf("%s -> an error occurred while creating the manager %s", localClusterID, err)
 		os.Exit(-1)
 	}
-	configClusterClient = getConfigClusterCRDClient(configLocal)
-	cc := getClusterConfig()
-	_, err = configClusterClient.Resource("clusterconfigs").Create(cc, &metav1.CreateOptions{})
-	if err != nil {
-		klog.Error(err, err.Error())
-		os.Exit(-1)
-	}
 	klog.Info("setup of testing environments finished")
 }
 
@@ -191,40 +166,5 @@ func tearDown() {
 func updateOwnership(ownership consts.OwnershipType) {
 	for i := range dOperator.RegisteredResources {
 		dOperator.RegisteredResources[i].Ownership = ownership
-	}
-}
-
-func getClusterConfig() *configv1alpha1.ClusterConfig {
-	return &configv1alpha1.ClusterConfig{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: "configuration",
-		},
-		Spec: configv1alpha1.ClusterConfigSpec{
-			AdvertisementConfig: configv1alpha1.AdvertisementConfig{
-				IngoingConfig: configv1alpha1.AdvOperatorConfig{
-					AcceptPolicy:               configv1alpha1.AutoAcceptMax,
-					MaxAcceptableAdvertisement: 5,
-				},
-				OutgoingConfig: configv1alpha1.BroadcasterConfig{
-					ResourceSharingPercentage: 30,
-				},
-			},
-			DiscoveryConfig: configv1alpha1.DiscoveryConfig{
-				AutoJoin:            true,
-				Domain:              "local.",
-				EnableAdvertisement: true,
-				EnableDiscovery:     true,
-				Name:                "MyLiqo",
-				Port:                6443,
-				Service:             "_liqo._tcp",
-				TTL:                 30,
-			},
-			LiqonetConfig: configv1alpha1.LiqonetConfig{
-				PodCIDR:         "10.0.0.0/16",
-				ServiceCIDR:     "10.96.0.0/12",
-				ReservedSubnets: []configv1alpha1.CIDR{"10.0.0.0/16"},
-				AdditionalPools: []configv1alpha1.CIDR{},
-			},
-		},
 	}
 }

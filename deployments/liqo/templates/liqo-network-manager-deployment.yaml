@@ -33,7 +33,17 @@ spec:
             - name: ipam-api
               containerPort: 6000
           args:
-            - --run-as=tunnelEndpointCreator-operator
+            - --run-as=liqo-network-manager
+            - --manager.pod-cidr={{ .Values.networkManager.config.podCIDR }}
+            - --manager.service-cidr={{ .Values.networkManager.config.serviceCIDR }}
+            {{- if .Values.networkManager.config.reservedSubnets }}
+            {{- $d := dict "commandName" "--manager.reserved-pools" "list" .Values.networkManager.config.reservedSubnets }}
+            {{- include "liqo.concatenateList" $d | nindent 12 }}
+            {{- end }}
+            {{- if .Values.networkManager.config.additionalPools }}
+            {{- $d := dict "commandName" "--manager.additional-pools" "list" .Values.networkManager.config.additionalPools }}
+            {{- include "liqo.concatenateList" $d | nindent 12 }}
+            {{- end }}
             {{- if .Values.networkManager.pod.extraArgs }}
             {{- toYaml .Values.networkManager.pod.extraArgs | nindent 12 }}
             {{- end }}

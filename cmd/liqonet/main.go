@@ -47,12 +47,17 @@ func init() {
 
 func main() {
 	klog.InitFlags(nil)
+
 	commonFlags := &liqonetCommonFlags{}
 	routeFlags := &routeOperatorFlags{}
 	gatewayFlags := &gatewayOperatorFlags{}
+	managerFlags := &networkManagerFlags{}
+
 	addCommonFlags(commonFlags)
 	addGatewayOperatorFlags(gatewayFlags)
 	addRouteOperatorFlags(routeFlags)
+	addNetworkManagerFlags(managerFlags)
+
 	flag.Parse()
 
 	switch commonFlags.runAs {
@@ -61,6 +66,6 @@ func main() {
 	case liqoconst.LiqoGatewayOperatorName:
 		runGatewayOperator(commonFlags, gatewayFlags)
 	case liqoconst.LiqoNetworkManagerName:
-		runEndpointCreatorOperator(commonFlags)
+		runEndpointCreatorOperator(commonFlags, managerFlags)
 	}
 }
