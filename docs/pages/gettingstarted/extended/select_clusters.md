@@ -11,19 +11,19 @@ Liqo can help you manage such a scenario by simply creating a *[Liqo namespace](
 
 ### Create the Liqo namespace
 
-As you may remember, a *Liqo namespace* is composed of: 
+As described in the [namespace offloading dedicated section](/usage/namespace_offloading/#introduction), a *Liqo namespace* is composed of: 
 
 * a local Namespace.  
 * a NamespaceOffloading resource containing the desired configuration.
 
-1. Create the local namespace called "*liqo-test* ”:
+1. You can start by creating a local namespace called, for example, "*liqo-test*":
 
 ```bash
 export KUBECONFIG=$KUBECONFIG_1
 kubectl create namespace liqo-test
 ```
 
-2. Now create the NamespaceOffloading resource inside the namespace:
+2. Now, the Liqo part: you can create an associated NamespaceOffloading resource inside the namespace to enable the offloading:
 
 ```yaml
 cat << "EOF" | kubectl apply -f -

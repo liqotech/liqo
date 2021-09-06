@@ -3,14 +3,49 @@ title: Enable peering
 weight: 3
 ---
 
-Once Liqo is installed on your clusters, you can start establishing new *peerings*. This tutorial relies on [LAN Discovery method](/configuration/discovery#lan-discovery) since the Kind clusters are in the same L2 broadcast domain.
+Once Liqo is installed on your clusters, you can start establishing new *peerings*. 
+
 
 ## Create the desired multi-cluster architecture
 
 From now on, the *cluster-1* is the *home-cluster*. 
 You can enable the *home-cluster* to peer with the other 2 clusters.
 
-### Enable peerings
+### Enable peering
+
+```
+export KUBECONFIG=$KUBECONFIG_2
+liqoctl generate-add-command
+```
+
+You will obtain an output like the following:
+
+```bash
+liqoctl add cluster cluster-2 --auth-url https://172.18.0.5:32714 \ 
+    --id 3623b0bd-3c32-4dec-994b-fc80d9d0d91d \
+    --token b13b6932ee6fd890a1abe212dc21253aa6d74565fead54
+```
+
+This output represents the command to use to enable an outgoing peering from another cluster to cluser-2.
+Therefore, you can take the output obtained and launch it aftering having sourced the KUBECONFIG_1:
+
+```
+export KUBECONFIG=$KUBECONFIG_1
+liqoctl add ... # the output you obtained from the liqoctl generate-add-command
+```
+
+You can do the same with cluster-3:
+
+```
+export KUBECONFIG=$KUBECONFIG_3
+liqoctl generate-add-command
+export KUBECONFIG=$KUBECONFIG_1
+liqoctl add ... # the output you obtained from the liqoctl generate-add-command
+```
+
+You can check now if the peerings are effectively enabled.
+
+### Check peering status
 
 Using *kubectl*, you can obtain the list of foreign clusters discovered by the *home-cluster*:
 
@@ -23,54 +58,8 @@ There should be two *ForeignCluster* resources in that state:
 
 ```bash
 NAME                                   OUTGOING PEERING PHASE   INCOMING PEERING PHASE   NETWORKING STATUS   AUTHENTICATION STATUS
-b07938e3-d241-460c-a77b-e286c0f733c7   None                     None                     None                Established             
-b38f5c32-a877-4f82-8bde-2fd0c5c8f862   None                     None                     None                Established             
-```
-
-{{% notice note %}}
-When discovered using LAN discovery, the ForeignCluster object name is the cluster-id of the corresponding remote cluster.
-{{% /notice %}}
-
-To enable an unidirectional peering it is sufficient to edit a field of the ForeignCluster resource:
-
-```bash
-kubectl patch foreignclusters <your-ForeignCluster-name> \
---patch '{"spec":{"outgoingPeeringEnabled":"Yes"}}' \
---type 'merge'
-```
-
-Repeat the same operation for the other resource.
-
-After the previous patches to ForeignCluster resources, you should obtain:
-
-```bash
-export KUBECONFIG=$KUBECONFIG_1
-kubectl get foreignclusters
-```
-
-```bash
-NAME                                   OUTGOING PEERING PHASE   INCOMING PEERING PHASE   NETWORKING STATUS   AUTHENTICATION STATUS
-b07938e3-d241-460c-a77b-e286c0f733c7   Established              None                     None                Established          
-b38f5c32-a877-4f82-8bde-2fd0c5c8f862   Established              None                     None                Established          
-```
-
-Only the "*OUTGOING PEERING PHASE*" is set to Established, so only the *home-cluster* can use the resources of the other two clusters:
-
-| Concept        | Description |
-|-----           | ----------- |
-| **Outgoing**   | Unidirectional peering from home-cluster to another cluster. |
-| **Incoming**   | Unidirectional peering from another cluster to home-cluster.|
-
-To have more details about the peering mechanism, look at the [dedicated peering section](/concepts/peering#overview).
-
-
-### Check the virtual node presences
-
-After few seconds, you should see two *Liqo Big Nodes* (named *"liqo-"*) in addition to the physical node.
-
-```bash
-export KUBECONFIG=$KUBECONFIG_1
-kubectl get nodes 
+cluster-2                                Established                   None                 Established           Established             
+cluster-3                                Established                   None                 Established           Established             
 ```
 
 The *home-cluster* has these two virtual nodes, relying on the two unidirectional peerings with *cluster-2* and *cluster-3*.

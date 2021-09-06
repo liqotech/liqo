@@ -3,10 +3,11 @@ title: Dynamic topology
 weight: 8
 ---
 
-Liqo allows you to select dynamically the clusters eligible for a specific namespace. 
-If you have specified certain characteristics, all the clusters that match them will be automatically added as candidate to receive certain pods.
-Similarly, if one cluster leaves the topology, the workload will be redistributed among the remaining clusters, by destroying and recreating the pods elsewhere.
-If new clusters are peered or unpeered at runtime, you do not have to take care to configure the topology or terminate the offloading: Liqo ensures the convergence to the new set-up automatically. 
+In the previous section, you used and tested the Liqo namespace offloading mechanism and how it can prevent from an undesired scheduling.
+In this section, you will get in touch with how Liqo deals with dynamic topologies.
+More precisely, given a cluster-selector in a *NamespaceOffloading*, Liqo adds peered newcomers clusters to the schedulable set.
+Complementarily, Liqo will force the rescheduling of workloads of clusters that leave the topology.
+In a nutshell, as a system admin or devops, you do not have to care if new clusters are peered or unpeered at runtime, Liqo ensures the convergence of the toto the new set-up automatically.
 
 In this step, you will try to disable the peering with a cluster that has at least one pod inside.
 This will show you that a new replacing pod is correctly rescheduled inside another available cluster.

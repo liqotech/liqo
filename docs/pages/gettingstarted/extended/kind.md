@@ -8,7 +8,7 @@ weight: 1
 After having installed the [requirements](/gettingstarted#system-requirements), you can launch the clusters script:
 
 ```bash
-// script
+source <(curl -L https://raw.githubusercontent.com/liqotech/liqo/master/docs/examples/3_kind_cluster.sh)
 ```
 
 The script downloads and executes the [Kind](https://kind.sigs.k8s.io) tool to create single-node clusters. 
@@ -29,7 +29,7 @@ cluster2
 cluster3
 ```
 
-This means that three kind clusters are deployed and running on your host.
+The previous output means that three kind clusters are deployed and running on your host.
 
 You can inspect the clusters' status. 
 To do so, you can export the **KUBECONFIG** variable to specify the identity file for *kubectl* and then contact the clusters.
@@ -50,7 +50,7 @@ export KUBECONFIG=$KUBECONFIG_1
 kubectl get pods -A
 ```
 
-If each cluster provides an output similar to this, it means that the three kind clusters are correctly running on your host.
+If each cluster provides an output similar to this, you have correctly set up the three clusters on your host.
 
 ```bash
 NAMESPACE            NAME                                             READY   STATUS    

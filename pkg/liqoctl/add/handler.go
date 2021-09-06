@@ -60,6 +60,20 @@ func HandleAddCommand(ctx context.Context, t *ClusterArgs) {
 	if err := processAddCluster(ctx, t, clientSet, k8sClient); err != nil {
 		klog.Fatalf(err.Error())
 	}
+
+	err = printSuccesfulOutputMessage(ctx, t, k8sClient)
+	if err != nil {
+		klog.Fatalf(err.Error())
+	}
+}
+
+func printSuccesfulOutputMessage(ctx context.Context, t *ClusterArgs, k8sClient client.Client) error {
+	fc, err := foreigncluster.GetForeignClusterByID(ctx, k8sClient, t.ClusterID)
+	if err != nil {
+		return err
+	}
+	fmt.Printf(SuccesfulMessage, t.ClusterName, fc.Name, t.ClusterID)
+	return nil
 }
 
 func processAddCluster(ctx context.Context, t *ClusterArgs, clientSet kubernetes.Interface, k8sClient client.Client) error {
