@@ -8,7 +8,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/eks"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
-	flag "github.com/spf13/pflag"
+	"github.com/spf13/cobra"
 
 	"github.com/liqotech/liqo/pkg/consts"
 )
@@ -37,14 +37,15 @@ var _ = Describe("Extract elements from EKS", func() {
 
 		p := NewProvider().(*eksProvider)
 
-		flags := flag.NewFlagSet("test", flag.PanicOnError)
+		cmd := &cobra.Command{}
 
-		GenerateFlags(flags)
+		GenerateFlags(cmd)
 
-		Expect(flags.Set("eks.region", region)).To(Succeed())
-		Expect(flags.Set("eks.cluster-name", clusterName)).To(Succeed())
-		Expect(flags.Set("eks.user-name", userName)).To(Succeed())
-		Expect(flags.Set("eks.policy-name", policyName)).To(Succeed())
+		flags := cmd.Flags()
+		Expect(flags.Set("region", region)).To(Succeed())
+		Expect(flags.Set("cluster-name", clusterName)).To(Succeed())
+		Expect(flags.Set("user-name", userName)).To(Succeed())
+		Expect(flags.Set("policy-name", policyName)).To(Succeed())
 
 		Expect(p.ValidateCommandArguments(flags)).To(Succeed())
 

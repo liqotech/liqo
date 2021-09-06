@@ -10,7 +10,9 @@ import (
 	"github.com/Azure/azure-sdk-for-go/services/network/mgmt/2021-02-01/network"
 	"github.com/Azure/go-autorest/autorest"
 	"github.com/Azure/go-autorest/autorest/azure/auth"
+	"github.com/spf13/cobra"
 	flag "github.com/spf13/pflag"
+	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/client-go/rest"
 	"k8s.io/klog/v2"
 
@@ -23,6 +25,11 @@ const (
 	providerPrefix = "aks"
 
 	defaultAksNodeCIDR = "10.240.0.0/16"
+
+	subscriptionIDFlag    = "subscription-id"
+	subscriptionNameFlag  = "subscription-name"
+	resourceGroupNameFlag = "resource-group-name"
+	resourceNameFlag      = "resource-name"
 )
 
 type aksProvider struct {
@@ -52,27 +59,27 @@ func NewProvider() provider.InstallProviderInterface {
 
 // ValidateCommandArguments validates specific arguments passed to the install command.
 func (k *aksProvider) ValidateCommandArguments(flags *flag.FlagSet) (err error) {
-	k.subscriptionID, err = flags.GetString(installutils.PrefixedName(providerPrefix, "subscription-id"))
+	k.subscriptionID, err = flags.GetString(subscriptionIDFlag)
 	if err != nil {
 		return err
 	}
 	klog.V(3).Infof("AKS SubscriptionID: %v", k.subscriptionID)
 
 	if k.subscriptionID == "" {
-		k.subscriptionName, err = installutils.CheckStringFlagIsSet(flags, providerPrefix, "subscription-name")
+		k.subscriptionName, err = installutils.CheckStringFlagIsSet(flags, subscriptionNameFlag)
 		if err != nil {
 			return err
 		}
 		klog.V(3).Infof("AKS SubscriptionName: %v", k.subscriptionName)
 	}
 
-	k.resourceGroupName, err = installutils.CheckStringFlagIsSet(flags, providerPrefix, "resource-group-name")
+	k.resourceGroupName, err = flags.GetString(resourceGroupNameFlag)
 	if err != nil {
 		return err
 	}
 	klog.V(3).Infof("AKS ResourceGroupName: %v", k.resourceGroupName)
 
-	k.resourceName, err = installutils.CheckStringFlagIsSet(flags, providerPrefix, "resource-name")
+	k.resourceName, err = flags.GetString(resourceNameFlag)
 	if err != nil {
 		return err
 	}
@@ -149,20 +156,18 @@ func (k *aksProvider) UpdateChartValues(values map[string]interface{}) {
 }
 
 // GenerateFlags generates the set of specific subpath and flags are accepted for a specific provider.
-func GenerateFlags(flags *flag.FlagSet) {
-	subFlag := flag.NewFlagSet(providerPrefix, flag.ExitOnError)
-	subFlag.SetNormalizeFunc(func(f *flag.FlagSet, name string) flag.NormalizedName {
-		return flag.NormalizedName(installutils.PrefixedName(providerPrefix, name))
-	})
+func GenerateFlags(command *cobra.Command) {
+	flags := command.Flags()
 
-	subFlag.String("subscription-id", "", "The ID of the Azure Subscription of your cluster,"+
-		" if empty it will be retrieved using the value provided in --aks.subscription-name (optional)")
-	subFlag.String("subscription-name", "", "The Name of the Azure Subscription of your cluster,"+
-		" you have to provide it if you don't specify the --aks.subscription-id value (optional)")
-	subFlag.String("resource-group-name", "", "The Azure ResourceGroup name of your cluster")
-	subFlag.String("resource-name", "", "The Azure Name of your cluster")
+	flags.String(subscriptionIDFlag, "", "The ID of the Azure Subscription of your cluster,"+
+		" if empty it will be retrieved using the value provided in --subscription-name (optional)")
+	flags.String(subscriptionNameFlag, "", "The Name of the Azure Subscription of your cluster,"+
+		" you have to provide it if you don't specify the --subscription-id value (optional)")
+	flags.String(resourceGroupNameFlag, "", "The Azure ResourceGroup name of your cluster")
+	flags.String(resourceNameFlag, "", "The Azure Name of your cluster")
 
-	flags.AddFlagSet(subFlag)
+	utilruntime.Must(command.MarkFlagRequired(resourceGroupNameFlag))
+	utilruntime.Must(command.MarkFlagRequired(resourceNameFlag))
 }
 
 func (k *aksProvider) parseClusterOutput(ctx context.Context, cluster *containerservice.ManagedCluster) error {

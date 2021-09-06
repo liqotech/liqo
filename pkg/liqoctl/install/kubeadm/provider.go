@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/spf13/cobra"
 	flag "github.com/spf13/pflag"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
@@ -66,11 +67,5 @@ func (k *Kubeadm) UpdateChartValues(values map[string]interface{}) {
 }
 
 // GenerateFlags generates the set of specific subpath and flags are accepted for a specific provider.
-func GenerateFlags(flags *flag.FlagSet) {
-	subFlag := flag.NewFlagSet(providerPrefix, flag.ExitOnError)
-	subFlag.SetNormalizeFunc(func(f *flag.FlagSet, name string) flag.NormalizedName {
-		return flag.NormalizedName(providerPrefix + "." + name)
-	})
-
-	flags.AddFlagSet(subFlag)
+func GenerateFlags(command *cobra.Command) {
 }
