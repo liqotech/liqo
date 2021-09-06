@@ -12,7 +12,9 @@ import (
 // installCmd represents the generateInstall command.
 func newAddCommand(ctx context.Context) *cobra.Command {
 	var addCmd = &cobra.Command{
-		Use: add.UseCommand,
+		Use:   add.UseCommand,
+		Short: add.LiqoctlAddShortHelp,
+		Long:  add.LiqoctlAddLongHelp,
 	}
 	addCmd.AddCommand(newAddClusterCommand(ctx))
 	return addCmd

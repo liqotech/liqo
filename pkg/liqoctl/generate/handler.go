@@ -61,6 +61,12 @@ func processGenerateCommand(ctx context.Context, clientSet client.Client, liqoNa
 }
 
 func generateCommandString(commandName, authEP, clusterID, localToken, clusterName string) string {
+	// If the local cluster has not clusterName, we print the local clusterID to not leave this field empty.
+	// This can be changed bt the user when pasting this value in a remote cluster.
+	if clusterName == "" {
+		clusterName = clusterID
+	}
+
 	command := []string{commandName,
 		add.UseCommand,
 		add.ClusterResourceName,
