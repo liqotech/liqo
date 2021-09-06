@@ -29,11 +29,7 @@ type ClusterConfigSpec struct {
 	// AdvertisementConfig defines the configuration for the advertisement protocol.
 	AdvertisementConfig AdvertisementConfig `json:"resourceSharingConfig"`
 	DiscoveryConfig     DiscoveryConfig     `json:"discoveryConfig"`
-	LiqonetConfig       LiqonetConfig       `json:"liqonetConfig"`
 }
-
-// +kubebuilder:validation:Pattern="^([0-9]{1,3}.){3}[0-9]{1,3}(/([0-9]|[1-2][0-9]|3[0-2]))$"
-type CIDR string
 
 // AdvertisementConfig defines the configuration for the advertisement protocol.
 type AdvertisementConfig struct {
@@ -133,24 +129,6 @@ type DiscoveryConfig struct {
 
 	AuthServiceAddress string `json:"authServiceAddress,omitempty"`
 	AuthServicePort    string `json:"authServicePort,omitempty"`
-}
-
-// LiqonetConfig defines the configuration of the Liqo Networking.
-type LiqonetConfig struct {
-	// This field is used by the IPAM embedded in the tunnelEndpointCreator.
-	// Subnets listed in this field are excluded from the list of possible subnets used for natting POD CIDR.
-	// Add here the subnets already used in your environment as a list in CIDR notation
-	// (e.g. [10.1.0.0/16, 10.200.1.0/24]).
-	ReservedSubnets []CIDR `json:"reservedSubnets"`
-	// The subnet used by the cluster for the pods, in CIDR notation
-	// +kubebuilder:validation:Pattern="^([0-9]{1,3}.){3}[0-9]{1,3}(/([0-9]|[1-2][0-9]|3[0-2]))$"
-	PodCIDR string `json:"podCIDR"`
-	// The subnet used by the cluster for the services, in CIDR notation
-	// +kubebuilder:validation:Pattern="^([0-9]{1,3}.){3}[0-9]{1,3}(/([0-9]|[1-2][0-9]|3[0-2]))$"
-	ServiceCIDR string `json:"serviceCIDR"`
-	// Set of additional user-defined network pools.
-	// Default set of network pools is: [192.168.0.0/16, 10.0.0.0/8, 172.16.0.0/12]
-	AdditionalPools []CIDR `json:"additionalPools"`
 }
 
 // ClusterConfigStatus defines the observed state of ClusterConfig.

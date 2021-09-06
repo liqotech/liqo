@@ -30,5 +30,3 @@ spec:
     {{- else if .Values.auth.ingress.enable }}
     authServicePort: "443"
     {{- end }}
-  liqonetConfig:
-    {{- .Values.networkManager.config | toYaml | nindent 4 }}

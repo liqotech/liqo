@@ -91,10 +91,7 @@ type TunnelEndpointCreator struct {
 	EndpointIP                 string
 	EndpointPort               string
 	PodCIDR                    string
-	ServiceCIDR                string
 	ExternalCIDR               string
-	ReservedSubnets            []string
-	AdditionalPools            []string
 	IPManager                  liqonetIpam.Ipam
 	Mutex                      sync.Mutex
 	WaitConfig                 *sync.WaitGroup
@@ -110,7 +107,6 @@ type TunnelEndpointCreator struct {
 	Namespace                  string
 	wgConfigured               bool
 	svcConfigured              bool
-	cfgConfigured              bool
 	RetryTimeout               time.Duration
 }
 
