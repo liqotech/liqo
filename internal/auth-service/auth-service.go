@@ -3,8 +3,6 @@ package authservice
 import (
 	"context"
 	"net/http"
-	"strings"
-	"sync"
 	"time"
 
 	"github.com/julienschmidt/httprouter"
@@ -17,15 +15,12 @@ import (
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/klog/v2"
 
-	"github.com/liqotech/liqo/apis/config/v1alpha1"
-	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	"github.com/liqotech/liqo/pkg/auth"
 	"github.com/liqotech/liqo/pkg/clusterid"
-	crdclient "github.com/liqotech/liqo/pkg/crdClient"
 	identitymanager "github.com/liqotech/liqo/pkg/identityManager"
 	peeringroles "github.com/liqotech/liqo/pkg/peering-roles"
 	tenantnamespace "github.com/liqotech/liqo/pkg/tenantNamespace"
-	"github.com/liqotech/liqo/pkg/utils/restcfg"
+	"github.com/liqotech/liqo/pkg/utils/apiserver"
 )
 
 // cluster-role
@@ -53,29 +48,22 @@ type Controller struct {
 	secretInformer cache.SharedIndexInformer
 
 	authenticationEnabled bool
-	useTLS                bool
 
 	credentialsValidator credentialsValidator
 	localClusterID       clusterid.ClusterID
+	localClusterName     string
 	namespaceManager     tenantnamespace.Manager
 	identityProvider     identitymanager.IdentityProvider
 
-	apiServerConfig *v1alpha1.APIServerConfig
-	discoveryConfig v1alpha1.DiscoveryConfig
-	configMutex     sync.RWMutex
+	apiServerConfig apiserver.Config
 
 	peeringPermission peeringroles.PeeringPermission
 }
 
 // NewAuthServiceCtrl creates a new Auth Controller.
-func NewAuthServiceCtrl(namespace, kubeconfigPath string,
-	awsConfig identitymanager.AwsConfig,
-	resyncTime time.Duration, authEnabled, useTLS bool) (*Controller, error) {
-	config, err := crdclient.NewKubeconfig(kubeconfigPath, &discoveryv1alpha1.GroupVersion, nil)
-	if err != nil {
-		return nil, err
-	}
-	restcfg.SetRateLimiter(config)
+func NewAuthServiceCtrl(config *rest.Config, namespace string,
+	awsConfig identitymanager.AwsConfig, resyncTime time.Duration,
+	apiServerConfig apiserver.Config, authEnabled, useTLS bool, clusterName string) (*Controller, error) {
 	clientset, err := kubernetes.NewForConfig(config)
 	if err != nil {
 		return nil, err
@@ -86,7 +74,7 @@ func NewAuthServiceCtrl(namespace, kubeconfigPath string,
 	secretInformer := informerFactory.Core().V1().Secrets().Informer()
 	secretInformer.AddEventHandler(cache.ResourceEventHandlerFuncs{})
 
-	localClusterID, err := clusterid.NewClusterID(kubeconfigPath)
+	localClusterID, err := clusterid.NewClusterIDFromClient(clientset)
 	if err != nil {
 		return nil, err
 	}
@@ -111,17 +99,19 @@ func NewAuthServiceCtrl(namespace, kubeconfigPath string,
 		clientset:        clientset,
 		secretInformer:   secretInformer,
 		localClusterID:   localClusterID,
+		localClusterName: clusterName,
 		namespaceManager: namespaceManager,
 		identityProvider: idProvider,
 
+		apiServerConfig: apiServerConfig,
+
 		authenticationEnabled: authEnabled,
-		useTLS:                useTLS,
 		credentialsValidator:  &tokenValidator{},
 	}, nil
 }
 
 // Start starts the authentication service.
-func (authService *Controller) Start(listeningPort, certFile, keyFile string) error {
+func (authService *Controller) Start(address string, useTLS bool, certPath, keyPath string) error {
 	if err := authService.configureToken(); err != nil {
 		return err
 	}
@@ -140,10 +130,10 @@ func (authService *Controller) Start(listeningPort, certFile, keyFile string) er
 	router.POST(auth.CertIdentityURI, authService.identity)
 	router.GET(auth.IdsURI, authService.ids)
 
-	if authService.useTLS {
-		err = http.ListenAndServeTLS(strings.Join([]string{":", listeningPort}, ""), certFile, keyFile, router)
+	if useTLS {
+		err = http.ListenAndServeTLS(address, certPath, keyPath, router)
 	} else {
-		err = http.ListenAndServe(strings.Join([]string{":", listeningPort}, ""), router)
+		err = http.ListenAndServe(address, router)
 	}
 	if err != nil {
 		klog.Error(err)
@@ -191,10 +181,6 @@ func (authService *Controller) configureToken() error {
 		},
 	})
 	return nil
-}
-
-func (authService *Controller) getConfigProvider() auth.ConfigProvider {
-	return authService
 }
 
 func (authService *Controller) getTokenManager() tokenManager {

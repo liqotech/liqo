@@ -3,61 +3,58 @@ package main
 import (
 	"flag"
 	"os"
-	"path/filepath"
 	"time"
 
 	"k8s.io/klog/v2"
+	ctrl "sigs.k8s.io/controller-runtime"
 
 	authservice "github.com/liqotech/liqo/internal/auth-service"
 	identitymanager "github.com/liqotech/liqo/pkg/identityManager"
+	"github.com/liqotech/liqo/pkg/utils/apiserver"
 	"github.com/liqotech/liqo/pkg/utils/restcfg"
 )
 
 func main() {
 	klog.Info("Starting")
 
-	var namespace string
-	var kubeconfigPath string
-	var resyncSeconds int64
-	var listeningPort string
-	var certFile string
-	var keyFile string
-
 	var awsConfig identitymanager.AwsConfig
 
-	flag.StringVar(&namespace, "namespace", "default", "Namespace where your configs are stored.")
-	flag.StringVar(&kubeconfigPath, "kubeconfigPath",
-		filepath.Join(os.Getenv("HOME"), ".kube", "config"), "For debug purpose, set path to local kubeconfig")
-	flag.Int64Var(&resyncSeconds, "resyncSeconds", 30, "Resync seconds for the informers")
-	flag.StringVar(&listeningPort, "listeningPort", "5000", "Sets the port where the service will listen")
-	flag.StringVar(&certFile, "certFile", "/certs/cert.pem", "Path to cert file")
-	flag.StringVar(&keyFile, "keyFile", "/certs/key.pem", "Path to key file")
+	namespace := flag.String("namespace", "default", "Namespace where your configs are stored.")
+	resync := flag.Duration("resync-period", 30*time.Second, "The resync period for the informers")
 
-	enableAuth := flag.Bool("enableAuthentication", true,
+	address := flag.String("address", ":5000", "The address the service binds to")
+	certPath := flag.String("cert-path", "/certs/cert.pem", "The path to the TLS certificate")
+	keyPath := flag.String("key-path", "/certs/key.pem", "The path to TLS private key")
+	useTLS := flag.Bool("enable-tls", false, "Enable HTTPS server")
+
+	clusterName := flag.String("advertise-cluster-name", "", "The cluster name advertised during the peering process")
+	enableAuth := flag.Bool("enable-authentication", true,
 		"Whether to authenticate remote clusters through tokens before granting an identity (warning: disable only for testing purposes)")
-	useTLS := flag.Bool("useTls", false, "Enable HTTPS server")
 
-	flag.StringVar(&awsConfig.AwsAccessKeyID, "awsAccessKeyId", "", "AWS IAM AccessKeyID for the Liqo User")
-	flag.StringVar(&awsConfig.AwsSecretAccessKey, "awsSecretAccessKey", "", "AWS IAM SecretAccessKey for the Liqo User")
-	flag.StringVar(&awsConfig.AwsRegion, "awsRegion", "", "AWS region where the local cluster is running")
-	flag.StringVar(&awsConfig.AwsClusterName, "awsClusterName", "", "Name of the local EKS cluster")
+	flag.StringVar(&awsConfig.AwsAccessKeyID, "aws-access-key-id", "", "AWS IAM AccessKeyID for the Liqo User")
+	flag.StringVar(&awsConfig.AwsSecretAccessKey, "aws-secret-access-key", "", "AWS IAM SecretAccessKey for the Liqo User")
+	flag.StringVar(&awsConfig.AwsRegion, "aws-region", "", "AWS region where the local cluster is running")
+	flag.StringVar(&awsConfig.AwsClusterName, "aws-cluster-name", "", "Name of the local EKS cluster")
+
+	// Configure the flags concerning the exposed API server connection parameters.
+	apiserver.InitFlags(nil)
 
 	restcfg.InitFlags(nil)
 	klog.InitFlags(nil)
 	flag.Parse()
 
-	klog.Info("Namespace: ", namespace)
+	klog.Info("Namespace: ", *namespace)
+
+	config := restcfg.SetRateLimiter(ctrl.GetConfigOrDie())
 
 	authService, err := authservice.NewAuthServiceCtrl(
-		namespace, kubeconfigPath, awsConfig, time.Duration(resyncSeconds)*time.Second, *enableAuth, *useTLS)
+		config, *namespace, awsConfig, *resync, apiserver.GetConfig(), *enableAuth, *useTLS, *clusterName)
 	if err != nil {
 		klog.Error(err)
 		os.Exit(1)
 	}
 
-	authService.GetAuthServiceConfig(kubeconfigPath)
-
-	if err = authService.Start(listeningPort, certFile, keyFile); err != nil {
+	if err = authService.Start(*address, *useTLS, *certPath, *keyPath); err != nil {
 		klog.Error(err)
 		os.Exit(1)
 	}

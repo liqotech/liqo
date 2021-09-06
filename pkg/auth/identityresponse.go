@@ -10,7 +10,7 @@ import (
 	"k8s.io/klog/v2"
 
 	responsetypes "github.com/liqotech/liqo/pkg/identityManager/responseTypes"
-	"github.com/liqotech/liqo/pkg/utils"
+	"github.com/liqotech/liqo/pkg/utils/apiserver"
 )
 
 // AWSIdentityInfo contains the information required by a cluster to get a valied IAM-based identity.
@@ -44,20 +44,20 @@ func (resp *CertificateIdentityResponse) HasAWSValues() bool {
 // NewCertificateIdentityResponse makes a new CertificateIdentityResponse.
 func NewCertificateIdentityResponse(
 	namespace string, identityResponse *responsetypes.SigningRequestResponse,
-	apiServerConfigProvider utils.ApiServerConfigProvider,
+	apiServerConfig apiserver.Config,
 	clientset kubernetes.Interface, restConfig *rest.Config) (*CertificateIdentityResponse, error) {
 	responseType := identityResponse.ResponseType
 
 	switch responseType {
 	case responsetypes.SigningRequestResponseCertificate:
-		apiServerURL, err := utils.GetAPIServerURL(apiServerConfigProvider, clientset)
+		apiServerURL, err := apiserver.GetURL(apiServerConfig, clientset)
 		if err != nil {
 			klog.Error(err)
 			return nil, err
 		}
 
 		var apiServerCa string
-		if apiServerConfigProvider.GetAPIServerConfig().TrustedCA {
+		if apiServerConfig.TrustedCA {
 			apiServerCa = ""
 		} else {
 			apiServerCa, err = getAPIServerCA(restConfig)

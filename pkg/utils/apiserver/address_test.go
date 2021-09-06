@@ -1,54 +1,19 @@
-package utils
+package apiserver_test
 
 import (
 	"context"
-	"os"
-	"path/filepath"
-	"testing"
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/ginkgo/extensions/table"
 	. "github.com/onsi/gomega"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/kubernetes/fake"
 
-	"github.com/liqotech/liqo/pkg/utils/testutil"
+	"github.com/liqotech/liqo/pkg/utils/apiserver"
 )
 
-func TestAddress(t *testing.T) {
-	RegisterFailHandler(Fail)
-	RunSpecs(t, "Address Suite")
-}
-
 var _ = Describe("Address", func() {
-
-	var (
-		cluster testutil.Cluster
-		ctx     context.Context
-		cancel  context.CancelFunc
-	)
-
-	BeforeSuite(func() {
-		ctx, cancel = context.WithCancel(context.Background())
-
-		var err error
-		cluster, _, err = testutil.NewTestCluster([]string{filepath.Join("..", "..", "..", "deployments", "liqo", "crds")})
-		if err != nil {
-			By(err.Error())
-			os.Exit(1)
-		}
-	})
-
-	AfterSuite(func() {
-		cancel()
-
-		err := cluster.GetEnv().Stop()
-		if err != nil {
-			By(err.Error())
-			os.Exit(1)
-		}
-	})
 
 	type addressTestcase struct {
 		node            *v1.Node
@@ -58,7 +23,8 @@ var _ = Describe("Address", func() {
 	DescribeTable("Address table",
 
 		func(c addressTestcase) {
-			client := kubernetes.NewForConfigOrDie(cluster.GetCfg())
+			ctx := context.Background()
+			client := fake.NewSimpleClientset()
 
 			node, err := client.CoreV1().Nodes().Create(ctx, c.node, metav1.CreateOptions{})
 			Expect(err).To(Succeed())
@@ -66,7 +32,7 @@ var _ = Describe("Address", func() {
 			node, err = client.CoreV1().Nodes().Update(ctx, node, metav1.UpdateOptions{})
 			Expect(err).To(Succeed())
 
-			address, err := GetAPIServerAddressFromMasterNode(ctx, client)
+			address, err := apiserver.GetAddressFromMasterNode(ctx, client)
 			Expect(err).To(Succeed())
 
 			Expect(address).To(Equal(c.expectedAddress))
@@ -116,5 +82,4 @@ var _ = Describe("Address", func() {
 			expectedAddress: "https://1.2.3.4:6443",
 		}),
 	)
-
 })

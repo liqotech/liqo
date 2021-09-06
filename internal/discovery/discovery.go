@@ -17,13 +17,12 @@ import (
 type Controller struct {
 	Namespace string
 
-	configMutex     sync.RWMutex
-	Config          *configv1alpha1.DiscoveryConfig
-	apiServerConfig *configv1alpha1.APIServerConfig
-	stopMDNS        chan bool
-	stopMDNSClient  chan bool
-	crdClient       *crdclient.CRDClient
-	LocalClusterID  clusterid.ClusterID
+	configMutex    sync.RWMutex
+	Config         *configv1alpha1.DiscoveryConfig
+	stopMDNS       chan bool
+	stopMDNSClient chan bool
+	crdClient      *crdclient.CRDClient
+	LocalClusterID clusterid.ClusterID
 
 	mdnsServerAuth            *zeroconf.Server
 	serverMux                 sync.Mutex
