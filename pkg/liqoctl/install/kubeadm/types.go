@@ -23,8 +23,8 @@ import (
 
 const (
 	providerPrefix             = "kubeadm"
-	serviceCIDRParameterFilter = `--service-cluster-ip-range=.*`
-	podCIDRParameterFilter     = `--cluster-cidr=.*`
+	serviceCIDRParameterFilter = `--service-cluster-ip-range`
+	podCIDRParameterFilter     = `--cluster-cidr`
 	kubeSystemNamespaceName    = "kube-system"
 )
 

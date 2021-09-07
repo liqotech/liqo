@@ -31,7 +31,7 @@ import (
 // cluster-role
 // +kubebuilder:rbac:groups=net.liqo.io,resources=tunnelendpoints,verbs=get;list;watch;
 // +kubebuilder:rbac:groups=net.liqo.io,resources=networkconfigs,verbs=get;list;watch;
-// +kubebuilder:rbac:groups=config.liqo.io,resources=clusterconfigs,verbs=get;list;watch;patch;update
+// +kubebuilder:rbac:groups=core,resources=nodes,verbs=get;list;watch
 // +kubebuilder:rbac:groups=core,resources=events,verbs=create;patch
 // +kubebuilder:rbac:groups=discovery.liqo.io,resources=foreignclusters,verbs=get;list;watch;patch;update;delete;deletecollection;
 
@@ -57,12 +57,6 @@ func main() {
 
 	client := dynamic.NewForConfigOrDie(config)
 	klog.Infof("Loaded dynamic client: %s", kubeconfigPath)
-
-	if err = uninstaller.DisableDiscoveryAndPeering(ctx, client); err != nil {
-		klog.Errorf("Unable to deactivate discovery mechanism: %s", err)
-		os.Exit(1)
-	}
-	klog.Info("Outgoing Resource sharing has been disabled")
 
 	// Trigger unjoin clusters
 	err = uninstaller.UnjoinClusters(ctx, client)

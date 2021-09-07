@@ -16,16 +16,18 @@ package generate
 
 import (
 	"context"
+	"fmt"
 	"testing"
 
 	. "github.com/onsi/ginkgo"
+	. "github.com/onsi/ginkgo/extensions/table"
 	. "github.com/onsi/gomega"
+	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	fakecontroller "sigs.k8s.io/controller-runtime/pkg/client/fake"
 
-	configv1alpha1 "github.com/liqotech/liqo/apis/config/v1alpha1"
 	"github.com/liqotech/liqo/pkg/auth"
 	"github.com/liqotech/liqo/pkg/consts"
 )
@@ -40,9 +42,8 @@ const (
 )
 
 var (
-	k8sClient       client.Client
-	ctx             context.Context
-	expectedCommand string
+	k8sClient client.Client
+	ctx       context.Context
 )
 
 func TestAddCommand(t *testing.T) {
@@ -52,84 +53,102 @@ func TestAddCommand(t *testing.T) {
 
 var _ = Describe("Test the generate command works as expected", func() {
 
-	When("A generate command is performed", func() {
-		BeforeEach(func() {
-			k8sClient = setUpEnvironment(liqoNamespace, localClusterID, token, clusterName)
-			expectedCommand = commandName + " add cluster " + clusterName + " --auth-url https://" + authEndpoint +
-				" --id " + localClusterID + " --token " + token
-		})
-
-		It("Should be equal to the expected output", func() {
-			command := processGenerateCommand(ctx, k8sClient, liqoNamespace, "liqoctl")
-			Expect(command).To(BeIdenticalTo(expectedCommand))
-		})
-	})
-})
-
-func setUpEnvironment(liqonamespace, localClusterID, token, clusterName string) client.Client {
-	// Create Namespace
-	ns := &corev1.Namespace{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: liqonamespace,
-		},
-	}
-	// Create ClusterID ConfigMap
-	clusterIDConfigMap := &corev1.ConfigMap{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      consts.ClusterIDConfigMapName,
-			Namespace: liqonamespace,
-		},
-		Data: map[string]string{
-			consts.ClusterIDConfigMapKey: localClusterID,
-		},
-	}
-	secret := &corev1.Secret{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      auth.TokenSecretName,
-			Namespace: liqoNamespace,
-		},
-		Data: map[string][]byte{
-			"token": []byte(token),
-		},
-	}
-	clusterConfig := &configv1alpha1.ClusterConfig{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: "liqo-configuration",
-		},
-		Spec: configv1alpha1.ClusterConfigSpec{
-
-			DiscoveryConfig: configv1alpha1.DiscoveryConfig{
-				ClusterName: clusterName,
+	setUpEnvironment := func(liqonamespace, localClusterID, token string, deployArgs []string) client.Client {
+		// Create Namespace
+		ns := &corev1.Namespace{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: liqonamespace,
 			},
-		},
-	}
+		}
+		// Create ClusterID ConfigMap
+		clusterIDConfigMap := &corev1.ConfigMap{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      consts.ClusterIDConfigMapName,
+				Namespace: liqonamespace,
+			},
+			Data: map[string]string{
+				consts.ClusterIDConfigMapKey: localClusterID,
+			},
+		}
+		secret := &corev1.Secret{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      auth.TokenSecretName,
+				Namespace: liqoNamespace,
+			},
+			Data: map[string][]byte{
+				"token": []byte(token),
+			},
+		}
 
-	authService := &corev1.Service{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "liqo-auth",
-			Namespace: liqoNamespace,
-		},
-		Spec: corev1.ServiceSpec{
-			Ports: []corev1.ServicePort{
-				{
-					Name:     "https",
-					Port:     443,
-					NodePort: 34000,
+		discoveryDeploy := &appsv1.Deployment{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "whatever",
+				Namespace: liqoNamespace,
+				Labels: map[string]string{
+					"app.kubernetes.io/name":      "discovery",
+					"app.kubernetes.io/component": "discovery",
 				},
 			},
-			ClusterIP: authEndpoint,
-			Type:      "LoadBalancer",
-		},
-		Status: corev1.ServiceStatus{
-			LoadBalancer: corev1.LoadBalancerStatus{
-				Ingress: []corev1.LoadBalancerIngress{
-					{
-						IP: authEndpoint,
+			Spec: appsv1.DeploymentSpec{
+				Template: corev1.PodTemplateSpec{
+					Spec: corev1.PodSpec{
+						Containers: []corev1.Container{
+							{Args: deployArgs},
+						},
 					},
 				},
 			},
-			Conditions: nil,
-		},
+		}
+
+		authService := &corev1.Service{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "liqo-auth",
+				Namespace: liqoNamespace,
+			},
+			Spec: corev1.ServiceSpec{
+				Ports: []corev1.ServicePort{
+					{
+						Name:     "https",
+						Port:     443,
+						NodePort: 34000,
+					},
+				},
+				ClusterIP: authEndpoint,
+				Type:      "LoadBalancer",
+			},
+			Status: corev1.ServiceStatus{
+				LoadBalancer: corev1.LoadBalancerStatus{
+					Ingress: []corev1.LoadBalancerIngress{
+						{
+							IP: authEndpoint,
+						},
+					},
+				},
+				Conditions: nil,
+			},
+		}
+		return fakecontroller.NewClientBuilder().WithObjects(ns, secret, clusterIDConfigMap, discoveryDeploy, authService).Build()
 	}
-	return fakecontroller.NewClientBuilder().WithObjects(ns, secret, clusterIDConfigMap, clusterConfig, authService).Build()
-}
+
+	DescribeTable("A generate command is performed",
+		func(deployArgs []string, expected string) {
+			k8sClient = setUpEnvironment(liqoNamespace, localClusterID, token, deployArgs)
+			Expect(processGenerateCommand(ctx, k8sClient, liqoNamespace, "liqoctl")).To(BeIdenticalTo(expected))
+		},
+		Entry("Cluster name unset", []string{},
+			commandName+" add cluster "+localClusterID+" --auth-url https://"+authEndpoint+" --id "+localClusterID+" --token "+token,
+		),
+		Entry("Default authentication service endpoint",
+			[]string{fmt.Sprintf("%v=%v", consts.ClusterNameParameter, clusterName)},
+			commandName+" add cluster "+clusterName+" --auth-url https://"+authEndpoint+" --id "+localClusterID+" --token "+token,
+		),
+		Entry("Overridden authentication service endpoint",
+			[]string{
+				fmt.Sprintf("%v=%v", consts.ClusterNameParameter, clusterName),
+				fmt.Sprintf("%v=%v", consts.AuthServiceAddressOverrideParameter, "foo.bar.com"),
+				fmt.Sprintf("%v=%v", consts.AuthServicePortOverrideParameter, "8443"),
+			},
+			commandName+" add cluster "+clusterName+" --auth-url https://foo.bar.com:8443 --id "+localClusterID+" --token "+token,
+		),
+	)
+})

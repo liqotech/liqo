@@ -35,7 +35,6 @@ import (
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	netv1alpha1 "github.com/liqotech/liqo/apis/net/v1alpha1"
 	crdreplicator "github.com/liqotech/liqo/internal/crdReplicator"
-	"github.com/liqotech/liqo/internal/discovery"
 	"github.com/liqotech/liqo/pkg/clusterid"
 	liqoconst "github.com/liqotech/liqo/pkg/consts"
 	identitymanager "github.com/liqotech/liqo/pkg/identityManager"
@@ -90,17 +89,19 @@ type ForeignClusterReconciler struct {
 	Scheme *runtime.Scheme
 
 	LiqoNamespacedClient client.Client
-	clusterID            clusterid.ClusterID
-	RequeueAfter         time.Duration
+	liqoNamespace        string
 
-	liqoNamespace string
+	requeueAfter               time.Duration
+	clusterID                  clusterid.ClusterID
+	clusterName                string
+	authServiceAddressOverride string
+	authServicePortOverride    string
+	autoJoin                   bool
 
 	namespaceManager tenantnamespace.Manager
 	identityManager  identitymanager.IdentityManager
 
 	peeringPermission peeringRoles.PeeringPermission
-
-	ConfigProvider discovery.ConfigProvider
 }
 
 // clusterRole
@@ -175,7 +176,7 @@ func (r *ForeignClusterReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 			peeringconditionsutils.GetMessage(&foreignCluster, discoveryv1alpha1.ProcessForeignClusterStatusCondition))
 		return ctrl.Result{
 			Requeue:      true,
-			RequeueAfter: r.RequeueAfter,
+			RequeueAfter: r.requeueAfter,
 		}, nil
 	}
 	tracer.Step("Ensured the ForeignCluster is processable")
@@ -279,7 +280,7 @@ func (r *ForeignClusterReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 	klog.V(4).Infof("ForeignCluster %s successfully reconciled", foreignCluster.Name)
 	return ctrl.Result{
 		Requeue:      true,
-		RequeueAfter: r.RequeueAfter,
+		RequeueAfter: r.requeueAfter,
 	}, nil
 }
 

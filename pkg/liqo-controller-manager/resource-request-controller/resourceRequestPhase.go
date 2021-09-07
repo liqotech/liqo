@@ -29,7 +29,7 @@ const (
 
 // getResourceRequestPhase returns the phase associated with a resource request. It is:
 // * "Deleting" if the deletion timestamp is set or the related offer has been withdrawn.
-// * "Allow" if the incoming peering is enabled in the ForeignCluster or by the ClusterConfig.
+// * "Allow" if the incoming peering is enabled in the ForeignCluster or through the command line parameter.
 // * "Deny" in the other cases (no ForeignCluster, incoming peering disabled, ...)
 func (r *ResourceRequestReconciler) getResourceRequestPhase(
 	foreignCluster *discoveryv1alpha1.ForeignCluster,

@@ -25,6 +25,4 @@ const (
 	ClusterIDLabelName = "clusterID"
 	// ClusterIDConfigMapKey is the key of the configmap where the cluster-id is stored.
 	ClusterIDConfigMapKey = "cluster-id"
-	// ClusterConfigResourceName contains the name of the default ClusterConfig object.
-	ClusterConfigResourceName = "liqo-configuration"
 )

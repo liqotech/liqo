@@ -12,31 +12,16 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package discovery
+package consts
 
-import (
-	"context"
-	"time"
+const (
+	// ClusterNameParameter is the name of the parameter specifying the cluster name.
+	ClusterNameParameter = "cluster-name"
 
-	"k8s.io/klog/v2"
+	// AuthServiceAddressOverrideParameter is the name of the parameter overriding
+	// the automatically detected authentication service address.
+	AuthServiceAddressOverrideParameter = "auth-service-address-override"
+	// AuthServicePortOverrideParameter is the name of the parameter overriding
+	// the automatically detected authentication service address.
+	AuthServicePortOverrideParameter = "auth-service-port-override"
 )
-
-func (discovery *Controller) startGratuitousAnswers(ctx context.Context) {
-	for {
-		select {
-		case <-time.After(12 * time.Second):
-			discovery.sendAnswer()
-		case <-ctx.Done():
-			return
-		}
-	}
-}
-
-func (discovery *Controller) sendAnswer() {
-	discovery.serverMux.Lock()
-	defer discovery.serverMux.Unlock()
-	if discovery.mdnsServerAuth != nil {
-		klog.V(5).Infof("Sending a gratuitous mDNS answer")
-		discovery.mdnsServerAuth.SendMulticast()
-	}
-}

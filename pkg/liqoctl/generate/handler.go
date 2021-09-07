@@ -16,16 +16,17 @@ package generate
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strings"
 
-	"k8s.io/apimachinery/pkg/types"
+	appsv1 "k8s.io/api/apps/v1"
 	"k8s.io/klog/v2"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	configv1alpha1 "github.com/liqotech/liqo/apis/config/v1alpha1"
 	"github.com/liqotech/liqo/pkg/auth"
 	"github.com/liqotech/liqo/pkg/consts"
+	"github.com/liqotech/liqo/pkg/discovery"
 	"github.com/liqotech/liqo/pkg/liqoctl/add"
 	"github.com/liqotech/liqo/pkg/liqoctl/common"
 	"github.com/liqotech/liqo/pkg/utils"
@@ -58,20 +59,23 @@ func processGenerateCommand(ctx context.Context, clientSet client.Client, liqoNa
 		klog.Fatalf(err.Error())
 	}
 
-	clusterConfig := &configv1alpha1.ClusterConfig{}
-	err = clientSet.Get(ctx, types.NamespacedName{
-		Name: consts.ClusterConfigResourceName,
-	}, clusterConfig)
+	// Retrieve the discovery deployment
+	args, err := retrieveDiscoveryDeploymentArgs(ctx, clientSet, liqoNamespace)
 	if err != nil {
-		klog.Fatalf("an error occurred while retrieving the clusterConfig: %s", err)
+		klog.Fatalf(err.Error())
 	}
 
+	// The error is discarded, since an empty string is returned in case the key is not found, which is fine.
+	clusterName, _ := common.ExtractValueFromArgumentList(consts.ClusterNameParameter, args)
+	authServiceAddressOverride, _ := common.ExtractValueFromArgumentList(consts.AuthServiceAddressOverrideParameter, args)
+	authServicePortOverride, _ := common.ExtractValueFromArgumentList(consts.AuthServicePortOverrideParameter, args)
+
 	authEP, err := foreigncluster.GetHomeAuthURL(ctx, clientSet, clientSet,
-		clusterConfig.Spec.DiscoveryConfig.AuthServiceAddress, clusterConfig.Spec.DiscoveryConfig.AuthServicePort, liqoNamespace)
+		authServiceAddressOverride, authServicePortOverride, liqoNamespace)
 	if err != nil {
 		klog.Fatalf("an error occurred while retrieving the liqo-auth service: %s", err)
 	}
-	return generateCommandString(commandName, authEP, clusterID, localToken, clusterConfig.Spec.DiscoveryConfig.ClusterName)
+	return generateCommandString(commandName, authEP, clusterID, localToken, clusterName)
 }
 
 func generateCommandString(commandName, authEP, clusterID, localToken, clusterName string) string {
@@ -92,4 +96,22 @@ func generateCommandString(commandName, authEP, clusterID, localToken, clusterNa
 		"--" + add.ClusterTokenFlagName,
 		localToken}
 	return strings.Join(command, " ")
+}
+
+// retrieveDiscoveryDeploymentArgs retrieves the list of arguments associated with the discovery deployment.
+func retrieveDiscoveryDeploymentArgs(ctx context.Context, clientSet client.Client, liqoNamespace string) ([]string, error) {
+	// Retrieve the deployment of the discovery component
+	var deployments appsv1.DeploymentList
+	if err := clientSet.List(ctx, &deployments, client.InNamespace(liqoNamespace), client.MatchingLabelsSelector{
+		Selector: discovery.DeploymentLabelSelector(),
+	}); err != nil || len(deployments.Items) != 1 {
+		return nil, errors.New("failed to retrieve the discovery deployment")
+	}
+
+	containers := deployments.Items[0].Spec.Template.Spec.Containers
+	if len(containers) != 1 {
+		return nil, errors.New("retrieved an invalid discovery deployment")
+	}
+
+	return containers[0].Args, nil
 }

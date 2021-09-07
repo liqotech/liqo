@@ -39,7 +39,7 @@ func (r *ForeignClusterReconciler) validateForeignCluster(ctx context.Context,
 			klog.Error(err)
 			return false, ctrl.Result{
 				Requeue:      true,
-				RequeueAfter: r.RequeueAfter,
+				RequeueAfter: r.requeueAfter,
 			}, err
 		}
 		requireUpdate = true
@@ -60,13 +60,13 @@ func (r *ForeignClusterReconciler) validateForeignCluster(ctx context.Context,
 			klog.Error(err, err.Error())
 			return false, ctrl.Result{
 				Requeue:      true,
-				RequeueAfter: r.RequeueAfter,
+				RequeueAfter: r.requeueAfter,
 			}, err
 		}
 		klog.V(4).Infof("ForeignCluster %s successfully reconciled", foreignCluster.Name)
 		return false, ctrl.Result{
 			Requeue:      true,
-			RequeueAfter: r.RequeueAfter,
+			RequeueAfter: r.requeueAfter,
 		}, nil
 	}
 

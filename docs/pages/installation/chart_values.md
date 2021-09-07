@@ -19,7 +19,7 @@ weight: 5
 | auth.pod.annotations | object | `{}` | auth pod annotations |
 | auth.pod.extraArgs | list | `[]` | auth pod extra arguments |
 | auth.pod.labels | object | `{}` | auth pod labels |
-| auth.portOverride | string | `""` | Overrides the port were your service is available, you should configure it if behind a NAT or using an Ingress with a port different from 443. |
+| auth.portOverride | string | `""` | Overrides the port where your service is available, you should configure it if behind a NAT or using an Ingress with a port different from 443. |
 | auth.service.annotations | object | `{}` | auth service annotations |
 | auth.service.type | string | `"LoadBalancer"` | The type of service used to expose the Authentication Service If you are exposing this service with an Ingress consider to change it to ClusterIP, otherwise if your cluster does not support LoadBalancer services consider to switch it to NodePort. See https://doc.liqo.io/installation/ for more details. |
 | auth.tls | bool | `true` | Enable TLS for the Authentication Service Pod (using a self-signed certificate). If you are exposing this service with an Ingress consider to disable it or add the appropriate annotations to the Ingress resource. |
