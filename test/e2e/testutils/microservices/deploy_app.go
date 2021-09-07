@@ -19,15 +19,14 @@ import (
 )
 
 const (
-	retries             = 60
+	retries             = 120
 	sleepBetweenRetries = 3 * time.Second
-	kubeResourcePath    = "https://raw.githubusercontent.com/liqotech/microservices-demo/master/release/kubernetes-manifests.yaml"
 	// TestNamespaceName is the namespace name where the test is performed.
 	TestNamespaceName = "test-app"
 )
 
 // DeployApp creates the namespace and deploy the applications. It returns an error in case of failures.
-func DeployApp(t ginkgo.GinkgoTInterface, configPath string) error {
+func DeployApp(t ginkgo.GinkgoTInterface, configPath, kubeResourcePath string) error {
 	options := k8s.NewKubectlOptions("", configPath, TestNamespaceName)
 	if err := k8s.CreateNamespaceWithMetadataE(t, options, metav1.ObjectMeta{
 		Name:   "test-app",

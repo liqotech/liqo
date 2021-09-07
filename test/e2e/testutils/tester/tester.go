@@ -50,6 +50,11 @@ func createTester(ctx context.Context) *Tester {
 		klog.Error("KUBECONFIG_2 not set")
 		os.Exit(1)
 	}
+	kubeconfig3 := os.Getenv("KUBECONFIG_3")
+	if kubeconfig2 == "" {
+		klog.Error("KUBECONFIG_2 not set")
+		os.Exit(1)
+	}
 	namespace := os.Getenv("NAMESPACE")
 	if namespace == "" {
 		klog.Error("NAMESPACE not set")
@@ -66,12 +71,22 @@ func createTester(ctx context.Context) *Tester {
 		klog.Error(err)
 		os.Exit(1)
 	}
+	config3, err := clientcmd.BuildConfigFromFlags("", kubeconfig3)
+	if err != nil {
+		klog.Error(err)
+		os.Exit(1)
+	}
 	clientset1, err := kubernetes.NewForConfig(config1)
 	if err != nil {
 		klog.Error(err)
 		os.Exit(1)
 	}
 	clientset2, err := kubernetes.NewForConfig(config2)
+	if err != nil {
+		klog.Error(err)
+		os.Exit(1)
+	}
+	clientset3, err := kubernetes.NewForConfig(config3)
 	if err != nil {
 		klog.Error(err)
 		os.Exit(1)
@@ -85,6 +100,11 @@ func createTester(ctx context.Context) *Tester {
 	if err != nil {
 		klog.Warningf("an error occurred while getting cluster-id configmap %s", err)
 		clusterID2 = ""
+	}
+	clusterID3, err := utils.GetClusterIDWithNativeClient(ctx, clientset3, namespace)
+	if err != nil {
+		klog.Warningf("an error occurred while getting cluster-id configmap %s", err)
+		clusterID3 = ""
 	}
 	return &Tester{
 		Namespace: namespace,
@@ -100,6 +120,12 @@ func createTester(ctx context.Context) *Tester {
 				KubeconfigPath: kubeconfig2,
 				Client:         clientset2,
 				ClusterID:      clusterID2,
+			},
+			{
+				Config:         config3,
+				KubeconfigPath: kubeconfig3,
+				Client:         clientset3,
+				ClusterID:      clusterID3,
 			},
 		},
 	}
