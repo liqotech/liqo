@@ -39,3 +39,34 @@ var _ = Describe("Virtual Kubelet labels test", func() {
 	})
 
 })
+
+var _ = Describe("Forge toleration test", func() {
+	var (
+		tol1 corev1.Toleration
+		tol2 corev1.Toleration
+	)
+
+	Context("Tolerations", func() {
+		BeforeEach(func() {
+			tol1 = corev1.Toleration{
+				Key:      "virtual-node.liqo.io/not-allowed",
+				Operator: "Exist",
+				Effect:   "NoExecute",
+			}
+			tol2 = corev1.Toleration{
+				Key:      "node.kubernetes.io/not-ready",
+				Operator: "Exist",
+				Effect:   "NoExecute",
+			}
+
+		})
+
+		It("Filtering tolerations", func() {
+			input := []corev1.Toleration{tol1, tol2}
+			expected := []corev1.Toleration{tol2}
+			output := forgeTolerations(input)
+			Expect(output).To(Equal(expected))
+		})
+
+	})
+})

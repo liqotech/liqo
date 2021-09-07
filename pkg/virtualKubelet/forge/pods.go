@@ -130,8 +130,23 @@ func (f *apiForger) forgePodSpec(inputPodSpec corev1.PodSpec) corev1.PodSpec {
 	outputPodSpec.Volumes = forgeVolumes(inputPodSpec.Volumes)
 	outputPodSpec.InitContainers = forgeContainers(inputPodSpec.InitContainers, outputPodSpec.Volumes)
 	outputPodSpec.Containers = forgeContainers(inputPodSpec.Containers, outputPodSpec.Volumes)
+	outputPodSpec.Tolerations = forgeTolerations(inputPodSpec.Tolerations)
 
 	return outputPodSpec
+}
+
+func forgeTolerations(inputTolerations []corev1.Toleration) []corev1.Toleration {
+	tolerations := make([]corev1.Toleration, 0)
+
+	for _, toleration := range inputTolerations {
+		// copy all tolerations except the one for the virtual node.
+		// This prevents by default the possibility of "recursive" scheduling on virtual nodes on the target cluster.
+		if toleration.Key != liqoconst.VirtualNodeTolerationKey {
+			tolerations = append(tolerations, toleration)
+		}
+	}
+
+	return tolerations
 }
 
 func forgeContainers(inputContainers []corev1.Container, inputVolumes []corev1.Volume) []corev1.Container {
