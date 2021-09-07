@@ -2,105 +2,139 @@ package tester
 
 import (
 	"context"
+	"fmt"
 	"os"
+	"strconv"
+	"strings"
 
+	capsulev1alpha1 "github.com/clastix/capsule/api/v1alpha1"
+	appsv1 "k8s.io/api/apps/v1"
+	corev1 "k8s.io/api/core/v1"
+	rbacv1 "k8s.io/api/rbac/v1"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
-	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/klog/v2"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	"github.com/liqotech/liqo/pkg/utils"
+	configv1alpha1 "github.com/liqotech/liqo/apis/config/v1alpha1"
+	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
+	netv1alpha1 "github.com/liqotech/liqo/apis/net/v1alpha1"
+	offv1alpha1 "github.com/liqotech/liqo/apis/offloading/v1alpha1"
+	sharingv1alpha1 "github.com/liqotech/liqo/apis/sharing/v1alpha1"
+	virtualKubeletv1alpha1 "github.com/liqotech/liqo/apis/virtualKubelet/v1alpha1"
+	testutils "github.com/liqotech/liqo/test/e2e/testutils/util"
 )
 
 // Tester is used to encapsulate the context where the test is executed.
 type Tester struct {
 	Clusters  []ClusterContext
 	Namespace string
+	// ClusterNumber represents the number of available clusters
+	ClusterNumber int
+	// the key is the clusterID and the value is the corresponding client
+	ClustersClients map[string]client.Client
 }
 
 // ClusterContext encapsulate all information and objects used to access a test cluster.
 type ClusterContext struct {
-	Config         *rest.Config
-	Client         *kubernetes.Clientset
-	ClusterID      string
-	KubeconfigPath string
+	Config           *rest.Config
+	NativeClient     *kubernetes.Clientset
+	ControllerClient client.Client
+	ClusterID        string
+	KubeconfigPath   string
 }
+
+// Environment variable.
+const (
+	namespaceEnvVar      = "NAMESPACE"
+	ClusterNumberVarKey  = "CLUSTER_NUMBER"
+	kubeconfigBaseName   = "liqo_kubeconf_"
+	KubeconfigDirVarName = "KUBECONFIGDIR"
+)
 
 var (
 	tester *Tester
 )
 
 // GetTester returns a Tester instance.
-func GetTester(ctx context.Context) *Tester {
+func GetTester(ctx context.Context, controllerClientsPresence bool) *Tester {
+	var err error
 	if tester == nil {
-		tester = createTester(ctx)
+		tester, err = createTester(ctx, controllerClientsPresence)
+		if err != nil {
+			klog.Fatal(err)
+		}
 	}
-
 	return tester
 }
 
-func createTester(ctx context.Context) *Tester {
-	kubeconfig1 := os.Getenv("KUBECONFIG_1")
-	if kubeconfig1 == "" {
-		klog.Error("KUBECONFIG_1 not set")
-		os.Exit(1)
-	}
-	kubeconfig2 := os.Getenv("KUBECONFIG_2")
-	if kubeconfig2 == "" {
-		klog.Error("KUBECONFIG_2 not set")
-		os.Exit(1)
-	}
-	namespace := os.Getenv("NAMESPACE")
-	if namespace == "" {
-		klog.Error("NAMESPACE not set")
-		os.Exit(1)
+func createTester(ctx context.Context, controllerClientsPresence bool) (*Tester, error) {
+	namespace := testutils.GetEnvironmentVariable(namespaceEnvVar)
+	TmpDir := testutils.GetEnvironmentVariable(KubeconfigDirVarName)
+
+	// Here is necessary to add the controller runtime clients.
+	scheme := getScheme()
+
+	tester = &Tester{
+		Namespace: namespace,
 	}
 
-	config1, err := clientcmd.BuildConfigFromFlags("", kubeconfig1)
+	tester.ClustersClients = map[string]client.Client{}
+	clusterNumber, err := getClusterNumberFromEnv()
 	if err != nil {
-		klog.Error(err)
-		os.Exit(1)
+		return nil, err
 	}
-	config2, err := clientcmd.BuildConfigFromFlags("", kubeconfig2)
-	if err != nil {
-		klog.Error(err)
-		os.Exit(1)
+
+	for i := 1; i <= clusterNumber; i++ {
+		var kubeconfigName = strings.Join([]string{kubeconfigBaseName, fmt.Sprintf("%d",i)}, "")
+		var kubeconfigPath = strings.Join([]string{TmpDir, kubeconfigName}, "")
+		if _, err = os.Stat(kubeconfigPath); err != nil {
+			return nil, err
+		}
+		var c = ClusterContext{
+			Config:         testutils.GetRestConfig(kubeconfigPath),
+			KubeconfigPath: kubeconfigPath,
+		}
+		c.NativeClient = testutils.GetNativeClient(c.Config)
+		c.ClusterID = testutils.GetClusterID(ctx, c.NativeClient, namespace)
+
+		if controllerClientsPresence {
+			controllerClient := testutils.GetControllerClient(ctx, scheme, c.Config)
+			c.ControllerClient = controllerClient
+			tester.ClustersClients[c.ClusterID] = controllerClient
+		}
+		tester.Clusters = append(tester.Clusters, c)
 	}
-	clientset1, err := kubernetes.NewForConfig(config1)
-	if err != nil {
-		klog.Error(err)
-		os.Exit(1)
+
+	return tester, nil
+}
+
+func getClusterNumberFromEnv() (int, error) {
+	var clusterNumberString string
+	var clusterNumber int
+	var ok bool
+	var err error
+	if clusterNumberString, ok = os.LookupEnv(ClusterNumberVarKey); !ok {
+		return 0, fmt.Errorf("%s Variable not found", ClusterNumberVarKey)
 	}
-	clientset2, err := kubernetes.NewForConfig(config2)
-	if err != nil {
-		klog.Error(err)
-		os.Exit(1)
+	if clusterNumber, err = strconv.Atoi(clusterNumberString); err != nil || clusterNumber < 0 {
+		return 0, err
 	}
-	clusterID1, err := utils.GetClusterIDWithNativeClient(ctx, clientset1, namespace)
-	if err != nil {
-		klog.Warningf("an error occurred while getting cluster-id configmap %s", err)
-		clusterID1 = ""
-	}
-	clusterID2, err := utils.GetClusterIDWithNativeClient(ctx, clientset2, namespace)
-	if err != nil {
-		klog.Warningf("an error occurred while getting cluster-id configmap %s", err)
-		clusterID2 = ""
-	}
-	return &Tester{
-		Namespace: namespace,
-		Clusters: []ClusterContext{
-			{
-				Config:         config1,
-				KubeconfigPath: kubeconfig1,
-				Client:         clientset1,
-				ClusterID:      clusterID1,
-			},
-			{
-				Config:         config2,
-				KubeconfigPath: kubeconfig2,
-				Client:         clientset2,
-				ClusterID:      clusterID2,
-			},
-		},
-	}
+	return clusterNumber, nil
+}
+
+func getScheme() *runtime.Scheme {
+	scheme := runtime.NewScheme()
+	_ = offv1alpha1.AddToScheme(scheme)
+	_ = configv1alpha1.AddToScheme(scheme)
+	_ = discoveryv1alpha1.AddToScheme(scheme)
+	_ = netv1alpha1.AddToScheme(scheme)
+	_ = sharingv1alpha1.AddToScheme(scheme)
+	_ = virtualKubeletv1alpha1.AddToScheme(scheme)
+	_ = capsulev1alpha1.AddToScheme(scheme)
+	_ = corev1.AddToScheme(scheme)
+	_ = appsv1.AddToScheme(scheme)
+	_ = rbacv1.AddToScheme(scheme)
+	return scheme
 }

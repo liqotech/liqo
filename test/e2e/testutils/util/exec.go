@@ -2,6 +2,7 @@ package util
 
 import (
 	"bytes"
+	"fmt"
 	"os/exec"
 	"strconv"
 
@@ -43,14 +44,14 @@ func ExecCmd(config *rest.Config, client kubernetes.Interface, podName, namespac
 		Stdout: &stdout,
 		Stderr: &stderr,
 	})
-	if err != nil {
-		return "", "", err
-	}
 	return stdout.String(), stderr.String(), err
 }
 
 // TriggerCheckNodeConnectivity checks nodePort service connectivity, executing a command for every node in the target cluster.
 func TriggerCheckNodeConnectivity(localNodes *v1.NodeList, command string, nodePortValue int) error {
+	if nodePortValue <= 0 {
+		return fmt.Errorf("nodePort Value invalid (Must be >= 0)")
+	}
 	for index := range localNodes.Items {
 		cmd := command + localNodes.Items[index].Status.Addresses[0].Address + ":" + strconv.Itoa(nodePortValue)
 		c := exec.Command("sh", "-c", cmd) //nolint:gosec // Just a test, no need for this check
@@ -58,7 +59,7 @@ func TriggerCheckNodeConnectivity(localNodes *v1.NodeList, command string, nodeP
 		errput := &bytes.Buffer{}
 		c.Stdout = output
 		c.Stderr = errput
-		klog.Infof("running command %s", cmd)
+		klog.Infof("running command: %s", cmd)
 		err := c.Run()
 		if err != nil {
 			klog.Error(err)
