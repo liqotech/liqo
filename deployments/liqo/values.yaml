@@ -148,7 +148,7 @@ auth:
   # -- Enable TLS for the Authentication Service Pod (using a self-signed certificate).
   # If you are exposing this service with an Ingress consider to disable it or add the appropriate annotations to the Ingress resource.
   tls: true
-  # -- Overrides the port were your service is available, you should configure it if behind a NAT or using an Ingress with a port different from 443.
+  # -- Overrides the port where your service is available, you should configure it if behind a NAT or using an Ingress with a port different from 443.
   portOverride: ""
   ingress:
     # -- Auth ingress annotations

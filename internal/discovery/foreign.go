@@ -15,15 +15,14 @@
 package discovery
 
 import (
-	"errors"
-	"strings"
+	"context"
 
 	k8serror "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/util/retry"
 	"k8s.io/klog/v2"
 	"k8s.io/utils/pointer"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
 	"github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	discoveryPkg "github.com/liqotech/liqo/pkg/discovery"
@@ -100,9 +99,11 @@ func (discovery *Controller) UpdateForeignWAN(data []*AuthData, sd *v1alpha1.Sea
 
 func (discovery *Controller) createOrUpdate(data *discoveryData,
 	sd *v1alpha1.SearchDomain, discoveryType discoveryPkg.Type, createdUpdatedForeign *[]*v1alpha1.ForeignCluster) error {
-	fc, err := discovery.getForeignClusterByID(data.ClusterInfo.ClusterID)
+	ctx := context.TODO()
+
+	fc, err := foreignclusterutils.GetForeignClusterByID(ctx, discovery.Client, data.ClusterInfo.ClusterID)
 	if k8serror.IsNotFound(err) {
-		fc, err = discovery.createForeign(data, sd, discoveryType)
+		fc, err = discovery.createForeign(ctx, data, sd, discoveryType)
 		if err != nil {
 			klog.Error(err)
 			return err
@@ -114,7 +115,7 @@ func (discovery *Controller) createOrUpdate(data *discoveryData,
 	}
 	if err == nil {
 		var updated bool
-		fc, updated, err = discovery.checkUpdate(data, fc, discoveryType, sd)
+		fc, updated, err = discovery.checkUpdate(ctx, data, fc, discoveryType, sd)
 		if err != nil {
 			if !k8serror.IsConflict(err) {
 				klog.Error(err)
@@ -136,7 +137,7 @@ func (discovery *Controller) createOrUpdate(data *discoveryData,
 }
 
 func (discovery *Controller) createForeign(
-	data *discoveryData,
+	ctx context.Context, data *discoveryData,
 	sd *v1alpha1.SearchDomain, discoveryType discoveryPkg.Type) (*v1alpha1.ForeignCluster, error) {
 	fc := &v1alpha1.ForeignCluster{
 		ObjectMeta: metav1.ObjectMeta{
@@ -161,34 +162,25 @@ func (discovery *Controller) createForeign(
 
 	if sd != nil {
 		fc.Spec.OutgoingPeeringEnabled = v1alpha1.PeeringEnabledAuto
-		fc.ObjectMeta.OwnerReferences = []metav1.OwnerReference{
-			{
-				APIVersion: "discovery.liqo.io/v1alpha1",
-				Kind:       "SearchDomain",
-				Name:       sd.Name,
-				UID:        sd.UID,
-			},
-		}
-		if fc.Labels == nil {
-			fc.Labels = map[string]string{}
-		}
 		fc.Labels[discoveryPkg.SearchDomainLabel] = sd.Name
+		if err := controllerutil.SetOwnerReference(sd, fc, discovery.Scheme()); err != nil {
+			klog.Errorf("Failed to set foreign cluster owner reference: %v", err)
+			return nil, err
+		}
 	}
 	// set TTL
 	fc.Spec.TTL = int(data.AuthData.ttl)
-	tmp, err := discovery.crdClient.Resource("foreignclusters").Create(fc, &metav1.CreateOptions{})
-	if err != nil {
+
+	if err := discovery.Create(ctx, fc); err != nil {
 		klog.Error(err)
 		return nil, err
 	}
-	fc, ok := tmp.(*v1alpha1.ForeignCluster)
-	if !ok {
-		return nil, errors.New("created object is not a ForeignCluster")
-	}
-	return fc, err
+
+	return fc, nil
 }
 
 func (discovery *Controller) checkUpdate(
+	ctx context.Context,
 	data *discoveryData, fc *v1alpha1.ForeignCluster,
 	discoveryType discoveryPkg.Type,
 	searchDomain *v1alpha1.SearchDomain) (fcUpdated *v1alpha1.ForeignCluster, updated bool, err error) {
@@ -206,52 +198,24 @@ func (discovery *Controller) checkUpdate(
 			fc.Spec.TTL = int(data.AuthData.ttl)
 		}
 		foreignclusterutils.LastUpdateNow(fc)
-		tmp, err := discovery.crdClient.Resource("foreignclusters").Update(fc.Name, fc, &metav1.UpdateOptions{})
-		if err != nil {
+
+		if err := discovery.Update(ctx, fc); err != nil {
 			klog.Error(err)
 			return nil, false, err
 		}
+
 		klog.V(4).Infof("TTL updated for ForeignCluster %v", fc.Name)
-		var ok bool
-		fc, ok = tmp.(*v1alpha1.ForeignCluster)
-		if !ok {
-			err = errors.New("retrieved object is not a ForeignCluster")
-			klog.Error(err)
-			return nil, false, err
-		}
 		return fc, true, nil
 	}
+
 	// update "lastUpdate" annotation
 	foreignclusterutils.LastUpdateNow(fc)
-	tmp, err := discovery.crdClient.Resource("foreignclusters").Update(fc.Name, fc, &metav1.UpdateOptions{})
-	if err != nil {
+	if err := discovery.Update(ctx, fc); err != nil {
 		if !k8serror.IsConflict(err) {
 			klog.Error(err)
 		}
 		return nil, false, err
 	}
-	var ok bool
-	if fc, ok = tmp.(*v1alpha1.ForeignCluster); !ok {
-		err = errors.New("retrieved object is not a ForeignCluster")
-		klog.Error(err)
-		return nil, false, err
-	}
-	return fc, false, nil
-}
 
-func (discovery *Controller) getForeignClusterByID(clusterID string) (*v1alpha1.ForeignCluster, error) {
-	tmp, err := discovery.crdClient.Resource("foreignclusters").List(&metav1.ListOptions{
-		LabelSelector: strings.Join([]string{discoveryPkg.ClusterIDLabel, clusterID}, "="),
-	})
-	if err != nil {
-		return nil, err
-	}
-	fcs, ok := tmp.(*v1alpha1.ForeignClusterList)
-	if !ok || len(fcs.Items) == 0 {
-		return nil, k8serror.NewNotFound(schema.GroupResource{
-			Group:    v1alpha1.GroupVersion.Group,
-			Resource: "foreignclusters",
-		}, clusterID)
-	}
-	return foreignclusterutils.GetOlderForeignCluster(fcs), nil
+	return fc, false, nil
 }

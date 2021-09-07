@@ -16,6 +16,7 @@ package resourcerequestoperator
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -47,7 +48,12 @@ func (r *ResourceRequestReconciler) ensureForeignCluster(ctx context.Context,
 		return nil, err
 	}
 
-	// Otherwise, create a new one.
+	// If the resource request had already been withdrawn by the local cluster, avoid creating a new foreign cluster.
+	if !resourceRequest.Status.OfferWithdrawalTimestamp.IsZero() {
+		return nil, errors.New("the resource request has already been withdrawn")
+	}
+
+	// Otherwise, create a new ForeignCluster
 	return r.createForeignCluster(ctx, resourceRequest)
 }
 

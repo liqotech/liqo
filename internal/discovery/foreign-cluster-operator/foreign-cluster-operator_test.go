@@ -35,7 +35,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 
-	"github.com/liqotech/liqo/apis/config/v1alpha1"
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	crdreplicator "github.com/liqotech/liqo/internal/crdReplicator"
 	"github.com/liqotech/liqo/pkg/clusterid/test"
@@ -52,16 +51,6 @@ const (
 	interval = time.Millisecond * 250
 )
 
-type configMock struct {
-	config v1alpha1.DiscoveryConfig
-}
-
-func (c *configMock) GetConfig() *v1alpha1.DiscoveryConfig {
-	c.config.AuthServiceAddress = "127.0.0.1"
-	c.config.AuthServicePort = "8443"
-	return &c.config
-}
-
 func TestForeignClusterOperator(t *testing.T) {
 	RegisterFailHandler(Fail)
 	RunSpecs(t, "ForeignClusterOperator Suite")
@@ -72,7 +61,6 @@ var _ = Describe("ForeignClusterOperator", func() {
 	var (
 		cluster         testutil.Cluster
 		controller      ForeignClusterReconciler
-		config          configMock
 		tenantNamespace *v1.Namespace
 		mgr             manager.Manager
 		ctx             context.Context
@@ -110,27 +98,16 @@ var _ = Describe("ForeignClusterOperator", func() {
 		// Make sure the namespace has been cached for subsequent retrieval.
 		Eventually(func() (*v1.Namespace, error) { return namespaceManager.GetNamespace(clusterID) }).Should(Equal(tenantNamespace))
 
-		config.config = v1alpha1.DiscoveryConfig{
-			AuthService:         "_liqo_auth._tcp",
-			ClusterName:         "Name",
-			AutoJoin:            true,
-			Domain:              "local.",
-			EnableAdvertisement: false,
-			EnableDiscovery:     false,
-			Name:                "MyLiqo",
-			Port:                6443,
-			Service:             "_liqo_api._tcp",
-			TTL:                 90,
-		}
-
 		controller = ForeignClusterReconciler{
 			Client:           mgr.GetClient(),
 			Scheme:           mgr.GetScheme(),
 			clusterID:        cID,
-			RequeueAfter:     300,
-			ConfigProvider:   &config,
+			requeueAfter:     300,
 			namespaceManager: namespaceManager,
 			identityManager:  identityManagerCtrl,
+
+			authServiceAddressOverride: "127.0.0.1",
+			authServicePortOverride:    "8443",
 		}
 
 		go mgr.GetCache().Start(ctx)
@@ -1062,25 +1039,11 @@ var _ = Describe("PeeringPolicy", func() {
 
 	var (
 		controller ForeignClusterReconciler
-		config     configMock
 	)
 
 	BeforeEach(func() {
-		config.config = v1alpha1.DiscoveryConfig{
-			AuthService:         "_liqo_auth._tcp",
-			ClusterName:         "Name",
-			AutoJoin:            true,
-			Domain:              "local.",
-			EnableAdvertisement: false,
-			EnableDiscovery:     false,
-			Name:                "MyLiqo",
-			Port:                6443,
-			Service:             "_liqo_api._tcp",
-			TTL:                 90,
-		}
-
 		controller = ForeignClusterReconciler{
-			ConfigProvider: &config,
+			autoJoin: true,
 		}
 	})
 

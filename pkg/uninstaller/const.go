@@ -17,10 +17,12 @@ package uninstaller
 import (
 	"time"
 
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 
 	"github.com/liqotech/liqo/apis/net/v1alpha1"
+	"github.com/liqotech/liqo/pkg/consts"
 )
 
 // TickerInterval defines the check interval.
@@ -51,6 +53,14 @@ var (
 		{
 			gvr:           v1alpha1.NetworkConfigGroupVersionResource,
 			labelSelector: metav1.LabelSelector{},
+		},
+		{
+			gvr: corev1.SchemeGroupVersion.WithResource("nodes"),
+			labelSelector: metav1.LabelSelector{
+				MatchLabels: map[string]string{
+					consts.TypeLabel: consts.TypeNode,
+				},
+			},
 		},
 	}
 )

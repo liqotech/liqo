@@ -17,8 +17,6 @@ package discovery
 import (
 	"context"
 	"net"
-	"os"
-	"path/filepath"
 	"strconv"
 	"testing"
 	"time"
@@ -31,23 +29,27 @@ import (
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
-	"k8s.io/klog/v2"
+	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
+	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/utils/pointer"
+	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 
-	"github.com/liqotech/liqo/apis/config/v1alpha1"
-	v1alpha12 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
+	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	"github.com/liqotech/liqo/pkg/auth"
 	"github.com/liqotech/liqo/pkg/clusterid/test"
 	liqoconst "github.com/liqotech/liqo/pkg/consts"
 	"github.com/liqotech/liqo/pkg/discovery"
 	foreignclusterutils "github.com/liqotech/liqo/pkg/utils/foreignCluster"
-	"github.com/liqotech/liqo/pkg/utils/testutil"
 )
 
 func TestDiscovery(t *testing.T) {
 	RegisterFailHandler(Fail)
 	RunSpecs(t, "Discovery Suite")
 }
+
+var _ = BeforeSuite(func() {
+	utilruntime.Must(discoveryv1alpha1.AddToScheme(scheme.Scheme))
+})
 
 var _ = Describe("Discovery", func() {
 
@@ -262,188 +264,33 @@ var _ = Describe("Discovery", func() {
 	Describe("DiscoveryCtrl", func() {
 
 		var (
+			ctx           context.Context
 			discoveryCtrl Controller
 		)
 
 		BeforeEach(func() {
+			ctx = context.Background()
+
 			cID := &test.ClusterIDMock{}
 			_ = cID.SetupClusterID("default")
 
+			client := fake.NewClientBuilder().WithScheme(scheme.Scheme).Build()
 			discoveryCtrl = Controller{
-				Namespace: "default",
-				Config: &v1alpha1.DiscoveryConfig{
-					AuthService:         "_liqo_auth._tcp",
-					ClusterName:         "Name",
-					AutoJoin:            true,
+				Client:           client,
+				namespacedClient: client,
+				LocalClusterID:   cID,
+				namespace:        "default",
+				mdnsConfig: MDNSConfig{
+					Service:             "_liqo_auth._tcp",
 					Domain:              "local.",
 					EnableAdvertisement: false,
 					EnableDiscovery:     false,
-					Name:                "MyLiqo",
-					Port:                6443,
-					Service:             "_liqo_api._tcp",
-					TTL:                 90,
+					TTL:                 90 * time.Second,
 				},
-				LocalClusterID: cID,
-				stopMDNS:       make(chan bool, 1),
-				stopMDNSClient: make(chan bool, 1),
 			}
-		})
-
-		Context("Config", func() {
-			type configTestcase struct {
-				initialConfig        *v1alpha1.DiscoveryConfig
-				changedConfig        v1alpha1.DiscoveryConfig
-				expectedOutputServer types.GomegaMatcher
-				expectedOutputClient types.GomegaMatcher
-			}
-
-			DescribeTable("DiscoveryConfig table",
-				func(c configTestcase) {
-					discoveryCtrl.Config = c.initialConfig
-
-					hasItemsServer := make(chan bool, 1)
-					hasItemsClient := make(chan bool, 1)
-
-					go func() {
-						select {
-						case <-discoveryCtrl.stopMDNS:
-							hasItemsServer <- true
-						case <-time.NewTimer(time.Second * 1).C:
-							hasItemsServer <- false
-						}
-					}()
-
-					go func() {
-						select {
-						case <-discoveryCtrl.stopMDNSClient:
-							hasItemsClient <- true
-						case <-time.NewTimer(time.Second * 1).C:
-							hasItemsClient <- false
-						}
-					}()
-
-					discoveryCtrl.handleConfiguration(&c.changedConfig)
-
-					Expect(<-hasItemsServer).To(c.expectedOutputServer)
-					Expect(<-hasItemsClient).To(c.expectedOutputClient)
-
-					close(hasItemsClient)
-					close(hasItemsServer)
-				},
-
-				Entry("no change", configTestcase{
-					initialConfig: &v1alpha1.DiscoveryConfig{
-						ClusterName:         "Name",
-						AutoJoin:            true,
-						Domain:              "local.",
-						EnableAdvertisement: false,
-						EnableDiscovery:     false,
-						Name:                "MyLiqo",
-						Port:                6443,
-						Service:             "_liqo_api._tcp",
-						TTL:                 90,
-					},
-					changedConfig: v1alpha1.DiscoveryConfig{
-						ClusterName:         "Name",
-						AutoJoin:            true,
-						Domain:              "local.",
-						EnableAdvertisement: false,
-						EnableDiscovery:     false,
-						Name:                "MyLiqo",
-						Port:                6443,
-						Service:             "_liqo_api._tcp",
-						TTL:                 90,
-					},
-					expectedOutputServer: BeFalse(),
-					expectedOutputClient: BeFalse(),
-				}),
-
-				Entry("reload server", configTestcase{
-					initialConfig: &v1alpha1.DiscoveryConfig{
-						ClusterName:         "Name",
-						AutoJoin:            true,
-						Domain:              "local.",
-						EnableAdvertisement: false,
-						EnableDiscovery:     false,
-						Name:                "MyLiqo",
-						Port:                6443,
-						Service:             "_liqo_api._tcp",
-						TTL:                 90,
-					},
-					changedConfig: v1alpha1.DiscoveryConfig{
-						ClusterName:         "Name",
-						AutoJoin:            true,
-						Domain:              "local.",
-						EnableAdvertisement: false,
-						EnableDiscovery:     false,
-						Name:                "MyLiqo",
-						Port:                443,
-						Service:             "_liqo_api._tcp",
-						TTL:                 90,
-					},
-					expectedOutputServer: BeTrue(),
-					expectedOutputClient: BeFalse(),
-				}),
-
-				Entry("reload client", configTestcase{
-					initialConfig: &v1alpha1.DiscoveryConfig{
-						ClusterName:         "Name",
-						AutoJoin:            true,
-						Domain:              "local.",
-						EnableAdvertisement: false,
-						EnableDiscovery:     false,
-						Name:                "MyLiqo",
-						Port:                6443,
-						Service:             "_liqo_api._tcp",
-						TTL:                 90,
-					},
-					changedConfig: v1alpha1.DiscoveryConfig{
-						ClusterName:         "Name",
-						AutoJoin:            true,
-						Domain:              "local.",
-						EnableAdvertisement: false,
-						EnableDiscovery:     false,
-						Name:                "MyLiqo",
-						Port:                6443,
-						Service:             "_test._liqo_api._tcp",
-						TTL:                 90,
-					},
-					expectedOutputServer: BeTrue(),
-					expectedOutputClient: BeTrue(),
-				}),
-			)
 		})
 
 		Describe("ForeignCluster management", func() {
-
-			var (
-				cluster testutil.Cluster
-				cID     test.ClusterIDMock
-			)
-
-			BeforeSuite(func() {
-				cID = test.ClusterIDMock{}
-				_ = cID.SetupClusterID("default")
-			})
-
-			BeforeEach(func() {
-				var err error
-				cluster, _, err = testutil.NewTestCluster([]string{filepath.Join("..", "..", "deployments", "liqo", "crds")})
-				if err != nil {
-					By(err.Error())
-					os.Exit(1)
-				}
-
-				discoveryCtrl.crdClient = cluster.GetClient()
-			})
-
-			AfterEach(func() {
-				err := cluster.GetEnv().Stop()
-				if err != nil {
-					By(err.Error())
-					os.Exit(1)
-				}
-			})
 
 			type updateForeignTestcase struct {
 				data            discoveryData
@@ -457,12 +304,9 @@ var _ = Describe("Discovery", func() {
 				DescribeTable("UpdateForeign table",
 					func(c updateForeignTestcase) {
 						discoveryCtrl.updateForeignLAN(&c.data)
-						obj, err := discoveryCtrl.crdClient.Resource("foreignclusters").List(&metav1.ListOptions{})
-						Expect(err).To(BeNil())
-						Expect(obj).NotTo(BeNil())
 
-						fcs, ok := obj.(*v1alpha12.ForeignClusterList)
-						Expect(ok).To(BeTrue())
+						var fcs discoveryv1alpha1.ForeignClusterList
+						Expect(discoveryCtrl.List(ctx, &fcs))
 						Expect(len(fcs.Items)).To(c.expectedLength)
 
 						if len(fcs.Items) > 0 {
@@ -482,7 +326,7 @@ var _ = Describe("Discovery", func() {
 							},
 						},
 						expectedLength:  Equal(0),
-						expectedPeering: Equal(v1alpha12.PeeringEnabledAuto),
+						expectedPeering: Equal(discoveryv1alpha1.PeeringEnabledAuto),
 						expectedSdLabel: BeEmpty(),
 					}),
 
@@ -495,7 +339,7 @@ var _ = Describe("Discovery", func() {
 							},
 						},
 						expectedLength:  Equal(1),
-						expectedPeering: Equal(v1alpha12.PeeringEnabledAuto),
+						expectedPeering: Equal(discoveryv1alpha1.PeeringEnabledAuto),
 						expectedSdLabel: BeEmpty(),
 					}),
 
@@ -508,7 +352,7 @@ var _ = Describe("Discovery", func() {
 							},
 						},
 						expectedLength:  Equal(1),
-						expectedPeering: Equal(v1alpha12.PeeringEnabledAuto),
+						expectedPeering: Equal(discoveryv1alpha1.PeeringEnabledAuto),
 						expectedSdLabel: BeEmpty(),
 					}),
 				)
@@ -529,8 +373,10 @@ var _ = Describe("Discovery", func() {
 						},
 					})
 
-					obj, _ := discoveryCtrl.crdClient.Resource("foreignclusters").List(&metav1.ListOptions{})
-					fcs, _ := obj.(*v1alpha12.ForeignClusterList)
+					var fcs discoveryv1alpha1.ForeignClusterList
+					Expect(discoveryCtrl.List(ctx, &fcs))
+					Expect(fcs.Items).To(HaveLen(1))
+
 					fc := fcs.Items[0]
 
 					updateTime = fc.GetAnnotations()[discovery.LastUpdateAnnotation]
@@ -542,12 +388,9 @@ var _ = Describe("Discovery", func() {
 				DescribeTable("UpdateForeign table",
 					func(c updateForeignTestcase) {
 						discoveryCtrl.updateForeignLAN(&c.data)
-						obj, err := discoveryCtrl.crdClient.Resource("foreignclusters").List(&metav1.ListOptions{})
-						Expect(err).To(BeNil())
-						Expect(obj).NotTo(BeNil())
 
-						fcs, ok := obj.(*v1alpha12.ForeignClusterList)
-						Expect(ok).To(BeTrue())
+						var fcs discoveryv1alpha1.ForeignClusterList
+						Expect(discoveryCtrl.List(ctx, &fcs))
 						Expect(len(fcs.Items)).To(c.expectedLength)
 
 						if len(fcs.Items) > 0 {
@@ -568,7 +411,7 @@ var _ = Describe("Discovery", func() {
 							},
 						},
 						expectedLength:  Equal(1),
-						expectedPeering: Equal(v1alpha12.PeeringEnabledAuto),
+						expectedPeering: Equal(discoveryv1alpha1.PeeringEnabledAuto),
 						expectedSdLabel: BeEmpty(),
 					}),
 
@@ -581,7 +424,7 @@ var _ = Describe("Discovery", func() {
 							},
 						},
 						expectedLength:  Equal(1),
-						expectedPeering: Equal(v1alpha12.PeeringEnabledAuto),
+						expectedPeering: Equal(discoveryv1alpha1.PeeringEnabledAuto),
 						expectedSdLabel: BeEmpty(),
 					}),
 				)
@@ -591,7 +434,7 @@ var _ = Describe("Discovery", func() {
 			Context("Update existing (Discovery Priority)", func() {
 
 				BeforeEach(func() {
-					fc := &v1alpha12.ForeignCluster{
+					fc := discoveryv1alpha1.ForeignCluster{
 						ObjectMeta: metav1.ObjectMeta{
 							Name: "foreign-cluster",
 							Labels: map[string]string{
@@ -599,34 +442,27 @@ var _ = Describe("Discovery", func() {
 								discovery.ClusterIDLabel:     "foreign-cluster",
 							},
 						},
-						Spec: v1alpha12.ForeignClusterSpec{
-							ClusterIdentity: v1alpha12.ClusterIdentity{
+						Spec: discoveryv1alpha1.ForeignClusterSpec{
+							ClusterIdentity: discoveryv1alpha1.ClusterIdentity{
 								ClusterID:   "foreign-cluster",
 								ClusterName: "ClusterTest2",
 							},
 							ForeignAuthURL:         "https://example.com",
-							OutgoingPeeringEnabled: v1alpha12.PeeringEnabledAuto,
-							IncomingPeeringEnabled: v1alpha12.PeeringEnabledAuto,
+							OutgoingPeeringEnabled: discoveryv1alpha1.PeeringEnabledAuto,
+							IncomingPeeringEnabled: discoveryv1alpha1.PeeringEnabledAuto,
 							InsecureSkipTLSVerify:  pointer.BoolPtr(true),
 						},
 					}
 
-					_, err := discoveryCtrl.crdClient.Resource("foreignclusters").Create(fc, &metav1.CreateOptions{})
-					if err != nil {
-						klog.Error(err)
-						os.Exit(1)
-					}
+					Expect(discoveryCtrl.Create(ctx, &fc)).To(Succeed())
 				})
 
 				DescribeTable("UpdateForeign table",
 					func(c updateForeignTestcase) {
 						discoveryCtrl.updateForeignLAN(&c.data)
-						obj, err := discoveryCtrl.crdClient.Resource("foreignclusters").List(&metav1.ListOptions{})
-						Expect(err).To(BeNil())
-						Expect(obj).NotTo(BeNil())
 
-						fcs, ok := obj.(*v1alpha12.ForeignClusterList)
-						Expect(ok).To(BeTrue())
+						var fcs discoveryv1alpha1.ForeignClusterList
+						Expect(discoveryCtrl.List(ctx, &fcs))
 						Expect(len(fcs.Items)).To(c.expectedLength)
 
 						if len(fcs.Items) > 0 {
@@ -647,7 +483,7 @@ var _ = Describe("Discovery", func() {
 							},
 						},
 						expectedLength:  Equal(1),
-						expectedPeering: Equal(v1alpha12.PeeringEnabledAuto),
+						expectedPeering: Equal(discoveryv1alpha1.PeeringEnabledAuto),
 						expectedSdLabel: BeEmpty(),
 					}),
 				)
@@ -657,29 +493,23 @@ var _ = Describe("Discovery", func() {
 			Context("GarbageCollector", func() {
 
 				type garbageCollectorTestcase struct {
-					fc             v1alpha12.ForeignCluster
+					fc             discoveryv1alpha1.ForeignCluster
 					expectedLength types.GomegaMatcher
 				}
 
 				DescribeTable("GarbageCollector table",
 					func(c garbageCollectorTestcase) {
-						_, err := discoveryCtrl.crdClient.Resource("foreignclusters").Create(&c.fc, &metav1.CreateOptions{})
-						Expect(err).To(BeNil())
+						Expect(discoveryCtrl.Create(ctx, &c.fc)).To(Succeed())
 
-						err = discoveryCtrl.collectGarbage()
-						Expect(err).To(BeNil())
+						Expect(discoveryCtrl.collectGarbage(ctx)).To(Succeed())
 
-						obj, err := discoveryCtrl.crdClient.Resource("foreignclusters").List(&metav1.ListOptions{})
-						Expect(err).To(BeNil())
-						Expect(obj).NotTo(BeNil())
-
-						fcs, ok := obj.(*v1alpha12.ForeignClusterList)
-						Expect(ok).To(BeTrue())
+						var fcs discoveryv1alpha1.ForeignClusterList
+						Expect(discoveryCtrl.List(ctx, &fcs))
 						Expect(len(fcs.Items)).To(c.expectedLength)
 					},
 
 					Entry("no garbage", garbageCollectorTestcase{
-						fc: v1alpha12.ForeignCluster{
+						fc: discoveryv1alpha1.ForeignCluster{
 							ObjectMeta: metav1.ObjectMeta{
 								Name: "foreign-cluster",
 								Labels: map[string]string{
@@ -690,13 +520,13 @@ var _ = Describe("Discovery", func() {
 									discovery.LastUpdateAnnotation: strconv.Itoa(int(time.Now().Unix())),
 								},
 							},
-							Spec: v1alpha12.ForeignClusterSpec{
-								ClusterIdentity: v1alpha12.ClusterIdentity{
+							Spec: discoveryv1alpha1.ForeignClusterSpec{
+								ClusterIdentity: discoveryv1alpha1.ClusterIdentity{
 									ClusterID:   "foreign-cluster",
 									ClusterName: "ClusterTest2",
 								},
-								OutgoingPeeringEnabled: v1alpha12.PeeringEnabledAuto,
-								IncomingPeeringEnabled: v1alpha12.PeeringEnabledAuto,
+								OutgoingPeeringEnabled: discoveryv1alpha1.PeeringEnabledAuto,
+								IncomingPeeringEnabled: discoveryv1alpha1.PeeringEnabledAuto,
 								ForeignAuthURL:         "https://example.com",
 								InsecureSkipTLSVerify:  pointer.BoolPtr(true),
 								TTL:                    300,
@@ -707,7 +537,7 @@ var _ = Describe("Discovery", func() {
 					}),
 
 					Entry("garbage", garbageCollectorTestcase{
-						fc: v1alpha12.ForeignCluster{
+						fc: discoveryv1alpha1.ForeignCluster{
 							ObjectMeta: metav1.ObjectMeta{
 								Name: "foreign-cluster",
 								Labels: map[string]string{
@@ -718,13 +548,13 @@ var _ = Describe("Discovery", func() {
 									discovery.LastUpdateAnnotation: strconv.Itoa(int(time.Now().Unix()) - 600),
 								},
 							},
-							Spec: v1alpha12.ForeignClusterSpec{
-								ClusterIdentity: v1alpha12.ClusterIdentity{
+							Spec: discoveryv1alpha1.ForeignClusterSpec{
+								ClusterIdentity: discoveryv1alpha1.ClusterIdentity{
 									ClusterID:   "foreign-cluster",
 									ClusterName: "ClusterTest2",
 								},
-								OutgoingPeeringEnabled: v1alpha12.PeeringEnabledAuto,
-								IncomingPeeringEnabled: v1alpha12.PeeringEnabledAuto,
+								OutgoingPeeringEnabled: discoveryv1alpha1.PeeringEnabledAuto,
+								IncomingPeeringEnabled: discoveryv1alpha1.PeeringEnabledAuto,
 								ForeignAuthURL:         "https://example.com",
 								InsecureSkipTLSVerify:  pointer.BoolPtr(true),
 								TTL:                    300,
@@ -735,7 +565,7 @@ var _ = Describe("Discovery", func() {
 					}),
 
 					Entry("no garbage (Manual Discovery)", garbageCollectorTestcase{
-						fc: v1alpha12.ForeignCluster{
+						fc: discoveryv1alpha1.ForeignCluster{
 							ObjectMeta: metav1.ObjectMeta{
 								Name: "foreign-cluster",
 								Labels: map[string]string{
@@ -746,13 +576,13 @@ var _ = Describe("Discovery", func() {
 									discovery.LastUpdateAnnotation: strconv.Itoa(int(time.Now().Unix()) - 600),
 								},
 							},
-							Spec: v1alpha12.ForeignClusterSpec{
-								ClusterIdentity: v1alpha12.ClusterIdentity{
+							Spec: discoveryv1alpha1.ForeignClusterSpec{
+								ClusterIdentity: discoveryv1alpha1.ClusterIdentity{
 									ClusterID:   "foreign-cluster",
 									ClusterName: "ClusterTest2",
 								},
-								OutgoingPeeringEnabled: v1alpha12.PeeringEnabledAuto,
-								IncomingPeeringEnabled: v1alpha12.PeeringEnabledAuto,
+								OutgoingPeeringEnabled: discoveryv1alpha1.PeeringEnabledAuto,
+								IncomingPeeringEnabled: discoveryv1alpha1.PeeringEnabledAuto,
 								ForeignAuthURL:         "https://example.com",
 								InsecureSkipTLSVerify:  pointer.BoolPtr(true),
 								TTL:                    300,
@@ -767,15 +597,14 @@ var _ = Describe("Discovery", func() {
 			Context("mDNS", func() {
 
 				BeforeEach(func() {
-					discoveryCtrl.Config.EnableDiscovery = true
-					discoveryCtrl.Config.EnableAdvertisement = true
-
-					_ = discoveryCtrl.LocalClusterID.SetupClusterID("default")
+					discoveryCtrl.mdnsConfig.EnableDiscovery = true
+					discoveryCtrl.mdnsConfig.EnableAdvertisement = true
 
 					// create the auth service
-					_, err := cluster.GetClient().Client().CoreV1().Services("default").Create(context.TODO(), &v1.Service{
+					Expect(discoveryCtrl.Create(ctx, &v1.Service{
 						ObjectMeta: metav1.ObjectMeta{
-							Name: liqoconst.AuthServiceName,
+							Name:      liqoconst.AuthServiceName,
+							Namespace: discoveryCtrl.namespace,
 						},
 						Spec: v1.ServiceSpec{
 							Type: v1.ServiceTypeNodePort,
@@ -787,35 +616,33 @@ var _ = Describe("Discovery", func() {
 								},
 							},
 						},
-					}, metav1.CreateOptions{})
-					if err != nil {
-						klog.Error(err)
-						os.Exit(1)
-					}
+					})).To(Succeed())
 				})
 
 				AfterEach(func() {
-					discoveryCtrl.Config.EnableDiscovery = false
-					discoveryCtrl.Config.EnableAdvertisement = false
+					discoveryCtrl.mdnsConfig.EnableDiscovery = false
+					discoveryCtrl.mdnsConfig.EnableAdvertisement = false
 				})
 
 				It("register/resolve", func() {
 					// register
 					registerExit := make(chan bool, 1)
+					ctx1, cancel1 := context.WithCancel(ctx)
+					defer cancel1()
 					go func() {
-						discoveryCtrl.register()
+						discoveryCtrl.register(ctx1)
 						registerExit <- true
 					}()
 
 					// resolve
-					ctx, cancel := context.WithCancel(context.TODO())
-					defer cancel()
+					ctx2, cancel2 := context.WithCancel(ctx)
+					defer cancel2()
 
 					resultChan := make(chan discoverableData)
 
 					resolveExit := make(chan bool, 1)
 					go func() {
-						discoveryCtrl.resolve(ctx, discoveryCtrl.Config.AuthService, discoveryCtrl.Config.Domain, resultChan)
+						discoveryCtrl.resolve(ctx2, discoveryCtrl.mdnsConfig.Service, discoveryCtrl.mdnsConfig.Domain, resultChan)
 						resolveExit <- true
 					}()
 
@@ -823,7 +650,7 @@ var _ = Describe("Discovery", func() {
 					select {
 					case data = <-resultChan:
 						break
-					case <-time.NewTimer(time.Second * 5).C:
+					case <-time.After(time.Second * 5):
 						break
 					}
 
@@ -831,13 +658,8 @@ var _ = Describe("Discovery", func() {
 					Expect(len(registerExit)).To(Equal(0))
 					Expect(len(resolveExit)).To(Equal(0))
 
-					// shutdown
-					discoveryCtrl.Config.EnableDiscovery = false
-					discoveryCtrl.Config.EnableAdvertisement = false
-
-					close(discoveryCtrl.stopMDNSClient)
-					close(discoveryCtrl.stopMDNS)
-					cancel()
+					cancel1()
+					cancel2()
 
 					Eventually(<-registerExit, 5).Should(BeTrue())
 					Eventually(<-resolveExit, 5).Should(BeTrue())

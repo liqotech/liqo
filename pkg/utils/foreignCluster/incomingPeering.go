@@ -21,7 +21,7 @@ import (
 )
 
 // AllowIncomingPeering returns the value set in the ForeignCluster spec if it has been set,
-// it returns the value set in the ClusterConfig if it is automatic.
+// it returns the value set through the command line flag if it is automatic.
 func AllowIncomingPeering(foreignCluster *discoveryv1alpha1.ForeignCluster, defaultEnableIncomingPeering bool) bool {
 	switch foreignCluster.Spec.IncomingPeeringEnabled {
 	case discoveryv1alpha1.PeeringEnabledYes:

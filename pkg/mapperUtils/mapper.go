@@ -26,7 +26,6 @@ import (
 	"k8s.io/client-go/rest"
 	"k8s.io/klog/v2"
 
-	configv1alpha1 "github.com/liqotech/liqo/apis/config/v1alpha1"
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	netv1alpha1 "github.com/liqotech/liqo/apis/net/v1alpha1"
 	offv1alpha1 "github.com/liqotech/liqo/apis/offloading/v1alpha1"
@@ -67,9 +66,6 @@ func addDefaults(dClient *discovery.DiscoveryClient, mapper *meta.DefaultRESTMap
 	var err error
 
 	// Liqo groups
-	if err = addGroup(dClient, configv1alpha1.GroupVersion, mapper); err != nil {
-		return err
-	}
 	if err = addGroup(dClient, discoveryv1alpha1.GroupVersion, mapper); err != nil {
 		return err
 	}

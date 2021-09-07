@@ -22,35 +22,33 @@ import (
 
 	"github.com/grandcat/zeroconf"
 	v1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/klog/v2"
 
 	liqoconst "github.com/liqotech/liqo/pkg/consts"
 )
 
-func (discovery *Controller) register() {
-	if discovery.Config.EnableAdvertisement {
-		authPort, err := discovery.getAuthServicePort()
-		if err != nil {
-			klog.Error(err)
-			return
-		}
-
-		var ttl = discovery.Config.TTL
-		discovery.serverMux.Lock()
-		discovery.mdnsServerAuth, err = zeroconf.Register(
-			discovery.LocalClusterID.GetClusterID(),
-			discovery.Config.AuthService,
-			discovery.Config.Domain,
-			authPort, nil, discovery.getInterfaces(), ttl)
-		discovery.serverMux.Unlock()
-		if err != nil {
-			klog.Error(err)
-			return
-		}
-		defer discovery.shutdownServer()
-		<-discovery.stopMDNS
+func (discovery *Controller) register(ctx context.Context) {
+	authPort, err := discovery.getAuthServicePort(ctx)
+	if err != nil {
+		klog.Error(err)
+		return
 	}
+
+	discovery.serverMux.Lock()
+	discovery.mdnsServerAuth, err = zeroconf.Register(
+		discovery.LocalClusterID.GetClusterID(),
+		discovery.mdnsConfig.Service,
+		discovery.mdnsConfig.Domain,
+		authPort, nil, discovery.getInterfaces(),
+		uint32(discovery.mdnsConfig.TTL.Seconds()))
+	discovery.serverMux.Unlock()
+	if err != nil {
+		klog.Error(err)
+		return
+	}
+	defer discovery.shutdownServer()
+	<-ctx.Done()
 }
 
 func (discovery *Controller) shutdownServer() {
@@ -60,20 +58,21 @@ func (discovery *Controller) shutdownServer() {
 }
 
 // get the NodePort of AuthService.
-func (discovery *Controller) getAuthServicePort() (int, error) {
-	svc, err := discovery.crdClient.Client().CoreV1().Services(discovery.Namespace).Get(context.TODO(), liqoconst.AuthServiceName, metav1.GetOptions{})
-	if err != nil {
+func (discovery *Controller) getAuthServicePort(ctx context.Context) (int, error) {
+	var svc v1.Service
+	key := types.NamespacedName{Namespace: discovery.namespace, Name: liqoconst.AuthServiceName}
+	if err := discovery.namespacedClient.Get(ctx, key, &svc); err != nil {
 		klog.Error(err)
 		return 0, err
 	}
 
 	if svc.Spec.Type != v1.ServiceTypeNodePort {
-		err = fmt.Errorf("this service has not %s type", v1.ServiceTypeNodePort)
+		err := fmt.Errorf("this service has not %s type", v1.ServiceTypeNodePort)
 		klog.Error(err)
 		return 0, err
 	}
 	if len(svc.Spec.Ports) == 0 || svc.Spec.Ports[0].NodePort == 0 {
-		err = errors.New("this service has no nodePort")
+		err := errors.New("this service has no nodePort")
 		klog.Error(err)
 		return 0, err
 	}
@@ -120,10 +119,11 @@ func (discovery *Controller) getInterfaces() []net.Interface {
 }
 
 func (discovery *Controller) getPodNets() ([]*net.IPNet, error) {
-	nodes, err := discovery.crdClient.Client().CoreV1().Nodes().List(context.TODO(), metav1.ListOptions{})
-	if err != nil {
+	var nodes v1.NodeList
+	if err := discovery.List(context.TODO(), &nodes); err != nil {
 		return nil, err
 	}
+
 	res := make([]*net.IPNet, 0, len(nodes.Items))
 	for i := range nodes.Items {
 		_, ipnet, err := net.ParseCIDR(nodes.Items[i].Spec.PodCIDR)

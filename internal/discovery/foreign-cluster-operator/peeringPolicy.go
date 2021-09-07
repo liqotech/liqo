@@ -57,7 +57,7 @@ func (r *ForeignClusterReconciler) isOutgoingPeeringEnabled(ctx context.Context,
 	case discoveryv1alpha1.PeeringEnabledYes:
 		return true, nil
 	case discoveryv1alpha1.PeeringEnabledAuto:
-		if !r.ConfigProvider.GetConfig().AutoJoin {
+		if !r.autoJoin {
 			return false, nil
 		}
 

@@ -48,7 +48,7 @@ func checkPeeringsStatus(foreign *discoveryV1alpha1.ForeignClusterList) bool {
 	var returnValue = true
 	for i := range foreign.Items {
 		item := &foreign.Items[i]
-		if foreigncluster.IsIncomingEnabled(item) || foreigncluster.IsOutgoingEnabled(item) {
+		if foreigncluster.IsIncomingJoined(item) || foreigncluster.IsOutgoingJoined(item) {
 			incomingStatus := peeringconditionsutils.GetStatus(item, discoveryV1alpha1.IncomingPeeringCondition)
 			outgoingStatus := peeringconditionsutils.GetStatus(item, discoveryV1alpha1.OutgoingPeeringCondition)
 			klog.Infof("Cluster %s still has a valid peering: (Incoming: %s, Outgoing: %s",

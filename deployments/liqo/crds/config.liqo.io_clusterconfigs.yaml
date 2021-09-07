@@ -40,59 +40,18 @@ spec:
                 description: AdvertisementConfig defines the configuration for the
                   advertisement protocol.
                 properties:
-                  authService:
-                    default: _liqo_auth._tcp
-                    type: string
                   authServiceAddress:
                     type: string
                   authServicePort:
                     type: string
                   autojoin:
                     type: boolean
-                  clusterLabels:
-                    additionalProperties:
-                      type: string
-                    description: ClusterLabels is a set of labels which characterizes
-                      the local cluster when exposed remotely as a virtual node. This
-                      field is deprecated and it is currently maintained for backward
-                      compatibility only.
-                    type: object
                   clusterName:
                     description: ClusterName is a nickname for your cluster that can
                       be easily understood by a user
                     type: string
-                  domain:
-                    type: string
-                  enableAdvertisement:
-                    type: boolean
-                  enableDiscovery:
-                    type: boolean
-                  incomingPeeringEnabled:
-                    description: Allow (by default) the remote clusters to establish
-                      a peering with our cluster. This field is deprecated and it
-                      is currently maintained for backward compatibility only.
-                    type: boolean
-                  name:
-                    type: string
-                  port:
-                    maximum: 65355
-                    minimum: 1
-                    type: integer
-                  service:
-                    type: string
-                  ttl:
-                    format: int32
-                    minimum: 30
-                    type: integer
                 required:
                 - autojoin
-                - domain
-                - enableAdvertisement
-                - enableDiscovery
-                - name
-                - port
-                - service
-                - ttl
                 type: object
             required:
             - discoveryConfig

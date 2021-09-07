@@ -15,6 +15,9 @@
 package common
 
 import (
+	"fmt"
+	"strings"
+
 	"k8s.io/client-go/rest"
 	"sigs.k8s.io/controller-runtime/pkg/client/config"
 
@@ -24,4 +27,15 @@ import (
 // GetLiqoctlRestConfOrDie gets a valid REST config and set a default value for the RateLimiters. It dies otherwise.
 func GetLiqoctlRestConfOrDie() *rest.Config {
 	return restcfg.SetRateLimiter(config.GetConfigOrDie())
+}
+
+// ExtractValueFromArgumentList extracts the argument value from an argument list.
+func ExtractValueFromArgumentList(key string, argumentList []string) (string, error) {
+	prefix := key + "="
+	for _, argument := range argumentList {
+		if strings.HasPrefix(argument, prefix) {
+			return strings.Split(argument, "=")[1], nil
+		}
+	}
+	return "", fmt.Errorf("argument not found")
 }

@@ -28,19 +28,15 @@ import (
 	"github.com/liqotech/liqo/pkg/auth"
 )
 
-func (discovery *Controller) startResolver(stopChan <-chan bool) {
+func (discovery *Controller) startResolver(ctx context.Context) {
 	for {
-		if discovery.Config.EnableDiscovery {
-			ctx, cancel := context.WithCancel(context.TODO())
-			go discovery.resolve(ctx, discovery.Config.AuthService, discovery.Config.Domain, nil)
-			select {
-			case <-stopChan:
-				cancel()
-			case <-time.NewTimer(time.Duration(discovery.resolveContextRefreshTime) * time.Minute).C:
-				cancel()
-			}
-		} else {
-			break
+		ctx, cancel := context.WithCancel(ctx)
+		go discovery.resolve(ctx, discovery.mdnsConfig.Service, discovery.mdnsConfig.Domain, nil)
+		select {
+		case <-ctx.Done():
+			cancel()
+		case <-time.After(discovery.mdnsConfig.ResolveRefreshTime):
+			cancel()
 		}
 	}
 }

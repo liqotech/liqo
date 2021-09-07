@@ -37,8 +37,8 @@ func (r *ForeignClusterReconciler) ensureResourceRequest(ctx context.Context,
 	remoteClusterID := foreignCluster.Spec.ClusterIdentity.ClusterID
 	localNamespace := foreignCluster.Status.TenantNamespace.Local
 
-	authURL, err := foreigncluster.GetHomeAuthURL(ctx, r.LiqoNamespacedClient, r.Client, r.ConfigProvider.GetConfig().AuthServiceAddress,
-		r.ConfigProvider.GetConfig().AuthServicePort, r.liqoNamespace)
+	authURL, err := foreigncluster.GetHomeAuthURL(ctx, r.LiqoNamespacedClient, r.Client,
+		r.authServiceAddressOverride, r.authServicePortOverride, r.liqoNamespace)
 	if err != nil {
 		return nil, err
 	}
@@ -65,7 +65,7 @@ func (r *ForeignClusterReconciler) ensureResourceRequest(ctx context.Context,
 		resourceRequest.Spec = discoveryv1alpha1.ResourceRequestSpec{
 			ClusterIdentity: discoveryv1alpha1.ClusterIdentity{
 				ClusterID:   localClusterID,
-				ClusterName: r.ConfigProvider.GetConfig().ClusterName,
+				ClusterName: r.clusterName,
 			},
 			AuthURL: authURL,
 		}

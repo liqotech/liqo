@@ -15,79 +15,71 @@
 package discovery
 
 import (
-	"os"
+	"context"
 	"sync"
 	"time"
 
 	"github.com/grandcat/zeroconf"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	configv1alpha1 "github.com/liqotech/liqo/apis/config/v1alpha1"
-	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	"github.com/liqotech/liqo/pkg/clusterid"
-	crdclient "github.com/liqotech/liqo/pkg/crdClient"
 )
+
+// MDNSConfig defines the configuration parameters for the mDNS service.
+type MDNSConfig struct {
+	EnableAdvertisement bool
+	EnableDiscovery     bool
+
+	Service string
+	Domain  string
+	TTL     time.Duration
+
+	ResolveRefreshTime time.Duration
+}
 
 // Controller is the controller for the discovery functionalities.
 type Controller struct {
-	Namespace string
+	client.Client
+	namespacedClient client.Client
+	namespace        string
 
-	configMutex    sync.RWMutex
-	Config         *configv1alpha1.DiscoveryConfig
-	stopMDNS       chan bool
-	stopMDNSClient chan bool
-	crdClient      *crdclient.CRDClient
 	LocalClusterID clusterid.ClusterID
 
-	mdnsServerAuth            *zeroconf.Server
-	serverMux                 sync.Mutex
-	resolveContextRefreshTime int
-
+	serverMux      sync.Mutex
 	dialTCPTimeout time.Duration
+
+	mdnsServerAuth *zeroconf.Server
+	mdnsConfig     MDNSConfig
 }
 
 // NewDiscoveryCtrl returns a new discovery controller.
-func NewDiscoveryCtrl(
-	namespace string, localClusterID clusterid.ClusterID, kubeconfigPath string,
-	resolveContextRefreshTime int, dialTCPTimeout time.Duration) (*Controller, error) {
-	config, err := crdclient.NewKubeconfig(kubeconfigPath, &discoveryv1alpha1.GroupVersion, nil)
-	if err != nil {
-		return nil, err
-	}
-	discoveryClient, err := crdclient.NewFromConfig(config)
-	if err != nil {
-		return nil, err
-	}
+func NewDiscoveryCtrl(cl, namespacedClient client.Client, namespace string,
+	localClusterID clusterid.ClusterID, config MDNSConfig, dialTCPTimeout time.Duration) *Controller {
+	return &Controller{
+		Client:           cl,
+		namespacedClient: namespacedClient,
+		namespace:        namespace,
 
-	discoveryCtrl := getDiscoveryCtrl(
-		namespace,
-		discoveryClient,
-		localClusterID,
-		resolveContextRefreshTime,
-		dialTCPTimeout,
-	)
-	if discoveryCtrl.getDiscoveryConfig(nil, kubeconfigPath) != nil {
-		os.Exit(1)
-	}
-	return &discoveryCtrl, nil
-}
+		LocalClusterID: localClusterID,
 
-func getDiscoveryCtrl(namespace string, client *crdclient.CRDClient,
-	localClusterID clusterid.ClusterID, resolveContextRefreshTime int, dialTCPTimeout time.Duration) Controller {
-	return Controller{
-		Namespace:                 namespace,
-		crdClient:                 client,
-		LocalClusterID:            localClusterID,
-		stopMDNS:                  make(chan bool, 1),
-		stopMDNSClient:            make(chan bool, 1),
-		resolveContextRefreshTime: resolveContextRefreshTime,
-		dialTCPTimeout:            dialTCPTimeout,
+		mdnsConfig:     config,
+		dialTCPTimeout: dialTCPTimeout,
 	}
 }
 
-// StartDiscovery starts register and resolver goroutines.
-func (discovery *Controller) StartDiscovery() {
-	go discovery.register()
-	go discovery.startResolver(discovery.stopMDNSClient)
-	go discovery.startGratuitousAnswers()
-	go discovery.startGarbageCollector()
+// Start starts the discovery logic.
+func (discovery *Controller) Start(ctx context.Context) error {
+	if discovery.mdnsConfig.EnableAdvertisement {
+		go discovery.register(ctx)
+		go discovery.startGratuitousAnswers(ctx)
+	}
+
+	if discovery.mdnsConfig.EnableDiscovery {
+		go discovery.startResolver(ctx)
+	}
+
+	go discovery.startGarbageCollector(ctx)
+
+	<-ctx.Done()
+	return nil
 }
