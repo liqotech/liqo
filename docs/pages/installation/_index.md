@@ -295,40 +295,40 @@ Now, you can perform the proper Liqo installation on your cluster.
 {{< tabs groupId="provider" >}}
 {{% tab name="Kubernetes IN Docker (KIND)" %}}
 ```bash
-liqoctl install --provider kind
+liqoctl install kind
 ```
 {{% /tab %}}
 
 {{% tab name="K8s (Kubeadm)" %}}
 ```bash
-liqoctl install --provider kubeadm
+liqoctl install kubeadm
 ```
 {{% /tab %}}
 {{% tab name="EKS" %}}
 
 ```bash
-liqoctl install --provider eks --eks.region=${EKS_CLUSTER_REGION} --eks.cluster-name=${EKS_CLUSTER_NAME} 
+liqoctl install eks --region=${EKS_CLUSTER_REGION} --cluster-name=${EKS_CLUSTER_NAME} 
 ```
 {{% /tab %}}
 {{% tab name="AKS" %}}
 ```bash
-liqoctl install --provider aks --aks.resource-group-name "${AKS_RESOURCE_GROUP}" \ 
-         --aks.resource-name "${AKS_RESOURCE_NAME}" \
-         --aks.subscription-id "${AKS_SUBSCRIPTION_ID}"
+liqoctl install aks --resource-group-name "${AKS_RESOURCE_GROUP}" \ 
+         --resource-name "${AKS_RESOURCE_NAME}" \
+         --subscription-id "${AKS_SUBSCRIPTION_ID}"
 ```
 {{% /tab %}}
 {{% tab name="GKE" %}}
 ```bash
 
-liqoctl install --provider gke --gke.project-id ${GKE_PROJECT_ID} \
-    --gke.cluster-id ${GKE_CLUSTER_ID} \
-    --gke.zone ${GKE_CLUSTER_ZONE} \
-    --gke.credentials-path ${GKE_SERVICE_ACCOUNT_PATH}
+liqoctl install gke --project-id ${GKE_PROJECT_ID} \
+    --cluster-id ${GKE_CLUSTER_ID} \
+    --zone ${GKE_CLUSTER_ZONE} \
+    --credentials-path ${GKE_SERVICE_ACCOUNT_PATH}
 ```
 {{% /tab %}}
 {{% tab name="K3s" %}}
 ```bash
-liqoctl install --provider k3s
+liqoctl install k3s
 ```
 {{% /tab %}}
 {{< /tabs >}}
