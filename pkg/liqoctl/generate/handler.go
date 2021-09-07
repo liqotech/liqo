@@ -29,7 +29,7 @@ func HandleGenerateAddCommand(ctx context.Context, liqoNamespace, commandName st
 
 	commandString := processGenerateCommand(ctx, clientSet, liqoNamespace, commandName)
 
-	fmt.Printf("Use this command to peer with this cluster:\n\n")
+	fmt.Printf("\nUse this command to peer with this cluster:\n\n")
 	fmt.Printf("%s\n", commandString)
 }
 
