@@ -89,9 +89,21 @@ func installOrUpdate(ctx context.Context, helmClient *helm.HelmClient, k provide
 			Wait:             true,
 		}
 
-		_, err = helmClient.InstallOrUpgradeChart(ctx, &chartSpec)
-		if err != nil {
-			return err
+		// provide the possibility to exit installation on context cancellation
+		errCh := make(chan error)
+		defer close(errCh)
+		go func() {
+			_, err = helmClient.InstallOrUpgradeChart(ctx, &chartSpec)
+			errCh <- err
+		}()
+
+		select {
+		case err = <-errCh:
+			if err != nil {
+				return err
+			}
+		case <-ctx.Done():
+			return nil
 		}
 	}
 	return nil

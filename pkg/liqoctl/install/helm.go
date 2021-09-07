@@ -4,6 +4,7 @@ import (
 	helm "github.com/mittwald/go-helm-client"
 	"helm.sh/helm/v3/pkg/repo"
 	"k8s.io/client-go/rest"
+	"k8s.io/klog/v2"
 
 	"github.com/liqotech/liqo/pkg/liqoctl/install/provider"
 	installutils "github.com/liqotech/liqo/pkg/liqoctl/install/utils"
@@ -18,7 +19,7 @@ func InitializeHelmClientWithRepo(config *rest.Config, commonArgs *provider.Comm
 			RepositoryCache:  liqoHelmCachePath,
 			Debug:            commonArgs.Debug,
 			Linting:          false,
-			DebugLog:         nil,
+			DebugLog:         klog.V(4).Infof,
 		},
 		RestConfig: config,
 	}
