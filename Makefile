@@ -1,3 +1,4 @@
+SHELL := /bin/bash -O globstar
 
 # Produce CRDs that work back to Kubernetes 1.11 (no version conversion)
 CRD_OPTIONS ?= "crd:trivialVersions=true"
@@ -18,7 +19,7 @@ gen: generate fmt vet manifests rbacs docs
 docs: helm-docs
 	$(HELM_DOCS) -t deployments/liqo/README.gotmpl deployments/liqo
 	cat docs/templates/helm_reference_header.md deployments/liqo/README.md > docs/pages/installation/chart_values.md
-  
+
 
 #run all tests
 test: unit e2e
@@ -87,11 +88,21 @@ ifeq (, $(shell which gci))
 	}
 endif
 
+# Install addlicense if not available
+addlicense:
+ifeq (, $(shell which addlicense))
+	@{ \
+	go get github.com/google/addlicense ;\
+	}
+endif
+
 # Run go fmt against code
-fmt: gci
+fmt: gci addlicense
 	go mod tidy
 	go fmt ./...
-	find $(pwd) -type f -name '*.go' -a ! -name '*zz_generated*' -exec gci -local github.com/liqotech/liqo -w {} \;
+	find . -type f -name '*.go' -a ! -name '*zz_generated*' -exec gci -local github.com/liqotech/liqo -w {} \;
+	addlicense -l apache -c "The Liqo Authors" -y "2019-$(shell date +%Y)" **/*.go
+
 
 # Run go vet against code
 vet:
