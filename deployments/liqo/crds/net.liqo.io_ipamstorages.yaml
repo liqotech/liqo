@@ -51,6 +51,8 @@ spec:
                         Default is "None": this means remote cluster uses local cluster
                         PodCIDR.'
                       type: string
+                    podCIDR:
+                      type: string
                     remoteExternalCIDR:
                       description: Network used in local cluster for remote service
                         endpoints.
@@ -61,6 +63,7 @@ spec:
                   required:
                   - localNATExternalCIDR
                   - localNATPodCIDR
+                  - podCIDR
                   - remoteExternalCIDR
                   - remotePodCIDR
                   type: object

@@ -47,3 +47,7 @@ func (mock *MockIpam) GetHomePodIP(
 	}
 	return &liqonetIpam.GetHomePodIPResponse{HomeIP: homeIP}, nil
 }
+
+func (mock *MockIpam) BelongsToPodCIDR(ctx context.Context, request *liqonetIpam.BelongsRequest, opts ...grpc.CallOption) (*liqonetIpam.BelongsResponse, error) {
+	return nil, nil
+}

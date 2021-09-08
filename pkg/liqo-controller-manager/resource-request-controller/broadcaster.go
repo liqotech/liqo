@@ -311,7 +311,6 @@ func (b *Broadcaster) ReadResources(clusterID string) corev1.ResourceList {
 	return toRead
 }
 
-
 func (b *Broadcaster) EnqueueForCreationOrUpdate(clusterID string) {
 	b.podMutex.Lock()
 	// No offloaded pod case. Enforce clusterID in resourcePodMap with empty resources to process ResourceOffer update.

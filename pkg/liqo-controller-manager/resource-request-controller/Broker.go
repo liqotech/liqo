@@ -3,12 +3,9 @@ package resourcerequestoperator
 import (
 	"context"
 	"fmt"
-	configv1alpha1 "github.com/liqotech/liqo/apis/config/v1alpha1"
-	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
-	sharingv1alpha1 "github.com/liqotech/liqo/apis/sharing/v1alpha1"
-	crdreplicator "github.com/liqotech/liqo/internal/crdReplicator"
-	"github.com/liqotech/liqo/pkg/consts"
-	"github.com/liqotech/liqo/pkg/discovery"
+	"sync"
+	"time"
+
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
@@ -20,21 +17,26 @@ import (
 	"k8s.io/klog/v2"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
-	"sync"
-	"time"
+
+	configv1alpha1 "github.com/liqotech/liqo/apis/config/v1alpha1"
+	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
+	sharingv1alpha1 "github.com/liqotech/liqo/apis/sharing/v1alpha1"
+	crdreplicator "github.com/liqotech/liqo/internal/crdReplicator"
+	"github.com/liqotech/liqo/pkg/consts"
+	"github.com/liqotech/liqo/pkg/discovery"
 )
 
 type Broker struct {
-	nodeResources  map[string]corev1.ResourceList
-	nodeInformer   cache.SharedIndexInformer
-	podInformer    cache.SharedIndexInformer
-	scheme *runtime.Scheme
+	nodeResources map[string]corev1.ResourceList
+	nodeInformer  cache.SharedIndexInformer
+	podInformer   cache.SharedIndexInformer
+	scheme        *runtime.Scheme
 	client.Client
 	homeClusterID string
 	// offerGenerator interfaces.UpdaterInterface
 }
 
-func (b *Broker) SetupBroker(clusterID string, clientset kubernetes.Interface, scheme *runtime.Scheme, resyncPeriod time.Duration, k8Client client.Client){
+func (b *Broker) SetupBroker(clusterID string, clientset kubernetes.Interface, scheme *runtime.Scheme, resyncPeriod time.Duration, k8Client client.Client) {
 	b.nodeResources = map[string]corev1.ResourceList{}
 	b.Client = k8Client
 	b.scheme = scheme
@@ -47,11 +49,11 @@ func (b *Broker) SetupBroker(clusterID string, clientset kubernetes.Interface, s
 	})
 }
 
-func (b *Broker) Start(ctx context.Context, group *sync.WaitGroup){
+func (b *Broker) Start(ctx context.Context, group *sync.WaitGroup) {
 	go b.startNodeInformer(ctx, group)
 }
 
-func (b *Broker) startNodeInformer(ctx context.Context, group *sync.WaitGroup){
+func (b *Broker) startNodeInformer(ctx context.Context, group *sync.WaitGroup) {
 	group.Add(1)
 	defer group.Done()
 	b.nodeInformer.Run(ctx.Done())
@@ -65,22 +67,22 @@ func (b *Broker) EnqueueForCreationOrUpdate(clusterID string) {
 	toOffer := corev1.ResourceList{}
 	for key, value := range b.nodeResources {
 		// ignore possible offers sent by the cluster itself.
-		if key == clusterID{
+		if key == clusterID {
 			continue
 		}
 		toOffer = value.DeepCopy()
 		break
 	}
-	if len(toOffer) != 0{
+	if len(toOffer) != 0 {
 		err := b.generateOffer(clusterID, toOffer)
-		if err != nil{
+		if err != nil {
 			klog.Error(err)
 			return
 		}
 	}
 }
 
-func (b *Broker) generateOffer(clusterID string, toOffer corev1.ResourceList) error{
+func (b *Broker) generateOffer(clusterID string, toOffer corev1.ResourceList) error {
 	list, err := b.getResourceRequest(clusterID)
 	if err != nil {
 		return err
@@ -131,44 +133,44 @@ func (b *Broker) getResourceRequest(clusterID string) (*discoveryv1alpha1.Resour
 	return resourceRequestList, nil
 }
 
-func (b *Broker) RemoveClusterID(clusterID string)  {
+func (b *Broker) RemoveClusterID(clusterID string) {
 	delete(b.nodeResources, clusterID)
 }
 
-func (b *Broker) GetConfig() *configv1alpha1.ClusterConfig{
+func (b *Broker) GetConfig() *configv1alpha1.ClusterConfig {
 	return nil
 }
 
 func (b *Broker) onNodeAdd(obj interface{}) {
 	node := obj.(*corev1.Node)
 	//if utils.IsNodeReady(node) {
-		if clusterID, ok := node.GetAnnotations()[consts.RemoteClusterID]; ok{
-			klog.V(4).Infof("Created virtual node %s\n", node.Name)
-			toAdd, err := b.getClusterOffer(clusterID)
-			if err != nil{
-				return
-			}
-			b.nodeResources[clusterID] = toAdd.DeepCopy()
+	if clusterID, ok := node.GetAnnotations()[consts.RemoteClusterID]; ok {
+		klog.V(4).Infof("Created virtual node %s\n", node.Name)
+		toAdd, err := b.getClusterOffer(clusterID)
+		if err != nil {
+			return
 		}
+		b.nodeResources[clusterID] = toAdd.DeepCopy()
+	}
 	//}
 }
 
-func (b *Broker) onNodeDelete(obj interface{}){
+func (b *Broker) onNodeDelete(obj interface{}) {
 	node := obj.(*corev1.Node)
 	// if utils.IsNodeReady(node) {
-		if clusterID, ok := node.GetAnnotations()[consts.RemoteClusterID]; ok{
-			klog.V(4).Infof("Deleting virtual node %s\n", node.Name)
-			delete(b.nodeResources, clusterID)
-		}
+	if clusterID, ok := node.GetAnnotations()[consts.RemoteClusterID]; ok {
+		klog.V(4).Infof("Deleting virtual node %s\n", node.Name)
+		delete(b.nodeResources, clusterID)
+	}
 	//}
 }
 
-func (b *Broker) getClusterOffer(clusterID string) (corev1.ResourceList, error){
+func (b *Broker) getClusterOffer(clusterID string) (corev1.ResourceList, error) {
 	offerList := &sharingv1alpha1.ResourceOfferList{}
 	err := b.Client.List(context.Background(), offerList, client.MatchingLabels{
 		crdreplicator.RemoteLabelSelector: clusterID,
 	})
-	if err != nil{
+	if err != nil {
 		return nil, err
 	}
 

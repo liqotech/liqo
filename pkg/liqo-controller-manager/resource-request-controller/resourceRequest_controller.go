@@ -2,7 +2,6 @@ package resourcerequestoperator
 
 import (
 	"context"
-	"github.com/liqotech/liqo/pkg/liqo-controller-manager/resource-request-controller/interfaces"
 
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/klog/v2"
@@ -14,6 +13,7 @@ import (
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	sharingv1alpha1 "github.com/liqotech/liqo/apis/sharing/v1alpha1"
 	crdreplicator "github.com/liqotech/liqo/internal/crdReplicator"
+	"github.com/liqotech/liqo/pkg/liqo-controller-manager/resource-request-controller/interfaces"
 )
 
 // ResourceRequestReconciler reconciles a ResourceRequest object.

@@ -33,6 +33,8 @@ type Subnets struct {
 	LocalNATExternalCIDR string `json:"localNATExternalCIDR"`
 	// Network used in local cluster for remote service endpoints.
 	RemoteExternalCIDR string `json:"remoteExternalCIDR"`
+
+	PodCIDR string `json:"podCIDR"`
 }
 
 // ClusterMapping is an empty struct.

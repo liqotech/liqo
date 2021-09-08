@@ -56,16 +56,34 @@ func (f *apiForger) podStatusForeignToHome(foreignObj, homeObj runtime.Object) *
 
 	homePod.Status = foreignPod.Status
 	if homePod.Status.PodIP != "" {
-		response, err := f.ipamClient.GetHomePodIP(context.Background(),
-			&liqonetIpam.GetHomePodIPRequest{
-				ClusterID: strings.TrimPrefix(f.virtualNodeName.Value().ToString(), virtualKubelet.VirtualNodePrefix),
-				Ip:        foreignPod.Status.PodIP,
-			})
-		if err != nil {
-			klog.Error(err)
+		response, _ := f.ipamClient.BelongsToPodCIDR(context.Background(), &liqonetIpam.BelongsRequest{
+			ClusterID: strings.TrimPrefix(f.virtualNodeName.Value().ToString(), virtualKubelet.VirtualNodePrefix),
+			Ip: foreignPod.Status.PodIP,
+		})
+
+		if response.GetBelongs() {
+			response, err := f.ipamClient.GetHomePodIP(context.Background(),
+				&liqonetIpam.GetHomePodIPRequest{
+					ClusterID: strings.TrimPrefix(f.virtualNodeName.Value().ToString(), virtualKubelet.VirtualNodePrefix),
+					Ip:        foreignPod.Status.PodIP,
+				})
+			if err != nil {
+				klog.Error(err)
+			}
+			homePod.Status.PodIP = response.GetHomeIP()
+			homePod.Status.PodIPs[0].IP = response.GetHomeIP()
+		}else {
+			response, err := f.remoteIpamClient.MapEndpointIP(context.Background(),
+				&liqonetIpam.MapRequest{
+					ClusterID: f.homeClusterID,
+					Ip: foreignPod.Status.PodIP,
+				})
+			if err != nil {
+				klog.Error(err)
+			}
+			homePod.Status.PodIP = response.GetIp()
+			homePod.Status.PodIPs[0].IP = response.GetIp()
 		}
-		homePod.Status.PodIP = response.GetHomeIP()
-		homePod.Status.PodIPs[0].IP = response.GetHomeIP()
 	}
 
 	if foreignPod.DeletionTimestamp != nil {

@@ -105,7 +105,7 @@ func NewLiqoProvider(ctx context.Context, nodeName, foreignClusterID, homeCluste
 	grpcServerNameOpt := optTypes.NewNetworkingOption(optTypes.LiqoIpamServer, optTypes.NetworkingValue(ipamGRPCServer))
 	remoteClusterIDOpt := optTypes.NewNetworkingOption(optTypes.RemoteClusterID, optTypes.NetworkingValue(foreignClusterID))
 
-	forge.InitForger(mapper, virtualNodeNameOpt, grpcServerNameOpt, remoteClusterIDOpt)
+	forge.InitForger(homeClusterID, mapper, virtualNodeNameOpt, grpcServerNameOpt, remoteClusterIDOpt)
 
 	opts := forgeOptionsMap(
 		virtualNodeNameOpt,
