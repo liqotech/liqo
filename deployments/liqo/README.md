@@ -51,6 +51,7 @@
 | gateway.pod.annotations | object | `{}` | gateway pod annotations |
 | gateway.pod.extraArgs | list | `[]` | gateway pod extra arguments |
 | gateway.pod.labels | object | `{}` | gateway pod labels |
+| gateway.replicas | int | `1` | The number of gateway instances to run. The gateway component supports active/passive high availability. Make sure that there are enough nodes to accommodate the replicas, because being the instances in host network no more than one replica can be scheduled on a given node. |
 | gateway.service.annotations | object | `{}` |  |
 | gateway.service.type | string | `"LoadBalancer"` | If you plan to use liqo over the Internet consider to change this field to "LoadBalancer". More generally, if your cluster nodes are directly reachable by the cluster to whom you are peering, you may change it to "NodePort". |
 | nameOverride | string | `""` | liqo name override |

@@ -39,6 +39,7 @@ func newInstallCommand(ctx context.Context) *cobra.Command {
 		"added to the reserved list. (e.g. --reserved-subnets 192.168.2.0/24,192.168.4.0/24)")
 	installCmd.PersistentFlags().String("resource-sharing-percentage", "90", "It defines the percentage of available cluster resources that "+
 		"you are willing to share with foreign clusters. It accepts [0 - 100] values.")
+	installCmd.PersistentFlags().Bool("enable-ha", false, "Enable the gateway component support active/passive high availability.")
 
 	for _, providerName := range providers {
 		cmd, err := getCommand(ctx, providerName)

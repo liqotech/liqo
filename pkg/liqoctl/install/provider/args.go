@@ -74,7 +74,11 @@ func ValidateCommonArguments(flags *flag.FlagSet) (*CommonArguments, error) {
 	if err != nil {
 		return nil, err
 	}
-	commonValues, err := parseCommonValues(clusterLabels, chartPath, version, resourceSharingPercentage, lanDiscovery)
+	enableHa, err := flags.GetBool("enable-ha")
+	if err != nil {
+		return nil, err
+	}
+	commonValues, err := parseCommonValues(clusterLabels, chartPath, version, resourceSharingPercentage, lanDiscovery, enableHa)
 	if err != nil {
 		return nil, err
 	}
@@ -92,7 +96,8 @@ func ValidateCommonArguments(flags *flag.FlagSet) (*CommonArguments, error) {
 	}, nil
 }
 
-func parseCommonValues(clusterLabels, chartPath, version, resourceSharingPercentage string, lanDiscovery bool) (map[string]interface{}, error) {
+func parseCommonValues(clusterLabels, chartPath, version, resourceSharingPercentage string,
+	lanDiscovery, enableHa bool) (map[string]interface{}, error) {
 	clusterLabelsVar := argsutils.StringMap{}
 	if err := clusterLabelsVar.Set(clusterLabels); err != nil {
 		return map[string]interface{}{}, err
@@ -111,6 +116,11 @@ func parseCommonValues(clusterLabels, chartPath, version, resourceSharingPercent
 		return map[string]interface{}{}, err
 	}
 
+	gatewayReplicas := 1
+	if enableHa {
+		gatewayReplicas = 2
+	}
+
 	return map[string]interface{}{
 		"tag": tag,
 		"discovery": map[string]interface{}{
@@ -124,6 +134,9 @@ func parseCommonValues(clusterLabels, chartPath, version, resourceSharingPercent
 			"config": map[string]interface{}{
 				"resourceSharingPercentage": float64(resourceSharingPercentageVal.Val),
 			},
+		},
+		"gateway": map[string]interface{}{
+			"replicas": float64(gatewayReplicas),
 		},
 	}, nil
 }

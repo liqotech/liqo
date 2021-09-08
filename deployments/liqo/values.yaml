@@ -38,6 +38,11 @@ route:
   imageName: "liqo/liqonet"
 
 gateway:
+  # -- The number of gateway instances to run.
+  # The gateway component supports active/passive high availability.
+  # Make sure that there are enough nodes to accommodate the replicas, because being the instances in host network no more
+  # than one replica can be scheduled on a given node.
+  replicas: 1
   pod:
     # -- gateway pod annotations
     annotations: {}
