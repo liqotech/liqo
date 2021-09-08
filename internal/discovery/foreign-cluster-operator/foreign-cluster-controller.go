@@ -110,7 +110,6 @@ type ForeignClusterReconciler struct {
 // +kubebuilder:rbac:groups=discovery.liqo.io,resources=searchdomains,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=discovery.liqo.io,resources=peeringrequests,verbs=get;list;watch
 // +kubebuilder:rbac:groups=discovery.liqo.io,resources=resourcerequests,verbs=get;list;watch;create;update;patch;delete;deletecollection
-// +kubebuilder:rbac:groups=config.liqo.io,resources=clusterconfigs,verbs=get;list;watch;create
 // +kubebuilder:rbac:groups=net.liqo.io,resources=networkconfigs,verbs=*
 // +kubebuilder:rbac:groups=net.liqo.io,resources=networkconfigs/status,verbs=*
 // +kubebuilder:rbac:groups=net.liqo.io,resources=tunnelendpoints,verbs=get;list;watch

@@ -44,7 +44,6 @@ const (
 // cluster-role
 // +kubebuilder:rbac:groups=core,resources=namespaces,verbs=get;watch;list
 // +kubebuilder:rbac:groups=offloading.liqo.io,resources=namespaceoffloadings,verbs=get;watch;list;create;delete
-// +kubebuilder:rbac:groups=config.liqo.io,resources=clusterconfigs,verbs=get;list;watch;create;update;patch;delete
 
 // needed to be granted to other operators
 // +kubebuilder:rbac:groups=sharing.liqo.io,resources=advertisements,verbs=delete;get;list;patch;update;watch

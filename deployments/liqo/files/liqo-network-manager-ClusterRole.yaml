@@ -1,17 +1,5 @@
 rules:
 - apiGroups:
-  - config.liqo.io
-  resources:
-  - clusterconfigs
-  verbs:
-  - create
-  - delete
-  - get
-  - list
-  - patch
-  - update
-  - watch
-- apiGroups:
   - ""
   resources:
   - events
