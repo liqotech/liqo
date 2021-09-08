@@ -32,14 +32,14 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/scheme"
 	coordv1 "k8s.io/client-go/kubernetes/typed/coordination/v1"
-	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/record"
 	"k8s.io/client-go/util/workqueue"
 	"k8s.io/klog/v2"
 
 	"github.com/liqotech/liqo/cmd/virtual-kubelet/provider"
 	"github.com/liqotech/liqo/internal/utils/errdefs"
-	crdclient "github.com/liqotech/liqo/pkg/crdClient"
+	"github.com/liqotech/liqo/pkg/utils"
+	"github.com/liqotech/liqo/pkg/utils/restcfg"
 	"github.com/liqotech/liqo/pkg/virtualKubelet"
 	liqonodeprovider "github.com/liqotech/liqo/pkg/virtualKubelet/liqoNodeProvider"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/manager"
@@ -74,14 +74,12 @@ func runRootCommand(ctx context.Context, s *provider.Store, c *Opts) error {
 		return errdefs.InvalidInput("pod sync workers must be greater than 0")
 	}
 
-	config, err := crdclient.NewKubeconfig(c.HomeKubeconfig, nil, func(config *rest.Config) {
-		config.QPS = virtualKubelet.HOME_CLIENT_QPS
-		config.Burst = virtualKubelet.HOME_CLIENTS_BURST
-	})
+	config, err := utils.GetRestConfig(c.HomeKubeconfig)
 	if err != nil {
 		return err
 	}
 
+	restcfg.SetRateLimiterWithCustomParamenters(config, virtualKubelet.HOME_CLIENT_QPS, virtualKubelet.HOME_CLIENTS_BURST)
 	client, err := kubernetes.NewForConfig(config)
 	if err != nil {
 		return err

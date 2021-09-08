@@ -91,7 +91,7 @@ var _ = Describe("Auth", func() {
 			os.Exit(1)
 		}
 
-		informerFactory := informers.NewSharedInformerFactoryWithOptions(cluster.GetClient().Client(), 300*time.Second, informers.WithNamespace("default"))
+		informerFactory := informers.NewSharedInformerFactoryWithOptions(cluster.GetClient(), 300*time.Second, informers.WithNamespace("default"))
 
 		secretInformer := informerFactory.Core().V1().Secrets().Informer()
 		secretInformer.AddEventHandler(cache.ResourceEventHandlerFuncs{})
@@ -103,14 +103,14 @@ var _ = Describe("Auth", func() {
 		informerFactory.Start(stopChan)
 		informerFactory.WaitForCacheSync(wait.NeverStop)
 
-		namespaceManager := tenantnamespace.NewTenantNamespaceManager(cluster.GetClient().Client())
+		namespaceManager := tenantnamespace.NewTenantNamespaceManager(cluster.GetClient())
 		identityProvider := identitymanager.NewCertificateIdentityProvider(
-			context.Background(), cluster.GetClient().Client(), &clusterID, namespaceManager)
+			context.Background(), cluster.GetClient(), &clusterID, namespaceManager)
 
 		authService = Controller{
 			namespace:            "default",
-			restConfig:           cluster.GetClient().Config(),
-			clientset:            cluster.GetClient().Client(),
+			restConfig:           cluster.GetCfg(),
+			clientset:            cluster.GetClient(),
 			secretInformer:       secretInformer,
 			localClusterID:       &clusterID,
 			namespaceManager:     namespaceManager,
@@ -127,13 +127,13 @@ var _ = Describe("Auth", func() {
 				Name: "test",
 			},
 		}
-		_, err = cluster.GetClient().Client().RbacV1().ClusterRoles().Create(context.TODO(), clusterRole, metav1.CreateOptions{})
+		_, err = cluster.GetClient().RbacV1().ClusterRoles().Create(context.TODO(), clusterRole, metav1.CreateOptions{})
 		if err != nil {
 			By(err.Error())
 			os.Exit(1)
 		}
 
-		idManTest.StartTestApprover(cluster.GetClient().Client(), stopChan)
+		idManTest.StartTestApprover(cluster.GetClient(), stopChan)
 	})
 
 	AfterSuite(func() {

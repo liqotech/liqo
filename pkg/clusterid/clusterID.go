@@ -17,7 +17,6 @@ package clusterid
 import (
 	"context"
 	"errors"
-	"os"
 	"sort"
 	"sync"
 
@@ -30,9 +29,7 @@ import (
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/klog/v2"
 
-	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	"github.com/liqotech/liqo/pkg/consts"
-	crdclient "github.com/liqotech/liqo/pkg/crdClient"
 	"github.com/liqotech/liqo/pkg/utils"
 )
 
@@ -95,21 +92,6 @@ func NewClusterIDFromClient(client kubernetes.Interface) (ClusterID, error) {
 	}()
 
 	return newClusterID, nil
-}
-
-// NewClusterID generates a new clusterid and returns it.
-func NewClusterID(kubeconfigPath string) (ClusterID, error) {
-	config, err := crdclient.NewKubeconfig(kubeconfigPath, &discoveryv1alpha1.GroupVersion, nil)
-	if err != nil {
-		klog.Error(err, "unable to get kube config")
-		os.Exit(1)
-	}
-	client, err := kubernetes.NewForConfig(config)
-	if err != nil {
-		klog.Error(err, "unable to create client")
-		os.Exit(1)
-	}
-	return NewClusterIDFromClient(client)
 }
 
 func getClusterID(cm *v1.ConfigMap) string {

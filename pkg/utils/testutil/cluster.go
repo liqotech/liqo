@@ -15,10 +15,8 @@
 package testutil
 
 import (
-	"context"
-
-	corev1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
+	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
 	"k8s.io/klog/v2"
@@ -26,17 +24,15 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/envtest"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 
-	"github.com/liqotech/liqo/apis/discovery/v1alpha1"
-	nettypes "github.com/liqotech/liqo/apis/net/v1alpha1"
-	advtypes "github.com/liqotech/liqo/apis/sharing/v1alpha1"
-	crdclient "github.com/liqotech/liqo/pkg/crdClient"
+	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
+	netv1alpha1 "github.com/liqotech/liqo/apis/net/v1alpha1"
+	sharingv1alpha1 "github.com/liqotech/liqo/apis/sharing/v1alpha1"
 )
 
 type Cluster struct {
-	env       *envtest.Environment
-	cfg       *rest.Config
-	client    *crdclient.CRDClient
-	netClient *crdclient.CRDClient
+	env    *envtest.Environment
+	cfg    *rest.Config
+	client kubernetes.Interface
 }
 
 // GetEnv returns the test environment.
@@ -45,7 +41,7 @@ func (c *Cluster) GetEnv() *envtest.Environment {
 }
 
 // GetClient returns the crd client.
-func (c *Cluster) GetClient() *crdclient.CRDClient {
+func (c *Cluster) GetClient() kubernetes.Interface {
 	return c.client
 }
 
@@ -70,43 +66,13 @@ func NewTestCluster(crdPath []string) (Cluster, manager.Manager, error) {
 		return Cluster{}, nil, err
 	}
 
-	cluster.cfg.ContentConfig.GroupVersion = &v1alpha1.GroupVersion
-	cluster.cfg.APIPath = "/apis"
-	cluster.cfg.NegotiatedSerializer = scheme.Codecs.WithoutConversion()
-	cluster.cfg.UserAgent = rest.DefaultKubernetesUserAgent()
+	cluster.client = kubernetes.NewForConfigOrDie(cluster.cfg)
 
-	netCfg := *cluster.cfg
-	netCfg.ContentConfig.GroupVersion = &nettypes.GroupVersion
-	crdclient.AddToRegistry("networkconfigs", &nettypes.NetworkConfig{}, &nettypes.NetworkConfigList{}, nil, nettypes.TunnelEndpointGroupResource)
-	crdclient.AddToRegistry("tunnelendpoints", &nettypes.TunnelEndpoint{}, &nettypes.TunnelEndpointList{}, nil, nettypes.TunnelEndpointGroupResource)
+	utilruntime.Must(discoveryv1alpha1.AddToScheme(scheme.Scheme))
+	utilruntime.Must(sharingv1alpha1.AddToScheme(scheme.Scheme))
+	utilruntime.Must(netv1alpha1.AddToScheme(scheme.Scheme))
 
-	err = v1alpha1.AddToScheme(scheme.Scheme)
-	if err != nil {
-		klog.Error(err)
-		return Cluster{}, nil, err
-	}
-	err = advtypes.AddToScheme(scheme.Scheme)
-	if err != nil {
-		klog.Error(err)
-		return Cluster{}, nil, err
-	}
-	err = nettypes.AddToScheme(scheme.Scheme)
-	if err != nil {
-		klog.Error(err)
-		return Cluster{}, nil, err
-	}
-
-	cluster.client, err = crdclient.NewFromConfig(cluster.cfg)
-	if err != nil {
-		klog.Error(err)
-		return Cluster{}, nil, err
-	}
-	cluster.netClient, err = crdclient.NewFromConfig(&netCfg)
-	if err != nil {
-		klog.Error(err)
-		return Cluster{}, nil, err
-	}
-	k8sManager, err := ctrl.NewManager(cluster.cfg, ctrl.Options{
+	mgr, err := ctrl.NewManager(cluster.cfg, ctrl.Options{
 		Scheme:             scheme.Scheme,
 		MetricsBindAddress: "0", // this avoids port binding collision
 	})
@@ -115,20 +81,5 @@ func NewTestCluster(crdPath []string) (Cluster, manager.Manager, error) {
 		return Cluster{}, nil, err
 	}
 
-	// creates empty CaData secret
-	secret := &corev1.Secret{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: "ca-data",
-		},
-		Data: map[string][]byte{
-			"ca.crt": []byte(""),
-		},
-	}
-	_, err = cluster.client.Client().CoreV1().Secrets("default").Create(context.TODO(), secret, metav1.CreateOptions{})
-	if err != nil {
-		klog.Error(err)
-		return Cluster{}, nil, err
-	}
-
-	return cluster, k8sManager, nil
+	return cluster, mgr, nil
 }

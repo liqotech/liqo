@@ -91,12 +91,12 @@ var _ = Describe("IdentityManager", func() {
 			os.Exit(1)
 		}
 
-		client = cluster.GetClient().Client()
+		client = cluster.GetClient()
 		restConfig = cluster.GetCfg()
 
 		namespaceManager = tenantnamespace.NewTenantNamespaceManager(client)
-		identityMan = NewCertificateIdentityManager(cluster.GetClient().Client(), &localClusterID, namespaceManager)
-		identityProvider = NewCertificateIdentityProvider(ctx, cluster.GetClient().Client(), &localClusterID, namespaceManager)
+		identityMan = NewCertificateIdentityManager(cluster.GetClient(), &localClusterID, namespaceManager)
+		identityProvider = NewCertificateIdentityProvider(ctx, cluster.GetClient(), &localClusterID, namespaceManager)
 
 		namespace, err = namespaceManager.CreateNamespace(remoteClusterID)
 		if err != nil {
@@ -339,7 +339,7 @@ var _ = Describe("IdentityManager", func() {
 	Context("Identity Provider", func() {
 
 		It("Certificate Identity Provider", func() {
-			idProvider := NewCertificateIdentityProvider(ctx, cluster.GetClient().Client(), &localClusterID, namespaceManager)
+			idProvider := NewCertificateIdentityProvider(ctx, cluster.GetClient(), &localClusterID, namespaceManager)
 
 			certIDManager, ok := idProvider.(*identityManager)
 			Expect(ok).To(BeTrue())
@@ -349,7 +349,7 @@ var _ = Describe("IdentityManager", func() {
 		})
 
 		It("AWS IAM Identity Provider", func() {
-			idProvider := NewIAMIdentityManager(cluster.GetClient().Client(), &localClusterID, &AwsConfig{
+			idProvider := NewIAMIdentityManager(cluster.GetClient(), &localClusterID, &AwsConfig{
 				AwsAccessKeyID:     "KeyID",
 				AwsSecretAccessKey: "Secret",
 				AwsRegion:          "region",
@@ -368,7 +368,7 @@ var _ = Describe("IdentityManager", func() {
 	Context("Identity Provider", func() {
 
 		It("Certificate Identity Provider", func() {
-			idProvider := NewCertificateIdentityProvider(ctx, cluster.GetClient().Client(), &localClusterID, namespaceManager)
+			idProvider := NewCertificateIdentityProvider(ctx, cluster.GetClient(), &localClusterID, namespaceManager)
 
 			certIDManager, ok := idProvider.(*identityManager)
 			Expect(ok).To(BeTrue())
@@ -378,7 +378,7 @@ var _ = Describe("IdentityManager", func() {
 		})
 
 		It("AWS IAM Identity Provider", func() {
-			idProvider := NewIAMIdentityManager(cluster.GetClient().Client(), &localClusterID, &AwsConfig{
+			idProvider := NewIAMIdentityManager(cluster.GetClient(), &localClusterID, &AwsConfig{
 				AwsAccessKeyID:     "KeyID",
 				AwsSecretAccessKey: "Secret",
 				AwsRegion:          "region",
