@@ -58,7 +58,7 @@ var _ = Describe("TenantNamespace", func() {
 			os.Exit(1)
 		}
 
-		namespaceManager = NewTenantNamespaceManager(cluster.GetClient().Client())
+		namespaceManager = NewTenantNamespaceManager(cluster.GetClient())
 	})
 
 	AfterSuite(func() {
@@ -114,7 +114,7 @@ var _ = Describe("TenantNamespace", func() {
 		BeforeEach(func() {
 			cnt++
 			clusterID = fmt.Sprintf("test-permission-%v", cnt)
-			client = cluster.GetClient().Client()
+			client = cluster.GetClient()
 
 			cr := &rbacv1.ClusterRole{
 				ObjectMeta: metav1.ObjectMeta{

@@ -16,10 +16,6 @@ package v1alpha1
 
 import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime/schema"
-	"k8s.io/client-go/kubernetes/scheme"
-
-	crdclient "github.com/liqotech/liqo/pkg/crdClient"
 )
 
 // EDIT THIS FILE!  THIS IS SCAFFOLDING FOR YOU TO OWN!
@@ -82,12 +78,4 @@ type ResourceRequestList struct {
 
 func init() {
 	SchemeBuilder.Register(&ResourceRequest{}, &ResourceRequestList{})
-
-	if err := AddToScheme(scheme.Scheme); err != nil {
-		panic(err)
-	}
-	crdclient.AddToRegistry("resourcerequests", &ResourceRequest{}, &ResourceRequestList{}, nil, schema.GroupResource{
-		Group:    GroupVersion.Group,
-		Resource: "resourcerequests",
-	})
 }

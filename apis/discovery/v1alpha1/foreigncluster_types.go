@@ -16,9 +16,6 @@ package v1alpha1
 
 import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/client-go/kubernetes/scheme"
-
-	crdclient "github.com/liqotech/liqo/pkg/crdClient"
 )
 
 // EDIT THIS FILE!  THIS IS SCAFFOLDING FOR YOU TO OWN!
@@ -195,9 +192,4 @@ type ForeignClusterList struct {
 
 func init() {
 	SchemeBuilder.Register(&ForeignCluster{}, &ForeignClusterList{})
-
-	if err := AddToScheme(scheme.Scheme); err != nil {
-		panic(err)
-	}
-	crdclient.AddToRegistry("foreignclusters", &ForeignCluster{}, &ForeignClusterList{}, nil, ForeignClusterGroupResource)
 }

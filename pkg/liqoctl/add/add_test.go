@@ -22,7 +22,9 @@ import (
 	. "github.com/onsi/gomega"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/client-go/kubernetes/fake"
+	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/utils/pointer"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	ctrlfake "sigs.k8s.io/controller-runtime/pkg/client/fake"
@@ -49,6 +51,10 @@ func TestAddCommand(t *testing.T) {
 	RegisterFailHandler(Fail)
 	RunSpecs(t, "Test Parameters Fetching")
 }
+
+var _ = BeforeSuite(func() {
+	utilruntime.Must(discoveryv1alpha1.AddToScheme(scheme.Scheme))
+})
 
 var _ = Describe("Extract elements from apiServer", func() {
 	AssertValidAddition := func() {
@@ -145,6 +151,6 @@ func setUpEnvironment(t *ClusterArgs) (*fake.Clientset, client.Client) {
 		},
 	}
 	clientSet := fake.NewSimpleClientset(ns, clusterIDConfigMap)
-	k8sClient := ctrlfake.NewClientBuilder().WithObjects(ns, clusterIDConfigMap).Build()
+	k8sClient := ctrlfake.NewClientBuilder().WithScheme(scheme.Scheme).WithObjects(ns, clusterIDConfigMap).Build()
 	return clientSet, k8sClient
 }

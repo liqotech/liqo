@@ -86,8 +86,8 @@ var _ = Describe("ForeignClusterOperator", func() {
 		cID := &test.ClusterIDMock{}
 		_ = cID.SetupClusterID("default")
 
-		namespaceManager := tenantnamespace.NewTenantNamespaceManager(cluster.GetClient().Client())
-		identityManagerCtrl := identitymanager.NewCertificateIdentityManager(cluster.GetClient().Client(), cID, namespaceManager)
+		namespaceManager := tenantnamespace.NewTenantNamespaceManager(cluster.GetClient())
+		identityManagerCtrl := identitymanager.NewCertificateIdentityManager(cluster.GetClient(), cID, namespaceManager)
 
 		clusterID := "foreign-cluster"
 		tenantNamespace, err = namespaceManager.CreateNamespace(clusterID)
