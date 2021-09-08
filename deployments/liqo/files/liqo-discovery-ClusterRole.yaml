@@ -1,14 +1,5 @@
 rules:
 - apiGroups:
-  - config.liqo.io
-  resources:
-  - clusterconfigs
-  verbs:
-  - create
-  - get
-  - list
-  - watch
-- apiGroups:
   - ""
   resources:
   - namespaces
