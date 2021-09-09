@@ -1,0 +1,145 @@
+---
+title: Install Liqo
+weight: 2
+---
+
+## Install Liqo on your clusters
+
+In this section, you can install Liqo on the clusters just created. 
+
+### Define your cluster labels
+
+First, you should define the *cluster labels* that each cluster remotely exports during the peering process.
+As detailed in the [namespace replication page](#), each cluster can expose some labels meaningful, enabling the possibility to select it during the offloading configuration. 
+
+In this example, you export two labels for every cluster:
+
+| Key                           | Description |
+| --------------                | ----------- |
+| **topology.liqo.io/region**   | Represents the region to which that cluster belongs. |
+| **liqo.io/provider**          | Indicates the cloud provider that manages that cluster. |
+
+### Installing Liqo
+
+You can install Liqo on the first cluster:
+
+```bash
+export KUBECONFIG=$KUBECONFIG_1
+helm install liqo --namespace "liqo" \
+  --set auth.config.allowEmptyToken=true \
+  --set discovery.config.clusterName="cluster-1" \
+  --set discovery.config.clusterLabels."topology\.liqo\.io/region"="eu-west" \
+  --set discovery.config.clusterLabels."liqo\.io/provider"="provider-1" \
+  --set discovery.config.autojoin=false \
+  --set networkManager.config.podCIDR="10.200.0.0/16" \
+  --set networkManager.config.serviceCIDR="10.90.0.0/12" \
+  --create-namespace
+```
+
+The "**--namespace**" option sets the namespace name in which the Liqo control plane is deployed.
+
+| Key                                   | Type | Description |
+|-----                                  |------|-------------|
+| **discovery.config.clusterName**      | *string* | Set a mnemonic name for your cluster. |
+| **discovery.config.clusterLabels**    | *map*    | Set labels that will characterized the cluster when exposed remotely. |
+| **discovery.config.autojoin**         | *bool*   | If set to true, automatically join discovered cluster exposing the Authentication Service with a valid certificate. |
+| **networkManager.config.podCIDR**     | *string* | The subnet used by the cluster for the pods, in CIDR notation. |
+| **networkManager.config.serviceCIDR** | *string* | The subnet used by the cluster for the services, in CIDR notation. |
+| **auth.config.allowEmptyToken**       | *bool*   | If set to true, disable the authentication of discovered clusters. NB: use it only for testing installations |
+
+You can find additional details about the possible chart values by looking at [the dedicated section](/installation/chart_values#values).
+ 
+If you set the *autojoin* and the *allowEmptyToken* parameters to True, you automatically create a full mesh topology between your clusters.
+However, in this tutorial, the autojoin parameter is set to False because there is no need for a similar architecture. 
+You will learn how to manually enable and disable peerings according to the Liqo selective peering feature.
+
+Remember to install Liqo also on the other two clusters:
+
+```bash
+export KUBECONFIG=$KUBECONFIG_2
+helm install liqo --namespace "liqo" \
+  --set auth.config.allowEmptyToken=true \
+  --set discovery.config.clusterName="cluster-2" \
+  --set discovery.config.clusterLabels."topology\.liqo\.io/region"="us-west" \
+  --set discovery.config.clusterLabels."liqo\.io/provider"="provider-2" \
+  --set discovery.config.autojoin=false \
+  --set networkManager.config.podCIDR="10.200.0.0/16" \
+  --set networkManager.config.serviceCIDR="10.90.0.0/12" \
+  --create-namespace
+```
+
+```bash
+export KUBECONFIG=$KUBECONFIG_3
+helm install liqo --namespace "liqo" \
+  --set auth.config.allowEmptyToken=true \
+  --set discovery.config.clusterName="cluster-3" \
+  --set discovery.config.clusterLabels."topology\.liqo\.io/region"="eu-east" \
+  --set discovery.config.clusterLabels."liqo\.io/provider"="provider-3" \
+  --set discovery.config.autojoin=false \
+  --set networkManager.config.podCIDR="10.200.0.0/16" \
+  --set networkManager.config.serviceCIDR="10.90.0.0/12" \
+  --create-namespace
+```
+
+Helm commands take a couple of minutes to complete. When this happens, the installation process is complete.
+
+## Check installation state
+
+Liqo should be installed on all three clusters:
+
+```bash
+export KUBECONFIG=$KUBECONFIG_1
+kubectl get pods -n liqo
+```
+
+Each cluster should provide an output similar to this:
+
+```bash
+NAME                                          READY   STATUS      
+capsule-controller-manager-7dd5bb5d6c-rnnps   1/1     Running             
+liqo-auth-7df65db559-jtmvb                    1/1     Running             
+liqo-controller-manager-c7b996f8f-m5wgd       1/1     Running             
+liqo-crd-replicator-7d7b66d566-7z9lm          1/1     Running             
+liqo-discovery-5f7d7fffdd-wbvt2               1/1     Running             
+liqo-gateway-6f4fb8dcd9-pqx2d                 1/1     Running             
+liqo-network-manager-65dd9599d6-dvfgw         1/1     Running             
+liqo-route-sn5c8                              1/1     Running             
+liqo-webhook-6bcc9d4f76-5dwmw                 1/1     Running             
+```
+
+You can also look at the labels that each cluster will expose remotely:
+
+```bash
+export KUBECONFIG=$KUBECONFIG_1
+kubectl get clusterconfigs.config.liqo.io -o yaml | grep clusterLabels -A 2
+```
+
+You should see the labels that you have previously configured for the first cluster:
+
+```yaml
+clusterLabels:
+  liqo.io/provider: provider-1
+  topology.liqo.io/region: eu-west
+```
+
+Check it also on the other two clusters:
+
+```bash
+export KUBECONFIG=$KUBECONFIG_2
+kubectl get clusterconfigs.config.liqo.io -o yaml | grep clusterLabels -A 2
+```
+
+```bash
+export KUBECONFIG=$KUBECONFIG_3
+kubectl get clusterconfigs.config.liqo.io -o yaml | grep clusterLabels -A 2
+```
+
+The actual scenario should be: 
+
+| Cluster         | Region  | Provider |
+|-----            | ------- |----------|
+| **Cluster-1**   | eu-west |  provider-1   |
+| **Cluster-2**   | us-west |  provider-2   |
+| **Cluster-3**   | eu-east |  provider-3   |
+
+Once your clusters are ready, you can start the [peering procedure](../peer).

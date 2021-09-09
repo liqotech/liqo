@@ -23,7 +23,6 @@ version: "0.1"
 
 dependencies:
 - name: capsule
-  version: v0.1.0-rc2-liqo
-  # this is a temporary solution waiting for the new version of capsule to be released.
-  repository: http://helm.liqo.io/capsule
+  version: v0.1.0
+  repository: https://clastix.github.io/charts
   condition: capsule.install

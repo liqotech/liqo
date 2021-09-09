@@ -1,6 +1,21 @@
+// Copyright 2019-2021 The Liqo Authors
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//      http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 package foreignclusteroperator
 
 import (
+	"context"
 	"os"
 	"time"
 
@@ -12,8 +27,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
-	"github.com/liqotech/liqo/internal/discovery"
-	"github.com/liqotech/liqo/pkg/auth"
 	"github.com/liqotech/liqo/pkg/clusterid"
 	identitymanager "github.com/liqotech/liqo/pkg/identityManager"
 	peeringroles "github.com/liqotech/liqo/pkg/peering-roles"
@@ -32,67 +45,37 @@ func init() {
 
 // StartOperator setups the ForeignCluster operator.
 func StartOperator(
-	mgr manager.Manager, namespacedClient client.Client, clientset kubernetes.Interface,
-	requeueAfter time.Duration, discoveryCtrl *discovery.Controller, localClusterID clusterid.ClusterID) {
+	mgr manager.Manager, namespacedClient client.Client, clientset kubernetes.Interface, namespace string,
+	requeueAfter time.Duration, localClusterID clusterid.ClusterID, clusterName string,
+	authServiceAddressOverride, authServicePortOverride string, autoJoin bool) {
 	namespaceManager := tenantnamespace.NewTenantNamespaceManager(clientset)
 	idManager := identitymanager.NewCertificateIdentityManager(clientset, localClusterID, namespaceManager)
 
-	if err := getForeignClusterReconciler(
-		mgr,
-		namespacedClient,
-		clientset,
-		localClusterID,
-		requeueAfter,
-		discoveryCtrl,
-		discoveryCtrl,
-		namespaceManager,
-		idManager,
-	).SetupWithManager(mgr); err != nil {
-		klog.Error(err, "unable to create controller", "controller", "ForeignCluster")
+	// populate the lists of ClusterRoles to bind in the different peering states
+	permissions, err := peeringroles.GetPeeringPermission(context.TODO(), clientset)
+	if err != nil {
+		klog.Errorf("Unable to populate peering permission: %w", err)
 		os.Exit(1)
 	}
-}
 
-func getForeignClusterReconciler(mgr manager.Manager,
-	namespacedClient client.Client,
-	clientset kubernetes.Interface,
-	localClusterID clusterid.ClusterID,
-	requeueAfter time.Duration,
-	configProvider discovery.ConfigProvider,
-	authConfigProvider auth.ConfigProvider,
-	namespaceManager tenantnamespace.Manager,
-	idManager identitymanager.IdentityManager) *ForeignClusterReconciler {
-	reconciler := &ForeignClusterReconciler{
+	if err = (&ForeignClusterReconciler{
 		Client:               mgr.GetClient(),
 		LiqoNamespacedClient: namespacedClient,
 		Scheme:               mgr.GetScheme(),
-		clusterID:            localClusterID,
-		RequeueAfter:         requeueAfter,
-		ConfigProvider:       configProvider,
-		AuthConfigProvider:   authConfigProvider,
-		namespaceManager:     namespaceManager,
-		identityManager:      idManager,
-	}
+		liqoNamespace:        namespace,
 
-	// populate the lists of ClusterRoles to bind in the different peering states
-	if err := reconciler.populatePermission(clientset); err != nil {
-		klog.Errorf("unable to populate peering permission: %v", err)
+		requeueAfter:               requeueAfter,
+		clusterID:                  localClusterID,
+		clusterName:                clusterName,
+		authServiceAddressOverride: authServiceAddressOverride,
+		authServicePortOverride:    authServicePortOverride,
+		autoJoin:                   autoJoin,
+
+		namespaceManager:  namespaceManager,
+		identityManager:   idManager,
+		peeringPermission: *permissions,
+	}).SetupWithManager(mgr); err != nil {
+		klog.Error(err, "unable to create controller", "controller", "ForeignCluster")
 		os.Exit(1)
 	}
-
-	return reconciler
-}
-
-// populatePermission populates the list of ClusterRoles to bind in the different peering phases reading the ClusterConfig CR.
-func (r *ForeignClusterReconciler) populatePermission(clientset kubernetes.Interface) error {
-	peeringPermission, err := peeringroles.GetPeeringPermission(clientset, r.AuthConfigProvider)
-	if err != nil {
-		klog.Error(err)
-		return err
-	}
-
-	if peeringPermission != nil {
-		r.peeringPermission = *peeringPermission
-	}
-	return nil
 }

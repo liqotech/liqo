@@ -1,3 +1,17 @@
+// Copyright 2019-2021 The Liqo Authors
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//      http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 package foreignclusteroperator
 
 import (
@@ -10,17 +24,12 @@ import (
 	"io/ioutil"
 	"net/http"
 
-	corev1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
-	"k8s.io/apimachinery/pkg/labels"
-	"k8s.io/apimachinery/pkg/selection"
-	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/klog/v2"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	"github.com/liqotech/liqo/pkg/auth"
-	"github.com/liqotech/liqo/pkg/discovery"
+	"github.com/liqotech/liqo/pkg/utils/authenticationtoken"
 	foreignclusterutils "github.com/liqotech/liqo/pkg/utils/foreignCluster"
 	peeringconditionsutils "github.com/liqotech/liqo/pkg/utils/peeringConditions"
 )
@@ -77,35 +86,15 @@ func (r *ForeignClusterReconciler) fetchRemoteTenantNamespace(ctx context.Contex
 	return nil
 }
 
-// getAuthToken loads the auth token from a labeled secret.
-func (r *ForeignClusterReconciler) getAuthToken(ctx context.Context, fc *discoveryv1alpha1.ForeignCluster) string {
-	req1, err := labels.NewRequirement(discovery.ClusterIDLabel, selection.Equals, []string{fc.Spec.ClusterIdentity.ClusterID})
-	utilruntime.Must(err)
-	req2, err := labels.NewRequirement(discovery.AuthTokenLabel, selection.Exists, []string{})
-	utilruntime.Must(err)
-
-	var tokenSecrets corev1.SecretList
-	if err := r.LiqoNamespacedClient.List(ctx, &tokenSecrets, client.MatchingLabelsSelector{
-		Selector: labels.NewSelector().Add(*req1, *req2),
-	}); err != nil {
-		klog.Error(err)
-		return ""
-	}
-
-	for i := range tokenSecrets.Items {
-		if token, found := tokenSecrets.Items[i].Data["token"]; found {
-			return string(token)
-		}
-	}
-	return ""
-}
-
 // validateIdentity sends an HTTP request to validate the identity for the remote cluster (Certificate).
 func (r *ForeignClusterReconciler) validateIdentity(ctx context.Context, fc *discoveryv1alpha1.ForeignCluster) error {
 	remoteClusterID := fc.Spec.ClusterIdentity.ClusterID
-	token := r.getAuthToken(ctx, fc)
+	token, err := authenticationtoken.GetAuthToken(ctx, fc.Spec.ClusterIdentity.ClusterID, r.LiqoNamespacedClient)
+	if err != nil {
+		return err
+	}
 
-	_, err := r.identityManager.CreateIdentity(remoteClusterID)
+	_, err = r.identityManager.CreateIdentity(remoteClusterID)
 	if err != nil {
 		klog.Error(err)
 		return err
@@ -117,7 +106,13 @@ func (r *ForeignClusterReconciler) validateIdentity(ctx context.Context, fc *dis
 		return err
 	}
 
-	request := auth.NewCertificateIdentityRequest(r.clusterID.GetClusterID(), token, csr)
+	localToken, err := auth.GetToken(ctx, r.LiqoNamespacedClient, r.liqoNamespace)
+	if err != nil {
+		klog.Error(err)
+		return err
+	}
+
+	request := auth.NewCertificateIdentityRequest(r.clusterID.GetClusterID(), localToken, token, csr)
 	responseBytes, err := sendIdentityRequest(request, fc)
 	if err != nil {
 		klog.Error(err)
@@ -146,7 +141,7 @@ func sendIdentityRequest(request auth.IdentityRequest, fc *discoveryv1alpha1.For
 		klog.Error(err)
 		return nil, err
 	}
-	klog.V(4).Infof("[%v] Sending json request: %v", fc.Spec.ClusterIdentity.ClusterID, string(jsonRequest))
+	klog.V(8).Infof("[%v] Sending json request: %v", fc.Spec.ClusterIdentity.ClusterID, string(jsonRequest))
 
 	resp, err := sendRequest(
 		fmt.Sprintf("%s%s", fc.Spec.ForeignAuthURL, request.GetPath()),

@@ -1,10 +1,22 @@
+// Copyright 2019-2021 The Liqo Authors
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//      http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 package authservice
 
 import (
 	"context"
 	"net/http"
-	"strings"
-	"sync"
 	"time"
 
 	"github.com/julienschmidt/httprouter"
@@ -17,23 +29,19 @@ import (
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/klog/v2"
 
-	"github.com/liqotech/liqo/apis/config/v1alpha1"
-	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	"github.com/liqotech/liqo/pkg/auth"
 	"github.com/liqotech/liqo/pkg/clusterid"
-	crdclient "github.com/liqotech/liqo/pkg/crdClient"
 	identitymanager "github.com/liqotech/liqo/pkg/identityManager"
-	peeringRoles "github.com/liqotech/liqo/pkg/peering-roles"
+	peeringroles "github.com/liqotech/liqo/pkg/peering-roles"
 	tenantnamespace "github.com/liqotech/liqo/pkg/tenantNamespace"
-	"github.com/liqotech/liqo/pkg/utils/restcfg"
+	"github.com/liqotech/liqo/pkg/utils/apiserver"
 )
 
 // cluster-role
 // +kubebuilder:rbac:groups=core,resources=nodes,verbs=list
 // +kubebuilder:rbac:groups=core,resources=namespaces,verbs=get;list;watch;create
 // +kubebuilder:rbac:groups=core,resourceNames="aws-auth",resources=configmaps,verbs=get;update
-// +kubebuilder:rbac:groups=rbac.authorization.k8s.io,resources=clusterroles,verbs=get
-// +kubebuilder:rbac:groups=config.liqo.io,resources=clusterconfigs,verbs=get;list;watch;create
+// +kubebuilder:rbac:groups=rbac.authorization.k8s.io,resources=clusterroles,verbs=get;list;watch
 // +kubebuilder:rbac:groups=certificates.k8s.io,resources=certificatesigningrequests,verbs=get;create;list;watch
 // +kubebuilder:rbac:groups=certificates.k8s.io,resources=certificatesigningrequests/approval,verbs=update
 // +kubebuilder:rbac:groups=certificates.k8s.io,resources=signers,verbs=approve
@@ -51,30 +59,24 @@ type Controller struct {
 	restConfig     *rest.Config
 	clientset      kubernetes.Interface
 	secretInformer cache.SharedIndexInformer
-	useTLS         bool
+
+	authenticationEnabled bool
 
 	credentialsValidator credentialsValidator
 	localClusterID       clusterid.ClusterID
+	localClusterName     string
 	namespaceManager     tenantnamespace.Manager
 	identityProvider     identitymanager.IdentityProvider
 
-	config          *v1alpha1.AuthConfig
-	apiServerConfig *v1alpha1.APIServerConfig
-	discoveryConfig v1alpha1.DiscoveryConfig
-	configMutex     sync.RWMutex
+	apiServerConfig apiserver.Config
 
-	peeringPermission peeringRoles.PeeringPermission
+	peeringPermission peeringroles.PeeringPermission
 }
 
 // NewAuthServiceCtrl creates a new Auth Controller.
-func NewAuthServiceCtrl(namespace, kubeconfigPath string,
-	awsConfig identitymanager.AwsConfig,
-	resyncTime time.Duration, useTLS bool) (*Controller, error) {
-	config, err := crdclient.NewKubeconfig(kubeconfigPath, &discoveryv1alpha1.GroupVersion, nil)
-	if err != nil {
-		return nil, err
-	}
-	restcfg.SetRateLimiter(config)
+func NewAuthServiceCtrl(config *rest.Config, namespace string,
+	awsConfig identitymanager.AwsConfig, resyncTime time.Duration,
+	apiServerConfig apiserver.Config, authEnabled, useTLS bool, clusterName string) (*Controller, error) {
 	clientset, err := kubernetes.NewForConfig(config)
 	if err != nil {
 		return nil, err
@@ -85,7 +87,7 @@ func NewAuthServiceCtrl(namespace, kubeconfigPath string,
 	secretInformer := informerFactory.Core().V1().Secrets().Informer()
 	secretInformer.AddEventHandler(cache.ResourceEventHandlerFuncs{})
 
-	localClusterID, err := clusterid.NewClusterID(kubeconfigPath)
+	localClusterID, err := clusterid.NewClusterIDFromClient(clientset)
 	if err != nil {
 		return nil, err
 	}
@@ -110,35 +112,41 @@ func NewAuthServiceCtrl(namespace, kubeconfigPath string,
 		clientset:        clientset,
 		secretInformer:   secretInformer,
 		localClusterID:   localClusterID,
+		localClusterName: clusterName,
 		namespaceManager: namespaceManager,
 		identityProvider: idProvider,
 
-		useTLS:               useTLS,
-		credentialsValidator: &tokenValidator{},
+		apiServerConfig: apiServerConfig,
+
+		authenticationEnabled: authEnabled,
+		credentialsValidator:  &tokenValidator{},
 	}, nil
 }
 
 // Start starts the authentication service.
-func (authService *Controller) Start(listeningPort, certFile, keyFile string) error {
+func (authService *Controller) Start(address string, useTLS bool, certPath, keyPath string) error {
 	if err := authService.configureToken(); err != nil {
 		return err
 	}
 
 	// populate the lists of ClusterRoles to bind in the different peering states.
-	if err := authService.populatePermission(); err != nil {
+	// populate the lists of ClusterRoles to bind in the different peering states
+	permissions, err := peeringroles.GetPeeringPermission(context.TODO(), authService.clientset)
+	if err != nil {
+		klog.Errorf("Unable to populate peering permission: %w", err)
 		return err
 	}
+	authService.peeringPermission = *permissions
 
 	router := httprouter.New()
 
 	router.POST(auth.CertIdentityURI, authService.identity)
 	router.GET(auth.IdsURI, authService.ids)
 
-	var err error
-	if authService.useTLS {
-		err = http.ListenAndServeTLS(strings.Join([]string{":", listeningPort}, ""), certFile, keyFile, router)
+	if useTLS {
+		err = http.ListenAndServeTLS(address, certPath, keyPath, router)
 	} else {
-		err = http.ListenAndServe(strings.Join([]string{":", listeningPort}, ""), router)
+		err = http.ListenAndServe(address, router)
 	}
 	if err != nil {
 		klog.Error(err)
@@ -158,11 +166,11 @@ func (authService *Controller) configureToken() error {
 			if !ok {
 				return
 			}
-			if newSecret.Name != authTokenSecretName {
+			if newSecret.Name != auth.TokenSecretName {
 				return
 			}
 
-			if _, err := authService.getTokenFromSecret(newSecret); err != nil {
+			if _, err := auth.GetTokenFromSecret(newSecret); err != nil {
 				err := authService.clientset.CoreV1().Secrets(authService.namespace).Delete(context.TODO(), newSecret.Name, metav1.DeleteOptions{})
 				if err != nil {
 					klog.Error(err)
@@ -175,7 +183,7 @@ func (authService *Controller) configureToken() error {
 			if !ok {
 				return
 			}
-			if newSecret.Name != authTokenSecretName {
+			if newSecret.Name != auth.TokenSecretName {
 				return
 			}
 
@@ -188,25 +196,6 @@ func (authService *Controller) configureToken() error {
 	return nil
 }
 
-func (authService *Controller) getConfigProvider() auth.ConfigProvider {
-	return authService
-}
-
 func (authService *Controller) getTokenManager() tokenManager {
 	return authService
-}
-
-// populatePermission populates the list of ClusterRoles to bind
-// in the different peering phases reading the ClusterConfig CR.
-func (authService *Controller) populatePermission() error {
-	peeringPermission, err := peeringRoles.GetPeeringPermission(authService.clientset, authService)
-	if err != nil {
-		klog.Error(err)
-		return err
-	}
-
-	if peeringPermission != nil {
-		authService.peeringPermission = *peeringPermission
-	}
-	return nil
 }

@@ -1,3 +1,17 @@
+// Copyright 2019-2021 The Liqo Authors
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//      http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 package k3s
 
 import (
@@ -6,6 +20,7 @@ import (
 	"net"
 	"net/url"
 
+	"github.com/spf13/cobra"
 	flag "github.com/spf13/pflag"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -23,6 +38,10 @@ const (
 
 	defaultPodCIDR     = "10.42.0.0/16"
 	defaultServiceCIDR = "10.43.0.0/16"
+
+	podCidrFlag     = "pod-cidr"
+	serviceCidrFlag = "service-cidr"
+	apiServerFlag   = "api-server"
 )
 
 var (
@@ -33,6 +52,8 @@ var (
 )
 
 type k3sProvider struct {
+	provider.GenericProvider
+
 	k8sClient kubernetes.Interface
 	config    *rest.Config
 
@@ -43,24 +64,35 @@ type k3sProvider struct {
 
 // NewProvider initializes a new K3S provider struct.
 func NewProvider() provider.InstallProviderInterface {
-	return &k3sProvider{}
+	return &k3sProvider{
+		GenericProvider: provider.GenericProvider{
+			ClusterLabels: map[string]string{
+				consts.ProviderClusterLabel: providerPrefix,
+			},
+		},
+	}
 }
 
 // ValidateCommandArguments validates specific arguments passed to the install command.
 func (k *k3sProvider) ValidateCommandArguments(flags *flag.FlagSet) (err error) {
-	k.podCIDR, err = installutils.CheckStringFlagIsSet(flags, providerPrefix, "pod-cidr")
+	err = k.ValidateGenericCommandArguments(flags)
+	if err != nil {
+		return err
+	}
+
+	k.podCIDR, err = flags.GetString(podCidrFlag)
 	if err != nil {
 		return err
 	}
 	klog.V(3).Infof("K3S PodCIDR: %v", k.podCIDR)
 
-	k.serviceCIDR, err = installutils.CheckStringFlagIsSet(flags, providerPrefix, "service-cidr")
+	k.serviceCIDR, err = flags.GetString(serviceCidrFlag)
 	if err != nil {
 		return err
 	}
 	klog.V(3).Infof("K3S ServiceCIDR: %v", k.serviceCIDR)
 
-	k.apiServer, err = flags.GetString(installutils.PrefixedName(providerPrefix, "api-server"))
+	k.apiServer, err = flags.GetString(apiServerFlag)
 	if err != nil {
 		return err
 	}
@@ -73,7 +105,7 @@ func (k *k3sProvider) ValidateCommandArguments(flags *flag.FlagSet) (err error) 
 
 // ExtractChartParameters fetches the parameters used to customize the Liqo installation on a specific cluster of a
 // given provider.
-func (k *k3sProvider) ExtractChartParameters(ctx context.Context, config *rest.Config) error {
+func (k *k3sProvider) ExtractChartParameters(ctx context.Context, config *rest.Config, _ *provider.CommonArguments) error {
 	k8sClient, err := kubernetes.NewForConfig(config)
 	if err != nil {
 		fmt.Printf("Unable to create client: %s", err)
@@ -109,24 +141,26 @@ func (k *k3sProvider) UpdateChartValues(values map[string]interface{}) {
 	}
 	values["networkManager"] = map[string]interface{}{
 		"config": map[string]interface{}{
-			"serviceCIDR": k.serviceCIDR,
-			"podCIDR":     k.podCIDR,
+			"serviceCIDR":     k.serviceCIDR,
+			"podCIDR":         k.podCIDR,
+			"reservedSubnets": installutils.GetInterfaceSlice(k.ReservedSubnets),
+		},
+	}
+	values["discovery"] = map[string]interface{}{
+		"config": map[string]interface{}{
+			"clusterLabels": installutils.GetInterfaceMap(k.ClusterLabels),
+			"clusterName":   k.ClusterName,
 		},
 	}
 }
 
 // GenerateFlags generates the set of specific subpath and flags are accepted for a specific provider.
-func GenerateFlags(flags *flag.FlagSet) {
-	subFlag := flag.NewFlagSet(providerPrefix, flag.ExitOnError)
-	subFlag.SetNormalizeFunc(func(f *flag.FlagSet, name string) flag.NormalizedName {
-		return flag.NormalizedName(installutils.PrefixedName(providerPrefix, name))
-	})
+func GenerateFlags(command *cobra.Command) {
+	flags := command.Flags()
 
-	subFlag.String("pod-cidr", defaultPodCIDR, "The Pod CIDR for your cluster (optional)")
-	subFlag.String("service-cidr", defaultServiceCIDR, "The Service CIDR for your cluster (optional)")
-	subFlag.String("api-server", "", "Your cluster API Server URL (optional)")
-
-	flags.AddFlagSet(subFlag)
+	flags.String(podCidrFlag, defaultPodCIDR, "The Pod CIDR for your cluster (optional)")
+	flags.String(serviceCidrFlag, defaultServiceCIDR, "The Service CIDR for your cluster (optional)")
+	flags.String(apiServerFlag, "", "Your cluster API Server URL (optional)")
 }
 
 // validateServiceCIDR validates that the services in the target cluster matches the provided service CIDR.

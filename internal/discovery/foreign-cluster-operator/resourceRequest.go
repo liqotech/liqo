@@ -1,3 +1,17 @@
+// Copyright 2019-2021 The Liqo Authors
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//      http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 package foreignclusteroperator
 
 import (
@@ -10,20 +24,23 @@ import (
 
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	crdreplicator "github.com/liqotech/liqo/internal/crdReplicator"
+	"github.com/liqotech/liqo/pkg/utils"
+	foreigncluster "github.com/liqotech/liqo/pkg/utils/foreignCluster"
 )
 
-// createResourceRequest creates a resource request to be sent to the specified ForeignCluster.
-func (r *ForeignClusterReconciler) createResourceRequest(ctx context.Context,
-	foreignCluster *discoveryv1alpha1.ForeignCluster) (controllerutil.OperationResult, error) {
+// ensureResourceRequest ensures the presence of a resource request to be sent to the specified ForeignCluster.
+func (r *ForeignClusterReconciler) ensureResourceRequest(ctx context.Context,
+	foreignCluster *discoveryv1alpha1.ForeignCluster) (*discoveryv1alpha1.ResourceRequest, error) {
 	klog.Infof("[%v] ensuring ResourceRequest existence", foreignCluster.Spec.ClusterIdentity.ClusterID)
 
 	localClusterID := r.clusterID.GetClusterID()
 	remoteClusterID := foreignCluster.Spec.ClusterIdentity.ClusterID
 	localNamespace := foreignCluster.Status.TenantNamespace.Local
 
-	authURL, err := r.getHomeAuthURL()
+	authURL, err := foreigncluster.GetHomeAuthURL(ctx, r.LiqoNamespacedClient, r.Client,
+		r.authServiceAddressOverride, r.authServicePortOverride, r.liqoNamespace)
 	if err != nil {
-		return controllerutil.OperationResultNone, err
+		return nil, err
 	}
 
 	resourceRequest := &discoveryv1alpha1.ResourceRequest{
@@ -48,7 +65,7 @@ func (r *ForeignClusterReconciler) createResourceRequest(ctx context.Context,
 		resourceRequest.Spec = discoveryv1alpha1.ResourceRequestSpec{
 			ClusterIdentity: discoveryv1alpha1.ClusterIdentity{
 				ClusterID:   localClusterID,
-				ClusterName: r.ConfigProvider.GetConfig().ClusterName,
+				ClusterName: r.clusterName,
 			},
 			AuthURL: authURL,
 		}
@@ -57,12 +74,12 @@ func (r *ForeignClusterReconciler) createResourceRequest(ctx context.Context,
 	})
 	if err != nil {
 		klog.Error(err)
-		return controllerutil.OperationResultNone, err
+		return nil, err
 	}
-	klog.Infof("[%v] ensured the existence of ResourceRequest (with %v operation)",
+	klog.V(utils.FromResult(result)).Infof("[%v] ensured the existence of ResourceRequest (with %v operation)",
 		remoteClusterID, result)
 
-	return result, nil
+	return resourceRequest, nil
 }
 
 // deleteResourceRequest deletes a resource request related to the specified ForeignCluster.

@@ -22,6 +22,7 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/liqotech/liqo/pkg/consts"
+	argsutils "github.com/liqotech/liqo/pkg/utils/args"
 )
 
 // Defaults for root command options.
@@ -82,6 +83,9 @@ type Opts struct {
 
 	Version   string
 	Profiling bool
+
+	NodeExtraAnnotations argsutils.StringMap
+	NodeExtraLabels      argsutils.StringMap
 }
 
 // SetDefaultOpts sets default options for unset values on the passed in option struct.

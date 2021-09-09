@@ -18,7 +18,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
-	configv1alpha1 "github.com/liqotech/liqo/apis/config/v1alpha1"
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	sharingv1alpha1 "github.com/liqotech/liqo/apis/sharing/v1alpha1"
 	crdreplicator "github.com/liqotech/liqo/internal/crdReplicator"
@@ -135,10 +134,6 @@ func (b *Broker) getResourceRequest(clusterID string) (*discoveryv1alpha1.Resour
 
 func (b *Broker) RemoveClusterID(clusterID string) {
 	delete(b.nodeResources, clusterID)
-}
-
-func (b *Broker) GetConfig() *configv1alpha1.ClusterConfig {
-	return nil
 }
 
 func (b *Broker) onNodeAdd(obj interface{}) {

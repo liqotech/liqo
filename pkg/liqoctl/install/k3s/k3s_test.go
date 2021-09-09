@@ -1,3 +1,17 @@
+// Copyright 2019-2021 The Liqo Authors
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//      http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 package k3s
 
 import (
@@ -8,7 +22,7 @@ import (
 	. "github.com/onsi/ginkgo/extensions/table"
 	. "github.com/onsi/gomega"
 	"github.com/onsi/gomega/types"
-	flag "github.com/spf13/pflag"
+	"github.com/spf13/cobra"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -34,19 +48,25 @@ var _ = Describe("Extract elements from K3S", func() {
 
 		p := NewProvider().(*k3sProvider)
 
-		flags := flag.NewFlagSet("test", flag.PanicOnError)
+		cmd := &cobra.Command{}
 
-		GenerateFlags(flags)
+		GenerateFlags(cmd)
+		cmd.Flags().String("cluster-name", "", "Name to assign to the Liqo Cluster")
+		cmd.Flags().String("reserved-subnets", "", "")
 
-		Expect(flags.Set("k3s.pod-cidr", podCIDR)).To(Succeed())
-		Expect(flags.Set("k3s.service-cidr", serviceCIDR)).To(Succeed())
-		Expect(flags.Set("k3s.api-server", apiServer)).To(Succeed())
+		flags := cmd.Flags()
+		Expect(flags.Set("pod-cidr", podCIDR)).To(Succeed())
+		Expect(flags.Set("service-cidr", serviceCIDR)).To(Succeed())
+		Expect(flags.Set("api-server", apiServer)).To(Succeed())
 
 		Expect(p.ValidateCommandArguments(flags)).To(Succeed())
 
 		Expect(p.podCIDR).To(Equal(podCIDR))
 		Expect(p.serviceCIDR).To(Equal(serviceCIDR))
 		Expect(p.apiServer).To(Equal(apiServer))
+
+		Expect(p.ClusterLabels).ToNot(BeEmpty())
+		Expect(p.ClusterLabels[consts.ProviderClusterLabel]).To(Equal(providerPrefix))
 
 	})
 

@@ -1,3 +1,17 @@
+// Copyright 2019-2021 The Liqo Authors
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//      http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 package authservice
 
 import (
@@ -14,6 +28,7 @@ import (
 
 	"github.com/liqotech/liqo/pkg/auth"
 	autherrors "github.com/liqotech/liqo/pkg/auth/errors"
+	authenticationtoken "github.com/liqotech/liqo/pkg/utils/authenticationtoken"
 	traceutils "github.com/liqotech/liqo/pkg/utils/trace"
 )
 
@@ -73,7 +88,7 @@ func (authService *Controller) handleIdentity(
 	// check that the provided credentials are valid
 	klog.V(4).Info("Checking credentials")
 	if err = authService.credentialsValidator.checkCredentials(
-		&identityRequest, authService.getConfigProvider(), authService.getTokenManager()); err != nil {
+		&identityRequest, authService.getTokenManager(), authService.authenticationEnabled); err != nil {
 		klog.Error(err)
 		return nil, err
 	}
@@ -123,12 +138,22 @@ func (authService *Controller) handleIdentity(
 
 	// make the response to send to the remote cluster
 	response, err := auth.NewCertificateIdentityResponse(
-		namespace.Name, identityResponse, authService.getConfigProvider(), authService.clientset, authService.restConfig)
+		namespace.Name, identityResponse, authService.apiServerConfig, authService.clientset, authService.restConfig)
 	if err != nil {
 		klog.Error(err)
 		return nil, err
 	}
 	tracer.Step("Identity response prepared")
+
+	if identityRequest.OriginClusterToken != "" {
+		// store the retrieved token
+		err = authenticationtoken.StoreInSecret(ctx, authService.clientset,
+			identityRequest.ClusterID, identityRequest.OriginClusterToken, authService.namespace)
+		if err != nil {
+			klog.Error(err)
+			return nil, err
+		}
+	}
 
 	klog.Infof("Identity Request successfully validated for cluster %v", identityRequest.GetClusterID())
 	return response, nil

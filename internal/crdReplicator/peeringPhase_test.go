@@ -1,10 +1,23 @@
+// Copyright 2019-2021 The Liqo Authors
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//      http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 package crdreplicator
 
 import (
 	"context"
 	"os"
 	"path/filepath"
-	"strings"
 	"testing"
 	"time"
 
@@ -17,11 +30,9 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/client-go/dynamic"
-	"k8s.io/client-go/dynamic/dynamicinformer"
 	"k8s.io/client-go/kubernetes"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 
-	configv1alpha1 "github.com/liqotech/liqo/apis/config/v1alpha1"
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	netv1alpha1 "github.com/liqotech/liqo/apis/net/v1alpha1"
 	"github.com/liqotech/liqo/pkg/clusterid"
@@ -67,31 +78,16 @@ var _ = Describe("PeeringPhase-Based Replication", func() {
 		clusterIDInterface := clusterid.NewStaticClusterID(localClusterID)
 
 		dynClient := dynamic.NewForConfigOrDie(mgr.GetConfig())
-		dynFac := dynamicinformer.NewFilteredDynamicSharedInformerFactory(dynClient, ResyncPeriod, metav1.NamespaceAll, func(options *metav1.ListOptions) {
-			//we want to watch only the resources that have been created by us on the remote cluster
-			if options.LabelSelector == "" {
-				newLabelSelector := []string{RemoteLabelSelector, "=", localClusterID}
-				options.LabelSelector = strings.Join(newLabelSelector, "")
-			} else {
-				newLabelSelector := []string{options.LabelSelector, RemoteLabelSelector, "=", localClusterID}
-				options.LabelSelector = strings.Join(newLabelSelector, "")
-			}
-		})
-
-		localDynFac := dynamicinformer.NewFilteredDynamicSharedInformerFactory(dynClient, ResyncPeriod, metav1.NamespaceAll, nil)
 
 		controller = Controller{
-			Scheme:                         mgr.GetScheme(),
-			Client:                         mgr.GetClient(),
-			ClusterID:                      localClusterID,
-			RemoteDynClients:               map[string]dynamic.Interface{remoteClusterID: dynClient},
-			RemoteDynSharedInformerFactory: map[string]dynamicinformer.DynamicSharedInformerFactory{remoteClusterID: dynFac},
-			RegisteredResources:            nil,
-			UnregisteredResources:          nil,
-			RemoteWatchers:                 map[string]map[string]chan struct{}{},
-			LocalDynClient:                 dynClient,
-			LocalDynSharedInformerFactory:  localDynFac,
-			LocalWatchers:                  map[string]chan struct{}{},
+			Scheme:              mgr.GetScheme(),
+			Client:              mgr.GetClient(),
+			ClusterID:           localClusterID,
+			RemoteDynClients:    map[string]dynamic.Interface{remoteClusterID: dynClient},
+			RegisteredResources: nil,
+			RemoteWatchers:      map[string]map[string]chan struct{}{},
+			LocalDynClient:      dynClient,
+			LocalWatchers:       map[string]chan struct{}{},
 
 			NamespaceManager:                 tenantmanager,
 			IdentityReader:                   identitymanager.NewCertificateIdentityReader(k8sclient, clusterIDInterface, tenantmanager),
@@ -118,7 +114,7 @@ var _ = Describe("PeeringPhase-Based Replication", func() {
 
 		type outgoingReplicationTestcase struct {
 			resource            *unstructured.Unstructured
-			registeredResources []configv1alpha1.Resource
+			registeredResources []Resource
 			peeringPhases       map[string]consts.PeeringPhase
 			expectedError       types.GomegaMatcher
 		}
@@ -137,11 +133,10 @@ var _ = Describe("PeeringPhase-Based Replication", func() {
 
 			Entry("replicated resource", outgoingReplicationTestcase{
 				resource: getObj(),
-				registeredResources: []configv1alpha1.Resource{
+				registeredResources: []Resource{
 					{
-						GroupVersionResource: metav1.GroupVersionResource(
-							netv1alpha1.NetworkConfigGroupVersionResource),
-						PeeringPhase: consts.PeeringPhaseAll,
+						GroupVersionResource: netv1alpha1.NetworkConfigGroupVersionResource,
+						PeeringPhase:         consts.PeeringPhaseAuthenticated,
 					},
 				},
 				peeringPhases: map[string]consts.PeeringPhase{
@@ -152,11 +147,10 @@ var _ = Describe("PeeringPhase-Based Replication", func() {
 
 			Entry("not replicated resource (phase not enabled)", outgoingReplicationTestcase{
 				resource: getObj(),
-				registeredResources: []configv1alpha1.Resource{
+				registeredResources: []Resource{
 					{
-						GroupVersionResource: metav1.GroupVersionResource(
-							netv1alpha1.NetworkConfigGroupVersionResource),
-						PeeringPhase: consts.PeeringPhaseOutgoing,
+						GroupVersionResource: netv1alpha1.NetworkConfigGroupVersionResource,
+						PeeringPhase:         consts.PeeringPhaseOutgoing,
 					},
 				},
 				peeringPhases: map[string]consts.PeeringPhase{
@@ -167,11 +161,10 @@ var _ = Describe("PeeringPhase-Based Replication", func() {
 
 			Entry("not replicated resource (peering not established)", outgoingReplicationTestcase{
 				resource: getObj(),
-				registeredResources: []configv1alpha1.Resource{
+				registeredResources: []Resource{
 					{
-						GroupVersionResource: metav1.GroupVersionResource(
-							netv1alpha1.NetworkConfigGroupVersionResource),
-						PeeringPhase: consts.PeeringPhaseEstablished,
+						GroupVersionResource: netv1alpha1.NetworkConfigGroupVersionResource,
+						PeeringPhase:         consts.PeeringPhaseEstablished,
 					},
 				},
 				peeringPhases: map[string]consts.PeeringPhase{
@@ -190,9 +183,9 @@ var _ = Describe("PeeringPhase-Based Replication", func() {
 			gvr := discoveryv1alpha1.GroupVersion.WithResource("resourcerequests")
 			remoteNamespace := "remote-1"
 
-			controller.RegisteredResources = []configv1alpha1.Resource{
+			controller.RegisteredResources = []Resource{
 				{
-					GroupVersionResource: metav1.GroupVersionResource(gvr),
+					GroupVersionResource: gvr,
 					PeeringPhase:         consts.PeeringPhaseEstablished,
 				},
 			}

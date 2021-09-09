@@ -1,3 +1,4 @@
+SHELL := /bin/bash -O globstar
 
 # Produce CRDs that work back to Kubernetes 1.11 (no version conversion)
 CRD_OPTIONS ?= "crd:trivialVersions=true"
@@ -10,13 +11,15 @@ GOBIN=$(shell go env GOBIN)
 endif
 
 # Set the capsule version to use
-CAPSULE_VERSION = v0.1.0-rc2
+CAPSULE_VERSION = v0.1.0
 
 gen: generate fmt vet manifests rbacs docs
 
 #generate helm documentation
 docs: helm-docs
 	$(HELM_DOCS) -t deployments/liqo/README.gotmpl deployments/liqo
+	cat docs/templates/helm_reference_header.md deployments/liqo/README.md > docs/pages/installation/chart_values.md
+
 
 #run all tests
 test: unit e2e
@@ -85,11 +88,21 @@ ifeq (, $(shell which gci))
 	}
 endif
 
+# Install addlicense if not available
+addlicense:
+ifeq (, $(shell which addlicense))
+	@{ \
+	go get github.com/google/addlicense ;\
+	}
+endif
+
 # Run go fmt against code
-fmt: gci
+fmt: gci addlicense
 	go mod tidy
 	go fmt ./...
-	find $(pwd) -type f -name '*.go' -a ! -name '*zz_generated*' -exec gci -local github.com/liqotech/liqo -w {} \;
+	find . -type f -name '*.go' -a ! -name '*zz_generated*' -exec gci -local github.com/liqotech/liqo -w {} \;
+	addlicense -l apache -c "The Liqo Authors" -y "2019-$(shell date +%Y)" **/*.go
+
 
 # Run go vet against code
 vet:
@@ -131,7 +144,7 @@ ifeq (, $(shell which controller-gen))
 	CONTROLLER_GEN_TMP_DIR=$$(mktemp -d) ;\
 	cd $$CONTROLLER_GEN_TMP_DIR ;\
 	go mod init tmp ;\
-	go get sigs.k8s.io/controller-tools/cmd/controller-gen@v0.4.0 ;\
+	go get sigs.k8s.io/controller-tools/cmd/controller-gen@v0.6.2 ;\
 	rm -rf $$CONTROLLER_GEN_TMP_DIR ;\
 	}
 CONTROLLER_GEN=$(GOBIN)/controller-gen

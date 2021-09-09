@@ -1,3 +1,17 @@
+// Copyright 2019-2021 The Liqo Authors
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//      http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 package authservice
 
 import (
@@ -22,9 +36,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/informers"
 	"k8s.io/client-go/tools/cache"
-	"k8s.io/utils/pointer"
 
-	"github.com/liqotech/liqo/apis/config/v1alpha1"
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	"github.com/liqotech/liqo/pkg/auth"
 	autherrors "github.com/liqotech/liqo/pkg/auth/errors"
@@ -32,6 +44,7 @@ import (
 	identitymanager "github.com/liqotech/liqo/pkg/identityManager"
 	idManTest "github.com/liqotech/liqo/pkg/identityManager/testUtils"
 	tenantnamespace "github.com/liqotech/liqo/pkg/tenantNamespace"
+	"github.com/liqotech/liqo/pkg/utils/apiserver"
 	"github.com/liqotech/liqo/pkg/utils/testutil"
 )
 
@@ -78,7 +91,7 @@ var _ = Describe("Auth", func() {
 			os.Exit(1)
 		}
 
-		informerFactory := informers.NewSharedInformerFactoryWithOptions(cluster.GetClient().Client(), 300*time.Second, informers.WithNamespace("default"))
+		informerFactory := informers.NewSharedInformerFactoryWithOptions(cluster.GetClient(), 300*time.Second, informers.WithNamespace("default"))
 
 		secretInformer := informerFactory.Core().V1().Secrets().Informer()
 		secretInformer.AddEventHandler(cache.ResourceEventHandlerFuncs{})
@@ -90,21 +103,20 @@ var _ = Describe("Auth", func() {
 		informerFactory.Start(stopChan)
 		informerFactory.WaitForCacheSync(wait.NeverStop)
 
-		namespaceManager := tenantnamespace.NewTenantNamespaceManager(cluster.GetClient().Client())
+		namespaceManager := tenantnamespace.NewTenantNamespaceManager(cluster.GetClient())
 		identityProvider := identitymanager.NewCertificateIdentityProvider(
-			context.Background(), cluster.GetClient().Client(), &clusterID, namespaceManager)
+			context.Background(), cluster.GetClient(), &clusterID, namespaceManager)
 
 		authService = Controller{
 			namespace:            "default",
-			restConfig:           cluster.GetClient().Config(),
-			clientset:            cluster.GetClient().Client(),
+			restConfig:           cluster.GetCfg(),
+			clientset:            cluster.GetClient(),
 			secretInformer:       secretInformer,
 			localClusterID:       &clusterID,
 			namespaceManager:     namespaceManager,
 			identityProvider:     identityProvider,
-			useTLS:               false,
 			credentialsValidator: &tokenValidator{},
-			apiServerConfig: &v1alpha1.APIServerConfig{
+			apiServerConfig: apiserver.Config{
 				Address:   cluster.GetCfg().Host,
 				TrustedCA: false,
 			},
@@ -115,13 +127,13 @@ var _ = Describe("Auth", func() {
 				Name: "test",
 			},
 		}
-		_, err = cluster.GetClient().Client().RbacV1().ClusterRoles().Create(context.TODO(), clusterRole, metav1.CreateOptions{})
+		_, err = cluster.GetClient().RbacV1().ClusterRoles().Create(context.TODO(), clusterRole, metav1.CreateOptions{})
 		if err != nil {
 			By(err.Error())
 			os.Exit(1)
 		}
 
-		idManTest.StartTestApprover(cluster.GetClient().Client(), stopChan)
+		idManTest.StartTestApprover(cluster.GetClient(), stopChan)
 	})
 
 	AfterSuite(func() {
@@ -154,14 +166,13 @@ var _ = Describe("Auth", func() {
 
 		type credentialValidatorTestcase struct {
 			credentials    auth.ServiceAccountIdentityRequest
-			config         v1alpha1.AuthConfig
+			authEnabled    bool
 			expectedOutput types.GomegaMatcher
 		}
 
 		DescribeTable("Credential Validator table",
 			func(c credentialValidatorTestcase) {
-				authService.config = &c.config
-				err := authService.credentialsValidator.checkCredentials(&c.credentials, authService.getConfigProvider(), &tMan)
+				err := authService.credentialsValidator.checkCredentials(&c.credentials, &tMan, c.authEnabled)
 				Expect(err).To(c.expectedOutput)
 			},
 
@@ -170,9 +181,7 @@ var _ = Describe("Auth", func() {
 					Token:     "",
 					ClusterID: "test1",
 				},
-				config: v1alpha1.AuthConfig{
-					EnableAuthentication: pointer.BoolPtr(false),
-				},
+				authEnabled:    false,
 				expectedOutput: BeNil(),
 			}),
 
@@ -181,9 +190,7 @@ var _ = Describe("Auth", func() {
 					Token:     "",
 					ClusterID: "test1",
 				},
-				config: v1alpha1.AuthConfig{
-					EnableAuthentication: pointer.BoolPtr(true),
-				},
+				authEnabled:    true,
 				expectedOutput: HaveOccurred(),
 			}),
 
@@ -192,9 +199,7 @@ var _ = Describe("Auth", func() {
 					Token:     "token",
 					ClusterID: "test1",
 				},
-				config: v1alpha1.AuthConfig{
-					EnableAuthentication: pointer.BoolPtr(true),
-				},
+				authEnabled:    true,
 				expectedOutput: BeNil(),
 			}),
 
@@ -203,9 +208,7 @@ var _ = Describe("Auth", func() {
 					Token:     "token-wrong",
 					ClusterID: "test1",
 				},
-				config: v1alpha1.AuthConfig{
-					EnableAuthentication: pointer.BoolPtr(true),
-				},
+				authEnabled:    true,
 				expectedOutput: HaveOccurred(),
 			}),
 		)
@@ -215,7 +218,7 @@ var _ = Describe("Auth", func() {
 	Context("Certificate Identity Creation", func() {
 
 		var (
-			oldConfig *v1alpha1.AuthConfig
+			oldAuthEnabled bool
 		)
 
 		type certificateTestcase struct {
@@ -225,12 +228,12 @@ var _ = Describe("Auth", func() {
 		}
 
 		BeforeEach(func() {
-			oldConfig = authService.config.DeepCopy()
-			authService.config.EnableAuthentication = pointer.BoolPtr(false)
+			oldAuthEnabled = authService.authenticationEnabled
+			authService.authenticationEnabled = false
 		})
 
 		AfterEach(func() {
-			authService.config = oldConfig.DeepCopy()
+			authService.authenticationEnabled = oldAuthEnabled
 		})
 
 		DescribeTable("Certificate Identity Creation table",
@@ -277,18 +280,6 @@ var _ = Describe("Auth", func() {
 				},
 			}),
 		)
-
-		It("Populate permission", func() {
-			authService.config.PeeringPermission = &v1alpha1.PeeringPermission{
-				Basic: []string{"test"},
-			}
-
-			err := authService.populatePermission()
-			Expect(err).To(BeNil())
-			Expect(len(authService.peeringPermission.Basic)).To(Equal(1))
-			Expect(authService.peeringPermission.Basic[0].Name).To(Equal("test"))
-		})
-
 	})
 
 	Context("errorHandler", func() {

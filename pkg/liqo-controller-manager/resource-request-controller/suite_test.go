@@ -1,3 +1,17 @@
+// Copyright 2019-2021 The Liqo Authors
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//      http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 package resourcerequestoperator
 
 import (
@@ -7,7 +21,7 @@ import (
 	"testing"
 	"time"
 
-	capsulev1alpha1 "github.com/clastix/capsule/api/v1alpha1"
+	capsulev1beta1 "github.com/clastix/capsule/api/v1beta1"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	"k8s.io/client-go/kubernetes"
@@ -17,7 +31,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/envtest"
 
-	configv1alpha1 "github.com/liqotech/liqo/apis/config/v1alpha1"
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	sharingv1alpha1 "github.com/liqotech/liqo/apis/sharing/v1alpha1"
 	"github.com/liqotech/liqo/pkg/clusterid"
@@ -26,15 +39,15 @@ import (
 )
 
 var (
-	cfg            *rest.Config
-	k8sClient      client.Client
-	homeClusterID  string
-	clientset      kubernetes.Interface
-	testEnv        *envtest.Environment
-	newBroadcaster Broadcaster
-	ctx            context.Context
-	cancel         context.CancelFunc
-	group          sync.WaitGroup
+	cfg           *rest.Config
+	k8sClient     client.Client
+	homeClusterID string
+	clientset     kubernetes.Interface
+	testEnv       *envtest.Environment
+	broadcaster   Broadcaster
+	ctx           context.Context
+	cancel        context.CancelFunc
+	group         sync.WaitGroup
 )
 
 func TestAPIs(t *testing.T) {
@@ -62,9 +75,7 @@ func createCluster() {
 	Expect(err).NotTo(HaveOccurred())
 	err = sharingv1alpha1.AddToScheme(scheme.Scheme)
 	Expect(err).NotTo(HaveOccurred())
-	err = configv1alpha1.AddToScheme(scheme.Scheme)
-	Expect(err).NotTo(HaveOccurred())
-	err = capsulev1alpha1.AddToScheme(scheme.Scheme)
+	err = capsulev1beta1.AddToScheme(scheme.Scheme)
 	Expect(err).NotTo(HaveOccurred())
 	// +kubebuilder:scaffold:scheme
 
@@ -81,29 +92,20 @@ func createCluster() {
 
 	// Initializing a new updater and adding it to the manager.
 	updater := OfferUpdater{}
-	updater.Setup(homeClusterID, k8sManager.GetScheme(), &newBroadcaster, k8sManager.GetClient())
+	updater.Setup(homeClusterID, k8sManager.GetScheme(), &broadcaster, k8sManager.GetClient(), nil)
 
 	// Initializing a new broadcaster, starting it and adding it its configuration.
-	err = newBroadcaster.SetupBroadcaster(clientset, &updater, 5*time.Second, 5)
+	err = broadcaster.SetupBroadcaster(clientset, &updater, 5*time.Second, testutils.DefaultScalePercentage, 5)
 	Expect(err).ToNot(HaveOccurred())
-	newBroadcaster.StartBroadcaster(ctx, &group)
-	testClusterConf := &configv1alpha1.ClusterConfig{
-		Spec: configv1alpha1.ClusterConfigSpec{
-			AdvertisementConfig: configv1alpha1.AdvertisementConfig{
-				OutgoingConfig: configv1alpha1.BroadcasterConfig{
-					ResourceSharingPercentage: int32(testutils.DefaultScalePercentage),
-				},
-			},
-		},
-	}
-	newBroadcaster.setConfig(testClusterConf)
+	broadcaster.StartBroadcaster(ctx, &group)
 
 	// Adding ResourceRequest reconciler to the manager
 	err = (&ResourceRequestReconciler{
-		Client:      k8sManager.GetClient(),
-		Scheme:      k8sManager.GetScheme(),
-		ClusterID:   homeClusterID,
-		Broadcaster: &newBroadcaster,
+		Client:                k8sManager.GetClient(),
+		Scheme:                k8sManager.GetScheme(),
+		ClusterID:             homeClusterID,
+		Broadcaster:           &broadcaster,
+		EnableIncomingPeering: true,
 	}).SetupWithManager(k8sManager)
 	Expect(err).ToNot(HaveOccurred())
 

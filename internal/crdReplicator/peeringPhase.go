@@ -1,3 +1,17 @@
+// Copyright 2019-2021 The Liqo Authors
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//      http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 package crdreplicator
 
 import (
@@ -8,24 +22,22 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/klog/v2"
 
-	configv1alpha1 "github.com/liqotech/liqo/apis/config/v1alpha1"
 	"github.com/liqotech/liqo/pkg/consts"
-	foreigncluster "github.com/liqotech/liqo/pkg/utils/foreignCluster"
 )
 
 // checkResourcesOnPeeringPhaseChange checks if some of the replicated resources
 // need to start replication of this specific ForeignCluster on this phase change.
 // If some of the replicated resources need to start replication, it lists all the
-// instances already that are already present in the local cluster and calls the
+// instances that are already present in the local cluster and calls the
 // AddHandler on them.
 func (c *Controller) checkResourcesOnPeeringPhaseChange(ctx context.Context,
 	remoteClusterID string, currentPhase, oldPhase consts.PeeringPhase) {
 	for i := range c.RegisteredResources {
 		res := &c.RegisteredResources[i]
-		if !foreigncluster.IsReplicationEnabled(oldPhase, res) && foreigncluster.IsReplicationEnabled(currentPhase, res) {
+		if !isReplicationEnabled(oldPhase, res) && isReplicationEnabled(currentPhase, res) {
 			// this change has triggered the replication on this resource
-			klog.Infof("phase from %v to %v triggers replication on resource %v",
-				oldPhase, currentPhase, res.GroupVersionResource)
+			klog.Infof("%v -> phase from %v to %v triggers replication of resource %v",
+				remoteClusterID, oldPhase, currentPhase, res.GroupVersionResource)
 			if err := c.startResourceReplicationHandler(ctx, remoteClusterID, res); err != nil {
 				klog.Error(err)
 				continue
@@ -37,7 +49,7 @@ func (c *Controller) checkResourcesOnPeeringPhaseChange(ctx context.Context,
 // startResourceReplicationHandler lists all the instances already that are already present
 // in the local cluster and calls the AddHandler on them.
 func (c *Controller) startResourceReplicationHandler(ctx context.Context,
-	remoteClusterID string, res *configv1alpha1.Resource) error {
+	remoteClusterID string, res *Resource) error {
 	localNamespace, err := c.clusterIDToLocalNamespace(remoteClusterID)
 	if err != nil {
 		klog.Error(err)
@@ -48,13 +60,13 @@ func (c *Controller) startResourceReplicationHandler(ctx context.Context,
 	SetLabelsForLocalResources(&listOptions)
 
 	// this change has triggered the replication on this resource
-	resources, err := c.LocalDynClient.Resource(convertGVR(res.GroupVersionResource)).
+	resources, err := c.LocalDynClient.Resource(res.GroupVersionResource).
 		Namespace(localNamespace).List(ctx, listOptions)
 	if err != nil {
 		klog.Error(err)
 		return err
 	}
-	c.addListHandler(resources, convertGVR(res.GroupVersionResource))
+	c.addListHandler(resources, res.GroupVersionResource)
 	return nil
 }
 
@@ -88,4 +100,29 @@ func (c *Controller) setPeeringPhase(clusterID string, phase consts.PeeringPhase
 		c.peeringPhases = map[string]consts.PeeringPhase{}
 	}
 	c.peeringPhases[clusterID] = phase
+}
+
+// isReplicationEnabled indicates if the replication has to be enabled for a given peeringPhase
+// and a given CRD.
+func isReplicationEnabled(peeringPhase consts.PeeringPhase, resource *Resource) bool {
+	switch resource.PeeringPhase {
+	case consts.PeeringPhaseNone:
+		return false
+	case consts.PeeringPhaseAuthenticated:
+		return peeringPhase != consts.PeeringPhaseNone
+	case consts.PeeringPhaseBidirectional:
+		return peeringPhase == consts.PeeringPhaseBidirectional
+	case consts.PeeringPhaseIncoming:
+		return peeringPhase == consts.PeeringPhaseBidirectional || peeringPhase == consts.PeeringPhaseIncoming
+	case consts.PeeringPhaseOutgoing:
+		return peeringPhase == consts.PeeringPhaseBidirectional || peeringPhase == consts.PeeringPhaseOutgoing
+	case consts.PeeringPhaseEstablished:
+		bidirectional := peeringPhase == consts.PeeringPhaseBidirectional
+		incoming := peeringPhase == consts.PeeringPhaseIncoming
+		outgoing := peeringPhase == consts.PeeringPhaseOutgoing
+		return bidirectional || incoming || outgoing
+	default:
+		klog.Warning("Unknown peering phase %v", resource.PeeringPhase)
+		return false
+	}
 }

@@ -11,6 +11,10 @@ spec:
   selector:
     matchLabels:
       {{- include "liqo.selectorLabels" $discoveryConfig | nindent 6 }}
+  {{- if or ( eq .Values.discovery.config.enableAdvertisement true ) ( eq .Values.discovery.config.enableDiscovery true ) }}
+  strategy:
+    type: Recreate
+  {{- end }}
   template:
     metadata:
       labels:
@@ -31,7 +35,21 @@ spec:
           command: ["/usr/bin/discovery"]
           args:
           - --namespace=$(POD_NAMESPACE)
-          - --requeueAfter=30
+          - --auto-join-discovered-clusters={{ .Values.discovery.config.autojoin }}
+          {{- if .Values.discovery.config.clusterName }}
+          - --cluster-name={{ .Values.discovery.config.clusterName }}
+          {{- end }}
+          {{- if .Values.auth.ingress.enable }}
+          - --auth-service-address-override={{ .Values.auth.ingress.host }}
+          {{- end }}
+          {{- if .Values.auth.portOverride }}
+          - --auth-service-port-override={{ .Values.auth.portOverride }}
+          {{- else if .Values.auth.ingress.enable }}
+          - --auth-service-port-override=443
+          {{- end }}
+          - --mdns-enable-advertisement={{ .Values.discovery.config.enableAdvertisement }}
+          - --mdns-enable-discovery={{ .Values.discovery.config.enableDiscovery }}
+          - --mdns-ttl={{ .Values.discovery.config.ttl }}s
           {{- if .Values.discovery.pod.extraArgs }}
           {{- toYaml .Values.discovery.pod.extraArgs | nindent 10 }}
           {{- end }}
@@ -44,4 +62,6 @@ spec:
             requests:
               cpu: 50m
               memory: 50M
+      {{- if or ( eq .Values.discovery.config.enableAdvertisement true ) ( eq .Values.discovery.config.enableDiscovery true ) }}
       hostNetwork: true
+      {{- end }}

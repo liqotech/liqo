@@ -1,10 +1,21 @@
+// Copyright 2019-2021 The Liqo Authors
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//      http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 package authservice
 
 import (
 	"context"
-	"crypto/rand"
-	"errors"
-	"fmt"
 	"strings"
 
 	v1 "k8s.io/api/core/v1"
@@ -12,10 +23,8 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/klog/v2"
-)
 
-const (
-	authTokenSecretName = "auth-token"
+	"github.com/liqotech/liqo/pkg/auth"
 )
 
 type tokenManager interface {
@@ -27,7 +36,7 @@ func (authService *Controller) getToken() (string, error) {
 	obj, exists, err := authService.secretInformer.GetStore().GetByKey(
 		strings.Join([]string{
 			authService.namespace,
-			authTokenSecretName}, "/"))
+			auth.TokenSecretName}, "/"))
 	if err != nil {
 		klog.Error(err)
 		return "", err
@@ -35,7 +44,7 @@ func (authService *Controller) getToken() (string, error) {
 		err = kerrors.NewNotFound(schema.GroupResource{
 			Group:    "v1",
 			Resource: "secrets",
-		}, authTokenSecretName)
+		}, auth.TokenSecretName)
 		klog.Error(err)
 		return "", err
 	}
@@ -45,28 +54,28 @@ func (authService *Controller) getToken() (string, error) {
 		err = kerrors.NewNotFound(schema.GroupResource{
 			Group:    "v1",
 			Resource: "secrets",
-		}, authTokenSecretName)
+		}, auth.TokenSecretName)
 		klog.Error(err)
 		return "", err
 	}
 
-	return authService.getTokenFromSecret(secret.DeepCopy())
+	return auth.GetTokenFromSecret(secret.DeepCopy())
 }
 
 func (authService *Controller) createToken() error {
 	_, exists, _ := authService.secretInformer.GetStore().GetByKey(
 		strings.Join([]string{
 			authService.namespace,
-			authTokenSecretName}, "/"))
+			auth.TokenSecretName}, "/"))
 	if !exists {
-		token, err := generateToken()
+		token, err := auth.GenerateToken()
 		if err != nil {
 			return err
 		}
 
 		secret := &v1.Secret{
 			ObjectMeta: metav1.ObjectMeta{
-				Name: authTokenSecretName,
+				Name: auth.TokenSecretName,
 			},
 			StringData: map[string]string{
 				"token": token,
@@ -80,25 +89,4 @@ func (authService *Controller) createToken() error {
 		}
 	}
 	return nil
-}
-
-func (authService *Controller) getTokenFromSecret(secret *v1.Secret) (string, error) {
-	v, ok := secret.Data["token"]
-	if !ok {
-		// TODO: specialise secret type
-		err := errors.New("invalid secret")
-		klog.Error(err)
-		return "", err
-	}
-	return string(v), nil
-}
-
-func generateToken() (string, error) {
-	b := make([]byte, 64)
-	_, err := rand.Read(b)
-	if err != nil {
-		klog.Error(err)
-		return "", err
-	}
-	return fmt.Sprintf("%x", b), nil
 }

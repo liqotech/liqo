@@ -1,3 +1,17 @@
+// Copyright 2019-2021 The Liqo Authors
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//      http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 package resourceoffercontroller
 
 import (
@@ -20,11 +34,9 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
-	configv1alpha1 "github.com/liqotech/liqo/apis/config/v1alpha1"
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	sharingv1alpha1 "github.com/liqotech/liqo/apis/sharing/v1alpha1"
 	crdreplicator "github.com/liqotech/liqo/internal/crdReplicator"
-	"github.com/liqotech/liqo/pkg/clusterid"
 	"github.com/liqotech/liqo/pkg/consts"
 	"github.com/liqotech/liqo/pkg/discovery"
 	"github.com/liqotech/liqo/pkg/utils/testutil"
@@ -68,6 +80,7 @@ func createForeignCluster() {
 		Spec: discoveryv1alpha1.ForeignClusterSpec{
 			ForeignAuthURL:         "https://127.0.0.1:8080",
 			OutgoingPeeringEnabled: discoveryv1alpha1.PeeringEnabledAuto,
+			IncomingPeeringEnabled: discoveryv1alpha1.PeeringEnabledAuto,
 			InsecureSkipTLSVerify:  pointer.BoolPtr(true),
 		},
 	}
@@ -88,24 +101,16 @@ var _ = Describe("ResourceOffer Controller", func() {
 			os.Exit(1)
 		}
 
-		clusterID := clusterid.NewStaticClusterID("remote-id")
+		kubeletOpts := &forge.VirtualKubeletOpts{
+			ContainerImage:     virtualKubeletImage,
+			InitContainerImage: initVirtualKubeletImage,
+		}
 
-		controller = NewResourceOfferController(mgr, clusterID, 10*time.Second, virtualKubeletImage, initVirtualKubeletImage, testNamespace)
+		controller = NewResourceOfferController(mgr, "remote-id", 10*time.Second, testNamespace, kubeletOpts, false)
 		if err := controller.SetupWithManager(mgr); err != nil {
 			By(err.Error())
 			os.Exit(1)
 		}
-
-		controller.setConfig(&configv1alpha1.ClusterConfig{
-			Spec: configv1alpha1.ClusterConfigSpec{
-				AdvertisementConfig: configv1alpha1.AdvertisementConfig{
-					IngoingConfig: configv1alpha1.AdvOperatorConfig{
-						MaxAcceptableAdvertisement: 1000,
-						AcceptPolicy:               configv1alpha1.AutoAcceptMax,
-					},
-				},
-			},
-		})
 
 		ctx, cancel = context.WithCancel(context.Background())
 		go mgr.Start(ctx)

@@ -1,3 +1,17 @@
+// Copyright 2019-2021 The Liqo Authors
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//      http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 package crdReplicator
 
 import (
@@ -10,35 +24,30 @@ import (
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/dynamic"
-	"k8s.io/client-go/dynamic/dynamicinformer"
 	"k8s.io/client-go/kubernetes/scheme"
-	"k8s.io/client-go/rest"
+	"k8s.io/client-go/util/retry"
 	"k8s.io/klog/v2"
-	"k8s.io/utils/pointer"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/envtest"
 
-	configv1alpha1 "github.com/liqotech/liqo/apis/config/v1alpha1"
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
-	netv1alpha1 "github.com/liqotech/liqo/apis/net/v1alpha1"
 	crdreplicator "github.com/liqotech/liqo/internal/crdReplicator"
 	"github.com/liqotech/liqo/pkg/consts"
-	crdclient "github.com/liqotech/liqo/pkg/crdClient"
+	"github.com/liqotech/liqo/pkg/utils/restcfg"
 )
 
 var (
 	numberPeeringClusters = 1
 
-	peeringIDTemplate           = "peering-cluster-"
-	localClusterID              = "localClusterID"
-	peeringClustersTestEnvs     = map[string]*envtest.Environment{}
-	peeringClustersManagers     = map[string]ctrl.Manager{}
-	peeringClustersDynClients   = map[string]dynamic.Interface{}
-	peeringClustersDynFactories = map[string]dynamicinformer.DynamicSharedInformerFactory{}
-	configClusterClient         *crdclient.CRDClient
-	k8sManagerLocal             ctrl.Manager
-	testEnvLocal                *envtest.Environment
-	dOperator                   *crdreplicator.Controller
+	peeringIDTemplate                = "peering-cluster-"
+	localClusterID                   = "localClusterID"
+	peeringClustersTestEnvs          = map[string]*envtest.Environment{}
+	peeringClustersManagers          = map[string]ctrl.Manager{}
+	peeringClustersDynClients        = map[string]dynamic.Interface{}
+	k8sManagerLocal                  ctrl.Manager
+	testEnvLocal                     *envtest.Environment
+	dOperator                        *crdreplicator.Controller
+	clusterIDToRemoteNamespaceMapper = map[string]string{}
 )
 
 func TestMain(m *testing.M) {
@@ -69,37 +78,34 @@ func startDispatcherOperator() {
 		os.Exit(-1)
 	}
 	configLocal := k8sManagerLocal.GetConfig()
-	newConfig := &rest.Config{
-		Host: configLocal.Host,
-		// gotta go fast during tests -- we don't really care about overwhelming our test API server
-		QPS:   1000.0,
-		Burst: 2000.0,
-	}
-	err = dOperator.WatchConfiguration(newConfig, &configv1alpha1.GroupVersion)
-	if err != nil {
-		klog.Errorf("an error occurred while starting the configuration watcher of crdreplicator operator: %s", err)
-		os.Exit(-1)
-	}
+	// gotta go fast during tests -- we don't really care about overwhelming our test API server
+	restcfg.SetRateLimiterWithCustomParamenters(configLocal, 1000, 2000)
 	fc := getForeignClusterResource()
 	_, err = dOperator.LocalDynClient.Resource(fcGVR).Create(context.TODO(), fc, metav1.CreateOptions{})
 	if err != nil {
 		klog.Error(err, err.Error())
 		os.Exit(-1)
 	}
-}
 
-func getConfigClusterCRDClient(config *rest.Config) *crdclient.CRDClient {
-	newConfig := config
-	newConfig.ContentConfig.GroupVersion = &configv1alpha1.GroupVersion
-	newConfig.APIPath = "/apis"
-	newConfig.NegotiatedSerializer = scheme.Codecs.WithoutConversion()
-	newConfig.UserAgent = rest.DefaultKubernetesUserAgent()
-	CRDclient, err := crdclient.NewFromConfig(newConfig)
-	if err != nil {
+	if err = retry.RetryOnConflict(retry.DefaultRetry, func() error {
+		tmp, err := dOperator.LocalDynClient.Resource(fcGVR).Get(context.TODO(), fc.GetName(), metav1.GetOptions{})
+		if err != nil {
+			klog.Error(err, err.Error())
+			return err
+		}
+
+		fc.SetResourceVersion(tmp.GetResourceVersion())
+		_, err = dOperator.LocalDynClient.Resource(fcGVR).UpdateStatus(context.TODO(), fc, metav1.UpdateOptions{})
+		if err != nil {
+			klog.Error(err, err.Error())
+			return err
+		}
+
+		return nil
+	}); err != nil {
 		klog.Error(err, err.Error())
-		os.Exit(1)
+		os.Exit(-1)
 	}
-	return CRDclient
 }
 
 func setupEnv() {
@@ -121,7 +127,7 @@ func setupEnv() {
 			klog.Errorf("%s -> an error occurred while setting test environment: %s", peeringClusterID, err)
 			os.Exit(-1)
 		} else {
-			klog.Infof("%s -> created test environment with configCluster %s", peeringClusterID, config.String())
+			klog.Infof("%s -> created test environment", peeringClusterID)
 		}
 		manager, err := ctrl.NewManager(config, ctrl.Options{
 			Scheme:             scheme.Scheme,
@@ -134,11 +140,7 @@ func setupEnv() {
 		peeringClustersManagers[peeringClusterID] = manager
 		dynClient := dynamic.NewForConfigOrDie(manager.GetConfig())
 		peeringClustersDynClients[peeringClusterID] = dynClient
-		dynFac := dynamicinformer.NewFilteredDynamicSharedInformerFactory(dynClient, crdreplicator.ResyncPeriod, metav1.NamespaceAll, func(options *metav1.ListOptions) {
-			//we want to watch only the resources that have been created by us on the remote cluster
-			options.LabelSelector = crdreplicator.RemoteLabelSelector + "=" + localClusterID
-		})
-		peeringClustersDynFactories[peeringClusterID] = dynFac
+		clusterIDToRemoteNamespaceMapper[peeringClusterID] = testNamespace
 	}
 	//setup the local testing environment
 	testEnvLocal = &envtest.Environment{
@@ -148,26 +150,14 @@ func setupEnv() {
 	if err != nil {
 		klog.Error(err, "an error occurred while setting up the local testing environment")
 	}
-	klog.Infof("%s -> created test environment with configCluster %s", localClusterID, configLocal.String())
-	newConfig := &rest.Config{
-		Host: configLocal.Host,
-		// gotta go fast during tests -- we don't really care about overwhelming our test API server
-		QPS:   1000.0,
-		Burst: 2000.0,
-	}
+	klog.Infof("%s -> created test environmen", localClusterID)
+	restcfg.SetRateLimiterWithCustomParamenters(configLocal, 1000, 2000)
 	k8sManagerLocal, err = ctrl.NewManager(configLocal, ctrl.Options{
 		Scheme:             scheme.Scheme,
 		MetricsBindAddress: "0",
 	})
 	if err != nil {
 		klog.Errorf("%s -> an error occurred while creating the manager %s", localClusterID, err)
-		os.Exit(-1)
-	}
-	configClusterClient = getConfigClusterCRDClient(newConfig)
-	cc := getClusterConfig()
-	_, err = configClusterClient.Resource("clusterconfigs").Create(cc, &metav1.CreateOptions{})
-	if err != nil {
-		klog.Error(err, err.Error())
 		os.Exit(-1)
 	}
 	klog.Info("setup of testing environments finished")
@@ -188,66 +178,7 @@ func tearDown() {
 }
 
 func updateOwnership(ownership consts.OwnershipType) {
-	tmp, err := configClusterClient.Resource("clusterconfigs").Get("configuration", &metav1.GetOptions{})
-	if err != nil {
-		klog.Error(err)
-		os.Exit(1)
-	}
-	cc, _ := tmp.(*configv1alpha1.ClusterConfig)
-	for i := range cc.Spec.DispatcherConfig.ResourcesToReplicate {
-		cc.Spec.DispatcherConfig.ResourcesToReplicate[i].Ownership = ownership
-	}
-	_, err = configClusterClient.Resource("clusterconfigs").Update("configuration", cc, &metav1.UpdateOptions{})
-	if err != nil {
-		klog.Error(err)
-		os.Exit(1)
-	}
-}
-
-func getClusterConfig() *configv1alpha1.ClusterConfig {
-	return &configv1alpha1.ClusterConfig{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: "configuration",
-		},
-		Spec: configv1alpha1.ClusterConfigSpec{
-			AdvertisementConfig: configv1alpha1.AdvertisementConfig{
-				IngoingConfig: configv1alpha1.AdvOperatorConfig{
-					AcceptPolicy:               configv1alpha1.AutoAcceptMax,
-					MaxAcceptableAdvertisement: 5,
-				},
-				OutgoingConfig: configv1alpha1.BroadcasterConfig{
-					ResourceSharingPercentage: 30,
-					EnableBroadcaster:         true,
-				},
-			},
-			DiscoveryConfig: configv1alpha1.DiscoveryConfig{
-				AutoJoin:            true,
-				Domain:              "local.",
-				EnableAdvertisement: true,
-				EnableDiscovery:     true,
-				Name:                "MyLiqo",
-				Port:                6443,
-				Service:             "_liqo._tcp",
-				TTL:                 30,
-			},
-			LiqonetConfig: configv1alpha1.LiqonetConfig{
-				PodCIDR:         "10.0.0.0/16",
-				ServiceCIDR:     "10.96.0.0/12",
-				ReservedSubnets: []configv1alpha1.CIDR{"10.0.0.0/16"},
-				AdditionalPools: []configv1alpha1.CIDR{},
-			},
-			DispatcherConfig: configv1alpha1.DispatcherConfig{ResourcesToReplicate: []configv1alpha1.Resource{{
-				GroupVersionResource: metav1.GroupVersionResource{
-					Group:    netv1alpha1.GroupVersion.Group,
-					Version:  netv1alpha1.GroupVersion.Version,
-					Resource: "tunnelendpoints",
-				},
-				PeeringPhase: consts.PeeringPhaseAll,
-				Ownership:    consts.OwnershipLocal,
-			}}},
-			AuthConfig: configv1alpha1.AuthConfig{
-				EnableAuthentication: pointer.BoolPtr(false),
-			},
-		},
+	for i := range dOperator.RegisteredResources {
+		dOperator.RegisteredResources[i].Ownership = ownership
 	}
 }

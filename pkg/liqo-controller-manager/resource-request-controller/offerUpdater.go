@@ -1,3 +1,17 @@
+// Copyright 2019-2021 The Liqo Authors
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//      http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 package resourcerequestoperator
 
 import (
@@ -35,22 +49,24 @@ type OfferUpdater struct {
 	client.Client
 	broadcasterInt interfaces.ClusterResourceInterface
 	homeClusterID  string
+	clusterLabels  map[string]string
 	scheme         *runtime.Scheme
 }
 
 // Setup initializes all parameters of the OfferUpdater component.
-func (u *OfferUpdater) Setup(clusterID string, scheme *runtime.Scheme, broadcaster interfaces.ClusterResourceInterface, k8Client client.Client) {
+func (u *OfferUpdater) Setup(clusterID string, scheme *runtime.Scheme, broadcaster interfaces.ClusterResourceInterface,
+	k8Client client.Client, clusterLabels map[string]string) {
 	u.broadcasterInt = broadcaster
 	u.Client = k8Client
 	u.homeClusterID = clusterID
 	u.scheme = scheme
+	u.clusterLabels = clusterLabels
 	u.queue = workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "Offer update queue")
 }
 
 // Start runs the OfferUpdate worker.
 func (u *OfferUpdater) Start(ctx context.Context, group *sync.WaitGroup) {
 	defer u.queue.ShutDown()
-	group.Add(1)
 	defer group.Done()
 	go u.startRunner(ctx)
 	<-ctx.Done()
@@ -137,7 +153,7 @@ func (u *OfferUpdater) createOrUpdateOffer(clusterID string) (bool, error) {
 		}
 		offer.Spec.ClusterId = u.homeClusterID
 		offer.Spec.ResourceQuota.Hard = resources.DeepCopy()
-		offer.Spec.Labels = u.broadcasterInt.GetConfig().Spec.DiscoveryConfig.ClusterLabels
+		offer.Spec.Labels = u.clusterLabels
 		return controllerutil.SetControllerReference(&request, offer, u.scheme)
 	})
 

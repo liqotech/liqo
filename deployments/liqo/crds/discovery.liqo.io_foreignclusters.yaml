@@ -4,7 +4,7 @@ apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: v0.4.0
+    controller-gen.kubebuilder.io/version: v0.6.2
   creationTimestamp: null
   name: foreignclusters.discovery.liqo.io
 spec:
@@ -76,6 +76,15 @@ spec:
               foreignAuthUrl:
                 description: URL where to contact foreign Auth service.
                 pattern: https:\/\/(www\.)?[-a-zA-Z0-9@:%._\+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b([-a-zA-Z0-9()@:%_\+.~#?&//=]*)
+                type: string
+              incomingPeeringEnabled:
+                default: Auto
+                description: Allow the remote cluster to establish a peering with
+                  our cluster.
+                enum:
+                - Auto
+                - "No"
+                - "Yes"
                 type: string
               insecureSkipTLSVerify:
                 default: true

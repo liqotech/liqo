@@ -1,7 +1,22 @@
+// Copyright 2019-2021 The Liqo Authors
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//      http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 package resourcerequestoperator
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -15,43 +30,46 @@ import (
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	sharingv1alpha1 "github.com/liqotech/liqo/apis/sharing/v1alpha1"
 	"github.com/liqotech/liqo/pkg/discovery"
+	foreignclusterutils "github.com/liqotech/liqo/pkg/utils/foreignCluster"
 )
 
 // ensureForeignCluster ensures the ForeignCluster existence, if not exists we have to add a new one
 // with IncomingPeering discovery method.
 func (r *ResourceRequestReconciler) ensureForeignCluster(ctx context.Context,
-	resourceRequest *discoveryv1alpha1.ResourceRequest) (requireSpecUpdate bool, err error) {
+	resourceRequest *discoveryv1alpha1.ResourceRequest) (*discoveryv1alpha1.ForeignCluster, error) {
 	remoteClusterID := resourceRequest.Spec.ClusterIdentity.ClusterID
-	// check if a foreignCluster with
-	// clusterID == resourceRequest.Spec.ClusterIdentity.ClusterID already exists.
-	foreignClusterList := &discoveryv1alpha1.ForeignClusterList{}
-	err = r.List(ctx, foreignClusterList, client.MatchingLabels{
-		discovery.ClusterIDLabel: remoteClusterID,
-	})
 
-	if err != nil {
-		klog.Errorf("%s -> unable to List foreignCluster: %s",
-			remoteClusterID, err)
-		return false, err
+	// Check if a foreignCluster with the desired ClusterID already exists.
+	if foreignCluster, err := foreignclusterutils.GetForeignClusterByID(ctx, r.Client, remoteClusterID); err == nil {
+		// A valid ForeignCluster already exists.
+		return foreignCluster, nil
+	} else if !apierrors.IsNotFound(err) {
+		// Something went wrong while retrieving the foreign cluster.
+		return nil, err
 	}
 
-	if len(foreignClusterList.Items) != 0 {
+	// If the resource request had already been withdrawn by the local cluster, avoid creating a new foreign cluster.
+	if !resourceRequest.Status.OfferWithdrawalTimestamp.IsZero() {
+		return nil, errors.New("the resource request has already been withdrawn")
+	}
+
+	// Otherwise, create a new ForeignCluster
+	return r.createForeignCluster(ctx, resourceRequest)
+}
+
+// ensureControllerReference ensures that the ForeignCluster is the owner of the ResourceRequest, to make it able
+// to correctly monitor the incoming peering status.
+func (r *ResourceRequestReconciler) ensureControllerReference(foreignCluster *discoveryv1alpha1.ForeignCluster,
+	resourceRequest *discoveryv1alpha1.ResourceRequest) (requireSpecUpdate bool, err error) {
+	if metav1.GetControllerOfNoCopy(resourceRequest) != nil {
 		return false, nil
 	}
 
-	// if does not exist any ForeignCluster with the required clusterID, create a new one.
-	err = r.createForeignCluster(ctx, resourceRequest)
-	if err != nil {
-		klog.Errorf("%s -> unable to Create foreignCluster: %s", remoteClusterID, err)
-		return false, err
-	}
-	klog.V(3).Infof("foreignCluster %s created", remoteClusterID)
-
-	return true, nil
+	return true, controllerutil.SetControllerReference(foreignCluster, resourceRequest, r.Scheme)
 }
 
 func (r *ResourceRequestReconciler) createForeignCluster(ctx context.Context,
-	resourceRequest *discoveryv1alpha1.ResourceRequest) error {
+	resourceRequest *discoveryv1alpha1.ResourceRequest) (*discoveryv1alpha1.ForeignCluster, error) {
 	foreignCluster := &discoveryv1alpha1.ForeignCluster{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: resourceRequest.Spec.ClusterIdentity.ClusterID,
@@ -63,28 +81,20 @@ func (r *ResourceRequestReconciler) createForeignCluster(ctx context.Context,
 		Spec: discoveryv1alpha1.ForeignClusterSpec{
 			ClusterIdentity:        resourceRequest.Spec.ClusterIdentity,
 			OutgoingPeeringEnabled: discoveryv1alpha1.PeeringEnabledAuto,
+			IncomingPeeringEnabled: discoveryv1alpha1.PeeringEnabledAuto,
 			ForeignAuthURL:         resourceRequest.Spec.AuthURL,
 			InsecureSkipTLSVerify:  pointer.BoolPtr(true),
 		},
 	}
 
-	err := r.Client.Create(ctx, foreignCluster)
-	if err != nil {
-		klog.Error(err)
-		return err
-	}
-
-	// set the created ForeignCluster as owner of the ResourceRequest to make it able
-	// to correctly monitor the incoming peering status.
-	err = controllerutil.SetControllerReference(foreignCluster, resourceRequest, r.Scheme)
-	if err != nil {
-		klog.Error(err)
-		return err
+	if err := r.Client.Create(ctx, foreignCluster); err != nil {
+		klog.Errorf("%s -> unable to Create foreignCluster: %w", resourceRequest.Spec.ClusterIdentity.ClusterID, err)
+		return nil, err
 	}
 
 	klog.Infof("%s -> Created ForeignCluster %s with IncomingPeering discovery type",
 		resourceRequest.Spec.ClusterIdentity.ClusterID, foreignCluster.Name)
-	return nil
+	return foreignCluster, nil
 }
 
 func (r *ResourceRequestReconciler) invalidateResourceOffer(ctx context.Context, request *discoveryv1alpha1.ResourceRequest) error {

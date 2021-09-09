@@ -1,26 +1,21 @@
-/*
-
-
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-
-    http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
-*/
+// Copyright 2019-2021 The Liqo Authors
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//      http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 package v1alpha1
 
 import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/client-go/kubernetes/scheme"
-
-	crdclient "github.com/liqotech/liqo/pkg/crdClient"
 )
 
 // EDIT THIS FILE!  THIS IS SCAFFOLDING FOR YOU TO OWN!
@@ -83,6 +78,11 @@ type ForeignClusterSpec struct {
 	// +kubebuilder:default="Auto"
 	// +kubebuilder:validation:Optional
 	OutgoingPeeringEnabled PeeringEnabledType `json:"outgoingPeeringEnabled"`
+	// Allow the remote cluster to establish a peering with our cluster.
+	// +kubebuilder:validation:Enum="Auto";"No";"Yes"
+	// +kubebuilder:default="Auto"
+	// +kubebuilder:validation:Optional
+	IncomingPeeringEnabled PeeringEnabledType `json:"incomingPeeringEnabled"`
 	// URL where to contact foreign Auth service.
 	// +kubebuilder:validation:Pattern=`https:\/\/(www\.)?[-a-zA-Z0-9@:%._\+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b([-a-zA-Z0-9()@:%_\+.~#?&//=]*)`
 	ForeignAuthURL string `json:"foreignAuthUrl"`
@@ -192,9 +192,4 @@ type ForeignClusterList struct {
 
 func init() {
 	SchemeBuilder.Register(&ForeignCluster{}, &ForeignClusterList{})
-
-	if err := AddToScheme(scheme.Scheme); err != nil {
-		panic(err)
-	}
-	crdclient.AddToRegistry("foreignclusters", &ForeignCluster{}, &ForeignClusterList{}, nil, ForeignClusterGroupResource)
 }

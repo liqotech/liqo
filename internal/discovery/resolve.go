@@ -1,3 +1,17 @@
+// Copyright 2019-2021 The Liqo Authors
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//      http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 package discovery
 
 import (
@@ -14,19 +28,15 @@ import (
 	"github.com/liqotech/liqo/pkg/auth"
 )
 
-func (discovery *Controller) startResolver(stopChan <-chan bool) {
+func (discovery *Controller) startResolver(ctx context.Context) {
 	for {
-		if discovery.Config.EnableDiscovery {
-			ctx, cancel := context.WithCancel(context.TODO())
-			go discovery.resolve(ctx, discovery.Config.AuthService, discovery.Config.Domain, nil)
-			select {
-			case <-stopChan:
-				cancel()
-			case <-time.NewTimer(time.Duration(discovery.resolveContextRefreshTime) * time.Minute).C:
-				cancel()
-			}
-		} else {
-			break
+		ctx, cancel := context.WithCancel(ctx)
+		go discovery.resolve(ctx, discovery.mdnsConfig.Service, discovery.mdnsConfig.Domain, nil)
+		select {
+		case <-ctx.Done():
+			cancel()
+		case <-time.After(discovery.mdnsConfig.ResolveRefreshTime):
+			cancel()
 		}
 	}
 }

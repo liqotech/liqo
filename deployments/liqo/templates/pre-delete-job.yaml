@@ -21,3 +21,8 @@ spec:
       - name: pre-delete-job
         image: "liqo/uninstaller{{ include "liqo.suffix" $predelete }}:{{ include "liqo.version" $predelete }}"
         command: ["/usr/bin/uninstaller"]
+        env:
+          - name: POD_NAMESPACE
+            valueFrom:
+              fieldRef:
+                fieldPath: metadata.namespace

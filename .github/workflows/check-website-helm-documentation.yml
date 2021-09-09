@@ -18,7 +18,7 @@ jobs:
       - name: Gather the website docs differences
         id: docs-diff
         run: |
-          sed '1 { /^---/ { :a N; /\n---\n/! ba; d} }' docs/pages/User/Install/chart_values.md > deployments/liqo/docs_README.md
+          sed '1 { /^---/ { :a N; /\n---\n/! ba; d} }' docs/pages/installation/chart_values.md > deployments/liqo/docs_README.md
           output=$(diff deployments/liqo/README.md deployments/liqo/docs_README.md | head -n 100)
           exit_code=$([ "${output}" ] && echo 1 || echo 0)
 

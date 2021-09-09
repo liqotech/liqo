@@ -1,3 +1,17 @@
+// Copyright 2019-2021 The Liqo Authors
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//      http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 package identitymanager
 
 import (
@@ -24,34 +38,19 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 
-	configv1alpha1 "github.com/liqotech/liqo/apis/config/v1alpha1"
 	"github.com/liqotech/liqo/pkg/auth"
 	"github.com/liqotech/liqo/pkg/clusterid/test"
 	"github.com/liqotech/liqo/pkg/discovery"
 	responsetypes "github.com/liqotech/liqo/pkg/identityManager/responseTypes"
 	idManTest "github.com/liqotech/liqo/pkg/identityManager/testUtils"
 	tenantnamespace "github.com/liqotech/liqo/pkg/tenantNamespace"
-	"github.com/liqotech/liqo/pkg/utils"
+	"github.com/liqotech/liqo/pkg/utils/apiserver"
 	"github.com/liqotech/liqo/pkg/utils/testutil"
 )
 
 type mockApiServerConfigProvider struct {
 	address   string
 	trustedCA bool
-}
-
-func newMockAPIServerConfigProvider(address string, trustedCA bool) utils.ApiServerConfigProvider {
-	return &mockApiServerConfigProvider{
-		address:   address,
-		trustedCA: trustedCA,
-	}
-}
-
-func (mock *mockApiServerConfigProvider) GetAPIServerConfig() *configv1alpha1.APIServerConfig {
-	return &configv1alpha1.APIServerConfig{
-		Address:   mock.address,
-		TrustedCA: mock.trustedCA,
-	}
 }
 
 func TestIdentityManager(t *testing.T) {
@@ -92,12 +91,12 @@ var _ = Describe("IdentityManager", func() {
 			os.Exit(1)
 		}
 
-		client = cluster.GetClient().Client()
+		client = cluster.GetClient()
 		restConfig = cluster.GetCfg()
 
 		namespaceManager = tenantnamespace.NewTenantNamespaceManager(client)
-		identityMan = NewCertificateIdentityManager(cluster.GetClient().Client(), &localClusterID, namespaceManager)
-		identityProvider = NewCertificateIdentityProvider(ctx, cluster.GetClient().Client(), &localClusterID, namespaceManager)
+		identityMan = NewCertificateIdentityManager(cluster.GetClient(), &localClusterID, namespaceManager)
+		identityProvider = NewCertificateIdentityProvider(ctx, cluster.GetClient(), &localClusterID, namespaceManager)
 
 		namespace, err = namespaceManager.CreateNamespace(remoteClusterID)
 		if err != nil {
@@ -227,7 +226,7 @@ var _ = Describe("IdentityManager", func() {
 	Context("Storage", func() {
 
 		It("StoreCertificate", func() {
-			apiServerConfig := newMockAPIServerConfigProvider("127.0.0.1", false)
+			apiServerConfig := apiserver.Config{Address: "127.0.0.1", TrustedCA: false}
 
 			signingIdentityResponse := responsetypes.SigningRequestResponse{
 				ResponseType: responsetypes.SigningRequestResponseCertificate,
@@ -248,7 +247,7 @@ var _ = Describe("IdentityManager", func() {
 			Expect(cnf).NotTo(BeNil())
 			Expect(cnf.Host).To(Equal(
 				fmt.Sprintf(
-					"https://%v", apiServerConfig.GetAPIServerConfig().Address)))
+					"https://%v", apiServerConfig.Address)))
 
 			// retrieve the remote tenant namespace
 			remoteNamespace, err := identityMan.GetRemoteTenantNamespace(remoteClusterID, "")
@@ -257,7 +256,7 @@ var _ = Describe("IdentityManager", func() {
 		})
 
 		It("StoreCertificate IAM", func() {
-			apiServerConfig := newMockAPIServerConfigProvider("127.0.0.1", false)
+			apiServerConfig := apiserver.Config{Address: "127.0.0.1", TrustedCA: false}
 
 			signingIAMResponse := responsetypes.SigningRequestResponse{
 				ResponseType: responsetypes.SigningRequestResponseIAM,
@@ -340,7 +339,7 @@ var _ = Describe("IdentityManager", func() {
 	Context("Identity Provider", func() {
 
 		It("Certificate Identity Provider", func() {
-			idProvider := NewCertificateIdentityProvider(ctx, cluster.GetClient().Client(), &localClusterID, namespaceManager)
+			idProvider := NewCertificateIdentityProvider(ctx, cluster.GetClient(), &localClusterID, namespaceManager)
 
 			certIDManager, ok := idProvider.(*identityManager)
 			Expect(ok).To(BeTrue())
@@ -350,7 +349,7 @@ var _ = Describe("IdentityManager", func() {
 		})
 
 		It("AWS IAM Identity Provider", func() {
-			idProvider := NewIAMIdentityManager(cluster.GetClient().Client(), &localClusterID, &AwsConfig{
+			idProvider := NewIAMIdentityManager(cluster.GetClient(), &localClusterID, &AwsConfig{
 				AwsAccessKeyID:     "KeyID",
 				AwsSecretAccessKey: "Secret",
 				AwsRegion:          "region",
@@ -369,7 +368,7 @@ var _ = Describe("IdentityManager", func() {
 	Context("Identity Provider", func() {
 
 		It("Certificate Identity Provider", func() {
-			idProvider := NewCertificateIdentityProvider(ctx, cluster.GetClient().Client(), &localClusterID, namespaceManager)
+			idProvider := NewCertificateIdentityProvider(ctx, cluster.GetClient(), &localClusterID, namespaceManager)
 
 			certIDManager, ok := idProvider.(*identityManager)
 			Expect(ok).To(BeTrue())
@@ -379,7 +378,7 @@ var _ = Describe("IdentityManager", func() {
 		})
 
 		It("AWS IAM Identity Provider", func() {
-			idProvider := NewIAMIdentityManager(cluster.GetClient().Client(), &localClusterID, &AwsConfig{
+			idProvider := NewIAMIdentityManager(cluster.GetClient(), &localClusterID, &AwsConfig{
 				AwsAccessKeyID:     "KeyID",
 				AwsSecretAccessKey: "Secret",
 				AwsRegion:          "region",

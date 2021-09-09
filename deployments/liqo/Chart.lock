@@ -1,6 +1,6 @@
 dependencies:
 - name: capsule
-  repository: http://helm.liqo.io/capsule
-  version: v0.1.0-rc2-liqo
-digest: sha256:b2e4d9203115ed1d86313ed9a4c920644cd2b3e7f1d6d07fd51be7ed44703f37
-generated: "2021-06-29T09:01:16.388711445Z"
+  repository: https://clastix.github.io/charts
+  version: 0.1.0
+digest: sha256:8c6f589723aaec4b29df46aabedb71d89d1a375d038e6f8f8c96c9b19da73f5a
+generated: "2021-08-25T09:55:57.474394333+02:00"

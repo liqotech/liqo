@@ -10,7 +10,7 @@ metadata:
 spec:
   strategy:
     type: Recreate
-  replicas: 1
+  replicas: {{ .Values.gateway.replicas }}
   selector:
     matchLabels:
       {{- include "liqo.selectorLabels" $gatewayConfig | nindent 6 }}

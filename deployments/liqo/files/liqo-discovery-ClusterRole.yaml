@@ -1,14 +1,5 @@
 rules:
 - apiGroups:
-  - config.liqo.io
-  resources:
-  - clusterconfigs
-  verbs:
-  - create
-  - get
-  - list
-  - watch
-- apiGroups:
   - ""
   resources:
   - namespaces
@@ -23,6 +14,7 @@ rules:
   - nodes
   verbs:
   - list
+  - watch
 - apiGroups:
   - ""
   resources:
@@ -33,6 +25,7 @@ rules:
   - get
   - list
   - update
+  - watch
 - apiGroups:
   - discovery.liqo.io
   resources:
@@ -130,9 +123,9 @@ rules:
   resources:
   - clusterroles
   verbs:
-  - create
   - get
-  - update
+  - list
+  - watch
 - apiGroups:
   - rbac.authorization.k8s.io
   resources:

@@ -1,14 +1,11 @@
 rules:
 - apiGroups:
-  - config.liqo.io
+  - apps
   resources:
-  - clusterconfigs
+  - deployments
   verbs:
-  - get
   - list
-  - patch
   - update
-  - watch
 - apiGroups:
   - ""
   resources:
@@ -16,6 +13,14 @@ rules:
   verbs:
   - create
   - patch
+- apiGroups:
+  - ""
+  resources:
+  - nodes
+  verbs:
+  - get
+  - list
+  - watch
 - apiGroups:
   - discovery.liqo.io
   resources:

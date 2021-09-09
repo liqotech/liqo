@@ -1,9 +1,22 @@
+// Copyright 2019-2021 The Liqo Authors
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//      http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 package clusterid
 
 import (
 	"context"
 	"errors"
-	"os"
 	"sort"
 	"sync"
 
@@ -16,9 +29,7 @@ import (
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/klog/v2"
 
-	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	"github.com/liqotech/liqo/pkg/consts"
-	crdclient "github.com/liqotech/liqo/pkg/crdClient"
 	"github.com/liqotech/liqo/pkg/utils"
 )
 
@@ -81,21 +92,6 @@ func NewClusterIDFromClient(client kubernetes.Interface) (ClusterID, error) {
 	}()
 
 	return newClusterID, nil
-}
-
-// NewClusterID generates a new clusterid and returns it.
-func NewClusterID(kubeconfigPath string) (ClusterID, error) {
-	config, err := crdclient.NewKubeconfig(kubeconfigPath, &discoveryv1alpha1.GroupVersion, nil)
-	if err != nil {
-		klog.Error(err, "unable to get kube config")
-		os.Exit(1)
-	}
-	client, err := kubernetes.NewForConfig(config)
-	if err != nil {
-		klog.Error(err, "unable to create client")
-		os.Exit(1)
-	}
-	return NewClusterIDFromClient(client)
 }
 
 func getClusterID(cm *v1.ConfigMap) string {

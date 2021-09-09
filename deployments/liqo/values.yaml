@@ -25,8 +25,6 @@ controllerManager:
   config:
     # -- It defines the percentage of available cluster resources that you are willing to share with foreign clusters.
     resourceSharingPercentage: 30
-    # -- If set to false, the remote clusters will not be able to leverage your resources, but you will still be able to use theirs.
-    enableBroadcaster: true
 
 route:
   pod:
@@ -40,6 +38,11 @@ route:
   imageName: "liqo/liqonet"
 
 gateway:
+  # -- The number of gateway instances to run.
+  # The gateway component supports active/passive high availability.
+  # Make sure that there are enough nodes to accommodate the replicas, because being the instances in host network no more
+  # than one replica can be scheduled on a given node.
+  replicas: 1
   pod:
     # -- gateway pod annotations
     annotations: {}
@@ -112,6 +115,8 @@ discovery:
 
     # -- Automatically join discovered clusters
     autojoin: true
+    # -- Allow (by default) the remote clusters to establish a peering with our cluster
+    incomingPeeringEnabled: true
     # -- Enable the mDNS advertisement on LANs, set to false to not be discoverable from other clusters in the same LAN
     enableAdvertisement: true
     # -- Enable the mDNS discovery on LANs, set to false to not look for other clusters available in the same LAN
@@ -143,7 +148,7 @@ auth:
   # -- Enable TLS for the Authentication Service Pod (using a self-signed certificate).
   # If you are exposing this service with an Ingress consider to disable it or add the appropriate annotations to the Ingress resource.
   tls: true
-  # -- Overrides the port were your service is available, you should configure it if behind a NAT or using an Ingress with a port different from 443.
+  # -- Overrides the port where your service is available, you should configure it if behind a NAT or using an Ingress with a port different from 443.
   portOverride: ""
   ingress:
     # -- Auth ingress annotations
@@ -184,6 +189,20 @@ virtualKubelet:
   initContainer:
     # -- virtual kubelet init container image repository
     imageName: "liqo/init-virtual-kubelet"
+  # add additional values for this fields to add to virtual kubelet deployments and pods
+  extra:
+    # -- virtual kubelet pod extra annotations
+    annotations: {}
+    # -- virtual kubelet pod extra labels
+    labels: {}
+    # -- virtual kubelet pod extra arguments
+    args: []
+  virtualNode:
+    extra:
+      # -- virtual node extra annotations
+      annotations: {}
+      # -- virtual node extra labels
+      labels: {}
 
 # -- liqo name override
 nameOverride: ""

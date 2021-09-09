@@ -1,3 +1,17 @@
+// Copyright 2019-2021 The Liqo Authors
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//      http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 package forge
 
 import (
@@ -148,8 +162,23 @@ func (f *apiForger) forgePodSpec(inputPodSpec corev1.PodSpec) corev1.PodSpec {
 	outputPodSpec.Volumes = forgeVolumes(inputPodSpec.Volumes)
 	outputPodSpec.InitContainers = forgeContainers(inputPodSpec.InitContainers, outputPodSpec.Volumes)
 	outputPodSpec.Containers = forgeContainers(inputPodSpec.Containers, outputPodSpec.Volumes)
+	outputPodSpec.Tolerations = forgeTolerations(inputPodSpec.Tolerations)
 
 	return outputPodSpec
+}
+
+func forgeTolerations(inputTolerations []corev1.Toleration) []corev1.Toleration {
+	tolerations := make([]corev1.Toleration, 0)
+
+	for _, toleration := range inputTolerations {
+		// copy all tolerations except the one for the virtual node.
+		// This prevents by default the possibility of "recursive" scheduling on virtual nodes on the target cluster.
+		if toleration.Key != liqoconst.VirtualNodeTolerationKey {
+			tolerations = append(tolerations, toleration)
+		}
+	}
+
+	return tolerations
 }
 
 func forgeContainers(inputContainers []corev1.Container, inputVolumes []corev1.Volume) []corev1.Container {

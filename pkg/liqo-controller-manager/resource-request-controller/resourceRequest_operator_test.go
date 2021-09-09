@@ -1,3 +1,17 @@
+// Copyright 2019-2021 The Liqo Authors
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//      http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 package resourcerequestoperator
 
 import (
@@ -5,7 +19,7 @@ import (
 	"fmt"
 	"time"
 
-	capsulev1alpha1 "github.com/clastix/capsule/api/v1alpha1"
+	capsulev1beta1 "github.com/clastix/capsule/api/v1beta1"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	. "github.com/onsi/gomega/gstruct"
@@ -117,17 +131,17 @@ var _ = Describe("ResourceRequest Operator", func() {
 			Expect(resourceRequest.Status.OfferWithdrawalTimestamp.IsZero()).To(BeTrue())
 
 			By("Checking Tenant creation")
-			var tenant capsulev1alpha1.Tenant
+			var tenant capsulev1beta1.Tenant
 			Eventually(func() error {
 				return k8sClient.Get(ctx, types.NamespacedName{
 					Name: fmt.Sprintf("tenant-%v", resourceRequest.Spec.ClusterIdentity.ClusterID),
 				}, &tenant)
 			}, timeout, interval).ShouldNot(HaveOccurred())
 
-			Expect(string(tenant.Spec.Owner.Kind)).To(Equal(rbacv1.UserKind))
-			Expect(tenant.Spec.Owner.Name).To(Equal(resourceRequest.Spec.ClusterIdentity.ClusterID))
+			Expect(string(tenant.Spec.Owners[0].Kind)).To(Equal(rbacv1.UserKind))
+			Expect(tenant.Spec.Owners[0].Name).To(Equal(resourceRequest.Spec.ClusterIdentity.ClusterID))
 			Expect(tenant.Spec.AdditionalRoleBindings).To(ContainElement(
-				capsulev1alpha1.AdditionalRoleBindings{
+				capsulev1beta1.AdditionalRoleBindingsSpec{
 					ClusterRoleName: "liqo-virtual-kubelet-remote",
 					Subjects: []rbacv1.Subject{
 						{
@@ -228,7 +242,7 @@ var _ = Describe("ResourceRequest Operator", func() {
 
 			// check the tenant deletion
 			Eventually(func() int {
-				var tenantList capsulev1alpha1.TenantList
+				var tenantList capsulev1beta1.TenantList
 				err := k8sClient.List(ctx, &tenantList)
 				if err != nil {
 					return -1
@@ -268,7 +282,7 @@ var _ = Describe("ResourceRequest Operator", func() {
 			node1, err = testutils.SetNodeReadyStatus(ctx, node1, false, clientset)
 			Expect(err).ToNot(HaveOccurred())
 			Eventually(func() bool {
-				resourcesRead := newBroadcaster.ReadResources(ClusterID1)
+				resourcesRead := broadcaster.ReadResources(ClusterID1)
 				for resourceName, quantity := range resourcesRead {
 					toCheck := node2.Status.Allocatable[resourceName].DeepCopy()
 					toCheck.Sub(podReq[resourceName])
@@ -305,7 +319,7 @@ var _ = Describe("ResourceRequest Operator", func() {
 				return testutils.CheckResourceOfferUpdate(ctx, offerPrefix, homeClusterID, ResourcesNamespace, nodeList, podList, k8sClient)
 			}, timeout, interval).Should(BeTrue())
 			Eventually(func() bool {
-				resourcesRead := newBroadcaster.ReadResources(ClusterID1)
+				resourcesRead := broadcaster.ReadResources(ClusterID1)
 				for resourceName, quantity := range resourcesRead {
 					toCheck := node2.Status.Allocatable[resourceName].DeepCopy()
 					toCheck.Add(node1.Status.Allocatable[resourceName])
@@ -327,7 +341,7 @@ var _ = Describe("ResourceRequest Operator", func() {
 			node1, err = clientset.CoreV1().Nodes().UpdateStatus(ctx, node1, metav1.UpdateOptions{})
 			Expect(err).ToNot(HaveOccurred())
 			Eventually(func() bool {
-				resourcesRead := newBroadcaster.ReadResources(ClusterID1)
+				resourcesRead := broadcaster.ReadResources(ClusterID1)
 				for resourceName, quantity := range resourcesRead {
 					toCheck := node2.Status.Allocatable[resourceName].DeepCopy()
 					toCheck.Add(node1.Status.Allocatable[resourceName])
@@ -354,7 +368,7 @@ var _ = Describe("ResourceRequest Operator", func() {
 			err = clientset.CoreV1().Nodes().Delete(ctx, node1.Name, metav1.DeleteOptions{})
 			Expect(err).ToNot(HaveOccurred())
 			Eventually(func() bool {
-				resourcesRead := newBroadcaster.ReadResources(ClusterID1)
+				resourcesRead := broadcaster.ReadResources(ClusterID1)
 				for resourceName, quantity := range resourcesRead {
 					toCheck := node2.Status.Allocatable[resourceName].DeepCopy()
 					toCheck.Sub(podReq[resourceName])
@@ -443,14 +457,14 @@ var _ = Describe("ResourceRequest Operator", func() {
 			}, timeout, interval).Should(BeTrue())
 
 			By("Update threshold with huge amount to test isAboveThreshold function")
-			newBroadcaster.setThreshold(80)
+			broadcaster.setThreshold(80)
 			cpu := node2.Status.Allocatable[corev1.ResourceCPU]
 			cpu.Add(*resource.NewQuantity(2, resource.DecimalSI))
 			node2.Status.Allocatable[corev1.ResourceCPU] = cpu
 			node2, err = clientset.CoreV1().Nodes().UpdateStatus(ctx, node2, metav1.UpdateOptions{})
 			Expect(err).ToNot(HaveOccurred())
-			Expect(newBroadcaster.isAboveThreshold(ClusterID1)).ShouldNot(BeTrue())
-			newBroadcaster.setThreshold(4)
+			Expect(broadcaster.isAboveThreshold(ClusterID1)).ShouldNot(BeTrue())
+			broadcaster.setThreshold(4)
 		})
 	})
 	Context("Testing virtual nodes and shadow pods", func() {

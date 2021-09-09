@@ -1,8 +1,36 @@
+// Copyright 2019-2021 The Liqo Authors
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//      http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 package errorsmanagement
 
-import "k8s.io/klog/v2"
+import (
+	"flag"
+
+	"k8s.io/klog/v2"
+)
 
 var panicOnErrorMode = false
+
+// InitFlags initializes the flags to configure the errormanagement parameter.
+func InitFlags(flagset *flag.FlagSet) {
+	if flagset == nil {
+		flagset = flag.CommandLine
+	}
+
+	flagset.BoolVar(&panicOnErrorMode, "panic-on-unexpected-errors", panicOnErrorMode,
+		"Enable a pedantic mode which causes a panic if an unexpected error occurs")
+}
 
 // SetPanicOnErrorMode can be used to set or unset the panic mode.
 func SetPanicOnErrorMode(status bool) {

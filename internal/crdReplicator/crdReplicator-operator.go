@@ -1,3 +1,17 @@
+// Copyright 2019-2021 The Liqo Authors
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//      http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 package crdreplicator
 
 import (
@@ -22,18 +36,19 @@ import (
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/util/retry"
 	"k8s.io/klog/v2"
+	"k8s.io/utils/trace"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 
-	configv1alpha1 "github.com/liqotech/liqo/apis/config/v1alpha1"
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	"github.com/liqotech/liqo/pkg/consts"
 	identitymanager "github.com/liqotech/liqo/pkg/identityManager"
 	tenantnamespace "github.com/liqotech/liqo/pkg/tenantNamespace"
 	foreigncluster "github.com/liqotech/liqo/pkg/utils/foreignCluster"
+	traceutils "github.com/liqotech/liqo/pkg/utils/trace"
 )
 
 var (
@@ -69,17 +84,12 @@ const (
 type Controller struct {
 	Scheme *runtime.Scheme
 	client.Client
-	ClientSet                      *kubernetes.Clientset
-	ClusterID                      string
-	RemoteDynClients               map[string]dynamic.Interface                            // for each remote cluster we save dynamic client connected to its API server
-	RemoteDynSharedInformerFactory map[string]dynamicinformer.DynamicSharedInformerFactory // for each remote cluster we save the dynamic shared informer factory
-	LocalDynClient                 dynamic.Interface                                       // dynamic client pointing to the local API server
-	LocalDynSharedInformerFactory  dynamicinformer.DynamicSharedInformerFactory            // local dynamic shared informer factory
+	ClientSet        *kubernetes.Clientset
+	ClusterID        string
+	RemoteDynClients map[string]dynamic.Interface // for each remote cluster we save dynamic client connected to its API server
+	LocalDynClient   dynamic.Interface            // dynamic client pointing to the local API server
 	// RegisteredResources is a list of GVRs of resources to be replicated, with the associated peering phase when the replication has to occur.
-	RegisteredResources []configv1alpha1.Resource
-	// UnregisteredResources, each time a resource is removed from the configuration it is saved in this list,
-	// it stays here until the associated watcher, if running, is stopped.
-	UnregisteredResources []metav1.GroupVersionResource
+	RegisteredResources []Resource
 	// LocalWatchers, we save all the running watchers monitoring the local resources:(registeredResource, chan)).
 	LocalWatchers map[string]chan struct{}
 	// RemoteWatchers, for each peering cluster we save all the running watchers monitoring the replicated resources:
@@ -107,7 +117,6 @@ type Controller struct {
 // +kubebuilder:rbac:groups=discovery.liqo.io,resources=foreignclusters/status,verbs=get
 // +kubebuilder:rbac:groups=net.liqo.io,resources=networkconfigs,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=net.liqo.io,resources=networkconfigs/status,verbs=get;update;patch
-// +kubebuilder:rbac:groups=config.liqo.io,resources=clusterconfigs,verbs=get;list;watch
 // role
 // +kubebuilder:rbac:groups=core,namespace="do-not-care",resources=secrets,verbs=get;list
 // +kubebuilder:rbac:groups=core,namespace="do-not-care",resources=configmaps,verbs=get;list
@@ -118,9 +127,15 @@ type Controller struct {
 
 // Reconcile handles requests for subscribed types of object.
 func (c *Controller) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
+	tracer := trace.New("Reconcile", trace.Field{Key: "ForeignCluster", Value: req.Name})
+	defer tracer.LogIfLong(traceutils.LongThreshold())
+
+	defer func() {
+		c.StartWatchers()
+		c.StopWatchers()
+	}()
+
 	var fc discoveryv1alpha1.ForeignCluster
-	c.StartWatchers()
-	defer c.StopWatchers()
 	err := c.Get(ctx, req.NamespacedName, &fc)
 	if err != nil && !apierrors.IsNotFound(err) {
 		klog.Errorf("%s -> unable to retrieve resource %s: %s", c.ClusterID, req.NamespacedName, err)
@@ -129,6 +144,7 @@ func (c *Controller) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	if apierrors.IsNotFound(err) {
 		return ctrl.Result{}, nil
 	}
+
 	remoteClusterID := fc.Spec.ClusterIdentity.ClusterID
 	// examine DeletionTimestamp to determine if object is under deletion
 	if fc.ObjectMeta.DeletionTimestamp.IsZero() {
@@ -161,8 +177,6 @@ func (c *Controller) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 
 			// delete dynamic client for remote cluster
 			delete(c.RemoteDynClients, remoteClusterID)
-			// delete informer for remote cluster
-			delete(c.RemoteDynSharedInformerFactory, remoteClusterID)
 			// remove the finalizer from the list and update it.
 			if err := c.updateForeignCluster(ctx, &fc, controllerutil.RemoveFinalizer); err != nil {
 				klog.Errorf("an error occurred while updating resource %s after the finalizer has been removed: %s", fc.Name, err)
@@ -173,28 +187,33 @@ func (c *Controller) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	}
 
 	currentPhase := foreigncluster.GetPeeringPhase(&fc)
+	// The remote identity is not yet available, hence it is not possible to continue.
+	if currentPhase == consts.PeeringPhaseNone {
+		klog.V(4).Infof("Foreign cluster %s not yet associated with a valid identity", fc.Name)
+		return result, nil
+	}
+
 	if oldPhase := c.getPeeringPhase(remoteClusterID); oldPhase != currentPhase {
+		klog.V(4).Infof("%v -> peering phase changed: old: %v, new: %v", remoteClusterID, oldPhase, currentPhase)
 		c.setPeeringPhase(remoteClusterID, currentPhase)
 		defer c.checkResourcesOnPeeringPhaseChange(ctx, remoteClusterID, currentPhase, oldPhase)
 	}
 
-	// check if the client already exists
-	// check if the dynamic dynamic client and informer factory exists
+	// Check if the dynamic dynamic client towards the remote cluster already exists.
 	_, dynClientOk := c.RemoteDynClients[remoteClusterID]
-	_, dynFacOk := c.RemoteDynSharedInformerFactory[remoteClusterID]
-	if dynClientOk && dynFacOk {
+	if dynClientOk {
 		return result, nil
 	}
 
 	if fc.Status.TenantNamespace.Local == "" || fc.Status.TenantNamespace.Remote == "" {
 		klog.V(4).Infof("%s -> tenantNamespace is not set in resource %s for remote peering cluster %s",
-			c.ClusterID, req.NamespacedName, remoteClusterID)
+			c.ClusterID, fc.Name, remoteClusterID)
 		return result, nil
 	}
 	config, err := c.IdentityReader.GetConfig(remoteClusterID, fc.Status.TenantNamespace.Local)
 	if err != nil {
 		klog.Errorf("%s -> unable to retrieve config from resource %s for remote peering cluster %s: %s",
-			c.ClusterID, req.NamespacedName, remoteClusterID, err)
+			c.ClusterID, fc.Name, remoteClusterID, err)
 		return result, nil
 	}
 
@@ -249,7 +268,6 @@ func (c *Controller) setUpTranslations(fc *discoveryv1alpha1.ForeignCluster) {
 
 func (c *Controller) setUpConnectionToPeeringCluster(config *rest.Config, fc *discoveryv1alpha1.ForeignCluster) {
 	remoteClusterID := fc.Spec.ClusterIdentity.ClusterID
-	remoteNamespace := fc.Status.TenantNamespace.Remote
 
 	c.setUpTranslations(fc)
 
@@ -260,17 +278,10 @@ func (c *Controller) setUpConnectionToPeeringCluster(config *rest.Config, fc *di
 			klog.Errorf("%s -> unable to create dynamic client in order to create the dynamic shared informer factory: %s", remoteClusterID, err)
 			// we don't need to immediately requeue the foreign cluster but wait for the next re-sync
 			return
-		} else {
-			klog.Infof("%s -> dynamic client created", remoteClusterID)
 		}
+
+		klog.Infof("%s -> dynamic client created", remoteClusterID)
 		c.RemoteDynClients[remoteClusterID] = dynClient
-	}
-	// check if the dynamic shared informer factory exists
-	if _, ok := c.RemoteDynSharedInformerFactory[remoteClusterID]; !ok {
-		f := dynamicinformer.NewFilteredDynamicSharedInformerFactory(
-			c.RemoteDynClients[remoteClusterID], ResyncPeriod, remoteNamespace, c.SetLabelsForRemoteResources)
-		c.RemoteDynSharedInformerFactory[remoteClusterID] = f
-		klog.Infof("%s -> dynamic shared informer factory created", remoteClusterID)
 	}
 }
 
@@ -296,11 +307,22 @@ func SetLabelsForLocalResources(options *metav1.ListOptions) {
 	}
 }
 
-func (c *Controller) Watcher(dynFac dynamicinformer.DynamicSharedInformerFactory, gvr schema.GroupVersionResource, handlerFuncs cache.ResourceEventHandlerFuncs, stopCh chan struct{}) {
+func (c *Controller) watcher(dynClient dynamic.Interface,
+	namespace string,
+	gvr schema.GroupVersionResource,
+	handlerFuncs cache.ResourceEventHandlerFuncs,
+	stopCh chan struct{},
+	tweakListOptions dynamicinformer.TweakListOptionsFunc) {
 	// get informer for resource
-	inf := dynFac.ForResource(gvr)
+	inf := dynamicinformer.NewFilteredDynamicInformer(dynClient,
+		gvr,
+		namespace,
+		ResyncPeriod,
+		cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc},
+		tweakListOptions)
 	inf.Informer().AddEventHandler(handlerFuncs)
 	inf.Informer().Run(stopCh)
+	klog.Infof("informer for resource %s in namespace %s stopped", gvr.Resource, namespace)
 }
 
 func (c *Controller) getGVR(obj *unstructured.Unstructured) schema.GroupVersionResource {
@@ -314,29 +336,31 @@ func (c *Controller) getGVR(obj *unstructured.Unstructured) schema.GroupVersionR
 	return gvr
 }
 
-func (c *Controller) remoteAddWrapper(obj interface{}) {
-	c.remoteModifiedWrapper(nil, obj)
+func (c *Controller) remoteAddWrapper(remDynClient dynamic.Interface, obj interface{}) {
+	c.remoteModifiedWrapper(remDynClient, obj)
 }
 
-func (c *Controller) remoteModifiedWrapper(oldObj, newObj interface{}) {
+func (c *Controller) remoteModifiedWrapper(remDynClient dynamic.Interface, newObj interface{}) {
 	objUnstruct, ok := newObj.(*unstructured.Unstructured)
 	if !ok {
 		klog.Errorf("an error occurred while converting advertisement newObj to unstructured object")
 		return
 	}
 	gvr := c.getGVR(objUnstruct)
+
 	remoteClusterID := objUnstruct.GetLabels()[DestinationLabel]
 	resource := c.getResource(&gvr)
 	if resource == nil {
 		return
 	}
 
-	c.RemoteResourceModifiedHandler(objUnstruct.DeepCopy(), gvr, remoteClusterID, resource.Ownership)
+	c.RemoteResourceModifiedHandler(remDynClient, objUnstruct.DeepCopy(), gvr, remoteClusterID, resource.Ownership)
 }
 
 // RemoteResourceModifiedHandler handles updates on a remote resource, updating the local status if it is
 // in a shared ownership or forcing the remote status if the resource is only owned by the local cluster.
-func (c *Controller) RemoteResourceModifiedHandler(obj *unstructured.Unstructured,
+func (c *Controller) RemoteResourceModifiedHandler(remDynClient dynamic.Interface,
+	obj *unstructured.Unstructured,
 	gvr schema.GroupVersionResource,
 	remoteClusterID string,
 	ownership consts.OwnershipType) {
@@ -359,7 +383,7 @@ func (c *Controller) RemoteResourceModifiedHandler(obj *unstructured.Unstructure
 	if !found {
 		klog.Infof("%s -> resource %s in namespace %s of type %s not found", clusterID, name, localNamespace, gvr.String())
 		klog.Infof("%s -> removing resource %s in namespace %s of type %s", remoteClusterID, name, localNamespace, gvr.String())
-		err := c.DeleteResource(c.RemoteDynClients[remoteClusterID], gvr, obj, remoteClusterID)
+		err := c.DeleteResource(remDynClient, gvr, obj, remoteClusterID)
 		if err != nil {
 			return
 		}
@@ -395,7 +419,7 @@ func (c *Controller) RemoteResourceModifiedHandler(obj *unstructured.Unstructure
 			return
 		case consts.OwnershipLocal:
 			// copy the local status to the remote object
-			if err = c.UpdateStatus(c.RemoteDynClients[remoteClusterID], gvr, obj, remoteClusterID, localStatus); err != nil {
+			if err = c.UpdateStatus(remDynClient, gvr, obj, remoteClusterID, localStatus); err != nil {
 				klog.Error(err)
 			}
 			return
@@ -409,66 +433,62 @@ func (c *Controller) RemoteResourceModifiedHandler(obj *unstructured.Unstructure
 
 func (c *Controller) StartWatchers() {
 	// for each remote cluster check if the remote watchers are running for each registered resource
-	for remCluster, remDynFac := range c.RemoteDynSharedInformerFactory {
+	for remCluster, remDynClient := range c.RemoteDynClients {
 		watchers := c.RemoteWatchers[remCluster]
 		if watchers == nil {
 			watchers = make(map[string]chan struct{})
 		}
 		for i := range c.RegisteredResources {
 			res := &c.RegisteredResources[i]
-			if !foreigncluster.IsReplicationEnabled(c.getPeeringPhase(remCluster), res) {
+			if !isReplicationEnabled(c.getPeeringPhase(remCluster), res) {
 				continue
 			}
 
-			gvr := convertGVR(res.GroupVersionResource)
 			// if there is not then start one
-			if _, ok := watchers[gvr.String()]; !ok {
+			if _, ok := watchers[res.GroupVersionResource.String()]; !ok {
 				stopCh := make(chan struct{})
-				watchers[gvr.String()] = stopCh
-				go c.Watcher(remDynFac, gvr, cache.ResourceEventHandlerFuncs{
-					AddFunc:    c.remoteAddWrapper,
-					UpdateFunc: c.remoteModifiedWrapper,
-				}, stopCh)
-				klog.Infof("%s -> starting remote watcher for resource: %s", remCluster, gvr.String())
+				watchers[res.GroupVersionResource.String()] = stopCh
+				remoteNamespace, err := c.clusterIDToRemoteNamespace(remCluster)
+				if err != nil {
+					klog.Error(err)
+					continue
+				}
+				go c.watcher(remDynClient, remoteNamespace, res.GroupVersionResource, cache.ResourceEventHandlerFuncs{
+					AddFunc: func(newObj interface{}) {
+						c.remoteAddWrapper(remDynClient, newObj)
+					},
+					UpdateFunc: func(oldObj, newObj interface{}) {
+						c.remoteModifiedWrapper(remDynClient, newObj)
+					},
+				}, stopCh, c.SetLabelsForRemoteResources)
+				klog.Infof("%s -> starting remote watcher for resource: %s", remCluster, res.GroupVersionResource.String())
 			}
 		}
 		c.RemoteWatchers[remCluster] = watchers
 	}
 	// check if the local watchers are running for each registered resource
 	for _, res := range c.RegisteredResources {
-		gvr := convertGVR(res.GroupVersionResource)
 		// if there is not a running local watcher then start one
-		if _, ok := c.LocalWatchers[gvr.String()]; !ok {
+		if _, ok := c.LocalWatchers[res.GroupVersionResource.String()]; !ok {
 			stopCh := make(chan struct{})
-			c.LocalWatchers[gvr.String()] = stopCh
-			go c.Watcher(c.LocalDynSharedInformerFactory, gvr, cache.ResourceEventHandlerFuncs{
+			c.LocalWatchers[res.GroupVersionResource.String()] = stopCh
+			go c.watcher(c.LocalDynClient, metav1.NamespaceAll, res.GroupVersionResource, cache.ResourceEventHandlerFuncs{
 				AddFunc:    c.AddFunc,
 				UpdateFunc: c.UpdateFunc,
 				DeleteFunc: c.DeleteFunc,
-			}, stopCh)
-			klog.Infof("%s -> starting local watcher for resource: %s", c.ClusterID, gvr.String())
+			}, stopCh, SetLabelsForLocalResources)
+			klog.Infof("%s -> starting local watcher for resource: %s", c.ClusterID, res.GroupVersionResource.String())
 		}
 	}
 }
 
-// Stops all the watchers for the resources that have been unregistered.
+// StopWatchers stops all the watchers for the resources that have been unregistered.
 func (c *Controller) StopWatchers() {
-	// stop all remote watchers for unregistered resources
+	// stop all remote watchers for those resources no more needed
 	for remCluster, watchers := range c.RemoteWatchers {
-		for _, res := range c.UnregisteredResources {
-			if _, ok := watchers[res.String()]; ok {
-				if err := c.cleanupRemoteWatcher(remCluster, res); err != nil {
-					klog.Error(err)
-					continue
-				}
-				klog.Infof("%s -> stopping remote watcher for resource: %s", remCluster, res)
-			}
-		}
-
-		// stop watchers for those resources no more needed
 		for i := range c.RegisteredResources {
 			res := &c.RegisteredResources[i]
-			if foreigncluster.IsReplicationEnabled(c.getPeeringPhase(remCluster), res) {
+			if isReplicationEnabled(c.getPeeringPhase(remCluster), res) {
 				continue
 			}
 
@@ -483,18 +503,9 @@ func (c *Controller) StopWatchers() {
 
 		c.RemoteWatchers[remCluster] = watchers
 	}
-	// stop all local watchers
-	for i := range c.UnregisteredResources {
-		res := &c.UnregisteredResources[i]
-		if ch, ok := c.LocalWatchers[res.String()]; ok {
-			close(ch)
-			delete(c.LocalWatchers, res.String())
-			klog.Infof("%s -> stopping local watcher for resource: %s", c.ClusterID, res)
-		}
-	}
 }
 
-func (c *Controller) cleanupRemoteWatcher(remoteClusterID string, groupVersionResource metav1.GroupVersionResource) error {
+func (c *Controller) cleanupRemoteWatcher(remoteClusterID string, groupVersionResource schema.GroupVersionResource) error {
 	if ch, ok := c.RemoteWatchers[remoteClusterID][groupVersionResource.String()]; !ok || !isChanOpen(ch) {
 		return nil
 	}
@@ -515,7 +526,7 @@ func (c *Controller) cleanupRemoteWatcher(remoteClusterID string, groupVersionRe
 		return err
 	}
 
-	resourceClient := c.RemoteDynClients[remoteClusterID].Resource(convertGVR(groupVersionResource))
+	resourceClient := c.RemoteDynClients[remoteClusterID].Resource(groupVersionResource)
 	if err := resourceClient.Namespace(namespace).DeleteCollection(context.TODO(), metav1.DeleteOptions{}, metav1.ListOptions{
 		LabelSelector: labels.SelectorFromSet(selector.MatchLabels).String(),
 	}); err != nil {
@@ -687,30 +698,37 @@ func (c *Controller) AddFunc(newObj interface{}) {
 }
 
 func (c *Controller) AddedHandler(obj *unstructured.Unstructured, gvr schema.GroupVersionResource) {
-	// check if already exists a cluster to the remote peering cluster specified in the labels
-	labels := obj.GetLabels()
-	remoteClusterID, ok := labels[DestinationLabel]
+	tracer := trace.New("Added handler", trace.Field{Key: "GVR", Value: gvr.String()},
+		trace.Field{Key: "Object", Value: klog.KRef(obj.GetNamespace(), obj.GetName())})
+	defer tracer.LogIfLong(traceutils.LongThreshold())
+
+	// Ensure the resource to be replicated has a label with the target ClusterID.
+	remoteClusterID, ok := obj.GetLabels()[DestinationLabel]
 	if !ok {
-		klog.Infof("%s -> resource %s %s of type %s has not a destination label with the ID of the peering cluster", c.ClusterID, obj.GetName(), obj.GetNamespace(), gvr.String())
+		klog.Infof("%s -> resource %s %s of type %s has not a destination label with the ID of the peering cluster",
+			c.ClusterID, obj.GetName(), obj.GetNamespace(), gvr.String())
 		return
 	}
 
+	// Get the resource type and check if it needs to be replicated.
 	resource := c.getResource(&gvr)
-	if resource == nil || !foreigncluster.IsReplicationEnabled(c.getPeeringPhase(remoteClusterID), resource) {
+	if resource == nil || !isReplicationEnabled(c.getPeeringPhase(remoteClusterID), resource) {
 		return
 	}
 
-	remoteNamespace := c.localToRemoteNamespace(obj.GetNamespace())
-	obj.SetNamespace(remoteNamespace)
-
-	if dynClient, ok := c.RemoteDynClients[remoteClusterID]; !ok {
+	// Retrieve the client to interact with the remote cluster.
+	dynClient, ok := c.RemoteDynClients[remoteClusterID]
+	if !ok {
 		klog.Infof("%s -> a connection to the peering cluster with id: %s does not exist", c.ClusterID, remoteClusterID)
 		return
-	} else {
-		err := c.CreateResource(dynClient, gvr, obj, remoteClusterID, resource.Ownership)
-		if err != nil {
-			klog.Error(err)
-		}
+	}
+
+	// Map the namespace name to the one in the remote cluster.
+	obj.SetNamespace(c.localToRemoteNamespace(obj.GetNamespace()))
+
+	// Remotely create the given resource.
+	if err := c.CreateResource(dynClient, gvr, obj, remoteClusterID, resource.Ownership); err != nil {
+		klog.Error(err)
 	}
 }
 
@@ -720,56 +738,65 @@ func (c *Controller) UpdateFunc(oldObj, newObj interface{}) {
 		klog.Errorf("an error occurred while converting advertisement newObj to unstructured object")
 		return
 	}
-	klog.V(4).Infof("triggered on update %v/%v", objUnstruct.GetNamespace(), objUnstruct.GetName())
 	gvr := c.getGVR(objUnstruct)
 	c.ModifiedHandler(objUnstruct.DeepCopy(), gvr)
 }
 
 func (c *Controller) ModifiedHandler(obj *unstructured.Unstructured, gvr schema.GroupVersionResource) {
-	// check if already exists a cluster to the remote peering cluster specified in the labels
-	labels := obj.GetLabels()
-	remoteClusterID, ok := labels[DestinationLabel]
+	tracer := trace.New("Modified handler", trace.Field{Key: "GVR", Value: gvr.String()},
+		trace.Field{Key: "Object", Value: klog.KRef(obj.GetNamespace(), obj.GetName())})
+	defer tracer.LogIfLong(traceutils.LongThreshold())
+
+	// Ensure the resource to be replicated has a label with the target ClusterID.
+	remoteClusterID, ok := obj.GetLabels()[DestinationLabel]
 	if !ok {
-		klog.Infof("%s -> resource %s %s of type %s has not a destination label with the ID of the peering cluster", c.ClusterID, obj.GetName(), obj.GetNamespace(), gvr.String())
+		klog.Infof("%s -> resource %s %s of type %s has not a destination label with the ID of the peering cluster",
+			c.ClusterID, obj.GetName(), obj.GetNamespace(), gvr.String())
 		return
 	}
 
+	// Get the resource type and check if it needs to be replicated.
 	resource := c.getResource(&gvr)
-	if resource == nil || !foreigncluster.IsReplicationEnabled(c.getPeeringPhase(remoteClusterID), resource) {
+	if resource == nil || !isReplicationEnabled(c.getPeeringPhase(remoteClusterID), resource) {
 		return
 	}
 
-	if dynClient, ok := c.RemoteDynClients[remoteClusterID]; !ok {
+	// Retrieve the client to interact with the remote cluster.
+	dynClient, ok := c.RemoteDynClients[remoteClusterID]
+	if !ok {
 		klog.Infof("%s -> a connection to the peering cluster with id: %s does not exist", c.ClusterID, remoteClusterID)
 		return
-	} else {
-		name := obj.GetName()
-		namespace := obj.GetNamespace()
-		clusterID := remoteClusterID
+	}
 
-		namespace = c.localToRemoteNamespace(namespace)
-		obj.SetNamespace(namespace)
+	name := obj.GetName()
+	namespace := obj.GetNamespace()
 
-		// we check if the resource exists in the remote cluster
-		_, found, err := c.GetResource(dynClient, gvr, name, namespace, clusterID)
-		if err != nil {
-			klog.Errorf("%s -> an error occurred while getting resource %s of type %s: %s", clusterID, name, gvr.String(), err)
+	// Map the namespace name to the one in the remote cluster.
+	namespace = c.localToRemoteNamespace(namespace)
+	obj.SetNamespace(namespace)
+
+	// Check if the resource already exists in the remote cluster.
+	_, found, err := c.GetResource(dynClient, gvr, name, namespace, remoteClusterID)
+	if err != nil {
+		klog.Errorf("%s -> an error occurred while getting resource %s of type %s: %s", remoteClusterID, name, gvr.String(), err)
+		return
+	}
+
+	// If the resource does not exist then we create it.
+	if !found {
+		err := c.CreateResource(dynClient, gvr, obj, remoteClusterID, resource.Ownership)
+		if err != nil && !apierrors.IsAlreadyExists(err) {
+			klog.Error(err)
 			return
 		}
-		// if the resource does not exist then we create it
-		if !found {
-			err := c.CreateResource(dynClient, gvr, obj, clusterID, resource.Ownership)
-			if err != nil && !apierrors.IsAlreadyExists(err) {
-				klog.Error(err)
-				return
-			}
-		}
-		// if the resource exists or we just created it then we update the fields
-		// we do this considering that the resource existed, even if we just created it
-		if err = c.UpdateResource(dynClient, gvr, obj, clusterID, resource.Ownership); err != nil {
-			klog.Errorf("%s -> an error occurred while updating resource %s/%s of type %s: %s", clusterID, namespace, name, gvr.String(), err)
-			return
-		}
+	}
+
+	// If the resource already exists or we just created it then we update the fields
+	// we do this considering that the resource existed, even if we just created it
+	if err = c.UpdateResource(dynClient, gvr, obj, remoteClusterID, resource.Ownership); err != nil {
+		klog.Errorf("%s -> an error occurred while updating resource %s/%s of type %s: %s",
+			remoteClusterID, namespace, name, gvr.String(), err)
+		return
 	}
 }
 
@@ -784,39 +811,31 @@ func (c *Controller) DeleteFunc(newObj interface{}) {
 }
 
 func (c *Controller) DeletedHandler(obj *unstructured.Unstructured, gvr schema.GroupVersionResource) {
-	// check if already exists a cluster to the remote peering cluster specified in the labels
-	labels := obj.GetLabels()
-	remoteClusterID, ok := labels[DestinationLabel]
+	tracer := trace.New("Deleted handler", trace.Field{Key: "GVR", Value: gvr.String()},
+		trace.Field{Key: "Object", Value: klog.KRef(obj.GetNamespace(), obj.GetName())})
+	defer tracer.LogIfLong(traceutils.LongThreshold())
+
+	// Ensure the resource to be replicated has a label with the target ClusterID.
+	remoteClusterID, ok := obj.GetLabels()[DestinationLabel]
 	if !ok {
-		klog.Infof("%s -> resource %s %s of type %s has not a destination label with the ID of the peering cluster", c.ClusterID, obj.GetName(), obj.GetNamespace(), gvr.String())
+		klog.Infof("%s -> resource %s %s of type %s has not a destination label with the ID of the peering cluster",
+			c.ClusterID, obj.GetName(), obj.GetNamespace(), gvr.String())
 		return
 	}
 
-	if dynClient, ok := c.RemoteDynClients[remoteClusterID]; !ok {
+	// Retrieve the client to interact with the remote cluster.
+	dynClient, ok := c.RemoteDynClients[remoteClusterID]
+	if !ok {
 		klog.Infof("%s -> a connection to the peering cluster with id: %s does not exist", c.ClusterID, remoteClusterID)
 		return
-	} else {
-		name := obj.GetName()
-		namespace := obj.GetNamespace()
-		dynClient := dynClient
-		clusterID := remoteClusterID
+	}
 
-		namespace = c.localToRemoteNamespace(namespace)
-		obj.SetNamespace(namespace)
+	// Map the namespace name to the one in the remote cluster.
+	obj.SetNamespace(c.localToRemoteNamespace(obj.GetNamespace()))
 
-		// we check if the resource exists in the remote cluster
-		_, found, err := c.GetResource(dynClient, gvr, name, namespace, clusterID)
-		if err != nil {
-			klog.Errorf("%s -> an error occurred while getting resource %s of type %s: %s", clusterID, name, gvr.String(), err)
-			return
-		}
-		// if the resource exists on the remote cluster then we delete it
-		if found {
-			err := c.DeleteResource(dynClient, gvr, obj, clusterID)
-			if err != nil {
-				klog.Error(err)
-			}
-		}
+	// Remotely delete the given resource.
+	if err := c.DeleteResource(dynClient, gvr, obj, remoteClusterID); err != nil {
+		klog.Error(err)
 	}
 }
 
@@ -891,10 +910,11 @@ func (c *Controller) UpdateResource(dynClient dynamic.Interface,
 	}
 }
 
-func (c *Controller) DeleteResource(client dynamic.Interface, gvr schema.GroupVersionResource, obj *unstructured.Unstructured, clusterID string) error {
+// DeleteResource deletes the given resource with the specified client.
+func (c *Controller) DeleteResource(cl dynamic.Interface, gvr schema.GroupVersionResource, obj *unstructured.Unstructured, clusterID string) error {
 	klog.Infof("%s -> deleting resource %s of type %s", clusterID, obj.GetName(), gvr.String())
-	err := client.Resource(gvr).Namespace(obj.GetNamespace()).Delete(context.TODO(), obj.GetName(), metav1.DeleteOptions{})
-	if err != nil {
+	err := cl.Resource(gvr).Namespace(obj.GetNamespace()).Delete(context.TODO(), obj.GetName(), metav1.DeleteOptions{})
+	if client.IgnoreNotFound(err) != nil {
 		klog.Errorf("%s -> an error occurred while deleting resource %s of type %s: %s", clusterID, obj.GetName(), gvr.String(), err)
 		return err
 	}
@@ -958,14 +978,6 @@ func (c *Controller) UpdateStatus(client dynamic.Interface, gvr schema.GroupVers
 	return nil
 }
 
-func convertGVR(gvr metav1.GroupVersionResource) schema.GroupVersionResource {
-	return schema.GroupVersionResource{
-		Group:    gvr.Group,
-		Version:  gvr.Version,
-		Resource: gvr.Resource,
-	}
-}
-
 func isChanOpen(ch chan struct{}) bool {
 	open := true
 	select {
@@ -975,15 +987,15 @@ func isChanOpen(ch chan struct{}) bool {
 	return open
 }
 
-func (c *Controller) getResource(gvr *schema.GroupVersionResource) *configv1alpha1.Resource {
+func (c *Controller) getResource(gvr *schema.GroupVersionResource) *Resource {
 	for i := range c.RegisteredResources {
 		if compareGvr(gvr, &c.RegisteredResources[i].GroupVersionResource) {
-			return c.RegisteredResources[i].DeepCopy()
+			return &c.RegisteredResources[i]
 		}
 	}
 	return nil
 }
 
-func compareGvr(gvr1 *schema.GroupVersionResource, gvr2 *metav1.GroupVersionResource) bool {
+func compareGvr(gvr1, gvr2 *schema.GroupVersionResource) bool {
 	return gvr1.Group == gvr2.Group && gvr1.Resource == gvr2.Resource && gvr1.Version == gvr2.Version
 }

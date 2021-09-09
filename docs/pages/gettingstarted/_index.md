@@ -3,13 +3,24 @@ title: Quickstart
 weight: 1
 ---
 
-## The fast path to Liqo
+### Introduction
 
-The following steps will guide you through a tour to learn how to install Liqo and experiment with its most notable capabilities.
+Liqo enables the creation of arbitrary multi-cluster topologies, proposing a seamless multi-cluster model which dynamically allows the pods and services to be offloaded on remote clusters.
 
-* [Provision your playground](./kind): Deploy a couple of Kubernetes in Docker (KiND) clusters to play with Liqo
-* [Install Liqo](./install): Install Liqo on a first cluster (*home* cluster).
-* [Peer to a foreign cluster](./peer): establish a peering with a second Liqo cluster (*foreign* cluster).
-* [Leverage foreign resources](./test): start an *Hello World* application to verify that the two peered clusters can actually share resources correctly and that you are able to run a pod in a foreign cluster.
-* [Play with a micro-service application](./play): play with a more structured application that includes multiple micro-services, to demonstrate the advanced capabilities of Liqo.
-* [Uninstall Liqo](./uninstall): uninstall Liqo from your cluster.
+This section presents several tutorials that guide to the discovery and use of the most important features of Liqo.
+
+#### System Requirements
+
+Before starting to run the following tutorials, you should have installed on your system:
+
+* [**Docker**](https://docker.io), the container runtime.
+* [**Kubectl**](https://kubernetes.io/docs/tasks/tools/install-kubectl/), the command line tool for Kubernetes.
+* [**Helm**](https://helm.sh/docs/intro/install/), the package manager for Kubernetes.
+* **curl**, to interact with the cluster through HTTP/HTTPS. In Ubuntu it can be installed with `sudo apt update && sudo apt install -y curl`.
+
+The above tutorials have been tested on Linux, macOS, and Windows (through Docker Desktop).
+
+### Tutorials
+
+* [Basic](./helloworld): a first _Hello World_-style tutorial to introduce basic Liqo features. In this tutorial, you will setup multiple clusters and establish the first peering among them.
+* [Advanced](./extended): a more in-depth _Dominate the world_-style tutorial showing how to use the most important features of Liqo.

@@ -21,15 +21,6 @@ rules:
   verbs:
   - approve
 - apiGroups:
-  - config.liqo.io
-  resources:
-  - clusterconfigs
-  verbs:
-  - create
-  - get
-  - list
-  - watch
-- apiGroups:
   - ""
   resourceNames:
   - aws-auth
@@ -69,6 +60,8 @@ rules:
   - clusterroles
   verbs:
   - get
+  - list
+  - watch
 - apiGroups:
   - rbac.authorization.k8s.io
   resources:

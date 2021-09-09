@@ -15,18 +15,3 @@ Liqo network consists of several components that enable workloads connection acr
 The diagram below illustrates the basic architecture of Liqo networking:
 
 ![Liqo Network Architecture](../../../images/liqonet/network-architecture.png)
-
-## Support Matrix
-
-Liqo's networking is designed to be cloud provider and network plugins (CNI) agnostic. At the time being Liqo has been tested with the following CNIs and cloud providers:
-
-
-* [Weave](https://github.com/weaveworks/weave)
-* [Flannel](https://github.com/coreos/flannel)
-* [Canal](https://docs.projectcalico.org/getting-started/kubernetes/flannel/flannel)
-* [Calico](https://www.projectcalico.org/)
-* [Azure AKS - Kubenet](https://docs.microsoft.com/en-us/azure/aks/configure-kubenet)
-* [Azure AKS - Azure CNI](https://docs.microsoft.com/en-us/azure/aks/configure-azure-cni)
-* [AWS EKS - amazon-vpc-cni-k8s](https://github.com/aws/amazon-vpc-cni-k8s)
-* [Google GKE - VPC-Native](https://cloud.google.com/kubernetes-engine/docs/how-to/alias-ips)
-

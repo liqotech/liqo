@@ -1,3 +1,17 @@
+// Copyright 2019-2021 The Liqo Authors
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//      http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 package forge
 
 import (
@@ -11,15 +25,16 @@ import (
 )
 
 // VirtualKubeletDeployment forges the deployment for a virtual-kubelet.
-func VirtualKubeletDeployment(remoteClusterID,
-	vkName, vkNamespace, liqoNamespace, vkImage, initVKImage, nodeName, homeClusterID string) (*appsv1.Deployment, error) {
-	vkLabels := VirtualKubeletLabels(remoteClusterID)
+func VirtualKubeletDeployment(remoteClusterID, vkName, vkNamespace, liqoNamespace,
+	nodeName, homeClusterID string, opts *VirtualKubeletOpts) (*appsv1.Deployment, error) {
+	vkLabels := VirtualKubeletLabels(remoteClusterID, opts)
+	annotations := opts.ExtraAnnotations
 	return &appsv1.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:        vkName,
 			Namespace:   vkNamespace,
 			Labels:      vkLabels,
-			Annotations: map[string]string{},
+			Annotations: annotations,
 		},
 		Spec: appsv1.DeploymentSpec{
 			Selector: &metav1.LabelSelector{
@@ -27,20 +42,21 @@ func VirtualKubeletDeployment(remoteClusterID,
 			},
 			Template: v1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
-					Labels: vkLabels,
+					Labels:      vkLabels,
+					Annotations: annotations,
 				},
-				Spec: forgeVKPodSpec(vkName, vkNamespace, liqoNamespace, homeClusterID, remoteClusterID, initVKImage, nodeName, vkImage),
+				Spec: forgeVKPodSpec(vkName, vkNamespace, liqoNamespace, homeClusterID, remoteClusterID, nodeName, opts),
 			},
 		},
 	}, nil
 }
 
 // VirtualKubeletLabels forges the labels for a virtual-kubelet.
-func VirtualKubeletLabels(remoteClusterID string) map[string]string {
+func VirtualKubeletLabels(remoteClusterID string, opts *VirtualKubeletOpts) map[string]string {
 	kubeletDynamicLabels := map[string]string{
 		discovery.ClusterIDLabel: remoteClusterID,
 	}
-	return merge(vkMachinery.KubeletBaseLabels, kubeletDynamicLabels)
+	return merge(vkMachinery.KubeletBaseLabels, kubeletDynamicLabels, opts.ExtraLabels)
 }
 
 func merge(m map[string]string, ms ...map[string]string) map[string]string {
