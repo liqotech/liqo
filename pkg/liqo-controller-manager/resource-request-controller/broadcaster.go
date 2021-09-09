@@ -83,8 +83,8 @@ func (b *Broadcaster) SetupBroadcaster(clientset kubernetes.Interface, updater i
 	return nil
 }
 
-// StartBroadcaster starts two shared Informers, one for nodes and one for pods launching two separated goroutines.
-func (b *Broadcaster) StartBroadcaster(ctx context.Context, group *sync.WaitGroup) {
+// Start starts two shared Informers, one for nodes and one for pods launching two separated goroutines.
+func (b *Broadcaster) Start(ctx context.Context, group *sync.WaitGroup) {
 	go b.updater.Start(ctx, group)
 	go b.startNodeInformer(ctx, group)
 	go b.startPodInformer(ctx, group)

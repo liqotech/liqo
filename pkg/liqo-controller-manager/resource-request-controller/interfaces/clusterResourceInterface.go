@@ -1,7 +1,9 @@
 package interfaces
 
 import (
+	"context"
 	corev1 "k8s.io/api/core/v1"
+	"sync"
 
 	configv1alpha1 "github.com/liqotech/liqo/apis/config/v1alpha1"
 )
@@ -17,4 +19,6 @@ type ClusterResourceInterface interface {
 	GetConfig() *configv1alpha1.ClusterConfig
 	// EnqueueForCreationOrUpdate equeue the clusterID to generate or update related offer.
 	EnqueueForCreationOrUpdate(clusterID string)
+	// Start starts the operator
+	Start(ctx context.Context, group *sync.WaitGroup)
 }
