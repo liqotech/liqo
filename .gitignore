@@ -23,6 +23,7 @@ bin
 *.tgz
 .vscode
 .devcontainer
+.DS_Store
 
 # directory where liqo stores the downloaded external crd
 externalcrds
