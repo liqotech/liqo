@@ -3,7 +3,9 @@ title:  Network Manager and IPAM
 weight: 1
 ---
 
-The **Liqo Network Manager** is one of the Liqo components in charge of enabling peered clusters to communicate one to another, handling the creation of the `networkconfigs.net.liqo.io` custom resources that will be sent to remote clusters.
+### Network Manager
+
+The Liqo Network Manager is one of the Liqo components in charge of enabling peered clusters to communicate one to another, handling the creation of the `networkconfigs.net.liqo.io` custom resources that will be sent to remote clusters.
 Those special resources contain the network configuration of the home cluster: the PodCIDR, for example, is one of the fields of the Spec section of the resource.
 
 {{% notice info %}}
@@ -97,7 +99,7 @@ If the CNI of cluster A assigns IP address 10.0.0.34 to Pod A1, the VK(A) runnin
 The Shadow Pod is a local copy of the Pod resource that is created and kept up to date by Liqo when offloading a Pod.
 {{% /notice %}}
 
-![Example IP addresses translation when offloading a Pod](../../../../images/liqonet/offloaded-pod-ip.png)
+![IP addresses translation when offloading a Pod](../../../../images/liqonet/offloaded-pod-ip.png)
 
 In this particular example, while pod A1 has IP 10.0.0.34, its shadow copy (in cluster B) will have IP 192.168.0.34.
 Since the IPAM module keeps track of how remote networks have been remapped by the home cluster (see [Networks management](#networks-management)), it can take care of the translation of addresses.
@@ -111,27 +113,39 @@ The IPAM module achieves this task by keeping track of how foreign clusters have
 
 
 #### Reflection
-The [Reflection](../../../offloading/features/api-reflection#Overview) is one of the most relevant Liqo features, which is carried out by the VK and deals with the replication of local Kubernetes resources on foreign clusters, in particular _Services_ and _Endpoints_.
+The [Reflection](../../../offloading/features/api-reflection#Overview) is one of the most relevant Liqo features; is carried out by the Virtual Kubelet and deals with the replication of local Kubernetes resources on foreign clusters, in particular _Services_ and _Endpoints_.
+
+{{% notice note %}}
+After having offloaded a workload, the Virtual Kubelet takes also care of creating the Shadow Pod locally and keeping it updated by inspecting its remote counterpart. During the reflection of an Endpoint instead, the Virtual Kubelet creates the resource on the foreign cluster.
+{{% /notice %}}
 
 In general, Endpoints that are going to be reflected can live either on:
-1. The local cluster, this is the case of Pods running on the home cluster.
-2. Elsewhere, such as a Pod not running on the home cluster or on the cluster the reflection is going to happen, but in a third one.
+1. The local cluster, this is the case of Pods running on the home cluster and possibly offloaded.
+2. Elsewhere, such as Pods not running on the home cluster or on the cluster the reflection is going to happen, but in a third one.
 
-In both cases, the IPAM module plays a decisive role, as it is in charge of translating IP addresses of reflected Endpoints.
+In both cases, the IPAM module plays a decisive role, as it is in charge of translating IP addresses of reflected Endpoints. Those IPs will be provided to the Virtual Kubelet, that in turn will reflect adjusted Endpoints.
 
 ##### Reflection of local Endpoints
-Similarly to what has been described in the [Translation of offloaded Pods](#ip-addresses-translation-of-offloaded-pods) Section, when crossing the 
-{{% notice note %}}
-This documentation section is a work in progress
-{{% /notice %}}
+As mentioned in the [Translation of offloaded Pods](#ip-addresses-translation-of-offloaded-pods) Section, even if two clusters have established a Liqo peering, IP addresses that are valid in one of them could have no meaning in the other, therefore an address translation need to be carried out somewhere. Endpoint IP addresses are not an exception: if an Endpoint resource represents a Pod running locally, just replicating the resource on a foreign cluster is not enough to make it available to remote Pods because the IP address specified in the resource could have no validity in the foreign cluster.
+
+If the remote cluster has not remapped the local PodCIDR, the IPAM module performs no translations, returning to the Virtual Kubelet the original Endpoint address. Conversely, if the address space used for assigning addresses to local Pods creates conflicts in the remote cluster and therefore has been remapped, the IPAM uses (1) the original Endpoint IP and (2) the new address space used to remap the local PodCIDR to carry out the translation of the address.
 
 ##### Reflection of external Endpoints
-{{% notice note %}}
-This documentation section is a work in progress
-{{% /notice %}}
-Thus, the External CIDR network is used whenever the home cluster has to expose on a foreign cluster an external resource (such as a Pod living on a third cluster).
+The address translation of local Endpoints can be carried out thanks to the fact the local IPAM knows if and how the local PodCIDR has been remapped in the cluster the reflection is going to take place. The problem of reflecting on cluster _X_ an Endpoint running on cluster _Y_ is way harder, if the home cluster is not _X_ or _Y_. The root problems are the following:
+1. Cluster _X_ and cluster _Y_ may not have a Liqo peering, thus their Pods could not be able to talk each other.
+2. Even if such a peering existed, the home cluster would not have any information about the network interconnection between _X_ and _Y_. In other words, the local cluster would not be aware of how _X_ could have remapped the PodCIDR of _Y_.
 
-It is worth to point out that traffic toward External CIDR passes through the cluster that has reflected the external resource before reaching its final destination (_hub and spoke_ topology such as A <--> B <--> C, where B offloaded Pods in both A and C, and a Pod in A has to contact a Pod in C).
-This means that the cluster that reflects a Pod using its External CIDR receives the data-plane traffic directed to that Pod, which has to be further redirected in the third cluster to reach the actual Pod.
-This is achieved thanks to the `natmappings.net.liqo.io` resource, which is populated by the IPAM (in Cluster B) with the associations between the Pod IP addresses and the associated External CIDR addresses.
+The current solution the issue is based on the usage of an additional network, called _ExternalCIDR_. Its name comes from the fact that addresses belonging to this network are assigned to external (= non-local) Endpoints that are going to be reflected on a foreign cluster. Each Liqo cluster has its own ExternalCIDR address space and the latter can be remapped by peered clusters, just like the PodCIDR.
+
+Whenever the IPAM receives an Endpoint address translation request by the Virtual Kubelet and the address does not belong to the local PodCIDR, the IPAM module allocates an IP from the ExternalCIDR address space and returns it to the Virtual Kubelet. The ExternalCIDR address could be further altered if the remote cluster have remapped the local ExternalCIDR. That's not all: the IPAM stores the associations between Endpoint addresses and ExternalCIDR addresses so that future address translation requests on the same Endpoint address will use the same ExternalCIDR address, even if the cluster in which the reflection is going to happen is different.
+
+Suppose cluster B has a Liqo peering with clusters A and C, therefore it is able to offload Pods on them. However, clusters A and C do not have an active peering, thus their Pods cannot connect one to another. Furthermore, assume that B wants to reflect Service A in cluster A. The Service exposes the Shadow Pod C1 whose remote counterpart lives in C with IP address 10.1.0.5. In this particular case, if the IPAM did not translated the address of the Endpoint, Pods in A would not be able to reach Service A because they do not know how to connect to network 10.1.0.0/24 (and therefore to Pods in C), they are only capable to reach Pods in A, as depicted in the IPAM block of cluster A.
+
+![External Endpoint address translation](../../../../images/liqonet/externalcidr-reflection.png)
+
+In this example, the Virtual Kubelet asks the IPAM module for an Endpoint address translation. The IPAM notices the received address does not belong to the local PodCIDR 10.0.0.0/24 and therefore allocates a new address from the ExternalCIDR network, in this case 192.168.0.45. The IPAM stores the association between addresses and returns 192.168.0.45 to the Virtual Kubelet, that in turn completes the reflection.
+
+It is worth to point out that traffic toward ExternalCIDR passes through the cluster that has reflected the external resource before reaching its final destination (it is an _Hub and Spoke_ topology such as A <--> B <--> C, where B offloaded Pods in both A and C, and a Pod in A has to contact a Pod in C).
+This means that the cluster that reflects a Pod using its ExternalCIDR receives the data-plane traffic directed to that Pod, which has to be further redirected in the third cluster to reach the actual Pod.
+This is achieved thanks to the `natmappings.net.liqo.io` resource, which is populated by the IPAM (in Cluster B) with the associations between the Pod IP addresses and the associated ExternalCIDR addresses.
 This resource is reconciled by the [Tunnel Operator](../gateway#tunnel-operator) that adds the proper NAT rules.
