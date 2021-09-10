@@ -29,3 +29,6 @@ externalcrds
 
 # directory where liqo stores the bearer tokens got by identity providers (i.e. Amazon IAM)
 token
+
+# to ease the local development of liqoctl
+/liqoctl

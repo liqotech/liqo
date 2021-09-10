@@ -213,7 +213,10 @@ jobs:
           persist-credentials: false
 
       - name: Build Liqoctl
-        run: go build -o liqoctl-${{ matrix.goos }}-${{ matrix.goarch }} -ldflags="-s -w" ./cmd/liqoctl
+        run: >
+          go build -o liqoctl-${{ matrix.goos }}-${{ matrix.goarch }} 
+          -ldflags="-s -w -X 'github.com/liqotech/liqo/pkg/liqoctl/version.liqoctlVersion=${{ needs.configure.outputs.commit-ref }}'" 
+          ./cmd/liqoctl
         env:
           CGO_ENABLED: 0
           GOOS: ${{ matrix.goos }}
