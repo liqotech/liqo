@@ -146,23 +146,31 @@ func (r *ForeignClusterReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 	}
 	tracer.Step("Retrieved the foreign cluster")
 
-	// ------ (1) validation ------
-
-	// set labels and validate the resource spec
-	if cont, res, err := r.validateForeignCluster(ctx, &foreignCluster); !cont {
-		tracer.Step("Validated foreign cluster", trace.Field{Key: "requeuing", Value: true})
-		return res, err
-	}
-	tracer.Step("Validated foreign cluster", trace.Field{Key: "requeuing", Value: false})
-
-	// defer the status update function
-	defer func() {
+	updateStatus := func() {
 		defer tracer.Step("ForeignCluster status update")
 		if newErr := r.Client.Status().Update(ctx, &foreignCluster); newErr != nil {
 			klog.Error(newErr)
 			err = newErr
 		}
-	}()
+	}
+
+	// ------ (1) validation ------
+
+	// set labels and validate the resource spec
+	cont, res, err := r.validateForeignCluster(ctx, &foreignCluster)
+	if !cont || err != nil {
+		tracer.Step("Validated foreign cluster", trace.Field{Key: "requeuing", Value: true})
+		if err != nil {
+			klog.Error(err)
+			r.setForeignClusterStatusOnAuthUnavailable(&foreignCluster)
+			updateStatus()
+		}
+		return res, err
+	}
+	tracer.Step("Validated foreign cluster", trace.Field{Key: "requeuing", Value: false})
+
+	// defer the status update function
+	defer updateStatus()
 
 	// ensure that there are not multiple clusters with the same clusterID
 	if processable, err := r.isClusterProcessable(ctx, &foreignCluster); err != nil {
@@ -281,6 +289,14 @@ func (r *ForeignClusterReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 		Requeue:      true,
 		RequeueAfter: r.requeueAfter,
 	}, nil
+}
+
+func (r *ForeignClusterReconciler) setForeignClusterStatusOnAuthUnavailable(foreignCluster *discoveryv1alpha1.ForeignCluster) {
+	peeringconditionsutils.EnsureStatus(foreignCluster,
+		discoveryv1alpha1.AuthenticationStatusCondition,
+		discoveryv1alpha1.PeeringConditionStatusError,
+		"AuthNotReachable",
+		"The remote authentication service is not reachable")
 }
 
 // peerNamespaced enables the peering creating the resources in the correct TenantNamespace.

@@ -28,6 +28,7 @@ import (
 	"k8s.io/klog/v2"
 
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
+	"github.com/liqotech/liqo/internal/discovery/utils"
 	"github.com/liqotech/liqo/pkg/auth"
 	"github.com/liqotech/liqo/pkg/utils/authenticationtoken"
 	foreignclusterutils "github.com/liqotech/liqo/pkg/utils/foreignCluster"
@@ -198,7 +199,10 @@ func sendRequest(url string, payload *bytes.Buffer, insecureSkipTLSVerify bool) 
 	tr := &http.Transport{
 		TLSClientConfig: &tls.Config{InsecureSkipVerify: insecureSkipTLSVerify},
 	}
-	client := &http.Client{Transport: tr}
+	client := &http.Client{
+		Transport: tr,
+		Timeout:   utils.HTTPRequestTimeout,
+	}
 	req, err := http.NewRequestWithContext(context.TODO(), http.MethodPost, url, payload)
 	if err != nil {
 		klog.Error(err)
