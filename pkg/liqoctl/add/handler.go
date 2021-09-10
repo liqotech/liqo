@@ -63,19 +63,19 @@ func HandleAddCommand(ctx context.Context, t *ClusterArgs) error {
 		return err
 	}
 
-	err = printSuccesfulOutputMessage(ctx, t, k8sClient)
+	err = printSuccessfulOutputMessage(ctx, t, k8sClient)
 	if err != nil {
 		return err
 	}
 	return nil
 }
 
-func printSuccesfulOutputMessage(ctx context.Context, t *ClusterArgs, k8sClient client.Client) error {
+func printSuccessfulOutputMessage(ctx context.Context, t *ClusterArgs, k8sClient client.Client) error {
 	fc, err := foreigncluster.GetForeignClusterByID(ctx, k8sClient, t.ClusterID)
 	if err != nil {
 		return err
 	}
-	fmt.Printf(SuccesfulMessage, t.ClusterName, fc.Name, t.ClusterID)
+	fmt.Printf(SuccessfulMessage, t.ClusterName, fc.Name, t.ClusterID)
 	return nil
 }
 

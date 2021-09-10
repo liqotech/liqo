@@ -40,8 +40,8 @@ $ liqoctl add cluster my-cluster --auth-url https://my-cluster --id e8e3cdec-b00
 	// ClusterLiqoNamespace contains the default namespace where Liqo is installed.
 	ClusterLiqoNamespace = "liqo"
 	sameClusterError     = "the ClusterID of the adding cluster is the same of the local cluster"
-	// SuccesfulMessage is printed when ad add cluster command has scucceded.
-	SuccesfulMessage = `
+	// SuccessfulMessage is printed when ad add cluster command has succeeded.
+	SuccessfulMessage = `
 Hooray 🎉! You have correctly added the cluster %s and activated an outgoing peering towards it.
 You can now:
 
