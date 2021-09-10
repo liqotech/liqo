@@ -23,10 +23,16 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"time"
 
 	"k8s.io/klog/v2"
 
 	"github.com/liqotech/liqo/pkg/auth"
+)
+
+const (
+	// HTTPRequestTimeout is the timeout used in http connection to a remote authentication service.
+	HTTPRequestTimeout = 5 * time.Second
 )
 
 // GetClusterInfo contacts the remote cluster to get its info,
@@ -35,7 +41,10 @@ func GetClusterInfo(skipTLSVerify bool, url string) (*auth.ClusterInfo, error) {
 	tr := &http.Transport{
 		TLSClientConfig: &tls.Config{InsecureSkipVerify: skipTLSVerify},
 	}
-	client := &http.Client{Transport: tr}
+	client := &http.Client{
+		Transport: tr,
+		Timeout:   HTTPRequestTimeout,
+	}
 	resp, err := httpGet(context.TODO(), client, fmt.Sprintf("%s%s", url, auth.IdsURI))
 	if err != nil {
 		return nil, err

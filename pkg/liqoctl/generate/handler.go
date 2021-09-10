@@ -66,9 +66,9 @@ func processGenerateCommand(ctx context.Context, clientSet client.Client, liqoNa
 	}
 
 	// The error is discarded, since an empty string is returned in case the key is not found, which is fine.
-	clusterName, _ := common.ExtractValueFromArgumentList(consts.ClusterNameParameter, args)
-	authServiceAddressOverride, _ := common.ExtractValueFromArgumentList(consts.AuthServiceAddressOverrideParameter, args)
-	authServicePortOverride, _ := common.ExtractValueFromArgumentList(consts.AuthServicePortOverrideParameter, args)
+	clusterName, _ := common.ExtractValueFromArgumentList(fmt.Sprintf("--%v", consts.ClusterNameParameter), args)
+	authServiceAddressOverride, _ := common.ExtractValueFromArgumentList(fmt.Sprintf("--%v", consts.AuthServiceAddressOverrideParameter), args)
+	authServicePortOverride, _ := common.ExtractValueFromArgumentList(fmt.Sprintf("--%v", consts.AuthServicePortOverrideParameter), args)
 
 	authEP, err := foreigncluster.GetHomeAuthURL(ctx, clientSet, clientSet,
 		authServiceAddressOverride, authServicePortOverride, liqoNamespace)
