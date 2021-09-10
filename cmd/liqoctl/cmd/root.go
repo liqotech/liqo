@@ -52,5 +52,6 @@ func NewRootCommand(ctx context.Context) *cobra.Command {
 	rootCmd.AddCommand(newAddCommand(ctx))
 	rootCmd.AddCommand(newGenerateAddCommand(ctx))
 	rootCmd.AddCommand(newDocsCommand(ctx))
+	rootCmd.AddCommand(newVersionCommand())
 	return rootCmd
 }
