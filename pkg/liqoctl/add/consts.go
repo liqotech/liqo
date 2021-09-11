@@ -42,19 +42,19 @@ $ liqoctl add cluster my-cluster --auth-url https://my-cluster --id e8e3cdec-b00
 	sameClusterError     = "the ClusterID of the adding cluster is the same of the local cluster"
 	// SuccesfulMessage is printed when ad add cluster command has scucceded.
 	SuccesfulMessage = `
-	Hooray 🎉! You have correctly added the cluster %s and activated an outgoing peering towards it.
+Hooray 🎉! You have correctly added the cluster %s and activated an outgoing peering towards it.
 You can now:
 
-* Check the status of the peering to see when it is completely established. 
+* Check the status of the peering to see when it is completely established 👓.
 Every field of the foreigncluster (but IncomingPeering) should be in "Established":
 
 kubectl get foreignclusters %s
 
-* Check if the virtual node is correctly created (this should take less than ~30s):
+* Check if the virtual node is correctly created (this should take less than ~30s) 📦:
 
 kubectl get nodes liqo-%s
 
-* Ready to go! Let's deploy a simple application by simply typing:
+* Ready to go! Let's deploy a simple cross-cluster application using Liqo 🚜:
 
 kubectl create ns liqo-demo # Let's create a demo namespace
 kubectl label ns liqo-demo liqo.io/enabled=true # Enable Liqo offloading on this namespace (Check out https://doc.liqo.io/usage for more details).

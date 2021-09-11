@@ -17,7 +17,6 @@ package install
 import (
 	"context"
 	"fmt"
-	"os"
 
 	"github.com/spf13/cobra"
 
@@ -29,47 +28,54 @@ import (
 
 // HandleInstallCommand implements the "install" command. It detects which provider has to be used, generates the chart
 // with provider-specific values. Finally, it performs the installation on the target cluster.
-func HandleInstallCommand(ctx context.Context, cmd *cobra.Command, baseCommand, providerName string) {
+func HandleInstallCommand(ctx context.Context, cmd *cobra.Command, baseCommand, providerName string) error {
 	config := common.GetLiqoctlRestConfOrDie()
 	providerInstance := getProviderInstance(providerName)
 
 	if providerInstance == nil {
-		fmt.Printf("Provider of type %s not found", providerName)
-		return
+		return fmt.Errorf("provider %s not found", providerName)
 	}
 
+	fmt.Printf("* Initializing installer... 🔌 \n")
 	commonArgs, err := installprovider.ValidateCommonArguments(cmd.Flags())
 	if err != nil {
-		fmt.Printf("Unable to initialize configuration: %v", err)
-		os.Exit(1)
+		return err
 	}
 
 	helmClient, err := initHelmClient(config, commonArgs)
 	if err != nil {
-		fmt.Printf("Unable to create a client for the target cluster: %s", err)
-		return
+		return err
 	}
 
+	fmt.Printf("* Retrieving cluster configuration from cluster provider... 📜  \n")
 	err = providerInstance.ValidateCommandArguments(cmd.Flags())
 	if err != nil {
-		fmt.Printf("Unable to initialize configuration: %v", err)
-		os.Exit(1)
+		return err
 	}
 
 	err = providerInstance.ExtractChartParameters(ctx, config, commonArgs)
 	if err != nil {
-		fmt.Printf("Unable to initialize configuration: %v", err)
-		os.Exit(1)
+		return err
 	}
 
+	if commonArgs.DumpValues {
+		fmt.Printf("* Generating values.yaml file with the Liqo chart parameters for your cluster... 💾 \n")
+	} else {
+		fmt.Printf("* Installing or Upgrading Liqo... (this may take few minutes) ⏳ \n")
+	}
 	err = installOrUpdate(ctx, helmClient, providerInstance, commonArgs)
 	if err != nil {
-		fmt.Printf("Unable to initialize configuration: %v", err)
-		os.Exit(1)
+		return err
 	}
 
-	if !commonArgs.DumpValues && !commonArgs.DryRun {
-		// If the installation succeeded, let's print the add command to peer the target cluster with another one.
-		generate.HandleGenerateAddCommand(ctx, installutils.LiqoNamespace, baseCommand)
+	switch {
+	case !commonArgs.DumpValues && !commonArgs.DryRun:
+		fmt.Printf("* All Set! You can use Liqo now! 🚀\n")
+		return generate.HandleGenerateAddCommand(ctx, installutils.LiqoNamespace, baseCommand)
+	case commonArgs.DumpValues:
+		fmt.Printf("* All Set! Chart values written in file %s 🚀\n", commonArgs.DumpValuesPath)
+	case commonArgs.DryRun:
+		fmt.Printf("* All Set! You can use Liqo now! (Dry-run) 🚀\n")
 	}
+	return nil
 }
