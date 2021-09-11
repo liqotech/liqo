@@ -30,7 +30,6 @@ func newInstallCommand(ctx context.Context) *cobra.Command {
 		Short: installutils.LiqoctlInstallShortHelp,
 		Long:  installutils.LiqoctlInstallLongHelp,
 	}
-
 	installCmd.PersistentFlags().IntP("timeout", "t", 600, "Configure the timeout for the installation process in seconds")
 	installCmd.PersistentFlags().StringP("version", "", "", "Select the Liqo version (default: latest stable release)")
 	installCmd.PersistentFlags().BoolP("devel", "", false,

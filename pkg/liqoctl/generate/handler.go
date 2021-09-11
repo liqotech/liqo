@@ -34,18 +34,19 @@ import (
 )
 
 // HandleGenerateAddCommand outputs the liqoctl add command to use to add the target cluster.
-func HandleGenerateAddCommand(ctx context.Context, liqoNamespace, commandName string) {
+func HandleGenerateAddCommand(ctx context.Context, liqoNamespace, commandName string) error {
 	restConfig := common.GetLiqoctlRestConfOrDie()
 
 	clientSet, err := client.New(restConfig, client.Options{})
 	if err != nil {
-		klog.Fatalf(err.Error())
+		return err
 	}
 
 	commandString := processGenerateCommand(ctx, clientSet, liqoNamespace, commandName)
 
-	fmt.Printf("\nUse this command to peer with this cluster:\n\n")
-	fmt.Printf("%s\n", commandString)
+	fmt.Printf("\nUse this command on a DIFFERENT cluster to enable an outgoing peering WITH THE CURRENT cluster 🛠:\n\n")
+	fmt.Printf("%s\n\n", commandString)
+	return nil
 }
 
 func processGenerateCommand(ctx context.Context, clientSet client.Client, liqoNamespace, commandName string) string {

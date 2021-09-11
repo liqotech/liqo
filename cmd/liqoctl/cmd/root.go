@@ -43,7 +43,6 @@ func NewRootCommand(ctx context.Context) *cobra.Command {
 			rootCmd.PersistentFlags().AddGoFlag(f)
 		}
 	})
-
 	rateFlagset := flag.NewFlagSet("rate-limiting", flag.PanicOnError)
 	restcfg.InitFlags(rateFlagset)
 	rootCmd.PersistentFlags().AddGoFlagSet(rateFlagset)

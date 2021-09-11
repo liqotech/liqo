@@ -31,8 +31,8 @@ func newGenerateAddCommand(ctx context.Context) *cobra.Command {
 		Use:   generate.LiqoctlGenerateAddCommand,
 		Short: generate.LiqoctlGenerateShortHelp,
 		Long:  generate.LiqoctlGenerateLongHelp,
-		Run: func(cmd *cobra.Command, args []string) {
-			generate.HandleGenerateAddCommand(ctx, liqoNamespace, os.Args[0])
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return generate.HandleGenerateAddCommand(ctx, liqoNamespace, os.Args[0])
 		},
 	}
 	addCmd.Flags().StringVar(&liqoNamespace, "namespace", add.ClusterLiqoNamespace,

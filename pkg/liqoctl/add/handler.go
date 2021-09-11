@@ -44,27 +44,30 @@ type ClusterArgs struct {
 }
 
 // HandleAddCommand handles the add command, configuring all the resources required to configure an outgoing peering.
-func HandleAddCommand(ctx context.Context, t *ClusterArgs) {
+func HandleAddCommand(ctx context.Context, t *ClusterArgs) error {
 	restConfig := common.GetLiqoctlRestConfOrDie()
 
+	klog.Info("* Initializing 🔌... ")
 	clientSet, err := kubernetes.NewForConfig(restConfig)
 	if err != nil {
-		klog.Fatalf(err.Error())
+		return err
 	}
 
 	k8sClient, err := client.New(restConfig, client.Options{})
 	if err != nil {
-		klog.Fatalf(err.Error())
+		return err
 	}
 
+	klog.Info("* Processing Cluster Addition 🔧... ")
 	if err := processAddCluster(ctx, t, clientSet, k8sClient); err != nil {
-		klog.Fatalf(err.Error())
+		return err
 	}
 
 	err = printSuccesfulOutputMessage(ctx, t, k8sClient)
 	if err != nil {
-		klog.Fatalf(err.Error())
+		return err
 	}
+	return nil
 }
 
 func printSuccesfulOutputMessage(ctx context.Context, t *ClusterArgs, k8sClient client.Client) error {
