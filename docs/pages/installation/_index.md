@@ -3,6 +3,8 @@ title: Installation
 weight: 2
 ---
 
+{{% install-url-query-parser %}}
+
 ### Pre-Installation
 
 As presented in the ["Getting Started" section](/gettingstarted/), Liqo can be used with different topologies and scenarios. 
