@@ -83,12 +83,4 @@ rules:
   - patch
   - update
   - watch
-- apiGroups:
-  - net.liqo.io
-  resources:
-  - tunnelendpoints/status
-  verbs:
-  - get
-  - patch
-  - update
 

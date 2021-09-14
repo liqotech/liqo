@@ -124,7 +124,6 @@ func runNetworkManager(commonFlags *liqonetCommonFlags, managerFlags *networkMan
 	tec := &tunnelendpointcreator.TunnelEndpointCreator{
 		Client:    mgr.GetClient(),
 		Scheme:    mgr.GetScheme(),
-		DynClient: dynClient,
 		IPManager: ipam,
 	}
 

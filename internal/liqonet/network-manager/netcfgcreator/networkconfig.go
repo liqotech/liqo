@@ -70,6 +70,28 @@ func GetLocalNetworkConfig(ctx context.Context, c client.Client, clusterID, name
 	}
 }
 
+// GetRemoteNetworkConfig returns the remote NetworkConfig associated with a given cluster ID.
+func GetRemoteNetworkConfig(ctx context.Context, c client.Client, clusterID, namespace string) (*netv1alpha1.NetworkConfig, error) {
+	networkConfigList := &netv1alpha1.NetworkConfigList{}
+	labels := client.MatchingLabels{crdreplicator.RemoteLabelSelector: clusterID}
+
+	if err := c.List(ctx, networkConfigList, labels, client.InNamespace(namespace)); err != nil {
+		klog.Errorf("An error occurred while listing NetworkConfigs: %v", err)
+		return nil, err
+	}
+
+	switch len(networkConfigList.Items) {
+	case 0:
+		return nil, kerrors.NewNotFound(netv1alpha1.NetworkConfigGroupResource,
+			fmt.Sprintf("Remote NetworkConfig for cluster: %v", clusterID))
+	case 1:
+		return &networkConfigList.Items[0], nil
+	default:
+		// Multiple NetworkConfigs for the same cluster have been detected.
+		return nil, fmt.Errorf("found multiple instances of remote NetworkConfigs for remote cluster %v", clusterID)
+	}
+}
+
 // filterDuplicateNetworkConfig filters a list of NetworkConfigs, and selects the duplicated to be deleted.
 func filterDuplicateNetworkConfig(items []netv1alpha1.NetworkConfig) (netcfg *netv1alpha1.NetworkConfig, duplicates []netv1alpha1.NetworkConfig) {
 	// Sort the elements by creation timestamp and, if equal, by UID.

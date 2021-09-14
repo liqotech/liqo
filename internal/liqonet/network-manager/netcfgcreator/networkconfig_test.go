@@ -144,6 +144,52 @@ var _ = Describe("Network config functions", func() {
 		})
 	})
 
+	Describe("The GetRemoteNetworkConfig function", func() {
+		var (
+			netcfg *netv1alpha1.NetworkConfig
+			err    error
+		)
+
+		JustBeforeEach(func() {
+			netcfg, err = GetRemoteNetworkConfig(ctx, fcw.Client, clusterID, namespace)
+		})
+
+		When("the network config with the given cluster ID does not exist", func() {
+			It("should return a not found error", func() {
+				Expect(err).To(HaveOccurred())
+				Expect(kerrors.IsNotFound(err)).To(BeTrue())
+			})
+			It("should return a nil network config", func() { Expect(netcfg).To(BeNil()) })
+		})
+
+		When("the network config with the given cluster ID does exist", func() {
+			var existing *netv1alpha1.NetworkConfig
+
+			BeforeEach(func() {
+				existing = &netv1alpha1.NetworkConfig{ObjectMeta: metav1.ObjectMeta{
+					Name: "foo", Namespace: namespace, Labels: map[string]string{crdreplicator.RemoteLabelSelector: clusterID},
+				}}
+				clientBuilder.WithObjects(existing)
+			})
+
+			It("should succeed", func() { Expect(err).ToNot(HaveOccurred()) })
+			It("should return the expected network config", func() { Expect(netcfg).To(Equal(existing)) })
+		})
+
+		When("two network configs with the given cluster ID do exist", func() {
+			BeforeEach(func() {
+				clientBuilder.WithObjects(&netv1alpha1.NetworkConfig{ObjectMeta: metav1.ObjectMeta{
+					Name: "foo", Namespace: namespace, Labels: map[string]string{crdreplicator.RemoteLabelSelector: clusterID},
+				}}, &netv1alpha1.NetworkConfig{ObjectMeta: metav1.ObjectMeta{
+					Name: "bar", Namespace: namespace, Labels: map[string]string{crdreplicator.RemoteLabelSelector: clusterID},
+				}})
+			})
+
+			It("should fail with an error", func() { Expect(err).To(HaveOccurred()) })
+			It("should return a nil network config", func() { Expect(netcfg).To(BeNil()) })
+		})
+	})
+
 	Describe("The Enforce* functions", func() {
 		var (
 			fc  *discoveryv1alpha1.ForeignCluster
