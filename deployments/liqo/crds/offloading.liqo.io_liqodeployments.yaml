@@ -1,0 +1,201 @@
+
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.6.2
+  creationTimestamp: null
+  name: liqodeployments.offloading.liqo.io
+spec:
+  group: offloading.liqo.io
+  names:
+    kind: LiqoDeployment
+    listKind: LiqoDeploymentList
+    plural: liqodeployments
+    shortNames:
+    - ldp
+    singular: liqodeployment
+  scope: Namespaced
+  versions:
+  - name: v1alpha1
+    schema:
+      openAPIV3Schema:
+        description: LiqoDeployment is the Schema for the liqodeployments API.
+        properties:
+          apiVersion:
+            description: 'APIVersion defines the versioned schema of this representation
+              of an object. Servers should convert recognized schemas to the latest
+              internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
+            type: string
+          kind:
+            description: 'Kind is a string value representing the REST resource this
+              object represents. Servers may infer this from the endpoint the client
+              submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
+            type: string
+          metadata:
+            type: object
+          spec:
+            description: LiqoDeploymentSpec defines the desired state of LiqoDeployment.
+            properties:
+              generationLabels:
+                description: GenerationLabels chooses the granularity to replicate
+                  deployments. Each combination of values that these labels assume
+                  between remote clusters leads to the creation of a deployment replica.
+                items:
+                  type: string
+                type: array
+              selectedClusters:
+                description: SelectedClusters allows users selecting a restricted
+                  group of cluster to involve in the deployment replication process.
+                properties:
+                  nodeSelectorTerms:
+                    description: Required. A list of node selector terms. The terms
+                      are ORed.
+                    items:
+                      description: A null or empty node selector term matches no objects.
+                        The requirements of them are ANDed. The TopologySelectorTerm
+                        type implements a subset of the NodeSelectorTerm.
+                      properties:
+                        matchExpressions:
+                          description: A list of node selector requirements by node's
+                            labels.
+                          items:
+                            description: A node selector requirement is a selector
+                              that contains values, a key, and an operator that relates
+                              the key and values.
+                            properties:
+                              key:
+                                description: The label key that the selector applies
+                                  to.
+                                type: string
+                              operator:
+                                description: Represents a key's relationship to a
+                                  set of values. Valid operators are In, NotIn, Exists,
+                                  DoesNotExist. Gt, and Lt.
+                                type: string
+                              values:
+                                description: An array of string values. If the operator
+                                  is In or NotIn, the values array must be non-empty.
+                                  If the operator is Exists or DoesNotExist, the values
+                                  array must be empty. If the operator is Gt or Lt,
+                                  the values array must have a single element, which
+                                  will be interpreted as an integer. This array is
+                                  replaced during a strategic merge patch.
+                                items:
+                                  type: string
+                                type: array
+                            required:
+                            - key
+                            - operator
+                            type: object
+                          type: array
+                        matchFields:
+                          description: A list of node selector requirements by node's
+                            fields.
+                          items:
+                            description: A node selector requirement is a selector
+                              that contains values, a key, and an operator that relates
+                              the key and values.
+                            properties:
+                              key:
+                                description: The label key that the selector applies
+                                  to.
+                                type: string
+                              operator:
+                                description: Represents a key's relationship to a
+                                  set of values. Valid operators are In, NotIn, Exists,
+                                  DoesNotExist. Gt, and Lt.
+                                type: string
+                              values:
+                                description: An array of string values. If the operator
+                                  is In or NotIn, the values array must be non-empty.
+                                  If the operator is Exists or DoesNotExist, the values
+                                  array must be empty. If the operator is Gt or Lt,
+                                  the values array must have a single element, which
+                                  will be interpreted as an integer. This array is
+                                  replaced during a strategic merge patch.
+                                items:
+                                  type: string
+                                type: array
+                            required:
+                            - key
+                            - operator
+                            type: object
+                          type: array
+                      type: object
+                    type: array
+                required:
+                - nodeSelectorTerms
+                type: object
+              template:
+                description: Template describes the deployment replicas content.
+                type: object
+                x-kubernetes-preserve-unknown-fields: true
+            required:
+            - template
+            type: object
+          status:
+            description: LiqoDeploymentStatus defines the observed state of LiqoDeployment.
+            properties:
+              currentDeployment:
+                additionalProperties:
+                  description: GeneratedDeploymentStatus describes the status of a
+                    generated deployment.
+                  properties:
+                    deploymentLastCondition:
+                      description: DeploymentLastCondition is the last condition provided
+                        by the deployment.
+                      properties:
+                        lastTransitionTime:
+                          description: Last time the condition transitioned from one
+                            status to another.
+                          format: date-time
+                          type: string
+                        lastUpdateTime:
+                          description: The last time this condition was updated.
+                          format: date-time
+                          type: string
+                        message:
+                          description: A human readable message indicating details
+                            about the transition.
+                          type: string
+                        reason:
+                          description: The reason for the condition's last transition.
+                          type: string
+                        status:
+                          description: Status of the condition, one of True, False,
+                            Unknown.
+                          type: string
+                        type:
+                          description: Type of deployment condition.
+                          type: string
+                      required:
+                      - status
+                      - type
+                      type: object
+                    generationLabelValues:
+                      additionalProperties:
+                        type: string
+                      description: GenerationLabelsValues represents the combination
+                        of values that characterizes this generated deployment.
+                      type: object
+                  type: object
+                description: 'CurrentDeployment keeps track of the deployments generated
+                  by this resource and their actual status. Every entry has as its
+                  key the generated deployment name, while as its value a combination
+                  of: the last deployment condition and the GenerationLabels values
+                  that characterize this generated deployment.'
+                type: object
+            type: object
+        required:
+        - spec
+        type: object
+    served: true
+    storage: true
+status:
+  acceptedNames:
+    kind: ""
+    plural: ""
+  conditions: []
+  storedVersions: []
