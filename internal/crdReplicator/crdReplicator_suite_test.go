@@ -104,7 +104,7 @@ var _ = BeforeSuite(func() {
 
 		RegisteredResources: resources.GetResourcesToReplicate(),
 		ReflectionManager:   reflectionManager,
-		Reflectors:          make(map[string]*reflection.Reflector),
+		Reflectors:          make(map[string]crdreplicator.ReflectorSet),
 
 		IdentityReader: fake.NewIdentityReader().Add(remoteCluster.ClusterID, remoteNamespace, cluster.GetCfg()),
 	}

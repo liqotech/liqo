@@ -59,5 +59,5 @@ func IsExpired(fc *discoveryv1alpha1.ForeignCluster) bool {
 		return true
 	}
 	now := time.Now().Unix()
-	return int64(lu+fc.Spec.TTL) < now
+	return int64(lu+fc.Spec.FullPeering.TTL) < now
 }

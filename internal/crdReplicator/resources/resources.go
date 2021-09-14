@@ -29,10 +29,12 @@ import (
 type Resource struct {
 	// GroupVersionResource contains the GVR of the resource to replicate.
 	GroupVersionResource schema.GroupVersionResource
-	// PeeringPhase contains the peering phase when this resource should be replicated.
+	// PeeringPhase contains the peering phase this resource requires for reflection.
 	PeeringPhase consts.PeeringPhase
 	// Ownership indicates the ownership over this resource.
 	Ownership consts.OwnershipType
+	// Forwardable indicates that the resource can be forwarded to a remote cluster
+	Forwardable bool
 }
 
 // GetResourcesToReplicate returns the list of resources to be replicated through the CRD replicator.
@@ -50,6 +52,12 @@ func GetResourcesToReplicate() []Resource {
 		},
 		{
 			GroupVersionResource: netv1alpha1.NetworkConfigGroupVersionResource,
+			PeeringPhase:         consts.PeeringPhaseEstablished,
+			Ownership:            consts.OwnershipShared,
+			Forwardable:          true,
+		},
+		{
+			GroupVersionResource: discoveryv1alpha1.NeighborhoodGroupVersionResource,
 			PeeringPhase:         consts.PeeringPhaseEstablished,
 			Ownership:            consts.OwnershipShared,
 		},

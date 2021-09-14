@@ -41,9 +41,12 @@ type networkManagerFlags struct {
 
 	additionalPools args.CIDRList
 	reservedPools   args.CIDRList
+
+	clusterID string
 }
 
 func addNetworkManagerFlags(managerFlags *networkManagerFlags) {
+	flag.StringVar(&managerFlags.clusterID, "manager.cluster-id", "", "The cluster ID identifying the current cluster")
 	flag.Var(&managerFlags.podCIDR, "manager.pod-cidr", "The subnet used by the cluster for the pods, in CIDR notation")
 	flag.Var(&managerFlags.serviceCIDR, "manager.service-cidr", "The subnet used by the cluster for the pods, in services notation")
 	flag.Var(&managerFlags.reservedPools, "manager.reserved-pools",
@@ -92,6 +95,7 @@ func runNetworkManager(commonFlags *liqonetCommonFlags, managerFlags *networkMan
 		Client:    mgr.GetClient(),
 		Scheme:    mgr.GetScheme(),
 		IPManager: ipam,
+		ClusterID: managerFlags.clusterID,
 	}
 
 	ncc := &netcfgcreator.NetworkConfigCreator{

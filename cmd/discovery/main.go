@@ -29,6 +29,7 @@ import (
 	nettypes "github.com/liqotech/liqo/apis/net/v1alpha1"
 	advtypes "github.com/liqotech/liqo/apis/sharing/v1alpha1"
 	discovery "github.com/liqotech/liqo/pkg/discoverymanager"
+	inducedforeignclustercreator "github.com/liqotech/liqo/pkg/liqo-controller-manager/induced-foreign-cluster-creator"
 	"github.com/liqotech/liqo/pkg/utils/args"
 	"github.com/liqotech/liqo/pkg/utils/mapper"
 	"github.com/liqotech/liqo/pkg/utils/restcfg"
@@ -110,6 +111,17 @@ func main() {
 		clusterIdentity, mdnsConfig, *dialTCPTimeout)
 	if err := mgr.Add(discoveryCtl); err != nil {
 		klog.Errorf("Unable to add the discovery controller to the manager: %w", err)
+		os.Exit(1)
+	}
+
+	klog.Info("Starting the inducedforeignclustercreator")
+	inducedforeignclustercreator := &inducedforeignclustercreator.InducedForeignClusterCreator{
+		Client:        mgr.GetClient(),
+		Scheme:        scheme,
+		DiscoveryCtrl: discoveryCtl,
+	}
+	if err := inducedforeignclustercreator.SetupWithManager(mgr); err != nil {
+		klog.Errorf("Unable to setup inducedforeignclustercreator with the manager: %w", err)
 		os.Exit(1)
 	}
 

@@ -37,6 +37,11 @@ func IsOutgoingJoined(foreignCluster *discoveryv1alpha1.ForeignCluster) bool {
 	return curPhase == discoveryv1alpha1.PeeringConditionStatusEstablished
 }
 
+// IsInducedEnabled checks if the induced peering is enabled.
+func IsInducedEnabled(foreignCluster *discoveryv1alpha1.ForeignCluster) bool {
+	return foreignCluster.Spec.InducedPeering.InducedPeeringEnabled == discoveryv1alpha1.PeeringEnabledYes
+}
+
 // IsIncomingEnabled checks if the incoming peering is enabled (i.e. Pending, Established or Deleting).
 func IsIncomingEnabled(foreignCluster *discoveryv1alpha1.ForeignCluster) bool {
 	curPhase := peeringconditionsutils.GetStatus(foreignCluster, discoveryv1alpha1.IncomingPeeringCondition)

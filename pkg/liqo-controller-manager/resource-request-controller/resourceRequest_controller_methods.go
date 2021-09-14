@@ -28,6 +28,12 @@ import (
 
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	sharingv1alpha1 "github.com/liqotech/liqo/apis/sharing/v1alpha1"
+	liqoconst "github.com/liqotech/liqo/pkg/consts"
+)
+
+const (
+	tenantFinalizer        = "liqo.io/tenant"
+	passthroughClusterRole = "liqo-passthrough-ClusterRole"
 )
 
 func (r *ResourceRequestReconciler) ensureClusterRole(ctx context.Context,
@@ -75,6 +81,65 @@ func (r *ResourceRequestReconciler) ensureClusterRoleBinding(ctx context.Context
 		return nil
 	})
 	return err
+}
+
+func (r *ResourceRequestReconciler) ensurePassthroughClusterRole(ctx context.Context, clusterID string) error {
+	var roleBinding rbacv1.RoleBinding
+	err := r.Get(ctx, types.NamespacedName{Namespace: liqoconst.LiqoPublicNS, Name: fmt.Sprintf("passthrough-tenant-%s", clusterID)}, &roleBinding)
+	if client.IgnoreNotFound(err) != nil {
+		return err
+	}
+	if err != nil {
+		// err is notfound, create binding
+		clusterRole, err := r.getPassthroughClusterRole(ctx)
+		if err != nil {
+			return err
+		}
+		roleBinding := forgePassthroughRoleBinding(clusterID, clusterRole)
+		if err := r.Create(ctx, roleBinding); err != nil {
+			return err
+		}
+		klog.Infof("Passthrough ClusterRole bind to cluster %s", clusterID)
+	}
+	return nil
+}
+
+func (r *ResourceRequestReconciler) getPassthroughClusterRole(ctx context.Context) (*rbacv1.ClusterRole, error) {
+	var cr rbacv1.ClusterRole
+	if err := r.Get(ctx, types.NamespacedName{Namespace: liqoconst.LiqoPublicNS, Name: passthroughClusterRole}, &cr); err != nil {
+		return nil, err
+	}
+	return &cr, nil
+}
+
+func forgePassthroughRoleBinding(clusterID string, cr *rbacv1.ClusterRole) *rbacv1.RoleBinding {
+	ownerRef := metav1.OwnerReference{
+		APIVersion: rbacv1.SchemeGroupVersion.String(),
+		Kind:       "ClusterRole",
+		Name:       passthroughClusterRole,
+		UID:        cr.GetUID(),
+	}
+	return &rbacv1.RoleBinding{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      fmt.Sprintf("passthrough-tenant-%s", clusterID),
+			Namespace: liqoconst.LiqoPublicNS,
+			OwnerReferences: []metav1.OwnerReference{
+				ownerRef,
+			},
+		},
+		Subjects: []rbacv1.Subject{
+			{
+				Kind:     rbacv1.UserKind,
+				APIGroup: rbacv1.GroupName,
+				Name:     clusterID,
+			},
+		},
+		RoleRef: rbacv1.RoleRef{
+			APIGroup: rbacv1.GroupName,
+			Kind:     "ClusterRole",
+			Name:     passthroughClusterRole,
+		},
+	}
 }
 
 func (r *ResourceRequestReconciler) deleteClusterRole(ctx context.Context,

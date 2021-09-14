@@ -48,6 +48,8 @@ type ResourceRequestReconciler struct {
 // +kubebuilder:rbac:groups=metrics.liqo.io,resources=scrape;scrape/metrics,verbs=get
 
 // +kubebuilder:rbac:groups=storage.k8s.io,resources=storageclasses,verbs=get;list;watch
+// +kubebuilder:rbac:groups=rbac.authorization.k8s.io,resources=rolebindings,verbs=get;list;watch;create
+// +kubebuilder:rbac:groups=rbac.authorization.k8s.io,resources=clusteroles,verbs=get;list;watch;create
 
 // Reconcile is the main function of the controller which reconciles ResourceRequest resources.
 func (r *ResourceRequestReconciler) Reconcile(ctx context.Context, req ctrl.Request) (result ctrl.Result, err error) {
@@ -103,6 +105,11 @@ func (r *ResourceRequestReconciler) Reconcile(ctx context.Context, req ctrl.Requ
 		}
 		if err = r.ensureClusterRoleBinding(ctx, remoteCluster); err != nil {
 			klog.Errorf("%s -> Error creating ClusterRoleBinding: %s", remoteCluster.ClusterName, err)
+			return ctrl.Result{}, err
+		}
+		// Bind Passthrough ClusterRole to tenant
+		if err = r.ensurePassthroughClusterRole(ctx, remoteCluster.ClusterID); client.IgnoreNotFound(err) != nil {
+			klog.Error(err)
 			return ctrl.Result{}, err
 		}
 	}

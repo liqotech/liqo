@@ -35,7 +35,7 @@ func (r *ForeignClusterReconciler) needsClusterIdentityDefaulting(fc *v1alpha1.F
 // Cluster.ClusterID, Cluster.ClusterName.
 func (r *ForeignClusterReconciler) clusterIdentityDefaulting(ctx context.Context, fc *v1alpha1.ForeignCluster) error {
 	klog.V(4).Infof("Defaulting Cluster values for ForeignCluster %v", fc.Name)
-	ids, err := utils.GetClusterInfo(ctx, r.transport(foreignclusterutils.InsecureSkipTLSVerify(fc)), fc.Spec.ForeignAuthURL)
+	ids, err := utils.GetClusterInfo(ctx, r.transport(foreignclusterutils.InsecureSkipTLSVerify(fc)), fc.Spec.FullPeering.ForeignAuthURL)
 	if err != nil {
 		klog.Error(err)
 		return err

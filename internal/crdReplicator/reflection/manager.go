@@ -84,21 +84,33 @@ func (m *Manager) Start(ctx context.Context, registeredResources []resources.Res
 	klog.Infof("Local informer factory synced correctly")
 }
 
-// NewForRemote returns a new reflector for a given remote cluster.
-func (m *Manager) NewForRemote(client dynamic.Interface, clusterID, localNamespace, remoteNamespace string) *Reflector {
-	return &Reflector{
-		manager: m,
+// NewForTarget returns a new reflector for a given target cluster's namespace.
+func (m *Manager) NewForTarget(clientForTarget dynamic.Interface, targetClusterID, sourceNamespace, targetNamespace string, isLocalToLocal bool) *Reflector {
+	reflector := &Reflector{
+		TenantNamespaces: make(map[string]string),
 
-		localNamespace: localNamespace,
-		localClusterID: m.clusterID,
+		clientForTarget: clientForTarget,
 
-		remoteClient:    client,
-		remoteNamespace: remoteNamespace,
-		remoteClusterID: clusterID,
-
-		resources: make(map[schema.GroupVersionResource]*reflectedResource),
+		resources: make(map[schema.GroupVersionResource][]*resourceToReflect),
 		workqueue: workqueue.NewRateLimitingQueue(workqueue.DefaultControllerRateLimiter()),
+
+		getWorkers:               func() uint { return m.workers },
+		getLocalClient:           func() dynamic.Interface { return m.client },
+		getResync:                func() time.Duration { return m.resync },
+		getLister:                func(gvr schema.GroupVersionResource) cache.GenericLister { return m.listers[gvr] },
+		registerManagerHandler:   m.registerHandler,
+		unregisterManagerHandler: m.unregisterHandler,
+		isLocalToLocal:           isLocalToLocal,
 	}
+
+	if targetClusterID != "" && targetNamespace != "" {
+		reflector.TenantNamespaces[targetClusterID] = targetNamespace
+	}
+	if targetNamespace != "" {
+		reflector.TenantNamespaces[m.clusterID] = sourceNamespace
+	}
+
+	return reflector
 }
 
 // registerHandler registers the handler for a given GroupVersionResource and namespace.
@@ -130,12 +142,13 @@ func (m *Manager) unregisterHandler(gvr schema.GroupVersionResource, namespace s
 func (m *Manager) eventHandlers(gvr schema.GroupVersionResource) cache.ResourceEventHandlerFuncs {
 	m.handlers[gvr] = make(map[string]func(key item))
 
+	// This function selects and calls the handler based on captured gvr and namespace retrieved from its parameter.
 	eh := func(obj interface{}) {
 		unstruct := obj.(*unstructured.Unstructured)
 		m.handlersMutex.RLock()
 		defer m.handlersMutex.RUnlock()
-		if handle, found := m.handlers[gvr][unstruct.GetNamespace()]; found {
-			handle(item{gvr: gvr, name: unstruct.GetName()})
+		if handler, found := m.handlers[gvr][unstruct.GetNamespace()]; found {
+			handler(item{gvr: gvr, name: unstruct.GetName()})
 		}
 	}
 
@@ -168,6 +181,28 @@ func LocalResourcesLabelSelector() metav1.LabelSelector {
 			{
 				Key:      consts.ReplicationDestinationLabel,
 				Operator: metav1.LabelSelectorOpExists,
+			},
+		},
+	}
+}
+
+// RemoteResourcesLabelSelector is an helper function which returns a label selector to list all the resources received by other clusters.
+func RemoteResourcesLabelSelector() metav1.LabelSelector {
+	return metav1.LabelSelector{
+		MatchExpressions: []metav1.LabelSelectorRequirement{
+			{
+				Key:      consts.ReplicationRequestedLabel,
+				Operator: metav1.LabelSelectorOpIn,
+				Values:   []string{strconv.FormatBool(false)},
+			},
+			{
+				Key:      consts.ReplicationDestinationLabel,
+				Operator: metav1.LabelSelectorOpExists,
+			},
+			{
+				Key:      consts.ReplicationStatusLabel,
+				Operator: metav1.LabelSelectorOpIn,
+				Values:   []string{strconv.FormatBool(true)},
 			},
 		},
 	}

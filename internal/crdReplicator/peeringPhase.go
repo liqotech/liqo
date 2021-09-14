@@ -44,9 +44,8 @@ func (c *Controller) setPeeringPhase(clusterID string, phase consts.PeeringPhase
 	c.peeringPhases[clusterID] = phase
 }
 
-// isReplicationEnabled indicates if the replication has to be enabled for a given peeringPhase
-// and a given CRD.
-func isReplicationEnabled(peeringPhase consts.PeeringPhase, resource *resources.Resource) bool {
+// isReplicationAllowed indicates if the given peering phase matches the one required by the given resource
+func isReplicationAllowed(peeringPhase consts.PeeringPhase, resource *resources.Resource) bool {
 	switch resource.PeeringPhase {
 	case consts.PeeringPhaseNone:
 		return false
@@ -62,7 +61,8 @@ func isReplicationEnabled(peeringPhase consts.PeeringPhase, resource *resources.
 		bidirectional := peeringPhase == consts.PeeringPhaseBidirectional
 		incoming := peeringPhase == consts.PeeringPhaseIncoming
 		outgoing := peeringPhase == consts.PeeringPhaseOutgoing
-		return bidirectional || incoming || outgoing
+		induced := peeringPhase == consts.PeeringPhaseInduced
+		return bidirectional || incoming || outgoing || induced
 	default:
 		klog.Warning("Unknown peering phase %v", resource.PeeringPhase)
 		return false

@@ -53,10 +53,12 @@ var _ = Context("eventHandler test", func() {
 					ClusterIdentity: discoveryv1alpha1.ClusterIdentity{
 						ClusterID: foreignClusterID,
 					},
-					OutgoingPeeringEnabled: discoveryv1alpha1.PeeringEnabledAuto,
-					IncomingPeeringEnabled: discoveryv1alpha1.PeeringEnabledAuto,
-					ForeignAuthURL:         "https://example.com",
-					InsecureSkipTLSVerify:  pointer.BoolPtr(true),
+					FullPeering: discoveryv1alpha1.FullPeering{
+						OutgoingPeeringEnabled: discoveryv1alpha1.PeeringEnabledAuto,
+						IncomingPeeringEnabled: discoveryv1alpha1.PeeringEnabledAuto,
+						ForeignAuthURL:         "https://example.com",
+						InsecureSkipTLSVerify:  pointer.BoolPtr(true),
+					},
 				},
 			}
 

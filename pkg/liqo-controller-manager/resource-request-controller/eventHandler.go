@@ -50,7 +50,7 @@ func getForeignClusterEventHandler(c client.Client) handler.EventHandler {
 			}
 
 			remoteCluster := newForeignCluster.Spec.ClusterIdentity
-			if oldForeignCluster.Spec.IncomingPeeringEnabled != newForeignCluster.Spec.IncomingPeeringEnabled {
+			if oldForeignCluster.Spec.FullPeering.IncomingPeeringEnabled != newForeignCluster.Spec.FullPeering.IncomingPeeringEnabled {
 				resourceRequest, err := GetResourceRequest(ctx, c, remoteCluster.ClusterID)
 				if err != nil {
 					klog.Errorf("[%s] failed to list resource requests: %s\n", remoteCluster.ClusterName, err)

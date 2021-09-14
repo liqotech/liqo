@@ -18,7 +18,9 @@ import (
 	"context"
 	"fmt"
 	"sync"
+	"time"
 
+	"google.golang.org/grpc"
 	corev1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
@@ -28,6 +30,7 @@ import (
 	"k8s.io/utils/trace"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
+	"github.com/liqotech/liqo/pkg/consts"
 	"github.com/liqotech/liqo/pkg/liqonet/ipam"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/forge"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/reflection/generic"
@@ -50,7 +53,9 @@ type NamespacedEndpointSliceReflector struct {
 	remoteEndpointSlices       discoveryv1beta1listers.EndpointSliceNamespaceLister
 	remoteEndpointSlicesClient discoveryv1beta1clients.EndpointSliceInterface
 
-	ipamclient   ipam.IpamClient
+	ipamclient        ipam.IpamClient
+	remoteIpamClients map[string]ipam.IpamClient
+
 	translations sync.Map
 }
 
@@ -74,6 +79,7 @@ func NewNamespacedEndpointSliceReflector(ipamclient ipam.IpamClient) func(*optio
 			remoteEndpointSlices:       remote.Lister().EndpointSlices(opts.RemoteNamespace),
 			remoteEndpointSlicesClient: opts.RemoteClient.DiscoveryV1beta1().EndpointSlices(opts.RemoteNamespace),
 			ipamclient:                 ipamclient,
+			remoteIpamClients:          make(map[string]ipam.IpamClient),
 		}
 	}
 }
@@ -156,6 +162,21 @@ func (ner *NamespacedEndpointSliceReflector) Handle(ctx context.Context, name st
 	return nil
 }
 
+func initRemoteIpamClient(ctx context.Context, clusterID string) ipam.IpamClient {
+	target := fmt.Sprintf("%s.liqo-%s.svc.cluster.local.:%d", consts.NetworkManagerServiceName, clusterID, consts.NetworkManagerIpamPort)
+	dialctx, cancel := context.WithTimeout(ctx, 10*time.Second)
+	klog.Infof("Connecting to remote IPAM through service %s", target)
+	conn, err := grpc.DialContext(dialctx, target, grpc.WithInsecure(), grpc.WithBlock())
+	cancel()
+	if err != nil {
+		klog.Infof("failed to establish a connection to remote IPAM: %v", err)
+		return nil
+	}
+	klog.Infof("Successfully connected to remote IPAM through service %s", target)
+
+	return ipam.NewIpamClient(conn)
+}
+
 // MapEndpointIPs maps the local set of addresses to the corresponding remote ones.
 func (ner *NamespacedEndpointSliceReflector) MapEndpointIPs(ctx context.Context, endpointslice string, originals []string) ([]string, error) {
 	var translations []string
@@ -164,6 +185,7 @@ func (ner *NamespacedEndpointSliceReflector) MapEndpointIPs(ctx context.Context,
 	// since we are guaranteed to be the only ones operating on this object.
 	ucache, _ := ner.translations.LoadOrStore(endpointslice, map[string]string{})
 	cache := ucache.(map[string]string)
+	var ipamClient ipam.IpamClient
 
 	for _, original := range originals {
 		// Check if we already know the translation.
@@ -171,11 +193,54 @@ func (ner *NamespacedEndpointSliceReflector) MapEndpointIPs(ctx context.Context,
 
 		if !found {
 			// Cache miss -> we need to interact with the IPAM to request the translation.
-			response, err := ner.ipamclient.MapEndpointIP(ctx, &ipam.MapRequest{ClusterID: forge.RemoteClusterID, Ip: original})
+
+			// Get the cluster ID of the cluster the address belongs to.
+			response, err := ner.ipamclient.GetClusterID(ctx, &ipam.ClusterIDRequest{Ip: original})
+			if err != nil {
+				return nil, fmt.Errorf("failed to retrieve the cluster ID the endpoint IP %v belongs to: %w", original, err)
+			}
+			clusterID := response.GetClusterID()
+
+			useLocalIPAM := true
+			if clusterID != "" {
+				// Remote cluster ID found, check whether cluster mapping exists
+				klog.V(4).Infof("Found cluster ID %s from IP %s", clusterID, original)
+
+				ipamClient = ner.remoteIpamClients[clusterID]
+				if ipamClient == nil {
+					ipamClient = initRemoteIpamClient(ctx, clusterID)
+					ner.remoteIpamClients[clusterID] = ipamClient
+				}
+
+				if ipamClient != nil {
+					clusterMappingResponse, err := ipamClient.DoesClusterMappingExist(ctx, &ipam.ClusterMappingRequest{ClusterID: forge.RemoteClusterID})
+					if err != nil {
+						return nil, fmt.Errorf("failed to retrieve cluster mapping for cluster ID %s from cluster ID %s", forge.RemoteClusterID, clusterID)
+					}
+					if clusterMappingResponse.GetDoesExist() {
+						klog.V(4).Infof("Cluster mapping exists for cluster ID %s within IPAM storage of cluster ID %s", forge.RemoteClusterID, clusterID)
+						useLocalIPAM = false
+					} else {
+						klog.V(4).Infof("Cluster mapping does not exist for cluster ID %s within IPAM storage of cluster ID %s", forge.RemoteClusterID, clusterID)
+					}
+				}
+			}
+
+			if useLocalIPAM {
+				// Remote cluster ID not found, use local IPAM
+				ipamClient = ner.ipamclient
+				klog.V(4).Infof("Using local IPAM for IP %s", original)
+			} else {
+				// Remote cluster ID found and cluster mapping found, use remote IPAM
+				klog.V(4).Infof("Using remote IPAM (cluster ID %s) for IP %s", clusterID, original)
+			}
+
+			mapResponse, err := ipamClient.MapEndpointIP(ctx, &ipam.MapRequest{ClusterID: forge.RemoteClusterID, Ip: original})
 			if err != nil {
 				return nil, fmt.Errorf("failed to translate endpoint IP %v: %w", original, err)
 			}
-			translation = response.GetIp()
+			translation = mapResponse.GetIp()
+			klog.V(4).Infof("Original IP %s translated to %s", original, translation)
 			cache[original] = translation
 		}
 

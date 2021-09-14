@@ -125,7 +125,7 @@ func (r *ForeignClusterReconciler) validateIdentity(ctx context.Context, fc *dis
 		return err
 	}
 
-	if err = r.IdentityManager.StoreCertificate(remoteCluster, fc.Spec.ForeignProxyURL, &response); err != nil {
+	if err = r.IdentityManager.StoreCertificate(remoteCluster, fc.Spec.FullPeering.ForeignProxyURL, &response); err != nil {
 		klog.Error(err)
 		return err
 	}
@@ -145,7 +145,7 @@ func (r *ForeignClusterReconciler) sendIdentityRequest(ctx context.Context, requ
 
 	resp, err := sendRequest(ctx,
 		r.transport(foreignclusterutils.InsecureSkipTLSVerify(fc)),
-		fmt.Sprintf("%s%s", fc.Spec.ForeignAuthURL, request.GetPath()),
+		fmt.Sprintf("%s%s", fc.Spec.FullPeering.ForeignAuthURL, request.GetPath()),
 		bytes.NewBuffer(jsonRequest))
 	if err != nil {
 		klog.Error(err)

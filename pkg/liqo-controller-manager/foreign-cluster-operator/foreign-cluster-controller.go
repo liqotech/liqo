@@ -39,6 +39,7 @@ import (
 	netv1alpha1 "github.com/liqotech/liqo/apis/net/v1alpha1"
 	sharingv1alpha1 "github.com/liqotech/liqo/apis/sharing/v1alpha1"
 	liqoconst "github.com/liqotech/liqo/pkg/consts"
+	"github.com/liqotech/liqo/pkg/discovery"
 	identitymanager "github.com/liqotech/liqo/pkg/identityManager"
 	resourcerequestoperator "github.com/liqotech/liqo/pkg/liqo-controller-manager/resource-request-controller"
 	peeringRoles "github.com/liqotech/liqo/pkg/peering-roles"
@@ -58,6 +59,9 @@ const (
 
 	resourceRequestAcceptedReason  = "ResourceRequestAccepted"
 	resourceRequestAcceptedMessage = "The ResourceRequest has been accepted by the remote cluster in the Tenant Namespace %v"
+
+	inducedPeeringEnabledReason  = "InducedPeeringEnabled"
+	inducedPeeringEnabledMessage = "Induced peering has been activated for this foreign cluster"
 
 	resourceRequestPendingReason  = "ResourceRequestPending"
 	resourceRequestPendingMessage = "The remote cluster has not created a ResourceOffer in the Tenant Namespace %v yet"
@@ -192,7 +196,7 @@ func (r *ForeignClusterReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 			peeringconditionsutils.GetMessage(&foreignCluster, discoveryv1alpha1.ProcessForeignClusterStatusCondition))
 		return ctrl.Result{
 			Requeue:      true,
-			RequeueAfter: r.ResyncPeriod,
+			RequeueAfter: 10 * time.Hour,
 		}, nil
 	}
 	tracer.Step("Ensured the ForeignCluster is processable")
@@ -388,7 +392,19 @@ func (r *ForeignClusterReconciler) unpeerNamespaced(ctx context.Context,
 // SetupWithManager assigns the operator to a manager.
 func (r *ForeignClusterReconciler) SetupWithManager(mgr ctrl.Manager, workers uint) error {
 	// Prevent triggering a reconciliation in case of status modifications only.
-	foreignClusterPredicate := predicate.Or(predicate.GenerationChangedPredicate{}, predicate.LabelChangedPredicate{})
+	filterInducedPredicate, err := predicate.LabelSelectorPredicate(metav1.LabelSelector{
+		MatchExpressions: []metav1.LabelSelectorRequirement{
+			{
+				Key:      discovery.DiscoveryTypeLabel,
+				Values:   []string{string(discovery.InducedPeeringDiscovery)},
+				Operator: metav1.LabelSelectorOpNotIn,
+			},
+		},
+	})
+	if err != nil {
+		klog.Error(err)
+	}
+	foreignClusterPredicate := predicate.And(predicate.Or(predicate.GenerationChangedPredicate{}, predicate.LabelChangedPredicate{}), filterInducedPredicate)
 
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&discoveryv1alpha1.ForeignCluster{}, builder.WithPredicates(foreignClusterPredicate)).
@@ -488,6 +504,11 @@ func getPeeringPhase(foreignCluster *discoveryv1alpha1.ForeignCluster,
 	if resourceRequest == nil {
 		return discoveryv1alpha1.PeeringConditionStatusNone, noResourceRequestReason,
 			fmt.Sprintf(noResourceRequestMessage, foreignCluster.Status.TenantNamespace.Local), nil
+	}
+
+	if foreignCluster.Spec.InducedPeering.InducedPeeringEnabled == discoveryv1alpha1.PeeringEnabledYes {
+		return discoveryv1alpha1.PeeringConditionStatusEstablished, inducedPeeringEnabledReason,
+			fmt.Sprintf(inducedPeeringEnabledMessage), nil
 	}
 
 	desiredDelete := !resourceRequest.Spec.WithdrawalTimestamp.IsZero()

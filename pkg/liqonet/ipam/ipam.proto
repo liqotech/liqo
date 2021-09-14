@@ -6,6 +6,8 @@ service ipam {
     rpc UnmapEndpointIP (UnmapRequest) returns (UnmapResponse);
     rpc GetHomePodIP (GetHomePodIPRequest) returns (GetHomePodIPResponse);
     rpc BelongsToPodCIDR (BelongsRequest) returns (BelongsResponse);
+    rpc GetClusterID (ClusterIDRequest) returns (ClusterIDResponse);
+    rpc DoesClusterMappingExist (ClusterMappingRequest) returns (ClusterMappingResponse);
 }
 
 message MapRequest {
@@ -39,4 +41,19 @@ message BelongsRequest {
 
 message BelongsResponse {
     bool belongs = 1;
+}
+message ClusterIDRequest {
+    string ip = 1;
+}
+
+message ClusterIDResponse {
+    string clusterID = 1;
+}
+
+message ClusterMappingRequest {
+    string clusterID = 1;
+}
+
+message ClusterMappingResponse {
+    bool doesExist = 1;
 }

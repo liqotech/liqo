@@ -24,8 +24,11 @@ func GetPeeringPhase(fc *discoveryv1alpha1.ForeignCluster) consts.PeeringPhase {
 	authenticated := IsAuthenticated(fc)
 	incoming := IsIncomingEnabled(fc)
 	outgoing := IsOutgoingEnabled(fc)
+	induced := IsInducedEnabled(fc)
 
 	switch {
+	case induced:
+		return consts.PeeringPhaseInduced
 	case incoming && outgoing:
 		return consts.PeeringPhaseBidirectional
 	case incoming:

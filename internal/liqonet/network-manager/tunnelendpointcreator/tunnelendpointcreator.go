@@ -29,9 +29,11 @@ import (
 	"k8s.io/klog/v2"
 	"k8s.io/utils/trace"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
+	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/source"
 
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
@@ -66,6 +68,7 @@ type TunnelEndpointCreator struct {
 	client.Client
 	Scheme    *runtime.Scheme
 	IPManager liqonetIpam.Ipam
+	ClusterID string
 }
 
 // rbac for the net.liqo.io api
@@ -164,8 +167,27 @@ func (tec *TunnelEndpointCreator) Reconcile(ctx context.Context, req ctrl.Reques
 
 // SetupWithManager informs the manager that the tunnelEndpointCreator will deal with networkconfigs.
 func (tec *TunnelEndpointCreator) SetupWithManager(mgr ctrl.Manager) error {
+	localNetConfPredicate, err := predicate.LabelSelectorPredicate(metav1.LabelSelector{
+		MatchLabels: map[string]string{
+			liqoconst.ReplicationRequestedLabel: "true",
+		},
+	})
+	if err != nil {
+		klog.Error(err)
+		return err
+	}
+	remoteNetConfPredicate, err := predicate.LabelSelectorPredicate(metav1.LabelSelector{
+		MatchLabels: map[string]string{
+			"destination": tec.ClusterID,
+		},
+	})
+	if err != nil {
+		klog.Error(err)
+		return err
+	}
+	filterPassthroughNetConf := predicate.Or(localNetConfPredicate, remoteNetConfPredicate)
 	return ctrl.NewControllerManagedBy(mgr).
-		For(&netv1alpha1.NetworkConfig{}).
+		For(&netv1alpha1.NetworkConfig{}, builder.WithPredicates(filterPassthroughNetConf)).
 		Watches(&source.Kind{Type: &netv1alpha1.TunnelEndpoint{}},
 			&handler.EnqueueRequestForOwner{OwnerType: &netv1alpha1.NetworkConfig{}, IsController: false}).
 		Complete(tec)
@@ -195,7 +217,7 @@ func (tec *TunnelEndpointCreator) processNetworkConfig(ctx context.Context, clus
 	// Get the NetworkConfig created by the remote cluster.
 	// In case a duplicate is found, it is not immediately deleted, since it will be
 	// recollected by the origin cluster and eventually propagated here.
-	remote, err := netcfgcreator.GetRemoteNetworkConfig(ctx, tec.Client, clusterID, namespace)
+	remote, err := netcfgcreator.GetRemoteNetworkConfig(ctx, tec.Client, clusterID, tec.ClusterID, namespace)
 	if err != nil {
 		if apierrors.IsNotFound(err) {
 			klog.V(4).Infof("No remote NetworkConfig for cluster %v found yet", clusterID)

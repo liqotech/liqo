@@ -29,21 +29,27 @@ var _ = Describe("IncomingPeering", func() {
 		var enabledForeignCluster = func() *discoveryv1alpha1.ForeignCluster {
 			return &discoveryv1alpha1.ForeignCluster{
 				Spec: discoveryv1alpha1.ForeignClusterSpec{
-					IncomingPeeringEnabled: discoveryv1alpha1.PeeringEnabledYes,
+					FullPeering: discoveryv1alpha1.FullPeering{
+						IncomingPeeringEnabled: discoveryv1alpha1.PeeringEnabledYes,
+					},
 				},
 			}
 		}
 		var disabledForeignCluster = func() *discoveryv1alpha1.ForeignCluster {
 			return &discoveryv1alpha1.ForeignCluster{
 				Spec: discoveryv1alpha1.ForeignClusterSpec{
-					IncomingPeeringEnabled: discoveryv1alpha1.PeeringEnabledNo,
+					FullPeering: discoveryv1alpha1.FullPeering{
+						IncomingPeeringEnabled: discoveryv1alpha1.PeeringEnabledNo,
+					},
 				},
 			}
 		}
 		var autoForeignCluster = func() *discoveryv1alpha1.ForeignCluster {
 			return &discoveryv1alpha1.ForeignCluster{
 				Spec: discoveryv1alpha1.ForeignClusterSpec{
-					IncomingPeeringEnabled: discoveryv1alpha1.PeeringEnabledAuto,
+					FullPeering: discoveryv1alpha1.FullPeering{
+						IncomingPeeringEnabled: discoveryv1alpha1.PeeringEnabledAuto,
+					},
 				},
 			}
 		}

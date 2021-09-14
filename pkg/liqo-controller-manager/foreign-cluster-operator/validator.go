@@ -114,13 +114,13 @@ func (r *ForeignClusterReconciler) isClusterProcessable(ctx context.Context,
 		return true, nil
 	}
 
-	_, err = url.Parse(foreignCluster.Spec.ForeignProxyURL)
+	_, err = url.Parse(foreignCluster.Spec.FullPeering.ForeignProxyURL)
 	if err != nil {
 		peeringconditionsutils.EnsureStatus(foreignCluster,
 			discoveryv1alpha1.ProcessForeignClusterStatusCondition,
 			discoveryv1alpha1.PeeringConditionStatusError,
 			"InvalidProxyURL",
-			fmt.Sprintf("Invalid Proxy URL %s: (%v)", foreignCluster.Spec.ForeignProxyURL, err),
+			fmt.Sprintf("Invalid Proxy URL %s: (%v)", foreignCluster.Spec.FullPeering.ForeignProxyURL, err),
 		)
 		return false, nil
 	}

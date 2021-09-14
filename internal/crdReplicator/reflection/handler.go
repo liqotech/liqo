@@ -32,6 +32,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
+	netv1alpha1 "github.com/liqotech/liqo/apis/net/v1alpha1"
 	"github.com/liqotech/liqo/pkg/consts"
 	traceutils "github.com/liqotech/liqo/pkg/utils/trace"
 )
@@ -45,49 +46,64 @@ const (
 
 // item represents an item to be processed.
 type item struct {
-	gvr  schema.GroupVersionResource
-	name string
+	gvr             schema.GroupVersionResource
+	sourceClusterID string
+	targetClusterID string
+	name            string
 }
 
 // handle is the reconciliation function which is executed to reflect an object.
 func (r *Reflector) handle(ctx context.Context, key item) error {
-	tracer := trace.New("Handle", trace.Field{Key: "RemoteClusterID", Value: r.remoteClusterID},
-		trace.Field{Key: "Resource", Value: key.gvr}, trace.Field{Key: "Name", Value: key.name})
+	tracer := trace.New("Handle", trace.Field{Key: "Resource", Value: key.gvr}, trace.Field{Key: "Name", Value: key.name})
 	defer tracer.LogIfLong(traceutils.LongThreshold())
 
-	klog.Infof("[%v] Processing %v with name %v", r.remoteClusterID, key.gvr, key.name)
-	resource, ok := r.get(key.gvr)
+	klog.Infof("Processing %v with name %v, source %v, target %v (local-to-local: %v)", key.gvr, key.name, key.sourceClusterID, key.targetClusterID, r.isLocalToLocal)
+	resource, ok := r.get(key.gvr, key.sourceClusterID, key.targetClusterID)
 	if !ok {
-		klog.Warningf("[%v] Failed to retrieve resource information for %v", r.remoteClusterID, key.gvr)
+		klog.Warningf("Failed to retrieve resource information for %v", key.gvr)
 		return nil
 	}
+	klog.Infof("Retrieved resource information for %v with name %v, source %v, target %v (local-to-local: %v)", key.gvr, key.name, key.sourceClusterID, key.targetClusterID, r.isLocalToLocal)
 
-	// Retrieve the resource from the local cluster
-	local, err := resource.local.Get(key.name)
+	sourceClusterID := resource.sourceClusterID
+	targetClusterID := resource.targetClusterID
+
+	// Retrieve the resource from the source cluster
+	localRes, err := resource.listerForSource.Get(key.name)
 	if err != nil {
 		if kerrors.IsNotFound(err) {
 			klog.Infof("[%v] Deleting remote %v with name %v, since the local one does no longer exist",
-				r.remoteClusterID, key.gvr, key.name)
+				targetClusterID, key.gvr, key.name)
 			defer tracer.Step("Ensured the absence of the remote object")
 			_, err = r.deleteRemoteObject(ctx, resource, key)
 			return err
 		}
-		klog.Errorf("[%v] Failed to retrieve local %v with name %v: %v", r.remoteClusterID, key.gvr, key.name, err)
+		klog.Errorf("[%v] Failed to retrieve local %v with name %v: %v", targetClusterID, key.gvr, key.name, err)
 		return err
 	}
 
 	// Convert the resource to unstructured
-	tmp, err := runtime.DefaultUnstructuredConverter.ToUnstructured(local)
+	tmp, err := runtime.DefaultUnstructuredConverter.ToUnstructured(localRes)
 	if err != nil {
-		klog.Errorf("[%v] Failed to convert local %v with name %v to unstructured: %v", r.remoteClusterID, key.gvr, key.name, err)
+		klog.Errorf("[%v] Failed to convert local %v with name %v to unstructured: %v", targetClusterID, key.gvr, key.name, err)
 		return err
 	}
 	localUnstr := &unstructured.Unstructured{Object: tmp}
 
 	// Check if the resource has the expected destination cluster
-	if remoteClusterID, ok := localUnstr.GetLabels()[consts.ReplicationDestinationLabel]; !ok || remoteClusterID != r.remoteClusterID {
+	if key.gvr.Resource == netv1alpha1.NetworkConfigGroupResource.Resource {
+		if passthrough, ok := localUnstr.GetLabels()["passthrough"]; !ok || passthrough != strconv.FormatBool(true) {
+			// if it is not passthrough, ensure the destination clusterID equals the target clusterID
+			if remoteClusterID, ok := localUnstr.GetLabels()["destination"]; !ok || remoteClusterID != targetClusterID {
+				klog.Warningf("[%v] Resource %v with name %q has a mismatching destination cluster ID: %v",
+					targetClusterID, key.gvr, key.name, remoteClusterID)
+				// Do not return an error, since retrying would be pointless
+				return nil
+			}
+		}
+	} else if remoteClusterID, ok := localUnstr.GetLabels()[consts.ReplicationDestinationLabel]; !ok || remoteClusterID != targetClusterID {
 		klog.Warningf("[%v] Resource %v with name %q has a mismatching destination cluster ID: %v",
-			r.remoteClusterID, key.gvr, key.name, remoteClusterID)
+			targetClusterID, key.gvr, key.name, remoteClusterID)
 		// Do not return an error, since retrying would be pointless
 		return nil
 	}
@@ -95,7 +111,7 @@ func (r *Reflector) handle(ctx context.Context, key item) error {
 
 	// Check if the local resource has been marked for deletion
 	if !localUnstr.GetDeletionTimestamp().IsZero() {
-		klog.Infof("[%v] Deleting remote %v with name %v, since the local one is being deleted", r.remoteClusterID, key.gvr, key.name)
+		klog.Infof("[%v] Deleting remote %v with name %v, since the local one is being deleted", targetClusterID, key.gvr, key.name)
 		vanished, err := r.deleteRemoteObject(ctx, resource, key)
 		if err != nil {
 			return err
@@ -104,41 +120,41 @@ func (r *Reflector) handle(ctx context.Context, key item) error {
 
 		// Remove the finalizer from the local resource, if the remote one does no longer exist.
 		if vanished {
-			_, err = r.ensureLocalFinalizer(ctx, key.gvr, localUnstr, false, controllerutil.RemoveFinalizer)
+			_, err = r.ensureLocalFinalizer(ctx, key.gvr, targetClusterID, localUnstr, false, controllerutil.RemoveFinalizer)
 			tracer.Step("Ensured the local finalizer absence")
 			return err
 		}
 	}
 
 	// Ensure the local resource has the finalizer
-	if localUnstr, err = r.ensureLocalFinalizer(ctx, key.gvr, localUnstr, true, controllerutil.AddFinalizer); err != nil {
+	if localUnstr, err = r.ensureLocalFinalizer(ctx, key.gvr, targetClusterID, localUnstr, true, controllerutil.AddFinalizer); err != nil {
 		return err
 	}
 	tracer.Step("Ensured the local finalizer presence")
 
-	// Retrieve the resource from the remote cluster
-	remote, err := resource.remote.Get(key.name)
+	// Retrieve the resource from the target cluster
+	remoteRes, err := resource.listerForTarget.Get(key.name)
 	if err != nil {
 		if kerrors.IsNotFound(err) {
-			klog.Infof("[%v] Creating remote %v with name %v", r.remoteClusterID, key.gvr, key.name)
+			klog.Infof("[%v] Creating remote %v with name %v", targetClusterID, key.gvr, key.name)
 			defer tracer.Step("Ensured the presence of the remote object")
-			return r.createRemoteObject(ctx, resource, localUnstr)
+			return r.createRemoteObject(ctx, resource, localUnstr, sourceClusterID, targetClusterID)
 		}
-		klog.Errorf("[%v] Failed to retrieve remote %v with name %v: %v", r.remoteClusterID, key.gvr, key.name, err)
+		klog.Errorf("[%v] Failed to retrieve remote %v with name %v: %v", targetClusterID, key.gvr, key.name, err)
 		return err
 	}
 
 	// Convert the resource to unstructured
-	tmp, err = runtime.DefaultUnstructuredConverter.ToUnstructured(remote)
+	tmp, err = runtime.DefaultUnstructuredConverter.ToUnstructured(remoteRes)
 	if err != nil {
-		klog.Errorf("[%v] Failed to convert remote %v with name %v to unstructured: %v", r.remoteClusterID, key.gvr, key.name, err)
+		klog.Errorf("[%v] Failed to convert remote %v with name %v to unstructured: %v", targetClusterID, key.gvr, key.name, err)
 		return err
 	}
 	remoteUnstr := &unstructured.Unstructured{Object: tmp}
 	tracer.Step("Retrieved the remote object")
 
 	// Replicate the spec towards the remote cluster
-	if remoteUnstr, err = r.updateRemoteObjectSpec(ctx, key.gvr, localUnstr, remoteUnstr); err != nil {
+	if remoteUnstr, err = r.updateRemoteObjectSpec(ctx, key.gvr, targetClusterID, resource.targetNamespace, localUnstr, remoteUnstr); err != nil {
 		return err
 	}
 	tracer.Step("Ensured the spec is synchronized")
@@ -149,40 +165,44 @@ func (r *Reflector) handle(ctx context.Context, key item) error {
 }
 
 // createRemoteObject creates a given object in the remote cluster.
-func (r *Reflector) createRemoteObject(ctx context.Context, resource *reflectedResource, local *unstructured.Unstructured) error {
+func (r *Reflector) createRemoteObject(ctx context.Context, resource *resourceToReflect, local *unstructured.Unstructured, sourceClusterID, targetClusterID string) error {
 	remote := &unstructured.Unstructured{}
 	remote.SetGroupVersionKind(local.GetObjectKind().GroupVersionKind())
-	remote.SetNamespace(r.remoteNamespace)
+	remote.SetNamespace(resource.targetNamespace)
 	remote.SetName(local.GetName())
-	remote.SetLabels(r.mutateLabelsForRemote(local.GetLabels()))
+	if r.isLocalToLocal {
+		remote.SetLabels(r.mutateLabelsForLocalToLocal(resource.localClusterID, targetClusterID, local.GetLabels()))
+	} else {
+		remote.SetLabels(r.mutateLabelsForRemote(sourceClusterID, local.GetLabels()))
+	}
 	remote.SetAnnotations(local.GetAnnotations())
 
 	// Retrieve the spec of the local object
-	spec, err := r.getNestedMap(local, specKey, resource.gvr)
+	spec, err := r.getNestedMap(targetClusterID, local, specKey, resource.gvr)
 	utilruntime.Must(err)
 
 	err = unstructured.SetNestedMap(remote.Object, spec, specKey)
 	utilruntime.Must(err)
 
 	// Create the resource in the remote cluster
-	if remote, err = r.remoteClient.Resource(resource.gvr).Namespace(r.remoteNamespace).Create(ctx, remote, metav1.CreateOptions{}); err != nil {
-		klog.Errorf("[%v] Failed to create remote %v with name %v: %v", r.remoteClusterID, resource.gvr, local.GetName(), err)
+	if remote, err = r.clientForTarget.Resource(resource.gvr).Namespace(resource.targetNamespace).Create(ctx, remote, metav1.CreateOptions{}); err != nil {
+		klog.Errorf("[%v] Failed to create remote %v with name %v: %v", targetClusterID, resource.gvr, local.GetName(), err)
 		return err
 	}
-	klog.Infof("[%v] Remote %v with name %v successfully created", r.remoteClusterID, resource.gvr, local.GetName())
+	klog.Infof("[%v] Remote %v with name %v successfully created", targetClusterID, resource.gvr, local.GetName())
 
 	// Replicate the status towards the local or remote cluster, depending on the reflection policy
 	return r.updateObjectStatus(ctx, resource, local, remote)
 }
 
 // updateRemoteObjectSpec updates the spec of a remote object.
-func (r *Reflector) updateRemoteObjectSpec(ctx context.Context, gvr schema.GroupVersionResource, local, remote *unstructured.Unstructured) (
+func (r *Reflector) updateRemoteObjectSpec(ctx context.Context, gvr schema.GroupVersionResource, targetClusterID, targetNamespace string, local, remote *unstructured.Unstructured) (
 	*unstructured.Unstructured, error) {
 	// Retrieve the spec of the local and remote objects
-	specLocal, err := r.getNestedMap(local, specKey, gvr)
+	specLocal, err := r.getNestedMap(targetClusterID, local, specKey, gvr)
 	utilruntime.Must(err)
 
-	specRemote, err := r.getNestedMap(remote, specKey, gvr)
+	specRemote, err := r.getNestedMap(targetClusterID, remote, specKey, gvr)
 	utilruntime.Must(err)
 
 	// The specs are already the same, nothing to do
@@ -195,85 +215,85 @@ func (r *Reflector) updateRemoteObjectSpec(ctx context.Context, gvr schema.Group
 	utilruntime.Must(err)
 
 	// Update the resource in the remote cluster
-	if remote, err = r.remoteClient.Resource(gvr).Namespace(r.remoteNamespace).Update(ctx, remote, metav1.UpdateOptions{}); err != nil {
-		klog.Errorf("[%v] Failed to update remote %v with name %v: %v", r.remoteClusterID, gvr, local.GetName(), err)
+	if remote, err = r.clientForTarget.Resource(gvr).Namespace(targetNamespace).Update(ctx, remote, metav1.UpdateOptions{}); err != nil {
+		klog.Errorf("[%v] Failed to update remote %v with name %v: %v", targetClusterID, gvr, local.GetName(), err)
 		return remote, err
 	}
 
-	klog.Infof("[%v] Remote %v with name %v successfully updated", r.remoteClusterID, gvr, local.GetName())
+	klog.Infof("[%v] Remote %v with name %v successfully updated", targetClusterID, gvr, local.GetName())
 	return remote, nil
 }
 
 // updateObjectStatus updates the status of a local or remote object, depending on the resource ownership.
-func (r *Reflector) updateObjectStatus(ctx context.Context, resource *reflectedResource, local, remote *unstructured.Unstructured) error {
+func (r *Reflector) updateObjectStatus(ctx context.Context, resource *resourceToReflect, local, remote *unstructured.Unstructured) error {
 	switch resource.ownership {
 	case consts.OwnershipLocal:
-		return r.updateObjectStatusInner(ctx, r.remoteClient, r.remoteNamespace, resource.gvr, local, remote)
+		return r.updateObjectStatusInner(ctx, r.clientForTarget, resource.targetClusterID, resource.targetNamespace, resource.gvr, local, remote)
 	case consts.OwnershipShared:
-		return r.updateObjectStatusInner(ctx, r.manager.client, r.localNamespace, resource.gvr, remote, local)
+		return r.updateObjectStatusInner(ctx, r.getLocalClient(), resource.sourceClusterID, resource.sourceNamespace, resource.gvr, remote, local)
 	default:
 		klog.Fatalf("Unknown ownership %v", resource.ownership)
 	}
 	return nil
 }
 
-// updateObjectStatusInner performs the actual status update.
-func (r *Reflector) updateObjectStatusInner(ctx context.Context, cl dynamic.Interface, namespace string,
-	gvr schema.GroupVersionResource, source, destination *unstructured.Unstructured) error {
-	// Retrieve the status of the source and destination objects
-	statusSource, err := r.getNestedMap(source, statusKey, gvr)
+// updateObjectStatusInner performs the actual status update. Arguments source and target could either refer to local or remote resources.
+func (r *Reflector) updateObjectStatusInner(ctx context.Context, client dynamic.Interface, clusterID, namespace string,
+	gvr schema.GroupVersionResource, source, target *unstructured.Unstructured) error {
+	// Retrieve the status of the source and target objects
+	statusSource, err := r.getNestedMap(clusterID, source, statusKey, gvr)
 	utilruntime.Must(err)
 
-	statusDestination, err := r.getNestedMap(destination, statusKey, gvr)
+	statusTarget, err := r.getNestedMap(clusterID, target, statusKey, gvr)
 	utilruntime.Must(err)
 
 	// The statuses are already the same, nothing to do
-	if reflect.DeepEqual(statusSource, statusDestination) {
+	if reflect.DeepEqual(statusSource, statusTarget) {
 		return nil
 	}
 
-	// Update the local status field
-	err = unstructured.SetNestedMap(destination.Object, statusSource, statusKey)
+	// Update the target status field
+	err = unstructured.SetNestedMap(target.Object, statusSource, statusKey)
 	utilruntime.Must(err)
 
-	// Update the resource in the destination cluster
-	if _, err = cl.Resource(gvr).Namespace(namespace).UpdateStatus(ctx, destination, metav1.UpdateOptions{}); err != nil {
-		klog.Errorf("[%v] Failed to update the status of %v with name %v: %v", r.remoteClusterID, gvr, source.GetName(), err)
+	// Update the target resource
+	if _, err = client.Resource(gvr).Namespace(namespace).UpdateStatus(ctx, target, metav1.UpdateOptions{}); err != nil {
+		klog.Errorf("[%v] Failed to update the status of %v with name %v: %v", clusterID, gvr, source.GetName(), err)
 		return err
 	}
 
-	klog.Infof("[%v] Status of %v with name %v successfully updated", r.remoteClusterID, gvr, source.GetName())
+	klog.Infof("[%v] Status of %v with name %v successfully updated", clusterID, gvr, source.GetName())
 	return nil
 }
 
 // deleteRemoteObject deletes a given object from the remote cluster.
-func (r *Reflector) deleteRemoteObject(ctx context.Context, resource *reflectedResource, key item) (vanished bool, err error) {
-	if _, err := resource.remote.Get(key.name); err != nil {
+func (r *Reflector) deleteRemoteObject(ctx context.Context, resource *resourceToReflect, key item) (vanished bool, err error) {
+	if _, err := resource.listerForTarget.Get(key.name); err != nil {
 		if kerrors.IsNotFound(err) {
-			klog.Infof("[%v] Remote %v with name %v already vanished", r.remoteClusterID, key.gvr, key.name)
+			klog.Infof("[%v] Remote %v with name %v already vanished", resource.targetClusterID, key.gvr, key.name)
 			return true, nil
 		}
-		klog.Errorf("[%v] Failed to retrieve remote object %v: %v", r.remoteClusterID, key.gvr, key.name, err)
+		klog.Errorf("[%v] Failed to retrieve remote object %v: %v", resource.targetClusterID, key.gvr, key.name, err)
 		return false, err
 	}
 
-	err = r.remoteClient.Resource(key.gvr).Namespace(r.remoteNamespace).Delete(ctx, key.name, metav1.DeleteOptions{})
+	err = r.clientForTarget.Resource(key.gvr).Namespace(resource.targetNamespace).Delete(ctx, key.name, metav1.DeleteOptions{})
 	if err != nil && !kerrors.IsNotFound(err) {
-		klog.Errorf("[%v] Failed to delete remote %v with name %v: %v", r.remoteClusterID, key.gvr, key.name, err)
+		klog.Errorf("[%v] Failed to delete remote %v with name %v: %v", resource.targetClusterID, key.gvr, key.name, err)
 		return false, err
 	}
 
-	klog.Infof("[%v] Remote %v with name %v successfully deleted", r.remoteClusterID, key.gvr, key.name)
+	klog.Infof("[%v] Remote %v with name %v successfully deleted", resource.targetClusterID, key.gvr, key.name)
 	return kerrors.IsNotFound(err), nil
 }
 
 // getNestedMap is a wrapper to retrieve a nested map from an unstructured object.
-func (r *Reflector) getNestedMap(unstr *unstructured.Unstructured, key string, gvr schema.GroupVersionResource) (map[string]interface{}, error) {
+func (r *Reflector) getNestedMap(clusterID string, unstr *unstructured.Unstructured, key string, gvr schema.GroupVersionResource) (map[string]interface{}, error) {
 	// Retrieve the spec of the original object
 	nested, found, err := unstructured.NestedMap(unstr.Object, key)
 	if err != nil {
 		klog.Errorf("[%v] An error occurred while processing the %v of remote %v with name %v: %v",
-			r.remoteClusterID, key, gvr, unstr.GetName(), err)
+			clusterID, key, gvr, unstr.GetName(), err)
 		return nil, fmt.Errorf("failed to retrieve %v key: %w", key, err)
 	}
 
@@ -286,37 +306,51 @@ func (r *Reflector) getNestedMap(unstr *unstructured.Unstructured, key string, g
 }
 
 // ensureLocalFinalizer updates the local resource ensuring the presence/absence of the finalizer.
-func (r *Reflector) ensureLocalFinalizer(ctx context.Context, gvr schema.GroupVersionResource, local *unstructured.Unstructured,
+func (r *Reflector) ensureLocalFinalizer(ctx context.Context, gvr schema.GroupVersionResource, targetClusterID string, local *unstructured.Unstructured,
 	expected bool, updater func(client.Object, string)) (
 	*unstructured.Unstructured, error) {
-	// Do not perform any action if the finalizer is already absent
+	// Do not perform any action if the finalizer is already present (expected is true) or absent (expected is false)
 	if controllerutil.ContainsFinalizer(local, finalizer) == expected {
 		return local, nil
 	}
 
 	updater(local, finalizer)
-	updated, err := r.manager.client.Resource(gvr).Namespace(local.GetNamespace()).Update(ctx, local, metav1.UpdateOptions{})
+	updated, err := r.getLocalClient().Resource(gvr).Namespace(local.GetNamespace()).Update(ctx, local, metav1.UpdateOptions{})
 	if err != nil {
-		klog.Errorf("[%v] Failed to update finalizer of local %v with name %v: %v", r.remoteClusterID, gvr, local.GetName(), err)
+		klog.Errorf("[%v] Failed to update finalizer of local %v with name %v: %v", targetClusterID, gvr, local.GetName(), err)
 		return nil, err
 	}
 
-	klog.Infof("[%v] Successfully updated finalizer of local %v with name %v", r.remoteClusterID, gvr, local.GetName())
+	klog.Infof("[%v] Successfully updated finalizer of local %v with name %v", targetClusterID, gvr, local.GetName())
 	return updated, nil
+}
+
+func (r *Reflector) mutateLabelsForLocalToLocal(localClusterID, targetClusterID string, labels map[string]string) map[string]string {
+	// setting remoteID to the target clusterID (overwriting it if needed)
+	labels[consts.ReplicationDestinationLabel] = targetClusterID
+	// setting the replication label to true (overwriting it if needed)
+	labels[consts.ReplicationRequestedLabel] = strconv.FormatBool(true)
+	// setting the replication status to false (overwriting it if needed)
+	labels[consts.ReplicationStatusLabel] = strconv.FormatBool(false)
+
+	return labels
 }
 
 // mutateLabelsForRemote mutates the labels map adding the ones for the remote cluster.
 // the ownership of the resource is removed as it would not make sense in a remote cluster.
-func (r *Reflector) mutateLabelsForRemote(labels map[string]string) map[string]string {
+func (r *Reflector) mutateLabelsForRemote(sourceClusterID string, labels map[string]string) map[string]string {
 	// We don't check if the map is nil, since it has to be initialized because we use the labels to filter the resources
 	// which need to be replicated.
+
+	if _, ok := labels[consts.ReplicationOriginLabel]; !ok {
+		// setting originID, i.e. the source clusterID
+		labels[consts.ReplicationOriginLabel] = sourceClusterID
+	}
 
 	// setting the replication label to false
 	labels[consts.ReplicationRequestedLabel] = strconv.FormatBool(false)
 	// setting replication status to true
 	labels[consts.ReplicationStatusLabel] = strconv.FormatBool(true)
-	// setting originID i.e clusterID of home cluster
-	labels[consts.ReplicationOriginLabel] = r.localClusterID
 
 	// delete the ownership label if any.
 	delete(labels, consts.LocalResourceOwnership)
@@ -335,7 +369,7 @@ func (r *Reflector) runWorker() {
 // processNextWorkItem will read a single work item off the workqueue and
 // attempt to process it, by calling the handler.
 func (r *Reflector) processNextWorkItem() bool {
-	// Get he element to be processed.
+	// Get the element to be processed.
 	key, shutdown := r.workqueue.Get()
 
 	if shutdown {

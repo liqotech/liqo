@@ -293,6 +293,18 @@ rules:
 - apiGroups:
   - discovery.liqo.io
   resources:
+  - neighborhoods
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - discovery.liqo.io
+  resources:
   - resourcerequests
   verbs:
   - create
@@ -396,6 +408,15 @@ rules:
   - list
   - patch
   - update
+  - watch
+- apiGroups:
+  - rbac.authorization.k8s.io
+  resources:
+  - clusteroles
+  verbs:
+  - create
+  - get
+  - list
   - watch
 - apiGroups:
   - rbac.authorization.k8s.io

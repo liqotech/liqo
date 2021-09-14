@@ -65,10 +65,10 @@ var _ = Describe("Extract elements from apiServer", func() {
 		// ForeignCluster exists and has the required values
 		fc, err := foreigncluster.GetForeignClusterByID(ctx, k8sClient, check.ClusterID)
 		Expect(err).ToNot(HaveOccurred())
-		Expect(fc.Spec.ForeignAuthURL).To(BeEquivalentTo(check.ClusterAuthURL))
-		Expect(fc.Spec.OutgoingPeeringEnabled).To(BeEquivalentTo(discoveryv1alpha1.PeeringEnabledYes))
-		Expect(fc.Spec.IncomingPeeringEnabled).To(BeEquivalentTo(discoveryv1alpha1.PeeringEnabledAuto))
-		Expect(fc.Spec.InsecureSkipTLSVerify).To(BeEquivalentTo(pointer.BoolPtr(true)))
+		Expect(fc.Spec.FullPeering.ForeignAuthURL).To(BeEquivalentTo(check.ClusterAuthURL))
+		Expect(fc.Spec.FullPeering.OutgoingPeeringEnabled).To(BeEquivalentTo(discoveryv1alpha1.PeeringEnabledYes))
+		Expect(fc.Spec.FullPeering.IncomingPeeringEnabled).To(BeEquivalentTo(discoveryv1alpha1.PeeringEnabledAuto))
+		Expect(fc.Spec.FullPeering.InsecureSkipTLSVerify).To(BeEquivalentTo(pointer.BoolPtr(true)))
 	}
 	BeforeEach(func() {
 		clientset, k8sClient = setUpEnvironment(&ClusterArgs{

@@ -84,6 +84,6 @@ func enforceForeignCluster(ctx context.Context, cl client.Client, t *ClusterArgs
 	t.ClusterID = foreignCluster.Spec.ClusterIdentity.ClusterID
 
 	// Update ForeignCluster
-	foreignCluster.Spec.OutgoingPeeringEnabled = discoveryv1alpha1.PeeringEnabledNo
+	foreignCluster.Spec.FullPeering.OutgoingPeeringEnabled = discoveryv1alpha1.PeeringEnabledNo
 	return cl.Update(ctx, &foreignCluster)
 }

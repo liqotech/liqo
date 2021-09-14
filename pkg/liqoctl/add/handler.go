@@ -129,13 +129,16 @@ func enforceForeignCluster(ctx context.Context, cl client.Client, t *ClusterArgs
 	}
 
 	_, err = controllerutil.CreateOrUpdate(ctx, cl, fc, func() error {
-		fc.Spec.ForeignAuthURL = t.ClusterAuthURL
-		fc.Spec.OutgoingPeeringEnabled = discoveryv1alpha1.PeeringEnabledYes
-		if fc.Spec.IncomingPeeringEnabled == "" {
-			fc.Spec.IncomingPeeringEnabled = discoveryv1alpha1.PeeringEnabledAuto
+		fc.Spec.FullPeering.ForeignAuthURL = t.ClusterAuthURL
+		fc.Spec.FullPeering.OutgoingPeeringEnabled = discoveryv1alpha1.PeeringEnabledYes
+		if fc.Spec.FullPeering.IncomingPeeringEnabled == "" {
+			fc.Spec.FullPeering.IncomingPeeringEnabled = discoveryv1alpha1.PeeringEnabledAuto
 		}
-		if fc.Spec.InsecureSkipTLSVerify == nil {
-			fc.Spec.InsecureSkipTLSVerify = pointer.BoolPtr(true)
+		if fc.Spec.InducedPeering.InducedPeeringEnabled == "" {
+			fc.Spec.InducedPeering.InducedPeeringEnabled = discoveryv1alpha1.PeeringEnabledNo
+		}
+		if fc.Spec.FullPeering.InsecureSkipTLSVerify == nil {
+			fc.Spec.FullPeering.InsecureSkipTLSVerify = pointer.BoolPtr(true)
 		}
 		return nil
 	})

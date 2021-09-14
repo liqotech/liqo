@@ -315,7 +315,7 @@ var _ = Describe("Discovery", func() {
 						if len(fcs.Items) > 0 {
 							fc := fcs.Items[0]
 							Expect(fc.GetAnnotations()[discovery.LastUpdateAnnotation]).NotTo(BeEmpty())
-							Expect(fc.Spec.OutgoingPeeringEnabled).To(c.expectedPeering)
+							Expect(fc.Spec.FullPeering.OutgoingPeeringEnabled).To(c.expectedPeering)
 							Expect(fc.GetAnnotations()[discovery.SearchDomainLabel]).To(c.expectedSdLabel)
 						}
 					},
@@ -400,7 +400,7 @@ var _ = Describe("Discovery", func() {
 							fc := fcs.Items[0]
 							Expect(fc.GetAnnotations()[discovery.LastUpdateAnnotation]).NotTo(BeEmpty())
 							Expect(fc.GetAnnotations()[discovery.LastUpdateAnnotation]).NotTo(Equal(updateTime))
-							Expect(fc.Spec.OutgoingPeeringEnabled).To(c.expectedPeering)
+							Expect(fc.Spec.FullPeering.OutgoingPeeringEnabled).To(c.expectedPeering)
 							Expect(fc.GetAnnotations()[discovery.SearchDomainLabel]).To(c.expectedSdLabel)
 						}
 					},
@@ -450,10 +450,12 @@ var _ = Describe("Discovery", func() {
 								ClusterID:   "foreign-cluster",
 								ClusterName: "ClusterTest2",
 							},
-							ForeignAuthURL:         "https://example.com",
-							OutgoingPeeringEnabled: discoveryv1alpha1.PeeringEnabledAuto,
-							IncomingPeeringEnabled: discoveryv1alpha1.PeeringEnabledAuto,
-							InsecureSkipTLSVerify:  pointer.BoolPtr(true),
+							FullPeering: discoveryv1alpha1.FullPeering{
+								OutgoingPeeringEnabled: discoveryv1alpha1.PeeringEnabledAuto,
+								IncomingPeeringEnabled: discoveryv1alpha1.PeeringEnabledAuto,
+								ForeignAuthURL:         "https://example.com",
+								InsecureSkipTLSVerify:  pointer.BoolPtr(true),
+							},
 						},
 					}
 
@@ -471,7 +473,7 @@ var _ = Describe("Discovery", func() {
 						if len(fcs.Items) > 0 {
 							fc := fcs.Items[0]
 							Expect(fc.GetAnnotations()[discovery.LastUpdateAnnotation]).NotTo(BeEmpty())
-							Expect(fc.Spec.OutgoingPeeringEnabled).To(c.expectedPeering)
+							Expect(fc.Spec.FullPeering.OutgoingPeeringEnabled).To(c.expectedPeering)
 							Expect(fc.GetAnnotations()[discovery.SearchDomainLabel]).To(c.expectedSdLabel)
 							Expect(foreignclusterutils.GetDiscoveryType(&fc)).To(Equal(discovery.LanDiscovery))
 						}
@@ -528,11 +530,13 @@ var _ = Describe("Discovery", func() {
 									ClusterID:   "foreign-cluster",
 									ClusterName: "ClusterTest2",
 								},
-								OutgoingPeeringEnabled: discoveryv1alpha1.PeeringEnabledAuto,
-								IncomingPeeringEnabled: discoveryv1alpha1.PeeringEnabledAuto,
-								ForeignAuthURL:         "https://example.com",
-								InsecureSkipTLSVerify:  pointer.BoolPtr(true),
-								TTL:                    300,
+								FullPeering: discoveryv1alpha1.FullPeering{
+									OutgoingPeeringEnabled: discoveryv1alpha1.PeeringEnabledAuto,
+									IncomingPeeringEnabled: discoveryv1alpha1.PeeringEnabledAuto,
+									ForeignAuthURL:         "https://example.com",
+									InsecureSkipTLSVerify:  pointer.BoolPtr(true),
+									TTL:                    300,
+								},
 							},
 						},
 
@@ -556,11 +560,13 @@ var _ = Describe("Discovery", func() {
 									ClusterID:   "foreign-cluster",
 									ClusterName: "ClusterTest2",
 								},
-								OutgoingPeeringEnabled: discoveryv1alpha1.PeeringEnabledAuto,
-								IncomingPeeringEnabled: discoveryv1alpha1.PeeringEnabledAuto,
-								ForeignAuthURL:         "https://example.com",
-								InsecureSkipTLSVerify:  pointer.BoolPtr(true),
-								TTL:                    300,
+								FullPeering: discoveryv1alpha1.FullPeering{
+									OutgoingPeeringEnabled: discoveryv1alpha1.PeeringEnabledAuto,
+									IncomingPeeringEnabled: discoveryv1alpha1.PeeringEnabledAuto,
+									ForeignAuthURL:         "https://example.com",
+									InsecureSkipTLSVerify:  pointer.BoolPtr(true),
+									TTL:                    300,
+								},
 							},
 						},
 
@@ -584,11 +590,13 @@ var _ = Describe("Discovery", func() {
 									ClusterID:   "foreign-cluster",
 									ClusterName: "ClusterTest2",
 								},
-								OutgoingPeeringEnabled: discoveryv1alpha1.PeeringEnabledAuto,
-								IncomingPeeringEnabled: discoveryv1alpha1.PeeringEnabledAuto,
-								ForeignAuthURL:         "https://example.com",
-								InsecureSkipTLSVerify:  pointer.BoolPtr(true),
-								TTL:                    300,
+								FullPeering: discoveryv1alpha1.FullPeering{
+									OutgoingPeeringEnabled: discoveryv1alpha1.PeeringEnabledAuto,
+									IncomingPeeringEnabled: discoveryv1alpha1.PeeringEnabledAuto,
+									ForeignAuthURL:         "https://example.com",
+									InsecureSkipTLSVerify:  pointer.BoolPtr(true),
+									TTL:                    300,
+								},
 							},
 						},
 

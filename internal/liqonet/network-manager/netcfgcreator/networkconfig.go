@@ -23,6 +23,8 @@ import (
 
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/apimachinery/pkg/selection"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/klog/v2"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -34,21 +36,25 @@ import (
 	foreignclusterutils "github.com/liqotech/liqo/pkg/utils/foreignCluster"
 )
 
-// GetLocalNetworkConfig returns the local NetworkConfig associated with a given label selector and a clusterID.
+func localLabelSelector(clusterID string, req *labels.Requirement) labels.Selector {
+	req1, err := labels.NewRequirement("destination", selection.Equals, []string{clusterID})
+	utilruntime.Must(err)
+	req2, err := labels.NewRequirement(consts.ReplicationStatusLabel, selection.DoesNotExist, []string{})
+	utilruntime.Must(err)
+	selector := labels.NewSelector().Add(*req1, *req2)
+	if req != nil {
+		selector.Add(*req)
+	}
+	return selector
+}
+
+// GetLocalNetworkConfig returns the local NetworkConfig associated with a given cluster ID.
 // In case more than one NetworkConfig is found, all but the oldest are deleted.
-func GetLocalNetworkConfig(ctx context.Context, c client.Client, labels client.MatchingLabels,
+func GetLocalNetworkConfig(ctx context.Context, c client.Client, req *labels.Requirement,
 	clusterID, namespace string) (*netv1alpha1.NetworkConfig, error) {
 	networkConfigList := &netv1alpha1.NetworkConfigList{}
-
-	if labels == nil {
-		labels = client.MatchingLabels{
-			consts.ReplicationDestinationLabel: clusterID,
-		}
-	} else {
-		labels[consts.ReplicationDestinationLabel] = clusterID
-	}
-
-	if err := c.List(ctx, networkConfigList, labels, client.InNamespace(namespace)); err != nil {
+	opts := &client.ListOptions{LabelSelector: localLabelSelector(clusterID, req)}
+	if err := c.List(ctx, networkConfigList, opts, client.InNamespace(namespace)); err != nil {
 		klog.Errorf("An error occurred while listing NetworkConfigs: %v", err)
 		return nil, err
 	}
@@ -76,12 +82,19 @@ func GetLocalNetworkConfig(ctx context.Context, c client.Client, labels client.M
 	}
 }
 
-// GetRemoteNetworkConfig returns the remote NetworkConfig associated with a given cluster ID.
-func GetRemoteNetworkConfig(ctx context.Context, c client.Client, clusterID, namespace string) (*netv1alpha1.NetworkConfig, error) {
-	networkConfigList := &netv1alpha1.NetworkConfigList{}
-	labels := client.MatchingLabels{consts.ReplicationOriginLabel: clusterID}
+func remoteLabelSelector(clusterID, localClusterID string) labels.Selector {
+	req1, err := labels.NewRequirement(consts.ReplicationOriginLabel, selection.Equals, []string{clusterID})
+	utilruntime.Must(err)
+	req2, err := labels.NewRequirement("destination", selection.Equals, []string{localClusterID})
+	utilruntime.Must(err)
+	return labels.NewSelector().Add(*req1, *req2)
+}
 
-	if err := c.List(ctx, networkConfigList, labels, client.InNamespace(namespace)); err != nil {
+// GetRemoteNetworkConfig returns the remote NetworkConfig associated with a given cluster ID.
+func GetRemoteNetworkConfig(ctx context.Context, c client.Client, clusterID, localClusterID, namespace string) (*netv1alpha1.NetworkConfig, error) {
+	networkConfigList := &netv1alpha1.NetworkConfigList{}
+	opts := &client.ListOptions{LabelSelector: remoteLabelSelector(clusterID, localClusterID)}
+	if err := c.List(ctx, networkConfigList, opts, client.InNamespace(namespace)); err != nil {
 		klog.Errorf("An error occurred while listing NetworkConfigs: %v", err)
 		return nil, err
 	}
@@ -114,14 +127,14 @@ func filterDuplicateNetworkConfig(items []netv1alpha1.NetworkConfig) (netcfg *ne
 func (ncc *NetworkConfigCreator) EnforceNetworkConfigPresence(ctx context.Context, fc *discoveryv1alpha1.ForeignCluster) error {
 	clusterID := fc.Spec.ClusterIdentity.ClusterID
 
-	// We make sure that the netcfgcreator only handles networkconfigs created by him.
-	labels := client.MatchingLabels{
-		consts.LocalResourceOwnership: componentName,
-	}
+	// We make sure that the netcfgcreator only handles networkconfigs created by itself.
+	req, err := labels.NewRequirement(consts.LocalResourceOwnership, selection.Equals, []string{componentName})
+	utilruntime.Must(err)
 
 	// Check if the resource for the remote cluster already exists
-	netcfg, err := GetLocalNetworkConfig(ctx, ncc.Client, labels, clusterID, fc.Status.TenantNamespace.Local)
+	netcfg, err := GetLocalNetworkConfig(ctx, ncc.Client, req, clusterID, ncc.getTenantNamespace(fc))
 	if client.IgnoreNotFound(err) != nil {
+		klog.Error(err)
 		return err
 	}
 
@@ -134,12 +147,25 @@ func (ncc *NetworkConfigCreator) EnforceNetworkConfigPresence(ctx context.Contex
 	return ncc.updateNetworkConfig(ctx, netcfg, fc)
 }
 
+func (ncc *NetworkConfigCreator) getTenantNamespace(fc *discoveryv1alpha1.ForeignCluster) string {
+	if fc.Spec.InducedPeering.InducedPeeringEnabled == discoveryv1alpha1.PeeringEnabledYes {
+		// Get ForeignCluster relative to the cluster that advertised this resource.
+		originFC, err := foreignclusterutils.GetForeignClusterByID(context.Background(), ncc.Client, fc.Spec.InducedPeering.OriginClusterIdentity.ClusterID)
+		if err != nil {
+			klog.Errorf("unable to get ForeignCluster relative to the cluster that advertised cluster %s: %w", fc.Spec.ClusterIdentity.ClusterID, err)
+			return ""
+		}
+		return originFC.Status.TenantNamespace.Local
+	}
+	return fc.Status.TenantNamespace.Local
+}
+
 // createNetworkConfig creates a new local NetworkConfig associated with the given ForeignCluster.
 func (ncc *NetworkConfigCreator) createNetworkConfig(ctx context.Context, fc *discoveryv1alpha1.ForeignCluster) error {
 	netcfg := netv1alpha1.NetworkConfig{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      foreignclusterutils.UniqueName(&fc.Spec.ClusterIdentity),
-			Namespace: fc.Status.TenantNamespace.Local,
+			Namespace: ncc.getTenantNamespace(fc),
 		},
 	}
 	utilruntime.Must(ncc.populateNetworkConfig(&netcfg, fc))
@@ -185,6 +211,13 @@ func (ncc *NetworkConfigCreator) populateNetworkConfig(netcfg *netv1alpha1.Netwo
 	netcfg.Labels[consts.ReplicationRequestedLabel] = strconv.FormatBool(true)
 	netcfg.Labels[consts.LocalResourceOwnership] = componentName
 	netcfg.Labels[consts.ReplicationDestinationLabel] = clusterIdentity.ClusterID
+	netcfg.Labels["destination"] = clusterIdentity.ClusterID
+	if fc.Spec.InducedPeering.InducedPeeringEnabled == discoveryv1alpha1.PeeringEnabledYes {
+		netcfg.Labels["passthrough"] = "true"
+		netcfg.Labels[consts.ReplicationDestinationLabel] = fc.Spec.InducedPeering.OriginClusterIdentity.ClusterID
+	} else {
+		netcfg.Labels[consts.ReplicationDestinationLabel] = clusterIdentity.ClusterID
+	}
 
 	wgEndpointIP, wgEndpointPort := ncc.serviceWatcher.WiregardEndpoint()
 

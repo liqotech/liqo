@@ -18,10 +18,10 @@ import discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 
 // IsNetworkingEnabled checks if the networking is enabled (i.e. set to "Yes").
 func IsNetworkingEnabled(foreignCluster *discoveryv1alpha1.ForeignCluster) bool {
-	return foreignCluster.Spec.NetworkingEnabled == discoveryv1alpha1.NetworkingEnabledYes
+	return foreignCluster.Spec.FullPeering.NetworkingEnabled == discoveryv1alpha1.NetworkingEnabledYes
 }
 
 // GetNetworkingState returns the state of the networking. Networking can be enabled or disabled.
 func GetNetworkingState(foreignCluster *discoveryv1alpha1.ForeignCluster) discoveryv1alpha1.NetworkingEnabledType {
-	return foreignCluster.Spec.NetworkingEnabled
+	return foreignCluster.Spec.FullPeering.NetworkingEnabled
 }

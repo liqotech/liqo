@@ -30,4 +30,6 @@ const (
 	PeeringPhaseOutgoing PeeringPhase = "Outgoing"
 	// PeeringPhaseBidirectional -> both incoming and outgoing peerings have been established.
 	PeeringPhaseBidirectional PeeringPhase = "Bidirectional"
+	// PeeringPhaseInduced -> an induced peering has been established.
+	PeeringPhaseInduced PeeringPhase = "Induced"
 )

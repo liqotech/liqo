@@ -142,11 +142,13 @@ var _ = BeforeSuite(func() {
 			},
 		},
 		Spec: discoveryv1alpha1.ForeignClusterSpec{
-			ForeignAuthURL:         "https://example.com",
-			ClusterIdentity:        discoveryv1alpha1.ClusterIdentity{ClusterID: remoteClusterID1, ClusterName: "remote-1"},
-			OutgoingPeeringEnabled: discoveryv1alpha1.PeeringEnabledAuto,
-			IncomingPeeringEnabled: discoveryv1alpha1.PeeringEnabledAuto,
-			InsecureSkipTLSVerify:  pointer.BoolPtr(true),
+			ClusterIdentity: discoveryv1alpha1.ClusterIdentity{ClusterID: remoteClusterID1, ClusterName: "remote-1"},
+			FullPeering: discoveryv1alpha1.FullPeering{
+				ForeignAuthURL:         "https://example.com",
+				OutgoingPeeringEnabled: discoveryv1alpha1.PeeringEnabledAuto,
+				IncomingPeeringEnabled: discoveryv1alpha1.PeeringEnabledAuto,
+				InsecureSkipTLSVerify:  pointer.BoolPtr(true),
+			},
 		},
 	}
 
@@ -158,11 +160,13 @@ var _ = BeforeSuite(func() {
 			},
 		},
 		Spec: discoveryv1alpha1.ForeignClusterSpec{
-			ForeignAuthURL:         "https://example.com",
-			ClusterIdentity:        discoveryv1alpha1.ClusterIdentity{ClusterID: remoteClusterID2, ClusterName: "remote-2"},
-			OutgoingPeeringEnabled: discoveryv1alpha1.PeeringEnabledAuto,
-			IncomingPeeringEnabled: discoveryv1alpha1.PeeringEnabledAuto,
-			InsecureSkipTLSVerify:  pointer.BoolPtr(true),
+			ClusterIdentity: discoveryv1alpha1.ClusterIdentity{ClusterID: remoteClusterID2, ClusterName: "remote-2"},
+			FullPeering: discoveryv1alpha1.FullPeering{
+				ForeignAuthURL:         "https://example.com",
+				OutgoingPeeringEnabled: discoveryv1alpha1.PeeringEnabledAuto,
+				IncomingPeeringEnabled: discoveryv1alpha1.PeeringEnabledAuto,
+				InsecureSkipTLSVerify:  pointer.BoolPtr(true),
+			},
 		},
 	}
 

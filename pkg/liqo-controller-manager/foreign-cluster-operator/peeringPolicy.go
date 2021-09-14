@@ -55,7 +55,7 @@ func (r *ForeignClusterReconciler) isOutgoingPeeringEnabled(ctx context.Context,
 		return false, nil
 	}
 
-	switch foreignCluster.Spec.OutgoingPeeringEnabled {
+	switch foreignCluster.Spec.FullPeering.OutgoingPeeringEnabled {
 	case discoveryv1alpha1.PeeringEnabledNo:
 		return false, nil
 	case discoveryv1alpha1.PeeringEnabledYes:

@@ -1126,6 +1126,57 @@ func validateEndpointMappingInputs(clusterID, ip string) error {
 	return nil
 }
 
+func findClusterID(ip string, subnets map[string]netv1alpha1.Subnets) (clusterID string) {
+	for clusterID = range subnets {
+		doesBelong, err := ipBelongsToNetwork(ip, subnets[clusterID].RemotePodCIDR)
+		if err == nil && doesBelong {
+			return clusterID
+		}
+	}
+	return ""
+}
+
+func (liqoIPAM *IPAM) getClusterIDInternal(ip string) (clusterID string, err error) {
+	parsedIP := net.ParseIP(ip)
+	if parsedIP == nil {
+		return "", &liqoneterrors.WrongParameter{
+			Reason:    liqoneterrors.ValidIP,
+			Parameter: ip,
+		}
+	}
+
+	liqoIPAM.mutex.Lock()
+	defer liqoIPAM.mutex.Unlock()
+
+	// Get all subnets
+	subnets := liqoIPAM.ipamStorage.getClusterSubnets()
+
+	// Find cluster ID of the cluster the ip address belongs to
+	// In case clusterID == "", return it as is and don't return an error
+	clusterID = findClusterID(ip, subnets)
+
+	return
+}
+
+func (liqoIPAM *IPAM) GetClusterID(ctx context.Context, request *ClusterIDRequest) (*ClusterIDResponse, error) {
+	clusterID, err := liqoIPAM.getClusterIDInternal(request.GetIp())
+	if err != nil {
+		return &ClusterIDResponse{}, fmt.Errorf("cannot get cluster ID starting from IP %s: %w", request.GetIp(), err)
+	}
+	return &ClusterIDResponse{ClusterID: clusterID}, nil
+}
+
+func (liqoIPAM *IPAM) doesClusterMappingExistInternal(clusterID string) (doesExist bool) {
+	subnets := liqoIPAM.ipamStorage.getClusterSubnets()
+	_, doesExist = subnets[clusterID]
+	return
+}
+
+func (liqoIPAM *IPAM) DoesClusterMappingExist(ctx context.Context, request *ClusterMappingRequest) (*ClusterMappingResponse, error) {
+	doesExist := liqoIPAM.doesClusterMappingExistInternal(request.GetClusterID())
+	return &ClusterMappingResponse{DoesExist: doesExist}, nil
+}
+
 // GetHomePodIP receives a Pod IP valid in the remote cluster and returns the corresponding home Pod IP
 // (i.e. with validity in home cluster).
 func (liqoIPAM *IPAM) GetHomePodIP(ctx context.Context, request *GetHomePodIPRequest) (*GetHomePodIPResponse, error) {

@@ -1,0 +1,18 @@
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: liqo-passthrough-ClusterRole
+  namespace: liqo-public
+rules:
+- apiGroups:
+  - net.liqo.io
+  resources:
+  - networkconfigs
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch

@@ -31,3 +31,15 @@ rules:
   - patch
   - update
   - watch
+- apiGroups:
+  - discovery.liqo.io
+  resources:
+  - neighborhoods
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch

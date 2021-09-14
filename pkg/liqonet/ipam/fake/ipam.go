@@ -103,3 +103,13 @@ func (mock *IPAMClient) BelongsToPodCIDR(context.Context, *ipam.BelongsRequest,
 	...grpc.CallOption) (*ipam.BelongsResponse, error) {
 	return &ipam.BelongsResponse{Belongs: true}, nil
 }
+
+func (mock *IPAMClient) GetClusterID(_ context.Context, req *ipam.ClusterIDRequest, _ ...grpc.CallOption) (*ipam.ClusterIDResponse, error) {
+	// TODO
+	return &ipam.ClusterIDResponse{}, nil
+}
+
+func (mock *IPAMClient) DoesClusterMappingExist(_ context.Context, req *ipam.ClusterMappingRequest, _ ...grpc.CallOption) (*ipam.ClusterMappingResponse, error) {
+	// TODO
+	return &ipam.ClusterMappingResponse{}, nil
+}

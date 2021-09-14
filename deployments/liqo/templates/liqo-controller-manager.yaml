@@ -49,6 +49,7 @@ spec:
           - --real-storage-class-name={{ .Values.storage.realStorageClassName }}
           - --storage-namespace={{ .Values.storage.storageNamespace }}
           {{- end }}
+          - --enable-induced-peering={{ .Values.inducedPeering.enable }}
           {{- if .Values.auth.ingress.enable }}
           - --auth-service-address-override={{ .Values.auth.ingress.host }}
           {{- end }}

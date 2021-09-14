@@ -813,15 +813,15 @@ func (c *Cluster) EnforceForeignCluster(ctx context.Context, remoteClusterID *di
 	}
 
 	if _, err = controllerutil.CreateOrPatch(ctx, c.locCtrlRunClient, fc, func() error {
-		fc.Spec.ForeignAuthURL = authURL
-		fc.Spec.ForeignProxyURL = proxyURL
-		fc.Spec.OutgoingPeeringEnabled = discoveryv1alpha1.PeeringEnabledYes
-		fc.Spec.NetworkingEnabled = discoveryv1alpha1.NetworkingEnabledNo
-		if fc.Spec.IncomingPeeringEnabled == "" {
-			fc.Spec.IncomingPeeringEnabled = discoveryv1alpha1.PeeringEnabledAuto
+		fc.Spec.FullPeering.ForeignAuthURL = authURL
+		fc.Spec.FullPeering.ForeignProxyURL = proxyURL
+		fc.Spec.FullPeering.OutgoingPeeringEnabled = discoveryv1alpha1.PeeringEnabledYes
+		fc.Spec.FullPeering.NetworkingEnabled = discoveryv1alpha1.NetworkingEnabledNo
+		if fc.Spec.FullPeering.IncomingPeeringEnabled == "" {
+			fc.Spec.FullPeering.IncomingPeeringEnabled = discoveryv1alpha1.PeeringEnabledAuto
 		}
-		if fc.Spec.InsecureSkipTLSVerify == nil {
-			fc.Spec.InsecureSkipTLSVerify = pointer.BoolPtr(true)
+		if fc.Spec.FullPeering.InsecureSkipTLSVerify == nil {
+			fc.Spec.FullPeering.InsecureSkipTLSVerify = pointer.BoolPtr(true)
 		}
 		return nil
 	}); err != nil {
@@ -891,7 +891,7 @@ func (c *Cluster) DisablePeering(ctx context.Context, remoteClusterID *discovery
 
 	// Set outgoing peering to no.
 	if _, err := controllerutil.CreateOrPatch(ctx, c.locCtrlRunClient, fc, func() error {
-		fc.Spec.OutgoingPeeringEnabled = "No"
+		fc.Spec.FullPeering.OutgoingPeeringEnabled = "No"
 		return nil
 	}); err != nil {
 		s.Fail(fmt.Sprintf("an error occurred withe disabling peering for remote cluster {%s}: %v", remName, err))

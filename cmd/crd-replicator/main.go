@@ -79,6 +79,9 @@ func main() {
 	reflectionManager := reflection.NewManager(dynClient, clusterIdentity.ClusterID, *workers, *resyncPeriod)
 	reflectionManager.Start(ctx, resources.GetResourcesToReplicate())
 
+	internalReflector := reflectionManager.NewForTarget(dynClient, "", "", "", true)
+	internalReflector.Start(ctx)
+
 	d := &crdreplicator.Controller{
 		Scheme:    mgr.GetScheme(),
 		Client:    mgr.GetClient(),
@@ -86,7 +89,9 @@ func main() {
 
 		RegisteredResources: resources.GetResourcesToReplicate(),
 		ReflectionManager:   reflectionManager,
-		Reflectors:          make(map[string]*reflection.Reflector),
+
+		ExternalReflectors: make(map[string]*reflection.Reflector),
+		InternalReflector:  internalReflector,
 
 		IdentityReader: identitymanager.NewCertificateIdentityReader(
 			k8sClient, clusterIdentity, namespaceManager),
