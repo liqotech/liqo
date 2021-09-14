@@ -29,6 +29,12 @@ var (
 	// GroupResource is group and resource used to register these objects.
 	GroupResource = schema.GroupResource{Group: GroupVersion.Group, Resource: "namespaceoffloadings"}
 
+	// LiqoDeploymentGroupResource is group and resource used to register these objects.
+	LiqoDeploymentGroupResource = schema.GroupResource{Group: GroupVersion.Group, Resource: "liqodeployments"}
+
+	// LiqoDeploymentGroupVersionResource is groupResourceVersion used to register these objects.
+	LiqoDeploymentGroupVersionResource = schema.GroupVersionResource{Group: GroupVersion.Group, Version: "v1alpha1", Resource: "liqodeployments"}
+
 	// SchemeBuilder is used to add go types to the GroupVersionKind scheme.
 	SchemeBuilder = &scheme.Builder{GroupVersion: GroupVersion}
 
