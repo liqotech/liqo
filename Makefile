@@ -60,7 +60,8 @@ purge: manifests
 
 # Generate manifests e.g. CRD, RBAC etc.
 manifests: controller-gen
-	$(CONTROLLER_GEN) $(CRD_OPTIONS) paths="./..." output:crd:artifacts:config=deployments/liqo/crds
+	rm --force deployments/liqo/crds/*
+	$(CONTROLLER_GEN) $(CRD_OPTIONS) paths="./apis/..." output:crd:artifacts:config=deployments/liqo/crds
 
 #Generate RBAC for each controller
 rbacs: controller-gen
@@ -110,7 +111,7 @@ vet:
 
 # Generate code
 generate: controller-gen
-	$(CONTROLLER_GEN) object:headerFile="hack/boilerplate.go.txt" paths="./..."
+	$(CONTROLLER_GEN) object:headerFile="hack/boilerplate.go.txt" paths="./apis/..."
 
 # Generate gRPC files
 grpc: protoc
