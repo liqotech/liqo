@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"net"
 	"strings"
+	"sync"
 
 	goipam "github.com/metal-stack/go-ipam"
 	grpc "google.golang.org/grpc"
@@ -81,6 +82,7 @@ type IPAM struct {
 	ipamStorage        IpamStorage
 	natMappingInflater natmappinginflater.Interface
 	grpcServer         *grpc.Server
+	mutex              sync.Mutex
 	UnimplementedIpamServer
 }
 
@@ -381,6 +383,7 @@ func (liqoIPAM *IPAM) GetSubnetsPerCluster(
 	externalCIDR,
 	clusterID string) (mappedPodCIDR, mappedExternalCIDR string, err error) {
 	var exists bool
+
 	// Get subnets of clusters
 	clusterSubnets, err := liqoIPAM.ipamStorage.getClusterSubnets()
 	if err != nil {
@@ -876,6 +879,7 @@ func (liqoIPAM *IPAM) AddLocalSubnetsPerCluster(podCIDR, externalCIDR, clusterID
 func (liqoIPAM *IPAM) RemoveLocalSubnetsPerCluster(clusterID string) error {
 	var exists bool
 	var subnets netv1alpha1.Subnets
+
 	// Get cluster subnets
 	clusterSubnets, err := liqoIPAM.ipamStorage.getClusterSubnets()
 	if err != nil {
@@ -903,6 +907,7 @@ func (liqoIPAM *IPAM) RemoveLocalSubnetsPerCluster(clusterID string) error {
 func (liqoIPAM *IPAM) GetExternalCIDR(mask uint8) (string, error) {
 	var externalCIDR string
 	var err error
+
 	// Get cluster ExternalCIDR
 	externalCIDR, err = liqoIPAM.ipamStorage.getExternalCIDR()
 	if err != nil {
@@ -1009,6 +1014,9 @@ func (liqoIPAM *IPAM) mapEndpointIPInternal(clusterID, ip string) (string, error
 		return "", err
 	}
 
+	liqoIPAM.mutex.Lock()
+	defer liqoIPAM.mutex.Unlock()
+
 	// Get cluster subnets
 	clusterSubnets, err := liqoIPAM.ipamStorage.getClusterSubnets()
 	if err != nil {
@@ -1107,6 +1115,9 @@ func (liqoIPAM *IPAM) getHomePodIPInternal(clusterID, ip string) (string, error)
 		}
 	}
 
+	liqoIPAM.mutex.Lock()
+	defer liqoIPAM.mutex.Unlock()
+
 	// Get cluster subnets
 	clusterSubnets, err := liqoIPAM.ipamStorage.getClusterSubnets()
 	if err != nil {
@@ -1137,6 +1148,9 @@ func (liqoIPAM *IPAM) unmapEndpointIPInternal(clusterID, endpointIP string) erro
 	if err != nil {
 		return err
 	}
+
+	liqoIPAM.mutex.Lock()
+	defer liqoIPAM.mutex.Unlock()
 
 	// Get endpointMappings
 	endpointMappings, err := liqoIPAM.ipamStorage.getEndpointMappings()
@@ -1207,6 +1221,7 @@ func (liqoIPAM *IPAM) UnmapEndpointIP(ctx context.Context, unmapRequest *UnmapRe
 func (liqoIPAM *IPAM) SetPodCIDR(podCIDR string) error {
 	var oldPodCIDR string
 	var err error
+
 	// Get PodCIDR
 	oldPodCIDR, err = liqoIPAM.ipamStorage.getPodCIDR()
 	if err != nil {
@@ -1233,6 +1248,7 @@ func (liqoIPAM *IPAM) SetPodCIDR(podCIDR string) error {
 func (liqoIPAM *IPAM) SetServiceCIDR(serviceCIDR string) error {
 	var oldServiceCIDR string
 	var err error
+
 	// Get ServiceCIDR
 	oldServiceCIDR, err = liqoIPAM.ipamStorage.getServiceCIDR()
 	if err != nil {
