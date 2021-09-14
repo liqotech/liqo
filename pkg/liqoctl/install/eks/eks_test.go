@@ -56,6 +56,7 @@ var _ = Describe("Extract elements from EKS", func() {
 		GenerateFlags(cmd)
 		cmd.Flags().String("cluster-name", "", "Name to assign to the Liqo Cluster")
 		cmd.Flags().String("reserved-subnets", "", "")
+		cmd.Flags().String("auth-service-hostname", "", "")
 
 		flags := cmd.Flags()
 		Expect(flags.Set("region", region)).To(Succeed())

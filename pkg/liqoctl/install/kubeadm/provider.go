@@ -81,6 +81,8 @@ func (k *Kubeadm) UpdateChartValues(values map[string]interface{}) {
 			"clusterLabels": installutils.GetInterfaceMap(k.ClusterLabels),
 		},
 	}
+
+	k.SetupIngress(values, false)
 }
 
 // GenerateFlags generates the set of specific subpath and flags are accepted for a specific provider.

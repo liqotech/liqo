@@ -39,9 +39,10 @@ const (
 	defaultPodCIDR     = "10.42.0.0/16"
 	defaultServiceCIDR = "10.43.0.0/16"
 
-	podCidrFlag     = "pod-cidr"
-	serviceCidrFlag = "service-cidr"
-	apiServerFlag   = "api-server"
+	podCidrFlag        = "pod-cidr"
+	serviceCidrFlag    = "service-cidr"
+	apiServerFlag      = "api-server"
+	disableIngressFlag = "disable-ingress"
 )
 
 var (
@@ -60,6 +61,8 @@ type k3sProvider struct {
 	apiServer   string
 	serviceCIDR string
 	podCIDR     string
+
+	disableIngress bool
 }
 
 // NewProvider initializes a new K3S provider struct.
@@ -98,6 +101,11 @@ func (k *k3sProvider) ValidateCommandArguments(flags *flag.FlagSet) (err error) 
 	}
 	if k.apiServer != "" {
 		klog.V(3).Infof("K3S API Server: %v", k.apiServer)
+	}
+
+	k.disableIngress, err = flags.GetBool(disableIngressFlag)
+	if err != nil {
+		return err
 	}
 
 	return nil
@@ -152,6 +160,10 @@ func (k *k3sProvider) UpdateChartValues(values map[string]interface{}) {
 			"clusterName":   k.ClusterName,
 		},
 	}
+
+	if !k.disableIngress {
+		k.SetupIngress(values, true)
+	}
 }
 
 // GenerateFlags generates the set of specific subpath and flags are accepted for a specific provider.
@@ -161,6 +173,7 @@ func GenerateFlags(command *cobra.Command) {
 	flags.String(podCidrFlag, defaultPodCIDR, "The Pod CIDR for your cluster (optional)")
 	flags.String(serviceCidrFlag, defaultServiceCIDR, "The Service CIDR for your cluster (optional)")
 	flags.String(apiServerFlag, "", "Your cluster API Server URL (optional)")
+	flags.Bool(disableIngressFlag, false, "Disable the ingress resource creation")
 }
 
 // validateServiceCIDR validates that the services in the target cluster matches the provided service CIDR.

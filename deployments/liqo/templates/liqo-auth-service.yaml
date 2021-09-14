@@ -18,7 +18,11 @@ spec:
     {{- include "liqo.selectorLabels" $authConfig | nindent 4 }}
     {{- include "liqo.authServiceLabels" . | nindent 4 }}
   ports:
+    {{- if not .Values.auth.tls }}
+    - name: http
+    {{- else }}
     - name: https
+    {{- end }}
       protocol: TCP
       {{- if not .Values.auth.tls }}
       port: 5000

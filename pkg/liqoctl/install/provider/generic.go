@@ -25,6 +25,7 @@ type GenericProvider struct {
 	ReservedSubnets []string
 	ClusterLabels   map[string]string
 	ClusterName     string
+	HostName        string
 }
 
 // ValidateGenericCommandArguments validates the flags required by every install provider.
@@ -46,5 +47,29 @@ func (p *GenericProvider) ValidateGenericCommandArguments(flags *flag.FlagSet) (
 
 	p.ReservedSubnets = reservedSubnets.StringList.StringList
 
+	p.HostName, err = flags.GetString("auth-service-hostname")
+	if err != nil {
+		return err
+	}
+
 	return nil
+}
+
+// SetupIngress setups the ingress resource for the authentication service.
+// The resource is created if an hostname is set, or if the useEmptyHost flag is enabled.
+func (p *GenericProvider) SetupIngress(values map[string]interface{}, useEmptyHost bool) {
+	if !useEmptyHost && p.HostName == "" {
+		return
+	}
+
+	values["auth"] = map[string]interface{}{
+		"service": map[string]interface{}{
+			"type": "ClusterIP",
+		},
+		"tls": false,
+		"ingress": map[string]interface{}{
+			"enable": true,
+			"host":   p.HostName,
+		},
+	}
 }

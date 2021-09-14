@@ -53,6 +53,8 @@ func newInstallCommand(ctx context.Context) *cobra.Command {
 	installCmd.PersistentFlags().String("resource-sharing-percentage", "90", "It defines the percentage of available cluster resources that "+
 		"you are willing to share with foreign clusters. It accepts [0 - 100] values.")
 	installCmd.PersistentFlags().Bool("enable-ha", false, "Enable the gateway component support active/passive high availability.")
+	installCmd.PersistentFlags().String("auth-service-hostname", "", "If set, Liqo exposes the authentication service with an ingress "+
+		"with that hostname (optional)")
 
 	for _, providerName := range providers {
 		cmd, err := getCommand(ctx, providerName)
