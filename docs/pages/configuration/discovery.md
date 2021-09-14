@@ -24,24 +24,20 @@ Besides, mDNS discovery implies also that your cluster is discoverable by others
 
 #### Enable and Disable the discovery on LAN
 
-The discovery on LAN can be enabled and disabled by updating the flags in the ClusterConfig CR. Lan Discovery can be 
-disabled to avoid unwanted peering with neighbors.
+LAN discovery is enabled by default. You can disable it by setting to false the `enable-lan-discovery` flag of liqoctl install.
+For example:
 
-You can enable discovery, by typing:
-```bash
-kubectl patch clusterconfigs liqo-configuration \
-  --patch '{"spec":{"discoveryConfig":{"enableDiscovery": true, "enableAdvertisement": true}}}' \
-  --type 'merge'
+```
+liqoctl install ${YOUR_PROVIDER} --cluster-name ${YOUR_CLUSTER_NAME} --enable-lan-discovery=false
 ```
 
-Or disabling it with:
-```bash
-kubectl patch clusterconfigs liqo-configuration \
-  --patch '{"spec":{"discoveryConfig":{"enableDiscovery": false, "enableAdvertisement": false}}}' \
-  --type 'merge'
-```
+where `${YOUR_PROVIDER}` is the provider for your cluster and `${YOUR_CLUSTER_NAME}` is the name you want to assign to it.
 
-The automatic LAN discovery is enabled by default.
+If you want to turn it on again you just have to:
+
+```
+liqoctl install ${YOUR_PROVIDER} --cluster-name ${YOUR_CLUSTER_NAME} --enable-lan-discovery=true
+```
 
 ### Manual Configuration
 

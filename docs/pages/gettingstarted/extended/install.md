@@ -63,7 +63,9 @@ liqoctl commands take a couple of minutes to complete. If liqoctl returns succes
 
 ## Check installation state
 
-Liqo should be installed on all three clusters:
+Liqo should be installed on all three clusters.
+
+You can check by typing for example:
 
 ```bash
 export KUBECONFIG=$KUBECONFIG_1
@@ -85,39 +87,4 @@ liqo-route-sn5c8                              1/1     Running
 liqo-webhook-6bcc9d4f76-5dwmw                 1/1     Running             
 ```
 
-You can also look at the labels that each cluster will expose remotely:
-
-```bash
-export KUBECONFIG=$KUBECONFIG_1
-kubectl get clusterconfigs.config.liqo.io -o yaml | grep clusterLabels -A 2
-```
-
-You should see the labels that you have previously configured for the first cluster:
-
-```yaml
-clusterLabels:
-  liqo.io/provider: provider-1
-  topology.liqo.io/region: eu-west
-```
-
-Check it also on the other two clusters:
-
-```bash
-export KUBECONFIG=$KUBECONFIG_2
-kubectl get clusterconfigs.config.liqo.io -o yaml | grep clusterLabels -A 2
-```
-
-```bash
-export KUBECONFIG=$KUBECONFIG_3
-kubectl get clusterconfigs.config.liqo.io -o yaml | grep clusterLabels -A 2
-```
-
-The actual scenario should be: 
-
-| Cluster         | Region  | Provider |
-|-----            | ------- |----------|
-| **Cluster-1**   | eu-west |  provider-1   |
-| **Cluster-2**   | us-west |  provider-2   |
-| **Cluster-3**   | eu-east |  provider-3   |
-
-Once your clusters are ready, you can start the [peering procedure](../peer).
+If Liqo is installed and running on your clusters, you can start to [peer your clusters](../peer).
