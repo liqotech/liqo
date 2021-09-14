@@ -185,6 +185,7 @@ func main() {
 			Scheme:      mgr.GetScheme(),
 			ClusterID:   *clusterID,
 			Broadcaster: newBroadcaster,
+			EnableIncomingPeering: *enableIncomingPeering,
 		}
 	}
 
