@@ -25,7 +25,7 @@ import (
 	. "github.com/onsi/ginkgo/extensions/table"
 	. "github.com/onsi/gomega"
 	. "github.com/onsi/gomega/gstruct"
-	. "github.com/onsi/gomega/types"
+	"github.com/onsi/gomega/types"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -121,10 +121,10 @@ var _ = Describe("NodeProvider", func() {
 	type nodeProviderTestcase struct {
 		resourceOffer      *sharingv1alpha1.ResourceOffer
 		tunnelEndpoint     *netv1alpha1.TunnelEndpoint
-		expectedConditions []GomegaMatcher
+		expectedConditions []types.GomegaMatcher
 	}
 
-	ConditionMatcher := func(key v1.NodeConditionType, status v1.ConditionStatus) GomegaMatcher {
+	ConditionMatcher := func(key v1.NodeConditionType, status v1.ConditionStatus) types.GomegaMatcher {
 		return MatchFields(IgnoreExtras, Fields{
 			"Type":   BeIdenticalTo(key),
 			"Status": BeIdenticalTo(status),
@@ -204,7 +204,7 @@ var _ = Describe("NodeProvider", func() {
 				},
 			},
 			tunnelEndpoint: nil,
-			expectedConditions: []GomegaMatcher{
+			expectedConditions: []types.GomegaMatcher{
 				ConditionMatcher(v1.NodeReady, v1.ConditionFalse),
 				ConditionMatcher(v1.NodeMemoryPressure, v1.ConditionFalse),
 				ConditionMatcher(v1.NodeDiskPressure, v1.ConditionFalse),
@@ -233,7 +233,7 @@ var _ = Describe("NodeProvider", func() {
 					},
 				},
 			},
-			expectedConditions: []GomegaMatcher{
+			expectedConditions: []types.GomegaMatcher{
 				ConditionMatcher(v1.NodeReady, v1.ConditionFalse),
 				ConditionMatcher(v1.NodeMemoryPressure, v1.ConditionTrue),
 				ConditionMatcher(v1.NodeDiskPressure, v1.ConditionTrue),
@@ -283,7 +283,7 @@ var _ = Describe("NodeProvider", func() {
 					},
 				},
 			},
-			expectedConditions: []GomegaMatcher{
+			expectedConditions: []types.GomegaMatcher{
 				ConditionMatcher(v1.NodeReady, v1.ConditionTrue),
 				ConditionMatcher(v1.NodeMemoryPressure, v1.ConditionFalse),
 				ConditionMatcher(v1.NodeDiskPressure, v1.ConditionFalse),
