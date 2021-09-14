@@ -24,7 +24,7 @@ require (
 	github.com/mittwald/go-helm-client v0.8.1
 	github.com/modern-go/reflect2 v1.0.1
 	github.com/onsi/ginkgo v1.16.4
-	github.com/onsi/gomega v1.14.0
+	github.com/onsi/gomega v1.16.0
 	github.com/pkg/errors v0.9.1
 	github.com/spf13/cast v1.4.0 // indirect
 	github.com/spf13/cobra v1.2.1
@@ -35,7 +35,7 @@ require (
 	github.com/vishvananda/netns v0.0.0-20200728191858-db3c7e526aae
 	go.opencensus.io v0.23.0
 	golang.org/x/oauth2 v0.0.0-20210628180205-a41e5a781914 // indirect
-	golang.org/x/sys v0.0.0-20210630005230-0f9fa26af87c
+	golang.org/x/sys v0.0.0-20210817190340-bfb29a6856f2
 	golang.org/x/tools v0.1.4 // indirect
 	golang.zx2c4.com/wireguard/wgctrl v0.0.0-20200609130330-bd2cb7843e1b
 	gomodules.xyz/jsonpatch/v2 v2.2.0
@@ -47,16 +47,16 @@ require (
 	gotest.tools v2.2.0+incompatible
 	helm.sh/helm/v3 v3.6.2
 	inet.af/netaddr v0.0.0-20210313195008-843b4240e319
-	k8s.io/api v0.22.0
-	k8s.io/apimachinery v0.22.0
-	k8s.io/client-go v0.22.0
-	k8s.io/component-helpers v0.22.0
-	k8s.io/klog/v2 v2.9.0
-	k8s.io/kubectl v0.22.0
-	k8s.io/metrics v0.22.0
-	k8s.io/utils v0.0.0-20210722164352-7f3ee0f31471
+	k8s.io/api v0.22.1
+	k8s.io/apimachinery v0.22.1
+	k8s.io/client-go v0.22.1
+	k8s.io/component-helpers v0.22.1
+	k8s.io/klog/v2 v2.10.0
+	k8s.io/kubectl v0.22.1
+	k8s.io/metrics v0.22.1
+	k8s.io/utils v0.0.0-20210820185131-d34e5cb4466e
 	sigs.k8s.io/aws-iam-authenticator v0.5.3
-	sigs.k8s.io/controller-runtime v0.9.6
+	sigs.k8s.io/controller-runtime v0.10.0
 )
 
 replace github.com/virtual-kubelet/virtual-kubelet => github.com/liqotech/virtual-kubelet v1.5.1-0.20210726130647-f2333d82a6de
