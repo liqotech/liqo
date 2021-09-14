@@ -159,6 +159,7 @@ func main() {
 	var resourceRequestReconciler *resourceRequestOperator.ResourceRequestReconciler
 	var operator interfaces.ClusterResourceInterface
 	if brokerMode {
+		klog.Info("Starting broker...")
 		broker := &resourceRequestOperator.Broker{}
 		broker.SetupBroker(*clusterID, clientset, mgr.GetScheme(), *resyncPeriod, mgr.GetClient())
 		operator = broker
@@ -170,6 +171,7 @@ func main() {
 			EnableIncomingPeering: *enableIncomingPeering,
 		}
 	}else {
+		klog.Info("Starting broadcaster...")
 		newBroadcaster := &resourceRequestOperator.Broadcaster{}
 		updater := &resourceRequestOperator.OfferUpdater{}
 		updater.Setup(*clusterID, mgr.GetScheme(), newBroadcaster, mgr.GetClient(), clusterLabels.StringMap)
