@@ -78,7 +78,7 @@ The traffic toward remapped networks will require an additional NAT operation ca
 In conclusion, the IPAM maintains a list of all the networks currently in use in the home cluster and when a new peering takes place, adds the network reserved to the remote cluster to the list. The network remains in the list as long as the peering is active and it is removed when the peering is terminated. In this way the network freed after the termination of a peering becomes available for future use.
 
 {{% notice info %}}
-You can specify reserved networks in `clusterconfigs.config.liqo.io` resource. IPAM will add these networks to the list of used networks and will no longer take it in consideration for remote clusters.
+You can specify reserved networks as parameter of the network-manager and configured by `liqoctl install` or the helm chart. IPAM will add these networks to the list of used networks and will no longer take it in consideration for remote clusters.
 {{% /notice %}}
 
 #### IP addresses translation of offloaded Pods

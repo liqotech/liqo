@@ -30,7 +30,7 @@ OS=linux # possible values: linux,windows,darwin
 ARCH=amd64 # possible values: amd64,arm64 
 ```
 
-Then, you should execute the following commands the latest version of liqoctl:
+Then, you can install the latest version of liqoctl:
 
 ```bash
 curl --fail -LSO "https://get.liqo.io/liqoctl-${OS}-${ARCH}" && \
