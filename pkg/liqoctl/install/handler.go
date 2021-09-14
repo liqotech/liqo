@@ -19,16 +19,22 @@ import (
 	"fmt"
 
 	"github.com/spf13/cobra"
+	"k8s.io/klog/v2"
 
 	"github.com/liqotech/liqo/pkg/liqoctl/common"
 	"github.com/liqotech/liqo/pkg/liqoctl/generate"
 	installprovider "github.com/liqotech/liqo/pkg/liqoctl/install/provider"
 	installutils "github.com/liqotech/liqo/pkg/liqoctl/install/utils"
+	logsutils "github.com/liqotech/liqo/pkg/utils/logs"
 )
 
 // HandleInstallCommand implements the "install" command. It detects which provider has to be used, generates the chart
 // with provider-specific values. Finally, it performs the installation on the target cluster.
 func HandleInstallCommand(ctx context.Context, cmd *cobra.Command, baseCommand, providerName string) error {
+	if !klog.V(4).Enabled() {
+		klog.SetLogFilter(logsutils.LogFilter{})
+	}
+
 	config := common.GetLiqoctlRestConfOrDie()
 	providerInstance := getProviderInstance(providerName)
 

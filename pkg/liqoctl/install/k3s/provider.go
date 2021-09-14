@@ -230,7 +230,7 @@ func (k *k3sProvider) validateAPIServer() error {
 	hostname := apiServerURL.Hostname()
 	for i := range localhostValues {
 		if hostname == localhostValues[i] {
-			return fmt.Errorf("cannot use localhost (%v) as API Server address", hostname)
+			return fmt.Errorf("cannot use localhost (%v) as API Server address, set an external address in your kubeconfig", hostname)
 		}
 	}
 
