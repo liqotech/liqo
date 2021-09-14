@@ -172,3 +172,25 @@ func LocalResourcesLabelSelector() metav1.LabelSelector {
 		},
 	}
 }
+
+// RemoteResourcesLabelSelector is an helper function which returns a label selector to list all the resources received by other clusters.
+func RemoteResourcesLabelSelector() metav1.LabelSelector {
+	return metav1.LabelSelector{
+		MatchExpressions: []metav1.LabelSelectorRequirement{
+			{
+				Key:      consts.ReplicationRequestedLabel,
+				Operator: metav1.LabelSelectorOpIn,
+				Values:   []string{strconv.FormatBool(false)},
+			},
+			{
+				Key:      consts.ReplicationDestinationLabel,
+				Operator: metav1.LabelSelectorOpExists,
+			},
+			{
+				Key:      consts.ReplicationStatusLabel,
+				Operator: metav1.LabelSelectorOpIn,
+				Values:   []string{strconv.FormatBool(true)},
+			},
+		},
+	}
+}

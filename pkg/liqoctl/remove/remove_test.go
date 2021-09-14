@@ -81,7 +81,7 @@ var _ = Describe("Test Remove Command", func() {
 					var foreignCluster discoveryv1alpha1.ForeignCluster
 					Expect(k8sClient.Get(ctx, machinerytypes.NamespacedName{Name: foreignClusterName}, &foreignCluster)).To(Succeed())
 
-					return foreignCluster.Spec.OutgoingPeeringEnabled
+					return foreignCluster.Spec.FullPeering.OutgoingPeeringEnabled
 				}, timeout, interval).Should(c.expectedFlag)
 			},
 
@@ -108,7 +108,9 @@ func setUpEnvironment() client.Client {
 			Name: foreignClusterName,
 		},
 		Spec: discoveryv1alpha1.ForeignClusterSpec{
-			OutgoingPeeringEnabled: discoveryv1alpha1.PeeringEnabledYes,
+			FullPeering: discoveryv1alpha1.FullPeering{
+				OutgoingPeeringEnabled: discoveryv1alpha1.PeeringEnabledYes,
+			},
 		},
 	}
 

@@ -84,11 +84,13 @@ var _ = Describe("NetworkConfigCreator Controller", func() {
 		fc = &discoveryv1alpha1.ForeignCluster{
 			ObjectMeta: metav1.ObjectMeta{Name: foreigncluster},
 			Spec: discoveryv1alpha1.ForeignClusterSpec{
-				ClusterIdentity:        discoveryv1alpha1.ClusterIdentity{ClusterID: clusterID},
-				IncomingPeeringEnabled: discoveryv1alpha1.PeeringEnabledAuto,
-				OutgoingPeeringEnabled: discoveryv1alpha1.PeeringEnabledAuto,
-				InsecureSkipTLSVerify:  pointer.Bool(true),
-				ForeignAuthURL:         "https://foo.liqo.io",
+				ClusterIdentity: discoveryv1alpha1.ClusterIdentity{ClusterID: clusterID},
+				FullPeering: discoveryv1alpha1.FullPeering{
+					IncomingPeeringEnabled: discoveryv1alpha1.PeeringEnabledAuto,
+					OutgoingPeeringEnabled: discoveryv1alpha1.PeeringEnabledAuto,
+					InsecureSkipTLSVerify:  pointer.Bool(true),
+					ForeignAuthURL:         "https://foo.liqo.io",
+				},
 			},
 			Status: discoveryv1alpha1.ForeignClusterStatus{
 				TenantNamespace: discoveryv1alpha1.TenantNamespaceType{Local: namespace},

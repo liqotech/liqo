@@ -44,6 +44,15 @@ const (
 	finalizer    = "crdReplicator.liqo.io"
 )
 
+type ReflectorSet struct {
+	// Reflector that reads on the local tenant ns and writes on the remote tenant ns
+	TenantToTenant *reflection.Reflector
+	// Reflector that reads on the local tenant ns and writes on the remote public ns
+	TenantToPublic *reflection.Reflector
+	// Reflector that reads on the local public ns and writes on the remote tenant ns
+	PublicToTenant *reflection.Reflector
+}
+
 // Controller reconciles ForeignCluster objects to start/stop the reflection of registered resources to remote clusters.
 type Controller struct {
 	Scheme *runtime.Scheme
@@ -56,7 +65,7 @@ type Controller struct {
 	// ReflectionManager is the object managing the reflection towards remote clusters.
 	ReflectionManager *reflection.Manager
 	// Reflectors is a map containing the reflectors towards each remote cluster.
-	Reflectors map[string]*reflection.Reflector
+	Reflectors map[string]ReflectorSet
 
 	// IdentityReader is an interface to manage remote identities, and to get the rest config.
 	IdentityReader identitymanager.IdentityReader
@@ -103,9 +112,17 @@ func (c *Controller) Reconcile(ctx context.Context, req ctrl.Request) (result ct
 		// the object is being deleted
 		if controllerutil.ContainsFinalizer(&fc, finalizer) {
 			// close remote watcher for remote cluster
-			reflector, ok := c.Reflectors[remoteClusterID]
+			reflectorSet, ok := c.Reflectors[remoteClusterID]
 			if ok {
-				if err := reflector.Stop(); err != nil {
+				if err := reflectorSet.PublicToTenant.Stop(); err != nil {
+					klog.Errorf("[%v] Failed to stop reflection: %v", remoteClusterID, err)
+					return ctrl.Result{}, err
+				}
+				if err := reflectorSet.TenantToPublic.Stop(); err != nil {
+					klog.Errorf("[%v] Failed to stop reflection: %v", remoteClusterID, err)
+					return ctrl.Result{}, err
+				}
+				if err := reflectorSet.TenantToTenant.Stop(); err != nil {
 					klog.Errorf("[%v] Failed to stop reflection: %v", remoteClusterID, err)
 					return ctrl.Result{}, err
 				}
@@ -155,10 +172,19 @@ func (c *Controller) Reconcile(ctx context.Context, req ctrl.Request) (result ct
 		klog.Infof("[%v] TenantNamespace is not yet set in resource %q", remoteClusterID, fc.Name)
 		return ctrl.Result{}, nil
 	}
-	config, err := c.IdentityReader.GetConfig(remoteClusterID, fc.Status.TenantNamespace.Local)
-	if err != nil {
-		klog.Errorf("[%v] Unable to retrieve config from resource %q: %s", remoteClusterID, fc.Name, err)
-		return ctrl.Result{}, nil
+	var config *rest.Config
+	if fc.Spec.InducedPeering.InducedPeeringEnabled == discoveryv1alpha1.PeeringEnabledYes {
+		config, err = c.IdentityReader.GetConfig(fc.Spec.InducedPeering.OriginClusterIdentity.ClusterID, fc.Status.TenantNamespace.Local)
+		if err != nil {
+			klog.Errorf("[%v] Unable to retrieve config from resource %q: %s", remoteClusterID, fc.Name, err)
+			return ctrl.Result{}, nil
+		}
+	} else {
+		config, err = c.IdentityReader.GetConfig(remoteClusterID, fc.Status.TenantNamespace.Local)
+		if err != nil {
+			klog.Errorf("[%v] Unable to retrieve config from resource %q: %s", remoteClusterID, fc.Name, err)
+			return ctrl.Result{}, nil
+		}
 	}
 
 	return ctrl.Result{}, c.setupReflectionToPeeringCluster(ctx, config, &fc)
@@ -198,15 +224,27 @@ func (c *Controller) setupReflectionToPeeringCluster(ctx context.Context, config
 		klog.Errorf("[%v] Unable to create dynamic client for remote cluster: %v", remoteClusterID, err)
 		return err
 	}
+	passthrough := fc.Spec.InducedPeering.InducedPeeringEnabled == discoveryv1alpha1.PeeringEnabledYes
+	reflectorSet := ReflectorSet{
+		TenantToTenant: c.ReflectionManager.NewForRemote(dynamicClient, remoteClusterID, localNamespace, remoteNamespace),
+		TenantToPublic: c.ReflectionManager.NewForRemote(dynamicClient, remoteClusterID, localNamespace, consts.LiqoPublicNS),
+		PublicToTenant: c.ReflectionManager.NewForRemote(dynamicClient, remoteClusterID, consts.LiqoPublicNS, remoteNamespace),
+	}
 
-	reflector := c.ReflectionManager.NewForRemote(dynamicClient, remoteClusterID, localNamespace, remoteNamespace)
-	reflector.Start(ctx)
-	c.Reflectors[remoteClusterID] = reflector
+	if passthrough {
+		reflectorSet.TenantToPublic.Start(ctx)
+	} else {
+		reflectorSet.PublicToTenant.Start(ctx)
+		reflectorSet.TenantToTenant.Start(ctx)
+		reflectorSet.TenantToPublic.Start(ctx)
+	}
+
+	c.Reflectors[remoteClusterID] = reflectorSet
 	return nil
 }
 
 func (c *Controller) enforceReflectionStatus(ctx context.Context, remoteClusterID string, deleting bool) error {
-	reflector, found := c.Reflectors[remoteClusterID]
+	reflectorSet, found := c.Reflectors[remoteClusterID]
 	if !found {
 		// The reflector object has not yet been setup
 		return nil
@@ -215,11 +253,31 @@ func (c *Controller) enforceReflectionStatus(ctx context.Context, remoteClusterI
 	phase := c.getPeeringPhase(remoteClusterID)
 	for i := range c.RegisteredResources {
 		res := &c.RegisteredResources[i]
-		if !deleting && isReplicationEnabled(phase, res) && !reflector.ResourceStarted(res) {
-			reflector.StartForResource(ctx, res)
-		} else if !isReplicationEnabled(phase, res) && reflector.ResourceStarted(res) {
-			if err := reflector.StopForResource(res); err != nil {
-				return err
+		if reflectorSet.PublicToTenant != nil {
+			if !deleting && isReplicationEnabled(phase, res) && !reflectorSet.PublicToTenant.ResourceStarted(res) {
+				reflectorSet.PublicToTenant.StartForResource(ctx, res)
+			} else if !isReplicationEnabled(phase, res) && reflectorSet.PublicToTenant.ResourceStarted(res) {
+				if err := reflectorSet.PublicToTenant.StopForResource(res); err != nil {
+					return err
+				}
+			}
+		}
+		if reflectorSet.TenantToTenant != nil {
+			if !deleting && isReplicationEnabled(phase, res) && !reflectorSet.TenantToTenant.ResourceStarted(res) {
+				reflectorSet.TenantToTenant.StartForResource(ctx, res)
+			} else if !isReplicationEnabled(phase, res) && reflectorSet.TenantToTenant.ResourceStarted(res) {
+				if err := reflectorSet.TenantToTenant.StopForResource(res); err != nil {
+					return err
+				}
+			}
+		}
+		if reflectorSet.TenantToPublic != nil {
+			if !deleting && isReplicationEnabled(phase, res) && !reflectorSet.TenantToPublic.ResourceStarted(res) {
+				reflectorSet.TenantToPublic.StartForResource(ctx, res)
+			} else if !isReplicationEnabled(phase, res) && reflectorSet.TenantToPublic.ResourceStarted(res) {
+				if err := reflectorSet.TenantToPublic.StopForResource(res); err != nil {
+					return err
+				}
 			}
 		}
 	}

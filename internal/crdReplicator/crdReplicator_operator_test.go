@@ -110,8 +110,10 @@ var _ = Describe("CRD Replicator Operator Tests", func() {
 			ObjectMeta: metav1.ObjectMeta{Name: foreignClusterName},
 			Spec: discoveryv1alpha1.ForeignClusterSpec{
 				ClusterIdentity: discoveryv1alpha1.ClusterIdentity{ClusterID: remoteClusterID},
-				ForeignAuthURL:  authURL, OutgoingPeeringEnabled: discoveryv1alpha1.PeeringEnabledAuto,
-				IncomingPeeringEnabled: discoveryv1alpha1.PeeringEnabledAuto, InsecureSkipTLSVerify: pointer.Bool(true),
+				FullPeering: discoveryv1alpha1.FullPeering{
+					ForeignAuthURL: authURL, OutgoingPeeringEnabled: discoveryv1alpha1.PeeringEnabledAuto,
+					IncomingPeeringEnabled: discoveryv1alpha1.PeeringEnabledAuto, InsecureSkipTLSVerify: pointer.Bool(true),
+				},
 			},
 			Status: discoveryv1alpha1.ForeignClusterStatus{
 				TenantNamespace: discoveryv1alpha1.TenantNamespaceType{Local: localNamespace, Remote: remoteNamespace}},

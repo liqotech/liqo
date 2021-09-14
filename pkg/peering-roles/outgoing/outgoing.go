@@ -23,3 +23,6 @@ package outgoing
 
 // +kubebuilder:rbac:groups=sharing.liqo.io,resources=resourceoffers,verbs=get;update;patch;list;watch;delete;create;deletecollection
 // +kubebuilder:rbac:groups=sharing.liqo.io,resources=resourceoffers/status,verbs=get;update;patch;list;watch;delete;create;deletecollection
+
+// +kubebuilder:rbac:groups=discovery.liqo.io,resources=neighborhoods,verbs=get;update;patch;list;watch;delete;create;deletecollection
+// +kubebuilder:rbac:groups=discovery.liqo.io,resources=neighborhoods/status,verbs=get;update;patch;list;watch;delete;create;deletecollection

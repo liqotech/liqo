@@ -36,8 +36,8 @@ func UnjoinClusters(ctx context.Context, client dynamic.Interface) error {
 	klog.Infof("Unjoin %v ForeignClusters", len(foreign.Items))
 
 	mutation := func(fc *discoveryV1alpha1.ForeignCluster) {
-		fc.Spec.IncomingPeeringEnabled = discoveryV1alpha1.PeeringEnabledNo
-		fc.Spec.OutgoingPeeringEnabled = discoveryV1alpha1.PeeringEnabledNo
+		fc.Spec.FullPeering.IncomingPeeringEnabled = discoveryV1alpha1.PeeringEnabledNo
+		fc.Spec.FullPeering.OutgoingPeeringEnabled = discoveryV1alpha1.PeeringEnabledNo
 	}
 
 	for index := range foreign.Items {

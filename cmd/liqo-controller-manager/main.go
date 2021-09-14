@@ -38,9 +38,11 @@ import (
 	"github.com/liqotech/liqo/pkg/consts"
 	identitymanager "github.com/liqotech/liqo/pkg/identityManager"
 	foreignclusteroperator "github.com/liqotech/liqo/pkg/liqo-controller-manager/foreign-cluster-operator"
+	inducedforeignclusterreconciler "github.com/liqotech/liqo/pkg/liqo-controller-manager/induced-foreign-cluster-reconciler"
 	namectrl "github.com/liqotech/liqo/pkg/liqo-controller-manager/namespace-controller"
 	mapsctrl "github.com/liqotech/liqo/pkg/liqo-controller-manager/namespaceMap-controller"
 	nsoffctrl "github.com/liqotech/liqo/pkg/liqo-controller-manager/namespaceOffloading-controller"
+	neighborhoodcreator "github.com/liqotech/liqo/pkg/liqo-controller-manager/neighborhood-creator"
 	offloadingctrl "github.com/liqotech/liqo/pkg/liqo-controller-manager/offloadingStatus-controller"
 	resourceRequestOperator "github.com/liqotech/liqo/pkg/liqo-controller-manager/resource-request-controller"
 	resourceoffercontroller "github.com/liqotech/liqo/pkg/liqo-controller-manager/resourceoffer-controller"
@@ -181,6 +183,23 @@ func main() {
 	}
 
 	// Setup operators
+
+	neighborhoodcreator := &neighborhoodcreator.NeighborhoodCreator{
+		Client:    mgr.GetClient(),
+		Scheme:    mgr.GetScheme(),
+		ClusterID: *clusterID,
+	}
+	if err = neighborhoodcreator.SetupWithManager(mgr); err != nil {
+		klog.Fatal(err)
+	}
+
+	inducedforeignclusterreconciler := &inducedforeignclusterreconciler.InducedForeignClusterReconciler{
+		Client: mgr.GetClient(),
+		Scheme: mgr.GetScheme(),
+	}
+	if err = inducedforeignclusterreconciler.SetupWithManager(mgr); err != nil {
+		klog.Fatal(err)
+	}
 
 	searchDomainReconciler := &searchdomainoperator.SearchDomainReconciler{
 		Client:         mgr.GetClient(),

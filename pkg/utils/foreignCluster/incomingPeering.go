@@ -23,7 +23,7 @@ import (
 // AllowIncomingPeering returns the value set in the ForeignCluster spec if it has been set,
 // it returns the value set through the command line flag if it is automatic.
 func AllowIncomingPeering(foreignCluster *discoveryv1alpha1.ForeignCluster, defaultEnableIncomingPeering bool) bool {
-	switch foreignCluster.Spec.IncomingPeeringEnabled {
+	switch foreignCluster.Spec.FullPeering.IncomingPeeringEnabled {
 	case discoveryv1alpha1.PeeringEnabledYes:
 		return true
 	case discoveryv1alpha1.PeeringEnabledNo:
@@ -31,7 +31,7 @@ func AllowIncomingPeering(foreignCluster *discoveryv1alpha1.ForeignCluster, defa
 	case discoveryv1alpha1.PeeringEnabledAuto:
 		return defaultEnableIncomingPeering
 	default:
-		klog.Warningf("invalid value for incomingPeeringEnabled field: %v", foreignCluster.Spec.IncomingPeeringEnabled)
+		klog.Warningf("invalid value for incomingPeeringEnabled field: %v", foreignCluster.Spec.FullPeering.IncomingPeeringEnabled)
 		return false
 	}
 }

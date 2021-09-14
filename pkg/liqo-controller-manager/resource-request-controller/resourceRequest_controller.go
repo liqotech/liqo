@@ -50,6 +50,9 @@ const (
 // +kubebuilder:rbac:groups=discovery.liqo.io,resources=foreignclusters,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=discovery.liqo.io,resources=foreignclusters/status;foreignclusters/finalizers,verbs=get;update;patch
 
+// +kubebuilder:rbac:groups=rbac.authorization.k8s.io,resources=rolebindings,verbs=get;list;watch;create
+// +kubebuilder:rbac:groups=rbac.authorization.k8s.io,resources=clusteroles,verbs=get;list;watch;create
+
 // +kubebuilder:rbac:groups=capsule.clastix.io,resources=tenants,verbs=get;list;watch;create;update;patch;delete;
 
 // Reconcile is the main function of the controller which reconciles ResourceRequest resources.
@@ -98,6 +101,11 @@ func (r *ResourceRequestReconciler) Reconcile(ctx context.Context, req ctrl.Requ
 		// the local cluster allows the peering, ensure the Tenant creation
 		if newRequireSpecUpdate, err = r.ensureTenant(ctx, &resourceRequest); err != nil {
 			klog.Errorf("%s -> Error creating Tenant: %s", remoteClusterID, err)
+			return ctrl.Result{}, err
+		}
+		// Bind Passthrough ClusterRole to tenant
+		if err = r.ensurePassthroughClusterRole(ctx, remoteClusterID); err != nil {
+			klog.Error(err)
 			return ctrl.Result{}, err
 		}
 	}

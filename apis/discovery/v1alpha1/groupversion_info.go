@@ -52,4 +52,13 @@ var (
 
 	// SearchDomainGroupResource is the group resource used to register SearchDomain CRD.
 	SearchDomainGroupResource = schema.GroupResource{Group: GroupVersion.Group, Resource: "searchdomains"}
+
+	// NeighborhoodResource is the resource name used to register the Neighborhood CRD.
+	NeighborhoodResource = "neighborhoods"
+
+	// NeighborhoodGroupVersionResource is the group version resource used to register Neighborhood CRD.
+	NeighborhoodGroupVersionResource = GroupVersion.WithResource(NeighborhoodResource)
+
+	// NeighborhoodGroupResource is the group resource used to register Neighborhood CRD.
+	NeighborhoodGroupResource = schema.GroupResource{Group: GroupVersion.Group, Resource: NeighborhoodResource}
 )

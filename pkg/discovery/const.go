@@ -46,6 +46,8 @@ const (
 	ManualDiscovery Type = "Manual"
 	// IncomingPeeringDiscovery value.
 	IncomingPeeringDiscovery Type = "IncomingPeering"
+	// InducedPeeringDiscovery value.
+	InducedPeeringDiscovery Type = "InducedPeering"
 )
 
 const (

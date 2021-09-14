@@ -68,32 +68,43 @@ const (
 
 // ForeignClusterSpec defines the desired state of ForeignCluster.
 type ForeignClusterSpec struct {
-	// INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
-	// Important: Run "make" to regenerate code after modifying this file
-
 	// Foreign Cluster Identity.
 	ClusterIdentity ClusterIdentity `json:"clusterIdentity,omitempty"`
+	// FullPeering defines the configuration for a full peering.
+	FullPeering FullPeering `json:"fullPeering,omitempty"`
+	// InducedPeering defines the configuration for an induced peering.
+	InducedPeering InducedPeering `json:"inducedPeering,omitempty"`
+}
+
+type FullPeering struct {
 	// Enable the peering process to the remote cluster.
 	// +kubebuilder:validation:Enum="Auto";"No";"Yes"
-	// +kubebuilder:default="Auto"
 	// +kubebuilder:validation:Optional
 	OutgoingPeeringEnabled PeeringEnabledType `json:"outgoingPeeringEnabled"`
 	// Allow the remote cluster to establish a peering with our cluster.
 	// +kubebuilder:validation:Enum="Auto";"No";"Yes"
-	// +kubebuilder:default="Auto"
 	// +kubebuilder:validation:Optional
 	IncomingPeeringEnabled PeeringEnabledType `json:"incomingPeeringEnabled"`
 	// URL where to contact foreign Auth service.
 	// +kubebuilder:validation:Pattern=`https:\/\/(www\.)?[-a-zA-Z0-9@:%._\+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b([-a-zA-Z0-9()@:%_\+.~#?&//=]*)`
-	ForeignAuthURL string `json:"foreignAuthUrl"`
+	ForeignAuthURL string `json:"foreignAuthUrl,omitempty"`
 	// Indicates if the local cluster has to skip the tls verification over the remote Authentication Service or not.
-	// +kubebuilder:default=true
 	// +kubebuilder:validation:Optional
-	InsecureSkipTLSVerify *bool `json:"insecureSkipTLSVerify"`
+	InsecureSkipTLSVerify *bool `json:"insecureSkipTLSVerify,omitempty"`
 	// If discoveryType is LAN or WAN and this indicates the number of seconds after that
 	// this ForeignCluster will be removed if no updates have been received.
 	// +kubebuilder:validation:Minimum=0
 	TTL int `json:"ttl,omitempty"`
+}
+
+type InducedPeering struct {
+	// +kubebuilder:validation:Enum="No";"Yes"
+	// +kubebuilder:default="No"
+	// +kubebuilder:validation:Optional
+	// InducedPeeringEnabled indicates wheter the induced peering is active.
+	InducedPeeringEnabled PeeringEnabledType `json:"inducedPeeringEnabled"`
+	// Cluster Identity of the sender of the neighborhood resource.
+	OriginClusterIdentity ClusterIdentity `json:"originClusterIdentity,omitempty"`
 }
 
 // ClusterIdentity contains the information about a remote cluster (ID and Name).
@@ -127,6 +138,8 @@ const (
 	OutgoingPeeringCondition PeeringConditionType = "OutgoingPeering"
 	// IncomingPeeringCondition informs users about the incoming peering status.
 	IncomingPeeringCondition PeeringConditionType = "IncomingPeering"
+	// InducedPeeringCondition informs users about the induced peering status.
+	InducedPeeringCondition PeeringConditionType = "InducedPeering"
 	// NetworkStatusCondition informs users about the network status.
 	NetworkStatusCondition PeeringConditionType = "NetworkStatus"
 	// AuthenticationStatusCondition informs users about the Authentication status.
@@ -168,6 +181,7 @@ type TenantNamespaceType struct {
 // ForeignCluster is the Schema for the foreignclusters API.
 // +kubebuilder:printcolumn:name="ClusterID",type=string,priority=1,JSONPath=`.spec.clusterIdentity.clusterID`
 // +kubebuilder:printcolumn:name="ClusterName",type=string,priority=1,JSONPath=`.spec.clusterIdentity.clusterName`
+// +kubebuilder:printcolumn:name="Induced peering",type=string,JSONPath=`.spec.inducedPeering.inducedPeeringEnabled`
 // +kubebuilder:printcolumn:name="Outgoing peering phase",type=string,JSONPath=`.status.peeringConditions[?(@.type == 'OutgoingPeering')].status`
 // +kubebuilder:printcolumn:name="Incoming peering phase",type=string,JSONPath=`.status.peeringConditions[?(@.type == 'IncomingPeering')].status`
 // +kubebuilder:printcolumn:name="Networking status",type=string,JSONPath=`.status.peeringConditions[?(@.type == 'NetworkStatus')].status`

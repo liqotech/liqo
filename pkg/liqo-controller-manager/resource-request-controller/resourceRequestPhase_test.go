@@ -57,10 +57,12 @@ var _ = Describe("Resource Phase", func() {
 						},
 					},
 					Spec: discoveryv1alpha1.ForeignClusterSpec{
-						ForeignAuthURL:         "https://example.com",
-						OutgoingPeeringEnabled: discoveryv1alpha1.PeeringEnabledAuto,
-						IncomingPeeringEnabled: c.incomingPeeringEnabled,
-						InsecureSkipTLSVerify:  pointer.BoolPtr(true),
+						FullPeering: discoveryv1alpha1.FullPeering{
+							ForeignAuthURL:         "https://example.com",
+							OutgoingPeeringEnabled: discoveryv1alpha1.PeeringEnabledAuto,
+							IncomingPeeringEnabled: c.incomingPeeringEnabled,
+							InsecureSkipTLSVerify:  pointer.BoolPtr(true),
+						},
 					},
 				}
 

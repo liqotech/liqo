@@ -51,7 +51,7 @@ func getForeignClusterEventHandler(c client.Client) handler.EventHandler {
 			}
 
 			remoteClusterID := newForeignCluster.Spec.ClusterIdentity.ClusterID
-			if oldForeignCluster.Spec.IncomingPeeringEnabled != newForeignCluster.Spec.IncomingPeeringEnabled {
+			if oldForeignCluster.Spec.FullPeering.IncomingPeeringEnabled != newForeignCluster.Spec.FullPeering.IncomingPeeringEnabled {
 				var resourceRequestList discoveryv1alpha1.ResourceRequestList
 				if err := c.List(ctx, &resourceRequestList, client.HasLabels{
 					consts.ReplicationStatusLabel}, client.MatchingLabels{

@@ -1,5 +1,31 @@
 rules:
 - apiGroups:
+  - discovery.liqo.io
+  resources:
+  - neighborhoods
+  verbs:
+  - create
+  - delete
+  - deletecollection
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - discovery.liqo.io
+  resources:
+  - neighborhoods/status
+  verbs:
+  - create
+  - delete
+  - deletecollection
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
   - net.liqo.io
   resources:
   - networkconfigs

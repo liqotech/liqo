@@ -39,4 +39,6 @@ const (
 	LocalPodLabelKey = "liqo.io/shadowPod"
 	// LocalPodLabelValue value of the label added to the local pods that have been offloaded/replicated to a remote cluster.
 	LocalPodLabelValue = "true"
+
+	LiqoPublicNS = "liqo-public"
 )

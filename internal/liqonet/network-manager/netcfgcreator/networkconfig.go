@@ -32,6 +32,7 @@ import (
 	netv1alpha1 "github.com/liqotech/liqo/apis/net/v1alpha1"
 	"github.com/liqotech/liqo/pkg/consts"
 	"github.com/liqotech/liqo/pkg/liqonet/tunnel/wireguard"
+	foreigncluster "github.com/liqotech/liqo/pkg/utils/foreignCluster"
 )
 
 const networkConfigNamePrefix = "net-config-"
@@ -73,7 +74,7 @@ func GetLocalNetworkConfig(ctx context.Context, c client.Client, clusterID, name
 // GetRemoteNetworkConfig returns the remote NetworkConfig associated with a given cluster ID.
 func GetRemoteNetworkConfig(ctx context.Context, c client.Client, clusterID, namespace string) (*netv1alpha1.NetworkConfig, error) {
 	networkConfigList := &netv1alpha1.NetworkConfigList{}
-	labels := client.MatchingLabels{consts.ReplicationOriginLabel: clusterID}
+	labels := client.MatchingLabels{"destination": clusterID}
 
 	if err := c.List(ctx, networkConfigList, labels, client.InNamespace(namespace)); err != nil {
 		klog.Errorf("An error occurred while listing NetworkConfigs: %v", err)
@@ -107,10 +108,10 @@ func filterDuplicateNetworkConfig(items []netv1alpha1.NetworkConfig) (netcfg *ne
 // EnforceNetworkConfigPresence ensures the presence of a local NetworkConfig associated with the given ForeignCluster.
 func (ncc *NetworkConfigCreator) EnforceNetworkConfigPresence(ctx context.Context, fc *discoveryv1alpha1.ForeignCluster) error {
 	clusterID := fc.Spec.ClusterIdentity.ClusterID
-
 	// Check if the resource for the remote cluster already exists
-	netcfg, err := GetLocalNetworkConfig(ctx, ncc.Client, clusterID, fc.Status.TenantNamespace.Local)
+	netcfg, err := GetLocalNetworkConfig(ctx, ncc.Client, clusterID, ncc.getTenantNamespace(fc))
 	if client.IgnoreNotFound(err) != nil {
+		klog.Error(err)
 		return err
 	}
 
@@ -123,12 +124,25 @@ func (ncc *NetworkConfigCreator) EnforceNetworkConfigPresence(ctx context.Contex
 	return ncc.updateNetworkConfig(ctx, netcfg, fc)
 }
 
+func (ncc *NetworkConfigCreator) getTenantNamespace(fc *discoveryv1alpha1.ForeignCluster) string {
+	if fc.Spec.InducedPeering.InducedPeeringEnabled == discoveryv1alpha1.PeeringEnabledYes {
+		// Get ForeignCluster relative to the cluster that advertised this resource.
+		originFC, err := foreigncluster.GetForeignClusterByID(context.Background(), ncc.Client, fc.Spec.InducedPeering.OriginClusterIdentity.ClusterID)
+		if err != nil {
+			klog.Errorf("unable to get ForeignCluster relative to the cluster that advertised cluster %s: %w", fc.Spec.ClusterIdentity.ClusterID, err)
+			return ""
+		}
+		return originFC.Status.TenantNamespace.Local
+	}
+	return fc.Status.TenantNamespace.Local
+}
+
 // createNetworkConfig creates a new local NetworkConfig associated with the given ForeignCluster.
 func (ncc *NetworkConfigCreator) createNetworkConfig(ctx context.Context, fc *discoveryv1alpha1.ForeignCluster) error {
 	netcfg := netv1alpha1.NetworkConfig{
 		ObjectMeta: metav1.ObjectMeta{
 			GenerateName: networkConfigNamePrefix,
-			Namespace:    fc.Status.TenantNamespace.Local,
+			Namespace:    ncc.getTenantNamespace(fc),
 		},
 	}
 	utilruntime.Must(ncc.populateNetworkConfig(&netcfg, fc))
@@ -167,12 +181,17 @@ func (ncc *NetworkConfigCreator) updateNetworkConfig(ctx context.Context, netcfg
 // populateNetworkConfig sets the correct parameters of the NetworkConfig.
 func (ncc *NetworkConfigCreator) populateNetworkConfig(netcfg *netv1alpha1.NetworkConfig, fc *discoveryv1alpha1.ForeignCluster) error {
 	clusterID := fc.Spec.ClusterIdentity.ClusterID
+	owner := ncc.getNCOwner(fc)
 
 	if netcfg.Labels == nil {
 		netcfg.Labels = map[string]string{}
 	}
 	netcfg.Labels[consts.ReplicationRequestedLabel] = strconv.FormatBool(true)
 	netcfg.Labels[consts.ReplicationDestinationLabel] = clusterID
+	netcfg.Labels["destination"] = clusterID
+	if fc.Spec.InducedPeering.InducedPeeringEnabled == discoveryv1alpha1.PeeringEnabledYes {
+		netcfg.Labels["passthrough"] = "true"
+	}
 
 	wgEndpointIP, wgEndpointPort := ncc.serviceWatcher.WiregardEndpoint()
 
@@ -188,7 +207,18 @@ func (ncc *NetworkConfigCreator) populateNetworkConfig(netcfg *netv1alpha1.Netwo
 	netcfg.Spec.BackendConfig[wireguard.PublicKey] = ncc.secretWatcher.WiregardPublicKey()
 	netcfg.Spec.BackendConfig[wireguard.ListeningPort] = wgEndpointPort
 
-	return controllerutil.SetControllerReference(fc, netcfg, ncc.Scheme)
+	return controllerutil.SetControllerReference(owner, netcfg, ncc.Scheme)
+}
+
+func (ncc *NetworkConfigCreator) getNCOwner(fc *discoveryv1alpha1.ForeignCluster) *discoveryv1alpha1.ForeignCluster {
+	if fc.Spec.InducedPeering.InducedPeeringEnabled != discoveryv1alpha1.PeeringEnabledYes {
+		return fc
+	}
+	owner, err := foreigncluster.GetForeignClusterByID(context.Background(), ncc.Client, fc.Spec.InducedPeering.OriginClusterIdentity.ClusterID)
+	if err != nil {
+		klog.Error(err)
+	}
+	return owner
 }
 
 // EnforceNetworkConfigAbsence ensures the absence of local NetworkConfigs associated with the given ForeignCluster.

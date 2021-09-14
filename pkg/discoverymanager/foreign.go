@@ -16,6 +16,7 @@ package discovery
 
 import (
 	"context"
+	"fmt"
 
 	k8serror "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -26,6 +27,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
 	"github.com/liqotech/liqo/apis/discovery/v1alpha1"
+	"github.com/liqotech/liqo/pkg/auth"
 	discoveryPkg "github.com/liqotech/liqo/pkg/discovery"
 	"github.com/liqotech/liqo/pkg/discoverymanager/utils"
 	foreignclusterutils "github.com/liqotech/liqo/pkg/utils/foreignCluster"
@@ -54,7 +56,7 @@ func (discovery *Controller) updateForeignLAN(data *discoveryData) {
 			return k8serror.IsConflict(err) || k8serror.IsAlreadyExists(err)
 		},
 		func() error {
-			return createOrUpdate(ctx, data, discovery.Client, nil, discoveryType, nil)
+			return createOrUpdate(ctx, data, discovery.Client, nil, discoveryType, nil, "")
 		})
 	if err != nil {
 		klog.Error(err)
@@ -93,7 +95,7 @@ func UpdateForeignWAN(ctx context.Context,
 				return createOrUpdate(ctx, &discoveryData{
 					AuthData:    &data,
 					ClusterInfo: clusterInfo,
-				}, cl, sd, discoveryType, &createdUpdatedForeign)
+				}, cl, sd, discoveryType, &createdUpdatedForeign, "")
 			})
 		if err != nil {
 			klog.Error(err)
@@ -103,11 +105,50 @@ func UpdateForeignWAN(ctx context.Context,
 	return createdUpdatedForeign
 }
 
+// UpdateInducedForeignClusters updates the list of induced peerings.
+func (discovery *Controller) UpdateInducedForeignClusters(ctx context.Context, cl client.Client,
+	originClusterID string, neighborList map[string]v1alpha1.Neighbor) error {
+	createdUpdatedForeign := []*v1alpha1.ForeignCluster{}
+	for neighbor := range neighborList {
+		// Get ForeignCluster resource relative to this neighbor.
+		_, err := foreignclusterutils.GetForeignClusterByID(ctx, discovery.Client, neighbor)
+		if err != nil && !k8serror.IsNotFound(err) {
+			return err
+		}
+		if !k8serror.IsNotFound(err) {
+			// If it has been found, continue.
+			continue
+		}
+		// If it has not been found, create it.
+
+		err = retry.OnError(
+			retry.DefaultRetry,
+			func(err error) bool {
+				return k8serror.IsConflict(err) || k8serror.IsAlreadyExists(err)
+			},
+			func() error {
+				return createOrUpdate(ctx, &discoveryData{
+					ClusterInfo: &auth.ClusterInfo{ClusterID: neighbor},
+				}, cl, nil, discoveryPkg.InducedPeeringDiscovery, &createdUpdatedForeign, originClusterID)
+			})
+		if err != nil {
+			klog.Error(err)
+			continue
+		}
+
+		if err != nil {
+			return fmt.Errorf("unable to create induced ForeignCluster %s: %w", neighbor, err)
+		}
+		klog.Infof("Created induced ForeignCluster %s (neighbor of %s).", neighbor, originClusterID)
+	}
+	return nil
+}
+
 func createOrUpdate(ctx context.Context, data *discoveryData, cl client.Client,
-	sd *v1alpha1.SearchDomain, discoveryType discoveryPkg.Type, createdUpdatedForeign *[]*v1alpha1.ForeignCluster) error {
+	sd *v1alpha1.SearchDomain, discoveryType discoveryPkg.Type, createdUpdatedForeign *[]*v1alpha1.ForeignCluster, originClusterID string) error {
 	fc, err := foreignclusterutils.GetForeignClusterByID(ctx, cl, data.ClusterInfo.ClusterID)
 	if k8serror.IsNotFound(err) {
-		fc, err = createForeign(ctx, cl, data, sd, discoveryType)
+		fc, err = createForeign(ctx, cl, data, sd, discoveryType, originClusterID)
 		if err != nil {
 			klog.Error(err)
 			return err
@@ -142,8 +183,34 @@ func createOrUpdate(ctx context.Context, data *discoveryData, cl client.Client,
 
 func createForeign(
 	ctx context.Context, cl client.Client, data *discoveryData,
-	sd *v1alpha1.SearchDomain, discoveryType discoveryPkg.Type) (*v1alpha1.ForeignCluster, error) {
-	fc := &v1alpha1.ForeignCluster{
+	sd *v1alpha1.SearchDomain, discoveryType discoveryPkg.Type, originClusterID string) (*v1alpha1.ForeignCluster, error) {
+	var fc *v1alpha1.ForeignCluster
+	if discoveryType == discoveryPkg.InducedPeeringDiscovery {
+		fc = forgeInducedForeignClusterResource(data, originClusterID)
+	} else {
+		fc = forgeForeignClusterResource(discoveryType, data)
+	}
+	foreignclusterutils.LastUpdateNow(fc)
+
+	if sd != nil {
+		fc.Spec.FullPeering.OutgoingPeeringEnabled = v1alpha1.PeeringEnabledAuto
+		fc.Labels[discoveryPkg.SearchDomainLabel] = sd.Name
+		if err := controllerutil.SetOwnerReference(sd, fc, cl.Scheme()); err != nil {
+			klog.Errorf("Failed to set foreign cluster owner reference: %v", err)
+			return nil, err
+		}
+	}
+
+	if err := cl.Create(ctx, fc); err != nil {
+		klog.Error(err)
+		return nil, err
+	}
+
+	return fc, nil
+}
+
+func forgeForeignClusterResource(discoveryType discoveryPkg.Type, data *discoveryData) *v1alpha1.ForeignCluster {
+	return &v1alpha1.ForeignCluster{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: data.ClusterInfo.ClusterID,
 			Labels: map[string]string{
@@ -156,31 +223,45 @@ func createForeign(
 				ClusterID:   data.ClusterInfo.ClusterID,
 				ClusterName: data.ClusterInfo.ClusterName,
 			},
-			OutgoingPeeringEnabled: v1alpha1.PeeringEnabledAuto,
-			IncomingPeeringEnabled: v1alpha1.PeeringEnabledAuto,
-			ForeignAuthURL:         data.AuthData.getURL(),
-			InsecureSkipTLSVerify:  pointer.BoolPtr(true),
+			FullPeering: v1alpha1.FullPeering{
+				OutgoingPeeringEnabled: v1alpha1.PeeringEnabledAuto,
+				IncomingPeeringEnabled: v1alpha1.PeeringEnabledAuto,
+				ForeignAuthURL:         data.AuthData.getURL(),
+				InsecureSkipTLSVerify:  pointer.BoolPtr(true),
+				TTL:                    int(data.AuthData.ttl),
+			},
+			InducedPeering: v1alpha1.InducedPeering{
+				InducedPeeringEnabled: v1alpha1.PeeringEnabledNo,
+			},
 		},
 	}
-	foreignclusterutils.LastUpdateNow(fc)
+}
 
-	if sd != nil {
-		fc.Spec.OutgoingPeeringEnabled = v1alpha1.PeeringEnabledAuto
-		fc.Labels[discoveryPkg.SearchDomainLabel] = sd.Name
-		if err := controllerutil.SetOwnerReference(sd, fc, cl.Scheme()); err != nil {
-			klog.Errorf("Failed to set foreign cluster owner reference: %v", err)
-			return nil, err
-		}
+func forgeInducedForeignClusterResource(data *discoveryData, originClusterID string) *v1alpha1.ForeignCluster {
+	return &v1alpha1.ForeignCluster{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: data.ClusterInfo.ClusterID,
+			Labels: map[string]string{
+				discoveryPkg.DiscoveryTypeLabel: string(discoveryPkg.InducedPeeringDiscovery),
+				discoveryPkg.ClusterIDLabel:     data.ClusterInfo.ClusterID,
+			},
+		},
+		Spec: v1alpha1.ForeignClusterSpec{
+			ClusterIdentity: v1alpha1.ClusterIdentity{
+				ClusterID: data.ClusterInfo.ClusterID,
+			},
+			FullPeering: v1alpha1.FullPeering{
+				IncomingPeeringEnabled: v1alpha1.PeeringEnabledNo,
+				OutgoingPeeringEnabled: v1alpha1.PeeringEnabledNo,
+			},
+			InducedPeering: v1alpha1.InducedPeering{
+				OriginClusterIdentity: v1alpha1.ClusterIdentity{
+					ClusterID: originClusterID,
+				},
+				InducedPeeringEnabled: v1alpha1.PeeringEnabledYes,
+			},
+		},
 	}
-	// set TTL
-	fc.Spec.TTL = int(data.AuthData.ttl)
-
-	if err := cl.Create(ctx, fc); err != nil {
-		klog.Error(err)
-		return nil, err
-	}
-
-	return fc, nil
 }
 
 func checkUpdate(
@@ -195,11 +276,11 @@ func checkUpdate(
 		foreignclusterutils.SetDiscoveryType(fc, discoveryType)
 		if higherPriority && discoveryType == discoveryPkg.LanDiscovery {
 			// if the cluster was previously discovered with IncomingPeering discovery type, set join flag accordingly to LanDiscovery sets and set TTL
-			fc.Spec.OutgoingPeeringEnabled = v1alpha1.PeeringEnabledAuto
-			fc.Spec.TTL = int(data.AuthData.ttl)
+			fc.Spec.FullPeering.OutgoingPeeringEnabled = v1alpha1.PeeringEnabledAuto
+			fc.Spec.FullPeering.TTL = int(data.AuthData.ttl)
 		} else if searchDomain != nil && discoveryType == discoveryPkg.WanDiscovery {
-			fc.Spec.OutgoingPeeringEnabled = v1alpha1.PeeringEnabledAuto
-			fc.Spec.TTL = int(data.AuthData.ttl)
+			fc.Spec.FullPeering.OutgoingPeeringEnabled = v1alpha1.PeeringEnabledAuto
+			fc.Spec.FullPeering.TTL = int(data.AuthData.ttl)
 		}
 		foreignclusterutils.LastUpdateNow(fc)
 

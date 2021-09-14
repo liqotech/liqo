@@ -88,7 +88,7 @@ func main() {
 
 		RegisteredResources: resources.GetResourcesToReplicate(),
 		ReflectionManager:   reflectionManager,
-		Reflectors:          make(map[string]*reflection.Reflector),
+		Reflectors:          make(map[string]crdreplicator.ReflectorSet),
 
 		IdentityReader: identitymanager.NewCertificateIdentityReader(
 			k8sClient, *clusterID, namespaceManager),

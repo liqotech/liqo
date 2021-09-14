@@ -52,5 +52,10 @@ func GetResourcesToReplicate() []Resource {
 			PeeringPhase:         consts.PeeringPhaseEstablished,
 			Ownership:            consts.OwnershipShared,
 		},
+		{
+			GroupVersionResource: discoveryv1alpha1.NeighborhoodGroupVersionResource,
+			PeeringPhase:         consts.PeeringPhaseEstablished,
+			Ownership:            consts.OwnershipShared,
+		},
 	}
 }

@@ -62,7 +62,8 @@ func isReplicationEnabled(peeringPhase consts.PeeringPhase, resource *resources.
 		bidirectional := peeringPhase == consts.PeeringPhaseBidirectional
 		incoming := peeringPhase == consts.PeeringPhaseIncoming
 		outgoing := peeringPhase == consts.PeeringPhaseOutgoing
-		return bidirectional || incoming || outgoing
+		induced := peeringPhase == consts.PeeringPhaseInduced
+		return bidirectional || incoming || outgoing || induced
 	default:
 		klog.Warning("Unknown peering phase %v", resource.PeeringPhase)
 		return false

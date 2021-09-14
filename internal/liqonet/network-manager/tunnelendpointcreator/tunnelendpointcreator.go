@@ -30,8 +30,10 @@ import (
 	"k8s.io/klog/v2"
 	"k8s.io/utils/trace"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
+	"sigs.k8s.io/controller-runtime/pkg/predicate"
 
 	netv1alpha1 "github.com/liqotech/liqo/apis/net/v1alpha1"
 	"github.com/liqotech/liqo/internal/liqonet/network-manager/netcfgcreator"
@@ -68,6 +70,7 @@ type TunnelEndpointCreator struct {
 	client.Client
 	Scheme    *runtime.Scheme
 	IPManager liqonetIpam.Ipam
+	ClusterID string
 }
 
 // rbac for the net.liqo.io api
@@ -166,8 +169,25 @@ func (tec *TunnelEndpointCreator) Reconcile(ctx context.Context, req ctrl.Reques
 
 // SetupWithManager informs the manager that the tunnelEndpointCreator will deal with networkconfigs.
 func (tec *TunnelEndpointCreator) SetupWithManager(mgr ctrl.Manager) error {
+	localNetConfPredicate, err := predicate.LabelSelectorPredicate(metav1.LabelSelector{
+		MatchLabels: map[string]string{
+			liqoconst.ReplicationOriginLabel: tec.ClusterID,
+		},
+	})
+	if err != nil {
+		klog.Error(err)
+	}
+	remoteNetConfPredicate, err := predicate.LabelSelectorPredicate(metav1.LabelSelector{
+		MatchLabels: map[string]string{
+			liqoconst.ReplicationDestinationLabel: tec.ClusterID,
+		},
+	})
+	if err != nil {
+		klog.Error(err)
+	}
+	filterPassthroughNetConf := predicate.Or(localNetConfPredicate, remoteNetConfPredicate)
 	return ctrl.NewControllerManagedBy(mgr).
-		For(&netv1alpha1.NetworkConfig{}).
+		For(&netv1alpha1.NetworkConfig{}, builder.WithPredicates(filterPassthroughNetConf)).
 		Complete(tec)
 }
 
@@ -272,7 +292,7 @@ func (tec *TunnelEndpointCreator) enforceRemoteNetConfigMeta(ctx context.Context
 
 func (tec *TunnelEndpointCreator) enforceRemoteNetConfigStatus(ctx context.Context, netcfg *netv1alpha1.NetworkConfig) error {
 	tracer := trace.FromContext(ctx)
-	clusterID := netcfg.Labels[liqoconst.ReplicationOriginLabel]
+	clusterID := netcfg.Spec.ClusterID
 
 	// Get the CIDR remappings
 	podCIDR, externalCIDR, err := tec.IPManager.GetSubnetsPerCluster(netcfg.Spec.PodCIDR, netcfg.Spec.ExternalCIDR, clusterID)

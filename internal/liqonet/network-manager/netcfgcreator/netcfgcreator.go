@@ -94,7 +94,7 @@ func (ncc *NetworkConfigCreator) Reconcile(ctx context.Context, req ctrl.Request
 	ncc.foreignClusters.Add(req.NamespacedName.Name)
 
 	// A peering is (being) established, hence we need to ensure the network interconnection.
-	if fc.GetDeletionTimestamp().IsZero() && (foreigncluster.IsIncomingJoined(&fc) || foreigncluster.IsOutgoingJoined(&fc)) {
+	if fc.GetDeletionTimestamp().IsZero() && (foreigncluster.IsIncomingJoined(&fc) || foreigncluster.IsOutgoingJoined(&fc) || foreigncluster.IsInducedEnabled(&fc)) {
 		return ctrl.Result{}, ncc.EnforceNetworkConfigPresence(ctx, &fc)
 	}
 

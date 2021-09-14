@@ -145,7 +145,7 @@ func sendIdentityRequest(request auth.IdentityRequest, fc *discoveryv1alpha1.For
 	klog.V(8).Infof("[%v] Sending json request: %v", fc.Spec.ClusterIdentity.ClusterID, string(jsonRequest))
 
 	resp, err := sendRequest(
-		fmt.Sprintf("%s%s", fc.Spec.ForeignAuthURL, request.GetPath()),
+		fmt.Sprintf("%s%s", fc.Spec.FullPeering.ForeignAuthURL, request.GetPath()),
 		bytes.NewBuffer(jsonRequest),
 		foreignclusterutils.InsecureSkipTLSVerify(fc))
 	if err != nil {
