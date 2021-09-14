@@ -26,9 +26,6 @@ var (
 	// GroupVersion is group version used to register these objects.
 	GroupVersion = schema.GroupVersion{Group: "virtualkubelet.liqo.io", Version: "v1alpha1"}
 
-	// GroupResource is group and resource used to register these objects.
-	GroupResource = schema.GroupResource{Group: GroupVersion.Group, Resource: "namespacenattingtables"}
-
 	// NamespaceMapGroupResource is group resource used to register these objects.
 	NamespaceMapGroupResource = schema.GroupResource{Group: GroupVersion.Group, Resource: "namespacemaps"}
 
