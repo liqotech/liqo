@@ -35,9 +35,10 @@ Liqo is a platform to enable dynamic and decentralized resource sharing across K
 
 <br />
 <p align="center">
-  <img src=https://img.shields.io/badge/Google%20GKE-supported-green>
-  <img src=https://img.shields.io/badge/Azure%20AKS-supported-green>
-  <img src=https://img.shields.io/badge/Amazon%20EKS-in%20progress-orange>
+  <a href="https://doc.liqo.io/installation/?provider=GKE"><img src=https://img.shields.io/badge/Google%20GKE-supported-green></a>
+  <a href="https://doc.liqo.io/installation/?provider=AKS" ><img src=https://img.shields.io/badge/Azure%20AKS-supported-green></a>
+  <a href="https://doc.liqo.io/installation/?provider=EKS"><img src=https://img.shields.io/badge/Amazon%20EKS-supported-green></a>
+  <img src=https://img.shields.io/badge/Openshift-in%20progress-orange>
 </p>
 <br />
 
