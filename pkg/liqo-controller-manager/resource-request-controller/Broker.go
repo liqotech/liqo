@@ -64,20 +64,25 @@ func (b *Broker) ReadResources(clusterID string) corev1.ResourceList {
 
 func (b *Broker) EnqueueForCreationOrUpdate(clusterID string) {
 	toOffer := corev1.ResourceList{}
+	var clusterChosen string
 	for key, value := range b.nodeResources {
 		// ignore possible offers sent by the cluster itself.
 		if key == clusterID {
 			continue
 		}
 		toOffer = value.DeepCopy()
+		clusterChosen = key
 		break
 	}
 	if len(toOffer) != 0 {
+		klog.Infof("Generating offer for node %s", clusterChosen)
 		err := b.generateOffer(clusterID, toOffer)
 		if err != nil {
 			klog.Error(err)
 			return
 		}
+	}else {
+		klog.Info("No resources found: %v", b.nodeResources)
 	}
 }
 
