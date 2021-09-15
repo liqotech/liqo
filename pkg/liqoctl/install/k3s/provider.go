@@ -139,11 +139,21 @@ func (k *k3sProvider) UpdateChartValues(values map[string]interface{}) {
 	values["apiServer"] = map[string]interface{}{
 		"address": k.apiServer,
 	}
+	values["auth"] = map[string]interface{}{
+		"service": map[string]interface{}{
+			"type": "NodePort",
+		},
+	}
 	values["networkManager"] = map[string]interface{}{
 		"config": map[string]interface{}{
 			"serviceCIDR":     k.serviceCIDR,
 			"podCIDR":         k.podCIDR,
 			"reservedSubnets": installutils.GetInterfaceSlice(k.ReservedSubnets),
+		},
+	}
+	values["gateway"] = map[string]interface{}{
+		"service": map[string]interface{}{
+			"type": "NodePort",
 		},
 	}
 	values["discovery"] = map[string]interface{}{
