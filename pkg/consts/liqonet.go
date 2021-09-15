@@ -21,8 +21,6 @@ const (
 	NetworkManagerServiceName = "liqo-network-manager"
 	// DefaultCIDRValue is the default value for a string that contains a CIDR.
 	DefaultCIDRValue = "None"
-	// TepReady is the ready state of TunnelEndpoint resource.
-	TepReady = "Ready"
 	// NatMappingKind is the constant representing
 	// the value of the Kind field of all NatMapping resources.
 	NatMappingKind = "NatMapping"

@@ -88,7 +88,7 @@ func (rc *RouteController) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 		return result, nil
 	}
 	// Here we check that the tunnelEndpoint resource has been fully processed. If not we do nothing.
-	if tep.Status.RemoteNATPodCIDR == "" || tep.Status.GatewayIP == "" {
+	if tep.Status.GatewayIP == "" {
 		return result, nil
 	}
 	clusterID := tep.Spec.ClusterID

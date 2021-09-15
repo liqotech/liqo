@@ -490,7 +490,7 @@ func getPreRoutingRulesPerTunnelEndpoint(tep *netv1alpha1.TunnelEndpoint) ([]IPT
 	if err := utils.CheckTep(tep); err != nil {
 		return nil, fmt.Errorf("invalid TunnelEndpoint resource: %w", err)
 	}
-	localPodCIDR := tep.Status.LocalPodCIDR
+	localPodCIDR := tep.Spec.LocalPodCIDR
 	localRemappedPodCIDR, remotePodCIDR := utils.GetPodCIDRS(tep)
 
 	rules := make([]IPTableRule, 0)
@@ -681,7 +681,7 @@ func getPostroutingRules(tep *netv1alpha1.TunnelEndpoint) ([]IPTableRule, error)
 		return nil, fmt.Errorf("invalid TunnelEndpoint resource: %w", err)
 	}
 	clusterID := tep.Spec.ClusterID
-	localPodCIDR := tep.Status.LocalPodCIDR
+	localPodCIDR := tep.Spec.LocalPodCIDR
 	localRemappedPodCIDR, remotePodCIDR := utils.GetPodCIDRS(tep)
 	_, remoteExternalCIDR := utils.GetExternalCIDRS(tep)
 	if localRemappedPodCIDR != consts.DefaultCIDRValue {
@@ -704,7 +704,7 @@ func getPostroutingRules(tep *netv1alpha1.TunnelEndpoint) ([]IPTableRule, error)
 	natIP, err := utils.GetFirstIP(localPodCIDR)
 	if err != nil {
 		klog.Errorf("Unable to get the IP from localPodCidr %s for cluster %s used to NAT the traffic from localhosts to remote hosts",
-			tep.Spec.PodCIDR, clusterID)
+			tep.Spec.RemotePodCIDR, clusterID)
 		return nil, err
 	}
 	return []IPTableRule{

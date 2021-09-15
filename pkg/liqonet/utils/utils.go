@@ -164,27 +164,27 @@ func Next(network string) (string, error) {
 // GetPodCIDRS for a given tep the function retrieves the values for localPodCIDR and remotePodCIDR.
 // Their values depend if the NAT is required or not.
 func GetPodCIDRS(tep *netv1alpha1.TunnelEndpoint) (localRemappedPodCIDR, remotePodCIDR string) {
-	if tep.Status.RemoteNATPodCIDR != consts.DefaultCIDRValue {
-		remotePodCIDR = tep.Status.RemoteNATPodCIDR
+	if tep.Spec.RemoteNATPodCIDR != consts.DefaultCIDRValue {
+		remotePodCIDR = tep.Spec.RemoteNATPodCIDR
 	} else {
-		remotePodCIDR = tep.Spec.PodCIDR
+		remotePodCIDR = tep.Spec.RemotePodCIDR
 	}
-	localRemappedPodCIDR = tep.Status.LocalNATPodCIDR
+	localRemappedPodCIDR = tep.Spec.LocalNATPodCIDR
 	return localRemappedPodCIDR, remotePodCIDR
 }
 
 // GetExternalCIDRS for a given tep the function retrieves the values for localExternalCIDR and remoteExternalCIDR.
 // Their values depend if the NAT is required or not.
 func GetExternalCIDRS(tep *netv1alpha1.TunnelEndpoint) (localExternalCIDR, remoteExternalCIDR string) {
-	if tep.Status.LocalNATExternalCIDR != consts.DefaultCIDRValue {
-		localExternalCIDR = tep.Status.LocalNATExternalCIDR
+	if tep.Spec.LocalNATExternalCIDR != consts.DefaultCIDRValue {
+		localExternalCIDR = tep.Spec.LocalNATExternalCIDR
 	} else {
-		localExternalCIDR = tep.Status.LocalExternalCIDR
+		localExternalCIDR = tep.Spec.LocalExternalCIDR
 	}
-	if tep.Status.RemoteNATExternalCIDR != consts.DefaultCIDRValue {
-		remoteExternalCIDR = tep.Status.RemoteNATExternalCIDR
+	if tep.Spec.RemoteNATExternalCIDR != consts.DefaultCIDRValue {
+		remoteExternalCIDR = tep.Spec.RemoteNATExternalCIDR
 	} else {
-		remoteExternalCIDR = tep.Spec.ExternalCIDR
+		remoteExternalCIDR = tep.Spec.RemoteExternalCIDR
 	}
 	return
 }
@@ -212,52 +212,52 @@ func CheckTep(tep *netv1alpha1.TunnelEndpoint) error {
 			Reason:    liqoneterrors.StringNotEmpty,
 		}
 	}
-	if err := IsValidCIDR(tep.Spec.PodCIDR); err != nil {
+	if err := IsValidCIDR(tep.Spec.RemotePodCIDR); err != nil {
 		return &liqoneterrors.WrongParameter{
 			Parameter: consts.PodCIDR,
 			Reason:    liqoneterrors.ValidCIDR,
 		}
 	}
-	if err := IsValidCIDR(tep.Spec.ExternalCIDR); err != nil {
+	if err := IsValidCIDR(tep.Spec.RemoteExternalCIDR); err != nil {
 		return &liqoneterrors.WrongParameter{
 			Parameter: consts.ExternalCIDR,
 			Reason:    liqoneterrors.ValidCIDR,
 		}
 	}
-	if err := IsValidCIDR(tep.Status.LocalPodCIDR); err != nil {
+	if err := IsValidCIDR(tep.Spec.LocalPodCIDR); err != nil {
 		return &liqoneterrors.WrongParameter{
 			Parameter: consts.LocalPodCIDR,
 			Reason:    liqoneterrors.ValidCIDR,
 		}
 	}
-	if err := IsValidCIDR(tep.Status.LocalExternalCIDR); err != nil {
+	if err := IsValidCIDR(tep.Spec.LocalExternalCIDR); err != nil {
 		return &liqoneterrors.WrongParameter{
 			Parameter: consts.LocalExternalCIDR,
 			Reason:    liqoneterrors.ValidCIDR,
 		}
 	}
-	if err := IsValidCIDR(tep.Status.LocalNATPodCIDR); tep.Status.LocalNATPodCIDR != consts.DefaultCIDRValue &&
+	if err := IsValidCIDR(tep.Spec.LocalNATPodCIDR); tep.Spec.LocalNATPodCIDR != consts.DefaultCIDRValue &&
 		err != nil {
 		return &liqoneterrors.WrongParameter{
 			Parameter: consts.LocalNATPodCIDR,
 			Reason:    liqoneterrors.ValidCIDR,
 		}
 	}
-	if err := IsValidCIDR(tep.Status.LocalNATExternalCIDR); tep.Status.LocalNATExternalCIDR != consts.DefaultCIDRValue &&
+	if err := IsValidCIDR(tep.Spec.LocalNATExternalCIDR); tep.Spec.LocalNATExternalCIDR != consts.DefaultCIDRValue &&
 		err != nil {
 		return &liqoneterrors.WrongParameter{
 			Parameter: consts.LocalNATExternalCIDR,
 			Reason:    liqoneterrors.ValidCIDR,
 		}
 	}
-	if err := IsValidCIDR(tep.Status.RemoteNATPodCIDR); tep.Status.RemoteNATPodCIDR != consts.DefaultCIDRValue &&
+	if err := IsValidCIDR(tep.Spec.RemoteNATPodCIDR); tep.Spec.RemoteNATPodCIDR != consts.DefaultCIDRValue &&
 		err != nil {
 		return &liqoneterrors.WrongParameter{
 			Parameter: consts.RemoteNATPodCIDR,
 			Reason:    liqoneterrors.ValidCIDR,
 		}
 	}
-	if err := IsValidCIDR(tep.Status.RemoteNATExternalCIDR); tep.Status.RemoteNATExternalCIDR != consts.DefaultCIDRValue &&
+	if err := IsValidCIDR(tep.Spec.RemoteNATExternalCIDR); tep.Spec.RemoteNATExternalCIDR != consts.DefaultCIDRValue &&
 		err != nil {
 		return &liqoneterrors.WrongParameter{
 			Parameter: consts.RemoteNATExternalCIDR,

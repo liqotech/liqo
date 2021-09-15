@@ -62,17 +62,41 @@ spec:
                 description: Vpn technology used to interconnect two clusters.
                 type: string
               clusterID:
-                description: 'INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
-                  Important: Run "make" to regenerate code after modifying this file
-                  The ID of the remote cluster that will receive this CRD.'
+                description: The ID of the remote cluster.
                 type: string
               endpointIP:
                 description: Public IP of the node where the VPN tunnel is created.
                 type: string
-              externalCIDR:
+              localExternalCIDR:
+                description: ExternalCIDR of local cluster.
+                type: string
+              localNATExternalCIDR:
+                default: None
+                description: Network used in the remote cluster to map the local ExternalCIDR,
+                  in case of conflicts (in the remote cluster).
+                type: string
+              localNATPodCIDR:
+                default: None
+                description: Network used in the remote cluster to map the local PodCIDR,
+                  in case of conflicts (in the remote cluster).
+                type: string
+              localPodCIDR:
+                description: PodCIDR of local cluster.
+                type: string
+              remoteExternalCIDR:
                 description: ExternalCIDR of remote cluster.
                 type: string
-              podCIDR:
+              remoteNATExternalCIDR:
+                default: None
+                description: Network used in the local cluster to map the remote cluster
+                  ExternalCIDR, in case of conflicts with RemoteExternalCIDR.
+                type: string
+              remoteNATPodCIDR:
+                default: None
+                description: Network used in the local cluster to map the remote cluster
+                  PodCIDR, in case of conflicts with RemotePodCIDR.
+                type: string
+              remotePodCIDR:
                 description: PodCIDR of remote cluster.
                 type: string
             required:
@@ -80,8 +104,10 @@ spec:
             - backend_config
             - clusterID
             - endpointIP
-            - externalCIDR
-            - podCIDR
+            - localExternalCIDR
+            - localPodCIDR
+            - remoteExternalCIDR
+            - remotePodCIDR
             type: object
           status:
             description: TunnelEndpointStatus defines the observed state of TunnelEndpoint.
@@ -102,35 +128,6 @@ spec:
                     type: string
                 type: object
               gatewayIP:
-                type: string
-              localExternalCIDR:
-                description: ExternalCIDR of local cluster.
-                type: string
-              localNATExternalCIDR:
-                description: Network used in the remote cluster to map the local ExternalCIDR,
-                  in case of conflicts(in the remote cluster). Default is "None".
-                type: string
-              localNATPodCIDR:
-                description: Network used in the remote cluster to map the local PodCIDR,
-                  in case of conflicts(in the remote cluster). Default is "None".
-                type: string
-              localPodCIDR:
-                description: PodCIDR of local cluster.
-                type: string
-              localTunnelPublicIP:
-                type: string
-              phase:
-                type: string
-              remoteNATExternalCIDR:
-                description: Network used in the local cluster to map the remote cluster
-                  ExternalCIDR, in case of conflicts with Spec.ExternalCIDR. Default
-                  is "None".
-                type: string
-              remoteNATPodCIDR:
-                description: Network used in the local cluster to map the remote cluster
-                  PodCIDR, in case of conflicts with Spec.PodCIDR. Default is "None".
-                type: string
-              remoteTunnelPublicIP:
                 type: string
               tunnelIFaceIndex:
                 type: integer
