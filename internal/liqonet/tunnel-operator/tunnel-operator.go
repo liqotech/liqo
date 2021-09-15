@@ -254,12 +254,7 @@ func (tc *TunnelController) Reconcile(ctx context.Context, req ctrl.Request) (ct
 		return result, nil
 	}
 	clusterID = tep.Spec.ClusterID
-	// We wait for the resource to be ready. The resource is created in two steps, first the spec and metadata fields
-	// then the status field. So we wait for the status to be ready.
-	if tep.Status.Phase != liqoconst.TepReady {
-		klog.Infof("%s -> resource %s is not ready", tep.Spec.ClusterID, tep.Name)
-		return result, nil
-	}
+
 	_, remotePodCIDR = utils.GetPodCIDRS(tep)
 	_, remoteExternalCIDR = utils.GetExternalCIDRS(tep)
 	// Examine DeletionTimestamp to determine if object is under deletion.

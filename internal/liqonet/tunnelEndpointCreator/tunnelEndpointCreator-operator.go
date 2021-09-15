@@ -522,9 +522,6 @@ func (tec *TunnelEndpointCreator) processTunnelEndpoint(param *networkParam, own
 	if err := tec.updateSpecTunnelEndpoint(param, namespace); err != nil {
 		return err
 	}
-	if err := tec.updateStatusTunnelEndpoint(param, namespace); err != nil {
-		return err
-	}
 	return nil
 }
 
@@ -534,7 +531,6 @@ func (tec *TunnelEndpointCreator) updateSpecTunnelEndpoint(param *networkParam, 
 	var err error
 	// here we recover from conflicting resource versions
 	retryError := retry.RetryOnConflict(retry.DefaultRetry, func() error {
-		toBeUpdated := false
 		tep, found, err = tec.GetTunnelEndpoint(param.remoteClusterID, namespace)
 		if err != nil {
 			return err
@@ -543,28 +539,11 @@ func (tec *TunnelEndpointCreator) updateSpecTunnelEndpoint(param *networkParam, 
 			return apierrors.NewNotFound(netv1alpha1.TunnelEndpointGroupResource,
 				strings.Join([]string{"tunnelEndpoint for cluster:", param.remoteClusterID}, " "))
 		}
-		// check if there are fields to be updated
-		if tep.Spec.ClusterID != param.remoteClusterID {
-			tep.Spec.ClusterID = param.remoteClusterID
-			toBeUpdated = true
-		}
-		if tep.Spec.EndpointIP != param.remoteEndpointIP {
-			tep.Spec.EndpointIP = param.remoteEndpointIP
-			toBeUpdated = true
-		}
-		if tep.Spec.PodCIDR != param.remotePodCIDR {
-			tep.Spec.PodCIDR = param.remotePodCIDR
-			toBeUpdated = true
-		}
-		if tep.Spec.ExternalCIDR != param.remoteExternalCIDR {
-			tep.Spec.ExternalCIDR = param.remoteExternalCIDR
-			toBeUpdated = true
-		}
-		if !reflect.DeepEqual(tep.Spec.BackendConfig, param.backendConfig) {
-			tep.Spec.BackendConfig = param.backendConfig
-			toBeUpdated = true
-		}
-		if toBeUpdated {
+
+		original := tep.Spec.DeepCopy()
+		tec.fillTunnelEndpointSpec(tep, param)
+
+		if !reflect.DeepEqual(original, tep.Spec) {
 			err = tec.Update(context.Background(), tep)
 			return err
 		}
@@ -572,72 +551,6 @@ func (tec *TunnelEndpointCreator) updateSpecTunnelEndpoint(param *networkParam, 
 	})
 	if retryError != nil {
 		klog.Errorf("an error occurred while updating spec of tunnelEndpoint resource %s: %s", tep.Name, retryError)
-		return retryError
-	}
-	return nil
-}
-
-func (tec *TunnelEndpointCreator) updateStatusTunnelEndpoint(param *networkParam, namespace string) error {
-	var tep *netv1alpha1.TunnelEndpoint
-	var found bool
-	var err error
-
-	// here we recover from conflicting resource versions
-	retryError := retry.RetryOnConflict(retry.DefaultRetry, func() error {
-		toBeUpdated := false
-		tep, found, err = tec.GetTunnelEndpoint(param.remoteClusterID, namespace)
-		if err != nil {
-			return err
-		}
-		if !found {
-			return apierrors.NewNotFound(netv1alpha1.TunnelEndpointGroupResource,
-				strings.Join([]string{"tunnelEndpoint for cluster:", param.remoteClusterID}, " "))
-		}
-		// check if there are fields to be updated
-		if tep.Status.LocalNATPodCIDR != param.localNatPodCIDR {
-			tep.Status.LocalNATPodCIDR = param.localNatPodCIDR
-			toBeUpdated = true
-		}
-		if tep.Status.RemoteNATPodCIDR != param.remoteNatPodCIDR {
-			tep.Status.RemoteNATPodCIDR = param.remoteNatPodCIDR
-			toBeUpdated = true
-		}
-		if tep.Status.LocalEndpointIP != param.localEndpointIP {
-			tep.Status.LocalEndpointIP = param.localEndpointIP
-			toBeUpdated = true
-		}
-		if tep.Status.RemoteEndpointIP != param.remoteEndpointIP {
-			tep.Status.RemoteEndpointIP = param.remoteEndpointIP
-			toBeUpdated = true
-		}
-		if tep.Status.LocalPodCIDR != param.localPodCIDR {
-			tep.Status.LocalPodCIDR = param.localPodCIDR
-			toBeUpdated = true
-		}
-		if tep.Status.LocalExternalCIDR != param.localExternalCIDR {
-			tep.Status.LocalExternalCIDR = param.localExternalCIDR
-			toBeUpdated = true
-		}
-		if tep.Status.LocalNATExternalCIDR != param.localNatExternalCIDR {
-			tep.Status.LocalNATExternalCIDR = param.localNatExternalCIDR
-			toBeUpdated = true
-		}
-		if tep.Status.RemoteNATExternalCIDR != param.remoteNatExternalCIDR {
-			tep.Status.RemoteNATExternalCIDR = param.remoteNatExternalCIDR
-			toBeUpdated = true
-		}
-		if tep.Status.Phase != liqoconst.TepReady {
-			tep.Status.Phase = liqoconst.TepReady
-			toBeUpdated = true
-		}
-		if toBeUpdated {
-			err = tec.Status().Update(context.Background(), tep)
-			return err
-		}
-		return nil
-	})
-	if retryError != nil {
-		klog.Errorf("an error occurred while updating status of tunnelEndpoint resource %s: %s", tep.Name, retryError)
 		return retryError
 	}
 	return nil
@@ -653,29 +566,12 @@ func (tec *TunnelEndpointCreator) createTunnelEndpoint(param *networkParam, owne
 				liqoconst.ClusterIDLabelName: param.remoteClusterID,
 			},
 		},
-		Spec: netv1alpha1.TunnelEndpointSpec{
-			ClusterID:     param.remoteClusterID,
-			PodCIDR:       param.remotePodCIDR,
-			ExternalCIDR:  param.remoteExternalCIDR,
-			EndpointIP:    param.remoteEndpointIP,
-			BackendType:   param.backendType,
-			BackendConfig: param.backendConfig,
-		},
-		Status: netv1alpha1.TunnelEndpointStatus{
-			Phase:                 liqoconst.TepReady,
-			LocalPodCIDR:          param.localPodCIDR,
-			LocalNATPodCIDR:       param.localNatPodCIDR,
-			LocalExternalCIDR:     param.localExternalCIDR,
-			LocalNATExternalCIDR:  param.localNatExternalCIDR,
-			RemoteNATExternalCIDR: param.remoteNatExternalCIDR,
-			RemoteNATPodCIDR:      param.remoteNatPodCIDR,
-			RemoteEndpointIP:      param.remoteEndpointIP,
-			LocalEndpointIP:       param.localEndpointIP,
-		},
 	}
 	if ownerRef != nil {
 		tep.OwnerReferences = append(tep.OwnerReferences, *ownerRef)
 	}
+
+	tec.fillTunnelEndpointSpec(tep, param)
 	err := tec.Create(context.Background(), tep)
 	if err != nil {
 		klog.Errorf("an error occurred while creating resource %s of type %s: %s",
@@ -685,6 +581,21 @@ func (tec *TunnelEndpointCreator) createTunnelEndpoint(param *networkParam, owne
 	klog.Infof("resource %s of type %s created", tep.Name, netv1alpha1.TunnelEndpointGroupResource)
 
 	return nil
+}
+
+func (tec *TunnelEndpointCreator) fillTunnelEndpointSpec(tep *netv1alpha1.TunnelEndpoint, param *networkParam) {
+	tep.Spec.ClusterID = param.remoteClusterID
+	tep.Spec.LocalPodCIDR = param.localPodCIDR
+	tep.Spec.LocalExternalCIDR = param.localExternalCIDR
+	tep.Spec.LocalNATPodCIDR = param.localNatPodCIDR
+	tep.Spec.LocalNATExternalCIDR = param.localNatExternalCIDR
+	tep.Spec.RemotePodCIDR = param.remotePodCIDR
+	tep.Spec.RemoteNATPodCIDR = param.remoteNatPodCIDR
+	tep.Spec.RemoteExternalCIDR = param.remoteExternalCIDR
+	tep.Spec.RemoteNATExternalCIDR = param.remoteNatExternalCIDR
+	tep.Spec.EndpointIP = param.remoteEndpointIP
+	tep.Spec.BackendType = param.backendType
+	tep.Spec.BackendConfig = param.backendConfig
 }
 
 // GetTunnelEndpoint retrieves the tunnelEndpoint resource related to a cluster.

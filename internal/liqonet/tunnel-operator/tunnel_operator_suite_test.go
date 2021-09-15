@@ -56,31 +56,27 @@ var (
 	iptNetns     ns.NetNS
 	tep1         = &netv1alpha1.TunnelEndpoint{
 		Spec: netv1alpha1.TunnelEndpointSpec{
-			ClusterID:    clusterID1,
-			PodCIDR:      "10.0.0.0/24",
-			ExternalCIDR: "10.0.1.0/24",
-		},
-		Status: netv1alpha1.TunnelEndpointStatus{
+			ClusterID:             clusterID1,
 			LocalPodCIDR:          "192.168.0.0/24",
 			LocalNATPodCIDR:       "192.168.1.0/24",
-			RemoteNATPodCIDR:      "10.0.70.0/24",
 			LocalExternalCIDR:     "192.168.3.0/24",
 			LocalNATExternalCIDR:  "192.168.4.0/24",
+			RemotePodCIDR:         "10.0.0.0/24",
+			RemoteNATPodCIDR:      "10.0.70.0/24",
+			RemoteExternalCIDR:    "10.0.1.0/24",
 			RemoteNATExternalCIDR: "192.168.5.0/24",
 		},
 	}
 	tep2 = &netv1alpha1.TunnelEndpoint{
 		Spec: netv1alpha1.TunnelEndpointSpec{
-			ClusterID:    clusterID2,
-			PodCIDR:      "10.0.0.0/24",
-			ExternalCIDR: "10.0.1.0/24",
-		},
-		Status: netv1alpha1.TunnelEndpointStatus{
+			ClusterID:             clusterID2,
 			LocalPodCIDR:          "192.168.0.0/24",
 			LocalNATPodCIDR:       "192.168.1.0/24",
-			RemoteNATPodCIDR:      "10.0.70.0/24",
 			LocalExternalCIDR:     "192.168.3.0/24",
 			LocalNATExternalCIDR:  "192.168.4.0/24",
+			RemotePodCIDR:         "10.0.0.0/24",
+			RemoteNATPodCIDR:      "10.0.70.0/24",
+			RemoteExternalCIDR:    "10.0.1.0/24",
 			RemoteNATExternalCIDR: "192.168.5.0/24",
 		},
 	}

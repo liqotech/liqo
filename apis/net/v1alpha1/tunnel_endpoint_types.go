@@ -23,14 +23,35 @@ import (
 
 // TunnelEndpointSpec defines the desired state of TunnelEndpoint.
 type TunnelEndpointSpec struct {
-	// INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
-	// Important: Run "make" to regenerate code after modifying this file
-	// The ID of the remote cluster that will receive this CRD.
+	// The ID of the remote cluster.
 	ClusterID string `json:"clusterID"`
+
+	// PodCIDR of local cluster.
+	LocalPodCIDR string `json:"localPodCIDR"`
+	// Network used in the remote cluster to map the local PodCIDR, in case of conflicts (in the remote cluster).
+	// +kubebuilder:default="None"
+	// +kubebuilder:validation:Optional
+	LocalNATPodCIDR string `json:"localNATPodCIDR"`
+	// ExternalCIDR of local cluster.
+	LocalExternalCIDR string `json:"localExternalCIDR"`
+	// Network used in the remote cluster to map the local ExternalCIDR, in case of conflicts (in the remote cluster).
+	// +kubebuilder:default="None"
+	// +kubebuilder:validation:Optional
+	LocalNATExternalCIDR string `json:"localNATExternalCIDR"`
+
 	// PodCIDR of remote cluster.
-	PodCIDR string `json:"podCIDR"`
+	RemotePodCIDR string `json:"remotePodCIDR"`
+	// Network used in the local cluster to map the remote cluster PodCIDR, in case of conflicts with RemotePodCIDR.
+	// +kubebuilder:default="None"
+	// +kubebuilder:validation:Optional
+	RemoteNATPodCIDR string `json:"remoteNATPodCIDR"`
 	// ExternalCIDR of remote cluster.
-	ExternalCIDR string `json:"externalCIDR"`
+	RemoteExternalCIDR string `json:"remoteExternalCIDR"`
+	// Network used in the local cluster to map the remote cluster ExternalCIDR, in case of conflicts with RemoteExternalCIDR.
+	// +kubebuilder:default="None"
+	// +kubebuilder:validation:Optional
+	RemoteNATExternalCIDR string `json:"remoteNATExternalCIDR"`
+
 	// Public IP of the node where the VPN tunnel is created.
 	EndpointIP string `json:"endpointIP"`
 	// Vpn technology used to interconnect two clusters.
@@ -41,35 +62,12 @@ type TunnelEndpointSpec struct {
 
 // TunnelEndpointStatus defines the observed state of TunnelEndpoint.
 type TunnelEndpointStatus struct {
-	// INSERT ADDITIONAL STATUS FIELD - define observed state of cluster
-	// Important: Run "make" to regenerate code after modifying this file\
-
-	Phase string `json:"phase,omitempty"`
-	// PodCIDR of local cluster.
-	LocalPodCIDR string `json:"localPodCIDR,omitempty"`
-	// Network used in the remote cluster to map the local PodCIDR, in case of conflicts(in the remote cluster).
-	// Default is "None".
-	LocalNATPodCIDR string `json:"localNATPodCIDR,omitempty"`
-	// Network used in the local cluster to map the remote cluster PodCIDR, in case of conflicts with Spec.PodCIDR.
-	// Default is "None".
-	RemoteNATPodCIDR string `json:"remoteNATPodCIDR,omitempty"`
-	// ExternalCIDR of local cluster.
-	LocalExternalCIDR string `json:"localExternalCIDR,omitempty"`
-	// Network used in the remote cluster to map the local ExternalCIDR, in case of conflicts(in the remote cluster).
-	// Default is "None".
-	LocalNATExternalCIDR string `json:"localNATExternalCIDR,omitempty"`
-	// Network used in the local cluster to map the remote cluster ExternalCIDR, in case of conflicts with
-	// Spec.ExternalCIDR.
-	// Default is "None".
-	RemoteNATExternalCIDR string     `json:"remoteNATExternalCIDR,omitempty"`
-	RemoteEndpointIP      string     `json:"remoteTunnelPublicIP,omitempty"`
-	LocalEndpointIP       string     `json:"localTunnelPublicIP,omitempty"`
-	TunnelIFaceIndex      int        `json:"tunnelIFaceIndex,omitempty"`
-	TunnelIFaceName       string     `json:"tunnelIFaceName,omitempty"`
-	VethIFaceIndex        int        `json:"vethIFaceIndex,omitempty"`
-	VethIFaceName         string     `json:"vethIFaceName,omitempty"`
-	GatewayIP             string     `json:"gatewayIP,omitempty"`
-	Connection            Connection `json:"connection,omitempty"`
+	TunnelIFaceIndex int        `json:"tunnelIFaceIndex,omitempty"`
+	TunnelIFaceName  string     `json:"tunnelIFaceName,omitempty"`
+	VethIFaceIndex   int        `json:"vethIFaceIndex,omitempty"`
+	VethIFaceName    string     `json:"vethIFaceName,omitempty"`
+	GatewayIP        string     `json:"gatewayIP,omitempty"`
+	Connection       Connection `json:"connection,omitempty"`
 }
 
 // Connection holds the configuration and status of a vpn tunnel connecting to remote cluster.

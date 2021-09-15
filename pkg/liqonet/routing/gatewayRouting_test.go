@@ -85,19 +85,19 @@ var _ = Describe("GatewayRouting", func() {
 		JustBeforeEach(func() {
 			tepGRM = netv1alpha1.TunnelEndpoint{
 				Spec: netv1alpha1.TunnelEndpointSpec{
-					ExternalCIDR: "10.151.0.0/16",
-				},
-				Status: netv1alpha1.TunnelEndpointStatus{
 					LocalNATPodCIDR:       "10.150.0.0/16",
 					RemoteNATPodCIDR:      "10.250.0.0/16",
+					RemoteExternalCIDR:    "10.151.0.0/16",
 					RemoteNATExternalCIDR: "10.251.0.0/16",
-					VethIFaceIndex:        12345,
-					GatewayIP:             ipAddress2NoSubnet,
+				},
+				Status: netv1alpha1.TunnelEndpointStatus{
+					VethIFaceIndex: 12345,
+					GatewayIP:      ipAddress2NoSubnet,
 				}}
 		})
 		Context("when tep holds malformed parameters", func() {
 			It("route configuration fails while adding route for PodCIDR", func() {
-				tepGRM.Status.RemoteNATPodCIDR = "10.150.000/16"
+				tepGRM.Spec.RemoteNATPodCIDR = "10.150.000/16"
 				added, err := grm.EnsureRoutesPerCluster(&tepGRM)
 				Expect(err).Should(Equal(&net.ParseError{
 					Type: "CIDR address",
@@ -107,11 +107,11 @@ var _ = Describe("GatewayRouting", func() {
 				Expect(err).NotTo(BeNil())
 			})
 			It("route configuration fails while adding route for ExternalCIDR", func() {
-				tepGRM.Status.RemoteNATExternalCIDR = "10.150.000/16"
+				tepGRM.Spec.RemoteNATExternalCIDR = "10.151.000/16"
 				added, err := grm.EnsureRoutesPerCluster(&tepGRM)
 				Expect(err).Should(Equal(&net.ParseError{
 					Type: "CIDR address",
-					Text: "10.150.000/16",
+					Text: "10.151.000/16",
 				}))
 				Expect(added).Should(BeFalse())
 				Expect(err).NotTo(BeNil())
@@ -132,25 +132,25 @@ var _ = Describe("GatewayRouting", func() {
 				Expect(err).ShouldNot(HaveOccurred())
 				Expect(added).Should(BeTrue())
 				// Get the inserted routes
-				_, dstPodCIDRNet, err := net.ParseCIDR(tep.Status.RemoteNATPodCIDR)
+				_, dstPodCIDRNet, err := net.ParseCIDR(tep.Spec.RemoteNATPodCIDR)
 				Expect(err).ShouldNot(HaveOccurred())
-				_, dstExternalCIDRNet, err := net.ParseCIDR(tep.Status.RemoteNATPodCIDR)
+				_, dstExternalCIDRNet, err := net.ParseCIDR(tep.Spec.RemoteNATPodCIDR)
 				Expect(err).ShouldNot(HaveOccurred())
 				routes, err := netlink.RouteListFiltered(netlink.FAMILY_V4, &netlink.Route{Dst: dstPodCIDRNet,
 					Table: routingTableIDGRM}, netlink.RT_FILTER_DST|netlink.RT_FILTER_TABLE)
 				Expect(err).ShouldNot(HaveOccurred())
-				Expect(routes[0].Dst.String()).Should(Equal(tep.Status.RemoteNATPodCIDR))
+				Expect(routes[0].Dst.String()).Should(Equal(tep.Spec.RemoteNATPodCIDR))
 				Expect(routes[0].Gw).Should(BeNil())
 				routes, err = netlink.RouteListFiltered(netlink.FAMILY_V4, &netlink.Route{Dst: dstExternalCIDRNet,
 					Table: routingTableIDGRM}, netlink.RT_FILTER_DST|netlink.RT_FILTER_TABLE)
 				Expect(err).ShouldNot(HaveOccurred())
-				Expect(routes[0].Dst.String()).Should(Equal(tep.Status.RemoteNATPodCIDR))
+				Expect(routes[0].Dst.String()).Should(Equal(tep.Spec.RemoteNATPodCIDR))
 				Expect(routes[0].Gw).Should(BeNil())
 			})
 
 			It("route already exists, should return false and nil", func() {
-				tepGRM.Status.RemoteNATPodCIDR = existingRoutesGRM[0].Dst.String()
-				tepGRM.Status.RemoteNATExternalCIDR = existingRoutesGRM[1].Dst.String()
+				tepGRM.Spec.RemoteNATPodCIDR = existingRoutesGRM[0].Dst.String()
+				tepGRM.Spec.RemoteNATExternalCIDR = existingRoutesGRM[1].Dst.String()
 				tepGRM.Status.GatewayIP = existingRoutesGRM[0].Gw.String()
 				added, err := grm.EnsureRoutesPerCluster(&tepGRM)
 				Expect(err).ShouldNot(HaveOccurred())
@@ -162,7 +162,7 @@ var _ = Describe("GatewayRouting", func() {
 	Describe("removing route configuration for a remote peering cluster", func() {
 		Context("when tep holds malformed parameters", func() {
 			It("fails to remove route configuration while removing the route for PodCIDR", func() {
-				tepGRM.Status.RemoteNATPodCIDR = ""
+				tepGRM.Spec.RemoteNATPodCIDR = ""
 				added, err := grm.RemoveRoutesPerCluster(&tepGRM)
 				Expect(err).Should(Equal(&net.ParseError{
 					Type: "CIDR address",
@@ -172,7 +172,7 @@ var _ = Describe("GatewayRouting", func() {
 				Expect(err).NotTo(BeNil())
 			})
 			It("fails to remove route configuration while removing the route for ExternalCIDR", func() {
-				tepGRM.Status.RemoteNATExternalCIDR = ""
+				tepGRM.Spec.RemoteNATExternalCIDR = ""
 				added, err := grm.RemoveRoutesPerCluster(&tepGRM)
 				Expect(err).Should(Equal(&net.ParseError{
 					Type: "CIDR address",
@@ -193,8 +193,8 @@ var _ = Describe("GatewayRouting", func() {
 			})
 
 			It("route configuration should be correctly removed", func() {
-				tepGRM.Status.RemoteNATPodCIDR = existingRoutesGRM[0].Dst.String()
-				tepGRM.Status.RemoteNATExternalCIDR = existingRoutesGRM[1].Dst.String()
+				tepGRM.Spec.RemoteNATPodCIDR = existingRoutesGRM[0].Dst.String()
+				tepGRM.Spec.RemoteNATExternalCIDR = existingRoutesGRM[1].Dst.String()
 				deleted, err := grm.RemoveRoutesPerCluster(&tepGRM)
 				Expect(err).ShouldNot(HaveOccurred())
 				Expect(deleted).Should(BeTrue())
@@ -208,8 +208,8 @@ var _ = Describe("GatewayRouting", func() {
 			})
 
 			It("route configuration should be correctly removed from veth pair", func() {
-				tepGRM.Status.RemoteNATPodCIDR = existingRoutesGRM[1].Dst.String()
-				tepGRM.Status.RemoteNATExternalCIDR = existingRoutesGRM[0].Dst.String()
+				tepGRM.Spec.RemoteNATPodCIDR = existingRoutesGRM[1].Dst.String()
+				tepGRM.Spec.RemoteNATExternalCIDR = existingRoutesGRM[0].Dst.String()
 				tepGRM.Status.GatewayIP = ipAddress1NoSubnet
 				tepGRM.Status.VethIFaceIndex = overlayDevice.Link.Index
 				added, err := grm.RemoveRoutesPerCluster(&tepGRM)

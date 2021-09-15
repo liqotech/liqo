@@ -95,7 +95,7 @@ var _ = Describe("DirectRouting", func() {
 
 			It("route configuration fails while adding policy routing rule for PodCIDR", func() {
 				tepCopy := tep
-				tepCopy.Status.RemoteNATPodCIDR = ""
+				tepCopy.Spec.RemoteNATPodCIDR = ""
 				added, err := drm.EnsureRoutesPerCluster(&tepCopy)
 				Expect(err).Should(Equal(&errors.WrongParameter{
 					Parameter: "fromSubnet and toSubnet",
@@ -107,7 +107,7 @@ var _ = Describe("DirectRouting", func() {
 
 			It("route configuration fails while adding policy routing rule for ExternalCIDR", func() {
 				tepCopy := tep
-				tepCopy.Status.RemoteNATExternalCIDR = ""
+				tepCopy.Spec.RemoteNATExternalCIDR = ""
 				added, err := drm.EnsureRoutesPerCluster(&tepCopy)
 				Expect(err).Should(Equal(&errors.WrongParameter{
 					Parameter: "fromSubnet and toSubnet",
@@ -141,26 +141,26 @@ var _ = Describe("DirectRouting", func() {
 				Expect(err).ShouldNot(HaveOccurred())
 				Expect(added).Should(BeTrue())
 				// Get the inserted route
-				_, dstPodCIDRNet, err := net.ParseCIDR(tep.Status.RemoteNATPodCIDR)
+				_, dstPodCIDRNet, err := net.ParseCIDR(tep.Spec.RemoteNATPodCIDR)
 				Expect(err).ShouldNot(HaveOccurred())
-				_, dstExternalCIDRNet, err := net.ParseCIDR(tep.Status.RemoteNATExternalCIDR)
+				_, dstExternalCIDRNet, err := net.ParseCIDR(tep.Spec.RemoteNATExternalCIDR)
 				Expect(err).ShouldNot(HaveOccurred())
 				routes, err := netlink.RouteListFiltered(netlink.FAMILY_V4, &netlink.Route{Dst: dstPodCIDRNet,
 					Table: routingTableIDDRM}, netlink.RT_FILTER_DST|netlink.RT_FILTER_TABLE)
 				Expect(err).ShouldNot(HaveOccurred())
-				Expect(routes[0].Dst.String()).Should(Equal(tep.Status.RemoteNATPodCIDR))
+				Expect(routes[0].Dst.String()).Should(Equal(tep.Spec.RemoteNATPodCIDR))
 				Expect(routes[0].Gw.String()).Should(Equal(tep.Status.GatewayIP))
 				routes, err = netlink.RouteListFiltered(netlink.FAMILY_V4, &netlink.Route{Dst: dstExternalCIDRNet,
 					Table: routingTableIDDRM}, netlink.RT_FILTER_DST|netlink.RT_FILTER_TABLE)
 				Expect(err).ShouldNot(HaveOccurred())
-				Expect(routes[0].Dst.String()).Should(Equal(tep.Status.RemoteNATExternalCIDR))
+				Expect(routes[0].Dst.String()).Should(Equal(tep.Spec.RemoteNATExternalCIDR))
 				Expect(routes[0].Gw.String()).Should(Equal(tep.Status.GatewayIP))
 			})
 
 			It("routes already exist, should return false and nil", func() {
 				tepCopy := tep
-				tepCopy.Status.RemoteNATPodCIDR = existingRoutesDRM[0].Dst.String()
-				tepCopy.Status.RemoteNATExternalCIDR = existingRoutesDRM[1].Dst.String()
+				tepCopy.Spec.RemoteNATPodCIDR = existingRoutesDRM[0].Dst.String()
+				tepCopy.Spec.RemoteNATExternalCIDR = existingRoutesDRM[1].Dst.String()
 				tepCopy.Status.GatewayIP = existingRoutesDRM[0].Gw.String()
 				existingRoutesDRM[1].Gw = existingRoutesDRM[0].Gw
 				added, err := drm.EnsureRoutesPerCluster(&tepCopy)
@@ -170,7 +170,7 @@ var _ = Describe("DirectRouting", func() {
 
 			It("route is outdated, should return true and nil", func() {
 				tepCopy := tep
-				tepCopy.Status.RemoteNATPodCIDR = existingRoutesDRM[1].Dst.String()
+				tepCopy.Spec.RemoteNATPodCIDR = existingRoutesDRM[1].Dst.String()
 				tepCopy.Status.GatewayIP = gwIPCorrect
 				added, err := drm.EnsureRoutesPerCluster(&tepCopy)
 				Expect(err).ShouldNot(HaveOccurred())
@@ -179,7 +179,7 @@ var _ = Describe("DirectRouting", func() {
 				routes, err := netlink.RouteListFiltered(netlink.FAMILY_V4, existingRoutesDRM[1],
 					netlink.RT_FILTER_DST|netlink.RT_FILTER_TABLE)
 				Expect(err).ShouldNot(HaveOccurred())
-				Expect(routes[0].Dst.String()).Should(Equal(tepCopy.Status.RemoteNATPodCIDR))
+				Expect(routes[0].Dst.String()).Should(Equal(tepCopy.Spec.RemoteNATPodCIDR))
 				Expect(routes[0].Gw.String()).Should(Equal(tepCopy.Status.GatewayIP))
 			})
 		})
@@ -198,7 +198,7 @@ var _ = Describe("DirectRouting", func() {
 
 			It("fails to remove route configuration while removing policy routing rule for PodCIDR", func() {
 				tepCopy := tep
-				tepCopy.Status.RemoteNATPodCIDR = ""
+				tepCopy.Spec.RemoteNATPodCIDR = ""
 				added, err := drm.RemoveRoutesPerCluster(&tepCopy)
 				Expect(err).Should(Equal(&errors.WrongParameter{
 					Parameter: "fromSubnet and toSubnet",
@@ -210,7 +210,7 @@ var _ = Describe("DirectRouting", func() {
 
 			It("fails to remove route configuration while removing policy routing rule for ExternalCIDR", func() {
 				tepCopy := tep
-				tepCopy.Status.RemoteNATExternalCIDR = ""
+				tepCopy.Spec.RemoteNATExternalCIDR = ""
 				added, err := drm.RemoveRoutesPerCluster(&tepCopy)
 				Expect(err).Should(Equal(&errors.WrongParameter{
 					Parameter: "fromSubnet and toSubnet",
@@ -232,8 +232,8 @@ var _ = Describe("DirectRouting", func() {
 
 			It("route configuration should be correctly removed", func() {
 				tepCopy := tep
-				tepCopy.Status.RemoteNATPodCIDR = existingRoutesDRM[0].Dst.String()
-				tepCopy.Status.RemoteNATExternalCIDR = existingRoutesDRM[1].Dst.String()
+				tepCopy.Spec.RemoteNATPodCIDR = existingRoutesDRM[0].Dst.String()
+				tepCopy.Spec.RemoteNATExternalCIDR = existingRoutesDRM[1].Dst.String()
 				tepCopy.Status.GatewayIP = existingRoutesDRM[0].Gw.String()
 				added, err := drm.RemoveRoutesPerCluster(&tepCopy)
 				Expect(err).ShouldNot(HaveOccurred())

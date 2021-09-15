@@ -90,12 +90,19 @@ func getTunnelEndpointResource() *unstructured.Unstructured {
 				"labels":    map[string]string{},
 			},
 			"spec": map[string]interface{}{
-				"clusterID":      "clusterid-test",
-				"podCIDR":        "10.0.0.0/12",
-				"externalCIDR":   "172.16.0.0/16",
-				"endpointIP":     "192.16.5.1",
-				"backendType":    "wireguard",
-				"backend_config": map[string]interface{}{},
+				"clusterID":             "clusterid-test",
+				"localPodCIDR":          "10.0.0.0/16",
+				"localNATPodCIDR":       "10.1.0.0/16",
+				"localExternalCIDR":     "10.2.0.0/16",
+				"localNATExternalCIDR":  "10.3.0.0/16",
+				"remotePodCIDR":         "10.6.0.0/16",
+				"remoteNATPodCIDR":      "10.7.0.0/16",
+				"remoteExternalCIDR":    "10.8.0.0/16",
+				"remoteNATExternalCIDR": "10.9.0.0/16",
+				"externalCIDR":          "172.16.0.0/16",
+				"endpointIP":            "192.16.5.1",
+				"backendType":           "wireguard",
+				"backend_config":        map[string]interface{}{},
 			},
 		},
 	}
@@ -243,7 +250,7 @@ func TestReplication4(t *testing.T) {
 	// here we update the status of the remote instances
 	for clusterID, tun := range localResources {
 		status := map[string]interface{}{
-			"phase": "Ready",
+			"gatewayIP": "1.1.1.1",
 		}
 		currentTun, err := peeringClustersDynClients[clusterID].Resource(tunGVR).
 			Namespace(testNamespace).Get(context.TODO(), tun.Name, metav1.GetOptions{})
@@ -265,7 +272,7 @@ func TestReplication4(t *testing.T) {
 		err = runtime.DefaultUnstructuredConverter.FromUnstructured(remTun.Object, typedTun)
 		assert.Nil(t, err, "error should be nil")
 		// check that the local and the replicated one are the same
-		assert.Equal(t, "Ready", typedTun.Status.Phase, "phase on remote resources should be set to 'Ready'")
+		assert.Equal(t, "1.1.1.1", typedTun.Status.GatewayIP, "Assert the status has been correctly propagated")
 	}
 	// here we remove all the resources on the local cluster and check that also the remote ones have been removed
 	cleanUp(t, localResources)
@@ -312,7 +319,7 @@ func TestReplication3(t *testing.T) {
 	// here we update the status of the local instances
 	for _, tun := range localResources {
 		status := map[string]interface{}{
-			"phase": "Ready",
+			"gatewayIP": "1.1.1.1",
 		}
 		currentTun, err := dOperator.LocalDynClient.Resource(tunGVR).Namespace(testNamespace).Get(context.TODO(), tun.Name, metav1.GetOptions{})
 		assert.Nil(t, err, "error should be nil")
@@ -332,7 +339,7 @@ func TestReplication3(t *testing.T) {
 		assert.Nil(t, err, "error should be nil")
 		// check that the local and the replicated one are the same
 		assert.True(t, reflect.DeepEqual(typedTun.Spec, localResources[clusterID].Spec))
-		assert.Equal(t, "Ready", typedTun.Status.Phase, "phase on remote resources should be set to 'Ready'")
+		assert.Equal(t, "1.1.1.1", typedTun.Status.GatewayIP, "Assert the status has been correctly propagated")
 	}
 	// here we remove all the resources on the local cluster and check that also the remote ones have been removed
 	cleanUp(t, localResources)
