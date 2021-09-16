@@ -46,7 +46,7 @@ func InstallFlags(flags *pflag.FlagSet, c *Opts) {
 
 	flags.Var(&c.NodeExtraAnnotations, "node-extra-annotations", "Extra annotations to add to the Virtual Node")
 	flags.Var(&c.NodeExtraLabels, "node-extra-labels", "Extra labels to add to the Virtual Node")
-
+	flags.BoolVar(&c.EnableRemoteIpam, "enable-remote-ipam", false, "if true enables connection to a remote cluster ipam service")
 	flagset := flag.NewFlagSet("klog", flag.PanicOnError)
 	klog.InitFlags(flagset)
 	flagset.VisitAll(func(f *flag.Flag) {
