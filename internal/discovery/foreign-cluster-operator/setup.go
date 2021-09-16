@@ -47,7 +47,7 @@ func init() {
 func StartOperator(
 	mgr manager.Manager, namespacedClient client.Client, clientset kubernetes.Interface, namespace string,
 	requeueAfter time.Duration, localClusterID clusterid.ClusterID, clusterName string,
-	authServiceAddressOverride, authServicePortOverride string, autoJoin bool) {
+	authServiceAddressOverride, authServicePortOverride string, autoJoin, ownerReferencesPermissionEnforcement bool) {
 	namespaceManager := tenantnamespace.NewTenantNamespaceManager(clientset)
 	idManager := identitymanager.NewCertificateIdentityManager(clientset, localClusterID, namespaceManager)
 
@@ -64,12 +64,13 @@ func StartOperator(
 		Scheme:               mgr.GetScheme(),
 		liqoNamespace:        namespace,
 
-		requeueAfter:               requeueAfter,
-		clusterID:                  localClusterID,
-		clusterName:                clusterName,
-		authServiceAddressOverride: authServiceAddressOverride,
-		authServicePortOverride:    authServicePortOverride,
-		autoJoin:                   autoJoin,
+		requeueAfter:                         requeueAfter,
+		clusterID:                            localClusterID,
+		clusterName:                          clusterName,
+		authServiceAddressOverride:           authServiceAddressOverride,
+		authServicePortOverride:              authServicePortOverride,
+		autoJoin:                             autoJoin,
+		ownerReferencesPermissionEnforcement: ownerReferencesPermissionEnforcement,
 
 		namespaceManager:  namespaceManager,
 		identityManager:   idManager,

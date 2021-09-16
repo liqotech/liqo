@@ -1,5 +1,13 @@
 rules:
 - apiGroups:
+  - capsule.clastix.io
+  resources:
+  - tenants/finalizers
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
   - ""
   resources:
   - namespaces
@@ -41,6 +49,14 @@ rules:
 - apiGroups:
   - discovery.liqo.io
   resources:
+  - foreignclusters/finalizers
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
+  - discovery.liqo.io
+  resources:
   - foreignclusters/status
   verbs:
   - create
@@ -49,14 +65,6 @@ rules:
   - list
   - patch
   - update
-  - watch
-- apiGroups:
-  - discovery.liqo.io
-  resources:
-  - peeringrequests
-  verbs:
-  - get
-  - list
   - watch
 - apiGroups:
   - discovery.liqo.io
@@ -83,6 +91,14 @@ rules:
   - patch
   - update
   - watch
+- apiGroups:
+  - discovery.liqo.io
+  resources:
+  - searchdomains/finalizers
+  verbs:
+  - get
+  - patch
+  - update
 - apiGroups:
   - net.liqo.io
   resources:
@@ -117,12 +133,15 @@ rules:
   - clusterrolebindings
   verbs:
   - create
+  - delete
   - get
 - apiGroups:
   - rbac.authorization.k8s.io
   resources:
   - clusterroles
   verbs:
+  - create
+  - delete
   - get
   - list
   - watch
@@ -135,26 +154,4 @@ rules:
   - delete
   - deletecollection
   - get
-- apiGroups:
-  - sharing.liqo.io
-  resources:
-  - advertisements
-  verbs:
-  - create
-  - delete
-  - get
-  - list
-  - update
-  - watch
-- apiGroups:
-  - sharing.liqo.io
-  resources:
-  - advertisements/status
-  verbs:
-  - create
-  - delete
-  - get
-  - list
-  - update
-  - watch
 

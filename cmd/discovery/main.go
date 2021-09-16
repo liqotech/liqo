@@ -63,6 +63,9 @@ func main() {
 	authServicePortOverride := flag.String(consts.AuthServicePortOverrideParameter, "",
 		"The port the authentication service is reachable from foreign clusters (automatically retrieved if not set")
 	autoJoin := flag.Bool("auto-join-discovered-clusters", true, "Whether to automatically peer with discovered clusters")
+	ownerReferencesPermissionEnforcement := flag.Bool("owner-references-permission-enforcement", false,
+		"Enable support for the OwnerReferencesPermissionEnforcement admission controller "+
+			"https://kubernetes.io/docs/reference/access-authn-authz/admission-controllers/#ownerreferencespermissionenforcement")
 
 	var mdnsConfig discovery.MDNSConfig
 	flag.BoolVar(&mdnsConfig.EnableAdvertisement, "mdns-enable-advertisement", false, "Enable the mDNS advertisement on LANs")
@@ -144,7 +147,7 @@ func main() {
 	klog.Info("Starting ForeignCluster operator")
 	foreignclusteroperator.StartOperator(mgr, namespacedClient, clientset, *namespace,
 		*requeueAfter, localClusterID, *clusterName, *authServiceAddressOverride,
-		*authServicePortOverride, *autoJoin)
+		*authServicePortOverride, *autoJoin, *ownerReferencesPermissionEnforcement)
 
 	if err := mgr.Add(auxmgr); err != nil {
 		klog.Errorf("Unable to add the auxiliary manager to the main one: %w", err)

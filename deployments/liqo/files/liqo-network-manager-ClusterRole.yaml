@@ -34,6 +34,7 @@ rules:
 - apiGroups:
   - discovery.liqo.io
   resources:
+  - foreignclusters/finalizers
   - foreignclusters/status
   verbs:
   - get

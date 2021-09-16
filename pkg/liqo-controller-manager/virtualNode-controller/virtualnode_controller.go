@@ -44,7 +44,8 @@ type VirtualNodeReconciler struct {
 }
 
 // cluster-role
-// +kubebuilder:rbac:groups=core,resources=nodes,verbs=get;list;watch;patch;update
+// +kubebuilder:rbac:groups="",resources=nodes,verbs=get;list;watch;patch;update
+// +kubebuilder:rbac:groups="",resources=nodes/finalizers,verbs=get;update;patch
 // +kubebuilder:rbac:groups=virtualkubelet.liqo.io,resources=namespacemaps,verbs=get;list;watch;delete;create
 // +kubebuilder:rbac:groups=discovery.liqo.io,resources=foreignclusters,verbs=get;list;watch
 

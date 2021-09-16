@@ -116,7 +116,6 @@ rules:
 - apiGroups:
   - sharing.liqo.io
   resources:
-  - advertisements
   - resourceoffers
   verbs:
   - delete

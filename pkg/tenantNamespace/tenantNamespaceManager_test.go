@@ -22,6 +22,7 @@ import (
 	"strings"
 	"testing"
 
+	capsulev1beta1 "github.com/clastix/capsule/api/v1beta1"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	v1 "k8s.io/api/core/v1"
@@ -158,6 +159,7 @@ var _ = Describe("TenantNamespace", func() {
 		Context("Single ClusterRole", func() {
 
 			var rb []*rbacv1.RoleBinding
+			var crb *rbacv1.ClusterRoleBinding
 
 			It("Bind ClusterRole", func() {
 				var err error
@@ -225,6 +227,66 @@ var _ = Describe("TenantNamespace", func() {
 				_, err = client.RbacV1().RoleBindings(namespace.Name).Get(context.TODO(), rb[0].Name, metav1.GetOptions{})
 				Expect(err).NotTo(BeNil())
 				Expect(kerrors.IsNotFound(err)).To(BeTrue())
+			})
+
+			It("cluster wide outgoing permission management", func() {
+				var err error
+				ctx := context.Background()
+
+				var checkLabels = func(labels map[string]string) {
+					cID, ok := labels[discovery.ClusterIDLabel]
+					Expect(ok).To(BeTrue())
+					Expect(cID).To(Equal(clusterID))
+				}
+
+				clusterRoleName := fmt.Sprintf("%v-%v", clusterRolePrefix, clusterID)
+
+				By("Creating the binding")
+
+				crb, err = namespaceManager.BindOutgoingClusterWideRole(ctx, clusterID)
+				Expect(err).NotTo(HaveOccurred())
+				Expect(crb).NotTo(BeNil())
+
+				checkLabels(crb.GetLabels())
+
+				Expect(len(crb.Subjects)).To(Equal(1))
+				Expect(crb.Subjects[0].Kind).To(Equal(rbacv1.UserKind))
+				Expect(crb.Subjects[0].Name).To(Equal(clusterID))
+				Expect(crb.RoleRef.Kind).To(Equal("ClusterRole"))
+				Expect(crb.RoleRef.Name).To(Equal(clusterRoleName))
+
+				cr, err := client.RbacV1().ClusterRoles().Get(ctx, clusterRoleName, metav1.GetOptions{})
+				Expect(err).NotTo(HaveOccurred())
+				Expect(cr).NotTo(BeNil())
+
+				checkLabels(cr.GetLabels())
+
+				Expect(len(cr.Rules)).To(BeNumerically("==", 1))
+				Expect(cr.Rules[0].APIGroups).To(ContainElement(capsulev1beta1.GroupVersion.Group))
+				Expect(cr.Rules[0].ResourceNames).To(ContainElement(fmt.Sprintf("%v-%v", tenantPrefix, clusterID)))
+				Expect(cr.Rules[0].Resources).To(ContainElement("tenants/finalizers"))
+				Expect(cr.Rules[0].Verbs).To(ContainElements("get", "patch", "update"))
+
+				By("Creating the binding twice")
+
+				crb, err = namespaceManager.BindOutgoingClusterWideRole(ctx, clusterID)
+				Expect(err).NotTo(HaveOccurred())
+
+				By("Deleting the binding")
+
+				Expect(namespaceManager.UnbindOutgoingClusterWideRole(ctx, clusterID)).To(Succeed())
+
+				_, err = client.RbacV1().ClusterRoles().Get(ctx, clusterRoleName, metav1.GetOptions{})
+				Expect(err).To(HaveOccurred())
+				Expect(kerrors.IsNotFound(err)).To(BeTrue())
+
+				_, err = client.RbacV1().ClusterRoleBindings().Get(ctx, clusterRoleName, metav1.GetOptions{})
+				Expect(err).To(HaveOccurred())
+				Expect(kerrors.IsNotFound(err)).To(BeTrue())
+
+				By("Deleting the binding twice")
+
+				Expect(namespaceManager.UnbindOutgoingClusterWideRole(ctx, clusterID)).To(Succeed())
 			})
 
 		})

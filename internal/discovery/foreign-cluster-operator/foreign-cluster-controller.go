@@ -91,12 +91,13 @@ type ForeignClusterReconciler struct {
 	LiqoNamespacedClient client.Client
 	liqoNamespace        string
 
-	requeueAfter               time.Duration
-	clusterID                  clusterid.ClusterID
-	clusterName                string
-	authServiceAddressOverride string
-	authServicePortOverride    string
-	autoJoin                   bool
+	requeueAfter                         time.Duration
+	clusterID                            clusterid.ClusterID
+	clusterName                          string
+	authServiceAddressOverride           string
+	authServicePortOverride              string
+	autoJoin                             bool
+	ownerReferencesPermissionEnforcement bool
 
 	namespaceManager tenantnamespace.Manager
 	identityManager  identitymanager.IdentityManager
@@ -107,15 +108,14 @@ type ForeignClusterReconciler struct {
 // clusterRole
 // +kubebuilder:rbac:groups=discovery.liqo.io,resources=foreignclusters,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=discovery.liqo.io,resources=foreignclusters/status,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=discovery.liqo.io,resources=foreignclusters/finalizers,verbs=get;update;patch
 // +kubebuilder:rbac:groups=discovery.liqo.io,resources=searchdomains,verbs=get;list;watch;create;update;patch;delete
-// +kubebuilder:rbac:groups=discovery.liqo.io,resources=peeringrequests,verbs=get;list;watch
+// +kubebuilder:rbac:groups=discovery.liqo.io,resources=searchdomains/finalizers,verbs=get;update;patch
 // +kubebuilder:rbac:groups=discovery.liqo.io,resources=resourcerequests,verbs=get;list;watch;create;update;patch;delete;deletecollection
 // +kubebuilder:rbac:groups=net.liqo.io,resources=networkconfigs,verbs=*
 // +kubebuilder:rbac:groups=net.liqo.io,resources=networkconfigs/status,verbs=*
 // +kubebuilder:rbac:groups=net.liqo.io,resources=tunnelendpoints,verbs=get;list;watch
 // +kubebuilder:rbac:groups=net.liqo.io,resources=tunnelendpoints/status,verbs=get;watch;update
-// +kubebuilder:rbac:groups=sharing.liqo.io,resources=advertisements,verbs=get;list;watch;create;update;delete
-// +kubebuilder:rbac:groups=sharing.liqo.io,resources=advertisements/status,verbs=get;list;watch;create;update;delete
 // +kubebuilder:rbac:groups=core,resources=nodes,verbs=list;watch
 // +kubebuilder:rbac:groups=rbac.authorization.k8s.io,resources=clusterroles,verbs=get;list;watch
 // +kubebuilder:rbac:groups=rbac.authorization.k8s.io,resources=clusterrolebindings,verbs=get;create
@@ -123,6 +123,9 @@ type ForeignClusterReconciler struct {
 // +kubebuilder:rbac:groups=core,resources=namespaces,verbs=get;list;watch;create
 // +kubebuilder:rbac:groups=core,resources=secrets,verbs=get;list;watch;create;delete;update
 // +kubebuilder:rbac:groups=rbac.authorization.k8s.io,resources=rolebindings,verbs=get;create;deletecollection;delete
+// +kubebuilder:rbac:groups=rbac.authorization.k8s.io,resources=clusterrolebindings,verbs=get;create;delete
+// +kubebuilder:rbac:groups=rbac.authorization.k8s.io,resources=clusterroles,verbs=get;create;delete
+// +kubebuilder:rbac:groups=capsule.clastix.io,resources=tenants/finalizers,verbs=get;patch;update
 // role
 // +kubebuilder:rbac:groups=core,namespace="liqo",resources=services,verbs=get;list;watch
 // +kubebuilder:rbac:groups=core,namespace="liqo",resources=configmaps,verbs=get;list;watch;create;update;delete
@@ -270,7 +273,7 @@ func (r *ForeignClusterReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 	// ------ (6) garbage collection ------
 
 	// check if this ForeignCluster needs to be deleted. It could happen, for example, if it has been discovered
-	// thanks to incoming peeringRequest and it has no active connections
+	// thanks to incoming resourceRequest and it has no active connections
 	if foreignclusterutils.HasToBeRemoved(&foreignCluster) {
 		klog.Infof("[%v] Delete ForeignCluster %v with discovery type %v",
 			foreignCluster.Spec.ClusterIdentity.ClusterID,
