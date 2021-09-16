@@ -122,6 +122,7 @@ func runRootCommand(ctx context.Context, s *provider.Store, c *Opts) error {
 		HomeClusterID:        c.HomeClusterID,
 		InformerResyncPeriod: c.InformerResyncPeriod,
 		LiqoIpamServer:       c.LiqoIpamServer,
+		EnableRemoteIpam: c.EnableRemoteIpam,
 	}
 
 	pInit := s.Get(c.Provider)

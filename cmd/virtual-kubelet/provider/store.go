@@ -89,6 +89,7 @@ type InitConfig struct {
 	RemoteClusterID      string
 	LiqoIpamServer       string
 	InformerResyncPeriod time.Duration
+	EnableRemoteIpam bool
 }
 
 // InitFunc defines the signature of the function creating a Provider instance based on the corresponding configuration.

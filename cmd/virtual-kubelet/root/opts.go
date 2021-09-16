@@ -83,6 +83,7 @@ type Opts struct {
 
 	Version   string
 	Profiling bool
+	EnableRemoteIpam bool
 
 	NodeExtraAnnotations argsutils.StringMap
 	NodeExtraLabels      argsutils.StringMap

@@ -88,7 +88,7 @@ type apiForger struct {
 var forger apiForger
 
 // InitForger initialize forger component to set all necessary fields of offloaded resources.
-func InitForger(homeClusterID string, nattingTable namespacesmapping.NamespaceNatter, opts ...options.ReadOnlyOption) {
+func InitForger(homeClusterID string, enableRemoteIpam bool, nattingTable namespacesmapping.NamespaceNatter, opts ...options.ReadOnlyOption) {
 	forger.nattingTable = nattingTable
 	forger.homeClusterID = homeClusterID
 	for _, opt := range opts {
@@ -100,7 +100,9 @@ func InitForger(homeClusterID string, nattingTable namespacesmapping.NamespaceNa
 		case types.LiqoIpamServer:
 			forger.liqoIpamServer = opt
 			initIpamClient()
-			initRemoteIpamClient()
+			if enableRemoteIpam {
+				initRemoteIpamClient()
+			}
 		}
 	}
 }
@@ -116,7 +118,7 @@ func initIpamClient() {
 }
 
 func initRemoteIpamClient() {
-	conn, err := grpc.Dial(fmt.Sprintf("%s:%d", "remote-ipam", 6001),
+	conn, err := grpc.Dial(fmt.Sprintf("%s:%d", "liqo-network-manager.liqo-" + forger.offloadClusterID.Value(), 6000),
 		grpc.WithInsecure(),
 		grpc.WithBlock())
 	if err != nil {

@@ -62,7 +62,7 @@ type LiqoProvider struct {
 
 // NewLiqoProvider creates a new NewLiqoProvider instance.
 func NewLiqoProvider(ctx context.Context, nodeName, foreignClusterID, homeClusterID, internalIP string, daemonEndpointPort int32,
-	kubeconfig string, informerResyncPeriod time.Duration, ipamGRPCServer string) (*LiqoProvider, error) {
+	kubeconfig string, informerResyncPeriod time.Duration, ipamGRPCServer string, enableRemoteIpam bool) (*LiqoProvider, error) {
 	var err error
 
 	if err = vkalpha1.AddToScheme(scheme.Scheme); err != nil {
@@ -119,7 +119,7 @@ func NewLiqoProvider(ctx context.Context, nodeName, foreignClusterID, homeCluste
 	grpcServerNameOpt := optTypes.NewNetworkingOption(optTypes.LiqoIpamServer, optTypes.NetworkingValue(ipamGRPCServer))
 	remoteClusterIDOpt := optTypes.NewNetworkingOption(optTypes.RemoteClusterID, optTypes.NetworkingValue(foreignClusterID))
 
-	forge.InitForger(homeClusterID, mapper, virtualNodeNameOpt, grpcServerNameOpt, remoteClusterIDOpt)
+	forge.InitForger(homeClusterID, enableRemoteIpam, mapper, virtualNodeNameOpt, grpcServerNameOpt, remoteClusterIDOpt)
 
 	opts := forgeOptionsMap(
 		virtualNodeNameOpt,
