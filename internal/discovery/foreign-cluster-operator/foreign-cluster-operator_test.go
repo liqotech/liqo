@@ -706,9 +706,10 @@ var _ = Describe("ForeignClusterOperator", func() {
 		)
 
 		type permissionTestcase struct {
-			fc               discoveryv1alpha1.ForeignCluster
-			expectedOutgoing types.GomegaMatcher
-			expectedIncoming types.GomegaMatcher
+			fc                          discoveryv1alpha1.ForeignCluster
+			expectedOutgoing            types.GomegaMatcher
+			expectedIncoming            types.GomegaMatcher
+			expectedOutgoingClusterWide types.GomegaMatcher
 		}
 
 		JustBeforeEach(func() {
@@ -751,44 +752,76 @@ var _ = Describe("ForeignClusterOperator", func() {
 
 		DescribeTable("permission table",
 			func(c permissionTestcase) {
-				c.fc.Status.TenantNamespace.Local = tenantNamespace.Name
+				var checkClusterWidePermission = func(expected types.GomegaMatcher) {
+					clusterRoleName := fmt.Sprintf("liqo-remote-cluster-role-%v", c.fc.Spec.ClusterIdentity.ClusterID)
+					var clusterRoleBinding rbacv1.ClusterRoleBinding
+					Eventually(
+						func() error {
+							return controller.Client.Get(ctx, machtypes.NamespacedName{Name: clusterRoleName}, &clusterRoleBinding)
+						},
+						timeout, interval,
+					).Should(expected)
+					var clusterRole rbacv1.ClusterRole
+					Eventually(
+						func() error {
+							return controller.Client.Get(ctx, machtypes.NamespacedName{Name: clusterRoleName}, &clusterRole)
+						},
+						timeout, interval,
+					).Should(expected)
+				}
 
-				By("Create RoleBindings")
+				var checkBindings = func(ownerReferencesPermissionEnforcement bool) {
+					controller.ownerReferencesPermissionEnforcement = ownerReferencesPermissionEnforcement
+					c.fc.Status.TenantNamespace.Local = tenantNamespace.Name
 
-				Expect(controller.ensurePermission(ctx, &c.fc)).To(Succeed())
+					By("Create RoleBindings")
 
-				var roleBindingList rbacv1.RoleBindingList
-				Eventually(func() []string {
-					Expect(controller.Client.List(ctx, &roleBindingList)).To(Succeed())
+					Expect(controller.ensurePermission(ctx, &c.fc)).To(Succeed())
 
-					names := make([]string, len(roleBindingList.Items))
-					for i := range roleBindingList.Items {
-						if roleBindingList.Items[i].DeletionTimestamp.IsZero() {
-							names[i] = roleBindingList.Items[i].Name
+					var roleBindingList rbacv1.RoleBindingList
+					Eventually(func() []string {
+						Expect(controller.Client.List(ctx, &roleBindingList)).To(Succeed())
+
+						names := make([]string, len(roleBindingList.Items))
+						for i := range roleBindingList.Items {
+							if roleBindingList.Items[i].DeletionTimestamp.IsZero() {
+								names[i] = roleBindingList.Items[i].Name
+							}
 						}
+						return names
+					}, timeout, interval).Should(And(c.expectedIncoming, c.expectedOutgoing))
+
+					if ownerReferencesPermissionEnforcement {
+						checkClusterWidePermission(c.expectedOutgoingClusterWide)
 					}
-					return names
-				}, timeout, interval).Should(And(c.expectedIncoming, c.expectedOutgoing))
 
-				By("Delete RoleBindings")
+					By("Delete RoleBindings")
 
-				// create all
-				_, err := controller.namespaceManager.BindClusterRoles(c.fc.Spec.ClusterIdentity.ClusterID, &clusterRole1, &clusterRole2)
-				Expect(err).To(Succeed())
+					// create all
+					_, err := controller.namespaceManager.BindClusterRoles(c.fc.Spec.ClusterIdentity.ClusterID, &clusterRole1, &clusterRole2)
+					Expect(err).To(Succeed())
 
-				Expect(controller.ensurePermission(ctx, &c.fc)).To(Succeed())
+					Expect(controller.ensurePermission(ctx, &c.fc)).To(Succeed())
 
-				Eventually(func() []string {
-					Expect(controller.Client.List(ctx, &roleBindingList)).To(Succeed())
+					Eventually(func() []string {
+						Expect(controller.Client.List(ctx, &roleBindingList)).To(Succeed())
 
-					names := make([]string, len(roleBindingList.Items))
-					for i := range roleBindingList.Items {
-						if roleBindingList.Items[i].DeletionTimestamp.IsZero() {
-							names[i] = roleBindingList.Items[i].Name
+						names := make([]string, len(roleBindingList.Items))
+						for i := range roleBindingList.Items {
+							if roleBindingList.Items[i].DeletionTimestamp.IsZero() {
+								names[i] = roleBindingList.Items[i].Name
+							}
 						}
+						return names
+					}, timeout, interval).Should(And(c.expectedIncoming, c.expectedOutgoing))
+
+					if ownerReferencesPermissionEnforcement {
+						checkClusterWidePermission(c.expectedOutgoingClusterWide)
 					}
-					return names
-				}, timeout, interval).Should(And(c.expectedIncoming, c.expectedOutgoing))
+				}
+
+				checkBindings(false)
+				checkBindings(true)
 			},
 
 			Entry("none peering", permissionTestcase{
@@ -814,8 +847,9 @@ var _ = Describe("ForeignClusterOperator", func() {
 						TenantNamespace: discoveryv1alpha1.TenantNamespaceType{},
 					},
 				},
-				expectedOutgoing: Not(ContainElement(outgoingBinding)),
-				expectedIncoming: Not(ContainElement(incomingBinding)),
+				expectedOutgoing:            Not(ContainElement(outgoingBinding)),
+				expectedIncoming:            Not(ContainElement(incomingBinding)),
+				expectedOutgoingClusterWide: HaveOccurred(),
 			}),
 
 			Entry("incoming peering", permissionTestcase{
@@ -853,8 +887,9 @@ var _ = Describe("ForeignClusterOperator", func() {
 						},
 					},
 				},
-				expectedOutgoing: Not(ContainElement(outgoingBinding)),
-				expectedIncoming: ContainElement(incomingBinding),
+				expectedOutgoing:            Not(ContainElement(outgoingBinding)),
+				expectedIncoming:            ContainElement(incomingBinding),
+				expectedOutgoingClusterWide: HaveOccurred(),
 			}),
 
 			Entry("outgoing peering", permissionTestcase{
@@ -892,8 +927,9 @@ var _ = Describe("ForeignClusterOperator", func() {
 						},
 					},
 				},
-				expectedOutgoing: ContainElement(outgoingBinding),
-				expectedIncoming: Not(ContainElement(incomingBinding)),
+				expectedOutgoing:            ContainElement(outgoingBinding),
+				expectedIncoming:            Not(ContainElement(incomingBinding)),
+				expectedOutgoingClusterWide: Not(HaveOccurred()),
 			}),
 
 			Entry("bidirectional peering", permissionTestcase{
@@ -931,8 +967,9 @@ var _ = Describe("ForeignClusterOperator", func() {
 						},
 					},
 				},
-				expectedOutgoing: ContainElement(outgoingBinding),
-				expectedIncoming: ContainElement(incomingBinding),
+				expectedOutgoing:            ContainElement(outgoingBinding),
+				expectedIncoming:            ContainElement(incomingBinding),
+				expectedOutgoingClusterWide: Not(HaveOccurred()),
 			}),
 		)
 

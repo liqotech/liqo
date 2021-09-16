@@ -36,6 +36,19 @@ rules:
   verbs:
   - create
   - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - ""
+  resources:
+  - nodes/finalizers
+  verbs:
+  - get
+  - patch
+  - update
 - apiGroups:
   - ""
   resources:
@@ -210,8 +223,6 @@ rules:
   verbs:
   - get
   - list
-  - patch
-  - update
   - watch
 - apiGroups:
   - ""
@@ -245,6 +256,7 @@ rules:
 - apiGroups:
   - discovery.liqo.io
   resources:
+  - foreignclusters/finalizers
   - foreignclusters/status
   verbs:
   - get
@@ -265,6 +277,15 @@ rules:
 - apiGroups:
   - discovery.liqo.io
   resources:
+  - resourcerequests/finalizers
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
+  - discovery.liqo.io
+  resources:
+  - resourcerequests/finalizers
   - resourcerequests/status
   verbs:
   - get
@@ -331,6 +352,8 @@ rules:
   resources:
   - resourceoffers/finalizers
   verbs:
+  - get
+  - patch
   - update
 - apiGroups:
   - sharing.liqo.io
@@ -352,4 +375,12 @@ rules:
   - patch
   - update
   - watch
+- apiGroups:
+  - virtualkubelet.liqo.io
+  resources:
+  - namespacemaps/finalizers
+  verbs:
+  - get
+  - patch
+  - update
 

@@ -26,8 +26,6 @@ var (
 	// GroupVersion is group version used to register these objects.
 	GroupVersion = schema.GroupVersion{Group: "sharing.liqo.io", Version: "v1alpha1"}
 
-	GroupResource = schema.GroupResource{Group: GroupVersion.Group, Resource: "advertisements"}
-
 	// ResourceOfferGroupResource is group resource used by resourceOffer objects.
 	ResourceOfferGroupResource = schema.GroupResource{Group: GroupVersion.Group, Resource: "resourceoffers"}
 

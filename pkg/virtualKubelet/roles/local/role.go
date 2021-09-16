@@ -30,6 +30,6 @@ package local
 
 // +kubebuilder:rbac:groups=virtualkubelet.liqo.io,resources=namespacemaps,verbs=get;list;watch;
 // +kubebuilder:rbac:groups=net.liqo.io,resources=tunnelendpoints,verbs=get;list;watch
-// +kubebuilder:rbac:groups=sharing.liqo.io,resources=advertisements;resourceoffers,verbs=get;list;watch;update;patch;delete
+// +kubebuilder:rbac:groups=sharing.liqo.io,resources=resourceoffers,verbs=get;list;watch;update;patch;delete
 
 // +kubebuilder:rbac:groups=coordination.k8s.io,resources=leases,verbs=get;create;update;delete
