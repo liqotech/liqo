@@ -49,11 +49,11 @@ func (b *Broker) SetupBroker(clusterID string, clientset kubernetes.Interface, s
 }
 
 func (b *Broker) Start(ctx context.Context, group *sync.WaitGroup) {
+	group.Add(1)
 	go b.startNodeInformer(ctx, group)
 }
 
 func (b *Broker) startNodeInformer(ctx context.Context, group *sync.WaitGroup) {
-	group.Add(1)
 	defer group.Done()
 	b.nodeInformer.Run(ctx.Done())
 }
@@ -145,7 +145,7 @@ func (b *Broker) onNodeAdd(obj interface{}) {
 	node := obj.(*corev1.Node)
 	//if utils.IsNodeReady(node) {
 	if clusterID, ok := node.GetAnnotations()[consts.RemoteClusterID]; ok {
-		klog.V(4).Infof("Created virtual node %s\n", node.Name)
+		klog.Infof("Created virtual node %s\n", node.Name)
 		toAdd, err := b.getClusterOffer(clusterID)
 		if err != nil {
 			return
@@ -159,7 +159,7 @@ func (b *Broker) onNodeDelete(obj interface{}) {
 	node := obj.(*corev1.Node)
 	// if utils.IsNodeReady(node) {
 	if clusterID, ok := node.GetAnnotations()[consts.RemoteClusterID]; ok {
-		klog.V(4).Infof("Deleting virtual node %s\n", node.Name)
+		klog.Infof("Deleting virtual node %s\n", node.Name)
 		delete(b.nodeResources, clusterID)
 	}
 	//}
