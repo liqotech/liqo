@@ -58,6 +58,7 @@ purge: manifests
 manifests: controller-gen
 	rm --force deployments/liqo/crds/*
 	$(CONTROLLER_GEN) $(CRD_OPTIONS) paths="./apis/..." output:crd:artifacts:config=deployments/liqo/crds
+	echo "$$(awk 'p1 == "description:" && p2 == "Template" && p5 == "deployment" {t=1} t==1 && $$1 == "x-kubernetes-preserve-unknown-fields:" {t=0; print line} {p1=$$1;p2=$$2;p5=$$5;line=$$0}t != 1' deployments/liqo/crds/offloading.liqo.io_liqodeployments.yaml)" > deployments/liqo/crds/offloading.liqo.io_liqodeployments.yaml
 
 #Generate RBAC for each controller
 rbacs: controller-gen
