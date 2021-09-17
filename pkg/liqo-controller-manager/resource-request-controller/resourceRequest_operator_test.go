@@ -36,7 +36,7 @@ import (
 
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	sharingv1alpha1 "github.com/liqotech/liqo/apis/sharing/v1alpha1"
-	crdreplicator "github.com/liqotech/liqo/internal/crdReplicator"
+	"github.com/liqotech/liqo/pkg/consts"
 	"github.com/liqotech/liqo/pkg/discovery"
 	"github.com/liqotech/liqo/pkg/liqo-controller-manager/resource-request-controller/testutils"
 )
@@ -63,8 +63,8 @@ func CreateResourceRequest(ctx context.Context, resourceRequestName, resourcesNa
 			Name:      resourceRequestName + clusterID,
 			Namespace: resourcesNamespace,
 			Labels: map[string]string{
-				crdreplicator.RemoteLabelSelector:    clusterID,
-				crdreplicator.ReplicationStatuslabel: "true",
+				consts.ReplicationOriginLabel: clusterID,
+				consts.ReplicationStatusLabel: "true",
 			},
 		},
 		Spec: discoveryv1alpha1.ResourceRequestSpec{
@@ -165,8 +165,8 @@ var _ = Describe("ResourceRequest Operator", func() {
 
 			Expect(createdResourceOffer.Name).Should(ContainSubstring(homeClusterID))
 			Expect(createdResourceOffer.Labels[discovery.ClusterIDLabel]).Should(Equal(createdResourceRequest.Spec.ClusterIdentity.ClusterID))
-			Expect(createdResourceOffer.Labels[crdreplicator.LocalLabelSelector]).Should(Equal("true"))
-			Expect(createdResourceOffer.Labels[crdreplicator.DestinationLabel]).Should(Equal(createdResourceRequest.Spec.ClusterIdentity.ClusterID))
+			Expect(createdResourceOffer.Labels[consts.ReplicationRequestedLabel]).Should(Equal("true"))
+			Expect(createdResourceOffer.Labels[consts.ReplicationDestinationLabel]).Should(Equal(createdResourceRequest.Spec.ClusterIdentity.ClusterID))
 			By("Checking OwnerReference for Garbage Collector")
 			Expect(createdResourceOffer.GetOwnerReferences()).ShouldNot(HaveLen(0))
 			Expect(createdResourceOffer.GetOwnerReferences()).Should(ContainElement(MatchFields(IgnoreExtras, Fields{

@@ -91,7 +91,7 @@ func main() {
 
 	// Global parameters
 	resyncPeriod := flag.Duration("resync-period", 10*time.Hour, "The resync period for the informers")
-	clusterID := flag.String("cluster-id", "", "The cluster ID of identifying the current cluster")
+	clusterID := flag.String("cluster-id", "", "The cluster ID identifying the current cluster")
 	liqoNamespace := flag.String("liqo-namespace", defaultNamespace,
 		"Name of the namespace where the liqo components are running")
 

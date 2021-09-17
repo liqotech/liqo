@@ -29,24 +29,4 @@ rules:
   - foreignclusters/status
   verbs:
   - get
-- apiGroups:
-  - net.liqo.io
-  resources:
-  - networkconfigs
-  verbs:
-  - create
-  - delete
-  - get
-  - list
-  - patch
-  - update
-  - watch
-- apiGroups:
-  - net.liqo.io
-  resources:
-  - networkconfigs/status
-  verbs:
-  - get
-  - patch
-  - update
 

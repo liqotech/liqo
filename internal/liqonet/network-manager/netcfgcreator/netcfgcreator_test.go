@@ -29,7 +29,7 @@ import (
 
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	netv1alpha1 "github.com/liqotech/liqo/apis/net/v1alpha1"
-	crdreplicator "github.com/liqotech/liqo/internal/crdReplicator"
+	"github.com/liqotech/liqo/pkg/consts"
 	"github.com/liqotech/liqo/pkg/liqonet/tunnel/wireguard"
 	peeringconditionsutils "github.com/liqotech/liqo/pkg/utils/peeringConditions"
 	"github.com/liqotech/liqo/pkg/utils/syncset"
@@ -116,7 +116,7 @@ var _ = Describe("NetworkConfigCreator Controller", func() {
 			netcfg := netv1alpha1.NetworkConfig{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: "foo", Namespace: namespace, Labels: map[string]string{
-						crdreplicator.DestinationLabel: clusterID,
+						consts.ReplicationDestinationLabel: clusterID,
 					},
 				},
 				Spec: netv1alpha1.NetworkConfigSpec{
@@ -133,8 +133,8 @@ var _ = Describe("NetworkConfigCreator Controller", func() {
 				BeforeEach(initializer)
 
 				AssertNetworkConfigMeta := func(netcfg *netv1alpha1.NetworkConfig) {
-					Expect(netcfg.Labels).To(HaveKeyWithValue(crdreplicator.LocalLabelSelector, "true"))
-					Expect(netcfg.Labels).To(HaveKeyWithValue(crdreplicator.DestinationLabel, clusterID))
+					Expect(netcfg.Labels).To(HaveKeyWithValue(consts.ReplicationRequestedLabel, "true"))
+					Expect(netcfg.Labels).To(HaveKeyWithValue(consts.ReplicationDestinationLabel, clusterID))
 
 					Expect(metav1.GetControllerOf(netcfg).Kind).To(Equal("ForeignCluster"))
 					Expect(metav1.GetControllerOf(netcfg).APIVersion).To(Equal("discovery.liqo.io/v1alpha1"))

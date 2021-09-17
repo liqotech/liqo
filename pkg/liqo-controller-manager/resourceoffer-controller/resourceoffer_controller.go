@@ -40,7 +40,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/source"
 
 	sharingv1alpha1 "github.com/liqotech/liqo/apis/sharing/v1alpha1"
-	crdreplicator "github.com/liqotech/liqo/internal/crdReplicator"
+	"github.com/liqotech/liqo/internal/crdReplicator/reflection"
 	"github.com/liqotech/liqo/pkg/vkMachinery"
 	"github.com/liqotech/liqo/pkg/vkMachinery/forge"
 )
@@ -175,7 +175,7 @@ func (r *ResourceOfferReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 // SetupWithManager sets up the controller with the Manager.
 func (r *ResourceOfferReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	// select replicated resources only
-	p, err := predicate.LabelSelectorPredicate(crdreplicator.ReplicatedResourcesLabelSelector)
+	p, err := predicate.LabelSelectorPredicate(reflection.ReplicatedResourcesLabelSelector())
 	if err != nil {
 		klog.Error(err)
 		return err
