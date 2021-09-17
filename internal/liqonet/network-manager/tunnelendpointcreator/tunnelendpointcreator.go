@@ -34,7 +34,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
 	netv1alpha1 "github.com/liqotech/liqo/apis/net/v1alpha1"
-	crdreplicator "github.com/liqotech/liqo/internal/crdReplicator"
 	"github.com/liqotech/liqo/internal/liqonet/network-manager/netcfgcreator"
 	liqoconst "github.com/liqotech/liqo/pkg/consts"
 	liqonetIpam "github.com/liqotech/liqo/pkg/liqonet/ipam"
@@ -149,10 +148,10 @@ func (tec *TunnelEndpointCreator) Reconcile(ctx context.Context, req ctrl.Reques
 
 	// Check if the netconfig is local or remote, and retrieve the cluster ID of the remote cluster
 	var clusterID string
-	if val, ok := netConfig.GetLabels()[crdreplicator.LocalLabelSelector]; ok && val == "true" {
+	if val, ok := netConfig.GetLabels()[liqoconst.ReplicationRequestedLabel]; ok && val == "true" {
 		// This is a local NetworkConfig
 		clusterID = netConfig.Spec.ClusterID
-	} else if cid, ok := netConfig.GetLabels()[crdreplicator.RemoteLabelSelector]; ok {
+	} else if cid, ok := netConfig.GetLabels()[liqoconst.ReplicationOriginLabel]; ok {
 		// This is a remote NetworkConfig
 		// the cluster ID in the spec is the one of the destination cluster (the local cluster in this case)
 		// In order to take the ClusterID of the sender we need to retrieve it from the labels.
@@ -250,7 +249,7 @@ func (tec *TunnelEndpointCreator) processNetworkConfig(ctx context.Context, clus
 }
 
 func (tec *TunnelEndpointCreator) enforceRemoteNetConfigMeta(ctx context.Context, netcfg *netv1alpha1.NetworkConfig) error {
-	clusterID := netcfg.Labels[crdreplicator.RemoteLabelSelector]
+	clusterID := netcfg.Labels[liqoconst.ReplicationOriginLabel]
 
 	// Add the ForeignCluster owner reference if not already present, to allow its operator
 	// to be triggered and reconcile its status when this NetworkConfig changes.
@@ -273,7 +272,7 @@ func (tec *TunnelEndpointCreator) enforceRemoteNetConfigMeta(ctx context.Context
 
 func (tec *TunnelEndpointCreator) enforceRemoteNetConfigStatus(ctx context.Context, netcfg *netv1alpha1.NetworkConfig) error {
 	tracer := trace.FromContext(ctx)
-	clusterID := netcfg.Labels[crdreplicator.RemoteLabelSelector]
+	clusterID := netcfg.Labels[liqoconst.ReplicationOriginLabel]
 
 	// Get the CIDR remappings
 	podCIDR, externalCIDR, err := tec.IPManager.GetSubnetsPerCluster(netcfg.Spec.PodCIDR, netcfg.Spec.ExternalCIDR, clusterID)

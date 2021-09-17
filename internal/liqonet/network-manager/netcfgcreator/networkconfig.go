@@ -30,7 +30,7 @@ import (
 
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	netv1alpha1 "github.com/liqotech/liqo/apis/net/v1alpha1"
-	crdreplicator "github.com/liqotech/liqo/internal/crdReplicator"
+	"github.com/liqotech/liqo/pkg/consts"
 	"github.com/liqotech/liqo/pkg/liqonet/tunnel/wireguard"
 )
 
@@ -40,7 +40,7 @@ const networkConfigNamePrefix = "net-config-"
 // In case more than one NetworkConfig is found, all but the oldest are deleted.
 func GetLocalNetworkConfig(ctx context.Context, c client.Client, clusterID, namespace string) (*netv1alpha1.NetworkConfig, error) {
 	networkConfigList := &netv1alpha1.NetworkConfigList{}
-	labels := client.MatchingLabels{crdreplicator.DestinationLabel: clusterID}
+	labels := client.MatchingLabels{consts.ReplicationDestinationLabel: clusterID}
 
 	if err := c.List(ctx, networkConfigList, labels, client.InNamespace(namespace)); err != nil {
 		klog.Errorf("An error occurred while listing NetworkConfigs: %v", err)
@@ -73,7 +73,7 @@ func GetLocalNetworkConfig(ctx context.Context, c client.Client, clusterID, name
 // GetRemoteNetworkConfig returns the remote NetworkConfig associated with a given cluster ID.
 func GetRemoteNetworkConfig(ctx context.Context, c client.Client, clusterID, namespace string) (*netv1alpha1.NetworkConfig, error) {
 	networkConfigList := &netv1alpha1.NetworkConfigList{}
-	labels := client.MatchingLabels{crdreplicator.RemoteLabelSelector: clusterID}
+	labels := client.MatchingLabels{consts.ReplicationOriginLabel: clusterID}
 
 	if err := c.List(ctx, networkConfigList, labels, client.InNamespace(namespace)); err != nil {
 		klog.Errorf("An error occurred while listing NetworkConfigs: %v", err)
@@ -171,8 +171,8 @@ func (ncc *NetworkConfigCreator) populateNetworkConfig(netcfg *netv1alpha1.Netwo
 	if netcfg.Labels == nil {
 		netcfg.Labels = map[string]string{}
 	}
-	netcfg.Labels[crdreplicator.LocalLabelSelector] = strconv.FormatBool(true)
-	netcfg.Labels[crdreplicator.DestinationLabel] = clusterID
+	netcfg.Labels[consts.ReplicationRequestedLabel] = strconv.FormatBool(true)
+	netcfg.Labels[consts.ReplicationDestinationLabel] = clusterID
 
 	wgEndpointIP, wgEndpointPort := ncc.serviceWatcher.WiregardEndpoint()
 
@@ -194,7 +194,7 @@ func (ncc *NetworkConfigCreator) populateNetworkConfig(netcfg *netv1alpha1.Netwo
 // EnforceNetworkConfigAbsence ensures the absence of local NetworkConfigs associated with the given ForeignCluster.
 func (ncc *NetworkConfigCreator) EnforceNetworkConfigAbsence(ctx context.Context, fc *discoveryv1alpha1.ForeignCluster) error {
 	clusterID := fc.Spec.ClusterIdentity.ClusterID
-	labels := client.MatchingLabels{crdreplicator.DestinationLabel: clusterID}
+	labels := client.MatchingLabels{consts.ReplicationDestinationLabel: clusterID}
 
 	// Let perform a cached list first, to prevent unnecessary interactions with the API server.
 	var networkConfigList netv1alpha1.NetworkConfigList

@@ -26,7 +26,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
-	crdreplicator "github.com/liqotech/liqo/internal/crdReplicator"
+	"github.com/liqotech/liqo/pkg/consts"
 )
 
 // getForeignClusterEventHandler returns an event handler that reacts on ForeignClusters updates.
@@ -54,8 +54,8 @@ func getForeignClusterEventHandler(c client.Client) handler.EventHandler {
 			if oldForeignCluster.Spec.IncomingPeeringEnabled != newForeignCluster.Spec.IncomingPeeringEnabled {
 				var resourceRequestList discoveryv1alpha1.ResourceRequestList
 				if err := c.List(ctx, &resourceRequestList, client.HasLabels{
-					crdreplicator.ReplicationStatuslabel}, client.MatchingLabels{
-					crdreplicator.RemoteLabelSelector: remoteClusterID,
+					consts.ReplicationStatusLabel}, client.MatchingLabels{
+					consts.ReplicationOriginLabel: remoteClusterID,
 				}); err != nil {
 					klog.Error(err)
 					return

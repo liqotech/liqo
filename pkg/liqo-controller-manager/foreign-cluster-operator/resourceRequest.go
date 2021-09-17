@@ -23,7 +23,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
-	crdreplicator "github.com/liqotech/liqo/internal/crdReplicator"
+	"github.com/liqotech/liqo/pkg/consts"
 	"github.com/liqotech/liqo/pkg/utils"
 	foreigncluster "github.com/liqotech/liqo/pkg/utils/foreignCluster"
 )
@@ -97,7 +97,7 @@ func (r *ForeignClusterReconciler) deleteResourceRequest(ctx context.Context, fo
 
 func resourceRequestLabels(remoteClusterID string) map[string]string {
 	return map[string]string{
-		crdreplicator.LocalLabelSelector: "true",
-		crdreplicator.DestinationLabel:   remoteClusterID,
+		consts.ReplicationRequestedLabel:   "true",
+		consts.ReplicationDestinationLabel: remoteClusterID,
 	}
 }

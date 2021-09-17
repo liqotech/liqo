@@ -28,7 +28,7 @@ import (
 
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	netv1alpha1 "github.com/liqotech/liqo/apis/net/v1alpha1"
-	crdreplicator "github.com/liqotech/liqo/internal/crdReplicator"
+	"github.com/liqotech/liqo/pkg/consts"
 	"github.com/liqotech/liqo/pkg/liqonet/tunnel/wireguard"
 )
 
@@ -85,7 +85,7 @@ var _ = Describe("Network config functions", func() {
 
 			BeforeEach(func() {
 				existing = &netv1alpha1.NetworkConfig{ObjectMeta: metav1.ObjectMeta{
-					Name: "foo", Namespace: namespace, Labels: map[string]string{crdreplicator.DestinationLabel: clusterID},
+					Name: "foo", Namespace: namespace, Labels: map[string]string{consts.ReplicationDestinationLabel: clusterID},
 				}}
 				clientBuilder.WithObjects(existing)
 			})
@@ -100,11 +100,11 @@ var _ = Describe("Network config functions", func() {
 			Context("the two network configs have different creation timestamp", func() {
 				BeforeEach(func() {
 					correct = &netv1alpha1.NetworkConfig{ObjectMeta: metav1.ObjectMeta{
-						Name: "foo", Namespace: namespace, Labels: map[string]string{crdreplicator.DestinationLabel: clusterID},
+						Name: "foo", Namespace: namespace, Labels: map[string]string{consts.ReplicationDestinationLabel: clusterID},
 						UID: "aeda6412-e08c-4dcd-ab7d-ac12b286010b", CreationTimestamp: metav1.NewTime(time.Now().Truncate(time.Second)),
 					}}
 					duplicate = &netv1alpha1.NetworkConfig{ObjectMeta: metav1.ObjectMeta{
-						Name: "bar", Namespace: namespace, Labels: map[string]string{crdreplicator.DestinationLabel: clusterID},
+						Name: "bar", Namespace: namespace, Labels: map[string]string{consts.ReplicationDestinationLabel: clusterID},
 						UID:               "8a402261-9cf4-402e-89e8-4d743fb315fb",
 						CreationTimestamp: metav1.NewTime(time.Now().Truncate(time.Second).Add(10 * time.Second)),
 					}}
@@ -123,11 +123,11 @@ var _ = Describe("Network config functions", func() {
 			Context("the two network configs have the same creation timestamp", func() {
 				BeforeEach(func() {
 					correct = &netv1alpha1.NetworkConfig{ObjectMeta: metav1.ObjectMeta{
-						Name: "foo", Namespace: namespace, Labels: map[string]string{crdreplicator.DestinationLabel: clusterID},
+						Name: "foo", Namespace: namespace, Labels: map[string]string{consts.ReplicationDestinationLabel: clusterID},
 						UID: "8a402261-9cf4-402e-89e8-4d743fb315fb", CreationTimestamp: metav1.NewTime(time.Now().Truncate(time.Second)),
 					}}
 					duplicate = &netv1alpha1.NetworkConfig{ObjectMeta: metav1.ObjectMeta{
-						Name: "bar", Namespace: namespace, Labels: map[string]string{crdreplicator.DestinationLabel: clusterID},
+						Name: "bar", Namespace: namespace, Labels: map[string]string{consts.ReplicationDestinationLabel: clusterID},
 						UID: "aeda6412-e08c-4dcd-ab7d-ac12b286010b", CreationTimestamp: metav1.NewTime(time.Now().Truncate(time.Second)),
 					}}
 
@@ -167,7 +167,7 @@ var _ = Describe("Network config functions", func() {
 
 			BeforeEach(func() {
 				existing = &netv1alpha1.NetworkConfig{ObjectMeta: metav1.ObjectMeta{
-					Name: "foo", Namespace: namespace, Labels: map[string]string{crdreplicator.RemoteLabelSelector: clusterID},
+					Name: "foo", Namespace: namespace, Labels: map[string]string{consts.ReplicationOriginLabel: clusterID},
 				}}
 				clientBuilder.WithObjects(existing)
 			})
@@ -179,9 +179,9 @@ var _ = Describe("Network config functions", func() {
 		When("two network configs with the given cluster ID do exist", func() {
 			BeforeEach(func() {
 				clientBuilder.WithObjects(&netv1alpha1.NetworkConfig{ObjectMeta: metav1.ObjectMeta{
-					Name: "foo", Namespace: namespace, Labels: map[string]string{crdreplicator.RemoteLabelSelector: clusterID},
+					Name: "foo", Namespace: namespace, Labels: map[string]string{consts.ReplicationOriginLabel: clusterID},
 				}}, &netv1alpha1.NetworkConfig{ObjectMeta: metav1.ObjectMeta{
-					Name: "bar", Namespace: namespace, Labels: map[string]string{crdreplicator.RemoteLabelSelector: clusterID},
+					Name: "bar", Namespace: namespace, Labels: map[string]string{consts.ReplicationOriginLabel: clusterID},
 				}})
 			})
 
@@ -218,8 +218,8 @@ var _ = Describe("Network config functions", func() {
 			})
 
 			AssertNetworkConfigMeta := func(netcfg *netv1alpha1.NetworkConfig) {
-				Expect(netcfg.Labels).To(HaveKeyWithValue(crdreplicator.LocalLabelSelector, "true"))
-				Expect(netcfg.Labels).To(HaveKeyWithValue(crdreplicator.DestinationLabel, clusterID))
+				Expect(netcfg.Labels).To(HaveKeyWithValue(consts.ReplicationRequestedLabel, "true"))
+				Expect(netcfg.Labels).To(HaveKeyWithValue(consts.ReplicationDestinationLabel, clusterID))
 
 				Expect(metav1.GetControllerOf(netcfg).Kind).To(Equal(fc.Kind))
 				Expect(metav1.GetControllerOf(netcfg).APIVersion).To(Equal(fc.APIVersion))
@@ -258,8 +258,8 @@ var _ = Describe("Network config functions", func() {
 						&netv1alpha1.NetworkConfig{
 							ObjectMeta: metav1.ObjectMeta{
 								Name: "foo", Namespace: namespace, Labels: map[string]string{
-									crdreplicator.DestinationLabel: clusterID,
-									"other-key":                    "other-value",
+									consts.ReplicationDestinationLabel: clusterID,
+									"other-key":                        "other-value",
 								},
 							},
 							Spec: netv1alpha1.NetworkConfigSpec{ClusterID: "foo", EndpointIP: "bar", BackendType: "baz"},
@@ -309,7 +309,7 @@ var _ = Describe("Network config functions", func() {
 				BeforeEach(func() {
 					clientBuilder.WithObjects(
 						&netv1alpha1.NetworkConfig{ObjectMeta: metav1.ObjectMeta{
-							Name: "foo", Namespace: namespace, Labels: map[string]string{crdreplicator.DestinationLabel: clusterID},
+							Name: "foo", Namespace: namespace, Labels: map[string]string{consts.ReplicationDestinationLabel: clusterID},
 						}},
 					)
 				})
