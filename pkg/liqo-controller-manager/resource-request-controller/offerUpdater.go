@@ -32,7 +32,7 @@ import (
 
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	sharingv1alpha1 "github.com/liqotech/liqo/apis/sharing/v1alpha1"
-	crdreplicator "github.com/liqotech/liqo/internal/crdReplicator"
+	"github.com/liqotech/liqo/pkg/consts"
 	"github.com/liqotech/liqo/pkg/discovery"
 	"github.com/liqotech/liqo/pkg/liqo-controller-manager/resource-request-controller/interfaces"
 )
@@ -142,13 +142,13 @@ func (u *OfferUpdater) createOrUpdateOffer(clusterID string) (bool, error) {
 	op, err := controllerutil.CreateOrUpdate(context.Background(), u.Client, offer, func() error {
 		if offer.Labels != nil {
 			offer.Labels[discovery.ClusterIDLabel] = request.Spec.ClusterIdentity.ClusterID
-			offer.Labels[crdreplicator.LocalLabelSelector] = "true"
-			offer.Labels[crdreplicator.DestinationLabel] = request.Spec.ClusterIdentity.ClusterID
+			offer.Labels[consts.ReplicationRequestedLabel] = "true"
+			offer.Labels[consts.ReplicationDestinationLabel] = request.Spec.ClusterIdentity.ClusterID
 		} else {
 			offer.Labels = map[string]string{
-				discovery.ClusterIDLabel:         request.Spec.ClusterIdentity.ClusterID,
-				crdreplicator.LocalLabelSelector: "true",
-				crdreplicator.DestinationLabel:   request.Spec.ClusterIdentity.ClusterID,
+				discovery.ClusterIDLabel:           request.Spec.ClusterIdentity.ClusterID,
+				consts.ReplicationRequestedLabel:   "true",
+				consts.ReplicationDestinationLabel: request.Spec.ClusterIdentity.ClusterID,
 			}
 		}
 		offer.Spec.ClusterId = u.homeClusterID
@@ -168,7 +168,7 @@ func (u *OfferUpdater) createOrUpdateOffer(clusterID string) (bool, error) {
 func (u *OfferUpdater) getResourceRequest(clusterID string) (*discoveryv1alpha1.ResourceRequestList, error) {
 	resourceRequestList := &discoveryv1alpha1.ResourceRequestList{}
 	err := u.Client.List(context.Background(), resourceRequestList, client.MatchingLabels{
-		crdreplicator.RemoteLabelSelector: clusterID,
+		consts.ReplicationOriginLabel: clusterID,
 	})
 	if err != nil {
 		return nil, err

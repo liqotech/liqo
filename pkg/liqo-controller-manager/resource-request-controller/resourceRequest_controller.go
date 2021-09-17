@@ -27,7 +27,7 @@ import (
 
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	sharingv1alpha1 "github.com/liqotech/liqo/apis/sharing/v1alpha1"
-	crdreplicator "github.com/liqotech/liqo/internal/crdReplicator"
+	"github.com/liqotech/liqo/internal/crdReplicator/reflection"
 )
 
 // ResourceRequestReconciler reconciles a ResourceRequest object.
@@ -147,7 +147,7 @@ func (r *ResourceRequestReconciler) Reconcile(ctx context.Context, req ctrl.Requ
 // SetupWithManager is the setup function of the controller.
 func (r *ResourceRequestReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	// generate the predicate to filter just the ResourceRequest created by the remote cluster checking crdReplicator labels
-	p, err := predicate.LabelSelectorPredicate(crdreplicator.ReplicatedResourcesLabelSelector)
+	p, err := predicate.LabelSelectorPredicate(reflection.ReplicatedResourcesLabelSelector())
 	if err != nil {
 		klog.Error(err)
 		return err
