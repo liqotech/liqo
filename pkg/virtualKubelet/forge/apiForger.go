@@ -100,13 +100,14 @@ func InitForger(homeClusterID string, enableRemoteIpam bool, remotePodCidr strin
 			forger.virtualNodeName = opt
 		case types.RemoteClusterID:
 			forger.offloadClusterID = opt
-		case types.LiqoIpamServer:
-			forger.liqoIpamServer = opt
-			initIpamClient()
 			if enableRemoteIpam {
 				klog.Infof("Starting remote ipam client...")
 				initRemoteIpamClient()
 			}
+		case types.LiqoIpamServer:
+			forger.liqoIpamServer = opt
+			initIpamClient()
+
 		}
 	}
 }
