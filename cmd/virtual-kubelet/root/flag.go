@@ -53,4 +53,5 @@ func InstallFlags(flags *pflag.FlagSet, c *Opts) {
 		f.Name = "klog." + f.Name
 		flags.AddGoFlag(f)
 	})
+	flags.StringVar(&c.RemotePodCidr, "remote-pod-cidr", "", "")
 }

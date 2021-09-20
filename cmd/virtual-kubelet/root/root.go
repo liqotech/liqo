@@ -70,6 +70,10 @@ func runRootCommand(ctx context.Context, s *provider.Store, c *Opts) error {
 		return errors.New("cluster id is mandatory")
 	}
 
+	if c.EnableRemoteIpam && c.RemotePodCidr == ""{
+		return errors.New("No remote pod cidr provided")
+	}
+
 	if c.PodSyncWorkers == 0 {
 		return errdefs.InvalidInput("pod sync workers must be greater than 0")
 	}
@@ -123,6 +127,8 @@ func runRootCommand(ctx context.Context, s *provider.Store, c *Opts) error {
 		InformerResyncPeriod: c.InformerResyncPeriod,
 		LiqoIpamServer:       c.LiqoIpamServer,
 		EnableRemoteIpam: c.EnableRemoteIpam,
+		RemotePodCidr: c.RemotePodCidr,
+
 	}
 
 	pInit := s.Get(c.Provider)

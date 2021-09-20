@@ -17,6 +17,7 @@ package forge
 import (
 	"context"
 	"fmt"
+	"inet.af/netaddr"
 	"strings"
 
 	corev1 "k8s.io/api/core/v1"
@@ -70,12 +71,11 @@ func (f *apiForger) podStatusForeignToHome(foreignObj, homeObj runtime.Object) *
 
 	homePod.Status = foreignPod.Status
 	if homePod.Status.PodIP != "" {
-		response, _ := f.ipamClient.BelongsToPodCIDR(context.Background(), &liqonetIpam.BelongsRequest{
-			ClusterID: strings.TrimPrefix(f.virtualNodeName.Value().ToString(), virtualKubelet.VirtualNodePrefix),
-			Ip: foreignPod.Status.PodIP,
-		})
-
-		if response.GetBelongs() {
+		p, err := netaddr.ParseIPPrefix(f.remotePodCidr)
+		if err != nil {
+			klog.Errorf("Error parsing remotePodCidr %s", err)
+		}
+		if p.Contains(netaddr.MustParseIP(foreignPod.Status.PodIP)) {
 			response, err := f.ipamClient.GetHomePodIP(context.Background(),
 				&liqonetIpam.GetHomePodIPRequest{
 					ClusterID: strings.TrimPrefix(f.virtualNodeName.Value().ToString(), virtualKubelet.VirtualNodePrefix),

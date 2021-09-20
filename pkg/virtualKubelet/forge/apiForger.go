@@ -79,6 +79,7 @@ type apiForger struct {
 	ipamClient   liqonetIpam.IpamClient
 	remoteIpamClient liqonetIpam.IpamClient
 	homeClusterID string
+	remotePodCidr string
 
 	virtualNodeName  options.ReadOnlyOption
 	liqoIpamServer   options.ReadOnlyOption
@@ -88,9 +89,11 @@ type apiForger struct {
 var forger apiForger
 
 // InitForger initialize forger component to set all necessary fields of offloaded resources.
-func InitForger(homeClusterID string, enableRemoteIpam bool, nattingTable namespacesmapping.NamespaceNatter, opts ...options.ReadOnlyOption) {
+func InitForger(homeClusterID string, enableRemoteIpam bool, remotePodCidr string, nattingTable namespacesmapping.NamespaceNatter, opts ...options.ReadOnlyOption) {
 	forger.nattingTable = nattingTable
 	forger.homeClusterID = homeClusterID
+	forger.remotePodCidr = remotePodCidr
+
 	for _, opt := range opts {
 		switch opt.Key() {
 		case types.VirtualNodeName:
@@ -101,6 +104,7 @@ func InitForger(homeClusterID string, enableRemoteIpam bool, nattingTable namesp
 			forger.liqoIpamServer = opt
 			initIpamClient()
 			if enableRemoteIpam {
+				klog.Infof("Starting remote ipam client...")
 				initRemoteIpamClient()
 			}
 		}
@@ -118,7 +122,7 @@ func initIpamClient() {
 }
 
 func initRemoteIpamClient() {
-	conn, err := grpc.Dial(fmt.Sprintf("%s:%d", "liqo-network-manager.liqo-" + forger.offloadClusterID.Value(), 6000),
+	conn, err := grpc.Dial(fmt.Sprintf("%s:%d", "liqo-network-manager.liqo-" + forger.offloadClusterID.Value().ToString(), 6000),
 		grpc.WithInsecure(),
 		grpc.WithBlock())
 	if err != nil {
