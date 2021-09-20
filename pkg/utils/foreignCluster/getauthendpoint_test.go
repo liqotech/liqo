@@ -58,7 +58,7 @@ var _ = Describe("Test fetching Liqo Auth service name", func() {
 	DescribeTable("Ensure correct resources are created or an exception is raised",
 		func(svc *corev1.Service, expectedResult string) {
 			client := fake.NewClientBuilder().WithRuntimeObjects(svc, node).Build()
-			endpoint, err := GetHomeAuthURL(ctx, client, client, "", "", liqoNamespace)
+			endpoint, err := GetHomeAuthURL(ctx, client, "", "", liqoNamespace)
 			Expect(err).ToNot(HaveOccurred())
 			Expect(endpoint).To(BeEquivalentTo(expectedResult))
 		},

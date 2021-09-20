@@ -101,13 +101,13 @@ var _ = Describe("ForeignClusterOperator", func() {
 		controller = ForeignClusterReconciler{
 			Client:           mgr.GetClient(),
 			Scheme:           mgr.GetScheme(),
-			clusterID:        cID,
-			requeueAfter:     300,
-			namespaceManager: namespaceManager,
-			identityManager:  identityManagerCtrl,
+			ClusterID:        cID,
+			ResyncPeriod:     300,
+			NamespaceManager: namespaceManager,
+			IdentityManager:  identityManagerCtrl,
 
-			authServiceAddressOverride: "127.0.0.1",
-			authServicePortOverride:    "8443",
+			AuthServiceAddressOverride: "127.0.0.1",
+			AuthServicePortOverride:    "8443",
 		}
 
 		go mgr.GetCache().Start(ctx)
@@ -218,7 +218,7 @@ var _ = Describe("ForeignClusterOperator", func() {
 				c.fc.Status.TenantNamespace.Local = tenantNamespace.Name
 
 				// populate the resourcerequest CR
-				c.rr.Name = controller.clusterID.GetClusterID()
+				c.rr.Name = controller.ClusterID.GetClusterID()
 				c.rr.Namespace = tenantNamespace.Name
 				c.rr.Spec.ClusterIdentity.ClusterID = c.fc.Spec.ClusterIdentity.ClusterID
 				c.rr.Labels = resourceRequestLabels(c.fc.Spec.ClusterIdentity.ClusterID)
@@ -444,7 +444,7 @@ var _ = Describe("ForeignClusterOperator", func() {
 
 			var ns *v1.Namespace
 			Eventually(func() error {
-				ns, err = controller.namespaceManager.GetNamespace(foreignCluster.Spec.ClusterIdentity.ClusterID)
+				ns, err = controller.NamespaceManager.GetNamespace(foreignCluster.Spec.ClusterIdentity.ClusterID)
 				return err
 			}).Should(Succeed())
 
@@ -727,7 +727,7 @@ var _ = Describe("ForeignClusterOperator", func() {
 			Expect(controller.Client.Create(ctx, &clusterRole1)).To(Succeed())
 			Expect(controller.Client.Create(ctx, &clusterRole2)).To(Succeed())
 
-			controller.peeringPermission = peeringroles.PeeringPermission{
+			controller.PeeringPermission = peeringroles.PeeringPermission{
 				Basic: []*rbacv1.ClusterRole{},
 				Incoming: []*rbacv1.ClusterRole{
 					&clusterRole2,
@@ -771,7 +771,7 @@ var _ = Describe("ForeignClusterOperator", func() {
 				}
 
 				var checkBindings = func(ownerReferencesPermissionEnforcement bool) {
-					controller.ownerReferencesPermissionEnforcement = ownerReferencesPermissionEnforcement
+					controller.OwnerReferencesPermissionEnforcement = ownerReferencesPermissionEnforcement
 					c.fc.Status.TenantNamespace.Local = tenantNamespace.Name
 
 					By("Create RoleBindings")
@@ -798,7 +798,7 @@ var _ = Describe("ForeignClusterOperator", func() {
 					By("Delete RoleBindings")
 
 					// create all
-					_, err := controller.namespaceManager.BindClusterRoles(c.fc.Spec.ClusterIdentity.ClusterID, &clusterRole1, &clusterRole2)
+					_, err := controller.NamespaceManager.BindClusterRoles(c.fc.Spec.ClusterIdentity.ClusterID, &clusterRole1, &clusterRole2)
 					Expect(err).To(Succeed())
 
 					Expect(controller.ensurePermission(ctx, &c.fc)).To(Succeed())
@@ -1044,7 +1044,7 @@ var _ = Describe("ForeignClusterOperator", func() {
 					Name: "cluster-1",
 					Labels: map[string]string{
 						discovery.DiscoveryTypeLabel: string(discovery.ManualDiscovery),
-						discovery.ClusterIDLabel:     controller.clusterID.GetClusterID(),
+						discovery.ClusterIDLabel:     controller.ClusterID.GetClusterID(),
 					},
 				},
 				Spec: discoveryv1alpha1.ForeignClusterSpec{
@@ -1053,7 +1053,7 @@ var _ = Describe("ForeignClusterOperator", func() {
 					InsecureSkipTLSVerify:  pointer.BoolPtr(true),
 					ForeignAuthURL:         "https://example.com",
 					ClusterIdentity: discoveryv1alpha1.ClusterIdentity{
-						ClusterID: controller.clusterID.GetClusterID(),
+						ClusterID: controller.ClusterID.GetClusterID(),
 					},
 				},
 			}
@@ -1080,7 +1080,7 @@ var _ = Describe("PeeringPolicy", func() {
 
 	BeforeEach(func() {
 		controller = ForeignClusterReconciler{
-			autoJoin: true,
+			AutoJoin: true,
 		}
 	})
 

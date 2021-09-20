@@ -22,10 +22,12 @@ import (
 	"k8s.io/client-go/util/retry"
 	"k8s.io/klog/v2"
 	"k8s.io/utils/pointer"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
 	"github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	discoveryPkg "github.com/liqotech/liqo/pkg/discovery"
+	"github.com/liqotech/liqo/pkg/discoverymanager/utils"
 	foreignclusterutils "github.com/liqotech/liqo/pkg/utils/foreignCluster"
 )
 
@@ -38,6 +40,8 @@ const defaultInsecureSkipTLSVerify = true
 //   3a. if IP is different set new IP and delete CA data
 //   3b. else it is ok
 func (discovery *Controller) updateForeignLAN(data *discoveryData) {
+	ctx := context.TODO()
+
 	discoveryType := discoveryPkg.LanDiscovery
 	if data.ClusterInfo.ClusterID == discovery.LocalClusterID.GetClusterID() {
 		// is local cluster
@@ -50,7 +54,7 @@ func (discovery *Controller) updateForeignLAN(data *discoveryData) {
 			return k8serror.IsConflict(err) || k8serror.IsAlreadyExists(err)
 		},
 		func() error {
-			return discovery.createOrUpdate(data, nil, discoveryType, nil)
+			return createOrUpdate(ctx, data, discovery.Client, nil, discoveryType, nil)
 		})
 	if err != nil {
 		klog.Error(err)
@@ -61,17 +65,19 @@ func (discovery *Controller) updateForeignLAN(data *discoveryData) {
 // for each cluster retrieved with DNS discovery, if it is not the local cluster, check if it is already known, if not
 // create it. In both cases update the ForeignCluster TTL
 // This function also sets an owner reference and a label to the ForeignCluster pointing to the SearchDomain CR.
-func (discovery *Controller) UpdateForeignWAN(data []*AuthData, sd *v1alpha1.SearchDomain) []*v1alpha1.ForeignCluster {
+func UpdateForeignWAN(ctx context.Context,
+	cl client.Client, localClusterID string,
+	data []*AuthData, sd *v1alpha1.SearchDomain) []*v1alpha1.ForeignCluster {
 	createdUpdatedForeign := []*v1alpha1.ForeignCluster{}
 	discoveryType := discoveryPkg.WanDiscovery
 	for _, authData := range data {
-		clusterInfo, err := discovery.getClusterInfo(defaultInsecureSkipTLSVerify, authData)
+		clusterInfo, err := utils.GetClusterInfo(defaultInsecureSkipTLSVerify, authData.getURL())
 		if err != nil {
 			klog.Error(err)
 			continue
 		}
 
-		if clusterInfo.ClusterID == discovery.LocalClusterID.GetClusterID() {
+		if clusterInfo.ClusterID == localClusterID {
 			// is local cluster
 			continue
 		}
@@ -84,10 +90,10 @@ func (discovery *Controller) UpdateForeignWAN(data []*AuthData, sd *v1alpha1.Sea
 				return k8serror.IsConflict(err) || k8serror.IsAlreadyExists(err)
 			},
 			func() error {
-				return discovery.createOrUpdate(&discoveryData{
+				return createOrUpdate(ctx, &discoveryData{
 					AuthData:    &data,
 					ClusterInfo: clusterInfo,
-				}, sd, discoveryType, &createdUpdatedForeign)
+				}, cl, sd, discoveryType, &createdUpdatedForeign)
 			})
 		if err != nil {
 			klog.Error(err)
@@ -97,13 +103,11 @@ func (discovery *Controller) UpdateForeignWAN(data []*AuthData, sd *v1alpha1.Sea
 	return createdUpdatedForeign
 }
 
-func (discovery *Controller) createOrUpdate(data *discoveryData,
+func createOrUpdate(ctx context.Context, data *discoveryData, cl client.Client,
 	sd *v1alpha1.SearchDomain, discoveryType discoveryPkg.Type, createdUpdatedForeign *[]*v1alpha1.ForeignCluster) error {
-	ctx := context.TODO()
-
-	fc, err := foreignclusterutils.GetForeignClusterByID(ctx, discovery.Client, data.ClusterInfo.ClusterID)
+	fc, err := foreignclusterutils.GetForeignClusterByID(ctx, cl, data.ClusterInfo.ClusterID)
 	if k8serror.IsNotFound(err) {
-		fc, err = discovery.createForeign(ctx, data, sd, discoveryType)
+		fc, err = createForeign(ctx, cl, data, sd, discoveryType)
 		if err != nil {
 			klog.Error(err)
 			return err
@@ -115,7 +119,7 @@ func (discovery *Controller) createOrUpdate(data *discoveryData,
 	}
 	if err == nil {
 		var updated bool
-		fc, updated, err = discovery.checkUpdate(ctx, data, fc, discoveryType, sd)
+		fc, updated, err = checkUpdate(ctx, cl, data, fc, discoveryType, sd)
 		if err != nil {
 			if !k8serror.IsConflict(err) {
 				klog.Error(err)
@@ -136,8 +140,8 @@ func (discovery *Controller) createOrUpdate(data *discoveryData,
 	return nil
 }
 
-func (discovery *Controller) createForeign(
-	ctx context.Context, data *discoveryData,
+func createForeign(
+	ctx context.Context, cl client.Client, data *discoveryData,
 	sd *v1alpha1.SearchDomain, discoveryType discoveryPkg.Type) (*v1alpha1.ForeignCluster, error) {
 	fc := &v1alpha1.ForeignCluster{
 		ObjectMeta: metav1.ObjectMeta{
@@ -163,7 +167,7 @@ func (discovery *Controller) createForeign(
 	if sd != nil {
 		fc.Spec.OutgoingPeeringEnabled = v1alpha1.PeeringEnabledAuto
 		fc.Labels[discoveryPkg.SearchDomainLabel] = sd.Name
-		if err := controllerutil.SetOwnerReference(sd, fc, discovery.Scheme()); err != nil {
+		if err := controllerutil.SetOwnerReference(sd, fc, cl.Scheme()); err != nil {
 			klog.Errorf("Failed to set foreign cluster owner reference: %v", err)
 			return nil, err
 		}
@@ -171,7 +175,7 @@ func (discovery *Controller) createForeign(
 	// set TTL
 	fc.Spec.TTL = int(data.AuthData.ttl)
 
-	if err := discovery.Create(ctx, fc); err != nil {
+	if err := cl.Create(ctx, fc); err != nil {
 		klog.Error(err)
 		return nil, err
 	}
@@ -179,8 +183,8 @@ func (discovery *Controller) createForeign(
 	return fc, nil
 }
 
-func (discovery *Controller) checkUpdate(
-	ctx context.Context,
+func checkUpdate(
+	ctx context.Context, cl client.Client,
 	data *discoveryData, fc *v1alpha1.ForeignCluster,
 	discoveryType discoveryPkg.Type,
 	searchDomain *v1alpha1.SearchDomain) (fcUpdated *v1alpha1.ForeignCluster, updated bool, err error) {
@@ -199,7 +203,7 @@ func (discovery *Controller) checkUpdate(
 		}
 		foreignclusterutils.LastUpdateNow(fc)
 
-		if err := discovery.Update(ctx, fc); err != nil {
+		if err := cl.Update(ctx, fc); err != nil {
 			klog.Error(err)
 			return nil, false, err
 		}
@@ -210,7 +214,7 @@ func (discovery *Controller) checkUpdate(
 
 	// update "lastUpdate" annotation
 	foreignclusterutils.LastUpdateNow(fc)
-	if err := discovery.Update(ctx, fc); err != nil {
+	if err := cl.Update(ctx, fc); err != nil {
 		if !k8serror.IsConflict(err) {
 			klog.Error(err)
 		}

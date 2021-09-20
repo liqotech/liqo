@@ -88,21 +88,20 @@ type ForeignClusterReconciler struct {
 	client.Client
 	Scheme *runtime.Scheme
 
-	LiqoNamespacedClient client.Client
-	liqoNamespace        string
+	LiqoNamespace string
 
-	requeueAfter                         time.Duration
-	clusterID                            clusterid.ClusterID
-	clusterName                          string
-	authServiceAddressOverride           string
-	authServicePortOverride              string
-	autoJoin                             bool
-	ownerReferencesPermissionEnforcement bool
+	ResyncPeriod                         time.Duration
+	ClusterID                            clusterid.ClusterID
+	ClusterName                          string
+	AuthServiceAddressOverride           string
+	AuthServicePortOverride              string
+	AutoJoin                             bool
+	OwnerReferencesPermissionEnforcement bool
 
-	namespaceManager tenantnamespace.Manager
-	identityManager  identitymanager.IdentityManager
+	NamespaceManager tenantnamespace.Manager
+	IdentityManager  identitymanager.IdentityManager
 
-	peeringPermission peeringRoles.PeeringPermission
+	PeeringPermission peeringRoles.PeeringPermission
 }
 
 // clusterRole
@@ -186,7 +185,7 @@ func (r *ForeignClusterReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 			peeringconditionsutils.GetMessage(&foreignCluster, discoveryv1alpha1.ProcessForeignClusterStatusCondition))
 		return ctrl.Result{
 			Requeue:      true,
-			RequeueAfter: r.requeueAfter,
+			RequeueAfter: r.ResyncPeriod,
 		}, nil
 	}
 	tracer.Step("Ensured the ForeignCluster is processable")
@@ -290,7 +289,7 @@ func (r *ForeignClusterReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 	klog.V(4).Infof("ForeignCluster %s successfully reconciled", foreignCluster.Name)
 	return ctrl.Result{
 		Requeue:      true,
-		RequeueAfter: r.requeueAfter,
+		RequeueAfter: r.ResyncPeriod,
 	}, nil
 }
 
@@ -332,7 +331,7 @@ func (r *ForeignClusterReconciler) unpeerNamespaced(ctx context.Context,
 	var resourceRequest discoveryv1alpha1.ResourceRequest
 	err := r.Client.Get(ctx, types.NamespacedName{
 		Namespace: foreignCluster.Status.TenantNamespace.Local,
-		Name:      r.clusterID.GetClusterID(),
+		Name:      r.ClusterID.GetClusterID(),
 	}, &resourceRequest)
 	if errors.IsNotFound(err) {
 		peeringconditionsutils.EnsureStatus(foreignCluster,

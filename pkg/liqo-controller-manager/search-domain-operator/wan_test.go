@@ -20,7 +20,7 @@ import (
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 
-	"github.com/liqotech/liqo/internal/discovery"
+	discovery "github.com/liqotech/liqo/pkg/discoverymanager"
 	"github.com/liqotech/liqo/pkg/utils/testutil"
 )
 
@@ -47,7 +47,7 @@ var _ = Describe("Wan", func() {
 	Context("Wan", func() {
 
 		It("resolve Wan", func() {
-			data, err := LoadAuthDataFromDNS(dnsServer.GetAddr(), dnsServer.GetName())
+			data, err := loadAuthDataFromDNS(dnsServer.GetAddr(), dnsServer.GetName())
 			Expect(err).To(BeNil())
 			Expect(data).NotTo(BeNil())
 			Expect(data).To(Equal([]*discovery.AuthData{

@@ -25,7 +25,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
-	"github.com/liqotech/liqo/internal/discovery"
+	discovery "github.com/liqotech/liqo/pkg/discoverymanager"
 )
 
 // SearchDomainReconciler is the reconciler manager for SearchDomain resources.
@@ -33,10 +33,10 @@ type SearchDomainReconciler struct {
 	client.Client
 	Scheme *runtime.Scheme
 
-	requeueAfter  time.Duration
-	DiscoveryCtrl *discovery.Controller
+	ResyncPeriod time.Duration
 
-	DNSAddress string
+	LocalClusterID string
+	DNSAddress     string
 }
 
 // Reconcile reconciles SearchDomain resources.
@@ -52,24 +52,24 @@ func (r *SearchDomainReconciler) Reconcile(ctx context.Context, req ctrl.Request
 		klog.Error(err, err.Error())
 		return ctrl.Result{
 			Requeue:      true,
-			RequeueAfter: r.requeueAfter,
+			RequeueAfter: r.ResyncPeriod,
 		}, err
 	}
 
-	authData, err := LoadAuthDataFromDNS(r.DNSAddress, sd.Spec.Domain)
+	authData, err := loadAuthDataFromDNS(r.DNSAddress, sd.Spec.Domain)
 	if err != nil {
 		klog.Error(err, err.Error())
 		return ctrl.Result{
 			Requeue:      true,
-			RequeueAfter: r.requeueAfter,
+			RequeueAfter: r.ResyncPeriod,
 		}, err
 	}
-	r.DiscoveryCtrl.UpdateForeignWAN(authData, &sd)
+	discovery.UpdateForeignWAN(ctx, r.Client, r.LocalClusterID, authData, &sd)
 
 	klog.Info("SearchDomain " + req.Name + " successfully reconciled")
 	return ctrl.Result{
 		Requeue:      true,
-		RequeueAfter: r.requeueAfter,
+		RequeueAfter: r.ResyncPeriod,
 	}, nil
 }
 

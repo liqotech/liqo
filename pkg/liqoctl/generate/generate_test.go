@@ -85,8 +85,8 @@ var _ = Describe("Test the generate command works as expected", func() {
 				Name:      "whatever",
 				Namespace: liqoNamespace,
 				Labels: map[string]string{
-					"app.kubernetes.io/name":      "discovery",
-					"app.kubernetes.io/component": "discovery",
+					"app.kubernetes.io/name":      "controller-manager",
+					"app.kubernetes.io/component": "controller-manager",
 				},
 			},
 			Spec: appsv1.DeploymentSpec{

@@ -30,76 +30,76 @@ func (r *ForeignClusterReconciler) ensurePermission(ctx context.Context, foreign
 	remoteClusterID := foreignCluster.Spec.ClusterIdentity.ClusterID
 	peeringPhase := foreignclusterutils.GetPeeringPhase(foreignCluster)
 
-	if _, err = r.namespaceManager.BindClusterRoles(remoteClusterID, r.peeringPermission.Basic...); err != nil {
+	if _, err = r.NamespaceManager.BindClusterRoles(remoteClusterID, r.PeeringPermission.Basic...); err != nil {
 		klog.Error(err)
 		return err
 	}
 
 	switch peeringPhase {
 	case consts.PeeringPhaseNone, consts.PeeringPhaseAuthenticated:
-		if err = r.namespaceManager.UnbindClusterRoles(remoteClusterID,
-			clusterRolesToNames(r.peeringPermission.Outgoing)...); err != nil {
+		if err = r.NamespaceManager.UnbindClusterRoles(remoteClusterID,
+			clusterRolesToNames(r.PeeringPermission.Outgoing)...); err != nil {
 			klog.Error(err)
 			return err
 		}
-		if err = r.namespaceManager.UnbindClusterRoles(remoteClusterID,
-			clusterRolesToNames(r.peeringPermission.Incoming)...); err != nil {
+		if err = r.NamespaceManager.UnbindClusterRoles(remoteClusterID,
+			clusterRolesToNames(r.PeeringPermission.Incoming)...); err != nil {
 			klog.Error(err)
 			return err
 		}
-		if r.ownerReferencesPermissionEnforcement {
-			if err = r.namespaceManager.UnbindOutgoingClusterWideRole(ctx, remoteClusterID); err != nil {
+		if r.OwnerReferencesPermissionEnforcement {
+			if err = r.NamespaceManager.UnbindOutgoingClusterWideRole(ctx, remoteClusterID); err != nil {
 				klog.Error(err)
 				return err
 			}
 		}
 	case consts.PeeringPhaseOutgoing:
-		if _, err = r.namespaceManager.BindClusterRoles(remoteClusterID,
-			r.peeringPermission.Outgoing...); err != nil {
+		if _, err = r.NamespaceManager.BindClusterRoles(remoteClusterID,
+			r.PeeringPermission.Outgoing...); err != nil {
 			klog.Error(err)
 			return err
 		}
-		if err = r.namespaceManager.UnbindClusterRoles(remoteClusterID,
-			clusterRolesToNames(r.peeringPermission.Incoming)...); err != nil {
+		if err = r.NamespaceManager.UnbindClusterRoles(remoteClusterID,
+			clusterRolesToNames(r.PeeringPermission.Incoming)...); err != nil {
 			klog.Error(err)
 			return err
 		}
-		if r.ownerReferencesPermissionEnforcement {
-			if _, err = r.namespaceManager.BindOutgoingClusterWideRole(ctx, remoteClusterID); err != nil {
+		if r.OwnerReferencesPermissionEnforcement {
+			if _, err = r.NamespaceManager.BindOutgoingClusterWideRole(ctx, remoteClusterID); err != nil {
 				klog.Error(err)
 				return err
 			}
 		}
 	case consts.PeeringPhaseIncoming:
-		if err = r.namespaceManager.UnbindClusterRoles(remoteClusterID,
-			clusterRolesToNames(r.peeringPermission.Outgoing)...); err != nil {
+		if err = r.NamespaceManager.UnbindClusterRoles(remoteClusterID,
+			clusterRolesToNames(r.PeeringPermission.Outgoing)...); err != nil {
 			klog.Error(err)
 			return err
 		}
-		if _, err = r.namespaceManager.BindClusterRoles(remoteClusterID,
-			r.peeringPermission.Incoming...); err != nil {
+		if _, err = r.NamespaceManager.BindClusterRoles(remoteClusterID,
+			r.PeeringPermission.Incoming...); err != nil {
 			klog.Error(err)
 			return err
 		}
-		if r.ownerReferencesPermissionEnforcement {
-			if err = r.namespaceManager.UnbindOutgoingClusterWideRole(ctx, remoteClusterID); err != nil {
+		if r.OwnerReferencesPermissionEnforcement {
+			if err = r.NamespaceManager.UnbindOutgoingClusterWideRole(ctx, remoteClusterID); err != nil {
 				klog.Error(err)
 				return err
 			}
 		}
 	case consts.PeeringPhaseBidirectional:
-		if _, err = r.namespaceManager.BindClusterRoles(remoteClusterID,
-			r.peeringPermission.Outgoing...); err != nil {
+		if _, err = r.NamespaceManager.BindClusterRoles(remoteClusterID,
+			r.PeeringPermission.Outgoing...); err != nil {
 			klog.Error(err)
 			return err
 		}
-		if _, err = r.namespaceManager.BindClusterRoles(remoteClusterID,
-			r.peeringPermission.Incoming...); err != nil {
+		if _, err = r.NamespaceManager.BindClusterRoles(remoteClusterID,
+			r.PeeringPermission.Incoming...); err != nil {
 			klog.Error(err)
 			return err
 		}
-		if r.ownerReferencesPermissionEnforcement {
-			if _, err = r.namespaceManager.BindOutgoingClusterWideRole(ctx, remoteClusterID); err != nil {
+		if r.OwnerReferencesPermissionEnforcement {
+			if _, err = r.NamespaceManager.BindOutgoingClusterWideRole(ctx, remoteClusterID); err != nil {
 				klog.Error(err)
 				return err
 			}
