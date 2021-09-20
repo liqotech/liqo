@@ -33,12 +33,12 @@ func (r *ForeignClusterReconciler) ensureResourceRequest(ctx context.Context,
 	foreignCluster *discoveryv1alpha1.ForeignCluster) (*discoveryv1alpha1.ResourceRequest, error) {
 	klog.Infof("[%v] ensuring ResourceRequest existence", foreignCluster.Spec.ClusterIdentity.ClusterID)
 
-	localClusterID := r.clusterID.GetClusterID()
+	localClusterID := r.ClusterID.GetClusterID()
 	remoteClusterID := foreignCluster.Spec.ClusterIdentity.ClusterID
 	localNamespace := foreignCluster.Status.TenantNamespace.Local
 
-	authURL, err := foreigncluster.GetHomeAuthURL(ctx, r.LiqoNamespacedClient, r.Client,
-		r.authServiceAddressOverride, r.authServicePortOverride, r.liqoNamespace)
+	authURL, err := foreigncluster.GetHomeAuthURL(ctx, r.Client,
+		r.AuthServiceAddressOverride, r.AuthServicePortOverride, r.LiqoNamespace)
 	if err != nil {
 		return nil, err
 	}
@@ -65,7 +65,7 @@ func (r *ForeignClusterReconciler) ensureResourceRequest(ctx context.Context,
 		resourceRequest.Spec = discoveryv1alpha1.ResourceRequestSpec{
 			ClusterIdentity: discoveryv1alpha1.ClusterIdentity{
 				ClusterID:   localClusterID,
-				ClusterName: r.clusterName,
+				ClusterName: r.ClusterName,
 			},
 			AuthURL: authURL,
 		}

@@ -39,7 +39,7 @@ func (r *ForeignClusterReconciler) validateForeignCluster(ctx context.Context,
 			klog.Error(err)
 			return false, ctrl.Result{
 				Requeue:      true,
-				RequeueAfter: r.requeueAfter,
+				RequeueAfter: r.ResyncPeriod,
 			}, err
 		}
 		requireUpdate = true
@@ -60,13 +60,13 @@ func (r *ForeignClusterReconciler) validateForeignCluster(ctx context.Context,
 			klog.Error(err, err.Error())
 			return false, ctrl.Result{
 				Requeue:      true,
-				RequeueAfter: r.requeueAfter,
+				RequeueAfter: r.ResyncPeriod,
 			}, err
 		}
 		klog.V(4).Infof("ForeignCluster %s successfully reconciled", foreignCluster.Name)
 		return false, ctrl.Result{
 			Requeue:      true,
-			RequeueAfter: r.requeueAfter,
+			RequeueAfter: r.ResyncPeriod,
 		}, nil
 	}
 
@@ -81,7 +81,7 @@ func (r *ForeignClusterReconciler) isClusterProcessable(ctx context.Context,
 	foreignCluster *discoveryv1alpha1.ForeignCluster) (bool, error) {
 	foreignClusterID := foreignCluster.Spec.ClusterIdentity.ClusterID
 
-	if foreignClusterID == r.clusterID.GetClusterID() {
+	if foreignClusterID == r.ClusterID.GetClusterID() {
 		// this is the local cluster, it is not processable
 		peeringconditionsutils.EnsureStatus(foreignCluster,
 			discoveryv1alpha1.ProcessForeignClusterStatusCondition,

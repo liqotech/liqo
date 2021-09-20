@@ -18,7 +18,7 @@ import (
 	"k8s.io/klog/v2"
 
 	"github.com/liqotech/liqo/apis/discovery/v1alpha1"
-	"github.com/liqotech/liqo/internal/discovery/utils"
+	"github.com/liqotech/liqo/pkg/discoverymanager/utils"
 	foreignclusterutils "github.com/liqotech/liqo/pkg/utils/foreignCluster"
 )
 

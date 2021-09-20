@@ -15,7 +15,6 @@
 package main
 
 import (
-	"context"
 	"flag"
 	"os"
 	"sync"
@@ -36,14 +35,21 @@ import (
 	offloadingv1alpha1 "github.com/liqotech/liqo/apis/offloading/v1alpha1"
 	sharingv1alpha1 "github.com/liqotech/liqo/apis/sharing/v1alpha1"
 	virtualkubeletv1alpha1 "github.com/liqotech/liqo/apis/virtualKubelet/v1alpha1"
+	"github.com/liqotech/liqo/pkg/clusterid"
+	"github.com/liqotech/liqo/pkg/consts"
+	identitymanager "github.com/liqotech/liqo/pkg/identityManager"
+	foreignclusteroperator "github.com/liqotech/liqo/pkg/liqo-controller-manager/foreign-cluster-operator"
 	namectrl "github.com/liqotech/liqo/pkg/liqo-controller-manager/namespace-controller"
 	mapsctrl "github.com/liqotech/liqo/pkg/liqo-controller-manager/namespaceMap-controller"
 	nsoffctrl "github.com/liqotech/liqo/pkg/liqo-controller-manager/namespaceOffloading-controller"
 	offloadingctrl "github.com/liqotech/liqo/pkg/liqo-controller-manager/offloadingStatus-controller"
 	resourceRequestOperator "github.com/liqotech/liqo/pkg/liqo-controller-manager/resource-request-controller"
 	resourceoffercontroller "github.com/liqotech/liqo/pkg/liqo-controller-manager/resourceoffer-controller"
+	searchdomainoperator "github.com/liqotech/liqo/pkg/liqo-controller-manager/search-domain-operator"
 	virtualNodectrl "github.com/liqotech/liqo/pkg/liqo-controller-manager/virtualNode-controller"
 	"github.com/liqotech/liqo/pkg/mapperUtils"
+	peeringroles "github.com/liqotech/liqo/pkg/peering-roles"
+	tenantnamespace "github.com/liqotech/liqo/pkg/tenantNamespace"
 	argsutils "github.com/liqotech/liqo/pkg/utils/args"
 	errorsmanagement "github.com/liqotech/liqo/pkg/utils/errorsManagement"
 	"github.com/liqotech/liqo/pkg/utils/restcfg"
@@ -90,6 +96,17 @@ func main() {
 	liqoNamespace := flag.String("liqo-namespace", defaultNamespace,
 		"Name of the namespace where the liqo components are running")
 
+	// Discovery parameters
+	clusterName := flag.String(consts.ClusterNameParameter, "", "A mnemonic name associated with the current cluster")
+	authServiceAddressOverride := flag.String(consts.AuthServiceAddressOverrideParameter, "",
+		"The address the authentication service is reachable from foreign clusters (automatically retrieved if not set")
+	authServicePortOverride := flag.String(consts.AuthServicePortOverrideParameter, "",
+		"The port the authentication service is reachable from foreign clusters (automatically retrieved if not set")
+	autoJoin := flag.Bool("auto-join-discovered-clusters", true, "Whether to automatically peer with discovered clusters")
+	ownerReferencesPermissionEnforcement := flag.Bool("owner-references-permission-enforcement", false,
+		"Enable support for the OwnerReferencesPermissionEnforcement admission controller "+
+			"https://kubernetes.io/docs/reference/access-authn-authz/admission-controllers/#ownerreferencespermissionenforcement")
+
 	// Resource sharing parameters
 	flag.Var(&clusterLabels, "cluster-labels",
 		"The set of labels which characterizes the local cluster when exposed remotely as a virtual node")
@@ -131,6 +148,8 @@ func main() {
 		os.Exit(1)
 	}
 
+	ctx := ctrl.SetupSignalHandler()
+
 	config := restcfg.SetRateLimiter(ctrl.GetConfigOrDie())
 
 	mgr, err := ctrl.NewManager(config, ctrl.Options{
@@ -149,8 +168,49 @@ func main() {
 
 	clientset, err := kubernetes.NewForConfig(config)
 	if err != nil {
-		klog.Error(err)
-		os.Exit(1)
+		klog.Fatal(err)
+	}
+
+	namespaceManager := tenantnamespace.NewTenantNamespaceManager(clientset)
+	idManager := identitymanager.NewCertificateIdentityManager(clientset, clusterid.NewStaticClusterID(*clusterID), namespaceManager)
+
+	// populate the lists of ClusterRoles to bind in the different peering states
+	permissions, err := peeringroles.GetPeeringPermission(ctx, clientset)
+	if err != nil {
+		klog.Fatalf("Unable to populate peering permission: %w", err)
+	}
+
+	// Setup operators
+
+	searchDomainReconciler := &searchdomainoperator.SearchDomainReconciler{
+		Client:         mgr.GetClient(),
+		Scheme:         mgr.GetScheme(),
+		ResyncPeriod:   *resyncPeriod,
+		LocalClusterID: *clusterID,
+	}
+	if err = searchDomainReconciler.SetupWithManager(mgr); err != nil {
+		klog.Fatal(err)
+	}
+
+	foreignClusterReconciler := &foreignclusteroperator.ForeignClusterReconciler{
+		Client:        mgr.GetClient(),
+		Scheme:        mgr.GetScheme(),
+		LiqoNamespace: *liqoNamespace,
+
+		ResyncPeriod:                         *resyncPeriod,
+		ClusterID:                            clusterid.NewStaticClusterID(*clusterID),
+		ClusterName:                          *clusterName,
+		AuthServiceAddressOverride:           *authServiceAddressOverride,
+		AuthServicePortOverride:              *authServicePortOverride,
+		AutoJoin:                             *autoJoin,
+		OwnerReferencesPermissionEnforcement: *ownerReferencesPermissionEnforcement,
+
+		NamespaceManager:  namespaceManager,
+		IdentityManager:   idManager,
+		PeeringPermission: *permissions,
+	}
+	if err = foreignClusterReconciler.SetupWithManager(mgr); err != nil {
+		klog.Fatal(err)
 	}
 
 	broadcaster := &resourceRequestOperator.Broadcaster{}
@@ -250,8 +310,6 @@ func main() {
 		os.Exit(1)
 	}
 
-	ctx, cancel := context.WithCancel(context.Background())
-
 	// Start the handler to approve the virtual kubelet certificate signing requests.
 	csrWatcher := csr.NewWatcher(clientset, *resyncPeriod, labels.SelectorFromSet(vkMachinery.CsrLabels))
 	csrWatcher.RegisterHandler(csr.ApproverHandler(clientset, "LiqoApproval", "This CSR was approved by Liqo"))
@@ -261,11 +319,10 @@ func main() {
 	broadcaster.StartBroadcaster(ctx, wg)
 
 	klog.Info("starting manager as controller manager")
-	if err := mgr.Start(ctrl.SetupSignalHandler()); err != nil {
+	if err := mgr.Start(ctx); err != nil {
 		klog.Error(err)
 		os.Exit(1)
 	}
 
-	cancel()
 	wg.Wait()
 }

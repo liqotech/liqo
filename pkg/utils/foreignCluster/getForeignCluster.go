@@ -71,7 +71,7 @@ func GetOlderForeignCluster(
 }
 
 // getAuthAddress retrieves the external address where the Authentication Service is reachable from the external world.
-func getAuthAddress(ctx context.Context, namespacedClient, clusterWideClient client.Client, authServiceAddress, namespace string) (string, error) {
+func getAuthAddress(ctx context.Context, cl client.Client, authServiceAddress, namespace string) (string, error) {
 	if authServiceAddress != "" {
 		return authServiceAddress, nil
 	}
@@ -79,7 +79,7 @@ func getAuthAddress(ctx context.Context, namespacedClient, clusterWideClient cli
 	// get the authentication service  (the namespace is automatically inferred by the namespaced client).
 	var svc corev1.Service
 	ref := types.NamespacedName{Name: liqoconst.AuthServiceName, Namespace: namespace}
-	if err := namespacedClient.Get(ctx, ref, &svc); err != nil {
+	if err := cl.Get(ctx, ref, &svc); err != nil {
 		klog.Error(err)
 		return "", err
 	}
@@ -117,7 +117,7 @@ func getAuthAddress(ctx context.Context, namespacedClient, clusterWideClient cli
 
 	// get the IP from the Nodes, to be used with NodePort services
 	nodes := corev1.NodeList{}
-	if err := clusterWideClient.List(ctx, &nodes, client.MatchingLabelsSelector{Selector: labels.NewSelector().Add(*req)}); err != nil {
+	if err := cl.List(ctx, &nodes, client.MatchingLabelsSelector{Selector: labels.NewSelector().Add(*req)}); err != nil {
 		klog.Error(err)
 		return "", err
 	}
@@ -176,15 +176,15 @@ func getAuthPort(ctx context.Context, cl client.Client, authServicePort, authSer
 }
 
 // GetHomeAuthURL retrieves the auth service endpoint by inspecting the cluster. It returns an empty string and an error if it does not succeed.
-func GetHomeAuthURL(ctx context.Context, namespacedClient, clusterWideClient client.Client, authServiceAddress,
+func GetHomeAuthURL(ctx context.Context, cl client.Client, authServiceAddress,
 	authServicePort, liqoNamespace string) (string, error) {
 	// If set, authServiceAddress and authServicePort will overwrite the value extracted from the Liqo services.
-	address, err := getAuthAddress(ctx, namespacedClient, clusterWideClient, authServiceAddress, liqoNamespace)
+	address, err := getAuthAddress(ctx, cl, authServiceAddress, liqoNamespace)
 	if err != nil {
 		return "", err
 	}
 
-	port, err := getAuthPort(ctx, namespacedClient, authServicePort, liqoNamespace)
+	port, err := getAuthPort(ctx, cl, authServicePort, liqoNamespace)
 	if err != nil {
 		return "", err
 	}

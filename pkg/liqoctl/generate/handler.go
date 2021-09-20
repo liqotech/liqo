@@ -26,7 +26,7 @@ import (
 
 	"github.com/liqotech/liqo/pkg/auth"
 	"github.com/liqotech/liqo/pkg/consts"
-	"github.com/liqotech/liqo/pkg/discovery"
+	liqocontrollermanager "github.com/liqotech/liqo/pkg/liqo-controller-manager"
 	"github.com/liqotech/liqo/pkg/liqoctl/add"
 	"github.com/liqotech/liqo/pkg/liqoctl/common"
 	"github.com/liqotech/liqo/pkg/utils"
@@ -60,8 +60,8 @@ func processGenerateCommand(ctx context.Context, clientSet client.Client, liqoNa
 		klog.Fatalf(err.Error())
 	}
 
-	// Retrieve the discovery deployment
-	args, err := retrieveDiscoveryDeploymentArgs(ctx, clientSet, liqoNamespace)
+	// Retrieve the liqo controller manager deployment args
+	args, err := retrieveLiqoControllerManagerDeploymentArgs(ctx, clientSet, liqoNamespace)
 	if err != nil {
 		klog.Fatalf(err.Error())
 	}
@@ -71,7 +71,7 @@ func processGenerateCommand(ctx context.Context, clientSet client.Client, liqoNa
 	authServiceAddressOverride, _ := common.ExtractValueFromArgumentList(fmt.Sprintf("--%v", consts.AuthServiceAddressOverrideParameter), args)
 	authServicePortOverride, _ := common.ExtractValueFromArgumentList(fmt.Sprintf("--%v", consts.AuthServicePortOverrideParameter), args)
 
-	authEP, err := foreigncluster.GetHomeAuthURL(ctx, clientSet, clientSet,
+	authEP, err := foreigncluster.GetHomeAuthURL(ctx, clientSet,
 		authServiceAddressOverride, authServicePortOverride, liqoNamespace)
 	if err != nil {
 		klog.Fatalf("an error occurred while retrieving the liqo-auth service: %s", err)
@@ -99,19 +99,19 @@ func generateCommandString(commandName, authEP, clusterID, localToken, clusterNa
 	return strings.Join(command, " ")
 }
 
-// retrieveDiscoveryDeploymentArgs retrieves the list of arguments associated with the discovery deployment.
-func retrieveDiscoveryDeploymentArgs(ctx context.Context, clientSet client.Client, liqoNamespace string) ([]string, error) {
-	// Retrieve the deployment of the discovery component
+// retrieveLiqoControllerManagerDeploymentArgs retrieves the list of arguments associated with the liqo controller manager deployment.
+func retrieveLiqoControllerManagerDeploymentArgs(ctx context.Context, clientSet client.Client, liqoNamespace string) ([]string, error) {
+	// Retrieve the deployment of the liqo controller manager component
 	var deployments appsv1.DeploymentList
 	if err := clientSet.List(ctx, &deployments, client.InNamespace(liqoNamespace), client.MatchingLabelsSelector{
-		Selector: discovery.DeploymentLabelSelector(),
+		Selector: liqocontrollermanager.DeploymentLabelSelector(),
 	}); err != nil || len(deployments.Items) != 1 {
-		return nil, errors.New("failed to retrieve the discovery deployment")
+		return nil, errors.New("failed to retrieve the liqo controller manager deployment")
 	}
 
 	containers := deployments.Items[0].Spec.Template.Spec.Containers
 	if len(containers) != 1 {
-		return nil, errors.New("retrieved an invalid discovery deployment")
+		return nil, errors.New("retrieved an invalid liqo controller manager deployment")
 	}
 
 	return containers[0].Args, nil

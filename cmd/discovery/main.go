@@ -29,11 +29,8 @@ import (
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	nettypes "github.com/liqotech/liqo/apis/net/v1alpha1"
 	advtypes "github.com/liqotech/liqo/apis/sharing/v1alpha1"
-	"github.com/liqotech/liqo/internal/discovery"
-	foreignclusteroperator "github.com/liqotech/liqo/internal/discovery/foreign-cluster-operator"
-	searchdomainoperator "github.com/liqotech/liqo/internal/discovery/search-domain-operator"
 	"github.com/liqotech/liqo/pkg/clusterid"
-	"github.com/liqotech/liqo/pkg/consts"
+	discovery "github.com/liqotech/liqo/pkg/discoverymanager"
 	"github.com/liqotech/liqo/pkg/mapperUtils"
 	"github.com/liqotech/liqo/pkg/utils/restcfg"
 )
@@ -56,16 +53,6 @@ func main() {
 	namespace := flag.String("namespace", "default", "Namespace where your configs are stored.")
 	requeueAfter := flag.Duration("requeue-after", 30*time.Second,
 		"Period after that the PeeringRequests status is synchronized")
-
-	clusterName := flag.String(consts.ClusterNameParameter, "", "A mnemonic name associated with the current cluster")
-	authServiceAddressOverride := flag.String(consts.AuthServiceAddressOverrideParameter, "",
-		"The address the authentication service is reachable from foreign clusters (automatically retrieved if not set")
-	authServicePortOverride := flag.String(consts.AuthServicePortOverrideParameter, "",
-		"The port the authentication service is reachable from foreign clusters (automatically retrieved if not set")
-	autoJoin := flag.Bool("auto-join-discovered-clusters", true, "Whether to automatically peer with discovered clusters")
-	ownerReferencesPermissionEnforcement := flag.Bool("owner-references-permission-enforcement", false,
-		"Enable support for the OwnerReferencesPermissionEnforcement admission controller "+
-			"https://kubernetes.io/docs/reference/access-authn-authz/admission-controllers/#ownerreferencespermissionenforcement")
 
 	var mdnsConfig discovery.MDNSConfig
 	flag.BoolVar(&mdnsConfig.EnableAdvertisement, "mdns-enable-advertisement", false, "Enable the mDNS advertisement on LANs")
@@ -140,14 +127,6 @@ func main() {
 		klog.Errorf("Unable to add the discovery controller to the manager: %w", err)
 		os.Exit(1)
 	}
-
-	klog.Info("Starting SearchDomain operator")
-	searchdomainoperator.StartOperator(mgr, *requeueAfter, discoveryCtl)
-
-	klog.Info("Starting ForeignCluster operator")
-	foreignclusteroperator.StartOperator(mgr, namespacedClient, clientset, *namespace,
-		*requeueAfter, localClusterID, *clusterName, *authServiceAddressOverride,
-		*authServicePortOverride, *autoJoin, *ownerReferencesPermissionEnforcement)
 
 	if err := mgr.Add(auxmgr); err != nil {
 		klog.Errorf("Unable to add the auxiliary manager to the main one: %w", err)

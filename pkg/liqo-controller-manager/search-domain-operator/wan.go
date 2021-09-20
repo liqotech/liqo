@@ -22,16 +22,16 @@ import (
 	"github.com/miekg/dns"
 	"k8s.io/klog/v2"
 
-	"github.com/liqotech/liqo/internal/discovery"
+	discovery "github.com/liqotech/liqo/pkg/discoverymanager"
 )
 
-// LoadAuthDataFromDNS loads a list of foreign AuthServices given a DNS domain name.
+// loadAuthDataFromDNS loads a list of foreign AuthServices given a DNS domain name.
 // These foreign services have to be added in a PTR record for that domain name,
 // for example:
 // liqo.mycompany.com		myliqo1.mycompany.com, myliqo2.mycompany.com
 // can be 2 different clusters registered on a company domain.
 // For each cluster than we have to have a SRV record that specify the port where to contact that cluster.
-func LoadAuthDataFromDNS(dnsAddr, name string) ([]*discovery.AuthData, error) {
+func loadAuthDataFromDNS(dnsAddr, name string) ([]*discovery.AuthData, error) {
 	authData := []*discovery.AuthData{}
 
 	if dnsAddr == "" {

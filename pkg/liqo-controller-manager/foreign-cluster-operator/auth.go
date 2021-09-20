@@ -28,8 +28,8 @@ import (
 	"k8s.io/klog/v2"
 
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
-	"github.com/liqotech/liqo/internal/discovery/utils"
 	"github.com/liqotech/liqo/pkg/auth"
+	"github.com/liqotech/liqo/pkg/discoverymanager/utils"
 	"github.com/liqotech/liqo/pkg/utils/authenticationtoken"
 	foreignclusterutils "github.com/liqotech/liqo/pkg/utils/foreignCluster"
 	peeringconditionsutils "github.com/liqotech/liqo/pkg/utils/peeringConditions"
@@ -50,7 +50,7 @@ const (
 // it creates a new identity and sends it to the remote cluster.
 func (r *ForeignClusterReconciler) ensureRemoteIdentity(ctx context.Context,
 	foreignCluster *discoveryv1alpha1.ForeignCluster) error {
-	_, err := r.identityManager.GetConfig(foreignCluster.Spec.ClusterIdentity.ClusterID, foreignCluster.Status.TenantNamespace.Local)
+	_, err := r.IdentityManager.GetConfig(foreignCluster.Spec.ClusterIdentity.ClusterID, foreignCluster.Status.TenantNamespace.Local)
 	if err != nil && !kerrors.IsNotFound(err) {
 		klog.Error(err)
 		return err
@@ -76,7 +76,7 @@ func (r *ForeignClusterReconciler) ensureRemoteIdentity(ctx context.Context,
 // and loads it in the ForeignCluster.
 func (r *ForeignClusterReconciler) fetchRemoteTenantNamespace(ctx context.Context,
 	foreignCluster *discoveryv1alpha1.ForeignCluster) error {
-	remoteNamespace, err := r.identityManager.GetRemoteTenantNamespace(
+	remoteNamespace, err := r.IdentityManager.GetRemoteTenantNamespace(
 		foreignCluster.Spec.ClusterIdentity.ClusterID, foreignCluster.Status.TenantNamespace.Local)
 	if err != nil {
 		klog.Error(err)
@@ -90,30 +90,30 @@ func (r *ForeignClusterReconciler) fetchRemoteTenantNamespace(ctx context.Contex
 // validateIdentity sends an HTTP request to validate the identity for the remote cluster (Certificate).
 func (r *ForeignClusterReconciler) validateIdentity(ctx context.Context, fc *discoveryv1alpha1.ForeignCluster) error {
 	remoteClusterID := fc.Spec.ClusterIdentity.ClusterID
-	token, err := authenticationtoken.GetAuthToken(ctx, fc.Spec.ClusterIdentity.ClusterID, r.LiqoNamespacedClient)
+	token, err := authenticationtoken.GetAuthToken(ctx, fc.Spec.ClusterIdentity.ClusterID, r.Client)
 	if err != nil {
 		return err
 	}
 
-	_, err = r.identityManager.CreateIdentity(remoteClusterID)
-	if err != nil {
-		klog.Error(err)
-		return err
-	}
-
-	csr, err := r.identityManager.GetSigningRequest(remoteClusterID)
+	_, err = r.IdentityManager.CreateIdentity(remoteClusterID)
 	if err != nil {
 		klog.Error(err)
 		return err
 	}
 
-	localToken, err := auth.GetToken(ctx, r.LiqoNamespacedClient, r.liqoNamespace)
+	csr, err := r.IdentityManager.GetSigningRequest(remoteClusterID)
 	if err != nil {
 		klog.Error(err)
 		return err
 	}
 
-	request := auth.NewCertificateIdentityRequest(r.clusterID.GetClusterID(), localToken, token, csr)
+	localToken, err := auth.GetToken(ctx, r.Client, r.LiqoNamespace)
+	if err != nil {
+		klog.Error(err)
+		return err
+	}
+
+	request := auth.NewCertificateIdentityRequest(r.ClusterID.GetClusterID(), localToken, token, csr)
 	responseBytes, err := sendIdentityRequest(request, fc)
 	if err != nil {
 		klog.Error(err)
@@ -126,7 +126,7 @@ func (r *ForeignClusterReconciler) validateIdentity(ctx context.Context, fc *dis
 		return err
 	}
 
-	if err = r.identityManager.StoreCertificate(remoteClusterID, &response); err != nil {
+	if err = r.IdentityManager.StoreCertificate(remoteClusterID, &response); err != nil {
 		klog.Error(err)
 		return err
 	}
