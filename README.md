@@ -148,12 +148,6 @@ If you want to explore the Liqo internals, including how to inspect and interact
 * Continue the Liqo journey by exploring the [Liqo playground](https://doc.liqo.io/gettingstarted/)
 * Find out how to install Liqo on [your clusters](https://doc.liqo.io/installation/)
 
-## Installation
-
-Liqo can be installed by using Helm. The configuration depends on the cluster type (K8s, K3s, managed) and the provider. Possible scenarios can be found [here](https://doc.liqo.io/user/install/pre-install/).
-
-Once you identified your scenario, follow the instructions for the proper installation [environment]("https://doc.liqo.io/user/install/").
-
 ## Roadmap
 
 Planned features for the next release (v0.3, expected early-September, 2021) are the following:
