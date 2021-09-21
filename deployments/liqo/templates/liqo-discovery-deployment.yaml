@@ -35,18 +35,6 @@ spec:
           command: ["/usr/bin/discovery"]
           args:
           - --namespace=$(POD_NAMESPACE)
-          - --auto-join-discovered-clusters={{ .Values.discovery.config.autojoin }}
-          {{- if .Values.discovery.config.clusterName }}
-          - --cluster-name={{ .Values.discovery.config.clusterName }}
-          {{- end }}
-          {{- if .Values.auth.ingress.enable }}
-          - --auth-service-address-override={{ .Values.auth.ingress.host }}
-          {{- end }}
-          {{- if .Values.auth.portOverride }}
-          - --auth-service-port-override={{ .Values.auth.portOverride }}
-          {{- else if .Values.auth.ingress.enable }}
-          - --auth-service-port-override=443
-          {{- end }}
           - --mdns-enable-advertisement={{ .Values.discovery.config.enableAdvertisement }}
           - --mdns-enable-discovery={{ .Values.discovery.config.enableDiscovery }}
           - --mdns-ttl={{ .Values.discovery.config.ttl }}s

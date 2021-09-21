@@ -37,6 +37,18 @@ spec:
           - --resource-sharing-percentage={{ .Values.controllerManager.config.resourceSharingPercentage }}
           - --kubelet-image={{ .Values.virtualKubelet.imageName }}{{ include "liqo.suffix" $ctrlManagerConfig }}:{{ include "liqo.version" $ctrlManagerConfig }}
           - --init-kubelet-image={{ .Values.virtualKubelet.initContainer.imageName }}{{ include "liqo.suffix" $ctrlManagerConfig }}:{{ include "liqo.version" $ctrlManagerConfig }}
+          - --auto-join-discovered-clusters={{ .Values.discovery.config.autojoin }}
+          {{- if .Values.discovery.config.clusterName }}
+          - --cluster-name={{ .Values.discovery.config.clusterName }}
+          {{- end }}
+          {{- if .Values.auth.ingress.enable }}
+          - --auth-service-address-override={{ .Values.auth.ingress.host }}
+          {{- end }}
+          {{- if .Values.auth.portOverride }}
+          - --auth-service-port-override={{ .Values.auth.portOverride }}
+          {{- else if .Values.auth.ingress.enable }}
+          - --auth-service-port-override=443
+          {{- end }}
           {{- if .Values.virtualKubelet.extra.annotations }}
           {{- $d := dict "commandName" "--kubelet-extra-annotations" "dictionary" .Values.virtualKubelet.extra.annotations }}
           {{- include "liqo.concatenateMap" $d | nindent 10 }}
