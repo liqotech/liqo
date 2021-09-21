@@ -20,7 +20,6 @@ import (
 	"crypto/x509"
 	"encoding/base64"
 	"encoding/pem"
-	"fmt"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -224,6 +223,7 @@ var _ = Describe("IdentityManager", func() {
 
 		It("StoreCertificate", func() {
 			apiServerConfig := apiserver.Config{Address: "127.0.0.1", TrustedCA: false}
+			Expect(apiServerConfig.Complete(restConfig, client)).To(Succeed())
 
 			signingIdentityResponse := responsetypes.SigningRequestResponse{
 				ResponseType: responsetypes.SigningRequestResponseCertificate,
@@ -231,7 +231,7 @@ var _ = Describe("IdentityManager", func() {
 			}
 
 			identityResponse, err := auth.NewCertificateIdentityResponse(
-				"remoteNamespace", &signingIdentityResponse, apiServerConfig, client, restConfig)
+				"remoteNamespace", &signingIdentityResponse, apiServerConfig)
 			Expect(err).To(BeNil())
 
 			// store the certificate in the secret
@@ -242,9 +242,7 @@ var _ = Describe("IdentityManager", func() {
 			cnf, err := identityMan.GetConfig(remoteClusterID, "")
 			Expect(err).To(BeNil())
 			Expect(cnf).NotTo(BeNil())
-			Expect(cnf.Host).To(Equal(
-				fmt.Sprintf(
-					"https://%v", apiServerConfig.Address)))
+			Expect(cnf.Host).To(Equal("https://127.0.0.1"))
 
 			// retrieve the remote tenant namespace
 			remoteNamespace, err := identityMan.GetRemoteTenantNamespace(remoteClusterID, "")
@@ -254,6 +252,7 @@ var _ = Describe("IdentityManager", func() {
 
 		It("StoreCertificate IAM", func() {
 			apiServerConfig := apiserver.Config{Address: "127.0.0.1", TrustedCA: false}
+			Expect(apiServerConfig.Complete(restConfig, client)).To(Succeed())
 
 			signingIAMResponse := responsetypes.SigningRequestResponse{
 				ResponseType: responsetypes.SigningRequestResponseIAM,
@@ -275,7 +274,7 @@ var _ = Describe("IdentityManager", func() {
 			}
 
 			identityResponse, err := auth.NewCertificateIdentityResponse(
-				"remoteNamespace", &signingIAMResponse, apiServerConfig, client, restConfig)
+				"remoteNamespace", &signingIAMResponse, apiServerConfig)
 			Expect(err).To(BeNil())
 
 			// store the certificate in the secret

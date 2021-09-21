@@ -111,12 +111,15 @@ func (r *ResourceOfferReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 		if !reflect.
 			DeepEqual(originalResourceOffer.ObjectMeta, resourceOffer.ObjectMeta) || !reflect.
 			DeepEqual(originalResourceOffer.Spec, resourceOffer.Spec) {
+			// create a copy of the status, as it will be overwritten by the update operation
+			statusCopy := resourceOffer.Status.DeepCopy()
 			// something changed in metadata (e.g. finalizers), or in the spec
 			if newErr := r.Client.Update(ctx, &resourceOffer); newErr != nil {
 				klog.Error(newErr)
 				err = newErr
 				return
 			}
+			resourceOffer.Status = *statusCopy
 		}
 		if newErr := r.Client.Status().Update(ctx, &resourceOffer); newErr != nil {
 			klog.Error(newErr)

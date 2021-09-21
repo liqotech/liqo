@@ -112,7 +112,7 @@ func (u *OfferUpdater) processNextItem() bool {
 		return nil
 	}(obj)
 	if err != nil {
-		klog.Errorf("Error occurred during ResourceOffer update %s", err)
+		klog.Errorf("Error occurred during ResourceOffer update: %s", err)
 		return true
 	}
 	klog.Infof("Update cluster %s processed", obj.(string))

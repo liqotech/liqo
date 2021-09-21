@@ -14,7 +14,14 @@
 
 package apiserver
 
-import "flag"
+import (
+	"encoding/base64"
+	"flag"
+	"io/ioutil"
+
+	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/rest"
+)
 
 // config is the instance of the configuration automatically populated based on the command line parameters.
 var config Config
@@ -22,12 +29,14 @@ var config Config
 // Config defines the configuration parameters to contact the Kubernetes API server.
 type Config struct {
 	// The address of the Kubernetes API Server, advertised to the peering clusters.
-	// Overrides the IP address of a control plane node, with the default port (6443).
 	Address string
 
 	// Whether the Kubernetes API Server is exposed through a trusted certification authority,
 	// which does not need to be explicitly advertised.
 	TrustedCA bool
+
+	// The certification authority trusted by the API server.
+	CA string
 }
 
 // InitFlags initializes the flags to configure the API server parameters.
@@ -45,3 +54,35 @@ func InitFlags(flagset *flag.FlagSet) {
 
 // GetConfig returns the API server configuration populated based on the command line parameters.
 func GetConfig() Config { return config }
+
+// Complete completes the retrieval of the configuration, defaulting the fields if not set.
+func (c *Config) Complete(restcfg *rest.Config, client kubernetes.Interface) (err error) {
+	if c.Address, err = GetURL(c.Address, client); err != nil {
+		return err
+	}
+
+	if !c.TrustedCA {
+		if c.CA, err = retrieveAPIServerCA(restcfg); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// getAPIServerCA retrieves the APIServerCA, either from the CAData in the restConfig, or reading from the CAFile.
+func retrieveAPIServerCA(restcfg *rest.Config) (string, error) {
+	if restcfg.CAData != nil && len(restcfg.CAData) > 0 {
+		// CAData available in the restConfig, encode and return it.
+		return base64.StdEncoding.EncodeToString(restcfg.CAData), nil
+	}
+	if restcfg.CAFile != "" {
+		// CAData is not available, read it from the CAFile.
+		data, err := ioutil.ReadFile(restcfg.CAFile)
+		if err != nil {
+			return "", err
+		}
+		return base64.StdEncoding.EncodeToString(data), nil
+	}
+	return "", nil
+}

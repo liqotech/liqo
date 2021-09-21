@@ -17,10 +17,7 @@ package auth
 import (
 	"encoding/base64"
 	"fmt"
-	"io/ioutil"
 
-	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/rest"
 	"k8s.io/klog/v2"
 
 	responsetypes "github.com/liqotech/liqo/pkg/identityManager/responseTypes"
@@ -58,34 +55,16 @@ func (resp *CertificateIdentityResponse) HasAWSValues() bool {
 // NewCertificateIdentityResponse makes a new CertificateIdentityResponse.
 func NewCertificateIdentityResponse(
 	namespace string, identityResponse *responsetypes.SigningRequestResponse,
-	apiServerConfig apiserver.Config,
-	clientset kubernetes.Interface, restConfig *rest.Config) (*CertificateIdentityResponse, error) {
+	apiServerConfig apiserver.Config) (*CertificateIdentityResponse, error) {
 	responseType := identityResponse.ResponseType
 
 	switch responseType {
 	case responsetypes.SigningRequestResponseCertificate:
-		apiServerURL, err := apiserver.GetURL(apiServerConfig, clientset)
-		if err != nil {
-			klog.Error(err)
-			return nil, err
-		}
-
-		var apiServerCa string
-		if apiServerConfig.TrustedCA {
-			apiServerCa = ""
-		} else {
-			apiServerCa, err = getAPIServerCA(restConfig)
-			if err != nil {
-				klog.Error(err)
-				return nil, err
-			}
-		}
-
 		return &CertificateIdentityResponse{
 			Namespace:    namespace,
 			Certificate:  base64.StdEncoding.EncodeToString(identityResponse.Certificate),
-			APIServerURL: apiServerURL,
-			APIServerCA:  apiServerCa,
+			APIServerURL: apiServerConfig.Address,
+			APIServerCA:  apiServerConfig.CA,
 		}, nil
 
 	case responsetypes.SigningRequestResponseIAM:
@@ -107,25 +86,4 @@ func NewCertificateIdentityResponse(
 		klog.Error(err)
 		return nil, err
 	}
-
-}
-
-// getAPIServerCA retrieves the ApiServerCA.
-// It can take it from the CAData in the restConfig, or reading it from the CAFile.
-func getAPIServerCA(restConfig *rest.Config) (string, error) {
-	if restConfig.CAData != nil && len(restConfig.CAData) > 0 {
-		// CAData available in the restConfig, encode and return it.
-		return base64.StdEncoding.EncodeToString(restConfig.CAData), nil
-	}
-	if restConfig.CAFile != "" {
-		// CAData is not available, read it from the CAFile.
-		dat, err := ioutil.ReadFile(restConfig.CAFile)
-		if err != nil {
-			klog.Error(err)
-			return "", err
-		}
-		return base64.StdEncoding.EncodeToString(dat), nil
-	}
-	klog.Warning("empty CA data")
-	return "", nil
 }
