@@ -167,6 +167,14 @@ rules:
   - update
   - watch
 - apiGroups:
+  - capsule.clastix.io
+  resources:
+  - tenants/finalizers
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
   - certificates.k8s.io
   resources:
   - certificatesigningrequests
@@ -211,6 +219,7 @@ rules:
   resources:
   - namespaces
   verbs:
+  - create
   - get
   - list
   - patch
@@ -229,8 +238,11 @@ rules:
   resources:
   - secrets
   verbs:
+  - create
+  - delete
   - get
   - list
+  - update
   - watch
 - apiGroups:
   - discovery.k8s.io
@@ -257,6 +269,14 @@ rules:
   - discovery.liqo.io
   resources:
   - foreignclusters/finalizers
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
+  - discovery.liqo.io
+  resources:
+  - foreignclusters/finalizers
   - foreignclusters/status
   verbs:
   - get
@@ -265,10 +285,23 @@ rules:
 - apiGroups:
   - discovery.liqo.io
   resources:
+  - foreignclusters/status
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - discovery.liqo.io
+  resources:
   - resourcerequests
   verbs:
   - create
   - delete
+  - deletecollection
   - get
   - list
   - patch
@@ -292,12 +325,62 @@ rules:
   - patch
   - update
 - apiGroups:
+  - discovery.liqo.io
+  resources:
+  - resourcerequests/status
+  verbs:
+  - create
+  - delete
+  - deletecollection
+  - list
+  - watch
+- apiGroups:
+  - discovery.liqo.io
+  resources:
+  - searchdomains
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - discovery.liqo.io
+  resources:
+  - searchdomains/finalizers
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
+  - net.liqo.io
+  resources:
+  - networkconfigs
+  verbs:
+  - '*'
+- apiGroups:
+  - net.liqo.io
+  resources:
+  - networkconfigs/status
+  verbs:
+  - '*'
+- apiGroups:
   - net.liqo.io
   resources:
   - tunnelendpoints
   verbs:
   - get
   - list
+  - watch
+- apiGroups:
+  - net.liqo.io
+  resources:
+  - tunnelendpoints/status
+  verbs:
+  - get
+  - update
   - watch
 - apiGroups:
   - offloading.liqo.io
@@ -325,6 +408,25 @@ rules:
   - update
   - watch
 - apiGroups:
+  - rbac.authorization.k8s.io
+  resources:
+  - clusterroles
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - watch
+- apiGroups:
+  - rbac.authorization.k8s.io
+  resources:
+  - rolebindings
+  verbs:
+  - create
+  - delete
+  - deletecollection
+  - get
+- apiGroups:
   - sharing.liqo.io
   resources:
   - advertisements
@@ -342,6 +444,7 @@ rules:
   verbs:
   - create
   - delete
+  - deletecollection
   - get
   - list
   - patch
@@ -360,9 +463,14 @@ rules:
   resources:
   - resourceoffers/status
   verbs:
+  - create
+  - delete
+  - deletecollection
   - get
+  - list
   - patch
   - update
+  - watch
 - apiGroups:
   - virtualkubelet.liqo.io
   resources:

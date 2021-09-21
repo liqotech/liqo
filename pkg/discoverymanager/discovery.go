@@ -25,6 +25,14 @@ import (
 	"github.com/liqotech/liqo/pkg/clusterid"
 )
 
+// clusterRole
+// +kubebuilder:rbac:groups=discovery.liqo.io,resources=foreignclusters,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=discovery.liqo.io,resources=foreignclusters/status,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=core,resources=nodes,verbs=get;list;watch
+// role
+// +kubebuilder:rbac:groups=core,namespace="liqo",resources=services,verbs=get;list;watch
+// +kubebuilder:rbac:groups=core,namespace="liqo",resources=configmaps,verbs=get;list;watch;create;update;delete
+
 // MDNSConfig defines the configuration parameters for the mDNS service.
 type MDNSConfig struct {
 	EnableAdvertisement bool
