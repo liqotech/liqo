@@ -55,8 +55,6 @@ linters-settings:
       - sloppyReassign
   goimports:
     local-prefixes: github.com/liqotech/liqo
-  golint:
-    min-confidence: 0.8
   govet:
     check-shadowing: true
   misspell:
@@ -96,7 +94,6 @@ linters:
     - gofmt
     - goheader
     - goimports
-    - golint
     - gomodguard
   # - gomnd
     - goprintffuncname
@@ -112,6 +109,7 @@ linters:
     - noctx
     - nolintlint
   # - prealloc
+    - revive
     - rowserrcheck
     - staticcheck
     - structcheck
