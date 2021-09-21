@@ -105,19 +105,18 @@ var _ = Describe("Auth", func() {
 		identityProvider := identitymanager.NewCertificateIdentityProvider(
 			context.Background(), cluster.GetClient(), clusterID, namespaceManager)
 
+		config := apiserver.Config{Address: cluster.GetCfg().Host, TrustedCA: false}
+		Expect(config.Complete(cluster.GetCfg(), cluster.GetClient())).To(Succeed())
+
 		authService = Controller{
 			namespace:            "default",
-			restConfig:           cluster.GetCfg(),
 			clientset:            cluster.GetClient(),
 			secretInformer:       secretInformer,
 			localClusterID:       clusterID,
 			namespaceManager:     namespaceManager,
 			identityProvider:     identityProvider,
 			credentialsValidator: &tokenValidator{},
-			apiServerConfig: apiserver.Config{
-				Address:   cluster.GetCfg().Host,
-				TrustedCA: false,
-			},
+			apiServerConfig:      config,
 		}
 
 		clusterRole := &rbacv1.ClusterRole{

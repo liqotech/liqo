@@ -21,7 +21,9 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 
-	"github.com/liqotech/liqo/apis/net/v1alpha1"
+	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
+	netv1alpha1 "github.com/liqotech/liqo/apis/net/v1alpha1"
+	offloadingv1alpha1 "github.com/liqotech/liqo/apis/offloading/v1alpha1"
 	"github.com/liqotech/liqo/pkg/consts"
 )
 
@@ -37,6 +39,7 @@ const ConditionsToCheck = 1
 type toCheckDeleted struct {
 	gvr           schema.GroupVersionResource
 	labelSelector metav1.LabelSelector
+	phase         phase
 }
 
 type resultType struct {
@@ -44,15 +47,26 @@ type resultType struct {
 	Success  bool
 }
 
+type phase int
+
+const (
+	// PhaseUnpeering -> the peering is being teared down.
+	PhaseUnpeering phase = iota
+	// PhaseCleanup -> the final cleanup after unpeering is being performed.
+	PhaseCleanup
+)
+
 var (
 	toCheck = []toCheckDeleted{
 		{
-			gvr:           v1alpha1.TunnelEndpointGroupVersionResource,
+			gvr:           netv1alpha1.TunnelEndpointGroupVersionResource,
 			labelSelector: metav1.LabelSelector{},
+			phase:         PhaseUnpeering,
 		},
 		{
-			gvr:           v1alpha1.NetworkConfigGroupVersionResource,
+			gvr:           netv1alpha1.NetworkConfigGroupVersionResource,
 			labelSelector: metav1.LabelSelector{},
+			phase:         PhaseUnpeering,
 		},
 		{
 			gvr: corev1.SchemeGroupVersion.WithResource("nodes"),
@@ -61,6 +75,17 @@ var (
 					consts.TypeLabel: consts.TypeNode,
 				},
 			},
+			phase: PhaseUnpeering,
+		},
+		{
+			gvr:           discoveryv1alpha1.ForeignClusterGroupVersionResource,
+			labelSelector: metav1.LabelSelector{},
+			phase:         PhaseCleanup,
+		},
+		{
+			gvr:           offloadingv1alpha1.NamespaceOffloadingGroupVersionResource,
+			labelSelector: metav1.LabelSelector{},
+			phase:         PhaseCleanup,
 		},
 	}
 )

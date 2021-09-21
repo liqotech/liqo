@@ -49,3 +49,11 @@ rules:
   - get
   - list
   - watch
+- apiGroups:
+  - offloading.liqo.io
+  resources:
+  - namespaceoffloadings
+  verbs:
+  - get
+  - list
+  - watch

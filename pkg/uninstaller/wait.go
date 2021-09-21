@@ -16,6 +16,7 @@ package uninstaller
 
 import (
 	"context"
+	"fmt"
 	"sync"
 	"time"
 
@@ -27,16 +28,21 @@ import (
 )
 
 // WaitForResources waits until existing peerings are disabled and associated resources are removed.
-func WaitForResources(client dynamic.Interface) error {
+func WaitForResources(client dynamic.Interface, phase phase) error {
 	klog.Info("Waiting for Liqo Resources to be correctly deleted")
 	var wg sync.WaitGroup
 	deletionResult := make(chan *resultType, len(toCheck))
 	conditionResult := make(chan *resultType, ConditionsToCheck)
-	wg.Add(len(toCheck) + ConditionsToCheck)
 	for _, resource := range toCheck {
-		go WaitForEffectiveDeletion(client, resource, deletionResult, &wg, CheckDeletion)
+		if resource.phase == phase {
+			wg.Add(1)
+			go WaitForEffectiveDeletion(client, resource, deletionResult, &wg, CheckDeletion)
+		}
 	}
-	go WaitForEffectiveDeletion(client, toCheckDeleted{}, conditionResult, &wg, CheckUnjoin)
+	if phase == PhaseUnpeering {
+		wg.Add(1)
+		go WaitForEffectiveDeletion(client, toCheckDeleted{}, conditionResult, &wg, CheckUnjoin)
+	}
 	wg.Wait()
 
 	close(deletionResult)
@@ -45,16 +51,17 @@ func WaitForResources(client dynamic.Interface) error {
 	for elem := range deletionResult {
 		if !elem.Success {
 			klog.Errorf("Error while waiting for %s to be deleted", elem.Resource.gvr.GroupResource())
-			return nil
+			return fmt.Errorf("error while waiting for %s to be deleted", elem.Resource.gvr.GroupResource())
 		}
 		printLabels, _ := generateLabelString(elem.Resource.labelSelector)
 		klog.Infof("%s instances with \"%s\" labels correctly deleted", elem.Resource.gvr.GroupResource(), printLabels)
 	}
 	for elem := range conditionResult {
 		if !elem.Success {
-			klog.Errorf("All peerings have been correctly deleted")
-			return nil
+			klog.Errorf("Failed to complete the unpeering process")
+			return fmt.Errorf("failed to complete the unpeering process")
 		}
+		klog.Info("All peerings have been correctly teared down")
 	}
 
 	return nil

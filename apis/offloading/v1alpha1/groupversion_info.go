@@ -26,8 +26,14 @@ var (
 	// GroupVersion is group version used to register these objects.
 	GroupVersion = schema.GroupVersion{Group: "offloading.liqo.io", Version: "v1alpha1"}
 
+	// NamespaceOffloadingResource is the resource name used to register the NamespaceOffloading CRD.
+	NamespaceOffloadingResource = "namespaceoffloadings"
+
 	// GroupResource is group and resource used to register these objects.
-	GroupResource = schema.GroupResource{Group: GroupVersion.Group, Resource: "namespaceoffloadings"}
+	GroupResource = schema.GroupResource{Group: GroupVersion.Group, Resource: NamespaceOffloadingResource}
+
+	// NamespaceOffloadingGroupVersionResource is the group version resource used to register the NamespaceOffloading CRD.
+	NamespaceOffloadingGroupVersionResource = GroupVersion.WithResource(NamespaceOffloadingResource)
 
 	// SchemeBuilder is used to add go types to the GroupVersionKind scheme.
 	SchemeBuilder = &scheme.Builder{GroupVersion: GroupVersion}

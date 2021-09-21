@@ -55,7 +55,6 @@ import (
 // Controller is the controller for the Authentication Service.
 type Controller struct {
 	namespace      string
-	restConfig     *rest.Config
 	clientset      kubernetes.Interface
 	secretInformer cache.SharedIndexInformer
 
@@ -82,6 +81,11 @@ func NewAuthServiceCtrl(config *rest.Config, namespace string,
 		return nil, err
 	}
 
+	// Complete the configuration retrieval, if necessary
+	if err = apiServerConfig.Complete(config, clientset); err != nil {
+		return nil, err
+	}
+
 	informerFactory := informers.NewSharedInformerFactoryWithOptions(clientset, resyncTime, informers.WithNamespace(namespace))
 
 	secretInformer := informerFactory.Core().V1().Secrets().Informer()
@@ -103,7 +107,6 @@ func NewAuthServiceCtrl(config *rest.Config, namespace string,
 
 	return &Controller{
 		namespace:        namespace,
-		restConfig:       config,
 		clientset:        clientset,
 		secretInformer:   secretInformer,
 		localClusterID:   localClusterID,

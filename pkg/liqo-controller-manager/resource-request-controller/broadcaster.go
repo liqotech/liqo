@@ -133,7 +133,7 @@ func (b *Broadcaster) getLastRead(remoteClusterID string) corev1.ResourceList {
 func (b *Broadcaster) onNodeAdd(obj interface{}) {
 	node := obj.(*corev1.Node)
 	if utils.IsNodeReady(node) {
-		klog.V(4).Infof("Adding Node %s\n", node.Name)
+		klog.V(4).Infof("Adding Node %s", node.Name)
 		toAdd := &node.Status.Allocatable
 		currentResources := b.readClusterResources()
 		addResources(currentResources, *toAdd)
@@ -148,7 +148,7 @@ func (b *Broadcaster) onNodeUpdate(oldObj, newObj interface{}) {
 	oldNodeResources := oldNode.Status.Allocatable
 	newNodeResources := newNode.Status.Allocatable
 	currentResources := b.readClusterResources()
-	klog.V(4).Infof("Updating Node %s in %v\n", oldNode.Name, newNode)
+	klog.V(4).Infof("Updating Node %s", oldNode.Name)
 	if utils.IsNodeReady(newNode) {
 		// node was already Ready, update with possible new resources.
 		if utils.IsNodeReady(oldNode) {
@@ -170,7 +170,7 @@ func (b *Broadcaster) onNodeDelete(obj interface{}) {
 	toDelete := &node.Status.Allocatable
 	currentResources := b.readClusterResources()
 	if utils.IsNodeReady(node) {
-		klog.V(4).Infof("Deleting Node %s\n", node.Name)
+		klog.V(4).Infof("Deleting Node %s", node.Name)
 		subResources(currentResources, *toDelete)
 		b.writeClusterResources(currentResources)
 	}
@@ -178,7 +178,7 @@ func (b *Broadcaster) onNodeDelete(obj interface{}) {
 
 func (b *Broadcaster) onPodAdd(obj interface{}) {
 	podAdded := obj.(*corev1.Pod)
-	klog.V(4).Infof("OnPodAdd: Add for pod %s:%s\n", podAdded.Namespace, podAdded.Name)
+	klog.V(4).Infof("OnPodAdd: Add for pod %s:%s", podAdded.Namespace, podAdded.Name)
 	// ignore all shadow pods because of ignoring all virtual Nodes
 	if pod.IsPodReady(podAdded) {
 		podResources := extractPodResources(podAdded)
@@ -187,7 +187,7 @@ func (b *Broadcaster) onPodAdd(obj interface{}) {
 		subResources(currentResources, podResources)
 		b.writeClusterResources(currentResources)
 		if clusterID := podAdded.Labels[forge.LiqoOriginClusterID]; clusterID != "" {
-			klog.V(4).Infof("OnPodAdd: Pod %s:%s passed ClusterID check. ClusterID = %s\n", podAdded.Namespace, podAdded.Name, clusterID)
+			klog.V(4).Infof("OnPodAdd: Pod %s:%s passed ClusterID check. ClusterID = %s", podAdded.Namespace, podAdded.Name, clusterID)
 			currentPodsResources := b.readPodResources(clusterID)
 			// add the resource of this pod in the map clusterID => resources to be used in ReadResources() function.
 			// this action is done to correct the computation not considering pod offloaded by the cluster with this ClusterID
@@ -200,7 +200,7 @@ func (b *Broadcaster) onPodAdd(obj interface{}) {
 func (b *Broadcaster) onPodUpdate(oldObj, newObj interface{}) {
 	oldPod := oldObj.(*corev1.Pod)
 	newPod := newObj.(*corev1.Pod)
-	klog.V(4).Infof("OnPodUpdate: Update for pod %s:%s\n", newPod.Namespace, newPod.Name)
+	klog.V(4).Infof("OnPodUpdate: Update for pod %s:%s", newPod.Namespace, newPod.Name)
 	newResources := extractPodResources(newPod)
 	oldResources := extractPodResources(oldPod)
 	currentResources := b.readClusterResources()
@@ -213,7 +213,7 @@ func (b *Broadcaster) onPodUpdate(oldObj, newObj interface{}) {
 	case PendingToReady:
 		subResources(currentResources, newResources)
 		if clusterID != "" {
-			klog.V(4).Infof("OnPodUpdate: Pod %s:%s passed ClusterID check. ClusterID = %s\n", newPod.Namespace, newPod.Name, clusterID)
+			klog.V(4).Infof("OnPodUpdate: Pod %s:%s passed ClusterID check. ClusterID = %s", newPod.Namespace, newPod.Name, clusterID)
 			// add the resource of this pod in the map clusterID => resources to be used in ReadResources() function.
 			// this action is done to correct the computation not considering pod offloaded by the cluster with this ClusterID
 			addResources(currentPodsResources, newResources)
@@ -222,7 +222,7 @@ func (b *Broadcaster) onPodUpdate(oldObj, newObj interface{}) {
 	case ReadyToPending:
 		addResources(currentResources, newResources)
 		if clusterID != "" {
-			klog.V(4).Infof("OnPodUpdate: Pod %s:%s passed ClusterID check. ClusterID = %s\n", newPod.Namespace, newPod.Name, clusterID)
+			klog.V(4).Infof("OnPodUpdate: Pod %s:%s passed ClusterID check. ClusterID = %s", newPod.Namespace, newPod.Name, clusterID)
 			// sub the resource of this pod in the map clusterID => resources to be used in ReadResources() function.
 			// this action is done to correct the computation not considering pod offloaded by the cluster with this ClusterID
 			subResources(currentPodsResources, oldResources)
@@ -239,7 +239,7 @@ func (b *Broadcaster) onPodUpdate(oldObj, newObj interface{}) {
 
 func (b *Broadcaster) onPodDelete(obj interface{}) {
 	podDeleted := obj.(*corev1.Pod)
-	klog.V(4).Infof("OnPodDelete: Delete for pod %s:%s\n", podDeleted.Namespace, podDeleted.Name)
+	klog.V(4).Infof("OnPodDelete: Delete for pod %s:%s", podDeleted.Namespace, podDeleted.Name)
 	// ignore all shadow pods because of ignoring all virtual Nodes
 	if pod.IsPodReady(podDeleted) {
 		podResources := extractPodResources(podDeleted)
@@ -248,7 +248,7 @@ func (b *Broadcaster) onPodDelete(obj interface{}) {
 		addResources(currentResources, podResources)
 		b.writeClusterResources(currentResources)
 		if clusterID := podDeleted.Labels[forge.LiqoOriginClusterID]; clusterID != "" {
-			klog.V(4).Infof("OnPodDelete: Pod %s:%s passed ClusterID check. ClusterID = %s\n", podDeleted.Namespace, podDeleted.Name, clusterID)
+			klog.V(4).Infof("OnPodDelete: Pod %s:%s passed ClusterID check. ClusterID = %s", podDeleted.Namespace, podDeleted.Name, clusterID)
 			currentPodsResources := b.readPodResources(clusterID)
 			subResources(currentPodsResources, podResources)
 			b.writePodResources(clusterID, currentPodsResources)

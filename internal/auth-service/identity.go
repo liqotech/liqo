@@ -137,8 +137,7 @@ func (authService *Controller) handleIdentity(
 	tracer.Step("Cluster roles bound")
 
 	// make the response to send to the remote cluster
-	response, err := auth.NewCertificateIdentityResponse(
-		namespace.Name, identityResponse, authService.apiServerConfig, authService.clientset, authService.restConfig)
+	response, err := auth.NewCertificateIdentityResponse(namespace.Name, identityResponse, authService.apiServerConfig)
 	if err != nil {
 		klog.Error(err)
 		return nil, err
@@ -153,6 +152,7 @@ func (authService *Controller) handleIdentity(
 			klog.Error(err)
 			return nil, err
 		}
+		tracer.Step("Origin cluster token stored")
 	}
 
 	klog.Infof("Identity Request successfully validated for cluster %v", identityRequest.GetClusterID())

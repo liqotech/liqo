@@ -28,13 +28,12 @@ import (
 )
 
 // GetURL retrieves the API server URL either from the configuration or selecting the IP address of a master node (with port 6443).
-func GetURL(config Config, clientset kubernetes.Interface) (string, error) {
-	address := config.Address
-	if address != "" {
-		if !strings.HasPrefix(address, "https://") {
-			address = fmt.Sprintf("https://%v", address)
+func GetURL(addressOverride string, clientset kubernetes.Interface) (string, error) {
+	if addressOverride != "" {
+		if !strings.HasPrefix(addressOverride, "https://") {
+			addressOverride = fmt.Sprintf("https://%v", addressOverride)
 		}
-		return address, nil
+		return addressOverride, nil
 	}
 
 	return GetAddressFromMasterNode(context.TODO(), clientset)

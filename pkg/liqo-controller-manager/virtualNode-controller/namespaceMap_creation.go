@@ -50,7 +50,7 @@ func (r *VirtualNodeReconciler) createNamespaceMap(ctx context.Context, n *corev
 		klog.Errorf("%s --> Problems in NamespaceMap creation for the virtual node '%s'", err, n.GetName())
 		return err
 	}
-	klog.Infof(" Create the NamespaceMap '%s' for the virtual node '%s'", nm.GetName(), n.GetName())
+	klog.Infof("Create the NamespaceMap '%s' for the virtual node '%s'", nm.GetName(), n.GetName())
 	return nil
 }
 
