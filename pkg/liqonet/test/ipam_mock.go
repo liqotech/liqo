@@ -61,3 +61,15 @@ func (mock *MockIpam) GetHomePodIP(
 	}
 	return &liqonetIpam.GetHomePodIPResponse{HomeIP: homeIP}, nil
 }
+
+// GetHomePodIP mocks the corresponding func in IPAM.
+func (mock *MockIpam) GetRemotePodIP(
+	ctx context.Context,
+	in *liqonetIpam.GetRemotePodIPRequest,
+	opts ...grpc.CallOption) (*liqonetIpam.GetRemotePodIPResponse, error) {
+	remoteIP, err := utils.MapIPToNetwork(mock.RemoteRemappedPodCIDR, in.GetIp())
+	if err != nil {
+		return &liqonetIpam.GetRemotePodIPResponse{}, err
+	}
+	return &liqonetIpam.GetRemotePodIPResponse{RemoteIP: remoteIP}, nil
+}
