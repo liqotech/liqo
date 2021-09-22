@@ -17,6 +17,7 @@ package main
 import (
 	"context"
 	"flag"
+	"github.com/liqotech/liqo/pkg/liqo-controller-manager/resource-request-controller/interfaces"
 	"os"
 	"sync"
 	"time"
@@ -80,6 +81,7 @@ func main() {
 	var kubeletExtraAnnotations, kubeletExtraLabels argsutils.StringMap
 	var kubeletExtraArgs argsutils.StringList
 	var nodeExtraAnnotations, nodeExtraLabels argsutils.StringMap
+	var brokerMode bool
 
 	metricsAddr := flag.String("metrics-address", ":8080", "The address the metric endpoint binds to")
 	probeAddr := flag.String("health-probe-address", ":8081", "The address the health probe endpoint binds to")
@@ -120,6 +122,7 @@ func main() {
 	flag.Var(&kubeletExtraArgs, "kubelet-extra-args", "Extra arguments to add to the Virtual Kubelet Deployments and Pods")
 	flag.Var(&nodeExtraAnnotations, "node-extra-annotations", "Extra annotations to add to the Virtual Node")
 	flag.Var(&nodeExtraLabels, "node-extra-labels", "Extra labels to add to the Virtual Node")
+	flag.BoolVar(&brokerMode, "broker-mode", false, "if true starts Broker operator instead of Broadcaster")
 
 	errorsmanagement.InitFlags(nil)
 	restcfg.InitFlags(nil)
@@ -153,21 +156,37 @@ func main() {
 		os.Exit(1)
 	}
 
-	broadcaster := &resourceRequestOperator.Broadcaster{}
-	updater := &resourceRequestOperator.OfferUpdater{}
-	updater.Setup(*clusterID, mgr.GetScheme(), broadcaster, mgr.GetClient(), clusterLabels.StringMap)
-	if err := broadcaster.SetupBroadcaster(clientset, updater, *resyncPeriod,
-		resourceSharingPercentage.Val, offerUpdateThreshold.Val); err != nil {
-		klog.Error(err)
-		os.Exit(1)
-	}
-
-	resourceRequestReconciler := &resourceRequestOperator.ResourceRequestReconciler{
-		Client:                mgr.GetClient(),
-		Scheme:                mgr.GetScheme(),
-		ClusterID:             *clusterID,
-		Broadcaster:           broadcaster,
-		EnableIncomingPeering: *enableIncomingPeering,
+	var resourceRequestReconciler *resourceRequestOperator.ResourceRequestReconciler
+	var operator interfaces.ClusterResourceInterface
+	if brokerMode {
+		klog.Info("Starting broker...")
+		broker := &resourceRequestOperator.Broker{}
+		broker.SetupBroker(*clusterID, clientset, mgr.GetScheme(), *resyncPeriod, mgr.GetClient())
+		operator = broker
+		resourceRequestReconciler = &resourceRequestOperator.ResourceRequestReconciler{
+			Client:      mgr.GetClient(),
+			Scheme:      mgr.GetScheme(),
+			ClusterID:   *clusterID,
+			Broadcaster: broker,
+			EnableIncomingPeering: *enableIncomingPeering,
+		}
+	}else {
+		klog.Info("Starting broadcaster...")
+		newBroadcaster := &resourceRequestOperator.Broadcaster{}
+		updater := &resourceRequestOperator.OfferUpdater{}
+		updater.Setup(*clusterID, mgr.GetScheme(), newBroadcaster, mgr.GetClient(), clusterLabels.StringMap)
+		operator = newBroadcaster
+		if err := newBroadcaster.SetupBroadcaster(clientset, updater, *resyncPeriod, resourceSharingPercentage.Val, offerUpdateThreshold.Val); err != nil {
+			klog.Error(err)
+			os.Exit(1)
+		}
+		resourceRequestReconciler = &resourceRequestOperator.ResourceRequestReconciler{
+			Client:      mgr.GetClient(),
+			Scheme:      mgr.GetScheme(),
+			ClusterID:   *clusterID,
+			Broadcaster: newBroadcaster,
+			EnableIncomingPeering: *enableIncomingPeering,
+		}
 	}
 
 	if err = resourceRequestReconciler.SetupWithManager(mgr); err != nil {
@@ -258,7 +277,7 @@ func main() {
 	csrWatcher.Start(ctx)
 
 	var wg = &sync.WaitGroup{}
-	broadcaster.StartBroadcaster(ctx, wg)
+	operator.Start(ctx, wg)
 
 	klog.Info("starting manager as controller manager")
 	if err := mgr.Start(ctrl.SetupSignalHandler()); err != nil {

@@ -28,6 +28,7 @@ import (
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	sharingv1alpha1 "github.com/liqotech/liqo/apis/sharing/v1alpha1"
 	crdreplicator "github.com/liqotech/liqo/internal/crdReplicator"
+	"github.com/liqotech/liqo/pkg/liqo-controller-manager/resource-request-controller/interfaces"
 )
 
 // ResourceRequestReconciler reconciles a ResourceRequest object.
@@ -35,7 +36,7 @@ type ResourceRequestReconciler struct {
 	client.Client
 	Scheme                *runtime.Scheme
 	ClusterID             string
-	Broadcaster           *Broadcaster
+	Broadcaster           interfaces.ClusterResourceInterface
 	EnableIncomingPeering bool
 }
 
@@ -124,7 +125,7 @@ func (r *ResourceRequestReconciler) Reconcile(ctx context.Context, req ctrl.Requ
 	switch resourceReqPhase {
 	case allowResourceRequestPhase:
 		// ensure that we are offering resources to this remote cluster
-		r.Broadcaster.enqueueForCreationOrUpdate(remoteClusterID)
+		r.Broadcaster.EnqueueForCreationOrUpdate(remoteClusterID)
 		resourceRequest.Status.OfferWithdrawalTimestamp = nil
 	case denyResourceRequestPhase, deletingResourceRequestPhase:
 		// ensure to invalidate any resource offered to the remote cluster

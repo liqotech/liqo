@@ -95,8 +95,8 @@ func (b *Broadcaster) SetupBroadcaster(clientset kubernetes.Interface, updater i
 	return nil
 }
 
-// StartBroadcaster starts two shared Informers, one for nodes and one for pods launching two separated goroutines.
-func (b *Broadcaster) StartBroadcaster(ctx context.Context, group *sync.WaitGroup) {
+// Start starts two shared Informers, one for nodes and one for pods launching two separated goroutines.
+func (b *Broadcaster) Start(ctx context.Context, group *sync.WaitGroup) {
 	group.Add(3)
 	go b.updater.Start(ctx, group)
 	go b.startNodeInformer(ctx, group)
@@ -267,7 +267,7 @@ func (b *Broadcaster) writeClusterResources(newResources corev1.ResourceList) {
 	podMap := b.getPodMap()
 	for clusterID := range podMap {
 		if b.isAboveThreshold(clusterID) {
-			b.enqueueForCreationOrUpdate(clusterID)
+			b.EnqueueForCreationOrUpdate(clusterID)
 		}
 	}
 }
@@ -284,7 +284,7 @@ func (b *Broadcaster) writePodResources(clusterID string, newResources corev1.Re
 	b.resourcePodMap[clusterID] = newResources.DeepCopy()
 	b.podMutex.Unlock()
 	if b.isAboveThreshold(clusterID) {
-		b.enqueueForCreationOrUpdate(clusterID)
+		b.EnqueueForCreationOrUpdate(clusterID)
 	}
 }
 
@@ -302,7 +302,7 @@ func (b *Broadcaster) ReadResources(clusterID string) corev1.ResourceList {
 	return toRead
 }
 
-func (b *Broadcaster) enqueueForCreationOrUpdate(clusterID string) {
+func (b *Broadcaster) EnqueueForCreationOrUpdate(clusterID string) {
 	b.podMutex.Lock()
 	// No offloaded pod case. Enforce clusterID in resourcePodMap with empty resources to process ResourceOffer update.
 	if _, ok := b.resourcePodMap[clusterID]; !ok {

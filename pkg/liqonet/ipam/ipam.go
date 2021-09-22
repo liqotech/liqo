@@ -1270,3 +1270,25 @@ func (liqoIPAM *IPAM) SetServiceCIDR(serviceCIDR string) error {
 	}
 	return nil
 }
+
+func (liqoIPAM *IPAM) BelongsToPodCIDR(ctx context.Context, request *BelongsRequest) (*BelongsResponse, error) {
+	// Get cluster subnets
+	clusterSubnets, err := liqoIPAM.ipamStorage.getClusterSubnets()
+	if err != nil {
+		return nil, fmt.Errorf("cannot get cluster subnets:%w", err)
+	}
+	subnets, exists := clusterSubnets[request.GetClusterID()]
+	if !exists {
+		return nil, fmt.Errorf("cannot get cluster subnets:%w", err)
+	}
+	belongs, err := ipBelongsToNetwork(request.GetIp(), subnets.PodCIDR)
+	if err != nil{
+		return nil, fmt.Errorf("cannot check if ip belongs to PodCIDR:%w", err)
+	}
+	if belongs {
+		return &BelongsResponse{Belongs: true}, nil
+	}
+	return &BelongsResponse{
+		Belongs: false,
+	}, nil
+}

@@ -33,6 +33,8 @@ func registerKubernetes(ctx context.Context, s *provider.Store) error {
 			cfg.HomeKubeConfig,
 			cfg.InformerResyncPeriod,
 			cfg.LiqoIpamServer,
+			cfg.EnableRemoteIpam,
+			cfg.RemotePodCidr,
 		)
 	})
 }

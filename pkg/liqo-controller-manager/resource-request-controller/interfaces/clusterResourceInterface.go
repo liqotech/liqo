@@ -15,7 +15,9 @@
 package interfaces
 
 import (
+	"context"
 	corev1 "k8s.io/api/core/v1"
+	"sync"
 )
 
 // ClusterResourceInterface represents a generic subset of Broadcaster exported methods to be used instead of a direct access to
@@ -25,4 +27,8 @@ type ClusterResourceInterface interface {
 	ReadResources(clusterID string) corev1.ResourceList
 	// RemoveClusterID removes given clusterID from all internal structures and it will be no more valid.
 	RemoveClusterID(clusterID string)
+	// EnqueueForCreationOrUpdate equeue the clusterID to generate or update related offer.
+	EnqueueForCreationOrUpdate(clusterID string)
+	// Start starts the operator
+	Start(ctx context.Context, group *sync.WaitGroup)
 }

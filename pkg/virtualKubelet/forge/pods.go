@@ -17,6 +17,7 @@ package forge
 import (
 	"context"
 	"fmt"
+	"inet.af/netaddr"
 	"strings"
 
 	corev1 "k8s.io/api/core/v1"
@@ -70,16 +71,33 @@ func (f *apiForger) podStatusForeignToHome(foreignObj, homeObj runtime.Object) *
 
 	homePod.Status = foreignPod.Status
 	if homePod.Status.PodIP != "" {
-		response, err := f.ipamClient.GetHomePodIP(context.Background(),
-			&liqonetIpam.GetHomePodIPRequest{
-				ClusterID: strings.TrimPrefix(f.virtualNodeName.Value().ToString(), virtualKubelet.VirtualNodePrefix),
-				Ip:        foreignPod.Status.PodIP,
-			})
+		p, err := netaddr.ParseIPPrefix(f.remotePodCidr)
 		if err != nil {
-			klog.Error(err)
+			klog.Errorf("Error parsing remotePodCidr %s", err)
 		}
-		homePod.Status.PodIP = response.GetHomeIP()
-		homePod.Status.PodIPs[0].IP = response.GetHomeIP()
+		if p.Contains(netaddr.MustParseIP(foreignPod.Status.PodIP)) {
+			response, err := f.ipamClient.GetHomePodIP(context.Background(),
+				&liqonetIpam.GetHomePodIPRequest{
+					ClusterID: strings.TrimPrefix(f.virtualNodeName.Value().ToString(), virtualKubelet.VirtualNodePrefix),
+					Ip:        foreignPod.Status.PodIP,
+				})
+			if err != nil {
+				klog.Error(err)
+			}
+			homePod.Status.PodIP = response.GetHomeIP()
+			homePod.Status.PodIPs[0].IP = response.GetHomeIP()
+		}else {
+			response, err := f.remoteIpamClient.MapEndpointIP(context.Background(),
+				&liqonetIpam.MapRequest{
+					ClusterID: f.homeClusterID,
+					Ip: foreignPod.Status.PodIP,
+				})
+			if err != nil {
+				klog.Error(err)
+			}
+			homePod.Status.PodIP = response.GetIp()
+			homePod.Status.PodIPs[0].IP = response.GetIp()
+		}
 	}
 
 	if foreignPod.DeletionTimestamp != nil {

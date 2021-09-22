@@ -77,6 +77,9 @@ func ForeignReplicasetDeleted(pod *corev1.Pod) *corev1.Pod {
 type apiForger struct {
 	nattingTable namespacesmapping.NamespaceNatter
 	ipamClient   liqonetIpam.IpamClient
+	remoteIpamClient liqonetIpam.IpamClient
+	homeClusterID string
+	remotePodCidr string
 
 	virtualNodeName  options.ReadOnlyOption
 	liqoIpamServer   options.ReadOnlyOption
@@ -86,17 +89,25 @@ type apiForger struct {
 var forger apiForger
 
 // InitForger initialize forger component to set all necessary fields of offloaded resources.
-func InitForger(nattingTable namespacesmapping.NamespaceNatter, opts ...options.ReadOnlyOption) {
+func InitForger(homeClusterID string, enableRemoteIpam bool, remotePodCidr string, nattingTable namespacesmapping.NamespaceNatter, opts ...options.ReadOnlyOption) {
 	forger.nattingTable = nattingTable
+	forger.homeClusterID = homeClusterID
+	forger.remotePodCidr = remotePodCidr
+
 	for _, opt := range opts {
 		switch opt.Key() {
 		case types.VirtualNodeName:
 			forger.virtualNodeName = opt
 		case types.RemoteClusterID:
 			forger.offloadClusterID = opt
+			if enableRemoteIpam {
+				klog.Infof("Starting remote ipam client...")
+				initRemoteIpamClient()
+			}
 		case types.LiqoIpamServer:
 			forger.liqoIpamServer = opt
 			initIpamClient()
+
 		}
 	}
 }
@@ -109,4 +120,14 @@ func initIpamClient() {
 		klog.Error(err)
 	}
 	forger.ipamClient = liqonetIpam.NewIpamClient(conn)
+}
+
+func initRemoteIpamClient() {
+	conn, err := grpc.Dial(fmt.Sprintf("%s:%d", "liqo-network-manager.liqo-" + forger.offloadClusterID.Value().ToString(), 6000),
+		grpc.WithInsecure(),
+		grpc.WithBlock())
+	if err != nil {
+		klog.Error(err)
+	}
+	forger.remoteIpamClient = liqonetIpam.NewIpamClient(conn)
 }
