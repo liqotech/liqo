@@ -30,7 +30,6 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/klog/v2"
 
-	"github.com/liqotech/liqo/pkg/clusterid"
 	responsetypes "github.com/liqotech/liqo/pkg/identityManager/responseTypes"
 )
 
@@ -43,7 +42,7 @@ const (
 type iamIdentityProvider struct {
 	awsConfig      *AwsConfig
 	client         kubernetes.Interface
-	localClusterID clusterid.ClusterID
+	localClusterID string
 }
 
 type mapUser struct {
@@ -78,7 +77,7 @@ func (identityProvider *iamIdentityProvider) ApproveSigningRequest(clusterID,
 	iamSvc := iam.New(sess)
 
 	// the IAM username has to have <= 64 charaters, we have to take only a prefix from the local clusterID.
-	prefix := identityProvider.localClusterID.GetClusterID()[:25]
+	prefix := identityProvider.localClusterID[:25]
 	username := fmt.Sprintf("%v-%v", prefix, clusterID)
 
 	userArn, err := identityProvider.ensureIamUser(iamSvc, username)

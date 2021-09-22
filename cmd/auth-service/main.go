@@ -41,6 +41,7 @@ func main() {
 	keyPath := flag.String("key-path", "/certs/key.pem", "The path to TLS private key")
 	useTLS := flag.Bool("enable-tls", false, "Enable HTTPS server")
 
+	clusterID := flag.String("cluster-id", "", "The cluster ID of identifying the current cluster")
 	clusterName := flag.String("advertise-cluster-name", "", "The cluster name advertised during the peering process")
 	enableAuth := flag.Bool("enable-authentication", true,
 		"Whether to authenticate remote clusters through tokens before granting an identity (warning: disable only for testing purposes)")
@@ -62,7 +63,7 @@ func main() {
 	config := restcfg.SetRateLimiter(ctrl.GetConfigOrDie())
 
 	authService, err := authservice.NewAuthServiceCtrl(
-		config, *namespace, awsConfig, *resync, apiserver.GetConfig(), *enableAuth, *useTLS, *clusterName)
+		config, *namespace, awsConfig, *resync, apiserver.GetConfig(), *enableAuth, *useTLS, *clusterID, *clusterName)
 	if err != nil {
 		klog.Error(err)
 		os.Exit(1)

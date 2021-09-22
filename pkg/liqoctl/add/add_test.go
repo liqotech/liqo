@@ -143,8 +143,12 @@ func setUpEnvironment(t *ClusterArgs) (*fake.Clientset, client.Client) {
 	// Create ClusterID ConfigMap
 	clusterIDConfigMap := &corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      consts.ClusterIDConfigMapName,
+			Name:      "clusterid-configmap",
 			Namespace: t.Namespace,
+			Labels: map[string]string{
+				"app.kubernetes.io/component": "clusterid-configmap",
+				"app.kubernetes.io/name":      "clusterid-configmap",
+			},
 		},
 		Data: map[string]string{
 			consts.ClusterIDConfigMapKey: localClusterID,

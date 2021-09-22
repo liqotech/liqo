@@ -20,7 +20,6 @@ import (
 	"time"
 
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/client-go/kubernetes"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/klog/v2"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -29,7 +28,6 @@ import (
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	nettypes "github.com/liqotech/liqo/apis/net/v1alpha1"
 	advtypes "github.com/liqotech/liqo/apis/sharing/v1alpha1"
-	"github.com/liqotech/liqo/pkg/clusterid"
 	discovery "github.com/liqotech/liqo/pkg/discoverymanager"
 	"github.com/liqotech/liqo/pkg/mapperUtils"
 	"github.com/liqotech/liqo/pkg/utils/restcfg"
@@ -49,6 +47,8 @@ func init() {
 
 func main() {
 	klog.Info("Starting")
+
+	clusterID := flag.String("cluster-id", "", "The cluster ID of identifying the current cluster")
 
 	namespace := flag.String("namespace", "default", "Namespace where your configs are stored.")
 	requeueAfter := flag.Duration("requeue-after", 30*time.Second,
@@ -77,23 +77,6 @@ func main() {
 	klog.Info("RequeueAfter: ", *requeueAfter)
 
 	config := restcfg.SetRateLimiter(ctrl.GetConfigOrDie())
-	clientset, err := kubernetes.NewForConfig(config)
-	if err != nil {
-		klog.Errorf("Failed to create a new Kubernetes client: %w", err)
-		os.Exit(1)
-	}
-
-	localClusterID, err := clusterid.NewClusterIDFromClient(clientset)
-	if err != nil {
-		klog.Error(err.Error())
-		os.Exit(1)
-	}
-	err = localClusterID.SetupClusterID(*namespace)
-	if err != nil {
-		klog.Error(err.Error())
-		os.Exit(1)
-	}
-
 	mgr, err := ctrl.NewManager(config, ctrl.Options{
 		MapperProvider:   mapperUtils.LiqoMapperProvider(scheme),
 		Scheme:           scheme,
@@ -122,7 +105,7 @@ func main() {
 
 	klog.Info("Starting the discovery logic")
 	discoveryCtl := discovery.NewDiscoveryCtrl(mgr.GetClient(), namespacedClient, *namespace,
-		localClusterID, mdnsConfig, *dialTCPTimeout)
+		*clusterID, mdnsConfig, *dialTCPTimeout)
 	if err := mgr.Add(discoveryCtl); err != nil {
 		klog.Errorf("Unable to add the discovery controller to the manager: %w", err)
 		os.Exit(1)

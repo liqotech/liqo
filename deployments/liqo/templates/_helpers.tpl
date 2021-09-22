@@ -162,3 +162,11 @@ Concatenates a values list into a string in the form "--commandName=val1,val2"
 {{- end -}}
 - {{ trimSuffix "," $res }}
 {{- end -}}
+
+{{/*
+Get the liqo clusterID ConfigMap name
+*/}}
+{{- define "liqo.clusterIdConfig" -}}
+{{- $config := (merge (dict "name" "clusterid-configmap" "module" "clusterid-configmap") .) -}}
+{{ include "liqo.prefixedName" $config }}
+{{- end -}}

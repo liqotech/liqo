@@ -37,7 +37,6 @@ import (
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	sharingv1alpha1 "github.com/liqotech/liqo/apis/sharing/v1alpha1"
 	crdreplicator "github.com/liqotech/liqo/internal/crdReplicator"
-	"github.com/liqotech/liqo/pkg/clusterid"
 	"github.com/liqotech/liqo/pkg/discovery"
 	"github.com/liqotech/liqo/pkg/liqo-controller-manager/resource-request-controller/testutils"
 )
@@ -51,9 +50,9 @@ const (
 
 var (
 	now        = metav1.Now()
-	ClusterID1 = clusterid.NewStaticClusterID("test-cluster1").GetClusterID()
-	ClusterID2 = clusterid.NewStaticClusterID("test-cluster2").GetClusterID()
-	ClusterID3 = clusterid.NewStaticClusterID("test-cluster3").GetClusterID()
+	ClusterID1 = "test-cluster1"
+	ClusterID2 = "test-cluster2"
+	ClusterID3 = "test-cluster3"
 )
 
 func CreateResourceRequest(ctx context.Context, resourceRequestName, resourcesNamespace, clusterID string,

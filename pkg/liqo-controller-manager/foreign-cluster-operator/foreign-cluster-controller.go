@@ -35,7 +35,6 @@ import (
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	netv1alpha1 "github.com/liqotech/liqo/apis/net/v1alpha1"
 	crdreplicator "github.com/liqotech/liqo/internal/crdReplicator"
-	"github.com/liqotech/liqo/pkg/clusterid"
 	liqoconst "github.com/liqotech/liqo/pkg/consts"
 	identitymanager "github.com/liqotech/liqo/pkg/identityManager"
 	peeringRoles "github.com/liqotech/liqo/pkg/peering-roles"
@@ -91,7 +90,7 @@ type ForeignClusterReconciler struct {
 	LiqoNamespace string
 
 	ResyncPeriod                         time.Duration
-	ClusterID                            clusterid.ClusterID
+	ClusterID                            string
 	ClusterName                          string
 	AuthServiceAddressOverride           string
 	AuthServicePortOverride              string
@@ -334,7 +333,7 @@ func (r *ForeignClusterReconciler) unpeerNamespaced(ctx context.Context,
 	var resourceRequest discoveryv1alpha1.ResourceRequest
 	err := r.Client.Get(ctx, types.NamespacedName{
 		Namespace: foreignCluster.Status.TenantNamespace.Local,
-		Name:      r.ClusterID.GetClusterID(),
+		Name:      r.ClusterID,
 	}, &resourceRequest)
 	if errors.IsNotFound(err) {
 		peeringconditionsutils.EnsureStatus(foreignCluster,

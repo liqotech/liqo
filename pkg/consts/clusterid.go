@@ -14,9 +14,9 @@
 
 package consts
 
+import "k8s.io/apimachinery/pkg/labels"
+
 const (
-	// ClusterIDConfigMapName is the name of the configmap where the cluster-id is stored.
-	ClusterIDConfigMapName = "cluster-id"
 	// MasterLabel contains the label used to identify the master nodes.
 	MasterLabel = "node-role.kubernetes.io/master"
 	// ServiceAccountNamespacePath contains the path where the namespace is stored in the serviceaccount volume mount.
@@ -24,5 +24,13 @@ const (
 	// ClusterIDLabelName is the name of the label key to use with Cluster ID.
 	ClusterIDLabelName = "clusterID"
 	// ClusterIDConfigMapKey is the key of the configmap where the cluster-id is stored.
-	ClusterIDConfigMapKey = "cluster-id"
+	ClusterIDConfigMapKey = "CLUSTER_ID"
 )
+
+// ClusterIDConfigMapSelector returns the selector for the configmap where the cluster-id is stored.
+func ClusterIDConfigMapSelector() labels.Selector {
+	return labels.SelectorFromSet(labels.Set{
+		"app.kubernetes.io/component": "clusterid-configmap",
+		"app.kubernetes.io/name":      "clusterid-configmap",
+	})
+}

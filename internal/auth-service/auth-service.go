@@ -30,7 +30,6 @@ import (
 	"k8s.io/klog/v2"
 
 	"github.com/liqotech/liqo/pkg/auth"
-	"github.com/liqotech/liqo/pkg/clusterid"
 	identitymanager "github.com/liqotech/liqo/pkg/identityManager"
 	peeringroles "github.com/liqotech/liqo/pkg/peering-roles"
 	tenantnamespace "github.com/liqotech/liqo/pkg/tenantNamespace"
@@ -63,7 +62,7 @@ type Controller struct {
 	authenticationEnabled bool
 
 	credentialsValidator credentialsValidator
-	localClusterID       clusterid.ClusterID
+	localClusterID       string
 	localClusterName     string
 	namespaceManager     tenantnamespace.Manager
 	identityProvider     identitymanager.IdentityProvider
@@ -76,7 +75,8 @@ type Controller struct {
 // NewAuthServiceCtrl creates a new Auth Controller.
 func NewAuthServiceCtrl(config *rest.Config, namespace string,
 	awsConfig identitymanager.AwsConfig, resyncTime time.Duration,
-	apiServerConfig apiserver.Config, authEnabled, useTLS bool, clusterName string) (*Controller, error) {
+	apiServerConfig apiserver.Config, authEnabled, useTLS bool,
+	localClusterID, clusterName string) (*Controller, error) {
 	clientset, err := kubernetes.NewForConfig(config)
 	if err != nil {
 		return nil, err
@@ -86,11 +86,6 @@ func NewAuthServiceCtrl(config *rest.Config, namespace string,
 
 	secretInformer := informerFactory.Core().V1().Secrets().Informer()
 	secretInformer.AddEventHandler(cache.ResourceEventHandlerFuncs{})
-
-	localClusterID, err := clusterid.NewClusterIDFromClient(clientset)
-	if err != nil {
-		return nil, err
-	}
 
 	informerFactory.Start(wait.NeverStop)
 	informerFactory.WaitForCacheSync(wait.NeverStop)

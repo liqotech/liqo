@@ -80,8 +80,8 @@ spec:
           - name: CLUSTER_ID
             valueFrom:
               configMapKeyRef:
-                name: cluster-id
-                key: cluster-id
+                name: {{ include "liqo.clusterIdConfig" . }}
+                key: CLUSTER_ID
           - name: POD_NAMESPACE
             valueFrom:
              fieldRef:

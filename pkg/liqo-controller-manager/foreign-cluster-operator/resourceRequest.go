@@ -33,7 +33,7 @@ func (r *ForeignClusterReconciler) ensureResourceRequest(ctx context.Context,
 	foreignCluster *discoveryv1alpha1.ForeignCluster) (*discoveryv1alpha1.ResourceRequest, error) {
 	klog.Infof("[%v] ensuring ResourceRequest existence", foreignCluster.Spec.ClusterIdentity.ClusterID)
 
-	localClusterID := r.ClusterID.GetClusterID()
+	localClusterID := r.ClusterID
 	remoteClusterID := foreignCluster.Spec.ClusterIdentity.ClusterID
 	localNamespace := foreignCluster.Status.TenantNamespace.Local
 

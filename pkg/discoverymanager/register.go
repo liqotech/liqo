@@ -37,7 +37,7 @@ func (discovery *Controller) register(ctx context.Context) {
 
 	discovery.serverMux.Lock()
 	discovery.mdnsServerAuth, err = zeroconf.Register(
-		discovery.LocalClusterID.GetClusterID(),
+		discovery.LocalClusterID,
 		discovery.mdnsConfig.Service,
 		discovery.mdnsConfig.Domain,
 		authPort, nil, discovery.getInterfaces(),
