@@ -35,7 +35,6 @@ import (
 	offloadingv1alpha1 "github.com/liqotech/liqo/apis/offloading/v1alpha1"
 	sharingv1alpha1 "github.com/liqotech/liqo/apis/sharing/v1alpha1"
 	virtualkubeletv1alpha1 "github.com/liqotech/liqo/apis/virtualKubelet/v1alpha1"
-	"github.com/liqotech/liqo/pkg/clusterid"
 	"github.com/liqotech/liqo/pkg/consts"
 	identitymanager "github.com/liqotech/liqo/pkg/identityManager"
 	foreignclusteroperator "github.com/liqotech/liqo/pkg/liqo-controller-manager/foreign-cluster-operator"
@@ -172,7 +171,7 @@ func main() {
 	}
 
 	namespaceManager := tenantnamespace.NewTenantNamespaceManager(clientset)
-	idManager := identitymanager.NewCertificateIdentityManager(clientset, clusterid.NewStaticClusterID(*clusterID), namespaceManager)
+	idManager := identitymanager.NewCertificateIdentityManager(clientset, *clusterID, namespaceManager)
 
 	// populate the lists of ClusterRoles to bind in the different peering states
 	permissions, err := peeringroles.GetPeeringPermission(ctx, clientset)
@@ -198,7 +197,7 @@ func main() {
 		LiqoNamespace: *liqoNamespace,
 
 		ResyncPeriod:                         *resyncPeriod,
-		ClusterID:                            clusterid.NewStaticClusterID(*clusterID),
+		ClusterID:                            *clusterID,
 		ClusterName:                          *clusterName,
 		AuthServiceAddressOverride:           *authServiceAddressOverride,
 		AuthServicePortOverride:              *authServicePortOverride,

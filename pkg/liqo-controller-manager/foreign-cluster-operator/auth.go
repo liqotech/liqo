@@ -113,7 +113,7 @@ func (r *ForeignClusterReconciler) validateIdentity(ctx context.Context, fc *dis
 		return err
 	}
 
-	request := auth.NewCertificateIdentityRequest(r.ClusterID.GetClusterID(), localToken, token, csr)
+	request := auth.NewCertificateIdentityRequest(r.ClusterID, localToken, token, csr)
 	responseBytes, err := sendIdentityRequest(request, fc)
 	if err != nil {
 		klog.Error(err)

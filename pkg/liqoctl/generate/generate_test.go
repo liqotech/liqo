@@ -63,8 +63,12 @@ var _ = Describe("Test the generate command works as expected", func() {
 		// Create ClusterID ConfigMap
 		clusterIDConfigMap := &corev1.ConfigMap{
 			ObjectMeta: metav1.ObjectMeta{
-				Name:      consts.ClusterIDConfigMapName,
+				Name:      "clusterid-configmap",
 				Namespace: liqonamespace,
+				Labels: map[string]string{
+					"app.kubernetes.io/component": "clusterid-configmap",
+					"app.kubernetes.io/name":      "clusterid-configmap",
+				},
 			},
 			Data: map[string]string{
 				consts.ClusterIDConfigMapKey: localClusterID,

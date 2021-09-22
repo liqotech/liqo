@@ -81,7 +81,7 @@ func (r *ForeignClusterReconciler) isClusterProcessable(ctx context.Context,
 	foreignCluster *discoveryv1alpha1.ForeignCluster) (bool, error) {
 	foreignClusterID := foreignCluster.Spec.ClusterIdentity.ClusterID
 
-	if foreignClusterID == r.ClusterID.GetClusterID() {
+	if foreignClusterID == r.ClusterID {
 		// this is the local cluster, it is not processable
 		peeringconditionsutils.EnsureStatus(foreignCluster,
 			discoveryv1alpha1.ProcessForeignClusterStatusCondition,

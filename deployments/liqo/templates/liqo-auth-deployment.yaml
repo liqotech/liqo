@@ -69,6 +69,7 @@ spec:
           imagePullPolicy: {{ .Values.pullPolicy }}
           command: ["/usr/bin/auth-service"]
           args:
+          - --cluster-id=$(CLUSTER_ID)
           - --namespace=$(POD_NAMESPACE)
           {{- if not .Values.auth.tls}}
           - --address=:5000
@@ -102,6 +103,11 @@ spec:
           {{- toYaml .Values.auth.pod.extraArgs | nindent 10 }}
           {{- end }}
           env:
+            - name: CLUSTER_ID
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ include "liqo.clusterIdConfig" . }}
+                  key: CLUSTER_ID
             - name: POD_NAMESPACE
               valueFrom:
                 fieldRef:

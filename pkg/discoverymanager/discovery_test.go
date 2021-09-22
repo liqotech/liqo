@@ -36,7 +36,6 @@ import (
 
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	"github.com/liqotech/liqo/pkg/auth"
-	"github.com/liqotech/liqo/pkg/clusterid/test"
 	liqoconst "github.com/liqotech/liqo/pkg/consts"
 	"github.com/liqotech/liqo/pkg/discovery"
 	foreignclusterutils "github.com/liqotech/liqo/pkg/utils/foreignCluster"
@@ -271,8 +270,7 @@ var _ = Describe("Discovery", func() {
 		BeforeEach(func() {
 			ctx = context.Background()
 
-			cID := &test.ClusterIDMock{}
-			_ = cID.SetupClusterID("default")
+			cID := "local-cluster"
 
 			client := fake.NewClientBuilder().WithScheme(scheme.Scheme).Build()
 			discoveryCtrl = Controller{
@@ -306,8 +304,10 @@ var _ = Describe("Discovery", func() {
 						discoveryCtrl.updateForeignLAN(&c.data)
 
 						var fcs discoveryv1alpha1.ForeignClusterList
-						Expect(discoveryCtrl.List(ctx, &fcs))
-						Expect(len(fcs.Items)).To(c.expectedLength)
+						Eventually(func() int {
+							Expect(discoveryCtrl.List(ctx, &fcs)).To(Succeed())
+							return len(fcs.Items)
+						}).Should(c.expectedLength)
 
 						if len(fcs.Items) > 0 {
 							fc := fcs.Items[0]

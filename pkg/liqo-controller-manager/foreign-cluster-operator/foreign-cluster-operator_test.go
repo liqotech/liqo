@@ -37,7 +37,6 @@ import (
 
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	crdreplicator "github.com/liqotech/liqo/internal/crdReplicator"
-	"github.com/liqotech/liqo/pkg/clusterid/test"
 	"github.com/liqotech/liqo/pkg/discovery"
 	identitymanager "github.com/liqotech/liqo/pkg/identityManager"
 	peeringroles "github.com/liqotech/liqo/pkg/peering-roles"
@@ -83,8 +82,7 @@ var _ = Describe("ForeignClusterOperator", func() {
 			os.Exit(1)
 		}
 
-		cID := &test.ClusterIDMock{}
-		_ = cID.SetupClusterID("default")
+		cID := "local-cluster"
 
 		namespaceManager := tenantnamespace.NewTenantNamespaceManager(cluster.GetClient())
 		identityManagerCtrl := identitymanager.NewCertificateIdentityManager(cluster.GetClient(), cID, namespaceManager)
@@ -218,7 +216,7 @@ var _ = Describe("ForeignClusterOperator", func() {
 				c.fc.Status.TenantNamespace.Local = tenantNamespace.Name
 
 				// populate the resourcerequest CR
-				c.rr.Name = controller.ClusterID.GetClusterID()
+				c.rr.Name = controller.ClusterID
 				c.rr.Namespace = tenantNamespace.Name
 				c.rr.Spec.ClusterIdentity.ClusterID = c.fc.Spec.ClusterIdentity.ClusterID
 				c.rr.Labels = resourceRequestLabels(c.fc.Spec.ClusterIdentity.ClusterID)
@@ -1044,7 +1042,7 @@ var _ = Describe("ForeignClusterOperator", func() {
 					Name: "cluster-1",
 					Labels: map[string]string{
 						discovery.DiscoveryTypeLabel: string(discovery.ManualDiscovery),
-						discovery.ClusterIDLabel:     controller.ClusterID.GetClusterID(),
+						discovery.ClusterIDLabel:     controller.ClusterID,
 					},
 				},
 				Spec: discoveryv1alpha1.ForeignClusterSpec{
@@ -1053,7 +1051,7 @@ var _ = Describe("ForeignClusterOperator", func() {
 					InsecureSkipTLSVerify:  pointer.BoolPtr(true),
 					ForeignAuthURL:         "https://example.com",
 					ClusterIdentity: discoveryv1alpha1.ClusterIdentity{
-						ClusterID: controller.ClusterID.GetClusterID(),
+						ClusterID: controller.ClusterID,
 					},
 				},
 			}

@@ -1,0 +1,19 @@
+{{- $clusterIdConfig := (merge (dict "name" "clusterid-configmap" "module" "clusterid-configmap") .) -}}
+{{- $name := include "liqo.prefixedName" $clusterIdConfig -}}
+{{- $oldObject := (lookup "v1" "ConfigMap" .Release.Namespace $name) -}}
+
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  labels:
+    {{- include "liqo.labels" $clusterIdConfig | nindent 4 }}
+  name: {{ include "liqo.prefixedName" $clusterIdConfig }}
+data:
+  {{- if (not $oldObject) }}
+  CLUSTER_ID: {{ uuidv4 }}
+  {{- else }}
+  CLUSTER_ID: {{ $oldObject.data.CLUSTER_ID }}
+  {{- end }}
+  {{- if .Values.discovery.config.clusterName }}
+  CLUSTER_NAME: {{ .Values.discovery.config.clusterName }}
+  {{- end }}

@@ -40,7 +40,6 @@ import (
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	"github.com/liqotech/liqo/pkg/auth"
 	autherrors "github.com/liqotech/liqo/pkg/auth/errors"
-	"github.com/liqotech/liqo/pkg/clusterid/test"
 	identitymanager "github.com/liqotech/liqo/pkg/identityManager"
 	idManTest "github.com/liqotech/liqo/pkg/identityManager/testUtils"
 	tenantnamespace "github.com/liqotech/liqo/pkg/tenantNamespace"
@@ -70,7 +69,7 @@ var _ = Describe("Auth", func() {
 
 	var (
 		cluster     testutil.Cluster
-		clusterID   test.ClusterIDMock
+		clusterID   string
 		authService Controller
 
 		tMan tokenManagerMock
@@ -96,8 +95,7 @@ var _ = Describe("Auth", func() {
 		secretInformer := informerFactory.Core().V1().Secrets().Informer()
 		secretInformer.AddEventHandler(cache.ResourceEventHandlerFuncs{})
 
-		clusterID = test.ClusterIDMock{}
-		_ = clusterID.SetupClusterID("default")
+		clusterID = "default"
 
 		stopChan = make(chan struct{})
 		informerFactory.Start(stopChan)
@@ -105,14 +103,14 @@ var _ = Describe("Auth", func() {
 
 		namespaceManager := tenantnamespace.NewTenantNamespaceManager(cluster.GetClient())
 		identityProvider := identitymanager.NewCertificateIdentityProvider(
-			context.Background(), cluster.GetClient(), &clusterID, namespaceManager)
+			context.Background(), cluster.GetClient(), clusterID, namespaceManager)
 
 		authService = Controller{
 			namespace:            "default",
 			restConfig:           cluster.GetCfg(),
 			clientset:            cluster.GetClient(),
 			secretInformer:       secretInformer,
-			localClusterID:       &clusterID,
+			localClusterID:       clusterID,
 			namespaceManager:     namespaceManager,
 			identityProvider:     identityProvider,
 			credentialsValidator: &tokenValidator{},
@@ -238,7 +236,7 @@ var _ = Describe("Auth", func() {
 
 		DescribeTable("Certificate Identity Creation table",
 			func(c certificateTestcase) {
-				req, err := testutil.FakeCSRRequest(authService.localClusterID.GetClusterID())
+				req, err := testutil.FakeCSRRequest(authService.localClusterID)
 				Expect(err).To(BeNil())
 				c.request.CertificateSigningRequest = base64.StdEncoding.EncodeToString(req)
 

@@ -18,7 +18,6 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/klog/v2"
 
-	"github.com/liqotech/liqo/pkg/clusterid"
 	identitymanager "github.com/liqotech/liqo/pkg/identityManager"
 	tenantnamespace "github.com/liqotech/liqo/pkg/tenantNamespace"
 )
@@ -31,9 +30,8 @@ func (r *NamespaceMapReconciler) checkRemoteClientPresence(remoteClusterID strin
 	}
 
 	if _, ok := r.RemoteClients[remoteClusterID]; !ok {
-		clusterID := clusterid.NewStaticClusterID(r.LocalClusterID)
 		tenantNamespaceManager := tenantnamespace.NewTenantNamespaceManager(r.IdentityManagerClient)
-		identityManager := identitymanager.NewCertificateIdentityReader(r.IdentityManagerClient, clusterID, tenantNamespaceManager)
+		identityManager := identitymanager.NewCertificateIdentityReader(r.IdentityManagerClient, r.LocalClusterID, tenantNamespaceManager)
 		restConfig, err := identityManager.GetConfig(remoteClusterID, "")
 		if err != nil {
 			klog.Error(err)

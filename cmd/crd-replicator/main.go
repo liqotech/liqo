@@ -17,10 +17,8 @@ package main
 import (
 	"flag"
 	"os"
-	"time"
 
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
@@ -29,17 +27,14 @@ import (
 
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	crdreplicator "github.com/liqotech/liqo/internal/crdReplicator"
-	"github.com/liqotech/liqo/pkg/clusterid"
 	identitymanager "github.com/liqotech/liqo/pkg/identityManager"
-	"github.com/liqotech/liqo/pkg/liqonet/utils"
 	"github.com/liqotech/liqo/pkg/mapperUtils"
 	tenantnamespace "github.com/liqotech/liqo/pkg/tenantNamespace"
 	"github.com/liqotech/liqo/pkg/utils/restcfg"
 )
 
 var (
-	scheme           = runtime.NewScheme()
-	clusterIDConfMap = "cluster-id"
+	scheme = runtime.NewScheme()
 )
 
 func init() {
@@ -49,6 +44,8 @@ func init() {
 }
 
 func main() {
+	clusterID := flag.String("cluster-id", "", "The cluster ID of identifying the current cluster")
+
 	restcfg.InitFlags(nil)
 	klog.InitFlags(nil)
 
@@ -67,36 +64,15 @@ func main() {
 	}
 	// Create a clientSet.
 	k8sClient := kubernetes.NewForConfigOrDie(cfg)
-	// Get the namespace where the operator is running.
-	namespaceName, found := os.LookupEnv("NAMESPACE")
-	if !found {
-		klog.Errorf("namespace env variable not set, please set it in manifest file of the operator")
-		os.Exit(-1)
-	}
 
-	// 7 attempts with 30 seconds sleep between one another
-	// for a total of 3 minutes
-	backoff := wait.Backoff{
-		Steps:    7,
-		Duration: 30 * time.Second,
-		Factor:   1.0,
-		Jitter:   0,
-	}
-	clusterID, err := utils.GetClusterID(k8sClient, clusterIDConfMap, namespaceName, backoff)
-	if err != nil {
-		klog.Errorf("an error occurred while retrieving the clusterID: %s", err)
-		os.Exit(-1)
-	} else {
-		klog.Infof("setting local clusterID to: %s", clusterID)
-	}
-	clusterIDInterface := clusterid.NewStaticClusterID(clusterID)
 	namespaceManager := tenantnamespace.NewTenantNamespaceManager(k8sClient)
 	dynClient := dynamic.NewForConfigOrDie(cfg)
+
 	d := &crdreplicator.Controller{
 		Scheme:              mgr.GetScheme(),
 		Client:              mgr.GetClient(),
 		ClientSet:           k8sClient,
-		ClusterID:           clusterID,
+		ClusterID:           *clusterID,
 		RemoteDynClients:    make(map[string]dynamic.Interface),
 		LocalDynClient:      dynClient,
 		RegisteredResources: crdreplicator.GetResourcesToReplicate(),
@@ -104,7 +80,7 @@ func main() {
 		RemoteWatchers:      make(map[string]map[string]chan struct{}),
 		NamespaceManager:    namespaceManager,
 		IdentityReader: identitymanager.NewCertificateIdentityReader(
-			k8sClient, clusterIDInterface, namespaceManager),
+			k8sClient, *clusterID, namespaceManager),
 		LocalToRemoteNamespaceMapper:     map[string]string{},
 		RemoteToLocalNamespaceMapper:     map[string]string{},
 		ClusterIDToLocalNamespaceMapper:  map[string]string{},

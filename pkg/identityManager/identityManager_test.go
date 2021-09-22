@@ -39,7 +39,6 @@ import (
 	"k8s.io/client-go/rest"
 
 	"github.com/liqotech/liqo/pkg/auth"
-	"github.com/liqotech/liqo/pkg/clusterid/test"
 	"github.com/liqotech/liqo/pkg/discovery"
 	responsetypes "github.com/liqotech/liqo/pkg/identityManager/responseTypes"
 	idManTest "github.com/liqotech/liqo/pkg/identityManager/testUtils"
@@ -66,7 +65,7 @@ var _ = Describe("IdentityManager", func() {
 		cluster         testutil.Cluster
 		client          kubernetes.Interface
 		restConfig      *rest.Config
-		localClusterID  test.ClusterIDMock
+		localClusterID  string
 		remoteClusterID string
 
 		namespace *v1.Namespace
@@ -79,9 +78,7 @@ var _ = Describe("IdentityManager", func() {
 	BeforeSuite(func() {
 		ctx = context.Background()
 
-		localClusterID = test.ClusterIDMock{
-			Id: "local-id",
-		}
+		localClusterID = "local-id"
 		remoteClusterID = "remote-id"
 
 		var err error
@@ -95,8 +92,8 @@ var _ = Describe("IdentityManager", func() {
 		restConfig = cluster.GetCfg()
 
 		namespaceManager = tenantnamespace.NewTenantNamespaceManager(client)
-		identityMan = NewCertificateIdentityManager(cluster.GetClient(), &localClusterID, namespaceManager)
-		identityProvider = NewCertificateIdentityProvider(ctx, cluster.GetClient(), &localClusterID, namespaceManager)
+		identityMan = NewCertificateIdentityManager(cluster.GetClient(), localClusterID, namespaceManager)
+		identityProvider = NewCertificateIdentityProvider(ctx, cluster.GetClient(), localClusterID, namespaceManager)
 
 		namespace, err = namespaceManager.CreateNamespace(remoteClusterID)
 		if err != nil {
@@ -151,7 +148,7 @@ var _ = Describe("IdentityManager", func() {
 			b, _ := pem.Decode(csrBytes)
 			csr, err := x509.ParseCertificateRequest(b.Bytes)
 			Expect(err).To(BeNil())
-			Expect(csr.Subject.CommonName).To(Equal(localClusterID.GetClusterID()))
+			Expect(csr.Subject.CommonName).To(Equal(localClusterID))
 		})
 
 		It("Get Signing Request with multiple secrets", func() {
@@ -339,7 +336,7 @@ var _ = Describe("IdentityManager", func() {
 	Context("Identity Provider", func() {
 
 		It("Certificate Identity Provider", func() {
-			idProvider := NewCertificateIdentityProvider(ctx, cluster.GetClient(), &localClusterID, namespaceManager)
+			idProvider := NewCertificateIdentityProvider(ctx, cluster.GetClient(), localClusterID, namespaceManager)
 
 			certIDManager, ok := idProvider.(*identityManager)
 			Expect(ok).To(BeTrue())
@@ -349,7 +346,7 @@ var _ = Describe("IdentityManager", func() {
 		})
 
 		It("AWS IAM Identity Provider", func() {
-			idProvider := NewIAMIdentityManager(cluster.GetClient(), &localClusterID, &AwsConfig{
+			idProvider := NewIAMIdentityManager(cluster.GetClient(), localClusterID, &AwsConfig{
 				AwsAccessKeyID:     "KeyID",
 				AwsSecretAccessKey: "Secret",
 				AwsRegion:          "region",
@@ -368,7 +365,7 @@ var _ = Describe("IdentityManager", func() {
 	Context("Identity Provider", func() {
 
 		It("Certificate Identity Provider", func() {
-			idProvider := NewCertificateIdentityProvider(ctx, cluster.GetClient(), &localClusterID, namespaceManager)
+			idProvider := NewCertificateIdentityProvider(ctx, cluster.GetClient(), localClusterID, namespaceManager)
 
 			certIDManager, ok := idProvider.(*identityManager)
 			Expect(ok).To(BeTrue())
@@ -378,7 +375,7 @@ var _ = Describe("IdentityManager", func() {
 		})
 
 		It("AWS IAM Identity Provider", func() {
-			idProvider := NewIAMIdentityManager(cluster.GetClient(), &localClusterID, &AwsConfig{
+			idProvider := NewIAMIdentityManager(cluster.GetClient(), localClusterID, &AwsConfig{
 				AwsAccessKeyID:     "KeyID",
 				AwsSecretAccessKey: "Secret",
 				AwsRegion:          "region",

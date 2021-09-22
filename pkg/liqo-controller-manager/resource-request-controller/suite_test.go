@@ -33,7 +33,6 @@ import (
 
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	sharingv1alpha1 "github.com/liqotech/liqo/apis/sharing/v1alpha1"
-	"github.com/liqotech/liqo/pkg/clusterid"
 	"github.com/liqotech/liqo/pkg/liqo-controller-manager/resource-request-controller/testutils"
 	errorsmanagement "github.com/liqotech/liqo/pkg/utils/errorsManagement"
 )
@@ -88,7 +87,7 @@ func createCluster() {
 	// Disabling panic on failure.
 	errorsmanagement.SetPanicOnErrorMode(false)
 	clientset = kubernetes.NewForConfigOrDie(k8sManager.GetConfig())
-	homeClusterID = clusterid.NewStaticClusterID("test-cluster").GetClusterID()
+	homeClusterID = "test-cluster"
 
 	// Initializing a new updater and adding it to the manager.
 	updater := OfferUpdater{}

@@ -30,15 +30,17 @@ spec:
           imagePullPolicy: {{ .Values.pullPolicy }}
           name: {{ $crdReplicatorConfig.name }}
           command: ["/usr/bin/crd-replicator"]
-          {{- if .Values.crdReplicator.pod.extraArgs }}
           args:
+            - --cluster-id=$(CLUSTER_ID)
+            {{- if .Values.crdReplicator.pod.extraArgs }}
             {{- toYaml .Values.crdReplicator.pod.extraArgs | nindent 12 }}
-          {{- end }}
+            {{- end }}
           env:
-            - name: NAMESPACE
+            - name: CLUSTER_ID
               valueFrom:
-                fieldRef:
-                  fieldPath: metadata.namespace
+                configMapKeyRef:
+                  name: {{ include "liqo.clusterIdConfig" . }}
+                  key: CLUSTER_ID
           resources:
             requests:
               cpu: 30m

@@ -176,7 +176,7 @@ func (certManager *identityManager) createCSR() (keyBytes, csrBytes []byte, err 
 	}
 
 	subj := pkix.Name{
-		CommonName:   certManager.localClusterID.GetClusterID(),
+		CommonName:   certManager.localClusterID,
 		Organization: []string{defaultOrganization},
 	}
 	rawSubj := subj.ToRDNSequence()

@@ -30,7 +30,6 @@ import (
 
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	netv1alpha1 "github.com/liqotech/liqo/apis/net/v1alpha1"
-	"github.com/liqotech/liqo/pkg/clusterid"
 	"github.com/liqotech/liqo/pkg/consts"
 	identitymanager "github.com/liqotech/liqo/pkg/identityManager"
 	tenantnamespace "github.com/liqotech/liqo/pkg/tenantNamespace"
@@ -103,7 +102,6 @@ func getLabels() map[string]string {
 
 func getCRDReplicator() Controller {
 	tenantmanager := tenantnamespace.NewTenantNamespaceManager(k8sclient)
-	clusterIDInterface := clusterid.NewStaticClusterID(localClusterID)
 	return Controller{
 		Scheme:              nil,
 		ClusterID:           localClusterID,
@@ -114,7 +112,7 @@ func getCRDReplicator() Controller {
 		LocalWatchers:       map[string]chan struct{}{},
 
 		NamespaceManager:                 tenantmanager,
-		IdentityReader:                   identitymanager.NewCertificateIdentityReader(k8sclient, clusterIDInterface, tenantmanager),
+		IdentityReader:                   identitymanager.NewCertificateIdentityReader(k8sclient, localClusterID, tenantmanager),
 		LocalToRemoteNamespaceMapper:     map[string]string{},
 		RemoteToLocalNamespaceMapper:     map[string]string{},
 		ClusterIDToLocalNamespaceMapper:  map[string]string{},

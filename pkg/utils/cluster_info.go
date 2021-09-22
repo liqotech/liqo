@@ -22,8 +22,9 @@ import (
 	"strings"
 
 	corev1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
@@ -37,26 +38,43 @@ import (
 // GetClusterIDWithNativeClient returns clusterID using a kubernetes.Interface client.
 func GetClusterIDWithNativeClient(ctx context.Context, nativeClient kubernetes.Interface, namespace string) (string, error) {
 	cmClient := nativeClient.CoreV1().ConfigMaps(namespace)
-	cm, err := cmClient.Get(ctx, consts.ClusterIDConfigMapName, metav1.GetOptions{})
+	configMapList, err := cmClient.List(ctx, metav1.ListOptions{
+		LabelSelector: consts.ClusterIDConfigMapSelector().String(),
+	})
 	if err != nil {
 		return "", err
 	}
-	clusterID := cm.Data[consts.ClusterIDConfigMapKey]
-	klog.Infof("ClusterID is '%s'", clusterID)
-	return clusterID, nil
+
+	return getClusterIDFromConfigMapList(configMapList)
 }
 
 // GetClusterIDWithControllerClient returns clusterID using a client.Client client.
 func GetClusterIDWithControllerClient(ctx context.Context, controllerClient client.Client, namespace string) (string, error) {
-	configMap := &corev1.ConfigMap{}
-	if err := controllerClient.Get(ctx, types.NamespacedName{Namespace: namespace, Name: consts.ClusterIDConfigMapName}, configMap); err != nil {
-		klog.Errorf("%s, unable to get ConfigMap '%s' in namespace '%s'", err, consts.ClusterIDConfigMapName, namespace)
+	var configMapList corev1.ConfigMapList
+	if err := controllerClient.List(ctx, &configMapList,
+		client.MatchingLabelsSelector{Selector: consts.ClusterIDConfigMapSelector()},
+		client.InNamespace(namespace)); err != nil {
+		klog.Errorf("%s, unable to get the ClusterID ConfigMap in namespace '%s'", err, namespace)
 		return "", err
 	}
 
-	clusterID := configMap.Data[consts.ClusterIDConfigMapKey]
-	klog.V(4).Infof("ClusterID is '%s'", clusterID)
-	return clusterID, nil
+	return getClusterIDFromConfigMapList(&configMapList)
+}
+
+func getClusterIDFromConfigMapList(configMapList *corev1.ConfigMapList) (string, error) {
+	switch len(configMapList.Items) {
+	case 0:
+		return "", apierrors.NewNotFound(schema.GroupResource{
+			Group:    "v1",
+			Resource: "configmaps",
+		}, "clusterid-configmap")
+	case 1:
+		clusterID := configMapList.Items[0].Data[consts.ClusterIDConfigMapKey]
+		klog.Infof("ClusterID is '%s'", clusterID)
+		return clusterID, nil
+	default:
+		return "", fmt.Errorf("multiple clusterID configmaps found")
+	}
 }
 
 // GetClusterIDFromNodeName returns the clusterID from a node name.

@@ -25,7 +25,6 @@ import (
 	metricsv "k8s.io/metrics/pkg/client/clientset/versioned"
 
 	vkalpha1 "github.com/liqotech/liqo/apis/virtualKubelet/v1alpha1"
-	"github.com/liqotech/liqo/pkg/clusterid"
 	identitymanager "github.com/liqotech/liqo/pkg/identityManager"
 	tenantnamespace "github.com/liqotech/liqo/pkg/tenantNamespace"
 	"github.com/liqotech/liqo/pkg/utils"
@@ -82,9 +81,8 @@ func NewLiqoProvider(ctx context.Context, nodeName, foreignClusterID, homeCluste
 		return nil, err
 	}
 
-	clusterID := clusterid.NewStaticClusterID(homeClusterID)
 	tenantNamespaceManager := tenantnamespace.NewTenantNamespaceManager(homeClient)
-	identityManager := identitymanager.NewCertificateIdentityReader(homeClient, clusterID, tenantNamespaceManager)
+	identityManager := identitymanager.NewCertificateIdentityReader(homeClient, homeClusterID, tenantNamespaceManager)
 	namespace, err := utils.RetrieveNamespace()
 	if err != nil {
 		return nil, err

@@ -75,7 +75,7 @@ func (discovery *Controller) resolve(ctx context.Context, service, domain string
 						klog.Error(err)
 						continue
 					}
-					if dData.ClusterInfo.ClusterID == discovery.LocalClusterID.GetClusterID() || dData.ClusterInfo.ClusterID == "" {
+					if dData.ClusterInfo.ClusterID == discovery.LocalClusterID || dData.ClusterInfo.ClusterID == "" {
 						continue
 					}
 					klog.V(4).Infof("update %s", entry.Instance)
