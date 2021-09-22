@@ -1,0 +1,47 @@
+{{- $preinstall := (merge (dict "name" "pre-install" "module" "pre-install") .) -}}
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: {{ include "liqo.prefixedName" $preinstall}}
+  labels:
+  {{- include "liqo.labels" $preinstall| nindent 4 }}
+  annotations:
+  {{- include "liqo.preInstallAnnotations" $preinstall| nindent 4 }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: {{ include "liqo.prefixedName" $preinstall}}
+  labels:
+  {{- include "liqo.labels" $preinstall| nindent 4 }}
+  annotations:
+  {{- include "liqo.preInstallAnnotations" $preinstall| nindent 4 }}
+subjects:
+  - kind: ServiceAccount
+    name: {{ include "liqo.prefixedName" $preinstall}}
+    namespace: {{ .Release.Namespace }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: {{ include "liqo.prefixedName" $preinstall}}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: {{ include "liqo.prefixedName" $preinstall}}
+  labels:
+  {{- include "liqo.labels" $preinstall| nindent 4 }}
+  annotations:
+  {{- include "liqo.preInstallAnnotations" $preinstall| nindent 4 }}
+{{ .Files.Get (include "liqo.cluster-role-filename" (dict "prefix" ( include "liqo.prefixedName" $preinstall))) }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: {{ include "liqo.prefixedName" $preinstall}}
+  labels:
+  {{- include "liqo.labels" $preinstall| nindent 4 }}
+  annotations:
+  {{- include "liqo.preInstallAnnotations" $preinstall| nindent 4 }}
+{{ .Files.Get (include "liqo.role-filename" (dict "prefix" ( include "liqo.prefixedName" $preinstall))) }}

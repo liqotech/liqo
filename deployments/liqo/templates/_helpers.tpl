@@ -142,6 +142,15 @@ Pre-delete hook Annotations
 {{- end }}
 
 {{/*
+Pre-install hook Annotations
+*/}}
+{{- define "liqo.preInstallAnnotations" -}}
+"helm.sh/hook": pre-install
+"helm.sh/hook-weight": "0"
+"helm.sh/hook-delete-policy": before-hook-creation,hook-succeeded
+{{- end }}
+
+{{/*
 Concatenates a values dictionary into a string in the form "--commandName=key1=val1,key2=val2"
 */}}
 {{- define "liqo.concatenateMap" -}}

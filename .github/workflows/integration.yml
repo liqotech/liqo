@@ -85,6 +85,7 @@ jobs:
         - uninstaller
         - virtual-kubelet
         - webhook-configuration
+        - preinstaller
     steps:
 
       - name: Set up QEMU
