@@ -50,3 +50,11 @@ rules:
   - patch
   - update
   - watch
+- apiGroups:
+  - metrics.k8s.io
+  resources:
+  - pods
+  verbs:
+  - get
+  - list
+  - watch
