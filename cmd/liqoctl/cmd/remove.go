@@ -40,9 +40,9 @@ func newRemoveClusterCommand(ctx context.Context) *cobra.Command {
 		Short: remove.LiqoctlRemoveShortHelp,
 		Long:  remove.LiqoctlRemoveLongHelp,
 		Args:  cobra.MinimumNArgs(1),
-		Run: func(cmd *cobra.Command, args []string) {
+		RunE: func(cmd *cobra.Command, args []string) error {
 			removeArgs.ClusterName = args[0]
-			remove.HandleRemoveCommand(ctx, removeArgs)
+			return remove.HandleRemoveCommand(ctx, removeArgs)
 		},
 	}
 

@@ -49,8 +49,10 @@ func (k *Kind) UpdateChartValues(values map[string]interface{}) {
 	}
 	values["discovery"] = map[string]interface{}{
 		"config": map[string]interface{}{
-			"clusterLabels": installutils.GetInterfaceMap(k.ClusterLabels),
-			"clusterName":   k.ClusterName,
+			"clusterLabels":       installutils.GetInterfaceMap(k.ClusterLabels),
+			"clusterName":         k.ClusterName,
+			"enableAdvertisement": true,
+			"enableDiscovery":     true,
 		},
 	}
 }
