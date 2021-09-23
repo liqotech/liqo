@@ -19,7 +19,6 @@ import (
 	"fmt"
 
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/klog/v2"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
@@ -34,22 +33,25 @@ type ClusterArgs struct {
 }
 
 // HandleRemoveCommand handles the remove command, configuring all the resources required to disable an outgoing peering.
-func HandleRemoveCommand(ctx context.Context, t *ClusterArgs) {
+func HandleRemoveCommand(ctx context.Context, t *ClusterArgs) error {
 	restConfig := common.GetLiqoctlRestConfOrDie()
 
 	k8sClient, err := client.New(restConfig, client.Options{})
 	if err != nil {
-		klog.Fatalf(err.Error())
+		return err
 	}
 
-	if err := processRemoveCluster(ctx, t, k8sClient); err != nil {
-		klog.Fatalf(err.Error())
+	err = processRemoveCluster(ctx, t, k8sClient)
+	if err != nil {
+		return err
 	}
 
 	err = printSuccessfulOutputMessage(ctx, t, k8sClient)
 	if err != nil {
-		klog.Fatalf(err.Error())
+		return err
 	}
+
+	return nil
 }
 
 func printSuccessfulOutputMessage(ctx context.Context, t *ClusterArgs, k8sClient client.Client) error {

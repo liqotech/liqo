@@ -118,9 +118,9 @@ discovery:
     # -- Allow (by default) the remote clusters to establish a peering with our cluster
     incomingPeeringEnabled: true
     # -- Enable the mDNS advertisement on LANs, set to false to not be discoverable from other clusters in the same LAN
-    enableAdvertisement: true
+    enableAdvertisement: false
     # -- Enable the mDNS discovery on LANs, set to false to not look for other clusters available in the same LAN
-    enableDiscovery: true
+    enableDiscovery: false
     # -- Time-to-live before an automatically discovered clusters is deleted from the list of available ones if no longer announced (in seconds)
     ttl: 90
 

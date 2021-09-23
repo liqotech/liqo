@@ -1,3 +1,5 @@
+{{- if or .Values.discovery.config.enableAdvertisement .Values.discovery.config.enableDiscovery }}
+
 ---
 {{- $discoveryConfig := (merge (dict "name" "discovery" "module" "discovery") .) -}}
 
@@ -54,3 +56,5 @@ metadata:
   labels:
   {{- include "liqo.labels" $discoveryConfig| nindent 4 }}
 {{ .Files.Get (include "liqo.role-filename" (dict "prefix" ( include "liqo.prefixedName" $discoveryConfig))) }}
+
+{{- end }}
