@@ -1520,6 +1520,11 @@ var _ = Describe("Ipam", func() {
 				err = updateIpamStorageResource(ipamStorage)
 				Expect(err).To(BeNil())
 
+				// Recreate the cached representation of the IPAM storage.
+				storage, err := NewIPAMStorage(dynClient)
+				Expect(err).ToNot(HaveOccurred())
+				ipam.ipamStorage = storage
+
 				// Add mapping to resource NatMapping
 				natMappingResource, err := getNatMappingResourcePerCluster(clusterID1)
 				Expect(err).To(BeNil())

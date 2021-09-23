@@ -106,15 +106,12 @@ func (liqoIPAM *IPAM) Init(pools []string, dynClient dynamic.Interface, listenin
 	// Set up storage
 	liqoIPAM.ipamStorage, err = NewIPAMStorage(dynClient)
 	if err != nil {
-		return fmt.Errorf("cannot set up storage for ipam:%w", err)
+		return fmt.Errorf("cannot set up storage for ipam: %w", err)
 	}
 	liqoIPAM.ipam = goipam.NewWithStorage(liqoIPAM.ipamStorage)
 
 	// Get resource
-	ipamPools, err := liqoIPAM.ipamStorage.getPools()
-	if err != nil {
-		return fmt.Errorf("cannot get Ipam config: %w", err)
-	}
+	ipamPools := liqoIPAM.ipamStorage.getPools()
 
 	// Have network pools been already set? If not, take them from caller
 	if len(ipamPools) == 0 {
@@ -232,11 +229,7 @@ func (liqoIPAM *IPAM) overlapsWithCluster(network string) (overlappingCluster st
 	var overlapsWithPodCIDR bool
 	var overlapsWithExternalCIDR bool
 	// Get cluster subnets
-	clusterSubnets, err := liqoIPAM.ipamStorage.getClusterSubnets()
-	if err != nil {
-		err = fmt.Errorf("cannot get Ipam config: %w", err)
-		return
-	}
+	clusterSubnets := liqoIPAM.ipamStorage.getClusterSubnets()
 	for cluster, subnets := range clusterSubnets {
 		overlapsWithPodCIDR, err = liqoIPAM.overlapsWithNetwork(network, subnets.RemotePodCIDR)
 		if err != nil {
@@ -257,11 +250,7 @@ func (liqoIPAM *IPAM) overlapsWithCluster(network string) (overlappingCluster st
 
 func (liqoIPAM *IPAM) overlapsWithPool(network string) (overlappingPool string, overlaps bool, err error) {
 	// Get resource
-	pools, err := liqoIPAM.ipamStorage.getPools()
-	if err != nil {
-		err = fmt.Errorf("cannot get Ipam config: %w", err)
-		return
-	}
+	pools := liqoIPAM.ipamStorage.getPools()
 	for _, pool := range pools {
 		overlaps, err = liqoIPAM.overlapsWithNetwork(network, pool)
 		if err != nil {
@@ -280,11 +269,7 @@ func (liqoIPAM *IPAM) getPoolFromNetwork(network string) (networkPool string, su
 	var poolIPset netaddr.IPSetBuilder
 	var c netaddr.IPPrefix
 	// Get resource
-	pools, err := liqoIPAM.ipamStorage.getPools()
-	if err != nil {
-		err = fmt.Errorf("cannot get Ipam config: %w", err)
-		return
-	}
+	pools := liqoIPAM.ipamStorage.getPools()
 	// Build IPSet for new network
 	ipprefix, err := netaddr.ParseIPPrefix(network)
 	if err != nil {
@@ -385,10 +370,7 @@ func (liqoIPAM *IPAM) GetSubnetsPerCluster(
 	var exists bool
 
 	// Get subnets of clusters
-	clusterSubnets, err := liqoIPAM.ipamStorage.getClusterSubnets()
-	if err != nil {
-		return "", "", fmt.Errorf("cannot get Ipam config: %w", err)
-	}
+	clusterSubnets := liqoIPAM.ipamStorage.getClusterSubnets()
 
 	// Check existence
 	subnets, exists := clusterSubnets[clusterID]
@@ -454,10 +436,7 @@ func (liqoIPAM *IPAM) GetSubnetsPerCluster(
 // getNetworkFromPool returns a network with mask length equal to mask taken by a network pool.
 func (liqoIPAM *IPAM) getNetworkFromPool(mask uint8) (string, error) {
 	// Get network pools
-	pools, err := liqoIPAM.ipamStorage.getPools()
-	if err != nil {
-		return "", fmt.Errorf("cannot get network pools: %w", err)
-	}
+	pools := liqoIPAM.ipamStorage.getPools()
 	// For each pool, try to get a network with mask length mask
 	for _, pool := range pools {
 		if mappedNetwork, err := liqoIPAM.ipam.AcquireChildPrefix(pool, mask); err == nil {
@@ -565,16 +544,10 @@ func (liqoIPAM *IPAM) RemoveClusterConfig(clusterID string) error {
 	}
 
 	// Get cluster subnets
-	clusterSubnets, err := liqoIPAM.ipamStorage.getClusterSubnets()
-	if err != nil {
-		return fmt.Errorf("cannot get cluster subnets: %w", err)
-	}
+	clusterSubnets := liqoIPAM.ipamStorage.getClusterSubnets()
 
 	// Get NatMappingsConfigured map
-	natMappingsConfigured, err := liqoIPAM.ipamStorage.getNatMappingsConfigured()
-	if err != nil {
-		return fmt.Errorf("cannot establish if NatMappings for cluster %s have been configured: %w", clusterID, err)
-	}
+	natMappingsConfigured := liqoIPAM.ipamStorage.getNatMappingsConfigured()
 
 	subnets, subnetsExist = clusterSubnets[clusterID]
 	_, natMappingsPerClusterConfigured = natMappingsConfigured[clusterID]
@@ -619,16 +592,12 @@ func (liqoIPAM *IPAM) RemoveClusterConfig(clusterID string) error {
 
 // initNatMappingsPerCluster is a wrapper for inflater InitNatMappingsPerCluster.
 func (liqoIPAM *IPAM) initNatMappingsPerCluster(clusterID string, subnets netv1alpha1.Subnets) error {
-	var err error
 	// InitNatMappingsPerCluster does need the Pod CIDR used in home cluster for remote pods (subnets.RemotePodCIDR)
 	// and the ExternalCIDR used in remote cluster for local exported resources.
 	var externalCIDR string
 	if subnets.LocalNATExternalCIDR == consts.DefaultCIDRValue {
 		// Remote cluster has not remapped home ExternalCIDR
-		externalCIDR, err = liqoIPAM.ipamStorage.getExternalCIDR()
-		if err != nil {
-			return fmt.Errorf("cannot retrieve cluster ExternalCIDR: %w", err)
-		}
+		externalCIDR = liqoIPAM.ipamStorage.getExternalCIDR()
 	} else {
 		externalCIDR = subnets.LocalNATExternalCIDR
 	}
@@ -659,10 +628,7 @@ func (liqoIPAM *IPAM) terminateNatMappingsPerCluster(clusterID string) error {
 	}
 
 	// Get endpointMappings
-	endpointMappings, err := liqoIPAM.ipamStorage.getEndpointMappings()
-	if err != nil {
-		return fmt.Errorf("cannot get Endpoint IPs: %w", err)
-	}
+	endpointMappings := liqoIPAM.ipamStorage.getEndpointMappings()
 
 	// Remove cluster from the list of clusters the endpoint is reflected in.
 	for ip := range natMappings {
@@ -672,8 +638,8 @@ func (liqoIPAM *IPAM) terminateNatMappingsPerCluster(clusterID string) error {
 			// There are no more clusters using this endpoint IP
 
 			// Get local ExternalCIDR
-			localExternalCIDR, err := liqoIPAM.ipamStorage.getExternalCIDR()
-			if err != nil || localExternalCIDR == emptyCIDR {
+			localExternalCIDR := liqoIPAM.ipamStorage.getExternalCIDR()
+			if localExternalCIDR == emptyCIDR {
 				return fmt.Errorf("cannot get ExternalCIDR: %w", err)
 			}
 			// Free IP
@@ -713,10 +679,7 @@ func (liqoIPAM *IPAM) terminateNatMappingsPerCluster(clusterID string) error {
 // AddNetworkPool adds a network to the set of network pools.
 func (liqoIPAM *IPAM) AddNetworkPool(network string) error {
 	// Get resource
-	ipamPools, err := liqoIPAM.ipamStorage.getPools()
-	if err != nil {
-		return fmt.Errorf("cannot get Ipam config: %w", err)
-	}
+	ipamPools := liqoIPAM.ipamStorage.getPools()
 	// Check overlapping with existing pools
 	// Either this and the following checks are carried out also within NewPrefix.
 	// Perform them here permits a more detailed error description.
@@ -753,15 +716,9 @@ func (liqoIPAM *IPAM) AddNetworkPool(network string) error {
 // RemoveNetworkPool removes a network from the set of network pools.
 func (liqoIPAM *IPAM) RemoveNetworkPool(network string) error {
 	// Get resource
-	ipamPools, err := liqoIPAM.ipamStorage.getPools()
-	if err != nil {
-		return fmt.Errorf("cannot get Ipam config: %w", err)
-	}
+	ipamPools := liqoIPAM.ipamStorage.getPools()
 	// Get cluster subnets
-	clusterSubnets, err := liqoIPAM.ipamStorage.getClusterSubnets()
-	if err != nil {
-		return fmt.Errorf("cannot get cluster subnets: %w", err)
-	}
+	clusterSubnets := liqoIPAM.ipamStorage.getClusterSubnets()
 	// Check existence
 	if exists := slice.ContainsString(ipamPools, network); !exists {
 		return fmt.Errorf("network %s is not a network pool", network)
@@ -819,16 +776,10 @@ func (liqoIPAM *IPAM) AddLocalSubnetsPerCluster(podCIDR, externalCIDR, clusterID
 	}
 
 	// Get cluster subnets
-	clusterSubnets, err := liqoIPAM.ipamStorage.getClusterSubnets()
-	if err != nil {
-		return fmt.Errorf("cannot get cluster subnets: %w", err)
-	}
+	clusterSubnets := liqoIPAM.ipamStorage.getClusterSubnets()
 
 	// Get NatMappingsConfigured map
-	natMappingsConfigured, err := liqoIPAM.ipamStorage.getNatMappingsConfigured()
-	if err != nil {
-		return fmt.Errorf("cannot establish if NatMappings for cluster %s have been configured: %w", clusterID, err)
-	}
+	natMappingsConfigured := liqoIPAM.ipamStorage.getNatMappingsConfigured()
 
 	// Check existence of subnets struct and NatMappings have already been configured
 	subnets, subnetsExist = clusterSubnets[clusterID]
@@ -881,10 +832,7 @@ func (liqoIPAM *IPAM) RemoveLocalSubnetsPerCluster(clusterID string) error {
 	var subnets netv1alpha1.Subnets
 
 	// Get cluster subnets
-	clusterSubnets, err := liqoIPAM.ipamStorage.getClusterSubnets()
-	if err != nil {
-		return fmt.Errorf("cannot get cluster subnets: %w", err)
-	}
+	clusterSubnets := liqoIPAM.ipamStorage.getClusterSubnets()
 	// Check existence
 	subnets, exists = clusterSubnets[clusterID]
 	if !exists || (subnets.LocalNATPodCIDR == "" && subnets.LocalNATExternalCIDR == "") {
@@ -909,10 +857,7 @@ func (liqoIPAM *IPAM) GetExternalCIDR(mask uint8) (string, error) {
 	var err error
 
 	// Get cluster ExternalCIDR
-	externalCIDR, err = liqoIPAM.ipamStorage.getExternalCIDR()
-	if err != nil {
-		return "", fmt.Errorf("cannot get ExternalCIDR: %w", err)
-	}
+	externalCIDR = liqoIPAM.ipamStorage.getExternalCIDR()
 	if externalCIDR != "" {
 		return externalCIDR, nil
 	}
@@ -943,16 +888,10 @@ Further invocations passing the same IP won't acquire a new IP, but will use the
 func (liqoIPAM *IPAM) mapIPToExternalCIDR(clusterID, remoteExternalCIDR, ip string) (string, error) {
 	var externalCIDR string
 	// Get endpointMappings
-	endpointMappings, err := liqoIPAM.ipamStorage.getEndpointMappings()
-	if err != nil {
-		return "", fmt.Errorf("cannot get Endpoint IPs: %w", err)
-	}
+	endpointMappings := liqoIPAM.ipamStorage.getEndpointMappings()
 
 	// Get local ExternalCIDR
-	localExternalCIDR, err := liqoIPAM.ipamStorage.getExternalCIDR()
-	if err != nil {
-		return "", fmt.Errorf("cannot get ExternalCIDR: %w", err)
-	}
+	localExternalCIDR := liqoIPAM.ipamStorage.getExternalCIDR()
 
 	if remoteExternalCIDR == "None" {
 		externalCIDR = localExternalCIDR
@@ -1018,18 +957,15 @@ func (liqoIPAM *IPAM) mapEndpointIPInternal(clusterID, ip string) (string, error
 	defer liqoIPAM.mutex.Unlock()
 
 	// Get cluster subnets
-	clusterSubnets, err := liqoIPAM.ipamStorage.getClusterSubnets()
-	if err != nil {
-		return "", fmt.Errorf("cannot get cluster subnets:%w", err)
-	}
+	clusterSubnets := liqoIPAM.ipamStorage.getClusterSubnets()
 	subnets, exists = clusterSubnets[clusterID]
 	if !exists {
 		return "", fmt.Errorf("cluster %s has not a network configuration", clusterID)
 	}
 
 	// Get PodCIDR
-	podCIDR, err := liqoIPAM.ipamStorage.getPodCIDR()
-	if err != nil || podCIDR == emptyCIDR {
+	podCIDR := liqoIPAM.ipamStorage.getPodCIDR()
+	if podCIDR == emptyCIDR {
 		return "", fmt.Errorf("cannot get cluster PodCIDR: %w", err)
 	}
 
@@ -1119,10 +1055,7 @@ func (liqoIPAM *IPAM) getHomePodIPInternal(clusterID, ip string) (string, error)
 	defer liqoIPAM.mutex.Unlock()
 
 	// Get cluster subnets
-	clusterSubnets, err := liqoIPAM.ipamStorage.getClusterSubnets()
-	if err != nil {
-		return "", fmt.Errorf("cannot get cluster subnets:%w", err)
-	}
+	clusterSubnets := liqoIPAM.ipamStorage.getClusterSubnets()
 	subnets, exists := clusterSubnets[clusterID]
 
 	// Check if RemotePodCIDR is set
@@ -1153,16 +1086,10 @@ func (liqoIPAM *IPAM) unmapEndpointIPInternal(clusterID, endpointIP string) erro
 	defer liqoIPAM.mutex.Unlock()
 
 	// Get endpointMappings
-	endpointMappings, err := liqoIPAM.ipamStorage.getEndpointMappings()
-	if err != nil {
-		return fmt.Errorf("cannot get Endpoint IPs: %w", err)
-	}
+	endpointMappings := liqoIPAM.ipamStorage.getEndpointMappings()
 
 	// Get local ExternalCIDR
-	localExternalCIDR, err := liqoIPAM.ipamStorage.getExternalCIDR()
-	if err != nil {
-		return fmt.Errorf("cannot get ExternalCIDR: %w", err)
-	}
+	localExternalCIDR := liqoIPAM.ipamStorage.getExternalCIDR()
 
 	endpointMapping, exists := endpointMappings[endpointIP]
 	if !exists {
@@ -1220,13 +1147,9 @@ func (liqoIPAM *IPAM) UnmapEndpointIP(ctx context.Context, unmapRequest *UnmapRe
 // SetPodCIDR sets the PodCIDR.
 func (liqoIPAM *IPAM) SetPodCIDR(podCIDR string) error {
 	var oldPodCIDR string
-	var err error
 
 	// Get PodCIDR
-	oldPodCIDR, err = liqoIPAM.ipamStorage.getPodCIDR()
-	if err != nil {
-		return fmt.Errorf("cannot get PodCIDR:%w", err)
-	}
+	oldPodCIDR = liqoIPAM.ipamStorage.getPodCIDR()
 	if oldPodCIDR != "" && oldPodCIDR != podCIDR {
 		return fmt.Errorf("trying to change PodCIDR")
 	}
@@ -1247,13 +1170,9 @@ func (liqoIPAM *IPAM) SetPodCIDR(podCIDR string) error {
 // SetServiceCIDR sets the ServiceCIDR.
 func (liqoIPAM *IPAM) SetServiceCIDR(serviceCIDR string) error {
 	var oldServiceCIDR string
-	var err error
 
 	// Get ServiceCIDR
-	oldServiceCIDR, err = liqoIPAM.ipamStorage.getServiceCIDR()
-	if err != nil {
-		return fmt.Errorf("cannot get ServiceCIDR:%w", err)
-	}
+	oldServiceCIDR = liqoIPAM.ipamStorage.getServiceCIDR()
 	if oldServiceCIDR != "" && oldServiceCIDR != serviceCIDR {
 		return fmt.Errorf("trying to change ServiceCIDR")
 	}
