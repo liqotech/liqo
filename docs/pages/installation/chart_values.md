@@ -43,8 +43,8 @@ weight: 5
 | discovery.config.autojoin | bool | `true` | Automatically join discovered clusters |
 | discovery.config.clusterLabels | object | `{}` | A set of labels which characterizes the local cluster when exposed remotely as a virtual node. It is suggested to specify the distinguishing characteristics that may be used to decide whether to offload pods on this cluster. |
 | discovery.config.clusterName | string | `""` | Set a mnemonic name for your cluster |
-| discovery.config.enableAdvertisement | bool | `true` | Enable the mDNS advertisement on LANs, set to false to not be discoverable from other clusters in the same LAN |
-| discovery.config.enableDiscovery | bool | `true` | Enable the mDNS discovery on LANs, set to false to not look for other clusters available in the same LAN |
+| discovery.config.enableAdvertisement | bool | `false` | Enable the mDNS advertisement on LANs, set to false to not be discoverable from other clusters in the same LAN |
+| discovery.config.enableDiscovery | bool | `false` | Enable the mDNS discovery on LANs, set to false to not look for other clusters available in the same LAN |
 | discovery.config.incomingPeeringEnabled | bool | `true` | Allow (by default) the remote clusters to establish a peering with our cluster |
 | discovery.config.ttl | int | `90` | Time-to-live before an automatically discovered clusters is deleted from the list of available ones if no longer announced (in seconds) |
 | discovery.imageName | string | `"liqo/discovery"` | discovery image repository |

@@ -425,6 +425,8 @@ function install_liqo() {
 		--set auth.config.enableAuthentication=false \
 		--set auth.service.type="NodePort" \
 		--set gateway.service.type="NodePort" \
+		--set discovery.config.enableAdvertisement=true \
+		--set discovery.config.enableDiscovery=true \
         > /dev/null || fatal "[INSTALL]" "Something went wrong while installing Liqo"
 
 	info "[INSTALL]" "Hooray! Liqo is now installed on your cluster"

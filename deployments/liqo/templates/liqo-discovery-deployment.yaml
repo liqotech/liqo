@@ -1,3 +1,5 @@
+{{- if or .Values.discovery.config.enableAdvertisement .Values.discovery.config.enableDiscovery }}
+
 ---
 {{- $discoveryConfig := (merge (dict "name" "discovery" "module" "discovery") .) -}}
 
@@ -11,10 +13,8 @@ spec:
   selector:
     matchLabels:
       {{- include "liqo.selectorLabels" $discoveryConfig | nindent 6 }}
-  {{- if or ( eq .Values.discovery.config.enableAdvertisement true ) ( eq .Values.discovery.config.enableDiscovery true ) }}
   strategy:
     type: Recreate
-  {{- end }}
   template:
     metadata:
       labels:
@@ -56,6 +56,6 @@ spec:
             requests:
               cpu: 50m
               memory: 50M
-      {{- if or ( eq .Values.discovery.config.enableAdvertisement true ) ( eq .Values.discovery.config.enableDiscovery true ) }}
       hostNetwork: true
-      {{- end }}
+
+{{- end }}
