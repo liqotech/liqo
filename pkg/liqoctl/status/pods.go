@@ -74,13 +74,13 @@ func newCollectionError(appType, appName string, err error) collectionError {
 // value -> errorCount for the given pod.
 type errorCountMap map[string]*errorCount
 
-// podState counts the number of pods in a particular state for a given deployment.
-type podState struct {
-	// errorFlag set to true if no errors are present.
+// componentState counts the number of pods in a particular state for a given deployment.
+type componentState struct {
+	// errorFlag set to true if errors are present.
 	errorFlag bool
 
-	// deploymentType is the type of deployment ("Deployment", "DaemonSet", ...).
-	deploymentType string
+	// controllerType is the type of deployment ("Deployment", "DaemonSet", ...).
+	controllerType string
 
 	// desired is the number of desired pods to be scheduled.
 	desired int
@@ -103,27 +103,28 @@ type podState struct {
 
 // podStateMap is a map with:
 // key -> name of the Liqo component;
-// value -> podState.
-type podStateMap map[string]podState
+// value -> componentState.
+type podStateMap map[string]componentState
 
-func newPodState(dType string) podState {
-	return podState{
-		deploymentType: dType,
+func newComponentState(dType string) componentState {
+	return componentState{
+		controllerType: dType,
+		errors:         errorCountMap{},
 	}
 }
 
 // getImages returns the images used by the current deployment/application.
-func (ps *podState) getImages() []string {
+func (ps *componentState) getImages() []string {
 	return ps.imageVersions
 }
 
 // setImages sets the images passed as argument.
-func (ps *podState) setImages(images []string) {
+func (ps *componentState) setImages(images []string) {
 	ps.imageVersions = images
 }
 
 // addImageVersion adds an image version to the existing ones.
-func (ps *podState) addImageVersion(imageVersion string) {
+func (ps *componentState) addImageVersion(imageVersion string) {
 	iv := ps.getImages()
 	if !(slice.ContainsString(iv, imageVersion)) {
 		iv = append(iv, imageVersion)
@@ -132,13 +133,8 @@ func (ps *podState) addImageVersion(imageVersion string) {
 }
 
 // getErrorCount returns the errorCount for given pod belonging to the current deployment/application.
-func (ps *podState) getErrorCount(pod string) *errorCount {
-	var errors errorCountMap
-	// Get the errorCountMap for the current deployment.
-	if ps.errors == nil {
-		ps.errors = errorCountMap{}
-	}
-	errors = ps.errors
+func (ps *componentState) getErrorCount(pod string) *errorCount {
+	errors := ps.errors
 	// If the errorCount for the given pod does not exist then create and set it for the given pod.
 	if errors[pod] == nil {
 		errors[pod] = &errorCount{}
@@ -147,10 +143,10 @@ func (ps *podState) getErrorCount(pod string) *errorCount {
 	return errors[pod]
 }
 
-// addErrorPerPod adds an error for a given pod belonging to che current deployment/application.
+// addErrorForPod adds an error for a given pod belonging to che current deployment/application.
 // At the same time the errorFlag is set to true. This way the components having an error could be
 // discerned from the error free components.
-func (ps *podState) addErrorPerPod(pod string, err error) {
+func (ps *componentState) addErrorForPod(pod string, err error) {
 	eCount := ps.getErrorCount(pod)
 	eCount.errors = append(eCount.errors, err)
 	// set error flag to true.
@@ -158,7 +154,7 @@ func (ps *podState) addErrorPerPod(pod string, err error) {
 }
 
 // format returns a string describing the status of the current deployment/application.
-func (ps *podState) format() string {
+func (ps *componentState) format() string {
 	var outputTokens []string
 
 	if ps.desired > 0 {
@@ -188,6 +184,8 @@ func (ps *podState) format() string {
 // podChecker implements the Check interface.
 // holds the information about the control plane pods of Liqo.
 type podChecker struct {
+	deployments      []string
+	daemonSets       []string
 	client           k8s.Interface
 	namespace        string
 	name             string
@@ -197,13 +195,15 @@ type podChecker struct {
 }
 
 // newPodChecker return a new pod checker.
-func newPodChecker(namespace string, client k8s.Interface) *podChecker {
+func newPodChecker(namespace string, deployments, daemonSets []string, client k8s.Interface) *podChecker {
 	return &podChecker{
-		client:    client,
-		namespace: namespace,
-		name:      checkerName,
-		podsState: make(podStateMap, 6),
-		errors:    false,
+		deployments: deployments,
+		daemonSets:  daemonSets,
+		client:      client,
+		namespace:   namespace,
+		name:        checkerName,
+		podsState:   make(podStateMap, 6),
+		errors:      false,
 	}
 }
 
@@ -211,7 +211,7 @@ func newPodChecker(namespace string, client k8s.Interface) *podChecker {
 // it collects the status of the components of Liqo. The status is
 // collected at the pod level.
 func (pc *podChecker) Collect(ctx context.Context) error {
-	for _, dName := range liqoDeployments {
+	for _, dName := range pc.deployments {
 		err := pc.deploymentStatus(ctx, dName)
 		if err != nil {
 			pc.addCollectionError("Deployment", dName, fmt.Errorf("unable to collect status for deployment %s in namespace %s: %w", dName, pc.namespace, err))
@@ -219,7 +219,7 @@ func (pc *podChecker) Collect(ctx context.Context) error {
 		}
 	}
 
-	for _, dName := range liqoDaemonSets {
+	for _, dName := range pc.daemonSets {
 		err := pc.daemonSetStatus(ctx, dName)
 		if err != nil {
 			pc.addCollectionError("DaemonSet", dName, fmt.Errorf("unable to collect status for daemonSet %s in namespace %s: %w", dName, pc.namespace, err))
@@ -246,10 +246,10 @@ func (pc *podChecker) Format() (string, error) {
 			fmt.Fprintf(w, "%s liqo control plane is not OK\n", redCross)
 			for deployment, podState := range pc.podsState {
 				if podState.errorFlag {
-					fmt.Fprintf(w, "%s\t%s\t%s\n", podState.deploymentType, deployment, podState.format())
+					fmt.Fprintf(w, "%s\t%s\t%s\n", podState.controllerType, deployment, podState.format())
 					for pod, errorCol := range podState.errors {
 						for _, err := range errorCol.errors {
-							fmt.Fprintf(w, "%s\t%s\tPod\t%s\t%s\n", podState.deploymentType, deployment, pod, err)
+							fmt.Fprintf(w, "%s\t%s\tPod\t%s\t%s\n", podState.controllerType, deployment, pod, err)
 						}
 					}
 				}
@@ -281,7 +281,7 @@ func (pc *podChecker) deploymentStatus(ctx context.Context, deploymentName strin
 		return fmt.Errorf("deployment %s seems to be unavailable", deploymentName)
 	}
 
-	dState := newPodState("Deployment")
+	dState := newComponentState("Deployment")
 	dState.desired = int(d.Status.Replicas)
 	dState.ready = int(d.Status.ReadyReplicas)
 	dState.unavailable = int(d.Status.UnavailableReplicas)
@@ -318,7 +318,7 @@ func (pc *podChecker) daemonSetStatus(ctx context.Context, daemonSetName string)
 		return fmt.Errorf("daemonSet %s seems to be unavailable", daemonSetName)
 	}
 
-	dState := newPodState("DaemonSet")
+	dState := newComponentState("DaemonSet")
 	dState.desired = int(d.Status.DesiredNumberScheduled)
 	dState.ready = int(d.Status.NumberReady)
 	dState.unavailable = int(d.Status.NumberUnavailable)
@@ -349,9 +349,9 @@ func (pc *podChecker) addCollectionError(deploymentType, deploymenName string, e
 	pc.collectionErrors = append(pc.collectionErrors, newCollectionError(deploymentType, deploymenName, err))
 }
 
-// checkPodsStatus fills the podState data structure for a given pod.
+// checkPodsStatus fills the componentState data structure for a given pod.
 // It returns a bool value which is set to true if the pod is not up and running, meaning there are errors.
-func checkPodsStatus(podsList []corev1.Pod, dState *podState) bool {
+func checkPodsStatus(podsList []corev1.Pod, dState *componentState) bool {
 	var errorBool bool
 	for i := range podsList {
 		pod := podsList[i]
@@ -372,17 +372,17 @@ func checkPodsStatus(podsList []corev1.Pod, dState *podState) bool {
 			switch cond.Type {
 			case corev1.PodScheduled:
 				if cond.Status != corev1.ConditionTrue {
-					dState.addErrorPerPod(podName, fmt.Errorf("not scheduled"))
+					dState.addErrorForPod(podName, fmt.Errorf("not scheduled"))
 					errorBool = true
 				}
 			case corev1.PodReady:
 				if cond.Status != corev1.ConditionTrue {
-					dState.addErrorPerPod(podName, fmt.Errorf("not ready"))
+					dState.addErrorForPod(podName, fmt.Errorf("not ready"))
 					errorBool = true
 				}
 			case corev1.PodInitialized:
 				if cond.Status != corev1.ConditionTrue {
-					dState.addErrorPerPod(podName, fmt.Errorf("not initialized"))
+					dState.addErrorForPod(podName, fmt.Errorf("not initialized"))
 					errorBool = true
 				}
 			default:
