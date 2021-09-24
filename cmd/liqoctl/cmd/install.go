@@ -37,7 +37,7 @@ func newInstallCommand(ctx context.Context) *cobra.Command {
 	installCmd.PersistentFlags().BoolP("only-output-values", "", false, "Generate a values file for further customization")
 	installCmd.PersistentFlags().StringP("dump-values-path", "", "./values.yaml", "Path for the output value file")
 	installCmd.PersistentFlags().BoolP("dry-run", "", false, "Simulate an install")
-	installCmd.PersistentFlags().BoolP("enable-lan-discovery", "", true, "Enable LAN discovery")
+	installCmd.PersistentFlags().BoolP("enable-lan-discovery", "", false, "Enable LAN discovery")
 	installCmd.PersistentFlags().StringP("cluster-labels", "", "",
 		"Cluster Labels to append to Liqo Cluster, supports '='.(e.g. --cluster-labels key1=value1,key2=value2)")
 	installCmd.PersistentFlags().BoolP("disable-endpoint-check", "", false,

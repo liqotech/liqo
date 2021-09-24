@@ -19,9 +19,11 @@ import (
 	"fmt"
 
 	appsv1 "k8s.io/api/apps/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/util/retry"
 	"k8s.io/utils/pointer"
@@ -33,6 +35,9 @@ import (
 func ScaleDiscoveryDeployment(ctx context.Context, client dynamic.Interface, liqoNamespace string) error {
 	return retry.RetryOnConflict(retry.DefaultBackoff, func() error {
 		deploy, err := getDiscoveryDeployment(ctx, client, liqoNamespace)
+		if apierrors.IsNotFound(err) {
+			return nil
+		}
 		if err != nil {
 			return err
 		}
@@ -64,9 +69,16 @@ func getDiscoveryDeployment(ctx context.Context, client dynamic.Interface, liqoN
 		return nil, err
 	}
 
-	if len(deployments.Items) != 1 {
+	switch len(deployments.Items) {
+	case 0:
+		err = apierrors.NewNotFound(schema.GroupResource{
+			Group:    "apps/v1",
+			Resource: "deployments",
+		}, "liqo-discovery")
+		return nil, err
+	case 1:
+		return &deployments.Items[0], nil
+	default:
 		return nil, fmt.Errorf("unexpected number of discovery deployments found: %v", len(deployments.Items))
 	}
-
-	return &deployments.Items[0], nil
 }
