@@ -188,6 +188,8 @@ func (ps *podState) format() string {
 // podChecker implements the Check interface.
 // holds the information about the control plane pods of Liqo.
 type podChecker struct {
+	deployments      []string
+	daemonSets       []string
 	client           k8s.Interface
 	namespace        string
 	name             string
@@ -197,13 +199,15 @@ type podChecker struct {
 }
 
 // newPodChecker return a new pod checker.
-func newPodChecker(namespace string, client k8s.Interface) *podChecker {
+func newPodChecker(namespace string, deployments, daemonSets []string, client k8s.Interface) *podChecker {
 	return &podChecker{
-		client:    client,
-		namespace: namespace,
-		name:      checkerName,
-		podsState: make(podStateMap, 6),
-		errors:    false,
+		deployments: deployments,
+		daemonSets:  daemonSets,
+		client:      client,
+		namespace:   namespace,
+		name:        checkerName,
+		podsState:   make(podStateMap, 6),
+		errors:      false,
 	}
 }
 
@@ -211,7 +215,7 @@ func newPodChecker(namespace string, client k8s.Interface) *podChecker {
 // it collects the status of the components of Liqo. The status is
 // collected at the pod level.
 func (pc *podChecker) Collect(ctx context.Context) error {
-	for _, dName := range liqoDeployments {
+	for _, dName := range pc.deployments {
 		err := pc.deploymentStatus(ctx, dName)
 		if err != nil {
 			pc.addCollectionError("Deployment", dName, fmt.Errorf("unable to collect status for deployment %s in namespace %s: %w", dName, pc.namespace, err))
@@ -219,7 +223,7 @@ func (pc *podChecker) Collect(ctx context.Context) error {
 		}
 	}
 
-	for _, dName := range liqoDaemonSets {
+	for _, dName := range pc.daemonSets {
 		err := pc.daemonSetStatus(ctx, dName)
 		if err != nil {
 			pc.addCollectionError("DaemonSet", dName, fmt.Errorf("unable to collect status for daemonSet %s in namespace %s: %w", dName, pc.namespace, err))
