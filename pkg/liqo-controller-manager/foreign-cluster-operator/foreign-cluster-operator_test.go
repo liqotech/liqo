@@ -1183,6 +1183,25 @@ var _ = Describe("PeeringPolicy", func() {
 				},
 				expected: BeTrue(),
 			}),
+
+			Entry("foreign cluster with deletion timestamp set", isPeeringEnabledTestcase{
+				foreignCluster: discoveryv1alpha1.ForeignCluster{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "foreign-cluster",
+						Labels: map[string]string{
+							discovery.DiscoveryTypeLabel: string(discovery.LanDiscovery),
+							discovery.ClusterIDLabel:     "foreign-cluster",
+						},
+						DeletionTimestamp: &metav1.Time{Time: time.Now()},
+					},
+					Spec: discoveryv1alpha1.ForeignClusterSpec{
+						OutgoingPeeringEnabled: discoveryv1alpha1.PeeringEnabledYes,
+						IncomingPeeringEnabled: discoveryv1alpha1.PeeringEnabledAuto,
+						InsecureSkipTLSVerify:  pointer.BoolPtr(true),
+					},
+				},
+				expected: BeFalse(),
+			}),
 		)
 
 	})

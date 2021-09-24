@@ -51,6 +51,10 @@ func (r *ForeignClusterReconciler) getDesiredOutgoingPeeringState(ctx context.Co
 
 func (r *ForeignClusterReconciler) isOutgoingPeeringEnabled(ctx context.Context,
 	foreignCluster *discoveryv1alpha1.ForeignCluster) (bool, error) {
+	if !foreignCluster.GetDeletionTimestamp().IsZero() {
+		return false, nil
+	}
+
 	switch foreignCluster.Spec.OutgoingPeeringEnabled {
 	case discoveryv1alpha1.PeeringEnabledNo:
 		return false, nil
