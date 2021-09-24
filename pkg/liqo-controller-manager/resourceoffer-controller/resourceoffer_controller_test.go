@@ -36,7 +36,6 @@ import (
 
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	sharingv1alpha1 "github.com/liqotech/liqo/apis/sharing/v1alpha1"
-	crdreplicator "github.com/liqotech/liqo/internal/crdReplicator"
 	"github.com/liqotech/liqo/pkg/consts"
 	"github.com/liqotech/liqo/pkg/discovery"
 	"github.com/liqotech/liqo/pkg/utils/testutil"
@@ -158,8 +157,8 @@ var _ = Describe("ResourceOffer Controller", func() {
 					Name:      "resource-offer",
 					Namespace: testNamespace,
 					Labels: map[string]string{
-						crdreplicator.RemoteLabelSelector:    "origin-cluster-id",
-						crdreplicator.ReplicationStatuslabel: "true",
+						consts.ReplicationOriginLabel: "origin-cluster-id",
+						consts.ReplicationStatusLabel: "true",
 					},
 				},
 				Spec: sharingv1alpha1.ResourceOfferSpec{
@@ -192,8 +191,8 @@ var _ = Describe("ResourceOffer Controller", func() {
 					Name:      "resource-offer",
 					Namespace: testNamespace,
 					Labels: map[string]string{
-						crdreplicator.RemoteLabelSelector:    "origin-cluster-id",
-						crdreplicator.ReplicationStatuslabel: "true",
+						consts.ReplicationOriginLabel: "origin-cluster-id",
+						consts.ReplicationStatusLabel: "true",
 					},
 				},
 				Spec: sharingv1alpha1.ResourceOfferSpec{

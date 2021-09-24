@@ -17,11 +17,9 @@ package netcfgcreator
 import (
 	"context"
 	"errors"
-	"strconv"
 
 	corev1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/client-go/util/workqueue"
@@ -35,7 +33,7 @@ import (
 
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	netv1alpha1 "github.com/liqotech/liqo/apis/net/v1alpha1"
-	crdreplicator "github.com/liqotech/liqo/internal/crdReplicator"
+	"github.com/liqotech/liqo/internal/crdReplicator/reflection"
 	foreigncluster "github.com/liqotech/liqo/pkg/utils/foreignCluster"
 	"github.com/liqotech/liqo/pkg/utils/syncset"
 	traceutils "github.com/liqotech/liqo/pkg/utils/trace"
@@ -114,18 +112,13 @@ func (ncc *NetworkConfigCreator) SetupWithManager(mgr ctrl.Manager) error {
 	ncc.secretWatcher = NewSecretWatcher(enqueuefn)
 	ncc.serviceWatcher = NewServiceWatcher(enqueuefn)
 
-	netcfgPredicate, err := predicate.LabelSelectorPredicate(metav1.LabelSelector{
-		MatchExpressions: []metav1.LabelSelectorRequirement{{
-			Key:      crdreplicator.LocalLabelSelector,
-			Operator: metav1.LabelSelectorOpIn,
-			Values:   []string{strconv.FormatBool(true)},
-		}},
-	})
+	localNetcfg, err := predicate.LabelSelectorPredicate(reflection.LocalResourcesLabelSelector())
 	utilruntime.Must(err)
 
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&discoveryv1alpha1.ForeignCluster{}).
-		Owns(&netv1alpha1.NetworkConfig{}, builder.WithPredicates(netcfgPredicate)).
+		Owns(&netv1alpha1.NetworkConfig{}, builder.WithPredicates(
+			predicate.Or(predicate.GenerationChangedPredicate{}, predicate.LabelChangedPredicate{}), localNetcfg)).
 		Watches(&source.Kind{Type: &corev1.Secret{}}, ncc.secretWatcher.Handlers(), builder.WithPredicates(ncc.secretWatcher.Predicates())).
 		Watches(&source.Kind{Type: &corev1.Service{}}, ncc.serviceWatcher.Handlers(), builder.WithPredicates(ncc.serviceWatcher.Predicates())).
 		Complete(ncc)

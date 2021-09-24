@@ -38,7 +38,6 @@ import (
 
 	netv1alpha1 "github.com/liqotech/liqo/apis/net/v1alpha1"
 	sharingv1alpha1 "github.com/liqotech/liqo/apis/sharing/v1alpha1"
-	crdreplicator "github.com/liqotech/liqo/internal/crdReplicator"
 	"github.com/liqotech/liqo/pkg/consts"
 	"github.com/liqotech/liqo/pkg/utils/testutil"
 )
@@ -190,7 +189,7 @@ var _ = Describe("NodeProvider", func() {
 					Name:      resourceRequestName,
 					Namespace: kubeletNamespace,
 					Labels: map[string]string{
-						crdreplicator.RemoteLabelSelector: foreignClusterID,
+						consts.ReplicationOriginLabel: foreignClusterID,
 					},
 				},
 				Spec: sharingv1alpha1.ResourceOfferSpec{
@@ -252,7 +251,7 @@ var _ = Describe("NodeProvider", func() {
 					Name:      resourceRequestName,
 					Namespace: kubeletNamespace,
 					Labels: map[string]string{
-						crdreplicator.RemoteLabelSelector: foreignClusterID,
+						consts.ReplicationOriginLabel: foreignClusterID,
 					},
 				},
 				Spec: sharingv1alpha1.ResourceOfferSpec{

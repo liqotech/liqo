@@ -17,6 +17,7 @@ package main
 import (
 	"flag"
 	"os"
+	"time"
 
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/dynamic"
@@ -27,15 +28,15 @@ import (
 
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	crdreplicator "github.com/liqotech/liqo/internal/crdReplicator"
+	"github.com/liqotech/liqo/internal/crdReplicator/reflection"
+	"github.com/liqotech/liqo/internal/crdReplicator/resources"
 	identitymanager "github.com/liqotech/liqo/pkg/identityManager"
 	"github.com/liqotech/liqo/pkg/mapperUtils"
 	tenantnamespace "github.com/liqotech/liqo/pkg/tenantNamespace"
 	"github.com/liqotech/liqo/pkg/utils/restcfg"
 )
 
-var (
-	scheme = runtime.NewScheme()
-)
+var scheme = runtime.NewScheme()
 
 func init() {
 	_ = clientgoscheme.AddToScheme(scheme)
@@ -44,12 +45,19 @@ func init() {
 }
 
 func main() {
-	clusterID := flag.String("cluster-id", "", "The cluster ID of identifying the current cluster")
+	clusterID := flag.String("cluster-id", "", "The cluster ID identifying the current cluster")
+	resyncPeriod := flag.Duration("resync-period", 10*time.Hour, "The resync period for the informers")
+	workers := flag.Uint("workers", 1, "The number of workers managing the reflection of each remote cluster")
 
 	restcfg.InitFlags(nil)
 	klog.InitFlags(nil)
 
 	flag.Parse()
+
+	if *clusterID == "" {
+		klog.Error("The Cluster ID must be provided")
+		os.Exit(1)
+	}
 
 	cfg := restcfg.SetRateLimiter(ctrl.GetConfigOrDie())
 	mgr, err := ctrl.NewManager(cfg, ctrl.Options{
@@ -66,25 +74,24 @@ func main() {
 	k8sClient := kubernetes.NewForConfigOrDie(cfg)
 
 	namespaceManager := tenantnamespace.NewTenantNamespaceManager(k8sClient)
+
 	dynClient := dynamic.NewForConfigOrDie(cfg)
 
+	ctx := ctrl.SetupSignalHandler()
+	reflectionManager := reflection.NewManager(dynClient, *clusterID, *workers, *resyncPeriod)
+	reflectionManager.Start(ctx, resources.GetResourcesToReplicate())
+
 	d := &crdreplicator.Controller{
-		Scheme:              mgr.GetScheme(),
-		Client:              mgr.GetClient(),
-		ClientSet:           k8sClient,
-		ClusterID:           *clusterID,
-		RemoteDynClients:    make(map[string]dynamic.Interface),
-		LocalDynClient:      dynClient,
-		RegisteredResources: crdreplicator.GetResourcesToReplicate(),
-		LocalWatchers:       make(map[string]chan struct{}),
-		RemoteWatchers:      make(map[string]map[string]chan struct{}),
-		NamespaceManager:    namespaceManager,
+		Scheme:    mgr.GetScheme(),
+		Client:    mgr.GetClient(),
+		ClusterID: *clusterID,
+
+		RegisteredResources: resources.GetResourcesToReplicate(),
+		ReflectionManager:   reflectionManager,
+		Reflectors:          make(map[string]*reflection.Reflector),
+
 		IdentityReader: identitymanager.NewCertificateIdentityReader(
 			k8sClient, *clusterID, namespaceManager),
-		LocalToRemoteNamespaceMapper:     map[string]string{},
-		RemoteToLocalNamespaceMapper:     map[string]string{},
-		ClusterIDToLocalNamespaceMapper:  map[string]string{},
-		ClusterIDToRemoteNamespaceMapper: map[string]string{},
 	}
 	if err = d.SetupWithManager(mgr); err != nil {
 		klog.Error(err, "unable to setup the crdreplicator-operator")
@@ -92,7 +99,7 @@ func main() {
 	}
 
 	klog.Info("Starting crdreplicator-operator")
-	if err := mgr.Start(ctrl.SetupSignalHandler()); err != nil {
+	if err := mgr.Start(ctx); err != nil {
 		klog.Error(err, "problem running manager")
 		os.Exit(1)
 	}

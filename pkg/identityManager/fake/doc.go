@@ -12,6 +12,5 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package consts
-
-const ApisPath = "/apis"
+// Package fake implements mock Identity interfaces for test purposes.
+package fake

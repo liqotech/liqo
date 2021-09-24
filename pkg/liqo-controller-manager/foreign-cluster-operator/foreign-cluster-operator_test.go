@@ -36,7 +36,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
-	crdreplicator "github.com/liqotech/liqo/internal/crdReplicator"
+	"github.com/liqotech/liqo/pkg/consts"
 	"github.com/liqotech/liqo/pkg/discovery"
 	identitymanager "github.com/liqotech/liqo/pkg/identityManager"
 	peeringroles "github.com/liqotech/liqo/pkg/peering-roles"
@@ -466,8 +466,8 @@ var _ = Describe("ForeignClusterOperator", func() {
 						Name:      "resource-request-incoming",
 						Namespace: "default",
 						Labels: map[string]string{
-							crdreplicator.ReplicationStatuslabel: "true",
-							crdreplicator.RemoteLabelSelector:    "foreign-cluster-abcd",
+							consts.ReplicationStatusLabel: "true",
+							consts.ReplicationOriginLabel: "foreign-cluster-abcd",
 						},
 					},
 					Spec: discoveryv1alpha1.ResourceRequestSpec{
@@ -1182,6 +1182,25 @@ var _ = Describe("PeeringPolicy", func() {
 					},
 				},
 				expected: BeTrue(),
+			}),
+
+			Entry("foreign cluster with deletion timestamp set", isPeeringEnabledTestcase{
+				foreignCluster: discoveryv1alpha1.ForeignCluster{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "foreign-cluster",
+						Labels: map[string]string{
+							discovery.DiscoveryTypeLabel: string(discovery.LanDiscovery),
+							discovery.ClusterIDLabel:     "foreign-cluster",
+						},
+						DeletionTimestamp: &metav1.Time{Time: time.Now()},
+					},
+					Spec: discoveryv1alpha1.ForeignClusterSpec{
+						OutgoingPeeringEnabled: discoveryv1alpha1.PeeringEnabledYes,
+						IncomingPeeringEnabled: discoveryv1alpha1.PeeringEnabledAuto,
+						InsecureSkipTLSVerify:  pointer.BoolPtr(true),
+					},
+				},
+				expected: BeFalse(),
 			}),
 		)
 

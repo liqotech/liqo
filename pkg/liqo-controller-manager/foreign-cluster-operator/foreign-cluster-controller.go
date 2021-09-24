@@ -34,7 +34,6 @@ import (
 
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	netv1alpha1 "github.com/liqotech/liqo/apis/net/v1alpha1"
-	crdreplicator "github.com/liqotech/liqo/internal/crdReplicator"
 	liqoconst "github.com/liqotech/liqo/pkg/consts"
 	identitymanager "github.com/liqotech/liqo/pkg/identityManager"
 	peeringRoles "github.com/liqotech/liqo/pkg/peering-roles"
@@ -397,8 +396,8 @@ func (r *ForeignClusterReconciler) checkIncomingPeeringStatus(ctx context.Contex
 
 	var incomingResourceRequestList discoveryv1alpha1.ResourceRequestList
 	if err := r.Client.List(ctx, &incomingResourceRequestList, client.HasLabels{
-		crdreplicator.ReplicationStatuslabel}, client.MatchingLabels{
-		crdreplicator.RemoteLabelSelector: remoteClusterID,
+		liqoconst.ReplicationStatusLabel}, client.MatchingLabels{
+		liqoconst.ReplicationOriginLabel: remoteClusterID,
 	}); err != nil {
 		klog.Error(err)
 		return err
@@ -465,7 +464,7 @@ func getPeeringPhase(foreignCluster *discoveryv1alpha1.ForeignCluster,
 func (r *ForeignClusterReconciler) checkNetwork(ctx context.Context,
 	foreignCluster *discoveryv1alpha1.ForeignCluster) error {
 	// local NetworkConfig
-	labelSelector := map[string]string{crdreplicator.DestinationLabel: foreignCluster.Spec.ClusterIdentity.ClusterID}
+	labelSelector := map[string]string{liqoconst.ReplicationDestinationLabel: foreignCluster.Spec.ClusterIdentity.ClusterID}
 	if err := r.updateNetwork(ctx,
 		labelSelector, foreignCluster, discoveryv1alpha1.NetworkStatusCondition); err != nil {
 		klog.Error(err)
@@ -473,7 +472,7 @@ func (r *ForeignClusterReconciler) checkNetwork(ctx context.Context,
 	}
 
 	// remote NetworkConfig
-	labelSelector = map[string]string{crdreplicator.RemoteLabelSelector: foreignCluster.Spec.ClusterIdentity.ClusterID}
+	labelSelector = map[string]string{liqoconst.ReplicationOriginLabel: foreignCluster.Spec.ClusterIdentity.ClusterID}
 	if err := r.updateNetwork(ctx, labelSelector, foreignCluster, discoveryv1alpha1.NetworkStatusCondition); err != nil {
 		klog.Error(err)
 		return err
