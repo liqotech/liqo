@@ -17,8 +17,6 @@ package consts
 import "k8s.io/apimachinery/pkg/labels"
 
 const (
-	// MasterLabel contains the label used to identify the master nodes.
-	MasterLabel = "node-role.kubernetes.io/master"
 	// ServiceAccountNamespacePath contains the path where the namespace is stored in the serviceaccount volume mount.
 	ServiceAccountNamespacePath = "/var/run/secrets/kubernetes.io/serviceaccount/namespace"
 	// ClusterIDLabelName is the name of the label key to use with Cluster ID.

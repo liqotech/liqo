@@ -15,7 +15,6 @@
 package utils
 
 import (
-	"context"
 	"errors"
 	"fmt"
 	"net"
@@ -25,12 +24,6 @@ import (
 
 	"github.com/vishvananda/netlink"
 	"inet.af/netaddr"
-	corev1 "k8s.io/api/core/v1"
-	k8serrors "k8s.io/apimachinery/pkg/api/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/util/wait"
-	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/util/retry"
 	"k8s.io/klog/v2"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
@@ -104,31 +97,6 @@ func GetNodeName() (string, error) {
 		return nodeName, errdefs.NotFound("NODE_NAME environment variable has not been set. check you manifest file")
 	}
 	return nodeName, nil
-}
-
-// GetClusterID returns the the clusterID et in the given config map.
-func GetClusterID(client kubernetes.Interface, cmName, namespace string, backoff wait.Backoff) (string, error) {
-	cmClient := client.CoreV1().ConfigMaps(namespace)
-	var cm *corev1.ConfigMap
-	var err error
-
-	notFound := func(error) bool {
-		klog.V(4).Info("Error while getting ClusterID ConfigMap. Retrying...")
-		return k8serrors.IsNotFound(err)
-	}
-
-	klog.V(3).Info("Getting ClusterID from ConfigMap...")
-	retryErr := retry.OnError(backoff, notFound, func() error {
-		cm, err = cmClient.Get(context.TODO(), cmName, metav1.GetOptions{})
-		return err
-	})
-	if retryErr != nil {
-		return "", retryErr
-	}
-
-	clusterID := cm.Data[cmName]
-	klog.V(3).Infof("ClusterID is '%s'", clusterID)
-	return clusterID, nil
 }
 
 // GetMask retrieves the mask from a CIDR.
