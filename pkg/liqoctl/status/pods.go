@@ -15,11 +15,9 @@
 package status
 
 import (
-	"bytes"
 	"context"
 	"fmt"
 	"strings"
-	"text/tabwriter"
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -230,16 +228,15 @@ func (pc *podChecker) Collect(ctx context.Context) error {
 	return nil
 }
 
+func (pc *podChecker) HasSucceeded() bool {
+	return !pc.errors
+}
+
 // Format implements the format method of the Checker interface.
 // it outputs the status of the Liqo components in a string ready to be
 // printed out.
 func (pc *podChecker) Format() (string, error) {
-	var buf bytes.Buffer
-	w := tabwriter.NewWriter(&buf, 0, 0, 4, ' ', 0)
-
-	separator := strings.Repeat("-", len(pc.name))
-	fmt.Fprintf(w, "%s\n", pc.name)
-	fmt.Fprintf(w, "%s\n", separator)
+	w, buf := newTabWriter(pc.name)
 	if pc.errors {
 		// Add pod state to the buffer for each deployment type.
 		if pc.errors {
@@ -262,6 +259,8 @@ func (pc *podChecker) Format() (string, error) {
 		fmt.Fprintf(w, "%s control plane pods are up and running\n", checkMark)
 	}
 
+	// Add a new line ad the end of the message.
+	fmt.Fprintf(w, "\n")
 	if err := w.Flush(); err != nil {
 		return "", err
 	}
