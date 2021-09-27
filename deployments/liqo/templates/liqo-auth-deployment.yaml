@@ -27,16 +27,14 @@ spec:
       {{- end }}
     spec:
       securityContext:
-        runAsUser: 1000
-        runAsGroup: 1000
-        fsGroup: 1000
+        {{- include "liqo.podSecurityContext" . | nindent 8 }}
       serviceAccountName: {{ include "liqo.prefixedName" $authConfig }}
       {{- if .Values.auth.tls }}
       initContainers:
         - name: {{ $authConfig.containerName }}
           imagePullPolicy: {{ .Values.pullPolicy }}
           securityContext:
-            allowPrivilegeEscalation: false
+            {{- include "liqo.containerSecurityContext" . | nindent 12 }}
           image: {{ .Values.auth.initContainer.imageName }}{{ include "liqo.suffix" $authConfig }}:{{ include "liqo.version" $authConfig }}
           volumeMounts:
             - mountPath: '/certs'
@@ -64,7 +62,7 @@ spec:
       containers:
         - image: {{ .Values.auth.imageName }}{{ include "liqo.suffix" $authConfig }}:{{ include "liqo.version" $authConfig }}
           securityContext:
-            allowPrivilegeEscalation: false
+            {{- include "liqo.containerSecurityContext" . | nindent 12 }}
           name: {{ $authConfig.name }}
           imagePullPolicy: {{ .Values.pullPolicy }}
           command: ["/usr/bin/auth-service"]

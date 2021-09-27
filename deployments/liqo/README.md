@@ -63,6 +63,7 @@
 | networkManager.pod.annotations | object | `{}` | networkManager pod annotations |
 | networkManager.pod.extraArgs | list | `[]` | networkManager pod extra arguments |
 | networkManager.pod.labels | object | `{}` | networkManager pod labels |
+| openshiftConfig.enable | bool | `false` | enable the OpenShift support |
 | pullPolicy | string | `"IfNotPresent"` | The pullPolicy for liqo pods |
 | route.imageName | string | `"liqo/liqonet"` | route image repository |
 | route.pod.annotations | object | `{}` | route pod annotations |

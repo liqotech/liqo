@@ -223,6 +223,11 @@ awsConfig:
   # -- name of the EKS cluster
   clusterName: ""
 
+# set the OpenShift-specific configurations
+openshiftConfig:
+  # -- enable the OpenShift support
+  enable: false
+
 # capsule subchart configuration
 capsule:
   # -- liqo needs capsule to work properly, but you can use your already deployed capsule installation

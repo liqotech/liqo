@@ -23,10 +23,14 @@ spec:
           {{- toYaml .Values.networkManager.pod.labels | nindent 8 }}
         {{- end }}
     spec:
+      securityContext:
+        {{- include "liqo.podSecurityContext" . | nindent 8 }}
       serviceAccountName: {{ include "liqo.prefixedName" $netManagerConfig }}
       containers:
         - image: {{ .Values.networkManager.imageName }}{{ include "liqo.suffix" $netManagerConfig }}:{{ include "liqo.version" $netManagerConfig }}
           imagePullPolicy: {{ .Values.pullPolicy }}
+          securityContext:
+            {{- include "liqo.containerSecurityContext" . | nindent 12 }}
           name: {{ $netManagerConfig.name }}
           command: ["/usr/bin/liqonet"]
           ports:

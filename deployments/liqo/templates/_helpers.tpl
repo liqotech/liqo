@@ -170,3 +170,22 @@ Get the liqo clusterID ConfigMap name
 {{- $config := (merge (dict "name" "clusterid-configmap" "module" "clusterid-configmap") .) -}}
 {{ include "liqo.prefixedName" $config }}
 {{- end -}}
+
+{{/*
+Get the Pod security context
+*/}}
+{{- define "liqo.podSecurityContext" -}}
+runAsNonRoot: true
+{{- if not .Values.openshiftConfig.enable }}
+runAsUser: 1000
+runAsGroup: 1000
+fsGroup: 1000
+{{- end }}
+{{- end -}}
+
+{{/*
+Get the Container security context
+*/}}
+{{- define "liqo.containerSecurityContext" -}}
+allowPrivilegeEscalation: false
+{{- end -}}
