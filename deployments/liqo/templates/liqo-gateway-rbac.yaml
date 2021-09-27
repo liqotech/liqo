@@ -54,3 +54,13 @@ metadata:
   labels:
   {{- include "liqo.labels" $gatewayConfig | nindent 4 }}
 {{ .Files.Get (include "liqo.role-filename" (dict "prefix" ( include "liqo.prefixedName" $gatewayConfig))) }}
+{{- if .Values.openshiftConfig.enable }}
+- apiGroups:
+  - security.openshift.io
+  resourceNames:
+  - privileged
+  resources:
+  - securitycontextconstraints
+  verbs:
+  - use
+{{- end }}

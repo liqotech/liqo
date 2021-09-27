@@ -26,11 +26,15 @@ spec:
         {{- toYaml .Values.webhook.pod.annotations | nindent 8 }}
       {{- end }}
     spec:
+      securityContext:
+        {{- include "liqo.podSecurityContext" . | nindent 8 }}
       serviceAccountName: {{ include "liqo.prefixedName" $webhookConfig }}
       initContainers:
         - name: {{ $webhookConfig.containerName }}
           image: {{ .Values.webhook.initContainer.imageName}}{{ include "liqo.suffix" $webhookConfig }}:{{ include "liqo.version" $webhookConfig }}
           imagePullPolicy: {{ .Values.pullPolicy }}
+          securityContext:
+            {{- include "liqo.containerSecurityContext" . | nindent 12 }}
           args:
             - --webhook-name={{ include "liqo.prefixedName" $webhookConfig }}
           env:
@@ -53,6 +57,8 @@ spec:
         - name: {{ $webhookConfig.name }}
           image: {{ .Values.webhook.imageName }}{{ include "liqo.suffix" $webhookConfig }}:{{ include "liqo.version" $webhookConfig }}
           imagePullPolicy: {{ .Values.pullPolicy }}
+          securityContext:
+            {{- include "liqo.containerSecurityContext" . | nindent 12 }}
           {{- if .Values.webhook.pod.extraArgs }}
           args:
             {{- toYaml .Values.webhook.pod.extraArgs | nindent 12 }}

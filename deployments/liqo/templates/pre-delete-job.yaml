@@ -15,11 +15,15 @@ spec:
       labels:
         {{- include "liqo.labels" $predelete| nindent 8 }}
     spec:
+      securityContext:
+        {{- include "liqo.podSecurityContext" . | nindent 8 }}
       restartPolicy: Never
       serviceAccountName: {{ include "liqo.prefixedName" $predelete}}
       containers:
       - name: pre-delete-job
         image: "liqo/uninstaller{{ include "liqo.suffix" $predelete }}:{{ include "liqo.version" $predelete }}"
+        securityContext:
+          {{- include "liqo.containerSecurityContext" . | nindent 10 }}
         command: ["/usr/bin/uninstaller"]
         env:
           - name: POD_NAMESPACE

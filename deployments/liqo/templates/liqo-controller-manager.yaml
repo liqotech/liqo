@@ -24,10 +24,14 @@ spec:
         {{- toYaml .Values.controllerManager.pod.labels | nindent 8 }}
       {{- end }}
     spec:
+      securityContext:
+        {{- include "liqo.podSecurityContext" . | nindent 8 }}
       serviceAccountName: {{ include "liqo.prefixedName" $ctrlManagerConfig }}
       containers:
       - image: {{ .Values.controllerManager.imageName }}{{ include "liqo.suffix" $ctrlManagerConfig }}:{{ include "liqo.version" $ctrlManagerConfig }}
         imagePullPolicy: {{ .Values.pullPolicy }}
+        securityContext:
+          {{- include "liqo.containerSecurityContext" . | nindent 10 }}
         name: {{ $ctrlManagerConfig.name }}
         command: ["/usr/bin/liqo-controller-manager"]
         args:

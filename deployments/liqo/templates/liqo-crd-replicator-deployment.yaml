@@ -24,10 +24,14 @@ spec:
            {{- toYaml .Values.crdReplicator.pod.labels | nindent 8 }}
         {{- end }}
     spec:
+      securityContext:
+        {{- include "liqo.podSecurityContext" . | nindent 8 }}
       serviceAccountName: {{ include "liqo.prefixedName" $crdReplicatorConfig }}
       containers:
         - image: {{ .Values.crdReplicator.imageName }}{{ include "liqo.suffix" $crdReplicatorConfig }}:{{ include "liqo.version" $crdReplicatorConfig }}
           imagePullPolicy: {{ .Values.pullPolicy }}
+          securityContext:
+            {{- include "liqo.containerSecurityContext" . | nindent 12 }}
           name: {{ $crdReplicatorConfig.name }}
           command: ["/usr/bin/crd-replicator"]
           args:
