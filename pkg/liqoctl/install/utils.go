@@ -30,6 +30,7 @@ import (
 	"github.com/liqotech/liqo/pkg/liqoctl/install/k3s"
 	"github.com/liqotech/liqo/pkg/liqoctl/install/kind"
 	"github.com/liqotech/liqo/pkg/liqoctl/install/kubeadm"
+	"github.com/liqotech/liqo/pkg/liqoctl/install/openshift"
 	"github.com/liqotech/liqo/pkg/liqoctl/install/provider"
 	installutils "github.com/liqotech/liqo/pkg/liqoctl/install/utils"
 	"github.com/liqotech/liqo/pkg/utils"
@@ -49,6 +50,8 @@ func getProviderInstance(providerType string) provider.InstallProviderInterface 
 		return gke.NewProvider()
 	case "aks":
 		return aks.NewProvider()
+	case "openshift":
+		return openshift.NewProvider()
 	default:
 		return nil
 	}
