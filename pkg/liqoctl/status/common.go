@@ -14,12 +14,19 @@
 
 package status
 
-import "context"
+import (
+	"bytes"
+	"fmt"
+	"strings"
+	"text/tabwriter"
+)
 
-// Checker an interface required to be implemented by all the checkers that
-// collect the status of Liqo.
-type Checker interface {
-	Collect(ctx context.Context) error
-	Format() (string, error)
-	HasSucceeded() bool
+func newTabWriter(checkerName string) (*tabwriter.Writer, *bytes.Buffer) {
+	var buf bytes.Buffer
+	w := tabwriter.NewWriter(&buf, 0, 0, 4, ' ', 0)
+
+	separator := strings.Repeat("-", len(checkerName))
+	fmt.Fprintf(w, "%s\n", checkerName)
+	fmt.Fprintf(w, "%s\n", separator)
+	return w, &buf
 }

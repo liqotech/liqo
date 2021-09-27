@@ -375,6 +375,22 @@ var _ = Describe("Pods", func() {
 			})
 		})
 
+		Describe("HasSucceeded() function", func() {
+			When("check succeeds", func() {
+				It("should return true", func() {
+					podC.errors = false
+					Expect(podC.HasSucceeded()).To(BeTrue())
+				})
+			})
+
+			When("check fails", func() {
+				It("should return false", func() {
+					podC.errors = true
+					Expect(podC.HasSucceeded()).To(BeFalse())
+				})
+			})
+		})
+
 		Describe("checkPodsStatus() function", func() {
 
 			var (

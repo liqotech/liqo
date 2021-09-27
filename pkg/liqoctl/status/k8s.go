@@ -34,6 +34,7 @@ func newK8sStatusCollector(client k8s.Interface, params Args) *k8sStatusCollecto
 		client: client,
 		params: params,
 		checkers: []Checker{
+			newNamespaceChecker(params.Namespace, client),
 			newPodChecker(params.Namespace, liqoDeployments, liqoDaemonSets, client),
 		},
 	}
@@ -50,6 +51,9 @@ func (k *k8sStatusCollector) collectStatus(ctx context.Context) error {
 			return err
 		}
 		fmt.Print(msg)
+		if !checker.HasSucceeded() {
+			break
+		}
 	}
 	return nil
 }
