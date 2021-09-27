@@ -27,6 +27,7 @@ import (
 	"github.com/liqotech/liqo/pkg/liqoctl/install/gke"
 	"github.com/liqotech/liqo/pkg/liqoctl/install/k3s"
 	"github.com/liqotech/liqo/pkg/liqoctl/install/kubeadm"
+	"github.com/liqotech/liqo/pkg/liqoctl/install/openshift"
 )
 
 const (
@@ -34,15 +35,16 @@ const (
 	installLongHelp  = "Install Liqo on a selected %s cluster"
 )
 
-var providers = []string{"kubeadm", "kind", "k3s", "eks", "gke", "aks"}
+var providers = []string{"kubeadm", "kind", "k3s", "eks", "gke", "aks", "openshift"}
 
 var providerInitFunc = map[string]func(*cobra.Command){
-	"kubeadm": kubeadm.GenerateFlags,
-	"kind":    kubeadm.GenerateFlags,
-	"k3s":     k3s.GenerateFlags,
-	"eks":     eks.GenerateFlags,
-	"gke":     gke.GenerateFlags,
-	"aks":     aks.GenerateFlags,
+	"kubeadm":   kubeadm.GenerateFlags,
+	"kind":      kubeadm.GenerateFlags,
+	"k3s":       k3s.GenerateFlags,
+	"eks":       eks.GenerateFlags,
+	"gke":       gke.GenerateFlags,
+	"aks":       aks.GenerateFlags,
+	"openshift": openshift.GenerateFlags,
 }
 
 func getCommand(ctx context.Context, provider string) (*cobra.Command, error) {
