@@ -29,6 +29,7 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/source"
 
@@ -375,7 +376,7 @@ func (r *ForeignClusterReconciler) unpeerNamespaced(ctx context.Context,
 }
 
 // SetupWithManager assigns the operator to a manager.
-func (r *ForeignClusterReconciler) SetupWithManager(mgr ctrl.Manager) error {
+func (r *ForeignClusterReconciler) SetupWithManager(mgr ctrl.Manager, workers uint) error {
 	// Prevent triggering a reconciliation in case of status modifications only.
 	foreignClusterPredicate := predicate.Or(predicate.GenerationChangedPredicate{}, predicate.LabelChangedPredicate{})
 
@@ -386,6 +387,7 @@ func (r *ForeignClusterReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		Owns(&netv1alpha1.TunnelEndpoint{}).
 		Watches(&source.Kind{Type: &corev1.Secret{}}, authenticationtoken.GetAuthTokenSecretEventHandler(r.Client),
 			builder.WithPredicates(authenticationtoken.GetAuthTokenSecretPredicate())).
+		WithOptions(controller.Options{MaxConcurrentReconciles: int(workers)}).
 		Complete(r)
 }
 
