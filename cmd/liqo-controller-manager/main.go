@@ -94,6 +94,7 @@ func main() {
 	clusterID := flag.String("cluster-id", "", "The cluster ID identifying the current cluster")
 	liqoNamespace := flag.String("liqo-namespace", defaultNamespace,
 		"Name of the namespace where the liqo components are running")
+	foreignClusterWorkers := flag.Uint("foreign-cluster-workers", 1, "The number of workers used to reconcile ForeignCluster resources.")
 
 	// Discovery parameters
 	clusterName := flag.String(consts.ClusterNameParameter, "", "A mnemonic name associated with the current cluster")
@@ -208,7 +209,7 @@ func main() {
 		IdentityManager:   idManager,
 		PeeringPermission: *permissions,
 	}
-	if err = foreignClusterReconciler.SetupWithManager(mgr); err != nil {
+	if err = foreignClusterReconciler.SetupWithManager(mgr, *foreignClusterWorkers); err != nil {
 		klog.Fatal(err)
 	}
 
