@@ -183,7 +183,8 @@ jobs:
                "master": "${{ needs.configure.outputs.master }}",
                "commit": "${{ needs.configure.outputs.commit-ref }}",
                "repo-name": "${{ needs.configure.outputs.repo-name }}",
-               "base-repo": "${{ github.repository }}"
+               "base-repo": "${{ github.repository }}",
+               "run-id": "${{ github.run_id }}"
              }
 
   liqoctl:

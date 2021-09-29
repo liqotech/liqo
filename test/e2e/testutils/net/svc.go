@@ -47,23 +47,13 @@ func EnsureNodePort(ctx context.Context, client kubernetes.Interface, clusterID,
 		Spec:   serviceSpec,
 		Status: v1.ServiceStatus{},
 	}
-	_, err := client.CoreV1().Services(namespace).Create(ctx, nodePort, metav1.CreateOptions{})
+	nodePort, err := client.CoreV1().Services(namespace).Create(ctx, nodePort, metav1.CreateOptions{})
 	if kerrors.IsAlreadyExists(err) {
 		nodePort, err = client.CoreV1().Services(namespace).Get(ctx, name, metav1.GetOptions{})
 		if err != nil {
 			klog.Error(err)
 			return nil, err
 		}
-	}
-	nodePort, err = client.CoreV1().Services(namespace).Get(ctx, name, metav1.GetOptions{})
-	if err != nil {
-		klog.Error(err)
-		return nil, err
-	}
-	nodePort, err = client.CoreV1().Services(namespace).Get(ctx, name, metav1.GetOptions{})
-	if err != nil {
-		klog.Error(err)
-		return nil, err
 	}
 	return nodePort, nil
 }

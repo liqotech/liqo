@@ -12,13 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package unjoine2e
+package postuninstall
 
 import (
 	"context"
 	"fmt"
-	"strings"
 	"testing"
+	"time"
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/ginkgo/extensions/table"
@@ -39,26 +39,30 @@ func Test_Unjoin(t *testing.T) {
 var _ = Describe("Liqo E2E", func() {
 	var (
 		ctx         = context.Background()
-		testContext = tester.GetTester(ctx, true)
+		testContext = tester.GetTesterUninstall(ctx)
+		interval    = 3 * time.Second
+		timeout     = 5 * time.Minute
 	)
 
 	Describe("Assert that Liqo is correctly uninstalled", func() {
 		Context("Test Unjoin", func() {
-			var PodsUpAndRunningTableEntries []TableEntry
+			var uninstalledTableEntries []TableEntry
 			for index := range testContext.Clusters {
-				PodsUpAndRunningTableEntries = append(PodsUpAndRunningTableEntries,
-							Entry(strings.Join([]string{"Check Liqo is correctly uninstalled on cluster", fmt.Sprintf("%d", index)}, " "),
-								testContext.Clusters[index], testContext.Namespace, ))
+				uninstalledTableEntries = append(uninstalledTableEntries,
+					Entry(fmt.Sprintf("Check Liqo is correctly uninstalled on cluster %v", index+1),
+						testContext.Clusters[index], testContext.Namespace))
 			}
 
-			DescribeTable("Liqo Pod to Pod Connectivity Check",
+			DescribeTable("Liqo Uninstall Check",
 				func(homeCluster tester.ClusterContext, namespace string) {
-					err := NoPods(homeCluster.NativeClient, testContext.Namespace)
-					Expect(err).ShouldNot(HaveOccurred())
-					err = NoJoined(homeCluster.NativeClient)
-					Expect(err).ShouldNot(HaveOccurred())
+					Eventually(func() error {
+						return NoPods(homeCluster.NativeClient, testContext.Namespace)
+					}, timeout, interval).ShouldNot(HaveOccurred())
+					Eventually(func() error {
+						return NoJoined(homeCluster.NativeClient)
+					}, timeout, interval).ShouldNot(HaveOccurred())
 				},
-			PodsUpAndRunningTableEntries...)
+				uninstalledTableEntries...)
 
 		},
 		)

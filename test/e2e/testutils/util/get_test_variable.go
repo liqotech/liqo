@@ -1,7 +1,22 @@
+// Copyright 2019-2021 The Liqo Authors
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//      http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 package util
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"strconv"
 	"testing"
@@ -14,12 +29,11 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	testutils "github.com/liqotech/liqo/pkg/utils"
-	cachedclientutils "github.com/liqotech/liqo/pkg/utils/cachedClient"
 )
 
-// GetEnvironmentVariable retrieves the value of the environment variable named by the key.
+// GetEnvironmentVariableOrDie retrieves the value of the environment variable named by the key.
 // If the variable is not present calls klog.Fatal().
-func GetEnvironmentVariable(key string) string {
+func GetEnvironmentVariableOrDie(key string) string {
 	envVariable := os.Getenv(key)
 	if envVariable == "" {
 		klog.Fatalf("Environment variable '%s' not set", key)
@@ -27,9 +41,9 @@ func GetEnvironmentVariable(key string) string {
 	return envVariable
 }
 
-// GetRestConfig retrieves the rest.Config from the kubeconfig variable.
+// GetRestConfigOrDie retrieves the rest.Config from the kubeconfig variable.
 // If there is an error calls klog.Fatal().
-func GetRestConfig(kubeconfig string) *rest.Config {
+func GetRestConfigOrDie(kubeconfig string) *rest.Config {
 	config, err := clientcmd.BuildConfigFromFlags("", kubeconfig)
 	if err != nil {
 		klog.Fatal(err)
@@ -37,20 +51,12 @@ func GetRestConfig(kubeconfig string) *rest.Config {
 	return config
 }
 
-// GetNativeClient creates a new Clientset for the given config.
-// If there is an error calls klog.Fatal().
-func GetNativeClient(config *rest.Config) *kubernetes.Clientset {
-	clientset, err := kubernetes.NewForConfig(config)
-	if err != nil {
-		klog.Fatal(err)
-	}
-	return clientset
-}
-
 // GetControllerClient creates a new controller runtime client for the given config.
 // If there is an error calls klog.Fatal().
-func GetControllerClient(ctx context.Context, scheme *runtime.Scheme, config *rest.Config) client.Client {
-	controllerClient, err := cachedclientutils.GetCachedClientWithConfig(ctx, scheme, config)
+func GetControllerClient(scheme *runtime.Scheme, config *rest.Config) client.Client {
+	controllerClient, err := client.New(config, client.Options{
+		Scheme: scheme,
+	})
 	if err != nil {
 		klog.Fatal(err)
 	}
@@ -58,20 +64,18 @@ func GetControllerClient(ctx context.Context, scheme *runtime.Scheme, config *re
 }
 
 // GetClusterID provides the clusterID for the cluster associated with the client.
-// If there is an error returns an empty clusterID.
-func GetClusterID(ctx context.Context, cl kubernetes.Interface, namespace string) string {
+func GetClusterID(ctx context.Context, cl kubernetes.Interface, namespace string) (string, error) {
 	clusterID, err := testutils.GetClusterIDWithNativeClient(ctx, cl, namespace)
 	if err != nil {
-		klog.Warningf("an error occurred while getting cluster-id configmap %s", err)
-		clusterID = ""
+		return "", fmt.Errorf("an error occurred while getting cluster-id configmap %w", err)
 	}
-	return clusterID
+	return clusterID, nil
 }
 
 // CheckIfTestIsSkipped checks if the number of clusters required by the test is less than
 // the number of cluster really present.
 func CheckIfTestIsSkipped(t *testing.T, clustersRequired int, testName, clusterNumberVarKey string) {
-	numberOfTestClusters, err := strconv.Atoi(GetEnvironmentVariable(clusterNumberVarKey))
+	numberOfTestClusters, err := strconv.Atoi(GetEnvironmentVariableOrDie(clusterNumberVarKey))
 	if err != nil {
 		klog.Fatalf(" %s -> unable to covert the '%s' environment variable", err, clusterNumberVarKey)
 	}

@@ -42,9 +42,10 @@ func IsPodUp(ctx context.Context, client kubernetes.Interface, namespace, podNam
 			return false
 		}
 	} else {
-		klog.Infof("checking if remote pod is ready")
+		labelSelector := labels.SelectorFromSet(labelSelector).String()
+		klog.Infof("checking if remote pod is ready in namespace %s and label selector %s", namespace, labelSelector)
 		pods, err := client.CoreV1().Pods(namespace).List(ctx, metav1.ListOptions{
-			LabelSelector: labels.SelectorFromSet(labelSelector).String(),
+			LabelSelector: labelSelector,
 		})
 		if err != nil {
 			klog.Errorf("an error occurred while getting remote pod: %v", err)

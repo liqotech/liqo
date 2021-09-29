@@ -42,10 +42,6 @@ fetch-external-crds:
 unit: test-container fetch-external-crds
 	docker run --privileged=true --mount type=bind,src=$(shell pwd),dst=/go/src/liqo -w /go/src/liqo --rm liqo-test
 
-# Run e2e tests
-e2e: gen
-	go test $(shell go list ./... | grep "e2e")
-
 # Install LIQO into a cluster
 install: manifests
 	./install.sh
@@ -172,3 +168,46 @@ HELM_DOCS=$(GOBIN)/helm-docs
 else
 HELM_DOCS=$(shell which helm-docs)
 endif
+
+
+
+# Set the steps for the e2e tests
+E2E_TARGETS = e2e-infra \
+	installer/liqoctl/setup \
+	installer/liqoctl/peer \
+	e2e/postinstall \
+	e2e/cruise \
+	installer/liqoctl/unpeer \
+	installer/liqoctl/uninstall \
+	e2e/postuninstall
+
+# Export these variables before to run the e2e tests
+
+# export CLUSTER_NUMBER=2
+# export K8S_VERSION=v1.21.1
+# export CNI=kindnet
+# export TMPDIR=$(mktemp -d)
+# export BINDIR=${TMPDIR}/bin
+# export TEMPLATE_DIR=${PWD}/test/e2e/pipeline/infra/kind
+# export NAMESPACE=liqo
+# export KUBECONFIGDIR=${TMPDIR}/kubeconfigs
+# export LIQO_VERSION=3e060bc36ffb1a88b988a7e948de2b045ba2e8ce
+# export INFRA=kind
+# export LIQOCTL=${BINDIR}/liqoctl
+
+# Run e2e tests
+e2e: $(E2E_TARGETS)
+
+e2e-dir:
+	mkdir -p "${BINDIR}"
+
+e2e-infra: e2e-dir
+	${PWD}/test/e2e/pipeline/infra/${INFRA}/pre-requirements.sh
+	${PWD}/test/e2e/pipeline/infra/${INFRA}/clean.sh
+	${PWD}/test/e2e/pipeline/infra/${INFRA}/setup.sh
+
+installer/%:
+	${PWD}/test/e2e/pipeline/$@.sh
+
+e2e/%:
+	go test ${PWD}/test/$@

@@ -77,7 +77,7 @@ func HandleInstallCommand(ctx context.Context, cmd *cobra.Command, baseCommand, 
 	switch {
 	case !commonArgs.DumpValues && !commonArgs.DryRun:
 		fmt.Printf("* All Set! You can use Liqo now! 🚀\n")
-		return generate.HandleGenerateAddCommand(ctx, installutils.LiqoNamespace, baseCommand)
+		return generate.HandleGenerateAddCommand(ctx, installutils.LiqoNamespace, false, baseCommand)
 	case commonArgs.DumpValues:
 		fmt.Printf("* All Set! Chart values written in file %s 🚀\n", commonArgs.DumpValuesPath)
 	case commonArgs.DryRun:

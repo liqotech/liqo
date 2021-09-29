@@ -43,7 +43,7 @@ func TestE2E(t *testing.T) {
 var _ = Describe("Liqo E2E", func() {
 	var (
 		ctx         = context.Background()
-		testContext = tester.GetTester(ctx, true)
+		testContext = tester.GetTester(ctx)
 		namespace   = "liqo"
 		interval    = 3 * time.Second
 		timeout     = 5 * time.Minute
@@ -51,32 +51,45 @@ var _ = Describe("Liqo E2E", func() {
 
 	Describe("Assert that Liqo is up, pod offloading and network connectivity are working", func() {
 		Context("Check Join Status", func() {
+
+			type connectivityTestcase struct {
+				homeCluster    tester.ClusterContext
+				foreignCluster tester.ClusterContext
+				namespace      string
+			}
+
+			// TODO: check connectivity between pod offloaded in different clusters
 			var PodsUpAndRunningTableEntries []TableEntry
 			for index := range testContext.Clusters {
-				for index2 := range testContext.Clusters {
-					if index != index2 {
-						PodsUpAndRunningTableEntries = append(PodsUpAndRunningTableEntries,
-							Entry(strings.Join([]string{"Check Pod to Pod connectivity from cluster", fmt.Sprintf("%d",index),
-								"to cluster", fmt.Sprintf("%d",index2)}, " "),
-								testContext.Clusters[index], testContext.Clusters[index2], namespace))
-					}
+				if index != 0 {
+					PodsUpAndRunningTableEntries = append(PodsUpAndRunningTableEntries,
+						Entry(strings.Join([]string{"Check Pod to Pod connectivity from cluster", fmt.Sprintf("%d", 0),
+							"to cluster", fmt.Sprintf("%d", index)}, " "),
+							connectivityTestcase{
+								homeCluster:    testContext.Clusters[0],
+								foreignCluster: testContext.Clusters[index],
+								namespace:      namespace,
+							}))
 				}
 			}
 
 			DescribeTable("Liqo Pod to Pod Connectivity Check",
-				func(homeCluster, foreignCluster tester.ClusterContext, namespace string) {
+				func(c connectivityTestcase) {
 					By("Deploy Tester Pod", func() {
-						err := net.EnsureNetTesterPods(ctx, homeCluster.NativeClient, homeCluster.ClusterID)
+						localPodName, remotePodName := net.GetTesterName(c.homeCluster.ClusterID, c.foreignCluster.ClusterID)
+						err := net.EnsureNetTesterPods(ctx, c.homeCluster.NativeClient,
+							c.homeCluster.ClusterID, c.foreignCluster.ClusterID, localPodName, remotePodName)
 						Expect(err).ToNot(HaveOccurred())
 						Eventually(func() bool {
-							check := net.CheckTesterPods(ctx, homeCluster.NativeClient, foreignCluster.NativeClient, homeCluster.ClusterID)
+							check := net.CheckTesterPods(ctx, c.homeCluster.NativeClient, c.foreignCluster.NativeClient,
+								c.homeCluster.ClusterID, localPodName, remotePodName)
 							return check
 						}, timeout, interval).Should(BeTrue())
 						Eventually(func() error {
-							return net.CheckPodConnectivity(ctx, homeCluster.Config, homeCluster.NativeClient)
+							return net.CheckPodConnectivity(ctx, c.homeCluster.Config, c.homeCluster.NativeClient, localPodName, remotePodName)
 						}, timeout, interval).ShouldNot(HaveOccurred())
 						Eventually(func() error {
-							return net.ConnectivityCheckNodeToPod(ctx, homeCluster.NativeClient, homeCluster.ClusterID)
+							return net.ConnectivityCheckNodeToPod(ctx, c.homeCluster.NativeClient, c.homeCluster.ClusterID, remotePodName)
 						}, timeout, interval).ShouldNot(HaveOccurred())
 					})
 				},
