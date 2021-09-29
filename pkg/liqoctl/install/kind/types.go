@@ -20,3 +20,5 @@ import "github.com/liqotech/liqo/pkg/liqoctl/install/kubeadm"
 type Kind struct {
 	kubeadm.Kubeadm
 }
+
+const providerPrefix = "kind"

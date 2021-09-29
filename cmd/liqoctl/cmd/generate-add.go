@@ -27,16 +27,18 @@ import (
 // installCmd represents the generateInstall command.
 func newGenerateAddCommand(ctx context.Context) *cobra.Command {
 	var liqoNamespace string
+	var onlyCommand bool
 	var addCmd = &cobra.Command{
 		Use:   generate.LiqoctlGenerateAddCommand,
 		Short: generate.LiqoctlGenerateShortHelp,
 		Long:  generate.LiqoctlGenerateLongHelp,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return generate.HandleGenerateAddCommand(ctx, liqoNamespace, os.Args[0])
+			return generate.HandleGenerateAddCommand(ctx, liqoNamespace, onlyCommand, os.Args[0])
 		},
 	}
 	addCmd.Flags().StringVar(&liqoNamespace, "namespace", add.ClusterLiqoNamespace,
 		"the name of the namespace where Liqo is installed")
+	addCmd.Flags().BoolVar(&onlyCommand, "only-command", false, "print only the add command (useful in scripts)")
 
 	return addCmd
 }

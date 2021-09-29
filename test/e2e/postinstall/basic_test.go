@@ -1,3 +1,17 @@
+// Copyright 2019-2021 The Liqo Authors
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//      http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 package postinstall
 
 import (
@@ -23,7 +37,7 @@ func TestE2E(t *testing.T) {
 var _ = Describe("Liqo E2E", func() {
 	var (
 		ctx         = context.Background()
-		testContext = tester.GetTester(ctx, true)
+		testContext = tester.GetTester(ctx)
 		namespace   = "liqo"
 		interval    = 3 * time.Second
 		timeout     = 5 * time.Minute
@@ -33,9 +47,9 @@ var _ = Describe("Liqo E2E", func() {
 		Context("Check Join Status", func() {
 			var PodsUpAndRunningTableEntries, VirtualNodesTableEntries []TableEntry
 			for index := range testContext.Clusters {
-				PodsUpAndRunningTableEntries = append(PodsUpAndRunningTableEntries, Entry("Pods UP on cluster "+ fmt.Sprintf("%d",index),
+				PodsUpAndRunningTableEntries = append(PodsUpAndRunningTableEntries, Entry("Pods UP on cluster "+fmt.Sprintf("%d", index),
 					testContext.Clusters[index], namespace))
-				VirtualNodesTableEntries = append(VirtualNodesTableEntries, Entry("VirtualNode is Ready on cluster "+ fmt.Sprintf("%d",index),
+				VirtualNodesTableEntries = append(VirtualNodesTableEntries, Entry("VirtualNodes are Ready on cluster "+fmt.Sprintf("%d", index),
 					testContext.Clusters[index], namespace))
 			}
 

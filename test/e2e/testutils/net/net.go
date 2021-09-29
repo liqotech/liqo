@@ -39,8 +39,8 @@ var (
 )
 
 // ConnectivityCheckNodeToPod creates a NodePort Service and check its availability.
-func ConnectivityCheckNodeToPod(ctx context.Context, homeClusterClient kubernetes.Interface, clusterID string) error {
-	nodePort, err := EnsureNodePortService(ctx, homeClusterClient, clusterID)
+func ConnectivityCheckNodeToPod(ctx context.Context, homeClusterClient kubernetes.Interface, clusterID, remotePodName string) error {
+	nodePort, err := EnsureNodePortService(ctx, homeClusterClient, clusterID, remotePodName)
 	if err != nil {
 		return err
 	}
@@ -48,8 +48,8 @@ func ConnectivityCheckNodeToPod(ctx context.Context, homeClusterClient kubernete
 }
 
 // EnsureNodePortService creates a nodePortService. It returns the port to contact to reach the service and occurred errors.
-func EnsureNodePortService(ctx context.Context, homeClusterClient kubernetes.Interface, clusterID string) (int, error) {
-	nodePort, err := EnsureNodePort(ctx, homeClusterClient, clusterID, podTesterRemoteCl, TestNamespaceName)
+func EnsureNodePortService(ctx context.Context, homeClusterClient kubernetes.Interface, clusterID, remotePodName string) (int, error) {
+	nodePort, err := EnsureNodePort(ctx, homeClusterClient, clusterID, remotePodName, TestNamespaceName)
 	if err != nil {
 		return 0, err
 	}
@@ -66,13 +66,14 @@ func CheckNodeToPortConnectivity(ctx context.Context, homeClusterClient kubernet
 }
 
 // CheckPodConnectivity contacts the remote service by executing the command inside podRemoteUpdateCluster1.
-func CheckPodConnectivity(ctx context.Context, homeConfig *restclient.Config, homeClient kubernetes.Interface) error {
-	podLocalUpdate, err := homeClient.CoreV1().Pods(TestNamespaceName).Get(ctx, podTesterLocalCl, metav1.GetOptions{})
+func CheckPodConnectivity(ctx context.Context,
+	homeConfig *restclient.Config, homeClient kubernetes.Interface, localPodName, remotePodName string) error {
+	podLocalUpdate, err := homeClient.CoreV1().Pods(TestNamespaceName).Get(ctx, localPodName, metav1.GetOptions{})
 	if err != nil {
 		klog.Error(err)
 		return err
 	}
-	podRemoteUpdateCluster1, err := homeClient.CoreV1().Pods(TestNamespaceName).Get(ctx, podTesterRemoteCl, metav1.GetOptions{})
+	podRemoteUpdateCluster1, err := homeClient.CoreV1().Pods(TestNamespaceName).Get(ctx, remotePodName, metav1.GetOptions{})
 	if err != nil {
 		klog.Error(err)
 		return err

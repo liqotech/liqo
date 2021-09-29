@@ -15,13 +15,23 @@
 package kind
 
 import (
+	"github.com/liqotech/liqo/pkg/consts"
+	"github.com/liqotech/liqo/pkg/liqoctl/install/kubeadm"
 	"github.com/liqotech/liqo/pkg/liqoctl/install/provider"
 	installutils "github.com/liqotech/liqo/pkg/liqoctl/install/utils"
 )
 
 // NewProvider initializes a new Kind struct.
 func NewProvider() provider.InstallProviderInterface {
-	return &Kind{}
+	return &Kind{
+		Kubeadm: kubeadm.Kubeadm{
+			GenericProvider: provider.GenericProvider{
+				ClusterLabels: map[string]string{
+					consts.ProviderClusterLabel: providerPrefix,
+				},
+			},
+		},
+	}
 }
 
 // UpdateChartValues patches the values map with the values required for the selected cluster. Differently from the

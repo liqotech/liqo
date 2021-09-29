@@ -18,20 +18,17 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"path/filepath"
 	"strconv"
-	"strings"
 
 	capsulev1alpha1 "github.com/clastix/capsule/api/v1alpha1"
-	appsv1 "k8s.io/api/apps/v1"
-	corev1 "k8s.io/api/core/v1"
-	rbacv1 "k8s.io/api/rbac/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/kubernetes"
+	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
 	"k8s.io/klog/v2"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	configv1alpha1 "github.com/liqotech/liqo/apis/config/v1alpha1"
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	netv1alpha1 "github.com/liqotech/liqo/apis/net/v1alpha1"
 	offv1alpha1 "github.com/liqotech/liqo/apis/offloading/v1alpha1"
@@ -44,10 +41,8 @@ import (
 type Tester struct {
 	Clusters  []ClusterContext
 	Namespace string
-	// ClusterNumber represents the number of available clusters
-	ClusterNumber int
-	// the key is the clusterID and the value is the corresponding client
-	ClustersClients map[string]client.Client
+	// ClustersNumber represents the number of available clusters
+	ClustersNumber int
 }
 
 // ClusterContext encapsulate all information and objects used to access a test cluster.
@@ -63,7 +58,7 @@ type ClusterContext struct {
 const (
 	namespaceEnvVar      = "NAMESPACE"
 	ClusterNumberVarKey  = "CLUSTER_NUMBER"
-	kubeconfigBaseName   = "liqo_kubeconf_"
+	kubeconfigBaseName   = "liqo_kubeconf"
 	KubeconfigDirVarName = "KUBECONFIGDIR"
 )
 
@@ -72,20 +67,38 @@ var (
 )
 
 // GetTester returns a Tester instance.
-func GetTester(ctx context.Context, controllerClientsPresence bool) *Tester {
-	var err error
+func GetTester(ctx context.Context) *Tester {
+	d, _ := os.Getwd()
+	klog.Info(d)
+
 	if tester == nil {
-		tester, err = createTester(ctx, controllerClientsPresence)
+		var err error
+		tester, err = createTester(ctx, false)
 		if err != nil {
-			klog.Fatal(err)
+			klog.Fatalf("Failed to create e2e tester: %v", err)
 		}
 	}
 	return tester
 }
 
-func createTester(ctx context.Context, controllerClientsPresence bool) (*Tester, error) {
-	namespace := testutils.GetEnvironmentVariable(namespaceEnvVar)
-	TmpDir := testutils.GetEnvironmentVariable(KubeconfigDirVarName)
+// GetTesterUninstall returns a Tester instance that do not interact with liqo resources.
+func GetTesterUninstall(ctx context.Context) *Tester {
+	d, _ := os.Getwd()
+	klog.Info(d)
+
+	if tester == nil {
+		var err error
+		tester, err = createTester(ctx, true)
+		if err != nil {
+			klog.Fatalf("Failed to create e2e tester: %v", err)
+		}
+	}
+	return tester
+}
+
+func createTester(ctx context.Context, ignoreClusterIDError bool) (*Tester, error) {
+	namespace := testutils.GetEnvironmentVariableOrDie(namespaceEnvVar)
+	TmpDir := testutils.GetEnvironmentVariableOrDie(KubeconfigDirVarName)
 
 	// Here is necessary to add the controller runtime clients.
 	scheme := getScheme()
@@ -94,30 +107,30 @@ func createTester(ctx context.Context, controllerClientsPresence bool) (*Tester,
 		Namespace: namespace,
 	}
 
-	tester.ClustersClients = map[string]client.Client{}
 	clusterNumber, err := getClusterNumberFromEnv()
 	if err != nil {
 		return nil, err
 	}
 
 	for i := 1; i <= clusterNumber; i++ {
-		var kubeconfigName = strings.Join([]string{kubeconfigBaseName, fmt.Sprintf("%d",i)}, "")
-		var kubeconfigPath = strings.Join([]string{TmpDir, kubeconfigName}, "")
+		var kubeconfigName = fmt.Sprintf("%s_%d", kubeconfigBaseName, i)
+		var kubeconfigPath = filepath.Join(TmpDir, kubeconfigName)
 		if _, err = os.Stat(kubeconfigPath); err != nil {
 			return nil, err
 		}
 		var c = ClusterContext{
-			Config:         testutils.GetRestConfig(kubeconfigPath),
+			Config:         testutils.GetRestConfigOrDie(kubeconfigPath),
 			KubeconfigPath: kubeconfigPath,
 		}
-		c.NativeClient = testutils.GetNativeClient(c.Config)
-		c.ClusterID = testutils.GetClusterID(ctx, c.NativeClient, namespace)
-
-		if controllerClientsPresence {
-			controllerClient := testutils.GetControllerClient(ctx, scheme, c.Config)
-			c.ControllerClient = controllerClient
-			tester.ClustersClients[c.ClusterID] = controllerClient
+		c.NativeClient = kubernetes.NewForConfigOrDie(c.Config)
+		c.ClusterID, err = testutils.GetClusterID(ctx, c.NativeClient, namespace)
+		if err != nil && !ignoreClusterIDError {
+			return nil, err
 		}
+
+		controllerClient := testutils.GetControllerClient(scheme, c.Config)
+		c.ControllerClient = controllerClient
+
 		tester.Clusters = append(tester.Clusters, c)
 	}
 
@@ -125,30 +138,24 @@ func createTester(ctx context.Context, controllerClientsPresence bool) (*Tester,
 }
 
 func getClusterNumberFromEnv() (int, error) {
-	var clusterNumberString string
-	var clusterNumber int
-	var ok bool
-	var err error
-	if clusterNumberString, ok = os.LookupEnv(ClusterNumberVarKey); !ok {
-		return 0, fmt.Errorf("%s Variable not found", ClusterNumberVarKey)
-	}
-	if clusterNumber, err = strconv.Atoi(clusterNumberString); err != nil || clusterNumber < 0 {
+	clusterNumberString := testutils.GetEnvironmentVariableOrDie(ClusterNumberVarKey)
+
+	clusterNumber, err := strconv.Atoi(clusterNumberString)
+	if err != nil || clusterNumber < 0 {
 		return 0, err
 	}
+
 	return clusterNumber, nil
 }
 
 func getScheme() *runtime.Scheme {
 	scheme := runtime.NewScheme()
+	_ = clientgoscheme.AddToScheme(scheme)
 	_ = offv1alpha1.AddToScheme(scheme)
-	_ = configv1alpha1.AddToScheme(scheme)
 	_ = discoveryv1alpha1.AddToScheme(scheme)
 	_ = netv1alpha1.AddToScheme(scheme)
 	_ = sharingv1alpha1.AddToScheme(scheme)
 	_ = virtualKubeletv1alpha1.AddToScheme(scheme)
 	_ = capsulev1alpha1.AddToScheme(scheme)
-	_ = corev1.AddToScheme(scheme)
-	_ = appsv1.AddToScheme(scheme)
-	_ = rbacv1.AddToScheme(scheme)
 	return scheme
 }

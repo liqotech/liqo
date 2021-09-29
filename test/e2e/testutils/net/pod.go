@@ -16,6 +16,9 @@ package net
 
 import (
 	"context"
+	"fmt"
+	"strings"
+	"time"
 
 	v1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
@@ -28,19 +31,24 @@ import (
 )
 
 // EnsureNetTesterPods creates the NetTest pods and waits for them to be ready.
-func EnsureNetTesterPods(ctx context.Context, homeClient kubernetes.Interface, homeID string) error {
+func EnsureNetTesterPods(ctx context.Context, homeClient kubernetes.Interface, homeID, remoteID, localPodName, remotePodName string) error {
 	ns, err := util.EnforceNamespace(ctx, homeClient, homeID, TestNamespaceName)
 	if err != nil && !kerrors.IsAlreadyExists(err) {
 		klog.Error(err)
 		return err
 	}
-	podRemote := forgeTesterPod(image, podTesterRemoteCl, ns.Name, true)
+
+	// TODO: remove it, check if the problem is related to namespace offloading initialization time.
+	// This is a temporary patch for https://github.com/liqotech/liqo/issues/924
+	time.Sleep(2 * time.Second)
+
+	podRemote := forgeTesterPod(image, remotePodName, ns.Name, remoteID, true)
 	_, err = homeClient.CoreV1().Pods(ns.Name).Create(ctx, podRemote, metav1.CreateOptions{})
 	if err != nil && !kerrors.IsAlreadyExists(err) {
 		klog.Error(err)
 		return err
 	}
-	podLocal := forgeTesterPod(image, podTesterLocalCl, ns.Name, false)
+	podLocal := forgeTesterPod(image, localPodName, ns.Name, homeID, false)
 	_, err = homeClient.CoreV1().Pods(ns.Name).Create(ctx, podLocal, metav1.CreateOptions{})
 	if err != nil && !kerrors.IsAlreadyExists(err) {
 		klog.Error(err)
@@ -50,18 +58,28 @@ func EnsureNetTesterPods(ctx context.Context, homeClient kubernetes.Interface, h
 }
 
 // CheckTesterPods retrieves the netTest pods and returns true if all the pods are up and ready.
-func CheckTesterPods(ctx context.Context, homeClient, foreignClient kubernetes.Interface, homeClusterID string) bool {
+func CheckTesterPods(ctx context.Context, homeClient, foreignClient kubernetes.Interface, homeClusterID, localPodName, remotePodName string) bool {
 	reflectedNamespace := TestNamespaceName + "-" + homeClusterID
-	return util.IsPodUp(ctx, homeClient, TestNamespaceName, podTesterLocalCl, true) &&
-		util.IsPodUp(ctx, homeClient, TestNamespaceName, podTesterRemoteCl, true) &&
-		util.IsPodUp(ctx, foreignClient, reflectedNamespace, podTesterRemoteCl, false)
+	return util.IsPodUp(ctx, homeClient, TestNamespaceName, localPodName, true) &&
+		util.IsPodUp(ctx, homeClient, TestNamespaceName, remotePodName, true) &&
+		util.IsPodUp(ctx, foreignClient, reflectedNamespace, remotePodName, false)
+}
+
+// GetTesterName returns the names for the local and the remote connectivity tester pods.
+func GetTesterName(homeClusterID, remoteClusterID string) (remotePodName, localPodName string) {
+	return fmt.Sprintf("%v-%v-%v", podTesterLocalCl, homeClusterID[:10], remoteClusterID[:10]),
+		fmt.Sprintf("%v-%v-%v", podTesterRemoteCl, homeClusterID[:10], remoteClusterID[:10])
 }
 
 // forgeTesterPod deploys the Remote pod of the test.
-func forgeTesterPod(image, podName, namespace string, isRemote bool) *v1.Pod {
+func forgeTesterPod(image, podName, namespace, clusterID string, isOffloaded bool) *v1.Pod {
+	var nodeSelector map[string]string
 	NodeAffinityOperator := v1.NodeSelectorOpNotIn
-	if isRemote {
+	if isOffloaded {
 		NodeAffinityOperator = v1.NodeSelectorOpIn
+		nodeSelector = map[string]string{
+			"kubernetes.io/hostname": strings.Join([]string{"liqo", clusterID}, "-"),
+		}
 	}
 
 	pod1 := v1.Pod{
@@ -72,6 +90,7 @@ func forgeTesterPod(image, podName, namespace string, isRemote bool) *v1.Pod {
 			Labels:    map[string]string{"app": podName},
 		},
 		Spec: v1.PodSpec{
+			NodeSelector: nodeSelector,
 			Containers: []v1.Container{
 				{
 					Name:            "tester",

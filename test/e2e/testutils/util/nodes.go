@@ -49,6 +49,11 @@ func CheckVirtualNodes(ctx context.Context, homeClusterClient kubernetes.Interfa
 		klog.Error(err)
 		return false
 	}
+
+	if len(virtualNodes.Items) == 0 {
+		return false
+	}
+
 	for index := range virtualNodes.Items {
 		for _, condition := range virtualNodes.Items[index].Status.Conditions {
 			if condition.Type == v1.NodeReady {

@@ -17,7 +17,9 @@ set -e           # Fail in case of error
 set -o nounset   # Fail if undefined variables are used
 set -o pipefail  # Fail if one of the piped commands fails
 
-KIND_VERSION="v0.11.1"
+function command_exists() {
+  command -v "$1" >/dev/null 2>&1
+}
 
 function setup_arch_and_os(){
   ARCH=$(uname -m)
@@ -39,42 +41,25 @@ function setup_arch_and_os(){
     "mingw"*) OS='windows'; return ;;
   esac
 
-  # list is available for kind at https://github.com/kubernetes-sigs/kind/releases
-  # kubectl supported architecture list is a superset of the Kind one. No need to further compatibility check.
-  local supported="darwin-amd64\n\nlinux-amd64\nlinux-arm64\nlinux-ppc64le\nwindows-amd64"
+  # list of helm supported architectures
+	local supported="darwin-amd64\ndarwin-arm64\nlinux-386\nlinux-amd64\nlinux-arm\nlinux-arm64\nlinux-ppc64le\nlinux-s390x\nwindows-amd64"
   if ! echo "${supported}" | grep -q "${OS}-${ARCH}"; then
-    echo "Error: No version of kind for '${OS}-${ARCH}'"
+    echo "Error: No version of helm for '${OS}-${ARCH}'"
     return 1
   fi
 
 }
 
-setup_arch_and_os
+function download_helm() {
+  setup_arch_and_os
 
+  local HELM_VERSION=v3.7.0
+  local HELM_ARCHIVE=helm-${HELM_VERSION}-${OS}-${ARCH}.tar.gz
+  local HELM_URL=https://get.helm.sh/${HELM_ARCHIVE}
 
-
-echo "Downloading Kind ${KIND_VERSION}"
-
-if ! command -v docker &> /dev/null;
-then
-	echo "MISSING REQUIREMENT: docker engine could not be found on your system. Please install docker engine to continue: https://docs.docker.com/get-docker/"
-	return 1
-fi
-
-if ! command -v kubectl &> /dev/null
-then
-    echo "WARNING: kubectl could not be found. Downloading and installing it locally..."
-    if ! curl --fail -Lo "${BINDIR}"/kubectl "https://storage.googleapis.com/kubernetes-release/release/$(curl -s https://storage.googleapis.com/kubernetes-release/release/stable.txt)/bin/${OS}/${ARCH}/kubectl"; then
-        echo "Error: Unable to download kubectl for '${OS}-${ARCH}'"
-        return 1
-    fi
-    chmod +x "${BINDIR}"/kubectl
-    export PATH=${PATH}:${BINDIR}
-fi
-
-if [[ ! -f "${BINDIR}/kind" ]]; then
-    echo "kind could not be found. Downloading..."
-	curl -Lo "${BINDIR}"/kind https://kind.sigs.k8s.io/dl/${KIND_VERSION}/kind-${OS}-${ARCH}
-	chmod +x "${BINDIR}"/kind
-fi
-
+  command_exists tar || exit 1
+  export HELM="${BINDIR}/$OS-$ARCH/helm"
+  if ! command_exists "$HELM"; then
+    wget --quiet --output-document=- "${HELM_URL}" | tar zxf - --directory="${BINDIR}" 2>/dev/null || exit 1
+  fi
+}

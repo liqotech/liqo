@@ -17,21 +17,11 @@ set -e           # Fail in case of error
 set -o nounset   # Fail if undefined variables are used
 set -o pipefail  # Fail if one of the piped commands fails
 
-for i in $(seq 1 "${CLUSTER_NUMBER}");
+for i in $(seq 2 "${CLUSTER_NUMBER}");
 do
-   echo "OUTPUT CLUSTER ${i}"
-   export KUBECONFIG=${TMPDIR}/kubeconfigs/liqo_kubeconf_${i}
-   echo "Pods created in the cluster"
-   echo "|------------------------------------------------------------|"
-   kubectl get po -A -o wide
-   echo "Core resources in Liqo namespace"
-   echo "|------------------------------------------------------------|"
-   kubectl get all -n liqo -o wide
-   echo "Installed CRDs"
-   echo "|------------------------------------------------------------|"
-   kubectl get crd -A
-   echo "Available Nodes"
-   echo "|------------------------------------------------------------|"
-   kubectl get no -o wide --show-labels
-   echo "|------------------------------------------------------------|"
+  export KUBECONFIG="${TMPDIR}/kubeconfigs/liqo_kubeconf_${i}"
+  ADD_COMMAND=$(${LIQOCTL} generate-add-command --only-command)
+
+  export KUBECONFIG="${TMPDIR}/kubeconfigs/liqo_kubeconf_1"
+  eval "${ADD_COMMAND}"
 done;
