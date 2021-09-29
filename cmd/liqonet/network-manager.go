@@ -111,13 +111,13 @@ func runNetworkManager(commonFlags *liqonetCommonFlags, managerFlags *networkMan
 
 	ipam, err := initializeIPAM(dynClient, managerFlags)
 	if err != nil {
-		klog.Errorf("Failed to initialize IPAM: %w", err)
+		klog.Errorf("Failed to initialize IPAM: %s", err)
 		os.Exit(1)
 	}
 
 	externalCIDR, err := ipam.GetExternalCIDR(utils.GetMask(managerFlags.podCIDR))
 	if err != nil {
-		klog.Errorf("Failed to initialize the external CIDR: %w", err)
+		klog.Errorf("Failed to initialize the external CIDR: %s", err)
 		os.Exit(1)
 	}
 
