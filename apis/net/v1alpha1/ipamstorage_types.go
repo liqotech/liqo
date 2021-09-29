@@ -55,6 +55,8 @@ type IpamSpec struct {
 	Prefixes map[string][]byte `json:"prefixes"`
 	// Network pools.
 	Pools []string `json:"pools"`
+	// Reserved Networks. Subnets listed in this field are excluded from the list of possible subnets used for natting POD CIDR.
+	ReservedSubnets []string `json:"reservedSubnets"`
 	// Map used to keep track of networks assigned to clusters. Key is the remote cluster ID, value is a the set of
 	// networks used by the remote cluster.
 	ClusterSubnets map[string]Subnets `json:"clusterSubnets"`

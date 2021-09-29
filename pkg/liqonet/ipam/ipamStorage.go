@@ -33,18 +33,22 @@ import (
 
 	netv1alpha1 "github.com/liqotech/liqo/apis/net/v1alpha1"
 	"github.com/liqotech/liqo/pkg/consts"
+	"github.com/liqotech/liqo/pkg/utils/slice"
 )
 
 const (
 	ipamNamePrefix              = "ipamstorage-"
 	clusterSubnetUpdate         = "clusterSubnets"
 	poolsUpdate                 = "pools"
+	reservedSubnetsUpdate       = "reservedSubnets"
 	prefixesUpdate              = "prefixes"
 	externalCIDRUpdate          = "externalCIDR"
 	endpointMappingsUpdate      = "endpointMappings"
 	podCIDRUpdate               = "podCIDR"
 	serviceCIDRUpdate           = "serviceCIDR"
 	natMappingsConfiguredUpdate = "natMappingsConfigured"
+	updateOpAdd                 = "add"
+	updateOpRemove              = "remove"
 )
 
 // IpamStorage is the interface to be implemented to enforce persistency in IPAM.
@@ -55,6 +59,7 @@ type IpamStorage interface {
 	updateEndpointMappings(endpoints map[string]netv1alpha1.EndpointMapping) error
 	updatePodCIDR(podCIDR string) error
 	updateServiceCIDR(serviceCIDR string) error
+	updateReservedSubnets(subnet, operation string) error
 	updateNatMappingsConfigured(natMappingsConfigured map[string]netv1alpha1.ConfiguredCluster) error
 	getClusterSubnets() map[string]netv1alpha1.Subnets
 	getPools() []string
@@ -62,6 +67,7 @@ type IpamStorage interface {
 	getEndpointMappings() map[string]netv1alpha1.EndpointMapping
 	getPodCIDR() string
 	getServiceCIDR() string
+	getReservedSubnets() []string
 	getNatMappingsConfigured() map[string]netv1alpha1.ConfiguredCluster
 	goipam.Storage
 }
@@ -206,21 +212,38 @@ func (ipamStorage *IPAMStorage) DeletePrefix(prefix goipam.Prefix) (goipam.Prefi
 func (ipamStorage *IPAMStorage) updateClusterSubnets(clusterSubnets map[string]netv1alpha1.Subnets) error {
 	return ipamStorage.updateConfig(clusterSubnetUpdate, clusterSubnets)
 }
+
 func (ipamStorage *IPAMStorage) updatePools(pools []string) error {
 	return ipamStorage.updateConfig(poolsUpdate, pools)
 }
+
+func (ipamStorage *IPAMStorage) updateReservedSubnets(subnet, operation string) error {
+	subnets := ipamStorage.getReservedSubnets()
+	switch operation {
+	case updateOpAdd:
+		subnets = append(subnets, subnet)
+	case updateOpRemove:
+		subnets = slice.RemoveString(subnets, subnet)
+	}
+	return ipamStorage.updateConfig(reservedSubnetsUpdate, subnets)
+}
+
 func (ipamStorage *IPAMStorage) updatePrefixes(prefixes map[string][]byte) error {
 	return ipamStorage.updateConfig(prefixesUpdate, prefixes)
 }
+
 func (ipamStorage *IPAMStorage) updateExternalCIDR(externalCIDR string) error {
 	return ipamStorage.updateConfig(externalCIDRUpdate, externalCIDR)
 }
+
 func (ipamStorage *IPAMStorage) updateEndpointMappings(endpoints map[string]netv1alpha1.EndpointMapping) error {
 	return ipamStorage.updateConfig(endpointMappingsUpdate, endpoints)
 }
+
 func (ipamStorage *IPAMStorage) updatePodCIDR(podCIDR string) error {
 	return ipamStorage.updateConfig(podCIDRUpdate, podCIDR)
 }
+
 func (ipamStorage *IPAMStorage) updateServiceCIDR(serviceCIDR string) error {
 	return ipamStorage.updateConfig(serviceCIDRUpdate, serviceCIDR)
 }
@@ -273,14 +296,21 @@ func (ipamStorage *IPAMStorage) getClusterSubnets() map[string]netv1alpha1.Subne
 func (ipamStorage *IPAMStorage) getExternalCIDR() string {
 	return ipamStorage.getConfig().Spec.ExternalCIDR
 }
+
 func (ipamStorage *IPAMStorage) getEndpointMappings() map[string]netv1alpha1.EndpointMapping {
 	return ipamStorage.getConfig().Spec.EndpointMappings
 }
+
 func (ipamStorage *IPAMStorage) getPodCIDR() string {
 	return ipamStorage.getConfig().Spec.PodCIDR
 }
+
 func (ipamStorage *IPAMStorage) getServiceCIDR() string {
 	return ipamStorage.getConfig().Spec.ServiceCIDR
+}
+
+func (ipamStorage *IPAMStorage) getReservedSubnets() []string {
+	return ipamStorage.getConfig().Spec.ReservedSubnets
 }
 
 func (ipamStorage *IPAMStorage) getNatMappingsConfigured() map[string]netv1alpha1.ConfiguredCluster {
@@ -342,6 +372,7 @@ func (ipamStorage *IPAMStorage) createConfig() (*netv1alpha1.IpamStorage, error)
 			ClusterSubnets:        make(map[string]netv1alpha1.Subnets),
 			EndpointMappings:      make(map[string]netv1alpha1.EndpointMapping),
 			NatMappingsConfigured: make(map[string]netv1alpha1.ConfiguredCluster),
+			ReservedSubnets:       []string{},
 		},
 	}
 

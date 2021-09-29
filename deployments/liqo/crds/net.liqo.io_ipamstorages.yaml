@@ -121,6 +121,12 @@ spec:
                   Important: Run "make" to regenerate code after modifying this file
                   Map consumed by go-ipam module. Key is prefic cidr, value is a Prefix.'
                 type: object
+              reservedSubnets:
+                description: Reserved Networks. Subnets listed in this field are excluded
+                  from the list of possible subnets used for natting POD CIDR.
+                items:
+                  type: string
+                type: array
               serviceCIDR:
                 description: ServiceCIDR
                 type: string
@@ -132,6 +138,7 @@ spec:
             - podCIDR
             - pools
             - prefixes
+            - reservedSubnets
             - serviceCIDR
             type: object
         type: object

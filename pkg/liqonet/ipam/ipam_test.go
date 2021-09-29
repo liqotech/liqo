@@ -1559,7 +1559,81 @@ var _ = Describe("Ipam", func() {
 			})
 		})
 	})
+
+	Describe("SetReservedSubnets", func() {
+		var (
+			toBeReservedSubnets1          []string
+			toBeReservedSubnets2          []string
+			toBeReservedSubnetsIncorrect1 []string
+		)
+
+		BeforeEach(func() {
+			toBeReservedSubnets1 = []string{"192.168.0.0/16", "100.200.0.0/16", "10.200.250.0/24"}
+			toBeReservedSubnets2 = []string{"192.168.1.0/24", "100.200.0.0/16", "172.16.34.0/24"}
+			toBeReservedSubnetsIncorrect1 = []string{"192.168.0.0/16", "100.200.0/16", "10.200.250.0/24"}
+		})
+		Context("Reserving subnets", func() {
+			When("Reserving subnets for the first time", func() {
+				It("should reserve all the the subnets and return nil", func() {
+					Expect(ipam.SetReservedSubnets(toBeReservedSubnets1)).To(BeNil())
+					Expect(ipam.ipamStorage.getReservedSubnets()).To(ContainElements(toBeReservedSubnets1))
+					checkForPrefixes(toBeReservedSubnets1)
+				})
+			})
+
+			When("Reserving subnets multiple times", func() {
+				It("should return nil", func() {
+					// Reserving the first time.
+					Expect(ipam.SetReservedSubnets(toBeReservedSubnets1)).To(BeNil())
+					Expect(ipam.ipamStorage.getReservedSubnets()).To(ContainElements(toBeReservedSubnets1))
+					// Reserving the second time.
+					Expect(ipam.SetReservedSubnets(toBeReservedSubnets1)).To(BeNil())
+					Expect(ipam.ipamStorage.getReservedSubnets()).To(ContainElements(toBeReservedSubnets1))
+					checkForPrefixes(toBeReservedSubnets1)
+				})
+			})
+
+			When("Reserving a list of subnets with incorrect ones", func() {
+				It("should reserve all the correct ones that comes before the incorrect one", func() {
+					Expect(ipam.SetReservedSubnets(toBeReservedSubnetsIncorrect1)).To(HaveOccurred())
+					Expect(ipam.ipamStorage.getReservedSubnets()).To(HaveLen(1))
+					Expect(ipam.ipamStorage.getReservedSubnets()).To(ContainElement(toBeReservedSubnetsIncorrect1[0]))
+				})
+			})
+		})
+
+		Context("Making available subnets previously reserved", func() {
+			JustBeforeEach(func() {
+				// Reserve the subnets.
+				Expect(ipam.SetReservedSubnets(toBeReservedSubnets1)).To(BeNil())
+				Expect(ipam.ipamStorage.getReservedSubnets()).To(ContainElements(toBeReservedSubnets1))
+				checkForPrefixes(toBeReservedSubnets1)
+			})
+			When("reserved subnets are no more needed", func() {
+				It("should remove all the previously reserved networks", func() {
+					Expect(ipam.SetReservedSubnets(nil)).To(BeNil())
+					Expect(ipam.ipamStorage.getReservedSubnets()).Should(HaveLen(0))
+				})
+			})
+
+			When("new subnets are reserved and existing ones are freed", func() {
+				It("should return nil and update the reserved subnets", func() {
+					Expect(ipam.SetReservedSubnets(toBeReservedSubnets2)).To(BeNil())
+					Expect(ipam.ipamStorage.getReservedSubnets()).To(ContainElements(toBeReservedSubnets2))
+					checkForPrefixes(toBeReservedSubnets2)
+				})
+			})
+		})
+	})
 })
+
+func checkForPrefixes(subnets []string) {
+	for _, s := range subnets {
+		prefix, err := ipam.ipamStorage.ReadPrefix(s)
+		Expect(err).To(BeNil())
+		Expect(prefix.Cidr).To(Equal(s))
+	}
+}
 
 func getNatMappingResourcePerCluster(clusterID string) (*liqonetapi.NatMapping, error) {
 	nm := &liqonetapi.NatMapping{}
