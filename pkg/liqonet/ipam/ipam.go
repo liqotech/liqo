@@ -457,22 +457,24 @@ func (liqoIPAM *IPAM) freePoolInHalves(pool string) error {
 		return err
 	}
 
-	klog.Infof("Network %s is equal to a network pool, freeing first half..", pool)
-	err = liqoIPAM.ipam.ReleaseChildPrefix(liqoIPAM.ipam.PrefixFrom(halfCidr))
-	if err != nil {
-		return fmt.Errorf("cannot free first half of pool %s: %w", pool, err)
+	klog.Infof("Network %s is equal to a network pool, freeing it in two steps...", pool)
+	for i := 1; i <= 2; i++ {
+		if i == 2 {
+			// Get second half CIDR
+			halfCidr, err = utils.Next(halfCidr)
+			if err != nil {
+				return err
+			}
+		}
+		klog.Infof("freeing half %d...", i)
+		if prefix := liqoIPAM.ipam.PrefixFrom(halfCidr); prefix != nil {
+			err = liqoIPAM.ipam.ReleaseChildPrefix(prefix)
+			if err != nil {
+				return fmt.Errorf("cannot free first half of pool %s: %w", pool, err)
+			}
+		}
 	}
 
-	// Get second half CIDR
-	halfCidr, err = utils.Next(halfCidr)
-	if err != nil {
-		return err
-	}
-	klog.Infof("Freeing second half..")
-	err = liqoIPAM.ipam.ReleaseChildPrefix(liqoIPAM.ipam.PrefixFrom(halfCidr))
-	if err != nil {
-		return fmt.Errorf("cannot free second half of pool %s: %w", pool, err)
-	}
 	klog.Infof("Network %s has successfully been freed", pool)
 	return nil
 }
@@ -1185,6 +1187,38 @@ func (liqoIPAM *IPAM) SetServiceCIDR(serviceCIDR string) error {
 	// Update Service CIDR
 	if err := liqoIPAM.ipamStorage.updateServiceCIDR(serviceCIDR); err != nil {
 		return fmt.Errorf("cannot set ServiceCIDR: %w", err)
+	}
+	return nil
+}
+
+// SetReservedSubnets acquires and/or frees the reserved networks.
+func (liqoIPAM *IPAM) SetReservedSubnets(subnets []string) error {
+	reserved := liqoIPAM.ipamStorage.getReservedSubnets()
+
+	// Free all the reserved networks not needed anymore.
+	for _, r := range reserved {
+		if !slice.ContainsString(subnets, r) {
+			klog.Infof("freeing old reserved subnet %s", r)
+			if err := liqoIPAM.FreeReservedSubnet(r); err != nil {
+				return fmt.Errorf("una error occurred while freeing reserved subnet {%s}: %w", r, err)
+			}
+			if err := liqoIPAM.ipamStorage.updateReservedSubnets(r, updateOpRemove); err != nil {
+				return err
+			}
+		}
+	}
+
+	// Reserve the newly added subnets.
+	for _, s := range subnets {
+		if !slice.ContainsString(reserved, s) {
+			klog.Infof("acquiring reserved subnet %s", s)
+			if err := liqoIPAM.AcquireReservedSubnet(s); err != nil {
+				return fmt.Errorf("an error occurred while reserving subnet {%s}: %w", s, err)
+			}
+			if err := liqoIPAM.ipamStorage.updateReservedSubnets(s, updateOpAdd); err != nil {
+				return err
+			}
+		}
 	}
 	return nil
 }

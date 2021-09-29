@@ -55,7 +55,8 @@ func addNetworkManagerFlags(managerFlags *networkManagerFlags) {
 }
 
 func validateNetworkManagerFlags(managerFlags *networkManagerFlags) error {
-	cidrRegex := regexp.MustCompile(`^(\d{1,3}.){3}\d{1,3}(/(\d|[12]\d|3[012]))$`)
+	cidrRegex := regexp.MustCompile(`^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]` +
+		`|1[0-9]{2}|2[0-4][0-9]|25[0-5])(\/(3[0-2]|[1-2][0-9]|[0-9]))$`)
 
 	if !cidrRegex.MatchString(managerFlags.podCIDR) {
 		return fmt.Errorf("pod CIDR is empty or invalid (%q)", managerFlags.podCIDR)
@@ -172,10 +173,8 @@ func initializeIPAM(client dynamic.Interface, managerFlags *networkManagerFlags)
 		}
 	}
 
-	for _, pool := range managerFlags.reservedPools.StringList {
-		if err := ipam.AcquireReservedSubnet(pool); err != nil {
-			return nil, err
-		}
+	if err := ipam.SetReservedSubnets(managerFlags.reservedPools.StringList); err != nil {
+		return nil, err
 	}
 
 	return ipam, nil

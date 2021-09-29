@@ -119,6 +119,11 @@ func (in *IpamSpec) DeepCopyInto(out *IpamSpec) {
 		*out = make([]string, len(*in))
 		copy(*out, *in)
 	}
+	if in.ReservedSubnets != nil {
+		in, out := &in.ReservedSubnets, &out.ReservedSubnets
+		*out = make([]string, len(*in))
+		copy(*out, *in)
+	}
 	if in.ClusterSubnets != nil {
 		in, out := &in.ClusterSubnets, &out.ClusterSubnets
 		*out = make(map[string]Subnets, len(*in))
