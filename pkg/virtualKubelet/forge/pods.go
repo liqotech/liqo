@@ -145,6 +145,7 @@ func (f *apiForger) forgePodSpec(inputPodSpec corev1.PodSpec) corev1.PodSpec {
 	outputPodSpec.InitContainers = forgeContainers(inputPodSpec.InitContainers, outputPodSpec.Volumes)
 	outputPodSpec.Containers = forgeContainers(inputPodSpec.Containers, outputPodSpec.Volumes)
 	outputPodSpec.Tolerations = forgeTolerations(inputPodSpec.Tolerations)
+	outputPodSpec.EnableServiceLinks = inputPodSpec.EnableServiceLinks
 
 	return outputPodSpec
 }

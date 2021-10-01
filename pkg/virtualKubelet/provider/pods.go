@@ -38,7 +38,6 @@ import (
 	apimgmgt "github.com/liqotech/liqo/pkg/virtualKubelet/apiReflection"
 	vkContext "github.com/liqotech/liqo/pkg/virtualKubelet/context"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/forge"
-	"github.com/liqotech/liqo/pkg/virtualKubelet/translation/serviceEnv"
 )
 
 // CreatePod accepts a Pod definition and stores it in memory.
@@ -61,12 +60,6 @@ func (p *LiqoProvider) CreatePod(ctx context.Context, homePod *corev1.Pod) error
 		return kerror.NewServiceUnavailable(err.Error())
 	}
 	foreignPod := foreignObj.(*corev1.Pod)
-
-	foreignPod, err = serviceEnv.TranslateServiceEnvVariables(foreignPod, homePod.Namespace, foreignPod.Namespace, p.apiController.CacheManager())
-	if err != nil {
-		klog.V(4).Info(err)
-		return kerror.NewServiceUnavailable(err.Error())
-	}
 
 	foreignReplicaset := forge.ReplicasetFromPod(foreignPod)
 
