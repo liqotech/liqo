@@ -87,7 +87,7 @@ func (r *ResourceOfferReconciler) checkVirtualKubeletDeployment(
 func (r *ResourceOfferReconciler) createVirtualKubeletDeployment(
 	ctx context.Context, resourceOffer *sharingv1alpha1.ResourceOffer) error {
 	name := virtualKubelet.VirtualKubeletPrefix + resourceOffer.Spec.ClusterId
-	nodeName := virtualKubelet.VirtualNodePrefix + resourceOffer.Spec.ClusterId
+	nodeName := virtualKubelet.VirtualNodeName(resourceOffer.Spec.ClusterId)
 
 	namespace := resourceOffer.Namespace
 	remoteClusterID := resourceOffer.Spec.ClusterId

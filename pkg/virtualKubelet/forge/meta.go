@@ -14,15 +14,18 @@
 
 package forge
 
-import metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+import (
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/labels"
+)
 
 const (
-	// LiqoOutgoingKey is a label to set on all offloaded resources.
+	// LiqoOutgoingKey is a label to set on all offloaded resources (deprecated).
 	LiqoOutgoingKey = "virtualkubelet.liqo.io/outgoing"
-	// LiqoOriginClusterID is a label to set on all offloaded resources to identify the origin cluster.
-	LiqoOriginClusterID = "virtualkubelet.liqo.io/originClusterId"
-	// LiqoIncomingKey is a label for incoming resources.
-	LiqoIncomingKey = "virtualkubelet.liqo.io/incoming"
+	// LiqoOriginClusterIDKey is the key of a label identifying the origin cluster of a reflected resource.
+	LiqoOriginClusterIDKey = "virtualkubelet.liqo.io/origin"
+	// LiqoDestinationClusterIDKey is the key of a label identifying the destination cluster of a reflected resource.
+	LiqoDestinationClusterIDKey = "virtualkubelet.liqo.io/destination"
 )
 
 var (
@@ -34,11 +37,29 @@ var (
 	}
 )
 
+// ReflectionLabels returns the labels assigned to the objects reflected from the local to the remote cluster.
+func ReflectionLabels() labels.Set {
+	return map[string]string{
+		LiqoOriginClusterIDKey:      LocalClusterID,
+		LiqoDestinationClusterIDKey: RemoteClusterID,
+	}
+}
+
+// ReflectedLabelSelector returns a label selector matching the objects reflected from the local to the remote cluster.
+func ReflectedLabelSelector() labels.Selector {
+	return ReflectionLabels().AsSelectorPreValidated()
+}
+
+// IsReflected returns whether the current object has been reflected from the local to the remote cluster.
+func IsReflected(obj metav1.Object) bool {
+	return ReflectedLabelSelector().Matches(labels.Set(obj.GetLabels()))
+}
+
 func (f *apiForger) forgeForeignMeta(homeMeta, foreignMeta *metav1.ObjectMeta, foreignNamespace, reflectionType string) {
 	forgeObjectMeta(homeMeta, foreignMeta)
 
 	foreignMeta.Namespace = foreignNamespace
-	foreignMeta.Labels[LiqoOriginClusterID] = f.offloadClusterID.Value().ToString()
+	foreignMeta.Labels[LiqoOriginClusterIDKey] = LocalClusterID
 	foreignMeta.Labels[reflectionType] = LiqoNodeName()
 }
 

@@ -55,6 +55,14 @@ type NamespaceNatter interface {
 	MappedNamespaces() map[string]string
 }
 
+// ReflectionManager starts/stops the reflection of namespaced objects between the local and the remote cluster.
+type ReflectionManager interface {
+	// StartNamespace starts the reflection for a given namespace.
+	StartNamespace(local, remote string)
+	// StopNamespace stops the reflection for a given namespace.
+	StopNamespace(local, remote string)
+}
+
 // NamespaceMapperController handles namespace translation and reflection by implementing NamespaceNatter,NamespaceMirroringController
 // and NamespaceReflectionController interface.
 type NamespaceMapperController struct {
@@ -63,12 +71,13 @@ type NamespaceMapperController struct {
 
 // NewNamespaceMapperController builds and returns a new NewNamespaceMapperController.
 func NewNamespaceMapperController(ctx context.Context, config *rest.Config,
-	homeClusterID, foreignClusterID, namespace string) (*NamespaceMapperController, error) {
+	homeClusterID, foreignClusterID, namespace string, reflectionManager ReflectionManager) (*NamespaceMapperController, error) {
 	controller := &NamespaceMapperController{
 		mapper: &NamespaceMapper{
 			homeClusterID:           homeClusterID,
 			foreignClusterID:        foreignClusterID,
 			namespace:               namespace,
+			reflectionManager:       reflectionManager,
 			startOutgoingReflection: make(chan string, 100),
 			startIncomingReflection: make(chan string, 100),
 			stopIncomingReflection:  make(chan string, 100),

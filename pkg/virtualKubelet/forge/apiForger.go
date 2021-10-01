@@ -33,6 +33,13 @@ import (
 	"github.com/liqotech/liqo/pkg/virtualKubelet/options/types"
 )
 
+var (
+	// LocalClusterID -> the cluster ID associated with the local cluster.
+	LocalClusterID string
+	// RemoteClusterID -> the cluster ID associated with the remote cluster.
+	RemoteClusterID string
+)
+
 func ForeignToHomeStatus(foreignObj, homeObj runtime.Object) (runtime.Object, error) {
 	switch foreignObj.(type) {
 	case *corev1.Pod:
@@ -78,9 +85,8 @@ type apiForger struct {
 	nattingTable namespacesmapping.NamespaceNatter
 	ipamClient   liqonetIpam.IpamClient
 
-	virtualNodeName  options.ReadOnlyOption
-	liqoIpamServer   options.ReadOnlyOption
-	offloadClusterID options.ReadOnlyOption
+	virtualNodeName options.ReadOnlyOption
+	liqoIpamServer  options.ReadOnlyOption
 }
 
 var forger apiForger
@@ -92,8 +98,10 @@ func InitForger(nattingTable namespacesmapping.NamespaceNatter, opts ...options.
 		switch opt.Key() {
 		case types.VirtualNodeName:
 			forger.virtualNodeName = opt
+		case types.LocalClusterID:
+			LocalClusterID = opt.Value().ToString()
 		case types.RemoteClusterID:
-			forger.offloadClusterID = opt
+			RemoteClusterID = opt.Value().ToString()
 		case types.LiqoIpamServer:
 			forger.liqoIpamServer = opt
 			initIpamClient()

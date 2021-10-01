@@ -14,15 +14,15 @@
 
 package virtualKubelet
 
-type ContextKey string
-
 const (
-	VirtualNodePrefix       = "liqo-"
-	VirtualKubeletPrefix    = "virtual-kubelet-"
-	VirtualKubeletSecPrefix = "vk-kubeconfig-secret-"
-	AdvertisementPrefix     = "advertisement-"
-	ReflectedpodKey         = "virtualkubelet.liqo.io/source-pod"
-	HomePodFinalizer        = "virtual-kubelet.liqo.io/provider"
+	// VirtualNodePrefix -> the prefix used to generate the virtual node name.
+	VirtualNodePrefix = "liqo-"
+	// VirtualKubeletPrefix -> the prefix used to generate the virtual kubelet deployment name.
+	VirtualKubeletPrefix = "virtual-kubelet-"
+	// ReflectedpodKey -> the key of the label added to reflected pods.
+	ReflectedpodKey = "virtualkubelet.liqo.io/source-pod"
+	// HomePodFinalizer -> the finalizer added to local pods when reflected.
+	HomePodFinalizer = "virtual-kubelet.liqo.io/provider"
 
 	// Clients configuration.
 	HOME_CLIENT_QPS      = 1000
@@ -30,3 +30,8 @@ const (
 	FOREIGN_CLIENT_QPS   = 1000
 	FOREIGN_CLIENT_BURST = 5000
 )
+
+// VirtualNodeName generates the virtual node name based on the cluster ID.
+func VirtualNodeName(clusterID string) string {
+	return VirtualNodePrefix + clusterID
+}

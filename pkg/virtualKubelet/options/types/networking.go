@@ -26,7 +26,9 @@ type NetworkingValue string
 const (
 	// VirtualNodeName is the key for the option containing the name to assign to the virtual node.
 	VirtualNodeName = "virtualNodeName"
-	// RemoteClusterID is the key for the option containing the remote clusterID.
+	// LocalClusterID is the key for the option containing the local cluster ID.
+	LocalClusterID = "localClusterID"
+	// RemoteClusterID is the key for the option containing the remote cluster ID.
 	RemoteClusterID = "remoteClusterID"
 	// LiqoIpamServer is the key for the option containing server serving the ipam service.
 	LiqoIpamServer = "liqoIpamServer"

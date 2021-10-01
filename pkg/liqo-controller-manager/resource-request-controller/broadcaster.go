@@ -186,7 +186,7 @@ func (b *Broadcaster) onPodAdd(obj interface{}) {
 		// subtract the pod resource from cluster resources. This action is done for all pods to extract actual available resources.
 		subResources(currentResources, podResources)
 		b.writeClusterResources(currentResources)
-		if clusterID := podAdded.Labels[forge.LiqoOriginClusterID]; clusterID != "" {
+		if clusterID := podAdded.Labels[forge.LiqoOriginClusterIDKey]; clusterID != "" {
 			klog.V(4).Infof("OnPodAdd: Pod %s:%s passed ClusterID check. ClusterID = %s", podAdded.Namespace, podAdded.Name, clusterID)
 			currentPodsResources := b.readPodResources(clusterID)
 			// add the resource of this pod in the map clusterID => resources to be used in ReadResources() function.
@@ -204,7 +204,7 @@ func (b *Broadcaster) onPodUpdate(oldObj, newObj interface{}) {
 	newResources := extractPodResources(newPod)
 	oldResources := extractPodResources(oldPod)
 	currentResources := b.readClusterResources()
-	clusterID := newPod.Labels[forge.LiqoOriginClusterID]
+	clusterID := newPod.Labels[forge.LiqoOriginClusterIDKey]
 	// empty if clusterID has not a valid value.
 	currentPodsResources := b.readPodResources(clusterID)
 
@@ -247,7 +247,7 @@ func (b *Broadcaster) onPodDelete(obj interface{}) {
 		// Resources used by the pod will become available again so add them to the total allocatable ones.
 		addResources(currentResources, podResources)
 		b.writeClusterResources(currentResources)
-		if clusterID := podDeleted.Labels[forge.LiqoOriginClusterID]; clusterID != "" {
+		if clusterID := podDeleted.Labels[forge.LiqoOriginClusterIDKey]; clusterID != "" {
 			klog.V(4).Infof("OnPodDelete: Pod %s:%s passed ClusterID check. ClusterID = %s", podDeleted.Namespace, podDeleted.Name, clusterID)
 			currentPodsResources := b.readPodResources(clusterID)
 			subResources(currentPodsResources, podResources)

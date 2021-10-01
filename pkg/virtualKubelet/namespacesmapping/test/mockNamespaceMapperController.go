@@ -14,22 +14,16 @@
 
 package test
 
-import (
-	"github.com/liqotech/liqo/pkg/virtualKubelet/namespacesmapping"
-)
-
 // MockNamespaceMapperController implements a mock namespace mapper controller.
 type MockNamespaceMapperController struct {
 	Mapper *MockNamespaceMapper
 }
 
 // NewMockNamespaceMapperController builds and returns a new mock NewNamespaceMapperController.
-func NewMockNamespaceMapperController(mapper *MockNamespaceMapper) namespacesmapping.MapperController {
-	controller := &MockNamespaceMapperController{
+func NewMockNamespaceMapperController(mapper *MockNamespaceMapper) *MockNamespaceMapperController {
+	return &MockNamespaceMapperController{
 		Mapper: mapper,
 	}
-
-	return controller
 }
 
 // PollStartOutgoingReflection returns the startOutgoingReflection channel. It is used to receive elements to start new outgoing reflection

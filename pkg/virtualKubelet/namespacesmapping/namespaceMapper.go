@@ -45,6 +45,7 @@ type NamespaceMapper struct {
 	namespaceReadyMapCache namespaceReadyMapCache
 	namespace              string
 
+	reflectionManager       ReflectionManager
 	startOutgoingReflection chan string
 	startIncomingReflection chan string
 	stopOutgoingReflection  chan string
@@ -179,12 +180,14 @@ func (m *NamespaceMapper) handleMapperAdditions(oldNamespaceMap, newNamespaceMap
 		if creationEvent {
 			klog.V(3).Infof("Enabling reflection for remote namespace %s for local namespace %s", newMapping.RemoteNamespace, localNs)
 			m.namespaceReadyMapCache.write(localNs, newMapping.RemoteNamespace)
+			m.reflectionManager.StartNamespace(localNs, newMapping.RemoteNamespace)
 			m.startOutgoingReflection <- localNs
 			m.startIncomingReflection <- localNs
 			// When there is an update event, we add to the cache if the element was not present before or if we had a change to MappingAccepted.
 		} else if oldRemoteNs, ok := oldNamespaceMap.Status.CurrentMapping[localNs]; !ok || oldRemoteNs.Phase != vkalpha1.MappingAccepted {
 			klog.V(3).Infof("Enabling reflection for remote namespace %s for local namespace %s", newMapping.RemoteNamespace, localNs)
 			m.namespaceReadyMapCache.write(localNs, newMapping.RemoteNamespace)
+			m.reflectionManager.StartNamespace(localNs, newMapping.RemoteNamespace)
 			m.startOutgoingReflection <- localNs
 			m.startIncomingReflection <- localNs
 		}
@@ -199,10 +202,12 @@ func (m *NamespaceMapper) handleMapperDeletions(oldNamespaceMap, newNamespaceMap
 		}
 		if deletionEvent {
 			klog.V(3).Infof("Stopping reflection for remote namespace %s for local namespace %s", oldMapping.RemoteNamespace, localNs)
+			m.reflectionManager.StopNamespace(localNs, m.namespaceReadyMapCache.read(localNs))
 			m.stopOutgoingReflection <- localNs
 			m.stopIncomingReflection <- localNs
 		} else if newRemoteNs, ok := newNamespaceMap.Status.CurrentMapping[localNs]; !ok || newRemoteNs.Phase != vkalpha1.MappingAccepted {
 			klog.V(3).Infof("Stopping reflection for remote namespace %s for local namespace %s", oldMapping.RemoteNamespace, localNs)
+			m.reflectionManager.StopNamespace(localNs, m.namespaceReadyMapCache.read(localNs))
 			m.stopOutgoingReflection <- localNs
 			m.stopIncomingReflection <- localNs
 		}

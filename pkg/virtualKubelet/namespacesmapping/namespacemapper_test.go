@@ -28,6 +28,7 @@ import (
 
 	vkalpha1 "github.com/liqotech/liqo/apis/virtualKubelet/v1alpha1"
 	liqoconst "github.com/liqotech/liqo/pkg/consts"
+	"github.com/liqotech/liqo/pkg/virtualKubelet/namespacesmapping/test"
 )
 
 const (
@@ -113,6 +114,7 @@ var _ = Describe("Test that NamespaceMapper", func() {
 			homeClusterID:           homeClusterID,
 			foreignClusterID:        foreignClusterID,
 			namespace:               testNamespaceSingle,
+			reflectionManager:       test.NewFakeReflectionManager(),
 			startOutgoingReflection: make(chan string, 100),
 			startIncomingReflection: make(chan string, 100),
 			stopIncomingReflection:  make(chan string, 100),
