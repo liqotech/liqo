@@ -105,7 +105,7 @@ func (ncc *NetworkConfigCreator) Reconcile(ctx context.Context, req ctrl.Request
 // SetupWithManager registers a new controller for ForeignCluster resources.
 func (ncc *NetworkConfigCreator) SetupWithManager(mgr ctrl.Manager) error {
 	enqueuefn := func(rli workqueue.RateLimitingInterface) {
-		ncc.foreignClusters.ForEach(func(fc string) { rli.AddRateLimited(fc) })
+		ncc.foreignClusters.ForEach(func(fc string) { rli.Add(fc) })
 	}
 
 	ncc.foreignClusters = syncset.New()

@@ -153,7 +153,7 @@ func (r *Reflector) StartForResource(ctx context.Context, resource *resources.Re
 
 		// The informer has synced, and we are now ready to start te replication
 		klog.Infof("[%v] Reflection of %v correctly started", r.remoteClusterID, gvr)
-		r.manager.registerHandler(gvr, r.localNamespace, func(key item) { r.workqueue.AddRateLimited(key) })
+		r.manager.registerHandler(gvr, r.localNamespace, func(key item) { r.workqueue.Add(key) })
 
 		if res, found := r.get(gvr); found {
 			res.initialized = true
@@ -214,7 +214,7 @@ func (r *Reflector) eventHandlers(gvr schema.GroupVersionResource) cache.Resourc
 		metadata, err := meta.Accessor(obj)
 		utilruntime.Must(err)
 
-		r.workqueue.AddRateLimited(item{gvr: gvr, name: metadata.GetName()})
+		r.workqueue.Add(item{gvr: gvr, name: metadata.GetName()})
 	}
 
 	return cache.ResourceEventHandlerFuncs{

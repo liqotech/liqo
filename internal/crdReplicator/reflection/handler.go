@@ -162,10 +162,6 @@ func (r *Reflector) createRemoteObject(ctx context.Context, resource *reflectedR
 
 	// Create the resource in the remote cluster
 	if remote, err = r.remoteClient.Resource(resource.gvr).Namespace(r.remoteNamespace).Create(ctx, remote, metav1.CreateOptions{}); err != nil {
-		if kerrors.IsAlreadyExists(err) {
-			klog.Infof("[%v] Remote %v with name %v already exists", r.remoteClusterID, resource.gvr, local.GetName())
-			return nil
-		}
 		klog.Errorf("[%v] Failed to create remote %v with name %v: %v", r.remoteClusterID, resource.gvr, local.GetName(), err)
 		return err
 	}
