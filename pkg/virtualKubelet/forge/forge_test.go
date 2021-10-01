@@ -12,46 +12,48 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package forge
+package forge_test
 
 import (
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
+	"github.com/liqotech/liqo/pkg/virtualKubelet/forge"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/namespacesmapping/test"
-	"github.com/liqotech/liqo/pkg/virtualKubelet/options"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/options/types"
 )
 
 var _ = Describe("Virtual Kubelet labels test", func() {
-	var (
-		namespaceNattingTable *test.MockNamespaceMapper
-		foreignClusterID      options.Option
-	)
-
 	Context("Testing Labels attached to offloaded pods", func() {
+		const (
+			homeNamespace   = "home-namespace"
+			remoteNamespace = "remote-namespace"
+		)
+
+		var homePod corev1.Pod
+
 		BeforeEach(
 			func() {
-				namespaceNattingTable = &test.MockNamespaceMapper{Cache: map[string]string{}}
-				namespaceNattingTable.Cache["homeNamespace"] = "homeNamespace-natted"
-				foreignClusterID = types.NewNetworkingOption(types.RemoteClusterID, "foreign-id")
-				InitForger(namespaceNattingTable, foreignClusterID)
+				namespaceNattingTable := &test.MockNamespaceMapper{Cache: map[string]string{}}
+				namespaceNattingTable.Cache[homeNamespace] = remoteNamespace
+				localClusterID := types.NewNetworkingOption(types.LocalClusterID, "local-id")
+				forge.InitForger(namespaceNattingTable, localClusterID)
+
+				homePod = corev1.Pod{ObjectMeta: metav1.ObjectMeta{Name: "foo", Namespace: homeNamespace}}
 			},
 		)
 
 		It("Creating new pod to offload", func() {
-			foreignObj, err := HomeToForeign(nil, nil, LiqoOutgoingKey)
+			foreignObj, err := forge.HomeToForeign(&homePod, nil, forge.LiqoOutgoingKey)
 			Expect(err).NotTo(HaveOccurred())
 			foreignPod := foreignObj.(*corev1.Pod)
-			Expect(foreignPod.Labels[LiqoOutgoingKey]).ShouldNot(BeNil())
-			Expect(foreignPod.Labels[LiqoOriginClusterID]).ShouldNot(BeNil())
-			Expect(foreignPod.Labels[LiqoOriginClusterID]).Should(Equal("foreign-id"))
-
+			Expect(foreignPod.Labels[forge.LiqoOutgoingKey]).ShouldNot(BeNil())
+			Expect(foreignPod.Labels[forge.LiqoOriginClusterIDKey]).ShouldNot(BeNil())
+			Expect(foreignPod.Labels[forge.LiqoOriginClusterIDKey]).Should(Equal("local-id"))
 		})
-
 	})
-
 })
 
 var _ = Describe("Forge toleration test", func() {
@@ -78,7 +80,7 @@ var _ = Describe("Forge toleration test", func() {
 		It("Filtering tolerations", func() {
 			input := []corev1.Toleration{tol1, tol2}
 			expected := []corev1.Toleration{tol2}
-			output := forgeTolerations(input)
+			output := forge.Tolerations(input)
 			Expect(output).To(Equal(expected))
 		})
 

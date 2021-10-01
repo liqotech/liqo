@@ -72,7 +72,7 @@ func (f *apiForger) podStatusForeignToHome(foreignObj, homeObj runtime.Object) *
 	if homePod.Status.PodIP != "" {
 		response, err := f.ipamClient.GetHomePodIP(context.Background(),
 			&liqonetIpam.GetHomePodIPRequest{
-				ClusterID: strings.TrimPrefix(f.virtualNodeName.Value().ToString(), virtualKubelet.VirtualNodePrefix),
+				ClusterID: RemoteClusterID,
 				Ip:        foreignPod.Status.PodIP,
 			})
 		if err != nil {
@@ -144,13 +144,14 @@ func (f *apiForger) forgePodSpec(inputPodSpec corev1.PodSpec) corev1.PodSpec {
 	outputPodSpec.Volumes = forgeVolumes(inputPodSpec.Volumes)
 	outputPodSpec.InitContainers = forgeContainers(inputPodSpec.InitContainers, outputPodSpec.Volumes)
 	outputPodSpec.Containers = forgeContainers(inputPodSpec.Containers, outputPodSpec.Volumes)
-	outputPodSpec.Tolerations = forgeTolerations(inputPodSpec.Tolerations)
+	outputPodSpec.Tolerations = Tolerations(inputPodSpec.Tolerations)
 	outputPodSpec.EnableServiceLinks = inputPodSpec.EnableServiceLinks
 
 	return outputPodSpec
 }
 
-func forgeTolerations(inputTolerations []corev1.Toleration) []corev1.Toleration {
+// Tolerations forges the tolerations for a reflected pod.
+func Tolerations(inputTolerations []corev1.Toleration) []corev1.Toleration {
 	tolerations := make([]corev1.Toleration, 0)
 
 	for _, toleration := range inputTolerations {

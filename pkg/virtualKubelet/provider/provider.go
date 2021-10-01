@@ -35,6 +35,7 @@ import (
 	"github.com/liqotech/liqo/pkg/virtualKubelet/namespacesmapping"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/options"
 	optTypes "github.com/liqotech/liqo/pkg/virtualKubelet/options/types"
+	"github.com/liqotech/liqo/pkg/virtualKubelet/reflection/manager"
 )
 
 func init() {
@@ -60,8 +61,9 @@ type LiqoProvider struct {
 	foreignMetricsClient metrics.Interface
 	foreignRestConfig    *rest.Config
 
-	namespaceMapper namespacesmapping.MapperController
-	apiController   controller.APIController
+	namespaceMapper   namespacesmapping.MapperController
+	reflectionManager manager.Manager
+	apiController     controller.APIController
 
 	startTime time.Time
 	nodeName  string
@@ -90,18 +92,25 @@ func NewLiqoProvider(ctx context.Context, cfg *InitConfig) (*LiqoProvider, error
 		return nil, err
 	}
 
-	mapper, err := namespacesmapping.NewNamespaceMapperController(
-		ctx, cfg.HomeConfig, cfg.HomeClusterID, cfg.RemoteClusterID, cfg.Namespace)
+	virtualNodeNameOpt := optTypes.NewNetworkingOption(optTypes.VirtualNodeName, optTypes.NetworkingValue(cfg.NodeName))
+	grpcServerNameOpt := optTypes.NewNetworkingOption(optTypes.LiqoIpamServer, optTypes.NetworkingValue(cfg.LiqoIpamServer))
+	localClusterIDOpt := optTypes.NewNetworkingOption(optTypes.LocalClusterID, optTypes.NetworkingValue(cfg.HomeClusterID))
+	remoteClusterIDOpt := optTypes.NewNetworkingOption(optTypes.RemoteClusterID, optTypes.NetworkingValue(cfg.RemoteClusterID))
+	forge.InitForger(nil, virtualNodeNameOpt, grpcServerNameOpt, localClusterIDOpt, remoteClusterIDOpt)
+
+	reflectionManager := manager.New(homeClient, foreignClient, 10*time.Hour)
+	reflectionManager.Start(ctx)
+
+	mapper, err := namespacesmapping.NewNamespaceMapperController(ctx, cfg.HomeConfig, cfg.HomeClusterID, cfg.RemoteClusterID,
+		cfg.Namespace, reflectionManager)
 	if err != nil {
 		return nil, err
 	}
 	mapper.WaitForSync()
 
-	virtualNodeNameOpt := optTypes.NewNetworkingOption(optTypes.VirtualNodeName, optTypes.NetworkingValue(cfg.NodeName))
-	grpcServerNameOpt := optTypes.NewNetworkingOption(optTypes.LiqoIpamServer, optTypes.NetworkingValue(cfg.LiqoIpamServer))
-	remoteClusterIDOpt := optTypes.NewNetworkingOption(optTypes.RemoteClusterID, optTypes.NetworkingValue(cfg.RemoteClusterID))
-
-	forge.InitForger(mapper, virtualNodeNameOpt, grpcServerNameOpt, remoteClusterIDOpt)
+	// The initialization is performed in two steps, to prevent circular dependencies.
+	// This will be removed with future improvements.
+	forge.InitForger(mapper)
 
 	opts := forgeOptionsMap(
 		virtualNodeNameOpt,
@@ -113,11 +122,12 @@ func NewLiqoProvider(ctx context.Context, cfg *InitConfig) (*LiqoProvider, error
 		foreignMetricsClient: foreignMetricsClient,
 		foreignRestConfig:    remoteRestConfig,
 
-		namespaceMapper: mapper,
-		apiController:   controller.NewAPIController(homeClient, foreignClient, cfg.InformerResyncPeriod, mapper, opts),
+		namespaceMapper:   mapper,
+		reflectionManager: reflectionManager,
+		apiController:     controller.NewAPIController(homeClient, foreignClient, cfg.InformerResyncPeriod, mapper, opts),
 
-		nodeName:  cfg.NodeName,
 		startTime: time.Now(),
+		nodeName:  cfg.NodeName,
 	}, nil
 }
 
