@@ -47,7 +47,13 @@ mkdir -p "${BINDIR}"
 if ! command -v docker &> /dev/null;
 then
 	echo "MISSING REQUIREMENT: docker engine could not be found on your system. Please install docker engine to continue: https://docs.docker.com/get-docker/"
-	return 1
+	exit 1
+fi
+
+if ! docker info &> /dev/null;
+then
+	echo "Error: Docker is not running. Please start it to continue."
+	exit 1
 fi
 
 if ! command -v kubectl &> /dev/null
@@ -55,7 +61,7 @@ then
     echo "WARNING: kubectl could not be found. Downloading and installing it locally..."
     if ! curl --fail -Lo "${BINDIR}"/kubectl "https://storage.googleapis.com/kubernetes-release/release/$(curl -s https://storage.googleapis.com/kubernetes-release/release/stable.txt)/bin/${OS}/${ARCH}/kubectl"; then
         echo "Error: Unable to download kubectl for '${OS}-${ARCH}'"
-    	return 1
+        exit 1
     fi
     chmod +x "${BINDIR}"/kubectl
     export PATH=${PATH}:${BINDIR}
