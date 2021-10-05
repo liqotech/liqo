@@ -20,6 +20,7 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
+	"strings"
 
 	capsulev1alpha1 "github.com/clastix/capsule/api/v1alpha1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -42,7 +43,8 @@ type Tester struct {
 	Clusters  []ClusterContext
 	Namespace string
 	// ClustersNumber represents the number of available clusters
-	ClustersNumber int
+	ClustersNumber   int
+	OverlappingCIDRs bool
 }
 
 // ClusterContext encapsulate all information and objects used to access a test cluster.
@@ -52,14 +54,16 @@ type ClusterContext struct {
 	ControllerClient client.Client
 	ClusterID        string
 	KubeconfigPath   string
+	HomeCluster      bool
 }
 
 // Environment variable.
 const (
-	namespaceEnvVar      = "NAMESPACE"
-	ClusterNumberVarKey  = "CLUSTER_NUMBER"
-	kubeconfigBaseName   = "liqo_kubeconf"
-	KubeconfigDirVarName = "KUBECONFIGDIR"
+	namespaceEnvVar        = "NAMESPACE"
+	ClusterNumberVarKey    = "CLUSTER_NUMBER"
+	kubeconfigBaseName     = "liqo_kubeconf"
+	KubeconfigDirVarName   = "KUBECONFIGDIR"
+	overlappingCIDRsEnvVar = "POD_CIDR_OVERLAPPING"
 )
 
 var (
@@ -100,11 +104,14 @@ func createTester(ctx context.Context, ignoreClusterIDError bool) (*Tester, erro
 	namespace := testutils.GetEnvironmentVariableOrDie(namespaceEnvVar)
 	TmpDir := testutils.GetEnvironmentVariableOrDie(KubeconfigDirVarName)
 
+	overlappingCIDRsString := testutils.GetEnvironmentVariableOrDie(overlappingCIDRsEnvVar)
+
 	// Here is necessary to add the controller runtime clients.
 	scheme := getScheme()
 
 	tester = &Tester{
-		Namespace: namespace,
+		Namespace:        namespace,
+		OverlappingCIDRs: strings.EqualFold(overlappingCIDRsString, "true"),
 	}
 
 	clusterNumber, err := getClusterNumberFromEnv()
@@ -121,6 +128,7 @@ func createTester(ctx context.Context, ignoreClusterIDError bool) (*Tester, erro
 		var c = ClusterContext{
 			Config:         testutils.GetRestConfigOrDie(kubeconfigPath),
 			KubeconfigPath: kubeconfigPath,
+			HomeCluster:    i == 1,
 		}
 		c.NativeClient = kubernetes.NewForConfigOrDie(c.Config)
 		c.ClusterID, err = testutils.GetClusterID(ctx, c.NativeClient, namespace)

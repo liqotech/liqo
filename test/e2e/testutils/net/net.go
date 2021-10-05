@@ -18,6 +18,7 @@ import (
 	"context"
 	"fmt"
 
+	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	restclient "k8s.io/client-go/rest"
@@ -35,12 +36,12 @@ var (
 	TestNamespaceName = "test-connectivity"
 	// label to list only the real nodes excluding the virtual ones.
 	labelSelectorNodes = fmt.Sprintf("%v!=%v", liqoconst.TypeLabel, liqoconst.TypeNode)
-	command            = "curl --retry 60 --fail --max-time 2 -s -o /dev/null -w '%{http_code}' "
+	command            = "timeout 15 curl --retry 60 --fail --max-time 2 -s -o /dev/null -w '%{http_code}' "
 )
 
 // ConnectivityCheckNodeToPod creates a NodePort Service and check its availability.
 func ConnectivityCheckNodeToPod(ctx context.Context, homeClusterClient kubernetes.Interface, clusterID, remotePodName string) error {
-	nodePort, err := EnsureNodePortService(ctx, homeClusterClient, clusterID, remotePodName)
+	nodePort, err := EnsureNodePortService(ctx, homeClusterClient, remotePodName)
 	if err != nil {
 		return err
 	}
@@ -48,8 +49,8 @@ func ConnectivityCheckNodeToPod(ctx context.Context, homeClusterClient kubernete
 }
 
 // EnsureNodePortService creates a nodePortService. It returns the port to contact to reach the service and occurred errors.
-func EnsureNodePortService(ctx context.Context, homeClusterClient kubernetes.Interface, clusterID, remotePodName string) (int, error) {
-	nodePort, err := EnsureNodePort(ctx, homeClusterClient, clusterID, remotePodName, TestNamespaceName)
+func EnsureNodePortService(ctx context.Context, homeClusterClient kubernetes.Interface, remotePodName string) (int, error) {
+	nodePort, err := EnsureNodePort(ctx, homeClusterClient, remotePodName, TestNamespaceName)
 	if err != nil {
 		return 0, err
 	}
@@ -65,26 +66,54 @@ func CheckNodeToPortConnectivity(ctx context.Context, homeClusterClient kubernet
 	return util.TriggerCheckNodeConnectivity(localNodes, command, nodePortValue)
 }
 
-// CheckPodConnectivity contacts the remote service by executing the command inside podRemoteUpdateCluster1.
+// CheckPodConnectivity contacts the remote pod by executing the command inside podRemoteUpdateCluster1.
 func CheckPodConnectivity(ctx context.Context,
-	homeConfig *restclient.Config, homeClient kubernetes.Interface, localPodName, remotePodName string) error {
-	podLocalUpdate, err := homeClient.CoreV1().Pods(TestNamespaceName).Get(ctx, localPodName, metav1.GetOptions{})
+	homeConfig *restclient.Config, homeClient kubernetes.Interface, cluster1PodName, cluster2PodName string) error {
+	clientPod, serverPod, err := getPods(ctx, homeClient, cluster1PodName, cluster2PodName)
 	if err != nil {
 		klog.Error(err)
 		return err
 	}
-	podRemoteUpdateCluster1, err := homeClient.CoreV1().Pods(TestNamespaceName).Get(ctx, remotePodName, metav1.GetOptions{})
+	cmd := command + serverPod.Status.PodIP
+	return execCmd(homeConfig, homeClient, clientPod, cmd)
+}
+
+// CheckServiceConnectivity contacts the remote service by executing the command inside podRemoteUpdateCluster1.
+func CheckServiceConnectivity(ctx context.Context,
+	homeConfig *restclient.Config, homeClient kubernetes.Interface, cluster1PodName, cluster2PodName string) error {
+	clientPod, serverPod, err := getPods(ctx, homeClient, cluster1PodName, cluster2PodName)
 	if err != nil {
 		klog.Error(err)
 		return err
 	}
-	cmd := command + podRemoteUpdateCluster1.Status.PodIP
+	cmd := command + serverPod.GetName()
+	return execCmd(homeConfig, homeClient, clientPod, cmd)
+}
+
+func getPods(ctx context.Context, homeClient kubernetes.Interface,
+	cluster1PodName, cluster2PodName string) (clientPod, serverPod *v1.Pod, err error) {
+	clientPod, err = homeClient.CoreV1().Pods(TestNamespaceName).Get(ctx, cluster1PodName, metav1.GetOptions{})
+	if err != nil {
+		return nil, nil, err
+	}
+	serverPod, err = homeClient.CoreV1().Pods(TestNamespaceName).Get(ctx, cluster2PodName, metav1.GetOptions{})
+	if err != nil {
+		klog.Error(err)
+		return nil, nil, err
+	}
+	return clientPod, serverPod, nil
+}
+
+func execCmd(homeConfig *restclient.Config, homeClient kubernetes.Interface, clientPod *v1.Pod, cmd string) error {
 	klog.Infof("running command %s", cmd)
-	stdout, stderr, err := util.ExecCmd(homeConfig, homeClient, podLocalUpdate.Name, podLocalUpdate.Namespace, cmd)
-	klog.Infof("stdout: %s", stderr)
+	stdout, stderr, err := util.ExecCmd(homeConfig, homeClient, clientPod.Name, clientPod.Namespace, cmd)
+	klog.Infof("stdout: %s", stdout)
 	klog.Infof("stderr: %s", stderr)
-	if stdout == "200" && err == nil {
-		return nil
+	if err != nil {
+		return err
 	}
-	return err
+	if stdout != "200" {
+		return fmt.Errorf("the stdout value (%v) is different from the expected value (200)", stdout)
+	}
+	return nil
 }

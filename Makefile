@@ -194,6 +194,8 @@ E2E_TARGETS = e2e-infra \
 # export LIQO_VERSION=3e060bc36ffb1a88b988a7e948de2b045ba2e8ce
 # export INFRA=kind
 # export LIQOCTL=${BINDIR}/liqoctl
+# export POD_CIDR_OVERLAPPING=false
+# export TEMPLATE_FILE=cluster-templates.yaml.tmpl
 
 # Run e2e tests
 e2e: $(E2E_TARGETS)
@@ -210,4 +212,4 @@ installer/%:
 	${PWD}/test/e2e/pipeline/$@.sh
 
 e2e/%:
-	go test ${PWD}/test/$@
+	go test ${PWD}/test/$@ -count=1

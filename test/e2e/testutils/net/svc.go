@@ -25,8 +25,19 @@ import (
 	"k8s.io/klog/v2"
 )
 
-// EnsureNodePort creates a Service of type NodePort for the netTest.
-func EnsureNodePort(ctx context.Context, client kubernetes.Interface, clusterID, name, namespace string) (*v1.Service, error) {
+// EnsureNodePort ensures a Service of type NodePort for the netTest.
+func EnsureNodePort(ctx context.Context, client kubernetes.Interface, name, namespace string) (*v1.Service, error) {
+	return ensureService(ctx, client, name, namespace, v1.ServiceTypeNodePort)
+}
+
+// EnsureClusterIP ensures a Service of type ClusterIP for the netTest.
+func EnsureClusterIP(ctx context.Context, client kubernetes.Interface, name, namespace string) error {
+	_, err := ensureService(ctx, client, name, namespace, v1.ServiceTypeClusterIP)
+	return err
+}
+
+func ensureService(ctx context.Context, client kubernetes.Interface,
+	name, namespace string, serviceType v1.ServiceType) (*v1.Service, error) {
 	serviceSpec := v1.ServiceSpec{
 		Ports: []v1.ServicePort{{
 			Name:        "http",
@@ -38,22 +49,23 @@ func EnsureNodePort(ctx context.Context, client kubernetes.Interface, clusterID,
 			},
 		}},
 		Selector: map[string]string{"app": name},
-		Type:     v1.ServiceTypeNodePort,
+		Type:     serviceType,
 	}
-	nodePort := &v1.Service{
+	svc := &v1.Service{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: name,
 		},
-		Spec:   serviceSpec,
-		Status: v1.ServiceStatus{},
+		Spec: serviceSpec,
 	}
-	nodePort, err := client.CoreV1().Services(namespace).Create(ctx, nodePort, metav1.CreateOptions{})
+
+	svc, err := client.CoreV1().Services(namespace).Create(ctx, svc, metav1.CreateOptions{})
 	if kerrors.IsAlreadyExists(err) {
-		nodePort, err = client.CoreV1().Services(namespace).Get(ctx, name, metav1.GetOptions{})
+		svc, err = client.CoreV1().Services(namespace).Get(ctx, name, metav1.GetOptions{})
 		if err != nil {
 			klog.Error(err)
 			return nil, err
 		}
 	}
-	return nodePort, nil
+
+	return svc, nil
 }
