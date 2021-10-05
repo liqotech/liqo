@@ -1,0 +1,17 @@
+kind: Cluster
+apiVersion: kind.x-k8s.io/v1alpha4
+networking:
+  disableDefaultCNI: ${DISABLE_KINDNET}
+  serviceSubnet: "${SERVICE_CIDR}"
+  podSubnet: "${POD_CIDR}"
+nodes:
+  - role: control-plane
+    image: kindest/node:${K8S_VERSION}
+    kubeadmConfigPatches:
+    - |
+      kind: ClusterConfiguration
+      apiServer:
+        extraArgs:
+          enable-admission-plugins: NodeRestriction,OwnerReferencesPermissionEnforcement,LimitRanger,ServiceAccount,PodNodeSelector,Priority,PodTolerationRestriction,PersistentVolumeClaimResize,RuntimeClass,CertificateApproval,CertificateSigning,CertificateSubjectRestriction,ValidatingAdmissionWebhook,ResourceQuota,NamespaceLifecycle,LimitRanger,ServiceAccount,TaintNodesByCondition,PodNodeSelector,Priority,DefaultTolerationSeconds,PodTolerationRestriction,PersistentVolumeLabel,DefaultStorageClass,StorageObjectInUseProtection,RuntimeClass,DefaultIngressClass,MutatingAdmissionWebhook
+  - role: worker
+    image: kindest/node:${K8S_VERSION}
