@@ -36,7 +36,7 @@ CLUSTER_NAME=cluster
 CLUSTER_NAME_1=${CLUSTER_NAME}1
 CLUSTER_NAME_2=${CLUSTER_NAME}2
 CLUSTER_NAME_3=${CLUSTER_NAME}3
-KIND_VERSION="v0.10.0"
+KIND_VERSION="v0.11.1"
 KUBECTL_DOWNLOAD=false
 
 echo "Downloading Kind ${KIND_VERSION}"
@@ -87,7 +87,7 @@ networking:
   podSubnet: "10.200.0.0/16"
 nodes:
   - role: control-plane
-    image: kindest/node:v1.19.1
+    image: kindest/node:v1.21.1
 EOF
 
 ${KIND} create cluster --name $CLUSTER_NAME_1 --kubeconfig liqo_kubeconf_1 --config liqo-cluster-config.yaml --wait 2m

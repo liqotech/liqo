@@ -35,7 +35,7 @@ setup_arch_and_os
 CLUSTER_NAME=cluster
 CLUSTER_NAME_1=${CLUSTER_NAME}1
 CLUSTER_NAME_2=${CLUSTER_NAME}2
-KIND_VERSION="v0.10.0"
+KIND_VERSION="v0.11.1"
 KUBECTL_DOWNLOAD=false
 
 echo "Downloading Kind ${KIND_VERSION}"
@@ -83,9 +83,9 @@ networking:
   podSubnet: "10.200.0.0/16"
 nodes:
   - role: control-plane
-    image: kindest/node:v1.19.1
+    image: kindest/node:v1.21.1
   - role: worker
-    image: kindest/node:v1.19.1
+    image: kindest/node:v1.21.1
 EOF
 
 echo "Creating cluster $CLUSTER_NAME_1..."
