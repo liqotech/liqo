@@ -16,9 +16,7 @@ package main
 
 import (
 	"flag"
-	"fmt"
 	"os"
-	"regexp"
 
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/fields"
@@ -38,55 +36,23 @@ import (
 )
 
 type networkManagerFlags struct {
-	podCIDR     string
-	serviceCIDR string
+	podCIDR     args.CIDR
+	serviceCIDR args.CIDR
 
-	additionalPools args.StringList
-	reservedPools   args.StringList
+	additionalPools args.CIDRList
+	reservedPools   args.CIDRList
 }
 
 func addNetworkManagerFlags(managerFlags *networkManagerFlags) {
-	flag.StringVar(&managerFlags.podCIDR, "manager.pod-cidr", "", "The subnet used by the cluster for the pods, in CIDR notation")
-	flag.StringVar(&managerFlags.serviceCIDR, "manager.service-cidr", "", "The subnet used by the cluster for the pods, in services notation")
+	flag.Var(&managerFlags.podCIDR, "manager.pod-cidr", "The subnet used by the cluster for the pods, in CIDR notation")
+	flag.Var(&managerFlags.serviceCIDR, "manager.service-cidr", "The subnet used by the cluster for the pods, in services notation")
 	flag.Var(&managerFlags.reservedPools, "manager.reserved-pools",
 		"Private CIDRs slices used by the Kubernetes infrastructure, in addition to the pod and service CIDR (e.g., the node subnet).")
 	flag.Var(&managerFlags.additionalPools, "manager.additional-pools",
 		"Network pools used to map a cluster network into another one in order to prevent conflicts, in addition to standard private CIDRs.")
 }
 
-func validateNetworkManagerFlags(managerFlags *networkManagerFlags) error {
-	cidrRegex := regexp.MustCompile(`^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]` +
-		`|1[0-9]{2}|2[0-4][0-9]|25[0-5])(\/(3[0-2]|[1-2][0-9]|[0-9]))$`)
-
-	if !cidrRegex.MatchString(managerFlags.podCIDR) {
-		return fmt.Errorf("pod CIDR is empty or invalid (%q)", managerFlags.podCIDR)
-	}
-
-	if !cidrRegex.MatchString(managerFlags.serviceCIDR) {
-		return fmt.Errorf("service CIDR is empty or invalid (%q)", managerFlags.serviceCIDR)
-	}
-
-	for _, pool := range managerFlags.reservedPools.StringList {
-		if !cidrRegex.MatchString(pool) {
-			return fmt.Errorf("reserved pool entry empty or invalid (%q)", pool)
-		}
-	}
-
-	for _, pool := range managerFlags.additionalPools.StringList {
-		if !cidrRegex.MatchString(pool) {
-			return fmt.Errorf("additional pool entry empty or invalid (%q)", pool)
-		}
-	}
-
-	return nil
-}
-
 func runNetworkManager(commonFlags *liqonetCommonFlags, managerFlags *networkManagerFlags) {
-	if err := validateNetworkManagerFlags(managerFlags); err != nil {
-		klog.Errorf("Failed to parse flags: %s", err)
-		os.Exit(1)
-	}
-
 	podNamespace, err := utils.GetPodNamespace()
 	if err != nil {
 		klog.Errorf("unable to get pod namespace: %v", err)
@@ -116,7 +82,7 @@ func runNetworkManager(commonFlags *liqonetCommonFlags, managerFlags *networkMan
 		os.Exit(1)
 	}
 
-	externalCIDR, err := ipam.GetExternalCIDR(utils.GetMask(managerFlags.podCIDR))
+	externalCIDR, err := ipam.GetExternalCIDR(utils.GetMask(managerFlags.podCIDR.String()))
 	if err != nil {
 		klog.Errorf("Failed to initialize the external CIDR: %s", err)
 		os.Exit(1)
@@ -132,7 +98,7 @@ func runNetworkManager(commonFlags *liqonetCommonFlags, managerFlags *networkMan
 		Client: mgr.GetClient(),
 		Scheme: mgr.GetScheme(),
 
-		PodCIDR:      managerFlags.podCIDR,
+		PodCIDR:      managerFlags.podCIDR.String(),
 		ExternalCIDR: externalCIDR,
 	}
 
@@ -160,20 +126,20 @@ func initializeIPAM(client dynamic.Interface, managerFlags *networkManagerFlags)
 		return nil, err
 	}
 
-	if err := ipam.SetPodCIDR(managerFlags.podCIDR); err != nil {
+	if err := ipam.SetPodCIDR(managerFlags.podCIDR.String()); err != nil {
 		return nil, err
 	}
-	if err := ipam.SetServiceCIDR(managerFlags.serviceCIDR); err != nil {
+	if err := ipam.SetServiceCIDR(managerFlags.serviceCIDR.String()); err != nil {
 		return nil, err
 	}
 
-	for _, pool := range managerFlags.additionalPools.StringList {
+	for _, pool := range managerFlags.additionalPools.StringList.StringList {
 		if err := ipam.AddNetworkPool(pool); err != nil {
 			return nil, err
 		}
 	}
 
-	if err := ipam.SetReservedSubnets(managerFlags.reservedPools.StringList); err != nil {
+	if err := ipam.SetReservedSubnets(managerFlags.reservedPools.StringList.StringList); err != nil {
 		return nil, err
 	}
 

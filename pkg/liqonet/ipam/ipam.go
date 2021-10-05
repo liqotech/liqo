@@ -212,13 +212,51 @@ func (liqoIPAM *IPAM) AcquireReservedSubnet(reservedNetwork string) error {
 	return nil
 }
 
+// MarkAsAcquiredReservedSubnet marks as used the network received as parameter.
+func (liqoIPAM *IPAM) MarkAsAcquiredReservedSubnet(reservedNetwork string) error {
+	klog.Infof("Request to reserve network %s has been received", reservedNetwork)
+
+	pool, ok, err := liqoIPAM.getPoolFromNetwork(reservedNetwork)
+	if err != nil {
+		return err
+	}
+	if ok && reservedNetwork == pool {
+		klog.Infof("reserving subnet %s in two halves...", reservedNetwork)
+		for _, half := range utils.SplitNetwork(reservedNetwork) {
+			if !liqoIPAM.isAcquired(half) {
+				if _, err := liqoIPAM.ipam.AcquireSpecificChildPrefix(pool, half); err != nil {
+					return fmt.Errorf("cannot reserve network %s: %w", reservedNetwork, err)
+				}
+			}
+			klog.Infof("half %s for subnet %s successfully acquired", half, reservedNetwork)
+		}
+	}
+	if ok && reservedNetwork != pool {
+		if !liqoIPAM.isAcquired(reservedNetwork) {
+			if _, err := liqoIPAM.ipam.AcquireSpecificChildPrefix(pool, reservedNetwork); err != nil {
+				return fmt.Errorf("cannot reserve network %s: %w", reservedNetwork, err)
+			}
+		}
+		klog.Infof("Network %s has successfully been reserved", reservedNetwork)
+		return nil
+	}
+	if !liqoIPAM.isAcquired(reservedNetwork) {
+		if _, err := liqoIPAM.ipam.NewPrefix(reservedNetwork); err != nil {
+			return fmt.Errorf("cannot reserve network %s: %w", reservedNetwork, err)
+		}
+	}
+	klog.Infof("Network %s has successfully been reserved.", reservedNetwork)
+	return nil
+}
+
 func (liqoIPAM *IPAM) overlapsWithNetwork(newNetwork, network string) (overlaps bool, err error) {
 	if network == "" {
 		return
 	}
-	if err = liqoIPAM.ipam.PrefixesOverlapping([]string{network}, []string{newNetwork}); err != nil {
+	if err = liqoIPAM.ipam.PrefixesOverlapping([]string{network}, []string{newNetwork}); err != nil && strings.Contains(err.Error(), "overlaps") {
 		// overlaps
 		overlaps = true
+		err = nil
 		return
 	}
 	return
@@ -261,6 +299,30 @@ func (liqoIPAM *IPAM) overlapsWithPool(network string) (overlappingPool string, 
 		}
 	}
 	return
+}
+
+func (liqoIPAM *IPAM) overlapsWithReserved(network string) (overlappingReserved string, overlaps bool, err error) {
+	reserved := liqoIPAM.ipamStorage.getReservedSubnets()
+	for _, r := range reserved {
+		if overlaps, err = liqoIPAM.overlapsWithNetwork(network, r); err != nil {
+			return
+		}
+
+		if overlaps {
+			overlappingReserved = r
+			return
+		}
+	}
+	return
+}
+
+// hasBeenAcquired checks for a given network if it has been acquired by checking if a prefix equal to
+// the network exists.
+func (liqoIPAM *IPAM) isAcquired(network string) bool {
+	if p := liqoIPAM.ipam.PrefixFrom(network); p != nil {
+		return true
+	}
+	return false
 }
 
 // Function that receives a network as parameter and returns the pool to which this network belongs to.
@@ -447,31 +509,33 @@ func (liqoIPAM *IPAM) getNetworkFromPool(mask uint8) (string, error) {
 }
 
 func (liqoIPAM *IPAM) freePoolInHalves(pool string) error {
+	var err error
+
 	// Get halves mask length
 	mask := utils.GetMask(pool)
 	mask++
 
 	// Get first half CIDR
-	halfCidr, err := utils.SetMask(pool, mask)
+	halfCidr := utils.SetMask(pool, mask)
+
+	klog.Infof("Network %s is equal to a network pool, freeing first half..", pool)
+	if prefix := liqoIPAM.ipam.PrefixFrom(halfCidr); prefix != nil {
+		err = liqoIPAM.ipam.ReleaseChildPrefix(prefix)
+		if err != nil {
+			return fmt.Errorf("cannot free first half of pool %s", pool)
+		}
+	}
+
+	// Get second half CIDR
+	halfCidr = utils.Next(halfCidr)
 	if err != nil {
 		return err
 	}
-
-	klog.Infof("Network %s is equal to a network pool, freeing it in two steps...", pool)
-	for i := 1; i <= 2; i++ {
-		if i == 2 {
-			// Get second half CIDR
-			halfCidr, err = utils.Next(halfCidr)
-			if err != nil {
-				return err
-			}
-		}
-		klog.Infof("freeing half %d...", i)
-		if prefix := liqoIPAM.ipam.PrefixFrom(halfCidr); prefix != nil {
-			err = liqoIPAM.ipam.ReleaseChildPrefix(prefix)
-			if err != nil {
-				return fmt.Errorf("cannot free first half of pool %s: %w", pool, err)
-			}
+	klog.Infof("Freeing second half..")
+	if prefix := liqoIPAM.ipam.PrefixFrom(halfCidr); prefix != nil {
+		err = liqoIPAM.ipam.ReleaseChildPrefix(prefix)
+		if err != nil {
+			return fmt.Errorf("cannot free second half of pool %s", pool)
 		}
 	}
 
@@ -1200,25 +1264,103 @@ func (liqoIPAM *IPAM) SetReservedSubnets(subnets []string) error {
 		if !slice.ContainsString(subnets, r) {
 			klog.Infof("freeing old reserved subnet %s", r)
 			if err := liqoIPAM.FreeReservedSubnet(r); err != nil {
-				return fmt.Errorf("una error occurred while freeing reserved subnet {%s}: %w", r, err)
+				return fmt.Errorf("an error occurred while freeing reserved subnet {%s}: %w", r, err)
 			}
 			if err := liqoIPAM.ipamStorage.updateReservedSubnets(r, updateOpRemove); err != nil {
 				return err
 			}
 		}
 	}
+	// Get the reserved subnets after we have freed the old ones.
+	reserved = liqoIPAM.ipamStorage.getReservedSubnets()
+
+	// Enforce the reserved subnets. Being the reservation a two-step process,
+	// it could happen that a subnet is added to the reserved list but not
+	// reserved due to an error. So we make sure that all the subnets in the
+	// reserved list have been acquired.
+	// We are sure that if a reserved network has been added to the reserved list
+	// the prefix for that network is free or has been already acquired on behalf
+	// of the current reserved network.
+	for _, rSubnet := range reserved {
+		if err := liqoIPAM.MarkAsAcquiredReservedSubnet(rSubnet); err != nil {
+			return fmt.Errorf("an error occurred while enforcing reserved subnet {%s}: %w", rSubnet, err)
+		}
+	}
 
 	// Reserve the newly added subnets.
 	for _, s := range subnets {
-		if !slice.ContainsString(reserved, s) {
-			klog.Infof("acquiring reserved subnet %s", s)
-			if err := liqoIPAM.AcquireReservedSubnet(s); err != nil {
-				return fmt.Errorf("an error occurred while reserving subnet {%s}: %w", s, err)
-			}
-			if err := liqoIPAM.ipamStorage.updateReservedSubnets(s, updateOpAdd); err != nil {
-				return err
-			}
+		if slice.ContainsString(reserved, s) {
+			continue
+		}
+		klog.Infof("acquiring reserved subnet %s", s)
+		// Check if the subnet does not overlap with the existing reserved subnets.
+		if err := liqoIPAM.reservedSubnetOverlaps(s); err != nil {
+			return err
+		}
+
+		if err := liqoIPAM.ipamStorage.updateReservedSubnets(s, updateOpAdd); err != nil {
+			return err
+		}
+		if err := liqoIPAM.MarkAsAcquiredReservedSubnet(s); err != nil {
+			return fmt.Errorf("an error occurred while reserving subnet {%s}: %w", s, err)
 		}
 	}
+	return nil
+}
+
+func (liqoIPAM *IPAM) reservedSubnetOverlaps(subnet string) error {
+	// Check if subnet overlaps with local pod CIDR.
+	podCidr := liqoIPAM.ipamStorage.getPodCIDR()
+	overlaps, err := liqoIPAM.overlapsWithNetwork(subnet, podCidr)
+	if err != nil {
+		return err
+	}
+	if overlaps {
+		return fmt.Errorf("network %s cannot be reserved because it overlaps with the local podCIDR %s",
+			subnet, podCidr)
+	}
+
+	// Check if subnet overlaps with local service CIDR.
+	serviceCidr := liqoIPAM.ipamStorage.getServiceCIDR()
+	overlaps, err = liqoIPAM.overlapsWithNetwork(subnet, serviceCidr)
+	if err != nil {
+		return err
+	}
+	if overlaps {
+		return fmt.Errorf("network %s cannot be reserved because it overlaps with the local serviceCIDR %s",
+			subnet, serviceCidr)
+	}
+
+	// Check if subnet overlaps with local external CIDR.
+	externalCidr := liqoIPAM.ipamStorage.getExternalCIDR()
+	overlaps, err = liqoIPAM.overlapsWithNetwork(subnet, externalCidr)
+	if err != nil {
+		return err
+	}
+	if overlaps {
+		return fmt.Errorf("network %s cannot be reserved because it overlaps with the local external CIDR %s",
+			subnet, externalCidr)
+	}
+
+	// Check if the subnet does not overlap with the existing reserved subnets.
+	overlappingNet, overlaps, err := liqoIPAM.overlapsWithReserved(subnet)
+	if err != nil {
+		return err
+	}
+	if overlaps {
+		return fmt.Errorf("network %s cannot be reserved because it overlaps with the reserved network %s",
+			subnet, overlappingNet)
+	}
+
+	// Check if the subnet does not overlap wit the existing cluster subnets.
+	overlappingNet, overlaps, err = liqoIPAM.overlapsWithCluster(subnet)
+	if err != nil {
+		return err
+	}
+	if overlaps {
+		return fmt.Errorf("network %s cannot be reserved because it overlaps with the reserved network %s",
+			subnet, overlappingNet)
+	}
+
 	return nil
 }

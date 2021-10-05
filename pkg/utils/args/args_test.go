@@ -178,6 +178,37 @@ var _ = Describe("ParseArguments", func() {
 
 	})
 
+	Context("CIDR", func() {
+
+		type parseCidrTestCase struct {
+			cidr          string
+			expectedError OmegaMatcher
+		}
+
+		DescribeTable("CIDR table",
+			func(c parseCidrTestCase) {
+				cl := CIDR{}
+				Expect(cl.Set(c.cidr)).To(c.expectedError)
+			},
+
+			Entry("empty string", parseCidrTestCase{
+				cidr:          "",
+				expectedError: HaveOccurred(),
+			}),
+
+			Entry("correct cidr", parseCidrTestCase{
+				cidr:          "10.0.0.0/16",
+				expectedError: Succeed(),
+			}),
+
+			Entry("incorrect cidr", parseCidrTestCase{
+				cidr:          "10.0.0..0/16",
+				expectedError: HaveOccurred(),
+			}),
+		)
+
+	})
+
 	Context("Percentage", func() {
 
 		type parsePercentageTestcase struct {
