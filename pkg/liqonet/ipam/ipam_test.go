@@ -65,21 +65,15 @@ func fillNetworkPool(pool string, ipam *IPAM) error {
 	mask += 1
 
 	// Get first half CIDR
-	halfCidr, err := utils.SetMask(pool, mask)
-	if err != nil {
-		return err
-	}
+	halfCidr := utils.SetMask(pool, mask)
 
-	err = ipam.AcquireReservedSubnet(halfCidr)
+	err := ipam.AcquireReservedSubnet(halfCidr)
 	if err != nil {
 		return err
 	}
 
 	// Get second half CIDR
-	halfCidr, err = utils.Next(halfCidr)
-	if err != nil {
-		return err
-	}
+	halfCidr = utils.Next(halfCidr)
 	err = ipam.AcquireReservedSubnet(halfCidr)
 
 	return err
@@ -1565,17 +1559,46 @@ var _ = Describe("Ipam", func() {
 			toBeReservedSubnets1          []string
 			toBeReservedSubnets2          []string
 			toBeReservedSubnetsIncorrect1 []string
+			toBeReservedOverlapping1      []string
+			toBeReservedOverlapping2      []string
+			toBeReservedOverlapping3      []string
+			toBeReservedOverlapping4      []string
+			toBeReservedOverlapping5      []string
+			toBeReservedOverlapping6      []string
 		)
 
 		BeforeEach(func() {
+			var (
+				serviceCidr  = "10.210.0.0/16"
+				podCidr      = "10.220.0.0/16"
+				externalCidr string
+			)
+			Expect(ipam.SetPodCIDR(podCidr)).To(Succeed())
+			Expect(ipam.SetServiceCIDR(serviceCidr)).To(Succeed())
+			externalCidr, err := ipam.GetExternalCIDR(24)
+			Expect(err).To(BeNil())
+			Expect(externalCidr).To(HaveSuffix("/24"))
+
+			p, e, err := ipam.GetSubnetsPerCluster("10.0.0.0/16", "10.1.0.0/16", clusterID1)
+			Expect(err).To(BeNil())
+			Expect(p).To(Equal("10.0.0.0/16"))
+			Expect(e).To(Equal("10.1.0.0/16"))
+
 			toBeReservedSubnets1 = []string{"192.168.0.0/16", "100.200.0.0/16", "10.200.250.0/24"}
 			toBeReservedSubnets2 = []string{"192.168.1.0/24", "100.200.0.0/16", "172.16.34.0/24"}
 			toBeReservedSubnetsIncorrect1 = []string{"192.168.0.0/16", "100.200.0/16", "10.200.250.0/24"}
+			toBeReservedOverlapping1 = []string{"192.168.1.0/24", "192.168.0.0/16", "172.16.34.0/24"}
+			toBeReservedOverlapping2 = []string{"192.168.1.0/24", podCidr, "172.16.34.0/24"}
+			toBeReservedOverlapping3 = []string{"192.168.1.0/24", serviceCidr, "172.16.34.0/24"}
+			toBeReservedOverlapping4 = []string{"192.168.1.0/24", externalCidr, "172.16.34.0/24"}
+			toBeReservedOverlapping5 = []string{p, "100.200.0/16", "172.16.34.0/24"}
+			toBeReservedOverlapping6 = []string{e, "100.200.0/16", "172.16.34.0/24"}
+
 		})
 		Context("Reserving subnets", func() {
 			When("Reserving subnets for the first time", func() {
 				It("should reserve all the the subnets and return nil", func() {
-					Expect(ipam.SetReservedSubnets(toBeReservedSubnets1)).To(BeNil())
+					Expect(ipam.SetReservedSubnets(toBeReservedSubnets1)).To(Succeed())
 					Expect(ipam.ipamStorage.getReservedSubnets()).To(ContainElements(toBeReservedSubnets1))
 					checkForPrefixes(toBeReservedSubnets1)
 				})
@@ -1584,10 +1607,10 @@ var _ = Describe("Ipam", func() {
 			When("Reserving subnets multiple times", func() {
 				It("should return nil", func() {
 					// Reserving the first time.
-					Expect(ipam.SetReservedSubnets(toBeReservedSubnets1)).To(BeNil())
+					Expect(ipam.SetReservedSubnets(toBeReservedSubnets1)).To(Succeed())
 					Expect(ipam.ipamStorage.getReservedSubnets()).To(ContainElements(toBeReservedSubnets1))
 					// Reserving the second time.
-					Expect(ipam.SetReservedSubnets(toBeReservedSubnets1)).To(BeNil())
+					Expect(ipam.SetReservedSubnets(toBeReservedSubnets1)).To(Succeed())
 					Expect(ipam.ipamStorage.getReservedSubnets()).To(ContainElements(toBeReservedSubnets1))
 					checkForPrefixes(toBeReservedSubnets1)
 				})
@@ -1600,12 +1623,60 @@ var _ = Describe("Ipam", func() {
 					Expect(ipam.ipamStorage.getReservedSubnets()).To(ContainElement(toBeReservedSubnetsIncorrect1[0]))
 				})
 			})
+
+			When("A subnet has been added to the reserved list but non effectively acquired", func() {
+				It("should acquire the reserved subnet", func() {
+					Expect(ipam.SetReservedSubnets(toBeReservedSubnets1)).To(Succeed())
+					Expect(ipam.ipamStorage.getReservedSubnets()).To(ContainElements(toBeReservedSubnets1))
+					// Remove the prefix from.
+					_, err := ipam.ipamStorage.DeletePrefix(*ipam.ipam.PrefixFrom(toBeReservedSubnets1[1]))
+					Expect(err).To(BeNil())
+					Expect(ipam.SetReservedSubnets(toBeReservedSubnets1)).To(Succeed())
+					Expect(ipam.ipam.PrefixFrom(toBeReservedSubnets1[1]).Cidr).To(Equal(toBeReservedSubnets1[1]))
+				})
+			})
+
+			When("Subnets to be reserved overlaps with each other", func() {
+				It("should fail while reserving the subnet that overlaps", func() {
+					Expect(ipam.SetReservedSubnets(toBeReservedOverlapping1)).NotTo(Succeed())
+				})
+			})
+
+			When("Subnets to be reserved overlaps with pod CIDR ", func() {
+				It("should fail while reserving the subnet that overlaps", func() {
+					Expect(ipam.SetReservedSubnets(toBeReservedOverlapping2)).NotTo(Succeed())
+				})
+			})
+
+			When("Subnets to be reserved overlaps with service CIDR ", func() {
+				It("should fail while reserving the subnet that overlaps", func() {
+					Expect(ipam.SetReservedSubnets(toBeReservedOverlapping3)).NotTo(Succeed())
+				})
+			})
+
+			When("Subnets to be reserved overlaps with external CIDR ", func() {
+				It("should fail while reserving the subnet that overlaps", func() {
+					Expect(ipam.SetReservedSubnets(toBeReservedOverlapping4)).NotTo(Succeed())
+				})
+			})
+
+			When("Subnets to be reserved overlaps with pod CIDR of a remote cluster ", func() {
+				It("should fail while reserving the subnet that overlaps", func() {
+					Expect(ipam.SetReservedSubnets(toBeReservedOverlapping5)).NotTo(Succeed())
+				})
+			})
+
+			When("Subnets to be reserved overlaps with external CIDR of a remote cluster ", func() {
+				It("should fail while reserving the subnet that overlaps", func() {
+					Expect(ipam.SetReservedSubnets(toBeReservedOverlapping6)).NotTo(Succeed())
+				})
+			})
 		})
 
 		Context("Making available subnets previously reserved", func() {
 			JustBeforeEach(func() {
 				// Reserve the subnets.
-				Expect(ipam.SetReservedSubnets(toBeReservedSubnets1)).To(BeNil())
+				Expect(ipam.SetReservedSubnets(toBeReservedSubnets1)).To(Succeed())
 				Expect(ipam.ipamStorage.getReservedSubnets()).To(ContainElements(toBeReservedSubnets1))
 				checkForPrefixes(toBeReservedSubnets1)
 			})
@@ -1618,7 +1689,7 @@ var _ = Describe("Ipam", func() {
 
 			When("new subnets are reserved and existing ones are freed", func() {
 				It("should return nil and update the reserved subnets", func() {
-					Expect(ipam.SetReservedSubnets(toBeReservedSubnets2)).To(BeNil())
+					Expect(ipam.SetReservedSubnets(toBeReservedSubnets2)).To(Succeed())
 					Expect(ipam.ipamStorage.getReservedSubnets()).To(ContainElements(toBeReservedSubnets2))
 					checkForPrefixes(toBeReservedSubnets2)
 				})
@@ -1630,7 +1701,7 @@ var _ = Describe("Ipam", func() {
 func checkForPrefixes(subnets []string) {
 	for _, s := range subnets {
 		prefix, err := ipam.ipamStorage.ReadPrefix(s)
-		Expect(err).To(BeNil())
+		Expect(err).ToNot(HaveOccurred())
 		Expect(prefix.Cidr).To(Equal(s))
 	}
 }

@@ -24,6 +24,7 @@ import (
 
 	"github.com/vishvananda/netlink"
 	"inet.af/netaddr"
+	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/klog/v2"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
@@ -101,32 +102,30 @@ func GetNodeName() (string, error) {
 
 // GetMask retrieves the mask from a CIDR.
 func GetMask(network string) uint8 {
-	_, net, _ := net.ParseCIDR(network)
-	ones, _ := net.Mask.Size()
+	_, subnet, err := net.ParseCIDR(network)
+	utilruntime.Must(err)
+	ones, _ := subnet.Mask.Size()
 	return uint8(ones)
 }
 
 // SetMask forges a new cidr from a network cidr and a mask.
-func SetMask(network string, mask uint8) (string, error) {
+func SetMask(network string, mask uint8) string {
 	_, n, err := net.ParseCIDR(network)
-	if err != nil {
-		return "", err
-	}
+	utilruntime.Must(err)
 	newMask := net.CIDRMask(int(mask), 32)
 	n.Mask = newMask
-	return n.String(), nil
+	return n.String()
 }
 
-func Next(network string) (string, error) {
+// Next used to get the second half of a given network.
+func Next(network string) string {
 	prefix, err := netaddr.ParseIPPrefix(network)
-	if err != nil {
-		return "", err
-	}
+	utilruntime.Must(err)
 	// Step 1: Get last IP address of network
 	// Step 2: Get next IP address
 	firstIP := prefix.Range().To.Next()
 	prefix.IP = firstIP
-	return prefix.String(), nil
+	return prefix.String()
 }
 
 // GetPodCIDRS for a given tep the function retrieves the values for localPodCIDR and remotePodCIDR.
@@ -323,4 +322,21 @@ func DeleteIFaceByName(ifaceName string) error {
 		return err
 	}
 	return nil
+}
+
+// SplitNetwork returns the two halves that make up a given network.
+func SplitNetwork(network string) []string {
+	halves := make([]string, 2)
+
+	// Get halves mask length.
+	mask := GetMask(network)
+	mask++
+
+	// Get first half CIDR.
+	halves[0] = SetMask(network, mask)
+
+	// Get second half CIDR.
+	halves[1] = Next(halves[0])
+
+	return halves
 }
