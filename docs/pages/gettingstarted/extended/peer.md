@@ -86,9 +86,9 @@ The virtual-node name is composed of a prefix (*liqo-*) plus the *cluster-id* of
 You can export these *cluster-id* as environment variables:
 
 ```bash
-REMOTE_CLUSTER_ID_2=$(kubectl get nodes --selector=liqo.io/provider=provider-2 | cut -d " " -f1 | cut -d "-" -f2-)
+REMOTE_CLUSTER_ID_2=$(kubectl get nodes --selector=liqo.io/provider=provider-2 -o name | cut -d "-" -f2-)
 echo $REMOTE_CLUSTER_ID_2 
-REMOTE_CLUSTER_ID_3=$(kubectl get nodes --selector=liqo.io/provider=provider-3 | cut -d " " -f1 | cut -d "-" -f2-)
+REMOTE_CLUSTER_ID_3=$(kubectl get nodes --selector=liqo.io/provider=provider-3 -o name | cut -d "-" -f2-)
 echo $REMOTE_CLUSTER_ID_3 
 ```
 
