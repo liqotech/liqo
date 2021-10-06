@@ -238,10 +238,10 @@ func (p *LiqoProvider) RunInContainer(ctx context.Context, homeNamespace, homePo
 		VersionedParams(&corev1.PodExecOptions{
 			Container: containerName,
 			Command:   cmd,
-			Stdin:     true,
-			Stdout:    true,
-			Stderr:    true,
-			TTY:       true,
+			Stdin:     attach.Stdin() != nil,
+			Stdout:    attach.Stdout() != nil,
+			Stderr:    attach.Stderr() != nil,
+			TTY:       attach.TTY(),
 		}, scheme.ParameterCodec)
 
 	exec, err := remotecommandclient.NewSPDYExecutor(p.foreignRestConfig, "POST", req.URL())
