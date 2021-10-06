@@ -105,7 +105,8 @@ func NewLiqoProvider(ctx context.Context, cfg *InitConfig) (*LiqoProvider, error
 	// TODO: make the resync period configurable. This is currently hardcoded since the one specified as part of
 	// the configuration needs to be very low to avoid issues with the legacy reflection.
 	reflectionManager := manager.New(homeClient, foreignClient, 10*time.Hour).
-		With(exposition.NewServiceReflector(cfg.ServiceWorkers))
+		With(exposition.NewServiceReflector(cfg.ServiceWorkers)).
+		With(exposition.NewEndpointSliceReflector(forge.IPAMClient(), cfg.EndpointSliceWorkers))
 	reflectionManager.Start(ctx)
 
 	mapper, err := namespacesmapping.NewNamespaceMapperController(ctx, cfg.HomeConfig, cfg.HomeClusterID, cfg.RemoteClusterID,

@@ -15,8 +15,10 @@
 package forge
 
 import (
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
+	corev1apply "k8s.io/client-go/applyconfigurations/core/v1"
 )
 
 const (
@@ -53,6 +55,23 @@ func ReflectedLabelSelector() labels.Selector {
 // IsReflected returns whether the current object has been reflected from the local to the remote cluster.
 func IsReflected(obj metav1.Object) bool {
 	return ReflectedLabelSelector().Matches(labels.Set(obj.GetLabels()))
+}
+
+// RemoteObjectReference forges the apply patch for a reflected RemoteObjectReference.
+func RemoteObjectReference(ref *corev1.ObjectReference) *corev1apply.ObjectReferenceApplyConfiguration {
+	if ref == nil {
+		return nil
+	}
+
+	return corev1apply.ObjectReference().
+		WithAPIVersion(ref.APIVersion).WithFieldPath(ref.FieldPath).
+		WithKind(RemoteKind(ref.Kind)).WithName(ref.Name).WithNamespace(ref.Namespace).
+		WithResourceVersion(ref.ResourceVersion).WithUID(ref.UID)
+}
+
+// RemoteKind prepends "Remote" to a kind name, to identify remote objects.
+func RemoteKind(kind string) string {
+	return "Remote" + kind
 }
 
 func (f *apiForger) forgeForeignMeta(homeMeta, foreignMeta *metav1.ObjectMeta, foreignNamespace, reflectionType string) {

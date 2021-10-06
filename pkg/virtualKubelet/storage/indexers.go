@@ -20,7 +20,6 @@ import (
 
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
-	discoveryv1beta1 "k8s.io/api/discovery/v1beta1"
 	"k8s.io/client-go/tools/cache"
 
 	"github.com/liqotech/liqo/pkg/virtualKubelet"
@@ -28,11 +27,10 @@ import (
 )
 
 var InformerIndexers = map[apimgmt.ApiType]func() cache.Indexers{
-	apimgmt.Configmaps:     configmapsIndexers,
-	apimgmt.EndpointSlices: endpointSlicesIndexers,
-	apimgmt.Pods:           podsIndexers,
-	apimgmt.ReplicaSets:    replicasetsIndexers,
-	apimgmt.Secrets:        secretsIndexers,
+	apimgmt.Configmaps:  configmapsIndexers,
+	apimgmt.Pods:        podsIndexers,
+	apimgmt.ReplicaSets: replicasetsIndexers,
+	apimgmt.Secrets:     secretsIndexers,
 }
 
 func configmapsIndexers() cache.Indexers {
@@ -44,20 +42,6 @@ func configmapsIndexers() cache.Indexers {
 		}
 		return []string{
 			strings.Join([]string{cm.Namespace, cm.Name}, "/"),
-		}, nil
-	}
-	return i
-}
-
-func endpointSlicesIndexers() cache.Indexers {
-	i := cache.Indexers{}
-	i["endpointslices"] = func(obj interface{}) ([]string, error) {
-		endpointSlice, ok := obj.(*discoveryv1beta1.EndpointSlice)
-		if !ok {
-			return []string{}, errors.New("cannot convert obj to endpointslice")
-		}
-		return []string{
-			strings.Join([]string{endpointSlice.Namespace, endpointSlice.Name}, "/"),
 		}, nil
 	}
 	return i

@@ -16,7 +16,6 @@ package apiReflection
 
 const (
 	Configmaps = iota
-	EndpointSlices
 	Pods
 	ReplicaSets
 	Secrets
@@ -25,11 +24,10 @@ const (
 type ApiType int
 
 var ApiNames = map[ApiType]string{
-	Configmaps:     "configmaps",
-	EndpointSlices: "endpointslices",
-	Pods:           "pods",
-	ReplicaSets:    "replicasets",
-	Secrets:        "secrets",
+	Configmaps:  "configmaps",
+	Pods:        "pods",
+	ReplicaSets: "replicasets",
+	Secrets:     "secrets",
 }
 
 type ApiEvent struct {

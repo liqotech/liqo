@@ -22,19 +22,14 @@ import (
 )
 
 var InformerBuilders = map[apimgmt.ApiType]func(informers.SharedInformerFactory) cache.SharedIndexInformer{
-	apimgmt.Configmaps:     configmapsInformerBuilder,
-	apimgmt.EndpointSlices: endpointSlicesInformerBuilder,
-	apimgmt.Pods:           podsInformerBuilder,
-	apimgmt.ReplicaSets:    replicaSetsInformerBuilder,
-	apimgmt.Secrets:        secretsInformerBuilder,
+	apimgmt.Configmaps:  configmapsInformerBuilder,
+	apimgmt.Pods:        podsInformerBuilder,
+	apimgmt.ReplicaSets: replicaSetsInformerBuilder,
+	apimgmt.Secrets:     secretsInformerBuilder,
 }
 
 func configmapsInformerBuilder(factory informers.SharedInformerFactory) cache.SharedIndexInformer {
 	return factory.Core().V1().ConfigMaps().Informer()
-}
-
-func endpointSlicesInformerBuilder(factory informers.SharedInformerFactory) cache.SharedIndexInformer {
-	return factory.Discovery().V1beta1().EndpointSlices().Informer()
 }
 
 func podsInformerBuilder(factory informers.SharedInformerFactory) cache.SharedIndexInformer {
