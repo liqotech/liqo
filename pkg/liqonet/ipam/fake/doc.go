@@ -12,5 +12,5 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package test provides a mock type for IPAM module
-package test
+// Package fake implements fake IPAM grpc interfaces for testing purposes.
+package fake

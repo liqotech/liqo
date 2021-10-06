@@ -22,7 +22,6 @@ import (
 	"google.golang.org/grpc"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
-	discoveryv1beta1 "k8s.io/api/discovery/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/klog/v2"
@@ -66,8 +65,6 @@ func HomeToForeign(homeObj, foreignObj runtime.Object, reflectionType string) (r
 	switch homeObj.(type) {
 	case *corev1.ConfigMap:
 		return forger.configmapHomeToForeign(homeObj.(*corev1.ConfigMap), foreignObj.(*corev1.ConfigMap))
-	case *discoveryv1beta1.EndpointSlice:
-		return forger.endpointsliceHomeToForeign(homeObj.(*discoveryv1beta1.EndpointSlice), foreignObj.(*discoveryv1beta1.EndpointSlice))
 	case *corev1.Pod:
 		return forger.podHomeToForeign(homeObj, foreignObj, reflectionType)
 	}
@@ -109,6 +106,11 @@ func InitForger(nattingTable namespacesmapping.NamespaceNatter, opts ...options.
 			initIpamClient()
 		}
 	}
+}
+
+// IPAMClient returns the initialized IPAM client.
+func IPAMClient() liqonetIpam.IpamClient {
+	return forger.ipamClient
 }
 
 func initIpamClient() {
