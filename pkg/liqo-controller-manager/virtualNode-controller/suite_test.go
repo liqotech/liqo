@@ -208,12 +208,10 @@ var _ = BeforeSuite(func(done Done) {
 	simpleNode = &corev1.Node{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: nameSimpleNode,
-			Annotations: map[string]string{
-				liqoconst.RemoteClusterID: remoteClusterIdSimpleNode,
-			},
 			Labels: map[string]string{
-				offloadingCluster1Label1: "",
-				offloadingCluster1Label2: "",
+				liqoconst.RemoteClusterID: remoteClusterIdSimpleNode,
+				offloadingCluster1Label1:  "",
+				offloadingCluster1Label2:  "",
 			},
 		},
 	}

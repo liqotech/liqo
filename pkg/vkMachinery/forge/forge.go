@@ -111,12 +111,10 @@ func forgeVKContainers(
 
 	args := []string{
 		stringifyArgument("--foreign-cluster-id", remoteClusterID),
-		stringifyArgument("--provider", "kubernetes"),
 		stringifyArgument("--nodename", nodeName),
 		stringifyArgument("--kubelet-namespace", vkNamespace),
 		stringifyArgument("--home-cluster-id", homeClusterID),
 		stringifyArgument("--ipam-server", fmt.Sprintf("%v.%v", liqoconst.NetworkManagerServiceName, liqoNamespace)),
-		"--enable-node-lease",
 		"--klog.v=4",
 	}
 
@@ -155,18 +153,6 @@ func forgeVKContainers(
 				{
 					Name:      "VKUBELET_POD_IP",
 					ValueFrom: &v1.EnvVarSource{FieldRef: &v1.ObjectFieldSelector{FieldPath: "status.podIP", APIVersion: "v1"}},
-				},
-				{
-					Name:  "VKUBELET_TAINT_KEY",
-					Value: liqoconst.VirtualNodeTolerationKey,
-				},
-				{
-					Name:  "VKUBELET_TAINT_VALUE",
-					Value: "true",
-				},
-				{
-					Name:  "VKUBELET_TAINT_EFFECT",
-					Value: "NoExecute",
 				},
 			},
 		},

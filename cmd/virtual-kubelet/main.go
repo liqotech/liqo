@@ -26,26 +26,16 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/virtual-kubelet/virtual-kubelet/log"
 	"github.com/virtual-kubelet/virtual-kubelet/log/klogv2"
-	"k8s.io/client-go/discovery"
-	"k8s.io/client-go/rest"
-	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/klog/v2"
 
-	"github.com/liqotech/liqo/cmd/virtual-kubelet/provider"
 	"github.com/liqotech/liqo/cmd/virtual-kubelet/root"
 )
 
-var (
-	defaultK8sVersion = "v1.18.2" // This should follow the version of k8s.io/kubernetes we are importing
-)
-
 func main() {
-	ctx, cancel := context.WithCancel(context.Background())
-	sig := make(chan os.Signal, 1)
-	signal.Notify(sig, syscall.SIGINT, syscall.SIGTERM)
+	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	go func() {
-		<-sig
-		cancel()
+		<-ctx.Done()
+		stop() // Unregister the handler, so that a second signal immediately aborts the program.
 	}()
 
 	log.L = klogv2.New(nil)
@@ -55,18 +45,12 @@ func main() {
 		klog.Fatal(err)
 	}
 
-	s := provider.NewStore()
-
-	rootCmd := root.NewCommand(ctx, filepath.Base(os.Args[0]), s, opts)
+	rootCmd := root.NewCommand(ctx, filepath.Base(os.Args[0]), opts)
 
 	root.InstallFlags(rootCmd.Flags(), opts)
 	rootCmd.PreRunE = func(cmd *cobra.Command, args []string) error {
-		opts.Version = getK8sVersion(ctx, opts.HomeKubeconfig)
 		if opts.Profiling {
 			enableProfiling()
-		}
-		if err := registerKubernetes(ctx, s); err != nil {
-			klog.Fatal(err)
 		}
 		return nil
 	}
@@ -87,48 +71,4 @@ func enableProfiling() {
 		klog.Info(
 			http.ListenAndServe("0.0.0.0:6060", mux))
 	}()
-}
-
-func getK8sVersion(ctx context.Context, defaultConfigPath string) string {
-	var config *rest.Config
-	var configPath string
-
-	for i := 1; i < len(os.Args); i++ {
-		if os.Args[i] == "--kubeconfig" {
-			configPath = os.Args[i+1]
-		}
-	}
-	if configPath == "" {
-		configPath = defaultConfigPath
-	}
-
-	// Check if the kubeConfig file exists.
-	if _, err := os.Stat(configPath); !os.IsNotExist(err) {
-		// Get the kubeconfig from the filepath.
-		config, err = clientcmd.BuildConfigFromFlags("", configPath)
-		if err != nil {
-			klog.Warningf("Cannot read k8s version: using default version %v; error: %v", defaultK8sVersion, err)
-			return defaultK8sVersion
-		}
-	} else {
-		// Set to in-cluster config.
-		config, err = rest.InClusterConfig()
-		if err != nil {
-			klog.Warningf("Cannot read k8s version: using default version %v; error: %v", defaultK8sVersion, err)
-			return defaultK8sVersion
-		}
-	}
-
-	c, err := discovery.NewDiscoveryClientForConfig(config)
-	if err != nil {
-		klog.Warningf("Cannot read k8s version: using default version %v; error: %v", defaultK8sVersion, err)
-		return defaultK8sVersion
-	}
-	v, err := c.ServerVersion()
-	if err != nil {
-		klog.Warningf("Cannot read k8s version: using default version %v; error: %v", defaultK8sVersion, err)
-		return defaultK8sVersion
-	}
-
-	return v.GitVersion
 }

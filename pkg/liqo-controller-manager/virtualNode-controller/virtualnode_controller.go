@@ -62,8 +62,8 @@ func (r *VirtualNodeReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 	}
 
 	// The virtual-node must have the cluster-id annotation.
-	if _, ok := virtualNode.GetAnnotations()[liqoconst.RemoteClusterID]; !ok {
-		err := fmt.Errorf("the annotation '%s' is not found on node '%s'", liqoconst.RemoteClusterID, virtualNode.GetName())
+	if _, ok := virtualNode.Labels[liqoconst.RemoteClusterID]; !ok {
+		err := fmt.Errorf("the label '%s' is not found on node '%s'", liqoconst.RemoteClusterID, virtualNode.GetName())
 		klog.Error(err)
 		return ctrl.Result{}, err
 	}

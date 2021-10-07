@@ -40,7 +40,6 @@ type LiqoNodeProvider struct {
 
 	networkReady       bool
 	podProviderStopper chan struct{}
-	networkReadyChan   chan struct{}
 
 	onNodeChangeCallback func(*corev1.Node)
 	updateMutex          sync.Mutex
@@ -62,4 +61,9 @@ func (p *LiqoNodeProvider) IsTerminating() bool {
 	p.updateMutex.Lock()
 	defer p.updateMutex.Unlock()
 	return p.terminating
+}
+
+// GetNode returns the node managed by the provider.
+func (p *LiqoNodeProvider) GetNode() *corev1.Node {
+	return p.node
 }

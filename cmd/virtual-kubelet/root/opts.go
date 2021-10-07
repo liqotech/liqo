@@ -33,10 +33,8 @@ const (
 	DefaultMetricsAddr                            = ":10255"
 	DefaultListenPort                             = 10250
 	DefaultPodSyncWorkers                         = 10
-	DefaultKubeClusterDomain                      = "cluster.local"
 
 	DefaultKubeletNamespace = "default"
-	DefaultHomeClusterID    = "cluster1"
 	DefaultLiqoIpamServer   = consts.NetworkManagerServiceName
 )
 
@@ -46,31 +44,21 @@ const (
 // You can set the default options by creating a new `Opts` struct and passing
 // it into `SetDefaultOpts`.
 type Opts struct {
-	// Domain suffix to append to search domains for the pods created by virtual-kubelet
-	KubeClusterDomain string
-
 	// Sets the port to listen for requests from the Kubernetes API server
 	ListenPort int32
 
 	// Node name to use when creating a node in Kubernetes
 	NodeName string
 
-	Provider string
-
 	HomeKubeconfig string
 
 	MetricsAddr string
 
 	// Number of workers to use to handle pod notifications
-	PodSyncWorkers           int
+	PodSyncWorkers uint
+
 	InformerResyncPeriod     time.Duration
 	LiqoInformerResyncPeriod time.Duration
-
-	// Use node leases when supported by Kubernetes (instead of node status updates)
-	EnableNodeLease bool
-
-	TraceExporters  []string
-	TraceSampleRate string
 
 	// Startup Timeout is how long to wait for the kubelet to start
 	StartupTimeout time.Duration
@@ -81,7 +69,6 @@ type Opts struct {
 
 	LiqoIpamServer string
 
-	Version   string
 	Profiling bool
 
 	NodeExtraAnnotations argsutils.StringMap
@@ -119,20 +106,12 @@ func SetDefaultOpts(c *Opts) error {
 		}
 	}
 
-	if c.KubeClusterDomain == "" {
-		c.KubeClusterDomain = DefaultKubeClusterDomain
-	}
 	if c.KubeletNamespace == "" {
 		c.KubeletNamespace = DefaultKubeletNamespace
 	}
 	if c.HomeKubeconfig == "" {
 		c.HomeKubeconfig = os.Getenv("KUBECONFIG")
 	}
-	// This is a workaround, when the cluster-id mechanism will be implemented, this parameter will be fetched accordingly
-	if c.HomeClusterID == "" {
-		c.HomeClusterID = DefaultHomeClusterID
-	}
-
 	if c.LiqoIpamServer == "" {
 		c.LiqoIpamServer = DefaultLiqoIpamServer
 	}

@@ -31,7 +31,7 @@ import (
 
 // createNamespaceMap creates a new NamespaceMap with OwnerReference.
 func (r *VirtualNodeReconciler) createNamespaceMap(ctx context.Context, n *corev1.Node) error {
-	virtualNodeClusterID := n.Annotations[liqoconst.RemoteClusterID]
+	virtualNodeClusterID := n.Labels[liqoconst.RemoteClusterID]
 	nm := &mapsv1alpha1.NamespaceMap{
 		ObjectMeta: metav1.ObjectMeta{
 			GenerateName: fmt.Sprintf("%s-", virtualNodeClusterID),
@@ -58,12 +58,12 @@ func (r *VirtualNodeReconciler) createNamespaceMap(ctx context.Context, n *corev
 func (r *VirtualNodeReconciler) ensureNamespaceMapPresence(ctx context.Context, n *corev1.Node) error {
 	// Only when the NamespaceMap is created for the first time it is necessary to check the presence of the local
 	// Tenant namespace's name.
-	if err := r.checkLocalTenantNamespaceNamePresence(ctx, n.Annotations[liqoconst.RemoteClusterID]); err != nil {
+	if err := r.checkLocalTenantNamespaceNamePresence(ctx, n.Labels[liqoconst.RemoteClusterID]); err != nil {
 		return err
 	}
 	nms := &mapsv1alpha1.NamespaceMapList{}
-	if err := r.List(ctx, nms, client.InNamespace(r.getLocalTenantNamespaceName(n.Annotations[liqoconst.RemoteClusterID])),
-		client.MatchingLabels{liqoconst.RemoteClusterID: n.Annotations[liqoconst.RemoteClusterID]}); err != nil {
+	if err := r.List(ctx, nms, client.InNamespace(r.getLocalTenantNamespaceName(n.Labels[liqoconst.RemoteClusterID])),
+		client.MatchingLabels{liqoconst.RemoteClusterID: n.Labels[liqoconst.RemoteClusterID]}); err != nil {
 		klog.Errorf("%s --> Unable to List NamespaceMaps of the virtual-node '%s'", err, n.GetName())
 		return err
 	}

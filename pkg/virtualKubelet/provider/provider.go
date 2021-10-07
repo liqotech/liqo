@@ -18,16 +18,17 @@ import (
 	"context"
 	"time"
 
+	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
 	"k8s.io/klog/v2"
-	metricsv "k8s.io/metrics/pkg/client/clientset/versioned"
+	metrics "k8s.io/metrics/pkg/client/clientset/versioned"
 
 	vkalpha1 "github.com/liqotech/liqo/apis/virtualKubelet/v1alpha1"
 	identitymanager "github.com/liqotech/liqo/pkg/identityManager"
 	tenantnamespace "github.com/liqotech/liqo/pkg/tenantNamespace"
-	"github.com/liqotech/liqo/pkg/utils"
+	"github.com/liqotech/liqo/pkg/utils/restcfg"
 	"github.com/liqotech/liqo/pkg/virtualKubelet"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/apiReflection/controller"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/forge"
@@ -36,86 +37,69 @@ import (
 	optTypes "github.com/liqotech/liqo/pkg/virtualKubelet/options/types"
 )
 
+func init() {
+	utilruntime.Must(vkalpha1.AddToScheme(scheme.Scheme))
+}
+
+// InitConfig is the config passed to initialize the LiqoPodProvider.
+type InitConfig struct {
+	HomeConfig      *rest.Config
+	HomeClusterID   string
+	RemoteClusterID string
+	Namespace       string
+
+	NodeName             string
+	LiqoIpamServer       string
+	InformerResyncPeriod time.Duration
+}
+
 // LiqoProvider implements the virtual-kubelet provider interface and stores pods in memory.
 type LiqoProvider struct {
+	homeClient           kubernetes.Interface
+	foreignClient        kubernetes.Interface
+	foreignMetricsClient metrics.Interface
+	foreignRestConfig    *rest.Config
+
 	namespaceMapper namespacesmapping.MapperController
 	apiController   controller.APIController
 
-	tepReady             chan struct{}
-	homeClient           kubernetes.Interface
-	foreignClient        kubernetes.Interface
-	foreignMetricsClient metricsv.Interface
-
-	operatingSystem    string
-	internalIP         string
-	daemonEndpointPort int32
-	startTime          time.Time
-	homeClusterID      string
-	foreignClusterID   string
-	foreignRestConfig  *rest.Config
-
-	nodeName options.Option
-
-	foreignPodWatcherStop chan struct{}
+	startTime time.Time
+	nodeName  string
 }
 
 // NewLiqoProvider creates a new NewLiqoProvider instance.
-func NewLiqoProvider(ctx context.Context, nodeName, foreignClusterID, homeClusterID, internalIP string, daemonEndpointPort int32,
-	kubeconfig string, informerResyncPeriod time.Duration, ipamGRPCServer string) (*LiqoProvider, error) {
-	var err error
-
-	if err = vkalpha1.AddToScheme(scheme.Scheme); err != nil {
-		return nil, err
-	}
-
-	homeRestConfig, err := utils.UserConfig(kubeconfig)
-	if err != nil {
-		return nil, err
-	}
-
-	homeRestConfig.QPS = virtualKubelet.HOME_CLIENT_QPS
-	homeRestConfig.Burst = virtualKubelet.HOME_CLIENTS_BURST
-
-	homeClient, err := kubernetes.NewForConfig(homeRestConfig)
-	if err != nil {
-		return nil, err
-	}
+func NewLiqoProvider(ctx context.Context, cfg *InitConfig) (*LiqoProvider, error) {
+	homeClient := kubernetes.NewForConfigOrDie(cfg.HomeConfig)
 
 	tenantNamespaceManager := tenantnamespace.NewTenantNamespaceManager(homeClient)
-	identityManager := identitymanager.NewCertificateIdentityReader(homeClient, homeClusterID, tenantNamespaceManager)
-	namespace, err := utils.RetrieveNamespace()
+	identityManager := identitymanager.NewCertificateIdentityReader(homeClient, cfg.HomeClusterID, tenantNamespaceManager)
+
+	remoteRestConfig, err := identityManager.GetConfig(cfg.RemoteClusterID, "")
 	if err != nil {
 		return nil, err
 	}
 
-	remoteRestConfig, err := identityManager.GetConfig(foreignClusterID, "")
-	if err != nil {
-		klog.Error(err)
-		return nil, err
-	}
-
-	remoteRestConfig.QPS = virtualKubelet.FOREIGN_CLIENT_QPS
-	remoteRestConfig.Burst = virtualKubelet.FOREIGN_CLIENT_BURST
-
+	restcfg.SetRateLimiterWithCustomParamenters(remoteRestConfig, virtualKubelet.FOREIGN_CLIENT_QPS, virtualKubelet.FOREIGN_CLIENT_BURST)
 	foreignClient, err := kubernetes.NewForConfig(remoteRestConfig)
 	if err != nil {
 		return nil, err
 	}
 
-	foreignMetricsClient, err := metricsv.NewForConfig(remoteRestConfig)
+	foreignMetricsClient, err := metrics.NewForConfig(remoteRestConfig)
 	if err != nil {
 		return nil, err
 	}
 
-	mapper, err := namespacesmapping.NewNamespaceMapperController(ctx, homeRestConfig, homeClusterID, foreignClusterID, namespace)
+	mapper, err := namespacesmapping.NewNamespaceMapperController(
+		ctx, cfg.HomeConfig, cfg.HomeClusterID, cfg.RemoteClusterID, cfg.Namespace)
 	if err != nil {
-		klog.Fatal(err)
+		return nil, err
 	}
 	mapper.WaitForSync()
 
-	virtualNodeNameOpt := optTypes.NewNetworkingOption(optTypes.VirtualNodeName, optTypes.NetworkingValue(nodeName))
-	grpcServerNameOpt := optTypes.NewNetworkingOption(optTypes.LiqoIpamServer, optTypes.NetworkingValue(ipamGRPCServer))
-	remoteClusterIDOpt := optTypes.NewNetworkingOption(optTypes.RemoteClusterID, optTypes.NetworkingValue(foreignClusterID))
+	virtualNodeNameOpt := optTypes.NewNetworkingOption(optTypes.VirtualNodeName, optTypes.NetworkingValue(cfg.NodeName))
+	grpcServerNameOpt := optTypes.NewNetworkingOption(optTypes.LiqoIpamServer, optTypes.NetworkingValue(cfg.LiqoIpamServer))
+	remoteClusterIDOpt := optTypes.NewNetworkingOption(optTypes.RemoteClusterID, optTypes.NetworkingValue(cfg.RemoteClusterID))
 
 	forge.InitForger(mapper, virtualNodeNameOpt, grpcServerNameOpt, remoteClusterIDOpt)
 
@@ -123,26 +107,18 @@ func NewLiqoProvider(ctx context.Context, nodeName, foreignClusterID, homeCluste
 		virtualNodeNameOpt,
 		grpcServerNameOpt)
 
-	tepReady := make(chan struct{})
+	return &LiqoProvider{
+		homeClient:           homeClient,
+		foreignClient:        foreignClient,
+		foreignMetricsClient: foreignMetricsClient,
+		foreignRestConfig:    remoteRestConfig,
 
-	provider := LiqoProvider{
-		apiController:         controller.NewAPIController(homeClient, foreignClient, informerResyncPeriod, mapper, opts, tepReady),
-		namespaceMapper:       mapper,
-		nodeName:              virtualNodeNameOpt,
-		internalIP:            internalIP,
-		daemonEndpointPort:    daemonEndpointPort,
-		startTime:             time.Now(),
-		foreignClusterID:      foreignClusterID,
-		homeClusterID:         homeClusterID,
-		foreignPodWatcherStop: make(chan struct{}, 1),
-		foreignRestConfig:     remoteRestConfig,
-		homeClient:            homeClient,
-		foreignClient:         foreignClient,
-		foreignMetricsClient:  foreignMetricsClient,
-		tepReady:              tepReady,
-	}
+		namespaceMapper: mapper,
+		apiController:   controller.NewAPIController(homeClient, foreignClient, cfg.InformerResyncPeriod, mapper, opts),
 
-	return &provider, nil
+		nodeName:  cfg.NodeName,
+		startTime: time.Now(),
+	}, nil
 }
 
 func forgeOptionsMap(opts ...options.Option) map[options.OptionKey]options.Option {
@@ -163,9 +139,4 @@ func (p *LiqoProvider) SetProviderStopper(stopper chan struct{}) {
 			klog.Error(err)
 		}
 	}()
-}
-
-// GetNetworkReadyChan reetrun the chan where to notify that the network connectivity has been established.
-func (p *LiqoProvider) GetNetworkReadyChan() chan struct{} {
-	return p.tepReady
 }

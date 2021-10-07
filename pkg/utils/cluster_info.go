@@ -17,7 +17,6 @@ package utils
 import (
 	"context"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"strings"
 
@@ -80,26 +79,6 @@ func getClusterIDFromConfigMapList(configMapList *corev1.ConfigMapList) (string,
 // GetClusterIDFromNodeName returns the clusterID from a node name.
 func GetClusterIDFromNodeName(nodeName string) string {
 	return strings.TrimPrefix(nodeName, virtualKubelet.VirtualNodePrefix)
-}
-
-// RetrieveNamespace tries to retrieve the name of the namespace where the process is executed.
-// It tries to get the namespace:
-// - Firstly, using the POD_NAMESPACE variable
-// - Secondly, by looking for the namespace value contained in a mounted ServiceAccount (if any)
-// Otherwise, it returns an empty string and an error.
-func RetrieveNamespace() (string, error) {
-	namespace, found := os.LookupEnv("POD_NAMESPACE")
-	if !found {
-		klog.Info("POD_NAMESPACE not set")
-		data, err := ioutil.ReadFile(consts.ServiceAccountNamespacePath)
-		if err != nil {
-			return "", fmt.Errorf("unable to get namespace")
-		}
-		if namespace = strings.TrimSpace(string(data)); namespace == "" {
-			return "", fmt.Errorf("unable to get namespace")
-		}
-	}
-	return namespace, nil
 }
 
 // GetRestConfig returns a rest.Config object to initialize a client to the target cluster.

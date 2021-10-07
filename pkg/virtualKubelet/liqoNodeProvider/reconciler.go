@@ -205,10 +205,6 @@ func (p *LiqoNodeProvider) updateFromTep(tep *netv1alpha1.TunnelEndpoint) error 
 		return p.updateNode()
 	}
 	p.networkReady = true
-	if isChanOpen(p.networkReadyChan) {
-		close(p.networkReadyChan)
-	}
-
 	return p.updateNode()
 }
 

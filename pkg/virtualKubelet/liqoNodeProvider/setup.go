@@ -15,42 +15,109 @@
 package liqonodeprovider
 
 import (
+	"strconv"
+	"strings"
 	"time"
 
-	v1 "k8s.io/api/core/v1"
+	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
-	ctrl "sigs.k8s.io/controller-runtime"
+
+	liqoconst "github.com/liqotech/liqo/pkg/consts"
 )
 
+const (
+	linuxos      = "Linux"
+	architecture = "arm64"
+
+	labelNodeExcludeBalancersAlpha = "alpha.service-controller.kubernetes.io/exclude-balancer"
+	roleLabelKey                   = "kubernetes.io/role"
+	roleLabelValue                 = "agent"
+)
+
+// InitConfig is the config passed to initialize the LiqoNodeProvider.
+type InitConfig struct {
+	HomeConfig      *rest.Config
+	HomeClusterID   string
+	RemoteClusterID string
+	Namespace       string
+
+	NodeName         string
+	InternalIP       string
+	DaemonPort       int32
+	Version          string
+	ExtraLabels      map[string]string
+	ExtraAnnotations map[string]string
+
+	PodProviderStopper   chan struct{}
+	InformerResyncPeriod time.Duration
+}
+
 // NewLiqoNodeProvider creates and returns a new LiqoNodeProvider.
-func NewLiqoNodeProvider(
-	nodeName, foreignClusterID, kubeletNamespace string,
-	node *v1.Node,
-	podProviderStopper, networkReadyChan chan struct{},
-	config *rest.Config, resyncPeriod time.Duration) (*LiqoNodeProvider, error) {
-	if config == nil {
-		config = ctrl.GetConfigOrDie()
-	}
-	client := kubernetes.NewForConfigOrDie(config)
-	dynClient := dynamic.NewForConfigOrDie(config)
+func NewLiqoNodeProvider(cfg *InitConfig) *LiqoNodeProvider {
+	client := kubernetes.NewForConfigOrDie(cfg.HomeConfig)
+	dynClient := dynamic.NewForConfigOrDie(cfg.HomeConfig)
 
 	return &LiqoNodeProvider{
 		client:    client,
 		dynClient: dynClient,
 
-		node:              node,
+		node:              node(cfg),
 		terminating:       false,
 		lastAppliedLabels: map[string]string{},
 
 		networkReady:       false,
-		podProviderStopper: podProviderStopper,
-		networkReadyChan:   networkReadyChan,
-		resyncPeriod:       resyncPeriod,
+		podProviderStopper: cfg.PodProviderStopper,
+		resyncPeriod:       cfg.InformerResyncPeriod,
 
-		nodeName:         nodeName,
-		foreignClusterID: foreignClusterID,
-		kubeletNamespace: kubeletNamespace,
-	}, nil
+		nodeName:         cfg.NodeName,
+		foreignClusterID: cfg.RemoteClusterID,
+		kubeletNamespace: cfg.Namespace,
+	}
+}
+
+func node(cfg *InitConfig) *corev1.Node {
+	lbls := map[string]string{
+		corev1.LabelHostname: cfg.NodeName,
+		roleLabelKey:         roleLabelValue,
+
+		corev1.LabelOSStable:   strings.ToLower(linuxos),
+		corev1.LabelArchStable: architecture,
+
+		liqoconst.TypeLabel:       liqoconst.TypeNode,
+		liqoconst.RemoteClusterID: cfg.RemoteClusterID,
+
+		corev1.LabelNodeExcludeBalancers: strconv.FormatBool(true),
+		labelNodeExcludeBalancersAlpha:   strconv.FormatBool(true),
+	}
+
+	return &corev1.Node{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:        cfg.NodeName,
+			Labels:      labels.Merge(lbls, cfg.ExtraLabels),
+			Annotations: cfg.ExtraAnnotations,
+		},
+		Spec: corev1.NodeSpec{
+			Taints: []corev1.Taint{{
+				Key:    liqoconst.VirtualNodeTolerationKey,
+				Value:  strconv.FormatBool(true),
+				Effect: corev1.TaintEffectNoExecute,
+			}},
+		},
+		Status: corev1.NodeStatus{
+			NodeInfo: corev1.NodeSystemInfo{
+				KubeletVersion:  cfg.Version,
+				Architecture:    architecture,
+				OperatingSystem: linuxos,
+			},
+			Addresses:       []corev1.NodeAddress{{Type: corev1.NodeInternalIP, Address: cfg.InternalIP}},
+			DaemonEndpoints: corev1.NodeDaemonEndpoints{KubeletEndpoint: corev1.DaemonEndpoint{Port: cfg.DaemonPort}},
+			Capacity:        corev1.ResourceList{},
+			Allocatable:     corev1.ResourceList{},
+			Conditions:      UnknownNodeConditions(),
+		},
+	}
 }

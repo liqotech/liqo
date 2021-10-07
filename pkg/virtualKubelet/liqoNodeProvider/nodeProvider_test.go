@@ -60,16 +60,13 @@ func TestNodeProvider(t *testing.T) {
 var _ = Describe("NodeProvider", func() {
 
 	var (
-		cluster        testutil.Cluster
-		nodeProvider   *LiqoNodeProvider
-		podStopper     chan struct{}
-		networkStopper chan struct{}
-		err            error
-		nodeChan       chan *v1.Node
-		ctx            context.Context
-		cancel         context.CancelFunc
-
-		stop chan struct{}
+		cluster      testutil.Cluster
+		nodeProvider *LiqoNodeProvider
+		podStopper   chan struct{}
+		err          error
+		nodeChan     chan *v1.Node
+		ctx          context.Context
+		cancel       context.CancelFunc
 	)
 
 	BeforeEach(func() {
@@ -79,21 +76,21 @@ var _ = Describe("NodeProvider", func() {
 		Expect(err).To(BeNil())
 
 		client := kubernetes.NewForConfigOrDie(cluster.GetCfg())
-		node := &v1.Node{
-			ObjectMeta: metav1.ObjectMeta{
-				Name: nodeName,
-			},
-		}
-		node, err = client.CoreV1().Nodes().Create(ctx, node, metav1.CreateOptions{})
-		Expect(err).To(BeNil())
 
 		podStopper = make(chan struct{}, 1)
-		networkStopper = make(chan struct{}, 1)
 		nodeChan = make(chan *v1.Node, 10)
 
-		nodeProvider, err = NewLiqoNodeProvider(nodeName,
-			foreignClusterID, kubeletNamespace,
-			node, podStopper, networkStopper, cluster.GetCfg(), 0)
+		nodeProvider = NewLiqoNodeProvider(&InitConfig{
+			NodeName:  nodeName,
+			Namespace: kubeletNamespace,
+
+			HomeConfig:      cluster.GetCfg(),
+			RemoteClusterID: foreignClusterID,
+
+			PodProviderStopper: podStopper,
+		})
+
+		_, err = client.CoreV1().Nodes().Create(ctx, nodeProvider.GetNode(), metav1.CreateOptions{})
 		Expect(err).To(BeNil())
 
 		nodeProvider.NotifyNodeStatus(ctx, func(node *v1.Node) {
@@ -102,7 +99,7 @@ var _ = Describe("NodeProvider", func() {
 		})
 
 		var ready chan struct{}
-		ready, stop = nodeProvider.StartProvider()
+		ready = nodeProvider.StartProvider(ctx)
 		close(ready)
 	})
 
@@ -112,7 +109,6 @@ var _ = Describe("NodeProvider", func() {
 		err := cluster.GetEnv().Stop()
 		Expect(err).To(BeNil())
 
-		close(stop)
 		close(podStopper)
 		close(nodeChan)
 	})
@@ -145,8 +141,6 @@ var _ = Describe("NodeProvider", func() {
 			}
 
 			if c.tunnelEndpoint != nil {
-				Expect(isChanOpen(networkStopper)).To(BeTrue())
-
 				c.tunnelEndpoint.Labels = map[string]string{
 					consts.ClusterIDLabelName: nodeProvider.foreignClusterID,
 				}
@@ -163,10 +157,6 @@ var _ = Describe("NodeProvider", func() {
 				_, err = dynClient.Resource(netv1alpha1.TunnelEndpointGroupVersionResource).
 					Namespace(kubeletNamespace).UpdateStatus(ctx, unstruct, metav1.UpdateOptions{})
 				Expect(err).To(BeNil())
-
-				Eventually(func() bool {
-					return isChanOpen(networkStopper)
-				}, timeout, interval).Should(BeFalse())
 			}
 
 			Eventually(func() []v1.NodeCondition {

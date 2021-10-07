@@ -64,7 +64,7 @@ type Controller struct {
 
 // NewAPIController returns a Controller instance for a given set of home and foreign clients.
 func NewAPIController(homeClient, foreignClient kubernetes.Interface, informerResyncPeriod time.Duration,
-	mapper namespacesmapping.MapperController, opts map[options.OptionKey]options.Option, tepReady chan struct{}) *Controller {
+	mapper namespacesmapping.MapperController, opts map[options.OptionKey]options.Option) *Controller {
 	klog.V(2).Infof("starting reflection manager")
 
 	outgoingReflectionInforming := make(chan apiReflection.ApiEvent)
@@ -87,7 +87,6 @@ func NewAPIController(homeClient, foreignClient kubernetes.Interface, informerRe
 
 	c.mainControllerRoutine.Add(1)
 	go func() {
-		<-tepReady
 		for {
 			select {
 			case <-c.mapper.PollStartMapper():

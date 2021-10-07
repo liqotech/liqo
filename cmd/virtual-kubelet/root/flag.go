@@ -23,13 +23,10 @@ import (
 
 func InstallFlags(flags *pflag.FlagSet, c *Opts) {
 	flags.StringVar(&c.HomeKubeconfig, "home-kubeconfig", c.HomeKubeconfig, "kube config file to use for connecting to the Kubernetes API server")
-	flags.StringVar(&c.KubeClusterDomain, "cluster-domain", c.KubeClusterDomain, "kubernetes cluster-domain (default is 'cluster.local')")
 	flags.StringVar(&c.NodeName, "nodename", c.NodeName, "kubernetes node name")
-	flags.StringVar(&c.Provider, "provider", c.Provider, "cloud provider")
 	flags.StringVar(&c.MetricsAddr, "metrics-addr", c.MetricsAddr, "address to listen for metrics/stats requests")
 
-	flags.IntVar(&c.PodSyncWorkers, "pod-sync-workers", c.PodSyncWorkers, `set the number of pod synchronization workers`)
-	flags.BoolVar(&c.EnableNodeLease, "enable-node-lease", c.EnableNodeLease, `use node leases (1.13) for node heartbeats`)
+	flags.UintVar(&c.PodSyncWorkers, "pod-sync-workers", c.PodSyncWorkers, "the number of pod synchronization workers")
 
 	flags.DurationVar(&c.InformerResyncPeriod, "full-resync-period", c.InformerResyncPeriod,
 		"how often to perform a full resync of pods between kubernetes and the provider")
@@ -40,7 +37,7 @@ func InstallFlags(flags *pflag.FlagSet, c *Opts) {
 	flags.StringVar(&c.ForeignClusterID, "foreign-cluster-id", c.ForeignClusterID, "The Id of the foreign cluster")
 	flags.StringVar(&c.KubeletNamespace, "kubelet-namespace", c.KubeletNamespace, "The namespace of the virtual kubelet")
 	flags.StringVar(&c.HomeClusterID, "home-cluster-id", c.HomeClusterID, "The Id of the home cluster")
-	flags.StringVar(&c.LiqoIpamServer, "ipam-server", c.LiqoIpamServer, "The server the Virtual Kubelet should"+
+	flags.StringVar(&c.LiqoIpamServer, "ipam-server", c.LiqoIpamServer, "The server the Virtual Kubelet should "+
 		"connect to in order to contact the IPAM module")
 	flags.BoolVar(&c.Profiling, "enable-profiling", c.Profiling, "Enable pprof profiling")
 
