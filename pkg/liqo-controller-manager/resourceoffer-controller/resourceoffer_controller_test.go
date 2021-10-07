@@ -105,7 +105,7 @@ var _ = Describe("ResourceOffer Controller", func() {
 			InitContainerImage: initVirtualKubeletImage,
 		}
 
-		controller = NewResourceOfferController(mgr, "remote-id", 10*time.Second, testNamespace, kubeletOpts, false)
+		controller = NewResourceOfferController(mgr, "remote-id", 10*time.Second, testNamespace, kubeletOpts, true)
 		if err := controller.SetupWithManager(mgr); err != nil {
 			By(err.Error())
 			os.Exit(1)
@@ -165,7 +165,7 @@ var _ = Describe("ResourceOffer Controller", func() {
 					ClusterId: clusterID,
 				},
 			},
-			expectedPhase: sharingv1alpha1.ResourceOfferAccepted,
+			expectedPhase: sharingv1alpha1.ResourceOfferManualActionRequired, // auto-accept is off
 		}),
 
 		// this entry should not be taken by the operator, it has not the labels of a replicated resource.
@@ -203,6 +203,18 @@ var _ = Describe("ResourceOffer Controller", func() {
 
 			err := controller.Client.Create(ctx, resourceOffer)
 			Expect(err).To(BeNil())
+
+			// The offer should not be automatically accepted, as specified in the config
+			Eventually(func() sharingv1alpha1.OfferPhase {
+				if err = controller.Client.Get(ctx, key, resourceOffer); err != nil {
+					return "error"
+				}
+				return resourceOffer.Status.Phase
+			}, timeout, interval).Should(Equal(sharingv1alpha1.ResourceOfferManualActionRequired))
+
+			// Accept it manually
+			resourceOffer.Status.Phase = sharingv1alpha1.ResourceOfferAccepted
+			Expect(controller.Status().Update(ctx, resourceOffer)).To(Succeed())
 
 			Eventually(func() sharingv1alpha1.OfferPhase {
 				if err = controller.Client.Get(ctx, key, resourceOffer); err != nil {

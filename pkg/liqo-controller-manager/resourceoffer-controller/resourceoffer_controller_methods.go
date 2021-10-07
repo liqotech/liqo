@@ -59,9 +59,9 @@ func (r *ResourceOfferReconciler) setResourceOfferPhase(resourceOffer *sharingv1
 
 	if r.disableAutoAccept {
 		resourceOffer.Status.Phase = sharingv1alpha1.ResourceOfferManualActionRequired
+	} else {
+		resourceOffer.Status.Phase = sharingv1alpha1.ResourceOfferAccepted
 	}
-
-	resourceOffer.Status.Phase = sharingv1alpha1.ResourceOfferAccepted
 }
 
 // checkVirtualKubeletDeployment checks the existence of the VirtualKubelet Deployment
