@@ -33,7 +33,6 @@ require (
 	github.com/virtual-kubelet/virtual-kubelet v1.5.1
 	github.com/vishvananda/netlink v1.1.0
 	github.com/vishvananda/netns v0.0.0-20200728191858-db3c7e526aae
-	go.opencensus.io v0.23.0
 	golang.org/x/oauth2 v0.0.0-20210628180205-a41e5a781914 // indirect
 	golang.org/x/sys v0.0.0-20210817190340-bfb29a6856f2
 	golang.org/x/tools v0.1.4 // indirect

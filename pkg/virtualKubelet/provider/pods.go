@@ -318,7 +318,7 @@ func (p *LiqoProvider) GetStatsSummary(ctx context.Context) (*stats.Summary, err
 
 	// Populate the Summary object with basic node stats.
 	res.Node = stats.NodeStats{
-		NodeName:  p.nodeName.Value().ToString(),
+		NodeName:  p.nodeName,
 		StartTime: metav1.NewTime(p.startTime),
 	}
 

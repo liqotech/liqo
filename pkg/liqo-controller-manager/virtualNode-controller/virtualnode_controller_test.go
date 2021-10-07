@@ -39,22 +39,18 @@ var _ = Describe("VirtualNode controller", func() {
 			virtualNode1 = &corev1.Node{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: nameVirtualNode1,
-					Annotations: map[string]string{
-						liqoconst.RemoteClusterID: remoteClusterID1,
-					},
 					Labels: map[string]string{
-						liqoconst.TypeLabel: liqoconst.TypeNode,
+						liqoconst.TypeLabel:       liqoconst.TypeNode,
+						liqoconst.RemoteClusterID: remoteClusterID1,
 					},
 				},
 			}
 			virtualNode2 = &corev1.Node{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: nameVirtualNode2,
-					Annotations: map[string]string{
-						liqoconst.RemoteClusterID: remoteClusterID2,
-					},
 					Labels: map[string]string{
-						liqoconst.TypeLabel: liqoconst.TypeNode,
+						liqoconst.TypeLabel:       liqoconst.TypeNode,
+						liqoconst.RemoteClusterID: remoteClusterID2,
 					},
 				},
 			}
@@ -191,12 +187,10 @@ var _ = Describe("VirtualNode controller", func() {
 			simpleNode = &corev1.Node{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: nameSimpleNode,
-					Annotations: map[string]string{
-						liqoconst.RemoteClusterID: remoteClusterIdSimpleNode,
-					},
 					Labels: map[string]string{
-						offloadingCluster1Label1: "",
-						offloadingCluster1Label2: "",
+						liqoconst.RemoteClusterID: remoteClusterIdSimpleNode,
+						offloadingCluster1Label1:  "",
+						offloadingCluster1Label2:  "",
 					},
 				},
 			}
@@ -232,11 +226,9 @@ var _ = Describe("VirtualNode controller", func() {
 			virtualNode1 = &corev1.Node{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: nameVirtualNode1,
-					Annotations: map[string]string{
-						liqoconst.RemoteClusterID: remoteClusterID1,
-					},
 					Labels: map[string]string{
-						liqoconst.TypeLabel: liqoconst.TypeNode,
+						liqoconst.TypeLabel:       liqoconst.TypeNode,
+						liqoconst.RemoteClusterID: remoteClusterID1,
 					},
 				},
 			}

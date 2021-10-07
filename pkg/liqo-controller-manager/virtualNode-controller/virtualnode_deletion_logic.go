@@ -33,7 +33,7 @@ func (r *VirtualNodeReconciler) removeAssociatedNamespaceMaps(ctx context.Contex
 	// The deletion timestamp is automatically set on the NamespaceMaps associated with the virtual-node,
 	// it's only necessary to wait until the NamespaceMaps are deleted.
 	namespaceMapList := &mapsv1alpha1.NamespaceMapList{}
-	virtualNodeClusterID := n.Annotations[liqoconst.RemoteClusterID]
+	virtualNodeClusterID := n.Labels[liqoconst.RemoteClusterID]
 	if err := r.List(ctx, namespaceMapList,
 		client.InNamespace(r.getLocalTenantNamespaceName(virtualNodeClusterID)),
 		client.MatchingLabels{liqoconst.RemoteClusterID: virtualNodeClusterID}); err != nil {

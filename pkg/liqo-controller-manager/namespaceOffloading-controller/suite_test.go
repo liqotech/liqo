@@ -141,13 +141,11 @@ var _ = BeforeSuite(func(done Done) {
 	virtualNode1 = &corev1.Node{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: virtualNode1Name,
-			Annotations: map[string]string{
-				liqoconst.RemoteClusterID: remoteClusterId1,
-			},
 			Labels: map[string]string{
-				liqoconst.TypeLabel: liqoconst.TypeNode,
-				regionLabel:         regionA,
-				providerLabel:       providerAWS,
+				liqoconst.TypeLabel:       liqoconst.TypeNode,
+				liqoconst.RemoteClusterID: remoteClusterId1,
+				regionLabel:               regionA,
+				providerLabel:             providerAWS,
 			},
 		},
 	}
@@ -155,13 +153,11 @@ var _ = BeforeSuite(func(done Done) {
 	virtualNode2 = &corev1.Node{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: virtualNode2Name,
-			Annotations: map[string]string{
-				liqoconst.RemoteClusterID: remoteClusterId2,
-			},
 			Labels: map[string]string{
-				liqoconst.TypeLabel: liqoconst.TypeNode,
-				regionLabel:         regionB,
-				providerLabel:       providerGKE,
+				liqoconst.TypeLabel:       liqoconst.TypeNode,
+				liqoconst.RemoteClusterID: remoteClusterId2,
+				regionLabel:               regionB,
+				providerLabel:             providerGKE,
 			},
 		},
 	}
@@ -169,13 +165,11 @@ var _ = BeforeSuite(func(done Done) {
 	virtualNode3 = &corev1.Node{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: virtualNode3Name,
-			Annotations: map[string]string{
-				liqoconst.RemoteClusterID: remoteClusterId3,
-			},
 			Labels: map[string]string{
-				liqoconst.TypeLabel: liqoconst.TypeNode,
-				regionLabel:         regionA,
-				providerLabel:       providerGKE,
+				liqoconst.TypeLabel:       liqoconst.TypeNode,
+				liqoconst.RemoteClusterID: remoteClusterId3,
+				regionLabel:               regionA,
+				providerLabel:             providerGKE,
 			},
 		},
 	}

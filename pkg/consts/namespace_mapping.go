@@ -16,7 +16,7 @@ package consts
 
 const (
 	// RemoteClusterID is used to obtain cluster-id from different Liqo resources.
-	RemoteClusterID = "cluster-id" // "remote.liqo.io/clusterId"
+	RemoteClusterID = "liqo.io/remote-cluster-id"
 	// TypeLabel is the key of a Liqo label that identifies different types of nodes.
 	// todo: change to NodeTypeLabel
 	TypeLabel = "liqo.io/type"

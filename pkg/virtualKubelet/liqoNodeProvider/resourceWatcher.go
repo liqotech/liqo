@@ -15,6 +15,7 @@
 package liqonodeprovider
 
 import (
+	"context"
 	"strings"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -33,7 +34,7 @@ import (
 // StartProvider starts the provider with its infromers on Liqo resources.
 // These informers on sharing and network resources will be used to accordingly
 // update the virtual node.
-func (p *LiqoNodeProvider) StartProvider() (ready, stop chan struct{}) {
+func (p *LiqoNodeProvider) StartProvider(ctx context.Context) (ready chan struct{}) {
 	resource := "resourceoffers"
 	namespace := p.kubeletNamespace
 
@@ -51,15 +52,14 @@ func (p *LiqoNodeProvider) StartProvider() (ready, stop chan struct{}) {
 	tepInformer.AddEventHandler(getEventHandler(p.reconcileNodeFromTep))
 
 	ready = make(chan struct{}, 1)
-	stop = make(chan struct{}, 1)
 	go func() {
 		<-ready
-		go sharingInformerFactory.Start(stop)
-		go tepInformerFactory.Start(stop)
+		go sharingInformerFactory.Start(ctx.Done())
+		go tepInformerFactory.Start(ctx.Done())
 		klog.Info("Liqo informers started")
 	}()
 
-	return ready, stop
+	return ready
 }
 
 func getEventHandler(handler func(event watch.Event) error) cache.ResourceEventHandler {

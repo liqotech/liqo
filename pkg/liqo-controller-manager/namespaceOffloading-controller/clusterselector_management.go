@@ -67,11 +67,11 @@ func (r *NamespaceOffloadingReconciler) enforceClusterSelector(ctx context.Conte
 		}
 		if match {
 			if err = addDesiredMapping(ctx, r.Client, noff.Namespace, noff.Status.RemoteNamespaceName,
-				clusterIDMap[virtualNodes.Items[i].Annotations[liqoconst.RemoteClusterID]]); err != nil {
+				clusterIDMap[virtualNodes.Items[i].Labels[liqoconst.RemoteClusterID]]); err != nil {
 				errorCondition = true
 				continue
 			}
-			delete(clusterIDMap, virtualNodes.Items[i].Annotations[liqoconst.RemoteClusterID])
+			delete(clusterIDMap, virtualNodes.Items[i].Labels[liqoconst.RemoteClusterID])
 		}
 	}
 	if errorCondition {

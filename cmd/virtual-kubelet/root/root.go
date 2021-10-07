@@ -28,41 +28,41 @@ import (
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
+	"k8s.io/client-go/discovery"
 	kubeinformers "k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/scheme"
-	coordv1 "k8s.io/client-go/kubernetes/typed/coordination/v1"
+	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/record"
 	"k8s.io/client-go/util/workqueue"
 	"k8s.io/klog/v2"
 
-	"github.com/liqotech/liqo/cmd/virtual-kubelet/provider"
 	"github.com/liqotech/liqo/internal/utils/errdefs"
 	"github.com/liqotech/liqo/pkg/utils"
 	"github.com/liqotech/liqo/pkg/utils/restcfg"
 	"github.com/liqotech/liqo/pkg/virtualKubelet"
-	liqonodeprovider "github.com/liqotech/liqo/pkg/virtualKubelet/liqoNodeProvider"
+	nodeprovider "github.com/liqotech/liqo/pkg/virtualKubelet/liqoNodeProvider"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/manager"
-	liqoprovider "github.com/liqotech/liqo/pkg/virtualKubelet/provider"
+	podprovider "github.com/liqotech/liqo/pkg/virtualKubelet/provider"
 )
+
+const defaultVersion = "v1.22.1" // This should follow the version of k8s.io/kubernetes we are importing
 
 // NewCommand creates a new top-level command.
 // This command is used to start the virtual-kubelet daemon.
-func NewCommand(ctx context.Context, name string, s *provider.Store, c *Opts) *cobra.Command {
+func NewCommand(ctx context.Context, name string, c *Opts) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   name,
-		Short: name + " provides a virtual kubelet interface for your kubernetes cluster.",
-		Long: name + ` implements the Kubelet interface with a pluggable
-backend implementation allowing users to create kubernetes nodes without running the kubelet.
-This allows users to schedule kubernetes workloads on nodes that aren't running Kubernetes.`,
+		Short: name + " implements the Liqo Virtual Kubelet logic.",
+		Long:  name + " implements the Liqo Virtual Kubelet logic.",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return runRootCommand(ctx, s, c)
+			return runRootCommand(ctx, c)
 		},
 	}
 	return cmd
 }
 
-func runRootCommand(ctx context.Context, s *provider.Store, c *Opts) error {
+func runRootCommand(ctx context.Context, c *Opts) error {
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
@@ -106,96 +106,74 @@ func runRootCommand(ctx context.Context, s *provider.Store, c *Opts) error {
 		return errors.Wrap(err, "could not create resource manager")
 	}
 
-	apiConfig, err := getAPIConfig(*c)
+	// Initialize the pod provider
+	podcfg := podprovider.InitConfig{
+		HomeConfig:      config,
+		HomeClusterID:   c.HomeClusterID,
+		RemoteClusterID: c.ForeignClusterID,
+
+		Namespace:            c.KubeletNamespace,
+		NodeName:             c.NodeName,
+		LiqoIpamServer:       c.LiqoIpamServer,
+		InformerResyncPeriod: c.InformerResyncPeriod,
+	}
+
+	podProvider, err := podprovider.NewLiqoProvider(ctx, &podcfg)
 	if err != nil {
 		return err
 	}
 
-	initConfig := provider.InitConfig{
-		HomeKubeConfig:       c.HomeKubeconfig,
-		NodeName:             c.NodeName,
-		ResourceManager:      rm,
-		DaemonPort:           c.ListenPort,
-		InternalIP:           os.Getenv("VKUBELET_POD_IP"),
-		KubeClusterDomain:    c.KubeClusterDomain,
-		RemoteClusterID:      c.ForeignClusterID,
-		HomeClusterID:        c.HomeClusterID,
-		InformerResyncPeriod: c.InformerResyncPeriod,
-		LiqoIpamServer:       c.LiqoIpamServer,
+	podProviderStopper := make(chan struct{})
+	podProvider.SetProviderStopper(podProviderStopper)
+
+	// Initialize the node provider
+	nodecfg := nodeprovider.InitConfig{
+		HomeConfig:      config,
+		HomeClusterID:   c.HomeClusterID,
+		RemoteClusterID: c.ForeignClusterID,
+		Namespace:       c.KubeletNamespace,
+
+		NodeName:         c.NodeName,
+		InternalIP:       os.Getenv("VKUBELET_POD_IP"),
+		DaemonPort:       c.ListenPort,
+		Version:          getVersion(config),
+		ExtraLabels:      c.NodeExtraLabels.StringMap,
+		ExtraAnnotations: c.NodeExtraAnnotations.StringMap,
+
+		PodProviderStopper:   podProviderStopper,
+		InformerResyncPeriod: c.LiqoInformerResyncPeriod,
 	}
 
-	pInit := s.Get(c.Provider)
-	if pInit == nil {
-		return errors.Errorf("provider %q not found", c.Provider)
-	}
+	nodeProvider := nodeprovider.NewLiqoNodeProvider(&nodecfg)
+	nodeReady := nodeProvider.StartProvider(ctx)
 
-	p, err := pInit(initConfig)
-	if err != nil {
-		return errors.Wrapf(err, "error initializing provider %s", c.Provider)
-	}
-
-	var leaseClient coordv1.LeaseInterface
-	if c.EnableNodeLease {
-		leaseClient = client.CoordinationV1().Leases(corev1.NamespaceNodeLease)
-	}
-
-	var nodeRunner *node.NodeController
-
-	pNode, err := NodeFromProvider(ctx, c.NodeName, p, c.Version, []metav1.OwnerReference{},
-		c.NodeExtraAnnotations.StringMap, c.NodeExtraLabels.StringMap)
-	if err != nil {
-		klog.Fatal(err)
-	}
-
-	var nodeReady chan struct{}
-	var nodeProvider node.NodeProvider
-	if liqoProvider, ok := p.(*liqoprovider.LiqoProvider); ok {
-		podProviderStopper := make(chan struct{}, 1)
-		liqoProvider.SetProviderStopper(podProviderStopper)
-		networkReadyChan := liqoProvider.GetNetworkReadyChan()
-
-		liqoNodeProvider, err := liqonodeprovider.NewLiqoNodeProvider(c.NodeName, c.ForeignClusterID,
-			c.KubeletNamespace, pNode, podProviderStopper, networkReadyChan, nil, c.LiqoInformerResyncPeriod)
-		if err != nil {
-			klog.Fatal(err)
-		}
-
-		nodeReady, _ = liqoNodeProvider.StartProvider()
-		nodeProvider = liqoNodeProvider
-	} else {
-		nodeProvider = node.NaiveNodeProvider{}
-	}
-
-	nodeRunner, err = node.NewNodeController(
-		nodeProvider,
-		pNode,
+	nodeRunner, err := node.NewNodeController(
+		nodeProvider, nodeProvider.GetNode(),
 		client.CoreV1().Nodes(),
-		node.WithNodeEnableLeaseV1(leaseClient, node.DefaultLeaseDuration),
+		node.WithNodeEnableLeaseV1(client.CoordinationV1().Leases(corev1.NamespaceNodeLease), node.DefaultLeaseDuration),
 		node.WithNodeStatusUpdateErrorHandler(
 			func(ctx context.Context, err error) error {
 				klog.Info("node setting up")
-				newNode := pNode.DeepCopy()
+				newNode := nodeProvider.GetNode().DeepCopy()
 				newNode.ResourceVersion = ""
 
-				if liqoNodeProvider, ok := nodeProvider.(*liqonodeprovider.LiqoNodeProvider); ok {
-					if liqoNodeProvider.IsTerminating() {
-						// this avoids the re-creation of terminated nodes
-						klog.V(4).Info("skipping: node is in terminating phase")
-						return nil
-					}
+				if nodeProvider.IsTerminating() {
+					// this avoids the re-creation of terminated nodes
+					klog.V(4).Info("skipping: node is in terminating phase")
+					return nil
 				}
 
-				oldNode, newErr := client.CoreV1().Nodes().Get(context.TODO(), newNode.Name, metav1.GetOptions{})
+				oldNode, newErr := client.CoreV1().Nodes().Get(ctx, newNode.Name, metav1.GetOptions{})
 				if newErr != nil {
 					if !k8serrors.IsNotFound(newErr) {
 						klog.Error(newErr, "node error")
 						return newErr
 					}
-					_, newErr = client.CoreV1().Nodes().Create(context.TODO(), newNode, metav1.CreateOptions{})
+					_, newErr = client.CoreV1().Nodes().Create(ctx, newNode, metav1.CreateOptions{})
 					klog.Info("new node created")
 				} else {
 					oldNode.Status = newNode.Status
-					_, newErr = client.CoreV1().Nodes().UpdateStatus(context.TODO(), oldNode, metav1.UpdateOptions{})
+					_, newErr = client.CoreV1().Nodes().UpdateStatus(ctx, oldNode, metav1.UpdateOptions{})
 					if newErr != nil {
 						klog.Info("node updated")
 					}
@@ -208,16 +186,15 @@ func runRootCommand(ctx context.Context, s *provider.Store, c *Opts) error {
 			}),
 	)
 	if err != nil {
-		klog.Fatal("cannot create the node controller")
+		return err
 	}
 
 	eb := record.NewBroadcaster()
-
 	pc, err := node.NewPodController(node.PodControllerConfig{
 		PodClient:                            client.CoreV1(),
 		PodInformer:                          podInformer,
-		EventRecorder:                        eb.NewRecorder(scheme.Scheme, corev1.EventSource{Component: path.Join(pNode.Name, "pod-controller")}),
-		Provider:                             p,
+		EventRecorder:                        eb.NewRecorder(scheme.Scheme, corev1.EventSource{Component: path.Join(c.NodeName, "pod-controller")}),
+		Provider:                             podProvider,
 		SecretInformer:                       secretInformer,
 		ConfigMapInformer:                    configMapInformer,
 		ServiceInformer:                      serviceInformer,
@@ -232,16 +209,16 @@ func runRootCommand(ctx context.Context, s *provider.Store, c *Opts) error {
 	go podInformerFactory.Start(ctx.Done())
 	go scmInformerFactory.Start(ctx.Done())
 
-	cancelHTTP, err := setupHTTPServer(ctx, p, apiConfig, func(context.Context) ([]*corev1.Pod, error) {
+	cancelHTTP, err := setupHTTPServer(ctx, podProvider, getAPIConfig(c), func(context.Context) ([]*corev1.Pod, error) {
 		return rm.GetPods(), nil
 	})
 	if err != nil {
-		klog.Fatal(errors.Wrap(err, "error while setting up HTTP server"))
+		return errors.Wrap(err, "error while setting up HTTP server")
 	}
 	defer cancelHTTP()
 
 	go func() {
-		if err := pc.Run(ctx, c.PodSyncWorkers); err != nil && errors.Is(err, context.Canceled) {
+		if err := pc.Run(ctx, int(c.PodSyncWorkers)); err != nil && errors.Is(err, context.Canceled) {
 			klog.Fatal(errors.Wrap(err, "error in pod controller running"))
 		}
 	}()
@@ -270,7 +247,7 @@ func runRootCommand(ctx context.Context, s *provider.Store, c *Opts) error {
 
 	<-nodeRunner.Ready()
 
-	klog.Info("setup ended")
+	klog.Info("Setup ended")
 	close(nodeReady)
 	<-ctx.Done()
 	return nil
@@ -282,4 +259,20 @@ func runRootCommand(ctx context.Context, s *provider.Store, c *Opts) error {
 // performance limitations when processing a high number of pods in parallel.
 func newPodControllerWorkqueueRateLimiter() workqueue.RateLimiter {
 	return workqueue.NewItemExponentialFailureRateLimiter(5*time.Millisecond, 1000*time.Second)
+}
+
+func getVersion(config *rest.Config) string {
+	client, err := discovery.NewDiscoveryClientForConfig(config)
+	if err != nil {
+		klog.Warningf("Cannot read k8s version: using default version %v; error: %v", defaultVersion, err)
+		return defaultVersion
+	}
+
+	version, err := client.ServerVersion()
+	if err != nil {
+		klog.Warningf("Cannot read k8s version: using default version %v; error: %v", defaultVersion, err)
+		return defaultVersion
+	}
+
+	return version.GitVersion
 }
