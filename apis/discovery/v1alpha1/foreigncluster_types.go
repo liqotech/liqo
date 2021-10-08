@@ -28,7 +28,7 @@ const (
 	// PeeringConditionStatusNone indicates that there is no peering.
 	PeeringConditionStatusNone PeeringConditionStatusType = "None"
 	// PeeringConditionStatusPending indicates that the peering is pending,
-	// and we are waiting for the remote cluster feedback.
+	// and we are either waiting for the remote cluster feedback or for us to accept the ResourceOffer.
 	PeeringConditionStatusPending PeeringConditionStatusType = "Pending"
 	// PeeringConditionStatusEstablished indicates that the peering has been established.
 	PeeringConditionStatusEstablished PeeringConditionStatusType = "Established"

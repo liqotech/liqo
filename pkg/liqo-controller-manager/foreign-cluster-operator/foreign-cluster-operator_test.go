@@ -36,6 +36,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
+	sharingv1alpha1 "github.com/liqotech/liqo/apis/sharing/v1alpha1"
 	"github.com/liqotech/liqo/pkg/consts"
 	"github.com/liqotech/liqo/pkg/discovery"
 	identitymanager "github.com/liqotech/liqo/pkg/identityManager"
@@ -128,7 +129,6 @@ var _ = Describe("ForeignClusterOperator", func() {
 	})
 
 	// peer namespaced
-
 	Context("Peer Namespaced", func() {
 
 		type peerTestcase struct {
@@ -411,9 +411,7 @@ var _ = Describe("ForeignClusterOperator", func() {
 		)
 
 	})
-
 	Context("Test Reconciler functions", func() {
-
 		It("Create Tenant Namespace", func() {
 			foreignCluster := &discoveryv1alpha1.ForeignCluster{
 				TypeMeta: metav1.TypeMeta{
@@ -462,6 +460,7 @@ var _ = Describe("ForeignClusterOperator", func() {
 		type checkPeeringStatusTestcase struct {
 			foreignClusterStatus  discoveryv1alpha1.ForeignClusterStatus
 			resourceRequests      []discoveryv1alpha1.ResourceRequest
+			resourceOffers        []sharingv1alpha1.ResourceOffer
 			expectedIncomingPhase discoveryv1alpha1.PeeringConditionStatusType
 		}
 
@@ -514,6 +513,58 @@ var _ = Describe("ForeignClusterOperator", func() {
 				}
 				return rr
 			}
+
+			getIncomingResourceOffer = func(accepted bool) sharingv1alpha1.ResourceOffer {
+				ro := sharingv1alpha1.ResourceOffer{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "resource-offer-incoming",
+						Namespace: "default",
+					},
+					Spec: sharingv1alpha1.ResourceOfferSpec{},
+				}
+				if accepted {
+					ro.Status = sharingv1alpha1.ResourceOfferStatus{
+						Phase:                sharingv1alpha1.ResourceOfferAccepted,
+						VirtualKubeletStatus: sharingv1alpha1.VirtualKubeletStatusCreated,
+					}
+				} else {
+					ro.Status = sharingv1alpha1.ResourceOfferStatus{
+						Phase:                sharingv1alpha1.ResourceOfferRefused,
+						VirtualKubeletStatus: sharingv1alpha1.VirtualKubeletStatusNone,
+					}
+				}
+				return ro
+			}
+
+			getOutgoingResourceOffer = func(accepted bool) sharingv1alpha1.ResourceOffer {
+				ro := sharingv1alpha1.ResourceOffer{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "resource-offer-outgoing",
+						Namespace: "default",
+						Labels: map[string]string{
+							consts.ReplicationStatusLabel: "true",
+							consts.ReplicationOriginLabel: "foreign-cluster-abcd",
+						},
+					},
+					Spec: sharingv1alpha1.ResourceOfferSpec{},
+					Status: sharingv1alpha1.ResourceOfferStatus{
+						Phase:                sharingv1alpha1.ResourceOfferAccepted,
+						VirtualKubeletStatus: sharingv1alpha1.VirtualKubeletStatusCreated,
+					},
+				}
+				if accepted {
+					ro.Status = sharingv1alpha1.ResourceOfferStatus{
+						Phase:                sharingv1alpha1.ResourceOfferAccepted,
+						VirtualKubeletStatus: sharingv1alpha1.VirtualKubeletStatusCreated,
+					}
+				} else {
+					ro.Status = sharingv1alpha1.ResourceOfferStatus{
+						Phase:                sharingv1alpha1.ResourceOfferRefused,
+						VirtualKubeletStatus: sharingv1alpha1.VirtualKubeletStatusNone,
+					}
+				}
+				return ro
+			}
 		)
 
 		DescribeTable("checkIncomingPeeringStatus",
@@ -559,12 +610,21 @@ var _ = Describe("ForeignClusterOperator", func() {
 					Expect(err).To(Succeed())
 				}
 
+				for i := range c.resourceOffers {
+					ro := c.resourceOffers[i].DeepCopy()
+					Expect(client.Create(ctx, ro)).To(Succeed())
+
+					ro.Status = *c.resourceOffers[i].Status.DeepCopy()
+					Expect(client.Status().Update(ctx, ro)).To(Succeed())
+				}
+
 				err = controller.checkIncomingPeeringStatus(ctx, foreignCluster)
 				Expect(err).To(BeNil())
 
 				Expect(peeringconditionsutils.GetStatus(foreignCluster, discoveryv1alpha1.IncomingPeeringCondition)).To(Equal(c.expectedIncomingPhase))
 			},
 
+			// Test that the condition is None if there are no ResourceRequests.
 			Entry("none", checkPeeringStatusTestcase{
 				foreignClusterStatus: discoveryv1alpha1.ForeignClusterStatus{
 					TenantNamespace: defaultTenantNamespace,
@@ -585,6 +645,7 @@ var _ = Describe("ForeignClusterOperator", func() {
 				expectedIncomingPhase: discoveryv1alpha1.PeeringConditionStatusNone,
 			}),
 
+			// Test that the condition is None if the foreign cluster has no peering.
 			Entry("none and no update", checkPeeringStatusTestcase{
 				foreignClusterStatus: discoveryv1alpha1.ForeignClusterStatus{
 					TenantNamespace: defaultTenantNamespace,
@@ -605,6 +666,7 @@ var _ = Describe("ForeignClusterOperator", func() {
 				expectedIncomingPhase: discoveryv1alpha1.PeeringConditionStatusNone,
 			}),
 
+			// Test that the condition is None if there are no incoming ResourceRequest, only outgoing
 			Entry("outgoing", checkPeeringStatusTestcase{
 				foreignClusterStatus: discoveryv1alpha1.ForeignClusterStatus{
 					TenantNamespace: defaultTenantNamespace,
@@ -627,6 +689,7 @@ var _ = Describe("ForeignClusterOperator", func() {
 				expectedIncomingPhase: discoveryv1alpha1.PeeringConditionStatusNone,
 			}),
 
+			// Test that the condition is None if there are no incoming ResourceRequest, only outgoing
 			Entry("outgoing not accepted", checkPeeringStatusTestcase{
 				foreignClusterStatus: discoveryv1alpha1.ForeignClusterStatus{
 					TenantNamespace: defaultTenantNamespace,
@@ -649,7 +712,8 @@ var _ = Describe("ForeignClusterOperator", func() {
 				expectedIncomingPhase: discoveryv1alpha1.PeeringConditionStatusNone,
 			}),
 
-			Entry("incoming", checkPeeringStatusTestcase{
+			// Test that the condition is Pending if the incoming ResourceRequest does not have a matching ResourceOffer
+			Entry("incoming without offer", checkPeeringStatusTestcase{
 				foreignClusterStatus: discoveryv1alpha1.ForeignClusterStatus{
 					TenantNamespace: defaultTenantNamespace,
 					PeeringConditions: []discoveryv1alpha1.PeeringCondition{
@@ -667,6 +731,58 @@ var _ = Describe("ForeignClusterOperator", func() {
 				},
 				resourceRequests: []discoveryv1alpha1.ResourceRequest{
 					getIncomingResourceRequest(),
+				},
+				expectedIncomingPhase: discoveryv1alpha1.PeeringConditionStatusPending,
+			}),
+
+			// Test that the condition is Pending if the ResourceOffer is not accepted
+			Entry("incoming with offer not accepted", checkPeeringStatusTestcase{
+				foreignClusterStatus: discoveryv1alpha1.ForeignClusterStatus{
+					TenantNamespace: defaultTenantNamespace,
+					PeeringConditions: []discoveryv1alpha1.PeeringCondition{
+						{
+							Type:               discoveryv1alpha1.IncomingPeeringCondition,
+							Status:             discoveryv1alpha1.PeeringConditionStatusPending,
+							LastTransitionTime: metav1.Now(),
+						},
+						{
+							Type:               discoveryv1alpha1.OutgoingPeeringCondition,
+							Status:             discoveryv1alpha1.PeeringConditionStatusNone,
+							LastTransitionTime: metav1.Now(),
+						},
+					},
+				},
+				resourceRequests: []discoveryv1alpha1.ResourceRequest{
+					getIncomingResourceRequest(),
+				},
+				resourceOffers: []sharingv1alpha1.ResourceOffer{
+					getOutgoingResourceOffer(false),
+				},
+				expectedIncomingPhase: discoveryv1alpha1.PeeringConditionStatusPending,
+			}),
+
+			// Test that the condition is Established if the incoming ResourceRequest has a matching ResourceOffer
+			Entry("incoming with offer", checkPeeringStatusTestcase{
+				foreignClusterStatus: discoveryv1alpha1.ForeignClusterStatus{
+					TenantNamespace: defaultTenantNamespace,
+					PeeringConditions: []discoveryv1alpha1.PeeringCondition{
+						{
+							Type:               discoveryv1alpha1.IncomingPeeringCondition,
+							Status:             discoveryv1alpha1.PeeringConditionStatusPending,
+							LastTransitionTime: metav1.Now(),
+						},
+						{
+							Type:               discoveryv1alpha1.OutgoingPeeringCondition,
+							Status:             discoveryv1alpha1.PeeringConditionStatusNone,
+							LastTransitionTime: metav1.Now(),
+						},
+					},
+				},
+				resourceRequests: []discoveryv1alpha1.ResourceRequest{
+					getIncomingResourceRequest(),
+				},
+				resourceOffers: []sharingv1alpha1.ResourceOffer{
+					getOutgoingResourceOffer(true),
 				},
 				expectedIncomingPhase: discoveryv1alpha1.PeeringConditionStatusEstablished,
 			}),
@@ -690,6 +806,10 @@ var _ = Describe("ForeignClusterOperator", func() {
 				resourceRequests: []discoveryv1alpha1.ResourceRequest{
 					getIncomingResourceRequest(),
 					getOutgoingResourceRequest(true),
+				},
+				resourceOffers: []sharingv1alpha1.ResourceOffer{
+					getIncomingResourceOffer(true),
+					getOutgoingResourceOffer(true),
 				},
 				expectedIncomingPhase: discoveryv1alpha1.PeeringConditionStatusEstablished,
 			}),
