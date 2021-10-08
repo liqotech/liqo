@@ -62,4 +62,4 @@ replace github.com/virtual-kubelet/virtual-kubelet => github.com/liqotech/virtua
 
 replace github.com/grandcat/zeroconf => github.com/liqotech/zeroconf v1.0.1-0.20201020081245-6384f3f21ffb
 
-replace github.com/mittwald/go-helm-client v0.8.1 => github.com/liqotech/go-helm-client v0.8.1-0.20210823204019-f878e0fc4d26
+replace github.com/mittwald/go-helm-client v0.8.1 => github.com/liqotech/go-helm-client v0.8.1-0.20211011193340-849127b6a8ec
