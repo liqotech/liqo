@@ -104,6 +104,7 @@ func installOrUpdate(ctx context.Context, helmClient *helm.HelmClient, k provide
 			DryRun:           cArgs.DryRun,
 			Devel:            cArgs.Devel,
 			Wait:             true,
+			Version:          cArgs.Version,
 		}
 
 		// provide the possibility to exit installation on context cancellation
