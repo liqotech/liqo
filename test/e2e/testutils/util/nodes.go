@@ -39,7 +39,7 @@ func GetNodes(ctx context.Context, client kubernetes.Interface, clusterID, label
 }
 
 // CheckVirtualNodes checks if the Liqo virtual nodes of cluster C.
-func CheckVirtualNodes(ctx context.Context, homeClusterClient kubernetes.Interface) (ready bool) {
+func CheckVirtualNodes(ctx context.Context, homeClusterClient kubernetes.Interface, clusterNumber int) (ready bool) {
 	var nodeLabel = make(map[string]string)
 	nodeLabel[consts.TypeLabel] = consts.TypeNode
 	virtualNodes, err := homeClusterClient.CoreV1().Nodes().List(ctx, metav1.ListOptions{
@@ -50,7 +50,7 @@ func CheckVirtualNodes(ctx context.Context, homeClusterClient kubernetes.Interfa
 		return false
 	}
 
-	if len(virtualNodes.Items) == 0 {
+	if len(virtualNodes.Items) != clusterNumber-1 {
 		return false
 	}
 

@@ -47,10 +47,10 @@ var _ = Describe("Liqo E2E", func() {
 		Context("Check Join Status", func() {
 			var PodsUpAndRunningTableEntries, VirtualNodesTableEntries []TableEntry
 			for index := range testContext.Clusters {
-				PodsUpAndRunningTableEntries = append(PodsUpAndRunningTableEntries, Entry("Pods UP on cluster "+fmt.Sprintf("%d", index),
+				PodsUpAndRunningTableEntries = append(PodsUpAndRunningTableEntries, Entry("Pods UP on cluster "+fmt.Sprintf("%d", index+1),
 					testContext.Clusters[index], namespace))
-				VirtualNodesTableEntries = append(VirtualNodesTableEntries, Entry("VirtualNodes are Ready on cluster "+fmt.Sprintf("%d", index),
-					testContext.Clusters[index], namespace))
+				VirtualNodesTableEntries = append(VirtualNodesTableEntries, Entry("VirtualNodes are Ready on cluster "+fmt.Sprintf("%d", index+1),
+					testContext.Clusters[index]))
 			}
 
 			DescribeTable("Liqo pods are up and running",
@@ -65,9 +65,9 @@ var _ = Describe("Liqo E2E", func() {
 			)
 
 			DescribeTable("Liqo Virtual nodes are ready",
-				func(homeCluster tester.ClusterContext, namespace string) {
+				func(homeCluster tester.ClusterContext) {
 					Eventually(func() bool {
-						return util.CheckVirtualNodes(ctx, homeCluster.NativeClient)
+						return util.CheckVirtualNodes(ctx, homeCluster.NativeClient, testContext.ClustersNumber)
 					}, timeout, interval).Should(BeTrue())
 				},
 				VirtualNodesTableEntries...,

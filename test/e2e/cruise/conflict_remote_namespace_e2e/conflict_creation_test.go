@@ -1,3 +1,18 @@
+// Copyright 2019-2021 The Liqo Authors
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//      http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+// Package conflictremotenamespace tests the conflicting creation of remote namespaces.
 package conflictremotenamespace
 
 import (
@@ -24,8 +39,6 @@ const (
 	clustersRequired = 4
 	// testNamespaceName is the name of the test namespace for this test.
 	testNamespaceName = "test-namespace-conflict"
-	// controllerClientPresence indicates if the test use the controller runtime clients.
-	controllerClientPresence = true
 	// testName is the name of this E2E test.
 	testName = "E2E_CONFLICT_CREATION"
 )
@@ -39,7 +52,7 @@ func TestE2E(t *testing.T) {
 var _ = Describe("Liqo E2E", func() {
 	var (
 		ctx         = context.Background()
-		testContext = tester.GetTester(ctx, clustersRequired, controllerClientPresence)
+		testContext = tester.GetTester(ctx)
 		interval    = 1 * time.Second
 		timeout     = 10 * time.Second
 		// longTimeout is used in situations that may take longer to be performed
@@ -137,12 +150,6 @@ var _ = Describe("Liqo E2E", func() {
 						types.NamespacedName{Name: remoteTestNamespaceName}, namespace))
 				}, timeout, interval).Should(Equal(metav1.StatusReasonNotFound))
 			}
-
-			// Cleaning the environment after the test.
-			By(" 3 - Getting the local namespace and delete it")
-			Eventually(func() error {
-				return util.EnsureNamespaceDeletion(ctx, testContext.Clusters[localIndex].NativeClient, util.GetNamespaceLabel(true))
-			}, longTimeout, interval).Should(BeNil())
 		})
 	})
 })
