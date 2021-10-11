@@ -37,6 +37,7 @@ import (
 	"k8s.io/klog/v2"
 
 	netv1alpha1 "github.com/liqotech/liqo/apis/net/v1alpha1"
+	liqoconst "github.com/liqotech/liqo/pkg/consts"
 	"github.com/liqotech/liqo/pkg/liqonet/tunnel"
 	"github.com/liqotech/liqo/pkg/liqonet/utils"
 )
@@ -60,15 +61,9 @@ const (
 	// name of the secret that contains the public key used by wireguard.
 	keysName = "wireguard-pubkey"
 	// KeysLabel label for the secret that contains the public key.
-	KeysLabel   = "net.liqo.io/key"
-	defaultPort = 5871
+	KeysLabel = "net.liqo.io/key"
 	// KeepAliveInterval interval used to send keepalive checks for the wireguard tunnels.
 	KeepAliveInterval = 10 * time.Second
-	// MTU size of mtu for wireguard interface.
-	MTU = 1415
-	// Ports 1-65535 are available.
-	udpMinPort = 1
-	udpMaxPort = 65535
 )
 
 // Registering the driver as available.
@@ -83,6 +78,8 @@ type wgConfig struct {
 	priKey wgtypes.Key
 	// public key.
 	pubKey wgtypes.Key
+	// iFaceMTU  mtu of wg interface.
+	iFaceMTU int
 }
 
 // ResolverFunc type of function that knows how to resolve an ip address belonging to
@@ -98,12 +95,13 @@ type Wireguard struct {
 }
 
 // NewDriver creates a new WireGuard driver.
-func NewDriver(k8sClient k8s.Interface, namespace string) (tunnel.Driver, error) {
+func NewDriver(k8sClient k8s.Interface, namespace string, config tunnel.Config) (tunnel.Driver, error) {
 	var err error
 	w := Wireguard{
 		connections: make(map[string]*netv1alpha1.Connection),
 		conf: wgConfig{
-			port: defaultPort,
+			port:     config.ListeningPort,
+			iFaceMTU: config.MTU,
 		},
 	}
 	err = w.setKeys(k8sClient, namespace)
@@ -130,12 +128,11 @@ func NewDriver(k8sClient k8s.Interface, namespace string) (tunnel.Driver, error)
 		}
 	}()
 
-	port := defaultPort
 	// configure the device. the device is still down.
 	peerConfigs := make([]wgtypes.PeerConfig, 0)
 	cfg := wgtypes.Config{
 		PrivateKey:   &w.conf.priKey,
-		ListenPort:   &port,
+		ListenPort:   &w.conf.port,
 		FirewallMark: nil,
 		ReplacePeers: true,
 		Peers:        peerConfigs,
@@ -154,8 +151,8 @@ func (w *Wireguard) Init() error {
 		return fmt.Errorf("failed to bring up WireGuard device: %w", err)
 	}
 
-	if err := netlink.LinkSetMTU(w.link, MTU); err != nil {
-		return fmt.Errorf("failed to set mtu for interface %s: %w", DeviceName, err)
+	if err := netlink.LinkSetMTU(w.link, w.conf.iFaceMTU); err != nil {
+		return fmt.Errorf("failed to set MTU for interface %s: %w", DeviceName, err)
 	}
 
 	klog.Infof("%s interface named %s, is up on i/f number %d, listening on port :%d, with key %s", DriverName,
@@ -307,7 +304,7 @@ func (w *Wireguard) setWGLink() error {
 	// create the wg device (ip link add dev $DefaultDeviceName type wireguard).
 	la := netlink.NewLinkAttrs()
 	la.Name = DeviceName
-	la.MTU = MTU
+	la.MTU = w.conf.iFaceMTU
 	link := &netlink.GenericLink{
 		LinkAttrs: la,
 		LinkType:  "wireguard",
@@ -397,8 +394,8 @@ func getTunnelPortFromTep(tep *netv1alpha1.TunnelEndpoint) (int, error) {
 		return 0, fmt.Errorf("unable to parse port {%s} to int: %w", port, err)
 	}
 	// If port is not in the correct range, then return an error.
-	if tunnelPort < udpMinPort || tunnelPort > udpMaxPort {
-		return 0, fmt.Errorf("port {%s} should be greater than {%d} and minor than {%d}", port, udpMinPort, udpMaxPort)
+	if tunnelPort < liqoconst.UDPMinPort || tunnelPort > liqoconst.UDPMaxPort {
+		return 0, fmt.Errorf("port {%s} should be greater than {%d} and minor than {%d}", port, liqoconst.UDPMinPort, liqoconst.UDPMaxPort)
 	}
 	return int(tunnelPort), nil
 }

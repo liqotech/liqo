@@ -41,6 +41,8 @@ type gatewayOperatorFlags struct {
 	leaseDuration        time.Duration
 	renewDeadline        time.Duration
 	retryPeriod          time.Duration
+	tunnelMTU            uint
+	tunnelListeningPort  uint
 }
 
 func addGatewayOperatorFlags(liqonet *gatewayOperatorFlags) {
@@ -52,6 +54,10 @@ func addGatewayOperatorFlags(liqonet *gatewayOperatorFlags) {
 		"renew-deadline is the duration that the acting control plane will retry refreshing leadership before giving up")
 	flag.DurationVar(&liqonet.retryPeriod, "gateway.retry-period", 2*time.Second,
 		"retry-period is the duration the LeaderElector clients should wait between tries of actions")
+	flag.UintVar(&liqonet.tunnelMTU, "gateway.mtu", liqoconst.DefaultMTU,
+		"mtu is the maximum transmission unit for interfaces managed by the gateway operator")
+	flag.UintVar(&liqonet.tunnelListeningPort, "gateway.listening-port", liqoconst.GatewayListeningPort,
+		"listening-port is the port used by the vpn tunnel")
 }
 
 func runGatewayOperator(commonFlags *liqonetCommonFlags, gatewayFlags *gatewayOperatorFlags) {
@@ -60,6 +66,14 @@ func runGatewayOperator(commonFlags *liqonetCommonFlags, gatewayFlags *gatewayOp
 	leaseDuration := gatewayFlags.leaseDuration
 	renewDeadLine := gatewayFlags.renewDeadline
 	retryPeriod := gatewayFlags.retryPeriod
+
+	// If port is not in the correct range, then return an error.
+	if gatewayFlags.tunnelListeningPort < liqoconst.UDPMinPort || gatewayFlags.tunnelListeningPort > liqoconst.UDPMaxPort {
+		klog.Errorf("port %d should be greater than %d and minor than %d", gatewayFlags.tunnelListeningPort, liqoconst.UDPMinPort, liqoconst.UDPMaxPort)
+		os.Exit(1)
+	}
+	port := gatewayFlags.tunnelListeningPort
+	MTU := gatewayFlags.tunnelMTU
 
 	// Get the pod ip and parse to net.IP.
 	podIP, err := utils.GetPodIP()
@@ -121,7 +135,7 @@ func runGatewayOperator(commonFlags *liqonetCommonFlags, gatewayFlags *gatewayOp
 		os.Exit(1)
 	}
 	tunnelController, err := tunneloperator.NewTunnelController(podIP.String(), podNamespace, eventRecorder,
-		clientset, main.GetClient(), &readyClustersMutex, readyClusters, gatewayNetns, hostNetns)
+		clientset, main.GetClient(), &readyClustersMutex, readyClusters, gatewayNetns, hostNetns, int(MTU), int(port))
 	// If something goes wrong while creating and configuring the tunnel controller
 	// then make sure that we remove all the resources created during the create process.
 	if err != nil {

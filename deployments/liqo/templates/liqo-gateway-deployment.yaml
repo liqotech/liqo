@@ -32,11 +32,13 @@ spec:
           imagePullPolicy: {{ .Values.pullPolicy }}
           name: {{ $gatewayConfig.name }}
           ports:
-          - containerPort: 5871
+          - containerPort: {{ .Values.gateway.config.listeningPort }}
           command: ["/usr/bin/liqonet"]
           args:
           - --run-as=liqo-gateway
           - --gateway.leader-elect=true
+          - --gateway.mtu={{ .Values.networkConfig.mtu }}
+          - --gateway.listening-port={{ .Values.gateway.config.listeningPort }}
           {{- if .Values.gateway.pod.extraArgs }}
           {{- toYaml .Values.gateway.pod.extraArgs | nindent 10 }}
           {{- end }}

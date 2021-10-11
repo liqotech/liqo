@@ -23,6 +23,7 @@ import (
 	. "github.com/onsi/gomega"
 
 	netv1alpha1 "github.com/liqotech/liqo/apis/net/v1alpha1"
+	liqoconst "github.com/liqotech/liqo/pkg/consts"
 )
 
 const (
@@ -51,14 +52,16 @@ var _ = Describe("Driver", func() {
 				tep.Spec.BackendConfig[ListeningPort] = outOfRangeMin
 				port, err := getTunnelPortFromTep(tep)
 				Expect(port).To(BeNumerically("==", 0))
-				Expect(err).To(MatchError(fmt.Sprintf("port {%s} should be greater than {%d} and minor than {%d}", outOfRangeMin, udpMinPort, udpMaxPort)))
+				Expect(err).To(MatchError(fmt.Sprintf("port {%s} should be greater than {%d} and minor than {%d}",
+					outOfRangeMin, liqoconst.UDPMinPort, liqoconst.UDPMaxPort)))
 			})
 
 			It("port > than max acceptable value", func() {
 				tep.Spec.BackendConfig[ListeningPort] = outOfRangeMax
 				port, err := getTunnelPortFromTep(tep)
 				Expect(port).To(BeNumerically("==", 0))
-				Expect(err).To(MatchError(fmt.Sprintf("port {%s} should be greater than {%d} and minor than {%d}", outOfRangeMax, udpMinPort, udpMaxPort)))
+				Expect(err).To(MatchError(fmt.Sprintf("port {%s} should be greater than {%d} and minor than {%d}",
+					outOfRangeMax, liqoconst.UDPMinPort, liqoconst.UDPMaxPort)))
 			})
 
 			It("port is not a valid number", func() {

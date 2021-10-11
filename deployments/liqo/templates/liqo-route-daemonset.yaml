@@ -44,6 +44,7 @@ spec:
           command: ["/usr/bin/liqonet"]
           args:
           - --run-as=liqo-route
+          - --route.vxlan-mtu={{ .Values.networkConfig.mtu }}
           {{- if .Values.route.pod.extraArgs }}
           {{- toYaml .Values.route.pod.extraArgs | nindent 10 }}
           {{- end }}

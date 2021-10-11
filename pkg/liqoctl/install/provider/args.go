@@ -15,6 +15,7 @@
 package provider
 
 import (
+	"fmt"
 	"time"
 
 	flag "github.com/spf13/pflag"
@@ -22,6 +23,16 @@ import (
 	installutils "github.com/liqotech/liqo/pkg/liqoctl/install/utils"
 	argsutils "github.com/liqotech/liqo/pkg/utils/args"
 )
+
+var providersDefaultMTU = map[string]float64{
+	"kubeadm":   1440,
+	"kind":      1440,
+	"k3s":       1440,
+	"eks":       1440,
+	"gke":       1400,
+	"aks":       1360,
+	"openshift": 1440,
+}
 
 // CommonArguments encapsulates all the arguments common across install providers.
 type CommonArguments struct {
@@ -39,7 +50,7 @@ type CommonArguments struct {
 
 // ValidateCommonArguments validates install common arguments. If the inputs are valid, it returns a *CommonArgument
 // with all the parameters contents.
-func ValidateCommonArguments(flags *flag.FlagSet) (*CommonArguments, error) {
+func ValidateCommonArguments(providerName string, flags *flag.FlagSet) (*CommonArguments, error) {
 	chartPath, err := flags.GetString("chart-path")
 	if err != nil {
 		return nil, err
@@ -92,7 +103,16 @@ func ValidateCommonArguments(flags *flag.FlagSet) (*CommonArguments, error) {
 	if err != nil {
 		return nil, err
 	}
-	commonValues, err := parseCommonValues(clusterLabels, chartPath, version, resourceSharingPercentage, lanDiscovery, enableHa)
+	ifaceMTU, err := flags.GetInt("mtu")
+	if err != nil {
+		return nil, err
+	}
+	listeningPort, err := flags.GetInt("vpn-listening-port")
+	if err != nil {
+		return nil, err
+	}
+	commonValues, err := parseCommonValues(providerName, clusterLabels, chartPath, version, resourceSharingPercentage,
+		lanDiscovery, enableHa, float64(ifaceMTU), float64(listeningPort))
 	if err != nil {
 		return nil, err
 	}
@@ -110,8 +130,8 @@ func ValidateCommonArguments(flags *flag.FlagSet) (*CommonArguments, error) {
 	}, nil
 }
 
-func parseCommonValues(clusterLabels, chartPath, version, resourceSharingPercentage string,
-	lanDiscovery, enableHa bool) (map[string]interface{}, error) {
+func parseCommonValues(providerName, clusterLabels, chartPath, version, resourceSharingPercentage string,
+	lanDiscovery, enableHa bool, mtu, port float64) (map[string]interface{}, error) {
 	clusterLabelsVar := argsutils.StringMap{}
 	if err := clusterLabelsVar.Set(clusterLabels); err != nil {
 		return map[string]interface{}{}, err
@@ -134,7 +154,12 @@ func parseCommonValues(clusterLabels, chartPath, version, resourceSharingPercent
 	if enableHa {
 		gatewayReplicas = 2
 	}
-
+	if mtu == 0 {
+		var err error
+		if mtu, err = getDefaultMTU(providerName); err != nil {
+			return nil, err
+		}
+	}
 	return map[string]interface{}{
 		"tag": tag,
 		"discovery": map[string]interface{}{
@@ -151,6 +176,19 @@ func parseCommonValues(clusterLabels, chartPath, version, resourceSharingPercent
 		},
 		"gateway": map[string]interface{}{
 			"replicas": float64(gatewayReplicas),
+			"config": map[string]interface{}{
+				"listeningPort": port,
+			},
+		},
+		"networkConfig": map[string]interface{}{
+			"mtu": mtu,
 		},
 	}, nil
+}
+
+func getDefaultMTU(provider string) (float64, error) {
+	if mtu, ok := providersDefaultMTU[provider]; ok {
+		return mtu, nil
+	}
+	return 0, fmt.Errorf("mtu for provider %s not found", provider)
 }

@@ -43,7 +43,7 @@ func HandleInstallCommand(ctx context.Context, cmd *cobra.Command, baseCommand, 
 	}
 
 	fmt.Printf("* Initializing installer... 🔌 \n")
-	commonArgs, err := installprovider.ValidateCommonArguments(cmd.Flags())
+	commonArgs, err := installprovider.ValidateCommonArguments(providerName, cmd.Flags())
 	if err != nil {
 		return err
 	}

@@ -16,8 +16,8 @@ spec:
   type: {{ .Values.gateway.service.type }}
   ports:
     - name: wireguard
-      port: 5871
-      targetPort: 5871
+      port: {{ .Values.gateway.config.listeningPort }}
+      targetPort: {{ .Values.gateway.config.listeningPort }}
       protocol: UDP
   selector:
     {{- include "liqo.gatewaySelector" $gatewayConfig | nindent 4 }}
