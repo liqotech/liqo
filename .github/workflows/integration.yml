@@ -168,7 +168,7 @@ jobs:
 
   e2e-test-trigger:
     runs-on: ubuntu-latest
-    needs: [build, configure]
+    needs: [build, configure, liqoctl]
     if: github.event.client_payload.slash_command.command == 'test' || github.event_name == 'push'
     steps:
 
