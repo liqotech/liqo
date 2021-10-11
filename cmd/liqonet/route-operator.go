@@ -45,7 +45,7 @@ type routeOperatorFlags struct {
 
 func addRouteOperatorFlags(liqonet *routeOperatorFlags) {
 	flag.IntVar(&liqonet.vni, "route.vxlan-vni", 18952, "VXLAN Virtual Network Identifier (VNI) for the Liqonet intra-cluster overlay network")
-	flag.IntVar(&liqonet.mtu, "route.vxlan-mtu", 1420, "VXLAN Max Transmit Unit (MTU) for the Liqonet intra-cluster overlay network")
+	flag.IntVar(&liqonet.mtu, "route.vxlan-mtu", liqoconst.DefaultMTU, "VXLAN Max Transmit Unit (MTU) for the Liqonet intra-cluster overlay network")
 	flag.IntVar(&liqonet.vtepPort, "route.vxlan-vtep-port", 4879,
 		"VXLAN Virtual Tunnel Endpoints (VTEP) port for the Liqonet intra-cluster overlay network")
 }

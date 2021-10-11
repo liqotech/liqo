@@ -90,4 +90,15 @@ const (
 	RemoteNATExternalCIDR = "RemoteNATExternalCIDR"
 	// FinalizersSuffix suffix used by the network operators to create the finalizers added to k8s resources.
 	FinalizersSuffix = "net.liqo.io"
+	// UDPMinPort min value for a udp port.
+	UDPMinPort = 1
+	// UDPMaxPort max value for a udp port.
+	UDPMaxPort = 65535
+	// DefaultMTU default value for the mtu used in the network interfaces managed by the network operators.
+	// Used by:
+	//  - the route operator for the vxlan interfaces;
+	//  - the gateway operator for vpn tunnel and veth pair between host network namespace and custom network namespace.
+	DefaultMTU = 1440
+	// GatewayListeningPort port used by the vpn tunnel.
+	GatewayListeningPort = 5871
 )

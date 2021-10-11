@@ -20,6 +20,9 @@ import (
 	argsutils "github.com/liqotech/liqo/pkg/utils/args"
 )
 
+// Providers list of providers supported by liqoctl.
+var Providers = []string{"kubeadm", "kind", "k3s", "eks", "gke", "aks", "openshift"}
+
 // GenericProvider includes the fields and the logic required by every install provider.
 type GenericProvider struct {
 	ReservedSubnets []string

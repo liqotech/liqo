@@ -57,6 +57,9 @@ gateway:
     # More generally, if your cluster nodes are directly reachable by the cluster to whom you are peering, you may change it to "NodePort".
     type: "LoadBalancer"
     annotations: {}
+  config:
+    # -- port used by the vpn tunnel.
+    listeningPort: 5871
 
 networkManager:
   pod:
@@ -227,6 +230,12 @@ awsConfig:
 openshiftConfig:
   # -- enable the OpenShift support
   enable: false
+
+# configuration for liqo networking
+networkConfig:
+  # -- set the mtu for the interfaces managed by liqo: vxlan, tunnel and veth interfaces
+  # The value is used by the gateway and route operators.
+  mtu: 1440
 
 # capsule subchart configuration
 capsule:

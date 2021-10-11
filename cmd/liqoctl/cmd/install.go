@@ -20,6 +20,8 @@ import (
 	"github.com/spf13/cobra"
 	"k8s.io/klog/v2"
 
+	liqoconst "github.com/liqotech/liqo/pkg/consts"
+	"github.com/liqotech/liqo/pkg/liqoctl/install/provider"
 	installutils "github.com/liqotech/liqo/pkg/liqoctl/install/utils"
 )
 
@@ -53,8 +55,10 @@ func newInstallCommand(ctx context.Context) *cobra.Command {
 	installCmd.PersistentFlags().String("resource-sharing-percentage", "90", "It defines the percentage of available cluster resources that "+
 		"you are willing to share with foreign clusters. It accepts [0 - 100] values.")
 	installCmd.PersistentFlags().Bool("enable-ha", false, "Enable the gateway component support active/passive high availability.")
+	installCmd.PersistentFlags().Int("mtu", 0, "mtu is the maximum transmission unit for interfaces managed by Liqo")
+	installCmd.PersistentFlags().Int("vpn-listening-port", liqoconst.GatewayListeningPort, "vpn-listening-port is the port used by the vpn tunnel")
 
-	for _, providerName := range providers {
+	for _, providerName := range provider.Providers {
 		cmd, err := getCommand(ctx, providerName)
 		if err != nil {
 			klog.Fatal(err)

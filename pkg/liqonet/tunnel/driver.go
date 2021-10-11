@@ -23,7 +23,7 @@ import (
 )
 
 // DriverCreateFunc function prototype to create a new driver.
-type DriverCreateFunc func(k8sClientset k8s.Interface, namespace string) (Driver, error)
+type DriverCreateFunc func(k8sClientset k8s.Interface, namespace string, config Config) (Driver, error)
 
 // Drivers static map of supported drivers.
 var Drivers = map[string]DriverCreateFunc{}
@@ -35,6 +35,12 @@ func AddDriver(name string, driverCreate DriverCreateFunc) {
 	}
 	klog.Infof("driver for %s VPN successfully registered", name)
 	Drivers[name] = driverCreate
+}
+
+// Config configuration for tunnel drivers passed during the creation.
+type Config struct {
+	MTU           int
+	ListeningPort int
 }
 
 // Driver the interface needed to be implemented by new vpn drivers.

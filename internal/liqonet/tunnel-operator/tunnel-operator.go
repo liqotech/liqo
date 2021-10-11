@@ -87,7 +87,7 @@ type TunnelController struct {
 
 // NewTunnelController instantiates and initializes the tunnel controller.
 func NewTunnelController(podIP, namespace string, er record.EventRecorder, k8sClient k8s.Interface, cl client.Client,
-	readyClustersMutex *sync.Mutex, readyClusters map[string]struct{}, gatewayNetns, hostNetns ns.NetNS) (*TunnelController, error) {
+	readyClustersMutex *sync.Mutex, readyClusters map[string]struct{}, gatewayNetns, hostNetns ns.NetNS, mtu, port int) (*TunnelController, error) {
 	tunnelEndpointFinalizer := strings.Join([]string{liqoconst.LiqoGatewayOperatorName, liqoconst.FinalizersSuffix}, ".")
 	tc := &TunnelController{
 		Client:             cl,
@@ -102,7 +102,10 @@ func NewTunnelController(podIP, namespace string, er record.EventRecorder, k8sCl
 		hostNetns:          hostNetns,
 	}
 
-	err := tc.SetUpTunnelDrivers()
+	err := tc.SetUpTunnelDrivers(tunnel.Config{
+		MTU:           mtu,
+		ListeningPort: port,
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -111,7 +114,7 @@ func NewTunnelController(podIP, namespace string, er record.EventRecorder, k8sCl
 		return nil, err
 	}
 	err = tc.setUpGWNetns(liqoconst.GatewayNetnsName, liqoconst.HostVethName,
-		liqoconst.GatewayVethName, liqoconst.GatewayVethIPAddr, tunnelwg.MTU)
+		liqoconst.GatewayVethName, liqoconst.GatewayVethIPAddr, mtu)
 	if err != nil {
 		return nil, err
 	}
@@ -434,11 +437,11 @@ func (tc *TunnelController) SetupWithManager(mgr ctrl.Manager) error {
 }
 
 // SetUpTunnelDrivers for each registered tunnel implementation it creates and initializes the driver.
-func (tc *TunnelController) SetUpTunnelDrivers() error {
+func (tc *TunnelController) SetUpTunnelDrivers(config tunnel.Config) error {
 	tc.drivers = make(map[string]tunnel.Driver)
 	for tunnelType, createDriverFunc := range tunnel.Drivers {
 		klog.V(3).Infof("Creating driver for tunnel of type %s", tunnelType)
-		d, err := createDriverFunc(tc.k8sClient, tc.namespace)
+		d, err := createDriverFunc(tc.k8sClient, tc.namespace, config)
 		if err != nil {
 			return err
 		}

@@ -52,6 +52,7 @@ weight: 5
 | discovery.pod.extraArgs | list | `[]` | discovery pod extra arguments |
 | discovery.pod.labels | object | `{}` | discovery pod labels |
 | fullnameOverride | string | `""` | full liqo name override |
+| gateway.config.listeningPort | int | `5871` | port used by the vpn tunnel. |
 | gateway.imageName | string | `"liqo/liqonet"` | gateway image repository |
 | gateway.pod.annotations | object | `{}` | gateway pod annotations |
 | gateway.pod.extraArgs | list | `[]` | gateway pod extra arguments |
@@ -60,6 +61,7 @@ weight: 5
 | gateway.service.annotations | object | `{}` |  |
 | gateway.service.type | string | `"LoadBalancer"` | If you plan to use liqo over the Internet consider to change this field to "LoadBalancer". More generally, if your cluster nodes are directly reachable by the cluster to whom you are peering, you may change it to "NodePort". |
 | nameOverride | string | `""` | liqo name override |
+| networkConfig.mtu | int | `1440` | set the mtu for the interfaces managed by liqo: vxlan, tunnel and veth interfaces The value is used by the gateway and route operators. |
 | networkManager.config.additionalPools | list | `[]` | Set of additional network pools. Network pools are used to map a cluster network into another one in order to prevent conflicts. Default set of network pools is: [10.0.0.0/8, 192.168.0.0/16, 172.16.0.0/12] |
 | networkManager.config.podCIDR | string | `""` | The subnet used by the cluster for the pods, in CIDR notation |
 | networkManager.config.reservedSubnets | list | `[]` | Usually the IPs used for the pods in k8s clusters belong to private subnets In order to prevent IP conflicting between locally used private subnets in your infrastructure and private subnets belonging to remote clusters you need tell liqo the subnets used in your cluster. E.g if your cluster nodes belong to the 192.168.2.0/24 subnet then you should add that subnet to the reservedSubnets. PodCIDR and serviceCIDR used in the local cluster are automatically added to the reserved list. |
