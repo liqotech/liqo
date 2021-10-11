@@ -35,6 +35,7 @@ import (
 	offv1alpha1 "github.com/liqotech/liqo/apis/offloading/v1alpha1"
 	sharingv1alpha1 "github.com/liqotech/liqo/apis/sharing/v1alpha1"
 	virtualKubeletv1alpha1 "github.com/liqotech/liqo/apis/virtualKubelet/v1alpha1"
+	"github.com/liqotech/liqo/test/e2e/testconsts"
 	testutils "github.com/liqotech/liqo/test/e2e/testutils/util"
 )
 
@@ -59,11 +60,7 @@ type ClusterContext struct {
 
 // Environment variable.
 const (
-	namespaceEnvVar        = "NAMESPACE"
-	ClusterNumberVarKey    = "CLUSTER_NUMBER"
-	kubeconfigBaseName     = "liqo_kubeconf"
-	KubeconfigDirVarName   = "KUBECONFIGDIR"
-	overlappingCIDRsEnvVar = "POD_CIDR_OVERLAPPING"
+	kubeconfigBaseName = "liqo_kubeconf"
 )
 
 var (
@@ -101,10 +98,11 @@ func GetTesterUninstall(ctx context.Context) *Tester {
 }
 
 func createTester(ctx context.Context, ignoreClusterIDError bool) (*Tester, error) {
-	namespace := testutils.GetEnvironmentVariableOrDie(namespaceEnvVar)
-	TmpDir := testutils.GetEnvironmentVariableOrDie(KubeconfigDirVarName)
+	var err error
+	namespace := testutils.GetEnvironmentVariableOrDie(testconsts.NamespaceEnvVar)
+	TmpDir := testutils.GetEnvironmentVariableOrDie(testconsts.KubeconfigDirVarName)
 
-	overlappingCIDRsString := testutils.GetEnvironmentVariableOrDie(overlappingCIDRsEnvVar)
+	overlappingCIDRsString := testutils.GetEnvironmentVariableOrDie(testconsts.OverlappingCIDRsEnvVar)
 
 	// Here is necessary to add the controller runtime clients.
 	scheme := getScheme()
@@ -114,12 +112,12 @@ func createTester(ctx context.Context, ignoreClusterIDError bool) (*Tester, erro
 		OverlappingCIDRs: strings.EqualFold(overlappingCIDRsString, "true"),
 	}
 
-	clusterNumber, err := getClusterNumberFromEnv()
+	tester.ClustersNumber, err = getClusterNumberFromEnv()
 	if err != nil {
 		return nil, err
 	}
 
-	for i := 1; i <= clusterNumber; i++ {
+	for i := 1; i <= tester.ClustersNumber; i++ {
 		var kubeconfigName = fmt.Sprintf("%s_%d", kubeconfigBaseName, i)
 		var kubeconfigPath = filepath.Join(TmpDir, kubeconfigName)
 		if _, err = os.Stat(kubeconfigPath); err != nil {
@@ -146,7 +144,7 @@ func createTester(ctx context.Context, ignoreClusterIDError bool) (*Tester, erro
 }
 
 func getClusterNumberFromEnv() (int, error) {
-	clusterNumberString := testutils.GetEnvironmentVariableOrDie(ClusterNumberVarKey)
+	clusterNumberString := testutils.GetEnvironmentVariableOrDie(testconsts.ClusterNumberVarKey)
 
 	clusterNumber, err := strconv.Atoi(clusterNumberString)
 	if err != nil || clusterNumber < 0 {

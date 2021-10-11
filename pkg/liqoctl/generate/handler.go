@@ -65,7 +65,7 @@ func processGenerateCommand(ctx context.Context, clientSet client.Client, liqoNa
 	}
 
 	// Retrieve the liqo controller manager deployment args
-	args, err := retrieveLiqoControllerManagerDeploymentArgs(ctx, clientSet, liqoNamespace)
+	args, err := RetrieveLiqoControllerManagerDeploymentArgs(ctx, clientSet, liqoNamespace)
 	if err != nil {
 		klog.Fatalf(err.Error())
 	}
@@ -103,8 +103,8 @@ func generateCommandString(commandName, authEP, clusterID, localToken, clusterNa
 	return strings.Join(command, " ")
 }
 
-// retrieveLiqoControllerManagerDeploymentArgs retrieves the list of arguments associated with the liqo controller manager deployment.
-func retrieveLiqoControllerManagerDeploymentArgs(ctx context.Context, clientSet client.Client, liqoNamespace string) ([]string, error) {
+// RetrieveLiqoControllerManagerDeploymentArgs retrieves the list of arguments associated with the liqo controller manager deployment.
+func RetrieveLiqoControllerManagerDeploymentArgs(ctx context.Context, clientSet client.Client, liqoNamespace string) ([]string, error) {
 	// Retrieve the deployment of the liqo controller manager component
 	var deployments appsv1.DeploymentList
 	if err := clientSet.List(ctx, &deployments, client.InNamespace(liqoNamespace), client.MatchingLabelsSelector{

@@ -26,18 +26,41 @@ source "${SCRIPT_DIR}/helm-utils.sh"
 
 download_helm
 
+function get_cluster_labels() {
+  case $1 in
+  1)
+  echo "provider=Azure,region=A"
+  ;;
+  2)
+  echo "provider=AWS,region=B"
+  ;;
+  3)
+  echo "provider=GKE,region=C"
+  ;;
+  4)
+  echo "provider=GKE,region=D"
+  ;;
+  esac
+}
+
 LIQO_VERSION="${LIQO_VERSION:-$(git rev-parse HEAD)}"
 
 for i in $(seq 1 "${CLUSTER_NUMBER}");
 do
   export KUBECONFIG="${TMPDIR}/kubeconfigs/liqo_kubeconf_${i}"
+  CLUSTER_LABELS="$(get_cluster_labels "${i}")"
+  COMMON_ARGS=(--cluster-name "liqo-${i}" --chart-path ./deployments/liqo --version "${LIQO_VERSION}")
+  if [[ "${CLUSTER_LABELS}" != "" ]]; then
+    COMMON_ARGS=("${COMMON_ARGS[@]}" --cluster-labels "${CLUSTER_LABELS}")
+  fi
+
   if [ "${i}" == "1" ]; then
-    "${LIQOCTL}" install kind --cluster-name "liqo-${i}" --chart-path ./deployments/liqo --version "${LIQO_VERSION}" --only-output-values --dump-values-path "${TMPDIR}/values.yaml"
+    "${LIQOCTL}" install kind "${COMMON_ARGS[@]}" --only-output-values --dump-values-path "${TMPDIR}/values.yaml"
 
     # update the discovery settings, this cluster will not discover the other clusters, but the other clusters will discover it
     sed -i 's/enableDiscovery: true/enableDiscovery: false/' "${TMPDIR}/values.yaml"
     "${HELM}" install -n "${NAMESPACE}" --create-namespace liqo ./deployments/liqo -f "${TMPDIR}/values.yaml" --dependency-update
   else
-    "${LIQOCTL}" install kind --cluster-name "liqo-${i}" --chart-path ./deployments/liqo --version "${LIQO_VERSION}"
+    "${LIQOCTL}" install kind "${COMMON_ARGS[@]}"
   fi
 done;

@@ -34,7 +34,7 @@ func ExtractValueFromArgumentList(key string, argumentList []string) (string, er
 	prefix := key + "="
 	for _, argument := range argumentList {
 		if strings.HasPrefix(argument, prefix) {
-			return strings.Split(argument, "=")[1], nil
+			return strings.Join(strings.Split(argument, "=")[1:], "="), nil
 		}
 	}
 	return "", fmt.Errorf("argument not found")

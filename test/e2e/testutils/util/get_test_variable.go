@@ -28,7 +28,8 @@ import (
 	"k8s.io/klog/v2"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	testutils "github.com/liqotech/liqo/pkg/utils"
+	utils "github.com/liqotech/liqo/pkg/utils"
+	"github.com/liqotech/liqo/test/e2e/testconsts"
 )
 
 // GetEnvironmentVariableOrDie retrieves the value of the environment variable named by the key.
@@ -65,7 +66,7 @@ func GetControllerClient(scheme *runtime.Scheme, config *rest.Config) client.Cli
 
 // GetClusterID provides the clusterID for the cluster associated with the client.
 func GetClusterID(ctx context.Context, cl kubernetes.Interface, namespace string) (string, error) {
-	clusterID, err := testutils.GetClusterIDWithNativeClient(ctx, cl, namespace)
+	clusterID, err := utils.GetClusterIDWithNativeClient(ctx, cl, namespace)
 	if err != nil {
 		return "", fmt.Errorf("an error occurred while getting cluster-id configmap %w", err)
 	}
@@ -74,10 +75,10 @@ func GetClusterID(ctx context.Context, cl kubernetes.Interface, namespace string
 
 // CheckIfTestIsSkipped checks if the number of clusters required by the test is less than
 // the number of cluster really present.
-func CheckIfTestIsSkipped(t *testing.T, clustersRequired int, testName, clusterNumberVarKey string) {
-	numberOfTestClusters, err := strconv.Atoi(GetEnvironmentVariableOrDie(clusterNumberVarKey))
+func CheckIfTestIsSkipped(t *testing.T, clustersRequired int, testName string) {
+	numberOfTestClusters, err := strconv.Atoi(GetEnvironmentVariableOrDie(testconsts.ClusterNumberVarKey))
 	if err != nil {
-		klog.Fatalf(" %s -> unable to covert the '%s' environment variable", err, clusterNumberVarKey)
+		klog.Fatalf(" %s -> unable to covert the '%s' environment variable", err, testconsts.ClusterNumberVarKey)
 	}
 	if numberOfTestClusters < clustersRequired {
 		t.Skipf("not enough cluster for the '%s'", testName)
