@@ -24,7 +24,7 @@ jobs:
               },
               {
                 "command": "rebase",
-                "permission": "none"
+                "permission": "triage"
               },
               {
                 "command": "test",
