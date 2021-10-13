@@ -23,6 +23,7 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	discoveryv1beta1 "k8s.io/api/discovery/v1beta1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/klog/v2"
 
@@ -32,6 +33,9 @@ import (
 	"github.com/liqotech/liqo/pkg/virtualKubelet/options"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/options/types"
 )
+
+// ReflectionFieldManager -> The name associated with the fields modified by virtual kubelet reflection.
+const ReflectionFieldManager = "reflection.liqo.io"
 
 var (
 	// LocalClusterID -> the cluster ID associated with the local cluster.
@@ -66,8 +70,6 @@ func HomeToForeign(homeObj, foreignObj runtime.Object, reflectionType string) (r
 		return forger.endpointsliceHomeToForeign(homeObj.(*discoveryv1beta1.EndpointSlice), foreignObj.(*discoveryv1beta1.EndpointSlice))
 	case *corev1.Pod:
 		return forger.podHomeToForeign(homeObj, foreignObj, reflectionType)
-	case *corev1.Service:
-		return forger.serviceHomeToForeign(homeObj.(*corev1.Service), foreignObj.(*corev1.Service))
 	}
 
 	return nil, errors.Errorf("error while creating foreign object from home: api %s unhandled", reflect.TypeOf(homeObj).String())
@@ -114,7 +116,15 @@ func initIpamClient() {
 		grpc.WithInsecure(),
 		grpc.WithBlock())
 	if err != nil {
-		klog.Error(err)
+		klog.Fatalf("Failed to initialize IPAM client: %v", err)
 	}
 	forger.ipamClient = liqonetIpam.NewIpamClient(conn)
+}
+
+// ApplyOptions returns the apply options configured for object reflection.
+func ApplyOptions() metav1.ApplyOptions {
+	return metav1.ApplyOptions{
+		Force:        true,
+		FieldManager: ReflectionFieldManager,
+	}
 }

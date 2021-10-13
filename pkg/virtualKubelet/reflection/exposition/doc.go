@@ -12,21 +12,5 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package forge_test
-
-import (
-	"testing"
-
-	. "github.com/onsi/ginkgo"
-	. "github.com/onsi/gomega"
-)
-
-const (
-	LocalClusterID  = "local-cluster"
-	RemoteClusterID = "remote-cluster"
-)
-
-func TestForge(t *testing.T) {
-	RegisterFailHandler(Fail)
-	RunSpecs(t, "Forge Suite")
-}
+// Package exposition implements the reflection logic for services and endpointslices.
+package exposition

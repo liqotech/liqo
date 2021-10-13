@@ -174,7 +174,7 @@ var _ = Describe("Handler tests", func() {
 				})
 
 				It("should succeed", func() { Expect(err).ToNot(HaveOccurred()) })
-				It("should remote the finalizer from the local object", func() {
+				It("should remove the finalizer from the local object", func() {
 					Expect(localAfter.Finalizers).ToNot(ContainElement(finalizer))
 				})
 				It("the remote object should not be created", func() {

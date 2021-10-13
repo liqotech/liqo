@@ -28,7 +28,4 @@ var Blacklist = map[apimgmt.ApiType]blackListType{
 		"default/kubernetes": struct{}{},
 	},
 	apimgmt.Pods: {},
-	apimgmt.Services: {
-		"default/kubernetes": struct{}{},
-	},
 }

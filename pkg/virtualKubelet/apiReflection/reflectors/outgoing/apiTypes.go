@@ -32,7 +32,6 @@ var ReflectorBuilders = map[apimgmt.ApiType]func(reflector ri.APIReflector, opts
 	apimgmt.Configmaps:     configmapsReflectorBuilder,
 	apimgmt.EndpointSlices: endpointslicesReflectorBuilder,
 	apimgmt.Secrets:        secretsReflectorBuilder,
-	apimgmt.Services:       servicesReflectorBuilder,
 }
 
 func configmapsReflectorBuilder(reflector ri.APIReflector, _ map[options.OptionKey]options.Option) ri.OutgoingAPIReflector {
@@ -57,8 +56,4 @@ func endpointslicesReflectorBuilder(reflector ri.APIReflector, opts map[options.
 
 func secretsReflectorBuilder(reflector ri.APIReflector, _ map[options.OptionKey]options.Option) ri.OutgoingAPIReflector {
 	return &SecretsReflector{APIReflector: reflector}
-}
-
-func servicesReflectorBuilder(reflector ri.APIReflector, _ map[options.OptionKey]options.Option) ri.OutgoingAPIReflector {
-	return &ServicesReflector{APIReflector: reflector}
 }
