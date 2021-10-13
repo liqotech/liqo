@@ -72,7 +72,7 @@ func initHelmClient(config *rest.Config, arguments *provider.CommonArguments) (*
 
 func installOrUpdate(ctx context.Context, helmClient *helm.HelmClient, k provider.InstallProviderInterface, cArgs *provider.CommonArguments) error {
 	if cArgs.Version == "" {
-		version, err := FindNewestRelease()
+		version, err := FindNewestRelease(ctx)
 		if err != nil {
 			return err
 		}
@@ -149,10 +149,14 @@ type tagsAPIResponse struct {
 }
 
 // FindNewestRelease queries the Docker Hub and gets the first release tag (i.e. not a release candidate, alpha, etc).
-func FindNewestRelease() (string, error) {
+func FindNewestRelease(ctx context.Context) (string, error) {
 	page := "https://registry.hub.docker.com/v2/repositories/liqo/liqo-controller-manager/tags/"
 	for {
-		resp, err := http.Get(page)
+		req, err := http.NewRequestWithContext(ctx, http.MethodGet, page, nil)
+		if err != nil {
+			return "", err
+		}
+		resp, err := http.DefaultClient.Do(req)
 		if err != nil {
 			return "", err
 		}
