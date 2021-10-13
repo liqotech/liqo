@@ -112,10 +112,14 @@ func runRootCommand(ctx context.Context, c *Opts) error {
 		HomeClusterID:   c.HomeClusterID,
 		RemoteClusterID: c.ForeignClusterID,
 
-		Namespace:            c.KubeletNamespace,
-		NodeName:             c.NodeName,
+		Namespace: c.KubeletNamespace,
+		NodeName:  c.NodeName,
+
 		LiqoIpamServer:       c.LiqoIpamServer,
 		InformerResyncPeriod: c.InformerResyncPeriod,
+
+		ServiceWorkers:       c.ServiceWorkers,
+		EndpointSliceWorkers: c.EndpointSliceWorkers,
 	}
 
 	podProvider, err := podprovider.NewLiqoProvider(ctx, &podcfg)

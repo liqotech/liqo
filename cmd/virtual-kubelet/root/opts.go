@@ -32,7 +32,10 @@ const (
 	DefaultLiqoInformerResyncPeriod time.Duration = 0
 	DefaultMetricsAddr                            = ":10255"
 	DefaultListenPort                             = 10250
-	DefaultPodSyncWorkers                         = 10
+
+	DefaultPodSyncWorkers       = 10
+	DefaultServiceWorkers       = 3
+	DefaultEndpointSliceWorkers = 10
 
 	DefaultKubeletNamespace = "default"
 	DefaultLiqoIpamServer   = consts.NetworkManagerServiceName
@@ -54,8 +57,10 @@ type Opts struct {
 
 	MetricsAddr string
 
-	// Number of workers to use to handle pod notifications
-	PodSyncWorkers uint
+	// Number of workers to use to handle pod notifications and resource reflection
+	PodSyncWorkers       uint
+	ServiceWorkers       uint
+	EndpointSliceWorkers uint
 
 	InformerResyncPeriod     time.Duration
 	LiqoInformerResyncPeriod time.Duration
@@ -92,6 +97,14 @@ func SetDefaultOpts(c *Opts) error {
 
 	if c.PodSyncWorkers == 0 {
 		c.PodSyncWorkers = DefaultPodSyncWorkers
+	}
+
+	if c.ServiceWorkers == 0 {
+		c.ServiceWorkers = DefaultServiceWorkers
+	}
+
+	if c.EndpointSliceWorkers == 0 {
+		c.EndpointSliceWorkers = DefaultEndpointSliceWorkers
 	}
 
 	if c.ListenPort == 0 {

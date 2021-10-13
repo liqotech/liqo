@@ -35,6 +35,7 @@ import (
 	"github.com/liqotech/liqo/pkg/virtualKubelet/namespacesmapping"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/options"
 	optTypes "github.com/liqotech/liqo/pkg/virtualKubelet/options/types"
+	"github.com/liqotech/liqo/pkg/virtualKubelet/reflection/exposition"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/reflection/manager"
 )
 
@@ -52,6 +53,9 @@ type InitConfig struct {
 	NodeName             string
 	LiqoIpamServer       string
 	InformerResyncPeriod time.Duration
+
+	ServiceWorkers       uint
+	EndpointSliceWorkers uint
 }
 
 // LiqoProvider implements the virtual-kubelet provider interface and stores pods in memory.
@@ -98,7 +102,10 @@ func NewLiqoProvider(ctx context.Context, cfg *InitConfig) (*LiqoProvider, error
 	remoteClusterIDOpt := optTypes.NewNetworkingOption(optTypes.RemoteClusterID, optTypes.NetworkingValue(cfg.RemoteClusterID))
 	forge.InitForger(nil, virtualNodeNameOpt, grpcServerNameOpt, localClusterIDOpt, remoteClusterIDOpt)
 
-	reflectionManager := manager.New(homeClient, foreignClient, 10*time.Hour)
+	// TODO: make the resync period configurable. This is currently hardcoded since the one specified as part of
+	// the configuration needs to be very low to avoid issues with the legacy reflection.
+	reflectionManager := manager.New(homeClient, foreignClient, 10*time.Hour).
+		With(exposition.NewServiceReflector(cfg.ServiceWorkers))
 	reflectionManager.Start(ctx)
 
 	mapper, err := namespacesmapping.NewNamespaceMapperController(ctx, cfg.HomeConfig, cfg.HomeClusterID, cfg.RemoteClusterID,

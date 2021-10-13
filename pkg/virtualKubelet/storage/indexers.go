@@ -33,7 +33,6 @@ var InformerIndexers = map[apimgmt.ApiType]func() cache.Indexers{
 	apimgmt.Pods:           podsIndexers,
 	apimgmt.ReplicaSets:    replicasetsIndexers,
 	apimgmt.Secrets:        secretsIndexers,
-	apimgmt.Services:       servicesIndexers,
 }
 
 func configmapsIndexers() cache.Indexers {
@@ -112,20 +111,6 @@ func secretsIndexers() cache.Indexers {
 		}
 		return []string{
 			strings.Join([]string{secret.Namespace, secret.Name}, "/"),
-		}, nil
-	}
-	return i
-}
-
-func servicesIndexers() cache.Indexers {
-	i := cache.Indexers{}
-	i["services"] = func(obj interface{}) ([]string, error) {
-		svc, ok := obj.(*corev1.Service)
-		if !ok {
-			return []string{}, errors.New("cannot convert obj to service")
-		}
-		return []string{
-			strings.Join([]string{svc.Namespace, svc.Name}, "/"),
 		}, nil
 	}
 	return i

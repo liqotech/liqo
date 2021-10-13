@@ -14,8 +14,64 @@
 
 package forge
 
-import corev1 "k8s.io/api/core/v1"
+import (
+	corev1 "k8s.io/api/core/v1"
+	corev1apply "k8s.io/client-go/applyconfigurations/core/v1"
+)
 
-func (f *apiForger) serviceHomeToForeign(homeService, foreignService *corev1.Service) (*corev1.Service, error) {
-	panic("to implement")
+// nodePortUnset -> the value representing an unset NodePort.
+const nodePortUnset = 0
+
+// RemoteService forges the apply patch for the reflected service, given the local one.
+func RemoteService(local *corev1.Service, targetNamespace string) *corev1apply.ServiceApplyConfiguration {
+	return corev1apply.Service(local.GetName(), targetNamespace).
+		WithLabels(local.GetLabels()).WithLabels(ReflectionLabels()).
+		WithAnnotations(local.GetAnnotations()).
+		WithSpec(RemoteServiceSpec(local.Spec.DeepCopy()))
+}
+
+// RemoteServiceSpec forges the apply patch for the specs of the reflected service, given the local ones.
+// It expects the local object to be a deepcopy, as it is mutated.
+func RemoteServiceSpec(local *corev1.ServiceSpec) *corev1apply.ServiceSpecApplyConfiguration {
+	remote := corev1apply.ServiceSpec().
+		WithType(local.Type).WithSelector(local.Selector).
+		WithPorts(RemoteServicePorts(local.Ports)...)
+
+	// The additional fields are set manually instead of using the "With" functions,
+	// to avoid issues if not set in the local object and thus nil. This requires the
+	// local object to be a deepcopy to avoid mutating the original from the cache.
+	remote.AllocateLoadBalancerNodePorts = local.AllocateLoadBalancerNodePorts
+	remote.ExternalTrafficPolicy = &local.ExternalTrafficPolicy
+	remote.InternalTrafficPolicy = local.InternalTrafficPolicy
+	remote.IPFamilyPolicy = local.IPFamilyPolicy
+	remote.LoadBalancerClass = local.LoadBalancerClass
+	remote.LoadBalancerSourceRanges = local.LoadBalancerSourceRanges
+	remote.PublishNotReadyAddresses = &local.PublishNotReadyAddresses
+	remote.SessionAffinity = &local.SessionAffinity
+
+	return remote
+}
+
+// RemoteServicePorts forges the apply patch for the ports of the reflected service, given the local ones.
+func RemoteServicePorts(locals []corev1.ServicePort) []*corev1apply.ServicePortApplyConfiguration {
+	var remotes []*corev1apply.ServicePortApplyConfiguration
+
+	for _, local := range locals {
+		remote := corev1apply.ServicePort().WithName(local.Name).WithPort(local.Port).
+			WithTargetPort(local.TargetPort).WithProtocol(local.Protocol)
+
+		if local.NodePort == nodePortUnset {
+			// Ensure the nodeport is unset in case it is removed, to allow
+			// switching from a NodePort to a ClusterIP service.
+			remote.WithNodePort(nodePortUnset)
+		}
+
+		if local.AppProtocol != nil {
+			// Need to check to avoid dereferencing a nil pointer.
+			remote.WithAppProtocol(*local.AppProtocol)
+		}
+		remotes = append(remotes, remote)
+	}
+
+	return remotes
 }

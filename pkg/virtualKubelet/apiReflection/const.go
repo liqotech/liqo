@@ -19,7 +19,6 @@ const (
 	EndpointSlices
 	Pods
 	ReplicaSets
-	Services
 	Secrets
 )
 
@@ -30,7 +29,6 @@ var ApiNames = map[ApiType]string{
 	EndpointSlices: "endpointslices",
 	Pods:           "pods",
 	ReplicaSets:    "replicasets",
-	Services:       "services",
 	Secrets:        "secrets",
 }
 
