@@ -16,7 +16,11 @@ package install
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
+	"io/ioutil"
+	"net/http"
+	"strings"
 
 	helm "github.com/mittwald/go-helm-client"
 	"gopkg.in/yaml.v3"
@@ -67,6 +71,14 @@ func initHelmClient(config *rest.Config, arguments *provider.CommonArguments) (*
 }
 
 func installOrUpdate(ctx context.Context, helmClient *helm.HelmClient, k provider.InstallProviderInterface, cArgs *provider.CommonArguments) error {
+	if cArgs.Version == "" {
+		version, err := findNewestRelease()
+		if err != nil {
+			return err
+		}
+		cArgs.Version = version
+	}
+
 	output, _, err := helmClient.GetChart(cArgs.ChartPath, &action.ChartPathOptions{Version: cArgs.Version})
 
 	if err != nil {
@@ -104,6 +116,7 @@ func installOrUpdate(ctx context.Context, helmClient *helm.HelmClient, k provide
 			DryRun:           cArgs.DryRun,
 			Devel:            cArgs.Devel,
 			Wait:             true,
+			Version:          cArgs.Version,
 		}
 
 		// provide the possibility to exit installation on context cancellation
@@ -124,6 +137,49 @@ func installOrUpdate(ctx context.Context, helmClient *helm.HelmClient, k provide
 		}
 	}
 	return nil
+}
+
+type tagsAPITag struct {
+	Name string
+}
+
+type tagsAPIResponse struct {
+	Next    string
+	Results []tagsAPITag
+}
+
+// findNewestRelease queries the Docker Hub and gets the first release tag (i.e. not a release candidate, alpha, etc)
+func findNewestRelease() (string, error) {
+	page := "https://registry.hub.docker.com/v2/repositories/liqo/liqo-controller-manager/tags/"
+	for {
+		resp, err := http.Get(page)
+		if err != nil {
+			return "", err
+		}
+		respJson, err := ioutil.ReadAll(resp.Body)
+		if err != nil {
+			return "", err
+		}
+		var response tagsAPIResponse
+		err = json.Unmarshal(respJson, &response)
+		if err != nil {
+			return "", err
+		}
+
+		for i := range response.Results {
+			tag := strings.ToLower(response.Results[i].Name)
+			if tag != "latest" &&
+				!strings.Contains(tag, "rc") &&
+				!strings.Contains(tag, "alpha") {
+				return tag, nil
+			}
+		}
+		// No tags found in this page; visit the next one
+		if response.Next == "" {
+			return "", fmt.Errorf("no release found in Docker tags")
+		}
+		page = response.Next
+	}
 }
 
 func generateValues(chartValues, commonValues, providerValues map[string]interface{}) (map[string]interface{}, error) {
