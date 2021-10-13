@@ -72,7 +72,7 @@ func initHelmClient(config *rest.Config, arguments *provider.CommonArguments) (*
 
 func installOrUpdate(ctx context.Context, helmClient *helm.HelmClient, k provider.InstallProviderInterface, cArgs *provider.CommonArguments) error {
 	if cArgs.Version == "" {
-		version, err := findNewestRelease()
+		version, err := FindNewestRelease()
 		if err != nil {
 			return err
 		}
@@ -148,29 +148,34 @@ type tagsAPIResponse struct {
 	Results []tagsAPITag
 }
 
-// findNewestRelease queries the Docker Hub and gets the first release tag (i.e. not a release candidate, alpha, etc)
-func findNewestRelease() (string, error) {
+// FindNewestRelease queries the Docker Hub and gets the first release tag (i.e. not a release candidate, alpha, etc).
+func FindNewestRelease() (string, error) {
 	page := "https://registry.hub.docker.com/v2/repositories/liqo/liqo-controller-manager/tags/"
 	for {
 		resp, err := http.Get(page)
 		if err != nil {
 			return "", err
 		}
-		respJson, err := ioutil.ReadAll(resp.Body)
+		respJSON, err := ioutil.ReadAll(resp.Body)
+		if err != nil {
+			return "", err
+		}
+		err = resp.Body.Close()
 		if err != nil {
 			return "", err
 		}
 		var response tagsAPIResponse
-		err = json.Unmarshal(respJson, &response)
+		err = json.Unmarshal(respJSON, &response)
 		if err != nil {
 			return "", err
 		}
 
 		for i := range response.Results {
-			tag := strings.ToLower(response.Results[i].Name)
-			if tag != "latest" &&
-				!strings.Contains(tag, "rc") &&
-				!strings.Contains(tag, "alpha") {
+			tag := response.Results[i].Name
+			tagLower := strings.ToLower(tag)
+			if tagLower != "latest" &&
+				!strings.Contains(tagLower, "rc") &&
+				!strings.Contains(tagLower, "alpha") {
 				return tag, nil
 			}
 		}
