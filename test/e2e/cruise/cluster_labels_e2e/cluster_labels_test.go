@@ -197,7 +197,7 @@ var _ = Describe("Liqo E2E", func() {
 			for i := range virtualNodesList.Items {
 				match, err := k8shelper.MatchNodeSelectorTerms(&virtualNodesList.Items[i], util.GetClusterSelector())
 				Expect(err).To(BeNil())
-				remoteClusterID := virtualNodesList.Items[i].Annotations[liqoconst.RemoteClusterID]
+				remoteClusterID := virtualNodesList.Items[i].Labels[liqoconst.RemoteClusterID]
 
 				var cl kubernetes.Interface
 				for j := range testContext.Clusters {

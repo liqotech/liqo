@@ -24,6 +24,7 @@ import (
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/ginkgo/extensions/table"
 	. "github.com/onsi/gomega"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/liqotech/liqo/test/e2e/testconsts"
 	"github.com/liqotech/liqo/test/e2e/testutils/microservices"
@@ -163,11 +164,53 @@ var _ = Describe("Liqo E2E", func() {
 		})
 
 		Context("E2E Testing with Online Boutique", func() {
-			It("Testing online boutique", func() {
+
+			const (
+				manifestBasePath = "https://raw.githubusercontent.com/liqotech/microservices-demo/master/release/"
+			)
+
+			type manifest struct {
+				fileName    string
+				minNCluster int
+			}
+
+			var (
+				manifests = []manifest{
+					{
+						fileName:    "kubernetes-manifests.yaml",
+						minNCluster: 2,
+					},
+					{
+						fileName:    "fixed-2clusters.yaml",
+						minNCluster: 2,
+					},
+					{
+						fileName:    "fixed-3clusters.yaml",
+						minNCluster: 3,
+					},
+				}
+
+				generateTableEntries = func() []TableEntry {
+					var entries []TableEntry
+					for i := range manifests {
+						if testContext.ClustersNumber < manifests[i].minNCluster {
+							continue
+						}
+						entries = append(entries, Entry(
+							fmt.Sprintf("Deploying the Online Boutique app with manifest %v", manifests[i].fileName),
+							fmt.Sprintf("%v%v", manifestBasePath, manifests[i].fileName),
+							fmt.Sprintf("%v-%v", microservices.TestNamespaceName, i),
+						))
+					}
+					return entries
+				}
+			)
+
+			DescribeTable("Testing online boutique", func(manifest, namespace string) {
 				By("Deploying the Online Boutique app")
-				options := k8s.NewKubectlOptions("", testContext.Clusters[0].KubeconfigPath, microservices.TestNamespaceName)
+				options := k8s.NewKubectlOptions("", testContext.Clusters[0].KubeconfigPath, namespace)
 				defer GinkgoRecover()
-				err := microservices.DeployApp(GinkgoT(), testContext.Clusters[0].KubeconfigPath)
+				err := microservices.DeployApp(GinkgoT(), testContext.Clusters[0].KubeconfigPath, manifest, namespace)
 				Expect(err).ShouldNot(HaveOccurred())
 
 				By("Waiting until each service of the application has ready endpoints")
@@ -175,13 +218,16 @@ var _ = Describe("Liqo E2E", func() {
 
 				By("Checking if all pods deployed in the test namespace have the right NodeAffinity")
 				Eventually(func() bool {
-					return microservices.CheckPodsNodeAffinity(ctx, testContext.Clusters[0].NativeClient)
+					return microservices.CheckPodsNodeAffinity(ctx, testContext.Clusters[0].NativeClient, namespace)
 				}, timeout, interval).Should(BeTrue())
 
 				By("Verify Online Boutique Connectivity")
 				err = microservices.CheckApplicationIsWorking(GinkgoT(), options)
 				Expect(err).ShouldNot(HaveOccurred())
-			})
+
+				// cleanup the namespace
+				Expect(testContext.Clusters[0].NativeClient.CoreV1().Namespaces().Delete(ctx, namespace, metav1.DeleteOptions{})).To(Succeed())
+			}, generateTableEntries()...)
 		})
 
 		AfterSuite(func() {
