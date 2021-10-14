@@ -207,6 +207,13 @@ virtualKubelet:
       # -- virtual node extra labels
       labels: {}
 
+storage:
+  enable: false
+  # -- name to assign to the liqo virtual storage class
+  storageClassName: liqo
+  # -- namespace where liqo will deploy specific PVCs
+  storageNamespace: liqo-storage
+
 # -- liqo name override
 nameOverride: ""
 # -- full liqo name override

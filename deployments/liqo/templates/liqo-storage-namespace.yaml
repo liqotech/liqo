@@ -1,0 +1,8 @@
+{{- if .Values.storage.enable -}}
+
+kind: Namespace
+apiVersion: v1
+metadata:
+  name: {{ .Values.storage.storageNamespace }}
+
+{{- end -}}
