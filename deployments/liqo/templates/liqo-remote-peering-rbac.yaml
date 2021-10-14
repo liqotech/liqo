@@ -4,7 +4,7 @@
 {{- $crdReplicatorConfig := (merge (dict "name" "crd-replicator" "module" "dispatcher") .) -}}
 
 {{- $authConfig := (merge (dict "name" "auth" "module" "discovery") .) -}}
-{{- $discoveryConfig := (merge (dict "name" "discovery" "module" "discovery") .) -}}
+{{- $ctrlManagerConfig := (merge (dict "name" "controller-manager" "module" "controller-manager") .) -}}
 
 # to be enabled with the creation of the Tenant Namespace,
 # this ClusterRole has the basic permissions to give to a remote cluster
@@ -64,7 +64,7 @@ subjects:
     name: {{ include "liqo.prefixedName" $authConfig }}
     namespace: {{ .Release.Namespace }}
   - kind: ServiceAccount
-    name: {{ include "liqo.prefixedName" $discoveryConfig }}
+    name: {{ include "liqo.prefixedName" $ctrlManagerConfig }}
     namespace: {{ .Release.Namespace }}
   - kind: ServiceAccount
     name: {{ include "liqo.prefixedName" $crdReplicatorConfig }}
@@ -85,7 +85,7 @@ subjects:
     name: {{ include "liqo.prefixedName" $authConfig }}
     namespace: {{ .Release.Namespace }}
   - kind: ServiceAccount
-    name: {{ include "liqo.prefixedName" $discoveryConfig }}
+    name: {{ include "liqo.prefixedName" $ctrlManagerConfig }}
     namespace: {{ .Release.Namespace }}
   - kind: ServiceAccount
     name: {{ include "liqo.prefixedName" $crdReplicatorConfig }}
@@ -106,7 +106,7 @@ subjects:
     name: {{ include "liqo.prefixedName" $authConfig }}
     namespace: {{ .Release.Namespace }}
   - kind: ServiceAccount
-    name: {{ include "liqo.prefixedName" $discoveryConfig }}
+    name: {{ include "liqo.prefixedName" $ctrlManagerConfig }}
     namespace: {{ .Release.Namespace }}
   - kind: ServiceAccount
     name: {{ include "liqo.prefixedName" $crdReplicatorConfig }}
