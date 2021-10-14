@@ -35,16 +35,15 @@ import (
 const (
 	retries             = 60
 	sleepBetweenRetries = 3 * time.Second
-	kubeResourcePath    = "https://raw.githubusercontent.com/liqotech/microservices-demo/master/release/kubernetes-manifests.yaml"
 	// TestNamespaceName is the namespace name where the test is performed.
 	TestNamespaceName = "test-app"
 )
 
 // DeployApp creates the namespace and deploy the applications. It returns an error in case of failures.
-func DeployApp(t ginkgo.GinkgoTInterface, configPath string) error {
-	options := k8s.NewKubectlOptions("", configPath, TestNamespaceName)
+func DeployApp(t ginkgo.GinkgoTInterface, configPath, kubeResourcePath, namespace string) error {
+	options := k8s.NewKubectlOptions("", configPath, namespace)
 	if err := k8s.CreateNamespaceWithMetadataE(t, options, metav1.ObjectMeta{
-		Name:   "test-app",
+		Name:   namespace,
 		Labels: testutils.GetNamespaceLabel(true),
 	}); err != nil {
 		return err
@@ -122,12 +121,12 @@ func getNodes(t ginkgo.GinkgoTInterface, options *k8s.KubectlOptions) ([]corev1.
 }
 
 // CheckPodsNodeAffinity checks if the pods deployed in the namespace are correctly mutated by the webhook.
-func CheckPodsNodeAffinity(ctx context.Context, homeClient kubernetes.Interface) bool {
+func CheckPodsNodeAffinity(ctx context.Context, homeClient kubernetes.Interface, namespace string) bool {
 	labelAppKey := "app"
 	labelAppValue := "frontend"
-	pods, err := homeClient.CoreV1().Pods(TestNamespaceName).List(ctx, metav1.ListOptions{})
+	pods, err := homeClient.CoreV1().Pods(namespace).List(ctx, metav1.ListOptions{})
 	if err != nil {
-		klog.Errorf("%s -> unable to list pods in the namespace '%s'", err, TestNamespaceName)
+		klog.Errorf("%s -> unable to list pods in the namespace '%s'", err, namespace)
 		return false
 	}
 	if len(pods.Items) == 0 {
@@ -136,14 +135,24 @@ func CheckPodsNodeAffinity(ctx context.Context, homeClient kubernetes.Interface)
 	for i := range pods.Items {
 		ginkgo.By(fmt.Sprintf("Checking that pod '%s' has the right node affinity", pods.Items[i].Name))
 		if value, ok := pods.Items[i].Labels[labelAppKey]; ok && value == labelAppValue {
-			gomega.Expect(*pods.Items[i].Spec.Affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution).
-				To(gomega.Equal(getFrontendPodNodeAffinity()))
+			checkExpectedAffinity(*pods.Items[i].Spec.Affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution, getFrontendPodNodeAffinity())
 			continue
 		}
-		gomega.Expect(*pods.Items[i].Spec.Affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution).
-			To(gomega.Equal(getDefaultPodNodeAffinity()))
+		checkExpectedAffinity(*pods.Items[i].Spec.Affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution, getDefaultPodNodeAffinity())
 	}
 	return true
+}
+
+// checkExpectedAffinity checks that the expected expressions are contained in the selector.
+func checkExpectedAffinity(nodeSelector, expected corev1.NodeSelector) {
+	for i, item := range nodeSelector.NodeSelectorTerms {
+		expectedItem := &expected.NodeSelectorTerms[i]
+		for j := range expectedItem.MatchExpressions {
+			// we check that the expected value is contained in the list, this allows the applications to have some
+			// pre-defined node affinities (e.g. to force a scheduling over the infrastructure).
+			gomega.Expect(item.MatchExpressions).To(gomega.ContainElements(expectedItem.MatchExpressions[j]))
+		}
+	}
 }
 
 // getDefaultPodNodeAffinity provides the node affinity placed on the pod by the webhook.

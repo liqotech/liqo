@@ -212,4 +212,4 @@ installer/%:
 	${PWD}/test/e2e/pipeline/$@.sh
 
 e2e/%:
-	go test ${PWD}/test/$@/... -count=1
+	go test ${PWD}/test/$@/... -count=1 -timeout=20m
