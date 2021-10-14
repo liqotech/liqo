@@ -469,15 +469,6 @@ func shadowPodFilter(options *metav1.ListOptions) {
 	options.LabelSelector = labels.NewSelector().Add(*req).String()
 }
 
-func isVirtualNode(node *corev1.Node) bool {
-	if virtualLabel, exists := node.Labels[consts.TypeLabel]; exists {
-		if virtualLabel == consts.TypeNode {
-			return true
-		}
-	}
-	return false
-}
-
 func isShadowPod(podToCheck *corev1.Pod) bool {
 	if shadowLabel, exists := podToCheck.Labels[consts.LocalPodLabelKey]; exists {
 		if shadowLabel == consts.LocalPodLabelValue {

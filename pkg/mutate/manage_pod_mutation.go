@@ -22,6 +22,7 @@ import (
 
 	offv1alpha1 "github.com/liqotech/liqo/apis/offloading/v1alpha1"
 	liqoconst "github.com/liqotech/liqo/pkg/consts"
+	"github.com/liqotech/liqo/pkg/utils"
 )
 
 // getVirtualNodeToleration returns a new Toleration for the Liqo's virtual-nodes.
@@ -83,26 +84,6 @@ func createNodeSelectorFromNamespaceOffloading(nsoff *offv1alpha1.NamespaceOfflo
 	return nodeSelector, nil
 }
 
-// getMergedNodeSelector gets the old PodNodeSelector and merges it with the ImposedNodeSelector.
-// Every MatchExpression of the PodNodeSelector must be merged with all the MatchExpressions of the ImposedNodeSelector:
-// n PodNodeSelector MatchExpressions.
-// m ImposedNodeSelector MatchExpressions.
-// m * n MergedNoseSelector MatchExpressions.
-func getMergedNodeSelector(podNodeSelector *corev1.NodeSelector,
-	imposedNodeSelector *corev1.NodeSelector) corev1.NodeSelector {
-	mergedNodeSelector := corev1.NodeSelector{NodeSelectorTerms: []corev1.NodeSelectorTerm{}}
-	for i := range podNodeSelector.NodeSelectorTerms {
-		for j := range imposedNodeSelector.NodeSelectorTerms {
-			newMatchExpression := append(imposedNodeSelector.NodeSelectorTerms[j].MatchExpressions,
-				podNodeSelector.NodeSelectorTerms[i].MatchExpressions...)
-			mergedNodeSelector.NodeSelectorTerms = append(mergedNodeSelector.NodeSelectorTerms, corev1.NodeSelectorTerm{
-				MatchExpressions: newMatchExpression,
-			})
-		}
-	}
-	return mergedNodeSelector
-}
-
 // fillPodWithTheNewNodeSelector gets the previously computed NodeSelector imposed by the PodOffloadingStrategy and
 // merges it with the Pod NodeSelector if it is already present. It simply adds it to the Pod if previously unset.
 func fillPodWithTheNewNodeSelector(imposedNodeSelector *corev1.NodeSelector, pod *corev1.Pod) {
@@ -124,7 +105,7 @@ func fillPodWithTheNewNodeSelector(imposedNodeSelector *corev1.NodeSelector, pod
 		pod.Spec.Affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution = imposedNodeSelector.DeepCopy()
 	default:
 		*pod.Spec.Affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution =
-			getMergedNodeSelector(pod.Spec.Affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution,
+			utils.MergeNodeSelector(pod.Spec.Affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution,
 				imposedNodeSelector)
 	}
 }

@@ -39,6 +39,7 @@ import (
 	"github.com/liqotech/liqo/pkg/consts"
 	"github.com/liqotech/liqo/pkg/discovery"
 	"github.com/liqotech/liqo/pkg/liqo-controller-manager/resource-request-controller/testutils"
+	"github.com/liqotech/liqo/pkg/utils"
 )
 
 const (
@@ -480,11 +481,11 @@ var _ = Describe("ResourceRequest Operator", func() {
 				return resourceRequest.Finalizers
 			}, timeout, interval).Should(ContainElement(tenantFinalizer))
 			By("Testing check function returning false")
-			Expect(isVirtualNode(node2)).ShouldNot(BeTrue())
+			Expect(utils.IsVirtualNode(node2)).ShouldNot(BeTrue())
 			podReq, _ := resourcehelper.PodRequestsAndLimits(podWithoutLabel)
 			virtualNode, err := testutils.CreateNewNode(ctx, "test-virtual-node", true, clientset)
 			Expect(err).ToNot(HaveOccurred())
-			Expect(isVirtualNode(virtualNode)).Should(BeTrue())
+			Expect(utils.IsVirtualNode(virtualNode)).Should(BeTrue())
 			By("Expected no change on resources")
 			Eventually(func() bool {
 				nodeList := []corev1.ResourceList{

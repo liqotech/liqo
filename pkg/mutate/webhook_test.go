@@ -27,6 +27,7 @@ import (
 	offv1alpha1 "github.com/liqotech/liqo/apis/offloading/v1alpha1"
 	liqoconst "github.com/liqotech/liqo/pkg/consts"
 	testutils "github.com/liqotech/liqo/pkg/mutate/testUtils"
+	"github.com/liqotech/liqo/pkg/utils"
 )
 
 func TestWebhookManager(t *testing.T) {
@@ -93,7 +94,7 @@ var _ = Describe("Webhook", func() {
 		It("Check the merged NodeSelector", func() {
 			podNodeSelector := testutils.GetPodNodeSelector()
 			imposedNodeSelector := testutils.GetImposedNodeSelector("")
-			mergedNodeSelector := getMergedNodeSelector(&podNodeSelector, &imposedNodeSelector)
+			mergedNodeSelector := utils.MergeNodeSelector(&podNodeSelector, &imposedNodeSelector)
 			expectedMergedNodeSelector := testutils.GetMergedNodeSelector("")
 			Expect(mergedNodeSelector).To(Equal(expectedMergedNodeSelector))
 		})

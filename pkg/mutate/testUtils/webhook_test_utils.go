@@ -276,52 +276,9 @@ func GetMergedNodeSelector(strategy offv1alpha1.PodOffloadingStrategyType) corev
 			{
 				MatchExpressions: []corev1.NodeSelectorRequirement{
 					{
-						Key:      "region",
-						Operator: corev1.NodeSelectorOpIn,
-						Values:   []string{"A,B"},
-					},
-					{
-						Key:      "provider",
-						Operator: corev1.NodeSelectorOpExists,
-					},
-					{
 						Key:      "storage",
 						Operator: corev1.NodeSelectorOpExists,
 					},
-				},
-			},
-			{
-				MatchExpressions: []corev1.NodeSelectorRequirement{
-					{
-						Key:      "region",
-						Operator: corev1.NodeSelectorOpIn,
-						Values:   []string{"C,D"},
-					},
-					{
-						Key:      "NotProvider",
-						Operator: corev1.NodeSelectorOpExists,
-					},
-					{
-						Key:      "storage",
-						Operator: corev1.NodeSelectorOpExists,
-					},
-				},
-			},
-			{
-				MatchExpressions: []corev1.NodeSelectorRequirement{
-					{
-						Key:      liqoconst.TypeLabel,
-						Operator: corev1.NodeSelectorOpNotIn,
-						Values:   []string{liqoconst.TypeNode},
-					},
-					{
-						Key:      "storage",
-						Operator: corev1.NodeSelectorOpExists,
-					},
-				},
-			},
-			{
-				MatchExpressions: []corev1.NodeSelectorRequirement{
 					{
 						Key:      "region",
 						Operator: corev1.NodeSelectorOpIn,
@@ -331,15 +288,14 @@ func GetMergedNodeSelector(strategy offv1alpha1.PodOffloadingStrategyType) corev
 						Key:      "provider",
 						Operator: corev1.NodeSelectorOpExists,
 					},
-					{
-						Key:      "provider",
-						Operator: corev1.NodeSelectorOpIn,
-						Values:   []string{"AWS"},
-					},
 				},
 			},
 			{
 				MatchExpressions: []corev1.NodeSelectorRequirement{
+					{
+						Key:      "storage",
+						Operator: corev1.NodeSelectorOpExists,
+					},
 					{
 						Key:      "region",
 						Operator: corev1.NodeSelectorOpIn,
@@ -349,24 +305,68 @@ func GetMergedNodeSelector(strategy offv1alpha1.PodOffloadingStrategyType) corev
 						Key:      "NotProvider",
 						Operator: corev1.NodeSelectorOpExists,
 					},
+				},
+			},
+			{
+				MatchExpressions: []corev1.NodeSelectorRequirement{
 					{
-						Key:      "provider",
-						Operator: corev1.NodeSelectorOpIn,
-						Values:   []string{"AWS"},
+						Key:      "storage",
+						Operator: corev1.NodeSelectorOpExists,
+					},
+					{
+						Key:      liqoconst.TypeLabel,
+						Operator: corev1.NodeSelectorOpNotIn,
+						Values:   []string{liqoconst.TypeNode},
 					},
 				},
 			},
 			{
 				MatchExpressions: []corev1.NodeSelectorRequirement{
 					{
-						Key:      liqoconst.TypeLabel,
-						Operator: corev1.NodeSelectorOpNotIn,
-						Values:   []string{liqoconst.TypeNode},
+						Key:      "provider",
+						Operator: corev1.NodeSelectorOpIn,
+						Values:   []string{"AWS"},
 					},
+					{
+						Key:      "region",
+						Operator: corev1.NodeSelectorOpIn,
+						Values:   []string{"A,B"},
+					},
+					{
+						Key:      "provider",
+						Operator: corev1.NodeSelectorOpExists,
+					},
+				},
+			},
+			{
+				MatchExpressions: []corev1.NodeSelectorRequirement{
 					{
 						Key:      "provider",
 						Operator: corev1.NodeSelectorOpIn,
 						Values:   []string{"AWS"},
+					},
+					{
+						Key:      "region",
+						Operator: corev1.NodeSelectorOpIn,
+						Values:   []string{"C,D"},
+					},
+					{
+						Key:      "NotProvider",
+						Operator: corev1.NodeSelectorOpExists,
+					},
+				},
+			},
+			{
+				MatchExpressions: []corev1.NodeSelectorRequirement{
+					{
+						Key:      "provider",
+						Operator: corev1.NodeSelectorOpIn,
+						Values:   []string{"AWS"},
+					},
+					{
+						Key:      liqoconst.TypeLabel,
+						Operator: corev1.NodeSelectorOpNotIn,
+						Values:   []string{liqoconst.TypeNode},
 					},
 				},
 			},
@@ -376,39 +376,9 @@ func GetMergedNodeSelector(strategy offv1alpha1.PodOffloadingStrategyType) corev
 			{
 				MatchExpressions: []corev1.NodeSelectorRequirement{
 					{
-						Key:      "region",
-						Operator: corev1.NodeSelectorOpIn,
-						Values:   []string{"A,B"},
-					},
-					{
-						Key:      "provider",
-						Operator: corev1.NodeSelectorOpExists,
-					},
-					{
 						Key:      "storage",
 						Operator: corev1.NodeSelectorOpExists,
 					},
-				},
-			},
-			{
-				MatchExpressions: []corev1.NodeSelectorRequirement{
-					{
-						Key:      "region",
-						Operator: corev1.NodeSelectorOpIn,
-						Values:   []string{"C,D"},
-					},
-					{
-						Key:      "NotProvider",
-						Operator: corev1.NodeSelectorOpExists,
-					},
-					{
-						Key:      "storage",
-						Operator: corev1.NodeSelectorOpExists,
-					},
-				},
-			},
-			{
-				MatchExpressions: []corev1.NodeSelectorRequirement{
 					{
 						Key:      "region",
 						Operator: corev1.NodeSelectorOpIn,
@@ -418,15 +388,14 @@ func GetMergedNodeSelector(strategy offv1alpha1.PodOffloadingStrategyType) corev
 						Key:      "provider",
 						Operator: corev1.NodeSelectorOpExists,
 					},
-					{
-						Key:      "provider",
-						Operator: corev1.NodeSelectorOpIn,
-						Values:   []string{"AWS"},
-					},
 				},
 			},
 			{
 				MatchExpressions: []corev1.NodeSelectorRequirement{
+					{
+						Key:      "storage",
+						Operator: corev1.NodeSelectorOpExists,
+					},
 					{
 						Key:      "region",
 						Operator: corev1.NodeSelectorOpIn,
@@ -436,10 +405,41 @@ func GetMergedNodeSelector(strategy offv1alpha1.PodOffloadingStrategyType) corev
 						Key:      "NotProvider",
 						Operator: corev1.NodeSelectorOpExists,
 					},
+				},
+			},
+			{
+				MatchExpressions: []corev1.NodeSelectorRequirement{
 					{
 						Key:      "provider",
 						Operator: corev1.NodeSelectorOpIn,
 						Values:   []string{"AWS"},
+					},
+					{
+						Key:      "region",
+						Operator: corev1.NodeSelectorOpIn,
+						Values:   []string{"A,B"},
+					},
+					{
+						Key:      "provider",
+						Operator: corev1.NodeSelectorOpExists,
+					},
+				},
+			},
+			{
+				MatchExpressions: []corev1.NodeSelectorRequirement{
+					{
+						Key:      "provider",
+						Operator: corev1.NodeSelectorOpIn,
+						Values:   []string{"AWS"},
+					},
+					{
+						Key:      "region",
+						Operator: corev1.NodeSelectorOpIn,
+						Values:   []string{"C,D"},
+					},
+					{
+						Key:      "NotProvider",
+						Operator: corev1.NodeSelectorOpExists,
 					},
 				},
 			},

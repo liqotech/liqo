@@ -56,6 +56,7 @@ require (
 	k8s.io/utils v0.0.0-20210820185131-d34e5cb4466e
 	sigs.k8s.io/aws-iam-authenticator v0.5.3
 	sigs.k8s.io/controller-runtime v0.10.0
+	sigs.k8s.io/sig-storage-lib-external-provisioner/v7 v7.0.1
 )
 
 replace github.com/virtual-kubelet/virtual-kubelet => github.com/liqotech/virtual-kubelet v1.5.1-0.20211028083903-28902eb9305f
