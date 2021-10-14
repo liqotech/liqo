@@ -27,7 +27,7 @@ Beware that the MTU is a global property of the network path between endpoints, 
 For example if you are interconnecting two clusters one running in AKS and the other one in GCE the MTU should be set to 1340 for both clusters.
 {{% /notice %}}
 
-|Network MTU	| Li Liqo Wireguard MTU(IPV4)|   	
+|Network MTU	| Liqo Wireguard MTU(IPV4)  |   	
 |---	        |---                        |
 |   1500        |   1440                    |
 |   9000	    |   8940                    |
