@@ -18,6 +18,7 @@ import (
 	"context"
 
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/klog/v2"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
@@ -30,8 +31,12 @@ type Reconciler struct {
 	Scheme *runtime.Scheme
 }
 
+// +kubebuilder:rbac:groups=virtualkubelet.liqo.io,resources=shadowpod,verbs=get;list;watch;update;patch;delete
+
 // Reconcile ShadowPods objects.
 func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
+	klog.Info("shadowpod" + req.NamespacedName.String())
+
 	return ctrl.Result{}, nil
 }
 
