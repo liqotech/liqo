@@ -12,11 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package errorsmanagement
+package errors
 
 import (
 	"flag"
 
+	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/klog/v2"
 )
 
@@ -50,4 +51,14 @@ func Must(err error) bool {
 		}
 	}
 	return true
+}
+
+// IgnoreAlreadyExists returns nil on AlreadyExists errors.
+// All other values that are not AlreadyExists errors or nil are returned unmodified.
+func IgnoreAlreadyExists(err error) error {
+	if kerrors.IsAlreadyExists(err) {
+		return nil
+	}
+
+	return err
 }

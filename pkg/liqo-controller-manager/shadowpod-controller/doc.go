@@ -12,5 +12,5 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package errorsmanagement contains all utility function to use in case of errors.
-package errorsmanagement
+// Package shadowpodctrl contains Shadowpod Controller logic.
+package shadowpodctrl

@@ -35,7 +35,7 @@ import (
 	"github.com/liqotech/liqo/pkg/consts"
 	"github.com/liqotech/liqo/pkg/liqo-controller-manager/resource-request-controller/interfaces"
 	"github.com/liqotech/liqo/pkg/utils"
-	errorsmanagement "github.com/liqotech/liqo/pkg/utils/errorsManagement"
+	liqoerrors "github.com/liqotech/liqo/pkg/utils/errors"
 	"github.com/liqotech/liqo/pkg/utils/pod"
 	"github.com/liqotech/liqo/pkg/virtualKubelet/forge"
 )
@@ -258,7 +258,7 @@ func (b *Broadcaster) onPodDelete(obj interface{}) {
 
 // write nodes resources in thread safe mode.
 func (b *Broadcaster) writeClusterResources(newResources corev1.ResourceList) {
-	if !errorsmanagement.Must(checkSign(newResources)) {
+	if !liqoerrors.Must(checkSign(newResources)) {
 		setZero(&newResources)
 	}
 	b.nodeMutex.Lock()
@@ -277,7 +277,7 @@ func (b *Broadcaster) writePodResources(clusterID string, newResources corev1.Re
 	if clusterID == "" {
 		return
 	}
-	if !errorsmanagement.Must(checkSign(newResources)) {
+	if !liqoerrors.Must(checkSign(newResources)) {
 		setZero(&newResources)
 	}
 	b.podMutex.Lock()

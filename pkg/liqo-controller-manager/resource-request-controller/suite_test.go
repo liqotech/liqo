@@ -34,7 +34,7 @@ import (
 	discoveryv1alpha1 "github.com/liqotech/liqo/apis/discovery/v1alpha1"
 	sharingv1alpha1 "github.com/liqotech/liqo/apis/sharing/v1alpha1"
 	"github.com/liqotech/liqo/pkg/liqo-controller-manager/resource-request-controller/testutils"
-	errorsmanagement "github.com/liqotech/liqo/pkg/utils/errorsManagement"
+	liqoerrors "github.com/liqotech/liqo/pkg/utils/errors"
 )
 
 var (
@@ -85,7 +85,7 @@ func createCluster() {
 	})
 	Expect(err).ToNot(HaveOccurred())
 	// Disabling panic on failure.
-	errorsmanagement.SetPanicOnErrorMode(false)
+	liqoerrors.SetPanicOnErrorMode(false)
 	clientset = kubernetes.NewForConfigOrDie(k8sManager.GetConfig())
 	homeClusterID = "test-cluster"
 
