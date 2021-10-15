@@ -45,6 +45,7 @@ import (
 	resourceRequestOperator "github.com/liqotech/liqo/pkg/liqo-controller-manager/resource-request-controller"
 	resourceoffercontroller "github.com/liqotech/liqo/pkg/liqo-controller-manager/resourceoffer-controller"
 	searchdomainoperator "github.com/liqotech/liqo/pkg/liqo-controller-manager/search-domain-operator"
+	shadowpodctrl "github.com/liqotech/liqo/pkg/liqo-controller-manager/shadowpod-controller"
 	virtualNodectrl "github.com/liqotech/liqo/pkg/liqo-controller-manager/virtualNode-controller"
 	"github.com/liqotech/liqo/pkg/mapperUtils"
 	peeringroles "github.com/liqotech/liqo/pkg/peering-roles"
@@ -298,6 +299,15 @@ func main() {
 	}
 
 	if err = namespaceOffloadingReconciler.SetupWithManager(mgr); err != nil {
+		klog.Fatal(err)
+	}
+
+	shadowPodReconciler := &shadowpodctrl.Reconciler{
+		Client: mgr.GetClient(),
+		Scheme: mgr.GetScheme(),
+	}
+
+	if err = shadowPodReconciler.SetupWithManager(mgr); err != nil {
 		klog.Fatal(err)
 	}
 

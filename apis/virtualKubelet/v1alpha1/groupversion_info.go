@@ -26,11 +26,23 @@ var (
 	// GroupVersion is group version used to register these objects.
 	GroupVersion = schema.GroupVersion{Group: "virtualkubelet.liqo.io", Version: "v1alpha1"}
 
+	// namespaceMapResource is the resource name used to register the NamespaceMap CRD.
+	namespaceMapResource = "namespacemaps"
+
 	// NamespaceMapGroupResource is group resource used to register these objects.
-	NamespaceMapGroupResource = schema.GroupResource{Group: GroupVersion.Group, Resource: "namespacemaps"}
+	NamespaceMapGroupResource = schema.GroupResource{Group: GroupVersion.Group, Resource: namespaceMapResource}
 
 	// NamespaceMapGroupVersionResource is groupResourceVersion used to register these objects.
-	NamespaceMapGroupVersionResource = schema.GroupVersionResource{Group: GroupVersion.Group, Version: "v1alpha1", Resource: "namespacemaps"}
+	NamespaceMapGroupVersionResource = GroupVersion.WithResource(namespaceMapResource)
+
+	// ShadowPodResource is the resource name used to register the ShadowPod CRD.
+	shadowPodResource = "shadowpods"
+
+	// ShadowPodGroupResource is group resource used to register these objects.
+	ShadowPodGroupResource = schema.GroupResource{Group: GroupVersion.Group, Resource: shadowPodResource}
+
+	// ShadowPodGroupVersionResource is groupResourceVersion used to register these objects.
+	ShadowPodGroupVersionResource = GroupVersion.WithResource(shadowPodResource)
 
 	// SchemeBuilder is used to add go types to the GroupVersionKind scheme.
 	SchemeBuilder = &scheme.Builder{GroupVersion: GroupVersion}
